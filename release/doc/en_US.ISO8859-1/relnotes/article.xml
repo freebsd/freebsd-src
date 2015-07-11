@@ -1173,8 +1173,8 @@
       <para><application>OpenSSL</application> has been updated to
 	version 0.9.8q.</para>
 
-      <para revision="266693"><application>sendmail</application> has
-	been updated to version 8.14.9.</para>
+      <para revision="285374"><application>sendmail</application> has
+	been updated to version 8.15.2.</para>
 
       <para>The <application>timezone</application> database has been
 	updated to the <application>tzdata2010o</application>
