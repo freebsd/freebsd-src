@@ -45,6 +45,7 @@ CFLAGS+= -DNETINET6 -DIPV6_FULL=0
 
 DPADD=	${LIBUTIL} ${LIBWRAP}
 LDADD=	-lutil -lwrap
+WARNS?=	0
 
 LIBSMDIR=	${.OBJDIR}/../../lib/libsm
 LIBSM=		${LIBSMDIR}/libsm.a
