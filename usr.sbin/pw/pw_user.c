@@ -231,7 +231,7 @@ pw_user(int mode, char *name, long id, struct cargs * args)
 	cnf = conf.userconf;
 
 	if (mode == M_NEXT)
-		return (pw_usernext(cnf, getarg(args, 'q') != NULL));
+		return (pw_usernext(cnf, conf.quiet));
 
 	/*
 	 * We can do all of the common legwork here

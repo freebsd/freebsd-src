@@ -122,7 +122,7 @@ pw_group(int mode, char *name, long id, struct cargs * args)
 	};
 
 	if (mode == M_NEXT)
-		return (pw_groupnext(cnf, getarg(args, 'q') != NULL));
+		return (pw_groupnext(cnf, conf.quiet));
 
 	if (mode == M_LOCK || mode == M_UNLOCK)
 		errx(EX_USAGE, "'lock' command is not available for groups");
