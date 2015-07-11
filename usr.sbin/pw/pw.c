@@ -314,6 +314,9 @@ main(int argc, char *argv[])
 		case 'o':
 			conf.checkduplicate = true;
 			break;
+		case 'q':
+			conf.quiet = true;
+			break;
 		default:
 			addarg(&arglist, ch, optarg);
 			break;
@@ -334,7 +337,7 @@ main(int argc, char *argv[])
 	 * We should immediately look for the -q 'quiet' switch so that we
 	 * don't bother with extraneous errors
 	 */
-	if (getarg(&arglist, 'q') != NULL)
+	if (conf.quiet)
 		freopen(_PATH_DEVNULL, "w", stderr);
 
 	/*
