@@ -29,18 +29,21 @@
 #ifndef SYS_DEV_RANDOM_HASH_H_INCLUDED
 #define	SYS_DEV_RANDOM_HASH_H_INCLUDED
 
+/* Keys are formed from cipher blocks */
 #define	RANDOM_KEYSIZE		32	/* (in bytes) == 256 bits */
 #define	RANDOM_KEYSIZE_WORDS	(RANDOM_KEYSIZE/sizeof(uint32_t))
 #define	RANDOM_BLOCKSIZE	16	/* (in bytes) == 128 bits */
 #define	RANDOM_BLOCKSIZE_WORDS	(RANDOM_BLOCKSIZE/sizeof(uint32_t))
 #define	RANDOM_KEYS_PER_BLOCK	(RANDOM_KEYSIZE/RANDOM_BLOCKSIZE)
+
+/* The size of the zero block portion used to form H_d(m) */
 #define	RANDOM_ZERO_BLOCKSIZE	64	/* (in bytes) == 512 zero bits */
 
-struct randomdev_hash {		/* Big! Make static! */
+struct randomdev_hash {
 	SHA256_CTX	sha;
 };
 
-struct randomdev_key {		/* Big! Make static! */
+struct randomdev_key {
 	keyInstance key;	/* Key schedule */
 	cipherInstance cipher;	/* Rijndael internal */
 };

@@ -62,7 +62,7 @@ __FBSDID("$FreeBSD$");
 #error "Cannot define both RANDOM_DUMMY and RANDOM_YARROW"
 #endif
 
-#define	RANDOM_MINOR	0
+#define	RANDOM_UNIT	0
 
 static d_read_t randomdev_read;
 static d_write_t randomdev_write;
@@ -107,12 +107,13 @@ dummy_random(void)
 
 struct random_algorithm random_alg_context = {
 	.ra_ident = "Dummy",
-	.ra_reseed = dummy_random,
-	.ra_seeded = (random_alg_seeded_t *)dummy_random_zero,
+	.ra_init_alg = NULL,
+	.ra_deinit_alg = NULL,
 	.ra_pre_read = dummy_random,
 	.ra_read = (random_alg_read_t *)dummy_random_zero,
-	.ra_post_read = dummy_random,
 	.ra_write = (random_alg_write_t *)dummy_random_zero,
+	.ra_reseed = dummy_random,
+	.ra_seeded = (random_alg_seeded_t *)dummy_random_zero,
 	.ra_event_processor = NULL,
 	.ra_poolcount = 0,
 };
@@ -122,6 +123,23 @@ struct random_algorithm random_alg_context = {
 LIST_HEAD(sources_head, random_sources);
 static struct sources_head source_list = LIST_HEAD_INITIALIZER(source_list);
 static u_int read_rate;
+
+static void
+random_alg_context_ra_init_alg(void *data)
+{
+
+	random_alg_context.ra_init_alg(data);
+}
+
+static void
+random_alg_context_ra_deinit_alg(void *data)
+{
+
+	random_alg_context.ra_deinit_alg(data);
+}
+
+SYSINIT(random_device, SI_SUB_RANDOM, SI_ORDER_THIRD, random_alg_context_ra_init_alg, NULL);
+SYSUNINIT(random_device, SI_SUB_RANDOM, SI_ORDER_THIRD, random_alg_context_ra_deinit_alg, NULL);
 
 #endif /* defined(RANDOM_DUMMY) */
 
@@ -142,15 +160,15 @@ randomdev_read(struct cdev *dev __unused, struct uio *uio, int flags)
 	random_alg_context.ra_pre_read();
 	/* (Un)Blocking logic */
 	error = 0;
-	while (!random_alg_context.ra_seeded() && error == 0) {
+	while (!random_alg_context.ra_seeded()) {
 		if (flags & O_NONBLOCK)	{
 			error = EWOULDBLOCK;
 			break;
 		}
-		tsleep(&random_alg_context, 0, "randrd", hz/10);
+		tsleep(&random_alg_context, 0, "randseed", hz/10);
 		/* keep tapping away at the pre-read until we seed/unblock. */
 		random_alg_context.ra_pre_read();
-		printf("random: %s unblock (error = %d)\n", __func__, error);
+		printf("random: %s unblock wait\n", __func__);
 	}
 	if (error == 0) {
 #if !defined(RANDOM_DUMMY)
@@ -160,10 +178,10 @@ randomdev_read(struct cdev *dev __unused, struct uio *uio, int flags)
 		nbytes = uio->uio_resid;
 		while (uio->uio_resid && !error) {
 			c = MIN(uio->uio_resid, PAGE_SIZE);
+			/* See the random_buf size requirements in the Yarrow/Fortuna code */
 			random_alg_context.ra_read(random_buf, c);
 			error = uiomove(random_buf, c, uio);
 		}
-		random_alg_context.ra_post_read();
 		if (nbytes != uio->uio_resid && (error == ERESTART || error == EINTR) )
 			/* Return partial read, not error. */
 			error = 0;
@@ -204,7 +222,6 @@ read_random(void *random_buf, u_int len)
 		memcpy(random_buf, local_buf, len);
 	} else
 		len = 0;
-	random_alg_context.ra_post_read();
 	return (len);
 }
 
@@ -382,7 +399,7 @@ randomdev_modevent(module_t mod __unused, int type, void *data __unused)
 	case MOD_LOAD:
 		printf("random: entropy device external interface\n");
 		random_dev = make_dev_credf(MAKEDEV_ETERNAL_KLD, &random_cdevsw,
-		    RANDOM_MINOR, NULL, UID_ROOT, GID_WHEEL, 0644, "random");
+		    RANDOM_UNIT, NULL, UID_ROOT, GID_WHEEL, 0644, "random");
 		make_dev_alias(random_dev, "urandom"); /* compatibility */
 		break;
 	case MOD_UNLOAD:
