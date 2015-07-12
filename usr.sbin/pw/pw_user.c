@@ -74,8 +74,9 @@ create_and_populate_homedir(struct passwd *pwd)
 	skeldir = cnf->dotdir;
 
 	if (skeldir != NULL && *skeldir != '\0') {
-		skelfd = openat(conf.rootfd, cnf->dotdir,
-		    O_DIRECTORY|O_CLOEXEC);
+		if (*skeldir == '/')
+			skeldir++;
+		skelfd = openat(conf.rootfd, skeldir, O_DIRECTORY|O_CLOEXEC);
 	}
 
 	copymkdir(conf.rootfd, pwd->pw_dir, skelfd, cnf->homemode, pwd->pw_uid,
@@ -449,8 +450,13 @@ pw_user(int mode, char *name, long id, struct cargs * args)
 	}
 
 	if ((arg = getarg(args, 'k')) != NULL) {
-		if (stat(cnf->dotdir = arg->val, &st) == -1 || !S_ISDIR(st.st_mode))
-			errx(EX_OSFILE, "skeleton `%s' is not a directory or does not exist", cnf->dotdir);
+		char *tmp = cnf->dotdir = arg->val;
+		if (*tmp == '/')
+			tmp++;
+		if ((fstatat(conf.rootfd, tmp, &st, 0) == -1) ||
+		    !S_ISDIR(st.st_mode))
+			errx(EX_OSFILE, "skeleton `%s' is not a directory or "
+			    "does not exist", cnf->dotdir);
 	}
 
 	if ((arg = getarg(args, 's')) != NULL)

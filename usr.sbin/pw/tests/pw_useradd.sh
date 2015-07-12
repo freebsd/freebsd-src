@@ -268,7 +268,7 @@ user_add_skel_body() {
 	echo "c" > ${HOME}/skel/c/d/dot.c
 	mkdir ${HOME}/home
 	ln -sf /nonexistent ${HOME}/skel/c/foo
-	atf_check -s exit:0 ${RPW} useradd foo -k skel -m
+	atf_check -s exit:0 ${RPW} useradd foo -k /skel -m
 	test -d ${HOME}/home/foo || atf_fail "Directory not created"
 	test -f ${HOME}/home/foo/.a || atf_fail "File not created"
 	atf_check -o file:${HOME}/skel/.a -s exit:0 cat ${HOME}/home/foo/.a
