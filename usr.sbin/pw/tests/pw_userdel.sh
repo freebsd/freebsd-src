@@ -40,7 +40,7 @@ delete_files_body() {
 	mkdir -p ${HOME}/home
 	mkdir -p ${HOME}/var/mail
 	echo "foo wedontcare" > ${HOME}/etc/opiekeys
-	atf_check -s exit:0 ${RPW} useradd foo -k skel -m
+	atf_check -s exit:0 ${RPW} useradd foo -k /skel -m
 	test -d ${HOME}/home || atf_fail "Fail to create home directory"
 	test -f ${HOME}/var/mail/foo || atf_fail "Mail file not created"
 	atf_check -s exit:0 ${RPW} userdel foo -r
