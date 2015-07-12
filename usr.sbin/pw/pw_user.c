@@ -746,12 +746,12 @@ pw_user(int mode, char *name, long id, struct cargs * args)
 	 */
 	if (mode == M_ADD) {
 		if (PWALTDIR() != PWF_ALT) {
-			arg = getarg(args, 'R');
-			snprintf(path, sizeof(path), "%s%s/%s",
-			    arg ? arg->val : "", _PATH_MAILDIR, pwd->pw_name);
-			close(open(path, O_RDWR | O_CREAT, 0600));	/* Preserve contents &
-									 * mtime */
-			chown(path, pwd->pw_uid, pwd->pw_gid);
+			snprintf(path, sizeof(path), "%s/%s", _PATH_MAILDIR,
+			    pwd->pw_name);
+			close(openat(conf.rootfd, path +1, O_RDWR | O_CREAT,
+			    0600));	/* Preserve contents & mtime */
+			fchownat(conf.rootfd, path + 1, pwd->pw_uid,
+			    pwd->pw_gid, AT_SYMLINK_NOFOLLOW);
 		}
 	}
 
@@ -1087,16 +1087,13 @@ pw_userdel(char *name, long id)
 	if (strcmp(pwd->pw_name, "root") == 0)
 		errx(EX_DATAERR, "cannot remove user 'root'");
 
-	if (!PWALTDIR()) {
-		/*
-		 * Remove opie record from /etc/opiekeys
-		*/
+		/* Remove opie record from /etc/opiekeys */
 
+	if (PWALTDIR() != PWF_ALT)
 		rmopie(pwd->pw_name);
 
-		/*
-		 * Remove crontabs
-		 */
+	if (!PWALTDIR()) {
+		/* Remove crontabs */
 		snprintf(file, sizeof(file), "/var/cron/tabs/%s", pwd->pw_name);
 		if (access(file, F_OK) == 0) {
 			snprintf(file, sizeof(file), "crontab -u %s -r", pwd->pw_name);
@@ -1158,28 +1155,23 @@ pw_userdel(char *name, long id)
 	pw_log(conf.userconf, M_DELETE, W_USER, "%s(%u) account removed", name,
 	    uid);
 
-	if (!PWALTDIR()) {
-		/*
-		 * Remove mail file
-		 */
-		remove(file);
+	/* Remove mail file */
+	if (PWALTDIR() != PWF_ALT)
+		unlinkat(conf.rootfd, file + 1, 0);
 
-		/*
-		 * Remove at jobs
-		 */
-		if (getpwuid(uid) == NULL)
-			rmat(uid);
+		/* Remove at jobs */
+	if (!PWALTDIR() && getpwuid(uid) == NULL)
+		rmat(uid);
 
-		/*
-		 * Remove home directory and contents
-		 */
-		if (conf.deletehome && *home == '/' && getpwuid(uid) == NULL &&
-		    stat(home, &st) != -1) {
-			rm_r(home, uid);
-			pw_log(conf.userconf, M_DELETE, W_USER, "%s(%u) home '%s' %sremoved",
-			       name, uid, home,
-			       stat(home, &st) == -1 ? "" : "not completely ");
-		}
+	/* Remove home directory and contents */
+	if (PWALTDIR() != PWF_ALT && conf.deletehome && *home == '/' &&
+	    getpwuid(uid) == NULL &&
+	    fstatat(conf.rootfd, home + 1, &st, 0) != -1) {
+		rm_r(conf.rootfd, home, uid);
+		pw_log(conf.userconf, M_DELETE, W_USER, "%s(%u) home '%s' %s"
+		    "removed", name, uid, home,
+		     fstatat(conf.rootfd, home + 1, &st, 0) == -1 ? "" : "not "
+		     "completely ");
 	}
 
 	return (EXIT_SUCCESS);
@@ -1353,27 +1345,29 @@ rmat(uid_t uid)
 static void
 rmopie(char const * name)
 {
-	static const char etcopie[] = "/etc/opiekeys";
-	FILE   *fp = fopen(etcopie, "r+");
+	char tmp[1014];
+	FILE *fp;
+	int fd;
+	size_t len;
+	off_t	atofs = 0;
+	
+	if ((fd = openat(conf.rootfd, "etc/opiekeys", O_RDWR)) == -1)
+		return;
 
-	if (fp != NULL) {
-		char	tmp[1024];
-		off_t	atofs = 0;
-		int	length = strlen(name);
+	fp = fdopen(fd, "r+");
+	len = strlen(name);
 
-		while (fgets(tmp, sizeof tmp, fp) != NULL) {
-			if (strncmp(name, tmp, length) == 0 && tmp[length]==' ') {
-				if (fseek(fp, atofs, SEEK_SET) == 0) {
-					fwrite("#", 1, 1, fp);	/* Comment username out */
-				}
-				break;
-			}
-			atofs = ftell(fp);
+	while (fgets(tmp, sizeof(tmp), fp) != NULL) {
+		if (strncmp(name, tmp, len) == 0 && tmp[len]==' ') {
+			/* Comment username out */
+			if (fseek(fp, atofs, SEEK_SET) == 0)
+				fwrite("#", 1, 1, fp);
+			break;
 		}
-		/*
-		 * If we got an error of any sort, don't update!
-		 */
-		fclose(fp);
+		atofs = ftell(fp);
 	}
+	/*
+	 * If we got an error of any sort, don't update!
+	 */
+	fclose(fp);
 }
-
