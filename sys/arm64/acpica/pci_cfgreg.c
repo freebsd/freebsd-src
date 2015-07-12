@@ -2,6 +2,9 @@
  * Copyright (c) 2015 The FreeBSD Foundation
  * All rights reserved.
  *
+ * This software was developed by Semihalf under
+ * the sponsorship of the FreeBSD Foundation.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -22,15 +25,49 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
-#ifndef _MACHINE_PCI_CFGREG_H
-#define	_MACHINE_PCI_CFGREG_H
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
-int pci_cfgregopen(void);
-uint32_t pci_cfgregread(int, int, int, int, int);
-void pci_cfgregwrite(int, int, int, int, u_int32_t, int);
+#include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/kernel.h>
 
-#endif /* !_MACHINE_PCI_CFGREG_H */
+#include <machine/pci_cfgreg.h>
+
+/*
+ * This file contains stubs for ACPI PCI functions
+ */
+
+/*
+ * Read configuration space register
+ */
+uint32_t
+pci_cfgregread(int bus, int slot, int func, int reg, int bytes)
+{
+
+	panic("pci_cfgregread not implemented");
+	return (0);
+}
+
+/*
+ * Write configuration space register
+ */
+void
+pci_cfgregwrite(int bus, int slot, int func, int reg, u_int32_t data, int bytes)
+{
+
+	panic("pci_cfgregwrite not implemented");
+}
+
+/*
+ * Initialize access to configuration space
+ */
+int
+pci_cfgregopen(void)
+{
+
+	panic("pci_cfgregopen not implemented");
+	return (0);
+}

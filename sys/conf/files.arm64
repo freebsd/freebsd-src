@@ -5,6 +5,7 @@ arm/arm/pmu.c			standard
 arm64/acpica/acpi_machdep.c	optional	acpi
 arm64/acpica/OsdEnvironment.c	optional	acpi
 arm64/acpica/acpi_wakeup.c	optional	acpi
+arm64/acpica/pci_cfgreg.c	optional	acpi	pci
 arm64/arm64/autoconf.c		standard
 arm64/arm64/bcopy.c		standard
 arm64/arm64/bus_machdep.c	standard
