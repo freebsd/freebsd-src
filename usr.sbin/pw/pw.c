@@ -136,6 +136,7 @@ main(int argc, char *argv[])
 	name = NULL;
 	relocated = nis = false;
 	memset(&conf, 0, sizeof(conf));
+	strlcpy(conf.rootdir, "/", sizeof(conf.rootdir));
 	strlcpy(conf.etcpath, _PATH_PWD, sizeof(conf.etcpath));
 	conf.fd = -1;
 
@@ -215,6 +216,9 @@ main(int argc, char *argv[])
 	if (mode == -1 || which == -1)
 		cmdhelp(mode, which);
 
+	conf.rootfd = open(conf.rootdir, O_DIRECTORY|O_CLOEXEC);
+	if (conf.rootfd == -1)
+		errx(EXIT_FAILURE, "Unable to open '%s'", conf.rootdir);
 	conf.which = which;
 	/*
 	 * We know which mode we're in and what we're about to do, so now
