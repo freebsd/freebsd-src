@@ -31,7 +31,27 @@ user_do_not_try_to_delete_root_if_user_unknown_body() {
 		${PW} userdel -u plop
 }
 
+atf_test_case delete_files
+delete_files_body() {
+	populate_root_etc_skel
+
+	mkdir -p ${HOME}/skel
+	touch ${HOME}/skel/a
+	mkdir -p ${HOME}/home
+	mkdir -p ${HOME}/var/mail
+	echo "foo wedontcare" > ${HOME}/etc/opiekeys
+	atf_check -s exit:0 ${RPW} useradd foo -k skel -m
+	test -d ${HOME}/home || atf_fail "Fail to create home directory"
+	test -f ${HOME}/var/mail/foo || atf_fail "Mail file not created"
+	atf_check -s exit:0 ${RPW} userdel foo -r
+	atf_check -s exit:0 -o inline:"#oo wedontcare\n" cat ${HOME}/etc/opiekeys
+	if test -f ${HOME}/var/mail/foo; then
+		atf_fail "Mail file not removed"
+	fi
+}
+
 atf_init_test_cases() {
 	atf_add_test_case rmuser_seperate_group
 	atf_add_test_case user_do_not_try_to_delete_root_if_user_unknown
+	atf_add_test_case delete_files
 }
