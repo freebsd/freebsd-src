@@ -874,10 +874,7 @@ pw_gidpolicy(struct cargs * args, char *nam, gid_t prefer)
 	    (grp->gr_mem == NULL || grp->gr_mem[0] == NULL)) {
 		gid = grp->gr_gid;  /* Already created? Use it anyway... */
 	} else {
-		struct cargs    grpargs;
 		gid_t		grid = -1;
-
-		LIST_INIT(&grpargs);
 
 		/*
 		 * We need to auto-create a group with the user's name. We
@@ -893,7 +890,7 @@ pw_gidpolicy(struct cargs * args, char *nam, gid_t prefer)
 		if (conf.dryrun) {
 			gid = pw_groupnext(cnf, true);
 		} else {
-			pw_group(M_ADD, nam, grid, &grpargs);
+			pw_group(M_ADD, nam, grid, NULL);
 			if ((grp = GETGRNAM(nam)) != NULL)
 				gid = grp->gr_gid;
 		}

@@ -582,7 +582,12 @@ cmdhelp(int mode, int which)
 struct carg    *
 getarg(struct cargs * _args, int ch)
 {
-	struct carg    *c = LIST_FIRST(_args);
+	struct carg    *c;
+
+	if (_args == NULL)
+		return (NULL);
+	
+	c = LIST_FIRST(_args);
 
 	while (c != NULL && c->ch != ch)
 		c = LIST_NEXT(c, list);
