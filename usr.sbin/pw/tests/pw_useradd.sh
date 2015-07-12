@@ -240,6 +240,21 @@ user_add_password_from_h_body() {
 	EOF
 }
 
+atf_test_case user_add_R
+user_add_R_body() {
+	populate_root_etc_skel
+
+	atf_check -s exit:0 ${RPW} useradd foo
+	mkdir -p ${HOME}/home
+	atf_check -s exit:0 ${RPW} useradd bar -m
+	test -d ${HOME}/home/bar || atf_fail "Directory not created"
+	atf_check -s exit:0 ${RPW} userdel bar
+	test -d ${HOME}/home/bar || atf_fail "Directory removed"
+#	atf_check -s exit:0 ${RPW} useradd bar
+#	atf_check -s exit:0 ${RPW} userdel bar -r
+#	test -d ${HOME}/home/bar && atf_fail "Directory not removed"
+}
+
 atf_init_test_cases() {
 	atf_add_test_case user_add
 	atf_add_test_case user_add_noupdate
@@ -261,4 +276,5 @@ atf_init_test_cases() {
 	atf_add_test_case user_add_invalid_user_entry
 	atf_add_test_case user_add_invalid_group_entry
 	atf_add_test_case user_add_password_from_h
+	atf_add_test_case user_add_R
 }
