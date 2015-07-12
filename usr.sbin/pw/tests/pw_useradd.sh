@@ -255,6 +255,30 @@ user_add_R_body() {
 #	test -d ${HOME}/home/bar && atf_fail "Directory not removed"
 }
 
+atf_test_case user_add_skel
+user_add_skel_body() {
+	populate_root_etc_skel
+
+	mkdir ${HOME}/skel
+	echo "a" > ${HOME}/skel/.a
+	echo "b" > ${HOME}/skel/b
+	mkdir ${HOME}/skel/c
+	mkdir ${HOME}/skel/c/d
+	mkdir ${HOME}/skel/dot.plop
+	echo "c" > ${HOME}/skel/c/d/dot.c
+	mkdir ${HOME}/home
+	ln -sf /nonexistent ${HOME}/skel/c/foo
+	atf_check -s exit:0 ${RPW} useradd foo -k skel -m
+	test -d ${HOME}/home/foo || atf_fail "Directory not created"
+	test -f ${HOME}/home/foo/.a || atf_fail "File not created"
+	atf_check -o file:${HOME}/skel/.a -s exit:0 cat ${HOME}/home/foo/.a
+	atf_check -o file:${HOME}/skel/b -s exit:0 cat ${HOME}/home/foo/b
+	test -d ${HOME}/home/foo/c || atf_fail "Dotted directory in skel not copied"
+	test -d ${HOME}/home/foo/.plop || atf_fail "Directory in skell not created"
+	atf_check -o inline:"/nonexistent\n" -s ignore readlink -f ${HOME}/home/foo/c/foo
+	atf_check -o file:${HOME}/skel/c/d/dot.c -s exit:0 cat ${HOME}/home/foo/c/d/.c
+}
+
 atf_init_test_cases() {
 	atf_add_test_case user_add
 	atf_add_test_case user_add_noupdate
@@ -277,4 +301,5 @@ atf_init_test_cases() {
 	atf_add_test_case user_add_invalid_group_entry
 	atf_add_test_case user_add_password_from_h
 	atf_add_test_case user_add_R
+	atf_add_test_case user_add_skel
 }
