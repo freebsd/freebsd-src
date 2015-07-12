@@ -2978,8 +2978,8 @@ options 	MAXFILES=999
 
 # Random number generator
 # Only ONE of the below two may be used; they are mutually exclusive.
+# If neither is present, then the Fortuna algorithm is used.
 options 	RANDOM_YARROW	# Yarrow CSPRNG (Default)
-#options 	RANDOM_FORTUNA	# Fortuna CSPRNG
 options 	RANDOM_DEBUG	# Debugging messages
 
 # Module to enable execution of application via emulators like QEMU

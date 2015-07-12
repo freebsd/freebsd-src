@@ -52,14 +52,8 @@ Where <alg> is YARROW or FORTUNA.
 #include <unistd.h>
 #include <zlib.h>
 
+#include "randomdev.h"
 #include "unit_test.h"
-
-#ifdef RANDOM_YARROW
-#include "dev/random/yarrow.h"
-#endif
-#ifdef RANDOM_FORTUNA
-#include "dev/random/fortuna.h"
-#endif
 
 #define	NUM_THREADS	  3
 #define	DEBUG
@@ -112,7 +106,7 @@ block_deflate(uint8_t *uncompr, uint8_t *compr, const size_t len)
 	while (c_stream.total_in != len && c_stream.total_out < (len*2u + 512u)) {
 		err = deflate(&c_stream, Z_NO_FLUSH);
 #ifdef DEBUG
-		printf("deflate: len = %zd  total_in = %lu  total_out = %lu\n", len, c_stream.total_in, c_stream.total_out);
+		printf("deflate progress: len = %zd  total_in = %lu  total_out = %lu\n", len, c_stream.total_in, c_stream.total_out);
 #endif
 		check_err(err, "deflate(..., Z_NO_FLUSH)");
 	}
@@ -120,7 +114,7 @@ block_deflate(uint8_t *uncompr, uint8_t *compr, const size_t len)
 	for (;;) {
 		err = deflate(&c_stream, Z_FINISH);
 #ifdef DEBUG
-		printf("deflate: len = %zd  total_in = %lu  total_out = %lu\n", len, c_stream.total_in, c_stream.total_out);
+		printf("deflate    final: len = %zd  total_in = %lu  total_out = %lu\n", len, c_stream.total_in, c_stream.total_out);
 #endif
 		if (err == Z_STREAM_END) break;
 		check_err(err, "deflate(..., Z_STREAM_END)");
@@ -133,7 +127,7 @@ block_deflate(uint8_t *uncompr, uint8_t *compr, const size_t len)
 }
 
 void
-random_adaptor_unblock(void)
+randomdev_unblock(void)
 {
 
 #if 0
@@ -166,12 +160,7 @@ RunHarvester(void *arg __unused)
 		e.he_destination = i;
 		e.he_source = (i + 3)%7;
 		e.he_next = NULL;
-#ifdef RANDOM_YARROW
-		random_yarrow_process_event(&e);
-#endif
-#ifdef RANDOM_FORTUNA
-		random_fortuna_process_event(&e);
-#endif
+		random_alg_context.ra_event_processor(&e);
 		usleep(r);
 	}
 
@@ -198,12 +187,7 @@ WriteCSPRNG(void *threadid)
 			printf("Thread write 1 - %d\n", i);
 		if (buf != NULL) {
 			printf("Thread 1 writing.\n");
-#ifdef RANDOM_YARROW
-			random_yarrow_write(buf, i);
-#endif
-#ifdef RANDOM_FORTUNA
-			random_fortuna_write(buf, i);
-#endif
+			random_alg_context.ra_write(buf, i);
 			free(buf);
 		}
 		usleep(1000000);
@@ -220,6 +204,7 @@ static int
 ReadCSPRNG(void *threadid)
 {
 	size_t tid, zsize;
+	u_int buffersize;
 	uint8_t *buf, *zbuf;
 	int i;
 #ifdef DEBUG
@@ -229,40 +214,22 @@ ReadCSPRNG(void *threadid)
 	tid = (size_t)threadid;
 	printf("Thread #%zd starts\n", tid);
 
-#ifdef RANDOM_YARROW
-	while (!random_yarrow_seeded())
-#endif
-#ifdef RANDOM_FORTUNA
-	while (!random_fortuna_seeded())
-#endif
+	while (!random_alg_context.ra_seeded())
 	{
-#ifdef RANDOM_YARROW
-		random_yarrow_pre_read();
-		random_yarrow_post_read();
-#endif
-#ifdef RANDOM_FORTUNA
-		random_fortuna_pre_read();
-		random_fortuna_post_read();
-#endif
+		random_alg_context.ra_pre_read();
 		usleep(100);
 	}
 
 	for (i = 0; i < 100000; i++) {
-		buf = malloc(i);
+		buffersize = i + RANDOM_BLOCKSIZE;
+		buffersize -= buffersize%RANDOM_BLOCKSIZE;
+		buf = malloc(buffersize);
 		zbuf = malloc(2*i + 1024);
 		if (i % 1000 == 0)
 			printf("Thread read %zd - %d\n", tid, i);
 		if (buf != NULL && zbuf != NULL) {
-#ifdef RANDOM_YARROW
-			random_yarrow_pre_read();
-			random_yarrow_read(buf, i);
-			random_yarrow_post_read();
-#endif
-#ifdef RANDOM_FORTUNA
-			random_fortuna_pre_read();
-			random_fortuna_read(buf, i);
-			random_fortuna_post_read();
-#endif
+			random_alg_context.ra_pre_read();
+			random_alg_context.ra_read(buf, buffersize);
 			zsize = block_deflate(buf, zbuf, i);
 			if (zsize < i)
 				printf("ERROR!! Compressible RNG output!\n");
@@ -300,12 +267,7 @@ main(int argc, char *argv[])
 	int rc;
 	long t;
 
-#ifdef RANDOM_YARROW
-	random_yarrow_init_alg();
-#endif
-#ifdef RANDOM_FORTUNA
-	random_fortuna_init_alg();
-#endif
+	random_alg_context.ra_init_alg(NULL);
 
 	for (t = 0; t < NUM_THREADS; t++) {
 		printf("In main: creating thread %ld\n", t);
@@ -324,12 +286,7 @@ main(int argc, char *argv[])
 	thrd_join(threads[1], &rc);
 	thrd_join(threads[0], &rc);
 
-#ifdef RANDOM_YARROW
-	random_yarrow_deinit_alg();
-#endif
-#ifdef RANDOM_FORTUNA
-	random_fortuna_deinit_alg();
-#endif
+	random_alg_context.ra_deinit_alg(NULL);
 
 	/* Last thing that main() should do */
 	thrd_exit(0);
