@@ -48,7 +48,8 @@ CLEANFILES+=	md[245]hl.c md[245].ref md[245].3 mddriver \
 # in which case:
 #   * macros are used to rename symbols to libcrypt internal names
 #   * no weak aliases are generated
-CFLAGS+= -I${.CURDIR} -DWEAK_REFS
+CFLAGS+= -I${.CURDIR} -I${.CURDIR}/../../sys/crypto/sha2
+CFLAGS+= -DWEAK_REFS
 .PATH: ${.CURDIR}/${MACHINE_ARCH} ${.CURDIR}/../../sys/crypto/sha2
 
 .if exists(${MACHINE_ARCH}/sha.S)
