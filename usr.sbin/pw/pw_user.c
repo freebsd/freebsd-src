@@ -67,20 +67,19 @@ static void     rmopie(char const * name);
 static void
 create_and_populate_homedir(struct passwd *pwd)
 {
-	char *homedir, *dotdir;
 	struct userconf *cnf = conf.userconf;
+	const char *skeldir;
+	int skelfd = -1;
 
-	homedir = dotdir = NULL;
+	skeldir = cnf->dotdir;
 
-	if (conf.rootdir[0] != '\0') {
-		asprintf(&homedir, "%s/%s", conf.rootdir, pwd->pw_dir);
-		if (homedir == NULL)
-			errx(EX_OSERR, "out of memory");
-		asprintf(&dotdir, "%s/%s", conf.rootdir, cnf->dotdir);
+	if (skeldir != NULL && *skeldir != '\0') {
+		skelfd = openat(conf.rootfd, cnf->dotdir,
+		    O_DIRECTORY|O_CLOEXEC);
 	}
 
-	copymkdir(homedir ? homedir : pwd->pw_dir, dotdir ? dotdir: cnf->dotdir,
-	    cnf->homemode, pwd->pw_uid, pwd->pw_gid);
+	copymkdir(conf.rootfd, pwd->pw_dir, skelfd, cnf->homemode, pwd->pw_uid,
+	    pwd->pw_gid, 0);
 	pw_log(cnf, M_ADD, W_USER, "%s(%u) home %s made", pwd->pw_name,
 	    pwd->pw_uid, pwd->pw_dir);
 }
