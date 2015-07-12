@@ -94,7 +94,6 @@ SDT_PROVIDER_DEFINE(vfs);
 SDT_PROBE_DEFINE2(vfs, , stat, mode, "char *", "int");
 SDT_PROBE_DEFINE2(vfs, , stat, reg, "char *", "int");
 
-static int chroot_refuse_vdir_fds(struct filedesc *fdp);
 static int kern_chflagsat(struct thread *td, int fd, const char *path,
     enum uio_seg pathseg, u_long flags, int atflag);
 static int setfflags(struct thread *td, struct vnode *, u_long);
