@@ -206,7 +206,11 @@ Parallel mode: run at most
 .Ar maxprocs
 invocations of
 .Ar utility
-at once.
+at once. If
+.Ar maxprocs
+is negative or 0,
+.Nm
+will run as many processes as possible at a time.
 .It Fl p
 Echo each command to be executed and ask the user whether it should be
 executed.

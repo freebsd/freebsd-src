@@ -159,8 +159,11 @@ main(int argc, char *argv[])
 			oflag = 1;
 			break;
 		case 'P':
-			if ((maxprocs = atoi(optarg)) <= 0)
-				errx(1, "max. processes must be >0");
+			maxprocs = strtol(optarg, &endptr, 10);
+			if (*endptr != '\0')
+				errx(1, "max. processes must be a number");
+			if (maxprocs < 1)
+				maxprocs = nargs;
 			break;
 		case 'p':
 			pflag = 1;
