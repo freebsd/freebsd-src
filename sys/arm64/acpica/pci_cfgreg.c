@@ -47,6 +47,7 @@ uint32_t
 pci_cfgregread(int bus, int slot, int func, int reg, int bytes)
 {
 
+	/* ARM64TODO */
 	panic("pci_cfgregread not implemented");
 	return (0);
 }
@@ -58,6 +59,7 @@ void
 pci_cfgregwrite(int bus, int slot, int func, int reg, u_int32_t data, int bytes)
 {
 
+	/* ARM64TODO */
 	panic("pci_cfgregwrite not implemented");
 }
 
@@ -68,6 +70,7 @@ int
 pci_cfgregopen(void)
 {
 
+	/* ARM64TODO */
 	panic("pci_cfgregopen not implemented");
 	return (0);
 }
