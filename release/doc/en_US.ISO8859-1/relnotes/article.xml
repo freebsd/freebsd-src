@@ -391,9 +391,6 @@
 	sponsor="&darpa_afrl;">&man.lldb.1; has been updated to
 	upstream snapshot version r196259.</para>
 
-      <para revision="259626">Timezone data files have been updated to
-	version 2013i.</para>
-
       <para revision="260445">&man.byacc.1; has been updated to
 	version 20140101.</para>
 
@@ -479,6 +476,9 @@
 
       <para revision="284237">The &man.file.1; utility has been
 	updated to version 5.23.</para>
+
+      <para revision="284398">Timezone data files have been updated to
+	version 2015e.</para>
 
       <para revision="285229"><application>sendmail</application> has
 	been updated to 8.15.2.  Starting with &os;&nbsp;11.0 and
