@@ -139,6 +139,7 @@ main(int argc, char *argv[])
 	strlcpy(conf.rootdir, "/", sizeof(conf.rootdir));
 	strlcpy(conf.etcpath, _PATH_PWD, sizeof(conf.etcpath));
 	conf.fd = -1;
+	conf.checkduplicate = false;
 
 	LIST_INIT(&arglist);
 
@@ -325,7 +326,7 @@ main(int argc, char *argv[])
 				    "descriptor or '-'");
 			break;
 		case 'o':
-			conf.checkduplicate = true;
+			conf.checkduplicate = false;
 			break;
 		case 'q':
 			conf.quiet = true;
