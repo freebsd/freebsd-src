@@ -543,6 +543,12 @@
       <para revision="283262" contrib="sponsor" sponsor="&ff;">The
 	memory test run at boot time on &os;/&arch.amd64; platforms
 	has been disabled by default.</para>
+
+      <para revision="284775" contrib="sponsor" sponsor="&ff;"
+	arch="arm">The &man.ttys.5; file for &os;/&arch.arm; has been
+	updated to enable <filename>ttyu1</filename>,
+	<filename>ttyu2</filename>, and <filename>ttyu3</filename> by
+	default, if the callin port is an active console port.</para>
     </sect2>
 
     <sect2 xml:id="boot-menu">
