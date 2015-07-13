@@ -311,7 +311,12 @@
     <sect2 xml:id="userland-abi">
       <title>ABI Compatibility</title>
 
-      <para>&nbsp;</para>
+      <para revision="275807">The &linux; compatibility version has
+	been updated to <literal>2.6.18</literal>.  The
+	<literal>compat.linux.osrelease</literal> &man.sysctl.8; is
+	evaluated when building the <filename
+	  role="package">emulators/linux-c6</filename> and related
+	ports.</para>
     </sect2>
   </sect1>
 
