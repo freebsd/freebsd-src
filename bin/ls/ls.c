@@ -158,6 +158,7 @@ main(int argc, char *argv[])
 	struct winsize win;
 	int ch, fts_options, notused;
 	char *p;
+	const char *errstr = NULL;
 #ifdef COLORLS
 	char termcapbuf[1024];	/* termcap definition buffer */
 	char tcapbuf[512];	/* capability buffer */
@@ -170,7 +171,7 @@ main(int argc, char *argv[])
 	if (isatty(STDOUT_FILENO)) {
 		termwidth = 80;
 		if ((p = getenv("COLUMNS")) != NULL && *p != '\0')
-			termwidth = atoi(p);
+			termwidth = strtonum(p, 0, INT_MAX, &errstr);
 		else if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &win) != -1 &&
 		    win.ws_col > 0)
 			termwidth = win.ws_col;
@@ -180,8 +181,11 @@ main(int argc, char *argv[])
 		/* retrieve environment variable, in case of explicit -C */
 		p = getenv("COLUMNS");
 		if (p)
-			termwidth = atoi(p);
+			termwidth = strtonum(p, 0, INT_MAX, &errstr);
 	}
+
+	if (errstr)
+		termwidth = 80;
 
 	fts_options = FTS_PHYSICAL;
 	if (getenv("LS_SAMESORT"))
