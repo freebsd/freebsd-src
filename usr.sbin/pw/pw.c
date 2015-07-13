@@ -139,7 +139,7 @@ main(int argc, char *argv[])
 	strlcpy(conf.rootdir, "/", sizeof(conf.rootdir));
 	strlcpy(conf.etcpath, _PATH_PWD, sizeof(conf.etcpath));
 	conf.fd = -1;
-	conf.checkduplicate = false;
+	conf.checkduplicate = true;
 
 	LIST_INIT(&arglist);
 
