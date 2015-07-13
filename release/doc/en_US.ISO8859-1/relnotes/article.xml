@@ -419,9 +419,6 @@
 	<application>Clang</application> have been updated to
 	version 3.4.</para>
 
-      <para revision="276577"><application>file</application> has been
-	updated to version 5.22.</para>
-
       <para revision="275718">The <application>binutils</application>
 	suite of utilities has been updated to include upstream
 	patches that add new relocations for &arch.powerpc;
