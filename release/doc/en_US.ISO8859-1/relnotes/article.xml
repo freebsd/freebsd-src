@@ -567,6 +567,14 @@
 	<filename>110.clean-tmps</filename> has been updated to avoid
 	crossing filesystem mount boundaries when cleaning files in
 	<filename class="directory">/tmp</filename>.</para>
+
+      <para revision="277216" contrib="sponsor" sponsor="&ff;">A new
+	&man.periodic.8; script,
+	<filename>510.status-world-kernel</filename>, has been added,
+	which evaluates the running userland and kernel versions from
+	the &man.uname.1; <literal>-U</literal> and
+	<literal>-K</literal> arguments, and prints an error if the
+	system userland and kernel are not in sync.</para>
     </sect2>
 
     <sect2 xml:id="userland-libraries">
