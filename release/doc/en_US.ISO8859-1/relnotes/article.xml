@@ -531,6 +531,11 @@
 	limit from <literal>128</literal> to <literal>256</literal>,
 	and <acronym>LUN</acronym> limit from <literal>256</literal>
 	to <literal>1024</literal>.</para>
+
+      <para revision="282861">Support for the
+	<literal>apple-boot</literal>, <literal>apple-hfs</literal>,
+	and <literal>apple-ufs</literal> <acronym>MBR</acronym>
+	partitioning schemes have been added to &man.gpart.8;.</para>
     </sect2>
   </sect1>
 
