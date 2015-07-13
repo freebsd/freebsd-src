@@ -311,14 +311,6 @@
 	devices.  The &man.devctl.8; utility uses the new
 	&man.devctl.3; library.</para>
 
-      <para revision="279315" contrib="sponsor" sponsor="&ff;">The
-	&man.uefisign.8; utility has been added.</para>
-
-      <para revision="279571" contrib="sponsor"
-	sponsor="&scaleengine;">The &man.freebsd-update.8; utility has
-	been updated to prevent fetching updated binary patches when
-	a previous upgrade has not been thoroughly completed.</para>
-
       <para revision="279122" contrib="sponsor"
 	sponsor="&juniper;">The &man.netstat.1; utility has been
 	updated to link against the &man.libxo.3; shared
@@ -327,6 +319,14 @@
       <para revision="279139">A new flag, <literal>-c</literal>, has
 	been added to the &man.mkimg.1; utility, which allows
 	specifying the capacity of the target disk image.</para>
+
+      <para revision="279315" contrib="sponsor" sponsor="&ff;">The
+	&man.uefisign.8; utility has been added.</para>
+
+      <para revision="279571" contrib="sponsor"
+	sponsor="&scaleengine;">The &man.freebsd-update.8; utility has
+	been updated to prevent fetching updated binary patches when
+	a previous upgrade has not been thoroughly completed.</para>
 
       <para revision="280870">A regression in the &man.libarchive.3;
 	library that would prevent a directory from being included in
@@ -340,16 +340,22 @@
 	directory traversal when extracting an archive, similar to
 	&man.tar.1;.</para>
 
+      <para revision="281617">A race condition in &man.wc.1; that
+	would cause final results to be sent to &man.stderr.4; when
+	receiving the <literal>SIGINFO</literal> signal has been
+	fixed.</para>
+
       <para revision="282208" contrib="sponsor"
 	sponsor="&multiplay;">The &man.chflags.1;, &man.chgrp.1;,
 	&man.chmod.1;, and &man.chown.8; utilities now affect symbolic
 	links when the <literal>-R</literal> flag is specified, as
 	documented in &man.symlink.7;.</para>
 
-      <para revision="281617">A race condition in &man.wc.1; that
-	would cause final results to be sent to &man.stderr.4; when
-	receiving the <literal>SIGINFO</literal> signal has been
-	fixed.</para>
+      <para revision="282608">The &man.date.1; utility has been
+	updated to print the modification time of the file passed as
+	an argument to the <literal>-r</literal> flag, improving
+	compatibility with the <acronym>GNU</acronym> &man.date.1;
+	utility behavior.</para>
 
       <para revision="283961">The &man.pw.8; utility has been updated
 	with a new flag, <literal>-R</literal>, that sets the root
@@ -385,12 +391,6 @@
 	sponsor="&scaleengine;">The &man.fstyp.8; utility has been
 	updated to be able to detect &man.zfs.8; and &man.geli.8;
 	filesystems.</para>
-
-      <para revision="282608">The &man.date.1; utility has been
-	updated to print the modification time of the file passed as
-	an argument to the <literal>-r</literal> flag, improving
-	compatibility with the <acronym>GNU</acronym> &man.date.1;
-	utility behavior.</para>
     </sect2>
 
     <sect2 xml:id="userland-contrib">
