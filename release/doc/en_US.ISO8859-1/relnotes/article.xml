@@ -477,14 +477,14 @@
       <para revision="282613">The &man.nc.1; utility has been updated
 	to the OpenBSD 5.7 version.</para>
 
-      <para revision="284254"><application>bmake</application> has
-	been updated to version 20150606.</para>
-
       <para revision="283092">The &man.acpi.4; subsystem has been
 	updated to version 20150515.</para>
 
       <para revision="284237">The &man.file.1; utility has been
 	updated to version 5.23.</para>
+
+      <para revision="284254"><application>bmake</application> has
+	been updated to version 20150606.</para>
 
       <para revision="284397">Timezone data files have been updated to
 	version 2015e.</para>
@@ -1005,16 +1005,16 @@
 	driver has been updated to correct performance counter
 	sampling on G4 (MPC74xxx) and G5 class processors.</para>
 
-      <para revision="281713" arch="powerpc">The &man.hwpmc.4;
-	driver has been updated to support the Freescale e500
-	core.</para>
-
       <para revision="275732" contrib="sponsor"
 	sponsor="&ff;,&netgate;">The
 	<application>OpenCrypto</application> framework has been
 	updated to include <literal>AES-ICM</literal> and
 	<literal>AES-GCM</literal> modes, both of which have also been
 	added to the &man.aesni.4; driver.</para>
+
+      <para revision="281713" arch="powerpc">The &man.hwpmc.4;
+	driver has been updated to support the Freescale e500
+	core.</para>
 
       <para revision="283766">The &man.ig4.4; driver has been added,
 	providing support for the fourth generation &intel;
@@ -1218,6 +1218,15 @@
     <sect2 xml:id="boot-loader">
       <title>Boot Loader Changes</title>
 
+      <para revision="258431" contrib="sponsor" sponsor="&ff;">The
+	memory test run at boot time on &os;/&arch.amd64; platforms
+	has been disabled by default.</para>
+
+      <para revision="262955">A new &man.ttys.5; class,
+	<literal>3wire</literal>, has been added.  This is similar to
+	the existing terminal classes, but does not have a defined
+	baudrate.</para>
+
       <para revision="274085">The &man.vt.4; driver has been made the
 	default system console driver.  The &man.syscons.4; driver is
 	still available, and can be enabled by adding
@@ -1237,15 +1246,6 @@
 	updated to enable <filename>ttyu1</filename>,
 	<filename>ttyu2</filename>, and <filename>ttyu3</filename> by
 	default, if the callin port is an active console port.</para>
-
-      <para revision="258431" contrib="sponsor" sponsor="&ff;">The
-	memory test run at boot time on &os;/&arch.amd64; platforms
-	has been disabled by default.</para>
-
-      <para revision="262955">A new &man.ttys.5; class,
-	<literal>3wire</literal>, has been added.  This is similar to
-	the existing terminal classes, but does not have a defined
-	baudrate.</para>
     </sect2>
 
     <sect2 xml:id="boot-menu">
