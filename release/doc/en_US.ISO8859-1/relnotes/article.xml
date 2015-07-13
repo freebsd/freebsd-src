@@ -441,6 +441,10 @@
     <sect2 xml:id="hardware-virtualization">
       <title>Virtualization Support</title>
 
+      <para revision="275273">The &man.virtio.console.4; driver has
+	been added, which provides an interface to VirtIO console
+	devices through a &man.tty.4; device.</para>
+
       <para revision="280370">The &man.bhyve.8; hypervisor has been
 	updated to support <literal>DSM TRIM</literal> commands for
 	virtual <acronym>AHCI</acronym> disks.</para>
