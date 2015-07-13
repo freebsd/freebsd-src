@@ -406,6 +406,12 @@
 	&man.gre.4; driver has been significantly overhauled, and has
 	been split into two separate modules, &man.gre.4; and
 	&man.me.4;.</para>
+
+      <para revision="284365">The &man.vxlan.4; driver has been added,
+	which creates a virtual Layer 2 (Ethernet) network overlaid in
+	a Layer 3 (IP/UDP) network.  The &man.vxlan.4; driver is
+	analogous to &man.vlan.4;, but is designed to be better suited
+	for large, multiple-tenant datacenter environments.</para>
     </sect2>
   </sect1>
 
