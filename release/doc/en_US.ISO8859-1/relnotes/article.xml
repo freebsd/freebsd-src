@@ -547,6 +547,11 @@
 	memory test run at boot time on &os;/&arch.amd64; platforms
 	has been disabled by default.</para>
 
+      <para revision="283972">A new &man.ttys.5; class,
+	<literal>3wire</literal>, has been added.  This is similar to
+	the existing terminal classes, but does not have a defined
+	baudrate.</para>
+
       <para revision="284775" contrib="sponsor" sponsor="&ff;"
 	arch="arm">The &man.ttys.5; file for &os;/&arch.arm; has been
 	updated to enable <filename>ttyu1</filename>,
