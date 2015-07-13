@@ -376,6 +376,12 @@
 	sponsor="&scaleengine;">The &man.fstyp.8; utility has been
 	updated to be able to detect &man.zfs.8; and &man.geli.8;
 	filesystems.</para>
+
+      <para revision="282608">The &man.date.1; utility has been
+	updated to print the modification time of the file passed as
+	an argument to the <literal>-r</literal> flag, improving
+	compatibility with the <acronym>GNU</acronym> &man.date.1;
+	utility behavior.</para>
     </sect2>
 
     <sect2 xml:id="userland-contrib">
