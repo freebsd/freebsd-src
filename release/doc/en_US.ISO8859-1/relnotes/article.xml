@@ -961,6 +961,11 @@
       <para revision="272730">The &man.alc.4; driver has been updated
 	to support AR816x and AR817x ethernet controllers.</para>
 
+      <para revision="272906">The &man.pfil.9; interface default hash
+	has been changed from <literal>Jenkins</literal> to
+	<literal>Murmur3</literal>, providing a 3-percent performance
+	increase in packets-per-second.</para>
+
       <para revision="273331">The &man.vxlan.4; driver has been added,
 	which creates a virtual Layer 2 (Ethernet) network overlaid in
 	a Layer 3 (IP/UDP) network.  The &man.vxlan.4; driver is
