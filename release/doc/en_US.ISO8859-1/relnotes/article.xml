@@ -237,6 +237,9 @@
 	&man.resolvconf.8; utility has been updated to version
 	3.7.0.</para>
 
+      <para revision="284398">Timezone data files have been updated to
+	version 2015e.</para>
+
       <para revision="284460">The &man.acpi.4; subsystem has been
 	updated to version 20150515.</para>
 
