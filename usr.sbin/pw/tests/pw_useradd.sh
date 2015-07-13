@@ -279,6 +279,16 @@ user_add_skel_body() {
 	atf_check -o file:${HOME}/skel/c/d/dot.c -s exit:0 cat ${HOME}/home/foo/c/d/.c
 }
 
+atf_test_case user_add_uid0
+user_add_uid0_body() {
+	populate_etc_skel
+	atf_check -e inline:"pw: WARNING: new account \`foo' has a uid of 0 (superuser access!)\n" \
+		-s exit:0 ${PW} useradd foo -u 0 -g 0 -d /root -s /bin/sh -c "Bourne-again Superuser" -o
+	atf_check \
+		-o inline:"foo:*:0:0::0:0:Bourne-again Superuser:/root:/bin/sh\n" \
+		-s exit:0 ${PW} usershow foo
+}
+
 atf_init_test_cases() {
 	atf_add_test_case user_add
 	atf_add_test_case user_add_noupdate
@@ -302,4 +312,5 @@ atf_init_test_cases() {
 	atf_add_test_case user_add_password_from_h
 	atf_add_test_case user_add_R
 	atf_add_test_case user_add_skel
+	atf_add_test_case user_add_uid0
 }
