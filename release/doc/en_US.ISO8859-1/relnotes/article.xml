@@ -770,6 +770,11 @@
 	&powerpc; processors has been overhaulded to improve
 	concurrency.</para>
 
+      <para revision="282921" contrib="sponsor" sponsor="&intelcorp;"
+	arch="amd64,i386">The &man.nvd.4; and &man.nvme.4; drivers are
+	now included in the <filename>GENERIC</filename> kernel
+	configuration by default.</para>
+
       <para revision="283959" contrib="sponsor"
 	sponsor="&limelight;">A new kernel configuration option,
 	<literal>EM_MULTIQUEUE</literal>, has been added which enables
