@@ -1195,6 +1195,11 @@
       <para revision="267359">Support for the
 	<literal>disklabel64</literal> partitioning scheme has been
 	added to &man.gpart.8;.</para>
+
+      <para revision="282465">Support for the
+	<literal>apple-boot</literal>, <literal>apple-hfs</literal>,
+	and <literal>apple-ufs</literal> <acronym>MBR</acronym>
+	partitioning schemes have been added to &man.gpart.8;.</para>
     </sect2>
   </sect1>
 
