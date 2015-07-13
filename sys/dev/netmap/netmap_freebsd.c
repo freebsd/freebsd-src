@@ -638,6 +638,7 @@ netmap_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 			      M_NOWAIT | M_ZERO);
 	if (priv == NULL)
 		return ENOMEM;
+	priv->np_refs = 1;
 	error = devfs_set_cdevpriv(priv, netmap_dtor);
 	if (error) {
 		free(priv, M_DEVBUF);
