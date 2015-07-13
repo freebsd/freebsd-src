@@ -639,6 +639,11 @@
 	supported boards where a corresponding
 	<literal>u-boot</literal> port exists in the Ports
 	Collection.</para>
+
+      <para revision="283548" contrib="sponsor" sponsor="&ff;">The
+	&os;/&arch.i386; memory stick installation images are now
+	created using the &man.mkimg.1; utility, matching the way
+	the &os;/&arch.amd64; images are created.</para>
     </sect2>
   </sect1>
 </article>
