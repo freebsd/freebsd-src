@@ -224,10 +224,6 @@
 	links when the <literal>-R</literal> flag is specified, as
 	documented in &man.symlink.7;.</para>
 
-      <para revision="285092">The &man.pw.8; utility has been updated
-	with a new flag, <literal>-R</literal>, that sets the root
-	directory within which the utility will operate.</para>
-
       <para revision="283258">The &man.date.1; utility has been
 	updated to print the modification time of the file passed as
 	an argument to the <literal>-r</literal> flag, improving
@@ -237,6 +233,10 @@
       <para revision="284523">A new flag, <literal>-c</literal>, has
 	been added to the &man.mkimg.1; utility, which allows
 	specifying the capacity of the target disk image.</para>
+
+      <para revision="285092">The &man.pw.8; utility has been updated
+	with a new flag, <literal>-R</literal>, that sets the root
+	directory within which the utility will operate.</para>
     </sect2>
 
     <sect2 xml:id="userland-contrib">
