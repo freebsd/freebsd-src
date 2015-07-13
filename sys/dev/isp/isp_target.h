@@ -51,8 +51,6 @@ typedef enum {
 	NT_LOGOUT,
 	NT_GLOBAL_LOGOUT,
 	NT_CHANGED,
-	NT_ARRIVED,
-	NT_DEPARTED,
 	NT_HBA_RESET
 } isp_ncode_t;
 

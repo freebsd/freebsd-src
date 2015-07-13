@@ -376,9 +376,6 @@ typedef struct {
  *    duples.
  *
  *  + There can never be two non-NIL entries with the same handle.
- *
- *  + There can never be two non-NIL entries which have the same dev_map_idx
- *    value.
  */
 typedef struct {
 	/*
@@ -389,8 +386,6 @@ typedef struct {
 	uint16_t	handle;
 
 	/*
-	 * The dev_map_idx, if nonzero, is the system virtual target ID (+1)
-	 *
 	 * A device is 'autologin' if the firmware automatically logs into
 	 * it (re-logins as needed). Basically, local private loop devices.
 	 *
@@ -398,27 +393,24 @@ typedef struct {
 	 *
 	 * The state is the current state of this entry.
 	 *
+	 * The is_target is the current state of target on this port.
+	 *
+	 * The is_initiator is the current state of initiator on this port.
+	 *
 	 * Portid is obvious, as are node && port WWNs. The new_role and
 	 * new_portid is for when we are pending a change.
-	 *
-	 * The 'target_mode' tag means that this entry arrived via a
-	 * target mode command and is immune from normal flushing rules.
-	 * You should also never see anything with an initiator role
-	 * with this set.
 	 */
 	uint16_t	prli_word3;		/* PRLI parameters */
 	uint16_t	new_prli_word3;		/* Incoming new PRLI parameters */
-	uint16_t	dev_map_idx	: 12,
+	uint16_t			: 12,
 			autologin	: 1,	/* F/W does PLOGI/PLOGO */
 			state		: 3;
-	uint32_t			: 7,
-			target_mode	: 1,
+	uint32_t			: 6,
+			is_target	: 1,
+			is_initiator	: 1,
 			portid		: 24;
 	uint32_t
-					: 5,
-			reported_gone	: 1,
-			announced	: 1,
-			dirty		: 1,	/* commands have been run */
+					: 8,
 			new_portid	: 24;
 	uint64_t	node_wwn;
 	uint64_t	port_wwn;
@@ -433,6 +425,8 @@ typedef struct {
 #define	FC_PORTDB_STATE_PENDING_VALID	5
 #define	FC_PORTDB_STATE_ZOMBIE		6
 #define	FC_PORTDB_STATE_VALID		7
+
+#define	FC_PORTDB_TGT(isp, bus, pdb)		(int)(lp - FCPARAM(isp, bus)->portdb)
 
 /*
  * FC card specific information
@@ -484,18 +478,6 @@ typedef struct {
 	 * Our Port Data Base
 	 */
 	fcportdb_t		portdb[MAX_FC_TARG];
-
-#ifdef	ISP_TARGET_MODE
-	/*
-	 * This maps N-Port Handle to portdb entry so we
-	 * don't have to search for every incoming command.
-	 *
-	 * The mapping function is to take any non-zero entry and
-	 * subtract one to get the portdb index. This means that
-	 * entries which are zero are unmapped (i.e., don't exist).
-	 */
-	uint16_t		isp_tgt_map[MAX_NPORT_HANDLE];
-#endif
 
 	/*
 	 * Scratch DMA mapped in area to fetch Port Database stuff, etc.
@@ -840,7 +822,7 @@ void isp_init(ispsoftc_t *);
 /*
  * Reset the ISP and call completion for any orphaned commands.
  */
-void isp_reinit(ispsoftc_t *, int);
+int isp_reinit(ispsoftc_t *, int);
 
 /*
  * Internal Interrupt Service Routine
