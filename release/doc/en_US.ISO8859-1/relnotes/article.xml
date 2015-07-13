@@ -972,6 +972,9 @@
 	been split into two separate modules, &man.gre.4; and
 	&man.me.4;.</para>
 
+      <para revision="278551">The &man.ral.4; driver has been updated
+	to support the RT5390 and RT5392 chipsets.</para>
+
       <para revision="283766" contrib="sponsor"
 	sponsor="&limelight;">The &man.em.4; driver has been updated
 	with improved transmission queue hang detection.</para>
