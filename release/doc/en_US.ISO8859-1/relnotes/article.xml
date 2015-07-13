@@ -627,7 +627,12 @@
     <sect2 xml:id="releng-changes">
       <title>Integration Changes</title>
 
-      <para>&nbsp;</para>
+      <para revision="283161" contrib="sponsor" sponsor="&ff;">The
+	Release Engineering build tools have been updated to support
+	building &os;/&arch.arm; images without external utilities for
+	supported boards where a corresponding
+	<literal>u-boot</literal> port exists in the Ports
+	Collection.</para>
     </sect2>
   </sect1>
 </article>
