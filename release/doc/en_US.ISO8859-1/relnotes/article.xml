@@ -552,6 +552,11 @@
 	<filename>iovctl</filename>, has been added, which allows
 	automatically starting the &man.iovctl.8; utility at
 	boot.</para>
+
+      <para revision="273955">A new &man.rc.8; script,
+	<filename>growfs</filename>, has been added, which will resize
+	the root filesystem on boot if <filename>/firstboot</filename>
+	exists.</para>
     </sect2>
 
     <sect2 xml:id="userland-periodic">
