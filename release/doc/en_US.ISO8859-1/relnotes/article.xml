@@ -445,6 +445,11 @@
 	been added, which provides an interface to VirtIO console
 	devices through a &man.tty.4; device.</para>
 
+      <para revision="276403">The &man.bhyve.8; hypervisior has been
+	updated to support &amd; processors with
+	<acronym>SVM</acronym> and <acronym>AMD-V</acronym> hardware
+	extensions.</para>
+
       <para revision="280370">The &man.bhyve.8; hypervisor has been
 	updated to support <literal>DSM TRIM</literal> commands for
 	virtual <acronym>AHCI</acronym> disks.</para>
