@@ -269,7 +269,10 @@
       <title><filename class="directory">/etc/rc.d</filename>
 	Scripts</title>
 
-      <para>&nbsp;</para>
+      <para revision="284009">A new &man.rc.8; script,
+	<filename>growfs</filename>, has been added, which will resize
+	the root filesystem on boot if <filename>/firstboot</filename>
+	exists.</para>
     </sect2>
 
     <sect2 xml:id="userland-periodic">
