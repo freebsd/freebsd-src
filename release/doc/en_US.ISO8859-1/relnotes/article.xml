@@ -234,10 +234,9 @@
 	compatibility with the <acronym>GNU</acronym> &man.date.1;
 	utility behavior.</para>
 
-      <para revision="284523">The &man.mkimg.1; utility has been
-	updated to version 20150222, adding the <literal>-c</literal>
-	argument which allows specifying the capacity of the target
-	disk image.</para>
+      <para revision="284523">A new flag, <literal>-c</literal>, has
+	been added to the &man.mkimg.1; utility, which allows
+	specifying the capacity of the target disk image.</para>
     </sect2>
 
     <sect2 xml:id="userland-contrib">
