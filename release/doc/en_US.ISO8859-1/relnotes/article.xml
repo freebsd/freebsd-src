@@ -183,6 +183,11 @@
 	&man.fstyp.8; utility has been added, which is used to
 	determine the filesystem on a specified device.</para>
 
+      <para revision="278968" contrib="sponsor" sponsor="&ff;">The
+	&man.mkimg.1; utility has been updated to support the
+	<acronym>MBR</acronym> <acronym>EFI</acronym> partition
+	type.</para>
+
       <para revision="281044">A regression in the &man.libarchive.3;
 	library that would prevent a directory from being included in
 	the archive when <literal>--one-file-system</literal> is used
