@@ -279,7 +279,13 @@
       <title><filename class="directory">/etc/periodic</filename>
 	Scripts</title>
 
-      <para>&nbsp;</para>
+      <para revision="277520" contrib="sponsor" sponsor="&ff;">A new
+	&man.periodic.8; script,
+	<filename>510.status-world-kernel</filename>, has been added,
+	which evaluates the running userland and kernel versions from
+	the &man.uname.1; <literal>-U</literal> and
+	<literal>-K</literal> arguments, and prints an error if the
+	system userland and kernel are not in sync.</para>
     </sect2>
 
     <sect2 xml:id="userland-libraries">
