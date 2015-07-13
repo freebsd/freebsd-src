@@ -402,7 +402,10 @@
     <sect2 xml:id="drivers-network">
       <title>Network Drivers</title>
 
-      <para>&nbsp;</para>
+      <para revision="284066" contrib="sponsor" sponsor="&yandex;">The
+	&man.gre.4; driver has been significantly overhauled, and has
+	been split into two separate modules, &man.gre.4; and
+	&man.me.4;.</para>
     </sect2>
   </sect1>
 
