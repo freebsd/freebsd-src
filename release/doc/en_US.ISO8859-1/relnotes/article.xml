@@ -1394,6 +1394,13 @@
 	Release Engineering build tools have been updated to include
 	support for building &os;/&arch.arm64; virtual machine and
 	memory stick installation images.</para>
+
+      <para revision="282693" contrib="sponsor" sponsor="&ff;">The
+	Release Engineering build tools have been updated to support
+	building &os;/&arch.arm; images without external utilities for
+	supported boards where a corresponding
+	<literal>u-boot</literal> port exists in the Ports
+	Collection.</para>
     </sect2>
   </sect1>
 </article>
