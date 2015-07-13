@@ -1241,7 +1241,7 @@ zfs_create_boot()
 	local dir
 	for dir in /tmp /var/tmp; do
 		f_eval_catch $funcname chmod "$CHMOD_MODE" 1777 \
-		             $BSDINSTALL_CHROOTDIR$dir || return $FAILURE
+		             $BSDINSTALL_CHROOT$dir || return $FAILURE
 	done
 
 	# Create symlink(s)
