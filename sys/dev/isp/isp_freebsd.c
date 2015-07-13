@@ -101,16 +101,13 @@ isp_role_sysctl(SYSCTL_HANDLER_ARGS)
 	ISP_LOCK(isp);
 	old = FCPARAM(isp, chan)->role;
 
+	/* We don't allow target mode switch from here. */
+	value = (old & ISP_ROLE_TARGET) | (value & ISP_ROLE_INITIATOR);
+
 	/* If nothing has changed -- we are done. */
 	if (value == old) {
 		ISP_UNLOCK(isp);
 		return (0);
-	}
-
-	/* We don't allow target mode switch from here. */
-	if ((value ^ old) & ISP_ROLE_TARGET) {
-		ISP_UNLOCK(isp);
-		return (EPERM);
 	}
 
 	/* Actually change the role. */
