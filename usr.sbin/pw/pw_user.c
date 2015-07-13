@@ -804,7 +804,7 @@ pw_uidpolicy(struct userconf * cnf, long id)
 	/*
 	 * Check the given uid, if any
 	 */
-	if (id > 0) {
+	if (id >= 0) {
 		uid = (uid_t) id;
 
 		if ((pwd = GETPWUID(uid)) != NULL && conf.checkduplicate)
