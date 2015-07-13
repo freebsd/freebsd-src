@@ -222,6 +222,12 @@
       <para revision="285092">The &man.pw.8; utility has been updated
 	with a new flag, <literal>-R</literal>, that sets the root
 	directory within which the utility will operate.</para>
+
+      <para revision="283258">The &man.date.1; utility has been
+	updated to print the modification time of the file passed as
+	an argument to the <literal>-r</literal> flag, improving
+	compatibility with the <acronym>GNU</acronym> &man.date.1;
+	utility behavior.</para>
     </sect2>
 
     <sect2 xml:id="userland-contrib">
