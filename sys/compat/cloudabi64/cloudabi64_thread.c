@@ -37,12 +37,3 @@ cloudabi64_sys_thread_create(struct thread *td,
 	/* Not implemented. */
 	return (ENOSYS);
 }
-
-int
-cloudabi64_sys_thread_tcb_set(struct thread *td,
-    struct cloudabi64_sys_thread_tcb_set_args *uap)
-{
-
-	/* Not implemented. */
-	return (ENOSYS);
-}

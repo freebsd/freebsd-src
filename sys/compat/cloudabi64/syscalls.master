@@ -207,6 +207,5 @@
 					cloudabi64_threadattr_t *attr); }
 54	AUE_NULL	STD	{ void cloudabi_sys_thread_exit( \
 					cloudabi_lock_t *lock); }
-55	AUE_NULL	STD	{ void cloudabi64_sys_thread_tcb_set( \
-					void *tcb); }
+55	AUE_NULL	STD	{ void cloudabi_sys_thread_tcb_set(void *tcb); }
 56	AUE_NULL	STD	{ void cloudabi_sys_thread_yield(); }
