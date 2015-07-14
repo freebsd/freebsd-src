@@ -227,7 +227,7 @@ struct enc_xform enc_xform_rijndael128 = {
 
 struct enc_xform enc_xform_aes_icm = {
 	CRYPTO_AES_ICM, "AES-ICM",
-	RIJNDAEL128_BLOCK_LEN, RIJNDAEL128_BLOCK_LEN, AES_MIN_KEY, AES_MAX_KEY,
+	AES_BLOCK_LEN, AES_BLOCK_LEN, AES_MIN_KEY, AES_MAX_KEY,
 	aes_icm_crypt,
 	aes_icm_crypt,
 	aes_icm_setkey,
@@ -237,7 +237,7 @@ struct enc_xform enc_xform_aes_icm = {
 
 struct enc_xform enc_xform_aes_nist_gcm = {
 	CRYPTO_AES_NIST_GCM_16, "AES-GCM",
-	AES_MIN_BLOCK_LEN, AES_IV_LEN, AES_MIN_KEY, AES_MAX_KEY,
+	AES_ICM_BLOCK_LEN, AES_GCM_IV_LEN, AES_MIN_KEY, AES_MAX_KEY,
 	aes_icm_crypt,
 	aes_icm_crypt,
 	aes_icm_setkey,
@@ -247,7 +247,7 @@ struct enc_xform enc_xform_aes_nist_gcm = {
 
 struct enc_xform enc_xform_aes_nist_gmac = {
 	CRYPTO_AES_NIST_GMAC, "AES-GMAC",
-	AES_MIN_BLOCK_LEN, AES_IV_LEN, AES_MIN_KEY, AES_MAX_KEY,
+	AES_ICM_BLOCK_LEN, AES_GCM_IV_LEN, AES_MIN_KEY, AES_MAX_KEY,
 	NULL,
 	NULL,
 	NULL,
@@ -257,7 +257,7 @@ struct enc_xform enc_xform_aes_nist_gmac = {
 
 struct enc_xform enc_xform_aes_xts = {
 	CRYPTO_AES_XTS, "AES-XTS",
-	AES_MIN_BLOCK_LEN, AES_XTS_IV_LEN, AES_XTS_MIN_KEY, AES_XTS_MAX_KEY,
+	AES_BLOCK_LEN, AES_XTS_IV_LEN, AES_XTS_MIN_KEY, AES_XTS_MAX_KEY,
 	aes_xts_encrypt,
 	aes_xts_decrypt,
 	aes_xts_setkey,
