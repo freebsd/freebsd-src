@@ -347,6 +347,11 @@
     <sect2 xml:id="kernel-config">
       <title>Kernel Configuration</title>
 
+      <para revision="282065" contrib="sponsor" sponsor="&ff;">The
+	<literal>PAE_TABLES</literal> kernel configuration option has
+	been added for &os;/&arch.i386;, which instructs &man.pmap.9;
+	to use <acronym>PAE</acronym> format for page tables.</para>
+
       <para revision="283076" contrib="sponsor" sponsor="&intelcorp;"
 	arch="amd64,i386">The &man.nvd.4; and &man.nvme.4; drivers are
 	now included in the <filename>GENERIC</filename> kernel
