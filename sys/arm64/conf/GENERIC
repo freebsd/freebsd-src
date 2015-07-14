@@ -112,5 +112,5 @@ device		bpf		# Berkeley packet filter
 options 	FDT
 device		acpi
 
-# The cypto framework is required by IPSEC
+# The crypto framework is required by IPSEC
 device		crypto			# Required by IPSEC
