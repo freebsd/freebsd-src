@@ -1003,7 +1003,7 @@
 	with improved transmission queue hang detection.</para>
 
       <para revision="284125">The &man.cdce.4; driver has been updated
-	to include support for the RTL8153 chipest.</para>
+	to include support for the RTL8153 chipset.</para>
     </sect2>
   </sect1>
 
