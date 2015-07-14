@@ -361,10 +361,6 @@
 	now included in the <filename>GENERIC</filename> kernel
 	configuration by default.</para>
 
-      <para revision="283505">Support for booting relocatable kernels
-	has been extended to non-<acronym>EFI</acronym>
-	systems.</para>
-
       <para revision="283505" arch="arm">The &arch.arm; boot loader,
 	<filename>ubldr</filename>, is now relocatable.  In addition,
 	<filename>ubldr.bin</filename> is now created during build
