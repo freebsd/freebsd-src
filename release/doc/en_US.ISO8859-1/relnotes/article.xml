@@ -620,6 +620,11 @@
 	providing a wrapper around the &man.gpio.4; kernel
 	interface.</para>
 
+      <para revision="275800" contrib="sponsor" sponsor="&ff;">The
+	&man.procctl.2; system call has been updated to include
+	a facility for non-&man.init.8; processes to be declared as
+	the reaper of child processes and their decendants.</para>
+
       <para revision="277610">The <literal>futimens()</literal> and
 	<literal>utimensat()</literal> system calls have been
 	added.  See &man.utimensat.2; for more information.</para>
