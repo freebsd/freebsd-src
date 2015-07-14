@@ -27,9 +27,10 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/proc.h>
-#include <sys/syscallsubr.h>
-#include <sys/sysproto.h>
+#include <sys/signalvar.h>
 
 #include <compat/cloudabi/cloudabi_proto.h>
 
@@ -92,21 +93,22 @@ cloudabi_sys_proc_raise(struct thread *td,
 		[CLOUDABI_SIGXCPU] = SIGXCPU,
 		[CLOUDABI_SIGXFSZ] = SIGXFSZ,
 	};
-	static const struct sigaction sigdfl = {
-		.sa_handler = SIG_DFL,
-	};
-	struct kill_args kill_args = {
-		.pid = td->td_proc->p_pid,
-	};
+	ksiginfo_t ksi;
+	struct proc *p;
 
-	if (uap->sig >= nitems(signals) ||
-	    (uap->sig != 0 && signals[uap->sig] == 0)) {
-		/* Invalid signal. */
-		return (EINVAL);
+	if (uap->sig >= nitems(signals) || signals[uap->sig] == 0) {
+		/* Invalid signal, or the null signal. */
+		return (uap->sig == 0 ? 0 : EINVAL);
 	}
-	kill_args.signum = signals[uap->sig];
 
-	/* Restore to default signal action and send signal. */
-	kern_sigaction(td, kill_args.signum, &sigdfl, NULL, 0);
-	return (sys_kill(td, &kill_args));
+	p = td->td_proc;
+	ksiginfo_init(&ksi);
+	ksi.ksi_signo = signals[uap->sig];
+	ksi.ksi_code = SI_USER;
+	ksi.ksi_pid = p->p_pid;
+	ksi.ksi_uid = td->td_ucred->cr_ruid;
+	PROC_LOCK(p);
+	pksignal(p, ksi.ksi_signo, &ksi);
+	PROC_UNLOCK(p);
+	return (0);
 }
