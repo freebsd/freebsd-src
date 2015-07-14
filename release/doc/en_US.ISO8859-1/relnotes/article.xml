@@ -792,6 +792,10 @@
 	&powerpc; processors has been overhaulded to improve
 	concurrency.</para>
 
+      <para revision="279824" arch="arm">A new module for creating
+	the <filename>dtb</filename> module for AM335x systems has
+	been added.</para>
+
       <para revision="281495" contrib="sponsor" sponsor="&ff;">The
 	<literal>PAE_TABLES</literal> kernel configuration option has
 	been added for &os;/&arch.i386;, which instructs &man.pmap.9;
