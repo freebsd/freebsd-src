@@ -1281,6 +1281,7 @@ MLINKS+=psignal.9 gsignal.9 \
 MLINKS+=random.9 arc4rand.9 \
 	random.9 arc4random.9 \
 	random.9 read_random.9 \
+	random.9 read_random_uio.9 \
 	random.9 srandom.9
 MLINKS+=refcount.9 refcount_acquire.9 \
 	refcount.9 refcount_init.9 \
