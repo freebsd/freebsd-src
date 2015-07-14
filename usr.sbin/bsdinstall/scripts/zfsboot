@@ -1,6 +1,6 @@
 #!/bin/sh
 #-
-# Copyright (c) 2013-2014 Allan Jude
+# Copyright (c) 2013-2015 Allan Jude
 # Copyright (c) 2013-2015 Devin Teske
 # All rights reserved.
 #
@@ -1236,6 +1236,15 @@ zfs_create_boot()
 		             "${options:+-o $options}" "$zroot_name$dataset" ||
 		             return $FAILURE
 	done
+
+	#
+	# Set a mountpoint for the root of the pool so newly created datasets
+	# have a mountpoint to inherit
+	#
+	f_dprintf "$funcname: Setting mountpoint for root of the pool..."
+	f_eval_catch $funcname zfs "$ZFS_SET" \
+		"mountpoint=/$zroot_name" "$zroot_name" ||
+		return $FAILURE
 
 	# Touch up permissions on the tmp directories
 	f_dprintf "$funcname: Modifying directory permissions..."
