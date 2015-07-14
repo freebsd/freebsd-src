@@ -788,6 +788,10 @@
 	been added for &os;/&arch.i386;, which instructs &man.pmap.9;
 	to use <acronym>PAE</acronym> format for page tables.</para>
 
+      <para revision="282215">The <literal>SIFTR</literal> kernel
+	configuration has been added, allowing building &man.siftr.4;
+	statically into the kernel.</para>
+
       <para revision="282727">Support for booting relocatable kernels
 	has been extended to non-<acronym>EFI</acronym>
 	systems.</para>
