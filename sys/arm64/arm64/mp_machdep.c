@@ -229,6 +229,9 @@ init_secondary(uint64_t cpu)
 	pcpup->pc_curthread = pcpup->pc_idlethread;
 	pcpup->pc_curpcb = pcpup->pc_idlethread->td_pcb;
 
+	/* Configure the interrupt controller */
+	arm_init_secondary();
+
 	for (i = 0; i < COUNT_IPI; i++)
 		arm_unmask_ipi(i);
 
@@ -238,9 +241,6 @@ init_secondary(uint64_t cpu)
 #ifdef VFP
 	vfp_init();
 #endif
-
-	/* Configure the interrupt controller */
-	arm_init_secondary();
 
 	/* Enable interrupts */
 	intr_enable();
