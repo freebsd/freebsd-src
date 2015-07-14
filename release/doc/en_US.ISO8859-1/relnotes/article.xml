@@ -373,6 +373,16 @@
 	load address by running <literal>go
 	  &dollar;{loadaddr}</literal> in
 	<literal>u-boot</literal>.</para>
+
+      <para revision="284094" arch="arm">A new module for creating
+	<filename>rpi.dtb</filename> has been added for the Raspberry
+	Pi.</para>
+
+      <para revision="284094" arch="arm">The
+	<filename>rpi.dtb</filename> module is now installed to
+	<filename class="directory">/boot/dtb/</filename> by
+	default for the Raspberry Pi system.</para>
+
       <para revision="284522" contrib="sponsor"
 	sponsor="&limelight;">A new kernel configuration option,
 	<literal>EM_MULTIQUEUE</literal>, has been added which enables
