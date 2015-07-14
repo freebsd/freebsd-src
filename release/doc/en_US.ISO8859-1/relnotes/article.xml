@@ -536,6 +536,15 @@
 	driver has been added, which supports <acronym>CPU</acronym>
 	frequency and voltage control on the Raspberry Pi
 	<acronym>SOC</acronym>.</para>
+
+      <para revision="283500" arch="arm">Support for the Toradex
+	Apalis i.MX6 development board has been added.</para>
+
+      <para revision="283500" arch="arm">Audio transmission drivers
+	have been added for Digital Audio Multiplexer
+	(<acronym>AUDMUXM</acronym>), Smart Direct Memory Access
+	Controller (<acronym>SDMA</acronym>), and Syncronous Serial
+	Interface (<acronym>SSI</acronym>).</para>
     </sect2>
   </sect1>
 
