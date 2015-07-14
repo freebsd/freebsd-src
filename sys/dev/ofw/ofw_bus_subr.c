@@ -170,7 +170,8 @@ ofw_bus_status_okay(device_t dev)
 	const char *status;
 
 	status = ofw_bus_get_status(dev);
-	if (status == NULL || strcmp(status, "okay") == 0)
+	if (status == NULL || strcmp(status, "okay") == 0 ||
+	    strcmp(status, "ok") == 0)
 		return (1);
 	
 	return (0);
