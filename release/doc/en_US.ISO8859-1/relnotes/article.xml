@@ -1159,6 +1159,11 @@
 	frequency and voltage control on the Raspberry Pi
 	<acronym>SOC</acronym>.</para>
 
+      <para revision="277042" arch="arm">Support to turn off the
+	BeagleBone Black system with the &man.shutdown.8;
+	<literal>-p</literal> flag or by invoking &man.poweroff.8; has
+	been added.</para>
+
       <para revision="280259" contrib="sponsor" sponsor="&ff;">Initial
 	support for the ARM AArch64 architecture has been
 	added.</para>
