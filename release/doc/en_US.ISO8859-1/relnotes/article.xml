@@ -1308,6 +1308,9 @@
 	entering <literal>set kern.vty=sc</literal> at the
 	&man.loader.8; prompt.</para>
 
+      <para revision="279950">Support for <literal>bzipfs</literal>
+	has been added to the <acronym>EFI</acronym> loader.</para>
+
       <para revision="281616">The boot loader has been updated to
 	support entering the <acronym>GELI</acronym> passphrase before
 	loading the kernel.  To enable this behavior, add
