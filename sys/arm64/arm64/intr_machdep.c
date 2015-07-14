@@ -451,8 +451,7 @@ void
 arm_setup_ipihandler(driver_filter_t *filt, u_int ipi)
 {
 
-	/* ARM64TODO: The hard coded 16 will be fixed with am_intrng */
-	arm_setup_intr("ipi", filt, NULL, (void *)((uintptr_t)ipi | 1<<16), ipi + 16,
+	arm_setup_intr("ipi", filt, NULL, (void *)((uintptr_t)ipi | 1<<16), ipi,
 	    INTR_TYPE_MISC | INTR_EXCL, NULL);
 	arm_unmask_ipi(ipi);
 }
@@ -460,7 +459,8 @@ arm_setup_ipihandler(driver_filter_t *filt, u_int ipi)
 void
 arm_unmask_ipi(u_int ipi)
 {
-	PIC_UNMASK(root_pic, ipi + 16);
+
+	PIC_UNMASK(root_pic, ipi);
 }
 
 void
@@ -494,9 +494,6 @@ ipi_cpu(int cpu, u_int ipi)
 	CPU_ZERO(&cpus);
 	CPU_SET(cpu, &cpus);
 
-	/* ARM64TODO: This will be fixed with arm_intrng */
-	ipi += 16;
-
 	CTR2(KTR_SMP, "ipi_cpu: cpu: %d, ipi: %x", cpu, ipi);
 	PIC_IPI_SEND(root_pic, cpus, ipi);
 }
@@ -504,9 +501,6 @@ ipi_cpu(int cpu, u_int ipi)
 void
 ipi_selected(cpuset_t cpus, u_int ipi)
 {
-
-	/* ARM64TODO: This will be fixed with arm_intrng */
-	ipi += 16;
 
 	CTR1(KTR_SMP, "ipi_selected: ipi: %x", ipi);
 	PIC_IPI_SEND(root_pic, cpus, ipi);
