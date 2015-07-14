@@ -520,6 +520,11 @@
     <sect2 xml:id="hardware-arm">
       <title>ARM Support</title>
 
+      <para revision="278079" arch="arm">Support to turn off the
+	BeagleBone Black system with the &man.shutdown.8;
+	<literal>-p</literal> flag or by invoking &man.poweroff.8; has
+	been added.</para>
+
       <para revision="278608">The <literal>bcm2835_cpufreq</literal>
 	driver has been added, which supports <acronym>CPU</acronym>
 	frequency and voltage control on the Raspberry Pi
