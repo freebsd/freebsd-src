@@ -3,7 +3,7 @@
 	dla	$ra, 0f
 	cgetpcc	$c12
 	csetoffset	$c12, $c12, \dest
-	cjalr	$c12, $c17
+	cjalr	$c17, $c12
 	nop			# Branch-delay slot
 0:
 .endm
