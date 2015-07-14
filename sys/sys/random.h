@@ -31,7 +31,12 @@
 
 #ifdef _KERNEL
 
+#include <sys/types.h>
+
+struct uio;
+
 u_int read_random(void *, u_int);
+int read_random_uio(struct uio *, bool);
 
 /*
  * Note: if you add or remove members of random_entropy_source, remember to also update the

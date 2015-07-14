@@ -26,13 +26,28 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/types.h>
+#include <sys/random.h>
+#include <sys/uio.h>
+
 #include <compat/cloudabi/cloudabi_proto.h>
 
 int
 cloudabi_sys_random_get(struct thread *td,
     struct cloudabi_sys_random_get_args *uap)
 {
+	struct iovec iov = {
+		.iov_base = uap->buf,
+		.iov_len = uap->nbyte
+	};
+	struct uio uio = {
+		.uio_iov = &iov,
+		.uio_iovcnt = 1,
+		.uio_resid = iov.iov_len,
+		.uio_segflg = UIO_USERSPACE,
+		.uio_rw = UIO_READ,
+		.uio_td = td
+	};
 
-	/* Not implemented. */
-	return (ENOSYS);
+	return (read_random_uio(&uio, false));
 }
