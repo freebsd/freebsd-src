@@ -26,6 +26,10 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/param.h>
+#include <sys/proc.h>
+#include <sys/sched.h>
+
 #include <compat/cloudabi/cloudabi_proto.h>
 
 int
@@ -38,10 +42,18 @@ cloudabi_sys_thread_exit(struct thread *td,
 }
 
 int
+cloudabi_sys_thread_tcb_set(struct thread *td,
+    struct cloudabi_sys_thread_tcb_set_args *uap)
+{
+
+	return (cpu_set_user_tls(td, uap->tcb));
+}
+
+int
 cloudabi_sys_thread_yield(struct thread *td,
     struct cloudabi_sys_thread_yield_args *uap)
 {
 
-	/* Not implemented. */
-	return (ENOSYS);
+	sched_relinquish(td);
+	return (0);
 }
