@@ -63,6 +63,12 @@ typedef	uint64_t	pt_entry_t;		/* page table entry */
 #define	ATTR_IDX(x)	((x) << 2)
 #define	ATTR_IDX_MASK	(7 << 2)
 
+#ifdef SMP
+#define	ATTR_DEFAULT	(ATTR_AF | ATTR_SH(ATTR_SH_IS))
+#else
+#define	ATTR_DEFAULT	(ATTR_AF)
+#endif
+
 #define	ATTR_DESCR_MASK	3
 
 /* Level 0 table, 512GiB per entry */
