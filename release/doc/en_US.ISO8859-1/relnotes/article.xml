@@ -420,6 +420,11 @@
 
       <para revision="282199">The <literal>drm</literal> code has
 	been updated to match &linux; version 3.8.13.</para>
+
+      <para revision="281708">The &man.psm.4; driver has been updated
+	to include improved support for newer Synaptics&nbsp;&reg;
+	touchpads and the ClickPad&nbsp;&reg; mouse on newer
+	Lenovo&nbsp;&trade; laptops.</para>
     </sect2>
 
     <sect2 xml:id="drivers-storage">
