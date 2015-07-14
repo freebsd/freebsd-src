@@ -115,7 +115,7 @@
 #define	CAST128_BLOCK_LEN	8
 #define	RIJNDAEL128_BLOCK_LEN	16
 #define	AES_BLOCK_LEN		16
-#define	AES_MIN_BLOCK_LEN	1
+#define	AES_ICM_BLOCK_LEN	1
 #define	ARC4_BLOCK_LEN		1
 #define	CAMELLIA_BLOCK_LEN	16
 #define	EALG_MAX_BLOCK_LEN	AES_BLOCK_LEN /* Keep this updated */
@@ -123,11 +123,9 @@
 /* IV Lengths */
 
 #define	ARC4_IV_LEN		1
-#define	AES_IV_LEN		12
+#define	AES_GCM_IV_LEN		12
 #define	AES_XTS_IV_LEN		8
 #define	AES_XTS_ALPHA		0x87	/* GF(2^128) generator polynomial */
-
-#define AES_CTR_NONCE_SIZE	4
 
 /* Min and Max Encryption Key Sizes */
 #define	NULL_MIN_KEY		0
@@ -144,10 +142,10 @@
 #define	SKIPJACK_MAX_KEY	SKIPJACK_MIN_KEY
 #define	RIJNDAEL_MIN_KEY	16
 #define	RIJNDAEL_MAX_KEY	32
-#define	AES_MIN_KEY		16
-#define	AES_MAX_KEY		32
-#define	AES_XTS_MIN_KEY		32
-#define	AES_XTS_MAX_KEY		64
+#define	AES_MIN_KEY		RIJNDAEL_MIN_KEY
+#define	AES_MAX_KEY		RIJNDAEL_MAX_KEY
+#define	AES_XTS_MIN_KEY		(2 * AES_MIN_KEY)
+#define	AES_XTS_MAX_KEY		(2 * AES_MAX_KEY)
 #define	ARC4_MIN_KEY		1
 #define	ARC4_MAX_KEY		32
 #define	CAMELLIA_MIN_KEY	8
