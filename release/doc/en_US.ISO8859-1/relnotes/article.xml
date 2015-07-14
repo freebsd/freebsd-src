@@ -383,6 +383,10 @@
 	<filename class="directory">/boot/dtb/</filename> by
 	default for the Raspberry Pi system.</para>
 
+      <para revision="284096" arch="arm">A new module for creating
+	the <filename>dtb</filename> module for AM335x systems has
+	been added.</para>
+
       <para revision="284522" contrib="sponsor"
 	sponsor="&limelight;">A new kernel configuration option,
 	<literal>EM_MULTIQUEUE</literal>, has been added which enables
