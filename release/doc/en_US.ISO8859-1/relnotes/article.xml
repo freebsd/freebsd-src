@@ -1157,6 +1157,9 @@
 	option has been enabled for all Exynos 5 systems supported by
 	&os;.</para>
 
+      <para revision="268838" arch="arm">Support for the Toradex
+	Apalis i.MX6 development board has been added.</para>
+
       <para revision="273264" arch="armv6">An issue that could cause
 	instability when detecting <acronym>SD</acronym> cards on the
 	Raspberry Pi <acronym>SOC</acronym> has been fixed.</para>
