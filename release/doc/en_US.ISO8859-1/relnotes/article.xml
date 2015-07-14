@@ -698,6 +698,10 @@
 	and <literal>asttrapexit()</literal> functions instead of
 	checking within addressed kernel space.</para>
 
+      <para revision="271917">A kernel panic triggered when destroying
+	a &man.vnet.9; &man.jail.8; configured with &man.gif.4; has
+	been fixed.</para>
+
       <para revision="272089">A bug in &man.ipfw.4; that could
 	potentially lead to a kernel panic when using &man.dummynet.4;
 	at layer 2 has been fixed.</para>
