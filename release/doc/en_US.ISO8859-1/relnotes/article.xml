@@ -1095,7 +1095,7 @@
 	I/O, and uses hardware virtualization extensions for all other
 	tasks, without the need for emulation.</para>
 
-      <para revision="273375">The &man.bhyve.8; hypervisior has been
+      <para revision="273375">The &man.bhyve.8; hypervisor has been
 	updated to support &amd; processors with
 	<acronym>SVM</acronym> and <acronym>AMD-V</acronym> hardware
 	extensions.</para>
