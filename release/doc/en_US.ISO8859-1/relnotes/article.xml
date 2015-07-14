@@ -773,9 +773,6 @@
 	  system.</para>
       </important>
 
-      <para revision="277962" arch="powerpc">Support for booting
-	relocatable kernels has been added.</para>
-
       <para revision="279189" contrib="sponsor" sponsor="&ff;"
 	arch="powerpc">Kernel support for Vector-Scalar eXtension
 	(<acronym>VSX</acronym>) found on POWER7 and POWER8 hardware
@@ -785,6 +782,10 @@
 	arch="powerpc">The &man.pmap.9; implementation for 64-bit
 	&powerpc; processors has been overhaulded to improve
 	concurrency.</para>
+
+      <para revision="282727">Support for booting relocatable kernels
+	has been extended to non-<acronym>EFI</acronym>
+	systems.</para>
 
       <para revision="282921" contrib="sponsor" sponsor="&intelcorp;"
 	arch="amd64,i386">The &man.nvd.4; and &man.nvme.4; drivers are
