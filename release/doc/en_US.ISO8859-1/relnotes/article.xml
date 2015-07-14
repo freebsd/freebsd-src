@@ -303,6 +303,11 @@
       <para revision="275040">A new file configuration library,
 	&man.figpar.3;, has been added to the base system.</para>
 
+      <para revision="276686" contrib="sponsor" sponsor="&ff;">The
+	&man.procctl.2; system call has been updated to include
+	a facility for non-&man.init.8; processes to be declared as
+	the reaper of child processes and their decendants.</para>
+
       <para revision="280392">The &man.setmode.3; function has been
 	updated to consistently set <literal>errno</literal> on
 	failure.</para>
