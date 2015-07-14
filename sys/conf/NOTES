@@ -2818,8 +2818,8 @@ options 	DCONS_FORCE_GDB=1	# force to be the gdb device
 device		crypto		# core crypto support
 
 # Only install the cryptodev device if you are running tests, or know
-# specificly why you need it.  Most cases, it is not needed and will
-# make things slower.
+# specifically why you need it.  In most cases, it is not needed and
+# will make things slower.
 device		cryptodev	# /dev/crypto for access to h/w
 
 device		rndtest		# FIPS 140-2 entropy tester
