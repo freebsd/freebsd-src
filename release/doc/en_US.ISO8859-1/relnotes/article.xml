@@ -525,6 +525,13 @@
 	<literal>-p</literal> flag or by invoking &man.poweroff.8; has
 	been added.</para>
 
+      <para revision="278599" arch="arm">Support for the Exynos 5420
+	Octa system has been added.</para>
+
+      <para revision="278599" arch="arm">The <acronym>SMP</acronym>
+	option has been enabled for all Exynos 5 systems supported by
+	&os;.</para>
+
       <para revision="278608">The <literal>bcm2835_cpufreq</literal>
 	driver has been added, which supports <acronym>CPU</acronym>
 	frequency and voltage control on the Raspberry Pi
