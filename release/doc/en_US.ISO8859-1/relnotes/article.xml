@@ -479,6 +479,11 @@
 
       <para revision="284499">The &man.cdce.4; driver has been updated
 	to include support for the RTL8153 chipset.</para>
+
+      <para revision="284555" contrib="sponsor"
+	sponsor="&solarflare;">The &man.sfxge.4; driver has been
+	updated to support Solarflare Flareon Ultra 7000-series
+	chipsets.</para>
     </sect2>
   </sect1>
 
