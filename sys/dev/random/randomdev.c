@@ -168,7 +168,7 @@ read_random_uio(struct uio *uio, bool nonblock)
 	/* (Un)Blocking logic */
 	error = 0;
 	while (!random_alg_context.ra_seeded()) {
-		if (flags & O_NONBLOCK)	{
+		if (nonblock) {
 			error = EWOULDBLOCK;
 			break;
 		}
