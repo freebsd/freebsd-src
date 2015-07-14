@@ -352,6 +352,18 @@
 	now included in the <filename>GENERIC</filename> kernel
 	configuration by default.</para>
 
+      <para revision="283505">Support for booting relocatable kernels
+	has been extended to non-<acronym>EFI</acronym>
+	systems.</para>
+
+      <para revision="283505" arch="arm">The &arch.arm; boot loader,
+	<filename>ubldr</filename>, is now relocatable.  In addition,
+	the <filename>ubldr.bin</filename> file is now created during
+	build time, which is a stripped binary with an entry point of
+	<literal>0</literal>, providing the ability to specify the
+	load address by running <literal>go
+	  &dollar;{loadaddr}</literal> in
+	<literal>u-boot</literal>.</para>
       <para revision="284522" contrib="sponsor"
 	sponsor="&limelight;">A new kernel configuration option,
 	<literal>EM_MULTIQUEUE</literal>, has been added which enables
