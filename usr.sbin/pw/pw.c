@@ -137,6 +137,7 @@ main(int argc, char *argv[])
 	relocated = nis = false;
 	memset(&conf, 0, sizeof(conf));
 	strlcpy(conf.etcpath, _PATH_PWD, sizeof(conf.etcpath));
+	conf.checkduplicate = true;
 
 	LIST_INIT(&arglist);
 
@@ -281,7 +282,7 @@ main(int argc, char *argv[])
 				    errstr);
 			break;
 		case 'o':
-			conf.checkduplicate = true;
+			conf.checkduplicate = false;
 			break;
 		default:
 			addarg(&arglist, ch, optarg);
