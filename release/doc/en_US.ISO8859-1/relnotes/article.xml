@@ -805,10 +805,6 @@
 	configuration has been added, allowing building &man.siftr.4;
 	statically into the kernel.</para>
 
-      <para revision="282727">Support for booting relocatable kernels
-	has been extended to non-<acronym>EFI</acronym>
-	systems.</para>
-
       <para revision="282731" arch="arm">The &arch.arm; boot loader,
 	<filename>ubldr</filename>, is now relocatable.  In addition,
 	<filename>ubldr.bin</filename> is now created during build
