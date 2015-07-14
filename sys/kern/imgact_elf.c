@@ -1241,6 +1241,7 @@ __elfN(coredump)(struct thread *td, struct vnode *vp, off_t limit, int flags)
 
 	compress = (flags & IMGACT_CORE_COMPRESS) != 0;
 	hdr = NULL;
+	tmpbuf = NULL;
 	TAILQ_INIT(&notelst);
 
 	/* Size the program segments. */
@@ -1254,6 +1255,14 @@ __elfN(coredump)(struct thread *td, struct vnode *vp, off_t limit, int flags)
 	hdrsize = sizeof(Elf_Ehdr) + sizeof(Elf_Phdr) * (1 + seginfo.count);
 	__elfN(prepare_notes)(td, &notelst, &notesz);
 	coresize = round_page(hdrsize + notesz) + seginfo.size;
+
+	/* Set up core dump parameters. */
+	params.offset = 0;
+	params.active_cred = cred;
+	params.file_cred = NOCRED;
+	params.td = td;
+	params.vp = vp;
+	params.gzs = NULL;
 
 #ifdef RACCT
 	if (racct_enable) {
@@ -1271,15 +1280,6 @@ __elfN(coredump)(struct thread *td, struct vnode *vp, off_t limit, int flags)
 		goto done;
 	}
 
-	/* Set up core dump parameters. */
-	params.offset = 0;
-	params.active_cred = cred;
-	params.file_cred = NOCRED;
-	params.td = td;
-	params.vp = vp;
-	params.gzs = NULL;
-
-	tmpbuf = NULL;
 #ifdef GZIO
 	/* Create a compression stream if necessary. */
 	if (compress) {
@@ -1336,7 +1336,8 @@ done:
 #ifdef GZIO
 	if (compress) {
 		free(tmpbuf, M_TEMP);
-		gzio_fini(params.gzs);
+		if (params.gzs != NULL)
+			gzio_fini(params.gzs);
 	}
 #endif
 	while ((ninfo = TAILQ_FIRST(&notelst)) != NULL) {
