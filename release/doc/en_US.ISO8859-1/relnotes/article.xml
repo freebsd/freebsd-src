@@ -358,8 +358,8 @@
 
       <para revision="283505" arch="arm">The &arch.arm; boot loader,
 	<filename>ubldr</filename>, is now relocatable.  In addition,
-	the <filename>ubldr.bin</filename> file is now created during
-	build time, which is a stripped binary with an entry point of
+	<filename>ubldr.bin</filename> is now created during build
+	time, which is a stripped binary with an entry point of
 	<literal>0</literal>, providing the ability to specify the
 	load address by running <literal>go
 	  &dollar;{loadaddr}</literal> in
