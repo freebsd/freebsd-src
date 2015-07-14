@@ -29,6 +29,7 @@
 #
 
 #include <machine/cherireg.h>
+#include "abicall.s"
 
 #.set mips64
 .set noreorder
@@ -149,8 +150,7 @@ constructors:
 	# returning.
 	#
 	dla	$t9, crt_sb_constructors
-	jalr	$t9
-	nop
+	abicall	$t9
 
 	#
 	# Return with $v0 set to '0'; $v1 and $c3 scrubbed.

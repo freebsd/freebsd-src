@@ -29,6 +29,7 @@
 #
 
 #include <machine/cherireg.h>
+#include "abicall.s"
 
 #.set mips64
 .set noreorder
@@ -103,8 +104,8 @@ __invoke_vector:
 	# capabilities to the sandbox-local heap (currently).
 	#
 	dli	$t0, (~CHERI_PERM_STORE_LOCAL_CAP)
-	candperm	$c12, $c26, $t0
-	csetdefault	$c12
+	candperm	$c13, $c26, $t0
+	csetdefault	$c13
 
 	#
 	# The compiler is responsible for scrubbing unused argument registers
@@ -129,10 +130,9 @@ __invoke_vector:
 	# XXXBD: See XXXRW comment in crt_rtld.S constructors
 	#
 	dli	$t0, 0x1020
-	clc	$c12, $t0, 2*CHERICAP_SIZE($c26)
-	cld	$t9, $v0, 0($c12)
-	jalr	$t9
-	nop			# Branch-delay slot
+	clc	$c13, $t0, 2*CHERICAP_SIZE($c26)
+	cld	$t9, $v0, 0($c13)
+	abicall	$t9
 	b	creturn_target
 	nop
 
@@ -141,8 +141,7 @@ legacy_invoke:
 	# Call the MIPS/CHERI-ABI C "invoke" function.
 	#
 	dla	$t9, invoke
-	jalr	$t9
-	nop			# Branch-delay slot
+	abicall	$t9
 
 creturn_target:
 	#
