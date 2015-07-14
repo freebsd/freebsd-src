@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 9, 2015
+.Dd July 14, 2015
 .Dt GGATEL 8
 .Os
 .Sh NAME
@@ -62,7 +62,7 @@ It can be used as a replacement for
 devices or as a
 .Dq GEOMificator
 for non GEOM-aware devices, but it was mainly created as an example
-on how to use and how to communicate with the GEOM Gate kernel module.
+on how to use and how to communicate with the GEOM Gate kernel subsystem.
 .Pp
 Available commands:
 .Bl -tag -width ".Cm destroy"
@@ -82,7 +82,8 @@ providers.
 Take over a previously created provider and handle pending and future
 requests. This is useful if the initial
 .Nm
-process died. To prevent data loss, the given path must lead to the
+process died.
+To prevent data loss, the given path must lead to the
 regular file or device that was used to create the provider.
 .El
 .Pp
@@ -93,7 +94,7 @@ Forcibly destroy
 .Nm ggate
 provider (cancels all pending requests).
 .It Fl o Cm ro | wo | rw
-Specify permission to use when opening the file or device: read-only
+Specify permissions to use when opening the file or device: read-only
 .Pq Cm ro ,
 write-only
 .Pq Cm wo ,
@@ -105,7 +106,7 @@ Default is
 Sector size for
 .Nm ggate
 provider.
-If not specified, it is taken from device, or set to 512 bytes for files.
+If not specified, it is taken from the device, or set to 512 bytes for files.
 .It Fl t Ar timeout
 Number of seconds to wait before an I/O request will be canceled.
 0 means no timeout.
@@ -131,7 +132,7 @@ the
 .Dq Li fd0
 device and use
 .Xr gbde 8
-to encrypt data on a floppy.
+to encrypt data on a floppy disk.
 .Bd -literal -offset indent
 ggatel create -u 5 /dev/fd0
 gbde init /dev/ggate5
