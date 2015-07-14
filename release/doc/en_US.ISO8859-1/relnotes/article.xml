@@ -887,6 +887,11 @@
       <para revision="280183">The <literal>drm</literal> code has
 	been updated to match &linux; version 3.8.13.</para>
 
+      <para revision="281440">The &man.psm.4; driver has been updated
+	to include improved support for newer Synaptics&nbsp;&reg;
+	touchpads and the ClickPad&nbsp;&reg; mouse on newer
+	Lenovo&nbsp;&trade; laptops.</para>
+
       <para revision="282783" arch="powerpc">Support for the Freescale
 	<acronym>PCI</acronym> Root Complex device has been
 	added.</para>
