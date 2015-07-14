@@ -773,6 +773,9 @@
 	  system.</para>
       </important>
 
+      <para revision="277962" arch="powerpc">Support for booting
+	relocatable kernels has been added.</para>
+
       <para revision="279189" contrib="sponsor" sponsor="&ff;"
 	arch="powerpc">Kernel support for Vector-Scalar eXtension
 	(<acronym>VSX</acronym>) found on POWER7 and POWER8 hardware
