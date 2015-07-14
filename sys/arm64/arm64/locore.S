@@ -469,6 +469,9 @@ build_block_pagetable:
 	lsl	x12, x7, #2
 	orr	x12, x12, #L2_BLOCK
 	orr	x12, x12, #(ATTR_AF)
+#ifdef SMP
+	orr	x12, x12, ATTR_SH(ATTR_SH_IS)
+#endif
 
 	/* Only use the output address bits */
 	lsr	x9, x9, #L2_SHIFT
