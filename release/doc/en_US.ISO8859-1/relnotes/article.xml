@@ -602,6 +602,11 @@
 	which allows <acronym>iSCSI</acronym> initiators to find
 	targets and portals without requiring active
 	discovery.</para>
+
+      <para revision="275249" contrib="sponsor" sponsor="&ff;">Support
+	for the <literal>timeo</literal>, <literal>actimeo</literal>,
+	<literal>noac</literal>, and <literal>proto</literal> options
+	have been added to &man.mount.nfs.8;.</para>
     </sect2>
 
     <sect2 xml:id="storage-zfs">
