@@ -455,6 +455,9 @@
 	a Layer 3 (IP/UDP) network.  The &man.vxlan.4; driver is
 	analogous to &man.vlan.4;, but is designed to be better suited
 	for large, multiple-tenant datacenter environments.</para>
+
+      <para revision="284499">The &man.cdce.4; driver has been updated
+	to include support for the RTL8153 chipest.</para>
     </sect2>
   </sect1>
 
