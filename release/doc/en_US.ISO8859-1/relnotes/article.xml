@@ -787,6 +787,15 @@
 	has been extended to non-<acronym>EFI</acronym>
 	systems.</para>
 
+      <para revision="282731" arch="arm">The &arch.arm; boot loader,
+	<filename>ubldr</filename>, is now relocatable.  In addition,
+	the <filename>ubldr.bin</filename> file is now created during
+	build time, which is a stripped binary with an entry point of
+	<literal>0</literal>, providing the ability to specify the
+	load address by running <literal>go
+	  &dollar;{loadaddr}</literal> in
+	<literal>u-boot</literal>.</para>
+
       <para revision="282921" contrib="sponsor" sponsor="&intelcorp;"
 	arch="amd64,i386">The &man.nvd.4; and &man.nvme.4; drivers are
 	now included in the <filename>GENERIC</filename> kernel
