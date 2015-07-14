@@ -173,6 +173,7 @@ g_gatel_create(void)
 	fd = open(path, g_gate_openflags(flags) | O_DIRECT | O_FSYNC);
 	if (fd == -1)
 		err(EXIT_FAILURE, "Cannot open %s", path);
+	memset(&ggioc, 0, sizeof(ggioc));
 	ggioc.gctl_version = G_GATE_VERSION;
 	ggioc.gctl_unit = unit;
 	ggioc.gctl_mediasize = g_gate_mediasize(fd);
