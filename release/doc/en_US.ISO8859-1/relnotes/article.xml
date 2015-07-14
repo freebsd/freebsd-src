@@ -1174,6 +1174,12 @@
 	<literal>-p</literal> flag or by invoking &man.poweroff.8; has
 	been added.</para>
 
+      <para revision="277644" arch="arm">Audio transmission drivers
+	have been added for Digital Audio Multiplexer
+	(<acronym>AUDMUXM</acronym>), Smart Direct Memory Access
+	Controller (<acronym>SDMA</acronym>), and Syncronous Serial
+	Interface (<acronym>SSI</acronym>).</para>
+
       <para revision="280259" contrib="sponsor" sponsor="&ff;">Initial
 	support for the ARM AArch64 architecture has been
 	added.</para>
