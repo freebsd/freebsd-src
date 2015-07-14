@@ -379,5 +379,5 @@ device		xenpci			# Xen HVM Hypervisor services driver
 # VMware support
 device		vmx			# VMware VMXNET3 Ethernet
 
-# The cypto framework is required by IPSEC
+# The crypto framework is required by IPSEC
 device		crypto			# Required by IPSEC
