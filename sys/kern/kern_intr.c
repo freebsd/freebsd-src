@@ -1327,7 +1327,7 @@ ithread_loop(void *arg)
 		 * we are running, it will set it_need to note that we
 		 * should make another pass.
 		 */
-		while (atomic_swap_int(&ithd->it_need, 0) != 0) {
+		while (atomic_cmpset_int(&ithd->it_need, 1, 0) != 0) {
 			/*
 			 * This needs a release barrier to make sure
 			 * that this write posts before any of the
@@ -1506,7 +1506,7 @@ ithread_loop(void *arg)
 		 * we are running, it will set it_need to note that we
 		 * should make another pass.
 		 */
-		while (atomic_swap_int(&ithd->it_need, 0) != 0) {
+		while (atomic_cmpset_int(&ithd->it_need, 1, 0) != 0) {
 			/*
 			 * This needs a release barrier to make sure
 			 * that this write posts before any of the
