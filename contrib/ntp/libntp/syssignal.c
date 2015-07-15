@@ -9,64 +9,50 @@
 #include "ntp_syslog.h"
 #include "ntp_stdlib.h"
 
+static ctrl_c_fn	ctrl_c_hook;
+#ifndef SYS_WINNT
+RETSIGTYPE sigint_handler(int);
+#else
+BOOL WINAPI console_event_handler(DWORD);
+#endif
+
+
 #ifdef HAVE_SIGACTION
+
+# ifdef SA_RESTART
+#  define Z_SA_RESTART		SA_RESTART
+# else
+#  define Z_SA_RESTART		0
+# endif
 
 void
 signal_no_reset(
-#if defined(__STDC__) || defined(HAVE_STDARG_H)
 	int sig,
-	void (*func) (int)
-#else
-	sig, func
-#endif
+	void (*func)(int)
 	)
-#if defined(__STDC__) || defined(HAVE_STDARG_H)
-#else
-	 int sig;
-	 void (*func) P((int));
-#endif
 {
 	int n;
 	struct sigaction vec;
+	struct sigaction ovec;
 
-	vec.sa_handler = func;
+	ZERO(vec);
 	sigemptyset(&vec.sa_mask);
-#if 0
-#ifdef SA_RESTART
-	vec.sa_flags = SA_RESTART;
-#else
-	vec.sa_flags = 0;
-#endif
-#else
-	vec.sa_flags = 0;
-#endif
+	vec.sa_handler = func;
 
-#ifdef SA_RESTART
-/* Added for PPS clocks on Solaris 7 which get EINTR errors */
+	/* Added for PPS clocks on Solaris 7 which get EINTR errors */
 # ifdef SIGPOLL
-	if (sig == SIGPOLL) vec.sa_flags = SA_RESTART;
+	if (SIGPOLL == sig)
+		vec.sa_flags = Z_SA_RESTART;
 # endif
 # ifdef SIGIO
-	if (sig == SIGIO)   vec.sa_flags = SA_RESTART;
+	if (SIGIO == sig)
+		vec.sa_flags = Z_SA_RESTART;
 # endif
-#endif
 
-	while (1)
-	{
-		struct sigaction ovec;
-
+	do
 		n = sigaction(sig, &vec, &ovec);
-		if (n == -1 && errno == EINTR) continue;
-		if (ovec.sa_flags
-#ifdef	SA_RESTART
-		    && ovec.sa_flags != SA_RESTART
-#endif
-		    )
-			msyslog(LOG_DEBUG, "signal_no_reset: signal %d had flags %x",
-				sig, ovec.sa_flags);
-		break;
-	}
-	if (n == -1) {
+	while (-1 == n && EINTR == errno);
+	if (-1 == n) {
 		perror("sigaction");
 		exit(1);
 	}
@@ -77,16 +63,16 @@ signal_no_reset(
 void
 signal_no_reset(
 	int sig,
-	RETSIGTYPE (*func) (int)
+	RETSIGTYPE (*func)(int)
 	)
 {
 	struct sigvec sv;
 	int n;
 
-	bzero((char *) &sv, sizeof(sv));
+	ZERO(sv);
 	sv.sv_handler = func;
 	n = sigvec(sig, &sv, (struct sigvec *)NULL);
-	if (n == -1) {
+	if (-1 == n) {
 		perror("sigvec");
 		exit(1);
 	}
@@ -97,13 +83,13 @@ signal_no_reset(
 void
 signal_no_reset(
 	int sig,
-	RETSIGTYPE (*func) (int)
+	RETSIGTYPE (*func)(int)
 	)
 {
 	int n;
 
 	n = sigset(sig, func);
-	if (n == -1) {
+	if (-1 == n) {
 		perror("sigset");
 		exit(1);
 	}
@@ -115,19 +101,88 @@ signal_no_reset(
 void
 signal_no_reset(
 	int sig,
-	RETSIGTYPE (*func) (int)
+	RETSIGTYPE (*func)(int)
 	)
 {
-#ifdef SIG_ERR
-	if (SIG_ERR == signal(sig, func)) {
-#else
-	int n;
-	n = signal(sig, func);
-	if (n == -1) {
+#ifndef SIG_ERR
+# define SIG_ERR	(-1)
 #endif
+	if (SIG_ERR == signal(sig, func)) {
 		perror("signal");
 		exit(1);
 	}
 }
 
 #endif
+
+#ifndef SYS_WINNT
+/*
+ * POSIX implementation of set_ctrl_c_hook()
+ */
+RETSIGTYPE
+sigint_handler(
+	int	signum
+	)
+{
+	UNUSED_ARG(signum);
+	if (ctrl_c_hook != NULL)
+		(*ctrl_c_hook)();
+}
+
+void
+set_ctrl_c_hook(
+	ctrl_c_fn	c_hook
+	)
+{
+	RETSIGTYPE (*handler)(int);
+
+	if (NULL == c_hook) {
+		handler = SIG_DFL;
+		ctrl_c_hook = NULL;
+	} else {
+		handler = &sigint_handler;
+		ctrl_c_hook = c_hook;
+	}
+	signal_no_reset(SIGINT, handler);
+}
+#else	/* SYS_WINNT follows */
+/*
+ * Windows implementation of set_ctrl_c_hook()
+ */
+BOOL WINAPI 
+console_event_handler(  
+	DWORD	dwCtrlType
+	)
+{
+	BOOL handled;
+
+	if (CTRL_C_EVENT == dwCtrlType && ctrl_c_hook != NULL) {
+		(*ctrl_c_hook)();
+		handled = TRUE;
+	} else {
+		handled = FALSE;
+	}
+
+	return handled;
+}
+void
+set_ctrl_c_hook(
+	ctrl_c_fn	c_hook
+	)
+{
+	BOOL install;
+
+	if (NULL == c_hook) {
+		ctrl_c_hook = NULL;
+		install = FALSE;
+	} else {
+		ctrl_c_hook = c_hook;
+		install = TRUE;
+	}
+	if (!SetConsoleCtrlHandler(&console_event_handler, install))
+		msyslog(LOG_ERR, "Can't %s console control handler: %m",
+			(install)
+			    ? "add"
+			    : "remove");
+}
+#endif	/* SYS_WINNT */

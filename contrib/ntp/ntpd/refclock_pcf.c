@@ -38,9 +38,9 @@
 /*
  * Function prototypes
  */
-static	int 	pcf_start 		P((int, struct peer *));
-static	void	pcf_shutdown		P((int, struct peer *));
-static	void	pcf_poll		P((int, struct peer *));
+static	int 	pcf_start 		(int, struct peer *);
+static	void	pcf_shutdown		(int, struct peer *);
+static	void	pcf_poll		(int, struct peer *);
 
 /*
  * Transfer vector
@@ -72,10 +72,10 @@ pcf_start(
 	/*
 	 * Open device file for reading.
 	 */
-	(void)sprintf(device, DEVICE, unit);
+	snprintf(device, sizeof(device), DEVICE, unit);
 	fd = open(device, O_RDONLY);
 	if (fd == -1) {
-		(void)sprintf(device, OLDDEVICE, unit);
+		snprintf(device, sizeof(device), OLDDEVICE, unit);
 		fd = open(device, O_RDONLY);
 	}
 #ifdef DEBUG
@@ -88,7 +88,7 @@ pcf_start(
 	
 	pp = peer->procptr;
 	pp->io.clock_recv = noentry;
-	pp->io.srcclock = (caddr_t)peer;
+	pp->io.srcclock = peer;
 	pp->io.datalen = 0;
 	pp->io.fd = fd;
 	
@@ -118,7 +118,8 @@ pcf_shutdown(
 	struct refclockproc *pp;
 	
 	pp = peer->procptr;
-	(void)close(pp->io.fd);
+	if (NULL != pp)
+		close(pp->io.fd);
 }
 
 
@@ -139,10 +140,12 @@ pcf_poll(
 	pp = peer->procptr;
 
 	buf[0] = 0;
-	if (read(pp->io.fd, buf, sizeof(buf)) < sizeof(buf) || buf[0] != 9) {
+	if (read(pp->io.fd, buf, sizeof(buf)) < (ssize_t)sizeof(buf) || buf[0] != 9) {
 		refclock_report(peer, CEVNT_FAULT);
 		return;
 	}
+
+	ZERO(tm);
 
 	tm.tm_mday = buf[11] * 10 + buf[10];
 	tm.tm_mon = buf[13] * 10 + buf[12] - 1;

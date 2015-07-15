@@ -1,12 +1,12 @@
 /*
  * /src/NTP/REPOSITORY/ntp4-dev/libparse/clk_meinberg.c,v 4.12.2.1 2005/09/25 10:22:35 kardel RELEASE_20050925_A
- *  
+ *
  * clk_meinberg.c,v 4.12.2.1 2005/09/25 10:22:35 kardel RELEASE_20050925_A
  *
  * Meinberg clock support
  *
- * Copyright (c) 1995-2005 by Frank Kardel <kardel <AT> ntp.org>
- * Copyright (c) 1989-1994 by Frank Kardel, Friedrich-Alexander Universität Erlangen-Nürnberg, Germany
+ * Copyright (c) 1995-2015 by Frank Kardel <kardel <AT> ntp.org>
+ * Copyright (c) 1989-1994 by Frank Kardel, Friedrich-Alexander Universitaet Erlangen-Nuernberg, Germany
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -65,7 +65,7 @@
 /*
  * The Meinberg receiver every second sends a datagram of the following form
  * (Standard Format)
- * 
+ *
  *     <STX>D:<dd>.<mm>.<yy>;T:<w>;U:<hh>:<mm>:<ss>;<S><F><D><A><ETX>
  * pos:  0  00 00 0 00 0 11 111 1 111 12 2 22 2 22 2 2  2  3  3   3
  *       1  23 45 6 78 9 01 234 5 678 90 1 23 4 56 7 8  9  0  1   2
@@ -105,12 +105,14 @@
  * <A>             = '!' during the hour preceeding an daylight saving time
  *                       start/end change
  * <L>             = 'A' LEAP second announcement
- * <R>             = 'R' alternate antenna
+ * <R>             = 'R' "call bit" used to signalize irregularities in the control facilities,
+ *                   usually ' ', until 2003 indicated transmission via alternate antenna
  *
- * Meinberg GPS166 receiver
+ * Meinberg GPS receivers
  *
- * You must get the Uni-Erlangen firmware for the GPS receiver support
+ * For very old devices you must get the Uni-Erlangen firmware for the GPS receiver support
  * to work to full satisfaction !
+ * With newer GPS receiver types the Uni Erlangen string format can be configured at the device.
  *
  *     <STX><dd>.<mm>.<yy>; <w>; <hh>:<mm>:<ss>; <+/-><00:00>; <U><S><F><D><A><L><R><L>; <position...><ETX>
  *
@@ -118,7 +120,7 @@
  *        123456789012345678901234567890123456789012345678901234567890123456
  *     \x0209.07.93; 5; 08:48:26; +00:00; #*S!A L; 49.5736N  11.0280E  373m\x03
  *
- * 
+ *
  * <STX>           = '\002' ASCII start of text
  * <ETX>           = '\003' ASCII end of text
  * <dd>,<mm>,<yy>  = day, month, year(2 digits!!)
@@ -131,8 +133,10 @@
  * <A>             = '!' during the hour preceeding an daylight saving time
  *                       start/end change
  * <L>             = 'A' LEAP second announcement
- * <R>             = 'R' alternate antenna (reminiscent of PZF535) usually ' '
- * <L>		   = 'L' on 23:59:60
+ * <R>             = 'R' "call bit" used to signalize irregularities in the control facilities,
+ *                   usually ' ', until 2003 indicated transmission via alternate antenna
+ *                   (reminiscent of PZF receivers)
+ * <L>             = 'L' on 23:59:60
  *
  * Binary messages have a lead in for a fixed header of SOH
  */
@@ -150,19 +154,20 @@
 /* Ret val:      the checksum                                   */
 /*+-------------------------------------------------------------*/
 
-unsigned long
+CSUM
 mbg_csum(
 	 unsigned char *p,
 	 unsigned int n
 	 )
 {
-  unsigned long sum = 0;
-  short i;
-  
+  unsigned int sum = 0;
+  unsigned int i;
+
   for ( i = 0; i < n; i++ )
     sum += *p++;
-  
-  return( sum );
+
+  return (CSUM) sum;
+
 }  /* csum */
 
 void
@@ -171,10 +176,10 @@ get_mbg_header(
 	       GPS_MSG_HDR *headerp
 	       )
 {
-  headerp->gps_cmd = get_lsb_short(bufpp);
-  headerp->gps_len = get_lsb_short(bufpp);
-  headerp->gps_data_csum = get_lsb_short(bufpp);
-  headerp->gps_hdr_csum  = get_lsb_short(bufpp);
+  headerp->cmd = (GPS_CMD) get_lsb_short(bufpp);
+  headerp->len = get_lsb_uint16(bufpp);
+  headerp->data_csum = (CSUM) get_lsb_short(bufpp);
+  headerp->hdr_csum  = (CSUM) get_lsb_short(bufpp);
 }
 
 static struct format meinberg_fmt[] =
@@ -209,10 +214,10 @@ static struct format meinberg_fmt[] =
 	}
 };
 
-static u_long cvt_meinberg P((unsigned char *, int, struct format *, clocktime_t *, void *));
-static u_long cvt_mgps     P((unsigned char *, int, struct format *, clocktime_t *, void *));
-static u_long mbg_input    P((parse_t *, unsigned int, timestamp_t *));
-static u_long gps_input    P((parse_t *, unsigned int, timestamp_t *));
+static parse_cvt_fnc_t cvt_meinberg;
+static parse_cvt_fnc_t cvt_mgps;
+static parse_inp_fnc_t mbg_input;
+static parse_inp_fnc_t gps_input;
 
 struct msg_buf
 {
@@ -224,7 +229,7 @@ struct msg_buf
 #define MBG_HEADER	1	/* receiving header */
 #define MBG_DATA	2	/* receiving data */
 #define MBG_STRING      3	/* receiving standard data message */
-  
+
 clockformat_t clock_meinberg[] =
 {
 	{
@@ -234,7 +239,7 @@ clockformat_t clock_meinberg[] =
 		0,		/* conversion configuration */
 		"Meinberg Standard", /* Meinberg simple format - beware */
 		32,				/* string buffer */
-		0		/* no private data (complete pakets) */
+		0		/* no private data (complete packets) */
 	},
 	{
 		mbg_input,	/* normal input handling */
@@ -243,21 +248,21 @@ clockformat_t clock_meinberg[] =
 		0,		/* conversion configuration */
 		"Meinberg Extended", /* Meinberg enhanced format */
 		32,		/* string buffer */
-		0		/* no private data (complete pakets) */
+		0		/* no private data (complete packets) */
 	},
 	{
 		gps_input,	/* no input handling */
-		cvt_mgps,	/* Meinberg GPS166 conversion */
+		cvt_mgps,	/* Meinberg GPS receiver conversion */
 		pps_one,	/* easy PPS monitoring */
 		(void *)&meinberg_fmt[2], /* conversion configuration */
-		"Meinberg GPS Extended", /* Meinberg FAU GPS format */
+		"Meinberg GPS Extended",  /* Meinberg FAU GPS format */
 		512,		/* string buffer */
-		sizeof(struct msg_buf)	/* no private data (complete pakets) */
+		sizeof(struct msg_buf)	/* no private data (complete packets) */
 	}
 };
 
 /*
- * cvt_meinberg
+ * parse_cvt_fnc_t cvt_meinberg
  *
  * convert simple type format
  */
@@ -271,7 +276,7 @@ cvt_meinberg(
 	     )
 {
 	struct format *format;
-	
+
 	/*
 	 * select automagically correct data format
 	 */
@@ -312,7 +317,7 @@ cvt_meinberg(
 	else
 	{
 		unsigned char *f = &buffer[format->field_offsets[O_FLAGS].offset];
-		
+
 		clock_time->usecond = 0;
 		clock_time->flags   = PARSEB_S_LEAP;
 
@@ -348,7 +353,7 @@ cvt_meinberg(
 			case ' ':
 				clock_time->utcoffset = -1*60*60; /* MET */
 				break;
-				
+
 			case 'S':
 				clock_time->utcoffset = -2*60*60; /* MED */
 				break;
@@ -360,27 +365,27 @@ cvt_meinberg(
 				clock_time->utcoffset = 0;        /* UTC */
 				clock_time->flags    |= PARSEB_UTC;
 				break;
-				
+
 			default:
 				return CVT_FAIL|CVT_BADFMT;
 			}
 		}
-		
+
 		/*
 		 * gather status flags
 		 */
 		if (buffer[format->field_offsets[O_ZONE].offset] == 'S')
 			clock_time->flags    |= PARSEB_DST;
-		
+
 		if (f[0] == '#')
 			clock_time->flags |= PARSEB_POWERUP;
-		
+
 		if (f[1] == '*')
 			clock_time->flags |= PARSEB_NOSYNC;
-		
+
 		if (f[3] == '!')
 			clock_time->flags |= PARSEB_ANNOUNCE;
-		
+
 		/*
 		 * oncoming leap second
 		 * 'a' code not confirmed - earth is not
@@ -388,27 +393,27 @@ cvt_meinberg(
 		 */
 		if (f[3] == 'A')
 			clock_time->flags |= PARSEB_LEAPADD;
-		
+
 		if (f[3] == 'a')
 			clock_time->flags |= PARSEB_LEAPDEL;
-		
-		
+
+
 		if (format->flags & MBG_EXTENDED)
 		{
-			clock_time->flags |= PARSEB_S_ANTENNA;
-			
+			clock_time->flags |= PARSEB_S_CALLBIT;
+
 			/*
 			 * DCF77 does not encode the direction -
 			 * so we take the current default -
 			 * earth slowing down
 			 */
 			clock_time->flags &= ~PARSEB_LEAPDEL;
-			
+
 			if (f[4] == 'A')
 				clock_time->flags |= PARSEB_LEAPADD;
-			
+
 			if (f[5] == 'R')
-				clock_time->flags |= PARSEB_ALTERNATE;
+				clock_time->flags |= PARSEB_CALLBIT;
 		}
 		return CVT_OK;
 	}
@@ -416,31 +421,31 @@ cvt_meinberg(
 
 
 /*
- * mbg_input
+ * parse_inp_fnc_t mbg_input
  *
- * grep data from input stream
+ * grab data from input stream
  */
 static u_long
 mbg_input(
 	  parse_t      *parseio,
-	  unsigned int  ch,
+	  char         ch,
 	  timestamp_t  *tstamp
 	  )
 {
 	unsigned int rtc;
-	
+
 	parseprintf(DD_PARSE, ("mbg_input(0x%lx, 0x%x, ...)\n", (long)parseio, ch));
-	
+
 	switch (ch)
 	{
 	case STX:
 		parseprintf(DD_PARSE, ("mbg_input: STX seen\n"));
-		
+
 		parseio->parse_index = 1;
 		parseio->parse_data[0] = ch;
 		parseio->parse_dtime.parse_stime = *tstamp; /* collect timestamp */
 		return PARSE_INP_SKIP;
-	  
+
 	case ETX:
 		parseprintf(DD_PARSE, ("mbg_input: ETX seen\n"));
 		if ((rtc = parse_addchar(parseio, ch)) == PARSE_INP_SKIP)
@@ -455,7 +460,7 @@ mbg_input(
 
 
 /*
- * cvt_mgps
+ * parse_cvt_fnc_t cvt_mgps
  *
  * convert Meinberg GPS format
  */
@@ -493,9 +498,9 @@ cvt_mgps(
 		{
 			long h;
 			unsigned char *f = &buffer[format->field_offsets[O_FLAGS].offset];
-	  
+
 			clock_time->flags = PARSEB_S_LEAP|PARSEB_S_POSITION;
-	      
+
 			clock_time->usecond = 0;
 
 			/*
@@ -522,22 +527,22 @@ cvt_mgps(
 					clock_time->utcoffset = -clock_time->utcoffset;
 				}
 			}
-	  
+
 			/*
 			 * gather status flags
 			 */
 			if (buffer[format->field_offsets[O_ZONE].offset] == 'S')
 			    clock_time->flags    |= PARSEB_DST;
-	  
+
 			if (clock_time->utcoffset == 0)
 			    clock_time->flags |= PARSEB_UTC;
-	  
+
 			/*
 			 * no sv's seen - no time & position
 			 */
 			if (f[0] == '#')
 			    clock_time->flags |= PARSEB_POWERUP;
-	  
+
 			/*
 			 * at least one sv seen - time (for last position)
 			 */
@@ -546,13 +551,13 @@ cvt_mgps(
 			else
 			    if (!(clock_time->flags & PARSEB_POWERUP))
 				clock_time->flags |= PARSEB_POSITION;
-	  
+
 			/*
 			 * oncoming zone switch
 			 */
 			if (f[3] == '!')
 			    clock_time->flags |= PARSEB_ANNOUNCE;
-	  
+
 			/*
 			 * oncoming leap second
 			 * 'a' code not confirmed - earth is not
@@ -560,14 +565,14 @@ cvt_mgps(
 			 */
 			if (f[4] == 'A')
 			    clock_time->flags |= PARSEB_LEAPADD;
-	  
+
 			if (f[4] == 'a')
 			    clock_time->flags |= PARSEB_LEAPDEL;
 
 			/*
 			 * f[5] == ' '
 			 */
-	  
+
 			/*
 			 * this is the leap second
 			 */
@@ -580,35 +585,35 @@ cvt_mgps(
 }
 
 /*
- * gps_input
+ * parse_inp_fnc_t gps_input
  *
  * grep binary data from input stream
  */
 static u_long
 gps_input(
 	  parse_t      *parseio,
-	  unsigned int  ch,
+	  char ch,
 	  timestamp_t  *tstamp
 	  )
 {
   CSUM calc_csum;                    /* used to compare the incoming csums */
   GPS_MSG_HDR header;
   struct msg_buf *msg_buf;
-  
+
   msg_buf = (struct msg_buf *)parseio->parse_pdata;
 
   parseprintf(DD_PARSE, ("gps_input(0x%lx, 0x%x, ...)\n", (long)parseio, ch));
 
   if (!msg_buf)
     return PARSE_INP_SKIP;
-  
+
   if ( msg_buf->phase == MBG_NONE )
     {                  /* not receiving yet */
       switch (ch)
 	{
 	case SOH:
 	  parseprintf(DD_PARSE, ("gps_input: SOH seen\n"));
-	  
+
 	  msg_buf->len = sizeof( header ); /* prepare to receive msg header */
 	  msg_buf->phase = MBG_HEADER; /* receiving header */
 	  break;
@@ -621,7 +626,7 @@ gps_input(
 	  parseio->parse_index = 1;
 	  parseio->parse_data[0] = ch;
 	  break;
-	  
+
 	default:
 	  return PARSE_INP_SKIP;	/* keep searching */
 	}
@@ -638,7 +643,7 @@ gps_input(
   if ((msg_buf->phase == MBG_STRING) &&
       (parseio->parse_index < parseio->parse_dsize))
     parseio->parse_data[parseio->parse_index++] = ch;
-  
+
   parseio->parse_dtime.parse_msg[parseio->parse_dtime.parse_msglen++] = ch;
 
   if (parseio->parse_dtime.parse_msglen > sizeof(parseio->parse_dtime.parse_msg))
@@ -649,7 +654,7 @@ gps_input(
       parseio->parse_ldsize = parseio->parse_index;
       return PARSE_INP_DATA;
     }
-  
+
   switch (msg_buf->phase)
     {
     case MBG_HEADER:
@@ -685,41 +690,41 @@ gps_input(
   if ( msg_buf->phase == MBG_HEADER )
     {         /* header complete now */
       unsigned char *datap = parseio->parse_dtime.parse_msg + 1;
-      
+
       get_mbg_header(&datap, &header);
-      
+
       parseprintf(DD_PARSE, ("gps_input: header: cmd 0x%x, len %d, dcsum 0x%x, hcsum 0x%x\n",
-			     (int)header.gps_cmd, (int)header.gps_len, (int)header.gps_data_csum,
-			     (int)header.gps_hdr_csum));
-      
+			     (int)header.cmd, (int)header.len, (int)header.data_csum,
+			     (int)header.hdr_csum));
+
 
       calc_csum = mbg_csum( (unsigned char *) parseio->parse_dtime.parse_msg + 1, (unsigned short)6 );
 
-      if ( calc_csum != header.gps_hdr_csum )
+      if ( calc_csum != header.hdr_csum )
 	{
 	  parseprintf(DD_PARSE, ("gps_input: header checksum mismatch expected 0x%x, got 0x%x\n",
 				 (int)calc_csum, (int)mbg_csum( (unsigned char *) parseio->parse_dtime.parse_msg, (unsigned short)6 )));
-	  
+
 	  msg_buf->phase = MBG_NONE;  /* back to hunting mode */
 	  return PARSE_INP_DATA;      /* invalid header checksum received - pass up for detection */
 	}
 
-      if ((header.gps_len == 0)  ||       /* no data to wait for */
-	  (header.gps_len >= (sizeof (parseio->parse_dtime.parse_msg) - sizeof(header) - 1)))	/* blows anything we have space for */
+      if ((header.len == 0)  ||       /* no data to wait for */
+	  (header.len >= (sizeof (parseio->parse_dtime.parse_msg) - sizeof(header) - 1)))	/* blows anything we have space for */
 	{
 	  msg_buf->phase = MBG_NONE;  /* back to hunting mode */
-	  return (header.gps_len == 0) ? PARSE_INP_DATA : PARSE_INP_SKIP; /* message complete/throwaway */
+	  return (header.len == 0) ? PARSE_INP_DATA : PARSE_INP_SKIP; /* message complete/throwaway */
 	}
-    
-      parseprintf(DD_PARSE, ("gps_input: expecting %d bytes of data message\n", (int)header.gps_len));
-      
-      msg_buf->len   = header.gps_len;/* save number of bytes to wait for */
+
+      parseprintf(DD_PARSE, ("gps_input: expecting %d bytes of data message\n", (int)header.len));
+
+      msg_buf->len   = header.len;/* save number of bytes to wait for */
       msg_buf->phase = MBG_DATA;      /* flag header already complete */
       return PARSE_INP_SKIP;
     }
 
   parseprintf(DD_PARSE, ("gps_input: message data complete\n"));
-  
+
   /* Header and data have been received. The header checksum has been */
   /* checked */
 
