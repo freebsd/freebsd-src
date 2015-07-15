@@ -229,6 +229,13 @@ init_secondary(uint64_t cpu)
 	pcpup->pc_curthread = pcpup->pc_idlethread;
 	pcpup->pc_curpcb = pcpup->pc_idlethread->td_pcb;
 
+	/*
+	 * Identify current CPU. This is necessary to setup
+	 * affinity registers and to provide support for
+	 * runtime chip identification.
+	 */
+	identify_cpu();
+
 	/* Configure the interrupt controller */
 	arm_init_secondary();
 
