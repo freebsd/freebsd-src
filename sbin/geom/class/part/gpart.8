@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 5, 2015
+.Dd July 14, 2015
 .Dt GPART 8
 .Os
 .Sh NAME
@@ -933,6 +933,12 @@ start-up script.
 See
 .Xr gptboot 8
 for more details.
+.It Cm lenovofix
+Setting this attribute overwrites the Protective MBR with a new one where
+the 0xee partition is the second, rather than the first record.
+This resolves a BIOS compatibility issue with some Lenovo models including the
+X220, T420, and T520, allowing them to boot from GPT partitioned disks
+without using EFI.
 .El
 .Pp
 The scheme-specific attributes for MBR:
