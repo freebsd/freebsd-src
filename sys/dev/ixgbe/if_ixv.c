@@ -1665,10 +1665,6 @@ ixv_initialize_receive_units(struct adapter *adapter)
 		reg |= IXGBE_SRRCTL_DESCTYPE_ADV_ONEBUF;
 		IXGBE_WRITE_REG(hw, IXGBE_VFSRRCTL(i), reg);
 
-		/* Set the Tail Pointer */
-		IXGBE_WRITE_REG(hw, IXGBE_VFRDT(rxr->me),
-		    adapter->num_rx_desc - 1);
-
 		/* Set the processing limit */
 		rxr->process_limit = ixv_rx_process_limit;
 
@@ -1687,6 +1683,10 @@ ixv_initialize_receive_units(struct adapter *adapter)
 				msec_delay(1);
 		}
 		wmb();
+
+		/* Set the Tail Pointer */
+		IXGBE_WRITE_REG(hw, IXGBE_VFRDT(rxr->me),
+		    adapter->num_rx_desc - 1);
 	}
 
 	rxcsum = IXGBE_READ_REG(hw, IXGBE_RXCSUM);
