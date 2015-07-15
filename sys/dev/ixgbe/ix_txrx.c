@@ -210,11 +210,7 @@ ixgbe_mq_start(struct ifnet *ifp, struct mbuf *m)
 	 * If everything is setup correctly, it should be the
 	 * same bucket that the current CPU we're on is.
 	 */
-#if __FreeBSD_version < 1100054
-	if (m->m_flags & M_FLOWID) {
-#else
 	if (M_HASHTYPE_GET(m) != M_HASHTYPE_NONE) {
-#endif
 #ifdef	RSS
 		if (rss_hash2bucket(m->m_pkthdr.flowid,
 		    M_HASHTYPE_GET(m), &bucket_id) == 0)
