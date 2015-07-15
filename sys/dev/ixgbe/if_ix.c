@@ -442,6 +442,11 @@ ixgbe_attach(device_t dev)
 	adapter->dev = adapter->osdep.dev = dev;
 	hw = &adapter->hw;
 
+#ifdef DEV_NETMAP
+	adapter->init_locked = ixgbe_init_locked;
+	adapter->stop_locked = ixgbe_stop;
+#endif
+
 	/* Core Lock Init*/
 	IXGBE_CORE_LOCK_INIT(adapter, device_get_nameunit(dev));
 
