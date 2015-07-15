@@ -1346,8 +1346,8 @@ ithread_loop(void *arg)
 		 * set again, so we have to check it again.
 		 */
 		thread_lock(td);
-		if ((atomic_load_acq_int(&ithd->it_need) == 0) &&
-		    !(ithd->it_flags & (IT_DEAD | IT_WAIT))) {
+		if (atomic_load_acq_int(&ithd->it_need) == 0 &&
+		    (ithd->it_flags & (IT_DEAD | IT_WAIT)) == 0) {
 			TD_SET_IWAIT(td);
 			ie->ie_count = 0;
 			mi_switch(SW_VOL | SWT_IWAIT, NULL);
@@ -1529,8 +1529,8 @@ ithread_loop(void *arg)
 		 * set again, so we have to check it again.
 		 */
 		thread_lock(td);
-		if ((atomic_load_acq_int(&ithd->it_need) == 0) &&
-		    !(ithd->it_flags & (IT_DEAD | IT_WAIT))) {
+		if (atomic_load_acq_int(&ithd->it_need) == 0 &&
+		    (ithd->it_flags & (IT_DEAD | IT_WAIT)) == 0) {
 			TD_SET_IWAIT(td);
 			ie->ie_count = 0;
 			mi_switch(SW_VOL | SWT_IWAIT, NULL);
