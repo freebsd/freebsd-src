@@ -3653,7 +3653,7 @@ isp_scan_fabric(ispsoftc_t *isp, int chan)
 		 * that have the same domain and area code as our own
 		 * portid.
 		 */
-		if (ISP_CAP_MULTI_ID(isp)) {
+		if (ISP_CAP_MULTI_ID(isp) && isp->isp_nchan > 1) {
 			if ((portid >> 8) == (fcp->isp_portid >> 8)) {
 				isp_prt(isp, ISP_LOG_SANCFG,
 				    "Chan %d skip PortID 0x%06x",

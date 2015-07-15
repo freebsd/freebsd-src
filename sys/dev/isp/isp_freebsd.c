@@ -2533,7 +2533,7 @@ isp_handle_platform_atio7(ispsoftc_t *isp, at7_entry_t *aep)
 	 * If we can't, we're somewhat in trouble because we can't actually respond w/o that information.
 	 * We also, as a matter of course, need to know the WWN of the initiator too.
 	 */
-	if (ISP_CAP_MULTI_ID(isp)) {
+	if (ISP_CAP_MULTI_ID(isp) && isp->isp_nchan > 1) {
 		/*
 		 * Find the right channel based upon D_ID
 		 */
