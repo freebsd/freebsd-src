@@ -67,8 +67,8 @@ static struct audio_info info;	/* audio device info */
 static int ctl_fd;		/* audio control file descriptor */
 
 #ifdef PCM_STYLE_SOUND
-static void audio_config_read P((int, char **, char **));
-static int  mixer_name P((const char *, int));
+static void audio_config_read (int, const char **, const char **);
+static int  mixer_name (const char *, int);
 
 
 int
@@ -114,22 +114,25 @@ mixer_name(
 static void
 audio_config_read(
 	int unit,
-	char **c_dev,	/* Control device */
-	char **i_dev	/* input device */
+	const char **c_dev,	/* Control device */
+	const char **i_dev	/* input device */
 	)
 {
 	FILE *fd;
 	char device[20], line[100], ab[100];
 
-	sprintf(device, "%s%d", INIT_FILE, unit);
+	snprintf(device, sizeof(device), "%s%d", INIT_FILE, unit);
 	if ((fd = fopen(device, "r")) == NULL) {
 		printf("audio_config_read: <%s> NO\n", device);
-		sprintf(device, "%s.%d", INIT_FILE, unit);
+		snprintf(device, sizeof(device), "%s.%d", INIT_FILE,
+			 unit);
 		if ((fd = fopen(device, "r")) == NULL) {
 			printf("audio_config_read: <%s> NO\n", device);
-			sprintf(device, "%s.%d", INIT_FILE, unit);
+			snprintf(device, sizeof(device), "%s",
+				 INIT_FILE);
 			if ((fd = fopen(device, "r")) == NULL) {
-				printf("audio_config_read: <%s> NO\n", device);
+				printf("audio_config_read: <%s> NO\n",
+				       device);
 				return;
 			}
 		}
@@ -145,12 +148,12 @@ audio_config_read(
 
 		/* Remove any trailing spaces */
 		for (i = strlen(line);
-		     i > 0 && isascii((int)line[i - 1]) && isspace((int)line[i - 1]);
+		     i > 0 && isascii((unsigned char)line[i - 1]) && isspace((unsigned char)line[i - 1]);
 			)
 			line[--i] = '\0';
 
 		/* Remove leading space */
-		for (cc = line; *cc && isascii((int)*cc) && isspace((int)*cc); cc++)
+		for (cc = line; *cc && isascii((unsigned char)*cc) && isspace((unsigned char)*cc); cc++)
 			continue;
 
 		/* Stop if nothing left */
@@ -159,33 +162,33 @@ audio_config_read(
 
 		/* Uppercase the command and find the arg */
 		for (ca = cc; *ca; ca++) {
-			if (isascii((int)*ca)) {
-				if (islower((int)*ca)) {
-					*ca = toupper(*ca);
-				} else if (isspace((int)*ca) || (*ca == '='))
+			if (isascii((unsigned char)*ca)) {
+				if (islower((unsigned char)*ca)) {
+					*ca = toupper((unsigned char)*ca);
+				} else if (isspace((unsigned char)*ca) || (*ca == '='))
 					break;
 			}
 		}
 
 		/* Remove space (and possible =) leading the arg */
-		for (; *ca && isascii((int)*ca) && (isspace((int)*ca) || (*ca == '=')); ca++)
+		for (; *ca && isascii((unsigned char)*ca) && (isspace((unsigned char)*ca) || (*ca == '=')); ca++)
 			continue;
 
-		if (!strncmp(cc, "IDEV", (size_t) 4)) {
-			sscanf(ca, "%s", ab);
-			strcpy(cf_i_dev, ab);
+		if (!strncmp(cc, "IDEV", 4) &&
+		    1 == sscanf(ca, "%99s", ab)) {
+			strlcpy(cf_i_dev, ab, sizeof(cf_i_dev));
 			printf("idev <%s>\n", ab);
-		} else if (!strncmp(cc, "CDEV", (size_t) 4)) {
-			sscanf(ca, "%s", ab);
-			strcpy(cf_c_dev, ab);
+		} else if (!strncmp(cc, "CDEV", 4) &&
+			   1 == sscanf(ca, "%99s", ab)) {
+			strlcpy(cf_c_dev, ab, sizeof(cf_c_dev));
 			printf("cdev <%s>\n", ab);
-		} else if (!strncmp(cc, "AGC", (size_t) 3)) {
-			sscanf(ca, "%s", ab);
-			strcpy(cf_agc, ab);
+		} else if (!strncmp(cc, "AGC", 3) &&
+			   1 == sscanf(ca, "%99s", ab)) {
+			strlcpy(cf_agc, ab, sizeof(cf_agc));
 			printf("agc <%s> %d\n", ab, i);
-		} else if (!strncmp(cc, "MONITOR", (size_t) 7)) {
-			sscanf(ca, "%s", ab);
-			strcpy(cf_monitor, ab);
+		} else if (!strncmp(cc, "MONITOR", 7) &&
+			   1 == sscanf(ca, "%99s", ab)) {
+			strlcpy(cf_monitor, ab, sizeof(cf_monitor));
 			printf("monitor <%s> %d\n", ab, mixer_name(ab, -1));
 		}
 	}
@@ -207,7 +210,7 @@ audio_config_read(
  */
 int
 audio_init(
-	char	*dname,		/* device name */
+	const char *dname,	/* device name */
 	int	bufsiz,		/* buffer size */
 	int	unit		/* device unit (0-3) */
 	)
@@ -224,7 +227,7 @@ audio_init(
 #endif
 	int fd;
 	int rval;
-	char *actl =
+	const char *actl =
 #ifdef PCM_STYLE_SOUND
 		actl_dev
 #else
@@ -233,7 +236,7 @@ audio_init(
 		;
 
 #ifdef PCM_STYLE_SOUND
-	(void)sprintf(actl_dev, ACTL_DEV, unit);
+	snprintf(actl_dev, sizeof(actl_dev), ACTL_DEV, unit);
 
 	audio_config_read(unit, &actl, &dname);
 	/* If we have values for cf_c_dev or cf_i_dev, use them. */
@@ -244,18 +247,21 @@ audio_init(
 #endif
 
 	/*
-	 * Open audio device. Do not complain if not there.
+	 * Open audio device
 	 */
 	fd = open(dname, O_RDWR | O_NONBLOCK, 0777);
-	if (fd < 0)
+	if (fd < 0) {
+		msyslog(LOG_ERR, "audio_init: %s %m", dname);
 		return (fd);
+	}
 
 	/*
 	 * Open audio control device.
 	 */
 	ctl_fd = open(actl, O_RDWR);
 	if (ctl_fd < 0) {
-		msyslog(LOG_ERR, "audio_init: invalid control device <%s>\n", actl);
+		msyslog(LOG_ERR, "audio_init: invalid control device <%s>",
+		    actl);
 		close(fd);
 		return(ctl_fd);
 	}
@@ -310,10 +316,11 @@ audio_init(
 	    printf("SOUND_MIXER_READ_RECMASK: %s\n", strerror(errno));
 
 	/* validate and set any specified config file stuff */
-	if (*cf_agc) {
+	if (cf_agc[0] != '\0') {
 		int i;
 
-		i = mixer_name(cf_agc, devmask);
+		/* recmask */
+		i = mixer_name(cf_agc, recmask);
 		if (i >= 0)
 			agc = MIXER_WRITE(i);
 		else
@@ -321,7 +328,7 @@ audio_init(
 			       cf_agc, recmask);
 	}
 
-	if (*cf_monitor) {
+	if (cf_monitor[0] != '\0') {
 		int i;
 
 		/* devmask */
@@ -342,7 +349,7 @@ audio_init(
 # endif /* HAVE_SYS_AUDIOIO_H */
 	rval = ioctl(ctl_fd, (int)AUDIO_SETINFO, (char *)&info);
 	if (rval < 0) {
-		msyslog(LOG_ERR, "audio: invalid control device parameters\n");
+		msyslog(LOG_ERR, "audio: invalid control device parameters");
 		close(ctl_fd);
 		close(fd);
 		return(rval);
@@ -377,21 +384,21 @@ audio_gain(
 	if (debug > 1)
 		printf("audio_gain: gain %d/%d\n", gain, l);
 # endif
+#if 0	/* not a good idea to do this; connector wiring dependency */
 	/* figure out what channel(s) to use. just nuke right for now. */
 	r = 0 ; /* setting to zero nicely mutes the channel */
-
+#endif
 	l |= r << 8;
-        if ( cf_agc )
-          rval = ioctl(ctl_fd, agc, &l);
-        else
-	  if (port == 2) {
-	    rval = ioctl(ctl_fd, SOUND_MIXER_WRITE_LINE, &l);
-	  } else {
-	    rval = ioctl(ctl_fd, SOUND_MIXER_WRITE_MIC, &l);
-	  }
-	if (rval == -1) {
+	if (cf_agc[0] != '\0')
+		rval = ioctl(ctl_fd, agc, &l);
+	else
+		if (2 == port)
+			rval = ioctl(ctl_fd, SOUND_MIXER_WRITE_LINE, &l);
+		else
+			rval = ioctl(ctl_fd, SOUND_MIXER_WRITE_MIC, &l);
+	if (-1 == rval) {
 		printf("audio_gain: agc write: %s\n", strerror(errno));
-		return (rval);
+		return rval;
 	}
 
 	if (o_mongain != mongain) {
@@ -401,11 +408,12 @@ audio_gain(
 			printf("audio_gain: mongain %d/%d\n", mongain, l);
 # endif
 		l |= r << 8;
-                if ( cf_monitor )
-                  rval = ioctl(ctl_fd, monitor, &l );
-                else 
-		  rval = ioctl(ctl_fd, SOUND_MIXER_WRITE_VOLUME, &l);
-		if (rval == -1) {
+		if (cf_monitor[0] != '\0')
+			rval = ioctl(ctl_fd, monitor, &l );
+		else 
+			rval = ioctl(ctl_fd, SOUND_MIXER_WRITE_VOLUME,
+				     &l);
+		if (-1 == rval) {
 			printf("audio_gain: mongain write: %s\n",
 			       strerror(errno));
 			return (rval);

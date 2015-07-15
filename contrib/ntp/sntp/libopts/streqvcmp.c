@@ -1,7 +1,6 @@
 
-/*
- *  $Id: streqvcmp.c,v 4.10 2007/04/28 22:19:23 bkorb Exp $
- * Time-stamp:      "2006-07-26 18:25:53 bkorb"
+/**
+ * \file streqvcmp.c
  *
  *  String Equivalence Comparison
  *
@@ -9,59 +8,38 @@
  *  character before comparison.  In processing long option names,
  *  the characters "-", "_" and "^" all need to be equivalent
  *  (because they are treated so by different development environments).
+ *
+ * @addtogroup autoopts
+ * @{
  */
-
 /*
- *  Automated Options copyright 1992-2007 Bruce Korb
+ *  This file is part of AutoOpts, a companion to AutoGen.
+ *  AutoOpts is free software.
+ *  AutoOpts is Copyright (C) 1992-2015 by Bruce Korb - all rights reserved
  *
- *  Automated Options is free software.
- *  You may redistribute it and/or modify it under the terms of the
- *  GNU General Public License, as published by the Free Software
- *  Foundation; either version 2, or (at your option) any later version.
+ *  AutoOpts is available under any one of two licenses.  The license
+ *  in use must be one of these two and the choice is under the control
+ *  of the user of the license.
  *
- *  Automated Options is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
+ *   The GNU Lesser General Public License, version 3 or later
+ *      See the files "COPYING.lgplv3" and "COPYING.gplv3"
  *
- *  You should have received a copy of the GNU General Public License
- *  along with Automated Options.  See the file "COPYING".  If not,
- *  write to:  The Free Software Foundation, Inc.,
- *             51 Franklin Street, Fifth Floor,
- *             Boston, MA  02110-1301, USA.
+ *   The Modified Berkeley Software Distribution License
+ *      See the file "COPYING.mbsd"
  *
- * As a special exception, Bruce Korb gives permission for additional
- * uses of the text contained in his release of AutoOpts.
+ *  These files have the following sha256 sums:
  *
- * The exception is that, if you link the AutoOpts library with other
- * files to produce an executable, this does not by itself cause the
- * resulting executable to be covered by the GNU General Public License.
- * Your use of that executable is in no way restricted on account of
- * linking the AutoOpts library code into it.
+ *  8584710e9b04216a394078dc156b781d0b47e1729104d666658aecef8ee32e95  COPYING.gplv3
+ *  4379e7444a0e2ce2b12dd6f5a52a27a4d02d39d247901d3285c88cf0d37f477b  COPYING.lgplv3
+ *  13aa749a5b0a454917a944ed8fffc530b784f5ead522b1aacaf4ec8aa55a6239  COPYING.mbsd
  *
- * This exception does not however invalidate any other reasons why
- * the executable file might be covered by the GNU General Public License.
- *
- * This exception applies only to the code released by Bruce Korb under
- * the name AutoOpts.  If you copy code from other sources under the
- * General Public License into a copy of AutoOpts, as the General Public
- * License permits, the exception does not apply to the code that you add
- * in this way.  To avoid misleading anyone as to the status of such
- * modified files, you must delete this exception notice from them.
- *
- * If you write modifications of your own for AutoOpts, it is your choice
- * whether to permit this exception to apply to your modifications.
- * If you do not wish that, delete this exception notice.
- */
-
-/*
  * This array is designed for mapping upper and lower case letter
  * together for a case independent comparison.  The mappings are
  * based upon ascii character sequences.
  */
 static unsigned char charmap[] = {
-    0x00, 0x01, 0x02, 0x03,  0x04, 0x05, 0x06, '\a',
-    '\b', '\t', '\n', '\v',  '\f', '\r', 0x0E, 0x0F,
+    NUL,  0x01, 0x02, 0x03,  0x04, 0x05, 0x06, '\a',
+    '\b', '\t', NL,   '\v',  '\f', '\r', 0x0E, 0x0F,
     0x10, 0x11, 0x12, 0x13,  0x14, 0x15, 0x16, 0x17,
     0x18, 0x19, 0x1A, 0x1B,  0x1C, 0x1D, 0x1E, 0x1F,
 
@@ -103,9 +81,9 @@ static unsigned char charmap[] = {
  *
  * what: compare two strings with an equivalence mapping
  *
- * arg:  + char const* + str1 + first string +
- * arg:  + char const* + str2 + second string +
- * arg:  + int         + ct   + compare length +
+ * arg:  + char const * + str1 + first string +
+ * arg:  + char const * + str2 + second string +
+ * arg:  + int          + ct   + compare length +
  *
  * ret_type:  int
  * ret_desc:  the difference between two differing characters
@@ -122,12 +100,19 @@ static unsigned char charmap[] = {
  * err:  none checked.  Caller responsible for seg faults.
 =*/
 int
-strneqvcmp( tCC* s1, tCC* s2, int ct )
+strneqvcmp(char const * s1, char const * s2, int ct)
 {
     for (; ct > 0; --ct) {
         unsigned char u1 = (unsigned char) *s1++;
         unsigned char u2 = (unsigned char) *s2++;
-        int dif = charmap[ u1 ] - charmap[ u2 ];
+        int dif;
+        if (u1 == u2) {
+            if (u1 == NUL)
+                return 0;
+            continue;
+        }
+
+        dif = charmap[ u1 ] - charmap[ u2 ];
 
         if (dif != 0)
             return dif;
@@ -144,8 +129,8 @@ strneqvcmp( tCC* s1, tCC* s2, int ct )
  *
  * what: compare two strings with an equivalence mapping
  *
- * arg:  + char const* + str1 + first string +
- * arg:  + char const* + str2 + second string +
+ * arg:  + char const * + str1 + first string +
+ * arg:  + char const * + str2 + second string +
  *
  * ret_type:  int
  * ret_desc:  the difference between two differing characters
@@ -161,12 +146,19 @@ strneqvcmp( tCC* s1, tCC* s2, int ct )
  * err:  none checked.  Caller responsible for seg faults.
 =*/
 int
-streqvcmp( tCC* s1, tCC* s2 )
+streqvcmp(char const * s1, char const * s2)
 {
     for (;;) {
         unsigned char u1 = (unsigned char) *s1++;
         unsigned char u2 = (unsigned char) *s2++;
-        int dif = charmap[ u1 ] - charmap[ u2 ];
+        int dif;
+        if (u1 == u2) {
+            if (u1 == NUL)
+                return 0;
+            continue;
+        }
+
+        dif = charmap[ u1 ] - charmap[ u2 ];
 
         if (dif != 0)
             return dif;
@@ -181,8 +173,8 @@ streqvcmp( tCC* s1, tCC* s2 )
  *
  * what: Set the character mappings for the streqv functions
  *
- * arg:  + char + From + Input character +
- * arg:  + char + To   + Mapped-to character +
+ * arg:  + char + from + Input character +
+ * arg:  + char + to   + Mapped-to character +
  * arg:  + int  + ct   + compare length +
  *
  * doc:
@@ -194,7 +186,7 @@ streqvcmp( tCC* s1, tCC* s2 )
  * are incremented and the process repeated until @code{ct} entries have been
  * set. For example,
  * @example
- *    streqvmap( 'a', 'A', 26 );
+ *    streqvmap('a', 'A', 26);
  * @end example
  * @noindent
  * will alter the mapping so that all English lower case letters
@@ -206,24 +198,24 @@ streqvcmp( tCC* s1, tCC* s2 )
  * err:  none.
 =*/
 void
-streqvmap( char From, char To, int ct )
+streqvmap(char from, char to, int ct)
 {
     if (ct == 0) {
-        ct = sizeof( charmap ) - 1;
+        ct = sizeof(charmap) - 1;
         do  {
-            charmap[ ct ] = ct;
+            charmap[ct] = (unsigned char)ct;
         } while (--ct >= 0);
     }
 
     else {
-        int  chTo   = (int)To   & 0xFF;
-        int  chFrom = (int)From & 0xFF;
+        unsigned int i_to   = (int)to   & 0xFF;
+        unsigned int i_from = (int)from & 0xFF;
 
         do  {
-            charmap[ chFrom ] = (unsigned)chTo;
-            chFrom++;
-            chTo++;
-            if ((chFrom >= sizeof( charmap )) || (chTo >= sizeof( charmap )))
+            charmap[i_from] = (unsigned char)i_to;
+            i_from++;
+            i_to++;
+            if ((i_from >= sizeof(charmap)) || (i_to >= sizeof(charmap)))
                 break;
         } while (--ct > 0);
     }
@@ -234,7 +226,7 @@ streqvmap( char From, char To, int ct )
  *
  * what: map a list of characters to the same value
  *
- * arg:  + char const* + ch_list + characters to equivalence +
+ * arg:  + char const * + ch_list + characters to equivalence +
  *
  * doc:
  *
@@ -246,12 +238,12 @@ streqvmap( char From, char To, int ct )
  * err:  none.
 =*/
 void
-strequate( char const* s )
+strequate(char const * s)
 {
     if ((s != NULL) && (*s != NUL)) {
-        unsigned char equiv = (unsigned)*s;
+        unsigned char equiv = (unsigned char)*s;
         while (*s != NUL)
-            charmap[ (unsigned)*(s++) ] = equiv;
+            charmap[(unsigned char)*(s++)] = equiv;
     }
 }
 
@@ -260,8 +252,8 @@ strequate( char const* s )
  *
  * what: convert a string into its mapped-to value
  *
- * arg:  + char*       + dest + output string +
- * arg:  + char const* + src  + input string +
+ * arg:  + char *       + dest + output string +
+ * arg:  + char const * + src  + input string +
  *
  * doc:
  *
@@ -270,17 +262,20 @@ strequate( char const* s )
  * This function name is mapped to option_strtransform so as to not conflict
  * with the POSIX name space.
  *
+ * The source and destination may be the same.
+ *
  * err:  none.
 =*/
 void
-strtransform( char* d, char const* s )
+strtransform(char * d, char const * s)
 {
     do  {
-        *(d++) = (char)charmap[ (unsigned)*s ];
+        *(d++) = (char)charmap[(unsigned char)*s];
     } while (*(s++) != NUL);
 }
 
-/*
+/** @}
+ *
  * Local Variables:
  * mode: C
  * c-file-style: "stroustrup"

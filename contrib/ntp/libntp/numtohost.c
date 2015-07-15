@@ -1,6 +1,12 @@
 /*
  * numtohost - convert network number to host name.
  */
+#include <config.h>
+
+#include <sys/types.h>
+#ifdef HAVE_NETINET_IN_H
+#include <netinet/in.h>		/* ntohl */
+#endif
 
 #include "ntp_fp.h"
 #include "ntp_stdlib.h"
@@ -31,8 +37,7 @@ numtohost(
 	    return numtoa(netnum);
 	
 	LIB_GETBUF(bp);
-	
-	bp[LIB_BUFLENGTH-1] = '\0';
-	(void) strncpy(bp, hp->h_name, LIB_BUFLENGTH-1);
+	strlcpy(bp, hp->h_name, LIB_BUFLENGTH);
+
 	return bp;
 }
