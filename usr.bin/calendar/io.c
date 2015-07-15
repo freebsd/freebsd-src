@@ -87,11 +87,16 @@ static void
 trimlr(char **buf)
 {
 	char *walk = *buf;
+	char *last;
 
 	while (isspace(*walk))
 		walk++;
-	while (isspace(walk[strlen(walk) -1]))
-		walk[strlen(walk) -1] = '\0';
+	if (*walk != '\0') {
+		last = walk + strlen(walk) - 1;
+		while (last > walk && isspace(*last))
+			last--;
+		*(last+1) = 0;
+	}
 
 	*buf = walk;
 }
