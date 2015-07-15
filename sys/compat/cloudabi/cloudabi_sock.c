@@ -26,7 +26,11 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/socket.h>
+#include <sys/sysproto.h>
+
 #include <compat/cloudabi/cloudabi_proto.h>
+#include <compat/cloudabi/cloudabi_syscalldefs.h>
 
 int
 cloudabi_sys_sock_accept(struct thread *td,
@@ -59,18 +63,37 @@ int
 cloudabi_sys_sock_listen(struct thread *td,
     struct cloudabi_sys_sock_listen_args *uap)
 {
+	struct listen_args listen_args = {
+		.s = uap->s,
+		.backlog = uap->backlog,
+	};
 
-	/* Not implemented. */
-	return (ENOSYS);
+	return (sys_listen(td, &listen_args));
 }
 
 int
 cloudabi_sys_sock_shutdown(struct thread *td,
     struct cloudabi_sys_sock_shutdown_args *uap)
 {
+	struct shutdown_args shutdown_args = {
+		.s = uap->fd,
+	};
 
-	/* Not implemented. */
-	return (ENOSYS);
+	switch (uap->how) {
+	case CLOUDABI_SHUT_RD:
+		shutdown_args.how = SHUT_RD;
+		break;
+	case CLOUDABI_SHUT_WR:
+		shutdown_args.how = SHUT_WR;
+		break;
+	case CLOUDABI_SHUT_RD | CLOUDABI_SHUT_WR:
+		shutdown_args.how = SHUT_RDWR;
+		break;
+	default:
+		return (EINVAL);
+	}
+
+	return (sys_shutdown(td, &shutdown_args));
 }
 
 int
