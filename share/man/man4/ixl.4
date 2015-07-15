@@ -1,0 +1,191 @@
+.\" Copyright (c) 2013-2015, Intel Corporation 
+.\" All rights reserved.
+.\"  
+.\" Redistribution and use in source and binary forms, with or without 
+.\" modification, are permitted provided that the following conditions are met:
+.\"  
+.\"  1. Redistributions of source code must retain the above copyright notice, 
+.\"     this list of conditions and the following disclaimer.
+.\"  
+.\"  2. Redistributions in binary form must reproduce the above copyright 
+.\"     notice, this list of conditions and the following disclaimer in the 
+.\"     documentation and/or other materials provided with the distribution.
+.\"  
+.\"  3. Neither the name of the Intel Corporation nor the names of its 
+.\"     contributors may be used to endorse or promote products derived from 
+.\"     this software without specific prior written permission.
+.\"  
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+.\" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE 
+.\" LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR 
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF 
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS 
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN 
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) 
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" * Other names and brands may be claimed as the property of others.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 25, 2015
+.Dt IXL 4
+.Os
+.Sh NAME
+.Nm ixl
+.Nd "Intel XL710 Ethernet 40Gb Base driver"
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device ixl"
+.Ed
+.Pp
+To load the driver as a
+module at boot time, place the following lines in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_ixl_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for PCI Express adapters or LOMs
+in the XL710 Family of ethernet devices.
+The driver supports Jumbo Frames, TX/RX checksum offload,
+TCP segmentation offload (TSO), Large Receive Offload (LRO), VLAN
+tag insertion/extraction, VLAN checksum offload, VLAN TSO, and
+Receive Side Steering (RSS), all for both IPv4 and IPv6.
+For further hardware information and questions related to hardware
+requirements, see
+.Pa http://support.intel.com/ .
+.Pp
+Support for Jumbo Frames is provided via the interface MTU setting.
+Selecting an MTU larger than 1500 bytes with the
+.Xr ifconfig 8
+utility configures the adapter to receive and transmit Jumbo Frames.
+The maximum MTU size for Jumbo Frames is 9706.
+.Pp
+Offloads are also controlled via the interface, for instance,
+checksumming for both IPv4 and IPv6 can be set and unset, TSO4
+and/or TSO6, and finally LRO can be set and unset.
+.Pp
+For more information on configuring this device, see
+.Xr ifconfig 8 .
+.Sh HARDWARE
+The
+.Nm
+driver supports these SFP+ Pluggable Optics:
+.Pp
+.Bl -bullet -compact
+.It
+Intel TRIPLE RATE 1G/10G/40G QSFP+ SR (bailed) E40GQSFPSR
+.It
+Intel TRIPLE RATE 1G/10G/40G QSFP+ SR (bailed) E40GQSFPLR
+.El
+.Pp
+The
+.Nm
+driver supports 10Gb and 1Gb Ethernet adapters with SR Modules:
+.Pp
+.Bl -bullet -compact
+.It
+Intel DUAL RATE 1G/10G SFP+ SR (bailed) FTLX8571D3BCV-IT
+.It
+Intel DUAL RATE 1G/10G SFP+ SR (bailed) AFBR-703SDZ-IN2
+.El
+.Pp
+The
+.Nm
+driver supports 10Gb and 1Gb Ethernet adapters with LR Modules:
+.Pp
+.Bl -bullet -compact
+.It
+Intel DUAL RATE 1G/10G SFP+ LR (bailed) FTLX1471D3BCV-IT
+.It
+Intel DUAL RATE 1G/10G SFP+ LR (bailed) AFCT-701SDZ-IN2
+.El
+.Pp
+Note that X710/XL710 Based SFP+ adapters also support all passive and active
+limiting direct attach cables that comply with SFF-8431 v4.1 and
+SFF-8472 v10.4 specifications.
+.Sh LOADER TUNABLES
+Tunables can be set at the
+.Xr loader 8
+prompt before booting the kernel or stored in
+.Xr loader.conf 5 .
+.Bl -tag -width indent
+.It Va hw.ixl.enable_msix
+Allows one to enable/disable MSIX, thus forcing MSI instead.
+.It Va hw.ixl.ringsz
+Set the number of descriptors in the rings, note that this
+changes BOTH the TX and RX rings, they cannot be set independently.
+.It Va hw.ixl.max_queues
+Set the number of queues (each a TX/RX pair) for the port, this
+allows one to override the autocalculation if it is set to 0.
+.It Va hw.ixl.dynamic_rx_itr
+The dynamic RX interrupt control, set to 1 to enable.
+.It Va hw.ixl.dynamic_tx_itr
+The dynamic TX interrupt control, set to 1 to enable.
+.It Va hw.ixl.rx_itr
+The RX interrupt rate value, set to 8K by default.
+.It Va hw.ixl.tx_itr
+The TX interrupt rate value, set to 4K by default.
+.El
+.Sh SYSCTL PROCEDURES
+.Bl -tag -width indent
+.It Va hw.ixl.fc
+Allows one to set the flow control value.
+A value of 0 disables
+flow control, 3 enables full, 1 is RX, and 2 is TX pause.
+.It Va hw.ixl.advertise_speed
+Allows one to set advertised link speeds, this will then
+cause a link renegotiation.
+With the appropriate adapter
+this can cause a link at 10GB, 1GB, or 100MB.
+.It Va hw.ixl.current_speed
+This is a display of the current setting.
+.It Va hw.ixl.fw_version
+This is a display of the Firmware version.
+.El
+.Sh Interrupt Storms
+It is important to note that 40G operation can generate high
+numbers of interrupts, often incorrectly being interpreted as
+a storm condition in the kernel.
+It is suggested that this
+be resolved by setting:
+.Bl -tag -width indent
+.It Va hw.intr_storm_threshold: 0
+.El
+.Sh SUPPORT
+For general information and support,
+go to the Intel support website at:
+.Pa http://support.intel.com/ .
+.Pp
+If an issue is identified with this driver with a supported adapter,
+email all the specific information related to the issue to
+.Aq freebsd@intel.com .
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr ixlv 4 ,
+.Xr netintro 4 ,
+.Xr ng_ether 4 ,
+.Xr vlan 4 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 10.1 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Jack Vogel Aq Mt jfv@FreeBSD.org
+and
+.An Eric Joyner Aq Mt ricera10@gmail.com .
