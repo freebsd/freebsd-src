@@ -362,7 +362,7 @@ device		xenpci			# Xen HVM Hypervisor services driver
 device		vmx			# VMware VMXNET3 Ethernet
 
 # Netmap provides direct access to TX/RX rings on supported NICs
-device		netmap			# netmap(4) support
+# device		netmap			# netmap(4) support
 
 # The crypto framework is required by IPSEC
 device		crypto			# Required by IPSEC

@@ -124,6 +124,18 @@ static void	ixv_msix_mbx(void *);
 static void	ixv_handle_que(void *, int);
 static void	ixv_handle_mbx(void *, int);
 
+#ifdef DEV_NETMAP
+/*
+ * This is defined in <dev/netmap/ixgbe_netmap.h>, which is included by
+ * if_ix.c.
+ */
+extern void ixgbe_netmap_attach(struct adapter *adapter);
+
+#include <net/netmap.h>
+#include <sys/selinfo.h>
+#include <dev/netmap/netmap_kern.h>
+#endif /* DEV_NETMAP */
+
 /*********************************************************************
  *  FreeBSD Device Interface Entry Points
  *********************************************************************/
@@ -145,6 +157,9 @@ devclass_t ixv_devclass;
 DRIVER_MODULE(ixv, pci, ixv_driver, ixv_devclass, 0, 0);
 MODULE_DEPEND(ixv, pci, 1, 1, 1);
 MODULE_DEPEND(ixv, ether, 1, 1, 1);
+#ifdef DEV_NETMAP
+MODULE_DEPEND(ix, netmap, 1, 1, 1);
+#endif /* DEV_NETMAP */
 /* XXX depend on 'ix' ? */
 
 /*
@@ -278,6 +293,11 @@ ixv_attach(device_t dev)
 	adapter->dev = adapter->osdep.dev = dev;
 	hw = &adapter->hw;
 
+#ifdef DEV_NETMAP
+	adapter->init_locked = ixv_init_locked;
+	adapter->stop_locked = ixv_stop;
+#endif
+
 	/* Core Lock Init*/
 	IXGBE_CORE_LOCK_INIT(adapter, device_get_nameunit(dev));
 
@@ -381,6 +401,9 @@ ixv_attach(device_t dev)
 	adapter->vlan_detach = EVENTHANDLER_REGISTER(vlan_unconfig,
 	    ixv_unregister_vlan, adapter, EVENTHANDLER_PRI_FIRST);
 
+#ifdef DEV_NETMAP
+	ixgbe_netmap_attach(adapter);
+#endif /* DEV_NETMAP */
 	INIT_DEBUGOUT("ixv_attach: end");
 	return (0);
 
@@ -444,6 +467,9 @@ ixv_detach(device_t dev)
 
 	ether_ifdetach(adapter->ifp);
 	callout_drain(&adapter->timer);
+#ifdef DEV_NETMAP
+	netmap_detach(adapter->ifp);
+#endif /* DEV_NETMAP */
 	ixv_free_pci_resources(adapter);
 	bus_generic_detach(dev);
 	if_free(adapter->ifp);
@@ -1685,8 +1711,33 @@ ixv_initialize_receive_units(struct adapter *adapter)
 		wmb();
 
 		/* Set the Tail Pointer */
-		IXGBE_WRITE_REG(hw, IXGBE_VFRDT(rxr->me),
-		    adapter->num_rx_desc - 1);
+#ifdef DEV_NETMAP
+		/*
+		 * In netmap mode, we must preserve the buffers made
+		 * available to userspace before the if_init()
+		 * (this is true by default on the TX side, because
+		 * init makes all buffers available to userspace).
+		 *
+		 * netmap_reset() and the device specific routines
+		 * (e.g. ixgbe_setup_receive_rings()) map these
+		 * buffers at the end of the NIC ring, so here we
+		 * must set the RDT (tail) register to make sure
+		 * they are not overwritten.
+		 *
+		 * In this driver the NIC ring starts at RDH = 0,
+		 * RDT points to the last slot available for reception (?),
+		 * so RDT = num_rx_desc - 1 means the whole ring is available.
+		 */
+		if (ifp->if_capenable & IFCAP_NETMAP) {
+			struct netmap_adapter *na = NA(adapter->ifp);
+			struct netmap_kring *kring = &na->rx_rings[i];
+			int t = na->num_rx_desc - 1 - nm_kr_rxspace(kring);
+
+			IXGBE_WRITE_REG(hw, IXGBE_VFRDT(rxr->me), t);
+		} else
+#endif /* DEV_NETMAP */
+			IXGBE_WRITE_REG(hw, IXGBE_VFRDT(rxr->me),
+			    adapter->num_rx_desc - 1);
 	}
 
 	rxcsum = IXGBE_READ_REG(hw, IXGBE_RXCSUM);
