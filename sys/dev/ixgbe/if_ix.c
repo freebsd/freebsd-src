@@ -5273,10 +5273,10 @@ ixgbe_vf_api_negotiate(struct adapter *adapter, struct ixgbe_vf *vf,
     uint32_t *msg)
 {
 
-	switch (msg[0]) {
+	switch (msg[1]) {
 	case IXGBE_API_VER_1_0:
 	case IXGBE_API_VER_1_1:
-		vf->api_ver = msg[0];
+		vf->api_ver = msg[1];
 		ixgbe_send_vf_ack(adapter, vf, msg[0]);
 		break;
 	default:
