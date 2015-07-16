@@ -170,8 +170,12 @@ void	fdclose(struct thread *td, struct file *fp, int idx);
 void	fdcloseexec(struct thread *td);
 void	fdsetugidsafety(struct thread *td);
 struct	filedesc *fdcopy(struct filedesc *fdp);
+int	fdcopy_remapped(struct filedesc *fdp, const int *fds, size_t nfds,
+	    struct filedesc **newfdp);
+void	fdinstall_remapped(struct thread *td, struct filedesc *fdp);
 void	fdunshare(struct thread *td);
 void	fdescfree(struct thread *td);
+void	fdescfree_remapped(struct filedesc *fdp);
 struct	filedesc *fdinit(struct filedesc *fdp, bool prepfiles);
 struct	filedesc *fdshare(struct filedesc *fdp);
 struct filedesc_to_leader *
