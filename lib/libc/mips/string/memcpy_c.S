@@ -39,6 +39,14 @@
 #define CAP_SIZE (_MIPS_SZCAP/8)
 #define CAP_ALIGN_MASK (CAP_SIZE-1)
 
+.macro ret
+#if __CHERI_SANDBOX__ == 2
+	cjr	$c17
+#else
+	jr	$ra
+#endif
+.endm
+
 #
 # Capability Memcpy - copies from one capability to another.
 # __capability void *memcpy_c(__capability void *dst,
@@ -131,7 +139,7 @@ unaligned_end:
 	csb      $a2, $a1, -1($c3)
 
 memcpy_c_return:
-	jr       $ra                 # Return value remains in c1
+	ret                          # Return value remains in c1
 	nop
 
 slow_memcpy_loop:                # byte-by-byte copy
@@ -139,7 +147,7 @@ slow_memcpy_loop:                # byte-by-byte copy
 	daddi    $a1, $a1, 1
 	bne      $a0, $a1, slow_memcpy_loop
 	csb      $a2, $a1, -1($c3)
-	jr       $ra                 # Return value remains in c1
+	ret                          # Return value remains in c1
 	nop
 .end memcpy_c
 
