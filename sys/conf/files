@@ -254,6 +254,7 @@ cddl/dev/systrace/systrace.c		optional dtrace_systrace | dtraceall compile-with 
 cddl/dev/prototype.c			optional dtrace_prototype | dtraceall compile-with "${CDDL_C}"
 fs/nfsclient/nfs_clkdtrace.c		optional dtnfscl nfscl   | dtraceall nfscl compile-with "${CDDL_C}"
 compat/cloudabi/cloudabi_clock.c	optional compat_cloudabi64
+compat/cloudabi/cloudabi_errno.c	optional compat_cloudabi64
 compat/cloudabi/cloudabi_fd.c		optional compat_cloudabi64
 compat/cloudabi/cloudabi_file.c		optional compat_cloudabi64
 compat/cloudabi/cloudabi_futex.c	optional compat_cloudabi64

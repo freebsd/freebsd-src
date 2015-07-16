@@ -43,6 +43,19 @@
 
 typedef void IDENT(threadentry_t)(cloudabi_tid_t, PTR(void));
 
+// Auxiliary vector entry, used to provide paramters on startup.
+typedef struct {
+  uint32_t a_type;
+  union {
+    MEMBER(IDENT(size_t)) a_val;
+    MEMBER(PTR(void)) a_ptr;
+  };
+} IDENT(auxv_t);
+ASSERT_OFFSET(auxv_t, a_type, 0, 0);
+ASSERT_OFFSET(auxv_t, a_val, 4, 8);
+ASSERT_OFFSET(auxv_t, a_ptr, 4, 8);
+ASSERT_SIZE(auxv_t, 8, 16);
+
 typedef struct {
   MEMBER(PTR(const void)) iov_base;
   MEMBER(IDENT(size_t)) iov_len;
@@ -160,29 +173,6 @@ typedef struct {
 } IDENT(send_out_t);
 ASSERT_OFFSET(send_out_t, so_datalen, 0, 0);
 ASSERT_SIZE(send_out_t, 4, 8);
-
-typedef struct {
-  MEMBER(PTR(const void)) sd_arg;   // Program argument data.
-  MEMBER(IDENT(size_t)) sd_arglen;  // Program argument data size.
-
-  MEMBER(PTR(void)) sd_elf_phdr;         // ELF program header.
-  MEMBER(IDENT(size_t)) sd_elf_phdrlen;  // ELF program header length.
-
-  MEMBER(cloudabi_tid_t) sd_thread_id;  // Thread ID.
-  MEMBER(uint64_t) sd_random_seed;      // Random seed, used for SSP.
-
-  MEMBER(uint32_t) sd_ncpus;     // Number of CPUs.
-  MEMBER(uint32_t) sd_pagesize;  // Page size.
-} IDENT(startup_data_t);
-ASSERT_OFFSET(startup_data_t, sd_arg, 0, 0);
-ASSERT_OFFSET(startup_data_t, sd_arglen, 4, 8);
-ASSERT_OFFSET(startup_data_t, sd_elf_phdr, 8, 16);
-ASSERT_OFFSET(startup_data_t, sd_elf_phdrlen, 12, 24);
-ASSERT_OFFSET(startup_data_t, sd_thread_id, 16, 32);
-ASSERT_OFFSET(startup_data_t, sd_random_seed, 24, 40);
-ASSERT_OFFSET(startup_data_t, sd_ncpus, 32, 48);
-ASSERT_OFFSET(startup_data_t, sd_pagesize, 36, 52);
-ASSERT_SIZE(startup_data_t, 40, 56);
 
 typedef struct {
   MEMBER(cloudabi_userdata_t) userdata;
