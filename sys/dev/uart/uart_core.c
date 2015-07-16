@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/queue.h>
 #include <sys/reboot.h>
+#include <sys/sysctl.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
 #include <machine/resource.h>
@@ -62,7 +63,12 @@ static MALLOC_DEFINE(M_UART, "UART", "UART driver");
 #define	UART_POLL_FREQ		50
 #endif
 static int uart_poll_freq = UART_POLL_FREQ;
-TUNABLE_INT("debug.uart_poll_freq", &uart_poll_freq);
+SYSCTL_INT(_debug, OID_AUTO, uart_poll_freq, CTLFLAG_RDTUN, &uart_poll_freq,
+    0, "UART poll frequency");
+
+static int uart_force_poll;
+SYSCTL_INT(_debug, OID_AUTO, uart_force_poll, CTLFLAG_RDTUN, &uart_force_poll,
+    0, "Force UART polling");
 
 void
 uart_add_sysdev(struct uart_devinfo *di)
@@ -514,7 +520,7 @@ uart_bus_attach(device_t dev)
 	 * conditions. We may have broken H/W and polling is probably the
 	 * safest thing to do.
 	 */
-	if (filt != FILTER_SCHEDULE_THREAD) {
+	if (filt != FILTER_SCHEDULE_THREAD && !uart_force_poll) {
 		sc->sc_irid = 0;
 		sc->sc_ires = bus_alloc_resource_any(dev, SYS_RES_IRQ,
 		    &sc->sc_irid, RF_ACTIVE | RF_SHAREABLE);
@@ -540,6 +546,8 @@ uart_bus_attach(device_t dev)
 		/* No interrupt resource. Force polled mode. */
 		sc->sc_polled = 1;
 		callout_init(&sc->sc_timer, 1);
+		callout_reset(&sc->sc_timer, hz / uart_poll_freq,
+		    (timeout_t *)uart_intr, sc);
 	}
 
 	if (bootverbose && (sc->sc_fastintr || sc->sc_polled)) {
