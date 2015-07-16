@@ -2110,17 +2110,45 @@ retry:
 /*
  * Release a filedesc structure.
  */
+static void
+fdescfree_fds(struct thread *td, struct filedesc *fdp, bool needclose)
+{
+	struct filedesc0 *fdp0;
+	struct freetable *ft, *tft;
+	struct filedescent *fde;
+	struct file *fp;
+	int i;
+
+	for (i = 0; i <= fdp->fd_lastfile; i++) {
+		fde = &fdp->fd_ofiles[i];
+		fp = fde->fde_file;
+		if (fp != NULL) {
+			fdefree_last(fde);
+			if (needclose)
+				(void) closef(fp, td);
+			else
+				fdrop(fp, td);
+		}
+	}
+
+	if (NDSLOTS(fdp->fd_nfiles) > NDSLOTS(NDFILE))
+		free(fdp->fd_map, M_FILEDESC);
+	if (fdp->fd_nfiles > NDFILE)
+		free(fdp->fd_files, M_FILEDESC);
+
+	fdp0 = (struct filedesc0 *)fdp;
+	SLIST_FOREACH_SAFE(ft, &fdp0->fd_free, ft_next, tft)
+		free(ft->ft_table, M_FILEDESC);
+
+	fddrop(fdp);
+}
+
 void
 fdescfree(struct thread *td)
 {
 	struct proc *p;
-	struct filedesc0 *fdp0;
 	struct filedesc *fdp;
-	struct freetable *ft, *tft;
-	struct filedescent *fde;
-	struct file *fp;
 	struct vnode *cdir, *jdir, *rdir;
-	int i;
 
 	p = td->td_proc;
 	fdp = p->p_fd;
@@ -2134,7 +2162,7 @@ fdescfree(struct thread *td)
 	}
 #endif
 
-	if (td->td_proc->p_fdtol != NULL)
+	if (p->p_fdtol != NULL)
 		fdclearlocks(td);
 
 	PROC_LOCK(p);
@@ -2153,24 +2181,6 @@ fdescfree(struct thread *td)
 	fdp->fd_jdir = NULL;
 	FILEDESC_XUNLOCK(fdp);
 
-	for (i = 0; i <= fdp->fd_lastfile; i++) {
-		fde = &fdp->fd_ofiles[i];
-		fp = fde->fde_file;
-		if (fp != NULL) {
-			fdefree_last(fde);
-			(void) closef(fp, td);
-		}
-	}
-
-	if (NDSLOTS(fdp->fd_nfiles) > NDSLOTS(NDFILE))
-		free(fdp->fd_map, M_FILEDESC);
-	if (fdp->fd_nfiles > NDFILE)
-		free(fdp->fd_files, M_FILEDESC);
-
-	fdp0 = (struct filedesc0 *)fdp;
-	SLIST_FOREACH_SAFE(ft, &fdp0->fd_free, ft_next, tft)
-		free(ft->ft_table, M_FILEDESC);
-
 	if (cdir != NULL)
 		vrele(cdir);
 	if (rdir != NULL)
@@ -2178,35 +2188,12 @@ fdescfree(struct thread *td)
 	if (jdir != NULL)
 		vrele(jdir);
 
-	fddrop(fdp);
+	fdescfree_fds(td, fdp, 1);
 }
 
 void
 fdescfree_remapped(struct filedesc *fdp)
 {
-	struct filedesc0 *fdp0;
-	struct filedescent *fde;
-	struct file *fp;
-	struct freetable *ft, *tft;
-	int i;
-
-	for (i = 0; i <= fdp->fd_lastfile; i++) {
-		fde = &fdp->fd_ofiles[i];
-		fp = fde->fde_file;
-		if (fp != NULL) {
-			fdefree_last(fde);
-			(void) closef(fp, NULL);
-		}
-	}
-
-	if (NDSLOTS(fdp->fd_nfiles) > NDSLOTS(NDFILE))
-		free(fdp->fd_map, M_FILEDESC);
-	if (fdp->fd_nfiles > NDFILE)
-		free(fdp->fd_files, M_FILEDESC);
-
-	fdp0 = (struct filedesc0 *)fdp;
-	SLIST_FOREACH_SAFE(ft, &fdp0->fd_free, ft_next, tft)
-		free(ft->ft_table, M_FILEDESC);
 
 	if (fdp->fd_cdir != NULL)
 		vrele(fdp->fd_cdir);
@@ -2214,7 +2201,8 @@ fdescfree_remapped(struct filedesc *fdp)
 		vrele(fdp->fd_rdir);
 	if (fdp->fd_jdir != NULL)
 		vrele(fdp->fd_jdir);
-	fddrop(fdp);
+
+	fdescfree_fds(curthread, fdp, 0);
 }
 
 /*
