@@ -1921,6 +1921,14 @@ fdunshare(struct thread *td)
 	p->p_fd = tmp;
 }
 
+void
+fdinstall_remapped(struct thread *td, struct filedesc *fdp)
+{
+
+	fdescfree(td);
+	td->td_proc->p_fd = fdp;
+}
+
 /*
  * Copy a filedesc structure.  A NULL pointer in returns a NULL reference,
  * this is to ease callers, not catch errors.
@@ -1957,6 +1965,65 @@ fdcopy(struct filedesc *fdp)
 	newfdp->fd_cmask = fdp->fd_cmask;
 	FILEDESC_SUNLOCK(fdp);
 	return (newfdp);
+}
+
+/*
+ * Copies a filedesc structure, while remapping all file descriptors
+ * stored inside using a translation table.
+ *
+ * File descriptors are copied over to the new file descriptor table,
+ * regardless of whether the close-on-exec flag is set.
+ */
+int
+fdcopy_remapped(struct filedesc *fdp, const int *fds, size_t nfds,
+    struct filedesc **ret)
+{
+	struct filedesc *newfdp;
+	struct filedescent *nfde, *ofde;
+	int error, i;
+
+	MPASS(fdp != NULL);
+
+	newfdp = fdinit(fdp, true);
+	if (nfds > fdp->fd_lastfile + 1) {
+		/* New table cannot be larger than the old one. */
+		error = E2BIG;
+		goto bad;
+	}
+	/* Copy all passable descriptors (i.e. not kqueue). */
+	newfdp->fd_freefile = nfds;
+	for (i = 0; i < nfds; ++i) {
+		if (fds[i] < 0 || fds[i] > fdp->fd_lastfile) {
+			/* File descriptor out of bounds. */
+			error = EBADF;
+			goto bad;
+		}
+		ofde = &fdp->fd_ofiles[fds[i]];
+		if (ofde->fde_file == NULL) {
+			/* Unused file descriptor. */
+			error = EBADF;
+			goto bad;
+		}
+		if ((ofde->fde_file->f_ops->fo_flags & DFLAG_PASSABLE) == 0) {
+			/* File descriptor cannot be passed. */
+			error = EINVAL;
+			goto bad;
+		}
+		nfde = &newfdp->fd_ofiles[i];
+		*nfde = *ofde;
+		filecaps_copy(&ofde->fde_caps, &nfde->fde_caps);
+		fhold(nfde->fde_file);
+		fdused_init(newfdp, i);
+		newfdp->fd_lastfile = i;
+	}
+	newfdp->fd_cmask = fdp->fd_cmask;
+	FILEDESC_SUNLOCK(fdp);
+	*ret = newfdp;
+	return (0);
+bad:
+	FILEDESC_SUNLOCK(fdp);
+	fdescfree_remapped(newfdp);
+	return (error);
 }
 
 /*
@@ -2111,6 +2178,42 @@ fdescfree(struct thread *td)
 	if (jdir != NULL)
 		vrele(jdir);
 
+	fddrop(fdp);
+}
+
+void
+fdescfree_remapped(struct filedesc *fdp)
+{
+	struct filedesc0 *fdp0;
+	struct filedescent *fde;
+	struct file *fp;
+	struct freetable *ft, *tft;
+	int i;
+
+	for (i = 0; i <= fdp->fd_lastfile; i++) {
+		fde = &fdp->fd_ofiles[i];
+		fp = fde->fde_file;
+		if (fp != NULL) {
+			fdefree_last(fde);
+			(void) closef(fp, NULL);
+		}
+	}
+
+	if (NDSLOTS(fdp->fd_nfiles) > NDSLOTS(NDFILE))
+		free(fdp->fd_map, M_FILEDESC);
+	if (fdp->fd_nfiles > NDFILE)
+		free(fdp->fd_files, M_FILEDESC);
+
+	fdp0 = (struct filedesc0 *)fdp;
+	SLIST_FOREACH_SAFE(ft, &fdp0->fd_free, ft_next, tft)
+		free(ft->ft_table, M_FILEDESC);
+
+	if (fdp->fd_cdir != NULL)
+		vrele(fdp->fd_cdir);
+	if (fdp->fd_rdir != NULL)
+		vrele(fdp->fd_rdir);
+	if (fdp->fd_jdir != NULL)
+		vrele(fdp->fd_jdir);
 	fddrop(fdp);
 }
 
