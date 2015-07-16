@@ -204,6 +204,7 @@ lapic_write32_nofence(enum LAPIC_REGISTERS reg, uint32_t val)
 	}
 }
 
+#ifdef SMP
 static uint64_t
 lapic_read_icr(void)
 {
@@ -241,6 +242,7 @@ lapic_write_icr(uint32_t vhi, uint32_t vlo)
 		lapic_write32(LAPIC_ICR_LO, vlo);
 	}
 }
+#endif /* SMP */
 
 static void
 native_lapic_enable_x2apic(void)
@@ -292,9 +294,6 @@ static int 	native_lapic_enable_pmc(void);
 static void 	native_lapic_disable_pmc(void);
 static void 	native_lapic_reenable_pmc(void);
 static void 	native_lapic_enable_cmc(void);
-static void 	native_lapic_ipi_raw(register_t icrlo, u_int dest);
-static void 	native_lapic_ipi_vectored(u_int vector, int dest);
-static int 	native_lapic_ipi_wait(int delay);
 static int 	native_lapic_set_lvt_mask(u_int apic_id, u_int lvt,
 		    u_char masked);
 static int 	native_lapic_set_lvt_mode(u_int apic_id, u_int lvt,
@@ -303,8 +302,13 @@ static int 	native_lapic_set_lvt_polarity(u_int apic_id, u_int lvt,
 		    enum intr_polarity pol);
 static int 	native_lapic_set_lvt_triggermode(u_int apic_id, u_int lvt,
 		    enum intr_trigger trigger);
+#ifdef SMP
+static void 	native_lapic_ipi_raw(register_t icrlo, u_int dest);
+static void 	native_lapic_ipi_vectored(u_int vector, int dest);
+static int 	native_lapic_ipi_wait(int delay);
 static int	native_lapic_ipi_alloc(inthand_t *ipifunc);
 static void	native_lapic_ipi_free(int vector);
+#endif /* SMP */
 
 struct apic_ops apic_ops = {
 	.create			= native_lapic_create,
