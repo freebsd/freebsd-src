@@ -99,6 +99,6 @@ vn_rele_async(vnode_t *vp, taskq_t *taskq)
 		    (task_func_t *)vn_rele_inactive, vp, TQ_SLEEP) != 0);
 		return;
 	}
-	vp->v_usecount--;
+	refcount_release(&vp->v_usecount);
 	vdropl(vp);
 }
