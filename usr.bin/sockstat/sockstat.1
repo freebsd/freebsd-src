@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 20, 2015
+.Dd July 14, 2015
 .Dt SOCKSTAT 1
 .Os
 .Sh NAME
@@ -35,7 +35,7 @@
 .Nd list open sockets
 .Sh SYNOPSIS
 .Nm
-.Op Fl 46cLlu
+.Op Fl 46cLlsu
 .Op Fl j Ar jid
 .Op Fl p Ar ports
 .Op Fl P Ar protocols
@@ -83,6 +83,9 @@ The
 argument is a comma-separated list of protocol names,
 as they are defined in
 .Xr protocols 5 .
+.It Fl s
+Display the protocol state, if applicable.
+This is currently only implemented for TCP.
 .It Fl u
 Show
 .Dv AF_LOCAL
