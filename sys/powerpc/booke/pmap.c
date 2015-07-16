@@ -51,6 +51,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_kstack_pages.h"
+
 #include <sys/param.h>
 #include <sys/conf.h>
 #include <sys/malloc.h>

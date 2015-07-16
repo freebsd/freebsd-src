@@ -27,6 +27,7 @@
  */
 
 #include "assym.s"
+#include "opt_kstack_pages.h"
 #include <sys/syscall.h>
 #include <machine/asm.h>
 #include <machine/armreg.h>
@@ -50,8 +51,6 @@
  *  I-Cache: on or off
  *  We are loaded at a 2MiB aligned address
  */
-
-#define	INIT_STACK_SIZE	(PAGE_SIZE * 4)
 
 	.text
 	.globl _start
