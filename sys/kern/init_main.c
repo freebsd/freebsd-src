@@ -827,6 +827,7 @@ static void
 create_init(const void *udata __unused)
 {
 	struct ucred *newcred, *oldcred;
+	struct thread *td;
 	int error;
 
 	error = fork1(&thread0, RFFDG | RFPROC | RFSTOPPED, 0, &initproc,
@@ -850,7 +851,9 @@ create_init(const void *udata __unused)
 	audit_cred_proc1(newcred);
 #endif
 	proc_set_cred(initproc, newcred);
-	cred_update_thread(FIRST_THREAD_IN_PROC(initproc));
+	td = FIRST_THREAD_IN_PROC(initproc);
+	crfree(td->td_ucred);
+	td->td_ucred = crhold(initproc->p_ucred);
 	PROC_UNLOCK(initproc);
 	sx_xunlock(&proctree_lock);
 	crfree(oldcred);
