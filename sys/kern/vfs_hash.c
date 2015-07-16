@@ -84,9 +84,9 @@ vfs_hash_get(const struct mount *mp, u_int hash, int flags, struct thread *td, s
 				continue;
 			if (fn != NULL && fn(vp, arg))
 				continue;
-			VI_LOCK(vp);
+			vhold(vp);
 			rw_runlock(&vfs_hash_lock);
-			error = vget(vp, flags | LK_INTERLOCK, td);
+			error = vget(vp, flags | LK_VNHELD, td);
 			if (error == ENOENT && (flags & LK_NOWAIT) == 0)
 				break;
 			if (error)
@@ -128,9 +128,9 @@ vfs_hash_insert(struct vnode *vp, u_int hash, int flags, struct thread *td, stru
 				continue;
 			if (fn != NULL && fn(vp2, arg))
 				continue;
-			VI_LOCK(vp2);
+			vhold(vp2);
 			rw_wunlock(&vfs_hash_lock);
-			error = vget(vp2, flags | LK_INTERLOCK, td);
+			error = vget(vp2, flags | LK_VNHELD, td);
 			if (error == ENOENT && (flags & LK_NOWAIT) == 0)
 				break;
 			rw_wlock(&vfs_hash_lock);
