@@ -87,7 +87,32 @@ MALLOC_DEFINE(M_FICT_PAGES, "vm_fictitious", "Fictitious VM pages");
 static struct vm_freelist
     vm_phys_free_queues[MAXMEMDOM][VM_NFREELIST][VM_NFREEPOOL][VM_NFREEORDER];
 
-static int vm_nfreelists = VM_FREELIST_DEFAULT + 1;
+static int vm_nfreelists;
+
+/*
+ * Provides the mapping from VM_FREELIST_* to free list indices (flind).
+ */
+static int vm_freelist_to_flind[VM_NFREELIST];
+
+CTASSERT(VM_FREELIST_DEFAULT == 0);
+
+#ifdef VM_FREELIST_ISADMA
+#define	VM_ISADMA_BOUNDARY	16777216
+#endif
+#ifdef VM_FREELIST_DMA32
+#define	VM_DMA32_BOUNDARY	((vm_paddr_t)1 << 32)
+#endif
+
+/*
+ * Enforce the assumptions made by vm_phys_add_seg() and vm_phys_init() about
+ * the ordering of the free list boundaries.
+ */
+#if defined(VM_ISADMA_BOUNDARY) && defined(VM_LOWMEM_BOUNDARY)
+CTASSERT(VM_ISADMA_BOUNDARY < VM_LOWMEM_BOUNDARY);
+#endif
+#if defined(VM_LOWMEM_BOUNDARY) && defined(VM_DMA32_BOUNDARY)
+CTASSERT(VM_LOWMEM_BOUNDARY < VM_DMA32_BOUNDARY);
+#endif
 
 static int cnt_prezero;
 SYSCTL_INT(_vm_stats_misc, OID_AUTO, cnt_prezero, CTLFLAG_RD,
@@ -106,9 +131,8 @@ SYSCTL_INT(_vm, OID_AUTO, ndomains, CTLFLAG_RD,
 
 static vm_page_t vm_phys_alloc_domain_pages(int domain, int flind, int pool,
     int order);
-static void _vm_phys_create_seg(vm_paddr_t start, vm_paddr_t end, int flind,
-    int domain);
-static void vm_phys_create_seg(vm_paddr_t start, vm_paddr_t end, int flind);
+static void _vm_phys_create_seg(vm_paddr_t start, vm_paddr_t end, int domain);
+static void vm_phys_create_seg(vm_paddr_t start, vm_paddr_t end);
 static int vm_phys_paddr_to_segind(vm_paddr_t pa);
 static void vm_phys_split_pages(vm_page_t m, int oind, struct vm_freelist *fl,
     int order);
@@ -243,7 +267,7 @@ vm_freelist_rem(struct vm_freelist *fl, vm_page_t m, int order)
  * Create a physical memory segment.
  */
 static void
-_vm_phys_create_seg(vm_paddr_t start, vm_paddr_t end, int flind, int domain)
+_vm_phys_create_seg(vm_paddr_t start, vm_paddr_t end, int domain)
 {
 	struct vm_phys_seg *seg;
 
@@ -259,16 +283,15 @@ _vm_phys_create_seg(vm_paddr_t start, vm_paddr_t end, int flind, int domain)
 	seg->start = start;
 	seg->end = end;
 	seg->domain = domain;
-	seg->free_queues = &vm_phys_free_queues[domain][flind];
 }
 
 static void
-vm_phys_create_seg(vm_paddr_t start, vm_paddr_t end, int flind)
+vm_phys_create_seg(vm_paddr_t start, vm_paddr_t end)
 {
 	int i;
 
 	if (mem_affinity == NULL) {
-		_vm_phys_create_seg(start, end, flind, 0);
+		_vm_phys_create_seg(start, end, 0);
 		return;
 	}
 
@@ -281,11 +304,11 @@ vm_phys_create_seg(vm_paddr_t start, vm_paddr_t end, int flind)
 			panic("No affinity info for start %jx",
 			    (uintmax_t)start);
 		if (mem_affinity[i].end >= end) {
-			_vm_phys_create_seg(start, end, flind,
+			_vm_phys_create_seg(start, end,
 			    mem_affinity[i].domain);
 			break;
 		}
-		_vm_phys_create_seg(start, mem_affinity[i].end, flind,
+		_vm_phys_create_seg(start, mem_affinity[i].end,
 		    mem_affinity[i].domain);
 		start = mem_affinity[i].end;
 	}
@@ -297,64 +320,149 @@ vm_phys_create_seg(vm_paddr_t start, vm_paddr_t end, int flind)
 void
 vm_phys_add_seg(vm_paddr_t start, vm_paddr_t end)
 {
+	vm_paddr_t paddr;
 
 	KASSERT((start & PAGE_MASK) == 0,
 	    ("vm_phys_define_seg: start is not page aligned"));
 	KASSERT((end & PAGE_MASK) == 0,
 	    ("vm_phys_define_seg: end is not page aligned"));
+
+	/*
+	 * Split the physical memory segment if it spans two or more free
+	 * list boundaries.
+	 */
+	paddr = start;
 #ifdef	VM_FREELIST_ISADMA
-	if (start < 16777216) {
-		if (end > 16777216) {
-			vm_phys_create_seg(start, 16777216,
-			    VM_FREELIST_ISADMA);
-			vm_phys_create_seg(16777216, end, VM_FREELIST_DEFAULT);
-		} else
-			vm_phys_create_seg(start, end, VM_FREELIST_ISADMA);
-		if (VM_FREELIST_ISADMA >= vm_nfreelists)
-			vm_nfreelists = VM_FREELIST_ISADMA + 1;
-	} else
+	if (paddr < VM_ISADMA_BOUNDARY && end > VM_ISADMA_BOUNDARY) {
+		vm_phys_create_seg(paddr, VM_ISADMA_BOUNDARY);
+		paddr = VM_ISADMA_BOUNDARY;
+	}
 #endif
-#ifdef	VM_FREELIST_HIGHMEM
-	if (end > VM_HIGHMEM_ADDRESS) {
-		if (start < VM_HIGHMEM_ADDRESS) {
-			vm_phys_create_seg(start, VM_HIGHMEM_ADDRESS,
-			    VM_FREELIST_DEFAULT);
-			vm_phys_create_seg(VM_HIGHMEM_ADDRESS, end,
-			    VM_FREELIST_HIGHMEM);
-		} else
-			vm_phys_create_seg(start, end, VM_FREELIST_HIGHMEM);
-		if (VM_FREELIST_HIGHMEM >= vm_nfreelists)
-			vm_nfreelists = VM_FREELIST_HIGHMEM + 1;
-	} else
+#ifdef	VM_FREELIST_LOWMEM
+	if (paddr < VM_LOWMEM_BOUNDARY && end > VM_LOWMEM_BOUNDARY) {
+		vm_phys_create_seg(paddr, VM_LOWMEM_BOUNDARY);
+		paddr = VM_LOWMEM_BOUNDARY;
+	}
 #endif
-	vm_phys_create_seg(start, end, VM_FREELIST_DEFAULT);
+#ifdef	VM_FREELIST_DMA32
+	if (paddr < VM_DMA32_BOUNDARY && end > VM_DMA32_BOUNDARY) {
+		vm_phys_create_seg(paddr, VM_DMA32_BOUNDARY);
+		paddr = VM_DMA32_BOUNDARY;
+	}
+#endif
+	vm_phys_create_seg(paddr, end);
 }
 
 /*
  * Initialize the physical memory allocator.
+ *
+ * Requires that vm_page_array is initialized!
  */
 void
 vm_phys_init(void)
 {
 	struct vm_freelist *fl;
 	struct vm_phys_seg *seg;
-#ifdef VM_PHYSSEG_SPARSE
-	long pages;
-#endif
-	int dom, flind, oind, pind, segind;
+	u_long npages;
+	int dom, flind, freelist, oind, pind, segind;
 
+	/*
+	 * Compute the number of free lists, and generate the mapping from the
+	 * manifest constants VM_FREELIST_* to the free list indices.
+	 *
+	 * Initially, the entries of vm_freelist_to_flind[] are set to either
+	 * 0 or 1 to indicate which free lists should be created.
+	 */
+	npages = 0;
+	for (segind = vm_phys_nsegs - 1; segind >= 0; segind--) {
+		seg = &vm_phys_segs[segind];
+#ifdef	VM_FREELIST_ISADMA
+		if (seg->end <= VM_ISADMA_BOUNDARY)
+			vm_freelist_to_flind[VM_FREELIST_ISADMA] = 1;
+		else
+#endif
+#ifdef	VM_FREELIST_LOWMEM
+		if (seg->end <= VM_LOWMEM_BOUNDARY)
+			vm_freelist_to_flind[VM_FREELIST_LOWMEM] = 1;
+		else
+#endif
+#ifdef	VM_FREELIST_DMA32
+		if (
+#ifdef	VM_DMA32_NPAGES_THRESHOLD
+		    /*
+		     * Create the DMA32 free list only if the amount of
+		     * physical memory above physical address 4G exceeds the
+		     * given threshold.
+		     */
+		    npages > VM_DMA32_NPAGES_THRESHOLD &&
+#endif
+		    seg->end <= VM_DMA32_BOUNDARY)
+			vm_freelist_to_flind[VM_FREELIST_DMA32] = 1;
+		else
+#endif
+		{
+			npages += atop(seg->end - seg->start);
+			vm_freelist_to_flind[VM_FREELIST_DEFAULT] = 1;
+		}
+	}
+	/* Change each entry into a running total of the free lists. */
+	for (freelist = 1; freelist < VM_NFREELIST; freelist++) {
+		vm_freelist_to_flind[freelist] +=
+		    vm_freelist_to_flind[freelist - 1];
+	}
+	vm_nfreelists = vm_freelist_to_flind[VM_NFREELIST - 1];
+	KASSERT(vm_nfreelists > 0, ("vm_phys_init: no free lists"));
+	/* Change each entry into a free list index. */
+	for (freelist = 0; freelist < VM_NFREELIST; freelist++)
+		vm_freelist_to_flind[freelist]--;
+
+	/*
+	 * Initialize the first_page and free_queues fields of each physical
+	 * memory segment.
+	 */
 #ifdef VM_PHYSSEG_SPARSE
-	pages = 0;
+	npages = 0;
 #endif
 	for (segind = 0; segind < vm_phys_nsegs; segind++) {
 		seg = &vm_phys_segs[segind];
 #ifdef VM_PHYSSEG_SPARSE
-		seg->first_page = &vm_page_array[pages];
-		pages += atop(seg->end - seg->start);
+		seg->first_page = &vm_page_array[npages];
+		npages += atop(seg->end - seg->start);
 #else
 		seg->first_page = PHYS_TO_VM_PAGE(seg->start);
 #endif
+#ifdef	VM_FREELIST_ISADMA
+		if (seg->end <= VM_ISADMA_BOUNDARY) {
+			flind = vm_freelist_to_flind[VM_FREELIST_ISADMA];
+			KASSERT(flind >= 0,
+			    ("vm_phys_init: ISADMA flind < 0"));
+		} else
+#endif
+#ifdef	VM_FREELIST_LOWMEM
+		if (seg->end <= VM_LOWMEM_BOUNDARY) {
+			flind = vm_freelist_to_flind[VM_FREELIST_LOWMEM];
+			KASSERT(flind >= 0,
+			    ("vm_phys_init: LOWMEM flind < 0"));
+		} else
+#endif
+#ifdef	VM_FREELIST_DMA32
+		if (seg->end <= VM_DMA32_BOUNDARY) {
+			flind = vm_freelist_to_flind[VM_FREELIST_DMA32];
+			KASSERT(flind >= 0,
+			    ("vm_phys_init: DMA32 flind < 0"));
+		} else
+#endif
+		{
+			flind = vm_freelist_to_flind[VM_FREELIST_DEFAULT];
+			KASSERT(flind >= 0,
+			    ("vm_phys_init: DEFAULT flind < 0"));
+		}
+		seg->free_queues = &vm_phys_free_queues[seg->domain][flind];
 	}
+
+	/*
+	 * Initialize the free queues.
+	 */
 	for (dom = 0; dom < vm_ndomains; dom++) {
 		for (flind = 0; flind < vm_nfreelists; flind++) {
 			for (pind = 0; pind < VM_NFREEPOOL; pind++) {
@@ -444,25 +552,29 @@ vm_phys_alloc_pages(int pool, int order)
 }
 
 /*
- * Find and dequeue a free page on the given free list, with the 
- * specified pool and order
+ * Allocate a contiguous, power of two-sized set of physical pages from the
+ * specified free list.  The free list must be specified using one of the
+ * manifest constants VM_FREELIST_*.
+ *
+ * The free page queues must be locked.
  */
 vm_page_t
-vm_phys_alloc_freelist_pages(int flind, int pool, int order)
+vm_phys_alloc_freelist_pages(int freelist, int pool, int order)
 {
 	vm_page_t m;
 	int dom, domain;
 
-	KASSERT(flind < VM_NFREELIST,
-	    ("vm_phys_alloc_freelist_pages: freelist %d is out of range", flind));
+	KASSERT(freelist < VM_NFREELIST,
+	    ("vm_phys_alloc_freelist_pages: freelist %d is out of range",
+	    freelist));
 	KASSERT(pool < VM_NFREEPOOL,
 	    ("vm_phys_alloc_freelist_pages: pool %d is out of range", pool));
 	KASSERT(order < VM_NFREEORDER,
 	    ("vm_phys_alloc_freelist_pages: order %d is out of range", order));
-
 	for (dom = 0; dom < vm_ndomains; dom++) {
 		domain = vm_rr_selectdomain();
-		m = vm_phys_alloc_domain_pages(domain, flind, pool, order);
+		m = vm_phys_alloc_domain_pages(domain,
+		    vm_freelist_to_flind[freelist], pool, order);
 		if (m != NULL)
 			return (m);
 	}
