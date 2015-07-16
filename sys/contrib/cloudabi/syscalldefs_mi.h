@@ -40,6 +40,19 @@
 #define CLOUDABI_ADVICE_SEQUENTIAL 5
 #define CLOUDABI_ADVICE_WILLNEED 6
 
+// Auxiliary vector entries. All entries that are also part of the
+// x86-64 ABI use the same number. All extensions start at 256.
+#define CLOUDABI_AT_ARGDATA 256
+#define CLOUDABI_AT_ARGDATALEN 257
+#define CLOUDABI_AT_CANARY 258
+#define CLOUDABI_AT_CANARYLEN 259
+#define CLOUDABI_AT_NCPUS 260
+#define CLOUDABI_AT_NULL 0
+#define CLOUDABI_AT_PAGESZ 6
+#define CLOUDABI_AT_PHDR 3
+#define CLOUDABI_AT_PHNUM 4
+#define CLOUDABI_AT_TID 261
+
 // Clocks.
 #define CLOUDABI_CLOCK_MONOTONIC 1
 #define CLOUDABI_CLOCK_PROCESS_CPUTIME_ID 2
