@@ -28,6 +28,7 @@
  *
  */
 
+#include "opt_kstack_pages.h"
 #include "opt_platform.h"
 
 #include <sys/cdefs.h>

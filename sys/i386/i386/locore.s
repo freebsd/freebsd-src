@@ -41,6 +41,7 @@
 
 #include "opt_bootp.h"
 #include "opt_compat.h"
+#include "opt_kstack_pages.h"
 #include "opt_nfsroot.h"
 #include "opt_pmap.h"
 
