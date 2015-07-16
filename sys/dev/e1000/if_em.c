@@ -5998,7 +5998,9 @@ DB_COMMAND(em_reset_dev, em_ddb_reset_dev)
 		dev = devclass_get_device(dc, index);
 		if (device_get_driver(dev) == &em_driver) {
 			struct adapter *adapter = device_get_softc(dev);
+			EM_CORE_LOCK(adapter);
 			em_init_locked(adapter);
+			EM_CORE_UNLOCK(adapter);
 		}
 	}
 }
