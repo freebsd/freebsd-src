@@ -30,6 +30,7 @@
  */
 
 #include "assym.s"
+#include "opt_kstack_pages.h"
 #include "opt_sched.h"
 
 #include <machine/asm.h>
