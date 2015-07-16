@@ -27,10 +27,12 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/imgact.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/signalvar.h>
+#include <sys/syscallsubr.h>
 
 #include <compat/cloudabi/cloudabi_proto.h>
 
@@ -38,9 +40,16 @@ int
 cloudabi_sys_proc_exec(struct thread *td,
     struct cloudabi_sys_proc_exec_args *uap)
 {
+	struct image_args args;
+	int error;
 
-	/* Not implemented. */
-	return (ENOSYS);
+	error = exec_copyin_data_fds(td, &args, uap->data, uap->datalen,
+	    uap->fds, uap->fdslen);
+	if (error == 0) {
+		args.fd = uap->fd;
+		error = kern_execve(td, &args, NULL);
+	}
+	return (error);
 }
 
 int
