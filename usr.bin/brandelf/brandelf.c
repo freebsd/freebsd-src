@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/elf_common.h>
 #include <sys/elf.h>
+#include <sys/endian.h>
 #include <sys/errno.h>
 #include <err.h>
 #include <fcntl.h>
@@ -57,6 +58,13 @@ static struct ELFtypes elftypes[] = {
 	{ "Solaris",	ELFOSABI_SOLARIS },
 	{ "SVR4",	ELFOSABI_SYSV }
 };
+
+#ifndef EM_MIPS_CHERI128
+#define	EM_MIPS_CHERI128	0xC128
+#endif
+#ifndef EM_MIPS_CHERI256
+#define	EM_MIPS_CHERI256	0xC256
+#endif
 
 int
 main(int argc, char **argv)
@@ -131,7 +139,7 @@ main(int argc, char **argv)
 	}
 
 	while (argc) {
-		int fd;
+		int e_data, e_machine, fd;
 		union {
 			unsigned char	ident[EI_NIDENT];
 			Elf32_Ehdr	ehdr32;
@@ -167,6 +175,13 @@ main(int argc, char **argv)
 				printelftypes();
 			}
 		} else if (cheri) {
+			e_data = buffer.ident[EI_DATA];
+			if (e_data != 1 && e_data != 2) {
+				warnx("file '%s' has unknown endianness",
+				    argv[0]);
+				retval = 1;
+				goto fail;
+			}
 			switch (buffer.ident[EI_CLASS]) {
 			case ELFCLASS32:
 				writeout = sizeof(buffer.ehdr32);
@@ -191,11 +206,20 @@ main(int argc, char **argv)
 					retval = 1;
 					goto fail;
 				}
-				if (buffer.ehdr64.e_machine == EM_MIPS) {
-					buffer.ehdr64.e_machine =
-					    cheri == 128 ?
-					    EM_MIPS_CHERI128 :
-					    EM_MIPS_CHERI256;
+				e_machine = e_data == 1 ?
+				    le16toh(buffer.ehdr64.e_machine) :
+				    be16toh(buffer.ehdr64.e_machine);
+				if (e_machine == EM_MIPS) {
+					if (cheri == 128)
+						buffer.ehdr64.e_machine =
+						    e_data == 1 ?
+						    htole16(EM_MIPS_CHERI128) :
+						    htobe16(EM_MIPS_CHERI128);
+					else /* (cheri == 256) */
+						buffer.ehdr64.e_machine =
+						    e_data == 1 ?
+						    htole16(EM_MIPS_CHERI256) :
+						    htobe16(EM_MIPS_CHERI256);
 				} else {
 					warnx("file '%s' not a CHERI platform",
 					    argv[0]);
@@ -213,9 +237,8 @@ main(int argc, char **argv)
 		} else {
 			writeout = EI_NIDENT;
 			buffer.ident[EI_OSABI] = type;
-			lseek(fd, 0, SEEK_SET);
 		}
-		if (write(fd, &buffer, writeout) != writeout) {
+		if (pwrite(fd, &buffer, writeout, 0) != writeout) {
 			warn("error writing %s %d", argv[0], fd);
 			retval = 1;
 			goto fail;
