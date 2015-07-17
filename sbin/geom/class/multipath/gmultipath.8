@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 11, 2015
+.Dd July 17, 2015
 .Dt GMULTIPATH 8
 .Os
 .Sh NAME
@@ -349,6 +349,16 @@ The resultant console output looks something like:
 GEOM_MULTIPATH: da0 added to FRED
 GEOM_MULTIPATH: da0 is now active path in FRED
 GEOM_MULTIPATH: da2 added to FRED
+.Ed
+.Ed
+.Pp
+To load the
+.Nm
+Module at boot time, add the following entry to
+.Pa /boot/loader.conf:
+.Bd -literal -offset ident
+geom_multipath_load="YES"
+.Ed
 .Ed
 .Sh SEE ALSO
 .Xr geom 4 ,
