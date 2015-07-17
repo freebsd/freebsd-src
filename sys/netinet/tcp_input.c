@@ -1856,6 +1856,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		 * the buffer to better manage the socket buffer resources.
 		 */
 			if (V_tcp_do_autorcvbuf &&
+			    (to.to_flags & TOF_TS) &&
 			    to.to_tsecr &&
 			    (so->so_rcv.sb_flags & SB_AUTOSIZE)) {
 				if (TSTMP_GT(to.to_tsecr, tp->rfbuf_ts) &&
