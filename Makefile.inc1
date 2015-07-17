@@ -1477,6 +1477,7 @@ bootstrap-tools: .PHONY
     ${_groff} \
     ${_dtc} \
     ${_awk} \
+    usr.bin/brandelf \
     ${_cat} \
     usr.bin/lorder \
     usr.bin/makewhatis \
