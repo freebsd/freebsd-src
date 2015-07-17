@@ -141,6 +141,12 @@ NF10BMAC_64BIT			opt_netfpga.h
 KSTACK_LARGE_PAGE   		opt_global.h
 
 #
+# Use the new pmap for MIPS64 that includes reference bit emulation
+# and superpage support.
+#
+MIPS64_NEW_PMAP			opt_global.h
+
+#
 # Options that control the Atheros SoC peripherals
 #
 ARGE_DEBUG			opt_arge.h

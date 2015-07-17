@@ -173,24 +173,17 @@
 #define	KSTACK_TLBMASK_MASK	((KSTACK_PAGE_MASK >> (TLBMASK_SHIFT - 1)) \
 					<< TLBMASK_SHIFT)
 #define	KSTACK_GUARD_PAGES	((KSTACK_PAGE_SIZE * 2) / PAGE_SIZE)
-#define	KSTACK_OBJT		OBJT_PHYS
 
 #else /* ! KSTACK_LARGE_PAGE */
 
 /*
  * The kernel stack needs to be aligned on a (PAGE_SIZE * 2) boundary.
  */
-#if defined(__mips_n64)
-/* XXXSS A workaround for the small kernel thread stack. */
-#define	KSTACK_PAGES		4	/* kernel stack */
-#else
 #define	KSTACK_PAGES		2	/* kernel stack */
-#endif
 #define	KSTACK_SIZE		(KSTACK_PAGES * PAGE_SIZE)
 #define	KSTACK_PAGE_SIZE	PAGE_SIZE
 #define	KSTACK_PAGE_MASK	(PAGE_SIZE - 1)
 #define	KSTACK_GUARD_PAGES	2	/* pages of kstack guard; 0 disables */
-#define	KSTACK_OBJT		OBJT_DEFAULT
 #endif /* ! KSTACK_LARGE_PAGE */
 
 /*
@@ -198,6 +191,8 @@
  */
 #define	round_page(x)		(((x) + PAGE_MASK) & ~PAGE_MASK)
 #define	trunc_page(x)		((x) & ~PAGE_MASK)
+#define	round_2mpage(x)		(((x) + PDRMASK) & ~PDRMASK)
+#define	trunc_2mpage(x)		((x) & ~PDRMASK)
 
 #define	atop(x)			((x) >> PAGE_SHIFT)
 #define	ptoa(x)			((x) << PAGE_SHIFT)

@@ -100,13 +100,45 @@
 #define	FREEBSD32_USRSTACK	(((vm_offset_t)0x80000000) - PAGE_SIZE)
 #endif
 
+#ifdef MIPS64_NEW_PMAP
 /*
- * Disable superpage reservations. (not sure if this is right
- * I copied it from ARM)
+ * Enable superpage reservations: 1 level.
+ *
+ * VM_NRESERVLEVEL specifies a number of promotion levels enabled.
+ * Currently mips64 only supports one size or level (VM_LEVEL_0_ORDER) of
+ * superpages (2MB)
+ */
+#ifndef	VM_NRESERVLEVEL
+#define	VM_NRESERVLEVEL			1
+#endif
+
+/*
+ * Level 0 reservations consist of 512 (2^9) pages (2MB).
+ */
+#ifndef	VM_LEVEL_0_ORDER
+#define	VM_LEVEL_0_ORDER		9
+#endif
+
+/*
+ * The largest allocation size is 4MB.
+ */
+#define	VM_NFREEORDER			11
+
+#else /* ! MIPS64_NEW_PMAP */
+
+/*
+ * Disable superpage reservations.
  */
 #ifndef	VM_NRESERVLEVEL
 #define	VM_NRESERVLEVEL		0
 #endif
+
+/*
+ * The largest allocation size is 1MB.
+ */
+#define	VM_NFREEORDER		9
+
+#endif /* ! MIPS64_NEW_PMAP */
 
 /*
  * How many physical pages per kmem arena virtual page.
@@ -177,11 +209,6 @@
 #define	VM_FREELIST_DIRECT	VM_FREELIST_LOWMEM
 #define	VM_LOWMEM_BOUNDARY	((vm_paddr_t)0x20000000)
 #endif
-
-/*
- * The largest allocation size is 1MB.
- */
-#define	VM_NFREEORDER		9
 
 #define	ZERO_REGION_SIZE	(64 * 1024)	/* 64KB */
 

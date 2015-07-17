@@ -97,6 +97,28 @@ dtrace_invop_calltrap_addr:
  */
 #define	INTRCNT_COUNT	256
 
+/*
+ * General MIPS CPU state for exceptions:
+ *
+ * EPC Register will point to the instruction that caused fault, unless the
+ * faulting instruction was in a branch delay slot.  In that case, it will
+ * point to the branch before the branch delay slot instruction.
+ *
+ * The cause register will contain what caused the exception and some state
+ * about the interrupt.
+ *
+ * The status register contains information about the status of the CPU such
+ * as: Kernel/User mode bit, interrupt enable bit.
+ *
+ * The BadVaddr register contains the virtual address that cause the last
+ * exception.
+ *
+ * The Context register contains the lower 22 bits of the VPN (starting at
+ * bit 4) that cause the last exception except bit0 and bit1 are zero. The
+ * upper bits (bits 23 to 31 for MIPS32 and bits 23 to 63) are set under
+ * kernel control (i.e. point to the page table). The Context/XContext
+ * registers are not currently used by FreeBSD.
+ */
 
 /*
  *----------------------------------------------------------------------------
@@ -128,13 +150,27 @@ VECTOR_END(MipsTLBMiss)
 /*
  *----------------------------------------------------------------------------
  *
- * MipsDoTLBMiss --
+ * MipsDoTLBMiss --  (UTLB miss)
  *
- * This is the real TLB Miss Handler code.
+ * This is the real TLB Miss Handler code.  A miss was generated when the
+ * access is to kuseg and there was not matching mapping loaded into the TLB.
  * 'segbase' points to the base of the segment table for user processes.
+ *
+ * The CPU does the following for an UTLB miss:
+ * - Sets the EPC register.
+ * - Sets the Cause register.
+ * - Sets the Status register. Shifts K/U and IE bits over one and clears
+ *   the current Kernel/User and Interrupt Enable bits. So the processor
+ *   is in kernel mode with the interupts turned off.
+ * - Sets BadVaddr register.
+ * - Sets the Context/XContext register(s).
+ * - Sets the TLB EntryHi register to contain VPN of the faulting address.
  *
  * Don't check for invalid pte's here. We load them as well and
  * let the processor trap to load the correct value after service.
+ *
+ * XXX This really needs to be changed to a linear page table and use the
+ * Context and XContext registers.  That is really what it was designed for.
  *----------------------------------------------------------------------------
  */
  	.set push
@@ -155,21 +191,84 @@ MipsDoTLBMiss:
 #ifdef __mips_n64
 	PTR_SRL		k0, PDRSHIFT - PTRSHIFT		# k0=VPN
 	andi		k0, k0, PDEPTRMASK		# k0=pde offset
-	PTR_ADDU	k1, k0, k1			# k1=pde entry address
-	PTR_L		k1, 0(k1)			# k1=pde entry
-	MFC0		k0, MIPS_COP_0_BAD_VADDR	# k0=bad address (again)
+	PTR_ADDU	k0, k0, k1			# k0=pde entry address
+	PTR_L		k1, 0(k0)			# k1=pde entry
 	beq		k1, zero, 2f			# ==0 -- no page table
-#endif
+	nop
+
+#ifdef MIPS64_NEW_PMAP
+	# Check for superpage
+	GET_SUPERPAGE_IDX(k1)				# k1=superpage index from PTE
+	beq		k1, zero, not_superpage		# ==0 -- not superpage
+	PTR_L		k1, 0(k0)			# k1=pde entry (delay slot)
+
+	# Set the referenced bit in the PDE if valid.
+	#
+	# XXX Setting the referenced bit here saves a fault later but it
+	# may not be safe to do so. Therefore, just take the fault to set
+	# the reference bit.
+#	IF_VALID_SET_REFBIT(k1, k0, 0, 1)
+
+	# The PDE is actually a superpage PTE.  Store it in the TLB lo0 reg.
+	CLEAR_PTE_SWBITS(k1)
+	PTE_MTC0	k1, MIPS_COP_0_TLB_LO0		# lo0 is loaded
+	COP0_SYNC
+
+	# Compute the PFN for the TLB lo1 register from k1(=PTE for TLB lo0).
+	GET_ODD_1M_PFN_FROM_EVEN(k1)			# k1=Odd PFN in PTE postion
+
+	# Get hard TLB flag bits.
+	PTR_L		k0, 0(k0)			# k0=pde entry (again)
+	GET_HW_TLB_FLAGS(k0)				# k0=hw TLB flag bits
+	or		k1, k1, k0			# k1=PTE=PFN | hwflg bits
+	# Load it into the TLB Lo1 register.
+	#CLEAR_PTE_SWBITS(k1)				# No SW bits to clear
+	PTE_MTC0	k1, MIPS_COP_0_TLB_LO1		# lo1 is loaded
+	COP0_SYNC
+
+	# Load the TLB PageMask for 1M pages.
+	dli		k0, TLBMASK_1M_PAGE		# PageMask for 1M Page
+	PTE_MTC0	k0, MIPS_COP_0_TLB_PG_MASK	# PageMask is loaded
+	COP0_SYNC
+
+	tlbwr						# write to tlb
+	HAZARD_DELAY
+	PTE_MTC0	zero, MIPS_COP_0_TLB_PG_MASK	# zero out PageMask reg
+	COP0_SYNC
+	eret						# return from exception
+
+not_superpage:
+#endif /* MIPS64_NEW_PMAP */
+#endif /* __mips_n64 */
+	MFC0		k0, MIPS_COP_0_BAD_VADDR	# k0=bad address (again)
 	PTR_SRL		k0, PAGE_SHIFT - PTESHIFT	#0b: k0=VPN (aka va>>10)
 	andi		k0, k0, PTE2MASK		#0c: k0=page tab offset
 	PTR_ADDU	k1, k1, k0			#0d: k1=pte address
+
 	PTE_L		k0, 0(k1)			#0e: k0=lo0 pte
-	PTE_L		k1, PTESIZE(k1)			#0f: k1=lo0 pte
+
+	# Set the referenced bit in the PDE if valid.
+	#
+	# XXX Setting the referenced bit here saves a fault later but it
+	# may not be safe to do so. Therefore, just take the fault to set
+	# the reference bit.
+#	IF_VALID_SET_REFBIT(k0, k1, 0, 2)
+
 	CLEAR_PTE_SWBITS(k0)
 	PTE_MTC0	k0, MIPS_COP_0_TLB_LO0		#12: lo0 is loaded
 	COP0_SYNC
-	CLEAR_PTE_SWBITS(k1)
-	PTE_MTC0	k1, MIPS_COP_0_TLB_LO1		#15: lo1 is loaded
+
+	PTE_L		k0, PTESIZE(k1)			# k0=lo1 pte
+
+	# Set the referenced bit in the PDE if valid.
+	#
+	# XXX Setting the referenced bit here saves a fault later but it
+	# may not be safe to do so. Therefore, just take the fault to set
+	# the reference bit.
+#	IF_VALID_SET_REFBIT(k0, k1, 0, 3)
+
+	CLEAR_PTE_SWBITS(k0)
+	PTE_MTC0	k0, MIPS_COP_0_TLB_LO1		#15: lo1 is loaded
 	COP0_SYNC
 	tlbwr						#1a: write to tlb
 	HAZARD_DELAY
@@ -373,7 +472,7 @@ SlowFault:
  *
  * XXXRW: Notice run-time capability-alignment hack.
  */
-#define	RESTORE_CHERI(t0reg, t1reg, base)				\
+#define RESTORE_CHERI(t0reg, t1reg, base)				\
 	daddiu	t0reg, base, KERN_CREG_BASE;				\
 	dli	t1reg, -CHERICAP_SIZE;					\
 	and	t0reg, t1reg, t0reg;					\
@@ -963,7 +1062,7 @@ LEAF_NOPROFILE(MipsTLBModException)
 
 	# Increment exception counter, if enabled.
 	INC_EXCEPTION_CNTR(TLB_MOD_CNT)
-	j 	MipsKernGenException
+	j	MipsKernGenException
 	nop
 	.set pop
 END(MipsTLBModException)
@@ -1010,13 +1109,52 @@ LEAF_NOPROFILE(MipsTLBInvalidException)
 	PTR_SRL		k0, PDRSHIFT - PTRSHIFT		# k0=pde offset (almost)
 	beq		k1, zero, MipsKernGenException	# ==0 -- no pde tab
 	andi		k0, k0, PDEPTRMASK		# k0=pde offset
-	PTR_ADDU	k1, k0, k1			# k1=pde entry address
-	PTR_L		k1, 0(k1)			# k1=pde entry
+	PTR_ADDU	k0, k0, k1			# k0=pde entry address
+	PTR_L		k1, 0(k0)			# k1=pde entry
 
 	/* Validate pde table pointer.  */
 	beqz		k1, 3f
 	nop
-#endif
+
+#ifdef MIPS64_NEW_PMAP
+	# Check for superpage
+	GET_SUPERPAGE_IDX(k1)				# k1=superpage index from PTE
+	beq		k1, zero, not_spg		# ==0 -- not superpage
+	PTR_L		k1, 0(k0)			# k1=pde entry (delay slot)
+
+	/* Validate page table entry.  */
+	andi		k1, PTE_VR
+	beqz		k1, 3f
+	nop
+
+	# The PDE is actually a superpage PTE.  Store it in the TLB lo0 reg.
+	CLEAR_PTE_SWBITS(k1)
+	PTE_MTC0	k1, MIPS_COP_0_TLB_LO0		# lo0 is loaded
+	COP0_SYNC
+
+	# Compute the PFN for the TLB lo1 register from k1(=PTE for TLB lo0).
+	GET_ODD_1M_PFN_FROM_EVEN(k1)			# k1=Odd PFN in PTE postion
+
+	# Get hard TLB flag bits.
+	PTR_L		k0, 0(k0)			# k0=pde entry (again)
+	GET_HW_TLB_FLAGS(k0)				# k0=hw TLB flag bits
+	or		k1, k1, k0			# k1=PTE=PFN | hwflg bits
+	# Load it into the TLB Lo1 register.
+	# CLEAR_PTE_SWBITS(k1)				# No SW bits to clear
+	PTE_MTC0	k1, MIPS_COP_0_TLB_LO1		# lo1 is loaded
+	COP0_SYNC
+
+	# Load the TLB PageMask for 1M pages.
+	dli		k0, TLBMASK_1M_PAGE		# PageMask for 1M Page
+	PTE_MTC0	k0, MIPS_COP_0_TLB_PG_MASK	# PageMask is loaded
+	COP0_SYNC
+
+	b		tlb_insert_entry
+	nop
+
+not_spg:
+#endif /* MIPS64_NEW_PMAP */
+#endif /* __mips_n64 */
 	MFC0		k0, MIPS_COP_0_BAD_VADDR	# k0=bad address (again)
 	PTR_SRL		k0, PAGE_SHIFT - PTESHIFT	# k0=VPN
 	andi		k0, k0, PTEMASK			# k0=page tab offset
@@ -1024,7 +1162,7 @@ LEAF_NOPROFILE(MipsTLBInvalidException)
 	PTE_L		k0, 0(k1)			# k0=this PTE
 
 	/* Validate page table entry.  */
-	andi		k0, PTE_V
+	andi		k0, PTE_VR
 	beqz		k0, 3f
 	nop
 
@@ -1034,12 +1172,15 @@ LEAF_NOPROFILE(MipsTLBInvalidException)
 	nop
 
 	PTE_L		k0, 0(k1)
-	PTE_L		k1, PTESIZE(k1)
+
 	CLEAR_PTE_SWBITS(k0)
 	PTE_MTC0	k0, MIPS_COP_0_TLB_LO0
 	COP0_SYNC
-	CLEAR_PTE_SWBITS(k1)
-	PTE_MTC0	k1, MIPS_COP_0_TLB_LO1
+
+	PTE_L		k0, PTESIZE(k1)
+
+	CLEAR_PTE_SWBITS(k0)
+	PTE_MTC0	k0, MIPS_COP_0_TLB_LO1
 	COP0_SYNC
 
 	b		tlb_insert_entry
@@ -1047,12 +1188,15 @@ LEAF_NOPROFILE(MipsTLBInvalidException)
 
 odd_page:
 	PTE_L		k0, -PTESIZE(k1)
-	PTE_L		k1, 0(k1)
+
 	CLEAR_PTE_SWBITS(k0)
 	PTE_MTC0	k0, MIPS_COP_0_TLB_LO0
 	COP0_SYNC
-	CLEAR_PTE_SWBITS(k1)
-	PTE_MTC0	k1, MIPS_COP_0_TLB_LO1
+
+	PTE_L		k0, 0(k1)
+
+	CLEAR_PTE_SWBITS(k0)
+	PTE_MTC0	k0, MIPS_COP_0_TLB_LO1
 	COP0_SYNC
 
 tlb_insert_entry:
@@ -1062,6 +1206,8 @@ tlb_insert_entry:
 	bltz		k0, tlb_insert_random
 	nop
 	tlbwi
+	PTE_MTC0	zero, MIPS_COP_0_TLB_PG_MASK
+	COP0_SYNC
 #ifdef CPU_CHERI
 	CHERI_EXCEPTION_RETURN(k0)
 #endif
@@ -1070,6 +1216,8 @@ tlb_insert_entry:
 
 tlb_insert_random:
 	tlbwr
+	PTE_MTC0	zero, MIPS_COP_0_TLB_PG_MASK
+	COP0_SYNC
 #ifdef CPU_CHERI
 	CHERI_EXCEPTION_RETURN(k0)
 #endif
@@ -1192,21 +1340,67 @@ LEAF_NOPROFILE(MipsTLBMissException)
 #ifdef __mips_n64
 	PTR_SRL		k0, PDRSHIFT - PTRSHIFT		# k0=VPN
 	andi		k0, k0, PDEPTRMASK		# k0=pde offset
-	PTR_ADDU	k1, k0, k1			# k1=pde entry address
-	PTR_L		k1, 0(k1)			# k1=pde entry
+	PTR_ADDU	k0, k0, k1			# k1=pde entry address
+	PTR_L		k1, 0(k0)			# k1=pde entry
+
+#ifdef MIPS64_NEW_PMAP
+	# Check for superpage
+	GET_SUPERPAGE_IDX(k1)				# k1=superpage index from PTE
+	beq		k1, zero, not_kspg		# ==0 -- not superpage
+	PTR_L		k1, 0(k0)			# k1=pde entry (delay slot)
+
+	# XXX Reference bit emulation
+
+	# The PDE is actually a superpage PTE.  Store it in the TLB lo0 reg.
+	CLEAR_PTE_SWBITS(k1)
+	PTE_MTC0	k1, MIPS_COP_0_TLB_LO0		# lo0 is loaded
+	COP0_SYNC
+
+	# Compute the PFN for the TLB lo1 register from k1(=PTE for TLB lo0).
+	GET_ODD_1M_PFN_FROM_EVEN(k1)			# k1=Odd PFN in PTE postion
+
+	# Get hard TLB flag bits.
+	PTR_L		k0, 0(k0)			# k0=pde entry (again)
+	GET_HW_TLB_FLAGS(k0)				# k0=hw TLB flag bits
+	or		k1, k1, k0			# k1=PTE=PFN | hwflg bits
+	# Load it into the TLB Lo1 register.
+	#CLEAR_PTE_SWBITS(k1)				# No SW Bits to clear
+	PTE_MTC0	k1, MIPS_COP_0_TLB_LO1		# lo1 is loaded
+	COP0_SYNC
+
+	# Load the TLB PageMask for 1M pages.
+	dli		k0, TLBMASK_1M_PAGE		# PageMask for 1M Page
+	PTE_MTC0	k0, MIPS_COP_0_TLB_PG_MASK	# PageMask is loaded
+	COP0_SYNC
+
+	tlbwr						# write to tlb
+	HAZARD_DELAY
+	PTE_MTC0	zero, MIPS_COP_0_TLB_PG_MASK	# zero out PageMask reg
+	COP0_SYNC
+	eret						# return from exception
+
+not_kspg:
+#endif /* MIPS64_NEW_PMAP */
+
 	MFC0		k0, MIPS_COP_0_BAD_VADDR	# k0=bad address (again)
   	beq		k1, zero, MipsKernGenException	# ==0 -- no page table
 #endif
 	PTR_SRL		k0, PAGE_SHIFT - PTESHIFT	# k0=VPN
 	andi		k0, k0, PTE2MASK		# k0=page tab offset
 	PTR_ADDU	k1, k1, k0			# k1=pte address
+
 	PTE_L		k0, 0(k1)			# k0=lo0 pte
-	PTE_L		k1, PTESIZE(k1)			# k1=lo1 pte
+
+	# XXX Reference bit emulation
+
 	CLEAR_PTE_SWBITS(k0)
 	PTE_MTC0	k0, MIPS_COP_0_TLB_LO0		# lo0 is loaded
 	COP0_SYNC
-	CLEAR_PTE_SWBITS(k1)
-	PTE_MTC0	k1, MIPS_COP_0_TLB_LO1		# lo1 is loaded
+
+	PTE_L		k0, PTESIZE(k1)			# k0=lo1 pte
+
+	CLEAR_PTE_SWBITS(k0)
+	PTE_MTC0	k0, MIPS_COP_0_TLB_LO1		# lo1 is loaded
 	COP0_SYNC
 	tlbwr					# write to tlb
 	HAZARD_DELAY

@@ -83,6 +83,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/mips_opcode.h>
 #include <machine/frame.h>
 #include <machine/regnum.h>
+#include <machine/tlb.h>
 #include <machine/tls.h>
 
 #ifdef DDB
@@ -293,7 +294,7 @@ char *trap_type[] = {
 	"reserved 21",
 	"reserved 22",
 	"watch",
-	"reserved 24",
+	"machine check",
 	"reserved 25",
 	"reserved 26",
 	"reserved 27",
@@ -692,6 +693,33 @@ trap(struct trapframe *trapframe)
 #endif
 		panic("MCHECK\n");
 		break;
+	case T_MCHECK + T_USER:
+		{
+			uint32_t status = mips_rd_status();
+
+			if (status & MIPS_SR_TS) {
+				/*
+				 * Machine Check exception caused by TLB
+				 * detecting a match for multiple entries.
+				 *
+				 * Attempt to recover by flushing the user TLB
+				 * and resetting the status bit.
+				 */
+				printf("Machine Check in User - Dup TLB entry. "
+				    "Recovering...\n");
+				pmap = &p->p_vmspace->vm_pmap;
+				tlb_invalidate_all_user(pmap);
+				mips_wr_status(status & ~MIPS_SR_TS);
+
+				return (trapframe->pc);
+			} else {
+#ifdef DDB
+				kdb_trap(type, 0, trapframe);
+#endif
+				panic("MCHECK\n");
+			}
+		}
+		break;
 	case T_TLB_MOD:
 		/* check for kernel address */
 		if (KERNLAND(trapframe->badvaddr)) {
@@ -754,10 +782,23 @@ trap(struct trapframe *trapframe)
 
 	case T_TLB_LD_MISS + T_USER:
 		ftype = VM_PROT_READ;
-		goto dofault;
+		goto checkrefbit;
 
 	case T_TLB_ST_MISS + T_USER:
 		ftype = VM_PROT_WRITE;
+
+checkrefbit:
+		/*
+		 * Was this trap caused by the PTE_VR bit not being set?
+		 */
+		if (pmap_emulate_referenced(&p->p_vmspace->vm_pmap,
+		    trapframe->badvaddr) == 0) {
+			if (!usermode) {
+				return (trapframe->pc);
+			}
+			goto out;
+		}
+
 dofault:
 		{
 			vm_offset_t va;
@@ -1565,9 +1606,16 @@ get_mapping_info(vm_offset_t va, pd_entry_t **pdepp, pt_entry_t **ptepp)
 	struct proc *p = curproc;
 
 	pdep = (&(p->p_vmspace->vm_pmap.pm_segtab[(va >> SEGSHIFT) & (NPDEPG - 1)]));
-	if (*pdep)
-		ptep = pmap_pte(&p->p_vmspace->vm_pmap, va);
-	else
+	if (*pdep) {
+#if VM_NRESERVLEVEL > 0
+		pd_entry_t *pde = &pdep[(va >> PDRSHIFT) & (NPDEPG - 1)];
+
+		if (pde_is_superpage(pde))
+			ptep = (pt_entry_t *)pde;
+		else
+#endif /* VM_NRESERVLEVEL > 0 */
+			ptep = pmap_pte(&p->p_vmspace->vm_pmap, va);
+	} else
 		ptep = (pt_entry_t *)0;
 
 	*pdepp = pdep;

@@ -40,6 +40,8 @@
 #include <machine/pte.h>
 #include <machine/tlb.h>
 
+#include "opt_vm.h"
+
 #if defined(CPU_CNMIPS)
 #define	MIPS_MAX_TLB_ENTRIES	128
 #elif defined(CPU_NLM)
@@ -104,20 +106,31 @@ tlb_insert_wired(unsigned i, vm_offset_t va, pt_entry_t pte0, pt_entry_t pte1)
 {
 	register_t asid;
 	register_t s;
+	uint32_t pagemask;
+	unsigned long mask, size;
 
-	va &= ~PAGE_MASK;
+	KASSERT((TLBLO_PTE_TO_IDX(pte0) == TLBLO_PTE_TO_IDX(pte1)),
+	    ("%s: pte0 and pte1 page sizes don't match", __func__));
+
+	/* Compute the page mask and size. */
+	pagemask = TLBLO_PTE_TO_MASK(pte0);
+	mask = (unsigned long)pagemask | PAGE_MASK; /* OR it with lower 12 bits */
+	size = mask + 1;
+
+	va &= ~mask;
 
 	s = intr_disable();
 	asid = mips_rd_entryhi() & TLBHI_ASID_MASK;
 
 	mips_wr_index(i);
-	mips_wr_pagemask(0);
+	mips_wr_pagemask(pagemask);
 	mips_wr_entryhi(TLBHI_ENTRY(va, 0));
 	mips_wr_entrylo0(pte0);
 	mips_wr_entrylo1(pte1);
 	tlb_write_indexed();
 
 	mips_wr_entryhi(asid);
+	mips_wr_pagemask(0);
 	intr_restore(s);
 }
 
@@ -139,7 +152,6 @@ tlb_invalidate_address(struct pmap *pmap, vm_offset_t va)
 	i = mips_rd_index();
 	if (i >= 0)
 		tlb_invalidate_one(i);
-
 	mips_wr_entryhi(asid);
 	intr_restore(s);
 }
@@ -300,29 +312,53 @@ tlb_update(struct pmap *pmap, vm_offset_t va, pt_entry_t pte)
 	register_t asid;
 	register_t s;
 	int i;
+	uint32_t pagemask;
+	unsigned long mask, size;
+	pt_entry_t pte0, pte1;
 
-	va &= ~PAGE_MASK;
+	/* Compute the page mask and size. */
+	pagemask = TLBLO_PTE_TO_MASK(pte);
+	mask = (unsigned long)pagemask | PAGE_MASK; /* OR it with lower 12 bits */
+	size = mask + 1;
+
+	va &= ~mask;
 	pte &= ~TLBLO_SWBITS_MASK;
 
 	s = intr_disable();
 	asid = mips_rd_entryhi() & TLBHI_ASID_MASK;
 
-	mips_wr_pagemask(0);
+	mips_wr_pagemask(pagemask);
 	mips_wr_entryhi(TLBHI_ENTRY(va, pmap_asid(pmap)));
 	tlb_probe();
 	i = mips_rd_index();
 	if (i >= 0) {
 		tlb_read();
+		pte0 = mips_rd_entrylo0();
+		pte1 = mips_rd_entrylo1();
+		KASSERT((TLBLO_PTE_TO_IDX(pte) == TLBLO_PTE_TO_IDX(pte0) &&
+		    TLBLO_PTE_TO_IDX(pte) == TLBLO_PTE_TO_IDX(pte1)),
+			("%s: pte, pte0 and pte1 page sizes don't match", __func__));
 
-		if ((va & PAGE_SIZE) == 0) {
+		if ((va & size) == 0) {
 			mips_wr_entrylo0(pte);
+			if (pagemask & ~PAGE_MASK) {
+				/* Superpage */
+				pte1 = (pte1 & ~(PTE_VR | PTE_D)) | (pte & (PTE_VR | PTE_D));
+				mips_wr_entrylo1(pte1);
+			}
 		} else {
 			mips_wr_entrylo1(pte);
+			if (pagemask & ~PAGE_MASK) {
+				/* Superpage */
+				pte0 = (pte0 & ~(PTE_VR | PTE_D)) | (pte & (PTE_VR | PTE_D));
+				mips_wr_entrylo0(pte0);
+			}
 		}
 		tlb_write_indexed();
 	}
 
 	mips_wr_entryhi(asid);
+	mips_wr_pagemask(0);
 	intr_restore(s);
 }
 

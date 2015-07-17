@@ -62,6 +62,10 @@
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
 
+#ifdef MIPS64_NEW_PMAP
+#include <vm/_vm_radix.h>
+#endif /* MIPS64_NEW_PMAP */
+
 /*
  * Pmap stuff
  */
@@ -69,8 +73,13 @@ struct pv_entry;
 struct pv_chunk;
 
 struct md_page {
-	int pv_flags;
 	TAILQ_HEAD(, pv_entry) pv_list;
+	vm_memattr_t pv_memattr;
+#ifdef MIPS64_NEW_PMAP
+	int pv_gen;
+#else /* ! MIPS64_NEW_PMAP */
+	int pv_flags;
+#endif /* ! MIPS64_NEW_PMAP */
 };
 
 #define	PV_TABLE_REF		0x02	/* referenced */
@@ -80,6 +89,7 @@ struct md_page {
 #define	ASIDGEN_MASK		((1 << ASIDGEN_BITS) - 1)
 
 struct pmap {
+	struct mtx pm_mtx;
 	pd_entry_t *pm_segtab;	/* KVA of segment table */
 	TAILQ_HEAD(, pv_chunk)	pm_pvchunk;	/* list of mappings in pmap */
 	cpuset_t	pm_active;		/* active on cpus */
@@ -88,7 +98,9 @@ struct pmap {
 		u_int32_t gen:ASIDGEN_BITS;	/* its generation number */
 	}      pm_asid[MAXSMPCPU];
 	struct pmap_statistics pm_stats;	/* pmap statistics */
-	struct mtx pm_mtx;
+#ifdef MIPS64_NEW_PMAP
+	struct vm_radix pm_root;		/* spare page table pages */
+#endif /* MIPS64_NEW_PMAP */
 };
 
 typedef struct pmap *pmap_t;
@@ -120,7 +132,7 @@ extern struct pmap	kernel_pmap_store;
  */
 typedef struct pv_entry {
 	vm_offset_t pv_va;	/* virtual address for mapping */
-	TAILQ_ENTRY(pv_entry) pv_list;
+	TAILQ_ENTRY(pv_entry) pv_next;
 }       *pv_entry_t;
 
 /*
@@ -162,13 +174,13 @@ extern vm_offset_t virtual_end;
 
 extern vm_paddr_t dump_avail[PHYS_AVAIL_ENTRIES + 2];
 
-#define	pmap_page_get_memattr(m)	VM_MEMATTR_DEFAULT
-#define	pmap_page_is_mapped(m)	(!TAILQ_EMPTY(&(m)->md.pv_list))
+#define	pmap_page_get_memattr(m)	((m)->md.pv_memattr)
 #define	pmap_page_is_write_mapped(m)	(((m)->aflags & PGA_WRITEABLE) != 0)
-#define	pmap_page_set_memattr(m, ma)	(void)0
 
 void pmap_bootstrap(void);
 void *pmap_mapdev(vm_paddr_t, vm_size_t);
+boolean_t pmap_page_is_mapped(vm_page_t m);
+void pmap_page_set_memattr(vm_page_t m, vm_memattr_t ma);
 void pmap_unmapdev(vm_offset_t, vm_size_t);
 vm_offset_t pmap_steal_memory(vm_size_t size);
 void pmap_kenter(vm_offset_t va, vm_paddr_t pa);
@@ -178,6 +190,7 @@ void *pmap_kenter_temporary(vm_paddr_t pa, int i);
 void pmap_kenter_temporary_free(vm_paddr_t pa);
 void pmap_flush_pvcache(vm_page_t m);
 int pmap_emulate_modified(pmap_t pmap, vm_offset_t va);
+int pmap_emulate_referenced(pmap_t pmap, vm_offset_t va);
 void pmap_grow_direct_page_cache(void);
 
 #endif				/* _KERNEL */

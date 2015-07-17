@@ -287,7 +287,12 @@ mips_get_identity(struct mips_cpuinfo *cpuinfo)
 	if ((cpuinfo->tlb_pgmask & MIPS3_PGMASK_16K) == 0)
 		panic("%s: 16K sized pages are not supported by this CPU.",
 		    __func__);
-#endif
+#endif /* KSTACK_LARGE_PAGE */
+#ifdef MIPS64_NEW_PMAP
+	if ((cpuinfo->tlb_pgmask & MIPS3_PGMASK_1M) == 0)
+		panic("%s: 1M sized pages are not supported by this CPU.",
+		    __func__);
+#endif /* MIPS64_NEW_PMAP */
 
 #ifndef CPU_CNMIPS
 	/* L2 cache */
@@ -403,6 +408,8 @@ cpu_identify(void)
 				printf("256K ");
 			if (cpuinfo.tlb_pgmask & MIPS3_PGMASK_1M)
 				printf("1M ");
+			if (cpuinfo.tlb_pgmask & MIPS3_PGMASK_4M)
+				printf("4M ");
 			if (cpuinfo.tlb_pgmask & MIPS3_PGMASK_16M)
 				printf("16M ");
 			if (cpuinfo.tlb_pgmask & MIPS3_PGMASK_64M)

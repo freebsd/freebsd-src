@@ -323,10 +323,6 @@ blocked_loop:
 	PTR_S	a2, PC_CURPCB(a3)
 	PTR_L	v0, TD_KSTACK(a1)		# va of 1st half of kstack
 #if defined(__mips_n64)
-#ifndef KSTACK_LARGE_PAGE
-	PTR_LI	s0,2*PAGE_SIZE
-	PTR_SUB	v1,v0,s0
-#endif /* !KSTACK_LARGE_PAGE */
 	PTR_LI	s0, MIPS_XKSEG_START
 #else
 	PTR_LI	s0, MIPS_KSEG2_START		# If Uarea addr is below kseg2,
@@ -341,11 +337,11 @@ blocked_loop:
  * NOTE: This is hard coded to UPAGES == 2.
  * Also, there should be no TLB faults at this point.
  */
-	MTC0	v0, MIPS_COP_0_TLB_HI		# VPN = va
+	MTC0		v0, MIPS_COP_0_TLB_HI	# VPN = va
 	HAZARD_DELAY
 	tlbp					# probe VPN
 	HAZARD_DELAY
-	mfc0	s0, MIPS_COP_0_TLB_INDEX
+	mfc0		s0, MIPS_COP_0_TLB_INDEX
 	HAZARD_DELAY
 
 	# MIPS_KSEG0_START + (2 * index * PAGE_SIZE) -> MIPS_COP_0_TLB_HI
@@ -399,7 +395,7 @@ inval_nxt1:
 	HAZARD_DELAY
 	tlbwi
 	HAZARD_DELAY
-#endif  /* KSTACK_LARGE_PAGE */
+#endif /* KSTACK_LARGE_PAGE */
 
 entry0set:
 	MTC0		v0, MIPS_COP_0_TLB_HI		# set VPN again
@@ -410,72 +406,25 @@ entry0set:
 	PTE_MTC0	a1, MIPS_COP_0_TLB_LO0		# upte[0]
 	HAZARD_DELAY
 	PTE_MTC0	a2, MIPS_COP_0_TLB_LO1		# upte[1]
-#ifdef KSTACK_LARGE_PAGE
 	HAZARD_DELAY
+#ifdef KSTACK_LARGE_PAGE
 	li		t1, KSTACK_TLBMASK_MASK
 	MTC0		t1, MIPS_COP_0_TLB_PG_MASK
-#else
-	MTC0		zero, MIPS_COP_0_TLB_PG_MASK
-#endif /* ! KSTACK_LARGE_PAGE */
 	HAZARD_DELAY
+#else /* ! KSTACK_LARGE_PAGE */
+	MTC0		zero, MIPS_COP_0_TLB_PG_MASK
+	HAZARD_DELAY
+#endif /* ! KSTACK_LARGE_PAGE */
 	tlbwi					# set TLB entry #0
 	HAZARD_DELAY
 #ifdef KSTACK_LARGE_PAGE
 	MTC0		zero, MIPS_COP_0_TLB_PG_MASK
 	HAZARD_DELAY
-
-sw2:
-#else /* ! KSTACK_LARGE_PAGE */
-
-#if defined(__mips_n64)
-/*
- * XXXSS
- * A Workaround for the small kernel thread stack.  We use two wired
- * TLB entries to double the stack size to 16K (- sizeof(struct pcb)).
- */
-sw2:
-	PTR_LI		s0, MIPS_XKSEG_START
-	bltu		v1, s0, sw3			# no need to insert in TLB.
-	PTE_L		a1, TD_UPTE + 2 * PTESIZE(s7)	# a1 = md_upte[2]
-	PTE_L		a2, TD_UPTE + 3 * PTESIZE(s7)	# a2 = md_upte[3]
-
-	MTC0		v1, MIPS_COP_0_TLB_HI		# VPN = va
-	HAZARD_DELAY
-	tlbp						# probe VPN
-	HAZARD_DELAY
-	mfc0		s0, MIPS_COP_0_TLB_INDEX
-	HAZARD_DELAY
-
-	PTR_LI		t1, MIPS_KSEG0_START
-	bltz		s0, entry1set
-	nop
-	sll		s0, PAGE_SHIFT + 1		# invalidate TLB entry
-	addu		t1, s0
-	MTC0		t1, MIPS_COP_0_TLB_HI
-	PTE_MTC0	zero, MIPS_COP_0_TLB_LO0
-	PTE_MTC0	zero, MIPS_COP_0_TLB_LO1
-	HAZARD_DELAY
-	tlbwi
-	HAZARD_DELAY
-	MTC0		v1, MIPS_COP_0_TLB_HI		# set VPN again
-	HAZARD_DELAY
-
-entry1set:
-	PTR_LI		t1, 1
-	mtc0		t1, MIPS_COP_0_TLB_INDEX	# TLB entry #1
-	HAZARD_DELAY
-	PTE_MTC0	a1, MIPS_COP_0_TLB_LO0		# md_upte[2]
-	HAZARD_DELAY
-	PTE_MTC0	a2, MIPS_COP_0_TLB_LO1		# md_upte[3]
-	HAZARD_DELAY
-	tlbwi						# set TLB entry #1
-	HAZARD_DELAY
-sw3:
-#endif /* __mips_n64 */
-#endif /* ! KSTACK_LARGE_PAGE */
+#endif /* KSTACK_LARGE_PAGE */
 /*
  * Now running on new u struct.
  */
+sw2:
 	PTR_L	s0, TD_PCB(s7)
 	RESTORE_U_PCB_CONTEXT(sp, PCB_REG_SP, s0)
 	PTR_LA	t1, _C_LABEL(pmap_activate)	# s7 = new proc pointer
@@ -485,7 +434,7 @@ sw3:
  * Restore registers and return.
  */
 	move	a0, s0
-	move	a1, s7
+	move	a1, s7				# restore newthread
 	RESTORE_U_PCB_CONTEXT(gp, PCB_REG_GP, a0)
 	RESTORE_U_PCB_CONTEXT(v0, PCB_REG_SR, a0)	# restore kernel context
 	RESTORE_U_PCB_CONTEXT(ra, PCB_REG_RA, a0)
@@ -509,6 +458,7 @@ sw3:
 	or	v0, v0, t0
 	mtc0	v0, MIPS_COP_0_STATUS
 	ITLBNOPFIX
+
 /*
  * Check if the UserLocal Register is Implemented (ULRI flag set).
  * If so, set the new thread's TLS pointer.

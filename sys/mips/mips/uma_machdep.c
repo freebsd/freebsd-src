@@ -52,17 +52,27 @@ uma_small_alloc(uma_zone_t zone, vm_size_t bytes, u_int8_t *flags, int wait)
 	pflags = malloc2vm_flags(wait) | VM_ALLOC_WIRED;
 
 	for (;;) {
+#ifdef MIPS64_NEW_PMAP
+		m = vm_page_alloc(NULL, 0, pflags | VM_ALLOC_NOOBJ);
+#else /* ! MIPS64_NEW_PMAP */
 		m = vm_page_alloc_freelist(VM_FREELIST_DIRECT, pflags);
+#endif /* ! MIPS64_NEW_PMAP */
 		if (m == NULL) {
 			if (wait & M_NOWAIT)
 				return (NULL);
 			else
+#ifdef MIPS64_NEW_PMAP
+				VM_WAIT;
+#else /* ! MIPS64_NEW_PMAP */
 				pmap_grow_direct_page_cache();
+#endif /* ! MIPS64_NEW_PMAP */
 		} else
 			break;
 	}
 
 	pa = VM_PAGE_TO_PHYS(m);
+	if ((wait & M_NODUMP) == 0)
+		dump_add_page(pa);
 	va = (void *)MIPS_PHYS_TO_DIRECT(pa);
 	if ((wait & M_ZERO) && (m->flags & PG_ZERO) == 0)
 		bzero(va, PAGE_SIZE);
