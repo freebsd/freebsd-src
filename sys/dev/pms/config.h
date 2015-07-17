@@ -45,16 +45,16 @@
 #define	TD_DISCOVER
 #define	SA_ENABLE_HDA_FUNCTIONS
 // #define	SA_FW_TEST_INTERRUPT_REASSERT
-#define	SALLSDK_DEBUG
-#define	AGTIAPI_DEBUG
+// #define	SALLSDK_DEBUG
+// #define	AGTIAPI_DEBUG
 // #define	TD_DEBUG_ENABLE
 // #define	AGTIAPI_IO_DEBUG
 // #define	AGTIAPI_FLOW_DEBUG
 // #define	AGTIAPI_INIT_DEBUG
 #define	PMC_PM8001_BAR64KB
-#define	DM_DEBUG
+// #define	DM_DEBUG
 #define	FDS_DM
-#define	SM_DEBUG
+// #define	SM_DEBUG
 #define	FDS_SM
 #define	SATA_ENABLE
 #define	CHAR_DEVICE
