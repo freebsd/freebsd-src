@@ -179,8 +179,7 @@ ENTRY(mpentry)
 mp_virtdone:
 	ldr	x4, =secondary_stacks
 	mov	x5, #(PAGE_SIZE * KSTACK_PAGES)
-	sub	x1, x0, #1
-	mul	x5, x1, x5
+	mul	x5, x0, x5
 	add	sp, x4, x5
 
 	b	init_secondary
