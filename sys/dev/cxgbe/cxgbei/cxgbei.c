@@ -40,6 +40,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/errno.h>
 #include <sys/param.h>
 #include <sys/kernel.h>
+#include <sys/kthread.h>
+#include <sys/smp.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/mbuf.h>
@@ -1204,6 +1206,114 @@ static struct uld_info cxgbei_uld_info = {
 	.deactivate = cxgbei_deactivate,
 };
 
+enum {
+	CWT_RUNNING = 1,
+	CWT_STOP = 2,
+	CWT_STOPPED = 3,
+};
+
+struct cxgbei_worker_thread_softc {
+	struct mtx	cwt_lock;
+	struct cv	cwt_cv;
+	volatile int	cwt_state;
+} __aligned(CACHE_LINE_SIZE);
+
+int worker_thread_count;
+static struct cxgbei_worker_thread_softc *cwt_softc;
+static struct proc *cxgbei_proc;
+
+static void
+cwt_main(void *arg)
+{
+	struct cxgbei_worker_thread_softc *cwt = arg;
+
+	MPASS(cwt != NULL);
+
+	mtx_lock(&cwt->cwt_lock);
+	MPASS(cwt->cwt_state == 0);
+	cwt->cwt_state = CWT_RUNNING;
+	cv_signal(&cwt->cwt_cv);
+	for (;;) {
+		cv_wait(&cwt->cwt_cv, &cwt->cwt_lock);
+		if (cwt->cwt_state == CWT_STOP)
+			break;
+	}
+
+	mtx_assert(&cwt->cwt_lock, MA_OWNED);
+	cwt->cwt_state = CWT_STOPPED;
+	cv_signal(&cwt->cwt_cv);
+	mtx_unlock(&cwt->cwt_lock);
+	kthread_exit();
+}
+
+static int
+start_worker_threads(void)
+{
+	int i, rc;
+	struct cxgbei_worker_thread_softc *cwt;
+
+	worker_thread_count = min(mp_ncpus, 32);
+	cwt_softc = malloc(worker_thread_count * sizeof(*cwt), M_CXGBE,
+	    M_WAITOK | M_ZERO);
+
+	MPASS(cxgbei_proc == NULL);
+	for (i = 0, cwt = &cwt_softc[0]; i < worker_thread_count; i++, cwt++) {
+		mtx_init(&cwt->cwt_lock, "cwt lock", NULL, MTX_DEF);
+		cv_init(&cwt->cwt_cv, "cwt cv");
+		rc = kproc_kthread_add(cwt_main, cwt, &cxgbei_proc, NULL, 0, 0,
+		    "cxgbei", "%d", i);
+		if (rc != 0) {
+			printf("cxgbei: failed to start thread #%d/%d (%d)\n",
+			    i + 1, worker_thread_count, rc);
+			mtx_destroy(&cwt->cwt_lock);
+			cv_destroy(&cwt->cwt_cv);
+			bzero(&cwt, sizeof(*cwt));
+			if (i == 0) {
+				free(cwt_softc, M_CXGBE);
+				worker_thread_count = 0;
+
+				return (rc);
+			}
+
+			/* Not fatal, carry on with fewer threads. */
+			worker_thread_count = i;
+			rc = 0;
+			break;
+		}
+
+		/* Wait for thread to start before moving on to the next one. */
+		mtx_lock(&cwt->cwt_lock);
+		while (cwt->cwt_state != CWT_RUNNING)
+			cv_wait(&cwt->cwt_cv, &cwt->cwt_lock);
+		mtx_unlock(&cwt->cwt_lock);
+	}
+
+	MPASS(cwt_softc != NULL);
+	MPASS(worker_thread_count > 0);
+	return (0);
+}
+
+static void
+stop_worker_threads(void)
+{
+	int i;
+	struct cxgbei_worker_thread_softc *cwt = &cwt_softc[0];
+
+	MPASS(worker_thread_count >= 0);
+
+	for (i = 0, cwt = &cwt_softc[0]; i < worker_thread_count; i++, cwt++) {
+		mtx_lock(&cwt->cwt_lock);
+		MPASS(cwt->cwt_state == CWT_RUNNING);
+		cwt->cwt_state = CWT_STOP;
+		cv_signal(&cwt->cwt_cv);
+		do {
+			cv_wait(&cwt->cwt_cv, &cwt->cwt_lock);
+		} while (cwt->cwt_state != CWT_STOPPED);
+		mtx_unlock(&cwt->cwt_lock);
+	}
+	free(cwt_softc, M_CXGBE);
+}
+
 extern void (*cxgbei_fw4_ack)(struct toepcb *, int);
 extern void (*cxgbei_rx_data_ddp)(struct toepcb *,
     const struct cpl_rx_data_ddp *);
@@ -1220,9 +1330,15 @@ cxgbei_mod_load(void)
 	cxgbei_writeq_len = get_writeq_len;
 	cxgbei_writeq_next = do_writeq_next;
 
-	rc = t4_register_uld(&cxgbei_uld_info);
+	rc = start_worker_threads();
 	if (rc != 0)
 		return (rc);
+
+	rc = t4_register_uld(&cxgbei_uld_info);
+	if (rc != 0) {
+		stop_worker_threads();
+		return (rc);
+	}
 
 	t4_iterate(cxgbei_activate_all, NULL);
 
@@ -1237,6 +1353,8 @@ cxgbei_mod_unload(void)
 
 	if (t4_unregister_uld(&cxgbei_uld_info) == EBUSY)
 		return (EBUSY);
+
+	stop_worker_threads();
 
 	return (0);
 }
