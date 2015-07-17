@@ -26,64 +26,154 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/param.h>
+#include <sys/mman.h>
+#include <sys/sysproto.h>
+
 #include <compat/cloudabi/cloudabi_proto.h>
+#include <compat/cloudabi/cloudabi_syscalldefs.h>
+
+/* Converts CloudABI's memory protection flags to FreeBSD's. */
+static int
+convert_mprot(cloudabi_mprot_t in)
+{
+	int out;
+
+	out = 0;
+	if (in & CLOUDABI_PROT_EXEC)
+		out |= PROT_EXEC;
+	if (in & CLOUDABI_PROT_WRITE)
+		out |= PROT_WRITE;
+	if (in & CLOUDABI_PROT_READ)
+		out |= PROT_READ;
+	return (out);
+}
 
 int
 cloudabi_sys_mem_advise(struct thread *td,
     struct cloudabi_sys_mem_advise_args *uap)
 {
+	struct madvise_args madvise_args = {
+		.addr	= uap->addr,
+		.len	= uap->len
+	};
 
-	/* Not implemented. */
-	return (ENOSYS);
+	switch (uap->advice) {
+	case CLOUDABI_ADVICE_DONTNEED:
+		madvise_args.behav = MADV_DONTNEED;
+		break;
+	case CLOUDABI_ADVICE_NORMAL:
+		madvise_args.behav = MADV_NORMAL;
+		break;
+	case CLOUDABI_ADVICE_RANDOM:
+		madvise_args.behav = MADV_RANDOM;
+		break;
+	case CLOUDABI_ADVICE_SEQUENTIAL:
+		madvise_args.behav = MADV_SEQUENTIAL;
+		break;
+	case CLOUDABI_ADVICE_WILLNEED:
+		madvise_args.behav = MADV_WILLNEED;
+		break;
+	default:
+		return (EINVAL);
+	}
+
+	return (sys_madvise(td, &madvise_args));
 }
 
 int
 cloudabi_sys_mem_lock(struct thread *td, struct cloudabi_sys_mem_lock_args *uap)
 {
+	struct mlock_args mlock_args = {
+		.addr	= uap->addr,
+		.len	= uap->len
+	};
 
-	/* Not implemented. */
-	return (ENOSYS);
+	return (sys_mlock(td, &mlock_args));
 }
 
 int
 cloudabi_sys_mem_map(struct thread *td, struct cloudabi_sys_mem_map_args *uap)
 {
+	struct mmap_args mmap_args = {
+		.addr	= uap->addr,
+		.len	= uap->len,
+		.prot	= convert_mprot(uap->prot),
+		.fd	= uap->fd,
+		.pos	= uap->off
+	};
 
-	/* Not implemented. */
-	return (ENOSYS);
+	/* Translate flags. */
+	if (uap->flags & CLOUDABI_MAP_ANON)
+		mmap_args.flags |= MAP_ANON;
+	if (uap->flags & CLOUDABI_MAP_FIXED)
+		mmap_args.flags |= MAP_FIXED;
+	if (uap->flags & CLOUDABI_MAP_PRIVATE)
+		mmap_args.flags |= MAP_PRIVATE;
+	if (uap->flags & CLOUDABI_MAP_SHARED)
+		mmap_args.flags |= MAP_SHARED;
+
+	return (sys_mmap(td, &mmap_args));
 }
 
 int
 cloudabi_sys_mem_protect(struct thread *td,
     struct cloudabi_sys_mem_protect_args *uap)
 {
+	struct mprotect_args mprotect_args = {
+		.addr	= uap->addr,
+		.len	= uap->len,
+		.prot	= convert_mprot(uap->prot),
+	};
 
-	/* Not implemented. */
-	return (ENOSYS);
+	return (sys_mprotect(td, &mprotect_args));
 }
 
 int
 cloudabi_sys_mem_sync(struct thread *td, struct cloudabi_sys_mem_sync_args *uap)
 {
+	struct msync_args msync_args = {
+		.addr	= uap->addr,
+		.len	= uap->len,
+	};
 
-	/* Not implemented. */
-	return (ENOSYS);
+	/* Convert flags. */
+	switch (uap->flags & (CLOUDABI_MS_ASYNC | CLOUDABI_MS_SYNC)) {
+	case CLOUDABI_MS_ASYNC:
+		msync_args.flags |= MS_ASYNC;
+		break;
+	case CLOUDABI_MS_SYNC:
+		msync_args.flags |= MS_SYNC;
+		break;
+	default:
+		return (EINVAL);
+	}
+	if ((uap->flags & CLOUDABI_MS_INVALIDATE) != 0)
+		msync_args.flags |= MS_INVALIDATE;
+
+	return (sys_msync(td, &msync_args));
 }
 
 int
 cloudabi_sys_mem_unlock(struct thread *td,
     struct cloudabi_sys_mem_unlock_args *uap)
 {
+	struct munlock_args munlock_args = {
+		.addr	= uap->addr,
+		.len	= uap->len
+	};
 
-	/* Not implemented. */
-	return (ENOSYS);
+	return (sys_munlock(td, &munlock_args));
 }
 
 int
 cloudabi_sys_mem_unmap(struct thread *td,
     struct cloudabi_sys_mem_unmap_args *uap)
 {
+	struct munmap_args munmap_args = {
+		.addr	= uap->addr,
+		.len	= uap->len
+	};
 
-	/* Not implemented. */
-	return (ENOSYS);
+	return (sys_munmap(td, &munmap_args));
 }
