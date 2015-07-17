@@ -216,6 +216,9 @@
 #define CLOUDABI_MAP_PRIVATE 0x4
 #define CLOUDABI_MAP_SHARED 0x8
 
+// File descriptor that must be passed in when using CLOUDABI_MAP_ANON.
+#define CLOUDABI_MAP_ANON_FD 0xffffffff
+
 // msync() flags.
 #define CLOUDABI_MS_ASYNC 0x1
 #define CLOUDABI_MS_INVALIDATE 0x2
