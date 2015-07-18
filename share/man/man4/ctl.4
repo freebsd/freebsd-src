@@ -23,7 +23,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.Dd July 3, 2015
+.Dd July 11, 2015
 .Dt CTL 4
 .Os
 .Sh NAME
@@ -100,11 +100,14 @@ Defaults to 1.
 The number of outstanding commands to advertise to the iSCSI initiator.
 Technically, it is the difference between ExpCmdSN and MaxCmdSN fields
 in the iSCSI PDU.
+Defaults to 256.
 .It Va kern.cam.ctl.iscsi.ping_timeout
 The number of seconds to wait for the iSCSI initiator to respond to a NOP-In
 PDU.
 In the event that there is no response within that time the session gets
 forcibly terminated.
+Set to 0 to disable sending NOP-In PDUs.
+Defaults to 5.
 .Sh SEE ALSO
 .Xr ctladm 8 ,
 .Xr ctld 8 ,
