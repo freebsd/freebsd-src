@@ -154,6 +154,7 @@ typedef void (*lockstat_probe_func_t)(uint32_t, uintptr_t arg0, uintptr_t arg1,
     uintptr_t arg2, uintptr_t arg3, uintptr_t arg4);
 extern lockstat_probe_func_t lockstat_probe_func;
 extern uint64_t lockstat_nsecs(void);
+extern int lockstat_enabled;
 
 #ifdef	KDTRACE_HOOKS
 /*
