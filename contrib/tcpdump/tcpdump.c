@@ -684,6 +684,76 @@ get_next_file(FILE *VFile, char *ptr)
 	return ret;
 }
 
+#ifdef __FreeBSD__
+/*
+ * Ensure that, on a dump file's descriptor, we have all the rights
+ * necessary to make the standard I/O library work with an fdopen()ed
+ * FILE * from that descriptor.
+ *
+ * A long time ago, in a galaxy far far away, AT&T decided that, instead
+ * of providing separate APIs for getting and setting the FD_ flags on a
+ * descriptor, getting and setting the O_ flags on a descriptor, and
+ * locking files, they'd throw them all into a kitchen-sink fcntl() call
+ * along the lines of ioctl(), the fact that ioctl() operations are
+ * largely specific to particular character devices but fcntl() operations
+ * are either generic to all descriptors or generic to all descriptors for
+ * regular files nonwithstanding.
+ *
+ * The Capsicum people decided that fine-grained control of descriptor
+ * operations was required, so that you need to grant permission for
+ * reading, writing, seeking, and fcntl-ing.  The latter, courtesy of
+ * AT&T's decision, means that "fcntl-ing" isn't a thing, but a motley
+ * collection of things, so there are *individual* fcntls for which
+ * permission needs to be granted.
+ *
+ * The FreeBSD standard I/O people implemented some optimizations that
+ * requires that the standard I/O routines be able to determine whether
+ * the descriptor for the FILE * is open append-only or not; as that
+ * descriptor could have come from an open() rather than an fopen(),
+ * that requires that it be able to do an F_GETFL fcntl() to read
+ * the O_ flags.
+ *
+ * Tcpdump uses ftell() to determine how much data has been written
+ * to a file in order to, when used with -C, determine when it's time
+ * to rotate capture files.  ftell() therefore needs to do an lseek()
+ * to find out the file offset and must, thanks to the aforementioned
+ * optimization, also know whether the descriptor is open append-only
+ * or not.
+ *
+ * The net result of all the above is that we need to grant CAP_SEEK,
+ * CAP_WRITE, and CAP_FCNTL with the CAP_FCNTL_GETFL subcapability.
+ *
+ * Perhaps this is the universe's way of saying that either
+ *
+ *	1) there needs to be an fopenat() call and a pcap_dump_openat() call
+ *	   using it, so that Capsicum-capable tcpdump wouldn't need to do
+ *	   an fdopen()
+ *
+ * or
+ *
+ *	2) there needs to be a cap_fdopen() call in the FreeBSD standard
+ *	   I/O library that knows what rights are needed by the standard
+ *	   I/O library, based on the open mode, and assigns them, perhaps
+ *	   with an additional argument indicating, for example, whether
+ *	   seeking should be allowed, so that tcpdump doesn't need to know
+ *	   what the standard I/O library happens to require this week.
+ */
+static void
+set_dumper_capsicum_rights(pcap_dumper_t *p)
+{
+	int fd = fileno(pcap_dump_file(p));
+	cap_rights_t rights;
+
+	cap_rights_init(&rights, CAP_SEEK, CAP_WRITE, CAP_FCNTL);
+	if (cap_rights_limit(fd, &rights) < 0 && errno != ENOSYS) {
+		error("unable to limit dump descriptor");
+	}
+	if (cap_fcntls_limit(fd, CAP_FCNTL_GETFL) < 0 && errno != ENOSYS) {
+		error("unable to limit dump descriptor fcntls");
+	}
+}
+#endif
+
 int
 main(int argc, char **argv)
 {
@@ -1524,11 +1594,7 @@ main(int argc, char **argv)
 		if (p == NULL)
 			error("%s", pcap_geterr(pd));
 #ifdef __FreeBSD__
-		cap_rights_init(&rights, CAP_SEEK, CAP_WRITE);
-		if (cap_rights_limit(fileno(pcap_dump_file(p)), &rights) < 0 &&
-		    errno != ENOSYS) {
-			error("unable to limit dump descriptor");
-		}
+		set_dumper_capsicum_rights(p);
 #endif
 		if (Cflag != 0 || Gflag != 0) {
 #ifdef __FreeBSD__
@@ -1544,6 +1610,10 @@ main(int argc, char **argv)
 			if (cap_rights_limit(dumpinfo.dirfd, &rights) < 0 &&
 			    errno != ENOSYS) {
 				error("unable to limit directory rights");
+			}
+			if (cap_fcntls_limit(fileno(pcap_dump_file(p)), CAP_FCNTL_GETFL) < 0 &&
+			    errno != ENOSYS) {
+				error("unable to limit dump descriptor fcntls");
 			}
 #else	/* !__FreeBSD__ */
 			dumpinfo.WFileName = WFileName;
@@ -1839,9 +1909,6 @@ static void
 dump_packet_and_trunc(u_char *user, const struct pcap_pkthdr *h, const u_char *sp)
 {
 	struct dump_info *dump_info;
-#ifdef __FreeBSD__
-	cap_rights_t rights;
-#endif
 
 	++packets_captured;
 
@@ -1945,11 +2012,7 @@ dump_packet_and_trunc(u_char *user, const struct pcap_pkthdr *h, const u_char *s
 			if (dump_info->p == NULL)
 				error("%s", pcap_geterr(pd));
 #ifdef __FreeBSD__
-			cap_rights_init(&rights, CAP_SEEK, CAP_WRITE);
-			if (cap_rights_limit(fileno(pcap_dump_file(dump_info->p)),
-			    &rights) < 0 && errno != ENOSYS) {
-				error("unable to limit dump descriptor");
-			}
+			set_dumper_capsicum_rights(dump_info->p);
 #endif
 		}
 	}
@@ -2006,11 +2069,7 @@ dump_packet_and_trunc(u_char *user, const struct pcap_pkthdr *h, const u_char *s
 		if (dump_info->p == NULL)
 			error("%s", pcap_geterr(pd));
 #ifdef __FreeBSD__
-		cap_rights_init(&rights, CAP_SEEK, CAP_WRITE);
-		if (cap_rights_limit(fileno(pcap_dump_file(dump_info->p)),
-		    &rights) < 0 && errno != ENOSYS) {
-			error("unable to limit dump descriptor");
-		}
+		set_dumper_capsicum_rights(dump_info->p);
 #endif
 	}
 
