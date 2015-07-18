@@ -257,8 +257,10 @@ query:
 			goto query;
 
 		gpart_destroy(gpart);
-		gpart_partition(disk, default_scheme());
-		scheme = default_scheme();
+		scheme = choose_part_type(default_scheme());
+		if (scheme == NULL)
+			return NULL;
+		gpart_partition(disk, scheme);
 	}
 
 	if (scheme == NULL || choice == 0) {
@@ -272,8 +274,10 @@ query:
 			gpart_destroy(gpart);
 		}
 
-		gpart_partition(disk, default_scheme());
-		scheme = default_scheme();
+		scheme = choose_part_type(default_scheme());
+		if (scheme == NULL)
+			return NULL;
+		gpart_partition(disk, scheme);
 	}
 
 	if (strcmp(scheme, "PC98") == 0 || strcmp(scheme, "MBR") == 0) {

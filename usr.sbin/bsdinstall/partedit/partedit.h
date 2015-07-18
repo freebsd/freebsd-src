@@ -72,6 +72,8 @@ void gpart_commit(struct gmesh *mesh);
 int gpart_partition(const char *lg_name, const char *scheme);
 void set_default_part_metadata(const char *name, const char *scheme,
     const char *type, const char *mountpoint, const char *newfs);
+void gpart_set_root(const char *lg_name, const char *attribute);
+const char *choose_part_type(const char *def_scheme);
 
 /* machine-dependent bootability checks */
 const char *default_scheme(void);
