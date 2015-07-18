@@ -74,7 +74,7 @@ board_init(void)
 {
 	struct board_config **pbp;
 
-	cputype = cpu_ident() & CPU_ID_CPU_MASK;
+	cputype = cpu_id() & CPU_ID_CPU_MASK;
 
 	SET_FOREACH(pbp, boards)
 		/* XXX pass down redboot board type */
