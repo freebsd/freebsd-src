@@ -920,7 +920,7 @@ done2:
 
 	if (error && imgp->vmspace_destroyed) {
 		/* sorry, no more process anymore. exit gracefully */
-		exit1(td, W_EXITCODE(0, SIGABRT));
+		exit1(td, 0, SIGABRT);
 		/* NOT REACHED */
 	}
 

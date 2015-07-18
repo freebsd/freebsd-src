@@ -57,7 +57,7 @@ cloudabi_sys_proc_exit(struct thread *td,
     struct cloudabi_sys_proc_exit_args *uap)
 {
 
-	exit1(td, W_EXITCODE(uap->rval, 0));
+	exit1(td, uap->rval, 0);
 	/* NOTREACHED */
 }
 
