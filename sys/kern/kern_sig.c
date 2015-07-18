@@ -2227,7 +2227,7 @@ tdsendsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 			if (p->p_numthreads == p->p_suspcount) {
 				PROC_SUNLOCK(p);
 				p->p_flag |= P_CONTINUED;
-				p->p_xstat = SIGCONT;
+				p->p_xsig = SIGCONT;
 				PROC_LOCK(p->p_pptr);
 				childproc_continued(p);
 				PROC_UNLOCK(p->p_pptr);
@@ -2306,7 +2306,7 @@ tdsendsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 			if (p->p_flag & (P_PPWAIT|P_WEXIT))
 				goto out;
 			p->p_flag |= P_STOPPED_SIG;
-			p->p_xstat = sig;
+			p->p_xsig = sig;
 			PROC_SLOCK(p);
 			sig_suspend_threads(td, p, 1);
 			if (p->p_numthreads == p->p_suspcount) {
@@ -2319,7 +2319,7 @@ tdsendsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 				 */
 				thread_stopped(p);
 				PROC_SUNLOCK(p);
-				sigqueue_delete_proc(p, p->p_xstat);
+				sigqueue_delete_proc(p, p->p_xsig);
 			} else
 				PROC_SUNLOCK(p);
 			goto out;
@@ -2491,7 +2491,7 @@ ptracestop(struct thread *td, int sig)
 		 * Just make wait() to work, the last stopped thread
 		 * will win.
 		 */
-		p->p_xstat = sig;
+		p->p_xsig = sig;
 		p->p_xthread = td;
 		p->p_flag |= (P_STOPPED_SIG|P_STOPPED_TRACE);
 		sig_suspend_threads(td, p, 0);
@@ -2684,7 +2684,7 @@ issignal(struct thread *td)
 
 				/*
 				 * If parent wants us to take the signal,
-				 * then it will leave it in p->p_xstat;
+				 * then it will leave it in p->p_xsig;
 				 * otherwise we just look for signals again.
 				*/
 				if (newsig == 0)
@@ -2761,7 +2761,7 @@ issignal(struct thread *td)
 				WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK,
 				    &p->p_mtx.lock_object, "Catching SIGSTOP");
 				p->p_flag |= P_STOPPED_SIG;
-				p->p_xstat = sig;
+				p->p_xsig = sig;
 				PROC_SLOCK(p);
 				sig_suspend_threads(td, p, 0);
 				thread_suspend_switch(td, p);
@@ -2965,7 +2965,7 @@ sigexit(td, sig)
 			    sig & WCOREFLAG ? " (core dumped)" : "");
 	} else
 		PROC_UNLOCK(p);
-	exit1(td, W_EXITCODE(0, sig));
+	exit1(td, 0, sig);
 	/* NOTREACHED */
 }
 
@@ -3020,8 +3020,8 @@ childproc_jobstate(struct proc *p, int reason, int sig)
 void
 childproc_stopped(struct proc *p, int reason)
 {
-	/* p_xstat is a plain signal number, not a full wait() status here. */
-	childproc_jobstate(p, reason, p->p_xstat);
+
+	childproc_jobstate(p, reason, p->p_xsig);
 }
 
 void
@@ -3033,16 +3033,18 @@ childproc_continued(struct proc *p)
 void
 childproc_exited(struct proc *p)
 {
-	int reason;
-	int xstat = p->p_xstat; /* convert to int */
-	int status;
+	int reason, status;
 
-	if (WCOREDUMP(xstat))
-		reason = CLD_DUMPED, status = WTERMSIG(xstat);
-	else if (WIFSIGNALED(xstat))
-		reason = CLD_KILLED, status = WTERMSIG(xstat);
-	else
-		reason = CLD_EXITED, status = WEXITSTATUS(xstat);
+	if (WCOREDUMP(p->p_xsig)) {
+		reason = CLD_DUMPED;
+		status = WTERMSIG(p->p_xsig);
+	} else if (WIFSIGNALED(p->p_xsig)) {
+		reason = CLD_KILLED;
+		status = WTERMSIG(p->p_xsig);
+	} else {
+		reason = CLD_EXITED;
+		status = p->p_xexit;
+	}
 	/*
 	 * XXX avoid calling wakeup(p->p_pptr), the work is
 	 * done in exit1().
