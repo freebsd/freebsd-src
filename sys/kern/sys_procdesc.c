@@ -295,7 +295,7 @@ procdesc_exit(struct proc *p)
 	    ("procdesc_exit: closed && parent not init"));
 
 	pd->pd_flags |= PDF_EXITED;
-	pd->pd_xstat = p->p_xstat;
+	pd->pd_xstat = KW_EXITCODE(p->p_xexit, p->p_xsig);
 
 	/*
 	 * If the process descriptor has been closed, then we have nothing
