@@ -152,6 +152,8 @@ getstr(int c)
 	}
 }
 
+int main(void);
+
 int
 main(void)
 {
