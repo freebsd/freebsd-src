@@ -630,8 +630,10 @@ _mtx_lock_spin_cookie(volatile uintptr_t *c, uintptr_t tid, int opts,
 
 	LOCKSTAT_PROFILE_OBTAIN_LOCK_SUCCESS(LS_MTX_SPIN_LOCK_ACQUIRE, m,
 	    contested, waittime, (file), (line));
+#ifdef KDTRACE_HOOKS
 	if (spin_time != 0)
 		LOCKSTAT_RECORD1(LS_MTX_SPIN_LOCK_SPIN, m, spin_time);
+#endif
 }
 #endif /* SMP */
 
