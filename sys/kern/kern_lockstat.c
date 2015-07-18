@@ -34,9 +34,10 @@
 
 #ifdef KDTRACE_HOOKS
 
-#include <sys/time.h>
 #include <sys/types.h>
+#include <sys/lock.h>
 #include <sys/lockstat.h>
+#include <sys/time.h>
 
 /*
  * The following must match the type definition of dtrace_probe.  It is  
@@ -48,12 +49,14 @@ void (*lockstat_probe_func)(uint32_t, uintptr_t, uintptr_t,
 int lockstat_enabled = 0;
 
 uint64_t 
-lockstat_nsecs(void)
+lockstat_nsecs(struct lock_object *lo)
 {
 	struct bintime bt;
 	uint64_t ns;
 
 	if (!lockstat_enabled)
+		return (0);
+	if ((lo->lo_flags & LO_NOPROFILE) != 0)
 		return (0);
 
 	binuptime(&bt);
