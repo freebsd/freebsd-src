@@ -398,7 +398,7 @@ linux_exit(struct thread *td, struct linux_exit_args *args)
 	 * exit via pthread_exit() try thr_exit() first.
 	 */
 	kern_thr_exit(td);
-	exit1(td, W_EXITCODE(args->rval, 0));
+	exit1(td, args->rval, 0);
 		/* NOTREACHED */
 }
 

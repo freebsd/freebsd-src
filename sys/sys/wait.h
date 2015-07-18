@@ -138,7 +138,19 @@ typedef enum
 #define	WAIT_MYPGRP	0	/* any process in my process group */
 #endif /* __BSD_VISIBLE */
 
+#if defined(_KERNEL) || defined(_WANT_KW_EXITCODE)
+
+/*
+ * Clamp the return code to the low 8 bits from full 32 bit value.
+ * Should be used in kernel to construct the wait(2)-compatible process
+ * status to usermode.
+ */
+#define	KW_EXITCODE(ret, sig)	W_EXITCODE((ret) & 0xff, (sig))
+
+#endif	/* _KERNEL || _WANT_KW_EXITCODE */
+
 #ifndef _KERNEL
+
 #include <sys/types.h>
 
 __BEGIN_DECLS
