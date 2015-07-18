@@ -45,13 +45,16 @@
 uint32_t lockstat_probemap[LS_NPROBES];
 void (*lockstat_probe_func)(uint32_t, uintptr_t, uintptr_t,
     uintptr_t, uintptr_t, uintptr_t);
-
+int lockstat_enabled = 0;
 
 uint64_t 
 lockstat_nsecs(void)
 {
 	struct bintime bt;
 	uint64_t ns;
+
+	if (!lockstat_enabled)
+		return (0);
 
 	binuptime(&bt);
 	ns = bt.sec * (uint64_t)1000000000;
