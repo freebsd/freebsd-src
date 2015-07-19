@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2014 Marcel Moolenaar
+ * Copyright (c) 2014, 2015 Marcel Moolenaar
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -59,6 +59,9 @@ static driver_t proto_pci_driver = {
 	sizeof(struct proto_softc),
 };
 
+static char proto_pci_prefix[] = "pci";
+static char **proto_pci_devnames;
+
 static int
 proto_pci_probe(device_t dev)
 {
@@ -68,12 +71,12 @@ proto_pci_probe(device_t dev)
 		return (ENXIO);
 
 	sb = sbuf_new_auto();
-	sbuf_printf(sb, "pci%d:%d:%d:%d", pci_get_domain(dev),
+	sbuf_printf(sb, "%s%d:%d:%d:%d", proto_pci_prefix, pci_get_domain(dev),
 	    pci_get_bus(dev), pci_get_slot(dev), pci_get_function(dev));
 	sbuf_finish(sb);
 	device_set_desc_copy(dev, sbuf_data(sb));
 	sbuf_delete(sb);
-	return (BUS_PROBE_HOOVER);
+	return (proto_probe(dev, proto_pci_prefix, &proto_pci_devnames));
 }
 
 static int
