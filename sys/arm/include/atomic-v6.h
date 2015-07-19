@@ -97,14 +97,15 @@ atomic_add_32(volatile uint32_t *p, uint32_t val)
 {
 	uint32_t tmp = 0, tmp2 = 0;
 
-	__asm __volatile("1: ldrex %0, [%2]\n"
-	    		    "add %0, %0, %3\n"
-			    "strex %1, %0, [%2]\n"
-			    "cmp %1, #0\n"
-	                    "it ne\n"
-			    "bne	1b\n"
-			    : "=&r" (tmp), "+r" (tmp2)
-			    ,"+r" (p), "+r" (val) : : "cc", "memory");
+	__asm __volatile(
+	    "1: ldrex	%0, [%2]	\n"
+	    "   add	%0, %0, %3	\n"
+	    "   strex	%1, %0, [%2]	\n"
+	    "   cmp	%1, #0		\n"
+	    "   it	ne		\n"
+	    "   bne	1b		\n"
+	    : "=&r" (tmp), "+r" (tmp2)
+	    ,"+r" (p), "+r" (val) : : "cc", "memory");
 }
 
 static __inline void
@@ -114,19 +115,19 @@ atomic_add_64(volatile uint64_t *p, uint64_t val)
 	uint32_t exflag;
 
 	__asm __volatile(
-		"1:          \n"
-		"   ldrexd   %Q[tmp], %R[tmp], [%[ptr]]\n"
-		"   adds     %Q[tmp], %Q[val]\n"
-		"   adc      %R[tmp], %R[tmp], %R[val]\n"
-		"   strexd   %[exf], %Q[tmp], %R[tmp], [%[ptr]]\n"
-		"   teq      %[exf], #0\n"
-		"   it ne    \n"
-		"   bne      1b\n"
-		:   [exf]    "=&r"  (exflag), 
-		    [tmp]    "=&r"  (tmp)
-		:   [ptr]    "r"    (p), 
-		    [val]    "r"    (val)
-		:   "cc", "memory");
+	    "1:							\n"
+	    "   ldrexd	%Q[tmp], %R[tmp], [%[ptr]]		\n"
+	    "   adds	%Q[tmp], %Q[val]			\n"
+	    "   adc	%R[tmp], %R[tmp], %R[val]		\n"
+	    "   strexd	%[exf], %Q[tmp], %R[tmp], [%[ptr]]	\n"
+	    "   teq	%[exf], #0				\n"
+	    "   it	ne					\n"
+	    "   bne	1b					\n"
+	    : [exf] "=&r" (exflag),
+	      [tmp] "=&r" (tmp)
+	    : [ptr] "r"   (p),
+	      [val] "r"   (val)
+	    : "cc", "memory");
 }
 
 static __inline void
@@ -145,14 +146,15 @@ atomic_clear_32(volatile uint32_t *address, uint32_t setmask)
 {
 	uint32_t tmp = 0, tmp2 = 0;
 
-	__asm __volatile("1: ldrex %0, [%2]\n"
-	    		    "bic %0, %0, %3\n"
-			    "strex %1, %0, [%2]\n"
-			    "cmp %1, #0\n"
-	                    "it ne\n"
-			    "bne	1b\n"
-			   : "=&r" (tmp), "+r" (tmp2)
-			   ,"+r" (address), "+r" (setmask) : : "cc", "memory");
+	__asm __volatile(
+	    "1: ldrex	%0, [%2]	\n"
+	    "   bic	%0, %0, %3	\n"
+	    "   strex	%1, %0, [%2]	\n"
+	    "   cmp	%1, #0		\n"
+	    "   it	ne		\n"
+	    "   bne	1b		\n"
+	    : "=&r" (tmp), "+r" (tmp2), "+r" (address), "+r" (setmask)
+	    : : "cc", "memory");
 }
 
 static __inline void
@@ -162,19 +164,19 @@ atomic_clear_64(volatile uint64_t *p, uint64_t val)
 	uint32_t exflag;
 
 	__asm __volatile(
-		"1:          \n"
-		"   ldrexd   %Q[tmp], %R[tmp], [%[ptr]]\n"
-		"   bic      %Q[tmp], %Q[val]\n"
-		"   bic      %R[tmp], %R[val]\n"
-		"   strexd   %[exf], %Q[tmp], %R[tmp], [%[ptr]]\n"
-		"   teq      %[exf], #0\n"
-		"   it ne    \n"
-		"   bne      1b\n"
-		:   [exf]    "=&r"  (exflag), 
-		    [tmp]    "=&r"  (tmp)
-		:   [ptr]    "r"    (p), 
-		    [val]    "r"    (val)
-		:   "cc", "memory");
+	    "1:							\n"
+	    "   ldrexd	%Q[tmp], %R[tmp], [%[ptr]]		\n"
+	    "   bic	%Q[tmp], %Q[val]			\n"
+	    "   bic	%R[tmp], %R[val]			\n"
+	    "   strexd	%[exf], %Q[tmp], %R[tmp], [%[ptr]]	\n"
+	    "   teq	%[exf], #0				\n"
+	    "   it	ne					\n"
+	    "   bne	1b					\n"
+	    : [exf] "=&r" (exflag),
+	      [tmp] "=&r" (tmp)
+	    : [ptr] "r"   (p),
+	      [val] "r"   (val)
+	    : "cc", "memory");
 }
 
 static __inline void
@@ -192,21 +194,21 @@ static __inline uint32_t
 atomic_cmpset_32(volatile uint32_t *p, uint32_t cmpval, uint32_t newval)
 {
 	uint32_t ret;
-	
-	__asm __volatile("1: ldrex %0, [%1]\n"
-	                 "cmp %0, %2\n"
-	                 "itt ne\n"
-			 "movne %0, #0\n"
-			 "bne 2f\n"
-			 "strex %0, %3, [%1]\n"
-			 "cmp %0, #0\n"
-	                 "ite eq\n"
-			 "moveq %0, #1\n"
-			 "bne	1b\n"
-			 "2:"
-			 : "=&r" (ret)
-			 ,"+r" (p), "+r" (cmpval), "+r" (newval) : : "cc",
-			 "memory");
+
+	__asm __volatile(
+	    "1: ldrex	%0, [%1]	\n"
+	    "   cmp	%0, %2		\n"
+	    "   itt	ne		\n"
+	    "   movne	%0, #0		\n"
+	    "   bne	2f		\n"
+	    "   strex	%0, %3, [%1]	\n"
+	    "   cmp	%0, #0		\n"
+	    "   ite	eq		\n"
+	    "   moveq	%0, #1		\n"
+	    "   bne	1b		\n"
+	    "2:"
+	    : "=&r" (ret), "+r" (p), "+r" (cmpval), "+r" (newval)
+	    : : "cc", "memory");
 	return (ret);
 }
 
@@ -217,25 +219,25 @@ atomic_cmpset_64(volatile uint64_t *p, uint64_t cmpval, uint64_t newval)
 	uint32_t ret;
 
 	__asm __volatile(
-		"1:          \n"
-		"   ldrexd   %Q[tmp], %R[tmp], [%[ptr]]\n"
-		"   teq      %Q[tmp], %Q[cmpval]\n"
-		"   itee eq  \n"
-		"   teqeq    %R[tmp], %R[cmpval]\n"
-		"   movne    %[ret], #0\n"
-		"   bne      2f\n"
-		"   strexd   %[ret], %Q[newval], %R[newval], [%[ptr]]\n"
-		"   teq      %[ret], #0\n"
-		"   it ne    \n"
-		"   bne      1b\n"
-		"   mov      %[ret], #1\n"
-		"2:          \n"
-		:   [ret]    "=&r"  (ret), 
-		    [tmp]    "=&r"  (tmp)
-		:   [ptr]    "r"    (p), 
-		    [cmpval] "r"    (cmpval), 
-		    [newval] "r"    (newval)
-		:   "cc", "memory");
+	    "1:							\n"
+	    "   ldrexd	%Q[tmp], %R[tmp], [%[ptr]]		\n"
+	    "   teq	%Q[tmp], %Q[cmpval]			\n"
+	    "   itee	eq					\n"
+	    "   teqeq	%R[tmp], %R[cmpval]			\n"
+	    "   movne	%[ret], #0				\n"
+	    "   bne	2f					\n"
+	    "   strexd	%[ret], %Q[newval], %R[newval], [%[ptr]]\n"
+	    "   teq	%[ret], #0				\n"
+	    "   it	ne					\n"
+	    "   bne	1b					\n"
+	    "   mov	%[ret], #1				\n"
+	    "2:							\n"
+	    : [ret]    "=&r" (ret),
+	      [tmp]    "=&r" (tmp)
+	    : [ptr]    "r"   (p),
+	      [cmpval] "r"   (cmpval),
+	      [newval] "r"   (newval)
+	    : "cc", "memory");
 	return (ret);
 }
 
@@ -279,7 +281,7 @@ atomic_cmpset_acq_long(volatile u_long *p, u_long cmpval, u_long newval)
 static __inline uint32_t
 atomic_cmpset_rel_32(volatile uint32_t *p, uint32_t cmpval, uint32_t newval)
 {
-	
+
 	dmb();
 	return (atomic_cmpset_32(p, cmpval, newval));
 }
@@ -287,7 +289,7 @@ atomic_cmpset_rel_32(volatile uint32_t *p, uint32_t cmpval, uint32_t newval)
 static __inline uint64_t
 atomic_cmpset_rel_64(volatile uint64_t *p, uint64_t cmpval, uint64_t newval)
 {
-	
+
 	dmb();
 	return (atomic_cmpset_64(p, cmpval, newval));
 }
@@ -305,14 +307,15 @@ atomic_fetchadd_32(volatile uint32_t *p, uint32_t val)
 {
 	uint32_t tmp = 0, tmp2 = 0, ret = 0;
 
-	__asm __volatile("1: ldrex %0, [%3]\n"
-	    		    "add %1, %0, %4\n"
-			    "strex %2, %1, [%3]\n"
-			    "cmp %2, #0\n"
-	                    "it ne\n"
-			    "bne	1b\n"
-			   : "+r" (ret), "=&r" (tmp), "+r" (tmp2)
-			   ,"+r" (p), "+r" (val) : : "cc", "memory");
+	__asm __volatile(
+	    "1: ldrex	%0, [%3]	\n"
+	    "   add	%1, %0, %4	\n"
+	    "   strex	%2, %1, [%3]	\n"
+	    "   cmp	%2, #0		\n"
+	    "   it	ne		\n"
+	    "   bne	1b		\n"
+	    : "+r" (ret), "=&r" (tmp), "+r" (tmp2), "+r" (p), "+r" (val)
+	    : : "cc", "memory");
 	return (ret);
 }
 
@@ -323,20 +326,20 @@ atomic_fetchadd_64(volatile uint64_t *p, uint64_t val)
 	uint32_t exflag;
 
 	__asm __volatile(
-		"1:          \n"
-		"   ldrexd   %Q[tmp], %R[tmp], [%[ptr]]\n"
-		"   adds     %Q[tmp], %Q[ret], %Q[val]\n"
-		"   adc      %R[tmp], %R[ret], %R[val]\n"
-		"   strexd   %[exf], %Q[tmp], %R[tmp], [%[ptr]]\n"
-		"   teq      %[exf], #0\n"
-		"   it ne    \n"
-		"   bne      1b\n"
-		:   [ret]    "=&r"  (ret),
-		    [exf]    "=&r"  (exflag),
-		    [tmp]    "=&r"  (tmp)
-		:   [ptr]    "r"    (p), 
-		    [val]    "r"    (val)
-		:   "cc", "memory");
+	    "1:							\n"
+	    "   ldrexd	%Q[tmp], %R[tmp], [%[ptr]]		\n"
+	    "   adds	%Q[tmp], %Q[ret], %Q[val]		\n"
+	    "   adc	%R[tmp], %R[ret], %R[val]		\n"
+	    "   strexd	%[exf], %Q[tmp], %R[tmp], [%[ptr]]	\n"
+	    "   teq	%[exf], #0				\n"
+	    "   it	ne					\n"
+	    "   bne	1b					\n"
+	    : [ret] "=&r" (ret),
+	      [exf] "=&r" (exflag),
+	      [tmp] "=&r" (tmp)
+	    : [ptr] "r"   (p),
+	      [val] "r"   (val)
+	    : "cc", "memory");
 	return (ret);
 }
 
@@ -368,12 +371,11 @@ atomic_load_64(volatile uint64_t *p)
 	 * with CLREX because we don't actually need to store anything.
 	 */
 	__asm __volatile(
-		"1:          \n"
-		"   ldrexd   %Q[ret], %R[ret], [%[ptr]]\n"
-		"   clrex    \n"
-		:   [ret]    "=&r"  (ret)
-		:   [ptr]    "r"    (p)
-		:   "cc", "memory");
+	    "ldrexd	%Q[ret], %R[ret], [%[ptr]]	\n"
+	    "clrex					\n"
+	    : [ret] "=&r" (ret)
+	    : [ptr] "r"   (p)
+	    : "cc", "memory");
 	return (ret);
 }
 
@@ -402,14 +404,15 @@ atomic_readandclear_32(volatile uint32_t *p)
 {
 	uint32_t ret, tmp = 0, tmp2 = 0;
 
-	__asm __volatile("1: ldrex %0, [%3]\n"
-	    		 "mov %1, #0\n"
-			 "strex %2, %1, [%3]\n"
-			 "cmp %2, #0\n"
-	                 "it ne\n"
-			 "bne 1b\n"
-			 : "=r" (ret), "=&r" (tmp), "+r" (tmp2)
-			 ,"+r" (p) : : "cc", "memory");
+	__asm __volatile(
+	    "1: ldrex	%0, [%3]	\n"
+	    "   mov	%1, #0		\n"
+	    "   strex	%2, %1, [%3]	\n"
+	    "   cmp	%2, #0		\n"
+	    "   it	ne		\n"
+	    "   bne	1b		\n"
+	    : "=r" (ret), "=&r" (tmp), "+r" (tmp2), "+r" (p)
+	    : : "cc", "memory");
 	return (ret);
 }
 
@@ -420,19 +423,19 @@ atomic_readandclear_64(volatile uint64_t *p)
 	uint32_t exflag;
 
 	__asm __volatile(
-		"1:          \n"
-		"   ldrexd   %Q[ret], %R[ret], [%[ptr]]\n"
-		"   mov      %Q[tmp], #0\n"
-		"   mov      %R[tmp], #0\n"
-		"   strexd   %[exf], %Q[tmp], %R[tmp], [%[ptr]]\n"
-		"   teq      %[exf], #0\n"
-		"   it ne    \n"
-		"   bne      1b\n"
-		:   [ret]    "=&r"  (ret),
-		    [exf]    "=&r"  (exflag),
-		    [tmp]    "=&r"  (tmp)
-		:   [ptr]    "r"    (p)
-		:   "cc", "memory");
+	    "1:							\n"
+	    "   ldrexd	%Q[ret], %R[ret], [%[ptr]]		\n"
+	    "   mov	%Q[tmp], #0				\n"
+	    "   mov	%R[tmp], #0				\n"
+	    "   strexd	%[exf], %Q[tmp], %R[tmp], [%[ptr]]	\n"
+	    "   teq	%[exf], #0				\n"
+	    "   it	ne					\n"
+	    "   bne	1b					\n"
+	    : [ret] "=&r" (ret),
+	      [exf] "=&r" (exflag),
+	      [tmp] "=&r" (tmp)
+	    : [ptr] "r"   (p)
+	    : "cc", "memory");
 	return (ret);
 }
 
@@ -448,15 +451,15 @@ atomic_set_32(volatile uint32_t *address, uint32_t setmask)
 {
 	uint32_t tmp = 0, tmp2 = 0;
 
-	__asm __volatile("1: ldrex %0, [%2]\n"
-	    		    "orr %0, %0, %3\n"
-			    "strex %1, %0, [%2]\n"
-			    "cmp %1, #0\n"
-	                    "it ne\n"
-			    "bne	1b\n"
-			   : "=&r" (tmp), "+r" (tmp2)
-			   , "+r" (address), "+r" (setmask) : : "cc", "memory");
-			     
+	__asm __volatile(
+	    "1: ldrex	%0, [%2]	\n"
+	    "   orr	%0, %0, %3	\n"
+	    "   strex	%1, %0, [%2]	\n"
+	    "   cmp	%1, #0		\n"
+	    "   it	ne		\n"
+	    "   bne	1b		\n"
+	    : "=&r" (tmp), "+r" (tmp2), "+r" (address), "+r" (setmask)
+	    : : "cc", "memory");
 }
 
 static __inline void
@@ -466,19 +469,19 @@ atomic_set_64(volatile uint64_t *p, uint64_t val)
 	uint32_t exflag;
 
 	__asm __volatile(
-		"1:          \n"
-		"   ldrexd   %Q[tmp], %R[tmp], [%[ptr]]\n"
-		"   orr      %Q[tmp], %Q[val]\n"
-		"   orr      %R[tmp], %R[val]\n"
-		"   strexd   %[exf], %Q[tmp], %R[tmp], [%[ptr]]\n"
-		"   teq      %[exf], #0\n"
-		"   it ne    \n"
-		"   bne      1b\n"
-		:   [exf]    "=&r"  (exflag), 
-		    [tmp]    "=&r"  (tmp)
-		:   [ptr]    "r"    (p), 
-		    [val]    "r"    (val)
-		:   "cc", "memory");
+	    "1:							\n"
+	    "   ldrexd	%Q[tmp], %R[tmp], [%[ptr]]		\n"
+	    "   orr	%Q[tmp], %Q[val]			\n"
+	    "   orr	%R[tmp], %R[val]			\n"
+	    "   strexd	%[exf], %Q[tmp], %R[tmp], [%[ptr]]	\n"
+	    "   teq	%[exf], #0				\n"
+	    "   it	ne					\n"
+	    "   bne	1b					\n"
+	    : [exf] "=&r" (exflag),
+	      [tmp] "=&r" (tmp)
+	    : [ptr] "r"   (p),
+	      [val] "r"   (val)
+	    : "cc", "memory");
 }
 
 static __inline void
@@ -497,14 +500,15 @@ atomic_subtract_32(volatile uint32_t *p, uint32_t val)
 {
 	uint32_t tmp = 0, tmp2 = 0;
 
-	__asm __volatile("1: ldrex %0, [%2]\n"
-	    		    "sub %0, %0, %3\n"
-			    "strex %1, %0, [%2]\n"
-			    "cmp %1, #0\n"
-	                    "it ne\n"
-			    "bne	1b\n"
-			    : "=&r" (tmp), "+r" (tmp2)
-			    ,"+r" (p), "+r" (val) : : "cc", "memory");
+	__asm __volatile(
+	    "1: ldrex	%0, [%2]	\n"
+	    "   sub	%0, %0, %3	\n"
+	    "   strex	%1, %0, [%2]	\n"
+	    "   cmp	%1, #0		\n"
+	    "   it	ne		\n"
+	    "   bne	1b		\n"
+	    : "=&r" (tmp), "+r" (tmp2), "+r" (p), "+r" (val)
+	    : : "cc", "memory");
 }
 
 static __inline void
@@ -514,19 +518,19 @@ atomic_subtract_64(volatile uint64_t *p, uint64_t val)
 	uint32_t exflag;
 
 	__asm __volatile(
-		"1:          \n"
-		"   ldrexd   %Q[tmp], %R[tmp], [%[ptr]]\n"
-		"   subs     %Q[tmp], %Q[val]\n"
-		"   sbc      %R[tmp], %R[tmp], %R[val]\n"
-		"   strexd   %[exf], %Q[tmp], %R[tmp], [%[ptr]]\n"
-		"   teq      %[exf], #0\n"
-		"   it ne    \n"
-		"   bne      1b\n"
-		:   [exf]    "=&r"  (exflag), 
-		    [tmp]    "=&r"  (tmp)
-		:   [ptr]    "r"    (p), 
-		    [val]    "r"    (val)
-		:   "cc", "memory");
+	    "1:							\n"
+	    "   ldrexd	%Q[tmp], %R[tmp], [%[ptr]]		\n"
+	    "   subs	%Q[tmp], %Q[val]			\n"
+	    "   sbc	%R[tmp], %R[tmp], %R[val]		\n"
+	    "   strexd	%[exf], %Q[tmp], %R[tmp], [%[ptr]]	\n"
+	    "   teq	%[exf], #0				\n"
+	    "   it	ne					\n"
+	    "   bne	1b					\n"
+	    : [exf] "=&r" (exflag),
+	      [tmp] "=&r" (tmp)
+	    : [ptr] "r"   (p),
+	      [val] "r"   (val)
+	    : "cc", "memory");
 }
 
 static __inline void
@@ -552,23 +556,23 @@ atomic_store_64(volatile uint64_t *p, uint64_t val)
 	 * address, so we read and discard the existing value before storing.
 	 */
 	__asm __volatile(
-		"1:          \n"
-		"   ldrexd   %Q[tmp], %R[tmp], [%[ptr]]\n"
-		"   strexd   %[exf], %Q[tmp], %R[tmp], [%[ptr]]\n"
-		"   teq      %[exf], #0\n"
-		"   it ne    \n"
-		"   bne      1b\n"
-		:   [tmp]    "=&r"  (tmp),
-		    [exf]    "=&r"  (exflag)
-		:   [ptr]    "r"    (p),
-		    [val]    "r"    (val)
-		:   "cc", "memory");
+	    "1:							\n"
+	    "   ldrexd	%Q[tmp], %R[tmp], [%[ptr]]		\n"
+	    "   strexd	%[exf], %Q[tmp], %R[tmp], [%[ptr]]	\n"
+	    "   teq	%[exf], #0				\n"
+	    "   it	ne					\n"
+	    "   bne	1b					\n"
+	    : [tmp] "=&r" (tmp),
+	      [exf] "=&r" (exflag)
+	    : [ptr] "r"   (p),
+	      [val] "r"   (val)
+	    : "cc", "memory");
 }
 
 static __inline void
 atomic_store_rel_32(volatile uint32_t *p, uint32_t v)
 {
-	
+
 	dmb();
 	*p = v;
 }
@@ -584,7 +588,7 @@ atomic_store_rel_64(volatile uint64_t *p, uint64_t val)
 static __inline void
 atomic_store_rel_long(volatile u_long *p, u_long v)
 {
-	
+
 	dmb();
 	*p = v;
 }
