@@ -183,7 +183,7 @@ read_random_uio(struct uio *uio, bool nonblock)
 			printf("random: %s unblock wait\n", __func__);
 		spamcount = (spamcount + 1)%100;
 		error = tsleep(&random_alg_context, PCATCH, "randseed", hz/10);
-		if ((error == ERESTART | error == EINTR))
+		if (error == ERESTART || error == EINTR)
 			break;
 	}
 	if (error == 0) {
