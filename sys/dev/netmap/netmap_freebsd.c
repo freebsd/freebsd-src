@@ -642,6 +642,10 @@ netmap_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 	error = devfs_set_cdevpriv(priv, netmap_dtor);
 	if (error) {
 		free(priv, M_DEVBUF);
+	} else {
+		NMG_LOCK();
+		netmap_use_count++;
+		NMG_UNLOCK();
 	}
 	return error;
 }
@@ -827,6 +831,16 @@ netmap_loader(__unused struct module *module, int event, __unused void *arg)
 		break;
 
 	case MOD_UNLOAD:
+		/*
+		 * if some one is still using netmap,
+		 * then the module can not be unloaded.
+		 */
+		if (netmap_use_count) {
+			D("netmap module can not be unloaded - netmap_use_count: %d",
+					netmap_use_count);
+			error = EBUSY;
+			break;
+		}
 		netmap_fini();
 		break;
 
