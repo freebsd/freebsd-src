@@ -542,6 +542,7 @@ SYSCTL_INT(_dev_netmap, OID_AUTO, generic_ringsize, CTLFLAG_RW, &netmap_generic_
 SYSCTL_INT(_dev_netmap, OID_AUTO, generic_rings, CTLFLAG_RW, &netmap_generic_rings, 0 , "");
 
 NMG_LOCK_T	netmap_global_lock;
+int netmap_use_count = 0; /* number of active netmap instances */
 
 /*
  * mark the ring as stopped, and run through the locks
@@ -975,11 +976,11 @@ netmap_dtor_locked(struct netmap_priv_d *priv)
 {
 	struct netmap_adapter *na = priv->np_na;
 
-	/* number of active mmaps on this fd (FreeBSD only) */
+	/* number of active references to this fd */
 	if (--priv->np_refs > 0) {
 		return 0;
 	}
-
+	netmap_use_count--;
 	if (!na) {
 		return 1; //XXX is it correct?
 	}
