@@ -89,15 +89,15 @@ __swp(uint32_t val, volatile uint32_t *ptr)
 #define	ARM_HAVE_ATOMIC64
 
 static __inline void
-atomic_set_32(volatile uint32_t *address, uint32_t setmask)
+atomic_add_32(volatile u_int32_t *p, u_int32_t val)
 {
-	__with_interrupts_disabled(*address |= setmask);
+	__with_interrupts_disabled(*p += val);
 }
 
 static __inline void
-atomic_set_64(volatile uint64_t *address, uint64_t setmask)
+atomic_add_64(volatile u_int64_t *p, u_int64_t val)
 {
-	__with_interrupts_disabled(*address |= setmask);
+	__with_interrupts_disabled(*p += val);
 }
 
 static __inline void
@@ -146,29 +146,6 @@ atomic_cmpset_64(volatile u_int64_t *p, volatile u_int64_t cmpval, volatile u_in
 	return (ret);
 }
 
-static __inline void
-atomic_add_32(volatile u_int32_t *p, u_int32_t val)
-{
-	__with_interrupts_disabled(*p += val);
-}
-
-static __inline void
-atomic_add_64(volatile u_int64_t *p, u_int64_t val)
-{
-	__with_interrupts_disabled(*p += val);
-}
-
-static __inline void
-atomic_subtract_32(volatile u_int32_t *p, u_int32_t val)
-{
-	__with_interrupts_disabled(*p -= val);
-}
-
-static __inline void
-atomic_subtract_64(volatile u_int64_t *p, u_int64_t val)
-{
-	__with_interrupts_disabled(*p -= val);
-}
 
 static __inline uint32_t
 atomic_fetchadd_32(volatile uint32_t *p, uint32_t v)
@@ -206,37 +183,36 @@ atomic_load_64(volatile uint64_t *p)
 }
 
 static __inline void
+atomic_set_32(volatile uint32_t *address, uint32_t setmask)
+{
+	__with_interrupts_disabled(*address |= setmask);
+}
+
+static __inline void
+atomic_set_64(volatile uint64_t *address, uint64_t setmask)
+{
+	__with_interrupts_disabled(*address |= setmask);
+}
+
+static __inline void
 atomic_store_64(volatile uint64_t *p, uint64_t value)
 {
 	__with_interrupts_disabled(*p = value);
 }
 
-#else /* !_KERNEL */
-
-static __inline u_int32_t
-atomic_cmpset_32(volatile u_int32_t *p, volatile u_int32_t cmpval, volatile u_int32_t newval)
+static __inline void
+atomic_subtract_32(volatile u_int32_t *p, u_int32_t val)
 {
-	register int done, ras_start = ARM_RAS_START;
-
-	__asm __volatile("1:\n"
-	    "adr	%1, 1b\n"
-	    "str	%1, [%0]\n"
-	    "adr	%1, 2f\n"
-	    "str	%1, [%0, #4]\n"
-	    "ldr	%1, [%2]\n"
-	    "cmp	%1, %3\n"
-	    "streq	%4, [%2]\n"
-	    "2:\n"
-	    "mov	%1, #0\n"
-	    "str	%1, [%0]\n"
-	    "mov	%1, #0xffffffff\n"
-	    "str	%1, [%0, #4]\n"
-	    "moveq	%1, #1\n"
-	    "movne	%1, #0\n"
-	    : "+r" (ras_start), "=r" (done)
-	    ,"+r" (p), "+r" (cmpval), "+r" (newval) : : "cc", "memory");
-	return (done);
+	__with_interrupts_disabled(*p -= val);
 }
+
+static __inline void
+atomic_subtract_64(volatile u_int64_t *p, u_int64_t val)
+{
+	__with_interrupts_disabled(*p -= val);
+}
+
+#else /* !_KERNEL */
 
 static __inline void
 atomic_add_32(volatile u_int32_t *p, u_int32_t val)
@@ -257,52 +233,6 @@ atomic_add_32(volatile u_int32_t *p, u_int32_t val)
 	    "mov	%1, #0xffffffff\n"
 	    "str	%1, [%0, #4]\n"
 	    : "+r" (ras_start), "=r" (start), "+r" (p), "+r" (val)
-	    : : "memory");
-}
-
-static __inline void
-atomic_subtract_32(volatile u_int32_t *p, u_int32_t val)
-{
-	int start, ras_start = ARM_RAS_START;
-
-	__asm __volatile("1:\n"
-	    "adr	%1, 1b\n"
-	    "str	%1, [%0]\n"
-	    "adr	%1, 2f\n"
-	    "str	%1, [%0, #4]\n"
-	    "ldr	%1, [%2]\n"
-	    "sub	%1, %1, %3\n"
-	    "str	%1, [%2]\n"
-	    "2:\n"
-	    "mov	%1, #0\n"
-	    "str	%1, [%0]\n"
-	    "mov	%1, #0xffffffff\n"
-	    "str	%1, [%0, #4]\n"
-
-	    : "+r" (ras_start), "=r" (start), "+r" (p), "+r" (val)
-	    : : "memory");
-}
-
-static __inline void
-atomic_set_32(volatile uint32_t *address, uint32_t setmask)
-{
-	int start, ras_start = ARM_RAS_START;
-
-	__asm __volatile("1:\n"
-	    "adr	%1, 1b\n"
-	    "str	%1, [%0]\n"
-	    "adr	%1, 2f\n"
-	    "str	%1, [%0, #4]\n"
-	    "ldr	%1, [%2]\n"
-	    "orr	%1, %1, %3\n"
-	    "str	%1, [%2]\n"
-	    "2:\n"
-	    "mov	%1, #0\n"
-	    "str	%1, [%0]\n"
-	    "mov	%1, #0xffffffff\n"
-	    "str	%1, [%0, #4]\n"
-
-	    : "+r" (ras_start), "=r" (start), "+r" (address), "+r" (setmask)
 	    : : "memory");
 }
 
@@ -329,6 +259,31 @@ atomic_clear_32(volatile uint32_t *address, uint32_t clearmask)
 
 }
 
+static __inline u_int32_t
+atomic_cmpset_32(volatile u_int32_t *p, volatile u_int32_t cmpval, volatile u_int32_t newval)
+{
+	register int done, ras_start = ARM_RAS_START;
+
+	__asm __volatile("1:\n"
+	    "adr	%1, 1b\n"
+	    "str	%1, [%0]\n"
+	    "adr	%1, 2f\n"
+	    "str	%1, [%0, #4]\n"
+	    "ldr	%1, [%2]\n"
+	    "cmp	%1, %3\n"
+	    "streq	%4, [%2]\n"
+	    "2:\n"
+	    "mov	%1, #0\n"
+	    "str	%1, [%0]\n"
+	    "mov	%1, #0xffffffff\n"
+	    "str	%1, [%0, #4]\n"
+	    "moveq	%1, #1\n"
+	    "movne	%1, #0\n"
+	    : "+r" (ras_start), "=r" (done)
+	    ,"+r" (p), "+r" (cmpval), "+r" (newval) : : "cc", "memory");
+	return (done);
+}
+
 static __inline uint32_t
 atomic_fetchadd_32(volatile uint32_t *p, uint32_t v)
 {
@@ -353,8 +308,53 @@ atomic_fetchadd_32(volatile uint32_t *p, uint32_t v)
 	return (start);
 }
 
-#endif /* _KERNEL */
+static __inline void
+atomic_set_32(volatile uint32_t *address, uint32_t setmask)
+{
+	int start, ras_start = ARM_RAS_START;
 
+	__asm __volatile("1:\n"
+	    "adr	%1, 1b\n"
+	    "str	%1, [%0]\n"
+	    "adr	%1, 2f\n"
+	    "str	%1, [%0, #4]\n"
+	    "ldr	%1, [%2]\n"
+	    "orr	%1, %1, %3\n"
+	    "str	%1, [%2]\n"
+	    "2:\n"
+	    "mov	%1, #0\n"
+	    "str	%1, [%0]\n"
+	    "mov	%1, #0xffffffff\n"
+	    "str	%1, [%0, #4]\n"
+
+	    : "+r" (ras_start), "=r" (start), "+r" (address), "+r" (setmask)
+	    : : "memory");
+}
+
+static __inline void
+atomic_subtract_32(volatile u_int32_t *p, u_int32_t val)
+{
+	int start, ras_start = ARM_RAS_START;
+
+	__asm __volatile("1:\n"
+	    "adr	%1, 1b\n"
+	    "str	%1, [%0]\n"
+	    "adr	%1, 2f\n"
+	    "str	%1, [%0, #4]\n"
+	    "ldr	%1, [%2]\n"
+	    "sub	%1, %1, %3\n"
+	    "str	%1, [%2]\n"
+	    "2:\n"
+	    "mov	%1, #0\n"
+	    "str	%1, [%0]\n"
+	    "mov	%1, #0xffffffff\n"
+	    "str	%1, [%0, #4]\n"
+
+	    : "+r" (ras_start), "=r" (start), "+r" (p), "+r" (val)
+	    : : "memory");
+}
+
+#endif /* _KERNEL */
 
 static __inline uint32_t
 atomic_readandclear_32(volatile u_int32_t *p)
