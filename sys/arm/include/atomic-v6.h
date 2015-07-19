@@ -558,7 +558,7 @@ atomic_store_64(volatile uint64_t *p, uint64_t val)
 	__asm __volatile(
 	    "1:							\n"
 	    "   ldrexd	%Q[tmp], %R[tmp], [%[ptr]]		\n"
-	    "   strexd	%[exf], %Q[tmp], %R[tmp], [%[ptr]]	\n"
+	    "   strexd	%[exf], %Q[val], %R[val], [%[ptr]]	\n"
 	    "   teq	%[exf], #0				\n"
 	    "   it	ne					\n"
 	    "   bne	1b					\n"
