@@ -506,17 +506,6 @@ netmap_vp_dtor(struct netmap_adapter *na)
 	}
 }
 
-/* nm_dtor callback for persistent VALE ports */
-static void
-netmap_persist_vp_dtor(struct netmap_adapter *na)
-{
-	struct ifnet *ifp = na->ifp;
-
-	netmap_vp_dtor(na);
-	na->ifp = NULL;
-	nm_vi_detach(ifp);
-}
-
 /* remove a persistent VALE port from the system */
 static int
 nm_vi_destroy(const char *name)
@@ -546,6 +535,7 @@ nm_vi_destroy(const char *name)
 	 */
 	if_rele(ifp);
 	netmap_detach(ifp);
+	nm_vi_detach(ifp);
 	return 0;
 
 err:
@@ -587,7 +577,6 @@ nm_vi_create(struct nmreq *nmr)
 	}
 	/* persist-specific routines */
 	vpna->up.nm_bdg_ctl = netmap_vp_bdg_ctl;
-	vpna->up.nm_dtor = netmap_persist_vp_dtor;
 	netmap_adapter_get(&vpna->up);
 	NMG_UNLOCK();
 	D("created %s", ifp->if_xname);
@@ -1823,6 +1812,11 @@ netmap_vp_create(struct nmreq *nmr, struct ifnet *ifp, struct netmap_vp_adapter 
 		D("max frame size %u", vpna->mfs);
 
 	na->na_flags |= NAF_BDG_MAYSLEEP;
+	/* persistent VALE ports look like hw devices
+	 * with a native netmap adapter
+	 */
+	if (ifp)
+		na->na_flags |= NAF_NATIVE;
 	na->nm_txsync = netmap_vp_txsync;
 	na->nm_rxsync = netmap_vp_rxsync;
 	na->nm_register = netmap_vp_reg;
