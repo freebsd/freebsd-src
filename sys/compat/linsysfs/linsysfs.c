@@ -275,7 +275,7 @@ linsysfs_uninit(PFS_INIT_ARGS)
 	return (0);
 }
 
-PSEUDOFS(linsysfs, 1, 0);
+PSEUDOFS(linsysfs, 1, PR_ALLOW_MOUNT_LINSYSFS);
 #if defined(__amd64__)
 MODULE_DEPEND(linsysfs, linux_common, 1, 1, 1);
 #else
