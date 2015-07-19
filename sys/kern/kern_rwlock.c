@@ -301,8 +301,8 @@ __rw_try_wlock(volatile uintptr_t *c, const char *file, int line)
 		WITNESS_LOCK(&rw->lock_object, LOP_EXCLUSIVE | LOP_TRYLOCK,
 		    file, line);
 		if (!rw_recursed(rw))
-			LOCKSTAT_PROFILE_OBTAIN_LOCK_SUCCESS(rw__acquire,
-			    rw, 0, 0, file, line);
+			LOCKSTAT_PROFILE_OBTAIN_RWLOCK_SUCCESS(rw__acquire,
+			    rw, 0, 0, file, line, LOCKSTAT_WRITER);
 		curthread->td_locks++;
 	}
 	return (rval);
@@ -561,8 +561,8 @@ __rw_rlock(volatile uintptr_t *c, const char *file, int line)
 	 * however.  turnstiles don't like owners changing between calls to
 	 * turnstile_wait() currently.
 	 */
-	LOCKSTAT_PROFILE_OBTAIN_LOCK_SUCCESS(rw__acquire, rw, contested,
-	    waittime, file, line);
+	LOCKSTAT_PROFILE_OBTAIN_RWLOCK_SUCCESS(rw__acquire, rw, contested,
+	    waittime, file, line, LOCKSTAT_READER);
 	LOCK_LOG_LOCK("RLOCK", &rw->lock_object, 0, 0, file, line);
 	WITNESS_LOCK(&rw->lock_object, 0, file, line);
 	curthread->td_locks++;
@@ -594,8 +594,8 @@ __rw_try_rlock(volatile uintptr_t *c, const char *file, int line)
 			LOCK_LOG_TRY("RLOCK", &rw->lock_object, 0, 1, file,
 			    line);
 			WITNESS_LOCK(&rw->lock_object, LOP_TRYLOCK, file, line);
-			LOCKSTAT_PROFILE_OBTAIN_LOCK_SUCCESS(rw__acquire,
-			    rw, 0, 0, file, line);
+			LOCKSTAT_PROFILE_OBTAIN_RWLOCK_SUCCESS(rw__acquire,
+			    rw, 0, 0, file, line, LOCKSTAT_READER);
 			curthread->td_locks++;
 			curthread->td_rw_rlocks++;
 			return (1);
@@ -713,7 +713,7 @@ _rw_runlock_cookie(volatile uintptr_t *c, const char *file, int line)
 		turnstile_chain_unlock(&rw->lock_object);
 		break;
 	}
-	LOCKSTAT_PROFILE_RELEASE_LOCK(rw__release, rw);
+	LOCKSTAT_PROFILE_RELEASE_RWLOCK(rw__release, rw, LOCKSTAT_READER);
 	curthread->td_locks--;
 	curthread->td_rw_rlocks--;
 }
@@ -920,8 +920,8 @@ __rw_wlock_hard(volatile uintptr_t *c, uintptr_t tid, const char *file,
 		    LOCKSTAT_READER, (state & RW_LOCK_READ) == 0,
 		    (state & RW_LOCK_READ) == 0 ? 0 : RW_READERS(state));
 #endif
-	LOCKSTAT_PROFILE_OBTAIN_LOCK_SUCCESS(rw__acquire, rw, contested,
-	    waittime, file, line);
+	LOCKSTAT_PROFILE_OBTAIN_RWLOCK_SUCCESS(rw__acquire, rw, contested,
+	    waittime, file, line, LOCKSTAT_WRITER);
 }
 
 /*
