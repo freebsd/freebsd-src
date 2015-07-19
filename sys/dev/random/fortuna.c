@@ -133,7 +133,6 @@ static void random_fortuna_deinit_alg(void *);
 
 static void random_fortuna_reseed_internal(uint32_t *entropy_data, u_int blockcount);
 
-/* Interface to Adaptors system */
 struct random_algorithm random_alg_context = {
 	.ra_ident = "Fortuna",
 	.ra_init_alg = random_fortuna_init_alg,
