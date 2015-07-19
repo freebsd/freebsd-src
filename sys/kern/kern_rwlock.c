@@ -382,9 +382,6 @@ __rw_rlock(volatile uintptr_t *c, const char *file, int line)
 	state = rw->rw_lock;
 #endif
 	for (;;) {
-#ifdef KDTRACE_HOOKS
-		spin_cnt++;
-#endif
 		/*
 		 * Handle the easy case.  If no other thread has a write
 		 * lock, then try to bump up the count of read locks.  Note
@@ -413,6 +410,9 @@ __rw_rlock(volatile uintptr_t *c, const char *file, int line)
 			}
 			continue;
 		}
+#ifdef KDTRACE_HOOKS
+		spin_cnt++;
+#endif
 #ifdef HWPMC_HOOKS
 		PMC_SOFT_CALL( , , lock, failed);
 #endif
