@@ -288,8 +288,8 @@ sx_try_slock_(struct sx *sx, const char *file, int line)
 		if (atomic_cmpset_acq_ptr(&sx->sx_lock, x, x + SX_ONE_SHARER)) {
 			LOCK_LOG_TRY("SLOCK", &sx->lock_object, 0, 1, file, line);
 			WITNESS_LOCK(&sx->lock_object, LOP_TRYLOCK, file, line);
-			LOCKSTAT_PROFILE_OBTAIN_LOCK_SUCCESS(sx__acquire,
-			    sx, 0, 0, file, line);
+			LOCKSTAT_PROFILE_OBTAIN_RWLOCK_SUCCESS(sx__acquire,
+			    sx, 0, 0, file, line, LOCKSTAT_READER);
 			curthread->td_locks++;
 			return (1);
 		}
@@ -351,8 +351,8 @@ sx_try_xlock_(struct sx *sx, const char *file, int line)
 		WITNESS_LOCK(&sx->lock_object, LOP_EXCLUSIVE | LOP_TRYLOCK,
 		    file, line);
 		if (!sx_recursed(sx))
-			LOCKSTAT_PROFILE_OBTAIN_LOCK_SUCCESS(sx__acquire,
-			    sx, 0, 0, file, line);
+			LOCKSTAT_PROFILE_OBTAIN_RWLOCK_SUCCESS(sx__acquire,
+			    sx, 0, 0, file, line, LOCKSTAT_WRITER);
 		curthread->td_locks++;
 	}
 
@@ -728,8 +728,8 @@ _sx_xlock_hard(struct sx *sx, uintptr_t tid, int opts, const char *file,
 		    (state & SX_LOCK_SHARED) == 0 ? 0 : SX_SHARERS(state));
 #endif
 	if (!error)
-		LOCKSTAT_PROFILE_OBTAIN_LOCK_SUCCESS(sx__acquire, sx,
-		    contested, waittime, file, line);
+		LOCKSTAT_PROFILE_OBTAIN_RWLOCK_SUCCESS(sx__acquire, sx,
+		    contested, waittime, file, line, LOCKSTAT_WRITER);
 	GIANT_RESTORE();
 	return (error);
 }
@@ -992,8 +992,8 @@ _sx_slock_hard(struct sx *sx, int opts, const char *file, int line)
 		    (state & SX_LOCK_SHARED) == 0 ? 0 : SX_SHARERS(state));
 #endif
 	if (error == 0)
-		LOCKSTAT_PROFILE_OBTAIN_LOCK_SUCCESS(sx__acquire, sx, contested,
-		    waittime, file, line);
+		LOCKSTAT_PROFILE_OBTAIN_RWLOCK_SUCCESS(sx__acquire, sx,
+		    contested, waittime, file, line, LOCKSTAT_READER);
 	GIANT_RESTORE();
 	return (error);
 }
