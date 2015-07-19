@@ -163,22 +163,28 @@ int
 read_random_uio(struct uio *uio, bool nonblock)
 {
 	uint8_t *random_buf;
-	int error;
+	int error, spamcount;
 	ssize_t read_len, total_read, c;
 
 	random_buf = malloc(PAGE_SIZE, M_ENTROPY, M_WAITOK);
 	random_alg_context.ra_pre_read();
-	/* (Un)Blocking logic */
 	error = 0;
+	spamcount = 0;
+	/* (Un)Blocking logic */
 	while (!random_alg_context.ra_seeded()) {
 		if (nonblock) {
 			error = EWOULDBLOCK;
 			break;
 		}
-		tsleep(&random_alg_context, 0, "randseed", hz/10);
 		/* keep tapping away at the pre-read until we seed/unblock. */
 		random_alg_context.ra_pre_read();
-		printf("random: %s unblock wait\n", __func__);
+		/* Only bother the console every 10 seconds or so */
+		if (spamcount == 0)
+			printf("random: %s unblock wait\n", __func__);
+		spamcount = (spamcount + 1)%100;
+		error = tsleep(&random_alg_context, PCATCH, "randseed", hz/10);
+		if ((error == ERESTART | error == EINTR))
+			break;
 	}
 	if (error == 0) {
 #if !defined(RANDOM_DUMMY)
