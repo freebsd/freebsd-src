@@ -99,8 +99,8 @@
 	if (!_rw_write_lock((rw), _tid))				\
 		_rw_wlock_hard((rw), _tid, (file), (line));		\
 	else 								\
-		LOCKSTAT_PROFILE_OBTAIN_LOCK_SUCCESS(rw__acquire, rw,	\
-		    0, 0, file, line);					\
+		LOCKSTAT_PROFILE_OBTAIN_RWLOCK_SUCCESS(rw__acquire, rw,	\
+		    0, 0, file, line, LOCKSTAT_WRITER);			\
 } while (0)
 
 /* Release a write lock. */
@@ -110,7 +110,8 @@
 	if ((rw)->rw_recurse)						\
 		(rw)->rw_recurse--;					\
 	else {								\
-		LOCKSTAT_PROFILE_RELEASE_LOCK(rw__release, rw);		\
+		LOCKSTAT_PROFILE_RELEASE_RWLOCK(rw__release, rw,	\
+		    LOCKSTAT_WRITER);					\
 		if (!_rw_write_unlock((rw), _tid))			\
 			_rw_wunlock_hard((rw), _tid, (file), (line));	\
 	}								\
