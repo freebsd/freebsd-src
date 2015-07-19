@@ -232,6 +232,97 @@ static const struct cheri_test cheri_tests[] = {
 	  .ct_cp2_exccode = CHERI_EXCCODE_ACCESS_EPCC },
 
 	/*
+	 * Test bounds on stack allocations.
+	 */
+	{ .ct_name = "test_bounds_stack_uint8",
+	  .ct_desc = "Check bounds on 8-bit stack allocation",
+	  .ct_func = test_bounds_stack_uint8, },
+
+	{ .ct_name = "test_bounds_stack_uint16",
+	  .ct_desc = "Check bounds on 16-bit stack allocation",
+	  .ct_func = test_bounds_stack_uint16, },
+
+	{ .ct_name = "test_bounds_stack_uint32",
+	  .ct_desc = "Check bounds 32-bit stack allocation",
+	  .ct_func = test_bounds_stack_uint32, },
+
+	{ .ct_name = "test_bounds_stack_uint64",
+	  .ct_desc = "Check bounds on 64-bit stack allocation",
+	  .ct_func = test_bounds_stack_uint64, },
+
+	{ .ct_name = "test_bounds_stack_cap",
+	  .ct_desc = "Check bounds on a capability stack allocation",
+	  .ct_func = test_bounds_stack_cap, },
+
+	{ .ct_name = "test_bounds_stack_16",
+	  .ct_desc = "Check bounds on a 16-byte stack allocation",
+	  .ct_func = test_bounds_stack_16, },
+
+	{ .ct_name = "test_bounds_stack_32",
+	  .ct_desc = "Check bounds on a 32-byte stack allocation",
+	  .ct_func = test_bounds_stack_32, },
+
+	{ .ct_name = "test_bounds_stack_64",
+	  .ct_desc = "Check bounds on a 64-byte stack allocation",
+	  .ct_func = test_bounds_stack_64, },
+
+	{ .ct_name = "test_bounds_stack_128",
+	  .ct_desc = "Check bounds on a 128-byte stack allocation",
+	  .ct_func = test_bounds_stack_128, },
+
+	{ .ct_name = "test_bounds_stack_256",
+	  .ct_desc = "Check bounds on a 256-byte stack allocation",
+	  .ct_func = test_bounds_stack_256, },
+
+	{ .ct_name = "test_bounds_stack_512",
+	  .ct_desc = "Check bounds on a 512-byte stack allocation",
+	  .ct_func = test_bounds_stack_512, },
+
+	{ .ct_name = "test_bounds_stack_1024",
+	  .ct_desc = "Check bounds on a 1,024-byte stack allocation",
+	  .ct_func = test_bounds_stack_1024, },
+
+	{ .ct_name = "test_bounds_stack_2048",
+	  .ct_desc = "Check bounds on a 2,048-byte stack allocation",
+	  .ct_func = test_bounds_stack_2048, },
+
+	{ .ct_name = "test_bounds_stack_4096",
+	  .ct_desc = "Check bounds on a 4,096-byte stack allocation",
+	  .ct_func = test_bounds_stack_4096, },
+
+	{ .ct_name = "test_bounds_stack_8192",
+	  .ct_desc = "Check bounds on a 8,192-byte stack allocation",
+	  .ct_func = test_bounds_stack_8192, },
+
+	{ .ct_name = "test_bounds_stack_16384",
+	  .ct_desc = "Check bounds on a 16,384-byte stack allocation",
+	  .ct_func = test_bounds_stack_16384, },
+
+	{ .ct_name = "test_bounds_stack_32768",
+	  .ct_desc = "Check bounds on a 32,768-byte stack allocation",
+	  .ct_func = test_bounds_stack_32768, },
+
+	{ .ct_name = "test_bounds_stack_65536",
+	  .ct_desc = "Check bounds on a 65,536-byte stack allocation",
+	  .ct_func = test_bounds_stack_65536, },
+
+	{ .ct_name = "test_bounds_stack_131072",
+	  .ct_desc = "Check bounds on a 131,072-byte stack allocation",
+	  .ct_func = test_bounds_stack_131072, },
+
+	{ .ct_name = "test_bounds_stack_262144",
+	  .ct_desc = "Check bounds on a 262,144-byte stack allocation",
+	  .ct_func = test_bounds_stack_262144, },
+
+	{ .ct_name = "test_bounds_stack_524288",
+	  .ct_desc = "Check bounds on a 524,288-byte stack allocation",
+	  .ct_func = test_bounds_stack_524288, },
+
+	{ .ct_name = "test_bounds_stack_1048576",
+	  .ct_desc = "Check bounds on a 1,048,576-byte stack allocation",
+	  .ct_func = test_bounds_stack_1048576, },
+
+	/*
 	 * Unsandboxed virtual-memory tests.
 	 */
 	{ .ct_name = "cheritest_vm_tag_mmap_anon",

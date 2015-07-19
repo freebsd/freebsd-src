@@ -130,6 +130,30 @@ void	cheritest_failure_err(const char *msg, ...) __dead2;
 void	cheritest_failure_errx(const char *msg, ...) __dead2;
 void	cheritest_success(void) __dead2;
 
+/* cheritest_bounds.c */
+void	test_bounds_stack_uint8(const struct cheri_test *ctp);
+void	test_bounds_stack_uint16(const struct cheri_test *ctp);
+void	test_bounds_stack_uint32(const struct cheri_test *ctp);
+void	test_bounds_stack_uint64(const struct cheri_test *ctp);
+void	test_bounds_stack_cap(const struct cheri_test *ctp);
+void	test_bounds_stack_16(const struct cheri_test *ctp);
+void	test_bounds_stack_32(const struct cheri_test *ctp);
+void	test_bounds_stack_64(const struct cheri_test *ctp);
+void	test_bounds_stack_128(const struct cheri_test *ctp);
+void	test_bounds_stack_256(const struct cheri_test *ctp);
+void	test_bounds_stack_512(const struct cheri_test *ctp);
+void	test_bounds_stack_1024(const struct cheri_test *ctp);
+void	test_bounds_stack_2048(const struct cheri_test *ctp);
+void	test_bounds_stack_4096(const struct cheri_test *ctp);
+void	test_bounds_stack_8192(const struct cheri_test *ctp);
+void	test_bounds_stack_16384(const struct cheri_test *ctp);
+void	test_bounds_stack_32768(const struct cheri_test *ctp);
+void	test_bounds_stack_65536(const struct cheri_test *ctp);
+void	test_bounds_stack_131072(const struct cheri_test *ctp);
+void	test_bounds_stack_262144(const struct cheri_test *ctp);
+void	test_bounds_stack_524288(const struct cheri_test *ctp);
+void	test_bounds_stack_1048576(const struct cheri_test *ctp);
+
 /* cheritest_ccall.c */
 void	cheritest_ccall_setup(void);
 void	test_nofault_ccall_creturn(const struct cheri_test *ctp);
