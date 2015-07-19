@@ -1231,17 +1231,14 @@ intr_event_execute_handlers(struct proc *p, struct intr_event *ie)
 		 * For software interrupt threads, we only execute
 		 * handlers that have their need flag set.  Hardware
 		 * interrupt threads always invoke all of their handlers.
+		 *
+		 * ih_need can only be 0 or 1.  Failed cmpset below
+		 * means that there is no request to execute handlers,
+		 * so a retry of the cmpset is not needed.
 		 */
-		if ((ie->ie_flags & IE_SOFT) != 0) {
-			/*
-			 * ih_need can only be 0 or 1.  Failed cmpset
-			 * below means that there is no request to
-			 * execute handlers, so a retry of the cmpset
-			 * is not needed.
-			 */
-			if (atomic_cmpset_int(&ih->ih_need, 1, 0) == 0)
-				continue;
-		}
+		if ((ie->ie_flags & IE_SOFT) != 0 &&
+		    atomic_cmpset_int(&ih->ih_need, 1, 0) == 0)
+			continue;
 
 		/* Execute this handler. */
 		CTR6(KTR_INTR, "%s: pid %d exec %p(%p) for %s flg=%x",
