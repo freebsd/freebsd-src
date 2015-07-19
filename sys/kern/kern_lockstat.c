@@ -43,16 +43,16 @@ SDT_PROBE_DEFINE1(lockstat, , , spin__acquire, "struct mtx *");
 SDT_PROBE_DEFINE1(lockstat, , , spin__release, "struct mtx *");
 SDT_PROBE_DEFINE2(lockstat, , , spin__spin, "struct mtx *", "uint64_t");
 
-SDT_PROBE_DEFINE1(lockstat, , , rw__acquire, "struct rwlock *");
-SDT_PROBE_DEFINE1(lockstat, , , rw__release, "struct rwlock *");
+SDT_PROBE_DEFINE2(lockstat, , , rw__acquire, "struct rwlock *", "int");
+SDT_PROBE_DEFINE2(lockstat, , , rw__release, "struct rwlock *", "int");
 SDT_PROBE_DEFINE5(lockstat, , , rw__block, "struct rwlock *", "uint64_t", "int",
     "int", "int");
 SDT_PROBE_DEFINE2(lockstat, , , rw__spin, "struct rwlock *", "uint64_t");
 SDT_PROBE_DEFINE1(lockstat, , , rw__upgrade, "struct rwlock *");
 SDT_PROBE_DEFINE1(lockstat, , , rw__downgrade, "struct rwlock *");
 
-SDT_PROBE_DEFINE1(lockstat, , , sx__acquire, "struct sx *");
-SDT_PROBE_DEFINE1(lockstat, , , sx__release, "struct sx *");
+SDT_PROBE_DEFINE2(lockstat, , , sx__acquire, "struct sx *", "int");
+SDT_PROBE_DEFINE2(lockstat, , , sx__release, "struct sx *", "int");
 SDT_PROBE_DEFINE5(lockstat, , , sx__block, "struct sx *", "uint64_t", "int",
     "int", "int");
 SDT_PROBE_DEFINE2(lockstat, , , sx__spin, "struct sx *", "uint64_t");
