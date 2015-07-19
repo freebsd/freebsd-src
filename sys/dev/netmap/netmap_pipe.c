@@ -616,7 +616,7 @@ netmap_get_pipe_na(struct nmreq *nmr, struct netmap_adapter **na, int create)
 	sna = malloc(sizeof(*mna), M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (sna == NULL) {
 		error = ENOMEM;
-		goto free_mna;
+		goto unregister_mna;
 	}
 	/* most fields are the same, copy from master and then fix */
 	*sna = *mna;
@@ -666,6 +666,8 @@ found:
 
 free_sna:
 	free(sna, M_DEVBUF);
+unregister_mna:
+	netmap_pipe_remove(pna, mna);
 free_mna:
 	free(mna, M_DEVBUF);
 put_out:
