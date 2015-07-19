@@ -326,6 +326,7 @@ netmap_monitor_stop(struct netmap_adapter *na)
 				struct netmap_monitor_adapter *mna =
 					(struct netmap_monitor_adapter *)mkring->na;
 				/* forget about this adapter */
+				netmap_adapter_put(mna->priv.np_na);
 				mna->priv.np_na = NULL;
 			}
 		}
