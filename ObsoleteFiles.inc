@@ -38,6 +38,8 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20150719: Remove libarchive.pc
+OLD_FILES+=usr/libdata/pkgconfig/libarchive.pc
 # 20150705: Rename DTrace provider man pages.
 OLD_FILES+=usr/share/man/man4/dtrace-io.4.gz
 OLD_FILES+=usr/share/man/man4/dtrace-ip.4.gz
