@@ -288,7 +288,7 @@ sx_try_slock_(struct sx *sx, const char *file, int line)
 		if (atomic_cmpset_acq_ptr(&sx->sx_lock, x, x + SX_ONE_SHARER)) {
 			LOCK_LOG_TRY("SLOCK", &sx->lock_object, 0, 1, file, line);
 			WITNESS_LOCK(&sx->lock_object, LOP_TRYLOCK, file, line);
-			LOCKSTAT_PROFILE_OBTAIN_LOCK_SUCCESS(LS_SX_SLOCK_ACQUIRE,
+			LOCKSTAT_PROFILE_OBTAIN_LOCK_SUCCESS(sx__acquire,
 			    sx, 0, 0, file, line);
 			curthread->td_locks++;
 			return (1);
@@ -351,7 +351,7 @@ sx_try_xlock_(struct sx *sx, const char *file, int line)
 		WITNESS_LOCK(&sx->lock_object, LOP_EXCLUSIVE | LOP_TRYLOCK,
 		    file, line);
 		if (!sx_recursed(sx))
-			LOCKSTAT_PROFILE_OBTAIN_LOCK_SUCCESS(LS_SX_XLOCK_ACQUIRE,
+			LOCKSTAT_PROFILE_OBTAIN_LOCK_SUCCESS(sx__acquire,
 			    sx, 0, 0, file, line);
 		curthread->td_locks++;
 	}
@@ -420,7 +420,7 @@ sx_try_upgrade_(struct sx *sx, const char *file, int line)
 	if (success) {
 		WITNESS_UPGRADE(&sx->lock_object, LOP_EXCLUSIVE | LOP_TRYLOCK,
 		    file, line);
-		LOCKSTAT_RECORD0(LS_SX_TRYUPGRADE_UPGRADE, sx);
+		LOCKSTAT_RECORD0(sx__upgrade, sx);
 	}
 	return (success);
 }
@@ -486,7 +486,7 @@ sx_downgrade_(struct sx *sx, const char *file, int line)
 	sleepq_release(&sx->lock_object);
 
 	LOCK_LOG_LOCK("XDOWNGRADE", &sx->lock_object, 0, 0, file, line);
-	LOCKSTAT_RECORD0(LS_SX_DOWNGRADE_DOWNGRADE, sx);
+	LOCKSTAT_RECORD0(sx__downgrade, sx);
 
 	if (wakeup_swapper)
 		kick_proc0();
@@ -719,16 +719,16 @@ _sx_xlock_hard(struct sx *sx, uintptr_t tid, int opts, const char *file,
 #ifdef KDTRACE_HOOKS
 	all_time += lockstat_nsecs(&sx->lock_object);
 	if (sleep_time)
-		LOCKSTAT_RECORD4(LS_SX_XLOCK_BLOCK, sx, sleep_time,
+		LOCKSTAT_RECORD4(sx__block, sx, sleep_time,
 		    LOCKSTAT_WRITER, (state & SX_LOCK_SHARED) == 0,
 		    (state & SX_LOCK_SHARED) == 0 ? 0 : SX_SHARERS(state));
 	if (spin_cnt > sleep_cnt)
-		LOCKSTAT_RECORD4(LS_SX_XLOCK_SPIN, sx, all_time - sleep_time,
+		LOCKSTAT_RECORD4(sx__spin, sx, all_time - sleep_time,
 		    LOCKSTAT_WRITER, (state & SX_LOCK_SHARED) == 0,
 		    (state & SX_LOCK_SHARED) == 0 ? 0 : SX_SHARERS(state));
 #endif
 	if (!error)
-		LOCKSTAT_PROFILE_OBTAIN_LOCK_SUCCESS(LS_SX_XLOCK_ACQUIRE, sx,
+		LOCKSTAT_PROFILE_OBTAIN_LOCK_SUCCESS(sx__acquire, sx,
 		    contested, waittime, file, line);
 	GIANT_RESTORE();
 	return (error);
@@ -983,17 +983,17 @@ _sx_slock_hard(struct sx *sx, int opts, const char *file, int line)
 #ifdef KDTRACE_HOOKS
 	all_time += lockstat_nsecs(&sx->lock_object);
 	if (sleep_time)
-		LOCKSTAT_RECORD4(LS_SX_SLOCK_BLOCK, sx, sleep_time,
+		LOCKSTAT_RECORD4(sx__block, sx, sleep_time,
 		    LOCKSTAT_READER, (state & SX_LOCK_SHARED) == 0,
 		    (state & SX_LOCK_SHARED) == 0 ? 0 : SX_SHARERS(state));
 	if (spin_cnt > sleep_cnt)
-		LOCKSTAT_RECORD4(LS_SX_SLOCK_SPIN, sx, all_time - sleep_time,
+		LOCKSTAT_RECORD4(sx__spin, sx, all_time - sleep_time,
 		    LOCKSTAT_READER, (state & SX_LOCK_SHARED) == 0,
 		    (state & SX_LOCK_SHARED) == 0 ? 0 : SX_SHARERS(state));
 #endif
 	if (error == 0)
-		LOCKSTAT_PROFILE_OBTAIN_LOCK_SUCCESS(LS_SX_SLOCK_ACQUIRE, sx,
-		    contested, waittime, file, line);
+		LOCKSTAT_PROFILE_OBTAIN_LOCK_SUCCESS(sx__acquire, sx, contested,
+		    waittime, file, line);
 	GIANT_RESTORE();
 	return (error);
 }
