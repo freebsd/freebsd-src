@@ -117,7 +117,6 @@ static void random_yarrow_deinit_alg(void *);
 
 static void random_yarrow_reseed_internal(u_int);
 
-/* Interface to Adaptors system */
 struct random_algorithm random_alg_context = {
 	.ra_ident = "Yarrow",
 	.ra_init_alg = random_yarrow_init_alg,
