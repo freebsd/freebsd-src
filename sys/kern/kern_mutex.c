@@ -349,7 +349,7 @@ _mtx_trylock_flags_(volatile uintptr_t *c, int opts, const char *file, int line)
 		    file, line);
 		curthread->td_locks++;
 		if (m->mtx_recurse == 0)
-			LOCKSTAT_PROFILE_OBTAIN_LOCK_SUCCESS(LS_MTX_LOCK_ACQUIRE,
+			LOCKSTAT_PROFILE_OBTAIN_LOCK_SUCCESS(adaptive__acquire,
 			    m, contested, waittime, file, line);
 
 	}
@@ -531,17 +531,17 @@ __mtx_lock_sleep(volatile uintptr_t *c, uintptr_t tid, int opts,
 		    m->lock_object.lo_name, (void *)tid, file, line);
 	}
 #endif
-	LOCKSTAT_PROFILE_OBTAIN_LOCK_SUCCESS(LS_MTX_LOCK_ACQUIRE, m, contested,
+	LOCKSTAT_PROFILE_OBTAIN_LOCK_SUCCESS(adaptive__acquire, m, contested,
 	    waittime, file, line);
 #ifdef KDTRACE_HOOKS
 	if (sleep_time)
-		LOCKSTAT_RECORD1(LS_MTX_LOCK_BLOCK, m, sleep_time);
+		LOCKSTAT_RECORD1(adaptive__block, m, sleep_time);
 
 	/*
 	 * Only record the loops spinning and not sleeping. 
 	 */
 	if (spin_cnt > sleep_cnt)
-		LOCKSTAT_RECORD1(LS_MTX_LOCK_SPIN, m, (all_time - sleep_time));
+		LOCKSTAT_RECORD1(adaptive__spin, m, all_time - sleep_time);
 #endif
 }
 
@@ -628,11 +628,11 @@ _mtx_lock_spin_cookie(volatile uintptr_t *c, uintptr_t tid, int opts,
 	KTR_STATE0(KTR_SCHED, "thread", sched_tdname((struct thread *)tid),
 	    "running");
 
-	LOCKSTAT_PROFILE_OBTAIN_LOCK_SUCCESS(LS_MTX_SPIN_LOCK_ACQUIRE, m,
-	    contested, waittime, (file), (line));
 #ifdef KDTRACE_HOOKS
+	LOCKSTAT_PROFILE_OBTAIN_LOCK_SUCCESS(spin__acquire, m,
+	    contested, waittime, file, line);
 	if (spin_time != 0)
-		LOCKSTAT_RECORD1(LS_MTX_SPIN_LOCK_SPIN, m, spin_time);
+		LOCKSTAT_RECORD1(spin__spin, m, spin_time);
 #endif
 }
 #endif /* SMP */
@@ -709,12 +709,12 @@ retry:
 	spin_time += lockstat_nsecs(&m->lock_object);
 #endif
 	if (m->mtx_recurse == 0)
-		LOCKSTAT_PROFILE_OBTAIN_LOCK_SUCCESS(LS_MTX_SPIN_LOCK_ACQUIRE,
-		    m, contested, waittime, (file), (line));
+		LOCKSTAT_PROFILE_OBTAIN_LOCK_SUCCESS(spin__acquire, m,
+		    contested, waittime, file, line);
 	LOCK_LOG_LOCK("LOCK", &m->lock_object, opts, m->mtx_recurse, file,
 	    line);
 	WITNESS_LOCK(&m->lock_object, opts | LOP_EXCLUSIVE, file, line);
-	LOCKSTAT_RECORD1(LS_THREAD_LOCK_SPIN, m, spin_time);
+	LOCKSTAT_RECORD1(thread__spin, m, spin_time);
 }
 
 struct mtx *

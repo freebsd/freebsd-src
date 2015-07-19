@@ -22,7 +22,6 @@ options 	KDTRACE_HOOKS
 #device		dtrace
 
 # DTrace modules
-#device		dtrace_lockstat
 #device		dtrace_profile
 #device		dtrace_sdt
 #device		dtrace_fbt
