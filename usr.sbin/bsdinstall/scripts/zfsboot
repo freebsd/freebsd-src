@@ -1,6 +1,6 @@
 #!/bin/sh
 #-
-# Copyright (c) 2013-2014 Allan Jude
+# Copyright (c) 2013-2015 Allan Jude
 # Copyright (c) 2013-2015 Devin Teske
 # All rights reserved.
 #
@@ -157,6 +157,7 @@ f_isset ZFSBOOT_DATASETS || ZFSBOOT_DATASETS="
 
 	# Create /var and friends
 	/var		mountpoint=/var,canmount=off
+	/var/audit	exec=off,setuid=off
 	/var/crash	exec=off,setuid=off
 	/var/log	exec=off,setuid=off
 	/var/mail	atime=on
@@ -185,11 +186,11 @@ ECHO_APPEND='echo "%s" >> "%s"'
 GELI_ATTACH='geli attach -j - -k "%s" "%s"'
 GELI_DETACH_F='geli detach -f "%s"'
 GELI_PASSWORD_INIT='geli init -b -B "%s" -e %s -J - -K "%s" -l 256 -s 4096 "%s"'
-GPART_ADD='gpart add -t %s "%s"'
-GPART_ADD_INDEX='gpart add -i %s -t %s "%s"'
-GPART_ADD_INDEX_WITH_SIZE='gpart add -i %s -t %s -s %s "%s"'
-GPART_ADD_LABEL='gpart add -l %s -t %s "%s"'
-GPART_ADD_LABEL_WITH_SIZE='gpart add -l %s -t %s -s %s "%s"'
+GPART_ADD_ALIGN='gpart add %s -t %s "%s"'
+GPART_ADD_ALIGN_INDEX='gpart add %s -i %s -t %s "%s"'
+GPART_ADD_ALIGN_INDEX_WITH_SIZE='gpart add %s -i %s -t %s -s %s "%s"'
+GPART_ADD_ALIGN_LABEL='gpart add %s -l %s -t %s "%s"'
+GPART_ADD_ALIGN_LABEL_WITH_SIZE='gpart add %s -l %s -t %s -s %s "%s"'
 GPART_BOOTCODE='gpart bootcode -b "%s" "%s"'
 GPART_BOOTCODE_PART='gpart bootcode -b "%s" -p "%s" -i %s "%s"'
 GPART_CREATE='gpart create -s %s "%s"'
@@ -235,7 +236,7 @@ msg_encrypt_disks="Encrypt Disks?"
 msg_encrypt_disks_help="Use geli(8) to encrypt all data partitions"
 msg_error="Error"
 msg_force_4k_sectors="Force 4K Sectors?"
-msg_force_4k_sectors_help="Use sysctl(8) vfs.zfs.min_auto_ashift=12 to force 4K sectors"
+msg_force_4k_sectors_help="Align partitions to 4K sector boundries and set vfs.zfs.min_auto_ashift=12"
 msg_freebsd_installer="FreeBSD Installer"
 msg_geli_password="Enter a strong passphrase, used to protect your encryption keys. You will be required to enter this passphrase each time the system is booted"
 msg_geli_setup="Initializing encryption on selected disks,\n this will take several seconds per disk"
@@ -810,7 +811,20 @@ zfs_create_diskpart()
 	#
 	# Lay down the desired type of partition scheme
 	#
-	local setsize mbrindex
+	local setsize mbrindex align_small align_big
+	#
+	# If user has requested 4 K alignment, add these params to the
+	# gpart add calls. With GPT, we align large partitions to 1 M for
+	# improved performance on SSDs. MBR does not always play well with gaps
+	# between partitions, so all alignment is only 4k for that case.
+	# With MBR, we align the BSD partition that contains the MBR, otherwise
+	# the system fails to boot.
+	#
+	if [ "$ZFSBOOT_FORCE_4K_SECTORS" ]; then
+		align_small="-a 4k"
+		align_big="-a 1m"
+	fi
+
 	case "$ZFSBOOT_PARTITION_SCHEME" in
 	""|GPT) f_dprintf "$funcname: Creating GPT layout..."
 		#
@@ -822,8 +836,8 @@ zfs_create_diskpart()
 		#
 		# 2. Add small freebsd-boot partition labeled `boot#'
 		#
-		f_eval_catch $funcname gpart "$GPART_ADD_LABEL_WITH_SIZE" \
-		             gptboot$index freebsd-boot 512k $disk ||
+		f_eval_catch $funcname gpart "$GPART_ADD_ALIGN_LABEL_WITH_SIZE" \
+		             "$align_small" gptboot$index freebsd-boot 512k $disk ||
 		             return $FAILURE
 		f_eval_catch $funcname gpart "$GPART_BOOTCODE_PART" \
 		             /boot/pmbr /boot/gptzfsboot 1 $disk ||
@@ -840,8 +854,9 @@ zfs_create_diskpart()
 			bootpart=p2 swappart=p3 targetpart=p3
 			[ ${swapsize:-0} -gt 0 ] && targetpart=p4
 			f_eval_catch $funcname gpart \
-			             "$GPART_ADD_LABEL_WITH_SIZE" boot$index \
-			             freebsd-zfs ${bootsize}b $disk ||
+			             "$GPART_ADD_ALIGN_LABEL_WITH_SIZE" \
+			             "$align_big" boot$index freebsd-zfs \
+			             ${bootsize}b $disk ||
 			             return $FAILURE
 			# Pedantically nuke any old labels
 			f_eval_catch -d $funcname zpool "$ZPOOL_LABELCLEAR_F" \
@@ -859,8 +874,9 @@ zfs_create_diskpart()
 		#
 		if [ ${swapsize:-0} -gt 0 ]; then
 			f_eval_catch $funcname gpart \
-			             "$GPART_ADD_LABEL_WITH_SIZE" swap$index \
-			             freebsd-swap ${swapsize}b $disk ||
+			             "$GPART_ADD_ALIGN_LABEL_WITH_SIZE" \
+			             "$align_big" swap$index freebsd-swap \
+			             ${swapsize}b $disk ||
 			             return $FAILURE
 			# Pedantically nuke any old labels on the swap
 			f_eval_catch -d $funcname zpool "$ZPOOL_LABELCLEAR_F" \
@@ -870,8 +886,9 @@ zfs_create_diskpart()
 		#
 		# 4. Add freebsd-zfs partition labeled `zfs#' for zroot
 		#
-		f_eval_catch $funcname gpart "$GPART_ADD_LABEL" \
-		             zfs$index freebsd-zfs $disk || return $FAILURE
+		f_eval_catch $funcname gpart "$GPART_ADD_ALIGN_LABEL" \
+		             "$align_big" zfs$index freebsd-zfs $disk ||
+		             return $FAILURE
 		f_eval_catch -d $funcname zpool "$ZPOOL_LABELCLEAR_F" \
 		                /dev/$disk$targetpart
 		;;
@@ -888,7 +905,8 @@ zfs_create_diskpart()
 		#
 		# 2. Add freebsd slice with all available space
 		#
-		f_eval_catch $funcname gpart "$GPART_ADD" freebsd $disk ||
+		f_eval_catch $funcname gpart "$GPART_ADD_ALIGN" "$align_small" \
+		             freebsd $disk ||
 		             return $FAILURE
 		f_eval_catch $funcname gpart "$GPART_SET_ACTIVE" 1 $disk ||
 		             return $FAILURE
@@ -912,8 +930,8 @@ zfs_create_diskpart()
 		#
 		ZFSBOOT_BOOT_POOL=1
 		f_eval_catch $funcname gpart \
-		             "$GPART_ADD_INDEX_WITH_SIZE" \
-		             1 freebsd-zfs ${bootsize}b ${disk}s1 ||
+		             "$GPART_ADD_ALIGN_INDEX_WITH_SIZE" \
+		             "$align_small" 1 freebsd-zfs ${bootsize}b ${disk}s1 ||
 		             return $FAILURE
 		# Pedantically nuke any old labels
 		f_eval_catch -d $funcname zpool "$ZPOOL_LABELCLEAR_F" \
@@ -930,8 +948,8 @@ zfs_create_diskpart()
 		#
 		if [ ${swapsize:-0} -gt 0 ]; then
 			f_eval_catch $funcname gpart \
-			             "$GPART_ADD_INDEX_WITH_SIZE" 2 \
-			             freebsd-swap ${swapsize}b ${disk}s1 ||
+			             "$GPART_ADD_ALIGN_INDEX_WITH_SIZE" \
+			             "$align_small" 2 freebsd-swap ${swapsize}b ${disk}s1 ||
 			             return $FAILURE
 			# Pedantically nuke any old labels on the swap
 			f_eval_catch -d $funcname zpool "$ZPOOL_LABELCLEAR_F" \
@@ -941,8 +959,8 @@ zfs_create_diskpart()
 		#
 		# 5. Add freebsd-zfs partition for zroot
 		#
-		f_eval_catch $funcname gpart "$GPART_ADD_INDEX" \
-		             $mbrindex freebsd-zfs ${disk}s1 || return $FAILURE
+		f_eval_catch $funcname gpart "$GPART_ADD_ALIGN_INDEX" \
+		             "$align_small" $mbrindex freebsd-zfs ${disk}s1 || return $FAILURE
 		f_eval_catch -d $funcname zpool "$ZPOOL_LABELCLEAR_F" \
 		                /dev/$disk$targetpart # Pedantic
 		f_eval_catch $funcname dd "$DD_WITH_OPTIONS" \
@@ -1236,12 +1254,21 @@ zfs_create_boot()
 		             return $FAILURE
 	done
 
+	#
+	# Set a mountpoint for the root of the pool so newly created datasets
+	# have a mountpoint to inherit
+	#
+	f_dprintf "$funcname: Setting mountpoint for root of the pool..."
+	f_eval_catch $funcname zfs "$ZFS_SET" \
+		"mountpoint=/$zroot_name" "$zroot_name" ||
+		return $FAILURE
+
 	# Touch up permissions on the tmp directories
 	f_dprintf "$funcname: Modifying directory permissions..."
 	local dir
 	for dir in /tmp /var/tmp; do
 		f_eval_catch $funcname chmod "$CHMOD_MODE" 1777 \
-		             $BSDINSTALL_CHROOTDIR$dir || return $FAILURE
+		             $BSDINSTALL_CHROOT$dir || return $FAILURE
 	done
 
 	# Create symlink(s)
