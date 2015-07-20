@@ -31,8 +31,13 @@ __FBSDID("$FreeBSD$");
 #include <bootstrap.h>
 #include <sys/endian.h>
 
+#ifdef EFI
+/* In EFI, we don't need PTOV(). */
+#define PTOV(x)		(caddr_t)(x)
+#else
 #include "btxv86.h"
-#include "libi386.h"
+#endif
+#include "smbios.h"
 
 /*
  * Detect SMBIOS and export information about the SMBIOS into the
@@ -64,10 +69,24 @@ __FBSDID("$FreeBSD$");
 #define	SMBIOS_GETLEN(base)	SMBIOS_GET8(base, 0x01)
 #define	SMBIOS_GETSTR(base)	((base) + SMBIOS_GETLEN(base))
 
-static uint32_t	smbios_enabled_memory = 0;
-static uint32_t	smbios_old_enabled_memory = 0;
-static uint8_t	smbios_enabled_sockets = 0;
-static uint8_t	smbios_populated_sockets = 0;
+struct smbios_attr {
+	int		probed;
+	caddr_t 	addr;
+	size_t		length;
+	size_t		count;
+	int		major;
+	int		minor;
+	int		ver;
+	const char*	bios_vendor;
+	const char*	maker;
+	const char*	product;
+	uint32_t	enabled_memory;
+	uint32_t	old_enabled_memory;
+	uint8_t		enabled_sockets;
+	uint8_t		populated_sockets;
+};
+
+static struct smbios_attr smbios;
 
 static uint8_t
 smbios_checksum(const caddr_t addr, const uint8_t len)
@@ -95,8 +114,8 @@ smbios_sigsearch(const caddr_t addr, const uint32_t len)
 	return (NULL);
 }
 
-static void
-smbios_setenv(const char *name, caddr_t addr, const int offset)
+static const char*
+smbios_getstring(caddr_t addr, const int offset)
 {
 	caddr_t		cp;
 	int		i, idx;
@@ -106,8 +125,19 @@ smbios_setenv(const char *name, caddr_t addr, const int offset)
 		cp = SMBIOS_GETSTR(addr);
 		for (i = 1; i < idx; i++)
 			cp += strlen(cp) + 1;
-		setenv(name, cp, 1);
+		return cp;
 	}
+	return (NULL);
+}
+
+static void
+smbios_setenv(const char *name, caddr_t addr, const int offset)
+{
+	const char*	val;
+
+	val = smbios_getstring(addr, offset);
+	if (val != NULL)
+		setenv(name, val, 1);
 }
 
 #ifdef SMBIOS_SERIAL_NUMBERS
@@ -183,7 +213,7 @@ smbios_setuuid(const char *name, const caddr_t addr, const int ver)
 #endif
 
 static caddr_t
-smbios_parse_table(const caddr_t addr, const int ver)
+smbios_parse_table(const caddr_t addr)
 {
 	caddr_t		cp;
 	int		proc, size, osize, type;
@@ -202,7 +232,7 @@ smbios_parse_table(const caddr_t addr, const int ver)
 		smbios_setenv("smbios.system.version", addr, 0x06);
 #ifdef SMBIOS_SERIAL_NUMBERS
 		smbios_setenv("smbios.system.serial", addr, 0x07);
-		smbios_setuuid("smbios.system.uuid", addr + 0x08, ver);
+		smbios_setuuid("smbios.system.uuid", addr + 0x08, smbios.ver);
 #endif
 		break;
 
@@ -244,9 +274,9 @@ smbios_parse_table(const caddr_t addr, const int ver)
 		 */
 		proc = SMBIOS_GET8(addr, 0x18);
 		if ((proc & 0x07) == 1)
-			smbios_enabled_sockets++;
+			smbios.enabled_sockets++;
 		if ((proc & 0x40) != 0)
-			smbios_populated_sockets++;
+			smbios.populated_sockets++;
 		break;
 
 	case 6:		/* 3.3.7 Memory Module Information (Type 6, Obsolete) */
@@ -264,7 +294,7 @@ smbios_parse_table(const caddr_t addr, const int ver)
 		 */
 		osize = SMBIOS_GET8(addr, 0x0a) & 0x7f;
 		if (osize > 0 && osize < 22)
-			smbios_old_enabled_memory += 1 << (osize + 10);
+			smbios.old_enabled_memory += 1 << (osize + 10);
 		break;
 
 	case 17:	/* 3.3.18 Memory Device (Type 17) */
@@ -278,7 +308,7 @@ smbios_parse_table(const caddr_t addr, const int ver)
 		 */
 		size = SMBIOS_GET16(addr, 0x0c);
 		if (size != 0 && size != 0xffff)
-			smbios_enabled_memory += (size & 0x8000) != 0 ?
+			smbios.enabled_memory += (size & 0x8000) != 0 ?
 			    (size & 0x7fff) : (size << 10);
 		break;
 
@@ -294,54 +324,120 @@ smbios_parse_table(const caddr_t addr, const int ver)
 	return (cp + 2);
 }
 
-void
-smbios_detect(void)
+static caddr_t
+smbios_find_struct(int type)
 {
-	char		buf[16];
-	caddr_t		addr, dmi, smbios;
-	size_t		count, length;
-	uint32_t	paddr;
-	int		i, major, minor, ver;
+	caddr_t		dmi;
+	int		i;
+
+	if (smbios.addr == NULL)
+		return (NULL);
+
+	for (dmi = smbios.addr, i = 0;
+	     dmi < smbios.addr + smbios.length && i < smbios.count; i++) {
+		if (SMBIOS_GET8(dmi, 0) == type)
+			return dmi;
+		/* Find structure terminator. */
+		dmi = SMBIOS_GETSTR(dmi);
+		while (SMBIOS_GET16(dmi, 0) != 0)
+			dmi++;
+		dmi += 2;
+	}
+
+	return (NULL);
+}
+
+static void
+smbios_probe(const caddr_t addr)
+{
+	caddr_t		saddr, info;
+	uintptr_t	paddr;
+
+	if (smbios.probed)
+		return;
+	smbios.probed = 1;
 
 	/* Search signatures and validate checksums. */
-	smbios = smbios_sigsearch(PTOV(SMBIOS_START), SMBIOS_LENGTH);
-	if (smbios == NULL)
+	saddr = smbios_sigsearch(addr ? addr : PTOV(SMBIOS_START),
+	    SMBIOS_LENGTH);
+	if (saddr == NULL)
 		return;
 
-	length = SMBIOS_GET16(smbios, 0x16);	/* Structure Table Length */
-	paddr = SMBIOS_GET32(smbios, 0x18);	/* Structure Table Address */
-	count = SMBIOS_GET16(smbios, 0x1c);	/* No of SMBIOS Structures */
-	ver = SMBIOS_GET8(smbios, 0x1e);	/* SMBIOS BCD Revision */
+	smbios.length = SMBIOS_GET16(saddr, 0x16);	/* Structure Table Length */
+	paddr = SMBIOS_GET32(saddr, 0x18);		/* Structure Table Address */
+	smbios.count = SMBIOS_GET16(saddr, 0x1c);	/* No of SMBIOS Structures */
+	smbios.ver = SMBIOS_GET8(saddr, 0x1e);		/* SMBIOS BCD Revision */
 
-	if (ver != 0) {
-		major = ver >> 4;
-		minor = ver & 0x0f;
-		if (major > 9 || minor > 9)
-			ver = 0;
+	if (smbios.ver != 0) {
+		smbios.major = smbios.ver >> 4;
+		smbios.minor = smbios.ver & 0x0f;
+		if (smbios.major > 9 || smbios.minor > 9)
+			smbios.ver = 0;
 	}
-	if (ver == 0) {
-		major = SMBIOS_GET8(smbios, 0x06); /* SMBIOS Major Version */
-		minor = SMBIOS_GET8(smbios, 0x07); /* SMBIOS Minor Version */
+	if (smbios.ver == 0) {
+		smbios.major = SMBIOS_GET8(saddr, 0x06);/* SMBIOS Major Version */
+		smbios.minor = SMBIOS_GET8(saddr, 0x07);/* SMBIOS Minor Version */
 	}
-	ver = (major << 8) | minor;
+	smbios.ver = (smbios.major << 8) | smbios.minor;
+	smbios.addr = PTOV(paddr);
 
-	addr = PTOV(paddr);
-	for (dmi = addr, i = 0; dmi < addr + length && i < count; i++)
-		dmi = smbios_parse_table(dmi, ver);
+	/* Get system information from SMBIOS */
+	info = smbios_find_struct(0x00);
+	if (info != NULL) {
+		smbios.bios_vendor = smbios_getstring(info, 0x04);
+	}
+	info = smbios_find_struct(0x01);
+	if (info != NULL) {
+		smbios.maker = smbios_getstring(info, 0x04);
+		smbios.product = smbios_getstring(info, 0x05);
+	}
+}
 
-	sprintf(buf, "%d.%d", major, minor);
+void
+smbios_detect(const caddr_t addr)
+{
+	char		buf[16];
+	caddr_t		dmi;
+	int		i;
+
+	smbios_probe(addr);
+	if (smbios.addr == NULL)
+		return;
+
+	for (dmi = smbios.addr, i = 0;
+	     dmi < smbios.addr + smbios.length && i < smbios.count; i++)
+		dmi = smbios_parse_table(dmi);
+
+	sprintf(buf, "%d.%d", smbios.major, smbios.minor);
 	setenv("smbios.version", buf, 1);
-	if (smbios_enabled_memory > 0 || smbios_old_enabled_memory > 0) {
-		sprintf(buf, "%u", smbios_enabled_memory > 0 ?
-		    smbios_enabled_memory : smbios_old_enabled_memory);
+	if (smbios.enabled_memory > 0 || smbios.old_enabled_memory > 0) {
+		sprintf(buf, "%u", smbios.enabled_memory > 0 ?
+		    smbios.enabled_memory : smbios.old_enabled_memory);
 		setenv("smbios.memory.enabled", buf, 1);
 	}
-	if (smbios_enabled_sockets > 0) {
-		sprintf(buf, "%u", smbios_enabled_sockets);
+	if (smbios.enabled_sockets > 0) {
+		sprintf(buf, "%u", smbios.enabled_sockets);
 		setenv("smbios.socket.enabled", buf, 1);
 	}
-	if (smbios_populated_sockets > 0) {
-		sprintf(buf, "%u", smbios_populated_sockets);
+	if (smbios.populated_sockets > 0) {
+		sprintf(buf, "%u", smbios.populated_sockets);
 		setenv("smbios.socket.populated", buf, 1);
 	}
+}
+
+static int
+smbios_match_str(const char* s1, const char* s2)
+{
+	return (s1 == NULL || (s2 != NULL && !strcmp(s1, s2)));
+}
+
+int
+smbios_match(const char* bios_vendor, const char* maker,
+    const char* product)
+{
+	/* XXXRP currently, only called from non-EFI. */
+	smbios_probe(NULL);
+	return (smbios_match_str(bios_vendor, smbios.bios_vendor) &&
+	    smbios_match_str(maker, smbios.maker) &&
+	    smbios_match_str(product, smbios.product));
 }
