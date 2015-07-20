@@ -2645,7 +2645,7 @@ extern kmem_cache_t	*zio_buf_cache[];
 extern kmem_cache_t	*zio_data_buf_cache[];
 extern kmem_cache_t	*range_seg_cache;
 
-static void __noinline
+static __noinline void
 arc_kmem_reap_now(arc_reclaim_strategy_t strat)
 {
 	size_t			i;
