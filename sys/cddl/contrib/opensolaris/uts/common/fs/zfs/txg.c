@@ -354,7 +354,7 @@ txg_rele_to_sync(txg_handle_t *th)
  * On return, the transaction group has reached a stable state in which it can
  * then be passed off to the syncing context.
  */
-static void
+static __noinline void
 txg_quiesce(dsl_pool_t *dp, uint64_t txg)
 {
 	tx_state_t *tx = &dp->dp_tx;
