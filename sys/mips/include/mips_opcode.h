@@ -457,4 +457,13 @@ typedef union {
 #define	COPz_BCL_TRUE		0x02
 #define	COPz_BCL_FALSE		0x00
 
+#ifdef CPU_CHERI
+/*
+ * Some CHERI opcodes are known to the disassembler as they are exceptions to
+ * the normal (if any) formatting rules.
+ */
+#define	OP_CHERI_CGETCAUSE	0x04	/* CGetCause - 0x12 0x00 .. 0x04 */
+#define	OP_CHERI_CGETPCC	0x07	/* CGetPCC - 0x12 0x00 .. 0x07 */
+#endif
+
 #endif /* !_MACHINE_MIPS_OPCODE_H_ */

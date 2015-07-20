@@ -144,7 +144,7 @@ static const char *cheri_flow_control_opname[16] = {
 };
 static const char *cheri_cap_inspect_opname[8] = {
 	"CGetPerm", "CGetType", "CGetBase", "CGetLen",
-	"invalid", "CGetTag", "CGetSealed", "CGetPCC"
+	"CGetCause", "CGetTag", "CGetSealed", "CGetPCC"
 };
 static const char *cheri_cap_modify_name[8] = {
 	"CAndPerm", "CSetType", "CIncBase", "CSetLen",
@@ -296,10 +296,18 @@ md_printins(int ins, int mdbdot)
 		const char *operands[3] = { 0 };
 		switch (i.CType.fmt) {
 		case 0:
-			ops = 2;
 			opcode = cheri_cap_inspect_opname[i.CType.fmt2];
-			operands[0] = reg_name[i.CType.r1];
-			operands[1] = c2_reg[i.CType.r2];
+			if (i.CType.fmt2 == OP_CHERI_CGETPCC) {
+				ops = 1;
+				operands[0] = c2_reg[i.CType.r2];
+			} else if (i.CType.fmt2 == OP_CHERI_CGETCAUSE) {
+				ops = 1;
+				operands[0] = reg_name[i.CType.r1];
+			} else {
+				ops = 2;
+				operands[0] = reg_name[i.CType.r1];
+				operands[1] = c2_reg[i.CType.r2];
+			}
 			break;
 		case 4:
 			ops = i.CType.fmt2 == 5 ? 0 : 3;
