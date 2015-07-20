@@ -137,14 +137,12 @@ libusb20_parse_config_desc(const void *config_desc)
 	 * Make a copy of the config descriptor, so that the caller can free
 	 * the inital config descriptor pointer!
 	 */
-	ptr = (void *)(lub_endpoint + nendpoint);
-	memcpy(LIBUSB20_ADD_BYTES(ptr, 0), config_desc, pcdesc.len);
+	memcpy((void *)(lub_endpoint + nendpoint), config_desc, pcdesc.len);
+
+	ptr = (const void *)(lub_endpoint + nendpoint);
 	pcdesc.ptr = LIBUSB20_ADD_BYTES(ptr, 0);
-	config_desc = LIBUSB20_ADD_BYTES(ptr, 0);
 
 	/* init config structure */
-
-	ptr = config_desc;
 
 	LIBUSB20_INIT(LIBUSB20_CONFIG_DESC, &lub_config->desc);
 
