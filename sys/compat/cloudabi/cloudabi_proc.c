@@ -33,8 +33,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/signalvar.h>
 #include <sys/syscallsubr.h>
+#include <sys/unistd.h>
 
 #include <compat/cloudabi/cloudabi_proto.h>
+#include <compat/cloudabi/cloudabi_syscalldefs.h>
 
 int
 cloudabi_sys_proc_exec(struct thread *td,
@@ -65,9 +67,15 @@ int
 cloudabi_sys_proc_fork(struct thread *td,
     struct cloudabi_sys_proc_fork_args *uap)
 {
+	struct proc *p2;
+	int error, fd;
 
-	/* Not implemented. */
-	return (ENOSYS);
+	error = fork1(td, RFFDG | RFPROC | RFPROCDESC, 0, &p2, &fd, 0);
+	if (error != 0)
+		return (error);
+	/* Return the file descriptor to the parent process. */
+	td->td_retval[0] = fd;
+	return (0);
 }
 
 int

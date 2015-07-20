@@ -169,6 +169,16 @@ cloudabi64_set_syscall_retval(struct thread *td, int error)
 	}
 }
 
+static void
+cloudabi64_schedtail(struct thread *td)
+{
+	struct trapframe *frame = td->td_frame;
+
+	/* Initial register values for processes returning from fork. */
+	frame->tf_rax = CLOUDABI_PROCESS_CHILD;
+	frame->tf_rdx = td->td_tid;
+}
+
 static struct sysentvec cloudabi64_elf_sysvec = {
 	.sv_size		= CLOUDABI64_SYS_MAXSYSCALL,
 	.sv_table		= cloudabi64_sysent,
@@ -185,6 +195,7 @@ static struct sysentvec cloudabi64_elf_sysvec = {
 	.sv_set_syscall_retval	= cloudabi64_set_syscall_retval,
 	.sv_fetch_syscall_args	= cloudabi64_fetch_syscall_args,
 	.sv_syscallnames	= cloudabi64_syscallnames,
+	.sv_schedtail		= cloudabi64_schedtail,
 };
 
 INIT_SYSENTVEC(elf_sysvec, &cloudabi64_elf_sysvec);
