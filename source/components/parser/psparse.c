@@ -161,6 +161,8 @@ AcpiPsCompleteThisOp (
         return_ACPI_STATUS (AE_OK);  /* OK for now */
     }
 
+    AcpiExStopTraceOpcode (Op, WalkState);
+
     /* Delete this op and the subtree below it if asked to */
 
     if (((WalkState->ParseFlags & ACPI_PARSE_TREE_MASK) != ACPI_PARSE_DELETE_TREE) ||
@@ -198,7 +200,8 @@ AcpiPsCompleteThisOp (
              * These opcodes contain TermArg operands. The current
              * op must be replaced by a placeholder return op
              */
-            ReplacementOp = AcpiPsAllocOp (AML_INT_RETURN_VALUE_OP);
+            ReplacementOp = AcpiPsAllocOp (AML_INT_RETURN_VALUE_OP,
+                                Op->Common.Aml);
             if (!ReplacementOp)
             {
                 Status = AE_NO_MEMORY;
@@ -217,7 +220,8 @@ AcpiPsCompleteThisOp (
                 (Op->Common.Parent->Common.AmlOpcode == AML_BANK_FIELD_OP)   ||
                 (Op->Common.Parent->Common.AmlOpcode == AML_VAR_PACKAGE_OP))
             {
-                ReplacementOp = AcpiPsAllocOp (AML_INT_RETURN_VALUE_OP);
+                ReplacementOp = AcpiPsAllocOp (AML_INT_RETURN_VALUE_OP,
+                                    Op->Common.Aml);
                 if (!ReplacementOp)
                 {
                     Status = AE_NO_MEMORY;
@@ -230,7 +234,8 @@ AcpiPsCompleteThisOp (
                     (Op->Common.AmlOpcode == AML_PACKAGE_OP) ||
                     (Op->Common.AmlOpcode == AML_VAR_PACKAGE_OP))
                 {
-                    ReplacementOp = AcpiPsAllocOp (Op->Common.AmlOpcode);
+                    ReplacementOp = AcpiPsAllocOp (Op->Common.AmlOpcode,
+                                        Op->Common.Aml);
                     if (!ReplacementOp)
                     {
                         Status = AE_NO_MEMORY;
@@ -246,7 +251,8 @@ AcpiPsCompleteThisOp (
 
         default:
 
-            ReplacementOp = AcpiPsAllocOp (AML_INT_RETURN_VALUE_OP);
+            ReplacementOp = AcpiPsAllocOp (AML_INT_RETURN_VALUE_OP,
+                                Op->Common.Aml);
             if (!ReplacementOp)
             {
                 Status = AE_NO_MEMORY;

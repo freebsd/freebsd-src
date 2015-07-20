@@ -106,7 +106,6 @@ OBJECTS = \
 	$(OBJDIR)/dmdeferred.o\
 	$(OBJDIR)/dmextern.o\
 	$(OBJDIR)/dmnames.o\
-	$(OBJDIR)/dmobject.o\
 	$(OBJDIR)/dmopcode.o\
 	$(OBJDIR)/dmresrc.o\
 	$(OBJDIR)/dmresrcl.o\
@@ -208,6 +207,7 @@ OBJECTS = \
 	$(OBJDIR)/utmath.o\
 	$(OBJDIR)/utmisc.o\
 	$(OBJDIR)/utmutex.o\
+	$(OBJDIR)/utnonansi.o\
 	$(OBJDIR)/utobject.o\
 	$(OBJDIR)/utownerid.o\
 	$(OBJDIR)/utpredef.o\

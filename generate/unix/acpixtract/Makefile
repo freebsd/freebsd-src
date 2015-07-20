@@ -36,6 +36,7 @@ OBJECTS = \
     $(OBJDIR)/utexcep.o\
     $(OBJDIR)/utglobal.o\
     $(OBJDIR)/utmath.o\
+    $(OBJDIR)/utnonansi.o\
     $(OBJDIR)/utprint.o\
     $(OBJDIR)/utxferror.o
 

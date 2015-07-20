@@ -3122,6 +3122,77 @@ DtCompileStao (
 
 /******************************************************************************
  *
+ * FUNCTION:    DtCompileTcpa
+ *
+ * PARAMETERS:  PFieldList          - Current field list pointer
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Compile TCPA.
+ *
+ *****************************************************************************/
+
+ACPI_STATUS
+DtCompileTcpa (
+    void                    **List)
+{
+    DT_FIELD                **PFieldList = (DT_FIELD **) List;
+    DT_SUBTABLE             *Subtable;
+    ACPI_TABLE_TCPA_HDR     *TcpaHeader;
+    DT_SUBTABLE             *ParentTable;
+    ACPI_STATUS             Status;
+
+
+    /* Compile the main table */
+
+    Status = DtCompileTable (PFieldList, AcpiDmTableInfoTcpaHdr,
+            &Subtable, TRUE);
+    if (ACPI_FAILURE (Status))
+    {
+        return (Status);
+    }
+
+    ParentTable = DtPeekSubtable ();
+    DtInsertSubtable (ParentTable, Subtable);
+
+    /*
+     * Examine the PlatformClass field to determine the table type.
+     * Either a client or server table. Only one.
+     */
+    TcpaHeader = ACPI_CAST_PTR (ACPI_TABLE_TCPA_HDR, ParentTable->Buffer);
+
+    switch (TcpaHeader->PlatformClass)
+    {
+    case ACPI_TCPA_CLIENT_TABLE:
+
+        Status = DtCompileTable (PFieldList, AcpiDmTableInfoTcpaClient,
+                &Subtable, TRUE);
+        break;
+
+    case ACPI_TCPA_SERVER_TABLE:
+
+        Status = DtCompileTable (PFieldList, AcpiDmTableInfoTcpaServer,
+                &Subtable, TRUE);
+        break;
+
+    default:
+
+        AcpiOsPrintf ("\n**** Unknown TCPA Platform Class 0x%X\n",
+            TcpaHeader->PlatformClass);
+        Status = AE_ERROR;
+        break;
+    }
+
+
+        ParentTable = DtPeekSubtable ();
+        DtInsertSubtable (ParentTable, Subtable);
+
+    return (Status);
+}
+
+
+/******************************************************************************
+ *
  * FUNCTION:    DtGetGenericTableInfo
  *
  * PARAMETERS:  Name                - Generic type name

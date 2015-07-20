@@ -426,7 +426,3 @@ AsInsertCarriageReturns (
 void
 AsConvertToLineFeeds (
     char                    *Buffer);
-
-void
-AsStrlwr (
-    char                    *SrcString);

@@ -50,14 +50,22 @@
 #define STRING_SETUP    strcpy (StringBuffer, PrParsertext);\
     PrParserlval.str = StringBuffer
 
-#define YY_NO_INPUT     /* No file input, we use strings only */
-
 #define _COMPONENT          ACPI_COMPILER
         ACPI_MODULE_NAME    ("prscanner")
+
+
+/* Local prototypes */
+
+static char
+PrDoCommentType1 (
+    void);
+
+static char
+PrDoCommentType2 (
+    void);
 %}
 
 %option noyywrap
-%option nounput
 
 Number          [0-9a-fA-F]+
 HexNumber       0[xX][0-9a-fA-F]+
@@ -66,6 +74,8 @@ NewLine         [\n]
 Identifier      [a-zA-Z][0-9a-zA-Z]*
 
 %%
+"/*"            { if (!PrDoCommentType1 ()) {yyterminate ();} }
+"//"            { if (!PrDoCommentType2 ()) {yyterminate ();} }
 
 \(              return (EXPOP_PAREN_OPEN);
 \)              return (EXPOP_PAREN_CLOSE);
@@ -150,4 +160,77 @@ PrTerminateLexer (
 {
 
     yy_delete_buffer (LexBuffer);
+}
+
+
+/********************************************************************************
+ *
+ * FUNCTION:    PrDoCommentType1
+ *
+ * PARAMETERS:  none
+ *
+ * RETURN:      none
+ *
+ * DESCRIPTION: Process a new legacy comment. Just toss it.
+ *
+ ******************************************************************************/
+
+static char
+PrDoCommentType1 (
+    void)
+{
+    int                 c;
+
+
+Loop:
+    while (((c = input ()) != '*') && (c != EOF))
+    {
+    }
+    if (c == EOF)
+    {
+        return (FALSE);
+    }
+
+    if (((c = input ()) != '/') && (c != EOF))
+    {
+        unput (c);
+        goto Loop;
+    }
+    if (c == EOF)
+    {
+        return (FALSE);
+    }
+
+    return (TRUE);
+}
+
+
+/********************************************************************************
+ *
+ * FUNCTION:    PrDoCommentType2
+ *
+ * PARAMETERS:  none
+ *
+ * RETURN:      none
+ *
+ * DESCRIPTION: Process a new "//" comment. Just toss it.
+ *
+ ******************************************************************************/
+
+static char
+PrDoCommentType2 (
+    void)
+{
+    int                 c;
+
+
+    while (((c = input ()) != '\n') && (c != EOF))
+    {
+    }
+    if (c == EOF)
+    {
+        return (FALSE);
+    }
+
+    return (TRUE);
 }

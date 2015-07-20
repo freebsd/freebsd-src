@@ -655,7 +655,7 @@ OptOptimizeNamePath (
      * format -- something we can easily manipulate
      */
     TargetPath.Length = ACPI_ALLOCATE_LOCAL_BUFFER;
-    Status = AcpiNsHandleToPathname (TargetNode, &TargetPath);
+    Status = AcpiNsHandleToPathname (TargetNode, &TargetPath, FALSE);
     if (ACPI_FAILURE (Status))
     {
         AslCoreSubsystemError (Op, Status, "Getting Target NamePath",
@@ -667,7 +667,7 @@ OptOptimizeNamePath (
     /* CurrentPath is the path to this scope (where we are in the namespace) */
 
     CurrentPath.Length = ACPI_ALLOCATE_LOCAL_BUFFER;
-    Status = AcpiNsHandleToPathname (CurrentNode, &CurrentPath);
+    Status = AcpiNsHandleToPathname (CurrentNode, &CurrentPath, FALSE);
     if (ACPI_FAILURE (Status))
     {
         AslCoreSubsystemError (Op, Status, "Getting Current NamePath",

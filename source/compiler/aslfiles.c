@@ -546,6 +546,26 @@ FlOpenMiscOutputFiles (
     char                    *Filename;
 
 
+     /* Create/Open a map file if requested */
+
+    if (Gbl_MapfileFlag)
+    {
+        Filename = FlGenerateFilename (FilenamePrefix, FILE_SUFFIX_MAP);
+        if (!Filename)
+        {
+            AslCommonError (ASL_ERROR, ASL_MSG_LISTING_FILENAME,
+                0, 0, 0, 0, NULL, NULL);
+            return (AE_ERROR);
+        }
+
+        /* Open the hex file, text mode (closed at compiler exit) */
+
+        FlOpenFile (ASL_FILE_MAP_OUTPUT, Filename, "w+t");
+
+        AslCompilerSignon (ASL_FILE_MAP_OUTPUT);
+        AslCompilerFileHeader (ASL_FILE_MAP_OUTPUT);
+    }
+
     /* All done for disassembler */
 
     if (Gbl_FileType == ASL_INPUT_TYPE_ACPI_TABLE)
@@ -810,26 +830,6 @@ FlOpenMiscOutputFiles (
 
         AslCompilerSignon (ASL_FILE_NAMESPACE_OUTPUT);
         AslCompilerFileHeader (ASL_FILE_NAMESPACE_OUTPUT);
-    }
-
-    /* Create/Open a map file if requested */
-
-    if (Gbl_MapfileFlag)
-    {
-        Filename = FlGenerateFilename (FilenamePrefix, FILE_SUFFIX_MAP);
-        if (!Filename)
-        {
-            AslCommonError (ASL_ERROR, ASL_MSG_LISTING_FILENAME,
-                0, 0, 0, 0, NULL, NULL);
-            return (AE_ERROR);
-        }
-
-        /* Open the hex file, text mode (closed at compiler exit) */
-
-        FlOpenFile (ASL_FILE_MAP_OUTPUT, Filename, "w+t");
-
-        AslCompilerSignon (ASL_FILE_MAP_OUTPUT);
-        AslCompilerFileHeader (ASL_FILE_MAP_OUTPUT);
     }
 
     return (AE_OK);

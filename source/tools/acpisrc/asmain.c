@@ -47,11 +47,6 @@
 /* Local prototypes */
 
 int
-AsStricmp (
-    char                    *String1,
-    char                    *String2);
-
-int
 AsExaminePaths (
     ACPI_CONVERSION_TABLE   *ConversionTable,
     char                    *Source,
@@ -104,38 +99,6 @@ BOOLEAN                 Gbl_IgnoreTranslationEscapes = FALSE;
 
 /******************************************************************************
  *
- * FUNCTION:    AsStricmp
- *
- * DESCRIPTION: Implementation of the non-ANSI stricmp function (compare
- *              strings with no case sensitivity)
- *
- ******************************************************************************/
-
-int
-AsStricmp (
-    char                    *String1,
-    char                    *String2)
-{
-    int                     c1;
-    int                     c2;
-
-
-    do
-    {
-        c1 = tolower ((int) *String1);
-        c2 = tolower ((int) *String2);
-
-        String1++;
-        String2++;
-    }
-    while ((c1 == c2) && (c1));
-
-    return (c1 - c2);
-}
-
-
-/******************************************************************************
- *
  * FUNCTION:    AsExaminePaths
  *
  * DESCRIPTION: Source and Target pathname verification and handling
@@ -177,7 +140,7 @@ AsExaminePaths (
         return (0);
     }
 
-    if (!AsStricmp (Source, Target))
+    if (!AcpiUtStricmp (Source, Target))
     {
         printf ("Target path is the same as the source path, overwrite?\n");
         Response = getchar ();

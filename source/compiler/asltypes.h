@@ -302,5 +302,19 @@ typedef struct acpi_serial_info
 
 } ACPI_SERIAL_INFO;
 
+typedef struct asl_method_local
+{
+    ACPI_PARSE_OBJECT       *Op;
+    UINT8                   Flags;
+
+} ASL_METHOD_LOCAL;
+
+/* Values for Flags field above */
+
+#define ASL_LOCAL_INITIALIZED   (1)
+#define ASL_LOCAL_REFERENCED    (1<<1)
+#define ASL_ARG_IS_LOCAL        (1<<2)
+#define ASL_ARG_INITIALIZED     (1<<3)
+#define ASL_ARG_REFERENCED      (1<<4)
 
 #endif  /* __ASLTYPES_H */

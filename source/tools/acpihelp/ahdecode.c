@@ -100,6 +100,18 @@ AhPrintOneField (
     const char              *Field);
 
 
+/*******************************************************************************
+ *
+ * FUNCTION:    AhDisplayDirectives
+ *
+ * PARAMETERS:  None
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Display all iASL preprocessor directives.
+ *
+ ******************************************************************************/
+
 void
 AhDisplayDirectives (
     void)
@@ -107,11 +119,11 @@ AhDisplayDirectives (
     const AH_DIRECTIVE_INFO *Info;
 
 
-    printf ("iASL Preprocessor directives:\n\n");
+    printf ("iASL Preprocessor Directives\n\n");
 
     for (Info = PreprocessorDirectives; Info->Name; Info++)
     {
-        printf ("%16s : %s\n", Info->Name, Info->Operands);
+        printf ("  %-36s : %s\n", Info->Name, Info->Description);
     }
 }
 
@@ -148,7 +160,7 @@ AhFindPredefinedNames (
 
     /* Contruct a local name or name prefix */
 
-    AhStrupr (NamePrefix);
+    AcpiUtStrupr (NamePrefix);
     if (*NamePrefix == '_')
     {
         NamePrefix++;
@@ -333,7 +345,7 @@ AhFindAmlOpcode (
     BOOLEAN                 Found = FALSE;
 
 
-    AhStrupr (Name);
+    AcpiUtStrupr (Name);
 
     /* Find/display all opcode names that match the input name prefix */
 
@@ -354,7 +366,7 @@ AhFindAmlOpcode (
         /* Upper case the opcode name before substring compare */
 
         strcpy (Gbl_Buffer, Op->OpcodeName);
-        AhStrupr (Gbl_Buffer);
+        AcpiUtStrupr (Gbl_Buffer);
 
         if (strstr (Gbl_Buffer, Name) == Gbl_Buffer)
         {
@@ -511,7 +523,7 @@ AhFindAslKeywords (
     BOOLEAN                 Found = FALSE;
 
 
-    AhStrupr (Name);
+    AcpiUtStrupr (Name);
 
     for (Keyword = AslKeywordInfo; Keyword->Name; Keyword++)
     {
@@ -525,7 +537,7 @@ AhFindAslKeywords (
         /* Upper case the operator name before substring compare */
 
         strcpy (Gbl_Buffer, Keyword->Name);
-        AhStrupr (Gbl_Buffer);
+        AcpiUtStrupr (Gbl_Buffer);
 
         if (strstr (Gbl_Buffer, Name) == Gbl_Buffer)
         {
@@ -626,7 +638,7 @@ AhFindAslOperators (
     BOOLEAN                 MatchCount = 0;
 
 
-    AhStrupr (Name);
+    AcpiUtStrupr (Name);
 
     /* Find/display all names that match the input name prefix */
 
@@ -642,7 +654,7 @@ AhFindAslOperators (
         /* Upper case the operator name before substring compare */
 
         strcpy (Gbl_Buffer, Operator->Name);
-        AhStrupr (Gbl_Buffer);
+        AcpiUtStrupr (Gbl_Buffer);
 
         if (strstr (Gbl_Buffer, Name) == Gbl_Buffer)
         {
@@ -866,7 +878,7 @@ AhDisplayDeviceIds (
 
     /* Find/display all names that match the input name prefix */
 
-    AhStrupr (Name);
+    AcpiUtStrupr (Name);
     for (Info = AslDeviceIds; Info->Name; Info++)
     {
         Matched = TRUE;
