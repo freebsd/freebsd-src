@@ -143,29 +143,12 @@ cheri_capability_set(struct chericap *cp, uint32_t perms, void *otypep,
 	register_t r;
 #endif
 
-	/*
-	 * XXXRW: For now, use the SOFT_CHERI_CSETBOUNDS() macro on 256-bit
-	 * CHERI, as the CSetBounds instruction is not consistently available
-	 * in older CHERI ISA models and prototypes.  Switch to the actual
-	 * instruction once it is more consistently available.
-	 */
-	CHERI_CSETOFFSET(CHERI_CR_CTEMP0, CHERI_CR_KDC, (register_t)basep);
-#if !defined(CPU_CHERI128) && !defined(CPU_CHERI_CSETBOUNDS)
-	SOFT_CHERI_CSETBOUNDS(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0,
-	    (register_t)length);
-#else
+	/* 'basep' is relative to $kdc. */
+	CHERI_CINCOFFSET(CHERI_CR_CTEMP0, CHERI_CR_KDC, (register_t)basep);
 	CHERI_CSETBOUNDS(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0,
 	    (register_t)length);
-#endif
 	CHERI_CANDPERM(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0, (register_t)perms);
-
-	/*
-	 * NB: With imprecise bounds, offset may be non-zero after setting up
-	 * bounds.  We therefore need to add the requested offset to the
-	 * actual one before installing, rather than simply setting it.
-	 */
-	CHERI_CINCOFFSET(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0,
-	    (register_t)off - (register_t)basep);
+	CHERI_CINCOFFSET(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0, (register_t)off);
 #if 0
 	/* XXXRW: For now, don't set type. */
 	CHERI_CSETTYPE(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0, (register_t)otypep);

@@ -95,39 +95,15 @@
 
 #define	cheri_local(c)		cheri_andperm((c), ~CHERI_PERM_GLOBAL)
 
-
-/*
- * XXXRW: For now, avoid CSetBounds in favour of CIncBase and CSetLen on
- * 256-bit CHERI.
- */
-#if CSETBOUNDS_AND_NEW_CFROMPTR || (defined(_MIPS_SZCAP) && ( _MIPS_SZCAP == 128))
 #define	cheri_csetbounds(x, y)	__builtin_memcap_bounds_set(		\
 				    __DECONST(__capability void *, (x)), (y))
-#else
-static inline __capability void *
-cheri_csetbounds(const __capability void *x, size_t y)
-{
-	register_t offset;
-
-	offset = cheri_getoffset(__DECONST(__capability void *, x));
-	return (cheri_setlen(cheri_incbase(cheri_setoffset(
-	    __DECONST(__capability void *, x), 0), offset), y));
-}
-#endif
-
 static __inline __capability void *
 cheri_ptr(const void *ptr, size_t len)
 {
 	const __capability void *c;
 
-#if CSETBOUNDS_AND_NEW_CFROMPTR || (defined(_MIPS_SZCAP) && ( _MIPS_SZCAP == 128))
 	/* Assume CFromPtr without base set, availability of CSetBounds. */
 	c = (const __capability void *)ptr;
-#else
-	if (ptr == (void *)0)
-		return ((__capability void *)0);
-	c = cheri_setoffset(cheri_getdefault(), (uintptr_t)ptr);
-#endif
 	return (cheri_csetbounds(c, len));
 }
 

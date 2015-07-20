@@ -104,7 +104,6 @@ FDT_DTB_STATIC_ONLY		opt_platform.h
 # Experimental support for 128-bit capabilities.
 #
 CPU_CHERI128			opt_global.h
-CPU_CHERI_CSETBOUNDS		opt_global.h
 
 #
 # Variations on hardware optimisation of CCall/CReturn.
