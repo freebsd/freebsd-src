@@ -112,6 +112,8 @@ VNET_DEFINE(int, nd6_debug) = 1;
 VNET_DEFINE(int, nd6_debug) = 0;
 #endif
 
+static eventhandler_tag lle_event_eh;
+
 /* for debugging? */
 #if 0
 static int nd6_inuse, nd6_allocated;
@@ -144,6 +146,58 @@ static VNET_DEFINE(struct callout, nd6_slowtimo_ch);
 
 VNET_DEFINE(struct callout, nd6_timer_ch);
 
+static void
+nd6_lle_event(void *arg __unused, struct llentry *lle, int evt)
+{
+	struct rt_addrinfo rtinfo;
+	struct sockaddr_in6 dst, *sa6;
+	struct sockaddr_dl gw;
+	struct ifnet *ifp;
+	int type;
+
+	LLE_WLOCK_ASSERT(lle);
+
+	switch (evt) {
+	case LLENTRY_RESOLVED:
+		type = RTM_ADD;
+		KASSERT(lle->la_flags & LLE_VALID,
+		    ("%s: %p resolved but not valid?", __func__, lle));
+		break;
+	case LLENTRY_EXPIRED:
+		type = RTM_DELETE;
+		break;
+	default:
+		return;
+	}
+
+	sa6 = L3_ADDR_SIN6(lle);
+	if (sa6->sin6_family != AF_INET6)
+		return;
+	ifp = lle->lle_tbl->llt_ifp;
+
+	bzero(&dst, sizeof(dst));
+	bzero(&gw, sizeof(gw));
+	bzero(&rtinfo, sizeof(rtinfo));
+	dst.sin6_len = sizeof(struct sockaddr_in6);
+	dst.sin6_family = AF_INET6;
+	dst.sin6_addr = sa6->sin6_addr;
+	dst.sin6_scope_id = in6_getscopezone(ifp,
+	    in6_addrscope(&sa6->sin6_addr));
+	in6_clearscope(&dst.sin6_addr); /* XXX */
+	gw.sdl_len = sizeof(struct sockaddr_dl);
+	gw.sdl_family = AF_LINK;
+	gw.sdl_alen = ifp->if_addrlen;
+	gw.sdl_index = ifp->if_index;
+	gw.sdl_type = ifp->if_type;
+	if (evt == LLENTRY_RESOLVED)
+		bcopy(&lle->ll_addr, gw.sdl_data, ifp->if_addrlen);
+	rtinfo.rti_info[RTAX_DST] = (struct sockaddr *)&dst;
+	rtinfo.rti_info[RTAX_GATEWAY] = (struct sockaddr *)&gw;
+	rtinfo.rti_addrs = RTA_DST | RTA_GATEWAY;
+	rt_missmsg_fib(type, &rtinfo, RTF_HOST | RTF_LLDATA | (
+	    type == RTM_ADD ? RTF_UP: 0), 0, RT_DEFAULT_FIB);
+}
+
 void
 nd6_init(void)
 {
@@ -159,6 +213,9 @@ nd6_init(void)
 	    nd6_slowtimo, curvnet);
 
 	nd6_dad_init();
+	if (IS_DEFAULT_VNET(curvnet))
+		lle_event_eh = EVENTHANDLER_REGISTER(lle_event, nd6_lle_event,
+		    NULL, EVENTHANDLER_PRI_ANY);
 }
 
 #ifdef VIMAGE
@@ -168,6 +225,8 @@ nd6_destroy()
 
 	callout_drain(&V_nd6_slowtimo_ch);
 	callout_drain(&V_nd6_timer_ch);
+	if (IS_DEFAULT_VNET(curvnet))
+		EVENTHANDLER_DEREGISTER(lle_event, lle_event_eh);
 }
 #endif
 
