@@ -68,6 +68,8 @@ SDT_PROBE_DECLARE(lockstat, , , thread__spin);
 #define	LOCKSTAT_WRITER		0
 #define	LOCKSTAT_READER		1
 
+extern int lockstat_enabled;
+
 #ifdef KDTRACE_HOOKS
 
 #define	LOCKSTAT_RECORD0(probe, lp)					\
@@ -104,8 +106,6 @@ SDT_PROBE_DECLARE(lockstat, , , thread__spin);
 	lock_profile_release_lock(&(lp)->lock_object);			\
 	LOCKSTAT_RECORD1(probe, lp, a);					\
 } while (0)
-
-extern int lockstat_enabled;
 
 struct lock_object;
 uint64_t lockstat_nsecs(struct lock_object *);
