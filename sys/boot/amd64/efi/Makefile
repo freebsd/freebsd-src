@@ -22,6 +22,7 @@ SRCS=	autoload.c \
 	framebuffer.c \
 	main.c \
 	reloc.c \
+	smbios.c \
 	vers.c
 SRCS+=	amd64_tramp.S \
 	start.S
@@ -32,6 +33,8 @@ CFLAGS+=	-I${.CURDIR}/../../efi/include
 CFLAGS+=	-I${.CURDIR}/../../efi/include/${MACHINE_CPUARCH}
 CFLAGS+=	-I${.CURDIR}/../../../contrib/dev/acpica/include
 CFLAGS+=	-I${.CURDIR}/../../..
+CFLAGS+=	-I${.CURDIR}/../../i386/libi386
+CFLAGS+=	-DNO_PCI -DEFI
 
 .if ${MK_FORTH} != "no"
 BOOT_FORTH=	yes
@@ -50,6 +53,8 @@ CFLAGS+=	-DEFI_STAGING_SIZE=${EFI_STAGING_SIZE}
 
 # Always add MI sources 
 .PATH:		${.CURDIR}/../../common
+# For smbios.c
+.PATH:		${.CURDIR}/../../i386/libi386
 .include	"${.CURDIR}/../../common/Makefile.inc"
 CFLAGS+=	-I${.CURDIR}/../../common
 
