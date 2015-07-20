@@ -1008,17 +1008,17 @@ stroul64 (
      */
     if (*String == '-')
     {
-        Sign = NEGATIVE;
+        Sign = ACPI_SIGN_NEGATIVE;
         ++String;
     }
     else if (*String == '+')
     {
         ++String;
-        Sign = POSITIVE;
+        Sign = ACPI_SIGN_POSITIVE;
     }
     else
     {
-        Sign = POSITIVE;
+        Sign = ACPI_SIGN_POSITIVE;
     }
 
     /*
@@ -1106,7 +1106,7 @@ stroul64 (
 
     /* If a minus sign was present, then "the conversion is negated": */
 
-    if (Sign == NEGATIVE)
+    if (Sign == ACPI_SIGN_NEGATIVE)
     {
         ReturnValue = (ACPI_UINT32_MAX - ReturnValue) + 1;
     }

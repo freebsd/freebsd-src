@@ -329,6 +329,8 @@ AeBuildLocalTables (
      * 2) A "hardware reduced" local FADT
      * 3) A fully featured local FADT
      */
+    memset (&LocalFADT, 0, sizeof (ACPI_TABLE_FADT));
+
     if (ExternalFadt)
     {
         /*
@@ -361,7 +363,7 @@ AeBuildLocalTables (
     }
     else if (AcpiGbl_UseHwReducedFadt)
     {
-        memcpy (&LocalFADT, HwReducedFadtCode, sizeof (ACPI_TABLE_FADT));
+        memcpy (&LocalFADT, HwReducedFadtCode, ACPI_FADT_V5_SIZE);
         LocalFADT.Dsdt = (UINT32) DsdtAddress;
         LocalFADT.XDsdt = DsdtAddress;
 
@@ -374,7 +376,6 @@ AeBuildLocalTables (
         /*
          * Build a local FADT so we can test the hardware/event init
          */
-        memset (&LocalFADT, 0, sizeof (ACPI_TABLE_FADT));
         LocalFADT.Header.Revision = 5;
         AeInitializeTableHeader ((void *) &LocalFADT, ACPI_SIG_FADT, sizeof (ACPI_TABLE_FADT));
 

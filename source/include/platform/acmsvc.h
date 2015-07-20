@@ -57,7 +57,6 @@
 #define stat            _stat
 #define fstat           _fstat
 #define mkdir           _mkdir
-#define strlwr          _strlwr
 #define O_RDONLY        _O_RDONLY
 #define O_BINARY        _O_BINARY
 #define O_CREAT         _O_CREAT
@@ -148,12 +147,9 @@
 #endif
 
 
-/* Debug support. Must be last in this file, do not move. */
+/* Debug support. */
 
 #ifdef _DEBUG
-#define _CRTDBG_MAP_ALLOC /* Enables specific file/lineno for leaks */
-
-#include <crtdbg.h>
 
 /*
  * Debugging memory corruption issues with windows:

@@ -164,6 +164,60 @@ AcpiNsExecModuleCodeList (
 {
 }
 
+void
+AcpiExDoDebugObject (
+    ACPI_OPERAND_OBJECT     *SourceDesc,
+    UINT32                  Level,
+    UINT32                  Index)
+{
+    return;
+}
+
+void
+AcpiExStartTraceMethod (
+    ACPI_NAMESPACE_NODE     *MethodNode,
+    ACPI_OPERAND_OBJECT     *ObjDesc,
+    ACPI_WALK_STATE         *WalkState)
+{
+    return;
+}
+
+void
+AcpiExStopTraceMethod (
+    ACPI_NAMESPACE_NODE     *MethodNode,
+    ACPI_OPERAND_OBJECT     *ObjDesc,
+    ACPI_WALK_STATE         *WalkState)
+{
+    return;
+}
+
+void
+AcpiExStartTraceOpcode (
+    ACPI_PARSE_OBJECT       *Op,
+    ACPI_WALK_STATE         *WalkState)
+{
+    return;
+}
+
+void
+AcpiExStopTraceOpcode (
+    ACPI_PARSE_OBJECT       *Op,
+    ACPI_WALK_STATE         *WalkState)
+
+{
+    return;
+}
+
+void
+AcpiExTracePoint (
+    ACPI_TRACE_EVENT_TYPE   Type,
+    BOOLEAN                 Begin,
+    UINT8                   *Aml,
+    char                    *Pathname)
+{
+    return;
+}
+
 
 /* Dispatcher */
 

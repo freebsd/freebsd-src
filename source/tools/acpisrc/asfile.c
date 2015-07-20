@@ -180,7 +180,7 @@ AsProcessTree (
     {
         if (ConversionTable->Flags & FLG_LOWERCASE_DIRNAMES)
         {
-            AsStrlwr (TargetPath);
+            AcpiUtStrlwr (TargetPath);
         }
 
         VERBOSE_PRINT (("Creating Directory \"%s\"\n", TargetPath));

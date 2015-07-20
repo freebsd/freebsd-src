@@ -396,5 +396,12 @@ DefinitionBlock ("badcode.aml", "DSDT", 1, "Intel", "Example", 0x00000001)
         CreateField (RSC3, \DWI1._MIF, 5, MIF)
         CreateField (RSC3, \DWI1._RNG, 3, RNG2)
     }
+
+    Method (L100)
+    {
+        /* Method Local is set but never used */
+
+        Store (40, Local0)
+    }
 }
 

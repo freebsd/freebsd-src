@@ -46,7 +46,9 @@
 #include "acdispat.h"
 #include "acnamesp.h"
 #include "acdebug.h"
+#ifdef ACPI_DISASSEMBLER
 #include "acdisasm.h"
+#endif
 #include "acparser.h"
 #include "acpredef.h"
 
@@ -79,6 +81,7 @@ AcpiDbSetMethodBreakpoint (
     ACPI_PARSE_OBJECT       *Op)
 {
     UINT32                  Address;
+    UINT32                  AmlOffset;
 
 
     if (!Op)
@@ -90,10 +93,12 @@ AcpiDbSetMethodBreakpoint (
     /* Get and verify the breakpoint address */
 
     Address = strtoul (Location, NULL, 16);
-    if (Address <= Op->Common.AmlOffset)
+    AmlOffset = (UINT32) ACPI_PTR_DIFF (Op->Common.Aml,
+                    WalkState->ParserState.AmlStart);
+    if (Address <= AmlOffset)
     {
         AcpiOsPrintf ("Breakpoint %X is beyond current address %X\n",
-            Address, Op->Common.AmlOffset);
+            Address, AmlOffset);
     }
 
     /* Save breakpoint in current walk */
@@ -238,7 +243,7 @@ AcpiDbSetMethodData (
         ObjDesc = WalkState->Arguments[Index].Object;
 
         AcpiOsPrintf ("Arg%u: ", Index);
-        AcpiDmDisplayInternalObject (ObjDesc, WalkState);
+        AcpiDbDisplayInternalObject (ObjDesc, WalkState);
         break;
 
     case 'L':
@@ -261,7 +266,7 @@ AcpiDbSetMethodData (
         ObjDesc = WalkState->LocalVariables[Index].Object;
 
         AcpiOsPrintf ("Local%u: ", Index);
-        AcpiDmDisplayInternalObject (ObjDesc, WalkState);
+        AcpiDbDisplayInternalObject (ObjDesc, WalkState);
         break;
 
     default:
@@ -307,7 +312,9 @@ AcpiDbDisassembleAml (
         NumStatements = strtoul (Statements, NULL, 0);
     }
 
+#ifdef ACPI_DISASSEMBLER
     AcpiDmDisassemble (NULL, Op, NumStatements);
+#endif
 }
 
 
@@ -350,7 +357,7 @@ AcpiDbDisassembleMethod (
 
     ObjDesc = Method->Object;
 
-    Op = AcpiPsCreateScopeOp ();
+    Op = AcpiPsCreateScopeOp (ObjDesc->Method.AmlStart);
     if (!Op)
     {
         return (AE_NO_MEMORY);
@@ -390,6 +397,8 @@ AcpiDbDisassembleMethod (
     WalkState->ParseFlags |= ACPI_PARSE_DISASSEMBLE;
 
     Status = AcpiPsParseAml (WalkState);
+
+#ifdef ACPI_DISASSEMBER
     (void) AcpiDmParseDeferredOps (Op);
 
     /* Now we can disassemble the method */
@@ -397,6 +406,7 @@ AcpiDbDisassembleMethod (
     AcpiGbl_DbOpt_Verbose = FALSE;
     AcpiDmDisassemble (NULL, Op, 0);
     AcpiGbl_DbOpt_Verbose = TRUE;
+#endif
 
     AcpiPsDeleteParseTree (Op);
 
