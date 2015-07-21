@@ -381,7 +381,7 @@ _mtx_lock_sleep(struct mtx *m, uintptr_t tid, int opts, const char *file,
 		    "_mtx_lock_sleep: %s contested (lock=%p) at %s:%d",
 		    m->lock_object.lo_name, (void *)m->mtx_lock, file, line);
 #ifdef KDTRACE_HOOKS
-	all_time -= lockstat_nsecs();
+	all_time -= lockstat_nsecs(&m->lock_object);
 #endif
 
 	while (!_mtx_obtain_lock(m, tid)) {
@@ -471,16 +471,16 @@ _mtx_lock_sleep(struct mtx *m, uintptr_t tid, int opts, const char *file,
 		 * Block on the turnstile.
 		 */
 #ifdef KDTRACE_HOOKS
-		sleep_time -= lockstat_nsecs();
+		sleep_time -= lockstat_nsecs(&m->lock_object);
 #endif
 		turnstile_wait(ts, mtx_owner(m), TS_EXCLUSIVE_QUEUE);
 #ifdef KDTRACE_HOOKS
-		sleep_time += lockstat_nsecs();
+		sleep_time += lockstat_nsecs(&m->lock_object);
 		sleep_cnt++;
 #endif
 	}
 #ifdef KDTRACE_HOOKS
-	all_time += lockstat_nsecs();
+	all_time += lockstat_nsecs(&m->lock_object);
 #endif
 #ifdef KTR
 	if (cont_logged) {
@@ -553,7 +553,7 @@ _mtx_lock_spin(struct mtx *m, uintptr_t tid, int opts, const char *file,
 #endif
 	lock_profile_obtain_lock_failed(&m->lock_object, &contested, &waittime);
 #ifdef KDTRACE_HOOKS
-	spin_time -= lockstat_nsecs();
+	spin_time -= lockstat_nsecs(&m->lock_object);
 #endif
 	while (!_mtx_obtain_lock(m, tid)) {
 
@@ -573,7 +573,7 @@ _mtx_lock_spin(struct mtx *m, uintptr_t tid, int opts, const char *file,
 		spinlock_enter();
 	}
 #ifdef KDTRACE_HOOKS
-	spin_time += lockstat_nsecs();
+	spin_time += lockstat_nsecs(&m->lock_object);
 #endif
 
 	if (LOCK_LOG_TEST(&m->lock_object, opts))
@@ -581,7 +581,10 @@ _mtx_lock_spin(struct mtx *m, uintptr_t tid, int opts, const char *file,
 
 	LOCKSTAT_PROFILE_OBTAIN_LOCK_SUCCESS(LS_MTX_SPIN_LOCK_ACQUIRE, m,
 	    contested, waittime, (file), (line));
-	LOCKSTAT_RECORD1(LS_MTX_SPIN_LOCK_SPIN, m, spin_time);
+#ifdef KDTRACE_HOOKS
+	if (spin_time != 0)
+		LOCKSTAT_RECORD1(LS_MTX_SPIN_LOCK_SPIN, m, spin_time);
+#endif
 }
 #endif /* SMP */
 
@@ -606,7 +609,7 @@ _thread_lock_flags(struct thread *td, int opts, const char *file, int line)
 		return;
 
 #ifdef KDTRACE_HOOKS
-	spin_time -= lockstat_nsecs();
+	spin_time -= lockstat_nsecs(&td->td_lock->lock_object);
 #endif
 	for (;;) {
 retry:
@@ -654,7 +657,7 @@ retry:
 		__mtx_unlock_spin(m);	/* does spinlock_exit() */
 	}
 #ifdef KDTRACE_HOOKS
-	spin_time += lockstat_nsecs();
+	spin_time += lockstat_nsecs(&m->lock_object);
 #endif
 	if (m->mtx_recurse == 0)
 		LOCKSTAT_PROFILE_OBTAIN_LOCK_SUCCESS(LS_MTX_SPIN_LOCK_ACQUIRE,

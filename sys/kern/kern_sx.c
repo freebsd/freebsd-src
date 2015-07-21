@@ -540,7 +540,7 @@ _sx_xlock_hard(struct sx *sx, uintptr_t tid, int opts, const char *file,
 		    sx->lock_object.lo_name, (void *)sx->sx_lock, file, line);
 
 #ifdef KDTRACE_HOOKS
-	all_time -= lockstat_nsecs();
+	all_time -= lockstat_nsecs(&sx->lock_object);
 	state = sx->sx_lock;
 #endif
 	while (!atomic_cmpset_acq_ptr(&sx->sx_lock, SX_LOCK_UNLOCKED, tid)) {
@@ -679,7 +679,7 @@ _sx_xlock_hard(struct sx *sx, uintptr_t tid, int opts, const char *file,
 			    __func__, sx);
 
 #ifdef KDTRACE_HOOKS
-		sleep_time -= lockstat_nsecs();
+		sleep_time -= lockstat_nsecs(&sx->lock_object);
 #endif
 		GIANT_SAVE();
 		sleepq_add(&sx->lock_object, NULL, sx->lock_object.lo_name,
@@ -690,7 +690,7 @@ _sx_xlock_hard(struct sx *sx, uintptr_t tid, int opts, const char *file,
 		else
 			error = sleepq_wait_sig(&sx->lock_object, 0);
 #ifdef KDTRACE_HOOKS
-		sleep_time += lockstat_nsecs();
+		sleep_time += lockstat_nsecs(&sx->lock_object);
 		sleep_cnt++;
 #endif
 		if (error) {
@@ -705,7 +705,7 @@ _sx_xlock_hard(struct sx *sx, uintptr_t tid, int opts, const char *file,
 			    __func__, sx);
 	}
 #ifdef KDTRACE_HOOKS
-	all_time += lockstat_nsecs();
+	all_time += lockstat_nsecs(&sx->lock_object);
 	if (sleep_time)
 		LOCKSTAT_RECORD4(LS_SX_XLOCK_BLOCK, sx, sleep_time,
 		    LOCKSTAT_WRITER, (state & SX_LOCK_SHARED) == 0,
@@ -816,7 +816,7 @@ _sx_slock_hard(struct sx *sx, int opts, const char *file, int line)
 
 #ifdef KDTRACE_HOOKS
 	state = sx->sx_lock;
-	all_time -= lockstat_nsecs();
+	all_time -= lockstat_nsecs(&sx->lock_object);
 #endif
 
 	/*
@@ -938,7 +938,7 @@ _sx_slock_hard(struct sx *sx, int opts, const char *file, int line)
 			    __func__, sx);
 
 #ifdef KDTRACE_HOOKS
-		sleep_time -= lockstat_nsecs();
+		sleep_time -= lockstat_nsecs(&sx->lock_object);
 #endif
 		GIANT_SAVE();
 		sleepq_add(&sx->lock_object, NULL, sx->lock_object.lo_name,
@@ -949,7 +949,7 @@ _sx_slock_hard(struct sx *sx, int opts, const char *file, int line)
 		else
 			error = sleepq_wait_sig(&sx->lock_object, 0);
 #ifdef KDTRACE_HOOKS
-		sleep_time += lockstat_nsecs();
+		sleep_time += lockstat_nsecs(&sx->lock_object);
 		sleep_cnt++;
 #endif
 		if (error) {
@@ -964,7 +964,7 @@ _sx_slock_hard(struct sx *sx, int opts, const char *file, int line)
 			    __func__, sx);
 	}
 #ifdef KDTRACE_HOOKS
-	all_time += lockstat_nsecs();
+	all_time += lockstat_nsecs(&sx->lock_object);
 	if (sleep_time)
 		LOCKSTAT_RECORD4(LS_SX_SLOCK_BLOCK, sx, sleep_time,
 		    LOCKSTAT_READER, (state & SX_LOCK_SHARED) == 0,
