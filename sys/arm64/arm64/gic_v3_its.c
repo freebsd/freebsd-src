@@ -814,6 +814,26 @@ retry:
 }
 
 static void
+lpi_free_chunk(struct gic_v3_its_softc *sc, struct lpi_chunk *lpic)
+{
+	int start, end;
+	uint8_t *bitmap;
+
+	bitmap = (uint8_t *)sc->its_lpi_bitmap;
+
+	KASSERT((lpic->lpi_free == lpic->lpi_num),
+	    ("Trying to free LPI chunk that is still in use.\n"));
+
+	/* First bit of this chunk in a global bitmap */
+	start = lpic->lpi_base - GIC_FIRST_LPI;
+	/* and last bit of this chunk... */
+	end = start + lpic->lpi_num - 1;
+
+	/* Finally free this chunk */
+	bit_nclear(bitmap, start, end);
+}
+
+static void
 lpi_configure(struct gic_v3_its_softc *sc, struct its_dev *its_dev,
     uint32_t lpinum, boolean_t unmask)
 {
@@ -1322,7 +1342,10 @@ its_device_alloc_locked(struct gic_v3_its_softc *sc, device_t pci_dev,
 	devid = its_get_devid(pci_dev);
 
 	/* There was no previously created device. Create one now */
-	newdev = malloc(sizeof(*newdev), M_GIC_V3_ITS, (M_WAITOK | M_ZERO));
+	newdev = malloc(sizeof(*newdev), M_GIC_V3_ITS, (M_NOWAIT | M_ZERO));
+	if (newdev == NULL)
+		return (NULL);
+
 	newdev->pci_dev = pci_dev;
 	newdev->devid = devid;
 
@@ -1340,7 +1363,12 @@ its_device_alloc_locked(struct gic_v3_its_softc *sc, device_t pci_dev,
 	 */
 	newdev->itt = (vm_offset_t)contigmalloc(
 	    roundup2(roundup2(nvecs, 2) * esize, 0x100), M_GIC_V3_ITS,
-	    (M_WAITOK | M_ZERO), 0, ~0UL, 0x100, 0);
+	    (M_NOWAIT | M_ZERO), 0, ~0UL, 0x100, 0);
+	if (newdev->itt == 0) {
+		lpi_free_chunk(sc, &newdev->lpis);
+		free(newdev, M_GIC_V3_ITS);
+		return (NULL);
+	}
 
 	/*
 	 * XXX ARM64TODO: Currently all interrupts are going
