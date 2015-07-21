@@ -121,22 +121,22 @@ const struct terminal_class vt_termclass = {
 			(vw)->vw_number)
 
 static SYSCTL_NODE(_kern, OID_AUTO, vt, CTLFLAG_RD, 0, "vt(9) parameters");
-VT_SYSCTL_INT(enable_altgr, 1, "Enable AltGr key (Do not assume R.Alt as Alt)");
-VT_SYSCTL_INT(enable_bell, 1, "Enable bell");
-VT_SYSCTL_INT(debug, 0, "vt(9) debug level");
-VT_SYSCTL_INT(deadtimer, 15, "Time to wait busy process in VT_PROCESS mode");
-VT_SYSCTL_INT(suspendswitch, 1, "Switch to VT0 before suspend");
+static VT_SYSCTL_INT(enable_altgr, 1, "Enable AltGr key (Do not assume R.Alt as Alt)");
+static VT_SYSCTL_INT(enable_bell, 1, "Enable bell");
+static VT_SYSCTL_INT(debug, 0, "vt(9) debug level");
+static VT_SYSCTL_INT(deadtimer, 15, "Time to wait busy process in VT_PROCESS mode");
+static VT_SYSCTL_INT(suspendswitch, 1, "Switch to VT0 before suspend");
 
 /* Allow to disable some keyboard combinations. */
-VT_SYSCTL_INT(kbd_halt, 1, "Enable halt keyboard combination.  "
+static VT_SYSCTL_INT(kbd_halt, 1, "Enable halt keyboard combination.  "
     "See kbdmap(5) to configure.");
-VT_SYSCTL_INT(kbd_poweroff, 1, "Enable Power Off keyboard combination.  "
+static VT_SYSCTL_INT(kbd_poweroff, 1, "Enable Power Off keyboard combination.  "
     "See kbdmap(5) to configure.");
-VT_SYSCTL_INT(kbd_reboot, 1, "Enable reboot keyboard combination.  "
+static VT_SYSCTL_INT(kbd_reboot, 1, "Enable reboot keyboard combination.  "
     "See kbdmap(5) to configure (typically Ctrl-Alt-Delete).");
-VT_SYSCTL_INT(kbd_debug, 1, "Enable key combination to enter debugger.  "
+static VT_SYSCTL_INT(kbd_debug, 1, "Enable key combination to enter debugger.  "
     "See kbdmap(5) to configure (typically Ctrl-Alt-Esc).");
-VT_SYSCTL_INT(kbd_panic, 0, "Enable request to panic.  "
+static VT_SYSCTL_INT(kbd_panic, 0, "Enable request to panic.  "
     "See kbdmap(5) to configure.");
 
 static struct vt_device	vt_consdev;
