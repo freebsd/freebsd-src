@@ -61,8 +61,6 @@ static db_varfcn_t db_dr5;
 static db_varfcn_t db_dr6;
 static db_varfcn_t db_dr7;
 static db_varfcn_t db_frame;
-static db_varfcn_t db_rsp;
-static db_varfcn_t db_ss;
 
 CTASSERT(sizeof(struct dbreg) == sizeof(((struct pcpu *)NULL)->pc_dbreg));
 
@@ -76,12 +74,12 @@ struct db_variable db_regs[] = {
 	{ "es",		DB_OFFSET(tf_es),	db_frame },
 	{ "fs",		DB_OFFSET(tf_fs),	db_frame },
 	{ "gs",		DB_OFFSET(tf_gs),	db_frame },
-	{ "ss",		NULL,			db_ss },
+	{ "ss",		DB_OFFSET(tf_ss),	db_frame },
 	{ "rax",	DB_OFFSET(tf_rax),	db_frame },
 	{ "rcx",        DB_OFFSET(tf_rcx),	db_frame },
 	{ "rdx",	DB_OFFSET(tf_rdx),	db_frame },
 	{ "rbx",	DB_OFFSET(tf_rbx),	db_frame },
-	{ "rsp",	NULL,			db_rsp },
+	{ "rsp",	DB_OFFSET(tf_rsp),	db_frame },
 	{ "rbp",	DB_OFFSET(tf_rbp),	db_frame },
 	{ "rsi",	DB_OFFSET(tf_rsi),	db_frame },
 	{ "rdi",	DB_OFFSET(tf_rdi),	db_frame },
@@ -130,13 +128,6 @@ DB_DRX_FUNC(dr5)
 DB_DRX_FUNC(dr6)
 DB_DRX_FUNC(dr7)
 
-static __inline long
-get_rsp(struct trapframe *tf)
-{
-	return ((ISPL(tf->tf_cs)) ? tf->tf_rsp :
-	    (db_expr_t)tf + offsetof(struct trapframe, tf_rsp));
-}
-
 static int
 db_frame(struct db_variable *vp, db_expr_t *valuep, int op)
 {
@@ -150,34 +141,6 @@ db_frame(struct db_variable *vp, db_expr_t *valuep, int op)
 		*valuep = *reg;
 	else
 		*reg = *valuep;
-	return (1);
-}
-
-static int
-db_rsp(struct db_variable *vp, db_expr_t *valuep, int op)
-{
-
-	if (kdb_frame == NULL)
-		return (0);
-
-	if (op == DB_VAR_GET)
-		*valuep = get_rsp(kdb_frame);
-	else if (ISPL(kdb_frame->tf_cs))
-		kdb_frame->tf_rsp = *valuep;
-	return (1);
-}
-
-static int
-db_ss(struct db_variable *vp, db_expr_t *valuep, int op)
-{
-
-	if (kdb_frame == NULL)
-		return (0);
-
-	if (op == DB_VAR_GET)
-		*valuep = (ISPL(kdb_frame->tf_cs)) ? kdb_frame->tf_ss : rss();
-	else if (ISPL(kdb_frame->tf_cs))
-		kdb_frame->tf_ss = *valuep;
 	return (1);
 }
 
@@ -304,7 +267,7 @@ db_nextframe(struct amd64_frame **fp, db_addr_t *ip, struct thread *td)
 	tf = (struct trapframe *)((long)*fp + 16);
 
 	if (INKERNEL((long) tf)) {
-		rsp = get_rsp(tf);
+		rsp = tf->tf_rsp;
 		rip = tf->tf_rip;
 		rbp = tf->tf_rbp;
 		switch (frame_type) {
@@ -380,20 +343,20 @@ db_backtrace(struct thread *td, struct trapframe *tf, struct amd64_frame *frame,
 				instr = db_get_value(pc, 4, FALSE);
 				if ((instr & 0xffffffff) == 0xe5894855) {
 					/* pushq %rbp; movq %rsp, %rbp */
-					actframe = (void *)(get_rsp(tf) - 8);
+					actframe = (void *)(tf->tf_rsp - 8);
 				} else if ((instr & 0xffffff) == 0xe58948) {
 					/* movq %rsp, %rbp */
-					actframe = (void *)get_rsp(tf);
+					actframe = (void *)tf->tf_rsp;
 					if (tf->tf_rbp == 0) {
 						/* Fake frame better. */
 						frame = actframe;
 					}
 				} else if ((instr & 0xff) == 0xc3) {
 					/* ret */
-					actframe = (void *)(get_rsp(tf) - 8);
+					actframe = (void *)(tf->tf_rsp - 8);
 				} else if (offset == 0) {
 					/* Probably an assembler symbol. */
-					actframe = (void *)(get_rsp(tf) - 8);
+					actframe = (void *)(tf->tf_rsp - 8);
 				}
 			} else if (strcmp(name, "fork_trampoline") == 0) {
 				/*
@@ -448,9 +411,11 @@ int
 db_trace_thread(struct thread *thr, int count)
 {
 	struct pcb *ctx;
+	struct trapframe *tf;
 
 	ctx = kdb_thr_ctx(thr);
-	return (db_backtrace(thr, NULL, (struct amd64_frame *)ctx->pcb_rbp,
+	tf = thr == kdb_thread ? kdb_frame : NULL;
+	return (db_backtrace(thr, tf, (struct amd64_frame *)ctx->pcb_rbp,
 	    ctx->pcb_rip, ctx->pcb_rsp, count));
 }
 
