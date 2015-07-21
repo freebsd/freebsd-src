@@ -1666,7 +1666,8 @@ udp4_espdecap(struct inpcb *inp, struct mbuf *m, int off)
 	if (m->m_pkthdr.csum_flags & CSUM_DATA_VALID)
 		m->m_pkthdr.csum_flags &= ~(CSUM_DATA_VALID|CSUM_PSEUDO_HDR);
 
-	(void) ipsec4_common_input(m, iphlen, ip->ip_p);
+	(void) ipsec_common_input(m, iphlen, offsetof(struct ip, ip_p),
+				AF_INET, ip->ip_p);
 	return (NULL);			/* NB: consumed, bypass processing. */
 }
 #endif /* defined(IPSEC) && defined(IPSEC_NAT_T) */
