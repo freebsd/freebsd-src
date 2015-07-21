@@ -43,6 +43,7 @@
 
 #include <machine/atomic.h>
 #include <machine/frame.h>
+#include <machine/armreg.h>
 
 #define	TRAPF_PC(tfp)		((tfp)->tf_lr)
 #define	TRAPF_USERMODE(tfp)	(((tfp)->tf_elr & (1ul << 63)) == 0)
@@ -120,9 +121,11 @@ void	swi_vm(void *v);
 static __inline uint64_t
 get_cyclecount(void)
 {
+	uint64_t ret;
 
-	/* TODO: This is bogus */
-	return (1);
+	ret = READ_SPECIALREG(cntvct_el0);
+
+	return (ret);
 }
 
 #define	ADDRESS_TRANSLATE_FUNC(stage)				\
