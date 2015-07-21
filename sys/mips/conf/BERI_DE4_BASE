@@ -11,7 +11,7 @@ include "BERI_TEMPLATE"
 
 ident		BERI_DE4_BASE
 
-#options	KSTACK_LARGE_PAGE	# Use a 16K page for kernel stack
+options	KSTACK_LARGE_PAGE	# Use a 16K page for kernel stack
 #options	MIPS64_NEW_PMAP		# Use new pmap code
 
 options 	NFSCL			# Network Filesystem Client
