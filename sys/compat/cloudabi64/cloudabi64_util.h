@@ -21,50 +21,18 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
-#include <sys/param.h>
-#include <sys/proc.h>
-#include <sys/systm.h>
+#ifndef _CLOUDABI64_UTIL_H_
+#define	_CLOUDABI64_UTIL_H_
 
 #include <compat/cloudabi64/cloudabi64_syscalldefs.h>
-#include <compat/cloudabi64/cloudabi64_proto.h>
-#include <compat/cloudabi64/cloudabi64_util.h>
 
-struct thread_create_args {
-	cloudabi64_threadattr_t attr;
-	lwpid_t tid;
-};
+struct thread;
 
-static int
-initialize_thread(struct thread *td, void *thunk)
-{
-	struct thread_create_args *args = thunk;
+void	cloudabi64_thread_setregs(struct thread *,
+    const cloudabi64_threadattr_t *);
 
-	/* Save the thread ID, so it can be returned. */
-	args->tid = td->td_tid;
-
-	/* Set up initial register contents. */
-	cloudabi64_thread_setregs(td, &args->attr);
-	return (0);
-}
-
-int
-cloudabi64_sys_thread_create(struct thread *td,
-    struct cloudabi64_sys_thread_create_args *uap)
-{
-	struct thread_create_args args;
-	int error;
-
-	error = copyin(uap->attr, &args.attr, sizeof(args.attr));
-	if (error != 0)
-		return (error);
-	error = thread_create(td, NULL, initialize_thread, &args);
-	if (error != 0)
-		return (error);
-	td->td_retval[0] = args.tid;
-	return (0);
-}
+#endif
