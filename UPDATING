@@ -15,6 +15,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW ON IA64 OR SUN4V:
 	debugging tools present in HEAD were left in place because
 	sun4v support still needs work to become production ready.
 
+20150721:	p34	FreeBSD-SA-15:13.tcp
+
+	Fix resource exhaustion due to sessions stuck in LAST_ACK state.
+	[SA-15:13]
+
 20150707:	p33	FreeBSD-SA-15:11.bind
 	Fix BIND resolver remote denial of service when validating.
 
