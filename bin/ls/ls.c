@@ -119,7 +119,7 @@ static int f_nofollow;		/* don't follow symbolic link arguments */
        int f_nonprint;		/* show unprintables as ? */
 static int f_nosort;		/* don't sort output */
        int f_notabs;		/* don't use tab-separated multi-col output */
-static int f_numericonly;	/* don't convert uid/gid to name */
+       int f_numericonly;	/* don't convert uid/gid to name */
        int f_octal;		/* show unprintables as \xxx */
        int f_octal_escape;	/* like f_octal but use C escapes if possible */
 static int f_recursive;		/* ls subdirectories also */
@@ -195,6 +195,7 @@ main(int argc, char *argv[])
 	if (argc < 0)
 		return (1);
 	xo_set_flags(NULL, XOF_COLUMNS);
+	xo_set_version(LS_XO_VERSION);
 
 	while ((ch = getopt(argc, argv,
 	    "1ABCD:FGHILPRSTUWXZabcdfghiklmnopqrstuwxy,")) != -1) {
