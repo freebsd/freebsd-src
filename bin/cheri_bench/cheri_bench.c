@@ -69,7 +69,7 @@ struct cheri_object cheri_bench;
 
 #define __capability
 #define memcpy_c memcpy
-#define __builtin_cheri_set_cap_length(c,l) c
+#define cheri_ptr(c,l) c
 
 // Manually assembled due to gcc/gas refusing to recognise custom rdhwr registers:
 // rdhwr $12, $rdhwrreg
@@ -381,8 +381,8 @@ main(int argc, char *argv[])
 	dataout = mmap(NULL, max_size + outOffset, PROT_READ | PROT_WRITE, MAP_ANON | MAP_SHARED, -1, 0);
 	if (datain == NULL || dataout == NULL) err(1, "malloc");
 
-	datain_cap  = __builtin_cheri_set_cap_length((__capability char *) (datain + inOffset), max_size);
-	dataout_cap = __builtin_cheri_set_cap_length((__capability char *) (dataout + outOffset), max_size);
+	datain_cap  = cheri_ptr(datain + inOffset, max_size);
+	dataout_cap = cheri_ptr(dataout + outOffset, max_size);
 
 #ifdef CAP
 	if (invoke)
