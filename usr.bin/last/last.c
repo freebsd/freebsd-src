@@ -64,6 +64,7 @@ __FBSDID("$FreeBSD$");
 
 typedef struct arg {
 	char	*name;				/* argument */
+#define	REBOOT_TYPE	-1
 #define	HOST_TYPE	-2
 #define	TTY_TYPE	-3
 #define	USER_TYPE	-4
@@ -180,6 +181,8 @@ main(int argc, char *argv[])
 	if (argc) {
 		setlinebuf(stdout);
 		for (argv += optind; *argv; ++argv) {
+			if (strcmp(*argv, "reboot") == 0)
+				addarg(REBOOT_TYPE, *argv);
 #define	COMPATIBILITY
 #ifdef	COMPATIBILITY
 			/* code to allow "last p5" to work */
@@ -389,6 +392,11 @@ want(struct utmpx *bp)
 
 	for (step = arglist; step; step = step->next)
 		switch(step->type) {
+		case REBOOT_TYPE:
+			if (bp->ut_type == BOOT_TIME ||
+			    bp->ut_type == SHUTDOWN_TIME)
+				return (YES);
+			break;
 		case HOST_TYPE:
 			if (!strcasecmp(step->name, bp->ut_host))
 				return (YES);
