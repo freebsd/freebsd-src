@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 
 #include <compat/cloudabi64/cloudabi64_syscall.h>
 #include <compat/cloudabi64/cloudabi64_syscalldefs.h>
+#include <compat/cloudabi64/cloudabi64_util.h>
 
 extern const char *cloudabi64_syscallnames[];
 extern struct sysent cloudabi64_sysent[];
@@ -177,6 +178,28 @@ cloudabi64_schedtail(struct thread *td)
 	/* Initial register values for processes returning from fork. */
 	frame->tf_rax = CLOUDABI_PROCESS_CHILD;
 	frame->tf_rdx = td->td_tid;
+}
+
+void
+cloudabi64_thread_setregs(struct thread *td,
+    const cloudabi64_threadattr_t *attr)
+{
+	struct trapframe *frame;
+	stack_t stack;
+
+	/* Perform standard register initialization. */
+	stack.ss_sp = (void *)attr->stack;
+	stack.ss_size = attr->stack_size;
+	cpu_set_upcall_kse(td, (void *)attr->entry_point, NULL, &stack);
+
+	/*
+	 * Pass in the thread ID of the new thread and the argument
+	 * pointer provided by the parent thread in as arguments to the
+	 * entry point.
+	 */
+	frame = td->td_frame;
+	frame->tf_rdi = td->td_tid;
+	frame->tf_rsi = attr->argument;
 }
 
 static struct sysentvec cloudabi64_elf_sysvec = {
