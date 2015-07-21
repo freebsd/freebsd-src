@@ -70,7 +70,7 @@ struct timehands {
 	struct timeval		th_microtime;
 	struct timespec		th_nanotime;
 	/* Fields not to be copied in tc_windup start with th_generation. */
-	u_int			th_generation;
+	volatile u_int		th_generation;
 	struct timehands	*th_next;
 };
 
@@ -189,33 +189,6 @@ tc_delta(struct timehands *th)
 	    tc->tc_counter_mask);
 }
 
-static inline u_int
-tc_getgen(struct timehands *th)
-{
-
-#ifdef SMP
-	return (atomic_load_acq_int(&th->th_generation));
-#else
-	u_int gen;
-
-	gen = th->th_generation;
-	__compiler_membar();
-	return (gen);
-#endif
-}
-
-static inline void
-tc_setgen(struct timehands *th, u_int newgen)
-{
-
-#ifdef SMP
-	atomic_store_rel_int(&th->th_generation, newgen);
-#else
-	__compiler_membar();
-	th->th_generation = newgen;
-#endif
-}
-
 /*
  * Functions for reading the time.  We have to loop until we are sure that
  * the timehands that we operated on was not updated under our feet.  See
@@ -231,10 +204,10 @@ fbclock_binuptime(struct bintime *bt)
 
 	do {
 		th = timehands;
-		gen = tc_getgen(th);
+		gen = th->th_generation;
 		*bt = th->th_offset;
 		bintime_addx(bt, th->th_scale * tc_delta(th));
-	} while (gen == 0 || gen != tc_getgen(th));
+	} while (gen == 0 || gen != th->th_generation);
 }
 
 void
@@ -289,9 +262,9 @@ fbclock_getbinuptime(struct bintime *bt)
 
 	do {
 		th = timehands;
-		gen = tc_getgen(th);
+		gen = th->th_generation;
 		*bt = th->th_offset;
-	} while (gen == 0 || gen != tc_getgen(th));
+	} while (gen == 0 || gen != th->th_generation);
 }
 
 void
@@ -302,9 +275,9 @@ fbclock_getnanouptime(struct timespec *tsp)
 
 	do {
 		th = timehands;
-		gen = tc_getgen(th);
+		gen = th->th_generation;
 		bintime2timespec(&th->th_offset, tsp);
-	} while (gen == 0 || gen != tc_getgen(th));
+	} while (gen == 0 || gen != th->th_generation);
 }
 
 void
@@ -315,9 +288,9 @@ fbclock_getmicrouptime(struct timeval *tvp)
 
 	do {
 		th = timehands;
-		gen = tc_getgen(th);
+		gen = th->th_generation;
 		bintime2timeval(&th->th_offset, tvp);
-	} while (gen == 0 || gen != tc_getgen(th));
+	} while (gen == 0 || gen != th->th_generation);
 }
 
 void
@@ -328,9 +301,9 @@ fbclock_getbintime(struct bintime *bt)
 
 	do {
 		th = timehands;
-		gen = tc_getgen(th);
+		gen = th->th_generation;
 		*bt = th->th_offset;
-	} while (gen == 0 || gen != tc_getgen(th));
+	} while (gen == 0 || gen != th->th_generation);
 	bintime_add(bt, &boottimebin);
 }
 
@@ -342,9 +315,9 @@ fbclock_getnanotime(struct timespec *tsp)
 
 	do {
 		th = timehands;
-		gen = tc_getgen(th);
+		gen = th->th_generation;
 		*tsp = th->th_nanotime;
-	} while (gen == 0 || gen != tc_getgen(th));
+	} while (gen == 0 || gen != th->th_generation);
 }
 
 void
@@ -355,9 +328,9 @@ fbclock_getmicrotime(struct timeval *tvp)
 
 	do {
 		th = timehands;
-		gen = tc_getgen(th);
+		gen = th->th_generation;
 		*tvp = th->th_microtime;
-	} while (gen == 0 || gen != tc_getgen(th));
+	} while (gen == 0 || gen != th->th_generation);
 }
 #else /* !FFCLOCK */
 void
@@ -368,10 +341,10 @@ binuptime(struct bintime *bt)
 
 	do {
 		th = timehands;
-		gen = tc_getgen(th);
+		gen = th->th_generation;
 		*bt = th->th_offset;
 		bintime_addx(bt, th->th_scale * tc_delta(th));
-	} while (gen == 0 || gen != tc_getgen(th));
+	} while (gen == 0 || gen != th->th_generation);
 }
 
 void
@@ -426,9 +399,9 @@ getbinuptime(struct bintime *bt)
 
 	do {
 		th = timehands;
-		gen = tc_getgen(th);
+		gen = th->th_generation;
 		*bt = th->th_offset;
-	} while (gen == 0 || gen != tc_getgen(th));
+	} while (gen == 0 || gen != th->th_generation);
 }
 
 void
@@ -439,9 +412,9 @@ getnanouptime(struct timespec *tsp)
 
 	do {
 		th = timehands;
-		gen = tc_getgen(th);
+		gen = th->th_generation;
 		bintime2timespec(&th->th_offset, tsp);
-	} while (gen == 0 || gen != tc_getgen(th));
+	} while (gen == 0 || gen != th->th_generation);
 }
 
 void
@@ -452,9 +425,9 @@ getmicrouptime(struct timeval *tvp)
 
 	do {
 		th = timehands;
-		gen = tc_getgen(th);
+		gen = th->th_generation;
 		bintime2timeval(&th->th_offset, tvp);
-	} while (gen == 0 || gen != tc_getgen(th));
+	} while (gen == 0 || gen != th->th_generation);
 }
 
 void
@@ -465,9 +438,9 @@ getbintime(struct bintime *bt)
 
 	do {
 		th = timehands;
-		gen = tc_getgen(th);
+		gen = th->th_generation;
 		*bt = th->th_offset;
-	} while (gen == 0 || gen != tc_getgen(th));
+	} while (gen == 0 || gen != th->th_generation);
 	bintime_add(bt, &boottimebin);
 }
 
@@ -479,9 +452,9 @@ getnanotime(struct timespec *tsp)
 
 	do {
 		th = timehands;
-		gen = tc_getgen(th);
+		gen = th->th_generation;
 		*tsp = th->th_nanotime;
-	} while (gen == 0 || gen != tc_getgen(th));
+	} while (gen == 0 || gen != th->th_generation);
 }
 
 void
@@ -492,9 +465,9 @@ getmicrotime(struct timeval *tvp)
 
 	do {
 		th = timehands;
-		gen = tc_getgen(th);
+		gen = th->th_generation;
 		*tvp = th->th_microtime;
-	} while (gen == 0 || gen != tc_getgen(th));
+	} while (gen == 0 || gen != th->th_generation);
 }
 #endif /* FFCLOCK */
 
@@ -907,11 +880,11 @@ ffclock_read_counter(ffcounter *ffcount)
 	 */
 	do {
 		th = timehands;
-		gen = tc_getgen(th);
+		gen = th->th_generation;
 		ffth = fftimehands;
 		delta = tc_delta(th);
 		*ffcount = ffth->tick_ffcount;
-	} while (gen == 0 || gen != tc_getgen(th));
+	} while (gen == 0 || gen != th->th_generation);
 
 	*ffcount += delta;
 }
@@ -1015,9 +988,9 @@ dtrace_getnanotime(struct timespec *tsp)
 
 	do {
 		th = timehands;
-		gen = tc_getgen(th);
+		gen = th->th_generation;
 		*tsp = th->th_nanotime;
-	} while (gen == 0 || gen != tc_getgen(th));
+	} while (gen == 0 || gen != th->th_generation);
 }
 
 /*
@@ -1055,7 +1028,7 @@ sysclock_getsnapshot(struct sysclock_snap *clock_snap, int fast)
 
 	do {
 		th = timehands;
-		gen = tc_getgen(th);
+		gen = th->th_generation;
 		fbi->th_scale = th->th_scale;
 		fbi->tick_time = th->th_offset;
 #ifdef FFCLOCK
@@ -1069,7 +1042,7 @@ sysclock_getsnapshot(struct sysclock_snap *clock_snap, int fast)
 #endif
 		if (!fast)
 			delta = tc_delta(th);
-	} while (gen == 0 || gen != tc_getgen(th));
+	} while (gen == 0 || gen != th->th_generation);
 
 	clock_snap->delta = delta;
 	clock_snap->sysclock_active = sysclock_active;
@@ -1287,7 +1260,7 @@ tc_windup(void)
 	tho = timehands;
 	th = tho->th_next;
 	ogen = th->th_generation;
-	tc_setgen(th, 0);
+	th->th_generation = 0;
 	bcopy(tho, th, offsetof(struct timehands, th_generation));
 
 	/*
@@ -1404,7 +1377,7 @@ tc_windup(void)
 	 */
 	if (++ogen == 0)
 		ogen = 1;
-	tc_setgen(th, ogen);
+	th->th_generation = ogen;
 
 	/* Go live with the new struct timehands. */
 #ifdef FFCLOCK
@@ -1670,13 +1643,13 @@ pps_capture(struct pps_state *pps)
 
 	KASSERT(pps != NULL, ("NULL pps pointer in pps_capture"));
 	th = timehands;
-	pps->capgen = tc_getgen(th);
+	pps->capgen = th->th_generation;
 	pps->capth = th;
 #ifdef FFCLOCK
 	pps->capffth = fftimehands;
 #endif
 	pps->capcount = th->th_counter->tc_get_timecount(th->th_counter);
-	if (pps->capgen != tc_getgen(th))
+	if (pps->capgen != th->th_generation)
 		pps->capgen = 0;
 }
 
@@ -1696,7 +1669,7 @@ pps_event(struct pps_state *pps, int event)
 
 	KASSERT(pps != NULL, ("NULL pps pointer in pps_event"));
 	/* If the timecounter was wound up underneath us, bail out. */
-	if (pps->capgen == 0 || pps->capgen != tc_getgen(pps->capth))
+	if (pps->capgen == 0 || pps->capgen != pps->capth->th_generation)
 		return;
 
 	/* Things would be easier with arrays. */
@@ -1746,7 +1719,7 @@ pps_event(struct pps_state *pps, int event)
 	bintime2timespec(&bt, &ts);
 
 	/* If the timecounter was wound up underneath us, bail out. */
-	if (pps->capgen != tc_getgen(pps->capth))
+	if (pps->capgen != pps->capth->th_generation)
 		return;
 
 	*pcount = pps->capcount;
