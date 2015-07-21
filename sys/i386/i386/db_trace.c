@@ -389,7 +389,7 @@ db_nextframe(struct i386_frame **fp, db_addr_t *ip, struct thread *td)
 
 static int
 db_backtrace(struct thread *td, struct trapframe *tf, struct i386_frame *frame,
-    db_addr_t pc, int count)
+    db_addr_t pc, register_t sp, int count)
 {
 	struct i386_frame *actframe;
 #define MAXNARG	16
@@ -446,7 +446,21 @@ db_backtrace(struct thread *td, struct trapframe *tf, struct i386_frame *frame,
 		 */
 		actframe = frame;
 		if (first) {
-			if (tf != NULL) {
+			first = FALSE;
+			if (sym == C_DB_SYM_NULL && sp != 0) {
+				/*
+				 * If a symbol couldn't be found, we've probably
+				 * jumped to a bogus location, so try and use
+				 * the return address to find our caller.
+				 */
+				db_print_stack_entry(name, 0, 0, 0, pc,
+				    NULL);
+				pc = db_get_value(sp, 4, FALSE);
+				if (db_search_symbol(pc, DB_STGY_PROC,
+				    &offset) == C_DB_SYM_NULL)
+					break;
+				continue;
+			} else if (tf != NULL) {
 				instr = db_get_value(pc, 4, FALSE);
 				if ((instr & 0xffffff) == 0x00e58955) {
 					/* pushl %ebp; movl %esp, %ebp */
@@ -474,7 +488,6 @@ db_backtrace(struct thread *td, struct trapframe *tf, struct i386_frame *frame,
 				    actframe);
 				break;
 			}
-			first = FALSE;
 		}
 
 		argp = &actframe->f_arg0;
@@ -521,7 +534,7 @@ db_trace_self(void)
 	frame = (struct i386_frame *)ebp;
 	callpc = (db_addr_t)db_get_value((int)&frame->f_retaddr, 4, FALSE);
 	frame = frame->f_frame;
-	db_backtrace(curthread, NULL, frame, callpc, -1);
+	db_backtrace(curthread, NULL, frame, callpc, 0, -1);
 }
 
 int
@@ -531,7 +544,7 @@ db_trace_thread(struct thread *thr, int count)
 
 	ctx = kdb_thr_ctx(thr);
 	return (db_backtrace(thr, NULL, (struct i386_frame *)ctx->pcb_ebp,
-		    ctx->pcb_eip, count));
+	    ctx->pcb_eip, ctx->pcb_esp, count));
 }
 
 int
