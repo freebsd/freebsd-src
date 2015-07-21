@@ -161,6 +161,8 @@ lockstat_enable(void *arg, dtrace_id_t id, void *parg)
 
 	ASSERT(!lockstat_probemap[probe->lsp_probe]);
 
+	lockstat_enabled++;
+
 	lockstat_probemap[probe->lsp_probe] = id;
 #ifdef DOODAD
 	membar_producer();
@@ -183,6 +185,8 @@ lockstat_disable(void *arg, dtrace_id_t id, void *parg)
 	int i;
 
 	ASSERT(lockstat_probemap[probe->lsp_probe]);
+
+	lockstat_enabled--;
 
 	lockstat_probemap[probe->lsp_probe] = 0;
 #ifdef DOODAD

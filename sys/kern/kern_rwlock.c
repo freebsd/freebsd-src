@@ -379,7 +379,7 @@ __rw_rlock(volatile uintptr_t *c, const char *file, int line)
 	WITNESS_CHECKORDER(&rw->lock_object, LOP_NEWORDER, file, line, NULL);
 
 #ifdef KDTRACE_HOOKS
-	all_time -= lockstat_nsecs();
+	all_time -= lockstat_nsecs(&rw->lock_object);
 	state = rw->rw_lock;
 #endif
 	for (;;) {
@@ -530,11 +530,11 @@ __rw_rlock(volatile uintptr_t *c, const char *file, int line)
 			CTR2(KTR_LOCK, "%s: %p blocking on turnstile", __func__,
 			    rw);
 #ifdef KDTRACE_HOOKS
-		sleep_time -= lockstat_nsecs();
+		sleep_time -= lockstat_nsecs(&rw->lock_object);
 #endif
 		turnstile_wait(ts, rw_owner(rw), TS_SHARED_QUEUE);
 #ifdef KDTRACE_HOOKS
-		sleep_time += lockstat_nsecs();
+		sleep_time += lockstat_nsecs(&rw->lock_object);
 		sleep_cnt++;
 #endif
 		if (LOCK_LOG_TEST(&rw->lock_object, 0))
@@ -542,7 +542,7 @@ __rw_rlock(volatile uintptr_t *c, const char *file, int line)
 			    __func__, rw);
 	}
 #ifdef KDTRACE_HOOKS
-	all_time += lockstat_nsecs();
+	all_time += lockstat_nsecs(&rw->lock_object);
 	if (sleep_time)
 		LOCKSTAT_RECORD4(LS_RW_RLOCK_BLOCK, rw, sleep_time,
 		    LOCKSTAT_READER, (state & RW_LOCK_READ) == 0,
@@ -765,7 +765,7 @@ __rw_wlock_hard(volatile uintptr_t *c, uintptr_t tid, const char *file,
 		    rw->lock_object.lo_name, (void *)rw->rw_lock, file, line);
 
 #ifdef KDTRACE_HOOKS
-	all_time -= lockstat_nsecs();
+	all_time -= lockstat_nsecs(&rw->lock_object);
 	state = rw->rw_lock;
 #endif
 	while (!_rw_write_lock(rw, tid)) {
@@ -891,11 +891,11 @@ __rw_wlock_hard(volatile uintptr_t *c, uintptr_t tid, const char *file,
 			CTR2(KTR_LOCK, "%s: %p blocking on turnstile", __func__,
 			    rw);
 #ifdef KDTRACE_HOOKS
-		sleep_time -= lockstat_nsecs();
+		sleep_time -= lockstat_nsecs(&rw->lock_object);
 #endif
 		turnstile_wait(ts, rw_owner(rw), TS_EXCLUSIVE_QUEUE);
 #ifdef KDTRACE_HOOKS
-		sleep_time += lockstat_nsecs();
+		sleep_time += lockstat_nsecs(&rw->lock_object);
 		sleep_cnt++;
 #endif
 		if (LOCK_LOG_TEST(&rw->lock_object, 0))
@@ -906,7 +906,7 @@ __rw_wlock_hard(volatile uintptr_t *c, uintptr_t tid, const char *file,
 #endif
 	}
 #ifdef KDTRACE_HOOKS
-	all_time += lockstat_nsecs();
+	all_time += lockstat_nsecs(&rw->lock_object);
 	if (sleep_time)
 		LOCKSTAT_RECORD4(LS_RW_WLOCK_BLOCK, rw, sleep_time,
 		    LOCKSTAT_WRITER, (state & RW_LOCK_READ) == 0,
