@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/queue.h>
 #include <sys/lock.h>
 #include <sys/sx.h>
+#include <sys/limits.h>
 
 #include <net/if.h>
 #include <net/if_arp.h>
@@ -286,6 +287,8 @@ struct netfront_info {
 	multicall_entry_t	rx_mcl[NET_RX_RING_SIZE+1];
 	mmu_update_t		rx_mmu[NET_RX_RING_SIZE];
 	struct ifmedia		sc_media;
+
+	bool			xn_resume;
 };
 
 #define rx_mbufs xn_cdata.xn_rx_chain
@@ -501,6 +504,7 @@ netfront_resume(device_t dev)
 {
 	struct netfront_info *info = device_get_softc(dev);
 
+	info->xn_resume = true;
 	netif_disconnect_backend(info);
 	return (0);
 }
@@ -2000,18 +2004,33 @@ xn_query_features(struct netfront_info *np)
 static int
 xn_configure_features(struct netfront_info *np)
 {
-	int err;
+	int err, cap_enabled;
 
 	err = 0;
+
+	if (np->xn_resume &&
+	    ((np->xn_ifp->if_capenable & np->xn_ifp->if_capabilities)
+	    == np->xn_ifp->if_capenable)) {
+		/* Current options are available, no need to do anything. */
+		return (0);
+	}
+
+	/* Try to preserve as many options as possible. */
+	if (np->xn_resume)
+		cap_enabled = np->xn_ifp->if_capenable;
+	else
+		cap_enabled = UINT_MAX;
+
 #if __FreeBSD_version >= 700000 && (defined(INET) || defined(INET6))
-	if ((np->xn_ifp->if_capenable & IFCAP_LRO) != 0)
+	if ((np->xn_ifp->if_capenable & IFCAP_LRO) == (cap_enabled & IFCAP_LRO))
 		tcp_lro_free(&np->xn_lro);
 #endif
     	np->xn_ifp->if_capenable =
-	    np->xn_ifp->if_capabilities & ~(IFCAP_LRO|IFCAP_TSO4);
+	    np->xn_ifp->if_capabilities & ~(IFCAP_LRO|IFCAP_TSO4) & cap_enabled;
 	np->xn_ifp->if_hwassist &= ~CSUM_TSO;
 #if __FreeBSD_version >= 700000 && (defined(INET) || defined(INET6))
-	if (xn_enable_lro && (np->xn_ifp->if_capabilities & IFCAP_LRO) != 0) {
+	if (xn_enable_lro && (np->xn_ifp->if_capabilities & IFCAP_LRO) ==
+	    (cap_enabled & IFCAP_LRO)) {
 		err = tcp_lro_init(&np->xn_lro);
 		if (err) {
 			device_printf(np->xbdev, "LRO initialization failed\n");
@@ -2020,7 +2039,8 @@ xn_configure_features(struct netfront_info *np)
 			np->xn_ifp->if_capenable |= IFCAP_LRO;
 		}
 	}
-	if ((np->xn_ifp->if_capabilities & IFCAP_TSO4) != 0) {
+	if ((np->xn_ifp->if_capabilities & IFCAP_TSO4) ==
+	    (cap_enabled & IFCAP_TSO4)) {
 		np->xn_ifp->if_capenable |= IFCAP_TSO4;
 		np->xn_ifp->if_hwassist |= CSUM_TSO;
 	}
