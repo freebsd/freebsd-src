@@ -776,19 +776,31 @@ kread_counter(u_long addr)
 int
 kread_counters(u_long addr, void *buf, size_t size)
 {
-	uint64_t *c = buf;
+	uint64_t *c;
+	u_long *counters;
+	size_t i, n;
 
 	if (kvmd_init() < 0)
 		return (-1);
 
-	if (kread(addr, buf, size) < 0)
+	if (size % sizeof(uint64_t) != 0) {
+		xo_warnx("kread_counters: invalid counter set size");
 		return (-1);
-
-	while (size != 0) {
-		*c = kvm_counter_u64_fetch(kvmd, *c);
-		size -= sizeof(*c);
-		c++;
 	}
+
+	n = size / sizeof(uint64_t);
+	if ((counters = malloc(n * sizeof(u_long))) == NULL)
+		xo_err(-1, "malloc");
+	if (kread(addr, counters, n * sizeof(u_long)) < 0) {
+		free(counters);
+		return (-1);
+	}
+
+	c = buf;
+	for (i = 0; i < n; i++)
+		c[i] = kvm_counter_u64_fetch(kvmd, counters[i]);
+
+	free(counters);
 	return (0);
 }
 
