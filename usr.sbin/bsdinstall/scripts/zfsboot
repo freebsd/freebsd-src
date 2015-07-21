@@ -196,6 +196,8 @@ GPART_BOOTCODE_PART='gpart bootcode -b "%s" -p "%s" -i %s "%s"'
 GPART_CREATE='gpart create -s %s "%s"'
 GPART_DESTROY_F='gpart destroy -F "%s"'
 GPART_SET_ACTIVE='gpart set -a active -i %s "%s"'
+GPART_SET_LENOVOFIX='gpart set -a lenovofix "%s"'
+GPART_SET_PMBR_ACTIVE='gpart set -a active "%s"'
 GRAID_DELETE='graid delete "%s"'
 LN_SF='ln -sf "%s" "%s"'
 MKDIR_P='mkdir -p "%s"'
@@ -263,7 +265,7 @@ msg_null_index_argument="NULL index argument"
 msg_null_poolname="NULL poolname"
 msg_ok="OK"
 msg_partition_scheme="Partition Scheme"
-msg_partition_scheme_help="Toggle between GPT and MBR partitioning schemes"
+msg_partition_scheme_help="Select partitioning scheme. GPT is recommended."
 msg_please_enter_a_name_for_your_zpool="Please enter a name for your zpool:"
 msg_please_enter_amount_of_swap_space="Please enter amount of swap space (SI-Unit suffixes\nrecommended; e.g., \`2g' for 2 Gigabytes):"
 msg_please_select_one_or_more_disks="Please select one or more disks to create a zpool:"
@@ -779,7 +781,7 @@ zfs_create_diskpart()
 
 	# Check for unknown partition scheme before proceeding further
 	case "$ZFSBOOT_PARTITION_SCHEME" in
-	""|MBR|GPT) : known good ;;
+	""|MBR|GPT*) : known good ;;
 	*)
 		f_dprintf "$funcname: %s is an unsupported partition scheme" \
 		          "$ZFSBOOT_PARTITION_SCHEME"
@@ -826,12 +828,23 @@ zfs_create_diskpart()
 	fi
 
 	case "$ZFSBOOT_PARTITION_SCHEME" in
-	""|GPT) f_dprintf "$funcname: Creating GPT layout..."
+	""|GPT*) f_dprintf "$funcname: Creating GPT layout..."
 		#
 		# 1. Create GPT layout using labels
 		#
 		f_eval_catch $funcname gpart "$GPART_CREATE" gpt $disk ||
 		             return $FAILURE
+
+		#
+		# Apply workarounds if requested by the user
+		#
+		if [ "$ZFSBOOT_PARTITION_SCHEME" = "GPT + Lenovo Fix" ]; then
+			f_eval_catch $funcname gpart "$GPART_SET_LENOVOFIX" \
+			             $disk || return $FAILURE
+		elif [ "$ZFSBOOT_PARTITION_SCHEME" = "GPT + Active" ]; then
+			f_eval_catch $funcname gpart "$GPART_SET_PMBR_ACTIVE" \
+			             $disk || return $FAILURE
+		fi
 
 		#
 		# 2. Add small freebsd-boot partition labeled `boot#'
@@ -1581,6 +1594,10 @@ while :; do
 		# Toggle between GPT and MBR
 		if [ "$ZFSBOOT_PARTITION_SCHEME" = GPT ]; then
 			ZFSBOOT_PARTITION_SCHEME=MBR
+		elif [ "$ZFSBOOT_PARTITION_SCHEME" = MBR ]; then
+			ZFSBOOT_PARTITION_SCHEME="GPT + Active"
+		elif [ "$ZFSBOOT_PARTITION_SCHEME" = "GPT + Active" ]; then
+			ZFSBOOT_PARTITION_SCHEME="GPT + Lenovo Fix"
 		else
 			ZFSBOOT_PARTITION_SCHEME=GPT
 		fi
