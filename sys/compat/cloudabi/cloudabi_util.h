@@ -30,7 +30,12 @@
 
 #include <compat/cloudabi/cloudabi_syscalldefs.h>
 
+struct timespec;
+
 /* Converts a FreeBSD errno to a CloudABI errno. */
 cloudabi_errno_t cloudabi_convert_errno(int);
+
+/* Converts a struct timespec to a CloudABI timestamp. */
+int cloudabi_convert_timespec(const struct timespec *, cloudabi_timestamp_t *);
 
 #endif
