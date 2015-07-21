@@ -541,9 +541,11 @@ int
 db_trace_thread(struct thread *thr, int count)
 {
 	struct pcb *ctx;
+	struct trapframe *tf;
 
 	ctx = kdb_thr_ctx(thr);
-	return (db_backtrace(thr, NULL, (struct i386_frame *)ctx->pcb_ebp,
+	tf = thr == kdb_thread ? kdb_frame : NULL;
+	return (db_backtrace(thr, tf, (struct i386_frame *)ctx->pcb_ebp,
 	    ctx->pcb_eip, ctx->pcb_esp, count));
 }
 
