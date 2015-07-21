@@ -200,7 +200,7 @@ static void
 db_print_stack_entry(const char *name, db_addr_t callpc, void *frame)
 {
 
-	db_printf("%s() at ", name);
+	db_printf("%s() at ", name != NULL ? name : "??");
 	db_printsym(callpc, DB_STGY_PROC);
 	if (frame != NULL)
 		db_printf("/frame 0x%lx", (register_t)frame);
@@ -331,8 +331,8 @@ db_nextframe(struct amd64_frame **fp, db_addr_t *ip, struct thread *td)
 }
 
 static int
-db_backtrace(struct thread *td, struct trapframe *tf,
-    struct amd64_frame *frame, db_addr_t pc, int count)
+db_backtrace(struct thread *td, struct trapframe *tf, struct amd64_frame *frame,
+    db_addr_t pc, register_t sp, int count)
 {
 	struct amd64_frame *actframe;
 	const char *name;
@@ -361,7 +361,20 @@ db_backtrace(struct thread *td, struct trapframe *tf,
 		 */
 		actframe = frame;
 		if (first) {
-			if (tf != NULL) {
+			first = FALSE;
+			if (sym == C_DB_SYM_NULL && sp != 0) {
+				/*
+				 * If a symbol couldn't be found, we've probably
+				 * jumped to a bogus location, so try and use
+				 * the return address to find our caller.
+				 */
+				db_print_stack_entry(name, pc, NULL);
+				pc = db_get_value(sp, 8, FALSE);
+				if (db_search_symbol(pc, DB_STGY_PROC,
+				    &offset) == C_DB_SYM_NULL)
+					break;
+				continue;
+			} else if (tf != NULL) {
 				int instr;
 
 				instr = db_get_value(pc, 4, FALSE);
@@ -390,7 +403,6 @@ db_backtrace(struct thread *td, struct trapframe *tf,
 				db_print_stack_entry(name, pc, actframe);
 				break;
 			}
-			first = FALSE;
 		}
 
 		db_print_stack_entry(name, pc, actframe);
@@ -429,7 +441,7 @@ db_trace_self(void)
 	frame = (struct amd64_frame *)rbp;
 	callpc = (db_addr_t)db_get_value((long)&frame->f_retaddr, 8, FALSE);
 	frame = frame->f_frame;
-	db_backtrace(curthread, NULL, frame, callpc, -1);
+	db_backtrace(curthread, NULL, frame, callpc, 0, -1);
 }
 
 int
@@ -439,7 +451,7 @@ db_trace_thread(struct thread *thr, int count)
 
 	ctx = kdb_thr_ctx(thr);
 	return (db_backtrace(thr, NULL, (struct amd64_frame *)ctx->pcb_rbp,
-		    ctx->pcb_rip, count));
+	    ctx->pcb_rip, ctx->pcb_rsp, count));
 }
 
 int
