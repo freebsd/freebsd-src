@@ -829,8 +829,14 @@ ok:
 		 * Ensure that the thread will process the handler list
 		 * again and remove this handler if it has already passed
 		 * it on the list.
+		 *
+		 * The release part of the following store ensures
+		 * that the update of ih_flags is ordered before the
+		 * it_need setting.  See the comment before
+		 * atomic_cmpset_acq(&ithd->it_need, ...) operation in
+		 * the ithread_execute_handlers().
 		 */
-		ie->ie_thread->it_need = 1;
+		atomic_store_rel_int(&ie->ie_thread->it_need, 1);
 	} else
 		TAILQ_REMOVE(&ie->ie_handlers, handler, ih_next);
 	thread_unlock(ie->ie_thread->it_thread);
@@ -979,8 +985,14 @@ ok:
 		 * Ensure that the thread will process the handler list
 		 * again and remove this handler if it has already passed
 		 * it on the list.
+		 *
+		 * The release part of the following store ensures
+		 * that the update of ih_flags is ordered before the
+		 * it_need setting.  See the comment before
+		 * atomic_cmpset_acq(&ithd->it_need, ...) operation in
+		 * the ithread_execute_handlers().
 		 */
-		it->it_need = 1;
+		atomic_store_rel_int(&it->it_need, 1);
 	} else
 		TAILQ_REMOVE(&ie->ie_handlers, handler, ih_next);
 	thread_unlock(it->it_thread);
