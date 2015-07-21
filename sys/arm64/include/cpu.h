@@ -92,10 +92,17 @@
 #define	CPU_VAR_MASK	(0xf << 20)
 #define	CPU_REV_MASK	(0xf << 0)
 
-#define CPU_MATCH(mask, impl, part, var, rev)						\
-    (((mask) & PCPU_GET(midr)) == (CPU_IMPL_TO_MIDR((impl)) |		\
-    CPU_PART_TO_MIDR((part)) | CPU_VAR_TO_MIDR((var)) |				\
-    CPU_REV_TO_MIDR((rev))))
+#define	CPU_ID_RAW(impl, part, var, rev)		\
+    (CPU_IMPL_TO_MIDR((impl)) |				\
+    CPU_PART_TO_MIDR((part)) | CPU_VAR_TO_MIDR((var)) |	\
+    CPU_REV_TO_MIDR((rev)))
+
+#define	CPU_MATCH(mask, impl, part, var, rev)		\
+    (((mask) & PCPU_GET(midr)) ==			\
+    ((mask) & CPU_ID_RAW((impl), (part), (var), (rev))))
+
+#define	CPU_MATCH_RAW(mask, devid)			\
+    (((mask) & PCPU_GET(midr)) == ((mask) & (devid)))
 
 extern char btext[];
 extern char etext[];
