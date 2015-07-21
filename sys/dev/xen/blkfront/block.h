@@ -61,11 +61,19 @@
 	((size / PAGE_SIZE) + 1)
 
 /**
+ * The maximum number of shared memory ring pages we will allow in a
+ * negotiated block-front/back communication channel.  Allow enough
+ * ring space for all requests to be  XBD_MAX_REQUEST_SIZE'd.
+ */
+#define XBD_MAX_RING_PAGES		32
+
+/**
  * The maximum number of outstanding requests blocks (request headers plus
  * additional segment blocks) we will allow in a negotiated block-front/back
  * communication channel.
  */
-#define XBD_MAX_REQUESTS		256
+#define XBD_MAX_REQUESTS						\
+	__CONST_RING_SIZE(blkif, PAGE_SIZE * XBD_MAX_RING_PAGES)
 
 /**
  * The maximum mapped region size per request we will allow in a negotiated
@@ -82,15 +90,6 @@
 #define	XBD_MAX_SEGMENTS_PER_REQUEST					\
 	(MIN(BLKIF_MAX_SEGMENTS_PER_REQUEST,				\
 	     XBD_SIZE_TO_SEGS(XBD_MAX_REQUEST_SIZE)))
-
-/**
- * The maximum number of shared memory ring pages we will allow in a
- * negotiated block-front/back communication channel.  Allow enough
- * ring space for all requests to be  XBD_MAX_REQUEST_SIZE'd.
- */
-#define XBD_MAX_RING_PAGES						    \
-	BLKIF_RING_PAGES(BLKIF_SEGS_TO_BLOCKS(XBD_MAX_SEGMENTS_PER_REQUEST) \
-		       * XBD_MAX_REQUESTS)
 
 typedef enum {
 	XBDCF_Q_MASK		= 0xFF,
@@ -175,7 +174,6 @@ struct xbd_softc {
 	u_int				 xbd_ring_pages;
 	uint32_t			 xbd_max_requests;
 	uint32_t			 xbd_max_request_segments;
-	uint32_t			 xbd_max_request_blocks;
 	uint32_t			 xbd_max_request_size;
 	grant_ref_t			 xbd_ring_ref[XBD_MAX_RING_PAGES];
 	blkif_front_ring_t		 xbd_ring;
