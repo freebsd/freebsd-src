@@ -52,6 +52,7 @@ static struct ofw_compat_data compat_data[] = {
 	{"arm,cortex-a7-gic",	true},
 	{"arm,arm11mp-gic",	true},
 	{"brcm,brahma-b15-gic",	true},
+	{"qcom,msm-qgic2",	true},
 	{NULL,			false}
 };
 
