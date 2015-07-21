@@ -188,9 +188,7 @@ db_ss(struct db_variable *vp, db_expr_t *valuep, int op)
 #define	TRAP_INTERRUPT	5
 
 static void db_nextframe(struct amd64_frame **, db_addr_t *, struct thread *);
-static int db_numargs(struct amd64_frame *);
-static void db_print_stack_entry(const char *, int, char **, long *, db_addr_t,
-    void *);
+static void db_print_stack_entry(const char *, db_addr_t, void *);
 static void decode_syscall(int, struct thread *);
 
 static const char * watchtype_str(int type);
@@ -198,62 +196,11 @@ int  amd64_set_watch(int watchnum, unsigned long watchaddr, int size,
 		    int access, struct dbreg *d);
 int  amd64_clr_watch(int watchnum, struct dbreg *d);
 
-/*
- * Figure out how many arguments were passed into the frame at "fp".
- */
-static int
-db_numargs(fp)
-	struct amd64_frame *fp;
-{
-#if 1
-	return (0);	/* regparm, needs dwarf2 info */
-#else
-	long	*argp;
-	int	inst;
-	int	args;
-
-	argp = (long *)db_get_value((long)&fp->f_retaddr, 8, FALSE);
-	/*
-	 * XXX etext is wrong for LKMs.  We should attempt to interpret
-	 * the instruction at the return address in all cases.  This
-	 * may require better fault handling.
-	 */
-	if (argp < (long *)btext || argp >= (long *)etext) {
-		args = 5;
-	} else {
-		inst = db_get_value((long)argp, 4, FALSE);
-		if ((inst & 0xff) == 0x59)	/* popl %ecx */
-			args = 1;
-		else if ((inst & 0xffff) == 0xc483)	/* addl $Ibs, %esp */
-			args = ((inst >> 16) & 0xff) / 4;
-		else
-			args = 5;
-	}
-	return (args);
-#endif
-}
-
 static void
-db_print_stack_entry(name, narg, argnp, argp, callpc, frame)
-	const char *name;
-	int narg;
-	char **argnp;
-	long *argp;
-	db_addr_t callpc;
-	void *frame;
+db_print_stack_entry(const char *name, db_addr_t callpc, void *frame)
 {
-	db_printf("%s(", name);
-#if 0
-	while (narg) {
-		if (argnp)
-			db_printf("%s=", *argnp++);
-		db_printf("%lr", (long)db_get_value((long)argp, 8, FALSE));
-		argp++;
-		if (--narg != 0)
-			db_printf(",");
-	}
-#endif
-	db_printf(") at ");
+
+	db_printf("%s() at ", name);
 	db_printsym(callpc, DB_STGY_PROC);
 	if (frame != NULL)
 		db_printf("/frame 0x%lx", (register_t)frame);
@@ -348,7 +295,7 @@ db_nextframe(struct amd64_frame **fp, db_addr_t *ip, struct thread *td)
 		return;
 	}
 
-	db_print_stack_entry(name, 0, 0, 0, rip, &(*fp)->f_frame);
+	db_print_stack_entry(name, rip, &(*fp)->f_frame);
 
 	/*
 	 * Point to base of trapframe which is just above the
@@ -388,13 +335,9 @@ db_backtrace(struct thread *td, struct trapframe *tf,
     struct amd64_frame *frame, db_addr_t pc, int count)
 {
 	struct amd64_frame *actframe;
-#define MAXNARG	16
-	char *argnames[MAXNARG], **argnp = NULL;
 	const char *name;
-	long *argp;
 	db_expr_t offset;
 	c_db_sym_t sym;
-	int narg;
 	boolean_t first;
 
 	if (count == -1)
@@ -444,22 +387,13 @@ db_backtrace(struct thread *td, struct trapframe *tf,
 				 * Don't try to walk back on a stack for a
 				 * process that hasn't actually been run yet.
 				 */
-				db_print_stack_entry(name, 0, 0, 0, pc,
-				    actframe);
+				db_print_stack_entry(name, pc, actframe);
 				break;
 			}
 			first = FALSE;
 		}
 
-		argp = &actframe->f_arg0;
-		narg = MAXNARG;
-		if (sym != NULL && db_sym_numargs(sym, &narg, argnames)) {
-			argnp = argnames;
-		} else {
-			narg = db_numargs(frame);
-		}
-
-		db_print_stack_entry(name, narg, argnp, argp, pc, actframe);
+		db_print_stack_entry(name, pc, actframe);
 
 		if (actframe != frame) {
 			/* `frame' belongs to caller. */
@@ -473,7 +407,7 @@ db_backtrace(struct thread *td, struct trapframe *tf,
 		if (INKERNEL((long)pc) && !INKERNEL((long)frame)) {
 			sym = db_search_symbol(pc, DB_STGY_ANY, &offset);
 			db_symbol_values(sym, &name, NULL);
-			db_print_stack_entry(name, 0, 0, 0, pc, frame);
+			db_print_stack_entry(name, pc, frame);
 			break;
 		}
 		if (!INKERNEL((long) frame)) {
