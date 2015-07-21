@@ -620,6 +620,9 @@ options 	COMPAT_FREEBSD32
 # Emulate spx device for client side of SVR3 local X interface
 #XXX#options 	SPX_HACK
 
+# Enable 64-bit runtime support for CloudABI binaries.
+options 	COMPAT_CLOUDABI64
+
 # Enable Linux ABI emulation
 #XXX#options 	COMPAT_LINUX
 
