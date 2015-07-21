@@ -11,6 +11,11 @@ handbook:
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
+20150721:	p20	FreeBSD-SA-15:13.tcp
+
+	Fix resource exhaustion due to sessions stuck in LAST_ACK state.
+	[SA-15:13]
+
 20150707:	p19	FreeBSD-SA-15:11.bind
 	Fix BIND resolver remote denial of service when validating.
 
