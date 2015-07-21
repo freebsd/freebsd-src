@@ -53,7 +53,7 @@ error() {
 }
 
 hline_arrows_tab_enter="Press arrows, TAB or ENTER"
-msg_gpt_active_fix="Your hardware is known to have issues booting in BIOS mode from GPT partitions that are not set active. Would you like the installer to apply this workaround for you?"
+msg_gpt_active_fix="Your hardware is known to have issues booting in CSM/Legacy/BIOS mode from GPT partitions that are not set active. Would you like the installer to apply this workaround for you?"
 msg_lenovo_fix="Your model of Lenovo is known to have a BIOS bug that prevents it booting from GPT partitions without UEFI. Would you like the installer to apply a workaround for you?"
 msg_no="NO"
 msg_yes="YES"
@@ -166,6 +166,14 @@ if f_interactive; then
 	f_dprintf "smbios.system.product=[%s]" "$sys_model"
 	sys_version=$( kenv -q smbios.system.version )
 	f_dprintf "smbios.system.version=[%s]" "$sys_version"
+	sys_mb_maker=$( kenv -q smbios.planar.maker )
+	f_dprintf "smbios.planar.maker=[%s]" "$sys_mb_maker"
+	sys_mb_product=$( kenv -q smbios.planar.product )
+	f_dprintf "smbios.planar.product=[%s]" "$sys_mb_product"
+
+	#
+	# Laptop Models
+	#
 	case "$sys_maker" in
 	"LENOVO")
 		case "$sys_version" in
@@ -182,7 +190,25 @@ if f_interactive; then
 		;;
 	"Dell Inc.")
 		case "$sys_model" in
-		"Latitude E7440")
+		"Latitude E7440"|"Latitude E7240")
+			dialog_workaround "$msg_gpt_active_fix"
+			retval=$?
+			f_dprintf "gpt_active_fix_prompt=[%s]" "$retval"
+			if [ $retval -eq $DIALOG_OK ]; then
+				export ZFSBOOT_PARTITION_SCHEME="GPT + Active"
+				export WORKAROUND_GPTACTIVE=1
+			fi
+			;;
+		esac
+		;;
+	esac
+	#
+	# Motherboard Models
+	#
+	case "$sys_mb_maker" in
+	"Intel Corporation")
+		case "$sys_mb_product" in
+		"DP965LT")
 			dialog_workaround "$msg_gpt_active_fix"
 			retval=$?
 			f_dprintf "gpt_active_fix_prompt=[%s]" "$retval"
