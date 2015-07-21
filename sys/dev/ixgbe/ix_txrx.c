@@ -1892,9 +1892,27 @@ ixgbe_rxeof(struct ix_queue *que)
 			}
 			if ((ifp->if_capenable & IFCAP_RXCSUM) != 0)
 				ixgbe_rx_checksum(staterr, sendmp, ptype);
+
+			/*
+			 * In case of multiqueue, we have RXCSUM.PCSD bit set
+			 * and never cleared. This means we have RSS hash
+			 * available to be used.
+			 */
+			if (adapter->num_queues > 1) {
+				sendmp->m_pkthdr.flowid =
+					le32toh(cur->wb.lower.hi_dword.rss);
+				/*
+				 * Full RSS support is not avilable in
+				 * FreeBSD 10 so setting the hash type to
+				 * OPAQUE.
+				 */
+				M_HASHTYPE_SET(sendmp, M_HASHTYPE_OPAQUE);
+			} else {
 #if __FreeBSD_version >= 800000
-			sendmp->m_pkthdr.flowid = que->msix;
+				sendmp->m_pkthdr.flowid = que->msix;
+				M_HASHTYPE_SET(sendmp, M_HASHTYPE_OPAQUE);
 #endif /* FreeBSD_version */
+			}
 		}
 next_desc:
 		bus_dmamap_sync(rxr->rxdma.dma_tag, rxr->rxdma.dma_map,
