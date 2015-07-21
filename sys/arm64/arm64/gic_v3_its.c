@@ -1423,20 +1423,24 @@ its_get_devid_thunder(device_t pci_dev)
 		    bsf);
 	/* PEM otherwise */
 	} else {
-		/* PEM number is equal to domain */
+		/* PEM (PCIe MAC/root complex) number is equal to domain */
 		pem = pci_get_domain(pci_dev);
 
-		/* Hardcode appropriate PEM numbers */
-		if (pem < 3 )
+		/*
+		 * Set appropriate device ID (passed by the HW along with
+		 * the transaction to memory) for different root complex
+		 * numbers using hard-coded domain portion for each group.
+		 */
+		if (pem < 3)
 			return ((0x1 << PCI_RID_DOMAIN_SHIFT) | bsf);
 
-		if (pem < 6 )
+		if (pem < 6)
 			return ((0x3 << PCI_RID_DOMAIN_SHIFT) | bsf);
 
-		if (pem < 9 )
+		if (pem < 9)
 			return ((0x9 << PCI_RID_DOMAIN_SHIFT) | bsf);
 
-		if (pem < 12 )
+		if (pem < 12)
 			return ((0xB << PCI_RID_DOMAIN_SHIFT) | bsf);
 	}
 
