@@ -137,7 +137,7 @@ static VT_SYSCTL_INT(kbd_panic, 0, "Enable request to panic.  "
 
 /* Used internally, not a tunable. */
 int vt_draw_logo_cpus;
-VT_SYSCTL_INT(splash_cpu, 1, "Show logo CPUs during boot");
+VT_SYSCTL_INT(splash_cpu, 0, "Show logo CPUs during boot");
 VT_SYSCTL_INT(splash_ncpu, 0, "Override number of logos displayed "
     "(0 = do not override)");
 VT_SYSCTL_INT(splash_cpu_style, 1, "Draw logo style "
