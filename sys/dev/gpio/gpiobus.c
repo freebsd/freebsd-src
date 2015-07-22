@@ -394,9 +394,14 @@ gpiobus_print_child(device_t dev, device_t child)
 	devi = GPIOBUS_IVAR(child);
 	memset(pins, 0, sizeof(pins));
 	retval += bus_print_child_header(dev, child);
-	retval += printf(" at pin(s) ");
-	gpiobus_print_pins(devi, pins, sizeof(pins));
-	retval += printf("%s", pins);
+	if (devi->npins > 0) {
+		if (devi->npins > 1)
+			retval += printf(" at pins ");
+		else
+			retval += printf(" at pin ");
+		gpiobus_print_pins(devi, pins, sizeof(pins));
+		retval += printf("%s", pins);
+	}
 	resource_list_print_type(&devi->rl, "irq", SYS_RES_IRQ, "%ld");
 	retval += bus_print_child_footer(dev, child);
 
