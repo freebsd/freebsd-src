@@ -102,6 +102,8 @@ SRCS+=		regcomp.c		\
 
 # libc/stdlib
 SRCS+=		atoi.c			\
+		abs.c			\
+		llabs.c			\
 		heapsort.c		\
 		qsort.c 		\
 		strtol.c		\
