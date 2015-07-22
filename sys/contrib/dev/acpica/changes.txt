@@ -1,4 +1,87 @@
 ----------------------------------------
+17 July 2015. Summary of changes for version 20150717:
+
+1) ACPICA kernel-resident subsystem:
+
+Improved the partitioning between the Debugger and Disassembler 
+components. This allows the Debugger to be used standalone within kernel 
+code without the Disassembler (which is used for single stepping also). 
+This renames and moves one file, dmobject.c to dbobject.c. Lv Zheng.
+
+Debugger: Implemented a new command to trace the execution of control 
+methods (Trace). This is especially useful for the in-kernel version of 
+the debugger when file I/O may not be available for method trace output. 
+See the ACPICA reference for more information. Lv Zheng.
+
+Moved all C library prototypes (used for the local versions of these 
+functions when requested) to a new header, acclib.h
+Cleaned up the use of non-ANSI C library functions. These functions are 
+implemented locally in ACPICA. Moved all such functions to a common 
+source file, utnonansi.c
+
+Debugger: Fixed a problem with the "!!" command (get last command 
+executed) where the debugger could enter an infinite loop and eventually 
+crash.
+
+Removed the use of local macros that were used for some of the standard C 
+library functions to automatically cast input parameters. This mostly 
+affected the is* functions where the input parameter is defined to be an 
+int. This required a few modifications to the main ACPICA source code to 
+provide casting for these functions and eliminate possible compiler 
+warnings for these parameters.
+
+Across the source code, added additional status/error checking to resolve 
+issues discovered by static source code analysis tools such as Coverity.
+
+Example Code and Data Size: These are the sizes for the OS-independent 
+acpica.lib produced by the Microsoft Visual C++ 9.0 32-bit compiler. The 
+debug version of the code includes the debug output trace mechanism and 
+has a much larger code and data size.
+
+  Current Release:
+    Non-Debug Version: 100.9K Code, 24.5K Data, 125.4K Total
+    Debug Version:     197.8K Code, 81.5K Data, 279.3K Total
+  Previous Release:
+    Non-Debug Version: 100.6K Code, 27.6K Data, 128.2K Total
+    Debug Version:     196.2K Code, 81.0K Data, 277.2K Total
+
+
+2) iASL Compiler/Disassembler and Tools:
+
+iASL: Fixed a regression where the device map file feature no longer 
+worked properly when used in conjunction with the disassembler. It only 
+worked properly with the compiler itself.
+
+iASL: Implemented a new warning for method LocalX variables that are set 
+but never used (similar to a C compiler such as gcc). This also applies 
+to ArgX variables that are not defined by the parent method, and are 
+instead (legally) used as local variables.
+
+iASL/Preprocessor: Finished the pass-through of line numbers from the 
+preprocessor to the compiler. This ensures that compiler errors/warnings 
+have the correct original line numbers and filenames, regardless of any 
+#include files.
+
+iASL/Preprocessor: Fixed a couple of issues with comment handling and the 
+pass-through of comments to the preprocessor output file (which becomes 
+the compiler input file). Also fixed a problem with // comments that 
+appear after a math expression.
+
+iASL: Added support for the TCPA server table to the table compiler and 
+template generator. (The client table was already previously supported)
+
+iASL/Preprocessor: Added a permanent #define of the symbol "__IASL__" to 
+identify the iASL compiler.
+
+Cleaned up the use of the macros NEGATIVE and POSITIVE which were defined 
+multiple times. The new names are ACPI_SIGN_NEGATIVE and 
+ACPI_SIGN_POSITIVE.
+
+AcpiHelp: Update to expand help messages for the iASL preprocessor 
+directives.
+
+
+----------------------------------------
 19 June 2015. Summary of changes for version 20150619:
 
 Two regressions in version 20150616 have been addressed:
