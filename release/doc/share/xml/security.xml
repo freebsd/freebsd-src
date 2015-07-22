@@ -125,6 +125,14 @@
 	    vulnerability (Note: This does not affect
 	    &os;&nbsp;10.1-RELEASE)</para></entry>
       </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-15:13.tcp.asc">FreeBSD-SA-15:13.tcp</link></entry>
+	<entry>21&nbsp;July&nbsp;2015</entry>
+	<entry><para>resource exhaustion due to sessions stuck in
+	    <literal>LAST_ACK</literal> state.</para></entry>
+      </row>
     </tbody>
   </tgroup>
 </informaltable>
