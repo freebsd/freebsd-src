@@ -26,7 +26,8 @@ CFLAGS+=	-DHAVE_CONFIG_H \
 		-I${.CURDIR}/../../contrib/tcpdump \
 		-I${.CURDIR}/../../lib/libcheri \
 		-I${.CURDIR}/../../usr.sbin/tcpdump/tcpdump \
-		-I${.CURDIR}/../../usr.sbin/tcpdump/cheri_tcpdump
+		-I${.CURDIR}/../../usr.sbin/tcpdump/cheri_tcpdump \
+		-mxgot
 LDFLAGS+=	-Wl,--script=${.CURDIR}/../../lib/libc_cheri/sandbox.ld \
 		-nostdlib
 

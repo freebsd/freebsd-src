@@ -27,7 +27,8 @@ CFLAGS+=	-I${.CURDIR}/../libc/include \
 		-I${.CURDIR}/../libc/locale \
 		-I${.CURDIR}/../libc/mips \
 		-I${.CURDIR}/../../contrib/gdtoa \
-		-I${.CURDIR}/../../contrib/tzcode/stdtime
+		-I${.CURDIR}/../../contrib/tzcode/stdtime \
+		-mxgot
 
 # libc/gdtoa
 CFLAGS.misc.c=	-Wno-sign-compare
