@@ -545,7 +545,7 @@ struct sctp_sysctl {
 #define SCTPCTL_RTTVAR_DCCCECN_MAX	1
 #define SCTPCTL_RTTVAR_DCCCECN_DEFAULT	1	/* 0 means disable feature */
 
-#define SCTPCTL_BLACKHOLE_DESC		"Enable SCTP blackholing"
+#define SCTPCTL_BLACKHOLE_DESC		"Enable SCTP blackholing. See blackhole(4) man page for more details."
 #define SCTPCTL_BLACKHOLE_MIN		0
 #define SCTPCTL_BLACKHOLE_MAX		2
 #define SCTPCTL_BLACKHOLE_DEFAULT	SCTPCTL_BLACKHOLE_MIN
