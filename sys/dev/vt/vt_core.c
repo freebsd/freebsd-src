@@ -140,7 +140,7 @@ int vt_draw_logo_cpus;
 VT_SYSCTL_INT(splash_cpu, 0, "Show logo CPUs during boot");
 VT_SYSCTL_INT(splash_ncpu, 0, "Override number of logos displayed "
     "(0 = do not override)");
-VT_SYSCTL_INT(splash_cpu_style, 1, "Draw logo style "
+VT_SYSCTL_INT(splash_cpu_style, 2, "Draw logo style "
     "(0=Beastie, 1=Alternate beastie, 2=Orb)");
 VT_SYSCTL_INT(splash_cpu_duration, 10, "Hide logos after (seconds)");
 
