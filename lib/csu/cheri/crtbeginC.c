@@ -30,7 +30,18 @@
 
 void	crt_sb_constructors(void);
 
+#if __CHERI_SANDBOX__ > 2
+/*
+ * In version 3 of the CHERI sandbox ABI, function pointers are capabilities.
+ * The CTORs list is the single exception: CTORs are used to set up globals
+ * that contain function pointers so (until we have proper linker support) we
+ * are still generating them as a sequence of PCC-relative integers.
+ */
+typedef unsigned long long mips_function_ptr;
+typedef void (*cheri_function_ptr)(void);
+#else
 typedef void (*mips_function_ptr)(void);
+#endif
 
 static mips_function_ptr __attribute__((used))
     __attribute__((section(".ctors")))
@@ -62,7 +73,15 @@ crt_sb_constructors(void)
 	for (func = &__CTOR_LIST__[0];
 	    func != &__CTOR_END__;
 	    func++) {
-		if (*func != (mips_function_ptr)-1)
+		if (*func != (mips_function_ptr)-1) {
+#if __CHERI_SANDBOX__ > 2
+			cheri_function_ptr cheri_func =
+				(cheri_function_ptr)__builtin_memcap_offset_set(
+						__builtin_memcap_program_counter_get(), *func);
+			cheri_func();
+#else
 			(*func)();
+#endif
+		}
 	}
 }

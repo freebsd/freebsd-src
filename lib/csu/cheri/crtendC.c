@@ -28,7 +28,12 @@
  * SUCH DAMAGE.
  */
 
+#if __CHERI_SANDBOX__ > 2
+typedef unsigned long long mips_function_ptr;
+#else
 typedef void (*mips_function_ptr)(void);
+#endif
+
 
 mips_function_ptr __attribute__((used))
     __attribute__((section(".ctors")))
