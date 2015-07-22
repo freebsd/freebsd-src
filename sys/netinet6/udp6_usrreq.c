@@ -403,7 +403,7 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 		INP_RLOCK(last);
 		INP_INFO_RUNLOCK(pcbinfo);
 		UDP_PROBE(receive, NULL, last, ip6, last, uh);
-		if (udp6_append(last, m, off, &fromsa)) 
+		if (udp6_append(last, m, off, &fromsa) == 0) 
 			INP_RUNLOCK(last);
 	inp_lost:
 		return (IPPROTO_DONE);
