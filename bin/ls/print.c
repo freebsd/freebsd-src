@@ -456,7 +456,7 @@ printtime(const char *field, time_t ftime)
 	snprintf(fmt, sizeof(fmt), "{d:%s/%%hs} ", field);
 	xo_attr("value", "%ld", (long) ftime);
 	xo_emit(fmt, longstring);
-	snprintf(fmt, sizeof(fmt), "{en:%s/%%ld} ", field);
+	snprintf(fmt, sizeof(fmt), "{en:%s/%%ld}", field);
 	xo_emit(fmt, (long) ftime);
 }
 
