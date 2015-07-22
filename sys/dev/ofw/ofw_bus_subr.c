@@ -170,7 +170,8 @@ ofw_bus_status_okay(device_t dev)
 	const char *status;
 
 	status = ofw_bus_get_status(dev);
-	if (status == NULL || strcmp(status, "okay") == 0)
+	if (status == NULL || strcmp(status, "okay") == 0 ||
+	    strcmp(status, "ok") == 0)
 		return (1);
 	
 	return (0);
@@ -444,7 +445,7 @@ ofw_bus_intr_to_rl(device_t dev, phandle_t node,
 		if (OF_searchencprop(node, "interrupt-parent", &iparent,
 		    sizeof(iparent)) == -1) {
 			for (iparent = node; iparent != 0;
-			    iparent = OF_parent(node)) {
+			    iparent = OF_parent(iparent)) {
 				if (OF_hasprop(iparent, "interrupt-controller"))
 					break;
 			}

@@ -29,6 +29,8 @@
 #ifndef SYS_DEV_RANDOM_RANDOMDEV_H_INCLUDED
 #define	SYS_DEV_RANDOM_RANDOMDEV_H_INCLUDED
 
+#ifdef _KERNEL
+
 /* This header contains only those definitions that are global
  * and non algorithm-specific for the entropy processor
  */
@@ -55,11 +57,12 @@ MALLOC_DECLARE(M_ENTROPY);
 
 #define	RANDOM_ALG_READ_RATE_MINIMUM	32
 
+#endif /* _KERNEL */
+
 struct harvest_event;
 
 typedef void random_alg_pre_read_t(void);
 typedef void random_alg_read_t(uint8_t *, u_int);
-typedef void random_alg_post_read_t(void);
 typedef void random_alg_write_t(uint8_t *, u_int);
 typedef int random_alg_seeded_t(void);
 typedef void random_alg_reseed_t(void);
@@ -74,9 +77,10 @@ typedef u_int random_source_read_t(void *, u_int);
 struct random_algorithm {
 	const char			*ra_ident;
 	u_int				 ra_poolcount;
+	void				(*ra_init_alg)(void *);
+	void				(*ra_deinit_alg)(void *);
 	random_alg_pre_read_t		*ra_pre_read;
 	random_alg_read_t		*ra_read;
-	random_alg_post_read_t		*ra_post_read;
 	random_alg_write_t		*ra_write;
 	random_alg_reseed_t		*ra_reseed;
 	random_alg_seeded_t		*ra_seeded;
@@ -84,6 +88,8 @@ struct random_algorithm {
 };
 
 extern struct random_algorithm random_alg_context;
+
+#ifdef _KERNEL
 
 /*
  * Random Source is a source of entropy that can provide
@@ -107,6 +113,8 @@ void random_source_register(struct random_source *);
 void random_source_deregister(struct random_source *);
 
 void random_sources_feed(void);
+
+#endif /* _KERNEL */
 
 void randomdev_unblock(void);
 

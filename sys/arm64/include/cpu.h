@@ -43,6 +43,7 @@
 
 #include <machine/atomic.h>
 #include <machine/frame.h>
+#include <machine/armreg.h>
 
 #define	TRAPF_PC(tfp)		((tfp)->tf_lr)
 #define	TRAPF_USERMODE(tfp)	(((tfp)->tf_elr & (1ul << 63)) == 0)
@@ -92,10 +93,17 @@
 #define	CPU_VAR_MASK	(0xf << 20)
 #define	CPU_REV_MASK	(0xf << 0)
 
-#define CPU_MATCH(mask, impl, part, var, rev)						\
-    (((mask) & PCPU_GET(midr)) == (CPU_IMPL_TO_MIDR((impl)) |		\
-    CPU_PART_TO_MIDR((part)) | CPU_VAR_TO_MIDR((var)) |				\
-    CPU_REV_TO_MIDR((rev))))
+#define	CPU_ID_RAW(impl, part, var, rev)		\
+    (CPU_IMPL_TO_MIDR((impl)) |				\
+    CPU_PART_TO_MIDR((part)) | CPU_VAR_TO_MIDR((var)) |	\
+    CPU_REV_TO_MIDR((rev)))
+
+#define	CPU_MATCH(mask, impl, part, var, rev)		\
+    (((mask) & PCPU_GET(midr)) ==			\
+    ((mask) & CPU_ID_RAW((impl), (part), (var), (rev))))
+
+#define	CPU_MATCH_RAW(mask, devid)			\
+    (((mask) & PCPU_GET(midr)) == ((mask) & (devid)))
 
 extern char btext[];
 extern char etext[];
@@ -113,9 +121,11 @@ void	swi_vm(void *v);
 static __inline uint64_t
 get_cyclecount(void)
 {
+	uint64_t ret;
 
-	/* TODO: This is bogus */
-	return (1);
+	ret = READ_SPECIALREG(cntvct_el0);
+
+	return (ret);
 }
 
 #define	ADDRESS_TRANSLATE_FUNC(stage)				\

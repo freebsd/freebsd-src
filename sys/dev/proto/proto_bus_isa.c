@@ -59,6 +59,9 @@ static driver_t proto_isa_driver = {
 	sizeof(struct proto_softc),
 };
 
+static char proto_isa_prefix[] = "isa";
+static char **proto_isa_devnames;
+
 static int
 proto_isa_probe(device_t dev)
 {
@@ -77,12 +80,12 @@ proto_isa_probe(device_t dev)
 		return (ENODEV);
 
 	sb = sbuf_new_auto();
-	sbuf_printf(sb, "isa:%#lx", rman_get_start(res));
+	sbuf_printf(sb, "%s:%#lx", proto_isa_prefix, rman_get_start(res));
 	sbuf_finish(sb);
 	device_set_desc_copy(dev, sbuf_data(sb));
 	sbuf_delete(sb);
 	bus_release_resource(dev, type, rid, res);
-	return (BUS_PROBE_HOOVER);
+	return (proto_probe(dev, proto_isa_prefix, &proto_isa_devnames));
 }
 
 static int

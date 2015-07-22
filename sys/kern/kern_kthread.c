@@ -162,7 +162,7 @@ kproc_exit(int ecode)
 	wakeup(p);
 
 	/* Buh-bye! */
-	exit1(td, W_EXITCODE(ecode, 0));
+	exit1(td, ecode, 0);
 }
 
 /*

@@ -76,7 +76,7 @@ int
 cloudabi_sys_fd_dup(struct thread *td, struct cloudabi_sys_fd_dup_args *uap)
 {
 
-	return (kern_dup(td, 0, uap->from, 0));
+	return (kern_dup(td, FDDUP_NORMAL, 0, uap->from, 0));
 }
 
 int
@@ -97,7 +97,7 @@ cloudabi_sys_fd_replace(struct thread *td,
 	 * clear the return value, as this system call yields no return
 	 * value.
 	 */
-	error = kern_dup(td, FDDUP_MUSTREPLACE, uap->from, uap->to);
+	error = kern_dup(td, FDDUP_MUSTREPLACE, 0, uap->from, uap->to);
 	td->td_retval[0] = 0;
 	return (error);
 }

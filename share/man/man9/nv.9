@@ -66,7 +66,7 @@
 .Ft int
 .Fn nvlist_error "const nvlist_t *nvl"
 .Ft void
-.Fn nvlist_set_error "nvlist_t *nvl, int error"
+.Fn nvlist_set_error "nvlist_t *nvl" "int error"
 .Ft bool
 .Fn nvlist_empty "const nvlist_t *nvl"
 .Ft int
@@ -76,9 +76,9 @@
 .Fn nvlist_clone "const nvlist_t *nvl"
 .\"
 .Ft void
-.Fn nvlist_dump "const nvlist_t *nvl, int fd"
+.Fn nvlist_dump "const nvlist_t *nvl" "int fd"
 .Ft void
-.Fn nvlist_fdump "const nvlist_t *nvl, FILE *fp"
+.Fn nvlist_fdump "const nvlist_t *nvl" "FILE *fp"
 .\"
 .Ft size_t
 .Fn nvlist_size "const nvlist_t *nvl"

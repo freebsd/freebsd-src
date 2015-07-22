@@ -136,8 +136,10 @@ main(int argc, char *argv[])
 	name = NULL;
 	relocated = nis = false;
 	memset(&conf, 0, sizeof(conf));
+	strlcpy(conf.rootdir, "/", sizeof(conf.rootdir));
 	strlcpy(conf.etcpath, _PATH_PWD, sizeof(conf.etcpath));
 	conf.fd = -1;
+	conf.checkduplicate = true;
 
 	LIST_INIT(&arglist);
 
@@ -215,6 +217,9 @@ main(int argc, char *argv[])
 	if (mode == -1 || which == -1)
 		cmdhelp(mode, which);
 
+	conf.rootfd = open(conf.rootdir, O_DIRECTORY|O_CLOEXEC);
+	if (conf.rootfd == -1)
+		errx(EXIT_FAILURE, "Unable to open '%s'", conf.rootdir);
 	conf.which = which;
 	/*
 	 * We know which mode we're in and what we're about to do, so now
@@ -234,6 +239,9 @@ main(int argc, char *argv[])
 			conf.config = optarg;
 			config = conf.config;
 			break;
+		case 'F':
+			conf.force = true;
+			break;
 		case 'N':
 			conf.dryrun = true;
 			break;
@@ -247,6 +255,12 @@ main(int argc, char *argv[])
 			break;
 		case 'Y':
 			nis = true;
+			break;
+		case 'a':
+			conf.all = true;
+			break;
+		case 'c':
+			conf.gecos = pw_checkname(optarg, 1);
 			break;
 		case 'g':
 			if (which == 0) { /* for user* */
@@ -312,7 +326,13 @@ main(int argc, char *argv[])
 				    "descriptor or '-'");
 			break;
 		case 'o':
-			conf.checkduplicate = true;
+			conf.checkduplicate = false;
+			break;
+		case 'q':
+			conf.quiet = true;
+			break;
+		case 'r':
+			conf.deletehome = true;
 			break;
 		default:
 			addarg(&arglist, ch, optarg);
@@ -334,7 +354,7 @@ main(int argc, char *argv[])
 	 * We should immediately look for the -q 'quiet' switch so that we
 	 * don't bother with extraneous errors
 	 */
-	if (getarg(&arglist, 'q') != NULL)
+	if (conf.quiet)
 		freopen(_PATH_DEVNULL, "w", stderr);
 
 	/*
@@ -567,7 +587,12 @@ cmdhelp(int mode, int which)
 struct carg    *
 getarg(struct cargs * _args, int ch)
 {
-	struct carg    *c = LIST_FIRST(_args);
+	struct carg    *c;
+
+	if (_args == NULL)
+		return (NULL);
+	
+	c = LIST_FIRST(_args);
 
 	while (c != NULL && c->ch != ch)
 		c = LIST_NEXT(c, list);

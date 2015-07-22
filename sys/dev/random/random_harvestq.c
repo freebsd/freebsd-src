@@ -74,8 +74,8 @@ volatile int random_kthread_control;
  * this make is a bit easier to lock and protect.
  */
 static struct harvest_context {
-	/* The harvest mutex protects the consistency of the entropy Fifos and
-	 * empty fifo and other associated structures.
+	/* The harvest mutex protects all of harvest_context and
+	 * the related data.
 	 */
 	struct mtx hc_mtx;
 	/* Round-robin destination cache. */
@@ -95,6 +95,9 @@ static struct harvest_context {
 	 * If (ring.in + 1) == ring.out (mod RANDOM_RING_MAX),
 	 *     the buffer is full.
 	 *
+	 * NOTE: ring.in points to the last added element,
+	 * and ring.out points to the last consumed element.
+	 *
 	 * The ring.in variable needs locking as there are multiple
 	 * sources to the ring. Only the sources may change ring.in,
 	 * but the consumer may examine it.
@@ -110,7 +113,7 @@ static struct harvest_context {
 	} hc_entropy_ring;
 	struct fast_entropy_accumulator {
 		volatile u_int pos;
-		uint32_t buf[8];
+		uint32_t buf[RANDOM_ACCUM_MAX];
 	} hc_entropy_fast_accumulator;
 } harvest_context;
 
@@ -150,7 +153,7 @@ random_kthread(void)
 				break;
 		}
 		random_sources_feed();
-		/* XXX: FIX!! This This seems a little slow; 8 items every 0.1s from UMA? */
+		/* XXX: FIX!! Increase the high-performance data rate? Need some measurements first. */
 		for (i = 0; i < RANDOM_ACCUM_MAX; i++) {
 			if (harvest_context.hc_entropy_fast_accumulator.buf[i]) {
 				random_harvest_direct(harvest_context.hc_entropy_fast_accumulator.buf + i, sizeof(harvest_context.hc_entropy_fast_accumulator.buf[0]), 4, RANDOM_FAST);
@@ -238,8 +241,6 @@ random_harvestq_init(void *unused __unused)
 {
 	struct sysctl_oid *random_sys_o;
 
-	if (bootverbose)
-		printf("random: %s\n", __func__);
 	random_sys_o = SYSCTL_ADD_NODE(&random_clist,
 	    SYSCTL_STATIC_CHILDREN(_kern_random),
 	    OID_AUTO, "harvest", CTLFLAG_RW, 0,
@@ -285,6 +286,8 @@ random_harvestq_prime(void *unused __unused)
 	if (keyfile != NULL) {
 		data = preload_fetch_addr(keyfile);
 		size = preload_fetch_size(keyfile);
+		/* Trim the size. If the admin has a file with a funny size, we lose some. Tough. */
+		size -= (size % sizeof(event.he_entropy));
 		if (data != NULL && size != 0) {
 			for (i = 0; i < size; i += sizeof(event.he_entropy)) {
 				count = sizeof(event.he_entropy);
@@ -314,7 +317,7 @@ random_harvestq_deinit(void *unused __unused)
 
 	/* Command the hash/reseed thread to end and wait for it to finish */
 	random_kthread_control = 0;
-	tsleep(&harvest_context.hc_kthread_proc, 0, "term", 0);
+	tsleep(&harvest_context.hc_kthread_proc, 0, "harvqterm", 0);
 	sysctl_ctx_free(&random_clist);
 }
 SYSUNINIT(random_device_h_init, SI_SUB_RANDOM, SI_ORDER_SECOND, random_harvestq_deinit, NULL);
@@ -334,7 +337,7 @@ SYSUNINIT(random_device_h_init, SI_SUB_RANDOM, SI_ORDER_SECOND, random_harvestq_
  * read which can be quite expensive.
  */
 void
-random_harvest_queue(const void *entropy, u_int count, u_int bits, enum random_entropy_source origin)
+random_harvest_queue(const void *entropy, u_int size, u_int bits, enum random_entropy_source origin)
 {
 	struct harvest_event *event;
 	u_int ring_in;
@@ -351,14 +354,14 @@ random_harvest_queue(const void *entropy, u_int count, u_int bits, enum random_e
 		event->he_source = origin;
 		event->he_destination = harvest_context.hc_destination[origin]++;
 		event->he_bits = bits;
-		if (count <= sizeof(event->he_entropy)) {
-			event->he_size = count;
-			memcpy(event->he_entropy, entropy, count);
+		if (size <= sizeof(event->he_entropy)) {
+			event->he_size = size;
+			memcpy(event->he_entropy, entropy, size);
 		}
 		else {
 			/* Big event, so squash it */
 			event->he_size = sizeof(event->he_entropy[0]);
-			event->he_entropy[0] = jenkins_hash(entropy, count, (uint32_t)(uintptr_t)event);
+			event->he_entropy[0] = jenkins_hash(entropy, size, (uint32_t)(uintptr_t)event);
 		}
 		harvest_context.hc_entropy_ring.in = ring_in;
 	}
@@ -372,7 +375,7 @@ random_harvest_queue(const void *entropy, u_int count, u_int bits, enum random_e
  * This is the right place for high-rate harvested data.
  */
 void
-random_harvest_fast(const void *entropy, u_int count, u_int bits, enum random_entropy_source origin)
+random_harvest_fast(const void *entropy, u_int size, u_int bits, enum random_entropy_source origin)
 {
 	u_int pos;
 
@@ -381,7 +384,7 @@ random_harvest_fast(const void *entropy, u_int count, u_int bits, enum random_en
 	if (!(harvest_context.hc_source_mask & (1 << origin)))
 		return;
 	pos = harvest_context.hc_entropy_fast_accumulator.pos;
-	harvest_context.hc_entropy_fast_accumulator.buf[pos] ^= jenkins_hash(entropy, count, (uint32_t)get_cyclecount());
+	harvest_context.hc_entropy_fast_accumulator.buf[pos] ^= jenkins_hash(entropy, size, (uint32_t)get_cyclecount());
 	harvest_context.hc_entropy_fast_accumulator.pos = (pos + 1)%RANDOM_ACCUM_MAX;
 }
 
@@ -392,20 +395,20 @@ random_harvest_fast(const void *entropy, u_int count, u_int bits, enum random_en
  * (e.g.) booting when initial entropy is being gathered.
  */
 void
-random_harvest_direct(const void *entropy, u_int count, u_int bits, enum random_entropy_source origin)
+random_harvest_direct(const void *entropy, u_int size, u_int bits, enum random_entropy_source origin)
 {
 	struct harvest_event event;
 
 	KASSERT(origin >= RANDOM_START && origin < ENTROPYSOURCE, ("%s: origin %d invalid\n", __func__, origin));
 	if (!(harvest_context.hc_source_mask & (1 << origin)))
 		return;
-	count = MIN(count, sizeof(event.he_entropy));
+	size = MIN(size, sizeof(event.he_entropy));
 	event.he_somecounter = (uint32_t)get_cyclecount();
-	event.he_size = count;
+	event.he_size = size;
 	event.he_bits = bits;
 	event.he_source = origin;
 	event.he_destination = harvest_context.hc_destination[origin]++;
-	memcpy(event.he_entropy, entropy, count);
+	memcpy(event.he_entropy, entropy, size);
 	random_harvestq_fast_process_event(&event);
 	explicit_bzero(&event, sizeof(event));
 }

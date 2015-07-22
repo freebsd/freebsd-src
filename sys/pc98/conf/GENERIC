@@ -257,5 +257,5 @@ device		bpf			# Berkeley packet filter
 #device		"snd_sb16"		# Sound Blaster 16
 #device		snd_sbc			# Sound Blaster
 
-# The cypto framework is required by IPSEC
+# The crypto framework is required by IPSEC
 device		crypto			# Required by IPSEC

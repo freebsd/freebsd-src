@@ -92,7 +92,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 20150616:
 	FreeBSD's old make (fmake) has been removed from the system. It is
 	available as the devel/fmake port or via pkg install fmake.
-	
+
 20150615:
 	The fix for the issue described in the 20150614 sendmail entry
 	below has been been committed in revision 284436.  The work
@@ -115,7 +115,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	this interoperability, sendmail can be configured to use a
 	2048 bit DH parameter by:
 
-	1. Edit /etc/mail/`hostname`.mc 
+	1. Edit /etc/mail/`hostname`.mc
 	2. If a setting for confDH_PARAMETERS does not exist or
 	   exists and is set to a string beginning with '5',
 	   replace it with '2'.
@@ -228,7 +228,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	using a local socket.  Users who have already enabled the
 	local_unbound service should regenerate their configuration
 	by running "service local_unbound setup" as root.
-	
+
 20150102:
 	The GNU texinfo and GNU info pages have been removed.
 	To be able to view GNU info pages please install texinfo from ports.
@@ -619,7 +619,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	The GNU Compiler Collection and C++ standard library (libstdc++)
 	are no longer built by default on platforms where clang is the system
 	compiler.  You can enable them with the WITH_GCC and WITH_GNUCXX
-	options in src.conf.  
+	options in src.conf.
 
 20130905:
 	The PROCDESC kernel option is now part of the GENERIC kernel
@@ -973,7 +973,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 20120727:
 	The sparc64 ZFS loader has been changed to no longer try to auto-
 	detect ZFS providers based on diskN aliases but now requires these
-	to be explicitly listed in the OFW boot-device environment variable. 
+	to be explicitly listed in the OFW boot-device environment variable.
 
 20120712:
 	The OpenSSL has been upgraded to 1.0.1c.  Any binaries requiring

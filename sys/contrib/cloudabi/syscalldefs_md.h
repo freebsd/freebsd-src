@@ -43,6 +43,19 @@
 
 typedef void IDENT(threadentry_t)(cloudabi_tid_t, PTR(void));
 
+// Auxiliary vector entry, used to provide paramters on startup.
+typedef struct {
+  uint32_t a_type;
+  union {
+    MEMBER(IDENT(size_t)) a_val;
+    MEMBER(PTR(void)) a_ptr;
+  };
+} IDENT(auxv_t);
+ASSERT_OFFSET(auxv_t, a_type, 0, 0);
+ASSERT_OFFSET(auxv_t, a_val, 4, 8);
+ASSERT_OFFSET(auxv_t, a_ptr, 4, 8);
+ASSERT_SIZE(auxv_t, 8, 16);
+
 typedef struct {
   MEMBER(PTR(const void)) iov_base;
   MEMBER(IDENT(size_t)) iov_len;
@@ -162,29 +175,6 @@ ASSERT_OFFSET(send_out_t, so_datalen, 0, 0);
 ASSERT_SIZE(send_out_t, 4, 8);
 
 typedef struct {
-  MEMBER(PTR(const void)) sd_arg;   // Program argument data.
-  MEMBER(IDENT(size_t)) sd_arglen;  // Program argument data size.
-
-  MEMBER(PTR(void)) sd_elf_phdr;         // ELF program header.
-  MEMBER(IDENT(size_t)) sd_elf_phdrlen;  // ELF program header length.
-
-  MEMBER(cloudabi_tid_t) sd_thread_id;  // Thread ID.
-  MEMBER(uint64_t) sd_random_seed;      // Random seed, used for SSP.
-
-  MEMBER(uint32_t) sd_ncpus;     // Number of CPUs.
-  MEMBER(uint32_t) sd_pagesize;  // Page size.
-} IDENT(startup_data_t);
-ASSERT_OFFSET(startup_data_t, sd_arg, 0, 0);
-ASSERT_OFFSET(startup_data_t, sd_arglen, 4, 8);
-ASSERT_OFFSET(startup_data_t, sd_elf_phdr, 8, 16);
-ASSERT_OFFSET(startup_data_t, sd_elf_phdrlen, 12, 24);
-ASSERT_OFFSET(startup_data_t, sd_thread_id, 16, 32);
-ASSERT_OFFSET(startup_data_t, sd_random_seed, 24, 40);
-ASSERT_OFFSET(startup_data_t, sd_ncpus, 32, 48);
-ASSERT_OFFSET(startup_data_t, sd_pagesize, 36, 52);
-ASSERT_SIZE(startup_data_t, 40, 56);
-
-typedef struct {
   MEMBER(cloudabi_userdata_t) userdata;
   MEMBER(uint16_t) flags;
   MEMBER(cloudabi_eventtype_t) type;
@@ -203,6 +193,8 @@ typedef struct {
     struct {
       MEMBER(PTR(_Atomic(cloudabi_condvar_t))) condvar;
       MEMBER(PTR(_Atomic(cloudabi_lock_t))) lock;
+      MEMBER(cloudabi_futexscope_t) condvar_scope;
+      MEMBER(cloudabi_futexscope_t) lock_scope;
     } condvar;
 
     // CLOUDABI_EVENTTYPE_FD_READ and CLOUDABI_EVENTTYPE_FD_WRITE:
@@ -216,6 +208,7 @@ typedef struct {
     // and acquire a read or write lock.
     struct {
       MEMBER(PTR(_Atomic(cloudabi_lock_t))) lock;
+      MEMBER(cloudabi_futexscope_t) lock_scope;
     } lock;
 
     // CLOUDABI_EVENTTYPE_PROC_TERMINATE: Wait for a process to terminate.
@@ -233,8 +226,11 @@ ASSERT_OFFSET(subscription_t, clock.timeout, 32, 32);
 ASSERT_OFFSET(subscription_t, clock.precision, 40, 40);
 ASSERT_OFFSET(subscription_t, condvar.condvar, 16, 16);
 ASSERT_OFFSET(subscription_t, condvar.lock, 20, 24);
+ASSERT_OFFSET(subscription_t, condvar.condvar_scope, 24, 32);
+ASSERT_OFFSET(subscription_t, condvar.lock_scope, 25, 33);
 ASSERT_OFFSET(subscription_t, fd_readwrite.fd, 16, 16);
 ASSERT_OFFSET(subscription_t, lock.lock, 16, 16);
+ASSERT_OFFSET(subscription_t, lock.lock_scope, 20, 24);
 ASSERT_OFFSET(subscription_t, proc_terminate.fd, 16, 16);
 ASSERT_SIZE(subscription_t, 48, 48);
 

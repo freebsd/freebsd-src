@@ -246,7 +246,6 @@ cddl/contrib/opensolaris/uts/common/zmod/zutil.c			optional zfs compile-with "${
 cddl/contrib/opensolaris/uts/common/dtrace/dtrace.c	optional dtrace compile-with "${DTRACE_C}" \
 							warning "kernel contains CDDL licensed DTRACE"
 cddl/dev/dtmalloc/dtmalloc.c		optional dtmalloc        | dtraceall compile-with "${CDDL_C}"
-cddl/dev/lockstat/lockstat.c		optional dtrace_lockstat | dtraceall compile-with "${CDDL_C}"
 cddl/dev/profile/profile.c		optional dtrace_profile  | dtraceall compile-with "${CDDL_C}"
 cddl/dev/sdt/sdt.c			optional dtrace_sdt      | dtraceall compile-with "${CDDL_C}"
 cddl/dev/fbt/fbt.c			optional dtrace_fbt      | dtraceall compile-with "${FBT_C}"
@@ -254,6 +253,7 @@ cddl/dev/systrace/systrace.c		optional dtrace_systrace | dtraceall compile-with 
 cddl/dev/prototype.c			optional dtrace_prototype | dtraceall compile-with "${CDDL_C}"
 fs/nfsclient/nfs_clkdtrace.c		optional dtnfscl nfscl   | dtraceall nfscl compile-with "${CDDL_C}"
 compat/cloudabi/cloudabi_clock.c	optional compat_cloudabi64
+compat/cloudabi/cloudabi_errno.c	optional compat_cloudabi64
 compat/cloudabi/cloudabi_fd.c		optional compat_cloudabi64
 compat/cloudabi/cloudabi_file.c		optional compat_cloudabi64
 compat/cloudabi/cloudabi_futex.c	optional compat_cloudabi64
@@ -1201,7 +1201,7 @@ t4fw.fwo		optional cxgbe					\
 	no-implicit-rule						\
 	clean		"t4fw.fwo"
 t4fw.fw			optional cxgbe					\
-	dependency	"$S/dev/cxgbe/firmware/t4fw-1.11.27.0.bin.uu"	\
+	dependency	"$S/dev/cxgbe/firmware/t4fw-1.14.2.0.bin.uu"	\
 	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"t4fw.fw"
@@ -1225,7 +1225,7 @@ t5fw.fwo		optional cxgbe					\
 	no-implicit-rule						\
 	clean		"t5fw.fwo"
 t5fw.fw			optional cxgbe					\
-	dependency	"$S/dev/cxgbe/firmware/t5fw-1.11.27.0.bin.uu"	\
+	dependency	"$S/dev/cxgbe/firmware/t5fw-1.14.2.0.bin.uu"	\
 	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"t5fw.fw"
@@ -2068,6 +2068,102 @@ dev/pdq/if_fea.c		optional fea eisa
 dev/pdq/if_fpa.c		optional fpa pci
 dev/pdq/pdq.c			optional nowerror fea eisa | fpa pci
 dev/pdq/pdq_ifsubr.c		optional nowerror fea eisa | fpa pci
+dev/pms/freebsd/driver/ini/src/agtiapi.c		optional pmspcv \
+	compile-with "${NORMAL_C} -Wunused-variable -Woverflow -Wparentheses -w"
+dev/pms/RefTisa/sallsdk/spc/sadisc.c			optional pmspcv \
+	compile-with "${NORMAL_C} -Wunused-variable -Woverflow -Wparentheses -w"
+dev/pms/RefTisa/sallsdk/spc/mpi.c			optional pmspcv \
+	compile-with "${NORMAL_C} -Wunused-variable -Woverflow -Wparentheses -w"
+dev/pms/RefTisa/sallsdk/spc/saframe.c			optional pmspcv \
+	compile-with "${NORMAL_C} -Wunused-variable -Woverflow -Wparentheses -w"
+dev/pms/RefTisa/sallsdk/spc/sahw.c			optional pmspcv \
+	compile-with "${NORMAL_C} -Wunused-variable -Woverflow -Wparentheses -w"
+dev/pms/RefTisa/sallsdk/spc/sainit.c			optional pmspcv \
+	compile-with "${NORMAL_C} -Wunused-variable -Woverflow -Wparentheses -w"
+dev/pms/RefTisa/sallsdk/spc/saint.c			optional pmspcv \
+	compile-with "${NORMAL_C} -Wunused-variable -Woverflow -Wparentheses -w"
+dev/pms/RefTisa/sallsdk/spc/sampicmd.c			optional pmspcv \
+	compile-with "${NORMAL_C} -Wunused-variable -Woverflow -Wparentheses -w"
+dev/pms/RefTisa/sallsdk/spc/sampirsp.c			optional pmspcv \
+	compile-with "${NORMAL_C} -Wunused-variable -Woverflow -Wparentheses -w"
+dev/pms/RefTisa/sallsdk/spc/saphy.c			optional pmspcv \
+	compile-with "${NORMAL_C} -Wunused-variable -Woverflow -Wparentheses -w"
+dev/pms/RefTisa/sallsdk/spc/saport.c			optional pmspcv \
+	compile-with "${NORMAL_C} -Wunused-variable -Woverflow -Wparentheses -w"
+dev/pms/RefTisa/sallsdk/spc/sasata.c			optional pmspcv \
+	compile-with "${NORMAL_C} -Wunused-variable -Woverflow -Wparentheses -w"
+dev/pms/RefTisa/sallsdk/spc/sasmp.c			optional pmspcv \
+	compile-with "${NORMAL_C} -Wunused-variable -Woverflow -Wparentheses -w"
+dev/pms/RefTisa/sallsdk/spc/sassp.c			optional pmspcv \
+	compile-with "${NORMAL_C} -Wunused-variable -Woverflow -Wparentheses -w"
+dev/pms/RefTisa/sallsdk/spc/satimer.c			optional pmspcv \
+	compile-with "${NORMAL_C} -Wunused-variable -Woverflow -Wparentheses -w"
+dev/pms/RefTisa/sallsdk/spc/sautil.c			optional pmspcv \
+	compile-with "${NORMAL_C} -Wunused-variable -Woverflow -Wparentheses -w"
+dev/pms/RefTisa/sallsdk/spc/saioctlcmd.c		optional pmspcv \
+	compile-with "${NORMAL_C} -Wunused-variable -Woverflow -Wparentheses -w"
+dev/pms/RefTisa/sallsdk/spc/mpidebug.c			optional pmspcv \
+	compile-with "${NORMAL_C} -Wunused-variable -Woverflow -Wparentheses -w"
+dev/pms/RefTisa/discovery/dm/dminit.c			optional pmspcv \
+	compile-with "${NORMAL_C} -Wunused-variable -Woverflow -Wparentheses -w"
+dev/pms/RefTisa/discovery/dm/dmsmp.c			optional pmspcv \
+	compile-with "${NORMAL_C} -Wunused-variable -Woverflow -Wparentheses -w"
+dev/pms/RefTisa/discovery/dm/dmdisc.c			optional pmspcv \
+	compile-with "${NORMAL_C} -Wunused-variable -Woverflow -Wparentheses -w"
+dev/pms/RefTisa/discovery/dm/dmport.c			optional pmspcv \
+	compile-with "${NORMAL_C} -Wunused-variable -Woverflow -Wparentheses -w"
+dev/pms/RefTisa/discovery/dm/dmtimer.c			optional pmspcv \
+	compile-with "${NORMAL_C} -Wunused-variable -Woverflow -Wparentheses -w"
+dev/pms/RefTisa/discovery/dm/dmmisc.c			optional pmspcv \
+	compile-with "${NORMAL_C} -Wunused-variable -Woverflow -Wparentheses -w"
+dev/pms/RefTisa/sat/src/sminit.c			optional pmspcv \
+	compile-with "${NORMAL_C} -Wunused-variable -Woverflow -Wparentheses -w"
+dev/pms/RefTisa/sat/src/smmisc.c			optional pmspcv \
+	compile-with "${NORMAL_C} -Wunused-variable -Woverflow -Wparentheses -w"
+dev/pms/RefTisa/sat/src/smsat.c				optional pmspcv \
+	compile-with "${NORMAL_C} -Wunused-variable -Woverflow -Wparentheses -w"
+dev/pms/RefTisa/sat/src/smsatcb.c			optional pmspcv \
+	compile-with "${NORMAL_C} -Wunused-variable -Woverflow -Wparentheses -w"
+dev/pms/RefTisa/sat/src/smsathw.c			optional pmspcv \
+	compile-with "${NORMAL_C} -Wunused-variable -Woverflow -Wparentheses -w"
+dev/pms/RefTisa/sat/src/smtimer.c			optional pmspcv \
+	compile-with "${NORMAL_C} -Wunused-variable -Woverflow -Wparentheses -w"
+dev/pms/RefTisa/tisa/sassata/common/tdinit.c		optional pmspcv \
+	compile-with "${NORMAL_C} -Wunused-variable -Woverflow -Wparentheses -w"
+dev/pms/RefTisa/tisa/sassata/common/tdmisc.c		optional pmspcv \
+	compile-with "${NORMAL_C} -Wunused-variable -Woverflow -Wparentheses -w"
+dev/pms/RefTisa/tisa/sassata/common/tdesgl.c		optional pmspcv \
+	compile-with "${NORMAL_C} -Wunused-variable -Woverflow -Wparentheses -w"
+dev/pms/RefTisa/tisa/sassata/common/tdport.c		optional pmspcv \
+	compile-with "${NORMAL_C} -Wunused-variable -Woverflow -Wparentheses -w"
+dev/pms/RefTisa/tisa/sassata/common/tdint.c		optional pmspcv \
+	compile-with "${NORMAL_C} -Wunused-variable -Woverflow -Wparentheses -w"
+dev/pms/RefTisa/tisa/sassata/common/tdioctl.c		optional pmspcv \
+	compile-with "${NORMAL_C} -Wunused-variable -Woverflow -Wparentheses -w"
+dev/pms/RefTisa/tisa/sassata/common/tdhw.c		optional pmspcv \
+	compile-with "${NORMAL_C} -Wunused-variable -Woverflow -Wparentheses -w"
+dev/pms/RefTisa/tisa/sassata/common/ossacmnapi.c	optional pmspcv \
+	compile-with "${NORMAL_C} -Wunused-variable -Woverflow -Wparentheses -w"
+dev/pms/RefTisa/tisa/sassata/common/tddmcmnapi.c	optional pmspcv \
+	compile-with "${NORMAL_C} -Wunused-variable -Woverflow -Wparentheses -w"
+dev/pms/RefTisa/tisa/sassata/common/tdsmcmnapi.c	optional pmspcv \
+	compile-with "${NORMAL_C} -Wunused-variable -Woverflow -Wparentheses -w"
+dev/pms/RefTisa/tisa/sassata/common/tdtimers.c		optional pmspcv \
+	compile-with "${NORMAL_C} -Wunused-variable -Woverflow -Wparentheses -w"
+dev/pms/RefTisa/tisa/sassata/sas/ini/itdio.c		optional pmspcv \
+	compile-with "${NORMAL_C} -Wunused-variable -Woverflow -Wparentheses -w"
+dev/pms/RefTisa/tisa/sassata/sas/ini/itdcb.c		optional pmspcv \
+	compile-with "${NORMAL_C} -Wunused-variable -Woverflow -Wparentheses -w"
+dev/pms/RefTisa/tisa/sassata/sas/ini/itdinit.c		optional pmspcv \
+	compile-with "${NORMAL_C} -Wunused-variable -Woverflow -Wparentheses -w"
+dev/pms/RefTisa/tisa/sassata/sas/ini/itddisc.c		optional pmspcv \
+	compile-with "${NORMAL_C} -Wunused-variable -Woverflow -Wparentheses -w"
+dev/pms/RefTisa/tisa/sassata/sata/host/sat.c		optional pmspcv \
+	compile-with "${NORMAL_C} -Wunused-variable -Woverflow -Wparentheses -w"
+dev/pms/RefTisa/tisa/sassata/sata/host/ossasat.c	optional pmspcv \
+	compile-with "${NORMAL_C} -Wunused-variable -Woverflow -Wparentheses -w"
+dev/pms/RefTisa/tisa/sassata/sata/host/sathw.c		optional pmspcv \
+	compile-with "${NORMAL_C} -Wunused-variable -Woverflow -Wparentheses -w"
 dev/ppbus/if_plip.c		optional plip
 dev/ppbus/immio.c		optional vpo
 dev/ppbus/lpbb.c		optional lpbb
@@ -2630,9 +2726,11 @@ dev/vt/hw/efifb/efifb.c		optional vt_efifb
 dev/vt/hw/fb/vt_fb.c		optional vt
 dev/vt/hw/vga/vt_vga.c		optional vt vt_vga
 dev/vt/logo/logo_freebsd.c	optional vt splash
+dev/vt/logo/logo_beastie.c	optional vt splash
 dev/vt/vt_buf.c			optional vt
 dev/vt/vt_consolectl.c		optional vt
 dev/vt/vt_core.c		optional vt
+dev/vt/vt_cpulogos.c		optional vt splash
 dev/vt/vt_font.c		optional vt
 dev/vt/vt_sysmouse.c		optional vt
 dev/vte/if_vte.c		optional vte pci
@@ -3017,6 +3115,7 @@ kern/kern_module.c		standard
 kern/kern_mtxpool.c		standard
 kern/kern_mutex.c		standard
 kern/kern_ntptime.c		standard
+kern/kern_numa.c		standard
 kern/kern_osd.c			standard
 kern/kern_physio.c		standard
 kern/kern_pmc.c			standard
@@ -4043,6 +4142,7 @@ vm/vm_pager.c			standard
 vm/vm_phys.c			standard
 vm/vm_radix.c			standard
 vm/vm_reserv.c			standard
+vm/vm_domain.c			standard
 vm/vm_unix.c			standard
 vm/vm_zeroidle.c		standard
 vm/vnode_pager.c		standard

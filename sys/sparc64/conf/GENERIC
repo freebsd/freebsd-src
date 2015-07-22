@@ -251,5 +251,5 @@ device		snd_audiocs	# Crystal Semiconductor CS4231
 device		snd_es137x	# Ensoniq AudioPCI ES137x
 device		snd_t4dwave	# Acer Labs M5451
 
-# The cypto framework is required by IPSEC
+# The crypto framework is required by IPSEC
 device		crypto			# Required by IPSEC

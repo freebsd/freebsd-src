@@ -118,7 +118,7 @@ static void ipsec4_common_ctlinput(int, struct sockaddr *, void *, int);
  * and call the appropriate transform.  The transform callback
  * takes care of further processing (like ingress filtering).
  */
-static int
+int
 ipsec_common_input(struct mbuf *m, int skip, int protoff, int af, int sproto)
 {
 	char buf[INET6_ADDRSTRLEN];
@@ -243,24 +243,6 @@ ipsec_common_input(struct mbuf *m, int skip, int protoff, int af, int sproto)
 }
 
 #ifdef INET
-/*
- * Common input handler for IPv4 AH, ESP, and IPCOMP.
- */
-int
-ipsec4_common_input(struct mbuf *m, ...)
-{
-	va_list ap;
-	int off, nxt;
-
-	va_start(ap, m);
-	off = va_arg(ap, int);
-	nxt = va_arg(ap, int);
-	va_end(ap);
-
-	return ipsec_common_input(m, off, offsetof(struct ip, ip_p),
-				  AF_INET, nxt);
-}
-
 int
 ah4_input(struct mbuf **mp, int *offp, int proto)
 {
@@ -271,7 +253,8 @@ ah4_input(struct mbuf **mp, int *offp, int proto)
 	off = *offp;
 	*mp = NULL;
 
-	ipsec4_common_input(m, off, IPPROTO_AH);
+	ipsec_common_input(m, off, offsetof(struct ip, ip_p),
+				AF_INET, IPPROTO_AH);
 	return (IPPROTO_DONE);
 }
 void
@@ -292,7 +275,8 @@ esp4_input(struct mbuf **mp, int *offp, int proto)
 	off = *offp;
 	mp = NULL;
 
-	ipsec4_common_input(m, off, IPPROTO_ESP);
+	ipsec_common_input(m, off, offsetof(struct ip, ip_p),
+				AF_INET, IPPROTO_ESP);
 	return (IPPROTO_DONE);
 }
 
@@ -314,7 +298,8 @@ ipcomp4_input(struct mbuf **mp, int *offp, int proto)
 	off = *offp;
 	mp = NULL;
 
-	ipsec4_common_input(m, off, IPPROTO_IPCOMP);
+	ipsec_common_input(m, off, offsetof(struct ip, ip_p),
+				AF_INET, IPPROTO_IPCOMP);
 	return (IPPROTO_DONE);
 }
 

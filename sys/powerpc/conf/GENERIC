@@ -217,5 +217,5 @@ device		snd_ai2s	# Apple I2S audio
 device		snd_davbus	# Apple DAVBUS audio
 device		snd_uaudio	# USB Audio
 
-# The cypto framework is required by IPSEC
+# The crypto framework is required by IPSEC
 device		crypto			# Required by IPSEC

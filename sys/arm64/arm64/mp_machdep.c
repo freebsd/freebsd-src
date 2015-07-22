@@ -28,6 +28,7 @@
  *
  */
 
+#include "opt_kstack_pages.h"
 #include "opt_platform.h"
 
 #include <sys/cdefs.h>
@@ -229,6 +230,16 @@ init_secondary(uint64_t cpu)
 	pcpup->pc_curthread = pcpup->pc_idlethread;
 	pcpup->pc_curpcb = pcpup->pc_idlethread->td_pcb;
 
+	/*
+	 * Identify current CPU. This is necessary to setup
+	 * affinity registers and to provide support for
+	 * runtime chip identification.
+	 */
+	identify_cpu();
+
+	/* Configure the interrupt controller */
+	arm_init_secondary();
+
 	for (i = 0; i < COUNT_IPI; i++)
 		arm_unmask_ipi(i);
 
@@ -238,9 +249,6 @@ init_secondary(uint64_t cpu)
 #ifdef VFP
 	vfp_init();
 #endif
-
-	/* Configure the interrupt controller */
-	arm_init_secondary();
 
 	/* Enable interrupts */
 	intr_enable();
