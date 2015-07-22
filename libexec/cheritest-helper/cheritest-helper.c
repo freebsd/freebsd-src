@@ -126,11 +126,9 @@ static int
 invoke_vm_fault(register_t op)
 {
 	volatile char *chp;
-	void (*fn)(void);
 	char ch;
 
 	chp = (void *)4;
-	fn = (void *)4;
 	switch (op) {
 	case CHERITEST_HELPER_OP_VM_RFAULT:
 		ch = chp[0];
@@ -141,7 +139,13 @@ invoke_vm_fault(register_t op)
 		break;
 
 	case CHERITEST_HELPER_OP_VM_XFAULT:
-		fn();
+		// It's no longer easy to trigger a TLB execute fault from C code,
+		// because all function pointers are derived from PCC and so will
+		// either be executable or generate capability faults that have a
+		// higher precedence than the TLB faults.  We could map a
+		// non-executable page into PCC for this test, but it's easier to just
+		// do a MIPS jump.
+		__asm__ volatile ("jal 4" : : :"memory");
 		break;
 	}
 	return (0);
