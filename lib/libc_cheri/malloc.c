@@ -163,7 +163,6 @@ malloc(nbytes)
 	register int bucket;
 	register long n;
 	register unsigned amt;
-	register size_t vaddr, delta;
 
 	/*
 	 * First time malloc is called, setup page size and
@@ -172,13 +171,12 @@ malloc(nbytes)
 	if (pagesz == 0) {
 		pagesz = n = 0x1000;
 		pagepool_start = cheri_ptr((void *)_sb_heapbase, _sb_heaplen);
+		/*
+		 * XXXBD: assumes DDC is page aligned.
+		 */
+		assert(_sb_heapbase == roundup2(_sb_heapbase, pagesz));
 		pagepool_end = pagepool_start + _sb_heaplen;
 		op = (union overhead *)(pagepool_start);
-
-		vaddr = cheri_getbase(pagepool_start) +
-		    cheri_getoffset(pagepool_start);
-		delta = roundup2(vaddr, pagesz) - vaddr;
-		pagepool_start = cheri_incoffset(pagepool_start, delta);
 
 		bucket = 0;
 		amt = 8;
