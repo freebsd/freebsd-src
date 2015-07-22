@@ -170,11 +170,12 @@ malloc(nbytes)
 	 */
 	if (pagesz == 0) {
 		pagesz = n = 0x1000;
-		pagepool_start = cheri_ptr((void *)_sb_heapbase, _sb_heaplen);
 		/*
 		 * XXXBD: assumes DDC is page aligned.
 		 */
 		assert(_sb_heapbase == roundup2(_sb_heapbase, pagesz));
+
+		pagepool_start = cheri_csetbounds((void *)_sb_heapbase, _sb_heaplen);
 		pagepool_end = pagepool_start + _sb_heaplen;
 		op = (union overhead *)(pagepool_start);
 
