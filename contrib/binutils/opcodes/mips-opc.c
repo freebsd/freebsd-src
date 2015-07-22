@@ -203,6 +203,8 @@ const struct mips_opcode mips_builtin_opcodes[] =
 {"csetlen",  "+w,+b,m",	    0x48800003, 0xffe0003f, 0, 0, I1},
 {"csetbounds", "+w,+b,m",   0x48200000, 0xffe0003f, 0, 0, I1},
 {"csetcause", "m",          0x48800004, 0xfffff83f, 0, 0, I1},
+{"csetdefault", "+b",       0x49a00000, 0xffff07ff, 0, 0, I1},
+{"cgetdefault", "+w",       0x49a00000, 0xffe0ffff, 0, 0, I1},
 {"cmove",    "+w,+b",       0x49a00000, 0xffe007ff, 0, 0, I1},
 {"cincoffset", "+w,+b,m",   0x49a00000, 0xffe0003f, 0, 0, I1},
 {"csetoffset", "+w,+b,m",   0x49a00001, 0xffe0003f, 0, 0, I1},
