@@ -179,7 +179,7 @@ AcpiPsDisplayObjectPathname (
     /* Convert NamedDesc/handle to a full pathname */
 
     Buffer.Length = ACPI_ALLOCATE_LOCAL_BUFFER;
-    Status = AcpiNsHandleToPathname (Node, &Buffer);
+    Status = AcpiNsHandleToPathname (Node, &Buffer, FALSE);
     if (ACPI_FAILURE (Status))
     {
         AcpiOsPrintf ("****Could not get pathname****)");
