@@ -76,6 +76,7 @@ TAILQ_HEAD(sctpnetlisthead, sctp_nets);
 
 struct sctp_stream_reset_list {
 	TAILQ_ENTRY(sctp_stream_reset_list) next_resp;
+	uint32_t seq;
 	uint32_t tsn;
 	uint32_t number_entries;
 	uint16_t list_of_streams[];
@@ -580,11 +581,20 @@ union scheduling_parameters {
 	struct ss_fb fb;
 };
 
+/* States for outgoing streams */
+#define SCTP_STREAM_CLOSED           0x00
+#define SCTP_STREAM_OPENING          0x01
+#define SCTP_STREAM_OPEN             0x02
+#define SCTP_STREAM_RESET_PENDING    0x03
+#define SCTP_STREAM_RESET_IN_FLIGHT  0x04
+
+#define SCTP_MAX_STREAMS_AT_ONCE_RESET 200
+
 /* This struct is used to track the traffic on outbound streams */
 struct sctp_stream_out {
 	struct sctp_streamhead outqueue;
 	union scheduling_parameters ss_params;
-	uint32_t chunks_on_queues;
+	uint32_t chunks_on_queues;	/* send queue and sent queue */
 #if defined(SCTP_DETAILED_STR_STATS)
 	uint32_t abandoned_unsent[SCTP_PR_SCTP_MAX + 1];
 	uint32_t abandoned_sent[SCTP_PR_SCTP_MAX + 1];
@@ -596,6 +606,7 @@ struct sctp_stream_out {
 	uint16_t stream_no;
 	uint16_t next_sequence_send;	/* next one I expect to send out */
 	uint8_t last_msg_incomplete;
+	uint8_t state;
 };
 
 /* used to keep track of the addresses yet to try to add/delete */
@@ -1148,7 +1159,7 @@ struct sctp_association {
 	uint8_t hb_random_idx;
 	uint8_t default_dscp;
 	uint8_t asconf_del_pending;	/* asconf delete last addr pending */
-
+	uint8_t trigger_reset;
 	/*
 	 * This value, plus all other ack'd but above cum-ack is added
 	 * together to cross check against the bit that we have yet to
