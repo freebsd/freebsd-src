@@ -144,7 +144,6 @@ volatile int smp_tlb_wait;
 static void	install_ap_tramp(void);
 static int	start_all_aps(void);
 static int	start_ap(int apic_id);
-static void	release_aps(void *dummy);
 
 static u_int	boot_address;
 
