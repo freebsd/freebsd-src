@@ -154,6 +154,10 @@ extern unsigned int vt_logo_width;
 extern unsigned int vt_logo_height;
 extern unsigned int vt_logo_depth;
 extern unsigned char vt_logo_image[];
+#ifndef DEV_SPLASH
+#define vtterm_draw_cpu_logos(...)
+const unsigned int vt_logo_sprite_height;
+#endif
 
 /* Font. */
 extern struct vt_font vt_font_default;
