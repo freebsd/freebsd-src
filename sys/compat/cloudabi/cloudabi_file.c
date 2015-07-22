@@ -26,15 +26,43 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/param.h>
+#include <sys/fcntl.h>
+#include <sys/syscallsubr.h>
+
 #include <compat/cloudabi/cloudabi_proto.h>
+#include <compat/cloudabi/cloudabi_syscalldefs.h>
 
 int
 cloudabi_sys_file_advise(struct thread *td,
     struct cloudabi_sys_file_advise_args *uap)
 {
+	int advice;
 
-	/* Not implemented. */
-	return (ENOSYS);
+	switch (uap->advice) {
+	case CLOUDABI_ADVICE_DONTNEED:
+		advice = POSIX_FADV_DONTNEED;
+		break;
+	case CLOUDABI_ADVICE_NOREUSE:
+		advice = POSIX_FADV_NOREUSE;
+		break;
+	case CLOUDABI_ADVICE_NORMAL:
+		advice = POSIX_FADV_NORMAL;
+		break;
+	case CLOUDABI_ADVICE_RANDOM:
+		advice = POSIX_FADV_RANDOM;
+		break;
+	case CLOUDABI_ADVICE_SEQUENTIAL:
+		advice = POSIX_FADV_SEQUENTIAL;
+		break;
+	case CLOUDABI_ADVICE_WILLNEED:
+		advice = POSIX_FADV_WILLNEED;
+		break;
+	default:
+		return (EINVAL);
+	}
+
+	return (kern_posix_fadvise(td, uap->fd, uap->offset, uap->len, advice));
 }
 
 int
@@ -42,8 +70,7 @@ cloudabi_sys_file_allocate(struct thread *td,
     struct cloudabi_sys_file_allocate_args *uap)
 {
 
-	/* Not implemented. */
-	return (ENOSYS);
+	return (kern_posix_fallocate(td, uap->fd, uap->offset, uap->len));
 }
 
 int

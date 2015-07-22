@@ -117,6 +117,7 @@ SUBDIR=	${_addr2line} \
 	nice \
 	nl \
 	${_nm} \
+	numactl \
 	nohup \
 	opieinfo \
 	opiekey \

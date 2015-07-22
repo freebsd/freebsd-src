@@ -26,23 +26,45 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/param.h>
+#include <sys/proc.h>
+#include <sys/systm.h>
+
 #include <compat/cloudabi64/cloudabi64_syscalldefs.h>
 #include <compat/cloudabi64/cloudabi64_proto.h>
+#include <compat/cloudabi64/cloudabi64_util.h>
+
+struct thread_create_args {
+	cloudabi64_threadattr_t attr;
+	lwpid_t tid;
+};
+
+static int
+initialize_thread(struct thread *td, void *thunk)
+{
+	struct thread_create_args *args = thunk;
+
+	/* Save the thread ID, so it can be returned. */
+	args->tid = td->td_tid;
+
+	/* Set up initial register contents. */
+	cloudabi64_thread_setregs(td, &args->attr);
+	return (0);
+}
 
 int
 cloudabi64_sys_thread_create(struct thread *td,
     struct cloudabi64_sys_thread_create_args *uap)
 {
+	struct thread_create_args args;
+	int error;
 
-	/* Not implemented. */
-	return (ENOSYS);
-}
-
-int
-cloudabi64_sys_thread_tcb_set(struct thread *td,
-    struct cloudabi64_sys_thread_tcb_set_args *uap)
-{
-
-	/* Not implemented. */
-	return (ENOSYS);
+	error = copyin(uap->attr, &args.attr, sizeof(args.attr));
+	if (error != 0)
+		return (error);
+	error = thread_create(td, NULL, initialize_thread, &args);
+	if (error != 0)
+		return (error);
+	td->td_retval[0] = args.tid;
+	return (0);
 }

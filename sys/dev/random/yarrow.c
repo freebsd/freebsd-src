@@ -30,11 +30,8 @@ __FBSDID("$FreeBSD$");
 
 #ifdef _KERNEL
 #include <sys/param.h>
-#include <sys/kernel.h>
-#include <sys/conf.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
-#include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/random.h>
 #include <sys/sysctl.h>
@@ -54,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <string.h>
 #include <threads.h>
 
@@ -63,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <crypto/sha2/sha2.h>
 
 #include <dev/random/hash.h>
+#include <dev/random/randomdev.h>
 #include <dev/random/uint128.h>
 #include <dev/random/yarrow.h>
 #endif /* _KERNEL */
@@ -109,27 +108,27 @@ RANDOM_CHECK_UINT(slowoverthresh, 1, 5);
 
 static void random_yarrow_pre_read(void);
 static void random_yarrow_read(uint8_t *, u_int);
-static void random_yarrow_post_read(void);
 static void random_yarrow_write(uint8_t *, u_int);
 static void random_yarrow_reseed(void);
 static int random_yarrow_seeded(void);
-static void random_yarrow_reseed_internal(u_int);
 static void random_yarrow_process_event(struct harvest_event *);
+static void random_yarrow_init_alg(void *);
+static void random_yarrow_deinit_alg(void *);
 
-#ifdef _KERNEL
-/* Interface to Adaptors system */
+static void random_yarrow_reseed_internal(u_int);
+
 struct random_algorithm random_alg_context = {
 	.ra_ident = "Yarrow",
+	.ra_init_alg = random_yarrow_init_alg,
+	.ra_deinit_alg = random_yarrow_deinit_alg,
 	.ra_pre_read = random_yarrow_pre_read,
 	.ra_read = random_yarrow_read,
-	.ra_post_read = random_yarrow_post_read,
 	.ra_write = random_yarrow_write,
 	.ra_reseed = random_yarrow_reseed,
 	.ra_seeded = random_yarrow_seeded,
 	.ra_event_processor = random_yarrow_process_event,
 	.ra_poolcount = RANDOM_YARROW_NPOOLS,
 };
-#endif
 
 /* ARGSUSED */
 static void
@@ -199,9 +198,6 @@ random_yarrow_init_alg(void *unused __unused)
 	/* Clear the counter */
 	yarrow_state.ys_counter = UINT128_ZERO;
 }
-#ifdef _KERNEL
-SYSINIT(random_yarrow, SI_SUB_RANDOM, SI_ORDER_THIRD, random_yarrow_init_alg, NULL);
-#endif
 
 /* ARGSUSED */
 static void
@@ -214,9 +210,6 @@ random_yarrow_deinit_alg(void *unused __unused)
 	sysctl_ctx_free(&random_clist);
 #endif
 }
-#ifdef _KERNEL
-SYSUNINIT(random_yarrow, SI_SUB_RANDOM, SI_ORDER_THIRD, random_yarrow_deinit_alg, NULL);
-#endif
 
 /* Process a single stochastic event off the harvest queue */
 static void
@@ -253,25 +246,6 @@ random_yarrow_process_event(struct harvest_event *event)
 		random_yarrow_reseed_internal(RANDOM_YARROW_FAST);
 	explicit_bzero(event, sizeof(*event));
 	RANDOM_RESEED_UNLOCK();
-}
-
-/* Process a block of data suspected to be slightly stochastic. */
-static void
-random_yarrow_process_buffer(uint32_t *buf, u_int wordcount)
-{
-	static struct harvest_event event;
-	static u_int destination = 0;
-	int i;
-
-	for (i = 0; i < wordcount; i += sizeof(event.he_entropy)/sizeof(event.he_entropy[0])) {
-		event.he_somecounter = (uint32_t)get_cyclecount();
-		event.he_size = sizeof(event.he_entropy);
-		event.he_bits = event.he_size/8;
-		event.he_source = RANDOM_CACHED;
-		event.he_destination = destination++; /* Harmless cheating */
-		memcpy(event.he_entropy, buf + i, sizeof(event.he_entropy));
-		random_yarrow_process_event(&event);
-	}
 }
 
 static void
@@ -384,12 +358,11 @@ random_yarrow_generator_gate(void)
 }
 
 /*-
- * Used to return processed entropy from the PRNG.
- * There is a pre_read and a post_read required to be present
- * (but they can be null functions) in order to allow specific
- * actions at the begin or the end of a read. Yarrow does its
- * reseeding in its own thread. The _pre_read() and _post_read()
- * are not used here, and must be kept for completeness.
+ * Used to return processed entropy from the PRNG. There is a pre_read
+ * required to be present (but it can be a stub) in order to allow
+ * specific actions at the begin of the read.
+ * Yarrow does its reseeding in its own thread; _pre_read() is not used
+ * by Yarrow but must be kept for completeness.
  */
 void
 random_yarrow_pre_read(void)
@@ -407,6 +380,7 @@ random_yarrow_read(uint8_t *buf, u_int bytecount)
 {
 	u_int blockcount, i;
 
+	KASSERT((bytecount % RANDOM_BLOCKSIZE) == 0, ("%s(): bytecount (= %d) must be a multiple of %d", __func__, bytecount, RANDOM_BLOCKSIZE ));
 	RANDOM_RESEED_LOCK();
 	blockcount = (bytecount + RANDOM_BLOCKSIZE - 1)/RANDOM_BLOCKSIZE;
 	for (i = 0; i < blockcount; i++) {
@@ -421,19 +395,15 @@ random_yarrow_read(uint8_t *buf, u_int bytecount)
 	RANDOM_RESEED_UNLOCK();
 }
 
-void
-random_yarrow_post_read(void)
-{
-
-	/* CWOT */
-}
-
 /* Internal function to hand external entropy to the PRNG. */
 void
 random_yarrow_write(uint8_t *buf, u_int count)
 {
+	static u_int destination = 0;
+	static struct harvest_event event;
 	struct randomdev_hash hash;
 	uint32_t entropy_data[RANDOM_KEYSIZE_WORDS], timestamp;
+	int i;
 
 	/* Extra timing here is helpful to scrape scheduler timing entropy */
 	randomdev_hash_init(&hash);
@@ -444,7 +414,15 @@ random_yarrow_write(uint8_t *buf, u_int count)
 	randomdev_hash_iterate(&hash, &timestamp, sizeof(timestamp));
 	randomdev_hash_finish(&hash, entropy_data);
 	explicit_bzero(&hash, sizeof(hash));
-	random_yarrow_process_buffer(entropy_data, sizeof(entropy_data)/sizeof(entropy_data[0]));
+	for (i = 0; i < RANDOM_KEYSIZE_WORDS; i += sizeof(event.he_entropy)/sizeof(event.he_entropy[0])) {
+		event.he_somecounter = (uint32_t)get_cyclecount();
+		event.he_size = sizeof(event.he_entropy);
+		event.he_bits = event.he_size/8;
+		event.he_source = RANDOM_CACHED;
+		event.he_destination = destination++; /* Harmless cheating */
+		memcpy(event.he_entropy, entropy_data + i, sizeof(event.he_entropy));
+		random_yarrow_process_event(&event);
+	}
 	explicit_bzero(entropy_data, sizeof(entropy_data));
 }
 

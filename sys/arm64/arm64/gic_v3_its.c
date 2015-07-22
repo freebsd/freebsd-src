@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 
+#include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 
 #include <vm/vm.h>
@@ -89,6 +90,7 @@ static void its_free_tables(struct gic_v3_its_softc *);
 static void its_init_commandq(struct gic_v3_its_softc *);
 static int its_init_cpu(struct gic_v3_its_softc *);
 static void its_init_cpu_collection(struct gic_v3_its_softc *);
+static uint32_t its_get_devid(device_t);
 
 static int its_cmd_send(struct gic_v3_its_softc *, struct its_cmd_desc *);
 
@@ -131,6 +133,23 @@ const char *its_ptab_type[] = {
 	[GITS_BASER_TYPE_RES5] = "Reserved (5)",
 	[GITS_BASER_TYPE_RES6] = "Reserved (6)",
 	[GITS_BASER_TYPE_RES7] = "Reserved (7)",
+};
+
+/*
+ * Vendor specific quirks.
+ * One needs to add appropriate entry to its_quirks[]
+ * table if the imlementation varies from the generic ARM ITS.
+ */
+
+/* Cavium ThunderX PCI devid acquire function */
+static uint32_t its_get_devid_thunder(device_t);
+
+static const struct its_quirks its_quirks[] = {
+	{
+		.cpuid =	CPU_ID_RAW(CPU_IMPL_CAVIUM, CPU_PART_THUNDER, 0, 0),
+		.cpuid_mask =	CPU_IMPL_MASK | CPU_PART_MASK,
+		.devid_func =	its_get_devid_thunder,
+	},
 };
 
 static struct gic_v3_its_softc *its_sc;
@@ -795,6 +814,26 @@ retry:
 }
 
 static void
+lpi_free_chunk(struct gic_v3_its_softc *sc, struct lpi_chunk *lpic)
+{
+	int start, end;
+	uint8_t *bitmap;
+
+	bitmap = (uint8_t *)sc->its_lpi_bitmap;
+
+	KASSERT((lpic->lpi_free == lpic->lpi_num),
+	    ("Trying to free LPI chunk that is still in use.\n"));
+
+	/* First bit of this chunk in a global bitmap */
+	start = lpic->lpi_base - GIC_FIRST_LPI;
+	/* and last bit of this chunk... */
+	end = start + lpic->lpi_num - 1;
+
+	/* Finally free this chunk */
+	bit_nclear(bitmap, start, end);
+}
+
+static void
 lpi_configure(struct gic_v3_its_softc *sc, struct its_dev *its_dev,
     uint32_t lpinum, boolean_t unmask)
 {
@@ -1300,10 +1339,13 @@ its_device_alloc_locked(struct gic_v3_its_softc *sc, device_t pci_dev,
 	if (newdev != NULL)
 		return (newdev);
 
-	devid = PCI_DEVID(pci_dev);
+	devid = its_get_devid(pci_dev);
 
 	/* There was no previously created device. Create one now */
-	newdev = malloc(sizeof(*newdev), M_GIC_V3_ITS, (M_WAITOK | M_ZERO));
+	newdev = malloc(sizeof(*newdev), M_GIC_V3_ITS, (M_NOWAIT | M_ZERO));
+	if (newdev == NULL)
+		return (NULL);
+
 	newdev->pci_dev = pci_dev;
 	newdev->devid = devid;
 
@@ -1321,7 +1363,12 @@ its_device_alloc_locked(struct gic_v3_its_softc *sc, device_t pci_dev,
 	 */
 	newdev->itt = (vm_offset_t)contigmalloc(
 	    roundup2(roundup2(nvecs, 2) * esize, 0x100), M_GIC_V3_ITS,
-	    (M_WAITOK | M_ZERO), 0, ~0UL, 0x100, 0);
+	    (M_NOWAIT | M_ZERO), 0, ~0UL, 0x100, 0);
+	if (newdev->itt == 0) {
+		lpi_free_chunk(sc, &newdev->lpis);
+		free(newdev, M_GIC_V3_ITS);
+		return (NULL);
+	}
 
 	/*
 	 * XXX ARM64TODO: Currently all interrupts are going
@@ -1353,6 +1400,77 @@ its_device_asign_lpi_locked(struct gic_v3_its_softc *sc,
 	    its_dev->lpis.lpi_free);
 	its_dev->lpis.lpi_free--;
 }
+
+/*
+ * ITS quirks.
+ * Add vendor specific PCI devid function here.
+ */
+static uint32_t
+its_get_devid_thunder(device_t pci_dev)
+{
+	int bsf;
+	int pem;
+	uint32_t bus;
+
+	bus = pci_get_bus(pci_dev);
+
+	bsf = PCI_RID(pci_get_bus(pci_dev), pci_get_slot(pci_dev),
+	    pci_get_function(pci_dev));
+
+	/* ECAM is on bus=0 */
+	if (bus == 0) {
+		return ((pci_get_domain(pci_dev) << PCI_RID_DOMAIN_SHIFT) |
+		    bsf);
+	/* PEM otherwise */
+	} else {
+		/* PEM (PCIe MAC/root complex) number is equal to domain */
+		pem = pci_get_domain(pci_dev);
+
+		/*
+		 * Set appropriate device ID (passed by the HW along with
+		 * the transaction to memory) for different root complex
+		 * numbers using hard-coded domain portion for each group.
+		 */
+		if (pem < 3)
+			return ((0x1 << PCI_RID_DOMAIN_SHIFT) | bsf);
+
+		if (pem < 6)
+			return ((0x3 << PCI_RID_DOMAIN_SHIFT) | bsf);
+
+		if (pem < 9)
+			return ((0x9 << PCI_RID_DOMAIN_SHIFT) | bsf);
+
+		if (pem < 12)
+			return ((0xB << PCI_RID_DOMAIN_SHIFT) | bsf);
+	}
+
+	return (0);
+}
+
+static __inline uint32_t
+its_get_devid_default(device_t pci_dev)
+{
+
+	return (PCI_DEVID_GENERIC(pci_dev));
+}
+
+static uint32_t
+its_get_devid(device_t pci_dev)
+{
+	const struct its_quirks *quirk;
+	size_t i;
+
+	for (i = 0; i < nitems(its_quirks); i++) {
+		quirk = &its_quirks[i];
+		if (CPU_MATCH_RAW(quirk->cpuid_mask, quirk->cpuid)) {
+			if (quirk->devid_func != NULL)
+				return ((*quirk->devid_func)(pci_dev));
+		}
+	}
+
+	return (its_get_devid_default(pci_dev));
+}
+
 /*
  * Message signalled interrupts handling.
  */

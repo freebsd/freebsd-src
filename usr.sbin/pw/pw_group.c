@@ -42,8 +42,7 @@ static const char rcsid[] =
 
 
 static struct passwd *lookup_pwent(const char *user);
-static void	delete_members(char ***members, int *grmembers, int *i,
-    struct carg *arg, struct group *grp);
+static void	delete_members(struct group *grp, char *list);
 static int	print_group(struct group * grp);
 static gid_t    gr_gidpolicy(struct userconf * cnf, long id);
 
@@ -92,13 +91,77 @@ set_passwd(struct group *grp, bool update)
 }
 
 int
+pw_groupnext(struct userconf *cnf, bool quiet)
+{
+	gid_t next = gr_gidpolicy(cnf, -1);
+
+	if (quiet)
+		return (next);
+	printf("%u\n", next);
+
+	return (EXIT_SUCCESS);
+}
+
+static int
+pw_groupshow(const char *name, long id, struct group *fakegroup)
+{
+	struct group *grp = NULL;
+
+	if (id < 0 && name == NULL && !conf.all)
+		errx(EX_DATAERR, "groupname or id or '-a' required");
+
+	if (conf.all) {
+		SETGRENT();
+		while ((grp = GETGRENT()) != NULL)
+			print_group(grp);
+		ENDGRENT();
+
+		return (EXIT_SUCCESS);
+	}
+
+	grp = (name != NULL) ? GETGRNAM(name) : GETGRGID(id);
+	if (grp == NULL) {
+		if (conf.force) {
+			grp = fakegroup;
+		} else {
+			if (name == NULL)
+				errx(EX_DATAERR, "unknown gid `%ld'", id);
+			errx(EX_DATAERR, "unknown group `%s'", name);
+		}
+	}
+
+	return (print_group(grp));
+}
+
+static int
+pw_groupdel(const char *name, long id)
+{
+	struct group *grp = NULL;
+	int rc;
+
+	grp = (name != NULL) ? GETGRNAM(name) : GETGRGID(id);
+	if (grp == NULL) {
+		if (name == NULL)
+			errx(EX_DATAERR, "unknown gid `%ld'", id);
+		errx(EX_DATAERR, "unknown group `%s'", name);
+	}
+
+	rc = delgrent(grp);
+	if (rc == -1)
+		err(EX_IOERR, "group '%s' not available (NIS?)", name);
+	else if (rc != 0)
+		err(EX_IOERR, "group update");
+	pw_log(conf.userconf, M_DELETE, W_GROUP, "%s(%ld) removed", name, id);
+
+	return (EXIT_SUCCESS);
+}
+
+int
 pw_group(int mode, char *name, long id, struct cargs * args)
 {
 	int		rc;
 	struct carg    *arg;
 	struct group   *grp = NULL;
-	int	        grmembers = 0;
-	char           **members = NULL;
 	struct userconf	*cnf = conf.userconf;
 
 	static struct group fakegroup =
@@ -109,46 +172,28 @@ pw_group(int mode, char *name, long id, struct cargs * args)
 		NULL
 	};
 
+	if (mode == M_NEXT)
+		return (pw_groupnext(cnf, conf.quiet));
+
+	if (mode == M_PRINT)
+		return (pw_groupshow(name, id, &fakegroup));
+
+	if (mode == M_DELETE)
+		return (pw_groupdel(name, id));
+
 	if (mode == M_LOCK || mode == M_UNLOCK)
 		errx(EX_USAGE, "'lock' command is not available for groups");
 
-	/*
-	 * With M_NEXT, we only need to return the
-	 * next gid to stdout
-	 */
-	if (mode == M_NEXT) {
-		gid_t next = gr_gidpolicy(cnf, id);
-		if (getarg(args, 'q'))
-			return next;
-		printf("%u\n", next);
-		return EXIT_SUCCESS;
-	}
-
-	if (mode == M_PRINT && getarg(args, 'a')) {
-		SETGRENT();
-		while ((grp = GETGRENT()) != NULL)
-			print_group(grp);
-		ENDGRENT();
-		return EXIT_SUCCESS;
-	}
 	if (id < 0 && name == NULL)
 		errx(EX_DATAERR, "group name or id required");
 
 	grp = (name != NULL) ? GETGRNAM(name) : GETGRGID(id);
 
-	if (mode == M_UPDATE || mode == M_DELETE || mode == M_PRINT) {
+	if (mode == M_UPDATE) {
 		if (name == NULL && grp == NULL)	/* Try harder */
 			grp = GETGRGID(id);
 
 		if (grp == NULL) {
-			if (mode == M_PRINT && getarg(args, 'F')) {
-				char	*fmems[1];
-				fmems[0] = NULL;
-				fakegroup.gr_name = name ? name : "nogroup";
-				fakegroup.gr_gid = (gid_t) id;
-				fakegroup.gr_mem = fmems;
-				return print_group(&fakegroup);
-			}
 			if (name == NULL)
 				errx(EX_DATAERR, "unknown group `%s'", name);
 			else
@@ -156,22 +201,6 @@ pw_group(int mode, char *name, long id, struct cargs * args)
 		}
 		if (name == NULL)	/* Needed later */
 			name = grp->gr_name;
-
-		/*
-		 * Handle deletions now
-		 */
-		if (mode == M_DELETE) {
-			rc = delgrent(grp);
-			if (rc == -1)
-				err(EX_IOERR, "group '%s' not available (NIS?)",
-				    name);
-			else if (rc != 0) {
-				err(EX_IOERR, "group update");
-			}
-			pw_log(cnf, mode, W_GROUP, "%s(%ld) removed", name, id);
-			return EXIT_SUCCESS;
-		} else if (mode == M_PRINT)
-			return print_group(grp);
 
 		if (id > 0)
 			grp->gr_gid = (gid_t) id;
@@ -184,13 +213,11 @@ pw_group(int mode, char *name, long id, struct cargs * args)
 		else if (grp != NULL)	/* Exists */
 			errx(EX_DATAERR, "group name `%s' already exists", name);
 
-		extendarray(&members, &grmembers, 200);
-		members[0] = NULL;
 		grp = &fakegroup;
 		grp->gr_name = pw_checkname(name, 0);
 		grp->gr_passwd = "*";
 		grp->gr_gid = gr_gidpolicy(cnf, id);
-		grp->gr_mem = members;
+		grp->gr_mem = NULL;
 	}
 
 	/*
@@ -206,42 +233,31 @@ pw_group(int mode, char *name, long id, struct cargs * args)
 	if (((arg = getarg(args, 'M')) != NULL ||
 	    (arg = getarg(args, 'd')) != NULL ||
 	    (arg = getarg(args, 'm')) != NULL) && arg->val) {
-		int	i = 0;
 		char   *p;
 		struct passwd	*pwd;
 
 		/* Make sure this is not stay NULL with -M "" */
-		extendarray(&members, &grmembers, 200);
 		if (arg->ch == 'd')
-			delete_members(&members, &grmembers, &i, arg, grp);
-		else if (arg->ch == 'm') {
-			int	k = 0;
+			delete_members(grp, arg->val);
+		else if (arg->ch == 'M')
+			grp->gr_mem = NULL;
 
-			if (grp->gr_mem != NULL) {
-				while (grp->gr_mem[k] != NULL) {
-					if (extendarray(&members, &grmembers, i + 2) != -1)
-						members[i++] = grp->gr_mem[k];
-					k++;
-				}
+		for (p = strtok(arg->val, ", \t"); arg->ch != 'd' &&  p != NULL;
+		    p = strtok(NULL, ", \t")) {
+			int	j;
+
+			/*
+			 * Check for duplicates
+			 */
+			pwd = lookup_pwent(p);
+			for (j = 0; grp->gr_mem != NULL && grp->gr_mem[j] != NULL; j++) {
+				if (strcmp(grp->gr_mem[j], pwd->pw_name) == 0)
+					break;
 			}
+			if (grp->gr_mem != NULL && grp->gr_mem[j] != NULL)
+				continue;
+			grp = gr_add(grp, pwd->pw_name);
 		}
-
-		if (arg->ch != 'd')
-			for (p = strtok(arg->val, ", \t"); p != NULL; p = strtok(NULL, ", \t")) {
-				int	j;
-
-				/*
-				 * Check for duplicates
-				 */
-				pwd = lookup_pwent(p);
-				for (j = 0; j < i && strcmp(members[j], pwd->pw_name) != 0; j++)
-					;
-				if (j == i && extendarray(&members, &grmembers, i + 2) != -1)
-					members[i++] = newstr(pwd->pw_name);
-			}
-		while (i < grmembers)
-			members[i++] = NULL;
-		grp->gr_mem = members;
 	}
 
 	if (conf.dryrun)
@@ -269,8 +285,6 @@ pw_group(int mode, char *name, long id, struct cargs * args)
 
 	pw_log(cnf, mode, W_GROUP, "%s(%u)", grp->gr_name, grp->gr_gid);
 
-	free(members);
-
 	return EXIT_SUCCESS;
 }
 
@@ -296,42 +310,25 @@ lookup_pwent(const char *user)
  * Delete requested members from a group.
  */
 static void
-delete_members(char ***members, int *grmembers, int *i, struct carg *arg,
-    struct group *grp)
+delete_members(struct group *grp, char *list)
 {
-	bool matchFound;
-	char *user;
-	char *valueCopy;
-	char *valuePtr;
+	char *p;
 	int k;
-	struct passwd *pwd;
 
 	if (grp->gr_mem == NULL)
 		return;
 
-	k = 0;
-	while (grp->gr_mem[k] != NULL) {
-		matchFound = false;
-		if ((valueCopy = strdup(arg->val)) == NULL)
-			errx(EX_UNAVAILABLE, "out of memory");
-		valuePtr = valueCopy;
-		while ((user = strsep(&valuePtr, ", \t")) != NULL) {
-			pwd = lookup_pwent(user);
-			if (strcmp(grp->gr_mem[k], pwd->pw_name) == 0) {
-				matchFound = true;
+	for (p = strtok(list, ", \t"); p != NULL; p = strtok(NULL, ", \t")) {
+		for (k = 0; grp->gr_mem[k] != NULL; k++) {
+			if (strcmp(grp->gr_mem[k], p) == 0)
 				break;
-			}
 		}
-		free(valueCopy);
+		if (grp->gr_mem[k] == NULL) /* No match */
+			continue;
 
-		if (!matchFound &&
-		    extendarray(members, grmembers, *i + 2) != -1)
-			(*members)[(*i)++] = grp->gr_mem[k];
-
-		k++;
+		for (; grp->gr_mem[k] != NULL; k++)
+			grp->gr_mem[k] = grp->gr_mem[k+1];
 	}
-
-	return;
 }
 
 

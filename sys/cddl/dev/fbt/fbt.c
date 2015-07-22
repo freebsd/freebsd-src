@@ -334,9 +334,7 @@ fbt_ctfoff_init(modctl_t *lf, linker_ctf_t *lc)
 		return (EINVAL);
 	}
 
-	if ((ctfoff = malloc(sizeof(uint32_t) * lc->nsym, M_LINKER, M_WAITOK)) == NULL)
-		return (ENOMEM);
-
+	ctfoff = malloc(sizeof(uint32_t) * lc->nsym, M_LINKER, M_WAITOK);
 	*lc->ctfoffp = ctfoff;
 
 	for (i = 0; i < lc->nsym; i++, ctfoff++, symp++) {
@@ -515,8 +513,8 @@ fbt_typoff_init(linker_ctf_t *lc)
 	ctf_typemax++;
 	*lc->typlenp = ctf_typemax;
 
-	if ((xp = malloc(sizeof(uint32_t) * ctf_typemax, M_LINKER, M_ZERO | M_WAITOK)) == NULL)
-		return (ENOMEM);
+	xp = malloc(sizeof(uint32_t) * ctf_typemax, M_LINKER,
+	    M_ZERO | M_WAITOK);
 
 	*lc->typoffp = xp;
 
@@ -838,11 +836,7 @@ ctf_decl_push(ctf_decl_t *cd, linker_ctf_t *lc, ctf_id_t type)
 		prec = CTF_PREC_BASE;
 	}
 
-	if ((cdp = malloc(sizeof (ctf_decl_node_t), M_FBT, M_WAITOK)) == NULL) {
-		cd->cd_err = EAGAIN;
-		return;
-	}
-
+	cdp = malloc(sizeof(*cdp), M_FBT, M_WAITOK);
 	cdp->cd_type = type;
 	cdp->cd_kind = kind;
 	cdp->cd_n = n;

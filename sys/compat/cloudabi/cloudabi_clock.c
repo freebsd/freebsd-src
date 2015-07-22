@@ -26,22 +26,100 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/param.h>
+#include <sys/proc.h>
+#include <sys/stdint.h>
+#include <sys/syscallsubr.h>
+
 #include <compat/cloudabi/cloudabi_proto.h>
+#include <compat/cloudabi/cloudabi_syscalldefs.h>
+#include <compat/cloudabi/cloudabi_util.h>
+
+/* Converts a CloudABI clock ID to a FreeBSD clock ID. */
+static int
+cloudabi_convert_clockid(cloudabi_clockid_t in, clockid_t *out)
+{
+	switch (in) {
+	case CLOUDABI_CLOCK_MONOTONIC:
+		*out = CLOCK_MONOTONIC;
+		return (0);
+	case CLOUDABI_CLOCK_PROCESS_CPUTIME_ID:
+		*out = CLOCK_PROCESS_CPUTIME_ID;
+		return (0);
+	case CLOUDABI_CLOCK_REALTIME:
+		*out = CLOCK_REALTIME;
+		return (0);
+	case CLOUDABI_CLOCK_THREAD_CPUTIME_ID:
+		*out = CLOCK_THREAD_CPUTIME_ID;
+		return (0);
+	default:
+		return (EINVAL);
+	}
+}
+
+/* Converts a struct timespec to a CloudABI timestamp. */
+int
+cloudabi_convert_timespec(const struct timespec *in, cloudabi_timestamp_t *out)
+{
+	cloudabi_timestamp_t s, ns;
+
+	if (in->tv_sec < 0) {
+		/* Timestamps from before the Epoch cannot be expressed. */
+		*out = 0;
+		return (EOVERFLOW);
+	}
+	s = in->tv_sec;
+	ns = in->tv_nsec;
+	if (s > UINT64_MAX / 1000000000 ||
+	    (s == UINT64_MAX / 1000000000 && ns > UINT64_MAX % 1000000000)) {
+		/* Addition of seconds and nanoseconds would overflow. */
+		*out = UINT64_MAX;
+		return (EOVERFLOW);
+	}
+	*out = s * 1000000000 + ns;
+	return (0);
+}
 
 int
 cloudabi_sys_clock_res_get(struct thread *td,
     struct cloudabi_sys_clock_res_get_args *uap)
 {
+	struct timespec ts;
+	cloudabi_timestamp_t cts;
+	int error;
+	clockid_t clockid;
 
-	/* Not implemented. */
-	return (ENOSYS);
+	error = cloudabi_convert_clockid(uap->clock_id, &clockid);
+	if (error != 0)
+		return (error);
+	error = kern_clock_getres(td, clockid, &ts);
+	if (error != 0)
+		return (error);
+	error = cloudabi_convert_timespec(&ts, &cts);
+	if (error != 0)
+		return (error);
+	td->td_retval[0] = cts;
+	return (0);
 }
 
 int
 cloudabi_sys_clock_time_get(struct thread *td,
     struct cloudabi_sys_clock_time_get_args *uap)
 {
+	struct timespec ts;
+	cloudabi_timestamp_t cts;
+	int error;
+	clockid_t clockid;
 
-	/* Not implemented. */
-	return (ENOSYS);
+	error = cloudabi_convert_clockid(uap->clock_id, &clockid);
+	if (error != 0)
+		return (error);
+	error = kern_clock_gettime(td, clockid, &ts);
+	if (error != 0)
+		return (error);
+	error = cloudabi_convert_timespec(&ts, &cts);
+	if (error != 0)
+		return (error);
+	td->td_retval[0] = cts;
+	return (0);
 }

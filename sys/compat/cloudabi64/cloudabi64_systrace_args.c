@@ -30,8 +30,9 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 2: {
 		struct cloudabi_sys_condvar_signal_args *p = params;
 		uarg[0] = (intptr_t) p->condvar; /* cloudabi_condvar_t * */
-		iarg[1] = p->nwaiters; /* cloudabi_nthreads_t */
-		*n_args = 2;
+		iarg[1] = p->scope; /* cloudabi_futexscope_t */
+		iarg[2] = p->nwaiters; /* cloudabi_nthreads_t */
+		*n_args = 3;
 		break;
 	}
 	/* cloudabi_sys_fd_close */
@@ -296,7 +297,8 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 31: {
 		struct cloudabi_sys_lock_unlock_args *p = params;
 		uarg[0] = (intptr_t) p->lock; /* cloudabi_lock_t * */
-		*n_args = 1;
+		iarg[1] = p->scope; /* cloudabi_futexscope_t */
+		*n_args = 2;
 		break;
 	}
 	/* cloudabi_sys_mem_advise */
@@ -493,12 +495,13 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 54: {
 		struct cloudabi_sys_thread_exit_args *p = params;
 		uarg[0] = (intptr_t) p->lock; /* cloudabi_lock_t * */
-		*n_args = 1;
+		iarg[1] = p->scope; /* cloudabi_futexscope_t */
+		*n_args = 2;
 		break;
 	}
-	/* cloudabi64_sys_thread_tcb_set */
+	/* cloudabi_sys_thread_tcb_set */
 	case 55: {
-		struct cloudabi64_sys_thread_tcb_set_args *p = params;
+		struct cloudabi_sys_thread_tcb_set_args *p = params;
 		uarg[0] = (intptr_t) p->tcb; /* void * */
 		*n_args = 1;
 		break;
@@ -548,6 +551,9 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "cloudabi_condvar_t *";
 			break;
 		case 1:
+			p = "cloudabi_futexscope_t";
+			break;
+		case 2:
 			p = "cloudabi_nthreads_t";
 			break;
 		default:
@@ -1026,6 +1032,9 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		case 0:
 			p = "cloudabi_lock_t *";
 			break;
+		case 1:
+			p = "cloudabi_futexscope_t";
+			break;
 		default:
 			break;
 		};
@@ -1363,11 +1372,14 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		case 0:
 			p = "cloudabi_lock_t *";
 			break;
+		case 1:
+			p = "cloudabi_futexscope_t";
+			break;
 		default:
 			break;
 		};
 		break;
-	/* cloudabi64_sys_thread_tcb_set */
+	/* cloudabi_sys_thread_tcb_set */
 	case 55:
 		switch(ndx) {
 		case 0:
@@ -1663,7 +1675,7 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "void";
 		break;
-	/* cloudabi64_sys_thread_tcb_set */
+	/* cloudabi_sys_thread_tcb_set */
 	case 55:
 		if (ndx == 0 || ndx == 1)
 			p = "void";

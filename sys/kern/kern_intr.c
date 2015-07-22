@@ -829,6 +829,12 @@ ok:
 		 * Ensure that the thread will process the handler list
 		 * again and remove this handler if it has already passed
 		 * it on the list.
+		 *
+		 * The release part of the following store ensures
+		 * that the update of ih_flags is ordered before the
+		 * it_need setting.  See the comment before
+		 * atomic_cmpset_acq(&ithd->it_need, ...) operation in
+		 * the ithread_execute_handlers().
 		 */
 		atomic_store_rel_int(&ie->ie_thread->it_need, 1);
 	} else
@@ -897,6 +903,10 @@ intr_event_schedule_thread(struct intr_event *ie)
 	 * Set it_need to tell the thread to keep running if it is already
 	 * running.  Then, lock the thread and see if we actually need to
 	 * put it on the runqueue.
+	 *
+	 * Use store_rel to arrange that the store to ih_need in
+	 * swi_sched() is before the store to it_need and prepare for
+	 * transfer of this order to loads in the ithread.
 	 */
 	atomic_store_rel_int(&it->it_need, 1);
 	thread_lock(td);
@@ -975,6 +985,12 @@ ok:
 		 * Ensure that the thread will process the handler list
 		 * again and remove this handler if it has already passed
 		 * it on the list.
+		 *
+		 * The release part of the following store ensures
+		 * that the update of ih_flags is ordered before the
+		 * it_need setting.  See the comment before
+		 * atomic_cmpset_acq(&ithd->it_need, ...) operation in
+		 * the ithread_execute_handlers().
 		 */
 		atomic_store_rel_int(&it->it_need, 1);
 	} else
@@ -1048,6 +1064,10 @@ intr_event_schedule_thread(struct intr_event *ie, struct intr_thread *it)
 	 * Set it_need to tell the thread to keep running if it is already
 	 * running.  Then, lock the thread and see if we actually need to
 	 * put it on the runqueue.
+	 *
+	 * Use store_rel to arrange that the store to ih_need in
+	 * swi_sched() is before the store to it_need and prepare for
+	 * transfer of this order to loads in the ithread.
 	 */
 	atomic_store_rel_int(&it->it_need, 1);
 	thread_lock(td);
@@ -1133,7 +1153,7 @@ swi_sched(void *cookie, int flags)
 	 * running it will execute this handler on the next pass.  Otherwise,
 	 * it will execute it the next time it runs.
 	 */
-	atomic_store_rel_int(&ih->ih_need, 1);
+	ih->ih_need = 1;
 
 	if (!(flags & SWI_DELAY)) {
 		PCPU_INC(cnt.v_soft);
@@ -1223,13 +1243,14 @@ intr_event_execute_handlers(struct proc *p, struct intr_event *ie)
 		 * For software interrupt threads, we only execute
 		 * handlers that have their need flag set.  Hardware
 		 * interrupt threads always invoke all of their handlers.
+		 *
+		 * ih_need can only be 0 or 1.  Failed cmpset below
+		 * means that there is no request to execute handlers,
+		 * so a retry of the cmpset is not needed.
 		 */
-		if (ie->ie_flags & IE_SOFT) {
-			if (atomic_load_acq_int(&ih->ih_need) == 0)
-				continue;
-			else
-				atomic_store_rel_int(&ih->ih_need, 0);
-		}
+		if ((ie->ie_flags & IE_SOFT) != 0 &&
+		    atomic_cmpset_int(&ih->ih_need, 1, 0) == 0)
+			continue;
 
 		/* Execute this handler. */
 		CTR6(KTR_INTR, "%s: pid %d exec %p(%p) for %s flg=%x",
@@ -1326,17 +1347,13 @@ ithread_loop(void *arg)
 		 * Service interrupts.  If another interrupt arrives while
 		 * we are running, it will set it_need to note that we
 		 * should make another pass.
+		 *
+		 * The load_acq part of the following cmpset ensures
+		 * that the load of ih_need in ithread_execute_handlers()
+		 * is ordered after the load of it_need here.
 		 */
-		while (atomic_load_acq_int(&ithd->it_need) != 0) {
-			/*
-			 * This might need a full read and write barrier
-			 * to make sure that this write posts before any
-			 * of the memory or device accesses in the
-			 * handlers.
-			 */
-			atomic_store_rel_int(&ithd->it_need, 0);
+		while (atomic_cmpset_acq_int(&ithd->it_need, 1, 0) != 0)
 			ithread_execute_handlers(p, ie);
-		}
 		WITNESS_WARN(WARN_PANIC, NULL, "suspending ithread");
 		mtx_assert(&Giant, MA_NOTOWNED);
 
@@ -1346,8 +1363,8 @@ ithread_loop(void *arg)
 		 * set again, so we have to check it again.
 		 */
 		thread_lock(td);
-		if ((atomic_load_acq_int(&ithd->it_need) == 0) &&
-		    !(ithd->it_flags & (IT_DEAD | IT_WAIT))) {
+		if (atomic_load_acq_int(&ithd->it_need) == 0 &&
+		    (ithd->it_flags & (IT_DEAD | IT_WAIT)) == 0) {
 			TD_SET_IWAIT(td);
 			ie->ie_count = 0;
 			mi_switch(SW_VOL | SWT_IWAIT, NULL);
@@ -1506,15 +1523,12 @@ ithread_loop(void *arg)
 		 * Service interrupts.  If another interrupt arrives while
 		 * we are running, it will set it_need to note that we
 		 * should make another pass.
+		 *
+		 * The load_acq part of the following cmpset ensures
+		 * that the load of ih_need in ithread_execute_handlers()
+		 * is ordered after the load of it_need here.
 		 */
-		while (atomic_load_acq_int(&ithd->it_need) != 0) {
-			/*
-			 * This might need a full read and write barrier
-			 * to make sure that this write posts before any
-			 * of the memory or device accesses in the
-			 * handlers.
-			 */
-			atomic_store_rel_int(&ithd->it_need, 0);
+		while (atomic_cmpset_acq_int(&ithd->it_need, 1, 0) != 0) {
 			if (priv)
 				priv_ithread_execute_handler(p, ih);
 			else 
@@ -1529,8 +1543,8 @@ ithread_loop(void *arg)
 		 * set again, so we have to check it again.
 		 */
 		thread_lock(td);
-		if ((atomic_load_acq_int(&ithd->it_need) == 0) &&
-		    !(ithd->it_flags & (IT_DEAD | IT_WAIT))) {
+		if (atomic_load_acq_int(&ithd->it_need) == 0 &&
+		    (ithd->it_flags & (IT_DEAD | IT_WAIT)) == 0) {
 			TD_SET_IWAIT(td);
 			ie->ie_count = 0;
 			mi_switch(SW_VOL | SWT_IWAIT, NULL);

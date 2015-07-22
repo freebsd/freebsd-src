@@ -28,7 +28,7 @@
 .\"     @(#)newfs.8	8.6 (Berkeley) 5/3/95
 .\" $FreeBSD$
 .\"
-.Dd October 1, 2013
+.Dd July 15, 2015
 .Dt NEWFS 8
 .Os
 .Sh NAME
@@ -152,7 +152,7 @@ The expected average number of files per directory on the file system.
 .It Fl i Ar bytes
 Specify the density of inodes in the file system.
 The default is to create an inode for every
-.Pq 4 * Ar frag-size
+.Pq 2 * Ar frag-size
 bytes of data space.
 If fewer inodes are desired, a larger number should be used;
 to create more inodes a smaller number should be given.
@@ -173,7 +173,7 @@ Clustering the metadata blocks speeds up random file access
 and decreases the running time of
 .Xr fsck 8 .
 By default
-.Xr newfs 8
+.Nm
 sets it to half of the space reserved to minfree.
 .It Fl l
 Enable multilabel MAC on the new file system.
@@ -228,7 +228,7 @@ for more details on how to set this option.
 The partition name (a..h) you want to use in case the underlying image
 is a file, so you do not have access to individual partitions through the
 filesystem.
-Can also be used with a device, e.g.
+Can also be used with a device, e.g.,
 .Nm
 .Fl p Ar f
 .Ar /dev/da1s3

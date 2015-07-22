@@ -501,25 +501,23 @@ write_tx_wr(void *dst, struct toepcb *toep, unsigned int immdlen,
 
 	/* for iscsi, the mode & submode setting is per-packet */
 	if (toep->ulp_mode == ULP_MODE_ISCSI)
-		wr_ulp_mode = V_FW_OFLD_TX_DATA_WR_ULPMODE(ulp_mode >> 4) |
-			V_FW_OFLD_TX_DATA_WR_ULPSUBMODE(ulp_mode & 3);
+		wr_ulp_mode = V_TX_ULP_MODE(ulp_mode >> 4) |
+		    V_TX_ULP_SUBMODE(ulp_mode & 3);
 	else
-		wr_ulp_mode = V_FW_OFLD_TX_DATA_WR_ULPMODE(toep->ulp_mode);
+		wr_ulp_mode = V_TX_ULP_MODE(toep->ulp_mode);
 
-	txwr->lsodisable_to_proxy =
-	    htobe32(wr_ulp_mode |
-		V_FW_OFLD_TX_DATA_WR_URGENT(0) |	/* XXX */
-		V_FW_OFLD_TX_DATA_WR_SHOVE(shove));
+	txwr->lsodisable_to_flags = htobe32(wr_ulp_mode | V_TX_URG(0) | /*XXX*/
+	    V_TX_SHOVE(shove));
 	txwr->plen = htobe32(plen);
 
 	if (txalign > 0) {
 		struct tcpcb *tp = intotcpcb(toep->inp);
 
 		if (plen < 2 * tp->t_maxseg || is_10G_port(toep->port))
-			txwr->lsodisable_to_proxy |=
+			txwr->lsodisable_to_flags |=
 			    htobe32(F_FW_OFLD_TX_DATA_WR_LSODISABLE);
 		else
-			txwr->lsodisable_to_proxy |=
+			txwr->lsodisable_to_flags |=
 			    htobe32(F_FW_OFLD_TX_DATA_WR_ALIGNPLD |
 				(tp->t_flags & TF_NODELAY ? 0 :
 				F_FW_OFLD_TX_DATA_WR_ALIGNPLDSHOVE));

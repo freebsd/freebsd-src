@@ -1057,7 +1057,7 @@ tdq_notify(struct tdq *tdq, struct thread *td)
 	 * globally visible before we read tdq_cpu_idle.  Idle thread
 	 * accesses both of them without locks, and the order is important.
 	 */
-	mb();
+	atomic_thread_fence_seq_cst();
 
 	if (TD_IS_IDLETHREAD(ctd)) {
 		/*
@@ -2667,7 +2667,7 @@ sched_idletd(void *dummy)
 		 * before cpu_idle() read tdq_load.  The order is important
 		 * to avoid race with tdq_notify.
 		 */
-		mb();
+		atomic_thread_fence_seq_cst();
 		cpu_idle(switchcnt * 4 > sched_idlespinthresh);
 		tdq->tdq_cpu_idle = 0;
 

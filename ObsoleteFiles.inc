@@ -99,6 +99,8 @@ OLD_FILES+=usr/lib/clang/3.6.1/lib/freebsd/libclang_rt.ubsan_cxx-x86_64.a
 OLD_DIRS+=usr/lib/clang/3.6.1/lib/freebsd
 OLD_DIRS+=usr/lib/clang/3.6.1/lib
 OLD_DIRS+=usr/lib/clang/3.6.1
+# 20150719: Remove libarchive.pc
+OLD_FILES+=usr/libdata/pkgconfig/libarchive.pc
 # 20150705: Rename DTrace provider man pages.
 OLD_FILES+=usr/share/man/man4/dtrace-io.4.gz
 OLD_FILES+=usr/share/man/man4/dtrace-ip.4.gz

@@ -482,11 +482,15 @@ struct ahci_controller {
 	device_t		dev;
 	bus_dma_tag_t		dma_tag;
 	int			r_rid;
+	int			r_msix_tab_rid;
+	int			r_msix_pba_rid;
 	uint16_t		vendorid;	/* Vendor ID from the bus */
 	uint16_t		deviceid;	/* Device ID from the bus */
 	uint16_t		subvendorid;	/* Subvendor ID from the bus */
 	uint16_t		subdeviceid;	/* Subdevice ID from the bus */
 	struct resource		*r_mem;
+	struct resource		*r_msix_table;
+	struct resource		*r_msix_pba;
 	struct rman		sc_iomem;
 	struct ahci_controller_irq {
 		struct ahci_controller	*ctlr;
@@ -621,3 +625,4 @@ int ahci_child_location_str(device_t dev, device_t child, char *buf,
 bus_dma_tag_t ahci_get_dma_tag(device_t dev, device_t child);
 int ahci_ctlr_reset(device_t dev);
 int ahci_ctlr_setup(device_t dev);
+void ahci_free_mem(device_t dev);

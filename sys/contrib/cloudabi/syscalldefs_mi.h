@@ -40,6 +40,19 @@
 #define CLOUDABI_ADVICE_SEQUENTIAL 5
 #define CLOUDABI_ADVICE_WILLNEED 6
 
+// Auxiliary vector entries. All entries that are also part of the
+// x86-64 ABI use the same number. All extensions start at 256.
+#define CLOUDABI_AT_ARGDATA 256
+#define CLOUDABI_AT_ARGDATALEN 257
+#define CLOUDABI_AT_CANARY 258
+#define CLOUDABI_AT_CANARYLEN 259
+#define CLOUDABI_AT_NCPUS 260
+#define CLOUDABI_AT_NULL 0
+#define CLOUDABI_AT_PAGESZ 6
+#define CLOUDABI_AT_PHDR 3
+#define CLOUDABI_AT_PHNUM 4
+#define CLOUDABI_AT_TID 261
+
 // Clocks.
 #define CLOUDABI_CLOCK_MONOTONIC 1
 #define CLOUDABI_CLOCK_PROCESS_CPUTIME_ID 2
@@ -176,6 +189,10 @@
 #define CLOUDABI_FILETYPE_SOCKET_STREAM 0x82
 #define CLOUDABI_FILETYPE_SYMBOLIC_LINK 0x90
 
+// Futex object scopes.
+#define CLOUDABI_FUTEXSCOPE_GLOBAL 1
+#define CLOUDABI_FUTEXSCOPE_PROCESS_LOCAL 2
+
 // Read-write lock related constants.
 #define CLOUDABI_LOCK_UNLOCKED 0                 // Lock is unlocked.
 #define CLOUDABI_LOCK_WRLOCKED 0x40000000        // Lock is write locked.
@@ -202,6 +219,9 @@
 #define CLOUDABI_MAP_FIXED 0x2
 #define CLOUDABI_MAP_PRIVATE 0x4
 #define CLOUDABI_MAP_SHARED 0x8
+
+// File descriptor that must be passed in when using CLOUDABI_MAP_ANON.
+#define CLOUDABI_MAP_ANON_FD 0xffffffff
 
 // msync() flags.
 #define CLOUDABI_MS_ASYNC 0x1
@@ -334,6 +354,7 @@ typedef int64_t cloudabi_filedelta_t;   // lseek().
 typedef uint64_t cloudabi_filesize_t;   // ftruncate(), struct stat::st_size.
 typedef uint8_t cloudabi_filetype_t;    // struct stat::st_mode.
 typedef uint16_t cloudabi_fsflags_t;    // file_stat_put().
+typedef uint8_t cloudabi_futexscope_t;  // Scope of lock or condition variable.
 typedef uint64_t cloudabi_inode_t;      // struct stat::st_ino.
 typedef uint32_t cloudabi_linkcount_t;  // struct stat::st_nlink.
 typedef uint32_t cloudabi_lock_t;       // pthread_{mutex,rwlock}_*().

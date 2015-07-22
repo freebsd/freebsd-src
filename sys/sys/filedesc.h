@@ -134,11 +134,17 @@ struct filedesc_to_leader {
 					    SX_NOTRECURSED)
 #define	FILEDESC_UNLOCK_ASSERT(fdp)	sx_assert(&(fdp)->fd_sx, SX_UNLOCKED)
 
+/* Operation types for kern_dup(). */
+enum {
+	FDDUP_NORMAL,		/* dup() behavior. */
+	FDDUP_FCNTL,		/* fcntl()-style errors. */
+	FDDUP_FIXED,		/* Force fixed allocation. */
+	FDDUP_MUSTREPLACE,	/* Target must exist. */
+	FDDUP_LASTMODE,
+};
+
 /* Flags for kern_dup(). */
-#define	FDDUP_FIXED		0x1	/* Force fixed allocation. */
-#define	FDDUP_FCNTL		0x2	/* fcntl()-style errors. */
-#define	FDDUP_CLOEXEC		0x4	/* Atomically set FD_CLOEXEC. */
-#define	FDDUP_MUSTREPLACE	0x8	/* Target must exist. */
+#define	FDDUP_FLAG_CLOEXEC	0x1	/* Atomically set UF_EXCLOSE. */
 
 struct thread;
 
@@ -164,8 +170,12 @@ void	fdclose(struct thread *td, struct file *fp, int idx);
 void	fdcloseexec(struct thread *td);
 void	fdsetugidsafety(struct thread *td);
 struct	filedesc *fdcopy(struct filedesc *fdp);
+int	fdcopy_remapped(struct filedesc *fdp, const int *fds, size_t nfds,
+	    struct filedesc **newfdp);
+void	fdinstall_remapped(struct thread *td, struct filedesc *fdp);
 void	fdunshare(struct thread *td);
 void	fdescfree(struct thread *td);
+void	fdescfree_remapped(struct filedesc *fdp);
 struct	filedesc *fdinit(struct filedesc *fdp, bool prepfiles);
 struct	filedesc *fdshare(struct filedesc *fdp);
 struct filedesc_to_leader *
@@ -198,6 +208,11 @@ fd_modified(struct filedesc *fdp, int fd, seq_t seq)
 
 	return (!seq_consistent(fd_seq(fdp->fd_files, fd), seq));
 }
+
+/* cdir/rdir/jdir manipulation functions. */
+void	pwd_chdir(struct thread *td, struct vnode *vp);
+int	pwd_chroot(struct thread *td, struct vnode *vp);
+void	pwd_ensure_dirs(void);
 
 #endif /* _KERNEL */
 
