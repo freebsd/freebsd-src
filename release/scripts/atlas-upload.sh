@@ -28,19 +28,22 @@
 
 ATLAS_API_URL=''
 ATLAS_UPLOAD_URL='https://binstore.hashicorp.com'
-VERSION_DESCRIPTION="FreeBSD Snapshot Build"
+DESCRIPTION="FreeBSD Snapshot Build"
 
 usage() {
 	echo "${0} usage:"
-	echo "-b box-name -f box-to-upload -k api-key -p provider -u user -v version"
+	echo "-b box-name -d 'box description' -f box-to-upload -k api-key -p provider -u user -v version"
 	return 1
 }
 
 main () {
-	while getopts "b:f:k:p:u:v:" arg; do
+	while getopts "b:d:f:k:p:u:v:" arg; do
 		case "${arg}" in
 			b)
 				BOX="${OPTARG}"
+				;;
+			d)
+				DESCRIPTION="${OPTARG}"
 				;;
 			f)
 				FILE="${OPTARG}"
@@ -83,6 +86,7 @@ main () {
 		echo "Creating box: ${BOX}"
 		/usr/local/bin/curl -s https://atlas.hashicorp.com/api/v1/boxes -X POST -d "box[name]=${BOX}" -d "access_token=${KEY}" > /dev/null
 		/usr/local/bin/curl -s https://atlas.hashicorp.com/api/v1/box/${USERNAME}/${BOX} -X PUT -d "box[is_private]=false" -d "access_token=${KEY}" > /dev/null
+		/usr/local/bin/curl -s https://atlas.hashicorp.com/api/v1/box/${USERNAME}/${BOX} -X PUT -d "box[description]='${DESCRIPTION}'" -d "access_token=${KEY}" > /dev/null
 	else
 		echo "Box already exists"
 	fi
@@ -97,7 +101,7 @@ main () {
 	if [ $? != 0 ]; then
 		echo "Creating version: ${VERSION}"
 		/usr/local/bin/curl -s https://atlas.hashicorp.com/api/v1/box/${USERNAME}/${BOX}/versions -X POST -d "version[version]=${VERSION}" -d "access_token=${KEY}" > /dev/null
-		/usr/local/bin/curl -s https://atlas.hashicorp.com/api/v1/box/${USERNAME}/${BOX}/version/${VERSION} -X PUT -d "version[description]=${VERSION_DESCRIPTION}" -d "access_token=${KEY}" > /dev/null
+		/usr/local/bin/curl -s https://atlas.hashicorp.com/api/v1/box/${USERNAME}/${BOX}/version/${VERSION} -X PUT -d "version[description]=${DESCRIPTION}" -d "access_token=${KEY}" > /dev/null
 		VERSIONRESULT=$(/usr/local/bin/curl -s "https://atlas.hashicorp.com/api/v1/box/${USERNAME}/${BOX}/version/${VERSION}?access_token=${KEY}")
 		echo $VERSIONRESULT | grep "\"version\":\"${VERSION}\"" > /dev/null
 		if [ $? != 0 ]; then
