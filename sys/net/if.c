@@ -175,8 +175,8 @@ static void	do_link_state_change(void *, int);
 static int	if_getgroup(struct ifgroupreq *, struct ifnet *);
 static int	if_getgroupmembers(struct ifgroupreq *);
 static void	if_delgroups(struct ifnet *);
-static void	if_attach_internal(struct ifnet *, int);
-static void	if_detach_internal(struct ifnet *, int);
+static void	if_attach_internal(struct ifnet *, int, struct if_clone *);
+static void	if_detach_internal(struct ifnet *, int, struct if_clone **);
 
 #ifdef INET6
 /*
@@ -571,6 +571,15 @@ ifq_delete(struct ifaltq *ifq)
  * tasks, given that we are moving from one vnet to another an ifnet which
  * has already been fully initialized.
  *
+ * Note that if_detach_internal() removes group membership unconditionally
+ * even when vmove flag is set, and if_attach_internal() adds only IFG_ALL.
+ * Thus, when if_vmove() is applied to a cloned interface, group membership
+ * is lost while a cloned one always joins a group whose name is
+ * ifc->ifc_name.  To recover this after if_detach_internal() and
+ * if_attach_internal(), the cloner should be specified to
+ * if_attach_internal() via ifc.  If it is non-NULL, if_attach_internal()
+ * attempts to join a group whose name is ifc->ifc_name.
+ *
  * XXX:
  *  - The decision to return void and thus require this function to
  *    succeed is questionable.
@@ -581,7 +590,7 @@ void
 if_attach(struct ifnet *ifp)
 {
 
-	if_attach_internal(ifp, 0);
+	if_attach_internal(ifp, 0, NULL);
 }
 
 /*
@@ -636,7 +645,7 @@ if_hw_tsomax_update(struct ifnet *ifp, struct ifnet_hw_tsomax *pmax)
 }
 
 static void
-if_attach_internal(struct ifnet *ifp, int vmove)
+if_attach_internal(struct ifnet *ifp, int vmove, struct if_clone *ifc)
 {
 	unsigned socksize, ifasize;
 	int namelen, masklen;
@@ -654,6 +663,10 @@ if_attach_internal(struct ifnet *ifp, int vmove)
 #endif
 
 	if_addgroup(ifp, IFG_ALL);
+
+	/* Restore group membership for cloned interfaces. */
+	if (vmove && ifc != NULL)
+		if_clone_addgroup(ifp, ifc);
 
 	getmicrotime(&ifp->if_lastchange);
 	ifp->if_data.ifi_epoch = time_uptime;
@@ -877,12 +890,12 @@ if_detach(struct ifnet *ifp)
 {
 
 	CURVNET_SET_QUIET(ifp->if_vnet);
-	if_detach_internal(ifp, 0);
+	if_detach_internal(ifp, 0, NULL);
 	CURVNET_RESTORE();
 }
 
 static void
-if_detach_internal(struct ifnet *ifp, int vmove)
+if_detach_internal(struct ifnet *ifp, int vmove, struct if_clone **ifcp)
 {
 	struct ifaddr *ifa;
 	struct radix_node_head	*rnh;
@@ -910,6 +923,10 @@ if_detach_internal(struct ifnet *ifp, int vmove)
 		else
 			return; /* XXX this should panic as well? */
 	}
+
+	/* Check if this is a cloned interface or not. */
+	if (vmove && ifcp != NULL)
+		*ifcp = if_clone_findifc(ifp);
 
 	/*
 	 * Remove/wait for pending events.
@@ -1016,12 +1033,13 @@ void
 if_vmove(struct ifnet *ifp, struct vnet *new_vnet)
 {
 	u_short idx;
+	struct if_clone *ifc;
 
 	/*
 	 * Detach from current vnet, but preserve LLADDR info, do not
 	 * mark as dead etc. so that the ifnet can be reattached later.
 	 */
-	if_detach_internal(ifp, 1);
+	if_detach_internal(ifp, 1, &ifc);
 
 	/*
 	 * Unlink the ifnet from ifindex_table[] in current vnet, and shrink
@@ -1055,7 +1073,7 @@ if_vmove(struct ifnet *ifp, struct vnet *new_vnet)
 	ifnet_setbyindex_locked(ifp->if_index, ifp);
 	IFNET_WUNLOCK();
 
-	if_attach_internal(ifp, 1);
+	if_attach_internal(ifp, 1, ifc);
 
 	CURVNET_RESTORE();
 }

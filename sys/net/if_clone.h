@@ -68,6 +68,8 @@ void	vnet_if_clone_init(void);
 int	if_clone_create(char *, size_t, caddr_t);
 int	if_clone_destroy(const char *);
 int	if_clone_list(struct if_clonereq *);
+struct if_clone *if_clone_findifc(struct ifnet *);
+void	if_clone_addgroup(struct ifnet *, struct if_clone *);
 
 /* The below interface used only by epair(4). */
 int	if_clone_destroyif(struct if_clone *, struct ifnet *);
