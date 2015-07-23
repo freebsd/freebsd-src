@@ -840,7 +840,6 @@ nvme_ctrlr_passthrough_cmd(struct nvme_controller *ctrlr,
 			 */
 			PHOLD(curproc);
 			buf = getpbuf(NULL);
-			buf->b_saveaddr = buf->b_data;
 			buf->b_data = pt->buf;
 			buf->b_bufsize = pt->len;
 			buf->b_iocmd = pt->is_read ? BIO_READ : BIO_WRITE;
