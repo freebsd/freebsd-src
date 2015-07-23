@@ -129,8 +129,8 @@ __invoke_vector:
 	#
 	# XXXBD: See XXXRW comment in crt_rtld.S constructors
 	#
-	dli	$t0, 0x1020
-	clc	$c13, $t0, 2*CHERICAP_SIZE($c26)
+	dli	$t0, 0x1000
+	clc	$c13, $t0, 32 + 2*CHERICAP_SIZE($c26)
 	cld	$t9, $v0, 0($c13)
 	abicall	$t9
 	b	creturn_target
