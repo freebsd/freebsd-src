@@ -28,7 +28,7 @@
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
 .\" $FreeBSD$
 .\"
-.Dd May 15, 2015
+.Dd July 24, 2015
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -749,15 +749,6 @@ Set a flag to disable Duplicate Address Detection.
 .It Cm -no_dad
 Clear a flag
 .Cm no_dad .
-.It Cm ignoreloop
-Set a flag to disable loopback detection in Enhanced Duplicate Address
-Detection Algorithm.
-When this flag is set,
-Duplicate Address Detection will stop in a finite number of probings
-even if a loopback configuration is detected.
-.It Cm -ignoreloop
-Clear a flag
-.Cm ignoreloop .
 .El
 .Pp
 The following parameters are specific for IPv6 addresses.
