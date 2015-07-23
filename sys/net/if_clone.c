@@ -525,6 +525,49 @@ done:
 }
 
 /*
+ * if_clone_findifc() looks up ifnet from the current
+ * cloner list, and returns ifc if found.  Note that ifc_refcnt
+ * is incremented.
+ */
+struct if_clone *
+if_clone_findifc(struct ifnet *ifp)
+{
+	struct if_clone *ifc, *ifc0;
+	struct ifnet *ifcifp;
+
+	ifc0 = NULL;
+	IF_CLONERS_LOCK();
+	LIST_FOREACH(ifc, &V_if_cloners, ifc_list) {
+		IF_CLONE_LOCK(ifc);
+		LIST_FOREACH(ifcifp, &ifc->ifc_iflist, if_clones) {
+			if (ifp == ifcifp) {
+				ifc0 = ifc;
+				IF_CLONE_ADDREF_LOCKED(ifc);
+				break;
+			}
+		}
+		IF_CLONE_UNLOCK(ifc);
+		if (ifc0 != NULL)
+			break;
+	}
+	IF_CLONERS_UNLOCK();
+
+	return (ifc0);
+}
+
+/*
+ * if_clone_addgroup() decrements ifc_refcnt because it is called after
+ * if_clone_findifc().
+ */
+void
+if_clone_addgroup(struct ifnet *ifp, struct if_clone *ifc)
+{
+
+	if_addgroup(ifp, ifc->ifc_name);
+	IF_CLONE_REMREF(ifc);
+}
+
+/*
  * A utility function to extract unit numbers from interface names of
  * the form name###.
  *
