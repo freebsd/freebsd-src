@@ -46,18 +46,51 @@ int
 cloudabi_sys_fd_create1(struct thread *td,
     struct cloudabi_sys_fd_create1_args *uap)
 {
+	struct socket_args socket_args = {
+		.domain = AF_UNIX,
+	};
 
-	/* Not implemented. */
-	return (ENOSYS);
+	switch (uap->type) {
+	case CLOUDABI_FILETYPE_SOCKET_DGRAM:
+		socket_args.type = SOCK_DGRAM;
+		return (sys_socket(td, &socket_args));
+	case CLOUDABI_FILETYPE_SOCKET_SEQPACKET:
+		socket_args.type = SOCK_SEQPACKET;
+		return (sys_socket(td, &socket_args));
+	case CLOUDABI_FILETYPE_SOCKET_STREAM:
+		socket_args.type = SOCK_STREAM;
+		return (sys_socket(td, &socket_args));
+	default:
+		return (EINVAL);
+	}
 }
 
 int
 cloudabi_sys_fd_create2(struct thread *td,
     struct cloudabi_sys_fd_create2_args *uap)
 {
+	int fds[2];
+	int error;
 
-	/* Not implemented. */
-	return (ENOSYS);
+	switch (uap->type) {
+	case CLOUDABI_FILETYPE_SOCKET_DGRAM:
+		error = kern_socketpair(td, AF_UNIX, SOCK_DGRAM, 0, fds);
+		break;
+	case CLOUDABI_FILETYPE_SOCKET_SEQPACKET:
+		error = kern_socketpair(td, AF_UNIX, SOCK_SEQPACKET, 0, fds);
+		break;
+	case CLOUDABI_FILETYPE_SOCKET_STREAM:
+		error = kern_socketpair(td, AF_UNIX, SOCK_STREAM, 0, fds);
+		break;
+	default:
+		return (EINVAL);
+	}
+
+	if (error == 0) {
+		td->td_retval[0] = fds[0];
+		td->td_retval[1] = fds[1];
+	}
+	return (0);
 }
 
 int
