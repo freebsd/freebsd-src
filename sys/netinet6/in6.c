@@ -701,7 +701,8 @@ in6_control(struct socket *so, u_long cmd, caddr_t data,
 		pr0.ndpr_plen = in6_mask2len(&ifra->ifra_prefixmask.sin6_addr,
 		    NULL);
 		if (pr0.ndpr_plen == 128) {
-			break;	/* we don't need to install a host route. */
+			/* we don't need to install a host route. */
+			goto aifaddr_out;
 		}
 		pr0.ndpr_prefix = ifra->ifra_addr;
 		/* apply the mask for safety. */
@@ -769,32 +770,29 @@ in6_control(struct socket *so, u_long cmd, caddr_t data,
 		 * that is, this address might make other addresses detached.
 		 */
 		pfxlist_onlink_check();
-		if (error == 0 && ia) {
-			if (ND_IFINFO(ifp)->flags & ND6_IFF_IFDISABLED) {
-				/*
-				 * Try to clear the flag when a new
-				 * IPv6 address is added onto an
-				 * IFDISABLED interface and it
-				 * succeeds.
-				 */
-				struct in6_ndireq nd;
+aifaddr_out:
+		if (error != 0 || ia == NULL)
+			break;
+		/*
+		 * Try to clear the flag when a new IPv6 address is added
+		 * onto an IFDISABLED interface and it succeeds.
+		 */
+		if (ND_IFINFO(ifp)->flags & ND6_IFF_IFDISABLED) {
+			struct in6_ndireq nd;
 
-				memset(&nd, 0, sizeof(nd));
-				nd.ndi.flags = ND_IFINFO(ifp)->flags;
-				nd.ndi.flags &= ~ND6_IFF_IFDISABLED;
-				if (nd6_ioctl(SIOCSIFINFO_FLAGS,
-				    (caddr_t)&nd, ifp) < 0)
-					log(LOG_NOTICE, "SIOCAIFADDR_IN6: "
-					    "SIOCSIFINFO_FLAGS for -ifdisabled "
-					    "failed.");
-				/*
-				 * Ignore failure of clearing the flag
-				 * intentionally.  The failure means
-				 * address duplication was detected.
-				 */
-			}
-			EVENTHANDLER_INVOKE(ifaddr_event, ifp);
+			memset(&nd, 0, sizeof(nd));
+			nd.ndi.flags = ND_IFINFO(ifp)->flags;
+			nd.ndi.flags &= ~ND6_IFF_IFDISABLED;
+			if (nd6_ioctl(SIOCSIFINFO_FLAGS, (caddr_t)&nd, ifp) < 0)
+				log(LOG_NOTICE, "SIOCAIFADDR_IN6: "
+				    "SIOCSIFINFO_FLAGS for -ifdisabled "
+				    "failed.");
+			/*
+			 * Ignore failure of clearing the flag intentionally.
+			 * The failure means address duplication was detected.
+			 */
 		}
+		EVENTHANDLER_INVOKE(ifaddr_event, ifp);
 		break;
 	}
 
