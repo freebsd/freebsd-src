@@ -1563,15 +1563,6 @@ buf_dirty_count_severe(void)
 	return(numdirtybuffers >= hidirtybuffers);
 }
 
-static __noinline int
-buf_vm_page_count_severe(void)
-{
-
-	KFAIL_POINT_CODE(DEBUG_FP, buf_pressure, return 1);
-
-	return vm_page_count_severe();
-}
-
 /*
  *	brelse:
  *
@@ -1647,20 +1638,9 @@ brelse(struct buf *bp)
 	 * 
 	 * We still allow the B_INVAL case to call vfs_vmio_release(), even
 	 * if B_DELWRI is set.
-	 *
-	 * If B_DELWRI is not set we may have to set B_RELBUF if we are low
-	 * on pages to return pages to the VM page queues.
 	 */
 	if (bp->b_flags & B_DELWRI)
 		bp->b_flags &= ~B_RELBUF;
-	else if (buf_vm_page_count_severe()) {
-		/*
-		 * BKGRDINPROG can only be set with the buf and bufobj
-		 * locks both held.  We tolerate a race to clear it here.
-		 */
-		if (!(bp->b_vflags & BV_BKGRDINPROG))
-			bp->b_flags |= B_RELBUF;
-	}
 
 	/*
 	 * VMIO buffer rundown.  It is not very necessary to keep a VMIO buffer
@@ -1875,20 +1855,6 @@ bqrelse(struct buf *bp)
 		if ((bp->b_flags & B_DELWRI) == 0 &&
 		    (bp->b_xflags & BX_VNDIRTY))
 			panic("bqrelse: not dirty");
-		/*
-		 * BKGRDINPROG can only be set with the buf and bufobj
-		 * locks both held.  We tolerate a race to clear it here.
-		 */
-		if (buf_vm_page_count_severe() &&
-		    (bp->b_vflags & BV_BKGRDINPROG) == 0) {
-			/*
-			 * We are too low on memory, we have to try to free
-			 * the buffer (most importantly: the wired pages
-			 * making up its backing store) *now*.
-			 */
-			brelse(bp);
-			return;
-		}
 		qindex = QUEUE_CLEAN;
 	}
 	binsfree(bp, qindex);
@@ -1934,8 +1900,6 @@ vfs_vmio_release(struct buf *bp)
 				vm_page_free(m);
 		} else if (bp->b_flags & B_DIRECT)
 			vm_page_try_to_free(m);
-		else if (buf_vm_page_count_severe())
-			vm_page_try_to_cache(m);
 		vm_page_unlock(m);
 	}
 	if (obj != NULL)
