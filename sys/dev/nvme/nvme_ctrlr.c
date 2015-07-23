@@ -1,5 +1,5 @@
 /*-
- * Copyright (C) 2012-2014 Intel Corporation
+ * Copyright (C) 2012-2015 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -207,7 +207,7 @@ nvme_ctrlr_fail_req_task(void *arg, int pending)
 }
 
 static int
-nvme_ctrlr_wait_for_ready(struct nvme_controller *ctrlr)
+nvme_ctrlr_wait_for_ready(struct nvme_controller *ctrlr, int desired_val)
 {
 	int ms_waited;
 	union cc_register cc;
@@ -216,18 +216,19 @@ nvme_ctrlr_wait_for_ready(struct nvme_controller *ctrlr)
 	cc.raw = nvme_mmio_read_4(ctrlr, cc);
 	csts.raw = nvme_mmio_read_4(ctrlr, csts);
 
-	if (!cc.bits.en) {
-		nvme_printf(ctrlr, "%s called with cc.en = 0\n", __func__);
+	if (cc.bits.en != desired_val) {
+		nvme_printf(ctrlr, "%s called with desired_val = %d "
+		    "but cc.en = %d\n", __func__, desired_val, cc.bits.en);
 		return (ENXIO);
 	}
 
 	ms_waited = 0;
 
-	while (!csts.bits.rdy) {
+	while (csts.bits.rdy != desired_val) {
 		DELAY(1000);
 		if (ms_waited++ > ctrlr->ready_timeout_in_ms) {
-			nvme_printf(ctrlr, "controller did not become ready "
-			    "within %d ms\n", ctrlr->ready_timeout_in_ms);
+			nvme_printf(ctrlr, "controller ready did not become %d "
+			    "within %d ms\n", desired_val, ctrlr->ready_timeout_in_ms);
 			return (ENXIO);
 		}
 		csts.raw = nvme_mmio_read_4(ctrlr, csts);
@@ -246,11 +247,12 @@ nvme_ctrlr_disable(struct nvme_controller *ctrlr)
 	csts.raw = nvme_mmio_read_4(ctrlr, csts);
 
 	if (cc.bits.en == 1 && csts.bits.rdy == 0)
-		nvme_ctrlr_wait_for_ready(ctrlr);
+		nvme_ctrlr_wait_for_ready(ctrlr, 1);
 
 	cc.bits.en = 0;
 	nvme_mmio_write_4(ctrlr, cc, cc.raw);
 	DELAY(5000);
+	nvme_ctrlr_wait_for_ready(ctrlr, 0);
 }
 
 static int
@@ -267,7 +269,7 @@ nvme_ctrlr_enable(struct nvme_controller *ctrlr)
 		if (csts.bits.rdy == 1)
 			return (0);
 		else
-			return (nvme_ctrlr_wait_for_ready(ctrlr));
+			return (nvme_ctrlr_wait_for_ready(ctrlr, 1));
 	}
 
 	nvme_mmio_write_8(ctrlr, asq, ctrlr->adminq.cmd_bus_addr);
@@ -295,7 +297,7 @@ nvme_ctrlr_enable(struct nvme_controller *ctrlr)
 	nvme_mmio_write_4(ctrlr, cc, cc.raw);
 	DELAY(5000);
 
-	return (nvme_ctrlr_wait_for_ready(ctrlr));
+	return (nvme_ctrlr_wait_for_ready(ctrlr, 1));
 }
 
 int
