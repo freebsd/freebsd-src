@@ -277,6 +277,7 @@ SUBDIR=	\
 	${_pfsync} \
 	plip \
 	${_pmc} \
+	${_pms} \
 	ppbus \
 	ppc \
 	ppi \
@@ -765,6 +766,7 @@ _opensolaris=	opensolaris
 _padlock=	padlock
 .endif
 _pccard=	pccard
+_pms=		pms
 _qlxge=		qlxge
 _qlxgb=		qlxgb
 _qlxgbe=	qlxgbe
