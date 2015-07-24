@@ -29,6 +29,7 @@
 #define	_CLOUDABI_SYSCALLDEFS_H_
 
 #include <sys/types.h>
+#include <sys/stdint.h>
 
 #define	alignas		_Alignas
 #define	alignof		_Alignof
