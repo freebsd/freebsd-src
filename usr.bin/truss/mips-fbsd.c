@@ -155,6 +155,7 @@ mips_syscall_entry(struct trussinfo *trussinfo, int nargs)
 
 	if (fsc->name && (trussinfo->flags & FOLLOWFORKS) &&
 	    (strcmp(fsc->name, "fork") == 0 ||
+	    strcmp(fsc->name, "pdfork") == 0 ||
 	    strcmp(fsc->name, "rfork") == 0 ||
 	    strcmp(fsc->name, "vfork") == 0))
 		trussinfo->curthread->in_fork = 1;
