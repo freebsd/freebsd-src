@@ -813,7 +813,8 @@ _ELF_DEFINE_EM(EM_KM32,             210, "KM211 KM32 32-bit processor") \
 _ELF_DEFINE_EM(EM_KMX32,            211, "KM211 KMX32 32-bit processor") \
 _ELF_DEFINE_EM(EM_KMX16,            212, "KM211 KMX16 16-bit processor") \
 _ELF_DEFINE_EM(EM_KMX8,             213, "KM211 KMX8 8-bit processor")  \
-_ELF_DEFINE_EM(EM_KVARC,            214, "KM211 KMX32 KVARC processor")
+_ELF_DEFINE_EM(EM_KVARC,            214, "KM211 KMX32 KVARC processor") \
+_ELF_DEFINE_EM(EM_RISCV,            243, "RISC-V")
 
 #undef	_ELF_DEFINE_EM
 #define	_ELF_DEFINE_EM(N, V, DESCR)	N = V ,

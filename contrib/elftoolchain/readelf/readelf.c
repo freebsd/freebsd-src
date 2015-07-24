@@ -532,6 +532,7 @@ elf_machine(unsigned int mach)
 	case EM_ARCA: return "Arca RISC Microprocessor";
 	case EM_UNICORE: return "Microprocessor series from PKU-Unity Ltd";
 	case EM_AARCH64: return "AArch64";
+	case EM_RISCV: return "RISC-V";
 	default:
 		snprintf(s_mach, sizeof(s_mach), "<unknown: %#x>", mach);
 		return (s_mach);
