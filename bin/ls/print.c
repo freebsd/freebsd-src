@@ -192,7 +192,7 @@ printlong(const DISPLAY *dp)
 		if (f_numericonly) {
 			xo_emit("{t:mode/%s}{e:mode_octal/%03o} {t:links/%*u} {td:user/%-*s}{e:user/%ju}  {td:group/%-*s}{e:group/%ju}  ",
 				buf, (int) sp->st_mode & ALLPERMS, dp->s_nlink, sp->st_nlink,
-				dp->s_user, np->user, sp->st_uid, dp->s_group, np->group, sp->st_gid);
+				dp->s_user, np->user, (uintmax_t)sp->st_uid, dp->s_group, np->group, (uintmax_t)sp->st_gid);
 		} else {
 			xo_emit("{t:mode/%s}{e:mode_octal/%03o} {t:links/%*u} {t:user/%-*s}  {t:group/%-*s}  ",
 				buf, (int) sp->st_mode & ALLPERMS, dp->s_nlink, sp->st_nlink,
@@ -486,7 +486,7 @@ printtype(u_int mode)
 		xo_emit("{D:=}{e:type/socket}");
 		return (1);
 	case S_IFWHT:
-		xo_emit("{D:%}{e:type/whiteout}");
+		xo_emit("{D:%%}{e:type/whiteout}");
 		return (1);
 	default:
 		break;
