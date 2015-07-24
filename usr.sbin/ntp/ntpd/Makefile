@@ -27,8 +27,8 @@ SRCS=	cmd_args.c ntp_config.c ntp_control.c ntp_crypto.c ntp_filegen.c \
 	refclock_tt560.c refclock_ulink.c refclock_wwv.c refclock_wwvb.c \
 	refclock_zyfer.c version.c
 
-DPADD=	${LIBPARSE} ${LIBNTP} ${LIBM} ${LIBMD} ${LIBOPTS} ${LIBPTHREAD}
-LDADD=	${LIBPARSE} ${LIBNTP} -lm -lmd ${LIBOPTS} -lpthread
+DPADD=	${LIBPARSE} ${LIBNTP} ${LIBM} ${LIBOPTS} ${LIBPTHREAD}
+LDADD=	${LIBPARSE} ${LIBNTP} -lm ${LIBOPTS} -lpthread
 
 CFLAGS+= -I${.CURDIR}/../../../contrib/ntp/ntpd \
 	-I${.CURDIR}/../../../contrib/ntp/include \
