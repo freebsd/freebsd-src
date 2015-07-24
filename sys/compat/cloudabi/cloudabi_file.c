@@ -28,10 +28,66 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/fcntl.h>
+#include <sys/kernel.h>
+#include <sys/malloc.h>
+#include <sys/namei.h>
 #include <sys/syscallsubr.h>
 
 #include <compat/cloudabi/cloudabi_proto.h>
 #include <compat/cloudabi/cloudabi_syscalldefs.h>
+
+static MALLOC_DEFINE(M_CLOUDABI_PATH, "cloudabipath", "CloudABI pathnames");
+
+/*
+ * Copying pathnames from userspace to kernelspace.
+ *
+ * Unlike most operating systems, CloudABI doesn't use null-terminated
+ * pathname strings. Processes always pass pathnames to the kernel by
+ * providing a base pointer and a length. This has a couple of reasons:
+ *
+ * - It makes it easier to use CloudABI in combination with programming
+ *   languages other than C, that may use non-null terminated strings.
+ * - It allows for calling system calls on individual components of the
+ *   pathname without modifying the input string.
+ *
+ * The function below copies in pathname strings and null-terminates it.
+ * It also ensure that the string itself does not contain any null
+ * bytes.
+ *
+ * TODO(ed): Add an abstraction to vfs_lookup.c that allows us to pass
+ *           in unterminated pathname strings, so we can do away with
+ *           the copying.
+ */
+
+static int
+copyin_path(const char *uaddr, size_t len, char **result)
+{
+	char *buf;
+	int error;
+
+	if (len >= PATH_MAX)
+		return (ENAMETOOLONG);
+	buf = malloc(len + 1, M_CLOUDABI_PATH, M_WAITOK);
+	error = copyin(uaddr, buf, len);
+	if (error != 0) {
+		free(buf, M_CLOUDABI_PATH);
+		return (error);
+	}
+	if (memchr(buf, '\0', len) != NULL) {
+		free(buf, M_CLOUDABI_PATH);
+		return (EINVAL);
+	}
+	buf[len] = '\0';
+	*result = buf;
+	return (0);
+}
+
+static void
+cloudabi_freestr(char *buf)
+{
+
+	free(buf, M_CLOUDABI_PATH);
+}
 
 int
 cloudabi_sys_file_advise(struct thread *td,
@@ -86,9 +142,24 @@ int
 cloudabi_sys_file_link(struct thread *td,
     struct cloudabi_sys_file_link_args *uap)
 {
+	char *path1, *path2;
+	int error;
 
-	/* Not implemented. */
-	return (ENOSYS);
+	error = copyin_path(uap->path1, uap->path1len, &path1);
+	if (error != 0)
+		return (error);
+	error = copyin_path(uap->path2, uap->path2len, &path2);
+	if (error != 0) {
+		cloudabi_freestr(path1);
+		return (error);
+	}
+
+	error = kern_linkat(td, uap->fd1, uap->fd2, path1, path2,
+	    UIO_SYSSPACE, (uap->fd1 & CLOUDABI_LOOKUP_SYMLINK_FOLLOW) != 0 ?
+	    FOLLOW : NOFOLLOW);
+	cloudabi_freestr(path1);
+	cloudabi_freestr(path2);
+	return (error);
 }
 
 int
@@ -113,18 +184,40 @@ int
 cloudabi_sys_file_readlink(struct thread *td,
     struct cloudabi_sys_file_readlink_args *uap)
 {
+	char *path;
+	int error;
 
-	/* Not implemented. */
-	return (ENOSYS);
+	error = copyin_path(uap->path, uap->pathlen, &path);
+	if (error != 0)
+		return (error);
+
+	error = kern_readlinkat(td, uap->fd, path, UIO_SYSSPACE,
+	    uap->buf, UIO_USERSPACE, uap->bufsize);
+	cloudabi_freestr(path);
+	return (error);
 }
 
 int
 cloudabi_sys_file_rename(struct thread *td,
     struct cloudabi_sys_file_rename_args *uap)
 {
+	char *old, *new;
+	int error;
 
-	/* Not implemented. */
-	return (ENOSYS);
+	error = copyin_path(uap->old, uap->oldlen, &old);
+	if (error != 0)
+		return (error);
+	error = copyin_path(uap->new, uap->newlen, &new);
+	if (error != 0) {
+		cloudabi_freestr(old);
+		return (error);
+	}
+
+	error = kern_renameat(td, uap->oldfd, old, uap->newfd, new,
+	    UIO_SYSSPACE);
+	cloudabi_freestr(old);
+	cloudabi_freestr(new);
+	return (error);
 }
 
 int
@@ -167,16 +260,39 @@ int
 cloudabi_sys_file_symlink(struct thread *td,
     struct cloudabi_sys_file_symlink_args *uap)
 {
+	char *path1, *path2;
+	int error;
 
-	/* Not implemented. */
-	return (ENOSYS);
+	error = copyin_path(uap->path1, uap->path1len, &path1);
+	if (error != 0)
+		return (error);
+	error = copyin_path(uap->path2, uap->path2len, &path2);
+	if (error != 0) {
+		cloudabi_freestr(path1);
+		return (error);
+	}
+
+	error = kern_symlinkat(td, path1, uap->fd, path2, UIO_SYSSPACE);
+	cloudabi_freestr(path1);
+	cloudabi_freestr(path2);
+	return (error);
 }
 
 int
 cloudabi_sys_file_unlink(struct thread *td,
     struct cloudabi_sys_file_unlink_args *uap)
 {
+	char *path;
+	int error;
 
-	/* Not implemented. */
-	return (ENOSYS);
+	error = copyin_path(uap->path, uap->pathlen, &path);
+	if (error != 0)
+		return (error);
+
+	if (uap->flag & CLOUDABI_UNLINK_REMOVEDIR)
+		error = kern_rmdirat(td, uap->fd, path, UIO_SYSSPACE);
+	else
+		error = kern_unlinkat(td, uap->fd, path, UIO_SYSSPACE, 0);
+	cloudabi_freestr(path);
+	return (error);
 }
