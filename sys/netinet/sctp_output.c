@@ -10104,7 +10104,7 @@ do_it_again:
 		sctp_fix_ecn_echo(asoc);
 
 	if (stcb->asoc.trigger_reset) {
-		if (sctp_send_stream_reset_out_if_possible(stcb) == 0) {
+		if (sctp_send_stream_reset_out_if_possible(stcb, so_locked) == 0) {
 			goto do_it_again;
 		}
 	}
@@ -11839,7 +11839,7 @@ sctp_add_an_in_stream(struct sctp_tmit_chunk *chk,
 }
 
 int
-sctp_send_stream_reset_out_if_possible(struct sctp_tcb *stcb)
+sctp_send_stream_reset_out_if_possible(struct sctp_tcb *stcb, int so_locked)
 {
 	struct sctp_association *asoc;
 	struct sctp_tmit_chunk *chk;
@@ -11865,7 +11865,7 @@ sctp_send_stream_reset_out_if_possible(struct sctp_tcb *stcb)
 	chk->book_size_scale = 0;
 	chk->data = sctp_get_mbuf_for_msg(MCLBYTES, 0, M_NOWAIT, 1, MT_DATA);
 	if (chk->data == NULL) {
-		sctp_free_a_chunk(stcb, chk, SCTP_SO_LOCKED);
+		sctp_free_a_chunk(stcb, chk, so_locked);
 		SCTP_LTRACE_ERR_RET(NULL, stcb, NULL, SCTP_FROM_SCTP_OUTPUT, ENOMEM);
 		return (ENOMEM);
 	}
@@ -11892,7 +11892,7 @@ sctp_send_stream_reset_out_if_possible(struct sctp_tcb *stcb)
 	} else {
 		m_freem(chk->data);
 		chk->data = NULL;
-		sctp_free_a_chunk(stcb, chk, SCTP_SO_LOCKED);
+		sctp_free_a_chunk(stcb, chk, so_locked);
 		return (ENOENT);
 	}
 	asoc->str_reset = chk;
@@ -11901,6 +11901,10 @@ sctp_send_stream_reset_out_if_possible(struct sctp_tcb *stcb)
 	    chk,
 	    sctp_next);
 	asoc->ctrl_queue_cnt++;
+
+	if (stcb->asoc.send_sack) {
+		sctp_send_sack(stcb, so_locked);
+	}
 	sctp_timer_start(SCTP_TIMER_TYPE_STRRESET, stcb->sctp_ep, stcb, chk->whoTo);
 	return (0);
 }
@@ -12101,6 +12105,9 @@ skip_stuff:
 	    chk,
 	    sctp_next);
 	asoc->ctrl_queue_cnt++;
+	if (stcb->asoc.send_sack) {
+		sctp_send_sack(stcb, SCTP_SO_LOCKED);
+	}
 	sctp_timer_start(SCTP_TIMER_TYPE_STRRESET, stcb->sctp_ep, stcb, chk->whoTo);
 	return (0);
 }
