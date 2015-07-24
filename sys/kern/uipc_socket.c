@@ -440,7 +440,7 @@ sodealloc(struct socket *so)
 	if (so->so_snd.sb_hiwat)
 		(void)chgsbsize(so->so_cred->cr_uidinfo,
 		    &so->so_snd.sb_hiwat, 0, RLIM_INFINITY);
-	/* remove acccept filter if one is present. */
+	/* remove accept filter if one is present. */
 	if (so->so_accf != NULL)
 		do_setopt_accept_filter(so, NULL);
 #ifdef MAC
