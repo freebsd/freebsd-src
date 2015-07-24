@@ -76,3 +76,6 @@
 <!ENTITY arch.pc98 "pc98">
 <!ENTITY arch.powerpc "powerpc">
 <!ENTITY arch.sparc64 "sparc64">
+
+<!-- Manual page references added after the doc tag -->
+<!ENTITY man.pms.4 "<citerefentry xmlns='http://docbook.org/ns/docbook'><refentrytitle>pms</refentrytitle><manvolnum>4</manvolnum></citerefentry>">
