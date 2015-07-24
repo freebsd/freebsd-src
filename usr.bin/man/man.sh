@@ -925,6 +925,8 @@ whatis_usage() {
 
 # Supported commands
 do_apropos() {
+	[ $(stat -f %i /usr/bin/man) -eq $(stat -f %i /usr/bin/apropos) ] && \
+		exec apropos "$@"
 	search_whatis apropos "$@"
 }
 
@@ -960,6 +962,8 @@ do_manpath() {
 }
 
 do_whatis() {
+	[ $(stat -f %i /usr/bin/man) -eq $(stat -f %i /usr/bin/whatis) ] && \
+		exec whatis "$@"
 	search_whatis whatis "$@"
 }
 
