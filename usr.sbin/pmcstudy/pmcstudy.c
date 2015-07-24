@@ -1808,6 +1808,9 @@ process_file(char *filename)
 	if (cnts == NULL) {
 		/* Nothing we can do */
 		printf("Nothing to do -- no counters built\n");
+		if (io) {
+			fclose(io);
+		}
 		return;
 	}
 	lace_cpus_together();
@@ -2044,7 +2047,7 @@ get_cpuid_set(void)
 				printf("No memory3 allocation fails at startup?\n");	
 				exit(-1);
 			}
-			memset(more, sz, 0);
+			memset(more, 0, sz);
 			memcpy(more, valid_pmcs, sz);
 			pmc_allocated_cnt *= 2;
 			free(valid_pmcs);
