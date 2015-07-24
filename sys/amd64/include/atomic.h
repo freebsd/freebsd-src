@@ -32,6 +32,25 @@
 #error this file needs sys/cdefs.h as a prerequisite
 #endif
 
+/*
+ * To express interprocessor (as opposed to processor and device) memory
+ * ordering constraints, use the atomic_*() functions with acquire and release
+ * semantics rather than the *mb() functions.  An architecture's memory
+ * ordering (or memory consistency) model governs the order in which a
+ * program's accesses to different locations may be performed by an
+ * implementation of that architecture.  In general, for memory regions
+ * defined as writeback cacheable, the memory ordering implemented by amd64
+ * processors preserves the program ordering of a load followed by a load, a
+ * load followed by a store, and a store followed by a store.  Only a store
+ * followed by a load to a different memory location may be reordered.
+ * Therefore, except for special cases, like non-temporal memory accesses or
+ * memory regions defined as write combining, the memory ordering effects
+ * provided by the sfence instruction in the wmb() function and the lfence
+ * instruction in the rmb() function are redundant.  In contrast, the
+ * atomic_*() functions with acquire and release semantics do not perform
+ * redundant instructions for ordinary cases of interprocessor memory
+ * ordering on any architecture.
+ */
 #define	mb()	__asm __volatile("mfence;" : : : "memory")
 #define	wmb()	__asm __volatile("sfence;" : : : "memory")
 #define	rmb()	__asm __volatile("lfence;" : : : "memory")
