@@ -3764,7 +3764,7 @@ sctp_handle_stream_reset_response(struct sctp_tcb *stcb,
 		}
 	}
 	if (asoc->stream_reset_outstanding == 0) {
-		sctp_send_stream_reset_out_if_possible(stcb);
+		sctp_send_stream_reset_out_if_possible(stcb, SCTP_SO_NOT_LOCKED);
 	}
 	return (0);
 }
@@ -3832,7 +3832,7 @@ bad_boy:
 	} else {
 		sctp_add_stream_reset_result(chk, seq, SCTP_STREAM_RESET_RESULT_ERR_BAD_SEQNO);
 	}
-	sctp_send_stream_reset_out_if_possible(stcb);
+	sctp_send_stream_reset_out_if_possible(stcb, SCTP_SO_NOT_LOCKED);
 }
 
 static int
@@ -3957,6 +3957,7 @@ sctp_handle_str_reset_request_out(struct sctp_tcb *stcb,
 			memcpy(&liste->list_of_streams, req->list_of_streams, number_entries * sizeof(uint16_t));
 			TAILQ_INSERT_TAIL(&asoc->resetHead, liste, next_resp);
 			asoc->last_reset_action[0] = SCTP_STREAM_RESET_RESULT_IN_PROGRESS;
+			x
 		}
 		sctp_add_stream_reset_result(chk, seq, asoc->last_reset_action[0]);
 		asoc->str_reset_seq_in++;
