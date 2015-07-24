@@ -52,7 +52,7 @@ __FBSDID("$FreeBSD$");
 #include "uart_if.h"
 
 devclass_t uart_devclass;
-char uart_driver_name[] = "uart";
+const char uart_driver_name[] = "uart";
 
 SLIST_HEAD(uart_devinfo_list, uart_devinfo) uart_sysdevs =
     SLIST_HEAD_INITIALIZER(uart_sysdevs);
@@ -260,13 +260,14 @@ static int
 uart_intr(void *arg)
 {
 	struct uart_softc *sc = arg;
-	int cnt, ipend;
+	int cnt, ipend, testintr;
 
 	if (sc->sc_leaving)
 		return (FILTER_STRAY);
 
 	cnt = 0;
-	while (cnt < 20 && (ipend = UART_IPEND(sc)) != 0) {
+	testintr = sc->sc_testintr;
+	while ((!testintr || cnt < 20) && (ipend = UART_IPEND(sc)) != 0) {
 		cnt++;
 		if (ipend & SER_INT_OVERRUN)
 			uart_intr_overrun(sc);
@@ -277,7 +278,7 @@ uart_intr(void *arg)
 		if (ipend & SER_INT_SIGCHG)
 			uart_intr_sigchg(sc);
 		if (ipend & SER_INT_TXIDLE)
-			uart_intr_txidle(sc);		
+			uart_intr_txidle(sc);
 	}
 
 	if (sc->sc_polled) {
@@ -286,7 +287,8 @@ uart_intr(void *arg)
 	}
 
 	return ((cnt == 0) ? FILTER_STRAY :
-	    ((cnt == 20) ? FILTER_SCHEDULE_THREAD : FILTER_HANDLED));
+	    ((testintr && cnt == 20) ? FILTER_SCHEDULE_THREAD :
+	    FILTER_HANDLED));
 }
 
 serdev_intr_t *
@@ -433,7 +435,7 @@ uart_bus_attach(device_t dev)
 	/*
 	 * Protect ourselves against interrupts while we're not completely
 	 * finished attaching and initializing. We don't expect interrupts
-	 * until after UART_ATTACH() though.
+	 * until after UART_ATTACH(), though.
 	 */
 	sc->sc_leaving = 1;
 
@@ -513,7 +515,9 @@ uart_bus_attach(device_t dev)
 	pps_init(&sc->sc_pps);
 
 	sc->sc_leaving = 0;
+	sc->sc_testintr = 1;
 	filt = uart_intr(sc);
+	sc->sc_testintr = 0;
 
 	/*
 	 * Don't use interrupts if we couldn't clear any pending interrupt
