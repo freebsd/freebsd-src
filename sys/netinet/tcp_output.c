@@ -1212,7 +1212,6 @@ send:
 	/*
 	 * Enable TSO and specify the size of the segments.
 	 * The TCP pseudo header checksum is always provided.
-	 * XXX: Fixme: This is currently not the case for IPv6.
 	 */
 	if (tso) {
 		KASSERT(len > tp->t_maxopd - optlen,
