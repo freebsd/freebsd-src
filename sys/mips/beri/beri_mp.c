@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2012-2014 Robert N. M. Watson
+ * Copyright (c) 2012-2015 Robert N. M. Watson
  * Copyright (c) 2013 SRI International
  * All rights reserved.
  *
@@ -174,6 +174,7 @@ platform_ipi_send(int cpuid)
 {
 
 	/* XXX: single core/pic */
+	mips_sync();	/* Ordering, liveness. */
 	FDT_IC_SEND_IPI(picmap[cpuid], cpuid);
 }
 
@@ -285,7 +286,10 @@ platform_start_ap(int cpuid)
 	if (bootverbose)
 		printf("%s: writing %p to %p\n", __func__, mpentry,
 		    &se->entry_addr);
+
+	mips_sync();	/* Ordering. */
 	se->entry_addr = (intptr_t)mpentry;
+	mips_sync();	/* Liveness. */
 
 	return (0);
 }
