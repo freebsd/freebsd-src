@@ -956,6 +956,8 @@ vfs_buf_check_mapped(struct buf *bp)
 	    ("mapped buf: b_kvabase was not updated %p", bp));
 	KASSERT(bp->b_data != unmapped_buf,
 	    ("mapped buf: b_data was not updated %p", bp));
+	KASSERT(bp->b_data < unmapped_buf || bp->b_data > unmapped_buf +
+	    MAXPHYS, ("b_data + b_offset unmapped %p", bp));
 }
 
 static inline void
@@ -2241,6 +2243,7 @@ getnewbuf_reuse_bp(struct buf *bp, int qindex)
 	bp->b_dirtyoff = bp->b_dirtyend = 0;
 	bp->b_bufobj = NULL;
 	bp->b_pin_count = 0;
+	bp->b_data = bp->b_kvabase;
 	bp->b_fsprivate1 = NULL;
 	bp->b_fsprivate2 = NULL;
 	bp->b_fsprivate3 = NULL;
@@ -2528,6 +2531,10 @@ restart:
 			bp->b_flags |= B_INVAL;
 			brelse(bp);
 			goto restart;
+		} else if ((gbflags & (GB_UNMAPPED | GB_KVAALLOC)) ==
+		    (GB_UNMAPPED | GB_KVAALLOC)) {
+			bp->b_data = unmapped_buf;
+			BUF_CHECK_UNMAPPED(bp);
 		}
 		atomic_add_int(&bufreusecnt, 1);
 	}
