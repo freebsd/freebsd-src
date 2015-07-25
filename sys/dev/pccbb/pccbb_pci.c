@@ -259,6 +259,32 @@ cbb_pci_probe(device_t brdev)
 }
 
 /*
+ * Still need this because the pci code only does power for type 0
+ * header devices.
+ */
+static void
+cbb_powerstate_d0(device_t dev)
+{
+	u_int32_t membase, irq;
+
+	if (pci_get_powerstate(dev) != PCI_POWERSTATE_D0) {
+		/* Save important PCI config data. */
+		membase = pci_read_config(dev, CBBR_SOCKBASE, 4);
+		irq = pci_read_config(dev, PCIR_INTLINE, 4);
+
+		/* Reset the power state. */
+		device_printf(dev, "chip is in D%d power mode "
+		    "-- setting to D0\n", pci_get_powerstate(dev));
+
+		pci_set_powerstate(dev, PCI_POWERSTATE_D0);
+
+		/* Restore PCI config data. */
+		pci_write_config(dev, CBBR_SOCKBASE, membase, 4);
+		pci_write_config(dev, PCIR_INTLINE, irq, 4);
+	}
+}
+
+/*
  * Print out the config space
  */
 static void
@@ -295,15 +321,15 @@ cbb_pci_attach(device_t brdev)
 	sc->cbdev = NULL;
 	sc->exca[0].pccarddev = NULL;
 	sc->domain = pci_get_domain(brdev);
+	sc->bus.sec = pci_read_config(brdev, PCIR_SECBUS_2, 1);
+	sc->bus.sub = pci_read_config(brdev, PCIR_SUBBUS_2, 1);
 	sc->pribus = pcib_get_bus(parent);
 #if defined(NEW_PCIB) && defined(PCI_RES_BUS)
 	pci_write_config(brdev, PCIR_PRIBUS_2, sc->pribus, 1);
 	pcib_setup_secbus(brdev, &sc->bus, 1);
-#else
-	sc->bus.sec = pci_read_config(brdev, PCIR_SECBUS_2, 1);
-	sc->bus.sub = pci_read_config(brdev, PCIR_SUBBUS_2, 1);
 #endif
 	SLIST_INIT(&sc->rl);
+	cbb_powerstate_d0(brdev);
 
 	rid = CBBR_SOCKBASE;
 	sc->base_res = bus_alloc_resource_any(brdev, SYS_RES_MEMORY, &rid,
@@ -447,6 +473,11 @@ cbb_chipinit(struct cbb_softc *sc)
 	/* Set PCI latency timer */
 	if (pci_read_config(sc->dev, PCIR_LATTIMER, 1) < 0x20)
 		pci_write_config(sc->dev, PCIR_LATTIMER, 0x20, 1);
+
+	/* Restore bus configuration */
+	pci_write_config(sc->dev, PCIR_PRIBUS_2, sc->pribus, 1);
+	pci_write_config(sc->dev, PCIR_SECBUS_2, sc->bus.sec, 1);
+	pci_write_config(sc->dev, PCIR_SUBBUS_2, sc->bus.sub, 1);
 
 	/* Enable DMA, memory access for this card and I/O acces for children */
 	pci_enable_busmaster(sc->dev);
@@ -875,10 +906,15 @@ cbb_pci_resume(device_t brdev)
 	 * from D0 and back to D0 cause the bridge to lose its config space, so
 	 * all the bus mappings and such are preserved.
 	 *
-	 * The PCI layer handles standard PCI registers like the
-	 * command register and BARs, but cbb-specific registers are
-	 * handled here.
+	 * For most drivers, the PCI layer handles this saving. However, since
+	 * there's much black magic and arcane art hidden in these few lines of
+	 * code that would be difficult to transition into the PCI
+	 * layer. chipinit was several years of trial and error to write.
 	 */
+	pci_write_config(brdev, CBBR_SOCKBASE, rman_get_start(sc->base_res), 4);
+	DEVPRINTF((brdev, "PCI Memory allocated: %08lx\n",
+	    rman_get_start(sc->base_res)));
+
 	sc->chipinit(sc);
 
 	/* reset interrupt -- Do we really need to do this? */
