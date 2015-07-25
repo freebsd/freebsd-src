@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 22, 2014
+.Dd July 25, 2015
 .Dt LOADER 8
 .Os
 .Sh NAME
@@ -207,12 +207,18 @@ returns an error itself (see
 .Op Fl t Ar type
 .Ar file Cm ...
 .Xc
-Loads a kernel, kernel loadable module (kld), or file of opaque
-contents tagged as being of the type
+Loads a kernel, kernel loadable module (kld), disk image,
+or file of opaque contents tagged as being of the type
 .Ar type .
 Kernel and modules can be either in a.out or ELF format.
 Any arguments passed after the name of the file to be loaded
 will be passed as arguments to that file.
+Use the
+.Li md_image
+type to make the kernel create a file-backed
+.Xr md 4
+disk.
+This is useful for booting from a temporary rootfs.
 Currently, argument passing does not work for the kernel.
 .Pp
 .It Ic load_geli Xo
