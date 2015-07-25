@@ -998,8 +998,11 @@ am335x_lcd_attach(device_t dev)
 	    PWM_PERIOD, PWM_PERIOD) == 0)
 		sc->sc_backlight = 100;
 
-	sc->sc_hdmi_evh = EVENTHANDLER_REGISTER(hdmi_event,
-	    am335x_lcd_hdmi_event, sc, 0);
+	if (panel_node != 0)
+		am335x_lcd_configure(sc);
+	else
+		sc->sc_hdmi_evh = EVENTHANDLER_REGISTER(hdmi_event,
+		    am335x_lcd_hdmi_event, sc, 0);
 
 	return (0);
 }
