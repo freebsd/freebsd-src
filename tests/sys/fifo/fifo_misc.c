@@ -30,6 +30,7 @@
 #include <sys/types.h>
 #include <sys/event.h>
 #include <sys/filio.h>
+#include <sys/ioctl.h>
 #include <sys/stat.h>
 #include <sys/time.h>
 
@@ -149,7 +150,7 @@ test_truncate(void)
 }
 
 static int
-test_ioctl_setclearflag(int fd, int flag, const char *testname,
+test_ioctl_setclearflag(int fd, unsigned long flag, const char *testname,
     const char *fdname, const char *flagname)
 {
 	int i;
