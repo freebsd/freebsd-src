@@ -511,6 +511,11 @@
 
       <para revision="285329"><application>OpenSSL</application> has
 	been updated to version 1.0.1p.</para>
+
+      <para revision="285642" contrib="sponsor" sponsor="&dell;">The
+	&man.ssh.1; utility has been updated to re-implement hostname
+	canonicalization before locating the host in
+	<filename>known_hosts</filename>.</para>
     </sect2>
 
     <sect2 xml:id="userland-installer">
