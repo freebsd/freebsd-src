@@ -730,7 +730,80 @@
     <sect2 xml:id="network-protocols">
       <title>Network Procols</title>
 
-      <para>&nbsp;</para>
+      <para revision="273838" contrib="sponsor"
+	sponsor="&limelight;">Support for <acronym>PLPMTUD</acronym>
+	blackhole detection (<acronym>RFC</acronym> 4821) has been
+	added to the &man.tcp.4; stack, disabled by default.  New
+	control tunables have been added:</para>
+
+      <informaltable frame="none" pgwide="0">
+	<tgroup cols="2">
+	  <colspec colwidth="1*"/>
+	  <colspec colwidth="1*"/>
+	  <thead>
+	    <row>
+	      <entry>Tunable</entry>
+	      <entry>Description</entry>
+	    </row>
+	  </thead>
+
+	  <tbody>
+	    <row>
+	      <entry><literal>net.inet.tcp.pmtud_blackhole_detection</literal></entry>
+	      <entry>Enables or disables <acronym>PLPMTUD</acronym>
+		blackhole detection</entry>
+	    </row>
+
+	    <row>
+	      <entry><literal>net.inet.tcp.pmtud_blackhole_mss</literal></entry>
+	      <entry><acronym>MSS</acronym> to try for IPv4</entry>
+	    </row>
+
+	    <row>
+	      <entry><literal>net.inet.tcp.v6pmtud_blackhole_mss</literal></entry>
+	      <entry><acronym>MSS to try for IPv6</acronym></entry>
+	    </row>
+	  </tbody>
+	</tgroup>
+      </informaltable>
+
+      <para>New monitoring &man.sysctl.8;s haven been added:</para>
+
+      <informaltable frame="none" pgwide="0">
+	<tgroup cols="2">
+	  <colspec colwidth="1*"/>
+	  <colspec colwidth="1*"/>
+	  <thead>
+	    <row>
+	      <entry>Tunable</entry>
+	      <entry>Description</entry>
+	    </row>
+	  </thead>
+
+	  <tbody>
+	    <row>
+	      <entry><literal>net.inet.tcp.pmtud_blackhole_activated</literal></entry>
+	      <entry>Number of times the code was activated to attempt
+		downshifting the <acronym>MSS</acronym></entry>
+	    </row>
+
+	    <row>
+	      <entry><literal>net.inet.tcp.pmtud_blackhole_min_activated</literal></entry>
+	      <entry>Number of times the blackhole
+		<acronym>MSS</acronym> was used in an attempt to
+		downshift</entry>
+	    </row>
+
+	    <row>
+	      <entry><literal>net.inet.tcp.pmtud_blackhole_failed</literal></entry>
+	      <entry>Number of times that the blackhole failed to
+		connect after downshifting the
+		<acronym>MSS</acronym></entry>
+	    </row>
+	  </tbody>
+	</tgroup>
+      </informaltable>
+
     </sect2>
   </sect1>
 
