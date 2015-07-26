@@ -131,12 +131,12 @@ bus_write_4(PyObject *self, PyObject *args)
 static PyObject *
 bus_map(PyObject *self, PyObject *args)
 {
-	char *dev;
+	char *dev, *resource;
 	int rid;
 
-	if (!PyArg_ParseTuple(args, "s", &dev))
+	if (!PyArg_ParseTuple(args, "ss", &dev, &resource))
 		return (NULL);
-	rid = bs_map(dev);
+	rid = bs_map(dev, resource);
 	if (rid == -1) {
 		PyErr_SetString(PyExc_IOError, strerror(errno));
 		return (NULL);
