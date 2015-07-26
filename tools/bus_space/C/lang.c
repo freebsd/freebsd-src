@@ -80,10 +80,10 @@ bus_write_4(int rid, long ofs, uint32_t val)
 }
 
 int
-bus_map(const char *dev)
+bus_map(const char *dev, const char *resource)
 {
 
-	return (bs_map(dev));
+	return (bs_map(dev, resource));
 }
 
 int
