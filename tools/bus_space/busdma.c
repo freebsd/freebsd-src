@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -183,10 +184,16 @@ int
 bd_tag_create(const char *dev, u_long align, u_long bndry, u_long maxaddr,
     u_long maxsz, u_int nsegs, u_long maxsegsz, u_int datarate, u_int flags)
 {
+	char path[PATH_MAX];
 	struct obj *tag;
-	int fd;
+	int fd, len;
 
-	fd = open(dev, O_RDWR);
+	len = snprintf(path, PATH_MAX, "/dev/proto/%s/busdma", dev);
+	if (len >= PATH_MAX) {
+		errno = EINVAL;
+		return (-1);
+	}
+	fd = open(path, O_RDWR);
 	if (fd == -1)
 		return (-1);
 

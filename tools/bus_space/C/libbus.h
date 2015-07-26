@@ -29,7 +29,7 @@
 #ifndef _LIBBUS_SPACE_H_
 #define	_LIBBUS_SPACE_H_
 
-int	bus_map(const char *dev);
+int	bus_map(const char *dev, const char *resource);
 int16_t	bus_read_1(int rid, long ofs);
 int32_t	bus_read_2(int rid, long ofs);
 int64_t bus_read_4(int rid, long ofs);
