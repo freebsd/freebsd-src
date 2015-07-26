@@ -269,6 +269,11 @@
 
       <para revision="285612">The <application>ntp</application>
 	suite has been updated to version 4.2.8p3.</para>
+
+      <para revision="285750" contrib="sponsor" sponsor="&dell;">The
+	&man.ssh.1; utility has been updated to re-implement hostname
+	canonicalization before locating the host in
+	<filename>known_hosts</filename>.</para>
     </sect2>
 
     <sect2 xml:id="userland-installer">
