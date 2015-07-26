@@ -540,6 +540,19 @@
       <para revision="275874">The &man.bsdinstall.8; utility has been
 	updated to use the new &man.dpv.3; library to display progress
 	when extracting the &os; distributions.</para>
+
+      <para revision="285679" contrib="sponsor"
+	sponsor="&scaleengine;">Support for detecting and implementing
+	a workaround for various laptops and motherboards that do not
+	boot properly from <acronym>GPT</acronym>-partitioned disks
+	has been added to &man.bsdinstall.8;.  Additionally, the
+	<literal>active</literal> flag will be set on the partition
+	when needed.</para>
+
+      <para revision="285679" contrib="sponsor"
+	sponsor="&scaleengine;">Support for selecting the partitioning
+	scheme when installing on the <acronym>UFS</acronym>
+	filesystem has been added to &man.bsdinstall.8;.</para>
     </sect2>
 
     <sect2 xml:id="userland-rc">
