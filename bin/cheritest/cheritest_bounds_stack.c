@@ -63,7 +63,8 @@
 /*
  * Check for high-precision bounds for a variety of small object sizes,
  * allocated from the stack.  These should be precise regardless of capability
- * compression, as the allocator promises to align things suitably.
+ * compression, as the allocator promises to align things suitably.  Test both
+ * static and dynamic allocation.
  */
 static void
 test_bounds_precise(__capability void *c, size_t expected_len)
@@ -83,8 +84,16 @@ test_bounds_precise(__capability void *c, size_t expected_len)
 	cheritest_success();
 }
 
+static void
+test_bounds_stack_alloca(size_t len)
+{
+	__capability void *c = (__capability void *)alloca(len);
+
+	test_bounds_precise(c, len);
+}
+
 void
-test_bounds_stack_uint8(const struct cheri_test *ctp __unused)
+test_bounds_stack_static_uint8(const struct cheri_test *ctp __unused)
 {
 	uint8_t u8;
 	__capability uint8_t *u8p = (__capability uint8_t *)&u8;
@@ -93,7 +102,14 @@ test_bounds_stack_uint8(const struct cheri_test *ctp __unused)
 }
 
 void
-test_bounds_stack_uint16(const struct cheri_test *ctp __unused)
+test_bounds_stack_dynamic_uint8(const struct cheri_test *ctp __unused)
+{
+
+	test_bounds_stack_alloca(sizeof(uint8_t));
+}
+
+void
+test_bounds_stack_static_uint16(const struct cheri_test *ctp __unused)
 {
 	uint16_t u16;
 	__capability uint16_t *u16p = (__capability uint16_t *)&u16;
@@ -102,7 +118,14 @@ test_bounds_stack_uint16(const struct cheri_test *ctp __unused)
 }
 
 void
-test_bounds_stack_uint32(const struct cheri_test *ctp __unused)
+test_bounds_stack_dynamic_uint16(const struct cheri_test *ctp __unused)
+{
+
+	test_bounds_stack_alloca(sizeof(uint16_t));
+}
+
+void
+test_bounds_stack_static_uint32(const struct cheri_test *ctp __unused)
 {
 	uint32_t u32;
 	__capability uint32_t *u32p = (__capability uint32_t *)&u32;
@@ -111,7 +134,14 @@ test_bounds_stack_uint32(const struct cheri_test *ctp __unused)
 }
 
 void
-test_bounds_stack_uint64(const struct cheri_test *ctp __unused)
+test_bounds_stack_dynamic_uint32(const struct cheri_test *ctp __unused)
+{
+
+	test_bounds_stack_alloca(sizeof(uint32_t));
+}
+
+void
+test_bounds_stack_static_uint64(const struct cheri_test *ctp __unused)
 {
 	uint64_t u64;
 	__capability uint64_t *u64p = (__capability uint64_t *)&u64;
@@ -120,7 +150,14 @@ test_bounds_stack_uint64(const struct cheri_test *ctp __unused)
 }
 
 void
-test_bounds_stack_cap(const struct cheri_test *ctp __unused)
+test_bounds_stack_dynamic_uint64(const struct cheri_test *ctp __unused)
+{
+
+	test_bounds_stack_alloca(sizeof(uint64_t));
+}
+
+void
+test_bounds_stack_static_cap(const struct cheri_test *ctp __unused)
 {
 	__capability void *c;
 	__capability void * __capability *cp =
@@ -130,7 +167,19 @@ test_bounds_stack_cap(const struct cheri_test *ctp __unused)
 }
 
 void
-test_bounds_stack_16(const struct cheri_test *ctp __unused)
+test_bounds_stack_dynamic_cap(const struct cheri_test *ctp __unused)
+{
+
+	/*
+	 * XXXRW: Really, we should request a bit more space so that, on
+	 * 256-bit CHERI, we can guarantee 32-byte alignment, not the (likely)
+	 * 16-byte alignment we would naturally get back on MIPS.
+	 */
+	test_bounds_stack_alloca(sizeof(__capability void *));
+}
+
+void
+test_bounds_stack_static_16(const struct cheri_test *ctp __unused)
 {
 	uint8_t array[16];
 	__capability uint8_t *arrayp = (__capability uint8_t *)&array;
@@ -139,7 +188,14 @@ test_bounds_stack_16(const struct cheri_test *ctp __unused)
 }
 
 void
-test_bounds_stack_32(const struct cheri_test *ctp __unused)
+test_bounds_stack_dynamic_16(const struct cheri_test *ctp __unused)
+{
+
+	test_bounds_stack_alloca(16);
+}
+
+void
+test_bounds_stack_static_32(const struct cheri_test *ctp __unused)
 {
 	uint8_t array[32];
 	__capability uint8_t *arrayp = (__capability uint8_t *)&array;
@@ -148,7 +204,14 @@ test_bounds_stack_32(const struct cheri_test *ctp __unused)
 }
 
 void
-test_bounds_stack_64(const struct cheri_test *ctp __unused)
+test_bounds_stack_dynamic_32(const struct cheri_test *ctp __unused)
+{
+
+	test_bounds_stack_alloca(32);
+}
+
+void
+test_bounds_stack_static_64(const struct cheri_test *ctp __unused)
 {
 	uint8_t array[64];
 	__capability uint8_t *arrayp = (__capability uint8_t *)&array;
@@ -157,7 +220,14 @@ test_bounds_stack_64(const struct cheri_test *ctp __unused)
 }
 
 void
-test_bounds_stack_128(const struct cheri_test *ctp __unused)
+test_bounds_stack_dynamic_64(const struct cheri_test *ctp __unused)
+{
+
+	test_bounds_stack_alloca(64);
+}
+
+void
+test_bounds_stack_static_128(const struct cheri_test *ctp __unused)
 {
 	uint8_t array[128];
 	__capability uint8_t *arrayp = (__capability uint8_t *)&array;
@@ -166,7 +236,14 @@ test_bounds_stack_128(const struct cheri_test *ctp __unused)
 }
 
 void
-test_bounds_stack_256(const struct cheri_test *ctp __unused)
+test_bounds_stack_dynamic_128(const struct cheri_test *ctp __unused)
+{
+
+	test_bounds_stack_alloca(128);
+}
+
+void
+test_bounds_stack_static_256(const struct cheri_test *ctp __unused)
 {
 	uint8_t array[256];
 	__capability uint8_t *arrayp = (__capability uint8_t *)&array;
@@ -175,7 +252,14 @@ test_bounds_stack_256(const struct cheri_test *ctp __unused)
 }
 
 void
-test_bounds_stack_512(const struct cheri_test *ctp __unused)
+test_bounds_stack_dynamic_256(const struct cheri_test *ctp __unused)
+{
+
+	test_bounds_stack_alloca(256);
+}
+
+void
+test_bounds_stack_static_512(const struct cheri_test *ctp __unused)
 {
 	uint8_t array[512];
 	__capability uint8_t *arrayp = (__capability uint8_t *)&array;
@@ -184,7 +268,14 @@ test_bounds_stack_512(const struct cheri_test *ctp __unused)
 }
 
 void
-test_bounds_stack_1024(const struct cheri_test *ctp __unused)
+test_bounds_stack_dynamic_512(const struct cheri_test *ctp __unused)
+{
+
+	test_bounds_stack_alloca(512);
+}
+
+void
+test_bounds_stack_static_1024(const struct cheri_test *ctp __unused)
 {
 	uint8_t array[1024];
 	__capability uint8_t *arrayp = (__capability uint8_t *)&array;
@@ -193,7 +284,14 @@ test_bounds_stack_1024(const struct cheri_test *ctp __unused)
 }
 
 void
-test_bounds_stack_2048(const struct cheri_test *ctp __unused)
+test_bounds_stack_dynamic_1024(const struct cheri_test *ctp __unused)
+{
+
+	test_bounds_stack_alloca(1024);
+}
+
+void
+test_bounds_stack_static_2048(const struct cheri_test *ctp __unused)
 {
 	uint8_t array[2048];
 	__capability uint8_t *arrayp = (__capability uint8_t *)&array;
@@ -202,7 +300,14 @@ test_bounds_stack_2048(const struct cheri_test *ctp __unused)
 }
 
 void
-test_bounds_stack_4096(const struct cheri_test *ctp __unused)
+test_bounds_stack_dynamic_2048(const struct cheri_test *ctp __unused)
+{
+
+	test_bounds_stack_alloca(2048);
+}
+
+void
+test_bounds_stack_static_4096(const struct cheri_test *ctp __unused)
 {
 	uint8_t array[4096];
 	__capability uint8_t *arrayp = (__capability uint8_t *)&array;
@@ -211,7 +316,14 @@ test_bounds_stack_4096(const struct cheri_test *ctp __unused)
 }
 
 void
-test_bounds_stack_8192(const struct cheri_test *ctp __unused)
+test_bounds_stack_dynamic_4096(const struct cheri_test *ctp __unused)
+{
+
+	test_bounds_stack_alloca(4096);
+}
+
+void
+test_bounds_stack_static_8192(const struct cheri_test *ctp __unused)
 {
 	uint8_t array[8192];
 	__capability uint8_t *arrayp = (__capability uint8_t *)&array;
@@ -220,7 +332,14 @@ test_bounds_stack_8192(const struct cheri_test *ctp __unused)
 }
 
 void
-test_bounds_stack_16384(const struct cheri_test *ctp __unused)
+test_bounds_stack_dynamic_8192(const struct cheri_test *ctp __unused)
+{
+
+	test_bounds_stack_alloca(8192);
+}
+
+void
+test_bounds_stack_static_16384(const struct cheri_test *ctp __unused)
 {
 	uint8_t array[16384];
 	__capability uint8_t *arrayp = (__capability uint8_t *)&array;
@@ -229,7 +348,14 @@ test_bounds_stack_16384(const struct cheri_test *ctp __unused)
 }
 
 void
-test_bounds_stack_32768(const struct cheri_test *ctp __unused)
+test_bounds_stack_dynamic_16384(const struct cheri_test *ctp __unused)
+{
+
+	test_bounds_stack_alloca(16384);
+}
+
+void
+test_bounds_stack_static_32768(const struct cheri_test *ctp __unused)
 {
 	uint8_t array[32768];
 	__capability uint8_t *arrayp = (__capability uint8_t *)&array;
@@ -238,7 +364,14 @@ test_bounds_stack_32768(const struct cheri_test *ctp __unused)
 }
 
 void
-test_bounds_stack_65536(const struct cheri_test *ctp __unused)
+test_bounds_stack_dynamic_32768(const struct cheri_test *ctp __unused)
+{
+
+	test_bounds_stack_alloca(32768);
+}
+
+void
+test_bounds_stack_static_65536(const struct cheri_test *ctp __unused)
 {
 	uint8_t array[65536];
 	__capability uint8_t *arrayp = (__capability uint8_t *)&array;
@@ -247,7 +380,14 @@ test_bounds_stack_65536(const struct cheri_test *ctp __unused)
 }
 
 void
-test_bounds_stack_131072(const struct cheri_test *ctp __unused)
+test_bounds_stack_dynamic_65536(const struct cheri_test *ctp __unused)
+{
+
+	test_bounds_stack_alloca(65536);
+}
+
+void
+test_bounds_stack_static_131072(const struct cheri_test *ctp __unused)
 {
 	uint8_t array[131072];
 	__capability uint8_t *arrayp = (__capability uint8_t *)&array;
@@ -256,7 +396,14 @@ test_bounds_stack_131072(const struct cheri_test *ctp __unused)
 }
 
 void
-test_bounds_stack_262144(const struct cheri_test *ctp __unused)
+test_bounds_stack_dynamic_131072(const struct cheri_test *ctp __unused)
+{
+
+	test_bounds_stack_alloca(131072);
+}
+
+void
+test_bounds_stack_static_262144(const struct cheri_test *ctp __unused)
 {
 	uint8_t array[262144];
 	__capability uint8_t *arrayp = (__capability uint8_t *)&array;
@@ -265,7 +412,14 @@ test_bounds_stack_262144(const struct cheri_test *ctp __unused)
 }
 
 void
-test_bounds_stack_524288(const struct cheri_test *ctp __unused)
+test_bounds_stack_dynamic_262144(const struct cheri_test *ctp __unused)
+{
+
+	test_bounds_stack_alloca(262144);
+}
+
+void
+test_bounds_stack_static_524288(const struct cheri_test *ctp __unused)
 {
 	uint8_t array[524288];
 	__capability uint8_t *arrayp = (__capability uint8_t *)&array;
@@ -274,10 +428,24 @@ test_bounds_stack_524288(const struct cheri_test *ctp __unused)
 }
 
 void
-test_bounds_stack_1048576(const struct cheri_test *ctp __unused)
+test_bounds_stack_dynamic_524288(const struct cheri_test *ctp __unused)
+{
+
+	test_bounds_stack_alloca(524288);
+}
+
+void
+test_bounds_stack_static_1048576(const struct cheri_test *ctp __unused)
 {
 	uint8_t array[1048576];
 	__capability uint8_t *arrayp = (__capability uint8_t *)&array;
 
 	test_bounds_precise(arrayp, sizeof(array));
+}
+
+void
+test_bounds_stack_dynamic_1048576(const struct cheri_test *ctp __unused)
+{
+
+	test_bounds_stack_alloca(1048576);
 }
