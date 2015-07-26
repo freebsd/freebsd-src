@@ -33,7 +33,6 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -348,10 +347,6 @@ bd_md_load(int mdid, void *buf, u_long len, u_int flags)
 	if (ioctl(md->fd, PROTO_IOC_BUSDMA, &ioc) == -1)
 		return (errno);
 
-	printf("XXX: %s: phys(%d, %#lx), bus(%d, %#lx)\n", __func__,
-	    ioc.u.md.phys_nsegs, ioc.u.md.phys_addr,
-	    ioc.u.md.bus_nsegs, ioc.u.md.bus_addr);
-
 	error = bd_md_add_seg(md, BUSDMA_MD_VIRT, ioc.u.md.virt_addr, len);
 	error = bd_md_add_seg(md, BUSDMA_MD_PHYS, ioc.u.md.phys_addr, len);
 	error = bd_md_add_seg(md, BUSDMA_MD_BUS, ioc.u.md.bus_addr, len);
@@ -411,10 +406,6 @@ bd_mem_alloc(int tid, u_int flags)
 	md->parent = tag;
 	tag->refcnt++;
 	md->key = ioc.result;
-
-	printf("XXX: %s: phys(%d, %#lx), bus(%d, %#lx)\n", __func__,
-	    ioc.u.md.phys_nsegs, ioc.u.md.phys_addr,
-	    ioc.u.md.bus_nsegs, ioc.u.md.bus_addr);
 
 	/* XXX we need to support multiple segments */
 	assert(ioc.u.md.phys_nsegs == 1);
