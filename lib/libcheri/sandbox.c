@@ -559,8 +559,12 @@ sandbox_object_cinvoke(struct sandbox_object *sbop, register_t methodnum,
 	    a1, a2, a3, a4, a5, a6, a7,
 	    c3, c4, c5, c6, c7, c8, c9, c10);
 	sample = cheri_get_cyclecount() - start;
-	SANDBOX_METHOD_TIME_SAMPLE(sbcp->sbc_sandbox_methods[methodnum],
-	    sample);
+	if (methodnum < SANDBOX_CLASS_METHOD_COUNT)
+		SANDBOX_METHOD_TIME_SAMPLE(
+		    sbcp->sbc_sandbox_methods[methodnum], sample);
+	else
+		SANDBOX_METHOD_TIME_SAMPLE(
+		    sbcp->sbc_sandbox_method_nonamep, sample);
 	SANDBOX_OBJECT_TIME_SAMPLE(sbop->sbo_sandbox_object_statp, sample);
 	if (v0 < 0) {
 		if (methodnum < SANDBOX_CLASS_METHOD_COUNT)
