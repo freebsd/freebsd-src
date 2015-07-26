@@ -602,6 +602,20 @@ protocol_error:
 		return;
 
 	}
+#if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
+	struct socket *so;
+
+	so = SCTP_INP_SO(stcb->sctp_ep);
+	atomic_add_int(&stcb->asoc.refcnt, 1);
+	SCTP_TCB_UNLOCK(stcb);
+	SCTP_SOCKET_LOCK(so, 1);
+	SCTP_TCB_LOCK(stcb);
+	atomic_subtract_int(&stcb->asoc.refcnt, 1);
+	if (stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_SOCKET_GONE) {
+		SCTP_SOCKET_UNLOCK(so, 1);
+		return;
+	}
+#endif
 	if (nxt_todel == control->sinfo_ssn) {
 		/* can be delivered right away? */
 		if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_STR_LOGGING_ENABLE) {
@@ -617,7 +631,7 @@ protocol_error:
 		sctp_add_to_readq(stcb->sctp_ep, stcb,
 		    control,
 		    &stcb->sctp_socket->so_rcv, 1,
-		    SCTP_READ_LOCK_NOT_HELD, SCTP_SO_NOT_LOCKED);
+		    SCTP_READ_LOCK_NOT_HELD, SCTP_SO_LOCKED);
 		TAILQ_FOREACH_SAFE(control, &strm->inqueue, next, at) {
 			/* all delivered */
 			nxt_todel = strm->last_sequence_delivered + 1;
@@ -641,7 +655,7 @@ protocol_error:
 				    control,
 				    &stcb->sctp_socket->so_rcv, 1,
 				    SCTP_READ_LOCK_NOT_HELD,
-				    SCTP_SO_NOT_LOCKED);
+				    SCTP_SO_LOCKED);
 				continue;
 			}
 			break;
@@ -653,6 +667,9 @@ protocol_error:
 		 * to put it on the queue.
 		 */
 		if (SCTP_TSN_GE(asoc->cumulative_tsn, control->sinfo_tsn)) {
+#if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
+			SCTP_SOCKET_UNLOCK(so, 1);
+#endif
 			goto protocol_error;
 		}
 		if (TAILQ_EMPTY(&strm->inqueue)) {
@@ -699,6 +716,9 @@ protocol_error:
 						control->whoFrom = NULL;
 					}
 					sctp_free_a_readq(stcb, control);
+#if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
+					SCTP_SOCKET_UNLOCK(so, 1);
+#endif
 					return;
 				} else {
 					if (TAILQ_NEXT(at, next) == NULL) {
@@ -718,6 +738,9 @@ protocol_error:
 			}
 		}
 	}
+#if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
+	SCTP_SOCKET_UNLOCK(so, 1);
+#endif
 }
 
 /*
