@@ -578,10 +578,10 @@ sctp_queue_data_to_stream(struct sctp_tcb *stcb, struct sctp_association *asoc,
 		sctp_log_strm_del(control, NULL, SCTP_STR_LOG_FROM_INTO_STRD);
 	}
 	SCTPDBG(SCTP_DEBUG_INDATA1,
-	    "queue to stream called for ssn:%u lastdel:%u nxt:%u\n",
-	    (uint32_t) control->sinfo_stream,
-	    (uint32_t) strm->last_sequence_delivered,
-	    (uint32_t) nxt_todel);
+	    "queue to stream called for sid:%u ssn:%u tsn:%u lastdel:%u nxt:%u\n",
+	    (uint32_t) control->sinfo_stream, (uint32_t) control->sinfo_ssn,
+	    (uint32_t) control->sinfo_tsn,
+	    (uint32_t) strm->last_sequence_delivered, (uint32_t) nxt_todel);
 	if (SCTP_SSN_GE(strm->last_sequence_delivered, control->sinfo_ssn)) {
 		/* The incoming sseq is behind where we last delivered? */
 		SCTPDBG(SCTP_DEBUG_INDATA1, "Duplicate S-SEQ:%d delivered:%d from peer, Abort association\n",
