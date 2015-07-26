@@ -1709,20 +1709,18 @@ tmpfs_chtimes(struct vnode *vp, struct vattr *vap,
 	if (error != 0)
 		return (error);
 
-	if (vap->va_atime.tv_sec != VNOVAL && vap->va_atime.tv_nsec != VNOVAL)
+	if (vap->va_atime.tv_sec != VNOVAL)
 		node->tn_status |= TMPFS_NODE_ACCESSED;
 
-	if (vap->va_mtime.tv_sec != VNOVAL && vap->va_mtime.tv_nsec != VNOVAL)
+	if (vap->va_mtime.tv_sec != VNOVAL)
 		node->tn_status |= TMPFS_NODE_MODIFIED;
 
-	if (vap->va_birthtime.tv_nsec != VNOVAL &&
-	    vap->va_birthtime.tv_nsec != VNOVAL)
+	if (vap->va_birthtime.tv_sec != VNOVAL)
 		node->tn_status |= TMPFS_NODE_MODIFIED;
 
 	tmpfs_itimes(vp, &vap->va_atime, &vap->va_mtime);
 
-	if (vap->va_birthtime.tv_nsec != VNOVAL &&
-	    vap->va_birthtime.tv_nsec != VNOVAL)
+	if (vap->va_birthtime.tv_sec != VNOVAL)
 		node->tn_birthtime = vap->va_birthtime;
 	MPASS(VOP_ISLOCKED(vp));
 
