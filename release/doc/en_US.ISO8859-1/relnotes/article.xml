@@ -287,6 +287,11 @@
 	<literal>active</literal> flag will be set on the partition
 	when needed.</para>
 
+      <para revision="285721" contrib="sponsor"
+	sponsor="&scaleengine;">Support for detecting and implementing
+	aligning partitions on 1Mb boundaries has been added to
+	&man.bsdinstall.8;.</para>
+
       <para revision="285769" contrib="sponsor"
 	sponsor="&scaleengine;">Support for selecting the partitioning
 	scheme when installing on the <acronym>UFS</acronym>
