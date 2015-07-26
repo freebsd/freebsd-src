@@ -528,6 +528,8 @@
         ..
         gzip
         ..
+        ident
+        ..
         join
         ..
         jot
