@@ -546,6 +546,11 @@
 	updated to use the new &man.dpv.3; library to display progress
 	when extracting the &os; distributions.</para>
 
+      <para revision="285557" contrib="sponsor"
+	sponsor="&scaleengine;">Support for detecting and implementing
+	aligning partitions on 1Mb boundaries has been added to
+	&man.bsdinstall.8;.</para>
+
       <para revision="285679" contrib="sponsor"
 	sponsor="&scaleengine;">Support for detecting and implementing
 	a workaround for various laptops and motherboards that do not
