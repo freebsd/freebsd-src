@@ -344,6 +344,9 @@ devclass_t em_devclass;
 DRIVER_MODULE(em, pci, em_driver, em_devclass, 0, 0);
 MODULE_DEPEND(em, pci, 1, 1, 1);
 MODULE_DEPEND(em, ether, 1, 1, 1);
+#ifdef DEV_NETMAP
+MODULE_DEPEND(em, netmap, 1, 1, 1);
+#endif /* DEV_NETMAP */
 
 /*********************************************************************
  *  Tunable default values.
@@ -1869,13 +1872,12 @@ em_xmit(struct tx_ring *txr, struct mbuf **m_headp)
 	struct ether_header	*eh;
 	struct ip		*ip = NULL;
 	struct tcphdr		*tp = NULL;
-	u32			txd_upper, txd_lower, txd_used, txd_saved;
+	u32			txd_upper = 0, txd_lower = 0, txd_used = 0;
 	int			ip_off, poff;
 	int			nsegs, i, j, first, last = 0;
 	int			error, do_tso, tso_desc = 0, remap = 1;
 
 	m_head = *m_headp;
-	txd_upper = txd_lower = txd_used = txd_saved = 0;
 	do_tso = ((m_head->m_pkthdr.csum_flags & CSUM_TSO) != 0);
 	ip_off = poff = 0;
 
@@ -5995,7 +5997,9 @@ DB_COMMAND(em_reset_dev, em_ddb_reset_dev)
 		dev = devclass_get_device(dc, index);
 		if (device_get_driver(dev) == &em_driver) {
 			struct adapter *adapter = device_get_softc(dev);
+			EM_CORE_LOCK(adapter);
 			em_init_locked(adapter);
+			EM_CORE_UNLOCK(adapter);
 		}
 	}
 }

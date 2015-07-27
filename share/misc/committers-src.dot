@@ -61,6 +61,7 @@ jkh [label="Jordan K. Hubbard\njkh@FreeBSD.org\n1993/06/12\n2008/06/13"]
 jlemon [label="Jonathan Lemon\njlemon@FreeBSD.org\n1997/08/14\n2008/11/10"]
 joe [label="Josef Karthauser\njoe@FreeBSD.org\n1999/10/22\n2008/08/10"]
 jtc [label="J.T. Conklin\njtc@FreeBSD.org\n1993/06/12\n????/??/??"]
+kargl [label="Steven G. Kargl\nkargl@FreeBSD.org\n2011/01/17\n2015/06/28"]
 kbyanc [label="Kelly Yancey\nkbyanc@FreeBSD.org\n2000/07/11\n2006/07/25"]
 keichii [label="Michael Wu\nkeichii@FreeBSD.org\n2001/03/07\n2006/04/28"]
 linimon [label="Mark Linimon\nlinimon@FreeBSD.org\n2006/09/30\n2008/05/04"]
@@ -130,6 +131,7 @@ bruno [label="Bruno Ducrot\nbruno@FreeBSD.org\n2005/07/18"]
 bryanv [label="Bryan Venteicher\nbryanv@FreeBSD.org\n2012/11/03"]
 bschmidt [label="Bernhard Schmidt\nbschmidt@FreeBSD.org\n2010/02/06"]
 bz [label="Bjoern A. Zeeb\nbz@FreeBSD.org\n2004/07/27"]
+cem [label="Conrad Meyer\ncem@FreeBSD.org\n2015/07/05"]
 cognet [label="Olivier Houchard\ncognet@FreeBSD.org\n2002/10/09"]
 cokane [label="Coleman Kane\ncokane@FreeBSD.org\n2000/06/19"]
 cperciva [label="Colin Percival\ncperciva@FreeBSD.org\n2004/01/20"]
@@ -205,7 +207,6 @@ julian [label="Julian Elischer\njulian@FreeBSD.org\n1993/04/19"]
 jwd [label="John De Boskey\njwd@FreeBSD.org\n2000/05/19"]
 kaiw [label="Kai Wang\nkaiw@FreeBSD.org\n2007/09/26"]
 kan [label="Alexander Kabaev\nkan@FreeBSD.org\n2002/07/21"]
-kargl [label="Steven G. Kargl\nkargl@FreeBSD.org\n2011/01/17"]
 ken [label="Ken Merry\nken@FreeBSD.org\n1998/09/08"]
 kensmith [label="Ken Smith\nkensmith@FreeBSD.org\n2004/01/23"]
 kevlo [label="Kevin Lo\nkevlo@FreeBSD.org\n2006/07/23"]
@@ -576,6 +577,8 @@ marcel -> arun
 marcel -> marius
 marcel -> nwhitehorn
 marcel -> sjg
+
+markj -> cem
 
 markm -> jasone
 markm -> sheldonh

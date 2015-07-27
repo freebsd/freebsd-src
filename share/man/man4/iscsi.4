@@ -23,7 +23,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.Dd September 11, 2014
+.Dd July 11, 2015
 .Dt ISCSI 4
 .Os
 .Sh NAME
@@ -65,25 +65,37 @@ variables and
 .Xr loader 8
 tunables:
 .Bl -tag -width indent
+.It Va kern.iscsi.debug
+Verbosity level for log messages from the
+.Nm
+driver.
+Set to 0 to disable logging or 1 to warn about potential problems.
+Larger values enable debugging output.
+Defaults to 1.
 .It Va kern.iscsi.ping_timeout
 The number of seconds to wait for the target to respond to a NOP-Out
 PDU.
 In the event that there is no response within that time the session gets
 forcibly restarted.
+Set to 0 to disable sending NOP-Out PDUs.
+Defaults to 5.
 .It Va kern.iscsi.iscsid_timeout
 The number of seconds to wait for
-.Xr ctld 8
+.Xr iscsid 8
 to establish a session.
 After that time
 .Nm
 will abort and retry.
+Defaults to 60.
 .It Va kern.iscsi.login_timeout
 The number of seconds to wait for a login attempt to succeed.
 After that time
 .Nm
 will abort and retry.
+Defaults to 60.
 .It Va kern.iscsi.maxtags
 The maximum number of outstanding IO requests.
+Defaults to 255.
 .It Va kern.iscsi.fail_on_disconnection
 Controls the behavior after an iSCSI connection has been dropped due to
 network problems.

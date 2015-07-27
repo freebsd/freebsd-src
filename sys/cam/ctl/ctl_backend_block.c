@@ -810,24 +810,27 @@ ctl_be_block_getattr_file(struct ctl_be_block_lun *be_lun, const char *attrname)
 {
 	struct vattr		vattr;
 	struct statfs		statfs;
+	uint64_t		val;
 	int			error;
 
+	val = UINT64_MAX;
 	if (be_lun->vn == NULL)
-		return (UINT64_MAX);
+		return (val);
+	vn_lock(be_lun->vn, LK_SHARED | LK_RETRY);
 	if (strcmp(attrname, "blocksused") == 0) {
 		error = VOP_GETATTR(be_lun->vn, &vattr, curthread->td_ucred);
-		if (error != 0)
-			return (UINT64_MAX);
-		return (vattr.va_bytes >> be_lun->blocksize_shift);
+		if (error == 0)
+			val = vattr.va_bytes >> be_lun->blocksize_shift;
 	}
-	if (strcmp(attrname, "blocksavail") == 0) {
+	if (strcmp(attrname, "blocksavail") == 0 &&
+	    (be_lun->vn->v_iflag & VI_DOOMED) == 0) {
 		error = VFS_STATFS(be_lun->vn->v_mount, &statfs);
-		if (error != 0)
-			return (UINT64_MAX);
-		return ((statfs.f_bavail * statfs.f_bsize) >>
-		    be_lun->blocksize_shift);
+		if (error == 0)
+			val = (statfs.f_bavail * statfs.f_bsize) >>
+			    be_lun->blocksize_shift;
 	}
-	return (UINT64_MAX);
+	VOP_UNLOCK(be_lun->vn, 0);
+	return (val);
 }
 
 static void
@@ -2120,18 +2123,7 @@ ctl_be_block_open(struct ctl_be_block_softc *softc,
 		return (1);
 	}
 
-	if (!curthread->td_proc->p_fd->fd_cdir) {
-		curthread->td_proc->p_fd->fd_cdir = rootvnode;
-		VREF(rootvnode);
-	}
-	if (!curthread->td_proc->p_fd->fd_rdir) {
-		curthread->td_proc->p_fd->fd_rdir = rootvnode;
-		VREF(rootvnode);
-	}
-	if (!curthread->td_proc->p_fd->fd_jdir) {
-		curthread->td_proc->p_fd->fd_jdir = rootvnode;
-		VREF(rootvnode);
-	}
+	pwd_ensure_dirs();
 
  again:
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, be_lun->dev_path, curthread);
@@ -2666,10 +2658,12 @@ ctl_be_block_modify(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 	oldsize = be_lun->size_bytes;
 	if (be_lun->vn == NULL)
 		error = ctl_be_block_open(softc, be_lun, req);
+	else if (vn_isdisk(be_lun->vn, &error))
+		error = ctl_be_block_modify_dev(be_lun, req);
 	else if (be_lun->vn->v_type == VREG)
 		error = ctl_be_block_modify_file(be_lun, req);
 	else
-		error = ctl_be_block_modify_dev(be_lun, req);
+		error = EINVAL;
 
 	if (error == 0 && be_lun->size_bytes != oldsize) {
 		be_lun->size_blocks = be_lun->size_bytes >>

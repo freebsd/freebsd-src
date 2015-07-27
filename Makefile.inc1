@@ -297,7 +297,6 @@ KTMAKE=		TOOLS_PREFIX=${WORLDTMP} MAKEOBJDIRPREFIX=${WORLDTMP} \
 
 # world stage
 WMAKEENV=	${CROSSENV} \
-		_SHLIBDIRPREFIX=${WORLDTMP} \
 		_LDSCRIPTROOT= \
 		VERSION="${VERSION}" \
 		INSTALL="sh ${.CURDIR}/tools/install.sh" \
@@ -439,7 +438,6 @@ LIB32FLAGS+=		--sysroot=${WORLDTMP}
 
 # Yes, the flags are redundant.
 LIB32WMAKEENV+=	MAKEOBJDIRPREFIX=${LIB32_OBJTREE} \
-		_SHLIBDIRPREFIX=${LIB32TMP} \
 		_LDSCRIPTROOT=${LIB32TMP} \
 		VERSION="${VERSION}" \
 		INSTALL="sh ${.CURDIR}/tools/install.sh" \
@@ -1258,7 +1256,7 @@ _bt=		_bootstrap-tools
 _strfile=	games/fortune/strfile
 .endif
 
-.if ${MK_CXX} != "no"
+.if ${MK_GCC} != "no" && ${MK_CXX} != "no"
 _gperf=		gnu/usr.bin/gperf
 .endif
 
@@ -1768,9 +1766,9 @@ cddl/lib/libctf__L: lib/libz__L
 .endif
 # cddl/lib/libdtrace requires lib/libproc and lib/librtld_db; it's only built
 # on select architectures though (see cddl/lib/Makefile)
-.if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386" || \
-	${MACHINE_CPUARCH} == "mips" || ${MACHINE_CPUARCH} == "powerpc" || \
-	${MACHINE_CPUARCH} == "arm"
+.if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_ARCH} == "amd64" || \
+	${MACHINE_CPUARCH} == "arm" || ${MACHINE_ARCH} == "i386" || \
+	${MACHINE_CPUARCH} == "mips" || ${MACHINE_CPUARCH} == "powerpc"
 _prebuild_libs+=	lib/libproc lib/librtld_db
 .endif
 
@@ -2123,7 +2121,6 @@ XDTP?=/usr/${XDDIR}
 CDBENV=MAKEOBJDIRPREFIX=${MAKEOBJDIRPREFIX}/${XDDIR} \
 	INSTALL="sh ${.CURDIR}/tools/install.sh"
 CDENV= ${CDBENV} \
-	_SHLIBDIRPREFIX=${XDDESTDIR} \
 	TOOLS_PREFIX=${XDTP}
 CD2CFLAGS=-isystem ${XDDESTDIR}/usr/include -L${XDDESTDIR}/usr/lib \
 	--sysroot=${XDDESTDIR}/ -B${XDDESTDIR}/usr/libexec \

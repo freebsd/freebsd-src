@@ -154,7 +154,7 @@ MALLOC_DEFINE(M_XDATA, "xform", "xform data buffers");
 struct enc_xform enc_xform_null = {
 	CRYPTO_NULL_CBC, "NULL",
 	/* NB: blocksize of 4 is to generate a properly aligned ESP header */
-	NULL_BLOCK_LEN, NULL_BLOCK_LEN, 0, 256, /* 2048 bits, max key */
+	NULL_BLOCK_LEN, NULL_BLOCK_LEN, NULL_MIN_KEY, NULL_MAX_KEY, 
 	null_encrypt,
 	null_decrypt,
 	null_setkey,
@@ -164,7 +164,7 @@ struct enc_xform enc_xform_null = {
 
 struct enc_xform enc_xform_des = {
 	CRYPTO_DES_CBC, "DES",
-	DES_BLOCK_LEN, DES_BLOCK_LEN, 8, 8,
+	DES_BLOCK_LEN, DES_BLOCK_LEN, DES_MIN_KEY, DES_MAX_KEY,
 	des1_encrypt,
 	des1_decrypt,
 	des1_setkey,
@@ -174,7 +174,8 @@ struct enc_xform enc_xform_des = {
 
 struct enc_xform enc_xform_3des = {
 	CRYPTO_3DES_CBC, "3DES",
-	DES3_BLOCK_LEN, DES3_BLOCK_LEN, 24, 24,
+	DES3_BLOCK_LEN, DES3_BLOCK_LEN, TRIPLE_DES_MIN_KEY,
+	TRIPLE_DES_MAX_KEY,
 	des3_encrypt,
 	des3_decrypt,
 	des3_setkey,
@@ -184,7 +185,8 @@ struct enc_xform enc_xform_3des = {
 
 struct enc_xform enc_xform_blf = {
 	CRYPTO_BLF_CBC, "Blowfish",
-	BLOWFISH_BLOCK_LEN, BLOWFISH_BLOCK_LEN, 5, 56 /* 448 bits, max key */,
+	BLOWFISH_BLOCK_LEN, BLOWFISH_BLOCK_LEN, BLOWFISH_MIN_KEY,
+	BLOWFISH_MAX_KEY,
 	blf_encrypt,
 	blf_decrypt,
 	blf_setkey,
@@ -194,7 +196,7 @@ struct enc_xform enc_xform_blf = {
 
 struct enc_xform enc_xform_cast5 = {
 	CRYPTO_CAST_CBC, "CAST-128",
-	CAST128_BLOCK_LEN, CAST128_BLOCK_LEN, 5, 16,
+	CAST128_BLOCK_LEN, CAST128_BLOCK_LEN, CAST_MIN_KEY, CAST_MAX_KEY,
 	cast5_encrypt,
 	cast5_decrypt,
 	cast5_setkey,
@@ -204,7 +206,8 @@ struct enc_xform enc_xform_cast5 = {
 
 struct enc_xform enc_xform_skipjack = {
 	CRYPTO_SKIPJACK_CBC, "Skipjack",
-	SKIPJACK_BLOCK_LEN, SKIPJACK_BLOCK_LEN, 10, 10,
+	SKIPJACK_BLOCK_LEN, SKIPJACK_BLOCK_LEN, SKIPJACK_MIN_KEY,
+	SKIPJACK_MAX_KEY,
 	skipjack_encrypt,
 	skipjack_decrypt, skipjack_setkey,
 	skipjack_zerokey,
@@ -213,7 +216,8 @@ struct enc_xform enc_xform_skipjack = {
 
 struct enc_xform enc_xform_rijndael128 = {
 	CRYPTO_RIJNDAEL128_CBC, "Rijndael-128/AES",
-	RIJNDAEL128_BLOCK_LEN, RIJNDAEL128_BLOCK_LEN, 16, 32,
+	RIJNDAEL128_BLOCK_LEN, RIJNDAEL128_BLOCK_LEN, RIJNDAEL_MIN_KEY,
+	RIJNDAEL_MAX_KEY,
 	rijndael128_encrypt,
 	rijndael128_decrypt,
 	rijndael128_setkey,
@@ -223,7 +227,7 @@ struct enc_xform enc_xform_rijndael128 = {
 
 struct enc_xform enc_xform_aes_icm = {
 	CRYPTO_AES_ICM, "AES-ICM",
-	RIJNDAEL128_BLOCK_LEN, RIJNDAEL128_BLOCK_LEN, 16, 32,
+	AES_BLOCK_LEN, AES_BLOCK_LEN, AES_MIN_KEY, AES_MAX_KEY,
 	aes_icm_crypt,
 	aes_icm_crypt,
 	aes_icm_setkey,
@@ -233,7 +237,7 @@ struct enc_xform enc_xform_aes_icm = {
 
 struct enc_xform enc_xform_aes_nist_gcm = {
 	CRYPTO_AES_NIST_GCM_16, "AES-GCM",
-	1, 12, 16, 32,
+	AES_ICM_BLOCK_LEN, AES_GCM_IV_LEN, AES_MIN_KEY, AES_MAX_KEY,
 	aes_icm_crypt,
 	aes_icm_crypt,
 	aes_icm_setkey,
@@ -243,7 +247,7 @@ struct enc_xform enc_xform_aes_nist_gcm = {
 
 struct enc_xform enc_xform_aes_nist_gmac = {
 	CRYPTO_AES_NIST_GMAC, "AES-GMAC",
-	1, 12, 16, 32,
+	AES_ICM_BLOCK_LEN, AES_GCM_IV_LEN, AES_MIN_KEY, AES_MAX_KEY,
 	NULL,
 	NULL,
 	NULL,
@@ -253,7 +257,7 @@ struct enc_xform enc_xform_aes_nist_gmac = {
 
 struct enc_xform enc_xform_aes_xts = {
 	CRYPTO_AES_XTS, "AES-XTS",
-	RIJNDAEL128_BLOCK_LEN, 8, 32, 64,
+	AES_BLOCK_LEN, AES_XTS_IV_LEN, AES_XTS_MIN_KEY, AES_XTS_MAX_KEY,
 	aes_xts_encrypt,
 	aes_xts_decrypt,
 	aes_xts_setkey,
@@ -263,7 +267,7 @@ struct enc_xform enc_xform_aes_xts = {
 
 struct enc_xform enc_xform_arc4 = {
 	CRYPTO_ARC4, "ARC4",
-	1, 1, 1, 32,
+	ARC4_BLOCK_LEN, ARC4_IV_LEN, ARC4_MIN_KEY, ARC4_MAX_KEY,
 	NULL,
 	NULL,
 	NULL,
@@ -273,7 +277,8 @@ struct enc_xform enc_xform_arc4 = {
 
 struct enc_xform enc_xform_camellia = {
 	CRYPTO_CAMELLIA_CBC, "Camellia",
-	CAMELLIA_BLOCK_LEN, CAMELLIA_BLOCK_LEN, 8, 32,
+	CAMELLIA_BLOCK_LEN, CAMELLIA_BLOCK_LEN, CAMELLIA_MIN_KEY,
+	CAMELLIA_MAX_KEY,
 	cml_encrypt,
 	cml_decrypt,
 	cml_setkey,
@@ -284,67 +289,72 @@ struct enc_xform enc_xform_camellia = {
 /* Authentication instances */
 struct auth_hash auth_hash_null = {	/* NB: context isn't used */
 	CRYPTO_NULL_HMAC, "NULL-HMAC",
-	0, NULL_HASH_LEN, sizeof(int), NULL_HMAC_BLOCK_LEN,
+	NULL_HMAC_KEY_LEN, NULL_HASH_LEN, sizeof(int), NULL_HMAC_BLOCK_LEN,
 	null_init, null_reinit, null_reinit, null_update, null_final
 };
 
 struct auth_hash auth_hash_hmac_md5 = {
 	CRYPTO_MD5_HMAC, "HMAC-MD5",
-	16, MD5_HASH_LEN, sizeof(MD5_CTX), MD5_HMAC_BLOCK_LEN,
+	MD5_HMAC_KEY_LEN, MD5_HASH_LEN, sizeof(MD5_CTX), MD5_HMAC_BLOCK_LEN,
 	(void (*) (void *)) MD5Init, NULL, NULL, MD5Update_int,
 	(void (*) (u_int8_t *, void *)) MD5Final
 };
 
 struct auth_hash auth_hash_hmac_sha1 = {
 	CRYPTO_SHA1_HMAC, "HMAC-SHA1",
-	20, SHA1_HASH_LEN, sizeof(SHA1_CTX), SHA1_HMAC_BLOCK_LEN,
+	SHA1_HMAC_KEY_LEN, SHA1_HASH_LEN, sizeof(SHA1_CTX), SHA1_HMAC_BLOCK_LEN,
 	SHA1Init_int, NULL, NULL, SHA1Update_int, SHA1Final_int
 };
 
 struct auth_hash auth_hash_hmac_ripemd_160 = {
 	CRYPTO_RIPEMD160_HMAC, "HMAC-RIPEMD-160",
-	20, RIPEMD160_HASH_LEN, sizeof(RMD160_CTX), RIPEMD160_HMAC_BLOCK_LEN,
+	RIPEMD160_HMAC_KEY_LEN, RIPEMD160_HASH_LEN, sizeof(RMD160_CTX),
+	RIPEMD160_HMAC_BLOCK_LEN,
 	(void (*)(void *)) RMD160Init, NULL, NULL, RMD160Update_int,
 	(void (*)(u_int8_t *, void *)) RMD160Final
 };
 
 struct auth_hash auth_hash_key_md5 = {
 	CRYPTO_MD5_KPDK, "Keyed MD5",
-	0, MD5_KPDK_HASH_LEN, sizeof(MD5_CTX), 0,
+	NULL_HMAC_KEY_LEN, MD5_KPDK_HASH_LEN, sizeof(MD5_CTX), 0,
 	(void (*)(void *)) MD5Init, NULL, NULL, MD5Update_int,
 	(void (*)(u_int8_t *, void *)) MD5Final
 };
 
 struct auth_hash auth_hash_key_sha1 = {
 	CRYPTO_SHA1_KPDK, "Keyed SHA1",
-	0, SHA1_KPDK_HASH_LEN, sizeof(SHA1_CTX), 0,
+	NULL_HMAC_KEY_LEN, SHA1_KPDK_HASH_LEN, sizeof(SHA1_CTX), 0,
 	SHA1Init_int, NULL, NULL, SHA1Update_int, SHA1Final_int
 };
 
 struct auth_hash auth_hash_hmac_sha2_256 = {
 	CRYPTO_SHA2_256_HMAC, "HMAC-SHA2-256",
-	32, SHA2_256_HASH_LEN, sizeof(SHA256_CTX), SHA2_256_HMAC_BLOCK_LEN,
+	SHA2_256_HMAC_KEY_LEN, SHA2_256_HASH_LEN, sizeof(SHA256_CTX),
+	SHA2_256_HMAC_BLOCK_LEN,
 	(void (*)(void *)) SHA256_Init, NULL, NULL, SHA256Update_int,
 	(void (*)(u_int8_t *, void *)) SHA256_Final
 };
 
 struct auth_hash auth_hash_hmac_sha2_384 = {
 	CRYPTO_SHA2_384_HMAC, "HMAC-SHA2-384",
-	48, SHA2_384_HASH_LEN, sizeof(SHA384_CTX), SHA2_384_HMAC_BLOCK_LEN,
+	SHA2_384_HMAC_KEY_LEN, SHA2_384_HASH_LEN, sizeof(SHA384_CTX),
+	SHA2_384_HMAC_BLOCK_LEN,
 	(void (*)(void *)) SHA384_Init, NULL, NULL, SHA384Update_int,
 	(void (*)(u_int8_t *, void *)) SHA384_Final
 };
 
 struct auth_hash auth_hash_hmac_sha2_512 = {
 	CRYPTO_SHA2_512_HMAC, "HMAC-SHA2-512",
-	64, SHA2_512_HASH_LEN, sizeof(SHA512_CTX), SHA2_512_HMAC_BLOCK_LEN,
+	SHA2_512_HMAC_KEY_LEN, SHA2_512_HASH_LEN, sizeof(SHA512_CTX),
+	SHA2_512_HMAC_BLOCK_LEN,
 	(void (*)(void *)) SHA512_Init, NULL, NULL, SHA512Update_int,
 	(void (*)(u_int8_t *, void *)) SHA512_Final
 };
 
 struct auth_hash auth_hash_nist_gmac_aes_128 = {
 	CRYPTO_AES_128_NIST_GMAC, "GMAC-AES-128",
-	16, 16, sizeof(struct aes_gmac_ctx), GMAC_BLOCK_LEN,
+	AES_128_HMAC_KEY_LEN, AES_HASH_LEN, sizeof(struct aes_gmac_ctx),
+	GMAC_BLOCK_LEN,
 	(void (*)(void *)) AES_GMAC_Init,
 	(void (*)(void *, const u_int8_t *, u_int16_t)) AES_GMAC_Setkey,
 	(void (*)(void *, const u_int8_t *, u_int16_t)) AES_GMAC_Reinit,
@@ -354,7 +364,8 @@ struct auth_hash auth_hash_nist_gmac_aes_128 = {
 
 struct auth_hash auth_hash_nist_gmac_aes_192 = {
 	CRYPTO_AES_192_NIST_GMAC, "GMAC-AES-192",
-	24, 16, sizeof(struct aes_gmac_ctx), GMAC_BLOCK_LEN,
+	AES_192_HMAC_KEY_LEN, AES_HASH_LEN, sizeof(struct aes_gmac_ctx),
+	GMAC_BLOCK_LEN,
 	(void (*)(void *)) AES_GMAC_Init,
 	(void (*)(void *, const u_int8_t *, u_int16_t)) AES_GMAC_Setkey,
 	(void (*)(void *, const u_int8_t *, u_int16_t)) AES_GMAC_Reinit,
@@ -364,7 +375,8 @@ struct auth_hash auth_hash_nist_gmac_aes_192 = {
 
 struct auth_hash auth_hash_nist_gmac_aes_256 = {
 	CRYPTO_AES_256_NIST_GMAC, "GMAC-AES-256",
-	32, 16, sizeof(struct aes_gmac_ctx), GMAC_BLOCK_LEN,
+	AES_256_HMAC_KEY_LEN, AES_HASH_LEN, sizeof(struct aes_gmac_ctx),
+	GMAC_BLOCK_LEN,
 	(void (*)(void *)) AES_GMAC_Init,
 	(void (*)(void *, const u_int8_t *, u_int16_t)) AES_GMAC_Setkey,
 	(void (*)(void *, const u_int8_t *, u_int16_t)) AES_GMAC_Reinit,

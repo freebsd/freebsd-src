@@ -38,6 +38,81 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20150719: Remove libarchive.pc
+OLD_FILES+=usr/libdata/pkgconfig/libarchive.pc
+# 20150705: Rename DTrace provider man pages.
+OLD_FILES+=usr/share/man/man4/dtrace-io.4.gz
+OLD_FILES+=usr/share/man/man4/dtrace-ip.4.gz
+OLD_FILES+=usr/share/man/man4/dtrace-proc.4.gz
+OLD_FILES+=usr/share/man/man4/dtrace-sched.4.gz
+OLD_FILES+=usr/share/man/man4/dtrace-tcp.4.gz
+OLD_FILES+=usr/share/man/man4/dtrace-udp.4.gz
+# 20150604: Move nvlist man pages to section 9.
+OLD_FILES+=usr/share/man/man3/libnv.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_add_binary.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_add_bool.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_add_descriptor.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_add_null.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_add_number.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_add_nvlist.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_add_string.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_add_stringf.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_add_stringv.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_clone.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_create.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_destroy.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_dump.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_empty.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_error.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_exists.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_exists_binary.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_exists_bool.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_exists_descriptor.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_exists_null.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_exists_number.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_exists_nvlist.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_exists_string.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_exists_type.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_fdump.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_flags.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_free.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_free_binary.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_free_bool.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_free_descriptor.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_free_null.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_free_number.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_free_nvlist.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_free_string.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_free_type.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_get_binary.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_get_bool.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_get_descriptor.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_get_number.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_get_nvlist.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_get_parent.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_get_string.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_move_binary.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_move_descriptor.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_move_nvlist.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_move_string.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_next.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_pack.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_recv.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_send.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_set_error.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_size.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_take_binary.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_take_bool.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_take_descriptor.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_take_number.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_take_nvlist.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_take_string.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_unpack.3.gz
+OLD_FILES+=usr/share/man/man3/nvlist_xfer.3.gz
+# 20150702: Remove duplicated nvlist includes.
+OLD_FILES+=usr/include/dnv.h
+OLD_FILES+=usr/include/nv.h
 # 20150528: PCI IOV device driver methods moved to a separate kobj interface.
 OLD_FILES+=usr/share/man/man9/PCI_ADD_VF.9.gz
 OLD_FILES+=usr/share/man/man9/PCI_INIT_IOV.9.gz
@@ -1020,6 +1095,7 @@ OLD_FILES+=usr/include/lwres/net.h
 OLD_FILES+=usr/include/lwres/netdb.h
 OLD_FILES+=usr/include/lwres/platform.h
 OLD_FILES+=usr/include/lwres/result.h
+OLD_FILES+=usr/include/lwres/string.h
 OLD_FILES+=usr/include/lwres/version.h
 OLD_FILES+=usr/lib/liblwres.a
 OLD_FILES+=usr/lib/liblwres.so

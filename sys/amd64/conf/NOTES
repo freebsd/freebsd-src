@@ -22,7 +22,6 @@ options 	KDTRACE_HOOKS
 #device		dtrace
 
 # DTrace modules
-#device		dtrace_lockstat
 #device		dtrace_profile
 #device		dtrace_sdt
 #device		dtrace_fbt
@@ -486,6 +485,10 @@ device         nvme    # base NVMe driver
 device         nvd     # expose NVMe namespaces as disks, depends on nvme
 
 #
+# PMC-Sierra SAS/SATA controller
+device		pmspcv
+
+#
 # SafeNet crypto driver: can be moved to the MI NOTES as soon as
 # it's tested on a big-endian machine
 #
@@ -616,6 +619,9 @@ options 	COMPAT_FREEBSD32
 
 # Emulate spx device for client side of SVR3 local X interface
 #XXX#options 	SPX_HACK
+
+# Enable 64-bit runtime support for CloudABI binaries.
+options 	COMPAT_CLOUDABI64
 
 # Enable Linux ABI emulation
 #XXX#options 	COMPAT_LINUX

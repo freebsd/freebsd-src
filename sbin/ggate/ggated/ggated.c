@@ -906,8 +906,8 @@ handshake(struct sockaddr *from, int sfd)
 
 	ex = exports_find(from, &cinit, conn);
 	if (ex == NULL) {
-		connection_remove(conn);
 		sendfail(sfd, errno, NULL);
+		connection_remove(conn);
 		return (0);
 	}
 	if (conn->c_mediasize == 0) {

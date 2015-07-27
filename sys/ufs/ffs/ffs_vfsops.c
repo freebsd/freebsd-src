@@ -1055,8 +1055,7 @@ ffs_mountfs(devvp, mp, td)
 	 */
 	MNT_ILOCK(mp);
 	mp->mnt_kern_flag |= MNTK_LOOKUP_SHARED | MNTK_EXTENDED_SHARED |
-	    MNTK_NO_IOPF | MNTK_UNMAPPED_BUFS | MNTK_SUSPENDABLE |
-	    MNTK_USES_BCACHE;
+	    MNTK_NO_IOPF | MNTK_UNMAPPED_BUFS | MNTK_USES_BCACHE;
 	MNT_IUNLOCK(mp);
 #ifdef UFS_EXTATTR
 #ifdef UFS_EXTATTR_AUTOSTART
@@ -1978,12 +1977,19 @@ ffs_backgroundwritedone(struct buf *bp)
 	BO_LOCK(bufobj);
 	if ((origbp = gbincore(bp->b_bufobj, bp->b_lblkno)) == NULL)
 		panic("backgroundwritedone: lost buffer");
+
+	/*
+	 * We should mark the cylinder group buffer origbp as
+	 * dirty, to not loose the failed write.
+	 */
+	if ((bp->b_ioflags & BIO_ERROR) != 0)
+		origbp->b_vflags |= BV_BKGRDERR;
 	BO_UNLOCK(bufobj);
 	/*
 	 * Process dependencies then return any unfinished ones.
 	 */
 	pbrelvp(bp);
-	if (!LIST_EMPTY(&bp->b_dep))
+	if (!LIST_EMPTY(&bp->b_dep) && (bp->b_ioflags & BIO_ERROR) == 0)
 		buf_complete(bp);
 #ifdef SOFTUPDATES
 	if (!LIST_EMPTY(&bp->b_dep))
@@ -1995,6 +2001,15 @@ ffs_backgroundwritedone(struct buf *bp)
 	 */
 	bp->b_flags |= B_NOCACHE;
 	bp->b_flags &= ~B_CACHE;
+
+	/*
+	 * Prevent brelse() from trying to keep and re-dirtying bp on
+	 * errors. It causes b_bufobj dereference in
+	 * bdirty()/reassignbuf(), and b_bufobj was cleared in
+	 * pbrelvp() above.
+	 */
+	if ((bp->b_ioflags & BIO_ERROR) != 0)
+		bp->b_flags |= B_INVAL;
 	bufdone(bp);
 	BO_LOCK(bufobj);
 	/*
@@ -2056,6 +2071,7 @@ ffs_bufwrite(struct buf *bp)
 		if (bp->b_vflags & BV_BKGRDINPROG)
 			panic("bufwrite: still writing");
 	}
+	bp->b_vflags &= ~BV_BKGRDERR;
 	BO_UNLOCK(bp->b_bufobj);
 
 	/*
@@ -2078,7 +2094,7 @@ ffs_bufwrite(struct buf *bp)
 		if (newbp == NULL)
 			goto normal_write;
 
-		KASSERT((bp->b_flags & B_UNMAPPED) == 0, ("Unmapped cg"));
+		KASSERT(buf_mapped(bp), ("Unmapped cg"));
 		memcpy(newbp->b_data, bp->b_data, bp->b_bufsize);
 		BO_LOCK(bp->b_bufobj);
 		bp->b_vflags |= BV_BKGRDINPROG;

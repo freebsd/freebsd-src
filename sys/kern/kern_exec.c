@@ -359,7 +359,7 @@ do_execve(td, args, mac_p)
 	struct vnode *tracevp = NULL;
 	struct ucred *tracecred = NULL;
 #endif
-	struct vnode *textvp = NULL, *binvp;
+	struct vnode *oldtextvp = NULL, *newtextvp;
 	cap_rights_t rights;
 	int credential_changing;
 	int textset;
@@ -433,20 +433,20 @@ interpret:
 		if (error)
 			goto exec_fail;
 
-		binvp = nd.ni_vp;
-		imgp->vp = binvp;
+		newtextvp = nd.ni_vp;
+		imgp->vp = newtextvp;
 	} else {
 		AUDIT_ARG_FD(args->fd);
 		/*
 		 * Descriptors opened only with O_EXEC or O_RDONLY are allowed.
 		 */
 		error = fgetvp_exec(td, args->fd,
-		    cap_rights_init(&rights, CAP_FEXECVE), &binvp);
+		    cap_rights_init(&rights, CAP_FEXECVE), &newtextvp);
 		if (error)
 			goto exec_fail;
-		vn_lock(binvp, LK_EXCLUSIVE | LK_RETRY);
-		AUDIT_ARG_VNODE1(binvp);
-		imgp->vp = binvp;
+		vn_lock(newtextvp, LK_EXCLUSIVE | LK_RETRY);
+		AUDIT_ARG_VNODE1(newtextvp);
+		imgp->vp = newtextvp;
 	}
 
 	/*
@@ -523,13 +523,13 @@ interpret:
 		if (args->fname != NULL)
 			NDFREE(&nd, NDF_ONLY_PNBUF);
 #ifdef MAC
-		mac_execve_interpreter_enter(binvp, &interpvplabel);
+		mac_execve_interpreter_enter(newtextvp, &interpvplabel);
 #endif
 		if (imgp->opened) {
-			VOP_CLOSE(binvp, FREAD, td->td_ucred, td);
+			VOP_CLOSE(newtextvp, FREAD, td->td_ucred, td);
 			imgp->opened = 0;
 		}
-		vput(binvp);
+		vput(newtextvp);
 		vm_object_deallocate(imgp->object);
 		imgp->object = NULL;
 		/* set new name to that of the interpreter */
@@ -580,13 +580,20 @@ interpret:
 	else
 		suword(--stack_base, imgp->args->argc);
 
-	/*
-	 * For security and other reasons, the file descriptor table cannot
-	 * be shared after an exec.
-	 */
-	fdunshare(td);
-	/* close files on exec */
-	fdcloseexec(td);
+	if (args->fdp != NULL) {
+		/* Install a brand new file descriptor table. */
+		fdinstall_remapped(td, args->fdp);
+		args->fdp = NULL;
+	} else {
+		/*
+		 * Keep on using the existing file descriptor table. For
+		 * security and other reasons, the file descriptor table
+		 * cannot be shared after an exec.
+		 */
+		fdunshare(td);
+		/* close files on exec */
+		fdcloseexec(td);
+	}
 
 	/*
 	 * Malloc things before we need locks.
@@ -599,9 +606,6 @@ interpret:
 	}
 
 	vn_lock(imgp->vp, LK_SHARED | LK_RETRY);
-
-	/* Get a reference to the vnode prior to locking the proc */
-	VREF(binvp);
 
 	/*
 	 * For security and other reasons, signal handlers cannot
@@ -633,7 +637,7 @@ interpret:
 	if (args->fname)
 		bcopy(nd.ni_cnd.cn_nameptr, p->p_comm,
 		    min(nd.ni_cnd.cn_namelen, MAXCOMLEN));
-	else if (vn_commname(binvp, p->p_comm, sizeof(p->p_comm)) != 0)
+	else if (vn_commname(newtextvp, p->p_comm, sizeof(p->p_comm)) != 0)
 		bcopy(fexecv_proc_title, p->p_comm, sizeof(fexecv_proc_title));
 	bcopy(p->p_comm, td->td_name, sizeof(td->td_name));
 #ifdef KTR
@@ -767,11 +771,11 @@ interpret:
 	}
 
 	/*
-	 * Store the vp for use in procfs.  This vnode was referenced prior
-	 * to locking the proc lock.
+	 * Store the vp for use in procfs.  This vnode was referenced by namei
+	 * or fgetvp_exec.
 	 */
-	textvp = p->p_textvp;
-	p->p_textvp = binvp;
+	oldtextvp = p->p_textvp;
+	p->p_textvp = newtextvp;
 
 #ifdef KDTRACE_HOOKS
 	/*
@@ -848,10 +852,8 @@ done1:
 	/*
 	 * Handle deferred decrement of ref counts.
 	 */
-	if (textvp != NULL)
-		vrele(textvp);
-	if (error != 0)
-		vrele(binvp);
+	if (oldtextvp != NULL)
+		vrele(oldtextvp);
 #ifdef KTRACE
 	if (tracevp != NULL)
 		vrele(tracevp);
@@ -877,7 +879,10 @@ exec_fail_dealloc:
 			NDFREE(&nd, NDF_ONLY_PNBUF);
 		if (imgp->opened)
 			VOP_CLOSE(imgp->vp, FREAD, td->td_ucred, td);
-		vput(imgp->vp);
+		if (error != 0)
+			vput(imgp->vp);
+		else
+			VOP_UNLOCK(imgp->vp, 0);
 	}
 
 	if (imgp->object != NULL)
@@ -915,7 +920,7 @@ done2:
 
 	if (error && imgp->vmspace_destroyed) {
 		/* sorry, no more process anymore. exit gracefully */
-		exit1(td, W_EXITCODE(0, SIGABRT));
+		exit1(td, 0, SIGABRT);
 		/* NOT REACHED */
 	}
 
@@ -1096,7 +1101,7 @@ exec_new_vmspace(imgp, sv)
 	 * are still used to enforce the stack rlimit on the process stack.
 	 */
 	vmspace->vm_ssize = sgrowsiz >> PAGE_SHIFT;
-	vmspace->vm_maxsaddr = (char *)sv->sv_usrstack - ssiz;
+	vmspace->vm_maxsaddr = (char *)stack_addr;
 
 	return (0);
 }
@@ -1199,6 +1204,71 @@ err_exit:
 	return (error);
 }
 
+int
+exec_copyin_data_fds(struct thread *td, struct image_args *args,
+    const void *data, size_t datalen, const int *fds, size_t fdslen)
+{
+	struct filedesc *ofdp;
+	const char *p;
+	int *kfds;
+	int error;
+
+	memset(args, '\0', sizeof(*args));
+	ofdp = td->td_proc->p_fd;
+	if (datalen >= ARG_MAX || fdslen > ofdp->fd_lastfile + 1)
+		return (E2BIG);
+	error = exec_alloc_args(args);
+	if (error != 0)
+		return (error);
+
+	args->begin_argv = args->buf;
+	args->stringspace = ARG_MAX;
+
+	if (datalen > 0) {
+		/*
+		 * Argument buffer has been provided. Copy it into the
+		 * kernel as a single string and add a terminating null
+		 * byte.
+		 */
+		error = copyin(data, args->begin_argv, datalen);
+		if (error != 0)
+			goto err_exit;
+		args->begin_argv[datalen] = '\0';
+		args->endp = args->begin_argv + datalen + 1;
+		args->stringspace -= datalen + 1;
+
+		/*
+		 * Traditional argument counting. Count the number of
+		 * null bytes.
+		 */
+		for (p = args->begin_argv; p < args->endp; ++p)
+			if (*p == '\0')
+				++args->argc;
+	} else {
+		/* No argument buffer provided. */
+		args->endp = args->begin_argv;
+	}
+	/* There are no environment variables. */
+	args->begin_envv = args->endp;
+
+	/* Create new file descriptor table. */
+	kfds = malloc(fdslen * sizeof(int), M_TEMP, M_WAITOK);
+	error = copyin(fds, kfds, fdslen * sizeof(int));
+	if (error != 0) {
+		free(kfds, M_TEMP);
+		goto err_exit;
+	}
+	error = fdcopy_remapped(ofdp, kfds, fdslen, &args->fdp);
+	free(kfds, M_TEMP);
+	if (error != 0)
+		goto err_exit;
+
+	return (0);
+err_exit:
+	exec_free_args(args);
+	return (error);
+}
+
 /*
  * Allocate temporary demand-paged, zero-filled memory for the file name,
  * argument, and environment strings.  Returns zero if the allocation succeeds
@@ -1225,6 +1295,8 @@ exec_free_args(struct image_args *args)
 		free(args->fname_buf, M_TEMP);
 		args->fname_buf = NULL;
 	}
+	if (args->fdp != NULL)
+		fdescfree_remapped(args->fdp);
 }
 
 /*

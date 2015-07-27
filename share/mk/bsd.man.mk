@@ -186,17 +186,11 @@ _maninstall: ${MAN}
 .endif
 .endfor
 .else
-	@set ${.ALLSRC:C/\.([^.]*)$/.\1 \1/}; \
-	while : ; do \
-		case $$# in \
-			0) break;; \
-			1) echo "warn: missing extension: $$1"; break;; \
-		esac; \
-		page=$$1; shift; sect=$$1; shift; \
-		d=${DESTDIR}${MANDIR}$${sect}${MANSUBDIR}; \
-		${ECHO} ${MINSTALL} $${page} $${d}; \
-		${MINSTALL} $${page} $${d}; \
-	done
+.for _page _sect in ${.ALLSRC:C/\.([^.]*)$/.\1 \1/}
+	@d=${DESTDIR}${MANDIR}${_sect}${MANSUBDIR}; \
+	${ECHO} ${MINSTALL} ${_page} $${d}; \
+	${MINSTALL} $${page} $${d};
+.endfor
 .if defined(MANBUILDCAT) && !empty(MANBUILDCAT)
 .for __page in ${MAN}
 	${MINSTALL} ${__page:T:S/$/${CATEXT}/} \
@@ -217,35 +211,21 @@ _maninstall: ${MAN}
 .endif
 
 .if !defined(NO_MLINKS) && defined(MLINKS) && !empty(MLINKS)
-	@set ${MLINKS:C/\.([^.]*)$/.\1 \1/}; \
-	while : ; do \
-		case $$# in \
-			0) break;; \
-			[123]) echo "warn: empty MLINK: $$1 $$2 $$3"; break;; \
-		esac; \
-		name=$$1; shift; sect=$$1; shift; \
-		l=${DESTDIR}${MANDIR}$${sect}${MANSUBDIR}/$$name; \
-		name=$$1; shift; sect=$$1; shift; \
-		t=${DESTDIR}${MANDIR}$${sect}${MANSUBDIR}/$$name; \
-		${ECHO} $${t}${ZEXT} -\> $${l}${ZEXT}; \
-		rm -f $${t} $${t}${MCOMPRESS_EXT}; \
-		${INSTALL_LINK} $${l}${ZEXT} $${t}${ZEXT}; \
-	done
+.for _oname _osect _dname _dsect in ${MLINKS:C/\.([^.]*)$/.\1 \1/}
+	@l=${DESTDIR}${MANDIR}${_osect}${MANSUBDIR}/${_oname}; \
+	t=${DESTDIR}${MANDIR}${_dsect}${MANSUBDIR}/${_dname}; \
+	${ECHO} $${t}${ZEXT} -\> $${l}${ZEXT}; \
+	rm -f $${t} $${t}${MCOMPRESS_EXT}; \
+	${INSTALL_LINK} $${l}${ZEXT} $${t}${ZEXT}
+.endfor
 .if defined(MANBUILDCAT) && !empty(MANBUILDCAT)
-	@set ${MLINKS:C/\.([^.]*)$/.\1 \1/}; \
-	while : ; do \
-		case $$# in \
-			0) break;; \
-			[123]) echo "warn: empty MLINK: $$1 $$2 $$3"; break;; \
-		esac; \
-		name=$$1; shift; sect=$$1; shift; \
-		l=${DESTDIR}${CATDIR}$${sect}${MANSUBDIR}/$$name; \
-		name=$$1; shift; sect=$$1; shift; \
-		t=${DESTDIR}${CATDIR}$${sect}${MANSUBDIR}/$$name; \
-		${ECHO} $${t}${ZEXT} -\> $${l}${ZEXT}; \
-		rm -f $${t} $${t}${MCOMPRESS_EXT}; \
-		${INSTALL_LINK} $${l}${ZEXT} $${t}${ZEXT}; \
-	done
+.for _oname _osect _dname _dsect in ${MLINKS:C/\.([^.]*)$/.\1 \1/}
+	@l=${DESTDIR}${MANDIR}${_osect}${MANSUBDIR}/${_oname}; \
+	t=${DESTDIR}${MANDIR}${_dsect}${MANSUBDIR}/${_dname}; \
+	${ECHO} $${t}${ZEXT} -\> $${l}${ZEXT}; \
+	rm -f $${t} $${t}${MCOMPRESS_EXT}; \
+	${INSTALL_LINK} $${l}${ZEXT} $${t}${ZEXT}
+.endfor
 .endif
 .endif
 

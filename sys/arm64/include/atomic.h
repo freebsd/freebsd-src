@@ -728,6 +728,34 @@ atomic_subtract_rel_64(volatile uint64_t *p, uint64_t val)
 	);
 }
 
+static __inline void
+atomic_thread_fence_acq(void)
+{
+
+	dmb(ld);
+}
+
+static __inline void
+atomic_thread_fence_rel(void)
+{
+
+	dmb(sy);
+}
+
+static __inline void
+atomic_thread_fence_acq_rel(void)
+{
+
+	dmb(sy);
+}
+
+static __inline void
+atomic_thread_fence_seq_cst(void)
+{
+
+	dmb(sy);
+}
+
 #define	atomic_add_rel_long		atomic_add_rel_64
 #define	atomic_clear_rel_long		atomic_clear_rel_64
 #define	atomic_cmpset_rel_long		atomic_cmpset_rel_64

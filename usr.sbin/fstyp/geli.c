@@ -2,9 +2,6 @@
  * Copyright (c) 2015 Allan Jude <allanjude@FreeBSD.org>
  * All rights reserved.
  *
- * This software was developed by Edward Tomasz Napierala under sponsorship
- * from the FreeBSD Foundation.
- *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:

@@ -27,7 +27,7 @@ run_iovctl()
 
 iovctl_start()
 {
-	run_iovctl -E
+	run_iovctl -C
 }
 
 iovctl_stop()

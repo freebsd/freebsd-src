@@ -29,7 +29,7 @@
 #ifndef _TOOLS_BUS_SPACE_H_
 #define	_TOOLS_BUS_SPACE_H_
 
-int bs_map(const char *dev);
+int bs_map(const char *dev, const char *res);
 int bs_read(int rid, off_t ofs, void *buf, ssize_t bufsz);
 int bs_subregion(int rid0, long ofs, long sz);
 int bs_unmap(int rid);

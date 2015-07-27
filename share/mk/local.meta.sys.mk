@@ -8,6 +8,7 @@
 MK_INSTALL_AS_USER= yes
 
 .if empty(OBJROOT) || ${.MAKE.LEVEL} == 0
+.if !make(showconfig)
 .if defined(MAKEOBJDIRPREFIX) && exists(${MAKEOBJDIRPREFIX})
 .warning MAKEOBJDIRPREFIX not supported; setting MAKEOBJDIR...
 # put things approximately where they want
@@ -19,6 +20,7 @@ MAKEOBJDIRPREFIX=
 .export-env MAKEOBJDIRPREFIX MAKEOBJDIR
 # now for our own use
 MAKEOBJDIR= ${.CURDIR:S,${SRCTOP},${OBJTOP},}
+.endif
 .endif
 .if !empty(SB)
 SB_OBJROOT ?= ${SB}/obj/

@@ -6,7 +6,7 @@
 #
 # EDIT THIS FILE WITH CAUTION  (invoke-ntp.conf.texi)
 #
-# It has been AutoGen-ed  April  7, 2015 at 04:25:50 AM by AutoGen 5.18.5pre4
+# It has been AutoGen-ed  June 29, 2015 at 04:30:28 PM by AutoGen 5.18.5
 # From the definitions    ntp.conf.def
 # and the template file   agtexi-file.tpl
 @end ignore
@@ -2291,6 +2291,9 @@ This implies that
 must have write permission for the directory the
 drift file is located in, and that file system links, symbolic or
 otherwise, should be avoided.
+@item @code{dscp} @kbd{value}
+This option specifies the Differentiated Services Control Point (DSCP) value,
+a 6-bit code.  The default value is 46, signifying Expedited Forwarding.
 @item @code{enable} @code{[@code{auth} | @code{bclient} | @code{calibrate} | @code{kernel} | @code{mode7} | @code{monitor} | @code{ntp} | @code{stats}]}
 @item @code{disable} @code{[@code{auth} | @code{bclient} | @code{calibrate} | @code{kernel} | @code{mode7} | @code{monitor} | @code{ntp} | @code{stats}]}
 Provides a way to enable or disable various server options.
@@ -2376,6 +2379,19 @@ This option is useful for sites that run
 @code{ntpd(1ntpdmdoc)}
 on multiple hosts, with (mostly) common options (e.g., a
 restriction list).
+@item @code{leapsmearinterval} @kbd{seconds}
+This EXPERIMENTAL option is only available if
+@code{ntpd(1ntpdmdoc)}
+was built with the
+@code{--enable-leap-smear}
+option to the
+@code{configure}
+script.
+It specifies the interval over which a leap second correction will be applied.
+Recommended values for this option are between
+7200 (2 hours) and 86400 (24 hours).
+.Sy DO NOT USE THIS OPTION ON PUBLIC-ACCESS SERVERS!
+See http://bugs.ntp.org/2855 for more information.
 @item @code{logconfig} @kbd{configkeyword}
 This command controls the amount and type of output written to
 the system
@@ -2570,11 +2586,11 @@ option).
 The default is 32 megabytes. Setting this to zero will prevent any attemp to lock memory.
 @item @code{stacksize} @kbd{N4kPages}
 Specifies the maximum size of the process stack on systems with the
-@item @code{filenum} @kbd{Nfiledescriptors}
-Specifies the maximum number of file descriptors ntpd may have open at once. Defaults to the system default.
 @code{mlockall()}
 function.
 Defaults to 50 4k pages (200 4k pages in OpenBSD).
+@item @code{filenum} @kbd{Nfiledescriptors}
+Specifies the maximum number of file descriptors ntpd may have open at once. Defaults to the system default.
 @end table
 @item @code{trap} @kbd{host_address} @code{[@code{port} @kbd{port_number}]} @code{[@code{interface} @kbd{interface_address}]}
 This command configures a trap receiver at the given host

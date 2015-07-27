@@ -578,10 +578,10 @@ sctp_queue_data_to_stream(struct sctp_tcb *stcb, struct sctp_association *asoc,
 		sctp_log_strm_del(control, NULL, SCTP_STR_LOG_FROM_INTO_STRD);
 	}
 	SCTPDBG(SCTP_DEBUG_INDATA1,
-	    "queue to stream called for ssn:%u lastdel:%u nxt:%u\n",
-	    (uint32_t) control->sinfo_stream,
-	    (uint32_t) strm->last_sequence_delivered,
-	    (uint32_t) nxt_todel);
+	    "queue to stream called for sid:%u ssn:%u tsn:%u lastdel:%u nxt:%u\n",
+	    (uint32_t) control->sinfo_stream, (uint32_t) control->sinfo_ssn,
+	    (uint32_t) control->sinfo_tsn,
+	    (uint32_t) strm->last_sequence_delivered, (uint32_t) nxt_todel);
 	if (SCTP_SSN_GE(strm->last_sequence_delivered, control->sinfo_ssn)) {
 		/* The incoming sseq is behind where we last delivered? */
 		SCTPDBG(SCTP_DEBUG_INDATA1, "Duplicate S-SEQ:%d delivered:%d from peer, Abort association\n",
@@ -602,6 +602,20 @@ protocol_error:
 		return;
 
 	}
+#if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
+	struct socket *so;
+
+	so = SCTP_INP_SO(stcb->sctp_ep);
+	atomic_add_int(&stcb->asoc.refcnt, 1);
+	SCTP_TCB_UNLOCK(stcb);
+	SCTP_SOCKET_LOCK(so, 1);
+	SCTP_TCB_LOCK(stcb);
+	atomic_subtract_int(&stcb->asoc.refcnt, 1);
+	if (stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_SOCKET_GONE) {
+		SCTP_SOCKET_UNLOCK(so, 1);
+		return;
+	}
+#endif
 	if (nxt_todel == control->sinfo_ssn) {
 		/* can be delivered right away? */
 		if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_STR_LOGGING_ENABLE) {
@@ -617,7 +631,7 @@ protocol_error:
 		sctp_add_to_readq(stcb->sctp_ep, stcb,
 		    control,
 		    &stcb->sctp_socket->so_rcv, 1,
-		    SCTP_READ_LOCK_NOT_HELD, SCTP_SO_NOT_LOCKED);
+		    SCTP_READ_LOCK_NOT_HELD, SCTP_SO_LOCKED);
 		TAILQ_FOREACH_SAFE(control, &strm->inqueue, next, at) {
 			/* all delivered */
 			nxt_todel = strm->last_sequence_delivered + 1;
@@ -641,7 +655,7 @@ protocol_error:
 				    control,
 				    &stcb->sctp_socket->so_rcv, 1,
 				    SCTP_READ_LOCK_NOT_HELD,
-				    SCTP_SO_NOT_LOCKED);
+				    SCTP_SO_LOCKED);
 				continue;
 			}
 			break;
@@ -653,6 +667,9 @@ protocol_error:
 		 * to put it on the queue.
 		 */
 		if (SCTP_TSN_GE(asoc->cumulative_tsn, control->sinfo_tsn)) {
+#if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
+			SCTP_SOCKET_UNLOCK(so, 1);
+#endif
 			goto protocol_error;
 		}
 		if (TAILQ_EMPTY(&strm->inqueue)) {
@@ -699,6 +716,9 @@ protocol_error:
 						control->whoFrom = NULL;
 					}
 					sctp_free_a_readq(stcb, control);
+#if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
+					SCTP_SOCKET_UNLOCK(so, 1);
+#endif
 					return;
 				} else {
 					if (TAILQ_NEXT(at, next) == NULL) {
@@ -718,6 +738,9 @@ protocol_error:
 			}
 		}
 	}
+#if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
+	SCTP_SOCKET_UNLOCK(so, 1);
+#endif
 }
 
 /*
@@ -1886,6 +1909,7 @@ finish_express_del:
 
 		sctp_reset_in_stream(stcb, liste->number_entries, liste->list_of_streams);
 		TAILQ_REMOVE(&asoc->resetHead, liste, next_resp);
+		sctp_send_deferred_reset_response(stcb, liste, SCTP_STREAM_RESET_RESULT_PERFORMED);
 		SCTP_FREE(liste, SCTP_M_STRESET);
 		/* sa_ignore FREED_MEMORY */
 		liste = TAILQ_FIRST(&asoc->resetHead);

@@ -5,7 +5,7 @@
 # Makefile for creating an EC2 AMI from a disk image.
 #
 
-.if ${BRANCH} == "CURRENT" || ${BRANCH} == "STABLE"
+.if ${BRANCH} == "CURRENT" || ${BRANCH} == "STABLE" || ${BRANCH} == "PRERELEASE"
 AMINAMESUFFIX!=	date +-%Y-%m-%d
 .endif
 .if defined(EC2PUBLIC)

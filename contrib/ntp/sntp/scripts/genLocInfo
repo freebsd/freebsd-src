@@ -79,6 +79,14 @@ ${V}echo "Looking for <$lf>" >&2
     case "$LF" in
      '')
 	case "$CVO_OSNAME" in
+	 raspbian*)
+	    lf=loc/debian
+${V}echo "Looking for <$lf>" >&2
+	    if test -f $lf
+	    then
+		LF=$lf
+	    fi
+	    ;;
 	 redhat* | fedora*)
 	    lf=loc/redhat
 ${V}echo "Looking for <$lf>" >&2

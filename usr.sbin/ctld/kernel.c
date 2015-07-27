@@ -122,6 +122,8 @@ struct cctl_lun {
 struct cctl_port {
 	uint32_t port_id;
 	char *port_name;
+	int pp;
+	int vp;
 	int cfiscsi_state;
 	char *cfiscsi_target;
 	uint16_t cfiscsi_portal_group_tag;
@@ -334,6 +336,10 @@ cctl_end_pelement(void *user_data, const char *name)
 	if (strcmp(name, "port_name") == 0) {
 		cur_port->port_name = str;
 		str = NULL;
+	} else if (strcmp(name, "physical_port") == 0) {
+		cur_port->pp = strtoul(str, NULL, 0);
+	} else if (strcmp(name, "virtual_port") == 0) {
+		cur_port->vp = strtoul(str, NULL, 0);
 	} else if (strcmp(name, "cfiscsi_target") == 0) {
 		cur_port->cfiscsi_target = str;
 		str = NULL;
@@ -391,7 +397,7 @@ conf_new_from_kernel(void)
 	struct cctl_lun *lun;
 	struct cctl_port *port;
 	XML_Parser parser;
-	char *str;
+	char *str, *name;
 	int len, retval;
 
 	bzero(&devlist, sizeof(devlist));
@@ -500,18 +506,28 @@ retry_port:
 
 	conf = conf_new();
 
+	name = NULL;
 	STAILQ_FOREACH(port, &devlist.port_list, links) {
+		if (name)
+			free(name);
+		if (port->pp == 0 && port->vp == 0)
+			name = checked_strdup(port->port_name);
+		else if (port->vp == 0)
+			asprintf(&name, "%s/%d", port->port_name, port->pp);
+		else
+			asprintf(&name, "%s/%d/%d", port->port_name, port->pp,
+			    port->vp);
 
 		if (port->cfiscsi_target == NULL) {
 			log_debugx("CTL port %u \"%s\" wasn't managed by ctld; ",
-			    port->port_id, port->port_name);
-			pp = pport_find(conf, port->port_name);
+			    port->port_id, name);
+			pp = pport_find(conf, name);
 			if (pp == NULL) {
 #if 0
 				log_debugx("found new kernel port %u \"%s\"",
-				    port->port_id, port->port_name);
+				    port->port_id, name);
 #endif
-				pp = pport_new(conf, port->port_name, port->port_id);
+				pp = pport_new(conf, name, port->port_id);
 				if (pp == NULL) {
 					log_warnx("pport_new failed");
 					continue;
@@ -560,6 +576,8 @@ retry_port:
 		}
 		cp->p_ctl_port = port->port_id;
 	}
+	if (name)
+		free(name);
 
 	STAILQ_FOREACH(lun, &devlist.lun_list, links) {
 		struct cctl_lun_nv *nv;

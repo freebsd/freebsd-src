@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 .macro	save_registers el
 .if \el == 1
 	mov	x18, sp
+	sub	sp, sp, #128
 .endif
 	stp	x28, x29, [sp, #-16]!
 	stp	x26, x27, [sp, #-16]!

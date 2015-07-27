@@ -12,9 +12,7 @@ NETBSD_ATF_TESTS_C+=		clock_gettime_test
 NETBSD_ATF_TESTS_C+=		connect_test
 NETBSD_ATF_TESTS_C+=		dup_test
 NETBSD_ATF_TESTS_C+=		fsync_test
-.if ${MACHINE} != "arm64" # ARM64TODO: Missing makecontext
 NETBSD_ATF_TESTS_C+=		getcontext_test
-.endif
 NETBSD_ATF_TESTS_C+=		getgroups_test
 NETBSD_ATF_TESTS_C+=		getitimer_test
 NETBSD_ATF_TESTS_C+=		getlogin_test

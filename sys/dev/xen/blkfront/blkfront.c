@@ -156,7 +156,7 @@ xbd_free_command(struct xbd_command *cm)
 }
 
 static void
-mksegarray(bus_dma_segment_t *segs, int nsegs,
+xbd_mksegarray(bus_dma_segment_t *segs, int nsegs,
     grant_ref_t * gref_head, int otherend_id, int readonly,
     grant_ref_t * sg_ref, blkif_request_segment_t * sg)
 {
@@ -230,7 +230,7 @@ xbd_queue_cb(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 	ring_req->handle = (blkif_vdev_t)(uintptr_t)sc->xbd_disk;
 	ring_req->nr_segments = nsegs;
 	cm->cm_nseg = nsegs;
-	mksegarray(segs, nsegs, &cm->cm_gref_head,
+	xbd_mksegarray(segs, nsegs, &cm->cm_gref_head,
 	    xenbus_get_otherend_id(sc->xbd_dev),
 	    cm->cm_operation == BLKIF_OP_WRITE,
 	    cm->cm_sg_refs, ring_req->seg);

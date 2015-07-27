@@ -30,6 +30,8 @@
  */
 
 #include "assym.s"
+#include "opt_kstack_pages.h"
+#include "opt_sched.h"
 
 #include <machine/asm.h>
 
@@ -39,10 +41,6 @@ __FBSDID("$FreeBSD$");
  * void cpu_throw(struct thread *old, struct thread *new)
  */
 ENTRY(cpu_throw)
-#ifdef SMP
-#error cpu_throw needs to be ported to support SMP
-#endif
-
 #ifdef VFP
 	/* Backup the new thread pointer around a call to C code */
 	mov	x19, x1
@@ -100,10 +98,6 @@ END(cpu_throw)
  * x3 to x7, x16 and x17 are caller saved
  */
 ENTRY(cpu_switch)
-#ifdef SMP
-#error cpu_switch needs to be ported to support SMP
-#endif
-
 	/* Store the new curthread */
 	str	x1, [x18, #PC_CURTHREAD]
 	/* And the new pcb */
@@ -167,7 +161,15 @@ ENTRY(cpu_switch)
 	/* Release the old thread */
 	str	x2, [x0, #TD_LOCK]
 #if defined(SCHED_ULE) && defined(SMP)
-#error We may need to wait for the lock here
+	/* Read the value in blocked_lock */
+	ldr	x0, =_C_LABEL(blocked_lock)
+	ldr	x1, [x0]
+	/* Load curthread */
+	ldr	x2, [x18, #PC_CURTHREAD]
+1:
+	ldr	x3, [x2, #TD_LOCK]
+	cmp	x3, x1
+	b.eq	1b
 #endif
 
 	/* Restore the registers */
@@ -246,10 +248,31 @@ ENTRY(fork_trampoline)
 END(fork_trampoline)
 
 ENTRY(savectx)
-	adr	x0, .Lsavectx_panic_str
-	bl	panic
+	/* Store the callee-saved registers */
+	stp	x8,  x9,  [x0, #PCB_REGS + 8 * 8]
+	stp	x10, x11, [x0, #PCB_REGS + 10 * 8]
+	stp	x12, x13, [x0, #PCB_REGS + 12 * 8]
+	stp	x14, x15, [x0, #PCB_REGS + 14 * 8]
+	stp	x16, x17, [x0, #PCB_REGS + 16 * 8]
+	stp	x18, x19, [x0, #PCB_REGS + 18 * 8]
+	stp	x20, x21, [x0, #PCB_REGS + 20 * 8]
+	stp	x22, x23, [x0, #PCB_REGS + 22 * 8]
+	stp	x24, x25, [x0, #PCB_REGS + 24 * 8]
+	stp	x26, x27, [x0, #PCB_REGS + 26 * 8]
+	stp	x28, x29, [x0, #PCB_REGS + 28 * 8]
+	str	x30, [x0, #PCB_REGS + 30 * 8]
+	/* And the old stack pointer */
+	mov	x5, sp
+	mrs	x6, tpidr_el0
+	stp	x5, x6, [x0, #PCB_SP]
+
+	/* Store the VFP registers */
+#ifdef VFP
+	mov	x29, lr
+	bl	vfp_save_state
+	mov	lr, x29
+#endif
+
 	ret
-.Lsavectx_panic_str:
-	.asciz "savectx"
 END(savectx)
 

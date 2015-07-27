@@ -62,6 +62,9 @@ milter wants to receive from the MTA.
     <TR><TD>macros</TD>
 	<TD>list of macros (separated by space).
 	Example: "{rcpt_mailer} {rcpt_host}"
+	<BR>
+	An empty string ("", not NULL) can be used to specify that no macros
+	should be sent.
 	</TD></TR>
 
     </TABLE>
@@ -74,7 +77,7 @@ milter wants to receive from the MTA.
 <TD>MI_FAILURE is returned if
 <UL>
 <LI>there is not enough free memory to make a copy of the macro list,
-<LI><CODE>macros</CODE> is <CODE>NULL</CODE> or empty,
+<LI><CODE>macros</CODE> is <CODE>NULL</CODE>,
 <LI><CODE>stage</CODE> is not a valid protocol stage,
 <LI>the macro list for
 <CODE>stage</CODE> has been set before.

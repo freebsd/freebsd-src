@@ -1376,14 +1376,28 @@ enum AcpiSpmiInterfaceTypes
  * December 19, 2014
  *
  * NOTE: There are two versions of the table with the same signature --
- * the client version and the server version.
+ * the client version and the server version. The common PlatformClass
+ * field is used to differentiate the two types of tables.
  *
  ******************************************************************************/
 
-typedef struct acpi_table_tcpa_client
+typedef struct acpi_table_tcpa_hdr
 {
     ACPI_TABLE_HEADER       Header;             /* Common ACPI table header */
     UINT16                  PlatformClass;
+
+} ACPI_TABLE_TCPA_HDR;
+
+/*
+ * Values for PlatformClass above.
+ * This is how the client and server subtables are differentiated
+ */
+#define ACPI_TCPA_CLIENT_TABLE          0
+#define ACPI_TCPA_SERVER_TABLE          1
+
+
+typedef struct acpi_table_tcpa_client
+{
     UINT32                  MinimumLogLength;   /* Minimum length for the event log area */
     UINT64                  LogAddress;         /* Address of the event log area */
 
@@ -1391,8 +1405,6 @@ typedef struct acpi_table_tcpa_client
 
 typedef struct acpi_table_tcpa_server
 {
-    ACPI_TABLE_HEADER       Header;             /* Common ACPI table header */
-    UINT16                  PlatformClass;
     UINT16                  Reserved;
     UINT64                  MinimumLogLength;   /* Minimum length for the event log area */
     UINT64                  LogAddress;         /* Address of the event log area */

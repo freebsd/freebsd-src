@@ -5,6 +5,7 @@ arm/arm/pmu.c			standard
 arm64/acpica/acpi_machdep.c	optional	acpi
 arm64/acpica/OsdEnvironment.c	optional	acpi
 arm64/acpica/acpi_wakeup.c	optional	acpi
+arm64/acpica/pci_cfgreg.c	optional	acpi	pci
 arm64/arm64/autoconf.c		standard
 arm64/arm64/bcopy.c		standard
 arm64/arm64/bus_machdep.c	standard
@@ -27,6 +28,7 @@ arm64/arm64/gic_acpi.c		optional	acpi
 arm64/arm64/gic_fdt.c		optional	fdt
 arm64/arm64/gic_v3.c		standard
 arm64/arm64/gic_v3_fdt.c	optional	fdt
+arm64/arm64/gic_v3_its.c	standard
 arm64/arm64/identcpu.c		standard
 arm64/arm64/intr_machdep.c	standard
 arm64/arm64/in_cksum.c		optional	inet | inet6
@@ -34,6 +36,7 @@ arm64/arm64/locore.S		standard	no-obj
 arm64/arm64/machdep.c		standard
 arm64/arm64/mem.c		standard
 arm64/arm64/minidump_machdep.c	standard
+arm64/arm64/mp_machdep.c	optional	smp
 arm64/arm64/nexus.c		standard
 arm64/arm64/pic_if.m		standard
 arm64/arm64/pmap.c		standard
@@ -46,6 +49,8 @@ arm64/arm64/uio_machdep.c	standard
 arm64/arm64/unwind.c		optional	ddb | kdtrace_hooks
 arm64/arm64/vfp.c		standard
 arm64/arm64/vm_machdep.c	standard
+crypto/blowfish/bf_enc.c	optional	crypto | ipsec
+crypto/des/des_enc.c		optional	crypto | ipsec | netsmb
 dev/acpica/acpi_if.m		optional	acpi
 dev/fdt/fdt_arm64.c		optional	fdt
 dev/hwpmc/hwpmc_arm64.c		optional	hwpmc
@@ -66,3 +71,7 @@ libkern/flsl.c			standard
 libkern/flsll.c			standard
 libkern/memmove.c		standard
 libkern/memset.c		standard
+cddl/compat/opensolaris/kern/opensolaris_atomic.c	optional zfs | dtrace compile-with "${CDDL_C}"
+cddl/dev/dtrace/aarch64/dtrace_asm.S			optional dtrace compile-with "${DTRACE_S}"
+cddl/dev/dtrace/aarch64/dtrace_subr.c			optional dtrace compile-with "${DTRACE_C}"
+cddl/dev/fbt/aarch64/fbt_isa.c				optional dtrace_fbt | dtraceall compile-with "${FBT_C}"

@@ -46,12 +46,17 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_map.h>
+#include <vm/vm_param.h>
 #include <vm/vm_extern.h>
 
 #include <machine/frame.h>
 #include <machine/pcb.h>
 #include <machine/pcpu.h>
 #include <machine/vmparam.h>
+
+#ifdef KDTRACE_HOOKS
+#include <sys/dtrace_bsd.h>
+#endif
 
 #ifdef VFP
 #include <machine/vfp.h>
@@ -72,14 +77,17 @@ void do_el1h_sync(struct trapframe *);
 void do_el0_sync(struct trapframe *);
 void do_el0_error(struct trapframe *);
 
+int (*dtrace_invop_jump_addr)(struct trapframe *);
+
 static __inline void
-call_trapsignal(struct thread *td, int sig, u_long code)
+call_trapsignal(struct thread *td, int sig, int code, void *addr)
 {
 	ksiginfo_t ksi;
 
 	ksiginfo_init_trap(&ksi);
 	ksi.ksi_signo = sig;
-	ksi.ksi_code = (int)code;
+	ksi.ksi_code = code;
+	ksi.ksi_addr = addr;
 	trapsignal(td, &ksi);
 }
 
@@ -145,7 +153,7 @@ data_abort(struct trapframe *frame, uint64_t esr, int lower)
 	vm_prot_t ftype;
 	vm_offset_t va;
 	uint64_t far;
-	int error, sig;
+	int error, sig, ucode;
 
 	td = curthread;
 	pcb = td->td_pcb;
@@ -198,13 +206,14 @@ data_abort(struct trapframe *frame, uint64_t esr, int lower)
 		error = vm_fault(map, va, ftype, VM_FAULT_NORMAL);
 	}
 
-	if (error != 0) {
+	if (error != KERN_SUCCESS) {
 		if (lower) {
-			if (error == ENOMEM)
-				sig = SIGKILL;
+			sig = SIGSEGV;
+			if (error == KERN_PROTECTION_FAILURE)
+				ucode = SEGV_ACCERR;
 			else
-				sig = SIGSEGV;
-			call_trapsignal(td, sig, 0);
+				ucode = SEGV_MAPERR;
+			call_trapsignal(td, sig, ucode, (void *)far);
 		} else {
 			if (td->td_intr_nesting_level == 0 &&
 			    pcb->pcb_onfault != 0) {
@@ -230,6 +239,11 @@ do_el1h_sync(struct trapframe *frame)
 	esr = READ_SPECIALREG(esr_el1);
 	exception = ESR_ELx_EXCEPTION(esr);
 
+#ifdef KDTRACE_HOOKS
+	if (dtrace_trap_func != NULL && (*dtrace_trap_func)(frame, exception))
+		return;
+#endif
+
 	/*
 	 * Sanity check we are in an exception er can handle. The IL bit
 	 * is used to indicate the instruction length, except in a few
@@ -244,6 +258,10 @@ do_el1h_sync(struct trapframe *frame)
 	    (exception == EXCP_DATA_ABORT && ((esr & ISS_DATA_ISV) == 0)),
 	    ("Invalid instruction length in exception"));
 
+	CTR4(KTR_TRAP,
+	    "do_el1_sync: curthread: %p, esr %lx, elr: %lx, frame: %p",
+	    curthread, esr, frame->tf_elr, frame);
+
 	switch(exception) {
 	case EXCP_FP_SIMD:
 	case EXCP_TRAP_FP:
@@ -252,6 +270,13 @@ do_el1h_sync(struct trapframe *frame)
 		data_abort(frame, esr, 0);
 		break;
 	case EXCP_BRK:
+#ifdef KDTRACE_HOOKS
+		if ((esr & ESR_ELx_ISS_MASK) == 0x40d && \
+		    dtrace_invop_jump_addr != 0) {
+			dtrace_invop_jump_addr(frame);
+			break;
+		}
+#endif
 	case EXCP_WATCHPT_EL1:
 	case EXCP_SOFTSTP_EL1:
 #ifdef KDB
@@ -279,6 +304,10 @@ do_el0_sync(struct trapframe *frame)
 
 	esr = READ_SPECIALREG(esr_el1);
 	exception = ESR_ELx_EXCEPTION(esr);
+
+	CTR4(KTR_TRAP,
+	    "do_el0_sync: curthread: %p, esr %lx, elr: %lx, frame: %p",
+	    curthread, esr, frame->tf_elr, frame);
 
 	switch(exception) {
 	case EXCP_FP_SIMD:

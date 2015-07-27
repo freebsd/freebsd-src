@@ -125,9 +125,9 @@ cddl/compat/opensolaris/kern/opensolaris_vm.c				optional zfs compile-with "${ZF
 cddl/compat/opensolaris/kern/opensolaris_zone.c				optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/common/acl/acl_common.c			optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/common/avl/avl.c				optional zfs compile-with "${ZFS_C}"
-cddl/contrib/opensolaris/common/nvpair/fnvpair.c			optional zfs compile-with "${ZFS_C}"
-cddl/contrib/opensolaris/common/nvpair/nvpair.c				optional zfs compile-with "${ZFS_C}"
-cddl/contrib/opensolaris/common/nvpair/nvpair_alloc_fixed.c		optional zfs compile-with "${ZFS_C}"
+cddl/contrib/opensolaris/common/nvpair/opensolaris_fnvpair.c		optional zfs compile-with "${ZFS_C}"
+cddl/contrib/opensolaris/common/nvpair/opensolaris_nvpair.c		optional zfs compile-with "${ZFS_C}"
+cddl/contrib/opensolaris/common/nvpair/opensolaris_nvpair_alloc_fixed.c	optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/common/unicode/u8_textprep.c			optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/common/zfs/zfeature_common.c			optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/common/zfs/zfs_comutil.c			optional zfs compile-with "${ZFS_C}"
@@ -246,13 +246,28 @@ cddl/contrib/opensolaris/uts/common/zmod/zutil.c			optional zfs compile-with "${
 cddl/contrib/opensolaris/uts/common/dtrace/dtrace.c	optional dtrace compile-with "${DTRACE_C}" \
 							warning "kernel contains CDDL licensed DTRACE"
 cddl/dev/dtmalloc/dtmalloc.c		optional dtmalloc        | dtraceall compile-with "${CDDL_C}"
-cddl/dev/lockstat/lockstat.c		optional dtrace_lockstat | dtraceall compile-with "${CDDL_C}"
 cddl/dev/profile/profile.c		optional dtrace_profile  | dtraceall compile-with "${CDDL_C}"
 cddl/dev/sdt/sdt.c			optional dtrace_sdt      | dtraceall compile-with "${CDDL_C}"
 cddl/dev/fbt/fbt.c			optional dtrace_fbt      | dtraceall compile-with "${FBT_C}"
 cddl/dev/systrace/systrace.c		optional dtrace_systrace | dtraceall compile-with "${CDDL_C}"
 cddl/dev/prototype.c			optional dtrace_prototype | dtraceall compile-with "${CDDL_C}"
 fs/nfsclient/nfs_clkdtrace.c		optional dtnfscl nfscl   | dtraceall nfscl compile-with "${CDDL_C}"
+compat/cloudabi/cloudabi_clock.c	optional compat_cloudabi64
+compat/cloudabi/cloudabi_errno.c	optional compat_cloudabi64
+compat/cloudabi/cloudabi_fd.c		optional compat_cloudabi64
+compat/cloudabi/cloudabi_file.c		optional compat_cloudabi64
+compat/cloudabi/cloudabi_futex.c	optional compat_cloudabi64
+compat/cloudabi/cloudabi_mem.c		optional compat_cloudabi64
+compat/cloudabi/cloudabi_proc.c		optional compat_cloudabi64
+compat/cloudabi/cloudabi_random.c	optional compat_cloudabi64
+compat/cloudabi/cloudabi_sock.c		optional compat_cloudabi64
+compat/cloudabi/cloudabi_thread.c	optional compat_cloudabi64
+compat/cloudabi64/cloudabi64_fd.c	optional compat_cloudabi64
+compat/cloudabi64/cloudabi64_poll.c	optional compat_cloudabi64
+compat/cloudabi64/cloudabi64_sock.c	optional compat_cloudabi64
+compat/cloudabi64/cloudabi64_syscalls.c	optional compat_cloudabi64
+compat/cloudabi64/cloudabi64_sysent.c	optional compat_cloudabi64
+compat/cloudabi64/cloudabi64_thread.c	optional compat_cloudabi64
 compat/freebsd32/freebsd32_capability.c	optional compat_freebsd32
 compat/freebsd32/freebsd32_ioctl.c	optional compat_freebsd32
 compat/freebsd32/freebsd32_misc.c	optional compat_freebsd32
@@ -269,6 +284,7 @@ contrib/dev/acpica/components/debugger/dbhistry.c	optional acpi acpi_debug
 contrib/dev/acpica/components/debugger/dbinput.c	optional acpi acpi_debug
 contrib/dev/acpica/components/debugger/dbmethod.c	optional acpi acpi_debug
 contrib/dev/acpica/components/debugger/dbnames.c	optional acpi acpi_debug
+contrib/dev/acpica/components/debugger/dbobject.c	optional acpi acpi_debug
 contrib/dev/acpica/components/debugger/dbstats.c	optional acpi acpi_debug
 contrib/dev/acpica/components/debugger/dbtest.c		optional acpi acpi_debug
 contrib/dev/acpica/components/debugger/dbutils.c	optional acpi acpi_debug
@@ -278,7 +294,6 @@ contrib/dev/acpica/components/disassembler/dmcstyle.c	optional acpi acpi_debug
 contrib/dev/acpica/components/disassembler/dmdeferred.c	optional acpi acpi_debug
 contrib/dev/acpica/components/disassembler/dmnames.c	optional acpi acpi_debug
 contrib/dev/acpica/components/disassembler/dmopcode.c	optional acpi acpi_debug
-contrib/dev/acpica/components/disassembler/dmobject.c	optional acpi acpi_debug
 contrib/dev/acpica/components/disassembler/dmresrc.c	optional acpi acpi_debug
 contrib/dev/acpica/components/disassembler/dmresrcl.c	optional acpi acpi_debug
 contrib/dev/acpica/components/disassembler/dmresrcl2.c	optional acpi acpi_debug
@@ -287,6 +302,7 @@ contrib/dev/acpica/components/disassembler/dmutils.c	optional acpi acpi_debug
 contrib/dev/acpica/components/disassembler/dmwalk.c	optional acpi acpi_debug
 contrib/dev/acpica/components/dispatcher/dsargs.c	optional acpi
 contrib/dev/acpica/components/dispatcher/dscontrol.c	optional acpi
+contrib/dev/acpica/components/dispatcher/dsdebug.c	optional acpi
 contrib/dev/acpica/components/dispatcher/dsfield.c	optional acpi
 contrib/dev/acpica/components/dispatcher/dsinit.c	optional acpi
 contrib/dev/acpica/components/dispatcher/dsmethod.c	optional acpi
@@ -422,6 +438,7 @@ contrib/dev/acpica/components/utilities/utlock.c	optional acpi
 contrib/dev/acpica/components/utilities/utmath.c	optional acpi
 contrib/dev/acpica/components/utilities/utmisc.c	optional acpi
 contrib/dev/acpica/components/utilities/utmutex.c	optional acpi
+contrib/dev/acpica/components/utilities/utnonansi.c	optional acpi
 contrib/dev/acpica/components/utilities/utobject.c	optional acpi
 contrib/dev/acpica/components/utilities/utosi.c		optional acpi
 contrib/dev/acpica/components/utilities/utownerid.c	optional acpi
@@ -476,6 +493,9 @@ contrib/libfdt/fdt_rw.c		optional fdt
 contrib/libfdt/fdt_strerror.c	optional fdt
 contrib/libfdt/fdt_sw.c		optional fdt
 contrib/libfdt/fdt_wip.c	optional fdt
+contrib/libnv/dnvlist.c		standard
+contrib/libnv/nvlist.c		standard
+contrib/libnv/nvpair.c		standard
 contrib/ngatm/netnatm/api/cc_conn.c optional ngatm_ccatm \
 	compile-with "${NORMAL_C_NOWERROR} -I$S/contrib/ngatm"
 contrib/ngatm/netnatm/api/cc_data.c optional ngatm_ccatm \
@@ -528,14 +548,14 @@ crypto/des/des_ecb.c		optional crypto | ipsec | netsmb
 crypto/des/des_setkey.c		optional crypto | ipsec | netsmb
 crypto/rc4/rc4.c		optional netgraph_mppc_encryption | kgssapi
 crypto/rijndael/rijndael-alg-fst.c optional crypto | geom_bde | \
-					 ipsec | random | wlan_ccmp
-crypto/rijndael/rijndael-api-fst.c optional geom_bde | random
+					 ipsec | random random_yarrow | random !random_yarrow !random_dummy | wlan_ccmp
+crypto/rijndael/rijndael-api-fst.c optional geom_bde | random random_yarrow | random !random_yarrow !random_dummy
 crypto/rijndael/rijndael-api.c	optional crypto | ipsec | wlan_ccmp
 crypto/sha1.c			optional carp | crypto | ipsec | \
 					 netgraph_mppc_encryption | sctp
-crypto/sha2/sha2.c		optional crypto | geom_bde | ipsec | random | \
+crypto/sha2/sha2.c		optional crypto | geom_bde | ipsec | random random_yarrow | random !random_yarrow !random_dummy | \
 					 sctp | zfs
-crypto/sha2/sha256c.c		optional crypto | geom_bde | ipsec | random | \
+crypto/sha2/sha256c.c		optional crypto | geom_bde | ipsec | random random_yarrow | random !random_yarrow !random_dummy | \
 					 sctp | zfs
 crypto/siphash/siphash.c	optional inet | inet6
 crypto/siphash/siphash_test.c	optional inet | inet6
@@ -1183,7 +1203,7 @@ t4fw.fwo		optional cxgbe					\
 	no-implicit-rule						\
 	clean		"t4fw.fwo"
 t4fw.fw			optional cxgbe					\
-	dependency	"$S/dev/cxgbe/firmware/t4fw-1.11.27.0.bin.uu"	\
+	dependency	"$S/dev/cxgbe/firmware/t4fw-1.14.2.0.bin.uu"	\
 	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"t4fw.fw"
@@ -1207,7 +1227,7 @@ t5fw.fwo		optional cxgbe					\
 	no-implicit-rule						\
 	clean		"t5fw.fwo"
 t5fw.fw			optional cxgbe					\
-	dependency	"$S/dev/cxgbe/firmware/t5fw-1.11.27.0.bin.uu"	\
+	dependency	"$S/dev/cxgbe/firmware/t5fw-1.14.2.0.bin.uu"	\
 	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"t5fw.fw"
@@ -1774,31 +1794,31 @@ dev/ixgbe/if_ix.c		optional ix inet \
 	compile-with "${NORMAL_C} -I$S/dev/ixgbe -DSMP"
 dev/ixgbe/if_ixv.c		optional ixv inet \
 	compile-with "${NORMAL_C} -I$S/dev/ixgbe -DSMP"
-dev/ixgbe/ix_txrx.c		optional ix ixv inet \
-	compile-with "${NORMAL_C} -I$S/dev/ixgbe -DSMP"
-dev/ixgbe/ixgbe_phy.c		optional ix ixv inet \
+dev/ixgbe/ix_txrx.c		optional ix inet | ixv inet \
 	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
-dev/ixgbe/ixgbe_api.c		optional ix ixv inet \
+dev/ixgbe/ixgbe_phy.c		optional ix inet | ixv inet \
 	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
-dev/ixgbe/ixgbe_common.c	optional ix ixv inet \
+dev/ixgbe/ixgbe_api.c		optional ix inet | ixv inet \
 	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
-dev/ixgbe/ixgbe_mbx.c		optional ix ixv inet \
+dev/ixgbe/ixgbe_common.c	optional ix inet | ixv inet \
 	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
-dev/ixgbe/ixgbe_vf.c		optional ix ixv inet \
+dev/ixgbe/ixgbe_mbx.c		optional ix inet | ixv inet \
 	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
-dev/ixgbe/ixgbe_82598.c		optional ix ixv inet \
+dev/ixgbe/ixgbe_vf.c		optional ix inet | ixv inet \
 	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
-dev/ixgbe/ixgbe_82599.c		optional ix ixv inet \
+dev/ixgbe/ixgbe_82598.c		optional ix inet | ixv inet \
 	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
-dev/ixgbe/ixgbe_x540.c		optional ix ixv inet \
+dev/ixgbe/ixgbe_82599.c		optional ix inet | ixv inet \
 	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
-dev/ixgbe/ixgbe_x550.c		optional ix ixv inet \
+dev/ixgbe/ixgbe_x540.c		optional ix inet | ixv inet \
 	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
-dev/ixgbe/ixgbe_dcb.c		optional ix ixv inet \
+dev/ixgbe/ixgbe_x550.c		optional ix inet | ixv inet \
 	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
-dev/ixgbe/ixgbe_dcb_82598.c	optional ix ixv inet \
+dev/ixgbe/ixgbe_dcb.c		optional ix inet | ixv inet \
 	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
-dev/ixgbe/ixgbe_dcb_82599.c	optional ix ixv inet \
+dev/ixgbe/ixgbe_dcb_82598.c	optional ix inet | ixv inet \
+	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
+dev/ixgbe/ixgbe_dcb_82599.c	optional ix inet | ixv inet \
 	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
 dev/jme/if_jme.c		optional jme pci
 dev/joy/joy.c			optional joy
@@ -2050,6 +2070,102 @@ dev/pdq/if_fea.c		optional fea eisa
 dev/pdq/if_fpa.c		optional fpa pci
 dev/pdq/pdq.c			optional nowerror fea eisa | fpa pci
 dev/pdq/pdq_ifsubr.c		optional nowerror fea eisa | fpa pci
+dev/pms/freebsd/driver/ini/src/agtiapi.c		optional pmspcv \
+	compile-with "${NORMAL_C} -Wunused-variable -Woverflow -Wparentheses -w"
+dev/pms/RefTisa/sallsdk/spc/sadisc.c			optional pmspcv \
+	compile-with "${NORMAL_C} -Wunused-variable -Woverflow -Wparentheses -w"
+dev/pms/RefTisa/sallsdk/spc/mpi.c			optional pmspcv \
+	compile-with "${NORMAL_C} -Wunused-variable -Woverflow -Wparentheses -w"
+dev/pms/RefTisa/sallsdk/spc/saframe.c			optional pmspcv \
+	compile-with "${NORMAL_C} -Wunused-variable -Woverflow -Wparentheses -w"
+dev/pms/RefTisa/sallsdk/spc/sahw.c			optional pmspcv \
+	compile-with "${NORMAL_C} -Wunused-variable -Woverflow -Wparentheses -w"
+dev/pms/RefTisa/sallsdk/spc/sainit.c			optional pmspcv \
+	compile-with "${NORMAL_C} -Wunused-variable -Woverflow -Wparentheses -w"
+dev/pms/RefTisa/sallsdk/spc/saint.c			optional pmspcv \
+	compile-with "${NORMAL_C} -Wunused-variable -Woverflow -Wparentheses -w"
+dev/pms/RefTisa/sallsdk/spc/sampicmd.c			optional pmspcv \
+	compile-with "${NORMAL_C} -Wunused-variable -Woverflow -Wparentheses -w"
+dev/pms/RefTisa/sallsdk/spc/sampirsp.c			optional pmspcv \
+	compile-with "${NORMAL_C} -Wunused-variable -Woverflow -Wparentheses -w"
+dev/pms/RefTisa/sallsdk/spc/saphy.c			optional pmspcv \
+	compile-with "${NORMAL_C} -Wunused-variable -Woverflow -Wparentheses -w"
+dev/pms/RefTisa/sallsdk/spc/saport.c			optional pmspcv \
+	compile-with "${NORMAL_C} -Wunused-variable -Woverflow -Wparentheses -w"
+dev/pms/RefTisa/sallsdk/spc/sasata.c			optional pmspcv \
+	compile-with "${NORMAL_C} -Wunused-variable -Woverflow -Wparentheses -w"
+dev/pms/RefTisa/sallsdk/spc/sasmp.c			optional pmspcv \
+	compile-with "${NORMAL_C} -Wunused-variable -Woverflow -Wparentheses -w"
+dev/pms/RefTisa/sallsdk/spc/sassp.c			optional pmspcv \
+	compile-with "${NORMAL_C} -Wunused-variable -Woverflow -Wparentheses -w"
+dev/pms/RefTisa/sallsdk/spc/satimer.c			optional pmspcv \
+	compile-with "${NORMAL_C} -Wunused-variable -Woverflow -Wparentheses -w"
+dev/pms/RefTisa/sallsdk/spc/sautil.c			optional pmspcv \
+	compile-with "${NORMAL_C} -Wunused-variable -Woverflow -Wparentheses -w"
+dev/pms/RefTisa/sallsdk/spc/saioctlcmd.c		optional pmspcv \
+	compile-with "${NORMAL_C} -Wunused-variable -Woverflow -Wparentheses -w"
+dev/pms/RefTisa/sallsdk/spc/mpidebug.c			optional pmspcv \
+	compile-with "${NORMAL_C} -Wunused-variable -Woverflow -Wparentheses -w"
+dev/pms/RefTisa/discovery/dm/dminit.c			optional pmspcv \
+	compile-with "${NORMAL_C} -Wunused-variable -Woverflow -Wparentheses -w"
+dev/pms/RefTisa/discovery/dm/dmsmp.c			optional pmspcv \
+	compile-with "${NORMAL_C} -Wunused-variable -Woverflow -Wparentheses -w"
+dev/pms/RefTisa/discovery/dm/dmdisc.c			optional pmspcv \
+	compile-with "${NORMAL_C} -Wunused-variable -Woverflow -Wparentheses -w"
+dev/pms/RefTisa/discovery/dm/dmport.c			optional pmspcv \
+	compile-with "${NORMAL_C} -Wunused-variable -Woverflow -Wparentheses -w"
+dev/pms/RefTisa/discovery/dm/dmtimer.c			optional pmspcv \
+	compile-with "${NORMAL_C} -Wunused-variable -Woverflow -Wparentheses -w"
+dev/pms/RefTisa/discovery/dm/dmmisc.c			optional pmspcv \
+	compile-with "${NORMAL_C} -Wunused-variable -Woverflow -Wparentheses -w"
+dev/pms/RefTisa/sat/src/sminit.c			optional pmspcv \
+	compile-with "${NORMAL_C} -Wunused-variable -Woverflow -Wparentheses -w"
+dev/pms/RefTisa/sat/src/smmisc.c			optional pmspcv \
+	compile-with "${NORMAL_C} -Wunused-variable -Woverflow -Wparentheses -w"
+dev/pms/RefTisa/sat/src/smsat.c				optional pmspcv \
+	compile-with "${NORMAL_C} -Wunused-variable -Woverflow -Wparentheses -w"
+dev/pms/RefTisa/sat/src/smsatcb.c			optional pmspcv \
+	compile-with "${NORMAL_C} -Wunused-variable -Woverflow -Wparentheses -w"
+dev/pms/RefTisa/sat/src/smsathw.c			optional pmspcv \
+	compile-with "${NORMAL_C} -Wunused-variable -Woverflow -Wparentheses -w"
+dev/pms/RefTisa/sat/src/smtimer.c			optional pmspcv \
+	compile-with "${NORMAL_C} -Wunused-variable -Woverflow -Wparentheses -w"
+dev/pms/RefTisa/tisa/sassata/common/tdinit.c		optional pmspcv \
+	compile-with "${NORMAL_C} -Wunused-variable -Woverflow -Wparentheses -w"
+dev/pms/RefTisa/tisa/sassata/common/tdmisc.c		optional pmspcv \
+	compile-with "${NORMAL_C} -Wunused-variable -Woverflow -Wparentheses -w"
+dev/pms/RefTisa/tisa/sassata/common/tdesgl.c		optional pmspcv \
+	compile-with "${NORMAL_C} -Wunused-variable -Woverflow -Wparentheses -w"
+dev/pms/RefTisa/tisa/sassata/common/tdport.c		optional pmspcv \
+	compile-with "${NORMAL_C} -Wunused-variable -Woverflow -Wparentheses -w"
+dev/pms/RefTisa/tisa/sassata/common/tdint.c		optional pmspcv \
+	compile-with "${NORMAL_C} -Wunused-variable -Woverflow -Wparentheses -w"
+dev/pms/RefTisa/tisa/sassata/common/tdioctl.c		optional pmspcv \
+	compile-with "${NORMAL_C} -Wunused-variable -Woverflow -Wparentheses -w"
+dev/pms/RefTisa/tisa/sassata/common/tdhw.c		optional pmspcv \
+	compile-with "${NORMAL_C} -Wunused-variable -Woverflow -Wparentheses -w"
+dev/pms/RefTisa/tisa/sassata/common/ossacmnapi.c	optional pmspcv \
+	compile-with "${NORMAL_C} -Wunused-variable -Woverflow -Wparentheses -w"
+dev/pms/RefTisa/tisa/sassata/common/tddmcmnapi.c	optional pmspcv \
+	compile-with "${NORMAL_C} -Wunused-variable -Woverflow -Wparentheses -w"
+dev/pms/RefTisa/tisa/sassata/common/tdsmcmnapi.c	optional pmspcv \
+	compile-with "${NORMAL_C} -Wunused-variable -Woverflow -Wparentheses -w"
+dev/pms/RefTisa/tisa/sassata/common/tdtimers.c		optional pmspcv \
+	compile-with "${NORMAL_C} -Wunused-variable -Woverflow -Wparentheses -w"
+dev/pms/RefTisa/tisa/sassata/sas/ini/itdio.c		optional pmspcv \
+	compile-with "${NORMAL_C} -Wunused-variable -Woverflow -Wparentheses -w"
+dev/pms/RefTisa/tisa/sassata/sas/ini/itdcb.c		optional pmspcv \
+	compile-with "${NORMAL_C} -Wunused-variable -Woverflow -Wparentheses -w"
+dev/pms/RefTisa/tisa/sassata/sas/ini/itdinit.c		optional pmspcv \
+	compile-with "${NORMAL_C} -Wunused-variable -Woverflow -Wparentheses -w"
+dev/pms/RefTisa/tisa/sassata/sas/ini/itddisc.c		optional pmspcv \
+	compile-with "${NORMAL_C} -Wunused-variable -Woverflow -Wparentheses -w"
+dev/pms/RefTisa/tisa/sassata/sata/host/sat.c		optional pmspcv \
+	compile-with "${NORMAL_C} -Wunused-variable -Woverflow -Wparentheses -w"
+dev/pms/RefTisa/tisa/sassata/sata/host/ossasat.c	optional pmspcv \
+	compile-with "${NORMAL_C} -Wunused-variable -Woverflow -Wparentheses -w"
+dev/pms/RefTisa/tisa/sassata/sata/host/sathw.c		optional pmspcv \
+	compile-with "${NORMAL_C} -Wunused-variable -Woverflow -Wparentheses -w"
 dev/ppbus/if_plip.c		optional plip
 dev/ppbus/immio.c		optional vpo
 dev/ppbus/lpbb.c		optional lpbb
@@ -2069,6 +2185,10 @@ dev/ppc/ppc_acpi.c		optional ppc acpi
 dev/ppc/ppc_isa.c		optional ppc isa
 dev/ppc/ppc_pci.c		optional ppc pci
 dev/ppc/ppc_puc.c		optional ppc puc
+dev/proto/proto_bus_isa.c	optional proto acpi | proto isa
+dev/proto/proto_bus_pci.c	optional proto pci
+dev/proto/proto_busdma.c	optional proto
+dev/proto/proto_core.c		optional proto
 dev/pst/pst-iop.c		optional pst
 dev/pst/pst-pci.c		optional pst pci
 dev/pst/pst-raid.c		optional pst
@@ -2139,15 +2259,12 @@ rt2860.fw			optional rt2860fw | ralfw		\
 	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"rt2860.fw"
-dev/random/randomdev.c		standard
-dev/random/random_adaptors.c	standard
-dev/random/dummy_rng.c		standard
-dev/random/live_entropy_sources.c	standard
-dev/random/random_harvestq.c	standard
-dev/random/randomdev_soft.c	optional random
-dev/random/yarrow.c		optional random
-dev/random/fortuna.c		optional random
-dev/random/hash.c		optional random
+dev/random/randomdev_none.c	optional !random
+dev/random/randomdev.c		optional random
+dev/random/random_harvestq.c	optional random random_yarrow | random !random_dummy
+dev/random/yarrow.c		optional random random_yarrow
+dev/random/fortuna.c		optional random !random_yarrow !random_dummy
+dev/random/hash.c		optional random random_yarrow | random !random_dummy
 dev/rc/rc.c			optional rc
 dev/re/if_re.c			optional re
 dev/rl/if_rl.c			optional rl pci
@@ -2334,7 +2451,6 @@ dev/tws/tws_user.c		optional tws
 dev/tx/if_tx.c			optional tx
 dev/txp/if_txp.c		optional txp
 dev/uart/uart_bus_acpi.c	optional uart acpi
-#dev/uart/uart_bus_cbus.c	optional uart cbus
 dev/uart/uart_bus_ebus.c	optional uart ebus
 dev/uart/uart_bus_fdt.c		optional uart fdt
 dev/uart/uart_bus_isa.c		optional uart isa
@@ -2612,9 +2728,11 @@ dev/vt/hw/efifb/efifb.c		optional vt_efifb
 dev/vt/hw/fb/vt_fb.c		optional vt
 dev/vt/hw/vga/vt_vga.c		optional vt vt_vga
 dev/vt/logo/logo_freebsd.c	optional vt splash
+dev/vt/logo/logo_beastie.c	optional vt splash
 dev/vt/vt_buf.c			optional vt
 dev/vt/vt_consolectl.c		optional vt
 dev/vt/vt_core.c		optional vt
+dev/vt/vt_cpulogos.c		optional vt splash
 dev/vt/vt_font.c		optional vt
 dev/vt/vt_sysmouse.c		optional vt
 dev/vte/if_vte.c		optional vte pci
@@ -2999,6 +3117,7 @@ kern/kern_module.c		standard
 kern/kern_mtxpool.c		standard
 kern/kern_mutex.c		standard
 kern/kern_ntptime.c		standard
+kern/kern_numa.c		standard
 kern/kern_osd.c			standard
 kern/kern_physio.c		standard
 kern/kern_pmc.c			standard
@@ -3054,7 +3173,6 @@ kern/subr_clock.c		standard
 kern/subr_counter.c		standard
 kern/subr_devstat.c		standard
 kern/subr_disk.c		standard
-kern/subr_dnvlist.c		standard
 kern/subr_eventhandler.c	standard
 kern/subr_fattime.c		standard
 kern/subr_firmware.c		optional firmware
@@ -3068,8 +3186,6 @@ kern/subr_mbpool.c		optional libmbpool
 kern/subr_mchain.c		optional libmchain
 kern/subr_module.c		standard
 kern/subr_msgbuf.c		standard
-kern/subr_nvlist.c		standard
-kern/subr_nvpair.c		standard
 kern/subr_param.c		standard
 kern/subr_pcpu.c		standard
 kern/subr_pctrie.c		standard
@@ -3254,6 +3370,7 @@ libkern/zlib.c			optional crypto | geom_uzip | ipsec | \
 net/altq/altq_cbq.c		optional altq
 net/altq/altq_cdnr.c		optional altq
 net/altq/altq_hfsc.c		optional altq
+net/altq/altq_fairq.c		optional altq
 net/altq/altq_priq.c		optional altq
 net/altq/altq_red.c		optional altq
 net/altq/altq_rio.c		optional altq
@@ -3901,17 +4018,17 @@ ofed/drivers/infiniband/hw/mthca/mthca_uar.c		optional mthca	\
 
 # crypto support
 opencrypto/cast.c		optional crypto | ipsec
-opencrypto/criov.c		optional crypto
-opencrypto/crypto.c		optional crypto
+opencrypto/criov.c		optional crypto | ipsec
+opencrypto/crypto.c		optional crypto | ipsec
 opencrypto/cryptodev.c		optional cryptodev
-opencrypto/cryptodev_if.m	optional crypto
-opencrypto/cryptosoft.c		optional crypto
-opencrypto/cryptodeflate.c	optional crypto
-opencrypto/gmac.c		optional crypto
-opencrypto/gfmult.c		optional crypto
+opencrypto/cryptodev_if.m	optional crypto | ipsec
+opencrypto/cryptosoft.c		optional crypto | ipsec
+opencrypto/cryptodeflate.c	optional crypto | ipsec
+opencrypto/gmac.c		optional crypto | ipsec
+opencrypto/gfmult.c		optional crypto | ipsec
 opencrypto/rmd160.c		optional crypto | ipsec
-opencrypto/skipjack.c		optional crypto
-opencrypto/xform.c		optional crypto
+opencrypto/skipjack.c		optional crypto | ipsec
+opencrypto/xform.c		optional crypto | ipsec
 rpc/auth_none.c			optional krpc | nfslockd | nfscl | nfsd
 rpc/auth_unix.c			optional krpc | nfslockd | nfscl | nfsd
 rpc/authunix_prot.c		optional krpc | nfslockd | nfscl | nfsd
@@ -4027,6 +4144,7 @@ vm/vm_pager.c			standard
 vm/vm_phys.c			standard
 vm/vm_radix.c			standard
 vm/vm_reserv.c			standard
+vm/vm_domain.c			standard
 vm/vm_unix.c			standard
 vm/vm_zeroidle.c		standard
 vm/vnode_pager.c		standard

@@ -28,7 +28,6 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_bus.h"
-#include "opt_random.h"
 
 #include <sys/param.h>
 #include <sys/conf.h>
@@ -2877,14 +2876,16 @@ device_attach(device_t dev)
 	attachtime = get_cyclecount() - attachtime;
 	/*
 	 * 4 bits per device is a reasonable value for desktop and server
-	 * hardware with good get_cyclecount() implementations, but may
+	 * hardware with good get_cyclecount() implementations, but WILL
 	 * need to be adjusted on other platforms.
 	 */
-#ifdef RANDOM_DEBUG
-	printf("random: %s(): feeding %d bit(s) of entropy from %s%d\n",
-	    __func__, 4, dev->driver->name, dev->unit);
-#endif
-	random_harvest(&attachtime, sizeof(attachtime), 4, RANDOM_ATTACH);
+#define	RANDOM_PROBE_BIT_GUESS	4
+	if (bootverbose)
+		printf("random: harvesting attach, %zu bytes (%d bits) from %s%d\n",
+		    sizeof(attachtime), RANDOM_PROBE_BIT_GUESS,
+		    dev->driver->name, dev->unit);
+	random_harvest_direct(&attachtime, sizeof(attachtime),
+	    RANDOM_PROBE_BIT_GUESS, RANDOM_ATTACH);
 	device_sysctl_update(dev);
 	if (dev->busy)
 		dev->state = DS_BUSY;

@@ -240,7 +240,7 @@ true_debug(struct peer *peer, const char *fmt, ...)
 				 "/tmp/true%d.debug", up->unit);
 			fd = open(filename, O_CREAT | O_WRONLY | O_EXCL,
 				  0600);
-			if (fd >= 0 && (up->debug = fdopen(fd, "r+"))) {
+			if (fd >= 0 && (up->debug = fdopen(fd, "w"))) {
 #ifdef HAVE_SETVBUF
 				static char buf[BUFSIZ];
 

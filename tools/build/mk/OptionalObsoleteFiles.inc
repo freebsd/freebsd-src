@@ -5122,7 +5122,10 @@ OLD_FILES+=usr/share/misc/mail.tildehelp
 
 .if ${MK_MAILWRAPPER} == no
 OLD_FILES+=etc/mail/mailer.conf
-OLD_FILES+=usr/sbin/mailwrapper
+# Don't remove, for no mailwrapper case:
+# /usr/sbin/sendmail -> /usr/sbin/mailwrapper
+# /usr/sbin/mailwrapper -> /usr/libexec/sendmail/sendmail
+#OLD_FILES+=usr/sbin/mailwrapper
 OLD_FILES+=usr/share/man/man8/mailwrapper.8.gz
 .endif
 
@@ -6313,7 +6316,6 @@ OLD_FILES+=usr/share/man/man8/rwhod.8.gz
 .if ${MK_RCS} == no
 OLD_FILES+=usr/bin/ci
 OLD_FILES+=usr/bin/co
-OLD_FILES+=usr/bin/ident
 OLD_FILES+=usr/bin/merge
 OLD_FILES+=usr/bin/rcs
 OLD_FILES+=usr/bin/rcsclean
@@ -6324,7 +6326,6 @@ OLD_FILES+=usr/bin/rlog
 OLD_FILES+=usr/sbin/etcupdate
 OLD_FILES+=usr/share/man/man1/ci.1.gz
 OLD_FILES+=usr/share/man/man1/co.1.gz
-OLD_FILES+=usr/share/man/man1/ident.1.gz
 OLD_FILES+=usr/share/man/man1/merge.1.gz
 OLD_FILES+=usr/share/man/man1/rcs.1.gz
 OLD_FILES+=usr/share/man/man1/rcsclean.1.gz

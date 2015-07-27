@@ -150,7 +150,8 @@
 #define HAVE_ICONV 1
 
 /* Define to 1 if you have the <immintrin.h> header file. */
-#if defined(__FreeBSD__) && defined(__amd64__)
+/* FreeBSD - only with clang because the base gcc does not support it */
+#if defined(__clang__) && defined(__FreeBSD__) && defined(__amd64__)
 #define HAVE_IMMINTRIN_H 1
 #endif
 

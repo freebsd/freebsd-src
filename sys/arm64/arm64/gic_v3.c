@@ -236,19 +236,18 @@ gic_v3_dispatch(device_t dev, struct trapframe *frame)
 			break;
 
 		if (__predict_true((active_irq >= GIC_FIRST_PPI &&
-		    active_irq <= GIC_LAST_SPI))) {
+		    active_irq <= GIC_LAST_SPI) || active_irq >= GIC_FIRST_LPI)) {
 			arm_dispatch_intr(active_irq, frame);
 			continue;
 		}
 
-		if (active_irq <= GIC_LAST_SGI || active_irq >= GIC_FIRST_LPI) {
+		if (active_irq <= GIC_LAST_SGI) {
 			/*
-			 * TODO: Implement proper SGI/LPI handling.
+			 * TODO: Implement proper SGI handling.
 			 *       Mask it if such is received for some reason.
 			 */
 			device_printf(dev,
-			    "Received unsupported interrupt type: %s\n",
-			    active_irq >= GIC_FIRST_LPI ? "LPI" : "SGI");
+			    "Received unsupported interrupt type: SGI\n");
 			PIC_MASK(dev, active_irq);
 		}
 	}
@@ -275,6 +274,8 @@ gic_v3_mask_irq(device_t dev, u_int irq)
 	} else if (irq >= GIC_FIRST_SPI && irq <= GIC_LAST_SPI) { /* SPIs in distributor */
 		gic_r_write(sc, 4, GICD_ICENABLER(irq), GICD_I_MASK(irq));
 		gic_v3_wait_for_rwp(sc, DIST);
+	} else if (irq >= GIC_FIRST_LPI) { /* LPIs */
+		lpi_mask_irq(dev, irq);
 	} else
 		panic("%s: Unsupported IRQ number %u", __func__, irq);
 }
@@ -293,6 +294,8 @@ gic_v3_unmask_irq(device_t dev, u_int irq)
 	} else if (irq >= GIC_FIRST_SPI && irq <= GIC_LAST_SPI) { /* SPIs in distributor */
 		gic_d_write(sc, 4, GICD_ISENABLER(irq), GICD_I_MASK(irq));
 		gic_v3_wait_for_rwp(sc, DIST);
+	} else if (irq >= GIC_FIRST_LPI) { /* LPIs */
+		lpi_unmask_irq(dev, irq);
 	} else
 		panic("%s: Unsupported IRQ number %u", __func__, irq);
 }

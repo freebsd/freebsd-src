@@ -27,9 +27,10 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/dnv.h>
+#include <sys/nv.h>
+
 #include <atf-c++.hpp>
-#include <dnv.h>
-#include <nv.h>
 
 ATF_TEST_CASE_WITHOUT_HEAD(dnvlist_get_bool__present);
 ATF_TEST_CASE_BODY(dnvlist_get_bool__present)

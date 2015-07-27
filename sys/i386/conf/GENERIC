@@ -30,6 +30,7 @@ options 	SCHED_ULE		# ULE scheduler
 options 	PREEMPTION		# Enable kernel thread preemption
 options 	INET			# InterNETworking
 options 	INET6			# IPv6 communications protocols
+options 	IPSEC                   # IP (v4/v6) security
 options 	TCP_OFFLOAD		# TCP offload
 options 	SCTP			# Stream Control Transmission Protocol
 options 	FFS			# Berkeley Fast Filesystem
@@ -174,6 +175,7 @@ device		ida			# Compaq Smart RAID
 device		mfi			# LSI MegaRAID SAS
 device		mlx			# Mylex DAC960 family
 device		mrsas			# LSI/Avago MegaRAID SAS/SATA, 6Gb/s and 12Gb/s
+device		pmspcv			# PMC-Sierra SAS/SATA Controller driver
 device		pst			# Promise Supertrak SX6000
 device		twe			# 3ware ATA RAID
 
@@ -377,3 +379,6 @@ device		xenpci			# Xen HVM Hypervisor services driver
 
 # VMware support
 device		vmx			# VMware VMXNET3 Ethernet
+
+# The crypto framework is required by IPSEC
+device		crypto			# Required by IPSEC

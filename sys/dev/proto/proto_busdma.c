@@ -36,11 +36,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
+#include <sys/proc.h>
 #include <sys/queue.h>
 #include <sys/rman.h>
 #include <sys/sbuf.h>
+#include <sys/uio.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
+#include <vm/vm_map.h>
 
 #include <dev/proto/proto.h>
 #include <dev/proto/proto_dev.h>
@@ -48,11 +51,25 @@ __FBSDID("$FreeBSD$");
 
 MALLOC_DEFINE(M_PROTO_BUSDMA, "proto_busdma", "DMA management data");
 
+#define	BNDRY_MIN(a, b)		\
+	(((a) == 0) ? (b) : (((b) == 0) ? (a) : MIN((a), (b))))
+
+struct proto_callback_bundle {
+	struct proto_busdma *busdma;
+	struct proto_md *md;
+	struct proto_ioc_busdma *ioc;
+};
+
 static int
 proto_busdma_tag_create(struct proto_busdma *busdma, struct proto_tag *parent,
     struct proto_ioc_busdma *ioc)
 {
 	struct proto_tag *tag;
+
+	/* Make sure that when a boundary is specified, it's a power of 2 */
+	if (ioc->u.tag.bndry != 0 &&
+	    (ioc->u.tag.bndry & (ioc->u.tag.bndry - 1)) != 0)
+		return (EINVAL);
 
 	/*
 	 * If nsegs is 1, ignore maxsegsz. What this means is that if we have
@@ -62,16 +79,12 @@ proto_busdma_tag_create(struct proto_busdma *busdma, struct proto_tag *parent,
 	if (ioc->u.tag.maxsegsz > ioc->u.tag.maxsz || ioc->u.tag.nsegs == 1)
 		ioc->u.tag.maxsegsz = ioc->u.tag.maxsz;
 
-	/* A bndry of 0 really means ~0, or no boundary. */
-	if (ioc->u.tag.bndry == 0)
-		ioc->u.tag.bndry = ~0U;
-
 	tag = malloc(sizeof(*tag), M_PROTO_BUSDMA, M_WAITOK | M_ZERO);
 	if (parent != NULL) {
 		tag->parent = parent;
 		LIST_INSERT_HEAD(&parent->children, tag, peers);
 		tag->align = MAX(ioc->u.tag.align, parent->align);
-		tag->bndry = MIN(ioc->u.tag.bndry, parent->bndry);
+		tag->bndry = BNDRY_MIN(ioc->u.tag.bndry, parent->bndry);
 		tag->maxaddr = MIN(ioc->u.tag.maxaddr, parent->maxaddr);
 		tag->maxsz = MIN(ioc->u.tag.maxsz, parent->maxsz);
 		tag->maxsegsz = MIN(ioc->u.tag.maxsegsz, parent->maxsegsz);
@@ -129,26 +142,45 @@ proto_busdma_tag_lookup(struct proto_busdma *busdma, u_long key)
 	return (NULL);
 }
 
+static int
+proto_busdma_md_destroy_internal(struct proto_busdma *busdma,
+    struct proto_md *md)
+{
+
+	LIST_REMOVE(md, mds);
+	LIST_REMOVE(md, peers);
+	if (md->physaddr)
+		bus_dmamap_unload(md->bd_tag, md->bd_map);
+	if (md->virtaddr != NULL)
+		bus_dmamem_free(md->bd_tag, md->virtaddr, md->bd_map);
+	else
+		bus_dmamap_destroy(md->bd_tag, md->bd_map);
+	bus_dma_tag_destroy(md->bd_tag);
+	free(md, M_PROTO_BUSDMA);
+	return (0);
+}
+
 static void
 proto_busdma_mem_alloc_callback(void *arg, bus_dma_segment_t *segs, int	nseg,
     int error)
 {
-	struct proto_ioc_busdma *ioc = arg;
+	struct proto_callback_bundle *pcb = arg;
 
-	ioc->u.mem.bus_nsegs = nseg;
-	ioc->u.mem.bus_addr = segs[0].ds_addr;
+	pcb->ioc->u.md.bus_nsegs = nseg;
+	pcb->ioc->u.md.bus_addr = segs[0].ds_addr;
 }
 
 static int
 proto_busdma_mem_alloc(struct proto_busdma *busdma, struct proto_tag *tag,
     struct proto_ioc_busdma *ioc)
 {
+	struct proto_callback_bundle pcb;
 	struct proto_md *md;
 	int error;
 
 	md = malloc(sizeof(*md), M_PROTO_BUSDMA, M_WAITOK | M_ZERO);
 	md->tag = tag;
- 
+
 	error = bus_dma_tag_create(busdma->bd_roottag, tag->align, tag->bndry,
 	    tag->maxaddr, BUS_SPACE_MAXADDR, NULL, NULL, tag->maxsz,
 	    tag->nsegs, tag->maxsegsz, 0, NULL, NULL, &md->bd_tag);
@@ -163,8 +195,11 @@ proto_busdma_mem_alloc(struct proto_busdma *busdma, struct proto_tag *tag,
 		return (error);
 	}
 	md->physaddr = pmap_kextract((uintptr_t)(md->virtaddr));
+	pcb.busdma = busdma;
+	pcb.md = md;
+	pcb.ioc = ioc;
 	error = bus_dmamap_load(md->bd_tag, md->bd_map, md->virtaddr,
-	    tag->maxsz, proto_busdma_mem_alloc_callback, ioc, BUS_DMA_NOWAIT);
+	    tag->maxsz, proto_busdma_mem_alloc_callback, &pcb, BUS_DMA_NOWAIT);
 	if (error) {
 		bus_dmamem_free(md->bd_tag, md->virtaddr, md->bd_map);
 		bus_dma_tag_destroy(md->bd_tag);
@@ -173,8 +208,10 @@ proto_busdma_mem_alloc(struct proto_busdma *busdma, struct proto_tag *tag,
 	}
 	LIST_INSERT_HEAD(&tag->mds, md, peers);
 	LIST_INSERT_HEAD(&busdma->mds, md, mds);
-	ioc->u.mem.phys_nsegs = 1;
-	ioc->u.mem.phys_addr = md->physaddr;
+	ioc->u.md.virt_addr = (uintptr_t)md->virtaddr;
+	ioc->u.md.virt_size = tag->maxsz;
+	ioc->u.md.phys_nsegs = 1;
+	ioc->u.md.phys_addr = md->physaddr;
 	ioc->result = (uintptr_t)(void *)md;
 	return (0);
 }
@@ -183,11 +220,115 @@ static int
 proto_busdma_mem_free(struct proto_busdma *busdma, struct proto_md *md)
 {
 
-	LIST_REMOVE(md, mds);
-	LIST_REMOVE(md, peers);
-	bus_dmamem_free(md->bd_tag, md->virtaddr, md->bd_map);
-	bus_dma_tag_destroy(md->bd_tag);
-	free(md, M_PROTO_BUSDMA);
+	if (md->virtaddr == NULL)
+		return (ENXIO);
+	return (proto_busdma_md_destroy_internal(busdma, md));
+}
+
+static int
+proto_busdma_md_create(struct proto_busdma *busdma, struct proto_tag *tag,
+    struct proto_ioc_busdma *ioc)
+{
+	struct proto_md *md;
+	int error;
+
+	md = malloc(sizeof(*md), M_PROTO_BUSDMA, M_WAITOK | M_ZERO);
+	md->tag = tag;
+
+	error = bus_dma_tag_create(busdma->bd_roottag, tag->align, tag->bndry,
+	    tag->maxaddr, BUS_SPACE_MAXADDR, NULL, NULL, tag->maxsz,
+	    tag->nsegs, tag->maxsegsz, 0, NULL, NULL, &md->bd_tag);
+	if (error) {
+		free(md, M_PROTO_BUSDMA);
+		return (error);
+	}
+	error = bus_dmamap_create(md->bd_tag, 0, &md->bd_map);
+	if (error) {
+		bus_dma_tag_destroy(md->bd_tag);
+		free(md, M_PROTO_BUSDMA);
+		return (error);
+	}
+
+	LIST_INSERT_HEAD(&tag->mds, md, peers);
+	LIST_INSERT_HEAD(&busdma->mds, md, mds);
+	ioc->result = (uintptr_t)(void *)md;
+	return (0);
+}
+
+static int
+proto_busdma_md_destroy(struct proto_busdma *busdma, struct proto_md *md)
+{
+
+	if (md->virtaddr != NULL)
+		return (ENXIO);
+	return (proto_busdma_md_destroy_internal(busdma, md));
+}
+
+static void
+proto_busdma_md_load_callback(void *arg, bus_dma_segment_t *segs, int nseg,
+    bus_size_t sz, int error)
+{
+	struct proto_callback_bundle *pcb = arg;
+ 
+	pcb->ioc->u.md.bus_nsegs = nseg;
+	pcb->ioc->u.md.bus_addr = segs[0].ds_addr;
+}
+
+static int
+proto_busdma_md_load(struct proto_busdma *busdma, struct proto_md *md,
+    struct proto_ioc_busdma *ioc, struct thread *td)
+{
+	struct proto_callback_bundle pcb;
+	struct iovec iov;
+	struct uio uio;
+	pmap_t pmap;
+	int error;
+
+	iov.iov_base = (void *)(uintptr_t)ioc->u.md.virt_addr;
+	iov.iov_len = ioc->u.md.virt_size;
+	uio.uio_iov = &iov;
+	uio.uio_iovcnt = 1;
+	uio.uio_offset = 0;
+	uio.uio_resid = iov.iov_len;
+	uio.uio_segflg = UIO_USERSPACE;
+	uio.uio_rw = UIO_READ;
+	uio.uio_td = td;
+
+	pcb.busdma = busdma;
+	pcb.md = md;
+	pcb.ioc = ioc;
+	error = bus_dmamap_load_uio(md->bd_tag, md->bd_map, &uio,
+	    proto_busdma_md_load_callback, &pcb, BUS_DMA_NOWAIT);
+	if (error)
+		return (error);
+
+	/* XXX determine *all* physical memory segments */
+	pmap = vmspace_pmap(td->td_proc->p_vmspace);
+	md->physaddr = pmap_extract(pmap, ioc->u.md.virt_addr);
+	ioc->u.md.phys_nsegs = 1;	/* XXX */
+	ioc->u.md.phys_addr = md->physaddr;
+	return (0);
+}
+
+static int
+proto_busdma_md_unload(struct proto_busdma *busdma, struct proto_md *md)
+{
+
+	if (!md->physaddr)
+		return (ENXIO);
+	bus_dmamap_unload(md->bd_tag, md->bd_map);
+	md->physaddr = 0;
+	return (0);
+}
+
+static int
+proto_busdma_sync(struct proto_busdma *busdma, struct proto_md *md,
+    struct proto_ioc_busdma *ioc)
+{
+ 
+	if (!md->physaddr)
+		return (ENXIO);
+	bus_dmamap_sync(md->bd_tag, md->bd_map, ioc->u.sync.op);
 	return (0);
 }
 
@@ -228,7 +369,7 @@ proto_busdma_cleanup(struct proto_softc *sc, struct proto_busdma *busdma)
 	struct proto_tag *tag, *tag1;
 
 	LIST_FOREACH_SAFE(md, &busdma->mds, mds, md1)
-		proto_busdma_mem_free(busdma, md);
+		proto_busdma_md_destroy_internal(busdma, md);
 	LIST_FOREACH_SAFE(tag, &busdma->tags, tags, tag1)
 		proto_busdma_tag_destroy(busdma, tag);
 	return (0);
@@ -236,7 +377,7 @@ proto_busdma_cleanup(struct proto_softc *sc, struct proto_busdma *busdma)
 
 int
 proto_busdma_ioctl(struct proto_softc *sc, struct proto_busdma *busdma,
-    struct proto_ioc_busdma *ioc)
+    struct proto_ioc_busdma *ioc, struct thread *td)
 {
 	struct proto_tag *tag;
 	struct proto_md *md;
@@ -265,7 +406,7 @@ proto_busdma_ioctl(struct proto_softc *sc, struct proto_busdma *busdma,
 		error = proto_busdma_tag_destroy(busdma, tag);
 		break;
 	case PROTO_IOC_BUSDMA_MEM_ALLOC:
-		tag = proto_busdma_tag_lookup(busdma, ioc->u.mem.tag);
+		tag = proto_busdma_tag_lookup(busdma, ioc->u.md.tag);
 		if (tag == NULL) {
 			error = EINVAL;
 			break;
@@ -279,6 +420,46 @@ proto_busdma_ioctl(struct proto_softc *sc, struct proto_busdma *busdma,
 			break;
 		}
 		error = proto_busdma_mem_free(busdma, md);
+		break;
+	case PROTO_IOC_BUSDMA_MD_CREATE:
+		tag = proto_busdma_tag_lookup(busdma, ioc->u.md.tag);
+		if (tag == NULL) {
+			error = EINVAL;
+			break;
+		}
+		error = proto_busdma_md_create(busdma, tag, ioc);
+		break;
+	case PROTO_IOC_BUSDMA_MD_DESTROY:
+		md = proto_busdma_md_lookup(busdma, ioc->key);
+		if (md == NULL) {
+			error = EINVAL;
+			break;
+		}
+		error = proto_busdma_md_destroy(busdma, md);
+		break;
+	case PROTO_IOC_BUSDMA_MD_LOAD:
+		md = proto_busdma_md_lookup(busdma, ioc->key);
+		if (md == NULL) {
+			error = EINVAL;
+			break;
+		}
+		error = proto_busdma_md_load(busdma, md, ioc, td);
+		break;
+	case PROTO_IOC_BUSDMA_MD_UNLOAD:
+		md = proto_busdma_md_lookup(busdma, ioc->key);
+		if (md == NULL) {
+			error = EINVAL;
+			break;
+		}
+		error = proto_busdma_md_unload(busdma, md);
+		break;
+	case PROTO_IOC_BUSDMA_SYNC:
+		md = proto_busdma_md_lookup(busdma, ioc->key);
+		if (md == NULL) {
+			error = EINVAL;
+			break;
+		}
+		error = proto_busdma_sync(busdma, md, ioc);
 		break;
 	default:
 		error = EINVAL;

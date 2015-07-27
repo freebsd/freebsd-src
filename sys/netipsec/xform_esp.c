@@ -121,6 +121,12 @@ esp_algorithm_lookup(int alg)
 		return &enc_xform_null;
 	case SADB_X_EALG_CAMELLIACBC:
 		return &enc_xform_camellia;
+	case SADB_X_EALG_AESCTR:
+		return &enc_xform_aes_icm;
+	case SADB_X_EALG_AESGCM16:
+		return &enc_xform_aes_nist_gcm;
+	case SADB_X_EALG_AESGMAC:
+		return &enc_xform_aes_nist_gmac;
 	}
 	return NULL;
 }
@@ -198,7 +204,7 @@ esp_init(struct secasvar *sav, struct xformsw *xsp)
 	 *      the ESP header will be processed incorrectly.  The
 	 *      compromise is to force it to zero here.
 	 */
-	sav->ivlen = (txform == &enc_xform_null ? 0 : txform->blocksize);
+	sav->ivlen = (txform == &enc_xform_null ? 0 : txform->ivsize);
 	sav->iv = (caddr_t) malloc(sav->ivlen, M_XDATA, M_WAITOK);
 	key_randomfill(sav->iv, sav->ivlen);	/*XXX*/
 
@@ -215,11 +221,45 @@ esp_init(struct secasvar *sav, struct xformsw *xsp)
 	sav->tdb_xform = xsp;
 	sav->tdb_encalgxform = txform;
 
+	/*
+	 * Whenever AES-GCM is used for encryption, one
+	 * of the AES authentication algorithms is chosen
+	 * as well, based on the key size.
+	 */
+	if (sav->alg_enc == SADB_X_EALG_AESGCM16) {
+		switch (keylen) {
+		case AES_128_HMAC_KEY_LEN:
+			sav->alg_auth = SADB_X_AALG_AES128GMAC;
+			sav->tdb_authalgxform = &auth_hash_nist_gmac_aes_128;
+			break;
+		case AES_192_HMAC_KEY_LEN:
+			sav->alg_auth = SADB_X_AALG_AES192GMAC;
+			sav->tdb_authalgxform = &auth_hash_nist_gmac_aes_192;
+			break;
+		case AES_256_HMAC_KEY_LEN:
+			sav->alg_auth = SADB_X_AALG_AES256GMAC;
+			sav->tdb_authalgxform = &auth_hash_nist_gmac_aes_256;
+			break;
+		default:
+			DPRINTF(("%s: invalid key length %u"
+				 "for algorithm %s\n", __func__,
+				 keylen, txform->name));
+			return EINVAL;
+		}
+		bzero(&cria, sizeof(cria));
+		cria.cri_alg = sav->tdb_authalgxform->type;
+		cria.cri_klen = _KEYBITS(sav->key_enc) + 4;
+		cria.cri_key = sav->key_enc->key_data;
+	}
+
 	/* Initialize crypto session. */
 	bzero(&crie, sizeof (crie));
 	crie.cri_alg = sav->tdb_encalgxform->type;
 	crie.cri_klen = _KEYBITS(sav->key_enc);
 	crie.cri_key = sav->key_enc->key_data;
+	if (sav->alg_enc == SADB_X_EALG_AESGCM16)
+		arc4rand(crie.cri_iv, sav->ivlen, 0);
+
 	/* XXX Rounds ? */
 
 	if (sav->tdb_authalgxform && sav->tdb_encalgxform) {
@@ -289,7 +329,6 @@ esp_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 		m_freem(m);
 		return EINVAL;
 	}
-
 	/* XXX don't pullup, just copy header */
 	IP6_EXTHDR_GET(esp, struct newesp *, m, skip, sizeof (struct newesp));
 
@@ -302,18 +341,7 @@ esp_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 	else
 		hlen = sizeof (struct newesp) + sav->ivlen;
 	/* Authenticator hash size */
-	if (esph != NULL) {
-		switch (esph->type) {
-		case CRYPTO_SHA2_256_HMAC:
-		case CRYPTO_SHA2_384_HMAC:
-		case CRYPTO_SHA2_512_HMAC:
-			alen = esph->hashsize/2;
-			break;
-		default:
-			alen = AH_HMAC_HASHLEN;
-			break;
-		}
-	}
+	alen = esph ? esph->hashsize : 0;
 
 	/*
 	 * Verify payload length is multiple of encryption algorithm
@@ -325,13 +353,15 @@ esp_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 	 */
 	plen = m->m_pkthdr.len - (skip + hlen + alen);
 	if ((plen & (espx->blocksize - 1)) || (plen <= 0)) {
-		DPRINTF(("%s: payload of %d octets not a multiple of %d octets,"
-		    "  SA %s/%08lx\n", __func__,
-		    plen, espx->blocksize, ipsec_address(&sav->sah->saidx.dst,
-			buf, sizeof(buf)), (u_long) ntohl(sav->spi)));
-		ESPSTAT_INC(esps_badilen);
-		m_freem(m);
-		return EINVAL;
+		if (!espx || sav->alg_enc != SADB_X_EALG_AESGCM16) {
+			DPRINTF(("%s: payload of %d octets not a multiple of %d octets,"
+				"  SA %s/%08lx\n", __func__,
+				plen, espx->blocksize, ipsec_address(&sav->sah->saidx.dst,
+				buf, sizeof(buf)), (u_long) ntohl(sav->spi)));
+			ESPSTAT_INC(esps_badilen);
+			m_freem(m);
+			return EINVAL;
+		}
 	}
 
 	/*
@@ -377,12 +407,20 @@ esp_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 
 		/* Authentication descriptor */
 		crda->crd_skip = skip;
-		crda->crd_len = m->m_pkthdr.len - (skip + alen);
+		if (espx && espx->type == CRYPTO_AES_NIST_GCM_16) 
+			crda->crd_len = hlen - sav->ivlen;
+		else
+			crda->crd_len = m->m_pkthdr.len - (skip + alen);
 		crda->crd_inject = m->m_pkthdr.len - alen;
 
 		crda->crd_alg = esph->type;
-		crda->crd_key = sav->key_auth->key_data;
-		crda->crd_klen = _KEYBITS(sav->key_auth);
+		if (espx && (espx->type == CRYPTO_AES_NIST_GCM_16)) {
+			crda->crd_key = sav->key_enc->key_data;
+			crda->crd_klen = _KEYBITS(sav->key_enc);
+		} else {
+			crda->crd_key = sav->key_auth->key_data;
+			crda->crd_klen = _KEYBITS(sav->key_auth);
+		}	
 
 		/* Copy the authenticator */
 		m_copydata(m, m->m_pkthdr.len - alen, alen,
@@ -420,6 +458,9 @@ esp_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 	crde->crd_alg = espx->type;
 	crde->crd_key = sav->key_enc->key_data;
 	crde->crd_klen = _KEYBITS(sav->key_enc);
+	if (espx && (espx->type == CRYPTO_AES_NIST_GCM_16))
+		crde->crd_flags |= CRD_F_IV_EXPLICIT;
+
 	/* XXX Rounds ? */
 
 	return (crypto_dispatch(crp));
@@ -489,16 +530,7 @@ esp_input_cb(struct cryptop *crp)
 
 	/* If authentication was performed, check now. */
 	if (esph != NULL) {
-		switch (esph->type) {
-		case CRYPTO_SHA2_256_HMAC:
-		case CRYPTO_SHA2_384_HMAC:
-		case CRYPTO_SHA2_512_HMAC:
-			alen = esph->hashsize/2;
-			break;
-		default:
-			alen = AH_HMAC_HASHLEN;
-			break;
-		}
+		alen = esph->hashsize;
 		AHSTAT_INC(ahs_hist[sav->alg_auth]);
 		/* Copy the authenticator from the packet */
 		m_copydata(m, m->m_pkthdr.len - alen, alen, aalg);
@@ -663,22 +695,13 @@ esp_output(struct mbuf *m, struct ipsecrequest *isr, struct mbuf **mp,
 	 * NB: The null encoding transform has a blocksize of 4
 	 *     so that headers are properly aligned.
 	 */
-	blks = espx->blocksize;		/* IV blocksize */
+	blks = espx->ivsize;		/* IV blocksize */
 
 	/* XXX clamp padding length a la KAME??? */
 	padding = ((blks - ((rlen + 2) % blks)) % blks) + 2;
 
 	if (esph)
-		switch (esph->type) {
-		case CRYPTO_SHA2_256_HMAC:
-		case CRYPTO_SHA2_384_HMAC:
-		case CRYPTO_SHA2_512_HMAC:
-			alen = esph->hashsize/2;
-			break;
-		default:
-		alen = AH_HMAC_HASHLEN;
-			break;
-		}
+		alen = esph->hashsize;
 	else
 		alen = 0;
 
@@ -706,6 +729,8 @@ esp_output(struct mbuf *m, struct ipsecrequest *isr, struct mbuf **mp,
 		error = EPFNOSUPPORT;
 		goto bad;
 	}
+	DPRINTF(("%s: skip %d hlen %d rlen %d padding %d alen %d blksd %d\n",
+		__func__, skip, hlen, rlen, padding, alen, blks));
 	if (skip + hlen + rlen + padding + alen > maxpacketsize) {
 		DPRINTF(("%s: packet in SA %s/%08lx got too big "
 		    "(len %u, max len %u)\n", __func__,
@@ -820,6 +845,8 @@ esp_output(struct mbuf *m, struct ipsecrequest *isr, struct mbuf **mp,
 		crde->crd_alg = espx->type;
 		crde->crd_key = sav->key_enc->key_data;
 		crde->crd_klen = _KEYBITS(sav->key_enc);
+		if (espx->type == CRYPTO_AES_NIST_GCM_16)
+			crde->crd_flags |= CRD_F_IV_EXPLICIT;
 		/* XXX Rounds ? */
 	} else
 		crda = crp->crp_desc;
@@ -854,13 +881,22 @@ esp_output(struct mbuf *m, struct ipsecrequest *isr, struct mbuf **mp,
 	if (esph) {
 		/* Authentication descriptor. */
 		crda->crd_skip = skip;
-		crda->crd_len = m->m_pkthdr.len - (skip + alen);
+		if (espx && espx->type == CRYPTO_AES_NIST_GCM_16)
+			crda->crd_len = hlen - sav->ivlen;
+		else
+			crda->crd_len = m->m_pkthdr.len - (skip + alen);
 		crda->crd_inject = m->m_pkthdr.len - alen;
 
 		/* Authentication operation. */
 		crda->crd_alg = esph->type;
-		crda->crd_key = sav->key_auth->key_data;
-		crda->crd_klen = _KEYBITS(sav->key_auth);
+		if (espx && espx->type == CRYPTO_AES_NIST_GCM_16) {
+			crda->crd_key = sav->key_enc->key_data;
+			crda->crd_klen = _KEYBITS(sav->key_enc);
+		} else {
+			crda->crd_key = sav->key_auth->key_data;
+			crda->crd_klen = _KEYBITS(sav->key_auth);
+		}
+
 	}
 
 	return crypto_dispatch(crp);
@@ -952,6 +988,11 @@ esp_output_cb(struct cryptop *crp)
 			case CRYPTO_SHA2_384_HMAC:
 			case CRYPTO_SHA2_512_HMAC:
 				alen = esph->hashsize/2;
+				break;
+			case CRYPTO_AES_128_NIST_GMAC:
+			case CRYPTO_AES_192_NIST_GMAC:
+			case CRYPTO_AES_256_NIST_GMAC:
+				alen = esph->hashsize;
 				break;
 			default:
 				alen = AH_HMAC_HASHLEN;

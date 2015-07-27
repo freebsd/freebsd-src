@@ -85,6 +85,7 @@ COMPAT_FREEBSD6	opt_compat.h
 COMPAT_FREEBSD7	opt_compat.h
 COMPAT_FREEBSD9	opt_compat.h
 COMPAT_FREEBSD10	opt_compat.h
+COMPAT_CLOUDABI64	opt_dontuse.h
 COMPAT_LINUXAPI	opt_compat.h
 COMPILING_LINT	opt_global.h
 CY_PCI_FASTINTR
@@ -389,6 +390,7 @@ ALTQ_CBQ		opt_altq.h
 ALTQ_CDNR		opt_altq.h
 ALTQ_DEBUG		opt_altq.h
 ALTQ_HFSC		opt_altq.h
+ALTQ_FAIRQ		opt_altq.h
 ALTQ_NOPCC		opt_altq.h
 ALTQ_PRIQ		opt_altq.h
 ALTQ_RED		opt_altq.h
@@ -938,9 +940,16 @@ RACCT_DEFAULT_TO_DISABLED	opt_global.h
 RCTL		opt_global.h
 
 # Random number generator(s)
+# The DEBUG option is in global.h as the random harvesting
+# puts probes all over the place, and it makes little sense
+# to pollute these headers with an extra include.
+# the DUMMY option is in global.h because it is used to
+# turn off harvesting all over the kernel.
+RANDOM_DEBUG	opt_global.h
+# Which CSPRNG hashes we get.
+# These are mutually exclusive. With neither, Fortuna is selected.
+RANDOM_DUMMY	opt_global.h
 RANDOM_YARROW	opt_random.h
-RANDOM_FORTUNA	opt_random.h
-RANDOM_DEBUG	opt_random.h
 
 # Intel em(4) driver
 EM_MULTIQUEUE	opt_em.h

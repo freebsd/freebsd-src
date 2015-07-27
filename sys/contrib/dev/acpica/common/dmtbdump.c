@@ -208,11 +208,16 @@ AcpiDmDumpRsdp (
     ACPI_TABLE_RSDP         *Rsdp = ACPI_CAST_PTR (ACPI_TABLE_RSDP, Table);
     UINT32                  Length = sizeof (ACPI_RSDP_COMMON);
     UINT8                   Checksum;
+    ACPI_STATUS             Status;
 
 
     /* Dump the common ACPI 1.0 portion */
 
-    AcpiDmDumpTable (Length, 0, Table, 0, AcpiDmTableInfoRsdp1);
+    Status = AcpiDmDumpTable (Length, 0, Table, 0, AcpiDmTableInfoRsdp1);
+    if (ACPI_FAILURE (Status))
+    {
+        return (Length);
+    }
 
     /* Validate the first checksum */
 
@@ -229,7 +234,11 @@ AcpiDmDumpRsdp (
     if (Rsdp->Revision > 0)
     {
         Length = Rsdp->Length;
-        AcpiDmDumpTable (Length, 0, Table, 0, AcpiDmTableInfoRsdp2);
+        Status = AcpiDmDumpTable (Length, 0, Table, 0, AcpiDmTableInfoRsdp2);
+        if (ACPI_FAILURE (Status))
+        {
+            return (Length);
+        }
 
         /* Validate the extended checksum over entire RSDP */
 
@@ -347,37 +356,59 @@ void
 AcpiDmDumpFadt (
     ACPI_TABLE_HEADER       *Table)
 {
+    ACPI_STATUS             Status;
+
 
     /* Always dump the minimum FADT revision 1 fields (ACPI 1.0) */
 
-    AcpiDmDumpTable (Table->Length, 0, Table, 0, AcpiDmTableInfoFadt1);
+    Status = AcpiDmDumpTable (Table->Length, 0, Table, 0, AcpiDmTableInfoFadt1);
+    if (ACPI_FAILURE (Status))
+    {
+        return;
+    }
 
     /* Check for FADT revision 2 fields (ACPI 1.0B MS extensions) */
 
     if ((Table->Length > ACPI_FADT_V1_SIZE) &&
         (Table->Length <= ACPI_FADT_V2_SIZE))
     {
-        AcpiDmDumpTable (Table->Length, 0, Table, 0, AcpiDmTableInfoFadt2);
+        Status = AcpiDmDumpTable (Table->Length, 0, Table, 0, AcpiDmTableInfoFadt2);
+        if (ACPI_FAILURE (Status))
+        {
+            return;
+        }
     }
 
     /* Check for FADT revision 3/4 fields and up (ACPI 2.0+ extended data) */
 
     else if (Table->Length > ACPI_FADT_V2_SIZE)
     {
-        AcpiDmDumpTable (Table->Length, 0, Table, 0, AcpiDmTableInfoFadt3);
+        Status = AcpiDmDumpTable (Table->Length, 0, Table, 0, AcpiDmTableInfoFadt3);
+        if (ACPI_FAILURE (Status))
+        {
+            return;
+        }
 
         /* Check for FADT revision 5 fields and up (ACPI 5.0+) */
 
         if (Table->Length > ACPI_FADT_V3_SIZE)
         {
-            AcpiDmDumpTable (Table->Length, 0, Table, 0, AcpiDmTableInfoFadt5);
+            Status = AcpiDmDumpTable (Table->Length, 0, Table, 0, AcpiDmTableInfoFadt5);
+            if (ACPI_FAILURE (Status))
+            {
+                return;
+            }
         }
 
         /* Check for FADT revision 6 fields and up (ACPI 6.0+) */
 
         if (Table->Length > ACPI_FADT_V3_SIZE)
         {
-            AcpiDmDumpTable (Table->Length, 0, Table, 0, AcpiDmTableInfoFadt6);
+            Status = AcpiDmDumpTable (Table->Length, 0, Table, 0, AcpiDmTableInfoFadt6);
+            if (ACPI_FAILURE (Status))
+            {
+                return;
+            }
         }
     }
 
@@ -1136,7 +1167,7 @@ AcpiDmDumpDrtm (
                 AcpiDmTableInfoDrtm1);
     if (ACPI_FAILURE (Status))
     {
-            return;
+        return;
     }
 
     Offset += ACPI_OFFSET (ACPI_DRTM_RESOURCE_LIST, Resources);
@@ -1164,13 +1195,9 @@ AcpiDmDumpDrtm (
 
     DrtmDps = ACPI_ADD_PTR (ACPI_DRTM_DPS_ID, Table, Offset);
     AcpiOsPrintf ("\n");
-    Status = AcpiDmDumpTable (Table->Length, Offset,
+    (void) AcpiDmDumpTable (Table->Length, Offset,
                 DrtmDps, sizeof (ACPI_DRTM_DPS_ID),
                 AcpiDmTableInfoDrtm2);
-    if (ACPI_FAILURE (Status))
-    {
-        return;
-    }
 }
 
 
@@ -1794,6 +1821,10 @@ AcpiDmDumpIort (
                 Status = AcpiDmDumpTable (Table->Length, Offset + NodeOffset,
                             ACPI_ADD_PTR (ACPI_IORT_NODE, IortNode, NodeOffset),
                             Length, AcpiDmTableInfoIort3a);
+                if (ACPI_FAILURE (Status))
+                {
+                    return;
+                }
 
                 NodeOffset = IortSmmu->ContextInterruptOffset;
                 for (i = 0; i < IortSmmu->ContextInterruptCount; i++)
@@ -1801,6 +1832,10 @@ AcpiDmDumpIort (
                     Status = AcpiDmDumpTable (Table->Length, Offset + NodeOffset,
                                 ACPI_ADD_PTR (ACPI_IORT_NODE, IortNode, NodeOffset),
                                 8, AcpiDmTableInfoIort3b);
+                    if (ACPI_FAILURE (Status))
+                    {
+                        return;
+                    }
                     NodeOffset += 8;
                 }
 
@@ -1810,6 +1845,10 @@ AcpiDmDumpIort (
                     Status = AcpiDmDumpTable (Table->Length, Offset + NodeOffset,
                                 ACPI_ADD_PTR (ACPI_IORT_NODE, IortNode, NodeOffset),
                                 8, AcpiDmTableInfoIort3c);
+                    if (ACPI_FAILURE (Status))
+                    {
+                        return;
+                    }
                     NodeOffset += 8;
                 }
             }
@@ -1830,6 +1869,10 @@ AcpiDmDumpIort (
             Status = AcpiDmDumpTable (Table->Length, Offset + NodeOffset,
                         ACPI_ADD_PTR (ACPI_IORT_NODE, IortNode, NodeOffset),
                         Length, AcpiDmTableInfoIortMap);
+            if (ACPI_FAILURE (Status))
+            {
+                return;
+            }
             NodeOffset += Length;
         }
 
@@ -2004,6 +2047,10 @@ AcpiDmDumpIvrs (
 
                 Status = AcpiDmDumpTable (Table->Length, EntryOffset,
                             DeviceEntry, EntryLength, InfoTable);
+                if (ACPI_FAILURE (Status))
+                {
+                    return;
+                }
 
                 EntryOffset += EntryLength;
                 DeviceEntry = ACPI_ADD_PTR (ACPI_IVRS_DE_HEADER, DeviceEntry,
@@ -2687,6 +2734,11 @@ AcpiDmDumpNfit (
                 Status = AcpiDmDumpTable (Table->Length, Offset + FieldOffset,
                             &Interleave->LineOffset[i],
                             sizeof (UINT32), AcpiDmTableInfoNfit2a);
+                if (ACPI_FAILURE (Status))
+                {
+                    return;
+                }
+
                 FieldOffset += sizeof (UINT32);
             }
             break;
@@ -2715,6 +2767,11 @@ AcpiDmDumpNfit (
                 Status = AcpiDmDumpTable (Table->Length, Offset + FieldOffset,
                             &Hint->HintAddress[i],
                             sizeof (UINT64), AcpiDmTableInfoNfit6a);
+                if (ACPI_FAILURE (Status))
+                {
+                    return;
+                }
+
                 FieldOffset += sizeof (UINT64);
             }
             break;
@@ -3126,7 +3183,7 @@ void
 AcpiDmDumpSlic (
     ACPI_TABLE_HEADER       *Table)
 {
-    AcpiDmDumpTable (Table->Length, sizeof (ACPI_TABLE_HEADER), Table,
+    (void) AcpiDmDumpTable (Table->Length, sizeof (ACPI_TABLE_HEADER), Table,
                 Table->Length - sizeof (*Table), AcpiDmTableInfoSlic);
 }
 
@@ -3358,6 +3415,77 @@ AcpiDmDumpStao (
 
 /*******************************************************************************
  *
+ * FUNCTION:    AcpiDmDumpTcpa
+ *
+ * PARAMETERS:  Table               - A TCPA table
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Format the contents of a TCPA.
+ *
+ * NOTE:        There are two versions of the table with the same signature:
+ *              the client version and the server version. The common
+ *              PlatformClass field is used to differentiate the two types of
+ *              tables.
+ *
+ ******************************************************************************/
+
+void
+AcpiDmDumpTcpa (
+    ACPI_TABLE_HEADER       *Table)
+{
+    UINT32                  Offset = sizeof (ACPI_TABLE_TCPA_HDR);
+    ACPI_TABLE_TCPA_HDR     *CommonHeader = ACPI_CAST_PTR (
+                                ACPI_TABLE_TCPA_HDR, Table);
+    ACPI_TABLE_TCPA_HDR     *SubTable = ACPI_ADD_PTR (
+                                ACPI_TABLE_TCPA_HDR, Table, Offset);
+    ACPI_STATUS             Status;
+
+
+    /* Main table */
+
+    Status = AcpiDmDumpTable (Table->Length, 0, Table,
+        0, AcpiDmTableInfoTcpaHdr);
+    if (ACPI_FAILURE (Status))
+    {
+        return;
+    }
+
+    /*
+     * Examine the PlatformClass field to determine the table type.
+     * Either a client or server table. Only one.
+     */
+    switch (CommonHeader->PlatformClass)
+    {
+    case ACPI_TCPA_CLIENT_TABLE:
+
+        Status = AcpiDmDumpTable (Table->Length, Offset, SubTable,
+            Table->Length - Offset, AcpiDmTableInfoTcpaClient);
+        break;
+
+    case ACPI_TCPA_SERVER_TABLE:
+
+        Status = AcpiDmDumpTable (Table->Length, Offset, SubTable,
+            Table->Length - Offset, AcpiDmTableInfoTcpaServer);
+        break;
+
+    default:
+
+        AcpiOsPrintf ("\n**** Unknown TCPA Platform Class 0x%X\n",
+            CommonHeader->PlatformClass);
+        Status = AE_ERROR;
+        break;
+    }
+
+    if (ACPI_FAILURE (Status))
+    {
+        AcpiOsPrintf ("\n**** Cannot disassemble TCPA table\n");
+    }
+}
+
+
+/*******************************************************************************
+ *
  * FUNCTION:    AcpiDmDumpVrtc
  *
  * PARAMETERS:  Table               - A VRTC table
@@ -3497,10 +3625,6 @@ AcpiDmDumpWpbt (
 
     /* Dump the arguments buffer */
 
-    AcpiDmDumpTable (Table->Length, 0, Table, ArgumentsLength,
+    (void) AcpiDmDumpTable (Table->Length, 0, Table, ArgumentsLength,
         AcpiDmTableInfoWpbt0);
-    if (ACPI_FAILURE (Status))
-    {
-        return;
-    }
 }
