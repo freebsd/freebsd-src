@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2015 Baptiste Daroussin <bapt@FreeBSD.org>
+ * Copyright (c) 2015 Xin LI <delphij@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,68 +39,23 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include <xlocale.h>
 
-static bool
-parse_id(FILE *fp, struct sbuf *buf, locale_t l)
-{
-	int c;
-	bool isid = false;
-	bool subversion = false;
-
-	sbuf_putc(buf, '$');
-	while ((c = fgetc(fp)) != EOF) {
-		sbuf_putc(buf, c);
-		if (!isid) {
-			if (c == '$') {
-				sbuf_clear(buf);
-				sbuf_putc(buf, '$');
-				continue;
-			}
-			if (c == ':') {
-				 c = fgetc(fp);
-				 /* accept :: for subversion compatibility */
-				 if (c == ':') {
-					subversion = true;
-					sbuf_putc(buf, c);
-					c = fgetc(fp);
-				}
-				if (c == ' ') {
-					sbuf_putc(buf, c);
-					isid = true;
-					continue;
-				}
-				return (false);
-			}
-
-			if (!isalpha_l(c, l))
-				return (false);
-		} else {
-			if (c == '\n')
-				return (false);
-			if (c == '$') {
-				sbuf_finish(buf);
-				/* should end with a space */
-				c = sbuf_data(buf)[sbuf_len(buf) - 2];
-				if (!subversion) {
-					if (c != ' ')
-						return (0);
-				} else if (subversion) {
-					if (c != ' ' && c != '#')
-						return (0);
-				}
-				printf("     %s\n", sbuf_data(buf));
-				return (true);
-			}
-		}
-	}
-
-	return (false);
-}
+typedef enum {
+	/* state	condition to transit to next state */
+	INIT,		/* '$' */
+	DELIM_SEEN,	/* letter */
+	KEYWORD,	/* punctuation mark */
+	PUNC_SEEN,	/* ':' -> _SVN; space -> TEXT */
+	PUNC_SEEN_SVN,	/* space */
+	TEXT
+} analyzer_states;
 
 static int
 scan(FILE *fp, const char *name, bool quiet)
 {
 	int c;
 	bool hasid = false;
+	bool subversion = false;
+	analyzer_states state = INIT;
 	struct sbuf *id = sbuf_new_auto();
 	locale_t l;
 
@@ -109,10 +65,123 @@ scan(FILE *fp, const char *name, bool quiet)
 		printf("%s:\n", name);
 
 	while ((c = fgetc(fp)) != EOF) {
-		if (c == '$') {
-			sbuf_clear(id);
-			if (parse_id(fp, id, l))
-				hasid = true;
+		switch (state) {
+		case INIT:
+			if (c == '$') {
+				/* Transit to DELIM_SEEN if we see $ */
+				state = DELIM_SEEN;
+			} else {
+				/* Otherwise, stay in INIT state */
+				continue;
+			}
+			break;
+		case DELIM_SEEN:
+			if (isalpha_l(c, l)) {
+				/* Transit to KEYWORD if we see letter */
+				sbuf_clear(id);
+				sbuf_putc(id, '$');
+				sbuf_putc(id, c);
+				state = KEYWORD;
+
+				continue;
+			} else if (c == '$') {
+				/* Or, stay in DELIM_SEEN if more $ */
+				continue;
+			} else {
+				/* Otherwise, transit back to INIT */
+				state = INIT;
+			}
+			break;
+		case KEYWORD:
+			sbuf_putc(id, c);
+
+			if (isalpha_l(c, l)) {
+				/*
+				 * Stay in KEYWORD if additional letter is seen
+				 */
+				continue;
+			} else if (c == ':') {
+				/*
+				 * See ':' for the first time, transit to
+				 * PUNC_SEEN.
+				 */
+				state = PUNC_SEEN;
+				subversion = false;
+			} else if (c == '$') {
+				/*
+				 * Incomplete ident.  Go back to DELIM_SEEN
+				 * state because we see a '$' which could be
+				 * the beginning of a keyword.
+				 */
+				state = DELIM_SEEN;
+			} else {
+				/*
+				 * Go back to INIT state otherwise.
+				 */
+				state = INIT;
+			}
+			break;
+		case PUNC_SEEN:
+		case PUNC_SEEN_SVN:
+			sbuf_putc(id, c);
+
+			switch (c) {
+			case ':':
+				/*
+				 * If we see '::' (seen : in PUNC_SEEN),
+				 * activate subversion treatment and transit
+				 * to PUNC_SEEN_SVN state.
+				 *
+				 * If more than two :'s were seen, the ident
+				 * is invalid and we would therefore go back
+				 * to INIT state.
+				 */
+				if (state == PUNC_SEEN) {
+					state = PUNC_SEEN_SVN;
+					subversion = true;
+				} else {
+					state = INIT;
+				}
+				break;
+			case ' ':
+				/*
+				 * A space after ':' or '::' indicates we are at the
+				 * last component of potential ident.
+				 */
+				state = TEXT;
+				break;
+			default:
+				/* All other characters are invalid */
+				state = INIT;
+				break;
+			}
+			break;
+		case TEXT:
+			sbuf_putc(id, c);
+
+			if (iscntrl_l(c, l)) {
+				/* Control characters are not allowed in this state */
+				state = INIT;
+			} else if (c == '$') {
+				sbuf_finish(id);
+				/*
+				 * valid ident should end with a space.
+				 *
+				 * subversion extension uses '#' to indicate that
+				 * the keyword expansion have exceeded the fixed
+				 * width, so it is also permitted if we are in
+				 * subversion mode.  No length check is enforced
+				 * because GNU RCS ident(1) does not do it either.
+				 */
+				c = sbuf_data(id)[sbuf_len(id) - 2];
+				if (c == ' ' || (subversion && c == '#')) {
+					printf("     %s\n", sbuf_data(id));
+					hasid = true;
+				}
+				state = INIT;
+			}
+			/* Other characters: stay in the state */
+			break;
 		}
 	}
 	sbuf_delete(id);
