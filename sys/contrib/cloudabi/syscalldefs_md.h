@@ -193,8 +193,8 @@ typedef struct {
     struct {
       MEMBER(PTR(_Atomic(cloudabi_condvar_t))) condvar;
       MEMBER(PTR(_Atomic(cloudabi_lock_t))) lock;
-      MEMBER(cloudabi_futexscope_t) condvar_scope;
-      MEMBER(cloudabi_futexscope_t) lock_scope;
+      MEMBER(cloudabi_mflags_t) condvar_scope;
+      MEMBER(cloudabi_mflags_t) lock_scope;
     } condvar;
 
     // CLOUDABI_EVENTTYPE_FD_READ and CLOUDABI_EVENTTYPE_FD_WRITE:
@@ -208,7 +208,7 @@ typedef struct {
     // and acquire a read or write lock.
     struct {
       MEMBER(PTR(_Atomic(cloudabi_lock_t))) lock;
-      MEMBER(cloudabi_futexscope_t) lock_scope;
+      MEMBER(cloudabi_mflags_t) lock_scope;
     } lock;
 
     // CLOUDABI_EVENTTYPE_PROC_TERMINATE: Wait for a process to terminate.
