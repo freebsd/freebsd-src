@@ -930,7 +930,8 @@ nvme_ctrlr_construct(struct nvme_controller *ctrlr, device_t dev)
 {
 	union cap_lo_register	cap_lo;
 	union cap_hi_register	cap_hi;
-	int			i, num_vectors, per_cpu_io_queues, rid;
+	int			i, per_cpu_io_queues, rid;
+	int			num_vectors_requested, num_vectors_allocated;
 	int			status, timeout_period;
 
 	ctrlr->dev = dev;
@@ -988,7 +989,7 @@ nvme_ctrlr_construct(struct nvme_controller *ctrlr, device_t dev)
 	}
 
 	/* One vector per IO queue, plus one vector for admin queue. */
-	num_vectors = ctrlr->num_io_queues + 1;
+	num_vectors_requested = ctrlr->num_io_queues + 1;
 
 	/*
 	 * If we cannot even allocate 2 vectors (one for admin, one for
@@ -997,15 +998,36 @@ nvme_ctrlr_construct(struct nvme_controller *ctrlr, device_t dev)
 	if (pci_msix_count(dev) < 2) {
 		ctrlr->msix_enabled = 0;
 		goto intx;
-	} else if (pci_msix_count(dev) < num_vectors) {
+	} else if (pci_msix_count(dev) < num_vectors_requested) {
 		ctrlr->per_cpu_io_queues = FALSE;
 		ctrlr->num_io_queues = 1;
-		num_vectors = 2; /* one for admin, one for I/O */
+		num_vectors_requested = 2; /* one for admin, one for I/O */
 	}
 
-	if (pci_alloc_msix(dev, &num_vectors) != 0) {
+	num_vectors_allocated = num_vectors_requested;
+	if (pci_alloc_msix(dev, &num_vectors_allocated) != 0) {
 		ctrlr->msix_enabled = 0;
 		goto intx;
+	} else if (num_vectors_allocated < num_vectors_requested) {
+		if (num_vectors_allocated < 2) {
+			pci_release_msi(dev);
+			ctrlr->msix_enabled = 0;
+			goto intx;
+		} else {
+			ctrlr->per_cpu_io_queues = FALSE;
+			ctrlr->num_io_queues = 1;
+			/*
+			 * Release whatever vectors were allocated, and just
+			 *  reallocate the two needed for the admin and single
+			 *  I/O qpair.
+			 */
+			num_vectors_allocated = 2;
+			pci_release_msi(dev);
+			if (pci_alloc_msix(dev, &num_vectors_allocated) != 0)
+				panic("could not reallocate any vectors\n");
+			if (num_vectors_allocated != 2)
+				panic("could not reallocate 2 vectors\n");
+		}
 	}
 
 	/*
@@ -1022,7 +1044,7 @@ nvme_ctrlr_construct(struct nvme_controller *ctrlr, device_t dev)
 	 *  vendors wishing to import this driver into kernels based on
 	 *  older versions of FreeBSD.
 	 */
-	for (i = 0; i < num_vectors; i++) {
+	for (i = 0; i < num_vectors_allocated; i++) {
 		rid = i + 1;
 		ctrlr->msi_res[i] = bus_alloc_resource_any(ctrlr->dev,
 		    SYS_RES_IRQ, &rid, RF_ACTIVE);
