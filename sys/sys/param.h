@@ -77,12 +77,13 @@
 #define __FreeBSD_kernel__
 
 #ifdef _KERNEL
-#define	P_OSREL_SIGWAIT		700000
-#define	P_OSREL_SIGSEGV		700004
-#define	P_OSREL_MAP_ANON	800104
-#define	P_OSREL_MAP_FSTRICT	1100036
+#define	P_OSREL_SIGWAIT			700000
+#define	P_OSREL_SIGSEGV			700004
+#define	P_OSREL_MAP_ANON		800104
+#define	P_OSREL_MAP_FSTRICT		1100036
+#define	P_OSREL_SHUTDOWN_ENOTCONN	1100077
 
-#define	P_OSREL_MAJOR(x)	((x) / 100000)
+#define	P_OSREL_MAJOR(x)		((x) / 100000)
 #endif
 
 #ifndef LOCORE
