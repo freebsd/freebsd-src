@@ -30,7 +30,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 2: {
 		struct cloudabi_sys_condvar_signal_args *p = params;
 		uarg[0] = (intptr_t) p->condvar; /* cloudabi_condvar_t * */
-		iarg[1] = p->scope; /* cloudabi_futexscope_t */
+		iarg[1] = p->scope; /* cloudabi_mflags_t */
 		iarg[2] = p->nwaiters; /* cloudabi_nthreads_t */
 		*n_args = 3;
 		break;
@@ -297,7 +297,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 31: {
 		struct cloudabi_sys_lock_unlock_args *p = params;
 		uarg[0] = (intptr_t) p->lock; /* cloudabi_lock_t * */
-		iarg[1] = p->scope; /* cloudabi_futexscope_t */
+		iarg[1] = p->scope; /* cloudabi_mflags_t */
 		*n_args = 2;
 		break;
 	}
@@ -495,7 +495,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 54: {
 		struct cloudabi_sys_thread_exit_args *p = params;
 		uarg[0] = (intptr_t) p->lock; /* cloudabi_lock_t * */
-		iarg[1] = p->scope; /* cloudabi_futexscope_t */
+		iarg[1] = p->scope; /* cloudabi_mflags_t */
 		*n_args = 2;
 		break;
 	}
@@ -551,7 +551,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "cloudabi_condvar_t *";
 			break;
 		case 1:
-			p = "cloudabi_futexscope_t";
+			p = "cloudabi_mflags_t";
 			break;
 		case 2:
 			p = "cloudabi_nthreads_t";
@@ -1033,7 +1033,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "cloudabi_lock_t *";
 			break;
 		case 1:
-			p = "cloudabi_futexscope_t";
+			p = "cloudabi_mflags_t";
 			break;
 		default:
 			break;
@@ -1373,7 +1373,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "cloudabi_lock_t *";
 			break;
 		case 1:
-			p = "cloudabi_futexscope_t";
+			p = "cloudabi_mflags_t";
 			break;
 		default:
 			break;
