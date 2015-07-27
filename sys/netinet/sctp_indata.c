@@ -2488,8 +2488,11 @@ sctp_process_data(struct mbuf **mm, int iphlen, int *offset, int length,
 				 */
 				if (SCTP_BASE_SYSCTL(sctp_strict_data_order)) {
 					struct mbuf *op_err;
+					char msg[SCTP_DIAG_INFO_LEN];
 
-					op_err = sctp_generate_cause(SCTP_CAUSE_PROTOCOL_VIOLATION, "");
+					snprintf(msg, sizeof(msg), "DATA chunk followwd by chunk of type %2.2x",
+					    ch->ch.chunk_type);
+					op_err = sctp_generate_cause(SCTP_CAUSE_PROTOCOL_VIOLATION, msg);
 					sctp_abort_association(inp, stcb,
 					    m, iphlen,
 					    src, dst,
