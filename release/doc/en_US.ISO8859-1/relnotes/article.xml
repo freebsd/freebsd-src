@@ -511,6 +511,11 @@
 
       <para revision="285329"><application>OpenSSL</application> has
 	been updated to version 1.0.1p.</para>
+
+      <para revision="285642" contrib="sponsor" sponsor="&dell;">The
+	&man.ssh.1; utility has been updated to re-implement hostname
+	canonicalization before locating the host in
+	<filename>known_hosts</filename>.</para>
     </sect2>
 
     <sect2 xml:id="userland-installer">
@@ -540,6 +545,24 @@
       <para revision="275874">The &man.bsdinstall.8; utility has been
 	updated to use the new &man.dpv.3; library to display progress
 	when extracting the &os; distributions.</para>
+
+      <para revision="285557" contrib="sponsor"
+	sponsor="&scaleengine;">Support for detecting and implementing
+	aligning partitions on 1Mb boundaries has been added to
+	&man.bsdinstall.8;.</para>
+
+      <para revision="285679" contrib="sponsor"
+	sponsor="&scaleengine;">Support for detecting and implementing
+	a workaround for various laptops and motherboards that do not
+	boot properly from <acronym>GPT</acronym>-partitioned disks
+	has been added to &man.bsdinstall.8;.  Additionally, the
+	<literal>active</literal> flag will be set on the partition
+	when needed.</para>
+
+      <para revision="285679" contrib="sponsor"
+	sponsor="&scaleengine;">Support for selecting the partitioning
+	scheme when installing on the <acronym>UFS</acronym>
+	filesystem has been added to &man.bsdinstall.8;.</para>
     </sect2>
 
     <sect2 xml:id="userland-rc">
@@ -803,7 +826,19 @@
       <para revision="281495" contrib="sponsor" sponsor="&ff;">The
 	<literal>PAE_TABLES</literal> kernel configuration option has
 	been added for &os;/&arch.i386;, which instructs &man.pmap.9;
-	to use <acronym>PAE</acronym> format for page tables.</para>
+	to use <acronym>PAE</acronym> format for page tables while
+	maintaining a 32-bit physical address size elsewhere in the
+	kernel.  The use of this option can enhance application-level
+	security by enabling the creation of <quote>no execute</quote>
+	mappings on modern &arch.i386; processors.  Unlike the
+	<literal>PAE</literal> option, <literal>PAE_TABLES</literal>
+	preserves kernel binary interface (<acronym>KBI</acronym>)
+	compatibility with non-<literal>PAE</literal> kernels,
+	allowing non-<literal>PAE</literal> kernel modules and drivers
+	to work with a <literal>PAE_TABLES</literal>-enabled kernel.
+	Additionally, system limits are tuned for 4GB maximum
+	<acronym>RAM</acronym>, avoiding kernel virtual address space
+	(<acronym>KVA</acronym>) exhaustion.</para>
 
       <para revision="282215">The <literal>SIFTR</literal> kernel
 	configuration has been added, allowing building &man.siftr.4;

@@ -368,7 +368,7 @@ const ACPI_DMTABLE_DATA     AcpiDmTableData[] =
     {ACPI_SIG_SPMI, AcpiDmTableInfoSpmi,    NULL,           NULL,           TemplateSpmi},
     {ACPI_SIG_SRAT, NULL,                   AcpiDmDumpSrat, DtCompileSrat,  TemplateSrat},
     {ACPI_SIG_STAO, NULL,                   AcpiDmDumpStao, DtCompileStao,  TemplateStao},
-    {ACPI_SIG_TCPA, AcpiDmTableInfoTcpa,    NULL,           NULL,           TemplateTcpa},
+    {ACPI_SIG_TCPA, NULL,                   AcpiDmDumpTcpa, DtCompileTcpa,  TemplateTcpa},
     {ACPI_SIG_TPM2, AcpiDmTableInfoTpm2,    NULL,           NULL,           TemplateTpm2},
     {ACPI_SIG_UEFI, AcpiDmTableInfoUefi,    NULL,           DtCompileUefi,  TemplateUefi},
     {ACPI_SIG_VRTC, AcpiDmTableInfoVrtc,    AcpiDmDumpVrtc, DtCompileVrtc,  TemplateVrtc},
@@ -500,7 +500,11 @@ AcpiDmDumpDataTable (
     if (ACPI_COMPARE_NAME (Table->Signature, ACPI_SIG_FACS))
     {
         Length = Table->Length;
-        AcpiDmDumpTable (Length, 0, Table, 0, AcpiDmTableInfoFacs);
+        Status = AcpiDmDumpTable (Length, 0, Table, 0, AcpiDmTableInfoFacs);
+        if (ACPI_FAILURE (Status))
+        {
+            return;
+        }
     }
     else if (ACPI_VALIDATE_RSDP_SIG (Table->Signature))
     {
@@ -561,7 +565,11 @@ AcpiDmDumpDataTable (
         {
             /* Simple table, just walk the info table */
 
-            AcpiDmDumpTable (Length, 0, Table, 0, TableData->TableInfo);
+            Status = AcpiDmDumpTable (Length, 0, Table, 0, TableData->TableInfo);
+            if (ACPI_FAILURE (Status))
+            {
+                return;
+            }
         }
     }
 
@@ -720,6 +728,7 @@ AcpiDmDumpTable (
     const AH_TABLE          *TableData;
     const char              *Name;
     BOOLEAN                 LastOutputBlankLine = FALSE;
+    ACPI_STATUS             Status;
     char                    RepairedName[8];
 
 
@@ -1114,8 +1123,13 @@ AcpiDmDumpTable (
             /* Generic Address Structure */
 
             AcpiOsPrintf (STRING_FORMAT, "Generic Address Structure");
-            AcpiDmDumpTable (TableLength, CurrentOffset, Target,
+            Status = AcpiDmDumpTable (TableLength, CurrentOffset, Target,
                 sizeof (ACPI_GENERIC_ADDRESS), AcpiDmTableInfoGas);
+            if (ACPI_FAILURE (Status))
+            {
+                return (Status);
+            }
+
             AcpiOsPrintf ("\n");
             LastOutputBlankLine = TRUE;
             break;
@@ -1250,8 +1264,13 @@ AcpiDmDumpTable (
             AcpiOsPrintf (STRING_FORMAT,
                 "Hardware Error Notification Structure");
 
-            AcpiDmDumpTable (TableLength, CurrentOffset, Target,
+            Status = AcpiDmDumpTable (TableLength, CurrentOffset, Target,
                 sizeof (ACPI_HEST_NOTIFY), AcpiDmTableInfoHestNotify);
+            if (ACPI_FAILURE (Status))
+            {
+                return (Status);
+            }
+
             AcpiOsPrintf ("\n");
             LastOutputBlankLine = TRUE;
             break;
@@ -1275,8 +1294,13 @@ AcpiDmDumpTable (
             AcpiOsPrintf (STRING_FORMAT,
                 "IORT Memory Access Properties");
 
-            AcpiDmDumpTable (TableLength, CurrentOffset, Target,
+            Status = AcpiDmDumpTable (TableLength, CurrentOffset, Target,
                 sizeof (ACPI_IORT_MEMORY_ACCESS), AcpiDmTableInfoIortAcc);
+            if (ACPI_FAILURE (Status))
+            {
+                return (Status);
+            }
+
             LastOutputBlankLine = TRUE;
             break;
 
