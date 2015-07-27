@@ -735,13 +735,13 @@ urndis_ctrl_query(struct urndis_softc *sc, uint32_t oid,
 
 	DPRINTF("type %u len %u rid %u oid 0x%x "
 	    "infobuflen %u infobufoffset %u devicevchdl %u\n",
-	    le32toh(msg.rm_type),
-	    le32toh(msg.rm_len),
-	    le32toh(msg.rm_rid),
-	    le32toh(msg.rm_oid),
-	    le32toh(msg.rm_infobuflen),
-	    le32toh(msg.rm_infobufoffset),
-	    le32toh(msg.rm_devicevchdl));
+	    le32toh(msg->rm_type),
+	    le32toh(msg->rm_len),
+	    le32toh(msg->rm_rid),
+	    le32toh(msg->rm_oid),
+	    le32toh(msg->rm_infobuflen),
+	    le32toh(msg->rm_infobufoffset),
+	    le32toh(msg->rm_devicevchdl));
 
 	rval = urndis_ctrl_send(sc, msg, len);
 
