@@ -184,10 +184,16 @@ int
 bd_tag_create(const char *dev, u_long align, u_long bndry, u_long maxaddr,
     u_long maxsz, u_int nsegs, u_long maxsegsz, u_int datarate, u_int flags)
 {
+	char path[PATH_MAX];
 	struct obj *tag;
-	int fd;
+	int fd, len;
 
-	fd = open(dev, O_RDWR);
+	len = snprintf(path, PATH_MAX, "/dev/proto/%s/busdma", dev);
+	if (len >= PATH_MAX) {
+		errno = EINVAL;
+		return (-1);
+	}
+	fd = open(path, O_RDWR);
 	if (fd == -1)
 		return (-1);
 
@@ -348,10 +354,6 @@ bd_md_load(int mdid, void *buf, u_long len, u_int flags)
 	if (ioctl(md->fd, PROTO_IOC_BUSDMA, &ioc) == -1)
 		return (errno);
 
-	printf("XXX: %s: phys(%d, %#lx), bus(%d, %#lx)\n", __func__,
-	    ioc.u.md.phys_nsegs, ioc.u.md.phys_addr,
-	    ioc.u.md.bus_nsegs, ioc.u.md.bus_addr);
-
 	error = bd_md_add_seg(md, BUSDMA_MD_VIRT, ioc.u.md.virt_addr, len);
 	error = bd_md_add_seg(md, BUSDMA_MD_PHYS, ioc.u.md.phys_addr, len);
 	error = bd_md_add_seg(md, BUSDMA_MD_BUS, ioc.u.md.bus_addr, len);
@@ -411,10 +413,6 @@ bd_mem_alloc(int tid, u_int flags)
 	md->parent = tag;
 	tag->refcnt++;
 	md->key = ioc.result;
-
-	printf("XXX: %s: phys(%d, %#lx), bus(%d, %#lx)\n", __func__,
-	    ioc.u.md.phys_nsegs, ioc.u.md.phys_addr,
-	    ioc.u.md.bus_nsegs, ioc.u.md.bus_addr);
 
 	/* XXX we need to support multiple segments */
 	assert(ioc.u.md.phys_nsegs == 1);

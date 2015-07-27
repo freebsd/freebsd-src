@@ -395,7 +395,7 @@ ofw_bus_reg_to_rl(device_t dev, phandle_t node, pcell_t acells, pcell_t scells,
 	 * This may be just redundant when having ofw_bus_devinfo
 	 * but makes this routine independent of it.
 	 */
-	ret = OF_getencprop_alloc(node, "name", sizeof(*name), (void **)&name);
+	ret = OF_getprop_alloc(node, "name", sizeof(*name), (void **)&name);
 	if (ret == -1)
 		name = NULL;
 
@@ -511,7 +511,7 @@ ofw_bus_find_child(phandle_t start, const char *child_name)
 	phandle_t child;
 
 	for (child = OF_child(start); child != 0; child = OF_peer(child)) {
-		ret = OF_getencprop_alloc(child, "name", sizeof(*name), (void **)&name);
+		ret = OF_getprop_alloc(child, "name", sizeof(*name), (void **)&name);
 		if (ret == -1)
 			continue;
 		if (strcmp(name, child_name) == 0) {

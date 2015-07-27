@@ -113,7 +113,7 @@
 #define ACPI_SPMI_OFFSET(f)             (UINT16) ACPI_OFFSET (ACPI_TABLE_SPMI,f)
 #define ACPI_SRAT_OFFSET(f)             (UINT16) ACPI_OFFSET (ACPI_TABLE_SRAT,f)
 #define ACPI_STAO_OFFSET(f)             (UINT16) ACPI_OFFSET (ACPI_TABLE_STAO,f)
-#define ACPI_TCPA_CLIENT_OFFSET(f)      (UINT16) ACPI_OFFSET (ACPI_TABLE_TCPA_CLIENT,f)
+#define ACPI_TCPA_OFFSET(f)             (UINT16) ACPI_OFFSET (ACPI_TABLE_TCPA_HDR,f)
 #define ACPI_TPM2_OFFSET(f)             (UINT16) ACPI_OFFSET (ACPI_TABLE_TPM2,f)
 #define ACPI_UEFI_OFFSET(f)             (UINT16) ACPI_OFFSET (ACPI_TABLE_UEFI,f)
 #define ACPI_WAET_OFFSET(f)             (UINT16) ACPI_OFFSET (ACPI_TABLE_WAET,f)
@@ -230,6 +230,8 @@
 #define ACPI_SRAT1_OFFSET(f)            (UINT16) ACPI_OFFSET (ACPI_SRAT_MEM_AFFINITY,f)
 #define ACPI_SRAT2_OFFSET(f)            (UINT16) ACPI_OFFSET (ACPI_SRAT_X2APIC_CPU_AFFINITY,f)
 #define ACPI_SRAT3_OFFSET(f)            (UINT16) ACPI_OFFSET (ACPI_SRAT_GICC_AFFINITY,f)
+#define ACPI_TCPA_CLIENT_OFFSET(f)      (UINT16) ACPI_OFFSET (ACPI_TABLE_TCPA_CLIENT,f)
+#define ACPI_TCPA_SERVER_OFFSET(f)      (UINT16) ACPI_OFFSET (ACPI_TABLE_TCPA_SERVER,f)
 #define ACPI_VRTC0_OFFSET(f)            (UINT16) ACPI_OFFSET (ACPI_VRTC_ENTRY,f)
 #define ACPI_WDAT0_OFFSET(f)            (UINT16) ACPI_OFFSET (ACPI_WDAT_ENTRY,f)
 
@@ -2613,13 +2615,50 @@ ACPI_DMTABLE_INFO           AcpiDmTableInfoStaoStr[] =
  *
  * TCPA - Trusted Computing Platform Alliance table (Client)
  *
+ * NOTE: There are two versions of the table with the same signature --
+ * the client version and the server version. The common PlatformClass
+ * field is used to differentiate the two types of tables.
+ *
  ******************************************************************************/
 
-ACPI_DMTABLE_INFO           AcpiDmTableInfoTcpa[] =
+ACPI_DMTABLE_INFO           AcpiDmTableInfoTcpaHdr[] =
 {
-    {ACPI_DMT_UINT16,   ACPI_TCPA_CLIENT_OFFSET (PlatformClass),    "Platform Class", 0},
+    {ACPI_DMT_UINT16,   ACPI_TCPA_OFFSET (PlatformClass),           "Platform Class", 0},
+    ACPI_DMT_TERMINATOR
+};
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoTcpaClient[] =
+{
     {ACPI_DMT_UINT32,   ACPI_TCPA_CLIENT_OFFSET (MinimumLogLength), "Min Event Log Length", 0},
     {ACPI_DMT_UINT64,   ACPI_TCPA_CLIENT_OFFSET (LogAddress),       "Event Log Address", 0},
+    ACPI_DMT_TERMINATOR
+};
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoTcpaServer[] =
+{
+    {ACPI_DMT_UINT16,   ACPI_TCPA_SERVER_OFFSET (Reserved),         "Reserved", 0},
+    {ACPI_DMT_UINT64,   ACPI_TCPA_SERVER_OFFSET (MinimumLogLength), "Min Event Log Length", 0},
+    {ACPI_DMT_UINT64,   ACPI_TCPA_SERVER_OFFSET (LogAddress),       "Event Log Address", 0},
+    {ACPI_DMT_UINT16,   ACPI_TCPA_SERVER_OFFSET (SpecRevision),     "Specification Revision", 0},
+    {ACPI_DMT_UINT8,    ACPI_TCPA_SERVER_OFFSET (DeviceFlags),      "Device Flags (decoded below)", DT_FLAG},
+    {ACPI_DMT_FLAG0,    ACPI_TCPA_SERVER_OFFSET (DeviceFlags),      "Pci Device", 0},
+    {ACPI_DMT_FLAG1,    ACPI_TCPA_SERVER_OFFSET (DeviceFlags),      "Bus is Pnp", 0},
+    {ACPI_DMT_FLAG2,    ACPI_TCPA_SERVER_OFFSET (DeviceFlags),      "Address Valid", 0},
+    {ACPI_DMT_UINT8,    ACPI_TCPA_SERVER_OFFSET (InterruptFlags),   "Interrupt Flags (decoded below)", DT_FLAG},
+    {ACPI_DMT_FLAG0,    ACPI_TCPA_SERVER_OFFSET (InterruptFlags),   "Mode", 0},
+    {ACPI_DMT_FLAG1,    ACPI_TCPA_SERVER_OFFSET (InterruptFlags),   "Polarity", 0},
+    {ACPI_DMT_FLAG2,    ACPI_TCPA_SERVER_OFFSET (InterruptFlags),   "GPE SCI Triggered", 0},
+    {ACPI_DMT_FLAG3,    ACPI_TCPA_SERVER_OFFSET (InterruptFlags),   "Global System Interrupt", 0},
+    {ACPI_DMT_UINT8,    ACPI_TCPA_SERVER_OFFSET (GpeNumber),        "Gpe Number", 0},
+    {ACPI_DMT_UINT24,   ACPI_TCPA_SERVER_OFFSET (Reserved2[0]),     "Reserved", 0},
+    {ACPI_DMT_UINT32,   ACPI_TCPA_SERVER_OFFSET (GlobalInterrupt),  "Global Interrupt", 0},
+    {ACPI_DMT_GAS,      ACPI_TCPA_SERVER_OFFSET (Address),          "Address", 0},
+    {ACPI_DMT_UINT32,   ACPI_TCPA_SERVER_OFFSET (Reserved3),        "Reserved", 0},
+    {ACPI_DMT_GAS,      ACPI_TCPA_SERVER_OFFSET (ConfigAddress),    "Configuration Address", 0},
+    {ACPI_DMT_UINT8,    ACPI_TCPA_SERVER_OFFSET (Group),            "Pci Group", 0},
+    {ACPI_DMT_UINT8,    ACPI_TCPA_SERVER_OFFSET (Bus),              "Pci Bus", 0},
+    {ACPI_DMT_UINT8,    ACPI_TCPA_SERVER_OFFSET (Device),           "Pci Device", 0},
+    {ACPI_DMT_UINT8,    ACPI_TCPA_SERVER_OFFSET (Function),         "Pci Function", 0},
     ACPI_DMT_TERMINATOR
 };
 

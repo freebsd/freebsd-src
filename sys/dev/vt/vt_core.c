@@ -110,8 +110,8 @@ const struct terminal_class vt_termclass = {
 #define	VT_TIMERFREQ	25
 
 /* Bell pitch/duration. */
-#define VT_BELLDURATION	((5 * hz + 99) / 100)
-#define VT_BELLPITCH	800
+#define	VT_BELLDURATION	((5 * hz + 99) / 100)
+#define	VT_BELLPITCH	800
 
 #define	VT_UNIT(vw)	((vw)->vw_device->vd_unit * VT_MAXWINDOWS + \
 			(vw)->vw_number)
@@ -137,11 +137,11 @@ static VT_SYSCTL_INT(kbd_panic, 0, "Enable request to panic.  "
 
 /* Used internally, not a tunable. */
 int vt_draw_logo_cpus;
-VT_SYSCTL_INT(splash_cpu, 1, "Show logo CPUs during boot");
+VT_SYSCTL_INT(splash_cpu, 0, "Show logo CPUs during boot");
 VT_SYSCTL_INT(splash_ncpu, 0, "Override number of logos displayed "
     "(0 = do not override)");
-VT_SYSCTL_INT(splash_cpu_style, 1, "Draw logo style "
-    "(0=Beastie, 1=Alternate beastie, 2=Orb)");
+VT_SYSCTL_INT(splash_cpu_style, 2, "Draw logo style "
+    "(0 = Alternate beastie, 1 = Beastie, 2 = Orb)");
 VT_SYSCTL_INT(splash_cpu_duration, 10, "Hide logos after (seconds)");
 
 static struct vt_device	vt_consdev;
@@ -154,6 +154,10 @@ extern unsigned int vt_logo_width;
 extern unsigned int vt_logo_height;
 extern unsigned int vt_logo_depth;
 extern unsigned char vt_logo_image[];
+#ifndef DEV_SPLASH
+#define	vtterm_draw_cpu_logos(...)	do {} while (0)
+const unsigned int vt_logo_sprite_height;
+#endif
 
 /* Font. */
 extern struct vt_font vt_font_default;
@@ -178,8 +182,8 @@ static void vt_resume_handler(void *priv);
 
 SET_DECLARE(vt_drv_set, struct vt_driver);
 
-#define _VTDEFH MAX(100, PIXEL_HEIGHT(VT_FB_DEFAULT_HEIGHT))
-#define _VTDEFW MAX(200, PIXEL_WIDTH(VT_FB_DEFAULT_WIDTH))
+#define	_VTDEFH	MAX(100, PIXEL_HEIGHT(VT_FB_DEFAULT_HEIGHT))
+#define	_VTDEFW	MAX(200, PIXEL_WIDTH(VT_FB_DEFAULT_WIDTH))
 
 struct terminal	vt_consterm;
 static struct vt_window	vt_conswindow;

@@ -284,6 +284,7 @@ contrib/dev/acpica/components/debugger/dbhistry.c	optional acpi acpi_debug
 contrib/dev/acpica/components/debugger/dbinput.c	optional acpi acpi_debug
 contrib/dev/acpica/components/debugger/dbmethod.c	optional acpi acpi_debug
 contrib/dev/acpica/components/debugger/dbnames.c	optional acpi acpi_debug
+contrib/dev/acpica/components/debugger/dbobject.c	optional acpi acpi_debug
 contrib/dev/acpica/components/debugger/dbstats.c	optional acpi acpi_debug
 contrib/dev/acpica/components/debugger/dbtest.c		optional acpi acpi_debug
 contrib/dev/acpica/components/debugger/dbutils.c	optional acpi acpi_debug
@@ -293,7 +294,6 @@ contrib/dev/acpica/components/disassembler/dmcstyle.c	optional acpi acpi_debug
 contrib/dev/acpica/components/disassembler/dmdeferred.c	optional acpi acpi_debug
 contrib/dev/acpica/components/disassembler/dmnames.c	optional acpi acpi_debug
 contrib/dev/acpica/components/disassembler/dmopcode.c	optional acpi acpi_debug
-contrib/dev/acpica/components/disassembler/dmobject.c	optional acpi acpi_debug
 contrib/dev/acpica/components/disassembler/dmresrc.c	optional acpi acpi_debug
 contrib/dev/acpica/components/disassembler/dmresrcl.c	optional acpi acpi_debug
 contrib/dev/acpica/components/disassembler/dmresrcl2.c	optional acpi acpi_debug
@@ -302,6 +302,7 @@ contrib/dev/acpica/components/disassembler/dmutils.c	optional acpi acpi_debug
 contrib/dev/acpica/components/disassembler/dmwalk.c	optional acpi acpi_debug
 contrib/dev/acpica/components/dispatcher/dsargs.c	optional acpi
 contrib/dev/acpica/components/dispatcher/dscontrol.c	optional acpi
+contrib/dev/acpica/components/dispatcher/dsdebug.c	optional acpi
 contrib/dev/acpica/components/dispatcher/dsfield.c	optional acpi
 contrib/dev/acpica/components/dispatcher/dsinit.c	optional acpi
 contrib/dev/acpica/components/dispatcher/dsmethod.c	optional acpi
@@ -437,6 +438,7 @@ contrib/dev/acpica/components/utilities/utlock.c	optional acpi
 contrib/dev/acpica/components/utilities/utmath.c	optional acpi
 contrib/dev/acpica/components/utilities/utmisc.c	optional acpi
 contrib/dev/acpica/components/utilities/utmutex.c	optional acpi
+contrib/dev/acpica/components/utilities/utnonansi.c	optional acpi
 contrib/dev/acpica/components/utilities/utobject.c	optional acpi
 contrib/dev/acpica/components/utilities/utosi.c		optional acpi
 contrib/dev/acpica/components/utilities/utownerid.c	optional acpi
