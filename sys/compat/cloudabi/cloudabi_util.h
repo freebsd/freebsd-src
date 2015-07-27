@@ -30,12 +30,33 @@
 
 #include <compat/cloudabi/cloudabi_syscalldefs.h>
 
+struct thread;
 struct timespec;
+
+/* Fetches the time value of a clock. */
+int cloudabi_clock_time_get(struct thread *, cloudabi_clockid_t,
+    cloudabi_timestamp_t *);
 
 /* Converts a FreeBSD errno to a CloudABI errno. */
 cloudabi_errno_t cloudabi_convert_errno(int);
 
 /* Converts a struct timespec to a CloudABI timestamp. */
 int cloudabi_convert_timespec(const struct timespec *, cloudabi_timestamp_t *);
+
+/*
+ * Blocking futex functions.
+ *
+ * These functions are called by CloudABI's polling system calls to
+ * sleep on a lock or condition variable.
+ */
+int cloudabi_futex_condvar_wait(struct thread *, cloudabi_condvar_t *,
+    cloudabi_mflags_t, cloudabi_lock_t *, cloudabi_mflags_t, cloudabi_clockid_t,
+    cloudabi_timestamp_t, cloudabi_timestamp_t);
+int cloudabi_futex_lock_rdlock(struct thread *, cloudabi_lock_t *,
+    cloudabi_mflags_t, cloudabi_clockid_t, cloudabi_timestamp_t,
+    cloudabi_timestamp_t);
+int cloudabi_futex_lock_wrlock(struct thread *, cloudabi_lock_t *,
+    cloudabi_mflags_t, cloudabi_clockid_t, cloudabi_timestamp_t,
+    cloudabi_timestamp_t);
 
 #endif
