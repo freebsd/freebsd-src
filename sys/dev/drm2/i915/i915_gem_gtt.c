@@ -189,6 +189,61 @@ void i915_ppgtt_unbind_object(struct i915_hw_ppgtt *ppgtt,
 	    obj->base.size >> PAGE_SHIFT);
 }
 
+void i915_gem_init_ppgtt(struct drm_device *dev)
+{
+	drm_i915_private_t *dev_priv;
+	struct i915_hw_ppgtt *ppgtt;
+	uint32_t pd_offset, pd_entry;
+	vm_paddr_t pt_addr;
+	struct intel_ring_buffer *ring;
+	u_int first_pd_entry_in_global_pt, i;
+
+	dev_priv = dev->dev_private;
+	ppgtt = dev_priv->mm.aliasing_ppgtt;
+	if (ppgtt == NULL)
+		return;
+
+	first_pd_entry_in_global_pt = 512 * 1024 - I915_PPGTT_PD_ENTRIES;
+	for (i = 0; i < ppgtt->num_pd_entries; i++) {
+		pt_addr = VM_PAGE_TO_PHYS(ppgtt->pt_pages[i]);
+		pd_entry = GEN6_PDE_ADDR_ENCODE(pt_addr);
+		pd_entry |= GEN6_PDE_VALID;
+		intel_gtt_write(first_pd_entry_in_global_pt + i, pd_entry);
+	}
+	intel_gtt_read_pte(first_pd_entry_in_global_pt);
+
+	pd_offset = ppgtt->pd_offset;
+	pd_offset /= 64; /* in cachelines, */
+	pd_offset <<= 16;
+
+	if (INTEL_INFO(dev)->gen == 6) {
+		uint32_t ecochk, gab_ctl, ecobits;
+
+		ecobits = I915_READ(GAC_ECO_BITS); 
+		I915_WRITE(GAC_ECO_BITS, ecobits | ECOBITS_PPGTT_CACHE64B);
+
+		gab_ctl = I915_READ(GAB_CTL);
+		I915_WRITE(GAB_CTL, gab_ctl | GAB_CTL_CONT_AFTER_PAGEFAULT);
+
+		ecochk = I915_READ(GAM_ECOCHK);
+		I915_WRITE(GAM_ECOCHK, ecochk | ECOCHK_SNB_BIT |
+				       ECOCHK_PPGTT_CACHE64B);
+		I915_WRITE(GFX_MODE, _MASKED_BIT_ENABLE(GFX_PPGTT_ENABLE));
+	} else if (INTEL_INFO(dev)->gen >= 7) {
+		I915_WRITE(GAM_ECOCHK, ECOCHK_PPGTT_CACHE64B);
+		/* GFX_MODE is per-ring on gen7+ */
+	}
+
+	for_each_ring(ring, dev_priv, i) {
+		if (INTEL_INFO(dev)->gen >= 7)
+			I915_WRITE(RING_MODE_GEN7(ring),
+				   _MASKED_BIT_ENABLE(GFX_PPGTT_ENABLE));
+
+		I915_WRITE(RING_PP_DIR_DCLV(ring), PP_DIR_DCLV_2G);
+		I915_WRITE(RING_PP_DIR_BASE(ring), pd_offset);
+	}
+}
+
 void
 i915_gem_cleanup_aliasing_ppgtt(struct drm_device *dev)
 {
