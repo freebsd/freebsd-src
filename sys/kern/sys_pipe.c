@@ -945,9 +945,10 @@ pipe_direct_write(wpipe, uio)
 retry:
 	PIPE_LOCK_ASSERT(wpipe, MA_OWNED);
 	error = pipelock(wpipe, 1);
-	if (wpipe->pipe_state & PIPE_EOF)
+	if (error != 0)
+		goto error1;
+	if ((wpipe->pipe_state & PIPE_EOF) != 0) {
 		error = EPIPE;
-	if (error) {
 		pipeunlock(wpipe);
 		goto error1;
 	}
