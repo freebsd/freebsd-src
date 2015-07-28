@@ -310,6 +310,7 @@ pw_user(int mode, char *name, long id, struct cargs * args)
 	FILE	       *fp;
 	char *dmode_c;
 	void *set = NULL;
+	int valid_type = _PWF_FILES;
 
 	static struct passwd fakeuser =
 	{
@@ -504,6 +505,14 @@ pw_user(int mode, char *name, long id, struct cargs * args)
 				errx(EX_NOUSER, "no such uid `%ld'", id);
 			errx(EX_NOUSER, "no such user `%s'", name);
 		}
+
+		if (conf.userconf->nispasswd && *conf.userconf->nispasswd == '/')
+			valid_type = _PWF_NIS;
+
+		if (PWF._altdir == PWF_REGULAR &&
+		    ((pwd->pw_fields & _PWF_SOURCE) != valid_type))
+			errx(EX_NOUSER, "no such %s user `%s'",
+			    valid_type == _PWF_FILES ? "local" : "NIS"  , name);
 
 		if (name == NULL)
 			name = pwd->pw_name;
@@ -1076,6 +1085,7 @@ pw_userdel(char *name, long id)
 	char		 grname[LOGNAMESIZE];
 	int		 rc;
 	struct stat	 st;
+	int		 valid_type = _PWF_FILES;
 
 	if (id < 0 && name == NULL)
 		errx(EX_DATAERR, "username or id required");
@@ -1086,6 +1096,15 @@ pw_userdel(char *name, long id)
 			errx(EX_NOUSER, "no such uid `%ld'", id);
 		errx(EX_NOUSER, "no such user `%s'", name);
 	}
+
+	if (conf.userconf->nispasswd && *conf.userconf->nispasswd == '/')
+		valid_type = _PWF_NIS;
+
+	if (PWF._altdir == PWF_REGULAR &&
+	    ((pwd->pw_fields & _PWF_SOURCE) != valid_type))
+		errx(EX_NOUSER, "no such %s user `%s'",
+		    valid_type == _PWF_FILES ? "local" : "NIS"  , name);
+
 	uid = pwd->pw_uid;
 	if (name == NULL)
 		name = pwd->pw_name;
