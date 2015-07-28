@@ -8,6 +8,7 @@ TESTSDIR=	${TESTSBASE}/usr.sbin/pw
 ATF_TESTS_SH=	pw_etcdir \
 		pw_lock \
 		pw_config \
+		pw_groupadd \
 		pw_groupdel \
 		pw_groupmod \
 		pw_useradd \

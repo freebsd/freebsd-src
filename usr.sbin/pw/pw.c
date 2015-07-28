@@ -269,7 +269,7 @@ main(int argc, char *argv[])
 			}
 			if (strspn(optarg, "0123456789") != strlen(optarg))
 				errx(EX_USAGE, "-g expects a number");
-			id = strtonum(optarg, 0, LONG_MAX, &errstr);
+			id = strtonum(optarg, 0, GID_MAX, &errstr);
 			if (errstr != NULL)
 				errx(EX_USAGE, "Bad id '%s': %s", optarg,
 				    errstr);
@@ -281,7 +281,7 @@ main(int argc, char *argv[])
 				addarg(&arglist, 'u', optarg);
 				break;
 			}
-			id = strtonum(optarg, 0, LONG_MAX, &errstr);
+			id = strtonum(optarg, 0, UID_MAX, &errstr);
 			if (errstr != NULL)
 				errx(EX_USAGE, "Bad id '%s': %s", optarg,
 				    errstr);
