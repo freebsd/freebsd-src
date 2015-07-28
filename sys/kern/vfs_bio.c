@@ -309,13 +309,12 @@ static int bdirtywait;
 /*
  * Definitions for the buffer free lists.
  */
-#define BUFFER_QUEUES	5	/* number of free buffer queues */
+#define BUFFER_QUEUES	4	/* number of free buffer queues */
 
 #define QUEUE_NONE	0	/* on no queue */
 #define QUEUE_CLEAN	1	/* non-B_DELWRI buffers */
 #define QUEUE_DIRTY	2	/* B_DELWRI buffers */
-#define QUEUE_EMPTYKVA	3	/* empty buffer headers w/KVA assignment */
-#define QUEUE_EMPTY	4	/* empty buffer headers */
+#define QUEUE_EMPTY	3	/* empty buffer headers */
 #define QUEUE_SENTINEL	1024	/* not an queue index, but mark for sentinel */
 
 /* Queues for free buffers with various properties */
@@ -1862,10 +1861,8 @@ brelse(struct buf *bp)
 		bp->b_xflags &= ~(BX_BKGRDWRITE | BX_ALTDATA);
 		if (bp->b_vflags & BV_BKGRDINPROG)
 			panic("losing buffer 1");
-		if (bp->b_kvasize)
-			qindex = QUEUE_EMPTYKVA;
-		else
-			qindex = QUEUE_EMPTY;
+		bufkvafree(bp);
+		qindex = QUEUE_EMPTY;
 		bp->b_flags |= B_AGE;
 	/* buffers with junk contents */
 	} else if (bp->b_flags & (B_INVAL | B_NOCACHE | B_RELBUF) ||
@@ -2251,8 +2248,6 @@ getnewbuf_reuse_bp(struct buf *bp, int qindex)
 	LIST_INIT(&bp->b_dep);
 }
 
-static int flushingbufs;
-
 static struct buf *
 getnewbuf_scan(int maxsize, int defrag, int unmapped, int metadata)
 {
@@ -2261,64 +2256,25 @@ getnewbuf_scan(int maxsize, int defrag, int unmapped, int metadata)
 
 	KASSERT(!unmapped || !defrag, ("both unmapped and defrag"));
 
-	pass = 1;
+	pass = 0;
 restart:
-	atomic_add_int(&getnewbufrestarts, 1);
+	if (pass != 0)
+		atomic_add_int(&getnewbufrestarts, 1);
 
-	/*
-	 * Setup for scan.  If we do not have enough free buffers,
-	 * we setup a degenerate case that immediately fails.  Note
-	 * that if we are specially marked process, we are allowed to
-	 * dip into our reserves.
-	 *
-	 * The scanning sequence is nominally: EMPTY->EMPTYKVA->CLEAN
-	 * for the allocation of the mapped buffer.  For unmapped, the
-	 * easiest is to start with EMPTY outright.
-	 *
-	 * We start with EMPTYKVA.  If the list is empty we backup to EMPTY.
-	 * However, there are a number of cases (defragging, reusing, ...)
-	 * where we cannot backup.
-	 */
 	nbp = NULL;
 	mtx_lock(&bqclean);
-	if (!defrag && unmapped) {
+	/*
+	 * If we're not defragging or low on bufspace attempt to make a new
+	 * buf from a header.
+	 */
+	if (defrag == 0 && bufspace + maxsize < hibufspace) {
 		nqindex = QUEUE_EMPTY;
-		nbp = TAILQ_FIRST(&bufqueues[QUEUE_EMPTY]);
+		nbp = TAILQ_FIRST(&bufqueues[nqindex]);
 	}
+	/*
+	 * All available buffers might be clean or we need to start recycling.
+	 */
 	if (nbp == NULL) {
-		nqindex = QUEUE_EMPTYKVA;
-		nbp = TAILQ_FIRST(&bufqueues[QUEUE_EMPTYKVA]);
-	}
-
-	/*
-	 * If no EMPTYKVA buffers and we are either defragging or
-	 * reusing, locate a CLEAN buffer to free or reuse.  If
-	 * bufspace useage is low skip this step so we can allocate a
-	 * new buffer.
-	 */
-	if (nbp == NULL && (defrag || bufspace >= lobufspace)) {
-		nqindex = QUEUE_CLEAN;
-		nbp = TAILQ_FIRST(&bufqueues[QUEUE_CLEAN]);
-	}
-
-	/*
-	 * If we could not find or were not allowed to reuse a CLEAN
-	 * buffer, check to see if it is ok to use an EMPTY buffer.
-	 * We can only use an EMPTY buffer if allocating its KVA would
-	 * not otherwise run us out of buffer space.  No KVA is needed
-	 * for the unmapped allocation.
-	 */
-	if (nbp == NULL && defrag == 0 && (bufspace + maxsize < hibufspace ||
-	    metadata)) {
-		nqindex = QUEUE_EMPTY;
-		nbp = TAILQ_FIRST(&bufqueues[QUEUE_EMPTY]);
-	}
-
-	/*
-	 * All available buffers might be clean, retry ignoring the
-	 * lobufspace as the last resort.
-	 */
-	if (nbp == NULL && !TAILQ_EMPTY(&bufqueues[QUEUE_CLEAN])) {
 		nqindex = QUEUE_CLEAN;
 		nbp = TAILQ_FIRST(&bufqueues[QUEUE_CLEAN]);
 	}
@@ -2332,28 +2288,21 @@ restart:
 
 		/*
 		 * Calculate next bp (we can only use it if we do not
-		 * block or do other fancy things).
+		 * release the bqlock)
 		 */
 		if ((nbp = TAILQ_NEXT(bp, b_freelist)) == NULL) {
 			switch (qindex) {
 			case QUEUE_EMPTY:
-				nqindex = QUEUE_EMPTYKVA;
-				nbp = TAILQ_FIRST(&bufqueues[QUEUE_EMPTYKVA]);
-				if (nbp != NULL)
-					break;
-				/* FALLTHROUGH */
-			case QUEUE_EMPTYKVA:
 				nqindex = QUEUE_CLEAN;
-				nbp = TAILQ_FIRST(&bufqueues[QUEUE_CLEAN]);
+				nbp = TAILQ_FIRST(&bufqueues[nqindex]);
 				if (nbp != NULL)
 					break;
 				/* FALLTHROUGH */
 			case QUEUE_CLEAN:
-				if (metadata && pass == 1) {
-					pass = 2;
+				if (metadata && pass == 0) {
+					pass = 1;
 					nqindex = QUEUE_EMPTY;
-					nbp = TAILQ_FIRST(
-					    &bufqueues[QUEUE_EMPTY]);
+					nbp = TAILQ_FIRST(&bufqueues[nqindex]);
 				}
 				/*
 				 * nbp is NULL. 
@@ -2399,11 +2348,11 @@ restart:
 
 		bremfreel(bp);
 		mtx_unlock(&bqclean);
+
 		/*
 		 * NOTE:  nbp is now entirely invalid.  We can only restart
 		 * the scan from this point on.
 		 */
-
 		getnewbuf_reuse_bp(bp, qindex);
 		mtx_assert(&bqclean, MA_NOTOWNED);
 
@@ -2412,7 +2361,6 @@ restart:
 		 */
 		if (defrag) {
 			bp->b_flags |= B_INVAL;
-			bufkvafree(bp);
 			brelse(bp);
 			defrag = 0;
 			goto restart;
@@ -2424,7 +2372,6 @@ restart:
 		 */
 		if (qindex == QUEUE_CLEAN && BUF_LOCKWAITERS(bp)) {
 			bp->b_flags |= B_INVAL;
-			bufkvafree(bp);
 			brelse(bp);
 			goto restart;
 		}
@@ -2437,16 +2384,11 @@ restart:
 		 * KVM space.  This occurs in rare situations when multiple
 		 * processes are blocked in getnewbuf() or allocbuf().
 		 */
-		if (bufspace >= hibufspace)
-			flushingbufs = 1;
-		if (flushingbufs && bp->b_kvasize != 0) {
+		if (bufspace >= hibufspace && bp->b_kvasize != 0) {
 			bp->b_flags |= B_INVAL;
-			bufkvafree(bp);
 			brelse(bp);
 			goto restart;
 		}
-		if (bufspace < lobufspace)
-			flushingbufs = 0;
 		break;
 	}
 	return (bp);
@@ -2492,7 +2434,6 @@ getnewbuf(struct vnode *vp, int slpflag, int slptimeo, int size, int maxsize,
 	 * async I/O rather then sync I/O.
 	 */
 	atomic_add_int(&getnewbufcalls, 1);
-	atomic_subtract_int(&getnewbufrestarts, 1);
 restart:
 	bp = getnewbuf_scan(maxsize, defrag, (gbflags & (GB_UNMAPPED |
 	    GB_KVAALLOC)) == GB_UNMAPPED, metadata);
