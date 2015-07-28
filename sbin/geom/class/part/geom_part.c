@@ -1095,14 +1095,11 @@ gpart_write_partcode(struct ggeom *gp, int idx, void *code, ssize_t size)
 
 	if (pp != NULL) {
 		snprintf(dsf, sizeof(dsf), "/dev/%s", pp->lg_name);
+		if (pp->lg_mediasize < size)
+			errx(EXIT_FAILURE, "%s: not enough space", dsf);
 		fd = open(dsf, O_WRONLY);
 		if (fd == -1)
 			err(EXIT_FAILURE, "%s", dsf);
-		if (lseek(fd, size, SEEK_SET) != size)
-			errx(EXIT_FAILURE, "%s: not enough space", dsf);
-		if (lseek(fd, 0, SEEK_SET) != 0)
-			err(EXIT_FAILURE, "%s", dsf);
-
 		/*
 		 * When writing to a disk device, the write must be
 		 * sector aligned and not write to any partial sectors,
@@ -1141,11 +1138,11 @@ gpart_write_partcode_vtoc8(struct ggeom *gp, int idx, void *code)
 		if (pp->lg_sectorsize != sizeof(struct vtoc8))
 			errx(EXIT_FAILURE, "%s: unexpected sector "
 			    "size (%d)\n", dsf, pp->lg_sectorsize);
+		if (pp->lg_mediasize < VTOC_BOOTSIZE)
+			continue;
 		fd = open(dsf, O_WRONLY);
 		if (fd == -1)
 			err(EXIT_FAILURE, "%s", dsf);
-		if (lseek(fd, VTOC_BOOTSIZE, SEEK_SET) != VTOC_BOOTSIZE)
-			continue;
 		/*
 		 * We ignore the first VTOC_BOOTSIZE bytes of boot code in
 		 * order to avoid overwriting the label.
