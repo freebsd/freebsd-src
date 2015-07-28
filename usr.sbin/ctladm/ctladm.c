@@ -3657,6 +3657,7 @@ retry:
 		retval = 1;
 		goto bailout;
 	}
+	retval = 0;
 	XML_ParserFree(parser);
 
 	if (verbose != 0) {
@@ -4075,6 +4076,7 @@ retry:
 		retval = 1;
 		goto bailout;
 	}
+	retval = 0;
 	XML_ParserFree(parser);
 
 	printf("LUN Backend  %18s %4s %-16s %-16s\n", "Size (Blocks)", "BS",
@@ -4371,6 +4373,7 @@ retry:
 		retval = 1;
 		goto bailout;
 	}
+	retval = 0;
 	XML_ParserFree(parser);
 
 	if (quiet == 0)
