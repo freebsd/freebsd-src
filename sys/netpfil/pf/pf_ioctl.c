@@ -188,6 +188,7 @@ static volatile VNET_DEFINE(int, pf_pfil_hooked);
 VNET_DEFINE(int,		pf_end_threads);
 
 struct rwlock			pf_rules_lock;
+struct sx			pf_ioctl_lock;
 
 /* pfsync */
 pfsync_state_import_t 		*pfsync_state_import_ptr = NULL;
@@ -1090,20 +1091,18 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 
 	switch (cmd) {
 	case DIOCSTART:
-		PF_RULES_WLOCK();
+		sx_xlock(&pf_ioctl_lock);
 		if (V_pf_status.running)
 			error = EEXIST;
 		else {
 			int cpu;
 
-			PF_RULES_WUNLOCK();
 			error = hook_pf();
 			if (error) {
 				DPFPRINTF(PF_DEBUG_MISC,
 				    ("pf: pfil registration failed\n"));
 				break;
 			}
-			PF_RULES_WLOCK();
 			V_pf_status.running = 1;
 			V_pf_status.since = time_second;
 
@@ -1112,27 +1111,23 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 
 			DPFPRINTF(PF_DEBUG_MISC, ("pf: started\n"));
 		}
-		PF_RULES_WUNLOCK();
 		break;
 
 	case DIOCSTOP:
-		PF_RULES_WLOCK();
+		sx_xlock(&pf_ioctl_lock);
 		if (!V_pf_status.running)
 			error = ENOENT;
 		else {
 			V_pf_status.running = 0;
-			PF_RULES_WUNLOCK();
 			error = dehook_pf();
 			if (error) {
 				V_pf_status.running = 1;
 				DPFPRINTF(PF_DEBUG_MISC,
 				    ("pf: pfil unregistration failed\n"));
 			}
-			PF_RULES_WLOCK();
 			V_pf_status.since = time_second;
 			DPFPRINTF(PF_DEBUG_MISC, ("pf: stopped\n"));
 		}
-		PF_RULES_WUNLOCK();
 		break;
 
 	case DIOCADDRULE: {
@@ -3256,6 +3251,8 @@ DIOCCHANGEADDR_error:
 		break;
 	}
 fail:
+	if (sx_xlocked(&pf_ioctl_lock))
+		sx_xunlock(&pf_ioctl_lock);
 	CURVNET_RESTORE();
 
 	return (error);
@@ -3728,6 +3725,7 @@ pf_load(void)
 	VNET_LIST_RUNLOCK();
 
 	rw_init(&pf_rules_lock, "pf rulesets");
+	sx_init(&pf_ioctl_lock, "pf ioctl");
 
 	pf_dev = make_dev(&pf_cdevsw, 0, 0, 0, 0600, PF_NAME);
 	if ((error = pfattach()) != 0)
@@ -3741,9 +3739,7 @@ pf_unload(void)
 {
 	int error = 0;
 
-	PF_RULES_WLOCK();
 	V_pf_status.running = 0;
-	PF_RULES_WUNLOCK();
 	swi_remove(V_pf_swi_cookie);
 	error = dehook_pf();
 	if (error) {
@@ -3772,6 +3768,7 @@ pf_unload(void)
 	PF_RULES_WUNLOCK();
 	destroy_dev(pf_dev);
 	rw_destroy(&pf_rules_lock);
+	sx_destroy(&pf_ioctl_lock);
 
 	return (error);
 }
