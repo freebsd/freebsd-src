@@ -31,6 +31,14 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20150728:
+	As ZFS requires a more kernel stack pages than is the default on some
+	architectures e.g. i386, it now warns if KSTACK_PAGES is less than
+	ZFS_MIN_KSTACK_PAGES (which is 4 at the time of writing).
+
+	Please consider using 'options KSTACK_PAGES=X' where X is greater
+	than or equal to ZFS_MIN_KSTACK_PAGES i.e. 4 in such configurations.
+
 20150706:
 	sendmail has been updated to 8.15.2.  Starting with FreeBSD 11.0
 	and sendmail 8.15, sendmail uses uncompressed IPv6 addresses by
