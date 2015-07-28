@@ -292,13 +292,64 @@ cloudabi_sys_file_stat_fget(struct thread *td,
 	return (copyout(&csb, uap->buf, sizeof(csb)));
 }
 
+/* Converts timestamps to arguments to futimens() and utimensat(). */
+static void
+convert_utimens_arguments(const cloudabi_filestat_t *fs,
+    cloudabi_fsflags_t flags, struct timespec *ts)
+{
+
+	if ((flags & CLOUDABI_FILESTAT_ATIM_NOW) != 0) {
+		ts[0].tv_nsec = UTIME_NOW;
+	} else if ((flags & CLOUDABI_FILESTAT_ATIM) != 0) {
+		ts[0].tv_sec = fs->st_atim / 1000000000;
+		ts[0].tv_nsec = fs->st_atim % 1000000000;
+	} else {
+		ts[0].tv_nsec = UTIME_OMIT;
+	}
+
+	if ((flags & CLOUDABI_FILESTAT_MTIM_NOW) != 0) {
+		ts[1].tv_nsec = UTIME_NOW;
+	} else if ((flags & CLOUDABI_FILESTAT_MTIM) != 0) {
+		ts[1].tv_sec = fs->st_mtim / 1000000000;
+		ts[1].tv_nsec = fs->st_mtim % 1000000000;
+	} else {
+		ts[1].tv_nsec = UTIME_OMIT;
+	}
+}
+
 int
 cloudabi_sys_file_stat_fput(struct thread *td,
     struct cloudabi_sys_file_stat_fput_args *uap)
 {
+	cloudabi_filestat_t fs;
+	struct timespec ts[2];
+	int error;
 
-	/* Not implemented. */
-	return (ENOSYS);
+	error = copyin(uap->buf, &fs, sizeof(fs));
+	if (error != 0)
+		return (error);
+
+	/*
+	 * Only support truncation and timestamp modification separately
+	 * for now, to prevent unnecessary code duplication.
+	 */
+	if ((uap->flags & CLOUDABI_FILESTAT_SIZE) != 0) {
+		/* Call into kern_ftruncate() for file truncation. */
+		if ((uap->flags & ~CLOUDABI_FILESTAT_SIZE) != 0)
+			return (EINVAL);
+		return (kern_ftruncate(td, uap->fd, fs.st_size));
+	} else if ((uap->flags & (CLOUDABI_FILESTAT_ATIM |
+	    CLOUDABI_FILESTAT_ATIM_NOW | CLOUDABI_FILESTAT_MTIM |
+	    CLOUDABI_FILESTAT_MTIM_NOW)) != 0) {
+		/* Call into kern_futimens() for timestamp modification. */
+		if ((uap->flags & ~(CLOUDABI_FILESTAT_ATIM |
+		    CLOUDABI_FILESTAT_ATIM_NOW | CLOUDABI_FILESTAT_MTIM |
+		    CLOUDABI_FILESTAT_MTIM_NOW)) != 0)
+			return (EINVAL);
+		convert_utimens_arguments(&fs, uap->flags, ts);
+		return (kern_futimens(td, uap->fd, ts, UIO_SYSSPACE));
+	}
+	return (EINVAL);
 }
 
 int
@@ -347,9 +398,33 @@ int
 cloudabi_sys_file_stat_put(struct thread *td,
     struct cloudabi_sys_file_stat_put_args *uap)
 {
+	cloudabi_filestat_t fs;
+	struct timespec ts[2];
+	char *path;
+	int error;
 
-	/* Not implemented. */
-	return (ENOSYS);
+	/*
+	 * Only support timestamp modification for now, as there is no
+	 * truncateat().
+	 */
+	if ((uap->flags & ~(CLOUDABI_FILESTAT_ATIM |
+	    CLOUDABI_FILESTAT_ATIM_NOW | CLOUDABI_FILESTAT_MTIM |
+	    CLOUDABI_FILESTAT_MTIM_NOW)) != 0)
+		return (EINVAL);
+
+	error = copyin(uap->buf, &fs, sizeof(fs));
+	if (error != 0)
+		return (error);
+	error = copyin_path(uap->path, uap->pathlen, &path);
+	if (error != 0)
+		return (error);
+
+	convert_utimens_arguments(&fs, uap->flags, ts);
+	error = kern_utimensat(td, uap->fd, path, UIO_SYSSPACE, ts,
+	    UIO_SYSSPACE, (uap->fd & CLOUDABI_LOOKUP_SYMLINK_FOLLOW) != 0 ?
+	    0 : AT_SYMLINK_NOFOLLOW);
+	cloudabi_freestr(path);
+	return (error);
 }
 
 int
