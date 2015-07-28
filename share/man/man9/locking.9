@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 30, 2013
+.Dd July 5, 2015
 .Dt LOCKING 9
 .Os
 .Sh NAME
@@ -387,6 +387,7 @@ At this time this is a rather easy to remember table.
 .It interrupt filter:  Ta \&ok Ta \&no Ta \&no Ta \&no Ta \&no Ta \&no
 .It interrupt thread:  Ta \&ok Ta \&ok Ta \&ok Ta \&no Ta \&no Ta \&no
 .It callout:    Ta \&ok Ta \&ok Ta \&ok Ta \&no Ta \&no Ta \&no
+.It direct callout:  Ta \&ok Ta \&no Ta \&no Ta \&no Ta \&no Ta \&no
 .It system call:    Ta \&ok Ta \&ok Ta \&ok Ta \&ok Ta \&ok Ta \&ok
 .El
 .Sh SEE ALSO
@@ -400,6 +401,7 @@ At this time this is a rather easy to remember table.
 .Xr sema 9 ,
 .Xr sleep 9 ,
 .Xr sx 9 ,
+.Xr timeout 9 ,
 .Xr BUS_SETUP_INTR 9 ,
 .Xr LOCK_PROFILING 9
 .Sh HISTORY
