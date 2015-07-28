@@ -82,6 +82,7 @@ struct KbdintAuthctxt
 	void *ctxt;
 	KbdintDevice *device;
 	u_int nreq;
+	u_int devices_done;
 };
 
 #ifdef USE_PAM
@@ -169,9 +170,14 @@ kbdint_next_device(KbdintAuthctxt *kbdintctxt)
 
 		if (len == 0)
 			break;
-		for (i = 0; devices[i]; i++)
-			if (strncmp(kbdintctxt->devices, devices[i]->name, len) == 0)
+		for (i = 0; devices[i]; i++) {
+			if ((kbdintctxt->devices_done & (1 << i)) != 0)
+				continue;
+			if (strncmp(kbdintctxt->devices, devices[i]->name, len) == 0) {
 				kbdintctxt->device = devices[i];
+				kbdintctxt->devices_done |= 1 << i;
+			}
+		}
 		t = kbdintctxt->devices;
 		kbdintctxt->devices = t[len] ? xstrdup(t+len+1) : NULL;
 		xfree(t);
