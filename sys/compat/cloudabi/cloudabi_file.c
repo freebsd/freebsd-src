@@ -27,14 +27,18 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/capsicum.h>
 #include <sys/fcntl.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/namei.h>
+#include <sys/proc.h>
+#include <sys/stat.h>
 #include <sys/syscallsubr.h>
 
 #include <compat/cloudabi/cloudabi_proto.h>
 #include <compat/cloudabi/cloudabi_syscalldefs.h>
+#include <compat/cloudabi/cloudabi_util.h>
 
 static MALLOC_DEFINE(M_CLOUDABI_PATH, "cloudabipath", "CloudABI pathnames");
 
@@ -220,13 +224,50 @@ cloudabi_sys_file_rename(struct thread *td,
 	return (error);
 }
 
+/* Converts a FreeBSD stat structure to a CloudABI stat structure. */
+static void
+convert_stat(const struct stat *sb, cloudabi_filestat_t *csb)
+{
+	cloudabi_filestat_t res = {
+		.st_dev		= sb->st_dev,
+		.st_ino		= sb->st_ino,
+		.st_nlink	= sb->st_nlink,
+		.st_size	= sb->st_size,
+	};
+
+	cloudabi_convert_timespec(&sb->st_atim, &res.st_atim);
+	cloudabi_convert_timespec(&sb->st_mtim, &res.st_mtim);
+	cloudabi_convert_timespec(&sb->st_ctim, &res.st_ctim);
+	*csb = res;
+}
+
 int
 cloudabi_sys_file_stat_fget(struct thread *td,
     struct cloudabi_sys_file_stat_fget_args *uap)
 {
+	struct stat sb;
+	cloudabi_filestat_t csb;
+	struct file *fp;
+	cap_rights_t rights;
+	cloudabi_filetype_t filetype;
+	int error;
 
-	/* Not implemented. */
-	return (ENOSYS);
+	/* Fetch file descriptor attributes. */
+	error = fget(td, uap->fd, cap_rights_init(&rights, CAP_FSTAT), &fp);
+	if (error != 0)
+		return (error);
+	error = fo_stat(fp, &sb, td->td_ucred, td);
+	if (error != 0) {
+		fdrop(fp, td);
+		return (error);
+	}
+	filetype = cloudabi_convert_filetype(fp);
+	fdrop(fp, td);
+
+	/* Convert attributes to CloudABI's format. */
+	convert_stat(&sb, &csb);
+	csb.st_filetype = filetype;
+	return (copyout(&csb, uap->buf, sizeof(csb)));
 }
 
 int
@@ -242,9 +283,42 @@ int
 cloudabi_sys_file_stat_get(struct thread *td,
     struct cloudabi_sys_file_stat_get_args *uap)
 {
+	struct stat sb;
+	cloudabi_filestat_t csb;
+	char *path;
+	int error;
 
-	/* Not implemented. */
-	return (ENOSYS);
+	error = copyin_path(uap->path, uap->pathlen, &path);
+	if (error != 0)
+		return (error);
+
+	error = kern_statat(td,
+	    (uap->fd & CLOUDABI_LOOKUP_SYMLINK_FOLLOW) != 0 ? 0 :
+	    AT_SYMLINK_NOFOLLOW, uap->fd, path, UIO_SYSSPACE, &sb, NULL);
+	cloudabi_freestr(path);
+	if (error != 0)
+		return (error);
+
+	/* Convert results and return them. */
+	convert_stat(&sb, &csb);
+	if (S_ISBLK(sb.st_mode))
+		csb.st_filetype = CLOUDABI_FILETYPE_BLOCK_DEVICE;
+	else if (S_ISCHR(sb.st_mode))
+		csb.st_filetype = CLOUDABI_FILETYPE_CHARACTER_DEVICE;
+	else if (S_ISDIR(sb.st_mode))
+		csb.st_filetype = CLOUDABI_FILETYPE_DIRECTORY;
+	else if (S_ISFIFO(sb.st_mode))
+		csb.st_filetype = CLOUDABI_FILETYPE_FIFO;
+	else if (S_ISREG(sb.st_mode))
+		csb.st_filetype = CLOUDABI_FILETYPE_REGULAR_FILE;
+	else if (S_ISSOCK(sb.st_mode)) {
+		/* Inaccurate, but the best that we can do. */
+		csb.st_filetype = CLOUDABI_FILETYPE_SOCKET_STREAM;
+	} else if (S_ISLNK(sb.st_mode))
+		csb.st_filetype = CLOUDABI_FILETYPE_SYMBOLIC_LINK;
+	else
+		csb.st_filetype = CLOUDABI_FILETYPE_UNKNOWN;
+	return (copyout(&csb, uap->buf, sizeof(csb)));
 }
 
 int
