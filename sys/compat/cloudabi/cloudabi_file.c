@@ -137,9 +137,31 @@ int
 cloudabi_sys_file_create(struct thread *td,
     struct cloudabi_sys_file_create_args *uap)
 {
+	char *path;
+	int error;
 
-	/* Not implemented. */
-	return (ENOSYS);
+	error = copyin_path(uap->path, uap->pathlen, &path);
+	if (error != 0)
+		return (error);
+
+	/*
+	 * CloudABI processes cannot interact with UNIX credentials and
+	 * permissions. Depend on the umask that is set prior to
+	 * execution to restrict the file permissions.
+	 */
+	switch (uap->type) {
+	case CLOUDABI_FILETYPE_DIRECTORY:
+		error = kern_mkdirat(td, uap->fd, path, UIO_SYSSPACE, 0777);
+		break;
+	case CLOUDABI_FILETYPE_FIFO:
+		error = kern_mkfifoat(td, uap->fd, path, UIO_SYSSPACE, 0666);
+		break;
+	default:
+		error = EINVAL;
+		break;
+	}
+	cloudabi_freestr(path);
+	return (error);
 }
 
 int
