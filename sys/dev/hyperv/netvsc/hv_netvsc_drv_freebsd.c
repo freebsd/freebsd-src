@@ -343,7 +343,15 @@ netvsc_attach(device_t dev)
 	    IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_MTU | IFCAP_HWCSUM | IFCAP_TSO;
 	ifp->if_capenable |=
 	    IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_MTU | IFCAP_HWCSUM | IFCAP_TSO;
-	ifp->if_hwassist = CSUM_TCP | CSUM_UDP | CSUM_TSO;
+	/*
+	 * Only enable UDP checksum offloading when it is on 2012R2 or
+	 * later. UDP checksum offloading doesn't work on earlier
+	 * Windows releases.
+	 */
+	if (hv_vmbus_protocal_version >= HV_VMBUS_VERSION_WIN8_1)
+		ifp->if_hwassist = CSUM_TCP | CSUM_UDP | CSUM_TSO;
+	else
+		ifp->if_hwassist = CSUM_TCP | CSUM_TSO;
 
 	ret = hv_rf_on_device_add(device_ctx, &device_info);
 	if (ret != 0) {
@@ -1110,7 +1118,17 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 				ifp->if_hwassist &= ~(CSUM_TCP | CSUM_UDP);
 			} else {
 				ifp->if_capenable |= IFCAP_TXCSUM;
-				ifp->if_hwassist |= (CSUM_TCP | CSUM_UDP);
+				/*
+				 * Only enable UDP checksum offloading on
+				 * Windows Server 2012R2 or later releases.
+				 */
+				if (hv_vmbus_protocal_version >=
+				    HV_VMBUS_VERSION_WIN8_1) {
+					ifp->if_hwassist |=
+					    (CSUM_TCP | CSUM_UDP);
+				} else {
+					ifp->if_hwassist |= CSUM_TCP;
+				}
 			}
 		}
 
