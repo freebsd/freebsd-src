@@ -314,7 +314,6 @@ tcp_init(void)
 	tcp_tw_init();
 	syncache_init();
 	tcp_hc_init();
-	tcp_reass_init();
 
 	TUNABLE_INT_FETCH("net.inet.tcp.sack.enable", &V_tcp_do_sack);
 	V_sack_hole_zone = uma_zcreate("sackhole", sizeof(struct sackhole),
@@ -323,6 +322,8 @@ tcp_init(void)
 	/* Skip initialization of globals for non-default instances. */
 	if (!IS_DEFAULT_VNET(curvnet))
 		return;
+
+	tcp_reass_global_init();
 
 	/* XXX virtualize those bellow? */
 	tcp_delacktime = TCPTV_DELACK;
@@ -371,7 +372,6 @@ void
 tcp_destroy(void)
 {
 
-	tcp_reass_destroy();
 	tcp_hc_destroy();
 	syncache_destroy();
 	tcp_tw_destroy();

@@ -11,6 +11,16 @@ handbook:
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
+20150728:	p21	FreeBSD-SA-15:15.tcp
+			FreeBSD-SA-15:16.openssh
+			FreeBSD-SA-15:17.bind
+
+	Fix resource exhaustion in TCP reassembly. [SA-15:15]
+
+	Fix OpenSSH multiple vulnerabilities. [SA-15:16]
+
+	Fix BIND remote denial of service vulnerability. [SA-15:17]
+
 20150721:	p20	FreeBSD-SA-15:13.tcp
 
 	Fix resource exhaustion due to sessions stuck in LAST_ACK state.
