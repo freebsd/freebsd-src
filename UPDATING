@@ -32,7 +32,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
 20150728:
-	As ZFS requires a more kernel stack pages than is the default on some
+	As ZFS requires more kernel stack pages than is the default on some
 	architectures e.g. i386, it now warns if KSTACK_PAGES is less than
 	ZFS_MIN_KSTACK_PAGES (which is 4 at the time of writing).
 
