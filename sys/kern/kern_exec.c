@@ -1116,7 +1116,7 @@ exec_new_vmspace(imgp, sv)
 	 * process stack so we can check the stack rlimit.
 	 */
 	vmspace->vm_ssize = sgrowsiz >> PAGE_SHIFT;
-	vmspace->vm_maxsaddr = (char *)sv->sv_usrstack - ssiz;
+	vmspace->vm_maxsaddr = (char *)stack_addr;
 
 	return (0);
 }
