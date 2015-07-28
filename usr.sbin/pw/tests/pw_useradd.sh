@@ -289,6 +289,13 @@ user_add_uid0_body() {
 		-s exit:0 ${PW} usershow foo
 }
 
+atf_test_case user_add_uid_too_large
+user_add_uid_too_large_body() {
+	populate_etc_skel
+	atf_check -s exit:64 -e inline:"pw: Bad id '9999999999999': too large\n" \
+		${PW} useradd -n test1 -u 9999999999999
+}
+
 atf_init_test_cases() {
 	atf_add_test_case user_add
 	atf_add_test_case user_add_noupdate
@@ -313,4 +320,5 @@ atf_init_test_cases() {
 	atf_add_test_case user_add_R
 	atf_add_test_case user_add_skel
 	atf_add_test_case user_add_uid0
+	atf_add_test_case user_add_uid_too_large
 }
