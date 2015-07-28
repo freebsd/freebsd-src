@@ -37,7 +37,6 @@
 #define	DWC_OTG_TT_SLOT_MAX 8
 #define	DWC_OTG_SLOT_IDLE_MAX 3
 #define	DWC_OTG_SLOT_IDLE_MIN 2
-#define	DWC_OTG_NAK_MAX 16	/* 16 NAKs = 2 ms */
 #ifndef DWC_OTG_TX_MAX_FIFO_SIZE
 #define	DWC_OTG_TX_MAX_FIFO_SIZE DWC_OTG_MAX_TXN
 #endif
@@ -68,7 +67,6 @@ struct dwc_otg_td {
 	uint8_t errcnt;
 	uint8_t tmr_res;
 	uint8_t tmr_val;
-	uint8_t did_nak;		/* NAK counter */
 	uint8_t	ep_no;
 	uint8_t ep_type;
 	uint8_t channel;
@@ -93,6 +91,7 @@ struct dwc_otg_td {
 	uint8_t set_toggle:1;
 	uint8_t got_short:1;
 	uint8_t tt_scheduled:1;
+	uint8_t did_nak:1;
 };
 
 struct dwc_otg_tt_info {
