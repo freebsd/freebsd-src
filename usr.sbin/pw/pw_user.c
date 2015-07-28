@@ -206,7 +206,7 @@ perform_chgpwent(const char *name, struct passwd *pwd)
 		rc = chgnispwent(conf.userconf->nispasswd, name, pwd);
 		if (rc == -1)
 			warn("User '%s' not found in NIS passwd", pwd->pw_name);
-		else
+		else if (rc != 0)
 			warn("NIS passwd update");
 		/* NOTE: NIS-only update errors are not fatal */
 	}
@@ -678,7 +678,7 @@ pw_user(int mode, char *name, long id, struct cargs * args)
 			rc = addnispwent(cnf->nispasswd, pwd);
 			if (rc == -1)
 				warnx("User '%s' already exists in NIS passwd", pwd->pw_name);
-			else
+			else if (rc != 0)
 				warn("NIS passwd update");
 			/* NOTE: we treat NIS-only update errors as non-fatal */
 		}
