@@ -12,9 +12,9 @@ SRCS+=	cheritest_bounds_stack.c					\
 	cheritest_libcheri.c						\
 	cheritest_registers.c						\
 	cheritest_sandbox.S						\
-	cheritest_stack.c						\
 	cheritest_string.c						\
 	cheritest_syscall.c						\
+	cheritest_trusted_stack.c					\
 	cheritest_util.c						\
 	cheritest_var.c							\
 	cheritest_vm.c
