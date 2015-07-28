@@ -655,7 +655,10 @@ pf_find_src_node(struct pf_addr *src, struct pf_rule *rule, sa_family_t af,
 		    ((af == AF_INET && n->addr.v4.s_addr == src->v4.s_addr) ||
 		    (af == AF_INET6 && bcmp(&n->addr, src, sizeof(*src)) == 0)))
 			break;
-	if (n != NULL || returnlocked == 0)
+	if (n != NULL) {
+		n->states++;
+		PF_HASHROW_UNLOCK(sh);
+	} else if (returnlocked == 0)
 		PF_HASHROW_UNLOCK(sh);
 
 	return (n);
@@ -699,6 +702,7 @@ pf_insert_src_node(struct pf_src_node **sn, struct pf_rule *rule,
 		LIST_INSERT_HEAD(&sh->nodes, *sn, entry);
 		(*sn)->creation = time_uptime;
 		(*sn)->ruletype = rule->action;
+		(*sn)->states = 1;
 		if ((*sn)->rule.ptr != NULL)
 			counter_u64_add((*sn)->rule.ptr->src_nodes, 1);
 		PF_HASHROW_UNLOCK(sh);
@@ -715,37 +719,13 @@ pf_insert_src_node(struct pf_src_node **sn, struct pf_rule *rule,
 }
 
 void
-pf_unlink_src_node_locked(struct pf_src_node *src)
+pf_unlink_src_node(struct pf_src_node *src)
 {
-#ifdef INVARIANTS
-	struct pf_srchash *sh;
 
-	sh = &V_pf_srchash[pf_hashsrc(&src->addr, src->af)];
-	PF_HASHROW_ASSERT(sh);
-#endif
+	PF_HASHROW_ASSERT(&V_pf_srchash[pf_hashsrc(&src->addr, src->af)]);
 	LIST_REMOVE(src, entry);
 	if (src->rule.ptr)
 		counter_u64_add(src->rule.ptr->src_nodes, -1);
-	counter_u64_add(V_pf_status.scounters[SCNT_SRC_NODE_REMOVALS], 1);
-}
-
-void
-pf_unlink_src_node(struct pf_src_node *src)
-{
-	struct pf_srchash *sh;
-
-	sh = &V_pf_srchash[pf_hashsrc(&src->addr, src->af)];
-	PF_HASHROW_LOCK(sh);
-	pf_unlink_src_node_locked(src);
-	PF_HASHROW_UNLOCK(sh);
-}
-
-static void
-pf_free_src_node(struct pf_src_node *sn)
-{
-
-	KASSERT(sn->states == 0, ("%s: %p has refs", __func__, sn));
-	uma_zfree(V_pf_sources_z, sn);
 }
 
 u_int
@@ -755,9 +735,11 @@ pf_free_src_nodes(struct pf_src_node_list *head)
 	u_int count = 0;
 
 	LIST_FOREACH_SAFE(sn, head, entry, tmp) {
-		pf_free_src_node(sn);
+		uma_zfree(V_pf_sources_z, sn);
 		count++;
 	}
+
+	counter_u64_add(V_pf_status.scounters[SCNT_SRC_NODE_REMOVALS], count);
 
 	return (count);
 }
@@ -1550,7 +1532,7 @@ pf_purge_expired_src_nodes()
 	    PF_HASHROW_LOCK(sh);
 	    LIST_FOREACH_SAFE(cur, &sh->nodes, entry, next)
 		if (cur->states == 0 && cur->expire <= time_uptime) {
-			pf_unlink_src_node_locked(cur);
+			pf_unlink_src_node(cur);
 			LIST_INSERT_HEAD(&freelist, cur, entry);
 		} else if (cur->rule.ptr != NULL)
 			cur->rule.ptr->rule_flag |= PFRULE_REFS;
@@ -1565,27 +1547,31 @@ pf_purge_expired_src_nodes()
 static void
 pf_src_tree_remove_state(struct pf_state *s)
 {
-	u_int32_t timeout;
+	struct pf_src_node *sn;
+	struct pf_srchash *sh;
+	uint32_t timeout;
+
+	timeout = s->rule.ptr->timeout[PFTM_SRC_NODE] ?
+	    s->rule.ptr->timeout[PFTM_SRC_NODE] :
+	    V_pf_default_rule.timeout[PFTM_SRC_NODE];
 
 	if (s->src_node != NULL) {
+		sn = s->src_node;
+		sh = &V_pf_srchash[pf_hashsrc(&sn->addr, sn->af)];
+	    	PF_HASHROW_LOCK(sh);
 		if (s->src.tcp_est)
-			--s->src_node->conn;
-		if (--s->src_node->states == 0) {
-			timeout = s->rule.ptr->timeout[PFTM_SRC_NODE];
-			if (!timeout)
-				timeout =
-				    V_pf_default_rule.timeout[PFTM_SRC_NODE];
-			s->src_node->expire = time_uptime + timeout;
-		}
+			--sn->conn;
+		if (--sn->states == 0)
+			sn->expire = time_uptime + timeout;
+	    	PF_HASHROW_UNLOCK(sh);
 	}
 	if (s->nat_src_node != s->src_node && s->nat_src_node != NULL) {
-		if (--s->nat_src_node->states == 0) {
-			timeout = s->rule.ptr->timeout[PFTM_SRC_NODE];
-			if (!timeout)
-				timeout =
-				    V_pf_default_rule.timeout[PFTM_SRC_NODE];
-			s->nat_src_node->expire = time_uptime + timeout;
-		}
+		sn = s->nat_src_node;
+		sh = &V_pf_srchash[pf_hashsrc(&sn->addr, sn->af)];
+	    	PF_HASHROW_LOCK(sh);
+		if (--sn->states == 0)
+			sn->expire = time_uptime + timeout;
+	    	PF_HASHROW_UNLOCK(sh);
 	}
 	s->src_node = s->nat_src_node = NULL;
 }
@@ -3571,15 +3557,12 @@ pf_create_state(struct pf_rule *r, struct pf_rule *nr, struct pf_rule *a,
 	s->creation = time_uptime;
 	s->expire = time_uptime;
 
-	if (sn != NULL) {
+	if (sn != NULL)
 		s->src_node = sn;
-		s->src_node->states++;
-	}
 	if (nsn != NULL) {
 		/* XXX We only modify one side for now. */
 		PF_ACPY(&nsn->raddr, &nk->addr[1], pd->af);
 		s->nat_src_node = nsn;
-		s->nat_src_node->states++;
 	}
 	if (pd->proto == IPPROTO_TCP) {
 		if ((pd->flags & PFDESC_TCP_NORM) && pf_normalize_tcp_init(m,
@@ -3677,14 +3660,32 @@ csfailed:
 	if (nk != NULL)
 		uma_zfree(V_pf_state_key_z, nk);
 
-	if (sn != NULL && sn->states == 0 && sn->expire == 0) {
-		pf_unlink_src_node(sn);
-		pf_free_src_node(sn);
+	if (sn != NULL) {
+		struct pf_srchash *sh;
+
+		sh = &V_pf_srchash[pf_hashsrc(&sn->addr, sn->af)];
+		PF_HASHROW_LOCK(sh);
+		if (--sn->states == 0 && sn->expire == 0) {
+			pf_unlink_src_node(sn);
+			uma_zfree(V_pf_sources_z, sn);
+			counter_u64_add(
+			    V_pf_status.scounters[SCNT_SRC_NODE_REMOVALS], 1);
+		}
+		PF_HASHROW_UNLOCK(sh);
 	}
 
-	if (nsn != sn && nsn != NULL && nsn->states == 0 && nsn->expire == 0) {
-		pf_unlink_src_node(nsn);
-		pf_free_src_node(nsn);
+	if (nsn != sn && nsn != NULL) {
+		struct pf_srchash *sh;
+
+		sh = &V_pf_srchash[pf_hashsrc(&nsn->addr, nsn->af)];
+		PF_HASHROW_LOCK(sh);
+		if (--nsn->states == 1 && nsn->expire == 0) {
+			pf_unlink_src_node(nsn);
+			uma_zfree(V_pf_sources_z, nsn);
+			counter_u64_add(
+			    V_pf_status.scounters[SCNT_SRC_NODE_REMOVALS], 1);
+		}
+		PF_HASHROW_UNLOCK(sh);
 	}
 
 	return (PF_DROP);
