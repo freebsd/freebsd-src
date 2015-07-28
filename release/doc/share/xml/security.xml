@@ -275,6 +275,29 @@
 	<entry><para>resource exhaustion due to sessions stuck in
 	    <literal>LAST_ACK</literal> state.</para></entry>
       </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-15:15.tcp.asc">FreeBSD-SA-15:15.tcp</link></entry>
+	<entry>28&nbsp;July&nbsp;2015</entry>
+	<entry><para>resource exhaustion in <acronym>TCP</acronym>
+	    reassembly</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-15:16.openssh.asc">FreeBSD-SA-15:16.openssh</link></entry>
+	<entry>28&nbsp;July&nbsp;2015</entry>
+	<entry><para>Multiple vulnerabilities</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-15:17.bind.asc">FreeBSD-SA-15:17.bind</link></entry>
+	<entry>28&nbsp;July&nbsp;2015</entry>
+	<entry><para>Remote denial of service
+	    vulnerability</para></entry>
+      </row>
     </tbody>
   </tgroup>
 </informaltable>
