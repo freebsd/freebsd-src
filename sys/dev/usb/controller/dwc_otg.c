@@ -453,8 +453,12 @@ static void
 dwc_otg_enable_sof_irq(struct dwc_otg_softc *sc)
 {
 	/* In device mode we don't use the SOF interrupt */
-	if (sc->sc_flags.status_device_mode != 0 ||
-	    (sc->sc_irq_mask & GINTMSK_SOFMSK) != 0)
+	if (sc->sc_flags.status_device_mode != 0)
+		return;
+	/* Ensure the SOF interrupt is not disabled */
+	sc->sc_needsof = 1;
+	/* Check if the SOF interrupt is already enabled */
+	if ((sc->sc_irq_mask & GINTMSK_SOFMSK) != 0)
 		return;
 	sc->sc_irq_mask |= GINTMSK_SOFMSK;
 	DWC_OTG_WRITE_4(sc, DOTG_GINTMSK, sc->sc_irq_mask);
@@ -775,7 +779,7 @@ check_state:
 
 	case DWC_CHAN_ST_WAIT_ANE:
 		if (hcint & (HCINT_RETRY | HCINT_ERRORS)) {
-			td->did_nak++;
+			td->did_nak = 1;
 			td->tt_scheduled = 0;
 			goto send_pkt;
 		} else if (hcint & (HCINT_ACK | HCINT_NYET)) {
@@ -789,7 +793,7 @@ check_state:
 
 	case DWC_CHAN_ST_WAIT_S_ANE:
 		if (hcint & (HCINT_RETRY | HCINT_ERRORS)) {
-			td->did_nak++;
+			td->did_nak = 1;
 			td->tt_scheduled = 0;
 			goto send_pkt;
 		} else if (hcint & (HCINT_ACK | HCINT_NYET)) {
@@ -801,7 +805,7 @@ check_state:
 		if (hcint & HCINT_NYET) {
 			goto send_cpkt;
 		} else if (hcint & (HCINT_RETRY | HCINT_ERRORS)) {
-			td->did_nak++;
+			td->did_nak = 1;
 			td->tt_scheduled = 0;
 			goto send_pkt;
 		} else if (hcint & HCINT_ACK) {
@@ -1069,8 +1073,17 @@ dwc_otg_host_rate_check(struct dwc_otg_softc *sc, struct dwc_otg_td *td)
 		if (!td->tt_scheduled)
 			goto busy;
 		td->tt_scheduled = 0;
-	} else if (td->did_nak >= DWC_OTG_NAK_MAX) {
-		goto busy;
+	} else if (td->did_nak != 0) {
+		uint8_t frame_num = (uint8_t)sc->sc_last_frame_num;
+		/* check if we should pause sending queries for 125us */
+		if (td->tmr_res == frame_num) {
+			/* wait a bit */
+			dwc_otg_enable_sof_irq(sc);
+			goto busy;
+		}
+		/* query for data one more time */
+		td->tmr_res = frame_num;
+		td->did_nak = 0;
 	} else if (td->set_toggle) {
 		td->set_toggle = 0;
 		td->toggle = 1;
@@ -1257,7 +1270,7 @@ dwc_otg_host_data_rx(struct dwc_otg_softc *sc, struct dwc_otg_td *td)
 					goto receive_pkt;
 				}
 			}
-			td->did_nak++;
+			td->did_nak = 1;
 			td->tt_scheduled = 0;
 			if (td->hcsplt != 0)
 				goto receive_spkt;
@@ -1312,7 +1325,7 @@ dwc_otg_host_data_rx(struct dwc_otg_softc *sc, struct dwc_otg_td *td)
 		 * case of interrupt and isochronous transfers:
 		 */ 
 		if (hcint & (HCINT_RETRY | HCINT_ERRORS)) {
-			td->did_nak++;
+			td->did_nak = 1;
 			td->tt_scheduled = 0;
 			goto receive_spkt;
 		} else if (hcint & HCINT_NYET) {
@@ -1638,7 +1651,7 @@ dwc_otg_host_data_tx(struct dwc_otg_softc *sc, struct dwc_otg_td *td)
 
 	case DWC_CHAN_ST_WAIT_ANE:
 		if (hcint & (HCINT_RETRY | HCINT_ERRORS)) {
-			td->did_nak++;
+			td->did_nak = 1;
 			td->tt_scheduled = 0;
 			goto send_pkt;
 		} else if (hcint & (HCINT_ACK | HCINT_NYET)) {
@@ -1664,7 +1677,7 @@ dwc_otg_host_data_tx(struct dwc_otg_softc *sc, struct dwc_otg_td *td)
 
 	case DWC_CHAN_ST_WAIT_S_ANE:
 		if (hcint & (HCINT_RETRY | HCINT_ERRORS)) {
-			td->did_nak++;
+			td->did_nak = 1;
 			td->tt_scheduled = 0;
 			goto send_pkt;
 		} else if (hcint & (HCINT_ACK | HCINT_NYET)) {
@@ -1677,7 +1690,7 @@ dwc_otg_host_data_tx(struct dwc_otg_softc *sc, struct dwc_otg_td *td)
 		if (hcint & HCINT_NYET) {
 			goto send_cpkt;
 		} else if (hcint & (HCINT_RETRY | HCINT_ERRORS)) {
-			td->did_nak++;
+			td->did_nak = 1;
 			td->tt_scheduled = 0;
 			goto send_pkt;
 		} else if (hcint & HCINT_ACK) {
@@ -2280,8 +2293,6 @@ static void
 dwc_otg_timer(void *_sc)
 {
 	struct dwc_otg_softc *sc = _sc;
-	struct usb_xfer *xfer;
-	struct dwc_otg_td *td;
 
 	USB_BUS_LOCK_ASSERT(&sc->sc_bus, MA_OWNED);
 
@@ -2291,14 +2302,6 @@ dwc_otg_timer(void *_sc)
 
 	/* increment timer value */
 	sc->sc_tmr_val++;
-
-	TAILQ_FOREACH(xfer, &sc->sc_bus.intr_q.head, wait_entry) {
-		td = xfer->td_transfer_cache;
-		if (td != NULL) {
-			/* reset NAK counter */ 
-			td->did_nak = 0;
-		}
-	}
 
 	/* enable SOF interrupt, which will poll jobs */
 	dwc_otg_enable_sof_irq(sc);
@@ -2459,8 +2462,7 @@ dwc_otg_update_host_transfer_schedule_locked(struct dwc_otg_softc *sc)
 		TAILQ_FOREACH_SAFE(xfer, &sc->sc_bus.intr_q.head, wait_entry, xfer_next) {
 			td = xfer->td_transfer_cache;
 			if (td == NULL ||
-			    td->ep_type != UE_CONTROL ||
-			    td->did_nak >= DWC_OTG_NAK_MAX) {
+			    td->ep_type != UE_CONTROL) {
 				continue;
 			}
 
@@ -2480,8 +2482,7 @@ dwc_otg_update_host_transfer_schedule_locked(struct dwc_otg_softc *sc)
 		TAILQ_FOREACH_SAFE(xfer, &sc->sc_bus.intr_q.head, wait_entry, xfer_next) {
 			td = xfer->td_transfer_cache;
 			if (td == NULL ||
-			    td->ep_type != UE_BULK ||
-			    td->did_nak >= DWC_OTG_NAK_MAX) {
+			    td->ep_type != UE_BULK) {
 				continue;
 			}
 
@@ -3244,7 +3245,7 @@ dwc_otg_setup_standard_chain(struct usb_xfer *xfer)
 				td->tmr_res = 1;
 			} else {
 				td->tmr_val = 0;
-				td->tmr_res = 0;
+				td->tmr_res = (uint8_t)sc->sc_last_frame_num;
 			}
 			break;
 		case USB_SPEED_HIGH:
@@ -3269,7 +3270,7 @@ dwc_otg_setup_standard_chain(struct usb_xfer *xfer)
 				td->tmr_res = 1 << usbd_xfer_get_fps_shift(xfer);
 			} else {
 				td->tmr_val = 0;
-				td->tmr_res = 0;
+				td->tmr_res = (uint8_t)sc->sc_last_frame_num;
 			}
 			break;
 		default:
@@ -3309,8 +3310,6 @@ static void
 dwc_otg_start_standard_chain(struct usb_xfer *xfer)
 {
 	struct dwc_otg_softc *sc = DWC_OTG_BUS2SC(xfer->xroot->bus);
-	struct usb_xfer_root *xroot;
-	struct dwc_otg_td *td;
 
 	DPRINTFN(9, "\n");
 
@@ -3341,24 +3340,6 @@ dwc_otg_start_standard_chain(struct usb_xfer *xfer)
 
 	/* enable SOF interrupt, if any */
 	dwc_otg_enable_sof_irq(sc);
-
-	td = xfer->td_transfer_cache;
-	if (td->ep_type != UE_BULK)
-		goto done;
-
-	xroot = xfer->xroot;
-
-	/*
-	 * Optimise the ping-pong effect by waking up other BULK
-	 * transfers belonging to the same device group:
-	 */
-	TAILQ_FOREACH(xfer, &sc->sc_bus.intr_q.head, wait_entry) {
-		td = xfer->td_transfer_cache;
-		if (td == NULL || td->ep_type != UE_BULK || xfer->xroot != xroot)
-			continue;
-		/* reset NAK counter */ 
-		td->did_nak = 0;
-	}
 done:
 	USB_BUS_SPIN_UNLOCK(&sc->sc_bus);
 }
