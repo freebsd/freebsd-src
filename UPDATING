@@ -16,6 +16,16 @@ from older versions of FreeBSD, try WITHOUT_CLANG to bootstrap to the tip of
 stable/10, and then rebuild without this option. The bootstrap process from
 older version of current is a bit fragile.
 
+20150728:	p16	FreeBSD-SA-15:14.bsdpatch
+			FreeBSD-SA-15:15.tcp
+			FreeBSD-SA-15:16.openssh
+
+	Fix patch(1) shell injection vulnerability. [SA-15:14]
+
+	Fix resource exhaustion in TCP reassembly. [SA-15:15]
+
+	Fix OpenSSH multiple vulnerabilities. [SA-15:16]
+
 20150721:	p15	FreeBSD-SA-15:13.tcp
 
 	Fix resource exhaustion due to sessions stuck in LAST_ACK state.

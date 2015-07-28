@@ -42,12 +42,10 @@
 #define	BUFFERSIZE 4096
 
 #define	SCCSPREFIX "s."
-#define	GET "get -e %s"
-#define	SCCSDIFF "get -p %s | diff - %s >/dev/null"
 
 #define	RCSSUFFIX ",v"
-#define	CHECKOUT "co -l %s"
-#define	RCSDIFF "rcsdiff %s > /dev/null"
+#define	CHECKOUT "/usr/bin/co"
+#define	RCSDIFF "/usr/bin/rcsdiff"
 
 #define	ORIGEXT ".orig"
 #define	REJEXT ".rej"

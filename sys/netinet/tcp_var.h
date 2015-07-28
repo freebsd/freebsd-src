@@ -666,11 +666,8 @@ char	*tcp_log_addrs(struct in_conninfo *, struct tcphdr *, void *,
 char	*tcp_log_vain(struct in_conninfo *, struct tcphdr *, void *,
 	    const void *);
 int	 tcp_reass(struct tcpcb *, struct tcphdr *, int *, struct mbuf *);
-void	 tcp_reass_init(void);
+void	 tcp_reass_global_init(void);
 void	 tcp_reass_flush(struct tcpcb *);
-#ifdef VIMAGE
-void	 tcp_reass_destroy(void);
-#endif
 void	 tcp_input(struct mbuf *, int);
 u_long	 tcp_maxmtu(struct in_conninfo *, struct tcp_ifcap *);
 u_long	 tcp_maxmtu6(struct in_conninfo *, struct tcp_ifcap *);
