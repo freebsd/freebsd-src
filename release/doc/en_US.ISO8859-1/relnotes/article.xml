@@ -483,7 +483,7 @@
     <sect2 xml:id="drivers-network">
       <title>Network Drivers</title>
 
-      <para revision="274486">The &man.pfil.9; interface default hash
+      <para revision="274486">The &man.pf.4; interface default hash
 	has been changed from <literal>Jenkins</literal> to
 	<literal>Murmur3</literal>, providing a 3-percent performance
 	increase in packets-per-second.</para>
