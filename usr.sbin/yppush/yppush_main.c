@@ -58,15 +58,15 @@ int debug = 1;
 int _rpcpmstart = 0;
 char *yp_dir = _PATH_YP;
 
-char *yppush_mapname = NULL;	/* Map to transfer. */
-char *yppush_domain = NULL;	/* Domain in which map resides. */
-char *yppush_master = NULL;	/* Master NIS server for said domain. */
-int skip_master = 0;		/* Do not attempt to push map to master. */
-int verbose = 0;		/* Toggle verbose mode. */
-unsigned long yppush_transid = 0;
-int yppush_timeout = 80;	/* Default timeout. */
-int yppush_jobs = 1;		/* Number of allowed concurrent jobs. */
-int yppush_running_jobs = 0;	/* Number of currently running jobs. */
+static char *yppush_mapname = NULL;	/* Map to transfer. */
+static char *yppush_domain = NULL;	/* Domain in which map resides. */
+static char *yppush_master = NULL;	/* Master NIS server for said domain. */
+static int skip_master = 0;		/* Do not attempt to push map to master. */
+static int verbose = 0;		/* Toggle verbose mode. */
+static unsigned long yppush_transid = 0;
+static int yppush_timeout = 80;	/* Default timeout. */
+static int yppush_jobs = 1;		/* Number of allowed concurrent jobs. */
+static int yppush_running_jobs = 0;	/* Number of currently running jobs. */
 
 /* Structure for holding information about a running job. */
 struct jobs {
@@ -80,8 +80,7 @@ struct jobs {
 	struct jobs *next;
 };
 
-struct jobs *yppush_joblist;	/* Linked list of running jobs. */
-
+static struct jobs *yppush_joblist;	/* Linked list of running jobs. */
 static int yppush_svc_run(int);
 
 /*
@@ -464,7 +463,8 @@ yppush_foreach(int status, char *key, int keylen, char *val, int vallen,
 	return (0);
 }
 
-static void usage()
+static void
+usage()
 {
 	fprintf (stderr, "%s\n%s\n",
 	"usage: yppush [-d domain] [-t timeout] [-j #parallel jobs] [-h host]",
