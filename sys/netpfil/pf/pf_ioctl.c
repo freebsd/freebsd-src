@@ -3430,7 +3430,7 @@ pf_kill_srcnodes(struct pfioc_src_node_kill *psnk)
 			      &psnk->psnk_dst.addr.v.a.addr,
 			      &psnk->psnk_dst.addr.v.a.mask,
 			      &sn->raddr, sn->af)) {
-				pf_unlink_src_node_locked(sn);
+				pf_unlink_src_node(sn);
 				LIST_INSERT_HEAD(&kill, sn, entry);
 				sn->expire = 1;
 			}
@@ -3443,18 +3443,10 @@ pf_kill_srcnodes(struct pfioc_src_node_kill *psnk)
 
 		PF_HASHROW_LOCK(ih);
 		LIST_FOREACH(s, &ih->states, entry) {
-			if (s->src_node && s->src_node->expire == 1) {
-#ifdef INVARIANTS
-				s->src_node->states--;
-#endif
+			if (s->src_node && s->src_node->expire == 1)
 				s->src_node = NULL;
-			}
-			if (s->nat_src_node && s->nat_src_node->expire == 1) {
-#ifdef INVARIANTS
-				s->nat_src_node->states--;
-#endif
+			if (s->nat_src_node && s->nat_src_node->expire == 1)
 				s->nat_src_node = NULL;
-			}
 		}
 		PF_HASHROW_UNLOCK(ih);
 	}

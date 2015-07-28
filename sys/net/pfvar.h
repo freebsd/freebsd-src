@@ -1549,7 +1549,6 @@ extern struct pf_state		*pf_find_state_all(struct pf_state_key_cmp *,
 extern struct pf_src_node	*pf_find_src_node(struct pf_addr *,
 				    struct pf_rule *, sa_family_t, int);
 extern void			 pf_unlink_src_node(struct pf_src_node *);
-extern void			 pf_unlink_src_node_locked(struct pf_src_node *);
 extern u_int			 pf_free_src_nodes(struct pf_src_node_list *);
 extern void			 pf_print_state(struct pf_state *);
 extern void			 pf_print_flags(u_int8_t);
