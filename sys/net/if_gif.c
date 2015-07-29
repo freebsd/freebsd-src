@@ -280,9 +280,9 @@ int
 gif_encapcheck(const struct mbuf *m, int off, int proto, void *arg)
 {
 	GIF_RLOCK_TRACKER;
+	const struct ip *ip;
 	struct gif_softc *sc;
 	int ret;
-	uint8_t ver;
 
 	sc = (struct gif_softc *)arg;
 	if (sc == NULL || (GIF2IFP(sc)->if_flags & IFF_UP) == 0)
@@ -309,11 +309,12 @@ gif_encapcheck(const struct mbuf *m, int off, int proto, void *arg)
 	}
 
 	/* Bail on short packets */
+	M_ASSERTPKTHDR(m);
 	if (m->m_pkthdr.len < sizeof(struct ip))
 		goto done;
 
-	m_copydata(m, 0, 1, &ver);
-	switch (ver >> 4) {
+	ip = mtod(m, const struct ip *);
+	switch (ip->ip_v) {
 #ifdef INET
 	case 4:
 		if (sc->gif_family != AF_INET)

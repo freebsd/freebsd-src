@@ -81,8 +81,6 @@ SYSCTL_DECL(_net_inet6_ip6);
 SYSCTL_INT(_net_inet6_ip6, IPV6CTL_GIF_HLIM, gifhlim, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(ip6_gif_hlim), 0, "");
 
-static int gif_validate6(const struct ip6_hdr *, struct gif_softc *,
-			 struct ifnet *);
 static int in6_gif_input(struct mbuf **, int *, int);
 
 extern  struct domain inet6domain;
@@ -174,20 +172,26 @@ in6_gif_input(struct mbuf **mp, int *offp, int proto)
 }
 
 /*
- * validate outer address.
+ * we know that we are in IFF_UP, outer address available, and outer family
+ * matched the physical addr family.  see gif_encapcheck().
  */
-static int
-gif_validate6(const struct ip6_hdr *ip6, struct gif_softc *sc,
-    struct ifnet *ifp)
+int
+in6_gif_encapcheck(const struct mbuf *m, int off, int proto, void *arg)
 {
+	const struct ip6_hdr *ip6;
+	struct gif_softc *sc;
 	int ret;
 
+	/* sanity check done in caller */
+	sc = (struct gif_softc *)arg;
 	GIF_RLOCK_ASSERT(sc);
+
 	/*
 	 * Check for address match.  Note that the check is for an incoming
 	 * packet.  We should compare the *source* address in our configuration
 	 * and the *destination* address of the packet, and vice versa.
 	 */
+	ip6 = mtod(m, const struct ip6_hdr *);
 	if (!IN6_ARE_ADDR_EQUAL(&sc->gif_ip6hdr->ip6_src, &ip6->ip6_dst))
 		return (0);
 	ret = 128;
@@ -197,10 +201,8 @@ gif_validate6(const struct ip6_hdr *ip6, struct gif_softc *sc,
 	} else
 		ret += 128;
 
-	/* martian filters on outer source - done in ip6_input */
-
 	/* ingress filters on outer source */
-	if ((GIF2IFP(sc)->if_flags & IFF_LINK2) == 0 && ifp) {
+	if ((GIF2IFP(sc)->if_flags & IFF_LINK2) == 0) {
 		struct sockaddr_in6 sin6;
 		struct rtentry *rt;
 
@@ -212,35 +214,14 @@ gif_validate6(const struct ip6_hdr *ip6, struct gif_softc *sc,
 
 		rt = in6_rtalloc1((struct sockaddr *)&sin6, 0, 0UL,
 		    sc->gif_fibnum);
-		if (!rt || rt->rt_ifp != ifp) {
-			if (rt)
+		if (rt == NULL || rt->rt_ifp != m->m_pkthdr.rcvif) {
+			if (rt != NULL)
 				RTFREE_LOCKED(rt);
 			return (0);
 		}
 		RTFREE_LOCKED(rt);
 	}
-
 	return (ret);
-}
-
-/*
- * we know that we are in IFF_UP, outer address available, and outer family
- * matched the physical addr family.  see gif_encapcheck().
- */
-int
-in6_gif_encapcheck(const struct mbuf *m, int off, int proto, void *arg)
-{
-	struct ip6_hdr ip6;
-	struct gif_softc *sc;
-	struct ifnet *ifp;
-
-	/* sanity check done in caller */
-	sc = (struct gif_softc *)arg;
-	GIF_RLOCK_ASSERT(sc);
-
-	m_copydata(m, 0, sizeof(ip6), (caddr_t)&ip6);
-	ifp = ((m->m_flags & M_PKTHDR) != 0) ? m->m_pkthdr.rcvif : NULL;
-	return (gif_validate6(&ip6, sc, ifp));
 }
 
 int
