@@ -578,6 +578,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	  # pkg install pkg; ldd /usr/local/sbin/pkg | grep bsdyml
 
 20131010:
+	The stable/10 branch has been created in subversion from head
+	revision r256279.
+
+20131010:
 	The rc.d/jail script has been updated to support jail(8)
 	configuration file.  The "jail_<jname>_*" rc.conf(5) variables
 	for per-jail configuration are automatically converted to
@@ -1120,6 +1124,13 @@ COMMON ITEMS:
 	around can lead to problems if pam has changed too much from your
 	starting point to allow continued authentication after the upgrade.
 
+	This file should be read as a log of events. When a later event changes
+	information of a prior event, the prior event should not be deleted.
+	Instead, a pointer to the entry with the new information should be
+	placed in the old entry. Readers of this file should also sanity check
+	older entries before relying on them blindly. Authors of new entries
+	should write them with this in mind.
+
 	ZFS notes
 	---------
 	When upgrading the boot ZFS pool to a new version, always follow
@@ -1290,7 +1301,7 @@ FORMAT:
 
 This file contains a list, in reverse chronological order, of major
 breakages in tracking -current.  It is not guaranteed to be a complete
-list of such breakages, and only contains entries since October 10, 2007.
+list of such breakages, and only contains entries since September 23, 2011.
 If you need to see UPDATING entries from before that date, you will need
 to fetch an UPDATING file from an older FreeBSD release.
 
