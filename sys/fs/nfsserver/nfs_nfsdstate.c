@@ -220,7 +220,8 @@ nfsrv_setclient(struct nfsrv_descript *nd, struct nfsclient **new_clpp,
 			break;
 		}
 	    }
-	    i++;
+	    if (gotit == 0)
+		i++;
 	}
 	if (!gotit ||
 	    (clp->lc_flags & (LCL_NEEDSCONFIRM | LCL_ADMINREVOKED))) {
