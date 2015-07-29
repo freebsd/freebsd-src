@@ -120,10 +120,24 @@ int
 cloudabi_sys_fd_create2(struct thread *td,
     struct cloudabi_sys_fd_create2_args *uap)
 {
+	struct filecaps fcaps1 = {}, fcaps2 = {};
 	int fds[2];
 	int error;
 
 	switch (uap->type) {
+	case CLOUDABI_FILETYPE_FIFO:
+		/*
+		 * CloudABI pipes are unidirectional. Restrict rights on
+		 * the pipe to simulate this.
+		 */
+		cap_rights_init(&fcaps1.fc_rights, CAP_EVENT, CAP_FCNTL,
+		    CAP_FSTAT, CAP_READ);
+		fcaps1.fc_fcntls = CAP_FCNTL_SETFL;
+		cap_rights_init(&fcaps2.fc_rights, CAP_EVENT, CAP_FCNTL,
+		    CAP_FSTAT, CAP_WRITE);
+		fcaps2.fc_fcntls = CAP_FCNTL_SETFL;
+		error = kern_pipe(td, fds, 0, &fcaps1, &fcaps2);
+		break;
 	case CLOUDABI_FILETYPE_SOCKET_DGRAM:
 		error = kern_socketpair(td, AF_UNIX, SOCK_DGRAM, 0, fds);
 		break;
