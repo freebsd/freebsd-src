@@ -11,7 +11,7 @@ SUBDIR=	doc\
 	as \
 	ld \
 	${_nm} \
-	objcopy \
+	${_objcopy} \
 	objdump \
 	${_readelf} \
 	${_size} \
@@ -25,6 +25,9 @@ _readelf=	readelf
 _size=		size
 _strings=	strings
 _strip=		strip
+.endif
+.if ${MK_ELFTOOLCHAIN_TOOLS} == "no" || ${MK_ELFCOPY_AS_OBJCOPY} == "no"
+_objcopy=	objcopy
 .endif
 
 .include <bsd.subdir.mk>
