@@ -958,6 +958,22 @@ vfs_buf_check_mapped(struct buf *bp)
 	KASSERT(bp->b_data < unmapped_buf || bp->b_data > unmapped_buf +
 	    MAXPHYS, ("b_data + b_offset unmapped %p", bp));
 }
+
+static inline void
+vfs_buf_check_unmapped(struct buf *bp)
+{
+
+	KASSERT(bp->b_data == unmapped_buf,
+	    ("unmapped buf: corrupted b_data %p", bp));
+}
+
+#define	BUF_CHECK_MAPPED(bp) vfs_buf_check_mapped(bp)
+#define	BUF_CHECK_UNMAPPED(bp) vfs_buf_check_unmapped(bp)
+#else
+#define	BUF_CHECK_MAPPED(bp) do {} while (0)
+#define	BUF_CHECK_UNMAPPED(bp) do {} while (0)
+#endif
+
 static int
 isbufbusy(struct buf *bp)
 {
@@ -1086,21 +1102,6 @@ bufshutdown(int show_busybufs)
 	swapoff_all();
 	DELAY(100000);		/* wait for console output to finish */
 }
-
-static inline void
-vfs_buf_check_unmapped(struct buf *bp)
-{
-
-	KASSERT(bp->b_data == unmapped_buf,
-	    ("unmapped buf: corrupted b_data %p", bp));
-}
-
-#define	BUF_CHECK_MAPPED(bp) vfs_buf_check_mapped(bp)
-#define	BUF_CHECK_UNMAPPED(bp) vfs_buf_check_unmapped(bp)
-#else
-#define	BUF_CHECK_MAPPED(bp) do {} while (0)
-#define	BUF_CHECK_UNMAPPED(bp) do {} while (0)
-#endif
 
 static void
 bpmap_qenter(struct buf *bp)
