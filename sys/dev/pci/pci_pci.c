@@ -549,22 +549,18 @@ void
 pcib_setup_secbus(device_t dev, struct pcib_secbus *bus, int min_count)
 {
 	char buf[64];
-	int error, rid, sec_reg;
+	int error, rid;
 
 	switch (pci_read_config(dev, PCIR_HDRTYPE, 1) & PCIM_HDRTYPE) {
 	case PCIM_HDRTYPE_BRIDGE:
-		sec_reg = PCIR_SECBUS_1;
 		bus->sub_reg = PCIR_SUBBUS_1;
 		break;
 	case PCIM_HDRTYPE_CARDBUS:
-		sec_reg = PCIR_SECBUS_2;
 		bus->sub_reg = PCIR_SUBBUS_2;
 		break;
 	default:
 		panic("not a PCI bridge");
 	}
-	bus->sec = pci_read_config(dev, sec_reg, 1);
-	bus->sub = pci_read_config(dev, bus->sub_reg, 1);
 	bus->dev = dev;
 	bus->rman.rm_start = 0;
 	bus->rman.rm_end = PCI_BUSMAX;
@@ -849,16 +845,20 @@ pcib_set_mem_decode(struct pcib_softc *sc)
 static void
 pcib_cfg_save(struct pcib_softc *sc)
 {
-#ifndef NEW_PCIB
 	device_t	dev;
-	uint16_t command;
 
 	dev = sc->dev;
 
-	command = pci_read_config(dev, PCIR_COMMAND, 2);
-	if (command & PCIM_CMD_PORTEN)
+	sc->command = pci_read_config(dev, PCIR_COMMAND, 2);
+	sc->pribus = pci_read_config(dev, PCIR_PRIBUS_1, 1);
+	sc->bus.sec = pci_read_config(dev, PCIR_SECBUS_1, 1);
+	sc->bus.sub = pci_read_config(dev, PCIR_SUBBUS_1, 1);
+	sc->bridgectl = pci_read_config(dev, PCIR_BRIDGECTL_1, 2);
+	sc->seclat = pci_read_config(dev, PCIR_SECLAT_1, 1);
+#ifndef NEW_PCIB
+	if (sc->command & PCIM_CMD_PORTEN)
 		pcib_get_io_decode(sc);
-	if (command & PCIM_CMD_MEMEN)
+	if (sc->command & PCIM_CMD_MEMEN)
 		pcib_get_mem_decode(sc);
 #endif
 }
@@ -870,18 +870,21 @@ static void
 pcib_cfg_restore(struct pcib_softc *sc)
 {
 	device_t	dev;
-#ifndef NEW_PCIB
-	uint16_t command;
-#endif
+
 	dev = sc->dev;
 
+	pci_write_config(dev, PCIR_COMMAND, sc->command, 2);
+	pci_write_config(dev, PCIR_PRIBUS_1, sc->pribus, 1);
+	pci_write_config(dev, PCIR_SECBUS_1, sc->bus.sec, 1);
+	pci_write_config(dev, PCIR_SUBBUS_1, sc->bus.sub, 1);
+	pci_write_config(dev, PCIR_BRIDGECTL_1, sc->bridgectl, 2);
+	pci_write_config(dev, PCIR_SECLAT_1, sc->seclat, 1);
 #ifdef NEW_PCIB
 	pcib_write_windows(sc, WIN_IO | WIN_MEM | WIN_PMEM);
 #else
-	command = pci_read_config(dev, PCIR_COMMAND, 2);
-	if (command & PCIM_CMD_PORTEN)
+	if (sc->command & PCIM_CMD_PORTEN)
 		pcib_set_io_decode(sc);
-	if (command & PCIM_CMD_MEMEN)
+	if (sc->command & PCIM_CMD_MEMEN)
 		pcib_set_mem_decode(sc);
 #endif
 }
@@ -915,11 +918,7 @@ pcib_attach_common(device_t dev)
      * Get current bridge configuration.
      */
     sc->domain = pci_get_domain(dev);
-#if !(defined(NEW_PCIB) && defined(PCI_RES_BUS))
-    sc->bus.sec = pci_read_config(dev, PCIR_SECBUS_1, 1);
-    sc->bus.sub = pci_read_config(dev, PCIR_SUBBUS_1, 1);
-#endif
-    sc->bridgectl = pci_read_config(dev, PCIR_BRIDGECTL_1, 2);
+    sc->secstat = pci_read_config(dev, PCIR_SECSTAT_1, 2);
     pcib_cfg_save(sc);
 
     /*
