@@ -82,6 +82,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/time.h>
 #include <sys/jail.h>
 #include <sys/kernel.h>
+#include <sys/rmlock.h>
 #include <sys/sx.h>
 
 #include <net/if.h>
@@ -178,6 +179,7 @@ in6_selectsrc(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
     struct inpcb *inp, struct route_in6 *ro, struct ucred *cred,
     struct ifnet **ifpp, struct in6_addr *srcp)
 {
+	struct rm_priotracker in6_ifa_tracker;
 	struct in6_addr dst, tmp;
 	struct ifnet *ifp = NULL, *oifp = NULL;
 	struct in6_ifaddr *ia = NULL, *ia_best = NULL;
@@ -303,7 +305,7 @@ in6_selectsrc(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
 		return (error);
 
 	rule = 0;
-	IN6_IFADDR_RLOCK();
+	IN6_IFADDR_RLOCK(&in6_ifa_tracker);
 	TAILQ_FOREACH(ia, &V_in6_ifaddrhead, ia_link) {
 		int new_scope = -1, new_matchlen = -1;
 		struct in6_addrpolicy *new_policy = NULL;
@@ -501,7 +503,7 @@ in6_selectsrc(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
 	}
 
 	if ((ia = ia_best) == NULL) {
-		IN6_IFADDR_RUNLOCK();
+		IN6_IFADDR_RUNLOCK(&in6_ifa_tracker);
 		IP6STAT_INC(ip6s_sources_none);
 		return (EADDRNOTAVAIL);
 	}
@@ -518,7 +520,7 @@ in6_selectsrc(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
 	tmp = ia->ia_addr.sin6_addr;
 	if (cred != NULL && prison_local_ip6(cred, &tmp, (inp != NULL &&
 	    (inp->inp_flags & IN6P_IPV6_V6ONLY) != 0)) != 0) {
-		IN6_IFADDR_RUNLOCK();
+		IN6_IFADDR_RUNLOCK(&in6_ifa_tracker);
 		IP6STAT_INC(ip6s_sources_none);
 		return (EADDRNOTAVAIL);
 	}
@@ -537,7 +539,7 @@ in6_selectsrc(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
 		IP6STAT_INC(ip6s_sources_otherscope[best_scope]);
 	if (IFA6_IS_DEPRECATED(ia))
 		IP6STAT_INC(ip6s_sources_deprecated[best_scope]);
-	IN6_IFADDR_RUNLOCK();
+	IN6_IFADDR_RUNLOCK(&in6_ifa_tracker);
 	return (0);
 }
 

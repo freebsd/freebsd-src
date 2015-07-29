@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/time.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
+#include <sys/rmlock.h>
 #include <sys/rwlock.h>
 #include <sys/sdt.h>
 #include <sys/syslog.h>
@@ -97,8 +98,8 @@ extern void ipreass_slowtimo(void);
 extern void ipreass_destroy(void);
 #endif
 
-struct	rwlock in_ifaddr_lock;
-RW_SYSINIT(in_ifaddr_lock, &in_ifaddr_lock, "in_ifaddr_lock");
+struct rmlock in_ifaddr_lock;
+RM_SYSINIT(in_ifaddr_lock, &in_ifaddr_lock, "in_ifaddr_lock");
 
 VNET_DEFINE(int, rsvp_on);
 

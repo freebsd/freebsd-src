@@ -80,6 +80,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/time.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/rmlock.h>
 #include <sys/syslog.h>
 
 #include <net/if.h>
@@ -1499,9 +1501,10 @@ in6ifa_ifpforlinklocal(struct ifnet *ifp, int ignoreflags)
 struct in6_ifaddr *
 in6ifa_ifwithaddr(const struct in6_addr *addr, uint32_t zoneid)
 {
+	struct rm_priotracker in6_ifa_tracker;
 	struct in6_ifaddr *ia;
 
-	IN6_IFADDR_RLOCK();
+	IN6_IFADDR_RLOCK(&in6_ifa_tracker);
 	LIST_FOREACH(ia, IN6ADDR_HASH(addr), ia6_hash) {
 		if (IN6_ARE_ADDR_EQUAL(IA6_IN6(ia), addr)) {
 			if (zoneid != 0 &&
@@ -1511,7 +1514,7 @@ in6ifa_ifwithaddr(const struct in6_addr *addr, uint32_t zoneid)
 			break;
 		}
 	}
-	IN6_IFADDR_RUNLOCK();
+	IN6_IFADDR_RUNLOCK(&in6_ifa_tracker);
 	return (ia);
 }
 
@@ -1649,20 +1652,21 @@ ip6_sprintf(char *ip6buf, const struct in6_addr *addr)
 int
 in6_localaddr(struct in6_addr *in6)
 {
+	struct rm_priotracker in6_ifa_tracker;
 	struct in6_ifaddr *ia;
 
 	if (IN6_IS_ADDR_LOOPBACK(in6) || IN6_IS_ADDR_LINKLOCAL(in6))
 		return 1;
 
-	IN6_IFADDR_RLOCK();
+	IN6_IFADDR_RLOCK(&in6_ifa_tracker);
 	TAILQ_FOREACH(ia, &V_in6_ifaddrhead, ia_link) {
 		if (IN6_ARE_MASKED_ADDR_EQUAL(in6, &ia->ia_addr.sin6_addr,
 		    &ia->ia_prefixmask.sin6_addr)) {
-			IN6_IFADDR_RUNLOCK();
+			IN6_IFADDR_RUNLOCK(&in6_ifa_tracker);
 			return 1;
 		}
 	}
-	IN6_IFADDR_RUNLOCK();
+	IN6_IFADDR_RUNLOCK(&in6_ifa_tracker);
 
 	return (0);
 }
@@ -1674,16 +1678,17 @@ in6_localaddr(struct in6_addr *in6)
 int
 in6_localip(struct in6_addr *in6)
 {
+	struct rm_priotracker in6_ifa_tracker;
 	struct in6_ifaddr *ia;
 
-	IN6_IFADDR_RLOCK();
+	IN6_IFADDR_RLOCK(&in6_ifa_tracker);
 	LIST_FOREACH(ia, IN6ADDR_HASH(in6), ia6_hash) {
 		if (IN6_ARE_ADDR_EQUAL(in6, &ia->ia_addr.sin6_addr)) {
-			IN6_IFADDR_RUNLOCK();
+			IN6_IFADDR_RUNLOCK(&in6_ifa_tracker);
 			return (1);
 		}
 	}
-	IN6_IFADDR_RUNLOCK();
+	IN6_IFADDR_RUNLOCK(&in6_ifa_tracker);
 	return (0);
 }
  
@@ -1720,19 +1725,20 @@ in6_ifhasaddr(struct ifnet *ifp, struct in6_addr *addr)
 int
 in6_is_addr_deprecated(struct sockaddr_in6 *sa6)
 {
+	struct rm_priotracker in6_ifa_tracker;
 	struct in6_ifaddr *ia;
 
-	IN6_IFADDR_RLOCK();
+	IN6_IFADDR_RLOCK(&in6_ifa_tracker);
 	LIST_FOREACH(ia, IN6ADDR_HASH(&sa6->sin6_addr), ia6_hash) {
 		if (IN6_ARE_ADDR_EQUAL(IA6_IN6(ia), &sa6->sin6_addr)) {
 			if (ia->ia6_flags & IN6_IFF_DEPRECATED) {
-				IN6_IFADDR_RUNLOCK();
+				IN6_IFADDR_RUNLOCK(&in6_ifa_tracker);
 				return (1); /* true */
 			}
 			break;
 		}
 	}
-	IN6_IFADDR_RUNLOCK();
+	IN6_IFADDR_RUNLOCK(&in6_ifa_tracker);
 
 	return (0);		/* false */
 }

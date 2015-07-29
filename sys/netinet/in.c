@@ -44,7 +44,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/jail.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/proc.h>
+#include <sys/rmlock.h>
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
 #include <sys/sx.h>
@@ -93,17 +95,18 @@ SX_SYSINIT(in_control_sx, &in_control_sx, "in_control");
 int
 in_localaddr(struct in_addr in)
 {
+	struct rm_priotracker in_ifa_tracker;
 	register u_long i = ntohl(in.s_addr);
 	register struct in_ifaddr *ia;
 
-	IN_IFADDR_RLOCK();
+	IN_IFADDR_RLOCK(&in_ifa_tracker);
 	TAILQ_FOREACH(ia, &V_in_ifaddrhead, ia_link) {
 		if ((i & ia->ia_subnetmask) == ia->ia_subnet) {
-			IN_IFADDR_RUNLOCK();
+			IN_IFADDR_RUNLOCK(&in_ifa_tracker);
 			return (1);
 		}
 	}
-	IN_IFADDR_RUNLOCK();
+	IN_IFADDR_RUNLOCK(&in_ifa_tracker);
 	return (0);
 }
 
@@ -114,16 +117,17 @@ in_localaddr(struct in_addr in)
 int
 in_localip(struct in_addr in)
 {
+	struct rm_priotracker in_ifa_tracker;
 	struct in_ifaddr *ia;
 
-	IN_IFADDR_RLOCK();
+	IN_IFADDR_RLOCK(&in_ifa_tracker);
 	LIST_FOREACH(ia, INADDR_HASH(in.s_addr), ia_hash) {
 		if (IA_SIN(ia)->sin_addr.s_addr == in.s_addr) {
-			IN_IFADDR_RUNLOCK();
+			IN_IFADDR_RUNLOCK(&in_ifa_tracker);
 			return (1);
 		}
 	}
-	IN_IFADDR_RUNLOCK();
+	IN_IFADDR_RUNLOCK(&in_ifa_tracker);
 	return (0);
 }
 
@@ -158,18 +162,19 @@ in_ifhasaddr(struct ifnet *ifp, struct in_addr in)
 static struct in_ifaddr *
 in_localip_more(struct in_ifaddr *ia)
 {
+	struct rm_priotracker in_ifa_tracker;
 	in_addr_t in = IA_SIN(ia)->sin_addr.s_addr;
 	struct in_ifaddr *it;
 
-	IN_IFADDR_RLOCK();
+	IN_IFADDR_RLOCK(&in_ifa_tracker);
 	LIST_FOREACH(it, INADDR_HASH(in), ia_hash) {
 		if (it != ia && IA_SIN(it)->sin_addr.s_addr == in) {
 			ifa_ref(&it->ia_ifa);
-			IN_IFADDR_RUNLOCK();
+			IN_IFADDR_RUNLOCK(&in_ifa_tracker);
 			return (it);
 		}
 	}
-	IN_IFADDR_RUNLOCK();
+	IN_IFADDR_RUNLOCK(&in_ifa_tracker);
 
 	return (NULL);
 }
@@ -646,6 +651,7 @@ in_difaddr_ioctl(caddr_t data, struct ifnet *ifp, struct thread *td)
 int
 in_addprefix(struct in_ifaddr *target, int flags)
 {
+	struct rm_priotracker in_ifa_tracker;
 	struct in_ifaddr *ia;
 	struct in_addr prefix, mask, p, m;
 	int error;
@@ -659,7 +665,7 @@ in_addprefix(struct in_ifaddr *target, int flags)
 		prefix.s_addr &= mask.s_addr;
 	}
 
-	IN_IFADDR_RLOCK();
+	IN_IFADDR_RLOCK(&in_ifa_tracker);
 	/* Look for an existing address with the same prefix, mask, and fib */
 	TAILQ_FOREACH(ia, &V_in_ifaddrhead, ia_link) {
 		if (rtinitflags(ia)) {
@@ -687,13 +693,13 @@ in_addprefix(struct in_ifaddr *target, int flags)
 #ifdef RADIX_MPATH
 			if (ia->ia_addr.sin_addr.s_addr ==
 			    target->ia_addr.sin_addr.s_addr) {
-				IN_IFADDR_RUNLOCK();
+				IN_IFADDR_RUNLOCK(&in_ifa_tracker);
 				return (EEXIST);
 			} else
 				break;
 #endif
 			if (V_nosameprefix) {
-				IN_IFADDR_RUNLOCK();
+				IN_IFADDR_RUNLOCK(&in_ifa_tracker);
 				return (EEXIST);
 			} else {
 				int fibnum;
@@ -701,12 +707,12 @@ in_addprefix(struct in_ifaddr *target, int flags)
 				fibnum = V_rt_add_addr_allfibs ? RT_ALL_FIBS :
 					target->ia_ifp->if_fib;
 				rt_addrmsg(RTM_ADD, &target->ia_ifa, fibnum);
-				IN_IFADDR_RUNLOCK();
+				IN_IFADDR_RUNLOCK(&in_ifa_tracker);
 				return (0);
 			}
 		}
 	}
-	IN_IFADDR_RUNLOCK();
+	IN_IFADDR_RUNLOCK(&in_ifa_tracker);
 
 	/*
 	 * No-one seem to have this prefix route, so we try to insert it.
@@ -725,6 +731,7 @@ in_addprefix(struct in_ifaddr *target, int flags)
 int
 in_scrubprefix(struct in_ifaddr *target, u_int flags)
 {
+	struct rm_priotracker in_ifa_tracker;
 	struct in_ifaddr *ia;
 	struct in_addr prefix, mask, p, m;
 	int error = 0;
@@ -775,7 +782,7 @@ in_scrubprefix(struct in_ifaddr *target, u_int flags)
 		return (0);
 	}
 
-	IN_IFADDR_RLOCK();
+	IN_IFADDR_RLOCK(&in_ifa_tracker);
 	TAILQ_FOREACH(ia, &V_in_ifaddrhead, ia_link) {
 		if (rtinitflags(ia)) {
 			p = ia->ia_dstaddr.sin_addr;
@@ -802,7 +809,7 @@ in_scrubprefix(struct in_ifaddr *target, u_int flags)
 		 */
 		if ((ia->ia_flags & IFA_ROUTE) == 0) {
 			ifa_ref(&ia->ia_ifa);
-			IN_IFADDR_RUNLOCK();
+			IN_IFADDR_RUNLOCK(&in_ifa_tracker);
 			error = rtinit(&(target->ia_ifa), (int)RTM_DELETE,
 			    rtinitflags(target));
 			if (error == 0)
@@ -821,7 +828,7 @@ in_scrubprefix(struct in_ifaddr *target, u_int flags)
 			return (error);
 		}
 	}
-	IN_IFADDR_RUNLOCK();
+	IN_IFADDR_RUNLOCK(&in_ifa_tracker);
 
 	/*
 	 * remove all L2 entries on the given prefix

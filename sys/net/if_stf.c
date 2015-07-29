@@ -84,10 +84,12 @@
 #include <sys/mbuf.h>
 #include <sys/errno.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/module.h>
 #include <sys/protosw.h>
 #include <sys/proc.h>
 #include <sys/queue.h>
+#include <sys/rmlock.h>
 #include <sys/sysctl.h>
 #include <machine/cpu.h>
 
@@ -530,6 +532,7 @@ stf_checkaddr4(sc, in, inifp)
 	struct in_addr *in;
 	struct ifnet *inifp;	/* incoming interface */
 {
+	struct rm_priotracker in_ifa_tracker;
 	struct in_ifaddr *ia4;
 
 	/*
@@ -553,16 +556,16 @@ stf_checkaddr4(sc, in, inifp)
 	/*
 	 * reject packets with broadcast
 	 */
-	IN_IFADDR_RLOCK();
+	IN_IFADDR_RLOCK(&in_ifa_tracker);
 	TAILQ_FOREACH(ia4, &V_in_ifaddrhead, ia_link) {
 		if ((ia4->ia_ifa.ifa_ifp->if_flags & IFF_BROADCAST) == 0)
 			continue;
 		if (in->s_addr == ia4->ia_broadaddr.sin_addr.s_addr) {
-			IN_IFADDR_RUNLOCK();
+			IN_IFADDR_RUNLOCK(&in_ifa_tracker);
 			return -1;
 		}
 	}
-	IN_IFADDR_RUNLOCK();
+	IN_IFADDR_RUNLOCK(&in_ifa_tracker);
 
 	/*
 	 * perform ingress filter
