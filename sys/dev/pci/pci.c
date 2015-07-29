@@ -590,19 +590,9 @@ pci_hdrtypedata(device_t pcib, int b, int s, int f, pcicfgregs *cfg)
 		cfg->nummaps	    = PCI_MAXMAPS_0;
 		break;
 	case PCIM_HDRTYPE_BRIDGE:
-		cfg->bridge.br_seclat = REG(PCIR_SECLAT_1, 1);
-		cfg->bridge.br_subbus = REG(PCIR_SUBBUS_1, 1);
-		cfg->bridge.br_secbus = REG(PCIR_SECBUS_1, 1);
-		cfg->bridge.br_pribus = REG(PCIR_PRIBUS_1, 1);
-		cfg->bridge.br_control = REG(PCIR_BRIDGECTL_1, 2);
 		cfg->nummaps	    = PCI_MAXMAPS_1;
 		break;
 	case PCIM_HDRTYPE_CARDBUS:
-		cfg->bridge.br_seclat = REG(PCIR_SECLAT_2, 1);
-		cfg->bridge.br_subbus = REG(PCIR_SUBBUS_2, 1);
-		cfg->bridge.br_secbus = REG(PCIR_SECBUS_2, 1);
-		cfg->bridge.br_pribus = REG(PCIR_PRIBUS_2, 1);
-		cfg->bridge.br_control = REG(PCIR_BRIDGECTL_2, 2);
 		cfg->subvendor      = REG(PCIR_SUBVEND_2, 2);
 		cfg->subdevice      = REG(PCIR_SUBDEV_2, 2);
 		cfg->nummaps	    = PCI_MAXMAPS_2;
@@ -4948,6 +4938,16 @@ pci_cfg_restore(device_t dev, struct pci_devinfo *dinfo)
 {
 
 	/*
+	 * Only do header type 0 devices.  Type 1 devices are bridges,
+	 * which we know need special treatment.  Type 2 devices are
+	 * cardbus bridges which also require special treatment.
+	 * Other types are unknown, and we err on the side of safety
+	 * by ignoring them.
+	 */
+	if ((dinfo->cfg.hdrtype & PCIM_HDRTYPE) != PCIM_HDRTYPE_NORMAL)
+		return;
+
+	/*
 	 * Restore the device to full power mode.  We must do this
 	 * before we restore the registers because moving from D3 to
 	 * D0 will cause the chip's BARs and some other registers to
@@ -4957,44 +4957,16 @@ pci_cfg_restore(device_t dev, struct pci_devinfo *dinfo)
 	 */
 	if (pci_get_powerstate(dev) != PCI_POWERSTATE_D0)
 		pci_set_powerstate(dev, PCI_POWERSTATE_D0);
+	pci_restore_bars(dev);
 	pci_write_config(dev, PCIR_COMMAND, dinfo->cfg.cmdreg, 2);
 	pci_write_config(dev, PCIR_INTLINE, dinfo->cfg.intline, 1);
 	pci_write_config(dev, PCIR_INTPIN, dinfo->cfg.intpin, 1);
+	pci_write_config(dev, PCIR_MINGNT, dinfo->cfg.mingnt, 1);
+	pci_write_config(dev, PCIR_MAXLAT, dinfo->cfg.maxlat, 1);
 	pci_write_config(dev, PCIR_CACHELNSZ, dinfo->cfg.cachelnsz, 1);
 	pci_write_config(dev, PCIR_LATTIMER, dinfo->cfg.lattimer, 1);
 	pci_write_config(dev, PCIR_PROGIF, dinfo->cfg.progif, 1);
 	pci_write_config(dev, PCIR_REVID, dinfo->cfg.revid, 1);
-	switch (dinfo->cfg.hdrtype & PCIM_HDRTYPE) {
-	case PCIM_HDRTYPE_NORMAL:
-		pci_write_config(dev, PCIR_MINGNT, dinfo->cfg.mingnt, 1);
-		pci_write_config(dev, PCIR_MAXLAT, dinfo->cfg.maxlat, 1);
-		break;
-	case PCIM_HDRTYPE_BRIDGE:
-		pci_write_config(dev, PCIR_SECLAT_1,
-		    dinfo->cfg.bridge.br_seclat, 1);
-		pci_write_config(dev, PCIR_SUBBUS_1,
-		    dinfo->cfg.bridge.br_subbus, 1);
-		pci_write_config(dev, PCIR_SECBUS_1,
-		    dinfo->cfg.bridge.br_secbus, 1);
-		pci_write_config(dev, PCIR_PRIBUS_1,
-		    dinfo->cfg.bridge.br_pribus, 1);
-		pci_write_config(dev, PCIR_BRIDGECTL_1,
-		    dinfo->cfg.bridge.br_control, 2);
-		break;
-	case PCIM_HDRTYPE_CARDBUS:
-		pci_write_config(dev, PCIR_SECLAT_2,
-		    dinfo->cfg.bridge.br_seclat, 1);
-		pci_write_config(dev, PCIR_SUBBUS_2,
-		    dinfo->cfg.bridge.br_subbus, 1);
-		pci_write_config(dev, PCIR_SECBUS_2,
-		    dinfo->cfg.bridge.br_secbus, 1);
-		pci_write_config(dev, PCIR_PRIBUS_2,
-		    dinfo->cfg.bridge.br_pribus, 1);
-		pci_write_config(dev, PCIR_BRIDGECTL_2,
-		    dinfo->cfg.bridge.br_control, 2);
-		break;
-	}
-	pci_restore_bars(dev);
 
 	/*
 	 * Restore extended capabilities for PCI-Express and PCI-X
@@ -5063,57 +5035,40 @@ pci_cfg_save(device_t dev, struct pci_devinfo *dinfo, int setstate)
 	int ps;
 
 	/*
+	 * Only do header type 0 devices.  Type 1 devices are bridges, which
+	 * we know need special treatment.  Type 2 devices are cardbus bridges
+	 * which also require special treatment.  Other types are unknown, and
+	 * we err on the side of safety by ignoring them.  Powering down
+	 * bridges should not be undertaken lightly.
+	 */
+	if ((dinfo->cfg.hdrtype & PCIM_HDRTYPE) != PCIM_HDRTYPE_NORMAL)
+		return;
+
+	/*
 	 * Some drivers apparently write to these registers w/o updating our
 	 * cached copy.  No harm happens if we update the copy, so do so here
 	 * so we can restore them.  The COMMAND register is modified by the
 	 * bus w/o updating the cache.  This should represent the normally
-	 * writable portion of the 'defined' part of type 0/1/2 headers.
+	 * writable portion of the 'defined' part of type 0 headers.  In
+	 * theory we also need to save/restore the PCI capability structures
+	 * we know about, but apart from power we don't know any that are
+	 * writable.
 	 */
+	dinfo->cfg.subvendor = pci_read_config(dev, PCIR_SUBVEND_0, 2);
+	dinfo->cfg.subdevice = pci_read_config(dev, PCIR_SUBDEV_0, 2);
 	dinfo->cfg.vendor = pci_read_config(dev, PCIR_VENDOR, 2);
 	dinfo->cfg.device = pci_read_config(dev, PCIR_DEVICE, 2);
 	dinfo->cfg.cmdreg = pci_read_config(dev, PCIR_COMMAND, 2);
 	dinfo->cfg.intline = pci_read_config(dev, PCIR_INTLINE, 1);
 	dinfo->cfg.intpin = pci_read_config(dev, PCIR_INTPIN, 1);
+	dinfo->cfg.mingnt = pci_read_config(dev, PCIR_MINGNT, 1);
+	dinfo->cfg.maxlat = pci_read_config(dev, PCIR_MAXLAT, 1);
 	dinfo->cfg.cachelnsz = pci_read_config(dev, PCIR_CACHELNSZ, 1);
 	dinfo->cfg.lattimer = pci_read_config(dev, PCIR_LATTIMER, 1);
 	dinfo->cfg.baseclass = pci_read_config(dev, PCIR_CLASS, 1);
 	dinfo->cfg.subclass = pci_read_config(dev, PCIR_SUBCLASS, 1);
 	dinfo->cfg.progif = pci_read_config(dev, PCIR_PROGIF, 1);
 	dinfo->cfg.revid = pci_read_config(dev, PCIR_REVID, 1);
-	switch (dinfo->cfg.hdrtype & PCIM_HDRTYPE) {
-	case PCIM_HDRTYPE_NORMAL:
-		dinfo->cfg.subvendor = pci_read_config(dev, PCIR_SUBVEND_0, 2);
-		dinfo->cfg.subdevice = pci_read_config(dev, PCIR_SUBDEV_0, 2);
-		dinfo->cfg.mingnt = pci_read_config(dev, PCIR_MINGNT, 1);
-		dinfo->cfg.maxlat = pci_read_config(dev, PCIR_MAXLAT, 1);
-		break;
-	case PCIM_HDRTYPE_BRIDGE:
-		dinfo->cfg.bridge.br_seclat = pci_read_config(dev,
-		    PCIR_SECLAT_1, 1);
-		dinfo->cfg.bridge.br_subbus = pci_read_config(dev,
-		    PCIR_SUBBUS_1, 1);
-		dinfo->cfg.bridge.br_secbus = pci_read_config(dev,
-		    PCIR_SECBUS_1, 1);
-		dinfo->cfg.bridge.br_pribus = pci_read_config(dev,
-		    PCIR_PRIBUS_1, 1);
-		dinfo->cfg.bridge.br_control = pci_read_config(dev,
-		    PCIR_BRIDGECTL_1, 2);
-		break;
-	case PCIM_HDRTYPE_CARDBUS:
-		dinfo->cfg.bridge.br_seclat = pci_read_config(dev,
-		    PCIR_SECLAT_2, 1);
-		dinfo->cfg.bridge.br_subbus = pci_read_config(dev,
-		    PCIR_SUBBUS_2, 1);
-		dinfo->cfg.bridge.br_secbus = pci_read_config(dev,
-		    PCIR_SECBUS_2, 1);
-		dinfo->cfg.bridge.br_pribus = pci_read_config(dev,
-		    PCIR_PRIBUS_2, 1);
-		dinfo->cfg.bridge.br_control = pci_read_config(dev,
-		    PCIR_BRIDGECTL_2, 2);
-		dinfo->cfg.subvendor = pci_read_config(dev, PCIR_SUBVEND_2, 2);
-		dinfo->cfg.subdevice = pci_read_config(dev, PCIR_SUBDEV_2, 2);
-		break;
-	}
 
 	if (dinfo->cfg.pcie.pcie_location != 0)
 		pci_cfg_save_pcie(dev, dinfo);

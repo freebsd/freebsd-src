@@ -39,15 +39,6 @@
 
 typedef uint64_t pci_addr_t;
 
-/* Config registers for PCI-PCI and PCI-Cardbus bridges. */
-struct pcicfg_bridge {
-    uint8_t	br_seclat;
-    uint8_t	br_subbus;
-    uint8_t	br_secbus;
-    uint8_t	br_pribus;
-    uint16_t	br_control;
-};
-
 /* Interesting values for PCI power management */
 struct pcicfg_pp {
     uint16_t	pp_cap;		/* PCI power management capabilities */
@@ -188,7 +179,6 @@ typedef struct pcicfg {
     uint8_t	slot;		/* config space slot address */
     uint8_t	func;		/* config space function number */
 
-    struct pcicfg_bridge bridge; /* Bridges */
     struct pcicfg_pp pp;	/* Power management */
     struct pcicfg_vpd vpd;	/* Vital product data */
     struct pcicfg_msi msi;	/* PCI MSI */
