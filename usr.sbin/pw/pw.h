@@ -32,6 +32,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <stdarg.h>
+#include <inttypes.h>
 #include <errno.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -101,3 +102,6 @@ char *pw_pwcrypt(char *password);
 
 extern const char *Modes[];
 extern const char *Which[];
+
+uintmax_t strtounum(const char *numstr, uintmax_t minval, uintmax_t maxval,
+    const char **errmsg);
