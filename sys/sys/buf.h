@@ -465,8 +465,6 @@ extern int	dirtybufthresh;
 extern int	bdwriteskip;
 extern int	dirtybufferflushes;
 extern int	altbufferflushes;
-extern struct	buf *buf;		/* The buffer headers. */
-extern struct	buf *swbuf;		/* Swap I/O buffer headers. */
 extern int	nswbuf;			/* Number of swap I/O buffer headers. */
 extern int	cluster_pbuf_freecnt;	/* Number of pbufs for clusters */
 extern int	vnode_pbuf_freecnt;	/* Number of pbufs for vnode pager */
@@ -485,6 +483,7 @@ void	runningbufwakeup(struct buf *);
 void	waitrunningbufspace(void);
 caddr_t	kern_vfs_bio_buffer_alloc(caddr_t v, long physmem_est);
 void	bufinit(void);
+void	bufshutdown(int);
 void	bdata2bio(struct buf *bp, struct bio *bip);
 void	bwillwrite(void);
 int	buf_dirty_count_severe(void);

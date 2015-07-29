@@ -275,24 +275,13 @@ doadump(boolean_t textdump)
 	return (error);
 }
 
-static int
-isbufbusy(struct buf *bp)
-{
-	if (((bp->b_flags & (B_INVAL | B_PERSISTENT)) == 0 &&
-	    BUF_ISLOCKED(bp)) ||
-	    ((bp->b_flags & (B_DELWRI | B_INVAL)) == B_DELWRI))
-		return (1);
-	return (0);
-}
-
 /*
  * Shutdown the system cleanly to prepare for reboot, halt, or power off.
  */
 void
 kern_reboot(int howto)
 {
-	static int first_buf_printf = 1;
-	static int waittime = -1;
+	static int once = 0;
 
 #if defined(SMP)
 	/*
@@ -321,116 +310,9 @@ kern_reboot(int howto)
 	/* 
 	 * Now sync filesystems
 	 */
-	if (!cold && (howto & RB_NOSYNC) == 0 && waittime < 0) {
-		register struct buf *bp;
-		int iter, nbusy, pbusy;
-#ifndef PREEMPTION
-		int subiter;
-#endif
-
-		waittime = 0;
-
-		wdog_kern_pat(WD_LASTVAL);
-		sys_sync(curthread, NULL);
-
-		/*
-		 * With soft updates, some buffers that are
-		 * written will be remarked as dirty until other
-		 * buffers are written.
-		 */
-		for (iter = pbusy = 0; iter < 20; iter++) {
-			nbusy = 0;
-			for (bp = &buf[nbuf]; --bp >= buf; )
-				if (isbufbusy(bp))
-					nbusy++;
-			if (nbusy == 0) {
-				if (first_buf_printf)
-					printf("All buffers synced.");
-				break;
-			}
-			if (first_buf_printf) {
-				printf("Syncing disks, buffers remaining... ");
-				first_buf_printf = 0;
-			}
-			printf("%d ", nbusy);
-			if (nbusy < pbusy)
-				iter = 0;
-			pbusy = nbusy;
-
-			wdog_kern_pat(WD_LASTVAL);
-			sys_sync(curthread, NULL);
-
-#ifdef PREEMPTION
-			/*
-			 * Drop Giant and spin for a while to allow
-			 * interrupt threads to run.
-			 */
-			DROP_GIANT();
-			DELAY(50000 * iter);
-			PICKUP_GIANT();
-#else
-			/*
-			 * Drop Giant and context switch several times to
-			 * allow interrupt threads to run.
-			 */
-			DROP_GIANT();
-			for (subiter = 0; subiter < 50 * iter; subiter++) {
-				thread_lock(curthread);
-				mi_switch(SW_VOL, NULL);
-				thread_unlock(curthread);
-				DELAY(1000);
-			}
-			PICKUP_GIANT();
-#endif
-		}
-		printf("\n");
-		/*
-		 * Count only busy local buffers to prevent forcing 
-		 * a fsck if we're just a client of a wedged NFS server
-		 */
-		nbusy = 0;
-		for (bp = &buf[nbuf]; --bp >= buf; ) {
-			if (isbufbusy(bp)) {
-#if 0
-/* XXX: This is bogus.  We should probably have a BO_REMOTE flag instead */
-				if (bp->b_dev == NULL) {
-					TAILQ_REMOVE(&mountlist,
-					    bp->b_vp->v_mount, mnt_list);
-					continue;
-				}
-#endif
-				nbusy++;
-				if (show_busybufs > 0) {
-					printf(
-	    "%d: buf:%p, vnode:%p, flags:%0x, blkno:%jd, lblkno:%jd, buflock:",
-					    nbusy, bp, bp->b_vp, bp->b_flags,
-					    (intmax_t)bp->b_blkno,
-					    (intmax_t)bp->b_lblkno);
-					BUF_LOCKPRINTINFO(bp);
-					if (show_busybufs > 1)
-						vn_printf(bp->b_vp,
-						    "vnode content: ");
-				}
-			}
-		}
-		if (nbusy) {
-			/*
-			 * Failed to sync all blocks. Indicate this and don't
-			 * unmount filesystems (thus forcing an fsck on reboot).
-			 */
-			printf("Giving up on %d buffers\n", nbusy);
-			DELAY(5000000);	/* 5 seconds */
-		} else {
-			if (!first_buf_printf)
-				printf("Final sync complete\n");
-			/*
-			 * Unmount filesystems
-			 */
-			if (panicstr == 0)
-				vfs_unmountall();
-		}
-		swapoff_all();
-		DELAY(100000);		/* wait for console output to finish */
+	if (!cold && (howto & RB_NOSYNC) == 0 && once == 0) {
+		once = 1;
+		bufshutdown(show_busybufs);
 	}
 
 	print_uptime();
