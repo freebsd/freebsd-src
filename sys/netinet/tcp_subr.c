@@ -385,6 +385,8 @@ tcp_init(void)
 	if (!IS_DEFAULT_VNET(curvnet))
 		return;
 
+	tcp_reass_global_init();
+
 	/* XXX virtualize those bellow? */
 	tcp_delacktime = TCPTV_DELACK;
 	tcp_keepinit = TCPTV_KEEP_INIT;
