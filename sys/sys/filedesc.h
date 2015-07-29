@@ -146,6 +146,10 @@ enum {
 /* Flags for kern_dup(). */
 #define	FDDUP_FLAG_CLOEXEC	0x1	/* Atomically set UF_EXCLOSE. */
 
+/* For backward compatibility. */
+#define	falloc(td, resultfp, resultfd, flags) \
+	falloc_caps(td, resultfp, resultfd, flags, NULL)
+
 struct thread;
 
 void	filecaps_init(struct filecaps *fcaps);
@@ -156,8 +160,8 @@ void	filecaps_free(struct filecaps *fcaps);
 int	closef(struct file *fp, struct thread *td);
 int	dupfdopen(struct thread *td, struct filedesc *fdp, int dfd, int mode,
 	    int openerror, int *indxp);
-int	falloc(struct thread *td, struct file **resultfp, int *resultfd,
-	    int flags);
+int	falloc_caps(struct thread *td, struct file **resultfp, int *resultfd,
+	    int flags, struct filecaps *fcaps);
 int	falloc_noinstall(struct thread *td, struct file **resultfp);
 void	_finstall(struct filedesc *fdp, struct file *fp, int fd, int flags,
 	    struct filecaps *fcaps);
