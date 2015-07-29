@@ -150,7 +150,6 @@ struct pkthdr {
 #define	tso_segsz	PH_per.sixteen[1]
 #define	csum_phsum	PH_per.sixteen[2]
 #define	csum_data	PH_per.thirtytwo[1]
-#define	pkt_tcphdr	PH_loc.ptr
 
 /*
  * Description of external storage mapped into mbuf; valid only if M_EXT is
