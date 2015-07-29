@@ -900,6 +900,8 @@
 
       &hwlist.ixgbe;
 
+      &hwlist.ixl;
+
       &hwlist.jme;
 
       &hwlist.kue;
