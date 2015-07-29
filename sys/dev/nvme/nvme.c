@@ -390,6 +390,15 @@ nvme_notify_fail_consumers(struct nvme_controller *ctrlr)
 	struct nvme_consumer	*cons;
 	uint32_t		i;
 
+	/*
+	 * This controller failed during initialization (i.e. IDENTIFY
+	 *  command failed or timed out).  Do not notify any nvme
+	 *  consumers of the failure here, since the consumer does not
+	 *  even know about the controller yet.
+	 */
+	if (!ctrlr->is_initialized)
+		return;
+
 	for (i = 0; i < NVME_MAX_CONSUMERS; i++) {
 		cons = &nvme_consumer[i];
 		if (cons->id != INVALID_CONSUMER_ID && cons->fail_fn != NULL)
