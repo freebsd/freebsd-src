@@ -1345,6 +1345,7 @@ ip_forward(struct mbuf *m, int srcrt)
 	struct ip *ip = mtod(m, struct ip *);
 	struct in_ifaddr *ia;
 	struct mbuf *mcopy;
+	struct sockaddr_in *sin;
 	struct in_addr dest;
 	struct route ro;
 	int error, type = 0, code = 0, mtu = 0;
@@ -1366,7 +1367,22 @@ ip_forward(struct mbuf *m, int srcrt)
 	}
 #endif
 
-	ia = ip_rtaddr(ip->ip_dst, M_GETFIB(m));
+	bzero(&ro, sizeof(ro));
+	sin = (struct sockaddr_in *)&ro.ro_dst;
+	sin->sin_family = AF_INET;
+	sin->sin_len = sizeof(*sin);
+	sin->sin_addr = ip->ip_dst;
+#ifdef RADIX_MPATH
+	rtalloc_mpath_fib(&ro,
+	    ntohl(ip->ip_src.s_addr ^ ip->ip_dst.s_addr),
+	    M_GETFIB(m));
+#else
+	in_rtalloc_ign(&ro, 0, M_GETFIB(m));
+#endif
+	if (ro.ro_rt != NULL) {
+		ia = ifatoia(ro.ro_rt->rt_ifa);
+		ifa_ref(&ia->ia_ifa);
+	}
 #ifndef IPSEC
 	/*
 	 * 'ia' may be NULL if there is no route for this destination.
@@ -1375,6 +1391,7 @@ ip_forward(struct mbuf *m, int srcrt)
 	 */
 	if (!srcrt && ia == NULL) {
 		icmp_error(m, ICMP_UNREACH, ICMP_UNREACH_HOST, 0, 0);
+		RO_RTFREE(&ro);
 		return;
 	}
 #endif
@@ -1431,15 +1448,7 @@ ip_forward(struct mbuf *m, int srcrt)
 	dest.s_addr = 0;
 	if (!srcrt && V_ipsendredirects &&
 	    ia != NULL && ia->ia_ifp == m->m_pkthdr.rcvif) {
-		struct sockaddr_in *sin;
 		struct rtentry *rt;
-
-		bzero(&ro, sizeof(ro));
-		sin = (struct sockaddr_in *)&ro.ro_dst;
-		sin->sin_family = AF_INET;
-		sin->sin_len = sizeof(*sin);
-		sin->sin_addr = ip->ip_dst;
-		in_rtalloc_ign(&ro, 0, M_GETFIB(m));
 
 		rt = ro.ro_rt;
 
@@ -1459,15 +1468,7 @@ ip_forward(struct mbuf *m, int srcrt)
 				code = ICMP_REDIRECT_HOST;
 			}
 		}
-		if (rt)
-			RTFREE(rt);
 	}
-
-	/*
-	 * Try to cache the route MTU from ip_output so we can consider it for
-	 * the ICMP_UNREACH_NEEDFRAG "Next-Hop MTU" field described in RFC1191.
-	 */
-	bzero(&ro, sizeof(ro));
 
 	error = ip_output(m, NULL, &ro, IP_FORWARDING, NULL, NULL);
 
