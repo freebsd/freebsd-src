@@ -104,6 +104,8 @@ main(int argc, char **argv)
 
 	bsdar = &bsdar_storage;
 	memset(bsdar, 0, sizeof(*bsdar));
+	/* Enable deterministic mode by default. */
+	bsdar->options |= AR_D;
 
 	if ((bsdar->progname = getprogname()) == NULL)
 		bsdar->progname = "ar";
