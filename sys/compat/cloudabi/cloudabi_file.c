@@ -28,6 +28,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/capsicum.h>
+#include <sys/dirent.h>
 #include <sys/fcntl.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
@@ -35,10 +36,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/stat.h>
 #include <sys/syscallsubr.h>
+#include <sys/uio.h>
+#include <sys/vnode.h>
 
 #include <compat/cloudabi/cloudabi_proto.h>
 #include <compat/cloudabi/cloudabi_syscalldefs.h>
 #include <compat/cloudabi/cloudabi_util.h>
+
+#include <security/mac/mac_framework.h>
 
 static MALLOC_DEFINE(M_CLOUDABI_PATH, "cloudabipath", "CloudABI pathnames");
 
@@ -197,13 +202,180 @@ cloudabi_sys_file_open(struct thread *td,
 	return (ENOSYS);
 }
 
+/* Converts a FreeBSD directory entry structure and writes it to userspace. */
+static int
+write_dirent(struct dirent *bde, cloudabi_dircookie_t cookie, struct uio *uio)
+{
+	cloudabi_dirent_t cde = {
+		.d_next = cookie,
+		.d_ino = bde->d_fileno,
+		.d_namlen = bde->d_namlen,
+	};
+	size_t len;
+	int error;
+
+	/* Convert file type. */
+	switch (bde->d_type) {
+	case DT_BLK:
+		cde.d_type = CLOUDABI_FILETYPE_BLOCK_DEVICE;
+		break;
+	case DT_CHR:
+		cde.d_type = CLOUDABI_FILETYPE_CHARACTER_DEVICE;
+		break;
+	case DT_DIR:
+		cde.d_type = CLOUDABI_FILETYPE_DIRECTORY;
+		break;
+	case DT_FIFO:
+		cde.d_type = CLOUDABI_FILETYPE_FIFO;
+		break;
+	case DT_LNK:
+		cde.d_type = CLOUDABI_FILETYPE_SYMBOLIC_LINK;
+		break;
+	case DT_REG:
+		cde.d_type = CLOUDABI_FILETYPE_REGULAR_FILE;
+		break;
+	case DT_SOCK:
+		/* The exact socket type cannot be derived. */
+		cde.d_type = CLOUDABI_FILETYPE_SOCKET_STREAM;
+		break;
+	default:
+		cde.d_type = CLOUDABI_FILETYPE_UNKNOWN;
+		break;
+	}
+
+	/* Write directory entry structure. */
+	len = sizeof(cde) < uio->uio_resid ? sizeof(cde) : uio->uio_resid;
+	error = uiomove(&cde, len, uio);
+	if (error != 0)
+		return (error);
+
+	/* Write filename. */
+	len = bde->d_namlen < uio->uio_resid ? bde->d_namlen : uio->uio_resid;
+	return (uiomove(bde->d_name, len, uio));
+}
+
 int
 cloudabi_sys_file_readdir(struct thread *td,
     struct cloudabi_sys_file_readdir_args *uap)
 {
+	struct iovec iov = {
+		.iov_base = uap->buf,
+		.iov_len = uap->nbyte
+	};
+	struct uio uio = {
+		.uio_iov = &iov,
+		.uio_iovcnt = 1,
+		.uio_resid = iov.iov_len,
+		.uio_segflg = UIO_USERSPACE,
+		.uio_rw = UIO_READ,
+		.uio_td = td
+	};
+	struct file *fp;
+	struct vnode *vp;
+	void *readbuf;
+	cap_rights_t rights;
+	cloudabi_dircookie_t offset;
+	int error;
 
-	/* Not implemented. */
-	return (ENOSYS);
+	/* Obtain directory vnode. */
+	error = getvnode(td, uap->fd, cap_rights_init(&rights, CAP_READ), &fp);
+	if (error != 0) {
+		if (error == EINVAL)
+			return (ENOTDIR);
+		return (error);
+	}
+	if ((fp->f_flag & FREAD) == 0) {
+		fdrop(fp, td);
+		return (EBADF);
+	}
+
+	/*
+	 * Call VOP_READDIR() and convert resulting data until the user
+	 * provided buffer is filled.
+	 */
+	readbuf = malloc(MAXBSIZE, M_TEMP, M_WAITOK);
+	offset = uap->cookie;
+	vp = fp->f_vnode;
+	while (uio.uio_resid > 0) {
+		struct iovec readiov = {
+			.iov_base = readbuf,
+			.iov_len = MAXBSIZE
+		};
+		struct uio readuio = {
+			.uio_iov = &readiov,
+			.uio_iovcnt = 1,
+			.uio_rw = UIO_READ,
+			.uio_segflg = UIO_SYSSPACE,
+			.uio_td = td,
+			.uio_resid = MAXBSIZE,
+			.uio_offset = offset
+		};
+		struct dirent *bde;
+		unsigned long *cookies, *cookie;
+		size_t readbuflen;
+		int eof, ncookies;
+
+		/* Validate file type. */
+		vn_lock(vp, LK_SHARED | LK_RETRY);
+		if (vp->v_type != VDIR) {
+			VOP_UNLOCK(vp, 0);
+			error = ENOTDIR;
+			goto done;
+		}
+#ifdef MAC
+		error = mac_vnode_check_readdir(td->td_ucred, vp);
+		if (error != 0) {
+			VOP_UNLOCK(vp, 0);
+			goto done;
+		}
+#endif /* MAC */
+
+		/* Read new directory entries. */
+		cookies = NULL;
+		ncookies = 0;
+		error = VOP_READDIR(vp, &readuio, fp->f_cred, &eof,
+		    &ncookies, &cookies);
+		VOP_UNLOCK(vp, 0);
+		if (error != 0)
+			goto done;
+
+		/* Convert entries to CloudABI's format. */
+		readbuflen = MAXBSIZE - readuio.uio_resid;
+		bde = readbuf;
+		cookie = cookies;
+		while (readbuflen >= offsetof(struct dirent, d_name) &&
+		    uio.uio_resid > 0 && ncookies > 0) {
+			/* Ensure that the returned offset always increases. */
+			if (readbuflen >= bde->d_reclen && bde->d_fileno != 0 &&
+			    *cookie > offset) {
+				error = write_dirent(bde, *cookie, &uio);
+				if (error != 0) {
+					free(cookies, M_TEMP);
+					goto done;
+				}
+			}
+
+			if (offset < *cookie)
+				offset = *cookie;
+			++cookie;
+			--ncookies;
+			readbuflen -= bde->d_reclen;
+			bde = (struct dirent *)((char *)bde + bde->d_reclen);
+		}
+		free(cookies, M_TEMP);
+		if (eof)
+			break;
+	}
+
+done:
+	fdrop(fp, td);
+	free(readbuf, M_TEMP);
+	if (error != 0)
+		return (error);
+
+	/* Return number of bytes copied to userspace. */
+	td->td_retval[0] = uap->nbyte - uio.uio_resid;
+	return (0);
 }
 
 int
