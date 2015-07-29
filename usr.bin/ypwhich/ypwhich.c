@@ -59,9 +59,9 @@ __FBSDID("$FreeBSD$");
 
 extern bool_t xdr_domainname();
 
-const struct ypalias {
+static const struct ypalias {
 	char *alias, *name;
-} static ypaliases[] = {
+} ypaliases[] = {
 	{ "passwd", "passwd.byname" },
 	{ "master.passwd", "master.passwd.byname" },
 	{ "shadow", "shadow.byname" },
