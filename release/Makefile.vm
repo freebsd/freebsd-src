@@ -6,7 +6,7 @@
 #
 
 VMTARGETS=	vm-image
-VMFORMATS?=	vhd vmdk qcow2 raw
+VMFORMATS?=	vhdf vmdk qcow2 raw
 VMSIZE?=	20G
 VMBASE?=	vm
 
