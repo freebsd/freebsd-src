@@ -162,7 +162,6 @@ __FBSDID("$FreeBSD$");
 static void pmap_zero_page_check(vm_page_t m);
 void pmap_debug(int level);
 int pmap_pid_dump(int pid);
-void pmap_pvdump(vm_paddr_t pa);
 
 #define PDEBUG(_lev_,_stat_) \
 	if (pmap_debug_level >= (_lev_)) \
@@ -6345,62 +6344,6 @@ pmap_pid_dump(int pid)
 	return (npte2);
 }
 
-/*
- *  Print address space of pmap.
- */
-static void
-pads(pmap_t pmap)
-{
-	int i, j;
-	vm_paddr_t va;
-	pt1_entry_t pte1;
-	pt2_entry_t *pte2p, pte2;
-
-	if (pmap == kernel_pmap)
-		return;
-	for (i = 0; i < NPTE1_IN_PT1; i++) {
-		pte1 = pte1_load(&pmap->pm_pt1[i]);
-		if (pte1_is_section(pte1)) {
-			/*
-			 * QQQ: Do something here!
-			 */
-		} else if (pte1_is_link(pte1)) {
-			for (j = 0; j < NPTE2_IN_PT2; j++) {
-				va = (i << PTE1_SHIFT) + (j << PAGE_SHIFT);
-				if (pmap == kernel_pmap && va < KERNBASE)
-					continue;
-				if (pmap != kernel_pmap && va >= KERNBASE &&
-				    (va < UPT2V_MIN_ADDRESS ||
-				    va >= UPT2V_MAX_ADDRESS))
-					continue;
-
-				pte2p = pmap_pte2(pmap, va);
-				pte2 = pte2_load(pte2p);
-				pmap_pte2_release(pte2p);
-				if (!pte2_is_valid(pte2))
-					continue;
-				printf("%x:%x ", va, pte2);
-			}
-		}
-	}
-}
-
-void
-pmap_pvdump(vm_paddr_t pa)
-{
-	pv_entry_t pv;
-	pmap_t pmap;
-	vm_page_t m;
-
-	printf("pa %x", pa);
-	m = PHYS_TO_VM_PAGE(pa);
-	TAILQ_FOREACH(pv, &m->md.pv_list, pv_next) {
-		pmap = PV_PMAP(pv);
-		printf(" -> pmap %p, va %x", (void *)pmap, pv->pv_va);
-		pads(pmap);
-	}
-	printf(" ");
-}
 #endif
 
 #ifdef DDB
