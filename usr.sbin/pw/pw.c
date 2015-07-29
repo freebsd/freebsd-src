@@ -199,7 +199,7 @@ main(int argc, char *argv[])
 			cmdhelp(mode, which);
 		else if (which != -1 && mode != -1) {
 			if (strspn(argv[1], "0123456789") == strlen(argv[1])) {
-				id = strtonum(argv[1], 0, LONG_MAX, &errstr);
+				id = strtounum(argv[1], 0, UID_MAX, &errstr);
 				if (errstr != NULL)
 					errx(EX_USAGE, "Bad id '%s': %s",
 					    argv[1], errstr);
@@ -269,7 +269,7 @@ main(int argc, char *argv[])
 			}
 			if (strspn(optarg, "0123456789") != strlen(optarg))
 				errx(EX_USAGE, "-g expects a number");
-			id = strtonum(optarg, 0, GID_MAX, &errstr);
+			id = strtounum(optarg, 0, GID_MAX, &errstr);
 			if (errstr != NULL)
 				errx(EX_USAGE, "Bad id '%s': %s", optarg,
 				    errstr);
@@ -281,7 +281,7 @@ main(int argc, char *argv[])
 				addarg(&arglist, 'u', optarg);
 				break;
 			}
-			id = strtonum(optarg, 0, UID_MAX, &errstr);
+			id = strtounum(optarg, 0, UID_MAX, &errstr);
 			if (errstr != NULL)
 				errx(EX_USAGE, "Bad id '%s': %s", optarg,
 				    errstr);
