@@ -44,11 +44,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/protosw.h>
+#include <sys/rmlock.h>
 #include <sys/sdt.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
@@ -120,6 +122,7 @@ int
 ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
     struct ip_moptions *imo, struct inpcb *inp)
 {
+	struct rm_priotracker in_ifa_tracker;
 	struct ip *ip;
 	struct ifnet *ifp = NULL;	/* keep compiler happy */
 	struct mbuf *m0;
@@ -258,7 +261,7 @@ again:
 		 * packets if the interface is specified.
 		 */
 		ifp = imo->imo_multicast_ifp;
-		IFP_TO_IA(ifp, ia);
+		IFP_TO_IA(ifp, ia, &in_ifa_tracker);
 		if (ia)
 			have_ia_ref = 1;
 		isbroadcast = 0;	/* fool gcc */
