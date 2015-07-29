@@ -186,7 +186,6 @@ OLD_FILES+=usr/bin/as
 OLD_FILES+=usr/bin/ld
 OLD_FILES+=usr/bin/objcopy
 OLD_FILES+=usr/bin/objdump
-OLD_FILES+=usr/bin/readelf
 OLD_FILES+=usr/libdata/ldscripts/elf_x86_64_fbsd.x
 OLD_FILES+=usr/libdata/ldscripts/elf_x86_64_fbsd.xbn
 OLD_FILES+=usr/libdata/ldscripts/elf_x86_64_fbsd.xc
@@ -204,7 +203,6 @@ OLD_FILES+=usr/share/man/man1/as.1.gz
 OLD_FILES+=usr/share/man/man1/ld.1.gz
 OLD_FILES+=usr/share/man/man1/objcopy.1.gz
 OLD_FILES+=usr/share/man/man1/objdump.1.gz
-OLD_FILES+=usr/share/man/man1/readelf.1.gz
 OLD_FILES+=usr/share/man/man7/as.7.gz
 OLD_FILES+=usr/share/man/man7/ld.7.gz
 OLD_FILES+=usr/share/man/man7/ldint.7.gz
@@ -1651,6 +1649,21 @@ OLD_FILES+=usr/share/nls/uk_UA.KOI8-U/ee.cat
 .if ${MK_ELFTOOLCHAIN_TOOLS} == no
 OLD_FILES+=usr/bin/elfcopy
 OLD_FILES+=usr/share/man/man1/elfcopy.1.gz
+.endif
+
+.if ${MK_ELFTOOLCHAIN_TOOLS} == no && ${MK_BINUTILS} == no
+OLD_FILES+=usr/bin/addr2line
+OLD_FILES+=usr/bin/nm
+OLD_FILES+=usr/bin/readelf
+OLD_FILES+=usr/bin/size
+OLD_FILES+=usr/bin/strings
+OLD_FILES+=usr/bin/strip
+OLD_FILES+=usr/share/man/man1/addr2line.1.gz
+OLD_FILES+=usr/share/man/man1/nm.1.gz
+OLD_FILES+=usr/share/man/man1/readelf.1.gz
+OLD_FILES+=usr/share/man/man1/size.1.gz
+OLD_FILES+=usr/share/man/man1/strings.1.gz
+OLD_FILES+=usr/share/man/man1/strip.1.gz
 .endif
 
 #.if ${MK_EXAMPLES} == no
