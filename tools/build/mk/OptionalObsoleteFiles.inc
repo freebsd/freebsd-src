@@ -1651,7 +1651,7 @@ OLD_FILES+=usr/share/nls/uk_UA.KOI8-U/ee.cat
 .endif
 
 .if ${MK_ELFTOOLCHAIN_TOOLS} == no || \
-    (${MK_ELFTOOLCHAIN_TOOLS} != no && MK_ELFCOPY_AS_OBJCOPY != no)
+    (${MK_ELFTOOLCHAIN_TOOLS} != no && ${MK_ELFCOPY_AS_OBJCOPY} != no)
 OLD_FILES+=usr/bin/elfcopy
 OLD_FILES+=usr/share/man/man1/elfcopy.1.gz
 .endif
