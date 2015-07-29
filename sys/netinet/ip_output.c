@@ -681,6 +681,13 @@ sendit:
 done:
 	if (ro == &iproute)
 		RO_RTFREE(ro);
+	else if (rte == NULL)
+		/*
+		 * If the caller supplied a route but somehow the reference
+		 * to it has been released need to prevent the caller
+		 * calling RTFREE on it again.
+		 */
+		ro->ro_rt = NULL;
 	if (have_ia_ref)
 		ifa_free(&ia->ia_ifa);
 	return (error);
