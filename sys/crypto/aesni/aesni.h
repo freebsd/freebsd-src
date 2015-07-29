@@ -104,7 +104,7 @@ void AES_GCM_encrypt(const unsigned char *in, unsigned char *out,
     const unsigned char *key, int nr);
 int AES_GCM_decrypt(const unsigned char *in, unsigned char *out,
     const unsigned char *addt, const unsigned char *ivec,
-    unsigned char *tag, uint32_t nbytes, uint32_t abytes, int ibytes,
+    const unsigned char *tag, uint32_t nbytes, uint32_t abytes, int ibytes,
     const unsigned char *key, int nr);
 
 int aesni_cipher_setup_common(struct aesni_session *ses, const uint8_t *key,
