@@ -85,8 +85,8 @@
  * Return authenticator size in bytes, based on a field in the
  * algorithm descriptor.
  */
-#define	AUTHSIZE(sav)	\
-	((sav->flags & SADB_X_EXT_OLD) ? 16 : (sav)->tdb_authalgxform->hashsize)
+#define	AUTHSIZE(sav)	((sav->flags & SADB_X_EXT_OLD) ? 16 :	\
+			 xform_ah_authsize((sav)->tdb_authalgxform))
 
 VNET_DEFINE(int, ah_enable) = 1;	/* control flow of packets with AH */
 VNET_DEFINE(int, ah_cleartos) = 1;	/* clear ip_tos when doing AH calc */
@@ -111,6 +111,35 @@ static unsigned char ipseczeroes[256];	/* larger than an ip6 extension hdr */
 
 static int ah_input_cb(struct cryptop*);
 static int ah_output_cb(struct cryptop*);
+
+int
+xform_ah_authsize(struct auth_hash *esph)
+{
+	int alen;
+
+	if (esph == NULL)
+		return 0;
+
+	switch (esph->type) {
+	case CRYPTO_SHA2_256_HMAC:
+	case CRYPTO_SHA2_384_HMAC:
+	case CRYPTO_SHA2_512_HMAC:
+		alen = esph->hashsize / 2;	/* RFC4868 2.3 */
+		break;
+
+	case CRYPTO_AES_128_NIST_GMAC:
+	case CRYPTO_AES_192_NIST_GMAC:
+	case CRYPTO_AES_256_NIST_GMAC:
+		alen = esph->hashsize;
+		break;
+
+	default:
+		alen = AH_HMAC_HASHLEN;
+		break;
+	}
+
+	return alen;
+}
 
 /*
  * NB: this is public for use by the PF_KEY support.
