@@ -101,6 +101,8 @@ static void its_cmd_mapi(struct gic_v3_its_softc *, struct its_dev *, uint32_t);
 static void its_cmd_inv(struct gic_v3_its_softc *, struct its_dev *, uint32_t);
 static void its_cmd_invall(struct gic_v3_its_softc *, struct its_col *);
 
+static uint32_t its_get_devbits(device_t);
+
 static void lpi_init_conftable(struct gic_v3_its_softc *);
 static void lpi_bitmap_init(struct gic_v3_its_softc *);
 static void lpi_init_cpu(struct gic_v3_its_softc *);
@@ -142,13 +144,19 @@ const char *its_ptab_type[] = {
  */
 
 /* Cavium ThunderX PCI devid acquire function */
+static uint32_t its_get_devbits_thunder(device_t);
 static uint32_t its_get_devid_thunder(device_t);
 
 static const struct its_quirks its_quirks[] = {
 	{
+		/*
+		 * Hardware:		Cavium ThunderX
+		 * Chip revision:	Pass 1.0, Pass 1.1
+		 */
 		.cpuid =	CPU_ID_RAW(CPU_IMPL_CAVIUM, CPU_PART_THUNDER, 0, 0),
 		.cpuid_mask =	CPU_IMPL_MASK | CPU_PART_MASK,
 		.devid_func =	its_get_devid_thunder,
+		.devbits_func =	its_get_devbits_thunder,
 	},
 };
 
@@ -299,7 +307,6 @@ its_alloc_tables(struct gic_v3_its_softc *sc)
 {
 	uint64_t gits_baser, gits_tmp;
 	uint64_t type, esize, cache, share, psz;
-	uint64_t gits_typer;
 	size_t page_size, npages, nitspages, nidents, tn;
 	size_t its_tbl_size;
 	vm_offset_t ptab_vaddr;
@@ -307,9 +314,6 @@ its_alloc_tables(struct gic_v3_its_softc *sc)
 	boolean_t first = TRUE;
 
 	page_size = PAGE_SIZE_64K;
-
-	/* Read features first */
-	gits_typer = gic_its_read(sc, 8, GITS_TYPER);
 
 	for (tn = 0; tn < GITS_BASER_NUM; tn++) {
 		gits_baser = gic_its_read(sc, 8, GITS_BASER(tn));
@@ -324,7 +328,7 @@ its_alloc_tables(struct gic_v3_its_softc *sc)
 		case GITS_BASER_TYPE_RES7:
 			continue;
 		case GITS_BASER_TYPE_DEV:
-			nidents = (1 << GITS_TYPER_DEVB(gits_typer));
+			nidents = (1 << its_get_devbits(sc->dev));
 			its_tbl_size = esize * nidents;
 			its_tbl_size = roundup2(its_tbl_size, page_size);
 			npages = howmany(its_tbl_size, PAGE_SIZE);
@@ -1445,6 +1449,68 @@ its_get_devid_thunder(device_t pci_dev)
 	}
 
 	return (0);
+}
+
+static uint32_t
+its_get_devbits_thunder(device_t dev)
+{
+	uint32_t devid_bits;
+
+	/*
+	 * GITS_TYPER[17:13] of ThunderX reports that device IDs
+	 * are to be 21 bits in length.
+	 * The entry size of the ITS table can be read from GITS_BASERn[52:48]
+	 * and on ThunderX is supposed to be 8 bytes in length (for device
+	 * table). Finally the page size that is to be used by ITS to access
+	 * this table will be set to 64KB.
+	 *
+	 * This gives 0x200000 entries of size 0x8 bytes covered by 256 pages
+	 * each of which 64KB in size. The number of pages (minus 1) should
+	 * then be written to GITS_BASERn[7:0]. In that case this value would
+	 * be 0xFF but on ThunderX the maximum value that HW accepts is 0xFD.
+	 *
+	 * Set arbitrary number of device ID bits to 20 in order to limit
+	 * the number of entries in ITS device table to 0x100000 and hence
+	 * the table size to 8MB.
+	 */
+	devid_bits = 20;
+	if (bootverbose) {
+		device_printf(dev,
+		    "Limiting number of Device ID bits implemented to %d\n",
+		    devid_bits);
+	}
+
+	return (devid_bits);
+}
+
+static __inline uint32_t
+its_get_devbits_default(device_t dev)
+{
+	uint64_t gits_typer;
+	struct gic_v3_its_softc *sc;
+
+	sc = device_get_softc(dev);
+
+	gits_typer = gic_its_read(sc, 8, GITS_TYPER);
+
+	return (GITS_TYPER_DEVB(gits_typer));
+}
+
+static uint32_t
+its_get_devbits(device_t dev)
+{
+	const struct its_quirks *quirk;
+	size_t i;
+
+	for (i = 0; i < nitems(its_quirks); i++) {
+		quirk = &its_quirks[i];
+		if (CPU_MATCH_RAW(quirk->cpuid_mask, quirk->cpuid)) {
+			if (quirk->devbits_func != NULL)
+				return ((*quirk->devbits_func)(dev));
+		}
+	}
+
+	return (its_get_devbits_default(dev));
 }
 
 static __inline uint32_t
