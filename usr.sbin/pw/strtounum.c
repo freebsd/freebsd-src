@@ -34,41 +34,38 @@ __FBSDID("$FreeBSD$");
 
 #include "pw.h"
 
-#define INVALID		"invalid"
-#define TOOSMALL	"too small"
-#define	TOOLARGE	"too large"
-
 uintmax_t
-strtounum(const char *numstr, uintmax_t minval, uintmax_t maxval,
-    const char **errstrp)
+strtounum(const char * __restrict np, uintmax_t minval, uintmax_t maxval,
+    const char ** __restrict errpp)
 {
-	uintmax_t ret = 0;
-	char *ep;
+	char *endp;
+	uintmax_t ret;
 
 	if (minval > maxval) {
 		errno = EINVAL;
-		if (errstrp != NULL)
-			*errstrp = INVALID;
+		if (errpp != NULL)
+			*errpp = "invalid";
 		return (0);
 	}
-
-	ret = strtoumax(numstr, &ep, 10);
-	if (errno == EINVAL || numstr == ep || *ep != '\0') {
+	errno = 0;
+	ret = strtoumax(np, &endp, 10);
+	if (endp == np || *endp != '\0') {
 		errno = EINVAL;
-		if (errstrp != NULL)
-			*errstrp = INVALID;
-		return (0);
-	} else if ((ret == 0 && errno == ERANGE) || ret < minval) {
-		errno = ERANGE;
-		if (errstrp != NULL)
-			*errstrp = TOOSMALL;
-		return (0);
-	} else if ((ret == UINTMAX_MAX && errno == ERANGE) || ret > maxval) {
-		errno = ERANGE;
-		if (errstrp != NULL)
-			*errstrp = TOOLARGE;
+		if (errpp != NULL)
+			*errpp = "invalid";
 		return (0);
 	}
-
+	if (ret < minval) {
+		errno = ERANGE;
+		if (errpp != NULL)
+			*errpp = "too small";
+		return (0);
+	}
+	if (errno == ERANGE || ret > maxval) {
+		errno = ERANGE;
+		if (errpp != NULL)
+			*errpp = "too large";
+		return (0);
+	}
 	return (ret);
 }
