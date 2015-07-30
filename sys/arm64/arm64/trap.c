@@ -319,6 +319,12 @@ do_el0_sync(struct trapframe *frame)
 #endif
 		break;
 	case EXCP_SVC:
+		/*
+		 * Ensure the svc_handler is being run with interrupts enabled.
+		 * They will be automatically restored when returning from
+		 * exception handler.
+		 */
+		intr_enable();
 		svc_handler(frame);
 		break;
 	case EXCP_INSN_ABORT_L:
