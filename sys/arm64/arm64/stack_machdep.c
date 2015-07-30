@@ -49,12 +49,12 @@ stack_save_td(struct stack *st, struct thread *td)
 	if (TD_IS_RUNNING(td))
 		panic("stack_save_td: running");
 
-	stack_zero(st);
+	stack_zero(st); /* ARM64TODO */
 }
 
 void
 stack_save(struct stack *st)
 {
 
-	stack_zero(st);
+	stack_zero(st); /* ARM64TODO */
 }

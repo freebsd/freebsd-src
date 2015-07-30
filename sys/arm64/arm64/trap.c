@@ -119,7 +119,7 @@ cpu_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
 	sa->narg = sa->callp->sy_narg;
 	memcpy(sa->args, ap, nap * sizeof(register_t));
 	if (sa->narg > nap)
-		panic("TODO: Could we have more then 8 args?");
+		panic("ARM64TODO: Could we have more then 8 args?");
 
 	td->td_retval[0] = 0;
 	td->td_retval[1] = 0;
@@ -341,6 +341,6 @@ void
 do_el0_error(struct trapframe *frame)
 {
 
-	panic("do_el0_error");
+	panic("ARM64TODO: do_el0_error");
 }
 

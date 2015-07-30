@@ -209,21 +209,21 @@ int
 fill_dbregs(struct thread *td, struct dbreg *regs)
 {
 
-	panic("fill_dbregs");
+	panic("ARM64TODO: fill_dbregs");
 }
 
 int
 set_dbregs(struct thread *td, struct dbreg *regs)
 {
 
-	panic("set_dbregs");
+	panic("ARM64TODO: set_dbregs");
 }
 
 int
 ptrace_set_pc(struct thread *td, u_long addr)
 {
 
-	panic("ptrace_set_pc");
+	panic("ARM64TODO: ptrace_set_pc");
 	return (0);
 }
 
@@ -376,7 +376,7 @@ void
 cpu_halt(void)
 {
 
-	panic("cpu_halt");
+	panic("ARM64TODO: cpu_halt");
 }
 
 /*
@@ -387,7 +387,7 @@ void
 cpu_flush_dcache(void *ptr, size_t len)
 {
 
-	/* TBD */
+	/* ARM64TODO TBD */
 }
 
 /* Get current clock frequency for the given CPU ID. */
@@ -395,7 +395,7 @@ int
 cpu_est_clockrate(int cpu_id, uint64_t *rate)
 {
 
-	panic("cpu_est_clockrate");
+	panic("ARM64TODO: cpu_est_clockrate");
 }
 
 void

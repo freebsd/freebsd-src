@@ -42,6 +42,6 @@ int
 memrw(struct cdev *dev, struct uio *uio, int flags)
 {
 
-	panic("memrw");
+	panic("ARM64TODO: memrw");
 }
 
