@@ -259,9 +259,9 @@ atomic_testandset_int(volatile u_int *p, u_int v)
  * consistent fences in SMP kernels.  We use "lock addl $0,mem" for a
  * Store/Load barrier, as recommended by the AMD Software Optimization
  * Guide, and not mfence.  In the kernel, we use a private per-cpu
- * cache line as the target for the locked addition, to avoid
- * introducing false data dependencies.  In userspace, a word at the
- * top of the stack is utilized.
+ * cache line for "mem", to avoid introducing false data
+ * dependencies.  In user space, we use the word at the top of the
+ * stack.
  *
  * For UP kernels, however, the memory of the single processor is
  * always consistent, so we only need to stop the compiler from

@@ -272,10 +272,10 @@ atomic_testandset_long(volatile u_long *p, u_int v)
  * addresses, so we need a Store/Load barrier for sequentially
  * consistent fences in SMP kernels.  We use "lock addl $0,mem" for a
  * Store/Load barrier, as recommended by the AMD Software Optimization
- * Guide, and not mfence.  In the kernel, we use a private per-cpu
- * cache line as the target for the locked addition, to avoid
- * introducing false data dependencies.  In user space, we use a word
- * in the stack's red zone (-8(%rsp)).
+ * Guide, and not mfence.  To avoid false data dependencies, we use a
+ * special address for "mem".  In the kernel, we use a private per-cpu
+ * cache line.  In user space, we use a word in the stack's red zone
+ * (-8(%rsp)).
  *
  * For UP kernels, however, the memory of the single processor is
  * always consistent, so we only need to stop the compiler from
