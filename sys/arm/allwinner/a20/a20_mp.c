@@ -25,6 +25,7 @@
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
@@ -68,7 +69,7 @@ platform_mp_setmaxid(void)
 	if (mp_ncpus != 0)
 		return;
 
-	/* Read current CP15 Cache Size ID Register */
+	/* Read the number of cores from the CP15 L2 Control Register. */
 	__asm __volatile("mrc p15, 1, %0, c9, c0, 2" : "=r" (ncpu));
 	ncpu = ((ncpu >> 24) & 0x3) + 1;
 
