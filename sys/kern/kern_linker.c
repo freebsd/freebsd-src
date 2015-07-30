@@ -292,10 +292,10 @@ linker_file_register_sysctls(linker_file_t lf)
 		return;
 
 	sx_xunlock(&kld_sx);
-	sysctl_wlock();
+	sysctl_xlock();
 	for (oidp = start; oidp < stop; oidp++)
 		sysctl_register_oid(*oidp);
-	sysctl_wunlock();
+	sysctl_xunlock();
 	sx_xlock(&kld_sx);
 }
 
@@ -313,10 +313,10 @@ linker_file_unregister_sysctls(linker_file_t lf)
 		return;
 
 	sx_xunlock(&kld_sx);
-	sysctl_wlock();
+	sysctl_xlock();
 	for (oidp = start; oidp < stop; oidp++)
 		sysctl_unregister_oid(*oidp);
-	sysctl_wunlock();
+	sysctl_xunlock();
 	sx_xlock(&kld_sx);
 }
 
