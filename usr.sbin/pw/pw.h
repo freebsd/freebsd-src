@@ -103,5 +103,5 @@ char *pw_pwcrypt(char *password);
 extern const char *Modes[];
 extern const char *Which[];
 
-uintmax_t strtounum(const char *numstr, uintmax_t minval, uintmax_t maxval,
-    const char **errmsg);
+uintmax_t strtounum(const char * __restrict, uintmax_t, uintmax_t,
+    const char ** __restrict);
