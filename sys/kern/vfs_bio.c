@@ -955,7 +955,7 @@ vfs_buf_check_mapped(struct buf *bp)
 	    ("mapped buf: b_kvabase was not updated %p", bp));
 	KASSERT(bp->b_data != unmapped_buf,
 	    ("mapped buf: b_data was not updated %p", bp));
-	KASSERT(bp->b_data < unmapped_buf || bp->b_data => unmapped_buf +
+	KASSERT(bp->b_data < unmapped_buf || bp->b_data >= unmapped_buf +
 	    MAXPHYS, ("b_data + b_offset unmapped %p", bp));
 }
 
