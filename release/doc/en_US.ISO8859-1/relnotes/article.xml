@@ -887,6 +887,16 @@
 	&os;/&arch.i386; memory stick installation images are now
 	created using the &man.mkimg.1; utility, matching the way
 	the &os;/&arch.amd64; images are created.</para>
+
+      <para revision="285830" contrib="sponsor" sponsor="&ff;">The
+	default &man.pkg.8; repository set in
+	<filename>/etc/pkg/FreeBSD.conf</filename> now defaults to
+	the <literal>quarterly</literal> package set.  To use the
+	<literal>latest</literal> branch (as was the previous
+	default), the comment at the top of
+	<filename>/etc/pkg/FreeBSD.conf</filename> explains how to
+	disable the default repository and specify an alternative
+	repository.</para>
     </sect2>
   </sect1>
 </article>
