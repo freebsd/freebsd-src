@@ -74,9 +74,6 @@
  * Note that there is no way to be 100% secure.
  */
 
-#include "opt_inet.h"
-#include "opt_inet6.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/socket.h>
