@@ -810,6 +810,12 @@ clear_tree_used (tree block)
     clear_tree_used (t);
 }
 
+enum {
+  SPCT_FLAG_DEFAULT = 1,
+  SPCT_FLAG_ALL = 2,
+  SPCT_FLAG_STRONG = 3
+};
+
 /* Examine TYPE and determine a bit mask of the following features.  */
 
 #define SPCT_HAS_LARGE_CHAR_ARRAY	1
@@ -879,7 +885,8 @@ stack_protect_decl_phase (tree decl)
   if (bits & SPCT_HAS_SMALL_CHAR_ARRAY)
     has_short_buffer = true;
 
-  if (flag_stack_protect == 2)
+  if (flag_stack_protect == SPCT_FLAG_ALL
+      || flag_stack_protect == SPCT_FLAG_STRONG)
     {
       if ((bits & (SPCT_HAS_SMALL_CHAR_ARRAY | SPCT_HAS_LARGE_CHAR_ARRAY))
 	  && !(bits & SPCT_HAS_AGGREGATE))
@@ -947,12 +954,36 @@ create_stack_guard (void)
   cfun->stack_protect_guard = guard;
 }
 
+/* Helper routine to check if a record or union contains an array field. */
+
+static int
+record_or_union_type_has_array_p (tree tree_type)
+{
+  tree fields = TYPE_FIELDS (tree_type);
+  tree f;
+
+  for (f = fields; f; f = TREE_CHAIN (f))
+    if (TREE_CODE (f) == FIELD_DECL)
+      {
+	tree field_type = TREE_TYPE (f);
+	if ((TREE_CODE (field_type) == RECORD_TYPE
+	     || TREE_CODE (field_type) == UNION_TYPE
+	     || TREE_CODE (field_type) == QUAL_UNION_TYPE)
+	    && record_or_union_type_has_array_p (field_type))
+	  return 1;
+	if (TREE_CODE (field_type) == ARRAY_TYPE)
+	  return 1;
+      }
+  return 0;
+}
+
 /* Expand all variables used in the function.  */
 
 static void
 expand_used_vars (void)
 {
   tree t, outer_block = DECL_INITIAL (current_function_decl);
+  bool gen_stack_protect_signal = false;
 
   /* Compute the phase of the stack frame for this function.  */
   {
@@ -971,6 +1002,29 @@ expand_used_vars (void)
   /* Initialize local stack smashing state.  */
   has_protected_decls = false;
   has_short_buffer = false;
+
+  if (flag_stack_protect == SPCT_FLAG_STRONG)
+    for (t = cfun->unexpanded_var_list; t; t = TREE_CHAIN (t))
+      {
+	tree var = TREE_VALUE (t);
+	if (!is_global_var (var))
+	  {
+	    tree var_type = TREE_TYPE (var);
+	    /* Examine local referenced variables that have their addresses
+	     * taken, contain an array, or are arrays. */
+	    if (TREE_CODE (var) == VAR_DECL
+		&& (TREE_CODE (var_type) == ARRAY_TYPE
+		    || TREE_ADDRESSABLE (var)
+		    || ((TREE_CODE (var_type) == RECORD_TYPE
+			 || TREE_CODE (var_type) == UNION_TYPE
+			 || TREE_CODE (var_type) == QUAL_UNION_TYPE)
+			&& record_or_union_type_has_array_p (var_type))))
+	      {
+		gen_stack_protect_signal = true;
+		break;
+	      }
+	  }
+      }
 
   /* At this point all variables on the unexpanded_var_list with TREE_USED
      set are not associated with any block scope.  Lay them out.  */
@@ -1032,12 +1086,26 @@ expand_used_vars (void)
 	dump_stack_var_partition ();
     }
 
-  /* There are several conditions under which we should create a
-     stack guard: protect-all, alloca used, protected decls present.  */
-  if (flag_stack_protect == 2
-      || (flag_stack_protect
-	  && (current_function_calls_alloca || has_protected_decls)))
-    create_stack_guard ();
+  switch (flag_stack_protect)
+    {
+    case SPCT_FLAG_ALL:
+      create_stack_guard ();
+      break;
+
+    case SPCT_FLAG_STRONG:
+      if (gen_stack_protect_signal
+	  || current_function_calls_alloca || has_protected_decls)
+	create_stack_guard ();
+      break;
+
+    case SPCT_FLAG_DEFAULT:
+      if (current_function_calls_alloca || has_protected_decls)
+	create_stack_guard();
+      break;
+
+    default:
+      ;
+    }
 
   /* Assign rtl to each variable based on these partitions.  */
   if (stack_vars_num > 0)
