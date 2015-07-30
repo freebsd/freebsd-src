@@ -169,7 +169,7 @@ semrm(key_t key, int id)
 			if ((kxsema[num].u.sem_perm.mode & SEM_ALLOC) != 0) {
 				id = IXSEQ_TO_IPCID(num,
 					kxsema[num].u.sem_perm);
-				if (semctl(id, IPC_RMID, NULL) < 0) {
+				if (semctl(id, 0, IPC_RMID, NULL) < 0) {
 					if (rmverbose > 1)
 						warn("semid(%d): ", id);
 					errflg++;
