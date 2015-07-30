@@ -106,6 +106,7 @@ adrian [label="Adrian Chadd\nadrian@FreeBSD.org\n2000/07/03"]
 ae [label="Andrey V. Elsukov\nae@FreeBSD.org\n2010/06/03"]
 akiyama [label="Shunsuke Akiyama\nakiyama@FreeBSD.org\n2000/06/19"]
 alc [label="Alan Cox\nalc@FreeBSD.org\n1999/02/23"]
+allanjude [label="Allan Jude\nallanjude@FreeBSD.org\n2015/07/30"]
 ambrisko [label="Doug Ambrisko\nambrisko@FreeBSD.org\n2001/12/19"]
 anchie [label="Ana Kukec\nanchie@FreeBSD.org\n2010/04/14"]
 andre [label="Andre Oppermann\nandre@FreeBSD.org\n2003/11/12"]
@@ -346,6 +347,7 @@ avg -> art
 avg -> pluknet
 avg -> smh
 
+bapt -> allanjude
 bapt -> bdrewery
 
 benno -> grehan
@@ -572,6 +574,7 @@ kib -> zont
 
 kmacy -> lstewart
 
+marcel -> allanjude
 marcel -> art
 marcel -> arun
 marcel -> marius
