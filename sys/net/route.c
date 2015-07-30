@@ -519,7 +519,7 @@ rtfree(struct rtentry *rt)
 		 * This also frees the gateway, as they are always malloc'd
 		 * together.
 		 */
-		Free(rt_key(rt));
+		R_Free(rt_key(rt));
 
 		/*
 		 * and the rtentry itself of course
@@ -1352,7 +1352,7 @@ rtrequest1_fib(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt,
 		if (rn_mpath_capable(rnh) &&
 			rt_mpath_conflict(rnh, rt, netmask)) {
 			ifa_free(rt->rt_ifa);
-			Free(rt_key(rt));
+			R_Free(rt_key(rt));
 			uma_zfree(V_rtzone, rt);
 			senderr(EEXIST);
 		}
@@ -1419,7 +1419,7 @@ rtrequest1_fib(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt,
 		 */
 		if (rn == NULL) {
 			ifa_free(rt->rt_ifa);
-			Free(rt_key(rt));
+			R_Free(rt_key(rt));
 			uma_zfree(V_rtzone, rt);
 #ifdef FLOWTABLE
 			if (rt0 != NULL)
@@ -1641,7 +1641,7 @@ rt_setgate(struct rtentry *rt, struct sockaddr *dst, struct sockaddr *gate)
 		 * Free()/free() handle a NULL argument just fine.
 		 */
 		bcopy(dst, new, dlen);
-		Free(rt_key(rt));	/* free old block, if any */
+		R_Free(rt_key(rt));	/* free old block, if any */
 		rt_key(rt) = (struct sockaddr *)new;
 		rt->rt_gateway = (struct sockaddr *)(new + dlen);
 	}
