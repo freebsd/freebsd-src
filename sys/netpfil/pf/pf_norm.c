@@ -433,6 +433,7 @@ pf_fillup_fragment(struct pf_fragment_cmp *key, struct pf_frent *frent,
 		}
 
 		*(struct pf_fragment_cmp *)frag = *key;
+		frag->fr_flags = 0;
 		frag->fr_timeout = time_second;
 		frag->fr_maxlen = frent->fe_len;
 		TAILQ_INIT(&frag->fr_queue);
@@ -1298,9 +1299,6 @@ pf_normalize_ip(struct mbuf **m0, int dir, struct pfi_kif *kif, u_short *reason,
 			}
 		}
 #endif
-		if (frag != NULL && (frag->fr_flags & PFFRAG_DROP))
-			goto drop;
-
 		h = mtod(m, struct ip *);
 	} else {
 		/* non-buffering fragment cache (drops or masks overlaps) */
