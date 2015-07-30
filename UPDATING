@@ -15,6 +15,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW ON IA64 OR SUN4V:
 	debugging tools present in HEAD were left in place because
 	sun4v support still needs work to become production ready.
 
+20150730:	p36	FreeBSD-SA-15:16.openssh [REVISED]
+	Fix a regression introduced in SA-15:16 patch that would break
+	keyboard-interactive authentication.
+
 20150728:	p35	FreeBSD-SA-15:15.tcp
 			FreeBSD-SA-15:16.openssh
 			FreeBSD-SA-15:17.bind
