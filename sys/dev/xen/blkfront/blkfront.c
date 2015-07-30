@@ -84,6 +84,11 @@ static void xbd_startio(struct xbd_softc *sc);
 /*---------------------------- Global Static Data ----------------------------*/
 static MALLOC_DEFINE(M_XENBLOCKFRONT, "xbd", "Xen Block Front driver data");
 
+static int xbd_enable_indirect = 1;
+SYSCTL_NODE(_hw, OID_AUTO, xbd, CTLFLAG_RD, 0, "xbd driver parameters");
+SYSCTL_INT(_hw_xbd, OID_AUTO, xbd_enable_indirect, CTLFLAG_RDTUN,
+    &xbd_enable_indirect, 0, "Enable xbd indirect segments");
+
 /*---------------------------- Command Processing ----------------------------*/
 static void
 xbd_freeze(struct xbd_softc *sc, xbd_flag_t xbd_flag)
@@ -205,7 +210,6 @@ xbd_queue_cb(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 {
 	struct xbd_softc *sc;
 	struct xbd_command *cm;
-	blkif_request_t	*ring_req;
 	int op;
 
 	cm = arg;
@@ -218,22 +222,47 @@ xbd_queue_cb(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 		return;
 	}
 
-	KASSERT(nsegs <= BLKIF_MAX_SEGMENTS_PER_REQUEST,
+	KASSERT(nsegs <= sc->xbd_max_request_segments,
 	    ("Too many segments in a blkfront I/O"));
 
-	/* Fill out a communications ring structure. */
-	ring_req = RING_GET_REQUEST(&sc->xbd_ring, sc->xbd_ring.req_prod_pvt);
-	sc->xbd_ring.req_prod_pvt++;
-	ring_req->id = cm->cm_id;
-	ring_req->operation = cm->cm_operation;
-	ring_req->sector_number = cm->cm_sector_number;
-	ring_req->handle = (blkif_vdev_t)(uintptr_t)sc->xbd_disk;
-	ring_req->nr_segments = nsegs;
-	cm->cm_nseg = nsegs;
-	xbd_mksegarray(segs, nsegs, &cm->cm_gref_head,
-	    xenbus_get_otherend_id(sc->xbd_dev),
-	    cm->cm_operation == BLKIF_OP_WRITE,
-	    cm->cm_sg_refs, ring_req->seg);
+	if (nsegs <= BLKIF_MAX_SEGMENTS_PER_REQUEST) {
+		blkif_request_t	*ring_req;
+
+		/* Fill out a blkif_request_t structure. */
+		ring_req = (blkif_request_t *)
+		    RING_GET_REQUEST(&sc->xbd_ring, sc->xbd_ring.req_prod_pvt);
+		sc->xbd_ring.req_prod_pvt++;
+		ring_req->id = cm->cm_id;
+		ring_req->operation = cm->cm_operation;
+		ring_req->sector_number = cm->cm_sector_number;
+		ring_req->handle = (blkif_vdev_t)(uintptr_t)sc->xbd_disk;
+		ring_req->nr_segments = nsegs;
+		cm->cm_nseg = nsegs;
+		xbd_mksegarray(segs, nsegs, &cm->cm_gref_head,
+		    xenbus_get_otherend_id(sc->xbd_dev),
+		    cm->cm_operation == BLKIF_OP_WRITE,
+		    cm->cm_sg_refs, ring_req->seg);
+	} else {
+		blkif_request_indirect_t *ring_req;
+
+		/* Fill out a blkif_request_indirect_t structure. */
+		ring_req = (blkif_request_indirect_t *)
+		    RING_GET_REQUEST(&sc->xbd_ring, sc->xbd_ring.req_prod_pvt);
+		sc->xbd_ring.req_prod_pvt++;
+		ring_req->id = cm->cm_id;
+		ring_req->operation = BLKIF_OP_INDIRECT;
+		ring_req->indirect_op = cm->cm_operation;
+		ring_req->sector_number = cm->cm_sector_number;
+		ring_req->handle = (blkif_vdev_t)(uintptr_t)sc->xbd_disk;
+		ring_req->nr_segments = nsegs;
+		cm->cm_nseg = nsegs;
+		xbd_mksegarray(segs, nsegs, &cm->cm_gref_head,
+		    xenbus_get_otherend_id(sc->xbd_dev),
+		    cm->cm_operation == BLKIF_OP_WRITE,
+		    cm->cm_sg_refs, cm->cm_indirectionpages);
+		memcpy(ring_req->indirect_grefs, &cm->cm_indirectionrefs,
+		    sizeof(grant_ref_t) * sc->xbd_max_request_indirectpages);
+	}
 
 	if (cm->cm_operation == BLKIF_OP_READ)
 		op = BUS_DMASYNC_PREREAD;
@@ -1015,6 +1044,16 @@ xbd_free(struct xbd_softc *sc)
 				cm->cm_sg_refs = NULL;
 			}
 
+			if (cm->cm_indirectionpages != NULL) {
+				gnttab_end_foreign_access_references(
+				    sc->xbd_max_request_indirectpages,
+				    &cm->cm_indirectionrefs[0]);
+				contigfree(cm->cm_indirectionpages, PAGE_SIZE *
+				    sc->xbd_max_request_indirectpages,
+				    M_XENBLOCKFRONT);
+				cm->cm_indirectionpages = NULL;
+			}
+
 			bus_dmamap_destroy(sc->xbd_io_dmat, cm->cm_map);
 		}
 		free(sc->xbd_shadow, M_XENBLOCKFRONT);
@@ -1051,9 +1090,6 @@ xbd_initialize(struct xbd_softc *sc)
 	 */
 	max_ring_page_order = 0;
 	sc->xbd_ring_pages = 1;
-	sc->xbd_max_request_segments = BLKIF_MAX_SEGMENTS_PER_REQUEST;
-	sc->xbd_max_request_size =
-	    XBD_SEGS_TO_SIZE(sc->xbd_max_request_segments);
 
 	/*
 	 * Protocol negotiation.
@@ -1167,7 +1203,7 @@ xbd_connect(struct xbd_softc *sc)
 	unsigned long sectors, sector_size;
 	unsigned int binfo;
 	int err, feature_barrier, feature_flush;
-	int i;
+	int i, j;
 
 	if (sc->xbd_state == XBD_STATE_CONNECTED || 
 	    sc->xbd_state == XBD_STATE_SUSPENDED)
@@ -1197,6 +1233,22 @@ xbd_connect(struct xbd_softc *sc)
 	     NULL);
 	if (err == 0 && feature_flush != 0)
 		sc->xbd_flags |= XBDF_FLUSH;
+
+	err = xs_gather(XST_NIL, xenbus_get_otherend_path(dev),
+	    "feature-max-indirect-segments", "%" PRIu32,
+	    &sc->xbd_max_request_segments, NULL);
+	if ((err != 0) || (xbd_enable_indirect == 0))
+		sc->xbd_max_request_segments = 0;
+	if (sc->xbd_max_request_segments > XBD_MAX_INDIRECT_SEGMENTS)
+		sc->xbd_max_request_segments = XBD_MAX_INDIRECT_SEGMENTS;
+	if (sc->xbd_max_request_segments > XBD_SIZE_TO_SEGS(MAXPHYS))
+		sc->xbd_max_request_segments = XBD_SIZE_TO_SEGS(MAXPHYS);
+	sc->xbd_max_request_indirectpages =
+	    XBD_INDIRECT_SEGS_TO_PAGES(sc->xbd_max_request_segments);
+	if (sc->xbd_max_request_segments < BLKIF_MAX_SEGMENTS_PER_REQUEST)
+		sc->xbd_max_request_segments = BLKIF_MAX_SEGMENTS_PER_REQUEST;
+	sc->xbd_max_request_size =
+	    XBD_SEGS_TO_SIZE(sc->xbd_max_request_segments);
 
 	/* Allocate datastructures based on negotiated values. */
 	err = bus_dma_tag_create(
@@ -1230,6 +1282,7 @@ xbd_connect(struct xbd_softc *sc)
 
 	for (i = 0; i < sc->xbd_max_requests; i++) {
 		struct xbd_command *cm;
+		void * indirectpages;
 
 		cm = &sc->xbd_shadow[i];
 		cm->cm_sg_refs = malloc(
@@ -1242,6 +1295,24 @@ xbd_connect(struct xbd_softc *sc)
 		cm->cm_sc = sc;
 		if (bus_dmamap_create(sc->xbd_io_dmat, 0, &cm->cm_map) != 0)
 			break;
+		if (sc->xbd_max_request_indirectpages > 0) {
+			indirectpages = contigmalloc(
+			    PAGE_SIZE * sc->xbd_max_request_indirectpages,
+			    M_XENBLOCKFRONT, M_ZERO, 0, ~0, PAGE_SIZE, 0);
+		} else {
+			indirectpages = NULL;
+		}
+		for (j = 0; j < sc->xbd_max_request_indirectpages; j++) {
+			if (gnttab_grant_foreign_access(
+			    xenbus_get_otherend_id(sc->xbd_dev),
+			    (vtomach(indirectpages) >> PAGE_SHIFT) + j,
+			    1 /* grant read-only access */,
+			    &cm->cm_indirectionrefs[j]))
+				break;
+		}
+		if (j < sc->xbd_max_request_indirectpages)
+			break;
+		cm->cm_indirectionpages = indirectpages;
 		xbd_free_command(cm);
 	}
 

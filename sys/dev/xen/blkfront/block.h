@@ -75,11 +75,25 @@
 	__CONST_RING_SIZE(blkif, PAGE_SIZE * XBD_MAX_RING_PAGES)
 
 /**
- * The maximum mapped region size per request we will allow in a negotiated
- * block-front/back communication channel.
+ * The maximum number of blkif segments which can be provided per indirect
+ * page in an indirect request.
  */
-#define	XBD_MAX_REQUEST_SIZE						\
-	MIN(MAXPHYS, XBD_SEGS_TO_SIZE(BLKIF_MAX_SEGMENTS_PER_REQUEST))
+#define XBD_MAX_SEGMENTS_PER_PAGE					\
+	(PAGE_SIZE / sizeof(struct blkif_request_segment))
+
+/**
+ * The maximum number of blkif segments which can be provided in an indirect
+ * request.
+ */
+#define XBD_MAX_INDIRECT_SEGMENTS					\
+	(BLKIF_MAX_INDIRECT_PAGES_PER_REQUEST * XBD_MAX_SEGMENTS_PER_PAGE)
+
+/**
+ * Compute the number of indirect segment pages required for an I/O with the
+ * specified number of indirect segments.
+ */
+#define XBD_INDIRECT_SEGS_TO_PAGES(segs)				\
+	((segs + XBD_MAX_SEGMENTS_PER_PAGE - 1) / XBD_MAX_SEGMENTS_PER_PAGE)
 
 typedef enum {
 	XBDCF_Q_MASK		= 0xFF,
@@ -111,6 +125,8 @@ struct xbd_command {
 	blkif_sector_t		 cm_sector_number;
 	int			 cm_status;
 	xbd_cbcf_t		*cm_complete;
+	void			*cm_indirectionpages;
+	grant_ref_t		 cm_indirectionrefs[BLKIF_MAX_INDIRECT_PAGES_PER_REQUEST];
 };
 
 typedef enum {
@@ -165,6 +181,7 @@ struct xbd_softc {
 	uint32_t			 xbd_max_requests;
 	uint32_t			 xbd_max_request_segments;
 	uint32_t			 xbd_max_request_size;
+	uint32_t			 xbd_max_request_indirectpages;
 	grant_ref_t			 xbd_ring_ref[XBD_MAX_RING_PAGES];
 	blkif_front_ring_t		 xbd_ring;
 	xen_intr_handle_t		 xen_intr_handle;
