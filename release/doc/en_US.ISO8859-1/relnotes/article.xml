@@ -274,6 +274,10 @@
 	&man.ssh.1; utility has been updated to re-implement hostname
 	canonicalization before locating the host in
 	<filename>known_hosts</filename>.</para>
+
+      <para revision="286084">The &man.tar.1; utility has been updated
+	to fix an issue that would prevent compressing sparse
+	files.</para>
     </sect2>
 
     <sect2 xml:id="userland-installer">
