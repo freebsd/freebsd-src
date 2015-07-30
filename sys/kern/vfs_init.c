@@ -291,7 +291,7 @@ vfs_register(struct vfsconf *vfc)
 	 * preserved by re-registering the oid after modifying its
 	 * number.
 	 */
-	sysctl_wlock();
+	sysctl_xlock();
 	SLIST_FOREACH(oidp, SYSCTL_CHILDREN(&sysctl___vfs), oid_link) {
 		if (strcmp(oidp->oid_name, vfc->vfc_name) == 0) {
 			sysctl_unregister_oid(oidp);
@@ -300,7 +300,7 @@ vfs_register(struct vfsconf *vfc)
 			break;
 		}
 	}
-	sysctl_wunlock();
+	sysctl_xunlock();
 
 	return (0);
 }
