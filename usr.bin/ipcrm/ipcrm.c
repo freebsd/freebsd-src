@@ -50,18 +50,11 @@ __FBSDID("$FreeBSD$");
 
 #include "ipc.h"
 
-int	signaled;
-int	errflg;
-int	rmverbose = 0;
+static int	signaled;
+static int	errflg;
+static int	rmverbose = 0;
 
-void	usage(void);
-
-int	msgrm(key_t, int);
-int	shmrm(key_t, int);
-int	semrm(key_t, int);
-void	not_configured(int);
-
-void
+static void
 usage(void)
 {
 
@@ -72,7 +65,7 @@ usage(void)
 	exit(1);
 }
 
-int
+static int
 msgrm(key_t key, int id)
 {
 
@@ -113,7 +106,7 @@ msgrm(key_t key, int id)
 	return msgctl(id, IPC_RMID, NULL);
 }
 
-int
+static int
 shmrm(key_t key, int id)
 {
 
@@ -154,7 +147,7 @@ shmrm(key_t key, int id)
 	return shmctl(id, IPC_RMID, NULL);
 }
 
-int
+static int
 semrm(key_t key, int id)
 {
 	union semun arg;
@@ -196,7 +189,7 @@ semrm(key_t key, int id)
 	return semctl(id, 0, IPC_RMID, arg);
 }
 
-void
+static void
 not_configured(int signo __unused)
 {
 
