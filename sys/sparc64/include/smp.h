@@ -39,13 +39,15 @@
 
 #ifndef	LOCORE
 
+#include <sys/param.h>
 #include <sys/cpuset.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/sched.h>
 #include <sys/smp.h>
 
 #include <machine/intr_machdep.h>
-#include <machine/pcb.h>
 #include <machine/tte.h>
 
 #define	IDR_BUSY			0x0000000000000001ULL
@@ -96,6 +98,7 @@ struct ipi_tlb_args {
 };
 #define	ita_va	ita_start
 
+struct pcb;
 struct pcpu;
 
 extern struct pcb stoppcbs[];
@@ -108,8 +111,9 @@ extern	cpu_ipi_selected_t *cpu_ipi_selected;
 typedef	void cpu_ipi_single_t(u_int, u_long, u_long, u_long);
 extern	cpu_ipi_single_t *cpu_ipi_single;
 
-void	mp_init(u_int cpu_impl);
+void	mp_init(void);
 
+extern	struct mtx ipi_mtx;
 extern	struct ipi_cache_args ipi_cache_args;
 extern	struct ipi_rd_args ipi_rd_args;
 extern	struct ipi_tlb_args ipi_tlb_args;
@@ -139,23 +143,37 @@ ipi_all_but_self(u_int ipi)
 {
 	cpuset_t cpus;
 
+	if (__predict_false(smp_started == 0))
+		return;
 	cpus = all_cpus;
+	sched_pin();
 	CPU_CLR(PCPU_GET(cpuid), &cpus);
+	mtx_lock_spin(&ipi_mtx);
 	cpu_ipi_selected(cpus, 0, (u_long)tl_ipi_level, ipi);
+	mtx_unlock_spin(&ipi_mtx);
+	sched_unpin();
 }
 
 static __inline void
 ipi_selected(cpuset_t cpus, u_int ipi)
 {
 
+	if (__predict_false(smp_started == 0 || CPU_EMPTY(&cpus)))
+		return;
+	mtx_lock_spin(&ipi_mtx);
 	cpu_ipi_selected(cpus, 0, (u_long)tl_ipi_level, ipi);
+	mtx_unlock_spin(&ipi_mtx);
 }
 
 static __inline void
 ipi_cpu(int cpu, u_int ipi)
 {
 
+	if (__predict_false(smp_started == 0))
+		return;
+	mtx_lock_spin(&ipi_mtx);
 	cpu_ipi_single(cpu, 0, (u_long)tl_ipi_level, ipi);
+	mtx_unlock_spin(&ipi_mtx);
 }
 
 #if defined(_MACHINE_PMAP_H_) && defined(_SYS_MUTEX_H_)
@@ -165,11 +183,11 @@ ipi_dcache_page_inval(void *func, vm_paddr_t pa)
 {
 	struct ipi_cache_args *ica;
 
-	if (smp_cpus == 1)
+	if (__predict_false(smp_started == 0))
 		return (NULL);
 	sched_pin();
 	ica = &ipi_cache_args;
-	mtx_lock_spin(&smp_ipi_mtx);
+	mtx_lock_spin(&ipi_mtx);
 	ica->ica_mask = all_cpus;
 	CPU_CLR(PCPU_GET(cpuid), &ica->ica_mask);
 	ica->ica_pa = pa;
@@ -182,11 +200,11 @@ ipi_icache_page_inval(void *func, vm_paddr_t pa)
 {
 	struct ipi_cache_args *ica;
 
-	if (smp_cpus == 1)
+	if (__predict_false(smp_started == 0))
 		return (NULL);
 	sched_pin();
 	ica = &ipi_cache_args;
-	mtx_lock_spin(&smp_ipi_mtx);
+	mtx_lock_spin(&ipi_mtx);
 	ica->ica_mask = all_cpus;
 	CPU_CLR(PCPU_GET(cpuid), &ica->ica_mask);
 	ica->ica_pa = pa;
@@ -199,11 +217,11 @@ ipi_rd(u_int cpu, void *func, u_long *val)
 {
 	struct ipi_rd_args *ira;
 
-	if (smp_cpus == 1)
+	if (__predict_false(smp_started == 0))
 		return (NULL);
 	sched_pin();
 	ira = &ipi_rd_args;
-	mtx_lock_spin(&smp_ipi_mtx);
+	mtx_lock_spin(&ipi_mtx);
 	CPU_SETOF(cpu, &ira->ira_mask);
 	ira->ira_val = val;
 	cpu_ipi_single(cpu, 0, (u_long)func, (u_long)ira);
@@ -216,7 +234,7 @@ ipi_tlb_context_demap(struct pmap *pm)
 	struct ipi_tlb_args *ita;
 	cpuset_t cpus;
 
-	if (smp_cpus == 1)
+	if (__predict_false(smp_started == 0))
 		return (NULL);
 	sched_pin();
 	cpus = pm->pm_active;
@@ -227,7 +245,7 @@ ipi_tlb_context_demap(struct pmap *pm)
 		return (NULL);
 	}
 	ita = &ipi_tlb_args;
-	mtx_lock_spin(&smp_ipi_mtx);
+	mtx_lock_spin(&ipi_mtx);
 	ita->ita_mask = cpus;
 	ita->ita_pmap = pm;
 	cpu_ipi_selected(cpus, 0, (u_long)tl_ipi_tlb_context_demap,
@@ -241,7 +259,7 @@ ipi_tlb_page_demap(struct pmap *pm, vm_offset_t va)
 	struct ipi_tlb_args *ita;
 	cpuset_t cpus;
 
-	if (smp_cpus == 1)
+	if (__predict_false(smp_started == 0))
 		return (NULL);
 	sched_pin();
 	cpus = pm->pm_active;
@@ -252,7 +270,7 @@ ipi_tlb_page_demap(struct pmap *pm, vm_offset_t va)
 		return (NULL);
 	}
 	ita = &ipi_tlb_args;
-	mtx_lock_spin(&smp_ipi_mtx);
+	mtx_lock_spin(&ipi_mtx);
 	ita->ita_mask = cpus;
 	ita->ita_pmap = pm;
 	ita->ita_va = va;
@@ -266,7 +284,7 @@ ipi_tlb_range_demap(struct pmap *pm, vm_offset_t start, vm_offset_t end)
 	struct ipi_tlb_args *ita;
 	cpuset_t cpus;
 
-	if (smp_cpus == 1)
+	if (__predict_false(smp_started == 0))
 		return (NULL);
 	sched_pin();
 	cpus = pm->pm_active;
@@ -277,7 +295,7 @@ ipi_tlb_range_demap(struct pmap *pm, vm_offset_t start, vm_offset_t end)
 		return (NULL);
 	}
 	ita = &ipi_tlb_args;
-	mtx_lock_spin(&smp_ipi_mtx);
+	mtx_lock_spin(&ipi_mtx);
 	ita->ita_mask = cpus;
 	ita->ita_pmap = pm;
 	ita->ita_start = start;
@@ -292,10 +310,10 @@ ipi_wait(void *cookie)
 {
 	volatile cpuset_t *mask;
 
-	if ((mask = cookie) != NULL) {
+	if (__predict_false((mask = cookie) != NULL)) {
 		while (!CPU_EMPTY(mask))
 			;
-		mtx_unlock_spin(&smp_ipi_mtx);
+		mtx_unlock_spin(&ipi_mtx);
 		sched_unpin();
 	}
 }
