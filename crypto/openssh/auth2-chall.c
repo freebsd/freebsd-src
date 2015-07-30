@@ -131,6 +131,7 @@ kbdint_alloc(const char *devs)
 	kbdintctxt->ctxt = NULL;
 	kbdintctxt->device = NULL;
 	kbdintctxt->nreq = 0;
+	kbdintctxt->devices_done = 0;
 
 	return kbdintctxt;
 }
