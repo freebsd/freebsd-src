@@ -64,6 +64,7 @@ SUBDIR=	${_addr2line} \
 	hexdump \
 	${_iconv} \
 	id \
+	ident \
 	ipcrm \
 	ipcs \
 	join \
@@ -117,6 +118,7 @@ SUBDIR=	${_addr2line} \
 	nice \
 	nl \
 	${_nm} \
+	numactl \
 	nohup \
 	opieinfo \
 	opiekey \

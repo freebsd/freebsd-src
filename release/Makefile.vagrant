@@ -6,8 +6,7 @@
 #
 
 VAGRANT_IMG?=		${.OBJDIR}/vagrant.vmdk
-VAGRANT_UPLOAD_TGTS=	vagrant-check-depends \
-			atlas-do-upload
+VAGRANT_UPLOAD_TGTS=	vagrant-check-depends
 CLEANFILES+=		${VAGRANT_UPLOAD_TGTS}
 
 .if defined(VAGRANT_UPLOAD_CONF) && !empty(VAGRANT_UPLOAD_CONF)
@@ -18,16 +17,20 @@ ATLAS${VAR}:=		${VAGRANT${VAR}}
 .endif
 
 .if ${BRANCH} == "STABLE" || ${BRANCH} == "CURRENT" || ${BRANCH} == "PRERELEASE"
-SNAPSHOT_DATE!=		date +-%Y-%m-%d
+SNAPSHOT_DATE!=		date +%Y%m%d
 .endif
 
-VAGRANT_VERSION?=	${REVISION}-${BRANCH}${SNAPSHOT_DATE}
+VAGRANT_VERSION!=	date +%Y.%m.%d
+VAGRANT_TARGET:=	${OSRELEASE}-${SNAPSHOT_DATE}
+.if !empty(CLOUDWARE)
+. for _PROVIDER in ${CLOUDWARE}
+.  if ${_PROVIDER:MVAGRANT*}
+VAGRANT_PROVIDERS+=	${_PROVIDER:S/VAGRANT-//:tl}
+.  endif
+. endfor
+.endif
+VAGRANT_PROVIDERS?=	vmware virtualbox
 
-VAGRANT_TARGET:=	${OSRELEASE}${SNAPSHOT_DATE}.box
-VAGRANT_PROVIDERS?=	vmware_desktop
-#VAGRANT_PROVIDERS+=	virtualbox
-
-vagrant-upload:		${VAGRANT_UPLOAD_TGTS}
 
 vagrant-check-depends:
 .for VAR in _KEY _USERNAME _VERSION
@@ -47,48 +50,73 @@ vagrant-check-depends:
 . endif
 .endif
 
-vagrant-do-package: cw-vagrant
-
-vagrant-do-package-vmware: vagrant-create-vmware-vmx vagrant-do-package
-	@cd ${.OBJDIR} && echo '{"provider":"vmware_desktop"}' > metadata.json
-	cd ${.OBJDIR} && tar -czf ${VAGRANT_TARGET} metadata.json vagrant.vmx vagrant.vmdk
-	touch ${.OBJDIR}/${.TARGET}
-
-atlas-do-upload: vagrant-do-package-vmware
 .for PROVIDER in ${VAGRANT_PROVIDERS}
-	${.CURDIR}/scripts/atlas-upload.sh -b FreeBSD-${REVISION}-${BRANCH} -f ${VAGRANT_TARGET} -p ${PROVIDER} -k ${VAGRANT_KEY} -u ${VAGRANT_USERNAME} -v ${VAGRANT_VERSION}
-.endfor
-	touch ${.OBJDIR}/${.TARGET}
+CLEANFILES+=	vagrant-do-package-${PROVIDER} ${VAGRANT_TARGET}.${PROVIDER}.box
+CLEANDIRS+=	${PROVIDER}
+VAGRANT_UPLOAD_TGTS+=	vagrant-do-upload-${PROVIDER}
 
-vagrant-create-vmware-vmx:
-	@cd ${.OBJDIR} && echo '.encoding = "UTF-8"' > vagrant.vmx
-	@cd ${.OBJDIR} && echo 'bios.bootorder = "hdd,CDROM"' >> vagrant.vmx
-	@cd ${.OBJDIR} && echo 'checkpoint.vmstate = ""' >> vagrant.vmx
-	@cd ${.OBJDIR} && echo 'cleanshutdown = "TRUE"' >> vagrant.vmx
-	@cd ${.OBJDIR} && echo 'config.version = "8"' >> vagrant.vmx
-	@cd ${.OBJDIR} && echo 'displayname = "${VAGRANT_TARGET}"' >> vagrant.vmx
-	@cd ${.OBJDIR} && echo 'ethernet0.addresstype = "generated"' >> vagrant.vmx
-	@cd ${.OBJDIR} && echo 'ethernet0.bsdname = "en0"' >> vagrant.vmx
-	@cd ${.OBJDIR} && echo 'ethernet0.connectiontype = "nat"' >> vagrant.vmx
-	@cd ${.OBJDIR} && echo 'ethernet0.displayname = "Ethernet"' >> vagrant.vmx
-	@cd ${.OBJDIR} && echo 'ethernet0.linkstatepropagation.enable = "FALSE"' >> vagrant.vmx
-	@cd ${.OBJDIR} && echo 'ethernet0.pcislotnumber = "33"' >> vagrant.vmx
-	@cd ${.OBJDIR} && echo 'ethernet0.present = "TRUE"' >> vagrant.vmx
-	@cd ${.OBJDIR} && echo 'ethernet0.virtualdev = "e1000"' >> vagrant.vmx
-	@cd ${.OBJDIR} && echo 'ethernet0.wakeonpcktrcv = "FALSE"' >> vagrant.vmx
-	@cd ${.OBJDIR} && echo 'floppy0.present = "FALSE"' >> vagrant.vmx
-	@cd ${.OBJDIR} && echo 'guestos = "freebsd-64"' >> vagrant.vmx
-	@cd ${.OBJDIR} && echo 'gui.fullscreenatpoweron = "FALSE"' >> vagrant.vmx
-	@cd ${.OBJDIR} && echo 'gui.viewmodeatpoweron = "windowed"' >> vagrant.vmx
-	@cd ${.OBJDIR} && echo 'memsize = "512"' >> vagrant.vmx
-	@cd ${.OBJDIR} && echo 'sound.startconnected = "FALSE"' >> vagrant.vmx
-	@cd ${.OBJDIR} && echo 'softpoweroff = "TRUE"' >> vagrant.vmx
-	@cd ${.OBJDIR} && echo 'scsi0.pcislotnumber = "16"' >> vagrant.vmx
-	@cd ${.OBJDIR} && echo 'scsi0.present = "TRUE"' >> vagrant.vmx
-	@cd ${.OBJDIR} && echo 'scsi0.virtualdev = "lsilogic"' >> vagrant.vmx
-	@cd ${.OBJDIR} && echo 'scsi0:0.filename = "vagrant.vmdk"' >> vagrant.vmx
-	@cd ${.OBJDIR} && echo 'scsi0:0.present = "TRUE"' >> vagrant.vmx
-	@cd ${.OBJDIR} && echo 'tools.synctime = "TRUE"' >> vagrant.vmx
-	@cd ${.OBJDIR} && echo 'usb.present = "FALSE"' >> vagrant.vmx
-	@cd ${.OBJDIR} && echo 'virtualhw.productcompatibility = "hosted"' >> vagrant.vmx
-	@cd ${.OBJDIR} && echo 'virtualhw.version = "9"' >> vagrant.vmx
+${PROVIDER}:
+	@mkdir -p ${PROVIDER}
+
+${VAGRANT_TARGET}.${PROVIDER}.box: ${PROVIDER} cw-vagrant-${PROVIDER} vagrant-create-${PROVIDER}-metadata
+	@echo "==> PACKAGING: ${VAGRANT_TARGET}.${PROVIDER}.box in `pwd`"
+	@cp vagrant-${PROVIDER}.vmdk ${PROVIDER}/vagrant.vmdk
+. if ${PROVIDER} == "virtualbox"
+	@(cd ${.OBJDIR}/${PROVIDER} && echo '{"provider":"${PROVIDER}"}' > metadata.json)
+	@(cd ${.OBJDIR}/${PROVIDER} && tar -czf ../${VAGRANT_TARGET}.${PROVIDER}.box metadata.json box.ovf vagrant.vmdk)
+. elif ${PROVIDER} == "vmware"
+	@(cd ${.OBJDIR}/${PROVIDER} && echo '{"provider":"${PROVIDER}_desktop"}' > metadata.json)
+	@(cd ${.OBJDIR}/${PROVIDER} && tar -czf ../${VAGRANT_TARGET}.${PROVIDER}.box metadata.json vagrant.vmx vagrant.vmdk)
+. endif
+
+CLEANFILES+=	vagrant-do-upload-${PROVIDER}
+vagrant-do-upload-${PROVIDER}: ${VAGRANT_TARGET}.${PROVIDER}.box
+. if ${PROVIDER} == "virtualbox"
+	${.CURDIR}/scripts/atlas-upload.sh -b ${TYPE}-${REVISION}-${BRANCH} -f ${VAGRANT_TARGET}.${PROVIDER}.box -p ${PROVIDER} -k ${VAGRANT_KEY} -u ${VAGRANT_USERNAME} -v ${VAGRANT_VERSION}
+. elif ${PROVIDER} == "vmware"
+	${.CURDIR}/scripts/atlas-upload.sh -b ${TYPE}-${REVISION}-${BRANCH} -f ${VAGRANT_TARGET}.${PROVIDER}.box -p ${PROVIDER}_desktop -k ${VAGRANT_KEY} -u ${VAGRANT_USERNAME} -v ${VAGRANT_VERSION}
+. endif
+	touch ${.OBJDIR}/${.TARGET}
+.endfor
+
+vagrant-upload:	${VAGRANT_UPLOAD_TGTS}
+
+vagrant-create-virtualbox-metadata: virtualbox/box.ovf
+
+virtualbox/box.ovf: ${.CURDIR}/scripts/box.ovf
+	cp ${.ALLSRC} virtualbox/
+
+vmware/vagrant.vmx:
+	@(cd vmware && echo '.encoding = "UTF-8"' > vagrant.vmx)
+	@(cd vmware && echo 'bios.bootorder = "hdd,CDROM"' >> vagrant.vmx)
+	@(cd vmware && echo 'checkpoint.vmstate = ""' >> vagrant.vmx)
+	@(cd vmware && echo 'cleanshutdown = "TRUE"' >> vagrant.vmx)
+	@(cd vmware && echo 'config.version = "8"' >> vagrant.vmx)
+	@(cd vmware && echo 'displayname = "${VAGRANT_TARGET}"' >> vagrant.vmx)
+	@(cd vmware && echo 'ethernet0.addresstype = "generated"' >> vagrant.vmx)
+	@(cd vmware && echo 'ethernet0.bsdname = "en0"' >> vagrant.vmx)
+	@(cd vmware && echo 'ethernet0.connectiontype = "nat"' >> vagrant.vmx)
+	@(cd vmware && echo 'ethernet0.displayname = "Ethernet"' >> vagrant.vmx)
+	@(cd vmware && echo 'ethernet0.linkstatepropagation.enable = "FALSE"' >> vagrant.vmx)
+	@(cd vmware && echo 'ethernet0.pcislotnumber = "33"' >> vagrant.vmx)
+	@(cd vmware && echo 'ethernet0.present = "TRUE"' >> vagrant.vmx)
+	@(cd vmware && echo 'ethernet0.virtualdev = "e1000"' >> vagrant.vmx)
+	@(cd vmware && echo 'ethernet0.wakeonpcktrcv = "FALSE"' >> vagrant.vmx)
+	@(cd vmware && echo 'floppy0.present = "FALSE"' >> vagrant.vmx)
+	@(cd vmware && echo 'guestos = "freebsd-64"' >> vagrant.vmx)
+	@(cd vmware && echo 'gui.fullscreenatpoweron = "FALSE"' >> vagrant.vmx)
+	@(cd vmware && echo 'gui.viewmodeatpoweron = "windowed"' >> vagrant.vmx)
+	@(cd vmware && echo 'memsize = "512"' >> vagrant.vmx)
+	@(cd vmware && echo 'sound.startconnected = "FALSE"' >> vagrant.vmx)
+	@(cd vmware && echo 'softpoweroff = "TRUE"' >> vagrant.vmx)
+	@(cd vmware && echo 'scsi0.pcislotnumber = "16"' >> vagrant.vmx)
+	@(cd vmware && echo 'scsi0.present = "TRUE"' >> vagrant.vmx)
+	@(cd vmware && echo 'scsi0.virtualdev = "lsilogic"' >> vagrant.vmx)
+	@(cd vmware && echo 'scsi0:0.filename = "vagrant.vmdk"' >> vagrant.vmx)
+	@(cd vmware && echo 'scsi0:0.present = "TRUE"' >> vagrant.vmx)
+	@(cd vmware && echo 'tools.synctime = "TRUE"' >> vagrant.vmx)
+	@(cd vmware && echo 'usb.present = "FALSE"' >> vagrant.vmx)
+	@(cd vmware && echo 'virtualhw.productcompatibility = "hosted"' >> vagrant.vmx)
+	@(cd vmware && echo 'virtualhw.version = "9"' >> vagrant.vmx)
+
+vagrant-create-vmware-metadata: vmware/vagrant.vmx

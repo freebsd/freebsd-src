@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2014 Marcel Moolenaar
+ * Copyright (c) 2014, 2015 Marcel Moolenaar
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -118,6 +118,62 @@ proto_intr(void *arg)
 	return (FILTER_HANDLED);
 }
 #endif
+
+int
+proto_probe(device_t dev, const char *prefix, char ***devnamesp)
+{
+	char **devnames = *devnamesp;
+	const char *dn, *ep, *ev;
+	size_t pfxlen;
+	int idx, names;
+
+	if (devnames == NULL) {
+		pfxlen = strlen(prefix);
+		names = 1;	/* NULL pointer */
+		ev = kern_getenv("hw.proto.attach");
+		if (ev != NULL) {
+			dn = ev;
+			while (*dn != '\0') {
+				ep = dn;
+				while (*ep != ',' && *ep != '\0')
+					ep++;
+				if ((ep - dn) > pfxlen &&
+				    strncmp(dn, prefix, pfxlen) == 0)
+					names++;
+				dn = (*ep == ',') ? ep + 1 : ep;
+			}
+		}
+		devnames = malloc(names * sizeof(caddr_t), M_DEVBUF,
+		    M_WAITOK | M_ZERO);
+		*devnamesp = devnames;
+		if (ev != NULL) {
+			dn = ev;
+			idx = 0;
+			while (*dn != '\0') {
+				ep = dn;
+				while (*ep != ',' && *ep != '\0')
+					ep++;
+				if ((ep - dn) > pfxlen &&
+				    strncmp(dn, prefix, pfxlen) == 0) {
+					devnames[idx] = malloc(ep - dn + 1,
+					    M_DEVBUF, M_WAITOK | M_ZERO);
+					memcpy(devnames[idx], dn, ep - dn);
+					idx++;
+				}
+				dn = (*ep == ',') ? ep + 1 : ep;
+			}
+			freeenv(__DECONST(char *, ev));
+		}
+	}
+
+	dn = device_get_desc(dev);
+	while (*devnames != NULL) {
+		if (strcmp(dn, *devnames) == 0)
+			return (BUS_PROBE_SPECIFIC);
+		devnames++;
+	}
+	return (BUS_PROBE_HOOVER);
+}
 
 int
 proto_attach(device_t dev)

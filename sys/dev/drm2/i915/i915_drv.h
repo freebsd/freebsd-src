@@ -1151,8 +1151,6 @@ void i915_disable_pipestat(drm_i915_private_t *dev_priv, int pipe, u32 mask);
 void i915_destroy_error_state(struct drm_device *dev);
 
 /* i915_gem.c */
-int i915_gem_create(struct drm_file *file, struct drm_device *dev, uint64_t size,
-			uint32_t *handle_p);
 int i915_gem_init_ioctl(struct drm_device *dev, void *data,
 			struct drm_file *file_priv);
 int i915_gem_create_ioctl(struct drm_device *dev, void *data,
@@ -1243,7 +1241,6 @@ int i915_gem_object_finish_gpu(struct drm_i915_gem_object *obj);
 int i915_gem_flush_ring(struct intel_ring_buffer *ring,
     uint32_t invalidate_domains, uint32_t flush_domains);
 void i915_gem_release_mmap(struct drm_i915_gem_object *obj);
-int i915_gem_object_wait_rendering(struct drm_i915_gem_object *obj);
 int i915_gem_object_sync(struct drm_i915_gem_object *obj,
     struct intel_ring_buffer *to);
 int i915_gem_object_put_fence(struct drm_i915_gem_object *obj);

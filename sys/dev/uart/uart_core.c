@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/queue.h>
 #include <sys/reboot.h>
+#include <sys/sysctl.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
 #include <machine/resource.h>
@@ -51,7 +52,7 @@ __FBSDID("$FreeBSD$");
 #include "uart_if.h"
 
 devclass_t uart_devclass;
-char uart_driver_name[] = "uart";
+const char uart_driver_name[] = "uart";
 
 SLIST_HEAD(uart_devinfo_list, uart_devinfo) uart_sysdevs =
     SLIST_HEAD_INITIALIZER(uart_sysdevs);
@@ -62,7 +63,12 @@ static MALLOC_DEFINE(M_UART, "UART", "UART driver");
 #define	UART_POLL_FREQ		50
 #endif
 static int uart_poll_freq = UART_POLL_FREQ;
-TUNABLE_INT("debug.uart_poll_freq", &uart_poll_freq);
+SYSCTL_INT(_debug, OID_AUTO, uart_poll_freq, CTLFLAG_RDTUN, &uart_poll_freq,
+    0, "UART poll frequency");
+
+static int uart_force_poll;
+SYSCTL_INT(_debug, OID_AUTO, uart_force_poll, CTLFLAG_RDTUN, &uart_force_poll,
+    0, "Force UART polling");
 
 void
 uart_add_sysdev(struct uart_devinfo *di)
@@ -254,13 +260,14 @@ static int
 uart_intr(void *arg)
 {
 	struct uart_softc *sc = arg;
-	int cnt, ipend;
+	int cnt, ipend, testintr;
 
 	if (sc->sc_leaving)
 		return (FILTER_STRAY);
 
 	cnt = 0;
-	while (cnt < 20 && (ipend = UART_IPEND(sc)) != 0) {
+	testintr = sc->sc_testintr;
+	while ((!testintr || cnt < 20) && (ipend = UART_IPEND(sc)) != 0) {
 		cnt++;
 		if (ipend & SER_INT_OVERRUN)
 			uart_intr_overrun(sc);
@@ -271,7 +278,7 @@ uart_intr(void *arg)
 		if (ipend & SER_INT_SIGCHG)
 			uart_intr_sigchg(sc);
 		if (ipend & SER_INT_TXIDLE)
-			uart_intr_txidle(sc);		
+			uart_intr_txidle(sc);
 	}
 
 	if (sc->sc_polled) {
@@ -280,7 +287,8 @@ uart_intr(void *arg)
 	}
 
 	return ((cnt == 0) ? FILTER_STRAY :
-	    ((cnt == 20) ? FILTER_SCHEDULE_THREAD : FILTER_HANDLED));
+	    ((testintr && cnt == 20) ? FILTER_SCHEDULE_THREAD :
+	    FILTER_HANDLED));
 }
 
 serdev_intr_t *
@@ -427,7 +435,7 @@ uart_bus_attach(device_t dev)
 	/*
 	 * Protect ourselves against interrupts while we're not completely
 	 * finished attaching and initializing. We don't expect interrupts
-	 * until after UART_ATTACH() though.
+	 * until after UART_ATTACH(), though.
 	 */
 	sc->sc_leaving = 1;
 
@@ -507,14 +515,16 @@ uart_bus_attach(device_t dev)
 	pps_init(&sc->sc_pps);
 
 	sc->sc_leaving = 0;
+	sc->sc_testintr = 1;
 	filt = uart_intr(sc);
+	sc->sc_testintr = 0;
 
 	/*
 	 * Don't use interrupts if we couldn't clear any pending interrupt
 	 * conditions. We may have broken H/W and polling is probably the
 	 * safest thing to do.
 	 */
-	if (filt != FILTER_SCHEDULE_THREAD) {
+	if (filt != FILTER_SCHEDULE_THREAD && !uart_force_poll) {
 		sc->sc_irid = 0;
 		sc->sc_ires = bus_alloc_resource_any(dev, SYS_RES_IRQ,
 		    &sc->sc_irid, RF_ACTIVE | RF_SHAREABLE);
@@ -540,6 +550,8 @@ uart_bus_attach(device_t dev)
 		/* No interrupt resource. Force polled mode. */
 		sc->sc_polled = 1;
 		callout_init(&sc->sc_timer, 1);
+		callout_reset(&sc->sc_timer, hz / uart_poll_freq,
+		    (timeout_t *)uart_intr, sc);
 	}
 
 	if (bootverbose && (sc->sc_fastintr || sc->sc_polled)) {

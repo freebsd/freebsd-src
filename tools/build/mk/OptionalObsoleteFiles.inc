@@ -184,9 +184,10 @@ OLD_DIRS+=usr/share/examples/bhyve
 .if ${MK_BINUTILS} == no
 OLD_FILES+=usr/bin/as
 OLD_FILES+=usr/bin/ld
+.if ${MK_ELFTOOLCHAIN_TOOLS} != no && ${MK_ELFCOPY_AS_OBJCOPY} == no
 OLD_FILES+=usr/bin/objcopy
+.endif
 OLD_FILES+=usr/bin/objdump
-OLD_FILES+=usr/bin/readelf
 OLD_FILES+=usr/libdata/ldscripts/elf_x86_64_fbsd.x
 OLD_FILES+=usr/libdata/ldscripts/elf_x86_64_fbsd.xbn
 OLD_FILES+=usr/libdata/ldscripts/elf_x86_64_fbsd.xc
@@ -202,9 +203,10 @@ OLD_FILES+=usr/libdata/ldscripts/elf_x86_64_fbsd.xu
 OLD_FILES+=usr/libdata/ldscripts/elf_x86_64_fbsd.xw
 OLD_FILES+=usr/share/man/man1/as.1.gz
 OLD_FILES+=usr/share/man/man1/ld.1.gz
+.if ${MK_ELFTOOLCHAIN_TOOLS} != no && ${MK_ELFCOPY_AS_OBJCOPY} == no
 OLD_FILES+=usr/share/man/man1/objcopy.1.gz
+.endif
 OLD_FILES+=usr/share/man/man1/objdump.1.gz
-OLD_FILES+=usr/share/man/man1/readelf.1.gz
 OLD_FILES+=usr/share/man/man7/as.7.gz
 OLD_FILES+=usr/share/man/man7/ld.7.gz
 OLD_FILES+=usr/share/man/man7/ldint.7.gz
@@ -1648,9 +1650,25 @@ OLD_FILES+=usr/share/nls/ru_RU.KOI8-R/ee.cat
 OLD_FILES+=usr/share/nls/uk_UA.KOI8-U/ee.cat
 .endif
 
-.if ${MK_ELFTOOLCHAIN_TOOLS} == no
+.if ${MK_ELFTOOLCHAIN_TOOLS} == no || \
+    (${MK_ELFTOOLCHAIN_TOOLS} != no && ${MK_ELFCOPY_AS_OBJCOPY} != no)
 OLD_FILES+=usr/bin/elfcopy
 OLD_FILES+=usr/share/man/man1/elfcopy.1.gz
+.endif
+
+.if ${MK_ELFTOOLCHAIN_TOOLS} == no && ${MK_BINUTILS} == no
+OLD_FILES+=usr/bin/addr2line
+OLD_FILES+=usr/bin/nm
+OLD_FILES+=usr/bin/readelf
+OLD_FILES+=usr/bin/size
+OLD_FILES+=usr/bin/strings
+OLD_FILES+=usr/bin/strip
+OLD_FILES+=usr/share/man/man1/addr2line.1.gz
+OLD_FILES+=usr/share/man/man1/nm.1.gz
+OLD_FILES+=usr/share/man/man1/readelf.1.gz
+OLD_FILES+=usr/share/man/man1/size.1.gz
+OLD_FILES+=usr/share/man/man1/strings.1.gz
+OLD_FILES+=usr/share/man/man1/strip.1.gz
 .endif
 
 #.if ${MK_EXAMPLES} == no
@@ -5122,7 +5140,10 @@ OLD_FILES+=usr/share/misc/mail.tildehelp
 
 .if ${MK_MAILWRAPPER} == no
 OLD_FILES+=etc/mail/mailer.conf
-OLD_FILES+=usr/sbin/mailwrapper
+# Don't remove, for no mailwrapper case:
+# /usr/sbin/sendmail -> /usr/sbin/mailwrapper
+# /usr/sbin/mailwrapper -> /usr/libexec/sendmail/sendmail
+#OLD_FILES+=usr/sbin/mailwrapper
 OLD_FILES+=usr/share/man/man8/mailwrapper.8.gz
 .endif
 
@@ -6313,7 +6334,6 @@ OLD_FILES+=usr/share/man/man8/rwhod.8.gz
 .if ${MK_RCS} == no
 OLD_FILES+=usr/bin/ci
 OLD_FILES+=usr/bin/co
-OLD_FILES+=usr/bin/ident
 OLD_FILES+=usr/bin/merge
 OLD_FILES+=usr/bin/rcs
 OLD_FILES+=usr/bin/rcsclean
@@ -6324,7 +6344,6 @@ OLD_FILES+=usr/bin/rlog
 OLD_FILES+=usr/sbin/etcupdate
 OLD_FILES+=usr/share/man/man1/ci.1.gz
 OLD_FILES+=usr/share/man/man1/co.1.gz
-OLD_FILES+=usr/share/man/man1/ident.1.gz
 OLD_FILES+=usr/share/man/man1/merge.1.gz
 OLD_FILES+=usr/share/man/man1/rcs.1.gz
 OLD_FILES+=usr/share/man/man1/rcsclean.1.gz

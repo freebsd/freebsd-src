@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "X509_STORE_CTX_new 3"
-.TH X509_STORE_CTX_new 3 "2015-06-12" "1.0.1o" "OpenSSL"
+.TH X509_STORE_CTX_new 3 "2015-07-09" "1.0.1p" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -176,10 +176,15 @@ The context can then be reused with an new call to \fIX509_STORE_CTX_init()\fR.
 is no longer valid.
 .PP
 \&\fIX509_STORE_CTX_init()\fR sets up \fBctx\fR for a subsequent verification operation.
-The trusted certificate store is set to \fBstore\fR, the end entity certificate
-to be verified is set to \fBx509\fR and a set of additional certificates (which
-will be untrusted but may be used to build the chain) in \fBchain\fR. Any or
-all of the \fBstore\fR, \fBx509\fR and \fBchain\fR parameters can be \fB\s-1NULL\s0\fR.
+It must be called before each call to \fIX509_verify_cert()\fR, i.e. a \fBctx\fR is only
+good for one call to \fIX509_verify_cert()\fR; if you want to verify a second
+certificate with the same \fBctx\fR then you must call \fIX509_XTORE_CTX_cleanup()\fR
+and then \fIX509_STORE_CTX_init()\fR again before the second call to
+\&\fIX509_verify_cert()\fR. The trusted certificate store is set to \fBstore\fR, the end
+entity certificate to be verified is set to \fBx509\fR and a set of additional
+certificates (which will be untrusted but may be used to build the chain) in
+\&\fBchain\fR. Any or all of the \fBstore\fR, \fBx509\fR and \fBchain\fR parameters can be
+\&\fB\s-1NULL\s0\fR.
 .PP
 \&\fIX509_STORE_CTX_trusted_stack()\fR sets the set of trusted certificates of \fBctx\fR
 to \fBsk\fR. This is an alternative way of specifying trusted certificates 

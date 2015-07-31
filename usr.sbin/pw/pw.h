@@ -32,6 +32,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <stdarg.h>
+#include <inttypes.h>
 #include <errno.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -83,7 +84,9 @@ struct carg *addarg(struct cargs * _args, int ch, char *argstr);
 struct carg *getarg(struct cargs * _args, int ch);
 
 int pw_user(int mode, char *name, long id, struct cargs * _args);
+int pw_usernext(struct userconf *cnf, bool quiet);
 int pw_group(int mode, char *name, long id,  struct cargs * _args);
+int pw_groupnext(struct userconf *cnf, bool quiet);
 char *pw_checkname(char *name, int gecos);
 
 int addnispwent(const char *path, struct passwd *pwd);
@@ -99,3 +102,6 @@ char *pw_pwcrypt(char *password);
 
 extern const char *Modes[];
 extern const char *Which[];
+
+uintmax_t strtounum(const char * __restrict, uintmax_t, uintmax_t,
+    const char ** __restrict);

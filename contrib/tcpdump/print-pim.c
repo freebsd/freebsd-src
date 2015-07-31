@@ -770,11 +770,11 @@ pimv2_print(netdissect_options *ndo,
 		case 4:	/* IPv4 */
 			ip_print(ndo, bp, len);
 			break;
-#ifdef INET6
+
 		case 6:	/* IPv6 */
 			ip6_print(ndo, bp, len);
 			break;
-#endif
+
 		default:
 			ND_PRINT((ndo, "IP ver %d", IP_V(ip)));
 			break;

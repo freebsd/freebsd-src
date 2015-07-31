@@ -32,6 +32,25 @@
 #error this file needs sys/cdefs.h as a prerequisite
 #endif
 
+/*
+ * To express interprocessor (as opposed to processor and device) memory
+ * ordering constraints, use the atomic_*() functions with acquire and release
+ * semantics rather than the *mb() functions.  An architecture's memory
+ * ordering (or memory consistency) model governs the order in which a
+ * program's accesses to different locations may be performed by an
+ * implementation of that architecture.  In general, for memory regions
+ * defined as writeback cacheable, the memory ordering implemented by amd64
+ * processors preserves the program ordering of a load followed by a load, a
+ * load followed by a store, and a store followed by a store.  Only a store
+ * followed by a load to a different memory location may be reordered.
+ * Therefore, except for special cases, like non-temporal memory accesses or
+ * memory regions defined as write combining, the memory ordering effects
+ * provided by the sfence instruction in the wmb() function and the lfence
+ * instruction in the rmb() function are redundant.  In contrast, the
+ * atomic_*() functions with acquire and release semantics do not perform
+ * redundant instructions for ordinary cases of interprocessor memory
+ * ordering on any architecture.
+ */
 #define	mb()	__asm __volatile("mfence;" : : : "memory")
 #define	wmb()	__asm __volatile("sfence;" : : : "memory")
 #define	rmb()	__asm __volatile("lfence;" : : : "memory")
@@ -84,6 +103,10 @@ u_int	atomic_fetchadd_int(volatile u_int *p, u_int v);
 u_long	atomic_fetchadd_long(volatile u_long *p, u_long v);
 int	atomic_testandset_int(volatile u_int *p, u_int v);
 int	atomic_testandset_long(volatile u_long *p, u_int v);
+void	atomic_thread_fence_acq(void);
+void	atomic_thread_fence_acq_rel(void);
+void	atomic_thread_fence_rel(void);
+void	atomic_thread_fence_seq_cst(void);
 
 #define	ATOMIC_LOAD(TYPE)					\
 u_##TYPE	atomic_load_acq_##TYPE(volatile u_##TYPE *p)
@@ -246,13 +269,13 @@ atomic_testandset_long(volatile u_long *p, u_int v)
  * IA32 memory model, a simple store guarantees release semantics.
  *
  * However, a load may pass a store if they are performed on distinct
- * addresses, so for atomic_load_acq we introduce a Store/Load barrier
- * before the load in SMP kernels.  We use "lock addl $0,mem", as
- * recommended by the AMD Software Optimization Guide, and not mfence.
- * In the kernel, we use a private per-cpu cache line as the target
- * for the locked addition, to avoid introducing false data
- * dependencies.  In userspace, a word in the red zone on the stack
- * (-8(%rsp)) is utilized.
+ * addresses, so we need a Store/Load barrier for sequentially
+ * consistent fences in SMP kernels.  We use "lock addl $0,mem" for a
+ * Store/Load barrier, as recommended by the AMD Software Optimization
+ * Guide, and not mfence.  To avoid false data dependencies, we use a
+ * special address for "mem".  In the kernel, we use a private per-cpu
+ * cache line.  In user space, we use a word in the stack's red zone
+ * (-8(%rsp)).
  *
  * For UP kernels, however, the memory of the single processor is
  * always consistent, so we only need to stop the compiler from
@@ -296,22 +319,12 @@ __storeload_barrier(void)
 }
 #endif /* _KERNEL*/
 
-/*
- * C11-standard acq/rel semantics only apply when the variable in the
- * call is the same for acq as it is for rel.  However, our previous
- * (x86) implementations provided much stronger ordering than required
- * (essentially what is called seq_cst order in C11).  This
- * implementation provides the historical strong ordering since some
- * callers depend on it.
- */
-
 #define	ATOMIC_LOAD(TYPE)					\
 static __inline u_##TYPE					\
 atomic_load_acq_##TYPE(volatile u_##TYPE *p)			\
 {								\
 	u_##TYPE res;						\
 								\
-	__storeload_barrier();					\
 	res = *p;						\
 	__compiler_membar();					\
 	return (res);						\
@@ -327,6 +340,34 @@ atomic_store_rel_##TYPE(volatile u_##TYPE *p, u_##TYPE v)	\
 	*p = v;							\
 }								\
 struct __hack
+
+static __inline void
+atomic_thread_fence_acq(void)
+{
+
+	__compiler_membar();
+}
+
+static __inline void
+atomic_thread_fence_rel(void)
+{
+
+	__compiler_membar();
+}
+
+static __inline void
+atomic_thread_fence_acq_rel(void)
+{
+
+	__compiler_membar();
+}
+
+static __inline void
+atomic_thread_fence_seq_cst(void)
+{
+
+	__storeload_barrier();
+}
 
 #endif /* KLD_MODULE || !__GNUCLIKE_ASM */
 

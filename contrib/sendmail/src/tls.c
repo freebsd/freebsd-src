@@ -13,21 +13,21 @@
 SM_RCSID("@(#)$Id: tls.c,v 8.127 2013-11-27 02:51:11 gshapiro Exp $")
 
 #if STARTTLS
-#  include <openssl/err.h>
-#  include <openssl/bio.h>
-#  include <openssl/pem.h>
-#  ifndef HASURANDOMDEV
-#   include <openssl/rand.h>
-#  endif /* ! HASURANDOMDEV */
+# include <openssl/err.h>
+# include <openssl/bio.h>
+# include <openssl/pem.h>
+# ifndef HASURANDOMDEV
+#  include <openssl/rand.h>
+# endif /* ! HASURANDOMDEV */
 # if !TLS_NO_RSA
 static RSA *rsa_tmp = NULL;	/* temporary RSA key */
 static RSA *tmp_rsa_key __P((SSL *, int, int));
 # endif /* !TLS_NO_RSA */
-#  if !defined(OPENSSL_VERSION_NUMBER) || OPENSSL_VERSION_NUMBER < 0x00907000L
+# if !defined(OPENSSL_VERSION_NUMBER) || OPENSSL_VERSION_NUMBER < 0x00907000L
 static int	tls_verify_cb __P((X509_STORE_CTX *));
-#  else /* !defined() || OPENSSL_VERSION_NUMBER < 0x00907000L */
+# else /* !defined() || OPENSSL_VERSION_NUMBER < 0x00907000L */
 static int	tls_verify_cb __P((X509_STORE_CTX *, void *));
-#  endif /* !defined() || OPENSSL_VERSION_NUMBER < 0x00907000L */
+# endif /* !defined() || OPENSSL_VERSION_NUMBER < 0x00907000L */
 
 # if OPENSSL_VERSION_NUMBER > 0x00907000L
 static int x509_verify_cb __P((int, X509_STORE_CTX *));
@@ -41,7 +41,7 @@ static int x509_verify_cb __P((int, X509_STORE_CTX *));
 static void	apps_ssl_info_cb __P((CONST097 SSL *, int , int));
 static bool	tls_ok_f __P((char *, char *, int));
 static bool	tls_safe_f __P((char *, long, bool));
-static int	tls_verify_log __P((int, X509_STORE_CTX *, char *));
+static int	tls_verify_log __P((int, X509_STORE_CTX *, const char *));
 
 # if !NO_DH
 static DH *get_dh512 __P((void));
@@ -72,6 +72,62 @@ get_dh512()
 	if ((dh->p == NULL) || (dh->g == NULL))
 		return NULL;
 	return dh;
+}
+
+#  if 0
+
+This is the data from which the C code has been generated:
+
+-----BEGIN DH PARAMETERS-----
+MIIBCAKCAQEArDcgcLpxEksQHPlolRKCUJ2szKRziseWV9cUSQNZGxoGw7KkROz4
+HF9QSbg5axyNIG+QbZYtx0jp3l6/GWq1dLOj27yZkgYgaYgFrvKPiZ2jJ5xETQVH
+UpZwbjRcyjyWkWYJVsx1aF4F/iY4kT0n/+iGEoimI3C9V3KXTJ2S6jIkyJ6M/CrN
+EtrDynMlUMGlc7S1ouXVOTrtKeqy3S2L9eBLxVI+sChEijGIfELupdVeXihK006p
+MgnABPDbkTx6OOtYmSZaGQX+OLW2FPmwvcrzgCz9t9cAsuUcBZv1LeHEqZZttyLU
+oK0jjSXgFyeU4/NfyA+zuNeWzUL6bHmigwIBAg==
+-----END DH PARAMETERS-----
+#  endif /* 0 */
+
+static DH *
+get_dh2048()
+{
+	static unsigned char dh2048_p[]={
+		0xAC,0x37,0x20,0x70,0xBA,0x71,0x12,0x4B,0x10,0x1C,0xF9,0x68,
+		0x95,0x12,0x82,0x50,0x9D,0xAC,0xCC,0xA4,0x73,0x8A,0xC7,0x96,
+		0x57,0xD7,0x14,0x49,0x03,0x59,0x1B,0x1A,0x06,0xC3,0xB2,0xA4,
+		0x44,0xEC,0xF8,0x1C,0x5F,0x50,0x49,0xB8,0x39,0x6B,0x1C,0x8D,
+		0x20,0x6F,0x90,0x6D,0x96,0x2D,0xC7,0x48,0xE9,0xDE,0x5E,0xBF,
+		0x19,0x6A,0xB5,0x74,0xB3,0xA3,0xDB,0xBC,0x99,0x92,0x06,0x20,
+		0x69,0x88,0x05,0xAE,0xF2,0x8F,0x89,0x9D,0xA3,0x27,0x9C,0x44,
+		0x4D,0x05,0x47,0x52,0x96,0x70,0x6E,0x34,0x5C,0xCA,0x3C,0x96,
+		0x91,0x66,0x09,0x56,0xCC,0x75,0x68,0x5E,0x05,0xFE,0x26,0x38,
+		0x91,0x3D,0x27,0xFF,0xE8,0x86,0x12,0x88,0xA6,0x23,0x70,0xBD,
+		0x57,0x72,0x97,0x4C,0x9D,0x92,0xEA,0x32,0x24,0xC8,0x9E,0x8C,
+		0xFC,0x2A,0xCD,0x12,0xDA,0xC3,0xCA,0x73,0x25,0x50,0xC1,0xA5,
+		0x73,0xB4,0xB5,0xA2,0xE5,0xD5,0x39,0x3A,0xED,0x29,0xEA,0xB2,
+		0xDD,0x2D,0x8B,0xF5,0xE0,0x4B,0xC5,0x52,0x3E,0xB0,0x28,0x44,
+		0x8A,0x31,0x88,0x7C,0x42,0xEE,0xA5,0xD5,0x5E,0x5E,0x28,0x4A,
+		0xD3,0x4E,0xA9,0x32,0x09,0xC0,0x04,0xF0,0xDB,0x91,0x3C,0x7A,
+		0x38,0xEB,0x58,0x99,0x26,0x5A,0x19,0x05,0xFE,0x38,0xB5,0xB6,
+		0x14,0xF9,0xB0,0xBD,0xCA,0xF3,0x80,0x2C,0xFD,0xB7,0xD7,0x00,
+		0xB2,0xE5,0x1C,0x05,0x9B,0xF5,0x2D,0xE1,0xC4,0xA9,0x96,0x6D,
+		0xB7,0x22,0xD4,0xA0,0xAD,0x23,0x8D,0x25,0xE0,0x17,0x27,0x94,
+		0xE3,0xF3,0x5F,0xC8,0x0F,0xB3,0xB8,0xD7,0x96,0xCD,0x42,0xFA,
+		0x6C,0x79,0xA2,0x83,
+		};
+	static unsigned char dh2048_g[]={ 0x02, };
+	DH *dh;
+
+	if ((dh=DH_new()) == NULL)
+		return(NULL);
+	dh->p=BN_bin2bn(dh2048_p,sizeof(dh2048_p),NULL);
+	dh->g=BN_bin2bn(dh2048_g,sizeof(dh2048_g),NULL);
+	if ((dh->p == NULL) || (dh->g == NULL))
+	{
+		DH_free(dh);
+		return(NULL);
+	}
+	return(dh);
 }
 # endif /* !NO_DH */
 
@@ -311,15 +367,32 @@ init_tls_library(fipsmode)
 		}
 	}
 #endif /* _FFR_FIPSMODE  */
+	if (bv && CertFingerprintAlgorithm != NULL)
+	{
+		const EVP_MD *md;
+
+		md = EVP_get_digestbyname(CertFingerprintAlgorithm);
+		if (NULL == md)
+		{
+			bv = false;
+			if (LogLevel > 0)
+				sm_syslog(LOG_ERR, NOQID,
+					"STARTTLS=init, CertFingerprintAlgorithm=%s, status=invalid"
+					, CertFingerprintAlgorithm);
+		}
+		else
+			EVP_digest = md;
+	}
 	return bv;
 }
+
 /*
 **  TLS_SET_VERIFY -- request client certificate?
 **
 **	Parameters:
 **		ctx -- TLS context
 **		ssl -- TLS structure
-**		vrfy -- require certificate?
+**		vrfy -- request certificate?
 **
 **	Returns:
 **		none.
@@ -369,12 +442,10 @@ tls_set_verify(ctx, ssl, vrfy)
 # define TLS_S_CRLF_EX	0x00000100	/* CRL file exists */
 # define TLS_S_CRLF_OK	0x00000200	/* CRL file is ok */
 
-# if _FFR_TLS_1
-#  define TLS_S_CERT2_EX	0x00001000	/* 2nd cert file exists */
-#  define TLS_S_CERT2_OK	0x00002000	/* 2nd cert file is ok */
-#  define TLS_S_KEY2_EX	0x00004000	/* 2nd key file exists */
-#  define TLS_S_KEY2_OK	0x00008000	/* 2nd key file is ok */
-# endif /* _FFR_TLS_1 */
+# define TLS_S_CERT2_EX	0x00001000	/* 2nd cert file exists */
+# define TLS_S_CERT2_OK	0x00002000	/* 2nd cert file is ok */
+# define TLS_S_KEY2_EX	0x00004000	/* 2nd key file exists */
+# define TLS_S_KEY2_OK	0x00008000	/* 2nd key file is ok */
 
 # define TLS_S_DH_OK	0x00200000	/* DH cert is ok */
 # define TLS_S_DHPAR_EX	0x00400000	/* DH param file exists */
@@ -507,6 +578,109 @@ tls_safe_f(var, sff, srv)
 			ok = false;	\
 	}
 
+# if _FFR_TLS_SE_OPTS
+/*
+**  LOAD_CERTKEY -- load cert/key for TLS session
+**
+**	Parameters:
+**		ssl -- TLS session context
+**		certfile -- filename of certificate
+**		keyfile -- filename of private key
+**
+**	Returns:
+**		succeeded?
+*/
+
+bool
+load_certkey(ssl, srv, certfile, keyfile)
+	SSL *ssl;
+	bool srv;
+	char *certfile;
+	char *keyfile;
+{
+	bool ok;
+	int r;
+	long sff, status;
+	unsigned long req;
+	char *who;
+
+	ok = true;
+	who = srv ? "server" : "client";
+	status = TLS_S_NONE;
+	req = TLS_I_CERT_EX|TLS_I_KEY_EX;
+	TLS_OK_F(certfile, "CertFile", bitset(TLS_I_CERT_EX, req),
+		 TLS_S_CERT_EX, srv ? TLS_T_SRV : TLS_T_CLT);
+	TLS_OK_F(keyfile, "KeyFile", bitset(TLS_I_KEY_EX, req),
+		 TLS_S_KEY_EX, srv ? TLS_T_SRV : TLS_T_CLT);
+
+	/* certfile etc. must be "safe". */
+	sff = SFF_REGONLY | SFF_SAFEDIRPATH | SFF_NOWLINK
+	     | SFF_NOGWFILES | SFF_NOWWFILES
+	     | SFF_MUSTOWN | SFF_ROOTOK | SFF_OPENASROOT;
+	if (DontLockReadFiles)
+		sff |= SFF_NOLOCK;
+
+	TLS_SAFE_F(certfile, sff | TLS_UNR(TLS_I_CERT_UNR, req),
+		   bitset(TLS_I_CERT_EX, req),
+		   bitset(TLS_S_CERT_EX, status), TLS_S_CERT_OK, srv);
+	TLS_SAFE_F(keyfile, sff | TLS_KEYSFF(req),
+		   bitset(TLS_I_KEY_EX, req),
+		   bitset(TLS_S_KEY_EX, status), TLS_S_KEY_OK, srv);
+
+# define SSL_use_cert(ssl, certfile) \
+	SSL_use_certificate_file(ssl, certfile, SSL_FILETYPE_PEM)
+# define SSL_USE_CERT "SSL_use_certificate_file"
+
+	if (bitset(TLS_S_CERT_OK, status) &&
+	    SSL_use_cert(ssl, certfile) <= 0)
+	{
+		if (LogLevel > 7)
+		{
+			sm_syslog(LOG_WARNING, NOQID,
+				  "STARTTLS=%s, error: %s(%s) failed",
+				  who, SSL_USE_CERT, certfile);
+			if (LogLevel > 9)
+				tlslogerr(LOG_WARNING, who);
+		}
+		if (bitset(TLS_I_USE_CERT, req))
+			return false;
+	}
+	if (bitset(TLS_S_KEY_OK, status) &&
+	    SSL_use_PrivateKey_file(ssl, keyfile, SSL_FILETYPE_PEM) <= 0)
+	{
+		if (LogLevel > 7)
+		{
+			sm_syslog(LOG_WARNING, NOQID,
+				  "STARTTLS=%s, error: SSL_use_PrivateKey_file(%s) failed",
+				  who, keyfile);
+			if (LogLevel > 9)
+				tlslogerr(LOG_WARNING, who);
+		}
+		if (bitset(TLS_I_USE_KEY, req))
+			return false;
+	}
+
+	/* check the private key */
+	if (bitset(TLS_S_KEY_OK, status) &&
+	    (r = SSL_check_private_key(ssl)) <= 0)
+	{
+		/* Private key does not match the certificate public key */
+		if (LogLevel > 5)
+		{
+			sm_syslog(LOG_WARNING, NOQID,
+				  "STARTTLS=%s, error: SSL_check_private_key failed(%s): %d",
+				  who, keyfile, r);
+			if (LogLevel > 9)
+				tlslogerr(LOG_WARNING, who);
+		}
+		if (bitset(TLS_I_USE_KEY, req))
+			return false;
+	}
+
+	return true;
+}
+# endif /* _FFR_TLS_SE_OPTS */
+
 /*
 **  INITTLS -- initialize TLS
 **
@@ -545,7 +719,7 @@ bool
 inittls(ctx, req, options, srv, certfile, keyfile, cacertpath, cacertfile, dhparam)
 	SSL_CTX **ctx;
 	unsigned long req;
-	long options;
+	unsigned long options;
 	bool srv;
 	char *certfile, *keyfile, *cacertpath, *cacertfile, *dhparam;
 {
@@ -556,12 +730,10 @@ inittls(ctx, req, options, srv, certfile, keyfile, cacertpath, cacertfile, dhpar
 	bool ok;
 	long sff, status;
 	char *who;
-# if _FFR_TLS_1
 	char *cf2, *kf2;
-# endif /* _FFR_TLS_1 */
-#  if SM_CONF_SHM
+# if SM_CONF_SHM
 	extern int ShmId;
-#  endif /* SM_CONF_SHM */
+# endif /* SM_CONF_SHM */
 # if OPENSSL_VERSION_NUMBER > 0x00907000L
 	BIO *crl_file;
 	X509_CRL *crl;
@@ -586,7 +758,6 @@ inittls(ctx, req, options, srv, certfile, keyfile, cacertpath, cacertfile, dhpar
 		return true;
 	ok = true;
 
-# if _FFR_TLS_1
 	/*
 	**  look for a second filename: it must be separated by a ','
 	**  no blanks allowed (they won't be skipped).
@@ -605,7 +776,6 @@ inittls(ctx, req, options, srv, certfile, keyfile, cacertpath, cacertfile, dhpar
 		if (keyfile != NULL && (kf2 = strchr(keyfile, ',')) != NULL)
 			*kf2++ = '\0';
 	}
-# endif /* _FFR_TLS_1 */
 
 	/*
 	**  Check whether files/paths are defined
@@ -625,7 +795,6 @@ inittls(ctx, req, options, srv, certfile, keyfile, cacertpath, cacertfile, dhpar
 		 TLS_S_CRLF_EX, TLS_T_OTHER);
 # endif /* OPENSSL_VERSION_NUMBER > 0x00907000L */
 
-# if _FFR_TLS_1
 	/*
 	**  if the second file is specified it must exist
 	**  XXX: it is possible here to define only one of those files
@@ -641,17 +810,22 @@ inittls(ctx, req, options, srv, certfile, keyfile, cacertpath, cacertfile, dhpar
 		TLS_OK_F(kf2, "KeyFile", bitset(TLS_I_KEY_EX, req),
 			 TLS_S_KEY2_EX, srv ? TLS_T_SRV : TLS_T_CLT);
 	}
-# endif /* _FFR_TLS_1 */
 
 	/*
 	**  valid values for dhparam are (only the first char is checked)
 	**  none	no parameters: don't use DH
+	**  i		use precomputed 2048 bit parameters
 	**  512		use precomputed 512 bit parameters
 	**  1024	generate 1024 bit parameters
 	**  2048	generate 2048 bit parameters
 	**  /file/name	read parameters from /file/name
-	**  default is: 1024
 	*/
+
+#define SET_DH_DFL	\
+	do {	\
+		dhparam = "I";	\
+		req |= TLS_I_DHFIXED;	\
+	} while (0)
 
 	if (bitset(TLS_I_TRY_DH, req))
 	{
@@ -661,24 +835,25 @@ inittls(ctx, req, options, srv, certfile, keyfile, cacertpath, cacertfile, dhpar
 
 			if (c == '1')
 				req |= TLS_I_DH1024;
+			else if (c == 'I' || c == 'i')
+				req |= TLS_I_DHFIXED;
 			else if (c == '2')
 				req |= TLS_I_DH2048;
 			else if (c == '5')
 				req |= TLS_I_DH512;
-			else if (c != 'n' && c != 'N' && c != '/')
+			else if (c == 'n' || c == 'N')
+				req &= ~TLS_I_TRY_DH;
+			else if (c != '/')
 			{
 				if (LogLevel > 12)
 					sm_syslog(LOG_WARNING, NOQID,
-						  "STARTTLS=%s, error: illegal value '%s' for DHParam",
+						  "STARTTLS=%s, error: illegal value '%s' for DHParameters",
 						  who, dhparam);
 				dhparam = NULL;
 			}
 		}
 		if (dhparam == NULL)
-		{
-			dhparam = "1";
-			req |= TLS_I_DH1024;
-		}
+			SET_DH_DFL;
 		else if (*dhparam == '/')
 		{
 			TLS_OK_F(dhparam, "DHParameters",
@@ -705,9 +880,14 @@ inittls(ctx, req, options, srv, certfile, keyfile, cacertpath, cacertfile, dhpar
 	TLS_SAFE_F(cacertfile, sff | TLS_UNR(TLS_I_CERTF_UNR, req),
 		   bitset(TLS_I_CERTF_EX, req),
 		   bitset(TLS_S_CERTF_EX, status), TLS_S_CERTF_OK, srv);
-	TLS_SAFE_F(dhparam, sff | TLS_UNR(TLS_I_DHPAR_UNR, req),
-		   bitset(TLS_I_DHPAR_EX, req),
-		   bitset(TLS_S_DHPAR_EX, status), TLS_S_DHPAR_OK, srv);
+	if (dhparam != NULL && *dhparam == '/')
+	{
+		TLS_SAFE_F(dhparam, sff | TLS_UNR(TLS_I_DHPAR_UNR, req),
+			   bitset(TLS_I_DHPAR_EX, req),
+			   bitset(TLS_S_DHPAR_EX, status), TLS_S_DHPAR_OK, srv);
+		if (!bitset(TLS_S_DHPAR_OK, status))
+			SET_DH_DFL;
+	}
 # if OPENSSL_VERSION_NUMBER > 0x00907000L
 	TLS_SAFE_F(CRLFile, sff | TLS_UNR(TLS_I_CRLF_UNR, req),
 		   bitset(TLS_I_CRLF_EX, req),
@@ -715,7 +895,6 @@ inittls(ctx, req, options, srv, certfile, keyfile, cacertpath, cacertfile, dhpar
 # endif /* OPENSSL_VERSION_NUMBER > 0x00907000L */
 	if (!ok)
 		return ok;
-# if _FFR_TLS_1
 	if (cf2 != NULL)
 	{
 		TLS_SAFE_F(cf2, sff | TLS_UNR(TLS_I_CERT_UNR, req),
@@ -728,7 +907,6 @@ inittls(ctx, req, options, srv, certfile, keyfile, cacertpath, cacertfile, dhpar
 			   bitset(TLS_I_KEY_EX, req),
 			   bitset(TLS_S_KEY2_EX, status), TLS_S_KEY2_OK, srv);
 	}
-# endif /* _FFR_TLS_1 */
 
 	/* create a method and a new context */
 	if ((*ctx = SSL_CTX_new(srv ? SSLv23_server_method() :
@@ -823,13 +1001,13 @@ inittls(ctx, req, options, srv, certfile, keyfile, cacertpath, cacertfile, dhpar
 	*/
 
 	if (bitset(TLS_I_RSA_TMP, req)
-#   if SM_CONF_SHM
+#  if SM_CONF_SHM
 	    && ShmId != SM_SHM_NO_ID &&
 	    (rsa_tmp = RSA_generate_key(RSA_KEYLENGTH, RSA_F4, NULL,
 					NULL)) == NULL
-#   else /* SM_CONF_SHM */
+#  else /* SM_CONF_SHM */
 	    && 0	/* no shared memory: no need to generate key now */
-#   endif /* SM_CONF_SHM */
+#  endif /* SM_CONF_SHM */
 	   )
 	{
 		if (LogLevel > 7)
@@ -865,16 +1043,25 @@ inittls(ctx, req, options, srv, certfile, keyfile, cacertpath, cacertfile, dhpar
 			return false;
 	}
 
+#if _FFR_TLS_USE_CERTIFICATE_CHAIN_FILE
+# define SSL_CTX_use_cert(ssl_ctx, certfile) \
+	SSL_CTX_use_certificate_chain_file(ssl_ctx, certfile)
+# define SSL_CTX_USE_CERT "SSL_CTX_use_certificate_chain_file"
+#else
+# define SSL_CTX_use_cert(ssl_ctx, certfile) \
+	SSL_CTX_use_certificate_file(ssl_ctx, certfile, SSL_FILETYPE_PEM)
+# define SSL_CTX_USE_CERT "SSL_CTX_use_certificate_file"
+#endif
+
 	/* get the certificate file */
 	if (bitset(TLS_S_CERT_OK, status) &&
-	    SSL_CTX_use_certificate_file(*ctx, certfile,
-					 SSL_FILETYPE_PEM) <= 0)
+	    SSL_CTX_use_cert(*ctx, certfile) <= 0)
 	{
 		if (LogLevel > 7)
 		{
 			sm_syslog(LOG_WARNING, NOQID,
-				  "STARTTLS=%s, error: SSL_CTX_use_certificate_file(%s) failed",
-				  who, certfile);
+				  "STARTTLS=%s, error: %s(%s) failed",
+				  who, SSL_CTX_USE_CERT, certfile);
 			if (LogLevel > 9)
 				tlslogerr(LOG_WARNING, who);
 		}
@@ -899,7 +1086,6 @@ inittls(ctx, req, options, srv, certfile, keyfile, cacertpath, cacertfile, dhpar
 			return false;
 	}
 
-# if _FFR_TLS_1
 	/* XXX this code is pretty much duplicated from above! */
 
 	/* load private key */
@@ -918,13 +1104,13 @@ inittls(ctx, req, options, srv, certfile, keyfile, cacertpath, cacertfile, dhpar
 
 	/* get the certificate file */
 	if (bitset(TLS_S_CERT2_OK, status) &&
-	    SSL_CTX_use_certificate_file(*ctx, cf2, SSL_FILETYPE_PEM) <= 0)
+	    SSL_CTX_use_cert(*ctx, cf2) <= 0)
 	{
 		if (LogLevel > 7)
 		{
 			sm_syslog(LOG_WARNING, NOQID,
-				  "STARTTLS=%s, error: SSL_CTX_use_certificate_file(%s) failed",
-				  who, cf2);
+				  "STARTTLS=%s, error: %s(%s) failed",
+				  who, SSL_CTX_USE_CERT, cf2);
 			if (LogLevel > 9)
 				tlslogerr(LOG_WARNING, who);
 		}
@@ -944,7 +1130,6 @@ inittls(ctx, req, options, srv, certfile, keyfile, cacertpath, cacertfile, dhpar
 				tlslogerr(LOG_WARNING, who);
 		}
 	}
-# endif /* _FFR_TLS_1 */
 
 	/* SSL_CTX_set_quiet_shutdown(*ctx, 1); violation of standard? */
 
@@ -968,7 +1153,7 @@ inittls(ctx, req, options, srv, certfile, keyfile, cacertpath, cacertfile, dhpar
 			options &= ~SSL_OP_TLS_BLOCK_PADDING_BUG;
 	}
 #endif
-	SSL_CTX_set_options(*ctx, options);
+	SSL_CTX_set_options(*ctx, (long) options);
 
 # if !NO_DH
 	/* Diffie-Hellman initialization */
@@ -977,6 +1162,10 @@ inittls(ctx, req, options, srv, certfile, keyfile, cacertpath, cacertfile, dhpar
 #if _FFR_TLS_EC
 		EC_KEY *ecdh;
 #endif /* _FFR_TLS_EC */
+
+		if (tTd(96, 8))
+			sm_dprintf("inittls: req=%#lx, status=%#lx\n",
+				req, status);
 		if (bitset(TLS_S_DHPAR_OK, status))
 		{
 			BIO *bio;
@@ -996,6 +1185,7 @@ inittls(ctx, req, options, srv, certfile, keyfile, cacertpath, cacertfile, dhpar
 						  ERR_error_string(err, NULL));
 					if (LogLevel > 9)
 						tlslogerr(LOG_WARNING, who);
+					SET_DH_DFL;
 				}
 			}
 			else
@@ -1025,8 +1215,13 @@ inittls(ctx, req, options, srv, certfile, keyfile, cacertpath, cacertfile, dhpar
 			dh = DSA_dup_DH(dsa);
 			DSA_free(dsa);
 		}
-		else
-		if (dh == NULL && bitset(TLS_I_DH512, req))
+		else if (dh == NULL && bitset(TLS_I_DHFIXED, req))
+		{
+			if (tTd(96, 2))
+				sm_dprintf("inittls: Using precomputed 2048 bit DH parameters\n");
+			dh = get_dh2048();
+		}
+		else if (dh == NULL && bitset(TLS_I_DH512, req))
 		{
 			if (tTd(96, 2))
 				sm_dprintf("inittls: Using precomputed 512 bit DH parameters\n");
@@ -1153,7 +1348,6 @@ inittls(ctx, req, options, srv, certfile, keyfile, cacertpath, cacertfile, dhpar
 	if (tTd(96, 9))
 		SSL_CTX_set_info_callback(*ctx, apps_ssl_info_cb);
 
-# if _FFR_TLS_1
 	/* install our own cipher list */
 	if (CipherList != NULL && *CipherList != '\0')
 	{
@@ -1171,29 +1365,73 @@ inittls(ctx, req, options, srv, certfile, keyfile, cacertpath, cacertfile, dhpar
 			/* failure if setting to this list is required? */
 		}
 	}
-# endif /* _FFR_TLS_1 */
+
 	if (LogLevel > 12)
 		sm_syslog(LOG_INFO, NOQID, "STARTTLS=%s, init=%d", who, ok);
 
-# if _FFR_TLS_1
-#  if 0
+# if 0
 	/*
 	**  this label is required if we want to have a "clean" exit
 	**  see the comments above at the initialization of cf2
 	*/
 
     endinittls:
-#  endif /* 0 */
+# endif /* 0 */
 
 	/* undo damage to global variables */
 	if (cf2 != NULL)
 		*--cf2 = ',';
 	if (kf2 != NULL)
 		*--kf2 = ',';
-# endif /* _FFR_TLS_1 */
 
 	return ok;
 }
+
+/*
+**  CERT_FP -- get cert fingerprint
+**
+**	Parameters:
+**		cert -- TLS cert
+**		mac -- macro storage
+**		macro -- where to store cert fp
+**
+**	Returns:
+**		<=0: cert fp calculation failed
+**		>0: cert fp calculation ok
+*/
+
+static int
+cert_fp(cert, evp_digest, mac, macro)
+	X509 *cert;
+	const EVP_MD *evp_digest;
+	MACROS_T *mac;
+	char *macro;
+{
+	unsigned int n;
+	int r;
+	unsigned char md[EVP_MAX_MD_SIZE];
+	char md5h[EVP_MAX_MD_SIZE * 3];
+	static const char hexcodes[] = "0123456789ABCDEF";
+
+	n = 0;
+	if (X509_digest(cert, EVP_digest, md, &n) == 0 || n <= 0)
+	{
+		macdefine(mac, A_TEMP, macid(macro), "");
+		return 0;
+	}
+
+	SM_ASSERT((n * 3) + 2 < sizeof(md5h));
+	for (r = 0; r < (int) n; r++)
+	{
+		md5h[r * 3] = hexcodes[(md[r] & 0xf0) >> 4];
+		md5h[(r * 3) + 1] = hexcodes[(md[r] & 0x0f)];
+		md5h[(r * 3) + 2] = ':';
+	}
+	md5h[(n * 3) - 1] = '\0';
+	macdefine(mac, A_TEMP, macid(macro), md5h);
+	return 1;
+}
+
 /*
 **  TLS_GET_INFO -- get information about TLS connection
 **
@@ -1208,9 +1446,7 @@ inittls(ctx, req, options, srv, certfile, keyfile, cacertpath, cacertfile, dhpar
 **		result of authentication.
 **
 **	Side Effects:
-**		sets macros: {cipher}, {tls_version}, {verify},
-**		{cipher_bits}, {alg_bits}, {cert}, {cert_subject},
-**		{cert_issuer}, {cn_subject}, {cn_issuer}
+**		sets various TLS related macros.
 */
 
 int
@@ -1238,7 +1474,7 @@ tls_get_info(ssl, srv, host, mac, certreq)
 	macdefine(mac, A_TEMP, macid("{cipher_bits}"), bitstr);
 	(void) sm_snprintf(bitstr, sizeof(bitstr), "%d", r);
 	macdefine(mac, A_TEMP, macid("{alg_bits}"), bitstr);
-	s = SSL_CIPHER_get_version(c);
+	s = (char *) SSL_get_version(ssl);
 	if (s == NULL)
 		s = "UNKNOWN";
 	macdefine(mac, A_TEMP, macid("{tls_version}"), s);
@@ -1252,9 +1488,7 @@ tls_get_info(ssl, srv, host, mac, certreq)
 			  who, verifyok, (unsigned long) cert);
 	if (cert != NULL)
 	{
-		unsigned int n;
 		X509_NAME *subj, *issuer;
-		unsigned char md[EVP_MAX_MD_SIZE];
 		char buf[MAXNAME];
 
 		subj = X509_get_subject_name(cert);
@@ -1267,6 +1501,8 @@ tls_get_info(ssl, srv, host, mac, certreq)
 			 xtextify(buf, "<>\")"));
 
 # define LL_BADCERT	8
+
+#define CERTFPMACRO (CertFingerprintAlgorithm != NULL ? "{cert_fp}" : "{cert_md5}")
 
 #define CHECK_X509_NAME(which)	\
 	do {	\
@@ -1313,24 +1549,7 @@ tls_get_info(ssl, srv, host, mac, certreq)
 		CHECK_X509_NAME("cn_issuer");
 		macdefine(mac, A_TEMP, macid("{cn_issuer}"),
 			 xtextify(buf, "<>\")"));
-		n = 0;
-		if (X509_digest(cert, EVP_md5(), md, &n) != 0 && n > 0)
-		{
-			char md5h[EVP_MAX_MD_SIZE * 3];
-			static const char hexcodes[] = "0123456789ABCDEF";
-
-			SM_ASSERT((n * 3) + 2 < sizeof(md5h));
-			for (r = 0; r < (int) n; r++)
-			{
-				md5h[r * 3] = hexcodes[(md[r] & 0xf0) >> 4];
-				md5h[(r * 3) + 1] = hexcodes[(md[r] & 0x0f)];
-				md5h[(r * 3) + 2] = ':';
-			}
-			md5h[(n * 3) - 1] = '\0';
-			macdefine(mac, A_TEMP, macid("{cert_md5}"), md5h);
-		}
-		else
-			macdefine(mac, A_TEMP, macid("{cert_md5}"), "");
+		(void) cert_fp(cert, EVP_digest, mac, CERTFPMACRO);
 	}
 	else
 	{
@@ -1338,7 +1557,7 @@ tls_get_info(ssl, srv, host, mac, certreq)
 		macdefine(mac, A_PERM, macid("{cert_issuer}"), "");
 		macdefine(mac, A_PERM, macid("{cn_subject}"), "");
 		macdefine(mac, A_PERM, macid("{cn_issuer}"), "");
-		macdefine(mac, A_TEMP, macid("{cert_md5}"), "");
+		macdefine(mac, A_TEMP, macid(CERTFPMACRO), "");
 	}
 	switch (verifyok)
 	{
@@ -1633,9 +1852,9 @@ apps_ssl_info_cb(s, where, ret)
 **	Parameters:
 **		ok -- verify ok?
 **		ctx -- x509 context
+**		name -- from where is this called?
 **
 **	Returns:
-**		0 -- fatal error
 **		1 -- ok
 */
 
@@ -1643,9 +1862,8 @@ static int
 tls_verify_log(ok, ctx, name)
 	int ok;
 	X509_STORE_CTX *ctx;
-	char *name;
+	const char *name;
 {
-	SSL *ssl;
 	X509 *cert;
 	int reason, depth;
 	char buf[512];
@@ -1653,17 +1871,6 @@ tls_verify_log(ok, ctx, name)
 	cert = X509_STORE_CTX_get_current_cert(ctx);
 	reason = X509_STORE_CTX_get_error(ctx);
 	depth = X509_STORE_CTX_get_error_depth(ctx);
-	ssl = (SSL *) X509_STORE_CTX_get_ex_data(ctx,
-			SSL_get_ex_data_X509_STORE_CTX_idx());
-
-	if (ssl == NULL)
-	{
-		/* internal error */
-		sm_syslog(LOG_ERR, NOQID,
-			  "STARTTLS: internal error: tls_verify_cb: ssl == NULL");
-		return 0;
-	}
-
 	X509_NAME_oneline(X509_get_subject_name(cert), buf, sizeof(buf));
 	sm_syslog(LOG_INFO, NOQID,
 		  "STARTTLS: %s cert verify: depth=%d %s, state=%d, reason=%s",
@@ -1729,10 +1936,10 @@ tlslogerr(level, who)
 	unsigned long es;
 	char *file, *data;
 	char buf[256];
-#  define CP (const char **)
 
 	es = CRYPTO_thread_id();
-	while ((l = ERR_get_error_line_data(CP &file, &line, CP &data, &flags))
+	while ((l = ERR_get_error_line_data((const char **) &file, &line,
+					    (const char **) &data, &flags))
 		!= 0)
 	{
 		sm_syslog(level, NOQID,

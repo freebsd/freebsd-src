@@ -1414,6 +1414,7 @@ vm_mmap(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 		return (EINVAL);
 
 	size = round_page(size);
+	object = NULL;
 	writecounted = FALSE;
 
 	/*

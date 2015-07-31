@@ -1161,7 +1161,7 @@ handle_pkt(
 	int		stratum;
 	char *		ref;
 	char *		ts_str;
-	char *		leaptxt;
+	const char *	leaptxt;
 	double		offset;
 	double		precision;
 	double		synch_distance;

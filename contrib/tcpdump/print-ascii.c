@@ -57,8 +57,12 @@ void
 ascii_print(netdissect_options *ndo,
             const u_char *cp, u_int length)
 {
+	u_int caplength;
 	register u_char s;
 
+	caplength = (ndo->ndo_snapend >= cp) ? ndo->ndo_snapend - cp : 0;
+	if (length > caplength)
+		length = caplength;
 	ND_PRINT((ndo, "\n"));
 	while (length > 0) {
 		s = *cp++;
@@ -89,12 +93,16 @@ void
 hex_and_ascii_print_with_offset(netdissect_options *ndo, register const char *ident,
     register const u_char *cp, register u_int length, register u_int oset)
 {
+	u_int caplength;
 	register u_int i;
 	register int s1, s2;
 	register int nshorts;
 	char hexstuff[HEXDUMP_SHORTS_PER_LINE*HEXDUMP_HEXSTUFF_PER_SHORT+1], *hsp;
 	char asciistuff[ASCII_LINELENGTH+1], *asp;
 
+	caplength = (ndo->ndo_snapend >= cp) ? ndo->ndo_snapend - cp : 0;
+	if (length > caplength)
+		length = caplength;
 	nshorts = length / sizeof(u_short);
 	i = 0;
 	hsp = hexstuff; asp = asciistuff;
@@ -147,9 +155,13 @@ hex_print_with_offset(netdissect_options *ndo,
                       const char *ident, const u_char *cp, u_int length,
 		      u_int oset)
 {
+	u_int caplength;
 	register u_int i, s;
 	register int nshorts;
 
+	caplength = (ndo->ndo_snapend >= cp) ? ndo->ndo_snapend - cp : 0;
+	if (length > caplength)
+		length = caplength;
 	nshorts = (u_int) length / sizeof(u_short);
 	i = 0;
 	while (--nshorts >= 0) {

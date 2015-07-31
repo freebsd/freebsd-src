@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2006, 2008-2010 Proofpoint, Inc. and its suppliers.
+ * Copyright (c) 1998-2006, 2008-2010, 2014 Proofpoint, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -92,6 +92,11 @@ smtpinit(m, mci, e, onlyhelo)
 		CurHostName = MyHostName;
 	SmtpNeedIntro = true;
 	state = mci->mci_state;
+#if _FFR_ERRCODE
+	e->e_rcode = 0;
+	e->e_renhsc[0] = '\0';
+	e->e_text = NULL;
+#endif /* _FFR_ERRCODE */
 	switch (state)
 	{
 	  case MCIS_MAIL:
@@ -227,10 +232,7 @@ tryhelo:
 	*/
 
 	if ((UseMSP && Verbose && bitset(MCIF_VERB, mci->mci_flags))
-# if !_FFR_DEPRECATE_MAILER_FLAG_I
-	    || bitnset(M_INTERNAL, m->m_flags)
-# endif /* !_FFR_DEPRECATE_MAILER_FLAG_I */
-	   )
+	    || bitnset(M_INTERNAL, m->m_flags))
 	{
 		/* tell it to be verbose */
 		smtpmessage("VERB", m, mci);
@@ -768,9 +770,7 @@ readauth(filename, safe, sai, rpool)
 		pid = -1;
 		sff = SFF_REGONLY|SFF_SAFEDIRPATH|SFF_NOWLINK
 		      |SFF_NOGWFILES|SFF_NOWWFILES|SFF_NOWRFILES;
-# if _FFR_GROUPREADABLEAUTHINFOFILE
 		if (!bitnset(DBS_GROUPREADABLEAUTHINFOFILE, DontBlameSendmail))
-# endif /* _FFR_GROUPREADABLEAUTHINFOFILE */
 			sff |= SFF_NOGRFILES;
 		if (DontLockReadFiles)
 			sff |= SFF_NOLOCK;
@@ -2770,7 +2770,10 @@ smtpdata(m, mci, e, ctladdr, xstart)
   writeerr:
 	mci->mci_errno = errno;
 	mci->mci_state = MCIS_ERROR;
-	mci_setstat(mci, EX_TEMPFAIL, "4.4.2", NULL);
+	mci_setstat(mci, bitset(MCIF_NOTSTICKY, mci->mci_flags)
+			 ? EX_NOTSTICKY: EX_TEMPFAIL,
+		    "4.4.2", NULL);
+	mci->mci_flags &= ~MCIF_NOTSTICKY;
 
 	/*
 	**  If putbody() couldn't finish due to a timeout,
@@ -2782,7 +2785,7 @@ smtpdata(m, mci, e, ctladdr, xstart)
 		(void) bfrewind(e->e_dfp);
 
 	errno = mci->mci_errno;
-	syserr("451 4.4.1 timeout writing message to %s", CurHostName);
+	syserr("+451 4.4.1 timeout writing message to %s", CurHostName);
 	smtpquit(m, mci, e);
 	return EX_TEMPFAIL;
 }
@@ -3085,7 +3088,7 @@ reply(m, mci, e, timeout, pfunc, enhstat, rtype)
 	*/
 
 	bufp = SmtpReplyBuffer;
-	set_tls_rd_tmo(timeout);
+	(void) set_tls_rd_tmo(timeout);
 	for (;;)
 	{
 		register char *p;
@@ -3247,6 +3250,48 @@ reply(m, mci, e, timeout, pfunc, enhstat, rtype)
 			firstline = false;
 			continue;
 		}
+#if _FFR_ERRCODE
+# if _FFR_PROXY
+		if ((e->e_rcode == 0 || REPLYTYPE(e->e_rcode) < 5)
+		    && REPLYTYPE(r) > 3 && firstline)
+# endif
+# if _FFR_LOGREPLY
+		if (REPLYTYPE(r) > 3 && firstline)
+# endif
+		{
+			int o = -1;
+# if PIPELINING
+			/*
+			**  ignore error iff: DATA, 5xy error, but we had
+			**  "retryable" recipients. XREF: smtpdata()
+			*/
+
+			if (!(rtype == XS_DATA && REPLYTYPE(r) == 5 &&
+			      mci->mci_okrcpts <= 0 && mci->mci_retryrcpt))
+# endif /* PIPELINING */
+			{
+				o = extenhsc(bufp + 4, ' ', enhstatcode);
+				if (o > 0)
+				{
+					sm_strlcpy(e->e_renhsc, enhstatcode,
+						sizeof(e->e_renhsc));
+
+					/* skip SMTP reply code, delimiters */
+					o += 5;
+				}
+				else
+					o = 4;
+				e->e_rcode = r;
+				e->e_text = sm_rpool_strdup_x(e->e_rpool,
+							      bufp + o);
+			}
+			if (tTd(87, 2))
+			{
+				sm_dprintf("user: offset=%d, bufp=%s, rcode=%d, enhstat=%s, text=%s\n",
+					o, bufp, r, e->e_renhsc, e->e_text);
+			}
+		}
+#endif /* _FFR_ERRCODE */
 
 		firstline = false;
 

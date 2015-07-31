@@ -11,7 +11,7 @@
 /*
  *  This file is part of AutoOpts, a companion to AutoGen.
  *  AutoOpts is free software.
- *  AutoOpts is Copyright (C) 1992-2014 by Bruce Korb - all rights reserved
+ *  AutoOpts is Copyright (C) 1992-2015 by Bruce Korb - all rights reserved
  *
  *  AutoOpts is available under any one of two licenses.  The license
  *  in use must be one of these two and the choice is under the control
@@ -29,6 +29,11 @@
  *  4379e7444a0e2ce2b12dd6f5a52a27a4d02d39d247901d3285c88cf0d37f477b  COPYING.lgplv3
  *  13aa749a5b0a454917a944ed8fffc530b784f5ead522b1aacaf4ec8aa55a6239  COPYING.mbsd
  */
+
+ static inline unsigned char to_uchar (char ch) { return ch; }
+
+#define UPPER(_c) (toupper(to_uchar(_c)))
+#define LOWER(_c) (tolower(to_uchar(_c)))
 
 /* = = = START-STATIC-FORWARD = = = */
 static void
@@ -101,7 +106,7 @@ fserr_exit(char const * prog, char const * op, char const * fname)
  * private:
  *
  * what:  Decipher a boolean value
- * arg:   + tOptions* + pOpts    + program options descriptor +
+ * arg:   + tOptions * + pOpts    + program options descriptor +
  *
  * doc:
  *  Emit a shell script that will parse the command line options.
@@ -396,13 +401,13 @@ emit_usage(tOptions * opts)
 
         /* Copy the program name into the time/name buffer */
         for (;;) {
-            if ((*pzPN++ = (char)tolower((unsigned char)*pz++)) == NUL)
+            if ((*pzPN++ = (char)tolower(*pz++)) == NUL)
                 break;
         }
 
-        pp  = (char **)(void *)(intptr_t)&(opts->pzProgPath);
+        pp  = VOIDP(&(opts->pzProgPath));
         *pp = tm_nm_buf;
-        pp  = (char **)(void *)(intptr_t)&(opts->pzProgName);
+        pp  = VOIDP(&(opts->pzProgName));
         *pp = tm_nm_buf;
     }
 
@@ -410,8 +415,8 @@ emit_usage(tOptions * opts)
     text_to_var(opts, TT_USAGE,     NULL);
 
     {
-        tOptDesc* pOptDesc = opts->pOptDesc;
-        int       optionCt = opts->optCt;
+        tOptDesc * pOptDesc = opts->pOptDesc;
+        int        optionCt = opts->optCt;
 
         for (;;) {
             if (pOptDesc->pOptProc == optionPrintVersion) {
@@ -601,8 +606,8 @@ emit_inaction(tOptions * opts, tOptDesc * od)
 static void
 emit_flag(tOptions * opts)
 {
-    tOptDesc* od = opts->pOptDesc;
-    int       opt_ct = opts->optCt;
+    tOptDesc * od = opts->pOptDesc;
+    int        opt_ct = opts->optCt;
 
     fputs(zOptionCase, stdout);
 
@@ -653,7 +658,7 @@ emit_match_expr(char const * name, tOptDesc * cod, tOptions * opts)
              *  They must not be the same.  They cannot be, because it would
              *  not compile correctly if they were.
              */
-            while (toupper((unsigned char)od->pz_Name[match_ct]) == toupper((unsigned char)name[match_ct]))
+            while (UPPER(od->pz_Name[match_ct]) == UPPER(name[match_ct]))
                 match_ct++;
 
             if (match_ct > min_match_ct)
@@ -666,8 +671,8 @@ emit_match_expr(char const * name, tOptDesc * cod, tOptions * opts)
                 continue;
 
             match_ct = 0;
-            while (  toupper((unsigned char)od->pz_DisableName[match_ct])
-                  == toupper((unsigned char)name[match_ct]))
+            while (  toupper(od->pz_DisableName[match_ct])
+                  == toupper(name[match_ct]))
                 match_ct++;
             if (match_ct > min_match_ct)
                 min_match_ct = match_ct;
@@ -772,7 +777,7 @@ load_old_output(char const * fname, char const * pname)
      *  Read in all the data as fast as our OS will let us.
      */
     for (;;) {
-        size_t inct = fread((void*)scan, 1, (size_t)stbf.st_size, fp);
+        size_t inct = fread(VOIDP(scan), 1, (size_t)stbf.st_size, fp);
         if (inct == 0)
             break;
 
@@ -845,8 +850,8 @@ open_out(char const * fname, char const * pname)
  * private:
  * what: The usage function for the genshellopt generated program
  *
- * arg:  + tOptions* + opts    + program options descriptor +
- * arg:  + int       + exit_cd + usage text type to produce +
+ * arg:  + tOptions * + opts    + program options descriptor +
+ * arg:  + int        + exit_cd + usage text type to produce +
  *
  * doc:
  *  This function is used to create the usage strings for the option
@@ -901,11 +906,11 @@ genshelloptUsage(tOptions * opts, int exit_cd)
      */
     {
         char *  pz;
-        char ** pp = (char **)(void *)(intptr_t)&(optionParseShellOptions->pzProgName);
+        char ** pp = VOIDP(&(optionParseShellOptions->pzProgName));
         AGDUPSTR(pz, optionParseShellOptions->pzPROGNAME, "prog name");
         *pp = pz;
         while (*pz != NUL) {
-            *pz = (char)tolower((unsigned char)*pz);
+            *pz = (char)LOWER(*pz);
             pz++;
         }
     }

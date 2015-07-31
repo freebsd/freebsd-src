@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\" "
-.Dd June 30, 2015
+.Dd July 16, 2015
 .Dt RANDOM 9
 .Os
 .Sh NAME
@@ -34,6 +34,7 @@
 .Nm arc4random ,
 .Nm random ,
 .Nm read_random ,
+.Nm read_random_uio ,
 .Nm srandom
 .Nd supply pseudo-random numbers
 .Sh SYNOPSIS
@@ -50,6 +51,8 @@
 .In sys/random.h
 .Ft int
 .Fn read_random "void *buffer" "int count"
+.Ft int
+.Fn read_random_uio "struct uio *uio" "bool nonblock"
 .Sh DESCRIPTION
 The
 .Fn random
@@ -117,11 +120,27 @@ necessary to know
 that no entropy
 has been returned.
 .Pp
+The
+.Fn read_random_uio
+function behaves identically to
+.Xr read 2
+on
+.Pa /dev/random .
+The
+.Fa uio
+argument points to a buffer where random data should be stored.
+This function only returns data if the random device is seeded.
+It blocks if unseeded,
+except when the
+.Fa nonblock
+argument is true.
+.Pp
 All the bits returned by
 .Fn random ,
-.Fn arc4rand
+.Fn arc4rand ,
+.Fn read_random ,
 and
-.Fn read_random
+.Fn read_random_uio
 are usable.
 For example,
 .Sq Li random()&01
@@ -168,6 +187,22 @@ The
 function returns
 the number of bytes placed in
 .Fa buffer .
+.Pp
+.Fn read_random_uio
+returns zero when successful,
+otherwise an error code is returned.
+.Sh ERRORS
+.Fn read_random_uio
+may fail if:
+.Bl -tag -width Er
+.It Bq Er EFAULT
+.Fa uio
+points to an invalid memory region.
+.It Bq Er EWOULDBLOCK
+The random device is unseeded and
+.Fa nonblock
+is true.
+.El
 .Sh AUTHORS
 .An Dan Moschuk
 wrote

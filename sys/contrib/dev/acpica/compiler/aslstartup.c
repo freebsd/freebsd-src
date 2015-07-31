@@ -246,6 +246,11 @@ AslDoDisassembly (
         return (Status);
     }
 
+    /* Handle additional output files for disassembler */
+
+    Gbl_FileType = ASL_INPUT_TYPE_ACPI_TABLE;
+    Status = FlOpenMiscOutputFiles (Gbl_OutputFilenamePrefix);
+
     /* This is where the disassembly happens */
 
     AcpiGbl_DbOpt_Disasm = TRUE;
@@ -260,13 +265,6 @@ AslDoDisassembly (
     /* Check if any control methods were unresolved */
 
     AcpiDmUnresolvedWarning (0);
-
-#if 0
-    /* TBD: Handle additional output files for disassembler */
-
-    Status = FlOpenMiscOutputFiles (Gbl_OutputFilenamePrefix);
-    NsDisplayNamespace ();
-#endif
 
     /* Shutdown compiler and ACPICA subsystem */
 

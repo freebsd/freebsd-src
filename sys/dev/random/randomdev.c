@@ -62,7 +62,10 @@ __FBSDID("$FreeBSD$");
 #error "Cannot define both RANDOM_DUMMY and RANDOM_YARROW"
 #endif
 
-#define	RANDOM_MINOR	0
+#define	RANDOM_UNIT	0
+
+/* Return the largest number >= x that is a multiple of m */
+#define CEIL_TO_MULTIPLE(x, m) ((((x) + (m) - 1)/(m))*(m))
 
 static d_read_t randomdev_read;
 static d_write_t randomdev_write;
@@ -107,12 +110,13 @@ dummy_random(void)
 
 struct random_algorithm random_alg_context = {
 	.ra_ident = "Dummy",
-	.ra_reseed = dummy_random,
-	.ra_seeded = (random_alg_seeded_t *)dummy_random_zero,
+	.ra_init_alg = NULL,
+	.ra_deinit_alg = NULL,
 	.ra_pre_read = dummy_random,
 	.ra_read = (random_alg_read_t *)dummy_random_zero,
-	.ra_post_read = dummy_random,
 	.ra_write = (random_alg_write_t *)dummy_random_zero,
+	.ra_reseed = dummy_random,
+	.ra_seeded = (random_alg_seeded_t *)dummy_random_zero,
 	.ra_event_processor = NULL,
 	.ra_poolcount = 0,
 };
@@ -122,6 +126,23 @@ struct random_algorithm random_alg_context = {
 LIST_HEAD(sources_head, random_sources);
 static struct sources_head source_list = LIST_HEAD_INITIALIZER(source_list);
 static u_int read_rate;
+
+static void
+random_alg_context_ra_init_alg(void *data)
+{
+
+	random_alg_context.ra_init_alg(data);
+}
+
+static void
+random_alg_context_ra_deinit_alg(void *data)
+{
+
+	random_alg_context.ra_deinit_alg(data);
+}
+
+SYSINIT(random_device, SI_SUB_RANDOM, SI_ORDER_THIRD, random_alg_context_ra_init_alg, NULL);
+SYSUNINIT(random_device, SI_SUB_RANDOM, SI_ORDER_THIRD, random_alg_context_ra_deinit_alg, NULL);
 
 #endif /* defined(RANDOM_DUMMY) */
 
@@ -134,37 +155,60 @@ static struct selinfo rsel;
 static int
 randomdev_read(struct cdev *dev __unused, struct uio *uio, int flags)
 {
+
+	return (read_random_uio(uio, (flags & O_NONBLOCK) != 0));
+}
+
+int
+read_random_uio(struct uio *uio, bool nonblock)
+{
 	uint8_t *random_buf;
-	int c, error;
-	ssize_t nbytes;
+	int error, spamcount;
+	ssize_t read_len, total_read, c;
 
 	random_buf = malloc(PAGE_SIZE, M_ENTROPY, M_WAITOK);
 	random_alg_context.ra_pre_read();
-	/* (Un)Blocking logic */
 	error = 0;
-	while (!random_alg_context.ra_seeded() && error == 0) {
-		if (flags & O_NONBLOCK)	{
+	spamcount = 0;
+	/* (Un)Blocking logic */
+	while (!random_alg_context.ra_seeded()) {
+		if (nonblock) {
 			error = EWOULDBLOCK;
 			break;
 		}
-		tsleep(&random_alg_context, 0, "randrd", hz/10);
 		/* keep tapping away at the pre-read until we seed/unblock. */
 		random_alg_context.ra_pre_read();
-		printf("random: %s unblock (error = %d)\n", __func__, error);
+		/* Only bother the console every 10 seconds or so */
+		if (spamcount == 0)
+			printf("random: %s unblock wait\n", __func__);
+		spamcount = (spamcount + 1)%100;
+		error = tsleep(&random_alg_context, PCATCH, "randseed", hz/10);
+		if (error == ERESTART || error == EINTR)
+			break;
 	}
 	if (error == 0) {
 #if !defined(RANDOM_DUMMY)
 		/* XXX: FIX!! Next line as an atomic operation? */
 		read_rate += (uio->uio_resid + sizeof(uint32_t))/sizeof(uint32_t);
 #endif
-		nbytes = uio->uio_resid;
+		total_read = 0;
 		while (uio->uio_resid && !error) {
-			c = MIN(uio->uio_resid, PAGE_SIZE);
-			random_alg_context.ra_read(random_buf, c);
+			read_len = uio->uio_resid;
+			/*
+			 * Belt-and-braces.
+			 * Round up the read length to a crypto block size multiple,
+			 * which is what the underlying generator is expecting.
+			 * See the random_buf size requirements in the Yarrow/Fortuna code.
+			 */
+			read_len = CEIL_TO_MULTIPLE(read_len, RANDOM_BLOCKSIZE);
+			/* Work in chunks page-sized or less */
+			read_len = MIN(read_len, PAGE_SIZE);
+			random_alg_context.ra_read(random_buf, read_len);
+			c = MIN(uio->uio_resid, read_len);
 			error = uiomove(random_buf, c, uio);
+			total_read += c;
 		}
-		random_alg_context.ra_post_read();
-		if (nbytes != uio->uio_resid && (error == ERESTART || error == EINTR) )
+		if (total_read != uio->uio_resid && (error == ERESTART || error == EINTR))
 			/* Return partial read, not error. */
 			error = 0;
 	}
@@ -182,7 +226,7 @@ randomdev_read(struct cdev *dev __unused, struct uio *uio, int flags)
 u_int
 read_random(void *random_buf, u_int len)
 {
-	u_int read_len, total_read, c;
+	u_int read_len;
 	uint8_t local_buf[len + RANDOM_BLOCKSIZE];
 
 	KASSERT(random_buf != NULL, ("No suitable random buffer in %s", __func__));
@@ -193,18 +237,18 @@ read_random(void *random_buf, u_int len)
 		/* XXX: FIX!! Next line as an atomic operation? */
 		read_rate += (len + sizeof(uint32_t))/sizeof(uint32_t);
 #endif
-		read_len = len;
-		total_read = 0;
-		while (read_len) {
-			c = MIN(read_len, PAGE_SIZE);
-			random_alg_context.ra_read(&local_buf[total_read], c);
-			read_len -= c;
-			total_read += c;
+		if (len > 0) {
+			/*
+			 * Belt-and-braces.
+			 * Round up the read length to a crypto block size multiple,
+			 * which is what the underlying generator is expecting.
+			 */
+			read_len = CEIL_TO_MULTIPLE(len, RANDOM_BLOCKSIZE);
+			random_alg_context.ra_read(local_buf, read_len);
+			memcpy(random_buf, local_buf, len);
 		}
-		memcpy(random_buf, local_buf, len);
 	} else
 		len = 0;
-	random_alg_context.ra_post_read();
 	return (len);
 }
 
@@ -382,7 +426,7 @@ randomdev_modevent(module_t mod __unused, int type, void *data __unused)
 	case MOD_LOAD:
 		printf("random: entropy device external interface\n");
 		random_dev = make_dev_credf(MAKEDEV_ETERNAL_KLD, &random_cdevsw,
-		    RANDOM_MINOR, NULL, UID_ROOT, GID_WHEEL, 0644, "random");
+		    RANDOM_UNIT, NULL, UID_ROOT, GID_WHEEL, 0644, "random");
 		make_dev_alias(random_dev, "urandom"); /* compatibility */
 		break;
 	case MOD_UNLOAD:

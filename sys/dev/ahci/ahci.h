@@ -427,6 +427,8 @@ struct ahci_channel {
 	int			pm_present;	/* PM presence reported */
 	int			fbs_enabled;	/* FIS-based switching enabled */
 
+	void			(*start)(struct ahci_channel *);
+
 	union ccb		*hold[AHCI_MAX_SLOTS];
 	struct ahci_slot	slot[AHCI_MAX_SLOTS];
 	uint32_t		oslots;		/* Occupied slots */
@@ -480,11 +482,15 @@ struct ahci_controller {
 	device_t		dev;
 	bus_dma_tag_t		dma_tag;
 	int			r_rid;
+	int			r_msix_tab_rid;
+	int			r_msix_pba_rid;
 	uint16_t		vendorid;	/* Vendor ID from the bus */
 	uint16_t		deviceid;	/* Device ID from the bus */
 	uint16_t		subvendorid;	/* Subvendor ID from the bus */
 	uint16_t		subdeviceid;	/* Subdevice ID from the bus */
 	struct resource		*r_mem;
+	struct resource		*r_msix_table;
+	struct resource		*r_msix_pba;
 	struct rman		sc_iomem;
 	struct ahci_controller_irq {
 		struct ahci_controller	*ctlr;
@@ -512,6 +518,7 @@ struct ahci_controller {
 		void			(*function)(void *);
 		void			*argument;
 	} interrupt[AHCI_MAX_PORTS];
+	void			(*ch_start)(struct ahci_channel *);
 };
 
 enum ahci_err_type {
@@ -597,8 +604,8 @@ enum ahci_err_type {
 	"\020SATA1_UNIT0"	\
 	"\021ABAR0"		\
 	"\0221MSI"              \
-	"\022FORCE_PI"          \
-	"\023RESTORE_CAP"
+	"\023FORCE_PI"          \
+	"\024RESTORE_CAP"
 
 int ahci_attach(device_t dev);
 int ahci_detach(device_t dev);
@@ -618,3 +625,4 @@ int ahci_child_location_str(device_t dev, device_t child, char *buf,
 bus_dma_tag_t ahci_get_dma_tag(device_t dev, device_t child);
 int ahci_ctlr_reset(device_t dev);
 int ahci_ctlr_setup(device_t dev);
+void ahci_free_mem(device_t dev);

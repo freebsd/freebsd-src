@@ -20,10 +20,10 @@ fulldirs="common compiler components include os_specific"
 stripdirs="generate libraries tests tools"
 stripfiles="Makefile README accygwin.h acdragonfly.h acdragonflyex.h	\
 	acefi.h acefiex.h achaiku.h acintel.h aclinux.h aclinuxex.h	\
-	acmacosx.h acmsvc.h acnetbsd.h acos2.h acwin.h acwin64.h	\
-	new_table.txt osbsdtbl.c osefitbl.c osefixf.c osfreebsdtbl.c	\
-	oslinuxtbl.c osunixdir.c osunixmap.c oswindir.c oswintbl.c	\
-	oswinxf.c readme.txt utclib.c"
+	acmacosx.h acmsvc.h acmsvcex.h acnetbsd.h acos2.h acwin.h	\
+	acwin64.h acwinex.h new_table.txt osbsdtbl.c osefitbl.c		\
+	osefixf.c osfreebsdtbl.c oslinuxtbl.c osunixdir.c osunixmap.c	\
+	oswindir.c oswintbl.c oswinxf.c readme.txt utclib.c"
 
 # include files to canonify
 src_headers="acapps.h acbuffer.h acclib.h accommon.h acconfig.h		\

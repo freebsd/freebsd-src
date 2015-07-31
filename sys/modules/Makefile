@@ -72,6 +72,8 @@ SUBDIR=	\
 	${_ce} \
 	${_cfi} \
 	${_ciss} \
+	cloudabi \
+	${_cloudabi64} \
 	${_cm} \
 	${_cmx} \
 	${_coff} \
@@ -147,7 +149,7 @@ SUBDIR=	\
 	${_if_me} \
 	if_lagg \
 	${_if_ndis} \
-	if_stf \
+	${_if_stf} \
 	if_tap \
 	if_tun \
 	if_vlan \
@@ -276,6 +278,7 @@ SUBDIR=	\
 	${_pfsync} \
 	plip \
 	${_pmc} \
+	${_pms} \
 	ppbus \
 	ppc \
 	ppi \
@@ -406,6 +409,11 @@ _carp=		carp
 _toecore=	toecore
 _if_gif=	if_gif
 _if_gre=	if_gre
+.endif
+
+.if (${MK_INET_SUPPORT} != "no" && ${MK_INET6_SUPPORT} != "no") || \
+	defined(ALL_MODULES)
+_if_stf=	if_stf
 .endif
 
 .if ${MK_INET_SUPPORT} != "no" || defined(ALL_MODULES)
@@ -615,11 +623,13 @@ _x86bios=	x86bios
 .endif
 
 .if ${MACHINE_CPUARCH} == "amd64"
+_cloudabi64=	cloudabi64
 _ixl=		ixl
 _ixlv=		ixlv
 _linux64=	linux64
 _linux_common=	linux_common
 _ntb=		ntb
+_pms=		pms
 _qlxge=		qlxge
 _qlxgb=		qlxgb
 _qlxgbe=	qlxgbe

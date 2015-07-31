@@ -45,16 +45,34 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/uio.h>
 #include <sys/mbuf.h>
+#include <sys/smp.h>
 #include <crypto/aesni/aesni.h>
 #include <cryptodev_if.h>
 #include <opencrypto/gmac.h>
 
+static struct mtx_padalign *ctx_mtx;
+static struct fpu_kern_ctx **ctx_fpu;
+
 struct aesni_softc {
+	int	dieing;
 	int32_t cid;
 	uint32_t sid;
 	TAILQ_HEAD(aesni_sessions_head, aesni_session) sessions;
 	struct rwlock lock;
 };
+
+#define AQUIRE_CTX(i, ctx)					\
+	do {							\
+		(i) = PCPU_GET(cpuid);				\
+		mtx_lock(&ctx_mtx[(i)]);			\
+		(ctx) = ctx_fpu[(i)];				\
+	} while (0)
+#define RELEASE_CTX(i, ctx)					\
+	do {							\
+		mtx_unlock(&ctx_mtx[(i)]);			\
+		(i) = -1;					\
+		(ctx) = NULL;					\
+	} while (0)
 
 static int aesni_newsession(device_t, uint32_t *sidp, struct cryptoini *cri);
 static int aesni_freesession(device_t, uint64_t tid);
@@ -95,19 +113,51 @@ aesni_probe(device_t dev)
 	return (0);
 }
 
+static void
+aensi_cleanctx(void)
+{
+	int i;
+
+	/* XXX - no way to return driverid */
+	CPU_FOREACH(i) {
+		if (ctx_fpu[i] != NULL) {
+			mtx_destroy(&ctx_mtx[i]);
+			fpu_kern_free_ctx(ctx_fpu[i]);
+		}
+		ctx_fpu[i] = NULL;
+	}
+	free(ctx_mtx, M_AESNI);
+	ctx_mtx = NULL;
+	free(ctx_fpu, M_AESNI);
+	ctx_fpu = NULL;
+}
+
 static int
 aesni_attach(device_t dev)
 {
 	struct aesni_softc *sc;
+	int i;
 
 	sc = device_get_softc(dev);
+	sc->dieing = 0;
 	TAILQ_INIT(&sc->sessions);
 	sc->sid = 1;
+
 	sc->cid = crypto_get_driverid(dev, CRYPTOCAP_F_HARDWARE |
 	    CRYPTOCAP_F_SYNC);
 	if (sc->cid < 0) {
 		device_printf(dev, "Could not get crypto driver id.\n");
 		return (ENOMEM);
+	}
+
+	ctx_mtx = malloc(sizeof *ctx_mtx * (mp_maxid + 1), M_AESNI,
+	    M_WAITOK|M_ZERO);
+	ctx_fpu = malloc(sizeof *ctx_fpu * (mp_maxid + 1), M_AESNI,
+	    M_WAITOK|M_ZERO);
+
+	CPU_FOREACH(i) {
+		ctx_fpu[i] = fpu_kern_alloc_ctx(0);
+		mtx_init(&ctx_mtx[i], "anifpumtx", NULL, MTX_DEF|MTX_NEW);
 	}
 
 	rw_init(&sc->lock, "aesni_lock");
@@ -128,6 +178,7 @@ aesni_detach(device_t dev)
 	struct aesni_session *ses;
 
 	sc = device_get_softc(dev);
+
 	rw_wlock(&sc->lock);
 	TAILQ_FOREACH(ses, &sc->sessions, next) {
 		if (ses->used) {
@@ -137,14 +188,18 @@ aesni_detach(device_t dev)
 			return (EBUSY);
 		}
 	}
+	sc->dieing = 1;
 	while ((ses = TAILQ_FIRST(&sc->sessions)) != NULL) {
 		TAILQ_REMOVE(&sc->sessions, ses, next);
-		fpu_kern_free_ctx(ses->fpu_ctx);
 		free(ses, M_AESNI);
 	}
 	rw_wunlock(&sc->lock);
-	rw_destroy(&sc->lock);
 	crypto_unregister_all(sc->cid);
+
+	rw_destroy(&sc->lock);
+
+	aensi_cleanctx();
+
 	return (0);
 }
 
@@ -162,6 +217,9 @@ aesni_newsession(device_t dev, uint32_t *sidp, struct cryptoini *cri)
 	}
 
 	sc = device_get_softc(dev);
+	if (sc->dieing)
+		return (EINVAL);
+
 	ses = NULL;
 	encini = NULL;
 	for (; cri != NULL; cri = cri->cri_next) {
@@ -195,6 +253,10 @@ aesni_newsession(device_t dev, uint32_t *sidp, struct cryptoini *cri)
 	}
 
 	rw_wlock(&sc->lock);
+	if (sc->dieing) {
+		rw_wunlock(&sc->lock);
+		return (EINVAL);
+	}
 	/*
 	 * Free sessions goes first, so if first session is used, we need to
 	 * allocate one.
@@ -203,13 +265,6 @@ aesni_newsession(device_t dev, uint32_t *sidp, struct cryptoini *cri)
 	if (ses == NULL || ses->used) {
 		ses = malloc(sizeof(*ses), M_AESNI, M_NOWAIT | M_ZERO);
 		if (ses == NULL) {
-			rw_wunlock(&sc->lock);
-			return (ENOMEM);
-		}
-		ses->fpu_ctx = fpu_kern_alloc_ctx(FPU_KERN_NORMAL |
-		    FPU_KERN_NOWAIT);
-		if (ses->fpu_ctx == NULL) {
-			free(ses, M_AESNI);
 			rw_wunlock(&sc->lock);
 			return (ENOMEM);
 		}
@@ -238,15 +293,14 @@ aesni_newsession(device_t dev, uint32_t *sidp, struct cryptoini *cri)
 static void
 aesni_freesession_locked(struct aesni_softc *sc, struct aesni_session *ses)
 {
-	struct fpu_kern_ctx *ctx;
 	uint32_t sid;
+
+	rw_assert(&sc->lock, RA_WLOCKED);
 
 	sid = ses->id;
 	TAILQ_REMOVE(&sc->sessions, ses, next);
-	ctx = ses->fpu_ctx;
 	*ses = (struct aesni_session){};
 	ses->id = sid;
-	ses->fpu_ctx = ctx;
 	TAILQ_INSERT_HEAD(&sc->sessions, ses, next);
 }
 
@@ -430,17 +484,27 @@ MODULE_DEPEND(aesni, crypto, 1, 1, 1);
 static int
 aesni_cipher_setup(struct aesni_session *ses, struct cryptoini *encini)
 {
-	struct thread *td;
+	struct fpu_kern_ctx *ctx;
 	int error;
+	int kt, ctxidx;
 
-	td = curthread;
-	error = fpu_kern_enter(td, ses->fpu_ctx, FPU_KERN_NORMAL |
-	    FPU_KERN_KTHR);
-	if (error != 0)
-		return (error);
+	kt = is_fpu_kern_thread(0);
+	if (!kt) {
+		AQUIRE_CTX(ctxidx, ctx);
+		error = fpu_kern_enter(curthread, ctx,
+		    FPU_KERN_NORMAL | FPU_KERN_KTHR);
+		if (error != 0)
+			goto out;
+	}
+
 	error = aesni_cipher_setup_common(ses, encini->cri_key,
 	    encini->cri_klen);
-	fpu_kern_leave(td, ses->fpu_ctx);
+
+	if (!kt) {
+		fpu_kern_leave(curthread, ctx);
+out:
+		RELEASE_CTX(ctxidx, ctx);
+	}
 	return (error);
 }
 
@@ -451,11 +515,13 @@ static int
 aesni_cipher_process(struct aesni_session *ses, struct cryptodesc *enccrd,
     struct cryptodesc *authcrd, struct cryptop *crp)
 {
+	struct fpu_kern_ctx *ctx;
+	uint8_t iv[AES_BLOCK_LEN];
 	uint8_t tag[GMAC_DIGEST_LEN];
-	struct thread *td;
 	uint8_t *buf, *authbuf;
 	int error, allocated, authallocated;
 	int ivlen, encflag;
+	int kt, ctxidx;
 
 	encflag = (enccrd->crd_flags & CRD_F_ENCRYPT) == CRD_F_ENCRYPT;
 
@@ -478,11 +544,14 @@ aesni_cipher_process(struct aesni_session *ses, struct cryptodesc *enccrd,
 		}
 	}
 
-	td = curthread;
-	error = fpu_kern_enter(td, ses->fpu_ctx, FPU_KERN_NORMAL |
-	    FPU_KERN_KTHR);
-	if (error != 0)
-		goto out1;
+	kt = is_fpu_kern_thread(0);
+	if (!kt) {
+		AQUIRE_CTX(ctxidx, ctx);
+		error = fpu_kern_enter(curthread, ctx,
+		    FPU_KERN_NORMAL|FPU_KERN_KTHR);
+		if (error != 0)
+			goto out2;
+	}
 
 	if ((enccrd->crd_flags & CRD_F_KEY_EXPLICIT) != 0) {
 		error = aesni_cipher_setup_common(ses, enccrd->crd_key,
@@ -505,15 +574,23 @@ aesni_cipher_process(struct aesni_session *ses, struct cryptodesc *enccrd,
 		break;
 	}
 
-	/* Setup ses->iv */
-	bzero(ses->iv, sizeof ses->iv);
-	if ((enccrd->crd_flags & CRD_F_IV_EXPLICIT) != 0)
-		bcopy(enccrd->crd_iv, ses->iv, ivlen);
-	else if (encflag && ((enccrd->crd_flags & CRD_F_IV_PRESENT) != 0))
-		arc4rand(ses->iv, ivlen, 0);
-	else
-		crypto_copydata(crp->crp_flags, crp->crp_buf,
-		    enccrd->crd_inject, ivlen, ses->iv);
+	/* Setup iv */
+	if (encflag) {
+		if ((enccrd->crd_flags & CRD_F_IV_EXPLICIT) != 0)
+			bcopy(enccrd->crd_iv, iv, ivlen);
+		else
+			arc4rand(iv, ivlen, 0);
+		
+		if ((enccrd->crd_flags & CRD_F_IV_PRESENT) == 0)
+			crypto_copyback(crp->crp_flags, crp->crp_buf,
+			    enccrd->crd_inject, ivlen, iv);
+	} else {
+		if ((enccrd->crd_flags & CRD_F_IV_EXPLICIT) != 0)
+			bcopy(enccrd->crd_iv, iv, ivlen);
+		else
+			crypto_copydata(crp->crp_flags, crp->crp_buf,
+			    enccrd->crd_inject, ivlen, iv);
+	}
 
 	if (authcrd != NULL && !encflag)
 		crypto_copydata(crp->crp_flags, crp->crp_buf,
@@ -526,33 +603,33 @@ aesni_cipher_process(struct aesni_session *ses, struct cryptodesc *enccrd,
 	case CRYPTO_AES_CBC:
 		if (encflag)
 			aesni_encrypt_cbc(ses->rounds, ses->enc_schedule,
-			    enccrd->crd_len, buf, buf, ses->iv);
+			    enccrd->crd_len, buf, buf, iv);
 		else
 			aesni_decrypt_cbc(ses->rounds, ses->dec_schedule,
-			    enccrd->crd_len, buf, ses->iv);
+			    enccrd->crd_len, buf, iv);
 		break;
 	case CRYPTO_AES_ICM:
 		/* encryption & decryption are the same */
 		aesni_encrypt_icm(ses->rounds, ses->enc_schedule,
-		    enccrd->crd_len, buf, buf, ses->iv);
+		    enccrd->crd_len, buf, buf, iv);
 		break;
 	case CRYPTO_AES_XTS:
 		if (encflag)
 			aesni_encrypt_xts(ses->rounds, ses->enc_schedule,
 			    ses->xts_schedule, enccrd->crd_len, buf, buf,
-			    ses->iv);
+			    iv);
 		else
 			aesni_decrypt_xts(ses->rounds, ses->dec_schedule,
 			    ses->xts_schedule, enccrd->crd_len, buf, buf,
-			    ses->iv);
+			    iv);
 		break;
 	case CRYPTO_AES_NIST_GCM_16:
 		if (encflag)
-			AES_GCM_encrypt(buf, buf, authbuf, ses->iv, tag,
+			AES_GCM_encrypt(buf, buf, authbuf, iv, tag,
 			    enccrd->crd_len, authcrd->crd_len, ivlen,
 			    ses->enc_schedule, ses->rounds);
 		else {
-			if (!AES_GCM_decrypt(buf, buf, authbuf, ses->iv, tag,
+			if (!AES_GCM_decrypt(buf, buf, authbuf, iv, tag,
 			    enccrd->crd_len, authcrd->crd_len, ivlen,
 			    ses->enc_schedule, ses->rounds))
 				error = EBADMSG;
@@ -564,20 +641,18 @@ aesni_cipher_process(struct aesni_session *ses, struct cryptodesc *enccrd,
 		crypto_copyback(crp->crp_flags, crp->crp_buf, enccrd->crd_skip,
 		    enccrd->crd_len, buf);
 
-	/*
-	 * OpenBSD doesn't copy this back.  This primes the IV for the next
-	 * chain.  Why do we not do it for decrypt?
-	 */
-	if (encflag && enccrd->crd_alg == CRYPTO_AES_CBC)
-		bcopy(buf + enccrd->crd_len - AES_BLOCK_LEN, ses->iv, AES_BLOCK_LEN);
-
 	if (!error && authcrd != NULL) {
 		crypto_copyback(crp->crp_flags, crp->crp_buf,
 		    authcrd->crd_inject, GMAC_DIGEST_LEN, tag);
 	}
 
 out:
-	fpu_kern_leave(td, ses->fpu_ctx);
+	if (!kt) {
+		fpu_kern_leave(curthread, ctx);
+out2:
+		RELEASE_CTX(ctxidx, ctx);
+	}
+
 out1:
 	if (allocated) {
 		bzero(buf, enccrd->crd_len);

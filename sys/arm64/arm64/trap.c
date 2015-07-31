@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_map.h>
+#include <vm/vm_param.h>
 #include <vm/vm_extern.h>
 
 #include <machine/frame.h>
@@ -79,13 +80,14 @@ void do_el0_error(struct trapframe *);
 int (*dtrace_invop_jump_addr)(struct trapframe *);
 
 static __inline void
-call_trapsignal(struct thread *td, int sig, u_long code)
+call_trapsignal(struct thread *td, int sig, int code, void *addr)
 {
 	ksiginfo_t ksi;
 
 	ksiginfo_init_trap(&ksi);
 	ksi.ksi_signo = sig;
-	ksi.ksi_code = (int)code;
+	ksi.ksi_code = code;
+	ksi.ksi_addr = addr;
 	trapsignal(td, &ksi);
 }
 
@@ -117,7 +119,7 @@ cpu_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
 	sa->narg = sa->callp->sy_narg;
 	memcpy(sa->args, ap, nap * sizeof(register_t));
 	if (sa->narg > nap)
-		panic("TODO: Could we have more then 8 args?");
+		panic("ARM64TODO: Could we have more then 8 args?");
 
 	td->td_retval[0] = 0;
 	td->td_retval[1] = 0;
@@ -151,7 +153,7 @@ data_abort(struct trapframe *frame, uint64_t esr, int lower)
 	vm_prot_t ftype;
 	vm_offset_t va;
 	uint64_t far;
-	int error, sig;
+	int error, sig, ucode;
 
 	td = curthread;
 	pcb = td->td_pcb;
@@ -204,13 +206,14 @@ data_abort(struct trapframe *frame, uint64_t esr, int lower)
 		error = vm_fault(map, va, ftype, VM_FAULT_NORMAL);
 	}
 
-	if (error != 0) {
+	if (error != KERN_SUCCESS) {
 		if (lower) {
-			if (error == ENOMEM)
-				sig = SIGKILL;
+			sig = SIGSEGV;
+			if (error == KERN_PROTECTION_FAILURE)
+				ucode = SEGV_ACCERR;
 			else
-				sig = SIGSEGV;
-			call_trapsignal(td, sig, 0);
+				ucode = SEGV_MAPERR;
+			call_trapsignal(td, sig, ucode, (void *)far);
 		} else {
 			if (td->td_intr_nesting_level == 0 &&
 			    pcb->pcb_onfault != 0) {
@@ -255,6 +258,10 @@ do_el1h_sync(struct trapframe *frame)
 	    (exception == EXCP_DATA_ABORT && ((esr & ISS_DATA_ISV) == 0)),
 	    ("Invalid instruction length in exception"));
 
+	CTR4(KTR_TRAP,
+	    "do_el1_sync: curthread: %p, esr %lx, elr: %lx, frame: %p",
+	    curthread, esr, frame->tf_elr, frame);
+
 	switch(exception) {
 	case EXCP_FP_SIMD:
 	case EXCP_TRAP_FP:
@@ -298,6 +305,10 @@ do_el0_sync(struct trapframe *frame)
 	esr = READ_SPECIALREG(esr_el1);
 	exception = ESR_ELx_EXCEPTION(esr);
 
+	CTR4(KTR_TRAP,
+	    "do_el0_sync: curthread: %p, esr %lx, elr: %lx, frame: %p",
+	    curthread, esr, frame->tf_elr, frame);
+
 	switch(exception) {
 	case EXCP_FP_SIMD:
 	case EXCP_TRAP_FP:
@@ -308,6 +319,12 @@ do_el0_sync(struct trapframe *frame)
 #endif
 		break;
 	case EXCP_SVC:
+		/*
+		 * Ensure the svc_handler is being run with interrupts enabled.
+		 * They will be automatically restored when returning from
+		 * exception handler.
+		 */
+		intr_enable();
 		svc_handler(frame);
 		break;
 	case EXCP_INSN_ABORT_L:
@@ -324,6 +341,6 @@ void
 do_el0_error(struct trapframe *frame)
 {
 
-	panic("do_el0_error");
+	panic("ARM64TODO: do_el0_error");
 }
 

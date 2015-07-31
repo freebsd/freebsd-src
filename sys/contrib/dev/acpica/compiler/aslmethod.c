@@ -255,7 +255,7 @@ MtMethodAnalysisWalkBegin (
             return (AE_ERROR);
         }
 
-        RegisterNumber = (Op->Asl.AmlOpcode & 0x000F);
+        RegisterNumber = (Op->Asl.AmlOpcode & 0x0007);
 
         /*
          * If the local is being used as a target, mark the local

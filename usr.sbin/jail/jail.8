@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 25, 2015
+.Dd July 20, 2015
 .Dt JAIL 8
 .Os
 .Sh NAME
@@ -563,6 +563,22 @@ This permission is effective only together with
 and only when
 .Va enforce_statfs
 is set to a value lower than 2.
+.It Va allow.mount.linprocfs
+privileged users inside the jail will be able to mount and unmount the
+linprocfs file system.
+This permission is effective only together with
+.Va allow.mount
+and only when
+.Va enforce_statfs
+is set to a value lower than 2.
+.It Va allow.mount.linsysfs
+privileged users inside the jail will be able to mount and unmount the
+linsysfs file system.
+This permission is effective only together with
+.Va allow.mount
+and only when
+.Va enforce_statfs
+is set to a value lower than 2.
 .It Va allow.mount.tmpfs
 privileged users inside the jail will be able to mount and unmount the
 tmpfs file system.
@@ -604,7 +620,7 @@ The
 command parameters are
 .Xr sh 1
 command lines that are run in either the system or jail environment.
-They may be given multiple values, which run would the specified
+They may be given multiple values, which would run the specified
 commands in sequence.
 All commands must succeed (return a zero exit status), or the jail will
 not be created or removed, as appropriate.
@@ -1209,6 +1225,8 @@ environment of the first jail.
 .Xr devfs 5 ,
 .Xr fdescfs 5 ,
 .Xr jail.conf 5 ,
+.Xr linprocfs 5 ,
+.Xr linsysfs 5 ,
 .Xr procfs 5 ,
 .Xr rc.conf 5 ,
 .Xr sysctl.conf 5 ,

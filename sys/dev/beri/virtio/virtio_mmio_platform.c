@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2014 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2014-2015 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -70,6 +70,7 @@ static void platform_intr(void *arg);
 
 struct virtio_mmio_platform_softc {
 	struct resource		*res[1];
+	void			*ih;
 	bus_space_tag_t		bst;
 	bus_space_handle_t	bsh;
 	device_t		dev;
@@ -77,6 +78,7 @@ struct virtio_mmio_platform_softc {
 	void			*ih_user;
 	device_t		pio_recv;
 	device_t		pio_send;
+	int			use_pio;
 };
 
 static int
@@ -131,11 +133,11 @@ virtio_mmio_platform_attach(device_t dev)
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
+	sc->use_pio = 1;
 
-	if (setup_pio(sc, "pio-send", &sc->pio_send) != 0)
-		return (ENXIO);
-	if (setup_pio(sc, "pio-recv", &sc->pio_recv) != 0)
-		return (ENXIO);
+	if ((setup_pio(sc, "pio-send", &sc->pio_send) != 0) ||
+	    (setup_pio(sc, "pio-recv", &sc->pio_recv) != 0))
+		sc->use_pio = 0;
 
 	if ((node = ofw_bus_get_node(sc->dev)) == -1)
 		return (ENXIO);
@@ -144,6 +146,24 @@ virtio_mmio_platform_attach(device_t dev)
 	fic->iph = node;
 	fic->dev = dev;
 	SLIST_INSERT_HEAD(&fdt_ic_list_head, fic, fdt_ics);
+
+	return (0);
+}
+
+static int
+platform_prewrite(device_t dev, size_t offset, int val)
+{
+	struct virtio_mmio_platform_softc *sc;
+
+	sc = device_get_softc(dev);
+
+	switch (offset) {
+	case (VIRTIO_MMIO_QUEUE_NOTIFY):
+		mips_dcache_wbinv_all();
+		break;
+	default:
+		break;
+	}
 
 	return (0);
 }
@@ -158,24 +178,29 @@ platform_note(device_t dev, size_t offset, int val)
 	sc = device_get_softc(dev);
 
 	switch (offset) {
-		case (VIRTIO_MMIO_QUEUE_NOTIFY):
-			if (val == 0)
-				note = Q_NOTIFY;
-			else if (val == 1)
-				note = Q_NOTIFY1;
-			break;
-		case (VIRTIO_MMIO_QUEUE_PFN):
-			note = Q_PFN;
-			break;
-		case (VIRTIO_MMIO_QUEUE_SEL):
-			note = Q_SEL;
-			break;
-		default:
+	case (VIRTIO_MMIO_QUEUE_NOTIFY):
+		if (val == 0)
+			note = Q_NOTIFY;
+		else if (val == 1)
+			note = Q_NOTIFY1;
+		else
 			note = 0;
+		break;
+	case (VIRTIO_MMIO_QUEUE_PFN):
+		note = Q_PFN;
+		break;
+	case (VIRTIO_MMIO_QUEUE_SEL):
+		note = Q_SEL;
+		break;
+	default:
+		note = 0;
 	}
 
 	if (note) {
 		mips_dcache_wbinv_all();
+
+		if (!sc->use_pio)
+			return (0);
 
 		PIO_SET(sc->pio_send, note, 1);
 
@@ -205,11 +230,13 @@ platform_intr(void *arg)
 
 	sc = arg;
 
-	/* Read pending */
-	reg = PIO_READ(sc->pio_recv);
+	if (sc->use_pio) {
+		/* Read pending */
+		reg = PIO_READ(sc->pio_recv);
 
-	/* Ack */
-	PIO_SET(sc->pio_recv, reg, 0);
+		/* Ack */
+		PIO_SET(sc->pio_recv, reg, 0);
+	}
 
 	/* Writeback, invalidate cache */
 	mips_dcache_wbinv_all();
@@ -223,13 +250,31 @@ platform_setup_intr(device_t dev, device_t mmio_dev,
 			void *intr_handler, void *ih_user)
 {
 	struct virtio_mmio_platform_softc *sc;
+	int rid;
 
 	sc = device_get_softc(dev);
 
 	sc->intr_handler = intr_handler;
 	sc->ih_user = ih_user;
 
-	PIO_SETUP_IRQ(sc->pio_recv, platform_intr, sc);
+	if (sc->use_pio) {
+		PIO_SETUP_IRQ(sc->pio_recv, platform_intr, sc);
+		return (0);
+	}
+
+	rid = 0;
+	sc->res[0] = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
+		RF_ACTIVE);
+	if (!sc->res[0]) {
+		device_printf(dev, "Can't allocate interrupt\n");
+		return (ENXIO);
+	}
+
+	if (bus_setup_intr(dev, sc->res[0], INTR_TYPE_MISC | INTR_MPSAFE,
+		NULL, platform_intr, sc, &sc->ih)) {
+		device_printf(dev, "Can't setup the interrupt\n");
+		return (ENXIO);
+	}
 
 	return (0);
 }
@@ -248,6 +293,7 @@ static device_method_t virtio_mmio_platform_methods[] = {
 	DEVMETHOD(device_attach,	virtio_mmio_platform_attach),
 
 	/* virtio_mmio_if.h */
+	DEVMETHOD(virtio_mmio_prewrite,		platform_prewrite),
 	DEVMETHOD(virtio_mmio_note,		platform_note),
 	DEVMETHOD(virtio_mmio_poll,		platform_poll),
 	DEVMETHOD(virtio_mmio_setup_intr,	platform_setup_intr),

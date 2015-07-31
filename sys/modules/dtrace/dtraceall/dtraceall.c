@@ -76,7 +76,6 @@ MODULE_DEPEND(dtraceall, fbt, 1, 1, 1);
 #if defined(__amd64__) || defined(__i386__)
 MODULE_DEPEND(dtraceall, fasttrap, 1, 1, 1);
 #endif
-MODULE_DEPEND(dtraceall, lockstat, 1, 1, 1);
 MODULE_DEPEND(dtraceall, sdt, 1, 1, 1);
 MODULE_DEPEND(dtraceall, systrace, 1, 1, 1);
 #if defined(COMPAT_FREEBSD32)

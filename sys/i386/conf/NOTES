@@ -22,7 +22,6 @@ options 	KDTRACE_HOOKS
 #device		dtrace
 
 # DTrace modules
-#device		dtrace_lockstat
 #device		dtrace_profile
 #device		dtrace_sdt
 #device		dtrace_fbt
@@ -790,6 +789,9 @@ options 	ISCI_LOGGING	# enable debugging in isci HAL
 device         nvme    # base NVMe driver
 device         nvd     # expose NVMe namespaces as disks, depends on nvme
 
+#
+# PMC-Sierra SAS/SATA controller
+device		pmspcv
 #
 # SafeNet crypto driver: can be moved to the MI NOTES as soon as
 # it's tested on a big-endian machine

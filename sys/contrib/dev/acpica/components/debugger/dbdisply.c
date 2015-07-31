@@ -49,7 +49,6 @@
 #include <contrib/dev/acpica/include/acparser.h>
 #include <contrib/dev/acpica/include/acinterp.h>
 #include <contrib/dev/acpica/include/acdebug.h>
-#include <contrib/dev/acpica/include/acdisasm.h>
 
 
 #ifdef ACPI_DEBUGGER
@@ -513,7 +512,7 @@ AcpiDbDisplayLocals (
         return;
     }
 
-    AcpiDmDisplayLocals (WalkState);
+    AcpiDbDecodeLocals (WalkState);
 }
 
 
@@ -543,7 +542,7 @@ AcpiDbDisplayArguments (
         return;
     }
 
-    AcpiDmDisplayArguments (WalkState);
+    AcpiDbDecodeArguments (WalkState);
 }
 
 
@@ -599,7 +598,7 @@ AcpiDbDisplayResults (
     {
         ObjDesc = Frame->Results.ObjDesc[Index];
         AcpiOsPrintf ("Result%u: ", i);
-        AcpiDmDisplayInternalObject (ObjDesc, WalkState);
+        AcpiDbDisplayInternalObject (ObjDesc, WalkState);
         if (Index == 0)
         {
             Frame = Frame->Results.Next;
@@ -763,7 +762,7 @@ AcpiDbDisplayResultObject (
     }
 
     AcpiOsPrintf ("ResultObj: ");
-    AcpiDmDisplayInternalObject (ObjDesc, WalkState);
+    AcpiDbDisplayInternalObject (ObjDesc, WalkState);
     AcpiOsPrintf ("\n");
 }
 
@@ -793,7 +792,7 @@ AcpiDbDisplayArgumentObject (
     }
 
     AcpiOsPrintf ("ArgObj:    ");
-    AcpiDmDisplayInternalObject (ObjDesc, WalkState);
+    AcpiDbDisplayInternalObject (ObjDesc, WalkState);
 }
 
 

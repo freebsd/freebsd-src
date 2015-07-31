@@ -1,5 +1,5 @@
 .\"
-.\" Copyright (c) 2014 Marcel Moolenaar
+.\" Copyright (c) 2014, 2015 Marcel Moolenaar
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -25,13 +25,13 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 29, 2014
+.Dd July 19, 2015
 .Dt PROTO 4
 .Os
 .\"
 .Sh NAME
 .Nm proto
-.Nd Driver for prototyping and H/W diagnostics
+.Nd Generic prototyping and diagnostics driver
 .\"
 .Sh SYNOPSIS
 To compile this driver into the kernel,
@@ -47,13 +47,19 @@ module at boot time, place the following line in
 .Bd -literal -offset indent
 proto_load="YES"
 .Ed
+.Pp
+To have the driver attach to a device instead of its regular driver,
+mention it in the list of devices assigned to the following loader variable:
+.Bd -ragged -offset indent
+hw.proto.attach="desc[,desc]"
+.Ed
 .\"
 .Sh DESCRIPTION
 The
 .Nm
-device driver attaches to PCI devices when no other device drivers are
-present and creates device special files for all resources associated
-with the device.
+device driver attaches to PCI or ISA devices when no other device drivers
+are present for those devices and it creates device special files for all
+resources associated with the device.
 The driver itself has no knowledge of the device it attaches to.
 Programs can open these device special files and perform register-level
 reads and writes.
@@ -75,9 +81,9 @@ All device special files corresponding to a PCI device are located under
 with
 .Pa pci<d>:<b>:<s>:<f>
 representing the location of the PCI device in the PCI hierarchy.
-A location includes:
+A PCI location includes:
 .Pp
-.Bl -tag -width XXXXXX -compact
+.Bl -tag -width XXXXXX -compact -offset indent
 .It <d>
 The PCI domain number
 .It <b>
@@ -91,6 +97,10 @@ The PCI function number
 Every PCI device has a device special file called
 .Pa pcicfg .
 This device special file gives access to the PCI configuration space.
+A device special file called
+.Pa busdma
+is also created.
+This device special file provides the interfaces needed for doing DMA.
 For each valid base address register (BAR), a device special file is created
 that contains the BAR offset and the resource type.
 A resource type can be either
@@ -98,14 +108,48 @@ A resource type can be either
 or
 .Pa mem
 representing I/O port or memory mapped I/O space (resp.)
+.Pp
+ISA devices do not have a location. Instead, they are identified by the
+first I/O port address or first memory mapped I/O address.
+Consequently, all device special files corresponding to an ISA device are
+located under
+.Pa /dev/proto/isa:<addr>
+with
+.Pa addr
+the address in hexadecimal notation.
+For each I/O port or memory mapped I/O address, a device special file is
+created that contains the resource identification used by the kernel and
+the resource type.
+The resource type can be either
+.Pa io
+or
+.Pa mem
+representing I/O port or memory mapped I/O space (resp.)
+When the device has a DMA channel assigned to it, a device special file
+with the name
+.Pa busdma
+is created as well.
+This device special file provides the interfaces needed for doing DMA.
+.Pp
+If the ISA device is not a Plug-and-Play device nor present in the ACPI
+device tree, it must have the appropriate hints so that the kernel can
+reserve the resources for it.
 .\"
 .Sh EXAMPLES
 A single function PCI device in domain 0, on bus 1, in slot 2 and having a
 single memory mapped I/O region will have the following device special files:
 .Pp
-.Bl -tag -width XXXXXX -compact
+.Bl -tag -width XXXXXX -compact -offset indent
 .It Pa /dev/proto/pci0:1:2:0/10.mem
 .It Pa /dev/proto/pci0:1:2:0/pcicfg
+.El
+.Pp
+A legacy floppy controller will have the following device files:
+.Pp
+.Bl -tag -width XXXXXX -compact -offset indent
+.It Pa /dev/proto/isa:0x3f0/00.io
+.It Pa /dev/proto/isa:0x3f0/01.io
+.It Pa /dev/proto/isa:0x3f0/busdma
 .El
 .\"
 .Sh AUTHORS
@@ -123,13 +167,12 @@ It is not advisable to use this driver on a production machine.
 The
 .Nm
 driver does not yet support interrupts.
-Since interrupts cannot be handled by the driver itself, they must be converted
-into signals and delivered to the program that has registered for interrupts.
+Since interrupts cannot be handled by the driver itself, they must be
+converted into signals and delivered to the program that has registered
+for interrupts.
+A satisfactory mechanism for keeping the interrupt masked during the
+signal handling is still being worked out.
 .Pp
-In order to test the transmission or reception of data, some means of doing
-direct memory access (DMA) by the device must be possible.
-This too must be under the control of the program.
-The details of how a program can set up and
-initiate DMA still need to be fleshed out.
-.Pp
-Support for non-PCI devices has not been implemented yet.
+DMA support for devices other than busmaster devices is not present yet.
+The details of how a program is to interact with the DMA controller still
+need to be fleshed out.
