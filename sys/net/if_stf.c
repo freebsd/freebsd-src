@@ -272,10 +272,7 @@ stf_clone_destroy(struct if_clone *ifc, struct ifnet *ifp)
 }
 
 static int
-stfmodevent(mod, type, data)
-	module_t mod;
-	int type;
-	void *data;
+stfmodevent(module_t mod, int type, void *data)
 {
 
 	switch (type) {
@@ -302,11 +299,7 @@ static moduledata_t stf_mod = {
 DECLARE_MODULE(if_stf, stf_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
 
 static int
-stf_encapcheck(m, off, proto, arg)
-	const struct mbuf *m;
-	int off;
-	int proto;
-	void *arg;
+stf_encapcheck(const struct mbuf *m, int off, int proto, void *arg)
 {
 	struct ip ip;
 	struct stf_softc *sc;
@@ -401,7 +394,7 @@ stf_getsrcifa6(struct ifnet *ifp, struct in6_addr *addr, struct in6_addr *mask)
 
 static int
 stf_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
-	struct route *ro)
+    struct route *ro)
 {
 	struct stf_softc *sc;
 	const struct sockaddr_in6 *dst6;
@@ -507,8 +500,7 @@ stf_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 }
 
 static int
-isrfc1918addr(in)
-	struct in_addr *in;
+isrfc1918addr(struct in_addr *in)
 {
 	/*
 	 * returns 1 if private address range:
@@ -524,10 +516,7 @@ isrfc1918addr(in)
 }
 
 static int
-stf_checkaddr4(sc, in, inifp)
-	struct stf_softc *sc;
-	struct in_addr *in;
-	struct ifnet *inifp;	/* incoming interface */
+stf_checkaddr4(struct stf_softc *sc, struct in_addr *in, struct ifnet *inifp)
 {
 	struct rm_priotracker in_ifa_tracker;
 	struct in_ifaddr *ia4;
@@ -594,10 +583,7 @@ stf_checkaddr4(sc, in, inifp)
 }
 
 static int
-stf_checkaddr6(sc, in6, inifp)
-	struct stf_softc *sc;
-	struct in6_addr *in6;
-	struct ifnet *inifp;	/* incoming interface */
+stf_checkaddr6(struct stf_softc *sc, struct in6_addr *in6, struct ifnet *inifp)
 {
 	/*
 	 * check 6to4 addresses
@@ -720,10 +706,7 @@ in_stf_input(struct mbuf **mp, int *offp, int proto)
 }
 
 static int
-stf_ioctl(ifp, cmd, data)
-	struct ifnet *ifp;
-	u_long cmd;
-	caddr_t data;
+stf_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
 	struct ifaddr *ifa;
 	struct ifreq *ifr;
