@@ -46,6 +46,7 @@
 #include <machine/regnum.h>
 #include <machine/sysarch.h>
 
+#include <assert.h>
 #include <errno.h>
 #include <inttypes.h>
 #include <string.h>

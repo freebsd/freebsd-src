@@ -44,6 +44,7 @@
 #include <machine/cheri.h>
 #include <machine/cheric.h>
 
+#include <assert.h>
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>

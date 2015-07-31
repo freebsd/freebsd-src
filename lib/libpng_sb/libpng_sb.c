@@ -37,6 +37,7 @@
 #include <cheri/cheri_fd.h>
 #include <cheri/sandbox.h>
 
+#include <assert.h>
 #include <err.h>
 #include <unistd.h>
 #include <stdint.h>

@@ -56,6 +56,7 @@
 #include <cheri/sandbox.h>
 #endif
 
+#include <assert.h>
 #include <cheritest-helper.h>
 #include <err.h>
 #include <errno.h>

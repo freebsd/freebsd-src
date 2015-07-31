@@ -43,6 +43,7 @@
 #include <cheri/helloworld.h>
 #include <cheri/sandbox.h>
 
+#include <assert.h>
 #include <err.h>
 #include <stdio.h>
 #include <sysexits.h>

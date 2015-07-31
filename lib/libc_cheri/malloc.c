@@ -53,6 +53,8 @@ static char *rcsid = "$FreeBSD$";
 
 #include <machine/cheri.h>
 #include <machine/cheric.h>
+
+#include <assert.h>
 #if 0
 #include <paths.h>
 #include <stdarg.h>

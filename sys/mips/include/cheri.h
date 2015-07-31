@@ -35,8 +35,6 @@
 #ifdef _KERNEL
 #include <sys/sysctl.h>		/* SYSCTL_DECL() */
 #include <sys/systm.h>		/* CTASSERT() */
-#else
-#include <assert.h>		/* assert() */
 #endif
 
 #include <machine/cherireg.h>
