@@ -218,7 +218,6 @@ struct sadb_x_sa2 {
 };
 
 /* XXX Policy Extension */
-/* sizeof(struct sadb_x_policy) == 16 */
 struct sadb_x_policy {
   u_int16_t sadb_x_policy_len;
   u_int16_t sadb_x_policy_exttype;
@@ -228,6 +227,8 @@ struct sadb_x_policy {
   u_int32_t sadb_x_policy_id;
   u_int32_t sadb_x_policy_reserved2;
 };
+CTASSERT(sizeof(struct sadb_x_policy) == 16);
+
 /*
  * When policy_type == IPSEC, it is followed by some of
  * the ipsec policy request.
@@ -256,31 +257,31 @@ struct sadb_x_ipsecrequest {
 };
 
 /* NAT-Traversal type, see RFC 3948 (and drafts). */
-/* sizeof(struct sadb_x_nat_t_type) == 8 */
 struct sadb_x_nat_t_type {
   u_int16_t sadb_x_nat_t_type_len;
   u_int16_t sadb_x_nat_t_type_exttype;
   u_int8_t sadb_x_nat_t_type_type;
   u_int8_t sadb_x_nat_t_type_reserved[3];
 };
+CTASSERT(sizeof(struct sadb_x_nat_t_type) == 8);
 
 /* NAT-Traversal source or destination port. */
-/* sizeof(struct sadb_x_nat_t_port) == 8 */
 struct sadb_x_nat_t_port { 
   u_int16_t sadb_x_nat_t_port_len;
   u_int16_t sadb_x_nat_t_port_exttype;
   u_int16_t sadb_x_nat_t_port_port;
   u_int16_t sadb_x_nat_t_port_reserved;
 };
+CTASSERT(sizeof(struct sadb_x_nat_t_port) == 8);
 
 /* ESP fragmentation size. */
-/* sizeof(struct sadb_x_nat_t_frag) == 8 */
 struct sadb_x_nat_t_frag {
   u_int16_t sadb_x_nat_t_frag_len;
   u_int16_t sadb_x_nat_t_frag_exttype;
   u_int16_t sadb_x_nat_t_frag_fraglen;
   u_int16_t sadb_x_nat_t_frag_reserved;
 };
+CTASSERT(sizeof(struct sadb_x_nat_t_frag) == 8);
 
 
 #define SADB_EXT_RESERVED             0
@@ -332,46 +333,47 @@ struct sadb_x_nat_t_frag {
 
 #define SADB_SAFLAGS_PFS      1
 
-/* RFC2367 numbers - meets RFC2407 */
+/*
+ * Though some of these numbers (both _AALG and _EALG) appear to be
+ * IKEv2 numbers and others original IKE numbers, they have no meaning.
+ * These are constants that the various IKE daemons use to tell the kernel
+ * what cipher to use.
+ *
+ * Do not use these constants directly to decide which Transformation ID
+ * to send.  You are responsible for mapping them yourself.
+ */
 #define SADB_AALG_NONE		0
 #define SADB_AALG_MD5HMAC	2
 #define SADB_AALG_SHA1HMAC	3
 #define SADB_AALG_MAX		252
-/* private allocations - based on RFC2407/IANA assignment */
 #define SADB_X_AALG_SHA2_256	5
 #define SADB_X_AALG_SHA2_384	6
 #define SADB_X_AALG_SHA2_512	7
 #define SADB_X_AALG_RIPEMD160HMAC	8
-#define SADB_X_AALG_AES_XCBC_MAC	9	/* draft-ietf-ipsec-ciph-aes-xcbc-mac-04 */
+#define SADB_X_AALG_AES_XCBC_MAC	9	/* RFC3566 */
 #define SADB_X_AALG_AES128GMAC	11		/* RFC4543 + Errata1821 */
 #define SADB_X_AALG_AES192GMAC	12
 #define SADB_X_AALG_AES256GMAC	13
-/* private allocations should use 249-255 (RFC2407) */
 #define SADB_X_AALG_MD5		249	/* Keyed MD5 */
 #define SADB_X_AALG_SHA		250	/* Keyed SHA */
 #define SADB_X_AALG_NULL	251	/* null authentication */
 #define SADB_X_AALG_TCP_MD5	252	/* Keyed TCP-MD5 (RFC2385) */
 
-/* RFC2367 numbers - meets RFC2407 */
 #define SADB_EALG_NONE		0
 #define SADB_EALG_DESCBC	2
 #define SADB_EALG_3DESCBC	3
-#define SADB_EALG_NULL		11
-#define SADB_EALG_MAX		250
-/* private allocations - based on RFC2407/IANA assignment */
 #define SADB_X_EALG_CAST128CBC	6
 #define SADB_X_EALG_BLOWFISHCBC	7
+#define SADB_EALG_NULL		11
 #define SADB_X_EALG_RIJNDAELCBC	12
 #define SADB_X_EALG_AES		12
+#define SADB_X_EALG_AESCTR	13
 #define SADB_X_EALG_AESGCM8	18	/* RFC4106 */
 #define SADB_X_EALG_AESGCM12	19
 #define SADB_X_EALG_AESGCM16	20
-/* private allocations - based on RFC4312/IANA assignment */
-#define SADB_X_EALG_CAMELLIACBC		22
-#define	SADB_X_EALG_AESGMAC		23 /* RFC4543 + Errata1821 */
-/* private allocations should use 249-255 (RFC2407) */
-#define SADB_X_EALG_SKIPJACK	249	/*250*/ /* for IPSEC */
-#define SADB_X_EALG_AESCTR	250	/*249*/ /* draft-ietf-ipsec-ciph-aes-ctr-03 */
+#define SADB_X_EALG_CAMELLIACBC	22
+#define SADB_X_EALG_AESGMAC	23	/* RFC4543 + Errata1821 */
+#define SADB_EALG_MAX		23	/* !!! keep updated !!! */
 
 /* private allocations - based on RFC2407/IANA assignment */
 #define SADB_X_CALG_NONE	0
