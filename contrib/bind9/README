@@ -51,6 +51,15 @@ BIND 9
 	For up-to-date release notes and errata, see
 	http://www.isc.org/software/bind9/releasenotes
 
+BIND 9.9.7-P2
+
+       BIND 9.9.7-P1 is a security release addressing the flaw
+       described in CVE-2015-5477.
+
+BIND 9.9.7-P1
+
+       BIND 9.9.7-P1 is a security release addressing the flaw
+       described in CVE-2015-4620.
 
 BIND 9.9.7
 

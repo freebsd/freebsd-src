@@ -21,13 +21,18 @@
 </head>
 <body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="article" lang="en"><div class="sect1" lang="en">
 <div class="titlepage"><div><div><h2 class="title" style="clear: both">
-<a name="id2542126"></a>Release Notes for BIND Version 9.9.7</h2></div></div></div>
+<a name="id2542126"></a>Release Notes for BIND Version 9.9.7-P2</h2></div></div></div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
 <a name="relnotes_intro"></a>Introduction</h3></div></div></div>
 <p>
-      This document summarizes changes since the last production release
-      of BIND on the corresponding major release branch.
+      This document summarizes changes since BIND 9.9.7.
+    </p>
+<p>
+      BIND 9.9.7-P2 addresses a security issue described in CVE-2015-5477.
+    </p>
+<p>
+      BIND 9.9.7-P1 addresses a security issue described in CVE-2015-4620.
     </p>
 </div>
 <div class="sect2" lang="en">
@@ -47,42 +52,23 @@
 <div class="itemizedlist"><ul type="disc">
 <li>
 <p>
-	  On servers configured to perform DNSSEC validation using
-	  managed trust anchors (i.e., keys configured explicitly
-	  via <span><strong class="command">managed-keys</strong></span>, or implicitly 
-	  via <span><strong class="command">dnssec-validation auto;</strong></span> or
-	  <span><strong class="command">dnssec-lookaside auto;</strong></span>), revoking
-	  a trust anchor and sending a new untrusted replacement
-	  could cause <span><strong class="command">named</strong></span> to crash with an
-	  assertion failure. This could occur in the event of a
-	  botched key rollover, or potentially as a result of a
-	  deliberate attack if the attacker was in position to
-	  monitor the victim's DNS traffic.
+	  A specially crafted query could trigger an assertion failure
+	  in message.c.
 	</p>
 <p>
-	  This flaw was discovered by Jan-Piet Mens, and is
-	  disclosed in CVE-2015-1349. [RT #38344]
+	  This flaw was discovered by Jonathan Foote, and is disclosed
+	  in CVE-2015-5477. [RT #39795]
 	</p>
 </li>
 <li>
 <p>
-	  A flaw in delegation handling could be exploited to put
-	  <span><strong class="command">named</strong></span> into an infinite loop, in which
-	  each lookup of a name server triggered additional lookups
-	  of more name servers.  This has been addressed by placing
-	  limits on the number of levels of recursion
-	  <span><strong class="command">named</strong></span> will allow (default 7), and
-	  on the number of queries that it will send before
-	  terminating a recursive query (default 50).
+	  On servers configured to perform DNSSEC validation, an
+	  assertion failure could be triggered on answers from
+	  a specially configured server.
 	</p>
 <p>
-	  The recursion depth limit is configured via the
-	  <code class="option">max-recursion-depth</code> option, and the query limit
-	  via the <code class="option">max-recursion-queries</code> option.
-	</p>
-<p>
-	  The flaw was discovered by Florian Maury of ANSSI, and is
-	  disclosed in CVE-2014-8500. [RT #37580]
+	  This flaw was discovered by Breno Silveira Soares, and is
+	  disclosed in CVE-2015-4620. [RT #39795]
 	</p>
 </li>
 </ul></div>
@@ -95,143 +81,12 @@
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
 <a name="relnotes_changes"></a>Feature Changes</h3></div></div></div>
-<div class="itemizedlist"><ul type="disc">
-<li><p>
-          NXDOMAIN responses to queries of type DS are now cached separately
-          from those for other types. This helps when using "grafted" zones
-          of type forward, for which the parent zone does not contain a
-          delegation, such as local top-level domains.  Previously a query
-          of type DS for such a zone could cause the zone apex to be cached
-          as NXDOMAIN, blocking all subsequent queries.  (Note: This
-          change is only helpful when DNSSEC validation is not enabled.
-          "Grafted" zones without a delegation in the parent are not a
-          recommended configuration.)
-        </p></li>
-<li><p>
-          NOTIFY messages that are sent because a zone has been updated
-          are now given priority above NOTIFY messages that were scheduled
-          when the server started up. This should mitigate delays in zone
-          propagation when servers are restarted frequently.
-        </p></li>
-<li><p>
-          Errors reported when running <span><strong class="command">rndc addzone</strong></span>
-          (e.g., when a zone file cannot be loaded) have been clarified
-          to make it easier to diagnose problems.
-        </p></li>
-<li><p>
-	  Added support for OPENPGPKEY type.
-        </p></li>
-<li><p>
-	  When encountering an authoritative name server whose name is
-	  an alias pointing to another name, the resolver treats
-	  this as an error and skips to the next server. Previously
-	  this happened silently; now the error will be logged to
-	  the newly-created "cname" log category.
-	</p></li>
-<li><p>
-	  If named is not configured to validate the answer then
-	  allow fallback to plain DNS on timeout even when we know
-	  the server supports EDNS.  This will allow the server to
-	  potentially resolve signed queries when TCP is being
-	  blocked.
-	</p></li>
-</ul></div>
+<div class="itemizedlist"><ul type="disc"><li><p>None</p></li></ul></div>
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
 <a name="relnotes_bugs"></a>Bug Fixes</h3></div></div></div>
-<div class="itemizedlist"><ul type="disc">
-<li><p>
-	  <span><strong class="command">dig</strong></span>, <span><strong class="command">host</strong></span> and
-	  <span><strong class="command">nslookup</strong></span> aborted when encountering
-	  a name which, after appending search list elements,
-	  exceeded 255 bytes. Such names are now skipped, but
-	  processing of other names will continue. [RT #36892]
-        </p></li>
-<li><p>
-	  The error message generated when
-	  <span><strong class="command">named-checkzone</strong></span> or
-	  <span><strong class="command">named-checkconf -z</strong></span> encounters a
-	  <code class="option">$TTL</code> directive without a value has
-	  been clarified. [RT #37138]
-        </p></li>
-<li><p>
-	  Semicolon characters (;) included in TXT records were
-	  incorrectly escaped with a backslash when the record was
-	  displayed as text. This is actually only necessary when there
-	  are no quotation marks. [RT #37159]
-        </p></li>
-<li><p>
-	  When files opened for writing by <span><strong class="command">named</strong></span>,
-	  such as zone journal files, were referenced more than once
-	  in <code class="filename">named.conf</code>, it could lead to file
-	  corruption as multiple threads wrote to the same file. This
-	  is now detected when loading <code class="filename">named.conf</code>
-	  and reported as an error. [RT #37172]
-        </p></li>
-<li><p>
-          <span><strong class="command">dnssec-keygen -S</strong></span> failed to generate successor
-          keys for some algorithm types (including ECDSA and GOST) due to
-          a difference in the content of private key files. This has been
-          corrected. [RT #37183]
-        </p></li>
-<li><p>
-          UPDATE messages that arrived too soon after
-          an <span><strong class="command">rndc thaw</strong></span> could be lost. [RT #37233]
-        </p></li>
-<li><p>
-          Forwarding of UPDATE messages did not work when they were
-          signed with SIG(0); they resulted in a BADSIG response code.
-          [RT #37216]
-        </p></li>
-<li><p>
-          When checking for updates to trust anchors listed in
-          <code class="option">managed-keys</code>, <span><strong class="command">named</strong></span>
-          now revalidates keys based on the current set of
-          active trust anchors, without relying on any cached
-          record of previous validation. [RT #37506]
-        </p></li>
-<li><p>
-	  When NXDOMAIN redirection is in use, queries for a name
-	  that is present in the redirection zone but a type that
-	  is not present will now return NOERROR instead of NXDOMAIN.
-        </p></li>
-<li><p>
-	  When a zone contained a delegation to an IPv6 name server
-	  but not an IPv4 name server, it was possible for a memory
-	  reference to be left un-freed. This caused an assertion
-	  failure on server shutdown, but was otherwise harmless.
-	  [RT #37796]
-        </p></li>
-<li><p>
-	  Due to an inadvertent removal of code in the previous
-	  release, when <span><strong class="command">named</strong></span> encountered an
-	  authoritative name server which dropped all EDNS queries,
-	  it did not always try plain DNS. This has been corrected.
-	  [RT #37965]
-        </p></li>
-<li><p>
-	  A regression caused nsupdate to use the default recursive servers
-	  rather than the SOA MNAME server when sending the UPDATE.
-        </p></li>
-<li><p>
-	  Adjusted max-recursion-queries to better accommodate empty
-	  caches.
-        </p></li>
-<li><p>
-	  Built-in "empty" zones did not correctly inherit the
-	  "allow-transfer" ACL from the options or view. [RT #38310]
-        </p></li>
-<li><p>
-	  A mutex leak was fixed that could cause <span><strong class="command">named</strong></span>
-	  processes to grow to very large sizes. [RT #38454]
-	</p></li>
-<li><p>
-	  Fixed some bugs in RFC 5011 trust anchor management,
-	  including a memory leak and a possible loss of state
-	  information.[RT #38458]
-	</p></li>
-</ul></div>
+<div class="itemizedlist"><ul type="disc"><li><p>None</p></li></ul></div>
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
