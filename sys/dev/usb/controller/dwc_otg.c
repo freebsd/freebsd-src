@@ -2551,12 +2551,18 @@ static void
 dwc_otg_interrupt_poll_locked(struct dwc_otg_softc *sc)
 {
 	struct usb_xfer *xfer;
+	uint32_t count = 0;
 	uint32_t temp;
 	uint8_t got_rx_status;
 	uint8_t x;
 
 repeat:
-	/* get all channel interrupts */
+	if (++count == 16) {
+		/* give other interrupts a chance */
+		DPRINTF("Yield\n");
+		return;
+	}
+	/* get all host channel interrupts */
 	for (x = 0; x != sc->sc_host_ch_max; x++) {
 		temp = DWC_OTG_READ_4(sc, DOTG_HCINT(x));
 		if (temp != 0) {
