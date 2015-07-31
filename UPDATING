@@ -16,6 +16,14 @@ from older versions of FreeBSD, try WITHOUT_CLANG to bootstrap to the tip of
 stable/10, and then rebuild without this option. The bootstrap process from
 older version of current is a bit fragile.
 
+20150731:
+	As ZFS requires more kernel stack pages than is the default on some
+	architectures e.g. i386, it now warns if KSTACK_PAGES is less than
+	ZFS_MIN_KSTACK_PAGES (which is 4 at the time of writing).
+
+	Please consider using 'options KSTACK_PAGES=X' where X is greater
+	than or equal to ZFS_MIN_KSTACK_PAGES i.e. 4 in such configurations.
+
 20150703:
 	The default Unbound configuration now enables remote control
 	using a local socket.  Users who have already enabled the
