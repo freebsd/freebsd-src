@@ -620,7 +620,7 @@ bpf_attachd(struct bpf_d *d, struct bpf_if *bp)
 		bpf_detachd_locked(d);
 	/*
 	 * Point d at bp, and add d to the interface's list.
-	 * Since there are many applicaiotns using BPF for
+	 * Since there are many applications using BPF for
 	 * sending raw packets only (dhcpd, cdpd are good examples)
 	 * we can delay adding d to the list of active listeners until
 	 * some filter is configured.
@@ -718,7 +718,7 @@ bpf_check_upgrade(u_long cmd, struct bpf_d *d, struct bpf_insn *fcode, int flen)
 
 /*
  * Add d to the list of active bp filters.
- * Reuqires bpf_attachd() to be called before
+ * Requires bpf_attachd() to be called before.
  */
 static void
 bpf_upgraded(struct bpf_d *d)
@@ -2370,9 +2370,6 @@ catchpacket(struct bpf_d *d, u_char *pkt, u_int pktlen, u_int snaplen,
 	 * spot to do it.
 	 */
 	if (d->bd_fbuf == NULL && bpf_canfreebuf(d)) {
-		while (d->bd_hbuf_in_use)
-			mtx_sleep(&d->bd_hbuf_in_use, &d->bd_lock,
-			    PRINET, "bd_hbuf", 0);
 		d->bd_fbuf = d->bd_hbuf;
 		d->bd_hbuf = NULL;
 		d->bd_hlen = 0;
@@ -2415,9 +2412,6 @@ catchpacket(struct bpf_d *d, u_char *pkt, u_int pktlen, u_int snaplen,
 			++d->bd_dcount;
 			return;
 		}
-		while (d->bd_hbuf_in_use)
-			mtx_sleep(&d->bd_hbuf_in_use, &d->bd_lock,
-			    PRINET, "bd_hbuf", 0);
 		ROTATE_BUFFERS(d);
 		do_wakeup = 1;
 		curlen = 0;
