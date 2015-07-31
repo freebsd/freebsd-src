@@ -224,6 +224,8 @@
 #define	VM_INITIAL_PAGEIN	16
 #endif
 
+#define	UMA_MD_SMALL_ALLOC
+
 extern u_int tsb_kernel_ldd_phys;
 extern vm_offset_t vm_max_kernel_address;
 extern vm_offset_t init_pt_va;
