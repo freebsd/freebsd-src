@@ -552,7 +552,7 @@
 #define E1000_WVBR	0x03554 /* VM Wrong Behavior - RWS */
 #define E1000_RPLOLR	0x05AF0 /* Replication Offload - RW */
 #define E1000_UTA	0x0A000 /* Unicast Table Array - RW */
-#define E1000_IOVTCL	0x05BBC /* IOV Control Register */
+#define E1000_IOVCTL	0x05BBC /* IOV Control Register */
 #define E1000_VMRCTL	0X05D80 /* Virtual Mirror Rule Control */
 #define E1000_VMRVLAN	0x05D90 /* Virtual Mirror Rule VLAN */
 #define E1000_VMRVM	0x05DA0 /* Virtual Mirror Rule VM */
