@@ -534,7 +534,7 @@ esp_input_cb(struct cryptop *crp)
 		ptr = (caddr_t) (tc + 1);
 
 		/* Verify authenticator */
-		if (bcmp(ptr, aalg, alen) != 0) {
+		if (timingsafe_bcmp(ptr, aalg, alen) != 0) {
 			DPRINTF(("%s: authentication hash mismatch for "
 			    "packet in SA %s/%08lx\n", __func__,
 			    ipsec_address(&saidx->dst, buf, sizeof(buf)),
