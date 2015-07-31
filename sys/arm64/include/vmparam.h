@@ -165,6 +165,9 @@
 
 /* True if pa is in the dmap range */
 #define	PHYS_IN_DMAP(pa)	((pa) <= DMAP_MAX_PHYSADDR)
+/* True if va is in the dmap range */
+#define	VIRT_IN_DMAP(va)	((va) >= DMAP_MIN_ADDRESS && \
+    (va) <= DMAP_MAX_ADDRESS)
 
 #define	PHYS_TO_DMAP(pa)						\
 ({									\
@@ -176,7 +179,7 @@
 
 #define	DMAP_TO_PHYS(va)						\
 ({									\
-	KASSERT(((va) <= DMAP_MAX_ADDRESS || (va) >= DMAP_MIN_ADDRESS),	\
+	KASSERT(VIRT_IN_DMAP(va),					\
 	    ("%s: VA out of range, VA: 0x%lx", __func__,		\
 	    (vm_offset_t)(va)));					\
 	(va) & ~DMAP_MIN_ADDRESS;					\
