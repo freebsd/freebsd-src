@@ -27,6 +27,8 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/capsicum.h>
+#include <sys/filedesc.h>
 #include <sys/imgact.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -67,10 +69,12 @@ int
 cloudabi_sys_proc_fork(struct thread *td,
     struct cloudabi_sys_proc_fork_args *uap)
 {
+	struct filecaps fcaps = {};
 	struct proc *p2;
 	int error, fd;
 
-	error = fork1(td, RFFDG | RFPROC | RFPROCDESC, 0, &p2, &fd, 0);
+	cap_rights_init(&fcaps.fc_rights, CAP_FSTAT, CAP_PDWAIT);
+	error = fork1(td, RFFDG | RFPROC | RFPROCDESC, 0, &p2, &fd, 0, &fcaps);
 	if (error != 0)
 		return (error);
 	/* Return the file descriptor to the parent process. */
