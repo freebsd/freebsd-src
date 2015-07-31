@@ -376,7 +376,11 @@ void
 cpu_halt(void)
 {
 
-	panic("ARM64TODO: cpu_halt");
+	/* We should have shutdown by now, if not enter a low power sleep */
+	intr_disable();
+	while (1) {
+		__asm __volatile("wfi");
+	}
 }
 
 /*
