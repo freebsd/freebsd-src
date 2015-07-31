@@ -109,6 +109,9 @@ device		psci		# Support for ARM PSCI
 # Note that 'bpf' is required for DHCP.
 device		bpf		# Berkeley packet filter
 
+# Chip-specific errata
+options 	THUNDERX_PASS_1_1_ERRATA
+
 options 	FDT
 device		acpi
 
