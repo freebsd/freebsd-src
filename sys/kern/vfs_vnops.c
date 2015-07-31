@@ -116,6 +116,9 @@ static const int io_hold_cnt = 16;
 static int vn_io_fault_enable = 1;
 SYSCTL_INT(_debug, OID_AUTO, vn_io_fault_enable, CTLFLAG_RW,
     &vn_io_fault_enable, 0, "Enable vn_io_fault lock avoidance");
+static int vn_io_fault_prefault = 0;
+SYSCTL_INT(_debug, OID_AUTO, vn_io_fault_prefault, CTLFLAG_RW,
+    &vn_io_fault_prefault, 0, "Enable vn_io_fault prefaulting");
 static u_long vn_io_faults_cnt;
 SYSCTL_ULONG(_debug, OID_AUTO, vn_io_faults, CTLFLAG_RD,
     &vn_io_faults_cnt, 0, "Count of vn_io_fault lock avoidance triggers");
@@ -1020,6 +1023,59 @@ vn_io_fault_doio(struct vn_io_fault_args *args, struct uio *uio,
 	    uio->uio_rw);
 }
 
+static int
+vn_io_fault_touch(char *base, const struct uio *uio)
+{
+	int r;
+
+	r = fubyte(base);
+	if (r == -1 || (uio->uio_rw == UIO_READ && subyte(base, r) == -1))
+		return (EFAULT);
+	return (0);
+}
+
+static int
+vn_io_fault_prefault_user(const struct uio *uio)
+{
+	char *base;
+	const struct iovec *iov;
+	size_t len;
+	ssize_t resid;
+	int error, i;
+
+	KASSERT(uio->uio_segflg == UIO_USERSPACE,
+	    ("vn_io_fault_prefault userspace"));
+
+	error = i = 0;
+	iov = uio->uio_iov;
+	resid = uio->uio_resid;
+	base = iov->iov_base;
+	len = iov->iov_len;
+	while (resid > 0) {
+		error = vn_io_fault_touch(base, uio);
+		if (error != 0)
+			break;
+		if (len < PAGE_SIZE) {
+			if (len != 0) {
+				error = vn_io_fault_touch(base + len - 1, uio);
+				if (error != 0)
+					break;
+				resid -= len;
+			}
+			if (++i >= uio->uio_iovcnt)
+				break;
+			iov = uio->uio_iov + i;
+			base = iov->iov_base;
+			len = iov->iov_len;
+		} else {
+			len -= PAGE_SIZE;
+			base += PAGE_SIZE;
+			resid -= PAGE_SIZE;
+		}
+	}
+	return (error);
+}
+
 /*
  * Common code for vn_io_fault(), agnostic to the kind of i/o request.
  * Uses vn_io_fault_doio() to make the call to an actual i/o function.
@@ -1040,6 +1096,12 @@ vn_io_fault1(struct vnode *vp, struct uio *uio, struct vn_io_fault_args *args,
 	size_t len, resid;
 	ssize_t adv;
 	int error, cnt, save, saveheld, prev_td_ma_cnt;
+
+	if (vn_io_fault_prefault) {
+		error = vn_io_fault_prefault_user(uio);
+		if (error != 0)
+			return (error); /* Or ignore ? */
+	}
 
 	prot = uio->uio_rw == UIO_READ ? VM_PROT_WRITE : VM_PROT_READ;
 
