@@ -20,8 +20,13 @@
   <sect2 id="relnotes_intro">
     <title>Introduction</title>
     <para>
-      This document summarizes changes since the last production release
-      of BIND on the corresponding major release branch.
+      This document summarizes changes since BIND 9.9.7.
+    </para>
+    <para>
+      BIND 9.9.7-P2 addresses a security issue described in CVE-2015-5477.
+    </para>
+    <para>
+      BIND 9.9.7-P1 addresses a security issue described in CVE-2015-4620.
     </para>
   </sect2>
   <sect2 id="relnotes_download">
@@ -40,42 +45,23 @@
     <itemizedlist>
       <listitem>
 	<para>
-	  On servers configured to perform DNSSEC validation using
-	  managed trust anchors (i.e., keys configured explicitly
-	  via <command>managed-keys</command>, or implicitly 
-	  via <command>dnssec-validation auto;</command> or
-	  <command>dnssec-lookaside auto;</command>), revoking
-	  a trust anchor and sending a new untrusted replacement
-	  could cause <command>named</command> to crash with an
-	  assertion failure. This could occur in the event of a
-	  botched key rollover, or potentially as a result of a
-	  deliberate attack if the attacker was in position to
-	  monitor the victim's DNS traffic.
+	  A specially crafted query could trigger an assertion failure
+	  in message.c.
 	</para>
 	<para>
-	  This flaw was discovered by Jan-Piet Mens, and is
-	  disclosed in CVE-2015-1349. [RT #38344]
+	  This flaw was discovered by Jonathan Foote, and is disclosed
+	  in CVE-2015-5477. [RT #39795]
 	</para>
       </listitem>
       <listitem>
 	<para>
-	  A flaw in delegation handling could be exploited to put
-	  <command>named</command> into an infinite loop, in which
-	  each lookup of a name server triggered additional lookups
-	  of more name servers.  This has been addressed by placing
-	  limits on the number of levels of recursion
-	  <command>named</command> will allow (default 7), and
-	  on the number of queries that it will send before
-	  terminating a recursive query (default 50).
+	  On servers configured to perform DNSSEC validation, an
+	  assertion failure could be triggered on answers from
+	  a specially configured server.
 	</para>
 	<para>
-	  The recursion depth limit is configured via the
-	  <option>max-recursion-depth</option> option, and the query limit
-	  via the <option>max-recursion-queries</option> option.
-	</para>
-	<para>
-	  The flaw was discovered by Florian Maury of ANSSI, and is
-	  disclosed in CVE-2014-8500. [RT #37580]
+	  This flaw was discovered by Breno Silveira Soares, and is
+	  disclosed in CVE-2015-4620. [RT #39795]
 	</para>
       </listitem>
     </itemizedlist>
@@ -92,55 +78,7 @@
     <title>Feature Changes</title>
     <itemizedlist>
       <listitem>
-        <para>
-          NXDOMAIN responses to queries of type DS are now cached separately
-          from those for other types. This helps when using "grafted" zones
-          of type forward, for which the parent zone does not contain a
-          delegation, such as local top-level domains.  Previously a query
-          of type DS for such a zone could cause the zone apex to be cached
-          as NXDOMAIN, blocking all subsequent queries.  (Note: This
-          change is only helpful when DNSSEC validation is not enabled.
-          "Grafted" zones without a delegation in the parent are not a
-          recommended configuration.)
-        </para>
-      </listitem>
-      <listitem>
-        <para>
-          NOTIFY messages that are sent because a zone has been updated
-          are now given priority above NOTIFY messages that were scheduled
-          when the server started up. This should mitigate delays in zone
-          propagation when servers are restarted frequently.
-        </para>
-      </listitem>
-      <listitem>
-        <para>
-          Errors reported when running <command>rndc addzone</command>
-          (e.g., when a zone file cannot be loaded) have been clarified
-          to make it easier to diagnose problems.
-        </para>
-      </listitem>
-      <listitem>
-	<para>
-	  Added support for OPENPGPKEY type.
-        </para>
-      </listitem>
-      <listitem>
-	<para>
-	  When encountering an authoritative name server whose name is
-	  an alias pointing to another name, the resolver treats
-	  this as an error and skips to the next server. Previously
-	  this happened silently; now the error will be logged to
-	  the newly-created "cname" log category.
-	</para>
-      </listitem>
-      <listitem>
-	<para>
-	  If named is not configured to validate the answer then
-	  allow fallback to plain DNS on timeout even when we know
-	  the server supports EDNS.  This will allow the server to
-	  potentially resolve signed queries when TCP is being
-	  blocked.
-	</para>
+	<para>None</para>
       </listitem>
     </itemizedlist>
   </sect2>
@@ -148,126 +86,7 @@
     <title>Bug Fixes</title>
     <itemizedlist>
       <listitem>
-        <para>
-	  <command>dig</command>, <command>host</command> and
-	  <command>nslookup</command> aborted when encountering
-	  a name which, after appending search list elements,
-	  exceeded 255 bytes. Such names are now skipped, but
-	  processing of other names will continue. [RT #36892]
-        </para>
-      </listitem>
-      <listitem>
-        <para>
-	  The error message generated when
-	  <command>named-checkzone</command> or
-	  <command>named-checkconf -z</command> encounters a
-	  <option>$TTL</option> directive without a value has
-	  been clarified. [RT #37138]
-        </para>
-      </listitem>
-      <listitem>
-        <para>
-	  Semicolon characters (;) included in TXT records were
-	  incorrectly escaped with a backslash when the record was
-	  displayed as text. This is actually only necessary when there
-	  are no quotation marks. [RT #37159]
-        </para>
-      </listitem>
-      <listitem>
-        <para>
-	  When files opened for writing by <command>named</command>,
-	  such as zone journal files, were referenced more than once
-	  in <filename>named.conf</filename>, it could lead to file
-	  corruption as multiple threads wrote to the same file. This
-	  is now detected when loading <filename>named.conf</filename>
-	  and reported as an error. [RT #37172]
-        </para>
-      </listitem>
-      <listitem>
-        <para>
-          <command>dnssec-keygen -S</command> failed to generate successor
-          keys for some algorithm types (including ECDSA and GOST) due to
-          a difference in the content of private key files. This has been
-          corrected. [RT #37183]
-        </para>
-      </listitem>
-      <listitem>
-        <para>
-          UPDATE messages that arrived too soon after
-          an <command>rndc thaw</command> could be lost. [RT #37233]
-        </para>
-      </listitem>
-      <listitem>
-        <para>
-          Forwarding of UPDATE messages did not work when they were
-          signed with SIG(0); they resulted in a BADSIG response code.
-          [RT #37216]
-        </para>
-      </listitem>
-      <listitem>
-        <para>
-          When checking for updates to trust anchors listed in
-          <option>managed-keys</option>, <command>named</command>
-          now revalidates keys based on the current set of
-          active trust anchors, without relying on any cached
-          record of previous validation. [RT #37506]
-        </para>
-      </listitem>
-      <listitem>
-        <para>
-	  When NXDOMAIN redirection is in use, queries for a name
-	  that is present in the redirection zone but a type that
-	  is not present will now return NOERROR instead of NXDOMAIN.
-        </para>
-      </listitem>
-      <listitem>
-        <para>
-	  When a zone contained a delegation to an IPv6 name server
-	  but not an IPv4 name server, it was possible for a memory
-	  reference to be left un-freed. This caused an assertion
-	  failure on server shutdown, but was otherwise harmless.
-	  [RT #37796]
-        </para>
-      </listitem>
-      <listitem>
-        <para>
-	  Due to an inadvertent removal of code in the previous
-	  release, when <command>named</command> encountered an
-	  authoritative name server which dropped all EDNS queries,
-	  it did not always try plain DNS. This has been corrected.
-	  [RT #37965]
-        </para>
-      </listitem>
-      <listitem>
-        <para>
-	  A regression caused nsupdate to use the default recursive servers
-	  rather than the SOA MNAME server when sending the UPDATE.
-        </para>
-      </listitem>
-      <listitem>
-        <para>
-	  Adjusted max-recursion-queries to better accommodate empty
-	  caches.
-        </para>
-      </listitem>
-      <listitem>
-        <para>
-	  Built-in "empty" zones did not correctly inherit the
-	  "allow-transfer" ACL from the options or view. [RT #38310]
-        </para>
-      </listitem>
-      <listitem>
-	<para>
-	  A mutex leak was fixed that could cause <command>named</command>
-	  processes to grow to very large sizes. [RT #38454]
-	</para>
-      </listitem>
-      <listitem>
-	<para>
-	  Fixed some bugs in RFC 5011 trust anchor management,
-	  including a memory leak and a possible loss of state
-	  information.[RT #38458]
-	</para>
+	<para>None</para>
       </listitem>
     </itemizedlist>
   </sect2>
@@ -276,7 +95,7 @@
     <para>
       The BIND 9.9 (Extended Support Version) will be supported until June, 2017.
       <ulink url="https://www.isc.org/downloads/software-support-policy/"
-        >https://www.isc.org/downloads/software-support-policy/</ulink>
+	>https://www.isc.org/downloads/software-support-policy/</ulink>
     </para>
   </sect2>
   <sect2 id="relnotes_thanks">

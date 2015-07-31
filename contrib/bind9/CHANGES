@@ -1,3 +1,14 @@
+	--- 9.9.7-P2 released ---
+
+4165.	[security]	A failure to reset a value to NULL in tkey.c could
+			result in an assertion failure. (CVE-2015-5477)
+			[RT #40046]
+
+	--- 9.9.7-P1 released ---
+
+4138.	[bug]		An uninitialized value in validator.c could result
+			in an assertion failure. (CVE-2015-4620) [RT #39795]
+
 	--- 9.9.7 released ---
 
 	--- 9.9.7rc2 released ---
@@ -8380,7 +8391,7 @@
 			on the responses. [RT #2454]
 
 1208.	[bug]		dns_master_load*() failed to log a error message if
-			an error was detected when parsing the ownername of
+			an error was detected when parsing the owner name of
 			a record.  [RT #2448]
 
 1207.	[bug]		libbind: getaddrinfo() could call freeaddrinfo() with
