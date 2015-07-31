@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 
 #include <machine/bus.h>
+#include <machine/cpu.h>
 #include <machine/intr.h>
 
 #include "pic_if.h"
@@ -230,7 +231,22 @@ gic_v3_dispatch(device_t dev, struct trapframe *frame)
 	uint64_t active_irq;
 
 	while (1) {
-		active_irq = gic_icc_read(IAR1);
+		if (CPU_MATCH_ERRATA_CAVIUM_THUNDER_1_1) {
+			/*
+			 * Hardware:		Cavium ThunderX
+			 * Chip revision:	Pass 1.0 (early version)
+			 *			Pass 1.1 (production)
+			 * ERRATUM:		22978, 23154
+			 */
+			__asm __volatile(
+			    "nop;nop;nop;nop;nop;nop;nop;nop;	\n"
+			    "mrs %0, ICC_IAR1_EL1		\n"
+			    "nop;nop;nop;nop;			\n"
+			    "dsb sy				\n"
+			    : "=&r" (active_irq));
+		} else {
+			active_irq = gic_icc_read(IAR1);
+		}
 
 		if (__predict_false(active_irq == ICC_IAR1_EL1_SPUR))
 			break;
