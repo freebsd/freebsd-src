@@ -39,6 +39,10 @@
 #ifndef _NET_PFKEYV2_H_
 #define _NET_PFKEYV2_H_
 
+#ifndef _KERNEL
+#define CTASSERT(x)	struct __thisisjustnothing;
+#endif
+
 /*
 This file defines structures and symbols for the PF_KEY Version 2
 key management interface. It was written at the U.S. Naval Research
