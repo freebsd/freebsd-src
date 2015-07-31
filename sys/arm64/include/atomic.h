@@ -153,6 +153,22 @@ atomic_set_32(volatile uint32_t *p, uint32_t val)
 	);
 }
 
+static __inline uint32_t
+atomic_swap_32(volatile uint32_t *p, uint32_t val)
+{
+	uint32_t tmp;
+	int res;
+
+	__asm __volatile(
+	    "1: ldxr	%w0, [%2]      \n"
+	    "   stxr	%w1, %w3, [%2] \n"
+	    "   cbnz	%w1, 1b        \n"
+	    : "=&r"(tmp), "=&r"(res), "+r" (p), "+r" (val) : : "cc", "memory"
+	);
+
+	return (tmp);
+}
+
 static __inline void
 atomic_subtract_32(volatile uint32_t *p, uint32_t val)
 {
@@ -174,6 +190,7 @@ atomic_subtract_32(volatile uint32_t *p, uint32_t val)
 #define	atomic_fetchadd_int	atomic_fetchadd_32
 #define	atomic_readandclear_int	atomic_readandclear_32
 #define	atomic_set_int		atomic_set_32
+#define	atomic_swap_int		atomic_swap_32
 #define	atomic_subtract_int	atomic_subtract_32
 
 static __inline void
@@ -515,6 +532,7 @@ atomic_swap_64(volatile uint64_t *p, uint64_t val)
 #define	atomic_fetchadd_long		atomic_fetchadd_64
 #define	atomic_readandclear_long	atomic_readandclear_64
 #define	atomic_set_long			atomic_set_64
+#define	atomic_swap_long		atomic_swap_64
 #define	atomic_subtract_long		atomic_subtract_64
 
 #define	atomic_add_ptr			atomic_add_64
@@ -523,6 +541,7 @@ atomic_swap_64(volatile uint64_t *p, uint64_t val)
 #define	atomic_fetchadd_ptr		atomic_fetchadd_64
 #define	atomic_readandclear_ptr		atomic_readandclear_64
 #define	atomic_set_ptr			atomic_set_64
+#define	atomic_swap_ptr			atomic_swap_64
 #define	atomic_subtract_ptr		atomic_subtract_64
 
 static __inline void
