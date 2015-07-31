@@ -51,28 +51,26 @@
 __rtld_vector:
 
 	#
-	# Set up in-sandbox stack; assume that suitable space for a stack has
-	# been made at the top of the sandbox address space described by IDC.
+	# Load $idc-relative offset of the Sandbox Metadata (SBM) area
 	#
-	# XXXRW: We make the stack capability ephemeral, and disallow storing
-	# ephemeral capabilities via $c0 here, rather than in the TCB.  This
-	# is to ensure software is ready for proper stack handling.  We can
-	# remove these candperms once that is present.
+	dli	$t0, 0x1000
+
 	#
-	dli	$t0, (~CHERI_PERM_GLOBAL)
-	candperm	$c11, $c26, $t0
-	cgetlen	$sp, $c26
+	# Set up the in-sandbox stack: a stack capability has been left for us
+	# by the run-time.  For now, we assume that $sp is the length (i.e.,
+	# that $c11.offset == 0), but eventually we will presumably use only
+	# $c11 and can leave $sp alone.
+	#
+	clc	$c11, $t0, 32 + 3*CHERICAP_SIZE($c26)
+	cgetlen	$sp, $c11
 	move	$fp, $sp
 
 	#
 	# Install $idc as $c0.  From here on out, we can do MIPS fetches and
 	# stores to memory inside the sandbox, and $c0-relative capability
-	# fetches and stores.  We are not allowed to store non-global
-	# capabilities to the sandbox-local heap (currently).
+	# fetches and stores.
 	#
-	dli	$t0, (~CHERI_PERM_STORE_LOCAL_CAP)
-	candperm	$c12, $c26, $t0
-	csetdefault	$c12
+	csetdefault	$c26
 
 	#
 	# The compiler is responsible for scrubbing unused argument registers
@@ -124,7 +122,6 @@ constructors:
 	# values in assembly, so hard-coded for now.  We could also just defer
 	# these calculations to C.
 	#
-	dli	$t0, 0x1000
 	ld	$t1, 0($t0)
 	dla	$t2, _sb_heapbase;
 	sd	$t1, 0($t2)

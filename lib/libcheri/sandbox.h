@@ -55,8 +55,10 @@ struct sandbox_metadata {
 	struct cheri_object	sbm_system_object;	/* Offset: 32 */
 #if __has_feature(capabilities)
 	__capability intptr_t	*sbm_vtable;		/* Cap-offset: 2 */
+	__capability void	*sbm_stackcap;		/* Cap-offset: 3 */
 #else
 	struct chericap	sbm_vtable;
+	struct chericap	sbm_stackcap;
 #endif
 };
 

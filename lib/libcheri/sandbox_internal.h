@@ -94,10 +94,11 @@ struct sandbox_object {
 	CHERI_SYSTEM_OBJECT_FIELDS;
 	struct sandbox_class	*sbo_sandbox_classp;
 	void			*sbo_datamem;
+	void			*sbo_stackmem;
+
 	register_t		 sbo_datalen;
 	register_t		 sbo_heapbase;
 	register_t		 sbo_heaplen;
-	register_t		 sbo_stackbase;
 	register_t		 sbo_stacklen;
 	uint			 sbo_flags;	/* Sandbox flags. */
 
@@ -111,6 +112,11 @@ struct sandbox_object {
 	 * System-object capabilities that can be passed to the object.
 	 */
 	struct cheri_object	 sbo_cheri_object_system;
+
+	/*
+	 * Stack capability that will also be installed in the object.
+	 */
+	__capability void	*sbo_stackcap;
 
 	/*
 	 * Sandbox statistics.

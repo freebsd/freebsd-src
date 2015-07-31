@@ -77,6 +77,8 @@ static struct sandbox_required_methods	*main_required_methods;
 
 static int	sandbox_program_init(void);
 
+#define	SANDBOX_STACK_SIZE	32 * PAGE_SIZE
+
 /*
  * Control verbose debugging output around sandbox invocation; disabled by
  * default but may be enabled using an environmental variable.
@@ -461,8 +463,36 @@ sandbox_object_new_flags(struct sandbox_class *sbcp, size_t heaplen,
 	sbop->sbo_flags = flags;
 	sbop->sbo_heaplen = heaplen;
 
+	/*
+	 * XXXRW: In due course, stack size should be a parameter rather than
+	 * a constant.
+	 */
+	sbop->sbo_stacklen = SANDBOX_STACK_SIZE;
+	sbop->sbo_stackmem = mmap(0, sbop->sbo_stacklen,
+	    PROT_READ | PROT_WRITE, MAP_ANON, -1, 0);
+	if (sbop->sbo_stackmem == NULL) {
+		free(sbop);
+		return (-1);
+	}
+
+	/*
+	 * Configure the object's stack before loading so that the stack
+	 * capability can be installed into sandbox metadata.  Note that the
+	 * capability is local (can't be shared) and can store local pointers
+	 * (i.e., further stack-derived capabilities such as return
+	 * addresses).
+	 */
+	sbop->sbo_stackcap = cheri_local(cheri_ptrperm(sbop->sbo_stackmem,
+	    sbop->sbo_stacklen, CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP |
+	    CHERI_PERM_STORE | CHERI_PERM_STORE_CAP |
+	    CHERI_PERM_STORE_LOCAL_CAP));
+
+	/*
+	 * Set up the sandbox's code/data segments, sealed capabilities.
+	 */
 	error = sandbox_object_load(sbcp, sbop);
 	if (error) {
+		(void)munmap(sbop->sbo_stackmem, sbop->sbo_stacklen);
 		free(sbop);
 		return (-1);
 	}
@@ -496,15 +526,28 @@ sandbox_object_reset(struct sandbox_object *sbop)
 	sbcp = sbop->sbo_sandbox_classp;
 	assert(sbcp != NULL);
 
+	/*
+	 * Reset loader-managed address space.
+	 */
 	if (sandbox_object_reload(sbop) == -1) {
 		warn("%s:, sandbox_object_reload", __func__);
 		return (-1);
 	}
 
 	/*
-	 * Invoke object instance's constructors.  Note that, given the tight
-	 * binding of class and object in the sandbox library currently, this
-	 * will need to change in the future.  We also need to think more
+	 * Reset external stack.
+	 */
+	if (mmap(sbop->sbo_stackmem, sbop->sbo_stacklen,
+	    PROT_READ | PROT_WRITE, MAP_ANON | MAP_FIXED, -1, 0) ==
+	    MAP_FAILED) {
+		warn("%s: stack reset", __func__);
+		return (-1);
+	}
+
+	/*
+	 * (Re-)invoke object instance's constructors.  Note that, given the
+	 * tight binding of class and object in the sandbox library currently,
+	 * this will need to change in the future.  We also need to think more
 	 * carefully about the mechanism here.
 	 */
 	(void)cheri_invoke(sbop->sbo_cheri_object_rtld,
@@ -644,6 +687,7 @@ sandbox_object_destroy(struct sandbox_object *sbop)
 		    sbop->sbo_sandbox_object_statp);
 	sandbox_object_unload(sbop);		/* Unmap memory. */
 	CHERI_SYSTEM_OBJECT_FINI(sbop);
+	(void)munmap(sbop->sbo_stackmem, sbop->sbo_stacklen);
 	bzero(sbop, sizeof(*sbop));		/* Clears tags. */
 	free(sbop);
 }

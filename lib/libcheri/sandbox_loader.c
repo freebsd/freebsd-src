@@ -70,7 +70,6 @@
 
 #define	GUARD_PAGE_SIZE	0x1000
 #define	METADATA_SIZE	0x1000
-#define	STACK_SIZE	(32*PAGE_SIZE)
 
 CHERI_CLASS_DECL(libcheri_system);
 
@@ -83,8 +82,7 @@ sandbox_class_load(struct sandbox_class *sbcp)
 
 	/*
 	 * Set up the code capability for a new sandbox class.  Very similar
-	 * to object setup (i.e., guard pages for NULL, etc), but no need to
-	 * configure a stack.
+	 * to object setup (i.e., guard pages for NULL, etc).
 	 *
 	 * Eventually, we will want to do something a bit different here -- in
 	 * particular, set up the code and data capabilities quite differently.
@@ -225,9 +223,7 @@ sandbox_object_load(struct sandbox_class *sbcp, struct sandbox_object *sbop)
 	 *
 	 * The rough sandbox memory map is as follows:
 	 *
-	 * K + 0x1000 [stack]
-	 * K          [guard page]
-	 * J + 0x1000 [heap]
+	 * J + 0x1000 [internal (non-shareable) heap]
 	 * J          [guard page]
 	 *  +0x600      Reserved vector
 	 *  +0x400      Reserved vector
@@ -259,7 +255,7 @@ sandbox_object_load(struct sandbox_class *sbcp, struct sandbox_object *sbop)
 	sbop->sbo_datalen = length =
 	    /* 0x0000 and metadata covered by maxoffset */
 	    roundup2(sandbox_map_maxoffset(sbcp->sbc_datamap), PAGE_SIZE) +
-	    GUARD_PAGE_SIZE + heaplen + GUARD_PAGE_SIZE + STACK_SIZE;
+	    GUARD_PAGE_SIZE + heaplen;
 	base = sbop->sbo_datamem = mmap(NULL, length, PROT_NONE, MAP_ANON, -1, 0);
 	if (sbop->sbo_datamem == MAP_FAILED) {
 		saved_errno = errno;
@@ -330,38 +326,21 @@ sandbox_object_load(struct sandbox_class *sbcp, struct sandbox_object *sbop)
 	length -= heaplen;
 
 	/*
-	 * Skip guard page.
-	 */
-	base += GUARD_PAGE_SIZE;
-	length -= GUARD_PAGE_SIZE;
-
-	/*
-	 * Stack.
-	 */
-	sbop->sbo_stackbase = (register_t)base - (register_t)sbop->sbo_datamem;
-	sbop->sbo_stacklen = length;
-	if (mmap(base, length, PROT_READ | PROT_WRITE, MAP_ANON | MAP_FIXED,
-	    -1, 0) == MAP_FAILED) {
-		saved_errno = errno;
-		warn("%s: mmap stack", __func__);
-		goto error;
-	}
-	base += STACK_SIZE;
-	length -= STACK_SIZE;
-
-	/*
 	 * There should not be too much, nor too little space remaining.  0
 	 * is our Goldilocks number.
 	 */
 	assert(length == 0);
 
 	/*
-	 * Now that addresses are known, write out metadata for in-sandbox use.
+	 * Now that addresses are known, write out metadata for in-sandbox
+	 * use.  The stack was configured by the higher-level object code, so
+	 * all we do is install the capability here.
 	 */
 	sbmp->sbm_heapbase = sbop->sbo_heapbase;
 	sbmp->sbm_heaplen = heaplen;
 	sbmp->sbm_vtable = sandbox_make_vtable(sbop->sbo_datamem, NULL,
 	    sbcp->sbc_provided_classes);
+	sbmp->sbm_stackcap = sbop->sbo_stackcap;
 
 	if (sbcp->sbc_sandbox_class_statp != NULL) {
 		(void)sandbox_stat_object_register(
@@ -377,8 +356,7 @@ sandbox_object_load(struct sandbox_class *sbcp, struct sandbox_object *sbop)
 	 */
 	datacap = cheri_ptrperm(sbop->sbo_datamem, sbop->sbo_datalen,
 	    CHERI_PERM_GLOBAL | CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP |
-	    CHERI_PERM_STORE | CHERI_PERM_STORE_CAP |
-	    CHERI_PERM_STORE_LOCAL_CAP);
+	    CHERI_PERM_STORE | CHERI_PERM_STORE_CAP);
 	sbop->sbo_cheri_object_rtld.co_codecap = sbcp->sbc_classcap_rtld;
 	sbop->sbo_cheri_object_rtld.co_datacap = cheri_seal(datacap,
 	    sbcp->sbc_typecap);
@@ -388,8 +366,7 @@ sandbox_object_load(struct sandbox_class *sbcp, struct sandbox_object *sbop)
 	 */
 	datacap = cheri_ptrperm(sbop->sbo_datamem, sbop->sbo_datalen,
 	    CHERI_PERM_GLOBAL | CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP |
-	    CHERI_PERM_STORE | CHERI_PERM_STORE_CAP |
-	    CHERI_PERM_STORE_LOCAL_CAP);
+	    CHERI_PERM_STORE | CHERI_PERM_STORE_CAP);
 	if (sandbox_set_required_method_variables(datacap,
 	    sbcp->sbc_required_methods)
 	    == -1) {
@@ -430,6 +407,11 @@ error:
 	return (-1);
 }
 
+/*
+ * Reset the loader-managed address space to its start-time state.  Note that
+ * this is not intended for use stand-alone, as sandbox_object_reset(), its
+ * caller, is responsible for resetting the external stack(s).
+ */
 int
 sandbox_object_reload(struct sandbox_object *sbop)
 {
@@ -455,15 +437,6 @@ sandbox_object_reload(struct sandbox_object *sbop)
 	    -1, 0) == MAP_FAILED) {
 		saved_errno = errno;
 		warn("%s: mmap heap", __func__);
-		goto error;
-	}
-
-	base = (caddr_t)sbop->sbo_datamem + sbop->sbo_stackbase;
-	length = sbop->sbo_stacklen;
-	if (mmap(base, length, PROT_READ | PROT_WRITE, MAP_ANON | MAP_FIXED,
-	    -1, 0) == MAP_FAILED) {
-		saved_errno = errno;
-		warn("%s: mmap stack", __func__);
 		goto error;
 	}
 
