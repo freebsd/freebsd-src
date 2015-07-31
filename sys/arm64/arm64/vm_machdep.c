@@ -258,18 +258,3 @@ swi_vm(void *v)
 
 	/* Nothing to do here - busdma bounce buffers are not implemented. */
 }
-
-void *
-uma_small_alloc(uma_zone_t zone, vm_size_t bytes, u_int8_t *flags, int wait)
-{
-
-	panic("ARM64TODO: uma_small_alloc");
-}
-
-void
-uma_small_free(void *mem, vm_size_t size, u_int8_t flags)
-{
-
-	panic("ARM64TODO: uma_small_free");
-}
-
