@@ -161,6 +161,7 @@ struct pargs {
  * for write access.
  */
 struct cpuset;
+struct filecaps;
 struct kaioinfo;
 struct kaudit_record;
 struct kdtrace_proc;
@@ -916,7 +917,8 @@ int	enterpgrp(struct proc *p, pid_t pgid, struct pgrp *pgrp,
 int	enterthispgrp(struct proc *p, struct pgrp *pgrp);
 void	faultin(struct proc *p);
 void	fixjobc(struct proc *p, struct pgrp *pgrp, int entering);
-int	fork1(struct thread *, int, int, struct proc **, int *, int);
+int	fork1(struct thread *, int, int, struct proc **, int *, int,
+	    struct filecaps *);
 void	fork_exit(void (*)(void *, struct trapframe *), void *,
 	    struct trapframe *);
 void	fork_return(struct thread *, struct trapframe *);
