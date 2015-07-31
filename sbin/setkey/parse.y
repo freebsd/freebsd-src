@@ -100,6 +100,7 @@ extern void yyerror(const char *);
 %token F_EXT EXTENSION NOCYCLICSEQ
 %token ALG_AUTH ALG_AUTH_NOKEY
 %token ALG_ENC ALG_ENC_NOKEY ALG_ENC_DESDERIV ALG_ENC_DES32IV ALG_ENC_OLD
+%token ALG_ENC_SALT
 %token ALG_COMP
 %token F_LIFETIME_HARD F_LIFETIME_SOFT
 %token DECSTRING QUOTEDSTRING HEXSTRING STRING ANY
@@ -111,6 +112,7 @@ extern void yyerror(const char *);
 
 %type <num> prefix protocol_spec upper_spec
 %type <num> ALG_ENC ALG_ENC_DESDERIV ALG_ENC_DES32IV ALG_ENC_OLD ALG_ENC_NOKEY
+%type <num> ALG_ENC_SALT
 %type <num> ALG_AUTH ALG_AUTH_NOKEY
 %type <num> ALG_COMP
 %type <num> PR_ESP PR_AH PR_IPCOMP PR_TCP
@@ -398,6 +400,27 @@ enc_alg
 			p_key_enc = $2.buf;
 			if (ipsec_check_keylen(SADB_EXT_SUPPORTED_ENCRYPT,
 			    p_alg_enc, PFKEY_UNUNIT64(p_key_enc_len)) < 0) {
+				yyerror(ipsec_strerror());
+				return -1;
+			}
+		}
+	|	ALG_ENC_SALT key_string
+		{
+			if ($1 < 0) {
+				yyerror("unsupported algorithm");
+				return -1;
+			}
+			p_alg_enc = $1;
+
+			p_key_enc_len = $2.len;
+
+			p_key_enc = $2.buf;
+			/*
+			 * Salted keys include a 4 byte value that is
+			 * not part of the key.
+			 */
+			if (ipsec_check_keylen(SADB_EXT_SUPPORTED_ENCRYPT,
+			    p_alg_enc, PFKEY_UNUNIT64(p_key_enc_len - 4)) < 0) {
 				yyerror(ipsec_strerror());
 				return -1;
 			}
