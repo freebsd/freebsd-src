@@ -777,7 +777,7 @@ ah_input_cb(struct cryptop *crp)
 
 	/* Verify authenticator. */
 	ptr = (caddr_t) (tc + 1);
-	if (bcmp(ptr + skip + rplen, calc, authsize)) {
+	if (timingsafe_bcmp(ptr + skip + rplen, calc, authsize)) {
 		DPRINTF(("%s: authentication hash mismatch for packet "
 		    "in SA %s/%08lx\n", __func__,
 		    ipsec_address(&saidx->dst, buf, sizeof(buf)),
