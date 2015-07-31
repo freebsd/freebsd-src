@@ -824,8 +824,7 @@ fork1(struct thread *td, int flags, int pages, struct proc **procp,
 	 * later.
 	 */
 	if (flags & RFPROCDESC) {
-		error = falloc_caps(td, &fp_procdesc, procdescp, 0,
-		fcaps);
+		error = falloc_caps(td, &fp_procdesc, procdescp, 0, fcaps);
 		if (error != 0)
 			return (error);
 	}
