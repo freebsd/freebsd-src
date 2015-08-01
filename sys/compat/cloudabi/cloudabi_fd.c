@@ -30,6 +30,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/capsicum.h>
 #include <sys/filedesc.h>
 #include <sys/proc.h>
+#include <sys/mman.h>
 #include <sys/socketvar.h>
 #include <sys/syscallsubr.h>
 #include <sys/sysproto.h>
@@ -97,11 +98,16 @@ int
 cloudabi_sys_fd_create1(struct thread *td,
     struct cloudabi_sys_fd_create1_args *uap)
 {
+	struct filecaps fcaps = {};
 	struct socket_args socket_args = {
 		.domain = AF_UNIX,
 	};
 
 	switch (uap->type) {
+	case CLOUDABI_FILETYPE_SHARED_MEMORY:
+		cap_rights_init(&fcaps.fc_rights, CAP_FSTAT, CAP_FTRUNCATE,
+		    CAP_MMAP_RWX);
+		return (kern_shm_open(td, SHM_ANON, O_RDWR, 0, &fcaps));
 	case CLOUDABI_FILETYPE_SOCKET_DGRAM:
 		socket_args.type = SOCK_DGRAM;
 		return (sys_socket(td, &socket_args));
