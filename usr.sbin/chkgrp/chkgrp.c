@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <errno.h>
 #include <ctype.h>
+#include <inttypes.h>
 #include <limits.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -169,9 +170,9 @@ main(int argc, char *argv[])
 
 		/* check the range of the group id */
 		errno = 0;
-		gid = strtoul(f[2], NULL, 10);
+		gid = strtoumax(f[2], NULL, 10);
 		if (errno != 0) {
-			warnx("%s: line %d: strtoul failed", gfn, n);
+			warnx("%s: line %d: strtoumax failed", gfn, n);
 		} else if (gid > GID_MAX) {
 			warnx("%s: line %d: group id is too large (%ju > %ju)",
 			    gfn, n, (uintmax_t)gid, (uintmax_t)GID_MAX);
