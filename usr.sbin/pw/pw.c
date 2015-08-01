@@ -262,11 +262,6 @@ main(int argc, char *argv[])
 		case 'c':
 			conf.gecos = pw_checkname(optarg, 1);
 			break;
-		case 'e':
-			conf.expire_days = strtonum(optarg, 0, INT_MAX, &errstr);
-			if (errstr)
-				errx(EX_USAGE, "Invalid expired days: %s", optarg);
-			break;
 		case 'g':
 			if (which == 0) { /* for user* */
 				addarg(&arglist, 'g', optarg);
@@ -325,11 +320,6 @@ main(int argc, char *argv[])
 			break;
 		case 'o':
 			conf.checkduplicate = false;
-			break;
-		case 'p':
-			conf.password_days = strtonum(optarg, 0, INT_MAX, &errstr);
-			if (errstr)
-				errx(EX_USAGE, "Invalid password days: %s", optarg);
 			break;
 		case 'q':
 			conf.quiet = true;
