@@ -2029,9 +2029,6 @@ retry:
 		/* Try it again, but only once */
 		remap = 0;
 		goto retry;
-	} else if (error == ENOMEM) {
-		adapter->no_tx_dma_setup++;
-		return (error);
 	} else if (error != 0) {
 		adapter->no_tx_dma_setup++;
 		m_freem(*m_headp);
