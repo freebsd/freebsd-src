@@ -106,7 +106,8 @@ main(int argc, char *argv[])
 		/*
 		 * Hack: special case for + line
 		 */
-		if (strncmp(line, "+:::", len) == 0)
+		if (strncmp(line, "+:::", len) == 0 ||
+		    strncmp(line, "+:*::", len) == 0)
 			continue;
 
 		/*
