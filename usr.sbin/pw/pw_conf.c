@@ -367,8 +367,6 @@ read_userconfig(char const * file)
 						warnx("Invalid expire days:"
 						    " '%s'; ignoring", q);
 				}
-				if ((q = unquote(q)) != NULL && isdigit(*q))
-					config.expire_days = atoi(q);
 				break;
 			case _UC_PASSWORD:
 				if ((q = unquote(q)) != NULL) {
