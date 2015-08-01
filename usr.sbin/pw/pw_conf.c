@@ -348,6 +348,7 @@ read_userconfig(char const * file)
 					if (errstr)
 						warnx("Invalid min_gid: '%s';"
 						    " ignoring", q);
+				}
 				break;
 			case _UC_MAXGID:
 				if ((q = unquote(q)) != NULL) {
