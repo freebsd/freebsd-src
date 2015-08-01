@@ -86,8 +86,6 @@ struct pwconf {
 	char		*newname;
 	char		*config;
 	char		*gecos;
-	int		 expire_days;
-	int		 password_days;
 	int		 fd;
 	int		 rootfd;
 	int		 which;
