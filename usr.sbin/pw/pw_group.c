@@ -31,6 +31,7 @@ static const char rcsid[] =
 
 #include <ctype.h>
 #include <err.h>
+#include <inttypes.h>
 #include <termios.h>
 #include <stdbool.h>
 #include <unistd.h>
@@ -97,7 +98,7 @@ pw_groupnext(struct userconf *cnf, bool quiet)
 
 	if (quiet)
 		return (next);
-	printf("%u\n", next);
+	printf("%ju\n", (uintmax_t)next);
 
 	return (EXIT_SUCCESS);
 }
@@ -283,7 +284,7 @@ pw_group(int mode, char *name, long id, struct cargs * args)
 	if ((grp = GETGRNAM(name)) == NULL)
 		errx(EX_SOFTWARE, "group disappeared during update");
 
-	pw_log(cnf, mode, W_GROUP, "%s(%u)", grp->gr_name, grp->gr_gid);
+	pw_log(cnf, mode, W_GROUP, "%s(%ju)", grp->gr_name, (uintmax_t)grp->gr_gid);
 
 	return EXIT_SUCCESS;
 }
@@ -345,7 +346,7 @@ gr_gidpolicy(struct userconf * cnf, long id)
 		gid = (gid_t) id;
 
 		if ((grp = GETGRGID(gid)) != NULL && conf.checkduplicate)
-			errx(EX_DATAERR, "gid `%u' has already been allocated", grp->gr_gid);
+			errx(EX_DATAERR, "gid `%ju' has already been allocated", (uintmax_t)grp->gr_gid);
 	} else {
 		struct bitmap   bm;
 
