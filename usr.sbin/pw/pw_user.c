@@ -418,14 +418,14 @@ pw_user(int mode, char *name, long id, struct cargs * args)
 			errx(EX_OSFILE, "root home `%s' is not a directory", cnf->home);
 	}
 
-	if (conf.expire_days > 0)
-		cnf->expire_days = conf.expire_days;
+	if ((arg = getarg(args, 'e')) != NULL)
+		cnf->expire_days = atoi(arg->val);
 
 	if ((arg = getarg(args, 'y')) != NULL)
 		cnf->nispasswd = arg->val;
 
-	if (conf.password_days > 0)
-		cnf->password_days = conf.password_days;
+	if ((arg = getarg(args, 'p')) != NULL && arg->val)
+		cnf->password_days = atoi(arg->val);
 
 	if ((arg = getarg(args, 'g')) != NULL) {
 		if (!*(p = arg->val))	/* Handle empty group list specially */
