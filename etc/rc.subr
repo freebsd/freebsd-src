@@ -1333,7 +1333,8 @@ load_rc_config()
 	# If a service name was specified, attempt to load
 	# service-specific configuration
 	if [ -n "$_name" ] ; then
-		for _d in /etc ${local_startup%*/rc.d}; do
+		for _d in /etc ${local_startup}; do
+			_d=${_d%/rc.d}
 			if [ -f ${_d}/rc.conf.d/"$_name" ]; then
 				debug "Sourcing ${_d}/rc.conf.d/$_name"
 				. ${_d}/rc.conf.d/"$_name"
