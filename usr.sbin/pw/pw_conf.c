@@ -355,12 +355,20 @@ read_userconfig(char const * file)
 				}
 				break;
 			case _UC_EXPIRE:
-				if ((q = unquote(q)) != NULL && isdigit(*q))
-					config.expire_days = atoi(q);
+				if ((q = unquote(q)) != NULL) {
+					errstr = NULL;
+					config.expire_days = strtonum(q, 0, INT_MAX, &errstr);
+					if (errstr)
+						warnx("Invalid expire days: '%s', ignoring", q);
+				}
 				break;
 			case _UC_PASSWORD:
-				if ((q = unquote(q)) != NULL && isdigit(*q))
-					config.password_days = atoi(q);
+				if ((q = unquote(q)) != NULL) {
+					errstr = NULL;
+					config.password_days = strtonum(q, 0, INT_MAX, &errstr);
+					if (errstr)
+						warnx("Invalid password days: '%s', ignoring", q);
+				}
 				break;
 			case _UC_FIELDS:
 			case _UC_NONE:
