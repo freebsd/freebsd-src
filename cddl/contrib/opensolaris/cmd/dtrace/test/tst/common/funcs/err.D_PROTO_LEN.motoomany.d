@@ -34,7 +34,7 @@
  *
  */
 
-lockstat:kernel:mtx_lock:adaptive-acquire
+lockstat:::adaptive-acquire
 {
 	mutex_owned((kmutex_t *)arg0, 99);
 	exit(1);

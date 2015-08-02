@@ -36,7 +36,7 @@
  */
 
 
-lockstat:kernel:mtx_lock:adaptive-acquire
+lockstat:::adaptive-acquire
 {
 	mutex_type_adaptive();
 	exit(1);
