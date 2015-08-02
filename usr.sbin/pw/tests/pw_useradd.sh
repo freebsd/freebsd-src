@@ -304,6 +304,16 @@ user_add_bad_shell_body() {
 	atf_check -s exit:78 -e ignore ${PW} useradd bar -s badshell
 }
 
+atf_test_case user_add_already_exists
+user_add_already_exists_body() {
+	populate_etc_skel
+
+	atf_check -s exit:0 ${PW} useradd foo
+	atf_check -s exit:65 \
+		-e inline:"pw: login name \`foo' already exists\n" \
+		${PW} useradd foo
+}
+
 atf_init_test_cases() {
 	atf_add_test_case user_add
 	atf_add_test_case user_add_noupdate
@@ -330,4 +340,5 @@ atf_init_test_cases() {
 	atf_add_test_case user_add_uid0
 	atf_add_test_case user_add_uid_too_large
 	atf_add_test_case user_add_bad_shell
+	atf_add_test_case user_add_already_exists
 }
