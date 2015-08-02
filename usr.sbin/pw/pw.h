@@ -64,15 +64,6 @@ enum _which
         W_NUM
 };
 
-struct carg
-{
-	int		  ch;
-	char		  *val;
-	LIST_ENTRY(carg)  list;
-};
-
-LIST_HEAD(cargs, carg);
-
 #define	_DEF_DIRMODE	(S_IRWXU | S_IRWXG | S_IRWXO)
 #define _PATH_PW_CONF	"/etc/pw.conf"
 #define _UC_MAXLINE	1024
@@ -81,8 +72,6 @@ LIST_HEAD(cargs, carg);
 struct userconf *get_userconfig(const char *cfg);
 struct userconf *read_userconfig(char const * file);
 int write_userconfig(struct userconf *cnf, char const * file);
-struct carg *addarg(struct cargs * _args, int ch, char *argstr);
-struct carg *getarg(struct cargs * _args, int ch);
 
 int pw_group_add(int argc, char **argv, char *name);
 int pw_group_del(int argc, char **argv, char *name);
