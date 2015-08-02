@@ -616,77 +616,38 @@ selectroute(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
 	 */
 	if (opts && opts->ip6po_nexthop) {
 		struct route_in6 *ron;
-		struct llentry *la;
-	    
+
 		sin6_next = satosin6(opts->ip6po_nexthop);
-		
-		/* at this moment, we only support AF_INET6 next hops */
-		if (sin6_next->sin6_family != AF_INET6) {
-			error = EAFNOSUPPORT; /* or should we proceed? */
-			goto done;
+		if (IN6_IS_ADDR_LINKLOCAL(&sin6_next->sin6_addr)) {
+			/*
+			 * Next hop is LLA, thus it should be neighbor.
+			 * Determine outgoing interface by zone index.
+			 */
+			zoneid = ntohs(in6_getscope(&sin6_next->sin6_addr));
+			if (zoneid > 0) {
+				ifp = in6_getlinkifnet(zoneid);
+				goto done;
+			}
 		}
-
-		/*
-		 * If the next hop is an IPv6 address, then the node identified
-		 * by that address must be a neighbor of the sending host.
-		 */
 		ron = &opts->ip6po_nextroute;
-		/*
-		 * XXX what do we do here?
-		 * PLZ to be fixing
-		 */
-
-
+		/* Use a cached route if it exists and is valid. */
+		if (ron->ro_rt != NULL && (
+		    (ron->ro_rt->rt_flags & RTF_UP) == 0 ||
+		    ron->ro_dst.sin6_family != AF_INET6 ||
+		    !IN6_ARE_ADDR_EQUAL(&ron->ro_dst.sin6_addr,
+			&sin6_next->sin6_addr)))
+			RO_RTFREE(ron);
 		if (ron->ro_rt == NULL) {
+			ron->ro_dst = *sin6_next;
 			in6_rtalloc(ron, fibnum); /* multi path case? */
-			if (ron->ro_rt == NULL) {
-				error = EHOSTUNREACH;
-				goto done;
-			}
 		}
-
-		rt = ron->ro_rt;
-		ifp = rt->rt_ifp;
-		IF_AFDATA_RLOCK(ifp);
-		la = lla_lookup(LLTABLE6(ifp), 0, (struct sockaddr *)sin6_next);
-		IF_AFDATA_RUNLOCK(ifp);
-		if (la != NULL) 
-			LLE_RUNLOCK(la);
-		else {
+		/*
+		 * The node identified by that address must be a
+		 * neighbor of the sending host.
+		 */
+		if (ron->ro_rt == NULL ||
+		    (ron->ro_rt->rt_flags & RTF_GATEWAY) != 0)
 			error = EHOSTUNREACH;
-			goto done;
-		}
-#if 0
-		if ((ron->ro_rt &&
-		     (ron->ro_rt->rt_flags & (RTF_UP | RTF_LLINFO)) !=
-		     (RTF_UP | RTF_LLINFO)) ||
-		    !IN6_ARE_ADDR_EQUAL(&satosin6(&ron->ro_dst)->sin6_addr,
-		    &sin6_next->sin6_addr)) {
-			if (ron->ro_rt) {
-				RTFREE(ron->ro_rt);
-				ron->ro_rt = NULL;
-			}
-			*satosin6(&ron->ro_dst) = *sin6_next;
-		}
-		if (ron->ro_rt == NULL) {
-			in6_rtalloc(ron, fibnum); /* multi path case? */
-			if (ron->ro_rt == NULL ||
-			    !(ron->ro_rt->rt_flags & RTF_LLINFO)) {
-				if (ron->ro_rt) {
-					RTFREE(ron->ro_rt);
-					ron->ro_rt = NULL;
-				}
-				error = EHOSTUNREACH;
-				goto done;
-			}
-		}
-#endif
-
-		/*
-		 * When cloning is required, try to allocate a route to the
-		 * destination so that the caller can store path MTU
-		 * information.
-		 */
 		goto done;
 	}
 
