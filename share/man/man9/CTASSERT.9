@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 30, 2015
+.Dd August 1, 2015
 .Dt CTASSERT 9
 .Os
 .Sh NAME
@@ -39,6 +39,15 @@
 .Sh DESCRIPTION
 The
 .Fn CTASSERT
+macro is deprecated and the C11 standard
+.Fn _Static_assert
+should be used instead.
+The header
+.Fa sys/cdefs.h
+should be included to provide compatibility for pre-C11 compilers.
+.Pp
+The
+.Fn CTASSERT
 macro evaluates
 .Fa expression
 at compile time and causes a compiler error if it is false.
@@ -48,10 +57,6 @@ The
 macro is useful for asserting the size or alignment of important
 data structures and variables during compilation, which would
 otherwise cause the code to fail at run time.
-.Pp
-The
-.Fn CTASSERT
-macro is not usable in userland.
 .Sh EXAMPLES
 Assert that the size of the
 .Vt uuid
