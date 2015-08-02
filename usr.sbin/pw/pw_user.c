@@ -30,23 +30,28 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif /* not lint */
 
+#include <sys/param.h>
+#include <sys/resource.h>
+#include <sys/time.h>
+#include <sys/types.h>
+
 #include <ctype.h>
+#include <dirent.h>
 #include <err.h>
 #include <fcntl.h>
-#include <inttypes.h>
-#include <sys/param.h>
-#include <dirent.h>
-#include <paths.h>
-#include <termios.h>
-#include <sys/types.h>
-#include <sys/time.h>
-#include <sys/resource.h>
-#include <login_cap.h>
-#include <pwd.h>
 #include <grp.h>
+#include <pwd.h>
 #include <libutil.h>
+#include <login_cap.h>
+#include <paths.h>
+#include <string.h>
+#include <sysexits.h>
+#include <termios.h>
+#include <unistd.h>
+
 #include "pw.h"
 #include "bitmap.h"
+#include "psdate.h"
 
 #define LOGNAMESIZE (MAXLOGNAME-1)
 
