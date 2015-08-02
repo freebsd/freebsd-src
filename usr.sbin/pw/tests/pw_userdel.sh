@@ -27,7 +27,7 @@ user_do_not_try_to_delete_root_if_user_unknown_head() {
 }
 user_do_not_try_to_delete_root_if_user_unknown_body() {
 	populate_etc_skel
-	atf_check -e inline:"pw: -u expects a number\n" -s exit:64 -x \
+	atf_check -e inline:"pw: Bad id 'plop': invalid\n" -s exit:64 -x \
 		${PW} userdel -u plop
 }
 
