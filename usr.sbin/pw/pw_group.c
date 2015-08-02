@@ -180,7 +180,8 @@ gr_gidpolicy(struct userconf * cnf, intmax_t id)
 		gid = (gid_t) id;
 
 		if ((grp = GETGRGID(gid)) != NULL && conf.checkduplicate)
-			errx(EX_DATAERR, "gid `%ju' has already been allocated", (uintmax_t)grp->gr_gid);
+			errx(EX_DATAERR, "gid `%ju' has already been allocated",
+			    (uintmax_t)grp->gr_gid);
 		return (gid);
 	}
 
@@ -222,7 +223,8 @@ gr_gidpolicy(struct userconf * cnf, intmax_t id)
 	 * Another sanity check
 	 */
 	if (gid < cnf->min_gid || gid > cnf->max_gid)
-		errx(EX_SOFTWARE, "unable to allocate a new gid - range fully used");
+		errx(EX_SOFTWARE, "unable to allocate a new gid - range fully "
+		    "used");
 	bm_dealloc(&bm);
 	return (gid);
 }
