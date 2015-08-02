@@ -1275,6 +1275,9 @@ pw_user_add(int argc, char **argv, char *arg1)
 	if (name == NULL)
 		errx(EX_DATAERR, "login name required");
 
+	if (GETPWNAM(name) != NULL)
+		errx(EX_DATAERR, "login name `%s' already exists", name);
+
 	pwd = &fakeuser;
 	pwd->pw_name = name;
 	pwd->pw_class = cmdcnf->default_class ? cmdcnf->default_class : "";
