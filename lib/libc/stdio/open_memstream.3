@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 28, 2014
+.Dd August 1, 2015
 .Dt OPEN_MEMSTREAM 3
 .Os
 .Sh NAME
@@ -86,13 +86,13 @@ will contain the start of the memory buffer and the variable referenced by
 will contain the smaller of the current position and the current buffer length.
 .Pp
 After a successful call to
-.Xr fflush 3,
+.Xr fflush 3 ,
 the pointer referenced by
 .Fa bufp
 and the variable referenced by
 .Fa sizep
 are only valid until the next write operation or a call to
-.Xr fclose 3.
+.Xr fclose 3 .
 .Pp
 Once a stream is closed,
 the allocated buffer referenced by
