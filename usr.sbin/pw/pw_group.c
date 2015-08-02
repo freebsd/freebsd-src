@@ -32,10 +32,10 @@ static const char rcsid[] =
 #include <ctype.h>
 #include <err.h>
 #include <grp.h>
-#include <inttypes.h>
 #include <libutil.h>
 #include <paths.h>
-#include <stdbool.h>
+#include <string.h>
+#include <sysexits.h>
 #include <termios.h>
 #include <unistd.h>
 

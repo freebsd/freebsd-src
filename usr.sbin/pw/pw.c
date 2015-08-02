@@ -32,9 +32,10 @@ static const char rcsid[] =
 #include <err.h>
 #include <fcntl.h>
 #include <locale.h>
-#include <paths.h>
-#include <stdbool.h>
-#include <sys/wait.h>
+#include <string.h>
+#include <sysexits.h>
+#include <unistd.h>
+
 #include "pw.h"
 
 const char     *Modes[] = {

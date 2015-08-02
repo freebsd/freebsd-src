@@ -31,11 +31,11 @@ static const char rcsid[] =
 
 #include <sys/types.h>
 #include <sys/sbuf.h>
-#include <inttypes.h>
-#include <string.h>
-#include <ctype.h>
-#include <fcntl.h>
+
 #include <err.h>
+#include <fcntl.h>
+#include <string.h>
+#include <unistd.h>
 
 #include "pw.h"
 
