@@ -321,8 +321,10 @@ g_part_check_integrity(struct g_part_table *table, struct g_consumer *cp)
 			if (e1->gpe_offset > offset)
 				offset = e1->gpe_offset;
 			if ((offset + pp->stripeoffset) % pp->stripesize) {
-				DPRINTF("partition %d is not aligned on %u "
-				    "bytes\n", e1->gpe_index, pp->stripesize);
+				DPRINTF("partition %d on (%s, %s) is not "
+				    "aligned on %u bytes\n", e1->gpe_index,
+				    pp->name, table->gpt_scheme->name,
+				    pp->stripesize);
 				/* Don't treat this as a critical failure */
 			}
 		}
