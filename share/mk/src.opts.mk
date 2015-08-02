@@ -181,6 +181,7 @@ __DEFAULT_YES_OPTIONS = \
 __DEFAULT_NO_OPTIONS = \
     BSD_GREP \
     CLANG_EXTRAS \
+    DTRACE_TESTS \
     EISA \
     HESIOD \
     LIBCHERI_BROKEN \
@@ -320,6 +321,10 @@ MK_KERBEROS:=	no
 
 .if ${MK_PF} == "no"
 MK_AUTHPF:=	no
+.endif
+
+.if ${MK_TESTS} == "no"
+MK_DTRACE_TESTS:= no
 .endif
 
 .if ${MK_TEXTPROC} == "no"
