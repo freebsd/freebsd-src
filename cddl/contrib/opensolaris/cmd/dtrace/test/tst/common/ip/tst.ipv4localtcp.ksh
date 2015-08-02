@@ -58,11 +58,24 @@ fi
 
 dtrace=$1
 local=127.0.0.1
-tcpport=22
 DIR=/var/tmp/dtest.$$
+
+tcpport=1024
+bound=5000
+while [ $tcpport -lt $bound ]; do
+	nc -z $local $tcpport >/dev/null || break
+	tcpport=$(($tcpport + 1))
+done
+if [ $tcpport -eq $bound ]; then
+	echo "couldn't find an available TCP port"
+	exit 1
+fi
 
 mkdir $DIR
 cd $DIR
+
+# nc will exit when the connection is closed.
+nc -l $local $tcpport &
 
 cat > test.pl <<-EOPERL
 	use IO::Socket;
@@ -76,7 +89,7 @@ cat > test.pl <<-EOPERL
 	sleep(2);
 EOPERL
 
-$dtrace -c '/usr/bin/perl test.pl' -qs /dev/stdin <<EODTRACE
+$dtrace -c 'perl test.pl' -qs /dev/stdin <<EODTRACE
 BEGIN
 {
 	ipsend = tcpsend = ipreceive = tcpreceive = 0;
