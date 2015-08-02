@@ -30,6 +30,7 @@ static const char rcsid[] =
 #endif /* not lint */
 
 #include <sys/types.h>
+
 #include <err.h>
 #include <pwd.h>
 #include <libutil.h>

@@ -26,23 +26,13 @@
  * $FreeBSD$
  */
 
+#include <sys/stat.h>
+
 #define _WITH_GETLINE
+#include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-#include <stdarg.h>
-#include <inttypes.h>
-#include <errno.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/param.h>
-#include <pwd.h>
-#include <grp.h>
-#include <sys/queue.h>
-#include <sysexits.h>
 
-#include "psdate.h"
 #include "pwupd.h"
 
 enum _mode
