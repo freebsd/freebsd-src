@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 29, 2015
+.Dd July 30, 2015
 .Dt PMS 4
 .Os
 .Sh NAME
@@ -35,14 +35,14 @@ To compile the driver into the kernel,
 place the following line in the
 kernel configuration file:
 .Bd -ragged -offset indent
-.Cd "device pms"
+.Cd "device pmspcv"
 .Ed
 .Pp
 Alternatively, to load the driver as a
 module at boot time, place the following line in
 .Xr loader.conf 5 :
 .Bd -literal -offset indent
-pms_load="YES"
+pmspcv_load="YES"
 .Ed
 .Sh DESCRIPTION
 The
