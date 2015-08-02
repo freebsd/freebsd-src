@@ -546,6 +546,8 @@ pw_group_add(int argc, char **argv, char *arg1)
 		freopen(_PATH_DEVNULL, "w", stderr);
 	if (name == NULL)
 		errx(EX_DATAERR, "group name required");
+	if (GETGRNAM(name) != NULL)
+		errx(EX_DATAERR, "group name `%s' already exists", name);
 	cnf = get_userconfig(cfg);
 	rc = groupadd(cnf, name, gr_gidpolicy(cnf, id), members, fd, dryrun,
 	    pretty, precrypted);
