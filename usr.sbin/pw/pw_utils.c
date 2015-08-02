@@ -27,45 +27,71 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <errno.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+
+#include <err.h>
 #include <inttypes.h>
+#include <sysexits.h>
 #include <limits.h>
 #include <stdlib.h>
 
 #include "pw.h"
 
-uintmax_t
-strtounum(const char * __restrict np, uintmax_t minval, uintmax_t maxval,
-    const char ** __restrict errpp)
+int
+pw_checkfd(char *nptr)
 {
-	char *endp;
-	uintmax_t ret;
+	const char *errstr;
+	int fd = -1;
 
-	if (minval > maxval) {
-		errno = EINVAL;
-		if (errpp != NULL)
-			*errpp = "invalid";
-		return (0);
+	if (strcmp(nptr, "-") == 0)
+		return '-';
+	fd = strtonum(nptr, 0, INT_MAX, &errstr);
+	if (errstr != NULL)
+		errx(EX_USAGE, "Bad file descriptor '%s': %s",
+		    nptr, errstr);
+	return (fd);
+}
+
+uintmax_t
+pw_checkid(char *nptr, uintmax_t maxval)
+{
+	const char *errstr = NULL;
+	uintmax_t id;
+
+	id = strtounum(nptr, 0, maxval, &errstr);
+	if (errstr)
+		errx(EX_USAGE, "Bad id '%s': %s", nptr, errstr);
+	return (id);
+}
+
+struct userconf *
+get_userconfig(const char *config)
+{
+	char defaultcfg[MAXPATHLEN];
+
+	if (config != NULL)
+		return (read_userconfig(config));
+	snprintf(defaultcfg, sizeof(defaultcfg), "%s/pw.conf", conf.etcpath);
+	return (read_userconfig(defaultcfg));
+}
+
+int
+nis_update(void) {
+	pid_t pid;
+	int i;
+
+	fflush(NULL);
+	if ((pid = fork()) == -1) {
+		warn("fork()");
+		return (1);
 	}
-	errno = 0;
-	ret = strtoumax(np, &endp, 10);
-	if (endp == np || *endp != '\0') {
-		errno = EINVAL;
-		if (errpp != NULL)
-			*errpp = "invalid";
-		return (0);
+	if (pid == 0) {
+		execlp("/usr/bin/make", "make", "-C", "/var/yp/", (char*) NULL);
+		_exit(1);
 	}
-	if (ret < minval) {
-		errno = ERANGE;
-		if (errpp != NULL)
-			*errpp = "too small";
-		return (0);
-	}
-	if (errno == ERANGE || ret > maxval) {
-		errno = ERANGE;
-		if (errpp != NULL)
-			*errpp = "too large";
-		return (0);
-	}
-	return (ret);
+	waitpid(pid, &i, 0);
+	if ((i = WEXITSTATUS(i)) != 0)
+		errx(i, "make exited with status %d", i);
+	return (i);
 }
