@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/libkern.h>
 #include <sys/sbuf.h>
+#include <sys/stddef.h>
 #include <sys/sysctl.h>
 #include <geom/geom.h>
 #include <geom/geom_slice.h>
@@ -93,6 +94,20 @@ const struct g_label_desc *g_labels[] = {
 	NULL
 };
 
+void
+g_label_rtrim(char *label, size_t size)
+{
+	ptrdiff_t i;
+
+	for (i = size - 1; i >= 0; i--) {
+		if (label[i] == '\0')
+			continue;
+		else if (label[i] == ' ')
+			label[i] = '\0';
+		else
+			break;
+	}
+}
 
 static int
 g_label_destroy_geom(struct gctl_req *req __unused, struct g_class *mp,
