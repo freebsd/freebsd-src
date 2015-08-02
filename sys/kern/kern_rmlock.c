@@ -608,11 +608,8 @@ _rm_wlock_debug(struct rmlock *rm, const char *file, int line)
 	_rm_wlock(rm);
 
 	LOCK_LOG_LOCK("RMWLOCK", &rm->lock_object, 0, 0, file, line);
-
 	WITNESS_LOCK(&rm->lock_object, LOP_EXCLUSIVE, file, line);
-
-	curthread->td_locks++;
-
+	TD_LOCKS_INC(curthread);
 }
 
 void
@@ -628,7 +625,7 @@ _rm_wunlock_debug(struct rmlock *rm, const char *file, int line)
 	WITNESS_UNLOCK(&rm->lock_object, LOP_EXCLUSIVE, file, line);
 	LOCK_LOG_LOCK("RMWUNLOCK", &rm->lock_object, 0, 0, file, line);
 	_rm_wunlock(rm);
-	curthread->td_locks--;
+	TD_LOCKS_DEC(curthread);
 }
 
 int
@@ -670,9 +667,7 @@ _rm_rlock_debug(struct rmlock *rm, struct rm_priotracker *tracker,
 			LOCK_LOG_LOCK("RMRLOCK", &rm->lock_object, 0, 0, file,
 			    line);
 		WITNESS_LOCK(&rm->lock_object, 0, file, line);
-
-		curthread->td_locks++;
-
+		TD_LOCKS_INC(curthread);
 		return (1);
 	} else if (trylock)
 		LOCK_LOG_TRY("RMRLOCK", &rm->lock_object, 0, 0, file, line);
@@ -694,7 +689,7 @@ _rm_runlock_debug(struct rmlock *rm, struct rm_priotracker *tracker,
 	WITNESS_UNLOCK(&rm->lock_object, 0, file, line);
 	LOCK_LOG_LOCK("RMRUNLOCK", &rm->lock_object, 0, 0, file, line);
 	_rm_runlock(rm, tracker);
-	curthread->td_locks--;
+	TD_LOCKS_DEC(curthread);
 }
 
 #else
