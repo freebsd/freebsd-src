@@ -493,11 +493,11 @@ write_userconfig(struct userconf *cnf, const char *file)
 			quote = 0;
 			break;
 		case _UC_EXPIRE:
-			sbuf_printf(buf, "%lld", (long long)cnf->expire_days);
+			sbuf_printf(buf, "%jd", (intmax_t)cnf->expire_days);
 			quote = 0;
 			break;
 		case _UC_PASSWORD:
-			sbuf_printf(buf, "%lld", (long long)cnf->password_days);
+			sbuf_printf(buf, "%jd", (intmax_t)cnf->password_days);
 			quote = 0;
 			break;
 		case _UC_NONE:
