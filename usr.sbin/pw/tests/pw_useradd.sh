@@ -181,29 +181,29 @@ user_add_expiration_body() {
 	populate_etc_skel
 
 	atf_check -s exit:0 \
-		${PW} useradd foo -e 20-03-2043
-	atf_check -o inline:"foo:*:1001:1001::0:2310422400:User &:/home/foo:/bin/sh\n" \
+		${PW} useradd foo -e 20-03-2037
+	atf_check -o inline:"foo:*:1001:1001::0:2121120000:User &:/home/foo:/bin/sh\n" \
 		-s exit:0 grep "^foo" ${HOME}/master.passwd
 	atf_check -s exit:0 ${PW} userdel foo
 	atf_check -s exit:0 \
-		${PW} useradd foo -e 20-03-43
-	atf_check -o inline:"foo:*:1001:1001::0:2310422400:User &:/home/foo:/bin/sh\n" \
+		${PW} useradd foo -e 20-03-37
+	atf_check -o inline:"foo:*:1001:1001::0:2121120000:User &:/home/foo:/bin/sh\n" \
 		-s exit:0 grep "^foo" ${HOME}/master.passwd
 	atf_check -s exit:0 ${PW} userdel foo
 	atf_check -s exit:0 \
-		${PW} useradd foo -e 20-Mar-2043
-	atf_check -o inline:"foo:*:1001:1001::0:2310422400:User &:/home/foo:/bin/sh\n" \
+		${PW} useradd foo -e 20-Mar-2037
+	atf_check -o inline:"foo:*:1001:1001::0:2121120000:User &:/home/foo:/bin/sh\n" \
 		-s exit:0 grep "^foo" ${HOME}/master.passwd
 	atf_check -s exit:0 ${PW} userdel foo
 	atf_check -e inline:"pw: Invalid date\n" -s exit:1 \
-		${PW} useradd foo -e 20-Foo-2043
+		${PW} useradd foo -e 20-Foo-2037
 	atf_check -e inline:"pw: Invalid date\n" -s exit:1 \
-		${PW} useradd foo -e 20-13-2043
-	atf_check -s exit:0 ${PW} useradd foo -e "12:00 20-03-2043"
+		${PW} useradd foo -e 20-13-2037
+	atf_check -s exit:0 ${PW} useradd foo -e "12:00 20-03-2037"
 	atf_check -s exit:0 ${PW} userdel foo
 	atf_check -e inline:"pw: Invalid date\n" -s exit:1 \
-		${PW} useradd foo -e "12 20-03-2043"
-	atf_check -s exit:0 ${PW} useradd foo -e "20-03-2043	12:00"
+		${PW} useradd foo -e "12 20-03-2037"
+	atf_check -s exit:0 ${PW} useradd foo -e "20-03-2037	12:00"
 	atf_check -s exit:0 ${PW} userdel foo
 }
 
