@@ -536,7 +536,7 @@ bd_seg_get_size(int sid, u_long *size_p)
 }
 
 int
-bd_sync(int mdid, u_int op, u_long base, u_long size)
+bd_sync(int mdid, u_int op, u_long ofs, u_long len)
 {
 	struct proto_ioc_busdma ioc;
 	struct obj *md;
@@ -549,8 +549,8 @@ bd_sync(int mdid, u_int op, u_long base, u_long size)
 	ioc.request = PROTO_IOC_BUSDMA_SYNC;
 	ioc.key = md->key;
 	ioc.u.sync.op = op;
-	ioc.u.sync.base = base;
-	ioc.u.sync.size = size;
+	ioc.u.sync.base = ofs;
+	ioc.u.sync.size = len;
 	if (ioctl(md->fd, PROTO_IOC_BUSDMA, &ioc) == -1)
 		return (errno);
 
