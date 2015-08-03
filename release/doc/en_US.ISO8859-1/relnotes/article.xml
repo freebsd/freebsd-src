@@ -556,6 +556,10 @@
 	to include support for the <acronym>AMT</acronym> serial
 	interface found on the Lenovo&reg; ThinkPad&trade;
 	T400.</para>
+
+      <para revision="281963">The &man.snd.hda.4; driver has been
+	updated to support the Lenovo&reg; ThinkPad&trade; X1 20BS
+	model.</para>
     </sect2>
 
     <sect2 xml:id="hardware-virtualization">
