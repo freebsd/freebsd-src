@@ -107,18 +107,21 @@ extern int in_mcast_loop;
 extern	struct protosw inetsw[];
 
 static inline int
-ip_output_pfil(struct mbuf *m, struct ifnet *ifp, struct inpcb *inp,
-	struct sockaddr_in *dst, int *fibnum, int *error)
+ip_output_pfil(struct mbuf **mp, struct ifnet *ifp, struct inpcb *inp,
+    struct sockaddr_in *dst, int *fibnum, int *error)
 {
 	struct m_tag *fwd_tag = NULL;
+	struct mbuf *m;
 	struct in_addr odst;
 	struct ip *ip;
 
+	m = *mp;
 	ip = mtod(m, struct ip *);
 
 	/* Run through list of hooks for output packets. */
 	odst.s_addr = ip->ip_dst.s_addr;
-	*error = pfil_run_hooks(&V_inet_pfil_hook, &m, ifp, PFIL_OUT, inp);
+	*error = pfil_run_hooks(&V_inet_pfil_hook, mp, ifp, PFIL_OUT, inp);
+	m = *mp;
 	if ((*error) != 0 || m == NULL)
 		return 1; /* Finished */
 
@@ -552,7 +555,7 @@ sendit:
 
 	/* Jump over all PFIL processing if hooks are not active. */
 	if (PFIL_HOOKED(&V_inet_pfil_hook)) {
-		switch (ip_output_pfil(m, ifp, inp, dst, &fibnum, &error)) {
+		switch (ip_output_pfil(&m, ifp, inp, dst, &fibnum, &error)) {
 		case 1: /* Finished */
 			goto done;
 
