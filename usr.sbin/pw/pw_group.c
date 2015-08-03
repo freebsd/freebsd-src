@@ -297,7 +297,7 @@ pw_group_show(int argc, char **argv, char *arg1)
 	};
 
 	if (arg1 != NULL) {
-		if (strspn(arg1, "0123456789") == strlen(arg1))
+		if (arg1[strspn(arg1, "0123456789")] == '\0')
 			id = pw_checkid(arg1, GID_MAX);
 		else
 			name = arg1;
@@ -360,7 +360,7 @@ pw_group_del(int argc, char **argv, char *arg1)
 	bool nis = false;
 
 	if (arg1 != NULL) {
-		if (strspn(arg1, "0123456789") == strlen(arg1))
+		if (arg1[strspn(arg1, "0123456789")] == '\0')
 			id = pw_checkid(arg1, GID_MAX);
 		else
 			name = arg1;
@@ -491,7 +491,7 @@ pw_group_add(int argc, char **argv, char *arg1)
 	quiet = precrypted = dryrun = pretty = nis = false;
 
 	if (arg1 != NULL) {
-		if (strspn(arg1, "0123456789") == strlen(arg1))
+		if (arg1[strspn(arg1, "0123456789")] == '\0')
 			id = pw_checkid(arg1, GID_MAX);
 		else
 			name = arg1;
@@ -577,7 +577,7 @@ pw_group_mod(int argc, char **argv, char *arg1)
 	quiet = pretty = dryrun = nis = precrypted = false;
 
 	if (arg1 != NULL) {
-		if (strspn(arg1, "0123456789") == strlen(arg1))
+		if (arg1[strspn(arg1, "0123456789")] == '\0')
 			id = pw_checkid(arg1, GID_MAX);
 		else
 			name = arg1;
