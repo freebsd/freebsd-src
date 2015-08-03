@@ -82,11 +82,17 @@ vfp_discard(struct thread *td)
 }
 
 void
-vfp_save_state(struct thread *td)
+vfp_save_state(struct thread *td, struct pcb *pcb)
 {
 	__int128_t *vfp_state;
 	uint64_t fpcr, fpsr;
 	uint32_t cpacr;
+
+	KASSERT(pcb != NULL, ("NULL vfp pcb"));
+	KASSERT(td == NULL || td->td_pcb == pcb, ("Invalid vfp pcb"));
+
+	if (td == NULL)
+		td = curthread;
 
 	critical_enter();
 	/*
@@ -98,7 +104,7 @@ vfp_save_state(struct thread *td)
 		KASSERT(PCPU_GET(fpcurthread) == td,
 		    ("Storing an invalid VFP state"));
 
-		vfp_state = td->td_pcb->pcb_vfp;
+		vfp_state = pcb->pcb_vfp;
 		__asm __volatile(
 		    "mrs	%0, fpcr		\n"
 		    "mrs	%1, fpsr		\n"
@@ -120,8 +126,8 @@ vfp_save_state(struct thread *td)
 		    "stp	q30, q31, [%2, #16 * 30]\n"
 		    : "=&r"(fpcr), "=&r"(fpsr) : "r"(vfp_state));
 
-		td->td_pcb->pcb_fpcr = fpcr;
-		td->td_pcb->pcb_fpsr = fpsr;
+		pcb->pcb_fpcr = fpcr;
+		pcb->pcb_fpsr = fpsr;
 
 		dsb(ish);
 		vfp_disable();
