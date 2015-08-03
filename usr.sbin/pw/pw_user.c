@@ -677,7 +677,7 @@ pw_user_next(int argc, char **argv, char *name __unused)
 			cfg = optarg;
 			break;
 		case 'q':
-			quiet;
+			quiet = true;
 			break;
 		}
 	}
