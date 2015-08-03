@@ -329,6 +329,7 @@ do_el0_sync(struct trapframe *frame)
 		break;
 	case EXCP_INSN_ABORT_L:
 	case EXCP_DATA_ABORT_L:
+	case EXCP_DATA_ABORT:
 		data_abort(frame, esr, 1);
 		break;
 	default:
