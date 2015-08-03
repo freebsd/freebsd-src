@@ -37,6 +37,7 @@
 .In sys/vnode.h
 .Ft void
 .Fn vgone "struct vnode *vp"
+.Fn vgonel "struct vnode *vp"
 .Sh DESCRIPTION
 The
 .Fn vgone
@@ -56,6 +57,11 @@ The
 .Fn vgone
 function takes an exclusively locked vnode, and returns with the vnode
 exclusively locked.
+The
+.Fn vgonel
+differs from
+.Fn vgone
+by requiring the vnode interlock to be held.
 .Sh SEE ALSO
 .Xr vnode 9
 .Sh AUTHORS
