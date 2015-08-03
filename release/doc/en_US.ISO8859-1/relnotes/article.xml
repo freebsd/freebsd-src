@@ -503,6 +503,9 @@
 
       <para revision="281957">The &man.hptnr.4; driver has been
 	updated to version 1.1.1.</para>
+
+      <para revision="284879">The &man.hpt27xx.4; driver has been
+	updated to version 1.2.7.</para>
     </sect2>
 
     <sect2 xml:id="drivers-network">
