@@ -180,7 +180,7 @@ fill_fpregs(struct thread *td, struct fpreg *regs)
 		 * If we have just been running VFP instructions we will
 		 * need to save the state to memcpy it below.
 		 */
-		vfp_save_state(td);
+		vfp_save_state(td, pcb);
 
 		memcpy(regs->fp_q, pcb->pcb_vfp, sizeof(regs->fp_q));
 		regs->fp_cr = pcb->pcb_fpcr;
@@ -314,7 +314,7 @@ get_fpcontext(struct thread *td, mcontext_t *mcp)
 		 * If we have just been running VFP instructions we will
 		 * need to save the state to memcpy it below.
 		 */
-		vfp_save_state(td);
+		vfp_save_state(td, curpcb);
 
 		memcpy(mcp->mc_fpregs.fp_q, curpcb->pcb_vfp,
 		    sizeof(mcp->mc_fpregs));

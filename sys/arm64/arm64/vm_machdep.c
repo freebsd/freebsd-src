@@ -74,7 +74,7 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 		td1->td_pcb->pcb_tpidr_el0 = READ_SPECIALREG(tpidr_el0);
 #ifdef VFP
 		if ((td1->td_pcb->pcb_fpflags & PCB_FP_STARTED) != 0)
-			vfp_save_state(td1);
+			vfp_save_state(td1, td1->td_pcb);
 #endif
 	}
 
