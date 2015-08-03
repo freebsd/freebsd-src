@@ -214,7 +214,7 @@ pw_userlock(char *arg1, int mode)
 	if (arg1 == NULL)
 		errx(EX_DATAERR, "username or id required");
 
-	if (strspn(arg1, "0123456789") == strlen(arg1))
+	if (arg1[strspn(arg1, "0123456789")] == '\0')
 		id = pw_checkid(arg1, UID_MAX);
 	else
 		name = arg1;
@@ -709,7 +709,7 @@ pw_user_show(int argc, char **argv, char *arg1)
 	bool quiet = false;
 
 	if (arg1 != NULL) {
-		if (strspn(arg1, "0123456789") == strlen(arg1))
+		if (arg1[strspn(arg1, "0123456789")] == '\0')
 			id = pw_checkid(arg1, UID_MAX);
 		else
 			name = arg1;
@@ -793,7 +793,7 @@ pw_user_del(int argc, char **argv, char *arg1)
 	bool quiet = false;
 
 	if (arg1 != NULL) {
-		if (strspn(arg1, "0123456789") == strlen(arg1))
+		if (arg1[strspn(arg1, "0123456789")] == '\0')
 			id = pw_checkid(arg1, UID_MAX);
 		else
 			name = arg1;
@@ -1124,7 +1124,7 @@ pw_user_add(int argc, char **argv, char *arg1)
 		err(EXIT_FAILURE, "calloc()");
 
 	if (arg1 != NULL) {
-		if (strspn(arg1, "0123456789") == strlen(arg1))
+		if (arg1[strspn(arg1, "0123456789")] == '\0')
 			id = pw_checkid(arg1, UID_MAX);
 		else
 			name = arg1;
@@ -1435,7 +1435,7 @@ pw_user_mod(int argc, char **argv, char *arg1)
 	edited = docreatehome = false;
 
 	if (arg1 != NULL) {
-		if (strspn(arg1, "0123456789") == strlen(arg1))
+		if (arg1[strspn(arg1, "0123456789")] == '\0')
 			id = pw_checkid(arg1, UID_MAX);
 		else
 			name = arg1;
