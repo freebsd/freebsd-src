@@ -856,6 +856,32 @@
       Collection, package infrastructure, and package maintenance and
       installation tools.</para>
 
+    <sect2 xml:id="ports-versions">
+      <title>Ports and Package Versions</title>
+
+      <para>The <filename role="package">ports-mgmt/pkg</filename>
+	package has been updated to version 1.5.4 in the
+	<literal>quarterly</literal> branch, and version 1.5.5 in the
+	<literal>head</literal> branch.</para>
+
+      <para>The <filename
+	  role="package">x11-servers/xorg-server</filename> package
+	for &os;&nbsp;&release.current; has been updated to version
+	1.14.7_5.</para>
+
+      <para>The <filename role="package">x11/xorg</filename> package
+	for &os;&nbsp;&release.current; has been updated to version
+	7.7_2.</para>
+
+      <para>The <filename role="package">x11/gnome3</filename> package
+	for &os;&nbsp;&release.current; has been updated to version
+	3.14.2.</para>
+
+      <para>The <filename role="package">x11/kde4</filename> package
+	for &os;&nbsp;&release.current; has been updated to version
+	4.14.3.</para>
+    </sect2>
+
     <sect2 xml:id="ports-infrastructure">
       <title>Infrastructure Changes</title>
 
