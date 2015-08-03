@@ -793,7 +793,7 @@ umtxq_sleep(struct umtx_q *uq, const char *wmesg, struct abs_timeout *abstime)
  * Convert userspace address into unique logical address.
  */
 int
-umtx_key_get(void *addr, int type, int share, struct umtx_key *key)
+umtx_key_get(const void *addr, int type, int share, struct umtx_key *key)
 {
 	struct thread *td = curthread;
 	vm_map_t map;
