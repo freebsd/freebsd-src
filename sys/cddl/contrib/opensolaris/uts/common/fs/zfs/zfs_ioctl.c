@@ -132,6 +132,9 @@
  *         distinguish between the operation failing, and
  *         deserialization failing.
  */
+#ifdef __FreeBSD__
+#include "opt_kstack_pages.h"
+#endif
 
 #include <sys/types.h>
 #include <sys/param.h>
@@ -6491,17 +6494,21 @@ static void zfs_shutdown(void *, int);
 
 static eventhandler_tag zfs_shutdown_event_tag;
 
+#ifdef __FreeBSD__
 #define ZFS_MIN_KSTACK_PAGES 4
+#endif
 
 int
 zfs__init(void)
 {
 
+#ifdef __FreeBSD__
 #if KSTACK_PAGES < ZFS_MIN_KSTACK_PAGES
 	printf("ZFS NOTICE: KSTACK_PAGES is %d which could result in stack "
 	    "overflow panic!\nPlease consider adding "
 	    "'options KSTACK_PAGES=%d' to your kernel config\n", KSTACK_PAGES,
 	    ZFS_MIN_KSTACK_PAGES);
+#endif
 #endif
 	zfs_root_token = root_mount_hold("ZFS");
 
