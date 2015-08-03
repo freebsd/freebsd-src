@@ -501,6 +501,9 @@
     <sect2 xml:id="drivers-storage">
       <title>Storage Drivers</title>
 
+      <para revision="283990">The &man.mpr.4; driver has been
+	updated to version 9.255.01.00-fbsd.</para>
+
       <para revision="284879">The &man.hpt27xx.4; driver has been
 	updated to version 1.2.7.</para>
 
