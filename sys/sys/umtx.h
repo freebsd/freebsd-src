@@ -153,7 +153,7 @@ umtx_key_match(const struct umtx_key *k1, const struct umtx_key *k2)
 }
 
 int umtx_copyin_timeout(const void *, struct timespec *);
-int umtx_key_get(void *, int, int, struct umtx_key *);
+int umtx_key_get(const void *, int, int, struct umtx_key *);
 void umtx_key_release(struct umtx_key *);
 struct umtx_q *umtxq_alloc(void);
 void umtxq_free(struct umtx_q *);
