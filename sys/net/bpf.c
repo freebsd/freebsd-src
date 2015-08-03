@@ -2412,6 +2412,7 @@ catchpacket(struct bpf_d *d, u_char *pkt, u_int pktlen, u_int snaplen,
 			++d->bd_dcount;
 			return;
 		}
+		KASSERT(!d->bd_hbuf_in_use, ("hold buffer is in use"));
 		ROTATE_BUFFERS(d);
 		do_wakeup = 1;
 		curlen = 0;
