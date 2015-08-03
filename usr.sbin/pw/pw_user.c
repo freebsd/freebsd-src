@@ -700,7 +700,7 @@ pw_user_show(int argc, char **argv, char *arg1)
 {
 	struct passwd *pwd = NULL;
 	char *name = NULL;
-	uid_t id = -1;
+	intmax_t id = -1;
 	int ch;
 	bool all = false;
 	bool pretty = false;
@@ -786,7 +786,7 @@ pw_user_del(int argc, char **argv, char *arg1)
 	char home[MAXPATHLEN];
 	const char *cfg = NULL;
 	struct stat st;
-	uid_t id;
+	intmax_t id = -1;
 	int ch, rc;
 	bool nis = false;
 	bool deletehome = false;
@@ -1423,8 +1423,9 @@ pw_user_mod(int argc, char **argv, char *arg1)
 	int ch, fd = -1;
 	size_t i, j;
 	bool quiet, createhome, pretty, dryrun, nis, edited, docreatehome;
+	bool precrypted;
 	mode_t homemode = 0;
-	time_t expire_days, password_days, now, precrypted;
+	time_t expire_days, password_days, now;
 
 	expire_days = password_days = -1;
 	gecos = homedir = grname = name = newname = skel = shell =NULL;
