@@ -2080,6 +2080,8 @@ sched_fork_thread(struct thread *td, struct thread *child)
 	 */
 	ts = td->td_sched;
 	ts2 = child->td_sched;
+	child->td_oncpu = NOCPU;
+	child->td_lastcpu = NOCPU;
 	child->td_lock = TDQ_LOCKPTR(tdq);
 	child->td_cpuset = cpuset_ref(td->td_cpuset);
 	ts2->ts_cpu = ts->ts_cpu;
@@ -2703,6 +2705,8 @@ sched_throw(struct thread *td)
 		MPASS(td->td_lock == TDQ_LOCKPTR(tdq));
 		tdq_load_rem(tdq, td);
 		lock_profile_release_lock(&TDQ_LOCKPTR(tdq)->lock_object);
+		td->td_lastcpu = td->td_oncpu;
+		td->td_oncpu = NOCPU;
 	}
 	KASSERT(curthread->td_md.md_spinlock_count == 1, ("invalid count"));
 	newtd = choosethread();
