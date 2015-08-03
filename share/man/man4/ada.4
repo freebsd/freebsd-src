@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 22, 2014
+.Dd June 19, 2015
 .Dt ADA 4
 .Os
 .Sh NAME
@@ -45,14 +45,14 @@ The host adapter must also be separately configured into the system before an
 .Tn ATA
 direct access device can be configured.
 .Sh COMMAND QUEUING
-Command queueing allows the device to process multiple transactions
+Command queuing allows the device to process multiple transactions
 concurrently, often re-ordering them to reduce the number and length of
 seeks.
 .Tn ATA
-defines two types of queueing:
-.Tn TCQ (Tagged Command Queueing, PATA legacy)
+defines two types of queuing:
+.Tn TCQ (Tagged Command Queuing, PATA legacy)
 and
-.Tn NCQ (Native Command Queueing, SATA) .
+.Tn NCQ (Native Command Queuing, SATA) .
 The
 .Nm
 device driver takes full advantage of NCQ, when supported.
@@ -146,6 +146,16 @@ instead of
 .Pa /etc/sysctl.conf .
 The global default is currently 1.
 The per-device default is to leave it as-is (follow global setting).
+.It Va kern.cam.ada.legacy_aliases
+.Pp
+This variable determines whether
+.Pa /dev/ad Ns Ar Y
+symbolic links are created,
+which tries to mimic old
+.Xr ata 4
+numbering.
+Set to 1 to enable legacy aliases symlinks, 0 to disable.
+The default is currently enabled.
 .El
 .Sh FILES
 .Bl -tag -width ".Pa /dev/ada*" -compact
