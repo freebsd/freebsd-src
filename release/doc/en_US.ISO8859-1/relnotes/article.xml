@@ -548,7 +548,14 @@
     <sect2 xml:id="hardware-support">
       <title>Hardware Support</title>
 
-      <para>&nbsp;</para>
+      <para revision="278407">The &man.uart.4; driver has been updated
+	to include support for the <acronym>AMT</acronym> serial
+	interface found on the Lenovo&reg; ThinkPad&trade; T61.</para>
+
+      <para revision="279924">The &man.uart.4; driver has been updated
+	to include support for the <acronym>AMT</acronym> serial
+	interface found on the Lenovo&reg; ThinkPad&trade;
+	T400.</para>
     </sect2>
 
     <sect2 xml:id="hardware-virtualization">
