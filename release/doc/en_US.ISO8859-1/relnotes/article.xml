@@ -755,12 +755,6 @@
 	<filename>ttyu2</filename>, and <filename>ttyu3</filename> by
 	default, if the callin port is an active console port.</para>
     </sect2>
-
-    <sect2 xml:id="boot-menu">
-      <title>Boot Menu Changes</title>
-
-      <para>&nbsp;</para>
-    </sect2>
   </sect1>
 
   <sect1 xml:id="network">
