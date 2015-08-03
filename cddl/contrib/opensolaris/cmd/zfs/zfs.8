@@ -27,10 +27,11 @@
 .\" Copyright (c) 2014, Joyent, Inc. All rights reserved.
 .\" Copyright (c) 2013, Steven Hartland <smh@FreeBSD.org>
 .\" Copyright (c) 2014, Xin LI <delphij@FreeBSD.org>
+.\" Copyright (c) 2015, The FreeBSD Foundation, All Rights Reserved.
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 23, 2014
+.Dd July 30, 2015
 .Dt ZFS 8
 .Os
 .Sh NAME
@@ -930,7 +931,7 @@ not be used by any other dataset.
 Disabling checksums is
 .Em NOT
 a recommended practice.
-.It Sy compression Ns = Ns Cm on | off | lzjb | gzip | gzip- Ns Ar N | zle | Cm lz4
+.It Sy compression Ns = Ns Cm on | off | lzjb | gzip | gzip- Ns Ar N | Cm zle | Cm lz4
 Controls the compression algorithm used for this dataset. The
 .CM lzjb
 compression algorithm is optimized for performance while providing decent data
