@@ -73,9 +73,19 @@ cloudabi64_fixup(register_t **stack_base, struct image_params *imgp)
 {
 	char canarybuf[64];
 	Elf64_Auxargs *args;
+	struct thread *td;
 	void *argdata, *canary;
 	size_t argdatalen;
 	int error;
+
+	/*
+	 * CloudABI executables do not store the FreeBSD OS release
+	 * number in their header. Set the OS release number to the
+	 * latest version of FreeBSD, so that system calls behave as if
+	 * called natively.
+	 */
+	td = curthread;
+	td->td_proc->p_osrel = __FreeBSD_version;
 
 	/* Store canary for stack smashing protection. */
 	argdata = *stack_base;
@@ -108,7 +118,7 @@ cloudabi64_fixup(register_t **stack_base, struct image_params *imgp)
 		VAL(CLOUDABI_AT_PAGESZ, args->pagesz),
 		PTR(CLOUDABI_AT_PHDR, args->phdr),
 		VAL(CLOUDABI_AT_PHNUM, args->phnum),
-		VAL(CLOUDABI_AT_TID, curthread->td_tid),
+		VAL(CLOUDABI_AT_TID, td->td_tid),
 #undef VAL
 #undef PTR
 		{ .a_type = CLOUDABI_AT_NULL },
