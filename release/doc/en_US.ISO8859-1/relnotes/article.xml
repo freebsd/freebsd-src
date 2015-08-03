@@ -881,37 +881,6 @@
 	for &os;&nbsp;&release.current; has been updated to version
 	4.14.3.</para>
     </sect2>
-
-    <sect2 xml:id="ports-infrastructure">
-      <title>Infrastructure Changes</title>
-
-      <para>&nbsp;</para>
-    </sect2>
-
-    <sect2 xml:id="ports-packages ">
-      <title>Packaging Changes</title>
-
-      <para>&nbsp;</para>
-    </sect2>
-  </sect1>
-
-  <sect1 xml:id="doc">
-    <title>Documentation</title>
-
-    <para>This section covers changes to the &os;&nbsp;Documentation
-      Project sources and toolchain.</para>
-
-    <sect2 xml:id="doc-sources">
-      <title>Documentation Source Changes</title>
-
-      <para>&nbsp;</para>
-    </sect2>
-
-    <sect2 xml:id="doc-toolchain">
-      <title>Documentation Toolchain Changes</title>
-
-      <para>&nbsp;</para>
-    </sect2>
   </sect1>
 
   <sect1 xml:id="releng">
