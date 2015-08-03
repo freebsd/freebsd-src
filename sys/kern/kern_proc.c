@@ -2782,7 +2782,7 @@ static SYSCTL_NODE(_kern_proc, KERN_PROC_PROC, proc, CTLFLAG_RD | CTLFLAG_MPSAFE
 	sysctl_kern_proc, "Return process table, no threads");
 
 static SYSCTL_NODE(_kern_proc, KERN_PROC_ARGS, args,
-	CTLFLAG_RW | CTLFLAG_ANYBODY | CTLFLAG_MPSAFE,
+	CTLFLAG_RW | CTLFLAG_CAPWR | CTLFLAG_ANYBODY | CTLFLAG_MPSAFE,
 	sysctl_kern_proc_args, "Process argument list");
 
 static SYSCTL_NODE(_kern_proc, KERN_PROC_ENV, env, CTLFLAG_RD | CTLFLAG_MPSAFE,
