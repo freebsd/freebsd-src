@@ -35,11 +35,9 @@
 .Op Fl R Ar rootdir
 .Op Fl V Ar etcdir
 .Ar useradd
-.Op name|uid
+.Oo Fl n Oc name Oo Fl u Ar uid Oc
 .Op Fl C Ar config
 .Op Fl q
-.Op Fl n Ar name
-.Op Fl u Ar uid
 .Op Fl c Ar comment
 .Op Fl d Ar dir
 .Op Fl e Ar date
@@ -61,7 +59,6 @@
 .Op Fl R Ar rootdir
 .Op Fl V Ar etcdir
 .Ar useradd
-.Op name|uid
 .Fl D
 .Op Fl C Ar config
 .Op Fl q
@@ -81,27 +78,23 @@
 .Op Fl R Ar rootdir
 .Op Fl V Ar etcdir
 .Ar userdel
-.Op name|uid
-.Op Fl n Ar name
-.Op Fl u Ar uid
+.Oo Fl n Oc name|uid | Fl u Ar uid
 .Op Fl r
 .Op Fl Y
 .Nm
 .Op Fl R Ar rootdir
 .Op Fl V Ar etcdir
 .Ar usermod
-.Op name|uid
+.Oo Fl n Oc name|uid Oo Fl u Ar newuid Oc | Fl u Ar uid
 .Op Fl C Ar config
 .Op Fl q
-.Op Fl n Ar name
-.Op Fl u Ar uid
 .Op Fl c Ar comment
 .Op Fl d Ar dir
 .Op Fl e Ar date
 .Op Fl p Ar date
 .Op Fl g Ar group
 .Op Fl G Ar grouplist
-.Op Fl l Ar name
+.Op Fl l Ar newname
 .Op Fl m
 .Op Fl M Ar mode
 .Op Fl k Ar dir
@@ -116,9 +109,7 @@
 .Op Fl R Ar rootdir
 .Op Fl V Ar etcdir
 .Ar usershow
-.Op name|uid
-.Op Fl n Ar name
-.Op Fl u Ar uid
+.Oo Fl n Oc name|uid | Fl u Ar uid
 .Op Fl F
 .Op Fl P
 .Op Fl 7
@@ -133,11 +124,9 @@
 .Op Fl R Ar rootdir
 .Op Fl V Ar etcdir
 .Ar groupadd
-.Op group|gid
+.Oo Fl n Oc name Oo Fl g Ar gid Oc
 .Op Fl C Ar config
 .Op Fl q
-.Op Fl n Ar group
-.Op Fl g Ar gid
 .Op Fl M Ar members
 .Op Fl o
 .Op Fl h Ar fd | Fl H Ar fd
@@ -148,20 +137,16 @@
 .Op Fl R Ar rootdir
 .Op Fl V Ar etcdir
 .Ar groupdel
-.Op group|gid
-.Op Fl n Ar name
-.Op Fl g Ar gid
+.Oo Fl n Oc name|gid | Fl g Ar gid
 .Op Fl Y
 .Nm
 .Op Fl R Ar rootdir
 .Op Fl V Ar etcdir
 .Ar groupmod
-.Op group|gid
+.Oo Fl n Oc name|gid Oo Fl g Ar newgid Oc | Fl g Ar gid
 .Op Fl C Ar config
 .Op Fl q
-.Op Fl n Ar name
-.Op Fl g Ar gid
-.Op Fl l Ar name
+.Op Fl l Ar newname
 .Op Fl M Ar members
 .Op Fl m Ar newmembers
 .Op Fl d Ar oldmembers
@@ -173,9 +158,7 @@
 .Op Fl R Ar rootdir
 .Op Fl V Ar etcdir
 .Ar groupshow
-.Op group|gid
-.Op Fl n Ar name
-.Op Fl g Ar gid
+.Oo Fl n Oc name|gid | Fl g Ar gid
 .Op Fl F
 .Op Fl P
 .Op Fl a
@@ -189,14 +172,14 @@
 .Op Fl R Ar rootdir
 .Op Fl V Ar etcdir
 .Ar lock
-.Op name|uid
+.Oo Fl n Oc name|uid | Fl u Ar uid
 .Op Fl C Ar config
 .Op Fl q
 .Nm
 .Op Fl R Ar rootdir
 .Op Fl V Ar etcdir
 .Ar unlock
-.Op name|uid
+.Oo Fl n Oc name|uid | Fl u Ar uid
 .Op Fl C Ar config
 .Op Fl q
 .Sh DESCRIPTION
@@ -250,8 +233,9 @@ all mean the same thing.)
 This flexibility is useful for interactive scripts calling
 .Nm
 for user and group database manipulation.
-Following these keywords, you may optionally specify the user or group name or numeric
-id as an alternative to using the
+Following these keywords,
+the user or group name or numeric id may be optionally specified as an
+alternative to using the
 .Fl n Ar name ,
 .Fl u Ar uid ,
 .Fl g Ar gid
@@ -266,12 +250,13 @@ will operate.
 Any paths specified will be relative to
 .Va rootdir .
 .It Fl V Ar etcdir
-This flag sets an alternate location for the password, group and configuration files,
-and may be used to maintain a user/group database in an alternate location.
+Set an alternate location for the password, group, and configuration files.
+Can be used to maintain a user/group database in an alternate location.
 If this switch is specified, the system
 .Pa /etc/pw.conf
-will not be sourced for default configuration data, but the file pw.conf in the
-specified directory will be used instead (or none, if it does not exist).
+will not be sourced for default configuration data,
+but the file pw.conf in the specified directory will be used instead
+.Pq or none, if it does not exist .
 The
 .Fl C
 flag may be used to override this behaviour.
@@ -294,7 +279,8 @@ configuration file.
 .It Fl q
 Use of this option causes
 .Nm
-to suppress error messages, which may be useful in interactive environments where it
+to suppress error messages,
+which may be useful in interactive environments where it
 is preferable to interpret status codes returned by
 .Nm
 rather than messing up a carefully formatted display.
@@ -338,27 +324,40 @@ and
 .Ar usermod
 commands:
 .Bl -tag -width "-G grouplist"
-.It Fl n Ar name
+.It Oo Fl n Oc Ar name
+Required unless
+.Fl u Ar uid
+is given.
 Specify the user/account name.
+In the case of
+.Ar usermod
+can be a uid.
 .It Fl u Ar uid
+Required if
+.Ar name
+is not given.
 Specify the user/account numeric id.
+In the case of
+.Ar usermod
+if paired with
+.Ar name ,
+changes the numeric id of the named user/account.
 .Pp
-Usually, you only need to provide one or the other of these options, as the account
-name will imply the uid, or vice versa.
-However, there are times when you need to provide both.
+Usually, only one of these options is required,
+as the account name will imply the uid, or vice versa.
+However, there are times when both are needed.
 For example, when changing the uid of an existing user with
 .Ar usermod ,
-or overriding the default uid when creating a new account.
-If you wish
-.Nm
-to automatically allocate the uid to a new user with
+or overriding the default uid when creating a new account with
+.Ar useradd .
+To automatically allocate the uid to a new user with
 .Ar useradd ,
-then you should
+then do
 .Em not
 use the
 .Fl u
 option.
-You may also provide either the account or userid immediately after the
+Either the account or userid can also be provided immediately after the
 .Ar useradd ,
 .Ar userdel ,
 .Ar usermod
@@ -372,21 +371,23 @@ options.
 .El
 .Bl -tag -width "-G grouplist"
 .It Fl c Ar comment
-This field sets the contents of the passwd GECOS field, which normally contains up
-to four comma-separated fields containing the user's full name, office or location,
+This field sets the contents of the passwd GECOS field,
+which normally contains up to four comma-separated fields containing the
+user's full name, office or location,
 and work and home phone numbers.
 These sub-fields are used by convention only, however, and are optional.
-If this field is to contain spaces, you need to quote the comment itself with double
-quotes
+If this field is to contain spaces,
+the comment must be enclosed in double quotes
 .Ql \&" .
-Avoid using commas in this field as these are used as sub-field separators, and the
-colon
+Avoid using commas in this field as these are used as sub-field separators,
+and the colon
 .Ql \&:
 character also cannot be used as this is the field separator for the passwd
 file itself.
 .It Fl d Ar dir
 This option sets the account's home directory.
-Normally, you will only use this if the home directory is to be different from the
+Normally,
+this is only used if the home directory is to be different from the
 default determined from
 .Pa /etc/pw.conf
 - normally
@@ -396,13 +397,15 @@ with the account name as a subdirectory.
 Set the account's expiration date.
 Format of the date is either a UNIX time in decimal, or a date in
 .Ql dd-mmm-yy[yy]
-format, where dd is the day, mmm is the month, either in numeric or alphabetic format
+format, where dd is the day,
+mmm is the month, either in numeric or alphabetic format
 ('Jan', 'Feb', etc) and year is either a two or four digit year.
 This option also accepts a relative date in the form
 .Ql \&+n[mhdwoy]
 where
 .Ql \&n
-is a decimal, octal (leading 0) or hexadecimal (leading 0x) digit followed by the
+is a decimal,
+octal (leading 0) or hexadecimal (leading 0x) digit followed by the
 number of Minutes, Hours, Days, Weeks, Months or Years from the current date at
 which the expiration date is to be set.
 .It Fl p Ar date
@@ -442,8 +445,8 @@ This option instructs
 to attempt to create the user's home directory.
 While primarily useful when adding a new account with
 .Ar useradd ,
-this may also be of use when moving an existing user's home directory elsewhere on
-the file system.
+this may also be of use when moving an existing user's home directory elsewhere
+on the file system.
 The new home directory is populated with the contents of the
 .Ar skeleton
 directory, which typically contains a set of shell configuration files that the
@@ -461,7 +464,8 @@ existing configuration files in the user's home directory are
 .Em not
 overwritten from the skeleton files.
 .Pp
-When a user's home directory is created, it will by default be a subdirectory of the
+When a user's home directory is created,
+it will by default be a subdirectory of the
 .Ar basehome
 directory as specified by the
 .Fl b
@@ -599,10 +603,13 @@ The default value for this is
 but it may be set elsewhere as desired.
 .It Fl e Ar days
 Set the default account expiration period in days.
-Unlike use without
-.Fl D ,
-the argument must be numeric, which specifies the number of days after creation when
-the account is to expire.
+When
+.Fl D
+is used, the
+.Ar days
+argument is interpreted differently.
+It must be numeric and represents the number of days after creation
+that the account expires.
 A value of 0 suppresses automatic calculation of the expiry date.
 .It Fl p Ar days
 Set the default password expiration period in days.
@@ -615,8 +622,8 @@ with the same name as their login name.
 If a group is supplied, either its name or uid may be given as an argument.
 .It Fl G Ar grouplist
 Set the default groups in which new users are granted membership.
-This is a separate set of groups from the primary group, and you should avoid
-nominating the same group as both primary and extra groups.
+This is a separate set of groups from the primary group.
+Avoid nominating the same group as both primary and extra groups.
 In other words, these extra groups determine membership in groups
 .Em other than
 the primary group.
@@ -630,7 +637,8 @@ This option sets the default login class for new users.
 .It Fl k Ar dir
 Set the default
 .Em skeleton
-directory, from which prototype shell and other initialization files are copied when
+directory,
+from which prototype shell and other initialization files are copied when
 .Nm
 creates a user's home directory.
 See description of
@@ -640,22 +648,24 @@ for naming conventions of these files.
 .Fl u Ar min , Ns Ar max ,
 .Fl i Ar min , Ns Ar max
 .Xc
-These options set the minimum and maximum user and group ids allocated for new accounts
-and groups created by
+Set the minimum and maximum user and group ids allocated for new
+accounts and groups created by
 .Nm .
 The default values for each is 1000 minimum and 32000 maximum.
 .Ar min
 and
 .Ar max
-are both numbers, where max must be greater than min, and both must be between 0
-and 32767.
-In general, user and group ids less than 100 are reserved for use by the system,
-and numbers greater than 32000 may also be reserved for special purposes (used by
-some system daemons).
+are both numbers, where max must be greater than min,
+and both must be between 0 and 32767.
+In general,
+user and group ids less than 100 are reserved for use by the system,
+and numbers greater than 32000 may also be reserved for special purposes
+.Pq used by some system daemons .
 .It Fl w Ar method
 The
 .Fl w
-option sets the default method used to set passwords for newly created user accounts.
+option selects the default method used to set passwords for newly created user
+accounts.
 .Ar method
 is one of:
 .Pp
@@ -676,9 +686,11 @@ or
 .Ql \&no
 methods are the most secure; in the former case,
 .Nm
-generates a password and prints it to stdout, which is suitable where you issue
-users with passwords to access their accounts rather than having the user nominate
-their own (possibly poorly chosen) password.
+generates a password and prints it to stdout,
+which is suitable when users are issued passwords rather than being allowed
+to select their own
+.Pq possibly poorly chosen
+password.
 The
 .Ql \&no
 method requires that the superuser use
@@ -699,7 +711,7 @@ servers.
 .Pp
 The
 .Ar userdel
-command has only three valid options.
+command has three distinct options.
 The
 .Fl n Ar name
 and
@@ -714,7 +726,8 @@ to remove the user's home directory and all of its contents.
 The
 .Nm
 utility errs on the side of caution when removing files from the system.
-Firstly, it will not do so if the uid of the account being removed is also used by
+Firstly,
+it will not do so if the uid of the account being removed is also used by
 another account on the system, and the 'home' directory in the password file is
 a valid path that commences with the character
 .Ql \&/ .
@@ -725,20 +738,20 @@ will be removed.
 If any additional cleanup work is required, this is left to the administrator.
 .El
 .Pp
-Mail spool files and crontabs are always removed when an account is deleted as these
-are unconditionally attached to the user name.
+Mail spool files and crontabs are always removed when an account is deleted as
+these are unconditionally attached to the user name.
 Jobs queued for processing by
 .Ar at
-are also removed if the user's uid is unique and not also used by another account on the
-system.
+are also removed if the user's uid is unique and not also used by another
+account on the system.
 .Pp
 The
 .Ar usermod
 command adds one additional option:
 .Bl -tag -width "-G grouplist"
-.It Fl l Ar name
+.It Fl l Ar newname
 This option allows changing of an existing account name to
-.Ql \&name .
+.Ql \&newname .
 The new name must not already exist, and any attempt to duplicate an
 existing account name will be rejected.
 .El
@@ -782,10 +795,24 @@ options (explained at the start of the previous section) are available
 with the group manipulation commands.
 Other common options to all group-related commands are:
 .Bl -tag -width "-m newmembers"
-.It Fl n Ar name
+.It Oo Fl n Oc Ar name
+Required unless
+.Fl g Ar gid
+is given.
 Specify the group name.
+In the case of
+.Ar groupmod
+can be a gid.
 .It Fl g Ar gid
+Required if
+.Ar name
+is not given.
 Specify the group numeric id.
+In the case of
+.Ar groupmod
+if paired with
+.Ar name ,
+changes the numeric id of the named group.
 .Pp
 As with the account name and id fields, you will usually only need
 to supply one of these, as the group name implies the uid and vice
@@ -822,18 +849,19 @@ silently eliminated.
 also has a
 .Fl o
 option that allows allocation of an existing group id to a new group.
-The default action is to reject an attempt to add a group, and this option overrides
-the check for duplicate group ids.
+The default action is to reject an attempt to add a group,
+and this option overrides the check for duplicate group ids.
 There is rarely any need to duplicate a group id.
 .Pp
 The
 .Ar groupmod
 command adds one additional option:
 .Bl -tag -width "-m newmembers"
-.It Fl l Ar name
+.It Fl l Ar newname
 This option allows changing of an existing group name to
-.Ql \&name .
-The new name must not already exist, and any attempt to duplicate an existing group
+.Ql \&newname .
+The new name must not already exist,
+and any attempt to duplicate an existing group
 name will be rejected.
 .El
 .Pp
