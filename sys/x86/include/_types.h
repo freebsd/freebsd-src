@@ -152,8 +152,17 @@ typedef	int		___wchar_t;
  */
 #ifdef __GNUCLIKE_BUILTIN_VARARGS
 typedef	__builtin_va_list	__va_list;	/* internally known to gcc */
-#elif defined(lint)
-typedef	char *			__va_list;	/* pretend */
+#else
+#ifdef __LP64__
+typedef	struct {
+	unsigned int	__gpo;
+	unsigned int	__fpo;
+	void		*__oaa;
+	void		*__rsa;
+} __va_list;
+#else
+typedef	char *			__va_list;
+#endif
 #endif
 #if defined(__GNUC_VA_LIST_COMPATIBILITY) && !defined(__GNUC_VA_LIST) \
     && !defined(__NO_GNUC_VA_LIST)
