@@ -154,12 +154,11 @@ typedef	int		___wchar_t;
 typedef	__builtin_va_list	__va_list;	/* internally known to gcc */
 #else
 #ifdef __LP64__
-typedef	struct {
-	unsigned int	__gpo;
-	unsigned int	__fpo;
-	void		*__oaa;
-	void		*__rsa;
-} __va_list;
+struct __s_va_list {
+	__uint32_t	pad1[2];	/* gp_offset, fp_offset */
+	__uint64_t	pad2[2];	/* overflow_arg_area, reg_save_area */
+};
+typedef struct __s_va_list	__va_list;
 #else
 typedef	char *			__va_list;
 #endif
