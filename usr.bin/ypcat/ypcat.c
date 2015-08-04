@@ -33,20 +33,18 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/socket.h>
-#include <unistd.h>
-#include <string.h>
-#include <stdio.h>
-#include <stdlib.h>
+
 #include <ctype.h>
 #include <err.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
 #include <rpc/rpc.h>
 #include <rpc/xdr.h>
 #include <rpcsvc/yp.h>
 #include <rpcsvc/ypclnt.h>
-
-void	usage(void);
-int	printit(u_long, char *, int, char *, int, void *);
 
 static const struct ypalias {
 	char *alias, *name;
@@ -65,16 +63,16 @@ static const struct ypalias {
 
 static int key;
 
-void
+static void
 usage(void)
 {
-	fprintf(stderr,
-	    "usage: ypcat [-kt] [-d domainname] mapname\n"
-	    "       ypcat -x\n");
+	fprintf(stderr, "%s\n%s\n",
+	    "usage: ypcat [-kt] [-d domainname] mapname",
+	    "       ypcat -x");
 	exit(1);
 }
 
-int
+static int
 printit(u_long instatus, char *inkey, int inkeylen, char *inval, int invallen,
     void *indata)
 {
@@ -91,9 +89,7 @@ main(int argc, char *argv[])
 {
 	char *domain = NULL, *inmap;
 	struct ypall_callback ypcb;
-	extern char *optarg;
-	extern int optind;
-	int notrans, c, r;
+	int c, notrans, r;
 	u_int i;
 
 	notrans = key = 0;
@@ -120,7 +116,7 @@ main(int argc, char *argv[])
 	if (optind + 1 != argc)
 		usage();
 
-	if (!domain)
+	if (domain == NULL)
 		yp_get_default_domain(&domain);
 
 	inmap = argv[optind];
@@ -137,12 +133,10 @@ main(int argc, char *argv[])
 	case 0:
 		break;
 	case YPERR_YPBIND:
-		errx(1, "ypcat: not running ypbind\n");
-		exit(1);
+		errx(1, "not running ypbind");
 	default:
-		errx(1, "No such map %s. Reason: %s\n",
+		errx(1, "no such map %s. Reason: %s",
 		    inmap, yperr_string(r));
-		exit(1);
 	}
 	exit(0);
 }
