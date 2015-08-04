@@ -36,10 +36,19 @@ __FBSDID("$FreeBSD$");
 static u_int
 __vdso_gettc_low(const struct vdso_timehands *th)
 {
-	uint32_t rv;
+	u_int rv;
 
-	__asm __volatile("rdtsc; shrd %%cl, %%edx, %0"
+	__asm __volatile("lfence; rdtsc; shrd %%cl, %%edx, %0"
 	    : "=a" (rv) : "c" (th->th_x86_shift) : "edx");
+	return (rv);
+}
+
+static u_int
+__vdso_rdtsc32(void)
+{
+	u_int rv;
+
+	__asm __volatile("lfence;rdtsc" : "=a" (rv) : : "edx");
 	return (rv);
 }
 
@@ -48,7 +57,8 @@ u_int
 __vdso_gettc(const struct vdso_timehands *th)
 {
 
-	return (th->th_x86_shift > 0 ? __vdso_gettc_low(th) : rdtsc32());
+	return (th->th_x86_shift > 0 ? __vdso_gettc_low(th) :
+	    __vdso_rdtsc32());
 }
 
 #pragma weak __vdso_gettimekeep
