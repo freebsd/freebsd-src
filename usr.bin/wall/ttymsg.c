@@ -62,7 +62,7 @@ ttymsg(struct iovec *iov, int iovcnt, const char *line, int tmout)
 	struct iovec localiov[7];
 	ssize_t left, wret;
 	int cnt, fd;
-	char device[MAXNAMLEN];
+	char device[MAXNAMLEN] = _PATH_DEV;
 	static char errbuf[1024];
 	char *p;
 	int forked;
@@ -71,9 +71,8 @@ ttymsg(struct iovec *iov, int iovcnt, const char *line, int tmout)
 	if (iovcnt > (int)(sizeof(localiov) / sizeof(localiov[0])))
 		return ("too many iov's (change code in wall/ttymsg.c)");
 
-	strlcpy(device, _PATH_DEV, sizeof(device));
+	strlcat(device, line, sizeof(device));
 	p = device + sizeof(_PATH_DEV) - 1;
-	strlcpy(p, line, sizeof(device) - sizeof(_PATH_DEV));
 	if (strncmp(p, "pts/", 4) == 0)
 		p += 4;
 	if (strchr(p, '/') != NULL) {
