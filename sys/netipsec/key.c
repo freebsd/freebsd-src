@@ -2835,7 +2835,6 @@ key_cleansav(struct secasvar *sav)
 		sav->tdb_xform->xf_zeroize(sav);
 		sav->tdb_xform = NULL;
 	} else {
-		KASSERT(sav->iv == NULL, ("iv but no xform"));
 		if (sav->key_auth != NULL)
 			bzero(sav->key_auth->key_data, _KEYLEN(sav->key_auth));
 		if (sav->key_enc != NULL)
@@ -3013,7 +3012,6 @@ key_setsaval(struct secasvar *sav, struct mbuf *m,
 	sav->key_enc = NULL;
 	sav->sched = NULL;
 	sav->schedlen = 0;
-	sav->iv = NULL;
 	sav->lft_c = NULL;
 	sav->lft_h = NULL;
 	sav->lft_s = NULL;
