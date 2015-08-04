@@ -6940,6 +6940,18 @@ pmap_unmap_io_transient(vm_page_t page[], vm_offset_t vaddr[], int count,
 	}
 }
 
+vm_offset_t
+pmap_quick_enter_page(vm_page_t m)
+{
+
+	return (PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m)));
+}
+
+void
+pmap_quick_remove_page(vm_offset_t addr)
+{
+}
+
 #include "opt_ddb.h"
 #ifdef DDB
 #include <ddb/ddb.h>

@@ -1979,6 +1979,7 @@ pmap_bootstrap(vm_offset_t firstaddr, struct pv_addr *l1pt)
 	pmap_set_pcb_pagedir(kernel_pmap, thread0.td_pcb);
 }
 
+
 /***************************************************
  * Pmap allocation/deallocation routines.
  ***************************************************/
@@ -2306,6 +2307,31 @@ pmap_remove_pages(pmap_t pmap)
  	PMAP_UNLOCK(pmap);
 }
 
+static void
+pmap_init_qpages(void)
+{
+	struct pcpu *pc;
+	struct l2_bucket *l2b;
+	int i;
+
+	CPU_FOREACH(i) {
+		pc = pcpu_find(i);
+		pc->pc_qmap_addr = kva_alloc(PAGE_SIZE);
+		if (pc->pc_qmap_addr == 0)
+			panic("pmap_init_qpages: unable to allocate KVA");
+
+		l2b = pmap_get_l2_bucket(pmap_kernel(), pc->pc_qmap_addr);
+		if (l2b == NULL)
+			l2b = pmap_grow_l2_bucket(pmap_kernel(),
+			    pc->pc_qmap_addr);
+		if (l2b == NULL)
+			panic("pmap_alloc_specials: no l2b for 0x%x",
+			    pc->pc_qmap_addr);
+		pc->pc_qmap_pte = &l2b->l2b_kva[l2pte_index(pc->pc_qmap_addr)];
+	}
+}
+
+SYSINIT(qpages_init, SI_SUB_CPU, SI_ORDER_ANY, pmap_init_qpages, NULL);
 
 /***************************************************
  * Low level mapping routines.....
@@ -4676,6 +4702,49 @@ pmap_copy_page(vm_page_t src, vm_page_t dst)
 		return;
 
 	pmap_copy_page_generic(VM_PAGE_TO_PHYS(src), VM_PAGE_TO_PHYS(dst));
+}
+
+vm_offset_t
+pmap_quick_enter_page(vm_page_t m)
+{
+	pt_entry_t *qmap_pte;
+	vm_offset_t qmap_addr; 
+
+	critical_enter();
+
+	qmap_addr = PCPU_GET(qmap_addr);
+	qmap_pte = PCPU_GET(qmap_pte);
+
+	KASSERT(*qmap_pte == 0, ("pmap_quick_enter_page: PTE busy"));
+
+	*qmap_pte = L2_S_PROTO | VM_PAGE_TO_PHYS(m) | L2_S_REF;
+	if (m->md.pv_memattr != VM_MEMATTR_UNCACHEABLE)
+		*qmap_pte |= pte_l2_s_cache_mode;
+	pmap_set_prot(qmap_pte, VM_PROT_READ | VM_PROT_WRITE, 0);
+	PTE_SYNC(qmap_pte);
+	cpu_tlb_flushD_SE(qmap_addr);
+	cpu_cpwait();
+
+	return (qmap_addr);
+}
+
+void
+pmap_quick_remove_page(vm_offset_t addr)
+{
+	pt_entry_t *qmap_pte;
+
+	qmap_pte = PCPU_GET(qmap_pte);
+
+	KASSERT(addr == PCPU_GET(qmap_addr),
+	    ("pmap_quick_remove_page: invalid address"));
+	KASSERT(*qmap_pte != 0,
+	    ("pmap_quick_remove_page: PTE not in use"));
+
+	cpu_idcache_wbinv_range(addr, PAGE_SIZE);
+	pmap_l2cache_wbinv_range(addr, *qmap_pte & L2_S_FRAME, PAGE_SIZE);
+	*qmap_pte = 0;
+	PTE_SYNC(qmap_pte);
+	critical_exit();
 }
 
 /*

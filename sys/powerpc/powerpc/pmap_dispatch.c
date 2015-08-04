@@ -550,6 +550,20 @@ dumpsys_pa_init(void)
 	return (MMU_SCAN_INIT(mmu_obj));
 }
 
+vm_offset_t
+pmap_quick_enter_page(vm_page_t m)
+{
+	CTR2(KTR_PMAP, "%s(%p)", __func__, m);
+	return (MMU_QUICK_ENTER_PAGE(mmu_obj, m));
+}
+
+void
+pmap_quick_remove_page(vm_offset_t addr)
+{
+	CTR2(KTR_PMAP, "%s(%#x)", __func__, addr);
+	MMU_QUICK_REMOVE_PAGE(mmu_obj, addr);
+}
+
 /*
  * MMU install routines. Highest priority wins, equal priority also
  * overrides allowing last-set to win.

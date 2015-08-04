@@ -512,6 +512,22 @@ pmap_bootstrap(vm_paddr_t firstaddr)
 	pmap_set_pg();
 }
 
+static void
+pmap_init_qpages(void)
+{
+	struct pcpu *pc;
+	int i;
+
+	CPU_FOREACH(i) {
+		pc = pcpu_find(i);
+		pc->pc_qmap_addr = kva_alloc(PAGE_SIZE);
+		if (pc->pc_qmap_addr == 0)
+			panic("pmap_init_qpages: unable to allocate KVA");
+	}
+}
+
+SYSINIT(qpages_init, SI_SUB_CPU, SI_ORDER_ANY, pmap_init_qpages, NULL);
+
 /*
  * Setup the PAT MSR.
  */
@@ -5400,6 +5416,39 @@ pmap_align_superpage(vm_object_t object, vm_ooffset_t offset,
 		*addr = ((*addr + PDRMASK) & ~PDRMASK) + superpage_offset;
 }
 
+vm_offset_t
+pmap_quick_enter_page(vm_page_t m)
+{
+	vm_offset_t qaddr;
+	pt_entry_t *pte;
+
+	critical_enter();
+	qaddr = PCPU_GET(qmap_addr);
+	pte = vtopte(qaddr);
+
+	KASSERT(*pte == 0, ("pmap_quick_enter_page: PTE busy"));
+	*pte = PG_V | PG_RW | VM_PAGE_TO_PHYS(m) | PG_A | PG_M |
+	    pmap_cache_bits(pmap_page_get_memattr(m), 0);
+	invlpg(qaddr);
+
+	return (qaddr);
+}
+
+void
+pmap_quick_remove_page(vm_offset_t addr)
+{
+	vm_offset_t qaddr;
+	pt_entry_t *pte;
+
+	qaddr = PCPU_GET(qmap_addr);
+	pte = vtopte(qaddr);
+
+	KASSERT(*pte != 0, ("pmap_quick_remove_page: PTE not in use"));
+	KASSERT(addr == qaddr, ("pmap_quick_remove_page: invalid address"));
+
+	*pte = 0;
+	critical_exit();
+}
 
 #if defined(PMAP_DEBUG)
 pmap_pid_dump(int pid)
