@@ -259,6 +259,8 @@ int t4_wr_mbox_meat(struct adapter *adap, int mbox, const void *cmd, int size,
 	for (i = 0; i < size; i += 8, p++)
 		t4_write_reg64(adap, data_reg + i, be64_to_cpu(*p));
 
+	CH_DUMP_MBOX(adap, mbox, data_reg);
+
 	t4_write_reg(adap, ctl_reg, F_MBMSGVALID | V_MBOWNER(X_MBOWNER_FW));
 	t4_read_reg(adap, ctl_reg);          /* flush write */
 
@@ -283,6 +285,8 @@ int t4_wr_mbox_meat(struct adapter *adap, int mbox, const void *cmd, int size,
 					     V_MBOWNER(X_MBOWNER_NONE));
 				continue;
 			}
+
+			CH_DUMP_MBOX(adap, mbox, data_reg);
 
 			res = t4_read_reg64(adap, data_reg);
 			if (G_FW_CMD_OP(res >> 32) == FW_DEBUG_CMD) {
