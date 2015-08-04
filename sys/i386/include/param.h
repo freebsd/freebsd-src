@@ -114,6 +114,11 @@
 #define KSTACK_PAGES 2		/* Includes pcb! */
 #endif
 #define KSTACK_GUARD_PAGES 1	/* pages of kstack guard; 0 disables */
+#if KSTACK_PAGES < 4
+#define	TD0_KSTACK_PAGES 4
+#else
+#define	TD0_KSTACK_PAGES KSTACK_PAGES
+#endif
 
 /*
  * Ceiling on amount of swblock kva space, can be changed via
