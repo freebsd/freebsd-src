@@ -1,5 +1,8 @@
+/*	$OpenBSD: ypmatch.c,v 1.16 2015/02/08 23:40:35 deraadt Exp $ */
+/*	$NetBSD: ypmatch.c,v 1.8 1996/05/07 01:24:52 jtc Exp $	*/
+
 /*
- * Copyright (c) 1992/3 Theo de Raadt <deraadt@fsa.ca>
+ * Copyright (c) 1992, 1993, 1996 Theo de Raadt <deraadt@theos.com>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -10,9 +13,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. The name of the author may not be used to endorse or promote
- *    products derived from this software without specific prior written
- *    permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS
  * OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
@@ -34,18 +34,19 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <ctype.h>
+#include <err.h>
 
 #include <rpc/rpc.h>
 #include <rpc/xdr.h>
 #include <rpcsvc/yp_prot.h>
 #include <rpcsvc/ypclnt.h>
 
-#include <ctype.h>
-#include <err.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
+void	usage(void);
 
 static const struct ypalias {
 	char *alias, *name;
@@ -62,30 +63,37 @@ static const struct ypalias {
 	{ "ethers", "ethers.byname" },
 };
 
-static void
+void
 usage(void)
 {
-	fprintf(stderr, "%s\n%s\n",
-		"usage: ypmatch [-kt] [-d domainname] key ... mapname",
-		"       ypmatch -x");
+	fprintf(stderr,
+	    "usage: ypmatch [-kt] [-d domain] key ... mapname\n"
+	    "       ypmatch -x\n");
+	fprintf(stderr,
+	    "where\n"
+	    "\tmapname may be either a mapname or a nickname for a map.\n"
+	    "\t-k prints keys as well as values.\n"
+	    "\t-t inhibits map nickname translation.\n"
+	    "\t-x dumps the map nickname translation table.\n");
 	exit(1);
 }
 
 int
 main(int argc, char *argv[])
 {
-	char *domainname = NULL;
-	char *inkey, *inmap, *outbuf;
-	int outbuflen, key, notrans;
+	char *domainname, *inkey, *inmap, *outbuf;
+	extern char *optarg;
+	extern int optind;
+	int outbuflen, key, notrans, rval;
 	int c, r;
 	u_int i;
 
+	domainname = NULL;
 	notrans = key = 0;
-
-	while ((c = getopt(argc, argv, "xd:kt")) != -1)
+	while ((c=getopt(argc, argv, "xd:kt")) != -1)
 		switch (c) {
 		case 'x':
-			for (i = 0; i<sizeof ypaliases/sizeof ypaliases[0]; i++)
+			for (i=0; i<sizeof ypaliases/sizeof ypaliases[0]; i++)
 				printf("Use \"%s\" for \"%s\"\n",
 					ypaliases[i].alias,
 					ypaliases[i].name);
@@ -94,25 +102,30 @@ main(int argc, char *argv[])
 			domainname = optarg;
 			break;
 		case 't':
-			notrans++;
+			notrans = 1;
 			break;
 		case 'k':
-			key++;
+			key = 1;
 			break;
 		default:
 			usage();
 		}
 
-	if ((argc-optind) < 2)
+	if ((argc-optind) < 2 )
 		usage();
 
-	if (!domainname)
+	if (!domainname) {
 		yp_get_default_domain(&domainname);
+	}
 
 	inmap = argv[argc-1];
-	for (i = 0; (!notrans) && i<sizeof ypaliases/sizeof ypaliases[0]; i++)
-		if (strcmp(inmap, ypaliases[i].alias) == 0)
-			inmap = ypaliases[i].name;
+	if (!notrans) {
+		for (i=0; i<sizeof ypaliases/sizeof ypaliases[0]; i++)
+			if (strcmp(inmap, ypaliases[i].alias) == 0)
+				inmap = ypaliases[i].name;
+	}
+
+	rval = 0;
 	for (; optind < argc-1; optind++) {
 		inkey = argv[optind];
 
@@ -121,15 +134,18 @@ main(int argc, char *argv[])
 		switch (r) {
 		case 0:
 			if (key)
-				printf("%s ", inkey);
+				printf("%s: ", inkey);
 			printf("%*.*s\n", outbuflen, outbuflen, outbuf);
 			break;
 		case YPERR_YPBIND:
-			errx(1, "not running ypbind");
+			errx(1, "yp_match: not running ypbind");
+			exit(1);
 		default:
-			errx(1, "can't match key %s in map %s. reason: %s",
-				inkey, inmap, yperr_string(r));
+			errx(1, "Can't match key %s in map %s. Reason: %s\n",
+			    inkey, inmap, yperr_string(r));
+			rval = 1;
+			break;
 		}
 	}
-	exit(0);
+	exit(rval);
 }
