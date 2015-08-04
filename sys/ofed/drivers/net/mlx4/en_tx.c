@@ -701,9 +701,13 @@ static void build_inline_wqe(struct mlx4_en_tx_desc *tx_desc, struct mbuf *mb,
 static uint32_t hashrandom;
 static void hashrandom_init(void *arg)
 {
+	/*
+	 * It is assumed that the random subsystem has been
+	 * initialized when this function is called:
+	 */
 	hashrandom = m_ether_tcpip_hash_init();
 }
-SYSINIT(hashrandom_init, SI_SUB_KLD, SI_ORDER_SECOND, &hashrandom_init, NULL);
+SYSINIT(hashrandom_init, SI_SUB_RANDOM, SI_ORDER_ANY, &hashrandom_init, NULL);
 
 u16 mlx4_en_select_queue(struct net_device *dev, struct mbuf *mb)
 {
