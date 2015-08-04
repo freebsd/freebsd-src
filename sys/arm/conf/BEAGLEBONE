@@ -32,7 +32,6 @@ makeoptions	MODULES_EXTRA="dtb/am335x"
 options 	KDTRACE_HOOKS		# Kernel DTrace hooks
 options 	DDB_CTF			# all architectures - kernel ELF linker loads CTF data
 makeoptions	WITH_CTF=1
-makeoptions	MODULES_EXTRA+="opensolaris dtrace dtrace/profile dtrace/fbt"
 
 options 	HZ=100
 options 	SCHED_4BSD		# 4BSD scheduler
