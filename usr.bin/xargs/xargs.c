@@ -46,9 +46,11 @@ static char sccsid[] = "@(#)xargs.c	8.1 (Berkeley) 6/6/93";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/param.h>
+#include <sys/types.h>
 #include <sys/wait.h>
-
+#include <sys/time.h>
+#include <sys/limits.h>
+#include <sys/resource.h>
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -100,6 +102,7 @@ main(int argc, char *argv[])
 	long arg_max;
 	int ch, Jflag, nargs, nflag, nline;
 	size_t linelen;
+	struct rlimit rl;
 	char *endptr;
 	const char *errstr;
 
@@ -166,6 +169,14 @@ main(int argc, char *argv[])
 			maxprocs = strtonum(optarg, 1, INT_MAX, &errstr);
 			if (errstr)
 				errx(1, "-P %s: %s", optarg, errstr);
+			if (getrlimit(RLIMIT_NPROC, &rl) != 0)
+				errx(1, "getrlimit failed");
+			if (*endptr != '\0')
+				errx(1, "invalid number for -P option");
+			if (maxprocs < 0)
+				errx(1, "value for -P option should be >= 0");
+			if (maxprocs == 0 || maxprocs > rl.rlim_cur)
+				maxprocs = rl.rlim_cur;
 			break;
 		case 'p':
 			pflag = 1;
