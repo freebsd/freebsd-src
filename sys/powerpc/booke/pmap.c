@@ -246,6 +246,8 @@ static void pv_free(pv_entry_t);
 static void pv_insert(pmap_t, vm_offset_t, vm_page_t);
 static void pv_remove(pmap_t, vm_offset_t, vm_page_t);
 
+static void booke_pmap_init_qpages(void);
+
 /* Number of kva ptbl buffers, each covering one ptbl (PTBL_PAGES). */
 #define PTBL_BUFS		(128 * 16)
 
@@ -332,6 +334,8 @@ static void		mmu_booke_dumpsys_map(mmu_t, vm_paddr_t pa, size_t,
 static void		mmu_booke_dumpsys_unmap(mmu_t, vm_paddr_t pa, size_t,
     void *);
 static void		mmu_booke_scan_init(mmu_t);
+static vm_offset_t	mmu_booke_quick_enter_page(mmu_t mmu, vm_page_t m);
+static void		mmu_booke_quick_remove_page(mmu_t mmu, vm_offset_t addr);
 
 static mmu_method_t mmu_booke_methods[] = {
 	/* pmap dispatcher interface */
@@ -371,6 +375,8 @@ static mmu_method_t mmu_booke_methods[] = {
 	MMUMETHOD(mmu_zero_page_idle,	mmu_booke_zero_page_idle),
 	MMUMETHOD(mmu_activate,		mmu_booke_activate),
 	MMUMETHOD(mmu_deactivate,	mmu_booke_deactivate),
+	MMUMETHOD(mmu_quick_enter_page, mmu_booke_quick_enter_page),
+	MMUMETHOD(mmu_quick_remove_page, mmu_booke_quick_remove_page),
 
 	/* Internal interfaces */
 	MMUMETHOD(mmu_bootstrap,	mmu_booke_bootstrap),
@@ -1351,6 +1357,22 @@ pmap_bootstrap_ap(volatile uint32_t *trcp __unused)
 }
 #endif
 
+static void
+booke_pmap_init_qpages(void)
+{
+	struct pcpu *pc;
+	int i;
+
+	CPU_FOREACH(i) {
+		pc = pcpu_find(i);
+		pc->pc_qmap_addr = kva_alloc(PAGE_SIZE);
+		if (pc->pc_qmap_addr == 0)
+			panic("pmap_init_qpages: unable to allocate KVA");
+	}
+}
+
+SYSINIT(qpages_init, SI_SUB_CPU, SI_ORDER_ANY, booke_pmap_init_qpages, NULL);
+
 /*
  * Get the physical page address for the given pmap/virtual address.
  */
@@ -2270,6 +2292,61 @@ mmu_booke_zero_page_idle(mmu_t mmu, vm_page_t m)
 	mmu_booke_kenter(mmu, va, VM_PAGE_TO_PHYS(m));
 	bzero((caddr_t)va, PAGE_SIZE);
 	mmu_booke_kremove(mmu, va);
+}
+
+static vm_offset_t
+mmu_booke_quick_enter_page(mmu_t mmu, vm_page_t m)
+{
+	vm_paddr_t paddr;
+	vm_offset_t qaddr;
+	uint32_t flags;
+	pte_t *pte;
+
+	paddr = VM_PAGE_TO_PHYS(m);
+
+	flags = PTE_SR | PTE_SW | PTE_SX | PTE_WIRED | PTE_VALID;
+	flags |= tlb_calc_wimg(paddr, pmap_page_get_memattr(m));
+
+	critical_enter();
+	qaddr = PCPU_GET(qmap_addr);
+
+	pte = &(kernel_pmap->pm_pdir[PDIR_IDX(qaddr)][PTBL_IDX(qaddr)]);
+
+	KASSERT(pte->flags == 0, ("mmu_booke_quick_enter_page: PTE busy"));
+
+	/* 
+	 * XXX: tlbivax is broadcast to other cores, but qaddr should
+ 	 * not be present in other TLBs.  Is there a better instruction
+	 * sequence to use? Or just forget it & use mmu_booke_kenter()... 
+	 */
+	__asm __volatile("tlbivax 0, %0" :: "r"(qaddr & MAS2_EPN_MASK));
+	__asm __volatile("isync; msync");
+
+	pte->rpn = paddr & ~PTE_PA_MASK;
+	pte->flags = flags;
+
+	/* Flush the real memory from the instruction cache. */
+	if ((flags & (PTE_I | PTE_G)) == 0)
+		__syncicache((void *)qaddr, PAGE_SIZE);
+
+	return (qaddr);
+}
+
+static void
+mmu_booke_quick_remove_page(mmu_t mmu, vm_offset_t addr)
+{
+	pte_t *pte;
+
+	pte = &(kernel_pmap->pm_pdir[PDIR_IDX(addr)][PTBL_IDX(addr)]);
+
+	KASSERT(PCPU_GET(qmap_addr) == addr,
+	    ("mmu_booke_quick_remove_page: invalid address"));
+	KASSERT(pte->flags != 0,
+	    ("mmu_booke_quick_remove_page: PTE not in use"));
+
+	pte->flags = 0;
+	pte->rpn = 0;
+	critical_exit();
 }
 
 /*
