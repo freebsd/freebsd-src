@@ -200,6 +200,9 @@ enum {
 	INTR_OFLD_RXQ	= (1 << 5),	/* All TOE rxq's take interrupts */
 	INTR_NM_RXQ	= (1 << 6),	/* All netmap rxq's take interrupts */
 	INTR_ALL	= (INTR_RXQ | INTR_OFLD_RXQ | INTR_NM_RXQ),
+
+	/* adapter debug_flags */
+	DF_DUMP_MBOX	= (1 << 0),
 };
 
 #define IS_DOOMED(pi)	((pi)->flags & DOOMED)
@@ -755,6 +758,7 @@ struct adapter {
 	int active_ulds;	/* ULDs activated on this adapter */
 #endif
 	int flags;
+	int debug_flags;
 
 	char ifp_lockname[16];
 	struct mtx ifp_lock;
@@ -838,6 +842,24 @@ struct adapter {
 #define TXQ_UNLOCK(txq)			EQ_UNLOCK(&(txq)->eq)
 #define TXQ_LOCK_ASSERT_OWNED(txq)	EQ_LOCK_ASSERT_OWNED(&(txq)->eq)
 #define TXQ_LOCK_ASSERT_NOTOWNED(txq)	EQ_LOCK_ASSERT_NOTOWNED(&(txq)->eq)
+
+#define CH_DUMP_MBOX(sc, mbox, data_reg) \
+	do { \
+		if (sc->debug_flags & DF_DUMP_MBOX) { \
+			log(LOG_NOTICE, \
+			    "%s mbox %u: %016llx %016llx %016llx %016llx " \
+			    "%016llx %016llx %016llx %016llx\n", \
+			    device_get_nameunit(sc->dev), mbox, \
+			    (unsigned long long)t4_read_reg64(sc, data_reg), \
+			    (unsigned long long)t4_read_reg64(sc, data_reg + 8), \
+			    (unsigned long long)t4_read_reg64(sc, data_reg + 16), \
+			    (unsigned long long)t4_read_reg64(sc, data_reg + 24), \
+			    (unsigned long long)t4_read_reg64(sc, data_reg + 32), \
+			    (unsigned long long)t4_read_reg64(sc, data_reg + 40), \
+			    (unsigned long long)t4_read_reg64(sc, data_reg + 48), \
+			    (unsigned long long)t4_read_reg64(sc, data_reg + 56)); \
+		} \
+	} while (0)
 
 #define for_each_txq(pi, iter, q) \
 	for (q = &pi->adapter->sge.txq[pi->first_txq], iter = 0; \
