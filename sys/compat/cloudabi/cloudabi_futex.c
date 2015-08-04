@@ -35,13 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/sx.h>
 #include <sys/systm.h>
-
-#include <vm/vm.h>
-#include <vm/vm_param.h>
-#include <vm/pmap.h>
-#include <vm/vm_extern.h>
-#include <vm/vm_map.h>
-#include <vm/vm_object.h>
+#include <sys/umtx.h>
 
 #include <compat/cloudabi/cloudabi_proto.h>
 #include <compat/cloudabi/cloudabi_syscalldefs.h>
@@ -105,13 +99,7 @@ struct futex_waiter;
 
 /* Identifier of a location in memory. */
 struct futex_address {
-	/* For process-private objects: address space of the process. */
-	struct vmspace *		fa_vmspace;
-	/* For process-shared objects: VM object containing the object. */
-	struct vm_object *		fa_vmobject;
-
-	/* Memory address within address space or offset within VM object. */
-	uintptr_t			fa_offset;
+	struct umtx_key			fa_key;
 };
 
 /* A set of waiting threads. */
@@ -225,61 +213,16 @@ static int
 futex_address_create(struct futex_address *fa, struct thread *td,
     const void *object, cloudabi_mflags_t scope)
 {
-	struct vmspace *vs;
-	struct vm_object *vo;
-	vm_map_t map;
-	vm_map_entry_t entry;
-	vm_pindex_t pindex;
-	vm_prot_t prot;
-	boolean_t wired;
 
-	/*
-	 * Most of the time objects are stored in privately mapped
-	 * anonymous memory. For these objects we wouldn't need to look
-	 * up the corresponding VM object. The scope hint provided by
-	 * userspace allows us to skip the VM map lookup for the common
-	 * case.
-	 *
-	 * POSIX does permit enabling PTHREAD_PROCESS_SHARED on a lock
-	 * stored in a private mapping, at the cost of additional
-	 * performance overhead. Fall back to identifying the object by
-	 * virtual memory address if the mapping isn't shared.
-	 */
-	vs = td->td_proc->p_vmspace;
+	KASSERT(td == curthread,
+	    ("Can only create umtx keys for the current thread"));
 	switch (scope) {
-	case CLOUDABI_MAP_SHARED:
-		map = &vs->vm_map;
-		if (vm_map_lookup(&map, (vm_offset_t)object,
-		    VM_PROT_COPY | VM_PROT_WRITE, &entry, &vo, &pindex, &prot,
-		    &wired) != KERN_SUCCESS)
-			return (EFAULT);
-
-		if (entry->inheritance == VM_INHERIT_SHARE) {
-			/*
-			 * Address corresponds to a shared mapping.
-			 * Identify the address by its VM object.
-			 */
-			fa->fa_vmspace = NULL;
-			fa->fa_vmobject = vo;
-			vm_object_reference(vo);
-			fa->fa_offset = entry->offset - entry->start +
-			    (vm_offset_t)object;
-			vm_map_lookup_done(map, entry);
-			return (0);
-		}
-		vm_map_lookup_done(map, entry);
-		/* FALLTHROUGH */
 	case CLOUDABI_MAP_PRIVATE:
-		/*
-		 * Address corresponds to a private mapping. Never
-		 * identify the address by its VM object, as shadow
-		 * objects may get inserted if another thread forks.
-		 * Simply use the VM space instead.
-		 */
-		fa->fa_vmspace = vs;
-		fa->fa_vmobject = NULL;
-		fa->fa_offset = (uintptr_t)object;
-		return (0);
+		return (umtx_key_get(object, TYPE_FUTEX, THREAD_SHARE,
+		    &fa->fa_key));
+	case CLOUDABI_MAP_SHARED:
+		return (umtx_key_get(object, TYPE_FUTEX, AUTO_SHARE,
+		    &fa->fa_key));
 	default:
 		return (EINVAL);
 	}
@@ -289,8 +232,7 @@ static void
 futex_address_free(struct futex_address *fa)
 {
 
-	if (fa->fa_vmobject != NULL)
-		vm_object_deallocate(fa->fa_vmobject);
+	umtx_key_release(&fa->fa_key);
 }
 
 static bool
@@ -298,10 +240,7 @@ futex_address_match(const struct futex_address *fa1,
     const struct futex_address *fa2)
 {
 
-	/* Either fa_vmspace or fa_vmobject is NULL. */
-	return (fa1->fa_vmspace == fa2->fa_vmspace &&
-	    fa1->fa_vmobject == fa2->fa_vmobject &&
-	    fa1->fa_offset == fa2->fa_offset);
+	return (umtx_key_match(&fa1->fa_key, &fa2->fa_key));
 }
 
 /*
