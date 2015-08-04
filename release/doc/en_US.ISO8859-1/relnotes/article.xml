@@ -194,9 +194,9 @@
 	has been fixed.</para>
 
       <para revision="281161" contrib="sponsor"
-	sponsor="&limelight;">A new flag, <literal>-R</literal>, has
-	been added to the &man.netstat.8; utility, which is used to
-	dump <acronym>RSS</acronym>/flow information.</para>
+	sponsor="&limelight;">The &man.netstat.8; utility has been
+	updated to include a new flag, <literal>-R</literal>, which is
+	used to dump <acronym>RSS</acronym>/flow information.</para>
 
       <para revision="281936" contrib="sponsor" sponsor="&ff;">The
 	&man.ar.1; utility has been updated to set
@@ -230,9 +230,10 @@
 	compatibility with the <acronym>GNU</acronym> &man.date.1;
 	utility behavior.</para>
 
-      <para revision="284523">A new flag, <literal>-c</literal>, has
-	been added to the &man.mkimg.1; utility, which allows
-	specifying the capacity of the target disk image.</para>
+      <para revision="284523">The &man.mkimg.1; utility has been
+	updated to include a new flag, <literal>-c</literal>, which
+	allows specifying the capacity of the target disk
+	image.</para>
 
       <para revision="285092">The &man.pw.8; utility has been updated
 	with a new flag, <literal>-R</literal>, that sets the root
@@ -613,16 +614,15 @@
     <sect2 xml:id="hardware-arm">
       <title>ARM Support</title>
 
-      <para revision="278079" arch="arm">Support to turn off the
-	BeagleBone Black system with the &man.shutdown.8;
-	<literal>-p</literal> flag or by invoking &man.poweroff.8; has
-	been added.</para>
+      <para revision="278079">Support to turn off the BeagleBone Black
+	system with the &man.shutdown.8; <literal>-p</literal> flag or
+	by invoking &man.poweroff.8; has been added.</para>
 
-      <para revision="278599" arch="arm">Support for the Exynos 5420
-	Octa system has been added.</para>
+      <para revision="278599">Support for the Exynos 5420 Octa system
+	has been added.</para>
 
-      <para revision="278599" arch="arm">The <acronym>SMP</acronym>
-	option has been enabled for all Exynos 5 systems supported by
+      <para revision="278599">The <acronym>SMP</acronym> option has
+	been enabled for all Exynos 5 systems supported by
 	&os;.</para>
 
       <para revision="278608">The <literal>bcm2835_cpufreq</literal>
@@ -630,11 +630,11 @@
 	frequency and voltage control on the Raspberry Pi
 	<acronym>SOC</acronym>.</para>
 
-      <para revision="283500" arch="arm">Support for the Toradex
-	Apalis i.MX6 development board has been added.</para>
+      <para revision="283500">Support for the Toradex Apalis i.MX6
+	development board has been added.</para>
 
-      <para revision="283500" arch="arm">Audio transmission drivers
-	have been added for Digital Audio Multiplexer
+      <para revision="283500">Audio transmission drivers have been
+	added for Digital Audio Multiplexer
 	(<acronym>AUDMUXM</acronym>), Smart Direct Memory Access
 	Controller (<acronym>SDMA</acronym>), and Syncronous Serial
 	Interface (<acronym>SSI</acronym>).</para>
@@ -684,10 +684,11 @@
 	targets and portals without requiring active
 	discovery.</para>
 
-      <para revision="275249" contrib="sponsor" sponsor="&ff;">Support
+      <para revision="275249" contrib="sponsor" sponsor="&ff;">The
+	&man.mount.nfs.8; utility has been updated to include support
 	for the <literal>timeo</literal>, <literal>actimeo</literal>,
-	<literal>noac</literal>, and <literal>proto</literal> options
-	have been added to &man.mount.nfs.8;.</para>
+	<literal>noac</literal>, and <literal>proto</literal>
+	options.</para>
     </sect2>
 
     <sect2 xml:id="storage-zfs">
@@ -707,7 +708,7 @@
     </sect2>
 
     <sect2 xml:id="storage-geom">
-      <title>&man.geom.4;</title>
+      <title>GEOM</title>
 
       <para revision="275891" contrib="sponsor" sponsor="&ix;">The
 	&man.ctl.4; subsystem has been updated, increasing the ports
@@ -715,10 +716,11 @@
 	and <acronym>LUN</acronym> limit from <literal>256</literal>
 	to <literal>1024</literal>.</para>
 
-      <para revision="282861">Support for the
+      <para revision="282861">The &man.gpart.8; utility has been
+	updated to include support for the
 	<literal>apple-boot</literal>, <literal>apple-hfs</literal>,
 	and <literal>apple-ufs</literal> <acronym>MBR</acronym>
-	partitioning schemes have been added to &man.gpart.8;.</para>
+	partitioning schemes.</para>
     </sect2>
   </sect1>
 
