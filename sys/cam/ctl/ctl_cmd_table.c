@@ -785,8 +785,8 @@ const struct ctl_cmd_entry ctl_cmd_table[256] =
 {NULL, CTL_SERIDX_INVLD, CTL_CMD_FLAG_NONE, CTL_LUN_PAT_NONE},
 
 /* 35 SYNCHRONIZE CACHE(10) */
-{ctl_sync_cache, CTL_SERIDX_START, CTL_CMD_FLAG_OK_ON_SLUN |
-				   CTL_FLAG_DATA_NONE,
+{ctl_sync_cache, CTL_SERIDX_SYNC, CTL_CMD_FLAG_OK_ON_SLUN |
+				  CTL_FLAG_DATA_NONE,
  CTL_LUN_PAT_NONE,
  10, {0, 0xff, 0xff, 0xff, 0xff, 0, 0xff, 0xff, 0x07}},
 
@@ -1138,8 +1138,8 @@ const struct ctl_cmd_entry ctl_cmd_table[256] =
 {NULL, CTL_SERIDX_INVLD, CTL_CMD_FLAG_NONE, CTL_LUN_PAT_NONE},
 
 /* 91 SYNCHRONIZE CACHE(16) */
-{ctl_sync_cache, CTL_SERIDX_START, CTL_CMD_FLAG_OK_ON_SLUN |
-				   CTL_FLAG_DATA_NONE,
+{ctl_sync_cache, CTL_SERIDX_SYNC, CTL_CMD_FLAG_OK_ON_SLUN |
+				  CTL_FLAG_DATA_NONE,
  CTL_LUN_PAT_NONE,
  16, {0, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
       0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0, 0x07}},
