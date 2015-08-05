@@ -104,6 +104,9 @@ cloudabi_sys_fd_create1(struct thread *td,
 	};
 
 	switch (uap->type) {
+	case CLOUDABI_FILETYPE_POLL:
+		cap_rights_init(&fcaps.fc_rights, CAP_FSTAT, CAP_KQUEUE);
+		return (kern_kqueue(td, 0, &fcaps));
 	case CLOUDABI_FILETYPE_SHARED_MEMORY:
 		cap_rights_init(&fcaps.fc_rights, CAP_FSTAT, CAP_FTRUNCATE,
 		    CAP_MMAP_RWX);
