@@ -13,9 +13,6 @@ SUBDIR+= cpp
 
 .if ${MK_CXX} != "no"
 SUBDIR+= cc1plus c++
-.if ${MK_ELFTOOLCHAIN_TOOLS} == "no"
-SUBDIR+= c++filt
-.endif
 .endif
 
 .if ${MK_GCOV} != "no"

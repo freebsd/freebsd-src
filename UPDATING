@@ -31,6 +31,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20150805:
+	GNU Binutils versions of addr2line, c++filt, nm, readelf, size,
+	strings and strip have been removed. The src.conf(5) knob
+	WITHOUT_ELFTOOLCHAIN_TOOLS no longer provides the binutils tools.
+
 20150728:
 	As ZFS requires more kernel stack pages than is the default on some
 	architectures e.g. i386, it now warns if KSTACK_PAGES is less than
@@ -224,7 +229,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	taken from the ELF Tool Chain project rather than GNU binutils. They
 	should be drop-in replacements, with the addition of arm64 support.
 	The WITHOUT_ELFTOOLCHAIN_TOOLS= knob may be used to obtain the
-	binutils tools, if necessary.
+	binutils tools, if necessary. See 20150805 for updated information.
 
 20150105:
 	The default Unbound configuration now enables remote control
