@@ -88,6 +88,27 @@ static int i386_set_ldt_data(struct thread *, int start, int num,
 	union descriptor *descs);
 static int i386_ldt_grow(struct thread *td, int len);
 
+void
+fill_based_sd(struct segment_descriptor *sdp, uint32_t base)
+{
+
+	sdp->sd_lobase = base & 0xffffff;
+	sdp->sd_hibase = (base >> 24) & 0xff;
+#ifdef XEN
+	/* need to do nosegneg like Linux */
+	sdp->sd_lolimit = (HYPERVISOR_VIRT_START >> 12) & 0xffff;
+#else			
+	sdp->sd_lolimit = 0xffff;	/* 4GB limit, wraps around */
+#endif
+	sdp->sd_hilimit = 0xf;
+	sdp->sd_type = SDT_MEMRWA;
+	sdp->sd_dpl = SEL_UPL;
+	sdp->sd_p = 1;
+	sdp->sd_xx = 0;
+	sdp->sd_def32 = 1;
+	sdp->sd_gran = 1;
+}
+
 #ifndef _SYS_SYSPROTO_H_
 struct sysarch_args {
 	int op;
@@ -202,28 +223,14 @@ sysarch(td, uap)
 		break;
 	case I386_SET_FSBASE:
 		error = copyin(uap->parms, &base, sizeof(base));
-		if (!error) {
+		if (error == 0) {
 			/*
 			 * Construct a descriptor and store it in the pcb for
 			 * the next context switch.  Also store it in the gdt
 			 * so that the load of tf_fs into %fs will activate it
 			 * at return to userland.
 			 */
-			sd.sd_lobase = base & 0xffffff;
-			sd.sd_hibase = (base >> 24) & 0xff;
-#ifdef XEN
-			/* need to do nosegneg like Linux */
-			sd.sd_lolimit = (HYPERVISOR_VIRT_START >> 12) & 0xffff;
-#else			
-			sd.sd_lolimit = 0xffff;	/* 4GB limit, wraps around */
-#endif
-			sd.sd_hilimit = 0xf;
-			sd.sd_type  = SDT_MEMRWA;
-			sd.sd_dpl   = SEL_UPL;
-			sd.sd_p     = 1;
-			sd.sd_xx    = 0;
-			sd.sd_def32 = 1;
-			sd.sd_gran  = 1;
+			fill_based_sd(&sd, base);
 			critical_enter();
 			td->td_pcb->pcb_fsd = sd;
 #ifdef XEN
@@ -243,28 +250,13 @@ sysarch(td, uap)
 		break;
 	case I386_SET_GSBASE:
 		error = copyin(uap->parms, &base, sizeof(base));
-		if (!error) {
+		if (error == 0) {
 			/*
 			 * Construct a descriptor and store it in the pcb for
 			 * the next context switch.  Also store it in the gdt
 			 * because we have to do a load_gs() right now.
 			 */
-			sd.sd_lobase = base & 0xffffff;
-			sd.sd_hibase = (base >> 24) & 0xff;
-
-#ifdef XEN
-			/* need to do nosegneg like Linux */
-			sd.sd_lolimit = (HYPERVISOR_VIRT_START >> 12) & 0xffff;
-#else	
-			sd.sd_lolimit = 0xffff;	/* 4GB limit, wraps around */
-#endif
-			sd.sd_hilimit = 0xf;
-			sd.sd_type  = SDT_MEMRWA;
-			sd.sd_dpl   = SEL_UPL;
-			sd.sd_p     = 1;
-			sd.sd_xx    = 0;
-			sd.sd_def32 = 1;
-			sd.sd_gran  = 1;
+			fill_based_sd(&sd, base);
 			critical_enter();
 			td->td_pcb->pcb_gsd = sd;
 #ifdef XEN
