@@ -195,6 +195,14 @@ user_mod_renamehome_body() {
 	test -d ${HOME}/home/bar || atf_fail "Directory not created"
 }
 
+atf_test_case user_mod_uid
+user_mod_uid_body() {
+	populate_etc_skel
+
+	atf_check -s exit:0 ${PW} useradd foo
+	atf_check -s exit:0 ${PW} usermod foo -u 5000
+}
+
 atf_init_test_cases() {
 	atf_add_test_case user_mod
 	atf_add_test_case user_mod_noupdate
@@ -210,4 +218,5 @@ atf_init_test_cases() {
 	atf_add_test_case user_mod_h
 	atf_add_test_case user_mod_H
 	atf_add_test_case user_mod_renamehome
+	atf_add_test_case user_mod_uid
 }
