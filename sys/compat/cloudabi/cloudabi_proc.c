@@ -30,7 +30,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/capsicum.h>
 #include <sys/filedesc.h>
 #include <sys/imgact.h>
-#include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
@@ -136,11 +135,4 @@ cloudabi_sys_proc_raise(struct thread *td,
 	return (0);
 }
 
-static moduledata_t cloudabi_module = {
-	"cloudabi",
-	NULL,
-	NULL
-};
-
-DECLARE_MODULE(cloudabi, cloudabi_module, SI_SUB_EXEC, SI_ORDER_ANY);
 MODULE_VERSION(cloudabi, 1);
