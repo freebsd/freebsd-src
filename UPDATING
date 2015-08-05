@@ -16,6 +16,14 @@ from older versions of FreeBSD, try WITHOUT_CLANG to bootstrap to the tip of
 stable/10, and then rebuild without this option. The bootstrap process from
 older version of current is a bit fragile.
 
+20150805:	p17	FreeBSD-SA-15:18.bsdpatch
+			FreeBSD-SA-15:19.routed
+
+	Fix patch(1) shell injection vulnerability via ed(1).
+	[SA-15:18]
+
+	Fix routed remote denial of service vulnerability. [SA-15:19]
+
 20150728:	p16	FreeBSD-SA-15:14.bsdpatch
 			FreeBSD-SA-15:15.tcp
 			FreeBSD-SA-15:16.openssh

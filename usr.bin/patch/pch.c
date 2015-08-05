@@ -1,4 +1,3 @@
-
 /*-
  * Copyright 1986, Larry Wall
  * 
@@ -1400,13 +1399,14 @@ do_ed_script(void)
 	char	*t;
 	long	beginning_of_this_line;
 	FILE	*pipefp = NULL;
+	int	continuation;
 
 	if (!skip_rest_of_patch) {
 		if (copy_file(filearg[0], TMPOUTNAME) < 0) {
 			unlink(TMPOUTNAME);
 			fatal("can't create temp file %s", TMPOUTNAME);
 		}
-		snprintf(buf, buf_size, "%s%s%s", _PATH_ED,
+		snprintf(buf, buf_size, "%s%s%s", _PATH_RED,
 		    verbose ? " " : " -s ", TMPOUTNAME);
 		pipefp = popen(buf, "w");
 	}
@@ -1424,7 +1424,19 @@ do_ed_script(void)
 		    *t == 'd' || *t == 'i' || *t == 's')) {
 			if (pipefp != NULL)
 				fputs(buf, pipefp);
-			if (*t != 'd') {
+			if (*t == 's') {
+				for (;;) {
+					continuation = 0;
+					t = strchr(buf, '\0') - 1;
+					while (--t >= buf && *t == '\\')
+						continuation = !continuation;
+					if (!continuation ||
+					    pgets(true) == 0)
+						break;
+					if (pipefp != NULL)
+						fputs(buf, pipefp);
+				}
+			} else if (*t != 'd') {
 				while (pgets(true)) {
 					p_input_line++;
 					if (pipefp != NULL)
