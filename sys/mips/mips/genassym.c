@@ -68,12 +68,15 @@ __FBSDID("$FreeBSD$");
 #endif
 
 ASSYM(TD_PCB, offsetof(struct thread, td_pcb));
+ASSYM(TD_PROC, offsetof(struct thread, td_proc));
 ASSYM(TD_UPTE, offsetof(struct thread, td_md.md_upte));
 ASSYM(TD_KSTACK, offsetof(struct thread, td_kstack));
 ASSYM(TD_FLAGS, offsetof(struct thread, td_flags));
 ASSYM(TD_LOCK, offsetof(struct thread, td_lock));
 ASSYM(TD_MDFLAGS, offsetof(struct thread, td_md.md_flags));
 ASSYM(TD_MDTLS, offsetof(struct thread, td_md.md_tls));
+
+ASSYM(PROC_TRACEFLAG, offsetof(struct proc, p_traceflag));
 
 #if defined(__mips_n64) && defined(COMPAT_FREEBSD32)
 ASSYM(TLS_TCB_OFFSET, (TLS_TP_OFFSET + TLS_TCB_SIZE32));

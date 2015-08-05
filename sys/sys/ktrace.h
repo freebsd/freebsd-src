@@ -34,6 +34,7 @@
 #define _SYS_KTRACE_H_
 
 #include <sys/caprights.h>
+#include <sys/cheri_serial.h>
 
 /*
  * operations to ktrace system call  (KTROP(op))
@@ -219,6 +220,27 @@ struct ktr_faultend {
 };
 
 /*
+ * KTR_CCALL - CHERI CCall
+ */
+#define KTR_CCALL	15
+struct ktr_ccall {
+	struct cheri_serial		ktr_pcc;
+	struct cheri_serial		ktr_idc;
+	uint64_t			ktr_method;
+	/* XXXBD: arguments? */
+};
+
+/*
+ * KTR_CRETURN - CHERI CReturn (return from CCall)
+ */
+#define KTR_CRETURN	16
+struct ktr_creturn {
+	/* XXXBD: restored PCC/IDC? */
+	struct cheri_serial		ktr_cret;
+	uint64_t			ktr_iret;
+};
+
+/*
  * KTR_DROP - If this bit is set in ktr_type, then at least one event
  * between the previous record and this record was dropped.
  */
@@ -242,6 +264,8 @@ struct ktr_faultend {
 #define KTRFAC_CAPFAIL	(1<<KTR_CAPFAIL)
 #define KTRFAC_FAULT	(1<<KTR_FAULT)
 #define KTRFAC_FAULTEND	(1<<KTR_FAULTEND)
+#define KTRFAC_CCALL	(1<<KTR_CCALL)
+#define KTRFAC_CRETURN	(1<<KTR_CRETURN)
 
 /*
  * trace flags (also in p_traceflags)
@@ -274,6 +298,8 @@ void	ktrcapfail(enum ktr_cap_fail_type, const cap_rights_t *,
 	ktrstruct("sockaddr", (s), ((struct sockaddr *)(s))->sa_len)
 #define ktrstat(s) \
 	ktrstruct("stat", (s), sizeof(struct stat))
+void	ktrccall(struct pcb *pcb);
+void	ktrcreturn(struct pcb *pcb);
 
 #else
 

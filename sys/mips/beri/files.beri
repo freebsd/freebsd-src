@@ -30,6 +30,7 @@ mips/beri/beri_machdep.c		standard
 mips/beri/beri_mp.c			optional smp
 mips/beri/beri_pic.c			optional fdt
 mips/cheri/ccall.S			optional cpu_cheri
+mips/cheri/ccall_ktrace.S		optional cpu_cheri ktrace
 mips/cheri/cheri.c			optional cpu_cheri
 mips/cheri/cheri_bcopy.S		optional cpu_cheri
 mips/cheri/cheri_debug.c		optional cpu_cheri

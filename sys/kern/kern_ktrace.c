@@ -60,6 +60,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/syslog.h>
 #include <sys/sysproto.h>
 
+#ifdef CPU_CHERI
+#include <machine/pcb.h>
+#endif
+
 #include <security/mac/mac_framework.h>
 
 /*
@@ -104,6 +108,10 @@ struct ktr_request {
 		struct	ktr_csw ktr_csw;
 		struct	ktr_fault ktr_fault;
 		struct	ktr_faultend ktr_faultend;
+#ifdef CPU_CHERI
+		struct	ktr_ccall ktr_ccall;
+		struct	ktr_creturn ktr_creturn;
+#endif
 	} ktr_data;
 	STAILQ_ENTRY(ktr_request) ktr_list;
 };
@@ -123,6 +131,10 @@ static int data_lengths[] = {
 	[KTR_CAPFAIL] = sizeof(struct ktr_cap_fail),
 	[KTR_FAULT] = sizeof(struct ktr_fault),
 	[KTR_FAULTEND] = sizeof(struct ktr_faultend),
+#ifdef CPU_CHERI
+	[KTR_CCALL] = sizeof(struct ktr_ccall),
+	[KTR_CRETURN] = sizeof(struct ktr_creturn),
+#endif
 };
 
 static STAILQ_HEAD(, ktr_request) ktr_free;
@@ -837,6 +849,47 @@ ktrfaultend(result)
 	ktr_enqueuerequest(td, req);
 	ktrace_exit(td);
 }
+
+#ifdef CPU_CHERI
+void
+ktrccall(struct pcb *pcb)
+{
+	struct thread *td = curthread;
+	struct ktr_request *req;
+	struct ktr_ccall *kc;
+
+	if (!KTRPOINT(td, KTR_CCALL))
+		return;
+	req = ktr_getrequest(KTR_CCALL);
+	if (req == NULL)
+		return;
+	kc = &req->ktr_data.ktr_ccall;
+	cheri_serialize(&kc->ktr_pcc, &pcb->pcb_cheriframe.cf_c1);
+	cheri_serialize(&kc->ktr_idc, &pcb->pcb_cheriframe.cf_c2);
+	kc->ktr_method = pcb->pcb_regs.v0;
+	ktr_enqueuerequest(td, req);
+	ktrace_exit(td);
+}
+
+void
+ktrcreturn(struct pcb *pcb)
+{
+	struct thread *td = curthread;
+	struct ktr_request *req;
+	struct ktr_creturn *kr;
+
+	if (!KTRPOINT(td, KTR_CRETURN))
+		return;
+	req = ktr_getrequest(KTR_CRETURN);
+	if (req == NULL)
+		return;
+	kr = &req->ktr_data.ktr_creturn;
+	cheri_serialize(&kr->ktr_cret, &pcb->pcb_cheriframe.cf_c1);
+	kr->ktr_iret = pcb->pcb_regs.v0;
+	ktr_enqueuerequest(td, req);
+	ktrace_exit(td);
+}
+#endif /* CPU_CHERI */
 #endif /* KTRACE */
 
 /* Interface and common routines */

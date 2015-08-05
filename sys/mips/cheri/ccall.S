@@ -29,16 +29,33 @@
  * SUCH DAMAGE.
  */
 
+#include "opt_ktrace.h"
+
 /* XXXRW: Can I drop some of these? */
 #include <machine/asm.h>
 #include <machine/cpu.h>
 #include <machine/regnum.h>
 #include <machine/cpuregs.h>
+#include <machine/exceptionasm.h>
 #include <machine/pte.h>
+#include <machine/pcb.h>
 
 #ifdef CPU_CHERI
 #include <machine/cheriasm.h>
 #include <machine/cherireg.h>
+#endif
+
+#ifndef KTR_CCALL
+#define KTR_CCALL	15
+#endif
+#ifndef KTRFAC_CCALL
+#define	KTRFAC_CCALL	(1<<KTR_CCALL)
+#endif
+#ifndef KTR_CRETURN
+#define KTR_CRETURN	16
+#endif
+#ifndef KTRFAC_CRETURN
+#define	KTRFAC_CRETURN	(1<<KTR_CCALL)
 #endif
 
 #include "assym.s"
@@ -342,6 +359,21 @@ ccall_push_stack:
 	/* Push PCC. */
 	csc		CHERI_REG_EPCC, k0, CHERI_STACKFRAME_PCC(CHERI_REG_KDC)
 
+#ifdef KTRACE
+ccall_maybe_ktrace:
+	GET_CPU_PCPU(k1)
+	PTR_L		k0, PC_CURTHREAD(k1)
+	PTR_L		k0, TD_PROC(k0)
+	INT_L		k0, PROC_TRACEFLAG(k0)
+	andi		k0, KTRFAC_CCALL
+	beqz		k0, ccall_unseal_caps
+	nop
+
+	PTR_LA		k0, _C_LABEL(CHERICCallKtrace)
+	jalr		k0
+	nop
+#endif /* KTRACE */
+
 	/*
 	 * Temporarily set KDC type to allow unsealing; this is a bit awkward
 	 * as KDC can't be used for data access until we unset it again.
@@ -600,10 +632,25 @@ creturn_check_global:
 creturn_inc_exception_cnt:
 	INC_EXCEPTION_CNTR(CHERI_CRETURN_CNT)
 
-	/* Retrieve current PCB pointer. */
-creturn_pop_stack:
+#ifdef KTRACE
+creturn_maybe_ktrace:
 	GET_CPU_PCPU(k1)   		/* XXXss Redundant if
 					   INC_EXCEPTION_CNTR is enabled. */
+	PTR_L		k0, PC_CURTHREAD(k1)
+	PTR_L		k0, TD_PROC(k0)
+	INT_L		k0, PROC_TRACEFLAG(k0)
+	andi		k0, KTRFAC_CRETURN
+	beqz		k0, creturn_pop_stack
+	nop
+
+	PTR_LA		k0, _C_LABEL(CHERICReturnKtrace)
+	jalr		k0
+	nop
+#endif
+
+	/* Retrieve current PCB pointer. */
+creturn_pop_stack:
+	GET_CPU_PCPU(k1)
 	PTR_L		k1, PC_CURPCB(k1)
 
 	/*
