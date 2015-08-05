@@ -32,6 +32,7 @@
 
 #include <sys/param.h>
 #include <sys/kernel.h>
+#include <sys/cheri_serial.h>
 #include <sys/proc.h>
 #include <sys/sysctl.h>
 
@@ -40,6 +41,7 @@
 
 #include <machine/atomic.h>
 #include <machine/cheri.h>
+#include <machine/cherireg.h>
 #include <machine/pcb.h>
 #include <machine/sysarch.h>
 
@@ -324,4 +326,39 @@ cheri_exec_setregs(struct thread *td)
 	cheri_capability_set_user_stack(&csigp->csig_c11);
 	cheri_capability_set_user_idc(&csigp->csig_idc);
 	cheri_capability_set_user_pcc(&csigp->csig_pcc);
+}
+
+void
+cheri_serialize(struct cheri_serial *csp, struct chericap *cap)
+{
+	register_t	r;
+	cheri_capability_load(CHERI_CR_CTEMP0, cap);
+
+#if CHERICAP_SIZE == 16
+	csp->cs_storage = 3;
+	csp->cs_typebits = 16;
+	csp->cs_permbits = 23;
+#else /* CHERICAP_SIZE == 32 */
+	csp->cs_storage = 4;
+	csp->cs_typebits = 24;
+	csp->cs_permbits = 31;
+#endif
+
+	CHERI_CGETTAG(r, CHERI_CR_CTEMP0);
+	csp->cs_tag = r;
+	if (csp->cs_tag) {
+		CHERI_CGETTYPE(r, CHERI_CR_CTEMP0);
+		csp->cs_type = r;
+		CHERI_CGETPERM(r, CHERI_CR_CTEMP0);
+		csp->cs_perms = r;
+		CHERI_CGETSEALED(r, CHERI_CR_CTEMP0);
+		csp->cs_sealed = r;
+		CHERI_CGETBASE(r, CHERI_CR_CTEMP0);
+		csp->cs_base = r;
+		CHERI_CGETLEN(r, CHERI_CR_CTEMP0);
+		csp->cs_length = r;
+		CHERI_CGETOFFSET(r, CHERI_CR_CTEMP0);
+		csp->cs_offset = r;
+	} else
+		memcpy(&csp->cs_data, cap, CHERICAP_SIZE);
 }
