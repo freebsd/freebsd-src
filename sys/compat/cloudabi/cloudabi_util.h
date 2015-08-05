@@ -28,6 +28,8 @@
 #ifndef _CLOUDABI_UTIL_H_
 #define	_CLOUDABI_UTIL_H_
 
+#include <sys/socket.h>
+
 #include <compat/cloudabi/cloudabi_syscalldefs.h>
 
 struct file;
@@ -40,6 +42,10 @@ int cloudabi_clock_time_get(struct thread *, cloudabi_clockid_t,
 
 /* Converts a FreeBSD errno to a CloudABI errno. */
 cloudabi_errno_t cloudabi_convert_errno(int);
+
+/* Converts FreeBSD's struct sockaddr to CloudABI's cloudabi_sockaddr_t. */
+void cloudabi_convert_sockaddr(const struct sockaddr *, socklen_t,
+    cloudabi_sockaddr_t *);
 
 /* Converts a file descriptor to a CloudABI file descriptor type. */
 cloudabi_filetype_t cloudabi_convert_filetype(const struct file *);
