@@ -193,6 +193,14 @@
 	<entry><para>Remote denial of service
 	    vulnerability</para></entry>
       </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-15:19.routed.asc">FreeBSD-SA-15:19.routed</link></entry>
+	<entry>5&nbsp;August&nbsp;2015</entry>
+	<entry><para>Remote denial of service
+	    vulnerability</para></entry>
+      </row>
     </tbody>
   </tgroup>
 </informaltable>
