@@ -36,3 +36,12 @@ cloudabi64_sys_poll(struct thread *td, struct cloudabi64_sys_poll_args *uap)
 	/* Not implemented. */
 	return (ENOSYS);
 }
+
+int
+cloudabi64_sys_poll_fd(struct thread *td,
+    struct cloudabi64_sys_poll_fd_args *uap)
+{
+
+	/* Not implemented. */
+	return (ENOSYS);
+}
