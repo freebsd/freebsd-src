@@ -306,7 +306,7 @@ ccall_check_globals:
 	 * by retrieving the current PCB pointer to reach the trusted stack.
 	 */
 ccall_push_stack:
-	GET_CPU_PCPU(k1)   
+	GET_CPU_PCPU(k1)
 	PTR_L		k1, PC_CURPCB(k1)
 
 	/* Retrieve current trusted stack pointer. */
@@ -567,7 +567,7 @@ CCall_throw_exception:
 	j	_C_LABEL(MipsUserGenException)
 	nop
 
-        .set pop
+	.set	pop
 
 /*
  * Software implementation of CReturn; this code does not need to be position-
@@ -622,7 +622,7 @@ creturn_pop_stack:
 	 * user register, such as $at, rather than juggling just $k0/$k1.
 	 */
 	PTR_L		k0, U_PCB_CHERISTACK_TSP(k1)
-	
+
 	/* Convert trusted stack-relative offset to global pointer. */
 	PTR_ADDU	k0, k1, k0			/* Add PCB pointer. */
 	PTR_ADDIU	k0, k0, U_PCB_CHERISTACK_FRAMES	/* Add PCB offset. */
