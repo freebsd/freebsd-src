@@ -11,6 +11,10 @@ handbook:
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
+20150805:	p22	FreeBSD-SA-15:19.routed
+
+	Fix routed remote denial of service vulnerability.
+
 20150728:	p21	FreeBSD-SA-15:15.tcp
 			FreeBSD-SA-15:16.openssh
 			FreeBSD-SA-15:17.bind
