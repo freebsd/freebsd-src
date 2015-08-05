@@ -58,6 +58,7 @@
 
 #include <machine/asm.h>
 #include <machine/cpu.h>
+#include <machine/exceptionasm.h>
 #include <machine/regnum.h>
 #include <machine/cpuregs.h>
 #include <machine/pte.h>
@@ -374,33 +375,6 @@ SlowFault:
 #define	SAVE_CHERI(t0reg, t1reg, base)
 #endif
 
-#if defined(CPU_CNMIPS)
-#define CLEAR_STATUS \
-	mfc0    a0, MIPS_COP_0_STATUS   ;\
-	li      a2, (MIPS_SR_KX | MIPS_SR_SX | MIPS_SR_UX) ; \
-	or      a0, a0, a2	        ; \
-	li      a2, ~(MIPS_SR_INT_IE | MIPS_SR_EXL | MIPS_SR_KSU_USER)   ; \
-	and     a0, a0, a2              ; \
-        mtc0    a0, MIPS_COP_0_STATUS   ; \
-	ITLBNOPFIX
-#elif defined(CPU_RMI) || defined(CPU_NLM)
-#define CLEAR_STATUS \
-	mfc0    a0, MIPS_COP_0_STATUS   ;\
-	li      a2, (MIPS_SR_KX | MIPS_SR_UX | MIPS_SR_COP_2_BIT) ; \
-	or      a0, a0, a2	        ; \
-	li      a2, ~(MIPS_SR_INT_IE | MIPS_SR_EXL | MIPS_SR_KSU_USER)   ; \
-	and     a0, a0, a2              ; \
-        mtc0    a0, MIPS_COP_0_STATUS   ; \
-	ITLBNOPFIX
-#else
-#define CLEAR_STATUS \
-	mfc0    a0, MIPS_COP_0_STATUS   ;\
-	li      a2, ~(MIPS_SR_INT_IE | MIPS_SR_EXL | MIPS_SR_KSU_USER)   ; \
-	and     a0, a0, a2              ; \
-	mtc0	a0, MIPS_COP_0_STATUS   ; \
-	ITLBNOPFIX
-#endif
-
 /*
  * Save CPU and CP0 register state when taking an exception in kernel mode.
  *
@@ -605,54 +579,9 @@ END(MipsKernGenException)
 NESTED_NOPROFILE(MipsUserGenException, CALLFRAME_SIZ, ra)
 	.set	noat
 	.mask	0x80000000, (CALLFRAME_RA - CALLFRAME_SIZ)
-/*
- * Save all of the registers except for the kernel temporaries in u.u_pcb.
- */
 	GET_CPU_PCPU(k1)
 	PTR_L	k1, PC_CURPCB(k1)
-	SAVE_U_PCB_REG(AT, AST, k1)
-	.set	at
-	SAVE_U_PCB_REG(v0, V0, k1)
-	SAVE_U_PCB_REG(v1, V1, k1)
-	SAVE_U_PCB_REG(a0, A0, k1)
-	mflo	v0
-	SAVE_U_PCB_REG(a1, A1, k1)
-	SAVE_U_PCB_REG(a2, A2, k1)
-	SAVE_U_PCB_REG(a3, A3, k1)
-	SAVE_U_PCB_REG(t0, T0, k1)
-	mfhi	v1
-	SAVE_U_PCB_REG(t1, T1, k1)
-	SAVE_U_PCB_REG(t2, T2, k1)
-	SAVE_U_PCB_REG(t3, T3, k1)
-	SAVE_U_PCB_REG(ta0, TA0, k1)
-	mfc0	a0, MIPS_COP_0_STATUS		# First arg is the status reg.
-	SAVE_U_PCB_REG(ta1, TA1, k1)
-	SAVE_U_PCB_REG(ta2, TA2, k1)
-	SAVE_U_PCB_REG(ta3, TA3, k1)
-	SAVE_U_PCB_REG(s0, S0, k1)
-	mfc0	a1, MIPS_COP_0_CAUSE		# Second arg is the cause reg.
-	SAVE_U_PCB_REG(s1, S1, k1)
-	SAVE_U_PCB_REG(s2, S2, k1)
-	SAVE_U_PCB_REG(s3, S3, k1)
-	SAVE_U_PCB_REG(s4, S4, k1)
-	MFC0	a2, MIPS_COP_0_BAD_VADDR	# Third arg is the fault addr
-	SAVE_U_PCB_REG(s5, S5, k1)
-	SAVE_U_PCB_REG(s6, S6, k1)
-	SAVE_U_PCB_REG(s7, S7, k1)
-	SAVE_U_PCB_REG(t8, T8, k1)
-	MFC0	a3, MIPS_COP_0_EXC_PC		# Fourth arg is the pc.
-	SAVE_U_PCB_REG(t9, T9, k1)
-	SAVE_U_PCB_REG(gp, GP, k1)
-	SAVE_U_PCB_REG(sp, SP, k1)
-	SAVE_U_PCB_REG(s8, S8, k1)
-	PTR_SUBU	sp, k1, CALLFRAME_SIZ	 # switch to kernel SP
-	SAVE_U_PCB_REG(ra, RA, k1)
-	SAVE_U_PCB_REG(v0, MULLO, k1)
-	SAVE_U_PCB_REG(v1, MULHI, k1)
-	SAVE_U_PCB_REG(a0, SR, k1)
-	SAVE_U_PCB_REG(a1, CAUSE, k1)
-	SAVE_U_PCB_REG(a2, BADVADDR, k1)
-	SAVE_U_PCB_REG(a3, PC, k1)
+	SAVE_REGS_TO_PCB(k1)
 #ifdef CPU_CHERI
 	/*
 	 * Note: This saves EPCC, matching the explicit EPC save above.
@@ -671,6 +600,7 @@ NESTED_NOPROFILE(MipsUserGenException, CALLFRAME_SIZ, ra)
 	or      t0, t0, (MIPS_SR_KX | MIPS_SR_UX | MIPS_SR_COP_2_BIT)
 #endif	
 	mtc0	t0, MIPS_COP_0_STATUS
+
 	PTR_ADDU a0, k1, U_PCB_REGS
 	ITLBNOPFIX
 
@@ -715,43 +645,7 @@ NESTED_NOPROFILE(MipsUserGenException, CALLFRAME_SIZ, ra)
 	 */
 	RESTORE_U_PCB_CHERIFRAME(k1, t0)
 #endif
-	RESTORE_U_PCB_REG(t0, MULLO, k1)
-	RESTORE_U_PCB_REG(t1, MULHI, k1)
-	mtlo	t0
-	mthi	t1
-	RESTORE_U_PCB_REG(a0, PC, k1)
-	RESTORE_U_PCB_REG(v0, V0, k1)
-        MTC0	a0, MIPS_COP_0_EXC_PC	# set return address
-	RESTORE_U_PCB_REG(v1, V1, k1)
-	RESTORE_U_PCB_REG(a0, A0, k1)
-	RESTORE_U_PCB_REG(a1, A1, k1)
-	RESTORE_U_PCB_REG(a2, A2, k1)
-	RESTORE_U_PCB_REG(a3, A3, k1)
-	RESTORE_U_PCB_REG(t0, T0, k1)
-	RESTORE_U_PCB_REG(t1, T1, k1)
-	RESTORE_U_PCB_REG(t2, T2, k1)
-	RESTORE_U_PCB_REG(t3, T3, k1)
-	RESTORE_U_PCB_REG(ta0, TA0, k1)
-	RESTORE_U_PCB_REG(ta1, TA1, k1)
-	RESTORE_U_PCB_REG(ta2, TA2, k1)
-	RESTORE_U_PCB_REG(ta3, TA3, k1)
-	RESTORE_U_PCB_REG(s0, S0, k1)
-	RESTORE_U_PCB_REG(s1, S1, k1)
-	RESTORE_U_PCB_REG(s2, S2, k1)
-	RESTORE_U_PCB_REG(s3, S3, k1)
-	RESTORE_U_PCB_REG(s4, S4, k1)
-	RESTORE_U_PCB_REG(s5, S5, k1)
-	RESTORE_U_PCB_REG(s6, S6, k1)
-	RESTORE_U_PCB_REG(s7, S7, k1)
-	RESTORE_U_PCB_REG(t8, T8, k1)
-	RESTORE_U_PCB_REG(t9, T9, k1)
-	RESTORE_U_PCB_REG(gp, GP, k1)
-	RESTORE_U_PCB_REG(sp, SP, k1)
-	RESTORE_U_PCB_REG(k0, SR, k1)
-	RESTORE_U_PCB_REG(s8, S8, k1)
-	RESTORE_U_PCB_REG(ra, RA, k1)
-	.set noat
-	RESTORE_U_PCB_REG(AT, AST, k1)
+	RESTORE_REGS_FROM_PCB(k1)
 
 	mtc0	k0, MIPS_COP_0_STATUS	# still exception level
 	ITLBNOPFIX
