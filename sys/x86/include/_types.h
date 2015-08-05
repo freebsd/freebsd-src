@@ -155,10 +155,10 @@ typedef	__builtin_va_list	__va_list;	/* internally known to gcc */
 #else
 #ifdef __LP64__
 struct __s_va_list {
-	__uint32_t	pad1[2];	/* gp_offset, fp_offset */
-	__uint64_t	pad2[2];	/* overflow_arg_area, reg_save_area */
+	__uint32_t	_pad1[2];	/* gp_offset, fp_offset */
+	__uint64_t	_pad2[2];	/* overflow_arg_area, reg_save_area */
 };
-typedef struct __s_va_list	__va_list;
+typedef	struct __s_va_list	__va_list;
 #else
 typedef	char *			__va_list;
 #endif
