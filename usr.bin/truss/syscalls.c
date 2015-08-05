@@ -539,44 +539,56 @@ get_struct(pid_t pid, void *offset, void *buf, int len)
 }
 
 #define	MAXSIZE		4096
-#define	BLOCKSIZE	1024
+
 /*
  * get_string
  * Copy a string from the process.  Note that it is
  * expected to be a C string, but if max is set, it will
  * only get that much.
  */
-
 static char *
-get_string(pid_t pid, void *offset, int max)
+get_string(pid_t pid, void *addr, int max)
 {
 	struct ptrace_io_desc iorequest;
-	char *buf;
-	int diff, i, size, totalsize;
+	char *buf, *nbuf;
+	size_t offset, size, totalsize;
 
-	diff = 0;
-	totalsize = size = max ? (max + 1) : BLOCKSIZE;
+	offset = 0;
+	if (max)
+		size = max + 1;
+	else {
+		/* Read up to the end of the current page. */
+		size = PAGE_SIZE - ((uintptr_t)addr % PAGE_SIZE);
+		if (size > MAXSIZE)
+			size = MAXSIZE;
+	}
+	totalsize = size;
 	buf = malloc(totalsize);
 	if (buf == NULL)
 		return (NULL);
 	for (;;) {
-		diff = totalsize - size;
 		iorequest.piod_op = PIOD_READ_D;
-		iorequest.piod_offs = (char *)offset + diff;
-		iorequest.piod_addr = buf + diff;
+		iorequest.piod_offs = (char *)addr + offset;
+		iorequest.piod_addr = buf + offset;
 		iorequest.piod_len = size;
 		if (ptrace(PT_IO, pid, (caddr_t)&iorequest, 0) < 0) {
 			free(buf);
 			return (NULL);
 		}
-		for (i = 0 ; i < size; i++) {
-			if (buf[diff + i] == '\0')
+		if (memchr(buf + offset, '\0', size) != NULL)
+			return (buf);
+		offset += size;
+		if (totalsize < MAXSIZE && max == 0) {
+			size = MAXSIZE - totalsize;
+			if (size > PAGE_SIZE)
+				size = PAGE_SIZE;
+			nbuf = realloc(buf, totalsize + size);
+			if (nbuf == NULL) {
+				buf[totalsize - 1] = '\0';
 				return (buf);
-		}
-		if (totalsize < MAXSIZE - BLOCKSIZE && max == 0) {
-			totalsize += BLOCKSIZE;
-			buf = realloc(buf, totalsize);
-			size = BLOCKSIZE;
+			}
+			buf = nbuf;
+			totalsize += size;
 		} else {
 			buf[totalsize - 1] = '\0';
 			return (buf);
