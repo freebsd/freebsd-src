@@ -4622,7 +4622,7 @@ filt_vfsread(struct knote *kn, long hint)
 
 	VI_LOCK(vp);
 	kn->kn_data = va.va_size - kn->kn_fp->f_offset;
-	res = (kn->kn_data != 0);
+	res = (kn->kn_sfflags & NOTE_FILE_POLL) != 0 || kn->kn_data != 0;
 	VI_UNLOCK(vp);
 	return (res);
 }
