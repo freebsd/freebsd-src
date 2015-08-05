@@ -47,9 +47,6 @@
 extern uintptr_t kernbase;
 uintptr_t kernelbase = (uintptr_t) &kernbase;
 
-#define INKERNEL(va) (((vm_offset_t)(va)) >= USRSTACK && \
-	 ((vm_offset_t)(va)) < VM_MAX_KERNEL_ADDRESS)
-
 uint8_t dtrace_fuword8_nocheck(void *);
 uint16_t dtrace_fuword16_nocheck(void *);
 uint32_t dtrace_fuword32_nocheck(void *);

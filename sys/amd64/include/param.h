@@ -143,4 +143,7 @@
 
 #define	pgtok(x)	((unsigned long)(x) * (PAGE_SIZE / 1024)) 
 
+#define	INKERNEL(va) (((va) >= DMAP_MIN_ADDRESS && (va) < DMAP_MAX_ADDRESS) \
+    || ((va) >= VM_MIN_KERNEL_ADDRESS && (va) < VM_MAX_KERNEL_ADDRESS))
+
 #endif /* !_AMD64_INCLUDE_PARAM_H_ */
