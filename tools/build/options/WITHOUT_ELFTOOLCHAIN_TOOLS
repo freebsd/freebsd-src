@@ -1,5 +1,5 @@
 .\" $FreeBSD$
-Set to use
+Set to avoid building ELF Tool Chain tools
 .Xr addr2line 1 ,
 .Xr c++filt 1 ,
 .Xr nm 1 ,
@@ -7,5 +7,4 @@ Set to use
 .Xr size 1 ,
 .Xr strings 1 ,
 and
-.Xr strip 1
-from GNU binutils instead of the ELF Tool Chain project.
+.Xr strip 1 .
