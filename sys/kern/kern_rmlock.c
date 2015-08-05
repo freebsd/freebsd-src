@@ -581,7 +581,7 @@ _rm_wunlock(struct rmlock *rm)
 		mtx_unlock(&rm->rm_lock_mtx);
 }
 
-#ifdef LOCK_DEBUG
+#if LOCK_DEBUG > 0
 
 void
 _rm_wlock_debug(struct rmlock *rm, const char *file, int line)
