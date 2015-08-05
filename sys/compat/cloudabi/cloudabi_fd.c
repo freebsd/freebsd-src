@@ -503,9 +503,26 @@ int
 cloudabi_sys_fd_stat_put(struct thread *td,
     struct cloudabi_sys_fd_stat_put_args *uap)
 {
+	cloudabi_fdstat_t fsb;
+	int error, oflags;
 
-	/* Not implemented. */
-	return (ENOSYS);
+	error = copyin(uap->buf, &fsb, sizeof(fsb));
+	if (error != 0)
+		return (error);
+
+	if (uap->flags == CLOUDABI_FDSTAT_FLAGS) {
+		/* Convert flags. */
+		oflags = 0;
+		if (fsb.fs_flags & CLOUDABI_FDFLAG_APPEND)
+			oflags |= O_APPEND;
+		if (fsb.fs_flags & CLOUDABI_FDFLAG_NONBLOCK)
+			oflags |= O_NONBLOCK;
+		if (fsb.fs_flags & (CLOUDABI_FDFLAG_SYNC |
+		    CLOUDABI_FDFLAG_DSYNC | CLOUDABI_FDFLAG_RSYNC))
+			oflags |= O_SYNC;
+		return (kern_fcntl(td, uap->fd, F_SETFL, oflags));
+	}
+	return (EINVAL);
 }
 
 int
