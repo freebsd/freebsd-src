@@ -860,7 +860,7 @@ xo_printf_v (xo_handle_t *xop, const char *fmt, va_list vap)
 
     rc = vsnprintf(xbp->xb_curp, left, fmt, va_local);
 
-    if (rc > xbp->xb_size) {
+    if (rc >= left) {
 	if (!xo_buf_has_room(xbp, rc)) {
 	    va_end(va_local);
 	    return -1;
@@ -1184,7 +1184,7 @@ xo_warn_hcv (xo_handle_t *xop, int code, int check_warn,
 
 	int left = xbp->xb_size - (xbp->xb_curp - xbp->xb_bufp);
 	int rc = vsnprintf(xbp->xb_curp, left, newfmt, vap);
-	if (rc > xbp->xb_size) {
+	if (rc > left) {
 	    if (!xo_buf_has_room(xbp, rc)) {
 		va_end(va_local);
 		return;
@@ -1336,7 +1336,7 @@ xo_message_hcv (xo_handle_t *xop, int code, const char *fmt, va_list vap)
 
 	int left = xbp->xb_size - (xbp->xb_curp - xbp->xb_bufp);
 	rc = vsnprintf(xbp->xb_curp, left, fmt, vap);
-	if (rc > xbp->xb_size) {
+	if (rc > left) {
 	    if (!xo_buf_has_room(xbp, rc)) {
 		va_end(va_local);
 		return;
