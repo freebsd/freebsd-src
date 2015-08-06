@@ -125,13 +125,7 @@ loader.help: help.common help.mips
 .PATH: ${.CURDIR}/../../../forth
 .include	"${.CURDIR}/../../../forth/Makefile.inc"
 
-.if !exists(${DESTDIR}/boot/loader.rc)
-FILES+= loader.rc
-.endif
-
-.if !exists(${DESTDIR}/boot/menu.rc)
-FILES+= menu.rc
-.endif
+FILES+= loader.rc menu.rc
 
 .if defined(LOADER_USB_SUPPORT)
 # Do garbage collection
