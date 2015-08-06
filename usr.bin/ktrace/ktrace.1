@@ -28,7 +28,7 @@
 .\"	@(#)ktrace.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd August 5, 2015
+.Dd August 6, 2015
 .Dt KTRACE 1
 .Os
 .Sh NAME
@@ -112,6 +112,8 @@ The following trace points are supported:
 trace CHERI CCall and CReturn
 .It Cm c
 trace system calls
+.It Cm e
+trace CHERI capability exceptions
 .It Cm f
 trace page faults
 .It Cm i

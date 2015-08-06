@@ -1,6 +1,11 @@
 /*-
  * Copyright (c) 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
+ * Copyright (c) 2015 SRI International
+ *
+ * This software was developed by SRI International and the University of
+ * Cambridge Computer Laboratory under DARPA/AFRL contract (FA8750-10-C-0237)
+ * ("CTSRD"), as part of the DARPA CRASH research programme.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -116,6 +121,7 @@ void ktrfault(struct ktr_fault *);
 void ktrfaultend(struct ktr_faultend *);
 void ktrccall(struct ktr_ccall *);
 void ktrcreturn(struct ktr_creturn *);
+void ktrcexception(struct ktr_cexception *);
 void limitfd(int fd);
 void usage(void);
 void ioctlname(unsigned long, int);
@@ -458,6 +464,9 @@ main(int argc, char *argv[])
 		case KTR_CRETURN:
 			ktrcreturn((struct ktr_creturn *)m);
 			break;
+		case KTR_CEXCEPTION:
+			ktrcexception((struct ktr_cexception *)m);
+			break;
 		default:
 			printf("\n");
 			break;
@@ -646,6 +655,9 @@ dumpheader(struct ktr_header *kth)
 		break;
 	case KTR_CRETURN:
 		type = "CRET";
+		break;
+	case KTR_CEXCEPTION:
+		type = "CEXC";
 		break;
 	default:
 		sprintf(unknown, "UNKNOWN(%d)", kth->ktr_type);
@@ -2032,6 +2044,15 @@ ktrcreturn(struct ktr_creturn *ktr)
 
 	printf("integer return: %jd\n", (intmax_t)ktr->ktr_iret);
 	printcap("capability return", &ktr->ktr_cret);
+}
+
+void
+ktrcexception(struct ktr_cexception *ktr)
+{
+
+	/* XXXBD: Expand exception codes to names */
+	printf("ExcCode 0x%x RegNum %d\n", ktr->ktr_exccode, ktr->ktr_regnum);
+	printcap("faulting capability", &ktr->ktr_cap);
 }
 
 #if defined(__amd64__) || defined(__i386__)

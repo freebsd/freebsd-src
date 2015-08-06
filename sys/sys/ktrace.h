@@ -241,6 +241,16 @@ struct ktr_creturn {
 };
 
 /*
+ * KTR_CEXCEPTION - CHERI Capability exception
+ */
+#define KTR_CEXCEPTION	17
+struct ktr_cexception {
+	struct cheri_serial	ktr_cap;
+	uint8_t			ktr_exccode;
+	uint8_t			ktr_regnum;
+};
+
+/*
  * KTR_DROP - If this bit is set in ktr_type, then at least one event
  * between the previous record and this record was dropped.
  */
@@ -266,6 +276,7 @@ struct ktr_creturn {
 #define KTRFAC_FAULTEND	(1<<KTR_FAULTEND)
 #define KTRFAC_CCALL	(1<<KTR_CCALL)
 #define KTRFAC_CRETURN	(1<<KTR_CRETURN)
+#define KTRFAC_CEXCEPTION	(1<<KTR_CEXCEPTION)
 
 /*
  * trace flags (also in p_traceflags)
@@ -300,6 +311,7 @@ void	ktrcapfail(enum ktr_cap_fail_type, const cap_rights_t *,
 	ktrstruct("stat", (s), sizeof(struct stat))
 void	ktrccall(struct pcb *pcb);
 void	ktrcreturn(struct pcb *pcb);
+void	ktrcexception(struct trapframe *);
 
 #else
 
