@@ -197,9 +197,128 @@ int
 cloudabi_sys_file_open(struct thread *td,
     struct cloudabi_sys_file_open_args *uap)
 {
+	cloudabi_fdstat_t fds;
+	cap_rights_t rights;
+	struct filecaps fcaps = {};
+	struct nameidata nd;
+	struct file *fp;
+	struct vnode *vp;
+	char *path;
+	int error, fd, fflags;
+	bool read, write;
 
-	/* Not implemented. */
-	return (ENOSYS);
+	error = copyin(uap->fds, &fds, sizeof(fds));
+	if (error != 0)
+		return (error);
+
+	/* All the requested rights should be set on the descriptor. */
+	error = cloudabi_convert_rights(
+	    fds.fs_rights_base | fds.fs_rights_inheriting, &rights);
+	if (error != 0)
+		return (error);
+	cap_rights_set(&rights, CAP_LOOKUP);
+
+	/* Convert rights to corresponding access mode. */
+	read = (fds.fs_rights_base & (CLOUDABI_RIGHT_FD_READ |
+	    CLOUDABI_RIGHT_FILE_READDIR | CLOUDABI_RIGHT_MEM_MAP_EXEC)) != 0;
+	write = (fds.fs_rights_base & (CLOUDABI_RIGHT_FD_DATASYNC |
+	    CLOUDABI_RIGHT_FD_WRITE | CLOUDABI_RIGHT_FILE_ALLOCATE |
+	    CLOUDABI_RIGHT_FILE_STAT_FPUT_SIZE)) != 0;
+	fflags = read ? write ? FREAD | FWRITE : FREAD : FWRITE;
+
+	/* Convert open flags. */
+	if ((uap->oflags & CLOUDABI_O_CREAT) != 0) {
+		fflags |= O_CREAT;
+		cap_rights_set(&rights, CAP_CREATE);
+	}
+	if ((uap->oflags & CLOUDABI_O_DIRECTORY) != 0)
+		fflags |= O_DIRECTORY;
+	if ((uap->oflags & CLOUDABI_O_EXCL) != 0)
+		fflags |= O_EXCL;
+	if ((uap->oflags & CLOUDABI_O_TRUNC) != 0) {
+		fflags |= O_TRUNC;
+		cap_rights_set(&rights, CAP_FTRUNCATE);
+	}
+	if ((fds.fs_flags & CLOUDABI_FDFLAG_APPEND) != 0)
+		fflags |= O_APPEND;
+	if ((fds.fs_flags & CLOUDABI_FDFLAG_NONBLOCK) != 0)
+		fflags |= O_NONBLOCK;
+	if ((fds.fs_flags & (CLOUDABI_FDFLAG_SYNC | CLOUDABI_FDFLAG_DSYNC |
+	    CLOUDABI_FDFLAG_RSYNC)) != 0) {
+		fflags |= O_SYNC;
+		cap_rights_set(&rights, CAP_FSYNC);
+	}
+	if ((uap->fd & CLOUDABI_LOOKUP_SYMLINK_FOLLOW) == 0)
+		fflags |= O_NOFOLLOW;
+	if (write && (fflags & (O_APPEND | O_TRUNC)) == 0)
+		cap_rights_set(&rights, CAP_SEEK);
+
+	/* Allocate new file descriptor. */
+	error = falloc_noinstall(td, &fp);
+	if (error != 0)
+		return (error);
+	fp->f_flag = fflags & FMASK;
+
+	/* Open path. */
+	error = copyin_path(uap->path, uap->pathlen, &path);
+	if (error != 0) {
+		fdrop(fp, td);
+		return (error);
+	}
+	NDINIT_ATRIGHTS(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, path, uap->fd,
+	    &rights, td);
+	error = vn_open(&nd, &fflags, 0777 & ~td->td_proc->p_fd->fd_cmask, fp);
+	cloudabi_freestr(path);
+	if (error != 0) {
+		/* Custom operations provided. */
+		if (error == ENXIO && fp->f_ops != &badfileops)
+			goto success;
+
+		/*
+		 * POSIX compliance: return ELOOP in case openat() is
+		 * called on a symbolic link and O_NOFOLLOW is set.
+		 */
+		if (error == EMLINK)
+			error = ELOOP;
+		fdrop(fp, td);
+		return (error);
+	}
+	NDFREE(&nd, NDF_ONLY_PNBUF);
+	filecaps_free(&nd.ni_filecaps);
+	fp->f_vnode = vp = nd.ni_vp;
+
+	/* Install vnode operations if no custom operations are provided. */
+	if (fp->f_ops == &badfileops) {
+		fp->f_seqcount = 1;
+		finit(fp, (fflags & FMASK) | (fp->f_flag & FHASLOCK),
+		    DTYPE_VNODE, vp, &vnops);
+	}
+	VOP_UNLOCK(vp, 0);
+
+	/* Truncate file. */
+	if (fflags & O_TRUNC) {
+		error = fo_truncate(fp, 0, td->td_ucred, td);
+		if (error != 0) {
+			fdrop(fp, td);
+			return (error);
+		}
+	}
+
+success:
+	/* Determine which Capsicum rights to set on the file descriptor. */
+	cloudabi_remove_conflicting_rights(cloudabi_convert_filetype(fp),
+	    &fds.fs_rights_base, &fds.fs_rights_inheriting);
+	cloudabi_convert_rights(fds.fs_rights_base | fds.fs_rights_inheriting,
+	    &fcaps.fc_rights);
+	if (cap_rights_is_set(&fcaps.fc_rights))
+		fcaps.fc_fcntls = CAP_FCNTL_SETFL;
+
+	error = finstall(td, fp, &fd, fflags, &fcaps);
+	fdrop(fp, td);
+	if (error != 0)
+		return (error);
+	td->td_retval[0] = fd;
+	return (0);
 }
 
 /* Converts a FreeBSD directory entry structure and writes it to userspace. */

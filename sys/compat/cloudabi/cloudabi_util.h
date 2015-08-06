@@ -50,6 +50,13 @@ void cloudabi_convert_sockaddr(const struct sockaddr *, socklen_t,
 /* Converts a file descriptor to a CloudABI file descriptor type. */
 cloudabi_filetype_t cloudabi_convert_filetype(const struct file *);
 
+/* Converts CloudABI rights to a set of Capsicum capabilities. */
+int cloudabi_convert_rights(cloudabi_rights_t, cap_rights_t *);
+
+/* Removes rights that conflict with the file descriptor type. */
+void cloudabi_remove_conflicting_rights(cloudabi_filetype_t,
+    cloudabi_rights_t *, cloudabi_rights_t *);
+
 /* Converts a struct timespec to a CloudABI timestamp. */
 int cloudabi_convert_timespec(const struct timespec *, cloudabi_timestamp_t *);
 
