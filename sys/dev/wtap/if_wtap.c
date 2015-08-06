@@ -163,13 +163,13 @@ wtap_media_change(struct ifnet *ifp)
  */
 static void
 wtap_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m,
-    int subtype, int rssi, int nf)
+    int subtype, const struct ieee80211_rx_stats *stats, int rssi, int nf)
 {
 	struct ieee80211vap *vap = ni->ni_vap;
 #if 0
 	DWTAP_PRINTF("[%d] %s\n", myath_id(ni), __func__);
 #endif
-	WTAP_VAP(vap)->av_recv_mgmt(ni, m, subtype, rssi, nf);
+	WTAP_VAP(vap)->av_recv_mgmt(ni, m, subtype, stats, rssi, nf);
 }
 
 static int
