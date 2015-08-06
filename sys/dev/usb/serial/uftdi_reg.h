@@ -31,7 +31,10 @@
 #define	FTDI_SIO_SET_LATENCY	9	/* Set the latency timer */
 #define	FTDI_SIO_GET_LATENCY	10	/* Read the latency timer */
 #define	FTDI_SIO_SET_BITMODE	11	/* Set the bit bang I/O mode */
-#define	FTDI_SIO_GET_BITMODE	12	/* Read pin states in bit bang mode */
+#define	FTDI_SIO_GET_BITMODE	12	/* Read pin states from any mode */
+#define	FTDI_SIO_READ_EEPROM	144	/* Read eeprom word */
+#define	FTDI_SIO_WRITE_EEPROM	145	/* Write eeprom word */
+#define	FTDI_SIO_ERASE_EEPROM	146	/* Erase entire eeprom */
 
 /* Port Identifier Table */
 #define	FTDI_PIT_DEFAULT 	0	/* SIOA */
