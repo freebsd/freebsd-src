@@ -41,7 +41,7 @@ enum Argtype { None = 1, Hex, Octal, Int, LongHex, Name, Ptr, Stat, Ioctl, Quad,
 	Sigset, Sigprocmask, Kevent, Sockdomain, Socktype, Open,
 	Fcntlflag, Rusage, BinString, Shutdown, Resource, Rlimit, Timeval2,
 	Pathconf, Rforkflags, ExitStatus, Waitoptions, Idtype, Procctl,
-	LinuxSockArgs, Umtxop };
+	LinuxSockArgs, Umtxop, Atfd, Atflags, Timespec2, Accessmode };
 
 #define	ARG_MASK	0xff
 #define	OUT	0x100
