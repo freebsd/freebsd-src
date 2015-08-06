@@ -290,7 +290,7 @@ cloudabi_convert_filetype(const struct file *fp)
 }
 
 /* Removes rights that conflict with the file descriptor type. */
-static void
+void
 cloudabi_remove_conflicting_rights(cloudabi_filetype_t filetype,
     cloudabi_rights_t *base, cloudabi_rights_t *inheriting)
 {
@@ -497,6 +497,25 @@ cloudabi_sys_fd_stat_get(struct thread *td,
 	convert_capabilities(&rights, fsb.fs_filetype,
 	    &fsb.fs_rights_base, &fsb.fs_rights_inheriting);
 	return (copyout(&fsb, (void *)uap->buf, sizeof(fsb)));
+}
+
+/* Converts CloudABI rights to a set of Capsicum capabilities. */
+int
+cloudabi_convert_rights(cloudabi_rights_t in, cap_rights_t *out)
+{
+
+	cap_rights_init(out);
+#define MAPPING(cloudabi, ...) do {			\
+	if (in & (cloudabi)) {				\
+		cap_rights_set(out, ##__VA_ARGS__);	\
+		in &= ~(cloudabi);			\
+	}						\
+} while (0);
+	RIGHTS_MAPPINGS
+#undef MAPPING
+	if (in != 0)
+		return (ENOTCAPABLE);
+	return (0);
 }
 
 int
