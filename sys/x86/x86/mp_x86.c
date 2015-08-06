@@ -602,7 +602,7 @@ init_secondary_tail(void)
 	mtx_unlock_spin(&ap_boot_mtx);
 
 	/* Wait until all the AP's are up. */
-	while (smp_started == 0)
+	while (atomic_load_acq_int(&smp_started) == 0)
 		ia32_pause();
 
 	/* Start per-CPU event timers. */
