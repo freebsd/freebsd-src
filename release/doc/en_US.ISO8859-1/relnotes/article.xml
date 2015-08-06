@@ -766,7 +766,7 @@
       &os;.</para>
 
     <sect2 xml:id="network-protocols">
-      <title>Network Procols</title>
+      <title>Network Protocols</title>
 
       <para revision="273838" contrib="sponsor"
 	sponsor="&limelight;">Support for <acronym>PLPMTUD</acronym>
