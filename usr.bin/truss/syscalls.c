@@ -297,12 +297,14 @@ struct xlat {
 static struct xlat kevent_filters[] = {
 	X(EVFILT_READ) X(EVFILT_WRITE) X(EVFILT_AIO) X(EVFILT_VNODE)
 	X(EVFILT_PROC) X(EVFILT_SIGNAL) X(EVFILT_TIMER)
-	X(EVFILT_FS) X(EVFILT_READ) XEND
+	X(EVFILT_PROCDESC) X(EVFILT_FS) X(EVFILT_LIO) X(EVFILT_USER)
+	X(EVFILT_SENDFILE) XEND
 };
 
 static struct xlat kevent_flags[] = {
 	X(EV_ADD) X(EV_DELETE) X(EV_ENABLE) X(EV_DISABLE) X(EV_ONESHOT)
-	X(EV_CLEAR) X(EV_FLAG1) X(EV_ERROR) X(EV_EOF) XEND
+	X(EV_CLEAR) X(EV_RECEIPT) X(EV_DISPATCH) X(EV_FORCEONESHOT)
+	X(EV_DROP) X(EV_FLAG1) X(EV_ERROR) X(EV_EOF) XEND
 };
 
 static struct xlat poll_flags[] = {
@@ -315,7 +317,7 @@ static struct xlat mmap_flags[] = {
 	X(MAP_SHARED) X(MAP_PRIVATE) X(MAP_FIXED) X(MAP_RESERVED0020)
 	X(MAP_RESERVED0040) X(MAP_RESERVED0080) X(MAP_RESERVED0100)
 	X(MAP_HASSEMAPHORE) X(MAP_STACK) X(MAP_NOSYNC) X(MAP_ANON)
-	X(MAP_NOCORE) X(MAP_PREFAULT_READ)
+	X(MAP_EXCL) X(MAP_NOCORE) X(MAP_PREFAULT_READ)
 #ifdef MAP_32BIT
 	X(MAP_32BIT)
 #endif
@@ -327,7 +329,7 @@ static struct xlat mprot_flags[] = {
 };
 
 static struct xlat whence_arg[] = {
-	X(SEEK_SET) X(SEEK_CUR) X(SEEK_END) XEND
+	X(SEEK_SET) X(SEEK_CUR) X(SEEK_END) X(SEEK_DATA) X(SEEK_HOLE) XEND
 };
 
 static struct xlat sigaction_flags[] = {
@@ -337,7 +339,10 @@ static struct xlat sigaction_flags[] = {
 
 static struct xlat fcntl_arg[] = {
 	X(F_DUPFD) X(F_GETFD) X(F_SETFD) X(F_GETFL) X(F_SETFL)
-	X(F_GETOWN) X(F_SETOWN) X(F_GETLK) X(F_SETLK) X(F_SETLKW) XEND
+	X(F_GETOWN) X(F_SETOWN) X(F_OGETLK) X(F_OSETLK) X(F_OSETLKW)
+	X(F_DUP2FD) X(F_GETLK) X(F_SETLK) X(F_SETLKW) X(F_SETLK_REMOTE)
+	X(F_READAHEAD) X(F_RDAHEAD) X(F_DUPFD_CLOEXEC) X(F_DUP2FD_CLOEXEC)
+	XEND
 };
 
 static struct xlat fcntlfd_arg[] = {
@@ -346,7 +351,7 @@ static struct xlat fcntlfd_arg[] = {
 
 static struct xlat fcntlfl_arg[] = {
 	X(O_APPEND) X(O_ASYNC) X(O_FSYNC) X(O_NONBLOCK) X(O_NOFOLLOW)
-	X(O_DIRECT) XEND
+	X(FRDAHEAD) X(O_DIRECT) XEND
 };
 
 static struct xlat sockdomain_arg[] = {
@@ -357,7 +362,8 @@ static struct xlat sockdomain_arg[] = {
 	X(PF_LINK) X(PF_XTP) X(PF_COIP) X(PF_CNT) X(PF_SIP) X(PF_IPX)
 	X(PF_RTIP) X(PF_PIP) X(PF_ISDN) X(PF_KEY) X(PF_INET6)
 	X(PF_NATM) X(PF_ATM) X(PF_NETGRAPH) X(PF_SLOW) X(PF_SCLUSTER)
-	X(PF_ARP) X(PF_BLUETOOTH) XEND
+	X(PF_ARP) X(PF_BLUETOOTH) X(PF_IEEE80211) X(PF_INET_SDP)
+	X(PF_INET6_SDP) XEND
 };
 
 static struct xlat socktype_arg[] = {
@@ -369,7 +375,8 @@ static struct xlat open_flags[] = {
 	X(O_RDONLY) X(O_WRONLY) X(O_RDWR) X(O_ACCMODE) X(O_NONBLOCK)
 	X(O_APPEND) X(O_SHLOCK) X(O_EXLOCK) X(O_ASYNC) X(O_FSYNC)
 	X(O_NOFOLLOW) X(O_CREAT) X(O_TRUNC) X(O_EXCL) X(O_NOCTTY)
-	X(O_DIRECT) X(O_DIRECTORY) X(O_EXEC) X(O_TTY_INIT) X(O_CLOEXEC) XEND
+	X(O_DIRECT) X(O_DIRECTORY) X(O_EXEC) X(O_TTY_INIT) X(O_CLOEXEC)
+	X(O_VERIFY) XEND
 };
 
 static struct xlat shutdown_arg[] = {
@@ -379,7 +386,8 @@ static struct xlat shutdown_arg[] = {
 static struct xlat resource_arg[] = {
 	X(RLIMIT_CPU) X(RLIMIT_FSIZE) X(RLIMIT_DATA) X(RLIMIT_STACK)
 	X(RLIMIT_CORE) X(RLIMIT_RSS) X(RLIMIT_MEMLOCK) X(RLIMIT_NPROC)
-	X(RLIMIT_NOFILE) X(RLIMIT_SBSIZE) X(RLIMIT_VMEM) XEND
+	X(RLIMIT_NOFILE) X(RLIMIT_SBSIZE) X(RLIMIT_VMEM) X(RLIMIT_NPTS)
+	X(RLIMIT_SWAP) X(RLIMIT_KQUEUES) XEND
 };
 
 static struct xlat pathconf_arg[] = {
@@ -392,12 +400,12 @@ static struct xlat pathconf_arg[] = {
 	X(_PC_REC_MIN_XFER_SIZE) X(_PC_REC_XFER_ALIGN)
 	X(_PC_SYMLINK_MAX) X(_PC_ACL_EXTENDED) X(_PC_ACL_PATH_MAX)
 	X(_PC_CAP_PRESENT) X(_PC_INF_PRESENT) X(_PC_MAC_PRESENT)
-	XEND
+	X(_PC_ACL_NFS4) X(_PC_MIN_HOLE_SIZE) XEND
 };
 
 static struct xlat rfork_flags[] = {
-	X(RFPROC) X(RFNOWAIT) X(RFFDG) X(RFCFDG) X(RFTHREAD) X(RFMEM)
-	X(RFSIGSHARE) X(RFTSIGZMB) X(RFLINUXTHPN) XEND
+	X(RFFDG) X(RFPROC) X(RFMEM) X(RFNOWAIT) X(RFCFDG) X(RFTHREAD)
+	X(RFSIGSHARE) X(RFLINUXTHPN) X(RFTSIGZMB) X(RFPPWAIT) XEND
 };
 
 static struct xlat wait_options[] = {
