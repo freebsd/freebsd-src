@@ -344,6 +344,12 @@ cheri_serialize(struct cheri_serial *csp, struct chericap *cap)
 	csp->cs_permbits = 31;
 #endif
 
+	KASSERT(csp != NULL, ("Can't serialize to a NULL pointer"));
+	if (cap == NULL) {
+		memset(csp, 0, sizeof(*csp));
+		return;
+	}
+
 	CHERI_CGETTAG(r, CHERI_CR_CTEMP0);
 	csp->cs_tag = r;
 	if (csp->cs_tag) {
