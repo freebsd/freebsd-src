@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 31, 2014
+.Dd August 6, 2015
 .Dt UFTDI 4
 .Os
 .Sh NAME
@@ -110,6 +110,11 @@ The
 must be one of the
 .Va uftdi_bitmodes
 values.
+Setting
+.Va mode
+to
+.Dv UFTDI_BITMODE_NONE
+returns the channel to standard UART mode.
 .Bd -literal
 enum uftdi_bitmodes
 {
@@ -139,12 +144,15 @@ and
 data which either reflects pin state or is interpreted
 as MPSSE commands and parameters, depending on the mode.
 .It Dv UFTDIIOC_GET_BITMODE Pq Vt "struct uftdi_bitmode"
-Return the state of the bitbang pins at the time of the call in the
+Return the current bitbang mode in the
+.Va mode
+member, and the state of the DBUS0..DBUS7 pins at the time
+of the call in the
 .Va iomask
 member.
-The
-.Va mode
-member is unused.
+The pin state can be read while the chip is in any mode, including
+.Dv UFTDI_BITMODE_NONE
+(UART) mode.
 .It Dv UFTDIIOC_SET_ERROR_CHAR Pq Vt int
 Set the character which is inserted into the buffer to mark
 the point of an error such as FIFO overflow.
@@ -164,6 +172,54 @@ This is the
 .Va bcdDevice
 value from the
 .Va usb_device_descriptor .
+.It Dv UFTDIIOC_READ_EEPROM Pq Vt "struct uftdi_eeio"
+Read one or more words from the configuration eeprom.
+The FTDI chip performs eeprom I/O in 16-bit words.
+Set
+.Va offset
+and
+.Va length
+to values evenly divisible by two before the call, and the
+.Va data
+array will contain the requested values from eeprom after the call.
+.Bd -literal
+struct uftdi_eeio
+{
+	uint16_t offset;
+	uint16_t length;
+	uint16_t data[64];
+};
+.Ed
+.Pp
+The FT232R chip has an internal eeprom.
+An external serial eeprom is optional on other FTDI chips.
+The eeprom may contain 64, 128, or 256 words, 
+depending on the part used.
+Multiple calls may be needed to read or write the larger parts.
+When no eeprom is present, all words in the returned data are 0xffff.
+An erased eeprom also reads as all 0xffff.
+.It Dv UFTDIIOC_WRITE_EEPROM Pq Vt "struct uftdi_eeio"
+Write one or more words to the configuration eeprom.
+The
+.Va uftdi_eeio
+values are as described for
+.Dv UFTDIIOC_READ_EEPROM .
+.Pp
+The FTDI chip does a blind write to the eeprom, and it will appear
+to succeed even when no eeprom is present.
+To ensure a good write you must read back and verify the data.
+It is
+.Em not
+necessary to erase before writing.
+Any position within the eeprom can be overwritten at any time.
+.It Dv UFTDIIOC_ERASE_EEPROM Pq Vt int
+Erase the entire eeprom.
+This is useful primarily for test and debugging, as there is no
+need to erase before writing.
+To help prevent accidental erasure caused by calling the wrong
+ioctl, you must pass the special value
+.Dv UFTDI_CONFIRM_ERASE
+as the argument to this ioctl.
 .El
 .Sh HARDWARE
 The
