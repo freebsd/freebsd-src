@@ -388,7 +388,7 @@ pw_user(int mode, char *name, long id, struct cargs * args)
 			edited = 1;
 		}
 
-		if (id > 0 && isdigit((unsigned char)*arg->val)) {
+		if (id > 0) {
 			pwd->pw_uid = (uid_t)id;
 			edited = 1;
 			if (pwd->pw_uid != 0 && strcmp(pwd->pw_name, "root") == 0)
