@@ -86,8 +86,6 @@ __FBSDID("$FreeBSD$");
 #include <xen/interface/io/netif.h>
 #include <xen/xenbus/xenbusvar.h>
 
-#include <machine/xen/xenvar.h>
-
 #include "xenbus_if.h"
 
 /* Features supported by all backends.  TSO and LRO can be negotiated */
@@ -190,7 +188,7 @@ static int xennet_get_responses(struct netfront_info *np,
 	struct netfront_rx_info *rinfo, RING_IDX rp, RING_IDX *cons,
 	struct mbuf **list, int *pages_flipped_p);
 
-#define virt_to_mfn(x) (vtomach(x) >> PAGE_SHIFT)
+#define virt_to_mfn(x) (vtophys(x) >> PAGE_SHIFT)
 
 #define INVALID_P2M_ENTRY (~0UL)
 
@@ -901,7 +899,7 @@ refill:
 		req->gref = ref;
 		
 		sc->rx_pfn_array[i] =
-		    vtomach(mtod(m_new,vm_offset_t)) >> PAGE_SHIFT;
+		    vtophys(mtod(m_new,vm_offset_t)) >> PAGE_SHIFT;
 	} 
 	
 	KASSERT(i, ("no mbufs processed")); /* should have returned earlier */

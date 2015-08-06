@@ -60,7 +60,6 @@ __FBSDID("$FreeBSD$");
 #include <xen/xenbus/xenbusvar.h>
 
 #include <machine/_inttypes.h>
-#include <machine/xen/xenvar.h>
 
 #include <geom/geom_disk.h>
 
@@ -762,7 +761,7 @@ xbd_alloc_ring(struct xbd_softc *sc)
 	     i++, sring_page_addr += PAGE_SIZE) {
 
 		error = xenbus_grant_ring(sc->xbd_dev,
-		    (vtomach(sring_page_addr) >> PAGE_SHIFT),
+		    (vtophys(sring_page_addr) >> PAGE_SHIFT),
 		    &sc->xbd_ring_ref[i]);
 		if (error) {
 			xenbus_dev_fatal(sc->xbd_dev, error,
@@ -1305,7 +1304,7 @@ xbd_connect(struct xbd_softc *sc)
 		for (j = 0; j < sc->xbd_max_request_indirectpages; j++) {
 			if (gnttab_grant_foreign_access(
 			    xenbus_get_otherend_id(sc->xbd_dev),
-			    (vtomach(indirectpages) >> PAGE_SHIFT) + j,
+			    (vtophys(indirectpages) >> PAGE_SHIFT) + j,
 			    1 /* grant read-only access */,
 			    &cm->cm_indirectionrefs[j]))
 				break;
