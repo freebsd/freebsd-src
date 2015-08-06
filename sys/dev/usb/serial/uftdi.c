@@ -1791,6 +1791,82 @@ uftdi_set_error_char(struct ucom_softc *ucom, int echar)
 }
 
 static int
+uftdi_read_eeprom(struct ucom_softc *ucom, struct uftdi_eeio *eeio)
+{
+	struct uftdi_softc *sc = ucom->sc_parent;
+	usb_device_request_t req;
+	usb_error_t err;
+	uint16_t widx, wlength, woffset;
+
+	/* Offset and length must both be evenly divisible by two. */
+	if ((eeio->offset | eeio->length) & 0x01)
+		return (EINVAL);
+
+	woffset = eeio->offset / 2U;
+	wlength = eeio->length / 2U;
+	for (widx = 0; widx < wlength; widx++) {
+		req.bmRequestType = UT_READ_VENDOR_DEVICE;
+		req.bRequest = FTDI_SIO_READ_EEPROM;
+		USETW(req.wIndex, widx + woffset);
+		USETW(req.wLength, 2);
+		USETW(req.wValue, 0);
+		err = usbd_do_request(sc->sc_udev, &sc->sc_mtx, &req,
+		    &eeio->data[widx]);
+		if (err != USB_ERR_NORMAL_COMPLETION)
+			return (err);
+	}
+	return (USB_ERR_NORMAL_COMPLETION);
+}
+
+static int
+uftdi_write_eeprom(struct ucom_softc *ucom, struct uftdi_eeio *eeio)
+{
+	struct uftdi_softc *sc = ucom->sc_parent;
+	usb_device_request_t req;
+	usb_error_t err;
+	uint16_t widx, wlength, woffset;
+
+	/* Offset and length must both be evenly divisible by two. */
+	if ((eeio->offset | eeio->length) & 0x01)
+		return (EINVAL);
+
+	woffset = eeio->offset / 2U;
+	wlength = eeio->length / 2U;
+	for (widx = 0; widx < wlength; widx++) {
+		req.bmRequestType = UT_WRITE_VENDOR_DEVICE;
+		req.bRequest = FTDI_SIO_WRITE_EEPROM;
+		USETW(req.wIndex, widx + woffset);
+		USETW(req.wLength, 0);
+		USETW(req.wValue, eeio->data[widx]);
+		err = usbd_do_request(sc->sc_udev, &sc->sc_mtx, &req, NULL);
+		if (err != USB_ERR_NORMAL_COMPLETION)
+			return (err);
+	}
+	return (USB_ERR_NORMAL_COMPLETION);
+}
+
+static int
+uftdi_erase_eeprom(struct ucom_softc *ucom, int confirmation)
+{
+	struct uftdi_softc *sc = ucom->sc_parent;
+	usb_device_request_t req;
+	usb_error_t err;
+
+	/* Small effort to prevent accidental erasure. */
+	if (confirmation != UFTDI_CONFIRM_ERASE)
+		return (EINVAL);
+
+	req.bmRequestType = UT_WRITE_VENDOR_DEVICE;
+	req.bRequest = FTDI_SIO_ERASE_EEPROM;
+	USETW(req.wIndex, 0);
+	USETW(req.wLength, 0);
+	USETW(req.wValue, 0);
+	err = usbd_do_request(sc->sc_udev, &sc->sc_mtx, &req, NULL);
+
+	return (err);
+}
+
+static int
 uftdi_ioctl(struct ucom_softc *ucom, uint32_t cmd, caddr_t data,
     int flag, struct thread *td)
 {
@@ -1832,6 +1908,15 @@ uftdi_ioctl(struct ucom_softc *ucom, uint32_t cmd, caddr_t data,
 	case UFTDIIOC_GET_HWREV:
 		*(int *)data = sc->sc_bcdDevice;
 		err = 0;
+		break;
+	case UFTDIIOC_READ_EEPROM:
+		err = uftdi_read_eeprom(ucom, (struct uftdi_eeio *)data);
+		break;
+	case UFTDIIOC_WRITE_EEPROM:
+		err = uftdi_write_eeprom(ucom, (struct uftdi_eeio *)data);
+		break;
+	case UFTDIIOC_ERASE_EEPROM:
+		err = uftdi_erase_eeprom(ucom, *(int *)data);
 		break;
 	default:
 		return (ENOIOCTL);
