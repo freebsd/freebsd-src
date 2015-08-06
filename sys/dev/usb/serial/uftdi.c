@@ -161,6 +161,7 @@ struct uftdi_softc {
 	uint8_t	sc_hdrlen;
 	uint8_t	sc_msr;
 	uint8_t	sc_lsr;
+	uint8_t sc_bitmode;
 };
 
 struct uftdi_param_config {
@@ -196,7 +197,7 @@ static void	uftdi_cfg_get_status(struct ucom_softc *, uint8_t *,
 		    uint8_t *);
 static int	uftdi_reset(struct ucom_softc *, int);
 static int	uftdi_set_bitmode(struct ucom_softc *, uint8_t, uint8_t);
-static int	uftdi_get_bitmode(struct ucom_softc *, uint8_t *);
+static int	uftdi_get_bitmode(struct ucom_softc *, uint8_t *, uint8_t *);
 static int	uftdi_set_latency(struct ucom_softc *, int);
 static int	uftdi_get_latency(struct ucom_softc *, int *);
 static int	uftdi_set_event_char(struct ucom_softc *, int);
@@ -1090,6 +1091,7 @@ uftdi_attach(device_t dev)
 	sc->sc_udev = uaa->device;
 	sc->sc_dev = dev;
 	sc->sc_unit = device_get_unit(dev);
+	sc->sc_bitmode = UFTDI_BITMODE_NONE;
 
 	device_set_usb_desc(dev);
 	mtx_init(&sc->sc_mtx, "uftdi", NULL, MTX_DEF);
@@ -1681,6 +1683,7 @@ uftdi_set_bitmode(struct ucom_softc *ucom, uint8_t bitmode, uint8_t iomask)
 {
 	struct uftdi_softc *sc = ucom->sc_parent;
 	usb_device_request_t req;
+	int rv;
 
 	req.bmRequestType = UT_WRITE_VENDOR_DEVICE;
 	req.bRequest = FTDI_SIO_SET_BITMODE;
@@ -1693,11 +1696,15 @@ uftdi_set_bitmode(struct ucom_softc *ucom, uint8_t bitmode, uint8_t iomask)
 	else
 	    USETW2(req.wValue, (1 << bitmode), iomask);
 
-	return (usbd_do_request(sc->sc_udev, &sc->sc_mtx, &req, NULL));
+	rv = usbd_do_request(sc->sc_udev, &sc->sc_mtx, &req, NULL);
+	if (rv == USB_ERR_NORMAL_COMPLETION)
+		sc->sc_bitmode = bitmode;
+
+	return (rv);
 }
 
 static int
-uftdi_get_bitmode(struct ucom_softc *ucom, uint8_t *iomask)
+uftdi_get_bitmode(struct ucom_softc *ucom, uint8_t *bitmode, uint8_t *iomask)
 {
 	struct uftdi_softc *sc = ucom->sc_parent;
 	usb_device_request_t req;
@@ -1709,6 +1716,7 @@ uftdi_get_bitmode(struct ucom_softc *ucom, uint8_t *iomask)
 	USETW(req.wLength, 1);
 	USETW(req.wValue,  0);
 
+	*bitmode = sc->sc_bitmode;
 	return (usbd_do_request(sc->sc_udev, &sc->sc_mtx, &req, iomask));
 }
 
@@ -1891,7 +1899,7 @@ uftdi_ioctl(struct ucom_softc *ucom, uint32_t cmd, caddr_t data,
 		break;
 	case UFTDIIOC_GET_BITMODE:
 		mode = (struct uftdi_bitmode *)data;
-		err = uftdi_get_bitmode(ucom, &mode->iomask);
+		err = uftdi_get_bitmode(ucom, &mode->mode, &mode->iomask);
 		break;
 	case UFTDIIOC_SET_LATENCY:
 		err = uftdi_set_latency(ucom, *((int *)data));

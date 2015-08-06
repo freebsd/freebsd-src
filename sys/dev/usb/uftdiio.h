@@ -43,7 +43,7 @@ enum uftdi_bitmodes
 	UFTDI_BITMODE_CPU_EMUL = 3,
 	UFTDI_BITMODE_FAST_SERIAL = 4,
 	UFTDI_BITMODE_CBUS = 5,
-	UFTDI_BITMODE_NONE = 0xff,
+	UFTDI_BITMODE_NONE = 0xff,	/* aka UART mode. */
 };
 
 /*
@@ -52,8 +52,9 @@ enum uftdi_bitmodes
  *   iomask = Mask of bits enabled for bitbang output.
  *
  * For UFTDIIOC_GET_BITMODE:
- *   mode   = Unused.
- *   iomask = Returned snapshot of bitbang pin states at time of call.
+ *   mode   = Mode most recently set using UFTDIIOC_SET_BITMODE.
+ *   iomask = Returned snapshot of DBUS0..DBUS7 pin states at time of call.
+ *            Pin states can be read in any mode, not just bitbang modes.
  */
 struct uftdi_bitmode
 {
