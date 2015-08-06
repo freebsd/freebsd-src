@@ -884,7 +884,7 @@ ktrcreturn(struct pcb *pcb)
 	if (req == NULL)
 		return;
 	kr = &req->ktr_data.ktr_creturn;
-	cheri_serialize(&kr->ktr_cret, &pcb->pcb_cheriframe.cf_c1);
+	cheri_serialize(&kr->ktr_cret, &pcb->pcb_cheriframe.cf_c3);
 	kr->ktr_iret = pcb->pcb_regs.v0;
 	ktr_enqueuerequest(td, req);
 	ktrace_exit(td);
