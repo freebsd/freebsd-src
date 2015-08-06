@@ -822,8 +822,13 @@ initarm(struct arm64_bootparams *abp)
 
 	/* Print the memory map */
 	mem_len = 0;
-	for (i = 0; i < physmap_idx; i += 2)
+	for (i = 0; i < physmap_idx; i += 2) {
+		dump_avail[i] = physmap[i];
+		dump_avail[i + 1] = physmap[i + 1];
 		mem_len += physmap[i + 1] - physmap[i];
+	}
+	dump_avail[i] = 0;
+	dump_avail[i + 1] = 0;
 
 	/* Set the pcpu data, this is needed by pmap_bootstrap */
 	pcpup = &__pcpu[0];
