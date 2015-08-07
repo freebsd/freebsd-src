@@ -191,7 +191,9 @@ void ctl_data_submit_done(union ctl_io *io);
 void ctl_config_read_done(union ctl_io *io);
 void ctl_config_write_done(union ctl_io *io);
 void ctl_portDB_changed(int portnum);
+#ifdef notyet
 void ctl_init_isc_msg(void);
+#endif
 
 /*
  * KPI to manipulate LUN/port options
