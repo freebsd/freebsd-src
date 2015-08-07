@@ -1,4 +1,5 @@
 /*-
+ * Copyright 2010 Nexenta Systems, Inc.  All rights reserved.
  * Copyright (c) 1995 Alex Tatmanjants <alex@elvisti.kiev.ua>
  *		at Electronni Visti IA, Kiev, Ukraine.
  *			All rights reserved.
@@ -35,63 +36,82 @@ __FBSDID("$FreeBSD$");
 
 #include <stdlib.h>
 #include <string.h>
+#include <errno.h>
+#include <wchar.h>
 #include "collate.h"
 
-#include <stdio.h>
 
+/*
+ * In order to properly handle multibyte locales, its easiet to just
+ * convert to wide characters and then use wcscoll.  However if an
+ * error occurs, we gracefully fall back to simple strcmp.  Caller
+ * should check errno.
+ */
 int
 strcoll_l(const char *s, const char *s2, locale_t locale)
 {
-	int len, len2, prim, prim2, sec, sec2, ret, ret2;
-	const char *t, *t2;
-	char *tt, *tt2;
+	int ret;
+	wchar_t *t1 = NULL, *t2 = NULL;
+	wchar_t *w1 = NULL, *w2 = NULL;
+	const char *cs1, *cs2;
+	mbstate_t mbs1;
+	mbstate_t mbs2;
+	size_t sz1, sz2;
+
+	memset(&mbs1, 0, sizeof (mbstate_t));
+	memset(&mbs2, 0, sizeof (mbstate_t));
+
+	/*
+	 * The mbsrtowcs_l function can set the src pointer to null upon
+	 * failure, so it should act on a copy to avoid:
+	 *   - sending null pointer to strcmp
+	 *   - having strcoll/strcoll_l change *s or *s2 to null
+	 */
+	cs1 = s;
+	cs2 = s2;
+
 	FIX_LOCALE(locale);
 	struct xlocale_collate *table =
 		(struct xlocale_collate*)locale->components[XLC_COLLATE];
 
 	if (table->__collate_load_error)
-		return strcmp(s, s2);
+		goto error;
 
-	len = len2 = 1;
-	ret = ret2 = 0;
-	if (table->__collate_substitute_nontrivial) {
-		t = tt = __collate_substitute(table, s);
-		t2 = tt2 = __collate_substitute(table, s2);
-	} else {
-		tt = tt2 = NULL;
-		t = s;
-		t2 = s2;
-	}
-	while(*t && *t2) {
-		prim = prim2 = 0;
-		while(*t && !prim) {
-			__collate_lookup(table, t, &len, &prim, &sec);
-			t += len;
-		}
-		while(*t2 && !prim2) {
-			__collate_lookup(table, t2, &len2, &prim2, &sec2);
-			t2 += len2;
-		}
-		if(!prim || !prim2)
-			break;
-		if(prim != prim2) {
-			ret = prim - prim2;
-			goto end;
-		}
-		if(!ret2)
-			ret2 = sec - sec2;
-	}
-	if(!*t && *t2)
-		ret = -(int)((u_char)*t2);
-	else if(*t && !*t2)
-		ret = (u_char)*t;
-	else if(!*t && !*t2)
-		ret = ret2;
-  end:
-	free(tt);
-	free(tt2);
+	sz1 = strlen(s) + 1;
+	sz2 = strlen(s2) + 1;
 
-	return ret;
+	/*
+	 * Simple assumption: conversion to wide format is strictly
+	 * reducing, i.e. a single byte (or multibyte character)
+	 * cannot result in multiple wide characters.
+	 */
+	if ((t1 = malloc(sz1 * sizeof (wchar_t))) == NULL)
+		goto error;
+	w1 = t1;
+	if ((t2 = malloc(sz2 * sizeof (wchar_t))) == NULL)
+		goto error;
+	w2 = t2;
+
+	if ((mbsrtowcs_l(w1, &cs1, sz1, &mbs1, locale)) == (size_t)-1)
+		goto error;
+
+	if ((mbsrtowcs_l(w2, &cs2, sz2, &mbs2, locale)) == (size_t)-1)
+		goto error;
+
+	ret = wcscoll_l(w1, w2, locale);
+	if (t1)
+		free(t1);
+	if (t2)
+		free(t2);
+
+	return (ret);
+
+error:
+	if (t1)
+		free(t1);
+	if (t2)
+		free(t2);
+	return (strcmp(s, s2));
 }
 
 int

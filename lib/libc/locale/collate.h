@@ -40,42 +40,98 @@
 #include <limits.h>
 #include "xlocale_private.h"
 
-#define STR_LEN 10
-#define TABLE_SIZE 100
-#define COLLATE_VERSION    "1.0\n"
-#define COLLATE_VERSION1_2 "1.2\n"
+/*
+ * Work around buildworld bootstrapping from older systems whos limits.h
+ * sets COLL_WEIGHTS_MAX to 0.
+ */
+#if COLL_WEIGHTS_MAX == 0
+#undef COLL_WEIGHTS_MAX
+#define COLL_WEIGHTS_MAX 10
+#endif
 
-struct __collate_st_char_pri {
-	int prim, sec;
-};
-struct __collate_st_chain_pri {
-	u_char str[STR_LEN];
-	int prim, sec;
-};
+#define	COLLATE_STR_LEN		24		/* should be 64-bit multiple */
+#define	COLLATE_VERSION		"BSD 1.0\n"
 
-#define __collate_substitute_table (*__collate_substitute_table_ptr)
-#define __collate_char_pri_table (*__collate_char_pri_table_ptr)
+#define	COLLATE_MAX_PRIORITY	(0x7fffffff)	/* max signed value */
+#define	COLLATE_SUBST_PRIORITY	(0x40000000)	/* bit indicates subst table */
+
+#define	DIRECTIVE_UNDEF		0x00
+#define	DIRECTIVE_FORWARD	0x01
+#define	DIRECTIVE_BACKWARD	0x02
+#define	DIRECTIVE_POSITION	0x04
+#define	DIRECTIVE_UNDEFINED	0x08	/* special last weight for UNDEFINED */
+
+#define	DIRECTIVE_DIRECTION_MASK (DIRECTIVE_FORWARD | DIRECTIVE_BACKWARD)
+
+/*
+ * The collate file format is as follows:
+ *
+ * char		version[COLLATE_STR_LEN];	// must be COLLATE_VERSION
+ * collate_info_t	info;			// see below, includes padding
+ * collate_char_pri_t	char_data[256];		// 8 bit char values
+ * collate_subst_t	subst[*];		// 0 or more substitutions
+ * collate_chain_pri_t	chains[*];		// 0 or more chains
+ * collate_large_pri_t	large[*];		// extended char priorities
+ *
+ * Note that all structures must be 32-bit aligned, as each structure
+ * contains 32-bit member fields.  The entire file is mmap'd, so its
+ * critical that alignment be observed.  It is not generally safe to
+ * use any 64-bit values in the structures.
+ */
+
+typedef struct collate_info {
+	uint8_t directive_count;
+	uint8_t directive[COLL_WEIGHTS_MAX];
+	int32_t pri_count[COLL_WEIGHTS_MAX];
+	int32_t flags;
+	int32_t chain_count;
+	int32_t large_count;
+	int32_t subst_count[COLL_WEIGHTS_MAX];
+	int32_t undef_pri[COLL_WEIGHTS_MAX];
+} collate_info_t;
+
+typedef struct collate_char {
+	int32_t pri[COLL_WEIGHTS_MAX];
+} collate_char_t;
+
+typedef struct collate_chain {
+	wchar_t str[COLLATE_STR_LEN];
+	int32_t pri[COLL_WEIGHTS_MAX];
+} collate_chain_t;
+
+typedef struct collate_large {
+	int32_t val;
+	collate_char_t pri;
+} collate_large_t;
+
+typedef struct collate_subst {
+	int32_t key;
+	int32_t pri[COLLATE_STR_LEN];
+} collate_subst_t;
 
 struct xlocale_collate {
 	struct xlocale_component header;
 	int __collate_load_error;
-	int __collate_substitute_nontrivial;
+	char * map;
+	size_t maplen;
 
-	u_char (*__collate_substitute_table_ptr)[UCHAR_MAX + 1][STR_LEN];
-	struct __collate_st_char_pri (*__collate_char_pri_table_ptr)[UCHAR_MAX + 1];
-	struct __collate_st_chain_pri *__collate_chain_pri_table;
+	collate_info_t	*info;
+	collate_char_t	*char_pri_table;
+	collate_large_t	*large_pri_table;
+	collate_chain_t	*chain_pri_table;
+	collate_subst_t	*subst_table[COLL_WEIGHTS_MAX];
 };
 
-
 __BEGIN_DECLS
-u_char	*__collate_strdup(u_char *);
-u_char	*__collate_substitute(struct xlocale_collate *, const u_char *);
 int	__collate_load_tables(const char *);
-void	__collate_lookup(struct xlocale_collate *, const u_char *, int *, int *, int *);
-int	__collate_range_cmp(struct xlocale_collate *, int, int);
-#ifdef COLLATE_DEBUG
-void	__collate_print_tables(void);
-#endif
+int	__collate_equiv_value(locale_t, const wchar_t *, size_t);
+void	_collate_lookup(struct xlocale_collate *,const wchar_t *, int *, int *,
+	int, const int **);
+int	__collate_range_cmp(struct xlocale_collate *, wchar_t, wchar_t);
+size_t	_collate_wxfrm(struct xlocale_collate *, const wchar_t *, wchar_t *,
+	size_t);
+size_t	_collate_sxfrm(struct xlocale_collate *, const wchar_t *, char *,
+	size_t);
 __END_DECLS
 
 #endif /* !_COLLATE_H_ */

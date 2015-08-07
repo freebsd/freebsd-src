@@ -67,12 +67,6 @@ extern _RuneLocale	*_Read_RuneMagi(FILE *);
 
 static int		__setrunelocale(struct xlocale_ctype *l, const char *);
 
-#define __collate_substitute_nontrivial (table->__collate_substitute_nontrivial)
-#define __collate_substitute_table_ptr (table->__collate_substitute_table_ptr)
-#define __collate_char_pri_table_ptr (table->__collate_char_pri_table_ptr)
-#define __collate_chain_pri_table (table->__collate_chain_pri_table)
-
-
 static void
 destruct_ctype(void *v)
 {
