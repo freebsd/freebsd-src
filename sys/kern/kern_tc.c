@@ -1703,6 +1703,9 @@ pps_event(struct pps_state *pps, int event)
 #endif
 
 	KASSERT(pps != NULL, ("NULL pps pointer in pps_event"));
+	/* Nothing to do if not currently set to capture this event type. */
+	if ((event & pps->ppsparam.mode) == 0)
+		return;
 	/* If the timecounter was wound up underneath us, bail out. */
 	if (pps->capgen == 0 || pps->capgen !=
 	    atomic_load_acq_int(&pps->capth->th_generation))
