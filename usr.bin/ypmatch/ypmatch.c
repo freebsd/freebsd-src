@@ -34,19 +34,18 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+
+#include <ctype.h>
+#include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <ctype.h>
-#include <err.h>
 
 #include <rpc/rpc.h>
 #include <rpc/xdr.h>
 #include <rpcsvc/yp_prot.h>
 #include <rpcsvc/ypclnt.h>
-
-void	usage(void);
 
 static const struct ypalias {
 	char *alias, *name;
@@ -63,11 +62,11 @@ static const struct ypalias {
 	{ "ethers", "ethers.byname" },
 };
 
-void
+static void
 usage(void)
 {
-	fprintf(stderr,
-	    "usage: ypmatch [-kt] [-d domain] key ... mapname\n"
+	fprintf(stderr, "%s\n%s\n",
+	    "usage: ypmatch [-kt] [-d domain] key ... mapname",
 	    "       ypmatch -x\n");
 	fprintf(stderr,
 	    "where\n"
@@ -82,8 +81,6 @@ int
 main(int argc, char *argv[])
 {
 	char *domainname, *inkey, *inmap, *outbuf;
-	extern char *optarg;
-	extern int optind;
 	int outbuflen, key, notrans, rval;
 	int c, r;
 	u_int i;
@@ -114,12 +111,12 @@ main(int argc, char *argv[])
 	if ((argc-optind) < 2 )
 		usage();
 
-	if (!domainname) {
+	if (domainname == NULL) {
 		yp_get_default_domain(&domainname);
 	}
 
 	inmap = argv[argc-1];
-	if (!notrans) {
+	if (notrans == 0) {
 		for (i=0; i<sizeof ypaliases/sizeof ypaliases[0]; i++)
 			if (strcmp(inmap, ypaliases[i].alias) == 0)
 				inmap = ypaliases[i].name;
@@ -138,10 +135,9 @@ main(int argc, char *argv[])
 			printf("%*.*s\n", outbuflen, outbuflen, outbuf);
 			break;
 		case YPERR_YPBIND:
-			errx(1, "yp_match: not running ypbind");
-			exit(1);
+			errx(1, "not running ypbind");
 		default:
-			errx(1, "Can't match key %s in map %s. Reason: %s\n",
+			errx(1, "can't match key %s in map %s. Reason: %s",
 			    inkey, inmap, yperr_string(r));
 			rval = 1;
 			break;
