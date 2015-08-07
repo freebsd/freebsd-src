@@ -46,6 +46,8 @@ namespace clang {
   class PoisonSEHIdentifiersRAIIObject;
   class VersionTuple;
   class OMPClause;
+  class ObjCTypeParamList;
+  class ObjCTypeParameter;
 
 /// Parser - This implements a parser for the C family of languages.  After
 /// parsing units of the grammar, productions are invoked to handle whatever has
@@ -1246,6 +1248,13 @@ private:
   DeclGroupPtrTy ParseObjCAtClassDeclaration(SourceLocation atLoc);
   Decl *ParseObjCAtInterfaceDeclaration(SourceLocation AtLoc,
                                         ParsedAttributes &prefixAttrs);
+  ObjCTypeParamList *parseObjCTypeParamList();
+  ObjCTypeParamList *parseObjCTypeParamListOrProtocolRefs(
+                           SourceLocation &lAngleLoc,
+                           SmallVectorImpl<IdentifierLocPair> &protocolIdents,
+                           SourceLocation &rAngleLoc,
+                           bool mayBeProtocolList = true);
+
   void HelperActionsForIvarDeclarations(Decl *interfaceDecl, SourceLocation atLoc,
                                         BalancedDelimiterTracker &T,
                                         SmallVectorImpl<Decl *> &AllIvarDecls,
@@ -1258,8 +1267,48 @@ private:
                                    bool WarnOnDeclarations,
                                    bool ForObjCContainer,
                                    SourceLocation &LAngleLoc,
-                                   SourceLocation &EndProtoLoc);
-  bool ParseObjCProtocolQualifiers(DeclSpec &DS);
+                                   SourceLocation &EndProtoLoc,
+                                   bool consumeLastToken);
+
+  /// Parse the first angle-bracket-delimited clause for an
+  /// Objective-C object or object pointer type, which may be either
+  /// type arguments or protocol qualifiers.
+  void parseObjCTypeArgsOrProtocolQualifiers(
+         ParsedType baseType,
+         SourceLocation &typeArgsLAngleLoc,
+         SmallVectorImpl<ParsedType> &typeArgs,
+         SourceLocation &typeArgsRAngleLoc,
+         SourceLocation &protocolLAngleLoc,
+         SmallVectorImpl<Decl *> &protocols,
+         SmallVectorImpl<SourceLocation> &protocolLocs,
+         SourceLocation &protocolRAngleLoc,
+         bool consumeLastToken,
+         bool warnOnIncompleteProtocols);
+
+  /// Parse either Objective-C type arguments or protocol qualifiers; if the
+  /// former, also parse protocol qualifiers afterward.
+  void parseObjCTypeArgsAndProtocolQualifiers(
+         ParsedType baseType,
+         SourceLocation &typeArgsLAngleLoc,
+         SmallVectorImpl<ParsedType> &typeArgs,
+         SourceLocation &typeArgsRAngleLoc,
+         SourceLocation &protocolLAngleLoc,
+         SmallVectorImpl<Decl *> &protocols,
+         SmallVectorImpl<SourceLocation> &protocolLocs,
+         SourceLocation &protocolRAngleLoc,
+         bool consumeLastToken);
+
+  /// Parse a protocol qualifier type such as '<NSCopying>', which is
+  /// an anachronistic way of writing 'id<NSCopying>'.
+  TypeResult parseObjCProtocolQualifierType(SourceLocation &rAngleLoc);
+
+  /// Parse Objective-C type arguments and protocol qualifiers, extending the
+  /// current type with the parsed result.
+  TypeResult parseObjCTypeArgsAndProtocolQualifiers(SourceLocation loc,
+                                                    ParsedType type,
+                                                    bool consumeLastToken,
+                                                    SourceLocation &endLoc);
+
   void ParseObjCInterfaceDeclList(tok::ObjCKeywordKind contextKey,
                                   Decl *CDecl);
   DeclGroupPtrTy ParseObjCAtProtocolDeclaration(SourceLocation atLoc,
@@ -2469,7 +2518,8 @@ private:
   typedef SmallVector<ParsedTemplateArgument, 16> TemplateArgList;
 
   bool ParseGreaterThanInTemplateList(SourceLocation &RAngleLoc,
-                                      bool ConsumeLastToken);
+                                      bool ConsumeLastToken,
+                                      bool ObjCGenericList);
   bool ParseTemplateIdAfterTemplateName(TemplateTy Template,
                                         SourceLocation TemplateNameLoc,
                                         const CXXScopeSpec &SS,

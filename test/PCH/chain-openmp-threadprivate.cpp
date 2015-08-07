@@ -1,7 +1,16 @@
 // no PCH
-// RUN: %clang_cc1 -fopenmp -emit-llvm -include %s -include %s %s -o - | FileCheck %s
+// RUN: %clang_cc1 -fopenmp -fnoopenmp-use-tls -emit-llvm -include %s -include %s %s -o - | FileCheck %s
 // with PCH
-// RUN: %clang_cc1 -fopenmp -emit-llvm -chain-include %s -chain-include %s %s -o - | FileCheck %s
+// RUN: %clang_cc1 -fopenmp -fnoopenmp-use-tls -emit-llvm -chain-include %s -chain-include %s %s -o - | FileCheck %s
+// no PCH
+// RUN: %clang_cc1 -fopenmp -emit-llvm -include %s -include %s %s -o - | FileCheck %s -check-prefix=CHECK-TLS-1
+// RUN: %clang_cc1 -fopenmp -emit-llvm -include %s -include %s %s -o - | FileCheck %s -check-prefix=CHECK-TLS-2
+// with PCH
+// RUN: %clang_cc1 -fopenmp -emit-llvm -chain-include %s -chain-include %s %s -o - | FileCheck %s -check-prefix=CHECK-TLS-1
+// RUN: %clang_cc1 -fopenmp -emit-llvm -chain-include %s -chain-include %s %s -o - | FileCheck %s -check-prefix=CHECK-TLS-2
+
+// REQUIRES: tls
+
 #if !defined(PASS1)
 #define PASS1
 
@@ -16,11 +25,17 @@ int *a = malloc(20);
 #else
 
 // CHECK: call {{.*}} @__kmpc_threadprivate_register(
+// CHECK-TLS-1: @{{a|\"\\01\?a@@3PE?AHE?A\"}} = {{.*}}thread_local {{.*}}global {{.*}}i32*
 
 // CHECK-LABEL: foo
+// CHECK-TLS-LABEL: foo
 int foo() {
   return *a;
   // CHECK: call {{.*}} @__kmpc_global_thread_num(
   // CHECK: call {{.*}} @__kmpc_threadprivate_cached(
+  // CHECK-TLS-1: call {{.*}} @{{_ZTW1a|\"\\01\?\?__Ea@@YAXXZ\"}}()
 }
+
+// CHECK-TLS-2: define {{.*}} @{{_ZTW1a|\"\\01\?\?__Ea@@YAXXZ\"}}()
+
 #endif
