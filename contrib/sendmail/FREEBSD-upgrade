@@ -86,6 +86,7 @@ infrastructure in FreeBSD:
 	share/man/man8/rc.sendmail.8
 	share/mk/bsd.libnames.mk
 	share/sendmail/Makefile
+	tools/build/mk/OptionalObsoleteFiles.inc
 	usr.bin/Makefile
 	usr.bin/vacation/Makefile
 	usr.sbin/Makefile
