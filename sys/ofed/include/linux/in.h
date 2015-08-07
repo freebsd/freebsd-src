@@ -37,7 +37,7 @@
 #include <netinet/in.h>
 #include <asm/byteorder.h>
 
-#define	ipv4_is_zeronet		IN_ZERONET
-#define	ipv4_is_loopback	IN_LOOPBACK
+#define	ipv4_is_zeronet(be)	IN_ZERONET(ntohl(be))
+#define	ipv4_is_loopback(be)	IN_LOOPBACK(ntohl(be))
 
 #endif	/* _LINUX_IN_H_ */
