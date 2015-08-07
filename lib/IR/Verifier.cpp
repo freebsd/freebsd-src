@@ -184,12 +184,12 @@ class Verifier : public InstVisitor<Verifier>, VerifierSupport {
   /// \brief Track unresolved string-based type references.
   SmallDenseMap<const MDString *, const MDNode *, 32> UnresolvedTypeRefs;
 
-  /// \brief Whether we've seen a call to @llvm.frameescape in this function
+  /// \brief Whether we've seen a call to @llvm.localescape in this function
   /// already.
   bool SawFrameEscape;
 
-  /// Stores the count of how many objects were passed to llvm.frameescape for a
-  /// given function and the largest index passed to llvm.framerecover.
+  /// Stores the count of how many objects were passed to llvm.localescape for a
+  /// given function and the largest index passed to llvm.localrecover.
   DenseMap<Function *, std::pair<unsigned, unsigned>> FrameEscapeInfo;
 
 public:
@@ -438,6 +438,9 @@ void Verifier::visitGlobalValue(const GlobalValue &GV) {
     Assert(GVar && GVar->getValueType()->isArrayTy(),
            "Only global arrays can have appending linkage!", GVar);
   }
+
+  if (GV.isDeclarationForLinker())
+    Assert(!GV.hasComdat(), "Declaration may not be in a Comdat!", &GV);
 }
 
 void Verifier::visitGlobalVariable(const GlobalVariable &GV) {
@@ -1270,7 +1273,8 @@ void Verifier::VerifyAttributeTypes(AttributeSet Attrs, unsigned Idx,
         I->getKindAsEnum() == Attribute::Cold ||
         I->getKindAsEnum() == Attribute::OptimizeNone ||
         I->getKindAsEnum() == Attribute::JumpTable ||
-        I->getKindAsEnum() == Attribute::Convergent) {
+        I->getKindAsEnum() == Attribute::Convergent ||
+        I->getKindAsEnum() == Attribute::ArgMemOnly) {
       if (!isFunction) {
         CheckFailed("Attribute '" + I->getAsString() +
                     "' only applies to functions!", V);
@@ -1528,8 +1532,9 @@ void Verifier::VerifyStatepoint(ImmutableCallSite CS) {
 
   const Instruction &CI = *CS.getInstruction();
 
-  Assert(!CS.doesNotAccessMemory() && !CS.onlyReadsMemory(),
-         "gc.statepoint must read and write memory to preserve "
+  Assert(!CS.doesNotAccessMemory() && !CS.onlyReadsMemory() &&
+         !CS.onlyAccessesArgMemory(),
+         "gc.statepoint must read and write all memory to preserve "
          "reordering restrictions required by safepoint semantics",
          &CI);
 
@@ -1666,8 +1671,8 @@ void Verifier::verifyFrameRecoverIndices() {
     unsigned EscapedObjectCount = Counts.second.first;
     unsigned MaxRecoveredIndex = Counts.second.second;
     Assert(MaxRecoveredIndex <= EscapedObjectCount,
-           "all indices passed to llvm.framerecover must be less than the "
-           "number of arguments passed ot llvm.frameescape in the parent "
+           "all indices passed to llvm.localrecover must be less than the "
+           "number of arguments passed ot llvm.localescape in the parent "
            "function",
            F);
   }
@@ -2535,10 +2540,6 @@ void Verifier::visitGetElementPtrInst(GetElementPtrInst &GEP) {
   Assert(isa<PointerType>(TargetTy),
          "GEP base pointer is not a vector or a vector of pointers", &GEP);
   Assert(GEP.getSourceElementType()->isSized(), "GEP into unsized type!", &GEP);
-  Assert(GEP.getPointerOperandType()->isVectorTy() ==
-             GEP.getType()->isVectorTy(),
-         "Vector GEP must return a vector value", &GEP);
-
   SmallVector<Value*, 16> Idxs(GEP.idx_begin(), GEP.idx_end());
   Type *ElTy =
       GetElementPtrInst::getIndexedType(GEP.getSourceElementType(), Idxs);
@@ -2548,17 +2549,20 @@ void Verifier::visitGetElementPtrInst(GetElementPtrInst &GEP) {
              GEP.getResultElementType() == ElTy,
          "GEP is not of right type for indices!", &GEP, ElTy);
 
-  if (GEP.getPointerOperandType()->isVectorTy()) {
+  if (GEP.getType()->isVectorTy()) {
     // Additional checks for vector GEPs.
-    unsigned GepWidth = GEP.getPointerOperandType()->getVectorNumElements();
-    Assert(GepWidth == GEP.getType()->getVectorNumElements(),
-           "Vector GEP result width doesn't match operand's", &GEP);
+    unsigned GEPWidth = GEP.getType()->getVectorNumElements();
+    if (GEP.getPointerOperandType()->isVectorTy())
+      Assert(GEPWidth == GEP.getPointerOperandType()->getVectorNumElements(),
+             "Vector GEP result width doesn't match operand's", &GEP);
     for (unsigned i = 0, e = Idxs.size(); i != e; ++i) {
       Type *IndexTy = Idxs[i]->getType();
-      Assert(IndexTy->isVectorTy(), "Vector GEP must have vector indices!",
-             &GEP);
-      unsigned IndexWidth = IndexTy->getVectorNumElements();
-      Assert(IndexWidth == GepWidth, "Invalid GEP index vector width", &GEP);
+      if (IndexTy->isVectorTy()) {
+        unsigned IndexWidth = IndexTy->getVectorNumElements();
+        Assert(IndexWidth == GEPWidth, "Invalid GEP index vector width", &GEP);
+      }
+      Assert(IndexTy->getScalarType()->isIntegerTy(),
+             "All GEP indices should be of integer type");
     }
   }
   visitInstruction(GEP);
@@ -3276,32 +3280,32 @@ void Verifier::visitIntrinsicCallSite(Intrinsic::ID ID, CallSite CS) {
            "llvm.invariant.end parameter #2 must be a constant integer", CS);
     break;
 
-  case Intrinsic::frameescape: {
+  case Intrinsic::localescape: {
     BasicBlock *BB = CS.getParent();
     Assert(BB == &BB->getParent()->front(),
-           "llvm.frameescape used outside of entry block", CS);
+           "llvm.localescape used outside of entry block", CS);
     Assert(!SawFrameEscape,
-           "multiple calls to llvm.frameescape in one function", CS);
+           "multiple calls to llvm.localescape in one function", CS);
     for (Value *Arg : CS.args()) {
       if (isa<ConstantPointerNull>(Arg))
         continue; // Null values are allowed as placeholders.
       auto *AI = dyn_cast<AllocaInst>(Arg->stripPointerCasts());
       Assert(AI && AI->isStaticAlloca(),
-             "llvm.frameescape only accepts static allocas", CS);
+             "llvm.localescape only accepts static allocas", CS);
     }
     FrameEscapeInfo[BB->getParent()].first = CS.getNumArgOperands();
     SawFrameEscape = true;
     break;
   }
-  case Intrinsic::framerecover: {
+  case Intrinsic::localrecover: {
     Value *FnArg = CS.getArgOperand(0)->stripPointerCasts();
     Function *Fn = dyn_cast<Function>(FnArg);
     Assert(Fn && !Fn->isDeclaration(),
-           "llvm.framerecover first "
+           "llvm.localrecover first "
            "argument must be function defined in this module",
            CS);
     auto *IdxArg = dyn_cast<ConstantInt>(CS.getArgOperand(2));
-    Assert(IdxArg, "idx argument of llvm.framerecover must be a constant int",
+    Assert(IdxArg, "idx argument of llvm.localrecover must be a constant int",
            CS);
     auto &Entry = FrameEscapeInfo[Fn];
     Entry.second = unsigned(

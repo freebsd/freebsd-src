@@ -84,10 +84,10 @@ void ModuleInfo::addSymbol(const SymbolRef &Symbol, uint64_t SymbolSize,
   SymbolRef::Type SymbolType = Symbol.getType();
   if (SymbolType != SymbolRef::ST_Function && SymbolType != SymbolRef::ST_Data)
     return;
-  uint64_t SymbolAddress;
-  if (error(Symbol.getAddress(SymbolAddress)) ||
-      SymbolAddress == UnknownAddress)
+  ErrorOr<uint64_t> SymbolAddressOrErr = Symbol.getAddress();
+  if (error(SymbolAddressOrErr.getError()))
     return;
+  uint64_t SymbolAddress = *SymbolAddressOrErr;
   if (OpdExtractor) {
     // For big-endian PowerPC64 ELF, symbols in the .opd section refer to
     // function descriptors. The first word of the descriptor is a pointer to

@@ -70,19 +70,27 @@ void WinException::beginFunction(const MachineFunction *MF) {
 
   const TargetLoweringObjectFile &TLOF = Asm->getObjFileLowering();
   unsigned PerEncoding = TLOF.getPersonalityEncoding();
-  const Function *Per = MMI->getPersonality();
+  const Function *Per = nullptr;
+  if (F->hasPersonalityFn())
+    Per = dyn_cast<Function>(F->getPersonalityFn()->stripPointerCasts());
 
-  shouldEmitPersonality = hasLandingPads &&
-    PerEncoding != dwarf::DW_EH_PE_omit && Per;
+  bool forceEmitPersonality =
+    F->hasPersonalityFn() && !isNoOpWithoutInvoke(classifyEHPersonality(Per)) &&
+    F->needsUnwindTableEntry();
+
+  shouldEmitPersonality = forceEmitPersonality || (hasLandingPads &&
+    PerEncoding != dwarf::DW_EH_PE_omit && Per);
 
   unsigned LSDAEncoding = TLOF.getLSDAEncoding();
   shouldEmitLSDA = shouldEmitPersonality &&
     LSDAEncoding != dwarf::DW_EH_PE_omit;
 
-  // If we're not using CFI, we don't want the CFI or the personality. Emit the
-  // LSDA if this is the parent function.
+  // If we're not using CFI, we don't want the CFI or the personality. If
+  // WinEHPrepare outlined something, we should emit the LSDA.
   if (!Asm->MAI->usesWindowsCFI()) {
-    shouldEmitLSDA = (hasLandingPads && F == ParentF);
+    bool HasOutlinedChildren =
+        F->hasFnAttribute("wineh-parent") && F == ParentF;
+    shouldEmitLSDA = HasOutlinedChildren;
     shouldEmitPersonality = false;
     return;
   }
@@ -121,7 +129,10 @@ void WinException::endFunction(const MachineFunction *MF) {
   if (!shouldEmitPersonality && !shouldEmitMoves && !shouldEmitLSDA)
     return;
 
-  EHPersonality Per = MMI->getPersonalityType();
+  const Function *F = MF->getFunction();
+  EHPersonality Per = EHPersonality::Unknown;
+  if (F->hasPersonalityFn())
+    Per = classifyEHPersonality(F->getPersonalityFn());
 
   // Get rid of any dead landing pads if we're not using a Windows EH scheme. In
   // Windows EH schemes, the landing pad is not actually reachable. It only
@@ -350,6 +361,7 @@ void WinException::emitCXXFrameHandler3Table(const MachineFunction *MF) {
   // EHFlags & 1 -> Synchronous exceptions only, no async exceptions.
   // EHFlags & 2 -> ???
   // EHFlags & 4 -> The function is noexcept(true), unwinding can't continue.
+  OS.EmitValueToAlignment(4);
   OS.EmitLabel(FuncInfoXData);
   OS.EmitIntValue(0x19930522, 4);                      // MagicNumber
   OS.EmitIntValue(FuncInfo.UnwindMap.size(), 4);       // MaxState
@@ -555,7 +567,7 @@ void WinException::emitEHRegistrationOffsetLabel(const WinEHFuncInfo &FuncInfo,
   // we've code generated the parent, we can emit the label assignment that
   // those helpers use to get the offset of the registration node.
   assert(FuncInfo.EHRegNodeEscapeIndex != INT_MAX &&
-         "no EH reg node frameescape index");
+         "no EH reg node localescape index");
   MCSymbol *ParentFrameOffset =
       Asm->OutContext.getOrCreateParentFrameOffsetSymbol(FLinkageName);
   MCSymbol *RegistrationOffsetSym = Asm->OutContext.getOrCreateFrameAllocSymbol(
@@ -578,9 +590,11 @@ void WinException::emitExceptHandlerTable(const MachineFunction *MF) {
 
   // Emit the __ehtable label that we use for llvm.x86.seh.lsda.
   MCSymbol *LSDALabel = Asm->OutContext.getOrCreateLSDASymbol(FLinkageName);
+  OS.EmitValueToAlignment(4);
   OS.EmitLabel(LSDALabel);
 
-  const Function *Per = MMI->getPersonality();
+  const Function *Per =
+      dyn_cast<Function>(F->getPersonalityFn()->stripPointerCasts());
   StringRef PerName = Per->getName();
   int BaseState = -1;
   if (PerName == "_except_handler4") {

@@ -94,7 +94,7 @@ unsigned NVPTXTTIImpl::getArithmeticInstrCost(
     TTI::OperandValueKind Opd2Info, TTI::OperandValueProperties Opd1PropInfo,
     TTI::OperandValueProperties Opd2PropInfo) {
   // Legalize the type.
-  std::pair<unsigned, MVT> LT = TLI->getTypeLegalizationCost(Ty);
+  std::pair<unsigned, MVT> LT = TLI->getTypeLegalizationCost(DL, Ty);
 
   int ISD = TLI->InstructionOpcodeToISD(Opcode);
 
@@ -116,4 +116,16 @@ unsigned NVPTXTTIImpl::getArithmeticInstrCost(
     return BaseT::getArithmeticInstrCost(Opcode, Ty, Opd1Info, Opd2Info,
                                          Opd1PropInfo, Opd2PropInfo);
   }
+}
+
+void NVPTXTTIImpl::getUnrollingPreferences(Loop *L,
+                                           TTI::UnrollingPreferences &UP) {
+  BaseT::getUnrollingPreferences(L, UP);
+
+  // Enable partial unrolling and runtime unrolling, but reduce the
+  // threshold.  This partially unrolls small loops which are often
+  // unrolled by the PTX to SASS compiler and unrolling earlier can be
+  // beneficial.
+  UP.Partial = UP.Runtime = true;
+  UP.PartialThreshold = UP.Threshold / 4;
 }

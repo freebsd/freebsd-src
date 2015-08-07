@@ -59,7 +59,7 @@ static MCInstrInfo *createMipsMCInstrInfo() {
   return X;
 }
 
-static MCRegisterInfo *createMipsMCRegisterInfo(StringRef TT) {
+static MCRegisterInfo *createMipsMCRegisterInfo(const Triple &TT) {
   MCRegisterInfo *X = new MCRegisterInfo();
   InitMipsMCRegisterInfo(X, Mips::RA);
   return X;
@@ -68,9 +68,7 @@ static MCRegisterInfo *createMipsMCRegisterInfo(StringRef TT) {
 static MCSubtargetInfo *createMipsMCSubtargetInfo(const Triple &TT,
                                                   StringRef CPU, StringRef FS) {
   CPU = MIPS_MC::selectMipsCPU(TT, CPU);
-  MCSubtargetInfo *X = new MCSubtargetInfo();
-  InitMipsMCSubtargetInfo(X, TT, CPU, FS);
-  return X;
+  return createMipsMCSubtargetInfoImpl(TT, CPU, FS);
 }
 
 static MCAsmInfo *createMipsMCAsmInfo(const MCRegisterInfo &MRI,
@@ -84,7 +82,7 @@ static MCAsmInfo *createMipsMCAsmInfo(const MCRegisterInfo &MRI,
   return MAI;
 }
 
-static MCCodeGenInfo *createMipsMCCodeGenInfo(StringRef TT, Reloc::Model RM,
+static MCCodeGenInfo *createMipsMCCodeGenInfo(const Triple &TT, Reloc::Model RM,
                                               CodeModel::Model CM,
                                               CodeGenOpt::Level OL) {
   MCCodeGenInfo *X = new MCCodeGenInfo();

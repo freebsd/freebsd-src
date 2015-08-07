@@ -6,7 +6,7 @@ include_directories( ${LLVM_INTEL_JITEVENTS_INCDIR} )
 set(LLVM_LINK_COMPONENTS
   asmparser
   bitreader
-  debuginfo
+  DebugInfoDWARF
   inteljitevents
   interpreter
   irreader
@@ -14,6 +14,10 @@ set(LLVM_LINK_COMPONENTS
   nativecodegen
   object
   selectiondag
+  Support
+  ExecutionEngine
+  RuntimeDyld
+  Core
   )
 
 add_llvm_tool(llvm-jitlistener

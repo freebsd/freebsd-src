@@ -755,8 +755,6 @@ public:
   void visitJumpTable(JumpTable &JT);
   void visitJumpTableHeader(JumpTable &JT, JumpTableHeader &JTH,
                             MachineBasicBlock *SwitchBB);
-  unsigned visitLandingPadClauseBB(GlobalValue *ClauseGV,
-                                   MachineBasicBlock *LPadMBB);
 
 private:
   // These all get lowered before this pass.
@@ -915,8 +913,8 @@ struct RegsForValue {
 
   RegsForValue(const SmallVector<unsigned, 4> &regs, MVT regvt, EVT valuevt);
 
-  RegsForValue(LLVMContext &Context, const TargetLowering &tli, unsigned Reg,
-               Type *Ty);
+  RegsForValue(LLVMContext &Context, const TargetLowering &TLI,
+               const DataLayout &DL, unsigned Reg, Type *Ty);
 
   /// append - Add the specified values to this one.
   void append(const RegsForValue &RHS) {

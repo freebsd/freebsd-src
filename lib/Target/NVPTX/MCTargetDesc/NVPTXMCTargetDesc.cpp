@@ -37,7 +37,7 @@ static MCInstrInfo *createNVPTXMCInstrInfo() {
   return X;
 }
 
-static MCRegisterInfo *createNVPTXMCRegisterInfo(StringRef TT) {
+static MCRegisterInfo *createNVPTXMCRegisterInfo(const Triple &TT) {
   MCRegisterInfo *X = new MCRegisterInfo();
   // PTX does not have a return address register.
   InitNVPTXMCRegisterInfo(X, 0);
@@ -46,13 +46,13 @@ static MCRegisterInfo *createNVPTXMCRegisterInfo(StringRef TT) {
 
 static MCSubtargetInfo *
 createNVPTXMCSubtargetInfo(const Triple &TT, StringRef CPU, StringRef FS) {
-  MCSubtargetInfo *X = new MCSubtargetInfo();
-  InitNVPTXMCSubtargetInfo(X, TT, CPU, FS);
-  return X;
+  return createNVPTXMCSubtargetInfoImpl(TT, CPU, FS);
 }
 
-static MCCodeGenInfo *createNVPTXMCCodeGenInfo(
-    StringRef TT, Reloc::Model RM, CodeModel::Model CM, CodeGenOpt::Level OL) {
+static MCCodeGenInfo *createNVPTXMCCodeGenInfo(const Triple &TT,
+                                               Reloc::Model RM,
+                                               CodeModel::Model CM,
+                                               CodeGenOpt::Level OL) {
   MCCodeGenInfo *X = new MCCodeGenInfo();
 
   // The default relocation model is used regardless of what the client has

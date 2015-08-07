@@ -1,7 +1,5 @@
-; RUN: llc < %s | FileCheck %s
-
-target datalayout = "e-m:w-i64:64-f80:128-n8:16:32:64-S128"
-target triple = "x86_64-pc-windows-msvc"
+; RUN: llc -mtriple=x86_64-windows-msvc < %s | FileCheck %s --check-prefix=CHECK --check-prefix=X64
+; RUN: llc -mtriple=i686-windows-msvc < %s | FileCheck %s --check-prefix=CHECK --check-prefix=X86
 
 ; This test case is equivalent to:
 ; void f() {
@@ -32,7 +30,7 @@ $"\01??_R0H@8" = comdat any
 
 define internal i8* @"\01?f@@YAXXZ.catch"(i8*, i8*) #4 personality i8* bitcast (i32 (...)* @__CxxFrameHandler3 to i8*) {
 entry:
-  %.i8 = call i8* @llvm.framerecover(i8* bitcast (void ()* @"\01?f@@YAXXZ" to i8*), i8* %1, i32 0)
+  %.i8 = call i8* @llvm.localrecover(i8* bitcast (void ()* @"\01?f@@YAXXZ" to i8*), i8* %1, i32 0)
   %bc2 = bitcast i8* %.i8 to i32**
   %bc3 = bitcast i32** %bc2 to i8*
   invoke void @"\01?may_throw@@YAXXZ"()
@@ -51,14 +49,14 @@ lpad1:                                            ; preds = %entry
 
 ; CHECK-LABEL: "?f@@YAXXZ.catch":
 ; No code should be generated for the indirectbr.
-; CHECK-NOT: jmpq *
-; CHECK:        .seh_handlerdata
-; CHECK:        .long   ("$cppxdata$?f@@YAXXZ")@IMGREL
+; CHECK-NOT: jmp{{[ql]}} *
+; X64:        .seh_handlerdata
+; X64-NEXT:        .long   ("$cppxdata$?f@@YAXXZ")@IMGREL
 
 
 define internal i8* @"\01?f@@YAXXZ.catch1"(i8*, i8*) #4 personality i8* bitcast (i32 (...)* @__CxxFrameHandler3 to i8*) {
 entry:
-  %.i8 = call i8* @llvm.framerecover(i8* bitcast (void ()* @"\01?f@@YAXXZ" to i8*), i8* %1, i32 1)
+  %.i8 = call i8* @llvm.localrecover(i8* bitcast (void ()* @"\01?f@@YAXXZ" to i8*), i8* %1, i32 1)
   %2 = bitcast i8* %.i8 to double*
   %3 = bitcast double* %2 to i8*
   invoke void () @llvm.donothing()
@@ -76,11 +74,11 @@ lpad:                                             ; preds = %entry
 
 ; CHECK-LABEL: "?f@@YAXXZ.catch1":
 ; No code should be generated for the indirectbr.
-; CHECK-NOT: jmpq *
-; CHECK: ".L?f@@YAXXZ.catch1$parent_frame_offset" = 16
-; CHECK:         movq    %rdx, 16(%rsp)
-; CHECK:        .seh_handlerdata
-; CHECK:        .long   ("$cppxdata$?f@@YAXXZ")@IMGREL
+; CHECK-NOT: jmp{{[ql]}} *
+; X64: ".L?f@@YAXXZ.catch1$parent_frame_offset" = 16
+; X64:         movq    %rdx, 16(%rsp)
+; X64:        .seh_handlerdata
+; X64:        .long   ("$cppxdata$?f@@YAXXZ")@IMGREL
 
 define void @"\01?f@@YAXXZ"() #0 personality i8* bitcast (i32 (...)* @__CxxFrameHandler3 to i8*) {
 entry:
@@ -88,7 +86,7 @@ entry:
   %ehselector.slot = alloca i32
   %0 = alloca i32*, align 8
   %1 = alloca double, align 8
-  call void (...) @llvm.frameescape(i32** %0, double* %1)
+  call void (...) @llvm.localescape(i32** %0, double* %1)
   invoke void @"\01?may_throw@@YAXXZ"()
           to label %invoke.cont unwind label %lpad2
 
@@ -118,20 +116,38 @@ try.cont8:                                        ; preds = %lpad2, %try.cont
 
 ; CHECK-LABEL: "?f@@YAXXZ":
 ; No code should be generated for the indirectbr.
-; CHECK-NOT: jmpq *
-; CHECK:             .seh_handlerdata
-; CHECK-NEXT:        .long   ("$cppxdata$?f@@YAXXZ")@IMGREL
-; CHECK-NEXT:"$cppxdata$?f@@YAXXZ":
-; CHECK-NEXT:        .long   429065506
-; CHECK-NEXT:        .long   4
-; CHECK-NEXT:        .long   ("$stateUnwindMap$?f@@YAXXZ")@IMGREL
-; CHECK-NEXT:        .long   2
-; CHECK-NEXT:        .long   ("$tryMap$?f@@YAXXZ")@IMGREL
-; CHECK-NEXT:        .long   6
-; CHECK-NEXT:        .long   ("$ip2state$?f@@YAXXZ")@IMGREL
-; CHECK-NEXT:        .long   32
-; CHECK-NEXT:        .long   0
-; CHECK-NEXT:        .long   1
+; CHECK-NOT: jmp{{[ql]}} *
+
+; X64:             .seh_handlerdata
+; X64-NEXT:        .long   ("$cppxdata$?f@@YAXXZ")@IMGREL
+; X86:             .section .xdata,"dr"
+
+; CHECK: .align 4
+
+; X64: "$cppxdata$?f@@YAXXZ":
+; X64-NEXT:          .long   429065506
+; X64-NEXT:          .long   4
+; X64-NEXT:          .long   ("$stateUnwindMap$?f@@YAXXZ")@IMGREL
+; X64-NEXT:          .long   2
+; X64-NEXT:          .long   ("$tryMap$?f@@YAXXZ")@IMGREL
+; X64-NEXT:          .long   6
+; X64-NEXT:          .long   ("$ip2state$?f@@YAXXZ")@IMGREL
+; X64-NEXT:          .long   32
+; X64-NEXT:          .long   0
+; X64-NEXT:          .long   1
+
+; X86: "L__ehtable$?f@@YAXXZ":
+; X86-NEXT:          .long   429065506
+; X86-NEXT:          .long   4
+; X86-NEXT:          .long   ("$stateUnwindMap$?f@@YAXXZ")
+; X86-NEXT:          .long   2
+; X86-NEXT:          .long   ("$tryMap$?f@@YAXXZ")
+; X86-NEXT:          .long   0
+; X86-NEXT:          .long   0
+; X86-NEXT:          .long   0
+; X86-NEXT:          .long   1
+
+
 ; CHECK-NEXT:"$stateUnwindMap$?f@@YAXXZ":
 ; CHECK-NEXT:        .long   -1
 ; CHECK-NEXT:        .long   0
@@ -146,37 +162,43 @@ try.cont8:                                        ; preds = %lpad2, %try.cont
 ; CHECK-NEXT:        .long   1
 ; CHECK-NEXT:        .long   2
 ; CHECK-NEXT:        .long   1
-; CHECK-NEXT:        .long   ("$handlerMap$0$?f@@YAXXZ")@IMGREL
+; CHECK-NEXT:        .long   ("$handlerMap$0$?f@@YAXXZ")
 ; CHECK-NEXT:        .long   0
 ; CHECK-NEXT:        .long   2
 ; CHECK-NEXT:        .long   3
 ; CHECK-NEXT:        .long   1
-; CHECK-NEXT:        .long   ("$handlerMap$1$?f@@YAXXZ")@IMGREL
+; CHECK-NEXT:        .long   ("$handlerMap$1$?f@@YAXXZ")
 ; CHECK-NEXT:"$handlerMap$0$?f@@YAXXZ":
 ; CHECK-NEXT:        .long   8
-; CHECK-NEXT:        .long   "??_R0H@8"@IMGREL
-; CHECK-NEXT:        .long   ".L?f@@YAXXZ$frame_escape_0"
-; CHECK-NEXT:        .long   "?f@@YAXXZ.catch"@IMGREL
-; CHECK-NEXT:        .long   ".L?f@@YAXXZ.catch$parent_frame_offset"
+; CHECK-NEXT:        .long   "??_R0H@8"
+; CHECK-NEXT:        .long   "{{.?}}L?f@@YAXXZ$frame_escape_0"
+; CHECK-NEXT:        .long   "?f@@YAXXZ.catch"
+; X64-NEXT:          .long   ".L?f@@YAXXZ.catch$parent_frame_offset"
 ; CHECK-NEXT:"$handlerMap$1$?f@@YAXXZ":
 ; CHECK-NEXT:        .long   0
-; CHECK-NEXT:        .long   "??_R0N@8"@IMGREL
-; CHECK-NEXT:        .long   ".L?f@@YAXXZ$frame_escape_1"
-; CHECK-NEXT:        .long   "?f@@YAXXZ.catch1"@IMGREL
-; CHECK-NEXT:        .long   ".L?f@@YAXXZ.catch1$parent_frame_offset"
-; CHECK-NEXT:"$ip2state$?f@@YAXXZ":
-; CHECK-NEXT:        .long   .Lfunc_begin0@IMGREL
-; CHECK-NEXT:        .long   2
-; CHECK-NEXT:        .long   .Ltmp0@IMGREL
-; CHECK-NEXT:        .long   0
-; CHECK-NEXT:        .long   .Lfunc_begin1@IMGREL
-; CHECK-NEXT:        .long   3
-; CHECK-NEXT:        .long   .Lfunc_begin2@IMGREL
-; CHECK-NEXT:        .long   -1
-; CHECK-NEXT:        .long   .Ltmp13@IMGREL
-; CHECK-NEXT:        .long   1
-; CHECK-NEXT:        .long   .Ltmp16@IMGREL
-; CHECK-NEXT:        .long   0
+; CHECK-NEXT:        .long   "??_R0N@8"
+; CHECK-NEXT:        .long   "{{.?}}L?f@@YAXXZ$frame_escape_1"
+; CHECK-NEXT:        .long   "?f@@YAXXZ.catch1"
+; X64-NEXT:          .long   ".L?f@@YAXXZ.catch1$parent_frame_offset"
+
+; X64-NEXT:"$ip2state$?f@@YAXXZ":
+; X64-NEXT:        .long   .Lfunc_begin0
+; X64-NEXT:        .long   2
+; X64-NEXT:        .long   .Ltmp0
+; X64-NEXT:        .long   0
+; X64-NEXT:        .long   .Lfunc_begin1
+; X64-NEXT:        .long   3
+; X64-NEXT:        .long   .Lfunc_begin2
+; X64-NEXT:        .long   -1
+; X64-NEXT:        .long   .Ltmp13
+; X64-NEXT:        .long   1
+; X64-NEXT:        .long   .Ltmp16
+; X64-NEXT:        .long   0
+
+
+; X86: "___ehhandler$?f@@YAXXZ": # @"__ehhandler$?f@@YAXXZ"
+; X86: movl $"L__ehtable$?f@@YAXXZ", %eax
+; X86: jmp ___CxxFrameHandler3 # TAILCALL
 
 
 declare void @"\01?may_throw@@YAXXZ"() #1
@@ -196,10 +218,10 @@ declare void @llvm.eh.endcatch() #3
 declare i8* @llvm.eh.actions(...) #3
 
 ; Function Attrs: nounwind
-declare void @llvm.frameescape(...) #3
+declare void @llvm.localescape(...) #3
 
 ; Function Attrs: nounwind readnone
-declare i8* @llvm.framerecover(i8*, i8*, i32) #2
+declare i8* @llvm.localrecover(i8*, i8*, i32) #2
 
 declare void @llvm.donothing()
 

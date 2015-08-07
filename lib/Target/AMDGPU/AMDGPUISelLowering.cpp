@@ -406,6 +406,7 @@ AMDGPUTargetLowering::AMDGPUTargetLowering(TargetMachine &TM,
   setOperationAction(ISD::FNEARBYINT, MVT::f32, Custom);
   setOperationAction(ISD::FNEARBYINT, MVT::f64, Custom);
 
+  setTargetDAGCombine(ISD::SHL);
   setTargetDAGCombine(ISD::MUL);
   setTargetDAGCombine(ISD::SELECT);
   setTargetDAGCombine(ISD::SELECT_CC);
@@ -444,7 +445,7 @@ AMDGPUTargetLowering::AMDGPUTargetLowering(TargetMachine &TM,
 // Target Information
 //===----------------------------------------------------------------------===//
 
-MVT AMDGPUTargetLowering::getVectorIdxTy() const {
+MVT AMDGPUTargetLowering::getVectorIdxTy(const DataLayout &) const {
   return MVT::i32;
 }
 
@@ -545,9 +546,8 @@ bool AMDGPUTargetLowering::isTruncateFree(Type *Source, Type *Dest) const {
 }
 
 bool AMDGPUTargetLowering::isZExtFree(Type *Src, Type *Dest) const {
-  const DataLayout *DL = getDataLayout();
-  unsigned SrcSize = DL->getTypeSizeInBits(Src->getScalarType());
-  unsigned DestSize = DL->getTypeSizeInBits(Dest->getScalarType());
+  unsigned SrcSize = Src->getScalarSizeInBits();
+  unsigned DestSize = Dest->getScalarSizeInBits();
 
   return SrcSize == 32 && DestSize == 64;
 }
@@ -697,7 +697,7 @@ SDValue AMDGPUTargetLowering::LowerConstantInitializer(const Constant* Init,
                                                        const SDValue &InitPtr,
                                                        SDValue Chain,
                                                        SelectionDAG &DAG) const {
-  const DataLayout *TD = getDataLayout();
+  const DataLayout &TD = DAG.getDataLayout();
   SDLoc DL(InitPtr);
   Type *InitTy = Init->getType();
 
@@ -705,20 +705,20 @@ SDValue AMDGPUTargetLowering::LowerConstantInitializer(const Constant* Init,
     EVT VT = EVT::getEVT(InitTy);
     PointerType *PtrTy = PointerType::get(InitTy, AMDGPUAS::PRIVATE_ADDRESS);
     return DAG.getStore(Chain, DL, DAG.getConstant(*CI, DL, VT), InitPtr,
-                        MachinePointerInfo(UndefValue::get(PtrTy)), false, false,
-                        TD->getPrefTypeAlignment(InitTy));
+                        MachinePointerInfo(UndefValue::get(PtrTy)), false,
+                        false, TD.getPrefTypeAlignment(InitTy));
   }
 
   if (const ConstantFP *CFP = dyn_cast<ConstantFP>(Init)) {
     EVT VT = EVT::getEVT(CFP->getType());
     PointerType *PtrTy = PointerType::get(CFP->getType(), 0);
     return DAG.getStore(Chain, DL, DAG.getConstantFP(*CFP, DL, VT), InitPtr,
-                 MachinePointerInfo(UndefValue::get(PtrTy)), false, false,
-                 TD->getPrefTypeAlignment(CFP->getType()));
+                        MachinePointerInfo(UndefValue::get(PtrTy)), false,
+                        false, TD.getPrefTypeAlignment(CFP->getType()));
   }
 
   if (StructType *ST = dyn_cast<StructType>(InitTy)) {
-    const StructLayout *SL = TD->getStructLayout(ST);
+    const StructLayout *SL = TD.getStructLayout(ST);
 
     EVT PtrVT = InitPtr.getValueType();
     SmallVector<SDValue, 8> Chains;
@@ -745,7 +745,7 @@ SDValue AMDGPUTargetLowering::LowerConstantInitializer(const Constant* Init,
     else
       llvm_unreachable("Unexpected type");
 
-    unsigned EltSize = TD->getTypeAllocSize(SeqTy->getElementType());
+    unsigned EltSize = TD.getTypeAllocSize(SeqTy->getElementType());
     SmallVector<SDValue, 8> Chains;
     for (unsigned i = 0; i < NumElements; ++i) {
       SDValue Offset = DAG.getConstant(i * EltSize, DL, PtrVT);
@@ -762,8 +762,8 @@ SDValue AMDGPUTargetLowering::LowerConstantInitializer(const Constant* Init,
     EVT VT = EVT::getEVT(InitTy);
     PointerType *PtrTy = PointerType::get(InitTy, AMDGPUAS::PRIVATE_ADDRESS);
     return DAG.getStore(Chain, DL, DAG.getUNDEF(VT), InitPtr,
-                        MachinePointerInfo(UndefValue::get(PtrTy)), false, false,
-                        TD->getPrefTypeAlignment(InitTy));
+                        MachinePointerInfo(UndefValue::get(PtrTy)), false,
+                        false, TD.getPrefTypeAlignment(InitTy));
   }
 
   Init->dump();
@@ -785,7 +785,7 @@ SDValue AMDGPUTargetLowering::LowerGlobalAddress(AMDGPUMachineFunction* MFI,
                                                  SDValue Op,
                                                  SelectionDAG &DAG) const {
 
-  const DataLayout *TD = getDataLayout();
+  const DataLayout &DL = DAG.getDataLayout();
   GlobalAddressSDNode *G = cast<GlobalAddressSDNode>(Op);
   const GlobalValue *GV = G->getGlobal();
 
@@ -801,7 +801,7 @@ SDValue AMDGPUTargetLowering::LowerGlobalAddress(AMDGPUMachineFunction* MFI,
 
     unsigned Offset;
     if (MFI->LocalMemoryObjects.count(GV) == 0) {
-      uint64_t Size = TD->getTypeAllocSize(GV->getType()->getElementType());
+      uint64_t Size = DL.getTypeAllocSize(GV->getType()->getElementType());
       Offset = MFI->LDSSize;
       MFI->LocalMemoryObjects[GV] = Offset;
       // XXX: Account for alignment?
@@ -811,16 +811,16 @@ SDValue AMDGPUTargetLowering::LowerGlobalAddress(AMDGPUMachineFunction* MFI,
     }
 
     return DAG.getConstant(Offset, SDLoc(Op),
-                           getPointerTy(AMDGPUAS::LOCAL_ADDRESS));
+                           getPointerTy(DL, AMDGPUAS::LOCAL_ADDRESS));
   }
   case AMDGPUAS::CONSTANT_ADDRESS: {
     MachineFrameInfo *FrameInfo = DAG.getMachineFunction().getFrameInfo();
     Type *EltType = GV->getType()->getElementType();
-    unsigned Size = TD->getTypeAllocSize(EltType);
-    unsigned Alignment = TD->getPrefTypeAlignment(EltType);
+    unsigned Size = DL.getTypeAllocSize(EltType);
+    unsigned Alignment = DL.getPrefTypeAlignment(EltType);
 
-    MVT PrivPtrVT = getPointerTy(AMDGPUAS::PRIVATE_ADDRESS);
-    MVT ConstPtrVT = getPointerTy(AMDGPUAS::CONSTANT_ADDRESS);
+    MVT PrivPtrVT = getPointerTy(DL, AMDGPUAS::PRIVATE_ADDRESS);
+    MVT ConstPtrVT = getPointerTy(DL, AMDGPUAS::CONSTANT_ADDRESS);
 
     int FI = FrameInfo->CreateStackObject(Size, Alignment, false);
     SDValue InitPtr = DAG.getFrameIndex(FI, PrivPtrVT);
@@ -1653,7 +1653,7 @@ SDValue AMDGPUTargetLowering::LowerDIVREM24(SDValue Op, SelectionDAG &DAG, bool 
   // fb = fabs(fb);
   fb = DAG.getNode(ISD::FABS, DL, FltVT, fb);
 
-  EVT SetCCVT = getSetCCResultType(*DAG.getContext(), VT);
+  EVT SetCCVT = getSetCCResultType(DAG.getDataLayout(), *DAG.getContext(), VT);
 
   // int cv = fr >= fb;
   SDValue cv = DAG.getSetCC(DL, SetCCVT, fr, fb, ISD::SETOGE);
@@ -1960,7 +1960,8 @@ SDValue AMDGPUTargetLowering::LowerFCEIL(SDValue Op, SelectionDAG &DAG) const {
   const SDValue Zero = DAG.getConstantFP(0.0, SL, MVT::f64);
   const SDValue One = DAG.getConstantFP(1.0, SL, MVT::f64);
 
-  EVT SetCCVT = getSetCCResultType(*DAG.getContext(), MVT::f64);
+  EVT SetCCVT =
+      getSetCCResultType(DAG.getDataLayout(), *DAG.getContext(), MVT::f64);
 
   SDValue Lt0 = DAG.getSetCC(SL, SetCCVT, Src, Zero, ISD::SETOGT);
   SDValue NeTrunc = DAG.getSetCC(SL, SetCCVT, Src, Trunc, ISD::SETONE);
@@ -2020,7 +2021,8 @@ SDValue AMDGPUTargetLowering::LowerFTRUNC(SDValue Op, SelectionDAG &DAG) const {
   SDValue Not = DAG.getNOT(SL, Shr, MVT::i64);
   SDValue Tmp0 = DAG.getNode(ISD::AND, SL, MVT::i64, BcInt, Not);
 
-  EVT SetCCVT = getSetCCResultType(*DAG.getContext(), MVT::i32);
+  EVT SetCCVT =
+      getSetCCResultType(DAG.getDataLayout(), *DAG.getContext(), MVT::i32);
 
   const SDValue FiftyOne = DAG.getConstant(FractBits - 1, SL, MVT::i32);
 
@@ -2051,7 +2053,8 @@ SDValue AMDGPUTargetLowering::LowerFRINT(SDValue Op, SelectionDAG &DAG) const {
   APFloat C2Val(APFloat::IEEEdouble, "0x1.fffffffffffffp+51");
   SDValue C2 = DAG.getConstantFP(C2Val, SL, MVT::f64);
 
-  EVT SetCCVT = getSetCCResultType(*DAG.getContext(), MVT::f64);
+  EVT SetCCVT =
+      getSetCCResultType(DAG.getDataLayout(), *DAG.getContext(), MVT::f64);
   SDValue Cond = DAG.getSetCC(SL, SetCCVT, Fabs, C2, ISD::SETOGT);
 
   return DAG.getSelect(SL, MVT::f64, Cond, Src, Tmp2);
@@ -2081,7 +2084,8 @@ SDValue AMDGPUTargetLowering::LowerFROUND32(SDValue Op, SelectionDAG &DAG) const
 
   SDValue SignOne = DAG.getNode(ISD::FCOPYSIGN, SL, MVT::f32, One, X);
 
-  EVT SetCCVT = getSetCCResultType(*DAG.getContext(), MVT::f32);
+  EVT SetCCVT =
+      getSetCCResultType(DAG.getDataLayout(), *DAG.getContext(), MVT::f32);
 
   SDValue Cmp = DAG.getSetCC(SL, SetCCVT, AbsDiff, Half, ISD::SETOGE);
 
@@ -2100,8 +2104,8 @@ SDValue AMDGPUTargetLowering::LowerFROUND64(SDValue Op, SelectionDAG &DAG) const
   const SDValue One = DAG.getConstant(1, SL, MVT::i32);
   const SDValue NegOne = DAG.getConstant(-1, SL, MVT::i32);
   const SDValue FiftyOne = DAG.getConstant(51, SL, MVT::i32);
-  EVT SetCCVT = getSetCCResultType(*DAG.getContext(), MVT::i32);
-
+  EVT SetCCVT =
+      getSetCCResultType(DAG.getDataLayout(), *DAG.getContext(), MVT::i32);
 
   SDValue BC = DAG.getNode(ISD::BITCAST, SL, MVT::v2i32, X);
 
@@ -2172,7 +2176,8 @@ SDValue AMDGPUTargetLowering::LowerFFLOOR(SDValue Op, SelectionDAG &DAG) const {
   const SDValue Zero = DAG.getConstantFP(0.0, SL, MVT::f64);
   const SDValue NegOne = DAG.getConstantFP(-1.0, SL, MVT::f64);
 
-  EVT SetCCVT = getSetCCResultType(*DAG.getContext(), MVT::f64);
+  EVT SetCCVT =
+      getSetCCResultType(DAG.getDataLayout(), *DAG.getContext(), MVT::f64);
 
   SDValue Lt0 = DAG.getSetCC(SL, SetCCVT, Src, Zero, ISD::SETOLT);
   SDValue NeTrunc = DAG.getSetCC(SL, SetCCVT, Src, Trunc, ISD::SETONE);
@@ -2411,6 +2416,33 @@ SDValue AMDGPUTargetLowering::performStoreCombine(SDNode *N,
                       SN->getBasePtr(), SN->getMemOperand());
 }
 
+SDValue AMDGPUTargetLowering::performShlCombine(SDNode *N,
+                                                DAGCombinerInfo &DCI) const {
+  if (N->getValueType(0) != MVT::i64)
+    return SDValue();
+
+  // i64 (shl x, 32) -> (build_pair 0, x)
+
+  // Doing this with moves theoretically helps MI optimizations that understand
+  // copies. 2 v_mov_b32_e32 will have the same code size / cycle count as
+  // v_lshl_b64. In the SALU case, I think this is slightly worse since it
+  // doubles the code size and I'm unsure about cycle count.
+  const ConstantSDNode *RHS = dyn_cast<ConstantSDNode>(N->getOperand(1));
+  if (!RHS || RHS->getZExtValue() != 32)
+    return SDValue();
+
+  SDValue LHS = N->getOperand(0);
+
+  SDLoc SL(N);
+  SelectionDAG &DAG = DCI.DAG;
+
+  // Extract low 32-bits.
+  SDValue Lo = DAG.getNode(ISD::TRUNCATE, SL, MVT::i32, LHS);
+
+  const SDValue Zero = DAG.getConstant(0, SL, MVT::i32);
+  return DAG.getNode(ISD::BUILD_PAIR, SL, MVT::i64, Zero, Lo);
+}
+
 SDValue AMDGPUTargetLowering::performMulCombine(SDNode *N,
                                                 DAGCombinerInfo &DCI) const {
   EVT VT = N->getValueType(0);
@@ -2448,17 +2480,24 @@ SDValue AMDGPUTargetLowering::PerformDAGCombine(SDNode *N,
   SDLoc DL(N);
 
   switch(N->getOpcode()) {
-    default: break;
-    case ISD::MUL:
-      return performMulCombine(N, DCI);
-    case AMDGPUISD::MUL_I24:
-    case AMDGPUISD::MUL_U24: {
-      SDValue N0 = N->getOperand(0);
-      SDValue N1 = N->getOperand(1);
-      simplifyI24(N0, DCI);
-      simplifyI24(N1, DCI);
-      return SDValue();
-    }
+  default:
+    break;
+  case ISD::SHL: {
+    if (DCI.getDAGCombineLevel() < AfterLegalizeDAG)
+      break;
+
+    return performShlCombine(N, DCI);
+  }
+  case ISD::MUL:
+    return performMulCombine(N, DCI);
+  case AMDGPUISD::MUL_I24:
+  case AMDGPUISD::MUL_U24: {
+    SDValue N0 = N->getOperand(0);
+    SDValue N1 = N->getOperand(1);
+    simplifyI24(N0, DCI);
+    simplifyI24(N1, DCI);
+    return SDValue();
+  }
   case ISD::SELECT: {
     SDValue Cond = N->getOperand(0);
     if (Cond.getOpcode() == ISD::SETCC && Cond.hasOneUse()) {
@@ -2642,6 +2681,18 @@ SDValue AMDGPUTargetLowering::CreateLiveInRegister(SelectionDAG &DAG,
     VirtualRegister = MRI.getLiveInVirtReg(Reg);
   }
   return DAG.getRegister(VirtualRegister, VT);
+}
+
+uint32_t AMDGPUTargetLowering::getImplicitParameterOffset(
+    const AMDGPUMachineFunction *MFI, const ImplicitParameter Param) const {
+  uint64_t ArgOffset = MFI->ABIArgOffset;
+  switch (Param) {
+  case GRID_DIM:
+    return ArgOffset;
+  case GRID_OFFSET:
+    return ArgOffset + 4;
+  }
+  llvm_unreachable("unexpected implicit parameter type");
 }
 
 #define NODE_NAME_CASE(node) case AMDGPUISD::node: return #node;

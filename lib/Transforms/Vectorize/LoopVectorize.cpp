@@ -148,8 +148,9 @@ static cl::opt<unsigned> MaxInterleaveGroupFactor(
     cl::desc("Maximum factor for an interleaved access group (default = 8)"),
     cl::init(8));
 
-/// We don't unroll loops with a known constant trip count below this number.
-static const unsigned TinyTripCountUnrollThreshold = 128;
+/// We don't interleave loops with a known constant trip count below this
+/// number.
+static const unsigned TinyTripCountInterleaveThreshold = 128;
 
 static cl::opt<unsigned> ForceTargetNumScalarRegs(
     "force-target-num-scalar-regs", cl::init(0), cl::Hidden,
@@ -180,7 +181,8 @@ static cl::opt<unsigned> ForceTargetInstructionCost(
 
 static cl::opt<unsigned> SmallLoopCost(
     "small-loop-cost", cl::init(20), cl::Hidden,
-    cl::desc("The cost of a loop that is considered 'small' by the unroller."));
+    cl::desc(
+        "The cost of a loop that is considered 'small' by the interleaver."));
 
 static cl::opt<bool> LoopVectorizeWithBlockFrequency(
     "loop-vectorize-with-block-frequency", cl::init(false), cl::Hidden,
@@ -188,10 +190,11 @@ static cl::opt<bool> LoopVectorizeWithBlockFrequency(
              "heuristics minimizing code growth in cold regions and being more "
              "aggressive in hot regions."));
 
-// Runtime unroll loops for load/store throughput.
-static cl::opt<bool> EnableLoadStoreRuntimeUnroll(
-    "enable-loadstore-runtime-unroll", cl::init(true), cl::Hidden,
-    cl::desc("Enable runtime unrolling until load/store ports are saturated"));
+// Runtime interleave loops for load/store throughput.
+static cl::opt<bool> EnableLoadStoreRuntimeInterleave(
+    "enable-loadstore-runtime-interleave", cl::init(true), cl::Hidden,
+    cl::desc(
+        "Enable runtime interleaving until load/store ports are saturated"));
 
 /// The number of stores in a loop that are allowed to need predication.
 static cl::opt<unsigned> NumberOfStoresToPredicate(
@@ -200,15 +203,15 @@ static cl::opt<unsigned> NumberOfStoresToPredicate(
 
 static cl::opt<bool> EnableIndVarRegisterHeur(
     "enable-ind-var-reg-heur", cl::init(true), cl::Hidden,
-    cl::desc("Count the induction variable only once when unrolling"));
+    cl::desc("Count the induction variable only once when interleaving"));
 
 static cl::opt<bool> EnableCondStoresVectorization(
     "enable-cond-stores-vec", cl::init(false), cl::Hidden,
     cl::desc("Enable if predication of stores during vectorization."));
 
-static cl::opt<unsigned> MaxNestedScalarReductionUF(
-    "max-nested-scalar-reduction-unroll", cl::init(2), cl::Hidden,
-    cl::desc("The maximum unroll factor to use when unrolling a scalar "
+static cl::opt<unsigned> MaxNestedScalarReductionIC(
+    "max-nested-scalar-reduction-interleave", cl::init(2), cl::Hidden,
+    cl::desc("The maximum interleave count to use when interleaving a scalar "
              "reduction in a nested loop."));
 
 namespace {
@@ -921,8 +924,8 @@ public:
   bool isUniformAfterVectorization(Instruction* I) { return Uniforms.count(I); }
 
   /// Returns the information that we collected about runtime memory check.
-  const LoopAccessInfo::RuntimePointerCheck *getRuntimePointerCheck() const {
-    return LAI->getRuntimePointerCheck();
+  const RuntimePointerChecking *getRuntimePointerChecking() const {
+    return LAI->getRuntimePointerChecking();
   }
 
   const LoopAccessInfo *getLAI() const {
@@ -1105,12 +1108,19 @@ public:
   /// 64 bit loop indices.
   unsigned getWidestType();
 
+  /// \return The desired interleave count.
+  /// If interleave count has been specified by metadata it will be returned.
+  /// Otherwise, the interleave count is computed and returned. VF and LoopCost
+  /// are the selected vectorization factor and the cost of the selected VF.
+  unsigned selectInterleaveCount(bool OptForSize, unsigned VF,
+                                 unsigned LoopCost);
+
   /// \return The most profitable unroll factor.
-  /// If UserUF is non-zero then this method finds the best unroll-factor
-  /// based on register pressure and other parameters.
-  /// VF and LoopCost are the selected vectorization factor and the cost of the
-  /// selected VF.
-  unsigned selectUnrollFactor(bool OptForSize, unsigned VF, unsigned LoopCost);
+  /// This method finds the best unroll-factor based on register pressure and
+  /// other parameters. VF and LoopCost are the selected vectorization factor
+  /// and the cost of the selected VF.
+  unsigned computeInterleaveCount(bool OptForSize, unsigned VF,
+                                  unsigned LoopCost);
 
   /// \brief A struct that represents some properties of the register usage
   /// of a loop.
@@ -1456,9 +1466,14 @@ struct LoopVectorize : public FunctionPass {
     const BranchProbability ColdProb(1, 5); // 20%
     ColdEntryFreq = BlockFrequency(BFI->getEntryFreq()) * ColdProb;
 
-    // If the target claims to have no vector registers don't attempt
-    // vectorization.
-    if (!TTI->getNumberOfRegisters(true))
+    // Don't attempt if
+    // 1. the target claims to have no vector registers, and
+    // 2. interleaving won't help ILP.
+    //
+    // The second condition is necessary because, even if the target has no
+    // vector registers, loop vectorization may still enable scalar
+    // interleaving.
+    if (!TTI->getNumberOfRegisters(true) && TTI->getMaxInterleaveFactor(1) < 2)
       return false;
 
     // Build up a worklist of inner-loops to vectorize. This is necessary as
@@ -1633,18 +1648,17 @@ struct LoopVectorize : public FunctionPass {
     const LoopVectorizationCostModel::VectorizationFactor VF =
         CM.selectVectorizationFactor(OptForSize);
 
-    // Select the unroll factor.
-    const unsigned UF =
-        CM.selectUnrollFactor(OptForSize, VF.Width, VF.Cost);
+    // Select the interleave count.
+    unsigned IC = CM.selectInterleaveCount(OptForSize, VF.Width, VF.Cost);
 
     DEBUG(dbgs() << "LV: Found a vectorizable loop (" << VF.Width << ") in "
                  << DebugLocStr << '\n');
-    DEBUG(dbgs() << "LV: Unroll Factor is " << UF << '\n');
+    DEBUG(dbgs() << "LV: Interleave Count is " << IC << '\n');
 
     if (VF.Width == 1) {
       DEBUG(dbgs() << "LV: Vectorization is possible but not beneficial\n");
 
-      if (UF == 1) {
+      if (IC == 1) {
         emitOptimizationRemarkAnalysis(
             F->getContext(), DEBUG_TYPE, *F, L->getStartLoc(),
             "not beneficial to vectorize and user disabled interleaving");
@@ -1654,17 +1668,14 @@ struct LoopVectorize : public FunctionPass {
 
       // Report the unrolling decision.
       emitOptimizationRemark(F->getContext(), DEBUG_TYPE, *F, L->getStartLoc(),
-                             Twine("unrolled with interleaving factor " +
-                                   Twine(UF) +
+                             Twine("interleaved by " + Twine(IC) +
                                    " (vectorization not beneficial)"));
 
-      // We decided not to vectorize, but we may want to unroll.
-
-      InnerLoopUnroller Unroller(L, SE, LI, DT, TLI, TTI, UF);
+      InnerLoopUnroller Unroller(L, SE, LI, DT, TLI, TTI, IC);
       Unroller.vectorize(&LVL);
     } else {
       // If we decided that it is *legal* to vectorize the loop then do it.
-      InnerLoopVectorizer LB(L, SE, LI, DT, TLI, TTI, VF.Width, UF);
+      InnerLoopVectorizer LB(L, SE, LI, DT, TLI, TTI, VF.Width, IC);
       LB.vectorize(&LVL);
       ++LoopsVectorized;
 
@@ -1675,10 +1686,10 @@ struct LoopVectorize : public FunctionPass {
         AddRuntimeUnrollDisableMetaData(L);
 
       // Report the vectorization decision.
-      emitOptimizationRemark(
-          F->getContext(), DEBUG_TYPE, *F, L->getStartLoc(),
-          Twine("vectorized loop (vectorization factor: ") + Twine(VF.Width) +
-              ", unrolling interleave factor: " + Twine(UF) + ")");
+      emitOptimizationRemark(F->getContext(), DEBUG_TYPE, *F, L->getStartLoc(),
+                             Twine("vectorized loop (vectorization width: ") +
+                                 Twine(VF.Width) + ", interleaved count: " +
+                                 Twine(IC) + ")");
     }
 
     // Mark the loop as already vectorized to avoid vectorizing again.
@@ -1758,31 +1769,6 @@ Value *InnerLoopVectorizer::getStepVector(Value *Val, int StartIdx,
   // which can be found from the original scalar operations.
   Step = Builder.CreateMul(Cv, Step);
   return Builder.CreateAdd(Val, Step, "induction");
-}
-
-/// \brief Find the operand of the GEP that should be checked for consecutive
-/// stores. This ignores trailing indices that have no effect on the final
-/// pointer.
-static unsigned getGEPInductionOperand(const GetElementPtrInst *Gep) {
-  const DataLayout &DL = Gep->getModule()->getDataLayout();
-  unsigned LastOperand = Gep->getNumOperands() - 1;
-  unsigned GEPAllocSize = DL.getTypeAllocSize(
-      cast<PointerType>(Gep->getType()->getScalarType())->getElementType());
-
-  // Walk backwards and try to peel off zeros.
-  while (LastOperand > 1 && match(Gep->getOperand(LastOperand), m_Zero())) {
-    // Find the type we're currently indexing into.
-    gep_type_iterator GEPTI = gep_type_begin(Gep);
-    std::advance(GEPTI, LastOperand - 1);
-
-    // If it's a type with the same allocation size as the result of the GEP we
-    // can peel off the zero index.
-    if (DL.getTypeAllocSize(*GEPTI) != GEPAllocSize)
-      break;
-    --LastOperand;
-  }
-
-  return LastOperand;
 }
 
 int LoopVectorizationLegality::isConsecutivePtr(Value *Ptr) {
@@ -2503,9 +2489,9 @@ void InnerLoopVectorizer::createEmptyLoop() {
    */
 
   BasicBlock *OldBasicBlock = OrigLoop->getHeader();
-  BasicBlock *BypassBlock = OrigLoop->getLoopPreheader();
+  BasicBlock *VectorPH = OrigLoop->getLoopPreheader();
   BasicBlock *ExitBlock = OrigLoop->getExitBlock();
-  assert(BypassBlock && "Invalid loop structure");
+  assert(VectorPH && "Invalid loop structure");
   assert(ExitBlock && "Must have an exit block");
 
   // Some loops have a single integer induction variable, while other loops
@@ -2545,44 +2531,35 @@ void InnerLoopVectorizer::createEmptyLoop() {
   // loop.
   Value *BackedgeCount =
       Exp.expandCodeFor(BackedgeTakeCount, BackedgeTakeCount->getType(),
-                        BypassBlock->getTerminator());
+                        VectorPH->getTerminator());
   if (BackedgeCount->getType()->isPointerTy())
     BackedgeCount = CastInst::CreatePointerCast(BackedgeCount, IdxTy,
                                                 "backedge.ptrcnt.to.int",
-                                                BypassBlock->getTerminator());
+                                                VectorPH->getTerminator());
   Instruction *CheckBCOverflow =
       CmpInst::Create(Instruction::ICmp, CmpInst::ICMP_EQ, BackedgeCount,
                       Constant::getAllOnesValue(BackedgeCount->getType()),
-                      "backedge.overflow", BypassBlock->getTerminator());
+                      "backedge.overflow", VectorPH->getTerminator());
 
   // The loop index does not have to start at Zero. Find the original start
   // value from the induction PHI node. If we don't have an induction variable
   // then we know that it starts at zero.
-  Builder.SetInsertPoint(BypassBlock->getTerminator());
-  Value *StartIdx = ExtendedIdx = OldInduction ?
-    Builder.CreateZExt(OldInduction->getIncomingValueForBlock(BypassBlock),
-                       IdxTy):
-    ConstantInt::get(IdxTy, 0);
-
-  // We need an instruction to anchor the overflow check on. StartIdx needs to
-  // be defined before the overflow check branch. Because the scalar preheader
-  // is going to merge the start index and so the overflow branch block needs to
-  // contain a definition of the start index.
-  Instruction *OverflowCheckAnchor = BinaryOperator::CreateAdd(
-      StartIdx, ConstantInt::get(IdxTy, 0), "overflow.check.anchor",
-      BypassBlock->getTerminator());
+  Builder.SetInsertPoint(VectorPH->getTerminator());
+  Value *StartIdx = ExtendedIdx =
+      OldInduction
+          ? Builder.CreateZExt(OldInduction->getIncomingValueForBlock(VectorPH),
+                               IdxTy)
+          : ConstantInt::get(IdxTy, 0);
 
   // Count holds the overall loop count (N).
   Value *Count = Exp.expandCodeFor(ExitCount, ExitCount->getType(),
-                                   BypassBlock->getTerminator());
+                                   VectorPH->getTerminator());
 
-  LoopBypassBlocks.push_back(BypassBlock);
+  LoopBypassBlocks.push_back(VectorPH);
 
   // Split the single block loop into the two loop structure described above.
-  BasicBlock *VectorPH =
-  BypassBlock->splitBasicBlock(BypassBlock->getTerminator(), "vector.ph");
   BasicBlock *VecBody =
-  VectorPH->splitBasicBlock(VectorPH->getTerminator(), "vector.body");
+      VectorPH->splitBasicBlock(VectorPH->getTerminator(), "vector.body");
   BasicBlock *MiddleBlock =
   VecBody->splitBasicBlock(VecBody->getTerminator(), "middle.block");
   BasicBlock *ScalarPH =
@@ -2597,7 +2574,6 @@ void InnerLoopVectorizer::createEmptyLoop() {
   if (ParentLoop) {
     ParentLoop->addChildLoop(Lp);
     ParentLoop->addBasicBlockToLoop(ScalarPH, *LI);
-    ParentLoop->addBasicBlockToLoop(VectorPH, *LI);
     ParentLoop->addBasicBlockToLoop(MiddleBlock, *LI);
   } else {
     LI->addTopLevelLoop(Lp);
@@ -2615,9 +2591,20 @@ void InnerLoopVectorizer::createEmptyLoop() {
   // times the unroll factor (num of SIMD instructions).
   Constant *Step = ConstantInt::get(IdxTy, VF * UF);
 
+  // Generate code to check that the loop's trip count that we computed by
+  // adding one to the backedge-taken count will not overflow.
+  BasicBlock *NewVectorPH =
+      VectorPH->splitBasicBlock(VectorPH->getTerminator(), "overflow.checked");
+  if (ParentLoop)
+    ParentLoop->addBasicBlockToLoop(NewVectorPH, *LI);
+  ReplaceInstWithInst(
+      VectorPH->getTerminator(),
+      BranchInst::Create(ScalarPH, NewVectorPH, CheckBCOverflow));
+  VectorPH = NewVectorPH;
+
   // This is the IR builder that we use to add all of the logic for bypassing
   // the new vector loop.
-  IRBuilder<> BypassBuilder(BypassBlock->getTerminator());
+  IRBuilder<> BypassBuilder(VectorPH->getTerminator());
   setDebugLocFromInst(BypassBuilder,
                       getDebugLocFromInstOrOperands(OldInduction));
 
@@ -2646,24 +2633,14 @@ void InnerLoopVectorizer::createEmptyLoop() {
   // jump to the scalar loop.
   Value *Cmp =
       BypassBuilder.CreateICmpEQ(IdxEndRoundDown, StartIdx, "cmp.zero");
-
-  BasicBlock *LastBypassBlock = BypassBlock;
-
-  // Generate code to check that the loops trip count that we computed by adding
-  // one to the backedge-taken count will not overflow.
-  {
-    auto PastOverflowCheck =
-        std::next(BasicBlock::iterator(OverflowCheckAnchor));
-    BasicBlock *CheckBlock =
-      LastBypassBlock->splitBasicBlock(PastOverflowCheck, "overflow.checked");
-    if (ParentLoop)
-      ParentLoop->addBasicBlockToLoop(CheckBlock, *LI);
-    LoopBypassBlocks.push_back(CheckBlock);
-    ReplaceInstWithInst(
-        LastBypassBlock->getTerminator(),
-        BranchInst::Create(ScalarPH, CheckBlock, CheckBCOverflow));
-    LastBypassBlock = CheckBlock;
-  }
+  NewVectorPH =
+      VectorPH->splitBasicBlock(VectorPH->getTerminator(), "vector.ph");
+  if (ParentLoop)
+    ParentLoop->addBasicBlockToLoop(NewVectorPH, *LI);
+  LoopBypassBlocks.push_back(VectorPH);
+  ReplaceInstWithInst(VectorPH->getTerminator(),
+                      BranchInst::Create(MiddleBlock, NewVectorPH, Cmp));
+  VectorPH = NewVectorPH;
 
   // Generate the code to check that the strides we assumed to be one are really
   // one. We want the new basic block to start at the first instruction in a
@@ -2671,23 +2648,24 @@ void InnerLoopVectorizer::createEmptyLoop() {
   Instruction *StrideCheck;
   Instruction *FirstCheckInst;
   std::tie(FirstCheckInst, StrideCheck) =
-      addStrideCheck(LastBypassBlock->getTerminator());
+      addStrideCheck(VectorPH->getTerminator());
   if (StrideCheck) {
     AddedSafetyChecks = true;
     // Create a new block containing the stride check.
-    BasicBlock *CheckBlock =
-        LastBypassBlock->splitBasicBlock(FirstCheckInst, "vector.stridecheck");
+    VectorPH->setName("vector.stridecheck");
+    NewVectorPH =
+        VectorPH->splitBasicBlock(VectorPH->getTerminator(), "vector.ph");
     if (ParentLoop)
-      ParentLoop->addBasicBlockToLoop(CheckBlock, *LI);
-    LoopBypassBlocks.push_back(CheckBlock);
+      ParentLoop->addBasicBlockToLoop(NewVectorPH, *LI);
+    LoopBypassBlocks.push_back(VectorPH);
 
     // Replace the branch into the memory check block with a conditional branch
     // for the "few elements case".
-    ReplaceInstWithInst(LastBypassBlock->getTerminator(),
-                        BranchInst::Create(MiddleBlock, CheckBlock, Cmp));
+    ReplaceInstWithInst(
+        VectorPH->getTerminator(),
+        BranchInst::Create(MiddleBlock, NewVectorPH, StrideCheck));
 
-    Cmp = StrideCheck;
-    LastBypassBlock = CheckBlock;
+    VectorPH = NewVectorPH;
   }
 
   // Generate the code that checks in runtime if arrays overlap. We put the
@@ -2695,27 +2673,25 @@ void InnerLoopVectorizer::createEmptyLoop() {
   // faster.
   Instruction *MemRuntimeCheck;
   std::tie(FirstCheckInst, MemRuntimeCheck) =
-    Legal->getLAI()->addRuntimeCheck(LastBypassBlock->getTerminator());
+      Legal->getLAI()->addRuntimeCheck(VectorPH->getTerminator());
   if (MemRuntimeCheck) {
     AddedSafetyChecks = true;
     // Create a new block containing the memory check.
-    BasicBlock *CheckBlock =
-        LastBypassBlock->splitBasicBlock(FirstCheckInst, "vector.memcheck");
+    VectorPH->setName("vector.memcheck");
+    NewVectorPH =
+        VectorPH->splitBasicBlock(VectorPH->getTerminator(), "vector.ph");
     if (ParentLoop)
-      ParentLoop->addBasicBlockToLoop(CheckBlock, *LI);
-    LoopBypassBlocks.push_back(CheckBlock);
+      ParentLoop->addBasicBlockToLoop(NewVectorPH, *LI);
+    LoopBypassBlocks.push_back(VectorPH);
 
     // Replace the branch into the memory check block with a conditional branch
     // for the "few elements case".
-    ReplaceInstWithInst(LastBypassBlock->getTerminator(),
-                        BranchInst::Create(MiddleBlock, CheckBlock, Cmp));
+    ReplaceInstWithInst(
+        VectorPH->getTerminator(),
+        BranchInst::Create(MiddleBlock, NewVectorPH, MemRuntimeCheck));
 
-    Cmp = MemRuntimeCheck;
-    LastBypassBlock = CheckBlock;
+    VectorPH = NewVectorPH;
   }
-
-  ReplaceInstWithInst(LastBypassBlock->getTerminator(),
-                      BranchInst::Create(MiddleBlock, VectorPH, Cmp));
 
   // We are going to resume the execution of the scalar loop.
   // Go over all of the induction variables that we found and fix the
@@ -3831,7 +3807,7 @@ bool LoopVectorizationLegality::canVectorize() {
   }
 
   // We can only vectorize innermost loops.
-  if (!TheLoop->getSubLoopsVector().empty()) {
+  if (!TheLoop->empty()) {
     emitAnalysis(VectorizationReport() << "loop is not the innermost loop");
     return false;
   }
@@ -3897,10 +3873,11 @@ bool LoopVectorizationLegality::canVectorize() {
   // Collect all of the variables that remain uniform after vectorization.
   collectLoopUniforms();
 
-  DEBUG(dbgs() << "LV: We can vectorize this loop" <<
-        (LAI->getRuntimePointerCheck()->Need ? " (with a runtime bound check)" :
-         "")
-        <<"!\n");
+  DEBUG(dbgs() << "LV: We can vectorize this loop"
+               << (LAI->getRuntimePointerChecking()->Need
+                       ? " (with a runtime bound check)"
+                       : "")
+               << "!\n");
 
   // Analyze interleaved memory accesses.
   if (EnableInterleavedMemAccesses)
@@ -4128,118 +4105,6 @@ bool LoopVectorizationLegality::canVectorizeInstrs() {
   }
 
   return true;
-}
-
-///\brief Remove GEPs whose indices but the last one are loop invariant and
-/// return the induction operand of the gep pointer.
-static Value *stripGetElementPtr(Value *Ptr, ScalarEvolution *SE, Loop *Lp) {
-  GetElementPtrInst *GEP = dyn_cast<GetElementPtrInst>(Ptr);
-  if (!GEP)
-    return Ptr;
-
-  unsigned InductionOperand = getGEPInductionOperand(GEP);
-
-  // Check that all of the gep indices are uniform except for our induction
-  // operand.
-  for (unsigned i = 0, e = GEP->getNumOperands(); i != e; ++i)
-    if (i != InductionOperand &&
-        !SE->isLoopInvariant(SE->getSCEV(GEP->getOperand(i)), Lp))
-      return Ptr;
-  return GEP->getOperand(InductionOperand);
-}
-
-///\brief Look for a cast use of the passed value.
-static Value *getUniqueCastUse(Value *Ptr, Loop *Lp, Type *Ty) {
-  Value *UniqueCast = nullptr;
-  for (User *U : Ptr->users()) {
-    CastInst *CI = dyn_cast<CastInst>(U);
-    if (CI && CI->getType() == Ty) {
-      if (!UniqueCast)
-        UniqueCast = CI;
-      else
-        return nullptr;
-    }
-  }
-  return UniqueCast;
-}
-
-///\brief Get the stride of a pointer access in a loop.
-/// Looks for symbolic strides "a[i*stride]". Returns the symbolic stride as a
-/// pointer to the Value, or null otherwise.
-static Value *getStrideFromPointer(Value *Ptr, ScalarEvolution *SE, Loop *Lp) {
-  const PointerType *PtrTy = dyn_cast<PointerType>(Ptr->getType());
-  if (!PtrTy || PtrTy->isAggregateType())
-    return nullptr;
-
-  // Try to remove a gep instruction to make the pointer (actually index at this
-  // point) easier analyzable. If OrigPtr is equal to Ptr we are analzying the
-  // pointer, otherwise, we are analyzing the index.
-  Value *OrigPtr = Ptr;
-
-  // The size of the pointer access.
-  int64_t PtrAccessSize = 1;
-
-  Ptr = stripGetElementPtr(Ptr, SE, Lp);
-  const SCEV *V = SE->getSCEV(Ptr);
-
-  if (Ptr != OrigPtr)
-    // Strip off casts.
-    while (const SCEVCastExpr *C = dyn_cast<SCEVCastExpr>(V))
-      V = C->getOperand();
-
-  const SCEVAddRecExpr *S = dyn_cast<SCEVAddRecExpr>(V);
-  if (!S)
-    return nullptr;
-
-  V = S->getStepRecurrence(*SE);
-  if (!V)
-    return nullptr;
-
-  // Strip off the size of access multiplication if we are still analyzing the
-  // pointer.
-  if (OrigPtr == Ptr) {
-    const DataLayout &DL = Lp->getHeader()->getModule()->getDataLayout();
-    DL.getTypeAllocSize(PtrTy->getElementType());
-    if (const SCEVMulExpr *M = dyn_cast<SCEVMulExpr>(V)) {
-      if (M->getOperand(0)->getSCEVType() != scConstant)
-        return nullptr;
-
-      const APInt &APStepVal =
-          cast<SCEVConstant>(M->getOperand(0))->getValue()->getValue();
-
-      // Huge step value - give up.
-      if (APStepVal.getBitWidth() > 64)
-        return nullptr;
-
-      int64_t StepVal = APStepVal.getSExtValue();
-      if (PtrAccessSize != StepVal)
-        return nullptr;
-      V = M->getOperand(1);
-    }
-  }
-
-  // Strip off casts.
-  Type *StripedOffRecurrenceCast = nullptr;
-  if (const SCEVCastExpr *C = dyn_cast<SCEVCastExpr>(V)) {
-    StripedOffRecurrenceCast = C->getType();
-    V = C->getOperand();
-  }
-
-  // Look for the loop invariant symbolic value.
-  const SCEVUnknown *U = dyn_cast<SCEVUnknown>(V);
-  if (!U)
-    return nullptr;
-
-  Value *Stride = U->getValue();
-  if (!Lp->isLoopInvariant(Stride))
-    return nullptr;
-
-  // If we have stripped off the recurrence cast we have to make sure that we
-  // return the value that is used in this loop so that we can replace it later.
-  if (StripedOffRecurrenceCast)
-    Stride = getUniqueCastUse(Stride, Lp, StripedOffRecurrenceCast);
-
-  return Stride;
 }
 
 void LoopVectorizationLegality::collectStridedAccess(Value *MemAccess) {
@@ -4585,7 +4450,7 @@ LoopVectorizationCostModel::VectorizationFactor
 LoopVectorizationCostModel::selectVectorizationFactor(bool OptForSize) {
   // Width 1 means no vectorize
   VectorizationFactor Factor = { 1U, 0U };
-  if (OptForSize && Legal->getRuntimePointerCheck()->Need) {
+  if (OptForSize && Legal->getRuntimePointerChecking()->Need) {
     emitAnalysis(VectorizationReport() <<
                  "runtime pointer checks needed. Enable vectorization of this "
                  "loop with '#pragma clang loop vectorize(enable)' when "
@@ -4745,41 +4610,40 @@ unsigned LoopVectorizationCostModel::getWidestType() {
   return MaxWidth;
 }
 
-unsigned
-LoopVectorizationCostModel::selectUnrollFactor(bool OptForSize,
-                                               unsigned VF,
-                                               unsigned LoopCost) {
+unsigned LoopVectorizationCostModel::selectInterleaveCount(bool OptForSize,
+                                                           unsigned VF,
+                                                           unsigned LoopCost) {
 
-  // -- The unroll heuristics --
-  // We unroll the loop in order to expose ILP and reduce the loop overhead.
+  // -- The interleave heuristics --
+  // We interleave the loop in order to expose ILP and reduce the loop overhead.
   // There are many micro-architectural considerations that we can't predict
   // at this level. For example, frontend pressure (on decode or fetch) due to
   // code size, or the number and capabilities of the execution ports.
   //
-  // We use the following heuristics to select the unroll factor:
-  // 1. If the code has reductions, then we unroll in order to break the cross
+  // We use the following heuristics to select the interleave count:
+  // 1. If the code has reductions, then we interleave to break the cross
   // iteration dependency.
-  // 2. If the loop is really small, then we unroll in order to reduce the loop
+  // 2. If the loop is really small, then we interleave to reduce the loop
   // overhead.
-  // 3. We don't unroll if we think that we will spill registers to memory due
-  // to the increased register pressure.
+  // 3. We don't interleave if we think that we will spill registers to memory
+  // due to the increased register pressure.
 
   // Use the user preference, unless 'auto' is selected.
   int UserUF = Hints->getInterleave();
   if (UserUF != 0)
     return UserUF;
 
-  // When we optimize for size, we don't unroll.
+  // When we optimize for size, we don't interleave.
   if (OptForSize)
     return 1;
 
-  // We used the distance for the unroll factor.
+  // We used the distance for the interleave count.
   if (Legal->getMaxSafeDepDistBytes() != -1U)
     return 1;
 
-  // Do not unroll loops with a relatively small trip count.
+  // Do not interleave loops with a relatively small trip count.
   unsigned TC = SE->getSmallConstantTripCount(TheLoop);
-  if (TC > 1 && TC < TinyTripCountUnrollThreshold)
+  if (TC > 1 && TC < TinyTripCountInterleaveThreshold)
     return 1;
 
   unsigned TargetNumRegisters = TTI.getNumberOfRegisters(VF > 1);
@@ -4800,32 +4664,32 @@ LoopVectorizationCostModel::selectUnrollFactor(bool OptForSize,
   R.MaxLocalUsers = std::max(R.MaxLocalUsers, 1U);
   R.NumInstructions = std::max(R.NumInstructions, 1U);
 
-  // We calculate the unroll factor using the following formula.
+  // We calculate the interleave count using the following formula.
   // Subtract the number of loop invariants from the number of available
-  // registers. These registers are used by all of the unrolled instances.
+  // registers. These registers are used by all of the interleaved instances.
   // Next, divide the remaining registers by the number of registers that is
   // required by the loop, in order to estimate how many parallel instances
   // fit without causing spills. All of this is rounded down if necessary to be
-  // a power of two. We want power of two unroll factors to simplify any
+  // a power of two. We want power of two interleave count to simplify any
   // addressing operations or alignment considerations.
-  unsigned UF = PowerOf2Floor((TargetNumRegisters - R.LoopInvariantRegs) /
+  unsigned IC = PowerOf2Floor((TargetNumRegisters - R.LoopInvariantRegs) /
                               R.MaxLocalUsers);
 
-  // Don't count the induction variable as unrolled.
+  // Don't count the induction variable as interleaved.
   if (EnableIndVarRegisterHeur)
-    UF = PowerOf2Floor((TargetNumRegisters - R.LoopInvariantRegs - 1) /
+    IC = PowerOf2Floor((TargetNumRegisters - R.LoopInvariantRegs - 1) /
                        std::max(1U, (R.MaxLocalUsers - 1)));
 
-  // Clamp the unroll factor ranges to reasonable factors.
-  unsigned MaxInterleaveSize = TTI.getMaxInterleaveFactor(VF);
+  // Clamp the interleave ranges to reasonable counts.
+  unsigned MaxInterleaveCount = TTI.getMaxInterleaveFactor(VF);
 
-  // Check if the user has overridden the unroll max.
+  // Check if the user has overridden the max.
   if (VF == 1) {
     if (ForceTargetMaxScalarInterleaveFactor.getNumOccurrences() > 0)
-      MaxInterleaveSize = ForceTargetMaxScalarInterleaveFactor;
+      MaxInterleaveCount = ForceTargetMaxScalarInterleaveFactor;
   } else {
     if (ForceTargetMaxVectorInterleaveFactor.getNumOccurrences() > 0)
-      MaxInterleaveSize = ForceTargetMaxVectorInterleaveFactor;
+      MaxInterleaveCount = ForceTargetMaxVectorInterleaveFactor;
   }
 
   // If we did not calculate the cost for VF (because the user selected the VF)
@@ -4833,72 +4697,74 @@ LoopVectorizationCostModel::selectUnrollFactor(bool OptForSize,
   if (LoopCost == 0)
     LoopCost = expectedCost(VF);
 
-  // Clamp the calculated UF to be between the 1 and the max unroll factor
+  // Clamp the calculated IC to be between the 1 and the max interleave count
   // that the target allows.
-  if (UF > MaxInterleaveSize)
-    UF = MaxInterleaveSize;
-  else if (UF < 1)
-    UF = 1;
+  if (IC > MaxInterleaveCount)
+    IC = MaxInterleaveCount;
+  else if (IC < 1)
+    IC = 1;
 
-  // Unroll if we vectorized this loop and there is a reduction that could
-  // benefit from unrolling.
+  // Interleave if we vectorized this loop and there is a reduction that could
+  // benefit from interleaving.
   if (VF > 1 && Legal->getReductionVars()->size()) {
-    DEBUG(dbgs() << "LV: Unrolling because of reductions.\n");
-    return UF;
+    DEBUG(dbgs() << "LV: Interleaving because of reductions.\n");
+    return IC;
   }
 
   // Note that if we've already vectorized the loop we will have done the
-  // runtime check and so unrolling won't require further checks.
-  bool UnrollingRequiresRuntimePointerCheck =
-      (VF == 1 && Legal->getRuntimePointerCheck()->Need);
+  // runtime check and so interleaving won't require further checks.
+  bool InterleavingRequiresRuntimePointerCheck =
+      (VF == 1 && Legal->getRuntimePointerChecking()->Need);
 
-  // We want to unroll small loops in order to reduce the loop overhead and
+  // We want to interleave small loops in order to reduce the loop overhead and
   // potentially expose ILP opportunities.
   DEBUG(dbgs() << "LV: Loop cost is " << LoopCost << '\n');
-  if (!UnrollingRequiresRuntimePointerCheck &&
-      LoopCost < SmallLoopCost) {
+  if (!InterleavingRequiresRuntimePointerCheck && LoopCost < SmallLoopCost) {
     // We assume that the cost overhead is 1 and we use the cost model
-    // to estimate the cost of the loop and unroll until the cost of the
+    // to estimate the cost of the loop and interleave until the cost of the
     // loop overhead is about 5% of the cost of the loop.
-    unsigned SmallUF = std::min(UF, (unsigned)PowerOf2Floor(SmallLoopCost / LoopCost));
+    unsigned SmallIC =
+        std::min(IC, (unsigned)PowerOf2Floor(SmallLoopCost / LoopCost));
 
-    // Unroll until store/load ports (estimated by max unroll factor) are
+    // Interleave until store/load ports (estimated by max interleave count) are
     // saturated.
     unsigned NumStores = Legal->getNumStores();
     unsigned NumLoads = Legal->getNumLoads();
-    unsigned StoresUF = UF / (NumStores ? NumStores : 1);
-    unsigned LoadsUF = UF /  (NumLoads ? NumLoads : 1);
+    unsigned StoresIC = IC / (NumStores ? NumStores : 1);
+    unsigned LoadsIC = IC / (NumLoads ? NumLoads : 1);
 
     // If we have a scalar reduction (vector reductions are already dealt with
     // by this point), we can increase the critical path length if the loop
-    // we're unrolling is inside another loop. Limit, by default to 2, so the
+    // we're interleaving is inside another loop. Limit, by default to 2, so the
     // critical path only gets increased by one reduction operation.
     if (Legal->getReductionVars()->size() &&
         TheLoop->getLoopDepth() > 1) {
-      unsigned F = static_cast<unsigned>(MaxNestedScalarReductionUF);
-      SmallUF = std::min(SmallUF, F);
-      StoresUF = std::min(StoresUF, F);
-      LoadsUF = std::min(LoadsUF, F);
+      unsigned F = static_cast<unsigned>(MaxNestedScalarReductionIC);
+      SmallIC = std::min(SmallIC, F);
+      StoresIC = std::min(StoresIC, F);
+      LoadsIC = std::min(LoadsIC, F);
     }
 
-    if (EnableLoadStoreRuntimeUnroll && std::max(StoresUF, LoadsUF) > SmallUF) {
-      DEBUG(dbgs() << "LV: Unrolling to saturate store or load ports.\n");
-      return std::max(StoresUF, LoadsUF);
+    if (EnableLoadStoreRuntimeInterleave &&
+        std::max(StoresIC, LoadsIC) > SmallIC) {
+      DEBUG(dbgs() << "LV: Interleaving to saturate store or load ports.\n");
+      return std::max(StoresIC, LoadsIC);
     }
 
-    DEBUG(dbgs() << "LV: Unrolling to reduce branch cost.\n");
-    return SmallUF;
+    DEBUG(dbgs() << "LV: Interleaving to reduce branch cost.\n");
+    return SmallIC;
   }
 
-  // Unroll if this is a large loop (small loops are already dealt with by this
-  // point) that could benefit from interleaved unrolling.
+  // Interleave if this is a large loop (small loops are already dealt with by
+  // this
+  // point) that could benefit from interleaving.
   bool HasReductions = (Legal->getReductionVars()->size() > 0);
   if (TTI.enableAggressiveInterleaving(HasReductions)) {
-    DEBUG(dbgs() << "LV: Unrolling to expose ILP.\n");
-    return UF;
+    DEBUG(dbgs() << "LV: Interleaving to expose ILP.\n");
+    return IC;
   }
 
-  DEBUG(dbgs() << "LV: Not Unrolling.\n");
+  DEBUG(dbgs() << "LV: Not Interleaving.\n");
   return 1;
 }
 
