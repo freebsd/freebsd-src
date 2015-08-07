@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 17, 2014
+.Dd August 7, 2015
 .Dt BHYVE 8
 .Os
 .Sh NAME
@@ -50,7 +50,7 @@ Parameters such as the number of virtual CPUs, amount of guest memory, and
 I/O connectivity can be specified with command-line parameters.
 .Pp
 The guest operating system must be loaded with
-.Xr bhyveload 4
+.Xr bhyveload 8
 or a similar boot loader before running
 .Nm .
 .Pp
@@ -61,8 +61,8 @@ exit is detected.
 .Bl -tag -width 10n
 .It Fl a
 The guest's local APIC is configured in xAPIC mode.
-The xAPIC mode is the default setting so this option is redundant. It will be
-deprecated in a future version.
+The xAPIC mode is the default setting so this option is redundant.
+It will be deprecated in a future version.
 .It Fl A
 Generate ACPI tables.
 Required for
@@ -124,7 +124,7 @@ Force the guest virtual CPU to exit when a PAUSE instruction is detected.
 .It Fl s Ar slot,emulation Ns Op , Ns Ar conf
 Configure a virtual PCI slot and function.
 .Pp
-.Nm bhyve
+.Nm
 provides PCI bus emulation and virtual devices that can be attached to
 slots on the bus.
 There are 32 available slots, with the option of providing up to 8 functions
@@ -136,11 +136,19 @@ per slot.
 .Pp
 The
 .Ar pcislot
-value is 0 to 31. The optional function value is 0 to 7. The optional
+value is 0 to 31.
+The optional
+.Ar function
+value is 0 to 7.
+The optional
 .Ar bus
 value is 0 to 255.
-If not specified, the function value defaults to 0.
-If not specified, the bus value defaults to 0.
+If not specified, the
+.Ar function
+value defaults to 0.
+If not specified, the
+.Ar bus
+value defaults to 0.
 .It Ar emulation
 .Bl -tag -width 10n
 .It Li hostbridge | Li amd_hostbridge
@@ -221,7 +229,9 @@ TTY devices:
 .Bl -tag -width 10n
 .It Li stdio
 Connect the serial port to the standard input and output of
-the bhyve process.
+the
+.Nm
+process.
 .It Pa /dev/xxx
 Use the host TTY device for serial port I/O.
 .El
@@ -265,7 +275,8 @@ in the guest's System Management BIOS System Information structure.
 By default a UUID is generated from the host's hostname and
 .Ar vmname .
 .It Fl w
-Ignore accesses to unimplemented Model Specific Registers (MSRs). This is intended for debug purposes.
+Ignore accesses to unimplemented Model Specific Registers (MSRs).
+This is intended for debug purposes.
 .It Fl W
 Force virtio PCI device emulations to use MSI interrupts instead of MSI-X
 interrupts.
@@ -280,7 +291,7 @@ This should be the same as that created by
 .El
 .Sh EXAMPLES
 The guest operating system must have been loaded with
-.Xr bhyveload 4
+.Xr bhyveload 8
 or a similar boot loader before
 .Xr bhyve 4
 can be run.
@@ -308,7 +319,7 @@ Run an 8GB quad-CPU virtual machine with 8 AHCI SATA disks, an AHCI ATAPI
 CD-ROM, a single virtio network port, an AMD hostbridge, and the console
 port connected to an
 .Xr nmdm 4
-null-model device.
+null-modem device.
 .Bd -literal -offset indent
 bhyve -c 4 \e\
   -s 0,amd_hostbridge -s 1,lpc \\
