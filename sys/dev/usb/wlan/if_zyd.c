@@ -2581,7 +2581,7 @@ zyd_start(struct zyd_softc *sc)
 	struct ieee80211_node *ni;
 	struct mbuf *m;
 
-	ZYD_LOCK_ASSERT(sc, MA_LOCKED);
+	ZYD_LOCK_ASSERT(sc, MA_OWNED);
 
 	while (sc->tx_nfree > 0 && (m = mbufq_dequeue(&sc->sc_snd)) != NULL) {
 		ni = (struct ieee80211_node *)m->m_pkthdr.rcvif;
