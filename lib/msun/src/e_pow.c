@@ -162,7 +162,13 @@ __ieee754_pow(double x, double y)
 	if(lx==0) {
 	    if(ix==0x7ff00000||ix==0||ix==0x3ff00000){
 		z = ax;			/*x is +-0,+-inf,+-1*/
-		if(hy<0) z = one/z;	/* z = (1/|x|) */
+		if(hy<0) {
+#ifdef __i386__
+		    /* XXX: Work around llvm PR 24343: */
+		    __compiler_membar();
+#endif
+		    z = one/z;	/* z = (1/|x|) */
+		}
 		if(hx<0) {
 		    if(((ix-0x3ff00000)|yisint)==0) {
 			z = (z-z)/(z-z); /* (-1)**non-int is NaN */
