@@ -1706,26 +1706,6 @@ static const struct ieee80211_scanner adhoc_default = {
 IEEE80211_SCANNER_ALG(ibss, IEEE80211_M_IBSS, adhoc_default);
 IEEE80211_SCANNER_ALG(ahdemo, IEEE80211_M_AHDEMO, adhoc_default);
 
-static void
-ap_force_promisc(struct ieee80211com *ic)
-{
-	struct ifnet *ifp = ic->ic_ifp;
-
-	IEEE80211_LOCK(ic);
-	/* set interface into promiscuous mode */
-	ifp->if_flags |= IFF_PROMISC;
-	ieee80211_runtask(ic, &ic->ic_promisc_task);
-	IEEE80211_UNLOCK(ic);
-}
-
-static void
-ap_reset_promisc(struct ieee80211com *ic)
-{
-	IEEE80211_LOCK(ic);
-	ieee80211_syncifflag_locked(ic, IFF_PROMISC);
-	IEEE80211_UNLOCK(ic);
-}
-
 static int
 ap_start(struct ieee80211_scan_state *ss, struct ieee80211vap *vap)
 {
@@ -1741,7 +1721,7 @@ ap_start(struct ieee80211_scan_state *ss, struct ieee80211vap *vap)
 	st->st_scangen++;
 	st->st_newscan = 1;
 
-	ap_force_promisc(vap->iv_ic);
+	ieee80211_promisc(vap, true);
 	return 0;
 }
 
@@ -1751,7 +1731,7 @@ ap_start(struct ieee80211_scan_state *ss, struct ieee80211vap *vap)
 static int
 ap_cancel(struct ieee80211_scan_state *ss, struct ieee80211vap *vap)
 {
-	ap_reset_promisc(vap->iv_ic);
+	ieee80211_promisc(vap, false);
 	return 0;
 }
 
@@ -1825,7 +1805,7 @@ ap_end(struct ieee80211_scan_state *ss, struct ieee80211vap *vap)
 			return 0;
 		}
 	}
-	ap_reset_promisc(ic);
+	ieee80211_promisc(vap, false);
 	if (ss->ss_flags & (IEEE80211_SCAN_NOPICK | IEEE80211_SCAN_NOJOIN)) {
 		/*
 		 * Manual/background scan, don't select+join the

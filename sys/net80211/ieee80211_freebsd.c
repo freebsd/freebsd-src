@@ -69,58 +69,27 @@ static MALLOC_DEFINE(M_80211_COM, "80211com", "802.11 com state");
 static const char wlanname[] = "wlan";
 static struct if_clone *wlan_cloner;
 
-/*
- * Allocate/free com structure in conjunction with ifnet;
- * these routines are registered with if_register_com_alloc
- * below and are called automatically by the ifnet code
- * when the ifnet of the parent device is created.
- */
-static void *
-wlan_alloc(u_char type, struct ifnet *ifp)
-{
-	struct ieee80211com *ic;
-
-	ic = IEEE80211_MALLOC(sizeof(struct ieee80211com), M_80211_COM,
-	    IEEE80211_M_WAITOK | IEEE80211_M_ZERO);
-	ic->ic_ifp = ifp;
-
-	return (ic);
-}
-
-static void
-wlan_free(void *ic, u_char type)
-{
-	IEEE80211_FREE(ic, M_80211_COM);
-}
-
 static int
 wlan_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 {
 	struct ieee80211_clone_params cp;
 	struct ieee80211vap *vap;
 	struct ieee80211com *ic;
-	struct ifnet *ifp;
 	int error;
 
 	error = copyin(params, &cp, sizeof(cp));
 	if (error)
 		return error;
-	ifp = ifunit(cp.icp_parent);
-	if (ifp == NULL)
+	ic = ieee80211_find_com(cp.icp_parent);
+	if (ic == NULL)
 		return ENXIO;
-	/* XXX move printfs to DIAGNOSTIC before release */
-	if (ifp->if_type != IFT_IEEE80211) {
-		if_printf(ifp, "%s: reject, not an 802.11 device\n", __func__);
-		return ENXIO;
-	}
 	if (cp.icp_opmode >= IEEE80211_OPMODE_MAX) {
-		if_printf(ifp, "%s: invalid opmode %d\n",
-		    __func__, cp.icp_opmode);
+		ic_printf(ic, "%s: invalid opmode %d\n", __func__,
+		    cp.icp_opmode);
 		return EINVAL;
 	}
-	ic = ifp->if_l2com;
 	if ((ic->ic_caps & ieee80211_opcap[cp.icp_opmode]) == 0) {
-		if_printf(ifp, "%s mode not supported\n",
+		ic_printf(ic, "%s mode not supported\n",
 		    ieee80211_opmode_name[cp.icp_opmode]);
 		return EOPNOTSUPP;
 	}
@@ -131,13 +100,13 @@ wlan_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	    (1)
 #endif
 	) {
-		if_printf(ifp, "TDMA not supported\n");
+		ic_printf(ic, "TDMA not supported\n");
 		return EOPNOTSUPP;
 	}
 	vap = ic->ic_vap_create(ic, wlanname, unit,
 			cp.icp_opmode, cp.icp_flags, cp.icp_bssid,
 			cp.icp_flags & IEEE80211_CLONE_MACADDR ?
-			    cp.icp_macaddr : (const uint8_t *)IF_LLADDR(ifp));
+			    cp.icp_macaddr : ic->ic_macaddr);
 
 	return (vap == NULL ? EIO : 0);
 }
@@ -528,17 +497,19 @@ ieee80211_process_callback(struct ieee80211_node *ni,
  *   (the callers will first need modifying.)
  */
 int
-ieee80211_parent_xmitpkt(struct ieee80211com *ic,
-	struct mbuf *m)
+ieee80211_parent_xmitpkt(struct ieee80211com *ic, struct mbuf *m)
 {
-	struct ifnet *parent = ic->ic_ifp;
+	int error;
+
 	/*
 	 * Assert the IC TX lock is held - this enforces the
 	 * processing -> queuing order is maintained
 	 */
 	IEEE80211_TX_LOCK_ASSERT(ic);
-
-	return (parent->if_transmit(parent, m));
+	error = ic->ic_transmit(ic, m);
+	if (error)
+		m_freem(m);
+	return (error);
 }
 
 /*
@@ -836,7 +807,6 @@ ieee80211_load_module(const char *modname)
 }
 
 static eventhandler_tag wlan_bpfevent;
-static eventhandler_tag wlan_ifllevent;
 
 static void
 bpf_track(void *arg, struct ifnet *ifp, int dlt, int attach)
@@ -864,33 +834,6 @@ bpf_track(void *arg, struct ifnet *ifp, int dlt, int attach)
 	}
 }
 
-static void
-wlan_iflladdr(void *arg __unused, struct ifnet *ifp)
-{
-	struct ieee80211com *ic = ifp->if_l2com;
-	struct ieee80211vap *vap, *next;
-
-	if (ifp->if_type != IFT_IEEE80211 || ic == NULL)
-		return;
-
-	IEEE80211_LOCK(ic);
-	TAILQ_FOREACH_SAFE(vap, &ic->ic_vaps, iv_next, next) {
-		/*
-		 * If the MAC address has changed on the parent and it was
-		 * copied to the vap on creation then re-sync.
-		 */
-		if (vap->iv_ic == ic &&
-		    (vap->iv_flags_ext & IEEE80211_FEXT_UNIQMAC) == 0) {
-			IEEE80211_ADDR_COPY(vap->iv_myaddr, IF_LLADDR(ifp));
-			IEEE80211_UNLOCK(ic);
-			if_setlladdr(vap->iv_ifp, IF_LLADDR(ifp),
-			    IEEE80211_ADDR_LEN);
-			IEEE80211_LOCK(ic);
-		}
-	}
-	IEEE80211_UNLOCK(ic);
-}
-
 /*
  * Module glue.
  *
@@ -905,17 +848,12 @@ wlan_modevent(module_t mod, int type, void *unused)
 			printf("wlan: <802.11 Link Layer>\n");
 		wlan_bpfevent = EVENTHANDLER_REGISTER(bpf_track,
 		    bpf_track, 0, EVENTHANDLER_PRI_ANY);
-		wlan_ifllevent = EVENTHANDLER_REGISTER(iflladdr_event,
-		    wlan_iflladdr, NULL, EVENTHANDLER_PRI_ANY);
 		wlan_cloner = if_clone_simple(wlanname, wlan_clone_create,
 		    wlan_clone_destroy, 0);
-		if_register_com_alloc(IFT_IEEE80211, wlan_alloc, wlan_free);
 		return 0;
 	case MOD_UNLOAD:
-		if_deregister_com_alloc(IFT_IEEE80211);
 		if_clone_detach(wlan_cloner);
 		EVENTHANDLER_DEREGISTER(bpf_track, wlan_bpfevent);
-		EVENTHANDLER_DEREGISTER(iflladdr_event, wlan_ifllevent);
 		return 0;
 	}
 	return EINVAL;

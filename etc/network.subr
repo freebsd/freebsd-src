@@ -1249,6 +1249,70 @@ ifscript_down()
 	fi
 }
 
+# wlan_up
+#	Create IEEE802.3 interfaces.
+#
+wlan_up()
+{
+	local _list _iflist wlan parent ifn
+	_list=
+	_iflist=$*
+
+	for wlan in `set | egrep ^wlans_[a-z]+[0-9]+=[a-z]+[0-9]+`; do
+		# Parse wlans_$parent=$ifn
+		wlan=`echo $wlan | sed -E 's/wlans_([a-z]+[0-9]+)=([a-z]+[0-9]+)/\1:\2/'`
+		OIFS=$IFS; IFS=:; set -- $wlan; parent=$1; ifn=$2; IFS=$OIFS
+		case $_iflist in
+		""|$ifn|$ifn\ *|*\ $ifn\ *|*\ $ifn)	;;
+		*)	continue ;;
+		esac
+		# Skip if ${ifn} already exists.
+		if ${IFCONFIG_CMD} $ifn > /dev/null 2>&1; then
+			continue
+		fi
+		${IFCONFIG_CMD} ${ifn} create wlandev ${parent}
+		if [ $? -eq 0 ]; then
+			_list="$_list $ifn"
+		fi
+	done
+	if [ -n "${_list# }" ]; then
+		echo "Created wlan(4) interfaces: ${_list# }."
+	fi
+	debug "Created wlan(4)s: ${_list# }"
+}
+
+# wlan_down
+#	Destroy IEEE802.3 interfaces.
+#
+wlan_down()
+{
+	local _list _iflist wlan parent ifn
+	_list=
+	_iflist=$*
+
+	for wlan in `set | egrep ^wlans_[a-z]+[0-9]+=[a-z]+[0-9]+`; do
+		# Parse wlans_$parent=$ifn
+		wlan=`echo $wlan | sed -E 's/wlans_([a-z]+[0-9]+)=([a-z]+[0-9]+)/\1:\2/'`
+		OIFS=$IFS; IFS=:; set -- $wlan; parent=$1; ifn=$2; IFS=$OIFS
+		case $_iflist in
+		""|$ifn|$ifn\ *|*\ $ifn\ *|*\ $ifn)	;;
+		*)	continue ;;
+		esac
+		# Skip if ${ifn} doesn't exists.
+		if ! ${IFCONFIG_CMD} $ifn > /dev/null 2>&1; then
+			continue
+		fi
+		${IFCONFIG_CMD} -n ${ifn} destroy
+		if [ $? -eq 0 ]; then
+			_list="$_list $ifn"
+		fi
+	done
+	if [ -n "${_list# }" ]; then
+		echo "Destroyed wlan(4) interfaces: ${_list# }."
+	fi
+	debug "Destroyed wlan(4)s: ${_list# }"
+}
+
 # clone_up
 #	Create cloneable interfaces.
 #
@@ -1397,6 +1461,9 @@ clone_down()
 # childif_create
 #	Create and configure child interfaces.  Return 0 if child
 #	interfaces are created.
+#
+#	XXXGL: the wlan code in this functions is superseded by wlan_up(),
+#	and will go away soon.
 #
 childif_create()
 {
