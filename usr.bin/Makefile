@@ -84,6 +84,7 @@ SUBDIR=	${_addr2line} \
 	lesskey \
 	limits \
 	locale \
+	localedef \
 	lock \
 	lockf \
 	logger \
