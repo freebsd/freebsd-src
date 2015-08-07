@@ -196,5 +196,6 @@
 #define test_string_memmove_c				NULL
 
 #define	xfail_swap_required				NULL
+#define	xfail_need_writable_tmp				NULL
 
 #endif /* !_CHERITEST_LIST_ONLY_H_ */

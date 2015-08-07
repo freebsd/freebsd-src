@@ -287,6 +287,28 @@ cheritest_vm_tag_tmpfile_private_prefault(const struct cheri_test *ctp __unused)
 	cheritest_success();
 }
 
+const char *
+xfail_need_writable_tmp(const char *name __unused)
+{
+	static const char *reason = NULL;
+	static int checked = 0;
+	char template[] = "/tmp/cheritest.XXXXXXXX";
+	int fd;
+
+	if (checked)
+		return (reason);
+
+	checked = 1;
+	fd = mkstemp(template);
+	if (fd >= 0) {
+		close(fd);
+		unlink(template);
+		return (NULL);
+	}
+	reason = "/tmp is not writable";
+	return (reason);
+}
+
 /*
  * Exercise copy-on-write:
  *

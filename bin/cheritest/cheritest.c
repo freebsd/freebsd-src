@@ -445,15 +445,18 @@ static const struct cheri_test cheri_tests[] = {
 	    CT_FLAG_CP2_EXCCODE,
 	  .ct_signum = SIGPROT,
 	  .ct_mips_exccode = T_C2E,
-	  .ct_cp2_exccode = CHERI_EXCCODE_TLBSTORE },
+	  .ct_cp2_exccode = CHERI_EXCCODE_TLBSTORE,
+	  .ct_check_xfail = xfail_need_writable_tmp, },
 
 	{ .ct_name = "cheritest_vm_tag_tmpfile_private",
 	  .ct_desc = "check tags are stored for tmpfile() MAP_PRIVATE pages",
-	  .ct_func = cheritest_vm_tag_tmpfile_private, },
+	  .ct_func = cheritest_vm_tag_tmpfile_private,
+	  .ct_check_xfail = xfail_need_writable_tmp, },
 
 	{ .ct_name = "cheritest_vm_tag_tmpfile_private_prefault",
 	  .ct_desc = "check tags are stored for tmpfile() MAP_PRIVATE, "				"MAP_PREFAULT_READ pages",
-	  .ct_func = cheritest_vm_tag_tmpfile_private, },
+	  .ct_func = cheritest_vm_tag_tmpfile_private,
+	  .ct_check_xfail = xfail_need_writable_tmp, },
 
 	{ .ct_name = "cheritest_vm_cow_read",
 	  .ct_desc = "read capabilities from a copy-on-write page",
