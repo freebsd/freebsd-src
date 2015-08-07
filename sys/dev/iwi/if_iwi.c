@@ -166,14 +166,15 @@ static void	iwi_tx_intr(struct iwi_softc *, struct iwi_tx_ring *);
 static void	iwi_intr(void *);
 static int	iwi_cmd(struct iwi_softc *, uint8_t, void *, uint8_t);
 static void	iwi_write_ibssnode(struct iwi_softc *, const u_int8_t [], int);
-static int	iwi_tx_start(struct ifnet *, struct mbuf *,
+static int	iwi_tx_start(struct iwi_softc *, struct mbuf *,
 		    struct ieee80211_node *, int);
 static int	iwi_raw_xmit(struct ieee80211_node *, struct mbuf *,
 		    const struct ieee80211_bpf_params *);
-static void	iwi_start_locked(struct ifnet *);
-static void	iwi_start(struct ifnet *);
+static void	iwi_start(struct iwi_softc *);
+static int	iwi_transmit(struct ieee80211com *, struct mbuf *);
 static void	iwi_watchdog(void *);
-static int	iwi_ioctl(struct ifnet *, u_long, caddr_t);
+static int	iwi_ioctl(struct ieee80211com *, u_long, void *);
+static void	iwi_parent(struct ieee80211com *);
 static void	iwi_stop_master(struct iwi_softc *);
 static int	iwi_reset(struct iwi_softc *);
 static int	iwi_load_ucode(struct iwi_softc *, const struct iwi_fw *);
@@ -269,23 +270,15 @@ static int
 iwi_attach(device_t dev)
 {
 	struct iwi_softc *sc = device_get_softc(dev);
-	struct ifnet *ifp;
-	struct ieee80211com *ic;
+	struct ieee80211com *ic = &sc->sc_ic;
 	uint16_t val;
 	int i, error;
 	uint8_t bands;
-	uint8_t macaddr[IEEE80211_ADDR_LEN];
 
 	sc->sc_dev = dev;
 
-	ifp = sc->sc_ifp = if_alloc(IFT_IEEE80211);
-	if (ifp == NULL) {
-		device_printf(dev, "can not if_alloc()\n");
-		return ENXIO;
-	}
-	ic = ifp->if_l2com;
-
 	IWI_LOCK_INIT(sc);
+	mbufq_init(&sc->sc_snd, ifqmaxlen);
 
 	sc->sc_unr = new_unrhdr(1, IWI_MAX_IBSSNODE-1, &sc->sc_mtx);
 
@@ -353,17 +346,6 @@ iwi_attach(device_t dev)
 
 	iwi_wme_init(sc);
 
-	ifp->if_softc = sc;
-	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
-	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
-	ifp->if_init = iwi_init;
-	ifp->if_ioctl = iwi_ioctl;
-	ifp->if_start = iwi_start;
-	IFQ_SET_MAXLEN(&ifp->if_snd, ifqmaxlen);
-	ifp->if_snd.ifq_drv_maxlen = ifqmaxlen;
-	IFQ_SET_READY(&ifp->if_snd);
-
-	ic->ic_ifp = ifp;
 	ic->ic_softc = sc;
 	ic->ic_name = device_get_nameunit(dev);
 	ic->ic_opmode = IEEE80211_M_STA;
@@ -385,14 +367,14 @@ iwi_attach(device_t dev)
 
 	/* read MAC address from EEPROM */
 	val = iwi_read_prom_word(sc, IWI_EEPROM_MAC + 0);
-	macaddr[0] = val & 0xff;
-	macaddr[1] = val >> 8;
+	ic->ic_macaddr[0] = val & 0xff;
+	ic->ic_macaddr[1] = val >> 8;
 	val = iwi_read_prom_word(sc, IWI_EEPROM_MAC + 1);
-	macaddr[2] = val & 0xff;
-	macaddr[3] = val >> 8;
+	ic->ic_macaddr[2] = val & 0xff;
+	ic->ic_macaddr[3] = val >> 8;
 	val = iwi_read_prom_word(sc, IWI_EEPROM_MAC + 2);
-	macaddr[4] = val & 0xff;
-	macaddr[5] = val >> 8;
+	ic->ic_macaddr[4] = val & 0xff;
+	ic->ic_macaddr[5] = val >> 8;
 	
 	bands = 0;
 	setbit(&bands, IEEE80211_MODE_11B);
@@ -401,7 +383,7 @@ iwi_attach(device_t dev)
 		setbit(&bands, IEEE80211_MODE_11A);
 	ieee80211_init_channels(ic, NULL, &bands);
 
-	ieee80211_ifattach(ic, macaddr);
+	ieee80211_ifattach(ic);
 	/* override default methods */
 	ic->ic_node_alloc = iwi_node_alloc;
 	sc->sc_node_free = ic->ic_node_free;
@@ -416,6 +398,9 @@ iwi_attach(device_t dev)
 
 	ic->ic_vap_create = iwi_vap_create;
 	ic->ic_vap_delete = iwi_vap_delete;
+	ic->ic_ioctl = iwi_ioctl;
+	ic->ic_transmit = iwi_transmit;
+	ic->ic_parent = iwi_parent;
 
 	ieee80211_radiotap_attach(ic,
 	    &sc->sc_txtap.wt_ihdr, sizeof(sc->sc_txtap),
@@ -450,8 +435,7 @@ static int
 iwi_detach(device_t dev)
 {
 	struct iwi_softc *sc = device_get_softc(dev);
-	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
+	struct ieee80211com *ic = &sc->sc_ic;
 
 	bus_teardown_intr(dev, sc->irq, sc->sc_ih);
 
@@ -482,10 +466,9 @@ iwi_detach(device_t dev)
 	    sc->mem);
 
 	delete_unrhdr(sc->sc_unr);
+	mbufq_drain(&sc->sc_snd);
 
 	IWI_LOCK_DESTROY(sc);
-
-	if_free(ifp);
 
 	return 0;
 }
@@ -496,8 +479,7 @@ iwi_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
     const uint8_t bssid[IEEE80211_ADDR_LEN],
     const uint8_t mac[IEEE80211_ADDR_LEN])
 {
-	struct ifnet *ifp = ic->ic_ifp;
-	struct iwi_softc *sc = ifp->if_softc;
+	struct iwi_softc *sc = ic->ic_softc;
 	struct iwi_vap *ivp;
 	struct ieee80211vap *vap;
 	int i;
@@ -519,12 +501,9 @@ iwi_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
 	if (iwi_init_fw_dma(sc, i))
 		return NULL;
 
-	ivp = (struct iwi_vap *) malloc(sizeof(struct iwi_vap),
-	    M_80211_VAP, M_NOWAIT | M_ZERO);
-	if (ivp == NULL)
-		return NULL;
+	ivp = malloc(sizeof(struct iwi_vap), M_80211_VAP, M_WAITOK | M_ZERO);
 	vap = &ivp->iwi_vap;
-	ieee80211_vap_setup(ic, vap, name, unit, opmode, flags, bssid, mac);
+	ieee80211_vap_setup(ic, vap, name, unit, opmode, flags, bssid);
 	/* override the default, the setting comes from the linux driver */
 	vap->iv_bmissthreshold = 24;
 	/* override with driver methods */
@@ -532,7 +511,8 @@ iwi_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
 	vap->iv_newstate = iwi_newstate;
 
 	/* complete setup */
-	ieee80211_vap_attach(vap, ieee80211_media_change, iwi_media_status);
+	ieee80211_vap_attach(vap, ieee80211_media_change, iwi_media_status,
+	    mac);
 	ic->ic_opmode = opmode;
 	return vap;
 }
@@ -859,7 +839,7 @@ static int
 iwi_suspend(device_t dev)
 {
 	struct iwi_softc *sc = device_get_softc(dev);
-	struct ieee80211com *ic = sc->sc_ifp->if_l2com;
+	struct ieee80211com *ic = &sc->sc_ic;
 
 	ieee80211_suspend_all(ic);
 	return 0;
@@ -869,7 +849,7 @@ static int
 iwi_resume(device_t dev)
 {
 	struct iwi_softc *sc = device_get_softc(dev);
-	struct ieee80211com *ic = sc->sc_ifp->if_l2com;
+	struct ieee80211com *ic = &sc->sc_ic;
 
 	pci_write_config(dev, 0x41, 0, 1);
 
@@ -895,7 +875,7 @@ static void
 iwi_node_free(struct ieee80211_node *ni)
 {
 	struct ieee80211com *ic = ni->ni_ic;
-	struct iwi_softc *sc = ic->ic_ifp->if_softc;
+	struct iwi_softc *sc = ic->ic_softc;
 	struct iwi_node *in = (struct iwi_node *)ni;
 
 	if (in->in_station != -1) {
@@ -939,7 +919,7 @@ iwi_media_status(struct ifnet *ifp, struct ifmediareq *imr)
 {
 	struct ieee80211vap *vap = ifp->if_softc;
 	struct ieee80211com *ic = vap->iv_ic;
-	struct iwi_softc *sc = ic->ic_ifp->if_softc;
+	struct iwi_softc *sc = ic->ic_softc;
 	struct ieee80211_node *ni;
 
 	/* read current transmission rate from adapter */
@@ -955,8 +935,7 @@ iwi_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 {
 	struct iwi_vap *ivp = IWI_VAP(vap);
 	struct ieee80211com *ic = vap->iv_ic;
-	struct ifnet *ifp = ic->ic_ifp;
-	struct iwi_softc *sc = ifp->if_softc;
+	struct iwi_softc *sc = ic->ic_softc;
 	IWI_LOCK_DECL;
 
 	DPRINTF(("%s: %s -> %s flags 0x%x\n", __func__,
@@ -1061,7 +1040,7 @@ iwi_wme_init(struct iwi_softc *sc)
 static int
 iwi_wme_setparams(struct iwi_softc *sc)
 {
-	struct ieee80211com *ic = sc->sc_ifp->if_l2com;
+	struct ieee80211com *ic = &sc->sc_ic;
 	const struct wmeParams *wmep;
 	int ac;
 
@@ -1095,7 +1074,7 @@ iwi_update_wme(void *arg, int npending)
 static int
 iwi_wme_update(struct ieee80211com *ic)
 {
-	struct iwi_softc *sc = ic->ic_ifp->if_softc;
+	struct iwi_softc *sc = ic->ic_softc;
 	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
 
 	/*
@@ -1189,8 +1168,7 @@ iwi_read_prom_word(struct iwi_softc *sc, uint8_t addr)
 static void
 iwi_setcurchan(struct iwi_softc *sc, int chan)
 {
-	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
+	struct ieee80211com *ic = &sc->sc_ic;
 
 	sc->curchan = chan;
 	ieee80211_radiotap_chan_change(ic);
@@ -1200,8 +1178,7 @@ static void
 iwi_frame_intr(struct iwi_softc *sc, struct iwi_rx_data *data, int i,
     struct iwi_frame *frame)
 {
-	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
+	struct ieee80211com *ic = &sc->sc_ic;
 	struct mbuf *mnew, *m;
 	struct ieee80211_node *ni;
 	int type, error, framelen;
@@ -1237,7 +1214,7 @@ iwi_frame_intr(struct iwi_softc *sc, struct iwi_rx_data *data, int i,
 	 */
 	mnew = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 	if (mnew == NULL) {
-		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
+		counter_u64_add(ic->ic_ierrors, 1);
 		return;
 	}
 
@@ -1258,7 +1235,7 @@ iwi_frame_intr(struct iwi_softc *sc, struct iwi_rx_data *data, int i,
 			panic("%s: could not load old rx mbuf",
 			    device_get_name(sc->sc_dev));
 		}
-		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
+		counter_u64_add(ic->ic_ierrors, 1);
 		return;
 	}
 
@@ -1271,7 +1248,6 @@ iwi_frame_intr(struct iwi_softc *sc, struct iwi_rx_data *data, int i,
 	CSR_WRITE_4(sc, data->reg, data->physaddr);
 
 	/* finalize mbuf */
-	m->m_pkthdr.rcvif = ifp;
 	m->m_pkthdr.len = m->m_len = sizeof (struct iwi_hdr) +
 	    sizeof (struct iwi_frame) + framelen;
 
@@ -1410,8 +1386,7 @@ iwi_notif_link_quality(struct iwi_softc *sc, struct iwi_notif *notif)
 static void
 iwi_notification_intr(struct iwi_softc *sc, struct iwi_notif *notif)
 {
-	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
+	struct ieee80211com *ic = &sc->sc_ic;
 	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
 	struct iwi_notif_scan_channel *chan;
 	struct iwi_notif_scan_complete *scan;
@@ -1632,47 +1607,33 @@ iwi_rx_intr(struct iwi_softc *sc)
 static void
 iwi_tx_intr(struct iwi_softc *sc, struct iwi_tx_ring *txq)
 {
-	struct ifnet *ifp = sc->sc_ifp;
 	struct iwi_tx_data *data;
 	uint32_t hw;
 
 	hw = CSR_READ_4(sc, txq->csr_ridx);
 
-	for (; txq->next != hw;) {
+	while (txq->next != hw) {
 		data = &txq->data[txq->next];
-
+		DPRINTFN(15, ("tx done idx=%u\n", txq->next));
 		bus_dmamap_sync(txq->data_dmat, data->map,
 		    BUS_DMASYNC_POSTWRITE);
 		bus_dmamap_unload(txq->data_dmat, data->map);
-		if (data->m->m_flags & M_TXCB)
-			ieee80211_process_callback(data->ni, data->m, 0/*XXX*/);
-		m_freem(data->m);
-		data->m = NULL;
-		ieee80211_free_node(data->ni);
+		ieee80211_tx_complete(data->ni, data->m, 0);
 		data->ni = NULL;
-
-		DPRINTFN(15, ("tx done idx=%u\n", txq->next));
-
-		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
-
+		data->m = NULL;
 		txq->queued--;
 		txq->next = (txq->next + 1) % IWI_TX_RING_COUNT;
 	}
-
 	sc->sc_tx_timer = 0;
-	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-
 	if (sc->sc_softled)
 		iwi_led_event(sc, IWI_LED_TX);
-
-	iwi_start_locked(ifp);
+	iwi_start(sc);
 }
 
 static void
 iwi_fatal_error_intr(struct iwi_softc *sc)
 {
-	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
+	struct ieee80211com *ic = &sc->sc_ic;
 	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
 
 	device_printf(sc->sc_dev, "firmware error\n");
@@ -1688,10 +1649,8 @@ iwi_fatal_error_intr(struct iwi_softc *sc)
 static void
 iwi_radio_off_intr(struct iwi_softc *sc)
 {
-	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
 
-	ieee80211_runtask(ic, &sc->sc_radiofftask);
+	ieee80211_runtask(&sc->sc_ic, &sc->sc_radiofftask);
 }
 
 static void
@@ -1806,10 +1765,9 @@ iwi_write_ibssnode(struct iwi_softc *sc,
 }
 
 static int
-iwi_tx_start(struct ifnet *ifp, struct mbuf *m0, struct ieee80211_node *ni,
+iwi_tx_start(struct iwi_softc *sc, struct mbuf *m0, struct ieee80211_node *ni,
     int ac)
 {
-	struct iwi_softc *sc = ifp->if_softc;
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211com *ic = ni->ni_ic;
 	struct iwi_node *in = (struct iwi_node *)ni;
@@ -1852,9 +1810,10 @@ iwi_tx_start(struct ifnet *ifp, struct mbuf *m0, struct ieee80211_node *ni,
 				in->in_station = alloc_unr(sc->sc_unr);
 				if (in->in_station == -1) {
 					/* h/w table is full */
+					if_inc_counter(ni->ni_vap->iv_ifp,
+					    IFCOUNTER_OERRORS, 1);
 					m_freem(m0);
 					ieee80211_free_node(ni);
-					if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 					return 0;
 				}
 				iwi_write_ibssnode(sc,
@@ -1980,141 +1939,139 @@ iwi_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	return 0;
 }
 
-static void
-iwi_start_locked(struct ifnet *ifp)
+static int
+iwi_transmit(struct ieee80211com *ic, struct mbuf *m)
 {
-	struct iwi_softc *sc = ifp->if_softc;
+	struct iwi_softc *sc = ic->ic_softc;
+	int error;
+	IWI_LOCK_DECL;
+
+	IWI_LOCK(sc);
+	if (!sc->sc_running) {
+		IWI_UNLOCK(sc);
+		return (ENXIO);
+	}
+	error = mbufq_enqueue(&sc->sc_snd, m);
+	if (error) {
+		IWI_UNLOCK(sc);
+		return (error);
+	}
+	iwi_start(sc);
+	IWI_UNLOCK(sc);
+	return (0);
+}
+
+static void
+iwi_start(struct iwi_softc *sc)
+{
 	struct mbuf *m;
 	struct ieee80211_node *ni;
 	int ac;
 
 	IWI_LOCK_ASSERT(sc);
 
-	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
-		return;
-
-	for (;;) {
-		IFQ_DRV_DEQUEUE(&ifp->if_snd, m);
-		if (m == NULL)
-			break;
+	while ((m =  mbufq_dequeue(&sc->sc_snd)) != NULL) {
 		ac = M_WME_GETAC(m);
 		if (sc->txq[ac].queued > IWI_TX_RING_COUNT - 8) {
 			/* there is no place left in this ring; tail drop */
 			/* XXX tail drop */
-			IFQ_DRV_PREPEND(&ifp->if_snd, m);
-			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+			mbufq_prepend(&sc->sc_snd, m);
 			break;
 		}
-
 		ni = (struct ieee80211_node *) m->m_pkthdr.rcvif;
-		if (iwi_tx_start(ifp, m, ni, ac) != 0) {
+		if (iwi_tx_start(sc, m, ni, ac) != 0) {
 			ieee80211_free_node(ni);
-			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
+			if_inc_counter(ni->ni_vap->iv_ifp,
+			    IFCOUNTER_OERRORS, 1);
 			break;
 		}
-
 		sc->sc_tx_timer = 5;
 	}
-}
-
-static void
-iwi_start(struct ifnet *ifp)
-{
-	struct iwi_softc *sc = ifp->if_softc;
-	IWI_LOCK_DECL;
-
-	IWI_LOCK(sc);
-	iwi_start_locked(ifp);
-	IWI_UNLOCK(sc);
 }
 
 static void
 iwi_watchdog(void *arg)
 {
 	struct iwi_softc *sc = arg;
-	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
+	struct ieee80211com *ic = &sc->sc_ic;
 
 	IWI_LOCK_ASSERT(sc);
 
 	if (sc->sc_tx_timer > 0) {
 		if (--sc->sc_tx_timer == 0) {
-			if_printf(ifp, "device timeout\n");
-			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
+			device_printf(sc->sc_dev, "device timeout\n");
+			counter_u64_add(ic->ic_oerrors, 1);
 			ieee80211_runtask(ic, &sc->sc_restarttask);
 		}
 	}
 	if (sc->sc_state_timer > 0) {
 		if (--sc->sc_state_timer == 0) {
-			if_printf(ifp, "firmware stuck in state %d, resetting\n",
+			device_printf(sc->sc_dev,
+			    "firmware stuck in state %d, resetting\n",
 			    sc->fw_state);
-			if (sc->fw_state == IWI_FW_SCANNING) {
-				struct ieee80211com *ic = ifp->if_l2com;
+			if (sc->fw_state == IWI_FW_SCANNING)
 				ieee80211_cancel_scan(TAILQ_FIRST(&ic->ic_vaps));
-			}
 			ieee80211_runtask(ic, &sc->sc_restarttask);
 			sc->sc_state_timer = 3;
 		}
 	}
 	if (sc->sc_busy_timer > 0) {
 		if (--sc->sc_busy_timer == 0) {
-			if_printf(ifp, "firmware command timeout, resetting\n");
+			device_printf(sc->sc_dev,
+			    "firmware command timeout, resetting\n");
 			ieee80211_runtask(ic, &sc->sc_restarttask);
 		}
 	}
 	callout_reset(&sc->sc_wdtimer, hz, iwi_watchdog, sc);
 }
 
-static int
-iwi_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
+static void
+iwi_parent(struct ieee80211com *ic)
 {
-	struct iwi_softc *sc = ifp->if_softc;
-	struct ieee80211com *ic = ifp->if_l2com;
-	struct ifreq *ifr = (struct ifreq *) data;
-	int error = 0, startall = 0;
+	struct iwi_softc *sc = ic->ic_softc;
+	int startall = 0;
 	IWI_LOCK_DECL;
 
-	switch (cmd) {
-	case SIOCSIFFLAGS:
-		IWI_LOCK(sc);
-		if (ifp->if_flags & IFF_UP) {
-			if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
-				iwi_init_locked(sc);
-				startall = 1;
-			}
-		} else {
-			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
-				iwi_stop_locked(sc);
+	IWI_LOCK(sc);
+	if (ic->ic_nrunning > 0) {
+		if (!sc->sc_running) {
+			iwi_init_locked(sc);
+			startall = 1;
 		}
-		IWI_UNLOCK(sc);
-		if (startall)
-			ieee80211_start_all(ic);
-		break;
-	case SIOCGIFMEDIA:
-		error = ifmedia_ioctl(ifp, ifr, &ic->ic_media, cmd);
-		break;
-	case SIOCGIFADDR:
-		error = ether_ioctl(ifp, cmd, data);
-		break;
+	} else if (sc->sc_running)
+		iwi_stop_locked(sc);
+	IWI_UNLOCK(sc);
+	if (startall)
+		ieee80211_start_all(ic);
+}
+
+static int
+iwi_ioctl(struct ieee80211com *ic, u_long cmd, void *data)
+{
+	struct ifreq *ifr = data;
+	struct iwi_softc *sc = ic->ic_softc;
+	int error;
+	IWI_LOCK_DECL;
+
+	IWI_LOCK(sc);
+	switch (cmd) {
 	case SIOCGIWISTATS:
-		IWI_LOCK(sc);
 		/* XXX validate permissions/memory/etc? */
 		error = copyout(&sc->sc_linkqual, ifr->ifr_data,
 		    sizeof(struct iwi_notif_link_quality));
-		IWI_UNLOCK(sc);
 		break;
 	case SIOCZIWISTATS:
-		IWI_LOCK(sc);
 		memset(&sc->sc_linkqual, 0,
 		    sizeof(struct iwi_notif_link_quality));
-		IWI_UNLOCK(sc);
 		error = 0;
 		break;
 	default:
-		error = EINVAL;
+		error = ENOTTY;
 		break;
 	}
-		return error;
+	IWI_UNLOCK(sc);
+
+	return (error);
 }
 
 static void
@@ -2593,8 +2550,7 @@ iwi_setwepkeys(struct iwi_softc *sc, struct ieee80211vap *vap)
 static int
 iwi_config(struct iwi_softc *sc)
 {
-	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
+	struct ieee80211com *ic = &sc->sc_ic;
 	struct iwi_configuration config;
 	struct iwi_rateset rs;
 	struct iwi_txpower power;
@@ -2603,8 +2559,8 @@ iwi_config(struct iwi_softc *sc)
 
 	IWI_LOCK_ASSERT(sc);
 
-	DPRINTF(("Setting MAC address to %6D\n", IF_LLADDR(ifp), ":"));
-	error = iwi_cmd(sc, IWI_CMD_SET_MAC_ADDRESS, IF_LLADDR(ifp),
+	DPRINTF(("Setting MAC address to %6D\n", ic->ic_macaddr, ":"));
+	error = iwi_cmd(sc, IWI_CMD_SET_MAC_ADDRESS, ic->ic_macaddr,
 	    IEEE80211_ADDR_LEN);
 	if (error != 0)
 		return error;
@@ -2724,7 +2680,7 @@ iwi_monitor_scan(void *arg, int npending)
 static int
 iwi_scanchan(struct iwi_softc *sc, unsigned long maxdwell, int allchan)
 {
-	struct ieee80211com *ic;
+	struct ieee80211com *ic = &sc->sc_ic;
 	struct ieee80211_channel *chan;
 	struct ieee80211_scan_state *ss;
 	struct iwi_scan_ext scan;
@@ -2741,7 +2697,6 @@ iwi_scanchan(struct iwi_softc *sc, unsigned long maxdwell, int allchan)
 	}
 	IWI_STATE_BEGIN(sc, IWI_FW_SCANNING);
 
-	ic = sc->sc_ifp->if_l2com;
 	ss = ic->ic_scan;
 
 	memset(&scan, 0, sizeof scan);
@@ -3128,7 +3083,6 @@ error:
 static void
 iwi_init_locked(struct iwi_softc *sc)
 {
-	struct ifnet *ifp = sc->sc_ifp;
 	struct iwi_rx_data *data;
 	int i;
 
@@ -3202,8 +3156,7 @@ iwi_init_locked(struct iwi_softc *sc)
 	}
 
 	callout_reset(&sc->sc_wdtimer, hz, iwi_watchdog, sc);
-	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-	ifp->if_drv_flags |= IFF_DRV_RUNNING;
+	sc->sc_running = 1;
 	return;
 fail:
 	IWI_STATE_END(sc, IWI_FW_LOADING);
@@ -3215,15 +3168,14 @@ static void
 iwi_init(void *priv)
 {
 	struct iwi_softc *sc = priv;
-	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
+	struct ieee80211com *ic = &sc->sc_ic;
 	IWI_LOCK_DECL;
 
 	IWI_LOCK(sc);
 	iwi_init_locked(sc);
 	IWI_UNLOCK(sc);
 
-	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+	if (sc->sc_running)
 		ieee80211_start_all(ic);
 }
 
@@ -3231,11 +3183,10 @@ static void
 iwi_stop_locked(void *priv)
 {
 	struct iwi_softc *sc = priv;
-	struct ifnet *ifp = sc->sc_ifp;
 
 	IWI_LOCK_ASSERT(sc);
 
-	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
+	sc->sc_running = 0;
 
 	if (sc->sc_softled) {
 		callout_stop(&sc->sc_ledtimer);
@@ -3296,7 +3247,7 @@ static void
 iwi_radio_on(void *arg, int pending)
 {
 	struct iwi_softc *sc = arg;
-	struct ieee80211com *ic = sc->sc_ifp->if_l2com;
+	struct ieee80211com *ic = &sc->sc_ic;
 
 	device_printf(sc->sc_dev, "radio turned on\n");
 
@@ -3317,10 +3268,7 @@ iwi_rfkill_poll(void *arg)
 	 * it is enabled so we must poll for the latter.
 	 */
 	if (!iwi_getrfkill(sc)) {
-		struct ifnet *ifp = sc->sc_ifp;
-		struct ieee80211com *ic = ifp->if_l2com;
-
-		ieee80211_runtask(ic, &sc->sc_radiontask);
+		ieee80211_runtask(&sc->sc_ic, &sc->sc_radiontask);
 		return;
 	}
 	callout_reset(&sc->sc_rftimer, 2*hz, iwi_rfkill_poll, sc);
@@ -3330,7 +3278,7 @@ static void
 iwi_radio_off(void *arg, int pending)
 {
 	struct iwi_softc *sc = arg;
-	struct ieee80211com *ic = sc->sc_ifp->if_l2com;
+	struct ieee80211com *ic = &sc->sc_ic;
 	IWI_LOCK_DECL;
 
 	device_printf(sc->sc_dev, "radio turned off\n");
@@ -3594,8 +3542,8 @@ iwi_scan_start(struct ieee80211com *ic)
 static void
 iwi_set_channel(struct ieee80211com *ic)
 {
-	struct ifnet *ifp = ic->ic_ifp;
-	struct iwi_softc *sc = ifp->if_softc;
+	struct iwi_softc *sc = ic->ic_softc;
+
 	if (sc->fw_state == IWI_FW_IDLE)
 		iwi_setcurchan(sc, ic->ic_curchan->ic_ieee);
 }
@@ -3604,8 +3552,7 @@ static void
 iwi_scan_curchan(struct ieee80211_scan_state *ss, unsigned long maxdwell)
 {
 	struct ieee80211vap *vap = ss->ss_vap;
-	struct ifnet *ifp = vap->iv_ic->ic_ifp;
-	struct iwi_softc *sc = ifp->if_softc;
+	struct iwi_softc *sc = vap->iv_ic->ic_softc;
 	IWI_LOCK_DECL;
 
 	IWI_LOCK(sc);
@@ -3623,8 +3570,7 @@ iwi_scan_mindwell(struct ieee80211_scan_state *ss)
 static void
 iwi_scan_end(struct ieee80211com *ic)
 {
-	struct ifnet *ifp = ic->ic_ifp;
-	struct iwi_softc *sc = ifp->if_softc;
+	struct iwi_softc *sc = ic->ic_softc;
 	IWI_LOCK_DECL;
 
 	IWI_LOCK(sc);
