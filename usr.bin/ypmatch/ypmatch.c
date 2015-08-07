@@ -66,8 +66,8 @@ static void
 usage(void)
 {
 	fprintf(stderr, "%s\n%s\n",
-	    "usage: ypmatch [-kt] [-d domain] key ... mapname",
-	    "       ypmatch -x\n");
+	    "usage: ypmatch [-kt] [-d domainname] key ... mapname",
+	    "       ypmatch -x");
 	fprintf(stderr,
 	    "where\n"
 	    "\tmapname may be either a mapname or a nickname for a map.\n"
