@@ -1541,8 +1541,12 @@ pps_fetch(struct pps_fetch_args *fapi, struct pps_state *pps)
 			} else {
 				err = tsleep(pps, PCATCH, "ppsfch", timo);
 			}
-			if (err == EWOULDBLOCK && fapi->timeout.tv_sec == -1) {
-				continue;
+			if (err == EWOULDBLOCK) {
+				if (fapi->timeout.tv_sec == -1) {
+					continue;
+				} else {
+					return (ETIMEDOUT);
+				}
 			} else if (err != 0) {
 				return (err);
 			}
