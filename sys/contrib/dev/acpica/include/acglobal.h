@@ -62,6 +62,8 @@ ACPI_GLOBAL (ACPI_TABLE_HEADER,         AcpiGbl_OriginalDsdtHeader);
 
 #if (!ACPI_REDUCED_HARDWARE)
 ACPI_GLOBAL (ACPI_TABLE_FACS *,         AcpiGbl_FACS);
+ACPI_GLOBAL (ACPI_TABLE_FACS *,         AcpiGbl_Facs32);
+ACPI_GLOBAL (ACPI_TABLE_FACS *,         AcpiGbl_Facs64);
 
 #endif /* !ACPI_REDUCED_HARDWARE */
 
@@ -291,8 +293,6 @@ ACPI_GLOBAL (UINT32,                    AcpiFixedEventCount[ACPI_NUM_FIXED_EVENT
 
 ACPI_GLOBAL (UINT32,                    AcpiGbl_OriginalDbgLevel);
 ACPI_GLOBAL (UINT32,                    AcpiGbl_OriginalDbgLayer);
-ACPI_GLOBAL (UINT32,                    AcpiGbl_TraceDbgLevel);
-ACPI_GLOBAL (UINT32,                    AcpiGbl_TraceDbgLayer);
 
 
 /*****************************************************************************
@@ -311,6 +311,7 @@ ACPI_INIT_GLOBAL (UINT8,                AcpiGbl_NoResourceDisassembly, FALSE);
 ACPI_INIT_GLOBAL (BOOLEAN,              AcpiGbl_IgnoreNoopOperator, FALSE);
 ACPI_INIT_GLOBAL (BOOLEAN,              AcpiGbl_CstyleDisassembly, TRUE);
 ACPI_INIT_GLOBAL (BOOLEAN,              AcpiGbl_ForceAmlDisassembly, FALSE);
+ACPI_INIT_GLOBAL (ACPI_PARSE_OBJECT *,  AcpiGbl_PreviousOp, NULL);
 
 ACPI_GLOBAL (BOOLEAN,                   AcpiGbl_DbOpt_Disasm);
 ACPI_GLOBAL (BOOLEAN,                   AcpiGbl_DbOpt_Verbose);

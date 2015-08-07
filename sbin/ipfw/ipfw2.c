@@ -3033,9 +3033,10 @@ fill_flags_cmd(ipfw_insn *cmd, enum ipfw_opcodes opcode,
 void
 ipfw_delete(char *av[])
 {
-	int i;
+	int i, j;
 	int exitval = EX_OK;
 	int do_set = 0;
+	char *sep;
 	ipfw_range_tlv rt;
 
 	av++;
@@ -3053,7 +3054,11 @@ ipfw_delete(char *av[])
 
 	/* Rule number */
 	while (*av && isdigit(**av)) {
-		i = atoi(*av); av++;
+		i = strtol(*av, &sep, 10);
+		j = i;
+		if (*sep== '-')
+			j = strtol(sep + 1, NULL, 10);
+		av++;
 		if (co.do_nat) {
 			exitval = do_cmd(IP_FW_NAT_DEL, &i, sizeof i);
 			if (exitval) {
@@ -3068,7 +3073,7 @@ ipfw_delete(char *av[])
 				rt.flags = IPFW_RCFLAG_SET;
 			} else {
 				rt.start_rule = i & 0xffff;
-				rt.end_rule = i & 0xffff;
+				rt.end_rule = j & 0xffff;
 				if (rt.start_rule == 0 && rt.end_rule == 0)
 					rt.flags |= IPFW_RCFLAG_ALL;
 				else

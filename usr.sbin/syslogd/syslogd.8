@@ -28,7 +28,7 @@
 .\"     @(#)syslogd.8	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd March 3, 2015
+.Dd June 16, 2015
 .Dt SYSLOGD 8
 .Os
 .Sh NAME
@@ -194,6 +194,8 @@ The default
 .Ar service
 is
 .Ql syslog .
+This option can be specified multiple times to bind to
+multiple addresses and/or ports.
 .It Fl C
 Create log files that do not exist (permission is set to
 .Li 0600 ) .

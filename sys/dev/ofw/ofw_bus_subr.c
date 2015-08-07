@@ -170,7 +170,8 @@ ofw_bus_status_okay(device_t dev)
 	const char *status;
 
 	status = ofw_bus_get_status(dev);
-	if (status == NULL || strcmp(status, "okay") == 0)
+	if (status == NULL || strcmp(status, "okay") == 0 ||
+	    strcmp(status, "ok") == 0)
 		return (1);
 	
 	return (0);
@@ -394,7 +395,7 @@ ofw_bus_reg_to_rl(device_t dev, phandle_t node, pcell_t acells, pcell_t scells,
 	 * This may be just redundant when having ofw_bus_devinfo
 	 * but makes this routine independent of it.
 	 */
-	ret = OF_getencprop_alloc(node, "name", sizeof(*name), (void **)&name);
+	ret = OF_getprop_alloc(node, "name", sizeof(*name), (void **)&name);
 	if (ret == -1)
 		name = NULL;
 
@@ -444,7 +445,7 @@ ofw_bus_intr_to_rl(device_t dev, phandle_t node,
 		if (OF_searchencprop(node, "interrupt-parent", &iparent,
 		    sizeof(iparent)) == -1) {
 			for (iparent = node; iparent != 0;
-			    iparent = OF_parent(node)) {
+			    iparent = OF_parent(iparent)) {
 				if (OF_hasprop(iparent, "interrupt-controller"))
 					break;
 			}
@@ -510,7 +511,7 @@ ofw_bus_find_child(phandle_t start, const char *child_name)
 	phandle_t child;
 
 	for (child = OF_child(start); child != 0; child = OF_peer(child)) {
-		ret = OF_getencprop_alloc(child, "name", sizeof(*name), (void **)&name);
+		ret = OF_getprop_alloc(child, "name", sizeof(*name), (void **)&name);
 		if (ret == -1)
 			continue;
 		if (strcmp(name, child_name) == 0) {
@@ -550,4 +551,45 @@ ofw_bus_find_compatible(phandle_t node, const char *onecompat)
 			return (ret);
 	}
 	return (0);
+}
+
+/**
+ * @brief Return child of bus whose phandle is node
+ *
+ * A direct child of @p will be returned if it its phandle in the
+ * OFW tree is @p node. Otherwise, NULL is returned.
+ *
+ * @param bus		The bus to examine
+ * @param node		The phandle_t to look for.
+ */
+device_t
+ofw_bus_find_child_device_by_phandle(device_t bus, phandle_t node)
+{
+	device_t *children, retval, child;
+	int nkid, i;
+
+	/*
+	 * Nothing can match the flag value for no node.
+	 */
+	if (node == -1)
+		return (NULL);
+
+	/*
+	 * Search the children for a match. We microoptimize
+	 * a bit by not using ofw_bus_get since we already know
+	 * the parent. We do not recurse.
+	 */
+	if (device_get_children(bus, &children, &nkid) != 0)
+		return (NULL);
+	retval = NULL;
+	for (i = 0; i < nkid; i++) {
+		child = children[i];
+		if (OFW_BUS_GET_NODE(bus, child) == node) {
+			retval = child;
+			break;
+		}
+	}
+	free(children, M_TEMP);
+
+	return (retval);
 }

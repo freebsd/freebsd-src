@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/proc.h>
 #include <sys/ptrace.h>
+#include <machine/frame.h>
 #include <machine/md_var.h>
 #include <machine/pcb.h>
 
@@ -115,8 +116,8 @@ cpu_ptrace_xstate(struct thread *td, int req, void *addr, int data)
 }
 #endif
 
-int
-cpu_ptrace(struct thread *td, int req, void *addr, int data)
+static int
+cpu_ptrace_xmm(struct thread *td, int req, void *addr, int data)
 {
 #ifdef CPU_ENABLE_SSE
 	struct savexmm *fpstate;
@@ -154,4 +155,52 @@ cpu_ptrace(struct thread *td, int req, void *addr, int data)
 #else
 	return (EINVAL);
 #endif
+}
+
+int
+cpu_ptrace(struct thread *td, int req, void *addr, int data)
+{
+	struct segment_descriptor *sdp, sd;
+	register_t r;
+	int error;
+
+	switch (req) {
+	case PT_GETXMMREGS:
+	case PT_SETXMMREGS:
+	case PT_GETXSTATE_OLD:
+	case PT_SETXSTATE_OLD:
+	case PT_GETXSTATE_INFO:
+	case PT_GETXSTATE:
+	case PT_SETXSTATE:
+		error = cpu_ptrace_xmm(td, req, addr, data);
+		break;
+
+	case PT_GETFSBASE:
+	case PT_GETGSBASE:
+		sdp = req == PT_GETFSBASE ? &td->td_pcb->pcb_fsd :
+		    &td->td_pcb->pcb_gsd;
+		r = sdp->sd_hibase << 24 | sdp->sd_lobase;
+		error = copyout(&r, addr, sizeof(r));
+		break;
+
+	case PT_SETFSBASE:
+	case PT_SETGSBASE:
+		error = copyin(addr, &r, sizeof(r));
+		if (error != 0)
+			break;
+		fill_based_sd(&sd, r);
+		if (req == PT_SETFSBASE) {
+			td->td_pcb->pcb_fsd = sd;
+			td->td_frame->tf_fs = GSEL(GUFS_SEL, SEL_UPL);
+		} else {
+			td->td_pcb->pcb_gsd = sd;
+			td->td_pcb->pcb_gs = GSEL(GUGS_SEL, SEL_UPL);
+		}
+		break;
+
+	default:
+		return (EINVAL);
+	}
+
+	return (error);
 }

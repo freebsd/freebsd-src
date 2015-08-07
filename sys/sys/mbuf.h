@@ -150,7 +150,6 @@ struct pkthdr {
 #define	tso_segsz	PH_per.sixteen[1]
 #define	csum_phsum	PH_per.sixteen[2]
 #define	csum_data	PH_per.thirtytwo[1]
-#define	pkt_tcphdr	PH_loc.ptr
 
 /*
  * Description of external storage mapped into mbuf; valid only if M_EXT is
@@ -959,6 +958,7 @@ struct mbuf	*m_copypacket(struct mbuf *, int);
 void		 m_copy_pkthdr(struct mbuf *, struct mbuf *);
 struct mbuf	*m_copyup(struct mbuf *, int, int);
 struct mbuf	*m_defrag(struct mbuf *, int);
+void		 m_demote_pkthdr(struct mbuf *);
 void		 m_demote(struct mbuf *, int, int);
 struct mbuf	*m_devget(char *, int, int, struct ifnet *,
 		    void (*)(char *, caddr_t, u_int));

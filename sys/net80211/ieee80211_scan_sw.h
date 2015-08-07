@@ -28,34 +28,5 @@
 #define	__NET80211_IEEE80211_SCAN_SW_H__
 
 extern	void ieee80211_swscan_attach(struct ieee80211com *ic);
-extern	void ieee80211_swscan_detach(struct ieee80211com *ic);
-
-extern	void ieee80211_swscan_vattach(struct ieee80211vap *vap);
-extern	void ieee80211_swscan_vdetach(struct ieee80211vap *vap);
-
-extern	int ieee80211_swscan_start_scan(const struct ieee80211_scanner *scan,
-	    struct ieee80211vap *vap, int flags,
-	    u_int duration, u_int mindwell, u_int maxdwell,
-	    u_int nssid, const struct ieee80211_scan_ssid ssids[]);
-extern	void ieee80211_swscan_set_scan_duration(struct ieee80211vap *vap,
-	    u_int duration);
-extern	void ieee80211_swscan_run_scan_task(struct ieee80211vap *vap);
-extern	int ieee80211_swscan_check_scan(const struct ieee80211_scanner *scan,
-	    struct ieee80211vap *vap, int flags,
-	    u_int duration, u_int mindwell, u_int maxdwell,
-	    u_int nssid, const struct ieee80211_scan_ssid ssids[]);
-extern	int ieee80211_swscan_bg_scan(const struct ieee80211_scanner *scan,
-	    struct ieee80211vap *vap, int flags);
-extern	void ieee80211_swscan_cancel_scan(struct ieee80211vap *vap);
-extern	void ieee80211_swscan_cancel_anyscan(struct ieee80211vap *vap);
-extern	void ieee80211_swscan_scan_next(struct ieee80211vap *vap);
-extern	void ieee80211_swscan_scan_done(struct ieee80211vap *vap);
-extern	void ieee80211_swscan_probe_curchan(struct ieee80211vap *vap,
-	    int force);
-extern	void ieee80211_swscan_add_scan(struct ieee80211vap *vap,
-	    struct ieee80211_channel *curchan,
-	    const struct ieee80211_scanparams *sp,
-	    const struct ieee80211_frame *wh,
-	    int subtype, int rssi, int noise);
 
 #endif	/* __NET80211_IEEE80211_SCAN_SW_H__ */

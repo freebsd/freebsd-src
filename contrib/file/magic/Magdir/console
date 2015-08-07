@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: console,v 1.19 2013/02/06 14:18:52 christos Exp $
+# $File: console,v 1.20 2015/03/15 23:21:42 christos Exp $
 # Console game magic
 # Toby Deshane <hac@shoelace.digivill.net>
 #    ines:  file(1) magic for Marat's iNES Nintendo Entertainment System
@@ -177,9 +177,19 @@
 # From: Serge van den Boom <svdb@stack.nl>
 0	string		\x01ZZZZZ\x01	3DO "Opera" file system
 
-# From Gurkan Sengun <gurkan@linuks.mine.nu>, www.linuks.mine.nu
+# From: Gurkan Sengun <gurkan@linuks.mine.nu>, www.linuks.mine.nu
+# From: David Pflug <david@pflug.email>
+# is the offset 12 or the offset 16 correct?
+# GBS (Game Boy Sound) magic
+# ftp://ftp.modland.com/pub/documents/format_documentation/\
+# Gameboy%20Sound%20System%20(.gbs).txt 
 0	string		GBS		Nintendo Gameboy Music/Audio Data
-12	string		GameBoy\ Music\ Module	Nintendo Gameboy Music Module
+#12	string		GameBoy\ Music\ Module	Nintendo Gameboy Music Module
+>16	string		>\0	("%s" by
+>48	string		>\0	%s, copyright
+>80	string		>\0	%s),
+>3	byte		x	version %d,
+>4	byte		x	%d tracks
 
 # Playstations Patch Files from: From: Thomas Klausner <tk@giga.or.at>
 0	string	PPF30			Playstation Patch File version 3.0

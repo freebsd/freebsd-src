@@ -416,10 +416,10 @@ ns8250_bus_attach(struct uart_softc *sc)
 	 * has broken txfifo. 
 	 */
 	node = ofw_bus_get_node(sc->sc_dev);
-	if ((OF_getprop(node, "busy-detect", &cell, sizeof(cell))) > 0)
-		ns8250->busy_detect = 1;
-	if ((OF_getprop(node, "broken-txfifo", &cell, sizeof(cell))) > 0)
-		broken_txfifo = 1;
+	if ((OF_getencprop(node, "busy-detect", &cell, sizeof(cell))) > 0)
+		ns8250->busy_detect = cell ? 1 : 0;
+	if ((OF_getencprop(node, "broken-txfifo", &cell, sizeof(cell))) > 0)
+		broken_txfifo =  cell ? 1 : 0;
 #endif
 
 	bas = &sc->sc_bas;

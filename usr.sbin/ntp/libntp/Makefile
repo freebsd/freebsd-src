@@ -21,7 +21,8 @@ NTP_SRCS= systime.c	a_md5encrypt.c	adjtime.c	atoint.c \
 	ntp_crypto_rnd.c		ntp_intres.c	ntp_libopts.c \
 	ntp_lineedit.c	ntp_random.c	ntp_rfc2553.c	ntp_worker.c \
 	numtoa.c	numtohost.c	octtoint.c	prettydate.c \
-	recvbuff.c	refnumtoa.c	snprintf.c	socket.c \
+	recvbuff.c	refidsmear.c	\
+	refnumtoa.c	snprintf.c	socket.c \
 	socktoa.c	socktohost.c	ssl_init.c	statestr.c \
 	strdup.c	strl_obsd.c	syssignal.c	timetoa.c \
 	timevalops.c	uglydate.c	vint64ops.c	work_fork.c \

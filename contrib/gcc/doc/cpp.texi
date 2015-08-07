@@ -2134,6 +2134,10 @@ use.
 This macro is defined, with value 2, when @option{-fstack-protector-all} is
 in use.
 
+@item __SSP_STRONG__
+This macro is defined, with value 3, when @option{-fstack-protector-strong} is
+in use.
+
 @item __TIMESTAMP__
 This macro expands to a string constant that describes the date and time
 of the last modification of the current source file. The string constant

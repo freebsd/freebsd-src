@@ -46,7 +46,9 @@
 #include <contrib/dev/acpica/include/acdispat.h>
 #include <contrib/dev/acpica/include/acnamesp.h>
 #include <contrib/dev/acpica/include/acdebug.h>
+#ifdef ACPI_DISASSEMBLER
 #include <contrib/dev/acpica/include/acdisasm.h>
+#endif
 #include <contrib/dev/acpica/include/acparser.h>
 #include <contrib/dev/acpica/include/acpredef.h>
 
@@ -79,6 +81,7 @@ AcpiDbSetMethodBreakpoint (
     ACPI_PARSE_OBJECT       *Op)
 {
     UINT32                  Address;
+    UINT32                  AmlOffset;
 
 
     if (!Op)
@@ -89,11 +92,13 @@ AcpiDbSetMethodBreakpoint (
 
     /* Get and verify the breakpoint address */
 
-    Address = ACPI_STRTOUL (Location, NULL, 16);
-    if (Address <= Op->Common.AmlOffset)
+    Address = strtoul (Location, NULL, 16);
+    AmlOffset = (UINT32) ACPI_PTR_DIFF (Op->Common.Aml,
+                    WalkState->ParserState.AmlStart);
+    if (Address <= AmlOffset)
     {
         AcpiOsPrintf ("Breakpoint %X is beyond current address %X\n",
-            Address, Op->Common.AmlOffset);
+            Address, AmlOffset);
     }
 
     /* Save breakpoint in current walk */
@@ -174,7 +179,7 @@ AcpiDbSetMethodData (
         return;
     }
 
-    Value = ACPI_STRTOUL (ValueArg, NULL, 16);
+    Value = strtoul (ValueArg, NULL, 16);
 
     if (Type == 'N')
     {
@@ -196,7 +201,7 @@ AcpiDbSetMethodData (
 
     /* Get the index and value */
 
-    Index = ACPI_STRTOUL (IndexArg, NULL, 16);
+    Index = strtoul (IndexArg, NULL, 16);
 
     WalkState = AcpiDsGetCurrentWalkState (AcpiGbl_CurrentWalkList);
     if (!WalkState)
@@ -238,7 +243,7 @@ AcpiDbSetMethodData (
         ObjDesc = WalkState->Arguments[Index].Object;
 
         AcpiOsPrintf ("Arg%u: ", Index);
-        AcpiDmDisplayInternalObject (ObjDesc, WalkState);
+        AcpiDbDisplayInternalObject (ObjDesc, WalkState);
         break;
 
     case 'L':
@@ -261,7 +266,7 @@ AcpiDbSetMethodData (
         ObjDesc = WalkState->LocalVariables[Index].Object;
 
         AcpiOsPrintf ("Local%u: ", Index);
-        AcpiDmDisplayInternalObject (ObjDesc, WalkState);
+        AcpiDbDisplayInternalObject (ObjDesc, WalkState);
         break;
 
     default:
@@ -304,7 +309,7 @@ AcpiDbDisassembleAml (
 
     if (Statements)
     {
-        NumStatements = ACPI_STRTOUL (Statements, NULL, 0);
+        NumStatements = strtoul (Statements, NULL, 0);
     }
 
 #ifdef ACPI_DISASSEMBLER
@@ -352,7 +357,7 @@ AcpiDbDisassembleMethod (
 
     ObjDesc = Method->Object;
 
-    Op = AcpiPsCreateScopeOp ();
+    Op = AcpiPsCreateScopeOp (ObjDesc->Method.AmlStart);
     if (!Op)
     {
         return (AE_NO_MEMORY);
@@ -392,15 +397,16 @@ AcpiDbDisassembleMethod (
     WalkState->ParseFlags |= ACPI_PARSE_DISASSEMBLE;
 
     Status = AcpiPsParseAml (WalkState);
+
+#ifdef ACPI_DISASSEMBER
     (void) AcpiDmParseDeferredOps (Op);
 
     /* Now we can disassemble the method */
 
     AcpiGbl_DbOpt_Verbose = FALSE;
-#ifdef ACPI_DISASSEMBLER
     AcpiDmDisassemble (NULL, Op, 0);
-#endif
     AcpiGbl_DbOpt_Verbose = TRUE;
+#endif
 
     AcpiPsDeleteParseTree (Op);
 

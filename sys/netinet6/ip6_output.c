@@ -2189,12 +2189,14 @@ ip6_getpcbopt(struct ip6_pktopts *pktopt, int optname, struct sockopt *sopt)
 
 	switch (optname) {
 	case IPV6_PKTINFO:
-		if (pktopt && pktopt->ip6po_pktinfo)
-			optdata = (void *)pktopt->ip6po_pktinfo;
-		else {
+		optdata = (void *)&null_pktinfo;
+		if (pktopt && pktopt->ip6po_pktinfo) {
+			bcopy(pktopt->ip6po_pktinfo, &null_pktinfo,
+			    sizeof(null_pktinfo));
+			in6_clearscope(&null_pktinfo.ipi6_addr);
+		} else {
 			/* XXX: we don't have to do this every time... */
 			bzero(&null_pktinfo, sizeof(null_pktinfo));
-			optdata = (void *)&null_pktinfo;
 		}
 		optdatalen = sizeof(struct in6_pktinfo);
 		break;
@@ -2566,6 +2568,7 @@ ip6_setpktopt(int optname, u_char *buf, int len, struct ip6_pktopts *opt,
 		    !IN6_IS_ADDR_UNSPECIFIED(&pktinfo->ipi6_addr)) {
 			struct in6_ifaddr *ia;
 
+			in6_setscope(&pktinfo->ipi6_addr, ifp, NULL);
 			ia = in6ifa_ifpwithaddr(ifp, &pktinfo->ipi6_addr);
 			if (ia == NULL)
 				return (EADDRNOTAVAIL);

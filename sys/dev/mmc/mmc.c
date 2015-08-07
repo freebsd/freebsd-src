@@ -1381,17 +1381,18 @@ mmc_discover_cards(struct mmc_softc *sc)
 			}
 
 			/*
-			 * We reselect the card here. Some cards become
-			 * unselected and timeout with the above two commands,
-			 * although the state tables / diagrams in the standard
-			 * suggest they go back to the transfer state. The only
-			 * thing we use from the sd_status is the erase sector
-			 * size, but it is still nice to get that right. It is
-			 * normally harmless for cards not misbehaving. The
-			 * Atmel bridge will complain about this command timing
-			 * out. Others seem to handle it correctly, so it may
-			 * be a combination of card and controller.
+			 * We deselect then reselect the card here.  Some cards
+			 * become unselected and timeout with the above two
+			 * commands, although the state tables / diagrams in the
+			 * standard suggest they go back to the transfer state.
+			 * Other cards don't become deselected, and if we
+			 * atttempt to blindly re-select them, we get timeout
+			 * errors from some controllers.  So we deselect then
+			 * reselect to handle all situations.  The only thing we
+			 * use from the sd_status is the erase sector size, but
+			 * it is still nice to get that right.
 			 */
+			mmc_select_card(sc, 0);
 			mmc_select_card(sc, ivar->rca);
 			mmc_app_sd_status(sc, ivar->rca, ivar->raw_sd_status);
 			mmc_app_decode_sd_status(ivar->raw_sd_status,

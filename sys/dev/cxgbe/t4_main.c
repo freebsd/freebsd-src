@@ -636,10 +636,10 @@ t4_attach(device_t dev)
 #ifdef DEV_NETMAP
 	int nm_rqidx, nm_tqidx;
 #endif
-	const char *pcie_ts;
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
+	TUNABLE_INT_FETCH("hw.cxgbe.debug_flags", &sc->debug_flags);
 
 	pci_enable_busmaster(dev);
 	if (pci_find_cap(dev, PCIY_EXPRESS, &i) == 0) {
@@ -959,25 +959,10 @@ t4_attach(device_t dev)
 		goto done;
 	}
 
-	switch (sc->params.pci.speed) {
-		case 0x1:
-			pcie_ts = "2.5";
-			break;
-		case 0x2:
-			pcie_ts = "5.0";
-			break;
-		case 0x3:
-			pcie_ts = "8.0";
-			break;
-		default:
-			pcie_ts = "??";
-			break;
-	}
 	device_printf(dev,
-	    "PCIe x%d (%s GTS/s) (%d), %d ports, %d %s interrupt%s, %d eq, %d iq\n",
-	    sc->params.pci.width, pcie_ts, sc->params.pci.speed,
-	    sc->params.nports, sc->intr_count,
-	    sc->intr_type == INTR_MSIX ? "MSI-X" :
+	    "PCIe gen%d x%d, %d ports, %d %s interrupt%s, %d eq, %d iq\n",
+	    sc->params.pci.speed, sc->params.pci.width, sc->params.nports,
+	    sc->intr_count, sc->intr_type == INTR_MSIX ? "MSI-X" :
 	    (sc->intr_type == INTR_MSI ? "MSI" : "INTx"),
 	    sc->intr_count > 1 ? "s" : "", sc->sge.neq, sc->sge.niq);
 
@@ -4492,6 +4477,9 @@ t4_sysctls(struct adapter *sc)
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "lro_timeout", CTLFLAG_RW,
 	    &sc->lro_timeout, 0, "lro inactive-flush timeout (in us)");
 
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "debug_flags", CTLFLAG_RW,
+	    &sc->debug_flags, 0, "flags to enable runtime debugging");
+
 #ifdef SBUF_DRAIN
 	/*
 	 * dev.t4nex.X.misc.  Marked CTLFLAG_SKIP to avoid information overload.
@@ -6225,9 +6213,9 @@ sysctl_mps_tcam(SYSCTL_HANDLER_ARGS)
 				F_FW_CMD_REQUEST | F_FW_CMD_READ |
 				V_FW_LDST_CMD_ADDRSPACE(FW_LDST_ADDRSPC_MPS));
 			ldst_cmd.cycles_to_len16 = htobe32(FW_LEN16(ldst_cmd));
-			ldst_cmd.u.mps.fid_ctl =
+			ldst_cmd.u.mps.rplc.fid_idx =
 			    htobe16(V_FW_LDST_CMD_FID(FW_LDST_MPS_RPLC) |
-				V_FW_LDST_CMD_CTL(i));
+				V_FW_LDST_CMD_IDX(i));
 
 			rc = begin_synchronized_op(sc, NULL, SLEEP_OK | INTR_OK,
 			    "t4mps");
@@ -6243,10 +6231,10 @@ sysctl_mps_tcam(SYSCTL_HANDLER_ARGS)
 				rc = 0;
 			} else {
 				sbuf_printf(sb, " %08x %08x %08x %08x",
-				    be32toh(ldst_cmd.u.mps.rplc127_96),
-				    be32toh(ldst_cmd.u.mps.rplc95_64),
-				    be32toh(ldst_cmd.u.mps.rplc63_32),
-				    be32toh(ldst_cmd.u.mps.rplc31_0));
+				    be32toh(ldst_cmd.u.mps.rplc.rplc127_96),
+				    be32toh(ldst_cmd.u.mps.rplc.rplc95_64),
+				    be32toh(ldst_cmd.u.mps.rplc.rplc63_32),
+				    be32toh(ldst_cmd.u.mps.rplc.rplc31_0));
 			}
 		} else
 			sbuf_printf(sb, "%36s", "");
@@ -8418,10 +8406,17 @@ static devclass_t cxgbe_devclass, cxl_devclass;
 DRIVER_MODULE(t4nex, pci, t4_driver, t4_devclass, mod_event, 0);
 MODULE_VERSION(t4nex, 1);
 MODULE_DEPEND(t4nex, firmware, 1, 1, 1);
+#ifdef DEV_NETMAP
+MODULE_DEPEND(t4nex, netmap, 1, 1, 1);
+#endif /* DEV_NETMAP */
+
 
 DRIVER_MODULE(t5nex, pci, t5_driver, t5_devclass, mod_event, 0);
 MODULE_VERSION(t5nex, 1);
 MODULE_DEPEND(t5nex, firmware, 1, 1, 1);
+#ifdef DEV_NETMAP
+MODULE_DEPEND(t5nex, netmap, 1, 1, 1);
+#endif /* DEV_NETMAP */
 
 DRIVER_MODULE(cxgbe, t4nex, cxgbe_driver, cxgbe_devclass, 0, 0);
 MODULE_VERSION(cxgbe, 1);

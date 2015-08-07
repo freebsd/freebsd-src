@@ -502,25 +502,23 @@ write_tx_wr(void *dst, struct toepcb *toep, unsigned int immdlen,
 
 	/* for iscsi, the mode & submode setting is per-packet */
 	if (toep->ulp_mode == ULP_MODE_ISCSI)
-		wr_ulp_mode = V_FW_OFLD_TX_DATA_WR_ULPMODE(ulp_mode >> 4) |
-			V_FW_OFLD_TX_DATA_WR_ULPSUBMODE(ulp_mode & 3);
+		wr_ulp_mode = V_TX_ULP_MODE(ulp_mode >> 4) |
+		    V_TX_ULP_SUBMODE(ulp_mode & 3);
 	else
-		wr_ulp_mode = V_FW_OFLD_TX_DATA_WR_ULPMODE(toep->ulp_mode);
+		wr_ulp_mode = V_TX_ULP_MODE(toep->ulp_mode);
 
-	txwr->lsodisable_to_proxy =
-	    htobe32(wr_ulp_mode |
-		V_FW_OFLD_TX_DATA_WR_URGENT(0) |	/* XXX */
-		V_FW_OFLD_TX_DATA_WR_SHOVE(shove));
+	txwr->lsodisable_to_flags = htobe32(wr_ulp_mode | V_TX_URG(0) | /*XXX*/
+	    V_TX_SHOVE(shove));
 	txwr->plen = htobe32(plen);
 
 	if (txalign > 0) {
 		struct tcpcb *tp = intotcpcb(toep->inp);
 
 		if (plen < 2 * tp->t_maxseg || is_10G_port(toep->port))
-			txwr->lsodisable_to_proxy |=
+			txwr->lsodisable_to_flags |=
 			    htobe32(F_FW_OFLD_TX_DATA_WR_LSODISABLE);
 		else
-			txwr->lsodisable_to_proxy |=
+			txwr->lsodisable_to_flags |=
 			    htobe32(F_FW_OFLD_TX_DATA_WR_ALIGNPLD |
 				(tp->t_flags & TF_NODELAY ? 0 :
 				F_FW_OFLD_TX_DATA_WR_ALIGNPLDSHOVE));
@@ -1088,7 +1086,7 @@ do_peer_close(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 
 	KASSERT(toep->tid == tid, ("%s: toep tid mismatch", __func__));
 
-	INP_INFO_WLOCK(&V_tcbinfo);
+	INP_INFO_RLOCK(&V_tcbinfo);
 	INP_WLOCK(inp);
 	tp = intotcpcb(inp);
 
@@ -1130,7 +1128,7 @@ do_peer_close(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	case TCPS_FIN_WAIT_2:
 		tcp_twstart(tp);
 		INP_UNLOCK_ASSERT(inp);	 /* safe, we have a ref on the inp */
-		INP_INFO_WUNLOCK(&V_tcbinfo);
+		INP_INFO_RUNLOCK(&V_tcbinfo);
 
 		INP_WLOCK(inp);
 		final_cpl_received(toep);
@@ -1142,7 +1140,7 @@ do_peer_close(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	}
 done:
 	INP_WUNLOCK(inp);
-	INP_INFO_WUNLOCK(&V_tcbinfo);
+	INP_INFO_RUNLOCK(&V_tcbinfo);
 	return (0);
 }
 
@@ -1169,7 +1167,7 @@ do_close_con_rpl(struct sge_iq *iq, const struct rss_header *rss,
 	KASSERT(m == NULL, ("%s: wasn't expecting payload", __func__));
 	KASSERT(toep->tid == tid, ("%s: toep tid mismatch", __func__));
 
-	INP_INFO_WLOCK(&V_tcbinfo);
+	INP_INFO_RLOCK(&V_tcbinfo);
 	INP_WLOCK(inp);
 	tp = intotcpcb(inp);
 
@@ -1187,7 +1185,7 @@ do_close_con_rpl(struct sge_iq *iq, const struct rss_header *rss,
 		tcp_twstart(tp);
 release:
 		INP_UNLOCK_ASSERT(inp);	/* safe, we have a ref on the  inp */
-		INP_INFO_WUNLOCK(&V_tcbinfo);
+		INP_INFO_RUNLOCK(&V_tcbinfo);
 
 		INP_WLOCK(inp);
 		final_cpl_received(toep);	/* no more CPLs expected */
@@ -1211,7 +1209,7 @@ release:
 	}
 done:
 	INP_WUNLOCK(inp);
-	INP_INFO_WUNLOCK(&V_tcbinfo);
+	INP_INFO_RUNLOCK(&V_tcbinfo);
 	return (0);
 }
 
@@ -1370,7 +1368,7 @@ do_abort_req(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	}
 
 	inp = toep->inp;
-	INP_INFO_WLOCK(&V_tcbinfo);	/* for tcp_close */
+	INP_INFO_RLOCK(&V_tcbinfo);	/* for tcp_close */
 	INP_WLOCK(inp);
 
 	tp = intotcpcb(inp);
@@ -1404,7 +1402,7 @@ do_abort_req(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 
 	final_cpl_received(toep);
 done:
-	INP_INFO_WUNLOCK(&V_tcbinfo);
+	INP_INFO_RUNLOCK(&V_tcbinfo);
 	send_abort_rpl(sc, ofld_txq, tid, CPL_ABORT_NO_RST);
 	return (0);
 }
@@ -1518,12 +1516,12 @@ do_rx_data(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 		SOCKBUF_UNLOCK(sb);
 		INP_WUNLOCK(inp);
 
-		INP_INFO_WLOCK(&V_tcbinfo);
+		INP_INFO_RLOCK(&V_tcbinfo);
 		INP_WLOCK(inp);
 		tp = tcp_drop(tp, ECONNRESET);
 		if (tp)
 			INP_WUNLOCK(inp);
-		INP_INFO_WUNLOCK(&V_tcbinfo);
+		INP_INFO_RUNLOCK(&V_tcbinfo);
 
 		return (0);
 	}

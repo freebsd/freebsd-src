@@ -144,7 +144,6 @@ volatile int smp_tlb_wait;
 static void	install_ap_tramp(void);
 static int	start_all_aps(void);
 static int	start_ap(int apic_id);
-static void	release_aps(void *dummy);
 
 static u_int	boot_address;
 
@@ -247,6 +246,8 @@ init_secondary(void)
 	pc->pc_apic_id = cpu_apic_ids[myid];
 	pc->pc_prvspace = pc;
 	pc->pc_curthread = 0;
+
+	intel_fix_cpuid();
 
 	gdt_segs[GPRIV_SEL].ssd_base = (int) pc;
 	gdt_segs[GPROC0_SEL].ssd_base = (int) &pc->pc_common_tss;

@@ -173,5 +173,113 @@ PHONY_NOTMAIN = afterdepend afterinstall all beforedepend beforeinstall \
 		realinstall regress subdir-all subdir-depend subdir-install \
 		tags whereobj
 
-.PHONY: ${PHONY_NOTMAIN}
-.NOTMAIN: ${PHONY_NOTMAIN}
+# we don't want ${PROG} to be PHONY
+.PHONY: ${PHONY_NOTMAIN:N${PROG:U}}
+.NOTMAIN: ${PHONY_NOTMAIN:Nall}
+
+.if ${MK_STAGING} != "no"
+.if defined(_SKIP_BUILD) || (!make(all) && !make(clean*))
+_SKIP_STAGING?= yes
+.endif
+.if ${_SKIP_STAGING:Uno} == "yes"
+staging stage_libs stage_files stage_as stage_links stage_symlinks:
+.else
+# allow targets like beforeinstall to be leveraged
+DESTDIR= ${STAGE_OBJTOP}
+_SHLIBDIRPREFIX= ${STAGE_OBJTOP}
+
+.if commands(beforeinstall)
+.if !empty(_LIBS) || ${MK_STAGING_PROG} != "no"
+staging: beforeinstall
+.endif
+.endif
+
+# normally only libs and includes are staged
+.if ${MK_STAGING_PROG} != "no"
+STAGE_DIR.prog= ${STAGE_OBJTOP}${BINDIR}
+
+.if !empty(PROG) || !empty(PROGS)
+.if defined(PROGNAME)
+STAGE_AS_SETS+= prog
+STAGE_AS_${PROG}= ${PROGNAME}
+stage_as.prog: ${PROG}
+.else
+STAGE_SETS+= prog
+stage_files.prog: ${PROG}
+staging: stage_files
+.endif
+.endif
+.endif
+
+.if !empty(_LIBS) && !defined(INTERNALLIB)
+.if defined(SHLIBDIR) && ${SHLIBDIR} != ${LIBDIR} && ${_LIBS:Uno:M*.so.*} != ""
+STAGE_SETS+= shlib
+STAGE_DIR.shlib= ${STAGE_OBJTOP}${SHLIBDIR}
+STAGE_FILES.shlib+= ${_LIBS:M*.so.*}
+stage_files.shlib: ${_LIBS:M*.so.*}
+.endif
+
+.if defined(SHLIB_LINK) && commands(${SHLIB_LINK:R}.ld)
+_LDSCRIPTROOT?= ${STAGE_OBJTOP}
+STAGE_AS_SETS+= ldscript
+STAGE_AS.ldscript+= ${SHLIB_LINK:R}.ld
+stage_as.ldscript: ${SHLIB_LINK:R}.ld
+STAGE_DIR.ldscript = ${STAGE_LIBDIR}
+STAGE_AS_${SHLIB_LINK:R}.ld:= ${SHLIB_LINK}
+NO_SHLIB_LINKS=
+.endif
+
+.if target(stage_files.shlib)
+stage_libs: ${_LIBS}
+.if defined(DEBUG_FLAGS) && target(${SHLIB_NAME}.symbols)
+stage_files.shlib: ${SHLIB_NAME}.symbols
+.endif
+.else
+stage_libs: ${_LIBS}
+.endif
+.if defined(SHLIB_NAME) && defined(DEBUG_FLAGS) && target(${SHLIB_NAME}.symbols)
+stage_libs: ${SHLIB_NAME}.symbols
+.endif
+
+.endif
+
+.if !empty(INCS) || !empty(INCSGROUPS) && target(buildincludes)
+.if !defined(NO_BEFOREBUILD_INCLUDES)
+stage_includes: buildincludes
+beforebuild: stage_includes
+.endif
+.endif
+
+.for t in stage_libs stage_files stage_as
+.if target($t)
+staging: $t
+.endif
+.endfor
+
+.if !empty(STAGE_AS_SETS)
+staging: stage_as
+.endif
+
+.if !empty(_LIBS) || ${MK_STAGING_PROG} != "no"
+
+.if !empty(LINKS)
+staging: stage_links
+.if ${MAKE_VERSION} < 20131001
+stage_links.links: ${_LIBS} ${PROG}
+.endif
+STAGE_SETS+= links
+STAGE_LINKS.links= ${LINKS}
+.endif
+
+.if !empty(SYMLINKS)
+staging: stage_symlinks
+STAGE_SETS+= links
+STAGE_SYMLINKS.links= ${SYMLINKS}
+.endif
+
+.endif
+
+.include <meta.stage.mk>
+.endif
+.endif
+

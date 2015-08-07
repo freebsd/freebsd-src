@@ -63,15 +63,14 @@ AcpiNsExecModuleCode (
  *
  * FUNCTION:    AcpiNsEvaluate
  *
- * PARAMETERS:  Info            - Evaluation info block, contains:
+ * PARAMETERS:  Info            - Evaluation info block, contains these fields
+ *                                and more:
  *                  PrefixNode      - Prefix or Method/Object Node to execute
  *                  RelativePath    - Name of method to execute, If NULL, the
  *                                    Node is the object to execute
  *                  Parameters      - List of parameters to pass to the method,
  *                                    terminated by NULL. Params itself may be
  *                                    NULL if no parameters are being passed.
- *                  ReturnObject    - Where to put method's return value (if
- *                                    any). If NULL, no value is returned.
  *                  ParameterType   - Type of Parameter list
  *                  ReturnObject    - Where to put method's return value (if
  *                                    any). If NULL, no value is returned.
@@ -463,7 +462,7 @@ AcpiNsExecModuleCode (
 
     /* Initialize the evaluation information block */
 
-    ACPI_MEMSET (Info, 0, sizeof (ACPI_EVALUATE_INFO));
+    memset (Info, 0, sizeof (ACPI_EVALUATE_INFO));
     Info->PrefixNode = ParentNode;
 
     /*

@@ -787,6 +787,7 @@ linux_accept_common(struct thread *td, int s, l_uintptr_t addr,
 	/* XXX: */
 	bsd_args.name = (struct sockaddr * __restrict)PTRIN(addr);
 	bsd_args.anamelen = PTRIN(namelen);/* XXX */
+	bsd_args.flags = 0;
 	error = linux_set_socket_flags(flags, &bsd_args.flags);
 	if (error != 0)
 		return (error);

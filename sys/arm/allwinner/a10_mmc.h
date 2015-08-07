@@ -66,7 +66,6 @@
 #define	A10_MMC_DMA_ENABLE		(1U << 5)
 #define	A10_MMC_DEBOUNCE_ENABLE		(1U << 8)
 #define	A10_MMC_DDR_MODE		(1U << 10)
-#define	A10_MMC_ACCESS_BY_DMA		(1U << 30)
 #define	A10_MMC_ACCESS_BY_AHB		(1U << 31)
 #define	A10_MMC_RESET					\
 	(A10_MMC_SOFT_RESET | A10_MMC_FIFO_RESET | A10_MMC_DMA_RESET)
@@ -175,5 +174,25 @@
 #define	A10_MMC_IDMAC_RD		(6U << 13)
 #define	A10_MMC_IDMAC_WR		(7U << 13)
 #define	A10_MMC_IDMAC_DESC_CLOSE	(8U << 13)
+#define	A10_MMC_IDMAC_ERROR				\
+	(A10_MMC_IDMAC_FATAL_BUS_ERR | A10_MMC_IDMAC_CARD_ERR_SUM |	\
+	 A10_MMC_IDMAC_DES_INVALID | A10_MMC_IDMAC_ABNORMAL_INT_SUM)
+#define	A10_MMC_IDMAC_COMPLETE				\
+	(A10_MMC_IDMAC_TRANSMIT_INT | A10_MMC_IDMAC_RECEIVE_INT)
+
+/* The DMA descriptor table. */
+struct a10_mmc_dma_desc {
+	uint32_t config;
+#define	A10_MMC_DMA_CONFIG_DIC		(1U << 1)
+#define	A10_MMC_DMA_CONFIG_LD		(1U << 2)
+#define	A10_MMC_DMA_CONFIG_FD		(1U << 3)
+#define	A10_MMC_DMA_CONFIG_CH		(1U << 4)
+#define	A10_MMC_DMA_CONFIG_ER		(1U << 5)
+#define	A10_MMC_DMA_CONFIG_CES		(1U << 30)
+#define	A10_MMC_DMA_CONFIG_OWN		(1U << 31)
+	uint32_t buf_size;
+	uint32_t buf_addr;
+	uint32_t next;
+};
 
 #endif /* _A10_MMC_H_ */

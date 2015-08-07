@@ -873,10 +873,20 @@ linprocfs_doprocstatus(PFS_FILL_ARGS)
 static int
 linprocfs_doproccwd(PFS_FILL_ARGS)
 {
+	struct filedesc *fdp;
+	struct vnode *vp;
 	char *fullpath = "unknown";
 	char *freepath = NULL;
 
-	vn_fullpath(td, p->p_fd->fd_cdir, &fullpath, &freepath);
+	fdp = p->p_fd;
+	FILEDESC_SLOCK(fdp);
+	vp = fdp->fd_cdir;
+	if (vp != NULL)
+		VREF(vp);
+	FILEDESC_SUNLOCK(fdp);
+	vn_fullpath(td, vp, &fullpath, &freepath);
+	if (vp != NULL)
+		vrele(vp);
 	sbuf_printf(sb, "%s", fullpath);
 	if (freepath)
 		free(freepath, M_TEMP);
@@ -889,12 +899,20 @@ linprocfs_doproccwd(PFS_FILL_ARGS)
 static int
 linprocfs_doprocroot(PFS_FILL_ARGS)
 {
-	struct vnode *rvp;
+	struct filedesc *fdp;
+	struct vnode *vp;
 	char *fullpath = "unknown";
 	char *freepath = NULL;
 
-	rvp = jailed(p->p_ucred) ? p->p_fd->fd_jdir : p->p_fd->fd_rdir;
-	vn_fullpath(td, rvp, &fullpath, &freepath);
+	fdp = p->p_fd;
+	FILEDESC_SLOCK(fdp);
+	vp = jailed(p->p_ucred) ? fdp->fd_jdir : fdp->fd_rdir;
+	if (vp != NULL)
+		VREF(vp);
+	FILEDESC_SUNLOCK(fdp);
+	vn_fullpath(td, vp, &fullpath, &freepath);
+	if (vp != NULL)
+		vrele(vp);
 	sbuf_printf(sb, "%s", fullpath);
 	if (freepath)
 		free(freepath, M_TEMP);
@@ -1025,20 +1043,16 @@ linprocfs_doprocmaps(PFS_FILL_ARGS)
 		ino = 0;
 		if (lobj) {
 			off = IDX_TO_OFF(lobj->size);
-			if (lobj->type == OBJT_VNODE) {
-				vp = lobj->handle;
-				if (vp)
-					vref(vp);
-			}
-			else
-				vp = NULL;
+			vp = vm_object_vnode(lobj);
+			if (vp != NULL)
+				vref(vp);
 			if (lobj != obj)
 				VM_OBJECT_RUNLOCK(lobj);
 			flags = obj->flags;
 			ref_count = obj->ref_count;
 			shadow_count = obj->shadow_count;
 			VM_OBJECT_RUNLOCK(obj);
-			if (vp) {
+			if (vp != NULL) {
 				vn_fullpath(td, vp, &name, &freename);
 				vn_lock(vp, LK_SHARED | LK_RETRY);
 				VOP_GETATTR(vp, &vat, td->td_ucred);
@@ -1534,7 +1548,7 @@ linprocfs_uninit(PFS_INIT_ARGS)
 	return (0);
 }
 
-PSEUDOFS(linprocfs, 1, 0);
+PSEUDOFS(linprocfs, 1, PR_ALLOW_MOUNT_LINPROCFS);
 #if defined(__amd64__)
 MODULE_DEPEND(linprocfs, linux_common, 1, 1, 1);
 #else

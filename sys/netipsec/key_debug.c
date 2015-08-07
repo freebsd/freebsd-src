@@ -577,11 +577,6 @@ kdebug_secasv(struct secasvar *sav)
 		kdebug_sadb_key((struct sadb_ext *)sav->key_auth);
 	if (sav->key_enc != NULL)
 		kdebug_sadb_key((struct sadb_ext *)sav->key_enc);
-	if (sav->iv != NULL) {
-		printf("  iv=");
-		ipsec_hexdump(sav->iv, sav->ivlen ? sav->ivlen : 8);
-		printf("\n");
-	}
 
 	if (sav->replay != NULL)
 		kdebug_secreplay(sav->replay);

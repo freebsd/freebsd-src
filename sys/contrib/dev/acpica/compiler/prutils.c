@@ -382,6 +382,8 @@ PrPushInputFileStack (
     PR_FILE_NODE            *Fnode;
 
 
+    Gbl_HasIncludeFiles = TRUE;
+
     /* Save the current state in an Fnode */
 
     Fnode = UtLocalCalloc (sizeof (PR_FILE_NODE));
@@ -406,11 +408,11 @@ PrPushInputFileStack (
     strcpy (Gbl_Files[ASL_FILE_INPUT].Filename, Filename);
 
     Gbl_Files[ASL_FILE_INPUT].Handle = InputFile;
-    Gbl_PreviousLineNumber = 0;
-    Gbl_CurrentLineNumber = 0;
+    Gbl_CurrentLineNumber = 1;
 
     /* Emit a new #line directive for the include file */
 
+    Gbl_CurrentLineNumber = 1;
     FlPrintFile (ASL_FILE_PREPROCESSOR, "#line %u \"%s\"\n", 1, Filename);
 }
 
@@ -460,12 +462,11 @@ PrPopInputFileStack (
     Gbl_Files[ASL_FILE_INPUT].Filename = Fnode->Filename;
     Gbl_Files[ASL_FILE_INPUT].Handle = Fnode->File;
     Gbl_CurrentLineNumber = Fnode->CurrentLineNumber;
-    Gbl_PreviousLineNumber = 0;
 
     /* Emit a new #line directive after the include file */
 
     FlPrintFile (ASL_FILE_PREPROCESSOR, "#line %u \"%s\"\n",
-        Gbl_CurrentLineNumber + 1, Fnode->Filename);
+        Gbl_CurrentLineNumber, Fnode->Filename);
 
     /* All done with this node */
 

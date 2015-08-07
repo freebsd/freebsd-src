@@ -150,14 +150,14 @@ main(int argc, char *argv[])
 		set(tm->tm_min/10, 14);
 
 		if (t12) {
-			if (tm->tm_hour > 12) {
-				tm->tm_hour -= 12;
-				mvaddstr(YBASE + 5, XBASE + 52, "PM");
-			} else {
+			if (tm->tm_hour < 12) {
 				if (tm->tm_hour == 0)
 					tm->tm_hour = 12;
-
 				mvaddstr(YBASE + 5, XBASE + 52, "AM");
+			} else {
+				if (tm->tm_hour > 12)
+					tm->tm_hour -= 12;
+				mvaddstr(YBASE + 5, XBASE + 52, "PM");
 			}
 		}
 

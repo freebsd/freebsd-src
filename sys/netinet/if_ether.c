@@ -42,12 +42,14 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/queue.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
 #include <sys/malloc.h>
 #include <sys/proc.h>
+#include <sys/rmlock.h>
 #include <sys/socket.h>
 #include <sys/syslog.h>
 
@@ -363,6 +365,7 @@ retry:
 	if ((la->la_flags & LLE_VALID) &&
 	    ((la->la_flags & LLE_STATIC) || la->la_expire > time_uptime)) {
 		bcopy(&la->ll_addr, desten, if_addrlen(ifp));
+		renew = 0;
 		/*
 		 * If entry has an expiry time and it is approaching,
 		 * see if we need to send an ARP request within this
@@ -370,14 +373,22 @@ retry:
 		 */
 		if (!(la->la_flags & LLE_STATIC) &&
 		    time_uptime + la->la_preempt > la->la_expire) {
-			arprequest(ifp, NULL, &SIN(dst)->sin_addr, NULL);
+			renew = 1;
 			la->la_preempt--;
 		}
 
 		if (pflags != NULL)
 			*pflags = la->la_flags;
-		error = 0;
-		goto done;
+
+		if (flags & LLE_EXCLUSIVE)
+			LLE_WUNLOCK(la);
+		else
+			LLE_RUNLOCK(la);
+
+		if (renew == 1)
+			arprequest(ifp, NULL, &SIN(dst)->sin_addr, NULL);
+
+		return (0);
 	}
 
 	if (la->la_flags & LLE_STATIC) {   /* should not happen! */
@@ -553,6 +564,7 @@ SYSCTL_INT(_net_link_ether_inet, OID_AUTO, max_log_per_second,
 static void
 in_arpinput(struct mbuf *m)
 {
+	struct rm_priotracker in_ifa_tracker;
 	struct arphdr *ah;
 	struct ifnet *ifp = m->m_pkthdr.rcvif;
 	struct llentry *la = NULL;
@@ -611,7 +623,7 @@ in_arpinput(struct mbuf *m)
 	 * of the receive interface. (This will change slightly
 	 * when we have clusters of interfaces).
 	 */
-	IN_IFADDR_RLOCK();
+	IN_IFADDR_RLOCK(&in_ifa_tracker);
 	LIST_FOREACH(ia, INADDR_HASH(itaddr.s_addr), ia_hash) {
 		if (((bridged && ia->ia_ifp->if_bridge == ifp->if_bridge) ||
 		    ia->ia_ifp == ifp) &&
@@ -619,7 +631,7 @@ in_arpinput(struct mbuf *m)
 		    (ia->ia_ifa.ifa_carp == NULL ||
 		    (*carp_iamatch_p)(&ia->ia_ifa, &enaddr))) {
 			ifa_ref(&ia->ia_ifa);
-			IN_IFADDR_RUNLOCK();
+			IN_IFADDR_RUNLOCK(&in_ifa_tracker);
 			goto match;
 		}
 	}
@@ -628,7 +640,7 @@ in_arpinput(struct mbuf *m)
 		    ia->ia_ifp == ifp) &&
 		    isaddr.s_addr == ia->ia_addr.sin_addr.s_addr) {
 			ifa_ref(&ia->ia_ifa);
-			IN_IFADDR_RUNLOCK();
+			IN_IFADDR_RUNLOCK(&in_ifa_tracker);
 			goto match;
 		}
 
@@ -647,13 +659,13 @@ in_arpinput(struct mbuf *m)
 			if (BDG_MEMBER_MATCHES_ARP(itaddr.s_addr, ifp, ia)) {
 				ifa_ref(&ia->ia_ifa);
 				ifp = ia->ia_ifp;
-				IN_IFADDR_RUNLOCK();
+				IN_IFADDR_RUNLOCK(&in_ifa_tracker);
 				goto match;
 			}
 		}
 	}
 #undef BDG_MEMBER_MATCHES_ARP
-	IN_IFADDR_RUNLOCK();
+	IN_IFADDR_RUNLOCK(&in_ifa_tracker);
 
 	/*
 	 * No match, use the first inet address on the receive interface
@@ -674,13 +686,13 @@ in_arpinput(struct mbuf *m)
 	/*
 	 * If bridging, fall back to using any inet address.
 	 */
-	IN_IFADDR_RLOCK();
+	IN_IFADDR_RLOCK(&in_ifa_tracker);
 	if (!bridged || (ia = TAILQ_FIRST(&V_in_ifaddrhead)) == NULL) {
-		IN_IFADDR_RUNLOCK();
+		IN_IFADDR_RUNLOCK(&in_ifa_tracker);
 		goto drop;
 	}
 	ifa_ref(&ia->ia_ifa);
-	IN_IFADDR_RUNLOCK();
+	IN_IFADDR_RUNLOCK(&in_ifa_tracker);
 match:
 	if (!enaddr)
 		enaddr = (u_int8_t *)if_lladdr(ifp);

@@ -254,10 +254,6 @@ ieee80211_vap_pkt_send_dest(struct ieee80211vap *vap, struct mbuf *m,
 		/* NB: IFQ_HANDOFF reclaims mbuf */
 		ieee80211_free_node(ni);
 		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
-	} else {
-		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
-		if_inc_counter(ifp, IFCOUNTER_OMCASTS, mcast);
-		if_inc_counter(ifp, IFCOUNTER_OBYTES, len);
 	}
 	ic->ic_lastdata = ticks;
 
@@ -430,17 +426,6 @@ ieee80211_vap_transmit(struct ifnet *ifp, struct mbuf *m)
 {
 	struct ieee80211vap *vap = ifp->if_softc;
 	struct ieee80211com *ic = vap->iv_ic;
-	struct ifnet *parent = ic->ic_ifp;
-
-	/* NB: parent must be up and running */
-	if (!IFNET_IS_UP_RUNNING(parent)) {
-		IEEE80211_DPRINTF(vap, IEEE80211_MSG_OUTPUT,
-		    "%s: ignore queue, parent %s not up+running\n",
-		    __func__, parent->if_xname);
-		m_freem(m);
-		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
-		return (ENETDOWN);
-	}
 
 	/*
 	 * No data frames go out unless we're running.
@@ -507,8 +492,32 @@ ieee80211_raw_output(struct ieee80211vap *vap, struct ieee80211_node *ni,
     struct mbuf *m, const struct ieee80211_bpf_params *params)
 {
 	struct ieee80211com *ic = vap->iv_ic;
+	int error;
 
-	return (ic->ic_raw_xmit(ni, m, params));
+	/*
+	 * Set node - the caller has taken a reference, so ensure
+	 * that the mbuf has the same node value that
+	 * it would if it were going via the normal path.
+	 */
+	m->m_pkthdr.rcvif = (void *)ni;
+
+	/*
+	 * Attempt to add bpf transmit parameters.
+	 *
+	 * For now it's ok to fail; the raw_xmit api still takes
+	 * them as an option.
+	 *
+	 * Later on when ic_raw_xmit() has params removed,
+	 * they'll have to be added - so fail the transmit if
+	 * they can't be.
+	 */
+	if (params)
+		(void) ieee80211_add_xmit_params(m, params);
+
+	error = ic->ic_raw_xmit(ni, m, params);
+	if (error)
+		if_inc_counter(vap->iv_ifp, IFCOUNTER_OERRORS, 1);
+	return (error);
 }
 
 /*
@@ -3437,6 +3446,15 @@ ieee80211_tx_complete(struct ieee80211_node *ni, struct mbuf *m, int status)
 {
 
 	if (ni != NULL) {
+		struct ifnet *ifp = ni->ni_vap->iv_ifp;
+
+		if (status == 0) {
+			if_inc_counter(ifp, IFCOUNTER_OBYTES, m->m_pkthdr.len);
+			if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
+			if (m->m_flags & M_MCAST)
+				if_inc_counter(ifp, IFCOUNTER_OMCASTS, 1);
+		} else
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		if (m->m_flags & M_TXCB)
 			ieee80211_process_callback(ni, m, status);
 		ieee80211_free_node(ni);

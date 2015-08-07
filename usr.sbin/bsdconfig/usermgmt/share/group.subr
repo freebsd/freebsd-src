@@ -82,9 +82,9 @@ f_group_add()
 	#
 	# NB: pw(8) has a ``feature'' wherein `-n name' can be taken as GID
 	# instead of name. Work-around is to also pass `-g GID' at the same
-	# time (any GID will do; but `-1' is appropriate for this context).
+	# time (the GID is ignored in this case, so any GID will do).
 	#
-	if [ "$input" ] && f_quietly pw groupshow -n "$input" -g -1; then
+	if [ "$input" ] && f_quietly pw groupshow -n "$input" -g 1337; then
 		f_show_err "$msg_group_already_used" "$input"
 		return $FAILURE
 	fi
@@ -182,7 +182,7 @@ f_group_add()
 			1) # Group Name (prompt for new group name)
 			   f_dialog_input_group_name input "$group_name" ||
 			   	continue
-			   if f_quietly pw groupshow -n "$input" -g -1; then
+			   if f_quietly pw groupshow -n "$input" -g 1337; then
 			   	f_show_err "$msg_group_already_used" "$input"
 			   	continue
 			   fi
@@ -368,9 +368,9 @@ f_group_edit()
 	#
 	# NB: pw(8) has a ``feature'' wherein `-n name' can be taken as GID
 	# instead of name. Work-around is to also pass `-g GID' at the same
-	# time (any GID will do; but `-1' is appropriate for this context).
+	# time (the GID is ignored in this case, so any GID will do).
 	#
-	if [ "$input" ] && ! f_quietly pw groupshow -n "$input" -g -1; then
+	if [ "$input" ] && ! f_quietly pw groupshow -n "$input" -g 1337; then
 		f_show_err "$msg_group_not_found" "$input"
 		return $FAILURE
 	fi

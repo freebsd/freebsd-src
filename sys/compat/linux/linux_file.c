@@ -348,8 +348,7 @@ getdents_common(struct thread *td, struct linux_getdents64_args *args,
 	} else
 		justone = 0;
 
-	error = getvnode(td->td_proc->p_fd, args->fd,
-	    cap_rights_init(&rights, CAP_READ), &fp);
+	error = getvnode(td, args->fd, cap_rights_init(&rights, CAP_READ), &fp);
 	if (error != 0)
 		return (error);
 
@@ -1583,7 +1582,7 @@ linux_pipe(struct thread *td, struct linux_pipe_args *args)
 		printf(ARGS(pipe, "*"));
 #endif
 
-	error = kern_pipe2(td, fildes, 0);
+	error = kern_pipe(td, fildes, 0, NULL, NULL);
 	if (error)
 		return (error);
 
@@ -1610,7 +1609,7 @@ linux_pipe2(struct thread *td, struct linux_pipe2_args *args)
 		flags |= O_NONBLOCK;
 	if ((args->flags & LINUX_O_CLOEXEC) != 0)
 		flags |= O_CLOEXEC;
-	error = kern_pipe2(td, fildes, flags);
+	error = kern_pipe(td, fildes, flags, NULL, NULL);
 	if (error)
 		return (error);
 

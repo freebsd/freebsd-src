@@ -29,13 +29,29 @@
 #ifndef	_MACHINE_ATOMIC_H_
 #define	_MACHINE_ATOMIC_H_
 
-#define	isb()  __asm __volatile("isb" : : : "memory")
-#define	dsb()  __asm __volatile("dsb sy" : : : "memory")
-#define	dmb()  __asm __volatile("dmb sy" : : : "memory")
+#define	isb()		__asm __volatile("isb" : : : "memory")
 
-#define	mb()   dmb()
-#define	wmb()  dmb()
-#define	rmb()  dmb()
+/*
+ * Options for DMB and DSB:
+ *	oshld	Outer Shareable, load
+ *	oshst	Outer Shareable, store
+ *	osh	Outer Shareable, all
+ *	nshld	Non-shareable, load
+ *	nshst	Non-shareable, store
+ *	nsh	Non-shareable, all
+ *	ishld	Inner Shareable, load
+ *	ishst	Inner Shareable, store
+ *	ish	Inner Shareable, all
+ *	ld	Full system, load
+ *	st	Full system, store
+ *	sy	Full system, all
+ */
+#define	dsb(opt)	__asm __volatile("dsb " __STRING(opt) : : : "memory")
+#define	dmb(opt)	__asm __volatile("dmb " __STRING(opt) : : : "memory")
+
+#define	mb()	dmb(sy)	/* Full system memory barrier all */
+#define	wmb()	dmb(st)	/* Full system memory barrier store */
+#define	rmb()	dmb(ld)	/* Full system memory barrier load */
 
 static __inline void
 atomic_add_32(volatile uint32_t *p, uint32_t val)
@@ -137,6 +153,22 @@ atomic_set_32(volatile uint32_t *p, uint32_t val)
 	);
 }
 
+static __inline uint32_t
+atomic_swap_32(volatile uint32_t *p, uint32_t val)
+{
+	uint32_t tmp;
+	int res;
+
+	__asm __volatile(
+	    "1: ldxr	%w0, [%2]      \n"
+	    "   stxr	%w1, %w3, [%2] \n"
+	    "   cbnz	%w1, 1b        \n"
+	    : "=&r"(tmp), "=&r"(res), "+r" (p), "+r" (val) : : "cc", "memory"
+	);
+
+	return (tmp);
+}
+
 static __inline void
 atomic_subtract_32(volatile uint32_t *p, uint32_t val)
 {
@@ -158,6 +190,7 @@ atomic_subtract_32(volatile uint32_t *p, uint32_t val)
 #define	atomic_fetchadd_int	atomic_fetchadd_32
 #define	atomic_readandclear_int	atomic_readandclear_32
 #define	atomic_set_int		atomic_set_32
+#define	atomic_swap_int		atomic_swap_32
 #define	atomic_subtract_int	atomic_subtract_32
 
 static __inline void
@@ -499,6 +532,7 @@ atomic_swap_64(volatile uint64_t *p, uint64_t val)
 #define	atomic_fetchadd_long		atomic_fetchadd_64
 #define	atomic_readandclear_long	atomic_readandclear_64
 #define	atomic_set_long			atomic_set_64
+#define	atomic_swap_long		atomic_swap_64
 #define	atomic_subtract_long		atomic_subtract_64
 
 #define	atomic_add_ptr			atomic_add_64
@@ -507,6 +541,7 @@ atomic_swap_64(volatile uint64_t *p, uint64_t val)
 #define	atomic_fetchadd_ptr		atomic_fetchadd_64
 #define	atomic_readandclear_ptr		atomic_readandclear_64
 #define	atomic_set_ptr			atomic_set_64
+#define	atomic_swap_ptr			atomic_swap_64
 #define	atomic_subtract_ptr		atomic_subtract_64
 
 static __inline void
@@ -710,6 +745,34 @@ atomic_subtract_rel_64(volatile uint64_t *p, uint64_t val)
             "   cbnz	%w1, 1b       \n"
 	    : "=&r"(tmp), "=&r"(res), "+r" (p), "+r" (val) : : "cc", "memory"
 	);
+}
+
+static __inline void
+atomic_thread_fence_acq(void)
+{
+
+	dmb(ld);
+}
+
+static __inline void
+atomic_thread_fence_rel(void)
+{
+
+	dmb(sy);
+}
+
+static __inline void
+atomic_thread_fence_acq_rel(void)
+{
+
+	dmb(sy);
+}
+
+static __inline void
+atomic_thread_fence_seq_cst(void)
+{
+
+	dmb(sy);
 }
 
 #define	atomic_add_rel_long		atomic_add_rel_64

@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 19, 2015
+.Dd June 24, 2015
 .Dt CTL.CONF 5
 .Os
 .Sh NAME
@@ -324,7 +324,9 @@ Optional second argument specifies auth group name for connections
 to this specific portal group.
 If second argument is not specified, target auth group is used.
 .It Ic port Ar name
-Assign specified CTL port (such as "isp0") to the target.
+.It Ic port Ar name/pp
+.It Ic port Ar name/pp/vp
+Assign specified CTL port (such as "isp0" or "isp2/1") to the target.
 On startup ctld configures LUN mapping and enables all assigned ports.
 Each port can be assigned to only one target.
 .It Ic redirect Ar address

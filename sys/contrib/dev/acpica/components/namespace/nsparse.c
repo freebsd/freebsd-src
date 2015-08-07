@@ -84,6 +84,22 @@ AcpiNsOneCompleteParse (
     ACPI_FUNCTION_TRACE (NsOneCompleteParse);
 
 
+    Status = AcpiGetTableByIndex (TableIndex, &Table);
+    if (ACPI_FAILURE (Status))
+    {
+        return_ACPI_STATUS (Status);
+    }
+
+    /* Table must consist of at least a complete header */
+
+    if (Table->Length < sizeof (ACPI_TABLE_HEADER))
+    {
+        return_ACPI_STATUS (AE_BAD_HEADER);
+    }
+
+    AmlStart = (UINT8 *) Table + sizeof (ACPI_TABLE_HEADER);
+    AmlLength = Table->Length - sizeof (ACPI_TABLE_HEADER);
+
     Status = AcpiTbGetOwnerId (TableIndex, &OwnerId);
     if (ACPI_FAILURE (Status))
     {
@@ -92,7 +108,7 @@ AcpiNsOneCompleteParse (
 
     /* Create and init a Root Node */
 
-    ParseRoot = AcpiPsCreateScopeOp ();
+    ParseRoot = AcpiPsCreateScopeOp (AmlStart);
     if (!ParseRoot)
     {
         return_ACPI_STATUS (AE_NO_MEMORY);
@@ -107,32 +123,20 @@ AcpiNsOneCompleteParse (
         return_ACPI_STATUS (AE_NO_MEMORY);
     }
 
-    Status = AcpiGetTableByIndex (TableIndex, &Table);
-    if (ACPI_FAILURE (Status))
-    {
-        AcpiDsDeleteWalkState (WalkState);
-        AcpiPsFreeOp (ParseRoot);
-        return_ACPI_STATUS (Status);
-    }
-
-    /* Table must consist of at least a complete header */
-
-    if (Table->Length < sizeof (ACPI_TABLE_HEADER))
-    {
-        Status = AE_BAD_HEADER;
-    }
-    else
-    {
-        AmlStart = (UINT8 *) Table + sizeof (ACPI_TABLE_HEADER);
-        AmlLength = Table->Length - sizeof (ACPI_TABLE_HEADER);
-        Status = AcpiDsInitAmlWalk (WalkState, ParseRoot, NULL,
-                    AmlStart, AmlLength, NULL, (UINT8) PassNumber);
-    }
-
+    Status = AcpiDsInitAmlWalk (WalkState, ParseRoot, NULL,
+                AmlStart, AmlLength, NULL, (UINT8) PassNumber);
     if (ACPI_FAILURE (Status))
     {
         AcpiDsDeleteWalkState (WalkState);
         goto Cleanup;
+    }
+
+    /* Found OSDT table, enable the namespace override feature */
+
+    if (ACPI_COMPARE_NAME(Table->Signature, ACPI_SIG_OSDT) &&
+        PassNumber == ACPI_IMODE_LOAD_PASS1)
+    {
+        WalkState->NamespaceOverride = TRUE;
     }
 
     /* StartNode is the default location to load the table  */

@@ -277,8 +277,8 @@ trap(struct trapframe *tf)
 		td->td_pticks = 0;
 		td->td_frame = tf;
 		addr = tf->tf_tpc;
-		if (td->td_ucred != p->p_ucred)
-			cred_update_thread(td);
+		if (td->td_cowgen != p->p_cowgen)
+			thread_cow_update(td);
 
 		switch (tf->tf_type) {
 		case T_DATA_MISS:

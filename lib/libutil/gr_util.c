@@ -141,7 +141,7 @@ gr_tmp(int mfd)
 		errno = ENAMETOOLONG;
 		return (-1);
 	}
-	if ((tfd = mkstemp(tempname)) == -1)
+	if ((tfd = mkostemp(tempname, O_SYNC)) == -1)
 		return (-1);
 	if (mfd != -1) {
 		while ((nr = read(mfd, buf, sizeof(buf))) > 0)
@@ -318,10 +318,28 @@ gr_copy(int ffd, int tfd, const struct group *gr, struct group *old_gr)
 int
 gr_mkdb(void)
 {
+	int fd;
+
 	if (chmod(tempname, 0644) != 0)
 		return (-1);
 
-	return (rename(tempname, group_file));
+	if (rename(tempname, group_file) != 0)
+		return (-1);
+
+	/*
+	 * Make sure new group file is safe on disk. To improve performance we
+	 * will call fsync() to the directory where file lies
+	 */
+	if ((fd = open(group_dir, O_RDONLY|O_DIRECTORY)) == -1)
+		return (-1);
+
+	if (fsync(fd) != 0) {
+		close(fd);
+		return (-1);
+	}
+
+	close(fd);
+	return(0);
 }
 
 /*

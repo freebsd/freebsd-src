@@ -96,6 +96,7 @@ MAN=	aac.4 \
 	cdce.4 \
 	ch.4 \
 	ciss.4 \
+	cloudabi.4 \
 	cm.4 \
 	cmx.4 \
 	${_coretemp.4} \
@@ -107,6 +108,7 @@ MAN=	aac.4 \
 	cxgb.4 \
 	cxgbe.4 \
 	cy.4 \
+	cyapa.4 \
 	da.4 \
 	dc.4 \
 	dcons.4 \
@@ -192,6 +194,7 @@ MAN=	aac.4 \
 	icmp6.4 \
 	ida.4 \
 	ifmib.4 \
+	ig4.4 \
 	igb.4 \
 	igmp.4 \
 	iic.4 \
@@ -214,6 +217,7 @@ MAN=	aac.4 \
 	ipw.4 \
 	ipwfw.4 \
 	isci.4 \
+	isl.4 \
 	ismt.4 \
 	isp.4 \
 	ispfw.4 \
@@ -363,6 +367,7 @@ MAN=	aac.4 \
 	nsp.4 \
 	${_ntb.4} \
 	null.4 \
+	numa.4 \
 	${_nvd.4} \
 	${_nvme.4} \
 	${_nvram.4} \
@@ -386,6 +391,7 @@ MAN=	aac.4 \
 	${_pflog.4} \
 	${_pfsync.4} \
 	pim.4 \
+	pms.4 \
 	polling.4 \
 	ppbus.4 \
 	ppc.4 \
@@ -578,6 +584,7 @@ MLINKS+=bwn.4 if_bwn.4
 MLINKS+=${_bxe.4} ${_if_bxe.4}
 MLINKS+=cas.4 if_cas.4
 MLINKS+=cdce.4 if_cdce.4
+MLINKS+=cloudabi.4 cloudabi64.4
 MLINKS+=crypto.4 cryptodev.4
 MLINKS+=cue.4 if_cue.4
 MLINKS+=cxgb.4 if_cxgb.4
@@ -661,6 +668,7 @@ MLINKS+=pccbb.4 cbb.4
 MLINKS+=pcm.4 snd.4 \
 	pcm.4 sound.4
 MLINKS+=pcn.4 if_pcn.4
+MLINKS+=pms.4 pmspcv.4
 MLINKS+=ral.4 if_ral.4
 MLINKS+=re.4 if_re.4
 MLINKS+=rl.4 if_rl.4
@@ -819,12 +827,12 @@ _ccd.4=		ccd.4
 .endif
 
 .if ${MK_CDDL} != "no"
-_dtrace_io.4=	dtrace-io.4
-_dtrace_ip.4=	dtrace-ip.4
-_dtrace_proc.4=	dtrace-proc.4
-_dtrace_sched.4= dtrace-sched.4
-_dtrace_tcp.4=	dtrace-tcp.4
-_dtrace_udp.4=	dtrace-udp.4
+_dtrace_io.4=	dtrace_io.4
+_dtrace_ip.4=	dtrace_ip.4
+_dtrace_proc.4=	dtrace_proc.4
+_dtrace_sched.4= dtrace_sched.4
+_dtrace_tcp.4=	dtrace_tcp.4
+_dtrace_udp.4=	dtrace_udp.4
 .endif
 
 .if ${MK_ISCSI} != "no"
@@ -868,6 +876,7 @@ MAN+=	\
 	ufoma.4 \
 	uftdi.4 \
 	ugen.4 \
+	ugold.4 \
 	uhci.4 \
 	uhid.4 \
 	uhso.4 \

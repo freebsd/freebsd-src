@@ -42,7 +42,6 @@ divert(-1)
 #  /usr/share/sendmail/cf/README or
 #  /usr/src/contrib/sendmail/cf/README
 # 
-#
 #  NOTE: If you enable RunAsUser, make sure that you adjust the permissions
 #  and owner of the SSL certificates and keys in /etc/mail/certs to be usable
 #  by that user.

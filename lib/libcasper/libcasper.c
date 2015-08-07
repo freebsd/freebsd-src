@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/un.h>
+#include <sys/nv.h>
 
 #include <assert.h>
 #include <dirent.h>
@@ -52,7 +53,6 @@ __FBSDID("$FreeBSD$");
 #include <libcapsicum.h>
 #include <libcasper.h>
 #include <libcasper_impl.h>
-#include <nv.h>
 #include <pjdlog.h>
 
 /*

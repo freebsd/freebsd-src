@@ -100,14 +100,13 @@ static const struct sagaw_bits_tag {
 	{.agaw = 64, .cap = DMAR_CAP_SAGAW_6LVL, .awlvl = DMAR_CTX2_AW_6LVL,
 	    .pglvl = 6}
 };
-#define SIZEOF_SAGAW_BITS (sizeof(sagaw_bits) / sizeof(sagaw_bits[0]))
 
 bool
 dmar_pglvl_supported(struct dmar_unit *unit, int pglvl)
 {
 	int i;
 
-	for (i = 0; i < SIZEOF_SAGAW_BITS; i++) {
+	for (i = 0; i < nitems(sagaw_bits); i++) {
 		if (sagaw_bits[i].pglvl != pglvl)
 			continue;
 		if ((DMAR_CAP_SAGAW(unit->hw_cap) & sagaw_bits[i].cap) != 0)
@@ -117,26 +116,23 @@ dmar_pglvl_supported(struct dmar_unit *unit, int pglvl)
 }
 
 int
-ctx_set_agaw(struct dmar_ctx *ctx, int mgaw)
+domain_set_agaw(struct dmar_domain *domain, int mgaw)
 {
 	int sagaw, i;
 
-	ctx->mgaw = mgaw;
-	sagaw = DMAR_CAP_SAGAW(ctx->dmar->hw_cap);
-	for (i = 0; i < SIZEOF_SAGAW_BITS; i++) {
+	domain->mgaw = mgaw;
+	sagaw = DMAR_CAP_SAGAW(domain->dmar->hw_cap);
+	for (i = 0; i < nitems(sagaw_bits); i++) {
 		if (sagaw_bits[i].agaw >= mgaw) {
-			ctx->agaw = sagaw_bits[i].agaw;
-			ctx->pglvl = sagaw_bits[i].pglvl;
-			ctx->awlvl = sagaw_bits[i].awlvl;
+			domain->agaw = sagaw_bits[i].agaw;
+			domain->pglvl = sagaw_bits[i].pglvl;
+			domain->awlvl = sagaw_bits[i].awlvl;
 			return (0);
 		}
 	}
-	device_printf(ctx->dmar->dev,
-	    "context request mgaw %d for pci%d:%d:%d:%d, "
-	    "no agaw found, sagaw %x\n", mgaw, ctx->dmar->segment, 
-	    pci_get_bus(ctx->ctx_tag.owner),
-	    pci_get_slot(ctx->ctx_tag.owner),
-	    pci_get_function(ctx->ctx_tag.owner), sagaw);
+	device_printf(domain->dmar->dev,
+	    "context request mgaw %d: no agaw found, sagaw %x\n",
+	    mgaw, sagaw);
 	return (EINVAL);
 }
 
@@ -152,18 +148,18 @@ dmar_maxaddr2mgaw(struct dmar_unit *unit, dmar_gaddr_t maxaddr, bool allow_less)
 {
 	int i;
 
-	for (i = 0; i < SIZEOF_SAGAW_BITS; i++) {
+	for (i = 0; i < nitems(sagaw_bits); i++) {
 		if ((1ULL << sagaw_bits[i].agaw) >= maxaddr &&
 		    (DMAR_CAP_SAGAW(unit->hw_cap) & sagaw_bits[i].cap) != 0)
 			break;
 	}
-	if (allow_less && i == SIZEOF_SAGAW_BITS) {
+	if (allow_less && i == nitems(sagaw_bits)) {
 		do {
 			i--;
 		} while ((DMAR_CAP_SAGAW(unit->hw_cap) & sagaw_bits[i].cap)
 		    == 0);
 	}
-	if (i < SIZEOF_SAGAW_BITS)
+	if (i < nitems(sagaw_bits))
 		return (sagaw_bits[i].agaw);
 	KASSERT(0, ("no mgaw for maxaddr %jx allow_less %d",
 	    (uintmax_t) maxaddr, allow_less));
@@ -192,7 +188,7 @@ pglvl_max_pages(int pglvl)
  * the context ctx.
  */
 int
-ctx_is_sp_lvl(struct dmar_ctx *ctx, int lvl)
+domain_is_sp_lvl(struct dmar_domain *domain, int lvl)
 {
 	int alvl, cap_sps;
 	static const int sagaw_sp[] = {
@@ -202,10 +198,9 @@ ctx_is_sp_lvl(struct dmar_ctx *ctx, int lvl)
 		DMAR_CAP_SPS_1T
 	};
 
-	alvl = ctx->pglvl - lvl - 1;
-	cap_sps = DMAR_CAP_SPS(ctx->dmar->hw_cap);
-	return (alvl < sizeof(sagaw_sp) / sizeof(sagaw_sp[0]) &&
-	    (sagaw_sp[alvl] & cap_sps) != 0);
+	alvl = domain->pglvl - lvl - 1;
+	cap_sps = DMAR_CAP_SPS(domain->dmar->hw_cap);
+	return (alvl < nitems(sagaw_sp) && (sagaw_sp[alvl] & cap_sps) != 0);
 }
 
 dmar_gaddr_t
@@ -224,16 +219,15 @@ pglvl_page_size(int total_pglvl, int lvl)
 	KASSERT(lvl >= 0 && lvl < total_pglvl,
 	    ("total %d lvl %d", total_pglvl, lvl));
 	rlvl = total_pglvl - lvl - 1;
-	KASSERT(rlvl < sizeof(pg_sz) / sizeof(pg_sz[0]),
-	    ("sizeof pg_sz lvl %d", lvl));
+	KASSERT(rlvl < nitems(pg_sz), ("sizeof pg_sz lvl %d", lvl));
 	return (pg_sz[rlvl]);
 }
 
 dmar_gaddr_t
-ctx_page_size(struct dmar_ctx *ctx, int lvl)
+domain_page_size(struct dmar_domain *domain, int lvl)
 {
 
-	return (pglvl_page_size(ctx->pglvl, lvl));
+	return (pglvl_page_size(domain->pglvl, lvl));
 }
 
 int

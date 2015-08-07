@@ -55,8 +55,7 @@ __FBSDID("$FreeBSD$");
  * to be called from SYSINIT().
  */
 void
-kproc_start(udata)
-	const void *udata;
+kproc_start(const void *udata)
 {
 	const struct kproc_desc	*kp = udata;
 	int error;
@@ -90,7 +89,7 @@ kproc_create(void (*func)(void *), void *arg,
 		panic("kproc_create called too soon");
 
 	error = fork1(&thread0, RFMEM | RFFDG | RFPROC | RFSTOPPED | flags,
-	    pages, &p2, NULL, 0);
+	    pages, &p2, NULL, 0, NULL);
 	if (error)
 		return error;
 
@@ -163,7 +162,7 @@ kproc_exit(int ecode)
 	wakeup(p);
 
 	/* Buh-bye! */
-	exit1(td, W_EXITCODE(ecode, 0));
+	exit1(td, ecode, 0);
 }
 
 /*
@@ -225,8 +224,7 @@ kproc_suspend_check(struct proc *p)
  */
 
 void
-kthread_start(udata)
-	const void *udata;
+kthread_start(const void *udata)
 {
 	const struct kthread_desc	*kp = udata;
 	int error;
@@ -289,7 +287,7 @@ kthread_add(void (*func)(void *), void *arg, struct proc *p,
 	cpu_set_fork_handler(newtd, func, arg);
 
 	newtd->td_pflags |= TDP_KTHREAD;
-	newtd->td_ucred = crhold(p->p_ucred);
+	thread_cow_get_proc(newtd, p);
 
 	/* this code almost the same as create_thread() in kern_thr.c */
 	p->p_flag |= P_HADTHREADS;

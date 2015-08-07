@@ -78,7 +78,12 @@ hptrr_lib.o			optional	hptrr			\
 	compile-with	"uudecode < $S/dev/hptrr/i386-elf.hptrr_lib.o.uu" \
 	no-implicit-rule
 #
-cddl/contrib/opensolaris/common/atomic/i386/opensolaris_atomic.S	optional zfs compile-with "${ZFS_S}"
+cddl/contrib/opensolaris/common/atomic/i386/opensolaris_atomic.S	optional zfs | dtrace compile-with "${ZFS_S}"
+cddl/dev/dtrace/i386/dtrace_asm.S			optional dtrace compile-with "${DTRACE_S}"
+cddl/dev/dtrace/i386/dtrace_subr.c			optional dtrace compile-with "${DTRACE_C}"
+cddl/dev/fbt/x86/fbt_isa.c				optional dtrace_fbt | dtraceall compile-with "${FBT_C}"
+cddl/dev/dtrace/x86/dis_tables.c			optional dtrace_fbt | dtraceall compile-with "${DTRACE_C}"
+cddl/dev/dtrace/i386/instr_size.c			optional dtrace_fbt | dtraceall compile-with "${DTRACE_C}"
 compat/linprocfs/linprocfs.c	optional linprocfs
 compat/linsysfs/linsysfs.c	optional linsysfs
 compat/linux/linux_event.c	optional compat_linux

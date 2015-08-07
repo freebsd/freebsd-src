@@ -1,3 +1,29 @@
+2015-06-06  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* install-mk (MK_VERSION): 20150606
+	
+	* dirdeps.mk: don't rely on manually maintained Makefile.depend
+	  to set DEP_RELDIR and reset DIRDEPS.
+	  By setting DEP_RELDIR ourselves we can skip :tA
+	
+	* gendirdeps.mk: skip setting DEP_RELDIR.
+
+2015-05-24  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* dirdeps.mk: avoid wildcards like make(bootstrap*)
+
+2015-05-20  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* install-mk (MK_VERSION): 20150520
+
+	* dirdeps.mk: when we are building dirdeps cache file we *want*
+	  meta_oodate to look at all the Makefile.depend files, so
+	  set .MAKE.DEPENDFILE to something that won't match.
+
+	* meta.stage.mk: for STAGE_AS_* basename of file may not be unique
+	  so first use absolute path as key.
+	  Also skip staging at level 0. 
+
 2015-04-30  Simon J. Gerraty  <sjg@bad.crufty.net>
 
 	* install-mk (MK_VERSION): 20150430

@@ -61,8 +61,8 @@ syscallenter(struct thread *td, struct syscall_args *sa)
 	p = td->td_proc;
 
 	td->td_pticks = 0;
-	if (td->td_ucred != p->p_ucred)
-		cred_update_thread(td);
+	if (td->td_cowgen != p->p_cowgen)
+		thread_cow_update(td);
 	if (p->p_flag & P_TRACED) {
 		traced = 1;
 		PROC_LOCK(p);

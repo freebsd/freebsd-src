@@ -180,7 +180,7 @@ main(int argc, char *argv[])
 	KINFO_STR *ks;
 	struct varent *vent;
 	struct winsize ws = { .ws_row = 0 };
-	const char *nlistf, *memf, *fmtstr, *str;
+	const char *nlistf, *memf, *str;
 	char *cols;
 	int all, ch, elem, flag, _fmt, i, lineno, linelen, left;
 	int descendancy, nentries, nkept, nselectors;
@@ -649,11 +649,6 @@ main(int argc, char *argv[])
 		linelen = 0;
 		xo_open_instance("process");
 		STAILQ_FOREACH(vent, &varlist, next_ve) {
-	        	if (vent->var->flag & LJUST)
-				fmtstr = "%-*s";
-			else
-				fmtstr = "%*s";
-
 			ks = STAILQ_FIRST(&kinfo[i].ki_ks);
 			STAILQ_REMOVE_HEAD(&kinfo[i].ki_ks, ks_next);
 			/* Truncate rightmost column if necessary.  */

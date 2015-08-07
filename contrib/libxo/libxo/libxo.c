@@ -2077,7 +2077,8 @@ xo_format_string_direct (xo_handle_t *xop, xo_buffer_t *xbp,
 	    ilen = mbrtowc(&wc, cp, ilen, &xop->xo_mbstate);
 	    if (ilen < 0) {		/* Invalid data; skip */
 		xo_failure(xop, "invalid mbs char: %02hhx", *cp);
-		continue;
+		wc = L'?';
+		ilen = 1;
 	    }
 	    if (ilen == 0) {		/* Hit a wide NUL character */
 		len = 0;

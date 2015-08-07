@@ -199,7 +199,7 @@ vfp_bounce(u_int addr, u_int insn, struct trapframe *frame, int code)
 	 */
 	fmxr(fpexc, fpexc | VFPEXC_EN);
 	curpcb = curthread->td_pcb;
-	cpu = PCPU_GET(cpu);
+	cpu = PCPU_GET(cpuid);
 	if (curpcb->pcb_vfpcpu != cpu || curthread != PCPU_GET(fpcurthread)) {
 		vfp_restore(&curpcb->pcb_vfpstate);
 		curpcb->pcb_vfpcpu = cpu;

@@ -61,6 +61,8 @@ libkern/flsll.c				standard
 libkern/memmove.c			standard
 libkern/cmpdi2.c			optional	mips | mipsel
 libkern/ucmpdi2.c			optional	mips | mipsel
+libkern/ashldi3.c			standard
+libkern/ashrdi3.c			standard
 
 # cfe support
 dev/cfe/cfe_api.c			optional	cfe

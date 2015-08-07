@@ -27,7 +27,7 @@ EMBEDDED=		1
 .endif
 
 # snapshot
-.if ${BRANCH} == "STABLE" || ${BRANCH} == "CURRENT"
+.if ${BRANCH} == "STABLE" || ${BRANCH} == "CURRENT" || ${BRANCH} == "PRERELEASE"
 SNAPSHOT=		1
 TLD?=			${FTPDIR}/snapshots
 . if !defined(SVNREVISION) || empty(SVNREVISION)
@@ -49,7 +49,7 @@ BUILDDATE!=		cd ${.CURDIR} && date -j -f '%s' $$(stat -f "%c" ${.OBJDIR}/dist/ba
 BUILDDATE!=		date +%Y%m%d
 .  endif
 . endif
-_SNAP_SUFFIX:=		-r${SVNREVISION}-${BUILDDATE}
+_SNAP_SUFFIX:=		${BUILDDATE}-r${SVNREVISION}
 .else
 # release
 SNAPSHOT=
@@ -63,7 +63,7 @@ BOARDNAME:=		${KERNCONF}
 .  else
 OLDNAME:=		${KERNCONF}
 .  endif
-.  if ${BRANCH} == "STABLE" || ${BRANCH} == "CURRENT"
+.  if ${BRANCH} == "STABLE" || ${BRANCH} == "CURRENT" || ${BRANCH} == "PRERELEASE"
 SNAPSHOT=		1
 .  endif
 IMAGES:=		img

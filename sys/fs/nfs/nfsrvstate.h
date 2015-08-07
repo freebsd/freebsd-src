@@ -52,9 +52,9 @@ LIST_HEAD(nfsuserhashhead, nfsusrgrp);
 TAILQ_HEAD(nfsuserlruhead, nfsusrgrp);
 
 #define	NFSCLIENTHASH(id)						\
-	(&nfsclienthash[(id).lval[1] % NFSCLIENTHASHSIZE])
+	(&nfsclienthash[(id).lval[1] % nfsrv_clienthashsize])
 #define	NFSSTATEHASH(clp, id)						\
-	(&((clp)->lc_stateid[(id).other[2] % NFSSTATEHASHSIZE]))
+	(&((clp)->lc_stateid[(id).other[2] % nfsrv_statehashsize]))
 #define	NFSUSERHASH(id)							\
 	(&nfsuserhash[(id) % NFSUSERHASHSIZE])
 #define	NFSUSERNAMEHASH(p, l)						\
@@ -71,7 +71,7 @@ struct nfssessionhash {
 	struct nfssessionhashhead	list;
 };
 #define	NFSSESSIONHASH(f) 						\
-	(&nfssessionhash[nfsrv_hashsessionid(f) % NFSSESSIONHASHSIZE])
+	(&nfssessionhash[nfsrv_hashsessionid(f) % nfsrv_sessionhashsize])
 
 /*
  * Client server structure for V4. It is doubly linked into two lists.
@@ -81,7 +81,7 @@ struct nfssessionhash {
  */
 struct nfsclient {
 	LIST_ENTRY(nfsclient) lc_hash;		/* Clientid hash list */
-	struct nfsstatehead lc_stateid[NFSSTATEHASHSIZE]; /* stateid hash */
+	struct nfsstatehead *lc_stateid;	/* Stateid hash */
 	struct nfsstatehead lc_open;		/* Open owner list */
 	struct nfsstatehead lc_deleg;		/* Delegations */
 	struct nfsstatehead lc_olddeleg;	/* and old delegations */
@@ -97,10 +97,10 @@ struct nfsclient {
 	u_int32_t	lc_cbref;		/* Cnt of callbacks */
 	uid_t		lc_uid;			/* User credential */
 	gid_t		lc_gid;
-	u_int16_t	lc_namelen;
+	u_int16_t	lc_idlen;		/* Client ID and len */
+	u_int16_t	lc_namelen;		/* plus GSS principal and len */
 	u_char		*lc_name;
 	struct nfssockreq lc_req;		/* Callback info */
-	u_short		lc_idlen;		/* Length of id string */
 	u_int32_t	lc_flags;		/* LCL_ flag bits */
 	u_char		lc_verf[NFSX_VERF];	 /* client verifier */
 	u_char		lc_id[1];		/* Malloc'd correct size */

@@ -80,6 +80,39 @@ struct ieee80211_scan_ssid {
 #define	IEEE80211_SCAN_MAX_SSID	1		/* max # ssid's to probe */
 
 /*
+ * High-level implementation visible to ieee80211_scan.[ch].
+ *
+ * The default scanner (ieee80211_scan_sw.[ch]) implements a software
+ * driven scanner.  Firmware driven scanning needs a different set of
+ * behaviours.
+ */
+struct ieee80211_scan_methods {
+	void (*sc_attach)(struct ieee80211com *);
+	void (*sc_detach)(struct ieee80211com *);
+	void (*sc_vattach)(struct ieee80211vap *);
+	void (*sc_vdetach)(struct ieee80211vap *);
+	void (*sc_set_scan_duration)(struct ieee80211vap *, u_int);
+	int (*sc_start_scan)(const struct ieee80211_scanner *,
+	    struct ieee80211vap *, int, u_int, u_int, u_int, u_int,
+	    const struct ieee80211_scan_ssid ssids[]);
+	int (*sc_check_scan)(const struct ieee80211_scanner *,
+	    struct ieee80211vap *, int, u_int, u_int, u_int, u_int,
+	    const struct ieee80211_scan_ssid ssids[]);
+	int (*sc_bg_scan)(const struct ieee80211_scanner *,
+	    struct ieee80211vap *, int);
+	void (*sc_cancel_scan)(struct ieee80211vap *);
+	void (*sc_cancel_anyscan)(struct ieee80211vap *);
+	void (*sc_scan_next)(struct ieee80211vap *);
+	void (*sc_scan_done)(struct ieee80211vap *);
+	void (*sc_scan_probe_curchan)(struct ieee80211vap *, int);
+	void (*sc_add_scan)(struct ieee80211vap *,
+	    struct ieee80211_channel *,
+	    const struct ieee80211_scanparams *,
+	    const struct ieee80211_frame *,
+	    int, int, int);
+};
+
+/*
  * Scan state visible to the 802.11 layer.  Scan parameters and
  * results are stored in this data structure.  The ieee80211_scan_state
  * structure is extended with space that is maintained private to

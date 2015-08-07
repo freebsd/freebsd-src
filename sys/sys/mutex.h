@@ -188,8 +188,8 @@ void	thread_lock_flags_(struct thread *, int, const char *, int);
 	if (!_mtx_obtain_lock((mp), _tid))				\
 		_mtx_lock_sleep((mp), _tid, (opts), (file), (line));	\
 	else								\
-              	LOCKSTAT_PROFILE_OBTAIN_LOCK_SUCCESS(LS_MTX_LOCK_ACQUIRE, \
-		    mp, 0, 0, (file), (line));				\
+		LOCKSTAT_PROFILE_OBTAIN_LOCK_SUCCESS(adaptive__acquire,	\
+		    mp, 0, 0, file, line);				\
 } while (0)
 
 /*
@@ -209,8 +209,8 @@ void	thread_lock_flags_(struct thread *, int, const char *, int);
 		else							\
 			_mtx_lock_spin((mp), _tid, (opts), (file), (line)); \
 	} else 								\
-              	LOCKSTAT_PROFILE_OBTAIN_LOCK_SUCCESS(LS_MTX_SPIN_LOCK_ACQUIRE, \
-		    mp, 0, 0, (file), (line));				\
+		LOCKSTAT_PROFILE_OBTAIN_LOCK_SUCCESS(spin__acquire,	\
+		    mp, 0, 0, file, line);				\
 } while (0)
 #else /* SMP */
 #define __mtx_lock_spin(mp, tid, opts, file, line) do {			\
@@ -231,8 +231,7 @@ void	thread_lock_flags_(struct thread *, int, const char *, int);
 	uintptr_t _tid = (uintptr_t)(tid);				\
 									\
 	if ((mp)->mtx_recurse == 0)					\
-		 LOCKSTAT_PROFILE_RELEASE_LOCK(LS_MTX_UNLOCK_RELEASE,	\
-		    (mp));						\
+		LOCKSTAT_PROFILE_RELEASE_LOCK(adaptive__release, mp);	\
 	if (!_mtx_release_lock((mp), _tid))				\
 		_mtx_unlock_sleep((mp), (opts), (file), (line));	\
 } while (0)
@@ -252,21 +251,19 @@ void	thread_lock_flags_(struct thread *, int, const char *, int);
 	if (mtx_recursed((mp)))						\
 		(mp)->mtx_recurse--;					\
 	else {								\
-		LOCKSTAT_PROFILE_RELEASE_LOCK(LS_MTX_SPIN_UNLOCK_RELEASE, \
-			mp);						\
+		LOCKSTAT_PROFILE_RELEASE_LOCK(spin__release, mp);	\
 		_mtx_release_lock_quick((mp));				\
-	}                                                               \
-	spinlock_exit();				                \
+	}								\
+	spinlock_exit();						\
 } while (0)
 #else /* SMP */
 #define __mtx_unlock_spin(mp) do {					\
 	if (mtx_recursed((mp)))						\
 		(mp)->mtx_recurse--;					\
 	else {								\
-		LOCKSTAT_PROFILE_RELEASE_LOCK(LS_MTX_SPIN_UNLOCK_RELEASE, \
-			mp);						\
+		LOCKSTAT_PROFILE_RELEASE_LOCK(spin__release, mp);	\
 		(mp)->mtx_lock = MTX_UNOWNED;				\
-	}                                                               \
+	}								\
 	spinlock_exit();						\
 } while (0)
 #endif /* SMP */

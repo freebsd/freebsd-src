@@ -45,7 +45,7 @@ AC_DEFUN([NTP_OS_CFLAGS], [
 		ntp_os_cflags="-Ae -Wp,-H18816"
 		;;
 	    esac
-	    ntp_os_cflags="${ntp_os_cflags} -D_HPUX_SOURCE"
+	    ntp_os_cflags="${ntp_os_cflags} -D_HPUX_SOURCE -D__STDC_VERSION__=199901L"
 	    ;;
 	 hpux*)
 	    case "$GCC" in
@@ -55,7 +55,7 @@ AC_DEFUN([NTP_OS_CFLAGS], [
 		# use Ansi compiler on HPUX
 		ntp_os_cflags="-Ae"
 	    esac
-	    ntp_os_cflags="${ntp_os_cflags} -D_HPUX_SOURCE"
+	    ntp_os_cflags="${ntp_os_cflags} -D_HPUX_SOURCE -D__STDC_VERSION__=199901L"
 	    ;;
 	 irix6*)
 	    case "$CC" in

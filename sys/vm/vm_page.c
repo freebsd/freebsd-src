@@ -1827,6 +1827,7 @@ vm_page_alloc_contig_vdrop(struct spglist *lst)
  *
  *	optional allocation flags:
  *	VM_ALLOC_NOBUSY		do not exclusive busy the page
+ *	VM_ALLOC_NODUMP		do not include the page in a kernel core dump
  *	VM_ALLOC_NOOBJ		page is not associated with an object and
  *				should not be exclusive busy
  *	VM_ALLOC_SBUSY		shared busy the allocated page
@@ -2707,7 +2708,6 @@ vm_page_cache(vm_page_t m)
 #else
 	if (TRUE) {
 #endif
-		vm_phys_set_pool(VM_FREEPOOL_CACHE, m, 0);
 		vm_phys_free_pages(m, 0);
 	}
 	vm_page_free_wakeup();

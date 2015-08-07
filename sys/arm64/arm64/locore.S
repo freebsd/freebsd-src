@@ -27,6 +27,7 @@
  */
 
 #include "assym.s"
+#include "opt_kstack_pages.h"
 #include <sys/syscall.h>
 #include <machine/asm.h>
 #include <machine/armreg.h>
@@ -51,8 +52,6 @@
  *  We are loaded at a 2MiB aligned address
  */
 
-#define	INIT_STACK_SIZE	(PAGE_SIZE * 4)
-
 	.text
 	.globl _start
 _start:
@@ -72,6 +71,8 @@ _start:
 	msr	sctlr_el1, x2
 	isb
 
+	/* Set the context id */
+	msr	contextidr_el1, xzr
 
 	/* Get the virt -> phys offset */
 	bl	get_virt_delta
@@ -145,6 +146,45 @@ virtdone:
 	.quad	__bss_start
 .Lend:
 	.quad	_end
+
+#ifdef SMP
+/*
+ * mpentry(unsigned long)
+ *
+ * Called by a core when it is being brought online.
+ * The data in x0 is passed straight to init_secondary.
+ */
+ENTRY(mpentry)
+	/* Disable interrupts */
+	msr	daifset, #2
+
+	/* Drop to EL1 */
+	bl	drop_to_el1
+
+	/* Set the context id */
+	msr	contextidr_el1, x1
+
+	/* Load the kernel page table */
+	adr	x26, pagetable_l1_ttbr1
+	/* Load the identity page table */
+	adr	x27, pagetable_l1_ttbr0
+
+	/* Enable the mmu */
+	bl	start_mmu
+
+	/* Jump to the virtual address space */
+	ldr	x15, =mp_virtdone
+	br	x15
+
+mp_virtdone:
+	ldr	x4, =secondary_stacks
+	mov	x5, #(PAGE_SIZE * KSTACK_PAGES)
+	mul	x5, x0, x5
+	add	sp, x4, x5
+
+	b	init_secondary
+END(mpentry)
+#endif
 
 /*
  * If we are started in EL2, configure the required hypervisor
@@ -427,6 +467,9 @@ build_block_pagetable:
 	lsl	x12, x7, #2
 	orr	x12, x12, #L2_BLOCK
 	orr	x12, x12, #(ATTR_AF)
+#ifdef SMP
+	orr	x12, x12, ATTR_SH(ATTR_SH_IS)
+#endif
 
 	/* Only use the output address bits */
 	lsr	x9, x9, #L2_SHIFT
@@ -490,7 +533,8 @@ mair:
 		/* Device            Normal, no cache     Normal, write-back */
 	.quad	MAIR_ATTR(0x00, 0) | MAIR_ATTR(0x44, 1) | MAIR_ATTR(0xff, 2)
 tcr:
-	.quad (TCR_TxSZ(64 - VIRT_BITS) | TCR_ASID_16 | TCR_TG1_4K)
+	.quad (TCR_TxSZ(64 - VIRT_BITS) | TCR_ASID_16 | TCR_TG1_4K | \
+	    TCR_CACHE_ATTRS | TCR_SMP_ATTRS)
 sctlr_set:
 	/* Bits to set */
 	.quad (SCTLR_UCI | SCTLR_nTWE | SCTLR_nTWI | SCTLR_UCT | SCTLR_DZE | \

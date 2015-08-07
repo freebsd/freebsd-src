@@ -78,10 +78,6 @@
  * Created      : 28/11/94
  */
 
-#ifdef KDTRACE_HOOKS
-#include <sys/dtrace_bsd.h>
-#endif
-
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -98,6 +94,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_map.h>
 #include <vm/vm_extern.h>
 
+#include <machine/acle-compat.h>
 #include <machine/cpu.h>
 #include <machine/frame.h>
 #include <machine/machdep.h>
@@ -106,6 +103,10 @@ __FBSDID("$FreeBSD$");
 
 #ifdef KDB
 #include <sys/kdb.h>
+#endif
+
+#ifdef KDTRACE_HOOKS
+#include <sys/dtrace_bsd.h>
 #endif
 
 extern char fusubailout[];
@@ -214,8 +215,8 @@ abort_handler(struct trapframe *tf, int type)
 	if (user) {
 		td->td_pticks = 0;
 		td->td_frame = tf;
-		if (td->td_ucred != td->td_proc->p_ucred)
-			cred_update_thread(td);
+		if (td->td_cowgen != td->td_proc->p_cowgen)
+			thread_cow_update(td);
 
 	}
 	/* Grab the current pcb */
@@ -325,7 +326,7 @@ abort_handler(struct trapframe *tf, int type)
 	 * location, so we can deal with those quickly.  Otherwise we need to
 	 * disassemble the faulting instruction to determine if it was a write.
 	 */
-#if ARM_ARCH_6 || ARM_ARCH_7A
+#if __ARM_ARCH >= 6
 	ftype = (fsr & FAULT_WNR) ? VM_PROT_READ | VM_PROT_WRITE : VM_PROT_READ;
 #else
 	if (IS_PERMISSION_FAULT(fsr))
@@ -644,8 +645,8 @@ prefetch_abort_handler(struct trapframe *tf)
 
 	if (TRAP_USERMODE(tf)) {
 		td->td_frame = tf;
-		if (td->td_ucred != td->td_proc->p_ucred)
-			cred_update_thread(td);
+		if (td->td_cowgen != td->td_proc->p_cowgen)
+			thread_cow_update(td);
 	}
 	fault_pc = tf->tf_pc;
 	if (td->td_md.md_spinlock_count == 0) {

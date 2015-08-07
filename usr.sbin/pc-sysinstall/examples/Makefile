@@ -6,6 +6,5 @@ FILES=	README pc-autoinstall.conf pcinstall.cfg.fbsd-netinstall \
 	pcinstall.cfg.zfs
 
 FILESDIR=${SHAREDIR}/examples/pc-sysinstall
-NO_OBJ=
 
 .include <bsd.prog.mk>

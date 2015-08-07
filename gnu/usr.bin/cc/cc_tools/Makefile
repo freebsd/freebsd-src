@@ -215,6 +215,9 @@ tconfig.h:
 
 GENSRCS+=	tconfig.h
 CLEANFILES+=	cs-tconfig.h
+
+.NOPATH: ${GENSRCS} ${CLEANFILES}
+
 # Options
 optionlist: ${OPT_FILES}
 	LC_ALL=C awk -f ${GCCDIR}/opt-gather.awk ${.ALLSRC} > ${.TARGET}

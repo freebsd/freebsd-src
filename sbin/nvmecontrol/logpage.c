@@ -298,6 +298,8 @@ logpage(int argc, char *argv[])
 		open_dev(argv[optind], &fd, 1, 1);
 	}
 
+	read_controller_data(fd, &cdata);
+
 	/*
 	 * The log page attribtues indicate whether or not the controller
 	 * supports the SMART/Health information log page on a per
@@ -307,7 +309,6 @@ logpage(int argc, char *argv[])
 		if (log_page != NVME_LOG_HEALTH_INFORMATION)
 			errx(1, "log page %d valid only at controller level",
 			    log_page);
-		read_controller_data(fd, &cdata);
 		if (cdata.lpa.ns_smart == 0)
 			errx(1,
 			    "controller does not support per namespace "

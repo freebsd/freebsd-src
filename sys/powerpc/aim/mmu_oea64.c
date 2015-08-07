@@ -63,6 +63,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 #include <sys/vmmeter.h>
+#include <sys/smp.h>
 
 #include <sys/kdb.h>
 
@@ -226,7 +227,8 @@ static boolean_t	moea64_query_bit(mmu_t, vm_page_t, uint64_t);
 static u_int		moea64_clear_bit(mmu_t, vm_page_t, uint64_t);
 static void		moea64_kremove(mmu_t, vm_offset_t);
 static void		moea64_syncicache(mmu_t, pmap_t pmap, vm_offset_t va, 
-			    vm_offset_t pa, vm_size_t sz);
+			    vm_paddr_t pa, vm_size_t sz);
+static void		moea64_pmap_init_qpages(void);
 
 /*
  * Kernel MMU interface
@@ -267,17 +269,19 @@ void moea64_zero_page_idle(mmu_t, vm_page_t);
 void moea64_activate(mmu_t, struct thread *);
 void moea64_deactivate(mmu_t, struct thread *);
 void *moea64_mapdev(mmu_t, vm_paddr_t, vm_size_t);
-void *moea64_mapdev_attr(mmu_t, vm_offset_t, vm_size_t, vm_memattr_t);
+void *moea64_mapdev_attr(mmu_t, vm_paddr_t, vm_size_t, vm_memattr_t);
 void moea64_unmapdev(mmu_t, vm_offset_t, vm_size_t);
 vm_paddr_t moea64_kextract(mmu_t, vm_offset_t);
 void moea64_page_set_memattr(mmu_t, vm_page_t m, vm_memattr_t ma);
-void moea64_kenter_attr(mmu_t, vm_offset_t, vm_offset_t, vm_memattr_t ma);
+void moea64_kenter_attr(mmu_t, vm_offset_t, vm_paddr_t, vm_memattr_t ma);
 void moea64_kenter(mmu_t, vm_offset_t, vm_paddr_t);
 boolean_t moea64_dev_direct_mapped(mmu_t, vm_paddr_t, vm_size_t);
 static void moea64_sync_icache(mmu_t, pmap_t, vm_offset_t, vm_size_t);
 void moea64_dumpsys_map(mmu_t mmu, vm_paddr_t pa, size_t sz,
     void **va);
 void moea64_scan_init(mmu_t mmu);
+vm_offset_t moea64_quick_enter_page(mmu_t mmu, vm_page_t m);
+void moea64_quick_remove_page(mmu_t mmu, vm_offset_t addr);
 
 static mmu_method_t moea64_methods[] = {
 	MMUMETHOD(mmu_clear_modify,	moea64_clear_modify),
@@ -314,6 +318,8 @@ static mmu_method_t moea64_methods[] = {
 	MMUMETHOD(mmu_activate,		moea64_activate),
 	MMUMETHOD(mmu_deactivate,      	moea64_deactivate),
 	MMUMETHOD(mmu_page_set_memattr,	moea64_page_set_memattr),
+	MMUMETHOD(mmu_quick_enter_page, moea64_quick_enter_page),
+	MMUMETHOD(mmu_quick_remove_page, moea64_quick_remove_page),
 
 	/* Internal interfaces */
 	MMUMETHOD(mmu_mapdev,		moea64_mapdev),
@@ -419,7 +425,7 @@ moea64_pte_from_pvo(const struct pvo_entry *pvo, struct lpte *lpte)
 }
 
 static __inline uint64_t
-moea64_calc_wimg(vm_offset_t pa, vm_memattr_t ma)
+moea64_calc_wimg(vm_paddr_t pa, vm_memattr_t ma)
 {
 	uint64_t pte_lo;
 	int i;
@@ -974,6 +980,29 @@ moea64_late_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend
 	}
 }
 
+static void
+moea64_pmap_init_qpages(void)
+{
+	struct pcpu *pc;
+	int i;
+
+	if (hw_direct_map)
+		return;
+
+	CPU_FOREACH(i) {
+		pc = pcpu_find(i);
+		pc->pc_qmap_addr = kva_alloc(PAGE_SIZE);
+		if (pc->pc_qmap_addr == 0)
+			panic("pmap_init_qpages: unable to allocate KVA");
+		PMAP_LOCK(kernel_pmap);
+		pc->pc_qmap_pvo = moea64_pvo_find_va(kernel_pmap, pc->pc_qmap_addr);
+		PMAP_UNLOCK(kernel_pmap);
+		mtx_init(&pc->pc_qmap_lock, "qmap lock", NULL, MTX_DEF);
+	}
+}
+
+SYSINIT(qpages_init, SI_SUB_CPU, SI_ORDER_ANY, moea64_pmap_init_qpages, NULL);
+
 /*
  * Activate a user pmap.  This mostly involves setting some non-CPU
  * state.
@@ -1054,7 +1083,7 @@ moea64_unwire(mmu_t mmu, pmap_t pm, vm_offset_t sva, vm_offset_t eva)
  */
 
 static __inline
-void moea64_set_scratchpage_pa(mmu_t mmup, int which, vm_offset_t pa) {
+void moea64_set_scratchpage_pa(mmu_t mmup, int which, vm_paddr_t pa) {
 
 	KASSERT(!hw_direct_map, ("Using OEA64 scratchpage with a direct map!"));
 	mtx_assert(&moea64_scratchpage_mtx, MA_OWNED);
@@ -1159,7 +1188,7 @@ moea64_copy_pages(mmu_t mmu, vm_page_t *ma, vm_offset_t a_offset,
 void
 moea64_zero_page_area(mmu_t mmu, vm_page_t m, int off, int size)
 {
-	vm_offset_t pa = VM_PAGE_TO_PHYS(m);
+	vm_paddr_t pa = VM_PAGE_TO_PHYS(m);
 
 	if (size + off > PAGE_SIZE)
 		panic("moea64_zero_page: size + off > PAGE_SIZE");
@@ -1180,7 +1209,7 @@ moea64_zero_page_area(mmu_t mmu, vm_page_t m, int off, int size)
 void
 moea64_zero_page(mmu_t mmu, vm_page_t m)
 {
-	vm_offset_t pa = VM_PAGE_TO_PHYS(m);
+	vm_paddr_t pa = VM_PAGE_TO_PHYS(m);
 	vm_offset_t va, off;
 
 	if (!hw_direct_map) {
@@ -1204,6 +1233,48 @@ moea64_zero_page_idle(mmu_t mmu, vm_page_t m)
 {
 
 	moea64_zero_page(mmu, m);
+}
+
+vm_offset_t
+moea64_quick_enter_page(mmu_t mmu, vm_page_t m)
+{
+	struct pvo_entry *pvo;
+	vm_paddr_t pa = VM_PAGE_TO_PHYS(m);
+
+	if (hw_direct_map)
+		return (pa);
+
+	/*
+ 	 * MOEA64_PTE_REPLACE does some locking, so we can't just grab
+	 * a critical section and access the PCPU data like on i386.
+	 * Instead, pin the thread and grab the PCPU lock to prevent
+	 * a preempting thread from using the same PCPU data.
+	 */
+	sched_pin();
+
+	mtx_assert(PCPU_PTR(qmap_lock), MA_NOTOWNED);
+	pvo = PCPU_GET(qmap_pvo);
+
+	mtx_lock(PCPU_PTR(qmap_lock));
+	pvo->pvo_pte.pa = moea64_calc_wimg(pa, pmap_page_get_memattr(m)) |
+	    (uint64_t)pa;
+	MOEA64_PTE_REPLACE(mmu, pvo, MOEA64_PTE_INVALIDATE);
+	isync();
+
+	return (PCPU_GET(qmap_addr));
+}
+
+void
+moea64_quick_remove_page(mmu_t mmu, vm_offset_t addr)
+{
+	if (hw_direct_map)
+		return;
+
+	mtx_assert(PCPU_PTR(qmap_lock), MA_OWNED);
+	KASSERT(PCPU_GET(qmap_addr) == addr,
+	    ("moea64_quick_remove_page: invalid address"));
+	mtx_unlock(PCPU_PTR(qmap_lock));
+	sched_unpin();	
 }
 
 /*
@@ -1310,7 +1381,7 @@ moea64_enter(mmu_t mmu, pmap_t pmap, vm_offset_t va, vm_page_t m,
 }
 
 static void
-moea64_syncicache(mmu_t mmu, pmap_t pmap, vm_offset_t va, vm_offset_t pa,
+moea64_syncicache(mmu_t mmu, pmap_t pmap, vm_offset_t va, vm_paddr_t pa,
     vm_size_t sz)
 {
 
@@ -1692,7 +1763,7 @@ moea64_page_set_memattr(mmu_t mmu, vm_page_t m, vm_memattr_t ma)
  * Map a wired page into kernel virtual address space.
  */
 void
-moea64_kenter_attr(mmu_t mmu, vm_offset_t va, vm_offset_t pa, vm_memattr_t ma)
+moea64_kenter_attr(mmu_t mmu, vm_offset_t va, vm_paddr_t pa, vm_memattr_t ma)
 {
 	int		error;	
 	struct pvo_entry *pvo, *oldpvo;
@@ -2517,7 +2588,7 @@ moea64_dev_direct_mapped(mmu_t mmu, vm_paddr_t pa, vm_size_t size)
  * NOT real memory.
  */
 void *
-moea64_mapdev_attr(mmu_t mmu, vm_offset_t pa, vm_size_t size, vm_memattr_t ma)
+moea64_mapdev_attr(mmu_t mmu, vm_paddr_t pa, vm_size_t size, vm_memattr_t ma)
 {
 	vm_offset_t va, tmpva, ppa, offset;
 

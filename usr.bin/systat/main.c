@@ -138,7 +138,6 @@ main(int argc, char **argv)
 {
 	char errbuf[_POSIX2_LINE_MAX], dummy;
 	size_t	size;
-	double t;
 	struct cmdentry *cmd = NULL;
 
 	(void) setlocale(LC_ALL, "");

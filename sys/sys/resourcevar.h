@@ -90,7 +90,7 @@ struct racct;
  * Locking guide:
  * (a) Constant from inception
  * (b) Lockless, updated using atomics
- * (c) Locked by global uihashtbl_mtx
+ * (c) Locked by global uihashtbl_lock
  * (d) Locked by the ui_vmsize_mtx
  */
 struct uidinfo {
@@ -130,13 +130,16 @@ int	 kern_proc_setrlimit(struct thread *td, struct proc *p, u_int which,
 struct plimit
 	*lim_alloc(void);
 void	 lim_copy(struct plimit *dst, struct plimit *src);
-rlim_t	 lim_cur(struct proc *p, int which);
+rlim_t	 lim_cur(struct thread *td, int which);
+rlim_t	 lim_cur_proc(struct proc *p, int which);
 void	 lim_fork(struct proc *p1, struct proc *p2);
 void	 lim_free(struct plimit *limp);
 struct plimit
 	*lim_hold(struct plimit *limp);
-rlim_t	 lim_max(struct proc *p, int which);
-void	 lim_rlimit(struct proc *p, int which, struct rlimit *rlp);
+rlim_t	 lim_max(struct thread *td, int which);
+rlim_t	 lim_max_proc(struct proc *p, int which);
+void	 lim_rlimit(struct thread *td, int which, struct rlimit *rlp);
+void	 lim_rlimit_proc(struct proc *p, int which, struct rlimit *rlp);
 void	 ruadd(struct rusage *ru, struct rusage_ext *rux, struct rusage *ru2,
 	    struct rusage_ext *rux2);
 void	 rucollect(struct rusage *ru, struct rusage *ru2);

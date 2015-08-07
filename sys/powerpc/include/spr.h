@@ -527,6 +527,14 @@
 #define	  MSSCR0_ABD		  0x00100000 /* 11: address bus driven (read-only) */
 #define	  MSSCR0_MBZ		  0x000fffff /* 12-31: must be zero */
 #define	  MSSCR0_L2PFE		  0x00000003 /* 30-31: L2 prefetch enable */
+#define	SPR_MSSSR0		0x3f7	/* .6. Memory Subsystem Status Register (MPC745x) */
+#define	  MSSSR0_L2TAG		  0x00040000 /* 13: L2 tag parity error */
+#define	  MSSSR0_L2DAT		  0x00020000 /* 14: L2 data parity error */
+#define	  MSSSR0_L3TAG		  0x00010000 /* 15: L3 tag parity error */
+#define	  MSSSR0_L3DAT		  0x00008000 /* 16: L3 data parity error */
+#define	  MSSSR0_APE		  0x00004000 /* 17: Address parity error */
+#define	  MSSSR0_DPE		  0x00002000 /* 18: Data parity error */
+#define	  MSSSR0_TEA		  0x00001000 /* 19: Bus transfer error acknowledge */
 #define	SPR_LDSTCR		0x3f8	/* .6. Load/Store Control Register */
 #define	SPR_L2PM		0x3f8	/* .6. L2 Private Memory Control Register */
 #define	SPR_L2CR		0x3f9	/* .6. L2 Control Register */

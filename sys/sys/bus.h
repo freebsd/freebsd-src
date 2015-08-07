@@ -612,7 +612,7 @@ void	bus_data_generation_update(void);
 #define BUS_PROBE_DEFAULT	(-20)	/* Base OS default driver */
 #define BUS_PROBE_LOW_PRIORITY	(-40)	/* Older, less desirable drivers */
 #define BUS_PROBE_GENERIC	(-100)	/* generic driver for dev */
-#define BUS_PROBE_HOOVER	(-500)	/* Generic dev for all devs on bus */
+#define BUS_PROBE_HOOVER	(-1000000) /* Driver for any dev on bus */
 #define BUS_PROBE_NOWILDCARD	(-2000000000) /* No wildcard device matches */
 
 /**

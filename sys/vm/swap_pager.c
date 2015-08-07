@@ -224,16 +224,14 @@ swap_reserve_by_cred(vm_ooffset_t incr, struct ucred *cred)
 	mtx_unlock(&sw_dev_mtx);
 
 	if (res) {
-		PROC_LOCK(curproc);
 		UIDINFO_VMSIZE_LOCK(uip);
 		if ((overcommit & SWAP_RESERVE_RLIMIT_ON) != 0 &&
-		    uip->ui_vmsize + incr > lim_cur(curproc, RLIMIT_SWAP) &&
+		    uip->ui_vmsize + incr > lim_cur(curthread, RLIMIT_SWAP) &&
 		    priv_check(curthread, PRIV_VM_SWAP_NORLIMIT))
 			res = 0;
 		else
 			uip->ui_vmsize += incr;
 		UIDINFO_VMSIZE_UNLOCK(uip);
-		PROC_UNLOCK(curproc);
 		if (!res) {
 			mtx_lock(&sw_dev_mtx);
 			swap_reserved -= incr;
@@ -774,11 +772,8 @@ swp_pager_strategy(struct buf *bp)
 			mtx_unlock(&sw_dev_mtx);
 			if ((sp->sw_flags & SW_UNMAPPED) != 0 &&
 			    unmapped_buf_allowed) {
-				bp->b_kvaalloc = bp->b_data;
 				bp->b_data = unmapped_buf;
-				bp->b_kvabase = unmapped_buf;
 				bp->b_offset = 0;
-				bp->b_flags |= B_UNMAPPED;
 			} else {
 				pmap_qenter((vm_offset_t)bp->b_data,
 				    &bp->b_pages[0], bp->b_bcount / PAGE_SIZE);
@@ -1119,10 +1114,6 @@ swap_pager_getpages(vm_object_t object, vm_page_t *m, int count, int reqpage)
 	daddr_t blk;
 
 	mreq = m[reqpage];
-
-	KASSERT(mreq->object == object,
-	    ("swap_pager_getpages: object mismatch %p/%p",
-	    object, mreq->object));
 
 	/*
 	 * Calculate range to retrieve.  The pages have already been assigned
@@ -1502,12 +1493,10 @@ swp_pager_async_iodone(struct buf *bp)
 	/*
 	 * remove the mapping for kernel virtual
 	 */
-	if ((bp->b_flags & B_UNMAPPED) != 0) {
-		bp->b_data = bp->b_kvaalloc;
-		bp->b_kvabase = bp->b_kvaalloc;
-		bp->b_flags &= ~B_UNMAPPED;
-	} else
+	if (buf_mapped(bp))
 		pmap_qremove((vm_offset_t)bp->b_data, bp->b_npages);
+	else
+		bp->b_data = bp->b_kvabase;
 
 	if (bp->b_npages) {
 		object = bp->b_pages[0]->object;
@@ -2603,7 +2592,7 @@ swapgeom_strategy(struct buf *bp, struct swdevt *sp)
 	bio->bio_offset = (bp->b_blkno - sp->sw_first) * PAGE_SIZE;
 	bio->bio_length = bp->b_bcount;
 	bio->bio_done = swapgeom_done;
-	if ((bp->b_flags & B_UNMAPPED) != 0) {
+	if (!buf_mapped(bp)) {
 		bio->bio_ma = bp->b_pages;
 		bio->bio_data = unmapped_buf;
 		bio->bio_ma_offset = (vm_offset_t)bp->b_offset & PAGE_MASK;

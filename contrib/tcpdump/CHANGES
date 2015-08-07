@@ -1,4 +1,35 @@
+Friday April 10, 2015 guy@alum.mit.edu
+  Summary for 4.7.4 tcpdump release
+	RPKI to Router Protocol: Fix Segmentation Faults and other problems
+	RPKI to Router Protocol: print strings with fn_printn()
+	wb: fix some bounds checks
+
+Wednesday March 11, 2015 mcr@sandelman.ca
+  Summary for 4.7.3 tcpdump release
+	Capsicum fixes for FreeBSD 10
+
+Tuesday March 10, 2015 mcr@sandelman.ca
+  Summary for 4.7.2 tcpdump release
+	DCCP: update Packet Types with RFC4340/IANA names
+        fixes for CVE-2015-0261: IPv6 mobility header check issue
+        fixes for CVE-2015-2153, 2154, 2155: kday packets
+
+Friday Nov. 12, 2014 guy@alum.mit.edu
+  Summary for 4.7.0 tcpdump release
+        changes to hex printing of CDP packets
+	Fix PPI printing
+	Radius: update Packet Type Codes and Attribute Types with RFC/IANA names
+	Add a routine to print "text protocols", and add FTP/HTTP/SMTP/RTSP support.
+	improvements to telnet printer, even if not -v
+	omit length for bcp, print-tcp uses it
+	formatting fixes for a bunch of protocols
+	new bounds checks for a number of protocols
+	split netflow 1,6, and 6 dissector up.
+	added geneve dissector
+        CVE-2014-9140 PPP dissector fixed.
+
 Tuesday  Sep.  2, 2014 mcr@sandelman.ca
+  Summary for 4.6.2 tcpdump release
 	fix out-of-source-tree builds: find libpcap that is out of source
 	better configure check for libsmi
 
