@@ -180,7 +180,7 @@ fill_fpregs(struct thread *td, struct fpreg *regs)
 		 * If we have just been running VFP instructions we will
 		 * need to save the state to memcpy it below.
 		 */
-		vfp_save_state(td);
+		vfp_save_state(td, pcb);
 
 		memcpy(regs->fp_q, pcb->pcb_vfp, sizeof(regs->fp_q));
 		regs->fp_cr = pcb->pcb_fpcr;
@@ -209,21 +209,21 @@ int
 fill_dbregs(struct thread *td, struct dbreg *regs)
 {
 
-	panic("fill_dbregs");
+	panic("ARM64TODO: fill_dbregs");
 }
 
 int
 set_dbregs(struct thread *td, struct dbreg *regs)
 {
 
-	panic("set_dbregs");
+	panic("ARM64TODO: set_dbregs");
 }
 
 int
 ptrace_set_pc(struct thread *td, u_long addr)
 {
 
-	panic("ptrace_set_pc");
+	panic("ARM64TODO: ptrace_set_pc");
 	return (0);
 }
 
@@ -314,7 +314,7 @@ get_fpcontext(struct thread *td, mcontext_t *mcp)
 		 * If we have just been running VFP instructions we will
 		 * need to save the state to memcpy it below.
 		 */
-		vfp_save_state(td);
+		vfp_save_state(td, curpcb);
 
 		memcpy(mcp->mc_fpregs.fp_q, curpcb->pcb_vfp,
 		    sizeof(mcp->mc_fpregs));
@@ -376,7 +376,11 @@ void
 cpu_halt(void)
 {
 
-	panic("cpu_halt");
+	/* We should have shutdown by now, if not enter a low power sleep */
+	intr_disable();
+	while (1) {
+		__asm __volatile("wfi");
+	}
 }
 
 /*
@@ -387,7 +391,7 @@ void
 cpu_flush_dcache(void *ptr, size_t len)
 {
 
-	/* TBD */
+	/* ARM64TODO TBD */
 }
 
 /* Get current clock frequency for the given CPU ID. */
@@ -395,7 +399,7 @@ int
 cpu_est_clockrate(int cpu_id, uint64_t *rate)
 {
 
-	panic("cpu_est_clockrate");
+	panic("ARM64TODO: cpu_est_clockrate");
 }
 
 void
@@ -818,8 +822,13 @@ initarm(struct arm64_bootparams *abp)
 
 	/* Print the memory map */
 	mem_len = 0;
-	for (i = 0; i < physmap_idx; i += 2)
+	for (i = 0; i < physmap_idx; i += 2) {
+		dump_avail[i] = physmap[i];
+		dump_avail[i + 1] = physmap[i + 1];
 		mem_len += physmap[i + 1] - physmap[i];
+	}
+	dump_avail[i] = 0;
+	dump_avail[i + 1] = 0;
 
 	/* Set the pcpu data, this is needed by pmap_bootstrap */
 	pcpup = &__pcpu[0];

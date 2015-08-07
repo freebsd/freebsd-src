@@ -503,31 +503,35 @@ flow6id_match( int curr_flow, ipfw_insn_u32 *cmd )
 }
 
 /* support for IP6_*_ME opcodes */
-static int
-search_ip6_addr_net (struct in6_addr * ip6_addr)
-{
-	struct ifnet *mdc;
-	struct ifaddr *mdc2;
-	struct in6_ifaddr *fdm;
-	struct in6_addr copia;
+static const struct in6_addr lla_mask = {{{
+	0xff, 0xff, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff,
+	0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff
+}}};
 
-	TAILQ_FOREACH(mdc, &V_ifnet, if_link) {
-		if_addr_rlock(mdc);
-		TAILQ_FOREACH(mdc2, &mdc->if_addrhead, ifa_link) {
-			if (mdc2->ifa_addr->sa_family == AF_INET6) {
-				fdm = (struct in6_ifaddr *)mdc2;
-				copia = fdm->ia_addr.sin6_addr;
-				/* need for leaving scope_id in the sock_addr */
-				in6_clearscope(&copia);
-				if (IN6_ARE_ADDR_EQUAL(ip6_addr, &copia)) {
-					if_addr_runlock(mdc);
-					return 1;
-				}
-			}
+static int
+ipfw_localip6(struct in6_addr *in6)
+{
+	struct rm_priotracker in6_ifa_tracker;
+	struct in6_ifaddr *ia;
+
+	if (IN6_IS_ADDR_MULTICAST(in6))
+		return (0);
+
+	if (!IN6_IS_ADDR_LINKLOCAL(in6))
+		return (in6_localip(in6));
+
+	IN6_IFADDR_RLOCK(&in6_ifa_tracker);
+	TAILQ_FOREACH(ia, &V_in6_ifaddrhead, ia_link) {
+		if (!IN6_IS_ADDR_LINKLOCAL(&ia->ia_addr.sin6_addr))
+			continue;
+		if (IN6_ARE_MASKED_ADDR_EQUAL(&ia->ia_addr.sin6_addr,
+		    in6, &lla_mask)) {
+			IN6_IFADDR_RUNLOCK(&in6_ifa_tracker);
+			return (1);
 		}
-		if_addr_runlock(mdc);
 	}
-	return 0;
+	IN6_IFADDR_RUNLOCK(&in6_ifa_tracker);
+	return (0);
 }
 
 static int
@@ -1597,7 +1601,7 @@ do {								\
 #ifdef INET6
 				/* FALLTHROUGH */
 			case O_IP6_SRC_ME:
-				match= is_ipv6 && search_ip6_addr_net(&args->f_id.src_ip6);
+				match= is_ipv6 && ipfw_localip6(&args->f_id.src_ip6);
 #endif
 				break;
 
@@ -1636,7 +1640,7 @@ do {								\
 #ifdef INET6
 				/* FALLTHROUGH */
 			case O_IP6_DST_ME:
-				match= is_ipv6 && search_ip6_addr_net(&args->f_id.dst_ip6);
+				match= is_ipv6 && ipfw_localip6(&args->f_id.dst_ip6);
 #endif
 				break;
 

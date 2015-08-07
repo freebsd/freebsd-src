@@ -1074,7 +1074,7 @@ ataaction(struct cam_sim *sim, union ccb *ccb)
 		cpi->version_num = 1; /* XXX??? */
 		cpi->hba_inquiry = PI_SDTR_ABLE;
 		cpi->target_sprt = 0;
-		cpi->hba_misc = PIM_SEQSCAN;
+		cpi->hba_misc = PIM_SEQSCAN | PIM_UNMAPPED;
 		cpi->hba_eng_cnt = 0;
 		if (ch->flags & ATA_NO_SLAVE)
 			cpi->max_target = 0;

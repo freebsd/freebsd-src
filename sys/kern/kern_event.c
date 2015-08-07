@@ -738,11 +738,11 @@ int
 sys_kqueue(struct thread *td, struct kqueue_args *uap)
 {
 
-	return (kern_kqueue(td, 0));
+	return (kern_kqueue(td, 0, NULL));
 }
 
 int
-kern_kqueue(struct thread *td, int flags)
+kern_kqueue(struct thread *td, int flags, struct filecaps *fcaps)
 {
 	struct filedesc *fdp;
 	struct kqueue *kq;
@@ -760,7 +760,7 @@ kern_kqueue(struct thread *td, int flags)
 	}
 
 	fdp = p->p_fd;
-	error = falloc(td, &fp, &fd, flags);
+	error = falloc_caps(td, &fp, &fd, flags, fcaps);
 	if (error)
 		goto done2;
 

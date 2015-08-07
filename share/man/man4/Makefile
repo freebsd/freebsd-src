@@ -96,6 +96,7 @@ MAN=	aac.4 \
 	cdce.4 \
 	ch.4 \
 	ciss.4 \
+	cloudabi.4 \
 	cm.4 \
 	cmx.4 \
 	${_coretemp.4} \
@@ -583,6 +584,7 @@ MLINKS+=bwn.4 if_bwn.4
 MLINKS+=${_bxe.4} ${_if_bxe.4}
 MLINKS+=cas.4 if_cas.4
 MLINKS+=cdce.4 if_cdce.4
+MLINKS+=cloudabi.4 cloudabi64.4
 MLINKS+=crypto.4 cryptodev.4
 MLINKS+=cue.4 if_cue.4
 MLINKS+=cxgb.4 if_cxgb.4
@@ -666,6 +668,7 @@ MLINKS+=pccbb.4 cbb.4
 MLINKS+=pcm.4 snd.4 \
 	pcm.4 sound.4
 MLINKS+=pcn.4 if_pcn.4
+MLINKS+=pms.4 pmspcv.4
 MLINKS+=ral.4 if_ral.4
 MLINKS+=re.4 if_re.4
 MLINKS+=rl.4 if_rl.4

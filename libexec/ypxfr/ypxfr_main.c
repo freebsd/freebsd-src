@@ -54,12 +54,12 @@ __FBSDID("$FreeBSD$");
 char *progname = "ypxfr";
 char *yp_dir = _PATH_YP;
 int _rpcpmstart = 0;
-int ypxfr_use_yplib = 0; /* Assume the worst. */
-int ypxfr_clear = 1;
-int ypxfr_prognum = 0;
-struct sockaddr_in ypxfr_callback_addr;
-struct yppushresp_xfr ypxfr_resp;
-DB *dbp;
+static int ypxfr_use_yplib = 0; /* Assume the worst. */
+static int ypxfr_clear = 1;
+static int ypxfr_prognum = 0;
+static struct sockaddr_in ypxfr_callback_addr;
+static struct yppushresp_xfr ypxfr_resp;
+static DB *dbp;
 
 static void
 ypxfr_exit(ypxfrstat retval, char *temp)

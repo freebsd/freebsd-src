@@ -105,12 +105,12 @@ struct rt2560_vap {
 #define	RT2560_VAP(vap)		((struct rt2560_vap *)(vap))
 
 struct rt2560_softc {
-	struct ifnet		*sc_ifp;
+	struct ieee80211com	sc_ic;
+	struct mtx		sc_mtx;
+	struct mbufq		sc_snd;
 	device_t		sc_dev;
 	bus_space_tag_t		sc_st;
 	bus_space_handle_t	sc_sh;
-
-	struct mtx		sc_mtx;
 
 	struct callout		watchdog_ch;
 
@@ -152,8 +152,7 @@ struct rt2560_softc {
 	struct rt2560_tx_radiotap_header sc_txtap;
 	int			sc_txtap_len;
 #define RT2560_F_INPUT_RUNNING	0x1
-#define RT2560_F_PRIO_OACTIVE	0x2
-#define RT2560_F_DATA_OACTIVE	0x4
+#define RT2560_F_RUNNING	0x2
 	int			sc_flags;
 };
 

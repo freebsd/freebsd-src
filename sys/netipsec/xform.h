@@ -105,6 +105,7 @@ struct xformsw {
 #ifdef _KERNEL
 extern void xform_register(struct xformsw*);
 extern int xform_init(struct secasvar *sav, int xftype);
+extern int xform_ah_authsize(struct auth_hash *esph);
 
 struct cryptoini;
 

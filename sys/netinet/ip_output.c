@@ -44,11 +44,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/protosw.h>
+#include <sys/rmlock.h>
 #include <sys/sdt.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
@@ -104,6 +106,97 @@ static void	ip_mloopback
 extern int in_mcast_loop;
 extern	struct protosw inetsw[];
 
+static inline int
+ip_output_pfil(struct mbuf **mp, struct ifnet *ifp, struct inpcb *inp,
+    struct sockaddr_in *dst, int *fibnum, int *error)
+{
+	struct m_tag *fwd_tag = NULL;
+	struct mbuf *m;
+	struct in_addr odst;
+	struct ip *ip;
+
+	m = *mp;
+	ip = mtod(m, struct ip *);
+
+	/* Run through list of hooks for output packets. */
+	odst.s_addr = ip->ip_dst.s_addr;
+	*error = pfil_run_hooks(&V_inet_pfil_hook, mp, ifp, PFIL_OUT, inp);
+	m = *mp;
+	if ((*error) != 0 || m == NULL)
+		return 1; /* Finished */
+
+	ip = mtod(m, struct ip *);
+
+	/* See if destination IP address was changed by packet filter. */
+	if (odst.s_addr != ip->ip_dst.s_addr) {
+		m->m_flags |= M_SKIP_FIREWALL;
+		/* If destination is now ourself drop to ip_input(). */
+		if (in_localip(ip->ip_dst)) {
+			m->m_flags |= M_FASTFWD_OURS;
+			if (m->m_pkthdr.rcvif == NULL)
+				m->m_pkthdr.rcvif = V_loif;
+			if (m->m_pkthdr.csum_flags & CSUM_DELAY_DATA) {
+				m->m_pkthdr.csum_flags |=
+					CSUM_DATA_VALID | CSUM_PSEUDO_HDR;
+				m->m_pkthdr.csum_data = 0xffff;
+			}
+			m->m_pkthdr.csum_flags |=
+				CSUM_IP_CHECKED | CSUM_IP_VALID;
+#ifdef SCTP
+			if (m->m_pkthdr.csum_flags & CSUM_SCTP)
+				m->m_pkthdr.csum_flags |= CSUM_SCTP_VALID;
+#endif
+			*error = netisr_queue(NETISR_IP, m);
+			return 1; /* Finished */
+		}
+
+		bzero(dst, sizeof(*dst));
+		dst->sin_family = AF_INET;
+		dst->sin_len = sizeof(*dst);
+		dst->sin_addr = ip->ip_dst;
+
+		return -1; /* Reloop */
+	}
+	/* See if fib was changed by packet filter. */
+	if ((*fibnum) != M_GETFIB(m)) {
+		m->m_flags |= M_SKIP_FIREWALL;
+		*fibnum = M_GETFIB(m);
+		return -1; /* Reloop for FIB change */
+	}
+
+	/* See if local, if yes, send it to netisr with IP_FASTFWD_OURS. */
+	if (m->m_flags & M_FASTFWD_OURS) {
+		if (m->m_pkthdr.rcvif == NULL)
+			m->m_pkthdr.rcvif = V_loif;
+		if (m->m_pkthdr.csum_flags & CSUM_DELAY_DATA) {
+			m->m_pkthdr.csum_flags |=
+				CSUM_DATA_VALID | CSUM_PSEUDO_HDR;
+			m->m_pkthdr.csum_data = 0xffff;
+		}
+#ifdef SCTP
+		if (m->m_pkthdr.csum_flags & CSUM_SCTP)
+			m->m_pkthdr.csum_flags |= CSUM_SCTP_VALID;
+#endif
+		m->m_pkthdr.csum_flags |=
+			CSUM_IP_CHECKED | CSUM_IP_VALID;
+
+		*error = netisr_queue(NETISR_IP, m);
+		return 1; /* Finished */
+	}
+	/* Or forward to some other address? */
+	if ((m->m_flags & M_IP_NEXTHOP) &&
+	    ((fwd_tag = m_tag_find(m, PACKET_TAG_IPFORWARD, NULL)) != NULL)) {
+		bcopy((fwd_tag+1), dst, sizeof(struct sockaddr_in));
+		m->m_flags |= M_SKIP_FIREWALL;
+		m->m_flags &= ~M_IP_NEXTHOP;
+		m_tag_delete(m, fwd_tag);
+
+		return -1; /* Reloop for CHANGE of dst */
+	}
+
+	return 0;
+}
+
 /*
  * IP output.  The packet in mbuf chain m contains a skeletal IP
  * header (with len, off, ttl, proto, tos, src, dst).
@@ -120,6 +213,7 @@ int
 ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
     struct ip_moptions *imo, struct inpcb *inp)
 {
+	struct rm_priotracker in_ifa_tracker;
 	struct ip *ip;
 	struct ifnet *ifp = NULL;	/* keep compiler happy */
 	struct mbuf *m0;
@@ -133,11 +227,8 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
 	uint16_t ip_len, ip_off;
 	struct route iproute;
 	struct rtentry *rte;	/* cache for ro->ro_rt */
-	struct in_addr odst;
-	struct m_tag *fwd_tag = NULL;
 	uint32_t fibnum;
 	int have_ia_ref;
-	int needfiblookup;
 #ifdef IPSEC
 	int no_route_but_check_spd = 0;
 #endif
@@ -191,32 +282,20 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
 	 */
 	gw = dst = (struct sockaddr_in *)&ro->ro_dst;
 	fibnum = (inp != NULL) ? inp->inp_inc.inc_fibnum : M_GETFIB(m);
-again:
-	ia = NULL;
-	have_ia_ref = 0;
+	rte = ro->ro_rt;
 	/*
-	 * If there is a cached route, check that it is to the same
-	 * destination and is still up.  If not, free it and try again.
 	 * The address family should also be checked in case of sharing
 	 * the cache with IPv6.
 	 */
-	rte = ro->ro_rt;
-	if (rte && ((rte->rt_flags & RTF_UP) == 0 ||
-		    rte->rt_ifp == NULL ||
-		    !RT_LINK_IS_UP(rte->rt_ifp) ||
-			  dst->sin_family != AF_INET ||
-			  dst->sin_addr.s_addr != ip->ip_dst.s_addr)) {
-		RO_RTFREE(ro);
-		ro->ro_lle = NULL;
-		rte = NULL;
-		gw = dst;
-	}
-	if (rte == NULL && fwd_tag == NULL) {
+	if (rte == NULL || dst->sin_family != AF_INET) {
 		bzero(dst, sizeof(*dst));
 		dst->sin_family = AF_INET;
 		dst->sin_len = sizeof(*dst);
 		dst->sin_addr = ip->ip_dst;
 	}
+again:
+	ia = NULL;
+	have_ia_ref = 0;
 	/*
 	 * If routing to interface only, short circuit routing lookup.
 	 * The use of an all-ones broadcast address implies this; an
@@ -258,7 +337,7 @@ again:
 		 * packets if the interface is specified.
 		 */
 		ifp = imo->imo_multicast_ifp;
-		IFP_TO_IA(ifp, ia);
+		IFP_TO_IA(ifp, ia, &in_ifa_tracker);
 		if (ia)
 			have_ia_ref = 1;
 		isbroadcast = 0;	/* fool gcc */
@@ -279,6 +358,7 @@ again:
 			rte = ro->ro_rt;
 		}
 		if (rte == NULL ||
+		    (rte->rt_flags & RTF_UP) == 0 ||
 		    rte->rt_ifp == NULL ||
 		    !RT_LINK_IS_UP(rte->rt_ifp)) {
 #ifdef IPSEC
@@ -304,6 +384,7 @@ again:
 		else
 			isbroadcast = in_broadcast(gw->sin_addr, ifp);
 	}
+
 	/*
 	 * Calculate MTU.  If we have a route that is up, use that,
 	 * otherwise use the interface's MTU.
@@ -315,6 +396,7 @@ again:
 	/* Catch a possible divide by zero later. */
 	KASSERT(mtu > 0, ("%s: mtu %d <= 0, rte=%p (rt_flags=0x%08x) ifp=%p",
 	    __func__, mtu, rte, (rte != NULL) ? rte->rt_flags : 0, ifp));
+
 	if (IN_MULTICAST(ntohl(ip->ip_dst.s_addr))) {
 		m->m_flags |= M_MCAST;
 		/*
@@ -472,87 +554,29 @@ sendit:
 #endif /* IPSEC */
 
 	/* Jump over all PFIL processing if hooks are not active. */
-	if (!PFIL_HOOKED(&V_inet_pfil_hook))
-		goto passout;
-
-	/* Run through list of hooks for output packets. */
-	odst.s_addr = ip->ip_dst.s_addr;
-	error = pfil_run_hooks(&V_inet_pfil_hook, &m, ifp, PFIL_OUT, inp);
-	if (error != 0 || m == NULL)
-		goto done;
-
-	ip = mtod(m, struct ip *);
-	needfiblookup = 0;
-
-	/* See if destination IP address was changed by packet filter. */
-	if (odst.s_addr != ip->ip_dst.s_addr) {
-		m->m_flags |= M_SKIP_FIREWALL;
-		/* If destination is now ourself drop to ip_input(). */
-		if (in_localip(ip->ip_dst)) {
-			m->m_flags |= M_FASTFWD_OURS;
-			if (m->m_pkthdr.rcvif == NULL)
-				m->m_pkthdr.rcvif = V_loif;
-			if (m->m_pkthdr.csum_flags & CSUM_DELAY_DATA) {
-				m->m_pkthdr.csum_flags |=
-				    CSUM_DATA_VALID | CSUM_PSEUDO_HDR;
-				m->m_pkthdr.csum_data = 0xffff;
-			}
-			m->m_pkthdr.csum_flags |=
-			    CSUM_IP_CHECKED | CSUM_IP_VALID;
-#ifdef SCTP
-			if (m->m_pkthdr.csum_flags & CSUM_SCTP)
-				m->m_pkthdr.csum_flags |= CSUM_SCTP_VALID;
-#endif
-			error = netisr_queue(NETISR_IP, m);
+	if (PFIL_HOOKED(&V_inet_pfil_hook)) {
+		switch (ip_output_pfil(&m, ifp, inp, dst, &fibnum, &error)) {
+		case 1: /* Finished */
 			goto done;
-		} else {
+
+		case 0: /* Continue normally */
+			ip = mtod(m, struct ip *);
+			break;
+
+		case -1: /* Need to try again */
+			/* Reset everything for a new round */
+			RO_RTFREE(ro);
 			if (have_ia_ref)
 				ifa_free(&ia->ia_ifa);
-			needfiblookup = 1; /* Redo the routing table lookup. */
+			ro->ro_lle = NULL;
+			rte = NULL;
+			gw = dst;
+			ip = mtod(m, struct ip *);
+			goto again;
+
 		}
 	}
-	/* See if fib was changed by packet filter. */
-	if (fibnum != M_GETFIB(m)) {
-		m->m_flags |= M_SKIP_FIREWALL;
-		fibnum = M_GETFIB(m);
-		RO_RTFREE(ro);
-		needfiblookup = 1;
-	}
-	if (needfiblookup)
-		goto again;
 
-	/* See if local, if yes, send it to netisr with IP_FASTFWD_OURS. */
-	if (m->m_flags & M_FASTFWD_OURS) {
-		if (m->m_pkthdr.rcvif == NULL)
-			m->m_pkthdr.rcvif = V_loif;
-		if (m->m_pkthdr.csum_flags & CSUM_DELAY_DATA) {
-			m->m_pkthdr.csum_flags |=
-			    CSUM_DATA_VALID | CSUM_PSEUDO_HDR;
-			m->m_pkthdr.csum_data = 0xffff;
-		}
-#ifdef SCTP
-		if (m->m_pkthdr.csum_flags & CSUM_SCTP)
-			m->m_pkthdr.csum_flags |= CSUM_SCTP_VALID;
-#endif
-		m->m_pkthdr.csum_flags |=
-			    CSUM_IP_CHECKED | CSUM_IP_VALID;
-
-		error = netisr_queue(NETISR_IP, m);
-		goto done;
-	}
-	/* Or forward to some other address? */
-	if ((m->m_flags & M_IP_NEXTHOP) &&
-	    (fwd_tag = m_tag_find(m, PACKET_TAG_IPFORWARD, NULL)) != NULL) {
-		bcopy((fwd_tag+1), dst, sizeof(struct sockaddr_in));
-		m->m_flags |= M_SKIP_FIREWALL;
-		m->m_flags &= ~M_IP_NEXTHOP;
-		m_tag_delete(m, fwd_tag);
-		if (have_ia_ref)
-			ifa_free(&ia->ia_ifa);
-		goto again;
-	}
-
-passout:
 	/* 127/8 must not appear on wire - RFC1122. */
 	if ((ntohl(ip->ip_dst.s_addr) >> IN_CLASSA_NSHIFT) == IN_LOOPBACKNET ||
 	    (ntohl(ip->ip_src.s_addr) >> IN_CLASSA_NSHIFT) == IN_LOOPBACKNET) {
@@ -660,6 +684,13 @@ passout:
 done:
 	if (ro == &iproute)
 		RO_RTFREE(ro);
+	else if (rte == NULL)
+		/*
+		 * If the caller supplied a route but somehow the reference
+		 * to it has been released need to prevent the caller
+		 * calling RTFREE on it again.
+		 */
+		ro->ro_rt = NULL;
 	if (have_ia_ref)
 		ifa_free(&ia->ia_ifa);
 	return (error);

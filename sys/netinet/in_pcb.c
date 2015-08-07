@@ -47,11 +47,13 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/callout.h>
 #include <sys/domain.h>
 #include <sys/protosw.h>
+#include <sys/rmlock.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/priv.h>
@@ -222,6 +224,7 @@ in_pcbinfo_init(struct inpcbinfo *pcbinfo, const char *name,
 
 	INP_INFO_LOCK_INIT(pcbinfo, name);
 	INP_HASH_LOCK_INIT(pcbinfo, "pcbinfohash");	/* XXXRW: argument? */
+	INP_LIST_LOCK_INIT(pcbinfo, "pcbinfolist");
 #ifdef VIMAGE
 	pcbinfo->ipi_vnet = curvnet;
 #endif
@@ -260,6 +263,7 @@ in_pcbinfo_destroy(struct inpcbinfo *pcbinfo)
 	in_pcbgroup_destroy(pcbinfo);
 #endif
 	uma_zdestroy(pcbinfo->ipi_zone);
+	INP_LIST_LOCK_DESTROY(pcbinfo);
 	INP_HASH_LOCK_DESTROY(pcbinfo);
 	INP_INFO_LOCK_DESTROY(pcbinfo);
 }
@@ -274,7 +278,14 @@ in_pcballoc(struct socket *so, struct inpcbinfo *pcbinfo)
 	struct inpcb *inp;
 	int error;
 
-	INP_INFO_WLOCK_ASSERT(pcbinfo);
+#ifdef INVARIANTS
+	if (pcbinfo == &V_tcbinfo) {
+		INP_INFO_RLOCK_ASSERT(pcbinfo);
+	} else {
+		INP_INFO_WLOCK_ASSERT(pcbinfo);
+	}
+#endif
+
 	error = 0;
 	inp = uma_zalloc(pcbinfo->ipi_zone, M_NOWAIT);
 	if (inp == NULL)
@@ -306,6 +317,8 @@ in_pcballoc(struct socket *so, struct inpcbinfo *pcbinfo)
 			inp->inp_flags |= IN6P_IPV6_V6ONLY;
 	}
 #endif
+	INP_WLOCK(inp);
+	INP_LIST_WLOCK(pcbinfo);
 	LIST_INSERT_HEAD(pcbinfo->ipi_listhead, inp, inp_list);
 	pcbinfo->ipi_count++;
 	so->so_pcb = (caddr_t)inp;
@@ -313,9 +326,9 @@ in_pcballoc(struct socket *so, struct inpcbinfo *pcbinfo)
 	if (V_ip6_auto_flowlabel)
 		inp->inp_flags |= IN6P_AUTOFLOWLABEL;
 #endif
-	INP_WLOCK(inp);
 	inp->inp_gencnt = ++pcbinfo->ipi_gencnt;
 	refcount_init(&inp->inp_refcount, 1);	/* Reference from inpcbinfo */
+	INP_LIST_WUNLOCK(pcbinfo);
 #if defined(IPSEC) || defined(MAC)
 out:
 	if (error != 0) {
@@ -992,6 +1005,7 @@ in_pcbconnect_setup(struct inpcb *inp, struct sockaddr *nam,
     in_addr_t *laddrp, u_short *lportp, in_addr_t *faddrp, u_short *fportp,
     struct inpcb **oinpp, struct ucred *cred)
 {
+	struct rm_priotracker in_ifa_tracker;
 	struct sockaddr_in *sin = (struct sockaddr_in *)nam;
 	struct in_ifaddr *ia;
 	struct inpcb *oinp;
@@ -1028,20 +1042,20 @@ in_pcbconnect_setup(struct inpcb *inp, struct sockaddr *nam,
 		 * choose the broadcast address for that interface.
 		 */
 		if (faddr.s_addr == INADDR_ANY) {
-			IN_IFADDR_RLOCK();
+			IN_IFADDR_RLOCK(&in_ifa_tracker);
 			faddr =
 			    IA_SIN(TAILQ_FIRST(&V_in_ifaddrhead))->sin_addr;
-			IN_IFADDR_RUNLOCK();
+			IN_IFADDR_RUNLOCK(&in_ifa_tracker);
 			if (cred != NULL &&
 			    (error = prison_get_ip4(cred, &faddr)) != 0)
 				return (error);
 		} else if (faddr.s_addr == (u_long)INADDR_BROADCAST) {
-			IN_IFADDR_RLOCK();
+			IN_IFADDR_RLOCK(&in_ifa_tracker);
 			if (TAILQ_FIRST(&V_in_ifaddrhead)->ia_ifp->if_flags &
 			    IFF_BROADCAST)
 				faddr = satosin(&TAILQ_FIRST(
 				    &V_in_ifaddrhead)->ia_broadaddr)->sin_addr;
-			IN_IFADDR_RUNLOCK();
+			IN_IFADDR_RUNLOCK(&in_ifa_tracker);
 		}
 	}
 	if (laddr.s_addr == INADDR_ANY) {
@@ -1059,7 +1073,7 @@ in_pcbconnect_setup(struct inpcb *inp, struct sockaddr *nam,
 			imo = inp->inp_moptions;
 			if (imo->imo_multicast_ifp != NULL) {
 				ifp = imo->imo_multicast_ifp;
-				IN_IFADDR_RLOCK();
+				IN_IFADDR_RLOCK(&in_ifa_tracker);
 				TAILQ_FOREACH(ia, &V_in_ifaddrhead, ia_link) {
 					if ((ia->ia_ifp == ifp) &&
 					    (cred == NULL ||
@@ -1073,7 +1087,7 @@ in_pcbconnect_setup(struct inpcb *inp, struct sockaddr *nam,
 					laddr = ia->ia_addr.sin_addr;
 					error = 0;
 				}
-				IN_IFADDR_RUNLOCK();
+				IN_IFADDR_RUNLOCK(&in_ifa_tracker);
 			}
 		}
 		if (error)
@@ -1243,7 +1257,13 @@ in_pcbfree(struct inpcb *inp)
 
 	KASSERT(inp->inp_socket == NULL, ("%s: inp_socket != NULL", __func__));
 
-	INP_INFO_WLOCK_ASSERT(pcbinfo);
+#ifdef INVARIANTS
+	if (pcbinfo == &V_tcbinfo) {
+		INP_INFO_RLOCK_ASSERT(pcbinfo);
+	} else {
+		INP_INFO_WLOCK_ASSERT(pcbinfo);
+	}
+#endif
 	INP_WLOCK_ASSERT(inp);
 
 	/* XXXRW: Do as much as possible here. */
@@ -1251,8 +1271,10 @@ in_pcbfree(struct inpcb *inp)
 	if (inp->inp_sp != NULL)
 		ipsec_delete_pcbpolicy(inp);
 #endif
+	INP_LIST_WLOCK(pcbinfo);
 	inp->inp_gencnt = ++pcbinfo->ipi_gencnt;
 	in_pcbremlists(inp);
+	INP_LIST_WUNLOCK(pcbinfo);
 #ifdef INET6
 	if (inp->inp_vflag & INP_IPV6PROTO) {
 		ip6_freepcbopts(inp->in6p_outputopts);
@@ -1409,7 +1431,7 @@ in_pcbpurgeif0(struct inpcbinfo *pcbinfo, struct ifnet *ifp)
 	struct ip_moptions *imo;
 	int i, gap;
 
-	INP_INFO_RLOCK(pcbinfo);
+	INP_INFO_WLOCK(pcbinfo);
 	LIST_FOREACH(inp, pcbinfo->ipi_listhead, inp_list) {
 		INP_WLOCK(inp);
 		imo = inp->inp_moptions;
@@ -1439,7 +1461,7 @@ in_pcbpurgeif0(struct inpcbinfo *pcbinfo, struct ifnet *ifp)
 		}
 		INP_WUNLOCK(inp);
 	}
-	INP_INFO_RUNLOCK(pcbinfo);
+	INP_INFO_WUNLOCK(pcbinfo);
 }
 
 /*
@@ -2160,8 +2182,16 @@ in_pcbremlists(struct inpcb *inp)
 {
 	struct inpcbinfo *pcbinfo = inp->inp_pcbinfo;
 
-	INP_INFO_WLOCK_ASSERT(pcbinfo);
+#ifdef INVARIANTS
+	if (pcbinfo == &V_tcbinfo) {
+		INP_INFO_RLOCK_ASSERT(pcbinfo);
+	} else {
+		INP_INFO_WLOCK_ASSERT(pcbinfo);
+	}
+#endif
+
 	INP_WLOCK_ASSERT(inp);
+	INP_LIST_WLOCK_ASSERT(pcbinfo);
 
 	inp->inp_gencnt = ++pcbinfo->ipi_gencnt;
 	if (inp->inp_flags & INP_INHASHLIST) {
@@ -2306,13 +2336,13 @@ inp_apply_all(void (*func)(struct inpcb *, void *), void *arg)
 {
 	struct inpcb *inp;
 
-	INP_INFO_RLOCK(&V_tcbinfo);
+	INP_INFO_WLOCK(&V_tcbinfo);
 	LIST_FOREACH(inp, V_tcbinfo.ipi_listhead, inp_list) {
 		INP_WLOCK(inp);
 		func(inp, arg);
 		INP_WUNLOCK(inp);
 	}
-	INP_INFO_RUNLOCK(&V_tcbinfo);
+	INP_INFO_WUNLOCK(&V_tcbinfo);
 }
 
 struct socket *

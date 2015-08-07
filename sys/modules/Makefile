@@ -149,7 +149,7 @@ SUBDIR=	\
 	${_if_me} \
 	if_lagg \
 	${_if_ndis} \
-	if_stf \
+	${_if_stf} \
 	if_tap \
 	if_tun \
 	if_vlan \
@@ -409,6 +409,11 @@ _carp=		carp
 _toecore=	toecore
 _if_gif=	if_gif
 _if_gre=	if_gre
+.endif
+
+.if (${MK_INET_SUPPORT} != "no" && ${MK_INET6_SUPPORT} != "no") || \
+	defined(ALL_MODULES)
+_if_stf=	if_stf
 .endif
 
 .if ${MK_INET_SUPPORT} != "no" || defined(ALL_MODULES)
