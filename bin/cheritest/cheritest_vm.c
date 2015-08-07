@@ -218,6 +218,7 @@ cheritest_vm_notag_tmpfile_shared(const struct cheri_test *ctp __unused)
 	fd = mkstemp(template);
 	if (fd < 0)
 		cheritest_failure_err("%s", template);
+	unlink(template);
 	if (ftruncate(fd, getpagesize()) < 0)
 		cheritest_failure_err("ftruncate");
 	cp = mmap(NULL, getpagesize(), PROT_READ | PROT_WRITE, MAP_SHARED,
@@ -240,6 +241,7 @@ cheritest_vm_tag_tmpfile_private(const struct cheri_test *ctp __unused)
 	fd = mkstemp(template);
 	if (fd < 0)
 		cheritest_failure_err("%s", template);
+	unlink(template);
 	if (ftruncate(fd, getpagesize()) < 0)
 		cheritest_failure_err("ftruncate");
 	cp = mmap(NULL, getpagesize(), PROT_READ | PROT_WRITE, MAP_PRIVATE,
@@ -269,6 +271,7 @@ cheritest_vm_tag_tmpfile_private_prefault(const struct cheri_test *ctp __unused)
 	fd = mkstemp(template);
 	if (fd < 0)
 		cheritest_failure_err("%s", template);
+	unlink(template);
 	if (ftruncate(fd, getpagesize()) < 0)
 		cheritest_failure_err("ftruncate");
 	cp = mmap(NULL, getpagesize(), PROT_READ | PROT_WRITE,
