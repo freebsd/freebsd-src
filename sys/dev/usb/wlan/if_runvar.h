@@ -151,13 +151,16 @@ struct run_endpoint_queue {
 };
 
 struct run_softc {
+	struct mtx			sc_mtx;
+	struct ieee80211com		sc_ic;
+	struct mbufq			sc_snd;
 	device_t			sc_dev;
 	struct usb_device		*sc_udev;
-	struct ifnet			*sc_ifp;
 	int				sc_need_fwload;
 
 	int				sc_flags;
 #define	RUN_FLAG_FWLOAD_NEEDED		0x01
+#define	RUN_RUNNING			0x02
 
 	uint16_t			wcid_stats[RT2870_WCID_MAX + 1][3];
 #define	RUN_TXCNT	0
@@ -202,10 +205,6 @@ struct run_softc {
 	uint32_t			txpow20mhz[5];
 	uint32_t			txpow40mhz_2ghz[5];
 	uint32_t			txpow40mhz_5ghz[5];
-
-	uint8_t				sc_bssid[6];
-
-	struct mtx			sc_mtx;
 
 	struct run_endpoint_queue	sc_epq[RUN_EP_QUEUES];
 

@@ -72,6 +72,7 @@ struct wpi_tx_ring {
 	struct wpi_tx_cmd	*cmd;
 	struct wpi_tx_data	data[WPI_TX_RING_COUNT];
 	bus_dma_tag_t		data_dmat;
+	struct mbufq		snd;
 	int			qid;
 	int			queued;
 	int			cur;
@@ -164,14 +165,15 @@ struct wpi_fw_info {
 
 struct wpi_softc {
 	device_t		sc_dev;
-
-	struct ifnet		*sc_ifp;
 	int			sc_debug;
 
 	int			sc_flags;
 #define WPI_PS_PATH		(1 << 0)
+	int			sc_running;
 
 	struct mtx		sc_mtx;
+	struct ieee80211com	sc_ic;
+
 	struct mtx		tx_mtx;
 
 	/* Shared area. */
@@ -181,7 +183,6 @@ struct wpi_softc {
 	struct wpi_tx_ring	txq[WPI_NTXQUEUES];
 	struct mtx		txq_mtx;
 	struct mtx		txq_state_mtx;
-	uint32_t		txq_active;
 
 	struct wpi_rx_ring	rxq;
 	uint64_t		rx_tstamp;

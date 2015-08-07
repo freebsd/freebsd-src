@@ -89,7 +89,7 @@ kproc_create(void (*func)(void *), void *arg,
 		panic("kproc_create called too soon");
 
 	error = fork1(&thread0, RFMEM | RFFDG | RFPROC | RFSTOPPED | flags,
-	    pages, &p2, NULL, 0);
+	    pages, &p2, NULL, 0, NULL);
 	if (error)
 		return error;
 

@@ -384,12 +384,27 @@ busdma_seg_get_size(PyObject *self, PyObject *args)
 static PyObject *
 busdma_sync(PyObject *self, PyObject *args)
 {
-	u_long base, size;
 	int error, mdid, op;
 
-	if (!PyArg_ParseTuple(args, "iikk", &mdid, &op, &base, &size))
+	if (!PyArg_ParseTuple(args, "ii", &mdid, &op))
 		return (NULL);
-	error = bd_sync(mdid, op, base, size);
+	error = bd_sync(mdid, op, 0UL, ~0UL);
+	if (error) {
+		PyErr_SetString(PyExc_IOError, strerror(error));
+		return (NULL);
+	}
+	Py_RETURN_NONE;
+}
+
+static PyObject *
+busdma_sync_range(PyObject *self, PyObject *args)
+{
+	u_long ofs, len;
+	int error, mdid, op;
+
+	if (!PyArg_ParseTuple(args, "iikk", &mdid, &op, &ofs, &len))
+		return (NULL);
+	error = bd_sync(mdid, op, ofs, len);
 	if (error) {
 		PyErr_SetString(PyExc_IOError, strerror(error));
 		return (NULL);
@@ -448,7 +463,9 @@ static PyMethodDef busdma_methods[] = {
 	"Return the size of the segment." },
 
     { "sync", busdma_sync, METH_VARARGS,
-	"Keep memory/caches coherent WRT to DMA." },
+	"Make the entire memory descriptor coherent WRT to DMA." },
+    { "sync_range", busdma_sync_range, METH_VARARGS,
+	"Make part of the memory descriptor coherent WRT to DMA." },
 
     { NULL, NULL, 0, NULL }
 };

@@ -181,29 +181,29 @@ user_add_expiration_body() {
 	populate_etc_skel
 
 	atf_check -s exit:0 \
-		${PW} useradd foo -e 20-03-2043
-	atf_check -o inline:"foo:*:1001:1001::0:2310422400:User &:/home/foo:/bin/sh\n" \
+		${PW} useradd foo -e 20-03-2037
+	atf_check -o inline:"foo:*:1001:1001::0:2121120000:User &:/home/foo:/bin/sh\n" \
 		-s exit:0 grep "^foo" ${HOME}/master.passwd
 	atf_check -s exit:0 ${PW} userdel foo
 	atf_check -s exit:0 \
-		${PW} useradd foo -e 20-03-43
-	atf_check -o inline:"foo:*:1001:1001::0:2310422400:User &:/home/foo:/bin/sh\n" \
+		${PW} useradd foo -e 20-03-37
+	atf_check -o inline:"foo:*:1001:1001::0:2121120000:User &:/home/foo:/bin/sh\n" \
 		-s exit:0 grep "^foo" ${HOME}/master.passwd
 	atf_check -s exit:0 ${PW} userdel foo
 	atf_check -s exit:0 \
-		${PW} useradd foo -e 20-Mar-2043
-	atf_check -o inline:"foo:*:1001:1001::0:2310422400:User &:/home/foo:/bin/sh\n" \
+		${PW} useradd foo -e 20-Mar-2037
+	atf_check -o inline:"foo:*:1001:1001::0:2121120000:User &:/home/foo:/bin/sh\n" \
 		-s exit:0 grep "^foo" ${HOME}/master.passwd
 	atf_check -s exit:0 ${PW} userdel foo
 	atf_check -e inline:"pw: Invalid date\n" -s exit:1 \
-		${PW} useradd foo -e 20-Foo-2043
+		${PW} useradd foo -e 20-Foo-2037
 	atf_check -e inline:"pw: Invalid date\n" -s exit:1 \
-		${PW} useradd foo -e 20-13-2043
-	atf_check -s exit:0 ${PW} useradd foo -e "12:00 20-03-2043"
+		${PW} useradd foo -e 20-13-2037
+	atf_check -s exit:0 ${PW} useradd foo -e "12:00 20-03-2037"
 	atf_check -s exit:0 ${PW} userdel foo
 	atf_check -e inline:"pw: Invalid date\n" -s exit:1 \
-		${PW} useradd foo -e "12 20-03-2043"
-	atf_check -s exit:0 ${PW} useradd foo -e "20-03-2043	12:00"
+		${PW} useradd foo -e "12 20-03-2037"
+	atf_check -s exit:0 ${PW} useradd foo -e "20-03-2037	12:00"
 	atf_check -s exit:0 ${PW} userdel foo
 }
 
@@ -250,9 +250,9 @@ user_add_R_body() {
 	test -d ${HOME}/home/bar || atf_fail "Directory not created"
 	atf_check -s exit:0 ${RPW} userdel bar
 	test -d ${HOME}/home/bar || atf_fail "Directory removed"
-#	atf_check -s exit:0 ${RPW} useradd bar
-#	atf_check -s exit:0 ${RPW} userdel bar -r
-#	test -d ${HOME}/home/bar && atf_fail "Directory not removed"
+	atf_check -s exit:0 ${RPW} useradd bar
+	atf_check -s exit:0 ${RPW} userdel bar -r
+	[ ! -d ${HOME}/home/bar ] || atf_fail "Directory not removed"
 }
 
 atf_test_case user_add_skel
@@ -289,6 +289,31 @@ user_add_uid0_body() {
 		-s exit:0 ${PW} usershow foo
 }
 
+atf_test_case user_add_uid_too_large
+user_add_uid_too_large_body() {
+	populate_etc_skel
+	atf_check -s exit:64 -e inline:"pw: Bad id '9999999999999': too large\n" \
+		${PW} useradd -n test1 -u 9999999999999
+}
+
+atf_test_case user_add_bad_shell
+user_add_bad_shell_body() {
+	populate_etc_skel
+
+	atf_check -s exit:0 ${PW} useradd foo -s sh
+	atf_check -s exit:78 -e ignore ${PW} useradd bar -s badshell
+}
+
+atf_test_case user_add_already_exists
+user_add_already_exists_body() {
+	populate_etc_skel
+
+	atf_check -s exit:0 ${PW} useradd foo
+	atf_check -s exit:65 \
+		-e inline:"pw: login name \`foo' already exists\n" \
+		${PW} useradd foo
+}
+
 atf_init_test_cases() {
 	atf_add_test_case user_add
 	atf_add_test_case user_add_noupdate
@@ -313,4 +338,7 @@ atf_init_test_cases() {
 	atf_add_test_case user_add_R
 	atf_add_test_case user_add_skel
 	atf_add_test_case user_add_uid0
+	atf_add_test_case user_add_uid_too_large
+	atf_add_test_case user_add_bad_shell
+	atf_add_test_case user_add_already_exists
 }

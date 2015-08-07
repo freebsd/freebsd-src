@@ -31,10 +31,11 @@ static const char rcsid[] =
 
 #include <sys/types.h>
 #include <sys/sbuf.h>
-#include <string.h>
-#include <ctype.h>
-#include <fcntl.h>
+
 #include <err.h>
+#include <fcntl.h>
+#include <string.h>
+#include <unistd.h>
 
 #include "pw.h"
 
@@ -227,15 +228,13 @@ read_userconfig(char const * file)
 {
 	FILE	*fp;
 	char	*buf, *p;
+	const char *errstr;
 	size_t	linecap;
 	ssize_t	linelen;
 
 	buf = NULL;
 	linecap = 0;
 
-	config.groups = sl_init();
-	if (config.groups == NULL)
-		err(1, "sl_init()");
 	if (file == NULL)
 		file = _PATH_PW_CONF;
 
@@ -314,36 +313,69 @@ read_userconfig(char const * file)
 					? NULL : newstr(q);
 				break;
 			case _UC_EXTRAGROUPS:
-				for (i = 0; q != NULL; q = strtok(NULL, toks))
+				for (i = 0; q != NULL; q = strtok(NULL, toks)) {
+					if (config.groups == NULL)
+						config.groups = sl_init();
 					sl_add(config.groups, newstr(q));
+				}
 				break;
 			case _UC_DEFAULTCLASS:
 				config.default_class = (q == NULL || !boolean_val(q, 1))
 					? NULL : newstr(q);
 				break;
 			case _UC_MINUID:
-				if ((q = unquote(q)) != NULL && isdigit(*q))
-					config.min_uid = (uid_t) atol(q);
+				if ((q = unquote(q)) != NULL) {
+					config.min_uid = strtounum(q, 0,
+					    UID_MAX, &errstr);
+					if (errstr)
+						warnx("Invalid min_uid: '%s';"
+						    " ignoring", q);
+				}
 				break;
 			case _UC_MAXUID:
-				if ((q = unquote(q)) != NULL && isdigit(*q))
-					config.max_uid = (uid_t) atol(q);
+				if ((q = unquote(q)) != NULL) {
+					config.max_uid = strtounum(q, 0,
+					    UID_MAX, &errstr);
+					if (errstr)
+						warnx("Invalid max_uid: '%s';"
+						    " ignoring", q);
+				}
 				break;
 			case _UC_MINGID:
-				if ((q = unquote(q)) != NULL && isdigit(*q))
-					config.min_gid = (gid_t) atol(q);
+				if ((q = unquote(q)) != NULL) {
+					config.min_gid = strtounum(q, 0,
+					    GID_MAX, &errstr);
+					if (errstr)
+						warnx("Invalid min_gid: '%s';"
+						    " ignoring", q);
+				}
 				break;
 			case _UC_MAXGID:
-				if ((q = unquote(q)) != NULL && isdigit(*q))
-					config.max_gid = (gid_t) atol(q);
+				if ((q = unquote(q)) != NULL) {
+					config.max_gid = strtounum(q, 0,
+					    GID_MAX, &errstr);
+					if (errstr)
+						warnx("Invalid max_gid: '%s';"
+						    " ignoring", q);
+				}
 				break;
 			case _UC_EXPIRE:
-				if ((q = unquote(q)) != NULL && isdigit(*q))
-					config.expire_days = atoi(q);
+				if ((q = unquote(q)) != NULL) {
+					config.expire_days = strtonum(q, 0,
+					    INT_MAX, &errstr);
+					if (errstr)
+						warnx("Invalid expire days:"
+						    " '%s'; ignoring", q);
+				}
 				break;
 			case _UC_PASSWORD:
-				if ((q = unquote(q)) != NULL && isdigit(*q))
-					config.password_days = atoi(q);
+				if ((q = unquote(q)) != NULL) {
+					config.password_days = strtonum(q, 0,
+					    INT_MAX, &errstr);
+					if (errstr)
+						warnx("Invalid password days:"
+						    " '%s'; ignoring", q);
+				}
 				break;
 			case _UC_FIELDS:
 			case _UC_NONE:
@@ -359,7 +391,7 @@ read_userconfig(char const * file)
 
 
 int
-write_userconfig(char const * file)
+write_userconfig(struct userconf *cnf, const char *file)
 {
 	int             fd;
 	int             i, j;
@@ -384,40 +416,39 @@ write_userconfig(char const * file)
 		sbuf_clear(buf);
 		switch (i) {
 		case _UC_DEFAULTPWD:
-			sbuf_cat(buf, boolean_str(config.default_password));
+			sbuf_cat(buf, boolean_str(cnf->default_password));
 			break;
 		case _UC_REUSEUID:
-			sbuf_cat(buf, boolean_str(config.reuse_uids));
+			sbuf_cat(buf, boolean_str(cnf->reuse_uids));
 			break;
 		case _UC_REUSEGID:
-			sbuf_cat(buf, boolean_str(config.reuse_gids));
+			sbuf_cat(buf, boolean_str(cnf->reuse_gids));
 			break;
 		case _UC_NISPASSWD:
-			sbuf_cat(buf, config.nispasswd ?  config.nispasswd :
-			    "");
+			sbuf_cat(buf, cnf->nispasswd ?  cnf->nispasswd : "");
 			quote = 0;
 			break;
 		case _UC_DOTDIR:
-			sbuf_cat(buf, config.dotdir ?  config.dotdir :
+			sbuf_cat(buf, cnf->dotdir ?  cnf->dotdir :
 			    boolean_str(0));
 			break;
 		case _UC_NEWMAIL:
-			sbuf_cat(buf, config.newmail ?  config.newmail :
+			sbuf_cat(buf, cnf->newmail ?  cnf->newmail :
 			    boolean_str(0));
 			break;
 		case _UC_LOGFILE:
-			sbuf_cat(buf, config.logfile ?  config.logfile :
+			sbuf_cat(buf, cnf->logfile ?  cnf->logfile :
 			    boolean_str(0));
 			break;
 		case _UC_HOMEROOT:
-			sbuf_cat(buf, config.home);
+			sbuf_cat(buf, cnf->home);
 			break;
 		case _UC_HOMEMODE:
-			sbuf_printf(buf, "%04o", config.homemode);
+			sbuf_printf(buf, "%04o", cnf->homemode);
 			quote = 0;
 			break;
 		case _UC_SHELLPATH:
-			sbuf_cat(buf, config.shelldir);
+			sbuf_cat(buf, cnf->shelldir);
 			break;
 		case _UC_SHELLS:
 			for (j = 0; j < _UC_MAXSHELLS &&
@@ -427,46 +458,46 @@ write_userconfig(char const * file)
 			quote = 0;
 			break;
 		case _UC_DEFAULTSHELL:
-			sbuf_cat(buf, config.shell_default ?
-			    config.shell_default : bourne_shell);
+			sbuf_cat(buf, cnf->shell_default ?
+			    cnf->shell_default : bourne_shell);
 			break;
 		case _UC_DEFAULTGROUP:
-			sbuf_cat(buf, config.default_group ?
-			    config.default_group : "");
+			sbuf_cat(buf, cnf->default_group ?
+			    cnf->default_group : "");
 			break;
 		case _UC_EXTRAGROUPS:
-			for (j = 0; config.groups != NULL &&
-			    j < (int)config.groups->sl_cur; j++)
+			for (j = 0; cnf->groups != NULL &&
+			    j < (int)cnf->groups->sl_cur; j++)
 				sbuf_printf(buf, "%s\"%s\"", j ?
-				    "," : "", config.groups->sl_str[j]);
+				    "," : "", cnf->groups->sl_str[j]);
 			quote = 0;
 			break;
 		case _UC_DEFAULTCLASS:
-			sbuf_cat(buf, config.default_class ?
-			    config.default_class : "");
+			sbuf_cat(buf, cnf->default_class ?
+			    cnf->default_class : "");
 			break;
 		case _UC_MINUID:
-			sbuf_printf(buf, "%u", config.min_uid);
+			sbuf_printf(buf, "%ju", (uintmax_t)cnf->min_uid);
 			quote = 0;
 			break;
 		case _UC_MAXUID:
-			sbuf_printf(buf, "%u", config.max_uid);
+			sbuf_printf(buf, "%ju", (uintmax_t)cnf->max_uid);
 			quote = 0;
 			break;
 		case _UC_MINGID:
-			sbuf_printf(buf, "%u", config.min_gid);
+			sbuf_printf(buf, "%ju", (uintmax_t)cnf->min_gid);
 			quote = 0;
 			break;
 		case _UC_MAXGID:
-			sbuf_printf(buf, "%u", config.max_gid);
+			sbuf_printf(buf, "%ju", (uintmax_t)cnf->max_gid);
 			quote = 0;
 			break;
 		case _UC_EXPIRE:
-			sbuf_printf(buf, "%d", config.expire_days);
+			sbuf_printf(buf, "%jd", (intmax_t)cnf->expire_days);
 			quote = 0;
 			break;
 		case _UC_PASSWORD:
-			sbuf_printf(buf, "%d", config.password_days);
+			sbuf_printf(buf, "%jd", (intmax_t)cnf->password_days);
 			quote = 0;
 			break;
 		case _UC_NONE:
