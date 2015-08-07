@@ -180,67 +180,25 @@ struct NMSymbol {
   uint64_t Size;
   char TypeChar;
   StringRef Name;
-  DataRefImpl Symb;
+  BasicSymbolRef Sym;
 };
 }
 
 static bool compareSymbolAddress(const NMSymbol &A, const NMSymbol &B) {
-  if (!ReverseSort) {
-    if (A.Address < B.Address)
-      return true;
-    if (A.Address == B.Address && A.Name < B.Name)
-      return true;
-    if (A.Address == B.Address && A.Name == B.Name && A.Size < B.Size)
-      return true;
-    return false;
-  }
-
-  if (A.Address > B.Address)
-    return true;
-  if (A.Address == B.Address && A.Name > B.Name)
-    return true;
-  if (A.Address == B.Address && A.Name == B.Name && A.Size > B.Size)
-    return true;
-  return false;
+  bool ADefined = !(A.Sym.getFlags() & SymbolRef::SF_Undefined);
+  bool BDefined = !(B.Sym.getFlags() & SymbolRef::SF_Undefined);
+  return std::make_tuple(ADefined, A.Address, A.Name, A.Size) <
+         std::make_tuple(BDefined, B.Address, B.Name, B.Size);
 }
 
 static bool compareSymbolSize(const NMSymbol &A, const NMSymbol &B) {
-  if (!ReverseSort) {
-    if (A.Size < B.Size)
-      return true;
-    if (A.Size == B.Size && A.Name < B.Name)
-      return true;
-    if (A.Size == B.Size && A.Name == B.Name && A.Address < B.Address)
-      return true;
-    return false;
-  }
-
-  if (A.Size > B.Size)
-    return true;
-  if (A.Size == B.Size && A.Name > B.Name)
-    return true;
-  if (A.Size == B.Size && A.Name == B.Name && A.Address > B.Address)
-    return true;
-  return false;
+  return std::make_tuple(A.Size, A.Name, A.Address) <
+         std::make_tuple(B.Size, B.Name, B.Address);
 }
 
 static bool compareSymbolName(const NMSymbol &A, const NMSymbol &B) {
-  if (!ReverseSort) {
-    if (A.Name < B.Name)
-      return true;
-    if (A.Name == B.Name && A.Size < B.Size)
-      return true;
-    if (A.Name == B.Name && A.Size == B.Size && A.Address < B.Address)
-      return true;
-    return false;
-  }
-  if (A.Name > B.Name)
-    return true;
-  if (A.Name == B.Name && A.Size > B.Size)
-    return true;
-  if (A.Name == B.Name && A.Size == B.Size && A.Address > B.Address)
-    return true;
-  return false;
+  return std::make_tuple(A.Name, A.Size, A.Address) <
+         std::make_tuple(B.Name, B.Size, B.Address);
 }
 
 static char isSymbolList64Bit(SymbolicFile &Obj) {
@@ -274,11 +232,12 @@ static void darwinPrintSymbol(MachOObjectFile *MachO, SymbolListT::iterator I,
   uint16_t NDesc;
   uint32_t NStrx;
   uint64_t NValue;
+  DataRefImpl SymDRI = I->Sym.getRawDataRefImpl();
   if (MachO->is64Bit()) {
     H_64 = MachO->MachOObjectFile::getHeader64();
     Filetype = H_64.filetype;
     Flags = H_64.flags;
-    STE_64 = MachO->getSymbol64TableEntry(I->Symb);
+    STE_64 = MachO->getSymbol64TableEntry(SymDRI);
     NType = STE_64.n_type;
     NSect = STE_64.n_sect;
     NDesc = STE_64.n_desc;
@@ -288,7 +247,7 @@ static void darwinPrintSymbol(MachOObjectFile *MachO, SymbolListT::iterator I,
     H = MachO->MachOObjectFile::getHeader();
     Filetype = H.filetype;
     Flags = H.flags;
-    STE = MachO->getSymbolTableEntry(I->Symb);
+    STE = MachO->getSymbolTableEntry(SymDRI);
     NType = STE.n_type;
     NSect = STE.n_sect;
     NDesc = STE.n_desc;
@@ -356,7 +315,7 @@ static void darwinPrintSymbol(MachOObjectFile *MachO, SymbolListT::iterator I,
     break;
   case MachO::N_SECT: {
     section_iterator Sec = MachO->section_end();
-    MachO->getSymbolSection(I->Symb, Sec);
+    MachO->getSymbolSection(I->Sym.getRawDataRefImpl(), Sec);
     DataRefImpl Ref = Sec->getRawDataRefImpl();
     StringRef SectionName;
     MachO->getSectionName(Ref, SectionName);
@@ -415,7 +374,7 @@ static void darwinPrintSymbol(MachOObjectFile *MachO, SymbolListT::iterator I,
   if ((NType & MachO::N_TYPE) == MachO::N_INDR) {
     outs() << I->Name << " (for ";
     StringRef IndirectName;
-    if (MachO->getIndirectName(I->Symb, IndirectName))
+    if (MachO->getIndirectName(I->Sym.getRawDataRefImpl(), IndirectName))
       outs() << "?)";
     else
       outs() << IndirectName << ")";
@@ -498,13 +457,14 @@ static void darwinPrintStab(MachOObjectFile *MachO, SymbolListT::iterator I) {
   uint8_t NType;
   uint8_t NSect;
   uint16_t NDesc;
+  DataRefImpl SymDRI = I->Sym.getRawDataRefImpl();
   if (MachO->is64Bit()) {
-    STE_64 = MachO->getSymbol64TableEntry(I->Symb);
+    STE_64 = MachO->getSymbol64TableEntry(SymDRI);
     NType = STE_64.n_type;
     NSect = STE_64.n_sect;
     NDesc = STE_64.n_desc;
   } else {
-    STE = MachO->getSymbolTableEntry(I->Symb);
+    STE = MachO->getSymbolTableEntry(SymDRI);
     NType = STE.n_type;
     NSect = STE.n_sect;
     NDesc = STE.n_desc;
@@ -526,12 +486,17 @@ static void sortAndPrintSymbolList(SymbolicFile &Obj, bool printName,
                                    std::string ArchiveName,
                                    std::string ArchitectureName) {
   if (!NoSort) {
+    std::function<bool(const NMSymbol &, const NMSymbol &)> Cmp;
     if (NumericSort)
-      std::sort(SymbolList.begin(), SymbolList.end(), compareSymbolAddress);
+      Cmp = compareSymbolAddress;
     else if (SizeSort)
-      std::sort(SymbolList.begin(), SymbolList.end(), compareSymbolSize);
+      Cmp = compareSymbolSize;
     else
-      std::sort(SymbolList.begin(), SymbolList.end(), compareSymbolName);
+      Cmp = compareSymbolName;
+
+    if (ReverseSort)
+      Cmp = [=](const NMSymbol &A, const NMSymbol &B) { return Cmp(B, A); };
+    std::sort(SymbolList.begin(), SymbolList.end(), Cmp);
   }
 
   if (!PrintFileName) {
@@ -557,9 +522,11 @@ static void sortAndPrintSymbolList(SymbolicFile &Obj, bool printName,
 
   for (SymbolListT::iterator I = SymbolList.begin(), E = SymbolList.end();
        I != E; ++I) {
-    if ((I->TypeChar != 'U') && UndefinedOnly)
+    uint32_t SymFlags = I->Sym.getFlags();
+    bool Undefined = SymFlags & SymbolRef::SF_Undefined;
+    if (!Undefined && UndefinedOnly)
       continue;
-    if ((I->TypeChar == 'U') && DefinedOnly)
+    if (Undefined && DefinedOnly)
       continue;
     if (SizeSort && !PrintAddress)
       continue;
@@ -578,12 +545,12 @@ static void sortAndPrintSymbolList(SymbolicFile &Obj, bool printName,
     char SymbolAddrStr[18] = "";
     char SymbolSizeStr[18] = "";
 
-    if (OutputFormat == sysv || I->Address == UnknownAddress)
+    if (OutputFormat == sysv || I->TypeChar == 'U')
       strcpy(SymbolAddrStr, printBlanks);
     if (OutputFormat == sysv)
       strcpy(SymbolSizeStr, printBlanks);
 
-    if (I->Address != UnknownAddress)
+    if (I->TypeChar != 'U')
       format(printFormat, I->Address)
           .print(SymbolAddrStr, sizeof(SymbolAddrStr));
     format(printFormat, I->Size).print(SymbolSizeStr, sizeof(SymbolSizeStr));
@@ -895,20 +862,23 @@ static void dumpSymbolNamesFromObject(SymbolicFile &Obj, bool printName,
       continue;
     NMSymbol S;
     S.Size = 0;
-    S.Address = UnknownAddress;
+    S.Address = 0;
     if (PrintSize) {
       if (isa<ELFObjectFileBase>(&Obj))
         S.Size = ELFSymbolRef(Sym).getSize();
     }
     if (PrintAddress && isa<ObjectFile>(Obj)) {
-      if (error(SymbolRef(Sym).getAddress(S.Address)))
+      SymbolRef SymRef(Sym);
+      ErrorOr<uint64_t> AddressOrErr = SymRef.getAddress();
+      if (error(AddressOrErr.getError()))
         break;
+      S.Address = *AddressOrErr;
     }
     S.TypeChar = getNMTypeChar(Obj, Sym);
     if (error(Sym.printName(OS)))
       break;
     OS << '\0';
-    S.Symb = Sym.getRawDataRefImpl();
+    S.Sym = Sym;
     SymbolList.push_back(S);
   }
 

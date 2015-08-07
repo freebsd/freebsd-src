@@ -23,13 +23,13 @@ body:
    name:   entry
    instructions:
      - '%eax = MOV32rm %rdi, 1, _, 0, _'
-     - 'CMP32ri8 %eax, 10'
+     - 'CMP32ri8 %eax, 10, implicit-def %eflags'
      # CHECK: [[@LINE+1]]:18: expected a number after '%bb.'
-     - 'JG_1 %bb.nah'
+     - 'JG_1 %bb.nah, implicit %eflags'
  - id: 1
    name: yes
    instructions:
-     - '%eax = MOV32r0'
+     - '%eax = MOV32r0 implicit-def %eflags'
  - id: 2
    name: nah
    instructions:

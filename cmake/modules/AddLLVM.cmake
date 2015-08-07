@@ -93,20 +93,9 @@ function(add_llvm_symbol_exports target_name export_file)
   else()
     set(native_export_file "${target_name}.def")
 
-    set(CAT "cat")
-    set(export_file_nativeslashes ${export_file})
-    if(WIN32 AND NOT CYGWIN AND NOT MSYS)
-      set(CAT "type")
-      # Convert ${export_file} to native format (backslashes) for "type"
-      # Does not use file(TO_NATIVE_PATH) as it doesn't create a native
-      # path but a build-system specific format (see CMake bug
-      # http://public.kitware.com/Bug/print_bug_page.php?bug_id=5939 )
-      string(REPLACE / \\ export_file_nativeslashes ${export_file})
-    endif()
-
     add_custom_command(OUTPUT ${native_export_file}
-      COMMAND ${CMAKE_COMMAND} -E echo "EXPORTS" > ${native_export_file}
-      COMMAND ${CAT} ${export_file_nativeslashes} >> ${native_export_file}
+      COMMAND ${PYTHON_EXECUTABLE} -c "import sys;print(''.join(['EXPORTS\\n']+sys.stdin.readlines(),))"
+        < ${export_file} > ${native_export_file}
       DEPENDS ${export_file}
       VERBATIM
       COMMENT "Creating export file for ${target_name}")
@@ -700,10 +689,18 @@ macro(add_llvm_external_project name)
   list(APPEND LLVM_IMPLICIT_PROJECT_IGNORE "${CMAKE_CURRENT_SOURCE_DIR}/${add_llvm_external_dir}")
   string(REPLACE "-" "_" nameUNDERSCORE ${name})
   string(TOUPPER ${nameUNDERSCORE} nameUPPER)
-  set(LLVM_EXTERNAL_${nameUPPER}_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/${add_llvm_external_dir}"
-      CACHE PATH "Path to ${name} source directory")
-  if (NOT ${LLVM_EXTERNAL_${nameUPPER}_SOURCE_DIR} STREQUAL ""
-      AND EXISTS ${LLVM_EXTERNAL_${nameUPPER}_SOURCE_DIR}/CMakeLists.txt)
+  #TODO: Remove this check in a few days once it has circulated through
+  # buildbots and people's checkouts (cbieneman - July 14, 2015)
+  if("${LLVM_EXTERNAL_${nameUPPER}_SOURCE_DIR}" STREQUAL "${CMAKE_CURRENT_SOURCE_DIR}/${add_llvm_external_dir}")
+    unset(LLVM_EXTERNAL_${nameUPPER}_SOURCE_DIR CACHE)
+  endif()
+  if(NOT LLVM_EXTERNAL_${nameUPPER}_SOURCE_DIR)
+    set(LLVM_EXTERNAL_${nameUPPER}_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/${add_llvm_external_dir}")
+  else()
+    set(LLVM_EXTERNAL_${nameUPPER}_SOURCE_DIR
+        CACHE PATH "Path to ${name} source directory")
+  endif()
+  if (EXISTS ${LLVM_EXTERNAL_${nameUPPER}_SOURCE_DIR}/CMakeLists.txt)
     option(LLVM_EXTERNAL_${nameUPPER}_BUILD
            "Whether to build ${name} as part of LLVM" ON)
     if (LLVM_EXTERNAL_${nameUPPER}_BUILD)

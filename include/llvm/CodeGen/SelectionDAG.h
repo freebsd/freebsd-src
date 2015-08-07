@@ -281,6 +281,7 @@ public:
   void clear();
 
   MachineFunction &getMachineFunction() const { return *MF; }
+  const DataLayout &getDataLayout() const { return MF->getDataLayout(); }
   const TargetMachine &getTarget() const { return TM; }
   const TargetSubtargetInfo &getSubtarget() const { return MF->getSubtarget(); }
   const TargetLowering &getTargetLoweringInfo() const { return *TLI; }
@@ -320,6 +321,14 @@ public:
   allnodes_iterator allnodes_end() { return AllNodes.end(); }
   ilist<SDNode>::size_type allnodes_size() const {
     return AllNodes.size();
+  }
+
+  iterator_range<allnodes_iterator> allnodes() {
+    return iterator_range<allnodes_iterator>(allnodes_begin(), allnodes_end());
+  }
+  iterator_range<allnodes_const_iterator> allnodes() const {
+    return iterator_range<allnodes_const_iterator>(allnodes_begin(),
+                                                   allnodes_end());
   }
 
   /// Return the root tag of the SelectionDAG.

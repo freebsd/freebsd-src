@@ -306,9 +306,10 @@ static void HandleVRSaveUpdate(MachineInstr *MI, const TargetInstrInfo &TII) {
   const TargetRegisterInfo *TRI = MF->getSubtarget().getRegisterInfo();
   DebugLoc dl = MI->getDebugLoc();
 
+  const MachineRegisterInfo &MRI = MF->getRegInfo();
   unsigned UsedRegMask = 0;
   for (unsigned i = 0; i != 32; ++i)
-    if (MF->getRegInfo().isPhysRegUsed(VRRegNo[i]))
+    if (MRI.isPhysRegModified(VRRegNo[i]))
       UsedRegMask |= 1 << (31-i);
 
   // Live in and live out values already must be in the mask, so don't bother
@@ -1158,9 +1159,11 @@ void PPCFrameLowering::emitEpilogue(MachineFunction &MF,
   }
 }
 
-void
-PPCFrameLowering::processFunctionBeforeCalleeSavedScan(MachineFunction &MF,
-                                                   RegScavenger *) const {
+void PPCFrameLowering::determineCalleeSaves(MachineFunction &MF,
+                                            BitVector &SavedRegs,
+                                            RegScavenger *RS) const {
+  TargetFrameLowering::determineCalleeSaves(MF, SavedRegs, RS);
+
   const PPCRegisterInfo *RegInfo =
       static_cast<const PPCRegisterInfo *>(Subtarget.getRegisterInfo());
 
@@ -1168,8 +1171,7 @@ PPCFrameLowering::processFunctionBeforeCalleeSavedScan(MachineFunction &MF,
   PPCFunctionInfo *FI = MF.getInfo<PPCFunctionInfo>();
   unsigned LR = RegInfo->getRARegister();
   FI->setMustSaveLR(MustSaveLR(MF, LR));
-  MachineRegisterInfo &MRI = MF.getRegInfo();
-  MRI.setPhysRegUnused(LR);
+  SavedRegs.reset(LR);
 
   //  Save R31 if necessary
   int FPSI = FI->getFramePointerSaveIndex();
@@ -1214,9 +1216,9 @@ PPCFrameLowering::processFunctionBeforeCalleeSavedScan(MachineFunction &MF,
   // For 32-bit SVR4, allocate the nonvolatile CR spill slot iff the
   // function uses CR 2, 3, or 4.
   if (!isPPC64 && !isDarwinABI &&
-      (MRI.isPhysRegUsed(PPC::CR2) ||
-       MRI.isPhysRegUsed(PPC::CR3) ||
-       MRI.isPhysRegUsed(PPC::CR4))) {
+      (SavedRegs.test(PPC::CR2) ||
+       SavedRegs.test(PPC::CR3) ||
+       SavedRegs.test(PPC::CR4))) {
     int FrameIdx = MFI->CreateFixedObject((uint64_t)4, (int64_t)-4, true);
     FI->setCRSpillFrameIndex(FrameIdx);
   }

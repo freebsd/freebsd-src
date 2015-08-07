@@ -459,6 +459,7 @@ HexagonTargetLowering::LowerCall(TargetLowering::CallLoweringInfo &CLI,
 
   bool IsStructRet    = (Outs.empty()) ? false : Outs[0].Flags.isSRet();
   MachineFunction &MF = DAG.getMachineFunction();
+  auto PtrVT = getPointerTy(MF.getDataLayout());
 
   // Check for varargs.
   int NumNamedVarArgParams = -1;
@@ -515,8 +516,8 @@ HexagonTargetLowering::LowerCall(TargetLowering::CallLoweringInfo &CLI,
   SmallVector<SDValue, 8> MemOpChains;
 
   auto &HRI = *Subtarget.getRegisterInfo();
-  SDValue StackPtr = DAG.getCopyFromReg(Chain, dl, HRI.getStackRegister(),
-                                        getPointerTy());
+  SDValue StackPtr =
+      DAG.getCopyFromReg(Chain, dl, HRI.getStackRegister(), PtrVT);
 
   // Walk the register/memloc assignments, inserting copies/loads.
   for (unsigned i = 0, e = ArgLocs.size(); i != e; ++i) {
@@ -574,7 +575,7 @@ HexagonTargetLowering::LowerCall(TargetLowering::CallLoweringInfo &CLI,
     Chain = DAG.getNode(ISD::TokenFactor, dl, MVT::Other, MemOpChains);
 
   if (!isTailCall) {
-    SDValue C = DAG.getConstant(NumBytes, dl, getPointerTy(), true);
+    SDValue C = DAG.getConstant(NumBytes, dl, PtrVT, true);
     Chain = DAG.getCALLSEQ_START(Chain, C, dl);
   }
 
@@ -615,13 +616,13 @@ HexagonTargetLowering::LowerCall(TargetLowering::CallLoweringInfo &CLI,
   if (flag_aligned_memcpy) {
     const char *MemcpyName =
       "__hexagon_memcpy_likely_aligned_min32bytes_mult8bytes";
-    Callee = DAG.getTargetExternalSymbol(MemcpyName, getPointerTy());
+    Callee = DAG.getTargetExternalSymbol(MemcpyName, PtrVT);
     flag_aligned_memcpy = false;
   } else if (GlobalAddressSDNode *G = dyn_cast<GlobalAddressSDNode>(Callee)) {
-    Callee = DAG.getTargetGlobalAddress(G->getGlobal(), dl, getPointerTy());
+    Callee = DAG.getTargetGlobalAddress(G->getGlobal(), dl, PtrVT);
   } else if (ExternalSymbolSDNode *S =
              dyn_cast<ExternalSymbolSDNode>(Callee)) {
-    Callee = DAG.getTargetExternalSymbol(S->getSymbol(), getPointerTy());
+    Callee = DAG.getTargetExternalSymbol(S->getSymbol(), PtrVT);
   }
 
   // Returns a chain & a flag for retval copy to use.
@@ -811,8 +812,8 @@ LowerBR_JT(SDValue Op, SelectionDAG &DAG) const
     BlockAddress::get(const_cast<BasicBlock *>(MBB->getBasicBlock()));
   }
 
-  SDValue JumpTableBase = DAG.getNode(HexagonISD::JT, dl,
-                                      getPointerTy(), TargetJT);
+  SDValue JumpTableBase = DAG.getNode(
+      HexagonISD::JT, dl, getPointerTy(DAG.getDataLayout()), TargetJT);
   SDValue ShiftIndex = DAG.getNode(ISD::SHL, dl, MVT::i32, Index,
                                    DAG.getConstant(2, dl, MVT::i32));
   SDValue JTAddress = DAG.getNode(ISD::ADD, dl, MVT::i32, JumpTableBase,
@@ -1231,16 +1232,17 @@ SDValue HexagonTargetLowering::LowerGLOBALADDRESS(SDValue Op,
   const GlobalValue *GV = cast<GlobalAddressSDNode>(Op)->getGlobal();
   int64_t Offset = cast<GlobalAddressSDNode>(Op)->getOffset();
   SDLoc dl(Op);
-  Result = DAG.getTargetGlobalAddress(GV, dl, getPointerTy(), Offset);
+  auto PtrVT = getPointerTy(DAG.getDataLayout());
+  Result = DAG.getTargetGlobalAddress(GV, dl, PtrVT, Offset);
 
   const HexagonTargetObjectFile *TLOF =
       static_cast<const HexagonTargetObjectFile *>(
           getTargetMachine().getObjFileLowering());
   if (TLOF->IsGlobalInSmallSection(GV, getTargetMachine())) {
-    return DAG.getNode(HexagonISD::CONST32_GP, dl, getPointerTy(), Result);
+    return DAG.getNode(HexagonISD::CONST32_GP, dl, PtrVT, Result);
   }
 
-  return DAG.getNode(HexagonISD::CONST32, dl, getPointerTy(), Result);
+  return DAG.getNode(HexagonISD::CONST32, dl, PtrVT, Result);
 }
 
 // Specifies that for loads and stores VT can be promoted to PromotedLdStVT.
@@ -1261,7 +1263,8 @@ HexagonTargetLowering::LowerBlockAddress(SDValue Op, SelectionDAG &DAG) const {
   const BlockAddress *BA = cast<BlockAddressSDNode>(Op)->getBlockAddress();
   SDValue BA_SD =  DAG.getTargetBlockAddress(BA, MVT::i32);
   SDLoc dl(Op);
-  return DAG.getNode(HexagonISD::CONST32_GP, dl, getPointerTy(), BA_SD);
+  return DAG.getNode(HexagonISD::CONST32_GP, dl,
+                     getPointerTy(DAG.getDataLayout()), BA_SD);
 }
 
 //===----------------------------------------------------------------------===//
@@ -2254,6 +2257,7 @@ HexagonTargetLowering::LowerEH_RETURN(SDValue Op, SelectionDAG &DAG) const {
   SDValue Offset    = Op.getOperand(1);
   SDValue Handler   = Op.getOperand(2);
   SDLoc dl(Op);
+  auto PtrVT = getPointerTy(DAG.getDataLayout());
 
   // Mark function as containing a call to EH_RETURN.
   HexagonMachineFunctionInfo *FuncInfo =
@@ -2262,9 +2266,9 @@ HexagonTargetLowering::LowerEH_RETURN(SDValue Op, SelectionDAG &DAG) const {
 
   unsigned OffsetReg = Hexagon::R28;
 
-  SDValue StoreAddr = DAG.getNode(ISD::ADD, dl, getPointerTy(),
-                                  DAG.getRegister(Hexagon::R30, getPointerTy()),
-                                  DAG.getIntPtrConstant(4, dl));
+  SDValue StoreAddr =
+      DAG.getNode(ISD::ADD, dl, PtrVT, DAG.getRegister(Hexagon::R30, PtrVT),
+                  DAG.getIntPtrConstant(4, dl));
   Chain = DAG.getStore(Chain, dl, Handler, StoreAddr, MachinePointerInfo(),
                        false, false, 0);
   Chain = DAG.getCopyToReg(Chain, dl, OffsetReg, Offset);
@@ -2338,8 +2342,7 @@ HexagonTargetLowering::EmitInstrWithCustomInserter(MachineInstr *MI,
 
 std::pair<unsigned, const TargetRegisterClass *>
 HexagonTargetLowering::getRegForInlineAsmConstraint(
-    const TargetRegisterInfo *TRI, const std::string &Constraint,
-    MVT VT) const {
+    const TargetRegisterInfo *TRI, StringRef Constraint, MVT VT) const {
   if (Constraint.size() == 1) {
     switch (Constraint[0]) {
     case 'r':   // R0-R31
@@ -2372,8 +2375,8 @@ bool HexagonTargetLowering::isFPImmLegal(const APFloat &Imm, EVT VT) const {
 
 /// isLegalAddressingMode - Return true if the addressing mode represented by
 /// AM is legal for this target, for a load/store of the specified type.
-bool HexagonTargetLowering::isLegalAddressingMode(const AddrMode &AM,
-                                                  Type *Ty,
+bool HexagonTargetLowering::isLegalAddressingMode(const DataLayout &DL,
+                                                  const AddrMode &AM, Type *Ty,
                                                   unsigned AS) const {
   // Allows a signed-extended 11-bit immediate field.
   if (AM.BaseOffs <= -(1LL << 13) || AM.BaseOffs >= (1LL << 13)-1)
@@ -2463,3 +2466,45 @@ bool llvm::isPositiveHalfWord(SDNode *N) {
     return true;
   }
 }
+
+Value *HexagonTargetLowering::emitLoadLinked(IRBuilder<> &Builder, Value *Addr,
+      AtomicOrdering Ord) const {
+  BasicBlock *BB = Builder.GetInsertBlock();
+  Module *M = BB->getParent()->getParent();
+  Type *Ty = cast<PointerType>(Addr->getType())->getElementType();
+  unsigned SZ = Ty->getPrimitiveSizeInBits();
+  assert((SZ == 32 || SZ == 64) && "Only 32/64-bit atomic loads supported");
+  Intrinsic::ID IntID = (SZ == 32) ? Intrinsic::hexagon_L2_loadw_locked
+                                   : Intrinsic::hexagon_L4_loadd_locked;
+  Value *Fn = Intrinsic::getDeclaration(M, IntID);
+  return Builder.CreateCall(Fn, Addr, "larx");
+}
+
+/// Perform a store-conditional operation to Addr. Return the status of the
+/// store. This should be 0 if the store succeeded, non-zero otherwise.
+Value *HexagonTargetLowering::emitStoreConditional(IRBuilder<> &Builder,
+      Value *Val, Value *Addr, AtomicOrdering Ord) const {
+  BasicBlock *BB = Builder.GetInsertBlock();
+  Module *M = BB->getParent()->getParent();
+  Type *Ty = Val->getType();
+  unsigned SZ = Ty->getPrimitiveSizeInBits();
+  assert((SZ == 32 || SZ == 64) && "Only 32/64-bit atomic stores supported");
+  Intrinsic::ID IntID = (SZ == 32) ? Intrinsic::hexagon_S2_storew_locked
+                                   : Intrinsic::hexagon_S4_stored_locked;
+  Value *Fn = Intrinsic::getDeclaration(M, IntID);
+  Value *Call = Builder.CreateCall(Fn, {Addr, Val}, "stcx");
+  Value *Cmp = Builder.CreateICmpEQ(Call, Builder.getInt32(0), "");
+  Value *Ext = Builder.CreateZExt(Cmp, Type::getInt32Ty(M->getContext()));
+  return Ext;
+}
+
+bool HexagonTargetLowering::shouldExpandAtomicLoadInIR(LoadInst *LI) const {
+  // Do not expand loads and stores that don't exceed 64 bits.
+  return LI->getType()->getPrimitiveSizeInBits() > 64;
+}
+
+bool HexagonTargetLowering::shouldExpandAtomicStoreInIR(StoreInst *SI) const {
+  // Do not expand loads and stores that don't exceed 64 bits.
+  return SI->getValueOperand()->getType()->getPrimitiveSizeInBits() > 64;
+}
+

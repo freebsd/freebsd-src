@@ -40,7 +40,7 @@ static MCInstrInfo *createBPFMCInstrInfo() {
   return X;
 }
 
-static MCRegisterInfo *createBPFMCRegisterInfo(StringRef TT) {
+static MCRegisterInfo *createBPFMCRegisterInfo(const Triple &TT) {
   MCRegisterInfo *X = new MCRegisterInfo();
   InitBPFMCRegisterInfo(X, BPF::R11 /* RAReg doesn't exist */);
   return X;
@@ -48,12 +48,10 @@ static MCRegisterInfo *createBPFMCRegisterInfo(StringRef TT) {
 
 static MCSubtargetInfo *createBPFMCSubtargetInfo(const Triple &TT,
                                                  StringRef CPU, StringRef FS) {
-  MCSubtargetInfo *X = new MCSubtargetInfo();
-  InitBPFMCSubtargetInfo(X, TT, CPU, FS);
-  return X;
+  return createBPFMCSubtargetInfoImpl(TT, CPU, FS);
 }
 
-static MCCodeGenInfo *createBPFMCCodeGenInfo(StringRef TT, Reloc::Model RM,
+static MCCodeGenInfo *createBPFMCCodeGenInfo(const Triple &TT, Reloc::Model RM,
                                              CodeModel::Model CM,
                                              CodeGenOpt::Level OL) {
   MCCodeGenInfo *X = new MCCodeGenInfo();

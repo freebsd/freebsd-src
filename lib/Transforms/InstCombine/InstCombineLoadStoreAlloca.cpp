@@ -749,10 +749,25 @@ Instruction *InstCombiner::visitLoadInst(LoadInst &LI) {
   // where there are several consecutive memory accesses to the same location,
   // separated by a few arithmetic operations.
   BasicBlock::iterator BBI = &LI;
-  if (Value *AvailableVal = FindAvailableLoadedValue(Op, LI.getParent(), BBI,6))
+  AAMDNodes AATags;
+  if (Value *AvailableVal = FindAvailableLoadedValue(Op, LI.getParent(), BBI,
+                                                     6, AA, &AATags)) {
+    if (LoadInst *NLI = dyn_cast<LoadInst>(AvailableVal)) {
+      unsigned KnownIDs[] = {
+        LLVMContext::MD_tbaa,
+        LLVMContext::MD_alias_scope,
+        LLVMContext::MD_noalias,
+        LLVMContext::MD_range,
+        LLVMContext::MD_invariant_load,
+        LLVMContext::MD_nonnull,
+      };
+      combineMetadata(NLI, &LI, KnownIDs);
+    };
+
     return ReplaceInstUsesWith(
         LI, Builder->CreateBitOrPointerCast(AvailableVal, LI.getType(),
                                             LI.getName() + ".cast"));
+  }
 
   // load(gep null, ...) -> unreachable
   if (GetElementPtrInst *GEPI = dyn_cast<GetElementPtrInst>(Op)) {

@@ -509,18 +509,17 @@ MachineTraceMetrics::Ensemble::invalidate(const MachineBasicBlock *BadMBB) {
             << " height.\n");
       // Find any MBB predecessors that have MBB as their preferred successor.
       // They are the only ones that need to be invalidated.
-      for (MachineBasicBlock::const_pred_iterator
-           I = MBB->pred_begin(), E = MBB->pred_end(); I != E; ++I) {
-        TraceBlockInfo &TBI = BlockInfo[(*I)->getNumber()];
+      for (const MachineBasicBlock *Pred : MBB->predecessors()) {
+        TraceBlockInfo &TBI = BlockInfo[Pred->getNumber()];
         if (!TBI.hasValidHeight())
           continue;
         if (TBI.Succ == MBB) {
           TBI.invalidateHeight();
-          WorkList.push_back(*I);
+          WorkList.push_back(Pred);
           continue;
         }
         // Verify that TBI.Succ is actually a *I successor.
-        assert((!TBI.Succ || (*I)->isSuccessor(TBI.Succ)) && "CFG changed");
+        assert((!TBI.Succ || Pred->isSuccessor(TBI.Succ)) && "CFG changed");
       }
     } while (!WorkList.empty());
   }
@@ -535,18 +534,17 @@ MachineTraceMetrics::Ensemble::invalidate(const MachineBasicBlock *BadMBB) {
             << " depth.\n");
       // Find any MBB successors that have MBB as their preferred predecessor.
       // They are the only ones that need to be invalidated.
-      for (MachineBasicBlock::const_succ_iterator
-           I = MBB->succ_begin(), E = MBB->succ_end(); I != E; ++I) {
-        TraceBlockInfo &TBI = BlockInfo[(*I)->getNumber()];
+      for (const MachineBasicBlock *Succ : MBB->successors()) {
+        TraceBlockInfo &TBI = BlockInfo[Succ->getNumber()];
         if (!TBI.hasValidDepth())
           continue;
         if (TBI.Pred == MBB) {
           TBI.invalidateDepth();
-          WorkList.push_back(*I);
+          WorkList.push_back(Succ);
           continue;
         }
         // Verify that TBI.Pred is actually a *I predecessor.
-        assert((!TBI.Pred || (*I)->isPredecessor(TBI.Pred)) && "CFG changed");
+        assert((!TBI.Pred || Succ->isPredecessor(TBI.Pred)) && "CFG changed");
       }
     } while (!WorkList.empty());
   }
@@ -998,8 +996,7 @@ computeInstrHeights(const MachineBasicBlock *MBB) {
   // MBB is the highest precomputed block in the trace.
   if (MBB) {
     TraceBlockInfo &TBI = BlockInfo[MBB->getNumber()];
-    for (unsigned i = 0, e = TBI.LiveIns.size(); i != e; ++i) {
-      LiveInReg LI = TBI.LiveIns[i];
+    for (LiveInReg &LI : TBI.LiveIns) {
       if (TargetRegisterInfo::isVirtualRegister(LI.Reg)) {
         // For virtual registers, the def latency is included.
         unsigned &Height = Heights[MTM.MRI->getVRegDef(LI.Reg)];
@@ -1131,11 +1128,16 @@ computeInstrHeights(const MachineBasicBlock *MBB) {
 
 MachineTraceMetrics::Trace
 MachineTraceMetrics::Ensemble::getTrace(const MachineBasicBlock *MBB) {
-  // FIXME: Check cache tags, recompute as needed.
-  computeTrace(MBB);
-  computeInstrDepths(MBB);
-  computeInstrHeights(MBB);
-  return Trace(*this, BlockInfo[MBB->getNumber()]);
+  TraceBlockInfo &TBI = BlockInfo[MBB->getNumber()];
+
+  if (!TBI.hasValidDepth() || !TBI.hasValidHeight())
+    computeTrace(MBB);
+  if (!TBI.HasValidInstrDepths)
+    computeInstrDepths(MBB);
+  if (!TBI.HasValidInstrHeights)
+    computeInstrHeights(MBB);
+  
+  return Trace(*this, TBI);
 }
 
 unsigned
@@ -1204,8 +1206,7 @@ unsigned MachineTraceMetrics::Trace::getResourceLength(
                             unsigned ResourceIdx)
                          ->unsigned {
     unsigned Cycles = 0;
-    for (unsigned I = 0; I != Instrs.size(); ++I) {
-      const MCSchedClassDesc *SC = Instrs[I];
+    for (const MCSchedClassDesc *SC : Instrs) {
       if (!SC->isValid())
         continue;
       for (TargetSchedModel::ProcResIter
@@ -1223,8 +1224,8 @@ unsigned MachineTraceMetrics::Trace::getResourceLength(
 
   for (unsigned K = 0; K != PRDepths.size(); ++K) {
     unsigned PRCycles = PRDepths[K] + PRHeights[K];
-    for (unsigned I = 0; I != Extrablocks.size(); ++I)
-      PRCycles += TE.MTM.getProcResourceCycles(Extrablocks[I]->getNumber())[K];
+    for (const MachineBasicBlock *MBB : Extrablocks)
+      PRCycles += TE.MTM.getProcResourceCycles(MBB->getNumber())[K];
     PRCycles += extraCycles(ExtraInstrs, K);
     PRCycles -= extraCycles(RemoveInstrs, K);
     PRMax = std::max(PRMax, PRCycles);
@@ -1235,8 +1236,8 @@ unsigned MachineTraceMetrics::Trace::getResourceLength(
   // Instrs: #instructions in current trace outside current block.
   unsigned Instrs = TBI.InstrDepth + TBI.InstrHeight;
   // Add instruction count from the extra blocks.
-  for (unsigned i = 0, e = Extrablocks.size(); i != e; ++i)
-    Instrs += TE.MTM.getResources(Extrablocks[i])->InstrCount;
+  for (const MachineBasicBlock *MBB : Extrablocks)
+    Instrs += TE.MTM.getResources(MBB)->InstrCount;
   Instrs += ExtraInstrs.size();
   Instrs -= RemoveInstrs.size();
   if (unsigned IW = TE.MTM.SchedModel.getIssueWidth())

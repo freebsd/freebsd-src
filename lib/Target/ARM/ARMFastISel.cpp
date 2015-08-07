@@ -49,8 +49,6 @@
 #include "llvm/Target/TargetOptions.h"
 using namespace llvm;
 
-extern cl::opt<bool> EnableARMLongCalls;
-
 namespace {
 
   // All possible address modes, plus some.
@@ -685,7 +683,7 @@ unsigned ARMFastISel::ARMMaterializeGV(const GlobalValue *GV, MVT VT) {
 }
 
 unsigned ARMFastISel::fastMaterializeConstant(const Constant *C) {
-  EVT CEVT = TLI.getValueType(C->getType(), true);
+  EVT CEVT = TLI.getValueType(DL, C->getType(), true);
 
   // Only handle simple types.
   if (!CEVT.isSimple()) return 0;
@@ -732,7 +730,7 @@ unsigned ARMFastISel::fastMaterializeAlloca(const AllocaInst *AI) {
 }
 
 bool ARMFastISel::isTypeLegal(Type *Ty, MVT &VT) {
-  EVT evt = TLI.getValueType(Ty, true);
+  EVT evt = TLI.getValueType(DL, Ty, true);
 
   // Only handle simple types.
   if (evt == MVT::Other || !evt.isSimple()) return false;
@@ -786,12 +784,13 @@ bool ARMFastISel::ARMComputeAddress(const Value *Obj, Address &Addr) {
       return ARMComputeAddress(U->getOperand(0), Addr);
     case Instruction::IntToPtr:
       // Look past no-op inttoptrs.
-      if (TLI.getValueType(U->getOperand(0)->getType()) == TLI.getPointerTy())
+      if (TLI.getValueType(DL, U->getOperand(0)->getType()) ==
+          TLI.getPointerTy(DL))
         return ARMComputeAddress(U->getOperand(0), Addr);
       break;
     case Instruction::PtrToInt:
       // Look past no-op ptrtoints.
-      if (TLI.getValueType(U->getType()) == TLI.getPointerTy())
+      if (TLI.getValueType(DL, U->getType()) == TLI.getPointerTy(DL))
         return ARMComputeAddress(U->getOperand(0), Addr);
       break;
     case Instruction::GetElementPtr: {
@@ -1365,7 +1364,7 @@ bool ARMFastISel::SelectIndirectBr(const Instruction *I) {
 bool ARMFastISel::ARMEmitCmp(const Value *Src1Value, const Value *Src2Value,
                              bool isZExt) {
   Type *Ty = Src1Value->getType();
-  EVT SrcEVT = TLI.getValueType(Ty, true);
+  EVT SrcEVT = TLI.getValueType(DL, Ty, true);
   if (!SrcEVT.isSimple()) return false;
   MVT SrcVT = SrcEVT.getSimpleVT();
 
@@ -1557,7 +1556,7 @@ bool ARMFastISel::SelectIToFP(const Instruction *I, bool isSigned) {
     return false;
 
   Value *Src = I->getOperand(0);
-  EVT SrcEVT = TLI.getValueType(Src->getType(), true);
+  EVT SrcEVT = TLI.getValueType(DL, Src->getType(), true);
   if (!SrcEVT.isSimple())
     return false;
   MVT SrcVT = SrcEVT.getSimpleVT();
@@ -1750,7 +1749,7 @@ bool ARMFastISel::SelectRem(const Instruction *I, bool isSigned) {
 }
 
 bool ARMFastISel::SelectBinaryIntOp(const Instruction *I, unsigned ISDOpcode) {
-  EVT DestVT  = TLI.getValueType(I->getType(), true);
+  EVT DestVT = TLI.getValueType(DL, I->getType(), true);
 
   // We can get here in the case when we have a binary operation on a non-legal
   // type and the target independent selector doesn't know how to handle it.
@@ -1790,7 +1789,7 @@ bool ARMFastISel::SelectBinaryIntOp(const Instruction *I, unsigned ISDOpcode) {
 }
 
 bool ARMFastISel::SelectBinaryFPOp(const Instruction *I, unsigned ISDOpcode) {
-  EVT FPVT = TLI.getValueType(I->getType(), true);
+  EVT FPVT = TLI.getValueType(DL, I->getType(), true);
   if (!FPVT.isSimple()) return false;
   MVT VT = FPVT.getSimpleVT();
 
@@ -2095,7 +2094,7 @@ bool ARMFastISel::SelectRet(const Instruction *I) {
   CallingConv::ID CC = F.getCallingConv();
   if (Ret->getNumOperands() > 0) {
     SmallVector<ISD::OutputArg, 4> Outs;
-    GetReturnInfo(F.getReturnType(), F.getAttributes(), Outs, TLI);
+    GetReturnInfo(F.getReturnType(), F.getAttributes(), Outs, TLI, DL);
 
     // Analyze operands of the call, assigning locations to each operand.
     SmallVector<CCValAssign, 16> ValLocs;
@@ -2122,7 +2121,7 @@ bool ARMFastISel::SelectRet(const Instruction *I) {
       return false;
 
     unsigned SrcReg = Reg + VA.getValNo();
-    EVT RVEVT = TLI.getValueType(RV->getType());
+    EVT RVEVT = TLI.getValueType(DL, RV->getType());
     if (!RVEVT.isSimple()) return false;
     MVT RVVT = RVEVT.getSimpleVT();
     MVT DestVT = VA.getValVT();
@@ -2173,7 +2172,7 @@ unsigned ARMFastISel::ARMSelectCallOp(bool UseReg) {
 unsigned ARMFastISel::getLibcallReg(const Twine &Name) {
   // Manually compute the global's type to avoid building it when unnecessary.
   Type *GVTy = Type::getInt32PtrTy(*Context, /*AS=*/0);
-  EVT LCREVT = TLI.getValueType(GVTy);
+  EVT LCREVT = TLI.getValueType(DL, GVTy);
   if (!LCREVT.isSimple()) return 0;
 
   GlobalValue *GV = new GlobalVariable(M, Type::getInt32Ty(*Context), false,
@@ -2246,19 +2245,19 @@ bool ARMFastISel::ARMEmitLibcall(const Instruction *I, RTLIB::Libcall Call) {
     return false;
 
   unsigned CalleeReg = 0;
-  if (EnableARMLongCalls) {
+  if (Subtarget->genLongCalls()) {
     CalleeReg = getLibcallReg(TLI.getLibcallName(Call));
     if (CalleeReg == 0) return false;
   }
 
   // Issue the call.
-  unsigned CallOpc = ARMSelectCallOp(EnableARMLongCalls);
+  unsigned CallOpc = ARMSelectCallOp(Subtarget->genLongCalls());
   MachineInstrBuilder MIB = BuildMI(*FuncInfo.MBB, FuncInfo.InsertPt,
                                     DbgLoc, TII.get(CallOpc));
   // BL / BLX don't take a predicate, but tBL / tBLX do.
   if (isThumb2)
     AddDefaultPred(MIB);
-  if (EnableARMLongCalls)
+  if (Subtarget->genLongCalls())
     MIB.addReg(CalleeReg);
   else
     MIB.addExternalSymbol(TLI.getLibcallName(Call));
@@ -2380,7 +2379,7 @@ bool ARMFastISel::SelectCall(const Instruction *I,
 
   bool UseReg = false;
   const GlobalValue *GV = dyn_cast<GlobalValue>(Callee);
-  if (!GV || EnableARMLongCalls) UseReg = true;
+  if (!GV || Subtarget->genLongCalls()) UseReg = true;
 
   unsigned CalleeReg = 0;
   if (UseReg) {
@@ -2576,8 +2575,8 @@ bool ARMFastISel::SelectTrunc(const Instruction *I) {
   Value *Op = I->getOperand(0);
 
   EVT SrcVT, DestVT;
-  SrcVT = TLI.getValueType(Op->getType(), true);
-  DestVT = TLI.getValueType(I->getType(), true);
+  SrcVT = TLI.getValueType(DL, Op->getType(), true);
+  DestVT = TLI.getValueType(DL, I->getType(), true);
 
   if (SrcVT != MVT::i32 && SrcVT != MVT::i16 && SrcVT != MVT::i8)
     return false;
@@ -2742,8 +2741,8 @@ bool ARMFastISel::SelectIntExt(const Instruction *I) {
   if (!SrcReg) return false;
 
   EVT SrcEVT, DestEVT;
-  SrcEVT = TLI.getValueType(SrcTy, true);
-  DestEVT = TLI.getValueType(DestTy, true);
+  SrcEVT = TLI.getValueType(DL, SrcTy, true);
+  DestEVT = TLI.getValueType(DL, DestTy, true);
   if (!SrcEVT.isSimple()) return false;
   if (!DestEVT.isSimple()) return false;
 
@@ -2763,7 +2762,7 @@ bool ARMFastISel::SelectShift(const Instruction *I,
     return false;
 
   // Only handle i32 now.
-  EVT DestVT = TLI.getValueType(I->getType(), true);
+  EVT DestVT = TLI.getValueType(DL, I->getType(), true);
   if (DestVT != MVT::i32)
     return false;
 
@@ -3026,7 +3025,7 @@ bool ARMFastISel::fastLowerArguments() {
     if (ArgTy->isStructTy() || ArgTy->isArrayTy() || ArgTy->isVectorTy())
       return false;
 
-    EVT ArgVT = TLI.getValueType(ArgTy);
+    EVT ArgVT = TLI.getValueType(DL, ArgTy);
     if (!ArgVT.isSimple()) return false;
     switch (ArgVT.getSimpleVT().SimpleTy) {
     case MVT::i8:

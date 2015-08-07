@@ -94,9 +94,7 @@ public:
     /// \return the size in the archive header for this member.
     uint64_t getRawSize() const;
 
-    StringRef getBuffer() const {
-      return StringRef(Data.data() + StartOfFile, getSize());
-    }
+    ErrorOr<StringRef> getBuffer() const;
     uint64_t getChildOffset() const;
 
     ErrorOr<MemoryBufferRef> getMemoryBufferRef() const;
@@ -183,6 +181,7 @@ public:
   };
 
   Kind kind() const { return (Kind)Format; }
+  bool isThin() const { return IsThin; }
 
   child_iterator child_begin(bool SkipInternal = true) const;
   child_iterator child_end() const;
@@ -207,6 +206,11 @@ public:
 
   bool hasSymbolTable() const;
   child_iterator getSymbolTableChild() const { return SymbolTable; }
+  StringRef getSymbolTable() const {
+    // We know that the symbol table is not an external file,
+    // so we just assert there is no error.
+    return *SymbolTable->getBuffer();
+  }
   uint32_t getNumberOfSymbols() const;
 
 private:
@@ -215,6 +219,7 @@ private:
   child_iterator FirstRegular;
   unsigned Format : 2;
   unsigned IsThin : 1;
+  mutable std::vector<std::unique_ptr<MemoryBuffer>> ThinBuffers;
 };
 
 }

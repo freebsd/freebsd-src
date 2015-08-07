@@ -35,6 +35,14 @@ struct MIToken {
     comma,
     equal,
     underscore,
+    colon,
+
+    // Keywords
+    kw_implicit,
+    kw_implicit_define,
+    kw_dead,
+    kw_killed,
+    kw_undef,
 
     // Identifier tokens
     Identifier,
@@ -44,7 +52,8 @@ struct MIToken {
     GlobalValue,
 
     // Other tokens
-    IntegerLiteral
+    IntegerLiteral,
+    VirtualRegister
   };
 
 private:
@@ -66,7 +75,13 @@ public:
   bool isError() const { return Kind == Error; }
 
   bool isRegister() const {
-    return Kind == NamedRegister || Kind == underscore;
+    return Kind == NamedRegister || Kind == underscore ||
+           Kind == VirtualRegister;
+  }
+
+  bool isRegisterFlag() const {
+    return Kind == kw_implicit || Kind == kw_implicit_define ||
+           Kind == kw_dead || Kind == kw_killed || Kind == kw_undef;
   }
 
   bool is(TokenKind K) const { return Kind == K; }
@@ -81,7 +96,7 @@ public:
 
   bool hasIntegerValue() const {
     return Kind == IntegerLiteral || Kind == MachineBasicBlock ||
-           Kind == GlobalValue;
+           Kind == GlobalValue || Kind == VirtualRegister;
   }
 };
 

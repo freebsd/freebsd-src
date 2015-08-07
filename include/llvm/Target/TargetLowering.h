@@ -161,27 +161,27 @@ protected:
 
 public:
   const TargetMachine &getTargetMachine() const { return TM; }
-  const DataLayout *getDataLayout() const { return TM.getDataLayout(); }
 
-  bool isBigEndian() const { return !IsLittleEndian; }
-  bool isLittleEndian() const { return IsLittleEndian; }
   virtual bool useSoftFloat() const { return false; }
 
   /// Return the pointer type for the given address space, defaults to
   /// the pointer type from the data layout.
   /// FIXME: The default needs to be removed once all the code is updated.
-  virtual MVT getPointerTy(uint32_t /*AS*/ = 0) const;
-  unsigned getPointerSizeInBits(uint32_t AS = 0) const;
-  unsigned getPointerTypeSizeInBits(Type *Ty) const;
-  virtual MVT getScalarShiftAmountTy(EVT LHSTy) const;
+  MVT getPointerTy(const DataLayout &DL, uint32_t AS = 0) const {
+    return MVT::getIntegerVT(DL.getPointerSizeInBits(AS));
+  }
 
-  EVT getShiftAmountTy(EVT LHSTy) const;
+  /// EVT is not used in-tree, but is used by out-of-tree target.
+  /// A documentation for this function would be nice...
+  virtual MVT getScalarShiftAmountTy(const DataLayout &, EVT) const;
+
+  EVT getShiftAmountTy(EVT LHSTy, const DataLayout &DL) const;
 
   /// Returns the type to be used for the index operand of:
   /// ISD::INSERT_VECTOR_ELT, ISD::EXTRACT_VECTOR_ELT,
   /// ISD::INSERT_SUBVECTOR, and ISD::EXTRACT_SUBVECTOR
-  virtual MVT getVectorIdxTy() const {
-    return getPointerTy();
+  virtual MVT getVectorIdxTy(const DataLayout &DL) const {
+    return getPointerTy(DL);
   }
 
   /// Return true if the select operation is expensive for this target.
@@ -327,7 +327,8 @@ public:
   }
 
   /// Return the ValueType of the result of SETCC operations.
-  virtual EVT getSetCCResultType(LLVMContext &Context, EVT VT) const;
+  virtual EVT getSetCCResultType(const DataLayout &DL, LLVMContext &Context,
+                                 EVT VT) const;
 
   /// Return the ValueType for comparison libcalls. Comparions libcalls include
   /// floating point comparion calls, and Ordered/Unordered check calls on
@@ -715,17 +716,18 @@ public:
   /// operations except for the pointer size.  If AllowUnknown is true, this
   /// will return MVT::Other for types with no EVT counterpart (e.g. structs),
   /// otherwise it will assert.
-  EVT getValueType(Type *Ty, bool AllowUnknown = false) const {
+  EVT getValueType(const DataLayout &DL, Type *Ty,
+                   bool AllowUnknown = false) const {
     // Lower scalar pointers to native pointer types.
     if (PointerType *PTy = dyn_cast<PointerType>(Ty))
-      return getPointerTy(PTy->getAddressSpace());
+      return getPointerTy(DL, PTy->getAddressSpace());
 
     if (Ty->isVectorTy()) {
       VectorType *VTy = cast<VectorType>(Ty);
       Type *Elm = VTy->getElementType();
       // Lower vectors of pointers to native pointer types.
       if (PointerType *PT = dyn_cast<PointerType>(Elm)) {
-        EVT PointerTy(getPointerTy(PT->getAddressSpace()));
+        EVT PointerTy(getPointerTy(DL, PT->getAddressSpace()));
         Elm = PointerTy.getTypeForEVT(Ty->getContext());
       }
 
@@ -736,14 +738,15 @@ public:
   }
 
   /// Return the MVT corresponding to this LLVM type. See getValueType.
-  MVT getSimpleValueType(Type *Ty, bool AllowUnknown = false) const {
-    return getValueType(Ty, AllowUnknown).getSimpleVT();
+  MVT getSimpleValueType(const DataLayout &DL, Type *Ty,
+                         bool AllowUnknown = false) const {
+    return getValueType(DL, Ty, AllowUnknown).getSimpleVT();
   }
 
   /// Return the desired alignment for ByVal or InAlloca aggregate function
   /// arguments in the caller parameter area.  This is the actual alignment, not
   /// its logarithm.
-  virtual unsigned getByValTypeAlignment(Type *Ty) const;
+  virtual unsigned getByValTypeAlignment(Type *Ty, const DataLayout &DL) const;
 
   /// Return the type of registers that this ValueType will eventually require.
   MVT getRegisterType(MVT VT) const {
@@ -818,8 +821,8 @@ public:
   /// When splitting a value of the specified type into parts, does the Lo
   /// or Hi part come first?  This usually follows the endianness, except
   /// for ppcf128, where the Hi part always comes first.
-  bool hasBigEndianPartOrdering(EVT VT) const {
-    return isBigEndian() || VT == MVT::ppcf128;
+  bool hasBigEndianPartOrdering(EVT VT, const DataLayout &DL) const {
+    return DL.isBigEndian() || VT == MVT::ppcf128;
   }
 
   /// If true, the target has custom DAG combine transformations that it can
@@ -1006,7 +1009,8 @@ public:
   int InstructionOpcodeToISD(unsigned Opcode) const;
 
   /// Estimate the cost of type-legalization and the legalized type.
-  std::pair<unsigned, MVT> getTypeLegalizationCost(Type *Ty) const;
+  std::pair<unsigned, MVT> getTypeLegalizationCost(const DataLayout &DL,
+                                                   Type *Ty) const;
 
   /// @}
 
@@ -1460,8 +1464,8 @@ public:
   /// If the address space cannot be determined, it will be -1.
   ///
   /// TODO: Remove default argument
-  virtual bool isLegalAddressingMode(const AddrMode &AM, Type *Ty,
-                                     unsigned AddrSpace) const;
+  virtual bool isLegalAddressingMode(const DataLayout &DL, const AddrMode &AM,
+                                     Type *Ty, unsigned AddrSpace) const;
 
   /// \brief Return the cost of the scaling factor used in the addressing mode
   /// represented by AM for this target, for a load/store of the specified type.
@@ -1470,10 +1474,10 @@ public:
   /// If the AM is not supported, it returns a negative value.
   /// TODO: Handle pre/postinc as well.
   /// TODO: Remove default argument
-  virtual int getScalingFactorCost(const AddrMode &AM, Type *Ty,
-                                   unsigned AS = 0) const {
+  virtual int getScalingFactorCost(const DataLayout &DL, const AddrMode &AM,
+                                   Type *Ty, unsigned AS = 0) const {
     // Default: assume that any scaling factor used in a legal AM is free.
-    if (isLegalAddressingMode(AM, Ty, AS))
+    if (isLegalAddressingMode(DL, AM, Ty, AS))
       return 0;
     return -1;
   }
@@ -1733,9 +1737,6 @@ public:
 
 private:
   const TargetMachine &TM;
-
-  /// True if this is a little endian target.
-  bool IsLittleEndian;
 
   /// Tells the code generator not to expand operations into sequences that use
   /// the select operations if possible.
@@ -2414,6 +2415,7 @@ public:
     ArgListTy &getArgs() {
       return Args;
     }
+
   };
 
   /// This function lowers an abstract call to a function into an actual call.
@@ -2485,7 +2487,8 @@ public:
   /// Return the register ID of the name passed in. Used by named register
   /// global variables extension. There is no target-independent behaviour
   /// so the default action is to bail.
-  virtual unsigned getRegisterByName(const char* RegName, EVT VT) const {
+  virtual unsigned getRegisterByName(const char* RegName, EVT VT,
+                                     SelectionDAG &DAG) const {
     report_fatal_error("Named registers not implemented for this target");
   }
 
@@ -2657,7 +2660,8 @@ public:
   /// specific constraints and their prefixes, and also tie in the associated
   /// operand values.  If this returns an empty vector, and if the constraint
   /// string itself isn't empty, there was an error parsing.
-  virtual AsmOperandInfoVector ParseConstraints(const TargetRegisterInfo *TRI,
+  virtual AsmOperandInfoVector ParseConstraints(const DataLayout &DL,
+                                                const TargetRegisterInfo *TRI,
                                                 ImmutableCallSite CS) const;
 
   /// Examine constraint type and operand type and determine a weight value.
@@ -2679,7 +2683,7 @@ public:
                                       SelectionDAG *DAG = nullptr) const;
 
   /// Given a constraint, return the type of constraint it is for this target.
-  virtual ConstraintType getConstraintType(const std::string &Constraint) const;
+  virtual ConstraintType getConstraintType(StringRef Constraint) const;
 
   /// Given a physical register constraint (e.g.  {edx}), return the register
   /// number and the register class for the register.
@@ -2692,10 +2696,9 @@ public:
   /// returns a register number of 0 and a null register class pointer.
   virtual std::pair<unsigned, const TargetRegisterClass *>
   getRegForInlineAsmConstraint(const TargetRegisterInfo *TRI,
-                               const std::string &Constraint, MVT VT) const;
+                               StringRef Constraint, MVT VT) const;
 
-  virtual unsigned
-  getInlineAsmMemConstraint(const std::string &ConstraintCode) const {
+  virtual unsigned getInlineAsmMemConstraint(StringRef ConstraintCode) const {
     if (ConstraintCode == "i")
       return InlineAsm::Constraint_i;
     else if (ConstraintCode == "m")
@@ -2823,9 +2826,9 @@ public:
 /// Given an LLVM IR type and return type attributes, compute the return value
 /// EVTs and flags, and optionally also the offsets, if the return value is
 /// being lowered to memory.
-void GetReturnInfo(Type* ReturnType, AttributeSet attr,
+void GetReturnInfo(Type *ReturnType, AttributeSet attr,
                    SmallVectorImpl<ISD::OutputArg> &Outs,
-                   const TargetLowering &TLI);
+                   const TargetLowering &TLI, const DataLayout &DL);
 
 } // end llvm namespace
 

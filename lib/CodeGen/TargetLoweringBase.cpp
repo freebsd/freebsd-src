@@ -750,7 +750,6 @@ TargetLoweringBase::TargetLoweringBase(const TargetMachine &tm) : TM(tm) {
   initActions();
 
   // Perform these initializations only once.
-  IsLittleEndian = getDataLayout()->isLittleEndian();
   MaxStoresPerMemset = MaxStoresPerMemcpy = MaxStoresPerMemmove = 8;
   MaxStoresPerMemsetOptSize = MaxStoresPerMemcpyOptSize
     = MaxStoresPerMemmoveOptSize = 4;
@@ -879,28 +878,17 @@ void TargetLoweringBase::initActions() {
   setOperationAction(ISD::DEBUGTRAP, MVT::Other, Expand);
 }
 
-MVT TargetLoweringBase::getPointerTy(uint32_t AS) const {
-  return MVT::getIntegerVT(getPointerSizeInBits(AS));
+MVT TargetLoweringBase::getScalarShiftAmountTy(const DataLayout &DL,
+                                               EVT) const {
+  return MVT::getIntegerVT(8 * DL.getPointerSize(0));
 }
 
-unsigned TargetLoweringBase::getPointerSizeInBits(uint32_t AS) const {
-  return getDataLayout()->getPointerSizeInBits(AS);
-}
-
-unsigned TargetLoweringBase::getPointerTypeSizeInBits(Type *Ty) const {
-  assert(Ty->isPointerTy());
-  return getPointerSizeInBits(Ty->getPointerAddressSpace());
-}
-
-MVT TargetLoweringBase::getScalarShiftAmountTy(EVT LHSTy) const {
-  return MVT::getIntegerVT(8 * getDataLayout()->getPointerSize(0));
-}
-
-EVT TargetLoweringBase::getShiftAmountTy(EVT LHSTy) const {
+EVT TargetLoweringBase::getShiftAmountTy(EVT LHSTy,
+                                         const DataLayout &DL) const {
   assert(LHSTy.isInteger() && "Shift amount is not an integer type!");
   if (LHSTy.isVector())
     return LHSTy;
-  return getScalarShiftAmountTy(LHSTy);
+  return getScalarShiftAmountTy(DL, LHSTy);
 }
 
 /// canOpTrap - Returns true if the operation can trap for the value type.
@@ -1398,9 +1386,10 @@ void TargetLoweringBase::computeRegisterProperties(
   }
 }
 
-EVT TargetLoweringBase::getSetCCResultType(LLVMContext &, EVT VT) const {
+EVT TargetLoweringBase::getSetCCResultType(const DataLayout &DL, LLVMContext &,
+                                           EVT VT) const {
   assert(!VT.isVector() && "No default SetCC type for vectors!");
-  return getPointerTy(0).SimpleTy;
+  return getPointerTy(DL).SimpleTy;
 }
 
 MVT::SimpleValueType TargetLoweringBase::getCmpLibcallReturnType() const {
@@ -1485,11 +1474,11 @@ unsigned TargetLoweringBase::getVectorTypeBreakdown(LLVMContext &Context, EVT VT
 /// type of the given function.  This does not require a DAG or a return value,
 /// and is suitable for use before any DAGs for the function are constructed.
 /// TODO: Move this out of TargetLowering.cpp.
-void llvm::GetReturnInfo(Type* ReturnType, AttributeSet attr,
+void llvm::GetReturnInfo(Type *ReturnType, AttributeSet attr,
                          SmallVectorImpl<ISD::OutputArg> &Outs,
-                         const TargetLowering &TLI) {
+                         const TargetLowering &TLI, const DataLayout &DL) {
   SmallVector<EVT, 4> ValueVTs;
-  ComputeValueVTs(TLI, ReturnType, ValueVTs);
+  ComputeValueVTs(TLI, DL, ReturnType, ValueVTs);
   unsigned NumValues = ValueVTs.size();
   if (NumValues == 0) return;
 
@@ -1534,8 +1523,9 @@ void llvm::GetReturnInfo(Type* ReturnType, AttributeSet attr,
 /// getByValTypeAlignment - Return the desired alignment for ByVal aggregate
 /// function arguments in the caller parameter area.  This is the actual
 /// alignment, not its logarithm.
-unsigned TargetLoweringBase::getByValTypeAlignment(Type *Ty) const {
-  return getDataLayout()->getABITypeAlignment(Ty);
+unsigned TargetLoweringBase::getByValTypeAlignment(Type *Ty,
+                                                   const DataLayout &DL) const {
+  return DL.getABITypeAlignment(Ty);
 }
 
 //===----------------------------------------------------------------------===//
@@ -1614,9 +1604,10 @@ int TargetLoweringBase::InstructionOpcodeToISD(unsigned Opcode) const {
 }
 
 std::pair<unsigned, MVT>
-TargetLoweringBase::getTypeLegalizationCost(Type *Ty) const {
+TargetLoweringBase::getTypeLegalizationCost(const DataLayout &DL,
+                                            Type *Ty) const {
   LLVMContext &C = Ty->getContext();
-  EVT MTy = getValueType(Ty);
+  EVT MTy = getValueType(DL, Ty);
 
   unsigned Cost = 1;
   // We keep legalizing the type until we find a legal kind. We assume that
@@ -1642,8 +1633,8 @@ TargetLoweringBase::getTypeLegalizationCost(Type *Ty) const {
 
 /// isLegalAddressingMode - Return true if the addressing mode represented
 /// by AM is legal for this target, for a load/store of the specified type.
-bool TargetLoweringBase::isLegalAddressingMode(const AddrMode &AM,
-                                               Type *Ty,
+bool TargetLoweringBase::isLegalAddressingMode(const DataLayout &DL,
+                                               const AddrMode &AM, Type *Ty,
                                                unsigned AS) const {
   // The default implementation of this implements a conservative RISCy, r+r and
   // r+i addr mode.

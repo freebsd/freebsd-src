@@ -57,7 +57,6 @@ char NVPTXLowerAggrCopies::ID = 0;
 // Lower MemTransferInst or load-store pair to loop
 static void convertTransferToLoop(
     Instruction *splitAt, Value *srcAddr, Value *dstAddr, Value *len,
-    //unsigned numLoads,
     bool srcVolatile, bool dstVolatile, LLVMContext &Context, Function &F) {
   Type *indType = len->getType();
 
@@ -84,6 +83,8 @@ static void convertTransferToLoop(
   ind->addIncoming(ConstantInt::get(indType, 0), origBB);
 
   // load from srcAddr+ind
+  // TODO: we can leverage the align parameter of llvm.memcpy for more efficient
+  // word-sized loads and stores.
   Value *val = loop.CreateLoad(loop.CreateGEP(loop.getInt8Ty(), srcAddr, ind),
                                srcVolatile);
   // store at dstAddr+ind
@@ -137,13 +138,10 @@ bool NVPTXLowerAggrCopies::runOnFunction(Function &F) {
   //
   // Collect all the aggrLoads, aggrMemcpys and addrMemsets.
   //
-  //const BasicBlock *firstBB = &F.front();  // first BB in F
   for (Function::iterator BI = F.begin(), BE = F.end(); BI != BE; ++BI) {
-    //BasicBlock *bb = BI;
     for (BasicBlock::iterator II = BI->begin(), IE = BI->end(); II != IE;
          ++II) {
       if (LoadInst *load = dyn_cast<LoadInst>(II)) {
-
         if (!load->hasOneUse())
           continue;
 
@@ -152,7 +150,7 @@ bool NVPTXLowerAggrCopies::runOnFunction(Function &F) {
 
         User *use = load->user_back();
         if (StoreInst *store = dyn_cast<StoreInst>(use)) {
-          if (store->getOperand(0) != load) //getValueOperand
+          if (store->getOperand(0) != load)
             continue;
           aggrLoads.push_back(load);
         }
@@ -188,8 +186,7 @@ bool NVPTXLowerAggrCopies::runOnFunction(Function &F) {
   //
   // Do the transformation of an aggr load/copy/set to a loop
   //
-  for (unsigned i = 0, e = aggrLoads.size(); i != e; ++i) {
-    LoadInst *load = aggrLoads[i];
+  for (LoadInst *load : aggrLoads) {
     StoreInst *store = dyn_cast<StoreInst>(*load->user_begin());
     Value *srcAddr = load->getOperand(0);
     Value *dstAddr = store->getOperand(1);
@@ -203,20 +200,19 @@ bool NVPTXLowerAggrCopies::runOnFunction(Function &F) {
     load->eraseFromParent();
   }
 
-  for (unsigned i = 0, e = aggrMemcpys.size(); i != e; ++i) {
-    MemTransferInst *cpy = aggrMemcpys[i];
-    Value *len = cpy->getLength();
-    // llvm 2.7 version of memcpy does not have volatile
-    // operand yet. So always making it non-volatile
-    // optimistically, so that we don't see unnecessary
-    // st.volatile in ptx
-    convertTransferToLoop(cpy, cpy->getSource(), cpy->getDest(), len, false,
-                          false, Context, F);
+  for (MemTransferInst *cpy : aggrMemcpys) {
+    convertTransferToLoop(/* splitAt */ cpy,
+                          /* srcAddr */ cpy->getSource(),
+                          /* dstAddr */ cpy->getDest(),
+                          /* len */ cpy->getLength(),
+                          /* srcVolatile */ cpy->isVolatile(),
+                          /* dstVolatile */ cpy->isVolatile(),
+                          /* Context */ Context,
+                          /* Function F */ F);
     cpy->eraseFromParent();
   }
 
-  for (unsigned i = 0, e = aggrMemsets.size(); i != e; ++i) {
-    MemSetInst *memsetinst = aggrMemsets[i];
+  for (MemSetInst *memsetinst : aggrMemsets) {
     Value *len = memsetinst->getLength();
     Value *val = memsetinst->getValue();
     convertMemSetToLoop(memsetinst, memsetinst->getDest(), len, val, Context,

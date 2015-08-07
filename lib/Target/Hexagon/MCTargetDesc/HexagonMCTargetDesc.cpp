@@ -46,7 +46,7 @@ MCInstrInfo *llvm::createHexagonMCInstrInfo() {
   return X;
 }
 
-static MCRegisterInfo *createHexagonMCRegisterInfo(StringRef TT) {
+static MCRegisterInfo *createHexagonMCRegisterInfo(const Triple &TT) {
   MCRegisterInfo *X = new MCRegisterInfo();
   InitHexagonMCRegisterInfo(X, Hexagon::R0);
   return X;
@@ -54,9 +54,7 @@ static MCRegisterInfo *createHexagonMCRegisterInfo(StringRef TT) {
 
 static MCSubtargetInfo *
 createHexagonMCSubtargetInfo(const Triple &TT, StringRef CPU, StringRef FS) {
-  MCSubtargetInfo *X = new MCSubtargetInfo();
-  InitHexagonMCSubtargetInfo(X, TT, CPU, FS);
-  return X;
+  return createHexagonMCSubtargetInfoImpl(TT, CPU, FS);
 }
 
 namespace {
@@ -151,7 +149,8 @@ static MCAsmInfo *createHexagonMCAsmInfo(const MCRegisterInfo &MRI,
   return MAI;
 }
 
-static MCCodeGenInfo *createHexagonMCCodeGenInfo(StringRef TT, Reloc::Model RM,
+static MCCodeGenInfo *createHexagonMCCodeGenInfo(const Triple &TT,
+                                                 Reloc::Model RM,
                                                  CodeModel::Model CM,
                                                  CodeGenOpt::Level OL) {
   MCCodeGenInfo *X = new MCCodeGenInfo();

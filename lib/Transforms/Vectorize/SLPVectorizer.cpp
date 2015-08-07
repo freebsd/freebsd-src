@@ -69,8 +69,13 @@ static cl::opt<bool> ShouldStartVectorizeHorAtStore(
     cl::desc(
         "Attempt to vectorize horizontal reductions feeding into a store"));
 
+static cl::opt<int>
+MaxVectorRegSizeOption("slp-max-reg-size", cl::init(128), cl::Hidden,
+    cl::desc("Attempt to vectorize for this register size in bits"));
+
 namespace {
 
+// FIXME: Set this via cl::opt to allow overriding.
 static const unsigned MinVecRegSize = 128;
 
 static const unsigned RecursionMaxDepth = 12;
@@ -2136,9 +2141,8 @@ Value *BoUpSLP::vectorizeTree(TreeEntry *E) {
         }
 
         // Prepare the operand vector.
-        for (unsigned j = 0; j < E->Scalars.size(); ++j)
-          Operands.push_back(cast<PHINode>(E->Scalars[j])->
-                             getIncomingValueForBlock(IBB));
+        for (Value *V : E->Scalars)
+          Operands.push_back(cast<PHINode>(V)->getIncomingValueForBlock(IBB));
 
         Builder.SetInsertPoint(IBB->getTerminator());
         Builder.SetCurrentDebugLocation(PH->getDebugLoc());
@@ -2172,8 +2176,8 @@ Value *BoUpSLP::vectorizeTree(TreeEntry *E) {
     case Instruction::FPTrunc:
     case Instruction::BitCast: {
       ValueList INVL;
-      for (int i = 0, e = E->Scalars.size(); i < e; ++i)
-        INVL.push_back(cast<Instruction>(E->Scalars[i])->getOperand(0));
+      for (Value *V : E->Scalars)
+        INVL.push_back(cast<Instruction>(V)->getOperand(0));
 
       setInsertPointAfterBundle(E->Scalars);
 
@@ -2191,9 +2195,9 @@ Value *BoUpSLP::vectorizeTree(TreeEntry *E) {
     case Instruction::FCmp:
     case Instruction::ICmp: {
       ValueList LHSV, RHSV;
-      for (int i = 0, e = E->Scalars.size(); i < e; ++i) {
-        LHSV.push_back(cast<Instruction>(E->Scalars[i])->getOperand(0));
-        RHSV.push_back(cast<Instruction>(E->Scalars[i])->getOperand(1));
+      for (Value *V : E->Scalars) {
+        LHSV.push_back(cast<Instruction>(V)->getOperand(0));
+        RHSV.push_back(cast<Instruction>(V)->getOperand(1));
       }
 
       setInsertPointAfterBundle(E->Scalars);
@@ -2217,10 +2221,10 @@ Value *BoUpSLP::vectorizeTree(TreeEntry *E) {
     }
     case Instruction::Select: {
       ValueList TrueVec, FalseVec, CondVec;
-      for (int i = 0, e = E->Scalars.size(); i < e; ++i) {
-        CondVec.push_back(cast<Instruction>(E->Scalars[i])->getOperand(0));
-        TrueVec.push_back(cast<Instruction>(E->Scalars[i])->getOperand(1));
-        FalseVec.push_back(cast<Instruction>(E->Scalars[i])->getOperand(2));
+      for (Value *V : E->Scalars) {
+        CondVec.push_back(cast<Instruction>(V)->getOperand(0));
+        TrueVec.push_back(cast<Instruction>(V)->getOperand(1));
+        FalseVec.push_back(cast<Instruction>(V)->getOperand(2));
       }
 
       setInsertPointAfterBundle(E->Scalars);
@@ -2259,9 +2263,9 @@ Value *BoUpSLP::vectorizeTree(TreeEntry *E) {
       if (isa<BinaryOperator>(VL0) && VL0->isCommutative())
         reorderInputsAccordingToOpcode(E->Scalars, LHSVL, RHSVL);
       else
-        for (int i = 0, e = E->Scalars.size(); i < e; ++i) {
-          LHSVL.push_back(cast<Instruction>(E->Scalars[i])->getOperand(0));
-          RHSVL.push_back(cast<Instruction>(E->Scalars[i])->getOperand(1));
+        for (Value *V : E->Scalars) {
+          LHSVL.push_back(cast<Instruction>(V)->getOperand(0));
+          RHSVL.push_back(cast<Instruction>(V)->getOperand(1));
         }
 
       setInsertPointAfterBundle(E->Scalars);
@@ -2322,8 +2326,8 @@ Value *BoUpSLP::vectorizeTree(TreeEntry *E) {
       unsigned AS = SI->getPointerAddressSpace();
 
       ValueList ValueOp;
-      for (int i = 0, e = E->Scalars.size(); i < e; ++i)
-        ValueOp.push_back(cast<StoreInst>(E->Scalars[i])->getValueOperand());
+      for (Value *V : E->Scalars)
+        ValueOp.push_back(cast<StoreInst>(V)->getValueOperand());
 
       setInsertPointAfterBundle(E->Scalars);
 
@@ -2351,8 +2355,8 @@ Value *BoUpSLP::vectorizeTree(TreeEntry *E) {
       setInsertPointAfterBundle(E->Scalars);
 
       ValueList Op0VL;
-      for (int i = 0, e = E->Scalars.size(); i < e; ++i)
-        Op0VL.push_back(cast<GetElementPtrInst>(E->Scalars[i])->getOperand(0));
+      for (Value *V : E->Scalars)
+        Op0VL.push_back(cast<GetElementPtrInst>(V)->getOperand(0));
 
       Value *Op0 = vectorizeTree(Op0VL);
 
@@ -2360,8 +2364,8 @@ Value *BoUpSLP::vectorizeTree(TreeEntry *E) {
       for (int j = 1, e = cast<GetElementPtrInst>(VL0)->getNumOperands(); j < e;
            ++j) {
         ValueList OpVL;
-        for (int i = 0, e = E->Scalars.size(); i < e; ++i)
-          OpVL.push_back(cast<GetElementPtrInst>(E->Scalars[i])->getOperand(j));
+        for (Value *V : E->Scalars)
+          OpVL.push_back(cast<GetElementPtrInst>(V)->getOperand(j));
 
         Value *OpVec = vectorizeTree(OpVL);
         OpVecs.push_back(OpVec);
@@ -2397,8 +2401,8 @@ Value *BoUpSLP::vectorizeTree(TreeEntry *E) {
           OpVecs.push_back(CEI->getArgOperand(j));
           continue;
         }
-        for (int i = 0, e = E->Scalars.size(); i < e; ++i) {
-          CallInst *CEI = cast<CallInst>(E->Scalars[i]);
+        for (Value *V : E->Scalars) {
+          CallInst *CEI = cast<CallInst>(V);
           OpVL.push_back(CEI->getArgOperand(j));
         }
 
@@ -3089,6 +3093,17 @@ struct SLPVectorizer : public FunctionPass {
     if (!TTI->getNumberOfRegisters(true))
       return false;
 
+    // Use the vector register size specified by the target unless overridden
+    // by a command-line option.
+    // TODO: It would be better to limit the vectorization factor based on
+    //       data type rather than just register size. For example, x86 AVX has
+    //       256-bit registers, but it does not support integer operations
+    //       at that width (that requires AVX2).
+    if (MaxVectorRegSizeOption.getNumOccurrences())
+      MaxVecRegSize = MaxVectorRegSizeOption;
+    else
+      MaxVecRegSize = TTI->getRegisterBitWidth(true);
+
     // Don't vectorize when the attribute NoImplicitFloat is used.
     if (F.hasFnAttribute(Attribute::NoImplicitFloat))
       return false;
@@ -3166,12 +3181,13 @@ private:
   bool vectorizeChainsInBlock(BasicBlock *BB, BoUpSLP &R);
 
   bool vectorizeStoreChain(ArrayRef<Value *> Chain, int CostThreshold,
-                           BoUpSLP &R);
+                           BoUpSLP &R, unsigned VecRegSize);
 
   bool vectorizeStores(ArrayRef<StoreInst *> Stores, int costThreshold,
                        BoUpSLP &R);
 private:
   StoreListMap StoreRefs;
+  unsigned MaxVecRegSize; // This is set by TTI or overridden by cl::opt.
 };
 
 /// \brief Check that the Values in the slice in VL array are still existent in
@@ -3186,14 +3202,15 @@ static bool hasValueBeenRAUWed(ArrayRef<Value *> VL, ArrayRef<WeakVH> VH,
 }
 
 bool SLPVectorizer::vectorizeStoreChain(ArrayRef<Value *> Chain,
-                                          int CostThreshold, BoUpSLP &R) {
+                                        int CostThreshold, BoUpSLP &R,
+                                        unsigned VecRegSize) {
   unsigned ChainLen = Chain.size();
   DEBUG(dbgs() << "SLP: Analyzing a store chain of length " << ChainLen
         << "\n");
   Type *StoreTy = cast<StoreInst>(Chain[0])->getValueOperand()->getType();
   auto &DL = cast<StoreInst>(Chain[0])->getModule()->getDataLayout();
   unsigned Sz = DL.getTypeSizeInBits(StoreTy);
-  unsigned VF = MinVecRegSize / Sz;
+  unsigned VF = VecRegSize / Sz;
 
   if (!isPowerOf2_32(Sz) || VF < 2)
     return false;
@@ -3277,12 +3294,16 @@ bool SLPVectorizer::vectorizeStores(ArrayRef<StoreInst *> Stores,
       I = ConsecutiveChain[I];
     }
 
-    bool Vectorized = vectorizeStoreChain(Operands, costThreshold, R);
-
-    // Mark the vectorized stores so that we don't vectorize them again.
-    if (Vectorized)
-      VectorizedStores.insert(Operands.begin(), Operands.end());
-    Changed |= Vectorized;
+    // FIXME: Is division-by-2 the correct step? Should we assert that the
+    // register size is a power-of-2?
+    for (unsigned Size = MaxVecRegSize; Size >= MinVecRegSize; Size /= 2) {
+      if (vectorizeStoreChain(Operands, costThreshold, R, Size)) {
+        // Mark the vectorized stores so that we don't vectorize them again.
+        VectorizedStores.insert(Operands.begin(), Operands.end());
+        Changed = true;
+        break;
+      }
+    }
   }
 
   return Changed;
@@ -3293,8 +3314,8 @@ unsigned SLPVectorizer::collectStores(BasicBlock *BB, BoUpSLP &R) {
   unsigned count = 0;
   StoreRefs.clear();
   const DataLayout &DL = BB->getModule()->getDataLayout();
-  for (BasicBlock::iterator it = BB->begin(), e = BB->end(); it != e; ++it) {
-    StoreInst *SI = dyn_cast<StoreInst>(it);
+  for (Instruction &I : *BB) {
+    StoreInst *SI = dyn_cast<StoreInst>(&I);
     if (!SI)
       continue;
 
@@ -3342,13 +3363,15 @@ bool SLPVectorizer::tryToVectorizeList(ArrayRef<Value *> VL, BoUpSLP &R,
 
   Type *Ty0 = I0->getType();
   unsigned Sz = DL.getTypeSizeInBits(Ty0);
+  // FIXME: Register size should be a parameter to this function, so we can
+  // try different vectorization factors.
   unsigned VF = MinVecRegSize / Sz;
 
-  for (int i = 0, e = VL.size(); i < e; ++i) {
-    Type *Ty = VL[i]->getType();
+  for (Value *V : VL) {
+    Type *Ty = V->getType();
     if (!isValidElementType(Ty))
       return false;
-    Instruction *Inst = dyn_cast<Instruction>(VL[i]);
+    Instruction *Inst = dyn_cast<Instruction>(V);
     if (!Inst || Inst->getOpcode() != Opcode0)
       return false;
   }
@@ -3571,6 +3594,8 @@ public:
     const DataLayout &DL = B->getModule()->getDataLayout();
     ReductionOpcode = B->getOpcode();
     ReducedValueOpcode = 0;
+    // FIXME: Register size should be a parameter to this function, so we can
+    // try different vectorization factors.
     ReduxWidth = MinVecRegSize / DL.getTypeSizeInBits(Ty);
     ReductionRoot = B;
     ReductionPHI = Phi;
@@ -3997,6 +4022,9 @@ bool SLPVectorizer::vectorizeStoreChains(BoUpSLP &R) {
           << it->second.size() << ".\n");
 
     // Process the stores in chunks of 16.
+    // TODO: The limit of 16 inhibits greater vectorization factors.
+    //       For example, AVX2 supports v32i8. Increasing this limit, however,
+    //       may cause a significant compile-time increase.
     for (unsigned CI = 0, CE = it->second.size(); CI < CE; CI+=16) {
       unsigned Len = std::min<unsigned>(CE - CI, 16);
       Changed |= vectorizeStores(makeArrayRef(&it->second[CI], Len),

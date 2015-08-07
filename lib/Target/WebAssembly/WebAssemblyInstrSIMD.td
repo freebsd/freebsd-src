@@ -6,9 +6,10 @@
 // License. See LICENSE.TXT for details.
 //
 //===----------------------------------------------------------------------===//
-//
-// WebAssembly SIMD operand code-gen constructs.
-//
+///
+/// \file
+/// \brief WebAssembly SIMD operand code-gen constructs.
+///
 //===----------------------------------------------------------------------===//
 
 // TODO: Implement SIMD instructions.
