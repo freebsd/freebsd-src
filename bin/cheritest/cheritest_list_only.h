@@ -195,4 +195,6 @@
 #define test_string_memmove				NULL
 #define test_string_memmove_c				NULL
 
+#define	xfail_swap_required				NULL
+
 #endif /* !_CHERITEST_LIST_ONLY_H_ */

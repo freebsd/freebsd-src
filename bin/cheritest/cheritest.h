@@ -110,6 +110,7 @@ struct cheri_test {
 	int		 ct_arg;	/* 0: ct_func; otherwise ct_func_arg. */
 	void		(*ct_func)(const struct cheri_test *);
 	void		(*ct_func_arg)(const struct cheri_test *, int);
+	const char *	(*ct_check_xfail)(const char *);
 	u_int		 ct_flags;
 	int		 ct_signum;
 	register_t	 ct_mips_exccode;
@@ -312,5 +313,6 @@ void	cheritest_vm_cow_write(const struct cheri_test *ctp);
 
 /* cheritest_vm_swap.c */
 void	cheritest_vm_swap(const struct cheri_test *ctp __unused);
+const char	*xfail_swap_required(const char *name);
 
 #endif /* !_CHERITEST_H_ */

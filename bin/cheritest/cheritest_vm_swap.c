@@ -33,6 +33,7 @@
 
 #include <sys/types.h>
 #include <sys/mman.h>
+#include <sys/sysctl.h>
 #include <sys/wait.h>
 #include <err.h>
 
@@ -290,16 +291,16 @@ dotest(int force_pageout)
 		PRINTF("Paging out...\n");
 		rc = msync(p, sz, MS_PAGEOUT);
 		if (rc == -1)
-			cheritest_failure_errx("msync(MS_PAGEOUT) failed\n");
+			cheritest_failure_errx("msync(MS_PAGEOUT) failed");
 		rc = mincore(p, sz, mincore_values);
 		if (rc < 0)
-			cheritest_failure_errx("mincore() failed\n");
+			cheritest_failure_errx("mincore() failed");
 		else {
 			for (i = 0; i < NPAGES; i++) {
 				if (mincore_values[i] & MINCORE_INCORE) {
 					cheritest_failure_errx(
 					    "mincore() reports page %u is "
-					    "in core\n",
+					    "in core",
 					    (unsigned int)i);
 				}
 			}
@@ -344,7 +345,27 @@ dotest(int force_pageout)
 	if (mismatches == 0)
 		cheritest_success();
 	else
-		cheritest_failure_errx("%d mismatches\n", mismatches);
+		cheritest_failure_errx("%d mismatches", mismatches);
 
 	return (0);
+}
+
+const char *
+xfail_swap_required(const char *name __unused)
+{
+	size_t swap_total_len;
+	vm_ooffset_t swap_total;
+
+	swap_total_len = sizeof(swap_total);
+
+	if (sysctlbyname("vm.swap_total", &swap_total, &swap_total_len,
+	    NULL, 0) != 0) {
+		warn("%s: sysctlbyname(vm.swap_total)", __func__);
+		return ("unable to query swap size");
+	}
+
+	if (swap_total > 0)
+		return (NULL);
+	else
+		return ("no swap devices configured");
 }

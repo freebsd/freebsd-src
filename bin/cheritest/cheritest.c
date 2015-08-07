@@ -465,7 +465,8 @@ static const struct cheri_test cheri_tests[] = {
 
 	{ .ct_name = "cheritest_vm_swap",
 	  .ct_desc = "check tags are swapped out by swap pager",
-	  .ct_func = cheritest_vm_swap, },
+	  .ct_func = cheritest_vm_swap,
+	  .ct_check_xfail = xfail_swap_required},
 
 	/*
 	 * Simple CCall/CReturn tests that sometimes generate signals.
@@ -906,6 +907,7 @@ static void
 list_tests(void)
 {
 	u_int i;
+	const char *xfail_reason;
 
 	xo_open_container("testsuite");
 	xo_open_list("test");
@@ -921,9 +923,14 @@ list_tests(void)
 				xo_emit("{:name/%s}{e:description/%s}",
 			    	    cheri_tests[i].ct_name,
 				    cheri_tests[i].ct_desc);
-			if (cheri_tests[i].ct_xfail_reason)
+			if (cheri_tests[i].ct_check_xfail)
+				xfail_reason = cheri_tests[i].ct_check_xfail(
+				    cheri_tests[i].ct_name);
+			else
+				xfail_reason = cheri_tests[i].ct_xfail_reason;
+			if (xfail_reason)
 				xo_emit("{e:expected-failure-reason/%s}",
-				    cheri_tests[i].ct_xfail_reason);
+				    xfail_reason);
 			if (cheri_tests[i].ct_flags & CT_FLAG_SLOW)
 				xo_emit("{e:timeout/%s}", "LONG");
 			xo_emit("\n");
@@ -976,6 +983,7 @@ cheritest_run_test(const struct cheri_test *ctp)
 	char reason[TESTRESULT_STR_LEN * 2]; /* Potential output, plus some extra */
 	char visreason[sizeof(reason) * 4]; /* Space for vis(3) the string */
 	char buffer[TEST_BUFFER_LEN];
+	const char *xfail_reason;
 	register_t cp2_exccode, mips_exccode;
 	ssize_t len;
 
@@ -984,9 +992,13 @@ cheritest_run_test(const struct cheri_test *ctp)
 	xo_emit("TEST: {:name/%s}: {:description/%s}\n",
 	   ctp->ct_name, ctp->ct_desc);
 
-	if (ctp->ct_xfail_reason != NULL) {
+	if (ctp->ct_check_xfail != NULL)
+		xfail_reason = ctp->ct_check_xfail(ctp->ct_name);
+	else
+		xfail_reason = ctp->ct_xfail_reason;
+	if (xfail_reason != NULL) {
 		xo_emit("{e:expected-failure-reason/%s}",
-		    ctp->ct_xfail_reason);
+		    xfail_reason);
 		expected_failures++;
 	}
 
@@ -1201,13 +1213,13 @@ cheritest_run_test(const struct cheri_test *ctp)
 		}
 	}
 
-	if (ctp->ct_xfail_reason == NULL)
+	if (xfail_reason == NULL)
 		xo_emit("{:status/%s}: {d:name/%s}\n", "PASS", ctp->ct_name);
 	else {
 		xo_attr("expected", "false");
 		xo_emit("{:status/%s}: {d:name/%s} (Expected failure due to "
 		    "{d:expected-failure-reason/%s})\n",
-		    "PASS", ctp->ct_name, ctp->ct_xfail_reason);
+		    "PASS", ctp->ct_name, xfail_reason);
 	}
 	tests_passed++;
 	close(pipefd_stdin[1]);
@@ -1221,14 +1233,14 @@ fail:
 	 * Escape non-printing characters.
 	 */
 	strnvis(visreason, sizeof(visreason), reason, VIS_TAB);
-	if (ctp->ct_xfail_reason == NULL)
+	if (xfail_reason == NULL)
 		xo_emit("{:status/%s}: {d:name/%s}: {:failure-reason/%s}\n",
 		    "FAIL", ctp->ct_name, visreason);
 	else {
 		xo_attr("expected", "true");
 		xo_emit("{d:/%s}{:status/%s}: {d:name/%s}: "
 		    "{:failure-reason/%s} ({d:expected-failure-reason/%s})\n",
-		    "X", "FAIL", ctp->ct_name, visreason, ctp->ct_xfail_reason);
+		    "X", "FAIL", ctp->ct_name, visreason, xfail_reason);
 		tests_xfailed++;
 	}
 	tests_failed++;
