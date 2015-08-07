@@ -166,6 +166,9 @@ struct FormatStyle {
     /// Like \c Attach, but break before braces on function, namespace and
     /// class definitions.
     BS_Linux,
+    /// Like ``Attach``, but break before braces on enum, function, and record
+    /// definitions.
+    BS_Mozilla,
     /// Like \c Attach, but break before function definitions, and 'else'.
     BS_Stroustrup,
     /// Always break before braces.
@@ -289,6 +292,12 @@ struct FormatStyle {
 
   /// \brief Language, this format style is targeted at.
   LanguageKind Language;
+
+  /// \brief A regular expression matching macros that start a block.
+  std::string MacroBlockBegin;
+
+  /// \brief A regular expression matching macros that end a block.
+  std::string MacroBlockEnd;
 
   /// \brief The maximum number of consecutive empty lines to keep.
   unsigned MaxEmptyLinesToKeep;
@@ -479,6 +488,8 @@ struct FormatStyle {
            IndentWrappedFunctionNames == R.IndentWrappedFunctionNames &&
            KeepEmptyLinesAtTheStartOfBlocks ==
                R.KeepEmptyLinesAtTheStartOfBlocks &&
+           MacroBlockBegin == R.MacroBlockBegin &&
+           MacroBlockEnd == R.MacroBlockEnd &&
            MaxEmptyLinesToKeep == R.MaxEmptyLinesToKeep &&
            NamespaceIndentation == R.NamespaceIndentation &&
            ObjCBlockIndentWidth == R.ObjCBlockIndentWidth &&

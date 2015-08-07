@@ -217,11 +217,13 @@ public:
   bool VisitFunctionTemplateDecl(FunctionTemplateDecl *D);
   bool VisitClassTemplateDecl(ClassTemplateDecl *D);
   bool VisitTemplateTemplateParmDecl(TemplateTemplateParmDecl *D);
+  bool VisitObjCTypeParamDecl(ObjCTypeParamDecl *D);
   bool VisitObjCMethodDecl(ObjCMethodDecl *ND);
   bool VisitObjCContainerDecl(ObjCContainerDecl *D);
   bool VisitObjCCategoryDecl(ObjCCategoryDecl *ND);
   bool VisitObjCProtocolDecl(ObjCProtocolDecl *PID);
   bool VisitObjCPropertyDecl(ObjCPropertyDecl *PD);
+  bool VisitObjCTypeParamList(ObjCTypeParamList *typeParamList);
   bool VisitObjCInterfaceDecl(ObjCInterfaceDecl *D);
   bool VisitObjCImplDecl(ObjCImplDecl *D);
   bool VisitObjCCategoryImplDecl(ObjCCategoryImplDecl *D);

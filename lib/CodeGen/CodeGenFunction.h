@@ -324,11 +324,13 @@ public:
   /// write the current selector value into this alloca.
   llvm::AllocaInst *EHSelectorSlot;
 
-  llvm::AllocaInst *AbnormalTerminationSlot;
+  /// A stack of exception code slots. Entering an __except block pushes a slot
+  /// on the stack and leaving pops one. The __exception_code() intrinsic loads
+  /// a value from the top of the stack.
+  SmallVector<llvm::Value *, 1> SEHCodeSlotStack;
 
-  /// The implicit parameter to SEH filter functions of type
-  /// 'EXCEPTION_POINTERS*'.
-  ImplicitParamDecl *SEHPointersDecl;
+  /// Value returned by __exception_info intrinsic.
+  llvm::Value *SEHInfo = nullptr;
 
   /// Emits a landing pad for the current EH stack.
   llvm::BasicBlock *EmitLandingPad();
@@ -886,7 +888,7 @@ private:
   DeclMapTy LocalDeclMap;
 
   /// Track escaped local variables with auto storage. Used during SEH
-  /// outlining to produce a call to llvm.frameescape.
+  /// outlining to produce a call to llvm.localescape.
   llvm::DenseMap<llvm::AllocaInst *, int> EscapedLocals;
 
   /// LabelMap - This keeps track of the LLVM basic block for each C label.
@@ -1292,8 +1294,8 @@ public:
   void EmitMustTailThunk(const CXXMethodDecl *MD, llvm::Value *AdjustedThisPtr,
                          llvm::Value *Callee);
 
-  /// GenerateThunk - Generate a thunk for the given method.
-  void GenerateThunk(llvm::Function *Fn, const CGFunctionInfo &FnInfo,
+  /// Generate a thunk for the given method.
+  void generateThunk(llvm::Function *Fn, const CGFunctionInfo &FnInfo,
                      GlobalDecl GD, const ThunkInfo &Thunk);
 
   llvm::Function *GenerateVarArgsThunk(llvm::Function *Fn,
@@ -2048,8 +2050,7 @@ public:
   void EnterSEHTryStmt(const SEHTryStmt &S);
   void ExitSEHTryStmt(const SEHTryStmt &S);
 
-  void startOutlinedSEHHelper(CodeGenFunction &ParentCGF, StringRef Name,
-                              QualType RetTy, FunctionArgList &Args,
+  void startOutlinedSEHHelper(CodeGenFunction &ParentCGF, bool IsFilter,
                               const Stmt *OutlinedStmt);
 
   llvm::Function *GenerateSEHFilterFunction(CodeGenFunction &ParentCGF,
@@ -2058,16 +2059,27 @@ public:
   llvm::Function *GenerateSEHFinallyFunction(CodeGenFunction &ParentCGF,
                                              const SEHFinallyStmt &Finally);
 
-  void EmitSEHExceptionCodeSave();
+  void EmitSEHExceptionCodeSave(CodeGenFunction &ParentCGF,
+                                llvm::Value *ParentFP,
+                                llvm::Value *EntryEBP);
   llvm::Value *EmitSEHExceptionCode();
   llvm::Value *EmitSEHExceptionInfo();
   llvm::Value *EmitSEHAbnormalTermination();
 
   /// Scan the outlined statement for captures from the parent function. For
   /// each capture, mark the capture as escaped and emit a call to
-  /// llvm.framerecover. Insert the framerecover result into the LocalDeclMap.
+  /// llvm.localrecover. Insert the localrecover result into the LocalDeclMap.
   void EmitCapturedLocals(CodeGenFunction &ParentCGF, const Stmt *OutlinedStmt,
-                          llvm::Value *ParentFP);
+                          bool IsFilter);
+
+  /// Recovers the address of a local in a parent function. ParentVar is the
+  /// address of the variable used in the immediate parent function. It can
+  /// either be an alloca or a call to llvm.localrecover if there are nested
+  /// outlined functions. ParentFP is the frame pointer of the outermost parent
+  /// frame.
+  llvm::Value *recoverAddrOfEscapedLocal(CodeGenFunction &ParentCGF,
+                                         llvm::Value *ParentVar,
+                                         llvm::Value *ParentFP);
 
   void EmitCXXForRangeStmt(const CXXForRangeStmt &S,
                            ArrayRef<const Attr *> Attrs = None);
@@ -2931,6 +2943,26 @@ private:
                                   SourceLocation Loc);
 
 public:
+#ifndef NDEBUG
+  // Determine whether the given argument is an Objective-C method
+  // that may have type parameters in its signature.
+  static bool isObjCMethodWithTypeParams(const ObjCMethodDecl *method) {
+    const DeclContext *dc = method->getDeclContext();
+    if (const ObjCInterfaceDecl *classDecl= dyn_cast<ObjCInterfaceDecl>(dc)) {
+      return classDecl->getTypeParamListAsWritten();
+    }
+
+    if (const ObjCCategoryDecl *catDecl = dyn_cast<ObjCCategoryDecl>(dc)) {
+      return catDecl->getTypeParamList();
+    }
+
+    return false;
+  }
+
+  template<typename T>
+  static bool isObjCMethodWithTypeParams(const T *) { return false; }
+#endif
+
   /// EmitCallArgs - Emit call arguments for a function.
   template <typename T>
   void EmitCallArgs(CallArgList &Args, const T *CallArgTypeInfo,
@@ -2944,18 +2976,25 @@ public:
     assert((ParamsToSkip == 0 || CallArgTypeInfo) &&
            "Can't skip parameters if type info is not provided");
     if (CallArgTypeInfo) {
+#ifndef NDEBUG
+      bool isGenericMethod = isObjCMethodWithTypeParams(CallArgTypeInfo);
+#endif
+
       // First, use the argument types that the type info knows about
       for (auto I = CallArgTypeInfo->param_type_begin() + ParamsToSkip,
                 E = CallArgTypeInfo->param_type_end();
            I != E; ++I, ++Arg) {
         assert(Arg != ArgEnd && "Running over edge of argument list!");
-        assert(
-            ((*I)->isVariablyModifiedType() ||
-             getContext()
-                     .getCanonicalType((*I).getNonReferenceType())
-                     .getTypePtr() ==
-                 getContext().getCanonicalType(Arg->getType()).getTypePtr()) &&
-            "type mismatch in call argument!");
+        assert((isGenericMethod ||
+                ((*I)->isVariablyModifiedType() ||
+                 (*I).getNonReferenceType()->isObjCRetainableType() ||
+                 getContext()
+                         .getCanonicalType((*I).getNonReferenceType())
+                         .getTypePtr() ==
+                     getContext()
+                         .getCanonicalType(Arg->getType())
+                         .getTypePtr())) &&
+               "type mismatch in call argument!");
         ArgTypes.push_back(*I);
       }
     }

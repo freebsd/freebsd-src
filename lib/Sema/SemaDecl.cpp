@@ -2577,6 +2577,48 @@ static bool haveIncompatibleLanguageLinkages(const T *Old, const T *New) {
   return false;
 }
 
+template<typename T> static bool isExternC(T *D) { return D->isExternC(); }
+static bool isExternC(VarTemplateDecl *) { return false; }
+
+/// \brief Check whether a redeclaration of an entity introduced by a
+/// using-declaration is valid, given that we know it's not an overload
+/// (nor a hidden tag declaration).
+template<typename ExpectedDecl>
+static bool checkUsingShadowRedecl(Sema &S, UsingShadowDecl *OldS,
+                                   ExpectedDecl *New) {
+  // C++11 [basic.scope.declarative]p4:
+  //   Given a set of declarations in a single declarative region, each of
+  //   which specifies the same unqualified name,
+  //   -- they shall all refer to the same entity, or all refer to functions
+  //      and function templates; or
+  //   -- exactly one declaration shall declare a class name or enumeration
+  //      name that is not a typedef name and the other declarations shall all
+  //      refer to the same variable or enumerator, or all refer to functions
+  //      and function templates; in this case the class name or enumeration
+  //      name is hidden (3.3.10).
+
+  // C++11 [namespace.udecl]p14:
+  //   If a function declaration in namespace scope or block scope has the
+  //   same name and the same parameter-type-list as a function introduced
+  //   by a using-declaration, and the declarations do not declare the same
+  //   function, the program is ill-formed.
+
+  auto *Old = dyn_cast<ExpectedDecl>(OldS->getTargetDecl());
+  if (Old &&
+      !Old->getDeclContext()->getRedeclContext()->Equals(
+          New->getDeclContext()->getRedeclContext()) &&
+      !(isExternC(Old) && isExternC(New)))
+    Old = nullptr;
+
+  if (!Old) {
+    S.Diag(New->getLocation(), diag::err_using_decl_conflict_reverse);
+    S.Diag(OldS->getTargetDecl()->getLocation(), diag::note_using_decl_target);
+    S.Diag(OldS->getUsingDecl()->getLocation(), diag::note_using_decl) << 0;
+    return true;
+  }
+  return false;
+}
+
 /// MergeFunctionDecl - We just parsed a function 'New' from
 /// declarator D which has the same name and scope as a previous
 /// declaration 'Old'.  Figure out how to resolve this situation,
@@ -2603,28 +2645,10 @@ bool Sema::MergeFunctionDecl(FunctionDecl *New, NamedDecl *&OldD,
         return true;
       }
 
-      // C++11 [namespace.udecl]p14:
-      //   If a function declaration in namespace scope or block scope has the
-      //   same name and the same parameter-type-list as a function introduced
-      //   by a using-declaration, and the declarations do not declare the same
-      //   function, the program is ill-formed.
-
       // Check whether the two declarations might declare the same function.
-      Old = dyn_cast<FunctionDecl>(Shadow->getTargetDecl());
-      if (Old &&
-          !Old->getDeclContext()->getRedeclContext()->Equals(
-              New->getDeclContext()->getRedeclContext()) &&
-          !(Old->isExternC() && New->isExternC()))
-        Old = nullptr;
-
-      if (!Old) {
-        Diag(New->getLocation(), diag::err_using_decl_conflict_reverse);
-        Diag(Shadow->getTargetDecl()->getLocation(),
-             diag::note_using_decl_target);
-        Diag(Shadow->getUsingDecl()->getLocation(), diag::note_using_decl) << 0;
+      if (checkUsingShadowRedecl<FunctionDecl>(*this, Shadow, New))
         return true;
-      }
-      OldD = Old;
+      OldD = Old = cast<FunctionDecl>(Shadow->getTargetDecl());
     } else {
       Diag(New->getLocation(), diag::err_redefinition_different_kind)
         << New->getDeclName();
@@ -3246,9 +3270,16 @@ void Sema::MergeVarDeclTypes(VarDecl *New, VarDecl *Old,
     //
     // Neither C nor C++ requires a diagnostic for this, but we should still try
     // to diagnose it.
-    Diag(New->getLocation(), diag::err_redefinition_different_type)
-      << New->getDeclName() << New->getType() << Old->getType();
-    Diag(Old->getLocation(), diag::note_previous_definition);
+    Diag(New->getLocation(), New->isThisDeclarationADefinition()
+                                 ? diag::err_redefinition_different_type
+                                 : diag::err_redeclaration_different_type)
+        << New->getDeclName() << New->getType() << Old->getType();
+
+    diag::kind PrevDiag;
+    SourceLocation OldLocation;
+    std::tie(PrevDiag, OldLocation) =
+        getNoteDiagForInvalidRedeclaration(Old, New);
+    Diag(OldLocation, PrevDiag);
     return New->setInvalidDecl();
   }
 
@@ -3309,8 +3340,19 @@ void Sema::MergeVarDecl(VarDecl *New, LookupResult &Previous) {
     if (NewTemplate) {
       OldTemplate = dyn_cast<VarTemplateDecl>(Previous.getFoundDecl());
       Old = OldTemplate ? OldTemplate->getTemplatedDecl() : nullptr;
-    } else
+
+      if (auto *Shadow =
+              dyn_cast<UsingShadowDecl>(Previous.getRepresentativeDecl()))
+        if (checkUsingShadowRedecl<VarTemplateDecl>(*this, Shadow, NewTemplate))
+          return New->setInvalidDecl();
+    } else {
       Old = dyn_cast<VarDecl>(Previous.getFoundDecl());
+
+      if (auto *Shadow =
+              dyn_cast<UsingShadowDecl>(Previous.getRepresentativeDecl()))
+        if (checkUsingShadowRedecl<VarDecl>(*this, Shadow, New))
+          return New->setInvalidDecl();
+    }
   }
   if (!Old) {
     Diag(New->getLocation(), diag::err_redefinition_different_kind)
@@ -4742,14 +4784,15 @@ NamedDecl *Sema::HandleDeclarator(Scope *S, Declarator &D,
     }
   }
 
-  if (DiagnoseClassNameShadow(DC, NameInfo))
-    // If this is a typedef, we'll end up spewing multiple diagnostics.
-    // Just return early; it's safer.
-    if (D.getDeclSpec().getStorageClassSpec() == DeclSpec::SCS_typedef)
-      return nullptr;
-
   TypeSourceInfo *TInfo = GetTypeForDeclarator(D, S);
   QualType R = TInfo->getType();
+
+  if (!R->isFunctionType() && DiagnoseClassNameShadow(DC, NameInfo))
+    // If this is a typedef, we'll end up spewing multiple diagnostics.
+    // Just return early; it's safer. If this is a function, let the
+    // "constructor cannot have a return type" diagnostic handle it.
+    if (D.getDeclSpec().getStorageClassSpec() == DeclSpec::SCS_typedef)
+      return nullptr;
 
   if (DiagnoseUnexpandedParameterPack(D.getIdentifierLoc(), TInfo,
                                       UPPC_DeclarationType))
@@ -9785,6 +9828,16 @@ void Sema::CheckCompleteVariableDeclaration(VarDecl *var) {
     FinalizeVarWithDestructor(var, recordType);
 }
 
+/// \brief Determines if a variable's alignment is dependent.
+static bool hasDependentAlignment(VarDecl *VD) {
+  if (VD->getType()->isDependentType())
+    return true;
+  for (auto *I : VD->specific_attrs<AlignedAttr>())
+    if (I->isAlignmentDependent())
+      return true;
+  return false;
+}
+
 /// FinalizeDeclaration - called by ParseDeclarationAfterDeclarator to perform
 /// any semantic actions necessary after any initializer has been attached.
 void
@@ -9797,6 +9850,22 @@ Sema::FinalizeDeclaration(Decl *ThisDecl) {
     return;
 
   checkAttributesAfterMerging(*this, *VD);
+
+  // Perform TLS alignment check here after attributes attached to the variable
+  // which may affect the alignment have been processed. Only perform the check
+  // if the target has a maximum TLS alignment (zero means no constraints).
+  if (unsigned MaxAlign = Context.getTargetInfo().getMaxTLSAlign()) {
+    // Protect the check so that it's not performed on dependent types and
+    // dependent alignments (we can't determine the alignment in that case).
+    if (VD->getTLSKind() && !hasDependentAlignment(VD)) {
+      CharUnits MaxAlignChars = Context.toCharUnitsFromBits(MaxAlign);
+      if (Context.getDeclAlign(VD) > MaxAlignChars) {
+        Diag(VD->getLocation(), diag::err_tls_var_aligned_over_maximum)
+          << (unsigned)Context.getDeclAlign(VD).getQuantity() << VD
+          << (unsigned)MaxAlignChars.getQuantity();
+      }
+    }
+  }
 
   // Static locals inherit dll attributes from their function.
   if (VD->isStaticLocal()) {
@@ -11258,7 +11327,7 @@ static bool isClassCompatTagKind(TagTypeKind Tag)
 bool Sema::isAcceptableTagRedeclaration(const TagDecl *Previous,
                                         TagTypeKind NewTag, bool isDefinition,
                                         SourceLocation NewTagLoc,
-                                        const IdentifierInfo &Name) {
+                                        const IdentifierInfo *Name) {
   // C++ [dcl.type.elab]p3:
   //   The class-key or enum keyword present in the
   //   elaborated-type-specifier shall agree in kind with the
@@ -11287,7 +11356,7 @@ bool Sema::isAcceptableTagRedeclaration(const TagDecl *Previous,
       // In a template instantiation, do not offer fix-its for tag mismatches
       // since they usually mess up the template instead of fixing the problem.
       Diag(NewTagLoc, diag::warn_struct_class_tag_mismatch)
-        << getRedeclDiagFromTagKind(NewTag) << isTemplate << &Name
+        << getRedeclDiagFromTagKind(NewTag) << isTemplate << Name
         << getRedeclDiagFromTagKind(OldTag);
       return true;
     }
@@ -11306,7 +11375,7 @@ bool Sema::isAcceptableTagRedeclaration(const TagDecl *Previous,
           if (!previousMismatch) {
             previousMismatch = true;
             Diag(NewTagLoc, diag::warn_struct_class_previous_tag_mismatch)
-              << getRedeclDiagFromTagKind(NewTag) << isTemplate << &Name
+              << getRedeclDiagFromTagKind(NewTag) << isTemplate << Name
               << getRedeclDiagFromTagKind(I->getTagKind());
           }
           Diag(I->getInnerLocStart(), diag::note_struct_class_suggestion)
@@ -11328,7 +11397,7 @@ bool Sema::isAcceptableTagRedeclaration(const TagDecl *Previous,
     }
 
     Diag(NewTagLoc, diag::warn_struct_class_tag_mismatch)
-      << getRedeclDiagFromTagKind(NewTag) << isTemplate << &Name
+      << getRedeclDiagFromTagKind(NewTag) << isTemplate << Name
       << getRedeclDiagFromTagKind(OldTag);
     Diag(Redecl->getLocation(), diag::note_previous_use);
 
@@ -11386,6 +11455,27 @@ static FixItHint createFriendTagNNSFixIt(Sema &SemaRef, NamedDecl *ND, Scope *S,
     OS << II->getName() << "::";
   OS.flush();
   return FixItHint::CreateInsertion(NameLoc, Insertion);
+}
+
+/// \brief Determine whether a tag originally declared in context \p OldDC can
+/// be redeclared with an unqualfied name in \p NewDC (assuming name lookup
+/// found a declaration in \p OldDC as a previous decl, perhaps through a
+/// using-declaration).
+static bool isAcceptableTagRedeclContext(Sema &S, DeclContext *OldDC,
+                                         DeclContext *NewDC) {
+  OldDC = OldDC->getRedeclContext();
+  NewDC = NewDC->getRedeclContext();
+
+  if (OldDC->Equals(NewDC))
+    return true;
+
+  // In MSVC mode, we allow a redeclaration if the contexts are related (either
+  // encloses the other).
+  if (S.getLangOpts().MSVCCompat &&
+      (OldDC->Encloses(NewDC) || NewDC->Encloses(OldDC)))
+    return true;
+
+  return false;
 }
 
 /// \brief This is invoked when we see 'struct foo' or 'struct {'.  In the
@@ -11559,6 +11649,14 @@ Decl *Sema::ActOnTag(Scope *S, unsigned TagSpec, TagUseKind TUK,
       goto CreateNewDecl;
     }
   } else if (Name) {
+    // C++14 [class.mem]p14:
+    //   If T is the name of a class, then each of the following shall have a
+    //   name different from T:
+    //    -- every member of class T that is itself a type
+    if (TUK != TUK_Reference && TUK != TUK_Friend &&
+        DiagnoseClassNameShadow(SearchDC, DeclarationNameInfo(Name, NameLoc)))
+      return nullptr;
+
     // If this is a named struct, check to see if there was a previous forward
     // declaration or definition.
     // FIXME: We're looking into outer scopes here, even when we
@@ -11724,8 +11822,7 @@ Decl *Sema::ActOnTag(Scope *S, unsigned TagSpec, TagUseKind TUK,
 
   if (!Previous.empty()) {
     NamedDecl *PrevDecl = Previous.getFoundDecl();
-    NamedDecl *DirectPrevDecl =
-        getLangOpts().MSVCCompat ? *Previous.begin() : PrevDecl;
+    NamedDecl *DirectPrevDecl = Previous.getRepresentativeDecl();
 
     // It's okay to have a tag decl in the same scope as a typedef
     // which hides a tag decl in the same scope.  Finding this
@@ -11752,6 +11849,26 @@ Decl *Sema::ActOnTag(Scope *S, unsigned TagSpec, TagUseKind TUK,
       }
     }
 
+    // If this is a redeclaration of a using shadow declaration, it must
+    // declare a tag in the same context. In MSVC mode, we allow a
+    // redefinition if either context is within the other.
+    if (auto *Shadow = dyn_cast<UsingShadowDecl>(DirectPrevDecl)) {
+      auto *OldTag = dyn_cast<TagDecl>(PrevDecl);
+      if (SS.isEmpty() && TUK != TUK_Reference && TUK != TUK_Friend &&
+          isDeclInScope(Shadow, SearchDC, S, isExplicitSpecialization) &&
+          !(OldTag && isAcceptableTagRedeclContext(
+                          *this, OldTag->getDeclContext(), SearchDC))) {
+        Diag(KWLoc, diag::err_using_decl_conflict_reverse);
+        Diag(Shadow->getTargetDecl()->getLocation(),
+             diag::note_using_decl_target);
+        Diag(Shadow->getUsingDecl()->getLocation(), diag::note_using_decl)
+            << 0;
+        // Recover by ignoring the old declaration.
+        Previous.clear();
+        goto CreateNewDecl;
+      }
+    }
+
     if (TagDecl *PrevTagDecl = dyn_cast<TagDecl>(PrevDecl)) {
       // If this is a use of a previous tag, or if the tag is already declared
       // in the same scope (so that the definition/declaration completes or
@@ -11763,7 +11880,7 @@ Decl *Sema::ActOnTag(Scope *S, unsigned TagSpec, TagUseKind TUK,
         // struct or something similar.
         if (!isAcceptableTagRedeclaration(PrevTagDecl, Kind,
                                           TUK == TUK_Definition, KWLoc,
-                                          *Name)) {
+                                          Name)) {
           bool SafeToContinue
             = (PrevTagDecl->getTagKind() != TTK_Enum &&
                Kind != TTK_Enum);
@@ -11940,7 +12057,7 @@ Decl *Sema::ActOnTag(Scope *S, unsigned TagSpec, TagUseKind TUK,
         Invalid = true;
 
       // Otherwise, only diagnose if the declaration is in scope.
-      } else if (!isDeclInScope(PrevDecl, SearchDC, S,
+      } else if (!isDeclInScope(DirectPrevDecl, SearchDC, S,
                                 SS.isNotEmpty() || isExplicitSpecialization)) {
         // do nothing
 
@@ -13619,12 +13736,9 @@ Decl *Sema::ActOnEnumConstant(Scope *S, Decl *theEnumDecl, Decl *lastEnumConst,
   // different from T:
   // - every enumerator of every member of class T that is an unscoped 
   // enumerated type
-  if (CXXRecordDecl *Record
-                      = dyn_cast<CXXRecordDecl>(
-                             TheEnumDecl->getDeclContext()->getRedeclContext()))
-    if (!TheEnumDecl->isScoped() && 
-        Record->getIdentifier() && Record->getIdentifier() == Id)
-      Diag(IdLoc, diag::err_member_name_of_class) << Id;
+  if (!TheEnumDecl->isScoped())
+    DiagnoseClassNameShadow(TheEnumDecl->getDeclContext(),
+                            DeclarationNameInfo(Id, IdLoc));
   
   EnumConstantDecl *New =
     CheckEnumConstant(TheEnumDecl, LastEnumConst, IdLoc, Id, Val);

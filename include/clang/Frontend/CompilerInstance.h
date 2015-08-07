@@ -30,6 +30,7 @@
 namespace llvm {
 class raw_fd_ostream;
 class Timer;
+class TimerGroup;
 }
 
 namespace clang {
@@ -101,7 +102,10 @@ class CompilerInstance : public ModuleLoader {
   /// \brief The semantic analysis object.
   std::unique_ptr<Sema> TheSema;
 
-  /// \brief The frontend timer
+  /// \brief The frontend timer group.
+  std::unique_ptr<llvm::TimerGroup> FrontendTimerGroup;
+
+  /// \brief The frontend timer.
   std::unique_ptr<llvm::Timer> FrontendTimer;
 
   /// \brief The ASTReader, if one exists.
@@ -157,9 +161,10 @@ class CompilerInstance : public ModuleLoader {
     std::string TempFilename;
     std::unique_ptr<raw_ostream> OS;
 
-    OutputFile(const std::string &filename, const std::string &tempFilename,
+    OutputFile(std::string filename, std::string tempFilename,
                std::unique_ptr<raw_ostream> OS)
-        : Filename(filename), TempFilename(tempFilename), OS(std::move(OS)) {}
+        : Filename(std::move(filename)), TempFilename(std::move(tempFilename)),
+          OS(std::move(OS)) {}
     OutputFile(OutputFile &&O)
         : Filename(std::move(O.Filename)),
           TempFilename(std::move(O.TempFilename)), OS(std::move(O.OS)) {}
@@ -614,7 +619,7 @@ public:
   ///
   /// \return - The new object on success, or null on failure.
   static IntrusiveRefCntPtr<ASTReader> createPCHExternalASTSource(
-      StringRef Path, const std::string &Sysroot, bool DisablePCHValidation,
+      StringRef Path, StringRef Sysroot, bool DisablePCHValidation,
       bool AllowPCHWithCompilerErrors, Preprocessor &PP, ASTContext &Context,
       const PCHContainerOperations &PCHContainerOps,
       void *DeserializationListener, bool OwnDeserializationListener,
@@ -627,11 +632,9 @@ public:
 
   /// Create a code completion consumer to print code completion results, at
   /// \p Filename, \p Line, and \p Column, to the given output stream \p OS.
-  static CodeCompleteConsumer *
-  createCodeCompletionConsumer(Preprocessor &PP, const std::string &Filename,
-                               unsigned Line, unsigned Column,
-                               const CodeCompleteOptions &Opts,
-                               raw_ostream &OS);
+  static CodeCompleteConsumer *createCodeCompletionConsumer(
+      Preprocessor &PP, StringRef Filename, unsigned Line, unsigned Column,
+      const CodeCompleteOptions &Opts, raw_ostream &OS);
 
   /// \brief Create the Sema object to be used for parsing.
   void createSema(TranslationUnitKind TUKind,

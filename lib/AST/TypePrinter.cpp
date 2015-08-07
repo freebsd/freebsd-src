@@ -1129,6 +1129,9 @@ void TypePrinter::printAttributedBefore(const AttributedType *T,
       T->getAttrKind() == AttributedType::attr_objc_ownership)
     return printBefore(T->getEquivalentType(), OS);
 
+  if (T->getAttrKind() == AttributedType::attr_objc_kindof)
+    OS << "__kindof ";
+
   printBefore(T->getModifiedType(), OS);
 
   if (T->isMSTypeSpec()) {
@@ -1164,6 +1167,9 @@ void TypePrinter::printAttributedAfter(const AttributedType *T,
   if (T->getAttrKind() == AttributedType::attr_objc_gc ||
       T->getAttrKind() == AttributedType::attr_objc_ownership)
     return printAfter(T->getEquivalentType(), OS);
+
+  if (T->getAttrKind() == AttributedType::attr_objc_kindof)
+    return;
 
   // TODO: not all attributes are GCC-style attributes.
   if (T->isMSTypeSpec())
@@ -1310,59 +1316,61 @@ void TypePrinter::printObjCInterfaceAfter(const ObjCInterfaceType *T,
 
 void TypePrinter::printObjCObjectBefore(const ObjCObjectType *T,
                                         raw_ostream &OS) {
-  if (T->qual_empty())
+  if (T->qual_empty() && T->isUnspecializedAsWritten() &&
+      !T->isKindOfTypeAsWritten())
     return printBefore(T->getBaseType(), OS);
 
+  if (T->isKindOfTypeAsWritten())
+    OS << "__kindof ";
+
   print(T->getBaseType(), OS, StringRef());
-  OS << '<';
-  bool isFirst = true;
-  for (const auto *I : T->quals()) {
-    if (isFirst)
-      isFirst = false;
-    else
-      OS << ',';
-    OS << I->getName();
+
+  if (T->isSpecializedAsWritten()) {
+    bool isFirst = true;
+    OS << '<';
+    for (auto typeArg : T->getTypeArgsAsWritten()) {
+      if (isFirst)
+        isFirst = false;
+      else
+        OS << ",";
+
+      print(typeArg, OS, StringRef());
+    }
+    OS << '>';
   }
-  OS << '>';
+
+  if (!T->qual_empty()) {
+    bool isFirst = true;
+    OS << '<';
+    for (const auto *I : T->quals()) {
+      if (isFirst)
+        isFirst = false;
+      else
+        OS << ',';
+      OS << I->getName();
+    }
+    OS << '>';
+  }
+
   spaceBeforePlaceHolder(OS);
 }
 void TypePrinter::printObjCObjectAfter(const ObjCObjectType *T,
                                         raw_ostream &OS) {
-  if (T->qual_empty())
+  if (T->qual_empty() && T->isUnspecializedAsWritten() &&
+      !T->isKindOfTypeAsWritten())
     return printAfter(T->getBaseType(), OS);
 }
 
 void TypePrinter::printObjCObjectPointerBefore(const ObjCObjectPointerType *T, 
                                                raw_ostream &OS) {
-  T->getPointeeType().getLocalQualifiers().print(OS, Policy,
-                                                /*appendSpaceIfNonEmpty=*/true);
+  printBefore(T->getPointeeType(), OS);
 
-  assert(!T->isObjCSelType());
-
-  if (T->isObjCIdType() || T->isObjCQualifiedIdType())
-    OS << "id";
-  else if (T->isObjCClassType() || T->isObjCQualifiedClassType())
-    OS << "Class";
-  else
-    OS << T->getInterfaceDecl()->getName();
-  
-  if (!T->qual_empty()) {
-    OS << '<';
-    for (ObjCObjectPointerType::qual_iterator I = T->qual_begin(), 
-                                              E = T->qual_end();
-         I != E; ++I) {
-      OS << (*I)->getName();
-      if (I+1 != E)
-        OS << ',';
-    }
-    OS << '>';
-  }
-  
+  // If we need to print the pointer, print it now.
   if (!T->isObjCIdType() && !T->isObjCQualifiedIdType() &&
       !T->isObjCClassType() && !T->isObjCQualifiedClassType()) {
-    OS << " *"; // Don't forget the implicit pointer.
-  } else {
-    spaceBeforePlaceHolder(OS);
+    if (HasEmptyPlaceHolder)
+      OS << ' ';
+    OS << '*';
   }
 }
 void TypePrinter::printObjCObjectPointerAfter(const ObjCObjectPointerType *T, 
