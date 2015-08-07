@@ -68,7 +68,8 @@ struct wi_vap {
 #define	WI_VAP(vap)		((struct wi_vap *)(vap))
 
 struct wi_softc	{
-	struct ifnet		*sc_ifp;
+	struct ieee80211com	sc_ic;
+	struct mbufq		sc_snd;
 	device_t		sc_dev;
 	struct mtx		sc_mtx;
 	struct callout		sc_watchdog;
@@ -107,7 +108,6 @@ struct wi_softc	{
 	int			wi_cmd_count;
 
 	int			sc_flags;
-	int			sc_if_flags;
 	int			sc_bap_id;
 	int			sc_bap_off;
 
@@ -152,6 +152,8 @@ struct wi_softc	{
 #define	WI_FLAGS_HAS_ROAMING		0x0020
 #define	WI_FLAGS_HAS_FRAGTHR		0x0200
 #define	WI_FLAGS_HAS_DBMADJUST		0x0400
+#define	WI_FLAGS_RUNNING		0x0800
+#define	WI_FLAGS_PROMISC		0x1000
 
 struct wi_card_ident {
 	u_int16_t	card_id;
@@ -180,7 +182,7 @@ int	wi_shutdown(device_t);
 int	wi_alloc(device_t, int);
 void	wi_free(device_t);
 extern devclass_t wi_devclass;
-void	wi_init(void *);
 void	wi_intr(void *);
 int	wi_mgmt_xmit(struct wi_softc *, caddr_t, int);
 void	wi_stop(struct wi_softc *, int);
+void	wi_init(struct wi_softc *);
