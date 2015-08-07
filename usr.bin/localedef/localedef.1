@@ -1,0 +1,238 @@
+.\" Copyright (c) 1992, X/Open Company Limited  All Rights Reserved
+.\" Portions Copyright (c) 2003, Sun Microsystems, Inc.  All Rights Reserved
+.\" Portions Copyright 2013 DEY Storage Systems, Inc.
+.\" Sun Microsystems, Inc. gratefully acknowledges The Open Group for
+.\" permission to reproduce portions of its copyrighted documentation.
+.\" Original documentation from The Open Group can be obtained online at
+.\" http://www.opengroup.org/bookstore/.
+.\" The Institute of Electrical and Electronics Engineers and The Open Group,
+.\" have given us permission to reprint portions of their documentation. In
+.\" the following statement, the phrase "this text" refers to portions of the
+.\" system documentation. Portions of this text are reprinted and reproduced
+.\" in electronic form in the Sun OS Reference Manual, from IEEE Std 1003.1,
+.\" 2004 Edition, Standard for Information Technology -- Portable Operating
+.\" System Interface (POSIX), The Open Group Base Specifications Issue 6,
+.\" Copyright (C) 2001-2004 by the Institute of Electrical and Electronics
+.\" Engineers, Inc and The Open Group. In the event of any discrepancy between
+.\" these versions and the original IEEE and The Open Group Standard, the
+.\" original IEEE and The Open Group Standard is the referee document. The
+.\" original Standard can be obtained online at
+.\" http://www.opengroup.org/unix/online.html.
+.\"  This notice shall appear on any product containing this material.
+.\" The contents of this file are subject to the terms of the Common
+.\" Development and Distribution License (the "License").  You may not use
+.\" this file except in compliance with the License.
+.\" You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE or
+.\" http://www.opensolaris.org/os/licensing.  See the License for the specific
+.\" language governing permissions and limitations under the License.
+.\" When distributing Covered Code, include this CDDL HEADER in each file and
+.\" include the License file at usr/src/OPENSOLARIS.LICENSE.  If applicable,
+.\" add the following below this CDDL HEADER, with the fields enclosed by
+.\" brackets "[]" replaced with your own identifying information:
+.\" Portions Copyright [yyyy] [name of copyright owner]
+.Dd July 28, 2015
+.Dt LOCALEDEF 1
+.Os
+.Sh NAME
+.Nm localedef
+.Nd define locale environment
+.Sh SYNOPSIS
+.Nm
+.Op Fl D
+.Op Fl c
+.Op Fl v
+.Op Fl U
+.Op Fl f Ar charmap
+.Op Fl w Ar widthfile
+.Op Fl i Ar sourcefile
+.Op Fl u Ar codeset
+localename
+.Sh DESCRIPTION
+The
+.Nm localedef
+utility converts source definitions for locale categories
+into a format usable by the functions and utilities whose operational behavior
+is determined by the setting of the locale environment variables; see
+.Xr environ 5 .
+.Pp
+The utility reads source definitions for one or more locale categories
+belonging to the same locale from the file named in the \fB-i\fR option (if
+specified) or from standard input.
+.Pp
+Each category source definition is identified by the corresponding environment
+variable name and terminated by an
+.Sy END
+.Em category-name
+statement. The following categories are supported:
+.Bl -tag -width LC_MONETARY
+.It LC_CTYPE
+Defines character classification and case conversion.
+.It LC_COLLATE
+Defines collation rules.
+.It LC_MONETARY
+Defines the format and symbols used in formatting of monetary information.
+.It LC_NUMERIC
+Defines the decimal delimiter, grouping and grouping symbol for non-monetary
+numeric editing.
+.It LC_TIME
+Defines the format and content of date and time information.
+.It LC_MESSAGES
+Defines the format and values of affirmative and negative responses.
+.El
+.Pp
+The following options are supported:
+.Bl -tag -width xx_sourcefile
+.It -D
+BSD-style output.  Rather than the default of creating the
+.Sy localename
+directory and creating files like LC_CTYPE, LC_COLLATE, etc, in that directory,
+the output files have the format "<localename>.<category>" and are
+dumped to the current directory.
+.It -c
+Creates permanent output even if warning messages have been issued.
+.It -v
+Emit verbose debugging output on standard output.
+.It -U
+Ignore the presence of character symbols that have no matching character
+definition.  This facilitates the use of a common locale definition file
+to be used across multiple encodings, even when some symbols are not
+present in a given encoding.
+.It -f charmap
+Specifies the pathname of a file containing a mapping of character symbols and
+collating element symbols to actual character encodings. This option must be
+specified if symbolic names (other than collating symbols defined in a
+.Sy collating-symbol
+keyword) are used. If the
+.Sy -f
+option is not present, the default character mapping will be used.
+.It -w widthfile
+The path name of the file containing character screen width definitions.
+If not supplied, then default screen widths will be assumed, which will
+generally not account for East Asian encodings requiring more than a single
+character cell to display, nor for combining or accent marks that occupy
+no additional screen width.
+.It -i sourcefile
+The path name of a file containing the source definitions. If this option is
+not present, source definitions will be read from standard input.
+.It -u codeset
+Specifies the name of a codeset used as the target mapping of character symbols
+and collating element symbols whose encoding values are defined in terms of the
+ISO/IEC 10646-1: 2000 standard position constant values. See NOTES.
+.El
+.Pp
+The following operands are required:
+.Bl -tag -width localename
+.It localename
+Identifies the locale. If the name contains one or more slash characters,
+.Ar localename
+will be interpreted as a path name where the created locale
+definitions will be stored. This capability may be restricted to users with
+appropriate privileges. (As a consequence of specifying one
+.Ar localename ,
+although several categories can be processed in one execution, only categories
+belonging to the same locale can be processed.)
+.El
+.Sh OUTPUT
+.Nm
+creates a directory of files that represents the locale's data, unless instructed
+otherwise by the
+.Sy -D
+(BSD output) option. The contants of this directory should generally be
+copied into the appropriate subdirectory of /usr/share/locale in order the
+definitions to be visible to programs linked with libc.
+.Sh ENVIRONMENT
+See
+.Xr Benviron 5
+for definitions of the following environment variables that affect the execution of
+.Nm :
+.Sy LANG ,
+.Sy LC_ALL ,
+.Sy LC_COLLATE ,
+.Sy LC_CTYPE ,
+.Sy LC_MESSAGES ,
+.Sy LC_MONETARY ,
+.Sy LC_MUMERIC ,
+.Sy LC_TIME ,
+and
+.Sy NLSPATH .
+.Sh EXIT STATUS
+The following exit values are returned:
+.Bl -tag -width XX
+.It 0
+No errors occurred and the locales were successfully created.
+.It 1
+Warnings occurred and the locales were successfully created.
+.It 2
+The locale specification exceeded implementation limits or the coded character
+set or sets used were not supported by the implementation, and no locale was
+created.
+.It >3
+Warnings or errors occurred and no output was created.
+.El
+.Pp
+If an error is detected, no permanent output will be created.
+.Sh SEE ALSO
+.Xr locale 1 ,
+.Xr iconv_open 3 ,
+.Xr nl_langinfo 3 ,
+.Xr strftime 3 ,
+.Xr environ 5 .
+.Sh WARNINGS
+If warnings occur, permanent output will be created if the
+.Sy -c
+option was specified. The following conditions will cause warning messages to be issued:
+.Bl -tag -width X
+.It *
+If a symbolic name not found in the
+.Em charmap
+file is used for the descriptions of the
+.Sy LC_CTYPE
+or
+.Sy LC_COLLATE
+categories (for other categories, this will be an error condition).
+.It *
+If optional keywords not supported by the implementation are present in the
+source.
+.El
+.Sh NOTES
+When the
+.Sy -u
+option is used, the
+.Em codeset
+option-argument is interpreted as a name of a codeset to which the
+ISO/IEC 10646-1: 2000 standard position constant values are converted. Both the
+ISO/IEC 10646-1: 2000 standard position constant values and other formats (decimal,
+hexadecimal, or octal) are valid as encoding values within the charmap file. The
+codeset can be any codeset that is supported by the \fBiconv_open\fR(3C) function
+on the system.
+.Pp
+When conflicts occur between the charmap specification of
+.Em codeset ,
+.Em mb_cur_max ,
+or
+.Em mb_cur_min
+and the corresponding value for the codeset represented by the
+.Sy -u
+option-argument
+.Em codeset ,
+the
+.Nm
+utility fails as an error.
+.Pp
+When conflicts occur between the charmap encoding values specified for symbolic
+names of characters of the portable character set and the character encoding
+values defined by the US-ASCII, the result is unspecified.
+.Sh HISTORY
+.Nm
+first appeared in
+.Dx
+4.4. It was ported from Illumos from the point
+.An Garrett D'Amore
+.Aq garrett@nexenta.com
+added multibyte support (October 2010).
+.An John Marino
+.Aq draco@marino.st
+provided the alternations necessary to compile cleanly on
+.Dx
+as well as altered libc to use the new collation (the changes were also based
+on Illumos, but modified to work with xlocale functionality.)
