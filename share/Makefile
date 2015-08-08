@@ -6,6 +6,7 @@
 # Do not include `info' in the SUBDIR list, it is handled separately.
 
 SUBDIR=	${_colldef} \
+	${_ctypedef} \
 	${_dict} \
 	${_doc} \
 	${_dtrace} \
@@ -59,6 +60,7 @@ _i18n=		i18n
 
 .if ${MK_LOCALES} != "no"
 _colldef =	colldef
+_ctypedef =	ctypedef
 _mklocale =	mklocale
 _monetdef =	monetdef
 _msgdef =	msgdef
