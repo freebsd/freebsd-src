@@ -1107,6 +1107,117 @@ in_lltable_rtcheck(struct ifnet *ifp, u_int flags, const struct sockaddr *l3addr
 	return (0);
 }
 
+static inline struct llentry *
+in_lltable_find_dst(struct lltable *llt, struct in_addr dst)
+{
+	struct llentry *lle;
+	struct llentries *lleh;
+	struct sockaddr_in *sin;
+	u_int hashkey;
+
+	hashkey = dst.s_addr;
+	lleh = &llt->lle_head[LLATBL_HASH(hashkey, LLTBL_HASHMASK)];
+	LIST_FOREACH(lle, lleh, lle_next) {
+		sin = satosin(L3_ADDR(lle));
+		if (lle->la_flags & LLE_DELETED)
+			continue;
+		if (sin->sin_addr.s_addr == dst.s_addr)
+			break;
+	}
+
+	return (lle);
+}
+
+static int
+in_lltable_delete(struct lltable *llt, u_int flags,
+    const struct sockaddr *l3addr)
+{
+	const struct sockaddr_in *sin = (const struct sockaddr_in *)l3addr;
+	struct ifnet *ifp = llt->llt_ifp;
+	struct llentry *lle;
+
+	IF_AFDATA_WLOCK_ASSERT(ifp);
+	KASSERT(l3addr->sa_family == AF_INET,
+	    ("sin_family %d", l3addr->sa_family));
+
+	lle = in_lltable_find_dst(llt, sin->sin_addr);
+	if (lle == NULL) {
+#ifdef DIAGNOSTIC
+		log(LOG_INFO, "interface address is missing from cache = %p  in delete\n", lle);
+#endif
+		return (ENOENT);
+	}
+
+	if (!(lle->la_flags & LLE_IFADDR) || (flags & LLE_IFADDR)) {
+		LLE_WLOCK(lle);
+		lle->la_flags |= LLE_DELETED;
+		EVENTHANDLER_INVOKE(lle_event, lle, LLENTRY_DELETED);
+#ifdef DIAGNOSTIC
+		log(LOG_INFO, "ifaddr cache = %p is deleted\n", lle);
+#endif
+		if ((lle->la_flags & (LLE_STATIC | LLE_IFADDR)) == LLE_STATIC)
+			llentry_free(lle);
+		else
+			LLE_WUNLOCK(lle);
+	}
+
+	return (0);
+}
+
+static struct llentry *
+in_lltable_create(struct lltable *llt, u_int flags, const struct sockaddr *l3addr)
+{
+	const struct sockaddr_in *sin = (const struct sockaddr_in *)l3addr;
+	struct ifnet *ifp = llt->llt_ifp;
+	struct llentry *lle;
+	struct llentries *lleh;
+	u_int hashkey;
+
+	IF_AFDATA_WLOCK_ASSERT(ifp);
+	KASSERT(l3addr->sa_family == AF_INET,
+	    ("sin_family %d", l3addr->sa_family));
+
+	lle = in_lltable_find_dst(llt, sin->sin_addr);
+
+	if (lle != NULL) {
+		LLE_WLOCK(lle);
+		return (lle);
+	}
+
+	/* no existing record, we need to create new one */
+
+	/*
+	 * A route that covers the given address must have
+	 * been installed 1st because we are doing a resolution,
+	 * verify this.
+	 */
+	if (!(flags & LLE_IFADDR) &&
+	    in_lltable_rtcheck(ifp, flags, l3addr) != 0)
+		return (NULL);
+
+	lle = in_lltable_new(l3addr, flags);
+	if (lle == NULL) {
+		log(LOG_INFO, "lla_lookup: new lle malloc failed\n");
+		return (NULL);
+	}
+	lle->la_flags = flags;
+	if ((flags & LLE_IFADDR) == LLE_IFADDR) {
+		bcopy(IF_LLADDR(ifp), &lle->ll_addr, ifp->if_addrlen);
+		lle->la_flags |= (LLE_VALID | LLE_STATIC);
+	}
+
+	hashkey = sin->sin_addr.s_addr;
+	lleh = &llt->lle_head[LLATBL_HASH(hashkey, LLTBL_HASHMASK)];
+
+	lle->lle_tbl  = llt;
+	lle->lle_head = lleh;
+	lle->la_flags |= LLE_LINKED;
+	LIST_INSERT_HEAD(lleh, lle, lle_next);
+	LLE_WLOCK(lle);
+
+	return (lle);
+}
+
 /*
  * Return NULL if not found or marked for deletion.
  * If found return lle read locked.
@@ -1133,62 +1244,15 @@ in_lltable_lookup(struct lltable *llt, u_int flags, const struct sockaddr *l3add
 		if (sa2->sin_addr.s_addr == sin->sin_addr.s_addr)
 			break;
 	}
-	if (lle == NULL) {
-#ifdef DIAGNOSTIC
-		if (flags & LLE_DELETE)
-			log(LOG_INFO, "interface address is missing from cache = %p  in delete\n", lle);
-#endif
-		if (!(flags & LLE_CREATE))
-			return (NULL);
-		IF_AFDATA_WLOCK_ASSERT(ifp);
-		/*
-		 * A route that covers the given address must have
-		 * been installed 1st because we are doing a resolution,
-		 * verify this.
-		 */
-		if (!(flags & LLE_IFADDR) &&
-		    in_lltable_rtcheck(ifp, flags, l3addr) != 0)
-			goto done;
 
-		lle = in_lltable_new(l3addr, flags);
-		if (lle == NULL) {
-			log(LOG_INFO, "lla_lookup: new lle malloc failed\n");
-			goto done;
-		}
-		lle->la_flags = flags & ~LLE_CREATE;
-		if ((flags & (LLE_CREATE | LLE_IFADDR)) == (LLE_CREATE | LLE_IFADDR)) {
-			bcopy(IF_LLADDR(ifp), &lle->ll_addr, ifp->if_addrlen);
-			lle->la_flags |= (LLE_VALID | LLE_STATIC);
-		}
+	if (lle == NULL)
+		return (NULL);
 
-		lle->lle_tbl  = llt;
-		lle->lle_head = lleh;
-		lle->la_flags |= LLE_LINKED;
-		LIST_INSERT_HEAD(lleh, lle, lle_next);
-	} else if (flags & LLE_DELETE) {
-		if (!(lle->la_flags & LLE_IFADDR) || (flags & LLE_IFADDR)) {
-			LLE_WLOCK(lle);
-			lle->la_flags |= LLE_DELETED;
-			EVENTHANDLER_INVOKE(lle_event, lle, LLENTRY_DELETED);
-#ifdef DIAGNOSTIC
-			log(LOG_INFO, "ifaddr cache = %p is deleted\n", lle);
-#endif
-			if ((lle->la_flags &
-			    (LLE_STATIC | LLE_IFADDR)) == LLE_STATIC)
-				llentry_free(lle);
-			else
-				LLE_WUNLOCK(lle);
-		}
-		lle = (void *)-1;
+	if (flags & LLE_EXCLUSIVE)
+		LLE_WLOCK(lle);
+	else
+		LLE_RLOCK(lle);
 
-	}
-	if (LLE_IS_VALID(lle)) {
-		if (flags & LLE_EXCLUSIVE)
-			LLE_WLOCK(lle);
-		else
-			LLE_RLOCK(lle);
-	}
-done:
 	return (lle);
 }
 
@@ -1279,6 +1343,8 @@ in_domifattach(struct ifnet *ifp)
 	if (llt != NULL) {
 		llt->llt_prefix_free = in_lltable_prefix_free;
 		llt->llt_lookup = in_lltable_lookup;
+		llt->llt_create = in_lltable_create;
+		llt->llt_delete = in_lltable_delete;
 		llt->llt_dump = in_lltable_dump;
 	}
 	ii->ii_llt = llt;
