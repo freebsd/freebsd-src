@@ -163,7 +163,7 @@ tcp_detach(struct socket *so, struct inpcb *inp)
 {
 	struct tcpcb *tp;
 
-	INP_INFO_RLOCK_ASSERT(&V_tcbinfo);
+	INP_INFO_LOCK_ASSERT(&V_tcbinfo);
 	INP_WLOCK_ASSERT(inp);
 
 	KASSERT(so->so_pcb == inp, ("tcp_detach: so_pcb != inp"));
@@ -241,15 +241,20 @@ static void
 tcp_usr_detach(struct socket *so)
 {
 	struct inpcb *inp;
+	int rlock = 0;
 
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("tcp_usr_detach: inp == NULL"));
-	INP_INFO_RLOCK(&V_tcbinfo);
+	if (!INP_INFO_WLOCKED(&V_tcbinfo)) {
+		INP_INFO_RLOCK(&V_tcbinfo);
+		rlock = 1;
+	}
 	INP_WLOCK(inp);
 	KASSERT(inp->inp_socket != NULL,
 	    ("tcp_usr_detach: inp_socket == NULL"));
 	tcp_detach(so, inp);
-	INP_INFO_RUNLOCK(&V_tcbinfo);
+	if (rlock)
+		INP_INFO_RUNLOCK(&V_tcbinfo);
 }
 
 #ifdef INET

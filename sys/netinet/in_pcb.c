@@ -1259,7 +1259,7 @@ in_pcbfree(struct inpcb *inp)
 
 #ifdef INVARIANTS
 	if (pcbinfo == &V_tcbinfo) {
-		INP_INFO_RLOCK_ASSERT(pcbinfo);
+		INP_INFO_LOCK_ASSERT(pcbinfo);
 	} else {
 		INP_INFO_WLOCK_ASSERT(pcbinfo);
 	}
