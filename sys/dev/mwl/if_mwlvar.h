@@ -244,8 +244,7 @@ struct mwl_vap {
 #define	MWL_VAP_CONST(vap)	((const struct mwl_vap *)(vap))
 
 struct mwl_softc {
-	struct ieee80211com	sc_ic;
-	struct mbufq		sc_snd;
+	struct ifnet		*sc_ifp;	/* interface common */
 	struct mwl_stats	sc_stats;	/* interface statistics */
 	int			sc_debug;
 	device_t		sc_dev;
@@ -258,8 +257,7 @@ struct mwl_softc {
 	struct taskqueue	*sc_tq;		/* private task queue */
 	struct callout	sc_watchdog;
 	int			sc_tx_timer;
-	unsigned int		sc_running : 1,
-				sc_invalid : 1,	/* disable hardware accesses */
+	unsigned int		sc_invalid : 1,	/* disable hardware accesses */
 				sc_recvsetup:1,	/* recv setup */
 				sc_csapending:1,/* 11h channel switch pending */
 				sc_radarena : 1,/* radar detection enabled */

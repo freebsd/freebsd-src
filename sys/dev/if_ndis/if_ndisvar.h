@@ -152,22 +152,8 @@ struct ndisusb_task {
 };
 
 struct ndis_softc {
-	u_int			ndis_80211:1,
-				ndis_link:1,
-				ndis_running:1;
-	union {
-		struct {		/* Ethernet */
-			struct ifnet		*ifp;
-			struct ifmedia		ifmedia;
-			int			ndis_if_flags;
-		};
-		struct {		/* Wireless */
-			struct ieee80211com	ndis_ic;
-			struct callout		ndis_scan_callout;
-			int	(*ndis_newstate)(struct ieee80211com *,
-				    enum ieee80211_state, int);
-		};
-	};
+	struct ifnet		*ifp;
+	struct ifmedia		ifmedia;	/* media info */
 	u_long			ndis_hwassist;
 	uint32_t		ndis_v4tx;
 	uint32_t		ndis_v4rx;
@@ -194,6 +180,7 @@ struct ndis_softc {
 	ndis_miniport_block	*ndis_block;
 	ndis_miniport_characteristics	*ndis_chars;
 	interface_type		ndis_type;
+	struct callout		ndis_scan_callout;
 	struct callout		ndis_stat_callout;
 	int			ndis_maxpkts;
 	ndis_oid		*ndis_oids;
@@ -205,9 +192,13 @@ struct ndis_softc {
 	int			ndis_sc;
 	ndis_cfg		*ndis_regvals;
 	struct nch		ndis_cfglist_head;
+	int			ndis_80211;
+	int			ndis_link;
 	uint32_t		ndis_sts;
 	uint32_t		ndis_filter;
+	int			ndis_if_flags;
 	int			ndis_skip;
+
 	int			ndis_devidx;
 	interface_type		ndis_iftype;
 	driver_object		*ndis_dobj;
@@ -226,9 +217,11 @@ struct ndis_softc {
 	struct ndis_evt		ndis_evt[NDIS_EVENTS];
 	int			ndis_evtpidx;
 	int			ndis_evtcidx;
-	struct mbufq		ndis_rxqueue;
+	struct ifqueue		ndis_rxqueue;
 	kspin_lock		ndis_rxlock;
 
+	int			(*ndis_newstate)(struct ieee80211com *,
+				    enum ieee80211_state, int);
 	int			ndis_tx_timer;
 	int			ndis_hang_timer;
 
