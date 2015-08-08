@@ -520,7 +520,7 @@ _db_show_com(const struct ieee80211com *ic, int showvaps, int showsta,
 	TAILQ_FOREACH(vap, &ic->ic_vaps, iv_next)
 		db_printf(" %s(%p)", vap->iv_ifp->if_xname, vap);
 	db_printf("\n");
-	db_printf("\tsoftc %p", ic->ic_softc);
+	db_printf("\tifp %p(%s)", ic->ic_ifp, ic->ic_ifp->if_xname);
 	db_printf("\tname %s", ic->ic_name);
 	db_printf(" comlock %p", &ic->ic_comlock);
 	db_printf("\n");
@@ -528,6 +528,7 @@ _db_show_com(const struct ieee80211com *ic, int showvaps, int showsta,
 	db_printf(" phytype %d", ic->ic_phytype);
 	db_printf(" opmode %s", ieee80211_opmode_name[ic->ic_opmode]);
 	db_printf("\n");
+	db_printf("\tmedia %p", &ic->ic_media);
 	db_printf(" inact %p", &ic->ic_inact);
 	db_printf("\n");
 

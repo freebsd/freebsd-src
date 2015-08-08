@@ -1051,7 +1051,8 @@ ath_tx_calc_protection(struct ath_softc *sc, struct ath_buf *bf)
 	uint16_t flags;
 	int shortPreamble;
 	const HAL_RATE_TABLE *rt = sc->sc_currates;
-	struct ieee80211com *ic = &sc->sc_ic;
+	struct ifnet *ifp = sc->sc_ifp;
+	struct ieee80211com *ic = ifp->if_l2com;
 
 	flags = bf->bf_state.bfs_txflags;
 	rix = bf->bf_state.bfs_rc[0].rix;
@@ -1544,7 +1545,8 @@ ath_tx_normal_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 {
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct ath_hal *ah = sc->sc_ah;
-	struct ieee80211com *ic = &sc->sc_ic;
+	struct ifnet *ifp = sc->sc_ifp;
+	struct ieee80211com *ic = ifp->if_l2com;
 	const struct chanAccParams *cap = &ic->ic_wme.wme_chanParams;
 	int error, iswep, ismcast, isfrag, ismrr;
 	int keyix, hdrlen, pktlen, try0 = 0;
@@ -2072,7 +2074,8 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	struct ath_buf *bf, struct mbuf *m0,
 	const struct ieee80211_bpf_params *params)
 {
-	struct ieee80211com *ic = &sc->sc_ic;
+	struct ifnet *ifp = sc->sc_ifp;
+	struct ieee80211com *ic = ifp->if_l2com;
 	struct ath_hal *ah = sc->sc_ah;
 	struct ieee80211vap *vap = ni->ni_vap;
 	int error, ismcast, ismrr;
@@ -2337,7 +2340,8 @@ ath_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	const struct ieee80211_bpf_params *params)
 {
 	struct ieee80211com *ic = ni->ni_ic;
-	struct ath_softc *sc = ic->ic_softc;
+	struct ifnet *ifp = ic->ic_ifp;
+	struct ath_softc *sc = ifp->if_softc;
 	struct ath_buf *bf;
 	struct ieee80211_frame *wh = mtod(m, struct ieee80211_frame *);
 	int error = 0;
@@ -2360,9 +2364,10 @@ ath_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 
 	ATH_TX_LOCK(sc);
 
-	if (!sc->sc_running || sc->sc_invalid) {
-		DPRINTF(sc, ATH_DEBUG_XMIT, "%s: discard frame, r/i: %d/%d",
-		    __func__, sc->sc_running, sc->sc_invalid);
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0 || sc->sc_invalid) {
+		DPRINTF(sc, ATH_DEBUG_XMIT, "%s: discard frame, %s", __func__,
+		    (ifp->if_drv_flags & IFF_DRV_RUNNING) == 0 ?
+			"!running" : "invalid");
 		m_freem(m);
 		error = ENETDOWN;
 		goto bad;
@@ -2419,6 +2424,7 @@ ath_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 		}
 	}
 	sc->sc_wd_timer = 5;
+	if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 	sc->sc_stats.ast_tx_raw++;
 
 	/*
@@ -2467,6 +2473,7 @@ bad:
 badbad:
 	ATH_KTR(sc, ATH_KTR_TX, 2, "ath_raw_xmit: bad0: m=%p, params=%p",
 	    m, params);
+	if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 	sc->sc_stats.ast_tx_raw_fail++;
 	ieee80211_free_node(ni);
 
@@ -5724,7 +5731,7 @@ int
 ath_addba_request(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap,
     int dialogtoken, int baparamset, int batimeout)
 {
-	struct ath_softc *sc = ni->ni_ic->ic_softc;
+	struct ath_softc *sc = ni->ni_ic->ic_ifp->if_softc;
 	int tid = tap->txa_tid;
 	struct ath_node *an = ATH_NODE(ni);
 	struct ath_tid *atid = &an->an_tid[tid];
@@ -5802,7 +5809,7 @@ int
 ath_addba_response(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap,
     int status, int code, int batimeout)
 {
-	struct ath_softc *sc = ni->ni_ic->ic_softc;
+	struct ath_softc *sc = ni->ni_ic->ic_ifp->if_softc;
 	int tid = tap->txa_tid;
 	struct ath_node *an = ATH_NODE(ni);
 	struct ath_tid *atid = &an->an_tid[tid];
@@ -5849,7 +5856,7 @@ ath_addba_response(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap,
 void
 ath_addba_stop(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap)
 {
-	struct ath_softc *sc = ni->ni_ic->ic_softc;
+	struct ath_softc *sc = ni->ni_ic->ic_ifp->if_softc;
 	int tid = tap->txa_tid;
 	struct ath_node *an = ATH_NODE(ni);
 	struct ath_tid *atid = &an->an_tid[tid];
@@ -5984,7 +5991,7 @@ void
 ath_bar_response(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap,
     int status)
 {
-	struct ath_softc *sc = ni->ni_ic->ic_softc;
+	struct ath_softc *sc = ni->ni_ic->ic_ifp->if_softc;
 	int tid = tap->txa_tid;
 	struct ath_node *an = ATH_NODE(ni);
 	struct ath_tid *atid = &an->an_tid[tid];
@@ -6057,7 +6064,7 @@ void
 ath_addba_response_timeout(struct ieee80211_node *ni,
     struct ieee80211_tx_ampdu *tap)
 {
-	struct ath_softc *sc = ni->ni_ic->ic_softc;
+	struct ath_softc *sc = ni->ni_ic->ic_ifp->if_softc;
 	int tid = tap->txa_tid;
 	struct ath_node *an = ATH_NODE(ni);
 	struct ath_tid *atid = &an->an_tid[tid];
