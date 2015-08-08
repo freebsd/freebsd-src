@@ -150,6 +150,7 @@ void uart_sched_softih(struct uart_softc *, uint32_t);
 
 int uart_tty_attach(struct uart_softc *);
 int uart_tty_detach(struct uart_softc *);
+struct mtx *uart_tty_getlock(struct uart_softc *);
 void uart_tty_intr(void *arg);
 
 /*
