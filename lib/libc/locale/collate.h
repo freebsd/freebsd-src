@@ -1,4 +1,5 @@
 /*-
+ * Copyright 2010 Nexenta Systmes, Inc.  All rights reserved.
  * Copyright (c) 1995 Alex Tatmanjants <alex@elvisti.kiev.ua>
  *		at Electronni Visti IA, Kiev, Ukraine.
  *			All rights reserved.

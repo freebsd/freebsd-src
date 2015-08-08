@@ -1,4 +1,5 @@
 /*-
+ * Copyright 2013 Garrett D'Amore <garrett@damore.org>
  * Copyright 2011 Nexenta Systems, Inc.  All rights reserved.
  * Copyright (c) 2002-2004 Tim J. Robbins
  * All rights reserved.
@@ -70,7 +71,7 @@ _UTF8_init(struct xlocale_ctype *l, _RuneLocale *rl)
 	l->__mbsnrtowcs = _UTF8_mbsnrtowcs;
 	l->__wcsnrtombs = _UTF8_wcsnrtombs;
 	l->runes = rl;
-	l->__mb_cur_max = 6;
+	l->__mb_cur_max = 4;
 	/*
 	 * UCS-4 encoding used as the internal representation, so
 	 * slots 0x0080-0x00FF are occuped and must be excluded
@@ -145,6 +146,9 @@ _UTF8_mbrtowc(wchar_t * __restrict pwc, const char * __restrict s, size_t n,
 			mask = 0x07;
 			want = 4;
 			lbound = 0x10000;
+#if 0
+		/* These would be illegal in the UTF-8 space */
+
 		} else if ((ch & 0xfc) == 0xf8) {
 			mask = 0x03;
 			want = 5;
@@ -153,6 +157,7 @@ _UTF8_mbrtowc(wchar_t * __restrict pwc, const char * __restrict s, size_t n,
 			mask = 0x01;
 			want = 6;
 			lbound = 0x4000000;
+#endif
 		} else {
 			/*
 			 * Malformed input; input is not UTF-8.
@@ -173,6 +178,7 @@ _UTF8_mbrtowc(wchar_t * __restrict pwc, const char * __restrict s, size_t n,
 		wch = (unsigned char)*s++ & mask;
 	else
 		wch = us->ch;
+
 	for (i = (us->want == 0) ? 1 : 0; i < MIN(want, n); i++) {
 		if ((*s & 0xc0) != 0x80) {
 			/*
@@ -195,13 +201,6 @@ _UTF8_mbrtowc(wchar_t * __restrict pwc, const char * __restrict s, size_t n,
 	if (wch < lbound) {
 		/*
 		 * Malformed input; redundant encoding.
-		 */
-		errno = EILSEQ;
-		return ((size_t)-1);
-	}
-	if (wch >= 0xd800 && wch <= 0xdfff) {
-		/*
-		 * Malformed input; invalid code points.
 		 */
 		errno = EILSEQ;
 		return ((size_t)-1);
@@ -331,12 +330,15 @@ _UTF8_wcrtomb(char * __restrict s, wchar_t wc, mbstate_t * __restrict ps)
 	} else if ((wc & ~0x1fffff) == 0) {
 		lead = 0xf0;
 		len = 4;
+#if 0
+	/* Again, 5 and 6 byte encodings are simply not permitted */
 	} else if ((wc & ~0x3ffffff) == 0) {
 		lead = 0xf8;
 		len = 5;
 	} else if ((wc & ~0x7fffffff) == 0) {
 		lead = 0xfc;
 		len = 6;
+#endif
 	} else {
 		errno = EILSEQ;
 		return ((size_t)-1);
