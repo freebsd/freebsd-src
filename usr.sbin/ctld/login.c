@@ -57,6 +57,7 @@ login_set_nsg(struct pdu *response, int nsg)
 
 	bhslr->bhslr_flags &= 0xFC;
 	bhslr->bhslr_flags |= nsg;
+	bhslr->bhslr_flags |= BHSLR_FLAGS_TRANSIT;
 }
 
 static int
@@ -337,15 +338,12 @@ login_send_chap_success(struct pdu *request,
 {
 	struct pdu *response;
 	struct keys *request_keys, *response_keys;
-	struct iscsi_bhs_login_response *bhslr2;
 	struct rchap *rchap;
 	const char *chap_i, *chap_c;
 	char *chap_r;
 	int error;
 
 	response = login_new_response(request);
-	bhslr2 = (struct iscsi_bhs_login_response *)response->pdu_bhs;
-	bhslr2->bhslr_flags |= BHSLR_FLAGS_TRANSIT;
 	login_set_nsg(response, BHSLR_STAGE_OPERATIONAL_NEGOTIATION);
 
 	/*
@@ -716,7 +714,6 @@ login_negotiate(struct connection *conn, struct pdu *request)
 
 	response = login_new_response(request);
 	bhslr2 = (struct iscsi_bhs_login_response *)response->pdu_bhs;
-	bhslr2->bhslr_flags |= BHSLR_FLAGS_TRANSIT;
 	bhslr2->bhslr_tsih = htons(0xbadd);
 	login_set_csg(response, BHSLR_STAGE_OPERATIONAL_NEGOTIATION);
 	login_set_nsg(response, BHSLR_STAGE_FULL_FEATURE_PHASE);
@@ -756,7 +753,6 @@ login(struct connection *conn)
 {
 	struct pdu *request, *response;
 	struct iscsi_bhs_login_request *bhslr;
-	struct iscsi_bhs_login_response *bhslr2;
 	struct keys *request_keys, *response_keys;
 	struct auth_group *ag;
 	struct portal_group *pg;
@@ -917,8 +913,6 @@ login(struct connection *conn)
 			    "transitioning anyway");
 
 		response = login_new_response(request);
-		bhslr2 = (struct iscsi_bhs_login_response *)response->pdu_bhs;
-		bhslr2->bhslr_flags |= BHSLR_FLAGS_TRANSIT;
 		login_set_nsg(response, BHSLR_STAGE_OPERATIONAL_NEGOTIATION);
 		response_keys = keys_new();
 		/*
