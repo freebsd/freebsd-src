@@ -80,8 +80,7 @@ typedef struct ctype_node {
 } ctype_node_t;
 
 RB_HEAD(ctypes, ctype_node) ctypes;
-RB_PROTOTYPE(ctypes, ctype_node, entry, ctype_compare);
-RB_GENERATE(ctypes, ctype_node, entry, ctype_compare);
+RB_GENERATE_STATIC(ctypes, ctype_node, entry, ctype_compare);
 
 static int
 ctype_compare(const void *n1, const void *n2)
