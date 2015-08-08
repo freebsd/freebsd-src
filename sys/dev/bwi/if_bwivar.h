@@ -541,11 +541,10 @@ struct bwi_vap {
 #define	BWI_VAP(vap)	((struct bwi_vap *)(vap))
 
 struct bwi_softc {
+	struct ifnet		*sc_ifp;
 	uint32_t		sc_flags;	/* BWI_F_ */
 	device_t		sc_dev;
 	struct mtx		sc_mtx;
-	struct ieee80211com	sc_ic;
-	struct mbufq		sc_snd;
 	int			sc_invalid;
 
 	uint32_t		sc_cap;		/* BWI_CAP_ */
@@ -648,7 +647,6 @@ struct bwi_softc {
 #define BWI_F_BUS_INITED	0x1
 #define BWI_F_PROMISC		0x2
 #define BWI_F_STOP		0x4
-#define	BWI_F_RUNNING		0x8
 
 #define BWI_DBG_MAC		0x00000001
 #define BWI_DBG_RF		0x00000002

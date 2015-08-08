@@ -134,7 +134,8 @@ static unsigned calc_usecs_unicast_packet(struct ath_softc *sc,
 				int long_retries, int is_ht40)
 {
 	const HAL_RATE_TABLE *rt = sc->sc_currates;
-	struct ieee80211com *ic = &sc->sc_ic;
+	struct ifnet *ifp = sc->sc_ifp;
+	struct ieee80211com *ic = ifp->if_l2com;
 	int rts, cts;
 	
 	unsigned t_slot = 20;

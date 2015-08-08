@@ -726,8 +726,7 @@ struct rsu_vap {
 #define	RSU_ASSERT_LOCKED(sc)		mtx_assert(&(sc)->sc_mtx, MA_OWNED)
 
 struct rsu_softc {
-	struct ieee80211com		sc_ic;
-	struct mbufq			sc_snd;
+	struct ifnet			*sc_ifp;
 	device_t			sc_dev;
 	struct usb_device		*sc_udev;
 	int				(*sc_newstate)(struct ieee80211com *,
@@ -737,17 +736,17 @@ struct rsu_softc {
 	const uint8_t			*qid2idx;
 	struct mtx			sc_mtx;
 
-	u_int				sc_running:1,
-					sc_calibrating:1,
-					sc_scan_pass:1;
 	u_int				cut;
+	int				scan_pass;
 	struct rsu_host_cmd_ring	cmdq;
 	struct rsu_data			sc_rx[RSU_RX_LIST_COUNT];
 	struct rsu_data			sc_tx[RSU_TX_LIST_COUNT];
 	struct rsu_data			*fwcmd_data;
 	uint8_t				cmd_seq;
 	uint8_t				rom[128];
+	uint8_t				sc_bssid[IEEE80211_ADDR_LEN];
 	struct usb_xfer			*sc_xfer[RSU_N_TRANSFER];
+	uint8_t				sc_calibrating;
 
 	STAILQ_HEAD(, rsu_data)		sc_rx_active;
 	STAILQ_HEAD(, rsu_data)		sc_rx_inactive;

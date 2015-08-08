@@ -367,6 +367,7 @@ static int
 ath_sysctl_tpscale(SYSCTL_HANDLER_ARGS)
 {
 	struct ath_softc *sc = arg1;
+	struct ifnet *ifp = sc->sc_ifp;
 	u_int32_t scale;
 	int error;
 
@@ -380,7 +381,8 @@ ath_sysctl_tpscale(SYSCTL_HANDLER_ARGS)
 		goto finish;
 
 	error = !ath_hal_settpscale(sc->sc_ah, scale) ? EINVAL :
-	    (sc->sc_running) ? ath_reset(sc, ATH_RESET_NOLOSS) : 0;
+	    (ifp->if_drv_flags & IFF_DRV_RUNNING) ?
+	      ath_reset(ifp, ATH_RESET_NOLOSS) : 0;
 
 finish:
 	ATH_LOCK(sc);
@@ -420,6 +422,7 @@ static int
 ath_sysctl_rfkill(SYSCTL_HANDLER_ARGS)
 {
 	struct ath_softc *sc = arg1;
+	struct ifnet *ifp = sc->sc_ifp;
 	struct ath_hal *ah = sc->sc_ah;
 	u_int rfkill;
 	int error;
@@ -441,7 +444,8 @@ ath_sysctl_rfkill(SYSCTL_HANDLER_ARGS)
 		error = EINVAL;
 		goto finish;
 	}
-	error = sc->sc_running ? ath_reset(sc, ATH_RESET_FULL) : 0;
+	error = (ifp->if_drv_flags & IFF_DRV_RUNNING) ?
+	    ath_reset(ifp, ATH_RESET_FULL) : 0;
 
 finish:
 	ATH_LOCK(sc);
@@ -667,8 +671,8 @@ ath_sysctl_intmit(SYSCTL_HANDLER_ARGS)
 	 * doesn't reset ANI related registers, so it'll leave
 	 * things in an inconsistent state.
 	 */
-	if (sc->sc_running)
-		ath_reset(sc, ATH_RESET_NOLOSS);
+	if (sc->sc_ifp->if_drv_flags & IFF_DRV_RUNNING)
+		ath_reset(sc->sc_ifp, ATH_RESET_NOLOSS);
 
 	error = 0;
 

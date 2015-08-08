@@ -1260,6 +1260,7 @@ static void
 bwi_rf_lo_update_11g(struct bwi_mac *mac)
 {
 	struct bwi_softc *sc = mac->mac_sc;
+	struct ifnet *ifp = sc->sc_ifp;
 	struct bwi_rf *rf = &mac->mac_rf;
 	struct bwi_phy *phy = &mac->mac_phy;
 	struct bwi_tpctl *tpctl = &mac->mac_tpctl;
@@ -1328,7 +1329,7 @@ bwi_rf_lo_update_11g(struct bwi_mac *mac)
 		PHY_WRITE(mac, 0x812, 0xb2);
 	}
 
-	if ((sc->sc_flags & BWI_F_RUNNING) == 0)
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
 		tpctl->tp_ctrl2 = bwi_rf_get_tp_ctrl2(mac);
 	PHY_WRITE(mac, 0x80f, 0x8078);
 
@@ -1351,7 +1352,7 @@ bwi_rf_lo_update_11g(struct bwi_mac *mac)
 		PHY_WRITE(mac, 0x15, devi_ctrl | 0xefa0);
 	}
 
-	if ((sc->sc_flags & BWI_F_RUNNING) == 0)
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
 		tpctl = NULL;
 	bwi_rf_lo_adjust(mac, tpctl);
 
@@ -1461,7 +1462,7 @@ _bwi_rf_lo_update_11g(struct bwi_mac *mac, uint16_t orig_rf7a)
 	static const int rf_lo_measure_order[RF_ATTEN_LISTSZ] =
 	{ 3, 1, 5, 7, 9, 2, 0, 4, 6, 8, 10, 11, 12, 13 };
 
-	struct bwi_softc *sc = mac->mac_sc;
+	struct ifnet *ifp = mac->mac_sc->sc_ifp;
 	struct bwi_rf_lo lo_save, *lo;
 	uint8_t devi_ctrl = 0;
 	int idx, adj_rf7a = 0;
@@ -1475,7 +1476,7 @@ _bwi_rf_lo_update_11g(struct bwi_mac *mac, uint16_t orig_rf7a)
 		for (bbp_atten = 0; bbp_atten < BBP_ATTEN_MAX; ++bbp_atten) {
 			uint16_t tp_ctrl2, rf7a;
 
-			if ((sc->sc_flags & BWI_F_RUNNING) == 0) {
+			if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
 				if (idx == 0) {
 					bzero(&lo_save, sizeof(lo_save));
 				} else if (init_rf_atten < 0) {

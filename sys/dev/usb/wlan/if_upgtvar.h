@@ -418,9 +418,8 @@ struct upgt_vap {
 #define	UPGT_VAP(vap)	((struct upgt_vap *)(vap))
 
 struct upgt_softc {
-	struct ieee80211com	 sc_ic;
-	struct mbufq		 sc_snd;
 	device_t		 sc_dev;
+	struct ifnet		*sc_ifp;
 	struct usb_device	*sc_udev;
 	void			*sc_rx_dma_buf;
 	void			*sc_tx_dma_buf;
@@ -430,7 +429,10 @@ struct upgt_softc {
 #define	UPGT_FLAG_FWLOADED	 (1 << 0)
 #define	UPGT_FLAG_INITDONE	 (1 << 1)
 #define	UPGT_FLAG_DETACHED	 (1 << 2)
+	int			 sc_if_flags;
 	int			 sc_debug;
+
+	uint8_t			 sc_myaddr[IEEE80211_ADDR_LEN];
 
 	enum ieee80211_state	 sc_state;
 	int			 sc_arg;

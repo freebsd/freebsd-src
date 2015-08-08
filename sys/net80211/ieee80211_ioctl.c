@@ -1329,12 +1329,13 @@ static int
 setmlme_dropsta(struct ieee80211vap *vap,
 	const uint8_t mac[IEEE80211_ADDR_LEN], struct mlmeop *mlmeop)
 {
-	struct ieee80211_node_table *nt = &vap->iv_ic->ic_sta;
+	struct ieee80211com *ic = vap->iv_ic;
+	struct ieee80211_node_table *nt = &ic->ic_sta;
 	struct ieee80211_node *ni;
 	int error = 0;
 
 	/* NB: the broadcast address means do 'em all */
-	if (!IEEE80211_ADDR_EQ(mac, vap->iv_ifp->if_broadcastaddr)) {
+	if (!IEEE80211_ADDR_EQ(mac, ic->ic_ifp->if_broadcastaddr)) {
 		IEEE80211_NODE_LOCK(nt);
 		ni = ieee80211_find_node_locked(nt, mac);
 		IEEE80211_NODE_UNLOCK(nt);
@@ -2528,8 +2529,13 @@ ieee80211_scanreq(struct ieee80211vap *vap, struct ieee80211_scan_req *sr)
 static __noinline int
 ieee80211_ioctl_scanreq(struct ieee80211vap *vap, struct ieee80211req *ireq)
 {
+	struct ieee80211com *ic = vap->iv_ic;
 	struct ieee80211_scan_req sr;		/* XXX off stack? */
 	int error;
+
+	/* NB: parent must be running */
+	if ((ic->ic_ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+		return ENXIO;
 
 	if (ireq->i_len != sizeof(sr))
 		return EINVAL;
@@ -3294,6 +3300,41 @@ ieee80211_ioctl_set80211(struct ieee80211vap *vap, u_long cmd, struct ieee80211r
 	return error;
 }
 
+/*
+ * Rebuild the parent's multicast address list after an add/del
+ * of a multicast address for a vap.  We have no way to tell
+ * what happened above to optimize the work so we purge the entire
+ * list and rebuild from scratch.  This is way expensive.
+ * Note also the half-baked workaround for if_addmulti calling
+ * back to the parent device; there's no way to insert mcast
+ * entries quietly and/or cheaply.
+ */
+static void
+ieee80211_ioctl_updatemulti(struct ieee80211com *ic)
+{
+	struct ifnet *parent = ic->ic_ifp;
+	struct ieee80211vap *vap;
+	void *ioctl;
+
+	IEEE80211_LOCK(ic);
+	if_delallmulti(parent);
+	ioctl = parent->if_ioctl;	/* XXX WAR if_allmulti */
+	parent->if_ioctl = NULL;
+	TAILQ_FOREACH(vap, &ic->ic_vaps, iv_next) {
+		struct ifnet *ifp = vap->iv_ifp;
+		struct ifmultiaddr *ifma;
+
+		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+			if (ifma->ifma_addr->sa_family != AF_LINK)
+				continue;
+			(void) if_addmulti(parent, ifma->ifma_addr, NULL);
+		}
+	}
+	parent->if_ioctl = ioctl;
+	ieee80211_runtask(ic, &ic->ic_mcast_task);
+	IEEE80211_UNLOCK(ic);
+}
+
 int
 ieee80211_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
@@ -3306,11 +3347,8 @@ ieee80211_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	switch (cmd) {
 	case SIOCSIFFLAGS:
 		IEEE80211_LOCK(ic);
-		if ((ifp->if_flags ^ vap->iv_ifflags) & IFF_PROMISC)
-			ieee80211_promisc(vap, ifp->if_flags & IFF_PROMISC);
-		if ((ifp->if_flags ^ vap->iv_ifflags) & IFF_ALLMULTI)
-			ieee80211_allmulti(vap, ifp->if_flags & IFF_ALLMULTI);
-		vap->iv_ifflags = ifp->if_flags;
+		ieee80211_syncifflag_locked(ic, IFF_PROMISC);
+		ieee80211_syncifflag_locked(ic, IFF_ALLMULTI);
 		if (ifp->if_flags & IFF_UP) {
 			/*
 			 * Bring ourself up unless we're already operational.
@@ -3333,7 +3371,7 @@ ieee80211_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		break;
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
-		ieee80211_runtask(ic, &ic->ic_mcast_task);
+		ieee80211_ioctl_updatemulti(ic);
 		break;
 	case SIOCSIFMEDIA:
 	case SIOCGIFMEDIA:
@@ -3389,16 +3427,17 @@ ieee80211_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			break;
 		}
 		break;
+	/* Pass NDIS ioctls up to the driver */
+	case SIOCGDRVSPEC:
+	case SIOCSDRVSPEC:
+	case SIOCGPRIVATE_0: {
+		struct ifnet *parent = vap->iv_ic->ic_ifp;
+		error = parent->if_ioctl(parent, cmd, data);
+		break;
+	}
 	default:
-		/*
-		 * Pass unknown ioctls first to the driver, and if it
-		 * returns ENOTTY, then to the generic Ethernet handler.
-		 */
-		if (ic->ic_ioctl != NULL &&
-		    (error = ic->ic_ioctl(ic, cmd, data)) != ENOTTY)
-			break;
 		error = ether_ioctl(ifp, cmd, data);
 		break;
 	}
-	return (error);
+	return error;
 }

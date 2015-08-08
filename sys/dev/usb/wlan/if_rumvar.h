@@ -85,8 +85,7 @@ enum {
 };
 
 struct rum_softc {
-	struct ieee80211com		sc_ic;
-	struct mbufq			sc_snd;
+	struct ifnet			*sc_ifp;
 	device_t			sc_dev;
 	struct usb_device		*sc_udev;
 
@@ -106,8 +105,8 @@ struct rum_softc {
 	uint32_t			sta[6];
 	uint32_t			rf_regs[4];
 	uint8_t				txpow[44];
-	u_int				sc_detached:1,
-					sc_running:1;
+	uint8_t				sc_bssid[6];
+	uint8_t				sc_detached;
 
 	struct {
 		uint8_t	val;

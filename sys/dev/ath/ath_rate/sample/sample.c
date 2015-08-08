@@ -488,7 +488,8 @@ ath_rate_findrate(struct ath_softc *sc, struct ath_node *an,
 #define	RATE(ix)	(DOT11RATE(ix) / 2)
 	struct sample_node *sn = ATH_NODE_SAMPLE(an);
 	struct sample_softc *ssc = ATH_SOFTC_SAMPLE(sc);
-	struct ieee80211com *ic = &sc->sc_ic;
+	struct ifnet *ifp = sc->sc_ifp;
+	struct ieee80211com *ic = ifp->if_l2com;
 	const HAL_RATE_TABLE *rt = sc->sc_currates;
 	const int size_bin = size_to_bin(frameLen);
 	int rix, mrr, best_rix, change_rates;
@@ -855,7 +856,8 @@ ath_rate_tx_complete(struct ath_softc *sc, struct ath_node *an,
 	const struct ath_rc_series *rc, const struct ath_tx_status *ts,
 	int frame_size, int nframes, int nbad)
 {
-	struct ieee80211com *ic = &sc->sc_ic;
+	struct ifnet *ifp = sc->sc_ifp;
+	struct ieee80211com *ic = ifp->if_l2com;
 	struct sample_node *sn = ATH_NODE_SAMPLE(an);
 	int final_rix, short_tries, long_tries;
 	const HAL_RATE_TABLE *rt = sc->sc_currates;
@@ -1301,7 +1303,8 @@ static int
 ath_rate_sysctl_stats(SYSCTL_HANDLER_ARGS)
 {
 	struct ath_softc *sc = arg1;
-	struct ieee80211com *ic = &sc->sc_ic;
+	struct ifnet *ifp = sc->sc_ifp;
+	struct ieee80211com *ic = ifp->if_l2com;
 	int error, v;
 
 	v = 0;
