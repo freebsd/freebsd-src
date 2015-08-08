@@ -27,7 +27,6 @@ SUBDIR=	${_addr2line} \
 	${_clang} \
 	cmp \
 	col \
-	colldef \
 	colrm \
 	column \
 	comm \
