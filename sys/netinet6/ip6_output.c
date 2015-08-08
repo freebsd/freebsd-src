@@ -662,7 +662,7 @@ again:
 			 * thus deferring a hash lookup and lock acquisition
 			 * at the expense of an m_copym().
 			 */
-			ip6_mloopback(ifp, m, dst);
+			ip6_mloopback(ifp, m);
 		} else {
 			/*
 			 * If we are acting as a multicast router, perform
@@ -2883,7 +2883,7 @@ ip6_setpktopt(int optname, u_char *buf, int len, struct ip6_pktopts *opt,
  * pointer that might NOT be &loif -- easier than replicating that code here.
  */
 void
-ip6_mloopback(struct ifnet *ifp, struct mbuf *m, struct sockaddr_in6 *dst)
+ip6_mloopback(struct ifnet *ifp, const struct mbuf *m)
 {
 	struct mbuf *copym;
 	struct ip6_hdr *ip6;
@@ -2915,7 +2915,7 @@ ip6_mloopback(struct ifnet *ifp, struct mbuf *m, struct sockaddr_in6 *dst)
 		    CSUM_PSEUDO_HDR;
 		copym->m_pkthdr.csum_data = 0xffff;
 	}
-	(void)if_simloop(ifp, copym, dst->sin6_family, 0);
+	if_simloop(ifp, copym, AF_INET6, 0);
 }
 
 /*
