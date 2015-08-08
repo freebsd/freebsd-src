@@ -537,6 +537,7 @@ ath_edma_dma_txteardown(struct ath_softc *sc)
 static void
 ath_edma_tx_drain(struct ath_softc *sc, ATH_RESET_TYPE reset_type)
 {
+	struct ifnet *ifp = sc->sc_ifp;
 	int i;
 
 	DPRINTF(sc, ATH_DEBUG_RESET, "%s: called\n", __func__);
@@ -578,6 +579,9 @@ ath_edma_tx_drain(struct ath_softc *sc, ATH_RESET_TYPE reset_type)
 
 	/* XXX dump out the frames */
 
+	IF_LOCK(&ifp->if_snd);
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+	IF_UNLOCK(&ifp->if_snd);
 	sc->sc_wd_timer = 0;
 }
 
@@ -829,6 +833,12 @@ ath_edma_tx_processq(struct ath_softc *sc, int dosched)
 	}
 
 	sc->sc_wd_timer = 0;
+
+	if (idx > 0) {
+		IF_LOCK(&sc->sc_ifp->if_snd);
+		sc->sc_ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+		IF_UNLOCK(&sc->sc_ifp->if_snd);
+	}
 
 	/* Kick software scheduler */
 	/*
