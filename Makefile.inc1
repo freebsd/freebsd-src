@@ -1370,6 +1370,8 @@ ${_bt}-usr.bin/mandoc: ${_bt}-lib/libohash ${_bt}-lib/libsqlite3
 _makewhatis=usr.bin/makewhatis
 .endif
 
+${_bt}-usr.bin/localedef: ${_bt}-cddl/lib/libavl
+
 # Rebuild up-to-date libmd for xinstall
 ${_bt}-usr.bin/xinstall: ${_bt}-lib/libmd
 
@@ -1403,7 +1405,9 @@ bootstrap-tools: .PHONY
     usr.sbin/config \
     ${_crunch} \
     ${_nmtree} \
-    ${_vtfontcvt}
+    ${_vtfontcvt} \
+    cddl/lib/libavl \
+    usr.bin/localedef
 ${_bt}-${_tool}: .PHONY .MAKE
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,depend,all,install)"; \
 		cd ${.CURDIR}/${_tool} && \
