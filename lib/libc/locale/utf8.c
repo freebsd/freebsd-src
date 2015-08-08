@@ -145,14 +145,6 @@ _UTF8_mbrtowc(wchar_t * __restrict pwc, const char * __restrict s, size_t n,
 			mask = 0x07;
 			want = 4;
 			lbound = 0x10000;
-		} else if ((ch & 0xfc) == 0xf8) {
-			mask = 0x03;
-			want = 5;
-			lbound = 0x200000;
-		} else if ((ch & 0xfe) == 0xfc) {
-			mask = 0x01;
-			want = 6;
-			lbound = 0x4000000;
 		} else {
 			/*
 			 * Malformed input; input is not UTF-8.
