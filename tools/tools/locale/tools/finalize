@@ -1,0 +1,87 @@
+#!/bin/sh
+#
+# This is a helper script for the Makefile in the parent directory.
+# When the localization definitions are generated in the draft area,
+# this script will copy base ones that others symlink to, and rearrange
+# the generate makefile to pull the LOCALES first.
+#
+
+usage ()
+{
+   echo "finalize <type>' to package standard localization"
+   echo "type must be one of { monetdef, msgdef, numericdef, timedef, colldef, ctypedef }"
+   exit 1
+}
+
+[ $# -ne 1 ] && usage
+[ $1 = "monetdef" -o $1 = "msgdef" -o $1 = "colldef" -o \
+  $1 = "numericdef" -o $1 = "timedef" -o $1 = "ctypedef" ] || usage
+
+self=$(realpath $0)
+base=$(dirname ${self})
+old=${base}/../${1}.draft
+new=${base}/../${1}
+TEMP=/tmp/${1}.locales
+TEMP2=/tmp/${1}.hashes
+FULLMAP=/tmp/utf8-map
+FULLEXTRACT=/tmp/extracted-names
+AWKCMD="/## PLACEHOLDER/ { \
+	  while ( getline line < \"${TEMP}\" ) {print line} } \
+	!/## PLACEHOLDER/ { print \$0 }"
+
+grep '^LOCALES+' ${old}/Makefile > ${TEMP}
+
+if [ $1 = "ctypedef" ]
+then
+keep=$(cat ${TEMP} | awk '/UTF-8/ { print $2 }')
+else
+keep=$(cat ${TEMP} | awk '{ print $2 }')
+fi
+
+for original in ${keep}
+do
+	cp ${old}/${original}.src ${new}/
+done
+
+if [ $1 = "ctypedef" ]
+then
+keep=$(cat ${TEMP} | awk '{ print $2 ".src" }')
+(cd ${old} && md5 -r ${keep} | sort) > ${TEMP2}
+linx=$(cat ${TEMP2} | awk '!/UTF-8/ { print $2 }')
+for original in ${linx}
+do
+linkhash=$(fgrep "${original}" ${TEMP2} | awk '{ print $1 }')
+utf8file=$(fgrep "${linkhash}" ${TEMP2} | fgrep 'UTF-8' | awk '{ print $2 }')
+ln -s ${utf8file} ${new}/${original}
+done
+rm -f ${TEMP2}
+	/usr/bin/sed -E -e 's/[ ]+/ /g' \
+		${CLDRDIR}/posix/UTF-8.cm \
+		> ${base}/../etc/final-maps/map.UTF-8
+CHARMAPS="ARMSCII-8 Big5 Big5HKSCS CP1131 CP1251 \
+	CP866 GB2312 GBK ISCII-DEV ISO8859-1 \
+	ISO8859-13 ISO8859-15 ISO8859-2 ISO8859-4 \
+	ISO8859-5 ISO8859-7 ISO8859-9 KOI8-R KOI8-U \
+	PT154 SJIS US-ASCII eucCN eucJP eucKR"
+
+# GB18030 blows up, use pre-generate Illumos version
+
+for map in ${CHARMAPS}
+do
+encoding=${map}
+if [ ${map} = "Big5HKSCS" ]
+then
+encoding="Big5"
+fi
+/usr/local/bin/perl ${base}/convert_map.pl \
+	${base}/../etc/charmaps/${map}.TXT ${encoding} \
+	| /usr/bin/sed -E -e 's/	+/ /g' \
+	> ${base}/../etc/final-maps/map.${map}
+	echo map ${map} converted.
+done
+
+fi
+
+grep -v '^LOCALES+' ${old}/Makefile | awk "${AWKCMD}" > ${new}/Makefile
+
+rm -f ${TEMP}
