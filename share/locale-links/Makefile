@@ -6,9 +6,10 @@ UTF8=	af_ZA am_ET be_BY bg_BG ca_AD ca_ES ca_FR ca_IT \
 	en_GB en_HK en_IE en_NZ en_PH en_SG en_US es_AR \
 	es_CR es_ES es_MX et_EE eu_ES fi_FI fr_BE fr_CA \
 	fr_CH fr_FR he_IL hi_IN hr_HR hu_HU hy_AM is_IS \
-	it_CH it_IT ja_JP kk_KZ ko_KR lt_LT lv_LV nb_NO \
+	it_CH it_IT ja_JP ko_KR lt_LT lv_LV nb_NO \
 	nl_BE nl_NL nn_NO pl_PL pt_BR pt_PT ro_RO ru_RU \
 	se_FI se_NO sk_SK sl_SI sv_FI sv_SE tr_TR uk_UA \
+	kk_Cyrl_KZ \
 	mn_Cyrl_MN \
 	sr_Cyrl_RS \
 	sr_Latn_RS \
