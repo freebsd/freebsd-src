@@ -396,7 +396,7 @@ mb_free_ext(struct mbuf *m)
  * and bump the refcount of the cluster.
  */
 static void
-mb_dupcl(struct mbuf *n, struct mbuf *m)
+mb_dupcl(struct mbuf *n, const struct mbuf *m)
 {
 
 	KASSERT(m->m_flags & M_EXT, ("%s: M_EXT not set on %p", __func__, m));
@@ -567,7 +567,7 @@ m_move_pkthdr(struct mbuf *to, struct mbuf *from)
  * In particular, this does a deep copy of the packet tags.
  */
 int
-m_dup_pkthdr(struct mbuf *to, struct mbuf *from, int how)
+m_dup_pkthdr(struct mbuf *to, const struct mbuf *from, int how)
 {
 
 #if 0
@@ -631,7 +631,7 @@ m_prepend(struct mbuf *m, int len, int how)
  * only their reference counts are incremented.
  */
 struct mbuf *
-m_copym(struct mbuf *m, int off0, int len, int wait)
+m_copym(const struct mbuf *m, int off0, int len, int wait)
 {
 	struct mbuf *n, **np;
 	int off = off0;
@@ -785,7 +785,7 @@ m_copydata(const struct mbuf *m, int off, int len, caddr_t cp)
  * you need a writable copy of an mbuf chain.
  */
 struct mbuf *
-m_dup(struct mbuf *m, int how)
+m_dup(const struct mbuf *m, int how)
 {
 	struct mbuf **p, *top = NULL;
 	int remain, moff, nsize;
