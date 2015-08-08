@@ -50,6 +50,8 @@ arm64/arm64/uma_machdep.c	standard
 arm64/arm64/unwind.c		optional	ddb | kdtrace_hooks | stack
 arm64/arm64/vfp.c		standard
 arm64/arm64/vm_machdep.c	standard
+arm64/cavium/thunder_pcie.c	optional	thunder_pci fdt
+arm64/cavium/thunder_pcie_common.c	optional	thunder_pci
 crypto/blowfish/bf_enc.c	optional	crypto | ipsec
 crypto/des/des_enc.c		optional	crypto | ipsec | netsmb
 dev/acpica/acpi_if.m		optional	acpi
