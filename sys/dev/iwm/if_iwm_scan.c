@@ -148,21 +148,11 @@ __FBSDID("$FreeBSD$");
 #include <net80211/ieee80211_ratectl.h>
 #include <net80211/ieee80211_radiotap.h>
 
-#include <if_iwmreg.h>
-#include <if_iwmvar.h>
-#include <if_iwm_debug.h>
-#include <if_iwm_util.h>
-#if 0
-#include <if_iwm_binding.h>
-#include <if_iwm_phy_db.h>
-#include <if_iwm_mac_ctxt.h>
-#include <if_iwm_phy_ctxt.h>
-#include <if_iwm_time_event.h>
-#include <if_iwm_power.h>
-#include <if_iwm_pcie_trans.h>
-#endif
-
-#include <if_iwm_scan.h>
+#include <dev/iwm/if_iwmreg.h>
+#include <dev/iwm/if_iwmvar.h>
+#include <dev/iwm/if_iwm_debug.h>
+#include <dev/iwm/if_iwm_util.h>
+#include <dev/iwm/if_iwm_scan.h>
 
 /*
  * BEGIN mvm/scan.c

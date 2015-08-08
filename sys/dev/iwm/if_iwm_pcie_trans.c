@@ -148,11 +148,10 @@ __FBSDID("$FreeBSD$");
 #include <net80211/ieee80211_ratectl.h>
 #include <net80211/ieee80211_radiotap.h>
 
-#include <if_iwmreg.h>
-#include <if_iwmvar.h>
-#include <if_iwm_debug.h>
-
-#include <if_iwm_pcie_trans.h>
+#include <dev/iwm/if_iwmreg.h>
+#include <dev/iwm/if_iwmvar.h>
+#include <dev/iwm/if_iwm_debug.h>
+#include <dev/iwm/if_iwm_pcie_trans.h>
 
 /*
  * This is a subset of what's in linux iwlwifi/pcie/trans.c.
