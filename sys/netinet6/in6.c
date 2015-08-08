@@ -2178,10 +2178,9 @@ in6_lltable_delete(struct lltable *llt, u_int flags,
 	const struct sockaddr *l3addr)
 {
 	const struct sockaddr_in6 *sin6 = (const struct sockaddr_in6 *)l3addr;
-	struct ifnet *ifp = llt->llt_ifp;
 	struct llentry *lle;
 
-	IF_AFDATA_LOCK_ASSERT(ifp);
+	IF_AFDATA_LOCK_ASSERT(llt->llt_ifp);
 	KASSERT(l3addr->sa_family == AF_INET6,
 	    ("sin_family %d", l3addr->sa_family));
 
@@ -2264,10 +2263,9 @@ in6_lltable_lookup(struct lltable *llt, u_int flags,
 	const struct sockaddr *l3addr)
 {
 	const struct sockaddr_in6 *sin6 = (const struct sockaddr_in6 *)l3addr;
-	struct ifnet *ifp = llt->llt_ifp;
 	struct llentry *lle;
 
-	IF_AFDATA_LOCK_ASSERT(ifp);
+	IF_AFDATA_LOCK_ASSERT(llt->llt_ifp);
 	KASSERT(l3addr->sa_family == AF_INET6,
 	    ("sin_family %d", l3addr->sa_family));
 
