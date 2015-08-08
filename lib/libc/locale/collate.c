@@ -1,4 +1,5 @@
 /*-
+ * Copyright 2014 Garrett D'Amore <garrett@damore.org>
  * Copright 2010 Nexenta Systems, Inc.  All rights reserved.
  * Copyright (c) 1995 Alex Tatmanjants <alex@elvisti.kiev.ua>
  *		at Electronni Visti IA, Kiev, Ukraine.
