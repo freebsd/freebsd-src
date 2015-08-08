@@ -38,6 +38,11 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20150809: String collation improvements
+OLD_FILES+=usr/bin/colldef
+OLD_FILES+=usr/share/man/man1/colldef.1.gz
+OLD_FILES+=usr/bin/mklocale
+OLD_FILES+=usr/share/man/man1/mklocale.1.gz
 # 20150802: Remove netbsd's test on pw(8)
 OLD_FILES+=usr/tests/usr.sbin/pw/pw_test
 # 20150719: Remove libarchive.pc
