@@ -144,25 +144,33 @@ struct llentry {
 #define	LLTBL_HASHMASK	(LLTBL_HASHTBL_SIZE - 1)
 #endif
 
+typedef	struct llentry *(llt_lookup_t)(struct lltable *, u_int flags,
+    const struct sockaddr *l3addr);
+typedef	struct llentry *(llt_create_t)(struct lltable *, u_int flags,
+    const struct sockaddr *l3addr);
+typedef	int (llt_delete_t)(struct lltable *, u_int flags,
+    const struct sockaddr *l3addr);
+typedef void (llt_prefix_free_t)(struct lltable *,
+    const struct sockaddr *prefix, const struct sockaddr *mask, u_int flags);
+typedef int (llt_dump_t)(struct lltable *, struct sysctl_req *);
+
 struct lltable {
 	SLIST_ENTRY(lltable)	llt_link;
 	struct llentries	lle_head[LLTBL_HASHTBL_SIZE];
 	int			llt_af;
 	struct ifnet		*llt_ifp;
 
-	void			(*llt_prefix_free)(struct lltable *,
-				    const struct sockaddr *prefix,
-				    const struct sockaddr *mask,
-				    u_int flags);
-	struct llentry *	(*llt_lookup)(struct lltable *, u_int flags,
-				    const struct sockaddr *l3addr);
-	int			(*llt_dump)(struct lltable *,
-				    struct sysctl_req *);
+	llt_lookup_t		*llt_lookup;
+	llt_create_t		*llt_create;
+	llt_delete_t		*llt_delete;
+	llt_prefix_free_t	*llt_prefix_free;
+	llt_dump_t		*llt_dump;
 };
+
 MALLOC_DECLARE(M_LLTABLE);
 
 /*
- * flags to be passed to arplookup.
+ * LLentry flags
  */
 #define	LLE_DELETED	0x0001	/* entry must be deleted */
 #define	LLE_STATIC	0x0002	/* entry is static */
@@ -170,9 +178,8 @@ MALLOC_DECLARE(M_LLTABLE);
 #define	LLE_VALID	0x0008	/* ll_addr is valid */
 #define	LLE_PUB		0x0020	/* publish entry ??? */
 #define	LLE_LINKED	0x0040	/* linked to lookup structure */
+/* LLE request flags */
 #define	LLE_EXCLUSIVE	0x2000	/* return lle xlocked  */
-#define	LLE_DELETE	0x4000	/* delete on a lookup - match LLE_IFADDR */
-#define	LLE_CREATE	0x8000	/* create on a lookup miss */
 
 #define LLATBL_HASH(key, mask) \
 	(((((((key >> 8) ^ key) >> 8) ^ key) >> 8) ^ key) & mask)
@@ -196,8 +203,24 @@ struct llentry  *llentry_alloc(struct ifnet *, struct lltable *,
 static __inline struct llentry *
 lla_lookup(struct lltable *llt, u_int flags, const struct sockaddr *l3addr)
 {
-	return llt->llt_lookup(llt, flags, l3addr);
+
+	return (llt->llt_lookup(llt, flags, l3addr));
 }
+
+static __inline struct llentry *
+lla_create(struct lltable *llt, u_int flags, const struct sockaddr *l3addr)
+{
+
+	return (llt->llt_create(llt, flags, l3addr));
+}
+
+static __inline int
+lla_delete(struct lltable *llt, u_int flags, const struct sockaddr *l3addr)
+{
+
+	return (llt->llt_delete(llt, flags, l3addr));
+}
+
 
 int		lla_rt_output(struct rt_msghdr *, struct rt_addrinfo *);
 
