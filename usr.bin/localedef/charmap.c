@@ -35,7 +35,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
-#include <sys/avl.h>
+#include <sys/tree.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -47,16 +47,22 @@ __FBSDID("$FreeBSD$");
 #include "localedef.h"
 #include "parser.h"
 
-static avl_tree_t	cmap_sym;
-static avl_tree_t	cmap_wc;
 
 typedef struct charmap {
 	const char *name;
 	wchar_t wc;
-	avl_node_t avl_sym;
-	avl_node_t avl_wc;
+	RB_ENTRY(charmap) rb_sym;
+	RB_ENTRY(charmap) rb_wc;
 } charmap_t;
 
+static int cmap_compare_sym(const void *n1, const void *n2);
+static int cmap_compare_wc(const void *n1, const void *n2);
+
+static RB_HEAD(cmap_sym, charmap) cmap_sym;
+static RB_HEAD(cmap_wc, charmap) cmap_wc;
+
+RB_GENERATE_STATIC(cmap_sym, charmap, rb_sym, cmap_compare_sym);
+RB_GENERATE_STATIC(cmap_wc, charmap, rb_wc, cmap_compare_wc);
 
 /*
  * Array of POSIX specific portable characters.
@@ -208,11 +214,9 @@ cmap_compare_wc(const void *n1, const void *n2)
 void
 init_charmap(void)
 {
-	avl_create(&cmap_sym, cmap_compare_sym, sizeof (charmap_t),
-	    offsetof(charmap_t, avl_sym));
+	RB_INIT(&cmap_sym);
 
-	avl_create(&cmap_wc, cmap_compare_wc, sizeof (charmap_t),
-	    offsetof(charmap_t, avl_wc));
+	RB_INIT(&cmap_wc);
 }
 
 static void
@@ -220,7 +224,6 @@ add_charmap_impl(char *sym, wchar_t wc, int nodups)
 {
 	charmap_t	srch;
 	charmap_t	*n = NULL;
-	avl_index_t	where;
 
 	srch.wc = wc;
 	srch.name = sym;
@@ -229,17 +232,17 @@ add_charmap_impl(char *sym, wchar_t wc, int nodups)
 	 * also possibly insert the wide mapping, although note that there
 	 * can only be one of these per wide character code.
 	 */
-	if ((wc != -1) && ((avl_find(&cmap_wc, &srch, &where)) == NULL)) {
+	if ((wc != -1) && ((RB_FIND(cmap_wc, &cmap_wc, &srch)) == NULL)) {
 		if ((n = calloc(1, sizeof (*n))) == NULL) {
 			errf("out of memory");
 			return;
 		}
 		n->wc = wc;
-		avl_insert(&cmap_wc, n, where);
+		RB_INSERT(cmap_wc, &cmap_wc, n);
 	}
 
 	if (sym) {
-		if (avl_find(&cmap_sym, &srch, &where) != NULL) {
+		if (RB_FIND(cmap_sym, &cmap_sym, &srch) != NULL) {
 			if (nodups) {
 				errf("duplicate character definition");
 			}
@@ -252,7 +255,7 @@ add_charmap_impl(char *sym, wchar_t wc, int nodups)
 		n->wc = wc;
 		n->name = sym;
 
-		avl_insert(&cmap_sym, n, where);
+		RB_INSERT(cmap_sym, &cmap_sym, n);
 	}
 }
 
@@ -269,7 +272,7 @@ add_charmap_undefined(char *sym)
 	charmap_t *cm = NULL;
 
 	srch.name = sym;
-	cm = avl_find(&cmap_sym, &srch, NULL);
+	cm = RB_FIND(cmap_sym, &cmap_sym, &srch);
 
 	if ((undefok == 0) && ((cm == NULL) || (cm->wc == -1))) {
 		warn("undefined symbol <%s>", sym);
@@ -345,7 +348,7 @@ lookup_charmap(const char *sym, wchar_t *wc)
 	charmap_t	*n;
 
 	srch.name = sym;
-	n = avl_find(&cmap_sym, &srch, NULL);
+	n = RB_FIND(cmap_sym, &cmap_sym, &srch);
 	if (n && n->wc != -1) {
 		if (wc)
 			*wc = n->wc;
@@ -360,5 +363,5 @@ check_charmap(wchar_t wc)
 	charmap_t srch;
 
 	srch.wc = wc;
-	return (avl_find(&cmap_wc, &srch, NULL) ? 0 : -1);
+	return (RB_FIND(cmap_wc, &cmap_wc, &srch) ? 0 : -1);
 }

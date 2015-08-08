@@ -79,7 +79,7 @@ typedef struct ctype_node {
 	RB_ENTRY(ctype_node) entry;
 } ctype_node_t;
 
-RB_HEAD(ctypes, ctype_node) ctypes;
+static RB_HEAD(ctypes, ctype_node) ctypes;
 RB_GENERATE_STATIC(ctypes, ctype_node, entry, ctype_compare);
 
 static int
