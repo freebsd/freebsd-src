@@ -166,7 +166,6 @@ static int	if_setflag(struct ifnet *, int, int, int *, int);
 static int	if_transmit(struct ifnet *ifp, struct mbuf *m);
 static void	if_unroute(struct ifnet *, int flag, int fam);
 static void	link_rtrequest(int, struct rtentry *, struct rt_addrinfo *);
-static int	if_rtdel(struct radix_node *, void *);
 static int	ifhwioctl(u_long, struct ifnet *, caddr_t, struct thread *);
 static int	if_delmulti_locked(struct ifnet *, struct ifmultiaddr *, int);
 static void	do_link_state_change(void *, int);
@@ -885,8 +884,7 @@ static void
 if_detach_internal(struct ifnet *ifp, int vmove, struct if_clone **ifcp)
 {
 	struct ifaddr *ifa;
-	struct radix_node_head	*rnh;
-	int i, j;
+	int i;
 	struct domain *dp;
  	struct ifnet *iter;
  	int found = 0;
@@ -974,23 +972,7 @@ if_detach_internal(struct ifnet *ifp, int vmove, struct if_clone **ifcp)
 		}
 	}
 
-	/*
-	 * Delete all remaining routes using this interface
-	 * Unfortuneatly the only way to do this is to slog through
-	 * the entire routing table looking for routes which point
-	 * to this interface...oh well...
-	 */
-	for (i = 1; i <= AF_MAX; i++) {
-		for (j = 0; j < rt_numfibs; j++) {
-			rnh = rt_tables_get_rnh(j, i);
-			if (rnh == NULL)
-				continue;
-			RADIX_NODE_HEAD_LOCK(rnh);
-			(void) rnh->rnh_walktree(rnh, if_rtdel, ifp);
-			RADIX_NODE_HEAD_UNLOCK(rnh);
-		}
-	}
-
+	rt_flushifroutes(ifp);
 	if_delgroups(ifp);
 
 	/*
@@ -1406,49 +1388,6 @@ if_getgroupmembers(struct ifgroupreq *data)
 		ifgp++;
 	}
 	IFNET_RUNLOCK();
-
-	return (0);
-}
-
-/*
- * Delete Routes for a Network Interface
- *
- * Called for each routing entry via the rnh->rnh_walktree() call above
- * to delete all route entries referencing a detaching network interface.
- *
- * Arguments:
- *	rn	pointer to node in the routing table
- *	arg	argument passed to rnh->rnh_walktree() - detaching interface
- *
- * Returns:
- *	0	successful
- *	errno	failed - reason indicated
- *
- */
-static int
-if_rtdel(struct radix_node *rn, void *arg)
-{
-	struct rtentry	*rt = (struct rtentry *)rn;
-	struct ifnet	*ifp = arg;
-	int		err;
-
-	if (rt->rt_ifp == ifp) {
-
-		/*
-		 * Protect (sorta) against walktree recursion problems
-		 * with cloned routes
-		 */
-		if ((rt->rt_flags & RTF_UP) == 0)
-			return (0);
-
-		err = rtrequest_fib(RTM_DELETE, rt_key(rt), rt->rt_gateway,
-				rt_mask(rt),
-				rt->rt_flags|RTF_RNH_LOCKED|RTF_PINNED,
-				(struct rtentry **) NULL, rt->rt_fibnum);
-		if (err) {
-			log(LOG_WARNING, "if_rtdel: error %d\n", err);
-		}
-	}
 
 	return (0);
 }
