@@ -166,15 +166,11 @@ main(int argc, char *argv[])
 			oflag = 1;
 			break;
 		case 'P':
-			maxprocs = strtonum(optarg, 1, INT_MAX, &errstr);
+			maxprocs = strtonum(optarg, 0, INT_MAX, &errstr);
 			if (errstr)
 				errx(1, "-P %s: %s", optarg, errstr);
 			if (getrlimit(RLIMIT_NPROC, &rl) != 0)
 				errx(1, "getrlimit failed");
-			if (*endptr != '\0')
-				errx(1, "invalid number for -P option");
-			if (maxprocs < 0)
-				errx(1, "value for -P option should be >= 0");
 			if (maxprocs == 0 || maxprocs > rl.rlim_cur)
 				maxprocs = rl.rlim_cur;
 			break;
