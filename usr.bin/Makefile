@@ -107,7 +107,6 @@ SUBDIR=	${_addr2line} \
 	${_mkesdb} \
 	mkfifo \
 	mkimg \
-	mklocale \
 	mktemp \
 	mkulzma \
 	mkuzip \
