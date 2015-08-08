@@ -89,6 +89,10 @@ device		virtio_mmio
 device		virtio_blk
 device		vtnet
 
+# Bus drivers
+device		pci
+device		thunder_pci
+
 # Serial (COM) ports
 device		uart		# Generic UART driver
 device		pl011
