@@ -18,7 +18,6 @@ SUBDIR=	${_colldef} \
 	${_me} \
 	misc \
 	${_mk} \
-	${_mklocale} \
 	${_monetdef} \
 	${_msgdef} \
 	${_numericdef} \
@@ -63,7 +62,6 @@ _i18n=		i18n
 _colldef=	colldef
 _ctypedef=	ctypedef
 _locale-links=	locale-links
-_mklocale=	mklocale
 _monetdef=	monetdef
 _msgdef=	msgdef
 _numericdef=	numericdef
