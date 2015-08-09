@@ -28,7 +28,7 @@
 .\"     @(#)umount.8	8.2 (Berkeley) 5/8/95
 .\" $FreeBSD$
 .\"
-.Dd May 31, 2011
+.Dd June 17, 2015
 .Dt UMOUNT 8
 .Os
 .Sh NAME
@@ -81,6 +81,9 @@ The root file system cannot be forcibly unmounted.
 For NFS, a forced dismount can take up to 1 minute or more to
 complete against an unresponsive server and may throw away
 data not yet written to the server for this case.
+Also, doing a forced dismount of an NFSv3 mount when
+.Xr rpc.lockd 8
+is running is unsafe and can result in a crash.
 .It Fl h Ar host
 Only file systems mounted from the specified host will be
 unmounted.
