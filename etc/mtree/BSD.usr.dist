@@ -513,8 +513,6 @@
             ..
         ..
         locale
-            UTF-8
-            ..
             af_ZA.ISO8859-1
             ..
             af_ZA.ISO8859-15
@@ -755,27 +753,11 @@
             ..
             kk_Cyrl_KZ.UTF-8
             ..
-            kk_KZ.PT154
-            ..
-            kk_KZ.UTF-8
-            ..
             ko_KR.CP949
             ..
             ko_KR.UTF-8
             ..
             ko_KR.eucKR
-            ..
-            la_LN.ISO8859-1
-            ..
-            la_LN.ISO8859-13
-            ..
-            la_LN.ISO8859-15
-            ..
-            la_LN.ISO8859-2
-            ..
-            la_LN.ISO8859-4
-            ..
-            la_LN.US-ASCII
             ..
             lt_LT.ISO8859-13
             ..
@@ -788,8 +770,6 @@
             lv_LV.UTF-8
             ..
             mn_Cyrl_MN.UTF-8
-            ..
-            mn_MN.UTF-8
             ..
             nb_NO.ISO8859-1
             ..
@@ -814,12 +794,6 @@
             nn_NO.ISO8859-15
             ..
             nn_NO.UTF-8
-            ..
-            no_NO.ISO8859-1
-            ..
-            no_NO.ISO8859-15
-            ..
-            no_NO.UTF-8
             ..
             pl_PL.ISO8859-2
             ..
@@ -871,12 +845,6 @@
             ..
             sr_Latn_RS.UTF-8
             ..
-            sr_YU.ISO8859-2
-            ..
-            sr_YU.ISO8859-5
-            ..
-            sr_YU.UTF-8
-            ..
             sv_FI.ISO8859-1
             ..
             sv_FI.ISO8859-15
@@ -911,21 +879,15 @@
             ..
             zh_CN.eucCN
             ..
-            zh_HK.Big5HKSCS
-            ..
-            zh_HK.UTF-8
+            zh_Hans_CN.GB18030
             ..
             zh_Hans_CN.GB2312
             ..
-            zh_Hans_CN.GB18030
-            ..
             zh_Hans_CN.GBK
-            ..
-            zh_Hans_CN.eucCN
             ..
             zh_Hans_CN.UTF-8
             ..
-            zh_Hans_TW.UTF-8
+            zh_Hans_CN.eucCN
             ..
             zh_Hant_HK.Big5HKSCS
             ..
@@ -933,9 +895,7 @@
             ..
             zh_Hant_TW.Big5
             ..
-            zh_TW.Big5
-            ..
-            zh_TW.UTF-8
+            zh_Hant_TW.UTF-8
             ..
         ..
         man
