@@ -141,7 +141,6 @@ static apr_status_t serf_deflate_read(serf_bucket_t *bucket,
                                       const char **data, apr_size_t *len)
 {
     deflate_context_t *ctx = bucket->data;
-    unsigned long compCRC, compLen;
     apr_status_t status;
     const char *private_data;
     apr_size_t private_len;
@@ -186,17 +185,25 @@ static apr_status_t serf_deflate_read(serf_bucket_t *bucket,
             ctx->state++;
             break;
         case STATE_VERIFY:
+        {
+            unsigned long compCRC, compLen, actualLen;
+
             /* Do the checksum computation. */
             compCRC = getLong((unsigned char*)ctx->hdr_buffer);
             if (ctx->crc != compCRC) {
                 return SERF_ERROR_DECOMPRESSION_FAILED;
             }
             compLen = getLong((unsigned char*)ctx->hdr_buffer + 4);
-            if (ctx->zstream.total_out != compLen) {
+            /* The length in the trailer is module 2^32, so do the same for
+               the actual length. */
+            actualLen = ctx->zstream.total_out;
+            actualLen &= 0xFFFFFFFF;
+            if (actualLen != compLen) {
                 return SERF_ERROR_DECOMPRESSION_FAILED;
             }
             ctx->state++;
             break;
+        }
         case STATE_INIT:
             zRC = inflateInit2(&ctx->zstream, ctx->windowSize);
             if (zRC != Z_OK) {
@@ -264,10 +271,14 @@ static apr_status_t serf_deflate_read(serf_bucket_t *bucket,
                 ctx->zstream.next_in = (unsigned char*)private_data;
                 ctx->zstream.avail_in = private_len;
             }
-            zRC = Z_OK;
-            while (ctx->zstream.avail_in != 0) {
-                /* We're full, clear out our buffer, reset, and return. */
-                if (ctx->zstream.avail_out == 0) {
+
+            while (1) {
+
+                zRC = inflate(&ctx->zstream, Z_NO_FLUSH);
+
+                /* We're full or zlib requires more space. Either case, clear
+                   out our buffer, reset, and return. */
+                if (zRC == Z_BUF_ERROR || ctx->zstream.avail_out == 0) {
                     serf_bucket_t *tmp;
                     ctx->zstream.next_out = ctx->buffer;
                     private_len = ctx->bufferSize - ctx->zstream.avail_out;
@@ -283,7 +294,6 @@ static apr_status_t serf_deflate_read(serf_bucket_t *bucket,
                     ctx->zstream.avail_out = ctx->bufferSize;
                     break;
                 }
-                zRC = inflate(&ctx->zstream, Z_NO_FLUSH);
 
                 if (zRC == Z_STREAM_END) {
                     serf_bucket_t *tmp;
@@ -330,9 +340,13 @@ static apr_status_t serf_deflate_read(serf_bucket_t *bucket,
 
                     break;
                 }
+
+                /* Any other error? */
                 if (zRC != Z_OK) {
                     return SERF_ERROR_DECOMPRESSION_FAILED;
                 }
+
+                /* As long as zRC == Z_OK, just keep looping. */
             }
             /* Okay, we've inflated.  Try to read. */
             status = serf_bucket_read(ctx->inflate_stream, requested, data,
@@ -340,8 +354,13 @@ static apr_status_t serf_deflate_read(serf_bucket_t *bucket,
             /* Hide EOF. */
             if (APR_STATUS_IS_EOF(status)) {
                 status = ctx->stream_status;
-                /* If our stream is finished too, return SUCCESS so
-                 * we'll iterate one more time.
+
+                /* If the inflation wasn't finished, return APR_SUCCESS. */
+                if (zRC != Z_STREAM_END)
+                    return APR_SUCCESS;
+
+                /* If our stream is finished too and all data was inflated,
+                 * return SUCCESS so we'll iterate one more time.
                  */
                 if (APR_STATUS_IS_EOF(status)) {
                     /* No more data to read from the stream, and everything
