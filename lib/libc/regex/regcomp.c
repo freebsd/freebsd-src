@@ -38,13 +38,6 @@
  *	@(#)regcomp.c	8.5 (Berkeley) 3/20/94
  */
 
-/*
- * This implementation currently only works with C locale
- * It's definitely limited by UCHAR_MAX, but not even ISO-8859 charsets
- * are working.  The forced changing of locale to C for the comparison
- * is considered a workaround until a better solution is found.
- */
-
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)regcomp.c	8.5 (Berkeley) 3/20/94";
 #endif /* LIBC_SCCS and not lint */
@@ -775,9 +768,8 @@ p_b_term(struct parse *p, cset *cs)
 	char c;
 	wint_t start, finish;
 	wint_t i;
-	locale_t loc = &__xlocale_C_locale;  /* see note under license */
 	struct xlocale_collate *table =
-		(struct xlocale_collate*)loc->components[XLC_COLLATE];
+		(struct xlocale_collate*)__get_locale()->components[XLC_COLLATE];
 
 	/* classify what we've got */
 	switch ((MORE()) ? PEEK() : '\0') {
