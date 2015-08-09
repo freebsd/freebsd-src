@@ -99,8 +99,8 @@ __collate_load(const char *encoding, __unused locale_t unused)
 int
 __collate_load_tables(const char *encoding)
 {
-	int ret = __collate_load_tables_l(encoding, &__xlocale_global_collate);
-	return ret;
+
+	return (__collate_load_tables_l(encoding, &__xlocale_global_collate));
 }
 
 int
