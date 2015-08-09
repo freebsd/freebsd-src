@@ -34,6 +34,8 @@
 #include "svn_subst.h"
 #include "svn_string.h"
 
+#include "private/svn_string_private.h"
+
 #include "sync.h"
 
 #include "svn_private_config.h"
@@ -80,6 +82,92 @@ normalize_string(const svn_string_t **str,
                                       result_pool, scratch_pool));
   *str = new_str;
 
+  return SVN_NO_ERROR;
+}
+
+/* Remove r0 references from the mergeinfo string *STR.
+ *
+ * r0 was never a valid mergeinfo reference and cannot be committed with
+ * recent servers, but can be committed through a server older than 1.6.18
+ * for HTTP or older than 1.6.17 for the other protocols. See issue #4476
+ * "Mergeinfo containing r0 makes svnsync and dump and load fail".
+ *
+ * Set *WAS_CHANGED to TRUE if *STR was changed, otherwise to FALSE.
+ */
+static svn_error_t *
+remove_r0_mergeinfo(const svn_string_t **str,
+                    svn_boolean_t *was_changed,
+                    apr_pool_t *result_pool,
+                    apr_pool_t *scratch_pool)
+{
+  svn_stringbuf_t *new_str = svn_stringbuf_create_empty(result_pool);
+  apr_array_header_t *lines;
+  int i;
+
+  SVN_ERR_ASSERT(*str && (*str)->data);
+
+  *was_changed = FALSE;
+
+  /* for each line */
+  lines = svn_cstring_split((*str)->data, "\n", FALSE, scratch_pool);
+
+  for (i = 0; i < lines->nelts; i++)
+    {
+      char *line = APR_ARRAY_IDX(lines, i, char *);
+      char *colon;
+      char *rangelist;
+
+      /* split at the last colon */
+      colon = strrchr(line, ':');
+
+      if (! colon)
+        return svn_error_createf(SVN_ERR_MERGEINFO_PARSE_ERROR, NULL,
+                                 _("Missing colon in svn:mergeinfo "
+                                   "property"));
+
+      rangelist = colon + 1;
+
+      /* remove r0 */
+      if (colon[1] == '0')
+        {
+          if (strncmp(rangelist, "0*,", 3) == 0)
+            {
+              rangelist += 3;
+            }
+          else if (strcmp(rangelist, "0*") == 0
+                   || strncmp(rangelist, "0,", 2) == 0
+                   || strncmp(rangelist, "0-1*", 4) == 0
+                   || strncmp(rangelist, "0-1,", 4) == 0
+                   || strcmp(rangelist, "0-1") == 0)
+            {
+              rangelist += 2;
+            }
+          else if (strcmp(rangelist, "0") == 0)
+            {
+              rangelist += 1;
+            }
+          else if (strncmp(rangelist, "0-", 2) == 0)
+            {
+              rangelist[0] = '1';
+            }
+        }
+
+      /* reassemble */
+      if (rangelist[0])
+        {
+          if (new_str->len)
+            svn_stringbuf_appendbyte(new_str, '\n');
+          svn_stringbuf_appendbytes(new_str, line, colon + 1 - line);
+          svn_stringbuf_appendcstr(new_str, rangelist);
+        }
+    }
+
+  if (strcmp((*str)->data, new_str->data) != 0)
+    {
+      *was_changed = TRUE;
+    }
+
+  *str = svn_stringbuf__morph_into_string(new_str);
   return SVN_NO_ERROR;
 }
 
@@ -153,6 +241,7 @@ typedef struct edit_baton_t {
   svn_boolean_t got_textdeltas;
   svn_revnum_t base_revision;
   svn_boolean_t quiet;
+  svn_boolean_t mergeinfo_tweaked;  /* Did we tweak svn:mergeinfo? */
   svn_boolean_t strip_mergeinfo;    /* Are we stripping svn:mergeinfo? */
   svn_boolean_t migrate_svnmerge;   /* Are we converting svnmerge.py data? */
   svn_boolean_t mergeinfo_stripped; /* Did we strip svn:mergeinfo? */
@@ -414,8 +503,19 @@ change_file_prop(void *file_baton,
   if (svn_prop_needs_translation(name))
     {
       svn_boolean_t was_normalized;
+      svn_boolean_t mergeinfo_tweaked = FALSE;
+
+      /* Normalize encoding to UTF-8, and EOL style to LF. */
       SVN_ERR(normalize_string(&value, &was_normalized,
                                eb->source_prop_encoding, pool, pool));
+      /* Correct malformed mergeinfo. */
+      if (value && strcmp(name, SVN_PROP_MERGEINFO) == 0)
+        {
+          SVN_ERR(remove_r0_mergeinfo(&value, &mergeinfo_tweaked,
+                                      pool, pool));
+          if (mergeinfo_tweaked)
+            eb->mergeinfo_tweaked = TRUE;
+        }
       if (was_normalized)
         (*(eb->normalized_node_props_counter))++;
     }
@@ -513,8 +613,19 @@ change_dir_prop(void *dir_baton,
   if (svn_prop_needs_translation(name))
     {
       svn_boolean_t was_normalized;
+      svn_boolean_t mergeinfo_tweaked = FALSE;
+
+      /* Normalize encoding to UTF-8, and EOL style to LF. */
       SVN_ERR(normalize_string(&value, &was_normalized, eb->source_prop_encoding,
                                pool, pool));
+      /* Maybe adjust svn:mergeinfo. */
+      if (value && strcmp(name, SVN_PROP_MERGEINFO) == 0)
+        {
+          SVN_ERR(remove_r0_mergeinfo(&value, &mergeinfo_tweaked,
+                                      pool, pool));
+          if (mergeinfo_tweaked)
+            eb->mergeinfo_tweaked = TRUE;
+        }
       if (was_normalized)
         (*(eb->normalized_node_props_counter))++;
     }
@@ -548,6 +659,10 @@ close_edit(void *edit_baton,
     {
       if (eb->got_textdeltas)
         SVN_ERR(svn_cmdline_printf(pool, "\n"));
+      if (eb->mergeinfo_tweaked)
+        SVN_ERR(svn_cmdline_printf(pool,
+                                   "NOTE: Adjusted Subversion mergeinfo in "
+                                   "this revision.\n"));
       if (eb->mergeinfo_stripped)
         SVN_ERR(svn_cmdline_printf(pool,
                                    "NOTE: Dropped Subversion mergeinfo "
