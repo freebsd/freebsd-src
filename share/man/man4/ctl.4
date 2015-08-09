@@ -23,7 +23,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.Dd July 11, 2015
+.Dd August 9, 2015
 .Dt CTL 4
 .Os
 .Sh NAME
@@ -91,6 +91,17 @@ variables and
 .Xr loader 8
 tunables:
 .Bl -tag -width indent
+.It Va kern.cam.ctl.debug
+Bit mask of enabled CTL log levels:
+.Bl -tag -offset indent -compact
+.It 1
+log commands with errors;
+.It 2
+log all commands;
+.It 4
+log received data for commands except READ/WRITE.
+.El
+Defaults to 0.
 .It Va kern.cam.ctl.iscsi.debug
 Verbosity level for log messages from the kernel part of iSCSI target.
 Set to 0 to disable logging or 1 to warn about potential problems.
