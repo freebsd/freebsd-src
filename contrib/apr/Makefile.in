@@ -129,11 +129,11 @@ check: $(TARGET_LIB)
 etags:
 	etags `find . -name '*.[ch]'`
 
-make_tools_dir:
-	$(APR_MKDIR) tools
-
 OBJECTS_gen_test_char = tools/gen_test_char.lo $(LOCAL_LIBS)
-tools/gen_test_char.lo: make_tools_dir
+tools/gen_test_char.lo: tools/gen_test_char.c
+	$(APR_MKDIR) tools
+	$(LT_COMPILE)
+
 tools/gen_test_char@EXEEXT@: $(OBJECTS_gen_test_char)
 	$(LINK_PROG) $(OBJECTS_gen_test_char) $(ALL_LIBS)
 

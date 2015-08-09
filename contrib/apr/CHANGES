@@ -1,4 +1,63 @@
                                                      -*- coding: utf-8 -*-
+Changes for APR 1.5.2
+
+  *) SECURITY: CVE-2015-1829 (cve.mitre.org)
+     APR applications using APR named pipe support on Windows can be 
+     vulnerable to a pipe squatting attack from a local process; the extent
+     of the vulnerability, when present, depends on the application.
+     Initial analysis and report was provided by John Hernandez of Casaba 
+     Security via HP SSRT Security Alert.  [Yann Ylavic]
+
+  *) apr_atomic: Fix errors when building on Visual Studio 2013 while
+     maintaining the ability to build on Visual Studio 6 with Windows
+     Server 2003 R2 SDK. PR 57191. [Gregg Smith]
+
+  *) Switch to generic atomics for early/unpatched Solaris 10 not exporting
+     some atomic functions.  PR 55418.  [Yann Ylavic]
+
+  *) apr_file_mktemp() on HP-UX: Remove limitation of 26 temporary files
+     per process.  PR 57677.  [Jeff Trawick]
+
+  *) apr_escape: Correctly calculate the size of the returned string in
+     apr_escape_path and set the correct return value in case we actually
+     escape the string. [<aduryagin gmail.com>] PR 57230.
+
+  *) pollcb on Windows: Handle calls with no file/socket descriptors.
+     Follow up to PR 49882. [Jeff Trawick, Yann Ylavic]
+
+  *) apr_poll(cb): fix error paths returned values and leaks.  [Yann Ylavic]
+
+  *) apr_thread_cond_*wait() on BeOS: Fix broken logic.  PR 45800.
+     [Jochen Voss (no e-mail)]
+
+  *) apr_skiplist: Optimize the number of allocations by reusing pooled or
+     malloc()ed nodes for the lifetime of the skiplist.  [Yann Ylavic]
+
+  *) apr_skiplist: Fix possible multiple-free() on the same value in
+     apr_skiplist_remove_all().  [Yann Ylavic]
+
+  *) apr_pollset: On z/OS, threadsafe apr_pollset_poll() may return
+     "EDC8102I Operation would block" under load.
+     [Pat Odonnell <patod us.ibm.com>]
+
+  *) On z/OS, apr_sockaddr_info_get() with family == APR_UNSPEC was not 
+     returning IPv4 addresses if any IPv6 addresses were returned. 
+     [Eric Covener]
+
+  *) Windows cmake build: Fix an incompatibility with cmake 2.8.12 and
+     later.  [Jeff Trawick]
+
+  *) apr_global_mutex/apr_proc_mutex: Resolve failures with the 
+     POSIX sem implementation in environments which receive signals.
+     [Jeff Trawick]
+
+  *) apr_skiplist: Fix potential corruption of skiplists leading to 
+     results or crashes. [Takashi Sato <takashi tks st>, Eric Covener]
+     PR 56654.
+
+  *) Improve platform detection by updating config.guess and config.sub.
+     [Rainer Jung]
+
 Changes for APR 1.5.1
 
   *) apr_os_proc_mutex_get() on Unix:  Avoid segfault for cross-
@@ -37,8 +96,8 @@ Changes for APR 1.5.1
   *) Correct a regression in 1.5.0 which affected out-of-tree
      builds on Unix.  [Rainer Jung]
 
-  *) Improve platform detection for bundled expat by updating
-     config.guess and config.sub. [Rainer Jung]
+  *) Improve platform detection by updating config.guess and config.sub.
+     [Rainer Jung]
 
 Changes for APR 1.5.0
 
