@@ -97,7 +97,7 @@ __setrunelocale(struct xlocale_ctype *l, const char *encoding)
 {
 	_RuneLocale *rl;
 	int ret;
-	char path[PATH_MAX];
+	char *path;
 	struct xlocale_ctype saved = *l;
 
 	/*
@@ -110,13 +110,16 @@ __setrunelocale(struct xlocale_ctype *l, const char *encoding)
 	}
 
 	/* Range checking not needed, encoding length already checked before */
-	(void) snprintf(path, sizeof (path), "%s/%s/LC_CTYPE",
-	    _PathLocale, encoding);
+	asprintf(&path, "%s/%s/LC_CTYPE", _PathLocale, encoding);
+	if (path == NULL)
+		return (0);
 
 	if ((rl = _Read_RuneMagi(path)) == NULL) {
+		free(path);
 		errno = EINVAL;
 		return (errno);
 	}
+	free(path);
 
 	l->__mbrtowc = NULL;
 	l->__mbsinit = NULL;
