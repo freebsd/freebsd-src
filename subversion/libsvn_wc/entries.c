@@ -2140,17 +2140,18 @@ write_entry(struct write_baton **entry_node,
       below_working_node->presence = svn_wc__db_status_normal;
       below_working_node->kind = entry->kind;
       below_working_node->repos_id = work->repos_id;
+      below_working_node->revision = work->revision;
 
       /* This is just guessing. If the node below would have been switched
          or if it was updated to a different version, the guess would
          fail. But we don't have better information pre wc-ng :( */
       if (work->repos_relpath)
         below_working_node->repos_relpath
-          = svn_relpath_join(work->repos_relpath, entry->name,
+          = svn_relpath_join(work->repos_relpath,
+                             svn_relpath_basename(local_relpath, NULL),
                              result_pool);
       else
         below_working_node->repos_relpath = NULL;
-      below_working_node->revision = parent_node->work->revision;
 
       /* The revert_base checksum isn't available in the entry structure,
          so the caller provides it. */
