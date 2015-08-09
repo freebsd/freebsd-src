@@ -42,7 +42,7 @@
 #include "xlocale_private.h"
 
 /*
- * Work around buildworld bootstrapping from older systems whos limits.h
+ * Work around buildworld bootstrapping from older systems whose limits.h
  * sets COLL_WEIGHTS_MAX to 0.
  */
 #if COLL_WEIGHTS_MAX == 0
