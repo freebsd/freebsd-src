@@ -91,8 +91,7 @@
 /* Define to 1 if you have the <zlib.h> header file. */
 #undef HAVE_ZLIB_H
 
-/* Define to the sub-directory in which libtool stores uninstalled libraries.
-   */
+/* Define to the sub-directory where libtool stores uninstalled libraries. */
 #undef LT_OBJDIR
 
 /* Define to the address where bug reports for this package should be sent. */
@@ -115,6 +114,9 @@
 
 /* Define to 1 if you have the ANSI C header files. */
 #undef STDC_HEADERS
+
+/* Defined to allow building against httpd 2.4 with broken auth */
+#undef SVN_ALLOW_BROKEN_HTTPD_AUTH
 
 /* Define to the Python/C API format character suitable for apr_int64_t */
 #undef SVN_APR_INT64_T_PYCFMT
