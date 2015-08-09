@@ -852,6 +852,9 @@ MWL_AGGR_SIZE		opt_mwl.h
 MWL_TX_NODROP		opt_mwl.h
 
 # Options for the Intel 802.11n wireless driver
+IWM_DEBUG		opt_iwm.h
+
+# Options for the Intel 802.11n wireless driver
 IWN_DEBUG		opt_iwn.h
 
 # Options for the Intel 3945ABG wireless driver

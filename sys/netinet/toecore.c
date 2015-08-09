@@ -463,8 +463,7 @@ restart:
 	IF_AFDATA_RUNLOCK(ifp);
 	if (lle == NULL) {
 		IF_AFDATA_LOCK(ifp);
-		lle = nd6_lookup(&sin6->sin6_addr, ND6_CREATE | ND6_EXCLUSIVE,
-		    ifp);
+		lle = nd6_create(&sin6->sin6_addr, 0, ifp);
 		IF_AFDATA_UNLOCK(ifp);
 		if (lle == NULL)
 			return (ENOMEM); /* Couldn't create entry in cache. */

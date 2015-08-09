@@ -937,16 +937,33 @@ nd6_lookup(struct in6_addr *addr6, int flags, struct ifnet *ifp)
 
 	IF_AFDATA_LOCK_ASSERT(ifp);
 
-	llflags = 0;
-	if (flags & ND6_CREATE)
-	    llflags |= LLE_CREATE;
-	if (flags & ND6_EXCLUSIVE)
-	    llflags |= LLE_EXCLUSIVE;	
-	
+	llflags = (flags & ND6_EXCLUSIVE) ? LLE_EXCLUSIVE : 0;
 	ln = lla_lookup(LLTABLE6(ifp), llflags, (struct sockaddr *)&sin6);
-	if ((ln != NULL) && (llflags & LLE_CREATE))
+
+	return (ln);
+}
+
+/*
+ * the caller acquires and releases the lock on the lltbls
+ * Returns the llentry wlocked
+ */
+struct llentry *
+nd6_create(struct in6_addr *addr6, int flags, struct ifnet *ifp)
+{
+	struct sockaddr_in6 sin6;
+	struct llentry *ln;
+
+	bzero(&sin6, sizeof(sin6));
+	sin6.sin6_len = sizeof(struct sockaddr_in6);
+	sin6.sin6_family = AF_INET6;
+	sin6.sin6_addr = *addr6;
+
+	IF_AFDATA_WLOCK_ASSERT(ifp);
+
+	ln = lla_create(LLTABLE6(ifp), 0, (struct sockaddr *)&sin6);
+	if (ln != NULL)
 		ln->ln_state = ND6_LLINFO_NOSTATE;
-	
+
 	return (ln);
 }
 
@@ -1664,7 +1681,7 @@ nd6_cache_lladdr(struct ifnet *ifp, struct in6_addr *from, char *lladdr,
 	if (ln == NULL) {
 		flags |= ND6_EXCLUSIVE;
 		IF_AFDATA_LOCK(ifp);
-		ln = nd6_lookup(from, flags | ND6_CREATE, ifp);
+		ln = nd6_create(from, 0, ifp);
 		IF_AFDATA_UNLOCK(ifp);
 		is_newentry = 1;
 	} else {
@@ -2020,7 +2037,6 @@ nd6_output_lle(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *m,
     struct sockaddr_in6 *dst)
 {
 	struct llentry *lle = NULL;
-	int flags = 0;
 
 	KASSERT(m != NULL, ("NULL mbuf, nothing to send"));
 	/* discard the packet if IPv6 operation is disabled on the interface */
@@ -2051,9 +2067,8 @@ nd6_output_lle(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *m,
 			 * the condition below is not very efficient.  But we believe
 			 * it is tolerable, because this should be a rare case.
 			 */
-			flags = ND6_CREATE | ND6_EXCLUSIVE;
 			IF_AFDATA_LOCK(ifp);
-			lle = nd6_lookup(&dst->sin6_addr, flags, ifp);
+			lle = nd6_create(&dst->sin6_addr, 0, ifp);
 			IF_AFDATA_UNLOCK(ifp);
 		}
 	} 
@@ -2237,8 +2252,8 @@ nd6_add_ifa_lle(struct in6_ifaddr *ia)
 		return (0);
 	IF_AFDATA_LOCK(ifp);
 	ia->ia_ifa.ifa_rtrequest = nd6_rtrequest;
-	ln = lla_lookup(LLTABLE6(ifp), (LLE_CREATE | LLE_IFADDR |
-	    LLE_EXCLUSIVE), (struct sockaddr *)&ia->ia_addr);
+	ln = lla_create(LLTABLE6(ifp), LLE_IFADDR,
+	    (struct sockaddr *)&ia->ia_addr);
 	IF_AFDATA_UNLOCK(ifp);
 	if (ln != NULL) {
 		ln->la_expire = 0;  /* for IPv6 this means permanent */

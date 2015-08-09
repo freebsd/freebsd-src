@@ -2152,8 +2152,61 @@ in6_lltable_rtcheck(struct ifnet *ifp,
 	return 0;
 }
 
+static inline struct llentry *
+in6_lltable_find_dst(struct lltable *llt, const struct in6_addr *dst)
+{
+	struct llentry *lle;
+	struct llentries *lleh;
+	const struct sockaddr_in6 *sin6;
+	u_int hashkey;
+
+	hashkey = dst->s6_addr32[3];
+	lleh = &llt->lle_head[LLATBL_HASH(hashkey, LLTBL_HASHMASK)];
+	LIST_FOREACH(lle, lleh, lle_next) {
+		sin6 = (const struct sockaddr_in6 *)L3_ADDR(lle);
+		if (lle->la_flags & LLE_DELETED)
+			continue;
+		if (IN6_ARE_ADDR_EQUAL(&sin6->sin6_addr, dst))
+			break;
+	}
+
+	return (lle);
+}
+
+static int
+in6_lltable_delete(struct lltable *llt, u_int flags,
+	const struct sockaddr *l3addr)
+{
+	const struct sockaddr_in6 *sin6 = (const struct sockaddr_in6 *)l3addr;
+	struct llentry *lle;
+
+	IF_AFDATA_LOCK_ASSERT(llt->llt_ifp);
+	KASSERT(l3addr->sa_family == AF_INET6,
+	    ("sin_family %d", l3addr->sa_family));
+
+	lle = in6_lltable_find_dst(llt, &sin6->sin6_addr);
+
+	if (lle == NULL)
+		return (ENOENT);
+
+	if (!(lle->la_flags & LLE_IFADDR) || (flags & LLE_IFADDR)) {
+		LLE_WLOCK(lle);
+		lle->la_flags |= LLE_DELETED;
+		EVENTHANDLER_INVOKE(lle_event, lle, LLENTRY_DELETED);
+#ifdef DIAGNOSTIC
+		log(LOG_INFO, "ifaddr cache = %p is deleted\n", lle);
+#endif
+		if ((lle->la_flags & (LLE_STATIC | LLE_IFADDR)) == LLE_STATIC)
+			llentry_free(lle);
+		else
+			LLE_WUNLOCK(lle);
+	}
+
+	return (0);
+}
+
 static struct llentry *
-in6_lltable_lookup(struct lltable *llt, u_int flags,
+in6_lltable_create(struct lltable *llt, u_int flags,
 	const struct sockaddr *l3addr)
 {
 	const struct sockaddr_in6 *sin6 = (const struct sockaddr_in6 *)l3addr;
@@ -2162,71 +2215,69 @@ in6_lltable_lookup(struct lltable *llt, u_int flags,
 	struct llentries *lleh;
 	u_int hashkey;
 
-	IF_AFDATA_LOCK_ASSERT(ifp);
+	IF_AFDATA_WLOCK_ASSERT(ifp);
 	KASSERT(l3addr->sa_family == AF_INET6,
 	    ("sin_family %d", l3addr->sa_family));
 
+	lle = in6_lltable_find_dst(llt, &sin6->sin6_addr);
+
+	if (lle != NULL) {
+		LLE_WLOCK(lle);
+		return (lle);
+	}
+
+	/*
+	 * A route that covers the given address must have
+	 * been installed 1st because we are doing a resolution,
+	 * verify this.
+	 */
+	if (!(flags & LLE_IFADDR) &&
+	    in6_lltable_rtcheck(ifp, flags, l3addr) != 0)
+		return (NULL);
+
+	lle = in6_lltable_new(l3addr, flags);
+	if (lle == NULL) {
+		log(LOG_INFO, "lla_lookup: new lle malloc failed\n");
+		return (NULL);
+	}
+	lle->la_flags = flags;
+	if ((flags & LLE_IFADDR) == LLE_IFADDR) {
+		bcopy(IF_LLADDR(ifp), &lle->ll_addr, ifp->if_addrlen);
+		lle->la_flags |= (LLE_VALID | LLE_STATIC);
+	}
+
 	hashkey = sin6->sin6_addr.s6_addr32[3];
 	lleh = &llt->lle_head[LLATBL_HASH(hashkey, LLTBL_HASHMASK)];
-	LIST_FOREACH(lle, lleh, lle_next) {
-		struct sockaddr_in6 *sa6 = (struct sockaddr_in6 *)L3_ADDR(lle);
-		if (lle->la_flags & LLE_DELETED)
-			continue;
-		if (bcmp(&sa6->sin6_addr, &sin6->sin6_addr,
-		    sizeof(struct in6_addr)) == 0)
-			break;
-	}
 
-	if (lle == NULL) {
-		if (!(flags & LLE_CREATE))
-			return (NULL);
-		IF_AFDATA_WLOCK_ASSERT(ifp);
-		/*
-		 * A route that covers the given address must have
-		 * been installed 1st because we are doing a resolution,
-		 * verify this.
-		 */
-		if (!(flags & LLE_IFADDR) &&
-		    in6_lltable_rtcheck(ifp, flags, l3addr) != 0)
-			return NULL;
+	lle->lle_tbl  = llt;
+	lle->lle_head = lleh;
+	lle->la_flags |= LLE_LINKED;
+	LIST_INSERT_HEAD(lleh, lle, lle_next);
+	LLE_WLOCK(lle);
 
-		lle = in6_lltable_new(l3addr, flags);
-		if (lle == NULL) {
-			log(LOG_INFO, "lla_lookup: new lle malloc failed\n");
-			return NULL;
-		}
-		lle->la_flags = flags & ~LLE_CREATE;
-		if ((flags & (LLE_CREATE | LLE_IFADDR)) == (LLE_CREATE | LLE_IFADDR)) {
-			bcopy(IF_LLADDR(ifp), &lle->ll_addr, ifp->if_addrlen);
-			lle->la_flags |= (LLE_VALID | LLE_STATIC);
-		}
+	return (lle);
+}
 
-		lle->lle_tbl  = llt;
-		lle->lle_head = lleh;
-		lle->la_flags |= LLE_LINKED;
-		LIST_INSERT_HEAD(lleh, lle, lle_next);
-	} else if (flags & LLE_DELETE) {
-		if (!(lle->la_flags & LLE_IFADDR) || (flags & LLE_IFADDR)) {
-			LLE_WLOCK(lle);
-			lle->la_flags |= LLE_DELETED;
-			EVENTHANDLER_INVOKE(lle_event, lle, LLENTRY_DELETED);
-#ifdef DIAGNOSTIC
-			log(LOG_INFO, "ifaddr cache = %p is deleted\n", lle);
-#endif
-			if ((lle->la_flags &
-			    (LLE_STATIC | LLE_IFADDR)) == LLE_STATIC)
-				llentry_free(lle);
-			else
-				LLE_WUNLOCK(lle);
-		}
-		lle = (void *)-1;
-	}
-	if (LLE_IS_VALID(lle)) {
-		if (flags & LLE_EXCLUSIVE)
-			LLE_WLOCK(lle);
-		else
-			LLE_RLOCK(lle);
-	}
+static struct llentry *
+in6_lltable_lookup(struct lltable *llt, u_int flags,
+	const struct sockaddr *l3addr)
+{
+	const struct sockaddr_in6 *sin6 = (const struct sockaddr_in6 *)l3addr;
+	struct llentry *lle;
+
+	IF_AFDATA_LOCK_ASSERT(llt->llt_ifp);
+	KASSERT(l3addr->sa_family == AF_INET6,
+	    ("sin_family %d", l3addr->sa_family));
+
+	lle = in6_lltable_find_dst(llt, &sin6->sin6_addr);
+
+	if (lle == NULL)
+		return (NULL);
+
+	if (flags & LLE_EXCLUSIVE)
+		LLE_WLOCK(lle);
+	else
+		LLE_RLOCK(lle);
 	return (lle);
 }
 
@@ -2340,6 +2391,8 @@ in6_domifattach(struct ifnet *ifp)
 	if (ext->lltable != NULL) {
 		ext->lltable->llt_prefix_free = in6_lltable_prefix_free;
 		ext->lltable->llt_lookup = in6_lltable_lookup;
+		ext->lltable->llt_create = in6_lltable_create;
+		ext->lltable->llt_delete = in6_lltable_delete;
 		ext->lltable->llt_dump = in6_lltable_dump;
 	}
 

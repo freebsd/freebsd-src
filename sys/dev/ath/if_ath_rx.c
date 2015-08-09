@@ -154,7 +154,8 @@ __FBSDID("$FreeBSD$");
 u_int32_t
 ath_calcrxfilter(struct ath_softc *sc)
 {
-	struct ieee80211com *ic = &sc->sc_ic;
+	struct ifnet *ifp = sc->sc_ifp;
+	struct ieee80211com *ic = ifp->if_l2com;
 	u_int32_t rfilt;
 
 	rfilt = HAL_RX_FILTER_UCAST | HAL_RX_FILTER_BCAST | HAL_RX_FILTER_MCAST;
@@ -163,7 +164,7 @@ ath_calcrxfilter(struct ath_softc *sc)
 	if (ic->ic_opmode != IEEE80211_M_STA)
 		rfilt |= HAL_RX_FILTER_PROBEREQ;
 	/* XXX ic->ic_monvaps != 0? */
-	if (ic->ic_opmode == IEEE80211_M_MONITOR || ic->ic_promisc > 0)
+	if (ic->ic_opmode == IEEE80211_M_MONITOR || (ifp->if_flags & IFF_PROMISC))
 		rfilt |= HAL_RX_FILTER_PROM;
 
 	/*
@@ -329,7 +330,7 @@ ath_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m,
 	int subtype, const struct ieee80211_rx_stats *rxs, int rssi, int nf)
 {
 	struct ieee80211vap *vap = ni->ni_vap;
-	struct ath_softc *sc = vap->iv_ic->ic_softc;
+	struct ath_softc *sc = vap->iv_ic->ic_ifp->if_softc;
 	uint64_t tsf_beacon_old, tsf_beacon;
 	uint64_t nexttbtt;
 	int64_t tsf_delta;
@@ -462,9 +463,10 @@ ath_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m,
 
 #ifdef	ATH_ENABLE_RADIOTAP_VENDOR_EXT
 static void
-ath_rx_tap_vendor(struct ath_softc *sc, struct mbuf *m,
+ath_rx_tap_vendor(struct ifnet *ifp, struct mbuf *m,
     const struct ath_rx_status *rs, u_int64_t tsf, int16_t nf)
 {
+	struct ath_softc *sc = ifp->if_softc;
 
 	/* Fill in the extension bitmap */
 	sc->sc_rx_th.wr_ext_bitmap = htole32(1 << ATH_RADIOTAP_VENDOR_HEADER);
@@ -527,13 +529,14 @@ ath_rx_tap_vendor(struct ath_softc *sc, struct mbuf *m,
 #endif	/* ATH_ENABLE_RADIOTAP_VENDOR_EXT */
 
 static void
-ath_rx_tap(struct ath_softc *sc, struct mbuf *m,
+ath_rx_tap(struct ifnet *ifp, struct mbuf *m,
 	const struct ath_rx_status *rs, u_int64_t tsf, int16_t nf)
 {
 #define	CHAN_HT20	htole32(IEEE80211_CHAN_HT20)
 #define	CHAN_HT40U	htole32(IEEE80211_CHAN_HT40U)
 #define	CHAN_HT40D	htole32(IEEE80211_CHAN_HT40D)
 #define	CHAN_HT		(CHAN_HT20|CHAN_HT40U|CHAN_HT40D)
+	struct ath_softc *sc = ifp->if_softc;
 	const HAL_RATE_TABLE *rt;
 	uint8_t rix;
 
@@ -557,7 +560,7 @@ ath_rx_tap(struct ath_softc *sc, struct mbuf *m,
 		else if (IEEE80211_IS_CHAN_HT20(sc->sc_curchan))
 			sc->sc_rx_th.wr_chan_flags |= CHAN_HT20;
 	} else if (sc->sc_rx_th.wr_rate & IEEE80211_RATE_MCS) {	/* HT rate */
-		struct ieee80211com *ic = &sc->sc_ic;
+		struct ieee80211com *ic = ifp->if_l2com;
 
 		if ((rs->rs_flags & HAL_RX_2040) == 0)
 			sc->sc_rx_th.wr_chan_flags |= CHAN_HT20;
@@ -614,7 +617,8 @@ ath_rx_pkt(struct ath_softc *sc, struct ath_rx_status *rs, HAL_STATUS status,
 {
 	uint64_t rstamp;
 	int len, type;
-	struct ieee80211com *ic = &sc->sc_ic;
+	struct ifnet *ifp = sc->sc_ifp;
+	struct ieee80211com *ic = ifp->if_l2com;
 	struct ieee80211_node *ni;
 	int is_good = 0;
 	struct ath_rx_edma *re = &sc->sc_rxedma[qtype];
@@ -700,7 +704,7 @@ ath_rx_pkt(struct ath_softc *sc, struct ath_rx_status *rs, HAL_STATUS status,
 					rs->rs_keyix-32 : rs->rs_keyix);
 			}
 		}
-		counter_u64_add(ic->ic_ierrors, 1);
+		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 rx_error:
 		/*
 		 * Cleanup any pending partial frame.
@@ -720,9 +724,9 @@ rx_error:
 			/* NB: bpf needs the mbuf length setup */
 			len = rs->rs_datalen;
 			m->m_pkthdr.len = m->m_len = len;
-			ath_rx_tap(sc, m, rs, rstamp, nf);
+			ath_rx_tap(ifp, m, rs, rstamp, nf);
 #ifdef	ATH_ENABLE_RADIOTAP_VENDOR_EXT
-			ath_rx_tap_vendor(sc, m, rs, rstamp, nf);
+			ath_rx_tap_vendor(ifp, m, rs, rstamp, nf);
 #endif	/* ATH_ENABLE_RADIOTAP_VENDOR_EXT */
 			ieee80211_radiotap_rx_all(ic, m);
 		}
@@ -745,6 +749,7 @@ rx_accept:
 			sc->sc_stats.ast_rx_toobig++;
 			m_freem(re->m_rxpending);
 		}
+		m->m_pkthdr.rcvif = ifp;
 		m->m_pkthdr.len = len;
 		re->m_rxpending = m;
 		m = NULL;
@@ -761,8 +766,10 @@ rx_accept:
 		re->m_rxpending = NULL;
 	} else {
 		/*
-		 * Normal single-descriptor receive; setup packet length.
+		 * Normal single-descriptor receive; setup
+		 * the rcvif and packet length.
 		 */
+		m->m_pkthdr.rcvif = ifp;
 		m->m_pkthdr.len = len;
 	}
 
@@ -823,6 +830,7 @@ rx_accept:
 			rs->rs_antenna |= 0x4;
 	}
 
+	if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 	sc->sc_stats.ast_ant_rx[rs->rs_antenna]++;
 
 	/*
@@ -833,9 +841,9 @@ rx_accept:
 	 * noise setting is filled in above.
 	 */
 	if (ieee80211_radiotap_active(ic)) {
-		ath_rx_tap(sc, m, rs, rstamp, nf);
+		ath_rx_tap(ifp, m, rs, rstamp, nf);
 #ifdef	ATH_ENABLE_RADIOTAP_VENDOR_EXT
-		ath_rx_tap_vendor(sc, m, rs, rstamp, nf);
+		ath_rx_tap_vendor(ifp, m, rs, rstamp, nf);
 #endif	/* ATH_ENABLE_RADIOTAP_VENDOR_EXT */
 	}
 
@@ -983,9 +991,10 @@ ath_rx_proc(struct ath_softc *sc, int resched)
 	((struct ath_desc *)((caddr_t)(_sc)->sc_rxdma.dd_desc + \
 		((_pa) - (_sc)->sc_rxdma.dd_desc_paddr)))
 	struct ath_buf *bf;
+	struct ifnet *ifp = sc->sc_ifp;
 	struct ath_hal *ah = sc->sc_ah;
 #ifdef IEEE80211_SUPPORT_SUPERG
-	struct ieee80211com *ic = &sc->sc_ic;
+	struct ieee80211com *ic = ifp->if_l2com;
 #endif
 	struct ath_desc *ds;
 	struct ath_rx_status *rs;
@@ -1180,10 +1189,15 @@ rx_proc_next:
 		ATH_PCU_UNLOCK(sc);
 	}
 
+	/* XXX check this inside of IF_LOCK? */
+	if (resched && (ifp->if_drv_flags & IFF_DRV_OACTIVE) == 0) {
 #ifdef IEEE80211_SUPPORT_SUPERG
-	if (resched)
 		ieee80211_ff_age_all(ic, 100);
 #endif
+		if (!IFQ_IS_EMPTY(&ifp->if_snd))
+			ath_tx_kick(sc);
+	}
+#undef PA2DESC
 
 	/*
 	 * Put the hardware to sleep again if we're done with it.
@@ -1205,7 +1219,7 @@ rx_proc_next:
 	sc->sc_rxproc_cnt--;
 	ATH_PCU_UNLOCK(sc);
 }
-#undef	PA2DESC
+
 #undef	ATH_RX_MAX
 
 /*
