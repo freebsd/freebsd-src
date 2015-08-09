@@ -615,6 +615,10 @@
             ..
             en_GB.UTF-8
             ..
+            en_HK.ISO8859-1
+            ..
+            en_HK.UTF-8
+            ..
             en_IE.UTF-8
             ..
             en_NZ.ISO8859-1
@@ -625,18 +629,6 @@
             ..
             en_NZ.UTF-8
             ..
-            en_US.ISO8859-1
-            ..
-            en_US.ISO8859-15
-            ..
-            en_US.US-ASCII
-            ..
-            en_US.UTF-8
-            ..
-            en_HK.ISO8859-1
-            ..
-            en_HK.UTF-8
-            ..
             en_PH.ISO8859-1
             ..
             en_PH.UTF-8
@@ -644,6 +636,14 @@
             en_SG.ISO8859-1
             ..
             en_SG.UTF-8
+            ..
+            en_US.ISO8859-1
+            ..
+            en_US.ISO8859-15
+            ..
+            en_US.US-ASCII
+            ..
+            en_US.UTF-8
             ..
             en_ZA.ISO8859-1
             ..
@@ -753,7 +753,7 @@
             ..
             ja_JP.eucJP
             ..
-            kk_Cyrl_KZ
+            kk_Cyrl_KZ.UTF-8
             ..
             kk_KZ.PT154
             ..
@@ -911,6 +911,10 @@
             ..
             zh_CN.eucCN
             ..
+            zh_HK.Big5HKSCS
+            ..
+            zh_HK.UTF-8
+            ..
             zh_Hans_CN.GB2312
             ..
             zh_Hans_CN.GB18030
@@ -928,10 +932,6 @@
             zh_Hant_HK.UTF-8
             ..
             zh_Hant_TW.Big5
-            ..
-            zh_HK.Big5HKSCS
-            ..
-            zh_HK.UTF-8
             ..
             zh_TW.Big5
             ..
@@ -1318,8 +1318,6 @@
             ja_JP.UTF-8
             ..
             ja_JP.eucJP
-            ..
-            kk_Cyrl_KZ.UTF-8
             ..
             kk_KZ.PT154
             ..
