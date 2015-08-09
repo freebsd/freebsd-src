@@ -1642,7 +1642,13 @@ eval_text_conflict_func_result(svn_skel_t **work_items,
         }
     }
 
-  SVN_ERR_ASSERT(install_from_abspath != NULL);
+  if (install_from_abspath == NULL)
+    return svn_error_createf(SVN_ERR_WC_CONFLICT_RESOLVER_FAILURE, NULL,
+                             _("Conflict on '%s' could not be resolved "
+                               "because the chosen version of the file "
+                               "is not available."),
+                             svn_dirent_local_style(local_abspath,
+                                                    scratch_pool));
 
   {
     svn_skel_t *work_item;
@@ -1761,6 +1767,7 @@ resolve_text_conflict(svn_skel_t **work_items,
   svn_skel_t *work_item;
   svn_wc_conflict_description2_t *cdesc;
   apr_hash_t *props;
+  const char *mime_type;
 
   *work_items = NULL;
   *was_resolved = FALSE;
@@ -1773,8 +1780,9 @@ resolve_text_conflict(svn_skel_t **work_items,
 
   cdesc = svn_wc_conflict_description_create_text2(local_abspath,
                                                    scratch_pool);
-  cdesc->is_binary = FALSE;
-  cdesc->mime_type = svn_prop_get_value(props, SVN_PROP_MIME_TYPE);
+  mime_type = svn_prop_get_value(props, SVN_PROP_MIME_TYPE);
+  cdesc->is_binary = mime_type ? svn_mime_type_is_binary(mime_type) : FALSE;
+  cdesc->mime_type = mime_type;
   cdesc->base_abspath = left_abspath;
   cdesc->their_abspath = right_abspath;
   cdesc->my_abspath = detranslated_target;
@@ -2262,6 +2270,8 @@ svn_wc__read_conflicts(const apr_array_header_t **conflicts,
 
   if (text_conflicted)
     {
+      apr_hash_t *props;
+      const char *mime_type;
       svn_wc_conflict_description2_t *desc;
       desc  = svn_wc_conflict_description_create_text2(local_abspath,
                                                        result_pool);
@@ -2269,6 +2279,12 @@ svn_wc__read_conflicts(const apr_array_header_t **conflicts,
       desc->operation = operation;
       desc->src_left_version = left_version;
       desc->src_right_version = right_version;
+
+      SVN_ERR(svn_wc__db_read_props(&props, db, local_abspath,
+                                    scratch_pool, scratch_pool));
+      mime_type = svn_prop_get_value(props, SVN_PROP_MIME_TYPE);
+      desc->is_binary = mime_type ? svn_mime_type_is_binary(mime_type) : FALSE;
+      desc->mime_type = mime_type;
 
       SVN_ERR(svn_wc__conflict_read_text_conflict(&desc->my_abspath,
                                                   &desc->base_abspath,
@@ -2912,6 +2928,13 @@ conflict_status_walker(void *baton,
       const char *merged_file = NULL;
 
       cd = APR_ARRAY_IDX(conflicts, i, const svn_wc_conflict_description2_t *);
+
+      if ((cd->kind == svn_wc_conflict_kind_property && !cswb->resolve_prop)
+          || (cd->kind == svn_wc_conflict_kind_text && !cswb->resolve_text)
+          || (cd->kind == svn_wc_conflict_kind_tree && !cswb->resolve_tree))
+        {
+          continue; /* Easy out. Don't call resolver func and ignore result */
+        }
 
       svn_pool_clear(iterpool);
 

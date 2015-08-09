@@ -1313,6 +1313,7 @@ svn_diff_parse_next_patch(svn_patch_t **patch,
           line_after_tree_header_read = TRUE;
         }
       else if (! valid_header_line && state != state_start
+               && state != state_git_diff_seen
                && !starts_with(line->data, "index "))
         {
           /* We've encountered an invalid diff header.
