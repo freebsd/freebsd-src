@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include "collate.h"
 #include "setlocale.h"
 #include "ldpart.h"
+#include "libc_private.h"
 
 struct xlocale_collate __xlocale_global_collate = {
 	{{0}, "C"}, 1, 0, 0, 0
@@ -61,8 +62,6 @@ struct xlocale_collate __xlocale_global_collate = {
 struct xlocale_collate __xlocale_C_collate = {
 	{{0}, "C"}, 1, 0, 0, 0
 };
-
-#include "libc_private.h"
 
 int
 __collate_load_tables_l(const char *encoding, struct xlocale_collate *table);
