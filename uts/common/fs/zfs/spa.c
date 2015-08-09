@@ -1575,7 +1575,10 @@ load_nvlist(spa_t *spa, uint64_t obj, nvlist_t **value)
 	int error;
 	*value = NULL;
 
-	VERIFY(0 == dmu_bonus_hold(spa->spa_meta_objset, obj, FTAG, &db));
+	error = dmu_bonus_hold(spa->spa_meta_objset, obj, FTAG, &db);
+	if (error != 0)
+		return (error);
+
 	nvsize = *(uint64_t *)db->db_data;
 	dmu_buf_rele(db, FTAG);
 
