@@ -63,7 +63,7 @@ struct xlocale_collate __xlocale_C_collate = {
 	{{0}, "C"}, 1, 0, 0, 0
 };
 
-int
+static int
 __collate_load_tables_l(const char *encoding, struct xlocale_collate *table);
 
 static void
