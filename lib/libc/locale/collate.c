@@ -107,7 +107,7 @@ int
 __collate_load_tables_l(const char *encoding, struct xlocale_collate *table)
 {
 	int i, chains, z;
-	char buf[PATH_MAX];
+	char *buf;
 	char *TMP;
 	char *map;
 	collate_info_t *info;
@@ -120,11 +120,13 @@ __collate_load_tables_l(const char *encoding, struct xlocale_collate *table)
 		return (_LDP_CACHE);
 	}
 
-	(void) snprintf(buf, sizeof (buf), "%s/%s/LC_COLLATE",
-	    _PathLocale, encoding);
+	asnprintf(&buf, "%s/%s/LC_COLLATE", _PathLocale, encoding);
+	if (buf == NULL)
+		return (_LDP_ERROR);
 
 	if ((fd = _open(buf, O_RDONLY)) < 0)
 		return (_LDP_ERROR);
+	free(buf);
 	if (_fstat(fd, &sbuf) < 0) {
 		(void) _close(fd);
 		return (_LDP_ERROR);
