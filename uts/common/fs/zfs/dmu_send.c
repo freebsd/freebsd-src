@@ -511,7 +511,7 @@ backup_cb(spa_t *spa, zilog_t *zilog, const blkptr_t *bp,
 				for (ptr = abuf->b_data;
 				    (char *)ptr < (char *)abuf->b_data + blksz;
 				    ptr++)
-					*ptr = 0x2f5baddb10c;
+					*ptr = 0x2f5baddb10cULL;
 			} else {
 				return (SET_ERROR(EIO));
 			}
