@@ -320,15 +320,9 @@ _UTF8_wcrtomb(char * __restrict s, wchar_t wc, mbstate_t * __restrict ps)
 	} else if ((wc & ~0xffff) == 0) {
 		lead = 0xe0;
 		len = 3;
-	} else if ((wc & ~0x1fffff) == 0) {
+	} else if (wc >= 0 && wc <= 0x10ffff) {
 		lead = 0xf0;
 		len = 4;
-	} else if ((wc & ~0x3ffffff) == 0) {
-		lead = 0xf8;
-		len = 5;
-	} else if ((wc & ~0x7fffffff) == 0) {
-		lead = 0xfc;
-		len = 6;
 	} else {
 		errno = EILSEQ;
 		return ((size_t)-1);
