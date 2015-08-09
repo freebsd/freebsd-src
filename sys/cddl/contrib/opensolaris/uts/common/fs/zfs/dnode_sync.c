@@ -441,6 +441,12 @@ dnode_evict_dbufs(dnode_t *dn)
 		ASSERT(pass < 100); /* sanity check */
 	} while (progress);
 
+	dnode_evict_bonus(dn);
+}
+
+void
+dnode_evict_bonus(dnode_t *dn)
+{
 	rw_enter(&dn->dn_struct_rwlock, RW_WRITER);
 	if (dn->dn_bonus && refcount_is_zero(&dn->dn_bonus->db_holds)) {
 		mutex_enter(&dn->dn_bonus->db_mtx);
