@@ -42,7 +42,7 @@ __FBSDID("$FreeBSD$");
 
 
 /*
- * In order to properly handle multibyte locales, its easiet to just
+ * In order to properly handle multibyte locales, its easiest to just
  * convert to wide characters and then use wcscoll.  However if an
  * error occurs, we gracefully fall back to simple strcmp.  Caller
  * should check errno.
@@ -99,18 +99,14 @@ strcoll_l(const char *s, const char *s2, locale_t locale)
 		goto error;
 
 	ret = wcscoll_l(w1, w2, locale);
-	if (t1)
-		free(t1);
-	if (t2)
-		free(t2);
+	free(t1);
+	free(t2);
 
 	return (ret);
 
 error:
-	if (t1)
-		free(t1);
-	if (t2)
-		free(t2);
+	free(t1);
+	free(t2);
 	return (strcmp(s, s2));
 }
 

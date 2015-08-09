@@ -84,8 +84,7 @@ strxfrm_l(char * __restrict dest, const char * __restrict src, size_t len, local
 	if ((xlen = _collate_sxfrm(table, wcs, dest, len)) == (size_t)-1)
 		goto error;
 
-	if (wcs)
-		free(wcs);
+	free(wcs);
 
 	if (len > xlen) {
 		dest[xlen] = 0;
@@ -97,9 +96,8 @@ strxfrm_l(char * __restrict dest, const char * __restrict src, size_t len, local
 
 error:
 	/* errno should be set to ENOMEM if malloc failed */
-	if (wcs)
-		free(wcs);
-	(void) strlcpy(dest, src, len);
+	free(wcs);
+	strlcpy(dest, src, len);
 
 	return (slen);
 }
