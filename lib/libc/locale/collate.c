@@ -120,7 +120,7 @@ __collate_load_tables_l(const char *encoding, struct xlocale_collate *table)
 		return (_LDP_CACHE);
 	}
 
-	asnprintf(&buf, "%s/%s/LC_COLLATE", _PathLocale, encoding);
+	asprintf(&buf, "%s/%s/LC_COLLATE", _PathLocale, encoding);
 	if (buf == NULL)
 		return (_LDP_ERROR);
 
