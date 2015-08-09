@@ -6802,10 +6802,10 @@ if test "x$apr_preload_done" != "xyes" ; then
     *-apple-darwin*)
 
   if test "x$CPPFLAGS" = "x"; then
-    test "x$silent" != "xyes" && echo "  setting CPPFLAGS to \"-DDARWIN -DSIGPROCMASK_SETS_THREAD_MASK -no-cpp-precomp\""
-    CPPFLAGS="-DDARWIN -DSIGPROCMASK_SETS_THREAD_MASK -no-cpp-precomp"
+    test "x$silent" != "xyes" && echo "  setting CPPFLAGS to \"-DDARWIN -DSIGPROCMASK_SETS_THREAD_MASK\""
+    CPPFLAGS="-DDARWIN -DSIGPROCMASK_SETS_THREAD_MASK"
   else
-    apr_addto_bugger="-DDARWIN -DSIGPROCMASK_SETS_THREAD_MASK -no-cpp-precomp"
+    apr_addto_bugger="-DDARWIN -DSIGPROCMASK_SETS_THREAD_MASK"
     for i in $apr_addto_bugger; do
       apr_addto_duplicate="0"
       for j in $CPPFLAGS; do
@@ -18794,7 +18794,34 @@ if test "${enable_nonportable_atomics+set}" = set; then :
 else
   case $host_cpu in
    i[456]86) force_generic_atomics=yes ;;
-   *) force_generic_atomics=no ;;
+   *) force_generic_atomics=no
+      case $host in
+         *solaris2.10*)
+            cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+#include <atomic.h>
+int
+main ()
+{
+void *ptr = NULL; atomic_cas_ptr(&ptr, NULL, NULL);
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+
+else
+  force_generic_atomics=yes
+
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+            if test $force_generic_atomics = yes; then
+                { $as_echo "$as_me:${as_lineno-$LINENO}: nonportable atomic support disabled, system needs Patch-ID 118884 or 118885" >&5
+$as_echo "$as_me: nonportable atomic support disabled, system needs Patch-ID 118884 or 118885" >&6;}
+            fi
+            ;;
+      esac
+      ;;
 esac
 
 fi
@@ -22292,7 +22319,7 @@ else
 fi
 done
 
-for ac_func in getpass getpassphrase gmtime_r localtime_r mkstemp
+for ac_func in getpass getpassphrase gmtime_r localtime_r
 do :
   as_ac_var=`$as_echo "ac_cv_func_$ac_func" | $as_tr_sh`
 ac_fn_c_check_func "$LINENO" "$ac_func" "$as_ac_var"
@@ -22304,6 +22331,23 @@ _ACEOF
 fi
 done
 
+case $host in
+    *-hp-hpux*)
+                ;;
+    *)
+        for ac_func in mkstemp
+do :
+  ac_fn_c_check_func "$LINENO" "mkstemp" "ac_cv_func_mkstemp"
+if test "x$ac_cv_func_mkstemp" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_MKSTEMP 1
+_ACEOF
+
+fi
+done
+
+        ;;
+esac
 
 
 
@@ -23902,7 +23946,7 @@ _ACEOF
 if test "${ac_cv_sizeof_off_t}${apr_cv_use_lfs64}" = "4yes"; then
     # Enable LFS
     aprlfs=1
-    for ac_func in mmap64 sendfile64 sendfilev64 mkstemp64 readdir64_r
+    for ac_func in mmap64 sendfile64 sendfilev64 readdir64_r
 do :
   as_ac_var=`$as_echo "ac_cv_func_$ac_func" | $as_tr_sh`
 ac_fn_c_check_func "$LINENO" "$ac_func" "$as_ac_var"
@@ -23914,6 +23958,23 @@ _ACEOF
 fi
 done
 
+    case $host in
+        *-hp-hpux*)
+                        ;;
+        *)
+            for ac_func in mkstemp64
+do :
+  ac_fn_c_check_func "$LINENO" "mkstemp64" "ac_cv_func_mkstemp64"
+if test "x$ac_cv_func_mkstemp64" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_MKSTEMP64 1
+_ACEOF
+
+fi
+done
+
+            ;;
+    esac
 elif test "${ac_cv_sizeof_off_t}" != "${ac_cv_sizeof_size_t}"; then
     # unsure of using -gt above is as portable, can can't forsee where
     # off_t can legitimately be smaller than size_t
