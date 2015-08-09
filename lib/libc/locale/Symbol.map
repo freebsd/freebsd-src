@@ -214,7 +214,4 @@ FBSDprivate_1.0 {
 	__detect_path_locale;
 	__collate_load_error;
 	__collate_range_cmp;
-	__collate_load_tables_l;
-	__collate_lookup;
-
 };
