@@ -228,16 +228,18 @@ struct iwn_vap {
 				    enum ieee80211_state, int);
 	int			ctx;
 	int			beacon_int;
+	uint8_t		macaddr[IEEE80211_ADDR_LEN];
 
 };
 #define	IWN_VAP(_vap)	((struct iwn_vap *)(_vap))
 
 struct iwn_softc {
 	device_t		sc_dev;
+
+	struct ifnet		*sc_ifp;
 	int			sc_debug;
+
 	struct mtx		sc_mtx;
-	struct ieee80211com	sc_ic;
-	struct mbufq		sc_snd;
 
 	u_int			sc_flags;
 #define IWN_FLAG_HAS_OTPROM	(1 << 1)
@@ -249,7 +251,6 @@ struct iwn_softc {
 #define IWN_FLAG_ADV_BTCOEX	(1 << 8)
 #define IWN_FLAG_PAN_SUPPORT	(1 << 9)
 #define IWN_FLAG_BTCOEX		(1 << 10)
-#define	IWN_FLAG_RUNNING	(1 << 11)
 
 	uint8_t 		hw_type;
 	/* subdevice_id used to adjust configuration */
@@ -319,6 +320,7 @@ struct iwn_softc {
 	struct iwn_calib_state	calib;
 	int			last_calib_ticks;
 	struct callout		watchdog_to;
+	struct callout		ct_kill_exit_to;
 	struct iwn_fw_info	fw;
 	struct iwn_calib_info	calibcmd[IWN5000_PHY_CALIB_MAX_RESULT];
 	uint32_t		errptr;

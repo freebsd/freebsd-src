@@ -89,6 +89,20 @@ device		virtio_mmio
 device		virtio_blk
 device		vtnet
 
+# Bus drivers
+device		pci
+device		thunder_pci
+
+# Ethernet NICs
+device		em		# Intel PRO/1000 Gigabit Ethernet Family
+device		mii
+device		miibus		# MII bus support
+
+# Block devices
+device		ahci
+device		scbus
+device		da
+
 # Serial (COM) ports
 device		uart		# Generic UART driver
 device		pl011

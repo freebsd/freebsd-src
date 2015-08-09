@@ -1172,8 +1172,7 @@ enum {
 #define	URTWN_EP_QUEUES	URTWN_BULK_RX
 
 struct urtwn_softc {
-	struct ieee80211com		sc_ic;
-	struct mbufq			sc_snd;
+	struct ifnet			*sc_ifp;
 	device_t			sc_dev;
 	struct usb_device		*sc_udev;
 
@@ -1181,7 +1180,6 @@ struct urtwn_softc {
 	u_int				sc_flags;
 #define URTWN_FLAG_CCK_HIPWR	0x01
 #define URTWN_DETACHED		0x02
-#define	URTWN_RUNNING		0x04
 
 	u_int				chip;
 #define	URTWN_CHIP_92C		0x01
@@ -1226,6 +1224,7 @@ struct urtwn_softc {
 	uint8_t				ht40_tx_pwr[5];
 	int8_t				bw20_tx_pwr_diff;
 	int8_t				ofdm_tx_pwr_diff;
+	uint8_t				sc_bssid[IEEE80211_ADDR_LEN];
 		
 	struct callout			sc_watchdog_ch;
 	struct mtx			sc_mtx;

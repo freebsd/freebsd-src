@@ -359,7 +359,7 @@ ath_tdma_update(struct ieee80211_node *ni,
 #define	TU_TO_TSF(_tu)	(((u_int64_t)(_tu)) << 10)
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211com *ic = ni->ni_ic;
-	struct ath_softc *sc = ic->ic_softc;
+	struct ath_softc *sc = ic->ic_ifp->if_softc;
 	struct ath_hal *ah = sc->sc_ah;
 	const HAL_RATE_TABLE *rt = sc->sc_currates;
 	u_int64_t tsf, rstamp, nextslot, nexttbtt, nexttbtt_full;

@@ -139,6 +139,7 @@ static VNET_DEFINE(uma_zone_t, rtzone);		/* Routing table UMA zone. */
 static int rtrequest1_fib_change(struct radix_node_head *, struct rt_addrinfo *,
     struct rtentry **, u_int);
 static void rt_setmetrics(const struct rt_addrinfo *, struct rtentry *);
+static int rt_ifdelroute(struct rtentry *rt, void *arg);
 
 struct if_mtuinfo
 {
@@ -809,6 +810,96 @@ rtrequest_fib(int req,
 	info.rti_info[RTAX_GATEWAY] = gateway;
 	info.rti_info[RTAX_NETMASK] = netmask;
 	return rtrequest1_fib(req, &info, ret_nrt, fibnum);
+}
+
+
+void
+rt_foreach_fib(int af, rt_setwarg_t *setwa_f, rt_walktree_f_t *wa_f, void *arg)
+{
+	struct radix_node_head *rnh;
+	uint32_t fibnum;
+	int i;
+
+	for (fibnum = 0; fibnum < rt_numfibs; fibnum++) {
+		/* Do we want some specific family? */
+		if (af != AF_UNSPEC) {
+			rnh = rt_tables_get_rnh(fibnum, af);
+			if (rnh == NULL)
+				continue;
+			if (setwa_f != NULL)
+				setwa_f(rnh, fibnum, i, arg);
+
+			RADIX_NODE_HEAD_LOCK(rnh);
+			rnh->rnh_walktree(rnh, (walktree_f_t *)wa_f, arg);
+			RADIX_NODE_HEAD_UNLOCK(rnh);
+			continue;
+		}
+
+		for (i = 1; i <= AF_MAX; i++) {
+			rnh = rt_tables_get_rnh(fibnum, i);
+			if (rnh == NULL)
+				continue;
+			if (setwa_f != NULL)
+				setwa_f(rnh, fibnum, i, arg);
+
+			RADIX_NODE_HEAD_LOCK(rnh);
+			rnh->rnh_walktree(rnh, (walktree_f_t *)wa_f, arg);
+			RADIX_NODE_HEAD_UNLOCK(rnh);
+		}
+	}
+}
+
+/*
+ * Delete Routes for a Network Interface
+ *
+ * Called for each routing entry via the rnh->rnh_walktree() call above
+ * to delete all route entries referencing a detaching network interface.
+ *
+ * Arguments:
+ *	rt	pointer to rtentry
+ *	arg	argument passed to rnh->rnh_walktree() - detaching interface
+ *
+ * Returns:
+ *	0	successful
+ *	errno	failed - reason indicated
+ */
+static int
+rt_ifdelroute(struct rtentry *rt, void *arg)
+{
+	struct ifnet	*ifp = arg;
+	int		err;
+
+	if (rt->rt_ifp != ifp)
+		return (0);
+
+	/*
+	 * Protect (sorta) against walktree recursion problems
+	 * with cloned routes
+	 */
+	if ((rt->rt_flags & RTF_UP) == 0)
+		return (0);
+
+	err = rtrequest_fib(RTM_DELETE, rt_key(rt), rt->rt_gateway,
+			rt_mask(rt),
+			rt->rt_flags | RTF_RNH_LOCKED | RTF_PINNED,
+			(struct rtentry **) NULL, rt->rt_fibnum);
+	if (err != 0)
+		log(LOG_WARNING, "rt_ifdelroute: error %d\n", err);
+
+	return (0);
+}
+
+/*
+ * Delete all remaining routes using this interface
+ * Unfortuneatly the only way to do this is to slog through
+ * the entire routing table looking for routes which point
+ * to this interface...oh well...
+ */
+void
+rt_flushifroutes(struct ifnet *ifp)
+{
+
+	rt_foreach_fib(AF_UNSPEC, NULL, rt_ifdelroute, ifp);
 }
 
 /*

@@ -511,9 +511,6 @@ uart_bus_attach(device_t dev)
 		    sc->sc_sysdev->stopbits);
 	}
 
-	sc->sc_pps.ppscap = PPS_CAPTUREBOTH;
-	pps_init(&sc->sc_pps);
-
 	sc->sc_leaving = 0;
 	sc->sc_testintr = 1;
 	filt = uart_intr(sc);
@@ -568,10 +565,17 @@ uart_bus_attach(device_t dev)
 		printf("\n");
 	}
 
-	error = (sc->sc_sysdev != NULL && sc->sc_sysdev->attach != NULL)
-	    ? (*sc->sc_sysdev->attach)(sc) : uart_tty_attach(sc);
-	if (error)
-		goto fail;
+	if (sc->sc_sysdev != NULL && sc->sc_sysdev->attach != NULL) {
+		if ((error = sc->sc_sysdev->attach(sc)) != 0)
+			goto fail;
+	} else {
+		if ((error = uart_tty_attach(sc)) != 0)
+			goto fail;
+		sc->sc_pps.ppscap = PPS_CAPTUREBOTH;
+		sc->sc_pps.driver_mtx = uart_tty_getlock(sc);
+		sc->sc_pps.driver_abi = PPS_ABI_VERSION;
+		pps_init_abi(&sc->sc_pps);
+	}
 
 	if (sc->sc_sysdev != NULL)
 		sc->sc_sysdev->hwmtx = sc->sc_hwmtx;

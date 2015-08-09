@@ -183,8 +183,7 @@ struct uath_vap {
 #define	UATH_VAP(vap)			((struct uath_vap *)(vap))
 
 struct uath_softc {
-	struct ieee80211com		sc_ic;
-	struct mbufq			sc_snd;
+	struct ifnet			*sc_ifp;
 	device_t			sc_dev;
 	struct usb_device		*sc_udev;
 	void				*sc_cmd_dma_buf;
