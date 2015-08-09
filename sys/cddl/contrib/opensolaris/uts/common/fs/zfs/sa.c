@@ -210,12 +210,6 @@ sa_cache_constructor(void *buf, void *unused, int kmflag)
 {
 	sa_handle_t *hdl = buf;
 
-	hdl->sa_bonus_tab = NULL;
-	hdl->sa_spill_tab = NULL;
-	hdl->sa_os = NULL;
-	hdl->sa_userp = NULL;
-	hdl->sa_bonus = NULL;
-	hdl->sa_spill = NULL;
 	mutex_init(&hdl->sa_lock, NULL, MUTEX_DEFAULT, NULL);
 	return (0);
 }
@@ -1350,14 +1344,11 @@ sa_handle_destroy(sa_handle_t *hdl)
 	(void) dmu_buf_update_user((dmu_buf_t *)hdl->sa_bonus, hdl,
 	    NULL, NULL);
 
-	if (hdl->sa_bonus_tab) {
+	if (hdl->sa_bonus_tab)
 		sa_idx_tab_rele(hdl->sa_os, hdl->sa_bonus_tab);
-		hdl->sa_bonus_tab = NULL;
-	}
-	if (hdl->sa_spill_tab) {
+
+	if (hdl->sa_spill_tab)
 		sa_idx_tab_rele(hdl->sa_os, hdl->sa_spill_tab);
-		hdl->sa_spill_tab = NULL;
-	}
 
 	dmu_buf_rele(hdl->sa_bonus, NULL);
 
@@ -1392,6 +1383,8 @@ sa_handle_get_from_db(objset_t *os, dmu_buf_t *db, void *userp,
 		handle->sa_bonus = db;
 		handle->sa_os = os;
 		handle->sa_spill = NULL;
+		handle->sa_bonus_tab = NULL;
+		handle->sa_spill_tab = NULL;
 
 		error = sa_build_index(handle, SA_BONUS);
 		newhandle = (hdl_type == SA_HDL_SHARED) ?
