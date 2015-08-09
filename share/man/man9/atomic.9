@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 20, 2015
+.Dd August 9, 2015
 .Dt ATOMIC 9
 .Os
 .Sh NAME
@@ -67,8 +67,8 @@
 .Ft int
 .Fn atomic_testandset_<type> "volatile <type> *p" "u_int v"
 .Sh DESCRIPTION
-Each of the atomic operations is guaranteed to be atomic in the presence of
-interrupts.
+Each of the atomic operations is guaranteed to be atomic across multiple
+processors and in the presence of interrupts.
 They can be used to implement reference counts or as building blocks for more
 advanced synchronization primitives such as mutexes.
 .Ss Types
@@ -162,17 +162,21 @@ guarantee that the lock is held before any protected operations are performed.
 Finally, one would use a write barrier when releasing the lock to ensure that
 all of the protected operations are completed before the lock is released.
 .Ss Multiple Processors
-The current set of atomic operations do not necessarily guarantee atomicity
-across multiple processors.
-To guarantee atomicity across processors, not only does the individual
-operation need to be atomic on the processor performing the operation, but
-the result of the operation needs to be pushed out to stable storage and the
-caches of all other processors on the system need to invalidate any cache
-lines that include the affected memory region.
-On the
+In multiprocessor systems, the atomicity of the atomic operations on memory
+depends on support for cache coherence in the underlying architecture.
+In general, cache coherence on the default memory type,
+.Dv VM_MEMATTR_DEFAULT ,
+is guaranteed by all architectures that are supported by
+.Fx .
+For example, cache coherence is guaranteed on write-back memory by the
+.Tn amd64
+and
 .Tn i386
-architecture, the cache coherency model requires that the hardware perform
-this task, thus the atomic operations are atomic across multiple processors.
+architectures.
+However, on some architectures, cache coherence may not be enabled on all
+memory types.
+To determine if cache coherence is enabled for a non-default memory type,
+consult the architecture's documentation.
 .Ss Semantics
 This section describes the semantics of each operation using a C like notation.
 .Bl -hang
