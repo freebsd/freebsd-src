@@ -1858,8 +1858,10 @@ arc_change_state(arc_state_t *new_state, arc_buf_hdr_t *hdr,
 	 * L2 headers should never be on the L2 state list since they don't
 	 * have L1 headers allocated.
 	 */
+#ifdef illumos
 	ASSERT(list_is_empty(&arc_l2c_only->arcs_list[ARC_BUFC_DATA]) &&
 	    list_is_empty(&arc_l2c_only->arcs_list[ARC_BUFC_METADATA]));
+#endif
 }
 
 void
