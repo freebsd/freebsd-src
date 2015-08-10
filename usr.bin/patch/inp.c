@@ -36,6 +36,8 @@
 #include <ctype.h>
 #include <errno.h>
 #include <libgen.h>
+#include <paths.h>
+#include <spawn.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -135,14 +137,13 @@ reallocate_lines(size_t *lines_allocated)
 static bool
 plan_a(const char *filename)
 {
-	int		ifd, statfailed, devnull, pstat;
+	int		ifd, statfailed, pstat;
 	char		*p, *s, lbuf[INITLINELEN];
 	struct stat	filestat;
 	ptrdiff_t	sz;
 	size_t		i;
 	size_t		iline, lines_allocated;
 	pid_t		pid;
-	char		*argp[4] = {NULL};
 
 #ifdef DEBUGGING
 	if (debug & 8)
@@ -179,7 +180,9 @@ plan_a(const char *filename)
 	    ((filestat.st_mode & 0022) == 0 && filestat.st_uid != getuid())) {
 		char	*filebase, *filedir;
 		struct stat	cstat;
-		char *tmp_filename1, *tmp_filename2;
+		char	*tmp_filename1, *tmp_filename2;
+		char	*argp[4] = { NULL };
+		posix_spawn_file_actions_t file_actions;
 
 		tmp_filename1 = strdup(filename);
 		tmp_filename2 = strdup(filename);
@@ -188,6 +191,8 @@ plan_a(const char *filename)
 
 		filebase = basename(tmp_filename1);
 		filedir = dirname(tmp_filename2);
+
+		memset(argp, 0, sizeof(argp));
 
 #define try(f, a1, a2, a3) \
 	(snprintf(lbuf, sizeof(lbuf), f, a1, a2, a3), stat(lbuf, &cstat) == 0)
@@ -214,50 +219,44 @@ plan_a(const char *filename)
 					say("Comparing file %s to default "
 					    "RCS version...\n", filename);
 
-				switch (pid = fork()) {
-				case -1:
-					fatal("can't fork: %s\n",
-					    strerror(errno));
-				case 0:
-					devnull = open("/dev/null", O_RDONLY);
-					if (devnull == -1) {
-						fatal("can't open /dev/null: %s",
-						    strerror(errno));
-					}
-					(void)dup2(devnull, STDOUT_FILENO);
-					argp[0] = strdup(RCSDIFF);
-					argp[1] = strdup(filename);
-					execv(RCSDIFF, argp);
-					exit(127);
-				}
-				pid = waitpid(pid, &pstat, 0);
-				if (pid == -1 || WEXITSTATUS(pstat) != 0) {
-					fatal("can't check out file %s: "
-					    "differs from default RCS version\n",
-					    filename);
-				}
+				argp[0] = strdup(RCSDIFF);
+				argp[1] = strdup(filename);
+				posix_spawn_file_actions_init(&file_actions);
+				posix_spawn_file_actions_addopen(&file_actions,
+				    STDOUT_FILENO, _PATH_DEVNULL, O_WRONLY, 0);
+				if (posix_spawn(&pid, RCSDIFF, &file_actions,
+				    NULL, argp, NULL) == 0) {
+					pid = waitpid(pid, &pstat, 0);
+					if (pid == -1 || WEXITSTATUS(pstat) != 0)
+						fatal("can't check out file %s: "
+						    "differs from default RCS version\n",
+						    filename);
+				} else
+					fatal("posix_spawn: %s\n", strerror(errno));
+				posix_spawn_file_actions_destroy(&file_actions);
+				free(argp[1]);
+				free(argp[0]);
 			}
 
 			if (verbose)
 				say("Checking out file %s from RCS...\n",
 				    filename);
 
-			switch (pid = fork()) {
-			case -1:
-				fatal("can't fork: %s\n", strerror(errno));
-			case 0:
-				argp[0] = strdup(CHECKOUT);
-				argp[1] = strdup("-l");
-				argp[2] = strdup(filename);
-				execv(CHECKOUT, argp);
-				exit(127);
-			}
-			pid = waitpid(pid, &pstat, 0);
-			if (pid == -1 || WEXITSTATUS(pstat) != 0 ||
-			    stat(filename, &filestat)) {
-				fatal("can't check out file %s from RCS\n",
-				    filename);
-			}
+			argp[0] = strdup(CHECKOUT);
+			argp[1] = strdup("-l");
+			argp[2] = strdup(filename);
+			if (posix_spawn(&pid, CHECKOUT, NULL, NULL, argp,
+			    NULL) == 0) {
+				pid = waitpid(pid, &pstat, 0);
+				if (pid == -1 || WEXITSTATUS(pstat) != 0 ||
+				    stat(filename, &filestat))
+					fatal("can't check out file %s from RCS\n",
+					    filename);
+			} else
+				fatal("posix_spawn: %s\n", strerror(errno));
+			free(argp[2]);
+			free(argp[1]);
+			free(argp[0]);
 		} else if (statfailed) {
 			fatal("can't find %s\n", filename);
 		}
