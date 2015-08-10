@@ -801,8 +801,8 @@ getnfsargs(char *spec, struct iovec **iov, int *iovlen)
 		 * For a Kerberized nfs mount where the "principal"
 		 * argument has not been set, add it here.
 		 */
-		if (got_principal == 0 && secflavor >= 0 &&
-		    secflavor != AUTH_SYS && ai_nfs->ai_canonname != NULL) {
+		if (got_principal == 0 && secflavor != AUTH_SYS &&
+		    ai_nfs->ai_canonname != NULL) {
 			snprintf(pname, sizeof (pname), "nfs@%s",
 			    ai_nfs->ai_canonname);
 			build_iovec(iov, iovlen, "principal", pname,
