@@ -69,7 +69,6 @@ SUBDIR=	${_addr2line} \
 	ipcs \
 	join \
 	jot \
-	${_kdump} \
 	keylogin \
 	keylogout \
 	killall \
@@ -175,7 +174,6 @@ SUBDIR=	${_addr2line} \
 	tr \
 	true \
 	truncate \
-	${_truss} \
 	tset \
 	tsort \
 	tty \
@@ -202,10 +200,7 @@ SUBDIR=	${_addr2line} \
 	xo \
 	xz \
 	xzdec \
-	yes \
-	${_ypcat} \
-	${_ypmatch} \
-	${_ypwhich}
+	yes
 
 # NB: keep these sorted by MK_* knobs
 
