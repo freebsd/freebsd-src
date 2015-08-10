@@ -930,7 +930,7 @@ table_modify_record(ipfw_obj_header *oh, int ac, char *av[], int add,
 			xi.vmask = vmask;
 			strlcpy(xi.tablename, oh->ntlv.name,
 			    sizeof(xi.tablename));
-			fprintf(stderr, "DEPRECATED: inserting data info "
+			fprintf(stderr, "DEPRECATED: inserting data into "
 			    "non-existent table %s. (auto-created)\n",
 			    xi.tablename);
 			table_do_create(oh, &xi);
