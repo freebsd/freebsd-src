@@ -122,7 +122,7 @@
 #define APU_HAVE_NSS           0
 
 #define APU_HAVE_APR_ICONV     0
-#define APU_HAVE_ICONV         1
+#define APU_HAVE_ICONV         0
 #define APR_HAS_XLATE          (APU_HAVE_APR_ICONV || APU_HAVE_ICONV)
 
 #endif /* APU_H */
