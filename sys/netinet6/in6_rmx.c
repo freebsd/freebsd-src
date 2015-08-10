@@ -207,7 +207,8 @@ in6_mtuexpire(struct rtentry *rt, void *rock)
 #define	MTUTIMO_DEFAULT	(60*1)
 
 static void
-in6_mtutimo_setwa(struct radix_node_head *rnh, uint32_t fibum, int af, void *_arg)
+in6_mtutimo_setwa(struct radix_node_head *rnh, uint32_t fibum, int af,
+    void *_arg)
 {
 	struct mtuex_arg *arg;
 
@@ -223,7 +224,7 @@ in6_mtutimo(void *rock)
 	struct timeval atv;
 	struct mtuex_arg arg;
 
-	rt_foreach_fib(AF_INET6, in6_mtutimo_setwa, in6_mtuexpire, &arg);
+	rt_foreach_fib_walk(AF_INET6, in6_mtutimo_setwa, in6_mtuexpire, &arg);
 
 	atv.tv_sec = MTUTIMO_DEFAULT;
 	atv.tv_usec = 0;
