@@ -832,7 +832,7 @@ fork1(struct thread *td, int flags, int pages, struct proc **procp,
 	mem_charged = 0;
 	vm2 = NULL;
 	if (pages == 0)
-		pages = KSTACK_PAGES;
+		pages = kstack_pages;
 	/* Allocate new proc. */
 	newproc = uma_zalloc(proc_zone, M_WAITOK);
 	td2 = FIRST_THREAD_IN_PROC(newproc);
