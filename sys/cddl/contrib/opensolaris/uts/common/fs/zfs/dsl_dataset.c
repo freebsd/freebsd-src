@@ -24,6 +24,7 @@
  * Copyright (c) 2011, 2014 by Delphix. All rights reserved.
  * Copyright (c) 2014, Joyent, Inc. All rights reserved.
  * Copyright (c) 2014 RackTop Systems.
+ * Copyright (c) 2014 Spectra Logic Corporation, All rights reserved.
  */
 
 #include <sys/dmu_objset.h>
@@ -77,7 +78,6 @@ SYSCTL_INT(_vfs_zfs, OID_AUTO, max_recordsize, CTLFLAG_RWTUN,
 #define	DS_REF_MAX	(1ULL << 62)
 
 extern inline dsl_dataset_phys_t *dsl_dataset_phys(dsl_dataset_t *ds);
-extern inline boolean_t dsl_dataset_is_snapshot(dsl_dataset_t *ds);
 
 /*
  * Figure out how much of this delta should be propogated to the dsl_dir
@@ -161,7 +161,7 @@ dsl_dataset_block_kill(dsl_dataset_t *ds, const blkptr_t *bp, dmu_tx_t *tx,
 	}
 	ASSERT3P(tx->tx_pool, ==, ds->ds_dir->dd_pool);
 
-	ASSERT(!dsl_dataset_is_snapshot(ds));
+	ASSERT(!ds->ds_is_snapshot);
 	dmu_buf_will_dirty(ds->ds_dbuf, tx);
 
 	if (bp->blk_birth > dsl_dataset_phys(ds)->ds_prev_snap_txg) {
@@ -259,13 +259,14 @@ dsl_dataset_block_freeable(dsl_dataset_t *ds, const blkptr_t *bp,
 	return (B_TRUE);
 }
 
-/* ARGSUSED */
 static void
-dsl_dataset_evict(dmu_buf_t *db, void *dsv)
+dsl_dataset_evict(void *dbu)
 {
-	dsl_dataset_t *ds = dsv;
+	dsl_dataset_t *ds = dbu;
 
 	ASSERT(ds->ds_owner == NULL);
+
+	ds->ds_dbuf = NULL;
 
 	unique_remove(ds->ds_fsid_guid);
 
@@ -278,10 +279,10 @@ dsl_dataset_evict(dmu_buf_t *db, void *dsv)
 	}
 
 	bplist_destroy(&ds->ds_pending_deadlist);
-	if (dsl_dataset_phys(ds)->ds_deadlist_obj != 0)
+	if (ds->ds_deadlist.dl_os != NULL)
 		dsl_deadlist_close(&ds->ds_deadlist);
 	if (ds->ds_dir)
-		dsl_dir_rele(ds->ds_dir, ds);
+		dsl_dir_async_rele(ds->ds_dir, ds);
 
 	ASSERT(!list_link_active(&ds->ds_synced_link));
 
@@ -417,6 +418,7 @@ dsl_dataset_hold_obj(dsl_pool_t *dp, uint64_t dsobj, void *tag,
 		ds = kmem_zalloc(sizeof (dsl_dataset_t), KM_SLEEP);
 		ds->ds_dbuf = dbuf;
 		ds->ds_object = dsobj;
+		ds->ds_is_snapshot = dsl_dataset_phys(ds)->ds_num_children != 0;
 
 		mutex_init(&ds->ds_lock, NULL, MUTEX_DEFAULT, NULL);
 		mutex_init(&ds->ds_opening_lock, NULL, MUTEX_DEFAULT, NULL);
@@ -456,7 +458,7 @@ dsl_dataset_hold_obj(dsl_pool_t *dp, uint64_t dsobj, void *tag,
 			return (err);
 		}
 
-		if (!dsl_dataset_is_snapshot(ds)) {
+		if (!ds->ds_is_snapshot) {
 			ds->ds_snapname[0] = '\0';
 			if (dsl_dataset_phys(ds)->ds_prev_snap_obj != 0) {
 				err = dsl_dataset_hold_obj(dp,
@@ -483,7 +485,7 @@ dsl_dataset_hold_obj(dsl_pool_t *dp, uint64_t dsobj, void *tag,
 			}
 		}
 
-		if (err == 0 && !dsl_dataset_is_snapshot(ds)) {
+		if (err == 0 && !ds->ds_is_snapshot) {
 			err = dsl_prop_get_int_ds(ds,
 			    zfs_prop_to_name(ZFS_PROP_REFRESERVATION),
 			    &ds->ds_reserved);
@@ -496,8 +498,11 @@ dsl_dataset_hold_obj(dsl_pool_t *dp, uint64_t dsobj, void *tag,
 			ds->ds_reserved = ds->ds_quota = 0;
 		}
 
-		if (err != 0 || (winner = dmu_buf_set_user_ie(dbuf, ds,
-		    dsl_dataset_evict)) != NULL) {
+		dmu_buf_init_user(&ds->ds_dbu, dsl_dataset_evict, &ds->ds_dbuf);
+		if (err == 0)
+			winner = dmu_buf_set_user_ie(dbuf, &ds->ds_dbu);
+
+		if (err != 0 || winner != NULL) {
 			bplist_destroy(&ds->ds_pending_deadlist);
 			dsl_deadlist_close(&ds->ds_deadlist);
 			if (ds->ds_prev)
@@ -919,7 +924,7 @@ dsl_dataset_recalc_head_uniq(dsl_dataset_t *ds)
 	uint64_t mrs_used;
 	uint64_t dlused, dlcomp, dluncomp;
 
-	ASSERT(!dsl_dataset_is_snapshot(ds));
+	ASSERT(!ds->ds_is_snapshot);
 
 	if (dsl_dataset_phys(ds)->ds_prev_snap_obj != 0)
 		mrs_used = dsl_dataset_phys(ds->ds_prev)->ds_referenced_bytes;
@@ -1675,7 +1680,7 @@ dsl_dataset_stats(dsl_dataset_t *ds, nvlist_t *nv)
 	dsl_prop_nvlist_add_uint64(nv, ZFS_PROP_LOGICALREFERENCED,
 	    dsl_dataset_phys(ds)->ds_uncompressed_bytes);
 
-	if (dsl_dataset_is_snapshot(ds)) {
+	if (ds->ds_is_snapshot) {
 		dsl_prop_nvlist_add_uint64(nv, ZFS_PROP_COMPRESSRATIO, ratio);
 		dsl_prop_nvlist_add_uint64(nv, ZFS_PROP_USED,
 		    dsl_dataset_phys(ds)->ds_unique_bytes);
@@ -1743,7 +1748,7 @@ dsl_dataset_fast_stat(dsl_dataset_t *ds, dmu_objset_stats_t *stat)
 	    dsl_dataset_phys(ds)->ds_flags & DS_FLAG_INCONSISTENT;
 	stat->dds_guid = dsl_dataset_phys(ds)->ds_guid;
 	stat->dds_origin[0] = '\0';
-	if (dsl_dataset_is_snapshot(ds)) {
+	if (ds->ds_is_snapshot) {
 		stat->dds_is_snapshot = B_TRUE;
 		stat->dds_num_clones =
 		    dsl_dataset_phys(ds)->ds_num_children - 1;
@@ -2023,7 +2028,7 @@ dsl_dataset_rollback_check(void *arg, dmu_tx_t *tx)
 		return (error);
 
 	/* must not be a snapshot */
-	if (dsl_dataset_is_snapshot(ds)) {
+	if (ds->ds_is_snapshot) {
 		dsl_dataset_rele(ds, FTAG);
 		return (SET_ERROR(EINVAL));
 	}
@@ -2624,7 +2629,7 @@ promote_hold(dsl_dataset_promote_arg_t *ddpa, dsl_pool_t *dp, void *tag)
 		return (error);
 	dd = ddpa->ddpa_clone->ds_dir;
 
-	if (dsl_dataset_is_snapshot(ddpa->ddpa_clone) ||
+	if (ddpa->ddpa_clone->ds_is_snapshot ||
 	    !dsl_dir_is_clone(dd)) {
 		dsl_dataset_rele(ddpa->ddpa_clone, tag);
 		return (SET_ERROR(EINVAL));
@@ -2716,8 +2721,8 @@ dsl_dataset_clone_swap_check_impl(dsl_dataset_t *clone,
 	int64_t unused_refres_delta;
 
 	/* they should both be heads */
-	if (dsl_dataset_is_snapshot(clone) ||
-	    dsl_dataset_is_snapshot(origin_head))
+	if (clone->ds_is_snapshot ||
+	    origin_head->ds_is_snapshot)
 		return (SET_ERROR(EINVAL));
 
 	/* if we are not forcing, the branch point should be just before them */
@@ -2996,7 +3001,7 @@ dsl_dataset_set_refquota_check(void *arg, dmu_tx_t *tx)
 	if (error != 0)
 		return (error);
 
-	if (dsl_dataset_is_snapshot(ds)) {
+	if (ds->ds_is_snapshot) {
 		dsl_dataset_rele(ds, FTAG);
 		return (SET_ERROR(EINVAL));
 	}
@@ -3079,7 +3084,7 @@ dsl_dataset_set_refreservation_check(void *arg, dmu_tx_t *tx)
 	if (error != 0)
 		return (error);
 
-	if (dsl_dataset_is_snapshot(ds)) {
+	if (ds->ds_is_snapshot) {
 		dsl_dataset_rele(ds, FTAG);
 		return (SET_ERROR(EINVAL));
 	}
@@ -3293,8 +3298,8 @@ dsl_dataset_space_wouldfree(dsl_dataset_t *firstsnap,
 	uint64_t snapobj;
 	dsl_pool_t *dp = firstsnap->ds_dir->dd_pool;
 
-	ASSERT(dsl_dataset_is_snapshot(firstsnap));
-	ASSERT(dsl_dataset_is_snapshot(lastsnap));
+	ASSERT(firstsnap->ds_is_snapshot);
+	ASSERT(lastsnap->ds_is_snapshot);
 
 	/*
 	 * Check that the snapshots are in the same dsl_dir, and firstsnap
@@ -3419,12 +3424,12 @@ dsl_dataset_is_before(dsl_dataset_t *later, dsl_dataset_t *earlier,
 	boolean_t ret;
 
 	ASSERT(dsl_pool_config_held(dp));
-	ASSERT(dsl_dataset_is_snapshot(earlier) || earlier_txg != 0);
+	ASSERT(earlier->ds_is_snapshot || earlier_txg != 0);
 
 	if (earlier_txg == 0)
 		earlier_txg = dsl_dataset_phys(earlier)->ds_creation_txg;
 
-	if (dsl_dataset_is_snapshot(later) &&
+	if (later->ds_is_snapshot &&
 	    earlier_txg >= dsl_dataset_phys(later)->ds_creation_txg)
 		return (B_FALSE);
 
