@@ -2050,15 +2050,19 @@ struct in6_llentry {
 	struct sockaddr_in6	l3_addr6;
 };
 
+#define	IN6_LLTBL_DEFAULT_HSIZE	32
+#define	IN6_LLTBL_HASH(k, h) \
+	(((((((k >> 8) ^ k) >> 8) ^ k) >> 8) ^ k) & ((h) - 1))
+
 /*
- * Deletes an address from the address table.
- * This function is called by the timer functions
- * such as arptimer() and nd6_llinfo_timer(), and
- * the caller does the locking.
+ * Do actual deallocation of @lle.
+ * Called by LLE_FREE_LOCKED when number of references
+ * drops to zero.
  */
 static void
-in6_lltable_free(struct lltable *llt, struct llentry *lle)
+in6_lltable_destroy_lle(struct llentry *lle)
 {
+
 	LLE_WUNLOCK(lle);
 	LLE_LOCK_DESTROY(lle);
 	free(lle, M_LLTABLE);
@@ -2075,42 +2079,48 @@ in6_lltable_new(const struct sockaddr *l3addr, u_int flags)
 
 	lle->l3_addr6 = *(const struct sockaddr_in6 *)l3addr;
 	lle->base.lle_refcnt = 1;
-	lle->base.lle_free = in6_lltable_free;
+	lle->base.lle_free = in6_lltable_destroy_lle;
 	LLE_LOCK_INIT(&lle->base);
 	callout_init(&lle->base.ln_timer_ch, 1);
 
 	return (&lle->base);
 }
 
-static void
-in6_lltable_prefix_free(struct lltable *llt, const struct sockaddr *prefix,
-    const struct sockaddr *mask, u_int flags)
+static int
+in6_lltable_match_prefix(const struct sockaddr *prefix,
+    const struct sockaddr *mask, u_int flags, struct llentry *lle)
 {
 	const struct sockaddr_in6 *pfx = (const struct sockaddr_in6 *)prefix;
 	const struct sockaddr_in6 *msk = (const struct sockaddr_in6 *)mask;
-	struct llentry *lle, *next;
-	int i;
 
-	/*
-	 * (flags & LLE_STATIC) means deleting all entries
-	 * including static ND6 entries.
-	 */
-	IF_AFDATA_WLOCK(llt->llt_ifp);
-	for (i = 0; i < LLTBL_HASHTBL_SIZE; i++) {
-		LIST_FOREACH_SAFE(lle, &llt->lle_head[i], lle_next, next) {
-			if (IN6_ARE_MASKED_ADDR_EQUAL(
-			    &satosin6(L3_ADDR(lle))->sin6_addr,
-			    &pfx->sin6_addr, &msk->sin6_addr) &&
-			    ((flags & LLE_STATIC) ||
-			    !(lle->la_flags & LLE_STATIC))) {
-				LLE_WLOCK(lle);
-				if (callout_stop(&lle->la_timer))
-					LLE_REMREF(lle);
-				llentry_free(lle);
-			}
-		}
+	if (IN6_ARE_MASKED_ADDR_EQUAL(&satosin6(L3_ADDR(lle))->sin6_addr,
+	    &pfx->sin6_addr, &msk->sin6_addr) &&
+	    ((flags & LLE_STATIC) || !(lle->la_flags & LLE_STATIC)))
+		return (1);
+
+	return (0);
+}
+
+static void
+in6_lltable_free_entry(struct lltable *llt, struct llentry *lle)
+{
+	struct ifnet *ifp;
+
+	LLE_WLOCK_ASSERT(lle);
+	KASSERT(llt != NULL, ("lltable is NULL"));
+
+	/* Unlink entry from table */
+	if ((lle->la_flags & LLE_LINKED) != 0) {
+
+		ifp = llt->llt_ifp;
+		IF_AFDATA_WLOCK_ASSERT(ifp);
+		lltable_unlink_entry(llt, lle);
 	}
-	IF_AFDATA_WUNLOCK(llt->llt_ifp);
+
+	if (callout_stop(&lle->la_timer))
+		LLE_REMREF(lle);
+
+	llentry_free(lle);
 }
 
 static int
@@ -2152,18 +2162,47 @@ in6_lltable_rtcheck(struct ifnet *ifp,
 	return 0;
 }
 
+static inline uint32_t
+in6_lltable_hash_dst(const struct in6_addr *dst, uint32_t hsize)
+{
+
+	return (IN6_LLTBL_HASH(dst->s6_addr32[3], hsize));
+}
+
+static uint32_t
+in6_lltable_hash(const struct llentry *lle, uint32_t hsize)
+{
+	const struct sockaddr_in6 *sin6;
+
+	sin6 = (const struct sockaddr_in6 *)L3_CADDR(lle);
+
+	return (in6_lltable_hash_dst(&sin6->sin6_addr, hsize));
+}
+
+static void
+in6_lltable_fill_sa_entry(const struct llentry *lle, struct sockaddr *sa)
+{
+	struct sockaddr_in6 *sin6;
+
+	sin6 = (struct sockaddr_in6 *)sa;
+	bzero(sin6, sizeof(*sin6));
+	sin6->sin6_family = AF_INET6;
+	sin6->sin6_len = sizeof(*sin6);
+	sin6->sin6_addr =((const struct sockaddr_in6*)L3_CADDR(lle))->sin6_addr;
+}
+
 static inline struct llentry *
 in6_lltable_find_dst(struct lltable *llt, const struct in6_addr *dst)
 {
 	struct llentry *lle;
 	struct llentries *lleh;
 	const struct sockaddr_in6 *sin6;
-	u_int hashkey;
+	u_int hashidx;
 
-	hashkey = dst->s6_addr32[3];
-	lleh = &llt->lle_head[LLATBL_HASH(hashkey, LLTBL_HASHMASK)];
+	hashidx = in6_lltable_hash_dst(dst, LLTBL_HASHTBL_SIZE);
+	lleh = &llt->lle_head[hashidx];
 	LIST_FOREACH(lle, lleh, lle_next) {
-		sin6 = (const struct sockaddr_in6 *)L3_ADDR(lle);
+		sin6 = (const struct sockaddr_in6 *)L3_CADDR(lle);
 		if (lle->la_flags & LLE_DELETED)
 			continue;
 		if (IN6_ARE_ADDR_EQUAL(&sin6->sin6_addr, dst))
@@ -2212,8 +2251,6 @@ in6_lltable_create(struct lltable *llt, u_int flags,
 	const struct sockaddr_in6 *sin6 = (const struct sockaddr_in6 *)l3addr;
 	struct ifnet *ifp = llt->llt_ifp;
 	struct llentry *lle;
-	struct llentries *lleh;
-	u_int hashkey;
 
 	IF_AFDATA_WLOCK_ASSERT(ifp);
 	KASSERT(l3addr->sa_family == AF_INET6,
@@ -2246,13 +2283,7 @@ in6_lltable_create(struct lltable *llt, u_int flags,
 		lle->la_flags |= (LLE_VALID | LLE_STATIC);
 	}
 
-	hashkey = sin6->sin6_addr.s6_addr32[3];
-	lleh = &llt->lle_head[LLATBL_HASH(hashkey, LLTBL_HASHMASK)];
-
-	lle->lle_tbl  = llt;
-	lle->lle_head = lleh;
-	lle->la_flags |= LLE_LINKED;
-	LIST_INSERT_HEAD(lleh, lle, lle_next);
+	lltable_link_entry(llt, lle);
 	LLE_WLOCK(lle);
 
 	return (lle);
@@ -2282,10 +2313,10 @@ in6_lltable_lookup(struct lltable *llt, u_int flags,
 }
 
 static int
-in6_lltable_dump(struct lltable *llt, struct sysctl_req *wr)
+in6_lltable_dump_entry(struct lltable *llt, struct llentry *lle,
+    struct sysctl_req *wr)
 {
 	struct ifnet *ifp = llt->llt_ifp;
-	struct llentry *lle;
 	/* XXX stack use */
 	struct {
 		struct rt_msghdr	rtm;
@@ -2298,39 +2329,30 @@ in6_lltable_dump(struct lltable *llt, struct sysctl_req *wr)
 #endif
 		struct sockaddr_dl	sdl;
 	} ndpc;
-	int i, error;
+	struct sockaddr_dl *sdl;
+	int error;
 
-	if (ifp->if_flags & IFF_LOOPBACK)
-		return 0;
-
-	LLTABLE_LOCK_ASSERT();
-
-	error = 0;
-	for (i = 0; i < LLTBL_HASHTBL_SIZE; i++) {
-		LIST_FOREACH(lle, &llt->lle_head[i], lle_next) {
-			struct sockaddr_dl *sdl;
-
-			/* skip deleted or invalid entries */
+	bzero(&ndpc, sizeof(ndpc));
+			/* skip invalid entries */
 			if ((lle->la_flags & (LLE_DELETED|LLE_VALID)) != LLE_VALID)
-				continue;
+				return (0);
 			/* Skip if jailed and not a valid IP of the prison. */
-			if (prison_if(wr->td->td_ucred, L3_ADDR(lle)) != 0)
-				continue;
+			lltable_fill_sa_entry(lle,
+			    (struct sockaddr *)&ndpc.sin6);
+			if (prison_if(wr->td->td_ucred,
+			    (struct sockaddr *)&ndpc.sin6) != 0)
+				return (0);
 			/*
 			 * produce a msg made of:
 			 *  struct rt_msghdr;
 			 *  struct sockaddr_in6 (IPv6)
 			 *  struct sockaddr_dl;
 			 */
-			bzero(&ndpc, sizeof(ndpc));
 			ndpc.rtm.rtm_msglen = sizeof(ndpc);
 			ndpc.rtm.rtm_version = RTM_VERSION;
 			ndpc.rtm.rtm_type = RTM_GET;
 			ndpc.rtm.rtm_flags = RTF_UP;
 			ndpc.rtm.rtm_addrs = RTA_DST | RTA_GATEWAY;
-			ndpc.sin6.sin6_family = AF_INET6;
-			ndpc.sin6.sin6_len = sizeof(ndpc.sin6);
-			bcopy(L3_ADDR(lle), &ndpc.sin6, L3_ADDR_LEN(lle));
 			if (V_deembed_scopeid)
 				sa6_recoverscope(&ndpc.sin6);
 
@@ -2352,11 +2374,8 @@ in6_lltable_dump(struct lltable *llt, struct sysctl_req *wr)
 				ndpc.rtm.rtm_flags |= RTF_STATIC;
 			ndpc.rtm.rtm_index = ifp->if_index;
 			error = SYSCTL_OUT(wr, &ndpc, sizeof(ndpc));
-			if (error)
-				break;
-		}
-	}
-	return error;
+
+	return (error);
 }
 
 void *
@@ -2389,11 +2408,14 @@ in6_domifattach(struct ifnet *ifp)
 	ext->scope6_id = scope6_ifattach(ifp);
 	ext->lltable = lltable_init(ifp, AF_INET6);
 	if (ext->lltable != NULL) {
-		ext->lltable->llt_prefix_free = in6_lltable_prefix_free;
 		ext->lltable->llt_lookup = in6_lltable_lookup;
 		ext->lltable->llt_create = in6_lltable_create;
 		ext->lltable->llt_delete = in6_lltable_delete;
-		ext->lltable->llt_dump = in6_lltable_dump;
+		ext->lltable->llt_dump_entry = in6_lltable_dump_entry;
+		ext->lltable->llt_hash = in6_lltable_hash;
+		ext->lltable->llt_fill_sa_entry = in6_lltable_fill_sa_entry;
+		ext->lltable->llt_free_entry = in6_lltable_free_entry;
+		ext->lltable->llt_match_prefix = in6_lltable_match_prefix;
 	}
 
 	ext->mld_ifinfo = mld_domifattach(ifp);
