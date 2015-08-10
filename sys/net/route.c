@@ -813,8 +813,16 @@ rtrequest_fib(int req,
 }
 
 
+/*
+ * Iterates over all existing fibs in system calling
+ *  @setwa_f function prior to traversing each fib.
+ *  Calls @wa_f function for each element in current fib.
+ * If af is not AF_UNSPEC, iterates over fibs in particular
+ * address family.
+ */
 void
-rt_foreach_fib(int af, rt_setwarg_t *setwa_f, rt_walktree_f_t *wa_f, void *arg)
+rt_foreach_fib_walk(int af, rt_setwarg_t *setwa_f, rt_walktree_f_t *wa_f,
+    void *arg)
 {
 	struct radix_node_head *rnh;
 	uint32_t fibnum;
@@ -899,7 +907,7 @@ void
 rt_flushifroutes(struct ifnet *ifp)
 {
 
-	rt_foreach_fib(AF_UNSPEC, NULL, rt_ifdelroute, ifp);
+	rt_foreach_fib_walk(AF_UNSPEC, NULL, rt_ifdelroute, ifp);
 }
 
 /*

@@ -2073,7 +2073,7 @@ rt6_flush(struct in6_addr *gateway, struct ifnet *ifp)
 		return;
 
 	/* XXX Do we really need to walk any but the default FIB? */
-	rt_foreach_fib(AF_INET6, NULL, rt6_deleteroute, (void *)gateway);
+	rt_foreach_fib_walk(AF_INET6, NULL, rt6_deleteroute, (void *)gateway);
 }
 
 static int
