@@ -48,14 +48,6 @@
 #define	UART_STAT_OVERRUN	0x0400
 #define	UART_STAT_PARERR	0x0800
 
-#ifdef UART_PPS_ON_CTS
-#define	UART_SIG_DPPS		SER_DCTS
-#define	UART_SIG_PPS		SER_CTS
-#else
-#define	UART_SIG_DPPS		SER_DDCD
-#define	UART_SIG_PPS		SER_DCD
-#endif
-
 /* UART_IOCTL() requests */
 #define	UART_IOCTL_BREAK	1
 #define	UART_IOCTL_IFLOW	2
@@ -120,6 +112,7 @@ struct uart_softc {
 
 	/* Pulse capturing support (PPS). */
 	struct pps_state sc_pps;
+	int		 sc_pps_mode;
 
 	/* Upper layer data. */
 	void		*sc_softih;
