@@ -494,9 +494,6 @@ mps_alloc_chain(struct mps_softc *sc)
 static __inline void
 mps_free_chain(struct mps_softc *sc, struct mps_chain *chain)
 {
-#if 0
-	bzero(chain->chain, 128);
-#endif
 	sc->chain_free++;
 	TAILQ_INSERT_TAIL(&sc->chain_list, chain, chain_link);
 }
