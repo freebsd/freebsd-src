@@ -325,6 +325,16 @@ static apr_status_t call_resolver(apr_sockaddr_t **sa,
         hints.ai_flags = AI_ADDRCONFIG;
     }
 #endif
+
+#ifdef __MVS__
+    /* z/OS will not return IPv4 address under AF_UNSPEC if any IPv6 results 
+     * are returned, w/o AI_ALL. 
+     */
+    if (family == APR_UNSPEC) { 
+       hints.ai_flags |= AI_ALL;
+    }
+#endif
+
     if(hostname == NULL) {
 #ifdef AI_PASSIVE 
         /* If hostname is NULL, assume we are trying to bind to all

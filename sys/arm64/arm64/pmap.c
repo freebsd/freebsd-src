@@ -1434,7 +1434,7 @@ static vm_page_t
 reclaim_pv_chunk(pmap_t locked_pmap, struct rwlock **lockp)
 {
 
-	panic("reclaim_pv_chunk");
+	panic("ARM64TODO: reclaim_pv_chunk");
 }
 
 /*
@@ -2441,6 +2441,18 @@ pmap_copy_pages(vm_page_t ma[], vm_offset_t a_offset, vm_page_t mb[],
 	}
 }
 
+vm_offset_t
+pmap_quick_enter_page(vm_page_t m)
+{
+
+	return (PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m)));
+}
+
+void
+pmap_quick_remove_page(vm_offset_t addr)
+{
+}
+
 /*
  * Returns true if the pmap's pv is one of the first
  * 16 pvs linked to from this page.  This count may
@@ -2881,7 +2893,7 @@ retry:
 				 * at all. We need to be able to set it in
 				 * the exception handler.
 				 */
-				panic("TODO: safe_to_clear_referenced\n");
+				panic("ARM64TODO: safe_to_clear_referenced\n");
 			} else if ((pmap_load(l3) & ATTR_SW_WIRED) == 0) {
 				/*
 				 * Wired pages cannot be paged out so
@@ -2949,7 +2961,7 @@ pmap_clear_modify(vm_page_t m)
 	if ((m->aflags & PGA_WRITEABLE) == 0)
 		return;
 
-	/* TODO: We lack support for tracking if a page is modified */
+	/* ARM64TODO: We lack support for tracking if a page is modified */
 }
 
 void *
@@ -2971,7 +2983,17 @@ void
 pmap_page_set_memattr(vm_page_t m, vm_memattr_t ma)
 {
 
-	panic("pmap_page_set_memattr");
+	m->md.pv_memattr = ma;
+
+	/*
+	 * ARM64TODO: Implement the below (from the amd64 pmap)
+	 * If "m" is a normal page, update its direct mapping.  This update
+	 * can be relied upon to perform any cache operations that are
+	 * required for data coherence.
+	 */
+	if ((m->flags & PG_FICTITIOUS) == 0 &&
+	    PHYS_IN_DMAP(VM_PAGE_TO_PHYS(m)))
+		panic("ARM64TODO: pmap_page_set_memattr");
 }
 
 /*
@@ -2981,7 +3003,7 @@ int
 pmap_mincore(pmap_t pmap, vm_offset_t addr, vm_paddr_t *locked_pa)
 {
 
-	panic("pmap_mincore");
+	panic("ARM64TODO: pmap_mincore");
 }
 
 void
@@ -3001,7 +3023,7 @@ void
 pmap_sync_icache(pmap_t pm, vm_offset_t va, vm_size_t sz)
 {
 
-	panic("pmap_sync_icache");
+	panic("ARM64TODO: pmap_sync_icache");
 }
 
 /*
@@ -3085,7 +3107,7 @@ pmap_unmap_io_transient(vm_page_t page[], vm_offset_t vaddr[], int count,
 	for (i = 0; i < count; i++) {
 		paddr = VM_PAGE_TO_PHYS(page[i]);
 		if (paddr >= DMAP_MAX_PHYSADDR) {
-			panic("pmap_unmap_io_transient: TODO: Unmap data");
+			panic("ARM64TODO: pmap_unmap_io_transient: Unmap data");
 		}
 	}
 }

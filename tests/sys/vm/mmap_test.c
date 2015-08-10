@@ -29,16 +29,18 @@
 #include <sys/param.h>
 #include <sys/mman.h>
 #include <sys/sysctl.h>
-#include <sys/types.h>
 
+#include <atf-c.h>
 #include <errno.h>
+#include <fcntl.h>
+#include <stdarg.h>
 #include <stdio.h>
-#include <string.h>
+#include <stdlib.h>
 
 static const struct {
 	void	*addr;
 	int	ok[2];	/* Depending on security.bsd.map_at_zero {0, !=0}. */
-} tests[] = {
+} map_at_zero_tests[] = {
 	{ (void *)0,			{ 0, 1 } }, /* Test sysctl. */
 	{ (void *)1,			{ 0, 0 } },
 	{ (void *)(PAGE_SIZE - 1),	{ 0, 0 } },
@@ -52,54 +54,111 @@ static const struct {
 
 #define	MAP_AT_ZERO	"security.bsd.map_at_zero"
 
-int
-main(void)
+ATF_TC_WITHOUT_HEAD(mmap__map_at_zero);
+ATF_TC_BODY(mmap__map_at_zero, tc)
 {
 	void *p;
 	size_t len;
-	int i, error, mib[3], map_at_zero;
-
-	error = 0;
-
-	/* Get the current sysctl value of security.bsd.map_at_zero. */
-	len = sizeof(mib) / sizeof(*mib);
-	if (sysctlnametomib(MAP_AT_ZERO, mib, &len) == -1) {
-		printf("1..0 # SKIP: sysctlnametomib(\"%s\") failed: %s\n",
-		    MAP_AT_ZERO, strerror(errno));
-		return (0);
-	}
+	unsigned int i;
+	int map_at_zero;
 
 	len = sizeof(map_at_zero);
-	if (sysctl(mib, 3, &map_at_zero, &len, NULL, 0) == -1) {
-		printf("1..0 # SKIP: sysctl for %s failed: %s\n", MAP_AT_ZERO,
+	if (sysctlbyname(MAP_AT_ZERO, &map_at_zero, &len, NULL, 0) == -1) {
+		atf_tc_skip("sysctl for %s failed: %s\n", MAP_AT_ZERO,
 		    strerror(errno));
-		return (0);
+		return;
 	}
 
 	/* Normalize to 0 or 1 for array access. */
 	map_at_zero = !!map_at_zero;
 
-	printf("1..%zu\n", nitems(tests));
-	for (i = 0; i < (int)nitems(tests); i++) {
-		p = mmap((void *)tests[i].addr, PAGE_SIZE,
+	for (i = 0; i < nitems(map_at_zero_tests); i++) {
+		p = mmap((void *)map_at_zero_tests[i].addr, PAGE_SIZE,
 		    PROT_READ | PROT_WRITE | PROT_EXEC, MAP_ANON | MAP_FIXED,
 		    -1, 0);
 		if (p == MAP_FAILED) {
-			if (tests[i].ok[map_at_zero] != 0)
-				error++;
-			printf("%sok %d # mmap(%p, ...) failed\n",
-			    tests[i].ok[map_at_zero] == 0 ? "" : "not ",
-			    i + 1,
-			    tests[i].addr);
+			ATF_CHECK_MSG(map_at_zero_tests[i].ok[map_at_zero] == 0,
+			    "mmap(%p, ...) failed", map_at_zero_tests[i].addr);
 		} else {
-			if (tests[i].ok[map_at_zero] != 1)
-				error++;
-			printf("%sok %d # mmap(%p, ...) succeeded: p=%p\n",
-			    tests[i].ok[map_at_zero] == 1 ? "" : "not ",
-			    i + 1,
-			    tests[i].addr, p);
+			ATF_CHECK_MSG(map_at_zero_tests[i].ok[map_at_zero] == 1,
+			    "mmap(%p, ...) succeeded: p=%p\n",
+			    map_at_zero_tests[i].addr, p);
 		}
 	}
+}
 
-	return (error != 0);
+static void
+checked_mmap(int prot, int flags, int fd, int error, const char *msg)
+{
+	void *p;
+
+	p = mmap(NULL, getpagesize(), prot, flags, fd, 0);
+	if (p == MAP_FAILED) {
+		if (error == 0)
+			ATF_CHECK_MSG(0, "%s failed with errno %d", msg,
+			    errno);
+		else
+			ATF_CHECK_EQ_MSG(error, errno,
+			    "%s failed with wrong errno %d (expected %d)", msg,
+			    errno, error);
+	} else {
+		ATF_CHECK_MSG(error == 0, "%s succeeded", msg);
+		munmap(p, getpagesize());
+	}
+}
+
+ATF_TC_WITHOUT_HEAD(mmap__bad_arguments);
+ATF_TC_BODY(mmap__bad_arguments, tc)
+{
+	int fd;
+
+	ATF_REQUIRE((fd = shm_open(SHM_ANON, O_RDWR, 0644)) >= 0);
+	ATF_REQUIRE(ftruncate(fd, getpagesize()) == 0);
+
+	/* These should work. */
+	checked_mmap(PROT_READ | PROT_WRITE, MAP_ANON, -1, 0,
+	    "simple MAP_ANON");
+	checked_mmap(PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0,
+	    "simple shm fd shared");
+	checked_mmap(PROT_READ | PROT_WRITE, MAP_PRIVATE, fd, 0,
+	    "simple shm fd private");
+
+	/* Extra PROT flags. */
+	checked_mmap(PROT_READ | PROT_WRITE | 0x100000, MAP_ANON, -1, EINVAL,
+	    "MAP_ANON with extra PROT flags");
+	checked_mmap(0xffff, MAP_SHARED, fd, EINVAL,
+	    "shm fd with garbage PROT");
+
+	/* Undefined flag. */
+	checked_mmap(PROT_READ | PROT_WRITE, MAP_ANON | MAP_RESERVED0080, -1,
+	    EINVAL, "Undefined flag");
+
+	/* Both MAP_SHARED and MAP_PRIVATE */
+	checked_mmap(PROT_READ | PROT_WRITE, MAP_ANON | MAP_PRIVATE |
+	    MAP_SHARED, -1, EINVAL, "MAP_ANON with both SHARED and PRIVATE");
+	checked_mmap(PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_SHARED, fd,
+	    EINVAL, "shm fd with both SHARED and PRIVATE");
+
+	/* At least one of MAP_SHARED or MAP_PRIVATE without ANON */
+	checked_mmap(PROT_READ | PROT_WRITE, 0, fd, EINVAL,
+	    "shm fd without sharing flag");
+
+	/* MAP_ANON with either sharing flag (impacts fork). */
+	checked_mmap(PROT_READ | PROT_WRITE, MAP_ANON | MAP_SHARED, -1, 0,
+	    "shared MAP_ANON");
+	checked_mmap(PROT_READ | PROT_WRITE, MAP_ANON | MAP_PRIVATE, -1, 0,
+	    "private MAP_ANON");
+
+	/* MAP_ANON should require an fd of -1. */
+	checked_mmap(PROT_READ | PROT_WRITE, MAP_ANON | MAP_PRIVATE, 0, EINVAL,
+	    "MAP_ANON with fd != -1");
+}
+
+ATF_TP_ADD_TCS(tp)
+{
+
+	ATF_TP_ADD_TC(tp, mmap__map_at_zero);
+	ATF_TP_ADD_TC(tp, mmap__bad_arguments);
+
+	return (atf_no_error());
 }

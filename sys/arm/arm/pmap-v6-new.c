@@ -162,7 +162,6 @@ __FBSDID("$FreeBSD$");
 static void pmap_zero_page_check(vm_page_t m);
 void pmap_debug(int level);
 int pmap_pid_dump(int pid);
-void pmap_pvdump(vm_paddr_t pa);
 
 #define PDEBUG(_lev_,_stat_) \
 	if (pmap_debug_level >= (_lev_)) \
@@ -1156,6 +1155,22 @@ pmap_bootstrap(vm_offset_t firstaddr)
 	kernel_vm_end_new = kernel_vm_end;
 	virtual_end = vm_max_kernel_address;
 }
+
+static void
+pmap_init_qpages(void)
+{
+	struct pcpu *pc;
+	int i;
+
+	CPU_FOREACH(i) {
+		pc = pcpu_find(i);
+		pc->pc_qmap_addr = kva_alloc(PAGE_SIZE);
+		if (pc->pc_qmap_addr == 0)
+			panic("pmap_init_qpages: unable to allocate KVA");
+	}
+}
+
+SYSINIT(qpages_init, SI_SUB_CPU, SI_ORDER_ANY, pmap_init_qpages, NULL);
 
 /*
  *  The function can already be use in second initialization stage.
@@ -5710,6 +5725,42 @@ pmap_copy_pages(vm_page_t ma[], vm_offset_t a_offset, vm_page_t mb[],
 	mtx_unlock(&sysmaps->lock);
 }
 
+vm_offset_t
+pmap_quick_enter_page(vm_page_t m)
+{
+	pt2_entry_t *pte;
+	vm_offset_t qmap_addr; 
+
+	critical_enter();
+
+	qmap_addr = PCPU_GET(qmap_addr);
+	pte = pt2map_entry(qmap_addr);
+
+	KASSERT(*pte == 0, ("pmap_quick_enter_page: PTE busy"));
+
+	pte2_store(pte, PTE2_KERN_NG(VM_PAGE_TO_PHYS(m),
+	    PTE2_AP_KRW, pmap_page_get_memattr(m)));
+	tlb_flush_local(qmap_addr);
+
+	return (qmap_addr);
+}
+
+void
+pmap_quick_remove_page(vm_offset_t addr)
+{
+	pt2_entry_t *pte;
+	vm_offset_t qmap_addr;
+
+	qmap_addr = PCPU_GET(qmap_addr);
+	pte = pt2map_entry(qmap_addr);
+
+	KASSERT(addr == qmap_addr, ("pmap_quick_remove_page: invalid address"));
+	KASSERT(*pte != 0, ("pmap_quick_remove_page: PTE not in use"));
+
+	pte2_clear(pte);
+	critical_exit();
+}
+
 /*
  *	Copy the range specified by src_addr/len
  *	from the source map to the range dst_addr/len
@@ -6345,62 +6396,6 @@ pmap_pid_dump(int pid)
 	return (npte2);
 }
 
-/*
- *  Print address space of pmap.
- */
-static void
-pads(pmap_t pmap)
-{
-	int i, j;
-	vm_paddr_t va;
-	pt1_entry_t pte1;
-	pt2_entry_t *pte2p, pte2;
-
-	if (pmap == kernel_pmap)
-		return;
-	for (i = 0; i < NPTE1_IN_PT1; i++) {
-		pte1 = pte1_load(&pmap->pm_pt1[i]);
-		if (pte1_is_section(pte1)) {
-			/*
-			 * QQQ: Do something here!
-			 */
-		} else if (pte1_is_link(pte1)) {
-			for (j = 0; j < NPTE2_IN_PT2; j++) {
-				va = (i << PTE1_SHIFT) + (j << PAGE_SHIFT);
-				if (pmap == kernel_pmap && va < KERNBASE)
-					continue;
-				if (pmap != kernel_pmap && va >= KERNBASE &&
-				    (va < UPT2V_MIN_ADDRESS ||
-				    va >= UPT2V_MAX_ADDRESS))
-					continue;
-
-				pte2p = pmap_pte2(pmap, va);
-				pte2 = pte2_load(pte2p);
-				pmap_pte2_release(pte2p);
-				if (!pte2_is_valid(pte2))
-					continue;
-				printf("%x:%x ", va, pte2);
-			}
-		}
-	}
-}
-
-void
-pmap_pvdump(vm_paddr_t pa)
-{
-	pv_entry_t pv;
-	pmap_t pmap;
-	vm_page_t m;
-
-	printf("pa %x", pa);
-	m = PHYS_TO_VM_PAGE(pa);
-	TAILQ_FOREACH(pv, &m->md.pv_list, pv_next) {
-		pmap = PV_PMAP(pv);
-		printf(" -> pmap %p, va %x", (void *)pmap, pv->pv_va);
-		pads(pmap);
-	}
-	printf(" ");
-}
 #endif
 
 #ifdef DDB

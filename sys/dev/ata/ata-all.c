@@ -572,6 +572,7 @@ ata_mode2str(int mode)
     case ATA_UDMA6: return "UDMA133";
     case ATA_SA150: return "SATA150";
     case ATA_SA300: return "SATA300";
+    case ATA_SA600: return "SATA600";
     default:
 	if (mode & ATA_DMA_MASK)
 	    return "BIOSDMA";
@@ -1074,7 +1075,7 @@ ataaction(struct cam_sim *sim, union ccb *ccb)
 		cpi->version_num = 1; /* XXX??? */
 		cpi->hba_inquiry = PI_SDTR_ABLE;
 		cpi->target_sprt = 0;
-		cpi->hba_misc = PIM_SEQSCAN;
+		cpi->hba_misc = PIM_SEQSCAN | PIM_UNMAPPED;
 		cpi->hba_eng_cnt = 0;
 		if (ch->flags & ATA_NO_SLAVE)
 			cpi->max_target = 0;

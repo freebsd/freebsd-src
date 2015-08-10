@@ -21,7 +21,7 @@
 
 2	AUE_NULL	STD	{ void cloudabi_sys_condvar_signal( \
 					cloudabi_condvar_t *condvar, \
-					cloudabi_futexscope_t scope, \
+					cloudabi_mflags_t scope, \
 					cloudabi_nthreads_t nwaiters); }
 
 3	AUE_NULL	STD	{ void cloudabi_sys_fd_close( \
@@ -132,7 +132,7 @@
 
 31	AUE_NULL	STD	{ void cloudabi_sys_lock_unlock( \
 					cloudabi_lock_t *lock, \
-					cloudabi_futexscope_t scope); }
+					cloudabi_mflags_t scope); }
 
 32	AUE_NULL	STD	{ void cloudabi_sys_mem_advise( \
 					void *addr, size_t len, \
@@ -157,11 +157,9 @@
 					void * addr, size_t len); }
 
 39	AUE_NULL	STD	{ cloudabi64_size_t cloudabi64_sys_poll( \
-					cloudabi_fd_t fd, \
 					const cloudabi64_subscription_t *in, \
-					cloudabi64_size_t nin, \
 					cloudabi64_event_t *out, \
-					cloudabi64_size_t nout); }
+					cloudabi64_size_t nevents); }
 
 40	AUE_NULL	STD	{ void cloudabi_sys_proc_exec( \
 					cloudabi_fd_t fd, const void *data, \
@@ -209,6 +207,14 @@
 					cloudabi64_threadattr_t *attr); }
 54	AUE_NULL	STD	{ void cloudabi_sys_thread_exit( \
 					cloudabi_lock_t *lock, \
-					cloudabi_futexscope_t scope); }
+					cloudabi_mflags_t scope); }
 55	AUE_NULL	STD	{ void cloudabi_sys_thread_tcb_set(void *tcb); }
 56	AUE_NULL	STD	{ void cloudabi_sys_thread_yield(); }
+
+57	AUE_NULL	STD	{ cloudabi64_size_t cloudabi64_sys_poll_fd( \
+					cloudabi_fd_t fd, \
+					const cloudabi64_subscription_t *in, \
+					cloudabi64_size_t nin, \
+					cloudabi64_event_t *out, \
+					cloudabi64_size_t nout, \
+					const cloudabi64_subscription_t *timeout); }

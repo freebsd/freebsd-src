@@ -149,7 +149,7 @@ SUBDIR=	\
 	${_if_me} \
 	if_lagg \
 	${_if_ndis} \
-	if_stf \
+	${_if_stf} \
 	if_tap \
 	if_tun \
 	if_vlan \
@@ -174,6 +174,8 @@ SUBDIR=	\
 	${_ispfw} \
 	${_iwi} \
 	${_iwifw} \
+	${_iwm} \
+	${_iwmfw} \
 	${_iwn} \
 	${_iwnfw} \
 	${_ix} \
@@ -411,6 +413,11 @@ _if_gif=	if_gif
 _if_gre=	if_gre
 .endif
 
+.if (${MK_INET_SUPPORT} != "no" && ${MK_INET6_SUPPORT} != "no") || \
+	defined(ALL_MODULES)
+_if_stf=	if_stf
+.endif
+
 .if ${MK_INET_SUPPORT} != "no" || defined(ALL_MODULES)
 _if_me=		if_me
 _ipdivert=	ipdivert
@@ -570,20 +577,18 @@ _ida=		ida
 _iir=		iir
 _ipmi=		ipmi
 _ips=		ips
+_isci=		isci
 _ipw=		ipw
+_iwi=		iwi
+_iwm=		iwm
+_iwn=		iwn
+_ixgb=		ixgb
 .if ${MK_SOURCELESS_UCODE} != "no"
 _ipwfw=		ipwfw
-.endif
-_isci=		isci
-_iwi=		iwi
-.if ${MK_SOURCELESS_UCODE} != "no"
 _iwifw=		iwifw
-.endif
-_iwn=		iwn
-.if ${MK_SOURCELESS_UCODE} != "no"
+_iwmfw=		iwmfw
 _iwnfw=		iwnfw
 .endif
-_ixgb=		ixgb
 .if ${MK_OFED} != "no" || defined(ALL_MODULES)
 _mlx4=		mlx4
 _mlx4ib=	mlx4ib

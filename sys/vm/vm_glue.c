@@ -327,11 +327,11 @@ vm_thread_new(struct thread *td, int pages)
 
 	/* Bounds check */
 	if (pages <= 1)
-		pages = KSTACK_PAGES;
+		pages = kstack_pages;
 	else if (pages > KSTACK_MAX_PAGES)
 		pages = KSTACK_MAX_PAGES;
 
-	if (pages == KSTACK_PAGES) {
+	if (pages == kstack_pages) {
 		mtx_lock(&kstack_cache_mtx);
 		if (kstack_cache != NULL) {
 			ks_ce = kstack_cache;
@@ -340,7 +340,7 @@ vm_thread_new(struct thread *td, int pages)
 
 			td->td_kstack_obj = ks_ce->ksobj;
 			td->td_kstack = (vm_offset_t)ks_ce;
-			td->td_kstack_pages = KSTACK_PAGES;
+			td->td_kstack_pages = kstack_pages;
 			return (1);
 		}
 		mtx_unlock(&kstack_cache_mtx);
@@ -444,7 +444,7 @@ vm_thread_dispose(struct thread *td)
 	ks = td->td_kstack;
 	td->td_kstack = 0;
 	td->td_kstack_pages = 0;
-	if (pages == KSTACK_PAGES && kstacks <= kstack_cache_size) {
+	if (pages == kstack_pages && kstacks <= kstack_cache_size) {
 		ks_ce = (struct kstack_cache_entry *)ks;
 		ks_ce->ksobj = ksobj;
 		mtx_lock(&kstack_cache_mtx);
@@ -471,7 +471,7 @@ vm_thread_stack_lowmem(void *nulll)
 		ks_ce = ks_ce->next_ks_entry;
 
 		vm_thread_stack_dispose(ks_ce1->ksobj, (vm_offset_t)ks_ce1,
-		    KSTACK_PAGES);
+		    kstack_pages);
 	}
 }
 

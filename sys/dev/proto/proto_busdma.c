@@ -325,7 +325,12 @@ static int
 proto_busdma_sync(struct proto_busdma *busdma, struct proto_md *md,
     struct proto_ioc_busdma *ioc)
 {
- 
+	u_int ops;
+
+	ops = BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE |
+	    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE;
+	if (ioc->u.sync.op & ~ops)
+		return (EINVAL);
 	if (!md->physaddr)
 		return (ENXIO);
 	bus_dmamap_sync(md->bd_tag, md->bd_map, ioc->u.sync.op);

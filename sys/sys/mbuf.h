@@ -150,7 +150,6 @@ struct pkthdr {
 #define	tso_segsz	PH_per.sixteen[1]
 #define	csum_phsum	PH_per.sixteen[2]
 #define	csum_data	PH_per.thirtytwo[1]
-#define	pkt_tcphdr	PH_loc.ptr
 
 /*
  * Description of external storage mapped into mbuf; valid only if M_EXT is
@@ -954,7 +953,7 @@ int		 m_extadd(struct mbuf *, caddr_t, u_int,
 struct mbuf	*m_collapse(struct mbuf *, int, int);
 void		 m_copyback(struct mbuf *, int, int, c_caddr_t);
 void		 m_copydata(const struct mbuf *, int, int, caddr_t);
-struct mbuf	*m_copym(struct mbuf *, int, int, int);
+struct mbuf	*m_copym(const struct mbuf *, int, int, int);
 struct mbuf	*m_copypacket(struct mbuf *, int);
 void		 m_copy_pkthdr(struct mbuf *, struct mbuf *);
 struct mbuf	*m_copyup(struct mbuf *, int, int);
@@ -963,8 +962,8 @@ void		 m_demote_pkthdr(struct mbuf *);
 void		 m_demote(struct mbuf *, int, int);
 struct mbuf	*m_devget(char *, int, int, struct ifnet *,
 		    void (*)(char *, caddr_t, u_int));
-struct mbuf	*m_dup(struct mbuf *, int);
-int		 m_dup_pkthdr(struct mbuf *, struct mbuf *, int);
+struct mbuf	*m_dup(const struct mbuf *, int);
+int		 m_dup_pkthdr(struct mbuf *, const struct mbuf *, int);
 u_int		 m_fixhdr(struct mbuf *);
 struct mbuf	*m_fragment(struct mbuf *, int, int);
 void		 m_freem(struct mbuf *);
@@ -1071,7 +1070,7 @@ void		 m_tag_delete_chain(struct mbuf *, struct m_tag *);
 void		 m_tag_free_default(struct m_tag *);
 struct m_tag	*m_tag_locate(struct mbuf *, u_int32_t, int, struct m_tag *);
 struct m_tag	*m_tag_copy(struct m_tag *, int);
-int		 m_tag_copy_chain(struct mbuf *, struct mbuf *, int);
+int		 m_tag_copy_chain(struct mbuf *, const struct mbuf *, int);
 void		 m_tag_delete_nonpersistent(struct mbuf *);
 
 /*

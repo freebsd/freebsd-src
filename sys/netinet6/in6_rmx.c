@@ -189,14 +189,9 @@ static VNET_DEFINE(struct callout, rtq_mtutimer);
 #define	V_rtq_mtutimer			VNET(rtq_mtutimer)
 
 static int
-in6_mtuexpire(struct radix_node *rn, void *rock)
+in6_mtuexpire(struct rtentry *rt, void *rock)
 {
-	struct rtentry *rt = (struct rtentry *)rn;
 	struct mtuex_arg *ap = rock;
-
-	/* sanity */
-	if (!rt)
-		panic("rt == NULL in in6_mtuexpire");
 
 	if (rt->rt_expire && !(rt->rt_flags & RTF_PROBEMTU)) {
 		if (rt->rt_expire <= time_uptime) {
@@ -206,36 +201,29 @@ in6_mtuexpire(struct radix_node *rn, void *rock)
 		}
 	}
 
-	return 0;
+	return (0);
 }
 
 #define	MTUTIMO_DEFAULT	(60*1)
 
 static void
-in6_mtutimo_one(struct radix_node_head *rnh)
+in6_mtutimo_setwa(struct radix_node_head *rnh, uint32_t fibum, int af, void *_arg)
 {
-	struct mtuex_arg arg;
+	struct mtuex_arg *arg;
 
-	arg.rnh = rnh;
-	arg.nextstop = time_uptime + MTUTIMO_DEFAULT;
-	RADIX_NODE_HEAD_LOCK(rnh);
-	rnh->rnh_walktree(rnh, in6_mtuexpire, &arg);
-	RADIX_NODE_HEAD_UNLOCK(rnh);
+	arg = (struct mtuex_arg *)_arg;
+
+	arg->rnh = rnh;
 }
 
 static void
 in6_mtutimo(void *rock)
 {
 	CURVNET_SET_QUIET((struct vnet *) rock);
-	struct radix_node_head *rnh;
 	struct timeval atv;
-	u_int fibnum;
+	struct mtuex_arg arg;
 
-	for (fibnum = 0; fibnum < rt_numfibs; fibnum++) {
-		rnh = rt_tables_get_rnh(fibnum, AF_INET6);
-		if (rnh != NULL)
-			in6_mtutimo_one(rnh);
-	}
+	rt_foreach_fib(AF_INET6, in6_mtutimo_setwa, in6_mtuexpire, &arg);
 
 	atv.tv_sec = MTUTIMO_DEFAULT;
 	atv.tv_usec = 0;

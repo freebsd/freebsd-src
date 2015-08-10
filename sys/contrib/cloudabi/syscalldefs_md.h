@@ -186,6 +186,7 @@ typedef struct {
       MEMBER(cloudabi_clockid_t) clock_id;
       MEMBER(cloudabi_timestamp_t) timeout;
       MEMBER(cloudabi_timestamp_t) precision;
+      MEMBER(uint16_t) flags;
     } clock;
 
     // CLOUDABI_EVENTTYPE_CONDVAR: Release a lock and wait on a
@@ -193,8 +194,8 @@ typedef struct {
     struct {
       MEMBER(PTR(_Atomic(cloudabi_condvar_t))) condvar;
       MEMBER(PTR(_Atomic(cloudabi_lock_t))) lock;
-      MEMBER(cloudabi_futexscope_t) condvar_scope;
-      MEMBER(cloudabi_futexscope_t) lock_scope;
+      MEMBER(cloudabi_mflags_t) condvar_scope;
+      MEMBER(cloudabi_mflags_t) lock_scope;
     } condvar;
 
     // CLOUDABI_EVENTTYPE_FD_READ and CLOUDABI_EVENTTYPE_FD_WRITE:
@@ -202,13 +203,14 @@ typedef struct {
     // called without blocking.
     struct {
       MEMBER(cloudabi_fd_t) fd;
+      MEMBER(uint16_t) flags;
     } fd_readwrite;
 
     // CLOUDABI_EVENT_LOCK_RDLOCK and CLOUDABI_EVENT_LOCK_WRLOCK: Wait
     // and acquire a read or write lock.
     struct {
       MEMBER(PTR(_Atomic(cloudabi_lock_t))) lock;
-      MEMBER(cloudabi_futexscope_t) lock_scope;
+      MEMBER(cloudabi_mflags_t) lock_scope;
     } lock;
 
     // CLOUDABI_EVENTTYPE_PROC_TERMINATE: Wait for a process to terminate.
@@ -224,15 +226,17 @@ ASSERT_OFFSET(subscription_t, clock.identifier, 16, 16);
 ASSERT_OFFSET(subscription_t, clock.clock_id, 24, 24);
 ASSERT_OFFSET(subscription_t, clock.timeout, 32, 32);
 ASSERT_OFFSET(subscription_t, clock.precision, 40, 40);
+ASSERT_OFFSET(subscription_t, clock.flags, 48, 48);
 ASSERT_OFFSET(subscription_t, condvar.condvar, 16, 16);
 ASSERT_OFFSET(subscription_t, condvar.lock, 20, 24);
 ASSERT_OFFSET(subscription_t, condvar.condvar_scope, 24, 32);
 ASSERT_OFFSET(subscription_t, condvar.lock_scope, 25, 33);
 ASSERT_OFFSET(subscription_t, fd_readwrite.fd, 16, 16);
+ASSERT_OFFSET(subscription_t, fd_readwrite.flags, 20, 20);
 ASSERT_OFFSET(subscription_t, lock.lock, 16, 16);
 ASSERT_OFFSET(subscription_t, lock.lock_scope, 20, 24);
 ASSERT_OFFSET(subscription_t, proc_terminate.fd, 16, 16);
-ASSERT_SIZE(subscription_t, 48, 48);
+ASSERT_SIZE(subscription_t, 56, 56);
 
 typedef struct {
   MEMBER(PTR(IDENT(threadentry_t))) entry_point;  // Entry point.

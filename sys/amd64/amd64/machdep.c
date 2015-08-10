@@ -1516,12 +1516,6 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	char *env;
 	size_t kstack0_sz;
 
-	thread0.td_kstack = physfree + KERNBASE;
-	thread0.td_kstack_pages = KSTACK_PAGES;
-	kstack0_sz = thread0.td_kstack_pages * PAGE_SIZE;
-	bzero((void *)thread0.td_kstack, kstack0_sz);
-	physfree += kstack0_sz;
-
 	/*
  	 * This may be done better later if it gets more high level
  	 * components in it. If so just link td->td_proc here.
@@ -1532,6 +1526,12 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 
 	/* Init basic tunables, hz etc */
 	init_param1();
+
+	thread0.td_kstack = physfree + KERNBASE;
+	thread0.td_kstack_pages = kstack_pages;
+	kstack0_sz = thread0.td_kstack_pages * PAGE_SIZE;
+	bzero((void *)thread0.td_kstack, kstack0_sz);
+	physfree += kstack0_sz;
 
 	/*
 	 * make gdt memory segments

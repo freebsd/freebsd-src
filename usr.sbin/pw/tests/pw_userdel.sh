@@ -27,7 +27,7 @@ user_do_not_try_to_delete_root_if_user_unknown_head() {
 }
 user_do_not_try_to_delete_root_if_user_unknown_body() {
 	populate_etc_skel
-	atf_check -e inline:"pw: -u expects a number\n" -s exit:64 -x \
+	atf_check -e inline:"pw: Bad id 'plop': invalid\n" -s exit:64 -x \
 		${PW} userdel -u plop
 }
 
@@ -50,8 +50,18 @@ delete_files_body() {
 	fi
 }
 
+atf_test_case delete_numeric_name
+delete_numeric_name_body() {
+	populate_etc_skel
+
+	atf_check ${PW} useradd -n foo -u 4001
+	atf_check -e inline:"pw: no such user \`4001'\n" -s exit:67 \
+		${PW} userdel -n 4001
+}
+
 atf_init_test_cases() {
 	atf_add_test_case rmuser_seperate_group
 	atf_add_test_case user_do_not_try_to_delete_root_if_user_unknown
 	atf_add_test_case delete_files
+	atf_add_test_case delete_numeric_name
 }

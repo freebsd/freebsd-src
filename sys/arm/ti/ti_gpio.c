@@ -573,7 +573,7 @@ ti_gpio_bank_init(device_t dev)
 {
 	int pin;
 	struct ti_gpio_softc *sc;
-	uint32_t flags, reg_oe, rev;
+	uint32_t flags, reg_oe, reg_set, rev;
 	clk_ident_t clk;
 
 	sc = device_get_softc(dev);
@@ -607,12 +607,18 @@ ti_gpio_bank_init(device_t dev)
 
 	/* Init OE register based on pads configuration. */
 	reg_oe = 0xffffffff;
+	reg_set = 0;
 	for (pin = 0; pin < PINS_PER_BANK; pin++) {
 		TI_GPIO_GET_FLAGS(dev, pin, &flags);
-		if (flags & GPIO_PIN_OUTPUT)
+		if (flags & GPIO_PIN_OUTPUT) {
 			reg_oe &= ~(1UL << pin);
+			if (flags & GPIO_PIN_PULLUP)
+				reg_set |= (1UL << pin);
+		}
 	}
 	ti_gpio_write_4(sc, TI_GPIO_OE, reg_oe);
+	if (reg_set)
+		ti_gpio_write_4(sc, TI_GPIO_SETDATAOUT, reg_set);
 
 	return (0);
 }
@@ -843,14 +849,16 @@ static int
 ti_gpio_activate_resource(device_t dev, device_t child, int type, int rid,
 	struct resource *res)
 {
-	int pin;
+	struct ti_gpio_mask_arg mask_arg;
 
 	if (type != SYS_RES_IRQ)
 		return (ENXIO);
 
 	/* Unmask the interrupt. */
-	pin = rman_get_start(res);
-	ti_gpio_unmask_irq((void *)(uintptr_t)pin);
+	mask_arg.pin = rman_get_start(res);
+	mask_arg.softc = device_get_softc(dev);
+
+	ti_gpio_unmask_irq((void *)&mask_arg);
 
 	return (0);
 }

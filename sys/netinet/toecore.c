@@ -339,7 +339,7 @@ toe_syncache_expand(struct in_conninfo *inc, struct tcpopt *to,
     struct tcphdr *th, struct socket **lsop)
 {
 
-	INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
+	INP_INFO_RLOCK_ASSERT(&V_tcbinfo);
 
 	return (syncache_expand(inc, to, th, lsop, NULL));
 }
@@ -370,7 +370,7 @@ toe_4tuple_check(struct in_conninfo *inc, struct tcphdr *th, struct ifnet *ifp)
 
 		if ((inp->inp_flags & INP_TIMEWAIT) && th != NULL) {
 
-			INP_INFO_WLOCK_ASSERT(&V_tcbinfo); /* for twcheck */
+			INP_INFO_RLOCK_ASSERT(&V_tcbinfo); /* for twcheck */
 			if (!tcp_twcheck(inp, NULL, th, NULL, 0))
 				return (EADDRINUSE);
 		} else {
@@ -463,8 +463,7 @@ restart:
 	IF_AFDATA_RUNLOCK(ifp);
 	if (lle == NULL) {
 		IF_AFDATA_LOCK(ifp);
-		lle = nd6_lookup(&sin6->sin6_addr, ND6_CREATE | ND6_EXCLUSIVE,
-		    ifp);
+		lle = nd6_create(&sin6->sin6_addr, 0, ifp);
 		IF_AFDATA_UNLOCK(ifp);
 		if (lle == NULL)
 			return (ENOMEM); /* Couldn't create entry in cache. */
@@ -571,7 +570,7 @@ toe_connect_failed(struct toedev *tod, struct inpcb *inp, int err)
 			(void) tcp_output(tp);
 		} else {
 
-			INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
+			INP_INFO_RLOCK_ASSERT(&V_tcbinfo);
 			tp = tcp_drop(tp, err);
 			if (tp == NULL)
 				INP_WLOCK(inp);	/* re-acquire */

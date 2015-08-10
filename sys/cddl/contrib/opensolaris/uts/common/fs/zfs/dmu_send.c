@@ -532,7 +532,7 @@ backup_cb(spa_t *spa, zilog_t *zilog, const blkptr_t *bp,
 				for (ptr = abuf->b_data;
 				    (char *)ptr < (char *)abuf->b_data + blksz;
 				    ptr++)
-					*ptr = 0x2f5baddb10c;
+					*ptr = 0x2f5baddb10cULL;
 			} else {
 				return (SET_ERROR(EIO));
 			}
@@ -636,7 +636,7 @@ dmu_send_impl(void *tag, dsl_pool_t *dp, dsl_dataset_t *ds,
 		fromtxg = fromzb->zbm_creation_txg;
 	}
 	dsl_dataset_name(ds, drr->drr_u.drr_begin.drr_toname);
-	if (!dsl_dataset_is_snapshot(ds)) {
+	if (!ds->ds_is_snapshot) {
 		(void) strlcat(drr->drr_u.drr_begin.drr_toname, "@--head--",
 		    sizeof (drr->drr_u.drr_begin.drr_toname));
 	}
@@ -852,11 +852,11 @@ dmu_send_estimate(dsl_dataset_t *ds, dsl_dataset_t *fromds, uint64_t *sizep)
 	ASSERT(dsl_pool_config_held(dp));
 
 	/* tosnap must be a snapshot */
-	if (!dsl_dataset_is_snapshot(ds))
+	if (!ds->ds_is_snapshot)
 		return (SET_ERROR(EINVAL));
 
 	/* fromsnap, if provided, must be a snapshot */
-	if (fromds != NULL && !dsl_dataset_is_snapshot(fromds))
+	if (fromds != NULL && !fromds->ds_is_snapshot)
 		return (SET_ERROR(EINVAL));
 
 	/*
@@ -1105,7 +1105,7 @@ dmu_recv_begin_check(void *arg, dmu_tx_t *tx)
 				dsl_dataset_rele(ds, FTAG);
 				return (error);
 			}
-			if (!dsl_dataset_is_snapshot(origin)) {
+			if (!origin->ds_is_snapshot) {
 				dsl_dataset_rele(origin, FTAG);
 				dsl_dataset_rele(ds, FTAG);
 				return (SET_ERROR(EINVAL));

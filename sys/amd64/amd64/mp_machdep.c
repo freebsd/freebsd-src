@@ -252,6 +252,7 @@ init_secondary(void)
 	wrmsr(MSR_FSBASE, 0);		/* User value */
 	wrmsr(MSR_GSBASE, (u_int64_t)pc);
 	wrmsr(MSR_KGSBASE, (u_int64_t)pc);	/* XXX User value while we're in the kernel */
+	intel_fix_cpuid();
 
 	lidt(&r_idt);
 
@@ -347,7 +348,7 @@ native_start_all_aps(void)
 
 		/* allocate and set up an idle stack data page */
 		bootstacks[cpu] = (void *)kmem_malloc(kernel_arena,
-		    KSTACK_PAGES * PAGE_SIZE, M_WAITOK | M_ZERO);
+		    kstack_pages * PAGE_SIZE, M_WAITOK | M_ZERO);
 		doublefault_stack = (char *)kmem_malloc(kernel_arena,
 		    PAGE_SIZE, M_WAITOK | M_ZERO);
 		nmi_stack = (char *)kmem_malloc(kernel_arena, PAGE_SIZE,
@@ -355,7 +356,7 @@ native_start_all_aps(void)
 		dpcpu = (void *)kmem_malloc(kernel_arena, DPCPU_SIZE,
 		    M_WAITOK | M_ZERO);
 
-		bootSTK = (char *)bootstacks[cpu] + KSTACK_PAGES * PAGE_SIZE - 8;
+		bootSTK = (char *)bootstacks[cpu] + kstack_pages * PAGE_SIZE - 8;
 		bootAP = cpu;
 
 		/* attempt to start the Application Processor */

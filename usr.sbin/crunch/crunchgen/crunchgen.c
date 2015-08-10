@@ -980,7 +980,7 @@ top_makefile_rules(FILE *outmk)
 	prog_t *p;
 
 	fprintf(outmk, "LD?= ld\n");
-	fprintf(outmk, "STRIP?= strip\n");
+	fprintf(outmk, "STRIPBIN?= strip\n");
 	if ( subtract_strlst(&libs, &libs_so) )
 		fprintf(outmk, "# NOTE: Some LIBS declarations below overridden by LIBS_SO\n");
 
@@ -1028,7 +1028,7 @@ top_makefile_rules(FILE *outmk)
 	fprintf(outmk, "\t$(CC) -static -o %s %s.o $(CRUNCHED_OBJS) $(LIBS)\n",
 	    execfname, execfname);
 	fprintf(outmk, ".endif\n");
-	fprintf(outmk, "\t$(STRIP) %s\n", execfname);
+	fprintf(outmk, "\t$(STRIPBIN) %s\n", execfname);
 	fprintf(outmk, "realclean: clean subclean\n");
 	fprintf(outmk, "clean:\n\trm -f %s *.lo *.o *_stub.c\n", execfname);
 	fprintf(outmk, "subclean: $(SUBCLEAN_TARGETS)\n");
