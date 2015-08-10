@@ -50,7 +50,7 @@
 #include "iwnstats.h"
 #include "iwn_ioctl.h"
 
-#define	IWN_DEFAULT_IF		"wlan0"
+#define	IWN_DEFAULT_IF		"iwn0"
 
 static struct iwnstats *
 iwnstats_new(const char *ifname)
@@ -290,6 +290,19 @@ main(int argc, char *argv[])
 			if (ifname)
 				free(ifname);
 			ifname = strdup(optarg);
+			if (strncmp(ifname, "wlan", 4) == 0) {
+				free(ifname);
+				len = 0;
+				asprintf(&sysctlname, "net.wlan.%s.%%parent", ifname + 4);
+				ret = sysctlbyname(sysctlname, NULL, &len, NULL, 0);
+				if (ret != 0)
+					err(1, "sysctl failed");
+				ifname = calloc(len, 1);
+				ret = sysctlbyname(sysctlname, ifname, &len, NULL, 0);
+				if (ret != 0)
+					err(1, "sysctl failed");
+				free(sysctlname);
+			}
 			break;
 		default:
 		case '?':
