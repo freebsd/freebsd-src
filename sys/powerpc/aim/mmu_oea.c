@@ -932,13 +932,13 @@ moea_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend)
 	 * Allocate a kernel stack with a guard page for thread0 and map it
 	 * into the kernel page map.
 	 */
-	pa = moea_bootstrap_alloc(KSTACK_PAGES * PAGE_SIZE, PAGE_SIZE);
+	pa = moea_bootstrap_alloc(kstack_pages * PAGE_SIZE, PAGE_SIZE);
 	va = virtual_avail + KSTACK_GUARD_PAGES * PAGE_SIZE;
-	virtual_avail = va + KSTACK_PAGES * PAGE_SIZE;
+	virtual_avail = va + kstack_pages * PAGE_SIZE;
 	CTR2(KTR_PMAP, "moea_bootstrap: kstack0 at %#x (%#x)", pa, va);
 	thread0.td_kstack = va;
-	thread0.td_kstack_pages = KSTACK_PAGES;
-	for (i = 0; i < KSTACK_PAGES; i++) {
+	thread0.td_kstack_pages = kstack_pages;
+	for (i = 0; i < kstack_pages; i++) {
 		moea_kenter(mmup, va, pa);
 		pa += PAGE_SIZE;
 		va += PAGE_SIZE;
