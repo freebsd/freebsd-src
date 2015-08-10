@@ -458,6 +458,7 @@ struct zio {
 	uint64_t	io_offset;
 	hrtime_t	io_timestamp;
 	avl_node_t	io_queue_node;
+	avl_node_t	io_offset_node;
 
 	/* Internal pipeline state */
 	enum zio_flag	io_flags;
