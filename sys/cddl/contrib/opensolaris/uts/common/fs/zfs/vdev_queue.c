@@ -299,11 +299,12 @@ vdev_queue_class_tree(vdev_queue_t *vq, zio_priority_t p)
 static inline avl_tree_t *
 vdev_queue_type_tree(vdev_queue_t *vq, zio_type_t t)
 {
-	ASSERT(t == ZIO_TYPE_READ || t == ZIO_TYPE_WRITE);
 	if (t == ZIO_TYPE_READ)
 		return (&vq->vq_read_offset_tree);
-	else
+	else if (t == ZIO_TYPE_WRITE)
 		return (&vq->vq_write_offset_tree);
+	else
+		return (NULL);
 }
 
 int
@@ -385,10 +386,13 @@ static void
 vdev_queue_io_add(vdev_queue_t *vq, zio_t *zio)
 {
 	spa_t *spa = zio->io_spa;
+	avl_tree_t *qtt;
 	ASSERT(MUTEX_HELD(&vq->vq_lock));
 	ASSERT3U(zio->io_priority, <, ZIO_PRIORITY_NUM_QUEUEABLE);
 	avl_add(vdev_queue_class_tree(vq, zio->io_priority), zio);
-	avl_add(vdev_queue_type_tree(vq, zio->io_type), zio);
+	qtt = vdev_queue_type_tree(vq, zio->io_type);
+	if (qtt)
+		avl_add(qtt, zio);
 
 #ifdef illumos
 	mutex_enter(&spa->spa_iokstat_lock);
@@ -403,10 +407,13 @@ static void
 vdev_queue_io_remove(vdev_queue_t *vq, zio_t *zio)
 {
 	spa_t *spa = zio->io_spa;
+	avl_tree_t *qtt;
 	ASSERT(MUTEX_HELD(&vq->vq_lock));
 	ASSERT3U(zio->io_priority, <, ZIO_PRIORITY_NUM_QUEUEABLE);
 	avl_remove(vdev_queue_class_tree(vq, zio->io_priority), zio);
-	avl_remove(vdev_queue_type_tree(vq, zio->io_type), zio);
+	qtt = vdev_queue_type_tree(vq, zio->io_type);
+	if (qtt)
+		avl_remove(qtt, zio);
 
 #ifdef illumos
 	mutex_enter(&spa->spa_iokstat_lock);
@@ -624,15 +631,6 @@ vdev_queue_aggregate(vdev_queue_t *vq, zio_t *zio)
 	if (zio->io_flags & ZIO_FLAG_DONT_AGGREGATE)
 		return (NULL);
 
-	/*
-	 * The synchronous i/o queues are not sorted by LBA, so we can't
-	 * find adjacent i/os.  These i/os tend to not be tightly clustered,
-	 * or too large to aggregate, so this has little impact on performance.
-	 */
-	if (zio->io_priority == ZIO_PRIORITY_SYNC_READ ||
-	    zio->io_priority == ZIO_PRIORITY_SYNC_WRITE)
-		return (NULL);
-
 	first = last = zio;
 
 	if (zio->io_type == ZIO_TYPE_READ)
@@ -659,7 +657,7 @@ vdev_queue_aggregate(vdev_queue_t *vq, zio_t *zio)
 	 */
 	flags = zio->io_flags & ZIO_FLAG_AGG_INHERIT;
 	t = vdev_queue_type_tree(vq, zio->io_type);
-	while ((dio = AVL_PREV(t, first)) != NULL &&
+	while (t != NULL && (dio = AVL_PREV(t, first)) != NULL &&
 	    (dio->io_flags & ZIO_FLAG_AGG_INHERIT) == flags &&
 	    IO_SPAN(dio, last) <= zfs_vdev_aggregation_limit &&
 	    IO_GAP(dio, first) <= maxgap) {
