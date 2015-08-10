@@ -320,12 +320,18 @@ uart_intr_sigchg(void *arg)
 
 	sig = UART_GETSIG(sc);
 
+	/*
+	 * Time pulse counting support. Note that both CTS and DCD are
+	 * active-low signals. The status bit is high to indicate that
+	 * the signal on the line is low, which corresponds to a PPS
+	 * clear event.
+	 */
 	if (sc->sc_pps.ppsparam.mode & PPS_CAPTUREBOTH) {
 		pps_sig = uart_pps_signal(sc->sc_pps_mode);
 		if (sig & SER_DELTA(pps_sig)) {
 			pps_capture(&sc->sc_pps);
 			pps_event(&sc->sc_pps, (sig & pps_sig) ?
-			    PPS_CAPTUREASSERT : PPS_CAPTURECLEAR);
+			    PPS_CAPTURECLEAR : PPS_CAPTUREASSERT);
 		}
 	}
 
