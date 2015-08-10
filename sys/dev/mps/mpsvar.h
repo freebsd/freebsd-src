@@ -712,7 +712,6 @@ void mpssas_record_event(struct mps_softc *sc,
 int mps_map_command(struct mps_softc *sc, struct mps_command *cm);
 int mps_wait_command(struct mps_softc *sc, struct mps_command *cm, int timeout,
     int sleep_flag);
-int mps_request_polled(struct mps_softc *sc, struct mps_command *cm);
 
 int mps_config_get_bios_pg3(struct mps_softc *sc, Mpi2ConfigReply_t
     *mpi_reply, Mpi2BiosPage3_t *config_page);
