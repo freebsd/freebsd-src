@@ -996,7 +996,7 @@ in_lltable_new(struct in_addr addr4, u_int flags)
 	lle->base.lle_refcnt = 1;
 	lle->base.lle_free = in_lltable_destroy_lle;
 	LLE_LOCK_INIT(&lle->base);
-	callout_init(&lle->base.la_timer, 1);
+	callout_init(&lle->base.lle_timer, 1);
 
 	return (&lle->base);
 }
@@ -1039,7 +1039,7 @@ in_lltable_free_entry(struct lltable *llt, struct llentry *lle)
 	}
 
 	/* cancel timer */
-	if (callout_stop(&lle->la_timer))
+	if (callout_stop(&lle->lle_timer))
 		LLE_REMREF(lle);
 
 	/* Drop hold queue */
