@@ -523,6 +523,7 @@ cloudabi_sys_fd_stat_put(struct thread *td,
     struct cloudabi_sys_fd_stat_put_args *uap)
 {
 	cloudabi_fdstat_t fsb;
+	cap_rights_t rights;
 	int error, oflags;
 
 	error = copyin(uap->buf, &fsb, sizeof(fsb));
@@ -540,6 +541,13 @@ cloudabi_sys_fd_stat_put(struct thread *td,
 		    CLOUDABI_FDFLAG_DSYNC | CLOUDABI_FDFLAG_RSYNC))
 			oflags |= O_SYNC;
 		return (kern_fcntl(td, uap->fd, F_SETFL, oflags));
+	} else if (uap->flags == CLOUDABI_FDSTAT_RIGHTS) {
+		/* Convert rights. */
+		error = cloudabi_convert_rights(
+		    fsb.fs_rights_base | fsb.fs_rights_inheriting, &rights);
+		if (error != 0)
+			return (error);
+		return (kern_cap_rights_limit(td, uap->fd, &rights));
 	}
 	return (EINVAL);
 }
