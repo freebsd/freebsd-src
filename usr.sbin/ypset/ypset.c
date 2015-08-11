@@ -123,7 +123,7 @@ main(int argc, char *argv[])
 	sin.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
 
 	while ((c = getopt(argc, argv, "h:d:")) != -1)
-		switch(c) {
+		switch (c) {
 		case 'd':
 			domainname = optarg;
 			break;
