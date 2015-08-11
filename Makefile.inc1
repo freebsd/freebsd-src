@@ -1229,12 +1229,18 @@ update:
 # set of tools and shims necessary to compensate for older systems which don't have
 # the APIs that the targets built in bootstrap-tools, build-tools or cross-tools.
 #
+
+# ELF Tool Chain libraries are needed for ELF tools and dtrace tools.
+.if ${BOOTSTRAPPING} < 1100006
+_elftoolchain_libs= lib/libelf lib/libdwarf 
+.endif
+
 legacy:
 .if ${BOOTSTRAPPING} < 800107 && ${BOOTSTRAPPING} != 0
 	@echo "ERROR: Source upgrades from versions prior to 8.0 not supported."; \
 	false
 .endif
-.for _tool in tools/build
+.for _tool in tools/build ${_elftoolchain_libs}
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,includes,depend,all,install)"; \
 	    cd ${.CURDIR}/${_tool} && \
 	    ${MAKE} DIRPRFX=${_tool}/ obj && \
@@ -1332,13 +1338,12 @@ ${_bt}-usr.bin/clang/tblgen: ${_bt}-lib/clang/libllvmtablegen ${_bt}-lib/clang/l
 # pre libdwarf
 .if ${BOOTSTRAPPING} < 1100006 || (${MACHINE} != ${TARGET} || \
     ${MACHINE_ARCH} != ${TARGET_ARCH})
-_elftoolchain_libs= lib/libelf lib/libdwarf 
 .if ${MK_CDDL} != "no"
 _dtrace_tools= cddl/usr.bin/sgsmsg cddl/lib/libctf cddl/usr.bin/ctfconvert \
     cddl/usr.bin/ctfmerge
 
-${_bt}-cddl/usr.bin/ctfconvert: ${_bt}-lib/libelf ${_bt}-lib/libdwarf ${_bt}-cddl/lib/libctf
-${_bt}-cddl/usr.bin/ctfmerge: ${_bt}-lib/libelf ${_bt}-lib/libdwarf ${_bt}-cddl/lib/libctf
+${_bt}-cddl/usr.bin/ctfconvert: ${_bt}-cddl/lib/libctf
+${_bt}-cddl/usr.bin/ctfmerge: ${_bt}-cddl/lib/libctf
 .endif
 .endif
 
@@ -1381,7 +1386,6 @@ bootstrap-tools: .PHONY
 .for _tool in \
     ${_clang_tblgen} \
     ${_kerberos5_bootstrap_tools} \
-    ${_elftoolchain_libs} \
     ${_dtrace_tools} \
     ${_strfile} \
     ${_gperf} \
