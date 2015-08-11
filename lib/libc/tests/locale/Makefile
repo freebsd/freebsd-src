@@ -6,7 +6,7 @@ TESTSDIR=	${TESTSBASE}/lib/libc/locale
 
 NETBSD_ATF_TESTS_C=	io_test
 NETBSD_ATF_TESTS_C+=	mbrtowc_test
-#NETBSD_ATF_TESTS_C+=	mbstowcs_test
+NETBSD_ATF_TESTS_C+=	mbstowcs_test
 NETBSD_ATF_TESTS_C+=	mbsnrtowcs_test
 NETBSD_ATF_TESTS_C+=	mbtowc_test
 NETBSD_ATF_TESTS_C+=	wcscspn_test
