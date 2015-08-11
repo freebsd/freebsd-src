@@ -492,17 +492,17 @@ nd6_llinfo_settimer_locked(struct llentry *ln, long tick)
 	if (tick < 0) {
 		ln->la_expire = 0;
 		ln->ln_ntick = 0;
-		canceled = callout_stop(&ln->ln_timer_ch);
+		canceled = callout_stop(&ln->lle_timer);
 	} else {
 		ln->la_expire = time_uptime + tick / hz;
 		LLE_ADDREF(ln);
 		if (tick > INT_MAX) {
 			ln->ln_ntick = tick - INT_MAX;
-			canceled = callout_reset(&ln->ln_timer_ch, INT_MAX,
+			canceled = callout_reset(&ln->lle_timer, INT_MAX,
 			    nd6_llinfo_timer, ln);
 		} else {
 			ln->ln_ntick = 0;
-			canceled = callout_reset(&ln->ln_timer_ch, tick,
+			canceled = callout_reset(&ln->lle_timer, tick,
 			    nd6_llinfo_timer, ln);
 		}
 	}
@@ -530,7 +530,7 @@ nd6_llinfo_timer(void *arg)
 	KASSERT(arg != NULL, ("%s: arg NULL", __func__));
 	ln = (struct llentry *)arg;
 	LLE_WLOCK(ln);
-	if (callout_pending(&ln->la_timer)) {
+	if (callout_pending(&ln->lle_timer)) {
 		/*
 		 * Here we are a bit odd here in the treatment of 
 		 * active/pending. If the pending bit is set, it got
