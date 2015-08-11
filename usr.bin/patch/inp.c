@@ -219,8 +219,8 @@ plan_a(const char *filename)
 					say("Comparing file %s to default "
 					    "RCS version...\n", filename);
 
-				argp[0] = strdup(RCSDIFF);
-				argp[1] = strdup(filename);
+				argp[0] = __DECONST(char *, RCSDIFF);
+				argp[1] = __DECONST(char *, filename);
 				posix_spawn_file_actions_init(&file_actions);
 				posix_spawn_file_actions_addopen(&file_actions,
 				    STDOUT_FILENO, _PATH_DEVNULL, O_WRONLY, 0);
@@ -234,17 +234,15 @@ plan_a(const char *filename)
 				} else
 					fatal("posix_spawn: %s\n", strerror(errno));
 				posix_spawn_file_actions_destroy(&file_actions);
-				free(argp[1]);
-				free(argp[0]);
 			}
 
 			if (verbose)
 				say("Checking out file %s from RCS...\n",
 				    filename);
 
-			argp[0] = strdup(CHECKOUT);
-			argp[1] = strdup("-l");
-			argp[2] = strdup(filename);
+			argp[0] = __DECONST(char *, CHECKOUT);
+			argp[1] = __DECONST(char *, "-l");
+			argp[2] = __DECONST(char *, filename);
 			if (posix_spawn(&pid, CHECKOUT, NULL, NULL, argp,
 			    NULL) == 0) {
 				pid = waitpid(pid, &pstat, 0);
@@ -254,9 +252,6 @@ plan_a(const char *filename)
 					    filename);
 			} else
 				fatal("posix_spawn: %s\n", strerror(errno));
-			free(argp[2]);
-			free(argp[1]);
-			free(argp[0]);
 		} else if (statfailed) {
 			fatal("can't find %s\n", filename);
 		}
