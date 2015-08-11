@@ -45,6 +45,8 @@
 #include <sys/uio.h>
 #include <pthread.h>
 #include <semaphore.h>
+#include <signal.h>
+#include <sys/wait.h>
 
 #if __has_feature(capabilities)
 
@@ -300,6 +302,13 @@ static void usage(void)
   errx(1,  "usage: cheri_bench [-afipsSt] -r <reps> -o <in offset> -O <out offset> <size>...\n");
 }
 
+static void reap(pid_t pid)
+{
+  if ((pid != 0) && (kill(pid, SIGKILL) < 0))
+    err(1, "failed to reap pid=%d", pid);
+}
+  
+
 int
 main(int argc, char *argv[])
 {
@@ -312,7 +321,7 @@ main(int argc, char *argv[])
 	int socket_pair[2], pipe_pair[2], shmem_socket_pair[2];
 	int arg;
 	uint rep, reps = 100;
-	pid_t child_pid;
+	pid_t socket_child = 0, pipe_child = 0, shared_child = 0, mutex_child = 0;
 	size_t size, max_size = 0;
 	char *endp;
 	int ch;
@@ -430,10 +439,10 @@ main(int argc, char *argv[])
 	  {
 	    if (socketpair(PF_LOCAL, SOCK_STREAM, 0, socket_pair) < 0)
 	      err(1, NULL);
-	    child_pid = fork();
-	    if (child_pid < 0)
+	    socket_child = fork();
+	    if (socket_child < 0)
 	      err(1, "fork socket");
-	    if (!child_pid)
+	    if (!socket_child)
 	      {
   		set_my_affinity(core);
 		close(socket_pair[0]);
@@ -446,10 +455,10 @@ main(int argc, char *argv[])
 	  {
 	    if (pipe(pipe_pair))
 	      err(1, NULL);
-	    child_pid = fork();
-	    if (child_pid < 0)
+	    pipe_child = fork();
+	    if (pipe_child < 0)
 	      err(1, "fork pipe");
-	    if (!child_pid)
+	    if (!pipe_child)
 	      {
   		set_my_affinity(core);
 		close(pipe_pair[0]);
@@ -462,11 +471,11 @@ main(int argc, char *argv[])
 	  {
 	    if (pipe(shmem_socket_pair) < 0)
 	      err(1, NULL);
-	    child_pid = fork();
-	    if (child_pid < 0)
+	    shared_child = fork();
+	    if (shared_child < 0)
 	      err(1, "fork shared");
 	    // XXX remap regions read/write only?
-	    if (!child_pid)
+	    if (!shared_child)
 	      {
     		set_my_affinity(core);
 		close(shmem_socket_pair[0]);
@@ -499,11 +508,11 @@ main(int argc, char *argv[])
 	      err(1, "sem_init mutex sem_request");
 	    if(sem_init(&(mutex_shared->sem_response), 1, 0))
 	      err(1, "sem_init mutex sem_response");
-	    child_pid = fork();
-	    if (child_pid < 0)
+	    mutex_child = fork();
+	    if (mutex_child < 0)
 	      err(1, "fork mutex");
 	    // XXX remap regions read/write only?
-	    if (!child_pid)
+	    if (!mutex_child)
 	      {
 		semaphore_sandbox_func(mutex_shared);
 	      }
@@ -555,7 +564,12 @@ main(int argc, char *argv[])
 	if (samples != NULL)
 	  free(samples);
 	putchar('\n');
-	
+
+	reap(socket_child);
+	reap(pipe_child);
+	reap(shared_child);
+	reap(mutex_child);
+
 	munmap(datain, max_size + inOffset);
 	munmap(dataout, max_size + outOffset);
 
