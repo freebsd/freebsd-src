@@ -31,6 +31,8 @@
 
 #include <sys/cdefs.h>
 #include <sys/types.h>
+#include <sys/param.h>
+#include <sys/cpuset.h>
 #include <err.h>
 #include <stdio.h>
 #include <sysexits.h>
@@ -54,7 +56,7 @@
 #include <cheri_bench-helper.h>
 #define CAP
 struct cheri_object cheri_bench;
-
+static useconds_t console_usleep = 100000;
 
 #define DEFINE_RDHWR_COUNTER_GETTER(name,regno)      \
   static inline int32_t get_##name##_count (void) \
@@ -99,6 +101,7 @@ struct semaphore_shared_data {
   __capability char * volatile datain;
   __capability char * volatile dataout;
   volatile size_t len;
+  int core;
 };
 
 struct counters {
@@ -111,6 +114,19 @@ struct counters {
   int32_t instTLB;
   int32_t dataTLB;
 };
+
+/*
+ * Set the affinity of current thread to given cpu
+ */
+static void set_my_affinity(int cpunum)
+{
+  cpuset_t cpu_mask;
+  CPU_ZERO(&cpu_mask);
+  CPU_SET(cpunum, &cpu_mask);
+  if(cpuset_setaffinity(CPU_LEVEL_WHICH ,CPU_WHICH_TID, (id_t) -1, sizeof(cpu_mask), &cpu_mask))
+    err(1, "set affinity cpunum=%d", cpunum);
+
+}
 
 static void do_memcpy (__capability char *dataout, __capability char *datain, size_t len, void * __unused data)
 {
@@ -220,6 +236,7 @@ static void *semaphore_sandbox_func(void *arg)
   struct semaphore_shared_data *data = (struct semaphore_shared_data *) arg;
   while(1)
     {
+      set_my_affinity(data->core);
       sem_wait(&(data->sem_request));
       memcpy_c(data->dataout, data->datain, data->len);
       sem_post(&(data->sem_response));
@@ -260,7 +277,7 @@ int benchmark(memcpy_t *memcpy_func, __capability char *dataout, __capability ch
 	    }
 	}
 
-#define flushit() do { fflush(stdout); usleep(100000); } while (0)
+#define flushit() do { fflush(stdout); usleep(console_usleep); } while (0)
 #define dump_metric(metric) \
       do {							\
 	flushit();						\
@@ -305,10 +322,11 @@ main(int argc, char *argv[])
 	pthread_t sb_thread;
 	struct semaphore_shared_data *mutex_shared;
 	struct semaphore_shared_data *pthread_shared;
+	int core = 0; // core affinity for sandbox thread
 	// use unbuffered output to avoid dropped characters on uart
 	setbuf(stdout, NULL);
 
-	while ((ch = getopt(argc, argv, "afipsStmr:o:O:")) != -1) {
+	while ((ch = getopt(argc, argv, "afipsStmr:o:O:c:u:")) != -1) {
 	  switch (ch) {
 	  case 'a':
 	    func = 1;
@@ -354,7 +372,17 @@ main(int argc, char *argv[])
 	    outOffset = strtol(optarg, &endp, 0);
 	    if (*endp != '\0')
 		printf("Invalid offset: %s\n", optarg);
-	    break;	    
+	    break;
+	  case 'c':
+	    core = (int)strtol(optarg, &endp, 0);
+	    if (*endp != '\0')
+	      printf("Invalid core: %s\n", optarg);
+	    break;
+	  case 'u':
+	    console_usleep = (useconds_t)strtol(optarg, &endp, 0);
+	    if (*endp != '\0')
+	      printf("Invalid console_usleep: %s\n", optarg);
+	    break;
 	  case '?':
 	  default:
 	    usage();
@@ -376,13 +404,15 @@ main(int argc, char *argv[])
 		printf("Invalid argument: %s\n", argv[arg]);
 	    max_size = size > max_size ? size : max_size;
 	  }
-	
+	// parent always runs on core 0 (XXX rdhwr counters not enabled on APs)
+	set_my_affinity(0); 
 	datain  = mmap(NULL, max_size + inOffset, PROT_READ | PROT_WRITE, MAP_ANON | MAP_SHARED, -1, 0);
 	dataout = mmap(NULL, max_size + outOffset, PROT_READ | PROT_WRITE, MAP_ANON | MAP_SHARED, -1, 0);
 	if (datain == NULL || dataout == NULL) err(1, "malloc");
 
 	datain_cap  = cheri_ptr(datain + inOffset, max_size);
 	dataout_cap = cheri_ptr(dataout + outOffset, max_size);
+
 
 #ifdef CAP
 	if (invoke)
@@ -395,7 +425,7 @@ main(int argc, char *argv[])
 	    cheri_bench = sandbox_object_getobject(sandboxp);
 	  }
 #endif
-	
+
 	if (do_socket)
 	  {
 	    if (socketpair(PF_LOCAL, SOCK_STREAM, 0, socket_pair) < 0)
@@ -405,6 +435,7 @@ main(int argc, char *argv[])
 	      err(1, "fork socket");
 	    if (!child_pid)
 	      {
+  		set_my_affinity(core);
 		close(socket_pair[0]);
 		socket_sandbox_func(socket_pair[1], max_size);
 	      }
@@ -420,6 +451,7 @@ main(int argc, char *argv[])
 	      err(1, "fork pipe");
 	    if (!child_pid)
 	      {
+  		set_my_affinity(core);
 		close(pipe_pair[0]);
 		socket_sandbox_func(pipe_pair[1], max_size);
 	      }
@@ -436,6 +468,7 @@ main(int argc, char *argv[])
 	    // XXX remap regions read/write only?
 	    if (!child_pid)
 	      {
+    		set_my_affinity(core);
 		close(shmem_socket_pair[0]);
 		shmem_sandbox_func(shmem_socket_pair[1], datain_cap, dataout_cap);
 	      }
@@ -445,6 +478,7 @@ main(int argc, char *argv[])
 	if (threads)
 	  {
 	    pthread_shared = malloc(sizeof(*pthread_shared));
+	    pthread_shared->core = core;
 	    if (pthread_shared == NULL)
 	      err(1, "malloc pthread shared");
 	    if(sem_init(&pthread_shared->sem_request, 0, 0))
@@ -458,6 +492,7 @@ main(int argc, char *argv[])
 	if (mutex)
 	  {
 	    mutex_shared = mmap(NULL, sizeof(*mutex_shared), PROT_READ | PROT_WRITE, MAP_ANON | MAP_SHARED, -1, 0);
+	    mutex_shared->core = core;
 	    if (mutex_shared == NULL)
 	      err(1, "mutex alloc shared");
 	    if(sem_init(&(mutex_shared->sem_request), 1, 0))
