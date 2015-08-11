@@ -1159,7 +1159,7 @@ in_lltable_find_dst(struct lltable *llt, struct in_addr dst)
 	struct sockaddr_in *sin;
 	u_int hashidx;
 
-	hashidx = in_lltable_hash_dst(dst, LLTBL_HASHTBL_SIZE);
+	hashidx = in_lltable_hash_dst(dst, llt->llt_hsize);
 	lleh = &llt->lle_head[hashidx];
 	LIST_FOREACH(lle, lleh, lle_next) {
 		sin = satosin(L3_ADDR(lle));
@@ -1342,30 +1342,39 @@ in_lltable_dump_entry(struct lltable *llt, struct llentry *lle,
 	return (error);
 }
 
+static struct lltable *
+in_lltattach(struct ifnet *ifp)
+{
+	struct lltable *llt;
+
+	llt = lltable_allocate_htbl(IN_LLTBL_DEFAULT_HSIZE);
+ 	llt->llt_af = AF_INET;
+ 	llt->llt_ifp = ifp;
+
+	llt->llt_lookup = in_lltable_lookup;
+	llt->llt_create = in_lltable_create;
+	llt->llt_delete = in_lltable_delete;
+	llt->llt_dump_entry = in_lltable_dump_entry;
+	llt->llt_hash = in_lltable_hash;
+	llt->llt_fill_sa_entry = in_lltable_fill_sa_entry;
+	llt->llt_free_entry = in_lltable_free_entry;
+	llt->llt_match_prefix = in_lltable_match_prefix;
+ 	lltable_link(llt);
+
+	return (llt);
+}
+
 void *
 in_domifattach(struct ifnet *ifp)
 {
 	struct in_ifinfo *ii;
-	struct lltable *llt;
 
 	ii = malloc(sizeof(struct in_ifinfo), M_IFADDR, M_WAITOK|M_ZERO);
 
-	llt = lltable_init(ifp, AF_INET);
-	if (llt != NULL) {
-		llt->llt_lookup = in_lltable_lookup;
-		llt->llt_create = in_lltable_create;
-		llt->llt_delete = in_lltable_delete;
-		llt->llt_dump_entry = in_lltable_dump_entry;
-		llt->llt_hash = in_lltable_hash;
-		llt->llt_fill_sa_entry = in_lltable_fill_sa_entry;
-		llt->llt_free_entry = in_lltable_free_entry;
-		llt->llt_match_prefix = in_lltable_match_prefix;
-	}
-	ii->ii_llt = llt;
-
+	ii->ii_llt = in_lltattach(ifp);
 	ii->ii_igmp = igmp_domifattach(ifp);
 
-	return ii;
+	return (ii);
 }
 
 void

@@ -70,6 +70,7 @@ static void vnet_lltable_init(void);
 struct rwlock lltable_rwlock;
 RW_SYSINIT(lltable_rwlock, &lltable_rwlock, "lltable_rwlock");
 
+static void lltable_unlink(struct lltable *llt);
 static void llentries_unlink(struct lltable *llt, struct llentries *head);
 
 static void htable_unlink_entry(struct llentry *lle);
@@ -138,7 +139,7 @@ htable_foreach_lle(struct lltable *llt, llt_foreach_cb_t *f, void *farg)
 
 	error = 0;
 
-	for (i = 0; i < LLTBL_HASHTBL_SIZE; i++) {
+	for (i = 0; i < llt->llt_hsize; i++) {
 		LIST_FOREACH_SAFE(lle, &llt->lle_head[i], lle_next, next) {
 			error = f(llt, lle, farg);
 			if (error != 0)
@@ -160,7 +161,7 @@ htable_link_entry(struct lltable *llt, struct llentry *lle)
 
 	IF_AFDATA_WLOCK_ASSERT(llt->llt_ifp);
 
-	hashidx = llt->llt_hash(lle, LLTBL_HASHTBL_SIZE);
+	hashidx = llt->llt_hash(lle, llt->llt_hsize);
 	lleh = &llt->lle_head[hashidx];
 
 	lle->lle_tbl  = llt;
@@ -228,6 +229,14 @@ htable_prefix_free(struct lltable *llt, const struct sockaddr *prefix,
 
 	LIST_FOREACH_SAFE(lle, &pmd.dchain, lle_chain, next)
 		llt->llt_free_entry(llt, lle);
+}
+
+static void
+htable_free_tbl(struct lltable *llt)
+{
+
+	free(llt->lle_head, M_LLTABLE);
+	free(llt, M_LLTABLE);
 }
 
 static void
@@ -355,9 +364,7 @@ lltable_free(struct lltable *llt)
 
 	KASSERT(llt != NULL, ("%s: llt is NULL", __func__));
 
-	LLTABLE_WLOCK();
-	SLIST_REMOVE(&V_lltables, llt, lltable, llt_link);
-	LLTABLE_WUNLOCK();
+	lltable_unlink(llt);
 
 	LIST_INIT(&dchain);
 	IF_AFDATA_WLOCK(llt->llt_ifp);
@@ -372,7 +379,7 @@ lltable_free(struct lltable *llt)
 		llentry_free(lle);
 	}
 
-	free(llt, M_LLTABLE);
+	llt->llt_free_tbl(llt);
 }
 
 #if 0
@@ -388,7 +395,7 @@ lltable_drain(int af)
 		if (llt->llt_af != af)
 			continue;
 
-		for (i=0; i < LLTBL_HASHTBL_SIZE; i++) {
+		for (i=0; i < llt->llt_hsize; i++) {
 			LIST_FOREACH(lle, &llt->lle_head[i], lle_next) {
 				LLE_WLOCK(lle);
 				if (lle->la_hold) {
@@ -419,20 +426,18 @@ lltable_prefix_free(int af, struct sockaddr *prefix, struct sockaddr *mask,
 	LLTABLE_RUNLOCK();
 }
 
-/*
- * Create a new lltable.
- */
 struct lltable *
-lltable_init(struct ifnet *ifp, int af)
+lltable_allocate_htbl(uint32_t hsize)
 {
 	struct lltable *llt;
-	register int i;
+	int i;
 
-	llt = malloc(sizeof(struct lltable), M_LLTABLE, M_WAITOK);
+	llt = malloc(sizeof(struct lltable), M_LLTABLE, M_WAITOK | M_ZERO);
+	llt->llt_hsize = hsize;
+	llt->lle_head = malloc(sizeof(struct llentries) * hsize,
+	    M_LLTABLE, M_WAITOK | M_ZERO);
 
-	llt->llt_af = af;
-	llt->llt_ifp = ifp;
-	for (i = 0; i < LLTBL_HASHTBL_SIZE; i++)
+	for (i = 0; i < llt->llt_hsize; i++)
 		LIST_INIT(&llt->lle_head[i]);
 
 	/* Set some default callbacks */
@@ -440,12 +445,31 @@ lltable_init(struct ifnet *ifp, int af)
 	llt->llt_unlink_entry = htable_unlink_entry;
 	llt->llt_prefix_free = htable_prefix_free;
 	llt->llt_foreach_entry = htable_foreach_lle;
+	llt->llt_free_tbl = htable_free_tbl;
+
+	return (llt);
+}
+
+/*
+ * Links lltable to global llt list.
+ */
+void
+lltable_link(struct lltable *llt)
+{
 
 	LLTABLE_WLOCK();
 	SLIST_INSERT_HEAD(&V_lltables, llt, llt_link);
 	LLTABLE_WUNLOCK();
+}
 
-	return (llt);
+static void
+lltable_unlink(struct lltable *llt)
+{
+
+	LLTABLE_WLOCK();
+	SLIST_REMOVE(&V_lltables, llt, lltable, llt_link);
+	LLTABLE_WUNLOCK();
+
 }
 
 /*
@@ -685,7 +709,7 @@ llatbl_llt_show(struct lltable *llt)
 	db_printf("llt=%p llt_af=%d llt_ifp=%p\n",
 	    llt, llt->llt_af, llt->llt_ifp);
 
-	for (i = 0; i < LLTBL_HASHTBL_SIZE; i++) {
+	for (i = 0; i < llt->llt_hsize; i++) {
 		LIST_FOREACH(lle, &llt->lle_head[i], lle_next) {
 
 			llatbl_lle_show((struct llentry_sa *)lle);

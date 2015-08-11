@@ -2199,7 +2199,7 @@ in6_lltable_find_dst(struct lltable *llt, const struct in6_addr *dst)
 	const struct sockaddr_in6 *sin6;
 	u_int hashidx;
 
-	hashidx = in6_lltable_hash_dst(dst, LLTBL_HASHTBL_SIZE);
+	hashidx = in6_lltable_hash_dst(dst, llt->llt_hsize);
 	lleh = &llt->lle_head[hashidx];
 	LIST_FOREACH(lle, lleh, lle_next) {
 		sin6 = (const struct sockaddr_in6 *)L3_CADDR(lle);
@@ -2378,6 +2378,28 @@ in6_lltable_dump_entry(struct lltable *llt, struct llentry *lle,
 	return (error);
 }
 
+static struct lltable *
+in6_lltattach(struct ifnet *ifp)
+{
+	struct lltable *llt;
+
+	llt = lltable_allocate_htbl(IN6_LLTBL_DEFAULT_HSIZE);
+	llt->llt_af = AF_INET6;
+	llt->llt_ifp = ifp;
+
+	llt->llt_lookup = in6_lltable_lookup;
+	llt->llt_create = in6_lltable_create;
+	llt->llt_delete = in6_lltable_delete;
+	llt->llt_dump_entry = in6_lltable_dump_entry;
+	llt->llt_hash = in6_lltable_hash;
+	llt->llt_fill_sa_entry = in6_lltable_fill_sa_entry;
+	llt->llt_free_entry = in6_lltable_free_entry;
+	llt->llt_match_prefix = in6_lltable_match_prefix;
+ 	lltable_link(llt);
+
+	return (llt);
+}
+
 void *
 in6_domifattach(struct ifnet *ifp)
 {
@@ -2406,17 +2428,7 @@ in6_domifattach(struct ifnet *ifp)
 
 	ext->nd_ifinfo = nd6_ifattach(ifp);
 	ext->scope6_id = scope6_ifattach(ifp);
-	ext->lltable = lltable_init(ifp, AF_INET6);
-	if (ext->lltable != NULL) {
-		ext->lltable->llt_lookup = in6_lltable_lookup;
-		ext->lltable->llt_create = in6_lltable_create;
-		ext->lltable->llt_delete = in6_lltable_delete;
-		ext->lltable->llt_dump_entry = in6_lltable_dump_entry;
-		ext->lltable->llt_hash = in6_lltable_hash;
-		ext->lltable->llt_fill_sa_entry = in6_lltable_fill_sa_entry;
-		ext->lltable->llt_free_entry = in6_lltable_free_entry;
-		ext->lltable->llt_match_prefix = in6_lltable_match_prefix;
-	}
+	ext->lltable = in6_lltattach(ifp);
 
 	ext->mld_ifinfo = mld_domifattach(ifp);
 
