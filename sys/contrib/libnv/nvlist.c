@@ -824,6 +824,8 @@ nvlist_xunpack(const void *buf, size_t size, const int *fds, size_t nfds,
 		case NV_TYPE_NVLIST:
 			ptr = nvpair_unpack_nvlist(isbe, nvp, ptr, &left, nfds,
 			    &tmpnvl);
+			if (tmpnvl == NULL || ptr == NULL)
+				goto failed;
 			nvlist_set_parent(tmpnvl, nvp);
 			break;
 #ifndef _KERNEL
