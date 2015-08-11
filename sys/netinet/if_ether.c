@@ -170,7 +170,7 @@ arptimer(void *arg)
 		return;
 	}
 	LLE_WLOCK(lle);
-	if (callout_pending(&lle->la_timer)) {
+	if (callout_pending(&lle->lle_timer)) {
 		/*
 		 * Here we are a bit odd here in the treatment of 
 		 * active/pending. If the pending bit is set, it got
@@ -202,7 +202,7 @@ arptimer(void *arg)
 		EVENTHANDLER_INVOKE(lle_event, lle, evt);
 	}
 
-	callout_stop(&lle->la_timer);
+	callout_stop(&lle->lle_timer);
 
 	/* XXX: LOR avoidance. We still have ref on lle. */
 	LLE_WUNLOCK(lle);
@@ -453,7 +453,7 @@ retry:
 
 		LLE_ADDREF(la);
 		la->la_expire = time_uptime;
-		canceled = callout_reset(&la->la_timer, hz * V_arpt_down,
+		canceled = callout_reset(&la->lle_timer, hz * V_arpt_down,
 		    arptimer, la);
 		if (canceled)
 			LLE_REMREF(la);
@@ -793,7 +793,7 @@ match:
 
 			LLE_ADDREF(la);
 			la->la_expire = time_uptime + V_arpt_keep;
-			canceled = callout_reset(&la->la_timer,
+			canceled = callout_reset(&la->lle_timer,
 			    hz * V_arpt_keep, arptimer, la);
 			if (canceled)
 				LLE_REMREF(la);

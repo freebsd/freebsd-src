@@ -2080,7 +2080,7 @@ in6_lltable_new(const struct in6_addr *addr6, u_int flags)
 	lle->base.lle_refcnt = 1;
 	lle->base.lle_free = in6_lltable_destroy_lle;
 	LLE_LOCK_INIT(&lle->base);
-	callout_init(&lle->base.ln_timer_ch, 1);
+	callout_init(&lle->base.lle_timer, 1);
 
 	return (&lle->base);
 }
@@ -2116,7 +2116,7 @@ in6_lltable_free_entry(struct lltable *llt, struct llentry *lle)
 		lltable_unlink_entry(llt, lle);
 	}
 
-	if (callout_stop(&lle->la_timer))
+	if (callout_stop(&lle->lle_timer))
 		LLE_REMREF(lle);
 
 	llentry_free(lle);
