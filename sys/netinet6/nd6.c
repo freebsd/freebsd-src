@@ -66,7 +66,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in.h>
 #include <netinet/in_kdtrace.h>
 #include <net/if_llatbl.h>
-#define	L3_ADDR_SIN6(le)	((struct sockaddr_in6 *) L3_ADDR(le))
 #include <netinet/if_ether.h>
 #include <netinet6/in6_var.h>
 #include <netinet/ip6.h>
@@ -150,12 +149,15 @@ static void
 nd6_lle_event(void *arg __unused, struct llentry *lle, int evt)
 {
 	struct rt_addrinfo rtinfo;
-	struct sockaddr_in6 dst, *sa6;
+	struct sockaddr_in6 dst;
 	struct sockaddr_dl gw;
 	struct ifnet *ifp;
 	int type;
 
 	LLE_WLOCK_ASSERT(lle);
+
+	if (lltable_get_af(lle->lle_tbl) != AF_INET6)
+		return;
 
 	switch (evt) {
 	case LLENTRY_RESOLVED:
@@ -170,20 +172,14 @@ nd6_lle_event(void *arg __unused, struct llentry *lle, int evt)
 		return;
 	}
 
-	sa6 = L3_ADDR_SIN6(lle);
-	if (sa6->sin6_family != AF_INET6)
-		return;
-	ifp = lle->lle_tbl->llt_ifp;
+	ifp = lltable_get_ifp(lle->lle_tbl);
 
 	bzero(&dst, sizeof(dst));
 	bzero(&gw, sizeof(gw));
 	bzero(&rtinfo, sizeof(rtinfo));
-	dst.sin6_len = sizeof(struct sockaddr_in6);
-	dst.sin6_family = AF_INET6;
-	dst.sin6_addr = sa6->sin6_addr;
+	lltable_fill_sa_entry(lle, (struct sockaddr *)&dst);
 	dst.sin6_scope_id = in6_getscopezone(ifp,
-	    in6_addrscope(&sa6->sin6_addr));
-	in6_clearscope(&dst.sin6_addr); /* XXX */
+	    in6_addrscope(&dst.sin6_addr));
 	gw.sdl_len = sizeof(struct sockaddr_dl);
 	gw.sdl_family = AF_LINK;
 	gw.sdl_alen = ifp->if_addrlen;
@@ -569,7 +565,7 @@ nd6_llinfo_timer(void *arg)
 	}
 
 	ndi = ND_IFINFO(ifp);
-	dst = &L3_ADDR_SIN6(ln)->sin6_addr;
+	dst = &ln->r_l3addr.addr6;
 	if (ln->la_flags & LLE_STATIC) {
 		goto done;
 	}
@@ -1122,7 +1118,7 @@ nd6_free(struct llentry *ln, int gc)
 	ifp = ln->lle_tbl->llt_ifp;
 
 	if (ND_IFINFO(ifp)->flags & ND6_IFF_ACCEPT_RTADV) {
-		dr = defrouter_lookup(&L3_ADDR_SIN6(ln)->sin6_addr, ifp);
+		dr = defrouter_lookup(&ln->r_l3addr.addr6, ifp);
 
 		if (dr != NULL && dr->expire &&
 		    ln->ln_state == ND6_LLINFO_STALE && gc) {
@@ -1183,7 +1179,7 @@ nd6_free(struct llentry *ln, int gc)
 			 * is in the Default Router List.
 			 * See a corresponding comment in nd6_na_input().
 			 */
-			rt6_flush(&L3_ADDR_SIN6(ln)->sin6_addr, ifp);
+			rt6_flush(&ln->r_l3addr.addr6, ifp);
 		}
 
 		if (dr) {
@@ -1907,7 +1903,7 @@ nd6_grab_holdchain(struct llentry *ln, struct mbuf **chain,
 
 	*chain = ln->la_hold;
 	ln->la_hold = NULL;
-	memcpy(sin6, L3_ADDR_SIN6(ln), sizeof(*sin6));
+	lltable_fill_sa_entry(ln, (struct sockaddr *)sin6);
 
 	if (ln->ln_state == ND6_LLINFO_STALE) {
 

@@ -54,7 +54,18 @@ extern struct rwlock lltable_rwlock;
  */
 struct llentry {
 	LIST_ENTRY(llentry)	 lle_next;
-	struct rwlock		 lle_lock;
+	union {
+		struct in_addr	addr4;
+		struct in6_addr	addr6;
+	} r_l3addr;
+	union {
+		uint64_t	mac_aligned;
+		uint16_t	mac16[3];
+		uint8_t		mac8[20];	/* IB needs 20 bytes. */
+	} ll_addr;
+	uint32_t		spare0;
+	uint64_t		spare1;
+
 	struct lltable		 *lle_tbl;
 	struct llentries	 *lle_head;
 	void			(*lle_free)(struct llentry *);
@@ -70,19 +81,13 @@ struct llentry {
 	time_t			 ln_ntick;
 	int			 lle_refcnt;
 
-	union {
-		uint64_t	mac_aligned;
-		uint16_t	mac16[3];
-		uint8_t		mac8[20];	/* IB needs 20 bytes. */
-	} ll_addr;
-
 	LIST_ENTRY(llentry)	lle_chain;	/* chain of deleted items */
 	/* XXX af-private? */
 	union {
 		struct callout	ln_timer_ch;
 		struct callout  la_timer;
 	} lle_timer;
-	/* NB: struct sockaddr must immediately follow */
+	struct rwlock		 lle_lock;
 };
 
 #define	LLE_WLOCK(lle)		rw_wlock(&(lle)->lle_lock)
@@ -132,11 +137,6 @@ struct llentry {
 
 #define	ln_timer_ch	lle_timer.ln_timer_ch
 #define	la_timer	lle_timer.la_timer
-
-/* XXX bad name */
-#define	L3_CADDR(lle)	((const struct sockaddr *)(&lle[1]))
-#define	L3_ADDR(lle)	((struct sockaddr *)(&lle[1]))
-#define	L3_ADDR_LEN(lle)	(((struct sockaddr *)(&lle[1]))->sa_len)
 
 typedef	struct llentry *(llt_lookup_t)(struct lltable *, u_int flags,
     const struct sockaddr *l3addr);

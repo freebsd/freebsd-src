@@ -813,7 +813,7 @@ match:
 			m_hold = la->la_hold;
 			la->la_hold = NULL;
 			la->la_numheld = 0;
-			memcpy(&sa, L3_ADDR(la), sizeof(sa));
+			lltable_fill_sa_entry(la, (struct sockaddr *)&sa);
 			LLE_WUNLOCK(la);
 			for (; m_hold != NULL; m_hold = m_hold_next) {
 				m_hold_next = m_hold->m_nextpkt;
