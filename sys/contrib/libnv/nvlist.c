@@ -330,7 +330,7 @@ nvlist_clone(const nvlist_t *nvl)
 		newnvp = nvpair_clone(nvp);
 		if (newnvp == NULL)
 			break;
-		nvlist_move_nvpair(newnvl, newnvp);
+		(void)nvlist_move_nvpair(newnvl, newnvp);
 	}
 	if (nvp != NULL) {
 		nvlist_destroy(newnvl);
@@ -848,7 +848,8 @@ nvlist_xunpack(const void *buf, size_t size, const int *fds, size_t nfds,
 		}
 		if (ptr == NULL)
 			goto failed;
-		nvlist_move_nvpair(nvl, nvp);
+		if (!nvlist_move_nvpair(nvl, nvp))
+			goto failed;
 		if (tmpnvl != NULL) {
 			nvl = tmpnvl;
 			tmpnvl = NULL;
@@ -1124,7 +1125,7 @@ nvlist_add_stringv(nvlist_t *nvl, const char *name, const char *valuefmt,
 		nvl->nvl_error = ERRNO_OR_DEFAULT(ENOMEM);
 		ERRNO_SET(nvl->nvl_error);
 	} else {
-		nvlist_move_nvpair(nvl, nvp);
+		(void)nvlist_move_nvpair(nvl, nvp);
 	}
 }
 
@@ -1143,7 +1144,7 @@ nvlist_add_null(nvlist_t *nvl, const char *name)
 		nvl->nvl_error = ERRNO_OR_DEFAULT(ENOMEM);
 		ERRNO_SET(nvl->nvl_error);
 	} else {
-		nvlist_move_nvpair(nvl, nvp);
+		(void)nvlist_move_nvpair(nvl, nvp);
 	}
 }
 
@@ -1163,7 +1164,7 @@ nvlist_add_binary(nvlist_t *nvl, const char *name, const void *value,
 		nvl->nvl_error = ERRNO_OR_DEFAULT(ENOMEM);
 		ERRNO_SET(nvl->nvl_error);
 	} else {
-		nvlist_move_nvpair(nvl, nvp);
+		(void)nvlist_move_nvpair(nvl, nvp);
 	}
 }
 
@@ -1184,7 +1185,7 @@ nvlist_add_##type(nvlist_t *nvl, const char *name, vtype value)		\
 		nvl->nvl_error = ERRNO_OR_DEFAULT(ENOMEM);		\
 		ERRNO_SET(nvl->nvl_error);				\
 	} else {							\
-		nvlist_move_nvpair(nvl, nvp);				\
+		(void)nvlist_move_nvpair(nvl, nvp);			\
 	}								\
 }
 
@@ -1198,7 +1199,7 @@ NVLIST_ADD(int, descriptor);
 
 #undef	NVLIST_ADD
 
-void
+bool
 nvlist_move_nvpair(nvlist_t *nvl, nvpair_t *nvp)
 {
 
@@ -1208,18 +1209,19 @@ nvlist_move_nvpair(nvlist_t *nvl, nvpair_t *nvp)
 	if (nvlist_error(nvl) != 0) {
 		nvpair_free(nvp);
 		ERRNO_SET(nvlist_error(nvl));
-		return;
+		return (false);
 	}
 	if ((nvl->nvl_flags & NV_FLAG_NO_UNIQUE) == 0) {
 		if (nvlist_exists(nvl, nvpair_name(nvp))) {
 			nvpair_free(nvp);
 			nvl->nvl_error = EEXIST;
 			ERRNO_SET(nvl->nvl_error);
-			return;
+			return (false);
 		}
 	}
 
 	nvpair_insert(&nvl->nvl_head, nvp, nvl);
+	return (true);
 }
 
 void
@@ -1238,7 +1240,7 @@ nvlist_move_string(nvlist_t *nvl, const char *name, char *value)
 		nvl->nvl_error = ERRNO_OR_DEFAULT(ENOMEM);
 		ERRNO_SET(nvl->nvl_error);
 	} else {
-		nvlist_move_nvpair(nvl, nvp);
+		(void)nvlist_move_nvpair(nvl, nvp);
 	}
 }
 
@@ -1259,7 +1261,7 @@ nvlist_move_nvlist(nvlist_t *nvl, const char *name, nvlist_t *value)
 		nvl->nvl_error = ERRNO_OR_DEFAULT(ENOMEM);
 		ERRNO_SET(nvl->nvl_error);
 	} else {
-		nvlist_move_nvpair(nvl, nvp);
+		(void)nvlist_move_nvpair(nvl, nvp);
 	}
 }
 
@@ -1280,7 +1282,7 @@ nvlist_move_descriptor(nvlist_t *nvl, const char *name, int value)
 		nvl->nvl_error = ERRNO_OR_DEFAULT(ENOMEM);
 		ERRNO_SET(nvl->nvl_error);
 	} else {
-		nvlist_move_nvpair(nvl, nvp);
+		(void)nvlist_move_nvpair(nvl, nvp);
 	}
 }
 #endif
@@ -1301,7 +1303,7 @@ nvlist_move_binary(nvlist_t *nvl, const char *name, void *value, size_t size)
 		nvl->nvl_error = ERRNO_OR_DEFAULT(ENOMEM);
 		ERRNO_SET(nvl->nvl_error);
 	} else {
-		nvlist_move_nvpair(nvl, nvp);
+		(void)nvlist_move_nvpair(nvl, nvp);
 	}
 }
 
