@@ -101,15 +101,6 @@ __FBSDID("$FreeBSD$");
 #define	  DMT_TSICR_RESET	  (1 << 1)	/* TSICR perform soft reset */
 #define	DMT_TCAR2		0x48		/* Capture Reg */
 
-/*
- * Use timer 2 for the eventtimer.  When PPS support is not compiled in, there's
- * no need to use a timer that has an associated capture-input pin, so use timer
- * 3 for timecounter.  When PPS is compiled in we ignore the default and use
- * whichever of timers 4-7 have the capture pin configured.
- */
-#define	DEFAULT_ET_TIMER	2
-#define	DEFAULT_TC_TIMER	3
-
 #define	DMTIMER_READ4(sc, reg)	(bus_read_4((sc)->tmr_mem_res, (reg)))
 #define	DMTIMER_WRITE4(sc, reg, val)	(bus_write_4((sc)->tmr_mem_res, (reg), (val)))
 
@@ -383,10 +374,10 @@ am335x_dmtimer_pps_init(device_t dev, struct am335x_dmtimer_softc *sc)
 	TASK_INIT(&sc->pps_task, 0, am335x_dmtimer_process_pps_event, sc);
 
 	/* Create the PPS cdev.  */
+	unit = device_get_unit(dev);
 	sc->pps_cdev = make_dev(&am335x_dmtimer_pps_cdevsw, unit, 
 	    UID_ROOT, GID_WHEEL, 0600, PPS_CDEV_NAME);
 	sc->pps_cdev->si_drv1 = sc;
-	unit = device_get_unit(sc->pps_cdev);
 
 	device_printf(dev, "Using DMTimer%d for PPS device /dev/%s%d\n", 
 	    am335x_dmtimer_pps_module, PPS_CDEV_NAME, unit);
@@ -596,12 +587,6 @@ am335x_dmtimer_attach(device_t dev)
 	int err;
 	clk_ident_t timer_id;
 	int enable;
-
-	/*
-	 * Note that if this routine returns an error status rather than running
-	 * to completion it makes no attempt to clean up allocated resources;
-	 * the system is essentially dead anyway without functional timers.
-	 */
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
