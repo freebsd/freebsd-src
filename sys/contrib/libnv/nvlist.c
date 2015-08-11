@@ -629,10 +629,8 @@ nvlist_xpack(const nvlist_t *nvl, int64_t *fdidxp, size_t *sizep)
 
 		nvpair_init_datasize(nvp);
 		ptr = nvpair_pack_header(nvp, ptr, &left);
-		if (ptr == NULL) {
-			nv_free(buf);
-			return (NULL);
-		}
+		if (ptr == NULL)
+			goto fail;
 		switch (nvpair_type(nvp)) {
 		case NV_TYPE_NULL:
 			ptr = nvpair_pack_null(nvp, ptr, &left);
@@ -650,7 +648,7 @@ nvlist_xpack(const nvlist_t *nvl, int64_t *fdidxp, size_t *sizep)
 			tmpnvl = nvpair_get_nvlist(nvp);
 			ptr = nvlist_pack_header(tmpnvl, ptr, &left);
 			if (ptr == NULL)
-				goto out;
+				goto fail;
 			tmpnvp = nvlist_first_nvpair(tmpnvl);
 			if (tmpnvp != NULL) {
 				nvl = tmpnvl;
@@ -670,10 +668,8 @@ nvlist_xpack(const nvlist_t *nvl, int64_t *fdidxp, size_t *sizep)
 		default:
 			PJDLOG_ABORT("Invalid type (%d).", nvpair_type(nvp));
 		}
-		if (ptr == NULL) {
-			nv_free(buf);
-			return (NULL);
-		}
+		if (ptr == NULL)
+			goto fail;
 		while ((nvp = nvlist_next_nvpair(nvl, nvp)) == NULL) {
 			cookie = NULL;
 			nvl = nvlist_get_parent(nvl, &cookie);
@@ -682,7 +678,7 @@ nvlist_xpack(const nvlist_t *nvl, int64_t *fdidxp, size_t *sizep)
 			nvp = cookie;
 			ptr = nvpair_pack_nvlist_up(ptr, &left);
 			if (ptr == NULL)
-				goto out;
+				goto fail;
 		}
 	}
 
@@ -690,6 +686,9 @@ out:
 	if (sizep != NULL)
 		*sizep = size;
 	return (buf);
+fail:
+	nv_free(buf);
+	return (NULL);
 }
 
 void *
