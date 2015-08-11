@@ -3206,7 +3206,7 @@ arc_available_memory(void)
 	 * free)
 	 */
 	n = vmem_size(heap_arena, VMEM_FREE) -
-	    (vmem_size(heap_arena, VMEM_FREE | VMEM_ALLOC) >> 2)
+	    (vmem_size(heap_arena, VMEM_FREE | VMEM_ALLOC) >> 2);
 	if (n < lowest) {
 		lowest = n;
 		r = FMR_HEAP_ARENA;
