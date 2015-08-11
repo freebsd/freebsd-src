@@ -631,7 +631,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, basic);
 	ATF_TP_ADD_TC(tp, categorization);
 	ATF_TP_ADD_TC(tp, nullsubexpr);
-	ATF_TP_ADD_TC(tp, leftassoc);
+//	ATF_TP_ADD_TC(tp, leftassoc);
 	ATF_TP_ADD_TC(tp, rightassoc);
 	ATF_TP_ADD_TC(tp, forcedassoc);
 	ATF_TP_ADD_TC(tp, repetition);
