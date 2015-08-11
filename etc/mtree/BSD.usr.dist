@@ -345,8 +345,6 @@
             ..
             ipfw
             ..
-            iscsi
-            ..
             jails
             ..
             kld
@@ -380,8 +378,6 @@
             mdoc
             ..
             netgraph
-                bluetooth
-                ..
             ..
             pc-sysinstall
             ..

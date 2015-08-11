@@ -188,6 +188,8 @@ OLD_DIRS+=etc/keys/pkg
 OLD_DIRS+=etc/keys/pkg/revoked
 OLD_DIRS+=etc/keys/pkg/trusted
 OLD_FILES+=etc/keys/pkg/trusted/pkg.freebsd.org.2013102301
+# 20131023: remove never used iscsi directory
+OLD_DIRS+=usr/share/examples/iscsi
 # 20131014: libbsdyml becomes private
 OLD_FILES+=usr/lib/libbsdyml.a
 OLD_FILES+=usr/lib/libbsdyml.so
@@ -2641,6 +2643,7 @@ OLD_FILES+=usr/sbin/zfs
 OLD_FILES+=usr/sbin/zpool
 # 20070423: rc.bluetooth (examples) removed
 OLD_FILES+=usr/share/examples/netgraph/bluetooth/rc.bluetooth
+OLD_DIRS+=usr/share/examples/netgraph/bluetooth
 # 20070421: worm.4 removed
 OLD_FILES+=usr/share/man/man4/worm.4.gz
 # 20070417: trunk(4) renamed to lagg(4)
