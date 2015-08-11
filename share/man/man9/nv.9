@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 4, 2015
+.Dd Aug 11, 2015
 .Dt NV 9
 .Os
 .Sh NAME
@@ -410,6 +410,16 @@ The
 argument can be NULL.
 Elements may not be removed from the nvlist while traversing it.
 The nvlist must not be in error state.
+Note that
+.Fn nvlist_next
+will handle
+.Va cookiep
+being set to
+.Dv NULL .
+In this case first element is returned or
+.Dv NULL
+if nvlist is empty.
+This behavior simplifies removing the first element from the list.
 .Pp
 The
 .Fn nvlist_exists
