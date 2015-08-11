@@ -78,8 +78,7 @@ static inline int
 uart_pps_signal(int pps_mode)
 {
 
-	switch(pps_mode)
-	{
+	switch(pps_mode) {
 	case PPS_MODE_CTS:
 		return (SER_CTS);
 	case PPS_MODE_DCD:
@@ -91,8 +90,7 @@ static inline int
 uart_pps_mode_valid(int pps_mode)
 {
 
-	switch(pps_mode)
-	{
+	switch(pps_mode) {
 	case PPS_MODE_DISABLED:
 	case PPS_MODE_CTS:
 	case PPS_MODE_DCD:
@@ -104,8 +102,7 @@ uart_pps_mode_valid(int pps_mode)
 static const char *
 uart_pps_mode_name(int pps_mode)
 {
-	switch(pps_mode)
-	{
+	switch(pps_mode) {
 	case PPS_MODE_DISABLED:
 		return ("disabled");
 	case PPS_MODE_CTS:
