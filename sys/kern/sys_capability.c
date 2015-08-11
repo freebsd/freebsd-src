@@ -213,15 +213,41 @@ cap_rights(struct filedesc *fdp, int fd)
 	return (cap_rights_fde(&fdp->fd_ofiles[fd]));
 }
 
+int
+kern_cap_rights_limit(struct thread *td, int fd, cap_rights_t *rights)
+{
+	struct filedesc *fdp;
+	int error;
+
+	fdp = td->td_proc->p_fd;
+	FILEDESC_XLOCK(fdp);
+	if (fget_locked(fdp, fd) == NULL) {
+		FILEDESC_XUNLOCK(fdp);
+		return (EBADF);
+	}
+	error = _cap_check(cap_rights(fdp, fd), rights, CAPFAIL_INCREASE);
+	if (error == 0) {
+		fdp->fd_ofiles[fd].fde_rights = *rights;
+		if (!cap_rights_is_set(rights, CAP_IOCTL)) {
+			free(fdp->fd_ofiles[fd].fde_ioctls, M_FILECAPS);
+			fdp->fd_ofiles[fd].fde_ioctls = NULL;
+			fdp->fd_ofiles[fd].fde_nioctls = 0;
+		}
+		if (!cap_rights_is_set(rights, CAP_FCNTL))
+			fdp->fd_ofiles[fd].fde_fcntls = 0;
+	}
+	FILEDESC_XUNLOCK(fdp);
+	return (error);
+}
+
 /*
  * System call to limit rights of the given capability.
  */
 int
 sys_cap_rights_limit(struct thread *td, struct cap_rights_limit_args *uap)
 {
-	struct filedesc *fdp;
 	cap_rights_t rights;
-	int error, fd, version;
+	int error, version;
 
 	cap_rights_init(&rights);
 
@@ -252,30 +278,9 @@ sys_cap_rights_limit(struct thread *td, struct cap_rights_limit_args *uap)
 		ktrcaprights(&rights);
 #endif
 
-	fd = uap->fd;
-
-	AUDIT_ARG_FD(fd);
+	AUDIT_ARG_FD(uap->fd);
 	AUDIT_ARG_RIGHTS(&rights);
-
-	fdp = td->td_proc->p_fd;
-	FILEDESC_XLOCK(fdp);
-	if (fget_locked(fdp, fd) == NULL) {
-		FILEDESC_XUNLOCK(fdp);
-		return (EBADF);
-	}
-	error = _cap_check(cap_rights(fdp, fd), &rights, CAPFAIL_INCREASE);
-	if (error == 0) {
-		fdp->fd_ofiles[fd].fde_rights = rights;
-		if (!cap_rights_is_set(&rights, CAP_IOCTL)) {
-			free(fdp->fd_ofiles[fd].fde_ioctls, M_FILECAPS);
-			fdp->fd_ofiles[fd].fde_ioctls = NULL;
-			fdp->fd_ofiles[fd].fde_nioctls = 0;
-		}
-		if (!cap_rights_is_set(&rights, CAP_FCNTL))
-			fdp->fd_ofiles[fd].fde_fcntls = 0;
-	}
-	FILEDESC_XUNLOCK(fdp);
-	return (error);
+	return (kern_cap_rights_limit(td, uap->fd, &rights));
 }
 
 /*
