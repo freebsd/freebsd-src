@@ -374,7 +374,7 @@ lltable_free(struct lltable *llt)
 	IF_AFDATA_WUNLOCK(llt->llt_ifp);
 
 	LIST_FOREACH_SAFE(lle, &dchain, lle_chain, next) {
-		if (callout_stop(&lle->la_timer))
+		if (callout_stop(&lle->lle_timer))
 			LLE_REMREF(lle);
 		llentry_free(lle);
 	}
@@ -656,7 +656,7 @@ llatbl_lle_show(struct llentry_sa *la)
 	bcopy(&lle->ll_addr.mac16, octet, sizeof(octet));
 	db_printf(" ll_addr=%02x:%02x:%02x:%02x:%02x:%02x\n",
 	    octet[0], octet[1], octet[2], octet[3], octet[4], octet[5]);
-	db_printf(" la_timer=%p\n", &lle->la_timer);
+	db_printf(" lle_timer=%p\n", &lle->lle_timer);
 
 	switch (la->l3_addr.sa_family) {
 #ifdef INET

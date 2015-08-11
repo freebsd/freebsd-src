@@ -82,11 +82,7 @@ struct llentry {
 	int			 lle_refcnt;
 
 	LIST_ENTRY(llentry)	lle_chain;	/* chain of deleted items */
-	/* XXX af-private? */
-	union {
-		struct callout	ln_timer_ch;
-		struct callout  la_timer;
-	} lle_timer;
+	struct callout		lle_timer;
 	struct rwlock		 lle_lock;
 };
 
@@ -134,9 +130,6 @@ struct llentry {
 	LLE_FREE_LOCKED(lle);					\
 } while (0)
 
-
-#define	ln_timer_ch	lle_timer.ln_timer_ch
-#define	la_timer	lle_timer.la_timer
 
 typedef	struct llentry *(llt_lookup_t)(struct lltable *, u_int flags,
     const struct sockaddr *l3addr);
