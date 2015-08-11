@@ -2326,8 +2326,10 @@ arc_hdr_destroy(arc_buf_hdr_t *hdr)
 		 * want to re-destroy the header's L2 portion.
 		 */
 		if (HDR_HAS_L2HDR(hdr)) {
-			trim_map_free(dev->l2ad_vdev, hdr->b_l2hdr.b_daddr,
-			    hdr->b_l2hdr.b_asize, 0);
+			if (hdr->b_l2hdr.b_daddr != L2ARC_ADDR_UNSET)
+				trim_map_free(dev->l2ad_vdev,
+				    hdr->b_l2hdr.b_daddr,
+				    hdr->b_l2hdr.b_asize, 0);
 			arc_hdr_l2hdr_destroy(hdr);
 		}
 
@@ -4412,8 +4414,10 @@ arc_release(arc_buf_t *buf, void *tag)
 		 * to acquire the l2ad_mtx.
 		 */
 		if (HDR_HAS_L2HDR(hdr)) {
-			trim_map_free(hdr->b_l2hdr.b_dev->l2ad_vdev,
-			    hdr->b_l2hdr.b_daddr, hdr->b_l2hdr.b_asize, 0);
+			if (hdr->b_l2hdr.b_daddr != L2ARC_ADDR_UNSET)
+				trim_map_free(hdr->b_l2hdr.b_dev->l2ad_vdev,
+				    hdr->b_l2hdr.b_daddr,
+				    hdr->b_l2hdr.b_asize, 0);
 			arc_hdr_l2hdr_destroy(hdr);
 		}
 
