@@ -1026,9 +1026,8 @@ nvlist_next(const nvlist_t *nvl, int *typep, void **cookiep)
 	nvpair_t *nvp;
 
 	NVLIST_ASSERT(nvl);
-	PJDLOG_ASSERT(cookiep != NULL);
 
-	if (*cookiep == NULL)
+	if (cookiep == NULL || *cookiep == NULL)
 		nvp = nvlist_first_nvpair(nvl);
 	else
 		nvp = nvlist_next_nvpair(nvl, *cookiep);
@@ -1036,7 +1035,8 @@ nvlist_next(const nvlist_t *nvl, int *typep, void **cookiep)
 		return (NULL);
 	if (typep != NULL)
 		*typep = nvpair_type(nvp);
-	*cookiep = nvp;
+	if (cookiep != NULL)
+		*cookiep = nvp;
 	return (nvpair_name(nvp));
 }
 
