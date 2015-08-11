@@ -1225,9 +1225,10 @@ update:
 #
 
 #
-# legacy: Build compatibility shims for the next three targets. This is a minimal
-# set of tools and shims necessary to compensate for older systems which don't have
-# the APIs that the targets built in bootstrap-tools, build-tools or cross-tools.
+# legacy: Build compatibility shims for the next three targets. This is a
+# minimal set of tools and shims necessary to compensate for older systems
+# which don't have the APIs required by the targets built in bootstrap-tools,
+# build-tools or cross-tools.
 #
 
 # ELF Tool Chain libraries are needed for ELF tools and dtrace tools.
