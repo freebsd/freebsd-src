@@ -236,7 +236,7 @@ cloudabi_sys_sock_stat_get(struct thread *td,
 
 	/* Set ss_error. */
 	SOCK_LOCK(so);
-	ss.ss_error = so->so_error;
+	ss.ss_error = cloudabi_convert_errno(so->so_error);
 	if ((uap->flags & CLOUDABI_SOCKSTAT_CLEAR_ERROR) != 0)
 		so->so_error = 0;
 	SOCK_UNLOCK(so);
