@@ -99,6 +99,8 @@ static int	kqueue_register(struct kqueue *kq, struct kevent *kev,
 		    struct thread *td, int waitok);
 static int	kqueue_acquire(struct file *fp, struct kqueue **kqp);
 static void	kqueue_release(struct kqueue *kq, int locked);
+static void	kqueue_destroy(struct kqueue *kq);
+static void	kqueue_drain(struct kqueue *kq, struct thread *td);
 static int	kqueue_expand(struct kqueue *kq, struct filterops *fops,
 		    uintptr_t ident, int waitok);
 static void	kqueue_task(void *arg, int pending);
@@ -741,6 +743,16 @@ sys_kqueue(struct thread *td, struct kqueue_args *uap)
 	return (kern_kqueue(td, 0, NULL));
 }
 
+static void
+kqueue_init(struct kqueue *kq)
+{
+
+	mtx_init(&kq->kq_lock, "kqueue", NULL, MTX_DEF | MTX_DUPOK);
+	TAILQ_INIT(&kq->kq_head);
+	knlist_init_mtx(&kq->kq_sel.si_note, &kq->kq_lock);
+	TASK_INIT(&kq->kq_task, 0, kqueue_task, kq);
+}
+
 int
 kern_kqueue(struct thread *td, int flags, struct filecaps *fcaps)
 {
@@ -766,12 +778,9 @@ kern_kqueue(struct thread *td, int flags, struct filecaps *fcaps)
 
 	/* An extra reference on `fp' has been held for us by falloc(). */
 	kq = malloc(sizeof *kq, M_KQUEUE, M_WAITOK | M_ZERO);
-	mtx_init(&kq->kq_lock, "kqueue", NULL, MTX_DEF|MTX_DUPOK);
-	TAILQ_INIT(&kq->kq_head);
+	kqueue_init(kq);
 	kq->kq_fdp = fdp;
 	kq->kq_cred = cred;
-	knlist_init_mtx(&kq->kq_sel.si_note, &kq->kq_lock);
-	TASK_INIT(&kq->kq_task, 0, kqueue_task, kq);
 
 	FILEDESC_XLOCK(fdp);
 	TAILQ_INSERT_HEAD(&fdp->fd_kqlist, kq, kq_list);
@@ -910,26 +919,20 @@ kern_kevent(struct thread *td, int fd, int nchanges, int nevents,
 	return (error);
 }
 
-int
-kern_kevent_fp(struct thread *td, struct file *fp, int nchanges, int nevents,
+static int
+kqueue_kevent(struct kqueue *kq, struct thread *td, int nchanges, int nevents,
     struct kevent_copyops *k_ops, const struct timespec *timeout)
 {
 	struct kevent keva[KQ_NEVENTS];
 	struct kevent *kevp, *changes;
-	struct kqueue *kq;
 	int i, n, nerrors, error;
 
-	error = kqueue_acquire(fp, &kq);
-	if (error != 0)
-		return (error);
-
 	nerrors = 0;
-
 	while (nchanges > 0) {
 		n = nchanges > KQ_NEVENTS ? KQ_NEVENTS : nchanges;
 		error = k_ops->k_copyin(k_ops->arg, keva, n);
 		if (error)
-			goto done;
+			return (error);
 		changes = keva;
 		for (i = 0; i < n; i++) {
 			kevp = &changes[i];
@@ -938,29 +941,52 @@ kern_kevent_fp(struct thread *td, struct file *fp, int nchanges, int nevents,
 			kevp->flags &= ~EV_SYSFLAGS;
 			error = kqueue_register(kq, kevp, td, 1);
 			if (error || (kevp->flags & EV_RECEIPT)) {
-				if (nevents != 0) {
-					kevp->flags = EV_ERROR;
-					kevp->data = error;
-					(void) k_ops->k_copyout(k_ops->arg,
-					    kevp, 1);
-					nevents--;
-					nerrors++;
-				} else {
-					goto done;
-				}
+				if (nevents == 0)
+					return (error);
+				kevp->flags = EV_ERROR;
+				kevp->data = error;
+				(void)k_ops->k_copyout(k_ops->arg, kevp, 1);
+				nevents--;
+				nerrors++;
 			}
 		}
 		nchanges -= n;
 	}
 	if (nerrors) {
 		td->td_retval[0] = nerrors;
-		error = 0;
-		goto done;
+		return (0);
 	}
 
-	error = kqueue_scan(kq, nevents, k_ops, timeout, keva, td);
-done:
+	return (kqueue_scan(kq, nevents, k_ops, timeout, keva, td));
+}
+
+int
+kern_kevent_fp(struct thread *td, struct file *fp, int nchanges, int nevents,
+    struct kevent_copyops *k_ops, const struct timespec *timeout)
+{
+	struct kqueue *kq;
+	int error;
+
+	error = kqueue_acquire(fp, &kq);
+	if (error != 0)
+		return (error);
+	error = kqueue_kevent(kq, td, nchanges, nevents, k_ops, timeout);
 	kqueue_release(kq, 0);
+	return (error);
+}
+
+int
+kern_kevent_anonymous(struct thread *td, int nevents,
+    struct kevent_copyops *k_ops)
+{
+	struct kqueue kq = {};
+	int error;
+
+	kqueue_init(&kq);
+	kq.kq_refcnt = 1;
+	error = kqueue_kevent(&kq, td, nevents, nevents, k_ops, NULL);
+	kqueue_drain(&kq, td);
+	kqueue_destroy(&kq);
 	return (error);
 }
 
@@ -1734,21 +1760,12 @@ kqueue_stat(struct file *fp, struct stat *st, struct ucred *active_cred,
 	return (0);
 }
 
-/*ARGSUSED*/
-static int
-kqueue_close(struct file *fp, struct thread *td)
+static void
+kqueue_drain(struct kqueue *kq, struct thread *td)
 {
-	struct kqueue *kq = fp->f_data;
-	struct filedesc *fdp;
 	struct knote *kn;
 	int i;
-	int error;
-	int filedesc_unlock;
 
-	if ((error = kqueue_acquire(fp, &kq)))
-		return error;
-
-	filedesc_unlock = 0;
 	KQ_LOCK(kq);
 
 	KASSERT((kq->kq_state & KQ_CLOSING) != KQ_CLOSING,
@@ -1758,7 +1775,6 @@ kqueue_close(struct file *fp, struct thread *td)
 		msleep(&kq->kq_refcnt, &kq->kq_lock, PSOCK, "kqclose", 0);
 
 	KASSERT(kq->kq_refcnt == 1, ("other refs are out there!"));
-	fdp = kq->kq_fdp;
 
 	KASSERT(knlist_empty(&kq->kq_sel.si_note),
 	    ("kqueue's knlist not empty"));
@@ -1809,6 +1825,36 @@ kqueue_close(struct file *fp, struct thread *td)
 	}
 
 	KQ_UNLOCK(kq);
+}
+
+static void
+kqueue_destroy(struct kqueue *kq)
+{
+
+	seldrain(&kq->kq_sel);
+	knlist_destroy(&kq->kq_sel.si_note);
+	mtx_destroy(&kq->kq_lock);
+
+	if (kq->kq_knhash != NULL)
+		free(kq->kq_knhash, M_KQUEUE);
+	if (kq->kq_knlist != NULL)
+		free(kq->kq_knlist, M_KQUEUE);
+
+	funsetown(&kq->kq_sigio);
+}
+
+/*ARGSUSED*/
+static int
+kqueue_close(struct file *fp, struct thread *td)
+{
+	struct kqueue *kq = fp->f_data;
+	struct filedesc *fdp;
+	int error;
+	int filedesc_unlock;
+
+	if ((error = kqueue_acquire(fp, &kq)))
+		return error;
+	kqueue_drain(kq, td);
 
 	/*
 	 * We could be called due to the knote_drop() doing fdrop(),
@@ -1816,6 +1862,7 @@ kqueue_close(struct file *fp, struct thread *td)
 	 * lock is owned, and filedesc sx is locked before, to not
 	 * take the sleepable lock after non-sleepable.
 	 */
+	fdp = kq->kq_fdp;
 	if (!sx_xlocked(FILEDESC_LOCK(fdp))) {
 		FILEDESC_XLOCK(fdp);
 		filedesc_unlock = 1;
@@ -1825,17 +1872,7 @@ kqueue_close(struct file *fp, struct thread *td)
 	if (filedesc_unlock)
 		FILEDESC_XUNLOCK(fdp);
 
-	seldrain(&kq->kq_sel);
-	knlist_destroy(&kq->kq_sel.si_note);
-	mtx_destroy(&kq->kq_lock);
-	kq->kq_fdp = NULL;
-
-	if (kq->kq_knhash != NULL)
-		free(kq->kq_knhash, M_KQUEUE);
-	if (kq->kq_knlist != NULL)
-		free(kq->kq_knlist, M_KQUEUE);
-
-	funsetown(&kq->kq_sigio);
+	kqueue_destroy(kq);
 	chgkqcnt(kq->kq_cred->cr_ruidinfo, -1, 0);
 	crfree(kq->kq_cred);
 	free(kq, M_KQUEUE);
