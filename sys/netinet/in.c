@@ -958,7 +958,6 @@ in_purgemaddrs(struct ifnet *ifp)
 
 struct in_llentry {
 	struct llentry		base;
-	struct sockaddr_in	l3_addr4;
 };
 
 #define	IN_LLTBL_DEFAULT_HSIZE	32
@@ -980,7 +979,7 @@ in_lltable_destroy_lle(struct llentry *lle)
 }
 
 static struct llentry *
-in_lltable_new(const struct sockaddr *l3addr, u_int flags)
+in_lltable_new(struct in_addr addr4, u_int flags)
 {
 	struct in_llentry *lle;
 
@@ -993,7 +992,7 @@ in_lltable_new(const struct sockaddr *l3addr, u_int flags)
 	 * an ARP request.
 	 */
 	lle->base.la_expire = time_uptime; /* mark expired */
-	lle->l3_addr4 = *(const struct sockaddr_in *)l3addr;
+	lle->base.r_l3addr.addr4 = addr4;
 	lle->base.lle_refcnt = 1;
 	lle->base.lle_free = in_lltable_destroy_lle;
 	LLE_LOCK_INIT(&lle->base);
@@ -1003,7 +1002,7 @@ in_lltable_new(const struct sockaddr *l3addr, u_int flags)
 }
 
 #define IN_ARE_MASKED_ADDR_EQUAL(d, a, m)	(			\
-	    (((ntohl((d)->sin_addr.s_addr) ^ (a)->sin_addr.s_addr) & (m)->sin_addr.s_addr)) == 0 )
+	    (((ntohl((d).s_addr) ^ (a)->sin_addr.s_addr) & (m)->sin_addr.s_addr)) == 0 )
 
 static int
 in_lltable_match_prefix(const struct sockaddr *prefix,
@@ -1016,7 +1015,7 @@ in_lltable_match_prefix(const struct sockaddr *prefix,
 	 * (flags & LLE_STATIC) means deleting all entries
 	 * including static ARP entries.
 	 */
-	if (IN_ARE_MASKED_ADDR_EQUAL(satosin(L3_ADDR(lle)), pfx, msk) &&
+	if (IN_ARE_MASKED_ADDR_EQUAL(lle->r_l3addr.addr4, pfx, msk) &&
 	    ((flags & LLE_STATIC) || !(lle->la_flags & LLE_STATIC)))
 		return (1);
 
@@ -1132,11 +1131,8 @@ in_lltable_hash_dst(const struct in_addr dst, uint32_t hsize)
 static uint32_t
 in_lltable_hash(const struct llentry *lle, uint32_t hsize)
 {
-	const struct sockaddr_in *sin;
 
-	sin = (const struct sockaddr_in *)(L3_CADDR(lle));
-
-	return (in_lltable_hash_dst(sin->sin_addr, hsize));
+	return (in_lltable_hash_dst(lle->r_l3addr.addr4, hsize));
 }
 
 static void
@@ -1148,7 +1144,7 @@ in_lltable_fill_sa_entry(const struct llentry *lle, struct sockaddr *sa)
 	bzero(sin, sizeof(*sin));
 	sin->sin_family = AF_INET;
 	sin->sin_len = sizeof(*sin);
-	sin->sin_addr = ((const struct sockaddr_in *)(L3_CADDR(lle)))->sin_addr;
+	sin->sin_addr = lle->r_l3addr.addr4;
 }
 
 static inline struct llentry *
@@ -1156,16 +1152,14 @@ in_lltable_find_dst(struct lltable *llt, struct in_addr dst)
 {
 	struct llentry *lle;
 	struct llentries *lleh;
-	struct sockaddr_in *sin;
 	u_int hashidx;
 
 	hashidx = in_lltable_hash_dst(dst, llt->llt_hsize);
 	lleh = &llt->lle_head[hashidx];
 	LIST_FOREACH(lle, lleh, lle_next) {
-		sin = satosin(L3_ADDR(lle));
 		if (lle->la_flags & LLE_DELETED)
 			continue;
-		if (sin->sin_addr.s_addr == dst.s_addr)
+		if (lle->r_l3addr.addr4.s_addr == dst.s_addr)
 			break;
 	}
 
@@ -1236,7 +1230,7 @@ in_lltable_create(struct lltable *llt, u_int flags, const struct sockaddr *l3add
 	    in_lltable_rtcheck(ifp, flags, l3addr) != 0)
 		return (NULL);
 
-	lle = in_lltable_new(l3addr, flags);
+	lle = in_lltable_new(sin->sin_addr, flags);
 	if (lle == NULL) {
 		log(LOG_INFO, "lla_lookup: new lle malloc failed\n");
 		return (NULL);
