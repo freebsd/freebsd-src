@@ -224,7 +224,7 @@ cloudabi_sys_file_open(struct thread *td,
 	write = (fds.fs_rights_base & (CLOUDABI_RIGHT_FD_DATASYNC |
 	    CLOUDABI_RIGHT_FD_WRITE | CLOUDABI_RIGHT_FILE_ALLOCATE |
 	    CLOUDABI_RIGHT_FILE_STAT_FPUT_SIZE)) != 0;
-	fflags = read ? write ? FREAD | FWRITE : FREAD : FWRITE;
+	fflags = write ? read ? FREAD | FWRITE : FWRITE : FREAD;
 
 	/* Convert open flags. */
 	if ((uap->oflags & CLOUDABI_O_CREAT) != 0) {
