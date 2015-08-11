@@ -321,7 +321,7 @@ port connected to an
 .Xr nmdm 4
 null-modem device.
 .Bd -literal -offset indent
-bhyve -c 4 \e\
+bhyve -c 4 \\
   -s 0,amd_hostbridge -s 1,lpc \\
   -s 1:0,ahci-hd,/images/disk.1 \\
   -s 1:1,ahci-hd,/images/disk.2 \\
