@@ -610,8 +610,8 @@ fits_in_signed_long (num)
 #ifndef BFD64
   return 1;
 #else
-  return (!(((offsetT) -1 << 31) & num)
-	  || (((offsetT) -1 << 31) & num) == ((offsetT) -1 << 31));
+  return (!(-((offsetT) 1 << 31) & num)
+	  || (-((offsetT) 1 << 31) & num) == -((offsetT) 1 << 31));
 #endif
 }				/* fits_in_signed_long() */
 static INLINE int
