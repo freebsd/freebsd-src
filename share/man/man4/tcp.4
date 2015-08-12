@@ -520,23 +520,31 @@ ECN allows a TCP sender to reduce the transmission rate in order to
 avoid packet drops.
 .It Va ecn.maxretries
 Number of retries (SYN or SYN/ACK retransmits) before disabling ECN on a
-specific connection. This is needed to help with connection establishment
+specific connection.
+This is needed to help with connection establishment
 when a broken firewall is in the network path.
 .It Va pmtud_blackhole_detection
-Turn on automatic path MTU blackhole detection. In case of retransmits we will
-lower the MSS to check if it's MTU problem. If current MSS is greater than
-configured value to try, it will be set to it, otherwise, MSS will be set to
-default values (net.inet.tcp.mssdflt and net.inet.tcp.v6mssdflt).
+Turn on automatic path MTU blackhole detection.
+In case of retransmits OS will
+lower the MSS to check if it's MTU problem.
+If current MSS is greater than
+configured value to try, it will be set to configured value, otherwise,
+MSS will be set to default values
+.Po Va net.inet.tcp.mssdflt
+and
+.Va net.inet.tcp.v6mssdflt
+.Pc .
 .It Va pmtud_blackhole_mss
 MSS to try for IPv4 if PMTU blackhole detection is turned on.
 .It Va v6pmtud_blackhole_mss
 MSS to try for IPv6 if PMTU blackhole detection is turned on.
 .It Va pmtud_blackhole_activated
-Number of times the code was activated to attempt a MSS downshift.
-.It Va pmtud_blackhole_min_activated
-Number of times the blackhole MSS was used in an attempt to downshift.
+Number of times configured values were used in an attempt to downshift.
+.It Va pmtud_blackhole_activated_min_mss
+Number of times default MSS was used in an attempt to downshift.
 .It Va pmtud_blackhole_failed
-Number of times that we failed to connect after we downshifted the MSS.
+Number of connections for which retransmits continued even after MSS
+downshift.
 .El
 .Sh ERRORS
 A socket operation may fail with one of the following errors returned:
