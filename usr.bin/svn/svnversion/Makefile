@@ -27,6 +27,6 @@ LDADD=	-L${LIBSVN_WCDIR} -lsvn_wc \
 LIBADD+=	bsdxml sqlite3 z pthread
 
 DPADD=	${LIBSVN_WC} ${LIBSVN_DELTA} ${LIBSVN_DIFF} ${LIBSVN_SUBR} \
-	${LIBSERF} ${LIBAPR_UTIL}${LIBAPR}
+	${LIBSERF} ${LIBAPR_UTIL} ${LIBAPR}
 
 .include <bsd.prog.mk>

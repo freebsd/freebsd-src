@@ -273,7 +273,7 @@ typedef	struct tnode {
 	op_t	tn_op;		/* operator */
 	type_t	*tn_type;	/* type */
 	u_int	tn_lvalue : 1;	/* node is lvalue */
-	u_int	tn_cast : 1;	/* if tn_op == CVT its an explizit cast */
+	u_int	tn_cast : 1;	/* if tn_op == CVT its an explicit cast */
 	u_int	tn_parn : 1;	/* node parenthesized */
 	union {
 		struct {

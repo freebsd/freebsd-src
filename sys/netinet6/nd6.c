@@ -66,7 +66,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in.h>
 #include <netinet/in_kdtrace.h>
 #include <net/if_llatbl.h>
-#define	L3_ADDR_SIN6(le)	((struct sockaddr_in6 *) L3_ADDR(le))
 #include <netinet/if_ether.h>
 #include <netinet6/in6_var.h>
 #include <netinet/ip6.h>
@@ -150,12 +149,15 @@ static void
 nd6_lle_event(void *arg __unused, struct llentry *lle, int evt)
 {
 	struct rt_addrinfo rtinfo;
-	struct sockaddr_in6 dst, *sa6;
+	struct sockaddr_in6 dst;
 	struct sockaddr_dl gw;
 	struct ifnet *ifp;
 	int type;
 
 	LLE_WLOCK_ASSERT(lle);
+
+	if (lltable_get_af(lle->lle_tbl) != AF_INET6)
+		return;
 
 	switch (evt) {
 	case LLENTRY_RESOLVED:
@@ -170,20 +172,14 @@ nd6_lle_event(void *arg __unused, struct llentry *lle, int evt)
 		return;
 	}
 
-	sa6 = L3_ADDR_SIN6(lle);
-	if (sa6->sin6_family != AF_INET6)
-		return;
-	ifp = lle->lle_tbl->llt_ifp;
+	ifp = lltable_get_ifp(lle->lle_tbl);
 
 	bzero(&dst, sizeof(dst));
 	bzero(&gw, sizeof(gw));
 	bzero(&rtinfo, sizeof(rtinfo));
-	dst.sin6_len = sizeof(struct sockaddr_in6);
-	dst.sin6_family = AF_INET6;
-	dst.sin6_addr = sa6->sin6_addr;
+	lltable_fill_sa_entry(lle, (struct sockaddr *)&dst);
 	dst.sin6_scope_id = in6_getscopezone(ifp,
-	    in6_addrscope(&sa6->sin6_addr));
-	in6_clearscope(&dst.sin6_addr); /* XXX */
+	    in6_addrscope(&dst.sin6_addr));
 	gw.sdl_len = sizeof(struct sockaddr_dl);
 	gw.sdl_family = AF_LINK;
 	gw.sdl_alen = ifp->if_addrlen;
@@ -496,17 +492,17 @@ nd6_llinfo_settimer_locked(struct llentry *ln, long tick)
 	if (tick < 0) {
 		ln->la_expire = 0;
 		ln->ln_ntick = 0;
-		canceled = callout_stop(&ln->ln_timer_ch);
+		canceled = callout_stop(&ln->lle_timer);
 	} else {
 		ln->la_expire = time_uptime + tick / hz;
 		LLE_ADDREF(ln);
 		if (tick > INT_MAX) {
 			ln->ln_ntick = tick - INT_MAX;
-			canceled = callout_reset(&ln->ln_timer_ch, INT_MAX,
+			canceled = callout_reset(&ln->lle_timer, INT_MAX,
 			    nd6_llinfo_timer, ln);
 		} else {
 			ln->ln_ntick = 0;
-			canceled = callout_reset(&ln->ln_timer_ch, tick,
+			canceled = callout_reset(&ln->lle_timer, tick,
 			    nd6_llinfo_timer, ln);
 		}
 	}
@@ -534,7 +530,7 @@ nd6_llinfo_timer(void *arg)
 	KASSERT(arg != NULL, ("%s: arg NULL", __func__));
 	ln = (struct llentry *)arg;
 	LLE_WLOCK(ln);
-	if (callout_pending(&ln->la_timer)) {
+	if (callout_pending(&ln->lle_timer)) {
 		/*
 		 * Here we are a bit odd here in the treatment of 
 		 * active/pending. If the pending bit is set, it got
@@ -569,7 +565,7 @@ nd6_llinfo_timer(void *arg)
 	}
 
 	ndi = ND_IFINFO(ifp);
-	dst = &L3_ADDR_SIN6(ln)->sin6_addr;
+	dst = &ln->r_l3addr.addr6;
 	if (ln->la_flags & LLE_STATIC) {
 		goto done;
 	}
@@ -937,16 +933,33 @@ nd6_lookup(struct in6_addr *addr6, int flags, struct ifnet *ifp)
 
 	IF_AFDATA_LOCK_ASSERT(ifp);
 
-	llflags = 0;
-	if (flags & ND6_CREATE)
-	    llflags |= LLE_CREATE;
-	if (flags & ND6_EXCLUSIVE)
-	    llflags |= LLE_EXCLUSIVE;	
-	
+	llflags = (flags & ND6_EXCLUSIVE) ? LLE_EXCLUSIVE : 0;
 	ln = lla_lookup(LLTABLE6(ifp), llflags, (struct sockaddr *)&sin6);
-	if ((ln != NULL) && (llflags & LLE_CREATE))
+
+	return (ln);
+}
+
+/*
+ * the caller acquires and releases the lock on the lltbls
+ * Returns the llentry wlocked
+ */
+struct llentry *
+nd6_create(struct in6_addr *addr6, int flags, struct ifnet *ifp)
+{
+	struct sockaddr_in6 sin6;
+	struct llentry *ln;
+
+	bzero(&sin6, sizeof(sin6));
+	sin6.sin6_len = sizeof(struct sockaddr_in6);
+	sin6.sin6_family = AF_INET6;
+	sin6.sin6_addr = *addr6;
+
+	IF_AFDATA_WLOCK_ASSERT(ifp);
+
+	ln = lla_create(LLTABLE6(ifp), 0, (struct sockaddr *)&sin6);
+	if (ln != NULL)
 		ln->ln_state = ND6_LLINFO_NOSTATE;
-	
+
 	return (ln);
 }
 
@@ -1105,7 +1118,7 @@ nd6_free(struct llentry *ln, int gc)
 	ifp = ln->lle_tbl->llt_ifp;
 
 	if (ND_IFINFO(ifp)->flags & ND6_IFF_ACCEPT_RTADV) {
-		dr = defrouter_lookup(&L3_ADDR_SIN6(ln)->sin6_addr, ifp);
+		dr = defrouter_lookup(&ln->r_l3addr.addr6, ifp);
 
 		if (dr != NULL && dr->expire &&
 		    ln->ln_state == ND6_LLINFO_STALE && gc) {
@@ -1166,7 +1179,7 @@ nd6_free(struct llentry *ln, int gc)
 			 * is in the Default Router List.
 			 * See a corresponding comment in nd6_na_input().
 			 */
-			rt6_flush(&L3_ADDR_SIN6(ln)->sin6_addr, ifp);
+			rt6_flush(&ln->r_l3addr.addr6, ifp);
 		}
 
 		if (dr) {
@@ -1664,7 +1677,7 @@ nd6_cache_lladdr(struct ifnet *ifp, struct in6_addr *from, char *lladdr,
 	if (ln == NULL) {
 		flags |= ND6_EXCLUSIVE;
 		IF_AFDATA_LOCK(ifp);
-		ln = nd6_lookup(from, flags | ND6_CREATE, ifp);
+		ln = nd6_create(from, 0, ifp);
 		IF_AFDATA_UNLOCK(ifp);
 		is_newentry = 1;
 	} else {
@@ -1890,7 +1903,7 @@ nd6_grab_holdchain(struct llentry *ln, struct mbuf **chain,
 
 	*chain = ln->la_hold;
 	ln->la_hold = NULL;
-	memcpy(sin6, L3_ADDR_SIN6(ln), sizeof(*sin6));
+	lltable_fill_sa_entry(ln, (struct sockaddr *)sin6);
 
 	if (ln->ln_state == ND6_LLINFO_STALE) {
 
@@ -2020,7 +2033,6 @@ nd6_output_lle(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *m,
     struct sockaddr_in6 *dst)
 {
 	struct llentry *lle = NULL;
-	int flags = 0;
 
 	KASSERT(m != NULL, ("NULL mbuf, nothing to send"));
 	/* discard the packet if IPv6 operation is disabled on the interface */
@@ -2051,9 +2063,8 @@ nd6_output_lle(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *m,
 			 * the condition below is not very efficient.  But we believe
 			 * it is tolerable, because this should be a rare case.
 			 */
-			flags = ND6_CREATE | ND6_EXCLUSIVE;
 			IF_AFDATA_LOCK(ifp);
-			lle = nd6_lookup(&dst->sin6_addr, flags, ifp);
+			lle = nd6_create(&dst->sin6_addr, 0, ifp);
 			IF_AFDATA_UNLOCK(ifp);
 		}
 	} 
@@ -2237,8 +2248,8 @@ nd6_add_ifa_lle(struct in6_ifaddr *ia)
 		return (0);
 	IF_AFDATA_LOCK(ifp);
 	ia->ia_ifa.ifa_rtrequest = nd6_rtrequest;
-	ln = lla_lookup(LLTABLE6(ifp), (LLE_CREATE | LLE_IFADDR |
-	    LLE_EXCLUSIVE), (struct sockaddr *)&ia->ia_addr);
+	ln = lla_create(LLTABLE6(ifp), LLE_IFADDR,
+	    (struct sockaddr *)&ia->ia_addr);
 	IF_AFDATA_UNLOCK(ifp);
 	if (ln != NULL) {
 		ln->la_expire = 0;  /* for IPv6 this means permanent */

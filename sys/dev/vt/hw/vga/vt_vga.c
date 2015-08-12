@@ -46,13 +46,6 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 
-#if defined(__amd64__) || defined(__i386__)
-#include <vm/vm.h>
-#include <vm/pmap.h>
-#include <machine/pmap.h>
-#include <machine/vmparam.h>
-#endif /* __amd64__ || __i386__ */
-
 struct vga_softc {
 	bus_space_tag_t		 vga_fb_tag;
 	bus_space_handle_t	 vga_fb_handle;
@@ -1228,12 +1221,15 @@ vga_init(struct vt_device *vd)
 
 #if defined(__amd64__) || defined(__i386__)
 	sc->vga_fb_tag = X86_BUS_SPACE_MEM;
-	sc->vga_fb_handle = KERNBASE + VGA_MEM_BASE;
 	sc->vga_reg_tag = X86_BUS_SPACE_IO;
-	sc->vga_reg_handle = VGA_REG_BASE;
 #else
 # error "Architecture not yet supported!"
 #endif
+
+	bus_space_map(sc->vga_fb_tag, VGA_MEM_BASE, VGA_MEM_SIZE, 0,
+	    &sc->vga_fb_handle);
+	bus_space_map(sc->vga_reg_tag, VGA_REG_BASE, VGA_REG_SIZE, 0,
+	    &sc->vga_reg_handle);
 
 	TUNABLE_INT_FETCH("hw.vga.textmode", &textmode);
 	if (textmode) {

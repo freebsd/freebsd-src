@@ -3126,7 +3126,7 @@ uma_zone_reserve_kva(uma_zone_t zone, int count)
 {
 	uma_keg_t keg;
 	vm_offset_t kva;
-	int pages;
+	u_int pages;
 
 	keg = zone_first_keg(zone);
 	if (keg == NULL)
@@ -3141,7 +3141,7 @@ uma_zone_reserve_kva(uma_zone_t zone, int count)
 #else
 	if (1) {
 #endif
-		kva = kva_alloc(pages * UMA_SLAB_SIZE);
+		kva = kva_alloc((vm_size_t)pages * UMA_SLAB_SIZE);
 		if (kva == 0)
 			return (0);
 	} else

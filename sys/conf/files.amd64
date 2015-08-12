@@ -277,7 +277,7 @@ dev/hyperv/vmbus/hv_vmbus_drv_freebsd.c			optional	hyperv
 dev/kbd/kbd.c			optional	atkbd | sc | ukbd | vt
 dev/nfe/if_nfe.c		optional	nfe pci
 dev/ntb/if_ntb/if_ntb.c		optional	if_ntb
-dev/ntb/ntb_hw/ntb_hw.c		optional	if_ntb ntb_hw
+dev/ntb/ntb_hw/ntb_hw.c		optional	if_ntb | ntb_hw
 dev/nvd/nvd.c			optional	nvd nvme
 dev/nvme/nvme.c			optional	nvme
 dev/nvme/nvme_ctrlr.c		optional	nvme
@@ -592,6 +592,7 @@ x86/isa/nmi.c			standard
 x86/isa/orm.c			optional	isa
 x86/pci/pci_bus.c		optional	pci
 x86/pci/qpi.c			optional	pci
+x86/x86/bus_machdep.c		standard
 x86/x86/busdma_bounce.c		standard
 x86/x86/busdma_machdep.c	standard
 x86/x86/cpu_machdep.c		standard
