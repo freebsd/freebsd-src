@@ -4017,6 +4017,7 @@ OLD_FILES+=usr/lib32/libcxxrt.a
 OLD_FILES+=usr/lib32/libcxxrt.so
 OLD_LIBS+=usr/lib32/libcxxrt.so.1
 OLD_FILES+=usr/lib32/libcxxrt_p.a
+OLD_DIRS+=usr/include/c++/v1/tr1
 OLD_DIRS+=usr/include/c++/v1/experimental
 OLD_DIRS+=usr/include/c++/v1/ext
 OLD_DIRS+=usr/include/c++/v1
