@@ -96,8 +96,6 @@ ti_scm_probe(device_t dev)
 		return (ENXIO);
 
 	if (ti_scm_sc) {
-		printf("%s: multiple SCM modules in device tree data, ignoring\n",
-		    __func__);
 		return (EEXIST);
 	}
 
