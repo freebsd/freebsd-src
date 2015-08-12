@@ -1439,7 +1439,7 @@ _gcc_tools= gnu/usr.bin/cc/cc_tools
 
 .if ${MK_RESCUE} != "no"
 # rescue includes programs that have build-tools targets
-_rescue=rescue
+_rescue=rescue/rescue
 .endif
 
 build-tools: .MAKE
