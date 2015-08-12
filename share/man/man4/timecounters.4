@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 12, 2014
+.Dd August 12, 2015
 .Dt TIMECOUNTERS 4
 .Os
 .Sh NAME
@@ -96,10 +96,16 @@ compared to others.
 A negative value means this time counter is broken and should not be used.
 .El
 .Pp
-The time management code of the kernel chooses one time counter from that list.
-The current choice can be read and affected via the
+The time management code of the kernel automatically switches to a
+higher-quality time counter when it registers, unless the
 .Va kern.timecounter.hardware
-tunable/sysctl.
+sysctl has been used to choose a specific device.
+.Pp
+There is no way to unregister a time counter once it has registered
+with the kernel.
+If a dynamically loaded module contains a time counter you will not
+be able to unload that module, even if the time counter it contains
+is not the one currently in use.
 .Sh SEE ALSO
 .Xr attimer 4 ,
 .Xr eventtimers 4 ,
