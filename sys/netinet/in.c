@@ -958,25 +958,28 @@ in_purgemaddrs(struct ifnet *ifp)
 
 struct in_llentry {
 	struct llentry		base;
-	struct sockaddr_in	l3_addr4;
 };
 
+#define	IN_LLTBL_DEFAULT_HSIZE	32
+#define	IN_LLTBL_HASH(k, h) \
+	(((((((k >> 8) ^ k) >> 8) ^ k) >> 8) ^ k) & ((h) - 1))
+
 /*
- * Deletes an address from the address table.
- * This function is called by the timer functions
- * such as arptimer() and nd6_llinfo_timer(), and
- * the caller does the locking.
+ * Do actual deallocation of @lle.
+ * Called by LLE_FREE_LOCKED when number of references
+ * drops to zero.
  */
 static void
-in_lltable_free(struct lltable *llt, struct llentry *lle)
+in_lltable_destroy_lle(struct llentry *lle)
 {
+
 	LLE_WUNLOCK(lle);
 	LLE_LOCK_DESTROY(lle);
 	free(lle, M_LLTABLE);
 }
 
 static struct llentry *
-in_lltable_new(const struct sockaddr *l3addr, u_int flags)
+in_lltable_new(struct in_addr addr4, u_int flags)
 {
 	struct in_llentry *lle;
 
@@ -989,49 +992,60 @@ in_lltable_new(const struct sockaddr *l3addr, u_int flags)
 	 * an ARP request.
 	 */
 	lle->base.la_expire = time_uptime; /* mark expired */
-	lle->l3_addr4 = *(const struct sockaddr_in *)l3addr;
+	lle->base.r_l3addr.addr4 = addr4;
 	lle->base.lle_refcnt = 1;
-	lle->base.lle_free = in_lltable_free;
+	lle->base.lle_free = in_lltable_destroy_lle;
 	LLE_LOCK_INIT(&lle->base);
-	callout_init(&lle->base.la_timer, 1);
+	callout_init(&lle->base.lle_timer, 1);
 
 	return (&lle->base);
 }
 
 #define IN_ARE_MASKED_ADDR_EQUAL(d, a, m)	(			\
-	    (((ntohl((d)->sin_addr.s_addr) ^ (a)->sin_addr.s_addr) & (m)->sin_addr.s_addr)) == 0 )
+	    (((ntohl((d).s_addr) ^ (a)->sin_addr.s_addr) & (m)->sin_addr.s_addr)) == 0 )
 
-static void
-in_lltable_prefix_free(struct lltable *llt, const struct sockaddr *prefix,
-    const struct sockaddr *mask, u_int flags)
+static int
+in_lltable_match_prefix(const struct sockaddr *prefix,
+    const struct sockaddr *mask, u_int flags, struct llentry *lle)
 {
 	const struct sockaddr_in *pfx = (const struct sockaddr_in *)prefix;
 	const struct sockaddr_in *msk = (const struct sockaddr_in *)mask;
-	struct llentry *lle, *next;
-	int i;
-	size_t pkts_dropped;
 
-	IF_AFDATA_WLOCK(llt->llt_ifp);
-	for (i = 0; i < LLTBL_HASHTBL_SIZE; i++) {
-		LIST_FOREACH_SAFE(lle, &llt->lle_head[i], lle_next, next) {
-			/*
-			 * (flags & LLE_STATIC) means deleting all entries
-			 * including static ARP entries.
-			 */
-			if (IN_ARE_MASKED_ADDR_EQUAL(satosin(L3_ADDR(lle)),
-			    pfx, msk) && ((flags & LLE_STATIC) ||
-			    !(lle->la_flags & LLE_STATIC))) {
-				LLE_WLOCK(lle);
-				if (callout_stop(&lle->la_timer))
-					LLE_REMREF(lle);
-				pkts_dropped = llentry_free(lle);
-				ARPSTAT_ADD(dropped, pkts_dropped);
-			}
-		}
-	}
-	IF_AFDATA_WUNLOCK(llt->llt_ifp);
+	/*
+	 * (flags & LLE_STATIC) means deleting all entries
+	 * including static ARP entries.
+	 */
+	if (IN_ARE_MASKED_ADDR_EQUAL(lle->r_l3addr.addr4, pfx, msk) &&
+	    ((flags & LLE_STATIC) || !(lle->la_flags & LLE_STATIC)))
+		return (1);
+
+	return (0);
 }
 
+static void
+in_lltable_free_entry(struct lltable *llt, struct llentry *lle)
+{
+	struct ifnet *ifp;
+	size_t pkts_dropped;
+
+	LLE_WLOCK_ASSERT(lle);
+	KASSERT(llt != NULL, ("lltable is NULL"));
+
+	/* Unlink entry from table if not already */
+	if ((lle->la_flags & LLE_LINKED) != 0) {
+		ifp = llt->llt_ifp;
+		IF_AFDATA_WLOCK_ASSERT(ifp);
+		lltable_unlink_entry(llt, lle);
+	}
+
+	/* cancel timer */
+	if (callout_stop(&lle->lle_timer))
+		LLE_REMREF(lle);
+
+	/* Drop hold queue */
+	pkts_dropped = llentry_free(lle);
+	ARPSTAT_ADD(dropped, pkts_dropped);
+}
 
 static int
 in_lltable_rtcheck(struct ifnet *ifp, u_int flags, const struct sockaddr *l3addr)
@@ -1107,6 +1121,132 @@ in_lltable_rtcheck(struct ifnet *ifp, u_int flags, const struct sockaddr *l3addr
 	return (0);
 }
 
+static inline uint32_t
+in_lltable_hash_dst(const struct in_addr dst, uint32_t hsize)
+{
+
+	return (IN_LLTBL_HASH(dst.s_addr, hsize));
+}
+
+static uint32_t
+in_lltable_hash(const struct llentry *lle, uint32_t hsize)
+{
+
+	return (in_lltable_hash_dst(lle->r_l3addr.addr4, hsize));
+}
+
+static void
+in_lltable_fill_sa_entry(const struct llentry *lle, struct sockaddr *sa)
+{
+	struct sockaddr_in *sin;
+
+	sin = (struct sockaddr_in *)sa;
+	bzero(sin, sizeof(*sin));
+	sin->sin_family = AF_INET;
+	sin->sin_len = sizeof(*sin);
+	sin->sin_addr = lle->r_l3addr.addr4;
+}
+
+static inline struct llentry *
+in_lltable_find_dst(struct lltable *llt, struct in_addr dst)
+{
+	struct llentry *lle;
+	struct llentries *lleh;
+	u_int hashidx;
+
+	hashidx = in_lltable_hash_dst(dst, llt->llt_hsize);
+	lleh = &llt->lle_head[hashidx];
+	LIST_FOREACH(lle, lleh, lle_next) {
+		if (lle->la_flags & LLE_DELETED)
+			continue;
+		if (lle->r_l3addr.addr4.s_addr == dst.s_addr)
+			break;
+	}
+
+	return (lle);
+}
+
+static int
+in_lltable_delete(struct lltable *llt, u_int flags,
+    const struct sockaddr *l3addr)
+{
+	const struct sockaddr_in *sin = (const struct sockaddr_in *)l3addr;
+	struct llentry *lle;
+
+	IF_AFDATA_WLOCK_ASSERT(llt->llt_ifp);
+	KASSERT(l3addr->sa_family == AF_INET,
+	    ("sin_family %d", l3addr->sa_family));
+
+	lle = in_lltable_find_dst(llt, sin->sin_addr);
+	if (lle == NULL) {
+#ifdef DIAGNOSTIC
+		log(LOG_INFO, "interface address is missing from cache = %p  in delete\n", lle);
+#endif
+		return (ENOENT);
+	}
+
+	if (!(lle->la_flags & LLE_IFADDR) || (flags & LLE_IFADDR)) {
+		LLE_WLOCK(lle);
+		lle->la_flags |= LLE_DELETED;
+		EVENTHANDLER_INVOKE(lle_event, lle, LLENTRY_DELETED);
+#ifdef DIAGNOSTIC
+		log(LOG_INFO, "ifaddr cache = %p is deleted\n", lle);
+#endif
+		if ((lle->la_flags & (LLE_STATIC | LLE_IFADDR)) == LLE_STATIC)
+			llentry_free(lle);
+		else
+			LLE_WUNLOCK(lle);
+	}
+
+	return (0);
+}
+
+static struct llentry *
+in_lltable_create(struct lltable *llt, u_int flags, const struct sockaddr *l3addr)
+{
+	const struct sockaddr_in *sin = (const struct sockaddr_in *)l3addr;
+	struct ifnet *ifp = llt->llt_ifp;
+	struct llentry *lle;
+
+	IF_AFDATA_WLOCK_ASSERT(ifp);
+	KASSERT(l3addr->sa_family == AF_INET,
+	    ("sin_family %d", l3addr->sa_family));
+
+	lle = in_lltable_find_dst(llt, sin->sin_addr);
+
+	if (lle != NULL) {
+		LLE_WLOCK(lle);
+		return (lle);
+	}
+
+	/* no existing record, we need to create new one */
+
+	/*
+	 * A route that covers the given address must have
+	 * been installed 1st because we are doing a resolution,
+	 * verify this.
+	 */
+	if (!(flags & LLE_IFADDR) &&
+	    in_lltable_rtcheck(ifp, flags, l3addr) != 0)
+		return (NULL);
+
+	lle = in_lltable_new(sin->sin_addr, flags);
+	if (lle == NULL) {
+		log(LOG_INFO, "lla_lookup: new lle malloc failed\n");
+		return (NULL);
+	}
+	lle->la_flags = flags;
+	if ((flags & LLE_IFADDR) == LLE_IFADDR) {
+		bcopy(IF_LLADDR(ifp), &lle->ll_addr, ifp->if_addrlen);
+		lle->la_flags |= (LLE_VALID | LLE_STATIC);
+	}
+
+	lltable_link_entry(llt, lle);
+	LLE_WLOCK(lle);
+
+	return (lle);
+}
+
 /*
  * Return NULL if not found or marked for deletion.
  * If found return lle read locked.
@@ -1115,125 +1255,58 @@ static struct llentry *
 in_lltable_lookup(struct lltable *llt, u_int flags, const struct sockaddr *l3addr)
 {
 	const struct sockaddr_in *sin = (const struct sockaddr_in *)l3addr;
-	struct ifnet *ifp = llt->llt_ifp;
 	struct llentry *lle;
-	struct llentries *lleh;
-	u_int hashkey;
 
-	IF_AFDATA_LOCK_ASSERT(ifp);
+	IF_AFDATA_LOCK_ASSERT(llt->llt_ifp);
 	KASSERT(l3addr->sa_family == AF_INET,
 	    ("sin_family %d", l3addr->sa_family));
+	lle = in_lltable_find_dst(llt, sin->sin_addr);
 
-	hashkey = sin->sin_addr.s_addr;
-	lleh = &llt->lle_head[LLATBL_HASH(hashkey, LLTBL_HASHMASK)];
-	LIST_FOREACH(lle, lleh, lle_next) {
-		struct sockaddr_in *sa2 = satosin(L3_ADDR(lle));
-		if (lle->la_flags & LLE_DELETED)
-			continue;
-		if (sa2->sin_addr.s_addr == sin->sin_addr.s_addr)
-			break;
-	}
-	if (lle == NULL) {
-#ifdef DIAGNOSTIC
-		if (flags & LLE_DELETE)
-			log(LOG_INFO, "interface address is missing from cache = %p  in delete\n", lle);
-#endif
-		if (!(flags & LLE_CREATE))
-			return (NULL);
-		IF_AFDATA_WLOCK_ASSERT(ifp);
-		/*
-		 * A route that covers the given address must have
-		 * been installed 1st because we are doing a resolution,
-		 * verify this.
-		 */
-		if (!(flags & LLE_IFADDR) &&
-		    in_lltable_rtcheck(ifp, flags, l3addr) != 0)
-			goto done;
+	if (lle == NULL)
+		return (NULL);
 
-		lle = in_lltable_new(l3addr, flags);
-		if (lle == NULL) {
-			log(LOG_INFO, "lla_lookup: new lle malloc failed\n");
-			goto done;
-		}
-		lle->la_flags = flags & ~LLE_CREATE;
-		if ((flags & (LLE_CREATE | LLE_IFADDR)) == (LLE_CREATE | LLE_IFADDR)) {
-			bcopy(IF_LLADDR(ifp), &lle->ll_addr, ifp->if_addrlen);
-			lle->la_flags |= (LLE_VALID | LLE_STATIC);
-		}
+	if (flags & LLE_EXCLUSIVE)
+		LLE_WLOCK(lle);
+	else
+		LLE_RLOCK(lle);
 
-		lle->lle_tbl  = llt;
-		lle->lle_head = lleh;
-		lle->la_flags |= LLE_LINKED;
-		LIST_INSERT_HEAD(lleh, lle, lle_next);
-	} else if (flags & LLE_DELETE) {
-		if (!(lle->la_flags & LLE_IFADDR) || (flags & LLE_IFADDR)) {
-			LLE_WLOCK(lle);
-			lle->la_flags |= LLE_DELETED;
-			EVENTHANDLER_INVOKE(lle_event, lle, LLENTRY_DELETED);
-#ifdef DIAGNOSTIC
-			log(LOG_INFO, "ifaddr cache = %p is deleted\n", lle);
-#endif
-			if ((lle->la_flags &
-			    (LLE_STATIC | LLE_IFADDR)) == LLE_STATIC)
-				llentry_free(lle);
-			else
-				LLE_WUNLOCK(lle);
-		}
-		lle = (void *)-1;
-
-	}
-	if (LLE_IS_VALID(lle)) {
-		if (flags & LLE_EXCLUSIVE)
-			LLE_WLOCK(lle);
-		else
-			LLE_RLOCK(lle);
-	}
-done:
 	return (lle);
 }
 
 static int
-in_lltable_dump(struct lltable *llt, struct sysctl_req *wr)
+in_lltable_dump_entry(struct lltable *llt, struct llentry *lle,
+    struct sysctl_req *wr)
 {
-#define	SIN(lle)	((struct sockaddr_in *) L3_ADDR(lle))
 	struct ifnet *ifp = llt->llt_ifp;
-	struct llentry *lle;
 	/* XXX stack use */
 	struct {
 		struct rt_msghdr	rtm;
 		struct sockaddr_in	sin;
 		struct sockaddr_dl	sdl;
 	} arpc;
-	int error, i;
+	struct sockaddr_dl *sdl;
+	int error;
 
-	LLTABLE_LOCK_ASSERT();
-
-	error = 0;
-	for (i = 0; i < LLTBL_HASHTBL_SIZE; i++) {
-		LIST_FOREACH(lle, &llt->lle_head[i], lle_next) {
-			struct sockaddr_dl *sdl;
-
+	bzero(&arpc, sizeof(arpc));
 			/* skip deleted entries */
 			if ((lle->la_flags & LLE_DELETED) == LLE_DELETED)
-				continue;
+				return (0);
 			/* Skip if jailed and not a valid IP of the prison. */
-			if (prison_if(wr->td->td_ucred, L3_ADDR(lle)) != 0)
-				continue;
+			lltable_fill_sa_entry(lle,(struct sockaddr *)&arpc.sin);
+			if (prison_if(wr->td->td_ucred,
+			    (struct sockaddr *)&arpc.sin) != 0)
+				return (0);
 			/*
 			 * produce a msg made of:
 			 *  struct rt_msghdr;
 			 *  struct sockaddr_in; (IPv4)
 			 *  struct sockaddr_dl;
 			 */
-			bzero(&arpc, sizeof(arpc));
 			arpc.rtm.rtm_msglen = sizeof(arpc);
 			arpc.rtm.rtm_version = RTM_VERSION;
 			arpc.rtm.rtm_type = RTM_GET;
 			arpc.rtm.rtm_flags = RTF_UP;
 			arpc.rtm.rtm_addrs = RTA_DST | RTA_GATEWAY;
-			arpc.sin.sin_family = AF_INET;
-			arpc.sin.sin_len = sizeof(arpc.sin);
-			arpc.sin.sin_addr.s_addr = SIN(lle)->sin_addr.s_addr;
 
 			/* publish */
 			if (lle->la_flags & LLE_PUB)
@@ -1259,33 +1332,43 @@ in_lltable_dump(struct lltable *llt, struct sysctl_req *wr)
 				arpc.rtm.rtm_flags |= RTF_STATIC;
 			arpc.rtm.rtm_index = ifp->if_index;
 			error = SYSCTL_OUT(wr, &arpc, sizeof(arpc));
-			if (error)
-				break;
-		}
-	}
-	return error;
-#undef SIN
+
+	return (error);
+}
+
+static struct lltable *
+in_lltattach(struct ifnet *ifp)
+{
+	struct lltable *llt;
+
+	llt = lltable_allocate_htbl(IN_LLTBL_DEFAULT_HSIZE);
+ 	llt->llt_af = AF_INET;
+ 	llt->llt_ifp = ifp;
+
+	llt->llt_lookup = in_lltable_lookup;
+	llt->llt_create = in_lltable_create;
+	llt->llt_delete = in_lltable_delete;
+	llt->llt_dump_entry = in_lltable_dump_entry;
+	llt->llt_hash = in_lltable_hash;
+	llt->llt_fill_sa_entry = in_lltable_fill_sa_entry;
+	llt->llt_free_entry = in_lltable_free_entry;
+	llt->llt_match_prefix = in_lltable_match_prefix;
+ 	lltable_link(llt);
+
+	return (llt);
 }
 
 void *
 in_domifattach(struct ifnet *ifp)
 {
 	struct in_ifinfo *ii;
-	struct lltable *llt;
 
 	ii = malloc(sizeof(struct in_ifinfo), M_IFADDR, M_WAITOK|M_ZERO);
 
-	llt = lltable_init(ifp, AF_INET);
-	if (llt != NULL) {
-		llt->llt_prefix_free = in_lltable_prefix_free;
-		llt->llt_lookup = in_lltable_lookup;
-		llt->llt_dump = in_lltable_dump;
-	}
-	ii->ii_llt = llt;
-
+	ii->ii_llt = in_lltattach(ifp);
 	ii->ii_igmp = igmp_domifattach(ifp);
 
-	return ii;
+	return (ii);
 }
 
 void

@@ -275,7 +275,7 @@ i386_extend_pcb(struct thread *td)
 	ext = (struct pcb_ext *)kmem_malloc(kernel_arena, ctob(IOPAGES+1),
 	    M_WAITOK | M_ZERO);
 	/* -16 is so we can convert a trapframe into vm86trapframe inplace */
-	ext->ext_tss.tss_esp0 = td->td_kstack + ctob(KSTACK_PAGES) -
+	ext->ext_tss.tss_esp0 = td->td_kstack + ctob(td->td_kstack_pages) -
 	    sizeof(struct pcb) - 16;
 	ext->ext_tss.tss_ss0 = GSEL(GDATA_SEL, SEL_KPL);
 	/*

@@ -152,8 +152,7 @@ arp_ifscrub(struct ifnet *ifp, uint32_t addr)
 	addr4.sin_family = AF_INET;
 	addr4.sin_addr.s_addr = addr;
 	IF_AFDATA_WLOCK(ifp);
-	lla_lookup(LLTABLE(ifp), (LLE_DELETE | LLE_IFADDR),
-	    (struct sockaddr *)&addr4);
+	lla_delete(LLTABLE(ifp), LLE_IFADDR, (struct sockaddr *)&addr4);
 	IF_AFDATA_WUNLOCK(ifp);
 }
 #endif
@@ -171,7 +170,7 @@ arptimer(void *arg)
 		return;
 	}
 	LLE_WLOCK(lle);
-	if (callout_pending(&lle->la_timer)) {
+	if (callout_pending(&lle->lle_timer)) {
 		/*
 		 * Here we are a bit odd here in the treatment of 
 		 * active/pending. If the pending bit is set, it got
@@ -203,7 +202,7 @@ arptimer(void *arg)
 		EVENTHANDLER_INVOKE(lle_event, lle, evt);
 	}
 
-	callout_stop(&lle->la_timer);
+	callout_stop(&lle->lle_timer);
 
 	/* XXX: LOR avoidance. We still have ref on lle. */
 	LLE_WUNLOCK(lle);
@@ -325,11 +324,12 @@ arpresolve(struct ifnet *ifp, int is_gw, struct mbuf *m,
 	u_int flags = 0;
 	struct mbuf *curr = NULL;
 	struct mbuf *next = NULL;
-	int error, renew;
+	int create, error, renew;
 
 	if (pflags != NULL)
 		*pflags = 0;
 
+	create = 0;
 	if (m != NULL) {
 		if (m->m_flags & M_BCAST) {
 			/* broadcast */
@@ -349,13 +349,14 @@ retry:
 	IF_AFDATA_RUNLOCK(ifp);
 	if ((la == NULL) && ((flags & LLE_EXCLUSIVE) == 0)
 	    && ((ifp->if_flags & (IFF_NOARP | IFF_STATICARP)) == 0)) {
-		flags |= (LLE_CREATE | LLE_EXCLUSIVE);
+		create = 1;
+		flags |= LLE_EXCLUSIVE;
 		IF_AFDATA_WLOCK(ifp);
-		la = lla_lookup(LLTABLE(ifp), flags, dst);
+		la = lla_create(LLTABLE(ifp), flags, dst);
 		IF_AFDATA_WUNLOCK(ifp);
 	}
 	if (la == NULL) {
-		if (flags & LLE_CREATE)
+		if (create != 0)
 			log(LOG_DEBUG,
 			    "arpresolve: can't allocate llinfo for %s on %s\n",
 			    inet_ntoa(SIN(dst)->sin_addr), ifp->if_xname);
@@ -452,7 +453,7 @@ retry:
 
 		LLE_ADDREF(la);
 		la->la_expire = time_uptime;
-		canceled = callout_reset(&la->la_timer, hz * V_arpt_down,
+		canceled = callout_reset(&la->lle_timer, hz * V_arpt_down,
 		    arptimer, la);
 		if (canceled)
 			LLE_REMREF(la);
@@ -578,7 +579,7 @@ in_arpinput(struct mbuf *m)
 	int op, flags;
 	int req_len;
 	int bridged = 0, is_bridge = 0;
-	int carped;
+	int carped, create;
 	struct sockaddr_in sin;
 	sin.sin_len = sizeof(struct sockaddr_in);
 	sin.sin_family = AF_INET;
@@ -729,10 +730,13 @@ match:
 	sin.sin_len = sizeof(struct sockaddr_in);
 	sin.sin_family = AF_INET;
 	sin.sin_addr = isaddr;
-	flags = (itaddr.s_addr == myaddr.s_addr) ? LLE_CREATE : 0;
-	flags |= LLE_EXCLUSIVE;
+	create = (itaddr.s_addr == myaddr.s_addr) ? 1 : 0;
+	flags = LLE_EXCLUSIVE;
 	IF_AFDATA_LOCK(ifp);
-	la = lla_lookup(LLTABLE(ifp), flags, (struct sockaddr *)&sin);
+	if (create != 0)
+		la = lla_create(LLTABLE(ifp), 0, (struct sockaddr *)&sin);
+	else
+		la = lla_lookup(LLTABLE(ifp), flags, (struct sockaddr *)&sin);
 	IF_AFDATA_UNLOCK(ifp);
 	if (la != NULL) {
 		/* the following is not an error when doing bridging */
@@ -789,7 +793,7 @@ match:
 
 			LLE_ADDREF(la);
 			la->la_expire = time_uptime + V_arpt_keep;
-			canceled = callout_reset(&la->la_timer,
+			canceled = callout_reset(&la->lle_timer,
 			    hz * V_arpt_keep, arptimer, la);
 			if (canceled)
 				LLE_REMREF(la);
@@ -809,7 +813,7 @@ match:
 			m_hold = la->la_hold;
 			la->la_hold = NULL;
 			la->la_numheld = 0;
-			memcpy(&sa, L3_ADDR(la), sizeof(sa));
+			lltable_fill_sa_entry(la, (struct sockaddr *)&sa);
 			LLE_WUNLOCK(la);
 			for (; m_hold != NULL; m_hold = m_hold_next) {
 				m_hold_next = m_hold->m_nextpkt;
@@ -947,14 +951,14 @@ arp_ifinit(struct ifnet *ifp, struct ifaddr *ifa)
 		 * that L2 entry as permanent
 		 */
 		IF_AFDATA_LOCK(ifp);
-		lle = lla_lookup(LLTABLE(ifp), (LLE_CREATE | LLE_IFADDR | LLE_STATIC),
+		lle = lla_create(LLTABLE(ifp), LLE_IFADDR | LLE_STATIC,
 				 (struct sockaddr *)IA_SIN(ifa));
 		IF_AFDATA_UNLOCK(ifp);
 		if (lle == NULL)
 			log(LOG_INFO, "arp_ifinit: cannot create arp "
 			    "entry for interface address\n");
 		else
-			LLE_RUNLOCK(lle);
+			LLE_WUNLOCK(lle);
 	}
 	ifa->ifa_rtrequest = NULL;
 }

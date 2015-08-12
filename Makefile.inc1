@@ -807,7 +807,7 @@ __installcheck_UGID:
 _zoneinfo=	zic tzsetup
 .endif
 
-ITOOLS=	[ awk cap_mkdb cat chflags chmod chown \
+ITOOLS=	[ awk cap_mkdb cat chflags chmod chown cmp cp \
 	date echo egrep find grep id install ${_install-info} \
 	ln lockf make mkdir mtree mv pwd_mkdb \
 	rm sed services_mkdb sh strip sysctl test true uname wc ${_zoneinfo} \
@@ -1225,16 +1225,23 @@ update:
 #
 
 #
-# legacy: Build compatibility shims for the next three targets. This is a minimal
-# set of tools and shims necessary to compensate for older systems which don't have
-# the APIs that the targets built in bootstrap-tools, build-tools or cross-tools.
+# legacy: Build compatibility shims for the next three targets. This is a
+# minimal set of tools and shims necessary to compensate for older systems
+# which don't have the APIs required by the targets built in bootstrap-tools,
+# build-tools or cross-tools.
 #
+
+# ELF Tool Chain libraries are needed for ELF tools and dtrace tools.
+.if ${BOOTSTRAPPING} < 1100006
+_elftoolchain_libs= lib/libelf lib/libdwarf 
+.endif
+
 legacy:
 .if ${BOOTSTRAPPING} < 800107 && ${BOOTSTRAPPING} != 0
 	@echo "ERROR: Source upgrades from versions prior to 8.0 not supported."; \
 	false
 .endif
-.for _tool in tools/build
+.for _tool in tools/build ${_elftoolchain_libs}
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,includes,depend,all,install)"; \
 	    cd ${.CURDIR}/${_tool} && \
 	    ${MAKE} DIRPRFX=${_tool}/ obj && \
@@ -1297,7 +1304,8 @@ _lex=		usr.bin/lex
 
 # r277259 crunchide: Correct 64-bit section header offset
 # r281674 crunchide: always include both 32- and 64-bit ELF support
-.if ${BOOTSTRAPPING} < 1100071
+# r285986 crunchen: use STRIPBIN rather than STRIP
+.if ${BOOTSTRAPPING} < 1100078
 _crunch=	usr.sbin/crunch
 .endif
 
@@ -1332,13 +1340,12 @@ ${_bt}-usr.bin/clang/tblgen: ${_bt}-lib/clang/libllvmtablegen ${_bt}-lib/clang/l
 # pre libdwarf
 .if ${BOOTSTRAPPING} < 1100006 || (${MACHINE} != ${TARGET} || \
     ${MACHINE_ARCH} != ${TARGET_ARCH})
-_elftoolchain_libs= lib/libelf lib/libdwarf 
 .if ${MK_CDDL} != "no"
 _dtrace_tools= cddl/usr.bin/sgsmsg cddl/lib/libctf cddl/usr.bin/ctfconvert \
     cddl/usr.bin/ctfmerge
 
-${_bt}-cddl/usr.bin/ctfconvert: ${_bt}-lib/libelf ${_bt}-lib/libdwarf ${_bt}-cddl/lib/libctf
-${_bt}-cddl/usr.bin/ctfmerge: ${_bt}-lib/libelf ${_bt}-lib/libdwarf ${_bt}-cddl/lib/libctf
+${_bt}-cddl/usr.bin/ctfconvert: ${_bt}-cddl/lib/libctf
+${_bt}-cddl/usr.bin/ctfmerge: ${_bt}-cddl/lib/libctf
 .endif
 .endif
 
@@ -1381,7 +1388,6 @@ bootstrap-tools: .PHONY
 .for _tool in \
     ${_clang_tblgen} \
     ${_kerberos5_bootstrap_tools} \
-    ${_elftoolchain_libs} \
     ${_dtrace_tools} \
     ${_strfile} \
     ${_gperf} \
@@ -1426,15 +1432,10 @@ _share=	share/syscons/scrnmaps
 _gcc_tools= gnu/usr.bin/cc/cc_tools
 .endif
 
-.if ${MK_RESCUE} != "no"
-_rescue= rescue/rescue
-.endif
-
 build-tools: .MAKE
 .for _tool in \
     bin/csh \
     bin/sh \
-    ${_rescue} \
     ${LOCAL_TOOL_DIRS} \
     lib/ncurses/ncurses \
     lib/ncurses/ncursesw \

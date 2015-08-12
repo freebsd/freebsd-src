@@ -134,7 +134,7 @@ int
 ath_beaconq_config(struct ath_softc *sc)
 {
 #define	ATH_EXPONENT_TO_VALUE(v)	((1<<(v))-1)
-	struct ieee80211com *ic = &sc->sc_ic;
+	struct ieee80211com *ic = sc->sc_ifp->if_l2com;
 	struct ath_hal *ah = sc->sc_ah;
 	HAL_TXQ_INFO qi;
 
@@ -464,7 +464,7 @@ ath_beacon_proc(void *arg, int pending)
 	}
 
 	if (sc->sc_stagbeacons) {			/* staggered beacons */
-		struct ieee80211com *ic = &sc->sc_ic;
+		struct ieee80211com *ic = sc->sc_ifp->if_l2com;
 		uint32_t tsftu;
 
 		tsftu = ath_hal_gettsf32(ah) >> 10;
@@ -917,7 +917,7 @@ ath_beacon_config(struct ath_softc *sc, struct ieee80211vap *vap)
 	((((u_int32_t)(_h)) << 22) | (((u_int32_t)(_l)) >> 10))
 #define	FUDGE	2
 	struct ath_hal *ah = sc->sc_ah;
-	struct ieee80211com *ic = &sc->sc_ic;
+	struct ieee80211com *ic = sc->sc_ifp->if_l2com;
 	struct ieee80211_node *ni;
 	u_int32_t nexttbtt, intval, tsftu;
 	u_int32_t nexttbtt_u8, intval_u8;

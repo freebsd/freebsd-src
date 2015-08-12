@@ -87,8 +87,7 @@ struct ipw_vap {
 #define	IPW_VAP(vap)	((struct ipw_vap *)(vap))
 
 struct ipw_softc {
-	struct ieee80211com		sc_ic;
-	struct mbufq			sc_snd;
+	struct ifnet			*sc_ifp;
 	device_t			sc_dev;
 
 	struct mtx			sc_mtx;
@@ -105,7 +104,6 @@ struct ipw_softc {
 #define	IPW_FLAG_BUSY			0x0040
 #define	IPW_FLAG_ASSOCIATING		0x0080
 #define	IPW_FLAG_ASSOCIATED		0x0100
-#define	IPW_FLAG_RUNNING		0x0200
 
 	struct resource			*irq;
 	struct resource			*mem;

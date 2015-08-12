@@ -1541,8 +1541,12 @@ pps_fetch(struct pps_fetch_args *fapi, struct pps_state *pps)
 			} else {
 				err = tsleep(pps, PCATCH, "ppsfch", timo);
 			}
-			if (err == EWOULDBLOCK && fapi->timeout.tv_sec == -1) {
-				continue;
+			if (err == EWOULDBLOCK) {
+				if (fapi->timeout.tv_sec == -1) {
+					continue;
+				} else {
+					return (ETIMEDOUT);
+				}
 			} else if (err != 0) {
 				return (err);
 			}
@@ -1699,6 +1703,9 @@ pps_event(struct pps_state *pps, int event)
 #endif
 
 	KASSERT(pps != NULL, ("NULL pps pointer in pps_event"));
+	/* Nothing to do if not currently set to capture this event type. */
+	if ((event & pps->ppsparam.mode) == 0)
+		return;
 	/* If the timecounter was wound up underneath us, bail out. */
 	if (pps->capgen == 0 || pps->capgen !=
 	    atomic_load_acq_int(&pps->capth->th_generation))

@@ -269,6 +269,8 @@ namei(struct nameidata *ndp)
 				AUDIT_ARG_ATFD2(ndp->ni_dirfd);
 			error = fgetvp_rights(td, ndp->ni_dirfd,
 			    &rights, &ndp->ni_filecaps, &dp);
+			if (error == EINVAL)
+				error = ENOTDIR;
 #ifdef CAPABILITIES
 			/*
 			 * If file descriptor doesn't have all rights,

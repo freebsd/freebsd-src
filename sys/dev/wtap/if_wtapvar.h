@@ -130,14 +130,18 @@ struct wtap_vap {
 struct taskqueue;
 
 struct wtap_softc {
-	struct ieee80211com	sc_ic;
 	char 			name[7];	/* wtapXX\0 */
 	int32_t			id;
 	int32_t			up;
+	struct ifnet		*sc_ifp;	/* interface common */
 	struct wtap_medium	*sc_md;		/* interface medium */
 	struct ieee80211_node*	(* sc_node_alloc)
 	    (struct ieee80211vap *, const uint8_t [IEEE80211_ADDR_LEN]);
 	void (*sc_node_free)(struct ieee80211_node *);
+	int (*if_output)			/* output routine (enqueue) */
+	    (struct ifnet *, struct mbuf *, struct sockaddr *, struct route *);
+	void (*if_input) (struct ifnet *, struct mbuf *);/* from h/w driver */
+	int (*if_transmit)(struct ifnet *, struct mbuf *);/* output routine */
 	struct mtx		sc_mtx;		/* master lock (recursive) */
 	struct taskqueue	*sc_tq;		/* private task queue */
 	wtap_bufhead		sc_rxbuf;	/* receive buffer */

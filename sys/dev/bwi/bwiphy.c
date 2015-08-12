@@ -429,7 +429,7 @@ static void
 bwi_phy_init_11b_rev2(struct bwi_mac *mac)
 { 
 	/* TODO:11B */
-	device_printf(mac->mac_sc->sc_dev,
+	if_printf(mac->mac_sc->sc_ifp,
 		  "%s is not implemented yet\n", __func__);
 }
 
