@@ -244,6 +244,127 @@ cloudabi64_sys_poll(struct thread *td, struct cloudabi64_sys_poll_args *uap)
 		.arg		= &args,
 	};
 
+	/*
+	 * Bandaid to support CloudABI futex constructs that are not
+	 * implemented through FreeBSD's kqueue().
+	 */
+	if (uap->nevents == 1) {
+		cloudabi64_subscription_t sub;
+		cloudabi64_event_t ev = {};
+		int error;
+
+		error = copyin(uap->in, &sub, sizeof(sub));
+		if (error != 0)
+			return (error);
+		ev.userdata = sub.userdata;
+		ev.type = sub.type;
+		if (sub.type == CLOUDABI_EVENTTYPE_CONDVAR) {
+			/* Wait on a condition variable. */
+			ev.condvar.condvar = sub.condvar.condvar;
+			ev.error = cloudabi_convert_errno(
+			    cloudabi_futex_condvar_wait(
+			        td, (cloudabi_condvar_t *)sub.condvar.condvar,
+			        sub.condvar.condvar_scope,
+			        (cloudabi_lock_t *)sub.condvar.lock,
+			        sub.condvar.lock_scope,
+			        CLOUDABI_CLOCK_MONOTONIC, UINT64_MAX, 0));
+			td->td_retval[0] = 1;
+			return (copyout(&ev, uap->out, sizeof(ev)));
+		} else if (sub.type == CLOUDABI_EVENTTYPE_LOCK_RDLOCK) {
+			/* Acquire a read lock. */
+			ev.lock.lock = sub.lock.lock;
+			ev.error = cloudabi_convert_errno(
+			    cloudabi_futex_lock_rdlock(
+			        td, (cloudabi_lock_t *)sub.lock.lock,
+			        sub.lock.lock_scope, CLOUDABI_CLOCK_MONOTONIC,
+			        UINT64_MAX, 0));
+			td->td_retval[0] = 1;
+			return (copyout(&ev, uap->out, sizeof(ev)));
+		} else if (sub.type == CLOUDABI_EVENTTYPE_LOCK_WRLOCK) {
+			/* Acquire a write lock. */
+			ev.lock.lock = sub.lock.lock;
+			ev.error = cloudabi_convert_errno(
+			    cloudabi_futex_lock_wrlock(
+			        td, (cloudabi_lock_t *)sub.lock.lock,
+			        sub.lock.lock_scope, CLOUDABI_CLOCK_MONOTONIC,
+			        UINT64_MAX, 0));
+			td->td_retval[0] = 1;
+			return (copyout(&ev, uap->out, sizeof(ev)));
+		}
+	} else if (uap->nevents == 2) {
+		cloudabi64_subscription_t sub[2];
+		cloudabi64_event_t ev[2] = {};
+		int error;
+
+		error = copyin(uap->in, &sub, sizeof(sub));
+		if (error != 0)
+			return (error);
+		ev[0].userdata = sub[0].userdata;
+		ev[0].type = sub[0].type;
+		ev[1].userdata = sub[1].userdata;
+		ev[1].type = sub[1].type;
+		if (sub[0].type == CLOUDABI_EVENTTYPE_CONDVAR &&
+		    sub[1].type == CLOUDABI_EVENTTYPE_CLOCK &&
+		    sub[1].clock.flags == CLOUDABI_SUBSCRIPTION_CLOCK_ABSTIME) {
+			/* Wait for a condition variable with timeout. */
+			ev[0].condvar.condvar = sub[0].condvar.condvar;
+			ev[1].clock.identifier = sub[1].clock.identifier;
+			error = cloudabi_futex_condvar_wait(
+			    td, (cloudabi_condvar_t *)sub[0].condvar.condvar,
+			    sub[0].condvar.condvar_scope,
+			    (cloudabi_lock_t *)sub[0].condvar.lock,
+			    sub[0].condvar.lock_scope, sub[1].clock.clock_id,
+			    sub[1].clock.timeout, sub[1].clock.precision);
+			if (error == ETIMEDOUT) {
+				td->td_retval[0] = 1;
+				return (copyout(&ev[1], uap->out,
+				    sizeof(ev[1])));
+			}
+
+			ev[0].error = cloudabi_convert_errno(error);
+			td->td_retval[0] = 1;
+			return (copyout(&ev[0], uap->out, sizeof(ev[0])));
+		} else if (sub[0].type == CLOUDABI_EVENTTYPE_LOCK_RDLOCK &&
+		    sub[1].type == CLOUDABI_EVENTTYPE_CLOCK &&
+		    sub[1].clock.flags == CLOUDABI_SUBSCRIPTION_CLOCK_ABSTIME) {
+			/* Acquire a read lock with a timeout. */
+			ev[0].lock.lock = sub[0].lock.lock;
+			ev[1].clock.identifier = sub[1].clock.identifier;
+			error = cloudabi_futex_lock_rdlock(
+			    td, (cloudabi_lock_t *)sub[0].lock.lock,
+			    sub[0].lock.lock_scope, sub[1].clock.clock_id,
+			    sub[1].clock.timeout, sub[1].clock.precision);
+			if (error == ETIMEDOUT) {
+				td->td_retval[0] = 1;
+				return (copyout(&ev[1], uap->out,
+				    sizeof(ev[1])));
+			}
+
+			ev[0].error = cloudabi_convert_errno(error);
+			td->td_retval[0] = 1;
+			return (copyout(&ev[0], uap->out, sizeof(ev[0])));
+		} else if (sub[0].type == CLOUDABI_EVENTTYPE_LOCK_WRLOCK &&
+		    sub[1].type == CLOUDABI_EVENTTYPE_CLOCK &&
+		    sub[1].clock.flags == CLOUDABI_SUBSCRIPTION_CLOCK_ABSTIME) {
+			/* Acquire a write lock with a timeout. */
+			ev[0].lock.lock = sub[0].lock.lock;
+			ev[1].clock.identifier = sub[1].clock.identifier;
+			error = cloudabi_futex_lock_wrlock(
+			    td, (cloudabi_lock_t *)sub[0].lock.lock,
+			    sub[0].lock.lock_scope, sub[1].clock.clock_id,
+			    sub[1].clock.timeout, sub[1].clock.precision);
+			if (error == ETIMEDOUT) {
+				td->td_retval[0] = 1;
+				return (copyout(&ev[1], uap->out,
+				    sizeof(ev[1])));
+			}
+
+			ev[0].error = cloudabi_convert_errno(error);
+			td->td_retval[0] = 1;
+			return (copyout(&ev[0], uap->out, sizeof(ev[0])));
+		}
+	}
+
 	return (kern_kevent_anonymous(td, uap->nevents, &copyops));
 }
 
