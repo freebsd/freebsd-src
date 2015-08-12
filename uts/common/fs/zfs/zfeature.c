@@ -20,7 +20,7 @@
  */
 
 /*
- * Copyright (c) 2013 by Delphix. All rights reserved.
+ * Copyright (c) 2011, 2015 by Delphix. All rights reserved.
  */
 
 #include <sys/zfs_context.h>
@@ -245,7 +245,7 @@ feature_get_refcount_from_disk(spa_t *spa, zfeature_info_t *feature,
 {
 	int err;
 	uint64_t refcount;
-	uint64_t zapobj = feature->fi_can_readonly ?
+	uint64_t zapobj = (feature->fi_flags & ZFEATURE_FLAG_READONLY_COMPAT) ?
 	    spa->spa_feat_for_write_obj : spa->spa_feat_for_read_obj;
 
 	/*
@@ -296,7 +296,7 @@ feature_sync(spa_t *spa, zfeature_info_t *feature, uint64_t refcount,
     dmu_tx_t *tx)
 {
 	ASSERT(VALID_FEATURE_OR_NONE(feature->fi_feature));
-	uint64_t zapobj = feature->fi_can_readonly ?
+	uint64_t zapobj = (feature->fi_flags & ZFEATURE_FLAG_READONLY_COMPAT) ?
 	    spa->spa_feat_for_write_obj : spa->spa_feat_for_read_obj;
 
 	VERIFY0(zap_update(spa->spa_meta_objset, zapobj, feature->fi_guid,
@@ -318,7 +318,7 @@ feature_sync(spa_t *spa, zfeature_info_t *feature, uint64_t refcount,
 
 	if (refcount == 0)
 		spa_deactivate_mos_feature(spa, feature->fi_guid);
-	else if (feature->fi_mos)
+	else if (feature->fi_flags & ZFEATURE_FLAG_MOS)
 		spa_activate_mos_feature(spa, feature->fi_guid, tx);
 }
 
@@ -329,8 +329,9 @@ feature_sync(spa_t *spa, zfeature_info_t *feature, uint64_t refcount,
 void
 feature_enable_sync(spa_t *spa, zfeature_info_t *feature, dmu_tx_t *tx)
 {
-	uint64_t initial_refcount = feature->fi_activate_on_enable ? 1 : 0;
-	uint64_t zapobj = feature->fi_can_readonly ?
+	uint64_t initial_refcount =
+	    (feature->fi_flags & ZFEATURE_FLAG_ACTIVATE_ON_ENABLE) ? 1 : 0;
+	uint64_t zapobj = (feature->fi_flags & ZFEATURE_FLAG_READONLY_COMPAT) ?
 	    spa->spa_feat_for_write_obj : spa->spa_feat_for_read_obj;
 
 	ASSERT(0 != zapobj);
@@ -375,7 +376,7 @@ feature_do_action(spa_t *spa, spa_feature_t fid, feature_action_t action,
 {
 	uint64_t refcount;
 	zfeature_info_t *feature = &spa_feature_table[fid];
-	uint64_t zapobj = feature->fi_can_readonly ?
+	uint64_t zapobj = (feature->fi_flags & ZFEATURE_FLAG_READONLY_COMPAT) ?
 	    spa->spa_feat_for_write_obj : spa->spa_feat_for_read_obj;
 
 	ASSERT(VALID_FEATURE_FID(fid));
