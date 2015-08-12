@@ -291,7 +291,7 @@ init_secondary(void)
 	CHECK_WRITE(0x39, 6);
 
 	/* Spin until the BSP releases the AP's. */
-	while (!aps_ready)
+	while (atomic_load_acq_int(&aps_ready) == 0)
 		ia32_pause();
 
 	/* BSP may have changed PTD while we were waiting */
