@@ -1657,9 +1657,10 @@ native_lapic_ipi_raw(register_t icrlo, u_int dest)
 	    ("%s: reserved bits set in ICR LO register", __func__));
 
 	/* Set destination in ICR HI register if it is being used. */
-	saveintr = intr_disable();
-	if (!x2apic_mode)
+	if (!x2apic_mode) {
+		saveintr = intr_disable();
 		icr = lapic_read_icr();
+	}
 
 	if ((icrlo & APIC_DEST_MASK) == APIC_DEST_DESTFLD) {
 		if (x2apic_mode) {
@@ -1682,7 +1683,8 @@ native_lapic_ipi_raw(register_t icrlo, u_int dest)
 		vlo |= icrlo;
 	}
 	lapic_write_icr(vhi, vlo);
-	intr_restore(saveintr);
+	if (!x2apic_mode)
+		intr_restore(saveintr);
 }
 
 #define	BEFORE_SPIN	50000
