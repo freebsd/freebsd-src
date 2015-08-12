@@ -168,3 +168,35 @@ int ti_hwmods_contains(device_t dev, const char *hwmod)
 
 	return (result);
 }
+
+int 
+ti_hwmods_get_unit(device_t dev, const char *hwmod)
+{
+	phandle_t node;
+	int l, len, hwmodlen, result;
+	char *name;
+	char *buf;
+
+	if ((node = ofw_bus_get_node(dev)) == 0)
+		return (0);
+
+	if ((len = OF_getprop_alloc(node, "ti,hwmods", 1, (void**)&name)) <= 0)
+		return (0);
+
+	buf = name;
+	hwmodlen = strlen(hwmod);
+	result = 0;
+	while (len > 0) {
+		if (strncmp(name, hwmod, hwmodlen) == 0) {
+                        result = (int)strtoul(name + hwmodlen, NULL, 10);
+			break;
+		}
+		/* Slide to the next sub-string. */
+		l = strlen(name) + 1;
+		name += l;
+		len -= l;
+	}
+
+	free(buf, M_OFWPROP);
+	return (result);
+}
