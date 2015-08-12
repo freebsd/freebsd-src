@@ -1304,7 +1304,8 @@ _lex=		usr.bin/lex
 
 # r277259 crunchide: Correct 64-bit section header offset
 # r281674 crunchide: always include both 32- and 64-bit ELF support
-.if ${BOOTSTRAPPING} < 1100071
+# r285986 crunchen: use STRIPBIN rather than STRIP
+.if ${BOOTSTRAPPING} < 1100078
 _crunch=	usr.sbin/crunch
 .endif
 
