@@ -72,6 +72,11 @@ static int def_prec2sl = 3;
 module_param_named(def_prec2sl, def_prec2sl, int, 0644);
 MODULE_PARM_DESC(def_prec2sl, "Default value for SL priority with RoCE. Valid values 0 - 7");
 
+static int unify_tcp_port_space = 1;
+module_param(unify_tcp_port_space, int, 0644);
+MODULE_PARM_DESC(unify_tcp_port_space, "Unify the host TCP and RDMA port "
+		 "space allocation (default=1)");
+
 static int debug_level = 0;
 #define cma_pr(level, priv, format, arg...)		\
 	printk(level "CMA: %p: %s: " format, ((struct rdma_id_priv *) priv) , __func__, ## arg)
@@ -957,6 +962,8 @@ static void cma_release_port(struct rdma_id_private *id_priv)
 		kfree(bind_list);
 	}
 	mutex_unlock(&lock);
+	if (id_priv->sock)
+		sock_release(id_priv->sock);
 }
 
 static void cma_leave_mc_groups(struct rdma_id_private *id_priv)
@@ -2449,6 +2456,42 @@ static int cma_bind_listen(struct rdma_id_private *id_priv)
 	return ret;
 }
 
+static int cma_get_tcp_port(struct rdma_id_private *id_priv)
+{
+	int ret;
+	int size;
+	struct socket *sock;
+
+	ret = sock_create_kern(AF_INET, SOCK_STREAM, IPPROTO_TCP, &sock);
+	if (ret)
+		return ret;
+#ifdef __linux__
+	ret = sock->ops->bind(sock,
+			(struct sockaddr *) &id_priv->id.route.addr.src_addr,
+			ip_addr_size((struct sockaddr *) &id_priv->id.route.addr.src_addr));
+#else
+	ret = -sobind(sock,
+			(struct sockaddr *)&id_priv->id.route.addr.src_addr,
+			curthread);
+#endif
+	if (ret) {
+		sock_release(sock);
+		return ret;
+	}
+
+	size = ip_addr_size((struct sockaddr *) &id_priv->id.route.addr.src_addr);
+	ret = sock_getname(sock,
+			(struct sockaddr *) &id_priv->id.route.addr.src_addr,
+			&size, 0);
+	if (ret) {
+		sock_release(sock);
+		return ret;
+	}
+
+	id_priv->sock = sock;
+	return 0;
+}
+
 static int cma_get_port(struct rdma_id_private *id_priv)
 {
 	struct idr *ps;
@@ -2460,6 +2503,11 @@ static int cma_get_port(struct rdma_id_private *id_priv)
 		break;
 	case RDMA_PS_TCP:
 		ps = &tcp_ps;
+		if (unify_tcp_port_space) {
+			ret = cma_get_tcp_port(id_priv);
+			if (ret)
+				goto out;
+		}
 		break;
 	case RDMA_PS_UDP:
 		ps = &udp_ps;
@@ -2480,7 +2528,7 @@ static int cma_get_port(struct rdma_id_private *id_priv)
 	else
 		ret = cma_use_port(ps, id_priv);
 	mutex_unlock(&lock);
-
+out:
 	return ret;
 }
 
