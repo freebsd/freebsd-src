@@ -3145,7 +3145,7 @@ arc_available_memory(void)
 	 * Cooperate with pagedaemon when it's time for it to scan
 	 * and reclaim some pages.
 	 */
-	n = PAGESIZE * (int64_t)(freemem - zfs_arc_free_target);
+	n = PAGESIZE * ((int64_t)freemem - zfs_arc_free_target);
 	if (n < lowest) {
 		lowest = n;
 		r = FMR_LOTSFREE;
@@ -3207,7 +3207,7 @@ arc_available_memory(void)
 	 * heap is allocated.  (Or, in the calculation, if less than 1/4th is
 	 * free)
 	 */
-	n = vmem_size(heap_arena, VMEM_FREE) -
+	n = (int64_t)vmem_size(heap_arena, VMEM_FREE) -
 	    (vmem_size(heap_arena, VMEM_FREE | VMEM_ALLOC) >> 2);
 	if (n < lowest) {
 		lowest = n;
@@ -3228,7 +3228,7 @@ arc_available_memory(void)
 	 * memory fragmentation issues.
 	 */
 	if (zio_arena != NULL) {
-		n = vmem_size(zio_arena, VMEM_FREE) -
+		n = (int64_t)vmem_size(zio_arena, VMEM_FREE) -
 		    (vmem_size(zio_arena, VMEM_ALLOC) >> 4);
 		if (n < lowest) {
 			lowest = n;
@@ -3242,7 +3242,8 @@ arc_available_memory(void)
 	 */
 	if (lowest > 0) {
 		n = (vmem_size(heap_arena, VMEM_MAXFREE) < zfs_max_recordsize) ?
-		    -(vmem_size(heap_arena, VMEM_ALLOC) >> 4) : INT64_MAX;
+		    -((int64_t)vmem_size(heap_arena, VMEM_ALLOC) >> 4) :
+		    INT64_MAX;
 		if (n < lowest) {
 			lowest = n;
 			r = FMR_ZIO_FRAG;
