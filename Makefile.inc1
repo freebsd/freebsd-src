@@ -219,11 +219,16 @@ INSTALLTMP!=	/usr/bin/mktemp -d -u -t install
 # 2. build-tools stage [TMAKE]
 #	This stage is responsible for creating the object
 #	tree and building any tools that are needed during
-#	the build process.
+#	the build process. Some programs are listed during
+#	this phase because they build binaires to generate
+#	files needed to build these programs. This stage also
+#	builds the 'build-tools' target rather than 'all'.
 # 3. cross-tools stage [XMAKE]
 #	This stage is responsible for creating any tools that
 #	are needed for building the system. A cross-compiler is one
-#	of them.
+#	of them. This differs from build tools in two ways:
+#	1. the 'all' target is built rather than 'build-tools'
+#	2. these tools are installed into TMPPATH for stage 4.
 # 4. world stage [WMAKE]
 #	This stage actually builds the world.
 # 5. install stage (optional) [IMAKE]
@@ -1432,6 +1437,11 @@ _share=	share/syscons/scrnmaps
 _gcc_tools= gnu/usr.bin/cc/cc_tools
 .endif
 
+.if ${MK_RESCUE} != "no"
+# rescue includes programs that have build-tools targets
+_rescue=rescue
+.endif
+
 build-tools: .MAKE
 .for _tool in \
     bin/csh \
@@ -1439,6 +1449,7 @@ build-tools: .MAKE
     ${LOCAL_TOOL_DIRS} \
     lib/ncurses/ncurses \
     lib/ncurses/ncursesw \
+    ${_rescue} \
     ${_share} \
     usr.bin/awk \
     lib/libmagic \
