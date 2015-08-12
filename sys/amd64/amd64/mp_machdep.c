@@ -440,7 +440,7 @@ smp_targeted_tlb_shootdown(cpuset_t mask, u_int vector, pmap_t pmap,
 	smp_tlb_addr1 = addr1;
 	smp_tlb_addr2 = addr2;
 	smp_tlb_pmap = pmap;
-	atomic_store_rel_int(&smp_tlb_wait, 0);
+	smp_tlb_wait =  0;
 	if (CPU_ISFULLSET(&mask)) {
 		ncpu = othercpus;
 		ipi_all_but_self(vector);

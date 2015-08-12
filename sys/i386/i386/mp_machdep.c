@@ -504,7 +504,7 @@ smp_tlb_shootdown(u_int vector, vm_offset_t addr1, vm_offset_t addr2)
 	mtx_lock_spin(&smp_ipi_mtx);
 	smp_tlb_addr1 = addr1;
 	smp_tlb_addr2 = addr2;
-	atomic_store_rel_int(&smp_tlb_wait, 0);
+	smp_tlb_wait = 0;
 	ipi_all_but_self(vector);
 	while (smp_tlb_wait < ncpu)
 		ia32_pause();
