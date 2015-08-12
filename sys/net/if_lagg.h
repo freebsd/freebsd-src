@@ -150,6 +150,7 @@ struct lagg_reqopts {
 #define	LAGG_OPT_LACP_STRICT		0x10		/* LACP strict mode */
 #define	LAGG_OPT_LACP_TXTEST		0x20		/* LACP debug: txtest */
 #define	LAGG_OPT_LACP_RXTEST		0x40		/* LACP debug: rxtest */
+#define	LAGG_OPT_LACP_TIMEOUT		0x80		/* LACP timeout */
 	u_int			ro_count;		/* number of ports */
 	u_int			ro_active;		/* active port count */
 	u_int			ro_flapping;		/* number of flapping */
