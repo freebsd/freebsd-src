@@ -282,7 +282,7 @@ init_secondary(void)
 	mp_naps++;
 
 	/* Spin until the BSP releases the AP's. */
-	while (!aps_ready)
+	while (atomic_load_acq_int(&aps_ready) == 0)
 		ia32_pause();
 
 	init_secondary_tail();
