@@ -1432,15 +1432,10 @@ _share=	share/syscons/scrnmaps
 _gcc_tools= gnu/usr.bin/cc/cc_tools
 .endif
 
-.if ${MK_RESCUE} != "no"
-_rescue= rescue/rescue
-.endif
-
 build-tools: .MAKE
 .for _tool in \
     bin/csh \
     bin/sh \
-    ${_rescue} \
     ${LOCAL_TOOL_DIRS} \
     lib/ncurses/ncurses \
     lib/ncurses/ncursesw \
