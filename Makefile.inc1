@@ -1262,7 +1262,11 @@ _yacc=		lib/liby \
 ${_bt}-usr.bin/yacc: ${_bt}-lib/liby
 .endif
 
-.if ${BOOTSTRAPPING} < 1000014
+# crunchgen broken on head with STRIP= for a while, even
+# when building stable binaries, so bootstrap there too.
+# r284356 to r285986 is the broken range.
+.if ${BOOTSTRAPPING} < 1000014 || \
+	(${BOOTSTRAPPING} > 1100076 && ${BOOTSTRAPPING} < 1100078)
 _crunch=	usr.sbin/crunch
 .endif
 
