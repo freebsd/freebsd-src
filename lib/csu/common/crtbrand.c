@@ -62,5 +62,5 @@ static const struct {
 	.descsz = sizeof(int32_t),
 	.type = ABI_NOTETYPE,
 	.name = NOTE_FREEBSD_VENDOR,
-	.desc = __FreeBSD_version
+	.desc = 1002000
 };
