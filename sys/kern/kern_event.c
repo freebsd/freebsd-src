@@ -975,6 +975,10 @@ kern_kevent_fp(struct thread *td, struct file *fp, int nchanges, int nevents,
 	return (error);
 }
 
+/*
+ * Performs a kevent() call on a temporarily created kqueue. This can be
+ * used to perform one-shot polling, similar to poll() and select().
+ */
 int
 kern_kevent_anonymous(struct thread *td, int nevents,
     struct kevent_copyops *k_ops)
@@ -1831,6 +1835,8 @@ static void
 kqueue_destroy(struct kqueue *kq)
 {
 
+	KASSERT(kq->kq_fdp == NULL,
+	    ("kqueue still attached to a file descriptor"));
 	seldrain(&kq->kq_sel);
 	knlist_destroy(&kq->kq_sel.si_note);
 	mtx_destroy(&kq->kq_lock);
@@ -1863,6 +1869,7 @@ kqueue_close(struct file *fp, struct thread *td)
 	 * take the sleepable lock after non-sleepable.
 	 */
 	fdp = kq->kq_fdp;
+	kq->kq_fdp = NULL;
 	if (!sx_xlocked(FILEDESC_LOCK(fdp))) {
 		FILEDESC_XLOCK(fdp);
 		filedesc_unlock = 1;
