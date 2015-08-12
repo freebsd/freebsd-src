@@ -74,7 +74,7 @@ cloudabi_sys_proc_fork(struct thread *td,
 	struct proc *p2;
 	int error, fd;
 
-	cap_rights_init(&fcaps.fc_rights, CAP_FSTAT, CAP_PDWAIT);
+	cap_rights_init(&fcaps.fc_rights, CAP_FSTAT, CAP_EVENT);
 	error = fork1(td, RFFDG | RFPROC | RFPROCDESC, 0, &p2, &fd, 0, &fcaps);
 	if (error != 0)
 		return (error);
