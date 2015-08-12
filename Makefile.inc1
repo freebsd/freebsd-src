@@ -1449,7 +1449,7 @@ build-tools: .MAKE
     ${LOCAL_TOOL_DIRS} \
     lib/ncurses/ncurses \
     lib/ncurses/ncursesw \
-    ${_rescue}
+    ${_rescue} \
     ${_share} \
     usr.bin/awk \
     lib/libmagic \
