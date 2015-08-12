@@ -21,7 +21,9 @@
 
 #
 # Copyright (c) 1991, 2010, Oracle and/or its affiliates. All rights reserved.
-# Copyright (c) 2013 by Delphix. All rights reserved.
+# Copyright (c) 2012 Nexenta Systems, Inc. All rights reserved.
+# Copyright (c) 2012 Joyent, Inc.  All rights reserved.
+# Copyright (c) 2011, 2014 by Delphix. All rights reserved.
 # Copyright (c) 2013 by Saso Kiselkov. All rights reserved.
 # Copyright 2014 Nexenta Systems, Inc.  All rights reserved.
 #
@@ -1332,6 +1334,7 @@ ZFS_COMMON_OBJS +=		\
 	bplist.o		\
 	bpobj.o			\
 	bptree.o		\
+	bqueue.o		\
 	dbuf.o			\
 	ddt.o			\
 	ddt_zap.o		\
