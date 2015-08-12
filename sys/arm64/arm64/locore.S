@@ -220,6 +220,14 @@ drop_to_el1:
 	/* Don't trap to EL2 for CP15 traps */
 	msr	hstr_el2, xzr
 
+	/* Enable access to the physical timers at EL1 */
+	mrs	x2, cnthctl_el2
+	orr	x2, x2, #(CNTHCTL_EL1PCTEN | CNTHCTL_EL1PCEN)
+	msr	cnthctl_el2, x2
+
+	/* Set the counter offset to a known value */
+	msr	cntvoff_el2, xzr
+
 	/* Hypervisor trap functions */
 	adr	x2, hyp_vectors
 	msr	vbar_el2, x2
