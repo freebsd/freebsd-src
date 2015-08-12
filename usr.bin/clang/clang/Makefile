@@ -66,7 +66,6 @@ LIBDEPS=clangfrontendtool \
 	llvmirreader \
 	llvmipo \
 	llvmvectorize \
-	llvminstrumentation \
 	llvmbitwriter \
 	llvmasmparser \
 	llvmaarch64disassembler \
@@ -110,6 +109,7 @@ LIBDEPS=clangfrontendtool \
 	llvmscalaropts \
 	llvmprofiledata \
 	llvminstcombine \
+	llvminstrumentation \
 	llvmtransformutils \
 	llvmipa \
 	llvmanalysis \

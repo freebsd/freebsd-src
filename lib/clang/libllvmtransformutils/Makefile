@@ -28,6 +28,7 @@ SRCS=	ASanStackFrameLayout.cpp \
 	LoopUnroll.cpp \
 	LoopUnrollRuntime.cpp \
 	LoopUtils.cpp \
+	LoopVersioning.cpp \
 	LowerInvoke.cpp \
 	LowerSwitch.cpp \
 	Mem2Reg.cpp \

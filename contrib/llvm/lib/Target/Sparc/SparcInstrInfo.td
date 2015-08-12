@@ -536,6 +536,7 @@ let Defs = [ICC] in
 let Uses = [ICC] in
   defm SUBC   : F3_12np <"subx", 0b001100>;
 
+// cmp (from Section A.3) is a specialized alias for subcc
 let Defs = [ICC], rd = 0 in {
   def CMPrr   : F3_1<2, 0b010100,
                      (outs), (ins IntRegs:$rs1, IntRegs:$rs2),
@@ -559,12 +560,12 @@ let Defs = [Y, ICC] in {
 }
 
 // Section B.19 - Divide Instructions, p. 115
-let Defs = [Y] in {
+let Uses = [Y], Defs = [Y] in {
   defm UDIV : F3_12np<"udiv", 0b001110>;
   defm SDIV : F3_12np<"sdiv", 0b001111>;
 }
 
-let Defs = [Y, ICC] in {
+let Uses = [Y], Defs = [Y, ICC] in {
   defm UDIVCC : F3_12np<"udivcc", 0b011110>;
   defm SDIVCC : F3_12np<"sdivcc", 0b011111>;
 }
@@ -827,6 +828,20 @@ let hasSideEffects = 1, rd = 0, rs1 = 0b01111, rs2 = 0 in
 let rd = 0 in
   def UNIMP : F2_1<0b000, (outs), (ins i32imm:$imm22),
                   "unimp $imm22", []>;
+
+// Section B.32 - Flush Instruction Memory
+let rd = 0 in {
+  def FLUSHrr : F3_1<2, 0b111011, (outs), (ins MEMrr:$addr),
+                       "flush $addr", []>;
+  def FLUSHri : F3_2<2, 0b111011, (outs), (ins MEMri:$addr),
+                       "flush $addr", []>;
+
+  // The no-arg FLUSH is only here for the benefit of the InstAlias
+  // "flush", which cannot seem to use FLUSHrr, due to the inability
+  // to construct a MEMrr with fixed G0 registers.
+  let rs1 = 0, rs2 = 0 in
+    def FLUSH   : F3_1<2, 0b111011, (outs), (ins), "flush %g0", []>;
+}
 
 // Section B.33 - Floating-point Operate (FPop) Instructions
 

@@ -1004,10 +1004,6 @@ def err_pragma_invalid_keyword : Error<
 def warn_pragma_unroll_cuda_value_in_parens : Warning<
   "argument to '#pragma unroll' should not be in parentheses in CUDA C/C++">,
   InGroup<CudaCompat>;
-
-def err_empty_attribute_block : Error<
-  "Microsoft attribute block cannot be empty">;
-
 } // end of Parse Issue category.
 
 let CategoryName = "Modules Issue" in {
@@ -1015,6 +1011,18 @@ def err_module_expected_ident : Error<
   "expected a module name after module import">;
 def err_module_expected_semi : Error<
   "expected ';' after module name">;
+}
+
+let CategoryName = "Generics Issue" in {
+
+def err_objc_expected_type_parameter : Error<
+  "expected type parameter name">;
+
+def err_objc_parameterized_implementation : Error<
+  "@implementation cannot have type parameters">;
+
+def err_objc_type_args_after_protocols : Error<
+  "protocol qualifiers must precede type arguments">;
 }
 
 } // end of Parser diagnostics

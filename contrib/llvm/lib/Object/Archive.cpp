@@ -17,6 +17,7 @@
 #include "llvm/ADT/Twine.h"
 #include "llvm/Support/Endian.h"
 #include "llvm/Support/MemoryBuffer.h"
+#include "llvm/Support/Path.h"
 
 using namespace llvm;
 using namespace object;
@@ -115,6 +116,23 @@ uint64_t Archive::Child::getRawSize() const {
   return getHeader()->getSize();
 }
 
+ErrorOr<StringRef> Archive::Child::getBuffer() const {
+  if (!Parent->IsThin)
+    return StringRef(Data.data() + StartOfFile, getSize());
+  ErrorOr<StringRef> Name = getName();
+  if (std::error_code EC = Name.getError())
+    return EC;
+  SmallString<128> FullName =
+      Parent->getMemoryBufferRef().getBufferIdentifier();
+  sys::path::remove_filename(FullName);
+  sys::path::append(FullName, *Name);
+  ErrorOr<std::unique_ptr<MemoryBuffer>> Buf = MemoryBuffer::getFile(FullName);
+  if (std::error_code EC = Buf.getError())
+    return EC;
+  Parent->ThinBuffers.push_back(std::move(*Buf));
+  return Parent->ThinBuffers.back()->getBuffer();
+}
+
 Archive::Child Archive::Child::getNext() const {
   size_t SpaceToSkip = Data.size();
   // If it's odd, add 1 to make it even.
@@ -162,10 +180,10 @@ ErrorOr<StringRef> Archive::Child::getName() const {
                    + Parent->StringTable->getSize()))
       return object_error::parse_failed;
 
-    // GNU long file names end with a /.
+    // GNU long file names end with a "/\n".
     if (Parent->kind() == K_GNU || Parent->kind() == K_MIPS64) {
-      StringRef::size_type End = StringRef(addr).find('/');
-      return StringRef(addr, End);
+      StringRef::size_type End = StringRef(addr).find('\n');
+      return StringRef(addr, End - 1);
     }
     return StringRef(addr);
   } else if (name.startswith("#1/")) {
@@ -186,7 +204,10 @@ ErrorOr<MemoryBufferRef> Archive::Child::getMemoryBufferRef() const {
   if (std::error_code EC = NameOrErr.getError())
     return EC;
   StringRef Name = NameOrErr.get();
-  return MemoryBufferRef(getBuffer(), Name);
+  ErrorOr<StringRef> Buf = getBuffer();
+  if (std::error_code EC = Buf.getError())
+    return EC;
+  return MemoryBufferRef(*Buf, Name);
 }
 
 ErrorOr<std::unique_ptr<Binary>>
@@ -207,7 +228,8 @@ ErrorOr<std::unique_ptr<Archive>> Archive::create(MemoryBufferRef Source) {
 }
 
 Archive::Archive(MemoryBufferRef Source, std::error_code &ec)
-    : Binary(Binary::ID_Archive, Source), SymbolTable(child_end()) {
+    : Binary(Binary::ID_Archive, Source), SymbolTable(child_end()),
+      StringTable(child_end()), FirstRegular(child_end()) {
   StringRef Buffer = Data.getBuffer();
   // Check for sufficient magic.
   if (Buffer.startswith(ThinMagic)) {
@@ -287,7 +309,7 @@ Archive::Archive(MemoryBufferRef Source, std::error_code &ec)
 
     ++i;
     if (i == e) {
-      ec = object_error::parse_failed;
+      ec = std::error_code();
       return;
     }
     Name = i->getRawName();
@@ -352,11 +374,11 @@ Archive::child_iterator Archive::child_end() const {
 }
 
 StringRef Archive::Symbol::getName() const {
-  return Parent->SymbolTable->getBuffer().begin() + StringIndex;
+  return Parent->getSymbolTable().begin() + StringIndex;
 }
 
 ErrorOr<Archive::child_iterator> Archive::Symbol::getMember() const {
-  const char *Buf = Parent->SymbolTable->getBuffer().begin();
+  const char *Buf = Parent->getSymbolTable().begin();
   const char *Offsets = Buf;
   if (Parent->kind() == K_MIPS64)
     Offsets += sizeof(uint64_t);
@@ -420,7 +442,7 @@ Archive::Symbol Archive::Symbol::getNext() const {
     // and the second being the offset into the archive of the member that
     // define the symbol. After that the next uint32_t is the byte count of
     // the string table followed by the string table.
-    const char *Buf = Parent->SymbolTable->getBuffer().begin();
+    const char *Buf = Parent->getSymbolTable().begin();
     uint32_t RanlibCount = 0;
     RanlibCount = read32le(Buf) / 8;
     // If t.SymbolIndex + 1 will be past the count of symbols (the RanlibCount)
@@ -437,8 +459,7 @@ Archive::Symbol Archive::Symbol::getNext() const {
     }
   } else {
     // Go to one past next null.
-    t.StringIndex =
-        Parent->SymbolTable->getBuffer().find('\0', t.StringIndex) + 1;
+    t.StringIndex = Parent->getSymbolTable().find('\0', t.StringIndex) + 1;
   }
   ++t.SymbolIndex;
   return t;
@@ -448,7 +469,7 @@ Archive::symbol_iterator Archive::symbol_begin() const {
   if (!hasSymbolTable())
     return symbol_iterator(Symbol(this, 0, 0));
 
-  const char *buf = SymbolTable->getBuffer().begin();
+  const char *buf = getSymbolTable().begin();
   if (kind() == K_GNU) {
     uint32_t symbol_count = 0;
     symbol_count = read32be(buf);
@@ -480,7 +501,7 @@ Archive::symbol_iterator Archive::symbol_begin() const {
     symbol_count = read32le(buf);
     buf += 4 + (symbol_count * 2); // Skip indices.
   }
-  uint32_t string_start_offset = buf - SymbolTable->getBuffer().begin();
+  uint32_t string_start_offset = buf - getSymbolTable().begin();
   return symbol_iterator(Symbol(this, 0, string_start_offset));
 }
 
@@ -491,7 +512,7 @@ Archive::symbol_iterator Archive::symbol_end() const {
 }
 
 uint32_t Archive::getNumberOfSymbols() const {
-  const char *buf = SymbolTable->getBuffer().begin();
+  const char *buf = getSymbolTable().begin();
   if (kind() == K_GNU)
     return read32be(buf);
   if (kind() == K_MIPS64)

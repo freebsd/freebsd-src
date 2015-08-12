@@ -19,7 +19,6 @@
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Analysis/ConstantFolding.h"
-#include "llvm/Analysis/JumpInstrTableInfo.h"
 #include "llvm/CodeGen/Analysis.h"
 #include "llvm/CodeGen/GCMetadataPrinter.h"
 #include "llvm/CodeGen/MachineConstantPool.h"
@@ -820,7 +819,7 @@ void AsmPrinter::EmitFunctionBody() {
         emitCFIInstruction(MI);
         break;
 
-      case TargetOpcode::FRAME_ALLOC:
+      case TargetOpcode::LOCAL_ESCAPE:
         emitFrameAlloc(MI);
         break;
 
@@ -1024,7 +1023,7 @@ bool AsmPrinter::doFinalization(Module &M) {
 
   // Emit visibility info for declarations
   for (const Function &F : M) {
-    if (!F.isDeclaration())
+    if (!F.isDeclarationForLinker())
       continue;
     GlobalValue::VisibilityTypes V = F.getVisibility();
     if (V == GlobalValue::DefaultVisibility)

@@ -292,6 +292,7 @@ void EmitAssemblyHelper::CreatePasses() {
   PMBuilder.DisableUnitAtATime = !CodeGenOpts.UnitAtATime;
   PMBuilder.DisableUnrollLoops = !CodeGenOpts.UnrollLoops;
   PMBuilder.MergeFunctions = CodeGenOpts.MergeFunctions;
+  PMBuilder.PrepareForLTO = CodeGenOpts.PrepareForLTO;
   PMBuilder.RerollLoops = CodeGenOpts.RerollLoops;
 
   PMBuilder.addExtension(PassManagerBuilder::EP_EarlyAsPossible,
@@ -454,8 +455,6 @@ TargetMachine *EmitAssemblyHelper::CreateTargetMachine(bool MustCreateTM) {
     BackendArgs.push_back("-limit-float-precision");
     BackendArgs.push_back(CodeGenOpts.LimitFloatPrecision.c_str());
   }
-  if (llvm::TimePassesIsEnabled)
-    BackendArgs.push_back("-time-passes");
   for (unsigned i = 0, e = CodeGenOpts.BackendOptions.size(); i != e; ++i)
     BackendArgs.push_back(CodeGenOpts.BackendOptions[i].c_str());
   BackendArgs.push_back(nullptr);

@@ -20,7 +20,6 @@ SRCS=	PPCAsmPrinter.cpp \
 	PPCMCInstLower.cpp \
 	PPCMachineFunctionInfo.cpp \
 	PPCRegisterInfo.cpp \
-	PPCSelectionDAGInfo.cpp \
 	PPCSubtarget.cpp \
 	PPCTLSDynamicCall.cpp \
 	PPCTOCRegDeps.cpp \

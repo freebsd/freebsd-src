@@ -456,24 +456,23 @@ public:
   /// Used to guide target specific optimizations, like loop strength
   /// reduction (LoopStrengthReduce.cpp) and memory optimization for
   /// address mode (CodeGenPrepare.cpp)
-  bool isLegalAddressingMode(const AddrMode &AM, Type *Ty,
+  bool isLegalAddressingMode(const DataLayout &DL, const AddrMode &AM, Type *Ty,
                              unsigned AS) const override;
 
   /// getFunctionAlignment - Return the Log2 alignment of this function.
   unsigned getFunctionAlignment(const Function *F) const;
 
-  EVT getSetCCResultType(LLVMContext &Ctx, EVT VT) const override {
+  EVT getSetCCResultType(const DataLayout &DL, LLVMContext &Ctx,
+                         EVT VT) const override {
     if (VT.isVector())
       return EVT::getVectorVT(Ctx, MVT::i1, VT.getVectorNumElements());
     return MVT::i1;
   }
 
-  ConstraintType
-  getConstraintType(const std::string &Constraint) const override;
+  ConstraintType getConstraintType(StringRef Constraint) const override;
   std::pair<unsigned, const TargetRegisterClass *>
   getRegForInlineAsmConstraint(const TargetRegisterInfo *TRI,
-                               const std::string &Constraint,
-                               MVT VT) const override;
+                               StringRef Constraint, MVT VT) const override;
 
   SDValue LowerFormalArguments(
       SDValue Chain, CallingConv::ID CallConv, bool isVarArg,
@@ -483,7 +482,7 @@ public:
   SDValue LowerCall(CallLoweringInfo &CLI,
                     SmallVectorImpl<SDValue> &InVals) const override;
 
-  std::string getPrototype(Type *, const ArgListTy &,
+  std::string getPrototype(const DataLayout &DL, Type *, const ArgListTy &,
                            const SmallVectorImpl<ISD::OutputArg> &,
                            unsigned retAlignment,
                            const ImmutableCallSite *CS) const;
@@ -501,7 +500,9 @@ public:
   const NVPTXTargetMachine *nvTM;
 
   // PTX always uses 32-bit shift amounts
-  MVT getScalarShiftAmountTy(EVT LHSTy) const override { return MVT::i32; }
+  MVT getScalarShiftAmountTy(const DataLayout &, EVT) const override {
+    return MVT::i32;
+  }
 
   TargetLoweringBase::LegalizeTypeAction
   getPreferredVectorAction(EVT VT) const override;

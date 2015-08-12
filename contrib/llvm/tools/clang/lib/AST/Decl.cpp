@@ -1803,15 +1803,19 @@ void VarDecl::setStorageClass(StorageClass SC) {
 VarDecl::TLSKind VarDecl::getTLSKind() const {
   switch (VarDeclBits.TSCSpec) {
   case TSCS_unspecified:
-    if (!hasAttr<ThreadAttr>())
+    if (!hasAttr<ThreadAttr>() &&
+        !(getASTContext().getLangOpts().OpenMPUseTLS &&
+          getASTContext().getTargetInfo().isTLSSupported() &&
+          hasAttr<OMPThreadPrivateDeclAttr>()))
       return TLS_None;
-    return getASTContext().getLangOpts().isCompatibleWithMSVC(
-               LangOptions::MSVC2015)
+    return ((getASTContext().getLangOpts().isCompatibleWithMSVC(
+                LangOptions::MSVC2015)) ||
+            hasAttr<OMPThreadPrivateDeclAttr>())
                ? TLS_Dynamic
                : TLS_Static;
   case TSCS___thread: // Fall through.
   case TSCS__Thread_local:
-      return TLS_Static;
+    return TLS_Static;
   case TSCS_thread_local:
     return TLS_Dynamic;
   }
@@ -2712,7 +2716,7 @@ bool FunctionDecl::isMSExternInline() const {
 
   for (const FunctionDecl *FD = getMostRecentDecl(); FD;
        FD = FD->getPreviousDecl())
-    if (FD->getStorageClass() == SC_Extern)
+    if (!FD->isImplicit() && FD->getStorageClass() == SC_Extern)
       return true;
 
   return false;
@@ -2724,7 +2728,7 @@ static bool redeclForcesDefMSVC(const FunctionDecl *Redecl) {
 
   for (const FunctionDecl *FD = Redecl->getPreviousDecl(); FD;
        FD = FD->getPreviousDecl())
-    if (FD->getStorageClass() == SC_Extern)
+    if (!FD->isImplicit() && FD->getStorageClass() == SC_Extern)
       return false;
 
   return true;

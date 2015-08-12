@@ -18,12 +18,6 @@ using namespace llvm;
 
 #define DEBUG_TYPE "arm-selectiondag-info"
 
-ARMSelectionDAGInfo::ARMSelectionDAGInfo(const DataLayout &DL)
-    : TargetSelectionDAGInfo(&DL) {}
-
-ARMSelectionDAGInfo::~ARMSelectionDAGInfo() {
-}
-
 // Emit, if possible, a specialized version of the given Libcall. Typically this
 // means selecting the appropriately aligned version, but we also convert memset
 // of 0 into memclr.
@@ -83,7 +77,7 @@ EmitSpecializedLibcall(SelectionDAG &DAG, SDLoc dl,
 
   TargetLowering::ArgListTy Args;
   TargetLowering::ArgListEntry Entry;
-  Entry.Ty = TLI->getDataLayout()->getIntPtrType(*DAG.getContext());
+  Entry.Ty = DAG.getDataLayout().getIntPtrType(*DAG.getContext());
   Entry.Node = Dst;
   Args.push_back(Entry);
   if (AEABILibcall == AEABI_MEMCLR) {
@@ -121,12 +115,14 @@ EmitSpecializedLibcall(SelectionDAG &DAG, SDLoc dl,
     { "__aeabi_memclr",  "__aeabi_memclr4",  "__aeabi_memclr8"  }
   };
   TargetLowering::CallLoweringInfo CLI(DAG);
-  CLI.setDebugLoc(dl).setChain(Chain)
-    .setCallee(TLI->getLibcallCallingConv(LC),
-               Type::getVoidTy(*DAG.getContext()),
-               DAG.getExternalSymbol(FunctionNames[AEABILibcall][AlignVariant],
-                                     TLI->getPointerTy()), std::move(Args), 0)
-    .setDiscardResult();
+  CLI.setDebugLoc(dl)
+      .setChain(Chain)
+      .setCallee(
+           TLI->getLibcallCallingConv(LC), Type::getVoidTy(*DAG.getContext()),
+           DAG.getExternalSymbol(FunctionNames[AEABILibcall][AlignVariant],
+                                 TLI->getPointerTy(DAG.getDataLayout())),
+           std::move(Args), 0)
+      .setDiscardResult();
   std::pair<SDValue,SDValue> CallResult = TLI->LowerCallTo(CLI);
   
   return CallResult.second;

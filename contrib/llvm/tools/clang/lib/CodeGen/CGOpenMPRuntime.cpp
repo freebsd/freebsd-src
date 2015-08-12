@@ -537,7 +537,7 @@ CGOpenMPRuntime::createRuntimeFunction(OpenMPRTLFunction Function) {
     break;
   }
   case OMPRTL__kmpc_barrier: {
-    // Build void __kmpc_cancel_barrier(ident_t *loc, kmp_int32 global_tid);
+    // Build void __kmpc_barrier(ident_t *loc, kmp_int32 global_tid);
     llvm::Type *TypeParams[] = {getIdentTyPointerTy(), CGM.Int32Ty};
     llvm::FunctionType *FnTy =
         llvm::FunctionType::get(CGM.VoidTy, TypeParams, /*isVarArg*/ false);
@@ -829,6 +829,15 @@ CGOpenMPRuntime::createRuntimeFunction(OpenMPRTLFunction Function) {
     RTLFn = CGM.CreateRuntimeFunction(FnTy, "__kmpc_cancellationpoint");
     break;
   }
+  case OMPRTL__kmpc_cancel: {
+    // Build kmp_int32 __kmpc_cancel(ident_t *loc, kmp_int32 global_tid,
+    // kmp_int32 cncl_kind)
+    llvm::Type *TypeParams[] = {getIdentTyPointerTy(), CGM.Int32Ty, CGM.IntTy};
+    llvm::FunctionType *FnTy =
+        llvm::FunctionType::get(CGM.Int32Ty, TypeParams, /*isVarArg*/ false);
+    RTLFn = CGM.CreateRuntimeFunction(FnTy, "__kmpc_cancel");
+    break;
+  }
   }
   return RTLFn;
 }
@@ -923,6 +932,8 @@ llvm::Constant *CGOpenMPRuntime::createDispatchNextFunction(unsigned IVSize,
 
 llvm::Constant *
 CGOpenMPRuntime::getOrCreateThreadPrivateCache(const VarDecl *VD) {
+  assert(!CGM.getLangOpts().OpenMPUseTLS ||
+         !CGM.getContext().getTargetInfo().isTLSSupported());
   // Lookup the entry, lazily creating it if necessary.
   return getOrCreateInternalVariable(CGM.Int8PtrPtrTy,
                                      Twine(CGM.getMangledName(VD)) + ".cache.");
@@ -932,6 +943,10 @@ llvm::Value *CGOpenMPRuntime::getAddrOfThreadPrivate(CodeGenFunction &CGF,
                                                      const VarDecl *VD,
                                                      llvm::Value *VDAddr,
                                                      SourceLocation Loc) {
+  if (CGM.getLangOpts().OpenMPUseTLS &&
+      CGM.getContext().getTargetInfo().isTLSSupported())
+    return VDAddr;
+
   auto VarTy = VDAddr->getType()->getPointerElementType();
   llvm::Value *Args[] = {emitUpdateLocation(CGF, Loc), getThreadID(CGF, Loc),
                          CGF.Builder.CreatePointerCast(VDAddr, CGM.Int8PtrTy),
@@ -961,6 +976,10 @@ void CGOpenMPRuntime::emitThreadPrivateVarInit(
 llvm::Function *CGOpenMPRuntime::emitThreadPrivateVarDefinition(
     const VarDecl *VD, llvm::Value *VDAddr, SourceLocation Loc,
     bool PerformInit, CodeGenFunction *CGF) {
+  if (CGM.getLangOpts().OpenMPUseTLS &&
+      CGM.getContext().getTargetInfo().isTLSSupported())
+    return nullptr;
+
   VD = VD->getDefinition(CGM.getContext());
   if (VD && ThreadPrivateWithDefinition.count(VD) == 0) {
     ThreadPrivateWithDefinition.insert(VD);
@@ -2723,18 +2742,18 @@ void CGOpenMPRuntime::emitInlinedDirective(CodeGenFunction &CGF,
   CGF.CapturedStmtInfo->EmitBody(CGF, /*S=*/nullptr);
 }
 
-void CGOpenMPRuntime::emitCancellationPointCall(
-    CodeGenFunction &CGF, SourceLocation Loc,
-    OpenMPDirectiveKind CancelRegion) {
-  // Build call kmp_int32 OMPRTL__kmpc_cancellationpoint(ident_t *loc, kmp_int32
-  // global_tid, kmp_int32 cncl_kind);
-  enum {
-    CancelNoreq = 0,
-    CancelParallel = 1,
-    CancelLoop = 2,
-    CancelSections = 3,
-    CancelTaskgroup = 4
-  } CancelKind = CancelNoreq;
+namespace {
+enum RTCancelKind {
+  CancelNoreq = 0,
+  CancelParallel = 1,
+  CancelLoop = 2,
+  CancelSections = 3,
+  CancelTaskgroup = 4
+};
+}
+
+static RTCancelKind getCancellationKind(OpenMPDirectiveKind CancelRegion) {
+  RTCancelKind CancelKind = CancelNoreq;
   if (CancelRegion == OMPD_parallel)
     CancelKind = CancelParallel;
   else if (CancelRegion == OMPD_for)
@@ -2745,18 +2764,59 @@ void CGOpenMPRuntime::emitCancellationPointCall(
     assert(CancelRegion == OMPD_taskgroup);
     CancelKind = CancelTaskgroup;
   }
+  return CancelKind;
+}
+
+void CGOpenMPRuntime::emitCancellationPointCall(
+    CodeGenFunction &CGF, SourceLocation Loc,
+    OpenMPDirectiveKind CancelRegion) {
+  // Build call kmp_int32 __kmpc_cancellationpoint(ident_t *loc, kmp_int32
+  // global_tid, kmp_int32 cncl_kind);
   if (auto *OMPRegionInfo =
           dyn_cast_or_null<CGOpenMPRegionInfo>(CGF.CapturedStmtInfo)) {
     auto CancelDest =
         CGF.getOMPCancelDestination(OMPRegionInfo->getDirectiveKind());
     if (CancelDest.isValid()) {
-      llvm::Value *Args[] = {emitUpdateLocation(CGF, Loc),
-                             getThreadID(CGF, Loc),
-                             CGF.Builder.getInt32(CancelKind)};
+      llvm::Value *Args[] = {
+          emitUpdateLocation(CGF, Loc), getThreadID(CGF, Loc),
+          CGF.Builder.getInt32(getCancellationKind(CancelRegion))};
       // Ignore return result until untied tasks are supported.
       auto *Result = CGF.EmitRuntimeCall(
           createRuntimeFunction(OMPRTL__kmpc_cancellationpoint), Args);
       // if (__kmpc_cancellationpoint()) {
+      //  __kmpc_cancel_barrier();
+      //   exit from construct;
+      // }
+      auto *ExitBB = CGF.createBasicBlock(".cancel.exit");
+      auto *ContBB = CGF.createBasicBlock(".cancel.continue");
+      auto *Cmp = CGF.Builder.CreateIsNotNull(Result);
+      CGF.Builder.CreateCondBr(Cmp, ExitBB, ContBB);
+      CGF.EmitBlock(ExitBB);
+      // __kmpc_cancel_barrier();
+      emitBarrierCall(CGF, Loc, OMPD_unknown, /*CheckForCancel=*/false);
+      // exit from construct;
+      CGF.EmitBranchThroughCleanup(CancelDest);
+      CGF.EmitBlock(ContBB, /*IsFinished=*/true);
+    }
+  }
+}
+
+void CGOpenMPRuntime::emitCancelCall(CodeGenFunction &CGF, SourceLocation Loc,
+                                     OpenMPDirectiveKind CancelRegion) {
+  // Build call kmp_int32 __kmpc_cancel(ident_t *loc, kmp_int32 global_tid,
+  // kmp_int32 cncl_kind);
+  if (auto *OMPRegionInfo =
+          dyn_cast_or_null<CGOpenMPRegionInfo>(CGF.CapturedStmtInfo)) {
+    auto CancelDest =
+        CGF.getOMPCancelDestination(OMPRegionInfo->getDirectiveKind());
+    if (CancelDest.isValid()) {
+      llvm::Value *Args[] = {
+          emitUpdateLocation(CGF, Loc), getThreadID(CGF, Loc),
+          CGF.Builder.getInt32(getCancellationKind(CancelRegion))};
+      // Ignore return result until untied tasks are supported.
+      auto *Result =
+          CGF.EmitRuntimeCall(createRuntimeFunction(OMPRTL__kmpc_cancel), Args);
+      // if (__kmpc_cancel()) {
       //  __kmpc_cancel_barrier();
       //   exit from construct;
       // }

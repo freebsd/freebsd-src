@@ -705,7 +705,8 @@ void AArch64TargetLowering::addQRTypeForNEON(MVT VT) {
   addTypeForNEON(VT, MVT::v4i32);
 }
 
-EVT AArch64TargetLowering::getSetCCResultType(LLVMContext &, EVT VT) const {
+EVT AArch64TargetLowering::getSetCCResultType(const DataLayout &, LLVMContext &,
+                                              EVT VT) const {
   if (!VT.isVector())
     return MVT::i32;
   return VT.changeVectorElementTypeToInteger();
@@ -774,7 +775,8 @@ void AArch64TargetLowering::computeKnownBitsForTargetNode(
   }
 }
 
-MVT AArch64TargetLowering::getScalarShiftAmountTy(EVT LHSTy) const {
+MVT AArch64TargetLowering::getScalarShiftAmountTy(const DataLayout &DL,
+                                                  EVT) const {
   return MVT::i64;
 }
 
@@ -1710,7 +1712,8 @@ SDValue AArch64TargetLowering::LowerFSINCOS(SDValue Op,
 
   const char *LibcallName =
       (ArgVT == MVT::f64) ? "__sincos_stret" : "__sincosf_stret";
-  SDValue Callee = DAG.getExternalSymbol(LibcallName, getPointerTy());
+  SDValue Callee =
+      DAG.getExternalSymbol(LibcallName, getPointerTy(DAG.getDataLayout()));
 
   StructType *RetTy = StructType::get(ArgTy, ArgTy, nullptr);
   TargetLowering::CallLoweringInfo CLI(DAG);
@@ -2089,7 +2092,8 @@ SDValue AArch64TargetLowering::LowerFormalArguments(
       CurArgIdx = Ins[i].getOrigArgIndex();
 
       // Get type of the original argument.
-      EVT ActualVT = getValueType(CurOrigArg->getType(), /*AllowUnknown*/ true);
+      EVT ActualVT = getValueType(DAG.getDataLayout(), CurOrigArg->getType(),
+                                  /*AllowUnknown*/ true);
       MVT ActualMVT = ActualVT.isSimple() ? ActualVT.getSimpleVT() : MVT::Other;
       // If ActualMVT is i1/i8/i16, we should set LocVT to i8/i8/i16.
       if (ActualMVT == MVT::i1 || ActualMVT == MVT::i8)
@@ -2111,7 +2115,7 @@ SDValue AArch64TargetLowering::LowerFormalArguments(
     if (Ins[i].Flags.isByVal()) {
       // Byval is used for HFAs in the PCS, but the system should work in a
       // non-compliant manner for larger structs.
-      EVT PtrTy = getPointerTy();
+      EVT PtrVT = getPointerTy(DAG.getDataLayout());
       int Size = Ins[i].Flags.getByValSize();
       unsigned NumRegs = (Size + 7) / 8;
 
@@ -2119,7 +2123,7 @@ SDValue AArch64TargetLowering::LowerFormalArguments(
       // case. It should also work for fundamental types too.
       unsigned FrameIdx =
         MFI->CreateFixedObject(8 * NumRegs, VA.getLocMemOffset(), false);
-      SDValue FrameIdxN = DAG.getFrameIndex(FrameIdx, PtrTy);
+      SDValue FrameIdxN = DAG.getFrameIndex(FrameIdx, PtrVT);
       InVals.push_back(FrameIdxN);
 
       continue;
@@ -2186,7 +2190,7 @@ SDValue AArch64TargetLowering::LowerFormalArguments(
       int FI = MFI->CreateFixedObject(ArgSize, ArgOffset + BEAlign, true);
 
       // Create load nodes to retrieve arguments from the stack.
-      SDValue FIN = DAG.getFrameIndex(FI, getPointerTy());
+      SDValue FIN = DAG.getFrameIndex(FI, getPointerTy(DAG.getDataLayout()));
       SDValue ArgValue;
 
       // For NON_EXTLOAD, generic code in getLoad assert(ValVT == MemVT)
@@ -2265,6 +2269,7 @@ void AArch64TargetLowering::saveVarArgRegisters(CCState &CCInfo,
   MachineFunction &MF = DAG.getMachineFunction();
   MachineFrameInfo *MFI = MF.getFrameInfo();
   AArch64FunctionInfo *FuncInfo = MF.getInfo<AArch64FunctionInfo>();
+  auto PtrVT = getPointerTy(DAG.getDataLayout());
 
   SmallVector<SDValue, 8> MemOps;
 
@@ -2279,7 +2284,7 @@ void AArch64TargetLowering::saveVarArgRegisters(CCState &CCInfo,
   if (GPRSaveSize != 0) {
     GPRIdx = MFI->CreateStackObject(GPRSaveSize, 8, false);
 
-    SDValue FIN = DAG.getFrameIndex(GPRIdx, getPointerTy());
+    SDValue FIN = DAG.getFrameIndex(GPRIdx, PtrVT);
 
     for (unsigned i = FirstVariadicGPR; i < NumGPRArgRegs; ++i) {
       unsigned VReg = MF.addLiveIn(GPRArgRegs[i], &AArch64::GPR64RegClass);
@@ -2288,8 +2293,8 @@ void AArch64TargetLowering::saveVarArgRegisters(CCState &CCInfo,
           DAG.getStore(Val.getValue(1), DL, Val, FIN,
                        MachinePointerInfo::getStack(i * 8), false, false, 0);
       MemOps.push_back(Store);
-      FIN = DAG.getNode(ISD::ADD, DL, getPointerTy(), FIN,
-                        DAG.getConstant(8, DL, getPointerTy()));
+      FIN =
+          DAG.getNode(ISD::ADD, DL, PtrVT, FIN, DAG.getConstant(8, DL, PtrVT));
     }
   }
   FuncInfo->setVarArgsGPRIndex(GPRIdx);
@@ -2307,7 +2312,7 @@ void AArch64TargetLowering::saveVarArgRegisters(CCState &CCInfo,
     if (FPRSaveSize != 0) {
       FPRIdx = MFI->CreateStackObject(FPRSaveSize, 16, false);
 
-      SDValue FIN = DAG.getFrameIndex(FPRIdx, getPointerTy());
+      SDValue FIN = DAG.getFrameIndex(FPRIdx, PtrVT);
 
       for (unsigned i = FirstVariadicFPR; i < NumFPRArgRegs; ++i) {
         unsigned VReg = MF.addLiveIn(FPRArgRegs[i], &AArch64::FPR128RegClass);
@@ -2317,8 +2322,8 @@ void AArch64TargetLowering::saveVarArgRegisters(CCState &CCInfo,
             DAG.getStore(Val.getValue(1), DL, Val, FIN,
                          MachinePointerInfo::getStack(i * 16), false, false, 0);
         MemOps.push_back(Store);
-        FIN = DAG.getNode(ISD::ADD, DL, getPointerTy(), FIN,
-                          DAG.getConstant(16, DL, getPointerTy()));
+        FIN = DAG.getNode(ISD::ADD, DL, PtrVT, FIN,
+                          DAG.getConstant(16, DL, PtrVT));
       }
     }
     FuncInfo->setVarArgsFPRIndex(FPRIdx);
@@ -2614,7 +2619,8 @@ AArch64TargetLowering::LowerCall(CallLoweringInfo &CLI,
     for (unsigned i = 0; i != NumArgs; ++i) {
       MVT ValVT = Outs[i].VT;
       // Get type of the original argument.
-      EVT ActualVT = getValueType(CLI.getArgs()[Outs[i].OrigArgIndex].Ty,
+      EVT ActualVT = getValueType(DAG.getDataLayout(),
+                                  CLI.getArgs()[Outs[i].OrigArgIndex].Ty,
                                   /*AllowUnknown*/ true);
       MVT ActualMVT = ActualVT.isSimple() ? ActualVT.getSimpleVT() : ValVT;
       ISD::ArgFlagsTy ArgFlags = Outs[i].Flags;
@@ -2674,10 +2680,12 @@ AArch64TargetLowering::LowerCall(CallLoweringInfo &CLI,
                                                               true),
                                  DL);
 
-  SDValue StackPtr = DAG.getCopyFromReg(Chain, DL, AArch64::SP, getPointerTy());
+  SDValue StackPtr = DAG.getCopyFromReg(Chain, DL, AArch64::SP,
+                                        getPointerTy(DAG.getDataLayout()));
 
   SmallVector<std::pair<unsigned, SDValue>, 8> RegsToPass;
   SmallVector<SDValue, 8> MemOpChains;
+  auto PtrVT = getPointerTy(DAG.getDataLayout());
 
   // Walk the register/memloc assignments, inserting copies/loads.
   for (unsigned i = 0, realArgIdx = 0, e = ArgLocs.size(); i != e;
@@ -2743,13 +2751,13 @@ AArch64TargetLowering::LowerCall(CallLoweringInfo &CLI,
       unsigned LocMemOffset = VA.getLocMemOffset();
       int32_t Offset = LocMemOffset + BEAlign;
       SDValue PtrOff = DAG.getIntPtrConstant(Offset, DL);
-      PtrOff = DAG.getNode(ISD::ADD, DL, getPointerTy(), StackPtr, PtrOff);
+      PtrOff = DAG.getNode(ISD::ADD, DL, PtrVT, StackPtr, PtrOff);
 
       if (IsTailCall) {
         Offset = Offset + FPDiff;
         int FI = MF.getFrameInfo()->CreateFixedObject(OpSize, Offset, true);
 
-        DstAddr = DAG.getFrameIndex(FI, getPointerTy());
+        DstAddr = DAG.getFrameIndex(FI, PtrVT);
         DstInfo = MachinePointerInfo::getFixedStack(FI);
 
         // Make sure any stack arguments overlapping with where we're storing
@@ -2759,7 +2767,7 @@ AArch64TargetLowering::LowerCall(CallLoweringInfo &CLI,
       } else {
         SDValue PtrOff = DAG.getIntPtrConstant(Offset, DL);
 
-        DstAddr = DAG.getNode(ISD::ADD, DL, getPointerTy(), StackPtr, PtrOff);
+        DstAddr = DAG.getNode(ISD::ADD, DL, PtrVT, StackPtr, PtrOff);
         DstInfo = MachinePointerInfo::getStack(LocMemOffset);
       }
 
@@ -2809,25 +2817,24 @@ AArch64TargetLowering::LowerCall(CallLoweringInfo &CLI,
       const GlobalValue *GV = G->getGlobal();
       bool InternalLinkage = GV->hasInternalLinkage();
       if (InternalLinkage)
-        Callee = DAG.getTargetGlobalAddress(GV, DL, getPointerTy(), 0, 0);
+        Callee = DAG.getTargetGlobalAddress(GV, DL, PtrVT, 0, 0);
       else {
-        Callee = DAG.getTargetGlobalAddress(GV, DL, getPointerTy(), 0,
-                                            AArch64II::MO_GOT);
-        Callee = DAG.getNode(AArch64ISD::LOADgot, DL, getPointerTy(), Callee);
+        Callee =
+            DAG.getTargetGlobalAddress(GV, DL, PtrVT, 0, AArch64II::MO_GOT);
+        Callee = DAG.getNode(AArch64ISD::LOADgot, DL, PtrVT, Callee);
       }
     } else if (ExternalSymbolSDNode *S =
                    dyn_cast<ExternalSymbolSDNode>(Callee)) {
       const char *Sym = S->getSymbol();
-      Callee =
-          DAG.getTargetExternalSymbol(Sym, getPointerTy(), AArch64II::MO_GOT);
-      Callee = DAG.getNode(AArch64ISD::LOADgot, DL, getPointerTy(), Callee);
+      Callee = DAG.getTargetExternalSymbol(Sym, PtrVT, AArch64II::MO_GOT);
+      Callee = DAG.getNode(AArch64ISD::LOADgot, DL, PtrVT, Callee);
     }
   } else if (GlobalAddressSDNode *G = dyn_cast<GlobalAddressSDNode>(Callee)) {
     const GlobalValue *GV = G->getGlobal();
-    Callee = DAG.getTargetGlobalAddress(GV, DL, getPointerTy(), 0, 0);
+    Callee = DAG.getTargetGlobalAddress(GV, DL, PtrVT, 0, 0);
   } else if (ExternalSymbolSDNode *S = dyn_cast<ExternalSymbolSDNode>(Callee)) {
     const char *Sym = S->getSymbol();
-    Callee = DAG.getTargetExternalSymbol(Sym, getPointerTy(), 0);
+    Callee = DAG.getTargetExternalSymbol(Sym, PtrVT, 0);
   }
 
   // We don't usually want to end the call-sequence here because we would tidy
@@ -2977,7 +2984,7 @@ AArch64TargetLowering::LowerReturn(SDValue Chain, CallingConv::ID CallConv,
 
 SDValue AArch64TargetLowering::LowerGlobalAddress(SDValue Op,
                                                   SelectionDAG &DAG) const {
-  EVT PtrVT = getPointerTy();
+  EVT PtrVT = getPointerTy(DAG.getDataLayout());
   SDLoc DL(Op);
   const GlobalAddressSDNode *GN = cast<GlobalAddressSDNode>(Op);
   const GlobalValue *GV = GN->getGlobal();
@@ -3069,7 +3076,7 @@ AArch64TargetLowering::LowerDarwinGlobalTLSAddress(SDValue Op,
   assert(Subtarget->isTargetDarwin() && "TLS only supported on Darwin");
 
   SDLoc DL(Op);
-  MVT PtrVT = getPointerTy();
+  MVT PtrVT = getPointerTy(DAG.getDataLayout());
   const GlobalValue *GV = cast<GlobalAddressSDNode>(Op)->getGlobal();
 
   SDValue TLVPAddr =
@@ -3124,7 +3131,7 @@ AArch64TargetLowering::LowerDarwinGlobalTLSAddress(SDValue Op,
 ///  the sequence is produced as per above.
 SDValue AArch64TargetLowering::LowerELFTLSDescCallSeq(SDValue SymAddr, SDLoc DL,
                                                       SelectionDAG &DAG) const {
-  EVT PtrVT = getPointerTy();
+  EVT PtrVT = getPointerTy(DAG.getDataLayout());
 
   SDValue Chain = DAG.getEntryNode();
   SDVTList NodeTys = DAG.getVTList(MVT::Other, MVT::Glue);
@@ -3159,7 +3166,7 @@ AArch64TargetLowering::LowerELFGlobalTLSAddress(SDValue Op,
   }
 
   SDValue TPOff;
-  EVT PtrVT = getPointerTy();
+  EVT PtrVT = getPointerTy(DAG.getDataLayout());
   SDLoc DL(Op);
   const GlobalValue *GV = GA->getGlobal();
 
@@ -3786,7 +3793,7 @@ SDValue AArch64TargetLowering::LowerJumpTable(SDValue Op,
   // Jump table entries as PC relative offsets. No additional tweaking
   // is necessary here. Just get the address of the jump table.
   JumpTableSDNode *JT = cast<JumpTableSDNode>(Op);
-  EVT PtrVT = getPointerTy();
+  EVT PtrVT = getPointerTy(DAG.getDataLayout());
   SDLoc DL(Op);
 
   if (getTargetMachine().getCodeModel() == CodeModel::Large &&
@@ -3812,7 +3819,7 @@ SDValue AArch64TargetLowering::LowerJumpTable(SDValue Op,
 SDValue AArch64TargetLowering::LowerConstantPool(SDValue Op,
                                                  SelectionDAG &DAG) const {
   ConstantPoolSDNode *CP = cast<ConstantPoolSDNode>(Op);
-  EVT PtrVT = getPointerTy();
+  EVT PtrVT = getPointerTy(DAG.getDataLayout());
   SDLoc DL(Op);
 
   if (getTargetMachine().getCodeModel() == CodeModel::Large) {
@@ -3853,7 +3860,7 @@ SDValue AArch64TargetLowering::LowerConstantPool(SDValue Op,
 SDValue AArch64TargetLowering::LowerBlockAddress(SDValue Op,
                                                SelectionDAG &DAG) const {
   const BlockAddress *BA = cast<BlockAddressSDNode>(Op)->getBlockAddress();
-  EVT PtrVT = getPointerTy();
+  EVT PtrVT = getPointerTy(DAG.getDataLayout());
   SDLoc DL(Op);
   if (getTargetMachine().getCodeModel() == CodeModel::Large &&
       !Subtarget->isTargetMachO()) {
@@ -3879,8 +3886,8 @@ SDValue AArch64TargetLowering::LowerDarwin_VASTART(SDValue Op,
       DAG.getMachineFunction().getInfo<AArch64FunctionInfo>();
 
   SDLoc DL(Op);
-  SDValue FR =
-      DAG.getFrameIndex(FuncInfo->getVarArgsStackIndex(), getPointerTy());
+  SDValue FR = DAG.getFrameIndex(FuncInfo->getVarArgsStackIndex(),
+                                 getPointerTy(DAG.getDataLayout()));
   const Value *SV = cast<SrcValueSDNode>(Op.getOperand(2))->getValue();
   return DAG.getStore(Op.getOperand(0), DL, FR, Op.getOperand(1),
                       MachinePointerInfo(SV), false, false, 0);
@@ -3892,6 +3899,7 @@ SDValue AArch64TargetLowering::LowerAAPCS_VASTART(SDValue Op,
   // Standard, section B.3.
   MachineFunction &MF = DAG.getMachineFunction();
   AArch64FunctionInfo *FuncInfo = MF.getInfo<AArch64FunctionInfo>();
+  auto PtrVT = getPointerTy(DAG.getDataLayout());
   SDLoc DL(Op);
 
   SDValue Chain = Op.getOperand(0);
@@ -3900,8 +3908,7 @@ SDValue AArch64TargetLowering::LowerAAPCS_VASTART(SDValue Op,
   SmallVector<SDValue, 4> MemOps;
 
   // void *__stack at offset 0
-  SDValue Stack =
-      DAG.getFrameIndex(FuncInfo->getVarArgsStackIndex(), getPointerTy());
+  SDValue Stack = DAG.getFrameIndex(FuncInfo->getVarArgsStackIndex(), PtrVT);
   MemOps.push_back(DAG.getStore(Chain, DL, Stack, VAList,
                                 MachinePointerInfo(SV), false, false, 8));
 
@@ -3910,12 +3917,12 @@ SDValue AArch64TargetLowering::LowerAAPCS_VASTART(SDValue Op,
   if (GPRSize > 0) {
     SDValue GRTop, GRTopAddr;
 
-    GRTopAddr = DAG.getNode(ISD::ADD, DL, getPointerTy(), VAList,
-                            DAG.getConstant(8, DL, getPointerTy()));
+    GRTopAddr =
+        DAG.getNode(ISD::ADD, DL, PtrVT, VAList, DAG.getConstant(8, DL, PtrVT));
 
-    GRTop = DAG.getFrameIndex(FuncInfo->getVarArgsGPRIndex(), getPointerTy());
-    GRTop = DAG.getNode(ISD::ADD, DL, getPointerTy(), GRTop,
-                        DAG.getConstant(GPRSize, DL, getPointerTy()));
+    GRTop = DAG.getFrameIndex(FuncInfo->getVarArgsGPRIndex(), PtrVT);
+    GRTop = DAG.getNode(ISD::ADD, DL, PtrVT, GRTop,
+                        DAG.getConstant(GPRSize, DL, PtrVT));
 
     MemOps.push_back(DAG.getStore(Chain, DL, GRTop, GRTopAddr,
                                   MachinePointerInfo(SV, 8), false, false, 8));
@@ -3925,28 +3932,28 @@ SDValue AArch64TargetLowering::LowerAAPCS_VASTART(SDValue Op,
   int FPRSize = FuncInfo->getVarArgsFPRSize();
   if (FPRSize > 0) {
     SDValue VRTop, VRTopAddr;
-    VRTopAddr = DAG.getNode(ISD::ADD, DL, getPointerTy(), VAList,
-                            DAG.getConstant(16, DL, getPointerTy()));
+    VRTopAddr = DAG.getNode(ISD::ADD, DL, PtrVT, VAList,
+                            DAG.getConstant(16, DL, PtrVT));
 
-    VRTop = DAG.getFrameIndex(FuncInfo->getVarArgsFPRIndex(), getPointerTy());
-    VRTop = DAG.getNode(ISD::ADD, DL, getPointerTy(), VRTop,
-                        DAG.getConstant(FPRSize, DL, getPointerTy()));
+    VRTop = DAG.getFrameIndex(FuncInfo->getVarArgsFPRIndex(), PtrVT);
+    VRTop = DAG.getNode(ISD::ADD, DL, PtrVT, VRTop,
+                        DAG.getConstant(FPRSize, DL, PtrVT));
 
     MemOps.push_back(DAG.getStore(Chain, DL, VRTop, VRTopAddr,
                                   MachinePointerInfo(SV, 16), false, false, 8));
   }
 
   // int __gr_offs at offset 24
-  SDValue GROffsAddr = DAG.getNode(ISD::ADD, DL, getPointerTy(), VAList,
-                                   DAG.getConstant(24, DL, getPointerTy()));
+  SDValue GROffsAddr =
+      DAG.getNode(ISD::ADD, DL, PtrVT, VAList, DAG.getConstant(24, DL, PtrVT));
   MemOps.push_back(DAG.getStore(Chain, DL,
                                 DAG.getConstant(-GPRSize, DL, MVT::i32),
                                 GROffsAddr, MachinePointerInfo(SV, 24), false,
                                 false, 4));
 
   // int __vr_offs at offset 28
-  SDValue VROffsAddr = DAG.getNode(ISD::ADD, DL, getPointerTy(), VAList,
-                                   DAG.getConstant(28, DL, getPointerTy()));
+  SDValue VROffsAddr =
+      DAG.getNode(ISD::ADD, DL, PtrVT, VAList, DAG.getConstant(28, DL, PtrVT));
   MemOps.push_back(DAG.getStore(Chain, DL,
                                 DAG.getConstant(-FPRSize, DL, MVT::i32),
                                 VROffsAddr, MachinePointerInfo(SV, 28), false,
@@ -3987,21 +3994,22 @@ SDValue AArch64TargetLowering::LowerVAARG(SDValue Op, SelectionDAG &DAG) const {
   SDValue Chain = Op.getOperand(0);
   SDValue Addr = Op.getOperand(1);
   unsigned Align = Op.getConstantOperandVal(3);
+  auto PtrVT = getPointerTy(DAG.getDataLayout());
 
-  SDValue VAList = DAG.getLoad(getPointerTy(), DL, Chain, Addr,
-                               MachinePointerInfo(V), false, false, false, 0);
+  SDValue VAList = DAG.getLoad(PtrVT, DL, Chain, Addr, MachinePointerInfo(V),
+                               false, false, false, 0);
   Chain = VAList.getValue(1);
 
   if (Align > 8) {
     assert(((Align & (Align - 1)) == 0) && "Expected Align to be a power of 2");
-    VAList = DAG.getNode(ISD::ADD, DL, getPointerTy(), VAList,
-                         DAG.getConstant(Align - 1, DL, getPointerTy()));
-    VAList = DAG.getNode(ISD::AND, DL, getPointerTy(), VAList,
-                         DAG.getConstant(-(int64_t)Align, DL, getPointerTy()));
+    VAList = DAG.getNode(ISD::ADD, DL, PtrVT, VAList,
+                         DAG.getConstant(Align - 1, DL, PtrVT));
+    VAList = DAG.getNode(ISD::AND, DL, PtrVT, VAList,
+                         DAG.getConstant(-(int64_t)Align, DL, PtrVT));
   }
 
   Type *ArgTy = VT.getTypeForEVT(*DAG.getContext());
-  uint64_t ArgSize = getDataLayout()->getTypeAllocSize(ArgTy);
+  uint64_t ArgSize = DAG.getDataLayout().getTypeAllocSize(ArgTy);
 
   // Scalar integer and FP values smaller than 64 bits are implicitly extended
   // up to 64 bits.  At the very least, we have to increase the striding of the
@@ -4016,8 +4024,8 @@ SDValue AArch64TargetLowering::LowerVAARG(SDValue Op, SelectionDAG &DAG) const {
   }
 
   // Increment the pointer, VAList, to the next vaarg
-  SDValue VANext = DAG.getNode(ISD::ADD, DL, getPointerTy(), VAList,
-                               DAG.getConstant(ArgSize, DL, getPointerTy()));
+  SDValue VANext = DAG.getNode(ISD::ADD, DL, PtrVT, VAList,
+                               DAG.getConstant(ArgSize, DL, PtrVT));
   // Store the incremented VAList to the legalized pointer
   SDValue APStore = DAG.getStore(Chain, DL, VANext, Addr, MachinePointerInfo(V),
                                  false, false, 0);
@@ -4057,8 +4065,8 @@ SDValue AArch64TargetLowering::LowerFRAMEADDR(SDValue Op,
 
 // FIXME? Maybe this could be a TableGen attribute on some registers and
 // this table could be generated automatically from RegInfo.
-unsigned AArch64TargetLowering::getRegisterByName(const char* RegName,
-                                                  EVT VT) const {
+unsigned AArch64TargetLowering::getRegisterByName(const char* RegName, EVT VT,
+                                                  SelectionDAG &DAG) const {
   unsigned Reg = StringSwitch<unsigned>(RegName)
                        .Case("sp", AArch64::SP)
                        .Default(0);
@@ -4079,7 +4087,7 @@ SDValue AArch64TargetLowering::LowerRETURNADDR(SDValue Op,
   unsigned Depth = cast<ConstantSDNode>(Op.getOperand(0))->getZExtValue();
   if (Depth) {
     SDValue FrameAddr = LowerFRAMEADDR(Op, DAG);
-    SDValue Offset = DAG.getConstant(8, DL, getPointerTy());
+    SDValue Offset = DAG.getConstant(8, DL, getPointerTy(DAG.getDataLayout()));
     return DAG.getLoad(VT, DL, DAG.getEntryNode(),
                        DAG.getNode(ISD::ADD, DL, VT, FrameAddr, Offset),
                        MachinePointerInfo(), false, false, false, 0);
@@ -4232,7 +4240,7 @@ bool AArch64TargetLowering::isFPImmLegal(const APFloat &Imm, EVT VT) const {
 /// getConstraintType - Given a constraint letter, return the type of
 /// constraint it is for this target.
 AArch64TargetLowering::ConstraintType
-AArch64TargetLowering::getConstraintType(const std::string &Constraint) const {
+AArch64TargetLowering::getConstraintType(StringRef Constraint) const {
   if (Constraint.size() == 1) {
     switch (Constraint[0]) {
     default:
@@ -4283,8 +4291,7 @@ AArch64TargetLowering::getSingleConstraintMatchWeight(
 
 std::pair<unsigned, const TargetRegisterClass *>
 AArch64TargetLowering::getRegForInlineAsmConstraint(
-    const TargetRegisterInfo *TRI, const std::string &Constraint,
-    MVT VT) const {
+    const TargetRegisterInfo *TRI, StringRef Constraint, MVT VT) const {
   if (Constraint.size() == 1) {
     switch (Constraint[0]) {
     case 'r':
@@ -4320,10 +4327,9 @@ AArch64TargetLowering::getRegForInlineAsmConstraint(
     unsigned Size = Constraint.size();
     if ((Size == 4 || Size == 5) && Constraint[0] == '{' &&
         tolower(Constraint[1]) == 'v' && Constraint[Size - 1] == '}') {
-      const std::string Reg =
-          std::string(&Constraint[2], &Constraint[Size - 1]);
-      int RegNo = atoi(Reg.c_str());
-      if (RegNo >= 0 && RegNo <= 31) {
+      int RegNo;
+      bool Failed = Constraint.slice(2, Size - 1).getAsInteger(10, RegNo);
+      if (!Failed && RegNo >= 0 && RegNo <= 31) {
         // v0 - v31 are aliases of q0 - q31.
         // By default we'll emit v0-v31 for this unless there's a modifier where
         // we'll emit the correct register as well.
@@ -6429,6 +6435,7 @@ SDValue AArch64TargetLowering::LowerVSETCC(SDValue Op,
 bool AArch64TargetLowering::getTgtMemIntrinsic(IntrinsicInfo &Info,
                                                const CallInst &I,
                                                unsigned Intrinsic) const {
+  auto &DL = I.getModule()->getDataLayout();
   switch (Intrinsic) {
   case Intrinsic::aarch64_neon_ld2:
   case Intrinsic::aarch64_neon_ld3:
@@ -6444,7 +6451,7 @@ bool AArch64TargetLowering::getTgtMemIntrinsic(IntrinsicInfo &Info,
   case Intrinsic::aarch64_neon_ld4r: {
     Info.opc = ISD::INTRINSIC_W_CHAIN;
     // Conservatively set memVT to the entire set of vectors loaded.
-    uint64_t NumElts = getDataLayout()->getTypeAllocSize(I.getType()) / 8;
+    uint64_t NumElts = DL.getTypeAllocSize(I.getType()) / 8;
     Info.memVT = EVT::getVectorVT(I.getType()->getContext(), MVT::i64, NumElts);
     Info.ptrVal = I.getArgOperand(I.getNumArgOperands() - 1);
     Info.offset = 0;
@@ -6470,7 +6477,7 @@ bool AArch64TargetLowering::getTgtMemIntrinsic(IntrinsicInfo &Info,
       Type *ArgTy = I.getArgOperand(ArgI)->getType();
       if (!ArgTy->isVectorTy())
         break;
-      NumElts += getDataLayout()->getTypeAllocSize(ArgTy) / 8;
+      NumElts += DL.getTypeAllocSize(ArgTy) / 8;
     }
     Info.memVT = EVT::getVectorVT(I.getType()->getContext(), MVT::i64, NumElts);
     Info.ptrVal = I.getArgOperand(I.getNumArgOperands() - 1);
@@ -6488,7 +6495,7 @@ bool AArch64TargetLowering::getTgtMemIntrinsic(IntrinsicInfo &Info,
     Info.memVT = MVT::getVT(PtrTy->getElementType());
     Info.ptrVal = I.getArgOperand(0);
     Info.offset = 0;
-    Info.align = getDataLayout()->getABITypeAlignment(PtrTy->getElementType());
+    Info.align = DL.getABITypeAlignment(PtrTy->getElementType());
     Info.vol = true;
     Info.readMem = true;
     Info.writeMem = false;
@@ -6501,7 +6508,7 @@ bool AArch64TargetLowering::getTgtMemIntrinsic(IntrinsicInfo &Info,
     Info.memVT = MVT::getVT(PtrTy->getElementType());
     Info.ptrVal = I.getArgOperand(1);
     Info.offset = 0;
-    Info.align = getDataLayout()->getABITypeAlignment(PtrTy->getElementType());
+    Info.align = DL.getABITypeAlignment(PtrTy->getElementType());
     Info.vol = true;
     Info.readMem = false;
     Info.writeMem = true;
@@ -6572,7 +6579,8 @@ bool AArch64TargetLowering::isProfitableToHoist(Instruction *I) const {
     return true;
 
   const TargetOptions &Options = getTargetMachine().Options;
-  EVT VT = getValueType(User->getOperand(0)->getType());
+  const DataLayout &DL = I->getModule()->getDataLayout();
+  EVT VT = getValueType(DL, User->getOperand(0)->getType());
 
   if (isFMAFasterThanFMulAndFAdd(VT) &&
       isOperationLegalOrCustom(ISD::FMA, VT) &&
@@ -6637,6 +6645,7 @@ bool AArch64TargetLowering::isExtFreeImpl(const Instruction *Ext) const {
       break;
     case Instruction::GetElementPtr: {
       gep_type_iterator GTI = gep_type_begin(Instr);
+      auto &DL = Ext->getModule()->getDataLayout();
       std::advance(GTI, U.getOperandNo());
       Type *IdxTy = *GTI;
       // This extension will end up with a shift because of the scaling factor.
@@ -6644,7 +6653,7 @@ bool AArch64TargetLowering::isExtFreeImpl(const Instruction *Ext) const {
       // Get the shift amount based on the scaling factor:
       // log2(sizeof(IdxTy)) - log2(8).
       uint64_t ShiftAmt =
-        countTrailingZeros(getDataLayout()->getTypeStoreSizeInBits(IdxTy)) - 3;
+          countTrailingZeros(DL.getTypeStoreSizeInBits(IdxTy)) - 3;
       // Is the constant foldable in the shift of the addressing mode?
       // I.e., shift amount is between 1 and 4 inclusive.
       if (ShiftAmt == 0 || ShiftAmt > 4)
@@ -6708,10 +6717,10 @@ bool AArch64TargetLowering::lowerInterleavedLoad(
   assert(Shuffles.size() == Indices.size() &&
          "Unmatched number of shufflevectors and indices");
 
-  const DataLayout *DL = getDataLayout();
+  const DataLayout &DL = LI->getModule()->getDataLayout();
 
   VectorType *VecTy = Shuffles[0]->getType();
-  unsigned VecSize = DL->getTypeAllocSizeInBits(VecTy);
+  unsigned VecSize = DL.getTypeAllocSizeInBits(VecTy);
 
   // Skip illegal vector types.
   if (VecSize != 64 && VecSize != 128)
@@ -6721,8 +6730,8 @@ bool AArch64TargetLowering::lowerInterleavedLoad(
   // load integer vectors first and then convert to pointer vectors.
   Type *EltTy = VecTy->getVectorElementType();
   if (EltTy->isPointerTy())
-    VecTy = VectorType::get(DL->getIntPtrType(EltTy),
-                            VecTy->getVectorNumElements());
+    VecTy =
+        VectorType::get(DL.getIntPtrType(EltTy), VecTy->getVectorNumElements());
 
   Type *PtrTy = VecTy->getPointerTo(LI->getPointerAddressSpace());
   Type *Tys[2] = {VecTy, PtrTy};
@@ -6796,8 +6805,8 @@ bool AArch64TargetLowering::lowerInterleavedStore(StoreInst *SI,
   Type *EltTy = VecTy->getVectorElementType();
   VectorType *SubVecTy = VectorType::get(EltTy, NumSubElts);
 
-  const DataLayout *DL = getDataLayout();
-  unsigned SubVecSize = DL->getTypeAllocSizeInBits(SubVecTy);
+  const DataLayout &DL = SI->getModule()->getDataLayout();
+  unsigned SubVecSize = DL.getTypeAllocSizeInBits(SubVecTy);
 
   // Skip illegal vector types.
   if (SubVecSize != 64 && SubVecSize != 128)
@@ -6810,7 +6819,7 @@ bool AArch64TargetLowering::lowerInterleavedStore(StoreInst *SI,
   // StN intrinsics don't support pointer vectors as arguments. Convert pointer
   // vectors to integer vectors.
   if (EltTy->isPointerTy()) {
-    Type *IntTy = DL->getIntPtrType(EltTy);
+    Type *IntTy = DL.getIntPtrType(EltTy);
     unsigned NumOpElts =
         dyn_cast<VectorType>(Op0->getType())->getVectorNumElements();
 
@@ -6894,8 +6903,8 @@ bool AArch64TargetLowering::isLegalICmpImmediate(int64_t Immed) const {
 
 /// isLegalAddressingMode - Return true if the addressing mode represented
 /// by AM is legal for this target, for a load/store of the specified type.
-bool AArch64TargetLowering::isLegalAddressingMode(const AddrMode &AM,
-                                                  Type *Ty,
+bool AArch64TargetLowering::isLegalAddressingMode(const DataLayout &DL,
+                                                  const AddrMode &AM, Type *Ty,
                                                   unsigned AS) const {
   // AArch64 has five basic addressing modes:
   //  reg
@@ -6916,7 +6925,7 @@ bool AArch64TargetLowering::isLegalAddressingMode(const AddrMode &AM,
   // i.e., reg + 0, reg + imm9, reg + SIZE_IN_BYTES * uimm12
   uint64_t NumBytes = 0;
   if (Ty->isSized()) {
-    uint64_t NumBits = getDataLayout()->getTypeSizeInBits(Ty);
+    uint64_t NumBits = DL.getTypeSizeInBits(Ty);
     NumBytes = NumBits / 8;
     if (!isPowerOf2_64(NumBits))
       NumBytes = 0;
@@ -6946,8 +6955,8 @@ bool AArch64TargetLowering::isLegalAddressingMode(const AddrMode &AM,
   return false;
 }
 
-int AArch64TargetLowering::getScalingFactorCost(const AddrMode &AM,
-                                                Type *Ty,
+int AArch64TargetLowering::getScalingFactorCost(const DataLayout &DL,
+                                                const AddrMode &AM, Type *Ty,
                                                 unsigned AS) const {
   // Scaling factors are not free at all.
   // Operands                     | Rt Latency
@@ -6956,7 +6965,7 @@ int AArch64TargetLowering::getScalingFactorCost(const AddrMode &AM,
   // -------------------------------------------
   // Rt, [Xn, Xm, lsl #imm]       | Rn: 4 Rm: 5
   // Rt, [Xn, Wm, <extend> #imm]  |
-  if (isLegalAddressingMode(AM, Ty, AS))
+  if (isLegalAddressingMode(DL, AM, Ty, AS))
     // Scale represents reg2 * scale, thus account for 1 if
     // it is not equal to 0 or 1.
     return AM.Scale != 0 && AM.Scale != 1;

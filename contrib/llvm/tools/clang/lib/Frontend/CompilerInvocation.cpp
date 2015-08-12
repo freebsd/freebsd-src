@@ -508,6 +508,8 @@ static bool ParseCodeGenArgs(CodeGenOptions &Opts, ArgList &Args, InputKind IK,
 
   Opts.MergeFunctions = Args.hasArg(OPT_fmerge_functions);
 
+  Opts.PrepareForLTO = Args.hasArg(OPT_flto);
+
   Opts.MSVolatile = Args.hasArg(OPT_fms_volatile);
 
   Opts.VectorizeBB = Args.hasArg(OPT_vectorize_slp_aggressive);
@@ -555,6 +557,8 @@ static bool ParseCodeGenArgs(CodeGenOptions &Opts, ArgList &Args, InputKind IK,
       Args.hasArg(OPT_fsanitize_coverage_8bit_counters);
   Opts.SanitizeMemoryTrackOrigins =
       getLastArgIntValue(Args, OPT_fsanitize_memory_track_origins_EQ, 0, Diags);
+  Opts.SanitizeMemoryUseAfterDtor =
+      Args.hasArg(OPT_fsanitize_memory_use_after_dtor);
   Opts.SSPBufferSize =
       getLastArgIntValue(Args, OPT_stack_protector_buffer_size, 8, Diags);
   Opts.StackRealignment = Args.hasArg(OPT_mstackrealign);
@@ -1647,6 +1651,8 @@ static void ParseLangArgs(LangOptions &Opts, ArgList &Args, InputKind IK,
 
   // Check if -fopenmp is specified.
   Opts.OpenMP = Args.hasArg(options::OPT_fopenmp);
+  Opts.OpenMPUseTLS =
+      Opts.OpenMP && !Args.hasArg(options::OPT_fnoopenmp_use_tls);
 
   // Record whether the __DEPRECATED define was requested.
   Opts.Deprecated = Args.hasFlag(OPT_fdeprecated_macro,

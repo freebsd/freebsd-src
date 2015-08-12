@@ -91,8 +91,10 @@ private:
   }
 
 protected:
-  explicit BasicTTIImplBase(const TargetMachine *TM)
-      : BaseT(TM->getDataLayout()) {}
+  explicit BasicTTIImplBase(const TargetMachine *TM, const DataLayout &DL)
+      : BaseT(DL) {}
+
+  using TargetTransformInfoImplBase::DL;
 
 public:
   // Provide value semantics. MSVC requires that we spell all of these out.
@@ -100,14 +102,6 @@ public:
       : BaseT(static_cast<const BaseT &>(Arg)) {}
   BasicTTIImplBase(BasicTTIImplBase &&Arg)
       : BaseT(std::move(static_cast<BaseT &>(Arg))) {}
-  BasicTTIImplBase &operator=(const BasicTTIImplBase &RHS) {
-    BaseT::operator=(static_cast<const BaseT &>(RHS));
-    return *this;
-  }
-  BasicTTIImplBase &operator=(BasicTTIImplBase &&RHS) {
-    BaseT::operator=(std::move(static_cast<BaseT &>(RHS)));
-    return *this;
-  }
 
   /// \name Scalar TTI Implementations
   /// @{
@@ -132,7 +126,7 @@ public:
     AM.BaseOffs = BaseOffset;
     AM.HasBaseReg = HasBaseReg;
     AM.Scale = Scale;
-    return getTLI()->isLegalAddressingMode(AM, Ty, AddrSpace);
+    return getTLI()->isLegalAddressingMode(DL, AM, Ty, AddrSpace);
   }
 
   int getScalingFactorCost(Type *Ty, GlobalValue *BaseGV, int64_t BaseOffset,
@@ -142,7 +136,7 @@ public:
     AM.BaseOffs = BaseOffset;
     AM.HasBaseReg = HasBaseReg;
     AM.Scale = Scale;
-    return getTLI()->getScalingFactorCost(AM, Ty, AddrSpace);
+    return getTLI()->getScalingFactorCost(DL, AM, Ty, AddrSpace);
   }
 
   bool isTruncateFree(Type *Ty1, Type *Ty2) {
@@ -154,7 +148,7 @@ public:
   }
 
   bool isTypeLegal(Type *Ty) {
-    EVT VT = getTLI()->getValueType(Ty);
+    EVT VT = getTLI()->getValueType(DL, Ty);
     return getTLI()->isTypeLegal(VT);
   }
 
@@ -192,7 +186,7 @@ public:
 
   bool haveFastSqrt(Type *Ty) {
     const TargetLoweringBase *TLI = getTLI();
-    EVT VT = TLI->getValueType(Ty);
+    EVT VT = TLI->getValueType(DL, Ty);
     return TLI->isTypeLegal(VT) &&
            TLI->isOperationLegalOrCustom(ISD::FSQRT, VT);
   }
@@ -282,7 +276,7 @@ public:
   /// \name Vector TTI Implementations
   /// @{
 
-  unsigned getNumberOfRegisters(bool Vector) { return 1; }
+  unsigned getNumberOfRegisters(bool Vector) { return Vector ? 0 : 1; }
 
   unsigned getRegisterBitWidth(bool Vector) { return 32; }
 
@@ -299,7 +293,7 @@ public:
     int ISD = TLI->InstructionOpcodeToISD(Opcode);
     assert(ISD && "Invalid opcode");
 
-    std::pair<unsigned, MVT> LT = TLI->getTypeLegalizationCost(Ty);
+    std::pair<unsigned, MVT> LT = TLI->getTypeLegalizationCost(DL, Ty);
 
     bool IsFloat = Ty->getScalarType()->isFloatingPointTy();
     // Assume that floating point arithmetic operations cost twice as much as
@@ -349,9 +343,8 @@ public:
     const TargetLoweringBase *TLI = getTLI();
     int ISD = TLI->InstructionOpcodeToISD(Opcode);
     assert(ISD && "Invalid opcode");
-
-    std::pair<unsigned, MVT> SrcLT = TLI->getTypeLegalizationCost(Src);
-    std::pair<unsigned, MVT> DstLT = TLI->getTypeLegalizationCost(Dst);
+    std::pair<unsigned, MVT> SrcLT = TLI->getTypeLegalizationCost(DL, Src);
+    std::pair<unsigned, MVT> DstLT = TLI->getTypeLegalizationCost(DL, Dst);
 
     // Check for NOOP conversions.
     if (SrcLT.first == DstLT.first &&
@@ -455,8 +448,7 @@ public:
       if (CondTy->isVectorTy())
         ISD = ISD::VSELECT;
     }
-
-    std::pair<unsigned, MVT> LT = TLI->getTypeLegalizationCost(ValTy);
+    std::pair<unsigned, MVT> LT = TLI->getTypeLegalizationCost(DL, ValTy);
 
     if (!(ValTy->isVectorTy() && !LT.second.isVector()) &&
         !TLI->isOperationExpand(ISD, LT.second)) {
@@ -485,7 +477,7 @@ public:
 
   unsigned getVectorInstrCost(unsigned Opcode, Type *Val, unsigned Index) {
     std::pair<unsigned, MVT> LT =
-        getTLI()->getTypeLegalizationCost(Val->getScalarType());
+        getTLI()->getTypeLegalizationCost(DL, Val->getScalarType());
 
     return LT.first;
   }
@@ -493,7 +485,7 @@ public:
   unsigned getMemoryOpCost(unsigned Opcode, Type *Src, unsigned Alignment,
                            unsigned AddressSpace) {
     assert(!Src->isVoidTy() && "Invalid type");
-    std::pair<unsigned, MVT> LT = getTLI()->getTypeLegalizationCost(Src);
+    std::pair<unsigned, MVT> LT = getTLI()->getTypeLegalizationCost(DL, Src);
 
     // Assuming that all loads of legal types cost 1.
     unsigned Cost = LT.first;
@@ -504,7 +496,7 @@ public:
       // itself. Unless the corresponding extending load or truncating store is
       // legal, then this will scalarize.
       TargetLowering::LegalizeAction LA = TargetLowering::Expand;
-      EVT MemVT = getTLI()->getValueType(Src, true);
+      EVT MemVT = getTLI()->getValueType(DL, Src, true);
       if (MemVT.isSimple() && MemVT != MVT::Other) {
         if (Opcode == Instruction::Store)
           LA = getTLI()->getTruncStoreAction(LT.second, MemVT.getSimpleVT());
@@ -700,7 +692,7 @@ public:
     }
 
     const TargetLoweringBase *TLI = getTLI();
-    std::pair<unsigned, MVT> LT = TLI->getTypeLegalizationCost(RetTy);
+    std::pair<unsigned, MVT> LT = TLI->getTypeLegalizationCost(DL, RetTy);
 
     if (TLI->isOperationLegalOrPromote(ISD, LT.second)) {
       // The operation is legal. Assume it costs 1.
@@ -771,7 +763,7 @@ public:
   }
 
   unsigned getNumberOfParts(Type *Tp) {
-    std::pair<unsigned, MVT> LT = getTLI()->getTypeLegalizationCost(Tp);
+    std::pair<unsigned, MVT> LT = getTLI()->getTypeLegalizationCost(DL, Tp);
     return LT.first;
   }
 
@@ -816,18 +808,6 @@ public:
   BasicTTIImpl(BasicTTIImpl &&Arg)
       : BaseT(std::move(static_cast<BaseT &>(Arg))), ST(std::move(Arg.ST)),
         TLI(std::move(Arg.TLI)) {}
-  BasicTTIImpl &operator=(const BasicTTIImpl &RHS) {
-    BaseT::operator=(static_cast<const BaseT &>(RHS));
-    ST = RHS.ST;
-    TLI = RHS.TLI;
-    return *this;
-  }
-  BasicTTIImpl &operator=(BasicTTIImpl &&RHS) {
-    BaseT::operator=(std::move(static_cast<BaseT &>(RHS)));
-    ST = std::move(RHS.ST);
-    TLI = std::move(RHS.TLI);
-    return *this;
-  }
 };
 
 }

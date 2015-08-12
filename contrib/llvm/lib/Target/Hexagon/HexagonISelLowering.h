@@ -165,7 +165,8 @@ bool isPositiveHalfWord(SDNode *N);
 
     SDValue LowerVASTART(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerConstantPool(SDValue Op, SelectionDAG &DAG) const;
-    EVT getSetCCResultType(LLVMContext &C, EVT VT) const override {
+    EVT getSetCCResultType(const DataLayout &, LLVMContext &C,
+                           EVT VT) const override {
       if (!VT.isVector())
         return MVT::i1;
       else
@@ -179,11 +180,10 @@ bool isPositiveHalfWord(SDNode *N);
 
     std::pair<unsigned, const TargetRegisterClass *>
     getRegForInlineAsmConstraint(const TargetRegisterInfo *TRI,
-                                 const std::string &Constraint,
-                                 MVT VT) const override;
+                                 StringRef Constraint, MVT VT) const override;
 
-    unsigned getInlineAsmMemConstraint(
-        const std::string &ConstraintCode) const override {
+    unsigned
+    getInlineAsmMemConstraint(StringRef ConstraintCode) const override {
       if (ConstraintCode == "o")
         return InlineAsm::Constraint_o;
       else if (ConstraintCode == "v")
@@ -198,8 +198,8 @@ bool isPositiveHalfWord(SDNode *N);
     /// The type may be VoidTy, in which case only return true if the addressing
     /// mode is legal for a load/store of any legal type.
     /// TODO: Handle pre/postinc as well.
-    bool isLegalAddressingMode(const AddrMode &AM, Type *Ty,
-                               unsigned AS) const override;
+    bool isLegalAddressingMode(const DataLayout &DL, const AddrMode &AM,
+                               Type *Ty, unsigned AS) const override;
     bool isFPImmLegal(const APFloat &Imm, EVT VT) const override;
 
     /// isLegalICmpImmediate - Return true if the specified immediate is legal
@@ -207,6 +207,21 @@ bool isPositiveHalfWord(SDNode *N);
     /// compare a register against the immediate without having to materialize
     /// the immediate into a register.
     bool isLegalICmpImmediate(int64_t Imm) const override;
+
+    // Handling of atomic RMW instructions.
+    bool hasLoadLinkedStoreConditional() const override {
+      return true;
+    }
+    Value *emitLoadLinked(IRBuilder<> &Builder, Value *Addr,
+        AtomicOrdering Ord) const override;
+    Value *emitStoreConditional(IRBuilder<> &Builder, Value *Val,
+        Value *Addr, AtomicOrdering Ord) const override;
+    bool shouldExpandAtomicLoadInIR(LoadInst *LI) const override;
+    bool shouldExpandAtomicStoreInIR(StoreInst *SI) const override;
+    AtomicRMWExpansionKind shouldExpandAtomicRMWInIR(AtomicRMWInst *AI)
+        const override {
+      return AtomicRMWExpansionKind::LLSC;
+    }
   };
 } // end namespace llvm
 

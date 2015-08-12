@@ -894,6 +894,8 @@ def REVXr   : OneXRegData<0b011, "rev", bswap>;
 def REV32Xr : OneXRegData<0b010, "rev32",
                                  UnOpFrag<(rotr (bswap node:$LHS), (i64 32))>>;
 
+def : InstAlias<"rev64 $Rd, $Rn", (REVXr GPR64:$Rd, GPR64:$Rn), 0>;
+
 // The bswap commutes with the rotr so we want a pattern for both possible
 // orders.
 def : Pat<(bswap (rotr GPR32:$Rn, (i64 16))), (REV16Wr GPR32:$Rn)>;
@@ -5283,18 +5285,23 @@ def : Pat<(v8f16 (AArch64NvCast (v4i32 FPR128:$src))), (v8f16 FPR128:$src)>;
 def : Pat<(v4i32 (AArch64NvCast (v4i32 FPR128:$src))), (v4i32 FPR128:$src)>;
 def : Pat<(v4f32 (AArch64NvCast (v4i32 FPR128:$src))), (v4f32 FPR128:$src)>;
 def : Pat<(v2i64 (AArch64NvCast (v4i32 FPR128:$src))), (v2i64 FPR128:$src)>;
+def : Pat<(v2f64 (AArch64NvCast (v4i32 FPR128:$src))), (v2f64 FPR128:$src)>;
 
 def : Pat<(v16i8 (AArch64NvCast (v8i16 FPR128:$src))), (v16i8 FPR128:$src)>;
 def : Pat<(v8i16 (AArch64NvCast (v8i16 FPR128:$src))), (v8i16 FPR128:$src)>;
 def : Pat<(v8f16 (AArch64NvCast (v8i16 FPR128:$src))), (v8f16 FPR128:$src)>;
 def : Pat<(v4i32 (AArch64NvCast (v8i16 FPR128:$src))), (v4i32 FPR128:$src)>;
 def : Pat<(v2i64 (AArch64NvCast (v8i16 FPR128:$src))), (v2i64 FPR128:$src)>;
+def : Pat<(v4f32 (AArch64NvCast (v8i16 FPR128:$src))), (v4f32 FPR128:$src)>;
+def : Pat<(v2f64 (AArch64NvCast (v8i16 FPR128:$src))), (v2f64 FPR128:$src)>;
 
 def : Pat<(v16i8 (AArch64NvCast (v16i8 FPR128:$src))), (v16i8 FPR128:$src)>;
 def : Pat<(v8i16 (AArch64NvCast (v16i8 FPR128:$src))), (v8i16 FPR128:$src)>;
 def : Pat<(v8f16 (AArch64NvCast (v16i8 FPR128:$src))), (v8f16 FPR128:$src)>;
 def : Pat<(v4i32 (AArch64NvCast (v16i8 FPR128:$src))), (v4i32 FPR128:$src)>;
 def : Pat<(v2i64 (AArch64NvCast (v16i8 FPR128:$src))), (v2i64 FPR128:$src)>;
+def : Pat<(v4f32 (AArch64NvCast (v16i8 FPR128:$src))), (v4f32 FPR128:$src)>;
+def : Pat<(v2f64 (AArch64NvCast (v16i8 FPR128:$src))), (v2f64 FPR128:$src)>;
 
 def : Pat<(v16i8 (AArch64NvCast (v2i64 FPR128:$src))), (v16i8 FPR128:$src)>;
 def : Pat<(v8i16 (AArch64NvCast (v2i64 FPR128:$src))), (v8i16 FPR128:$src)>;
@@ -5309,12 +5316,16 @@ def : Pat<(v8i16 (AArch64NvCast (v4f32 FPR128:$src))), (v8i16 FPR128:$src)>;
 def : Pat<(v4i32 (AArch64NvCast (v4f32 FPR128:$src))), (v4i32 FPR128:$src)>;
 def : Pat<(v4f32 (AArch64NvCast (v4f32 FPR128:$src))), (v4f32 FPR128:$src)>;
 def : Pat<(v2i64 (AArch64NvCast (v4f32 FPR128:$src))), (v2i64 FPR128:$src)>;
+def : Pat<(v8f16 (AArch64NvCast (v4f32 FPR128:$src))), (v8f16 FPR128:$src)>;
+def : Pat<(v2f64 (AArch64NvCast (v4f32 FPR128:$src))), (v2f64 FPR128:$src)>;
 
 def : Pat<(v16i8 (AArch64NvCast (v2f64 FPR128:$src))), (v16i8 FPR128:$src)>;
 def : Pat<(v8i16 (AArch64NvCast (v2f64 FPR128:$src))), (v8i16 FPR128:$src)>;
 def : Pat<(v4i32 (AArch64NvCast (v2f64 FPR128:$src))), (v4i32 FPR128:$src)>;
 def : Pat<(v2i64 (AArch64NvCast (v2f64 FPR128:$src))), (v2i64 FPR128:$src)>;
 def : Pat<(v2f64 (AArch64NvCast (v2f64 FPR128:$src))), (v2f64 FPR128:$src)>;
+def : Pat<(v8f16 (AArch64NvCast (v2f64 FPR128:$src))), (v8f16 FPR128:$src)>;
+def : Pat<(v4f32 (AArch64NvCast (v2f64 FPR128:$src))), (v4f32 FPR128:$src)>;
 
 let Predicates = [IsLE] in {
 def : Pat<(v8i8  (bitconvert GPR64:$Xn)), (COPY_TO_REGCLASS GPR64:$Xn, FPR64)>;

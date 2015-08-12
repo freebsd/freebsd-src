@@ -50,6 +50,7 @@ TGHDRS=	AttrList \
 	CommentNodes \
 	DeclNodes \
 	DiagnosticCommonKinds \
+	DiagnosticFrontendKinds \
 	StmtNodes
 
 .include "../clang.lib.mk"

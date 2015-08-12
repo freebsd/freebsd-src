@@ -905,20 +905,6 @@ bool DeclSpec::SetConceptSpec(SourceLocation Loc, const char *&PrevSpec,
   return false;
 }
 
-void DeclSpec::setProtocolQualifiers(Decl * const *Protos,
-                                     unsigned NP,
-                                     SourceLocation *ProtoLocs,
-                                     SourceLocation LAngleLoc) {
-  if (NP == 0) return;
-  Decl **ProtoQuals = new Decl*[NP];
-  memcpy(ProtoQuals, Protos, sizeof(Decl*)*NP);
-  ProtocolQualifiers = ProtoQuals;
-  ProtocolLocs = new SourceLocation[NP];
-  memcpy(ProtocolLocs, ProtoLocs, sizeof(SourceLocation)*NP);
-  NumProtocolQualifiers = NP;
-  ProtocolLAngleLoc = LAngleLoc;
-}
-
 void DeclSpec::SaveWrittenBuiltinSpecs() {
   writtenBS.Sign = getTypeSpecSign();
   writtenBS.Width = getTypeSpecWidth();

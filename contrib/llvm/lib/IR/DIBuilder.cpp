@@ -73,37 +73,47 @@ void DIBuilder::trackIfUnresolved(MDNode *N) {
 }
 
 void DIBuilder::finalize() {
-  if (CUNode) {
-    CUNode->replaceEnumTypes(MDTuple::get(VMContext, AllEnumTypes));
+  if (!CUNode) {
+    assert(!AllowUnresolvedNodes &&
+           "creating type nodes without a CU is not supported");
+    return;
+  }
 
-    SmallVector<Metadata *, 16> RetainValues;
-    // Declarations and definitions of the same type may be retained. Some
-    // clients RAUW these pairs, leaving duplicates in the retained types
-    // list. Use a set to remove the duplicates while we transform the
-    // TrackingVHs back into Values.
-    SmallPtrSet<Metadata *, 16> RetainSet;
-    for (unsigned I = 0, E = AllRetainTypes.size(); I < E; I++)
-      if (RetainSet.insert(AllRetainTypes[I]).second)
-        RetainValues.push_back(AllRetainTypes[I]);
+  CUNode->replaceEnumTypes(MDTuple::get(VMContext, AllEnumTypes));
+
+  SmallVector<Metadata *, 16> RetainValues;
+  // Declarations and definitions of the same type may be retained. Some
+  // clients RAUW these pairs, leaving duplicates in the retained types
+  // list. Use a set to remove the duplicates while we transform the
+  // TrackingVHs back into Values.
+  SmallPtrSet<Metadata *, 16> RetainSet;
+  for (unsigned I = 0, E = AllRetainTypes.size(); I < E; I++)
+    if (RetainSet.insert(AllRetainTypes[I]).second)
+      RetainValues.push_back(AllRetainTypes[I]);
+
+  if (!RetainValues.empty())
     CUNode->replaceRetainedTypes(MDTuple::get(VMContext, RetainValues));
 
-    DISubprogramArray SPs = MDTuple::get(VMContext, AllSubprograms);
+  DISubprogramArray SPs = MDTuple::get(VMContext, AllSubprograms);
+  if (!AllSubprograms.empty())
     CUNode->replaceSubprograms(SPs.get());
-    for (auto *SP : SPs) {
-      if (MDTuple *Temp = SP->getVariables().get()) {
-        const auto &PV = PreservedVariables.lookup(SP);
-        SmallVector<Metadata *, 4> Variables(PV.begin(), PV.end());
-        DINodeArray AV = getOrCreateArray(Variables);
-        TempMDTuple(Temp)->replaceAllUsesWith(AV.get());
-      }
-    }
 
+  for (auto *SP : SPs) {
+    if (MDTuple *Temp = SP->getVariables().get()) {
+      const auto &PV = PreservedVariables.lookup(SP);
+      SmallVector<Metadata *, 4> Variables(PV.begin(), PV.end());
+      DINodeArray AV = getOrCreateArray(Variables);
+      TempMDTuple(Temp)->replaceAllUsesWith(AV.get());
+    }
+  }
+
+  if (!AllGVs.empty())
     CUNode->replaceGlobalVariables(MDTuple::get(VMContext, AllGVs));
 
+  if (!AllImportedModules.empty())
     CUNode->replaceImportedEntities(MDTuple::get(
         VMContext, SmallVector<Metadata *, 16>(AllImportedModules.begin(),
                                                AllImportedModules.end())));
-  }
 
   // Now that all temp nodes have been replaced or deleted, resolve remaining
   // cycles.
@@ -585,7 +595,7 @@ DILocalVariable *DIBuilder::createLocalVariable(
     DIType *Ty, bool AlwaysPreserve, unsigned Flags, unsigned ArgNo) {
   // FIXME: Why getNonCompileUnitScope()?
   // FIXME: Why is "!Context" okay here?
-  // FIXME: WHy doesn't this check for a subprogram or lexical block (AFAICT
+  // FIXME: Why doesn't this check for a subprogram or lexical block (AFAICT
   // the only valid scopes)?
   DIScope *Context = getNonCompileUnitScope(Scope);
 
@@ -593,7 +603,7 @@ DILocalVariable *DIBuilder::createLocalVariable(
       VMContext, Tag, cast_or_null<DILocalScope>(Context), Name, File, LineNo,
       DITypeRef::get(Ty), ArgNo, Flags);
   if (AlwaysPreserve) {
-    // The optimizer may remove local variable. If there is an interest
+    // The optimizer may remove local variables. If there is an interest
     // to preserve variable info in such situation then stash it in a
     // named mdnode.
     DISubprogram *Fn = getDISubprogram(Scope);
@@ -857,7 +867,7 @@ void DIBuilder::replaceArrays(DICompositeType *&T, DINodeArray Elements,
   if (!T->isResolved())
     return;
 
-  // If "T" is resolved, it may be due to a self-reference cycle.  Track the
+  // If T is resolved, it may be due to a self-reference cycle.  Track the
   // arrays explicitly if they're unresolved, or else the cycles will be
   // orphaned.
   if (Elements)

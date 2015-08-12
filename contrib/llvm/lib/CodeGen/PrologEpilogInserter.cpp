@@ -82,7 +82,8 @@ private:
 
   void calculateSets(MachineFunction &Fn);
   void calculateCallsInformation(MachineFunction &Fn);
-  void calculateCalleeSavedRegisters(MachineFunction &Fn);
+  void assignCalleeSavedSpillSlots(MachineFunction &Fn,
+                                   const BitVector &SavedRegs);
   void insertCSRSpillsAndRestores(MachineFunction &Fn);
   void calculateFrameObjectOffsets(MachineFunction &Fn);
   void replaceFrameIndices(MachineFunction &Fn);
@@ -92,7 +93,7 @@ private:
   void insertPrologEpilogCode(MachineFunction &Fn);
 
   // Convenience for recognizing return blocks.
-  bool isReturnBlock(MachineBasicBlock *MBB);
+  bool isReturnBlock(const MachineBasicBlock *MBB) const;
 };
 } // namespace
 
@@ -127,7 +128,7 @@ void PEI::getAnalysisUsage(AnalysisUsage &AU) const {
   MachineFunctionPass::getAnalysisUsage(AU);
 }
 
-bool PEI::isReturnBlock(MachineBasicBlock* MBB) {
+bool PEI::isReturnBlock(const MachineBasicBlock* MBB) const {
   return (MBB && !MBB->empty() && MBB->back().isReturn());
 }
 
@@ -143,7 +144,12 @@ void PEI::calculateSets(MachineFunction &Fn) {
   if (MFI->getSavePoint()) {
     SaveBlock = MFI->getSavePoint();
     assert(MFI->getRestorePoint() && "Both restore and save must be set");
-    RestoreBlocks.push_back(MFI->getRestorePoint());
+    MachineBasicBlock *RestoreBlock = MFI->getRestorePoint();
+    // If RestoreBlock does not have any successor and is not a return block
+    // then the end point is unreachable and we do not need to insert any
+    // epilogue.
+    if (!RestoreBlock->succ_empty() || isReturnBlock(RestoreBlock))
+      RestoreBlocks.push_back(RestoreBlock);
     return;
   }
 
@@ -178,13 +184,12 @@ bool PEI::runOnMachineFunction(MachineFunction &Fn) {
   // instructions.
   calculateCallsInformation(Fn);
 
-  // Allow the target machine to make some adjustments to the function
-  // e.g. UsedPhysRegs before calculateCalleeSavedRegisters.
-  TFI->processFunctionBeforeCalleeSavedScan(Fn, RS);
+  // Determine which of the registers in the callee save list should be saved.
+  BitVector SavedRegs;
+  TFI->determineCalleeSaves(Fn, SavedRegs, RS);
 
-  // Scan the function for modified callee saved registers and insert spill code
-  // for any callee saved registers that are modified.
-  calculateCalleeSavedRegisters(Fn);
+  // Insert spill code for any callee saved registers that are modified.
+  assignCalleeSavedSpillSlots(Fn, SavedRegs);
 
   // Determine placement of CSR spill/restore code:
   // place all spills in the entry block, all restores in return blocks.
@@ -290,39 +295,27 @@ void PEI::calculateCallsInformation(MachineFunction &Fn) {
   }
 }
 
-
-/// calculateCalleeSavedRegisters - Scan the function for modified callee saved
-/// registers.
-void PEI::calculateCalleeSavedRegisters(MachineFunction &F) {
-  const TargetRegisterInfo *RegInfo = F.getSubtarget().getRegisterInfo();
-  const TargetFrameLowering *TFI = F.getSubtarget().getFrameLowering();
-  MachineFrameInfo *MFI = F.getFrameInfo();
-
-  // Get the callee saved register list...
-  const MCPhysReg *CSRegs = RegInfo->getCalleeSavedRegs(&F);
-
+void PEI::assignCalleeSavedSpillSlots(MachineFunction &F,
+                                      const BitVector &SavedRegs) {
   // These are used to keep track the callee-save area. Initialize them.
   MinCSFrameIndex = INT_MAX;
   MaxCSFrameIndex = 0;
 
-  // Early exit for targets which have no callee saved registers.
-  if (!CSRegs || CSRegs[0] == 0)
+  if (SavedRegs.empty())
     return;
 
-  // In Naked functions we aren't going to save any registers.
-  if (F.getFunction()->hasFnAttribute(Attribute::Naked))
-    return;
+  const TargetRegisterInfo *RegInfo = F.getSubtarget().getRegisterInfo();
+  const MCPhysReg *CSRegs = RegInfo->getCalleeSavedRegs(&F);
 
   std::vector<CalleeSavedInfo> CSI;
   for (unsigned i = 0; CSRegs[i]; ++i) {
     unsigned Reg = CSRegs[i];
-    // Functions which call __builtin_unwind_init get all their registers saved.
-    if (F.getRegInfo().isPhysRegUsed(Reg) || F.getMMI().callsUnwindInit()) {
-      // If the reg is modified, save it!
+    if (SavedRegs.test(Reg))
       CSI.push_back(CalleeSavedInfo(Reg));
-    }
   }
 
+  const TargetFrameLowering *TFI = F.getSubtarget().getFrameLowering();
+  MachineFrameInfo *MFI = F.getFrameInfo();
   if (!TFI->assignCalleeSavedSpillSlots(F, RegInfo, CSI)) {
     // If target doesn't implement this, use generic code.
 
@@ -1033,12 +1026,8 @@ PEI::scavengeFrameVirtualRegs(MachineFunction &Fn) {
           // Replace this reference to the virtual register with the
           // scratch register.
           assert (ScratchReg && "Missing scratch register!");
-          MachineRegisterInfo &MRI = Fn.getRegInfo();
           Fn.getRegInfo().replaceRegWith(Reg, ScratchReg);
           
-          // Make sure MRI now accounts this register as used.
-          MRI.setPhysRegUsed(ScratchReg);
-
           // Because this instruction was processed by the RS before this
           // register was allocated, make sure that the RS now records the
           // register as being used.

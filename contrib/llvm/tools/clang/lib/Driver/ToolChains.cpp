@@ -303,6 +303,7 @@ void Darwin::addProfileRTLibs(const ArgList &Args,
   if (!(Args.hasFlag(options::OPT_fprofile_arcs, options::OPT_fno_profile_arcs,
                      false) ||
         Args.hasArg(options::OPT_fprofile_generate) ||
+        Args.hasArg(options::OPT_fprofile_generate_EQ) ||
         Args.hasArg(options::OPT_fprofile_instr_generate) ||
         Args.hasArg(options::OPT_fprofile_instr_generate_EQ) ||
         Args.hasArg(options::OPT_fcreate_profile) ||
@@ -2337,6 +2338,13 @@ NaCl_TC::NaCl_TC(const Driver &D, const llvm::Triple &Triple,
     file_paths.push_back(ToolPath + "arm-nacl");
     break;
   }
+  case llvm::Triple::mipsel: {
+    file_paths.push_back(FilePath + "mipsel-nacl/lib");
+    file_paths.push_back(FilePath + "mipsel-nacl/usr/lib");
+    prog_paths.push_back(ProgPath + "bin");
+    file_paths.push_back(ToolPath + "mipsel-nacl");
+    break;
+  }
   default:
     break;
   }
@@ -2371,6 +2379,9 @@ void NaCl_TC::AddClangSystemIncludeArgs(const ArgList &DriverArgs,
     break;
   case llvm::Triple::x86_64:
     llvm::sys::path::append(P, "x86_64-nacl/usr/include");
+    break;
+  case llvm::Triple::mipsel:
+    llvm::sys::path::append(P, "mipsel-nacl/usr/include");
     break;
   default:
     return;
@@ -2414,6 +2425,10 @@ void NaCl_TC::AddClangCXXStdlibIncludeArgs(const ArgList &DriverArgs,
     break;
   case llvm::Triple::x86_64:
     llvm::sys::path::append(P, "x86_64-nacl/include/c++/v1");
+    addSystemInclude(DriverArgs, CC1Args, P.str());
+    break;
+  case llvm::Triple::mipsel:
+    llvm::sys::path::append(P, "mipsel-nacl/include/c++/v1");
     addSystemInclude(DriverArgs, CC1Args, P.str());
     break;
   default:
@@ -2868,6 +2883,7 @@ enum Distro {
   UbuntuTrusty,
   UbuntuUtopic,
   UbuntuVivid,
+  UbuntuWily,
   UnknownDistro
 };
 
@@ -2882,7 +2898,7 @@ static bool IsDebian(enum Distro Distro) {
 }
 
 static bool IsUbuntu(enum Distro Distro) {
-  return Distro >= UbuntuHardy && Distro <= UbuntuVivid;
+  return Distro >= UbuntuHardy && Distro <= UbuntuWily;
 }
 
 static Distro DetectDistro(llvm::Triple::ArchType Arch) {
@@ -2911,6 +2927,7 @@ static Distro DetectDistro(llvm::Triple::ArchType Arch) {
                       .Case("trusty", UbuntuTrusty)
                       .Case("utopic", UbuntuUtopic)
                       .Case("vivid", UbuntuVivid)
+                      .Case("wily", UbuntuWily)
                       .Default(UnknownDistro);
     return Version;
   }
@@ -3633,6 +3650,65 @@ Tool *DragonFly::buildAssembler() const {
 
 Tool *DragonFly::buildLinker() const {
   return new tools::dragonfly::Linker(*this);
+}
+
+/// Stub for CUDA toolchain. At the moment we don't have assembler or
+/// linker and need toolchain mainly to propagate device-side options
+/// to CC1.
+
+CudaToolChain::CudaToolChain(const Driver &D, const llvm::Triple &Triple,
+                             const ArgList &Args)
+    : Linux(D, Triple, Args) {}
+
+void
+CudaToolChain::addClangTargetOptions(const llvm::opt::ArgList &DriverArgs,
+                                     llvm::opt::ArgStringList &CC1Args) const {
+  Linux::addClangTargetOptions(DriverArgs, CC1Args);
+  CC1Args.push_back("-fcuda-is-device");
+}
+
+llvm::opt::DerivedArgList *
+CudaToolChain::TranslateArgs(const llvm::opt::DerivedArgList &Args,
+                             const char *BoundArch) const {
+  DerivedArgList *DAL = new DerivedArgList(Args.getBaseArgs());
+  const OptTable &Opts = getDriver().getOpts();
+
+  for (Arg *A : Args) {
+    if (A->getOption().matches(options::OPT_Xarch__)) {
+      // Skip this argument unless the architecture matches BoundArch
+      if (A->getValue(0) != StringRef(BoundArch))
+        continue;
+
+      unsigned Index = Args.getBaseArgs().MakeIndex(A->getValue(1));
+      unsigned Prev = Index;
+      std::unique_ptr<Arg> XarchArg(Opts.ParseOneArg(Args, Index));
+
+      // If the argument parsing failed or more than one argument was
+      // consumed, the -Xarch_ argument's parameter tried to consume
+      // extra arguments. Emit an error and ignore.
+      //
+      // We also want to disallow any options which would alter the
+      // driver behavior; that isn't going to work in our model. We
+      // use isDriverOption() as an approximation, although things
+      // like -O4 are going to slip through.
+      if (!XarchArg || Index > Prev + 1) {
+        getDriver().Diag(diag::err_drv_invalid_Xarch_argument_with_args)
+            << A->getAsString(Args);
+        continue;
+      } else if (XarchArg->getOption().hasFlag(options::DriverOption)) {
+        getDriver().Diag(diag::err_drv_invalid_Xarch_argument_isdriver)
+            << A->getAsString(Args);
+        continue;
+      }
+      XarchArg->setBaseArg(A);
+      A = XarchArg.release();
+      DAL->AddSynthesizedArg(A);
+    }
+    DAL->append(A);
+  }
+
+  DAL->AddJoinedArg(nullptr, Opts.getOption(options::OPT_march_EQ), BoundArch);
+  return DAL;
 }
 
 /// XCore tool chain

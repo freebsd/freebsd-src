@@ -89,7 +89,7 @@ unsigned X86TTIImpl::getArithmeticInstrCost(
     TTI::OperandValueKind Op2Info, TTI::OperandValueProperties Opd1PropInfo,
     TTI::OperandValueProperties Opd2PropInfo) {
   // Legalize the type.
-  std::pair<unsigned, MVT> LT = TLI->getTypeLegalizationCost(Ty);
+  std::pair<unsigned, MVT> LT = TLI->getTypeLegalizationCost(DL, Ty);
 
   int ISD = TLI->InstructionOpcodeToISD(Opcode);
   assert(ISD && "Invalid opcode");
@@ -117,6 +117,8 @@ unsigned X86TTIImpl::getArithmeticInstrCost(
 
   static const CostTblEntry<MVT::SimpleValueType>
   AVX2UniformConstCostTable[] = {
+    { ISD::SRA,  MVT::v4i64,   4 }, // 2 x psrad + shuffle.
+
     { ISD::SDIV, MVT::v16i16,  6 }, // vpmulhw sequence
     { ISD::UDIV, MVT::v16i16,  6 }, // vpmulhuw sequence
     { ISD::SDIV, MVT::v8i32,  15 }, // vpmuldq sequence
@@ -211,6 +213,7 @@ unsigned X86TTIImpl::getArithmeticInstrCost(
     { ISD::SRA,  MVT::v16i8,  4 }, // psrlw, pand, pxor, psubb.
     { ISD::SRA,  MVT::v8i16,  1 }, // psraw.
     { ISD::SRA,  MVT::v4i32,  1 }, // psrad.
+    { ISD::SRA,  MVT::v2i64,  4 }, // 2 x psrad + shuffle.
 
     { ISD::SDIV, MVT::v8i16,  6 }, // pmulhw sequence
     { ISD::UDIV, MVT::v8i16,  6 }, // pmulhuw sequence
@@ -261,12 +264,12 @@ unsigned X86TTIImpl::getArithmeticInstrCost(
 
     { ISD::SRL,  MVT::v16i8,    26 }, // cmpgtb sequence.
     { ISD::SRL,  MVT::v8i16,    32 }, // cmpgtb sequence.
-    { ISD::SRL,  MVT::v4i32,  4*10 }, // Scalarized.
+    { ISD::SRL,  MVT::v4i32,    16 }, // Shift each lane + blend.
     { ISD::SRL,  MVT::v2i64,  2*10 }, // Scalarized.
 
     { ISD::SRA,  MVT::v16i8,    54 }, // unpacked cmpgtb sequence.
     { ISD::SRA,  MVT::v8i16,    32 }, // cmpgtb sequence.
-    { ISD::SRA,  MVT::v4i32,  4*10 }, // Scalarized.
+    { ISD::SRA,  MVT::v4i32,    16 }, // Shift each lane + blend.
     { ISD::SRA,  MVT::v2i64,  2*10 }, // Scalarized.
 
     // It is not a good idea to vectorize division. We have to scalarize it and
@@ -352,7 +355,7 @@ unsigned X86TTIImpl::getShuffleCost(TTI::ShuffleKind Kind, Type *Tp, int Index,
     return BaseT::getShuffleCost(Kind, Tp, Index, SubTp);
 
   if (Kind == TTI::SK_Reverse) {
-    std::pair<unsigned, MVT> LT = TLI->getTypeLegalizationCost(Tp);
+    std::pair<unsigned, MVT> LT = TLI->getTypeLegalizationCost(DL, Tp);
     unsigned Cost = 1;
     if (LT.second.getSizeInBits() > 128)
       Cost = 3; // Extract + insert + copy.
@@ -364,7 +367,7 @@ unsigned X86TTIImpl::getShuffleCost(TTI::ShuffleKind Kind, Type *Tp, int Index,
   if (Kind == TTI::SK_Alternate) {
     // 64-bit packed float vectors (v2f32) are widened to type v4f32.
     // 64-bit packed integer vectors (v2i32) are promoted to type v2i64.
-    std::pair<unsigned, MVT> LT = TLI->getTypeLegalizationCost(Tp);
+    std::pair<unsigned, MVT> LT = TLI->getTypeLegalizationCost(DL, Tp);
 
     // The backend knows how to generate a single VEX.256 version of
     // instruction VPBLENDW if the target supports AVX2.
@@ -464,8 +467,8 @@ unsigned X86TTIImpl::getCastInstrCost(unsigned Opcode, Type *Dst, Type *Src) {
   int ISD = TLI->InstructionOpcodeToISD(Opcode);
   assert(ISD && "Invalid opcode");
 
-  std::pair<unsigned, MVT> LTSrc = TLI->getTypeLegalizationCost(Src);
-  std::pair<unsigned, MVT> LTDest = TLI->getTypeLegalizationCost(Dst);
+  std::pair<unsigned, MVT> LTSrc = TLI->getTypeLegalizationCost(DL, Src);
+  std::pair<unsigned, MVT> LTDest = TLI->getTypeLegalizationCost(DL, Dst);
 
   static const TypeConversionCostTblEntry<MVT::SimpleValueType>
   SSE2ConvTbl[] = {
@@ -537,8 +540,8 @@ unsigned X86TTIImpl::getCastInstrCost(unsigned Opcode, Type *Dst, Type *Src) {
     if (Idx != -1)
       return AVX512ConversionTbl[Idx].Cost;
   }
-  EVT SrcTy = TLI->getValueType(Src);
-  EVT DstTy = TLI->getValueType(Dst);
+  EVT SrcTy = TLI->getValueType(DL, Src);
+  EVT DstTy = TLI->getValueType(DL, Dst);
 
   // The function getSimpleVT only handles simple value types.
   if (!SrcTy.isSimple() || !DstTy.isSimple())
@@ -667,7 +670,7 @@ unsigned X86TTIImpl::getCastInstrCost(unsigned Opcode, Type *Dst, Type *Src) {
 unsigned X86TTIImpl::getCmpSelInstrCost(unsigned Opcode, Type *ValTy,
                                         Type *CondTy) {
   // Legalize the type.
-  std::pair<unsigned, MVT> LT = TLI->getTypeLegalizationCost(ValTy);
+  std::pair<unsigned, MVT> LT = TLI->getTypeLegalizationCost(DL, ValTy);
 
   MVT MTy = LT.second;
 
@@ -740,7 +743,7 @@ unsigned X86TTIImpl::getVectorInstrCost(unsigned Opcode, Type *Val,
 
   if (Index != -1U) {
     // Legalize the type.
-    std::pair<unsigned, MVT> LT = TLI->getTypeLegalizationCost(Val);
+    std::pair<unsigned, MVT> LT = TLI->getTypeLegalizationCost(DL, Val);
 
     // This type is legalized to a scalar type.
     if (!LT.second.isVector())
@@ -803,7 +806,7 @@ unsigned X86TTIImpl::getMemoryOpCost(unsigned Opcode, Type *Src,
   }
 
   // Legalize the type.
-  std::pair<unsigned, MVT> LT = TLI->getTypeLegalizationCost(Src);
+  std::pair<unsigned, MVT> LT = TLI->getTypeLegalizationCost(DL, Src);
   assert((Opcode == Instruction::Load || Opcode == Instruction::Store) &&
          "Invalid Opcode");
 
@@ -850,9 +853,9 @@ unsigned X86TTIImpl::getMaskedMemoryOpCost(unsigned Opcode, Type *SrcTy,
   }
 
   // Legalize the type.
-  std::pair<unsigned, MVT> LT = TLI->getTypeLegalizationCost(SrcVTy);
+  std::pair<unsigned, MVT> LT = TLI->getTypeLegalizationCost(DL, SrcVTy);
   unsigned Cost = 0;
-  if (LT.second != TLI->getValueType(SrcVTy).getSimpleVT() &&
+  if (LT.second != TLI->getValueType(DL, SrcVTy).getSimpleVT() &&
       LT.second.getVectorNumElements() == NumElem)
     // Promotion requires expand/truncate for data and a shuffle for mask.
     Cost += getShuffleCost(TTI::SK_Alternate, SrcVTy, 0, 0) +
@@ -887,7 +890,7 @@ unsigned X86TTIImpl::getAddressComputationCost(Type *Ty, bool IsComplex) {
 unsigned X86TTIImpl::getReductionCost(unsigned Opcode, Type *ValTy,
                                       bool IsPairwise) {
 
-  std::pair<unsigned, MVT> LT = TLI->getTypeLegalizationCost(ValTy);
+  std::pair<unsigned, MVT> LT = TLI->getTypeLegalizationCost(DL, ValTy);
 
   MVT MTy = LT.second;
 
@@ -1117,11 +1120,11 @@ unsigned X86TTIImpl::getIntImmCost(Intrinsic::ID IID, unsigned Idx,
 
 bool X86TTIImpl::isLegalMaskedLoad(Type *DataTy, int Consecutive) {
   int DataWidth = DataTy->getPrimitiveSizeInBits();
-  
+
   // Todo: AVX512 allows gather/scatter, works with strided and random as well
   if ((DataWidth < 32) || (Consecutive == 0))
     return false;
-  if (ST->hasAVX512() || ST->hasAVX2()) 
+  if (ST->hasAVX512() || ST->hasAVX2())
     return true;
   return false;
 }

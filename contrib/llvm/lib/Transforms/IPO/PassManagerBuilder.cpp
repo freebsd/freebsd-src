@@ -105,6 +105,7 @@ PassManagerBuilder::PassManagerBuilder() {
     VerifyInput = false;
     VerifyOutput = false;
     MergeFunctions = false;
+    PrepareForLTO = false;
 }
 
 PassManagerBuilder::~PassManagerBuilder() {
@@ -319,8 +320,8 @@ void PassManagerBuilder::populateModulePassManager(
 
   // Re-rotate loops in all our loop nests. These may have fallout out of
   // rotated form due to GVN or other transformations, and the vectorizer relies
-  // on the rotated form.
-  MPM.add(createLoopRotatePass());
+  // on the rotated form. Disable header duplication at -Oz.
+  MPM.add(createLoopRotatePass(SizeLevel == 2 ? 0 : -1));
 
   // Distribute loops to allow partial vectorization.  I.e. isolate dependences
   // into separate loop that would otherwise inhibit vectorization.
@@ -401,6 +402,17 @@ void PassManagerBuilder::populateModulePassManager(
     // GlobalOpt already deletes dead functions and globals, at -O2 try a
     // late pass of GlobalDCE.  It is capable of deleting dead cycles.
     if (OptLevel > 1) {
+      if (!PrepareForLTO) {
+        // Remove avail extern fns and globals definitions if we aren't
+        // compiling an object file for later LTO. For LTO we want to preserve
+        // these so they are eligible for inlining at link-time. Note if they
+        // are unreferenced they will be removed by GlobalDCE below, so
+        // this only impacts referenced available externally globals.
+        // Eventually they will be suppressed during codegen, but eliminating
+        // here enables more opportunity for GlobalDCE as it may make
+        // globals referenced by available external functions dead.
+        MPM.add(createEliminateAvailableExternallyPass());
+      }
       MPM.add(createGlobalDCEPass());         // Remove dead fns and globals.
       MPM.add(createConstantMergePass());     // Merge dup global constants
     }

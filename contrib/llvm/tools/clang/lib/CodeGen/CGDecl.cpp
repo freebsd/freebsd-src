@@ -79,6 +79,7 @@ void CodeGenFunction::EmitDecl(const Decl &D) {
   case Decl::Captured:
   case Decl::ClassScopeFunctionSpecialization:
   case Decl::UsingShadow:
+  case Decl::ObjCTypeParam:
     llvm_unreachable("Declaration should not be in declstmts!");
   case Decl::Function:  // void X();
   case Decl::Record:    // struct/union/class X;
@@ -987,7 +988,7 @@ CodeGenFunction::EmitAutoVarAlloca(const VarDecl &D) {
       llvm::Value *Stack = CreateTempAlloca(Int8PtrTy, "saved_stack");
 
       llvm::Value *F = CGM.getIntrinsic(llvm::Intrinsic::stacksave);
-      llvm::Value *V = Builder.CreateCall(F, {});
+      llvm::Value *V = Builder.CreateCall(F);
 
       Builder.CreateStore(V, Stack);
 

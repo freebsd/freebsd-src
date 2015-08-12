@@ -57,7 +57,7 @@ static MCInstrInfo *createSparcMCInstrInfo() {
   return X;
 }
 
-static MCRegisterInfo *createSparcMCRegisterInfo(StringRef TT) {
+static MCRegisterInfo *createSparcMCRegisterInfo(const Triple &TT) {
   MCRegisterInfo *X = new MCRegisterInfo();
   InitSparcMCRegisterInfo(X, SP::O7);
   return X;
@@ -65,11 +65,9 @@ static MCRegisterInfo *createSparcMCRegisterInfo(StringRef TT) {
 
 static MCSubtargetInfo *
 createSparcMCSubtargetInfo(const Triple &TT, StringRef CPU, StringRef FS) {
-  MCSubtargetInfo *X = new MCSubtargetInfo();
   if (CPU.empty())
     CPU = (TT.getArch() == Triple::sparcv9) ? "v9" : "v8";
-  InitSparcMCSubtargetInfo(X, TT, CPU, FS);
-  return X;
+  return createSparcMCSubtargetInfoImpl(TT, CPU, FS);
 }
 
 // Code models. Some only make sense for 64-bit code.
@@ -83,7 +81,8 @@ createSparcMCSubtargetInfo(const Triple &TT, StringRef CPU, StringRef FS) {
 //
 // All code models require that the text segment is smaller than 2GB.
 
-static MCCodeGenInfo *createSparcMCCodeGenInfo(StringRef TT, Reloc::Model RM,
+static MCCodeGenInfo *createSparcMCCodeGenInfo(const Triple &TT,
+                                               Reloc::Model RM,
                                                CodeModel::Model CM,
                                                CodeGenOpt::Level OL) {
   MCCodeGenInfo *X = new MCCodeGenInfo();
@@ -100,7 +99,8 @@ static MCCodeGenInfo *createSparcMCCodeGenInfo(StringRef TT, Reloc::Model RM,
   return X;
 }
 
-static MCCodeGenInfo *createSparcV9MCCodeGenInfo(StringRef TT, Reloc::Model RM,
+static MCCodeGenInfo *createSparcV9MCCodeGenInfo(const Triple &TT,
+                                                 Reloc::Model RM,
                                                  CodeModel::Model CM,
                                                  CodeGenOpt::Level OL) {
   MCCodeGenInfo *X = new MCCodeGenInfo();

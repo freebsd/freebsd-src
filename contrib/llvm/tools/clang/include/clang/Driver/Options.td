@@ -351,6 +351,12 @@ def cxx_isystem : JoinedOrSeparate<["-"], "cxx-isystem">, Group<clang_i_Group>,
   MetaVarName<"<directory>">;
 def c : Flag<["-"], "c">, Flags<[DriverOption]>,
   HelpText<"Only run preprocess, compile, and assemble steps">;
+def cuda_device_only : Flag<["--"], "cuda-device-only">,
+  HelpText<"Do device-side CUDA compilation only">;
+def cuda_gpu_arch_EQ : Joined<["--"], "cuda-gpu-arch=">,
+  Flags<[DriverOption, HelpHidden]>, HelpText<"CUDA GPU architecture">;
+def cuda_host_only : Flag<["--"], "cuda-host-only">,
+  HelpText<"Do host-side CUDA compilation only">;
 def dA : Flag<["-"], "dA">, Group<d_Group>;
 def dD : Flag<["-"], "dD">, Group<d_Group>, Flags<[CC1Option]>,
   HelpText<"Print macro definitions in -E mode in addition to normal output">;
@@ -422,13 +428,24 @@ def fprofile_instr_generate : Flag<["-"], "fprofile-instr-generate">,
 def fprofile_instr_generate_EQ : Joined<["-"], "fprofile-instr-generate=">,
     Group<f_Group>, Flags<[CC1Option]>, MetaVarName<"<file>">,
     HelpText<"Generate instrumented code to collect execution counts into <file> (overridden by LLVM_PROFILE_FILE env var)">;
-def fprofile_instr_use : Flag<["-"], "fprofile-instr-use">, Group<f_Group>;
+def fprofile_instr_use : Flag<["-"], "fprofile-instr-use">, Group<f_Group>,
+    Flags<[DriverOption]>;
 def fprofile_instr_use_EQ : Joined<["-"], "fprofile-instr-use=">,
     Group<f_Group>, Flags<[CC1Option]>,
     HelpText<"Use instrumentation data for profile-guided optimization">;
 def fcoverage_mapping : Flag<["-"], "fcoverage-mapping">,
     Group<f_Group>, Flags<[CC1Option]>,
     HelpText<"Generate coverage mapping to enable code coverage analysis">;
+def fprofile_generate : Flag<["-"], "fprofile-generate">,
+    Alias<fprofile_instr_generate>;
+def fprofile_generate_EQ : Joined<["-"], "fprofile-generate=">,
+    Group<f_Group>, Flags<[DriverOption]>, MetaVarName<"<directory>">,
+    HelpText<"Generate instrumented code to collect execution counts into <directory>/default.profraw (overridden by LLVM_PROFILE_FILE env var)">;
+def fprofile_use : Flag<["-"], "fprofile-use">, Group<f_Group>,
+    Alias<fprofile_instr_use>;
+def fprofile_use_EQ : Joined<["-"], "fprofile-use=">,
+    Group<f_Group>, Flags<[DriverOption]>, MetaVarName<"<pathname>">,
+    HelpText<"Use instrumentation data for profile-guided optimization. If pathname is a directory, it reads from <pathname>/default.profdata. Otherwise, it reads from file <pathname>.">;
 
 def fblocks : Flag<["-"], "fblocks">, Group<f_Group>, Flags<[CC1Option]>,
   HelpText<"Enable the 'blocks' language feature">;
@@ -522,7 +539,8 @@ def fsanitize_EQ : CommaJoined<["-"], "fsanitize=">, Group<f_clang_Group>,
                    Flags<[CC1Option, CoreOption]>, MetaVarName<"<check>">,
                    HelpText<"Turn on runtime checks for various forms of undefined "
                             "or suspicious behavior. See user manual for available checks ">;
-def fno_sanitize_EQ : CommaJoined<["-"], "fno-sanitize=">, Group<f_clang_Group>;
+def fno_sanitize_EQ : CommaJoined<["-"], "fno-sanitize=">, Group<f_clang_Group>,
+                      Flags<[CoreOption]>;
 def fsanitize_blacklist : Joined<["-"], "fsanitize-blacklist=">,
                           Group<f_clang_Group>, Flags<[CC1Option, CoreOption]>,
                           HelpText<"Path to blacklist file for sanitizers">;
@@ -547,24 +565,29 @@ def fsanitize_memory_track_origins : Flag<["-"], "fsanitize-memory-track-origins
 def fno_sanitize_memory_track_origins : Flag<["-"], "fno-sanitize-memory-track-origins">,
                                         Group<f_clang_Group>, Flags<[CC1Option]>,
                                         HelpText<"Disable origins tracking in MemorySanitizer">;
+def fsanitize_memory_use_after_dtor : Flag<["-"], "fsanitize-memory-use-after-dtor">,
+                                     Group<f_clang_Group>, Flags<[CC1Option]>,
+                                     HelpText<"Enable use-after-destroy detection in MemorySanitizer">;
 def fsanitize_address_field_padding : Joined<["-"], "fsanitize-address-field-padding=">,
                                         Group<f_clang_Group>, Flags<[CC1Option]>,
                                         HelpText<"Level of field padding for AddressSanitizer">;
-def fsanitize_recover : Flag<["-"], "fsanitize-recover">, Group<f_clang_Group>;
+def fsanitize_recover : Flag<["-"], "fsanitize-recover">, Group<f_clang_Group>,
+                        Flags<[CoreOption]>;
 def fno_sanitize_recover : Flag<["-"], "fno-sanitize-recover">,
-                           Group<f_clang_Group>;
+                           Group<f_clang_Group>, Flags<[CoreOption]>;
 def fsanitize_recover_EQ : CommaJoined<["-"], "fsanitize-recover=">,
                            Group<f_clang_Group>,
-                           Flags<[CC1Option]>,
+                           Flags<[CC1Option, CoreOption]>,
                            HelpText<"Enable recovery for specified sanitizers">;
 def fno_sanitize_recover_EQ
     : CommaJoined<["-"], "fno-sanitize-recover=">,
-      Group<f_clang_Group>,
+      Group<f_clang_Group>, Flags<[CoreOption]>,
       HelpText<"Disable recovery for specified sanitizers">;
 def fsanitize_trap_EQ : CommaJoined<["-"], "fsanitize-trap=">, Group<f_clang_Group>,
                         Flags<[CC1Option, CoreOption]>,
                         HelpText<"Enable trapping for specified sanitizers">;
 def fno_sanitize_trap_EQ : CommaJoined<["-"], "fno-sanitize-trap=">, Group<f_clang_Group>,
+                           Flags<[CoreOption]>,
                            HelpText<"Disable trapping for specified sanitizers">;
 def fsanitize_undefined_trap_on_error : Flag<["-"], "fsanitize-undefined-trap-on-error">,
                                         Group<f_clang_Group>;
@@ -641,7 +664,7 @@ def flat__namespace : Flag<["-"], "flat_namespace">;
 def flax_vector_conversions : Flag<["-"], "flax-vector-conversions">, Group<f_Group>;
 def flimited_precision_EQ : Joined<["-"], "flimited-precision=">, Group<f_Group>;
 def flto_EQ : Joined<["-"], "flto=">, Group<clang_ignored_gcc_optimization_f_Group>;
-def flto : Flag<["-"], "flto">, Group<f_Group>;
+def flto : Flag<["-"], "flto">, Flags<[CC1Option]>, Group<f_Group>;
 def fno_lto : Flag<["-"], "fno-lto">, Group<f_Group>;
 def fmacro_backtrace_limit_EQ : Joined<["-"], "fmacro-backtrace-limit=">,
                                 Group<f_Group>, Flags<[DriverOption, CoreOption]>;
@@ -879,6 +902,8 @@ def fomit_frame_pointer : Flag<["-"], "fomit-frame-pointer">, Group<f_Group>;
 def fopenmp : Flag<["-"], "fopenmp">, Group<f_Group>, Flags<[CC1Option, NoArgumentUnused]>;
 def fno_openmp : Flag<["-"], "fno-openmp">, Group<f_Group>, Flags<[NoArgumentUnused]>;
 def fopenmp_EQ : Joined<["-"], "fopenmp=">, Group<f_Group>;
+def fopenmp_use_tls : Flag<["-"], "fopenmp-use-tls">, Group<f_Group>, Flags<[NoArgumentUnused]>;
+def fnoopenmp_use_tls : Flag<["-"], "fnoopenmp-use-tls">, Group<f_Group>, Flags<[CC1Option, NoArgumentUnused]>;
 def fno_optimize_sibling_calls : Flag<["-"], "fno-optimize-sibling-calls">, Group<f_Group>;
 def foptimize_sibling_calls : Flag<["-"], "foptimize-sibling-calls">, Group<f_Group>;
 def force__cpusubtype__ALL : Flag<["-"], "force_cpusubtype_ALL">;
@@ -904,7 +929,6 @@ def fpie : Flag<["-"], "fpie">, Group<f_Group>;
 def fno_pie : Flag<["-"], "fno-pie">, Group<f_Group>;
 def fprofile_arcs : Flag<["-"], "fprofile-arcs">, Group<f_Group>;
 def fno_profile_arcs : Flag<["-"], "fno-profile-arcs">, Group<f_Group>;
-def fprofile_generate : Flag<["-"], "fprofile-generate">, Group<f_Group>;
 def framework : Separate<["-"], "framework">, Flags<[LinkerInput]>;
 def frandom_seed_EQ : Joined<["-"], "frandom-seed=">, Group<clang_ignored_f_Group>;
 def freg_struct_return : Flag<["-"], "freg-struct-return">, Group<f_Group>, Flags<[CC1Option]>,
@@ -1518,7 +1542,8 @@ def print_libgcc_file_name : Flag<["-", "--"], "print-libgcc-file-name">,
   HelpText<"Print the library path for \"libgcc.a\"">;
 def print_multi_directory : Flag<["-", "--"], "print-multi-directory">;
 def print_multi_lib : Flag<["-", "--"], "print-multi-lib">;
-def print_multi_os_directory : Flag<["-", "--"], "print-multi-os-directory">;
+def print_multi_os_directory : Flag<["-", "--"], "print-multi-os-directory">,
+  Flags<[Unsupported]>;
 def print_prog_name_EQ : Joined<["-", "--"], "print-prog-name=">,
   HelpText<"Print the full program path of <name>">, MetaVarName<"<name>">;
 def print_search_dirs : Flag<["-", "--"], "print-search-dirs">,
@@ -1527,6 +1552,7 @@ def private__bundle : Flag<["-"], "private_bundle">;
 def pthreads : Flag<["-"], "pthreads">;
 def pthread : Flag<["-"], "pthread">, Flags<[CC1Option]>,
   HelpText<"Support POSIX threads in generated code">;
+def no_pthread : Flag<["-"], "no-pthread">, Flags<[CC1Option]>;
 def p : Flag<["-"], "p">;
 def pie : Flag<["-"], "pie">;
 def read__only__relocs : Separate<["-"], "read_only_relocs">;
@@ -1793,8 +1819,6 @@ defm : BooleanFFlag<"keep-inline-functions">, Group<clang_ignored_gcc_optimizati
 
 def fprofile_dir : Joined<["-"], "fprofile-dir=">, Group<clang_ignored_gcc_optimization_f_Group>;
 
-defm profile_use : BooleanFFlag<"profile-use">, Group<clang_ignored_gcc_optimization_f_Group>;
-def fprofile_use_EQ : Joined<["-"], "fprofile-use=">, Group<clang_ignored_gcc_optimization_f_Group>;
 def fuse_ld_EQ : Joined<["-"], "fuse-ld=">, Group<f_Group>;
 
 defm align_functions : BooleanFFlag<"align-functions">, Group<clang_ignored_gcc_optimization_f_Group>;
