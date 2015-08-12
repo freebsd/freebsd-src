@@ -33,9 +33,9 @@ LIBDEPS=llvmx86disassembler \
 	llvmtransformutils \
 	llvmipa \
 	llvmmcjit \
+	llvmexecutionengine \
 	llvmtarget \
 	llvmanalysis \
-	llvmexecutionengine \
 	llvmruntimedyld \
 	llvmobject \
 	llvmmcparser \

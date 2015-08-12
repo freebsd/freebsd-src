@@ -252,26 +252,40 @@ ExprResult Parser::ParseInitializerWithPotentialDesignator() {
       // Three cases. This is a message send to a type: [type foo]
       // This is a message send to super:  [super foo]
       // This is a message sent to an expr:  [super.bar foo]
-      switch (Sema::ObjCMessageKind Kind
-                = Actions.getObjCMessageKind(getCurScope(), II, IILoc, 
-                                             II == Ident_super,
-                                             NextToken().is(tok::period),
-                                             ReceiverType)) {
+      switch (Actions.getObjCMessageKind(
+          getCurScope(), II, IILoc, II == Ident_super,
+          NextToken().is(tok::period), ReceiverType)) {
       case Sema::ObjCSuperMessage:
+        CheckArrayDesignatorSyntax(*this, StartLoc, Desig);
+        return ParseAssignmentExprWithObjCMessageExprStart(StartLoc,
+                                                           ConsumeToken(),
+                                                           ParsedType(),
+                                                           nullptr);
+
       case Sema::ObjCClassMessage:
         CheckArrayDesignatorSyntax(*this, StartLoc, Desig);
-        if (Kind == Sema::ObjCSuperMessage)
-          return ParseAssignmentExprWithObjCMessageExprStart(StartLoc,
-                                                             ConsumeToken(),
-                                                             ParsedType(),
-                                                             nullptr);
         ConsumeToken(); // the identifier
         if (!ReceiverType) {
           SkipUntil(tok::r_square, StopAtSemi);
           return ExprError();
         }
 
-        return ParseAssignmentExprWithObjCMessageExprStart(StartLoc, 
+        // Parse type arguments and protocol qualifiers.
+        if (Tok.is(tok::less)) {
+          SourceLocation NewEndLoc;
+          TypeResult NewReceiverType
+            = parseObjCTypeArgsAndProtocolQualifiers(IILoc, ReceiverType,
+                                                     /*consumeLastToken=*/true,
+                                                     NewEndLoc);
+          if (!NewReceiverType.isUsable()) {
+            SkipUntil(tok::r_square, StopAtSemi);
+            return ExprError();
+          }
+
+          ReceiverType = NewReceiverType.get();
+        }
+
+        return ParseAssignmentExprWithObjCMessageExprStart(StartLoc,
                                                            SourceLocation(), 
                                                            ReceiverType, 
                                                            nullptr);

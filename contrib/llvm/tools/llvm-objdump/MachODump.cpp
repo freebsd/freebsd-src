@@ -102,9 +102,6 @@ cl::list<std::string>
                        cl::desc("Prints the specified segment,section for "
                                 "Mach-O objects (requires -macho)"));
 
-cl::opt<bool> llvm::Raw("raw",
-                        cl::desc("Have -section dump the raw binary contents"));
-
 cl::opt<bool>
     llvm::InfoPlist("info-plist",
                     cl::desc("Print the info plist section as strings for "
@@ -178,18 +175,8 @@ static const Target *GetTarget(const MachOObjectFile *MachOObj,
 
 struct SymbolSorter {
   bool operator()(const SymbolRef &A, const SymbolRef &B) {
-    SymbolRef::Type AType = A.getType();
-    SymbolRef::Type BType = B.getType();
-
-    uint64_t AAddr, BAddr;
-    if (AType != SymbolRef::ST_Function)
-      AAddr = 0;
-    else
-      A.getAddress(AAddr);
-    if (BType != SymbolRef::ST_Function)
-      BAddr = 0;
-    else
-      B.getAddress(BAddr);
+    uint64_t AAddr = (A.getType() != SymbolRef::ST_Function) ? 0 : A.getValue();
+    uint64_t BAddr = (B.getType() != SymbolRef::ST_Function) ? 0 : B.getValue();
     return AAddr < BAddr;
   }
 };
@@ -592,8 +579,7 @@ static void CreateSymbolAddressMap(MachOObjectFile *O,
     SymbolRef::Type ST = Symbol.getType();
     if (ST == SymbolRef::ST_Function || ST == SymbolRef::ST_Data ||
         ST == SymbolRef::ST_Other) {
-      uint64_t Address;
-      Symbol.getAddress(Address);
+      uint64_t Address = Symbol.getValue();
       ErrorOr<StringRef> SymNameOrErr = Symbol.getName();
       if (std::error_code EC = SymNameOrErr.getError())
         report_fatal_error(EC.message());
@@ -1057,11 +1043,6 @@ static void DumpSectionContents(StringRef Filename, MachOObjectFile *O,
         uint32_t sect_size = BytesStr.size();
         uint64_t sect_addr = Section.getAddress();
 
-        if (Raw) {
-          outs().write(BytesStr.data(), BytesStr.size());
-          continue;
-        }
-
         outs() << "Contents of (" << SegName << "," << SectName
                << ") section\n";
 
@@ -1190,8 +1171,7 @@ static void ProcessMachO(StringRef Filename, MachOObjectFile *MachOOF,
   // UniversalHeaders or ArchiveHeaders.
   if (Disassemble || PrivateHeaders || ExportsTrie || Rebase || Bind ||
       LazyBind || WeakBind || IndirectSymbols || DataInCode || LinkOptHints ||
-      DylibsUsed || DylibId || ObjcMetaData ||
-      (DumpSections.size() != 0 && !Raw)) {
+      DylibsUsed || DylibId || ObjcMetaData || (DumpSections.size() != 0)) {
     outs() << Filename;
     if (!ArchiveMemberName.empty())
       outs() << '(' << ArchiveMemberName << ')';
@@ -2424,7 +2404,7 @@ static const char *get_pointer_32(uint32_t Address, uint32_t &offset,
 // symbol is passed, look up that address in the info's AddrMap.
 static const char *get_symbol_64(uint32_t sect_offset, SectionRef S,
                                  DisassembleInfo *info, uint64_t &n_value,
-                                 uint64_t ReferenceValue = UnknownAddress) {
+                                 uint64_t ReferenceValue = 0) {
   n_value = 0;
   if (!info->verbose)
     return nullptr;
@@ -2456,9 +2436,7 @@ static const char *get_symbol_64(uint32_t sect_offset, SectionRef S,
   // and return its name.
   const char *SymbolName = nullptr;
   if (reloc_found && isExtern) {
-    Symbol.getAddress(n_value);
-    if (n_value == UnknownAddress)
-      n_value = 0;
+    n_value = Symbol.getValue();
     ErrorOr<StringRef> NameOrError = Symbol.getName();
     if (std::error_code EC = NameOrError.getError())
       report_fatal_error(EC.message());
@@ -2480,8 +2458,7 @@ static const char *get_symbol_64(uint32_t sect_offset, SectionRef S,
 
   // We did not find an external relocation entry so look up the ReferenceValue
   // as an address of a symbol and if found return that symbol's name.
-  if (ReferenceValue != UnknownAddress)
-    SymbolName = GuessSymbolName(ReferenceValue, info->AddrMap);
+  SymbolName = GuessSymbolName(ReferenceValue, info->AddrMap);
 
   return SymbolName;
 }
@@ -5640,7 +5617,7 @@ static const char *GuessLiteralPointer(uint64_t ReferenceValue,
     if (info->O->getAnyRelocationPCRel(RE)) {
       unsigned Type = info->O->getAnyRelocationType(RE);
       if (Type == MachO::X86_64_RELOC_SIGNED) {
-        Symbol.getAddress(ReferenceValue);
+        ReferenceValue = Symbol.getValue();
       }
     }
   }
@@ -6131,8 +6108,7 @@ static void DisassembleMachO(StringRef Filename, MachOObjectFile *MachOOF,
       SymbolRef::Type ST = Symbol.getType();
       if (ST == SymbolRef::ST_Function || ST == SymbolRef::ST_Data ||
           ST == SymbolRef::ST_Other) {
-        uint64_t Address;
-        Symbol.getAddress(Address);
+        uint64_t Address = Symbol.getValue();
         ErrorOr<StringRef> SymNameOrErr = Symbol.getName();
         if (std::error_code EC = SymNameOrErr.getError())
           report_fatal_error(EC.message());
@@ -6194,9 +6170,8 @@ static void DisassembleMachO(StringRef Filename, MachOObjectFile *MachOOF,
         continue;
 
       // Start at the address of the symbol relative to the section's address.
-      uint64_t Start = 0;
+      uint64_t Start = Symbols[SymIdx].getValue();
       uint64_t SectionAddress = Sections[SectIdx].getAddress();
-      Symbols[SymIdx].getAddress(Start);
       Start -= SectionAddress;
 
       // Stop disassembling either at the beginning of the next symbol or at
@@ -6209,7 +6184,7 @@ static void DisassembleMachO(StringRef Filename, MachOObjectFile *MachOOF,
         if (NextSymType == SymbolRef::ST_Function) {
           containsNextSym =
               Sections[SectIdx].containsSymbol(Symbols[NextSymIdx]);
-          Symbols[NextSymIdx].getAddress(NextSym);
+          NextSym = Symbols[NextSymIdx].getValue();
           NextSym -= SectionAddress;
           break;
         }
@@ -6815,8 +6790,7 @@ void llvm::printMachOUnwindInfo(const MachOObjectFile *Obj) {
     if (Section == Obj->section_end())
       continue;
 
-    uint64_t Addr;
-    SymRef.getAddress(Addr);
+    uint64_t Addr = SymRef.getValue();
     Symbols.insert(std::make_pair(Addr, SymRef));
   }
 

@@ -34,7 +34,6 @@ SRCS=	Mips16FrameLowering.cpp \
 	MipsSEISelLowering.cpp \
 	MipsSEInstrInfo.cpp \
 	MipsSERegisterInfo.cpp \
-	MipsSelectionDAGInfo.cpp \
 	MipsSubtarget.cpp \
 	MipsTargetMachine.cpp \
 	MipsTargetObjectFile.cpp

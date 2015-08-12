@@ -148,7 +148,7 @@ static MCInstrInfo *createSystemZMCInstrInfo() {
   return X;
 }
 
-static MCRegisterInfo *createSystemZMCRegisterInfo(StringRef TT) {
+static MCRegisterInfo *createSystemZMCRegisterInfo(const Triple &TT) {
   MCRegisterInfo *X = new MCRegisterInfo();
   InitSystemZMCRegisterInfo(X, SystemZ::R14D);
   return X;
@@ -156,12 +156,11 @@ static MCRegisterInfo *createSystemZMCRegisterInfo(StringRef TT) {
 
 static MCSubtargetInfo *
 createSystemZMCSubtargetInfo(const Triple &TT, StringRef CPU, StringRef FS) {
-  MCSubtargetInfo *X = new MCSubtargetInfo();
-  InitSystemZMCSubtargetInfo(X, TT, CPU, FS);
-  return X;
+  return createSystemZMCSubtargetInfoImpl(TT, CPU, FS);
 }
 
-static MCCodeGenInfo *createSystemZMCCodeGenInfo(StringRef TT, Reloc::Model RM,
+static MCCodeGenInfo *createSystemZMCCodeGenInfo(const Triple &TT,
+                                                 Reloc::Model RM,
                                                  CodeModel::Model CM,
                                                  CodeGenOpt::Level OL) {
   MCCodeGenInfo *X = new MCCodeGenInfo();

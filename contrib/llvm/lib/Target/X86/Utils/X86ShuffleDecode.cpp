@@ -255,15 +255,13 @@ void DecodeUNPCKLMask(MVT VT, SmallVectorImpl<int> &ShuffleMask) {
 
 void DecodeVPERM2X128Mask(MVT VT, unsigned Imm,
                           SmallVectorImpl<int> &ShuffleMask) {
-  if (Imm & 0x88)
-    return; // Not a shuffle
-
   unsigned HalfSize = VT.getVectorNumElements() / 2;
 
   for (unsigned l = 0; l != 2; ++l) {
-    unsigned HalfBegin = ((Imm >> (l * 4)) & 0x3) * HalfSize;
+    unsigned HalfMask = Imm >> (l * 4);
+    unsigned HalfBegin = (HalfMask & 0x3) * HalfSize;
     for (unsigned i = HalfBegin, e = HalfBegin + HalfSize; i != e; ++i)
-      ShuffleMask.push_back(i);
+      ShuffleMask.push_back(HalfMask & 8 ? SM_SentinelZero : (int)i);
   }
 }
 
@@ -431,4 +429,78 @@ void DecodeScalarMoveMask(MVT VT, bool IsLoad, SmallVectorImpl<int> &Mask) {
   for (unsigned i = 1; i < NumElts; i++)
     Mask.push_back(IsLoad ? static_cast<int>(SM_SentinelZero) : i);
 }
+
+void DecodeEXTRQIMask(int Len, int Idx,
+                      SmallVectorImpl<int> &ShuffleMask) {
+  // Only the bottom 6 bits are valid for each immediate.
+  Len &= 0x3F;
+  Idx &= 0x3F;
+
+  // We can only decode this bit extraction instruction as a shuffle if both the
+  // length and index work with whole bytes.
+  if (0 != (Len % 8) || 0 != (Idx % 8))
+    return;
+
+  // A length of zero is equivalent to a bit length of 64.
+  if (Len == 0)
+    Len = 64;
+
+  // If the length + index exceeds the bottom 64 bits the result is undefined.
+  if ((Len + Idx) > 64) {
+    ShuffleMask.append(16, SM_SentinelUndef);
+    return;
+  }
+
+  // Convert index and index to work with bytes.
+  Len /= 8;
+  Idx /= 8;
+
+  // EXTRQ: Extract Len bytes starting from Idx. Zero pad the remaining bytes
+  // of the lower 64-bits. The upper 64-bits are undefined.
+  for (int i = 0; i != Len; ++i)
+    ShuffleMask.push_back(i + Idx);
+  for (int i = Len; i != 8; ++i)
+    ShuffleMask.push_back(SM_SentinelZero);
+  for (int i = 8; i != 16; ++i)
+    ShuffleMask.push_back(SM_SentinelUndef);
+}
+
+void DecodeINSERTQIMask(int Len, int Idx,
+                        SmallVectorImpl<int> &ShuffleMask) {
+  // Only the bottom 6 bits are valid for each immediate.
+  Len &= 0x3F;
+  Idx &= 0x3F;
+
+  // We can only decode this bit insertion instruction as a shuffle if both the
+  // length and index work with whole bytes.
+  if (0 != (Len % 8) || 0 != (Idx % 8))
+    return;
+
+  // A length of zero is equivalent to a bit length of 64.
+  if (Len == 0)
+    Len = 64;
+
+  // If the length + index exceeds the bottom 64 bits the result is undefined.
+  if ((Len + Idx) > 64) {
+    ShuffleMask.append(16, SM_SentinelUndef);
+    return;
+  }
+
+  // Convert index and index to work with bytes.
+  Len /= 8;
+  Idx /= 8;
+
+  // INSERTQ: Extract lowest Len bytes from lower half of second source and
+  // insert over first source starting at Idx byte. The upper 64-bits are
+  // undefined.
+  for (int i = 0; i != Idx; ++i)
+    ShuffleMask.push_back(i);
+  for (int i = 0; i != Len; ++i)
+    ShuffleMask.push_back(i + 16);
+  for (int i = Idx + Len; i != 8; ++i)
+    ShuffleMask.push_back(i);
+  for (int i = 8; i != 16; ++i)
+    ShuffleMask.push_back(SM_SentinelUndef);
+}
+
 } // llvm namespace

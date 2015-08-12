@@ -205,9 +205,7 @@ public:
   std::error_code getIndirectName(DataRefImpl Symb, StringRef &Res) const;
   unsigned getSectionType(SectionRef Sec) const;
 
-  std::error_code getSymbolAddress(DataRefImpl Symb,
-                                   uint64_t &Res) const override;
-  uint64_t getSymbolValue(DataRefImpl Symb) const override;
+  ErrorOr<uint64_t> getSymbolAddress(DataRefImpl Symb) const override;
   uint32_t getSymbolAlignment(DataRefImpl Symb) const override;
   uint64_t getCommonSymbolSizeImpl(DataRefImpl Symb) const override;
   SymbolRef::Type getSymbolType(DataRefImpl Symb) const override;
@@ -233,7 +231,6 @@ public:
   relocation_iterator section_rel_end(DataRefImpl Sec) const override;
 
   void moveRelocationNext(DataRefImpl &Rel) const override;
-  ErrorOr<uint64_t> getRelocationAddress(DataRefImpl Rel) const override;
   uint64_t getRelocationOffset(DataRefImpl Rel) const override;
   symbol_iterator getRelocationSymbol(DataRefImpl Rel) const override;
   section_iterator getRelocationSection(DataRefImpl Rel) const;
@@ -244,6 +241,8 @@ public:
 
   // MachO specific.
   std::error_code getLibraryShortNameByIndex(unsigned Index, StringRef &) const;
+
+  section_iterator getRelocationRelocatedSection(relocation_iterator Rel) const;
 
   // TODO: Would be useful to have an iterator based version
   // of the load command interface too.
@@ -425,6 +424,8 @@ public:
   }
 
 private:
+  uint64_t getSymbolValueImpl(DataRefImpl Symb) const override;
+
   union {
     MachO::mach_header_64 Header64;
     MachO::mach_header Header;

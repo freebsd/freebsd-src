@@ -340,7 +340,7 @@ MCOperand NVPTXAsmPrinter::GetSymbolRef(const MCSymbol *Symbol) {
 }
 
 void NVPTXAsmPrinter::printReturnValStr(const Function *F, raw_ostream &O) {
-  const DataLayout *TD = TM.getDataLayout();
+  const DataLayout &DL = getDataLayout();
   const TargetLowering *TLI = nvptxSubtarget->getTargetLowering();
 
   Type *Ty = F->getReturnType();
@@ -366,20 +366,20 @@ void NVPTXAsmPrinter::printReturnValStr(const Function *F, raw_ostream &O) {
 
       O << ".param .b" << size << " func_retval0";
     } else if (isa<PointerType>(Ty)) {
-      O << ".param .b" << TLI->getPointerTy().getSizeInBits()
+      O << ".param .b" << TLI->getPointerTy(DL).getSizeInBits()
         << " func_retval0";
     } else if ((Ty->getTypeID() == Type::StructTyID) || isa<VectorType>(Ty)) {
-       unsigned totalsz = TD->getTypeAllocSize(Ty);
+      unsigned totalsz = DL.getTypeAllocSize(Ty);
        unsigned retAlignment = 0;
        if (!llvm::getAlign(*F, 0, retAlignment))
-         retAlignment = TD->getABITypeAlignment(Ty);
+         retAlignment = DL.getABITypeAlignment(Ty);
        O << ".param .align " << retAlignment << " .b8 func_retval0[" << totalsz
          << "]";
     } else
       llvm_unreachable("Unknown return type");
   } else {
     SmallVector<EVT, 16> vtparts;
-    ComputeValueVTs(*TLI, Ty, vtparts);
+    ComputeValueVTs(*TLI, DL, Ty, vtparts);
     unsigned idx = 0;
     for (unsigned i = 0, e = vtparts.size(); i != e; ++i) {
       unsigned elems = 1;
@@ -1433,7 +1433,7 @@ void NVPTXAsmPrinter::emitFunctionParamList(const Function *F, raw_ostream &O) {
   bool first = true;
   bool isKernelFunc = llvm::isKernelFunction(*F);
   bool isABI = (nvptxSubtarget->getSmVersion() >= 20);
-  MVT thePointerTy = TLI->getPointerTy();
+  MVT thePointerTy = TLI->getPointerTy(*TD);
 
   O << "(\n";
 
@@ -1579,7 +1579,7 @@ void NVPTXAsmPrinter::emitFunctionParamList(const Function *F, raw_ostream &O) {
       // Further, if a part is vector, print the above for
       // each vector element.
       SmallVector<EVT, 16> vtparts;
-      ComputeValueVTs(*TLI, ETy, vtparts);
+      ComputeValueVTs(*TLI, getDataLayout(), ETy, vtparts);
       for (unsigned i = 0, e = vtparts.size(); i != e; ++i) {
         unsigned elems = 1;
         EVT elemtype = vtparts[i];

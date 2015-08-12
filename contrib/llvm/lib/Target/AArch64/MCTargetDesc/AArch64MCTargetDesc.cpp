@@ -42,16 +42,13 @@ static MCInstrInfo *createAArch64MCInstrInfo() {
 
 static MCSubtargetInfo *
 createAArch64MCSubtargetInfo(const Triple &TT, StringRef CPU, StringRef FS) {
-  MCSubtargetInfo *X = new MCSubtargetInfo();
-
   if (CPU.empty())
     CPU = "generic";
 
-  InitAArch64MCSubtargetInfo(X, TT, CPU, FS);
-  return X;
+  return createAArch64MCSubtargetInfoImpl(TT, CPU, FS);
 }
 
-static MCRegisterInfo *createAArch64MCRegisterInfo(StringRef Triple) {
+static MCRegisterInfo *createAArch64MCRegisterInfo(const Triple &Triple) {
   MCRegisterInfo *X = new MCRegisterInfo();
   InitAArch64MCRegisterInfo(X, AArch64::LR);
   return X;
@@ -75,11 +72,11 @@ static MCAsmInfo *createAArch64MCAsmInfo(const MCRegisterInfo &MRI,
   return MAI;
 }
 
-static MCCodeGenInfo *createAArch64MCCodeGenInfo(StringRef TT, Reloc::Model RM,
+static MCCodeGenInfo *createAArch64MCCodeGenInfo(const Triple &TT,
+                                                 Reloc::Model RM,
                                                  CodeModel::Model CM,
                                                  CodeGenOpt::Level OL) {
-  Triple TheTriple(TT);
-  assert((TheTriple.isOSBinFormatELF() || TheTriple.isOSBinFormatMachO()) &&
+  assert((TT.isOSBinFormatELF() || TT.isOSBinFormatMachO()) &&
          "Only expect Darwin and ELF targets");
 
   if (CM == CodeModel::Default)
@@ -94,7 +91,7 @@ static MCCodeGenInfo *createAArch64MCCodeGenInfo(StringRef TT, Reloc::Model RM,
         "Only small and large code models are allowed on AArch64");
 
   // AArch64 Darwin is always PIC.
-  if (TheTriple.isOSDarwin())
+  if (TT.isOSDarwin())
     RM = Reloc::PIC_;
   // On ELF platforms the default static relocation model has a smart enough
   // linker to cope with referencing external symbols defined in a shared

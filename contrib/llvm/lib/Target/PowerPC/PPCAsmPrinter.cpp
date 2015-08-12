@@ -197,7 +197,7 @@ void PPCAsmPrinter::printOperand(const MachineInstr *MI, unsigned OpNo,
 
     // External or weakly linked global variables need non-lazily-resolved stubs
     if (TM.getRelocationModel() != Reloc::Static &&
-        (GV->isDeclaration() || GV->isWeakForLinker())) {
+        !GV->isStrongDefinitionForLinker()) {
       if (!GV->hasHiddenVisibility()) {
         SymToPrint = getSymbolWithGlobalValueBase(GV, "$non_lazy_ptr");
         MachineModuleInfoImpl::StubValueTy &StubSym = 
@@ -369,27 +369,69 @@ void PPCAsmPrinter::LowerPATCHPOINT(MCStreamer &OutStreamer, StackMaps &SM,
     assert((CallTarget & 0xFFFFFFFFFFFF) == CallTarget &&
            "High 16 bits of call target should be zero.");
     unsigned ScratchReg = MI.getOperand(Opers.getNextScratchIdx()).getReg();
-    EncodedBytes = 6*4;
+    EncodedBytes = 0;
     // Materialize the jump address:
     EmitToStreamer(OutStreamer, MCInstBuilder(PPC::LI8)
                                     .addReg(ScratchReg)
                                     .addImm((CallTarget >> 32) & 0xFFFF));
+    ++EncodedBytes;
     EmitToStreamer(OutStreamer, MCInstBuilder(PPC::RLDIC)
                                     .addReg(ScratchReg)
                                     .addReg(ScratchReg)
                                     .addImm(32).addImm(16));
+    ++EncodedBytes;
     EmitToStreamer(OutStreamer, MCInstBuilder(PPC::ORIS8)
                                     .addReg(ScratchReg)
                                     .addReg(ScratchReg)
                                     .addImm((CallTarget >> 16) & 0xFFFF));
+    ++EncodedBytes;
     EmitToStreamer(OutStreamer, MCInstBuilder(PPC::ORI8)
                                     .addReg(ScratchReg)
                                     .addReg(ScratchReg)
                                     .addImm(CallTarget & 0xFFFF));
 
+    // Save the current TOC pointer before the remote call.
+    int TOCSaveOffset = Subtarget->isELFv2ABI() ? 24 : 40;
+    EmitToStreamer(OutStreamer, MCInstBuilder(PPC::STD)
+                                    .addReg(PPC::X2)
+                                    .addImm(TOCSaveOffset)
+                                    .addReg(PPC::X1));
+    ++EncodedBytes;
+
+
+    // If we're on ELFv1, then we need to load the actual function pointer from
+    // the function descriptor.
+    if (!Subtarget->isELFv2ABI()) {
+      // Load the new TOC pointer and the function address, but not r11
+      // (needing this is rare, and loading it here would prevent passing it
+      // via a 'nest' parameter.
+      EmitToStreamer(OutStreamer, MCInstBuilder(PPC::LD)
+                                      .addReg(PPC::X2)
+                                      .addImm(8)
+                                      .addReg(ScratchReg));
+      ++EncodedBytes;
+      EmitToStreamer(OutStreamer, MCInstBuilder(PPC::LD)
+                                      .addReg(ScratchReg)
+                                      .addImm(0)
+                                      .addReg(ScratchReg));
+      ++EncodedBytes;
+    }
+
     EmitToStreamer(OutStreamer, MCInstBuilder(PPC::MTCTR8).addReg(ScratchReg));
+    ++EncodedBytes;
     EmitToStreamer(OutStreamer, MCInstBuilder(PPC::BCTRL8));
+    ++EncodedBytes;
+
+    // Restore the TOC pointer after the call.
+    EmitToStreamer(OutStreamer, MCInstBuilder(PPC::LD)
+                                    .addReg(PPC::X2)
+                                    .addImm(TOCSaveOffset)
+                                    .addReg(PPC::X1));
+    ++EncodedBytes;
   }
+
+  // Each instruction is 4 bytes.
+  EncodedBytes *= 4;
 
   // Emit padding.
   unsigned NumBytes = Opers.getMetaOper(PatchPointOpers::NBytesPos).getImm();
@@ -624,7 +666,7 @@ void PPCAsmPrinter::EmitInstruction(const MachineInstr *MI) {
       IsExternal = GV->isDeclaration();
       IsCommon = GV->hasCommonLinkage();
       IsNonLocalFunction = GV->getType()->getElementType()->isFunctionTy() &&
-        (GV->isDeclaration() || GV->isWeakForLinker());
+        !GV->isStrongDefinitionForLinker();
       IsAvailExt = GV->hasAvailableExternallyLinkage();
     } else if (MO.isCPI())
       MOSymbol = GetCPISymbol(MO.getIndex());
@@ -706,7 +748,7 @@ void PPCAsmPrinter::EmitInstruction(const MachineInstr *MI) {
       MOSymbol = getSymbol(GV);
       IsExternal = GV->isDeclaration();
       IsNonLocalFunction = GV->getType()->getElementType()->isFunctionTy() &&
-        (GV->isDeclaration() || GV->isWeakForLinker());
+        !GV->isStrongDefinitionForLinker();
     } else if (MO.isCPI())
       MOSymbol = GetCPISymbol(MO.getIndex());
 

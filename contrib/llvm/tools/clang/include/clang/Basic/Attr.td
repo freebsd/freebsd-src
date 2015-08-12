@@ -976,6 +976,11 @@ def TypeNullUnspecified : TypeAttr {
   let Documentation = [TypeNullUnspecifiedDocs];
 }
 
+def ObjCKindOf : TypeAttr {
+  let Spellings = [Keyword<"__kindof">];
+  let Documentation = [Undocumented];
+}
+
 def AssumeAligned : InheritableAttr {
   let Spellings = [GCC<"assume_aligned">];
   let Subjects = SubjectList<[ObjCMethod, Function]>;
@@ -1276,9 +1281,8 @@ def Pascal : InheritableAttr {
 def Target : InheritableAttr {
   let Spellings = [GCC<"target">];
   let Args = [StringArgument<"features">];
-  let Subjects =
-      SubjectList<[Function], ErrorDiag, "ExpectedFunctionMethodOrClass">;
-  let Documentation = [Undocumented];
+  let Subjects = SubjectList<[Function], ErrorDiag>;
+  let Documentation = [TargetDocs];
 }
 
 def TransparentUnion : InheritableAttr {

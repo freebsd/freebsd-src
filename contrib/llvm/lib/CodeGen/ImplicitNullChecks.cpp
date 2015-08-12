@@ -25,9 +25,12 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/Statistic.h"
 #include "llvm/CodeGen/Passes.h"
 #include "llvm/CodeGen/MachineFunction.h"
+#include "llvm/CodeGen/MachineMemOperand.h"
 #include "llvm/CodeGen/MachineOperand.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
@@ -46,6 +49,11 @@ static cl::opt<unsigned> PageSize("imp-null-check-page-size",
                                   cl::desc("The page size of the target in "
                                            "bytes"),
                                   cl::init(4096));
+
+#define DEBUG_TYPE "implicit-null-checks"
+
+STATISTIC(NumImplicitNullChecks,
+          "Number of explicit null checks made implicit");
 
 namespace {
 
@@ -171,6 +179,9 @@ bool ImplicitNullChecks::analyzeBlockForNullChecks(
   //   callq throw_NullPointerException
   //
   //  LblNotNull:
+  //   Inst0
+  //   Inst1
+  //   ...
   //   Def = Load (%RAX + <offset>)
   //   ...
   //
@@ -181,6 +192,8 @@ bool ImplicitNullChecks::analyzeBlockForNullChecks(
   //   jmp LblNotNull ;; explicit or fallthrough
   //
   //  LblNotNull:
+  //   Inst0
+  //   Inst1
   //   ...
   //
   //  LblNull:
@@ -188,15 +201,75 @@ bool ImplicitNullChecks::analyzeBlockForNullChecks(
   //
 
   unsigned PointerReg = MBP.LHS.getReg();
-  MachineInstr *MemOp = &*NotNullSucc->begin();
-  unsigned BaseReg, Offset;
-  if (TII->getMemOpBaseRegImmOfs(MemOp, BaseReg, Offset, TRI))
-    if (MemOp->mayLoad() && !MemOp->isPredicable() && BaseReg == PointerReg &&
-        Offset < PageSize && MemOp->getDesc().getNumDefs() == 1) {
-      NullCheckList.emplace_back(MemOp, MBP.ConditionDef, &MBB, NotNullSucc,
-                                 NullSucc);
-      return true;
+
+  // As we scan NotNullSucc for a suitable load instruction, we keep track of
+  // the registers defined and used by the instructions we scan past.  This bit
+  // of information lets us decide if it is legal to hoist the load instruction
+  // we find (if we do find such an instruction) to before NotNullSucc.
+  DenseSet<unsigned> RegDefs, RegUses;
+
+  // Returns true if it is safe to reorder MI to before NotNullSucc.
+  auto IsSafeToHoist = [&](MachineInstr *MI) {
+    // Right now we don't want to worry about LLVM's memory model.  This can be
+    // made more precise later.
+    for (auto *MMO : MI->memoperands())
+      if (!MMO->isUnordered())
+        return false;
+
+    for (auto &MO : MI->operands()) {
+      if (MO.isReg() && MO.getReg()) {
+        for (unsigned Reg : RegDefs)
+          if (TRI->regsOverlap(Reg, MO.getReg()))
+            return false;  // We found a write-after-write or read-after-write
+
+        if (MO.isDef())
+          for (unsigned Reg : RegUses)
+            if (TRI->regsOverlap(Reg, MO.getReg()))
+              return false;  // We found a write-after-read
+      }
     }
+
+    return true;
+  };
+
+  for (auto MII = NotNullSucc->begin(), MIE = NotNullSucc->end(); MII != MIE;
+       ++MII) {
+    MachineInstr *MI = &*MII;
+    unsigned BaseReg, Offset;
+    if (TII->getMemOpBaseRegImmOfs(MI, BaseReg, Offset, TRI))
+      if (MI->mayLoad() && !MI->isPredicable() && BaseReg == PointerReg &&
+          Offset < PageSize && MI->getDesc().getNumDefs() == 1 &&
+          IsSafeToHoist(MI)) {
+        NullCheckList.emplace_back(MI, MBP.ConditionDef, &MBB, NotNullSucc,
+                                   NullSucc);
+        return true;
+      }
+
+    // MI did not match our criteria for conversion to a trapping load.  Check
+    // if we can continue looking.
+
+    if (MI->mayStore() || MI->hasUnmodeledSideEffects())
+      return false;
+
+    for (auto *MMO : MI->memoperands())
+      // Right now we don't want to worry about LLVM's memory model.
+      if (!MMO->isUnordered())
+        return false;
+
+    // It _may_ be okay to reorder a later load instruction across MI.  Make a
+    // note of its operands so that we can make the legality check if we find a
+    // suitable load instruction:
+
+    for (auto &MO : MI->operands()) {
+      if (!MO.isReg() || !MO.getReg())
+        continue;
+
+      if (MO.isDef())
+        RegDefs.insert(MO.getReg());
+      else
+        RegUses.insert(MO.getReg());
+    }
+  }
 
   return false;
 }
@@ -247,7 +320,7 @@ void ImplicitNullChecks::rewriteNullChecks(
     // touch the successors list for any basic block since we haven't changed
     // control flow, we've just made it implicit.
     insertFaultingLoad(NC.MemOperation, NC.CheckBlock, HandlerLabel);
-    NC.MemOperation->removeFromParent();
+    NC.MemOperation->eraseFromParent();
     NC.CheckOperation->eraseFromParent();
 
     // Insert an *unconditional* branch to not-null successor.
@@ -257,6 +330,8 @@ void ImplicitNullChecks::rewriteNullChecks(
     // Emit the HandlerLabel as an EH_LABEL.
     BuildMI(*NC.NullSucc, NC.NullSucc->begin(), DL,
             TII->get(TargetOpcode::EH_LABEL)).addSym(HandlerLabel);
+
+    NumImplicitNullChecks++;
   }
 }
 

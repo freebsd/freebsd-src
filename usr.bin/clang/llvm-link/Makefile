@@ -15,8 +15,6 @@ LIBDEPS=llvmirreader \
 	llvmtransformutils \
 	llvmipa \
 	llvmanalysis \
-	llvmtarget \
-	llvmmc \
 	llvmcore \
 	llvmsupport
 

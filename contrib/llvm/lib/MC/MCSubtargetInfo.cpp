@@ -17,42 +17,34 @@
 
 using namespace llvm;
 
-/// InitMCProcessorInfo - Set or change the CPU (optionally supplemented
-/// with feature string). Recompute feature bits and scheduling model.
-void
-MCSubtargetInfo::InitMCProcessorInfo(StringRef CPU, StringRef FS) {
+static FeatureBitset getFeatures(StringRef CPU, StringRef FS,
+                                 ArrayRef<SubtargetFeatureKV> ProcDesc,
+                                 ArrayRef<SubtargetFeatureKV> ProcFeatures) {
   SubtargetFeatures Features(FS);
-  FeatureBits = Features.getFeatureBits(CPU, ProcDesc, ProcFeatures);
-  InitCPUSchedModel(CPU);
+  return Features.getFeatureBits(CPU, ProcDesc, ProcFeatures);
 }
 
-void
-MCSubtargetInfo::InitCPUSchedModel(StringRef CPU) {
+void MCSubtargetInfo::InitMCProcessorInfo(StringRef CPU, StringRef FS) {
+  FeatureBits = getFeatures(CPU, FS, ProcDesc, ProcFeatures);
   if (!CPU.empty())
-    CPUSchedModel = getSchedModelForCPU(CPU);
+    CPUSchedModel = &getSchedModelForCPU(CPU);
   else
-    CPUSchedModel = MCSchedModel::GetDefaultSchedModel();
+    CPUSchedModel = &MCSchedModel::GetDefaultSchedModel();
 }
 
-void MCSubtargetInfo::InitMCSubtargetInfo(
+void MCSubtargetInfo::setDefaultFeatures(StringRef CPU) {
+  FeatureBits = getFeatures(CPU, "", ProcDesc, ProcFeatures);
+}
+
+MCSubtargetInfo::MCSubtargetInfo(
     const Triple &TT, StringRef C, StringRef FS,
     ArrayRef<SubtargetFeatureKV> PF, ArrayRef<SubtargetFeatureKV> PD,
     const SubtargetInfoKV *ProcSched, const MCWriteProcResEntry *WPR,
     const MCWriteLatencyEntry *WL, const MCReadAdvanceEntry *RA,
-    const InstrStage *IS, const unsigned *OC, const unsigned *FP) {
-  TargetTriple = TT;
-  CPU = C;
-  ProcFeatures = PF;
-  ProcDesc = PD;
-  ProcSchedModels = ProcSched;
-  WriteProcResTable = WPR;
-  WriteLatencyTable = WL;
-  ReadAdvanceTable = RA;
-
-  Stages = IS;
-  OperandCycles = OC;
-  ForwardingPaths = FP;
-
+    const InstrStage *IS, const unsigned *OC, const unsigned *FP)
+    : TargetTriple(TT), CPU(C), ProcFeatures(PF), ProcDesc(PD),
+      ProcSchedModels(ProcSched), WriteProcResTable(WPR), WriteLatencyTable(WL),
+      ReadAdvanceTable(RA), Stages(IS), OperandCycles(OC), ForwardingPaths(FP) {
   InitMCProcessorInfo(CPU, FS);
 }
 
@@ -82,8 +74,7 @@ FeatureBitset MCSubtargetInfo::ApplyFeatureFlag(StringRef FS) {
   return FeatureBits;
 }
 
-MCSchedModel
-MCSubtargetInfo::getSchedModelForCPU(StringRef CPU) const {
+const MCSchedModel &MCSubtargetInfo::getSchedModelForCPU(StringRef CPU) const {
   assert(ProcSchedModels && "Processor machine model not available!");
 
   unsigned NumProcs = ProcDesc.size();
@@ -116,6 +107,6 @@ MCSubtargetInfo::getInstrItineraryForCPU(StringRef CPU) const {
 
 /// Initialize an InstrItineraryData instance.
 void MCSubtargetInfo::initInstrItins(InstrItineraryData &InstrItins) const {
-  InstrItins =
-    InstrItineraryData(CPUSchedModel, Stages, OperandCycles, ForwardingPaths);
+  InstrItins = InstrItineraryData(getSchedModel(), Stages, OperandCycles,
+                                  ForwardingPaths);
 }

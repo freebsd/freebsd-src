@@ -48,7 +48,6 @@ public:
   COFFDumper(const llvm::object::COFFObjectFile *Obj, StreamWriter& Writer)
     : ObjDumper(Writer)
     , Obj(Obj) {
-    cacheRelocations();
   }
 
   void printFileHeaders() override;
@@ -92,6 +91,7 @@ private:
   typedef DenseMap<const coff_section*, std::vector<RelocationRef> > RelocMapTy;
 
   const llvm::object::COFFObjectFile *Obj;
+  bool RelocCached = false;
   RelocMapTy RelocMap;
   StringRef CVFileIndexToStringOffsetTable;
   StringRef CVStringTable;
@@ -119,6 +119,7 @@ std::error_code createCOFFDumper(const object::ObjectFile *Obj,
 // symbol used for the relocation at the offset.
 std::error_code COFFDumper::resolveSymbol(const coff_section *Section,
                                           uint64_t Offset, SymbolRef &Sym) {
+  cacheRelocations();
   const auto &Relocations = RelocMap[Section];
   for (const auto &Relocation : Relocations) {
     uint64_t RelocationOffset = Relocation.getOffset();
@@ -339,6 +340,10 @@ static std::error_code getSymbolAuxData(const COFFObjectFile *Obj,
 }
 
 void COFFDumper::cacheRelocations() {
+  if (RelocCached)
+    return;
+  RelocCached = true;
+
   for (const SectionRef &S : Obj->sections()) {
     const coff_section *Section = Obj->getCOFFSection(S);
 
@@ -580,7 +585,11 @@ void COFFDumper::printCodeViewDebugInfo(const SectionRef &Section) {
     W.printString("FunctionName", Name);
 
     DataExtractor DE(FunctionLineTables[Name], true, 4);
-    uint32_t Offset = 8;  // Skip relocations.
+    uint32_t Offset = 6;  // Skip relocations.
+    uint16_t Flags = DE.getU16(&Offset);
+    W.printHex("Flags", Flags);
+    bool HasColumnInformation =
+        Flags & COFF::DEBUG_LINE_TABLES_HAVE_COLUMN_RECORDS;
     uint32_t FunctionSize = DE.getU32(&Offset);
     W.printHex("CodeSize", FunctionSize);
     while (DE.isValidOffset(Offset)) {
@@ -588,9 +597,12 @@ void COFFDumper::printCodeViewDebugInfo(const SectionRef &Section) {
       // in the line table.  The filename string is accessed using double
       // indirection to the string table subsection using the index subsection.
       uint32_t OffsetInIndex = DE.getU32(&Offset),
-               SegmentLength   = DE.getU32(&Offset),
+               SegmentLength = DE.getU32(&Offset),
                FullSegmentSize = DE.getU32(&Offset);
-      if (FullSegmentSize != 12 + 8 * SegmentLength) {
+
+      if (FullSegmentSize !=
+          12 + 8 * SegmentLength +
+              (HasColumnInformation ? 4 * SegmentLength : 0)) {
         error(object_error::parse_failed);
         return;
       }
@@ -630,6 +642,15 @@ void COFFDumper::printCodeViewDebugInfo(const SectionRef &Section) {
         char Buffer[32];
         format("+0x%X", PC).snprint(Buffer, 32);
         W.printNumber(Buffer, LineNumber);
+      }
+      if (HasColumnInformation) {
+        for (unsigned J = 0; J != SegmentLength && DE.isValidOffset(Offset);
+             ++J) {
+          uint16_t ColStart = DE.getU16(&Offset);
+          W.printNumber("ColStart", ColStart);
+          uint16_t ColEnd = DE.getU16(&Offset);
+          W.printNumber("ColEnd", ColEnd);
+        }
       }
     }
   }

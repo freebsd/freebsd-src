@@ -96,6 +96,10 @@ llvm::LazyBind("lazy-bind", cl::desc("Display mach-o lazy binding info"));
 cl::opt<bool>
 llvm::WeakBind("weak-bind", cl::desc("Display mach-o weak binding info"));
 
+cl::opt<bool>
+llvm::RawClangAST("raw-clang-ast",
+    cl::desc("Dump the raw binary contents of the clang AST section"));
+
 static cl::opt<bool>
 MachOOpt("macho", cl::desc("Use MachO specific object file parser"));
 static cl::alias
@@ -212,9 +216,7 @@ static const Target *getTarget(const ObjectFile *Obj = nullptr) {
 }
 
 bool llvm::RelocAddressLess(RelocationRef a, RelocationRef b) {
-  uint64_t a_addr = a.getOffset();
-  uint64_t b_addr = b.getOffset();
-  return a_addr < b_addr;
+  return a.getOffset() < b.getOffset();
 }
 
 namespace {
@@ -455,13 +457,12 @@ static void printRelocationTargetName(const MachOObjectFile *O,
 
     for (const SymbolRef &Symbol : O->symbols()) {
       std::error_code ec;
-      uint64_t Addr;
-      ErrorOr<StringRef> Name = Symbol.getName();
-
-      if ((ec = Symbol.getAddress(Addr)))
+      ErrorOr<uint64_t> Addr = Symbol.getAddress();
+      if ((ec = Addr.getError()))
         report_fatal_error(ec.message());
-      if (Addr != Val)
+      if (*Addr != Val)
         continue;
+      ErrorOr<StringRef> Name = Symbol.getName();
       if (std::error_code EC = Name.getError())
         report_fatal_error(EC.message());
       fmt << *Name;
@@ -811,6 +812,30 @@ static void DisassembleObject(const ObjectFile *Obj, bool InlineRelocs) {
       SectionRelocMap[*Sec2].push_back(Section);
   }
 
+  // Create a mapping from virtual address to symbol name.  This is used to
+  // pretty print the target of a call.
+  std::vector<std::pair<uint64_t, StringRef>> AllSymbols;
+  if (MIA) {
+    for (const SymbolRef &Symbol : Obj->symbols()) {
+      if (Symbol.getType() != SymbolRef::ST_Function)
+        continue;
+
+      ErrorOr<uint64_t> AddressOrErr = Symbol.getAddress();
+      if (error(AddressOrErr.getError()))
+        break;
+      uint64_t Address = *AddressOrErr;
+
+      ErrorOr<StringRef> Name = Symbol.getName();
+      if (error(Name.getError()))
+        break;
+      if (Name->empty())
+        continue;
+      AllSymbols.push_back(std::make_pair(Address, *Name));
+    }
+
+    array_pod_sort(AllSymbols.begin(), AllSymbols.end());
+  }
+
   for (const SectionRef &Section : Obj->sections()) {
     if (!Section.isText() || Section.isVirtual())
       continue;
@@ -824,11 +849,10 @@ static void DisassembleObject(const ObjectFile *Obj, bool InlineRelocs) {
     std::vector<std::pair<uint64_t, StringRef>> Symbols;
     for (const SymbolRef &Symbol : Obj->symbols()) {
       if (Section.containsSymbol(Symbol)) {
-        uint64_t Address;
-        if (error(Symbol.getAddress(Address)))
+        ErrorOr<uint64_t> AddressOrErr = Symbol.getAddress();
+        if (error(AddressOrErr.getError()))
           break;
-        if (Address == UnknownAddress)
-          continue;
+        uint64_t Address = *AddressOrErr;
         Address -= SectionAddr;
         if (Address >= SectSize)
           continue;
@@ -916,6 +940,29 @@ static void DisassembleObject(const ObjectFile *Obj, bool InlineRelocs) {
                         SectionAddr + Index, outs(), "", *STI);
           outs() << CommentStream.str();
           Comments.clear();
+          if (MIA && (MIA->isCall(Inst) || MIA->isUnconditionalBranch(Inst) ||
+                      MIA->isConditionalBranch(Inst))) {
+            uint64_t Target;
+            if (MIA->evaluateBranch(Inst, SectionAddr + Index, Size, Target)) {
+              auto TargetSym = std::upper_bound(
+                  AllSymbols.begin(), AllSymbols.end(), Target,
+                  [](uint64_t LHS, const std::pair<uint64_t, StringRef> &RHS) {
+                    return LHS < RHS.first;
+                  });
+              if (TargetSym != AllSymbols.begin())
+                --TargetSym;
+              else
+                TargetSym = AllSymbols.end();
+
+              if (TargetSym != AllSymbols.end()) {
+                outs() << " <" << TargetSym->second;
+                uint64_t Disp = Target - TargetSym->first;
+                if (Disp)
+                  outs() << '+' << utohexstr(Disp);
+                outs() << '>';
+              }
+            }
+          }
           outs() << "\n";
         } else {
           errs() << ToolName << ": warning: invalid instruction encoding\n";
@@ -1113,12 +1160,13 @@ void llvm::PrintSymbolTable(const ObjectFile *o) {
     return;
   }
   for (const SymbolRef &Symbol : o->symbols()) {
-    uint64_t Address;
+    ErrorOr<uint64_t> AddressOrError = Symbol.getAddress();
+    if (error(AddressOrError.getError()))
+      continue;
+    uint64_t Address = *AddressOrError;
     SymbolRef::Type Type = Symbol.getType();
     uint32_t Flags = Symbol.getFlags();
     section_iterator Section = o->section_end();
-    if (error(Symbol.getAddress(Address)))
-      continue;
     if (error(Symbol.getSection(Section)))
       continue;
     StringRef Name;
@@ -1137,11 +1185,6 @@ void llvm::PrintSymbolTable(const ObjectFile *o) {
     bool Common = Flags & SymbolRef::SF_Common;
     bool Hidden = Flags & SymbolRef::SF_Hidden;
 
-    if (Common)
-      Address = Symbol.getCommonSize();
-
-    if (Address == UnknownAddress)
-      Address = 0;
     char GlobLoc = ' ';
     if (Type != SymbolRef::ST_Unknown)
       GlobLoc = Global ? 'g' : 'l';
@@ -1269,6 +1312,43 @@ void llvm::printWeakBindTable(const ObjectFile *o) {
   }
 }
 
+/// Dump the raw contents of the __clangast section so the output can be piped
+/// into llvm-bcanalyzer.
+void llvm::printRawClangAST(const ObjectFile *Obj) {
+  if (outs().is_displayed()) {
+    errs() << "The -raw-clang-ast option will dump the raw binary contents of "
+              "the clang ast section.\n"
+              "Please redirect the output to a file or another program such as "
+              "llvm-bcanalyzer.\n";
+    return;
+  }
+
+  StringRef ClangASTSectionName("__clangast");
+  if (isa<COFFObjectFile>(Obj)) {
+    ClangASTSectionName = "clangast";
+  }
+
+  Optional<object::SectionRef> ClangASTSection;
+  for (auto Sec : Obj->sections()) {
+    StringRef Name;
+    Sec.getName(Name);
+    if (Name == ClangASTSectionName) {
+      ClangASTSection = Sec;
+      break;
+    }
+  }
+  if (!ClangASTSection)
+    return;
+
+  StringRef ClangASTContents;
+  if (error(ClangASTSection.getValue().getContents(ClangASTContents))) {
+    errs() << "Could not read the " << ClangASTSectionName << " section!\n";
+    return;
+  }
+
+  outs().write(ClangASTContents.data(), ClangASTContents.size());
+}
+
 static void printFaultMaps(const ObjectFile *Obj) {
   const char *FaultMapSectionName = nullptr;
 
@@ -1323,9 +1403,12 @@ static void printPrivateFileHeader(const ObjectFile *o) {
 }
 
 static void DumpObject(const ObjectFile *o) {
-  outs() << '\n';
-  outs() << o->getFileName()
-         << ":\tfile format " << o->getFileFormatName() << "\n\n";
+  // Avoid other output when using a raw option.
+  if (!RawClangAST) {
+    outs() << '\n';
+    outs() << o->getFileName()
+           << ":\tfile format " << o->getFileFormatName() << "\n\n";
+  }
 
   if (Disassemble)
     DisassembleObject(o, Relocations);
@@ -1351,6 +1434,8 @@ static void DumpObject(const ObjectFile *o) {
     printLazyBindTable(o);
   if (WeakBind)
     printWeakBindTable(o);
+  if (RawClangAST)
+    printRawClangAST(o);
   if (PrintFaultMaps)
     printFaultMaps(o);
 }
@@ -1441,6 +1526,7 @@ int main(int argc, char **argv) {
       && !Bind
       && !LazyBind
       && !WeakBind
+      && !RawClangAST
       && !(UniversalHeaders && MachOOpt)
       && !(ArchiveHeaders && MachOOpt)
       && !(IndirectSymbols && MachOOpt)

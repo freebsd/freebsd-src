@@ -53,6 +53,7 @@ LIBDEPS=llvmdebuginfodwarf \
 	llvmscalaropts \
 	llvmprofiledata \
 	llvminstcombine \
+	llvminstrumentation \
 	llvmtransformutils \
 	llvmipa \
 	llvmanalysis \

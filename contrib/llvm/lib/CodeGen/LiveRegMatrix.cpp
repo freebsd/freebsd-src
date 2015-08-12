@@ -15,12 +15,12 @@
 #include "RegisterCoalescer.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/CodeGen/LiveIntervalAnalysis.h"
-#include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/VirtRegMap.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/Format.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Target/TargetRegisterInfo.h"
+#include "llvm/Target/TargetSubtargetInfo.h"
 
 using namespace llvm;
 
@@ -49,7 +49,6 @@ void LiveRegMatrix::getAnalysisUsage(AnalysisUsage &AU) const {
 
 bool LiveRegMatrix::runOnMachineFunction(MachineFunction &MF) {
   TRI = MF.getSubtarget().getRegisterInfo();
-  MRI = &MF.getRegInfo();
   LIS = &getAnalysis<LiveIntervals>();
   VRM = &getAnalysis<VirtRegMap>();
 
@@ -101,7 +100,6 @@ void LiveRegMatrix::assign(LiveInterval &VirtReg, unsigned PhysReg) {
                << " to " << PrintReg(PhysReg, TRI) << ':');
   assert(!VRM->hasPhys(VirtReg.reg) && "Duplicate VirtReg assignment");
   VRM->assignVirt2Phys(VirtReg.reg, PhysReg);
-  MRI->setPhysRegUsed(PhysReg);
 
   foreachUnit(TRI, VirtReg, PhysReg, [&](unsigned Unit,
                                          const LiveRange &Range) {
@@ -129,6 +127,14 @@ void LiveRegMatrix::unassign(LiveInterval &VirtReg) {
 
   ++NumUnassigned;
   DEBUG(dbgs() << '\n');
+}
+
+bool LiveRegMatrix::isPhysRegUsed(unsigned PhysReg) const {
+  for (MCRegUnitIterator Unit(PhysReg, TRI); Unit.isValid(); ++Unit) {
+    if (!Matrix[*Unit].empty())
+      return true;
+  }
+  return false;
 }
 
 bool LiveRegMatrix::checkRegMaskInterference(LiveInterval &VirtReg,

@@ -13,6 +13,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/ADT/StringSwitch.h"
+#include "llvm/ADT/Triple.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
 #include "llvm/LibDriver/LibDriver.h"
@@ -70,6 +71,16 @@ static cl::list<std::string>
 
 static cl::opt<bool> MRI("M", cl::desc(""));
 
+namespace {
+enum Format { Default, GNU, BSD };
+}
+
+static cl::opt<Format>
+    FormatOpt("format", cl::desc("Archive format to create"),
+              cl::values(clEnumValN(Default, "defalut", "default"),
+                         clEnumValN(GNU, "gnu", "gnu"),
+                         clEnumValN(BSD, "bsd", "bsd"), clEnumValEnd));
+
 std::string Options;
 
 // Provide additional help output explaining the operations and modifiers of
@@ -118,6 +129,7 @@ static bool OriginalDates = false; ///< 'o' modifier
 static bool OnlyUpdate = false;    ///< 'u' modifier
 static bool Verbose = false;       ///< 'v' modifier
 static bool Symtab = true;         ///< 's' modifier
+static bool Deterministic = true;  ///< 'D' and 'U' modifiers
 
 // Relative Positional Argument (for insert/move). This variable holds
 // the name of the archive member to which the 'a', 'b' or 'i' modifier
@@ -234,6 +246,12 @@ static ArchiveOperation parseCommandLine() {
       AddBefore = true;
       NumPositional++;
       break;
+    case 'D':
+      Deterministic = true;
+      break;
+    case 'U':
+      Deterministic = false;
+      break;
     default:
       cl::PrintHelpMessage();
     }
@@ -277,11 +295,13 @@ static ArchiveOperation parseCommandLine() {
 
 // Implements the 'p' operation. This function traverses the archive
 // looking for members that match the path list.
-static void doPrint(StringRef Name, object::Archive::child_iterator I) {
+static void doPrint(StringRef Name, const object::Archive::Child &C) {
   if (Verbose)
     outs() << "Printing " << Name << "\n";
 
-  StringRef Data = I->getBuffer();
+  ErrorOr<StringRef> DataOrErr = C.getBuffer();
+  failIfError(DataOrErr.getError());
+  StringRef Data = *DataOrErr;
   outs().write(Data.data(), Data.size());
 }
 
@@ -306,16 +326,16 @@ static void printMode(unsigned mode) {
 // the file names of each of the members. However, if verbose mode is requested
 // ('v' modifier) then the file type, permission mode, user, group, size, and
 // modification time are also printed.
-static void doDisplayTable(StringRef Name, object::Archive::child_iterator I) {
+static void doDisplayTable(StringRef Name, const object::Archive::Child &C) {
   if (Verbose) {
-    sys::fs::perms Mode = I->getAccessMode();
+    sys::fs::perms Mode = C.getAccessMode();
     printMode((Mode >> 6) & 007);
     printMode((Mode >> 3) & 007);
     printMode(Mode & 007);
-    outs() << ' ' << I->getUID();
-    outs() << '/' << I->getGID();
-    outs() << ' ' << format("%6llu", I->getSize());
-    outs() << ' ' << I->getLastModified().str();
+    outs() << ' ' << C.getUID();
+    outs() << '/' << C.getGID();
+    outs() << ' ' << format("%6llu", C.getSize());
+    outs() << ' ' << C.getLastModified().str();
     outs() << ' ';
   }
   outs() << Name << "\n";
@@ -323,9 +343,9 @@ static void doDisplayTable(StringRef Name, object::Archive::child_iterator I) {
 
 // Implement the 'x' operation. This function extracts files back to the file
 // system.
-static void doExtract(StringRef Name, object::Archive::child_iterator I) {
+static void doExtract(StringRef Name, const object::Archive::Child &C) {
   // Retain the original mode.
-  sys::fs::perms Mode = I->getAccessMode();
+  sys::fs::perms Mode = C.getAccessMode();
   SmallString<128> Storage = Name;
 
   int FD;
@@ -337,7 +357,7 @@ static void doExtract(StringRef Name, object::Archive::child_iterator I) {
     raw_fd_ostream file(FD, false);
 
     // Get the data and its length
-    StringRef Data = I->getBuffer();
+    StringRef Data = *C.getBuffer();
 
     // Write the data.
     file.write(Data.data(), Data.size());
@@ -347,7 +367,7 @@ static void doExtract(StringRef Name, object::Archive::child_iterator I) {
   // now.
   if (OriginalDates)
     failIfError(
-        sys::fs::setLastModificationAndAccessTime(FD, I->getLastModified()));
+        sys::fs::setLastModificationAndAccessTime(FD, C.getLastModified()));
 
   if (close(FD))
     fail("Could not close the file");
@@ -373,31 +393,43 @@ static bool shouldCreateArchive(ArchiveOperation Op) {
 
 static void performReadOperation(ArchiveOperation Operation,
                                  object::Archive *OldArchive) {
-  for (object::Archive::child_iterator I = OldArchive->child_begin(),
-                                       E = OldArchive->child_end();
-       I != E; ++I) {
-    ErrorOr<StringRef> NameOrErr = I->getName();
+  if (Operation == Extract && OldArchive->isThin()) {
+    errs() << "extracting from a thin archive is not supported\n";
+    std::exit(1);
+  }
+
+  bool Filter = !Members.empty();
+  for (const object::Archive::Child &C : OldArchive->children()) {
+    ErrorOr<StringRef> NameOrErr = C.getName();
     failIfError(NameOrErr.getError());
     StringRef Name = NameOrErr.get();
 
-    if (!Members.empty() &&
-        std::find(Members.begin(), Members.end(), Name) == Members.end())
-      continue;
+    if (Filter) {
+      auto I = std::find(Members.begin(), Members.end(), Name);
+      if (I == Members.end())
+        continue;
+      Members.erase(I);
+    }
 
     switch (Operation) {
     default:
       llvm_unreachable("Not a read operation");
     case Print:
-      doPrint(Name, I);
+      doPrint(Name, C);
       break;
     case DisplayTable:
-      doDisplayTable(Name, I);
+      doDisplayTable(Name, C);
       break;
     case Extract:
-      doExtract(Name, I);
+      doExtract(Name, C);
       break;
     }
   }
+  if (Members.empty())
+    return;
+  for (StringRef Name : Members)
+    errs() << Name << " was not found\n";
+  std::exit(1);
 }
 
 template <typename T>
@@ -525,7 +557,8 @@ computeNewArchiveMembers(ArchiveOperation Operation,
   assert(unsigned(InsertPos) <= Ret.size());
   Ret.insert(Ret.begin() + InsertPos, Moved.begin(), Moved.end());
 
-  Ret.insert(Ret.begin() + InsertPos, Members.size(), NewArchiveIterator());
+  Ret.insert(Ret.begin() + InsertPos, Members.size(),
+             NewArchiveIterator("", ""));
   int Pos = InsertPos;
   for (auto &Member : Members) {
     StringRef Name = sys::path::filename(Member);
@@ -539,15 +572,33 @@ computeNewArchiveMembers(ArchiveOperation Operation,
 static void
 performWriteOperation(ArchiveOperation Operation, object::Archive *OldArchive,
                       std::vector<NewArchiveIterator> *NewMembersP) {
+  object::Archive::Kind Kind;
+  switch (FormatOpt) {
+  case Default: {
+    Triple T(sys::getProcessTriple());
+    if (T.isOSDarwin())
+      Kind = object::Archive::K_BSD;
+    else
+      Kind = object::Archive::K_GNU;
+    break;
+  }
+  case GNU:
+    Kind = object::Archive::K_GNU;
+    break;
+  case BSD:
+    Kind = object::Archive::K_BSD;
+    break;
+  }
   if (NewMembersP) {
     std::pair<StringRef, std::error_code> Result =
-        writeArchive(ArchiveName, *NewMembersP, Symtab);
+        writeArchive(ArchiveName, *NewMembersP, Symtab, Kind, Deterministic);
     failIfError(Result.second, Result.first);
     return;
   }
   std::vector<NewArchiveIterator> NewMembers =
       computeNewArchiveMembers(Operation, OldArchive);
-  auto Result = writeArchive(ArchiveName, NewMembers, Symtab);
+  auto Result =
+      writeArchive(ArchiveName, NewMembers, Symtab, Kind, Deterministic);
   failIfError(Result.second, Result.first);
 }
 

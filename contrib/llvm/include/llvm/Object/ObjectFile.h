@@ -50,7 +50,6 @@ public:
 
   void moveNext();
 
-  ErrorOr<uint64_t> getAddress() const;
   uint64_t getOffset() const;
   symbol_iterator getSymbol() const;
   uint64_t getType() const;
@@ -135,7 +134,7 @@ public:
   ErrorOr<StringRef> getName() const;
   /// Returns the symbol virtual address (i.e. address at which it will be
   /// mapped).
-  std::error_code getAddress(uint64_t &Result) const;
+  ErrorOr<uint64_t> getAddress() const;
 
   /// Return the value of the symbol depending on the object this can be an
   /// offset or a virtual address.
@@ -198,9 +197,8 @@ protected:
   virtual ErrorOr<StringRef> getSymbolName(DataRefImpl Symb) const = 0;
   std::error_code printSymbolName(raw_ostream &OS,
                                   DataRefImpl Symb) const override;
-  virtual std::error_code getSymbolAddress(DataRefImpl Symb,
-                                           uint64_t &Res) const = 0;
-  virtual uint64_t getSymbolValue(DataRefImpl Symb) const = 0;
+  virtual ErrorOr<uint64_t> getSymbolAddress(DataRefImpl Symb) const = 0;
+  virtual uint64_t getSymbolValueImpl(DataRefImpl Symb) const = 0;
   virtual uint32_t getSymbolAlignment(DataRefImpl Symb) const;
   virtual uint64_t getCommonSymbolSizeImpl(DataRefImpl Symb) const = 0;
   virtual SymbolRef::Type getSymbolType(DataRefImpl Symb) const = 0;
@@ -229,12 +227,13 @@ protected:
   // Same as above for RelocationRef.
   friend class RelocationRef;
   virtual void moveRelocationNext(DataRefImpl &Rel) const = 0;
-  virtual ErrorOr<uint64_t> getRelocationAddress(DataRefImpl Rel) const = 0;
   virtual uint64_t getRelocationOffset(DataRefImpl Rel) const = 0;
   virtual symbol_iterator getRelocationSymbol(DataRefImpl Rel) const = 0;
   virtual uint64_t getRelocationType(DataRefImpl Rel) const = 0;
   virtual void getRelocationTypeName(DataRefImpl Rel,
                                      SmallVectorImpl<char> &Result) const = 0;
+
+  uint64_t getSymbolValue(DataRefImpl Symb) const;
 
 public:
   uint64_t getCommonSymbolSize(DataRefImpl Symb) const {
@@ -308,8 +307,8 @@ inline ErrorOr<StringRef> SymbolRef::getName() const {
   return getObject()->getSymbolName(getRawDataRefImpl());
 }
 
-inline std::error_code SymbolRef::getAddress(uint64_t &Result) const {
-  return getObject()->getSymbolAddress(getRawDataRefImpl(), Result);
+inline ErrorOr<uint64_t> SymbolRef::getAddress() const {
+  return getObject()->getSymbolAddress(getRawDataRefImpl());
 }
 
 inline uint64_t SymbolRef::getValue() const {
@@ -428,10 +427,6 @@ inline bool RelocationRef::operator==(const RelocationRef &Other) const {
 
 inline void RelocationRef::moveNext() {
   return OwningObject->moveRelocationNext(RelocationPimpl);
-}
-
-inline ErrorOr<uint64_t> RelocationRef::getAddress() const {
-  return OwningObject->getRelocationAddress(RelocationPimpl);
 }
 
 inline uint64_t RelocationRef::getOffset() const {

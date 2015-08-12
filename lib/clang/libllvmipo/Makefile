@@ -9,6 +9,7 @@ SRCS=	ArgumentPromotion.cpp \
 	BarrierNoopPass.cpp \
 	ConstantMerge.cpp \
 	DeadArgumentElimination.cpp \
+	ElimAvailExtern.cpp \
 	ExtractGV.cpp \
 	FunctionAttrs.cpp \
 	GlobalDCE.cpp \

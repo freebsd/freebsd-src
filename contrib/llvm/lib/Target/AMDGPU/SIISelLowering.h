@@ -62,8 +62,8 @@ public:
   bool isShuffleMaskLegal(const SmallVectorImpl<int> &/*Mask*/,
                           EVT /*VT*/) const override;
 
-  bool isLegalAddressingMode(const AddrMode &AM,
-                             Type *Ty, unsigned AS) const override;
+  bool isLegalAddressingMode(const DataLayout &DL, const AddrMode &AM, Type *Ty,
+                             unsigned AS) const override;
 
   bool allowsMisalignedMemoryAccesses(EVT VT, unsigned AS,
                                       unsigned Align,
@@ -90,8 +90,9 @@ public:
   MachineBasicBlock * EmitInstrWithCustomInserter(MachineInstr * MI,
                                       MachineBasicBlock * BB) const override;
   bool enableAggressiveFMAFusion(EVT VT) const override;
-  EVT getSetCCResultType(LLVMContext &Context, EVT VT) const override;
-  MVT getScalarShiftAmountTy(EVT VT) const override;
+  EVT getSetCCResultType(const DataLayout &DL, LLVMContext &Context,
+                         EVT VT) const override;
+  MVT getScalarShiftAmountTy(const DataLayout &, EVT) const override;
   bool isFMAFasterThanFMulAndFAdd(EVT VT) const override;
   SDValue LowerOperation(SDValue Op, SelectionDAG &DAG) const override;
   SDValue PerformDAGCombine(SDNode *N, DAGCombinerInfo &DCI) const override;
@@ -114,9 +115,9 @@ public:
                                   SDLoc DL,
                                   SDValue Ptr) const;
 
-  std::pair<unsigned, const TargetRegisterClass *> getRegForInlineAsmConstraint(
-                                   const TargetRegisterInfo *TRI,
-                                   const std::string &Constraint, MVT VT) const override;
+  std::pair<unsigned, const TargetRegisterClass *>
+  getRegForInlineAsmConstraint(const TargetRegisterInfo *TRI,
+                               StringRef Constraint, MVT VT) const override;
   SDValue copyToM0(SelectionDAG &DAG, SDValue Chain, SDLoc DL, SDValue V) const;
 };
 
