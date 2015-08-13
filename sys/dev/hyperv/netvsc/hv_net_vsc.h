@@ -41,19 +41,25 @@
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/sx.h>
 
 #include <dev/hyperv/include/hyperv.h>
 
+MALLOC_DECLARE(M_NETVSC);
 
 #define NVSP_INVALID_PROTOCOL_VERSION           (0xFFFFFFFF)
 
 #define NVSP_PROTOCOL_VERSION_1                 2
 #define NVSP_PROTOCOL_VERSION_2                 0x30002
+#define NVSP_PROTOCOL_VERSION_4                 0x40000
+#define NVSP_PROTOCOL_VERSION_5                 0x50000
 #define NVSP_MIN_PROTOCOL_VERSION               (NVSP_PROTOCOL_VERSION_1)
 #define NVSP_MAX_PROTOCOL_VERSION               (NVSP_PROTOCOL_VERSION_2)
 
 #define NVSP_PROTOCOL_VERSION_CURRENT           NVSP_PROTOCOL_VERSION_2
+
+#define VERSION_4_OFFLOAD_SIZE                  22
 
 #define NVSP_OPERATIONAL_STATUS_OK              (0x00000000)
 #define NVSP_OPERATIONAL_STATUS_DEGRADED        (0x00000001)
@@ -544,7 +550,7 @@ typedef struct nvsp_2_msg_indicate_chimney_event_ {
 
 
 #define NVSP_1_CHIMNEY_SEND_INVALID_OOB_INDEX       0xffffu
-#define NVSP_1_CHIMNEY_SEND_INVALID_SECTION_INDEX   0xffffu
+#define NVSP_1_CHIMNEY_SEND_INVALID_SECTION_INDEX   0xffffffff
 
 /*
  * NvspMessage2TypeSendChimneyPacket
@@ -842,11 +848,11 @@ typedef struct nvsp_msg_ {
  * Defines
  */
 
-#define NETVSC_SEND_BUFFER_SIZE			(64*1024)   /* 64K */
+#define NETVSC_SEND_BUFFER_SIZE			(1024*1024*15)   /* 15M */
 #define NETVSC_SEND_BUFFER_ID			0xface
 
 
-#define NETVSC_RECEIVE_BUFFER_SIZE		(1024*1024) /* 1MB */
+#define NETVSC_RECEIVE_BUFFER_SIZE		(1024*1024*16) /* 16MB */
 
 #define NETVSC_RECEIVE_BUFFER_ID		0xcafe
 
@@ -862,6 +868,8 @@ typedef struct nvsp_msg_ {
  */
 #define NETVSC_MAX_CONFIGURABLE_MTU		(9 * 1024)
 
+#define NETVSC_PACKET_SIZE			PAGE_SIZE
+
 /*
  * Data types
  */
@@ -873,15 +881,14 @@ typedef struct netvsc_dev_ {
 	struct hv_device			*dev;
 	int					num_outstanding_sends;
 
-	/* List of free preallocated NETVSC_PACKET to represent RX packet */
-	STAILQ_HEAD(PQ, netvsc_packet_)		myrx_packet_list;
-	struct mtx				rx_pkt_list_lock;
-
 	/* Send buffer allocated by us but manages by NetVSP */
 	void					*send_buf;
 	uint32_t				send_buf_size;
 	uint32_t				send_buf_gpadl_handle;
 	uint32_t				send_section_size;
+	uint32_t				send_section_count;
+	unsigned long				bitsmap_words;
+	unsigned long				*send_section_bitsmap;
 
 	/* Receive buffer allocated by us but managed by NetVSP */
 	void					*rx_buf;
@@ -903,35 +910,43 @@ typedef struct netvsc_dev_ {
 	hv_bool_uint8_t				destroy;
 	/* Negotiated NVSP version */
 	uint32_t				nvsp_version;
+	
+	uint8_t					callback_buf[NETVSC_PACKET_SIZE]; 
 } netvsc_dev;
 
 
 typedef void (*pfn_on_send_rx_completion)(void *);
 
-#define NETVSC_DEVICE_RING_BUFFER_SIZE   (64 * PAGE_SIZE)
-#define NETVSC_PACKET_MAXPAGE            16
+#define NETVSC_DEVICE_RING_BUFFER_SIZE	(128 * PAGE_SIZE)
+#define NETVSC_PACKET_MAXPAGE		32 
 
 
-typedef struct xfer_page_packet_ {
-	/*
-	 * This needs to be here because the network RX code casts
-	 * an instantiation of this structure to a netvsc_packet.
-	 */
-	STAILQ_ENTRY(netvsc_packet_) mylist_entry;
+#define NETVSC_VLAN_PRIO_MASK		0xe000
+#define NETVSC_VLAN_PRIO_SHIFT		13
+#define NETVSC_VLAN_VID_MASK		0x0fff
 
-	uint32_t count;
-} xfer_page_packet;
+#define TYPE_IPV4			2
+#define TYPE_IPV6			4
+#define TYPE_TCP			2
+#define TYPE_UDP			4
+
+#define TRANSPORT_TYPE_NOT_IP		0
+#define TRANSPORT_TYPE_IPV4_TCP		((TYPE_IPV4 << 16) | TYPE_TCP)
+#define TRANSPORT_TYPE_IPV4_UDP		((TYPE_IPV4 << 16) | TYPE_UDP)
+#define TRANSPORT_TYPE_IPV6_TCP		((TYPE_IPV6 << 16) | TYPE_TCP)
+#define TRANSPORT_TYPE_IPV6_UDP		((TYPE_IPV6 << 16) | TYPE_UDP)
+
+#ifdef __LP64__
+#define BITS_PER_LONG 64
+#else
+#define BITS_PER_LONG 32
+#endif
 
 typedef struct netvsc_packet_ {
-	/*
-	 * List used when enqueued on &net_dev->rx_packet_list,
-	 * and when enqueued within the netvsc code
-	 */
-	STAILQ_ENTRY(netvsc_packet_) mylist_entry;
 	struct hv_device           *device;
 	hv_bool_uint8_t            is_data_pkt;      /* One byte */
 	uint16_t		   vlan_tci;
-	xfer_page_packet           *xfer_page_pkt;
+	uint32_t status;
 
 	/* Completion */
 	union {
@@ -948,9 +963,12 @@ typedef struct netvsc_packet_ {
 			pfn_on_send_rx_completion   on_send_completion;
 		} send;
 	} compl;
+	uint32_t	send_buf_section_idx;
+	uint32_t	send_buf_section_size;
 
-	void		*extension;
+	void		*rndis_mesg;
 	uint32_t	tot_data_buf_len;
+	void		*data;
 	uint32_t	page_buf_count;
 	hv_vmbus_page_buffer	page_buffers[NETVSC_PACKET_MAXPAGE];
 } netvsc_packet;
@@ -983,16 +1001,16 @@ typedef struct hn_softc {
  */
 extern int hv_promisc_mode;
 
-extern void netvsc_linkstatus_callback(struct hv_device *device_obj,
-				       uint32_t status);
-extern int  netvsc_recv(struct hv_device *device_obj, netvsc_packet *packet);
-extern void netvsc_xmit_completion(void *context);
-
-extern void hv_nv_on_receive_completion(void *context);
-extern netvsc_dev *hv_nv_on_device_add(struct hv_device *device, void *additional_info);
-extern int  hv_nv_on_device_remove(struct hv_device *device,
-				   boolean_t destroy_channel);
-extern int  hv_nv_on_send(struct hv_device *device, netvsc_packet *pkt);
+void netvsc_linkstatus_callback(struct hv_device *device_obj, uint32_t status);
+void netvsc_xmit_completion(void *context);
+void hv_nv_on_receive_completion(struct hv_device *device,
+    uint64_t tid, uint32_t status);
+netvsc_dev *hv_nv_on_device_add(struct hv_device *device,
+    void *additional_info);
+int hv_nv_on_device_remove(struct hv_device *device,
+    boolean_t destroy_channel);
+int hv_nv_on_send(struct hv_device *device, netvsc_packet *pkt);
+int hv_nv_get_next_send_section(netvsc_dev *net_dev);
 
 #endif  /* __HV_NET_VSC_H__ */
 

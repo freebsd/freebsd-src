@@ -10805,7 +10805,7 @@ bwn_rfswitch(void *arg)
 	KASSERT(mac->mac_status >= BWN_MAC_STATUS_STARTED,
 	    ("%s: invalid MAC status %d", __func__, mac->mac_status));
 
-	if (mac->mac_phy.rf_rev >= 3 || mac->mac_phy.type == BWN_PHYTYPE_LP) {
+	if (mac->mac_phy.rev >= 3 || mac->mac_phy.type == BWN_PHYTYPE_LP) {
 		if (!(BWN_READ_4(mac, BWN_RF_HWENABLED_HI)
 			& BWN_RF_HWENABLED_HI_MASK))
 			cur = 1;

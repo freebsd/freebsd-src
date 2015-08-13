@@ -709,6 +709,7 @@ options 	ALTQ_CBQ	# Class Based Queueing
 options 	ALTQ_RED	# Random Early Detection
 options 	ALTQ_RIO	# RED In/Out
 options 	ALTQ_HFSC	# Hierarchical Packet Scheduler
+options		ALTQ_FAIRQ	# Fair Packet Scheduler
 options 	ALTQ_CDNR	# Traffic conditioner
 options 	ALTQ_PRIQ	# Priority Queueing
 options 	ALTQ_NOPCC	# Required if the TSC is unusable
@@ -996,8 +997,7 @@ options 	ACCEPT_FILTER_HTTP
 # carried in TCP option 19. This option is commonly used to protect
 # TCP sessions (e.g. BGP) where IPSEC is not available nor desirable.
 # This is enabled on a per-socket basis using the TCP_MD5SIG socket option.
-# This requires the use of 'device crypto', 'options IPSEC'
-# or 'device cryptodev'.
+# This requires the use of 'device crypto' and 'options IPSEC'.
 options 	TCP_SIGNATURE		#include support for RFC 2385
 
 # DUMMYNET enables the "dummynet" bandwidth limiter.  You need IPFIREWALL
@@ -2816,6 +2816,10 @@ options 	DCONS_FORCE_GDB=1	# force to be the gdb device
 # been fed back to OpenBSD.
 
 device		crypto		# core crypto support
+
+# Only install the cryptodev device if you are running tests, or know
+# specifically why you need it.  In most cases, it is not needed and
+# will make things slower.
 device		cryptodev	# /dev/crypto for access to h/w
 
 device		rndtest		# FIPS 140-2 entropy tester
@@ -2977,9 +2981,11 @@ options 	MAXFILES=999
 
 # Random number generator
 # Only ONE of the below two may be used; they are mutually exclusive.
-options 	RANDOM_YARROW	# Yarrow CSPRNG (Default)
-#options 	RANDOM_FORTUNA	# Fortuna CSPRNG
-options 	RANDOM_DEBUG	# Debugging messages
+# If neither is present, then the Fortuna algorithm is used.
+options 	RANDOM_YARROW	# Yarrow CSPRNG (old default)
+#options 	RANDOM_DUMMY	# Dummy CSPRNG that always blocks
+# For developers.
+options 	RANDOM_DEBUG	# Extra debugging messages
 
 # Module to enable execution of application via emulators like QEMU
 options         IMAGACT_BINMISC

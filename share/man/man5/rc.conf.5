@@ -3995,27 +3995,11 @@ set from
 .Va jail_ Ns Ao Ar jname Ac Ns Va _sysvipc_allow
 .El
 .\" -----------------------------------------------------
-.It Va harvest_interrupt
-.Pq Vt bool
-Set to
-.Dq Li YES
-to use hardware interrupts as an entropy source.
-Refer to
-.Xr random 4
-for more information.
-.It Va harvest_ethernet
-.Pq Vt bool
-Set to
-.Dq Li YES
-to use LAN traffic as an entropy source.
-Refer to
-.Xr random 4
-for more information.
-.It Va harvest_p_to_p
-.Pq Vt bool
-Set to
-.Dq Li YES
-to use serial line traffic as an entropy source.
+.It Va harvest_mask
+.Pq Vt int
+Set to a bit-mask
+representing the entropy sources
+you wish to harvest.
 Refer to
 .Xr random 4
 for more information.
@@ -4025,17 +4009,54 @@ Set to
 .Dq Li NO
 to disable caching entropy via
 .Xr cron 8 .
-Otherwise set to the directory used to store entropy files in.
+Otherwise set to the directory
+in which the entropy files are stored.
+To be useful,
+there must be
+a system cron job
+that regularly writes and rotates
+files here.
+All files found
+will be used at boot time.
+The default is
+.Pa /var/db/entropy .
 .It Va entropy_file
 .Pq Vt str
 Set to
 .Dq Li NO
 to disable caching entropy through reboots.
-Otherwise set to the filename used to store cached entropy through
-reboots.
-This file should be located on the root file system to seed the
-.Xr random 4
-device as early as possible in the boot process.
+Otherwise set to the name
+of a file used to store cached entropy.
+This file should be located
+on a file system that is readable
+before all the volumes specified in
+.Xr fstab 5
+are mounted.
+By default,
+.Pa /entropy
+is used,
+but if
+.Pa /var/db/entropy-file
+is found it will also be used.
+This will be of some use to
+.Xr bsdinstall 8 .
+.It Va entropy_boot_file
+.Pq Vt str
+Set to
+.Dq Li NO
+to disable
+very early caching entropy
+through reboots.
+Otherwise set to the filename
+used to read
+very early reboot cached entropy.
+This file should be located where
+.Xr loader 8
+can read it.
+See also
+.Xr loader.conf 5 .
+The default location is
+.Pa /boot/entropy .
 .It Va entropy_save_sz
 .Pq Vt int
 Size of the entropy cache files saved by
@@ -4478,6 +4499,7 @@ The default value is an empty string.
 .Xr ipf 5 ,
 .Xr ipnat 5 ,
 .Xr jail.conf 5 ,
+.Xr loader.conf 5 ,
 .Xr motd 5 ,
 .Xr newsyslog.conf 5 ,
 .Xr pf.conf 5 ,
@@ -4486,6 +4508,7 @@ The default value is an empty string.
 .Xr amd 8 ,
 .Xr apm 8 ,
 .Xr atm 8 ,
+.Xr bsdinstall 8 ,
 .Xr bthidd 8 ,
 .Xr chkprintcap 8 ,
 .Xr chown 8 ,
@@ -4503,6 +4526,7 @@ The default value is an empty string.
 .Xr ipnat 8 ,
 .Xr jail 8 ,
 .Xr kldxref 8 ,
+.Xr loader 8 ,
 .Xr lpd 8 ,
 .Xr mdconfig 8 ,
 .Xr mdmfs 8 ,

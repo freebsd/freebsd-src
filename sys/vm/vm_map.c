@@ -2591,7 +2591,7 @@ vm_map_wire(vm_map_t map, vm_offset_t start, vm_offset_t end,
 				 * it into the physical map.
 				 */
 				if ((rv = vm_fault(map, faddr, VM_PROT_NONE,
-				    VM_FAULT_CHANGE_WIRING)) != KERN_SUCCESS)
+				    VM_FAULT_WIRE)) != KERN_SUCCESS)
 					break;
 			} while ((faddr += PAGE_SIZE) < saved_end);
 			vm_map_lock(map);
@@ -3640,7 +3640,8 @@ Retry:
 		return (KERN_NO_SPACE);
 	}
 
-	is_procstack = (addr >= (vm_offset_t)vm->vm_maxsaddr) ? 1 : 0;
+	is_procstack = (addr >= (vm_offset_t)vm->vm_maxsaddr &&
+	    addr < (vm_offset_t)p->p_sysent->sv_usrstack) ? 1 : 0;
 
 	/*
 	 * If this is the main process stack, see if we're over the stack

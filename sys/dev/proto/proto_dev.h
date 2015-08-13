@@ -47,6 +47,11 @@ struct proto_ioc_busdma {
 #define	PROTO_IOC_BUSDMA_TAG_DESTROY	3
 #define	PROTO_IOC_BUSDMA_MEM_ALLOC	10
 #define	PROTO_IOC_BUSDMA_MEM_FREE	11
+#define	PROTO_IOC_BUSDMA_MD_CREATE	20
+#define	PROTO_IOC_BUSDMA_MD_DESTROY	21
+#define	PROTO_IOC_BUSDMA_MD_LOAD	22
+#define	PROTO_IOC_BUSDMA_MD_UNLOAD	29
+#define	PROTO_IOC_BUSDMA_SYNC		30
 	unsigned long	key;
 	union {
 		struct {
@@ -62,11 +67,18 @@ struct proto_ioc_busdma {
 		struct {
 			unsigned long	tag;
 			unsigned int	flags;
+			unsigned long	virt_addr;
+			unsigned long	virt_size;
 			unsigned int	phys_nsegs;
 			unsigned long	phys_addr;
 			unsigned long	bus_addr;
 			unsigned int	bus_nsegs;
-		} mem;
+		} md;
+		struct {
+			unsigned int	op;
+			unsigned long	base;
+			unsigned long	size;
+		} sync;
 	} u;
 	unsigned long	result;
 };

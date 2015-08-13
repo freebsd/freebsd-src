@@ -97,6 +97,28 @@
  *
  *      The type of the backing device/object.
  *
+ *
+ * direct-io-safe
+ *      Values:         0/1 (boolean)
+ *      Default Value:  0
+ *
+ *      The underlying storage is not affected by the direct IO memory
+ *      lifetime bug.  See:
+ *        http://lists.xen.org/archives/html/xen-devel/2012-12/msg01154.html
+ *
+ *      Therefore this option gives the backend permission to use
+ *      O_DIRECT, notwithstanding that bug.
+ *
+ *      That is, if this option is enabled, use of O_DIRECT is safe,
+ *      in circumstances where we would normally have avoided it as a
+ *      workaround for that bug.  This option is not relevant for all
+ *      backends, and even not necessarily supported for those for
+ *      which it is relevant.  A backend which knows that it is not
+ *      affected by the bug can ignore this option.
+ *
+ *      This option doesn't require a backend to use O_DIRECT, so it
+ *      should not be used to try to control the caching behaviour.
+ *
  *--------------------------------- Features ---------------------------------
  *
  * feature-barrier
@@ -126,6 +148,34 @@
  *      of this type may still be returned at any time with the
  *      BLKIF_RSP_EOPNOTSUPP result code.
  *
+ * feature-persistent
+ *      Values:         0/1 (boolean)
+ *      Default Value:  0
+ *      Notes: 7
+ *
+ *      A value of "1" indicates that the backend can keep the grants used
+ *      by the frontend driver mapped, so the same set of grants should be
+ *      used in all transactions. The maximum number of grants the backend
+ *      can map persistently depends on the implementation, but ideally it
+ *      should be RING_SIZE * BLKIF_MAX_SEGMENTS_PER_REQUEST. Using this
+ *      feature the backend doesn't need to unmap each grant, preventing
+ *      costly TLB flushes. The backend driver should only map grants
+ *      persistently if the frontend supports it. If a backend driver chooses
+ *      to use the persistent protocol when the frontend doesn't support it,
+ *      it will probably hit the maximum number of persistently mapped grants
+ *      (due to the fact that the frontend won't be reusing the same grants),
+ *      and fall back to non-persistent mode. Backend implementations may
+ *      shrink or expand the number of persistently mapped grants without
+ *      notifying the frontend depending on memory constraints (this might
+ *      cause a performance degradation).
+ *
+ *      If a backend driver wants to limit the maximum number of persistently
+ *      mapped grants to a value less than RING_SIZE *
+ *      BLKIF_MAX_SEGMENTS_PER_REQUEST a LRU strategy should be used to
+ *      discard the grants that are less commonly used. Using a LRU in the
+ *      backend driver paired with a LIFO queue in the frontend will
+ *      allow us to have better performance in this scenario.
+ *
  *----------------------- Request Transport Parameters ------------------------
  *
  * max-ring-page-order
@@ -147,6 +197,16 @@
  *
  *------------------------- Backend Device Properties -------------------------
  *
+ * discard-enable
+ *      Values:         0/1 (boolean)
+ *      Default Value:  1
+ *
+ *      This optional property, set by the toolstack, instructs the backend
+ *      to offer discard to the frontend. If the property is missing the
+ *      backend should offer discard if the backing storage actually supports
+ *      it. This optional property, set by the toolstack, requests that the
+ *      backend offer, or not offer, discard to the frontend.
+ *
  * discard-alignment
  *      Values:         <uint32_t>
  *      Default Value:  0
@@ -166,6 +226,7 @@
  * discard-secure
  *      Values:         0/1 (boolean)
  *      Default Value:  0
+ *      Notes:          10
  *
  *      A value of "1" indicates that the backend can process BLKIF_OP_DISCARD
  *      requests with the BLKIF_DISCARD_SECURE flag set.
@@ -180,13 +241,17 @@
  * sector-size
  *      Values:         <uint32_t>
  *
- *      The size, in bytes, of the individually addressible data blocks
- *      on the backend device.
+ *      The logical sector size, in bytes, of the backend device.
+ *
+ * physical-sector-size
+ *      Values:         <uint32_t>
+ *
+ *      The physical sector size, in bytes, of the backend device.
  *
  * sectors
  *      Values:         <uint64_t>
  *
- *      The size of the backend device, expressed in units of its native
+ *      The size of the backend device, expressed in units of its logical
  *      sector size ("sector-size").
  *
  *****************************************************************************
@@ -243,6 +308,27 @@
  *      The size of the frontend allocated request ring buffer in units of
  *      machine pages.  The value must be a power of 2.
  *
+ * feature-persistent
+ *      Values:         0/1 (boolean)
+ *      Default Value:  0
+ *      Notes: 7, 8, 9
+ *
+ *      A value of "1" indicates that the frontend will reuse the same grants
+ *      for all transactions, allowing the backend to map them with write
+ *      access (even when it should be read-only). If the frontend hits the
+ *      maximum number of allowed persistently mapped grants, it can fallback
+ *      to non persistent mode. This will cause a performance degradation,
+ *      since the the backend driver will still try to map those grants
+ *      persistently. Since the persistent grants protocol is compatible with
+ *      the previous protocol, a frontend driver can choose to work in
+ *      persistent mode even when the backend doesn't support it.
+ *
+ *      It is recommended that the frontend driver stores the persistently
+ *      mapped grants in a LIFO queue, so a subset of all persistently mapped
+ *      grants gets used commonly. This is done in case the backend driver
+ *      decides to limit the maximum number of persistently mapped grants
+ *      to a value less than RING_SIZE * BLKIF_MAX_SEGMENTS_PER_REQUEST.
+ *
  *------------------------- Virtual Device Properties -------------------------
  *
  * device-type
@@ -262,17 +348,23 @@
  * -----
  * (1) Multi-page ring buffer scheme first developed in the Citrix XenServer
  *     PV drivers.
- * (2) Multi-page ring buffer scheme first used in some Red Hat distributions
+ * (2) Multi-page ring buffer scheme first used in some RedHat distributions
  *     including a distribution deployed on certain nodes of the Amazon
  *     EC2 cluster.
  * (3) Support for multi-page ring buffers was implemented independently,
- *     in slightly different forms, by both Citrix and Red Hat/Amazon.
+ *     in slightly different forms, by both Citrix and RedHat/Amazon.
  *     For full interoperability, block front and backends should publish
  *     identical ring parameters, adjusted for unit differences, to the
  *     XenStore nodes used in both schemes.
- * (4) Devices that support discard functionality may internally allocate
- *     space (discardable extents) in units that are larger than the
- *     exported logical block size.
+ * (4) Devices that support discard functionality may internally allocate space
+ *     (discardable extents) in units that are larger than the exported logical
+ *     block size. If the backing device has such discardable extents the
+ *     backend should provide both discard-granularity and discard-alignment.
+ *     Providing just one of the two may be considered an error by the frontend.
+ *     Backends supporting discard should include discard-granularity and
+ *     discard-alignment even if it supports discarding individual sectors.
+ *     Frontends should assume discard-alignment == 0 and discard-granularity
+ *     == sector size if these keys are missing.
  * (5) The discard-alignment parameter allows a physical device to be
  *     partitioned into virtual devices that do not necessarily begin or
  *     end on a discardable extent boundary.
@@ -280,6 +372,19 @@
  *     'ring-ref' is used to communicate the grant reference for this
  *     page to the backend.  When using a multi-page ring, the 'ring-ref'
  *     node is not created.  Instead 'ring-ref0' - 'ring-refN' are used.
+ * (7) When using persistent grants data has to be copied from/to the page
+ *     where the grant is currently mapped. The overhead of doing this copy
+ *     however doesn't suppress the speed improvement of not having to unmap
+ *     the grants.
+ * (8) The frontend driver has to allow the backend driver to map all grants
+ *     with write access, even when they should be mapped read-only, since
+ *     further requests may reuse these grants and require write permissions.
+ * (9) Linux implementation doesn't have a limit on the maximum number of
+ *     grants that can be persistently mapped in the frontend driver, but
+ *     due to the frontent driver implementation it should never be bigger
+ *     than RING_SIZE * BLKIF_MAX_SEGMENTS_PER_REQUEST.
+ *(10) The discard-secure property may be present and will be set to 1 if the
+ *     backing device supports secure discard.
  */
 
 /*
@@ -404,6 +509,30 @@
 #define BLKIF_OP_DISCARD           5
 
 /*
+ * Recognized if "feature-max-indirect-segments" in present in the backend
+ * xenbus info. The "feature-max-indirect-segments" node contains the maximum
+ * number of segments allowed by the backend per request. If the node is
+ * present, the frontend might use blkif_request_indirect structs in order to
+ * issue requests with more than BLKIF_MAX_SEGMENTS_PER_REQUEST (11). The
+ * maximum number of indirect segments is fixed by the backend, but the
+ * frontend can issue requests with any number of indirect segments as long as
+ * it's less than the number provided by the backend. The indirect_grefs field
+ * in blkif_request_indirect should be filled by the frontend with the
+ * grant references of the pages that are holding the indirect segments.
+ * These pages are filled with an array of blkif_request_segment that hold the
+ * information about the segments. The number of indirect pages to use is
+ * determined by the number of segments an indirect request contains. Every
+ * indirect page can contain a maximum of
+ * (PAGE_SIZE / sizeof(struct blkif_request_segment)) segments, so to
+ * calculate the number of indirect pages to use we have to do
+ * ceil(indirect_segments / (PAGE_SIZE / sizeof(struct blkif_request_segment))).
+ *
+ * If a backend does not recognize BLKIF_OP_INDIRECT, it should *not*
+ * create the "feature-max-indirect-segments" node!
+ */
+#define BLKIF_OP_INDIRECT          6
+
+/*
  * Maximum scatter/gather segments per request.
  * This is carefully chosen so that sizeof(blkif_ring_t) <= PAGE_SIZE.
  * NB. This could be 12 if the ring indexes weren't stored in the same page.
@@ -411,11 +540,17 @@
 #define BLKIF_MAX_SEGMENTS_PER_REQUEST 11
 
 /*
+ * Maximum number of indirect pages to use per request.
+ */
+#define BLKIF_MAX_INDIRECT_PAGES_PER_REQUEST 8
+
+/*
  * NB. first_sect and last_sect in blkif_request_segment, as well as
  * sector_number in blkif_request, are always expressed in 512-byte units.
  * However they must be properly aligned to the real sector size of the
- * physical disk, which is reported in the "sector-size" node in the backend
- * xenbus info. Also the xenbus "sectors" node is expressed in 512-byte units.
+ * physical disk, which is reported in the "physical-sector-size" node in
+ * the backend xenbus info. Also the xenbus "sectors" node is expressed in
+ * 512-byte units.
  */
 struct blkif_request_segment {
     grant_ref_t gref;        /* reference to I/O buffer frame        */
@@ -453,6 +588,20 @@ struct blkif_request_discard {
 };
 typedef struct blkif_request_discard blkif_request_discard_t;
 
+struct blkif_request_indirect {
+    uint8_t        operation;    /* BLKIF_OP_INDIRECT                    */
+    uint8_t        indirect_op;  /* BLKIF_OP_{READ/WRITE}                */
+    uint16_t       nr_segments;  /* number of segments                   */
+    uint64_t       id;           /* private guest value, echoed in resp  */
+    blkif_sector_t sector_number;/* start sector idx on disk (r/w only)  */
+    blkif_vdev_t   handle;       /* same as for read/write requests      */
+    grant_ref_t    indirect_grefs[BLKIF_MAX_INDIRECT_PAGES_PER_REQUEST];
+#ifdef __i386__
+    uint64_t       pad;          /* Make it 64 byte aligned on i386      */
+#endif
+};
+typedef struct blkif_request_indirect blkif_request_indirect_t;
+
 struct blkif_response {
     uint64_t        id;              /* copied from request */
     uint8_t         operation;       /* copied from request */
@@ -484,7 +633,7 @@ DEFINE_RING_TYPES(blkif, struct blkif_request, struct blkif_response);
 /*
  * Local variables:
  * mode: C
- * c-set-style: "BSD"
+ * c-file-style: "BSD"
  * c-basic-offset: 4
  * tab-width: 4
  * indent-tabs-mode: nil

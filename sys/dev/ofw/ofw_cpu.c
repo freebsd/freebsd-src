@@ -281,11 +281,13 @@ ofw_cpu_early_foreach(ofw_cpu_foreach_cb callback, boolean_t only_runnable)
 	phandle_t node, child;
 	pcell_t addr_cells, reg[2];
 	char status[16];
-	u_int id;
+	char device_type[16];
+	u_int id, next_id;
 	int count, rv;
 
 	count = 0;
 	id = 0;
+	next_id = 0;
 
 	node = OF_finddevice("/cpus");
 	if (node == -1)
@@ -296,7 +298,21 @@ ofw_cpu_early_foreach(ofw_cpu_foreach_cb callback, boolean_t only_runnable)
 	    sizeof(addr_cells)) < 0)
 		return (-1);
 
-	for (child = OF_child(node); child != 0; child = OF_peer(child), id++) {
+	for (child = OF_child(node); child != 0; child = OF_peer(child),
+	    id = next_id) {
+
+		/* Check if child is a CPU */
+		memset(device_type, 0, sizeof(device_type));
+		rv = OF_getprop(child, "device_type", device_type,
+		    sizeof(device_type) - 1);
+		if (rv < 0)
+			continue;
+		if (strcmp(device_type, "cpu") != 0)
+			continue;
+
+		/* We're processing CPU, update next_id used in the next iteration */
+		next_id++;
+
 		/*
 		 * If we are filtering by runnable then limit to only
 		 * those that have been enabled.

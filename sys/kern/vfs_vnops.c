@@ -116,6 +116,9 @@ static const int io_hold_cnt = 16;
 static int vn_io_fault_enable = 1;
 SYSCTL_INT(_debug, OID_AUTO, vn_io_fault_enable, CTLFLAG_RW,
     &vn_io_fault_enable, 0, "Enable vn_io_fault lock avoidance");
+static int vn_io_fault_prefault = 0;
+SYSCTL_INT(_debug, OID_AUTO, vn_io_fault_prefault, CTLFLAG_RW,
+    &vn_io_fault_prefault, 0, "Enable vn_io_fault prefaulting");
 static u_long vn_io_faults_cnt;
 SYSCTL_ULONG(_debug, OID_AUTO, vn_io_faults, CTLFLAG_RD,
     &vn_io_faults_cnt, 0, "Count of vn_io_fault lock avoidance triggers");
@@ -1020,6 +1023,59 @@ vn_io_fault_doio(struct vn_io_fault_args *args, struct uio *uio,
 	    uio->uio_rw);
 }
 
+static int
+vn_io_fault_touch(char *base, const struct uio *uio)
+{
+	int r;
+
+	r = fubyte(base);
+	if (r == -1 || (uio->uio_rw == UIO_READ && subyte(base, r) == -1))
+		return (EFAULT);
+	return (0);
+}
+
+static int
+vn_io_fault_prefault_user(const struct uio *uio)
+{
+	char *base;
+	const struct iovec *iov;
+	size_t len;
+	ssize_t resid;
+	int error, i;
+
+	KASSERT(uio->uio_segflg == UIO_USERSPACE,
+	    ("vn_io_fault_prefault userspace"));
+
+	error = i = 0;
+	iov = uio->uio_iov;
+	resid = uio->uio_resid;
+	base = iov->iov_base;
+	len = iov->iov_len;
+	while (resid > 0) {
+		error = vn_io_fault_touch(base, uio);
+		if (error != 0)
+			break;
+		if (len < PAGE_SIZE) {
+			if (len != 0) {
+				error = vn_io_fault_touch(base + len - 1, uio);
+				if (error != 0)
+					break;
+				resid -= len;
+			}
+			if (++i >= uio->uio_iovcnt)
+				break;
+			iov = uio->uio_iov + i;
+			base = iov->iov_base;
+			len = iov->iov_len;
+		} else {
+			len -= PAGE_SIZE;
+			base += PAGE_SIZE;
+			resid -= PAGE_SIZE;
+		}
+	}
+	return (error);
+}
+
 /*
  * Common code for vn_io_fault(), agnostic to the kind of i/o request.
  * Uses vn_io_fault_doio() to make the call to an actual i/o function.
@@ -1040,6 +1096,12 @@ vn_io_fault1(struct vnode *vp, struct uio *uio, struct vn_io_fault_args *args,
 	size_t len, resid;
 	ssize_t adv;
 	int error, cnt, save, saveheld, prev_td_ma_cnt;
+
+	if (vn_io_fault_prefault) {
+		error = vn_io_fault_prefault_user(uio);
+		if (error != 0)
+			return (error); /* Or ignore ? */
+	}
 
 	prot = uio->uio_rw == UIO_READ ? VM_PROT_WRITE : VM_PROT_READ;
 
@@ -1589,22 +1651,10 @@ vn_closefile(fp, td)
 }
 
 static bool
-vn_suspendable_mp(struct mount *mp)
+vn_suspendable(struct mount *mp)
 {
 
-	return ((mp->mnt_kern_flag & MNTK_SUSPENDABLE) != 0);
-}
-
-static bool
-vn_suspendable(struct vnode *vp, struct mount **mpp)
-{
-
-	if (vp != NULL)
-		*mpp = vp->v_mount;
-	if (*mpp == NULL)
-		return (false);
-
-	return (vn_suspendable_mp(*mpp));
+	return (mp->mnt_op->vfs_susp_clean != NULL);
 }
 
 /*
@@ -1657,11 +1707,6 @@ vn_start_write(struct vnode *vp, struct mount **mpp, int flags)
 
 	KASSERT((flags & V_MNTREF) == 0 || (*mpp != NULL && vp == NULL),
 	    ("V_MNTREF requires mp"));
-	if (!vn_suspendable(vp, mpp)) {
-		if ((flags & V_MNTREF) != 0)
-			vfs_rel(*mpp);
-		return (0);
-	}
 
 	error = 0;
 	/*
@@ -1678,6 +1723,12 @@ vn_start_write(struct vnode *vp, struct mount **mpp, int flags)
 	}
 	if ((mp = *mpp) == NULL)
 		return (0);
+
+	if (!vn_suspendable(mp)) {
+		if (vp != NULL || (flags & V_MNTREF) != 0)
+			vfs_rel(mp);
+		return (0);
+	}
 
 	/*
 	 * VOP_GETWRITEMOUNT() returns with the mp refcount held through
@@ -1708,11 +1759,6 @@ vn_start_secondary_write(struct vnode *vp, struct mount **mpp, int flags)
 
 	KASSERT((flags & V_MNTREF) == 0 || (*mpp != NULL && vp == NULL),
 	    ("V_MNTREF requires mp"));
-	if (!vn_suspendable(vp, mpp)) {
-		if ((flags & V_MNTREF) != 0)
-			vfs_rel(*mpp);
-		return (0);
-	}
 
  retry:
 	if (vp != NULL) {
@@ -1729,6 +1775,12 @@ vn_start_secondary_write(struct vnode *vp, struct mount **mpp, int flags)
 	 */
 	if ((mp = *mpp) == NULL)
 		return (0);
+
+	if (!vn_suspendable(mp)) {
+		if (vp != NULL || (flags & V_MNTREF) != 0)
+			vfs_rel(mp);
+		return (0);
+	}
 
 	/*
 	 * VOP_GETWRITEMOUNT() returns with the mp refcount held through
@@ -1772,7 +1824,7 @@ void
 vn_finished_write(mp)
 	struct mount *mp;
 {
-	if (mp == NULL || !vn_suspendable_mp(mp))
+	if (mp == NULL || !vn_suspendable(mp))
 		return;
 	MNT_ILOCK(mp);
 	MNT_REL(mp);
@@ -1795,7 +1847,7 @@ void
 vn_finished_secondary_write(mp)
 	struct mount *mp;
 {
-	if (mp == NULL || !vn_suspendable_mp(mp))
+	if (mp == NULL || !vn_suspendable(mp))
 		return;
 	MNT_ILOCK(mp);
 	MNT_REL(mp);
@@ -1818,7 +1870,7 @@ vfs_write_suspend(struct mount *mp, int flags)
 {
 	int error;
 
-	MPASS(vn_suspendable_mp(mp));
+	MPASS(vn_suspendable(mp));
 
 	MNT_ILOCK(mp);
 	if (mp->mnt_susp_owner == curthread) {
@@ -1861,7 +1913,7 @@ void
 vfs_write_resume(struct mount *mp, int flags)
 {
 
-	MPASS(vn_suspendable_mp(mp));
+	MPASS(vn_suspendable(mp));
 
 	MNT_ILOCK(mp);
 	if ((mp->mnt_kern_flag & MNTK_SUSPEND) != 0) {
@@ -1896,7 +1948,7 @@ vfs_write_suspend_umnt(struct mount *mp)
 {
 	int error;
 
-	MPASS(vn_suspendable_mp(mp));
+	MPASS(vn_suspendable(mp));
 	KASSERT((curthread->td_pflags & TDP_IGNSUSP) == 0,
 	    ("vfs_write_suspend_umnt: recursed"));
 

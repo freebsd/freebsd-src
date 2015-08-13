@@ -30,13 +30,13 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/nv.h>
+
 #include <assert.h>
 #include <netdb.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-
-#include <nv.h>
 
 #include "libcapsicum.h"
 #include "libcapsicum_dns.h"

@@ -173,7 +173,7 @@ uint32_t *bootinfo;
 
 void print_kernel_section_addr(void);
 void print_kenv(void);
-u_int booke_init(uint32_t, uint32_t);
+uintptr_t booke_init(uint32_t, uint32_t);
 void ivor_setup(void);
 
 extern void *interrupt_vector_base;

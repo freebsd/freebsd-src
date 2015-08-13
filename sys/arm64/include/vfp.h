@@ -38,7 +38,7 @@
 void	vfp_init(void);
 void	vfp_discard(struct thread *);
 void	vfp_restore_state(void);
-void	vfp_save_state(struct thread *);
+void	vfp_save_state(struct thread *, struct pcb *);
 #endif
 
 #endif

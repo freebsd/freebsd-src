@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2014 Qlogic Corporation
+ * Copyright (c) 2013-2016 Qlogic Corporation
  * All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -54,13 +54,17 @@ extern int ql_alloc_dma(qla_host_t *ha);
 extern void ql_free_dma(qla_host_t *ha);
 extern void ql_hw_add_sysctls(qla_host_t *ha);
 extern int ql_hw_send(qla_host_t *ha, bus_dma_segment_t *segs, int nsegs,
-		uint32_t tx_idx, struct mbuf *mp, uint32_t txr_idx);
+                uint32_t tx_idx, struct mbuf *mp, uint32_t txr_idx,
+		uint32_t iscsi_pdu);
+extern void qla_confirm_9kb_enable(qla_host_t *ha);
 extern int ql_init_hw_if(qla_host_t *ha);
 extern int ql_hw_set_multi(qla_host_t *ha, uint8_t *mta, uint32_t mcnt,
 		uint32_t add_multi);
 extern void ql_del_hw_if(qla_host_t *ha);
 extern int ql_set_promisc(qla_host_t *ha);
+extern void qla_reset_promisc(qla_host_t *ha);
 extern int ql_set_allmulti(qla_host_t *ha);
+extern void qla_reset_allmulti(qla_host_t *ha);
 extern void ql_update_link_state(qla_host_t *ha);
 extern void ql_hw_tx_done(qla_host_t *ha);
 extern int ql_set_max_mtu(qla_host_t *ha, uint32_t mtu, uint16_t cntxt_id);
@@ -68,6 +72,12 @@ extern void ql_hw_stop_rcv(qla_host_t *ha);
 extern void ql_get_stats(qla_host_t *ha);
 extern void ql_hw_link_status(qla_host_t *ha);
 extern int ql_hw_check_health(qla_host_t *ha);
+extern void qla_hw_async_event(qla_host_t *ha);
+extern int qla_get_nic_partition(qla_host_t *ha, uint32_t *supports_9kb,
+		uint32_t *num_rcvq);
+
+extern int qla_iscsi_pdu(qla_host_t *ha, struct mbuf *mp);
+
 extern void ql_minidump(qla_host_t *ha);
 
 /*
@@ -91,5 +101,14 @@ extern int ql_start_sequence(qla_host_t *ha, uint16_t index);
  */
 extern int ql_make_cdev(qla_host_t *ha);
 extern void ql_del_cdev(qla_host_t *ha);
+
+extern unsigned char ql83xx_firmware[];
+extern unsigned int ql83xx_firmware_len;
+extern unsigned char ql83xx_bootloader[];
+extern unsigned int ql83xx_bootloader_len;
+extern unsigned char ql83xx_resetseq[];
+extern unsigned int ql83xx_resetseq_len;
+extern unsigned char ql83xx_minidump[];
+extern unsigned int ql83xx_minidump_len;
 
 #endif /* #ifndef_QL_GLBL_H_ */

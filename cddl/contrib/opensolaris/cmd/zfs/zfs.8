@@ -27,11 +27,11 @@
 .\" Copyright (c) 2013, Steven Hartland <smh@FreeBSD.org>
 .\" Copyright (c) 2014 Nexenta Systems, Inc. All Rights Reserved.
 .\" Copyright (c) 2014, Xin LI <delphij@FreeBSD.org>
-.\" Copyright (c) 2014, The FreeBSD Foundation, All Rights Reserved.
+.\" Copyright (c) 2014-2015, The FreeBSD Foundation, All Rights Reserved.
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 12, 2014
+.Dd July 30, 2015
 .Dt ZFS 8
 .Os
 .Sh NAME
@@ -191,11 +191,13 @@
 .Nm
 .Cm receive Ns | Ns Cm recv
 .Op Fl vnFu
+.Op Fl o Sy origin Ns = Ns Ar snapshot
 .Ar filesystem Ns | Ns Ar volume Ns | Ns Ar snapshot
 .Nm
 .Cm receive Ns | Ns Cm recv
 .Op Fl vnFu
 .Op Fl d | e
+.Op Fl o Sy origin Ns = Ns Ar snapshot
 .Ar filesystem
 .Nm
 .Cm allow
@@ -938,8 +940,24 @@ not be used by any other dataset.
 Disabling checksums is
 .Em NOT
 a recommended practice.
-.It Sy compression Ns = Ns Cm on | off | lzjb | gzip | gzip- Ns Ar N | zle | Cm lz4
-Controls the compression algorithm used for this dataset. The
+.It Sy compression Ns = Ns Cm on | off | lzjb | gzip | gzip- Ns Ar N | Cm zle | Cm lz4
+Controls the compression algorithm used for this dataset.
+Setting compression to
+.Cm on
+indicates that the current default compression algorithm should be used.
+The default balances compression and decompression speed, with compression
+ratio and is expected to work well on a wide variety of workloads.
+Unlike all other settings for this property, on does not select a fixed
+compression type.
+As new compression algorithms are added to ZFS and enabled on a pool, the
+default compression algorithm may change.
+The current default compression algorthm is either
+.Cm lzjb
+or, if the
+.Sy lz4_compress
+feature is enabled,
+.Cm lz4 .
+The
 .Cm lzjb
 compression algorithm is optimized for performance while providing decent data
 compression. Setting compression to
@@ -2689,6 +2707,7 @@ feature.
 .Nm
 .Cm receive Ns | Ns Cm recv
 .Op Fl vnFu
+.Op Fl o Sy origin Ns = Ns Ar snapshot
 .Ar filesystem Ns | Ns Ar volume Ns | Ns Ar snapshot
 .Xc
 .It Xo
@@ -2696,6 +2715,7 @@ feature.
 .Cm receive Ns | Ns Cm recv
 .Op Fl vnFu
 .Op Fl d | e
+.Op Fl o Sy origin Ns = Ns Ar snapshot
 .Ar filesystem
 .Xc
 .Pp
@@ -2780,6 +2800,10 @@ receive operation.
 Do not actually receive the stream. This can be useful in conjunction with the
 .Fl v
 option to verify the name the receive operation would use.
+.It Fl o Sy origin Ns = Ns Ar snapshot
+Forces the stream to be received as a clone of the given snapshot.
+This is only valid if the stream is an incremental stream whose source
+is the same as the provided origin.
 .It Fl F
 Force a rollback of the file system to the most recent snapshot before
 performing the receive operation. If receiving an incremental replication

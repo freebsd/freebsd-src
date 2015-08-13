@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 .macro	save_registers el
 .if \el == 1
 	mov	x18, sp
+	sub	sp, sp, #128
 .endif
 	stp	x28, x29, [sp, #-16]!
 	stp	x26, x27, [sp, #-16]!
@@ -103,7 +104,7 @@ __FBSDID("$FreeBSD$");
 
 	/* Read the current thread flags */
 1:	ldr	x1, [x18, #PC_CURTHREAD]	/* Load curthread */
-	ldr	x2, [x1, #TD_FLAGS]! /* TODO: No need for the ! but clang fails without it */
+	ldr	x2, [x1, #TD_FLAGS]
 
 	/* Check if we have either bits set */
 	mov	x3, #((TDF_ASTPENDING|TDF_NEEDRESCHED) >> 8)

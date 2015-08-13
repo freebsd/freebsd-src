@@ -218,7 +218,7 @@ static const ACPI_DB_COMMAND_INFO   AcpiGbl_DbCommands[] =
     {"TABLES",       0},
     {"TEMPLATE",     1},
     {"TERMINATE",    0},
-    {"TEST",        1},
+    {"TEST",         1},
     {"THREADS",      3},
     {"TRACE",        1},
     {"TREE",         0},
@@ -270,7 +270,7 @@ static const ACPI_DB_COMMAND_HELP   AcpiGbl_DbCommandHelp[] =
     {1, "  Owner <OwnerId> [Depth]",           "Display loaded namespace by object owner\n"},
     {1, "  Paths",                             "Display full pathnames of namespace objects\n"},
     {1, "  Predefined",                        "Check all predefined names\n"},
-    {1, "  Prefix [<NamePath>]",               "Set or Get current execution prefix\n"},
+    {1, "  Prefix [<Namepath>]",               "Set or Get current execution prefix\n"},
     {1, "  References <Addr>",                 "Find all references to object at addr\n"},
     {1, "  Resources [DeviceName]",            "Display Device resources (no arg = all devices)\n"},
     {1, "  Set N <NamedObject> <Value>",       "Set value for named integer\n"},
@@ -297,8 +297,12 @@ static const ACPI_DB_COMMAND_HELP   AcpiGbl_DbCommandHelp[] =
     {1, "  Results",                           "Display method result stack\n"},
     {1, "  Set <A|L> <#> <Value>",             "Set method data (Arguments/Locals)\n"},
     {1, "  Stop",                              "Terminate control method\n"},
-    {1, "  Thread <Threads><Loops><NamePath>", "Spawn threads to execute method(s)\n"},
-    {1, "  Trace <method name>",               "Trace method execution\n"},
+    {1, "  Thread <Threads><Loops><Namepath>", "Spawn threads to execute method(s)\n"},
+    {5, "  Trace <State> [<Namepath>] [Once]", "Trace control method execution\n"},
+    {1, "     Enable",                         "Enable all messages\n"},
+    {1, "     Disable",                        "Disable tracing\n"},
+    {1, "     Method",                         "Enable method execution messages\n"},
+    {1, "     Opcode",                         "Enable opcode execution messages\n"},
     {1, "  Tree",                              "Display control method calling tree\n"},
     {1, "  <Enter>",                           "Single step next AML opcode (over calls)\n"},
 
@@ -749,14 +753,21 @@ AcpiDbCommandDispatch (
         return (AE_CTRL_TERMINATE);
     }
 
-
-    /* Add all commands that come here to the history buffer */
-
-    AcpiDbAddToHistory (InputBuffer);
+    /* Find command and add to the history buffer */
 
     ParamCount = AcpiDbGetLine (InputBuffer);
     CommandIndex = AcpiDbMatchCommand (AcpiGbl_DbArgs[0]);
     Temp = 0;
+
+    /*
+     * We don't want to add the !! command to the history buffer. It
+     * would cause an infinite loop because it would always be the
+     * previous command.
+     */
+    if (CommandIndex != CMD_HISTORY_LAST)
+    {
+        AcpiDbAddToHistory (InputBuffer);
+    }
 
     /* Verify that we have the minimum number of params */
 
@@ -1110,7 +1121,7 @@ AcpiDbCommandDispatch (
 
     case CMD_TRACE:
 
-        (void) AcpiDebugTrace (AcpiGbl_DbArgs[1],0,0,1);
+        AcpiDbTrace (AcpiGbl_DbArgs[1], AcpiGbl_DbArgs[2], AcpiGbl_DbArgs[3]);
         break;
 
     case CMD_TREE:

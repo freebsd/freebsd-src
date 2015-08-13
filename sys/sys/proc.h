@@ -63,6 +63,7 @@
 #endif
 #include <sys/ucontext.h>
 #include <sys/ucred.h>
+#include <sys/_vm_domain.h>
 #include <machine/proc.h>		/* Machine-dependent proc substruct. */
 
 /*
@@ -160,6 +161,7 @@ struct pargs {
  * for write access.
  */
 struct cpuset;
+struct filecaps;
 struct kaioinfo;
 struct kaudit_record;
 struct kdtrace_proc;
@@ -217,6 +219,7 @@ struct thread {
 	struct turnstile *td_turnstile;	/* (k) Associated turnstile. */
 	struct rl_q_entry *td_rlqe;	/* (k) Associated range lock entry. */
 	struct umtx_q   *td_umtxq;	/* (c?) Link for when we're blocked. */
+	struct vm_domain_policy td_vm_dom_policy;	/* (c) current numa domain policy */
 	lwpid_t		td_tid;		/* (b) Thread ID. */
 	sigqueue_t	td_sigqueue;	/* (c) Sigs arrived, not delivered. */
 #define	td_siglist	td_sigqueue.sq_signals
@@ -235,7 +238,7 @@ struct thread {
 	int		td_oncpu;	/* (t) Which cpu we are on. */
 	volatile u_char td_owepreempt;  /* (k*) Preempt on last critical_exit */
 	u_char		td_tsqueue;	/* (t) Turnstile queue blocked on. */
-	short		td_locks;	/* (k) Count of non-spin locks. */
+	short		td_locks;	/* (k) Debug: count of non-spin locks */
 	short		td_rw_rlocks;	/* (k) Count of rwlock read locks. */
 	short		td_lk_slocks;	/* (k) Count of lockmgr shared locks. */
 	short		td_stopsched;	/* (k) Scheduler stopped. */
@@ -348,8 +351,14 @@ do {									\
 	KASSERT((__m == &blocked_lock || __m == (lock)),		\
 	    ("Thread %p lock %p does not match %p", td, __m, (lock)));	\
 } while (0)
+
+#define	TD_LOCKS_INC(td)	((td)->td_locks++)
+#define	TD_LOCKS_DEC(td)	((td)->td_locks--)
 #else
 #define	THREAD_LOCKPTR_ASSERT(td, lock)
+
+#define	TD_LOCKS_INC(td)
+#define	TD_LOCKS_DEC(td)
 #endif
 
 /*
@@ -583,10 +592,10 @@ struct proc {
 	pid_t		p_reapsubtree;	/* (e) Pid of the direct child of the
 					       reaper which spawned
 					       our subtree. */
+	u_int		p_xexit;	/* (c) Exit code. */
+	u_int		p_xsig;		/* (c) Stop/kill sig. */
 /* End area that is copied on creation. */
-#define	p_endcopy	p_xstat
-
-	u_short		p_xstat;	/* (c) Exit status; also stop sig. */
+#define	p_endcopy	p_xsig
 	struct knlist	p_klist;	/* (c) Knotes attached to this proc. */
 	int		p_numthreads;	/* (c) Number of threads. */
 	struct mdproc	p_md;		/* Any machine-dependent fields. */
@@ -606,6 +615,7 @@ struct proc {
 	uint64_t	p_prev_runtime;	/* (c) Resource usage accounting. */
 	struct racct	*p_racct;	/* (b) Resource accounting. */
 	u_char		p_throttled;	/* (c) Flag for racct pcpu throttling */
+	struct vm_domain_policy p_vm_dom_policy;	/* (c) process default VM domain, or -1 */
 	/*
 	 * An orphan is the child that has beed re-parented to the
 	 * debugger as a result of attaching to it.  Need to keep
@@ -913,7 +923,8 @@ int	enterpgrp(struct proc *p, pid_t pgid, struct pgrp *pgrp,
 int	enterthispgrp(struct proc *p, struct pgrp *pgrp);
 void	faultin(struct proc *p);
 void	fixjobc(struct proc *p, struct pgrp *pgrp, int entering);
-int	fork1(struct thread *, int, int, struct proc **, int *, int);
+int	fork1(struct thread *, int, int, struct proc **, int *, int,
+	    struct filecaps *);
 void	fork_exit(void (*)(void *, struct trapframe *), void *,
 	    struct trapframe *);
 void	fork_return(struct thread *, struct trapframe *);
@@ -967,7 +978,7 @@ void	unsleep(struct thread *);
 void	userret(struct thread *, struct trapframe *);
 
 void	cpu_exit(struct thread *);
-void	exit1(struct thread *, int) __dead2;
+void	exit1(struct thread *, int, int) __dead2;
 struct syscall_args;
 int	cpu_fetch_syscall_args(struct thread *td, struct syscall_args *sa);
 void	cpu_fork(struct thread *, struct proc *, struct thread *, int);
@@ -989,6 +1000,8 @@ void	thread_cow_get_proc(struct thread *newtd, struct proc *p);
 void	thread_cow_get(struct thread *newtd, struct thread *td);
 void	thread_cow_free(struct thread *td);
 void	thread_cow_update(struct thread *td);
+int	thread_create(struct thread *td, struct rtprio *rtp,
+	    int (*initialize_thread)(struct thread *, void *), void *thunk);
 void	thread_exit(void) __dead2;
 void	thread_free(struct thread *td);
 void	thread_link(struct thread *td, struct proc *p);

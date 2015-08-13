@@ -318,35 +318,33 @@ which specifies the format of the OID in a symbolic way.
 This format is used as a hint by
 .Xr sysctl 8
 to apply proper data formatting for display purposes.
-Currently used format names are:
-.Dq N
-for node,
-.Dq A
-for
-.Li "char *" ,
-.Dq I
-for
-.Li "int" ,
-.Dq IU
-for
-.Li "unsigned int" ,
-.Dq L
-for
-.Li "long" ,
-.Dq LU
-for
-.Li "unsigned long" ,
-.Dq Q
-for
-.Li "quad_t" ,
-.Dq QU
-for
+.Pp
+Current formats:
+.Bl -tag -width "S,TYPE" -compact -offset indent
+.It Cm N
+node
+.It Cm A
+.Li "char *"
+.It Cm I
+.Li "int"
+.It Cm IK Ns Op Ar n
+temperature in Kelvin, multiplied by an optional single digit
+power of ten scaling factor: 1 (default) gives deciKelvin, 0 gives Kelvin, 3
+gives milliKelvin
+.It Cm IU
+.Li "unsigned int"
+.It Cm L
+.Li "long"
+.It Cm LU
+.Li "unsigned long"
+.It Cm Q
+.Li "quad_t"
+.It Cm QU
 .Li "u_quad_t"
-and
-.Dq S,TYPE
-for
+.It Cm "S,TYPE"
 .Li "struct TYPE"
-structures.
+structures
+.El
 .It Fa descr
 A pointer to a textual description of the OID.
 .El

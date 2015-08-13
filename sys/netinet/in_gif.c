@@ -67,8 +67,6 @@ __FBSDID("$FreeBSD$");
 
 #include <net/if_gif.h>
 
-static int gif_validate4(const struct ip *, struct gif_softc *,
-	struct ifnet *);
 static int in_gif_input(struct mbuf **, int *, int);
 
 extern  struct domain inetdomain;
@@ -163,16 +161,22 @@ in_gif_input(struct mbuf **mp, int *offp, int proto)
 }
 
 /*
- * validate outer address.
+ * we know that we are in IFF_UP, outer address available, and outer family
+ * matched the physical addr family.  see gif_encapcheck().
  */
-static int
-gif_validate4(const struct ip *ip, struct gif_softc *sc, struct ifnet *ifp)
+int
+in_gif_encapcheck(const struct mbuf *m, int off, int proto, void *arg)
 {
+	const struct ip *ip;
+	struct gif_softc *sc;
 	int ret;
 
+	/* sanity check done in caller */
+	sc = (struct gif_softc *)arg;
 	GIF_RLOCK_ASSERT(sc);
 
 	/* check for address match */
+	ip = mtod(m, const struct ip *);
 	if (sc->gif_iphdr->ip_src.s_addr != ip->ip_dst.s_addr)
 		return (0);
 	ret = 32;
@@ -182,18 +186,8 @@ gif_validate4(const struct ip *ip, struct gif_softc *sc, struct ifnet *ifp)
 	} else
 		ret += 32;
 
-	/* martian filters on outer source - NOT done in ip_input! */
-	if (IN_MULTICAST(ntohl(ip->ip_src.s_addr)))
-		return (0);
-	switch ((ntohl(ip->ip_src.s_addr) & 0xff000000) >> 24) {
-	case 0:
-	case 127:
-	case 255:
-		return (0);
-	}
-
 	/* ingress filters on outer source */
-	if ((GIF2IFP(sc)->if_flags & IFF_LINK2) == 0 && ifp) {
+	if ((GIF2IFP(sc)->if_flags & IFF_LINK2) == 0) {
 		struct sockaddr_in sin;
 		struct rtentry *rt;
 
@@ -204,34 +198,14 @@ gif_validate4(const struct ip *ip, struct gif_softc *sc, struct ifnet *ifp)
 		/* XXX MRT  check for the interface we would use on output */
 		rt = in_rtalloc1((struct sockaddr *)&sin, 0,
 		    0UL, sc->gif_fibnum);
-		if (!rt || rt->rt_ifp != ifp) {
-			if (rt)
+		if (rt == NULL || rt->rt_ifp != m->m_pkthdr.rcvif) {
+			if (rt != NULL)
 				RTFREE_LOCKED(rt);
 			return (0);
 		}
 		RTFREE_LOCKED(rt);
 	}
 	return (ret);
-}
-
-/*
- * we know that we are in IFF_UP, outer address available, and outer family
- * matched the physical addr family.  see gif_encapcheck().
- */
-int
-in_gif_encapcheck(const struct mbuf *m, int off, int proto, void *arg)
-{
-	struct ip ip;
-	struct gif_softc *sc;
-	struct ifnet *ifp;
-
-	/* sanity check done in caller */
-	sc = (struct gif_softc *)arg;
-	GIF_RLOCK_ASSERT(sc);
-
-	m_copydata(m, 0, sizeof(ip), (caddr_t)&ip);
-	ifp = ((m->m_flags & M_PKTHDR) != 0) ? m->m_pkthdr.rcvif : NULL;
-	return (gif_validate4(&ip, sc, ifp));
 }
 
 int

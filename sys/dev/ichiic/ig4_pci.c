@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/errno.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/sx.h>
 #include <sys/syslog.h>
 #include <sys/bus.h>
 
@@ -94,7 +95,8 @@ ig4iic_pci_attach(device_t dev)
 
 	bzero(sc, sizeof(*sc));
 
-	mtx_init(&sc->mutex, device_get_nameunit(dev), "ig4iic", MTX_DEF);
+	mtx_init(&sc->io_lock, "IG4 I/O lock", NULL, MTX_DEF);
+	sx_init(&sc->call_lock, "IG4 call lock");
 
 	sc->dev = dev;
 	sc->regs_rid = PCIR_BAR(0);
@@ -150,7 +152,10 @@ ig4iic_pci_detach(device_t dev)
 				     sc->regs_rid, sc->regs_res);
 		sc->regs_res = NULL;
 	}
-	mtx_destroy(&sc->mutex);
+	if (mtx_initialized(&sc->io_lock)) {
+		mtx_destroy(&sc->io_lock);
+		sx_destroy(&sc->call_lock);
+	}
 
 	return (0);
 }
@@ -179,9 +184,9 @@ static device_method_t ig4iic_pci_methods[] = {
 };
 
 static driver_t ig4iic_pci_driver = {
-        "ig4iic",
-        ig4iic_pci_methods,
-        sizeof(struct ig4iic_softc)
+	"ig4iic",
+	ig4iic_pci_methods,
+	sizeof(struct ig4iic_softc)
 };
 
 static devclass_t ig4iic_pci_devclass;

@@ -2318,6 +2318,9 @@ ath_fatal_proc(void *arg, int pending)
 	u_int32_t len;
 	void *sp;
 
+	if (sc->sc_invalid)
+		return;
+
 	device_printf(sc->sc_dev, "hardware error; resetting\n");
 	/*
 	 * Fatal errors are unrecoverable.  Typically these

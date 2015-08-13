@@ -47,10 +47,14 @@ struct vmspace;
 	unsigned int pc_vfpmvfr0;					\
 	unsigned int pc_vfpmvfr1;					\
 	struct pmap *pc_curpmap;					\
-	char __pad[141]
+	vm_offset_t pc_qmap_addr;					\
+	void *pc_qmap_pte;						\
+	char __pad[133]
 #else
 #define PCPU_MD_FIELDS							\
-	char __pad[157]
+	vm_offset_t qmap_addr;						\
+	void *pc_qmap_pte;						\
+	char __pad[149]
 #endif
 
 #ifdef _KERNEL

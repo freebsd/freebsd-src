@@ -16,8 +16,8 @@ AZURE${VAR}!=	grep -E ^AZURE${VAR} ${AZURE_UPLOAD_CONF} | awk -F'	' '{print $$2}
 . endfor
 .endif
 
-.if ${BRANCH} == "STABLE" || ${BRANCH} == "CURRENT"
-SNAPSHOT_DATE!=		date +-%Y-%m-%d-%H:%M
+.if ${BRANCH} == "STABLE" || ${BRANCH} == "CURRENT" || ${BRANCH} == "PRERELEASE"
+SNAPSHOT_DATE!=		date +-%Y-%m-%d
 .endif
 
 AZURE_TARGET:=		${OSRELEASE}${SNAPSHOT_DATE}.vhd

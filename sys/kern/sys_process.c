@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/syscallsubr.h>
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
+#include <sys/pioctl.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/vnode.h>
@@ -946,7 +947,15 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 			}
 			break;
 		case PT_DETACH:
-			/* reset process parent */
+			/*
+			 * Reset the process parent.
+			 *
+			 * NB: This clears P_TRACED before reparenting
+			 * a detached process back to its original
+			 * parent.  Otherwise the debugee will be set
+			 * as an orphan of the debugger.
+			 */
+			p->p_flag &= ~(P_TRACED | P_WAITED | P_FOLLOWFORK);
 			if (p->p_oppid != p->p_pptr->p_pid) {
 				PROC_LOCK(p->p_pptr);
 				sigqueue_take(p->p_ksi);
@@ -962,7 +971,6 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 			} else
 				CTR1(KTR_PTRACE, "PT_DETACH: pid %d", p->p_pid);
 			p->p_oppid = 0;
-			p->p_flag &= ~(P_TRACED | P_WAITED | P_FOLLOWFORK);
 			p->p_stops = 0;
 
 			/* should we send SIGCHLD? */
@@ -975,7 +983,7 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 			sx_xunlock(&proctree_lock);
 			proctree_locked = 0;
 		}
-		p->p_xstat = data;
+		p->p_xsig = data;
 		p->p_xthread = NULL;
 		if ((p->p_flag & (P_STOPPED_SIG | P_STOPPED_TRACE)) != 0) {
 			/* deliver or queue signal */
@@ -1300,7 +1308,8 @@ stopevent(struct proc *p, unsigned int event, unsigned int val)
 	CTR3(KTR_PTRACE, "stopevent: pid %d event %u val %u", p->p_pid, event,
 	    val);
 	do {
-		p->p_xstat = val;
+		if (event != S_EXIT)
+			p->p_xsig = val;
 		p->p_xthread = NULL;
 		p->p_stype = event;	/* Which event caused the stop? */
 		wakeup(&p->p_stype);	/* Wake up any PIOCWAIT'ing procs */

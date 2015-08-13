@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #undef ATOMIC_ASM
 
 /* Make atomic.h generate public functions */
+static __inline void __storeload_barrier(void);
 #define WANT_FUNCTIONS
 #define static
 #undef __inline

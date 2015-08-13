@@ -530,7 +530,7 @@ decode_labeled_prefix4(netdissect_options *ndo,
            is added to the prefix length;
            we also do only read out just one label -
            there is no real application for advertisement of
-           stacked labels in a a single BGP message
+           stacked labels in a single BGP message
         */
 
 	if (24 > plen)
@@ -574,7 +574,8 @@ badtlv:
  */
 static char *
 bgp_vpn_ip_print(netdissect_options *ndo,
-                 const u_char *pptr, u_int addr_length) {
+                 const u_char *pptr, u_int addr_length)
+{
 
     /* worst case string is s fully formatted v6 address */
     static char addr[sizeof("1234:5678:89ab:cdef:1234:5678:89ab:cdef")];
@@ -622,8 +623,8 @@ trunc:
  */
 static int
 bgp_vpn_sg_print(netdissect_options *ndo,
-                 const u_char *pptr, char *buf, u_int buflen) {
-
+                 const u_char *pptr, char *buf, u_int buflen)
+{
     uint8_t addr_length;
     u_int total_length, offset;
 
@@ -667,8 +668,8 @@ trunc:
  * printing route targets inside a NLRI */
 char *
 bgp_vpn_rd_print(netdissect_options *ndo,
-                 const u_char *pptr) {
-
+                 const u_char *pptr)
+{
    /* allocate space for the largest possible string */
     static char rd[sizeof("xxxxxxxxxx:xxxxx (xxx.xxx.xxx.xxx:xxxxx)")];
     char *pos = rd;
@@ -716,8 +717,10 @@ decode_rt_routing_info(netdissect_options *ndo,
 	ND_TCHECK(pptr[0]);
 	plen = pptr[0];   /* get prefix length */
 
-	if (0 == plen)
-		return 1; /* default route target */
+	if (0 == plen) {
+		snprintf(buf, buflen, "default route target");
+		return 1;
+	}
 
 	if (32 > plen)
 		return -1;
@@ -2617,8 +2620,8 @@ trunc:
 
 static void
 bgp_route_refresh_print(netdissect_options *ndo,
-                        const u_char *pptr, int len) {
-
+                        const u_char *pptr, int len)
+{
         const struct bgp_route_refresh *bgp_route_refresh_header;
 	char tokbuf[TOKBUFSIZE];
 	char tokbuf2[TOKBUFSIZE];
@@ -2715,7 +2718,7 @@ bgp_print(netdissect_options *ndo,
 	if (ndo->ndo_snapend < dat + length)
 		ep = ndo->ndo_snapend;
 
-	ND_PRINT((ndo, ": BGP, length: %u", length));
+	ND_PRINT((ndo, ": BGP"));
 
         if (ndo->ndo_vflag < 1) /* lets be less chatty */
                 return;

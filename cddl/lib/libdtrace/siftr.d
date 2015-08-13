@@ -21,6 +21,7 @@
  * $FreeBSD$
  */
 
+#pragma D depends_on module kernel
 #pragma D depends_on module siftr
 #pragma D depends_on provider tcp
 
