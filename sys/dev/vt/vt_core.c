@@ -852,7 +852,9 @@ vt_processkey(keyboard_t *kbd, struct vt_device *vd, int c)
 				terminal_input_char(vw->vw_terminal, 0x1b);
 			}
 #endif
-
+#if defined(KDB)
+			kdb_alt_break(c, &vd->vd_altbrk);
+#endif
 			terminal_input_char(vw->vw_terminal, KEYCHAR(c));
 		} else
 			terminal_input_raw(vw->vw_terminal, c);
