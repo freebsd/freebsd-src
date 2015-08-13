@@ -130,6 +130,13 @@ static void	arptimer(void *);
 static void	in_arpinput(struct mbuf *);
 #endif
 
+static void arp_check_update_lle(struct arphdr *ah, struct in_addr isaddr,
+    struct ifnet *ifp, int bridged, struct llentry *la);
+static void arp_update_lle(struct arphdr *ah, struct ifnet *ifp,
+    struct llentry *la);
+static void arp_mark_lle_reachable(struct llentry *la);
+
+
 static const struct netisr_handler arp_nh = {
 	.nh_name = "arp",
 	.nh_handler = arpintr,
@@ -576,10 +583,10 @@ in_arpinput(struct mbuf *m)
 	struct sockaddr sa;
 	struct in_addr isaddr, itaddr, myaddr;
 	u_int8_t *enaddr = NULL;
-	int op, flags;
+	int op;
 	int req_len;
 	int bridged = 0, is_bridge = 0;
-	int carped, create;
+	int carped;
 	struct sockaddr_in sin;
 	sin.sin_len = sizeof(struct sockaddr_in);
 	sin.sin_family = AF_INET;
@@ -708,6 +715,16 @@ match:
 		    "%s!\n", inet_ntoa(isaddr));
 		goto drop;
 	}
+
+	if (ifp->if_addrlen != ah->ar_hln) {
+		LLE_WUNLOCK(la);
+		ARP_LOG(LOG_WARNING, "from %*D: addr len: new %d, "
+		    "i/f %d (ignored)\n", ifp->if_addrlen,
+		    (u_char *) ar_sha(ah), ":", ah->ar_hln,
+		    ifp->if_addrlen);
+		goto drop;
+	}
+
 	/*
 	 * Warn if another host is using the same IP address, but only if the
 	 * IP address isn't 0.0.0.0, which is used for DHCP only, in which
@@ -730,100 +747,22 @@ match:
 	sin.sin_len = sizeof(struct sockaddr_in);
 	sin.sin_family = AF_INET;
 	sin.sin_addr = isaddr;
-	create = (itaddr.s_addr == myaddr.s_addr) ? 1 : 0;
-	flags = LLE_EXCLUSIVE;
-	IF_AFDATA_LOCK(ifp);
-	if (create != 0)
-		la = lla_create(LLTABLE(ifp), 0, (struct sockaddr *)&sin);
-	else
-		la = lla_lookup(LLTABLE(ifp), flags, (struct sockaddr *)&sin);
-	IF_AFDATA_UNLOCK(ifp);
-	if (la != NULL) {
-		/* the following is not an error when doing bridging */
-		if (!bridged && la->lle_tbl->llt_ifp != ifp) {
-			if (log_arp_wrong_iface)
-				ARP_LOG(LOG_WARNING, "%s is on %s "
-				    "but got reply from %*D on %s\n",
-				    inet_ntoa(isaddr),
-				    la->lle_tbl->llt_ifp->if_xname,
-				    ifp->if_addrlen, (u_char *)ar_sha(ah), ":",
-				    ifp->if_xname);
-			LLE_WUNLOCK(la);
-			goto reply;
-		}
-		if ((la->la_flags & LLE_VALID) &&
-		    bcmp(ar_sha(ah), &la->ll_addr, ifp->if_addrlen)) {
-			if (la->la_flags & LLE_STATIC) {
-				LLE_WUNLOCK(la);
-				if (log_arp_permanent_modify)
-					ARP_LOG(LOG_ERR,
-					    "%*D attempts to modify "
-					    "permanent entry for %s on %s\n",
-					    ifp->if_addrlen,
-					    (u_char *)ar_sha(ah), ":",
-					    inet_ntoa(isaddr), ifp->if_xname);
-				goto reply;
-			}
-			if (log_arp_movements) {
-				ARP_LOG(LOG_INFO, "%s moved from %*D "
-				    "to %*D on %s\n",
-				    inet_ntoa(isaddr),
-				    ifp->if_addrlen,
-				    (u_char *)&la->ll_addr, ":",
-				    ifp->if_addrlen, (u_char *)ar_sha(ah), ":",
-				    ifp->if_xname);
-			}
-		}
-
-		if (ifp->if_addrlen != ah->ar_hln) {
-			LLE_WUNLOCK(la);
-			ARP_LOG(LOG_WARNING, "from %*D: addr len: new %d, "
-			    "i/f %d (ignored)\n", ifp->if_addrlen,
-			    (u_char *) ar_sha(ah), ":", ah->ar_hln,
-			    ifp->if_addrlen);
-			goto drop;
-		}
-		(void)memcpy(&la->ll_addr, ar_sha(ah), ifp->if_addrlen);
-		la->la_flags |= LLE_VALID;
-
-		EVENTHANDLER_INVOKE(lle_event, la, LLENTRY_RESOLVED);
-
-		if (!(la->la_flags & LLE_STATIC)) {
-			int canceled;
-
-			LLE_ADDREF(la);
-			la->la_expire = time_uptime + V_arpt_keep;
-			canceled = callout_reset(&la->lle_timer,
-			    hz * V_arpt_keep, arptimer, la);
-			if (canceled)
-				LLE_REMREF(la);
-		}
-		la->la_asked = 0;
-		la->la_preempt = V_arp_maxtries;
+	IF_AFDATA_RLOCK(ifp);
+	la = lla_lookup(LLTABLE(ifp), LLE_EXCLUSIVE, (struct sockaddr *)&sin);
+	IF_AFDATA_RUNLOCK(ifp);
+	if (la != NULL)
+		arp_check_update_lle(ah, isaddr, ifp, bridged, la);
+	else if (itaddr.s_addr == myaddr.s_addr) {
 		/*
-		 * The packets are all freed within the call to the output
-		 * routine.
-		 *
-		 * NB: The lock MUST be released before the call to the
-		 * output routine.
+		 * Reply to our address, but no lle exists yet.
+		 * do we really have to create an entry?
 		 */
-		if (la->la_hold != NULL) {
-			struct mbuf *m_hold, *m_hold_next;
-
-			m_hold = la->la_hold;
-			la->la_hold = NULL;
-			la->la_numheld = 0;
-			lltable_fill_sa_entry(la, (struct sockaddr *)&sa);
-			LLE_WUNLOCK(la);
-			for (; m_hold != NULL; m_hold = m_hold_next) {
-				m_hold_next = m_hold->m_nextpkt;
-				m_hold->m_nextpkt = NULL;
-				/* Avoid confusing lower layers. */
-				m_clrprotoflags(m_hold);
-				(*ifp->if_output)(ifp, m_hold, &sa, NULL);
-			}
-		} else
-			LLE_WUNLOCK(la);
+		IF_AFDATA_WLOCK(ifp);
+		la = lla_create(LLTABLE(ifp), 0, (struct sockaddr *)&sin);
+		arp_update_lle(ah, ifp, la);
+		IF_AFDATA_WUNLOCK(ifp);
+		arp_mark_lle_reachable(la);
+		LLE_WUNLOCK(la);
 	}
 reply:
 	if (op != ARPOP_REQUEST)
@@ -933,6 +872,140 @@ drop:
 	m_freem(m);
 }
 #endif
+
+/*
+ * Checks received arp data against existing @la.
+ * Updates lle state/performs notification if necessary.
+ */
+static void
+arp_check_update_lle(struct arphdr *ah, struct in_addr isaddr, struct ifnet *ifp,
+    int bridged, struct llentry *la)
+{
+	struct sockaddr sa;
+	struct mbuf *m_hold, *m_hold_next;
+
+	LLE_WLOCK_ASSERT(la);
+
+	/* the following is not an error when doing bridging */
+	if (!bridged && la->lle_tbl->llt_ifp != ifp) {
+		if (log_arp_wrong_iface)
+			ARP_LOG(LOG_WARNING, "%s is on %s "
+			    "but got reply from %*D on %s\n",
+			    inet_ntoa(isaddr),
+			    la->lle_tbl->llt_ifp->if_xname,
+			    ifp->if_addrlen, (u_char *)ar_sha(ah), ":",
+			    ifp->if_xname);
+		LLE_WUNLOCK(la);
+		return;
+	}
+	if ((la->la_flags & LLE_VALID) &&
+	    bcmp(ar_sha(ah), &la->ll_addr, ifp->if_addrlen)) {
+		if (la->la_flags & LLE_STATIC) {
+			LLE_WUNLOCK(la);
+			if (log_arp_permanent_modify)
+				ARP_LOG(LOG_ERR,
+				    "%*D attempts to modify "
+				    "permanent entry for %s on %s\n",
+				    ifp->if_addrlen,
+				    (u_char *)ar_sha(ah), ":",
+				    inet_ntoa(isaddr), ifp->if_xname);
+			return;
+		}
+		if (log_arp_movements) {
+			ARP_LOG(LOG_INFO, "%s moved from %*D "
+			    "to %*D on %s\n",
+			    inet_ntoa(isaddr),
+			    ifp->if_addrlen,
+			    (u_char *)&la->ll_addr, ":",
+			    ifp->if_addrlen, (u_char *)ar_sha(ah), ":",
+			    ifp->if_xname);
+		}
+	}
+
+	/* Check if something has changed */
+	if (memcmp(&la->ll_addr, ar_sha(ah), ifp->if_addrlen) != 0 ||
+	    (la->la_flags & LLE_VALID) == 0) {
+		/* Perform real LLE update */
+		/* use afdata WLOCK to update fields */
+		LLE_ADDREF(la);
+		LLE_WUNLOCK(la);
+		IF_AFDATA_WLOCK(ifp);
+		LLE_WLOCK(la);
+
+		/*
+		 * Since we droppped LLE lock, other thread might have deleted
+		 * this lle. Check and return
+		 */
+		if ((la->la_flags & LLE_DELETED) != 0) {
+			IF_AFDATA_WUNLOCK(ifp);
+			LLE_FREE_LOCKED(la);
+			return;
+		}
+
+		/* Update data */
+		arp_update_lle(ah, ifp, la);
+
+		IF_AFDATA_WUNLOCK(ifp);
+		LLE_REMREF(la);
+	}
+
+	arp_mark_lle_reachable(la);
+
+	/*
+	 * The packets are all freed within the call to the output
+	 * routine.
+	 *
+	 * NB: The lock MUST be released before the call to the
+	 * output routine.
+	 */
+	if (la->la_hold != NULL) {
+		m_hold = la->la_hold;
+		la->la_hold = NULL;
+		la->la_numheld = 0;
+		lltable_fill_sa_entry(la, &sa);
+		LLE_WUNLOCK(la);
+		for (; m_hold != NULL; m_hold = m_hold_next) {
+			m_hold_next = m_hold->m_nextpkt;
+			m_hold->m_nextpkt = NULL;
+			/* Avoid confusing lower layers. */
+			m_clrprotoflags(m_hold);
+			(*ifp->if_output)(ifp, m_hold, &sa, NULL);
+		}
+	} else
+		LLE_WUNLOCK(la);
+}
+
+/*
+ * Updates @la fields used by fast path code.
+ */
+static void
+arp_update_lle(struct arphdr *ah, struct ifnet *ifp, struct llentry *la)
+{
+
+	memcpy(&la->ll_addr, ar_sha(ah), ifp->if_addrlen);
+	la->la_flags |= LLE_VALID;
+}
+
+static void
+arp_mark_lle_reachable(struct llentry *la)
+{
+	int canceled;
+
+	LLE_WLOCK_ASSERT(la);
+
+	EVENTHANDLER_INVOKE(lle_event, la, LLENTRY_RESOLVED);
+
+	if (!(la->la_flags & LLE_STATIC)) {
+		LLE_ADDREF(la);
+		la->la_expire = time_uptime + V_arpt_keep;
+		canceled = callout_reset(&la->lle_timer,
+		    hz * V_arpt_keep, arptimer, la);
+		if (canceled)
+			LLE_REMREF(la);
+	}
+	la->la_asked = 0;
+	la->la_preempt = V_arp_maxtries;
+}
 
 void
 arp_ifinit(struct ifnet *ifp, struct ifaddr *ifa)
