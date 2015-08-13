@@ -3,6 +3,7 @@
 arm/ti/aintc.c				standard
 
 arm/ti/am335x/am335x_dmtimer.c		standard
+arm/ti/am335x/am335x_dmtpps.c		optional	am335x_dmtpps
 arm/ti/am335x/am335x_gpio.c		optional	gpio
 arm/ti/am335x/am335x_lcd.c		optional	sc | vt
 arm/ti/am335x/am335x_lcd_syscons.c	optional	sc
