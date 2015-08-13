@@ -21,6 +21,7 @@
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2013 by Delphix. All rights reserved.
+ * Copyright 2015, OmniTI Computer Consulting, Inc. All rights reserved.
  */
 
 /*
@@ -1149,10 +1150,11 @@ zfsctl_shares_lookup(ap)
 		ZFS_EXIT(zfsvfs);
 		return (SET_ERROR(ENOTSUP));
 	}
-	if ((error = zfs_zget(zfsvfs, zfsvfs->z_shares_dir, &dzp)) == 0)
+	if ((error = zfs_zget(zfsvfs, zfsvfs->z_shares_dir, &dzp)) == 0) {
 		error = VOP_LOOKUP(ZTOV(dzp), vpp, cnp);
+		VN_RELE(ZTOV(dzp));
+	}
 
-	VN_RELE(ZTOV(dzp));
 	ZFS_EXIT(zfsvfs);
 
 	return (error);
