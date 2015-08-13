@@ -883,9 +883,9 @@ vga_bitblt_text_txtmode(struct vt_device *vd, const struct vt_window *vw,
 			/* Convert colors to VGA attributes. */
 			attr = bg << 4 | fg;
 
-			MEM_WRITE1(sc, 0x18000 + (row * 80 + col) * 2 + 0,
+			MEM_WRITE1(sc, (row * 80 + col) * 2 + 0,
 			    ch);
-			MEM_WRITE1(sc, 0x18000 + (row * 80 + col) * 2 + 1,
+			MEM_WRITE1(sc, (row * 80 + col) * 2 + 1,
 			    attr);
 		}
 	}
@@ -1226,8 +1226,6 @@ vga_init(struct vt_device *vd)
 # error "Architecture not yet supported!"
 #endif
 
-	bus_space_map(sc->vga_fb_tag, VGA_MEM_BASE, VGA_MEM_SIZE, 0,
-	    &sc->vga_fb_handle);
 	bus_space_map(sc->vga_reg_tag, VGA_REG_BASE, VGA_REG_SIZE, 0,
 	    &sc->vga_reg_handle);
 
@@ -1236,9 +1234,13 @@ vga_init(struct vt_device *vd)
 		vd->vd_flags |= VDF_TEXTMODE;
 		vd->vd_width = 80;
 		vd->vd_height = 25;
+		bus_space_map(sc->vga_fb_tag, VGA_TXT_BASE, VGA_TXT_SIZE, 0,
+		    &sc->vga_fb_handle);
 	} else {
 		vd->vd_width = VT_VGA_WIDTH;
 		vd->vd_height = VT_VGA_HEIGHT;
+		bus_space_map(sc->vga_fb_tag, VGA_MEM_BASE, VGA_MEM_SIZE, 0,
+		    &sc->vga_fb_handle);
 	}
 	if (vga_initialize(vd, textmode) != 0)
 		return (CN_DEAD);
