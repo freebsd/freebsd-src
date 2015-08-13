@@ -251,6 +251,23 @@ boot</screen>
 	  cause source-based upgrades to fail, a post-release Errata
 	  Notice is planned.</para>
       </listitem>
+
+      <listitem>
+	<para>An issue with &os; virtual machines with
+	  <application>vagrant</application> was discovered that
+	  affects the <application>VirtualBox</application> where the
+	  virtual machine will not start on the initial boot invoked
+	  with <literal>vagrant up</literal>.</para>
+
+	<para>The issue is due to the virtual machine
+	  <acronym>MAC</acronym> being unset, as &os; does not provide
+	  a default <filename>Vagrantfile</filename>.</para>
+
+	<para>It has been observed, however, that a subsequent
+	  invocation of <literal>vagrant up</literal> will allow the
+	  virtual machine to successfully boot, allowing access via
+	  <literal>vagrant ssh</literal>.</para>
+      </listitem>
     </itemizedlist>
   </sect1>
 
