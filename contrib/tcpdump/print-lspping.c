@@ -458,8 +458,8 @@ static const struct tok lspping_tlv_downstream_addr_values[] = {
 
 void
 lspping_print(netdissect_options *ndo,
-              register const u_char *pptr, register u_int len) {
-
+              register const u_char *pptr, register u_int len)
+{
     const struct lspping_common_header *lspping_com_header;
     const struct lspping_tlv_header *lspping_tlv_header;
     const struct lspping_tlv_header *lspping_subtlv_header;
@@ -768,7 +768,7 @@ lspping_print(netdissect_options *ndo,
 
         case LSPPING_TLV_DOWNSTREAM_MAPPING:
             /* that strange thing with the downstream map TLV is that until now
-             * we do not know if its IPv4 or IPv6 , after we found the adress-type
+             * we do not know if its IPv4 or IPv6 , after we found the address-type
              * lets recast the tlv_tptr and move on */
 
             tlv_ptr.lspping_tlv_downstream_map_ipv4= \

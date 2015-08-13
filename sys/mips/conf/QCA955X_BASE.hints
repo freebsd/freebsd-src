@@ -36,7 +36,9 @@ hint.ehci.1.irq=1
 hint.pcib.0.at="nexus0"
 hint.pcib.0.irq=0
 
-# XXX TODO: PCIe 1: qca955x_int1 (IP3)
+# PCIe 1: qca955x_int1 (IP3)
+hint.pcib.1.at="nexus0"
+hint.pcib.1.irq=1
 
 # IP4
 hint.arge.0.at="nexus0"

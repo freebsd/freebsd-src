@@ -293,8 +293,17 @@ udplite_destroy(void)
  * contains the source address.  If the socket ends up being an IPv6 socket,
  * udp_append() will convert to a sockaddr_in6 before passing the address
  * into the socket code.
+ *
+ * In the normal case udp_append() will return 0, indicating that you
+ * must unlock the inp. However if a tunneling protocol is in place we increment
+ * the inpcb refcnt and unlock the inp, on return from the tunneling protocol we
+ * then decrement the reference count. If the inp_rele returns 1, indicating the
+ * inp is gone, we return that to the caller to tell them *not* to unlock
+ * the inp. In the case of multi-cast this will cause the distribution
+ * to stop (though most tunneling protocols known currently do *not* use
+ * multicast).
  */
-static void
+static int
 udp_append(struct inpcb *inp, struct ip *ip, struct mbuf *n, int off,
     struct sockaddr_in *udp_in)
 {
@@ -313,9 +322,12 @@ udp_append(struct inpcb *inp, struct ip *ip, struct mbuf *n, int off,
 	 */
 	up = intoudpcb(inp);
 	if (up->u_tun_func != NULL) {
+		in_pcbref(inp);
+		INP_RUNLOCK(inp);
 		(*up->u_tun_func)(n, off, inp, (struct sockaddr *)udp_in,
 		    up->u_tun_ctx);
-		return;
+		INP_RLOCK(inp);
+		return (in_pcbrele_rlocked(inp));
 	}
 
 	off += sizeof(struct udphdr);
@@ -324,7 +336,7 @@ udp_append(struct inpcb *inp, struct ip *ip, struct mbuf *n, int off,
 	/* Check AH/ESP integrity. */
 	if (ipsec4_in_reject(n, inp)) {
 		m_freem(n);
-		return;
+		return (0);
 	}
 #ifdef IPSEC_NAT_T
 	up = intoudpcb(inp);
@@ -332,14 +344,14 @@ udp_append(struct inpcb *inp, struct ip *ip, struct mbuf *n, int off,
 	if (up->u_flags & UF_ESPINUDP_ALL) {	/* IPSec UDP encaps. */
 		n = udp4_espdecap(inp, n, off);
 		if (n == NULL)				/* Consumed. */
-			return;
+			return (0);
 	}
 #endif /* IPSEC_NAT_T */
 #endif /* IPSEC */
 #ifdef MAC
 	if (mac_inpcb_check_deliver(inp, n) != 0) {
 		m_freem(n);
-		return;
+		return (0);
 	}
 #endif /* MAC */
 	if (inp->inp_flags & INP_CONTROLOPTS ||
@@ -373,6 +385,7 @@ udp_append(struct inpcb *inp, struct ip *ip, struct mbuf *n, int off,
 		UDPSTAT_INC(udps_fullsock);
 	} else
 		sorwakeup_locked(so);
+	return (0);
 }
 
 int
@@ -579,8 +592,10 @@ udp_input(struct mbuf **mp, int *offp, int proto)
 				if ((n = m_copy(m, 0, M_COPYALL)) != NULL) {
 					UDP_PROBE(receive, NULL, last, ip,
 					    last, uh);
-					udp_append(last, ip, n, iphlen,
-					    &udp_in);
+					if (udp_append(last, ip, n, iphlen,
+						&udp_in)) {
+						goto inp_lost;
+					}
 				}
 				INP_RUNLOCK(last);
 			}
@@ -611,8 +626,9 @@ udp_input(struct mbuf **mp, int *offp, int proto)
 			goto badunlocked;
 		}
 		UDP_PROBE(receive, NULL, last, ip, last, uh);
-		udp_append(last, ip, m, iphlen, &udp_in);
-		INP_RUNLOCK(last);
+		if (udp_append(last, ip, m, iphlen, &udp_in) == 0) 
+			INP_RUNLOCK(last);
+	inp_lost:
 		INP_INFO_RUNLOCK(pcbinfo);
 		return (IPPROTO_DONE);
 	}
@@ -700,8 +716,8 @@ udp_input(struct mbuf **mp, int *offp, int proto)
 	}
 
 	UDP_PROBE(receive, NULL, inp, ip, inp, uh);
-	udp_append(inp, ip, m, iphlen, &udp_in);
-	INP_RUNLOCK(inp);
+	if (udp_append(inp, ip, m, iphlen, &udp_in) == 0) 
+		INP_RUNLOCK(inp);
 	return (IPPROTO_DONE);
 
 badunlocked:
@@ -1650,7 +1666,8 @@ udp4_espdecap(struct inpcb *inp, struct mbuf *m, int off)
 	if (m->m_pkthdr.csum_flags & CSUM_DATA_VALID)
 		m->m_pkthdr.csum_flags &= ~(CSUM_DATA_VALID|CSUM_PSEUDO_HDR);
 
-	(void) ipsec4_common_input(m, iphlen, ip->ip_p);
+	(void) ipsec_common_input(m, iphlen, offsetof(struct ip, ip_p),
+				AF_INET, ip->ip_p);
 	return (NULL);			/* NB: consumed, bypass processing. */
 }
 #endif /* defined(IPSEC) && defined(IPSEC_NAT_T) */

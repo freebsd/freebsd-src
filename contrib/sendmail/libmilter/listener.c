@@ -728,6 +728,7 @@ mi_listener(conn, dbg, smfi, timeout, backlog)
 	int acnt = 0;	/* error count for accept() failures */
 	int scnt = 0;	/* error count for select() failures */
 	int save_errno = 0;
+	int fdflags;
 #if !_FFR_WORKERS_POOL
 	sthread_t thread_id;
 #endif /* !_FFR_WORKERS_POOL */
@@ -884,6 +885,20 @@ mi_listener(conn, dbg, smfi, timeout, backlog)
 			dupfd = INVALID_SOCKET;
 		}
 #endif /* _FFR_DUP_FD */
+
+ 		/*
+		**  Need to set close-on-exec for connfd in case a user's
+		**  filter starts other applications.
+		**  Note: errors will not stop processing (for now).
+		*/
+
+		if ((fdflags = fcntl(connfd, F_GETFD, 0)) == -1 ||
+		    fcntl(connfd, F_SETFD, fdflags | FD_CLOEXEC) == -1)
+		{
+			smi_log(SMI_LOG_ERR,
+				"%s: Unable to set close-on-exec: %s",
+				smfi->xxfi_name, sm_errstring(errno));
+		}
 
 		if (setsockopt(connfd, SOL_SOCKET, SO_KEEPALIVE,
 				(void *) &sockopt, sizeof sockopt) < 0)

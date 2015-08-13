@@ -119,6 +119,13 @@ cpu_startup(void *dummy)
 
 SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL);
 
+int
+cpu_idle_wakeup(int cpu)
+{
+
+	return (0);
+}
+
 void
 bzero(void *buf, size_t len)
 {
@@ -173,7 +180,7 @@ fill_fpregs(struct thread *td, struct fpreg *regs)
 		 * If we have just been running VFP instructions we will
 		 * need to save the state to memcpy it below.
 		 */
-		vfp_save_state(td);
+		vfp_save_state(td, pcb);
 
 		memcpy(regs->fp_q, pcb->pcb_vfp, sizeof(regs->fp_q));
 		regs->fp_cr = pcb->pcb_fpcr;
@@ -202,21 +209,21 @@ int
 fill_dbregs(struct thread *td, struct dbreg *regs)
 {
 
-	panic("fill_dbregs");
+	panic("ARM64TODO: fill_dbregs");
 }
 
 int
 set_dbregs(struct thread *td, struct dbreg *regs)
 {
 
-	panic("set_dbregs");
+	panic("ARM64TODO: set_dbregs");
 }
 
 int
 ptrace_set_pc(struct thread *td, u_long addr)
 {
 
-	panic("ptrace_set_pc");
+	panic("ARM64TODO: ptrace_set_pc");
 	return (0);
 }
 
@@ -259,10 +266,13 @@ get_mcontext(struct thread *td, mcontext_t *mcp, int clear_ret)
 {
 	struct trapframe *tf = td->td_frame;
 
-	if (clear_ret & GET_MC_CLEAR_RET)
+	if (clear_ret & GET_MC_CLEAR_RET) {
 		mcp->mc_gpregs.gp_x[0] = 0;
-	else
+		mcp->mc_gpregs.gp_spsr = tf->tf_spsr & ~PSR_C;
+	} else {
 		mcp->mc_gpregs.gp_x[0] = tf->tf_x[0];
+		mcp->mc_gpregs.gp_spsr = tf->tf_spsr;
+	}
 
 	memcpy(&mcp->mc_gpregs.gp_x[1], &tf->tf_x[1],
 	    sizeof(mcp->mc_gpregs.gp_x[1]) * (nitems(mcp->mc_gpregs.gp_x) - 1));
@@ -270,7 +280,6 @@ get_mcontext(struct thread *td, mcontext_t *mcp, int clear_ret)
 	mcp->mc_gpregs.gp_sp = tf->tf_sp;
 	mcp->mc_gpregs.gp_lr = tf->tf_lr;
 	mcp->mc_gpregs.gp_elr = tf->tf_elr;
-	mcp->mc_gpregs.gp_spsr = tf->tf_spsr;
 
 	return (0);
 }
@@ -305,7 +314,7 @@ get_fpcontext(struct thread *td, mcontext_t *mcp)
 		 * If we have just been running VFP instructions we will
 		 * need to save the state to memcpy it below.
 		 */
-		vfp_save_state(td);
+		vfp_save_state(td, curpcb);
 
 		memcpy(mcp->mc_fpregs.fp_q, curpcb->pcb_vfp,
 		    sizeof(mcp->mc_fpregs));
@@ -367,7 +376,11 @@ void
 cpu_halt(void)
 {
 
-	panic("cpu_halt");
+	/* We should have shutdown by now, if not enter a low power sleep */
+	intr_disable();
+	while (1) {
+		__asm __volatile("wfi");
+	}
 }
 
 /*
@@ -378,7 +391,7 @@ void
 cpu_flush_dcache(void *ptr, size_t len)
 {
 
-	/* TBD */
+	/* ARM64TODO TBD */
 }
 
 /* Get current clock frequency for the given CPU ID. */
@@ -386,7 +399,7 @@ int
 cpu_est_clockrate(int cpu_id, uint64_t *rate)
 {
 
-	panic("cpu_est_clockrate");
+	panic("ARM64TODO: cpu_est_clockrate");
 }
 
 void
@@ -536,10 +549,6 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 		PROC_LOCK(p);
 		sigexit(td, SIGILL);
 	}
-
-	/* Translate the signal if appropriate. */
-	if (p->p_sysent->sv_sigtbl && sig <= p->p_sysent->sv_sigsize)
-		sig = p->p_sysent->sv_sigtbl[_SIG_IDX(sig)];
 
 	tf->tf_x[0]= sig;
 	tf->tf_x[1] = (register_t)&fp->sf_si;
@@ -813,8 +822,13 @@ initarm(struct arm64_bootparams *abp)
 
 	/* Print the memory map */
 	mem_len = 0;
-	for (i = 0; i < physmap_idx; i += 2)
+	for (i = 0; i < physmap_idx; i += 2) {
+		dump_avail[i] = physmap[i];
+		dump_avail[i + 1] = physmap[i + 1];
 		mem_len += physmap[i + 1] - physmap[i];
+	}
+	dump_avail[i] = 0;
+	dump_avail[i + 1] = 0;
 
 	/* Set the pcpu data, this is needed by pmap_bootstrap */
 	pcpup = &__pcpu[0];

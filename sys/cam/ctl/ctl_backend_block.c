@@ -224,6 +224,7 @@ struct ctl_be_block_io {
 	devstat_trans_flags		ds_trans_type;
 	uint64_t			io_len;
 	uint64_t			io_offset;
+	int				io_arg;
 	struct ctl_be_block_softc	*softc;
 	struct ctl_be_block_lun		*lun;
 	void (*beio_cont)(struct ctl_be_block_io *beio); /* to continue processing */
@@ -581,7 +582,8 @@ ctl_be_block_flush_file(struct ctl_be_block_lun *be_lun,
 
 	vn_lock(be_lun->vn, lock_flags | LK_RETRY);
 
-	error = VOP_FSYNC(be_lun->vn, MNT_WAIT, curthread);
+	error = VOP_FSYNC(be_lun->vn, beio->io_arg ? MNT_NOWAIT : MNT_WAIT,
+	    curthread);
 	VOP_UNLOCK(be_lun->vn, 0);
 
 	vn_finished_write(mountpoint);
@@ -674,9 +676,6 @@ ctl_be_block_dispatch_file(struct ctl_be_block_lun *be_lun,
 		 * ZFS pays attention to IO_SYNC (which translates into the
 		 * Solaris define FRSYNC for zfs_read()) for reads.  It
 		 * attempts to sync the file before reading.
-		 *
-		 * So, to attempt to provide some barrier semantics in the
-		 * BIO_ORDERED case, set both IO_DIRECT and IO_SYNC.
 		 */
 		error = VOP_READ(be_lun->vn, &xuio, flags, file_data->cred);
 
@@ -711,9 +710,6 @@ ctl_be_block_dispatch_file(struct ctl_be_block_lun *be_lun,
 		 * ZFS pays attention to IO_SYNC (a.k.a. FSYNC or FRSYNC)
 		 * for writes.  It will flush the transaction from the
 		 * cache before returning.
-		 *
-		 * So if we've got the BIO_ORDERED flag set, we want
-		 * IO_SYNC in either the UFS or ZFS case.
 		 */
 		error = VOP_WRITE(be_lun->vn, &xuio, flags, file_data->cred);
 		VOP_UNLOCK(be_lun->vn, 0);
@@ -810,24 +806,27 @@ ctl_be_block_getattr_file(struct ctl_be_block_lun *be_lun, const char *attrname)
 {
 	struct vattr		vattr;
 	struct statfs		statfs;
+	uint64_t		val;
 	int			error;
 
+	val = UINT64_MAX;
 	if (be_lun->vn == NULL)
-		return (UINT64_MAX);
+		return (val);
+	vn_lock(be_lun->vn, LK_SHARED | LK_RETRY);
 	if (strcmp(attrname, "blocksused") == 0) {
 		error = VOP_GETATTR(be_lun->vn, &vattr, curthread->td_ucred);
-		if (error != 0)
-			return (UINT64_MAX);
-		return (vattr.va_bytes >> be_lun->blocksize_shift);
+		if (error == 0)
+			val = vattr.va_bytes >> be_lun->blocksize_shift;
 	}
-	if (strcmp(attrname, "blocksavail") == 0) {
+	if (strcmp(attrname, "blocksavail") == 0 &&
+	    (be_lun->vn->v_iflag & VI_DOOMED) == 0) {
 		error = VFS_STATFS(be_lun->vn->v_mount, &statfs);
-		if (error != 0)
-			return (UINT64_MAX);
-		return ((statfs.f_bavail * statfs.f_bsize) >>
-		    be_lun->blocksize_shift);
+		if (error == 0)
+			val = (statfs.f_bavail * statfs.f_bsize) >>
+			    be_lun->blocksize_shift;
 	}
-	return (UINT64_MAX);
+	VOP_UNLOCK(be_lun->vn, 0);
+	return (val);
 }
 
 static void
@@ -978,7 +977,6 @@ ctl_be_block_flush_dev(struct ctl_be_block_lun *be_lun,
 	bio = g_alloc_bio();
 
 	bio->bio_cmd	    = BIO_FLUSH;
-	bio->bio_flags	   |= BIO_ORDERED;
 	bio->bio_dev	    = dev_data->cdev;
 	bio->bio_offset	    = 0;
 	bio->bio_data	    = 0;
@@ -1164,6 +1162,26 @@ ctl_be_block_getattr_dev(struct ctl_be_block_lun *be_lun, const char *attrname)
 }
 
 static void
+ctl_be_block_cw_dispatch_sync(struct ctl_be_block_lun *be_lun,
+			    union ctl_io *io)
+{
+	struct ctl_be_block_io *beio;
+	struct ctl_lba_len_flags *lbalen;
+
+	DPRINTF("entered\n");
+	beio = (struct ctl_be_block_io *)PRIV(io)->ptr;
+	lbalen = (struct ctl_lba_len_flags *)&io->io_hdr.ctl_private[CTL_PRIV_LBA_LEN];
+
+	beio->io_len = lbalen->len * be_lun->blocksize;
+	beio->io_offset = lbalen->lba * be_lun->blocksize;
+	beio->io_arg = (lbalen->flags & SSC_IMMED) != 0;
+	beio->bio_cmd = BIO_FLUSH;
+	beio->ds_trans_type = DEVSTAT_NO_DATA;
+	DPRINTF("SYNC\n");
+	be_lun->lun_flush(be_lun, beio);
+}
+
+static void
 ctl_be_block_cw_done_ws(struct ctl_be_block_io *beio)
 {
 	union ctl_io *io;
@@ -1185,7 +1203,6 @@ ctl_be_block_cw_dispatch_ws(struct ctl_be_block_lun *be_lun,
 			    union ctl_io *io)
 {
 	struct ctl_be_block_io *beio;
-	struct ctl_be_block_softc *softc;
 	struct ctl_lba_len_flags *lbalen;
 	uint64_t len_left, lba;
 	uint32_t pb, pbo, adj;
@@ -1195,7 +1212,6 @@ ctl_be_block_cw_dispatch_ws(struct ctl_be_block_lun *be_lun,
 	DPRINTF("entered\n");
 
 	beio = (struct ctl_be_block_io *)PRIV(io)->ptr;
-	softc = be_lun->softc;
 	lbalen = ARGS(beio->io);
 
 	if (lbalen->flags & ~(SWS_LBDATA | SWS_UNMAP | SWS_ANCHOR | SWS_NDOB) ||
@@ -1209,21 +1225,6 @@ ctl_be_block_cw_dispatch_ws(struct ctl_be_block_lun *be_lun,
 				      /*bit*/ 0);
 		ctl_config_write_done(io);
 		return;
-	}
-
-	switch (io->scsiio.tag_type) {
-	case CTL_TAG_ORDERED:
-		beio->ds_tag_type = DEVSTAT_TAG_ORDERED;
-		break;
-	case CTL_TAG_HEAD_OF_QUEUE:
-		beio->ds_tag_type = DEVSTAT_TAG_HEAD;
-		break;
-	case CTL_TAG_UNTAGGED:
-	case CTL_TAG_SIMPLE:
-	case CTL_TAG_ACA:
-	default:
-		beio->ds_tag_type = DEVSTAT_TAG_SIMPLE;
-		break;
 	}
 
 	if (lbalen->flags & (SWS_UNMAP | SWS_ANCHOR)) {
@@ -1300,13 +1301,11 @@ ctl_be_block_cw_dispatch_unmap(struct ctl_be_block_lun *be_lun,
 			    union ctl_io *io)
 {
 	struct ctl_be_block_io *beio;
-	struct ctl_be_block_softc *softc;
 	struct ctl_ptr_len_flags *ptrlen;
 
 	DPRINTF("entered\n");
 
 	beio = (struct ctl_be_block_io *)PRIV(io)->ptr;
-	softc = be_lun->softc;
 	ptrlen = (struct ctl_ptr_len_flags *)&io->io_hdr.ctl_private[CTL_PRIV_LBA_LEN];
 
 	if ((ptrlen->flags & ~SU_ANCHOR) != 0 || be_lun->unmap == NULL) {
@@ -1321,29 +1320,11 @@ ctl_be_block_cw_dispatch_unmap(struct ctl_be_block_lun *be_lun,
 		return;
 	}
 
-	switch (io->scsiio.tag_type) {
-	case CTL_TAG_ORDERED:
-		beio->ds_tag_type = DEVSTAT_TAG_ORDERED;
-		break;
-	case CTL_TAG_HEAD_OF_QUEUE:
-		beio->ds_tag_type = DEVSTAT_TAG_HEAD;
-		break;
-	case CTL_TAG_UNTAGGED:
-	case CTL_TAG_SIMPLE:
-	case CTL_TAG_ACA:
-	default:
-		beio->ds_tag_type = DEVSTAT_TAG_SIMPLE;
-		break;
-	}
-
 	beio->io_len = 0;
 	beio->io_offset = -1;
-
 	beio->bio_cmd = BIO_DELETE;
 	beio->ds_trans_type = DEVSTAT_FREE;
-
 	DPRINTF("UNMAP\n");
-
 	be_lun->unmap(be_lun, beio);
 }
 
@@ -1414,16 +1395,26 @@ ctl_be_block_cw_dispatch(struct ctl_be_block_lun *be_lun,
 	beio->io = io;
 	beio->lun = be_lun;
 	beio->beio_cont = ctl_be_block_cw_done;
+	switch (io->scsiio.tag_type) {
+	case CTL_TAG_ORDERED:
+		beio->ds_tag_type = DEVSTAT_TAG_ORDERED;
+		break;
+	case CTL_TAG_HEAD_OF_QUEUE:
+		beio->ds_tag_type = DEVSTAT_TAG_HEAD;
+		break;
+	case CTL_TAG_UNTAGGED:
+	case CTL_TAG_SIMPLE:
+	case CTL_TAG_ACA:
+	default:
+		beio->ds_tag_type = DEVSTAT_TAG_SIMPLE;
+		break;
+	}
 	PRIV(io)->ptr = (void *)beio;
 
 	switch (io->scsiio.cdb[0]) {
 	case SYNCHRONIZE_CACHE:
 	case SYNCHRONIZE_CACHE_16:
-		beio->bio_cmd = BIO_FLUSH;
-		beio->ds_trans_type = DEVSTAT_NO_DATA;
-		beio->ds_tag_type = DEVSTAT_TAG_ORDERED;
-		beio->io_len = 0;
-		be_lun->lun_flush(be_lun, beio);
+		ctl_be_block_cw_dispatch_sync(be_lun, io);
 		break;
 	case WRITE_SAME_10:
 	case WRITE_SAME_16:
@@ -2120,18 +2111,7 @@ ctl_be_block_open(struct ctl_be_block_softc *softc,
 		return (1);
 	}
 
-	if (!curthread->td_proc->p_fd->fd_cdir) {
-		curthread->td_proc->p_fd->fd_cdir = rootvnode;
-		VREF(rootvnode);
-	}
-	if (!curthread->td_proc->p_fd->fd_rdir) {
-		curthread->td_proc->p_fd->fd_rdir = rootvnode;
-		VREF(rootvnode);
-	}
-	if (!curthread->td_proc->p_fd->fd_jdir) {
-		curthread->td_proc->p_fd->fd_jdir = rootvnode;
-		VREF(rootvnode);
-	}
+	pwd_ensure_dirs();
 
  again:
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, be_lun->dev_path, curthread);
@@ -2666,10 +2646,12 @@ ctl_be_block_modify(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 	oldsize = be_lun->size_bytes;
 	if (be_lun->vn == NULL)
 		error = ctl_be_block_open(softc, be_lun, req);
+	else if (vn_isdisk(be_lun->vn, &error))
+		error = ctl_be_block_modify_dev(be_lun, req);
 	else if (be_lun->vn->v_type == VREG)
 		error = ctl_be_block_modify_file(be_lun, req);
 	else
-		error = ctl_be_block_modify_dev(be_lun, req);
+		error = EINVAL;
 
 	if (error == 0 && be_lun->size_bytes != oldsize) {
 		be_lun->size_blocks = be_lun->size_bytes >>

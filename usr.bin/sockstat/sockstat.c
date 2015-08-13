@@ -45,6 +45,8 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in_pcb.h>
 #include <netinet/sctp.h>
 #include <netinet/tcp.h>
+#define TCPSTATES /* load state names */
+#include <netinet/tcp_fsm.h>
 #include <netinet/tcp_seq.h>
 #include <netinet/tcp_var.h>
 #include <arpa/inet.h>
@@ -71,6 +73,7 @@ static int	 opt_c;		/* Show connected sockets */
 static int	 opt_j;		/* Show specified jail */
 static int	 opt_L;		/* Don't show IPv4 or IPv6 loopback sockets */
 static int	 opt_l;		/* Show listening sockets */
+static int	 opt_s;		/* Show protocol state if applicable */
 static int	 opt_u;		/* Show Unix domain sockets */
 static int	 opt_v;		/* Verbose mode */
 
@@ -101,6 +104,7 @@ struct sock {
 	int vflag;
 	int family;
 	int proto;
+	int state;
 	const char *protoname;
 	struct addr *laddr;
 	struct addr *faddr;
@@ -538,9 +542,9 @@ gather_inet(int proto)
 	const char *varname, *protoname;
 	size_t len, bufsize;
 	void *buf;
-	int hash, retry, vflag;
+	int hash, retry, state, vflag;
 
-	vflag = 0;
+	state = vflag = 0;
 	if (opt_4)
 		vflag |= INP_IPV4;
 	if (opt_6)
@@ -594,9 +598,10 @@ gather_inet(int proto)
 		xig = (struct xinpgen *)(void *)((char *)xig + xig->xig_len);
 		if (xig >= exig)
 			break;
+		xip = (struct xinpcb *)xig;
+		xtp = (struct xtcpcb *)xig;
 		switch (proto) {
 		case IPPROTO_TCP:
-			xtp = (struct xtcpcb *)xig;
 			if (xtp->xt_len != sizeof(*xtp)) {
 				warnx("struct xtcpcb size mismatch");
 				goto out;
@@ -604,10 +609,10 @@ gather_inet(int proto)
 			inp = &xtp->xt_inp;
 			so = &xtp->xt_socket;
 			protoname = xtp->xt_tp.t_flags & TF_TOE ? "toe" : "tcp";
+			state = xtp->xt_tp.t_state;
 			break;
 		case IPPROTO_UDP:
 		case IPPROTO_DIVERT:
-			xip = (struct xinpcb *)xig;
 			if (xip->xi_len != sizeof(*xip)) {
 				warnx("struct xinpcb size mismatch");
 				goto out;
@@ -670,6 +675,8 @@ gather_inet(int proto)
 		sock->laddr = laddr;
 		sock->faddr = faddr;
 		sock->vflag = inp->inp_vflag;
+		if (proto == IPPROTO_TCP)
+			sock->state = xtp->xt_tp.t_state;
 		sock->protoname = protoname;
 		hash = (int)((uintptr_t)sock->socket % HASHSIZE);
 		sock->next = sockhash[hash];
@@ -977,7 +984,14 @@ displaysock(struct sock *s, int pos)
 			pos = 0;
 		}
 	}
-	xprintf("\n");
+	if (opt_s && s->proto == IPPROTO_TCP) {
+		while (pos < 80)
+			pos += xprintf(" ");
+		if (s->state >= 0 && s->state < TCP_NSTATES)
+			pos += xprintf("%s", tcpstates[s->state]);
+		else
+			pos += xprintf("?");
+	}
 }
 
 static void
@@ -988,9 +1002,12 @@ display(void)
 	struct sock *s;
 	int hash, n, pos;
 
-	printf("%-8s %-10s %-5s %-2s %-6s %-21s %-21s\n",
+	printf("%-8s %-10s %-5s %-2s %-6s %-21s %-21s",
 	    "USER", "COMMAND", "PID", "FD", "PROTO",
 	    "LOCAL ADDRESS", "FOREIGN ADDRESS");
+	if (opt_s)
+		printf(" %-12s", "STATE");
+	printf("\n");
 	setpassent(1);
 	for (xf = xfiles, n = 0; n < nxfiles; ++n, ++xf) {
 		if (xf->xf_data == NULL)
@@ -1019,6 +1036,7 @@ display(void)
 				pos += xprintf(" ");
 			pos += xprintf("%d ", xf->xf_fd);
 			displaysock(s, pos);
+			xprintf("\n");
 		}
 	}
 	if (opt_j >= 0)
@@ -1033,6 +1051,7 @@ display(void)
 			pos += xprintf("%-8s %-10s %-5s %-2s ",
 			    "?", "?", "?", "?");
 			displaysock(s, pos);
+			xprintf("\n");
 		}
 	}
 }
@@ -1061,7 +1080,7 @@ static void
 usage(void)
 {
 	fprintf(stderr,
-	    "Usage: sockstat [-46cLlu] [-j jid] [-p ports] [-P protocols]\n");
+	    "usage: sockstat [-46cLlsu] [-j jid] [-p ports] [-P protocols]\n");
 	exit(1);
 }
 
@@ -1072,7 +1091,7 @@ main(int argc, char *argv[])
 	int o, i;
 
 	opt_j = -1;
-	while ((o = getopt(argc, argv, "46cj:Llp:P:uv")) != -1)
+	while ((o = getopt(argc, argv, "46cj:Llp:P:suv")) != -1)
 		switch (o) {
 		case '4':
 			opt_4 = 1;
@@ -1097,6 +1116,9 @@ main(int argc, char *argv[])
 			break;
 		case 'P':
 			protos_defined = parse_protos(optarg);
+			break;
+		case 's':
+			opt_s = 1;
 			break;
 		case 'u':
 			opt_u = 1;

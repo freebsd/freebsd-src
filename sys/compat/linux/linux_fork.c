@@ -73,8 +73,8 @@ linux_fork(struct thread *td, struct linux_fork_args *args)
 		printf(ARGS(fork, ""));
 #endif
 
-	if ((error = fork1(td, RFFDG | RFPROC | RFSTOPPED, 0, &p2, NULL, 0))
-	    != 0)
+	if ((error = fork1(td, RFFDG | RFPROC | RFSTOPPED, 0, &p2, NULL, 0,
+	    NULL)) != 0)
 		return (error);
 
 	td2 = FIRST_THREAD_IN_PROC(p2);
@@ -108,7 +108,7 @@ linux_vfork(struct thread *td, struct linux_vfork_args *args)
 
 	/* Exclude RFPPWAIT */
 	if ((error = fork1(td, RFFDG | RFPROC | RFMEM | RFSTOPPED, 0, &p2,
-	    NULL, 0)) != 0)
+	    NULL, 0, NULL)) != 0)
 		return (error);
 
 
@@ -179,7 +179,7 @@ linux_clone_proc(struct thread *td, struct linux_clone_args *args)
 		if (args->parent_tidptr == NULL)
 			return (EINVAL);
 
-	error = fork1(td, ff, 0, &p2, NULL, 0);
+	error = fork1(td, ff, 0, &p2, NULL, 0, NULL);
 	if (error)
 		return (error);
 
@@ -398,7 +398,7 @@ linux_exit(struct thread *td, struct linux_exit_args *args)
 	 * exit via pthread_exit() try thr_exit() first.
 	 */
 	kern_thr_exit(td);
-	exit1(td, W_EXITCODE(args->rval, 0));
+	exit1(td, args->rval, 0);
 		/* NOTREACHED */
 }
 

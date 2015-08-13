@@ -8058,7 +8058,7 @@ usage(int printlong)
 
 	fprintf(printlong ? stdout : stderr,
 "usage:  camcontrol <command>  [device id][generic args][command args]\n"
-"        camcontrol devlist    [-v]\n"
+"        camcontrol devlist    [-b] [-v]\n"
 #ifndef MINIMALISTIC
 "        camcontrol periphlist [dev_id][-n dev_name] [-u unit]\n"
 "        camcontrol tur        [dev_id][generic args]\n"

@@ -537,6 +537,10 @@ DtCompileStao (
     void                    **PFieldList);
 
 ACPI_STATUS
+DtCompileTcpa (
+    void                    **PFieldList);
+
+ACPI_STATUS
 DtCompileUefi (
     void                    **PFieldList);
 

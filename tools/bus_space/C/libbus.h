@@ -29,7 +29,7 @@
 #ifndef _LIBBUS_SPACE_H_
 #define	_LIBBUS_SPACE_H_
 
-int	bus_map(const char *dev);
+int	bus_map(const char *dev, const char *resource);
 int16_t	bus_read_1(int rid, long ofs);
 int32_t	bus_read_2(int rid, long ofs);
 int64_t bus_read_4(int rid, long ofs);
@@ -58,6 +58,11 @@ int	busdma_tag_destroy(busdma_tag_t tag);
 int	busdma_mem_alloc(busdma_tag_t tag, u_int flags, busdma_md_t *out_p);
 int	busdma_mem_free(busdma_md_t md);
 
+int	busdma_md_create(busdma_tag_t tag, u_int flags, busdma_md_t *out_p);
+int	busdma_md_destroy(busdma_md_t md);
+int	busdma_md_load(busdma_md_t md, void *buf, size_t len, u_int flags);
+int	busdma_md_unload(busdma_md_t md);
+
 #define	BUSDMA_MD_BUS_SPACE	0
 #define	BUSDMA_MD_PHYS_SPACE	1
 #define	BUSDMA_MD_VIRT_SPACE	2
@@ -67,5 +72,13 @@ int	busdma_md_next_seg(busdma_md_t, busdma_seg_t seg);
 
 bus_addr_t	busdma_seg_get_addr(busdma_seg_t seg);
 bus_size_t	busdma_seg_get_size(busdma_seg_t seg);
+
+#define	BUSDMA_SYNC_PREREAD     1
+#define	BUSDMA_SYNC_POSTREAD    2
+#define	BUSDMA_SYNC_PREWRITE    4
+#define	BUSDMA_SYNC_POSTWRITE   8
+
+int	busdma_sync(busdma_md_t md, int op);
+int	busdma_sync_range(busdma_md_t md, int op, bus_size_t, bus_size_t);
 
 #endif /* _LIBBUS_SPACE_H_ */

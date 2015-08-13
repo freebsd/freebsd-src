@@ -15,4 +15,6 @@ divert(-1)
 
 define(`_BLOCK_BAD_HELO_', `')dnl
 RELAY_DOMAIN(`127.0.0.1')dnl
+RELAY_DOMAIN(`IPv6:0:0:0:0:0:0:0:1 IPv6:::1')dnl
 LOCAL_DOMAIN(`[127.0.0.1]')dnl
+LOCAL_DOMAIN(`[IPv6:0:0:0:0:0:0:0:1] [IPv6:::1]')dnl

@@ -119,7 +119,72 @@ LkIsObjectUsed (
 {
     ACPI_NAMESPACE_NODE     *Node = ACPI_CAST_PTR (ACPI_NAMESPACE_NODE, ObjHandle);
     ACPI_NAMESPACE_NODE     *Next;
+    ASL_METHOD_LOCAL        *MethodLocals;
+    ASL_METHOD_LOCAL        *MethodArgs;
+    UINT32                  i;
 
+
+    if (Node->Type == ACPI_TYPE_METHOD)
+    {
+        if (!Node->Op || !Node->MethodLocals)
+        {
+            return (AE_OK);
+        }
+
+        MethodLocals = (ASL_METHOD_LOCAL *) Node->MethodLocals;
+        MethodArgs = (ASL_METHOD_LOCAL *) Node->MethodArgs;
+
+        /*
+         * Analysis of LocalX variables
+         */
+        for (i = 0; i < ACPI_METHOD_NUM_LOCALS; i++)
+        {
+            /* Warn for Locals that are set but never referenced */
+
+            if ((MethodLocals[i].Flags & ASL_LOCAL_INITIALIZED) &&
+                (!(MethodLocals[i].Flags & ASL_LOCAL_REFERENCED)))
+            {
+                sprintf (MsgBuffer, "Local%u", i);
+                AslError (ASL_WARNING, ASL_MSG_LOCAL_NOT_USED,
+                    MethodLocals[i].Op, MsgBuffer);
+            }
+        }
+
+        /*
+         * Analysis of ArgX variables (standard method arguments,
+         * and remaining unused ArgX can also be used as locals)
+         */
+        for (i = 0; i < ACPI_METHOD_NUM_ARGS; i++)
+        {
+            if (MethodArgs[i].Flags & ASL_ARG_IS_LOCAL)
+            {
+                /* Warn if ArgX is being used as a local, but not referenced */
+
+                if ((MethodArgs[i].Flags & ASL_ARG_INITIALIZED) &&
+                    (!(MethodArgs[i].Flags & ASL_ARG_REFERENCED)))
+                {
+                    sprintf (MsgBuffer, "Arg%u", i);
+                    AslError (ASL_WARNING, ASL_MSG_ARG_AS_LOCAL_NOT_USED,
+                        MethodArgs[i].Op, MsgBuffer);
+                }
+            }
+            else
+            {
+                /*
+                 * Remark if a normal method ArgX is not referenced.
+                 * We ignore the predefined methods since often, not
+                 * all arguments are needed or used.
+                 */
+                if ((Node->Name.Ascii[0] != '_') &&
+                    (!(MethodArgs[i].Flags & ASL_ARG_REFERENCED)))
+                {
+                    sprintf (MsgBuffer, "Arg%u", i);
+                    AslError (ASL_REMARK, ASL_MSG_ARG_NOT_USED,
+                        MethodArgs[i].Op, MsgBuffer);
+                }
+            }
+        }
+    }
 
     /* Referenced flag is set during the namespace xref */
 

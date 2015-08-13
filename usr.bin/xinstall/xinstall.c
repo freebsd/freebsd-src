@@ -658,6 +658,14 @@ makelink(const char *from_name, const char *to_name,
 	if (dolink & LN_RELATIVE) {
 		char *cp, *d, *s;
 
+		if (*from_name != '/') {
+			/* this is already a relative link */
+			do_symlink(from_name, to_name, target_sb);
+			/* XXX: from_name may point outside of destdir. */
+			metadata_log(to_name, "link", NULL, from_name, NULL, 0);
+			return;
+		}
+
 		/* Resolve pathnames. */
 		if (realpath(from_name, src) == NULL)
 			err(EX_OSERR, "%s: realpath", from_name);

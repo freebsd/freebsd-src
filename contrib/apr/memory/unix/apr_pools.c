@@ -1135,21 +1135,12 @@ APR_DECLARE(char *) apr_pvsprintf(apr_pool_t *pool, const char *fmt, va_list ap)
      * room to hold the NUL terminator.
      */
     if (ps.node->first_avail == ps.node->endp) {
-        if (psprintf_flush(&ps.vbuff) == -1) {
-            if (pool->abort_fn) {
-                pool->abort_fn(APR_ENOMEM);
-            }
-
-            return NULL;
-        }
+        if (psprintf_flush(&ps.vbuff) == -1)
+           goto error;
     }
 
-    if (apr_vformatter(psprintf_flush, &ps.vbuff, fmt, ap) == -1) {
-        if (pool->abort_fn)
-            pool->abort_fn(APR_ENOMEM);
-
-        return NULL;
-    }
+    if (apr_vformatter(psprintf_flush, &ps.vbuff, fmt, ap) == -1)
+        goto error;
 
     strp = ps.vbuff.curpos;
     *strp++ = '\0';
@@ -1195,6 +1186,15 @@ APR_DECLARE(char *) apr_pvsprintf(apr_pool_t *pool, const char *fmt, va_list ap)
     list_insert(active, node);
 
     return strp;
+
+error:
+    if (pool->abort_fn)
+        pool->abort_fn(APR_ENOMEM);
+    if (ps.got_a_new_node) {
+        ps.node->next = ps.free;
+        allocator_free(pool->allocator, ps.node);
+    }
+    return NULL;
 }
 
 

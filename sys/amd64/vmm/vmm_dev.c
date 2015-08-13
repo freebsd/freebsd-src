@@ -943,7 +943,7 @@ devmem_create_cdev(const char *vmname, int segid, char *devname)
 	int error;
 
 	error = make_dev_p(MAKEDEV_CHECKNAME, &cdev, &devmemsw, NULL,
-	    UID_ROOT, GID_WHEEL, 0600, "vmm/%s.%s", vmname, devname);
+	    UID_ROOT, GID_WHEEL, 0600, "vmm.io/%s.%s", vmname, devname);
 	if (error)
 		return (error);
 

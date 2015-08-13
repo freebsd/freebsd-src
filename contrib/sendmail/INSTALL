@@ -28,8 +28,9 @@ sendmail/SECURITY for more installation information.
    /etc/mail/submit.cf.  This can be done in the cf/cf by using
    "sh ./Build install-cf".
 
-   Please read sendmail/SECURITY before continuing; you have to create a
-   new user smmsp and a new group smmsp for the default installation.
+   Please read sendmail/SECURITY before continuing; you may have to create
+   a new user smmsp and a new group smmsp for the default installation
+   if you are updating from a really old version.
    Then install the sendmail binary built in step 3 by cd-ing back to
    sendmail/ and running "sh ./Build install".
 

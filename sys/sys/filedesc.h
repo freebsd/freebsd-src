@@ -134,6 +134,22 @@ struct filedesc_to_leader {
 					    SX_NOTRECURSED)
 #define	FILEDESC_UNLOCK_ASSERT(fdp)	sx_assert(&(fdp)->fd_sx, SX_UNLOCKED)
 
+/* Operation types for kern_dup(). */
+enum {
+	FDDUP_NORMAL,		/* dup() behavior. */
+	FDDUP_FCNTL,		/* fcntl()-style errors. */
+	FDDUP_FIXED,		/* Force fixed allocation. */
+	FDDUP_MUSTREPLACE,	/* Target must exist. */
+	FDDUP_LASTMODE,
+};
+
+/* Flags for kern_dup(). */
+#define	FDDUP_FLAG_CLOEXEC	0x1	/* Atomically set UF_EXCLOSE. */
+
+/* For backward compatibility. */
+#define	falloc(td, resultfp, resultfd, flags) \
+	falloc_caps(td, resultfp, resultfd, flags, NULL)
+
 struct thread;
 
 void	filecaps_init(struct filecaps *fcaps);
@@ -144,8 +160,8 @@ void	filecaps_free(struct filecaps *fcaps);
 int	closef(struct file *fp, struct thread *td);
 int	dupfdopen(struct thread *td, struct filedesc *fdp, int dfd, int mode,
 	    int openerror, int *indxp);
-int	falloc(struct thread *td, struct file **resultfp, int *resultfd,
-	    int flags);
+int	falloc_caps(struct thread *td, struct file **resultfp, int *resultfd,
+	    int flags, struct filecaps *fcaps);
 int	falloc_noinstall(struct thread *td, struct file **resultfp);
 void	_finstall(struct filedesc *fdp, struct file *fp, int fd, int flags,
 	    struct filecaps *fcaps);
@@ -158,8 +174,12 @@ void	fdclose(struct thread *td, struct file *fp, int idx);
 void	fdcloseexec(struct thread *td);
 void	fdsetugidsafety(struct thread *td);
 struct	filedesc *fdcopy(struct filedesc *fdp);
+int	fdcopy_remapped(struct filedesc *fdp, const int *fds, size_t nfds,
+	    struct filedesc **newfdp);
+void	fdinstall_remapped(struct thread *td, struct filedesc *fdp);
 void	fdunshare(struct thread *td);
 void	fdescfree(struct thread *td);
+void	fdescfree_remapped(struct filedesc *fdp);
 struct	filedesc *fdinit(struct filedesc *fdp, bool prepfiles);
 struct	filedesc *fdshare(struct filedesc *fdp);
 struct filedesc_to_leader *
@@ -192,6 +212,11 @@ fd_modified(struct filedesc *fdp, int fd, seq_t seq)
 
 	return (!seq_consistent(fd_seq(fdp->fd_files, fd), seq));
 }
+
+/* cdir/rdir/jdir manipulation functions. */
+void	pwd_chdir(struct thread *td, struct vnode *vp);
+int	pwd_chroot(struct thread *td, struct vnode *vp);
+void	pwd_ensure_dirs(void);
 
 #endif /* _KERNEL */
 

@@ -24,6 +24,8 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #ifndef __HV_RNDIS_FILTER_H__
@@ -90,27 +92,16 @@ typedef struct rndis_device_ {
 	uint8_t				hw_mac_addr[HW_MACADDR_LEN];
 } rndis_device;
 
-typedef struct rndis_filter_packet_ {
-	void				*completion_context;
-	/* No longer used */
-	pfn_on_send_rx_completion	on_completion;
-
-	rndis_msg			message;
-} rndis_filter_packet;
-
-
 /*
  * Externs
  */
 
-extern int  hv_rf_on_receive(struct hv_device *device, netvsc_packet *pkt);
-extern int  hv_rf_on_device_add(struct hv_device *device, void *additl_info);
-extern int  hv_rf_on_device_remove(struct hv_device *device,
-				   boolean_t destroy_channel);
-extern int  hv_rf_on_open(struct hv_device *device);
-extern int  hv_rf_on_close(struct hv_device *device);
-extern int  hv_rf_on_send(struct hv_device *device, netvsc_packet *pkt);
-
+int hv_rf_on_receive(netvsc_dev *net_dev,
+    struct hv_device *device, netvsc_packet *pkt);
+int hv_rf_on_device_add(struct hv_device *device, void *additl_info);
+int hv_rf_on_device_remove(struct hv_device *device, boolean_t destroy_channel);
+int hv_rf_on_open(struct hv_device *device);
+int hv_rf_on_close(struct hv_device *device);
 
 #endif  /* __HV_RNDIS_FILTER_H__ */
 

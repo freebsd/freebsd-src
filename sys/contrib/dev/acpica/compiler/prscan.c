@@ -120,7 +120,6 @@ static const PR_DIRECTIVE_INFO      Gbl_DirectiveInfo[] =
     {"include",         0}, /* Argument is not standard format, so just use 0 here */
     {"includebuffer",   0}, /* Argument is not standard format, so just use 0 here */
     {"line",            1},
-    {"loadbuffer",      0},
     {"pragma",          1},
     {"undef",           1},
     {"warning",         1},
@@ -144,7 +143,7 @@ enum Gbl_DirectiveIndexes
     PR_DIRECTIVE_LINE,
     PR_DIRECTIVE_PRAGMA,
     PR_DIRECTIVE_UNDEF,
-    PR_DIRECTIVE_WARNING,
+    PR_DIRECTIVE_WARNING
 };
 
 #define ASL_DIRECTIVE_NOT_FOUND     -1
@@ -328,7 +327,7 @@ PrPreprocessInputFile (
 
     PrGetNextLineInit ();
 
-    /* Scan line-by-line. Comments and blank lines are skipped by this function */
+    /* Scan source line-by-line and process directives. Then write the .i file */
 
     while ((Status = PrGetNextLine (Gbl_Files[ASL_FILE_INPUT].Handle)) != ASL_EOF)
     {
@@ -477,6 +476,16 @@ PrDoDirective (
             Gbl_CurrentLineNumber, DirectiveToken);
         return;
     }
+
+    /*
+     * Emit a line directive into the preprocessor file (.pre) after
+     * every matched directive. This is passed through to the compiler
+     * so that error/warning messages are kept in sync with the
+     * original source file.
+     */
+    FlPrintFile (ASL_FILE_PREPROCESSOR, "#line %u \"%s\" // #%s\n",
+        Gbl_CurrentLineNumber, Gbl_Files[ASL_FILE_INPUT].Filename,
+        Gbl_DirectiveInfo[Directive].Name);
 
     /*
      * If we are currently ignoring this block and we encounter a #else or
@@ -825,6 +834,9 @@ PrDoDirective (
 
         PrError (ASL_WARNING, ASL_MSG_WARNING_DIRECTIVE,
             THIS_TOKEN_OFFSET (Token));
+
+        Gbl_SourceLine = 0;
+        Gbl_NextError = Gbl_ErrorLog;
         break;
 
     default:
@@ -863,7 +875,9 @@ SyntaxError:
  ******************************************************************************/
 
 #define PR_NORMAL_TEXT          0
-#define PR_WITHIN_COMMENT       1
+#define PR_MULTI_LINE_COMMENT   1
+#define PR_SINGLE_LINE_COMMENT  2
+#define PR_QUOTED_STRING        3
 
 static UINT8                    AcpiGbl_LineScanState = PR_NORMAL_TEXT;
 
@@ -904,22 +918,55 @@ PrGetNextLine (
             return (ASL_EOF);
         }
 
-        /* We need to worry about multi-line slash-asterisk comments */
+        /* Update state machine as necessary */
 
-        /* Check for comment open */
-
-        if ((AcpiGbl_LineScanState == PR_NORMAL_TEXT) &&
-            (PreviousChar == '/') && (c == '*'))
+        switch (AcpiGbl_LineScanState)
         {
-            AcpiGbl_LineScanState = PR_WITHIN_COMMENT;
-        }
+        case PR_NORMAL_TEXT:
 
-        /* Check for comment close */
+            /* Check for multi-line comment start */
 
-        if ((AcpiGbl_LineScanState == PR_WITHIN_COMMENT) &&
-            (PreviousChar == '*') && (c == '/'))
-        {
-            AcpiGbl_LineScanState = PR_NORMAL_TEXT;
+            if ((PreviousChar == '/') && (c == '*'))
+            {
+                AcpiGbl_LineScanState = PR_MULTI_LINE_COMMENT;
+            }
+
+            /* Check for single-line comment start */
+
+            else if ((PreviousChar == '/') && (c == '/'))
+            {
+                AcpiGbl_LineScanState = PR_SINGLE_LINE_COMMENT;
+            }
+
+            /* Check for quoted string start */
+
+            else if (PreviousChar == '"')
+            {
+                AcpiGbl_LineScanState = PR_QUOTED_STRING;
+            }
+            break;
+
+        case PR_QUOTED_STRING:
+
+            if (PreviousChar == '"')
+            {
+                AcpiGbl_LineScanState = PR_NORMAL_TEXT;
+            }
+            break;
+
+        case PR_MULTI_LINE_COMMENT:
+
+            /* Check for multi-line comment end */
+
+            if ((PreviousChar == '*') && (c == '/'))
+            {
+                AcpiGbl_LineScanState = PR_NORMAL_TEXT;
+            }
+            break;
+
+        case PR_SINGLE_LINE_COMMENT: /* Just ignore text until EOL */
+        default:
+            break;
         }
 
         /* Always copy the character into line buffer */
@@ -933,10 +980,21 @@ PrGetNextLine (
         {
             /* Handle multi-line comments */
 
-            if (AcpiGbl_LineScanState == PR_WITHIN_COMMENT)
+            if (AcpiGbl_LineScanState == PR_MULTI_LINE_COMMENT)
             {
                 return (ASL_WITHIN_COMMENT);
             }
+
+            /* End of single-line comment */
+
+            if (AcpiGbl_LineScanState == PR_SINGLE_LINE_COMMENT)
+            {
+                AcpiGbl_LineScanState = PR_NORMAL_TEXT;
+                return (AE_OK);
+            }
+
+            /* Blank line */
+
             if (i == 1)
             {
                 return (ASL_BLANK_LINE);

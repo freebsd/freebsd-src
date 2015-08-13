@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2014 Marcel Moolenaar
+ * Copyright (c) 2014, 2015 Marcel Moolenaar
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -61,6 +61,7 @@ extern char proto_driver_name[];
 
 int proto_add_resource(struct proto_softc *, int, int, struct resource *);
 
+int proto_probe(device_t dev, const char *prefix, char ***devnamesp);
 int proto_attach(device_t dev);
 int proto_detach(device_t dev);
 

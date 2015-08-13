@@ -916,6 +916,7 @@ static MALLOC_DEFINE(M_FPUKERN_CTX, "fpukern_ctx",
 
 #define	FPU_KERN_CTX_FPUINITDONE 0x01
 #define	FPU_KERN_CTX_DUMMY	 0x02	/* avoided save for the kern thread */
+#define	FPU_KERN_CTX_INUSE	 0x04
 
 struct fpu_kern_ctx {
 	struct savefpu *prev;
@@ -940,6 +941,7 @@ void
 fpu_kern_free_ctx(struct fpu_kern_ctx *ctx)
 {
 
+	KASSERT((ctx->flags & FPU_KERN_CTX_INUSE) == 0, ("free'ing inuse ctx"));
 	/* XXXKIB clear the memory ? */
 	free(ctx, M_FPUKERN_CTX);
 }
@@ -959,14 +961,16 @@ fpu_kern_enter(struct thread *td, struct fpu_kern_ctx *ctx, u_int flags)
 {
 	struct pcb *pcb;
 
+	KASSERT((ctx->flags & FPU_KERN_CTX_INUSE) == 0, ("using inuse ctx"));
+
 	if ((flags & FPU_KERN_KTHR) != 0 && is_fpu_kern_thread(0)) {
-		ctx->flags = FPU_KERN_CTX_DUMMY;
+		ctx->flags = FPU_KERN_CTX_DUMMY | FPU_KERN_CTX_INUSE;
 		return (0);
 	}
 	pcb = td->td_pcb;
 	KASSERT(!PCB_USER_FPU(pcb) || pcb->pcb_save ==
 	    get_pcb_user_save_pcb(pcb), ("mangled pcb_save"));
-	ctx->flags = 0;
+	ctx->flags = FPU_KERN_CTX_INUSE;
 	if ((pcb->pcb_flags & PCB_FPUINITDONE) != 0)
 		ctx->flags |= FPU_KERN_CTX_FPUINITDONE;
 	fpuexit(td);
@@ -981,6 +985,10 @@ int
 fpu_kern_leave(struct thread *td, struct fpu_kern_ctx *ctx)
 {
 	struct pcb *pcb;
+
+	KASSERT((ctx->flags & FPU_KERN_CTX_INUSE) != 0,
+	    ("leaving not inuse ctx"));
+	ctx->flags &= ~FPU_KERN_CTX_INUSE;
 
 	if (is_fpu_kern_thread(0) && (ctx->flags & FPU_KERN_CTX_DUMMY) != 0)
 		return (0);

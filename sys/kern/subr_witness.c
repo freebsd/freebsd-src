@@ -661,6 +661,9 @@ static struct witness_order_list_entry order_lists[] = {
 	 */
 	{ "intrcnt", &lock_class_mtx_spin },
 	{ "icu", &lock_class_mtx_spin },
+#if defined(SMP) && defined(__sparc64__)
+	{ "ipi", &lock_class_mtx_spin },
+#endif
 #ifdef __i386__
 	{ "allpmaps", &lock_class_mtx_spin },
 	{ "descriptor tables", &lock_class_mtx_spin },
@@ -1221,7 +1224,7 @@ witness_checkorder(struct lock_object *lock, int flags, const char *file,
 	for (j = 0, lle = lock_list; lle != NULL; lle = lle->ll_next) {
 		for (i = lle->ll_count - 1; i >= 0; i--, j++) {
 
-			MPASS(j < witness_count);
+			MPASS(j < LOCK_CHILDCOUNT * LOCK_NCHILDREN);
 			lock1 = &lle->ll_children[i];
 
 			/*

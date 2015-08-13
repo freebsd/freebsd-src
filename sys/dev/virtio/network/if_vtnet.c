@@ -304,6 +304,9 @@ DRIVER_MODULE(vtnet, virtio_pci, vtnet_driver, vtnet_devclass,
     vtnet_modevent, 0);
 MODULE_VERSION(vtnet, 1);
 MODULE_DEPEND(vtnet, virtio, 1, 1, 1);
+#ifdef DEV_NETMAP
+MODULE_DEPEND(vtnet, netmap, 1, 1, 1);
+#endif /* DEV_NETMAP */
 
 static int
 vtnet_modevent(module_t mod, int type, void *unused)

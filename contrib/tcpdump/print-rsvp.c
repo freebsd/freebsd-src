@@ -486,8 +486,8 @@ static const struct tok rsvp_obj_generalized_uni_values[] = {
  */
 static int
 rsvp_intserv_print(netdissect_options *ndo,
-                   const u_char *tptr, u_short obj_tlen) {
-
+                   const u_char *tptr, u_short obj_tlen)
+{
     int parameter_id,parameter_length;
     union {
 	float f;
@@ -637,8 +637,8 @@ _U_
 _U_
 #endif
 , const u_char *tptr,
-                const char *ident, u_int tlen) {
-
+                const char *ident, u_int tlen)
+{
     const struct rsvp_object_header *rsvp_obj_header;
     const u_char *obj_tptr;
     union {
@@ -1795,8 +1795,8 @@ trunc:
 
 void
 rsvp_print(netdissect_options *ndo,
-           register const u_char *pptr, register u_int len) {
-
+           register const u_char *pptr, register u_int len)
+{
     struct rsvp_common_header *rsvp_com_header;
     const u_char *tptr,*subtptr;
     u_short plen, tlen, subtlen;

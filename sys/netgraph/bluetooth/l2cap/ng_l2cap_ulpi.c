@@ -398,7 +398,7 @@ ng_l2cap_l2ca_con_ind(ng_l2cap_chan_p ch)
 		ip->lcid = ch->scid;
 		ip->psm = ch->psm;
 		ip->ident = ch->ident;
-
+		ip->linktype = ch->con->linktype;
 		NG_SEND_MSG_HOOK(error, l2cap->node, msg, l2cap->l2c, 0);
 	}
 

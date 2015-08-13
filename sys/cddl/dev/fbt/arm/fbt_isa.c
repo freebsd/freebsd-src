@@ -56,7 +56,6 @@ fbt_invop(uintptr_t addr, uintptr_t *stack, uintptr_t rval)
 
 	for (; fbt != NULL; fbt = fbt->fbtp_hashnext) {
 		if ((uintptr_t)fbt->fbtp_patchpoint == addr) {
-			fbt->fbtp_invop_cnt++;
 			cpu->cpu_dtrace_caller = addr;
 
 			/* TODO: Need 5th parameter from stack */

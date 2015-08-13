@@ -213,8 +213,11 @@ void
 PrParsererror (
     char const              *Message)
 {
+
+    sprintf (StringBuffer, "Preprocessor Parser : %s (near line %u)",
+        Message, Gbl_CurrentLineNumber);
     DtError (ASL_ERROR, ASL_MSG_SYNTAX,
-        NULL, (char *) Message);
+        NULL, (char *) StringBuffer);
 }
 
 

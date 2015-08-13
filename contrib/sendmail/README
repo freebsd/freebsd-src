@@ -211,28 +211,10 @@ There are other files you should read.  Rooted in this directory are:
 +--------------+
 
 There are several related RFCs that you may wish to read -- they are
-available via anonymous FTP to several sites.  For a list of the
-primary repositories see:
+available from several sites, see
 
-	http://www.isi.edu/in-notes/rfc-retrieval.txt
-
-They are also online at:
-
+	http://www.rfc-editor.org/
 	http://www.ietf.org/
-
-They can also be retrieved via electronic mail by sending
-email to one of:
-
-	mail-server@nisc.sri.com
-		Put "send rfcNNN" in message body
-	nis-info@nis.nsf.net
-		Put "send RFCnnn.TXT-1" in message body
-	sendrfc@jvnc.net
-		Put "RFCnnn" as Subject: line
-
-For further instructions see:
-
-	http://www.isi.edu/in-notes/rfc-editor/rfc-info
 
 Important RFCs for electronic mail are:
 

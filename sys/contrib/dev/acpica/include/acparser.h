@@ -306,7 +306,7 @@ AcpiPsDeleteParseTree (
  */
 ACPI_PARSE_OBJECT *
 AcpiPsCreateScopeOp (
-    void);
+    UINT8                   *Aml);
 
 void
 AcpiPsInitOp (
@@ -315,7 +315,8 @@ AcpiPsInitOp (
 
 ACPI_PARSE_OBJECT *
 AcpiPsAllocOp (
-    UINT16                  opcode);
+    UINT16                  Opcode,
+    UINT8                   *Aml);
 
 void
 AcpiPsFreeOp (

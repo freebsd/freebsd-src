@@ -44,7 +44,7 @@ BEGIN
 	ret = -99;
 }
 
-mtx_lock:adaptive-acquire
+lockstat:::adaptive-acquire
 {
 	ret = mutex_type_adaptive((struct mtx *)arg0);
 	i++;

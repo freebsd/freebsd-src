@@ -31,7 +31,7 @@
 .\"     @(#)init.8	8.3 (Berkeley) 4/18/94
 .\" $FreeBSD$
 .\"
-.Dd March 14, 2012
+.Dd July 24, 2015
 .Dt INIT 8
 .Os
 .Sh NAME
@@ -284,6 +284,7 @@ will signal the original
 as follows:
 .Bl -column Run-level SIGTERM
 .It Sy "Run-level	Signal	Action"
+.It Cm 0 Ta Dv SIGUSR1 Ta "Halt"
 .It Cm 0 Ta Dv SIGUSR2 Ta "Halt and turn the power off"
 .It Cm 1 Ta Dv SIGTERM Ta "Go to single-user mode"
 .It Cm 6 Ta Dv SIGINT Ta "Reboot the machine"

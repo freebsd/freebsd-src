@@ -69,8 +69,8 @@ ENTRY(setjmp)
 	/* Return value */
 	mov	x0, #0
 	ret
-.Lmagic:
 	.align	3
+.Lmagic:
 	.quad	_JB_MAGIC_SETJMP
 END(setjmp)
 

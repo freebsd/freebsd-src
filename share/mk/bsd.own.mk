@@ -222,9 +222,11 @@ INCLUDEDIR?=	/usr/include
 #
 HRDLINK?=	-l h
 SYMLINK?=	-l s
+RSYMLINK?=	-l rs
 
 INSTALL_LINK?=		${INSTALL} ${HRDLINK}
 INSTALL_SYMLINK?=	${INSTALL} ${SYMLINK}
+INSTALL_RSYMLINK?=	${INSTALL} ${RSYMLINK}
 
 # Common variables
 .if !defined(DEBUG_FLAGS)

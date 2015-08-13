@@ -227,5 +227,12 @@ int	hfsc_add_queue(struct pf_altq *);
 int	hfsc_remove_queue(struct pf_altq *);
 int	hfsc_getqstats(struct pf_altq *, void *, int *);
 
+int	fairq_pfattach(struct pf_altq *);
+int	fairq_add_altq(struct pf_altq *);
+int	fairq_remove_altq(struct pf_altq *);
+int	fairq_add_queue(struct pf_altq *);
+int	fairq_remove_queue(struct pf_altq *);
+int	fairq_getqstats(struct pf_altq *, void *, int *);
+
 #endif /* _KERNEL */
 #endif /* _ALTQ_ALTQ_VAR_H_ */

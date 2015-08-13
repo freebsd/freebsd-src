@@ -29,6 +29,7 @@
 #ifndef _ZIO_H
 #define	_ZIO_H
 
+#include <sys/zio_priority.h>
 #include <sys/zfs_context.h>
 #include <sys/spa.h>
 #include <sys/txg.h>
@@ -125,32 +126,24 @@ enum zio_compress {
  */
 #define	ZIO_COMPRESS_LEGACY_FUNCTIONS ZIO_COMPRESS_LZ4
 
-/* N.B. when altering this value, also change BOOTFS_COMPRESS_VALID below */
-#define	ZIO_COMPRESS_ON_VALUE	ZIO_COMPRESS_LZJB
-#define	ZIO_COMPRESS_DEFAULT	ZIO_COMPRESS_OFF
+/*
+ * The meaning of "compress = on" selected by the compression features enabled
+ * on a given pool.
+ */
+#define	ZIO_COMPRESS_LEGACY_ON_VALUE	ZIO_COMPRESS_LZJB
+#define	ZIO_COMPRESS_LZ4_ON_VALUE	ZIO_COMPRESS_LZ4
+
+#define	ZIO_COMPRESS_DEFAULT		ZIO_COMPRESS_OFF
 
 #define	BOOTFS_COMPRESS_VALID(compress)			\
 	((compress) == ZIO_COMPRESS_LZJB ||		\
 	(compress) == ZIO_COMPRESS_LZ4 ||		\
-	((compress) == ZIO_COMPRESS_ON &&		\
-	ZIO_COMPRESS_ON_VALUE == ZIO_COMPRESS_LZJB) ||	\
+	(compress) == ZIO_COMPRESS_ON ||		\
 	(compress) == ZIO_COMPRESS_OFF)
 
 #define	ZIO_FAILURE_MODE_WAIT		0
 #define	ZIO_FAILURE_MODE_CONTINUE	1
 #define	ZIO_FAILURE_MODE_PANIC		2
-
-typedef enum zio_priority {
-	ZIO_PRIORITY_SYNC_READ,
-	ZIO_PRIORITY_SYNC_WRITE,	/* ZIL */
-	ZIO_PRIORITY_ASYNC_READ,	/* prefetch */
-	ZIO_PRIORITY_ASYNC_WRITE,	/* spa_sync() */
-	ZIO_PRIORITY_SCRUB,		/* asynchronous scrub/resilver reads */
-	ZIO_PRIORITY_TRIM,		/* free requests used for TRIM */
-	ZIO_PRIORITY_NUM_QUEUEABLE,
-
-	ZIO_PRIORITY_NOW		/* non-queued I/Os (e.g. ioctl) */
-} zio_priority_t;
 
 enum zio_flag {
 	/*
@@ -256,6 +249,7 @@ extern const char *zio_type_name[ZIO_TYPES];
  * Root blocks (objset_phys_t) are object 0, level -1:  <objset, 0, -1, 0>.
  * ZIL blocks are bookmarked <objset, 0, -2, blkid == ZIL sequence number>.
  * dmu_sync()ed ZIL data blocks are bookmarked <objset, object, -2, blkid>.
+ * dnode visit bookmarks are <objset, object id of dnode, -3, 0>.
  *
  * Note: this structure is called a bookmark because its original purpose
  * was to remember where to resume a pool-wide traverse.
@@ -287,6 +281,9 @@ typedef struct zbookmark_phys {
 
 #define	ZB_ZIL_OBJECT		(0ULL)
 #define	ZB_ZIL_LEVEL		(-2LL)
+
+#define	ZB_DNODE_LEVEL		(-3LL)
+#define	ZB_DNODE_BLKID		(0ULL)
 
 #define	ZB_IS_ZERO(zb)						\
 	((zb)->zb_objset == 0 && (zb)->zb_object == 0 &&	\
@@ -454,6 +451,7 @@ struct zio {
 	uint64_t	io_offset;
 	hrtime_t	io_timestamp;
 	avl_node_t	io_queue_node;
+	avl_node_t	io_offset_node;
 
 	/* Internal pipeline state */
 	enum zio_flag	io_flags;
@@ -578,8 +576,8 @@ extern enum zio_checksum zio_checksum_select(enum zio_checksum child,
     enum zio_checksum parent);
 extern enum zio_checksum zio_checksum_dedup_select(spa_t *spa,
     enum zio_checksum child, enum zio_checksum parent);
-extern enum zio_compress zio_compress_select(enum zio_compress child,
-    enum zio_compress parent);
+extern enum zio_compress zio_compress_select(spa_t *spa,
+    enum zio_compress child, enum zio_compress parent);
 
 extern void zio_suspend(spa_t *spa, zio_t *zio);
 extern int zio_resume(spa_t *spa);
@@ -628,8 +626,10 @@ extern void zfs_ereport_post_checksum(spa_t *spa, vdev_t *vd,
 extern void spa_handle_ignored_writes(spa_t *spa);
 
 /* zbookmark_phys functions */
-boolean_t zbookmark_is_before(const struct dnode_phys *dnp,
-    const zbookmark_phys_t *zb1, const zbookmark_phys_t *zb2);
+boolean_t zbookmark_subtree_completed(const struct dnode_phys *dnp,
+    const zbookmark_phys_t *subtree_root, const zbookmark_phys_t *last_block);
+int zbookmark_compare(uint16_t dbss1, uint8_t ibs1, uint16_t dbss2,
+    uint8_t ibs2, const zbookmark_phys_t *zb1, const zbookmark_phys_t *zb2);
 
 #ifdef	__cplusplus
 }
