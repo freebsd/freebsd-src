@@ -80,7 +80,6 @@ __DEFAULT_YES_OPTIONS = \
     DYNAMICROOT \
     ED_CRYPTO \
     EE \
-    ELFTOOLCHAIN_TOOLS \
     EXAMPLES \
     FDT \
     FILE \
