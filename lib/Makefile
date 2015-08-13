@@ -206,7 +206,7 @@ _clang=		clang
 _cuse=		libcuse
 .endif
 
-.if ${MK_ELFTOOLCHAIN_TOOLS} != "no"
+.if ${MK_TOOLCHAIN} != "no"
 _libelftc=	libelftc
 .endif
 

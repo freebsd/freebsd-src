@@ -9,7 +9,7 @@ DEP_RELDIR := ${_PARSEDIR:S,${SRCTOP}/,,}
 .endif
 DIRDEPS=
 
-.if ${MK_ELFTOOLCHAIN_TOOLS} == "yes"
+.if ${MK_TOOLCHAIN} == "yes"
 DIRDEPS+= \
 	usr.bin/addr2line \
 	usr.bin/cxxflit \

@@ -226,16 +226,6 @@ SUBDIR+=	clang
 SUBDIR+=	ee
 .endif
 
-.if ${MK_ELFTOOLCHAIN_TOOLS} != "no"
-SUBDIR+=	addr2line
-SUBDIR+=	cxxfilt
-SUBDIR+=	elfcopy
-SUBDIR+=	nm
-SUBDIR+=	readelf
-SUBDIR+=	size
-SUBDIR+=	strings
-.endif
-
 .if ${MK_FILE} != "no"
 SUBDIR+=	file
 .endif
@@ -369,10 +359,13 @@ SUBDIR+=	tftp
 .endif
 
 .if ${MK_TOOLCHAIN} != "no"
+SUBDIR+=	addr2line
 SUBDIR+=	ar
 SUBDIR+=	c89
 SUBDIR+=	c99
 SUBDIR+=	ctags
+SUBDIR+=	cxxfilt
+SUBDIR+=	elfcopy
 SUBDIR+=	file2c
 .if ${MACHINE_ARCH} != "aarch64" # ARM64TODO gprof does not build
 SUBDIR+=	gprof
@@ -380,9 +373,13 @@ SUBDIR+=	gprof
 SUBDIR+=	indent
 SUBDIR+=	lex
 SUBDIR+=	mkstr
+SUBDIR+=	nm
+SUBDIR+=	readelf
 SUBDIR+=	rpcgen
 SUBDIR+=	sysinit
 SUBDIR+=	unifdef
+SUBDIR+=	size
+SUBDIR+=	strings
 .if ${MK_LINT} != "no"
 .if ${MACHINE_ARCH} != "aarch64" # ARM64TODO xlint does not build
 SUBDIR+=	xlint
