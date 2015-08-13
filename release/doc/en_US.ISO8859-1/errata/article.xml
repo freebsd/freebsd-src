@@ -231,7 +231,7 @@ boot</screen>
 	  packages:</para>
 
 	<screen>&prompt.root; pkg bootstrap
-&prompt.root; pkg install <replaceable>xorg-server</replaceable> <replaceable>xorg</replaceable> <replaceable>gnome2</replaceable> [...]</screen>
+&prompt.root; pkg install <replaceable>xorg-server</replaceable> <replaceable>xorg</replaceable> <replaceable>gnome3</replaceable> [...]</screen>
       </listitem>
 
       <listitem>
