@@ -19,85 +19,9 @@
 
     <tbody>
       <row>
-	<entry><link
-	    xlink:href="&security.url;/FreeBSD-EN-14:13.freebsd-update.asc">FreeBSD-EN-14:13.freebsd-update</link></entry>
-	<entry>23&nbsp;December&nbsp;2014</entry>
-	<entry><para>Fixed directory deletion issue in
-	    &man.freebsd-update.8;</para></entry>
-      </row>
-
-      <row>
-	<entry><link
-	    xlink:href="&security.url;/FreeBSD-EN-15:01.vt.asc">FreeBSD-EN-15:01.vt</link></entry>
-	<entry>25&nbsp;February&nbsp;2015</entry>
-	<entry><para>&man.vt.4; crash with improper ioctl
-	    parameters</para></entry>
-      </row>
-
-      <row>
-	<entry><link
-	    xlink:href="&security.url;/FreeBSD-EN-15:02.openssl.asc">FreeBSD-EN-15:02.openssl</link></entry>
-	<entry>25&nbsp;February&nbsp;2015</entry>
-	<entry><para>OpenSSL update</para></entry>
-      </row>
-
-      <row>
-	<entry><link
-	    xlink:href="&security.url;/FreeBSD-EN-15:03.freebsd-update.asc">FreeBSD-EN-15:03.freebsd-update</link></entry>
-	<entry>25&nbsp;February&nbsp;2015</entry>
-	<entry><para>&man.freebsd-update.8; updates libraries in
-	    suboptimal order</para></entry>
-      </row>
-
-      <row>
-	<entry><link
-	    xlink:href="&security.url;/FreeBSD-EN-15:04.freebsd-update.asc">FreeBSD-EN-15:04.freebsd-update</link></entry>
-	<entry>13&nbsp;May&nbsp;2015</entry>
-	<entry><para>&man.freebsd-update.8; does not ensure the
-	    previous upgrade has completed</para></entry>
-      </row>
-
-      <row>
-	<entry><link
-	    xlink:href="&security.url;/FreeBSD-EN-15:05.ufs.asc">FreeBSD-EN-15:05.ufs</link></entry>
-	<entry>13&nbsp;May&nbsp;2015</entry>
-	<entry><para>Deadlock on reboot with UFS tuned with
-	    SU+J</para></entry>
-      </row>
-
-      <row>
-	<entry><link
-	    xlink:href="&security.url;/FreeBSD-EN-15:06.file.asc">FreeBSD-EN-15:06.file</link></entry>
-	<entry>9&nbsp;June&nbsp;2015</entry>
-	<entry><para>Multiple denial of service issues</para></entry>
-      </row>
-
-      <row>
-	<entry><link
-	    xlink:href="&security.url;/FreeBSD-EN-15:07.zfs.asc">FreeBSD-EN-15:07.zfs</link></entry>
-	<entry>9&nbsp;June&nbsp;2015</entry>
-	<entry><para>ZFS reliability improvements</para></entry>
-      </row>
-
-      <row>
-	<entry><link
-	    xlink:href="&security.url;/FreeBSD-EN-15:08.sendmail.asc">FreeBSD-EN-15:08.sendmail</link></entry>
-	<entry>30&nbsp;June&nbsp;2015 (revised)</entry>
-	<entry><para>Sendmail TLS/DH interoperability improvement</para></entry>
-      </row>
-
-      <row>
-	<entry><link
-	    xlink:href="&security.url;/FreeBSD-EN-15:09.xlocale.asc">FreeBSD-EN-15:09.xlocale</link></entry>
-	<entry>30&nbsp;June&nbsp;2015</entry>
-	<entry><para>Fix inconsistency between locale and rune locale states</para></entry>
-      </row>
-
-      <row>
-	<entry><link
-	    xlink:href="&security.url;/FreeBSD-EN-15:10.iconv.asc">FreeBSD-EN-15:10.iconv</link></entry>
-	<entry>30&nbsp;June&nbsp;2015</entry>
-	<entry><para>Improved &man.iconv.3; UTF-7 support</para></entry>
+	<entry>No notices.</entry>
+	<entry>&nbsp;</entry>
+	<entry>&nbsp;</entry>
       </row>
     </tbody>
   </tgroup>
