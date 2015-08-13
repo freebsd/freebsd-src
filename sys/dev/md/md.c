@@ -122,9 +122,12 @@ SYSCTL_INT(_vm, OID_AUTO, md_malloc_wait, CTLFLAG_RW, &md_malloc_wait, 0,
 #define	MD_ROOT_FSTYPE	"ufs"
 #endif
 
-#if defined(MD_ROOT) && defined(MD_ROOT_SIZE)
+#if defined(MD_ROOT)
 /*
  * Preloaded image gets put here.
+ */
+#if defined(MD_ROOT_SIZE)
+/*
  * Applications that patch the object with the image can determine
  * the size looking at the start and end markers (strings),
  * so we want them contiguous.
@@ -136,6 +139,14 @@ static struct {
 	.start = "MFS Filesystem goes here",
 	.end = "MFS Filesystem had better STOP here",
 };
+const int mfs_root_size = sizeof(mfs_root.start);
+#else
+extern volatile u_char __weak_symbol mfs_root;
+extern volatile u_char __weak_symbol mfs_root_end;
+__GLOBL(mfs_root);
+__GLOBL(mfs_root_end);
+#define mfs_root_size ((uintptr_t)(&mfs_root_end - &mfs_root))
+#endif
 #endif
 
 static g_init_t g_md_init;
@@ -1553,6 +1564,9 @@ md_preloaded(u_char *image, size_t length, const char *name)
 	if (name != NULL) {
 		printf("%s%d: Preloaded image <%s> %zd bytes at %p\n",
 		    MD_NAME, sc->unit, name, length, image);
+	} else {
+		printf("%s%d: Embedded image %zd bytes as %p\n",
+		    MD_NAME, sc->unit, length, image);
 	}
 }
 
@@ -1572,10 +1586,13 @@ g_md_init(struct g_class *mp __unused)
 	sx_init(&md_sx, "MD config lock");
 	g_topology_unlock();
 	md_uh = new_unrhdr(0, INT_MAX, NULL);
-#ifdef MD_ROOT_SIZE
-	sx_xlock(&md_sx);
-	md_preloaded(mfs_root.start, sizeof(mfs_root.start), NULL);
-	sx_xunlock(&md_sx);
+#ifdef MD_ROOT
+	if (mfs_root_size != 0) {
+		sx_xlock(&md_sx);
+		md_preloaded(__DEVOLATILE(u_char *, &mfs_root), mfs_root_size,
+		    NULL);
+		sx_xunlock(&md_sx);
+	}
 #endif
 	/* XXX: are preload_* static or do they need Giant ? */
 	while ((mod = preload_search_next_name(mod)) != NULL) {
