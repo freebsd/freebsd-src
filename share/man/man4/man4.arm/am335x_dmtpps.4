@@ -57,10 +57,10 @@ of 42 nanoseconds.
 .Pp
 To use the PPS timing information provided by this driver with
 .Xr ntpd 8 ,
-symlink the 
-.Va /dev/dmtpps
+symlink the
+.Pa /dev/dmtpps
 device to
-.Va /dev/pps0
+.Pa /dev/pps0
 and configure server
 .Va 127.127.22.0
 in
@@ -77,7 +77,7 @@ driver can be active at a time.
 The driver uses system pin configuration to determine which hardware
 timer device to use.
 Configure the timer input pin in the system's FDT data, or by
-supplying the pin name using a tunable variable in 
+supplying the pin name using a tunable variable in
 .Xr loader.conf 5 .
 .Pp
 To use a standard kernel and FDT data, use
@@ -127,7 +127,7 @@ Add pinctrl properties referencing
 .Va timer4_pins
 to the standard
 .Va timer4
-device node (also defined in am33xx.dtsi) by referencing it in 
+device node (also defined in am33xx.dtsi) by referencing it in
 your dts file as follows:
 .Bd -literal
    &timer4 {
@@ -160,4 +160,4 @@ device driver first appeared in
 The
 .Nm
 device driver and this manual page were written by
-.An Ian Lepore Aq Mt ian@freebsd.org .
+.An Ian Lepore Aq Mt ian@FreeBSD.org .
