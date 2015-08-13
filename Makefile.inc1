@@ -220,7 +220,7 @@ INSTALLTMP!=	/usr/bin/mktemp -d -u -t install
 #	This stage is responsible for creating the object
 #	tree and building any tools that are needed during
 #	the build process. Some programs are listed during
-#	this phase because they build binaires to generate
+#	this phase because they build binaries to generate
 #	files needed to build these programs. This stage also
 #	builds the 'build-tools' target rather than 'all'.
 # 3. cross-tools stage [XMAKE]
