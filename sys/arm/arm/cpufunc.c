@@ -904,6 +904,7 @@ set_cpufuncs()
 	    cputype == CPU_ID_CORTEXA9R1 ||
 	    cputype == CPU_ID_CORTEXA9R2 ||
 	    cputype == CPU_ID_CORTEXA9R3 ||
+	    cputype == CPU_ID_CORTEXA9R4 ||
 	    cputype == CPU_ID_CORTEXA12R0 ||
 	    cputype == CPU_ID_CORTEXA15R0 ||
 	    cputype == CPU_ID_CORTEXA15R1 ||
