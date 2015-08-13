@@ -325,7 +325,7 @@ in the following sections.
 -fsched2-use-superblocks @gol
 -fsched2-use-traces -fsee -freschedule-modulo-scheduled-loops @gol
 -fsection-anchors  -fsignaling-nans  -fsingle-precision-constant @gol
--fstack-protector  -fstack-protector-all @gol
+-fstack-protector  -fstack-protector-all  -fstack-protector-strong @gol
 -fstrict-aliasing  -fstrict-overflow  -ftracer  -fthread-jumps @gol
 -funroll-all-loops  -funroll-loops  -fpeel-loops @gol
 -fsplit-ivs-in-unroller -funswitch-loops @gol
@@ -5785,6 +5785,11 @@ If a guard check fails, an error message is printed and the program exits.
 
 @item -fstack-protector-all
 Like @option{-fstack-protector} except that all functions are protected.
+
+@item -fstack-protector-strong
+Like @option{-fstack-protector} but includes additional functions to
+be protected --- those that have local array definitions, or have
+references to local frame addresses.
 
 @item -fsection-anchors
 @opindex fsection-anchors
