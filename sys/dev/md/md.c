@@ -1565,7 +1565,7 @@ md_preloaded(u_char *image, size_t length, const char *name)
 		printf("%s%d: Preloaded image <%s> %zd bytes at %p\n",
 		    MD_NAME, sc->unit, name, length, image);
 	} else {
-		printf("%s%d: Embedded image %zd bytes as %p\n",
+		printf("%s%d: Embedded image %zd bytes at %p\n",
 		    MD_NAME, sc->unit, length, image);
 	}
 }
