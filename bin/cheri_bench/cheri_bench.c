@@ -236,9 +236,9 @@ static void semaphore_memcpy(__capability char *dataout, __capability char *data
 static void *semaphore_sandbox_func(void *arg)
 {
   struct semaphore_shared_data *data = (struct semaphore_shared_data *) arg;
+  set_my_affinity(data->core);
   while(1)
     {
-      set_my_affinity(data->core);
       sem_wait(&(data->sem_request));
       memcpy_c(data->dataout, data->datain, data->len);
       sem_post(&(data->sem_response));
