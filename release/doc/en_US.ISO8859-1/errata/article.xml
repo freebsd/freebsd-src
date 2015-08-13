@@ -99,6 +99,10 @@
 	  specific version of <application>VirtualBox</application> or
 	  host operating system.</para>
 
+	<para>It has been reported that instability may be present on
+	  virtual machines running on other hypervisors, such as Xen
+	  or KVM.</para>
+
 	<para>It causes various errors and makes &os; quite unstable.
 	  Although the cause is still unclear, disabling unmapped I/O
 	  works as a workaround.  To disable it, choose
@@ -114,15 +118,10 @@ boot</screen>
 	  disables unmapped I/O at every boot:</para>
 
 	<programlisting>vfs.unmapped_buf_allowed=0</programlisting>
-
-	<para>[2014-04-03 update]  It has been reported that
-	  instability may be present on virtual machines running
-	  on other hypervisors, such as Xen or KVM.</para>
       </listitem>
 
       <listitem>
-	<para>&os;/&arch.i386;&nbsp;10.1-RELEASE configured with
-	  a multi-disk ZFS dataset (mirror, raidz1, raidz2, raidz3)
+	<para>&os;/&arch.i386;&nbsp;&release.prev; installed on ZFS
 	  may crash during boot when the ZFS pool mount is attempted
 	  while booting an unmodified <literal>GENERIC</literal>
 	  kernel.</para>
@@ -143,6 +142,38 @@ boot</screen>
 	  &os;/&arch.i386;&nbsp;<literal>GENERIC</literal> kernel
 	  is strongly discouraged.</para>
 
+	<para>If installing &os;/&arch.i386; on ZFS, it is possible to
+	  configure the system after installation to increase the
+	  <literal>KSTACK_PAGES</literal>.</para>
+
+	<para>When prompted by &man.bsdinstall.8; to perform
+	  additional post-installation configuration to the system,
+	  select <guibutton>[&nbsp;YES&nbsp;]</guibutton>.</para>
+
+	<para>This procedure requires the system sources available
+	  locally.  If the <literal>System source code</literal>
+	  distribution was not selected during installation, it can
+	  be obtained using <application>svnlite</application>:</para>
+
+	<screen>&prompt.root; mkdir -p /usr/src
+&prompt.root; svnlite co svn://svn.freebsd.org/base/releng/10.2 /usr/src</screen>
+
+	<para>Build the <literal>kernel-toolchain</literal> required
+	  to rebuild the kernel:</para>
+
+	<screen>&prompt.root; make -C /usr/src kernel-toolchain</screen>
+
+	<para>Next, create a kernel configuration file to increase the
+	  <literal>KSTACK_PAGES</literal> option:</para>
+
+	<screen>&prompt.root; printf "include GENERIC\noptions KSTACK_PAGES=4\n" &gt; <filename>/usr/src/sys/i386/conf/<replaceable>ZFS</replaceable></filename></screen>
+
+	<para>Then build and install the
+	  <replaceable>ZFS</replaceable> kernel:</para>
+
+	<screen>&prompt.root; make -C /usr/src buildkernel KERNCONF=<replaceable>ZFS</replaceable>
+&prompt.root; make -C /usr/src installkernel KERNCONF=<replaceable>ZFS</replaceable></screen>
+
 	<warning>
 	  <para>It is extremely important to take note that, by
 	    default, &man.freebsd-update.8; will install the
@@ -151,22 +182,12 @@ boot</screen>
 	    encouraged to avoid &os;-provided kernel binary upgrades
 	    with such configurations.</para>
 	</warning>
-
-	<note>
-	  <para>Although there is slight change in how the crash
-	    manifests on &os;/&arch.i386; between 10.0-RELEASE and
-	    10.1-RELEASE, and given the date of the
-	    <filename>/usr/src/UPDATING</filename> entry, there is no
-	    evidence suggesting this is a regression between
-	    &os;&nbsp;10.0-RELEASE and &os;&nbsp;10.1-RELEASE
-	    directly.</para>
-	</note>
       </listitem>
 
       <listitem>
 	<para>Due to an incompatibility between &man.bsdconfig.8;
-	  and &man.pkg.8;&nbsp;version 1.3, packages included on the
-	  &os;&nbsp;dvd installer will not be recognized by
+	  and &man.pkg.8;, packages included on the &os;&nbsp;dvd
+	  installer will not be recognized by
 	  &man.bsdconfig.8;.</para>
 
 	<para>To install packages from the <literal>dvd1.iso</literal>
@@ -214,34 +235,21 @@ boot</screen>
       </listitem>
 
       <listitem>
-	<para>[2015-02-06] <emphasis>Affects binary upgrade
-	    users:</emphasis> The second phase of
-	  <command>freebsd-update install</command>, the phase where
-	  the running userland is upgraded, fails on systems deployed
-	  with <literal>nss_ldap</literal> enabled in
-	  &man.nsswitch.conf.5; when upgrading from 10.0-RELEASE to
-	  10.1-RELEASE.</para>
-
-	<para>A workaround is to disable <literal>nss_ldap</literal>
-	  in &man.nsswitch.conf.5; prior to running
-	  <command>freebsd-update install</command> to upgrade the
-	  userland, after which it can be enabled again when the
-	  upgrade process is completed.</para>
-
-	<para>The problem is being investigated, and an Errata Notice
-	  is expected to be issued when a solution to the problem is
-	  identified.</para>
+	<para>An issue was discovered where the &man.netstat.1;
+	  <literal>-s</literal> option will cause a segmentation fault
+	  on systems with <literal>IPSEC</literal> compiled into the
+	  kernel.  The issue was resolved in the
+	  <literal>stable/10</literal> branch, and an Errata Notice is
+	  planned after &release.prev; is released.</para>
       </listitem>
 
       <listitem>
-	<para>[2015-03-31] Several reports were received regarding the
-	  <acronym>QCOW2</acronym> &os;&nbsp;virtual machine images
-	  crashing on boot.  As result of this, these images have been
-	  removed from the <acronym>FTP</acronym> mirrors, and the
-	  hashes removed from <filename>CHECKSUM.SHA256</filename> and
-	  <filename>CHECKSUM.MD5</filename> in the <filename
-	    class="directory">VM-IMAGES/</filename> directory on the
-	  <acronym>FTP</acronym> mirrors.</para>
+	<para>An issue was discovered that causes &man.make.1; to
+	  generate noisy output when doing source-based upgrades from
+	  &os; 9.3 and earlier.  The issue was reported in PR 202277,
+	  and after investigation and determining the issue does not
+	  cause source-based upgrades to fail, a post-release Errata
+	  Notice is planned.</para>
       </listitem>
     </itemizedlist>
   </sect1>
