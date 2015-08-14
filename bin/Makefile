@@ -48,6 +48,7 @@ SUBDIR+=	cheri_bench
 .if ${MK_CHERI} != "no"
 SUBDIR+=	cheri_helloworld
 SUBDIR+=	cheritest
+SUBDIR+=	helloworld
 .endif
 
 .if ${MK_RCMDS} != "no"
