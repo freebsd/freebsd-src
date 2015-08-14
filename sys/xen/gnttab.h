@@ -126,10 +126,8 @@ gnttab_set_map_op(struct gnttab_map_grant_ref *map, vm_paddr_t addr,
 {
 	if (flags & GNTMAP_contains_pte)
 		map->host_addr = addr;
-	else if (xen_feature(XENFEAT_auto_translated_physmap))
-		map->host_addr = vtophys(addr);
 	else
-		map->host_addr = addr;
+		map->host_addr = vtophys(addr);
 
 	map->flags = flags;
 	map->ref = ref;
@@ -142,10 +140,8 @@ gnttab_set_unmap_op(struct gnttab_unmap_grant_ref *unmap, vm_paddr_t addr,
 {
 	if (flags & GNTMAP_contains_pte)
 		unmap->host_addr = addr;
-	else if (xen_feature(XENFEAT_auto_translated_physmap))
-		unmap->host_addr = vtophys(addr);
 	else
-		unmap->host_addr = addr;
+		unmap->host_addr = vtophys(addr);
 
 	unmap->handle = handle;
 	unmap->dev_bus_addr = 0;
@@ -155,13 +151,8 @@ static inline void
 gnttab_set_replace_op(struct gnttab_unmap_and_replace *unmap, vm_paddr_t addr,
 		      vm_paddr_t new_addr, grant_handle_t handle)
 {
-	if (xen_feature(XENFEAT_auto_translated_physmap)) {
-		unmap->host_addr = vtophys(addr);
-		unmap->new_addr = vtophys(new_addr);
-	} else {
-		unmap->host_addr = addr;
-		unmap->new_addr = new_addr;
-	}
+	unmap->host_addr = vtophys(addr);
+	unmap->new_addr = vtophys(new_addr);
 
 	unmap->handle = handle;
 }
