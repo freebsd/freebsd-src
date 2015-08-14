@@ -82,6 +82,7 @@ LIBL?=		${DESTDIR}${LIBDIR}/libl.a
 LIBLN?=		"don't use LIBLN, use LIBL"
 LIBLZMA?=	${DESTDIR}${LIBDIR}/liblzma.a
 LIBM?=		${DESTDIR}${LIBDIR}/libm.a
+LIBMALLOC_SIMPLE=	${DESTDIR}${LIBDIR}/libmalloc_simple.a
 LIBMAGIC?=	${DESTDIR}${LIBDIR}/libmagic.a
 LIBMD?=		${DESTDIR}${LIBDIR}/libmd.a
 LIBMEMSTAT?=	${DESTDIR}${LIBDIR}/libmemstat.a
@@ -156,5 +157,8 @@ LDADD:=	${LDADD:N-lpthread} -lpthread
 .endif
 .if ${LDADD:M-lc}
 LDADD:=	${LDADD:N-lc} -lc
+.endif
+.if ${LDADD:M-lmalloc_simple}
+LDADD:=	${LDADD:N-lmalloc_simple} -lmalloc_simple
 .endif
 .endif

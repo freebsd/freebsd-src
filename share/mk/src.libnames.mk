@@ -116,6 +116,7 @@ _LIBRARIES=	\
 		l \
 		lzma \
 		m \
+		malloc_simple \
 		magic \
 		md \
 		memstat \

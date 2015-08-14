@@ -69,6 +69,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	libkvm \
 	${_libldns} \
 	liblzma \
+	libmalloc_simple \
 	${_libmagic} \
 	libmemstat \
 	libmd \
@@ -357,6 +358,7 @@ SUBDIR_PARALLEL=
 SUBDIR:=	csu \
 		libcompiler_rt \
 		libc \
+		libmalloc_simple \
 		libmd	\
 		libpng	\
 		libstand \
