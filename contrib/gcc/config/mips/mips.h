@@ -2731,7 +2731,8 @@ while (0)
 	nop\n\
 1:	.set reorder\n\
 	.cpsetup $31, $2, 1b\n\
-	jal " USER_LABEL_PREFIX #FUNC "\n\
+	dla $t9, " USER_LABEL_PREFIX #FUNC "\n\
+	jalr $t9\n\
 	" TEXT_SECTION_ASM_OP);
 #endif
 #endif
