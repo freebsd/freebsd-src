@@ -758,47 +758,43 @@ bounce_bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map,
 {
 	struct bounce_page *bpage;
 
-	if ((bpage = STAILQ_FIRST(&map->bpages)) != NULL) {
-		/*
-		 * Handle data bouncing.  We might also
-		 * want to add support for invalidating
-		 * the caches on broken hardware
-		 */
-		CTR4(KTR_BUSDMA, "%s: tag %p tag flags 0x%x op 0x%x "
-		    "performing bounce", __func__, dmat,
-		    dmat->common.flags, op);
+	if ((bpage = STAILQ_FIRST(&map->bpages)) == NULL)
+		return;
 
-		if ((op & BUS_DMASYNC_PREWRITE) != 0) {
-			while (bpage != NULL) {
-				if (bpage->datavaddr != 0) {
-					bcopy((void *)bpage->datavaddr,
-					    (void *)bpage->vaddr,
-					    bpage->datacount);
-				} else {
-					physcopyout(bpage->dataaddr,
-					    (void *)bpage->vaddr,
-					    bpage->datacount);
-				}
-				bpage = STAILQ_NEXT(bpage, links);
-			}
-			dmat->bounce_zone->total_bounced++;
-		}
+	/*
+	 * Handle data bouncing.  We might also want to add support for
+	 * invalidating the caches on broken hardware.
+	 */
+	CTR4(KTR_BUSDMA, "%s: tag %p tag flags 0x%x op 0x%x "
+	    "performing bounce", __func__, dmat, dmat->common.flags, op);
 
-		if ((op & BUS_DMASYNC_POSTREAD) != 0) {
-			while (bpage != NULL) {
-				if (bpage->datavaddr != 0) {
-					bcopy((void *)bpage->vaddr,
-					    (void *)bpage->datavaddr,
-					    bpage->datacount);
-				} else {
-					physcopyin((void *)bpage->vaddr,
-					    bpage->dataaddr,
-					    bpage->datacount);
-				}
-				bpage = STAILQ_NEXT(bpage, links);
+	if ((op & BUS_DMASYNC_PREWRITE) != 0) {
+		while (bpage != NULL) {
+			if (bpage->datavaddr != 0) {
+				bcopy((void *)bpage->datavaddr,
+				    (void *)bpage->vaddr, bpage->datacount);
+			} else {
+				physcopyout(bpage->dataaddr,
+				    (void *)bpage->vaddr, bpage->datacount);
 			}
-			dmat->bounce_zone->total_bounced++;
+			bpage = STAILQ_NEXT(bpage, links);
 		}
+		dmat->bounce_zone->total_bounced++;
+	}
+
+	if ((op & BUS_DMASYNC_POSTREAD) != 0) {
+		while (bpage != NULL) {
+			if (bpage->datavaddr != 0) {
+				bcopy((void *)bpage->vaddr,
+				    (void *)bpage->datavaddr,
+				    bpage->datacount);
+			} else {
+				physcopyin((void *)bpage->vaddr,
+				    bpage->dataaddr, bpage->datacount);
+			}
+			bpage = STAILQ_NEXT(bpage, links);
+		}
+		dmat->bounce_zone->total_bounced++;
 	}
 }
 
