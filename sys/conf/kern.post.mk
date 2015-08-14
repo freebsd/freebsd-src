@@ -174,7 +174,7 @@ hack.So: Makefile
 ./assym.s: assym.s
 
 assym.s: $S/kern/genassym.sh genassym.o
-	NM='${NM}' sh $S/kern/genassym.sh genassym.o > ${.TARGET}
+	NM='${NM}' NMFLAGS='${NMFLAGS}' sh $S/kern/genassym.sh genassym.o > ${.TARGET}
 
 genassym.o: $S/$M/$M/genassym.c
 	${CC} -c ${CFLAGS:N-fno-common} $S/$M/$M/genassym.c
