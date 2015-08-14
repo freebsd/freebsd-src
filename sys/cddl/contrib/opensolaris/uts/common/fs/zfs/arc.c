@@ -2190,10 +2190,6 @@ arc_buf_data_free(arc_buf_t *buf, void (*free_func)(void *, size_t))
 	}
 }
 
-/*
- * Free up buf->b_data and if 'remove' is set, then pull the
- * arc_buf_t off of the the arc_buf_hdr_t's list and free it.
- */
 static void
 arc_buf_l2_cdata_free(arc_buf_hdr_t *hdr)
 {
@@ -2249,6 +2245,10 @@ arc_buf_l2_cdata_free(arc_buf_hdr_t *hdr)
 	hdr->b_l1hdr.b_tmp_cdata = NULL;
 }
 
+/*
+ * Free up buf->b_data and if 'remove' is set, then pull the
+ * arc_buf_t off of the the arc_buf_hdr_t's list and free it.
+ */
 static void
 arc_buf_destroy(arc_buf_t *buf, boolean_t remove)
 {
