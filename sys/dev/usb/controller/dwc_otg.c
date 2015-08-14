@@ -2551,11 +2551,19 @@ static void
 dwc_otg_interrupt_poll_locked(struct dwc_otg_softc *sc)
 {
 	struct usb_xfer *xfer;
-	uint32_t count = 0;
+	uint32_t count;
 	uint32_t temp;
 	uint8_t got_rx_status;
 	uint8_t x;
 
+	if (sc->sc_flags.status_device_mode == 0) {
+		/*
+		 * Update host transfer schedule, so that new
+		 * transfers can be issued:
+		 */
+		dwc_otg_update_host_transfer_schedule_locked(sc);
+	}
+	count = 0;
 repeat:
 	if (++count == 16) {
 		/* give other interrupts a chance */
@@ -2658,12 +2666,6 @@ repeat:
 		/* disable RX FIFO level interrupt */
 		sc->sc_irq_mask &= ~GINTMSK_RXFLVLMSK;
 		DWC_OTG_WRITE_4(sc, DOTG_GINTMSK, sc->sc_irq_mask);
-	}
-
-	if (sc->sc_flags.status_device_mode == 0 && sc->sc_xfer_complete == 0) {
-		/* update host transfer schedule, so that new transfers can be issued */
-		if (dwc_otg_update_host_transfer_schedule_locked(sc))
-			goto repeat;
 	}
 }
 
@@ -2944,12 +2946,6 @@ dwc_otg_interrupt(void *arg)
 
 		/* complete FIFOs, if any */
 		dwc_otg_interrupt_complete_locked(sc);
-
-		if (sc->sc_flags.status_device_mode == 0) {
-			/* update host transfer schedule, so that new transfers can be issued */
-			if (dwc_otg_update_host_transfer_schedule_locked(sc))
-				dwc_otg_interrupt_poll_locked(sc);
-		}
 	}
 	USB_BUS_SPIN_UNLOCK(&sc->sc_bus);
 	USB_BUS_UNLOCK(&sc->sc_bus);
@@ -3950,11 +3946,6 @@ dwc_otg_do_poll(struct usb_bus *bus)
 	USB_BUS_SPIN_LOCK(&sc->sc_bus);
 	dwc_otg_interrupt_poll_locked(sc);
 	dwc_otg_interrupt_complete_locked(sc);
-	if (sc->sc_flags.status_device_mode == 0) {
-		/* update host transfer schedule, so that new transfers can be issued */
-		if (dwc_otg_update_host_transfer_schedule_locked(sc))
-			dwc_otg_interrupt_poll_locked(sc);
-	}
 	USB_BUS_SPIN_UNLOCK(&sc->sc_bus);
 	USB_BUS_UNLOCK(&sc->sc_bus);
 }
