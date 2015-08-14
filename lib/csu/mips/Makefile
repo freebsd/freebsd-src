@@ -14,6 +14,10 @@ CFLAGS+=	-I${.CURDIR}/../common \
 CLEANFILES=	${FILES} crt1_c.o crt1_s.o gcrt1_c.o Scrt1_c.o
 CLEANFILES+=	crt1_c.s gcrt1_c.s Scrt1_c.s
 
+.if defined(LIBCHERI)
+STRIP_EXCEPTIONS=	objcopy -R .eh_frame ${.TARGET}
+.endif
+
 # crt1 is split into an assembly part (crt1_s.s) and a C part (crt1_c.c) so
 # that raw assembly can be used to re-align the stack to be 32-byte aligned.
 # This is necessary for CHERI because capabilities must be 32-byte aligned.
@@ -28,6 +32,11 @@ CLEANFILES+=	crt1_c.s gcrt1_c.s Scrt1_c.s
 #  - gcrt1 is non-position-independent, with profiling support
 #  - crt1 is non-position-independent, without profiling support
 #  - Scrt1 is position-independent, without profiling support
+
+crt1_s.o: crt1_s.S
+	${CC} ${CFLAGS} ${ACFLAGS} -c ${.IMPSRC} -o ${.TARGET}
+	${CTFCONVERT_CMD}
+	${STRIP_EXCEPTIONS}
 
 # Compile crt1_c.c with -DGCRT
 gcrt1_c.s: crt1_c.c
