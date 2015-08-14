@@ -1645,6 +1645,8 @@ pw_user_mod(int argc, char **argv, char *arg1)
 		if (lc == NULL || login_setcryptfmt(lc, "sha512", NULL) == NULL)
 			warn("setting crypt(3) format");
 		login_close(lc);
+		cnf->default_password = boolean_val(passwd,
+		    cnf->default_password);
 		pwd->pw_passwd = pw_password(cnf, pwd->pw_name, dryrun);
 		edited = true;
 	}
