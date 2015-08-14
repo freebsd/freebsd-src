@@ -82,9 +82,9 @@
  * types of locks: 1) the hash table lock array, and 2) the
  * arc list locks.
  *
- * Buffers do not have their own mutexs, rather they rely on the
- * hash table mutexs for the bulk of their protection (i.e. most
- * fields in the arc_buf_hdr_t are protected by these mutexs).
+ * Buffers do not have their own mutexes, rather they rely on the
+ * hash table mutexes for the bulk of their protection (i.e. most
+ * fields in the arc_buf_hdr_t are protected by these mutexes).
  *
  * buf_hash_find() returns the appropriate mutex (held) when it
  * locates the requested buffer in the hash table.  It returns
