@@ -336,10 +336,8 @@ frame_dummy (void)
 #ifdef JCR_SECTION_NAME
   if (__JCR_LIST__[0])
     {
-      void (*register_classes) (void *) = _Jv_RegisterClasses;
-      __asm ("" : "+r" (register_classes));
-      if (register_classes)
-	register_classes (__JCR_LIST__);
+      if (_Jv_RegisterClasses)
+	_Jv_RegisterClasses (__JCR_LIST__);
     }
 #endif /* JCR_SECTION_NAME */
 }
