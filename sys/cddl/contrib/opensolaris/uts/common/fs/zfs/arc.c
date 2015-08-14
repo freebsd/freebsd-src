@@ -23,7 +23,7 @@
  * Copyright (c) 2012, Joyent, Inc. All rights reserved.
  * Copyright (c) 2011, 2014 by Delphix. All rights reserved.
  * Copyright (c) 2014 by Saso Kiselkov. All rights reserved.
- * Copyright 2014 Nexenta Systems, Inc.  All rights reserved.
+ * Copyright 2015 Nexenta Systems, Inc.  All rights reserved.
  */
 
 /*
@@ -3115,7 +3115,7 @@ arc_adjust(void)
 	 */
 	target = arc_size - arc_c;
 
-	if (arc_adjust_type(arc_mru) == ARC_BUFC_METADATA &&
+	if (arc_adjust_type(arc_mfu) == ARC_BUFC_METADATA &&
 	    arc_meta_used > arc_meta_min) {
 		bytes = arc_adjust_impl(arc_mfu, 0, target, ARC_BUFC_METADATA);
 		total_evicted += bytes;
