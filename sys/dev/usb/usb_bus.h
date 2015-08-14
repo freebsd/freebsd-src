@@ -57,19 +57,26 @@ struct usb_bus {
 	struct root_hold_token *bus_roothold;
 #endif
 
+/* convenience macros */
+#define	USB_BUS_TT_PROC(bus) USB_BUS_NON_GIANT_ISOC_PROC(bus)
+#define	USB_BUS_CS_PROC(bus) USB_BUS_NON_GIANT_ISOC_PROC(bus)
+  
 #if USB_HAVE_PER_BUS_PROCESS
 #define	USB_BUS_GIANT_PROC(bus) (&(bus)->giant_callback_proc)
-#define	USB_BUS_NON_GIANT_PROC(bus) (&(bus)->non_giant_callback_proc)
+#define	USB_BUS_NON_GIANT_ISOC_PROC(bus) (&(bus)->non_giant_isoc_callback_proc)
+#define	USB_BUS_NON_GIANT_BULK_PROC(bus) (&(bus)->non_giant_bulk_callback_proc)
 #define	USB_BUS_EXPLORE_PROC(bus) (&(bus)->explore_proc)
 #define	USB_BUS_CONTROL_XFER_PROC(bus) (&(bus)->control_xfer_proc)
-
 	/*
-	 * There are two callback processes. One for Giant locked
-	 * callbacks. One for non-Giant locked callbacks. This should
-	 * avoid congestion and reduce response time in most cases.
+	 * There are three callback processes. One for Giant locked
+	 * callbacks. One for non-Giant locked non-periodic callbacks
+	 * and one for non-Giant locked periodic callbacks. This
+	 * should avoid congestion and reduce response time in most
+	 * cases.
 	 */
 	struct usb_process giant_callback_proc;
-	struct usb_process non_giant_callback_proc;
+	struct usb_process non_giant_isoc_callback_proc;
+	struct usb_process non_giant_bulk_callback_proc;
 
 	/* Explore process */
 	struct usb_process explore_proc;
