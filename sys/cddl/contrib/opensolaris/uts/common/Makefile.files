@@ -68,6 +68,7 @@ ZFS_COMMON_OBJS +=		\
 	lz4.o			\
 	lzjb.o			\
 	metaslab.o		\
+	multilist.o		\
 	range_tree.o		\
 	refcount.o		\
 	rrwlock.o		\
