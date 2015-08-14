@@ -294,7 +294,7 @@ port connected to an
 .Xr nmdm 4
 null-model device.
 .Bd -literal -offset indent
-bhyve -c 4 \e\
+bhyve -c 4 \\
   -s 0,amd_hostbridge -s 1,lpc \\
   -s 1:0,ahci-hd,/images/disk.1 \\
   -s 1:1,ahci-hd,/images/disk.2 \\
@@ -304,7 +304,7 @@ bhyve -c 4 \e\
   -s 1:5,ahci-hd,/images/disk.6 \\
   -s 1:6,ahci-hd,/images/disk.7 \\
   -s 1:7,ahci-hd,/images/disk.8 \\
-  -s 2,ahci-cd,/images.install.iso \\
+  -s 2,ahci-cd,/images/install.iso \\
   -s 3,virtio-net,tap0 \\
   -l com1,/dev/nmdm0A \\
   -A -H -P -m 8G
