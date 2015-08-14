@@ -1060,34 +1060,36 @@ dwc_otg_host_rate_check_interrupt(struct dwc_otg_softc *sc, struct dwc_otg_td *t
 static uint8_t
 dwc_otg_host_rate_check(struct dwc_otg_softc *sc, struct dwc_otg_td *td)
 {
+	uint8_t frame_num = (uint8_t)sc->sc_last_frame_num;
+
 	if (td->ep_type == UE_ISOCHRONOUS) {
 		/* non TT isochronous traffic */
 		if ((td->tmr_val != 0) ||
-		    (sc->sc_last_frame_num & (td->tmr_res - 1))) {
+		    (frame_num & (td->tmr_res - 1))) {
 			goto busy;
 		}
 		td->tmr_val = 1;	/* executed */
 		td->toggle = 0;
-
+		return (0);
 	} else if (td->ep_type == UE_INTERRUPT) {
 		if (!td->tt_scheduled)
 			goto busy;
 		td->tt_scheduled = 0;
+		return (0);
 	} else if (td->did_nak != 0) {
-		uint8_t frame_num = (uint8_t)sc->sc_last_frame_num;
 		/* check if we should pause sending queries for 125us */
 		if (td->tmr_res == frame_num) {
 			/* wait a bit */
 			dwc_otg_enable_sof_irq(sc);
 			goto busy;
 		}
-		/* query for data one more time */
-		td->tmr_res = frame_num;
-		td->did_nak = 0;
 	} else if (td->set_toggle) {
 		td->set_toggle = 0;
 		td->toggle = 1;
 	}
+	/* query for data one more time */
+	td->tmr_res = frame_num;
+	td->did_nak = 0;
 	return (0);
 busy:
 	return (1);
@@ -1658,7 +1660,11 @@ dwc_otg_host_data_tx(struct dwc_otg_softc *sc, struct dwc_otg_td *td)
 			td->offset += td->tx_bytes;
 			td->remainder -= td->tx_bytes;
 			td->toggle ^= 1;
-			td->did_nak = 0;
+			/* check if next response will be a NAK */
+			if (hcint & HCINT_NYET)
+				td->did_nak = 1;
+			else
+				td->did_nak = 0;
 			td->tt_scheduled = 0;
 
 			/* check remainder */
