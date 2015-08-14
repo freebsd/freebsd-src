@@ -2,11 +2,6 @@
  * $FreeBSD$
  */
 
-/*
- * It'd be nice to have this automatically generated, but we don't
- * know to what version they will eventually belong, so for now
- * it has to be manual.
- */
 FBSD_1.0 {
 	__chk_fail;
 	__stack_chk_fail;
