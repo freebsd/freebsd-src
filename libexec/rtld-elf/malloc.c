@@ -164,7 +164,7 @@ malloc(size_t nbytes)
 		pagesz = n = pagesizes[0];
 		if (morepages(NPOOLPAGES) == 0)
 			return NULL;
-		op = (union overhead *)(pagepool_start);
+		op = (union overhead *)(void *)(pagepool_start);
   		n = n - sizeof (*op) - ((long)op & (n - 1));
 		if (n < 0)
 			n += pagesz;
@@ -197,7 +197,7 @@ malloc(size_t nbytes)
 		amt = pagesz;
 		bucket = pagebucket;
 	}
-	while (nbytes > amt + n) {
+	while (nbytes > (size_t)amt + n) {
 		amt <<= 1;
 		if (amt == 0)
 			return (NULL);
@@ -279,7 +279,7 @@ morecore(int bucket)
 	if (amt > pagepool_end - pagepool_start)
 		if (morepages(amt/pagesz + NPOOLPAGES) == 0)
 			return;
-	op = (union overhead *)pagepool_start;
+	op = (union overhead *)(void *)pagepool_start;
 	pagepool_start += amt;
 
 	/*
@@ -288,8 +288,8 @@ morecore(int bucket)
 	 */
   	nextf[bucket] = op;
   	while (--nblks > 0) {
-		op->ov_next = (union overhead *)((caddr_t)op + sz);
-		op = (union overhead *)((caddr_t)op + sz);
+		op->ov_next = (union overhead *)(void *)((caddr_t)op + sz);
+		op = (union overhead *)(void *)((caddr_t)op + sz);
   	}
 }
 
@@ -301,7 +301,7 @@ free(void *cp)
 
   	if (cp == NULL)
   		return;
-	op = (union overhead *)((caddr_t)cp - sizeof (union overhead));
+	op = (union overhead *)(void *)((caddr_t)cp - sizeof (union overhead));
 #ifdef MALLOC_DEBUG
   	ASSERT(op->ov_magic == MAGIC);		/* make sure it was in use */
 #else
@@ -345,7 +345,7 @@ realloc(void *cp, size_t nbytes)
 
   	if (cp == NULL)
   		return (malloc(nbytes));
-	op = (union overhead *)((caddr_t)cp - sizeof (union overhead));
+	op = (union overhead *)(void *)((caddr_t)cp - sizeof (union overhead));
 	if (op->ov_magic == MAGIC) {
 		was_alloced++;
 		i = op->ov_index;
