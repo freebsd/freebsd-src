@@ -129,7 +129,6 @@ SRCS+=	__getosreldate.c \
 	time.c \
 	times.c \
 	timezone.c \
-	tls.c \
 	ttyname.c \
 	ttyslot.c \
 	ualarm.c \
@@ -145,6 +144,12 @@ SRCS+=	__getosreldate.c \
 	waitpid.c \
 	waitid.c \
 	wordexp.c
+
+.if !defined(LIBCHERI)
+SRCS+=	tls.c
+.else
+SRCS+=	tls-stub.c
+.endif
 
 .PATH: ${LIBC_SRCTOP}/../../contrib/libc-pwcache
 SRCS+=	pwcache.c pwcache.h
