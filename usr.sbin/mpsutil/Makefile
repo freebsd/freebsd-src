@@ -9,7 +9,7 @@ WARNS?= 3
 
 LIBADD=	cam util
 
-CFLAGS+= -I../../sys -I. -DUSE_MPT_IOCTLS -g
+CFLAGS+= -I${.CURDIR}/../../sys -I. -DUSE_MPT_IOCTLS -g
 
 
 # Here be dragons
