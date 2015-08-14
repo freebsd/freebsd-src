@@ -133,6 +133,90 @@ ENTRY(generic_bs_rm_8)
 2:	ret
 END(generic_bs_rm_8)
 
+ENTRY(generic_bs_rr_1)
+	/* Is there is anything to read. */
+	cbz	x4, 2f
+
+	/* Calculate the device address. */
+	add	x0, x1, x2
+	/*
+	 * x0 = The device address.
+	 * x3 = The kernel address.
+	 * x4 = Count
+	 */
+
+	/* Read the data. */
+1:	ldrb	w1, [x0], #1
+	strb	w1, [x3], #1
+	subs	x4, x4, #1
+	b.ne	1b
+
+2:	ret
+END(generic_bs_rr_1)
+
+ENTRY(generic_bs_rr_2)
+	/* Is there is anything to read. */
+	cbz	x4, 2f
+
+	/* Calculate the device address. */
+	add	x0, x1, x2
+	/*
+	 * x0 = The device address.
+	 * x3 = The kernel address.
+	 * x4 = Count
+	 */
+
+	/* Read the data. */
+1:	ldrh	w1, [x0], #2
+	strh	w1, [x3], #2
+	subs	x4, x4, #1
+	b.ne	1b
+
+2:	ret
+END(generic_bs_rr_2)
+
+ENTRY(generic_bs_rr_4)
+	/* Is there is anything to read. */
+	cbz	x4, 2f
+
+	/* Calculate the device address. */
+	add	x0, x1, x2
+	/*
+	 * x0 = The device address.
+	 * x3 = The kernel address.
+	 * x4 = Count
+	 */
+
+	/* Read the data. */
+1:	ldr	w1, [x0], #4
+	str	w1, [x3], #4
+	subs	x4, x4, #1
+	b.ne	1b
+
+2:	ret
+END(generic_bs_rr_4)
+
+ENTRY(generic_bs_rr_8)
+	/* Is there is anything to read. */
+	cbz	x4, 2f
+
+	/* Calculate the device address. */
+	add	x0, x1, x2
+	/*
+	 * x0 = The device address.
+	 * x3 = The kernel address.
+	 * x4 = Count
+	 */
+
+	/* Read the data. */
+1:	ldr	x1, [x0], #8
+	str	x1, [x3], #8
+	subs	x4, x4, #1
+	b.ne	1b
+
+2:	ret
+END(generic_bs_rr_8)
+
 
 ENTRY(generic_bs_w_1)
 	strb	w3, [x1, x2]
@@ -233,3 +317,83 @@ ENTRY(generic_bs_wm_8)
 
 2:	ret
 END(generic_bs_wm_8)
+
+ENTRY(generic_bs_wr_1)
+	/* Is there is anything to write. */
+	cbz	x4, 2f
+	
+	add	x0, x1, x2
+	/*
+	 * x0 = The device address.
+	 * x3 = The kernel address.
+	 * x4 = Count
+	 */
+
+	/* Write the data */
+1:	ldrb	w1, [x3], #1
+	strb	w1, [x0], #1
+	subs	x4, x4, #1
+	b.ne	1b
+
+2:	ret
+END(generic_bs_wr_1)
+
+ENTRY(generic_bs_wr_2)
+	/* Is there is anything to write. */
+	cbz	x4, 2f
+	
+	add	x0, x1, x2
+	/*
+	 * x0 = The device address.
+	 * x3 = The kernel address.
+	 * x4 = Count
+	 */
+
+	/* Write the data */
+1:	ldrh	w1, [x3], #2
+	strh	w1, [x0], #2
+	subs	x4, x4, #1
+	b.ne	1b
+
+2:	ret
+END(generic_bs_wr_2)
+
+ENTRY(generic_bs_wr_4)
+	/* Is there is anything to write. */
+	cbz	x4, 2f
+	
+	add	x0, x1, x2
+	/*
+	 * x0 = The device address.
+	 * x3 = The kernel address.
+	 * x4 = Count
+	 */
+
+	/* Write the data */
+1:	ldr	w1, [x3], #4
+	str	w1, [x0], #4
+	subs	x4, x4, #1
+	b.ne	1b
+
+2:	ret
+END(generic_bs_wr_4)
+
+ENTRY(generic_bs_wr_8)
+	/* Is there is anything to write. */
+	cbz	x4, 2f
+	
+	add	x0, x1, x2
+	/*
+	 * x0 = The device address.
+	 * x3 = The kernel address.
+	 * x4 = Count
+	 */
+
+	/* Write the data */
+1:	ldr	x1, [x3], #8
+	str	x1, [x0], #8
+	subs	x4, x4, #1
+	b.ne	1b
+
+2:	ret
+END(generic_bs_wr_8)
