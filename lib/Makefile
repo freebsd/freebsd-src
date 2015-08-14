@@ -354,7 +354,10 @@ SUBDIR_PARALLEL=
 
 .if defined(LIBCHERI)
 .if ${MK_LIBCHERI_ALL} == "no"
-SUBDIR:=	libmd	\
+SUBDIR:=	csu \
+		libcompiler_rt \
+		libc \
+		libmd	\
 		libpng	\
 		libstand \
 		libz
