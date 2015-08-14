@@ -184,7 +184,7 @@ _LIBS=		lib${LIB_PRIVATE}${LIB}${LIB_SUFFIX}.a
 lib${LIB_PRIVATE}${LIB}${LIB_SUFFIX}.a: ${OBJS} ${STATICOBJS}
 	@${ECHO} building static ${LIB}${LIB_SUFFIX} library
 	@rm -f ${.TARGET}
-	${AR} ${ARFLAGS} ${.TARGET} `NM='${NM}' lorder ${OBJS} ${STATICOBJS} | tsort -q` ${ARADD}
+	${AR} ${ARFLAGS} ${.TARGET} `NM='${NM}' NMFLAGS='${NMFLAGS}' lorder ${OBJS} ${STATICOBJS} | tsort -q` ${ARADD}
 	${RANLIB} ${RANLIBFLAGS} ${.TARGET}
 .endif
 
@@ -198,7 +198,7 @@ NOPATH_FILES+=	${POBJS}
 lib${LIB_PRIVATE}${LIB}${LIB_SUFFIX}_p.a: ${POBJS}
 	@${ECHO} building profiled ${LIB}${LIB_SUFFIX} library
 	@rm -f ${.TARGET}
-	${AR} ${ARFLAGS} ${.TARGET} `NM='${NM}' lorder ${POBJS} | tsort -q` ${ARADD}
+	${AR} ${ARFLAGS} ${.TARGET} `NM='${NM}' NMFLAGS='${NMFLAGS}' lorder ${POBJS} | tsort -q` ${ARADD}
 	${RANLIB} ${RANLIBFLAGS} ${.TARGET}
 .endif
 
@@ -263,7 +263,7 @@ ${SHLIB_NAME_FULL}: ${SOBJS}
 .endif
 	${_LD} ${LDFLAGS} ${SSP_CFLAGS} ${SOLINKOPTS} \
 	    -o ${.TARGET} -Wl,-soname,${SONAME} \
-	    `NM='${NM}' lorder ${SOBJS} | tsort -q` ${LDADD}
+	    `NM='${NM}' NMFLAGS='${NMFLAGS}' lorder ${SOBJS} | tsort -q` ${LDADD}
 .if ${MK_CTF} != "no"
 	${CTFMERGE} ${CTFFLAGS} -o ${.TARGET} ${SOBJS}
 .endif
