@@ -69,7 +69,7 @@ struct dwc_otg_td {
 	uint8_t tmr_val;
 	uint8_t	ep_no;
 	uint8_t ep_type;
-	uint8_t channel;
+	uint8_t channel[3];
 	uint8_t tt_index;		/* TT data */
 	uint8_t tt_start_slot;		/* TT data */
 	uint8_t tt_complete_slot;	/* TT data */
@@ -80,8 +80,7 @@ struct dwc_otg_td {
 #define	DWC_CHAN_ST_WAIT_S_ANE 2
 #define	DWC_CHAN_ST_WAIT_C_ANE 3
 #define	DWC_CHAN_ST_WAIT_C_PKT 4
-#define	DWC_CHAN_ST_TX_PKT_ISOC 5
-#define	DWC_CHAN_ST_TX_WAIT_ISOC 6
+#define	DWC_CHAN_ST_TX_WAIT_ISOC 5
 	uint8_t	error_any:1;
 	uint8_t	error_stall:1;
 	uint8_t	alt_next:1;
