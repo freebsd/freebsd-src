@@ -69,18 +69,6 @@ struct ctl_io_pool {
 };
 
 typedef enum {
-	CTL_IOCTL_FLAG_NONE	= 0x00,
-	CTL_IOCTL_FLAG_ENABLED	= 0x01
-} ctl_ioctl_flags;
-
-struct ctl_ioctl_info {
-	ctl_ioctl_flags		flags;
-	uint32_t		cur_tag_num;
-	struct ctl_port		port;
-	char			port_name[24];
-};
-
-typedef enum {
 	CTL_SER_BLOCK,
 	CTL_SER_BLOCKOPT,
 	CTL_SER_EXTENT,
@@ -460,7 +448,6 @@ struct ctl_softc {
 	int inquiry_pq_no_lun;
 	struct sysctl_ctx_list sysctl_ctx;
 	struct sysctl_oid *sysctl_tree;
-	struct ctl_ioctl_info ioctl_info;
 	void *othersc_pool;
 	struct proc *ctl_proc;
 	int targ_online;
