@@ -450,6 +450,7 @@ struct ata_channel {
 	struct ata_cam_device	curr[16];       /* Current settings */
 	int			requestsense;	/* CCB waiting for SENSE. */
 	struct callout		poll_callout;	/* Periodic status poll. */
+	struct ata_request	request;
 };
 
 /* disk bay/enclosure related */
@@ -506,14 +507,6 @@ int ata_sata_setmode(device_t dev, int target, int mode);
 int ata_sata_getrev(device_t dev, int target);
 int ata_request2fis_h2d(struct ata_request *request, u_int8_t *fis);
 void ata_pm_identify(device_t dev);
-
-/* macros for alloc/free of struct ata_request */
-extern uma_zone_t ata_request_zone;
-#define ata_alloc_request() uma_zalloc(ata_request_zone, M_NOWAIT | M_ZERO)
-#define ata_free_request(request) { \
-	if (!(request->flags & ATA_R_DANGER2)) \
-	    uma_zfree(ata_request_zone, request); \
-	}
 
 MALLOC_DECLARE(M_ATA);
 
