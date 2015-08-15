@@ -83,12 +83,6 @@
 .Op Fl c Ar cdbsize
 .Op Fl N
 .Nm
-.Ic bbrread
-.Aq target:lun
-.Op general options
-.Aq Fl -l Ar lba
-.Aq Fl -d Ar datalen
-.Nm
 .Ic readcap
 .Aq target:lun
 .Op general options
@@ -128,10 +122,6 @@
 .Nm
 .Ic startup
 .Op general options
-.Nm
-.Ic hardstop
-.Nm
-.Ic hardstart
 .Nm
 .Ic lunlist
 .Nm
@@ -364,34 +354,6 @@ to the kernel when doing a write, just execute the command without copying
 data.
 This is to be used for performance testing.
 .El
-.It Ic bbrread
-Issue a SCSI READ command to the logical device to potentially force a bad
-block on a disk in the RAID set to be reconstructed from the other disks in
-the array.  This command should only be used on an array that is in the
-normal state.  If used on a critical array, it could cause the array to go
-offline if the bad block to be remapped is on one of the disks that is
-still active in the array.
-.Pp
-The data for this particular command will be discarded, and not returned to
-the user.
-.Pp
-In order to determine which LUN to read from, the user should first
-determine which LUN the disk with a bad block belongs to.  Then he should
-map the bad disk block back to the logical block address for the array in
-order to determine which LBA to pass in to the
-.Ic bbrread
-command.
-.Pp
-This command is primarily intended for testing.  In practice, bad block
-remapping will generally be triggered by the in-kernel Disk Aerobics and
-Disk Scrubbing code.
-.Bl -tag -width 10n
-.It Fl l Ar lba
-Specify the starting Logical Block Address.
-.It Fl d Ar datalen
-Specify the amount of data in bytes to read from the LUN.  This must be a
-multiple of the LUN blocksize.
-.El
 .It Ic readcap
 Send the
 .Tn SCSI
@@ -545,22 +507,6 @@ START STOP UNIT command with the start bit set and the on/offline bit set
 to all direct access LUNs.  This will mark all direct access LUNs "online"
 again.  It will not cause any LUNs to start up.  A separate start command
 without the on/offline bit set is necessary for that.
-.It Ic hardstop
-Use the kernel facility for stopping all direct access LUNs and setting the
-offline bit.  Unlike the
-.Ic shutdown
-command above, this command allows shutting down LUNs with I/O active.  It
-will also issue a LUN reset to any reserved LUNs to break the reservation
-so that the LUN can be stopped.
-.Ic shutdown
-command instead.
-.It Ic hardstart
-This command is functionally identical to the
-.Ic startup
-command described above.  The primary difference is that the LUNs are
-enumerated and commands sent by the in-kernel Front End Target Driver
-instead of by
-.Nm .
 .It Ic lunlist
 List all LUNs registered with CTL.
 Because this command uses the ioctl port, it will only work when the FETDs
