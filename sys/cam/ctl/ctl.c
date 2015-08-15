@@ -72,7 +72,6 @@ __FBSDID("$FreeBSD$");
 #include <cam/ctl/ctl_io.h>
 #include <cam/ctl/ctl.h>
 #include <cam/ctl/ctl_frontend.h>
-#include <cam/ctl/ctl_frontend_internal.h>
 #include <cam/ctl/ctl_util.h>
 #include <cam/ctl/ctl_backend.h>
 #include <cam/ctl/ctl_ioctl.h>
@@ -392,9 +391,6 @@ static int ctl_serialize_other_sc_cmd(struct ctl_scsiio *ctsio);
 static int ctl_ioctl_submit_wait(union ctl_io *io);
 static void ctl_ioctl_datamove(union ctl_io *io);
 static void ctl_ioctl_done(union ctl_io *io);
-static void ctl_ioctl_hard_startstop_callback(void *arg,
-					      struct cfi_metatask *metatask);
-static void ctl_ioctl_bbrread_callback(void *arg,struct cfi_metatask *metatask);
 static int ctl_ioctl_fill_ooa(struct ctl_lun *lun, uint32_t *cur_fill_num,
 			      struct ctl_ooa *ooa_hdr,
 			      struct ctl_ooa_entry *kern_entries);
@@ -2093,38 +2089,6 @@ ctl_ioctl_done(union ctl_io *io)
 	mtx_unlock(&params->ioctl_mtx);
 }
 
-static void
-ctl_ioctl_hard_startstop_callback(void *arg, struct cfi_metatask *metatask)
-{
-	struct ctl_fe_ioctl_startstop_info *sd_info;
-
-	sd_info = (struct ctl_fe_ioctl_startstop_info *)arg;
-
-	sd_info->hs_info.status = metatask->status;
-	sd_info->hs_info.total_luns = metatask->taskinfo.startstop.total_luns;
-	sd_info->hs_info.luns_complete =
-		metatask->taskinfo.startstop.luns_complete;
-	sd_info->hs_info.luns_failed = metatask->taskinfo.startstop.luns_failed;
-
-	cv_broadcast(&sd_info->sem);
-}
-
-static void
-ctl_ioctl_bbrread_callback(void *arg, struct cfi_metatask *metatask)
-{
-	struct ctl_fe_ioctl_bbrread_info *fe_bbr_info;
-
-	fe_bbr_info = (struct ctl_fe_ioctl_bbrread_info *)arg;
-
-	mtx_lock(fe_bbr_info->lock);
-	fe_bbr_info->bbr_info->status = metatask->status;
-	fe_bbr_info->bbr_info->bbr_status = metatask->taskinfo.bbrread.status;
-	fe_bbr_info->wakeup_done = 1;
-	mtx_unlock(fe_bbr_info->lock);
-
-	cv_broadcast(&fe_bbr_info->sem);
-}
-
 /*
  * Returns 0 for success, errno for failure.
  */
@@ -2721,103 +2685,6 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 		mtx_unlock(&lun->lun_lock);
 
 		ooa_info->status = CTL_OOA_SUCCESS;
-
-		break;
-	}
-	case CTL_HARD_START:
-	case CTL_HARD_STOP: {
-		struct ctl_fe_ioctl_startstop_info ss_info;
-		struct cfi_metatask *metatask;
-		struct mtx hs_mtx;
-
-		mtx_init(&hs_mtx, "HS Mutex", NULL, MTX_DEF);
-
-		cv_init(&ss_info.sem, "hard start/stop cv" );
-
-		metatask = cfi_alloc_metatask(/*can_wait*/ 1);
-		if (metatask == NULL) {
-			retval = ENOMEM;
-			mtx_destroy(&hs_mtx);
-			break;
-		}
-
-		if (cmd == CTL_HARD_START)
-			metatask->tasktype = CFI_TASK_STARTUP;
-		else
-			metatask->tasktype = CFI_TASK_SHUTDOWN;
-
-		metatask->callback = ctl_ioctl_hard_startstop_callback;
-		metatask->callback_arg = &ss_info;
-
-		cfi_action(metatask);
-
-		/* Wait for the callback */
-		mtx_lock(&hs_mtx);
-		cv_wait_sig(&ss_info.sem, &hs_mtx);
-		mtx_unlock(&hs_mtx);
-
-		/*
-		 * All information has been copied from the metatask by the
-		 * time cv_broadcast() is called, so we free the metatask here.
-		 */
-		cfi_free_metatask(metatask);
-
-		memcpy((void *)addr, &ss_info.hs_info, sizeof(ss_info.hs_info));
-
-		mtx_destroy(&hs_mtx);
-		break;
-	}
-	case CTL_BBRREAD: {
-		struct ctl_bbrread_info *bbr_info;
-		struct ctl_fe_ioctl_bbrread_info fe_bbr_info;
-		struct mtx bbr_mtx;
-		struct cfi_metatask *metatask;
-
-		bbr_info = (struct ctl_bbrread_info *)addr;
-
-		bzero(&fe_bbr_info, sizeof(fe_bbr_info));
-
-		bzero(&bbr_mtx, sizeof(bbr_mtx));
-		mtx_init(&bbr_mtx, "BBR Mutex", NULL, MTX_DEF);
-
-		fe_bbr_info.bbr_info = bbr_info;
-		fe_bbr_info.lock = &bbr_mtx;
-
-		cv_init(&fe_bbr_info.sem, "BBR read cv");
-		metatask = cfi_alloc_metatask(/*can_wait*/ 1);
-
-		if (metatask == NULL) {
-			mtx_destroy(&bbr_mtx);
-			cv_destroy(&fe_bbr_info.sem);
-			retval = ENOMEM;
-			break;
-		}
-		metatask->tasktype = CFI_TASK_BBRREAD;
-		metatask->callback = ctl_ioctl_bbrread_callback;
-		metatask->callback_arg = &fe_bbr_info;
-		metatask->taskinfo.bbrread.lun_num = bbr_info->lun_num;
-		metatask->taskinfo.bbrread.lba = bbr_info->lba;
-		metatask->taskinfo.bbrread.len = bbr_info->len;
-
-		cfi_action(metatask);
-
-		mtx_lock(&bbr_mtx);
-		while (fe_bbr_info.wakeup_done == 0)
-			cv_wait_sig(&fe_bbr_info.sem, &bbr_mtx);
-		mtx_unlock(&bbr_mtx);
-
-		bbr_info->status = metatask->status;
-		bbr_info->bbr_status = metatask->taskinfo.bbrread.status;
-		bbr_info->scsi_status = metatask->taskinfo.bbrread.scsi_status;
-		memcpy(&bbr_info->sense_data,
-		       &metatask->taskinfo.bbrread.sense_data,
-		       MIN(sizeof(bbr_info->sense_data),
-			   sizeof(metatask->taskinfo.bbrread.sense_data)));
-
-		cfi_free_metatask(metatask);
-
-		mtx_destroy(&bbr_mtx);
-		cv_destroy(&fe_bbr_info.sem);
 
 		break;
 	}

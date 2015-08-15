@@ -47,18 +47,6 @@
 #define	CTL_PROCESSOR_PRODUCT	"CTLPROCESSOR    "
 #define	CTL_UNKNOWN_PRODUCT	"CTLDEVICE       "
 
-struct ctl_fe_ioctl_startstop_info {
-	struct cv			sem;
-	struct ctl_hard_startstop_info	hs_info;
-};
-
-struct ctl_fe_ioctl_bbrread_info {
-	struct cv			sem;
-	struct ctl_bbrread_info		*bbr_info;
-	int				wakeup_done;
-	struct mtx			*lock;
-};
-
 typedef enum {
 	CTL_IOCTL_INPROG,
 	CTL_IOCTL_DATAMOVE,

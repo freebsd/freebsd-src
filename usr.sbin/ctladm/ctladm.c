@@ -66,7 +66,6 @@ __FBSDID("$FreeBSD$");
 #include <cam/scsi/scsi_message.h>
 #include <cam/ctl/ctl.h>
 #include <cam/ctl/ctl_io.h>
-#include <cam/ctl/ctl_frontend_internal.h>
 #include <cam/ctl/ctl_backend.h>
 #include <cam/ctl/ctl_ioctl.h>
 #include <cam/ctl/ctl_backend_block.h>
@@ -106,14 +105,11 @@ typedef enum {
 	CTLADM_CMD_SHUTDOWN,
 	CTLADM_CMD_STARTUP,
 	CTLADM_CMD_LUNLIST,
-	CTLADM_CMD_HARDSTOP,
-	CTLADM_CMD_HARDSTART,
 	CTLADM_CMD_DELAY,
 	CTLADM_CMD_REALSYNC,
 	CTLADM_CMD_SETSYNC,
 	CTLADM_CMD_GETSYNC,
 	CTLADM_CMD_ERR_INJECT,
-	CTLADM_CMD_BBRREAD,
 	CTLADM_CMD_PRES_IN,
 	CTLADM_CMD_PRES_OUT,
 	CTLADM_CMD_INQ_VPD_DEVID,
@@ -172,7 +168,6 @@ static const char startstop_opts[] = "io";
 
 static struct ctladm_opts option_table[] = {
 	{"adddev", CTLADM_CMD_ADDDEV, CTLADM_ARG_NONE, NULL},
-	{"bbrread", CTLADM_CMD_BBRREAD, CTLADM_ARG_NEED_TL, "d:l:"},
 	{"create", CTLADM_CMD_CREATE, CTLADM_ARG_NONE, "b:B:d:l:o:s:S:t:"},
 	{"delay", CTLADM_CMD_DELAY, CTLADM_ARG_NEED_TL, "T:l:t:"},
 	{"devid", CTLADM_CMD_INQ_VPD_DEVID, CTLADM_ARG_NEED_TL, NULL},
@@ -180,8 +175,6 @@ static struct ctladm_opts option_table[] = {
 	{"dumpooa", CTLADM_CMD_DUMPOOA, CTLADM_ARG_NONE, NULL},
 	{"dumpstructs", CTLADM_CMD_DUMPSTRUCTS, CTLADM_ARG_NONE, NULL},
 	{"getsync", CTLADM_CMD_GETSYNC, CTLADM_ARG_NEED_TL, NULL},
-	{"hardstart", CTLADM_CMD_HARDSTART, CTLADM_ARG_NONE, NULL},
-	{"hardstop", CTLADM_CMD_HARDSTOP, CTLADM_ARG_NONE, NULL},
 	{"help", CTLADM_CMD_HELP, CTLADM_ARG_NONE, NULL},
 	{"inject", CTLADM_CMD_ERR_INJECT, CTLADM_ARG_NEED_TL, "cd:i:p:r:s:"},
 	{"inquiry", CTLADM_CMD_INQUIRY, CTLADM_ARG_NEED_TL, NULL},
@@ -228,11 +221,6 @@ static int cctl_do_io(int fd, int retries, union ctl_io *io, const char *func);
 static int cctl_delay(int fd, int target, int lun, int argc, char **argv,
 		      char *combinedopt);
 static int cctl_lunlist(int fd);
-static void cctl_cfi_mt_statusstr(cfi_mt_status status, char *str, int str_len);
-static void cctl_cfi_bbr_statusstr(cfi_bbrread_status, char *str, int str_len);
-static int cctl_hardstopstart(int fd, ctladm_cmdfunction command);
-static int cctl_bbrread(int fd, int target, int lun, int iid, int argc,
-			char **argv, char *combinedopt);
 static int cctl_startup_shutdown(int fd, int target, int lun, int iid,
 				 ctladm_cmdfunction command);
 static int cctl_sync_cache(int fd, int target, int lun, int iid, int retries,
@@ -1338,180 +1326,6 @@ bailout:
 	if (inq_data != NULL)
 		free(inq_data);
 
-	return (retval);
-}
-
-static void
-cctl_cfi_mt_statusstr(cfi_mt_status status, char *str, int str_len)
-{
-	switch (status) {
-	case CFI_MT_PORT_OFFLINE:
-		snprintf(str, str_len, "Port Offline");
-		break;
-	case CFI_MT_ERROR:
-		snprintf(str, str_len, "Error");
-		break;
-	case CFI_MT_SUCCESS:
-		snprintf(str, str_len, "Success");
-		break;
-	case CFI_MT_NONE:
-		snprintf(str, str_len, "None??");
-		break;
-	default:
-		snprintf(str, str_len, "Unknown status: %d", status);
-		break;
-	}
-}
-
-static void
-cctl_cfi_bbr_statusstr(cfi_bbrread_status status, char *str, int str_len)
-{
-	switch (status) {
-	case CFI_BBR_SUCCESS:
-		snprintf(str, str_len, "Success");
-		break;
-	case CFI_BBR_LUN_UNCONFIG:
-		snprintf(str, str_len, "LUN not configured");
-		break;
-	case CFI_BBR_NO_LUN:
-		snprintf(str, str_len, "LUN does not exist");
-		break;
-	case CFI_BBR_NO_MEM:
-		snprintf(str, str_len, "Memory allocation error");
-		break;
-	case CFI_BBR_BAD_LEN:
-		snprintf(str, str_len, "Length is not a multiple of blocksize");
-		break;
-	case CFI_BBR_RESERV_CONFLICT:
-		snprintf(str, str_len, "Reservation conflict");
-		break;
-	case CFI_BBR_LUN_STOPPED:
-		snprintf(str, str_len, "LUN is powered off");
-		break;
-	case CFI_BBR_LUN_OFFLINE_CTL:
-		snprintf(str, str_len, "LUN is offline");
-		break;
-	case CFI_BBR_LUN_OFFLINE_RC:
-		snprintf(str, str_len, "RAIDCore array is offline (double "
-			 "failure?)");
-		break;
-	case CFI_BBR_SCSI_ERROR:
-		snprintf(str, str_len, "SCSI Error");
-		break;
-	case CFI_BBR_ERROR:
-		snprintf(str, str_len, "Error");
-		break;
-	default:
-		snprintf(str, str_len, "Unknown status: %d", status);
-		break;
-	}
-}
-
-static int
-cctl_hardstopstart(int fd, ctladm_cmdfunction command)
-{
-	struct ctl_hard_startstop_info hs_info;
-	char error_str[256];
-	int do_start;
-	int retval;
-
-	retval = 0;
-
-	if (command == CTLADM_CMD_HARDSTART)
-		do_start = 1;
-	else
-		do_start = 0;
-
-	if (ioctl(fd, (do_start == 1) ? CTL_HARD_START : CTL_HARD_STOP,
-		  &hs_info) == -1) {
-		warn("%s: CTL_HARD_%s ioctl failed", __func__,
-		     (do_start == 1) ? "START" : "STOP");
-		retval = 1;
-		goto bailout;
-	}
-
-	fprintf(stdout, "Hard %s Status: ", (command == CTLADM_CMD_HARDSTOP) ?
-		"Stop" : "Start");
-	cctl_cfi_mt_statusstr(hs_info.status, error_str, sizeof(error_str));
-	fprintf(stdout, "%s\n", error_str);
-	fprintf(stdout, "Total LUNs: %d\n", hs_info.total_luns);
-	fprintf(stdout, "LUNs complete: %d\n", hs_info.luns_complete);
-	fprintf(stdout, "LUNs failed: %d\n", hs_info.luns_failed);
-
-bailout:
-	return (retval);
-}
-
-static int
-cctl_bbrread(int fd, int target __unused, int lun, int iid __unused,
-	     int argc, char **argv, char *combinedopt)
-{
-	struct ctl_bbrread_info bbr_info;
-	char error_str[256];
-	int datalen = -1;
-	uint64_t lba = 0;
-	int lba_set = 0;
-	int retval;
-	int c;
-
-	retval = 0;
-
-	while ((c = getopt(argc, argv, combinedopt)) != -1) {
-		switch (c) {
-		case 'd':
-			datalen = strtoul(optarg, NULL, 0);
-			break;
-		case 'l':
-			lba = strtoull(optarg, NULL, 0);
-			lba_set = 1;
-			break;
-		default:
-			break;
-		}
-	}
-
-	if (lba_set == 0) {
-		warnx("%s: you must specify an LBA with -l", __func__);
-		retval = 1;
-		goto bailout;
-	}
-
-	if (datalen == -1) {
-		warnx("%s: you must specify a length with -d", __func__);
-		retval = 1;
-		goto bailout;
-	}
-
-	bbr_info.lun_num = lun;
-	bbr_info.lba = lba;
-	/*
-	 * XXX KDM get the blocksize first??
-	 */
-	if ((datalen % 512) != 0) {
-		warnx("%s: data length %d is not a multiple of 512 bytes",
-		     __func__, datalen);
-		retval = 1;
-		goto bailout;
-	}
-	bbr_info.len = datalen;
-
-	if (ioctl(fd, CTL_BBRREAD, &bbr_info) == -1) {
-		warn("%s: CTL_BBRREAD ioctl failed", __func__);
-		retval = 1;
-		goto bailout;
-	}
-	cctl_cfi_mt_statusstr(bbr_info.status, error_str, sizeof(error_str));
-	fprintf(stdout, "BBR Read Overall Status: %s\n", error_str);
-	cctl_cfi_bbr_statusstr(bbr_info.bbr_status, error_str,
-			       sizeof(error_str));
-	fprintf(stdout, "BBR Read Status: %s\n", error_str);
-	/*
-	 * XXX KDM should we bother printing out SCSI status if we get
-	 * CFI_BBR_SCSI_ERROR back?
-	 *
-	 * Return non-zero if this fails?
-	 */
-bailout:
 	return (retval);
 }
 
@@ -4499,11 +4313,8 @@ usage(int error)
 "         ctladm devlist     [-b backend] [-v] [-x]\n"
 "         ctladm shutdown\n"
 "         ctladm startup\n"
-"         ctladm hardstop\n"
-"         ctladm hardstart\n"
 "         ctladm lunlist\n"
 "         ctladm lunmap      -p targ_port [-l pLUN] [-L cLUN]\n"
-"         ctladm bbrread     [dev_id] <-l lba> <-d datalen>\n"
 "         ctladm delay       [dev_id] <-l datamove|done> [-T oneshot|cont]\n"
 "                            [-t secs]\n"
 "         ctladm realsync    <on|off|query>\n"
@@ -4610,10 +4421,7 @@ usage(int error)
 "lunmap options:\n"
 "-p targ_port             : specify target port number\n"
 "-L pLUN                  : specify port-visible LUN\n"
-"-L cLUN                  : specify CTL LUN\n"
-"bbrread options:\n"
-"-l lba                   : starting LBA\n"
-"-d datalen               : length, in bytes, to read\n",
+"-L cLUN                  : specify CTL LUN\n",
 CTL_DEFAULT_DEV);
 }
 
@@ -4863,14 +4671,6 @@ main(int argc, char **argv)
 	case CTLADM_CMD_STARTUP:
 		retval = cctl_startup_shutdown(fd, target, lun, initid,
 					       command);
-		break;
-	case CTLADM_CMD_HARDSTOP:
-	case CTLADM_CMD_HARDSTART:
-		retval = cctl_hardstopstart(fd, command);
-		break;
-	case CTLADM_CMD_BBRREAD:
-		retval = cctl_bbrread(fd, target, lun, initid, argc, argv,
-				      combinedopt);
 		break;
 	case CTLADM_CMD_LUNLIST:
 		retval = cctl_lunlist(fd);
