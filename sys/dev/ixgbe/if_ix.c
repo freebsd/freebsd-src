@@ -872,7 +872,7 @@ ixgbe_ioctl(struct ifnet * ifp, u_long command, caddr_t data)
 		VLAN_CAPABILITIES(ifp);
 		break;
 	}
-#if __FreeBSD_version >= 1100036
+#if __FreeBSD_version >= 1002500
 	case SIOCGI2C:
 	{
 		struct ixgbe_hw *hw = &adapter->hw;
