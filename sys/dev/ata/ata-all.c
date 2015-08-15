@@ -64,12 +64,10 @@ static void ata_cam_end_transaction(device_t dev, struct ata_request *request);
 static void ata_cam_request_sense(device_t dev, struct ata_request *request);
 static int ata_check_ids(device_t dev, union ccb *ccb);
 static void ata_conn_event(void *context, int dummy);
-static void ata_init(void);
 static void ata_interrupt_locked(void *data);
 static int ata_module_event_handler(module_t mod, int what, void *arg);
 static void ata_periodic_poll(void *data);
 static int ata_str2mode(const char *str);
-static void ata_uninit(void);
 
 /* global vars */
 MALLOC_DEFINE(M_ATA, "ata_generic", "ATA driver generic layer");
