@@ -28,7 +28,6 @@
  */
 
 char		*fetchname(const char *, bool *, int);
-char		*checked_in(char *);
 int		backup_file(const char *);
 int		move_file(const char *, const char *);
 int		copy_file(const char *, const char *);
