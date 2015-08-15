@@ -1025,6 +1025,9 @@ status(const struct afswtch *afp, const struct sockaddr_dl *sdl,
 	if (ioctl(s, SIOCGIFSTATUS, &ifs) == 0) 
 		printf("%s", ifs.ascii);
 
+	if (verbose > 0)
+		sfp_status(s, &ifr, verbose);
+
 	close(s);
 	return;
 }

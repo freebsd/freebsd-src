@@ -521,6 +521,19 @@ struct if_laddrreq {
 	struct	sockaddr_storage dstaddr; /* out */
 };
 
+/*
+ * Structure used to request i2c data
+ * from interface transceivers.
+ */
+struct ifi2creq {
+	uint8_t dev_addr;	/* i2c address (0xA0, 0xA2) */
+	uint8_t offset;		/* read offset */
+	uint8_t len;		/* read length */
+	uint8_t spare0;
+	uint32_t spare1;
+	uint8_t data[8];	/* read buffer */
+}; 
+
 #endif /* __BSD_VISIBLE */
 
 #ifdef _KERNEL
