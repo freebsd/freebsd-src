@@ -194,6 +194,8 @@ void ctl_portDB_changed(int portnum);
 #ifdef notyet
 void ctl_init_isc_msg(void);
 #endif
+int ctl_ioctl_io(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
+		 struct thread *td);
 
 /*
  * KPI to manipulate LUN/port options
