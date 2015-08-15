@@ -4,6 +4,7 @@ TESTSDIR=	${TESTSBASE}/lib/libnv
 
 ATF_TESTS_CXX=	\
 	dnv_tests \
+	nv_array_tests \
 	nv_tests \
 
 TAP_TESTS_C+=	nvlist_add_test
