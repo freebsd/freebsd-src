@@ -413,8 +413,8 @@ printtrap(u_int vector, struct trapframe *frame, int isfatal, int user)
 	case EXC_DTMISS:
 		printf("   virtual address = 0x%" PRIxPTR "\n", frame->dar);
 #ifdef AIM
-		printf("   dsisr           = 0x%" PRIxPTR "\n",
-		    frame->cpu.aim.dsisr);
+		printf("   dsisr           = 0x%lx\n",
+		    (u_long)frame->cpu.aim.dsisr);
 #endif
 		break;
 	case EXC_ISE:
@@ -438,7 +438,7 @@ printtrap(u_int vector, struct trapframe *frame, int isfatal, int user)
 	    frame->cpu.booke.esr);
 #endif
 	printf("   srr0            = 0x%" PRIxPTR "\n", frame->srr0);
-	printf("   srr1            = 0x%" PRIxPTR "\n", frame->srr1);
+	printf("   srr1            = 0x%lx\n", (u_long)frame->srr1);
 	printf("   lr              = 0x%" PRIxPTR "\n", frame->lr);
 	printf("   curthread       = %p\n", curthread);
 	if (curthread != NULL)
