@@ -366,6 +366,10 @@ MODULE_DEPEND(em, netmap, 1, 1, 1);
 
 static SYSCTL_NODE(_hw, OID_AUTO, em, CTLFLAG_RD, 0, "EM driver parameters");
 
+static int em_disable_crc_stripping = 0;
+SYSCTL_INT(_hw_em, OID_AUTO, disable_crc_stripping, CTLFLAG_RDTUN,
+    &em_disable_crc_stripping, 0, "Disable CRC Stripping");
+
 static int em_tx_int_delay_dflt = EM_TICKS_TO_USECS(EM_TIDV);
 static int em_rx_int_delay_dflt = EM_TICKS_TO_USECS(EM_RDTR);
 SYSCTL_INT(_hw_em, OID_AUTO, tx_int_delay, CTLFLAG_RDTUN, &em_tx_int_delay_dflt,
@@ -4514,7 +4518,8 @@ em_initialize_receive_unit(struct adapter *adapter)
 	    (hw->mac.mc_filter_type << E1000_RCTL_MO_SHIFT);
 
         /* Strip the CRC */
-        rctl |= E1000_RCTL_SECRC;
+        if (!em_disable_crc_stripping)
+		rctl |= E1000_RCTL_SECRC;
 
         /* Make sure VLAN Filters are off */
         rctl &= ~E1000_RCTL_VFE;
