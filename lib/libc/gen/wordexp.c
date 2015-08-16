@@ -138,8 +138,7 @@ we_askshell(const char *words, wordexp_t *we, int flags)
 	}
 	else if (pid == 0) {
 		/*
-		 * We are the child; just get /bin/sh to run the wordexp
-		 * builtin on `words'.
+		 * We are the child; make /bin/sh expand `words'.
 		 */
 		(void)_sigprocmask(SIG_SETMASK, &oldsigblock, NULL);
 		if ((pdes[1] != STDOUT_FILENO ?
@@ -147,7 +146,9 @@ we_askshell(const char *words, wordexp_t *we, int flags)
 		    _fcntl(pdes[1], F_SETFD, 0)) < 0)
 			_exit(1);
 		execl(_PATH_BSHELL, "sh", flags & WRDE_UNDEF ? "-u" : "+u",
-		    "-c", "IFS=$1;eval \"$2\";eval \"wordexp $3\"", "",
+		    "-c", "IFS=$1;eval \"$2\";eval \"set -- $3\";IFS=;a=\"$*\";"
+		    "printf '%08x' \"$#\" \"${#a}\";printf '%s\\0' \"$@\"",
+		    "",
 		    ifs != NULL ? ifs : " \t\n",
 		    flags & WRDE_SHOWERR ? "" : "exec 2>/dev/null", words,
 		    (char *)NULL);
