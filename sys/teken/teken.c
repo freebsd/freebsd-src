@@ -411,13 +411,16 @@ teken_state_numbers(teken_t *t, teken_char_t c)
 			/* First digit. */
 			t->t_stateflags &= ~TS_FIRSTDIGIT;
 			t->t_nums[t->t_curnum] = c - '0';
-		} else if (t->t_nums[t->t_curnum] < USHRT_MAX) {
+		} else if (t->t_nums[t->t_curnum] < UINT_MAX / 100) {
 			/*
-			 * Screen positions are stored as unsigned
-			 * shorts. There is no need to continue parsing
-			 * input once the value exceeds USHRT_MAX. It
-			 * would only allow for integer overflows when
-			 * performing arithmetic on the cursor position.
+			 * There is no need to continue parsing input
+			 * once the value exceeds the size of the
+			 * terminal. It would only allow for integer
+			 * overflows when performing arithmetic on the
+			 * cursor position.
+			 *
+			 * Ignore any further digits if the value is
+			 * already UINT_MAX / 100.
 			 */
 			t->t_nums[t->t_curnum] =
 			    t->t_nums[t->t_curnum] * 10 + c - '0';
