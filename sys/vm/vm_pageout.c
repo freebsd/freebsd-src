@@ -566,11 +566,6 @@ vm_pageout_flush(vm_page_t *mc, int count, int flags, int mreq, int *prunlen,
 		if (pageout_status[i] != VM_PAGER_PEND) {
 			vm_object_pip_wakeup(object);
 			vm_page_sunbusy(mt);
-			if (vm_page_count_severe()) {
-				vm_page_lock(mt);
-				vm_page_try_to_cache(mt);
-				vm_page_unlock(mt);
-			}
 		}
 	}
 	if (prunlen != NULL)
