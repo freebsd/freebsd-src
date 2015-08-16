@@ -309,57 +309,37 @@ arprequest(struct ifnet *ifp, const struct in_addr *sip,
 }
 
 /*
- * Resolve an IP address into an ethernet address.
- * On input:
- *    ifp is the interface we use
- *    is_gw != if @dst represents gateway to some destination
- *    m is the mbuf. May be NULL if we don't have a packet.
- *    dst is the next hop,
- *    desten is where we want the address.
- *    flags returns lle entry flags.
+ * Resolve an IP address into an ethernet address - heavy version.
+ * Used internally by arpresolve().
+ * We have already checked than  we can't use existing lle without
+ * modification so we have to acquire LLE_EXCLUSIVE lle lock.
  *
  * On success, desten and flags are filled in and the function returns 0;
  * If the packet must be held pending resolution, we return EWOULDBLOCK
  * On other errors, we return the corresponding error code.
  * Note that m_freem() handles NULL.
  */
-int
-arpresolve(struct ifnet *ifp, int is_gw, struct mbuf *m,
+static int
+arpresolve_full(struct ifnet *ifp, int is_gw, int create, struct mbuf *m,
 	const struct sockaddr *dst, u_char *desten, uint32_t *pflags)
 {
-	struct llentry *la = 0;
-	u_int flags = 0;
+	struct llentry *la = NULL;
 	struct mbuf *curr = NULL;
 	struct mbuf *next = NULL;
-	int create, error, renew;
+	int error, renew;
 
 	if (pflags != NULL)
 		*pflags = 0;
 
-	create = 0;
-	if (m != NULL) {
-		if (m->m_flags & M_BCAST) {
-			/* broadcast */
-			(void)memcpy(desten,
-			    ifp->if_broadcastaddr, ifp->if_addrlen);
-			return (0);
-		}
-		if (m->m_flags & M_MCAST) {
-			/* multicast */
-			ETHER_MAP_IP_MULTICAST(&SIN(dst)->sin_addr, desten);
-			return (0);
-		}
+	if (create == 0) {
+		IF_AFDATA_RLOCK(ifp);
+		la = lla_lookup(LLTABLE(ifp), LLE_EXCLUSIVE, dst);
+		IF_AFDATA_RUNLOCK(ifp);
 	}
-retry:
-	IF_AFDATA_RLOCK(ifp);
-	la = lla_lookup(LLTABLE(ifp), flags, dst);
-	IF_AFDATA_RUNLOCK(ifp);
-	if ((la == NULL) && ((flags & LLE_EXCLUSIVE) == 0)
-	    && ((ifp->if_flags & (IFF_NOARP | IFF_STATICARP)) == 0)) {
+	if (la == NULL && (ifp->if_flags & (IFF_NOARP | IFF_STATICARP)) == 0) {
 		create = 1;
-		flags |= LLE_EXCLUSIVE;
 		IF_AFDATA_WLOCK(ifp);
-		la = lla_create(LLTABLE(ifp), flags, dst);
+		la = lla_create(LLTABLE(ifp), 0, dst);
 		IF_AFDATA_WUNLOCK(ifp);
 	}
 	if (la == NULL) {
@@ -389,10 +369,7 @@ retry:
 		if (pflags != NULL)
 			*pflags = la->la_flags;
 
-		if (flags & LLE_EXCLUSIVE)
-			LLE_WUNLOCK(la);
-		else
-			LLE_RUNLOCK(la);
+		LLE_WUNLOCK(la);
 
 		if (renew == 1)
 			arprequest(ifp, NULL, &SIN(dst)->sin_addr, NULL);
@@ -400,20 +377,7 @@ retry:
 		return (0);
 	}
 
-	if (la->la_flags & LLE_STATIC) {   /* should not happen! */
-		log(LOG_DEBUG, "arpresolve: ouch, empty static llinfo for %s\n",
-		    inet_ntoa(SIN(dst)->sin_addr));
-		m_freem(m);
-		error = EINVAL;
-		goto done;
-	}
-
 	renew = (la->la_asked == 0 || la->la_expire != time_uptime);
-	if ((renew || m != NULL) && (flags & LLE_EXCLUSIVE) == 0) {
-		flags |= LLE_EXCLUSIVE;
-		LLE_RUNLOCK(la);
-		goto retry;
-	}
 	/*
 	 * There is an arptab entry, but no ethernet address
 	 * response yet.  Add the mbuf to the list, dropping
@@ -438,11 +402,6 @@ retry:
 		} else
 			la->la_hold = m;
 		la->la_numheld++;
-		if (renew == 0 && (flags & LLE_EXCLUSIVE)) {
-			flags &= ~LLE_EXCLUSIVE;
-			LLE_DOWNGRADE(la);
-		}
-
 	}
 	/*
 	 * Return EWOULDBLOCK if we have tried less than arp_maxtries. It
@@ -469,12 +428,85 @@ retry:
 		arprequest(ifp, NULL, &SIN(dst)->sin_addr, NULL);
 		return (error);
 	}
-done:
-	if (flags & LLE_EXCLUSIVE)
-		LLE_WUNLOCK(la);
-	else
-		LLE_RUNLOCK(la);
+
+	LLE_WUNLOCK(la);
 	return (error);
+}
+
+/*
+ * Resolve an IP address into an ethernet address.
+ * On input:
+ *    ifp is the interface we use
+ *    is_gw != 0 if @dst represents gateway to some destination
+ *    m is the mbuf. May be NULL if we don't have a packet.
+ *    dst is the next hop,
+ *    desten is the storage to put LL address.
+ *    flags returns lle entry flags.
+ *
+ * On success, desten and flags are filled in and the function returns 0;
+ * If the packet must be held pending resolution, we return EWOULDBLOCK
+ * On other errors, we return the corresponding error code.
+ * Note that m_freem() handles NULL.
+ */
+int
+arpresolve(struct ifnet *ifp, int is_gw, struct mbuf *m,
+	const struct sockaddr *dst, u_char *desten, uint32_t *pflags)
+{
+	struct llentry *la = 0;
+	int renew;
+
+	if (pflags != NULL)
+		*pflags = 0;
+
+	if (m != NULL) {
+		if (m->m_flags & M_BCAST) {
+			/* broadcast */
+			(void)memcpy(desten,
+			    ifp->if_broadcastaddr, ifp->if_addrlen);
+			return (0);
+		}
+		if (m->m_flags & M_MCAST) {
+			/* multicast */
+			ETHER_MAP_IP_MULTICAST(&SIN(dst)->sin_addr, desten);
+			return (0);
+		}
+	}
+
+	IF_AFDATA_RLOCK(ifp);
+	la = lla_lookup(LLTABLE(ifp), 0, dst);
+	IF_AFDATA_RUNLOCK(ifp);
+
+	if (la == NULL)
+		return (arpresolve_full(ifp, is_gw, 1, m, dst, desten, pflags));
+
+	if ((la->la_flags & LLE_VALID) &&
+	    ((la->la_flags & LLE_STATIC) || la->la_expire > time_uptime)) {
+		bcopy(&la->ll_addr, desten, ifp->if_addrlen);
+		renew = 0;
+		/*
+		 * If entry has an expiry time and it is approaching,
+		 * see if we need to send an ARP request within this
+		 * arpt_down interval.
+		 */
+		if (!(la->la_flags & LLE_STATIC) &&
+		    time_uptime + la->la_preempt > la->la_expire) {
+			renew = 1;
+			la->la_preempt--;
+		}
+
+		if (pflags != NULL)
+			*pflags = la->la_flags;
+
+		LLE_RUNLOCK(la);
+
+		if (renew == 1)
+			arprequest(ifp, NULL, &SIN(dst)->sin_addr, NULL);
+
+		return (0);
+	}
+	LLE_RUNLOCK(la);
+
+	return (arpresolve_full(ifp, is_gw, 0, m, dst, desten, pflags));
 }
 
 /*
