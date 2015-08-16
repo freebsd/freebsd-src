@@ -1183,8 +1183,6 @@ ctl_init(void)
 		ctl_pool_free(other_pool);
 		return (error);
 	}
-	if (bootverbose)
-		printf("ctl: CAM Target Layer loaded\n");
 
 	/*
 	 * Initialize the ioctl front end.
@@ -1267,9 +1265,6 @@ ctl_shutdown(void)
 
 	free(control_softc, M_DEVBUF);
 	control_softc = NULL;
-
-	if (bootverbose)
-		printf("ctl: CAM Target Layer unloaded\n");
 }
 
 static int
@@ -13635,7 +13630,7 @@ ctl_process_done(union ctl_io *io)
 	case CTL_IO_SCSI:
 		break;
 	case CTL_IO_TASK:
-		if (bootverbose || (ctl_debug & CTL_DEBUG_INFO))
+		if (ctl_debug & CTL_DEBUG_INFO)
 			ctl_io_error_print(io, NULL);
 		if (io->io_hdr.flags & CTL_FLAG_FROM_OTHER_SC)
 			ctl_free_io(io);
@@ -13742,27 +13737,10 @@ bailout:
 
 	/*
 	 * If enabled, print command error status.
-	 * We don't print UAs unless debugging was enabled explicitly.
 	 */
-	do {
-		if ((io->io_hdr.status & CTL_STATUS_MASK) == CTL_SUCCESS)
-			break;
-		if (!bootverbose && (ctl_debug & CTL_DEBUG_INFO) == 0)
-			break;
-		if ((ctl_debug & CTL_DEBUG_INFO) == 0 &&
-		    ((io->io_hdr.status & CTL_STATUS_MASK) == CTL_SCSI_ERROR) &&
-		     (io->scsiio.scsi_status == SCSI_STATUS_CHECK_COND)) {
-			int error_code, sense_key, asc, ascq;
-
-			scsi_extract_sense_len(&io->scsiio.sense_data,
-			    io->scsiio.sense_len, &error_code, &sense_key,
-			    &asc, &ascq, /*show_errors*/ 0);
-			if (sense_key == SSD_KEY_UNIT_ATTENTION)
-				break;
-		}
-
+	if ((io->io_hdr.status & CTL_STATUS_MASK) != CTL_SUCCESS &&
+	    (ctl_debug & CTL_DEBUG_INFO) != 0)
 		ctl_io_error_print(io, NULL);
-	} while (0);
 
 	/*
 	 * Tell the FETD or the other shelf controller we're done with this
