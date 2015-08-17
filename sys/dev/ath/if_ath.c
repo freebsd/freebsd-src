@@ -1473,7 +1473,7 @@ ath_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
     const uint8_t bssid[IEEE80211_ADDR_LEN],
     const uint8_t mac0[IEEE80211_ADDR_LEN])
 {
-	struct ath_softc *sc = ic->ic_ifp->if_softc;
+	struct ath_softc *sc = ic->ic_softc;
 	struct ath_vap *avp;
 	struct ieee80211vap *vap;
 	uint8_t mac[IEEE80211_ADDR_LEN];
@@ -1732,7 +1732,7 @@ ath_vap_delete(struct ieee80211vap *vap)
 {
 	struct ieee80211com *ic = vap->iv_ic;
 	struct ifnet *ifp = ic->ic_ifp;
-	struct ath_softc *sc = ifp->if_softc;
+	struct ath_softc *sc = ic->ic_softc;
 	struct ath_hal *ah = sc->sc_ah;
 	struct ath_vap *avp = ATH_VAP(vap);
 
@@ -2340,7 +2340,7 @@ ath_fatal_proc(void *arg, int pending)
 static void
 ath_bmiss_vap(struct ieee80211vap *vap)
 {
-	struct ath_softc *sc = vap->iv_ic->ic_ifp->if_softc;
+	struct ath_softc *sc = vap->iv_ic->ic_softc;
 
 	/*
 	 * Workaround phantom bmiss interrupts by sanity-checking
@@ -2361,8 +2361,6 @@ ath_bmiss_vap(struct ieee80211vap *vap)
 	ATH_UNLOCK(sc);
 
 	if ((vap->iv_flags_ext & IEEE80211_FEXT_SWBMISS) == 0) {
-		struct ifnet *ifp = vap->iv_ic->ic_ifp;
-		struct ath_softc *sc = ifp->if_softc;
 		u_int64_t lastrx = sc->sc_lastrx;
 		u_int64_t tsf = ath_hal_gettsf64(sc->sc_ah);
 		/* XXX should take a locked ref to iv_bss */
@@ -2851,8 +2849,8 @@ ath_stop(struct ifnet *ifp)
 int
 ath_reset(struct ifnet *ifp, ATH_RESET_TYPE reset_type)
 {
-	struct ath_softc *sc = ifp->if_softc;
 	struct ieee80211com *ic = ifp->if_l2com;
+	struct ath_softc *sc = ic->ic_softc;
 	struct ath_hal *ah = sc->sc_ah;
 	HAL_STATUS status;
 	int i;
@@ -3045,7 +3043,7 @@ ath_reset_vap(struct ieee80211vap *vap, u_long cmd)
 {
 	struct ieee80211com *ic = vap->iv_ic;
 	struct ifnet *ifp = ic->ic_ifp;
-	struct ath_softc *sc = ifp->if_softc;
+	struct ath_softc *sc = ic->ic_softc;
 	struct ath_hal *ah = sc->sc_ah;
 
 	switch (cmd) {
@@ -3248,7 +3246,7 @@ static int
 ath_transmit(struct ifnet *ifp, struct mbuf *m)
 {
 	struct ieee80211com *ic = ifp->if_l2com;
-	struct ath_softc *sc = ic->ic_ifp->if_softc;
+	struct ath_softc *sc = ic->ic_softc;
 	struct ieee80211_node *ni;
 	struct mbuf *next;
 	struct ath_buf *bf;
@@ -3538,8 +3536,7 @@ ath_media_change(struct ifnet *ifp)
 static void
 ath_key_update_begin(struct ieee80211vap *vap)
 {
-	struct ifnet *ifp = vap->iv_ic->ic_ifp;
-	struct ath_softc *sc = ifp->if_softc;
+	struct ath_softc *sc = vap->iv_ic->ic_softc;
 
 	DPRINTF(sc, ATH_DEBUG_KEYCACHE, "%s:\n", __func__);
 	taskqueue_block(sc->sc_tq);
@@ -3548,8 +3545,7 @@ ath_key_update_begin(struct ieee80211vap *vap)
 static void
 ath_key_update_end(struct ieee80211vap *vap)
 {
-	struct ifnet *ifp = vap->iv_ic->ic_ifp;
-	struct ath_softc *sc = ifp->if_softc;
+	struct ath_softc *sc = vap->iv_ic->ic_softc;
 
 	DPRINTF(sc, ATH_DEBUG_KEYCACHE, "%s:\n", __func__);
 	taskqueue_unblock(sc->sc_tq);
@@ -4156,7 +4152,7 @@ static struct ieee80211_node *
 ath_node_alloc(struct ieee80211vap *vap, const uint8_t mac[IEEE80211_ADDR_LEN])
 {
 	struct ieee80211com *ic = vap->iv_ic;
-	struct ath_softc *sc = ic->ic_ifp->if_softc;
+	struct ath_softc *sc = ic->ic_softc;
 	const size_t space = sizeof(struct ath_node) + sc->sc_rc->arc_space;
 	struct ath_node *an;
 
@@ -4183,7 +4179,7 @@ static void
 ath_node_cleanup(struct ieee80211_node *ni)
 {
 	struct ieee80211com *ic = ni->ni_ic;
-	struct ath_softc *sc = ic->ic_ifp->if_softc;
+	struct ath_softc *sc = ic->ic_softc;
 
 	DPRINTF(sc, ATH_DEBUG_NODE, "%s: %6D: an %p\n", __func__,
 	    ni->ni_macaddr, ":", ATH_NODE(ni));
@@ -4198,7 +4194,7 @@ static void
 ath_node_free(struct ieee80211_node *ni)
 {
 	struct ieee80211com *ic = ni->ni_ic;
-	struct ath_softc *sc = ic->ic_ifp->if_softc;
+	struct ath_softc *sc = ic->ic_softc;
 
 	DPRINTF(sc, ATH_DEBUG_NODE, "%s: %6D: an %p\n", __func__,
 	    ni->ni_macaddr, ":", ATH_NODE(ni));
@@ -4210,7 +4206,7 @@ static void
 ath_node_getsignal(const struct ieee80211_node *ni, int8_t *rssi, int8_t *noise)
 {
 	struct ieee80211com *ic = ni->ni_ic;
-	struct ath_softc *sc = ic->ic_ifp->if_softc;
+	struct ath_softc *sc = ic->ic_softc;
 	struct ath_hal *ah = sc->sc_ah;
 
 	*rssi = ic->ic_node_getrssi(ni);
@@ -4422,7 +4418,7 @@ ath_txq_update(struct ath_softc *sc, int ac)
 int
 ath_wme_update(struct ieee80211com *ic)
 {
-	struct ath_softc *sc = ic->ic_ifp->if_softc;
+	struct ath_softc *sc = ic->ic_softc;
 
 	return !ath_txq_update(sc, WME_AC_BE) ||
 	    !ath_txq_update(sc, WME_AC_BK) ||
@@ -5797,7 +5793,7 @@ static void
 ath_scan_start(struct ieee80211com *ic)
 {
 	struct ifnet *ifp = ic->ic_ifp;
-	struct ath_softc *sc = ifp->if_softc;
+	struct ath_softc *sc = ic->ic_softc;
 	struct ath_hal *ah = sc->sc_ah;
 	u_int32_t rfilt;
 
@@ -5821,8 +5817,7 @@ ath_scan_start(struct ieee80211com *ic)
 static void
 ath_scan_end(struct ieee80211com *ic)
 {
-	struct ifnet *ifp = ic->ic_ifp;
-	struct ath_softc *sc = ifp->if_softc;
+	struct ath_softc *sc = ic->ic_softc;
 	struct ath_hal *ah = sc->sc_ah;
 	u_int32_t rfilt;
 
@@ -5862,8 +5857,7 @@ ath_scan_end(struct ieee80211com *ic)
 static void
 ath_update_chw(struct ieee80211com *ic)
 {
-	struct ifnet *ifp = ic->ic_ifp;
-	struct ath_softc *sc = ifp->if_softc;
+	struct ath_softc *sc = ic->ic_softc;
 
 	DPRINTF(sc, ATH_DEBUG_STATE, "%s: called\n", __func__);
 	ath_set_channel(ic);
@@ -5873,8 +5867,7 @@ ath_update_chw(struct ieee80211com *ic)
 static void
 ath_set_channel(struct ieee80211com *ic)
 {
-	struct ifnet *ifp = ic->ic_ifp;
-	struct ath_softc *sc = ifp->if_softc;
+	struct ath_softc *sc = ic->ic_softc;
 
 	ATH_LOCK(sc);
 	ath_power_set_power_state(sc, HAL_PM_AWAKE);
@@ -5916,7 +5909,7 @@ static int
 ath_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 {
 	struct ieee80211com *ic = vap->iv_ic;
-	struct ath_softc *sc = ic->ic_ifp->if_softc;
+	struct ath_softc *sc = ic->ic_softc;
 	struct ath_vap *avp = ATH_VAP(vap);
 	struct ath_hal *ah = sc->sc_ah;
 	struct ieee80211_node *ni = NULL;
@@ -6252,7 +6245,7 @@ static void
 ath_setup_stationkey(struct ieee80211_node *ni)
 {
 	struct ieee80211vap *vap = ni->ni_vap;
-	struct ath_softc *sc = vap->iv_ic->ic_ifp->if_softc;
+	struct ath_softc *sc = vap->iv_ic->ic_softc;
 	ieee80211_keyix keyix, rxkeyix;
 
 	/* XXX should take a locked ref to vap->iv_bss */
@@ -6285,7 +6278,7 @@ ath_newassoc(struct ieee80211_node *ni, int isnew)
 {
 	struct ath_node *an = ATH_NODE(ni);
 	struct ieee80211vap *vap = ni->ni_vap;
-	struct ath_softc *sc = vap->iv_ic->ic_ifp->if_softc;
+	struct ath_softc *sc = vap->iv_ic->ic_softc;
 	const struct ieee80211_txparam *tp = ni->ni_txparms;
 
 	an->an_mcastrix = ath_tx_findrix(sc, tp->mcastrate);
@@ -6337,7 +6330,7 @@ static int
 ath_setregdomain(struct ieee80211com *ic, struct ieee80211_regdomain *reg,
 	int nchans, struct ieee80211_channel chans[])
 {
-	struct ath_softc *sc = ic->ic_ifp->if_softc;
+	struct ath_softc *sc = ic->ic_softc;
 	struct ath_hal *ah = sc->sc_ah;
 	HAL_STATUS status;
 
@@ -6361,7 +6354,7 @@ static void
 ath_getradiocaps(struct ieee80211com *ic,
 	int maxchans, int *nchans, struct ieee80211_channel chans[])
 {
-	struct ath_softc *sc = ic->ic_ifp->if_softc;
+	struct ath_softc *sc = ic->ic_softc;
 	struct ath_hal *ah = sc->sc_ah;
 
 	DPRINTF(sc, ATH_DEBUG_REGDOMAIN, "%s: use rd %u cc %d\n",
@@ -6693,8 +6686,8 @@ ath_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
 #define	IS_RUNNING(ifp) \
 	((ifp->if_flags & IFF_UP) && (ifp->if_drv_flags & IFF_DRV_RUNNING))
-	struct ath_softc *sc = ifp->if_softc;
 	struct ieee80211com *ic = ifp->if_l2com;
+	struct ath_softc *sc = ic->ic_softc;
 	struct ifreq *ifr = (struct ifreq *)data;
 	const HAL_RATE_TABLE *rt;
 	int error = 0;
@@ -6864,7 +6857,7 @@ ath_node_powersave(struct ieee80211_node *ni, int enable)
 #ifdef	ATH_SW_PSQ
 	struct ath_node *an = ATH_NODE(ni);
 	struct ieee80211com *ic = ni->ni_ic;
-	struct ath_softc *sc = ic->ic_ifp->if_softc;
+	struct ath_softc *sc = ic->ic_softc;
 	struct ath_vap *avp = ATH_VAP(ni->ni_vap);
 
 	/* XXX and no TXQ locks should be held here */
@@ -6931,7 +6924,7 @@ ath_node_set_tim(struct ieee80211_node *ni, int enable)
 {
 #ifdef	ATH_SW_PSQ
 	struct ieee80211com *ic = ni->ni_ic;
-	struct ath_softc *sc = ic->ic_ifp->if_softc;
+	struct ath_softc *sc = ic->ic_softc;
 	struct ath_node *an = ATH_NODE(ni);
 	struct ath_vap *avp = ATH_VAP(ni->ni_vap);
 	int changed = 0;
@@ -7136,7 +7129,7 @@ ath_node_recv_pspoll(struct ieee80211_node *ni, struct mbuf *m)
 	struct ath_node *an;
 	struct ath_vap *avp;
 	struct ieee80211com *ic = ni->ni_ic;
-	struct ath_softc *sc = ic->ic_ifp->if_softc;
+	struct ath_softc *sc = ic->ic_softc;
 	int tid;
 
 	/* Just paranoia */
