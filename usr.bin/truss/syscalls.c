@@ -1228,9 +1228,22 @@ print_arg(struct syscall_args *sc, unsigned long *args, long retval,
 	case Sockdomain:
 		tmp = strdup(xlookup(sockdomain_arg, args[sc->offset]));
 		break;
-	case Socktype:
-		tmp = strdup(xlookup(socktype_arg, args[sc->offset]));
+	case Socktype: {
+		FILE *fp;
+		size_t len;
+		int type, flags;
+
+		flags = args[sc->offset] & (SOCK_CLOEXEC | SOCK_NONBLOCK);
+		type = args[sc->offset] & ~flags;
+		fp = open_memstream(&tmp, &len);
+		fputs(xlookup(socktype_arg, type), fp);
+		if (flags & SOCK_CLOEXEC)
+			fprintf(fp, "|SOCK_CLOEXEC");
+		if (flags & SOCK_NONBLOCK)
+			fprintf(fp, "|SOCK_NONBLOCK");
+		fclose(fp);
 		break;
+	}
 	case Shutdown:
 		tmp = strdup(xlookup(shutdown_arg, args[sc->offset]));
 		break;
