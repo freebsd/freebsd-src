@@ -25,7 +25,7 @@ COMPILER_RT_ABI fp_t __floatunditf(du_int a) {
     if (a == 0) return fromRep(0);
 
     // Exponent of (fp_t)a is the width of abs(a).
-    const int exponent = (aWidth - 1) - __builtin_clz(a);
+    const int exponent = (aWidth - 1) - __builtin_clzll(a);
     rep_t result;
 
     // Shift a into the significand field and clear the implicit bit.

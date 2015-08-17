@@ -33,10 +33,29 @@
 
 #include <sys/types.h>
 
+#include "opt_random.h"
+
+#if defined(RANDOM_LOADABLE) && defined(RANDOM_YARROW)
+#error "Cannot define both RANDOM_LOADABLE and RANDOM_YARROW"
+#endif
+
 struct uio;
 
+#if defined(DEV_RANDOM)
 u_int read_random(void *, u_int);
 int read_random_uio(struct uio *, bool);
+#else
+static __inline int
+read_random_uio(void *a __unused, u_int b __unused)
+{
+	return (0);
+}
+static __inline u_int
+read_random(void *a __unused, u_int b __unused)
+{
+	return (0);
+}
+#endif
 
 /*
  * Note: if you add or remove members of random_entropy_source, remember to also update the
@@ -76,15 +95,15 @@ enum random_entropy_source {
 
 #define RANDOM_HARVEST_EVERYTHING_MASK ((1 << (RANDOM_ENVIRONMENTAL_END + 1)) - 1)
 
-#if defined(RANDOM_DUMMY)
-#define random_harvest_queue(a, b, c, d) do {} while (0)
-#define random_harvest_fast(a, b, c, d) do {} while (0)
-#define random_harvest_direct(a, b, c, d) do {} while (0)
-#else /* !defined(RANDOM_DUMMY) */
+#if defined(DEV_RANDOM)
 void random_harvest_queue(const void *, u_int, u_int, enum random_entropy_source);
 void random_harvest_fast(const void *, u_int, u_int, enum random_entropy_source);
 void random_harvest_direct(const void *, u_int, u_int, enum random_entropy_source);
-#endif /* defined(RANDOM_DUMMY) */
+#else
+#define random_harvest_queue(a, b, c, d) do {} while (0)
+#define random_harvest_fast(a, b, c, d) do {} while (0)
+#define random_harvest_direct(a, b, c, d) do {} while (0)
+#endif
 
 #endif /* _KERNEL */
 

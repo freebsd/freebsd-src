@@ -36,6 +36,26 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	20141231 entry below for information about prerequisites and upgrading,
 	if you are not already using 3.5.0 or higher.
 
+20150817:
+	Kernel-loadable modules for the random(4) device are back. To use
+	them, the kernel must have
+
+	device	random
+	options	RANDOM_LOADABLE
+
+	kldload(8) can then be used to load random_fortuna.ko
+	or random_yarrow.ko. Please note that due to the indirect
+	function calls that the loadable modules need to provide,
+	the build-in variants will be slightly more efficient.
+
+	The random(4) kernel option RANDOM_DUMMY has been retired due to
+	unpopularity. It was not all that useful anyway.
+
+20150813:
+	The WITHOUT_ELFTOOLCHAIN_TOOLS src.conf(5) knob has been retired.
+	Control over building the ELF Tool Chain tools is now provided by
+	the WITHOUT_TOOLCHAIN knob.
+
 20150810:
 	The polarity of Pulse Per Second (PPS) capture events with the
 	uart(4) driver has been corrected.  Prior to this change the PPS

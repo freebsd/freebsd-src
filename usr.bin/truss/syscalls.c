@@ -56,6 +56,7 @@ static const char rcsid[] =
 #include <sys/event.h>
 #include <sys/stat.h>
 #include <sys/resource.h>
+#include <machine/sysarch.h>
 
 #include <ctype.h>
 #include <err.h>
@@ -113,6 +114,7 @@ static struct syscall syscalls[] = {
 	{ .name = "getsid", .ret_type = 1, .nargs = 1,
 	  .args = { { Int, 0 } } },
 	{ .name = "getuid", .ret_type = 1, .nargs = 0 },
+	{ .name = "issetugid", .ret_type = 1, .nargs = 0 },
 	{ .name = "readlink", .ret_type = 1, .nargs = 3,
 	  .args = { { Name, 0 }, { Readlinkres | OUT, 1 }, { Int, 2 } } },
 	{ .name = "readlinkat", .ret_type = 1, .nargs = 4,
@@ -280,8 +282,22 @@ static struct syscall syscalls[] = {
 	{ .name = "kevent", .ret_type = 0, .nargs = 6,
 	  .args = { { Int, 0 }, { Kevent, 1 }, { Int, 2 }, { Kevent | OUT, 3 },
 		    { Int, 4 }, { Timespec, 5 } } },
+	{ .name = "sigpending", .ret_type = 0, .nargs = 1,
+	  .args = { { Sigset | OUT, 0 } } },
 	{ .name = "sigprocmask", .ret_type = 0, .nargs = 3,
 	  .args = { { Sigprocmask, 0 }, { Sigset, 1 }, { Sigset | OUT, 2 } } },
+	{ .name = "sigqueue", .ret_type = 0, .nargs = 3,
+	  .args = { { Int, 0 }, { Signal, 1 }, { LongHex, 2 } } },
+	{ .name = "sigreturn", .ret_type = 0, .nargs = 1,
+	  .args = { { Ptr, 0 } } },
+	{ .name = "sigsuspend", .ret_type = 0, .nargs = 1,
+	  .args = { { Sigset | IN, 0 } } },
+	{ .name = "sigtimedwait", .ret_type = 1, .nargs = 3,
+	  .args = { { Sigset | IN, 0 }, { Ptr, 1 }, { Timespec | IN, 2 } } },
+	{ .name = "sigwait", .ret_type = 1, .nargs = 2,
+	  .args = { { Sigset | IN, 0 }, { Ptr, 1 } } },
+	{ .name = "sigwaitinfo", .ret_type = 1, .nargs = 2,
+	  .args = { { Sigset | IN, 0 }, { Ptr, 1 } } },
 	{ .name = "unmount", .ret_type = 1, .nargs = 2,
 	  .args = { { Name, 0 }, { Int, 1 } } },
 	{ .name = "socket", .ret_type = 1, .nargs = 3,
@@ -317,6 +333,8 @@ static struct syscall syscalls[] = {
 	  .args = { { Name | IN, 0 }, { Pathconf, 1 } } },
 	{ .name = "pipe", .ret_type = 1, .nargs = 1,
 	  .args = { { Ptr, 0 } } },
+	{ .name = "pipe2", .ret_type = 1, .nargs = 2,
+	  .args = { { Ptr, 0 }, { Open, 1 } } },
 	{ .name = "truncate", .ret_type = 1, .nargs = 3,
 	  .args = { { Name | IN, 0 }, { Int | IN, 1 }, { Quad | IN, 2 } } },
 	{ .name = "ftruncate", .ret_type = 1, .nargs = 3,
@@ -345,9 +363,15 @@ static struct syscall syscalls[] = {
 		    { Waitoptions, 3 }, { Rusage | OUT, 4 }, { Ptr, 5 } } },
 	{ .name = "procctl", .ret_type = 1, .nargs = 4,
 	  .args = { { Idtype, 0 }, { Int, 1 }, { Procctl, 2 }, { Ptr, 3 } } },
+	{ .name = "sysarch", .ret_type = 1, .nargs = 2,
+	  .args = { { Sysarch, 0 }, { Ptr, 1 } } },
 	{ .name = "_umtx_op", .ret_type = 1, .nargs = 5,
 	  .args = { { Ptr, 0 }, { Umtxop, 1 }, { LongHex, 2 }, { Ptr, 3 },
 		    { Ptr, 4 } } },
+	{ .name = "thr_kill", .ret_type = 0, .nargs = 2,
+	  .args = { { Long, 0 }, { Signal, 1 } } },
+	{ .name = "thr_self", .ret_type = 0, .nargs = 1,
+	  .args = { { Ptr, 0 } } },
 	{ .name = 0 },
 };
 
@@ -509,6 +533,26 @@ static struct xlat at_flags[] = {
 
 static struct xlat access_modes[] = {
 	X(R_OK) X(W_OK) X(X_OK) XEND
+};
+
+static struct xlat sysarch_ops[] = {
+#if defined(__i386__) || defined(__amd64__)
+	X(I386_GET_LDT) X(I386_SET_LDT) X(I386_GET_IOPERM) X(I386_SET_IOPERM)
+	X(I386_VM86) X(I386_GET_FSBASE) X(I386_SET_FSBASE) X(I386_GET_GSBASE)
+	X(I386_SET_GSBASE) X(I386_GET_XFPUSTATE) X(AMD64_GET_FSBASE)
+	X(AMD64_SET_FSBASE) X(AMD64_GET_GSBASE) X(AMD64_SET_GSBASE)
+	X(AMD64_GET_XFPUSTATE)
+#endif
+	XEND
+};
+
+static struct xlat linux_socketcall_ops[] = {
+	X(LINUX_SOCKET) X(LINUX_BIND) X(LINUX_CONNECT) X(LINUX_LISTEN)
+	X(LINUX_ACCEPT) X(LINUX_GETSOCKNAME) X(LINUX_GETPEERNAME)
+	X(LINUX_SOCKETPAIR) X(LINUX_SEND) X(LINUX_RECV) X(LINUX_SENDTO)
+	X(LINUX_RECVFROM) X(LINUX_SHUTDOWN) X(LINUX_SETSOCKOPT)
+	X(LINUX_GETSOCKOPT) X(LINUX_SENDMSG) X(LINUX_RECVMSG)
+	XEND
 };
 
 #undef X
@@ -721,7 +765,10 @@ print_arg(struct syscall_args *sc, unsigned long *args, long retval,
 		break;
 	case LongHex:
 		asprintf(&tmp, "0x%lx", args[sc->offset]);
-		break;		
+		break;
+	case Long:
+		asprintf(&tmp, "%ld", args[sc->offset]);
+		break;
 	case Name: {
 		/* NULL-terminated string. */
 		char *tmp2;
@@ -925,71 +972,12 @@ print_arg(struct syscall_args *sc, unsigned long *args, long retval,
 	{
 		struct linux_socketcall_args largs;
 		if (get_struct(pid, (void *)args[sc->offset], (void *)&largs,
-		    sizeof(largs)) == -1) {
-			err(1, "get_struct %p", (void *)args[sc->offset]);
-		}
-		const char *what;
-		char buf[30];
-
-		switch (largs.what) {
-		case LINUX_SOCKET:
-			what = "LINUX_SOCKET";
-			break;
-		case LINUX_BIND:
-			what = "LINUX_BIND";
-			break;
-		case LINUX_CONNECT:
-			what = "LINUX_CONNECT";
-			break;
-		case LINUX_LISTEN:
-			what = "LINUX_LISTEN";
-			break;
-		case LINUX_ACCEPT:
-			what = "LINUX_ACCEPT";
-			break;
-		case LINUX_GETSOCKNAME:
-			what = "LINUX_GETSOCKNAME";
-			break;
-		case LINUX_GETPEERNAME:
-			what = "LINUX_GETPEERNAME";
-			break;
-		case LINUX_SOCKETPAIR:
-			what = "LINUX_SOCKETPAIR";
-			break;
-		case LINUX_SEND:   
-			what = "LINUX_SEND";
-			break;
-		case LINUX_RECV: 
-			what = "LINUX_RECV";
-			break;
-		case LINUX_SENDTO:
-			what = "LINUX_SENDTO";
-			break;
-		case LINUX_RECVFROM:
-			what = "LINUX_RECVFROM";
-			break;
-		case LINUX_SHUTDOWN:
-			what = "LINUX_SHUTDOWN";
-			break;
-		case LINUX_SETSOCKOPT:
-			what = "LINUX_SETSOCKOPT";
-			break;
-		case LINUX_GETSOCKOPT:
-			what = "LINUX_GETSOCKOPT";
-			break;
-		case LINUX_SENDMSG:
-			what = "LINUX_SENDMSG";
-			break;
-		case LINUX_RECVMSG:
-			what = "LINUX_RECVMSG";
-			break;
-		default:
-			sprintf(buf, "%d", largs.what);
-			what = buf;
-			break;
-		}
-		asprintf(&tmp, "(0x%lx)%s, 0x%lx", args[sc->offset], what,
-		    (long unsigned int)largs.args);
+		    sizeof(largs)) != -1)
+			asprintf(&tmp, "{ %s, 0x%lx }",
+			    lookup(linux_socketcall_ops, largs.what, 10),
+			    (long unsigned int)largs.args);
+		else
+			asprintf(&tmp, "0x%lx", args[sc->offset]);
 		break;
 	}
 	case Pollfd: {
@@ -1089,8 +1077,10 @@ print_arg(struct syscall_args *sc, unsigned long *args, long retval,
 			asprintf(&tmp, "0x%lx", args[sc->offset]);
 			break;
 		}
-		tmp = malloc(sys_nsig * 8); /* 7 bytes avg per signal name */
+		tmp = malloc(sys_nsig * 8 + 2); /* 7 bytes avg per signal name */
 		used = 0;
+		tmp[used++] = '{';
+		tmp[used++] = ' ';
 		for (i = 1; i < sys_nsig; i++) {
 			if (sigismember(&ss, i)) {
 				signame = strsig(i);
@@ -1098,10 +1088,11 @@ print_arg(struct syscall_args *sc, unsigned long *args, long retval,
 				free(signame);
 			}
 		}
-		if (used)
-			tmp[used-1] = 0;
-		else
-			strcpy(tmp, "0x0");
+		if (tmp[used - 1] == '|')
+			used--;
+		tmp[used++] = ' ';
+		tmp[used++] = '}';
+		tmp[used++] = '\0';
 		break;
 	}
 	case Sigprocmask: {
@@ -1188,9 +1179,22 @@ print_arg(struct syscall_args *sc, unsigned long *args, long retval,
 	case Sockdomain:
 		tmp = strdup(xlookup(sockdomain_arg, args[sc->offset]));
 		break;
-	case Socktype:
-		tmp = strdup(xlookup(socktype_arg, args[sc->offset]));
+	case Socktype: {
+		FILE *fp;
+		size_t len;
+		int type, flags;
+
+		flags = args[sc->offset] & (SOCK_CLOEXEC | SOCK_NONBLOCK);
+		type = args[sc->offset] & ~flags;
+		fp = open_memstream(&tmp, &len);
+		fputs(xlookup(socktype_arg, type), fp);
+		if (flags & SOCK_CLOEXEC)
+			fprintf(fp, "|SOCK_CLOEXEC");
+		if (flags & SOCK_NONBLOCK)
+			fprintf(fp, "|SOCK_NONBLOCK");
+		fclose(fp);
 		break;
+	}
 	case Shutdown:
 		tmp = strdup(xlookup(shutdown_arg, args[sc->offset]));
 		break;
@@ -1446,6 +1450,9 @@ print_arg(struct syscall_args *sc, unsigned long *args, long retval,
 		else
 			tmp = strdup(xlookup_bits(access_modes,
 				args[sc->offset]));
+		break;
+	case Sysarch:
+		tmp = strdup(xlookup(sysarch_ops, args[sc->offset]));
 		break;
 	default:
 		errx(1, "Invalid argument type %d\n", sc->type & ARG_MASK);

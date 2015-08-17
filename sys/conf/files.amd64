@@ -40,7 +40,7 @@ ia32_genassym.o			standard				\
 #
 ia32_assym.h			standard				\
 	dependency 	"$S/kern/genassym.sh ia32_genassym.o"		\
-	compile-with	"env NM='${NM}' sh $S/kern/genassym.sh ia32_genassym.o > ${.TARGET}" \
+	compile-with	"env NM='${NM}' NMFLAGS='${NMFLAGS}' sh $S/kern/genassym.sh ia32_genassym.o > ${.TARGET}" \
 	no-obj no-implicit-rule before-depend				\
 	clean		"ia32_assym.h"
 #

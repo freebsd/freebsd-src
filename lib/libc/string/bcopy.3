@@ -31,7 +31,7 @@
 .\"     @(#)bcopy.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd August 11, 2015
+.Dd August 14, 2015
 .Dt BCOPY 3
 .Os
 .Sh NAME
@@ -57,20 +57,6 @@ The two strings may overlap.
 If
 .Fa len
 is zero, no bytes are copied.
-.Pp
-This function is deprecated (marked as LEGACY in
-POSIX.1-2001): use
-.Xr memcpy 3
-or
-.Xr memmove 3
-in new programs.
-Note that the first two arguments are
-interchanged for
-.Xr memcpy 3
-and
-.Xr memmove 3 .
-POSIX.1-2008 removes the specification of
-.Fn bcopy .
 .Sh SEE ALSO
 .Xr memccpy 3 ,
 .Xr memcpy 3 ,
@@ -89,3 +75,25 @@ before it was moved to
 for
 .St -p1003.1-2001
 compliance.
+.Pp
+The
+.St -p1003.1-2008
+removes the specification of
+.Fn bcopy
+and it is marked as LEGACY in
+.St -p1003.1-2004 .
+New programs should use
+.Xr memmove 3 .
+If the input and output buffer do not overlap, then
+.Xr memcpy 3
+is more efficient.
+Note that
+.Fn bcopy
+takes
+.Ar src
+and
+.Ar dst
+in the opposite order from
+.Fn memmove
+and
+.Fn memcpy .

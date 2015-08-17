@@ -21,8 +21,6 @@ PSEUDO+= _clock_gettime.o _gettimeofday.o
 
 # Sources common to both syscall interfaces:
 SRCS+=	\
-	stack_protector.c \
-	stack_protector_compat.c \
 	__error.c \
 	interposing_table.c
 
