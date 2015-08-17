@@ -1493,6 +1493,8 @@ _btxld=		usr.sbin/btxld
 .if ${XAS:M/*} == ""
 .if ${MK_BINUTILS_BOOTSTRAP} != "no"
 _binutils=	gnu/usr.bin/binutils
+.endif
+.if ${MK_ELFTOOLCHAIN_BOOTSTRAP} != "no"
 _elftctools=	lib/libelftc \
 		usr.bin/elfcopy \
 		usr.bin/nm \
@@ -1502,7 +1504,7 @@ _elftctools=	lib/libelftc \
 # cross-build on a FreeBSD 10 host:
 _elftctools+=	usr.bin/addr2line
 .endif
-.elif ${TARGET_ARCH} != ${MACHINE_ARCH} && ${MK_BINUTILS_BOOTSTRAP} != "no"
+.elif ${TARGET_ARCH} != ${MACHINE_ARCH} && ${MK_ELFTOOLCHAIN_BOOTSTRAP} != "no"
 # If cross-building with an external binutils we still need to build strip for
 # the target (for at least crunchide).
 _elftctools=	lib/libelftc \
