@@ -787,7 +787,7 @@ static	int
 bpfopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
 	struct bpf_d *d;
-	int error, size;
+	int error;
 
 	d = malloc(sizeof(*d), M_BPF, M_WAITOK | M_ZERO);
 	error = devfs_set_cdevpriv(d, bpf_dtor);
@@ -816,10 +816,6 @@ bpfopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 	mtx_init(&d->bd_lock, devtoname(dev), "bpf cdev lock", MTX_DEF);
 	callout_init_mtx(&d->bd_callout, &d->bd_lock, 0);
 	knlist_init_mtx(&d->bd_sel.si_note, &d->bd_lock);
-
-	/* Allocate default buffers */
-	size = d->bd_bufsize;
-	bpf_buffer_ioctl_sblen(d, &size);
 
 	return (0);
 }
@@ -1411,10 +1407,33 @@ bpfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
 	 * Set interface.
 	 */
 	case BIOCSETIF:
-		BPF_LOCK();
-		error = bpf_setif(d, (struct ifreq *)addr);
-		BPF_UNLOCK();
-		break;
+		{
+			int alloc_buf, size;
+
+			/*
+			 * Behavior here depends on the buffering model.  If
+			 * we're using kernel memory buffers, then we can
+			 * allocate them here.  If we're using zero-copy,
+			 * then the user process must have registered buffers
+			 * by the time we get here.
+			 */
+			alloc_buf = 0;
+			BPFD_LOCK(d);
+			if (d->bd_bufmode == BPF_BUFMODE_BUFFER &&
+			    d->bd_sbuf == NULL)
+				alloc_buf = 1;
+			BPFD_UNLOCK(d);
+			if (alloc_buf) {
+				size = d->bd_bufsize;
+				error = bpf_buffer_ioctl_sblen(d, &size);
+				if (error != 0)
+					break;
+			}
+			BPF_LOCK();
+			error = bpf_setif(d, (struct ifreq *)addr);
+			BPF_UNLOCK();
+			break;
+		}
 
 	/*
 	 * Set read timeout.
@@ -1861,10 +1880,8 @@ bpf_setif(struct bpf_d *d, struct ifreq *ifr)
 	BPFIF_RUNLOCK(bp);
 
 	/*
-	 * Behavior here depends on the buffering model.  If we're using
-	 * kernel memory buffers, then we can allocate them here.  If we're
-	 * using zero-copy, then the user process must have registered
-	 * buffers by the time we get here.  If not, return an error.
+	 * At this point, we expect the buffer is already allocated.  If not,
+	 * return an error.
 	 */
 	switch (d->bd_bufmode) {
 	case BPF_BUFMODE_BUFFER:
