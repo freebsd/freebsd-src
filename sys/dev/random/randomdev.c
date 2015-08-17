@@ -56,13 +56,17 @@ __FBSDID("$FreeBSD$");
 #include <dev/random/randomdev.h>
 #include <dev/random/random_harvestq.h>
 
-#include "opt_random.h"
-
-#if defined(RANDOM_DUMMY) && defined(RANDOM_YARROW)
-#error "Cannot define both RANDOM_DUMMY and RANDOM_YARROW"
-#endif
-
 #define	RANDOM_UNIT	0
+
+#if defined(RANDOM_LOADABLE)
+#define READ_RANDOM_UIO	_read_random_uio
+#define READ_RANDOM	_read_random
+static int READ_RANDOM_UIO(struct uio *, bool);
+static u_int READ_RANDOM(void *, u_int);
+#else
+#define READ_RANDOM_UIO	read_random_uio
+#define READ_RANDOM	read_random
+#endif
 
 /* Return the largest number >= x that is a multiple of m */
 #define CEIL_TO_MULTIPLE(x, m) ((((x) + (m) - 1)/(m))*(m))
@@ -84,67 +88,30 @@ static struct cdevsw random_cdevsw = {
 /* For use with make_dev(9)/destroy_dev(9). */
 static struct cdev *random_dev;
 
-/* Set up the sysctl root node for the entropy device */
-SYSCTL_NODE(_kern, OID_AUTO, random, CTLFLAG_RW, 0, "Cryptographically Secure Random Number Generator");
-
-MALLOC_DEFINE(M_ENTROPY, "entropy", "Entropy harvesting buffers and data structures");
-
-#if defined(RANDOM_DUMMY)
-
-/*-
- * Dummy "always block" pseudo algorithm, used when there is no real
- * random(4) driver to provide a CSPRNG.
- */
-
-static u_int
-dummy_random_zero(void)
-{
-
-	return (0);
-}
-
-static void
-dummy_random(void)
-{
-}
-
-struct random_algorithm random_alg_context = {
-	.ra_ident = "Dummy",
-	.ra_init_alg = NULL,
-	.ra_deinit_alg = NULL,
-	.ra_pre_read = dummy_random,
-	.ra_read = (random_alg_read_t *)dummy_random_zero,
-	.ra_write = (random_alg_write_t *)dummy_random_zero,
-	.ra_reseed = dummy_random,
-	.ra_seeded = (random_alg_seeded_t *)dummy_random_zero,
-	.ra_event_processor = NULL,
-	.ra_poolcount = 0,
-};
-
-#else /* !defined(RANDOM_DUMMY) */
-
-LIST_HEAD(sources_head, random_sources);
-static struct sources_head source_list = LIST_HEAD_INITIALIZER(source_list);
-static u_int read_rate;
-
 static void
 random_alg_context_ra_init_alg(void *data)
 {
 
-	random_alg_context.ra_init_alg(data);
+	p_random_alg_context = &random_alg_context;
+	p_random_alg_context->ra_init_alg(data);
+#if defined(RANDOM_LOADABLE)
+	random_infra_init(READ_RANDOM_UIO, READ_RANDOM);
+#endif
 }
 
 static void
 random_alg_context_ra_deinit_alg(void *data)
 {
 
-	random_alg_context.ra_deinit_alg(data);
+#if defined(RANDOM_LOADABLE)
+	random_infra_uninit();
+#endif
+	p_random_alg_context->ra_deinit_alg(data);
+	p_random_alg_context = NULL;
 }
 
 SYSINIT(random_device, SI_SUB_RANDOM, SI_ORDER_THIRD, random_alg_context_ra_init_alg, NULL);
 SYSUNINIT(random_device, SI_SUB_RANDOM, SI_ORDER_THIRD, random_alg_context_ra_deinit_alg, NULL);
-
-#endif /* defined(RANDOM_DUMMY) */
 
 static struct selinfo rsel;
 
@@ -156,28 +123,28 @@ static int
 randomdev_read(struct cdev *dev __unused, struct uio *uio, int flags)
 {
 
-	return (read_random_uio(uio, (flags & O_NONBLOCK) != 0));
+	return (READ_RANDOM_UIO(uio, (flags & O_NONBLOCK) != 0));
 }
 
 int
-read_random_uio(struct uio *uio, bool nonblock)
+READ_RANDOM_UIO(struct uio *uio, bool nonblock)
 {
 	uint8_t *random_buf;
 	int error, spamcount;
 	ssize_t read_len, total_read, c;
 
 	random_buf = malloc(PAGE_SIZE, M_ENTROPY, M_WAITOK);
-	random_alg_context.ra_pre_read();
+	p_random_alg_context->ra_pre_read();
 	error = 0;
 	spamcount = 0;
 	/* (Un)Blocking logic */
-	while (!random_alg_context.ra_seeded()) {
+	while (!p_random_alg_context->ra_seeded()) {
 		if (nonblock) {
 			error = EWOULDBLOCK;
 			break;
 		}
 		/* keep tapping away at the pre-read until we seed/unblock. */
-		random_alg_context.ra_pre_read();
+		p_random_alg_context->ra_pre_read();
 		/* Only bother the console every 10 seconds or so */
 		if (spamcount == 0)
 			printf("random: %s unblock wait\n", __func__);
@@ -187,10 +154,7 @@ read_random_uio(struct uio *uio, bool nonblock)
 			break;
 	}
 	if (error == 0) {
-#if !defined(RANDOM_DUMMY)
-		/* XXX: FIX!! Next line as an atomic operation? */
-		read_rate += (uio->uio_resid + sizeof(uint32_t))/sizeof(uint32_t);
-#endif
+		read_rate_increment((uio->uio_resid + sizeof(uint32_t))/sizeof(uint32_t));
 		total_read = 0;
 		while (uio->uio_resid && !error) {
 			read_len = uio->uio_resid;
@@ -203,7 +167,7 @@ read_random_uio(struct uio *uio, bool nonblock)
 			read_len = CEIL_TO_MULTIPLE(read_len, RANDOM_BLOCKSIZE);
 			/* Work in chunks page-sized or less */
 			read_len = MIN(read_len, PAGE_SIZE);
-			random_alg_context.ra_read(random_buf, read_len);
+			p_random_alg_context->ra_read(random_buf, read_len);
 			c = MIN(uio->uio_resid, read_len);
 			error = uiomove(random_buf, c, uio);
 			total_read += c;
@@ -224,19 +188,16 @@ read_random_uio(struct uio *uio, bool nonblock)
  * RANDOM_BLOCKSIZE bytes.
  */
 u_int
-read_random(void *random_buf, u_int len)
+READ_RANDOM(void *random_buf, u_int len)
 {
 	u_int read_len;
 	uint8_t local_buf[len + RANDOM_BLOCKSIZE];
 
 	KASSERT(random_buf != NULL, ("No suitable random buffer in %s", __func__));
-	random_alg_context.ra_pre_read();
+	p_random_alg_context->ra_pre_read();
 	/* (Un)Blocking logic; if not seeded, return nothing. */
-	if (random_alg_context.ra_seeded()) {
-#if !defined(RANDOM_DUMMY)
-		/* XXX: FIX!! Next line as an atomic operation? */
-		read_rate += (len + sizeof(uint32_t))/sizeof(uint32_t);
-#endif
+	if (p_random_alg_context->ra_seeded()) {
+		read_rate_increment((len + sizeof(uint32_t))/sizeof(uint32_t));
 		if (len > 0) {
 			/*
 			 * Belt-and-braces.
@@ -244,12 +205,43 @@ read_random(void *random_buf, u_int len)
 			 * which is what the underlying generator is expecting.
 			 */
 			read_len = CEIL_TO_MULTIPLE(len, RANDOM_BLOCKSIZE);
-			random_alg_context.ra_read(local_buf, read_len);
+			p_random_alg_context->ra_read(local_buf, read_len);
 			memcpy(random_buf, local_buf, len);
 		}
 	} else
 		len = 0;
 	return (len);
+}
+
+static __inline void
+randomdev_accumulate(uint8_t *buf, u_int count)
+{
+	static u_int destination = 0;
+	static struct harvest_event event;
+	static struct randomdev_hash hash;
+	static uint32_t entropy_data[RANDOM_KEYSIZE_WORDS];
+	uint32_t timestamp;
+	int i;
+
+	/* Extra timing here is helpful to scrape scheduler jitter entropy */
+	randomdev_hash_init(&hash);
+	timestamp = (uint32_t)get_cyclecount();
+	randomdev_hash_iterate(&hash, &timestamp, sizeof(timestamp));
+	randomdev_hash_iterate(&hash, buf, count);
+	timestamp = (uint32_t)get_cyclecount();
+	randomdev_hash_iterate(&hash, &timestamp, sizeof(timestamp));
+	randomdev_hash_finish(&hash, entropy_data);
+	explicit_bzero(&hash, sizeof(hash));
+	for (i = 0; i < RANDOM_KEYSIZE_WORDS; i += sizeof(event.he_entropy)/sizeof(event.he_entropy[0])) {
+		event.he_somecounter = (uint32_t)get_cyclecount();
+		event.he_size = sizeof(event.he_entropy);
+		event.he_bits = event.he_size/8;
+		event.he_source = RANDOM_CACHED;
+		event.he_destination = destination++; /* Harmless cheating */
+		memcpy(event.he_entropy, entropy_data + i, sizeof(event.he_entropy));
+		p_random_alg_context->ra_event_processor(&event);
+	}
+	explicit_bzero(entropy_data, sizeof(entropy_data));
 }
 
 /* ARGSUSED */
@@ -267,7 +259,7 @@ randomdev_write(struct cdev *dev __unused, struct uio *uio, int flags __unused)
 		error = uiomove(random_buf, c, uio);
 		if (error)
 			break;
-		random_alg_context.ra_write(random_buf, c);
+		randomdev_accumulate(random_buf, c);
 		tsleep(&random_alg_context, 0, "randwr", hz/10);
 	}
 	if (nbytes != uio->uio_resid && (error == ERESTART || error == EINTR))
@@ -283,7 +275,7 @@ randomdev_poll(struct cdev *dev __unused, int events, struct thread *td __unused
 {
 
 	if (events & (POLLIN | POLLRDNORM)) {
-		if (random_alg_context.ra_seeded())
+		if (p_random_alg_context->ra_seeded())
 			events &= (POLLIN | POLLRDNORM);
 		else
 			selrecord(td, &rsel);
@@ -325,9 +317,6 @@ randomdev_ioctl(struct cdev *dev __unused, u_long cmd, caddr_t addr __unused,
 void
 random_source_register(struct random_source *rsource)
 {
-#if defined(RANDOM_DUMMY)
-	(void)rsource;
-#else /* !defined(RANDOM_DUMMY) */
 	struct random_sources *rrs;
 
 	KASSERT(rsource != NULL, ("invalid input to %s", __func__));
@@ -337,15 +326,11 @@ random_source_register(struct random_source *rsource)
 
 	printf("random: registering fast source %s\n", rsource->rs_ident);
 	LIST_INSERT_HEAD(&source_list, rrs, rrs_entries);
-#endif /* defined(RANDOM_DUMMY) */
 }
 
 void
 random_source_deregister(struct random_source *rsource)
 {
-#if defined(RANDOM_DUMMY)
-	(void)rsource;
-#else /* !defined(RANDOM_DUMMY) */
 	struct random_sources *rrs = NULL;
 
 	KASSERT(rsource != NULL, ("invalid input to %s", __func__));
@@ -356,41 +341,6 @@ random_source_deregister(struct random_source *rsource)
 		}
 	if (rrs != NULL)
 		free(rrs, M_ENTROPY);
-#endif /* defined(RANDOM_DUMMY) */
-}
-
-#if !defined(RANDOM_DUMMY)
-/*
- * Run through all fast sources reading entropy for the given
- * number of rounds, which should be a multiple of the number
- * of entropy accumulation pools in use; 2 for Yarrow and 32
- * for Fortuna.
- *
- * BEWARE!!!
- * This function runs inside the RNG thread! Don't do anything silly!
- */
-void
-random_sources_feed(void)
-{
-	uint32_t entropy[HARVESTSIZE];
-	struct random_sources *rrs;
-	u_int i, n, local_read_rate;
-
-	/*
-	 * Step over all of live entropy sources, and feed their output
-	 * to the system-wide RNG.
-	 */
-	/* XXX: FIX!! Next lines as an atomic operation? */
-	local_read_rate = read_rate;
-	read_rate = RANDOM_ALG_READ_RATE_MINIMUM;
-	LIST_FOREACH(rrs, &source_list, rrs_entries) {
-		for (i = 0; i < random_alg_context.ra_poolcount*local_read_rate; i++) {
-			n = rrs->rrs_source->rs_read(entropy, sizeof(entropy));
-			KASSERT((n > 0 && n <= sizeof(entropy)), ("very bad return from rs_read (= %d) in %s", n, __func__));
-			random_harvest_direct(entropy, n, (n*8)/2, rrs->rrs_source->rs_source);
-		}
-	}
-	explicit_bzero(entropy, sizeof(entropy));
 }
 
 static int
@@ -414,7 +364,6 @@ random_source_handler(SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_kern_random, OID_AUTO, random_sources, CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
 	    NULL, 0, random_source_handler, "A",
 	    "List of active fast entropy sources.");
-#endif /* !defined(RANDOM_DUMMY) */
 
 /* ARGSUSED */
 static int
@@ -449,3 +398,5 @@ static moduledata_t randomdev_mod = {
 
 DECLARE_MODULE(random_device, randomdev_mod, SI_SUB_DRIVERS, SI_ORDER_FIRST);
 MODULE_VERSION(random_device, 1);
+MODULE_DEPEND(random_device, crypto, 1, 1, 1);
+MODULE_DEPEND(random_device, random_harvestq, 1, 1, 1);
