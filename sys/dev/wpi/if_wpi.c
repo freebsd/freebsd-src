@@ -1549,8 +1549,7 @@ static int
 wpi_setregdomain(struct ieee80211com *ic, struct ieee80211_regdomain *rd,
     int nchan, struct ieee80211_channel chans[])
 {
-	struct ifnet *ifp = ic->ic_ifp;
-	struct wpi_softc *sc = ifp->if_softc;
+	struct wpi_softc *sc = ic->ic_softc;
 	int i;
 
 	for (i = 0; i < nchan; i++) {
@@ -1673,7 +1672,7 @@ static void
 wpi_node_free(struct ieee80211_node *ni)
 {
 	struct ieee80211com *ic = ni->ni_ic;
-	struct wpi_softc *sc = ic->ic_ifp->if_softc;
+	struct wpi_softc *sc = ic->ic_softc;
 	struct wpi_node *wn = WPI_NODE(ni);
 
 	if (wn->id != WPI_ID_UNDEFINED) {
@@ -1700,7 +1699,7 @@ wpi_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m, int subtype,
     int rssi, int nf)
 {
 	struct ieee80211vap *vap = ni->ni_vap;
-	struct wpi_softc *sc = vap->iv_ic->ic_ifp->if_softc;
+	struct wpi_softc *sc = vap->iv_ic->ic_softc;
 	struct wpi_vap *wvp = WPI_VAP(vap);
 	uint64_t ni_tstamp, rx_tstamp;
 
@@ -1763,8 +1762,7 @@ wpi_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 {
 	struct wpi_vap *wvp = WPI_VAP(vap);
 	struct ieee80211com *ic = vap->iv_ic;
-	struct ifnet *ifp = ic->ic_ifp;
-	struct wpi_softc *sc = ifp->if_softc;
+	struct wpi_softc *sc = ic->ic_softc;
 	int error = 0;
 
 	DPRINTF(sc, WPI_DEBUG_TRACE, TRACE_STR_BEGIN, __func__);
@@ -3037,7 +3035,7 @@ wpi_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 {
 	struct ieee80211com *ic = ni->ni_ic;
 	struct ifnet *ifp = ic->ic_ifp;
-	struct wpi_softc *sc = ifp->if_softc;
+	struct wpi_softc *sc = ic->ic_softc;
 	int error = 0;
 
 	DPRINTF(sc, WPI_DEBUG_TRACE, TRACE_STR_BEGIN, __func__);
@@ -3492,7 +3490,7 @@ static int
 wpi_updateedca(struct ieee80211com *ic)
 {
 #define WPI_EXP2(x)	((1 << (x)) - 1)	/* CWmin = 2^ECWmin - 1 */
-	struct wpi_softc *sc = ic->ic_ifp->if_softc;
+	struct wpi_softc *sc = ic->ic_softc;
 	struct wpi_edca_params cmd;
 	int aci, error;
 
@@ -4324,7 +4322,7 @@ wpi_config_beacon(struct wpi_vap *wvp)
 	struct ieee80211com *ic = wvp->wv_vap.iv_ic;
 	struct ieee80211_beacon_offsets *bo = &wvp->wv_boff;
 	struct wpi_buf *bcn = &wvp->wv_bcbuf;
-	struct wpi_softc *sc = ic->ic_ifp->if_softc;
+	struct wpi_softc *sc = ic->ic_softc;
 	struct wpi_cmd_beacon *cmd = (struct wpi_cmd_beacon *)&bcn->data;
 	struct ieee80211_tim_ie *tie;
 	struct mbuf *m;
@@ -4406,7 +4404,7 @@ wpi_setup_beacon(struct wpi_softc *sc, struct ieee80211_node *ni)
 static void
 wpi_update_beacon(struct ieee80211vap *vap, int item)
 {
-	struct wpi_softc *sc = vap->iv_ic->ic_ifp->if_softc;
+	struct wpi_softc *sc = vap->iv_ic->ic_softc;
 	struct wpi_vap *wvp = WPI_VAP(vap);
 	struct wpi_buf *bcn = &wvp->wv_bcbuf;
 	struct ieee80211_beacon_offsets *bo = &wvp->wv_boff;
@@ -4448,7 +4446,7 @@ static void
 wpi_newassoc(struct ieee80211_node *ni, int isnew)
 {
 	struct ieee80211vap *vap = ni->ni_vap;
-	struct wpi_softc *sc = ni->ni_ic->ic_ifp->if_softc;
+	struct wpi_softc *sc = ni->ni_ic->ic_softc;
 	struct wpi_node *wn = WPI_NODE(ni);
 	int error;
 
@@ -4575,7 +4573,7 @@ wpi_load_key(struct ieee80211_node *ni, const struct ieee80211_key *k)
 {
 	const struct ieee80211_cipher *cip = k->wk_cipher;
 	struct ieee80211vap *vap = ni->ni_vap;
-	struct wpi_softc *sc = ni->ni_ic->ic_ifp->if_softc;
+	struct wpi_softc *sc = ni->ni_ic->ic_softc;
 	struct wpi_node *wn = WPI_NODE(ni);
 	struct wpi_node_info node;
 	uint16_t kflags;
@@ -4639,7 +4637,7 @@ wpi_load_key_cb(void *arg, struct ieee80211_node *ni)
 {
 	const struct ieee80211_key *k = arg;
 	struct ieee80211vap *vap = ni->ni_vap;
-	struct wpi_softc *sc = ni->ni_ic->ic_ifp->if_softc;
+	struct wpi_softc *sc = ni->ni_ic->ic_softc;
 	struct wpi_node *wn = WPI_NODE(ni);
 	int error;
 
@@ -4674,7 +4672,7 @@ static int
 wpi_del_key(struct ieee80211_node *ni, const struct ieee80211_key *k)
 {
 	struct ieee80211vap *vap = ni->ni_vap;
-	struct wpi_softc *sc = ni->ni_ic->ic_ifp->if_softc;
+	struct wpi_softc *sc = ni->ni_ic->ic_softc;
 	struct wpi_node *wn = WPI_NODE(ni);
 	struct wpi_node_info node;
 	uint16_t kflags;
@@ -4724,7 +4722,7 @@ wpi_del_key_cb(void *arg, struct ieee80211_node *ni)
 {
 	const struct ieee80211_key *k = arg;
 	struct ieee80211vap *vap = ni->ni_vap;
-	struct wpi_softc *sc = ni->ni_ic->ic_ifp->if_softc;
+	struct wpi_softc *sc = ni->ni_ic->ic_softc;
 	struct wpi_node *wn = WPI_NODE(ni);
 	int error;
 
@@ -4746,7 +4744,7 @@ wpi_process_key(struct ieee80211vap *vap, const struct ieee80211_key *k,
     int set)
 {
 	struct ieee80211com *ic = vap->iv_ic;
-	struct wpi_softc *sc = ic->ic_ifp->if_softc;
+	struct wpi_softc *sc = ic->ic_softc;
 	struct wpi_vap *wvp = WPI_VAP(vap);
 	struct ieee80211_node *ni;
 	int error, ni_ref = 0;
@@ -5544,7 +5542,7 @@ wpi_stop(struct wpi_softc *sc)
 static void
 wpi_scan_start(struct ieee80211com *ic)
 {
-	struct wpi_softc *sc = ic->ic_ifp->if_softc;
+	struct wpi_softc *sc = ic->ic_softc;
 
 	wpi_set_led(sc, WPI_LED_LINK, 20, 2);
 }
@@ -5555,8 +5553,7 @@ wpi_scan_start(struct ieee80211com *ic)
 static void
 wpi_scan_end(struct ieee80211com *ic)
 {
-	struct ifnet *ifp = ic->ic_ifp;
-	struct wpi_softc *sc = ifp->if_softc;
+	struct wpi_softc *sc = ic->ic_softc;
 	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
 
 	if (vap->iv_state == IEEE80211_S_RUN)
@@ -5571,8 +5568,7 @@ static void
 wpi_set_channel(struct ieee80211com *ic)
 {
 	const struct ieee80211_channel *c = ic->ic_curchan;
-	struct ifnet *ifp = ic->ic_ifp;
-	struct wpi_softc *sc = ifp->if_softc;
+	struct wpi_softc *sc = ic->ic_softc;
 	int error;
 
 	DPRINTF(sc, WPI_DEBUG_TRACE, TRACE_STR_DOING, __func__);
@@ -5618,7 +5614,7 @@ wpi_scan_curchan(struct ieee80211_scan_state *ss, unsigned long maxdwell)
 {
 	struct ieee80211vap *vap = ss->ss_vap;
 	struct ieee80211com *ic = vap->iv_ic;
-	struct wpi_softc *sc = ic->ic_ifp->if_softc;
+	struct wpi_softc *sc = ic->ic_softc;
 	int error;
 
 	WPI_RXON_LOCK(sc);

@@ -1444,7 +1444,7 @@ bwi_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 {
 	struct ieee80211com *ic = ni->ni_ic;
 	struct ifnet *ifp = ic->ic_ifp;
-	struct bwi_softc *sc = ifp->if_softc;
+	struct bwi_softc *sc = ic->ic_softc;
 	/* XXX wme? */
 	struct bwi_txbuf_data *tbd = &sc->sc_tx_bdata[BWI_TX_DATA_RING];
 	int idx, error;
@@ -1728,7 +1728,7 @@ bwi_intr(void *xsc)
 static void
 bwi_scan_start(struct ieee80211com *ic)
 {
-	struct bwi_softc *sc = ic->ic_ifp->if_softc;
+	struct bwi_softc *sc = ic->ic_softc;
 
 	BWI_LOCK(sc);
 	/* Enable MAC beacon promiscuity */
@@ -1739,7 +1739,7 @@ bwi_scan_start(struct ieee80211com *ic)
 static void
 bwi_set_channel(struct ieee80211com *ic)
 {
-	struct bwi_softc *sc = ic->ic_ifp->if_softc;
+	struct bwi_softc *sc = ic->ic_softc;
 	struct ieee80211_channel *c = ic->ic_curchan;
 	struct bwi_mac *mac;
 
@@ -1765,7 +1765,7 @@ bwi_set_channel(struct ieee80211com *ic)
 static void
 bwi_scan_end(struct ieee80211com *ic)
 {
-	struct bwi_softc *sc = ic->ic_ifp->if_softc;
+	struct bwi_softc *sc = ic->ic_softc;
 
 	BWI_LOCK(sc);
 	CSR_CLRBITS_4(sc, BWI_MAC_STATUS, BWI_MAC_STATUS_PASS_BCN);
@@ -1776,10 +1776,9 @@ static int
 bwi_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 {
 	struct bwi_vap *bvp = BWI_VAP(vap);
-	struct ieee80211com *ic= vap->iv_ic;
-	struct ifnet *ifp = ic->ic_ifp;
+	struct ieee80211com *ic = vap->iv_ic;
 	enum ieee80211_state ostate = vap->iv_state;
-	struct bwi_softc *sc = ifp->if_softc;
+	struct bwi_softc *sc = ic->ic_softc;
 	struct bwi_mac *mac;
 	int error;
 
