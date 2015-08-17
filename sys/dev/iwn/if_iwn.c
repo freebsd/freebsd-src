@@ -4922,7 +4922,7 @@ iwn_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 {
 	struct ieee80211com *ic = ni->ni_ic;
 	struct ifnet *ifp = ic->ic_ifp;
-	struct iwn_softc *sc = ifp->if_softc;
+	struct iwn_softc *sc = ic->ic_softc;
 	int error = 0;
 
 	DPRINTF(sc, IWN_DEBUG_XMIT | IWN_DEBUG_TRACE, "->%s begin\n", __func__);
@@ -5057,8 +5057,8 @@ iwn_watchdog(void *arg)
 static int
 iwn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
-	struct iwn_softc *sc = ifp->if_softc;
 	struct ieee80211com *ic = ifp->if_l2com;
+	struct iwn_softc *sc = ic->ic_softc;
 	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
 	struct ifreq *ifr = (struct ifreq *) data;
 	int error = 0, startall = 0, stop = 0;
@@ -8872,8 +8872,7 @@ iwn_stop(struct iwn_softc *sc)
 static void
 iwn_scan_start(struct ieee80211com *ic)
 {
-	struct ifnet *ifp = ic->ic_ifp;
-	struct iwn_softc *sc = ifp->if_softc;
+	struct iwn_softc *sc = ic->ic_softc;
 
 	IWN_LOCK(sc);
 	/* make the link LED blink while we're scanning */
@@ -8887,8 +8886,7 @@ iwn_scan_start(struct ieee80211com *ic)
 static void
 iwn_scan_end(struct ieee80211com *ic)
 {
-	struct ifnet *ifp = ic->ic_ifp;
-	struct iwn_softc *sc = ifp->if_softc;
+	struct iwn_softc *sc = ic->ic_softc;
 	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
 
 	IWN_LOCK(sc);
@@ -8906,8 +8904,7 @@ static void
 iwn_set_channel(struct ieee80211com *ic)
 {
 	const struct ieee80211_channel *c = ic->ic_curchan;
-	struct ifnet *ifp = ic->ic_ifp;
-	struct iwn_softc *sc = ifp->if_softc;
+	struct iwn_softc *sc = ic->ic_softc;
 	int error;
 
 	DPRINTF(sc, IWN_DEBUG_TRACE, "->Doing %s\n", __func__);
