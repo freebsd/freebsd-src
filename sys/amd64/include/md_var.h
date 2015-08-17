@@ -112,6 +112,7 @@ void	dump_drop_page(vm_paddr_t);
 void	identify_cpu(void);
 void	initializecpu(void);
 void	initializecpucache(void);
+bool	intel_fix_cpuid(void);
 void	fillw(int /*u_short*/ pat, void *base, size_t cnt);
 void	fpstate_drop(struct thread *td);
 int	is_physical_memory(vm_paddr_t addr);
