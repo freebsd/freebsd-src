@@ -682,6 +682,7 @@ init_secondary(void)
 	wrmsr(MSR_FSBASE, 0);		/* User value */
 	wrmsr(MSR_GSBASE, (u_int64_t)pc);
 	wrmsr(MSR_KGSBASE, (u_int64_t)pc);	/* XXX User value while we're in the kernel */
+	intel_fix_cpuid();
 
 	lidt(&r_idt);
 
