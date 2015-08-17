@@ -8,6 +8,5 @@
 include         BERI_SIM_MDROOT
 ident           CHERI_SIM_MDROOT
 
-nocpu           CPU_BERI
-cpu             CPU_CHERI
+include		CHERI_TEMPLATE
 makeoptions	EMBED_CHERITEST_LIST=YES

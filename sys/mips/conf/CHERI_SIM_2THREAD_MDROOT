@@ -8,5 +8,4 @@
 include         BERI_SIM_2THREAD_MDROOT
 ident           CHERI_SIM_2THREAD_MDROOT
 
-nocpu           CPU_BERI
-cpu             CPU_CHERI
+include		CHERI_TEMPLATE

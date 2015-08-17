@@ -1,0 +1,11 @@
+#
+# CHERI_TEMPLATE -- Convert a BERI kernel to a CHERI kernel by including
+# this file.
+#
+# $FreeBSD$
+#
+
+nocpu		CPU_BERI
+cpu		CPU_CHERI
+
+options 	COMPAT_CHERIABI

@@ -9,8 +9,7 @@
 include		BERI_DE4_MDROOT
 ident		CHERI128_DE4_MDROOT
 
-nocpu		CPU_BERI
-cpu		CPU_CHERI
+include		CHERI_TEMPLATE
 options 	CPU_CHERI128
 
 makeoptions	EMBED_CHERITEST_LIST=YES

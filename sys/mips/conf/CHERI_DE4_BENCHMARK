@@ -12,8 +12,7 @@ options         FDT_DTB_STATIC_ONLY
 include		BERI_DE4_BENCHMARK
 ident		CHERI_DE4_BENCHMARK
 
-nocpu		CPU_BERI
-cpu		CPU_CHERI
+include		CHERI_TEMPLATE
 
 #options       CPU_CHERI_CHERI0
 #options       CPU_CHERI_CHERI8

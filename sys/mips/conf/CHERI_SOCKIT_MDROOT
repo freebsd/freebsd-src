@@ -9,5 +9,4 @@
 include		BERI_SOCKIT_MDROOT
 ident		CHERI_SOCKIT_MDROOT
 
-nocpu		CPU_BERI
-cpu		CPU_CHERI
+include		CHERI_TEMPLATE

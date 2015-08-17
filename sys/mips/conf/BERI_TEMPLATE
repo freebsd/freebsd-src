@@ -14,7 +14,6 @@ machine		mips mips64
 cpu		CPU_BERI
 cpu		CPU_HAVEFPU
 options 	SMP
-options		COMPAT_CHERIABI
 
 options 	HZ=200
 
