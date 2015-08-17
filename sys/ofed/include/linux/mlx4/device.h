@@ -892,6 +892,26 @@ struct mlx4_init_port_param {
 	u64			si_guid;
 };
 
+#define MAD_IFC_DATA_SZ 192
+/* MAD IFC Mailbox */
+struct mlx4_mad_ifc {
+	u8      base_version;
+	u8      mgmt_class;
+	u8      class_version;
+	u8      method;
+	__be16  status;
+	__be16  class_specific;
+	__be64  tid;
+	__be16  attr_id;
+	__be16  resv;
+	__be32  attr_mod;
+	__be64  mkey;
+	__be16  dr_slid;
+	__be16  dr_dlid;
+	u8      reserved[28];
+	u8      data[MAD_IFC_DATA_SZ];
+} __packed;
+
 #define mlx4_foreach_port(port, dev, type)				\
 	for ((port) = 1; (port) <= (dev)->caps.num_ports; (port)++)	\
 		if ((type) == (dev)->caps.port_mask[(port)])
@@ -1293,5 +1313,8 @@ int mlx4_FLOW_STEERING_IB_UC_QP_RANGE(struct mlx4_dev *dev, u32 min_range_qpn, u
 int mlx4_read_clock(struct mlx4_dev *dev);
 int mlx4_get_internal_clock_params(struct mlx4_dev *dev,
 				   struct mlx4_clock_params *params);
+
+int mlx4_get_module_info(struct mlx4_dev *dev, u8 port,
+			u16 offset, u16 size, u8 *data);
 
 #endif /* MLX4_DEVICE_H */
