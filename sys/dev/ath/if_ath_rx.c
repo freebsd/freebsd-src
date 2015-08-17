@@ -330,7 +330,7 @@ ath_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m,
 	int subtype, const struct ieee80211_rx_stats *rxs, int rssi, int nf)
 {
 	struct ieee80211vap *vap = ni->ni_vap;
-	struct ath_softc *sc = vap->iv_ic->ic_ifp->if_softc;
+	struct ath_softc *sc = vap->iv_ic->ic_softc;
 	uint64_t tsf_beacon_old, tsf_beacon;
 	uint64_t nexttbtt;
 	int64_t tsf_delta;
