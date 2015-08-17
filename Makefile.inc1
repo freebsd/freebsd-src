@@ -220,7 +220,7 @@ INSTALLTMP!=	/usr/bin/mktemp -d -u -t install
 #	This stage is responsible for creating the object
 #	tree and building any tools that are needed during
 #	the build process. Some programs are listed during
-#	this phase because they build binaires to generate
+#	this phase because they build binaries to generate
 #	files needed to build these programs. This stage also
 #	builds the 'build-tools' target rather than 'all'.
 # 3. cross-tools stage [XMAKE]
@@ -1494,7 +1494,7 @@ _btxld=		usr.sbin/btxld
 .if ${MK_BINUTILS_BOOTSTRAP} != "no"
 _binutils=	gnu/usr.bin/binutils
 .endif
-.if ${MK_ELFTOOLCHAIN_TOOLS} != "no"
+.if ${MK_ELFTOOLCHAIN_BOOTSTRAP} != "no"
 _elftctools=	lib/libelftc \
 		usr.bin/elfcopy \
 		usr.bin/nm \
@@ -1504,7 +1504,7 @@ _elftctools=	lib/libelftc \
 # cross-build on a FreeBSD 10 host:
 _elftctools+=	usr.bin/addr2line
 .endif
-.elif ${TARGET_ARCH} != ${MACHINE_ARCH} && ${MK_ELFTOOLCHAIN_TOOLS} != "no"
+.elif ${TARGET_ARCH} != ${MACHINE_ARCH} && ${MK_ELFTOOLCHAIN_BOOTSTRAP} != "no"
 # If cross-building with an external binutils we still need to build strip for
 # the target (for at least crunchide).
 _elftctools=	lib/libelftc \

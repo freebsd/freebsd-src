@@ -245,8 +245,7 @@ typedef struct dbuf_hash_table {
 	kmutex_t hash_mutexes[DBUF_MUTEXES];
 } dbuf_hash_table_t;
 
-
-uint64_t dbuf_whichblock(struct dnode *di, uint64_t offset);
+uint64_t dbuf_whichblock(struct dnode *di, int64_t level, uint64_t offset);
 
 dmu_buf_impl_t *dbuf_create_tlib(struct dnode *dn, char *data);
 void dbuf_create_bonus(struct dnode *dn);
@@ -258,10 +257,12 @@ void dbuf_rm_spill(struct dnode *dn, dmu_tx_t *tx);
 dmu_buf_impl_t *dbuf_hold(struct dnode *dn, uint64_t blkid, void *tag);
 dmu_buf_impl_t *dbuf_hold_level(struct dnode *dn, int level, uint64_t blkid,
     void *tag);
-int dbuf_hold_impl(struct dnode *dn, uint8_t level, uint64_t blkid, int create,
+int dbuf_hold_impl(struct dnode *dn, uint8_t level, uint64_t blkid,
+    boolean_t fail_sparse, boolean_t fail_uncached,
     void *tag, dmu_buf_impl_t **dbp);
 
-void dbuf_prefetch(struct dnode *dn, uint64_t blkid, zio_priority_t prio);
+void dbuf_prefetch(struct dnode *dn, int64_t level, uint64_t blkid,
+    zio_priority_t prio, arc_flags_t aflags);
 
 void dbuf_add_ref(dmu_buf_impl_t *db, void *tag);
 boolean_t dbuf_try_add_ref(dmu_buf_t *db, objset_t *os, uint64_t obj,

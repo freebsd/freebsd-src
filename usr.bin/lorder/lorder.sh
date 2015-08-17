@@ -60,7 +60,7 @@ done
 #
 # if the line has " U " it's a globally undefined symbol, put it into
 # the reference file.
-${NM} -go $* | sed "
+${NM} ${NMFLAGS} -go $* | sed "
 	/ [TDW] / {
 		s/:.* [TDW] / /
 		w $S

@@ -390,6 +390,8 @@ static struct md_page *pv_table;
  */
 pt_entry_t *CMAP1 = 0;
 caddr_t CADDR1 = 0;
+static vm_offset_t qframe = 0;
+static struct mtx qframe_mtx;
 
 static int pmap_flags = PMAP_PDE_SUPERPAGE;	/* flags for x86 pmaps */
 
@@ -1031,7 +1033,7 @@ pmap_init(void)
 	struct pmap_preinit_mapping *ppim;
 	vm_page_t mpte;
 	vm_size_t s;
-	int i, pv_npg;
+	int error, i, pv_npg;
 
 	/*
 	 * Initialize the vm page array entries for the kernel pmap's
@@ -1112,6 +1114,12 @@ pmap_init(void)
 		printf("PPIM %u: PA=%#lx, VA=%#lx, size=%#lx, mode=%#x\n", i,
 		    ppim->pa, ppim->va, ppim->sz, ppim->mode);
 	}
+
+	mtx_init(&qframe_mtx, "qfrmlk", NULL, MTX_SPIN);
+	error = vmem_alloc(kernel_arena, PAGE_SIZE, M_BESTFIT | M_WAITOK,
+	    (vmem_addr_t *)&qframe);
+	if (error != 0)
+		panic("qframe allocation failed");
 }
 
 static SYSCTL_NODE(_vm_pmap, OID_AUTO, pde, CTLFLAG_RD, 0,
@@ -7019,13 +7027,27 @@ pmap_unmap_io_transient(vm_page_t page[], vm_offset_t vaddr[], int count,
 vm_offset_t
 pmap_quick_enter_page(vm_page_t m)
 {
+	vm_paddr_t paddr;
 
-	return (PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m)));
+	paddr = VM_PAGE_TO_PHYS(m);
+	if (paddr < dmaplimit)
+		return (PHYS_TO_DMAP(paddr));
+	mtx_lock_spin(&qframe_mtx);
+	KASSERT(*vtopte(qframe) == 0, ("qframe busy"));
+	pte_store(vtopte(qframe), paddr | X86_PG_RW | X86_PG_V | X86_PG_A |
+	    X86_PG_M | pmap_cache_bits(kernel_pmap, m->md.pat_mode, 0));
+	return (qframe);
 }
 
 void
 pmap_quick_remove_page(vm_offset_t addr)
 {
+
+	if (addr != qframe)
+		return;
+	pte_store(vtopte(qframe), 0);
+	invlpg(qframe);
+	mtx_unlock_spin(&qframe_mtx);
 }
 
 #include "opt_ddb.h"
