@@ -30,6 +30,9 @@ NO_WCAST_QUAL=			-Wno-cast-qual
 CWARNEXTRA?=	-Wno-error-tautological-compare -Wno-error-empty-body \
 		-Wno-error-parentheses-equality -Wno-error-unused-function \
 		-Wno-error-pointer-sign
+.if ${COMPILER_VERSION} >= 30700
+CWARNEXTRA+=	-Wno-error-shift-negative-value
+.endif
 
 CLANG_NO_IAS= -no-integrated-as
 .if ${COMPILER_VERSION} < 30500
