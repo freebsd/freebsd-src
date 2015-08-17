@@ -711,6 +711,7 @@ DEV_PCI			opt_pci.h
 DEV_PF			opt_pf.h
 DEV_PFLOG		opt_pf.h
 DEV_PFSYNC		opt_pf.h
+DEV_RANDOM		opt_global.h
 DEV_SPLASH		opt_splash.h
 DEV_VLAN		opt_vlan.h
 
@@ -946,13 +947,14 @@ RCTL		opt_global.h
 # The DEBUG option is in global.h as the random harvesting
 # puts probes all over the place, and it makes little sense
 # to pollute these headers with an extra include.
-# the DUMMY option is in global.h because it is used to
-# turn off harvesting all over the kernel.
-RANDOM_DEBUG	opt_global.h
+RANDOM_DEBUG	opt_random.h
 # Which CSPRNG hashes we get.
-# These are mutually exclusive. With neither, Fortuna is selected.
-RANDOM_DUMMY	opt_global.h
+# If Yarrow is not chosen, Fortuna is selected.
 RANDOM_YARROW	opt_random.h
+# With this, no entropy processor is loaded, but the entropy
+# harvesting infrastructure is present. This means an entropy
+# processor may be loaded as a module.
+RANDOM_LOADABLE	opt_random.h
 
 # Intel em(4) driver
 EM_MULTIQUEUE	opt_em.h

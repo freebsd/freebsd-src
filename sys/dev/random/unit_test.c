@@ -46,6 +46,7 @@ Where <alg> is YARROW or FORTUNA.
 
 #include <sys/types.h>
 #include <inttypes.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <threads.h>
@@ -172,35 +173,6 @@ RunHarvester(void *arg __unused)
 }
 
 static int
-WriteCSPRNG(void *threadid)
-{
-	uint8_t *buf;
-	int i;
-
-	printf("Thread #1 starts\n");
-
-	for (i = 0; ; i++) {
-		if (stopseeding)
-			break;
-		buf = malloc(4096);
-		if (i % 1000 == 0)
-			printf("Thread write 1 - %d\n", i);
-		if (buf != NULL) {
-			printf("Thread 1 writing.\n");
-			random_alg_context.ra_write(buf, i);
-			free(buf);
-		}
-		usleep(1000000);
-	}
-
-	printf("Thread #1 ends\n");
-
-	thrd_exit(0);
-
-	return (0);
-}
-
-static int
 ReadCSPRNG(void *threadid)
 {
 	size_t tid, zsize;
@@ -271,7 +243,7 @@ main(int argc, char *argv[])
 
 	for (t = 0; t < NUM_THREADS; t++) {
 		printf("In main: creating thread %ld\n", t);
-		rc = thrd_create(&threads[t], (t == 0 ? RunHarvester : (t == 1 ? WriteCSPRNG : ReadCSPRNG)), NULL);
+		rc = thrd_create(&threads[t], (t == 0 ? RunHarvester : ReadCSPRNG), NULL);
 		if (rc != thrd_success) {
 			printf("ERROR; return code from thrd_create() is %d\n", rc);
 			exit(-1);

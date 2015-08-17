@@ -58,6 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/random/fortuna.h>
 #else /* !_KERNEL */
 #include <inttypes.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -124,9 +125,7 @@ static uint8_t zero_region[RANDOM_ZERO_BLOCKSIZE];
 
 static void random_fortuna_pre_read(void);
 static void random_fortuna_read(uint8_t *, u_int);
-static void random_fortuna_write(uint8_t *, u_int);
-static void random_fortuna_reseed(void);
-static int random_fortuna_seeded(void);
+static bool random_fortuna_seeded(void);
 static void random_fortuna_process_event(struct harvest_event *);
 static void random_fortuna_init_alg(void *);
 static void random_fortuna_deinit_alg(void *);
@@ -139,8 +138,6 @@ struct random_algorithm random_alg_context = {
 	.ra_deinit_alg = random_fortuna_deinit_alg,
 	.ra_pre_read = random_fortuna_pre_read,
 	.ra_read = random_fortuna_read,
-	.ra_write = random_fortuna_write,
-	.ra_reseed = random_fortuna_reseed,
 	.ra_seeded = random_fortuna_seeded,
 	.ra_event_processor = random_fortuna_process_event,
 	.ra_poolcount = RANDOM_FORTUNA_NPOOLS,
@@ -420,43 +417,7 @@ random_fortuna_read(uint8_t *buf, u_int bytecount)
 	RANDOM_RESEED_UNLOCK();
 }
 
-/* Internal function to hand external entropy to the PRNG. */
-void
-random_fortuna_write(uint8_t *buf, u_int count)
-{
-	static u_int destination = 0;
-	struct harvest_event event;
-	struct randomdev_hash hash;
-	uint32_t entropy_data[RANDOM_KEYSIZE_WORDS], timestamp;
-	int i;
-
-	/* Extra timing here is helpful to scrape scheduler timing entropy */
-	randomdev_hash_init(&hash);
-	timestamp = (uint32_t)get_cyclecount();
-	randomdev_hash_iterate(&hash, &timestamp, sizeof(timestamp));
-	randomdev_hash_iterate(&hash, buf, count);
-	timestamp = (uint32_t)get_cyclecount();
-	randomdev_hash_iterate(&hash, &timestamp, sizeof(timestamp));
-	randomdev_hash_finish(&hash, entropy_data);
-	explicit_bzero(&hash, sizeof(hash));
-	for (i = 0; i < RANDOM_KEYSIZE_WORDS; i += sizeof(event.he_entropy)/sizeof(event.he_entropy[0])) {
-		event.he_somecounter = (uint32_t)get_cyclecount();
-		event.he_size = sizeof(event.he_entropy);
-		event.he_bits = event.he_size/8;
-		event.he_source = RANDOM_CACHED;
-		event.he_destination = destination++; /* Harmless cheating */
-		memcpy(event.he_entropy, entropy_data + i, sizeof(event.he_entropy));
-		random_fortuna_process_event(&event);
-	}
-	explicit_bzero(entropy_data, sizeof(entropy_data));
-}
-
-void
-random_fortuna_reseed(void)
-{
-}
-
-int
+bool
 random_fortuna_seeded(void)
 {
 
