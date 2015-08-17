@@ -2736,7 +2736,7 @@ bwn_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 {
 	struct ieee80211com *ic = ni->ni_ic;
 	struct ifnet *ifp = ic->ic_ifp;
-	struct bwn_softc *sc = ifp->if_softc;
+	struct bwn_softc *sc = ic->ic_softc;
 	struct bwn_mac *mac = sc->sc_curmac;
 
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0 ||
@@ -2817,7 +2817,7 @@ bwn_update_promisc(struct ieee80211com *ic)
 static int
 bwn_wme_update(struct ieee80211com *ic)
 {
-	struct bwn_softc *sc = ic->ic_ifp->if_softc;
+	struct bwn_softc *sc = ic->ic_softc;
 	struct bwn_mac *mac = sc->sc_curmac;
 	struct wmeParams *wmep;
 	int i;
@@ -2839,8 +2839,7 @@ bwn_wme_update(struct ieee80211com *ic)
 static void
 bwn_scan_start(struct ieee80211com *ic)
 {
-	struct ifnet *ifp = ic->ic_ifp;
-	struct bwn_softc *sc = ifp->if_softc;
+	struct bwn_softc *sc = ic->ic_softc;
 	struct bwn_mac *mac;
 
 	BWN_LOCK(sc);
@@ -2857,8 +2856,7 @@ bwn_scan_start(struct ieee80211com *ic)
 static void
 bwn_scan_end(struct ieee80211com *ic)
 {
-	struct ifnet *ifp = ic->ic_ifp;
-	struct bwn_softc *sc = ifp->if_softc;
+	struct bwn_softc *sc = ic->ic_softc;
 	struct bwn_mac *mac;
 
 	BWN_LOCK(sc);
@@ -2874,8 +2872,7 @@ bwn_scan_end(struct ieee80211com *ic)
 static void
 bwn_set_channel(struct ieee80211com *ic)
 {
-	struct ifnet *ifp = ic->ic_ifp;
-	struct bwn_softc *sc = ifp->if_softc;
+	struct bwn_softc *sc = ic->ic_softc;
 	struct bwn_mac *mac = sc->sc_curmac;
 	struct bwn_phy *phy = &mac->mac_phy;
 	int chan, error;
@@ -2933,8 +2930,7 @@ bwn_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
     const uint8_t bssid[IEEE80211_ADDR_LEN],
     const uint8_t mac0[IEEE80211_ADDR_LEN])
 {
-	struct ifnet *ifp = ic->ic_ifp;
-	struct bwn_softc *sc = ifp->if_softc;
+	struct bwn_softc *sc = ic->ic_softc;
 	struct ieee80211vap *vap;
 	struct bwn_vap *bvp;
 	uint8_t mac[IEEE80211_ADDR_LEN];
@@ -8331,7 +8327,7 @@ bwn_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 	struct ieee80211com *ic= vap->iv_ic;
 	struct ifnet *ifp = ic->ic_ifp;
 	enum ieee80211_state ostate = vap->iv_state;
-	struct bwn_softc *sc = ifp->if_softc;
+	struct bwn_softc *sc = ic->ic_softc;
 	struct bwn_mac *mac = sc->sc_curmac;
 	int error;
 
