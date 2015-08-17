@@ -555,6 +555,11 @@ static struct xlat linux_socketcall_ops[] = {
 	XEND
 };
 
+static struct xlat sigprocmask_ops[] = {
+	X(SIG_BLOCK) X(SIG_UNBLOCK) X(SIG_SETMASK)
+	XEND
+};
+
 #undef X
 #undef XEND
 
@@ -1096,15 +1101,7 @@ print_arg(struct syscall_args *sc, unsigned long *args, long retval,
 		break;
 	}
 	case Sigprocmask: {
-		switch (args[sc->offset]) {
-#define	S(a)	case a: tmp = strdup(#a); break;
-			S(SIG_BLOCK);
-			S(SIG_UNBLOCK);
-			S(SIG_SETMASK);
-#undef S
-		}
-		if (tmp == NULL)
-			asprintf(&tmp, "0x%lx", args[sc->offset]);
+		tmp = strdup(xlookup(sigprocmask_ops, args[sc->offset]));
 		break;
 	}
 	case Fcntlflag: {
