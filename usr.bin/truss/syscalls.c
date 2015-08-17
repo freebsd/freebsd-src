@@ -545,6 +545,16 @@ static struct xlat sysarch_ops[] = {
 #endif
 	XEND
 };
+
+static struct xlat linux_socketcall_ops[] = {
+	X(LINUX_SOCKET) X(LINUX_BIND) X(LINUX_CONNECT) X(LINUX_LISTEN)
+	X(LINUX_ACCEPT) X(LINUX_GETSOCKNAME) X(LINUX_GETPEERNAME)
+	X(LINUX_SOCKETPAIR) X(LINUX_SEND) X(LINUX_RECV) X(LINUX_SENDTO)
+	X(LINUX_RECVFROM) X(LINUX_SHUTDOWN) X(LINUX_SETSOCKOPT)
+	X(LINUX_GETSOCKOPT) X(LINUX_SENDMSG) X(LINUX_RECVMSG)
+	XEND
+};
+
 #undef X
 #undef XEND
 
@@ -962,71 +972,12 @@ print_arg(struct syscall_args *sc, unsigned long *args, long retval,
 	{
 		struct linux_socketcall_args largs;
 		if (get_struct(pid, (void *)args[sc->offset], (void *)&largs,
-		    sizeof(largs)) == -1) {
-			err(1, "get_struct %p", (void *)args[sc->offset]);
-		}
-		const char *what;
-		char buf[30];
-
-		switch (largs.what) {
-		case LINUX_SOCKET:
-			what = "LINUX_SOCKET";
-			break;
-		case LINUX_BIND:
-			what = "LINUX_BIND";
-			break;
-		case LINUX_CONNECT:
-			what = "LINUX_CONNECT";
-			break;
-		case LINUX_LISTEN:
-			what = "LINUX_LISTEN";
-			break;
-		case LINUX_ACCEPT:
-			what = "LINUX_ACCEPT";
-			break;
-		case LINUX_GETSOCKNAME:
-			what = "LINUX_GETSOCKNAME";
-			break;
-		case LINUX_GETPEERNAME:
-			what = "LINUX_GETPEERNAME";
-			break;
-		case LINUX_SOCKETPAIR:
-			what = "LINUX_SOCKETPAIR";
-			break;
-		case LINUX_SEND:   
-			what = "LINUX_SEND";
-			break;
-		case LINUX_RECV: 
-			what = "LINUX_RECV";
-			break;
-		case LINUX_SENDTO:
-			what = "LINUX_SENDTO";
-			break;
-		case LINUX_RECVFROM:
-			what = "LINUX_RECVFROM";
-			break;
-		case LINUX_SHUTDOWN:
-			what = "LINUX_SHUTDOWN";
-			break;
-		case LINUX_SETSOCKOPT:
-			what = "LINUX_SETSOCKOPT";
-			break;
-		case LINUX_GETSOCKOPT:
-			what = "LINUX_GETSOCKOPT";
-			break;
-		case LINUX_SENDMSG:
-			what = "LINUX_SENDMSG";
-			break;
-		case LINUX_RECVMSG:
-			what = "LINUX_RECVMSG";
-			break;
-		default:
-			sprintf(buf, "%d", largs.what);
-			what = buf;
-			break;
-		}
-		asprintf(&tmp, "(0x%lx)%s, 0x%lx", args[sc->offset], what,
-		    (long unsigned int)largs.args);
+		    sizeof(largs)) != -1)
+			asprintf(&tmp, "{ %s, 0x%lx }",
+			    lookup(linux_socketcall_ops, largs.what, 10),
+			    (long unsigned int)largs.args);
+		else
+			asprintf(&tmp, "0x%lx", args[sc->offset]);
 		break;
 	}
 	case Pollfd: {
