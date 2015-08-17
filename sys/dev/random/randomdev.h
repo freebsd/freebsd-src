@@ -55,16 +55,15 @@ random_check_uint_##name(SYSCTL_HANDLER_ARGS)				\
 
 MALLOC_DECLARE(M_ENTROPY);
 
-#define	RANDOM_ALG_READ_RATE_MINIMUM	32
-
 #endif /* _KERNEL */
 
 struct harvest_event;
 
+typedef void random_alg_init_t(void *);
+typedef void random_alg_deinit_t(void *);
 typedef void random_alg_pre_read_t(void);
 typedef void random_alg_read_t(uint8_t *, u_int);
-typedef void random_alg_write_t(uint8_t *, u_int);
-typedef int random_alg_seeded_t(void);
+typedef bool random_alg_seeded_t(void);
 typedef void random_alg_reseed_t(void);
 typedef void random_alg_eventprocessor_t(struct harvest_event *);
 
@@ -81,13 +80,11 @@ struct random_algorithm {
 	void				(*ra_deinit_alg)(void *);
 	random_alg_pre_read_t		*ra_pre_read;
 	random_alg_read_t		*ra_read;
-	random_alg_write_t		*ra_write;
-	random_alg_reseed_t		*ra_reseed;
 	random_alg_seeded_t		*ra_seeded;
 	random_alg_eventprocessor_t	*ra_event_processor;
 };
 
-extern struct random_algorithm random_alg_context;
+extern struct random_algorithm random_alg_context, *p_random_alg_context;
 
 #ifdef _KERNEL
 
@@ -97,22 +94,33 @@ extern struct random_algorithm random_alg_context;
  * upon request.
  */
 struct random_source {
-	const char				*rs_ident;
-	enum random_entropy_source		 rs_source;
-	random_source_read_t			*rs_read;
+	const char			*rs_ident;
+	enum random_entropy_source	 rs_source;
+	random_source_read_t		*rs_read;
 };
 
-#if !defined(RANDOM_DUMMY)
 struct random_sources {
-	LIST_ENTRY(random_sources)		 rrs_entries;
-	struct random_source			*rrs_source;
+	LIST_ENTRY(random_sources)	 rrs_entries;
+	struct random_source		*rrs_source;
 };
-#endif /* !defined(RANDOM_DUMMY) */
+
+LIST_HEAD(sources_head, random_sources);
+extern struct sources_head source_list;
 
 void random_source_register(struct random_source *);
 void random_source_deregister(struct random_source *);
 
-void random_sources_feed(void);
+#if defined(RANDOM_LOADABLE)
+extern struct sx randomdev_config_lock;
+#define	RANDOM_CONFIG_INIT_LOCK(x)	sx_init(&randomdev_config_lock, "configuration change lock")
+#define	RANDOM_CONFIG_X_LOCK(x)		sx_xlock(&randomdev_config_lock)
+#define	RANDOM_CONFIG_X_UNLOCK(x)	sx_xunlock(&randomdev_config_lock)
+#define	RANDOM_CONFIG_S_LOCK(x)		sx_slock(&randomdev_config_lock)
+#define	RANDOM_CONFIG_S_UNLOCK(x)	sx_sunlock(&randomdev_config_lock)
+#define	RANDOM_CONFIG_DEINIT_LOCK(x)	sx_destroy(&randomdev_config_lock)
+void random_infra_init(int (*)(struct uio *, bool), u_int (*)(void *, u_int));
+void random_infra_uninit(void);
+#endif
 
 #endif /* _KERNEL */
 
