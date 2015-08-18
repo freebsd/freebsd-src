@@ -16,7 +16,7 @@ from older versions of FreeBSD, try WITHOUT_CLANG to bootstrap to the tip of
 stable/10, and then rebuild without this option. The bootstrap process from
 older version of current is a bit fragile.
 
-20150818:	p1	FreeBSD-SA-15:20.expat
+20150818:	p18	FreeBSD-SA-15:20.expat
 
 	Fix multiple integer overflows in expat (libbsdxml) XML parser.
 	[SA-15:20]
