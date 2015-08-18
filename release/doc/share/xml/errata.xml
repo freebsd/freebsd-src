@@ -19,9 +19,27 @@
 
     <tbody>
       <row>
-	<entry>No notices.</entry>
-	<entry>&nbsp;</entry>
-	<entry>&nbsp;</entry>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-EN-15:11.toolchain.asc">FreeBSD-EN-15:11.toolchain</link></entry>
+	<entry>18&nbsp;August&nbsp;2015</entry>
+	<entry><para>Fix &man.make.1; syntax errors when upgrading
+	    from &os;&nbsp;9.x and earlier.</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-EN-15:12.netstat.asc">FreeBSD-EN-15:12.netstat</link></entry>
+	<entry>18&nbsp;August&nbsp;2015</entry>
+	<entry><para>Fix incorrect &man.netstat.1; data handling on
+	    32-bit systems.</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-EN-15:13.vidcontrol.asc">FreeBSD-EN-15:13.vidcontrol</link></entry>
+	<entry>18&nbsp;August&nbsp;2015</entry>
+	<entry><para>Allow size argument to &man.vidcontrol.1; for
+	    &man.syscons.4;.</para></entry>
       </row>
     </tbody>
   </tgroup>
