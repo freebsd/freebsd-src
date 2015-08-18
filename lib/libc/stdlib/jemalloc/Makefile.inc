@@ -40,12 +40,8 @@ MLINKS+= \
 	jemalloc.3 xallocx.3 \
 	jemalloc.3 sallocx.3 \
 	jemalloc.3 dallocx.3 \
+	jemalloc.3 sdallocx.3 \
 	jemalloc.3 nallocx.3 \
-	jemalloc.3 allocm.3 \
-	jemalloc.3 rallocm.3 \
-	jemalloc.3 sallocm.3 \
-	jemalloc.3 dallocm.3 \
-	jemalloc.3 nallocm.3 \
 	jemalloc.3 malloc.conf.5
 
 .if defined(MALLOC_PRODUCTION)
