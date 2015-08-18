@@ -403,7 +403,7 @@ midi_uninit(struct snd_midi *m)
 {
 	int err;
 
-	err = ENXIO;
+	err = EBUSY;
 	mtx_lock(&midistat_lock);
 	mtx_lock(&m->lock);
 	if (m->busy) {
