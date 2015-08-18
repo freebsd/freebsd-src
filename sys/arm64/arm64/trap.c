@@ -309,8 +309,8 @@ do_el1h_sync(struct trapframe *frame)
 }
 
 /*
- * We get EXCP_UNKNOWN from QEMU when executing zeroed memory. For now turn
- * this into a SIGILL.
+ * The attempted execution of an instruction bit pattern that has no allocated
+ * instruction resuls in an exception with an unknown reason.
  */
 static void
 el0_excp_unknown(struct trapframe *frame)
@@ -320,8 +320,6 @@ el0_excp_unknown(struct trapframe *frame)
 
 	td = curthread;
 	far = READ_SPECIALREG(far_el1);
-	printf("el0 EXCP_UNKNOWN exception\n");
-	print_registers(frame);
 	call_trapsignal(td, SIGILL, ILL_ILLTRP, (void *)far);
 	userret(td, frame);
 }
