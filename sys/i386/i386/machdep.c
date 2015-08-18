@@ -3153,7 +3153,7 @@ init386(first)
 #endif
 
 	thread0.td_kstack = proc0kstack;
-	thread0.td_kstack_pages = KSTACK_PAGES;
+	thread0.td_kstack_pages = TD0_KSTACK_PAGES;
 
 	/*
  	 * This may be done better later if it gets more high level
