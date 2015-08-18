@@ -310,7 +310,7 @@ do_el1h_sync(struct trapframe *frame)
 
 /*
  * The attempted execution of an instruction bit pattern that has no allocated
- * instruction resuls in an exception with an unknown reason.
+ * instruction results in an exception with an unknown reason.
  */
 static void
 el0_excp_unknown(struct trapframe *frame)
