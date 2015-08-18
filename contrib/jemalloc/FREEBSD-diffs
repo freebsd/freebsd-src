@@ -117,10 +117,10 @@ index dbf6aa7..f87dba8 100644
  jemalloc_postfork_child
 diff --git a/include/jemalloc/jemalloc_FreeBSD.h b/include/jemalloc/jemalloc_FreeBSD.h
 new file mode 100644
-index 0000000..66d6da5
+index 0000000..c5113b9
 --- /dev/null
 +++ b/include/jemalloc/jemalloc_FreeBSD.h
-@@ -0,0 +1,137 @@
+@@ -0,0 +1,144 @@
 +/*
 + * Override settings that were generated in jemalloc_defs.h as necessary.
 + */
@@ -163,6 +163,9 @@ index 0000000..66d6da5
 +#ifdef __arm__
 +#  define LG_SIZEOF_PTR		2
 +#endif
++#ifdef __aarch64__
++#  define LG_SIZEOF_PTR		3
++#endif
 +#ifdef __mips__
 +#ifdef __mips_n64
 +#  define LG_SIZEOF_PTR		3
@@ -178,6 +181,10 @@ index 0000000..66d6da5
 +
 +#ifndef JEMALLOC_TLS_MODEL
 +#  define JEMALLOC_TLS_MODEL	/* Default. */
++#endif
++
++#ifndef CPU_SPINWAIT
++#  define CPU_SPINWAIT do {} while (0)
 +#endif
 +
 +#define	STATIC_PAGE_SHIFT	PAGE_SHIFT
