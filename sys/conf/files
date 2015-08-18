@@ -2323,6 +2323,7 @@ dev/random/fortuna.c		optional random !random_yarrow !random_loadable
 dev/random/hash.c		optional random random_yarrow | \
 					 random !random_yarrow !random_loadable
 dev/rc/rc.c			optional rc
+dev/rccgpio/rccgpio.c		optional rccgpio gpio
 dev/re/if_re.c			optional re
 dev/rl/if_rl.c			optional rl pci
 dev/rndtest/rndtest.c		optional rndtest
