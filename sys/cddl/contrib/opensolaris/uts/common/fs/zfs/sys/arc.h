@@ -37,6 +37,12 @@ extern "C" {
 #include <sys/dmu.h>
 #include <sys/spa.h>
 
+/*
+ * Used by arc_flush() to inform arc_evict_state() that it should evict
+ * all available buffers from the arc state being passed in.
+ */
+#define	ARC_EVICT_ALL	-1ULL
+
 typedef struct arc_buf_hdr arc_buf_hdr_t;
 typedef struct arc_buf arc_buf_t;
 typedef void arc_done_func_t(zio_t *zio, arc_buf_t *buf, void *priv);
@@ -70,10 +76,29 @@ typedef enum arc_flags
 	ARC_FLAG_FREED_IN_READ		= 1 << 10,	/* freed during read */
 	ARC_FLAG_BUF_AVAILABLE		= 1 << 11,	/* block not in use */
 	ARC_FLAG_INDIRECT		= 1 << 12,	/* indirect block */
-	ARC_FLAG_FREE_IN_PROGRESS	= 1 << 13,	/*  about to be freed */
-	ARC_FLAG_L2_WRITING		= 1 << 14,	/* write in progress */
-	ARC_FLAG_L2_EVICTED		= 1 << 15,	/* evicted during I/O */
-	ARC_FLAG_L2_WRITE_HEAD		= 1 << 16,	/* head of write list */
+	ARC_FLAG_L2_WRITING		= 1 << 13,	/* write in progress */
+	ARC_FLAG_L2_EVICTED		= 1 << 14,	/* evicted during I/O */
+	ARC_FLAG_L2_WRITE_HEAD		= 1 << 15,	/* head of write list */
+	/* indicates that the buffer contains metadata (otherwise, data) */
+	ARC_FLAG_BUFC_METADATA		= 1 << 16,
+
+	/* Flags specifying whether optional hdr struct fields are defined */
+	ARC_FLAG_HAS_L1HDR		= 1 << 17,
+	ARC_FLAG_HAS_L2HDR		= 1 << 18,
+
+	/*
+	 * The arc buffer's compression mode is stored in the top 7 bits of the
+	 * flags field, so these dummy flags are included so that MDB can
+	 * interpret the enum properly.
+	 */
+	ARC_FLAG_COMPRESS_0		= 1 << 24,
+	ARC_FLAG_COMPRESS_1		= 1 << 25,
+	ARC_FLAG_COMPRESS_2		= 1 << 26,
+	ARC_FLAG_COMPRESS_3		= 1 << 27,
+	ARC_FLAG_COMPRESS_4		= 1 << 28,
+	ARC_FLAG_COMPRESS_5		= 1 << 29,
+	ARC_FLAG_COMPRESS_6		= 1 << 30
+
 } arc_flags_t;
 
 struct arc_buf {
@@ -96,6 +121,7 @@ typedef enum arc_buf_contents {
  */
 typedef enum arc_space_type {
 	ARC_SPACE_DATA,
+	ARC_SPACE_META,
 	ARC_SPACE_HDRS,
 	ARC_SPACE_L2HDRS,
 	ARC_SPACE_OTHER,
@@ -134,7 +160,7 @@ void arc_freed(spa_t *spa, const blkptr_t *bp);
 void arc_set_callback(arc_buf_t *buf, arc_evict_func_t *func, void *priv);
 boolean_t arc_clear_callback(arc_buf_t *buf);
 
-void arc_flush(spa_t *spa);
+void arc_flush(spa_t *spa, boolean_t retry);
 void arc_tempreserve_clear(uint64_t reserve);
 int arc_tempreserve_space(uint64_t reserve, uint64_t txg);
 

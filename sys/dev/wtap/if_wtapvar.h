@@ -120,7 +120,7 @@ struct wtap_vap {
 	struct callout		av_swba;	/* software beacon alert */
 	uint32_t		av_bcinterval;	/* beacon interval */
 	void (*av_recv_mgmt)(struct ieee80211_node *,
-	    struct mbuf *, int, int, int);
+	    struct mbuf *, int, const struct ieee80211_rx_stats *, int, int);
 	int (*av_newstate)(struct ieee80211vap *,
 	    enum ieee80211_state, int);
 	void (*av_bmiss)(struct ieee80211vap *);

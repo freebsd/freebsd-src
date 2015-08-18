@@ -111,8 +111,8 @@ g_uncompress_softc_free(struct g_uncompress_softc *sc, struct g_geom *gp)
 {
 
 	if (gp != NULL) {
-		printf("%s: %d requests, %d cached\n",
-		    gp->name, sc->req_total, sc->req_cached);
+		DPRINTF(("%s: %d requests, %d cached\n",
+		    gp->name, sc->req_total, sc->req_cached));
 	}
 	if (sc->offsets != NULL) {
 		free(sc->offsets, M_GEOM_UNCOMPRESS);
@@ -518,7 +518,7 @@ g_uncompress_taste(struct g_class *mp, struct g_provider *pp, int flags)
 			DPRINTF(("%s: image version too old\n", gp->name));
 			goto err;
 		}
-		printf("%s: GEOM_ULZMA image found\n", gp->name);
+		DPRINTF(("%s: GEOM_ULZMA image found\n", gp->name));
 		break;
 	case 'V':
 		type = GEOM_UZIP;
@@ -526,7 +526,7 @@ g_uncompress_taste(struct g_class *mp, struct g_provider *pp, int flags)
 			DPRINTF(("%s: image version too old\n", gp->name));
 			goto err;
 		}
-		printf("%s: GEOM_UZIP image found\n", gp->name);
+		DPRINTF(("%s: GEOM_UZIP image found\n", gp->name));
 		break;
 	default:
 		DPRINTF(("%s: unsupported image type\n", gp->name));
@@ -622,7 +622,7 @@ g_uncompress_taste(struct g_class *mp, struct g_provider *pp, int flags)
 	    gp->name,
 	    pp2->sectorsize, (intmax_t)pp2->mediasize,
 	    pp2->stripeoffset, pp2->stripesize, pp2->flags));
-	printf("%s: %u x %u blocks\n", gp->name, sc->nblocks, sc->blksz);
+	DPRINTF(("%s: %u x %u blocks\n", gp->name, sc->nblocks, sc->blksz));
 	return (gp);
 
 err:
@@ -651,7 +651,7 @@ g_uncompress_destroy_geom(struct gctl_req *req, struct g_class *mp,
 	g_topology_assert();
 
 	if (gp->softc == NULL) {
-		printf("%s(%s): gp->softc == NULL\n", __func__, gp->name);
+		DPRINTF(("%s(%s): gp->softc == NULL\n", __func__, gp->name));
 		return (ENXIO);
 	}
 

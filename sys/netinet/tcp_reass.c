@@ -84,7 +84,7 @@ SYSCTL_INT(_net_inet_tcp_reass, OID_AUTO, maxsegments, CTLFLAG_RDTUN,
     "Global maximum number of TCP Segments in Reassembly Queue");
 
 static uma_zone_t tcp_reass_zone;
-SYSCTL_UMA_CUR(_net_inet_tcp_reass, OID_AUTO, cursegments, CTLFLAG_VNET,
+SYSCTL_UMA_CUR(_net_inet_tcp_reass, OID_AUTO, cursegments, 0,
     &tcp_reass_zone,
     "Global number of TCP Segments currently in Reassembly Queue");
 

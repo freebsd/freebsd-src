@@ -264,8 +264,9 @@ vt_update_static(void *dummy)
 	if (!vty_enabled(VTY_VT))
 		return;
 	if (main_vd->vd_driver != NULL)
-		printf("VT: running with driver \"%s\".\n",
-		    main_vd->vd_driver->vd_name);
+		printf("VT(%s): %s %ux%u\n", main_vd->vd_driver->vd_name,
+		    (main_vd->vd_flags & VDF_TEXTMODE) ? "text" : "resolution",
+		    main_vd->vd_width, main_vd->vd_height);
 	else
 		printf("VT: init without driver.\n");
 

@@ -80,7 +80,7 @@ __DEFAULT_YES_OPTIONS = \
     DYNAMICROOT \
     ED_CRYPTO \
     EE \
-    ELFTOOLCHAIN_TOOLS \
+    ELFTOOLCHAIN_BOOTSTRAP \
     EXAMPLES \
     FDT \
     FILE \
@@ -156,7 +156,6 @@ __DEFAULT_YES_OPTIONS = \
     SOURCELESS_UCODE \
     SVNLITE \
     SYSCONS \
-    SYSINSTALL \
     TALK \
     TCP_WRAPPERS \
     TCSH \
@@ -178,6 +177,7 @@ __DEFAULT_YES_OPTIONS = \
 __DEFAULT_NO_OPTIONS = \
     BSD_GREP \
     CLANG_EXTRAS \
+    DTRACE_TESTS \
     EISA \
     HESIOD \
     LLDB \
@@ -318,6 +318,10 @@ MK_KERBEROS:=	no
 MK_AUTHPF:=	no
 .endif
 
+.if ${MK_TESTS} == "no"
+MK_DTRACE_TESTS:= no
+.endif
+
 .if ${MK_TEXTPROC} == "no"
 MK_GROFF:=	no
 .endif
@@ -325,6 +329,7 @@ MK_GROFF:=	no
 .if ${MK_CROSS_COMPILER} == "no"
 MK_BINUTILS_BOOTSTRAP:= no
 MK_CLANG_BOOTSTRAP:= no
+MK_ELFTOOLCHAIN_BOOTSTRAP:= no
 MK_GCC_BOOTSTRAP:= no
 .endif
 

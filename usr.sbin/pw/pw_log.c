@@ -30,6 +30,8 @@ static const char rcsid[] =
 #endif /* not lint */
 
 #include <fcntl.h>
+#include <string.h>
+#include <stdarg.h>
 
 #include "pw.h"
 

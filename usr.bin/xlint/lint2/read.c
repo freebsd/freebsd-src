@@ -143,7 +143,7 @@ readfile(const char *name)
 		/* line number in csrcfile */
 		cline = (int)strtol(cp, &eptr, 10);
 		if (cp == eptr) {
-		        cline = -1;
+			cline = -1;
 		} else {
 			cp = eptr;
 		}

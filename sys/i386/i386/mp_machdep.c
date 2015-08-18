@@ -247,6 +247,8 @@ init_secondary(void)
 	pc->pc_prvspace = pc;
 	pc->pc_curthread = 0;
 
+	intel_fix_cpuid();
+
 	gdt_segs[GPRIV_SEL].ssd_base = (int) pc;
 	gdt_segs[GPROC0_SEL].ssd_base = (int) &pc->pc_common_tss;
 
@@ -289,7 +291,7 @@ init_secondary(void)
 	CHECK_WRITE(0x39, 6);
 
 	/* Spin until the BSP releases the AP's. */
-	while (!aps_ready)
+	while (atomic_load_acq_int(&aps_ready) == 0)
 		ia32_pause();
 
 	/* BSP may have changed PTD while we were waiting */
@@ -346,7 +348,7 @@ start_all_aps(void)
 
 		/* allocate and set up a boot stack data page */
 		bootstacks[cpu] =
-		    (char *)kmem_malloc(kernel_arena, KSTACK_PAGES * PAGE_SIZE,
+		    (char *)kmem_malloc(kernel_arena, kstack_pages * PAGE_SIZE,
 		    M_WAITOK | M_ZERO);
 		dpcpu = (void *)kmem_malloc(kernel_arena, DPCPU_SIZE,
 		    M_WAITOK | M_ZERO);
@@ -358,7 +360,8 @@ start_all_aps(void)
 		outb(CMOS_DATA, BIOS_WARM);	/* 'warm-start' */
 #endif
 
-		bootSTK = (char *)bootstacks[cpu] + KSTACK_PAGES * PAGE_SIZE - 4;
+		bootSTK = (char *)bootstacks[cpu] + kstack_pages *
+		    PAGE_SIZE - 4;
 		bootAP = cpu;
 
 		/* attempt to start the Application Processor */
@@ -501,7 +504,7 @@ smp_tlb_shootdown(u_int vector, vm_offset_t addr1, vm_offset_t addr2)
 	mtx_lock_spin(&smp_ipi_mtx);
 	smp_tlb_addr1 = addr1;
 	smp_tlb_addr2 = addr2;
-	atomic_store_rel_int(&smp_tlb_wait, 0);
+	smp_tlb_wait = 0;
 	ipi_all_but_self(vector);
 	while (smp_tlb_wait < ncpu)
 		ia32_pause();

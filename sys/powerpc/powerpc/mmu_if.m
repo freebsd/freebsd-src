@@ -933,3 +933,26 @@ METHOD void dumpsys_unmap {
 METHOD void scan_init {
 	mmu_t		_mmu;
 };
+
+/**
+ * @brief Create a temporary thread-local KVA mapping of a single page.
+ *
+ * @param _pg		The physical page to map
+ *
+ * @retval addr		The temporary KVA
+ */
+METHOD vm_offset_t quick_enter_page {
+	mmu_t		_mmu;
+	vm_page_t	_pg;
+};
+
+/**
+ * @brief Undo a mapping created by quick_enter_page
+ *
+ * @param _va		The mapped KVA
+ */
+METHOD void quick_remove_page {
+	mmu_t		_mmu;
+	vm_offset_t	_va;
+};
+

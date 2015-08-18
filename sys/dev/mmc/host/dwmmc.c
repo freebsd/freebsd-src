@@ -56,7 +56,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus_subr.h>
 
 #include <machine/bus.h>
-#include <machine/fdt.h>
 #include <machine/cpu.h>
 #include <machine/intr.h>
 
@@ -1209,4 +1208,5 @@ static driver_t dwmmc_driver = {
 static devclass_t dwmmc_devclass;
 
 DRIVER_MODULE(dwmmc, simplebus, dwmmc_driver, dwmmc_devclass, 0, 0);
+DRIVER_MODULE(dwmmc, ofwbus, dwmmc_driver, dwmmc_devclass, 0, 0);
 

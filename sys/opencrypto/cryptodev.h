@@ -78,7 +78,7 @@
 #define	SHA2_512_HASH_LEN	64
 #define	MD5_KPDK_HASH_LEN	16
 #define	SHA1_KPDK_HASH_LEN	20
-#define	AES_HASH_LEN		16
+#define	AES_GMAC_HASH_LEN	16
 /* Maximum hash algorithm result length */
 #define	HASH_MAX_LEN		SHA2_512_HASH_LEN /* Keep this updated */
 
@@ -102,12 +102,12 @@
 #define	SHA2_256_HMAC_KEY_LEN		32
 #define	SHA2_384_HMAC_KEY_LEN		48
 #define	SHA2_512_HMAC_KEY_LEN		64
-#define	AES_128_HMAC_KEY_LEN		16
-#define	AES_192_HMAC_KEY_LEN		24
-#define	AES_256_HMAC_KEY_LEN		32
+#define	AES_128_GMAC_KEY_LEN		16
+#define	AES_192_GMAC_KEY_LEN		24
+#define	AES_256_GMAC_KEY_LEN		32
 
 /* Encryption algorithm block sizes */
-#define	NULL_BLOCK_LEN		4
+#define	NULL_BLOCK_LEN		4	/* IPsec to maintain alignment */
 #define	DES_BLOCK_LEN		8
 #define	DES3_BLOCK_LEN		8
 #define	BLOWFISH_BLOCK_LEN	8
