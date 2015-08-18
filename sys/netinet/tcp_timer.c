@@ -333,21 +333,29 @@ tcp_timer_2msl(void *xtp)
 	/*
 	 * 2 MSL timeout in shutdown went off.  If we're closed but
 	 * still waiting for peer to close and connection has been idle
-	 * too long, or if 2MSL time is up from TIME_WAIT, delete connection
-	 * control block.  Otherwise, check again in a bit.
+	 * too long delete connection control block.  Otherwise, check
+	 * again in a bit.
+	 *
+	 * If in TIME_WAIT state just ignore as this timeout is handled in
+	 * tcp_tw_2msl_scan().
 	 *
 	 * If fastrecycle of FIN_WAIT_2, in FIN_WAIT_2 and receiver has closed, 
 	 * there's no point in hanging onto FIN_WAIT_2 socket. Just close it. 
 	 * Ignore fact that there were recent incoming segments.
 	 */
+	if ((inp->inp_flags & INP_TIMEWAIT) != 0) {
+		INP_WUNLOCK(inp);
+		INP_INFO_RUNLOCK(&V_tcbinfo);
+		CURVNET_RESTORE();
+		return;
+	}
 	if (tcp_fast_finwait2_recycle && tp->t_state == TCPS_FIN_WAIT_2 &&
 	    tp->t_inpcb && tp->t_inpcb->inp_socket && 
 	    (tp->t_inpcb->inp_socket->so_rcv.sb_state & SBS_CANTRCVMORE)) {
 		TCPSTAT_INC(tcps_finwait2_drops);
 		tp = tcp_close(tp);             
 	} else {
-		if (tp->t_state != TCPS_TIME_WAIT &&
-		   ticks - tp->t_rcvtime <= TP_MAXIDLE(tp)) {
+		if (ticks - tp->t_rcvtime <= TP_MAXIDLE(tp)) {
 			if (!callout_reset(&tp->t_timers->tt_2msl,
 			   TP_KEEPINTVL(tp), tcp_timer_2msl, tp)) {
 				tp->t_timers->tt_flags &= ~TT_2MSL_RST;
