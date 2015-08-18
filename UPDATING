@@ -16,7 +16,23 @@ from older versions of FreeBSD, try WITHOUT_CLANG to bootstrap to the tip of
 stable/10, and then rebuild without this option. The bootstrap process from
 older version of current is a bit fragile.
 
-20150817:
+20150818:	p1	FreeBSD-SA-15:20.expat
+			FreeBSD-EN-15:11.toolchain
+			FreeBSD-EN-15:12.netstat
+			FreeBSD-EN-15:13.vidcontrol
+
+	Fix multiple integer overflows in expat (libbsdxml) XML parser.
+	[SA-15:20]
+
+	Fix make(1) syntax errors when upgrading from 9.x and earlier.
+	[EN-15:11]
+
+	Fix incorrect netstat(1) data handling on 32-bit systems.
+	[EN-15:12]
+
+	Allow size argument to vidcontrol(1) for syscons(4). [EN-15:13]
+
+20150813:
 	10.2-RELEASE.
 
 20150703:

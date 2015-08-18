@@ -133,8 +133,8 @@ OSRELDATE=	0
 .endif
 
 .if !defined(VERSION)
-REVISION!=	make -C ${SRCDIR}/release -V REVISION
-BRANCH!=	make -C ${SRCDIR}/release -V BRANCH
+REVISION!=	${MAKE} -C ${SRCDIR}/release -V REVISION
+BRANCH!=	${MAKE} -C ${SRCDIR}/release -V BRANCH
 SRCRELDATE!=	awk '/^\#define[[:space:]]*__FreeBSD_version/ { print $$3 }' \
 		${SRCDIR}/sys/sys/param.h
 VERSION=	FreeBSD ${REVISION}-${BRANCH:C/-p[0-9]+$//} ${TARGET_ARCH} ${SRCRELDATE}
