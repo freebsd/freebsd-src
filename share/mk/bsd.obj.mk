@@ -42,7 +42,16 @@
 __<bsd.obj.mk>__:
 .include <bsd.own.mk>
 
-.if defined(MAKEOBJDIRPREFIX)
+.if ${MK_AUTO_OBJ} == "yes"
+# it is done by now
+objwarn:
+obj:
+CANONICALOBJDIR= ${.OBJDIR}
+.if defined(NO_OBJ)
+# but this makefile does not want it!
+.OBJDIR: ${.CURDIR}
+.endif
+.elif defined(MAKEOBJDIRPREFIX)
 CANONICALOBJDIR:=${MAKEOBJDIRPREFIX}${.CURDIR}
 .elif defined(MAKEOBJDIR) && ${MAKEOBJDIR:M/*} != ""
 CANONICALOBJDIR:=${MAKEOBJDIR}
@@ -147,5 +156,52 @@ clean:
 cleandir: cleanobj
 
 .include <bsd.subdir.mk>
+
+.if make(destroy*) && defined(OBJROOT)
+# this (rm -rf objdir) is much faster and more reliable than cleaning.
+
+# just in case we are playing games with these...
+_OBJDIR?= ${.OBJDIR}
+_CURDIR?= ${.CURDIR}
+
+# destroy almost everything
+destroy: destroy-all
+destroy-all:
+
+# just remove our objdir
+destroy-arch: .NOMETA
+.if ${_OBJDIR} != ${_CURDIR}
+	cd ${_CURDIR} && rm -rf ${_OBJDIR}
+.endif
+
+.if defined(HOST_OBJTOP)
+destroy-host: destroy.host
+destroy.host: .NOMETA
+	cd ${_CURDIR} && rm -rf ${HOST_OBJTOP}/${RELDIR:N.}
+.endif
+
+.if make(destroy-all) && ${RELDIR} == "."
+destroy-all: destroy-stage
+.endif
+
+# remove the stage tree
+destroy-stage: .NOMETA
+.if defined(STAGE_ROOT)
+	cd ${_CURDIR} && rm -rf ${STAGE_ROOT}
+.endif
+
+# allow parallel destruction
+_destroy_machine_list = common host ${ALL_MACHINE_LIST}
+.for m in ${_destroy_machine_list:O:u}
+destroy-all: destroy.$m
+.if !target(destroy.$m)
+destroy.$m: .NOMETA
+.if ${_OBJDIR} != ${_CURDIR}
+	cd ${_CURDIR} && rm -rf ${OBJROOT}$m*/${RELDIR:N.}
+.endif
+.endif
+.endfor
+
+.endif
 
 .endif # !target(__<bsd.obj.mk>__)

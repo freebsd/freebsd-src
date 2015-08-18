@@ -1774,12 +1774,12 @@ ar9300_set_reset(struct ath_hal *ah, int type)
 		    }
 
 		    data = DDR_REG_READ(ah,DDR_CTL_CONFIG_OFFSET);
-		    ath_hal_printf(ah, "check DDR Activity - HIGH\n");
+		    HALDEBUG(ah, HAL_DEBUG_RESET, "check DDR Activity - HIGH\n");
 
 		    count = 0;
 		    while (DDR_CTL_CONFIG_CLIENT_ACTIVITY_GET(data)) {
 			    //      AVE_DEBUG(0,"DDR Activity - HIGH\n");
-			    ath_hal_printf(ah, "DDR Activity - HIGH\n");
+			    HALDEBUG(ah, HAL_DEBUG_RESET, "DDR Activity - HIGH\n");
 			    count++;
 			    OS_DELAY(10);
 			    data = DDR_REG_READ(ah,DDR_CTL_CONFIG_OFFSET);
@@ -1801,7 +1801,7 @@ ar9300_set_reset(struct ath_hal *ah, int type)
 		    OS_DELAY(10);
 		    OS_REG_WRITE(ah, AR_RTC_RESET, 1);
 		    OS_DELAY(10);
-		    ath_hal_printf(ah,"%s: Scorpion SoC RTC reset done.\n", __func__);
+		    HALDEBUG(ah, HAL_DEBUG_RESET, "%s: Scorpion SoC RTC reset done.\n", __func__);
 	    }
 #undef REG_READ
 #undef REG_WRITE

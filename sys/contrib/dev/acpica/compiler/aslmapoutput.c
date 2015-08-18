@@ -207,7 +207,7 @@ MpEmitGpioInfo (
         /* Print header info for the controller itself */
 
         if (!PrevDeviceName ||
-            ACPI_STRCMP (PrevDeviceName, Info->DeviceName))
+            strcmp (PrevDeviceName, Info->DeviceName))
         {
             FlPrintFile (ASL_FILE_MAP_OUTPUT,
                 "\n\nGPIO Controller:  %-8s  %-28s",
@@ -360,7 +360,7 @@ MpEmitSerialInfo (
         /* Print header info for the controller itself */
 
         if (!PrevDeviceName ||
-            ACPI_STRCMP (PrevDeviceName, Info->DeviceName))
+            strcmp (PrevDeviceName, Info->DeviceName))
         {
             FlPrintFile (ASL_FILE_MAP_OUTPUT, "\n\n%s Controller:  ",
                 Type);

@@ -110,7 +110,7 @@ CgGenerateAmlOutput (
 
     DbgPrint (ASL_TREE_OUTPUT,
         "%*s Value    P_Op A_Op OpLen PByts Len  SubLen PSubLen OpPtr"
-        "    Parent   Child    Next     Flags    AcTyp    Final Col L\n",
+        "    Parent   Child    Next     Flags    AcTyp    Final Col L#  EL#  LL#  ELL#\n",
         76, " ");
 
     CgCloseTable ();
@@ -145,7 +145,7 @@ CgAmlWriteWalk (
             "Final parse tree used for AML output:\n");
         DbgPrint (ASL_TREE_OUTPUT,
             "%*s Value    P_Op A_Op OpLen PByts Len  SubLen PSubLen OpPtr"
-            "    Parent   Child    Next     Flags    AcTyp    Final Col L\n",
+            "    Parent   Child    Next     Flags    AcTyp    Final Col L#  EL#  LL#  ELL#\n",
             76, " ");
     }
 
@@ -169,7 +169,7 @@ CgAmlWriteWalk (
 
     DbgPrint (ASL_TREE_OUTPUT,
     "%08X %04X %04X %01X     %04X  %04X %04X   %04X    "
-    "%08X %08X %08X %08X %08X %08X %04X  %02d  %02d\n",
+    "%08X %08X %08X %08X %08X %08X %04X  %02d  %02d   %02d   %02d   %02d\n",
             /* 1  */ (UINT32) Op->Asl.Value.Integer,
             /* 2  */ Op->Asl.ParseOpcode,
             /* 3  */ Op->Asl.AmlOpcode,
@@ -186,7 +186,10 @@ CgAmlWriteWalk (
             /* 14 */ Op->Asl.AcpiBtype,
             /* 15 */ Op->Asl.FinalAmlLength,
             /* 16 */ Op->Asl.Column,
-            /* 17 */ Op->Asl.LineNumber);
+            /* 17 */ Op->Asl.LineNumber,
+            /* 18 */ Op->Asl.EndLine,
+            /* 19 */ Op->Asl.LogicalLineNumber,
+            /* 20 */ Op->Asl.EndLogicalLine);
 
     /* Generate the AML for this node */
 

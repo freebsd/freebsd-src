@@ -217,6 +217,11 @@ static long vm_reserv_freed;
 SYSCTL_LONG(_vm_reserv, OID_AUTO, freed, CTLFLAG_RD,
     &vm_reserv_freed, 0, "Cumulative number of freed reservations");
 
+static int sysctl_vm_reserv_fullpop(SYSCTL_HANDLER_ARGS);
+
+SYSCTL_PROC(_vm_reserv, OID_AUTO, fullpop, CTLTYPE_INT | CTLFLAG_RD, NULL, 0,
+    sysctl_vm_reserv_fullpop, "I", "Current number of full reservations");
+
 static int sysctl_vm_reserv_partpopq(SYSCTL_HANDLER_ARGS);
 
 SYSCTL_OID(_vm_reserv, OID_AUTO, partpopq, CTLTYPE_STRING | CTLFLAG_RD, NULL, 0,
@@ -233,6 +238,33 @@ static boolean_t	vm_reserv_has_pindex(vm_reserv_t rv,
 			    vm_pindex_t pindex);
 static void		vm_reserv_populate(vm_reserv_t rv, int index);
 static void		vm_reserv_reclaim(vm_reserv_t rv);
+
+/*
+ * Returns the current number of full reservations.
+ *
+ * Since the number of full reservations is computed without acquiring the
+ * free page queue lock, the returned value may be inexact.
+ */
+static int
+sysctl_vm_reserv_fullpop(SYSCTL_HANDLER_ARGS)
+{
+	vm_paddr_t paddr;
+	struct vm_phys_seg *seg;
+	vm_reserv_t rv;
+	int fullpop, segind;
+
+	fullpop = 0;
+	for (segind = 0; segind < vm_phys_nsegs; segind++) {
+		seg = &vm_phys_segs[segind];
+		paddr = roundup2(seg->start, VM_LEVEL_0_SIZE);
+		while (paddr + VM_LEVEL_0_SIZE <= seg->end) {
+			rv = &vm_reserv_array[paddr >> VM_LEVEL_0_SHIFT];
+			fullpop += rv->popcnt == VM_LEVEL_0_NPAGES;
+			paddr += VM_LEVEL_0_SIZE;
+		}
+	}
+	return (sysctl_handle_int(oidp, &fullpop, 0, req));
+}
 
 /*
  * Describes the current state of the partially-populated reservation queue.
@@ -801,9 +833,6 @@ vm_reserv_free_page(vm_page_t m)
 	rv = vm_reserv_from_page(m);
 	if (rv->object == NULL)
 		return (FALSE);
-	if ((m->flags & PG_CACHED) != 0 && m->pool != VM_FREEPOOL_CACHE)
-		vm_phys_set_pool(VM_FREEPOOL_CACHE, rv->pages,
-		    VM_LEVEL_0_ORDER);
 	vm_reserv_depopulate(rv, m - rv->pages);
 	return (TRUE);
 }

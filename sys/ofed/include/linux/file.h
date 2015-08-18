@@ -33,6 +33,7 @@
 #include <sys/file.h>
 #include <sys/filedesc.h>
 #include <sys/refcount.h>
+#include <sys/capsicum.h>
 #include <sys/proc.h>
 
 #include <linux/fs.h>
@@ -46,10 +47,11 @@ extern struct fileops linuxfileops;
 static inline struct linux_file *
 linux_fget(unsigned int fd)
 {
+	cap_rights_t rights;
 	struct file *file;
 
-	if (fget_unlocked(curthread->td_proc->p_fd, fd, NULL, &file,
-	    NULL) != 0) {
+	if (fget_unlocked(curthread->td_proc->p_fd, fd,
+	    cap_rights_init(&rights), &file, NULL) != 0) {
 		return (NULL);
 	}
 	return (struct linux_file *)file->f_data;
@@ -71,10 +73,11 @@ fput(struct linux_file *filp)
 static inline void
 put_unused_fd(unsigned int fd)
 {
+	cap_rights_t rights;
 	struct file *file;
 
-	if (fget_unlocked(curthread->td_proc->p_fd, fd, NULL, &file,
-	    NULL) != 0) {
+	if (fget_unlocked(curthread->td_proc->p_fd, fd,
+	    cap_rights_init(&rights), &file, NULL) != 0) {
 		return;
 	}
 	/*
@@ -91,10 +94,11 @@ put_unused_fd(unsigned int fd)
 static inline void
 fd_install(unsigned int fd, struct linux_file *filp)
 {
+	cap_rights_t rights;
 	struct file *file;
 
-	if (fget_unlocked(curthread->td_proc->p_fd, fd, NULL, &file,
-	    NULL) != 0) {
+	if (fget_unlocked(curthread->td_proc->p_fd, fd,
+	    cap_rights_init(&rights), &file, NULL) != 0) {
 		file = NULL;
 	}
 	filp->_file = file;

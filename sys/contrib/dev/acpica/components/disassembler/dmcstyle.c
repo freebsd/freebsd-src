@@ -337,23 +337,70 @@ AcpiDmCheckForSymbolicOpcode (
          */
         AcpiDmPromoteTarget (Op, Target);
 
-        /*
-         * Check for possible conversion to a "Compound Assignment".
-         *
-         * Determine if either operand is the same as the target
-         * and display compound assignment operator and other operand.
-         */
-        if ((AcpiDmIsTargetAnOperand (Target, Child1, TRUE)) ||
-            (AcpiDmIsTargetAnOperand (Target, Child2, TRUE)))
+        /* Check operands for conversion to a "Compound Assignment" */
+
+        switch (Op->Common.AmlOpcode)
         {
-            Target->Common.OperatorSymbol =
-                AcpiDmGetCompoundSymbol (Op->Common.AmlOpcode);
+            /* Commutative operators */
 
-            /* Convert operator to compound assignment */
+        case AML_ADD_OP:
+        case AML_MULTIPLY_OP:
+        case AML_BIT_AND_OP:
+        case AML_BIT_OR_OP:
+        case AML_BIT_XOR_OP:
+            /*
+             * For the commutative operators, we can convert to a
+             * compound statement only if at least one (either) operand
+             * is the same as the target.
+             *
+             *      Add (A, B, A) --> A += B
+             *      Add (B, A, A) --> A += B
+             *      Add (B, C, A) --> A = (B + C)
+             */
+            if ((AcpiDmIsTargetAnOperand (Target, Child1, TRUE)) ||
+                (AcpiDmIsTargetAnOperand (Target, Child2, TRUE)))
+            {
+                Target->Common.OperatorSymbol =
+                    AcpiDmGetCompoundSymbol (Op->Common.AmlOpcode);
 
-            Op->Common.DisasmFlags |= ACPI_PARSEOP_COMPOUND;
-            Child1->Common.OperatorSymbol = NULL;
-            return (TRUE);
+                /* Convert operator to compound assignment */
+
+                Op->Common.DisasmFlags |= ACPI_PARSEOP_COMPOUND;
+                Child1->Common.OperatorSymbol = NULL;
+                return (TRUE);
+            }
+            break;
+
+            /* Non-commutative operators */
+
+        case AML_SUBTRACT_OP:
+        case AML_DIVIDE_OP:
+        case AML_MOD_OP:
+        case AML_SHIFT_LEFT_OP:
+        case AML_SHIFT_RIGHT_OP:
+            /*
+             * For the non-commutative operators, we can convert to a
+             * compound statement only if the target is the same as the
+             * first operand.
+             *
+             *      Subtract (A, B, A) --> A -= B
+             *      Subtract (B, A, A) --> A = (B - A)
+             */
+            if ((AcpiDmIsTargetAnOperand (Target, Child1, TRUE)))
+            {
+                Target->Common.OperatorSymbol =
+                    AcpiDmGetCompoundSymbol (Op->Common.AmlOpcode);
+
+                /* Convert operator to compound assignment */
+
+                Op->Common.DisasmFlags |= ACPI_PARSEOP_COMPOUND;
+                Child1->Common.OperatorSymbol = NULL;
+                return (TRUE);
+            }
+            break;
+
+        default:
+            break;
         }
 
         /*
@@ -423,8 +470,12 @@ AcpiDmCheckForSymbolicOpcode (
          * source so that the target is processed first.
          */
         Target = Child1->Common.Next;
-        AcpiDmPromoteTarget (Op, Target);
+        if (!Target)
+        {
+            return (FALSE);
+        }
 
+        AcpiDmPromoteTarget (Op, Target);
         if (!Target->Common.OperatorSymbol)
         {
             Target->Common.OperatorSymbol = " = ";
@@ -674,7 +725,8 @@ AcpiDmPromoteTarget (
  *
  * DESCRIPTION: Determine if a Target Op is a placeholder Op or a real Target.
  *              In other words, determine if the optional target is used or
- *              not.
+ *              not. Note: If Target is NULL, something is seriously wrong,
+ *              probably with the parse tree.
  *
  ******************************************************************************/
 
@@ -682,6 +734,11 @@ static BOOLEAN
 AcpiDmIsValidTarget (
     ACPI_PARSE_OBJECT       *Target)
 {
+
+    if (!Target)
+    {
+        return (FALSE);
+    }
 
     if ((Target->Common.AmlOpcode == AML_INT_NAMEPATH_OP) &&
         (Target->Common.Value.Arg == NULL))

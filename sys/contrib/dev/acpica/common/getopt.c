@@ -145,7 +145,7 @@ AcpiGetopt(
         {
             return (ACPI_OPT_END);
         }
-        else if (ACPI_STRCMP (argv[AcpiGbl_Optind], "--") == 0)
+        else if (strcmp (argv[AcpiGbl_Optind], "--") == 0)
         {
             AcpiGbl_Optind++;
             return (ACPI_OPT_END);
@@ -159,7 +159,7 @@ AcpiGetopt(
     /* Make sure that the option is legal */
 
     if (CurrentChar == ':' ||
-       (OptsPtr = ACPI_STRCHR (opts, CurrentChar)) == NULL)
+       (OptsPtr = strchr (opts, CurrentChar)) == NULL)
     {
         ACPI_OPTION_ERROR ("Illegal option: -", CurrentChar);
 

@@ -47,7 +47,6 @@ __FBSDID("$FreeBSD$");
 #include <cam/ctl/ctl_io.h>
 #include <cam/ctl/ctl.h>
 #include <cam/ctl/ctl_frontend.h>
-#include <cam/ctl/ctl_frontend_internal.h>
 #include <cam/ctl/ctl_util.h>
 #include <cam/ctl/ctl_backend.h>
 #include <cam/ctl/ctl_ioctl.h>
@@ -69,8 +68,8 @@ static int tpcl_init(void);
 static void tpcl_shutdown(void);
 static void tpcl_online(void *arg);
 static void tpcl_offline(void *arg);
-static int tpcl_lun_enable(void *arg, struct ctl_id target_id, int lun_id);
-static int tpcl_lun_disable(void *arg, struct ctl_id target_id, int lun_id);
+static int tpcl_lun_enable(void *arg, int lun_id);
+static int tpcl_lun_disable(void *arg, int lun_id);
 static void tpcl_datamove(union ctl_io *io);
 static void tpcl_done(union ctl_io *io);
 
@@ -152,14 +151,14 @@ tpcl_offline(void *arg)
 }
 
 static int
-tpcl_lun_enable(void *arg, struct ctl_id target_id, int lun_id)
+tpcl_lun_enable(void *arg, int lun_id)
 {
 
 	return (0);
 }
 
 static int
-tpcl_lun_disable(void *arg, struct ctl_id target_id, int lun_id)
+tpcl_lun_disable(void *arg, int lun_id)
 {
 
 	return (0);

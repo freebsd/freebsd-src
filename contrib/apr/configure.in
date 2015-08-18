@@ -640,7 +640,20 @@ AC_ARG_ENABLE(nonportable-atomics,
 ],
 [case $host_cpu in
    i[[456]]86) force_generic_atomics=yes ;;
-   *) force_generic_atomics=no ;;
+   *) force_generic_atomics=no
+      case $host in
+         *solaris2.10*)
+            AC_TRY_COMPILE(
+                [#include <atomic.h>],
+                [void *ptr = NULL; atomic_cas_ptr(&ptr, NULL, NULL);],,
+                [force_generic_atomics=yes]
+            )
+            if test $force_generic_atomics = yes; then
+                AC_MSG_NOTICE([nonportable atomic support disabled, system needs Patch-ID 118884 or 118885])
+            fi
+            ;;
+      esac
+      ;;
 esac
 ])
 
@@ -1400,7 +1413,15 @@ if test "$native_mmap_emul" = "1"; then
     mmap="1"
 fi
 AC_CHECK_FUNCS(memmove, [ have_memmove="1" ], [have_memmove="0" ])
-AC_CHECK_FUNCS([getpass getpassphrase gmtime_r localtime_r mkstemp])
+AC_CHECK_FUNCS([getpass getpassphrase gmtime_r localtime_r])
+case $host in
+    *-hp-hpux*)
+        dnl mkstemp is limited to 26 temporary files (a-z); use APR replacement
+        ;;
+    *)
+        AC_CHECK_FUNCS(mkstemp)
+        ;;
+esac
 
 AC_SUBST(fork)
 AC_SUBST(have_inet_addr)
@@ -1801,7 +1822,15 @@ APR_CHECK_SIZEOF_EXTENDED([#include <sys/types.h>], off_t, 8)
 if test "${ac_cv_sizeof_off_t}${apr_cv_use_lfs64}" = "4yes"; then
     # Enable LFS
     aprlfs=1
-    AC_CHECK_FUNCS([mmap64 sendfile64 sendfilev64 mkstemp64 readdir64_r])
+    AC_CHECK_FUNCS([mmap64 sendfile64 sendfilev64 readdir64_r])
+    case $host in
+        *-hp-hpux*)
+            dnl mkstemp64 is limited to 26 temporary files (a-z); use APR replacement
+            ;;
+        *)
+            AC_CHECK_FUNCS(mkstemp64)
+            ;;
+    esac
 elif test "${ac_cv_sizeof_off_t}" != "${ac_cv_sizeof_size_t}"; then
     # unsure of using -gt above is as portable, can can't forsee where
     # off_t can legitimately be smaller than size_t

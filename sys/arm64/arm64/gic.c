@@ -51,11 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/intr.h>
 #include <machine/smp.h>
 
-#include <dev/fdt/fdt_common.h>
-#include <dev/ofw/openfirm.h>
-#include <dev/ofw/ofw_bus.h>
-#include <dev/ofw/ofw_bus_subr.h>
-
+#include <arm64/arm64/gic.h>
 
 #include "pic_if.h"
 
@@ -102,18 +98,6 @@ __FBSDID("$FreeBSD$");
 #define GICD_ICFGR_TRIG_EDGE	(1 << 1)
 #define GICD_ICFGR_TRIG_MASK	0x2
 
-struct arm_gic_softc {
-	device_t		gic_dev;
-	struct resource *	gic_res[3];
-	bus_space_tag_t		gic_c_bst;
-	bus_space_tag_t		gic_d_bst;
-	bus_space_handle_t	gic_c_bsh;
-	bus_space_handle_t	gic_d_bsh;
-	uint8_t			ver;
-	struct mtx		mutex;
-	uint32_t		nirqs;
-};
-
 static struct resource_spec arm_gic_spec[] = {
 	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },	/* Distributor registers */
 	{ SYS_RES_MEMORY,	1,	RF_ACTIVE },	/* CPU Interrupt Intf. registers */
@@ -135,31 +119,6 @@ static pic_dispatch_t gic_dispatch;
 static pic_eoi_t gic_eoi;
 static pic_mask_t gic_mask_irq;
 static pic_unmask_t gic_unmask_irq;
-
-static struct ofw_compat_data compat_data[] = {
-	{"arm,gic",		true},	/* Non-standard, used in FreeBSD dts. */
-	{"arm,gic-400",		true},
-	{"arm,cortex-a15-gic",	true},
-	{"arm,cortex-a9-gic",	true},
-	{"arm,cortex-a7-gic",	true},
-	{"arm,arm11mp-gic",	true},
-	{"brcm,brahma-b15-gic",	true},
-	{NULL,			false}
-};
-
-static int
-arm_gic_probe(device_t dev)
-{
-
-	if (!ofw_bus_status_okay(dev))
-		return (ENXIO);
-
-	if (!ofw_bus_search_compatible(dev, compat_data)->ocd_data)
-		return (ENXIO);
-
-	device_set_desc(dev, "ARM Generic Interrupt Controller");
-	return (BUS_PROBE_DEFAULT);
-}
 
 #ifdef SMP
 static void
@@ -367,7 +326,6 @@ arm_gic_ipi_clear(device_t dev, int ipi)
 
 static device_method_t arm_gic_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		arm_gic_probe),
 	DEVMETHOD(device_attach,	arm_gic_attach),
 
 	/* pic_if */
@@ -384,15 +342,5 @@ static device_method_t arm_gic_methods[] = {
 	{ 0, 0 }
 };
 
-static driver_t arm_gic_driver = {
-	"gic",
-	arm_gic_methods,
-	sizeof(struct arm_gic_softc),
-};
-
-static devclass_t arm_gic_devclass;
-
-EARLY_DRIVER_MODULE(gic, simplebus, arm_gic_driver, arm_gic_devclass, 0, 0,
-    BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
-EARLY_DRIVER_MODULE(gic, ofwbus, arm_gic_driver, arm_gic_devclass, 0, 0,
-    BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
+DEFINE_CLASS_0(gic, arm_gic_driver, arm_gic_methods,
+    sizeof(struct arm_gic_softc));

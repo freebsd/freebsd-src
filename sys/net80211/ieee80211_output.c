@@ -508,6 +508,26 @@ ieee80211_raw_output(struct ieee80211vap *vap, struct ieee80211_node *ni,
 {
 	struct ieee80211com *ic = vap->iv_ic;
 
+	/*
+	 * Set node - the caller has taken a reference, so ensure
+	 * that the mbuf has the same node value that
+	 * it would if it were going via the normal path.
+	 */
+	m->m_pkthdr.rcvif = (void *)ni;
+
+	/*
+	 * Attempt to add bpf transmit parameters.
+	 *
+	 * For now it's ok to fail; the raw_xmit api still takes
+	 * them as an option.
+	 *
+	 * Later on when ic_raw_xmit() has params removed,
+	 * they'll have to be added - so fail the transmit if
+	 * they can't be.
+	 */
+	if (params)
+		(void) ieee80211_add_xmit_params(m, params);
+
 	return (ic->ic_raw_xmit(ni, m, params));
 }
 

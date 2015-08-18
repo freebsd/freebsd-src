@@ -697,14 +697,14 @@ timepacket(
 	{
 	case CVT_FAIL:
 		parseio->parse_badformat++;
-		break;
+		return cvtrtc;
 
 	case CVT_NONE:
 		/*
 		 * too bad - pretend bad format
 		 */
 		parseio->parse_badformat++;
-		break;
+		return CVT_NONE;
 
 	case CVT_OK:
 		break;

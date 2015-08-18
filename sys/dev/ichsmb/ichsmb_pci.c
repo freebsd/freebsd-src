@@ -5,7 +5,7 @@
  * Copyright (c) 2000 Whistle Communications, Inc.
  * All rights reserved.
  * Author: Archie Cobbs <archie@freebsd.org>
- * 
+ *
  * Subject to the following obligations and disclaimer of warranty, use and
  * redistribution of this software, in source or object code forms, with or
  * without modifications are expressly permitted by Whistle Communications;
@@ -16,7 +16,7 @@
  *    Communications, Inc. trademarks, including the mark "WHISTLE
  *    COMMUNICATIONS" on advertising, endorsements, or otherwise except as
  *    such appears in the above copyright notice or in the software.
- * 
+ *
  * THIS SOFTWARE IS BEING PROVIDED BY WHISTLE COMMUNICATIONS "AS IS", AND
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, WHISTLE COMMUNICATIONS MAKES NO
  * REPRESENTATIONS OR WARRANTIES, EXPRESS OR IMPLIED, REGARDING THIS SOFTWARE,
@@ -91,6 +91,7 @@ __FBSDID("$FreeBSD$");
 #define ID_LPTLP			0x9c228086
 #define ID_WCPT				0x8ca28086
 #define ID_WCPTLP			0x9ca28086
+#define	ID_WELLSBURG			0x8d228086
 
 #define PCIS_SERIALBUS_SMBUS_PROGIF	0x00
 
@@ -211,6 +212,9 @@ ichsmb_pci_probe(device_t dev)
 		break;
 	case ID_COLETOCRK:
 		device_set_desc(dev, "Intel Coleto Creek SMBus controller");
+		break;
+	case ID_WELLSBURG:
+		device_set_desc(dev, "Intel Wellsburg SMBus controller");
 		break;
 	default:
 		return (ENXIO);

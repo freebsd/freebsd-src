@@ -44,7 +44,7 @@ monitor the operational status
 and determine the performance of
 <code>ntpd</code>, the NTP daemon.
 
-  <p>This document applies to version 4.2.8p2 of <code>ntpq</code>.
+  <p>This document applies to version 4.2.8p3 of <code>ntpq</code>.
 
 <ul class="menu">
 <li><a accesskey="1" href="#ntpq-Description">ntpq Description</a>
@@ -284,7 +284,9 @@ switch.
 <br><dt><code>keyid</code> <kbd>keyid</kbd><dd>This command allows the specification of a key number to be
 used to authenticate configuration requests. 
 This must correspond
-to a key number the server has been configured to use for this
+to the
+<code>controlkey</code>
+key number the server has been configured to use for this
 purpose. 
 <br><dt><code>keytype</code> <code>[md5 | OpenSSLDigestType]</code><dd>Specify the type of key to use for authenticating requests. 
 <code>md5</code>
@@ -484,7 +486,15 @@ multicast server
 <br><dt><code>offset</code><dd>offset of server relative to this host
 <br><dt><code>jitter</code><dd>jitter
 </dl>
-     <br><dt><code>pstats</code> <kbd>assocID</kbd><dd>Show the statistics for the peer with the given
+     <br><dt><code>apeers</code><dd>Display a list of peers in the form:
+     <pre class="example">          [tally]remote refid assid st t when pool reach delay offset jitter
+     </pre>
+     <p>where the output is just like the
+<code>peers</code>
+command except that the
+<code>refid</code>
+is displayed in hex format and the association number is also displayed. 
+<br><dt><code>pstats</code> <kbd>assocID</kbd><dd>Show the statistics for the peer with the given
 <kbd>assocID</kbd>. 
 <br><dt><code>readlist</code> <kbd>assocID</kbd><br><dt><code>rl</code> <kbd>assocID</kbd><dd>Read the system or peer variables included in the variable list. 
 <br><dt><code>readvar</code> <kbd>assocID</kbd> <kbd>name</kbd><code>[=</code><kbd>value</kbd><code>]</code> <code>[, ...]</code><br><dt><code>rv</code> <kbd>assocID</kbd> <kbd>name</kbd><code>[=</code><kbd>value</kbd><code>]</code> <code>[, ...]</code><dd>Display the specified variables. 
@@ -759,7 +769,7 @@ the usage text by passing it through a pager program.
 used to select the program, defaulting to <span class="file">more</span>.  Both will exit
 with a status code of 0.
 
-<pre class="example">ntpq - standard NTP query program - Ver. 4.2.8p2-RC3
+<pre class="example">ntpq - standard NTP query program - Ver. 4.2.8p3-RC3
 Usage:  ntpq [ -&lt;flag&gt; [&lt;val&gt;] | --&lt;name&gt;[{=| }&lt;val&gt;] ]... [ host ...]
   Flg Arg Option-Name    Description
    -4 no  ipv4           Force IPv4 DNS name resolution

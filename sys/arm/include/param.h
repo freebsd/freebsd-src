@@ -131,7 +131,7 @@
 #define KSTACK_GUARD_PAGES	1
 #endif /* !KSTACK_GUARD_PAGES */
 
-#define USPACE_SVC_STACK_TOP		(KSTACK_PAGES * PAGE_SIZE)
+#define USPACE_SVC_STACK_TOP		(kstack_pages * PAGE_SIZE)
 
 /*
  * Mach derived conversion macros

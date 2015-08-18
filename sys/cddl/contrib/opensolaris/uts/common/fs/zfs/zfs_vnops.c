@@ -2675,7 +2675,8 @@ zfs_readdir(vnode_t *vp, uio_t *uio, cred_t *cr, int *eofp, int *ncookies, u_lon
 
 		/* Prefetch znode */
 		if (prefetch)
-			dmu_prefetch(os, objnum, 0, 0);
+			dmu_prefetch(os, objnum, 0, 0, 0,
+			    ZIO_PRIORITY_SYNC_READ);
 
 	skip_entry:
 		/*
@@ -5733,8 +5734,6 @@ zfs_getpages(struct vnode *vp, vm_page_t *m, int count, int reqpage)
 	mreq = m[reqpage];
 	object = mreq->object;
 	error = 0;
-
-	KASSERT(vp->v_object == object, ("mismatching object"));
 
 	if (pcount > 1 && zp->z_blksz > PAGESIZE) {
 		startoff = rounddown(IDX_TO_OFF(mreq->pindex), zp->z_blksz);

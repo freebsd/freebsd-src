@@ -70,8 +70,6 @@ CFLAGS+=	-DUSB_GLOBAL_INCLUDE_FILE=\"${LIBUSB_GLOBAL_INCLUDE_FILE}\"
 CFLAGS+=	-I ../../sys
 .endif
 
-.include <bsd.lib.mk>
-
 # LibUSB v1.0
 MLINKS += libusb.3 libusb_init.3
 MLINKS += libusb.3 libusb_exit.3
@@ -259,3 +257,5 @@ MLINKS += libusb20.3 libusb20_me_decode.3
 MLINKS += libusb20.3 libusb20_desc_foreach.3
 MLINKS += libusb20.3 libusb20_strerror.3
 MLINKS += libusb20.3 libusb20_error_name.3
+
+.include <bsd.lib.mk>

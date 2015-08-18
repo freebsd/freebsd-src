@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2013, Intel Corporation 
+  Copyright (c) 2001-2015, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -322,6 +322,9 @@ static devclass_t igb_devclass;
 DRIVER_MODULE(igb, pci, igb_driver, igb_devclass, 0, 0);
 MODULE_DEPEND(igb, pci, 1, 1, 1);
 MODULE_DEPEND(igb, ether, 1, 1, 1);
+#ifdef DEV_NETMAP
+MODULE_DEPEND(igb, netmap, 1, 1, 1);
+#endif /* DEV_NETMAP */
 
 /*********************************************************************
  *  Tunable default values.
@@ -1905,9 +1908,6 @@ retry:
 				goto retry;
 			} else
 				return (error);
-		case ENOMEM:
-			txr->no_tx_dma_setup++;
-			return (error);
 		default:
 			txr->no_tx_dma_setup++;
 			m_freem(*m_headp);

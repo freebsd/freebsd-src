@@ -70,3 +70,17 @@ MK_${var}:=	no
 .for var in ${BROKEN_OPTIONS}
 MK_${var}:=	no
 .endfor
+
+.for vv in ${__DEFAULT_DEPENDENT_OPTIONS}
+.if defined(WITH_${vv:H}) && defined(WITHOUT_${vv:H})
+MK_${vv:H}?= no
+.elif defined(WITH_${vv:H})
+MK_${vv:H}?= yes
+.elif defined(WITHOUT_${vv:H})
+MK_${vv:H}?= no
+.else
+MK_${vv:H}?= ${MK_${vv:T}}
+.endif
+MK_${vv:H}:= ${MK_${vv:H}}
+.endfor
+.undef __DEFAULT_DEPENDENT_OPTIONS

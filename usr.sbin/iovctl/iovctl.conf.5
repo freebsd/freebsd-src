@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 21, 2014
+.Dd July 8, 2015
 .Dt IOVCTL.CONF 5
 .Os
 .Sh NAME
@@ -77,7 +77,7 @@ The second section type is the VF section.
 This section has the key "VF-" followed by a VF index.
 VF indices start at 0 and always increment by 1.
 Valid VF indices are in the range of 0 to
-.Po num_vfs - 1 Pc .
+.Pq num_vfs - 1 .
 The VF index must be given as a decimal integer with no leading zeros.
 This section defines configuration parameters that apply to a single VF.
 .Pp
@@ -103,13 +103,17 @@ xx:xx:xx:xx:xx:xx, where xx is one or two hexadecimal digits.
 .It string
 Accepts any string value.
 .It uint8_t
-Accepts any integer in the range 0-255, inclusive.
+Accepts any integer in the range 0 to 255, inclusive.
 .It uint16_t
-Accepts any integer in the range 0-65535, inclusive.
+Accepts any integer in the range 0 to 65535, inclusive.
 .It uint32_t
-Accepts any integer in the range 0-2**32, inclusive.
+Accepts any integer in the range 0 to
+.Pq 2**32 - 1 ,
+inclusive.
 .It uint64_t
-Accepts any integer in the range 0-2**64, inclusive.
+Accepts any integer in the range 0 to
+.Pq 2**64 - 1 ,
+inclusive.
 .El
 .Sh OPTIONS
 The following parameters are accepted by all PF drivers:

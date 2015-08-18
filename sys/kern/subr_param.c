@@ -139,13 +139,6 @@ SYSCTL_PROC(_kern, OID_AUTO, vm_guest, CTLFLAG_RD | CTLTYPE_STRING,
     "Virtual machine guest detected?");
 
 /*
- * These have to be allocated somewhere; allocating
- * them here forces loader errors if this file is omitted
- * (if they've been externed everywhere else; hah!).
- */
-struct	buf *swbuf;
-
-/*
  * The elements of this array are ordered based upon the values of the
  * corresponding enum VM_GUEST members.
  */
@@ -166,6 +159,9 @@ void
 init_param1(void)
 {
 
+#if !defined(__mips__) && !defined(__arm64__) && !defined(__sparc64__)
+	TUNABLE_INT_FETCH("kern.kstack_pages", &kstack_pages);
+#endif
 	hz = -1;
 	TUNABLE_INT_FETCH("kern.hz", &hz);
 	if (hz == -1)

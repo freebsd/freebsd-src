@@ -1,4 +1,3 @@
-
 /*-
  * Copyright 1986, Larry Wall
  * 
@@ -1410,13 +1409,14 @@ do_ed_script(void)
 	char	*t;
 	off_t	beginning_of_this_line;
 	FILE	*pipefp = NULL;
+	int	continuation;
 
 	if (!skip_rest_of_patch) {
 		if (copy_file(filearg[0], TMPOUTNAME) < 0) {
 			unlink(TMPOUTNAME);
 			fatal("can't create temp file %s", TMPOUTNAME);
 		}
-		snprintf(buf, buf_size, "%s%s%s", _PATH_ED,
+		snprintf(buf, buf_size, "%s%s%s", _PATH_RED,
 		    verbose ? " " : " -s ", TMPOUTNAME);
 		pipefp = popen(buf, "w");
 	}
@@ -1434,7 +1434,19 @@ do_ed_script(void)
 		    (*t == 'a' || *t == 'c' || *t == 'd' || *t == 'i' || *t == 's')) {
 			if (pipefp != NULL)
 				fputs(buf, pipefp);
-			if (*t != 'd') {
+			if (*t == 's') {
+				for (;;) {
+					continuation = 0;
+					t = strchr(buf, '\0') - 1;
+					while (--t >= buf && *t == '\\')
+						continuation = !continuation;
+					if (!continuation ||
+					    pgets(true) == 0)
+						break;
+					if (pipefp != NULL)
+						fputs(buf, pipefp);
+				}
+			} else if (*t != 'd') {
 				while (pgets(true)) {
 					p_input_line++;
 					if (pipefp != NULL)
@@ -1489,17 +1501,8 @@ posix_name(const struct file_name *names, bool assume_exists)
 	}
 	if (path == NULL && !assume_exists) {
 		/*
-		 * No files found, look for something we can checkout from
-		 * RCS/SCCS dirs.  Same order as above.
-		 */
-		for (i = 0; i < MAX_FILE; i++) {
-			if (names[i].path != NULL &&
-			    (path = checked_in(names[i].path)) != NULL)
-				break;
-		}
-		/*
-		 * Still no match?  Check to see if the diff could be creating
-		 * a new file.
+		 * No files found, check to see if the diff could be
+		 * creating a new file.
 		 */
 		if (path == NULL && ok_to_create_file &&
 		    names[NEW_FILE].path != NULL)
@@ -1510,7 +1513,7 @@ posix_name(const struct file_name *names, bool assume_exists)
 }
 
 static char *
-compare_names(const struct file_name *names, bool assume_exists, int phase)
+compare_names(const struct file_name *names, bool assume_exists)
 {
 	size_t min_components, min_baselen, min_len, tmp;
 	char *best = NULL;
@@ -1527,9 +1530,7 @@ compare_names(const struct file_name *names, bool assume_exists, int phase)
 	min_components = min_baselen = min_len = SIZE_MAX;
 	for (i = INDEX_FILE; i >= OLD_FILE; i--) {
 		path = names[i].path;
-		if (path == NULL ||
-		    (phase == 1 && !names[i].exists && !assume_exists) ||
-		    (phase == 2 && checked_in(path) == NULL))
+		if (path == NULL || (!names[i].exists && !assume_exists))
 			continue;
 		if ((tmp = num_components(path)) > min_components)
 			continue;
@@ -1560,17 +1561,11 @@ best_name(const struct file_name *names, bool assume_exists)
 {
 	char *best;
 
-	best = compare_names(names, assume_exists, 1);
-	if (best == NULL) {
-		best = compare_names(names, assume_exists, 2);
-		/*
-		 * Still no match?  Check to see if the diff could be creating
-		 * a new file.
-		 */
-		if (best == NULL && ok_to_create_file &&
-		    names[NEW_FILE].path != NULL)
-			best = names[NEW_FILE].path;
-	}
+	best = compare_names(names, assume_exists);
+
+	/* No match?  Check to see if the diff could be creating a new file. */
+	if (best == NULL && ok_to_create_file)
+		best = names[NEW_FILE].path;
 
 	return best ? xstrdup(best) : NULL;
 }

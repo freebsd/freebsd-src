@@ -647,10 +647,10 @@ VVAARRIIAABBLLEE AASSSSIIGGNNMMEENNTTSS
                      may be used.  This is especially useful with
                      `MAKEOBJDIR'.
 
-                     `_._O_B_J_D_I_R' may be modified in the makefile as a global
-                     variable.  In all cases, bbmmaakkee will chdir(2) to `_._O_B_J_D_I_R'
-                     and set `PWD' to that directory before executing any tar-
-                     gets.
+                     `_._O_B_J_D_I_R' may be modified in the makefile via the special
+                     target `..OOBBJJDDIIRR'.  In all cases, bbmmaakkee will chdir(2) to
+                     the specified directory if it exists, and set `_._O_B_J_D_I_R'
+                     and `PWD' to that directory before executing any targets.
 
      _._P_A_R_S_E_D_I_R       A path to the directory of the current `_M_a_k_e_f_i_l_e' being
                      parsed.
@@ -1271,6 +1271,9 @@ SSPPEECCIIAALL TTAARRGGEETTSS
               Synonym for ..NNOOTTPPAARRAALLLLEELL, for compatibility with other pmake
               variants.
 
+     ..OOBBJJDDIIRR  The source is a new value for `_._O_B_J_D_I_R'.  If it exists, bbmmaakkee
+              will chdir(2) to it and update the value of `_._O_B_J_D_I_R'.
+
      ..OORRDDEERR   The named targets are made in sequence.  This ordering does not
               add targets to the list of targets to be made.  Since the depen-
               dents of a target do not get built until the target itself could
@@ -1449,4 +1452,4 @@ BBUUGGSS
 
      There is no way of escaping a space character in a filename.
 
-NetBSD 5.1                       April 9, 2015                      NetBSD 5.1
+NetBSD 5.1                       June 4, 2015                       NetBSD 5.1

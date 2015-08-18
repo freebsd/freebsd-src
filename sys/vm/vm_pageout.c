@@ -566,11 +566,6 @@ vm_pageout_flush(vm_page_t *mc, int count, int flags, int mreq, int *prunlen,
 		if (pageout_status[i] != VM_PAGER_PEND) {
 			vm_object_pip_wakeup(object);
 			vm_page_sunbusy(mt);
-			if (vm_page_count_severe()) {
-				vm_page_lock(mt);
-				vm_page_try_to_cache(mt);
-				vm_page_unlock(mt);
-			}
 		}
 	}
 	if (prunlen != NULL)
@@ -1028,9 +1023,10 @@ vm_pageout_scan(struct vm_domain *vmd, int pass)
 	vm_page_t m, next;
 	struct vm_pagequeue *pq;
 	vm_object_t object;
+	long min_scan;
 	int act_delta, addl_page_shortage, deficit, maxscan, page_shortage;
 	int vnodes_skipped = 0;
-	int maxlaunder;
+	int maxlaunder, scan_tick, scanned;
 	boolean_t queues_locked;
 
 	/*
@@ -1159,6 +1155,17 @@ vm_pageout_scan(struct vm_domain *vmd, int pass)
 		queues_locked = FALSE;
 
 		/*
+		 * Invalid pages can be easily freed. They cannot be
+		 * mapped, vm_page_free() asserts this.
+		 */
+		if (m->valid == 0 && m->hold_count == 0) {
+			vm_page_free(m);
+			PCPU_INC(cnt.v_dfree);
+			--page_shortage;
+			goto drop_page;
+		}
+
+		/*
 		 * We bump the activation count if the page has been
 		 * referenced while in the inactive queue.  This makes
 		 * it less likely that the page will be added back to the
@@ -1192,15 +1199,10 @@ vm_pageout_scan(struct vm_domain *vmd, int pass)
 				queues_locked = TRUE;
 				vm_page_requeue_locked(m);
 			}
-			VM_OBJECT_WUNLOCK(object);
-			vm_page_unlock(m);
-			goto relock_queues;
+			goto drop_page;
 		}
 
 		if (m->hold_count != 0) {
-			vm_page_unlock(m);
-			VM_OBJECT_WUNLOCK(object);
-
 			/*
 			 * Held pages are essentially stuck in the
 			 * queue.  So, they ought to be discounted
@@ -1209,7 +1211,7 @@ vm_pageout_scan(struct vm_domain *vmd, int pass)
 			 * loop over the active queue below.
 			 */
 			addl_page_shortage++;
-			goto relock_queues;
+			goto drop_page;
 		}
 
 		/*
@@ -1220,23 +1222,18 @@ vm_pageout_scan(struct vm_domain *vmd, int pass)
 		 * then the page may still be modified until the last of those
 		 * mappings are removed.
 		 */
-		vm_page_test_dirty(m);
-		if (m->dirty == 0 && object->ref_count != 0)
-			pmap_remove_all(m);
+		if (object->ref_count != 0) {
+			vm_page_test_dirty(m);
+			if (m->dirty == 0)
+				pmap_remove_all(m);
+		}
 
-		if (m->valid == 0) {
+		if (m->dirty == 0) {
 			/*
-			 * Invalid pages can be easily freed
+			 * Clean pages can be freed.
 			 */
 			vm_page_free(m);
 			PCPU_INC(cnt.v_dfree);
-			--page_shortage;
-		} else if (m->dirty == 0) {
-			/*
-			 * Clean pages can be placed onto the cache queue.
-			 * This effectively frees them.
-			 */
-			vm_page_cache(m);
 			--page_shortage;
 		} else if ((m->flags & PG_WINATCFLS) == 0 && pass < 2) {
 			/*
@@ -1305,6 +1302,7 @@ vm_pageout_scan(struct vm_domain *vmd, int pass)
 			vm_page_lock_assert(m, MA_NOTOWNED);
 			goto relock_queues;
 		}
+drop_page:
 		vm_page_unlock(m);
 		VM_OBJECT_WUNLOCK(object);
 relock_queues:
@@ -1349,34 +1347,37 @@ relock_queues:
 	 * If we're just idle polling attempt to visit every
 	 * active page within 'update_period' seconds.
 	 */
-	if (pass == 0 && vm_pageout_update_period != 0) {
-		maxscan /= vm_pageout_update_period;
-		page_shortage = maxscan;
-	}
+	scan_tick = ticks;
+	if (vm_pageout_update_period != 0) {
+		min_scan = pq->pq_cnt;
+		min_scan *= scan_tick - vmd->vmd_last_active_scan;
+		min_scan /= hz * vm_pageout_update_period;
+	} else
+		min_scan = 0;
+	if (min_scan > 0 || (page_shortage > 0 && maxscan > 0))
+		vmd->vmd_last_active_scan = scan_tick;
 
 	/*
-	 * Scan the active queue for things we can deactivate. We nominally
-	 * track the per-page activity counter and use it to locate
-	 * deactivation candidates.
+	 * Scan the active queue for pages that can be deactivated.  Update
+	 * the per-page activity counter and use it to identify deactivation
+	 * candidates.
 	 */
-	m = TAILQ_FIRST(&pq->pq_pl);
-	while (m != NULL && maxscan-- > 0 && page_shortage > 0) {
+	for (m = TAILQ_FIRST(&pq->pq_pl), scanned = 0; m != NULL && (scanned <
+	    min_scan || (page_shortage > 0 && scanned < maxscan)); m = next,
+	    scanned++) {
 
 		KASSERT(m->queue == PQ_ACTIVE,
 		    ("vm_pageout_scan: page %p isn't active", m));
 
 		next = TAILQ_NEXT(m, plinks.q);
-		if ((m->flags & PG_MARKER) != 0) {
-			m = next;
+		if ((m->flags & PG_MARKER) != 0)
 			continue;
-		}
 		KASSERT((m->flags & PG_FICTITIOUS) == 0,
 		    ("Fictitious page %p cannot be in active queue", m));
 		KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 		    ("Unmanaged page %p cannot be in active queue", m));
 		if (!vm_pageout_page_lock(m, &next)) {
 			vm_page_unlock(m);
-			m = next;
 			continue;
 		}
 
@@ -1428,7 +1429,6 @@ relock_queues:
 		} else
 			vm_page_requeue_locked(m);
 		vm_page_unlock(m);
-		m = next;
 	}
 	vm_pagequeue_unlock(pq);
 #if !defined(NO_SWAPPING)
@@ -1618,6 +1618,7 @@ vm_pageout_worker(void *arg)
 	 */
 
 	KASSERT(domain->vmd_segs != 0, ("domain without segments"));
+	domain->vmd_last_active_scan = ticks;
 	vm_pageout_init_marker(&domain->vmd_marker, PQ_INACTIVE);
 
 	/*
@@ -1851,7 +1852,7 @@ again:
 			/*
 			 * get a limit
 			 */
-			lim_rlimit(p, RLIMIT_RSS, &rsslim);
+			lim_rlimit_proc(p, RLIMIT_RSS, &rsslim);
 			limit = OFF_TO_IDX(
 			    qmin(rsslim.rlim_cur, rsslim.rlim_max));
 

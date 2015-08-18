@@ -27,6 +27,7 @@
 #include <sys/param.h>
 #include <sys/queue.h>
 #include <ar.h>
+#include <assert.h>
 #include <ctype.h>
 #include <dwarf.h>
 #include <err.h>
@@ -314,6 +315,7 @@ static const char *dwarf_reg(unsigned int mach, unsigned int reg);
 static const char *dwarf_regname(struct readelf *re, unsigned int num);
 static struct dumpop *find_dumpop(struct readelf *re, size_t si,
     const char *sn, int op, int t);
+static int get_ent_count(struct section *s, int *ent_count);
 static char *get_regoff_str(struct readelf *re, Dwarf_Half reg,
     Dwarf_Addr off);
 static const char *get_string(struct readelf *re, int strtab, size_t off);
@@ -532,6 +534,7 @@ elf_machine(unsigned int mach)
 	case EM_ARCA: return "Arca RISC Microprocessor";
 	case EM_UNICORE: return "Microprocessor series from PKU-Unity Ltd";
 	case EM_AARCH64: return "AArch64";
+	case EM_RISCV: return "RISC-V";
 	default:
 		snprintf(s_mach, sizeof(s_mach), "<unknown: %#x>", mach);
 		return (s_mach);
@@ -2900,6 +2903,24 @@ dump_shdr(struct readelf *re)
 #undef	ST_CTL
 }
 
+/*
+ * Return number of entries in the given section. We'd prefer ent_count be a
+ * size_t *, but libelf APIs already use int for section indices.
+ */
+static int
+get_ent_count(struct section *s, int *ent_count)
+{
+	if (s->entsize == 0) {
+		warnx("section %s has entry size 0", s->name);
+		return (0);
+	} else if (s->sz / s->entsize > INT_MAX) {
+		warnx("section %s has invalid section count", s->name);
+		return (0);
+	}
+	*ent_count = (int)(s->sz / s->entsize);
+	return (1);
+}
+
 static void
 dump_dynamic(struct readelf *re)
 {
@@ -2928,8 +2949,8 @@ dump_dynamic(struct readelf *re)
 
 		/* Determine the actual number of table entries. */
 		nentries = 0;
-		jmax = (int) (s->sz / s->entsize);
-
+		if (!get_ent_count(s, &jmax))
+			continue;
 		for (j = 0; j < jmax; j++) {
 			if (gelf_getdyn(d, j, &dyn) != &dyn) {
 				warnx("gelf_getdyn failed: %s",
@@ -3175,7 +3196,9 @@ dump_rel(struct readelf *re, struct section *s, Elf_Data *d)
 		else
 			printf("%-12s %-12s %-19s %-16s %s\n", REL_HDR);
 	}
-	len = d->d_size / s->entsize;
+	assert(d->d_size == s->sz);
+	if (!get_ent_count(s, &len))
+		return;
 	for (i = 0; i < len; i++) {
 		if (gelf_getrel(d, i, &r) != &r) {
 			warnx("gelf_getrel failed: %s", elf_errmsg(-1));
@@ -3231,7 +3254,9 @@ dump_rela(struct readelf *re, struct section *s, Elf_Data *d)
 		else
 			printf("%-12s %-12s %-19s %-16s %s\n", RELA_HDR);
 	}
-	len = d->d_size / s->entsize;
+	assert(d->d_size == s->sz);
+	if (!get_ent_count(s, &len))
+		return;
 	for (i = 0; i < len; i++) {
 		if (gelf_getrela(d, i, &r) != &r) {
 			warnx("gelf_getrel failed: %s", elf_errmsg(-1));
@@ -3296,7 +3321,7 @@ dump_symtab(struct readelf *re, int i)
 	Elf_Data *d;
 	GElf_Sym sym;
 	const char *name;
-	int elferr, stab, j;
+	int elferr, stab, j, len;
 
 	s = &re->sl[i];
 	stab = s->link;
@@ -3309,12 +3334,14 @@ dump_symtab(struct readelf *re, int i)
 	}
 	if (d->d_size <= 0)
 		return;
+	if (!get_ent_count(s, &len))
+		return;
 	printf("Symbol table (%s)", s->name);
-	printf(" contains %ju entries:\n", s->sz / s->entsize);
+	printf(" contains %d entries:\n", len);
 	printf("%7s%9s%14s%5s%8s%6s%9s%5s\n", "Num:", "Value", "Size", "Type",
 	    "Bind", "Vis", "Ndx", "Name");
 
-	for (j = 0; (uint64_t)j < s->sz / s->entsize; j++) {
+	for (j = 0; j < len; j++) {
 		if (gelf_getsym(d, j, &sym) != &sym) {
 			warnx("gelf_getsym failed: %s", elf_errmsg(-1));
 			continue;
@@ -3352,7 +3379,7 @@ dump_symtabs(struct readelf *re)
 	Elf_Data *d;
 	struct section *s;
 	uint64_t dyn_off;
-	int elferr, i;
+	int elferr, i, len;
 
 	/*
 	 * If -D is specified, only dump the symbol table specified by
@@ -3377,8 +3404,10 @@ dump_symtabs(struct readelf *re)
 		}
 		if (d->d_size <= 0)
 			return;
+		if (!get_ent_count(s, &len))
+			return;
 
-		for (i = 0; (uint64_t)i < s->sz / s->entsize; i++) {
+		for (i = 0; i < len; i++) {
 			if (gelf_getdyn(d, i, &dyn) != &dyn) {
 				warnx("gelf_getdyn failed: %s", elf_errmsg(-1));
 				continue;
@@ -3566,7 +3595,8 @@ dump_gnu_hash(struct readelf *re, struct section *s)
 	maskwords = buf[2];
 	buf += 4;
 	ds = &re->sl[s->link];
-	dynsymcount = ds->sz / ds->entsize;
+	if (!get_ent_count(ds, &dynsymcount))
+		return;
 	nchain = dynsymcount - symndx;
 	if (d->d_size != 4 * sizeof(uint32_t) + maskwords *
 	    (re->ec == ELFCLASS32 ? sizeof(uint32_t) : sizeof(uint64_t)) +
@@ -3995,7 +4025,7 @@ dump_liblist(struct readelf *re)
 	char tbuf[20];
 	Elf_Data *d;
 	Elf_Lib *lib;
-	int i, j, k, elferr, first;
+	int i, j, k, elferr, first, len;
 
 	for (i = 0; (size_t) i < re->shnum; i++) {
 		s = &re->sl[i];
@@ -4012,8 +4042,10 @@ dump_liblist(struct readelf *re)
 		if (d->d_size <= 0)
 			continue;
 		lib = d->d_buf;
+		if (!get_ent_count(s, &len))
+			continue;
 		printf("\nLibrary list section '%s' ", s->name);
-		printf("contains %ju entries:\n", s->sz / s->entsize);
+		printf("contains %d entries:\n", len);
 		printf("%12s%24s%18s%10s%6s\n", "Library", "Time Stamp",
 		    "Checksum", "Version", "Flags");
 		for (j = 0; (uint64_t) j < s->sz / s->entsize; j++) {
@@ -4398,7 +4430,7 @@ static void
 dump_mips_reginfo(struct readelf *re, struct section *s)
 {
 	Elf_Data *d;
-	int elferr;
+	int elferr, len;
 
 	(void) elf_errno();
 	if ((d = elf_rawdata(s->scn, NULL)) == NULL) {
@@ -4410,9 +4442,10 @@ dump_mips_reginfo(struct readelf *re, struct section *s)
 	}
 	if (d->d_size <= 0)
 		return;
+	if (!get_ent_count(s, &len))
+		return;
 
-	printf("\nSection '%s' contains %ju entries:\n", s->name,
-	    s->sz / s->entsize);
+	printf("\nSection '%s' contains %d entries:\n", s->name, len);
 	dump_mips_odk_reginfo(re, d->d_buf, d->d_size);
 }
 

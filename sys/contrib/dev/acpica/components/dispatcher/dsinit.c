@@ -224,7 +224,7 @@ AcpiDsInitializeObjects (
 
     /* Set all init info to zero */
 
-    ACPI_MEMSET (&Info, 0, sizeof (ACPI_INIT_WALK_INFO));
+    memset (&Info, 0, sizeof (ACPI_INIT_WALK_INFO));
 
     Info.OwnerId = OwnerId;
     Info.TableIndex = TableIndex;

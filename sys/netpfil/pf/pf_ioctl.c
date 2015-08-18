@@ -1665,13 +1665,13 @@ relock_DIOCKILLSTATES:
 				if (s->direction == PF_OUT) {
 					srcaddr = &sk->addr[1];
 					dstaddr = &sk->addr[0];
-					srcport = sk->port[0];
+					srcport = sk->port[1];
 					dstport = sk->port[0];
 				} else {
 					srcaddr = &sk->addr[0];
 					dstaddr = &sk->addr[1];
 					srcport = sk->port[0];
-					dstport = sk->port[0];
+					dstport = sk->port[1];
 				}
 
 				if ((!psk->psk_af || sk->af == psk->psk_af)
@@ -2724,8 +2724,7 @@ DIOCCHANGEADDR_error:
 			error = ENODEV;
 			break;
 		}
-		totlen = (io->pfrio_size + io->pfrio_size2) *
-		    sizeof(struct pfr_addr);
+		totlen = io->pfrio_size * sizeof(struct pfr_addr);
 		pfras = malloc(totlen, M_TEMP, M_WAITOK);
 		error = copyin(io->pfrio_buffer, pfras, totlen);
 		if (error) {

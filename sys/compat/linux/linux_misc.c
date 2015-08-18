@@ -383,7 +383,7 @@ linux_uselib(struct thread *td, struct linux_uselib_args *args)
 	 */
 	PROC_LOCK(td->td_proc);
 	if (a_out->a_text > maxtsiz ||
-	    a_out->a_data + bss_size > lim_cur(td->td_proc, RLIMIT_DATA) ||
+	    a_out->a_data + bss_size > lim_cur_proc(td->td_proc, RLIMIT_DATA) ||
 	    racct_set(td->td_proc, RACCT_DATA, a_out->a_data +
 	    bss_size) != 0) {
 		PROC_UNLOCK(td->td_proc);
@@ -1420,7 +1420,6 @@ int
 linux_old_getrlimit(struct thread *td, struct linux_old_getrlimit_args *args)
 {
 	struct l_rlimit rlim;
-	struct proc *p = td->td_proc;
 	struct rlimit bsd_rlim;
 	u_int which;
 
@@ -1437,9 +1436,7 @@ linux_old_getrlimit(struct thread *td, struct linux_old_getrlimit_args *args)
 	if (which == -1)
 		return (EINVAL);
 
-	PROC_LOCK(p);
-	lim_rlimit(p, which, &bsd_rlim);
-	PROC_UNLOCK(p);
+	lim_rlimit(td, which, &bsd_rlim);
 
 #ifdef COMPAT_LINUX32
 	rlim.rlim_cur = (unsigned int)bsd_rlim.rlim_cur;
@@ -1464,7 +1461,6 @@ int
 linux_getrlimit(struct thread *td, struct linux_getrlimit_args *args)
 {
 	struct l_rlimit rlim;
-	struct proc *p = td->td_proc;
 	struct rlimit bsd_rlim;
 	u_int which;
 
@@ -1481,9 +1477,7 @@ linux_getrlimit(struct thread *td, struct linux_getrlimit_args *args)
 	if (which == -1)
 		return (EINVAL);
 
-	PROC_LOCK(p);
-	lim_rlimit(p, which, &bsd_rlim);
-	PROC_UNLOCK(p);
+	lim_rlimit(td, which, &bsd_rlim);
 
 	rlim.rlim_cur = (l_ulong)bsd_rlim.rlim_cur;
 	rlim.rlim_max = (l_ulong)bsd_rlim.rlim_max;
@@ -1845,7 +1839,7 @@ linux_exit_group(struct thread *td, struct linux_exit_group_args *args)
 	 * SIGNAL_EXIT_GROUP is set. We ignore that (temporarily?)
 	 * as it doesnt occur often.
 	 */
-	exit1(td, W_EXITCODE(args->error_code, 0));
+	exit1(td, args->error_code, 0);
 		/* NOTREACHED */
 }
 
@@ -2204,7 +2198,7 @@ linux_prlimit64(struct thread *td, struct linux_prlimit64_args *args)
 
 	if (args->old != NULL) {
 		PROC_LOCK(p);
-		lim_rlimit(p, which, &rlim);
+		lim_rlimit_proc(p, which, &rlim);
 		PROC_UNLOCK(p);
 		if (rlim.rlim_cur == RLIM_INFINITY)
 			lrlim.rlim_cur = LINUX_RLIM_INFINITY;

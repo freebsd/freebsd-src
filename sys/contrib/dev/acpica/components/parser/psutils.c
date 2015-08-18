@@ -64,12 +64,12 @@
 
 ACPI_PARSE_OBJECT *
 AcpiPsCreateScopeOp (
-    void)
+    UINT8                   *Aml)
 {
     ACPI_PARSE_OBJECT       *ScopeOp;
 
 
-    ScopeOp = AcpiPsAllocOp (AML_SCOPE_OP);
+    ScopeOp = AcpiPsAllocOp (AML_SCOPE_OP, Aml);
     if (!ScopeOp)
     {
         return (NULL);
@@ -104,7 +104,7 @@ AcpiPsInitOp (
     Op->Common.DescriptorType = ACPI_DESC_TYPE_PARSER;
     Op->Common.AmlOpcode = Opcode;
 
-    ACPI_DISASM_ONLY_MEMBERS (ACPI_STRNCPY (Op->Common.AmlOpName,
+    ACPI_DISASM_ONLY_MEMBERS (strncpy (Op->Common.AmlOpName,
             (AcpiPsGetOpcodeInfo (Opcode))->Name,
                 sizeof (Op->Common.AmlOpName)));
 }
@@ -115,6 +115,7 @@ AcpiPsInitOp (
  * FUNCTION:    AcpiPsAllocOp
  *
  * PARAMETERS:  Opcode          - Opcode that will be stored in the new Op
+ *              Aml             - Address of the opcode
  *
  * RETURN:      Pointer to the new Op, null on failure
  *
@@ -126,7 +127,8 @@ AcpiPsInitOp (
 
 ACPI_PARSE_OBJECT*
 AcpiPsAllocOp (
-    UINT16                  Opcode)
+    UINT16                  Opcode,
+    UINT8                   *Aml)
 {
     ACPI_PARSE_OBJECT       *Op;
     const ACPI_OPCODE_INFO  *OpInfo;
@@ -173,6 +175,7 @@ AcpiPsAllocOp (
     if (Op)
     {
         AcpiPsInitOp (Op, Opcode);
+        Op->Common.Aml = Aml;
         Op->Common.Flags = Flags;
     }
 

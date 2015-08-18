@@ -55,7 +55,6 @@ __FBSDID("$FreeBSD$");
 #include <cam/ctl/ctl_io.h>
 #include <cam/ctl/ctl.h>
 #include <cam/ctl/ctl_frontend.h>
-#include <cam/ctl/ctl_frontend_internal.h>
 #include <cam/ctl/ctl_backend.h>
 /* XXX KDM move defines from ctl_ioctl.h to somewhere else */
 #include <cam/ctl/ctl_ioctl.h>
@@ -301,6 +300,20 @@ ctl_port_set_wwns(struct ctl_port *port, int wwnn_valid, uint64_t wwnn,
 void
 ctl_port_online(struct ctl_port *port)
 {
+	struct ctl_softc *softc = control_softc;
+	struct ctl_lun *lun;
+	uint32_t l;
+
+	if (port->lun_map) {
+		for (l = 0; l < CTL_MAX_LUNS; l++) {
+			if (ctl_lun_map_from_port(port, l) >= CTL_MAX_LUNS)
+				continue;
+			port->lun_enable(port->targ_lun_arg, l);
+		}
+	} else {
+		STAILQ_FOREACH(lun, &softc->lun_list, links)
+			port->lun_enable(port->targ_lun_arg, lun->lun);
+	}
 	port->port_online(port->onoff_arg);
 	/* XXX KDM need a lock here? */
 	port->status |= CTL_PORT_STATUS_ONLINE;
@@ -309,7 +322,21 @@ ctl_port_online(struct ctl_port *port)
 void
 ctl_port_offline(struct ctl_port *port)
 {
+	struct ctl_softc *softc = control_softc;
+	struct ctl_lun *lun;
+	uint32_t l;
+
 	port->port_offline(port->onoff_arg);
+	if (port->lun_map) {
+		for (l = 0; l < CTL_MAX_LUNS; l++) {
+			if (ctl_lun_map_from_port(port, l) >= CTL_MAX_LUNS)
+				continue;
+			port->lun_disable(port->targ_lun_arg, l);
+		}
+	} else {
+		STAILQ_FOREACH(lun, &softc->lun_list, links)
+			port->lun_disable(port->targ_lun_arg, lun->lun);
+	}
 	/* XXX KDM need a lock here? */
 	port->status &= ~CTL_PORT_STATUS_ONLINE;
 }

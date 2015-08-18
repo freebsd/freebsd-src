@@ -485,6 +485,9 @@ acpi_ibm_attach(device_t dev)
 	/* Enable per-model events. */
 	maker = kern_getenv("smbios.system.maker");
 	product = kern_getenv("smbios.system.product");
+	if (maker == NULL || product == NULL)
+		goto nosmbios;
+
 	for (i = 0; i < nitems(acpi_ibm_models); i++) {
 		if (strcmp(maker, acpi_ibm_models[i].maker) == 0 &&
 		    strcmp(product, acpi_ibm_models[i].product) == 0) {
@@ -494,6 +497,8 @@ acpi_ibm_attach(device_t dev)
 			ACPI_SERIAL_END(ibm);
 		}
 	}
+
+nosmbios:
 	freeenv(maker);
 	freeenv(product);
 

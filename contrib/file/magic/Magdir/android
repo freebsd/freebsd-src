@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------
-# $File: android,v 1.7 2014/11/10 05:08:23 christos Exp $
+# $File: android,v 1.8 2015/03/19 18:04:37 christos Exp $
 # Various android related magic entries
 #------------------------------------------------------------
 
@@ -137,3 +137,9 @@
 >16		lelong	x			\b, Total of %d
 >12		lelong	x			\b %d-byte output blocks in
 >20		lelong	x			\b %d input chunks.
+
+# Android binary XML magic
+# In include/androidfw/ResourceTypes.h:
+# RES_XML_TYPE = 0x0003 followed by the size of the header (ResXMLTree_header),
+# which is 8 bytes (2 bytes type + 2 bytes header size + 4 bytes size).
+0	lelong	0x00080003	Android binary XML

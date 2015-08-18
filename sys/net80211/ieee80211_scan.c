@@ -71,15 +71,14 @@ __FBSDID("$FreeBSD$");
 void
 ieee80211_scan_attach(struct ieee80211com *ic)
 {
-
 	/*
-	 * For now, the swscan module does both the
-	 * allocation (so it can pad it) and sets up the net80211
-	 * bits.
-	 *
-	 * I'll split this stuff later.
+	 * If there's no scan method pointer, attach the
+	 * swscan set as a default.
 	 */
-	ieee80211_swscan_attach(ic);
+	if (ic->ic_scan_methods == NULL)
+		ieee80211_swscan_attach(ic);
+	else
+		ic->ic_scan_methods->sc_attach(ic);
 }
 
 void
@@ -88,12 +87,11 @@ ieee80211_scan_detach(struct ieee80211com *ic)
 
 	/*
 	 * Ideally we'd do the ss_ops detach call here;
-	 * but then ieee80211_swscan_detach would need
-	 * to be split in two.
+	 * but then sc_detach() would need to be split in two.
 	 *
 	 * I'll do that later.
 	 */
-	ieee80211_swscan_detach(ic);
+	ic->ic_scan_methods->sc_detach(ic);
 }
 
 static const struct ieee80211_roamparam defroam[IEEE80211_MODE_MAX] = {
@@ -122,6 +120,8 @@ static const struct ieee80211_roamparam defroam[IEEE80211_MODE_MAX] = {
 void
 ieee80211_scan_vattach(struct ieee80211vap *vap)
 {
+	struct ieee80211com *ic = vap->iv_ic;
+
 	vap->iv_bgscanidle = (IEEE80211_BGSCAN_IDLE_DEFAULT*1000)/hz;
 	vap->iv_bgscanintvl = IEEE80211_BGSCAN_INTVAL_DEFAULT*hz;
 	vap->iv_scanvalid = IEEE80211_SCAN_VALID_DEFAULT*hz;
@@ -129,7 +129,7 @@ ieee80211_scan_vattach(struct ieee80211vap *vap)
 	vap->iv_roaming = IEEE80211_ROAMING_AUTO;
 	memcpy(vap->iv_roamparms, defroam, sizeof(defroam));
 
-	ieee80211_swscan_vattach(vap);
+	ic->ic_scan_methods->sc_vattach(vap);
 }
 
 void
@@ -141,7 +141,7 @@ ieee80211_scan_vdetach(struct ieee80211vap *vap)
 	IEEE80211_LOCK(ic);
 	ss = ic->ic_scan;
 
-	ieee80211_swscan_vdetach(vap);
+	ic->ic_scan_methods->sc_vdetach(vap);
 
 	if (ss != NULL && ss->ss_vap == vap) {
 		if (ss->ss_ops != NULL) {
@@ -314,6 +314,7 @@ ieee80211_start_scan(struct ieee80211vap *vap, int flags,
 	u_int nssid, const struct ieee80211_scan_ssid ssids[])
 {
 	const struct ieee80211_scanner *scan;
+	struct ieee80211com *ic = vap->iv_ic;
 
 	scan = ieee80211_scanner_get(vap->iv_opmode);
 	if (scan == NULL) {
@@ -324,8 +325,7 @@ ieee80211_start_scan(struct ieee80211vap *vap, int flags,
 		return 0;
 	}
 
-	/* XXX ops */
-	return ieee80211_swscan_start_scan(scan, vap, flags, duration,
+	return ic->ic_scan_methods->sc_start_scan(scan, vap, flags, duration,
 	    mindwell, maxdwell, nssid, ssids);
 }
 
@@ -376,11 +376,10 @@ ieee80211_check_scan(struct ieee80211vap *vap, int flags,
 
 	/*
 	 * XXX TODO: separate things out a bit better.
-	 * XXX TODO: ops
 	 */
 	ieee80211_scan_update_locked(vap, scan);
 
-	result = ieee80211_swscan_check_scan(scan, vap, flags, duration,
+	result = ic->ic_scan_methods->sc_check_scan(scan, vap, flags, duration,
 	    mindwell, maxdwell, nssid, ssids);
 
 	IEEE80211_UNLOCK(ic);
@@ -408,6 +407,7 @@ ieee80211_check_scan_current(struct ieee80211vap *vap)
 int
 ieee80211_bg_scan(struct ieee80211vap *vap, int flags)
 {
+	struct ieee80211com *ic = vap->iv_ic;
 	const struct ieee80211_scanner *scan;
 
 	// IEEE80211_UNLOCK_ASSERT(sc);
@@ -425,10 +425,8 @@ ieee80211_bg_scan(struct ieee80211vap *vap, int flags)
 	 * XXX TODO: pull apart the bgscan logic into whatever
 	 * belongs here and whatever belongs in the software
 	 * scanner.
-	 *
-	 * XXX TODO: ops
 	 */
-	return (ieee80211_swscan_bg_scan(scan, vap, flags));
+	return (ic->ic_scan_methods->sc_bg_scan(scan, vap, flags));
 }
 
 /*
@@ -437,9 +435,9 @@ ieee80211_bg_scan(struct ieee80211vap *vap, int flags)
 void
 ieee80211_cancel_scan(struct ieee80211vap *vap)
 {
+	struct ieee80211com *ic = vap->iv_ic;
 
-	/* XXX TODO: ops */
-	ieee80211_swscan_cancel_scan(vap);
+	ic->ic_scan_methods->sc_cancel_scan(vap);
 }
 
 /*
@@ -448,9 +446,9 @@ ieee80211_cancel_scan(struct ieee80211vap *vap)
 void
 ieee80211_cancel_anyscan(struct ieee80211vap *vap)
 {
+	struct ieee80211com *ic = vap->iv_ic;
 
-	/* XXX TODO: ops */
-	ieee80211_swscan_cancel_anyscan(vap);
+	ic->ic_scan_methods->sc_cancel_anyscan(vap);
 }
 
 /*
@@ -460,9 +458,9 @@ ieee80211_cancel_anyscan(struct ieee80211vap *vap)
 void
 ieee80211_scan_next(struct ieee80211vap *vap)
 {
+	struct ieee80211com *ic = vap->iv_ic;
 
-	/* XXX TODO: ops */
-	ieee80211_swscan_scan_next(vap);
+	ic->ic_scan_methods->sc_scan_next(vap);
 }
 
 /*
@@ -481,8 +479,7 @@ ieee80211_scan_done(struct ieee80211vap *vap)
 	ss = ic->ic_scan;
 	ss->ss_next = ss->ss_last; /* all channels are complete */
 
-	/* XXX TODO: ops */
-	ieee80211_swscan_scan_done(vap);
+	ic->ic_scan_methods->sc_scan_done(vap);
 
 	IEEE80211_UNLOCK(ic);
 }
@@ -504,8 +501,7 @@ ieee80211_probe_curchan(struct ieee80211vap *vap, int force)
 		return;
 	}
 
-	/* XXX TODO: ops */
-	ieee80211_swscan_probe_curchan(vap, force);
+	ic->ic_scan_methods->sc_scan_probe_curchan(vap, force);
 }
 
 #ifdef IEEE80211_DEBUG
@@ -567,8 +563,9 @@ ieee80211_add_scan(struct ieee80211vap *vap,
 	const struct ieee80211_frame *wh,
 	int subtype, int rssi, int noise)
 {
+	struct ieee80211com *ic = vap->iv_ic;
 
-	return (ieee80211_swscan_add_scan(vap, curchan, sp, wh, subtype,
+	return (ic->ic_scan_methods->sc_add_scan(vap, curchan, sp, wh, subtype,
 	    rssi, noise));
 }
 

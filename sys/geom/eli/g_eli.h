@@ -94,6 +94,8 @@
 #define	G_ELI_FLAG_AUTH			0x00000010
 /* Provider is read-only, we should deny all write attempts. */
 #define	G_ELI_FLAG_RO			0x00000020
+/* Don't pass through BIO_DELETE requests. */
+#define	G_ELI_FLAG_NODELETE		0x00000040
 /* RUNTIME FLAGS. */
 /* Provider was open for writing. */
 #define	G_ELI_FLAG_WOPEN		0x00010000

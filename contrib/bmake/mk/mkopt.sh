@@ -1,5 +1,5 @@
 :
-# $Id: mkopt.sh,v 1.8 2014/11/15 07:07:18 sjg Exp $
+# $Id: mkopt.sh,v 1.10 2015/06/07 17:29:08 sjg Exp $
 #
 #	@(#) Copyright (c) 2014, Simon J. Gerraty
 #
@@ -19,9 +19,10 @@
 
 # no need to be included more than once
 _MKOPT_SH=:
+_MKOPT_PREFIX=${_MKOPT_PREFIX:-MK_}
 
 #
-# _mk_opt OPT default
+# _mk_opt default OPT
 #
 # Set MK_$OPT
 #
@@ -35,7 +36,7 @@ _MKOPT_SH=:
 #
 _mk_opt() {
     _d=$1
-    _mo=MK_$2 _wo=WITHOUT_$2 _wi=WITH_$2
+    _mo=${_MKOPT_PREFIX}$2 _wo=WITHOUT_$2 _wi=WITH_$2
     eval "_mov=\$$_mo _wov=\$$_wo _wiv=\$$_wi"
 
     case "$_wiv" in
@@ -63,15 +64,23 @@ _mk_opts() {
     _d=no
     for _o in "$@"
     do
-        case "$_o" in
+	case "$_o" in
+	*/*) # option is dirname default comes from basename
+	    eval "_d=\$${_MKOPT_PREFIX}${_o#*/}"
+	    _o=${_o%/*}
+	    ;;
 	yes|no) _d=$_o; continue;;
 	esac
 	_mk_opt $_d $_o
     done
 }
 
+# handle either options.mk style OPTIONS_DEFAULT_*
+# or FreeBSD's new bsd.mkopt.mk style __DEFAULT_*_OPTIONS
 _mk_opts_defaults() {
-    _mk_opts no $__DEFAULT_NO_OPTIONS yes $__DEFAULT_YES_OPTIONS
+    _mk_opts no $OPTIONS_DEFAULT_NO $__DEFAULT_NO_OPTIONS \
+	yes $OPTIONS_DEFAULT_YES $__DEFAULT_YES_OPTIONS \
+	$OPTIONS_DEFAULT_DEPENDENT $__DEFAULT_DEPENDENT_OPTIONS
 }
 
 case "/$0" in

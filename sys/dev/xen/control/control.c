@@ -145,9 +145,6 @@ __FBSDID("$FreeBSD$");
 
 #include <xen/xenbus/xenbusvar.h>
 
-#include <machine/xen/xenvar.h>
-#include <machine/xen/xenfunc.h>
-
 /*--------------------------- Forward Declarations --------------------------*/
 /** Function signature for shutdown event handlers. */
 typedef	void (xctrl_shutdown_handler_t)(void);

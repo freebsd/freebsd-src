@@ -72,7 +72,6 @@ __FBSDID("$FreeBSD$");
 #include <cam/ctl/ctl_io.h>
 #include <cam/ctl/ctl.h>
 #include <cam/ctl/ctl_frontend.h>
-#include <cam/ctl/ctl_frontend_internal.h>
 #include <cam/ctl/ctl_util.h>
 #include <cam/ctl/ctl_backend.h>
 #include <cam/ctl/ctl_ioctl.h>
@@ -374,32 +373,23 @@ SYSCTL_INT(_kern_cam_ctl, OID_AUTO, debug, CTLFLAG_RWTUN,
  */
 #define SCSI_EVPD_NUM_SUPPORTED_PAGES	10
 
+#ifdef notyet
 static void ctl_isc_event_handler(ctl_ha_channel chanel, ctl_ha_event event,
 				  int param);
 static void ctl_copy_sense_data(union ctl_ha_msg *src, union ctl_io *dest);
+#endif
 static int ctl_init(void);
 void ctl_shutdown(void);
 static int ctl_open(struct cdev *dev, int flags, int fmt, struct thread *td);
 static int ctl_close(struct cdev *dev, int flags, int fmt, struct thread *td);
-static void ctl_ioctl_online(void *arg);
-static void ctl_ioctl_offline(void *arg);
-static int ctl_ioctl_lun_enable(void *arg, struct ctl_id targ_id, int lun_id);
-static int ctl_ioctl_lun_disable(void *arg, struct ctl_id targ_id, int lun_id);
-static int ctl_ioctl_do_datamove(struct ctl_scsiio *ctsio);
 static int ctl_serialize_other_sc_cmd(struct ctl_scsiio *ctsio);
-static int ctl_ioctl_submit_wait(union ctl_io *io);
-static void ctl_ioctl_datamove(union ctl_io *io);
-static void ctl_ioctl_done(union ctl_io *io);
-static void ctl_ioctl_hard_startstop_callback(void *arg,
-					      struct cfi_metatask *metatask);
-static void ctl_ioctl_bbrread_callback(void *arg,struct cfi_metatask *metatask);
 static int ctl_ioctl_fill_ooa(struct ctl_lun *lun, uint32_t *cur_fill_num,
 			      struct ctl_ooa *ooa_hdr,
 			      struct ctl_ooa_entry *kern_entries);
 static int ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 		     struct thread *td);
 static int ctl_alloc_lun(struct ctl_softc *ctl_softc, struct ctl_lun *lun,
-			 struct ctl_be_lun *be_lun, struct ctl_id target_id);
+			 struct ctl_be_lun *be_lun);
 static int ctl_free_lun(struct ctl_lun *lun);
 static void ctl_create_lun(struct ctl_be_lun *be_lun);
 static struct ctl_port * ctl_io_port(struct ctl_io_hdr *io_hdr);
@@ -444,7 +434,9 @@ static int ctl_scsiio_lun_check(struct ctl_lun *lun,
 				const struct ctl_cmd_entry *entry,
 				struct ctl_scsiio *ctsio);
 //static int ctl_check_rtr(union ctl_io *pending_io, struct ctl_softc *softc);
+#ifdef notyet
 static void ctl_failover(void);
+#endif
 static void ctl_clear_ua(struct ctl_softc *ctl_softc, uint32_t initidx,
 			 ctl_ua_type ua_type);
 static int ctl_scsiio_precheck(struct ctl_softc *ctl_softc,
@@ -483,7 +475,9 @@ static void ctl_work_thread(void *arg);
 static void ctl_enqueue_incoming(union ctl_io *io);
 static void ctl_enqueue_rtr(union ctl_io *io);
 static void ctl_enqueue_done(union ctl_io *io);
+#ifdef notyet
 static void ctl_enqueue_isc(union ctl_io *io);
+#endif
 static const struct ctl_cmd_entry *
     ctl_get_cmd_entry(struct ctl_scsiio *ctsio, int *sa);
 static const struct ctl_cmd_entry *
@@ -511,7 +505,6 @@ static struct cdevsw ctl_cdevsw = {
 
 
 MALLOC_DEFINE(M_CTL, "ctlmem", "Memory used for CTL");
-MALLOC_DEFINE(M_CTLIO, "ctlio", "Memory used for CTL requests");
 
 static int ctl_module_event_handler(module_t, int /*modeventtype_t*/, void *);
 
@@ -524,11 +517,7 @@ static moduledata_t ctl_moduledata = {
 DECLARE_MODULE(ctl, ctl_moduledata, SI_SUB_CONFIGURE, SI_ORDER_THIRD);
 MODULE_VERSION(ctl, 1);
 
-static struct ctl_frontend ioctl_frontend =
-{
-	.name = "ioctl",
-};
-
+#ifdef notyet
 static void
 ctl_isc_handler_finish_xfer(struct ctl_softc *ctl_softc,
 			    union ctl_ha_msg *msg_info)
@@ -963,6 +952,7 @@ ctl_copy_sense_data(union ctl_ha_msg *src, union ctl_io *dest)
 	dest->scsiio.sense_len = src->scsi.sense_len;
 	dest->io_hdr.status = src->hdr.status;
 }
+#endif
 
 static void
 ctl_est_ua(struct ctl_lun *lun, uint32_t initidx, ctl_ua_type ua)
@@ -1057,7 +1047,6 @@ ctl_init(void)
 {
 	struct ctl_softc *softc;
 	void *other_pool;
-	struct ctl_port *port;
 	int i, error, retval;
 	//int isc_retval;
 
@@ -1128,13 +1117,6 @@ ctl_init(void)
 		softc->port_offset = (softc->ha_id - 1) * CTL_MAX_PORTS;
 	softc->persis_offset = softc->port_offset * CTL_MAX_INIT_PER_PORT;
 
-	/*
-	 * XXX KDM need to figure out where we want to get our target ID
-	 * and WWID.  Is it different on each port?
-	 */
-	softc->target.id = 0;
-	softc->target.wwid[0] = 0x12345678;
-	softc->target.wwid[1] = 0x87654321;
 	STAILQ_INIT(&softc->lun_list);
 	STAILQ_INIT(&softc->pending_lun_queue);
 	STAILQ_INIT(&softc->fe_list);
@@ -1188,34 +1170,6 @@ ctl_init(void)
 		ctl_pool_free(other_pool);
 		return (error);
 	}
-	if (bootverbose)
-		printf("ctl: CAM Target Layer loaded\n");
-
-	/*
-	 * Initialize the ioctl front end.
-	 */
-	ctl_frontend_register(&ioctl_frontend);
-	port = &softc->ioctl_info.port;
-	port->frontend = &ioctl_frontend;
-	sprintf(softc->ioctl_info.port_name, "ioctl");
-	port->port_type = CTL_PORT_IOCTL;
-	port->num_requested_ctl_io = 100;
-	port->port_name = softc->ioctl_info.port_name;
-	port->port_online = ctl_ioctl_online;
-	port->port_offline = ctl_ioctl_offline;
-	port->onoff_arg = &softc->ioctl_info;
-	port->lun_enable = ctl_ioctl_lun_enable;
-	port->lun_disable = ctl_ioctl_lun_disable;
-	port->targ_lun_arg = &softc->ioctl_info;
-	port->fe_datamove = ctl_ioctl_datamove;
-	port->fe_done = ctl_ioctl_done;
-	port->max_targets = 15;
-	port->max_target_id = 15;
-
-	if (ctl_port_register(&softc->ioctl_info.port) != 0) {
-		printf("ctl: ioctl front end registration failed, will "
-		       "continue anyway\n");
-	}
 
 	SYSCTL_ADD_PROC(&softc->sysctl_ctx,SYSCTL_CHILDREN(softc->sysctl_tree),
 	    OID_AUTO, "ha_state", CTLTYPE_INT | CTLFLAG_RWTUN,
@@ -1240,9 +1194,6 @@ ctl_shutdown(void)
 
 	softc = (struct ctl_softc *)control_softc;
 
-	if (ctl_port_deregister(&softc->ioctl_info.port) != 0)
-		printf("ctl: ioctl front end deregistration failed\n");
-
 	mtx_lock(&softc->ctl_lock);
 
 	/*
@@ -1254,8 +1205,6 @@ ctl_shutdown(void)
 	}
 
 	mtx_unlock(&softc->ctl_lock);
-
-	ctl_frontend_deregister(&ioctl_frontend);
 
 #if 0
 	ctl_shutdown_thread(softc->work_thread);
@@ -1272,9 +1221,6 @@ ctl_shutdown(void)
 
 	free(control_softc, M_DEVBUF);
 	control_softc = NULL;
-
-	if (bootverbose)
-		printf("ctl: CAM Target Layer unloaded\n");
 }
 
 static int
@@ -1429,26 +1375,6 @@ ctl_port_list(struct ctl_port_entry *entries, int num_entries_alloced,
 	*num_entries_filled = entries_filled;
 
 	return (retval);
-}
-
-static void
-ctl_ioctl_online(void *arg)
-{
-	struct ctl_ioctl_info *ioctl_info;
-
-	ioctl_info = (struct ctl_ioctl_info *)arg;
-
-	ioctl_info->flags |= CTL_IOCTL_FLAG_ENABLED;
-}
-
-static void
-ctl_ioctl_offline(void *arg)
-{
-	struct ctl_ioctl_info *ioctl_info;
-
-	ioctl_info = (struct ctl_ioctl_info *)arg;
-
-	ioctl_info->flags &= ~CTL_IOCTL_FLAG_ENABLED;
 }
 
 /*
@@ -1646,181 +1572,6 @@ ctl_create_iid(struct ctl_port *port, int iid, uint8_t *buf)
 	}
 }
 
-static int
-ctl_ioctl_lun_enable(void *arg, struct ctl_id targ_id, int lun_id)
-{
-	return (0);
-}
-
-static int
-ctl_ioctl_lun_disable(void *arg, struct ctl_id targ_id, int lun_id)
-{
-	return (0);
-}
-
-/*
- * Data movement routine for the CTL ioctl frontend port.
- */
-static int
-ctl_ioctl_do_datamove(struct ctl_scsiio *ctsio)
-{
-	struct ctl_sg_entry *ext_sglist, *kern_sglist;
-	struct ctl_sg_entry ext_entry, kern_entry;
-	int ext_sglen, ext_sg_entries, kern_sg_entries;
-	int ext_sg_start, ext_offset;
-	int len_to_copy, len_copied;
-	int kern_watermark, ext_watermark;
-	int ext_sglist_malloced;
-	int i, j;
-
-	ext_sglist_malloced = 0;
-	ext_sg_start = 0;
-	ext_offset = 0;
-
-	CTL_DEBUG_PRINT(("ctl_ioctl_do_datamove\n"));
-
-	/*
-	 * If this flag is set, fake the data transfer.
-	 */
-	if (ctsio->io_hdr.flags & CTL_FLAG_NO_DATAMOVE) {
-		ctsio->ext_data_filled = ctsio->ext_data_len;
-		goto bailout;
-	}
-
-	/*
-	 * To simplify things here, if we have a single buffer, stick it in
-	 * a S/G entry and just make it a single entry S/G list.
-	 */
-	if (ctsio->io_hdr.flags & CTL_FLAG_EDPTR_SGLIST) {
-		int len_seen;
-
-		ext_sglen = ctsio->ext_sg_entries * sizeof(*ext_sglist);
-
-		ext_sglist = (struct ctl_sg_entry *)malloc(ext_sglen, M_CTL,
-							   M_WAITOK);
-		ext_sglist_malloced = 1;
-		if (copyin(ctsio->ext_data_ptr, ext_sglist,
-				   ext_sglen) != 0) {
-			ctl_set_internal_failure(ctsio,
-						 /*sks_valid*/ 0,
-						 /*retry_count*/ 0);
-			goto bailout;
-		}
-		ext_sg_entries = ctsio->ext_sg_entries;
-		len_seen = 0;
-		for (i = 0; i < ext_sg_entries; i++) {
-			if ((len_seen + ext_sglist[i].len) >=
-			     ctsio->ext_data_filled) {
-				ext_sg_start = i;
-				ext_offset = ctsio->ext_data_filled - len_seen;
-				break;
-			}
-			len_seen += ext_sglist[i].len;
-		}
-	} else {
-		ext_sglist = &ext_entry;
-		ext_sglist->addr = ctsio->ext_data_ptr;
-		ext_sglist->len = ctsio->ext_data_len;
-		ext_sg_entries = 1;
-		ext_sg_start = 0;
-		ext_offset = ctsio->ext_data_filled;
-	}
-
-	if (ctsio->kern_sg_entries > 0) {
-		kern_sglist = (struct ctl_sg_entry *)ctsio->kern_data_ptr;
-		kern_sg_entries = ctsio->kern_sg_entries;
-	} else {
-		kern_sglist = &kern_entry;
-		kern_sglist->addr = ctsio->kern_data_ptr;
-		kern_sglist->len = ctsio->kern_data_len;
-		kern_sg_entries = 1;
-	}
-
-
-	kern_watermark = 0;
-	ext_watermark = ext_offset;
-	len_copied = 0;
-	for (i = ext_sg_start, j = 0;
-	     i < ext_sg_entries && j < kern_sg_entries;) {
-		uint8_t *ext_ptr, *kern_ptr;
-
-		len_to_copy = MIN(ext_sglist[i].len - ext_watermark,
-				  kern_sglist[j].len - kern_watermark);
-
-		ext_ptr = (uint8_t *)ext_sglist[i].addr;
-		ext_ptr = ext_ptr + ext_watermark;
-		if (ctsio->io_hdr.flags & CTL_FLAG_BUS_ADDR) {
-			/*
-			 * XXX KDM fix this!
-			 */
-			panic("need to implement bus address support");
-#if 0
-			kern_ptr = bus_to_virt(kern_sglist[j].addr);
-#endif
-		} else
-			kern_ptr = (uint8_t *)kern_sglist[j].addr;
-		kern_ptr = kern_ptr + kern_watermark;
-
-		kern_watermark += len_to_copy;
-		ext_watermark += len_to_copy;
-
-		if ((ctsio->io_hdr.flags & CTL_FLAG_DATA_MASK) ==
-		     CTL_FLAG_DATA_IN) {
-			CTL_DEBUG_PRINT(("ctl_ioctl_do_datamove: copying %d "
-					 "bytes to user\n", len_to_copy));
-			CTL_DEBUG_PRINT(("ctl_ioctl_do_datamove: from %p "
-					 "to %p\n", kern_ptr, ext_ptr));
-			if (copyout(kern_ptr, ext_ptr, len_to_copy) != 0) {
-				ctl_set_internal_failure(ctsio,
-							 /*sks_valid*/ 0,
-							 /*retry_count*/ 0);
-				goto bailout;
-			}
-		} else {
-			CTL_DEBUG_PRINT(("ctl_ioctl_do_datamove: copying %d "
-					 "bytes from user\n", len_to_copy));
-			CTL_DEBUG_PRINT(("ctl_ioctl_do_datamove: from %p "
-					 "to %p\n", ext_ptr, kern_ptr));
-			if (copyin(ext_ptr, kern_ptr, len_to_copy)!= 0){
-				ctl_set_internal_failure(ctsio,
-							 /*sks_valid*/ 0,
-							 /*retry_count*/0);
-				goto bailout;
-			}
-		}
-
-		len_copied += len_to_copy;
-
-		if (ext_sglist[i].len == ext_watermark) {
-			i++;
-			ext_watermark = 0;
-		}
-
-		if (kern_sglist[j].len == kern_watermark) {
-			j++;
-			kern_watermark = 0;
-		}
-	}
-
-	ctsio->ext_data_filled += len_copied;
-
-	CTL_DEBUG_PRINT(("ctl_ioctl_do_datamove: ext_sg_entries: %d, "
-			 "kern_sg_entries: %d\n", ext_sg_entries,
-			 kern_sg_entries));
-	CTL_DEBUG_PRINT(("ctl_ioctl_do_datamove: ext_data_len = %d, "
-			 "kern_data_len = %d\n", ctsio->ext_data_len,
-			 ctsio->kern_data_len));
-
-
-	/* XXX KDM set residual?? */
-bailout:
-
-	if (ext_sglist_malloced != 0)
-		free(ext_sglist, M_CTL);
-
-	return (CTL_RETVAL_COMPLETE);
-}
-
 /*
  * Serialize a command that went down the "wrong" side, and so was sent to
  * this controller for execution.  The logic is a little different than the
@@ -1985,149 +1736,6 @@ ctl_serialize_other_sc_cmd(struct ctl_scsiio *ctsio)
 	}
 	mtx_unlock(&lun->lun_lock);
 	return (retval);
-}
-
-static int
-ctl_ioctl_submit_wait(union ctl_io *io)
-{
-	struct ctl_fe_ioctl_params params;
-	ctl_fe_ioctl_state last_state;
-	int done, retval;
-
-	retval = 0;
-
-	bzero(&params, sizeof(params));
-
-	mtx_init(&params.ioctl_mtx, "ctliocmtx", NULL, MTX_DEF);
-	cv_init(&params.sem, "ctlioccv");
-	params.state = CTL_IOCTL_INPROG;
-	last_state = params.state;
-
-	io->io_hdr.ctl_private[CTL_PRIV_FRONTEND].ptr = &params;
-
-	CTL_DEBUG_PRINT(("ctl_ioctl_submit_wait\n"));
-
-	/* This shouldn't happen */
-	if ((retval = ctl_queue(io)) != CTL_RETVAL_COMPLETE)
-		return (retval);
-
-	done = 0;
-
-	do {
-		mtx_lock(&params.ioctl_mtx);
-		/*
-		 * Check the state here, and don't sleep if the state has
-		 * already changed (i.e. wakeup has already occured, but we
-		 * weren't waiting yet).
-		 */
-		if (params.state == last_state) {
-			/* XXX KDM cv_wait_sig instead? */
-			cv_wait(&params.sem, &params.ioctl_mtx);
-		}
-		last_state = params.state;
-
-		switch (params.state) {
-		case CTL_IOCTL_INPROG:
-			/* Why did we wake up? */
-			/* XXX KDM error here? */
-			mtx_unlock(&params.ioctl_mtx);
-			break;
-		case CTL_IOCTL_DATAMOVE:
-			CTL_DEBUG_PRINT(("got CTL_IOCTL_DATAMOVE\n"));
-
-			/*
-			 * change last_state back to INPROG to avoid
-			 * deadlock on subsequent data moves.
-			 */
-			params.state = last_state = CTL_IOCTL_INPROG;
-
-			mtx_unlock(&params.ioctl_mtx);
-			ctl_ioctl_do_datamove(&io->scsiio);
-			/*
-			 * Note that in some cases, most notably writes,
-			 * this will queue the I/O and call us back later.
-			 * In other cases, generally reads, this routine
-			 * will immediately call back and wake us up,
-			 * probably using our own context.
-			 */
-			io->scsiio.be_move_done(io);
-			break;
-		case CTL_IOCTL_DONE:
-			mtx_unlock(&params.ioctl_mtx);
-			CTL_DEBUG_PRINT(("got CTL_IOCTL_DONE\n"));
-			done = 1;
-			break;
-		default:
-			mtx_unlock(&params.ioctl_mtx);
-			/* XXX KDM error here? */
-			break;
-		}
-	} while (done == 0);
-
-	mtx_destroy(&params.ioctl_mtx);
-	cv_destroy(&params.sem);
-
-	return (CTL_RETVAL_COMPLETE);
-}
-
-static void
-ctl_ioctl_datamove(union ctl_io *io)
-{
-	struct ctl_fe_ioctl_params *params;
-
-	params = (struct ctl_fe_ioctl_params *)
-		io->io_hdr.ctl_private[CTL_PRIV_FRONTEND].ptr;
-
-	mtx_lock(&params->ioctl_mtx);
-	params->state = CTL_IOCTL_DATAMOVE;
-	cv_broadcast(&params->sem);
-	mtx_unlock(&params->ioctl_mtx);
-}
-
-static void
-ctl_ioctl_done(union ctl_io *io)
-{
-	struct ctl_fe_ioctl_params *params;
-
-	params = (struct ctl_fe_ioctl_params *)
-		io->io_hdr.ctl_private[CTL_PRIV_FRONTEND].ptr;
-
-	mtx_lock(&params->ioctl_mtx);
-	params->state = CTL_IOCTL_DONE;
-	cv_broadcast(&params->sem);
-	mtx_unlock(&params->ioctl_mtx);
-}
-
-static void
-ctl_ioctl_hard_startstop_callback(void *arg, struct cfi_metatask *metatask)
-{
-	struct ctl_fe_ioctl_startstop_info *sd_info;
-
-	sd_info = (struct ctl_fe_ioctl_startstop_info *)arg;
-
-	sd_info->hs_info.status = metatask->status;
-	sd_info->hs_info.total_luns = metatask->taskinfo.startstop.total_luns;
-	sd_info->hs_info.luns_complete =
-		metatask->taskinfo.startstop.luns_complete;
-	sd_info->hs_info.luns_failed = metatask->taskinfo.startstop.luns_failed;
-
-	cv_broadcast(&sd_info->sem);
-}
-
-static void
-ctl_ioctl_bbrread_callback(void *arg, struct cfi_metatask *metatask)
-{
-	struct ctl_fe_ioctl_bbrread_info *fe_bbr_info;
-
-	fe_bbr_info = (struct ctl_fe_ioctl_bbrread_info *)arg;
-
-	mtx_lock(fe_bbr_info->lock);
-	fe_bbr_info->bbr_info->status = metatask->status;
-	fe_bbr_info->bbr_info->bbr_status = metatask->taskinfo.bbrread.status;
-	fe_bbr_info->wakeup_done = 1;
-	mtx_unlock(fe_bbr_info->lock);
-
-	cv_broadcast(&fe_bbr_info->sem);
 }
 
 /*
@@ -2372,57 +1980,9 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 	retval = 0;
 
 	switch (cmd) {
-	case CTL_IO: {
-		union ctl_io *io;
-		void *pool_tmp;
-
-		/*
-		 * If we haven't been "enabled", don't allow any SCSI I/O
-		 * to this FETD.
-		 */
-		if ((softc->ioctl_info.flags & CTL_IOCTL_FLAG_ENABLED) == 0) {
-			retval = EPERM;
-			break;
-		}
-
-		io = ctl_alloc_io(softc->ioctl_info.port.ctl_pool_ref);
-
-		/*
-		 * Need to save the pool reference so it doesn't get
-		 * spammed by the user's ctl_io.
-		 */
-		pool_tmp = io->io_hdr.pool;
-		memcpy(io, (void *)addr, sizeof(*io));
-		io->io_hdr.pool = pool_tmp;
-
-		/*
-		 * No status yet, so make sure the status is set properly.
-		 */
-		io->io_hdr.status = CTL_STATUS_NONE;
-
-		/*
-		 * The user sets the initiator ID, target and LUN IDs.
-		 */
-		io->io_hdr.nexus.targ_port = softc->ioctl_info.port.targ_port;
-		io->io_hdr.flags |= CTL_FLAG_USER_REQ;
-		if ((io->io_hdr.io_type == CTL_IO_SCSI)
-		 && (io->scsiio.tag_type != CTL_TAG_UNTAGGED))
-			io->scsiio.tag_num = softc->ioctl_info.cur_tag_num++;
-
-		retval = ctl_ioctl_submit_wait(io);
-
-		if (retval != 0) {
-			ctl_free_io(io);
-			break;
-		}
-
-		memcpy((void *)addr, io, sizeof(*io));
-
-		/* return this to our pool */
-		ctl_free_io(io);
-
+	case CTL_IO:
+		retval = ctl_ioctl_io(dev, cmd, addr, flag, td);
 		break;
-	}
 	case CTL_ENABLE_PORT:
 	case CTL_DISABLE_PORT:
 	case CTL_SET_PORT_WWNS: {
@@ -2478,28 +2038,9 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 				mtx_unlock(&softc->ctl_lock);
 
 				if (cmd == CTL_ENABLE_PORT) {
-					struct ctl_lun *lun;
-
-					STAILQ_FOREACH(lun, &softc->lun_list,
-						       links) {
-						port->lun_enable(port->targ_lun_arg,
-						    lun->target,
-						    lun->lun);
-					}
-
 					ctl_port_online(port);
 				} else if (cmd == CTL_DISABLE_PORT) {
-					struct ctl_lun *lun;
-
 					ctl_port_offline(port);
-
-					STAILQ_FOREACH(lun, &softc->lun_list,
-						       links) {
-						port->lun_disable(
-						    port->targ_lun_arg,
-						    lun->target,
-						    lun->lun);
-					}
 				}
 
 				mtx_lock(&softc->ctl_lock);
@@ -2745,103 +2286,6 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 		mtx_unlock(&lun->lun_lock);
 
 		ooa_info->status = CTL_OOA_SUCCESS;
-
-		break;
-	}
-	case CTL_HARD_START:
-	case CTL_HARD_STOP: {
-		struct ctl_fe_ioctl_startstop_info ss_info;
-		struct cfi_metatask *metatask;
-		struct mtx hs_mtx;
-
-		mtx_init(&hs_mtx, "HS Mutex", NULL, MTX_DEF);
-
-		cv_init(&ss_info.sem, "hard start/stop cv" );
-
-		metatask = cfi_alloc_metatask(/*can_wait*/ 1);
-		if (metatask == NULL) {
-			retval = ENOMEM;
-			mtx_destroy(&hs_mtx);
-			break;
-		}
-
-		if (cmd == CTL_HARD_START)
-			metatask->tasktype = CFI_TASK_STARTUP;
-		else
-			metatask->tasktype = CFI_TASK_SHUTDOWN;
-
-		metatask->callback = ctl_ioctl_hard_startstop_callback;
-		metatask->callback_arg = &ss_info;
-
-		cfi_action(metatask);
-
-		/* Wait for the callback */
-		mtx_lock(&hs_mtx);
-		cv_wait_sig(&ss_info.sem, &hs_mtx);
-		mtx_unlock(&hs_mtx);
-
-		/*
-		 * All information has been copied from the metatask by the
-		 * time cv_broadcast() is called, so we free the metatask here.
-		 */
-		cfi_free_metatask(metatask);
-
-		memcpy((void *)addr, &ss_info.hs_info, sizeof(ss_info.hs_info));
-
-		mtx_destroy(&hs_mtx);
-		break;
-	}
-	case CTL_BBRREAD: {
-		struct ctl_bbrread_info *bbr_info;
-		struct ctl_fe_ioctl_bbrread_info fe_bbr_info;
-		struct mtx bbr_mtx;
-		struct cfi_metatask *metatask;
-
-		bbr_info = (struct ctl_bbrread_info *)addr;
-
-		bzero(&fe_bbr_info, sizeof(fe_bbr_info));
-
-		bzero(&bbr_mtx, sizeof(bbr_mtx));
-		mtx_init(&bbr_mtx, "BBR Mutex", NULL, MTX_DEF);
-
-		fe_bbr_info.bbr_info = bbr_info;
-		fe_bbr_info.lock = &bbr_mtx;
-
-		cv_init(&fe_bbr_info.sem, "BBR read cv");
-		metatask = cfi_alloc_metatask(/*can_wait*/ 1);
-
-		if (metatask == NULL) {
-			mtx_destroy(&bbr_mtx);
-			cv_destroy(&fe_bbr_info.sem);
-			retval = ENOMEM;
-			break;
-		}
-		metatask->tasktype = CFI_TASK_BBRREAD;
-		metatask->callback = ctl_ioctl_bbrread_callback;
-		metatask->callback_arg = &fe_bbr_info;
-		metatask->taskinfo.bbrread.lun_num = bbr_info->lun_num;
-		metatask->taskinfo.bbrread.lba = bbr_info->lba;
-		metatask->taskinfo.bbrread.len = bbr_info->len;
-
-		cfi_action(metatask);
-
-		mtx_lock(&bbr_mtx);
-		while (fe_bbr_info.wakeup_done == 0)
-			cv_wait_sig(&fe_bbr_info.sem, &bbr_mtx);
-		mtx_unlock(&bbr_mtx);
-
-		bbr_info->status = metatask->status;
-		bbr_info->bbr_status = metatask->taskinfo.bbrread.status;
-		bbr_info->scsi_status = metatask->taskinfo.bbrread.scsi_status;
-		memcpy(&bbr_info->sense_data,
-		       &metatask->taskinfo.bbrread.sense_data,
-		       MIN(sizeof(bbr_info->sense_data),
-			   sizeof(metatask->taskinfo.bbrread.sense_data)));
-
-		cfi_free_metatask(metatask);
-
-		mtx_destroy(&bbr_mtx);
-		cv_destroy(&fe_bbr_info.sem);
 
 		break;
 	}
@@ -3560,26 +3004,22 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 			mtx_unlock(&softc->ctl_lock);
 			return (ENXIO);
 		}
+		mtx_unlock(&softc->ctl_lock); // XXX: port_enable sleeps
 		if (lm->plun < CTL_MAX_LUNS) {
 			if (lm->lun == UINT32_MAX)
 				retval = ctl_lun_map_unset(port, lm->plun);
 			else if (lm->lun < CTL_MAX_LUNS &&
 			    softc->ctl_luns[lm->lun] != NULL)
 				retval = ctl_lun_map_set(port, lm->plun, lm->lun);
-			else {
-				mtx_unlock(&softc->ctl_lock);
+			else
 				return (ENXIO);
-			}
 		} else if (lm->plun == UINT32_MAX) {
 			if (lm->lun == UINT32_MAX)
 				retval = ctl_lun_map_deinit(port);
 			else
 				retval = ctl_lun_map_init(port);
-		} else {
-			mtx_unlock(&softc->ctl_lock);
+		} else
 			return (ENXIO);
-		}
-		mtx_unlock(&softc->ctl_lock);
 		break;
 	}
 	default: {
@@ -3649,6 +3089,8 @@ ctl_port_idx(int port_num)
 int
 ctl_lun_map_init(struct ctl_port *port)
 {
+	struct ctl_softc *softc = control_softc;
+	struct ctl_lun *lun;
 	uint32_t i;
 
 	if (port->lun_map == NULL)
@@ -3658,17 +3100,27 @@ ctl_lun_map_init(struct ctl_port *port)
 		return (ENOMEM);
 	for (i = 0; i < CTL_MAX_LUNS; i++)
 		port->lun_map[i] = UINT32_MAX;
+	if (port->status & CTL_PORT_STATUS_ONLINE) {
+		STAILQ_FOREACH(lun, &softc->lun_list, links)
+			port->lun_disable(port->targ_lun_arg, lun->lun);
+	}
 	return (0);
 }
 
 int
 ctl_lun_map_deinit(struct ctl_port *port)
 {
+	struct ctl_softc *softc = control_softc;
+	struct ctl_lun *lun;
 
 	if (port->lun_map == NULL)
 		return (0);
 	free(port->lun_map, M_CTL);
 	port->lun_map = NULL;
+	if (port->status & CTL_PORT_STATUS_ONLINE) {
+		STAILQ_FOREACH(lun, &softc->lun_list, links)
+			port->lun_enable(port->targ_lun_arg, lun->lun);
+	}
 	return (0);
 }
 
@@ -3676,37 +3128,31 @@ int
 ctl_lun_map_set(struct ctl_port *port, uint32_t plun, uint32_t glun)
 {
 	int status;
+	uint32_t old;
 
 	if (port->lun_map == NULL) {
 		status = ctl_lun_map_init(port);
 		if (status != 0)
 			return (status);
 	}
+	old = port->lun_map[plun];
 	port->lun_map[plun] = glun;
+	if ((port->status & CTL_PORT_STATUS_ONLINE) && old >= CTL_MAX_LUNS)
+		port->lun_enable(port->targ_lun_arg, plun);
 	return (0);
 }
 
 int
 ctl_lun_map_unset(struct ctl_port *port, uint32_t plun)
 {
+	uint32_t old;
 
 	if (port->lun_map == NULL)
 		return (0);
+	old = port->lun_map[plun];
 	port->lun_map[plun] = UINT32_MAX;
-	return (0);
-}
-
-int
-ctl_lun_map_unsetg(struct ctl_port *port, uint32_t glun)
-{
-	int i;
-
-	if (port->lun_map == NULL)
-		return (0);
-	for (i = 0; i < CTL_MAX_LUNS; i++) {
-		if (port->lun_map[i] == glun)
-			port->lun_map[i] = UINT32_MAX;
-	}
+	if ((port->status & CTL_PORT_STATUS_ONLINE) && old < CTL_MAX_LUNS)
+		port->lun_disable(port->targ_lun_arg, plun);
 	return (0);
 }
 
@@ -4532,10 +3978,9 @@ hex2bin(const char *str, uint8_t *buf, int buf_size)
  */
 static int
 ctl_alloc_lun(struct ctl_softc *ctl_softc, struct ctl_lun *ctl_lun,
-	      struct ctl_be_lun *const be_lun, struct ctl_id target_id)
+	      struct ctl_be_lun *const be_lun)
 {
 	struct ctl_lun *nlun, *lun;
-	struct ctl_port *port;
 	struct scsi_vpd_id_descriptor *desc;
 	struct scsi_vpd_id_t10 *t10id;
 	const char *eui, *naa, *scsiname, *vendor, *value;
@@ -4670,8 +4115,7 @@ ctl_alloc_lun(struct ctl_softc *ctl_softc, struct ctl_lun *ctl_lun,
 		lun_number = ctl_ffz(ctl_softc->ctl_lun_mask, CTL_MAX_LUNS);
 		if (lun_number == -1) {
 			mtx_unlock(&ctl_softc->ctl_lock);
-			printf("ctl: can't allocate LUN on target %ju, out of "
-			       "LUNs\n", (uintmax_t)target_id.id);
+			printf("ctl: can't allocate LUN, out of LUNs\n");
 			if (lun->flags & CTL_LUN_MALLOCED)
 				free(lun, M_CTL);
 			be_lun->lun_config_status(be_lun->be_lun,
@@ -4682,7 +4126,6 @@ ctl_alloc_lun(struct ctl_softc *ctl_softc, struct ctl_lun *ctl_lun,
 	ctl_set_mask(ctl_softc->ctl_lun_mask, lun_number);
 
 	mtx_init(&lun->lun_lock, "CTL LUN", NULL, MTX_DEF);
-	lun->target = target_id;
 	lun->lun = lun_number;
 	lun->be_lun = be_lun;
 	/*
@@ -4765,24 +4208,6 @@ ctl_alloc_lun(struct ctl_softc *ctl_softc, struct ctl_lun *ctl_lun,
 	mtx_unlock(&ctl_softc->ctl_lock);
 
 	lun->be_lun->lun_config_status(lun->be_lun->be_lun, CTL_LUN_CONFIG_OK);
-
-	/*
-	 * Run through each registered FETD and bring it online if it isn't
-	 * already.  Enable the target ID if it hasn't been enabled, and
-	 * enable this particular LUN.
-	 */
-	STAILQ_FOREACH(port, &ctl_softc->port_list, links) {
-		int retval;
-
-		retval = port->lun_enable(port->targ_lun_arg, target_id,lun_number);
-		if (retval != 0) {
-			printf("ctl_alloc_lun: FETD %s port %d returned error "
-			       "%d for lun_enable on target %ju lun %d\n",
-			       port->port_name, port->targ_port, retval,
-			       (uintmax_t)target_id.id, lun_number);
-		} else
-			port->status |= CTL_PORT_STATUS_LUN_ONLINE;
-	}
 	return (0);
 }
 
@@ -4796,16 +4221,12 @@ static int
 ctl_free_lun(struct ctl_lun *lun)
 {
 	struct ctl_softc *softc;
-	struct ctl_port *port;
 	struct ctl_lun *nlun;
 	int i;
 
 	softc = lun->ctl_softc;
 
 	mtx_assert(&softc->ctl_lock, MA_OWNED);
-
-	STAILQ_FOREACH(port, &softc->port_list, links)
-		ctl_lun_map_unsetg(port, lun->lun);
 
 	STAILQ_REMOVE(&softc->lun_list, lun, ctl_lun, links);
 
@@ -4817,58 +4238,6 @@ ctl_free_lun(struct ctl_lun *lun)
 		panic("Freeing a LUN %p with outstanding I/O!!\n", lun);
 
 	softc->num_luns--;
-
-	/*
-	 * XXX KDM this scheme only works for a single target/multiple LUN
-	 * setup.  It needs to be revamped for a multiple target scheme.
-	 *
-	 * XXX KDM this results in port->lun_disable() getting called twice,
-	 * once when ctl_disable_lun() is called, and a second time here.
-	 * We really need to re-think the LUN disable semantics.  There
-	 * should probably be several steps/levels to LUN removal:
-	 *  - disable
-	 *  - invalidate
-	 *  - free
- 	 *
-	 * Right now we only have a disable method when communicating to
-	 * the front end ports, at least for individual LUNs.
-	 */
-#if 0
-	STAILQ_FOREACH(port, &softc->port_list, links) {
-		int retval;
-
-		retval = port->lun_disable(port->targ_lun_arg, lun->target,
-					 lun->lun);
-		if (retval != 0) {
-			printf("ctl_free_lun: FETD %s port %d returned error "
-			       "%d for lun_disable on target %ju lun %jd\n",
-			       port->port_name, port->targ_port, retval,
-			       (uintmax_t)lun->target.id, (intmax_t)lun->lun);
-		}
-
-		if (STAILQ_FIRST(&softc->lun_list) == NULL) {
-			port->status &= ~CTL_PORT_STATUS_LUN_ONLINE;
-
-			retval = port->targ_disable(port->targ_lun_arg,lun->target);
-			if (retval != 0) {
-				printf("ctl_free_lun: FETD %s port %d "
-				       "returned error %d for targ_disable on "
-				       "target %ju\n", port->port_name,
-				       port->targ_port, retval,
-				       (uintmax_t)lun->target.id);
-			} else
-				port->status &= ~CTL_PORT_STATUS_TARG_ONLINE;
-
-			if ((port->status & CTL_PORT_STATUS_TARG_ONLINE) != 0)
-				continue;
-
-#if 0
-			port->port_offline(port->onoff_arg);
-			port->status &= ~CTL_PORT_STATUS_ONLINE;
-#endif
-		}
-	}
-#endif
 
 	/*
 	 * Tell the backend to free resources, if this LUN has a backend.
@@ -4906,7 +4275,7 @@ ctl_create_lun(struct ctl_be_lun *be_lun)
 	/*
 	 * ctl_alloc_lun() should handle all potential failure cases.
 	 */
-	ctl_alloc_lun(softc, NULL, be_lun, softc->target);
+	ctl_alloc_lun(softc, NULL, be_lun);
 }
 
 int
@@ -4949,6 +4318,9 @@ ctl_enable_lun(struct ctl_be_lun *be_lun)
 
 	for (port = STAILQ_FIRST(&softc->port_list); port != NULL; port = nport) {
 		nport = STAILQ_NEXT(port, links);
+		if ((port->status & CTL_PORT_STATUS_ONLINE) == 0 ||
+		    port->lun_map != NULL)
+			continue;
 
 		/*
 		 * Drop the lock while we call the FETD's enable routine.
@@ -4956,20 +4328,14 @@ ctl_enable_lun(struct ctl_be_lun *be_lun)
 		 * case of the internal initiator frontend.
 		 */
 		mtx_unlock(&softc->ctl_lock);
-		retval = port->lun_enable(port->targ_lun_arg, lun->target,lun->lun);
+		retval = port->lun_enable(port->targ_lun_arg, lun->lun);
 		mtx_lock(&softc->ctl_lock);
 		if (retval != 0) {
 			printf("%s: FETD %s port %d returned error "
-			       "%d for lun_enable on target %ju lun %jd\n",
-			       __func__, port->port_name, port->targ_port, retval,
-			       (uintmax_t)lun->target.id, (intmax_t)lun->lun);
+			       "%d for lun_enable on lun %jd\n",
+			       __func__, port->port_name, port->targ_port,
+			       retval, (intmax_t)lun->lun);
 		}
-#if 0
-		 else {
-            /* NOTE:  TODO:  why does lun enable affect port status? */
-			port->status |= CTL_PORT_STATUS_LUN_ONLINE;
-		}
-#endif
 	}
 
 	mtx_unlock(&softc->ctl_lock);
@@ -4999,6 +4365,9 @@ ctl_disable_lun(struct ctl_be_lun *be_lun)
 	mtx_unlock(&lun->lun_lock);
 
 	STAILQ_FOREACH(port, &softc->port_list, links) {
+		if ((port->status & CTL_PORT_STATUS_ONLINE) == 0 ||
+		    port->lun_map != NULL)
+			continue;
 		mtx_unlock(&softc->ctl_lock);
 		/*
 		 * Drop the lock before we call the frontend's disable
@@ -5007,14 +4376,13 @@ ctl_disable_lun(struct ctl_be_lun *be_lun)
 		 * XXX KDM what happens if the frontend list changes while
 		 * we're traversing it?  It's unlikely, but should be handled.
 		 */
-		retval = port->lun_disable(port->targ_lun_arg, lun->target,
-					 lun->lun);
+		retval = port->lun_disable(port->targ_lun_arg, lun->lun);
 		mtx_lock(&softc->ctl_lock);
 		if (retval != 0) {
-			printf("ctl_alloc_lun: FETD %s port %d returned error "
-			       "%d for lun_disable on target %ju lun %jd\n",
-			       port->port_name, port->targ_port, retval,
-			       (uintmax_t)lun->target.id, (intmax_t)lun->lun);
+			printf("%s: FETD %s port %d returned error "
+			       "%d for lun_disable on lun %jd\n",
+			       __func__, port->port_name, port->targ_port,
+			       retval, (intmax_t)lun->lun);
 		}
 	}
 
@@ -5609,9 +4977,11 @@ ctl_sync_cache(struct ctl_scsiio *ctsio)
 {
 	struct ctl_lun *lun;
 	struct ctl_softc *softc;
+	struct ctl_lba_len_flags *lbalen;
 	uint64_t starting_lba;
 	uint32_t block_count;
 	int retval;
+	uint8_t byte2;
 
 	CTL_DEBUG_PRINT(("ctl_sync_cache\n"));
 
@@ -5626,6 +4996,7 @@ ctl_sync_cache(struct ctl_scsiio *ctsio)
 
 		starting_lba = scsi_4btoul(cdb->begin_lba);
 		block_count = scsi_2btoul(cdb->lb_count);
+		byte2 = cdb->byte2;
 		break;
 	}
 	case SYNCHRONIZE_CACHE_16: {
@@ -5634,6 +5005,7 @@ ctl_sync_cache(struct ctl_scsiio *ctsio)
 
 		starting_lba = scsi_8btou64(cdb->begin_lba);
 		block_count = scsi_4btoul(cdb->lb_count);
+		byte2 = cdb->byte2;
 		break;
 	}
 	default:
@@ -5663,6 +5035,11 @@ ctl_sync_cache(struct ctl_scsiio *ctsio)
 		ctl_done((union ctl_io *)ctsio);
 		goto bailout;
 	}
+
+	lbalen = (struct ctl_lba_len_flags *)&ctsio->io_hdr.ctl_private[CTL_PRIV_LBA_LEN];
+	lbalen->lba = starting_lba;
+	lbalen->len = block_count;
+	lbalen->flags = byte2;
 
 	/*
 	 * Check to see whether we're configured to send the SYNCHRONIZE
@@ -9450,11 +8827,16 @@ ctl_report_luns(struct ctl_scsiio *ctsio)
 	well_known = 0;
 
 	cdb = (struct scsi_report_luns *)ctsio->cdb;
+	port = ctl_io_port(&ctsio->io_hdr);
 
 	CTL_DEBUG_PRINT(("ctl_report_luns\n"));
 
 	mtx_lock(&softc->ctl_lock);
-	num_luns = softc->num_luns;
+	num_luns = 0;
+	for (targ_lun_id = 0; targ_lun_id < CTL_MAX_LUNS; targ_lun_id++) {
+		if (ctl_lun_map_from_port(port, targ_lun_id) < CTL_MAX_LUNS)
+			num_luns++;
+	}
 	mtx_unlock(&softc->ctl_lock);
 
 	switch (cdb->select_report) {
@@ -9497,7 +8879,6 @@ ctl_report_luns(struct ctl_scsiio *ctsio)
 
 	request_lun = (struct ctl_lun *)
 		ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
-	port = ctl_io_port(&ctsio->io_hdr);
 
 	lun_datalen = sizeof(*lun_data) +
 		(num_luns * sizeof(struct scsi_report_luns_lundata));
@@ -11459,6 +10840,7 @@ ctl_failover_io(union ctl_io *io, int have_lock)
 	ctl_done(io);
 }
 
+#ifdef notyet
 static void
 ctl_failover(void)
 {
@@ -11699,6 +11081,7 @@ ctl_failover(void)
 	ctl_pause_rtr = 0;
 	mtx_unlock(&softc->ctl_lock);
 }
+#endif
 
 static void
 ctl_clear_ua(struct ctl_softc *ctl_softc, uint32_t initidx,
@@ -13731,7 +13114,7 @@ ctl_process_done(union ctl_io *io)
 	case CTL_IO_SCSI:
 		break;
 	case CTL_IO_TASK:
-		if (bootverbose || (ctl_debug & CTL_DEBUG_INFO))
+		if (ctl_debug & CTL_DEBUG_INFO)
 			ctl_io_error_print(io, NULL);
 		if (io->io_hdr.flags & CTL_FLAG_FROM_OTHER_SC)
 			ctl_free_io(io);
@@ -13838,27 +13221,10 @@ bailout:
 
 	/*
 	 * If enabled, print command error status.
-	 * We don't print UAs unless debugging was enabled explicitly.
 	 */
-	do {
-		if ((io->io_hdr.status & CTL_STATUS_MASK) == CTL_SUCCESS)
-			break;
-		if (!bootverbose && (ctl_debug & CTL_DEBUG_INFO) == 0)
-			break;
-		if ((ctl_debug & CTL_DEBUG_INFO) == 0 &&
-		    ((io->io_hdr.status & CTL_STATUS_MASK) == CTL_SCSI_ERROR) &&
-		     (io->scsiio.scsi_status == SCSI_STATUS_CHECK_COND)) {
-			int error_code, sense_key, asc, ascq;
-
-			scsi_extract_sense_len(&io->scsiio.sense_data,
-			    io->scsiio.sense_len, &error_code, &sense_key,
-			    &asc, &ascq, /*show_errors*/ 0);
-			if (sense_key == SSD_KEY_UNIT_ATTENTION)
-				break;
-		}
-
+	if ((io->io_hdr.status & CTL_STATUS_MASK) != CTL_SUCCESS &&
+	    (ctl_debug & CTL_DEBUG_INFO) != 0)
 		ctl_io_error_print(io, NULL);
-	} while (0);
 
 	/*
 	 * Tell the FETD or the other shelf controller we're done with this
@@ -14342,6 +13708,7 @@ ctl_enqueue_done(union ctl_io *io)
 	wakeup(thr);
 }
 
+#ifdef notyet
 static void
 ctl_enqueue_isc(union ctl_io *io)
 {
@@ -14454,6 +13821,7 @@ struct ctl_ha_component ctl_ha_component_ctlisc =
 	.start = ctl_isc_start,
 	.quiesce = ctl_isc_quiesce
 };
+#endif
 
 /*
  *  vim: ts=8

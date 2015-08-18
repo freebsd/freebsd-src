@@ -513,7 +513,7 @@ ub_env_enum(const char *last)
 	if (!syscall(API_ENV_ENUM, NULL, (uint32_t)last, (uint32_t)&env))
 		return (NULL);
 
-	if (env == NULL)
+	if (env == NULL || last == env)
 		/* no more env. variables to enumerate */
 		return (NULL);
 

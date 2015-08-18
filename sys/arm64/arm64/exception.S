@@ -33,6 +33,10 @@ __FBSDID("$FreeBSD$");
 	.text
 
 .macro	save_registers el
+.if \el == 1
+	mov	x18, sp
+	sub	sp, sp, #128
+.endif
 	stp	x28, x29, [sp, #-16]!
 	stp	x26, x27, [sp, #-16]!
 	stp	x24, x25, [sp, #-16]!
@@ -51,22 +55,20 @@ __FBSDID("$FreeBSD$");
 	mrs	x10, elr_el1
 	mrs	x11, spsr_el1
 .if \el == 0
-	mrs	x12, sp_el0
-.else
-	mov	x12, sp
+	mrs	x18, sp_el0
 .endif
 	stp	x10, x11, [sp, #-16]!
-	stp	x12, lr, [sp, #-16]!
+	stp	x18, lr, [sp, #-16]!
 	mrs	x18, tpidr_el1
 .endm
 
 .macro	restore_registers el
-	ldp	x12, lr, [sp], #16
+	msr	daifset, #2		/* Disable interrupts, x18 may change
+					 * in the interrupt exception handler */
+	ldp	x18, lr, [sp], #16
 	ldp	x10, x11, [sp], #16
 .if \el == 0
-	msr	sp_el0, x12
-.else
-	mov	sp, x12
+	msr	sp_el0, x18
 .endif
 	msr	spsr_el1, x11
 	msr	elr_el1, x10
@@ -89,6 +91,10 @@ __FBSDID("$FreeBSD$");
 	ldp	x24, x25, [sp], #16
 	ldp	x26, x27, [sp], #16
 	ldp	x28, x29, [sp], #16
+.if \el == 1
+	mov	sp, x18
+	mrs	x18, tpidr_el1
+.endif
 .endm
 
 .macro	do_ast
@@ -98,7 +104,7 @@ __FBSDID("$FreeBSD$");
 
 	/* Read the current thread flags */
 1:	ldr	x1, [x18, #PC_CURTHREAD]	/* Load curthread */
-	ldr	x2, [x1, #TD_FLAGS]! /* TODO: No need for the ! but clang fails without it */
+	ldr	x2, [x1, #TD_FLAGS]
 
 	/* Check if we have either bits set */
 	mov	x3, #((TDF_ASTPENDING|TDF_NEEDRESCHED) >> 8)

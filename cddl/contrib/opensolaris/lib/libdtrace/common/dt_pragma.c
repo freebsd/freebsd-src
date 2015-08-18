@@ -278,6 +278,14 @@ dt_pragma_depends(const char *prname, dt_node_t *cnp)
 	} else if (strcmp(cnp->dn_string, "module") == 0) {
 		dt_module_t *mp = dt_module_lookup_by_name(dtp, nnp->dn_string);
 		found = mp != NULL && dt_module_getctf(dtp, mp) != NULL;
+#ifdef __FreeBSD__
+		if (!found) {
+			dt_kmodule_t *dkmp = dt_kmodule_lookup(dtp,
+			    nnp->dn_string);
+			found = dkmp != NULL &&
+			    dt_module_getctf(dtp, dkmp->dkm_module) != NULL;
+		}
+#endif
 	} else if (strcmp(cnp->dn_string, "library") == 0) {
 		if (yypcb->pcb_cflags & DTRACE_C_CTL) {
 			assert(dtp->dt_filetag != NULL);

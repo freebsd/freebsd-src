@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2011, Intel Corporation 
+  Copyright (c) 2001-2015, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -296,9 +296,6 @@ struct em_int_delay_info {
 /* Our adapter structure */
 struct adapter {
 	if_t		ifp;
-#if __FreeBSD_version >= 800000
-	struct buf_ring	*br;
-#endif
 	struct e1000_hw	hw;
 
 	/* FreeBSD operating-system-specific structures. */

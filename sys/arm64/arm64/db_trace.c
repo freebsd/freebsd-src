@@ -38,12 +38,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/armreg.h>
 #include <machine/debug_monitor.h>
-
-struct unwind_state {
-	uint64_t fp;
-	uint64_t sp;
-	uint64_t pc;
-};
+#include <machine/stack.h>
 
 void
 db_md_list_watchpoints()
@@ -67,22 +62,6 @@ db_md_set_watchpoint(db_expr_t addr, db_expr_t size)
 	    HW_BREAKPOINT_RW));
 }
 
-static int
-db_unwind_frame(struct unwind_state *frame)
-{
-	uint64_t fp = frame->fp;
-
-	if (fp == 0)
-		return -1;
-
-	frame->sp = fp + 0x10;
-	/* FP to previous frame (X29) */
-	frame->fp = *(uint64_t *)(fp);
-	/* LR (X30) */
-	frame->pc = *(uint64_t *)(fp + 8) - 4;
-	return (0);
-}
-
 static void
 db_stack_trace_cmd(struct unwind_state *frame)
 {
@@ -95,7 +74,7 @@ db_stack_trace_cmd(struct unwind_state *frame)
 		uint64_t pc = frame->pc;
 		int ret;
 
-		ret = db_unwind_frame(frame);
+		ret = unwind_frame(frame);
 		if (ret < 0)
 			break;
 

@@ -10,7 +10,7 @@
 /*
  *  This file is part of AutoOpts, a companion to AutoGen.
  *  AutoOpts is free software.
- *  AutoOpts is Copyright (C) 1992-2014 by Bruce Korb - all rights reserved
+ *  AutoOpts is Copyright (C) 1992-2015 by Bruce Korb - all rights reserved
  *
  *  AutoOpts is available under any one of two licenses.  The license
  *  in use must be one of these two and the choice is under the control
@@ -32,13 +32,13 @@
 /*=export_func  optionVersion
  *
  * what:     return the compiled AutoOpts version number
- * ret_type: char const*
+ * ret_type: char const *
  * ret_desc: the version string in constant memory
  * doc:
  *  Returns the full version string compiled into the library.
  *  The returned string cannot be modified.
 =*/
-char const*
+char const *
 optionVersion(void)
 {
     static char const ver[] = OPTIONS_DOTTED_VERSION;
@@ -181,8 +181,8 @@ print_ver(tOptions * opts, tOptDesc * od, FILE * fp, bool call_exit)
 /*=export_func  optionPrintVersion
  *
  * what:  Print the program version
- * arg:   + tOptions* + opts + program options descriptor +
- * arg:   + tOptDesc* + od   + the descriptor for this arg +
+ * arg:   + tOptions * + opts + program options descriptor +
+ * arg:   + tOptDesc * + od   + the descriptor for this arg +
  *
  * doc:
  *  This routine will print the version to stdout.
@@ -196,8 +196,8 @@ optionPrintVersion(tOptions * opts, tOptDesc * od)
 /*=export_func  optionPrintVersionAndReturn
  *
  * what:  Print the program version
- * arg:   + tOptions* + opts + program options descriptor +
- * arg:   + tOptDesc* + od   + the descriptor for this arg +
+ * arg:   + tOptions * + opts + program options descriptor +
+ * arg:   + tOptDesc * + od   + the descriptor for this arg +
  *
  * doc:
  *  This routine will print the version to stdout and return
@@ -215,8 +215,8 @@ optionPrintVersionAndReturn(tOptions * opts, tOptDesc * od)
  * private:
  *
  * what:  Print the program version to stderr
- * arg:   + tOptions* + opts + program options descriptor +
- * arg:   + tOptDesc* + od   + the descriptor for this arg +
+ * arg:   + tOptions * + opts + program options descriptor +
+ * arg:   + tOptDesc * + od   + the descriptor for this arg +
  *
  * doc:
  *  This routine will print the version to stderr.

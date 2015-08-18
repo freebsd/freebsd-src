@@ -12,9 +12,7 @@ NETBSD_ATF_TESTS_C+=		clock_gettime_test
 NETBSD_ATF_TESTS_C+=		connect_test
 NETBSD_ATF_TESTS_C+=		dup_test
 NETBSD_ATF_TESTS_C+=		fsync_test
-.if ${MACHINE} != "arm64" # ARM64TODO: Missing makecontext
 NETBSD_ATF_TESTS_C+=		getcontext_test
-.endif
 NETBSD_ATF_TESTS_C+=		getgroups_test
 NETBSD_ATF_TESTS_C+=		getitimer_test
 NETBSD_ATF_TESTS_C+=		getlogin_test
@@ -27,7 +25,10 @@ NETBSD_ATF_TESTS_C+=		kevent_test
 NETBSD_ATF_TESTS_C+=		kill_test
 NETBSD_ATF_TESTS_C+=		link_test
 NETBSD_ATF_TESTS_C+=		listen_test
+# On arm64 triggers panic ARM64TODO: pmap_mincore (PR202307).
+.if ${MACHINE_CPUARCH} != "aarch64"
 NETBSD_ATF_TESTS_C+=		mincore_test
+.endif
 NETBSD_ATF_TESTS_C+=		mkdir_test
 NETBSD_ATF_TESTS_C+=		mkfifo_test
 NETBSD_ATF_TESTS_C+=		mknod_test

@@ -51,6 +51,7 @@ static struct mkimg_alias mbr_aliases[] = {
     {	ALIAS_EFI, ALIAS_INT2TYPE(DOSPTYP_EFI) },
     {	ALIAS_FAT32, ALIAS_INT2TYPE(DOSPTYP_FAT32) },
     {	ALIAS_FREEBSD, ALIAS_INT2TYPE(DOSPTYP_386BSD) },
+    {	ALIAS_NTFS, ALIAS_INT2TYPE(DOSPTYP_NTFS) },
     {	ALIAS_NONE, 0 }		/* Keep last! */
 };
 

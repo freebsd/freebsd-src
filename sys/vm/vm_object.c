@@ -1063,9 +1063,9 @@ vm_object_sync(vm_object_t object, vm_ooffset_t offset, vm_size_t size,
 			 */
 			flags = OBJPR_NOTMAPPED;
 		else if (old_msync)
-			flags = OBJPR_NOTWIRED;
+			flags = 0;
 		else
-			flags = OBJPR_CLEANONLY | OBJPR_NOTWIRED;
+			flags = OBJPR_CLEANONLY;
 		vm_object_page_remove(object, OFF_TO_IDX(offset),
 		    OFF_TO_IDX(offset + size + PAGE_MASK), flags);
 	}
@@ -1894,7 +1894,6 @@ vm_object_page_remove(vm_object_t object, vm_pindex_t start, vm_pindex_t end,
     int options)
 {
 	vm_page_t p, next;
-	int wirings;
 
 	VM_OBJECT_ASSERT_WLOCKED(object);
 	KASSERT((object->flags & OBJ_UNMANAGED) == 0 ||
@@ -1928,15 +1927,9 @@ again:
 			VM_OBJECT_WLOCK(object);
 			goto again;
 		}
-		if ((wirings = p->wire_count) != 0 &&
-		    (wirings = pmap_page_wired_mappings(p)) != p->wire_count) {
-			if ((options & (OBJPR_NOTWIRED | OBJPR_NOTMAPPED)) ==
-			    0) {
+		if (p->wire_count != 0) {
+			if ((options & OBJPR_NOTMAPPED) == 0)
 				pmap_remove_all(p);
-				/* Account for removal of wired mappings. */
-				if (wirings != 0)
-					p->wire_count -= wirings;
-			}
 			if ((options & OBJPR_CLEANONLY) == 0) {
 				p->valid = 0;
 				vm_page_undirty(p);
@@ -1957,19 +1950,8 @@ again:
 			if (p->dirty)
 				goto next;
 		}
-		if ((options & OBJPR_NOTMAPPED) == 0) {
-			if ((options & OBJPR_NOTWIRED) != 0 && wirings != 0)
-				goto next;
+		if ((options & OBJPR_NOTMAPPED) == 0)
 			pmap_remove_all(p);
-			/* Account for removal of wired mappings. */
-			if (wirings != 0) {
-				KASSERT(p->wire_count == wirings,
-				    ("inconsistent wire count %d %d %p",
-				    p->wire_count, wirings, p));
-				p->wire_count = 0;
-				atomic_subtract_int(&vm_cnt.v_wire_count, 1);
-			}
-		}
 		vm_page_free(p);
 next:
 		vm_page_unlock(p);
@@ -2046,7 +2028,7 @@ vm_object_page_cache(vm_object_t object, vm_pindex_t start, vm_pindex_t end)
 boolean_t
 vm_object_populate(vm_object_t object, vm_pindex_t start, vm_pindex_t end)
 {
-	vm_page_t m, ma[1];
+	vm_page_t m;
 	vm_pindex_t pindex;
 	int rv;
 
@@ -2054,11 +2036,7 @@ vm_object_populate(vm_object_t object, vm_pindex_t start, vm_pindex_t end)
 	for (pindex = start; pindex < end; pindex++) {
 		m = vm_page_grab(object, pindex, VM_ALLOC_NORMAL);
 		if (m->valid != VM_PAGE_BITS_ALL) {
-			ma[0] = m;
-			rv = vm_pager_get_pages(object, ma, 1, 0);
-			m = vm_page_lookup(object, pindex);
-			if (m == NULL)
-				break;
+			rv = vm_pager_get_pages(object, &m, 1, 0);
 			if (rv != VM_PAGER_OK) {
 				vm_page_lock(m);
 				vm_page_free(m);
@@ -2285,6 +2263,18 @@ next_page:
 		VM_OBJECT_RUNLOCK(object);
 		object = tobject;
 	}
+}
+
+struct vnode *
+vm_object_vnode(vm_object_t object)
+{
+
+	VM_OBJECT_ASSERT_LOCKED(object);
+	if (object->type == OBJT_VNODE)
+		return (object->handle);
+	if (object->type == OBJT_SWAP && (object->flags & OBJ_TMPFS) != 0)
+		return (object->un_pager.swp.swp_tmpfs);
+	return (NULL);
 }
 
 static int

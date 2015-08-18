@@ -12,7 +12,7 @@
 /*
  *  This file is part of AutoOpts, a companion to AutoGen.
  *  AutoOpts is free software.
- *  AutoOpts is Copyright (C) 1992-2014 by Bruce Korb - all rights reserved
+ *  AutoOpts is Copyright (C) 1992-2015 by Bruce Korb - all rights reserved
  *
  *  AutoOpts is available under any one of two licenses.  The license
  *  in use must be one of these two and the choice is under the control
@@ -38,11 +38,11 @@
  *  have been marked as allocated though.
  */
 static void
-fixupSavedOptionArgs(tOptions* pOpts)
+fixupSavedOptionArgs(tOptions * pOpts)
 {
-    tOptions* p   = pOpts->pSavedState;
-    tOptDesc* pOD = pOpts->pOptDesc;
-    int       ct  = pOpts->optCt;
+    tOptions * p   = pOpts->pSavedState;
+    tOptDesc * pOD = pOpts->pOptDesc;
+    int        ct  = pOpts->optCt;
 
     /*
      *  Make sure that allocated stuff is only referenced in the
@@ -52,18 +52,18 @@ fixupSavedOptionArgs(tOptions* pOpts)
         switch (OPTST_GET_ARGTYPE(pOD->fOptState)) {
         case OPARG_TYPE_STRING:
             if (pOD->fOptState & OPTST_STACKED) {
-                tOptDesc* q = p->pOptDesc + (pOD - pOpts->pOptDesc);
+                tOptDesc * q = p->pOptDesc + (pOD - pOpts->pOptDesc);
                 q->optCookie = NULL;
             }
             if (pOD->fOptState & OPTST_ALLOC_ARG) {
-                tOptDesc* q = p->pOptDesc + (pOD - pOpts->pOptDesc);
+                tOptDesc * q = p->pOptDesc + (pOD - pOpts->pOptDesc);
                 AGDUPSTR(q->optArg.argString, pOD->optArg.argString, "arg");
             }
             break;
 
         case OPARG_TYPE_HIERARCHY:
         {
-            tOptDesc* q = p->pOptDesc + (pOD - pOpts->pOptDesc);
+            tOptDesc * q = p->pOptDesc + (pOD - pOpts->pOptDesc);
             q->optCookie = NULL;
         }
         }
@@ -73,7 +73,7 @@ fixupSavedOptionArgs(tOptions* pOpts)
 /*=export_func optionSaveState
  *
  * what:  saves the option state to memory
- * arg:   tOptions*, pOpts, program options descriptor
+ * arg:   tOptions *, pOpts, program options descriptor
  *
  * doc:
  *
@@ -96,7 +96,7 @@ fixupSavedOptionArgs(tOptions* pOpts)
 void
 optionSaveState(tOptions * pOpts)
 {
-    tOptions * p = (tOptions*)pOpts->pSavedState;
+    tOptions * p = (tOptions *)pOpts->pSavedState;
 
     if (p == NULL) {
         size_t sz = sizeof(*pOpts)
@@ -116,7 +116,7 @@ optionSaveState(tOptions * pOpts)
 /*=export_func optionRestore
  *
  * what:  restore option state from memory copy
- * arg:   tOptions*, pOpts, program options descriptor
+ * arg:   tOptions *, pOpts, program options descriptor
  *
  * doc:  Copy back the option state from saved memory.
  *       The allocated memory is left intact, so this routine can be
@@ -129,9 +129,9 @@ optionSaveState(tOptions * pOpts)
  *       printed to @code{stderr} and exit is called.
 =*/
 void
-optionRestore(tOptions* pOpts)
+optionRestore(tOptions * pOpts)
 {
-    tOptions* p = (tOptions*)pOpts->pSavedState;
+    tOptions * p = (tOptions *)pOpts->pSavedState;
 
     if (p == NULL) {
         char const * pzName = pOpts->pzProgName;
@@ -159,7 +159,7 @@ optionRestore(tOptions* pOpts)
 /*=export_func optionFree
  *
  * what:  free allocated option processing memory
- * arg:   tOptions*, pOpts, program options descriptor
+ * arg:   tOptions *, pOpts, program options descriptor
  *
  * doc:   AutoOpts sometimes allocates memory and puts pointers to it in the
  *        option state structures.  This routine deallocates all such memory.
@@ -168,11 +168,11 @@ optionRestore(tOptions* pOpts)
  *        this routine is always successful.
 =*/
 void
-optionFree(tOptions* pOpts)
+optionFree(tOptions * pOpts)
 {
  free_saved_state:
     {
-        tOptDesc* p = pOpts->pOptDesc;
+        tOptDesc * p = pOpts->pOptDesc;
         int ct = pOpts->optCt;
         do  {
             if (p->fOptState & OPTST_ALLOC_ARG) {
@@ -204,7 +204,7 @@ optionFree(tOptions* pOpts)
         } while (p++, --ct > 0);
     }
     if (pOpts->pSavedState != NULL) {
-        tOptions * p = (tOptions*)pOpts->pSavedState;
+        tOptions * p = (tOptions *)pOpts->pSavedState;
         memcpy(pOpts, p, sizeof(*p));
         memcpy(pOpts->pOptDesc, p+1, (size_t)p->optCt * sizeof(tOptDesc));
         AGFREE(pOpts->pSavedState);

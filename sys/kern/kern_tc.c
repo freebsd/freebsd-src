@@ -71,7 +71,7 @@ struct timehands {
 	struct timeval		th_microtime;
 	struct timespec		th_nanotime;
 	/* Fields not to be copied in tc_windup start with th_generation. */
-	volatile u_int		th_generation;
+	u_int			th_generation;
 	struct timehands	*th_next;
 };
 
@@ -132,6 +132,8 @@ SYSCTL_PROC(_kern_timecounter, OID_AUTO, alloweddeviation,
     CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE, 0, 0,
     sysctl_kern_timecounter_adjprecision, "I",
     "Allowed time interval deviation in percents");
+
+static int tc_chosen;	/* Non-zero if a specific tc was chosen via sysctl. */
 
 static void tc_windup(void);
 static void cpu_tick_calibrate(int);
@@ -204,9 +206,10 @@ fbclock_binuptime(struct bintime *bt)
 
 	do {
 		th = timehands;
-		gen = th->th_generation;
+		gen = atomic_load_acq_int(&th->th_generation);
 		*bt = th->th_offset;
 		bintime_addx(bt, th->th_scale * tc_delta(th));
+		atomic_thread_fence_acq();
 	} while (gen == 0 || gen != th->th_generation);
 }
 
@@ -262,8 +265,9 @@ fbclock_getbinuptime(struct bintime *bt)
 
 	do {
 		th = timehands;
-		gen = th->th_generation;
+		gen = atomic_load_acq_int(&th->th_generation);
 		*bt = th->th_offset;
+		atomic_thread_fence_acq();
 	} while (gen == 0 || gen != th->th_generation);
 }
 
@@ -275,8 +279,9 @@ fbclock_getnanouptime(struct timespec *tsp)
 
 	do {
 		th = timehands;
-		gen = th->th_generation;
+		gen = atomic_load_acq_int(&th->th_generation);
 		bintime2timespec(&th->th_offset, tsp);
+		atomic_thread_fence_acq();
 	} while (gen == 0 || gen != th->th_generation);
 }
 
@@ -288,8 +293,9 @@ fbclock_getmicrouptime(struct timeval *tvp)
 
 	do {
 		th = timehands;
-		gen = th->th_generation;
+		gen = atomic_load_acq_int(&th->th_generation);
 		bintime2timeval(&th->th_offset, tvp);
+		atomic_thread_fence_acq();
 	} while (gen == 0 || gen != th->th_generation);
 }
 
@@ -301,8 +307,9 @@ fbclock_getbintime(struct bintime *bt)
 
 	do {
 		th = timehands;
-		gen = th->th_generation;
+		gen = atomic_load_acq_int(&th->th_generation);
 		*bt = th->th_offset;
+		atomic_thread_fence_acq();
 	} while (gen == 0 || gen != th->th_generation);
 	bintime_add(bt, &boottimebin);
 }
@@ -315,8 +322,9 @@ fbclock_getnanotime(struct timespec *tsp)
 
 	do {
 		th = timehands;
-		gen = th->th_generation;
+		gen = atomic_load_acq_int(&th->th_generation);
 		*tsp = th->th_nanotime;
+		atomic_thread_fence_acq();
 	} while (gen == 0 || gen != th->th_generation);
 }
 
@@ -328,8 +336,9 @@ fbclock_getmicrotime(struct timeval *tvp)
 
 	do {
 		th = timehands;
-		gen = th->th_generation;
+		gen = atomic_load_acq_int(&th->th_generation);
 		*tvp = th->th_microtime;
+		atomic_thread_fence_acq();
 	} while (gen == 0 || gen != th->th_generation);
 }
 #else /* !FFCLOCK */
@@ -341,9 +350,10 @@ binuptime(struct bintime *bt)
 
 	do {
 		th = timehands;
-		gen = th->th_generation;
+		gen = atomic_load_acq_int(&th->th_generation);
 		*bt = th->th_offset;
 		bintime_addx(bt, th->th_scale * tc_delta(th));
+		atomic_thread_fence_acq();
 	} while (gen == 0 || gen != th->th_generation);
 }
 
@@ -399,8 +409,9 @@ getbinuptime(struct bintime *bt)
 
 	do {
 		th = timehands;
-		gen = th->th_generation;
+		gen = atomic_load_acq_int(&th->th_generation);
 		*bt = th->th_offset;
+		atomic_thread_fence_acq();
 	} while (gen == 0 || gen != th->th_generation);
 }
 
@@ -412,8 +423,9 @@ getnanouptime(struct timespec *tsp)
 
 	do {
 		th = timehands;
-		gen = th->th_generation;
+		gen = atomic_load_acq_int(&th->th_generation);
 		bintime2timespec(&th->th_offset, tsp);
+		atomic_thread_fence_acq();
 	} while (gen == 0 || gen != th->th_generation);
 }
 
@@ -425,8 +437,9 @@ getmicrouptime(struct timeval *tvp)
 
 	do {
 		th = timehands;
-		gen = th->th_generation;
+		gen = atomic_load_acq_int(&th->th_generation);
 		bintime2timeval(&th->th_offset, tvp);
+		atomic_thread_fence_acq();
 	} while (gen == 0 || gen != th->th_generation);
 }
 
@@ -438,8 +451,9 @@ getbintime(struct bintime *bt)
 
 	do {
 		th = timehands;
-		gen = th->th_generation;
+		gen = atomic_load_acq_int(&th->th_generation);
 		*bt = th->th_offset;
+		atomic_thread_fence_acq();
 	} while (gen == 0 || gen != th->th_generation);
 	bintime_add(bt, &boottimebin);
 }
@@ -452,8 +466,9 @@ getnanotime(struct timespec *tsp)
 
 	do {
 		th = timehands;
-		gen = th->th_generation;
+		gen = atomic_load_acq_int(&th->th_generation);
 		*tsp = th->th_nanotime;
+		atomic_thread_fence_acq();
 	} while (gen == 0 || gen != th->th_generation);
 }
 
@@ -465,8 +480,9 @@ getmicrotime(struct timeval *tvp)
 
 	do {
 		th = timehands;
-		gen = th->th_generation;
+		gen = atomic_load_acq_int(&th->th_generation);
 		*tvp = th->th_microtime;
+		atomic_thread_fence_acq();
 	} while (gen == 0 || gen != th->th_generation);
 }
 #endif /* FFCLOCK */
@@ -880,10 +896,11 @@ ffclock_read_counter(ffcounter *ffcount)
 	 */
 	do {
 		th = timehands;
-		gen = th->th_generation;
+		gen = atomic_load_acq_int(&th->th_generation);
 		ffth = fftimehands;
 		delta = tc_delta(th);
 		*ffcount = ffth->tick_ffcount;
+		atomic_thread_fence_acq();
 	} while (gen == 0 || gen != th->th_generation);
 
 	*ffcount += delta;
@@ -988,8 +1005,9 @@ dtrace_getnanotime(struct timespec *tsp)
 
 	do {
 		th = timehands;
-		gen = th->th_generation;
+		gen = atomic_load_acq_int(&th->th_generation);
 		*tsp = th->th_nanotime;
+		atomic_thread_fence_acq();
 	} while (gen == 0 || gen != th->th_generation);
 }
 
@@ -1028,7 +1046,7 @@ sysclock_getsnapshot(struct sysclock_snap *clock_snap, int fast)
 
 	do {
 		th = timehands;
-		gen = th->th_generation;
+		gen = atomic_load_acq_int(&th->th_generation);
 		fbi->th_scale = th->th_scale;
 		fbi->tick_time = th->th_offset;
 #ifdef FFCLOCK
@@ -1042,6 +1060,7 @@ sysclock_getsnapshot(struct sysclock_snap *clock_snap, int fast)
 #endif
 		if (!fast)
 			delta = tc_delta(th);
+		atomic_thread_fence_acq();
 	} while (gen == 0 || gen != th->th_generation);
 
 	clock_snap->delta = delta;
@@ -1180,10 +1199,13 @@ tc_init(struct timecounter *tc)
 	    "quality", CTLFLAG_RD, &(tc->tc_quality), 0,
 	    "goodness of time counter");
 	/*
-	 * Never automatically use a timecounter with negative quality.
+	 * Do not automatically switch if the current tc was specifically
+	 * chosen.  Never automatically use a timecounter with negative quality.
 	 * Even though we run on the dummy counter, switching here may be
-	 * worse since this timecounter may not be monotonous.
+	 * worse since this timecounter may not be monotonic.
 	 */
+	if (tc_chosen)
+		return;
 	if (tc->tc_quality < 0)
 		return;
 	if (tc->tc_quality < timecounter->tc_quality)
@@ -1253,14 +1275,19 @@ tc_windup(void)
 	time_t t;
 
 	/*
-	 * Make the next timehands a copy of the current one, but do not
-	 * overwrite the generation or next pointer.  While we update
-	 * the contents, the generation must be zero.
+	 * Make the next timehands a copy of the current one, but do
+	 * not overwrite the generation or next pointer.  While we
+	 * update the contents, the generation must be zero.  We need
+	 * to ensure that the zero generation is visible before the
+	 * data updates become visible, which requires release fence.
+	 * For similar reasons, re-reading of the generation after the
+	 * data is read should use acquire fence.
 	 */
 	tho = timehands;
 	th = tho->th_next;
 	ogen = th->th_generation;
 	th->th_generation = 0;
+	atomic_thread_fence_rel();
 	bcopy(tho, th, offsetof(struct timehands, th_generation));
 
 	/*
@@ -1377,7 +1404,7 @@ tc_windup(void)
 	 */
 	if (++ogen == 0)
 		ogen = 1;
-	th->th_generation = ogen;
+	atomic_store_rel_int(&th->th_generation, ogen);
 
 	/* Go live with the new struct timehands. */
 #ifdef FFCLOCK
@@ -1411,9 +1438,12 @@ sysctl_kern_timecounter_hardware(SYSCTL_HANDLER_ARGS)
 	strlcpy(newname, tc->tc_name, sizeof(newname));
 
 	error = sysctl_handle_string(oidp, &newname[0], sizeof(newname), req);
-	if (error != 0 || req->newptr == NULL ||
-	    strcmp(newname, tc->tc_name) == 0)
+	if (error != 0 || req->newptr == NULL)
 		return (error);
+	/* Record that the tc in use now was specifically chosen. */
+	tc_chosen = 1;
+	if (strcmp(newname, tc->tc_name) == 0)
+		return (0);
 	for (newtc = timecounters; newtc != NULL; newtc = newtc->tc_next) {
 		if (strcmp(newname, newtc->tc_name) != 0)
 			continue;
@@ -1442,7 +1472,7 @@ SYSCTL_PROC(_kern_timecounter, OID_AUTO, hardware, CTLTYPE_STRING | CTLFLAG_RW,
     "Timecounter hardware selected");
 
 
-/* Report or change the active timecounter hardware. */
+/* Report the available timecounter hardware. */
 static int
 sysctl_kern_timecounter_choice(SYSCTL_HANDLER_ARGS)
 {
@@ -1519,8 +1549,12 @@ pps_fetch(struct pps_fetch_args *fapi, struct pps_state *pps)
 			} else {
 				err = tsleep(pps, PCATCH, "ppsfch", timo);
 			}
-			if (err == EWOULDBLOCK && fapi->timeout.tv_sec == -1) {
-				continue;
+			if (err == EWOULDBLOCK) {
+				if (fapi->timeout.tv_sec == -1) {
+					continue;
+				} else {
+					return (ETIMEDOUT);
+				}
 			} else if (err != 0) {
 				return (err);
 			}
@@ -1651,12 +1685,13 @@ pps_capture(struct pps_state *pps)
 
 	KASSERT(pps != NULL, ("NULL pps pointer in pps_capture"));
 	th = timehands;
-	pps->capgen = th->th_generation;
+	pps->capgen = atomic_load_acq_int(&th->th_generation);
 	pps->capth = th;
 #ifdef FFCLOCK
 	pps->capffth = fftimehands;
 #endif
 	pps->capcount = th->th_counter->tc_get_timecount(th->th_counter);
+	atomic_thread_fence_acq();
 	if (pps->capgen != th->th_generation)
 		pps->capgen = 0;
 }
@@ -1676,8 +1711,12 @@ pps_event(struct pps_state *pps, int event)
 #endif
 
 	KASSERT(pps != NULL, ("NULL pps pointer in pps_event"));
+	/* Nothing to do if not currently set to capture this event type. */
+	if ((event & pps->ppsparam.mode) == 0)
+		return;
 	/* If the timecounter was wound up underneath us, bail out. */
-	if (pps->capgen == 0 || pps->capgen != pps->capth->th_generation)
+	if (pps->capgen == 0 || pps->capgen !=
+	    atomic_load_acq_int(&pps->capth->th_generation))
 		return;
 
 	/* Things would be easier with arrays. */
@@ -1727,6 +1766,7 @@ pps_event(struct pps_state *pps, int event)
 	bintime2timespec(&bt, &ts);
 
 	/* If the timecounter was wound up underneath us, bail out. */
+	atomic_thread_fence_acq();
 	if (pps->capgen != pps->capth->th_generation)
 		return;
 

@@ -65,16 +65,18 @@ __FBSDID("$FreeBSD$");
  */
 #define	MBOX_DELAY_COUNT	1000000 / 100
 #define	ISP_MARK_PORTDB(a, b, c)				\
-    isp_prt(isp, ISP_LOG_SANCFG, 				\
-	"Chan %d ISP_MARK_PORTDB@LINE %d", b, __LINE__);	\
-    isp_mark_portdb(a, b, c)
+	do {								\
+		isp_prt(isp, ISP_LOG_SANCFG, 				\
+		    "Chan %d ISP_MARK_PORTDB@LINE %d", (b), __LINE__);	\
+		isp_mark_portdb((a), (b), (c));				\
+	} while (0)
 
 /*
  * Local static data
  */
 static const char fconf[] = "Chan %d PortDB[%d] changed:\n current =(0x%x@0x%06x 0x%08x%08x 0x%08x%08x)\n database=(0x%x@0x%06x 0x%08x%08x 0x%08x%08x)";
 static const char notresp[] = "Not RESPONSE in RESPONSE Queue (type 0x%x) @ idx %d (next %d) nlooked %d";
-static const char topology[] = "Chan %d WWPN 0x%08x%08x PortID 0x%06x N-Port Handle %d, Connection '%s'";
+static const char topology[] = "Chan %d WWPN 0x%08x%08x PortID 0x%06x handle 0x%x, Connection '%s'";
 static const char bun[] = "bad underrun (count %d, resid %d, status %s)";
 static const char lipd[] = "Chan %d LIP destroyed %d active commands";
 static const char sacq[] = "unable to acquire scratch area";
@@ -1848,7 +1850,7 @@ isp_fibre_init(ispsoftc_t *isp)
 		icbp->icb_lunetimeout = ICB_LUN_ENABLE_TOV;
 	}
 #endif
-	if (fcp->isp_wwnn && fcp->isp_wwpn && (fcp->isp_wwnn >> 60) != 2) {
+	if (fcp->isp_wwnn && fcp->isp_wwpn) {
 		icbp->icb_fwoptions |= ICBOPT_BOTH_WWNS;
 		MAKE_NODE_NAME_FROM_WWN(icbp->icb_nodename, fcp->isp_wwnn);
 		MAKE_NODE_NAME_FROM_WWN(icbp->icb_portname, fcp->isp_wwpn);
@@ -2075,7 +2077,7 @@ isp_fibre_init_2400(ispsoftc_t *isp)
 	}
 	icbp->icb_logintime = ICB_LOGIN_TOV;
 
-	if (fcp->isp_wwnn && fcp->isp_wwpn && (fcp->isp_wwnn >> 60) != 2) {
+	if (fcp->isp_wwnn && fcp->isp_wwpn) {
 		icbp->icb_fwoptions1 |= ICB2400_OPT1_BOTH_WWNS;
 		MAKE_NODE_NAME_FROM_WWN(icbp->icb_portname, fcp->isp_wwpn);
 		MAKE_NODE_NAME_FROM_WWN(icbp->icb_nodename, fcp->isp_wwnn);
@@ -2182,6 +2184,11 @@ isp_fibre_init_2400(ispsoftc_t *isp)
 			isp_put_vp_port_info(isp, &pi, pdst);
 			amt += ICB2400_VPOPT_WRITE_SIZE;
 		}
+		if (isp->isp_dblev & ISP_LOGDEBUG1) {
+			isp_print_bytes(isp, "isp_fibre_init_2400",
+			    amt - ICB2400_VPINFO_OFF,
+			    (char *)fcp->isp_scratch + ICB2400_VPINFO_OFF);
+		}
 	}
 
 	/*
@@ -2221,6 +2228,7 @@ static void
 isp_mark_portdb(ispsoftc_t *isp, int chan, int disposition)
 {
 	fcparam *fcp = FCPARAM(isp, chan);
+	fcportdb_t *lp;
 	int i;
 
 	if (chan < 0 || chan >= isp->isp_nchan) {
@@ -2228,32 +2236,28 @@ isp_mark_portdb(ispsoftc_t *isp, int chan, int disposition)
 		return;
 	}
 	for (i = 0; i < MAX_FC_TARG; i++) {
-		if (fcp->portdb[i].target_mode) {
-			if (disposition < 0) {
-				isp_prt(isp, ISP_LOGTINFO, "isp_mark_portdb: Chan %d zeroing handle 0x" "%04x port 0x%06x", chan,
-				    fcp->portdb[i].handle, fcp->portdb[i].portid);
-				ISP_MEMZERO(&fcp->portdb[i], sizeof (fcportdb_t));
+		lp = &fcp->portdb[i];
+		switch (lp->state) {
+		case FC_PORTDB_STATE_PROBATIONAL:
+		case FC_PORTDB_STATE_DEAD:
+		case FC_PORTDB_STATE_CHANGED:
+		case FC_PORTDB_STATE_PENDING_VALID:
+		case FC_PORTDB_STATE_VALID:
+			if (disposition > 0)
+				lp->state = FC_PORTDB_STATE_PROBATIONAL;
+			else {
+				lp->state = FC_PORTDB_STATE_NIL;
+				isp_async(isp, ISPASYNC_DEV_GONE, chan, lp);
 			}
-			continue;
-		}
-		if (disposition == 0) {
-			ISP_MEMZERO(&fcp->portdb[i], sizeof (fcportdb_t));
-		} else {
-			switch (fcp->portdb[i].state) {
-			case FC_PORTDB_STATE_CHANGED:
-			case FC_PORTDB_STATE_PENDING_VALID:
-			case FC_PORTDB_STATE_VALID:
-			case FC_PORTDB_STATE_PROBATIONAL:
-				fcp->portdb[i].state = FC_PORTDB_STATE_PROBATIONAL;
-				break;
-			case FC_PORTDB_STATE_ZOMBIE:
-				break;
-			case FC_PORTDB_STATE_NIL:
-			default:
-				ISP_MEMZERO(&fcp->portdb[i], sizeof (fcportdb_t));
-				fcp->portdb[i].state = FC_PORTDB_STATE_NIL;
-				break;
-			}
+			break;
+		case FC_PORTDB_STATE_ZOMBIE:
+			break;
+		case FC_PORTDB_STATE_NIL:
+		case FC_PORTDB_STATE_NEW:
+		default:
+			ISP_MEMZERO(lp, sizeof(*lp));
+			lp->state = FC_PORTDB_STATE_NIL;
+			break;
 		}
 	}
 }
@@ -2441,7 +2445,7 @@ isp_port_login(ispsoftc_t *isp, uint16_t handle, uint32_t portid)
 		return (MBOX_PORT_ID_USED | (mbs.param[1] << 16));
 
 	case MBOX_LOOP_ID_USED:
-		isp_prt(isp, ISP_LOG_SANCFG|ISP_LOG_WARN1, "isp_port_login: handle 0x%04x in use for port id 0x%02xXXXX", handle, mbs.param[1] & 0xff);
+		isp_prt(isp, ISP_LOG_SANCFG|ISP_LOG_WARN1, "isp_port_login: handle 0x%x in use for port id 0x%02xXXXX", handle, mbs.param[1] & 0xff);
 		return (MBOX_LOOP_ID_USED);
 
 	case MBOX_COMMAND_COMPLETE:
@@ -2527,7 +2531,7 @@ isp_getpdb(ispsoftc_t *isp, int chan, uint16_t id, isp_pdb_t *pdb, int dolock)
 		pdb->portid = BITS2WORD_24XX(un.bill.pdb_portid_bits);
 		ISP_MEMCPY(pdb->portname, un.bill.pdb_portname, 8);
 		ISP_MEMCPY(pdb->nodename, un.bill.pdb_nodename, 8);
-		isp_prt(isp, ISP_LOG_SANCFG, "Chan %d Port 0x%06x flags 0x%x curstate %x", chan, pdb->portid, un.bill.pdb_flags, un.bill.pdb_curstate);
+		isp_prt(isp, ISP_LOG_SANCFG, "Chan %d handle 0x%x Port 0x%06x flags 0x%x curstate %x", chan, id, pdb->portid, un.bill.pdb_flags, un.bill.pdb_curstate);
 		if (un.bill.pdb_curstate < PDB2400_STATE_PLOGI_DONE || un.bill.pdb_curstate > PDB2400_STATE_LOGGED_IN) {
 			mbs.param[0] = MBOX_NOT_LOGGED_IN;
 			if (dolock) {
@@ -2555,6 +2559,7 @@ isp_dump_chip_portdb(ispsoftc_t *isp, int chan, int dolock)
 	isp_pdb_t pdb;
 	int lim, loopid;
 
+	isp_prt(isp, ISP_LOG_SANCFG|ISP_LOGINFO, "Chan %d chip port dump", chan);
 	if (ISP_CAP_2KLOGIN(isp)) {
 		lim = NPH_MAX_2K;
 	} else {
@@ -2956,25 +2961,14 @@ isp_pdb_sync(ispsoftc_t *isp, int chan)
 	for (dbidx = 0; dbidx < MAX_FC_TARG; dbidx++) {
 		lp = &fcp->portdb[dbidx];
 
-		if (lp->state == FC_PORTDB_STATE_NIL || lp->target_mode) {
-			continue;
-		}
-
-		if (lp->state == FC_PORTDB_STATE_VALID) {
-			if (dbidx != FL_ID) {
-				isp_prt(isp,
-				    ISP_LOGERR, "portdb idx %d already valid",
-			    	    dbidx);
-			}
+		if (lp->state == FC_PORTDB_STATE_NIL ||
+		    lp->state == FC_PORTDB_STATE_VALID) {
 			continue;
 		}
 
 		switch (lp->state) {
 		case FC_PORTDB_STATE_PROBATIONAL:
 		case FC_PORTDB_STATE_DEAD:
-			/*
-			 * It's up to the outer layers to clear isp_dev_map.
-			 */
 			lp->state = FC_PORTDB_STATE_NIL;
 			isp_async(isp, ISPASYNC_DEV_GONE, chan, lp);
 			if (lp->autologin == 0) {
@@ -2994,48 +2988,36 @@ isp_pdb_sync(ispsoftc_t *isp, int chan)
 			 */
 			break;
 		case FC_PORTDB_STATE_NEW:
-			/*
-			 * It's up to the outer layers to assign a virtual
-			 * target id in isp_dev_map (if any).
-			 */
 			lp->portid = lp->new_portid;
 			lp->prli_word3 = lp->new_prli_word3;
 			lp->state = FC_PORTDB_STATE_VALID;
 			isp_async(isp, ISPASYNC_DEV_ARRIVED, chan, lp);
 			lp->new_prli_word3 = 0;
 			lp->new_portid = 0;
-			lp->announced = 0;
 			break;
 		case FC_PORTDB_STATE_CHANGED:
-/*
- * XXXX FIX THIS
- */
 			lp->state = FC_PORTDB_STATE_VALID;
 			isp_async(isp, ISPASYNC_DEV_CHANGED, chan, lp);
+			lp->portid = lp->new_portid;
+			lp->prli_word3 = lp->new_prli_word3;
 			lp->new_prli_word3 = 0;
 			lp->new_portid = 0;
-			lp->announced = 0;
 			break;
 		case FC_PORTDB_STATE_PENDING_VALID:
 			lp->portid = lp->new_portid;
 			lp->prli_word3 = lp->new_prli_word3;
-			if (lp->dev_map_idx) {
-				int t = lp->dev_map_idx - 1;
-				fcp->isp_dev_map[t] = dbidx + 1;
-			}
 			lp->state = FC_PORTDB_STATE_VALID;
 			isp_async(isp, ISPASYNC_DEV_STAYED, chan, lp);
 			if (dbidx != FL_ID) {
 				lp->new_prli_word3 = 0;
 				lp->new_portid = 0;
 			}
-			lp->announced = 0;
 			break;
 		case FC_PORTDB_STATE_ZOMBIE:
 			break;
 		default:
 			isp_prt(isp, ISP_LOGWARN,
-			    "isp_scan_loop: state %d for idx %d",
+			    "isp_pdb_sync: state %d for idx %d",
 			    lp->state, dbidx);
 			isp_dump_portdb(isp, chan);
 		}
@@ -3105,7 +3087,6 @@ isp_scan_loop(ispsoftc_t *isp, int chan)
 	fcp->isp_loopstate = LOOP_SCANNING_LOOP;
 
 	isp_prt(isp, ISP_LOG_SANCFG, "Chan %d FC scan loop 0..%d", chan, lim-1);
-
 
 	/*
 	 * Run through the list and get the port database info for each one.
@@ -3190,6 +3171,9 @@ isp_scan_loop(ispsoftc_t *isp, int chan)
 		 */
 		if (tmp.node_wwn == 0 || tmp.port_wwn == 0 || tmp.portid == 0) {
 			int a, b, c;
+			isp_prt(isp, ISP_LOGWARN,
+			    "Chan %d bad pdb (WWNN %016jx, WWPN %016jx, PortID %06x, W3 0x%x, H 0x%x) @ handle 0x%x",
+			    chan, tmp.node_wwn, tmp.port_wwn, tmp.portid, tmp.prli_word3, tmp.handle, handle);
 			a = (tmp.node_wwn == 0);
 			b = (tmp.port_wwn == 0);
 			c = (tmp.portid == 0);
@@ -3199,13 +3183,10 @@ isp_scan_loop(ispsoftc_t *isp, int chan)
 				tmp.port_wwn =
 				    isp_get_wwn(isp, chan, handle, 0);
 				if (tmp.node_wwn && tmp.port_wwn) {
-					isp_prt(isp, ISP_LOGINFO, "DODGED!");
+					isp_prt(isp, ISP_LOGWARN, "DODGED!");
 					goto cont;
 				}
 			}
-			isp_prt(isp, ISP_LOGWARN,
-			    "Chan %d bad pdb (%1d%1d%1d) @ handle 0x%x", chan,
-			    a, b, c, handle);
 			isp_dump_portdb(isp, chan);
 			continue;
 		}
@@ -3213,30 +3194,19 @@ isp_scan_loop(ispsoftc_t *isp, int chan)
 
 		/*
 		 * Now search the entire port database
-		 * for the same Port and Node WWN.
+		 * for the same Port WWN.
 		 */
-		for (i = 0; i < MAX_FC_TARG; i++) {
-			lp = &fcp->portdb[i];
-
-			if (lp->state == FC_PORTDB_STATE_NIL || lp->target_mode) {
-				continue;
-			}
-			if (lp->node_wwn != tmp.node_wwn) {
-				continue;
-			}
-			if (lp->port_wwn != tmp.port_wwn) {
-				continue;
-			}
-
+		if (isp_find_pdb_by_wwn(isp, chan, tmp.port_wwn, &lp)) {
 			/*
 			 * Okay- we've found a non-nil entry that matches.
 			 * Check to make sure it's probational or a zombie.
 			 */
 			if (lp->state != FC_PORTDB_STATE_PROBATIONAL &&
-			    lp->state != FC_PORTDB_STATE_ZOMBIE) {
+			    lp->state != FC_PORTDB_STATE_ZOMBIE &&
+			    lp->state != FC_PORTDB_STATE_VALID) {
 				isp_prt(isp, ISP_LOGERR,
 				    "Chan %d [%d] not probational/zombie (0x%x)",
-				    chan, i, lp->state);
+				    chan, FC_PORTDB_TGT(isp, chan, lp), lp->state);
 				isp_dump_portdb(isp, chan);
 				ISP_MARK_PORTDB(isp, chan, 1);
 				isp_prt(isp, ISP_LOG_SANCFG, "Chan %d FC scan loop DONE (bad)", chan);
@@ -3248,6 +3218,7 @@ isp_scan_loop(ispsoftc_t *isp, int chan)
 			 * automatically.
 			 */
 			lp->autologin = 1;
+			lp->node_wwn = tmp.node_wwn;
 
 			/*
 			 * Check to make see if really still the same
@@ -3258,7 +3229,7 @@ isp_scan_loop(ispsoftc_t *isp, int chan)
 				lp->new_prli_word3 = tmp.prli_word3;
 				lp->state = FC_PORTDB_STATE_PENDING_VALID;
 				isp_prt(isp, ISP_LOG_SANCFG, "Chan %d Loop Port 0x%06x@0x%04x Pending Valid", chan, tmp.portid, tmp.handle);
-				break;
+				continue;
 			}
 
 			/*
@@ -3275,13 +3246,6 @@ isp_scan_loop(ispsoftc_t *isp, int chan)
 			lp->state = FC_PORTDB_STATE_CHANGED;
 			lp->new_portid = tmp.portid;
 			lp->new_prli_word3 = tmp.prli_word3;
-			break;
-		}
-
-		/*
-		 * Did we find and update an old entry?
-		 */
-		if (i < MAX_FC_TARG) {
 			continue;
 		}
 
@@ -3290,9 +3254,6 @@ isp_scan_loop(ispsoftc_t *isp, int chan)
 		 * for it and save info for later disposition.
 		 */
 		for (i = 0; i < MAX_FC_TARG; i++) {
-			if (fcp->portdb[i].target_mode) {
-				continue;
-			}
 			if (fcp->portdb[i].state == FC_PORTDB_STATE_NIL) {
 				break;
 			}
@@ -3692,7 +3653,7 @@ isp_scan_fabric(ispsoftc_t *isp, int chan)
 		 * that have the same domain and area code as our own
 		 * portid.
 		 */
-		if (ISP_CAP_MULTI_ID(isp)) {
+		if (ISP_CAP_MULTI_ID(isp) && isp->isp_nchan > 1) {
 			if ((portid >> 8) == (fcp->isp_portid >> 8)) {
 				isp_prt(isp, ISP_LOG_SANCFG,
 				    "Chan %d skip PortID 0x%06x",
@@ -3718,7 +3679,7 @@ isp_scan_fabric(ispsoftc_t *isp, int chan)
 		for (dbidx = 0; dbidx < MAX_FC_TARG; dbidx++) {
 			lp = &fcp->portdb[dbidx];
 
-			if (lp->state != FC_PORTDB_STATE_PROBATIONAL || lp->target_mode) {
+			if (lp->state != FC_PORTDB_STATE_PROBATIONAL) {
 				continue;
 			}
 			if (lp->portid == portid) {
@@ -3760,7 +3721,7 @@ isp_scan_fabric(ispsoftc_t *isp, int chan)
 			if (r != 0) {
 				lp->new_portid = portid;
 				lp->state = FC_PORTDB_STATE_DEAD;
-				isp_prt(isp, ISP_LOG_SANCFG, "Chan %d Fabric Port 0x%06x is dead", chan, portid);
+				isp_prt(isp, ISP_LOG_SANCFG, "Chan %d Fabric PortID 0x%06x handle 0x%x is dead (%d)", chan, portid, lp->handle, r);
 				continue;
 			}
 
@@ -3776,7 +3737,7 @@ isp_scan_fabric(ispsoftc_t *isp, int chan)
 			if (pdb.handle != lp->handle ||
 			    pdb.portid != portid ||
 			    wwpn != lp->port_wwn ||
-			    wwnn != lp->node_wwn) {
+			    (lp->node_wwn != 0 && wwnn != lp->node_wwn)) {
 				isp_prt(isp, ISP_LOG_SANCFG,
 				    fconf, chan, dbidx, pdb.handle, pdb.portid,
 				    (uint32_t) (wwnn >> 32), (uint32_t) wwnn,
@@ -3794,8 +3755,9 @@ isp_scan_fabric(ispsoftc_t *isp, int chan)
 				 * portid consistency after re-login.
 				 *
 				 */
-				if (isp_login_device(isp, chan, portid, &pdb,
-				    &oldhandle)) {
+				if ((fcp->role & ISP_ROLE_INITIATOR) == 0 ||
+				    isp_login_device(isp, chan, portid, &pdb,
+				     &oldhandle)) {
 					lp->new_portid = portid;
 					lp->state = FC_PORTDB_STATE_DEAD;
 					if (fcp->isp_loopstate !=
@@ -3816,7 +3778,7 @@ isp_scan_fabric(ispsoftc_t *isp, int chan)
 				MAKE_WWN_FROM_NODE_NAME(wwnn, pdb.nodename);
 				MAKE_WWN_FROM_NODE_NAME(wwpn, pdb.portname);
 				if (wwpn != lp->port_wwn ||
-				    wwnn != lp->node_wwn) {
+				    (lp->node_wwn != 0 && wwnn != lp->node_wwn)) {
 					isp_prt(isp, ISP_LOGWARN, "changed WWN"
 					    " after relogin");
 					lp->new_portid = portid;
@@ -3854,6 +3816,9 @@ isp_scan_fabric(ispsoftc_t *isp, int chan)
 			continue;
 		}
 
+		if ((fcp->role & ISP_ROLE_INITIATOR) == 0)
+			continue;
+
 		/*
 		 * Ah- a new entry. Search the database again for all non-NIL
 		 * entries to make sure we never ever make a new database entry
@@ -3865,12 +3830,6 @@ isp_scan_fabric(ispsoftc_t *isp, int chan)
 		for (lp = fcp->portdb; lp < &fcp->portdb[MAX_FC_TARG]; lp++) {
 			if (lp >= &fcp->portdb[FL_ID] &&
 			    lp <= &fcp->portdb[SNS_ID]) {
-				continue;
-			}
-			/*
-			 * Skip any target mode entries.
-			 */
-			if (lp->target_mode) {
 				continue;
 			}
 			if (lp->state == FC_PORTDB_STATE_NIL) {
@@ -3945,10 +3904,9 @@ isp_scan_fabric(ispsoftc_t *isp, int chan)
 			if (dbidx >= FL_ID && dbidx <= SNS_ID) {
 				continue;
 			}
-			if (fcp->portdb[dbidx].target_mode) {
-				continue;
-			}
-			if (fcp->portdb[dbidx].node_wwn == wwnn && fcp->portdb[dbidx].port_wwn == wwpn) {
+			if ((fcp->portdb[dbidx].node_wwn == wwnn ||
+			     fcp->portdb[dbidx].node_wwn == 0) &&
+			    fcp->portdb[dbidx].port_wwn == wwpn) {
 				break;
 			}
 		}
@@ -3986,6 +3944,7 @@ isp_scan_fabric(ispsoftc_t *isp, int chan)
 		 */
 		lp = &fcp->portdb[dbidx];
 		lp->handle = handle;
+		lp->node_wwn = wwnn;
 		lp->new_portid = portid;
 		lp->new_prli_word3 = nr;
 		if (lp->portid != portid || lp->prli_word3 != nr) {
@@ -4319,7 +4278,8 @@ isp_start(XS_T *xs)
 	ispreq_t *reqp;
 	void *cdbp, *qep;
 	uint16_t *tptr;
-	int target, dmaresult, hdlidx = 0;
+	fcportdb_t *lp;
+	int target, dmaresult;
 
 	XS_INITERR(xs);
 	isp = XS_ISP(xs);
@@ -4368,29 +4328,22 @@ isp_start(XS_T *xs)
 			return (CMD_RQLATER);
 		}
 
-		if (XS_TGT(xs) >= MAX_FC_TARG) {
-			isp_prt(isp, ISP_LOG_WARN1, "%d.%d.%d target too big", XS_CHANNEL(xs), target, XS_LUN(xs));
+		isp_prt(isp, ISP_LOGDEBUG2, "XS_TGT(xs)=%d", target);
+		lp = &fcp->portdb[target];
+		if (target < 0 || target >= MAX_FC_TARG ||
+		    lp->is_target == 0) {
 			XS_SETERR(xs, HBA_SELTIMEOUT);
 			return (CMD_COMPLETE);
 		}
-
-		hdlidx = fcp->isp_dev_map[XS_TGT(xs)] - 1;
-		isp_prt(isp, ISP_LOGDEBUG2, "XS_TGT(xs)=%d- hdlidx value %d", XS_TGT(xs), hdlidx);
-		if (hdlidx < 0 || hdlidx >= MAX_FC_TARG) {
-			XS_SETERR(xs, HBA_SELTIMEOUT);
-			return (CMD_COMPLETE);
-		}
-		if (fcp->portdb[hdlidx].state == FC_PORTDB_STATE_ZOMBIE) {
+		if (lp->state == FC_PORTDB_STATE_ZOMBIE) {
 			isp_prt(isp, ISP_LOGDEBUG1, "%d.%d.%d target zombie", XS_CHANNEL(xs), target, XS_LUN(xs));
 			return (CMD_RQLATER);
 		}
-		if (fcp->portdb[hdlidx].state != FC_PORTDB_STATE_VALID) {
-			isp_prt(isp, ISP_LOGDEBUG1, "%d.%d.%d bad db port state 0x%x", XS_CHANNEL(xs), target, XS_LUN(xs), fcp->portdb[hdlidx].state);
+		if (lp->state != FC_PORTDB_STATE_VALID) {
+			isp_prt(isp, ISP_LOGDEBUG1, "%d.%d.%d bad db port state 0x%x", XS_CHANNEL(xs), target, XS_LUN(xs), lp->state);
 			XS_SETERR(xs, HBA_SELTIMEOUT);
 			return (CMD_COMPLETE);
 		}
-		target = fcp->portdb[hdlidx].handle;
-		fcp->portdb[hdlidx].dirty = 1;
 	} else {
 		sdparam *sdp = SDPARAM(isp, XS_CHANNEL(xs));
 		if ((sdp->role & ISP_ROLE_INITIATOR) == 0) {
@@ -4401,6 +4354,7 @@ isp_start(XS_T *xs)
 		if (sdp->update) {
 			isp_spi_update(isp, XS_CHANNEL(xs));
 		}
+		lp = NULL;
 	}
 
  start_again:
@@ -4532,7 +4486,6 @@ isp_start(XS_T *xs)
 		reqp->req_cdblen = cdblen;
 	} else if (IS_24XX(isp)) {
 		ispreqt7_t *t7 = (ispreqt7_t *)local;
-		fcportdb_t *lp;
 
 		if (cdblen > sizeof (t7->req_cdb)) {
 			isp_prt(isp, ISP_LOGERR, "Command Length %u too long for this chip", cdblen);
@@ -4540,8 +4493,7 @@ isp_start(XS_T *xs)
 			return (CMD_COMPLETE);
 		}
 
-		lp = &FCPARAM(isp, XS_CHANNEL(xs))->portdb[hdlidx];
-		t7->req_nphdl = target;
+		t7->req_nphdl = lp->handle;
 		t7->req_tidlo = lp->portid;
 		t7->req_tidhi = lp->portid >> 16;
 		t7->req_vpidx = ISP_GET_VPIDX(isp, XS_CHANNEL(xs));
@@ -4561,14 +4513,12 @@ isp_start(XS_T *xs)
 		cdbp = t7->req_cdb;
 	} else {
 		ispreqt2_t *t2 = (ispreqt2_t *)local;
-		fcportdb_t *lp;
 
 		if (cdblen > sizeof t2->req_cdb) {
 			isp_prt(isp, ISP_LOGERR, "Command Length %u too long for this chip", cdblen);
 			XS_SETERR(xs, HBA_BOTCH);
 			return (CMD_COMPLETE);
 		}
-		lp = &FCPARAM(isp, XS_CHANNEL(xs))->portdb[hdlidx];
 		if (FCPARAM(isp, XS_CHANNEL(xs))->fctape_enabled && (lp->prli_word3 & PRLI_WD3_RETRY)) {
 			if (FCP_NEXT_CRN(isp, &t2->req_crn, xs)) {
 				isp_prt(isp, ISP_LOG_WARN1, "%d.%d.%d cannot generate next CRN", XS_CHANNEL(xs), target, XS_LUN(xs));
@@ -4578,16 +4528,16 @@ isp_start(XS_T *xs)
 		}
 		if (ISP_CAP_2KLOGIN(isp)) {
 			ispreqt2e_t *t2e = (ispreqt2e_t *)local;
-			t2e->req_target = target;
+			t2e->req_target = lp->handle;
 			t2e->req_scclun = XS_LUN(xs);
 			cdbp = t2e->req_cdb;
 		} else if (ISP_CAP_SCCFW(isp)) {
 			ispreqt2_t *t2 = (ispreqt2_t *)local;
-			t2->req_target = target;
+			t2->req_target = lp->handle;
 			t2->req_scclun = XS_LUN(xs);
 			cdbp = t2->req_cdb;
 		} else {
-			t2->req_target = target;
+			t2->req_target = lp->handle;
 			t2->req_lun_trn = XS_LUN(xs);
 			cdbp = t2->req_cdb;
 		}
@@ -4685,16 +4635,15 @@ isp_control(ispsoftc_t *isp, ispctl_t ctl, ...)
 			isp24xx_statusreq_t *sp;
 			fcparam *fcp = FCPARAM(isp, chan);
 			fcportdb_t *lp;
-			int hdlidx;
 
-			hdlidx = fcp->isp_dev_map[tgt] - 1;
-			if (hdlidx < 0 || hdlidx >= MAX_FC_TARG) {
-				isp_prt(isp, ISP_LOGWARN, "Chan %d bad handle %d trying to reset target %d", chan, hdlidx, tgt);
+			if (tgt < 0 || tgt >= MAX_FC_TARG) {
+				isp_prt(isp, ISP_LOGWARN, "Chan %d trying to reset bad target %d", chan, tgt);
 				break;
 			}
-			lp = &fcp->portdb[hdlidx];
-			if (lp->state != FC_PORTDB_STATE_VALID) {
-				isp_prt(isp, ISP_LOGWARN, "Chan %d handle %d for abort of target %d no longer valid", chan, hdlidx, tgt);
+			lp = &fcp->portdb[tgt];
+			if (lp->is_target == 0 ||
+			    lp->state != FC_PORTDB_STATE_VALID) {
+				isp_prt(isp, ISP_LOGWARN, "Chan %d abort of no longer valid target %d", chan, tgt);
 				break;
 			}
 
@@ -4775,17 +4724,16 @@ isp_control(ispsoftc_t *isp, ispctl_t ctl, ...)
 			isp24xx_abrt_t local, *ab = &local, *ab2;
 			fcparam *fcp;
 			fcportdb_t *lp;
-			int hdlidx;
 
 			fcp = FCPARAM(isp, chan);
-			hdlidx = fcp->isp_dev_map[tgt] - 1;
-			if (hdlidx < 0 || hdlidx >= MAX_FC_TARG) {
-				isp_prt(isp, ISP_LOGWARN, "Chan %d bad handle %d trying to abort target %d", chan, hdlidx, tgt);
+			if (tgt < 0 || tgt >= MAX_FC_TARG) {
+				isp_prt(isp, ISP_LOGWARN, "Chan %d trying to abort bad target %d", chan, tgt);
 				break;
 			}
-			lp = &fcp->portdb[hdlidx];
-			if (lp->state != FC_PORTDB_STATE_VALID) {
-				isp_prt(isp, ISP_LOGWARN, "Chan %d handle %d for abort of target %d no longer valid", chan, hdlidx, tgt);
+			lp = &fcp->portdb[tgt];
+			if (lp->is_target == 0 ||
+			    lp->state != FC_PORTDB_STATE_VALID) {
+				isp_prt(isp, ISP_LOGWARN, "Chan %d abort of no longer valid target %d", chan, tgt);
 				break;
 			}
 			isp_prt(isp, ISP_LOGALL, "Chan %d Abort Cmd for N-Port 0x%04x @ Port 0x%06x", chan, lp->handle, lp->portid);
@@ -4825,7 +4773,7 @@ isp_control(ispsoftc_t *isp, ispctl_t ctl, ...)
 			if (ab->abrt_nphdl == ISP24XX_ABRT_OKAY) {
 				return (0);
 			}
-			isp_prt(isp, ISP_LOGWARN, "Chan %d handle %d abort returned 0x%x", chan, hdlidx, ab->abrt_nphdl);
+			isp_prt(isp, ISP_LOGWARN, "Chan %d handle %d abort returned 0x%x", chan, tgt, ab->abrt_nphdl);
 			break;
 		} else if (IS_FC(isp)) {
 			if (ISP_CAP_SCCFW(isp)) {
@@ -4983,6 +4931,22 @@ isp_control(ispsoftc_t *isp, ispctl_t ctl, ...)
 				break;
 			}
 		} while ((r & 0xffff) == MBOX_LOOP_ID_USED);
+		return (r);
+	}
+	case ISPCTL_CHANGE_ROLE:
+	{
+		int role, r;
+
+		va_start(ap, ctl);
+		chan = va_arg(ap, int);
+		role = va_arg(ap, int);
+		va_end(ap);
+		if (IS_FC(isp)) {
+			r = isp_fc_change_role(isp, chan, role);
+		} else {
+			SDPARAM(isp, chan)->role = role;
+			r = 0;
+		}
 		return (r);
 	}
 	default:
@@ -7344,6 +7308,7 @@ isp_mboxcmd(ispsoftc_t *isp, mbreg_t *mbp)
 			isp_prt(isp, ISP_LOGERR, "Unknown Command 0x%x", opcode);
 			return;
 		}
+		cname = fc_mbcmd_names[opcode];
 		ibits = ISP_FC_IBITS(opcode);
 		obits = ISP_FC_OBITS(opcode);
 	} else {
@@ -7352,9 +7317,15 @@ isp_mboxcmd(ispsoftc_t *isp, mbreg_t *mbp)
 			isp_prt(isp, ISP_LOGERR, "Unknown Command 0x%x", opcode);
 			return;
 		}
+		cname = scsi_mbcmd_names[opcode];
 		ibits = ISP_SCSI_IBITS(opcode);
 		obits = ISP_SCSI_OBITS(opcode);
 	}
+	if (cname == NULL) {
+		cname = tname;
+		ISP_SNPRINTF(tname, sizeof tname, "opcode %x", opcode);
+	}
+	isp_prt(isp, ISP_LOGDEBUG3, "Mailbox Command '%s'", cname);
 
 	/*
 	 * Pick up any additional bits that the caller might have set.
@@ -7439,11 +7410,6 @@ isp_mboxcmd(ispsoftc_t *isp, mbreg_t *mbp)
  out:
 	if (mbp->logval == 0 || opcode == MBOX_EXEC_FIRMWARE) {
 		return;
-	}
-	cname = (IS_FC(isp))? fc_mbcmd_names[opcode] : scsi_mbcmd_names[opcode];
-	if (cname == NULL) {
-		cname = tname;
-		ISP_SNPRINTF(tname, sizeof tname, "opcode %x", opcode);
 	}
 
 	/*
@@ -7853,26 +7819,26 @@ isp_setdfltfcparm(ispsoftc_t *isp, int chan)
  * not disturb an already active list of commands.
  */
 
-void
+int
 isp_reinit(ispsoftc_t *isp, int do_load_defaults)
 {
-	int i;
+	int i, res = 0;
 
 	isp_reset(isp, do_load_defaults);
-
 	if (isp->isp_state != ISP_RESETSTATE) {
+		res = EIO;
 		isp_prt(isp, ISP_LOGERR, "%s: cannot reset card", __func__);
 		ISP_DISABLE_INTS(isp);
 		goto cleanup;
 	}
 
 	isp_init(isp);
-
 	if (isp->isp_state == ISP_INITSTATE) {
 		isp->isp_state = ISP_RUNSTATE;
 	}
 
 	if (isp->isp_state != ISP_RUNSTATE) {
+		res = EIO;
 #ifndef	ISP_TARGET_MODE
 		isp_prt(isp, ISP_LOGWARN, "%s: not at runstate", __func__);
 #endif
@@ -7889,18 +7855,16 @@ isp_reinit(ispsoftc_t *isp, int do_load_defaults)
 				ISP_WRITE(isp, BIU2100_CSR, BIU2100_RISC_REGS);
 			}
 		}
- 	}
+	}
 
  cleanup:
-
 	isp->isp_nactive = 0;
-
 	isp_clear_commands(isp);
 	if (IS_FC(isp)) {
-		for (i = 0; i < isp->isp_nchan; i++) {
+		for (i = 0; i < isp->isp_nchan; i++)
 			ISP_MARK_PORTDB(isp, i, -1);
-		}
 	}
+	return (res);
 }
 
 /*

@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
  * Intel fourth generation mobile cpus integrated I2C device, smbus driver.
  *
  * See ig4_reg.h for datasheet reference and notes.
+ * See ig4_var.h for locking semantics.
  */
 
 #include <sys/param.h>
@@ -49,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/errno.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/sx.h>
 #include <sys/syslog.h>
 #include <sys/bus.h>
 #include <sys/sysctl.h>
@@ -115,7 +117,7 @@ set_controller(ig4iic_softc_t *sc, uint32_t ctl)
 			error = 0;
 			break;
 		}
-		mtx_sleep(sc, &sc->mutex, 0, "i2cslv", 1);
+		mtx_sleep(sc, &sc->io_lock, 0, "i2cslv", 1);
 	}
 	return (error);
 }
@@ -179,7 +181,7 @@ wait_status(ig4iic_softc_t *sc, uint32_t status)
 		 * work, otherwise poll with the lock held.
 		 */
 		if (status & IG4_STATUS_RX_NOTEMPTY) {
-			mtx_sleep(sc, &sc->mutex, PZERO, "i2cwait",
+			mtx_sleep(sc, &sc->io_lock, 0, "i2cwait",
 				  (hz + 99) / 100); /* sleep up to 10ms */
 			count_us += 10000;
 		} else {
@@ -522,6 +524,8 @@ ig4iic_attach(ig4iic_softc_t *sc)
 	 * Use a threshold of 1 so we get interrupted on each character,
 	 * allowing us to use mtx_sleep() in our poll code.  Not perfect
 	 * but this is better than using DELAY() for receiving data.
+	 *
+	 * See ig4_var.h for details on interrupt handler synchronization.
 	 */
 	reg_write(sc, IG4_REG_RX_TL, 1);
 
@@ -551,12 +555,12 @@ ig4iic_attach(ig4iic_softc_t *sc)
 	 */
 	reg_write(sc, IG4_REG_INTR_MASK, IG4_INTR_STOP_DET |
 					 IG4_INTR_RX_FULL);
-	mtx_lock(&sc->mutex);
+	mtx_lock(&sc->io_lock);
 	if (set_controller(sc, 0))
 		device_printf(sc->dev, "controller error during attach-1\n");
 	if (set_controller(sc, IG4_I2C_ENABLE))
 		device_printf(sc->dev, "controller error during attach-2\n");
-	mtx_unlock(&sc->mutex);
+	mtx_unlock(&sc->io_lock);
 	error = bus_setup_intr(sc->dev, sc->intr_res, INTR_TYPE_MISC | INTR_MPSAFE,
 			       NULL, ig4iic_intr, sc, &sc->intr_handle);
 	if (error) {
@@ -615,7 +619,8 @@ ig4iic_detach(ig4iic_softc_t *sc)
 	if (sc->intr_handle)
 		bus_teardown_intr(sc->dev, sc->intr_res, sc->intr_handle);
 
-	mtx_lock(&sc->mutex);
+	sx_xlock(&sc->call_lock);
+	mtx_lock(&sc->io_lock);
 
 	sc->smb = NULL;
 	sc->intr_handle = NULL;
@@ -623,17 +628,15 @@ ig4iic_detach(ig4iic_softc_t *sc)
 	reg_read(sc, IG4_REG_CLR_INTR);
 	set_controller(sc, 0);
 
-	mtx_unlock(&sc->mutex);
+	mtx_unlock(&sc->io_lock);
+	sx_xunlock(&sc->call_lock);
 	return (0);
 }
 
 int
 ig4iic_smb_callback(device_t dev, int index, void *data)
 {
-	ig4iic_softc_t *sc = device_get_softc(dev);
 	int error;
-
-	mtx_lock(&sc->mutex);
 
 	switch (index) {
 	case SMB_REQUEST_BUS:
@@ -647,8 +650,6 @@ ig4iic_smb_callback(device_t dev, int index, void *data)
 		break;
 	}
 
-	mtx_unlock(&sc->mutex);
-
 	return (error);
 }
 
@@ -660,25 +661,8 @@ ig4iic_smb_callback(device_t dev, int index, void *data)
 int
 ig4iic_smb_quick(device_t dev, u_char slave, int how)
 {
-	ig4iic_softc_t *sc = device_get_softc(dev);
-	int error;
 
-	mtx_lock(&sc->mutex);
-
-	switch (how) {
-	case SMB_QREAD:
-		error = SMB_ENOTSUPP;
-		break;
-	case SMB_QWRITE:
-		error = SMB_ENOTSUPP;
-		break;
-	default:
-		error = SMB_ENOTSUPP;
-		break;
-	}
-	mtx_unlock(&sc->mutex);
-
-	return (error);
+	return (SMB_ENOTSUPP);
 }
 
 /*
@@ -695,7 +679,8 @@ ig4iic_smb_sendb(device_t dev, u_char slave, char byte)
 	uint32_t cmd;
 	int error;
 
-	mtx_lock(&sc->mutex);
+	sx_xlock(&sc->call_lock);
+	mtx_lock(&sc->io_lock);
 
 	set_slave_addr(sc, slave, 0);
 	cmd = byte;
@@ -706,7 +691,8 @@ ig4iic_smb_sendb(device_t dev, u_char slave, char byte)
 		error = SMB_ETIMEOUT;
 	}
 
-	mtx_unlock(&sc->mutex);
+	mtx_unlock(&sc->io_lock);
+	sx_xunlock(&sc->call_lock);
 	return (error);
 }
 
@@ -721,7 +707,8 @@ ig4iic_smb_recvb(device_t dev, u_char slave, char *byte)
 	ig4iic_softc_t *sc = device_get_softc(dev);
 	int error;
 
-	mtx_lock(&sc->mutex);
+	sx_xlock(&sc->call_lock);
+	mtx_lock(&sc->io_lock);
 
 	set_slave_addr(sc, slave, 0);
 	reg_write(sc, IG4_REG_DATA_CMD, IG4_DATA_COMMAND_RD);
@@ -733,7 +720,8 @@ ig4iic_smb_recvb(device_t dev, u_char slave, char *byte)
 		error = SMB_ETIMEOUT;
 	}
 
-	mtx_unlock(&sc->mutex);
+	mtx_unlock(&sc->io_lock);
+	sx_xunlock(&sc->call_lock);
 	return (error);
 }
 
@@ -746,13 +734,15 @@ ig4iic_smb_writeb(device_t dev, u_char slave, char cmd, char byte)
 	ig4iic_softc_t *sc = device_get_softc(dev);
 	int error;
 
-	mtx_lock(&sc->mutex);
+	sx_xlock(&sc->call_lock);
+	mtx_lock(&sc->io_lock);
 
 	set_slave_addr(sc, slave, 0);
 	error = smb_transaction(sc, cmd, SMB_TRANS_NOCNT,
 				&byte, 1, NULL, 0, NULL);
 
-	mtx_unlock(&sc->mutex);
+	mtx_unlock(&sc->io_lock);
+	sx_xunlock(&sc->call_lock);
 	return (error);
 }
 
@@ -766,7 +756,8 @@ ig4iic_smb_writew(device_t dev, u_char slave, char cmd, short word)
 	char buf[2];
 	int error;
 
-	mtx_lock(&sc->mutex);
+	sx_xlock(&sc->call_lock);
+	mtx_lock(&sc->io_lock);
 
 	set_slave_addr(sc, slave, 0);
 	buf[0] = word & 0xFF;
@@ -774,7 +765,8 @@ ig4iic_smb_writew(device_t dev, u_char slave, char cmd, short word)
 	error = smb_transaction(sc, cmd, SMB_TRANS_NOCNT,
 				buf, 2, NULL, 0, NULL);
 
-	mtx_unlock(&sc->mutex);
+	mtx_unlock(&sc->io_lock);
+	sx_xunlock(&sc->call_lock);
 	return (error);
 }
 
@@ -787,13 +779,15 @@ ig4iic_smb_readb(device_t dev, u_char slave, char cmd, char *byte)
 	ig4iic_softc_t *sc = device_get_softc(dev);
 	int error;
 
-	mtx_lock(&sc->mutex);
+	sx_xlock(&sc->call_lock);
+	mtx_lock(&sc->io_lock);
 
 	set_slave_addr(sc, slave, 0);
 	error = smb_transaction(sc, cmd, SMB_TRANS_NOCNT,
 				NULL, 0, byte, 1, NULL);
 
-	mtx_unlock(&sc->mutex);
+	mtx_unlock(&sc->io_lock);
+	sx_xunlock(&sc->call_lock);
 	return (error);
 }
 
@@ -807,7 +801,8 @@ ig4iic_smb_readw(device_t dev, u_char slave, char cmd, short *word)
 	char buf[2];
 	int error;
 
-	mtx_lock(&sc->mutex);
+	sx_xlock(&sc->call_lock);
+	mtx_lock(&sc->io_lock);
 
 	set_slave_addr(sc, slave, 0);
 	if ((error = smb_transaction(sc, cmd, SMB_TRANS_NOCNT,
@@ -815,7 +810,8 @@ ig4iic_smb_readw(device_t dev, u_char slave, char cmd, short *word)
 		*word = (u_char)buf[0] | ((u_char)buf[1] << 8);
 	}
 
-	mtx_unlock(&sc->mutex);
+	mtx_unlock(&sc->io_lock);
+	sx_xunlock(&sc->call_lock);
 	return (error);
 }
 
@@ -831,7 +827,8 @@ ig4iic_smb_pcall(device_t dev, u_char slave, char cmd,
 	char wbuf[2];
 	int error;
 
-	mtx_lock(&sc->mutex);
+	sx_xlock(&sc->call_lock);
+	mtx_lock(&sc->io_lock);
 
 	set_slave_addr(sc, slave, 0);
 	wbuf[0] = sdata & 0xFF;
@@ -841,7 +838,8 @@ ig4iic_smb_pcall(device_t dev, u_char slave, char cmd,
 		*rdata = (u_char)rbuf[0] | ((u_char)rbuf[1] << 8);
 	}
 
-	mtx_unlock(&sc->mutex);
+	mtx_unlock(&sc->io_lock);
+	sx_xunlock(&sc->call_lock);
 	return (error);
 }
 
@@ -852,13 +850,15 @@ ig4iic_smb_bwrite(device_t dev, u_char slave, char cmd,
 	ig4iic_softc_t *sc = device_get_softc(dev);
 	int error;
 
-	mtx_lock(&sc->mutex);
+	sx_xlock(&sc->call_lock);
+	mtx_lock(&sc->io_lock);
 
 	set_slave_addr(sc, slave, 0);
 	error = smb_transaction(sc, cmd, 0,
 				buf, wcount, NULL, 0, NULL);
 
-	mtx_unlock(&sc->mutex);
+	mtx_unlock(&sc->io_lock);
+	sx_xunlock(&sc->call_lock);
 	return (error);
 }
 
@@ -870,14 +870,16 @@ ig4iic_smb_bread(device_t dev, u_char slave, char cmd,
 	int rcount = *countp_char;
 	int error;
 
-	mtx_lock(&sc->mutex);
+	sx_xlock(&sc->call_lock);
+	mtx_lock(&sc->io_lock);
 
 	set_slave_addr(sc, slave, 0);
 	error = smb_transaction(sc, cmd, 0,
 				NULL, 0, buf, rcount, &rcount);
 	*countp_char = rcount;
 
-	mtx_unlock(&sc->mutex);
+	mtx_unlock(&sc->io_lock);
+	sx_xunlock(&sc->call_lock);
 	return (error);
 }
 
@@ -889,18 +891,20 @@ ig4iic_smb_trans(device_t dev, int slave, char cmd, int op,
 	ig4iic_softc_t *sc = device_get_softc(dev);
 	int error;
 
-	mtx_lock(&sc->mutex);
+	sx_xlock(&sc->call_lock);
+	mtx_lock(&sc->io_lock);
 
 	set_slave_addr(sc, slave, op);
 	error = smb_transaction(sc, cmd, op,
 				wbuf, wcount, rbuf, rcount, actualp);
 
-	mtx_unlock(&sc->mutex);
+	mtx_unlock(&sc->io_lock);
+	sx_xunlock(&sc->call_lock);
 	return (error);
 }
 
 /*
- * Interrupt Operation
+ * Interrupt Operation, see ig4_var.h for locking semantics.
  */
 static void
 ig4iic_intr(void *cookie)
@@ -908,7 +912,7 @@ ig4iic_intr(void *cookie)
 	ig4iic_softc_t *sc = cookie;
 	uint32_t status;
 
-	mtx_lock(&sc->mutex);
+	mtx_lock(&sc->io_lock);
 /*	reg_write(sc, IG4_REG_INTR_MASK, IG4_INTR_STOP_DET);*/
 	status = reg_read(sc, IG4_REG_I2C_STA);
 	while (status & IG4_STATUS_RX_NOTEMPTY) {
@@ -919,7 +923,7 @@ ig4iic_intr(void *cookie)
 	}
 	reg_read(sc, IG4_REG_CLR_INTR);
 	wakeup(sc);
-	mtx_unlock(&sc->mutex);
+	mtx_unlock(&sc->io_lock);
 }
 
 #define REGDUMP(sc, reg)	\

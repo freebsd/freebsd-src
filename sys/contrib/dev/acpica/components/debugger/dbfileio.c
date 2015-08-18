@@ -112,7 +112,7 @@ AcpiDbOpenDebugFile (
     }
 
     AcpiOsPrintf ("Debug output file %s opened\n", Name);
-    ACPI_STRNCPY (AcpiGbl_DbDebugFilename, Name,
+    strncpy (AcpiGbl_DbDebugFilename, Name,
         sizeof (AcpiGbl_DbDebugFilename));
     AcpiGbl_DbOutputToFile = TRUE;
 

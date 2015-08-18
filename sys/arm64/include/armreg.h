@@ -41,6 +41,13 @@
 #define	WRITE_SPECIALREG(reg, val)					\
 	__asm __volatile("msr	" __STRING(reg) ", %0" : : "r"((uint64_t)val))
 
+/* CNTHCTL_EL2 - Counter-timer Hypervisor Control register */
+#define	CNTHCTL_EVNTI_MASK	(0xf << 4) /* Bit to trigger event stream */
+#define	CNTHCTL_EVNTDIR		(1 << 3) /* Control transition trigger bit */
+#define	CNTHCTL_EVNTEN		(1 << 2) /* Enable event stream */
+#define	CNTHCTL_EL1PCEN		(1 << 1) /* Allow EL0/1 physical timer access */
+#define	CNTHCTL_EL1PCTEN	(1 << 0) /*Allow EL0/1 physical counter access*/
+
 /* CPACR_EL1 */
 #define	CPACR_FPEN_MASK		(0x3 << 20)
 #define	 CPACR_FPEN_TRAP_ALL1	(0x0 << 20) /* Traps from EL0 and EL1 */
@@ -199,6 +206,28 @@
 #define	TCR_TG1_16K	(1 << TCR_TG1_SHIFT)
 #define	TCR_TG1_4K	(2 << TCR_TG1_SHIFT)
 #define	TCR_TG1_64K	(3 << TCR_TG1_SHIFT)
+
+#define	TCR_SH1_SHIFT	28
+#define	TCR_SH1_IS	(0x3UL << TCR_SH1_SHIFT)
+#define	TCR_ORGN1_SHIFT	26
+#define	TCR_ORGN1_WBWA	(0x1UL << TCR_ORGN1_SHIFT)
+#define	TCR_IRGN1_SHIFT	24
+#define	TCR_IRGN1_WBWA	(0x1UL << TCR_IRGN1_SHIFT)
+#define	TCR_SH0_SHIFT	12
+#define	TCR_SH0_IS	(0x3UL << TCR_SH0_SHIFT)
+#define	TCR_ORGN0_SHIFT	10
+#define	TCR_ORGN0_WBWA	(0x1UL << TCR_ORGN0_SHIFT)
+#define	TCR_IRGN0_SHIFT	8
+#define	TCR_IRGN0_WBWA	(0x1UL << TCR_IRGN0_SHIFT)
+
+#define	TCR_CACHE_ATTRS	((TCR_IRGN0_WBWA | TCR_IRGN1_WBWA) |\
+				(TCR_ORGN0_WBWA | TCR_ORGN1_WBWA))
+
+#ifdef SMP
+#define	TCR_SMP_ATTRS	(TCR_SH0_IS | TCR_SH1_IS)
+#else
+#define	TCR_SMP_ATTRS	0
+#endif
 
 #define	TCR_T1SZ_SHIFT	16
 #define	TCR_T0SZ_SHIFT	0

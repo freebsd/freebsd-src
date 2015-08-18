@@ -15,8 +15,11 @@ font.h				optional	sc			\
 	clean	"font.h ${SC_DFLT_FONT}-8x14 ${SC_DFLT_FONT}-8x16 ${SC_DFLT_FONT}-8x8"
 #
 # There is only an asm version on ppc64.
-cddl/compat/opensolaris/kern/opensolaris_atomic.c			optional zfs powerpc compile-with "${ZFS_C}"
-cddl/contrib/opensolaris/common/atomic/powerpc64/opensolaris_atomic.S	optional zfs powerpc64 compile-with "${ZFS_S}"
+cddl/compat/opensolaris/kern/opensolaris_atomic.c			optional zfs powerpc | dtrace powerpc compile-with "${ZFS_C}"
+cddl/contrib/opensolaris/common/atomic/powerpc64/opensolaris_atomic.S	optional zfs powerpc64 | dtrace powerpc64 compile-with "${ZFS_S}"
+cddl/dev/dtrace/powerpc/dtrace_asm.S		optional dtrace compile-with "${DTRACE_S}"
+cddl/dev/dtrace/powerpc/dtrace_subr.c		optional dtrace compile-with "${DTRACE_C}"
+cddl/dev/fbt/powerpc/fbt_isa.c			optional dtrace_fbt | dtraceall compile-with "${FBT_C}"
 crypto/blowfish/bf_enc.c	optional	crypto | ipsec
 crypto/des/des_enc.c		optional	crypto | ipsec | netsmb
 dev/bm/if_bm.c			optional	bm powermac
@@ -96,7 +99,6 @@ libkern/qdivrem.c		optional	powerpc
 libkern/ucmpdi2.c		optional	powerpc
 libkern/udivdi3.c		optional	powerpc
 libkern/umoddi3.c		optional	powerpc
-powerpc/aim/interrupt.c		optional	aim
 powerpc/aim/locore.S		optional	aim no-obj
 powerpc/aim/aim_machdep.c	optional	aim
 powerpc/aim/mmu_oea.c		optional	aim powerpc
@@ -105,7 +107,6 @@ powerpc/aim/moea64_if.m		optional	aim
 powerpc/aim/moea64_native.c	optional	aim
 powerpc/aim/mp_cpudep.c		optional	aim
 powerpc/aim/slb.c		optional	aim powerpc64
-powerpc/booke/interrupt.c	optional	booke
 powerpc/booke/locore.S		optional	booke no-obj
 powerpc/booke/booke_machdep.c	optional	booke
 powerpc/booke/machdep_e500.c	optional	booke_e500
@@ -194,6 +195,7 @@ powerpc/powerpc/fpu.c		standard
 powerpc/powerpc/fuswintr.c	standard
 powerpc/powerpc/gdb_machdep.c	optional	gdb
 powerpc/powerpc/in_cksum.c	optional	inet | inet6
+powerpc/powerpc/interrupt.c	standard
 powerpc/powerpc/intr_machdep.c	standard
 powerpc/powerpc/iommu_if.m	standard
 powerpc/powerpc/machdep.c	standard

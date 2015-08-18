@@ -64,7 +64,6 @@ __FBSDID("$FreeBSD$");
 #include <cam/ctl/ctl_io.h>
 #include <cam/ctl/ctl.h>
 #include <cam/ctl/ctl_frontend.h>
-#include <cam/ctl/ctl_frontend_internal.h>
 #include <cam/ctl/ctl_debug.h>
 
 #define	io_ptr		spriv_ptr1
@@ -99,8 +98,8 @@ int cfcs_init(void);
 static void cfcs_poll(struct cam_sim *sim);
 static void cfcs_online(void *arg);
 static void cfcs_offline(void *arg);
-static int cfcs_lun_enable(void *arg, struct ctl_id target_id, int lun_id);
-static int cfcs_lun_disable(void *arg, struct ctl_id target_id, int lun_id);
+static int cfcs_lun_enable(void *arg, int lun_id);
+static int cfcs_lun_disable(void *arg, int lun_id);
 static void cfcs_datamove(union ctl_io *io);
 static void cfcs_done(union ctl_io *io);
 void cfcs_action(struct cam_sim *sim, union ccb *ccb);
@@ -303,12 +302,12 @@ cfcs_offline(void *arg)
 }
 
 static int
-cfcs_lun_enable(void *arg, struct ctl_id target_id, int lun_id)
+cfcs_lun_enable(void *arg, int lun_id)
 {
 	return (0);
 }
 static int
-cfcs_lun_disable(void *arg, struct ctl_id target_id, int lun_id)
+cfcs_lun_disable(void *arg, int lun_id)
 {
 	return (0);
 }

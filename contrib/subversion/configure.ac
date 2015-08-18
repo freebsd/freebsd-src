@@ -1246,7 +1246,7 @@ AC_PATH_PROG(PERL, perl, none)
 if test -n "$RUBY"; then
   AC_PATH_PROG(RUBY, "$RUBY", none)
 else
-  AC_PATH_PROGS(RUBY, ruby ruby1.8 ruby18 ruby1.9 ruby1 ruby1.9.3 ruby193, none)
+  AC_PATH_PROGS(RUBY, ruby ruby1.8 ruby18 ruby1.9 ruby1 ruby1.9.3 ruby193 ruby2.0 ruby2.1, none)
 fi
 if test "$RUBY" != "none"; then
   AC_MSG_CHECKING([rb_hash_foreach])
@@ -1255,7 +1255,7 @@ if test "$RUBY" != "none"; then
     if test -n "$RDOC"; then
       AC_PATH_PROG(RDOC, "$RDOC", none)
     else
-      AC_PATH_PROGS(RDOC, rdoc rdoc1.8 rdoc18 rdoc1.9 rdoc19 rdoc1.9.3 rdoc193, none)
+      AC_PATH_PROGS(RDOC, rdoc rdoc1.8 rdoc18 rdoc1.9 rdoc19 rdoc1.9.3 rdoc193 rdoc2.0 rdoc2.1, none)
     fi
     AC_CACHE_CHECK([for Ruby major version], [svn_cv_ruby_major],[
     svn_cv_ruby_major="`$RUBY -rrbconfig -e 'print RbConfig::CONFIG.fetch(%q(MAJOR))'`"

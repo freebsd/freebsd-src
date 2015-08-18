@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 
 #include <machine/bus.h>
+#include <machine/cpu.h>
 #include <machine/intr.h>
 
 #include "pic_if.h"
@@ -230,25 +231,39 @@ gic_v3_dispatch(device_t dev, struct trapframe *frame)
 	uint64_t active_irq;
 
 	while (1) {
-		active_irq = gic_icc_read(IAR1);
+		if (CPU_MATCH_ERRATA_CAVIUM_THUNDER_1_1) {
+			/*
+			 * Hardware:		Cavium ThunderX
+			 * Chip revision:	Pass 1.0 (early version)
+			 *			Pass 1.1 (production)
+			 * ERRATUM:		22978, 23154
+			 */
+			__asm __volatile(
+			    "nop;nop;nop;nop;nop;nop;nop;nop;	\n"
+			    "mrs %0, ICC_IAR1_EL1		\n"
+			    "nop;nop;nop;nop;			\n"
+			    "dsb sy				\n"
+			    : "=&r" (active_irq));
+		} else {
+			active_irq = gic_icc_read(IAR1);
+		}
 
 		if (__predict_false(active_irq == ICC_IAR1_EL1_SPUR))
 			break;
 
 		if (__predict_true((active_irq >= GIC_FIRST_PPI &&
-		    active_irq <= GIC_LAST_SPI))) {
+		    active_irq <= GIC_LAST_SPI) || active_irq >= GIC_FIRST_LPI)) {
 			arm_dispatch_intr(active_irq, frame);
 			continue;
 		}
 
-		if (active_irq <= GIC_LAST_SGI || active_irq >= GIC_FIRST_LPI) {
+		if (active_irq <= GIC_LAST_SGI) {
 			/*
-			 * TODO: Implement proper SGI/LPI handling.
+			 * TODO: Implement proper SGI handling.
 			 *       Mask it if such is received for some reason.
 			 */
 			device_printf(dev,
-			    "Received unsupported interrupt type: %s\n",
-			    active_irq >= GIC_FIRST_LPI ? "LPI" : "SGI");
+			    "Received unsupported interrupt type: SGI\n");
 			PIC_MASK(dev, active_irq);
 		}
 	}
@@ -275,6 +290,8 @@ gic_v3_mask_irq(device_t dev, u_int irq)
 	} else if (irq >= GIC_FIRST_SPI && irq <= GIC_LAST_SPI) { /* SPIs in distributor */
 		gic_r_write(sc, 4, GICD_ICENABLER(irq), GICD_I_MASK(irq));
 		gic_v3_wait_for_rwp(sc, DIST);
+	} else if (irq >= GIC_FIRST_LPI) { /* LPIs */
+		lpi_mask_irq(dev, irq);
 	} else
 		panic("%s: Unsupported IRQ number %u", __func__, irq);
 }
@@ -293,6 +310,8 @@ gic_v3_unmask_irq(device_t dev, u_int irq)
 	} else if (irq >= GIC_FIRST_SPI && irq <= GIC_LAST_SPI) { /* SPIs in distributor */
 		gic_d_write(sc, 4, GICD_ISENABLER(irq), GICD_I_MASK(irq));
 		gic_v3_wait_for_rwp(sc, DIST);
+	} else if (irq >= GIC_FIRST_LPI) { /* LPIs */
+		lpi_unmask_irq(dev, irq);
 	} else
 		panic("%s: Unsupported IRQ number %u", __func__, irq);
 }

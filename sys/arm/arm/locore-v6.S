@@ -240,7 +240,7 @@ ASENTRY_NP(init_mmu)
 	 *  - All is set to uncacheable memory
 	 */
 	ldr	r0, =0xAAAAA
-	mrc	CP15_PRRR(r0)
+	mcr	CP15_PRRR(r0)
 	mov	r0, #0
 	mcr	CP15_NMRR(r0)
 #endif

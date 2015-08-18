@@ -1,3 +1,56 @@
+2015-06-11   8:52  Christos Zoulas <christos@zoulas.com>
+
+	* redo long option encoding to fix off-by-one in 5.23
+
+2015-06-10  13:50  Christos Zoulas <christos@zoulas.com>
+
+	* release 5.23
+
+2015-06-09  16:10  Christos Zoulas <christos@zoulas.com>
+	
+	* Fix issue with regex range for magic with offset
+	* Always return true from mget with USE (success to mget not match
+	  indication). Fixes mime evaluation after USE magic
+	* PR/459: Don't insert magic entries to the list if there are parsing
+	  errors for them.
+
+2015-06-03  16:00  Christos Zoulas <christos@zoulas.com>
+
+	* PR/455: Add utf-7 encoding
+
+2015-06-03  14:30  Christos Zoulas <christos@zoulas.com>
+
+	* PR/455: Implement -Z, look inside, but don't report on compression
+	* PR/454: Fix allocation error on bad magic.
+
+2015-05-29  10:30  Christos Zoulas <christos@zoulas.com>
+
+	* handle MAGIC_CONTINUE everywhere, not just in softmagic
+
+2015-05-21  14:30  Christos Zoulas <christos@zoulas.com>
+
+	* don't print descriptions for NAME types when mime.
+
+2015-04-09  15:59  Christos Zoulas <christos@zoulas.com>
+
+	* Add --extension to list the known extensions for this file type
+	  Idea by Andrew J Roazen
+
+2015-02-14  12:23  Christos Zoulas <christos@zoulas.com>
+
+	* Bump file search buffer size to 1M.
+
+2015-01-09  14:35  Christos Zoulas <christos@zoulas.com>
+
+	* Fix multiple issues with date formats reported by Christoph Biedl:
+		- T_LOCAL meaning was reversed
+		- Arithmetic did not work
+	  Also stop adjusting daylight savings for gmt printing.
+
+2015-01-05  13:00  Christos Zoulas <christos@zoulas.com>
+
+	* PR/411: Fix memory corruption from corrupt cdf file.
+
 2015-01-02  15:15  Christos Zoulas <christos@zoulas.com>
 
 	* release 5.22

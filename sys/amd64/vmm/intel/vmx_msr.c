@@ -474,6 +474,9 @@ vmx_wrmsr(struct vmx *vmx, int vcpuid, u_int num, uint64_t val, bool *retu)
 		else
 			vm_inject_gp(vmx->vm, vcpuid);
 		break;
+	case MSR_TSC:
+		error = vmx_set_tsc_offset(vmx, vcpuid, val - rdtsc());
+		break;
 	default:
 		error = EINVAL;
 		break;

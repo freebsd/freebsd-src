@@ -1,3 +1,9 @@
+2015-06-06  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (MAKE_VERSION): 20150606
+	  Merge with NetBSD make, pick up
+	  o make.1: document .OBJDIR target
+
 2015-05-05  Simon J. Gerraty  <sjg@bad.crufty.net>
 
 	* Makefile (MAKE_VERSION): 20150505

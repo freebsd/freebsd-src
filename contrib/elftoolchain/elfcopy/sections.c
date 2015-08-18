@@ -1349,6 +1349,14 @@ set_shstrtab(struct elfcopy *ecp)
 
 	s = ecp->shstrtab;
 
+	if (s->os == NULL) {
+		/* Input object does not contain .shstrtab section */
+		if ((s->os = elf_newscn(ecp->eout)) == NULL)
+			errx(EXIT_FAILURE, "elf_newscn failed: %s",
+			    elf_errmsg(-1));
+		insert_to_sec_list(ecp, s, 1);
+	}
+
 	if (gelf_getshdr(s->os, &sh) == NULL)
 		errx(EXIT_FAILURE, "692 gelf_getshdr() failed: %s",
 		    elf_errmsg(-1));

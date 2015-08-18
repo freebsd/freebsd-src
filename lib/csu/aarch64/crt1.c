@@ -51,6 +51,8 @@ extern int eprol;
 extern int etext;
 #endif
 
+extern long * _end;
+
 void __start(int, char **, char **, void (*)(void));
 
 /* The entry function. */
@@ -58,9 +60,13 @@ __asm("	.text			\n"
 "	.align	0		\n"
 "	.globl	_start		\n"
 "	_start:			\n"
-"	mov	x3, x2		\n" /* cleanup */
-"	ldr	x0, [sp]	\n" /* Load argc */
-"	add	x1, sp, #8	\n" /* load argv */
+/* TODO: Remove this when the kernel correctly aligns the stack */
+"	cbnz	x0, 1f		\n" /* Are we using a new kernel? */
+"	mov	x0, sp		\n" /* No, load the args from sp */
+"	and	sp, x0, #~0xf	\n" /* And align the stack */
+"1:	mov	x3, x2		\n" /* cleanup */
+"	add	x1, x0, #8	\n" /* load argv */
+"	ldr	x0, [x0]	\n" /* load argc */
 "	add	x2, x1, x0, lsl #3 \n" /* env is after argv */
 "	add	x2, x2, #8	\n" /* argv is null terminated */
 "	b	 __start  ");
@@ -75,8 +81,17 @@ __start(int argc, char *argv[], char *env[], void (*cleanup)(void))
 
 	if (&_DYNAMIC != NULL)
 		atexit(cleanup);
-	else
+	else {
+		/*
+		 * Hack to resolve _end so we read the correct symbol.
+		 * Without this it will resolve to the copy in the library
+		 * that firsts requests it. We should fix the toolchain,
+		 * however this is is needed until this can take place.
+		 */
+		*(volatile long *)&_end;
+
 		_init_tls();
+	}
 
 #ifdef GCRT
 	atexit(_mcleanup);

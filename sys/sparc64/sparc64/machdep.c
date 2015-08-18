@@ -499,7 +499,7 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	}
 
 #ifdef SMP
-	mp_init(cpu_impl);
+	mp_init();
 #endif
 
 	/*

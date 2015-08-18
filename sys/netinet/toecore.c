@@ -339,7 +339,7 @@ toe_syncache_expand(struct in_conninfo *inc, struct tcpopt *to,
     struct tcphdr *th, struct socket **lsop)
 {
 
-	INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
+	INP_INFO_RLOCK_ASSERT(&V_tcbinfo);
 
 	return (syncache_expand(inc, to, th, lsop, NULL));
 }
@@ -370,7 +370,7 @@ toe_4tuple_check(struct in_conninfo *inc, struct tcphdr *th, struct ifnet *ifp)
 
 		if ((inp->inp_flags & INP_TIMEWAIT) && th != NULL) {
 
-			INP_INFO_WLOCK_ASSERT(&V_tcbinfo); /* for twcheck */
+			INP_INFO_RLOCK_ASSERT(&V_tcbinfo); /* for twcheck */
 			if (!tcp_twcheck(inp, NULL, th, NULL, 0))
 				return (EADDRINUSE);
 		} else {
@@ -390,26 +390,29 @@ toe_lle_event(void *arg __unused, struct llentry *lle, int evt)
 	struct sockaddr *sa;
 	uint8_t *lladdr;
 	uint16_t vtag;
+	int family;
+	struct sockaddr_in6 sin6;
 
 	LLE_WLOCK_ASSERT(lle);
 
-	ifp = lle->lle_tbl->llt_ifp;
-	sa = L3_ADDR(lle);
+	ifp = lltable_get_ifp(lle->lle_tbl);
+	family = lltable_get_af(lle->lle_tbl);
 
-	KASSERT(sa->sa_family == AF_INET || sa->sa_family == AF_INET6,
-	    ("%s: lle_event %d for lle %p but sa %p !INET && !INET6",
-	    __func__, evt, lle, sa));
-
+	if (family != AF_INET && family != AF_INET6)
+		return;
 	/*
 	 * Not interested if the interface's TOE capability is not enabled.
 	 */
-	if ((sa->sa_family == AF_INET && !(ifp->if_capenable & IFCAP_TOE4)) ||
-	    (sa->sa_family == AF_INET6 && !(ifp->if_capenable & IFCAP_TOE6)))
+	if ((family == AF_INET && !(ifp->if_capenable & IFCAP_TOE4)) ||
+	    (family == AF_INET6 && !(ifp->if_capenable & IFCAP_TOE6)))
 		return;
 
 	tod = TOEDEV(ifp);
 	if (tod == NULL)
 		return;
+
+	sa = (struct sockaddr *)&sin6;
+	lltable_fill_sa_entry(lle, sa);
 
 	vtag = 0xfff;
 	if (evt != LLENTRY_RESOLVED) {
@@ -463,8 +466,7 @@ restart:
 	IF_AFDATA_RUNLOCK(ifp);
 	if (lle == NULL) {
 		IF_AFDATA_LOCK(ifp);
-		lle = nd6_lookup(&sin6->sin6_addr, ND6_CREATE | ND6_EXCLUSIVE,
-		    ifp);
+		lle = nd6_create(&sin6->sin6_addr, 0, ifp);
 		IF_AFDATA_UNLOCK(ifp);
 		if (lle == NULL)
 			return (ENOMEM); /* Couldn't create entry in cache. */
@@ -571,7 +573,7 @@ toe_connect_failed(struct toedev *tod, struct inpcb *inp, int err)
 			(void) tcp_output(tp);
 		} else {
 
-			INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
+			INP_INFO_RLOCK_ASSERT(&V_tcbinfo);
 			tp = tcp_drop(tp, err);
 			if (tp == NULL)
 				INP_WLOCK(inp);	/* re-acquire */

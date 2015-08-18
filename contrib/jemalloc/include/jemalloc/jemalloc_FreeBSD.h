@@ -60,6 +60,10 @@
 #  define JEMALLOC_TLS_MODEL	/* Default. */
 #endif
 
+#ifndef CPU_SPINWAIT
+#  define CPU_SPINWAIT do {} while (0)
+#endif
+
 #define	STATIC_PAGE_SHIFT	PAGE_SHIFT
 #define	LG_SIZEOF_INT		2
 #define	LG_SIZEOF_LONG		LG_SIZEOF_PTR
@@ -76,6 +80,7 @@ extern int __isthreaded;
 #undef je_realloc
 #undef je_free
 #undef je_posix_memalign
+#undef je_aligned_alloc
 #undef je_malloc_usable_size
 #undef je_mallocx
 #undef je_rallocx
@@ -93,6 +98,7 @@ extern int __isthreaded;
 #define	je_realloc		__realloc
 #define	je_free			__free
 #define	je_posix_memalign	__posix_memalign
+#define	je_aligned_alloc	__aligned_alloc
 #define	je_malloc_usable_size	__malloc_usable_size
 #define	je_mallocx		__mallocx
 #define	je_rallocx		__rallocx
@@ -122,6 +128,7 @@ __weak_reference(__calloc, calloc);
 __weak_reference(__realloc, realloc);
 __weak_reference(__free, free);
 __weak_reference(__posix_memalign, posix_memalign);
+__weak_reference(__aligned_alloc, aligned_alloc);
 __weak_reference(__malloc_usable_size, malloc_usable_size);
 __weak_reference(__mallocx, mallocx);
 __weak_reference(__rallocx, rallocx);

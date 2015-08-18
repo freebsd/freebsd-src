@@ -47,18 +47,6 @@
 #define	CTL_PROCESSOR_PRODUCT	"CTLPROCESSOR    "
 #define	CTL_UNKNOWN_PRODUCT	"CTLDEVICE       "
 
-struct ctl_fe_ioctl_startstop_info {
-	struct cv			sem;
-	struct ctl_hard_startstop_info	hs_info;
-};
-
-struct ctl_fe_ioctl_bbrread_info {
-	struct cv			sem;
-	struct ctl_bbrread_info		*bbr_info;
-	int				wakeup_done;
-	struct mtx			*lock;
-};
-
 typedef enum {
 	CTL_IOCTL_INPROG,
 	CTL_IOCTL_DATAMOVE,
@@ -78,18 +66,6 @@ struct ctl_io_pool {
 	uint32_t			id;
 	struct ctl_softc		*ctl_softc;
 	struct uma_zone			*zone;
-};
-
-typedef enum {
-	CTL_IOCTL_FLAG_NONE	= 0x00,
-	CTL_IOCTL_FLAG_ENABLED	= 0x01
-} ctl_ioctl_flags;
-
-struct ctl_ioctl_info {
-	ctl_ioctl_flags		flags;
-	uint32_t		cur_tag_num;
-	struct ctl_port		port;
-	char			port_name[24];
 };
 
 typedef enum {
@@ -141,6 +117,7 @@ typedef enum {
 	CTL_SERIDX_READ,
 	CTL_SERIDX_WRITE,
 	CTL_SERIDX_UNMAP,
+	CTL_SERIDX_SYNC,
 	CTL_SERIDX_MD_SNS,
 	CTL_SERIDX_MD_SEL,
 	CTL_SERIDX_RQ_SNS,
@@ -397,7 +374,6 @@ struct ctl_devid {
 struct tpc_list;
 struct ctl_lun {
 	struct mtx			lun_lock;
-	struct ctl_id			target;
 	uint64_t			lun;
 	ctl_lun_flags			flags;
 	ctl_lun_serseq			serseq;
@@ -460,7 +436,6 @@ struct ctl_softc {
 	struct mtx ctl_lock;
 	struct cdev *dev;
 	int open_count;
-	struct ctl_id target;
 	int num_disks;
 	int num_luns;
 	ctl_gen_flags flags;
@@ -473,7 +448,6 @@ struct ctl_softc {
 	int inquiry_pq_no_lun;
 	struct sysctl_ctx_list sysctl_ctx;
 	struct sysctl_oid *sysctl_tree;
-	struct ctl_ioctl_info ioctl_info;
 	void *othersc_pool;
 	struct proc *ctl_proc;
 	int targ_online;
@@ -494,6 +468,7 @@ struct ctl_softc {
 	struct ctl_thread threads[CTL_MAX_THREADS];
 	TAILQ_HEAD(tpc_tokens, tpc_token) tpc_tokens;
 	struct callout tpc_timeout;
+	struct mtx tpc_lock;
 };
 
 #ifdef _KERNEL
@@ -507,7 +482,6 @@ int ctl_lun_map_init(struct ctl_port *port);
 int ctl_lun_map_deinit(struct ctl_port *port);
 int ctl_lun_map_set(struct ctl_port *port, uint32_t plun, uint32_t glun);
 int ctl_lun_map_unset(struct ctl_port *port, uint32_t plun);
-int ctl_lun_map_unsetg(struct ctl_port *port, uint32_t glun);
 uint32_t ctl_lun_map_from_port(struct ctl_port *port, uint32_t plun);
 uint32_t ctl_lun_map_to_port(struct ctl_port *port, uint32_t glun);
 int ctl_pool_create(struct ctl_softc *ctl_softc, const char *pool_name,

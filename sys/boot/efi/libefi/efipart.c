@@ -63,13 +63,14 @@ static int
 efipart_init(void) 
 {
 	EFI_BLOCK_IO *blkio;
-	EFI_DEVICE_PATH *devpath, *node;
+	EFI_DEVICE_PATH *devpath, *devpathcpy, *tmpdevpath, *node;
 	EFI_HANDLE *hin, *hout, *aliases, handle;
 	EFI_STATUS status;
 	UINTN sz;
 	CHAR16 *path;
 	u_int n, nin, nout;
 	int err;
+	size_t devpathlen;
 
 	sz = 0;
 	hin = NULL;
@@ -98,9 +99,15 @@ efipart_init(void)
 		if (EFI_ERROR(status)) {
 			continue;
 		}
+
 		node = devpath;
-		while (!IsDevicePathEnd(NextDevicePathNode(node)))
+		devpathlen = DevicePathNodeLength(node);
+		while (!IsDevicePathEnd(NextDevicePathNode(node))) {
 			node = NextDevicePathNode(node);
+			devpathlen += DevicePathNodeLength(node);
+		}
+		devpathlen += DevicePathNodeLength(NextDevicePathNode(node));
+
 		status = BS->HandleProtocol(hin[n], &blkio_guid,
 		    (void**)&blkio);
 		if (EFI_ERROR(status))
@@ -117,10 +124,16 @@ efipart_init(void)
 		 */
 		if (DevicePathType(node) == MEDIA_DEVICE_PATH &&
 		    DevicePathSubType(node) == MEDIA_CDROM_DP) {
-			node->Type = END_DEVICE_PATH_TYPE;
-			node->SubType = END_ENTIRE_DEVICE_PATH_SUBTYPE;
-			status = BS->LocateDevicePath(&blkio_guid, &devpath,
+			devpathcpy = malloc(devpathlen);
+			memcpy(devpathcpy, devpath, devpathlen);
+			node = devpathcpy;
+			while (!IsDevicePathEnd(NextDevicePathNode(node)))
+				node = NextDevicePathNode(node);
+			SetDevicePathEndNode(node);
+			tmpdevpath = devpathcpy;
+			status = BS->LocateDevicePath(&blkio_guid, &tmpdevpath,
 			    &handle);
+			free(devpathcpy);
 			if (EFI_ERROR(status))
 				continue;
 			hout[nout] = handle;

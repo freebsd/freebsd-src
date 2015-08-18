@@ -39,9 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/sctp_pcb.h>
 #include <netinet/sctp_header.h>
 #include <netinet/sctp_var.h>
-#ifdef INET6
 #include <netinet6/sctp6_var.h>
-#endif
 #include <netinet/sctp_sysctl.h>
 #include <netinet/sctp_output.h>
 #include <netinet/sctp_uio.h>
@@ -54,13 +52,12 @@ __FBSDID("$FreeBSD$");
 #include <netinet/sctp_output.h>
 #include <netinet/sctp_bsd_addr.h>
 #include <netinet/sctp_crc32.h>
+#include <netinet/icmp6.h>
 #include <netinet/udp.h>
 
 #ifdef IPSEC
 #include <netipsec/ipsec.h>
-#ifdef INET6
 #include <netipsec/ipsec6.h>
-#endif				/* INET6 */
 #endif				/* IPSEC */
 
 extern struct protosw inetsw[];
@@ -84,6 +81,7 @@ sctp6_input_with_port(struct mbuf **i_pak, int *offp, uint16_t port)
 #endif
 	uint32_t mflowid;
 	uint8_t mflowtype;
+	uint16_t fibnum;
 
 	iphlen = *offp;
 	if (SCTP_GET_PKT_VRFID(*i_pak, vrf_id)) {
@@ -109,6 +107,7 @@ sctp6_input_with_port(struct mbuf **i_pak, int *offp, uint16_t port)
 	    (int)m->m_pkthdr.csum_flags, CSUM_BITS);
 	mflowid = m->m_pkthdr.flowid;
 	mflowtype = M_HASHTYPE_GET(m);
+	fibnum = M_GETFIB(m);
 	SCTP_STAT_INCR(sctps_recvpackets);
 	SCTP_STAT_INCR_COUNTER64(sctps_inpackets);
 	/* Get IP, SCTP, and first chunk header together in the first mbuf. */
@@ -169,7 +168,7 @@ sctp6_input_with_port(struct mbuf **i_pak, int *offp, uint16_t port)
 	    compute_crc,
 #endif
 	    ecn_bits,
-	    mflowtype, mflowid,
+	    mflowtype, mflowid, fibnum,
 	    vrf_id, port);
 out:
 	if (m) {

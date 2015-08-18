@@ -50,6 +50,15 @@ int snprintf(char *, size_t, const char *, ...)
 
 #include "machdep.h"
 
+/*
+ * On platforms where the CPU doesn't support unaligned loads, force
+ * unaligned accesses to abort with SIGBUS, rather than being fixed
+ * up (slowly) by the OS kernel; on those platforms, misaligned accesses
+ * are bugs, and we want tcpdump to crash so that the bugs are reported.
+ *
+ * The only OS on which this is necessary is DEC OSF/1^W^WDigital
+ * UNIX^W^WTru64 UNIX.
+ */
 int
 abort_on_misalignment(char *ebuf _U_, size_t ebufsiz _U_)
 {

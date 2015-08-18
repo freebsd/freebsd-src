@@ -45,7 +45,6 @@
 #include <contrib/dev/acpica/include/accommon.h>
 #include <contrib/dev/acpica/include/acnamesp.h>
 #include <contrib/dev/acpica/include/acdebug.h>
-#include <contrib/dev/acpica/include/acdisasm.h>
 
 
 #ifdef ACPI_DEBUGGER
@@ -96,7 +95,7 @@ AcpiDbMatchArgument (
 
     for (i = 0; Arguments[i].Name; i++)
     {
-        if (ACPI_STRSTR (Arguments[i].Name, UserArgument) == Arguments[i].Name)
+        if (strstr (Arguments[i].Name, UserArgument) == Arguments[i].Name)
         {
             return (i);
         }
@@ -223,7 +222,7 @@ AcpiDbDumpExternalObject (
     case ACPI_TYPE_LOCAL_REFERENCE:
 
         AcpiOsPrintf ("[Object Reference] = ");
-        AcpiDmDisplayInternalObject (ObjDesc->Reference.Handle, NULL);
+        AcpiDbDisplayInternalObject (ObjDesc->Reference.Handle, NULL);
         break;
 
     case ACPI_TYPE_PROCESSOR:
@@ -375,7 +374,7 @@ AcpiDbUint32ToHexString (
 
     if (Value == 0)
     {
-        ACPI_STRCPY (Buffer, "0");
+        strcpy (Buffer, "0");
         return;
     }
 

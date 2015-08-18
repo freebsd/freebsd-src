@@ -92,6 +92,9 @@
 /* Define to 1 if you have the <errno.h> header file. */
 #undef HAVE_ERRNO_H
 
+/* Define to 1 if you have the `EVP_MD_do_all_sorted' function. */
+#undef HAVE_EVP_MD_DO_ALL_SORTED
+
 /* Define to 1 if you have the `fchmod' function. */
 #undef HAVE_FCHMOD
 
@@ -725,9 +728,6 @@
 /* Do we need an s_char typedef? */
 #undef NEED_S_CHAR_TYPEDEF
 
-/* Define to 1 if your C compiler doesn't accept -c and -o together. */
-#undef NO_MINUS_C_MINUS_O
-
 /* Define this if optional arguments are disallowed */
 #undef NO_OPTIONAL_OPT_ARGS
 
@@ -773,8 +773,8 @@
 /* define if sched_yield yields the entire process */
 #undef REPLACE_BROKEN_YIELD
 
-/* The size of `char*', as computed by sizeof. */
-#undef SIZEOF_CHARP
+/* The size of `char *', as computed by sizeof. */
+#undef SIZEOF_CHAR_P
 
 /* The size of `int', as computed by sizeof. */
 #undef SIZEOF_INT

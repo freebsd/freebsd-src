@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2011, 2014 by Delphix. All rights reserved.
+ * Copyright (c) 2011, 2015 by Delphix. All rights reserved.
  * Copyright 2011 Nexenta Systems, Inc.  All rights reserved.
  * Copyright (c) 2012 Martin Matuska <mm@FreeBSD.org>.  All rights reserved.
  * Copyright (c) 2013 Steven Hartland. All rights reserved.
@@ -969,21 +969,6 @@ ztest_random_spa_version(uint64_t initial_version)
 	return (version);
 }
 
-/*
- * Find the largest ashift used
- */
-static uint64_t
-ztest_spa_get_ashift() {
-	uint64_t i;
-	uint64_t ashift = SPA_MINBLOCKSHIFT;
-	vdev_t *rvd = ztest_spa->spa_root_vdev;
-
-	for (i = 0; i < rvd->vdev_children; i++) {
-		ashift = MAX(ashift, rvd->vdev_child[i]->vdev_ashift);
-	}
-	return (ashift);
-}
-
 static int
 ztest_random_blocksize(void)
 {
@@ -995,7 +980,7 @@ ztest_random_blocksize(void)
 	int maxbs = SPA_OLD_MAXBLOCKSHIFT;
 	if (spa_maxblocksize(ztest_spa) == SPA_MAXBLOCKSIZE)
 		maxbs = 20;
-	block_shift = ztest_random(maxbs - ztest_spa_get_ashift() + 1);
+	block_shift = ztest_random(maxbs - ztest_spa->spa_max_ashift + 1);
 	return (1 << (SPA_MINBLOCKSHIFT + block_shift));
 }
 
@@ -3601,7 +3586,8 @@ ztest_dmu_read_write(ztest_ds_t *zd, uint64_t id)
 	 */
 	n = ztest_random(regions) * stride + ztest_random(width);
 	s = 1 + ztest_random(2 * width - 1);
-	dmu_prefetch(os, bigobj, n * chunksize, s * chunksize);
+	dmu_prefetch(os, bigobj, 0, n * chunksize, s * chunksize,
+	    ZIO_PRIORITY_SYNC_READ);
 
 	/*
 	 * Pick a random index and compute the offsets into packobj and bigobj.
@@ -5720,8 +5706,10 @@ ztest_run(ztest_shared_t *zs)
 	 * Right before closing the pool, kick off a bunch of async I/O;
 	 * spa_close() should wait for it to complete.
 	 */
-	for (uint64_t object = 1; object < 50; object++)
-		dmu_prefetch(spa->spa_meta_objset, object, 0, 1ULL << 20);
+	for (uint64_t object = 1; object < 50; object++) {
+		dmu_prefetch(spa->spa_meta_objset, object, 0, 0, 1ULL << 20,
+		    ZIO_PRIORITY_SYNC_READ);
+	}
 
 	spa_close(spa, FTAG);
 
@@ -5920,6 +5908,7 @@ ztest_init(ztest_shared_t *zs)
 	}
 	VERIFY3U(0, ==, spa_create(ztest_opts.zo_pool, nvroot, props, NULL));
 	nvlist_free(nvroot);
+	nvlist_free(props);
 
 	VERIFY3U(0, ==, spa_open(ztest_opts.zo_pool, &spa, FTAG));
 	zs->zs_metaslab_sz =

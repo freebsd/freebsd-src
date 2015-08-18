@@ -74,13 +74,19 @@ do_extract() {
     # Generate various files.
     ./autogen.sh --enable-cc-silence --enable-dss --enable-xmalloc \
       --enable-utrace --with-xslroot=/usr/local/share/xsl/docbook \
-      --with-private-namespace=__
+      --with-private-namespace=__ --with-lg-page-sizes=12,13,14,16
     gmake dist
   )
 }
 
 do_diff() {
-  (cd ${work}; git add -A; git diff --cached) > FREEBSD-diffs
+  (
+    cd ${work}
+    find . -name '*.orig' -delete
+    find . -name '*.rej' -delete
+    git add -A
+    git diff --cached
+  ) > FREEBSD-diffs
 }
 
 command=$1

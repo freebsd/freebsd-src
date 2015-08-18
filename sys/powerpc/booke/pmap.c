@@ -51,6 +51,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_kstack_pages.h"
+
 #include <sys/param.h>
 #include <sys/conf.h>
 #include <sys/malloc.h>
@@ -194,7 +196,7 @@ static tlbtid_t tid_alloc(struct pmap *);
 
 static void tlb_print_entry(int, uint32_t, uint32_t, uint32_t, uint32_t);
 
-static int tlb1_set_entry(vm_offset_t, vm_offset_t, vm_size_t, uint32_t);
+static int tlb1_set_entry(vm_offset_t, vm_paddr_t, vm_size_t, uint32_t);
 static void tlb1_write_entry(unsigned int);
 static int tlb1_iomapped(int, vm_paddr_t, vm_size_t, vm_offset_t *);
 static vm_size_t tlb1_mapin_region(vm_offset_t, vm_paddr_t, vm_size_t);
@@ -243,6 +245,8 @@ static pv_entry_t pv_alloc(void);
 static void pv_free(pv_entry_t);
 static void pv_insert(pmap_t, vm_offset_t, vm_page_t);
 static void pv_remove(pmap_t, vm_offset_t, vm_page_t);
+
+static void booke_pmap_init_qpages(void);
 
 /* Number of kva ptbl buffers, each covering one ptbl (PTBL_PAGES). */
 #define PTBL_BUFS		(128 * 16)
@@ -330,6 +334,8 @@ static void		mmu_booke_dumpsys_map(mmu_t, vm_paddr_t pa, size_t,
 static void		mmu_booke_dumpsys_unmap(mmu_t, vm_paddr_t pa, size_t,
     void *);
 static void		mmu_booke_scan_init(mmu_t);
+static vm_offset_t	mmu_booke_quick_enter_page(mmu_t mmu, vm_page_t m);
+static void		mmu_booke_quick_remove_page(mmu_t mmu, vm_offset_t addr);
 
 static mmu_method_t mmu_booke_methods[] = {
 	/* pmap dispatcher interface */
@@ -369,6 +375,8 @@ static mmu_method_t mmu_booke_methods[] = {
 	MMUMETHOD(mmu_zero_page_idle,	mmu_booke_zero_page_idle),
 	MMUMETHOD(mmu_activate,		mmu_booke_activate),
 	MMUMETHOD(mmu_deactivate,	mmu_booke_deactivate),
+	MMUMETHOD(mmu_quick_enter_page, mmu_booke_quick_enter_page),
+	MMUMETHOD(mmu_quick_remove_page, mmu_booke_quick_remove_page),
 
 	/* Internal interfaces */
 	MMUMETHOD(mmu_bootstrap,	mmu_booke_bootstrap),
@@ -392,7 +400,7 @@ static mmu_method_t mmu_booke_methods[] = {
 MMU_DEF(booke_mmu, MMU_TYPE_BOOKE, mmu_booke_methods, 0);
 
 static __inline uint32_t
-tlb_calc_wimg(vm_offset_t pa, vm_memattr_t ma)
+tlb_calc_wimg(vm_paddr_t pa, vm_memattr_t ma)
 {
 	uint32_t attrib;
 	int i;
@@ -1199,7 +1207,7 @@ mmu_booke_bootstrap(mmu_t mmu, vm_offset_t start, vm_offset_t kernelend)
 	/* Steal physical memory for kernel stack from the end */
 	/* of the first avail region                           */
 	/*******************************************************/
-	kstack0_sz = KSTACK_PAGES * PAGE_SIZE;
+	kstack0_sz = kstack_pages * PAGE_SIZE;
 	kstack0_phys = availmem_regions[0].mr_start +
 	    availmem_regions[0].mr_size;
 	kstack0_phys -= kstack0_sz;
@@ -1304,7 +1312,7 @@ mmu_booke_bootstrap(mmu_t mmu, vm_offset_t start, vm_offset_t kernelend)
 	/* Enter kstack0 into kernel map, provide guard page */
 	kstack0 = virtual_avail + KSTACK_GUARD_PAGES * PAGE_SIZE;
 	thread0.td_kstack = kstack0;
-	thread0.td_kstack_pages = KSTACK_PAGES;
+	thread0.td_kstack_pages = kstack_pages;
 
 	debugf("kstack_sz = 0x%08x\n", kstack0_sz);
 	debugf("kstack0_phys at 0x%08x - 0x%08x\n",
@@ -1312,7 +1320,7 @@ mmu_booke_bootstrap(mmu_t mmu, vm_offset_t start, vm_offset_t kernelend)
 	debugf("kstack0 at 0x%08x - 0x%08x\n", kstack0, kstack0 + kstack0_sz);
 	
 	virtual_avail += KSTACK_GUARD_PAGES * PAGE_SIZE + kstack0_sz;
-	for (i = 0; i < KSTACK_PAGES; i++) {
+	for (i = 0; i < kstack_pages; i++) {
 		mmu_booke_kenter(mmu, kstack0, kstack0_phys);
 		kstack0 += PAGE_SIZE;
 		kstack0_phys += PAGE_SIZE;
@@ -1348,6 +1356,22 @@ pmap_bootstrap_ap(volatile uint32_t *trcp __unused)
 	set_mas4_defaults();
 }
 #endif
+
+static void
+booke_pmap_init_qpages(void)
+{
+	struct pcpu *pc;
+	int i;
+
+	CPU_FOREACH(i) {
+		pc = pcpu_find(i);
+		pc->pc_qmap_addr = kva_alloc(PAGE_SIZE);
+		if (pc->pc_qmap_addr == 0)
+			panic("pmap_init_qpages: unable to allocate KVA");
+	}
+}
+
+SYSINIT(qpages_init, SI_SUB_CPU, SI_ORDER_ANY, booke_pmap_init_qpages, NULL);
 
 /*
  * Get the physical page address for the given pmap/virtual address.
@@ -2270,6 +2294,61 @@ mmu_booke_zero_page_idle(mmu_t mmu, vm_page_t m)
 	mmu_booke_kremove(mmu, va);
 }
 
+static vm_offset_t
+mmu_booke_quick_enter_page(mmu_t mmu, vm_page_t m)
+{
+	vm_paddr_t paddr;
+	vm_offset_t qaddr;
+	uint32_t flags;
+	pte_t *pte;
+
+	paddr = VM_PAGE_TO_PHYS(m);
+
+	flags = PTE_SR | PTE_SW | PTE_SX | PTE_WIRED | PTE_VALID;
+	flags |= tlb_calc_wimg(paddr, pmap_page_get_memattr(m));
+
+	critical_enter();
+	qaddr = PCPU_GET(qmap_addr);
+
+	pte = &(kernel_pmap->pm_pdir[PDIR_IDX(qaddr)][PTBL_IDX(qaddr)]);
+
+	KASSERT(pte->flags == 0, ("mmu_booke_quick_enter_page: PTE busy"));
+
+	/* 
+	 * XXX: tlbivax is broadcast to other cores, but qaddr should
+ 	 * not be present in other TLBs.  Is there a better instruction
+	 * sequence to use? Or just forget it & use mmu_booke_kenter()... 
+	 */
+	__asm __volatile("tlbivax 0, %0" :: "r"(qaddr & MAS2_EPN_MASK));
+	__asm __volatile("isync; msync");
+
+	pte->rpn = paddr & ~PTE_PA_MASK;
+	pte->flags = flags;
+
+	/* Flush the real memory from the instruction cache. */
+	if ((flags & (PTE_I | PTE_G)) == 0)
+		__syncicache((void *)qaddr, PAGE_SIZE);
+
+	return (qaddr);
+}
+
+static void
+mmu_booke_quick_remove_page(mmu_t mmu, vm_offset_t addr)
+{
+	pte_t *pte;
+
+	pte = &(kernel_pmap->pm_pdir[PDIR_IDX(addr)][PTBL_IDX(addr)]);
+
+	KASSERT(PCPU_GET(qmap_addr) == addr,
+	    ("mmu_booke_quick_remove_page: invalid address"));
+	KASSERT(pte->flags != 0,
+	    ("mmu_booke_quick_remove_page: PTE not in use"));
+
+	pte->flags = 0;
+	pte->rpn = 0;
+	critical_exit();
+}
+
 /*
  * Return whether or not the specified physical page was modified
  * in any of physical maps.
@@ -3016,7 +3095,7 @@ size2tsize(vm_size_t size)
  * kept in tlb1_idx) and are not supposed to be invalidated.
  */
 static int
-tlb1_set_entry(vm_offset_t va, vm_offset_t pa, vm_size_t size,
+tlb1_set_entry(vm_offset_t va, vm_paddr_t pa, vm_size_t size,
     uint32_t flags)
 {
 	uint32_t ts, tid;
@@ -3160,7 +3239,7 @@ tlb1_init()
 		tlb1[i].phys = mas3 & MAS3_RPN;
 
 		if (i == 0)
-			kernload = mas3 & MAS3_RPN;
+			kernload = tlb1[i].phys;
 
 		tsz = (mas1 & MAS1_TSIZE_MASK) >> MAS1_TSIZE_SHIFT;
 		tlb1[i].size = (tsz > 0) ? tsize2size(tsz) : 0;

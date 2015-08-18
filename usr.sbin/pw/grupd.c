@@ -29,38 +29,22 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif /* not lint */
 
+#include <err.h>
 #include <grp.h>
 #include <libutil.h>
-#include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
-#include <sys/param.h>
 
 #include "pwupd.h"
-
-static char * grpath = _PATH_PWD;
-
-int
-setgrdir(const char * dir)
-{
-	if (dir == NULL)
-		return -1;
-	else
-		grpath = strdup(dir);
-	if (grpath == NULL)
-		return -1;
-
-	return 0;
-}
 
 char *
 getgrpath(const char * file)
 {
 	static char pathbuf[MAXPATHLEN];
 
-	snprintf(pathbuf, sizeof pathbuf, "%s/%s", grpath, file);
-	return pathbuf;
+	snprintf(pathbuf, sizeof pathbuf, "%s/%s", conf.etcpath, file);
+
+	return (pathbuf);
 }
 
 static int
@@ -76,7 +60,7 @@ gr_update(struct group * grp, char const * group)
 	if (group != NULL)
 		old_gr = GETGRNAM(group);
 
-	if (gr_init(grpath, NULL))
+	if (gr_init(conf.etcpath, NULL))
 		err(1, "gr_init()");
 
 	if ((pfd = gr_lock()) == -1) {

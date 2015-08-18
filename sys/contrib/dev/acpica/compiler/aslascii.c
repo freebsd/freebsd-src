@@ -177,6 +177,11 @@ FlCheckForAscii (
     /* Open file in text mode so file offset is always accurate */
 
     Handle = fopen (Filename, "rb");
+    if (!Handle)
+    {
+        perror ("Could not open input file");
+        return (AE_ERROR);
+    }
 
     Status.Line = 1;
     Status.Offset = 0;
@@ -226,7 +231,7 @@ FlCheckForAscii (
 
         /* Ensure character is either printable or a "space" char */
 
-        else if (!ACPI_IS_PRINT (Byte) && !ACPI_IS_SPACE (Byte))
+        else if (!isprint (Byte) && !isspace (Byte))
         {
             if ((BadBytes < 10) && (DisplayErrors))
             {
