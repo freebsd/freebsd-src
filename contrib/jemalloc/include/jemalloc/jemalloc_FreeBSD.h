@@ -57,6 +57,10 @@
 #  define JEMALLOC_TLS_MODEL	/* Default. */
 #endif
 
+#ifndef CPU_SPINWAIT
+#  define CPU_SPINWAIT do {} while (0)
+#endif
+
 #define	STATIC_PAGE_SHIFT	PAGE_SHIFT
 #define	LG_SIZEOF_INT		2
 #define	LG_SIZEOF_LONG		LG_SIZEOF_PTR
