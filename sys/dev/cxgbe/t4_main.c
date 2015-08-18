@@ -1386,6 +1386,31 @@ fail:
 		ifmedia_ioctl(ifp, ifr, &pi->media, cmd);
 		break;
 
+	case SIOCGI2C: {
+		struct ifi2creq i2c;
+
+		rc = copyin(ifr->ifr_data, &i2c, sizeof(i2c));
+		if (rc != 0)
+			break;
+		if (i2c.dev_addr != 0xA0 && i2c.dev_addr != 0xA2) {
+			rc = EPERM;
+			break;
+		}
+		if (i2c.len > sizeof(i2c.data)) {
+			rc = EINVAL;
+			break;
+		}
+		rc = begin_synchronized_op(sc, pi, SLEEP_OK | INTR_OK, "t4i2c");
+		if (rc)
+			return (rc);
+		rc = -t4_i2c_rd(sc, sc->mbox, pi->port_id, i2c.dev_addr,
+		    i2c.offset, i2c.len, &i2c.data[0]);
+		end_synchronized_op(sc, 0);
+		if (rc == 0)
+			rc = copyout(&i2c, ifr->ifr_data, sizeof(i2c));
+		break;
+	}
+
 	default:
 		rc = ether_ioctl(ifp, cmd, data);
 	}
