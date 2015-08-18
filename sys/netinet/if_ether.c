@@ -749,7 +749,6 @@ match:
 	}
 
 	if (ifp->if_addrlen != ah->ar_hln) {
-		LLE_WUNLOCK(la);
 		ARP_LOG(LOG_WARNING, "from %*D: addr len: new %d, "
 		    "i/f %d (ignored)\n", ifp->if_addrlen,
 		    (u_char *) ar_sha(ah), ":", ah->ar_hln,
