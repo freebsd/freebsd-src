@@ -80,7 +80,13 @@ do_extract() {
 }
 
 do_diff() {
-  (cd ${work}; git add -A; git diff --cached) > FREEBSD-diffs
+  (
+    cd ${work}
+    find . -name '*.orig' -delete
+    find . -name '*.rej' -delete
+    git add -A
+    git diff --cached
+  ) > FREEBSD-diffs
 }
 
 command=$1
