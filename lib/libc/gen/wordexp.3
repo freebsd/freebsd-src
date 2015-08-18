@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 07, 2015
+.Dd August 18, 2015
 .Dt WORDEXP 3
 .Os
 .Sh NAME
@@ -108,9 +108,8 @@ function frees the memory allocated by
 .Sh IMPLEMENTATION NOTES
 The
 .Fn wordexp
-function is implemented as a wrapper around the undocumented
-.Ic wordexp
-shell built-in command.
+function is implemented by executing
+.Xr sh 1 .
 .Sh RETURN VALUES
 The
 .Fn wordexp
