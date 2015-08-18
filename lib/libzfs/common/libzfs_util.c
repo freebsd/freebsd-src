@@ -22,7 +22,7 @@
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2013, Joyent, Inc. All rights reserved.
- * Copyright (c) 2012 by Delphix. All rights reserved.
+ * Copyright (c) 2014 by Delphix. All rights reserved.
  */
 
 /*
@@ -39,6 +39,7 @@
 #include <unistd.h>
 #include <ctype.h>
 #include <math.h>
+#include <sys/filio.h>
 #include <sys/mnttab.h>
 #include <sys/mntent.h>
 #include <sys/types.h>
@@ -1498,4 +1499,50 @@ zprop_iter(zprop_func func, void *cb, boolean_t show_all, boolean_t ordered,
     zfs_type_t type)
 {
 	return (zprop_iter_common(func, cb, show_all, ordered, type));
+}
+
+/*
+ * zfs_get_hole_count retrieves the number of holes (blocks which are
+ * zero-filled) in the specified file using the _FIO_COUNT_FILLED ioctl. It
+ * also optionally fetches the block size when bs is non-NULL. With hole count
+ * and block size the full space consumed by the holes of a file can be
+ * calculated.
+ *
+ * On success, zero is returned, the count argument is set to the
+ * number of holes, and the bs argument is set to the block size (if it is
+ * not NULL). On error, a non-zero errno is returned and the values in count
+ * and bs are undefined.
+ */
+int
+zfs_get_hole_count(const char *path, uint64_t *count, uint64_t *bs) {
+	int fd, err;
+	struct stat64 ss;
+	uint64_t fill;
+
+	fd = open(path, O_RDONLY | O_LARGEFILE);
+	if (fd == -1)
+		return (errno);
+
+	if (ioctl(fd, _FIO_COUNT_FILLED, &fill) == -1) {
+		err = errno;
+		(void) close(fd);
+		return (err);
+	}
+
+	if (fstat64(fd, &ss) == -1) {
+		err = errno;
+		(void) close(fd);
+		return (err);
+	}
+
+	*count = (ss.st_size + ss.st_blksize - 1) / ss.st_blksize - fill;
+	VERIFY3S(*count, >=, 0);
+	if (bs != NULL) {
+		*bs = ss.st_blksize;
+	}
+
+	if (close(fd) == -1) {
+		return (errno);
+	}
+	return (0);
 }
