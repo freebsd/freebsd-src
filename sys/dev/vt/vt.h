@@ -140,6 +140,7 @@ struct vt_device {
 	uint32_t		 vd_mstate;	/* (?) Mouse state. */
 	vt_axis_t		 vd_width;	/* (?) Screen width. */
 	vt_axis_t		 vd_height;	/* (?) Screen height. */
+	size_t			 vd_transpose;	/* (?) Screen offset in FB */
 	struct mtx		 vd_lock;	/* Per-device lock. */
 	struct cv		 vd_winswitch;	/* (d) Window switch notify. */
 	struct callout		 vd_timer;	/* (d) Display timer. */
