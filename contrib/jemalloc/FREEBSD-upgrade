@@ -74,7 +74,7 @@ do_extract() {
     # Generate various files.
     ./autogen.sh --enable-cc-silence --enable-dss --enable-xmalloc \
       --enable-utrace --with-xslroot=/usr/local/share/xsl/docbook \
-      --with-private-namespace=__
+      --with-private-namespace=__ --with-lg-page-sizes=12,13,14,16
     gmake dist
   )
 }
