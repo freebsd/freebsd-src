@@ -12,7 +12,6 @@
  * The following are architecture-dependent, so conditionally define them for
  * each supported architecture.
  */
-#undef CPU_SPINWAIT
 #undef JEMALLOC_TLS_MODEL
 #undef STATIC_PAGE_SHIFT
 #undef LG_SIZEOF_PTR
@@ -22,7 +21,6 @@
 
 #ifdef __i386__
 #  define LG_SIZEOF_PTR		2
-#  define CPU_SPINWAIT		__asm__ volatile("pause")
 #  define JEMALLOC_TLS_MODEL	__attribute__((tls_model("initial-exec")))
 #endif
 #ifdef __ia64__
@@ -34,7 +32,6 @@
 #endif
 #ifdef __amd64__
 #  define LG_SIZEOF_PTR		3
-#  define CPU_SPINWAIT		__asm__ volatile("pause")
 #  define JEMALLOC_TLS_MODEL	__attribute__((tls_model("initial-exec")))
 #endif
 #ifdef __arm__
@@ -60,14 +57,15 @@
 #  define JEMALLOC_TLS_MODEL	/* Default. */
 #endif
 
-#ifndef CPU_SPINWAIT
-#  define CPU_SPINWAIT do {} while (0)
-#endif
-
 #define	STATIC_PAGE_SHIFT	PAGE_SHIFT
 #define	LG_SIZEOF_INT		2
 #define	LG_SIZEOF_LONG		LG_SIZEOF_PTR
 #define	LG_SIZEOF_INTMAX_T	3
+
+#undef CPU_SPINWAIT
+#include <machine/cpu.h>
+#include <machine/cpufunc.h>
+#define	CPU_SPINWAIT		cpu_spinwait()
 
 /* Disable lazy-lock machinery, mangle isthreaded, and adjust its type. */
 #undef JEMALLOC_LAZY_LOCK
