@@ -34,13 +34,15 @@
 struct ichwd_device {
 	uint16_t		 device;
 	char			*desc;
-	unsigned int		 version;
+	unsigned int		 ich_version;
+	unsigned int		 tco_version;
 };
 
 struct ichwd_softc {
 	device_t		 device;
 	device_t		 ich;
 	int			 ich_version;
+	int			 tco_version;
 
 	int			 active;
 	unsigned int		 timeout;
@@ -59,6 +61,7 @@ struct ichwd_softc {
 };
 
 #define VENDORID_INTEL		0x8086
+#define DEVICEID_BAYTRAIL	0x0f1c
 #define DEVICEID_CPT0		0x1c40
 #define DEVICEID_CPT1		0x1c41
 #define DEVICEID_CPT2		0x1c42
@@ -125,6 +128,11 @@ struct ichwd_softc {
 #define DEVICEID_PPT29		0x1e5d
 #define DEVICEID_PPT30		0x1e5e
 #define DEVICEID_PPT31		0x1e5f
+#define DEVICEID_AVN0		0x1f38
+#define DEVICEID_AVN1		0x1f39
+#define DEVICEID_AVN2		0x1f3a
+#define DEVICEID_AVN3		0x1f3b
+#define DEVICEID_BRASWELL	0x229c
 #define DEVICEID_DH89XXCC_LPC	0x2310
 #define DEVICEID_COLETOCRK_LPC	0x2390
 #define DEVICEID_82801AA	0x2410
@@ -210,9 +218,58 @@ struct ichwd_softc {
 #define DEVICEID_LPT29		0x8c5d
 #define DEVICEID_LPT30		0x8c5e
 #define DEVICEID_LPT31		0x8c5f
+#define DEVICEID_WCPT1		0x8cc1
 #define DEVICEID_WCPT2		0x8cc2
+#define DEVICEID_WCPT3		0x8cc3
 #define DEVICEID_WCPT4		0x8cc4
 #define DEVICEID_WCPT6		0x8cc6
+#define DEVICEID_WBG0		0x8d40
+#define DEVICEID_WBG1		0x8d41
+#define DEVICEID_WBG2		0x8d42
+#define DEVICEID_WBG3		0x8d43
+#define DEVICEID_WBG4		0x8d44
+#define DEVICEID_WBG5		0x8d45
+#define DEVICEID_WBG6		0x8d46
+#define DEVICEID_WBG7		0x8d47
+#define DEVICEID_WBG8		0x8d48
+#define DEVICEID_WBG9		0x8d49
+#define DEVICEID_WBG10		0x8d4a
+#define DEVICEID_WBG11		0x8d4b
+#define DEVICEID_WBG12		0x8d4c
+#define DEVICEID_WBG13		0x8d4d
+#define DEVICEID_WBG14		0x8d4e
+#define DEVICEID_WBG15		0x8d4f
+#define DEVICEID_WBG16		0x8d50
+#define DEVICEID_WBG17		0x8d51
+#define DEVICEID_WBG18		0x8d52
+#define DEVICEID_WBG19		0x8d53
+#define DEVICEID_WBG20		0x8d54
+#define DEVICEID_WBG21		0x8d55
+#define DEVICEID_WBG22		0x8d56
+#define DEVICEID_WBG23		0x8d57
+#define DEVICEID_WBG24		0x8d58
+#define DEVICEID_WBG25		0x8d59
+#define DEVICEID_WBG26		0x8d5a
+#define DEVICEID_WBG27		0x8d5b
+#define DEVICEID_WBG28		0x8d5c
+#define DEVICEID_WBG29		0x8d5d
+#define DEVICEID_WBG30		0x8d5e
+#define DEVICEID_WBG31		0x8d5f
+#define DEVICEID_LPT_LP0	0x9c40
+#define DEVICEID_LPT_LP1	0x9c41
+#define DEVICEID_LPT_LP2	0x9c42
+#define DEVICEID_LPT_LP3	0x9c43
+#define DEVICEID_LPT_LP4	0x9c44
+#define DEVICEID_LPT_LP5	0x9c45
+#define DEVICEID_LPT_LP6	0x9c46
+#define DEVICEID_LPT_LP7	0x9c47
+#define DEVICEID_WCPT_LP1	0x9cc1
+#define DEVICEID_WCPT_LP2	0x9cc2
+#define DEVICEID_WCPT_LP3	0x9cc3
+#define DEVICEID_WCPT_LP5	0x9cc5
+#define DEVICEID_WCPT_LP6	0x9cc6
+#define DEVICEID_WCPT_LP7	0x9cc7
+#define DEVICEID_WCPT_LP9	0x9cc9
 
 /* ICH LPC Interface Bridge Registers (ICH5 and older) */
 #define ICH_GEN_STA		0xd4
@@ -225,6 +282,12 @@ struct ichwd_softc {
 #define ICH_GCS_OFFSET		0x3410
 #define ICH_GCS_SIZE		0x4
 #define ICH_GCS_NO_REBOOT	0x20
+
+/* SoC Power Management Configuration Registers */
+#define ICH_PBASE		0x44
+#define ICH_PMC_OFFSET		0x08
+#define ICH_PMC_SIZE		0x4
+#define ICH_PMC_NO_REBOOT	0x10
 
 /* register names and locations (relative to PMBASE) */
 #define SMI_BASE		0x30 /* base address for SMI registers */
