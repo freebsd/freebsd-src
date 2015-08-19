@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <fcntl.h>
 #include <signal.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -323,15 +324,15 @@ START_TRACE:
 			if (trussinfo->flags & ABSOLUTETIMESTAMPS) {
 				timespecsubt(&trussinfo->curthread->after,
 				    &trussinfo->start_time, &timediff);
-				fprintf(trussinfo->outfile, "%ld.%09ld ",
-				    (long)timediff.tv_sec,
+				fprintf(trussinfo->outfile, "%jd.%09ld ",
+				    (intmax_t)timediff.tv_sec,
 				    timediff.tv_nsec);
 			}
 			if (trussinfo->flags & RELATIVETIMESTAMPS) {
 				timespecsubt(&trussinfo->curthread->after,
 				    &trussinfo->curthread->before, &timediff);
-				fprintf(trussinfo->outfile, "%ld.%09ld ",
-				    (long)timediff.tv_sec,
+				fprintf(trussinfo->outfile, "%jd.%09ld ",
+				    (intmax_t)timediff.tv_sec,
 				    timediff.tv_nsec);
 			}
 			signame = strsig(trussinfo->pr_data);
@@ -348,15 +349,16 @@ START_TRACE:
 			if (trussinfo->flags & ABSOLUTETIMESTAMPS) {
 				timespecsubt(&trussinfo->curthread->after,
 				    &trussinfo->start_time, &timediff);
-				fprintf(trussinfo->outfile, "%ld.%09ld ",
-				    (long)timediff.tv_sec,
+				fprintf(trussinfo->outfile, "%jd.%09ld ",
+				    (intmax_t)timediff.tv_sec,
 				    timediff.tv_nsec);
 			}
 			if (trussinfo->flags & RELATIVETIMESTAMPS) {
 				timespecsubt(&trussinfo->curthread->after,
 				    &trussinfo->curthread->before, &timediff);
-				fprintf(trussinfo->outfile, "%ld.%09ld ",
-				    (long)timediff.tv_sec, timediff.tv_nsec);
+				fprintf(trussinfo->outfile, "%jd.%09ld ",
+				    (intmax_t)timediff.tv_sec,
+				    timediff.tv_nsec);
 			}
 			fprintf(trussinfo->outfile,
 			    "process exit, rval = %u\n", trussinfo->pr_data);
