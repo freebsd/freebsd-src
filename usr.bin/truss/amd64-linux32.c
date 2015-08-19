@@ -61,8 +61,7 @@ static const char rcsid[] =
 
 #include "linux32_syscalls.h"
 
-static int nsyscalls =
-	sizeof(linux32_syscallnames) / sizeof(linux32_syscallnames[0]);
+static int nsyscalls = nitems(linux32_syscallnames);
 
 /*
  * This is what this particular file uses to keep track of a system call.
@@ -310,8 +309,7 @@ amd64_linux32_syscall_exit(struct trussinfo *trussinfo,
 	 * but that complicates things considerably.
 	 */
 	if (errorp) {
-		for (i = 0;
-		    (size_t)i < sizeof(bsd_to_linux_errno) / sizeof(int); i++) {
+		for (i = 0; (size_t)i < nitems(bsd_to_linux_errno); i++) {
 			if (retval == bsd_to_linux_errno[i])
 				break;
 		}
