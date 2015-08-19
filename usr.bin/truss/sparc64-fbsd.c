@@ -69,7 +69,7 @@ static const char rcsid[] =
 
 #include "syscalls.h"
 
-static int nsyscalls = sizeof(syscallnames) / sizeof(syscallnames[0]);
+static int nsyscalls = nitems(syscallnames);
 
 /*
  * This is what this particular file uses to keep track of a system call.
