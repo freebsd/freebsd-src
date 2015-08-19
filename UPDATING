@@ -16,6 +16,9 @@ from older versions of FreeBSD, try WITHOUT_CLANG to bootstrap to the tip of
 stable/10, and then rebuild without this option. The bootstrap process from
 older version of current is a bit fragile.
 
+20150813:
+	10.2-RELEASE.
+
 20150731:
 	As ZFS requires more kernel stack pages than is the default on some
 	architectures e.g. i386, it now warns if KSTACK_PAGES is less than
