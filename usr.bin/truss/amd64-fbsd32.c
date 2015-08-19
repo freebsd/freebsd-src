@@ -64,8 +64,7 @@ static const char rcsid[] =
 
 #include "freebsd32_syscalls.h"
 
-static int nsyscalls = sizeof(freebsd32_syscallnames) /
-    sizeof(freebsd32_syscallnames[0]);
+static int nsyscalls = nitems(freebsd32_syscallnames);
 
 /*
  * This is what this particular file uses to keep track of a system call.
