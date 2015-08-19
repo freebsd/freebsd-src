@@ -1,8 +1,8 @@
 diff --git a/doc/jemalloc.xml.in b/doc/jemalloc.xml.in
-index 8fc774b..47b453c 100644
+index 8fc774b..fdbef95 100644
 --- a/doc/jemalloc.xml.in
 +++ b/doc/jemalloc.xml.in
-@@ -53,6 +53,17 @@
+@@ -53,11 +53,23 @@
      <para>This manual describes jemalloc @jemalloc_version@.  More information
      can be found at the <ulink
      url="http://www.canonware.com/jemalloc/">jemalloc website</ulink>.</para>
@@ -20,7 +20,14 @@ index 8fc774b..47b453c 100644
    </refsect1>
    <refsynopsisdiv>
      <title>SYNOPSIS</title>
-@@ -2759,4 +2770,18 @@ malloc_conf = "lg_chunk:24";]]></programlisting></para>
+     <funcsynopsis>
+-      <funcsynopsisinfo>#include &lt;<filename class="headerfile">jemalloc/jemalloc.h</filename>&gt;</funcsynopsisinfo>
++      <funcsynopsisinfo>#include &lt;<filename class="headerfile">stdlib.h</filename>&gt;
++#include &lt;<filename class="headerfile">malloc_np.h</filename>&gt;</funcsynopsisinfo>
+       <refsect2>
+         <title>Standard API</title>
+         <funcprototype>
+@@ -2759,4 +2771,18 @@ malloc_conf = "lg_chunk:24";]]></programlisting></para>
      <para>The <function>posix_memalign<parameter/></function> function conforms
      to IEEE Std 1003.1-2001 (&ldquo;POSIX.1&rdquo;).</para>
    </refsect1>
