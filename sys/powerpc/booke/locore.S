@@ -727,7 +727,7 @@ setfault:
 	stw	%r0, 0(%r3)
 	stw	%r1, 4(%r3)
 	stw	%r2, 8(%r3)
-	stw	%r4, 8(%r3)
+	stw	%r4, 12(%r3)
 	stmw	%r13, 16(%r3)		/* store CR, CTR, XER, [r13 .. r31] */
 	li	%r3, 0			/* return FALSE */
 	blr
