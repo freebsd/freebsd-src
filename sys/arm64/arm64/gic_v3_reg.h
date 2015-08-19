@@ -356,6 +356,12 @@
 /*
  * CPU interface
  */
+#define		GICI_SGI_TLIST_MASK	(0xffffUL)
+#define		GICI_SGI_AFF1_SHIFT	(16UL)
+#define		GICI_SGI_AFF2_SHIFT	(32UL)
+#define		GICI_SGI_AFF3_SHIFT	(48UL)
+#define		GICI_SGI_IPI_MASK	(0xfUL)
+#define		GICI_SGI_IPI_SHIFT	(24UL)
 
 /*
  * Registers list (ICC_xyz_EL1):
