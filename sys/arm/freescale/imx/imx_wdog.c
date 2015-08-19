@@ -65,6 +65,20 @@ static struct resource_spec imx_wdog_spec[] = {
 	{ -1, 0 }
 };
 
+static struct ofw_compat_data compat_data[] = {
+	{"fsl,imx6sx-wdt", 1},
+	{"fsl,imx6sl-wdt", 1},
+	{"fsl,imx6q-wdt",  1},
+	{"fsl,imx53-wdt",  1},
+	{"fsl,imx51-wdt",  1},
+	{"fsl,imx50-wdt",  1},
+	{"fsl,imx35-wdt",  1},
+	{"fsl,imx27-wdt",  1},
+	{"fsl,imx25-wdt",  1},
+	{"fsl,imx21-wdt",  1},
+	{NULL,             0}
+};
+
 static void	imx_watchdog(void *, u_int, int *);
 static int	imx_wdog_probe(device_t);
 static int	imx_wdog_attach(device_t);
@@ -83,6 +97,10 @@ static driver_t imx_wdog_driver = {
 static devclass_t imx_wdog_devclass;
 DRIVER_MODULE(imx_wdog, simplebus, imx_wdog_driver, imx_wdog_devclass, 0, 0);
 
+#define	RD2(_sc, _r)							\
+		bus_space_read_2((_sc)->sc_bst, (_sc)->sc_bsh, (_r))
+#define	WR2(_sc, _r, _v)						\
+		bus_space_write_2((_sc)->sc_bst, (_sc)->sc_bsh, (_r), (_v))
 
 static void
 imx_watchdog(void *arg, u_int cmd, int *error)
@@ -95,8 +113,8 @@ imx_watchdog(void *arg, u_int cmd, int *error)
 	mtx_lock(&sc->sc_mtx);
 
 	/* Refresh counter, since we feels good */
-	WRITE(sc, WDOG_SR_REG, WDOG_SR_STEP1);
-	WRITE(sc, WDOG_SR_REG, WDOG_SR_STEP2);
+	WR2(sc, WDOG_SR_REG, WDOG_SR_STEP1);
+	WR2(sc, WDOG_SR_REG, WDOG_SR_STEP2);
 
 	/* We don't require precession, so "-10" (/1024) is ok */
 	timeout = (1 << ((cmd & WD_INTERVAL) - 10)) / 1000000;
@@ -105,14 +123,14 @@ imx_watchdog(void *arg, u_int cmd, int *error)
 			device_printf(sc->sc_dev,
 			    "WARNING: watchdog can't be disabled!!!");
 			sc->sc_timeout = timeout;
-			reg = READ(sc, WDOG_CR_REG);
+			reg = RD2(sc, WDOG_CR_REG);
 			reg &= ~WDOG_CR_WT_MASK;
 			reg |= (timeout << (WDOG_CR_WT_SHIFT + 1)) &
 			    WDOG_CR_WT_MASK;
-			WRITE(sc, WDOG_CR_REG, reg);
+			WR2(sc, WDOG_CR_REG, reg);
 			/* Refresh counter */
-			WRITE(sc, WDOG_SR_REG, WDOG_SR_STEP1);
-			WRITE(sc, WDOG_SR_REG, WDOG_SR_STEP2);
+			WR2(sc, WDOG_SR_REG, WDOG_SR_STEP1);
+			WR2(sc, WDOG_SR_REG, WDOG_SR_STEP2);
 			*error = 0;
 		} else {
 			*error = EOPNOTSUPP;
@@ -132,11 +150,10 @@ imx_wdog_probe(device_t dev)
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
-	if (!ofw_bus_is_compatible(dev, "fsl,imx51-wdt") &&
-	    !ofw_bus_is_compatible(dev, "fsl,imx53-wdt"))
+	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data == 0)
 		return (ENXIO);
 
-	device_set_desc(dev, "Freescale i.MX5xx Watchdog Timer");
+	device_set_desc(dev, "Freescale i.MX Watchdog");
 	return (0);
 }
 
