@@ -107,40 +107,32 @@ imx_watchdog(void *arg, u_int cmd, int *error)
 {
 	struct imx_wdog_softc *sc;
 	uint16_t reg;
-	int timeout;
+	u_int timeout;
 
 	sc = arg;
 	mtx_lock(&sc->sc_mtx);
-
-	/* Refresh counter, since we feels good */
-	WR2(sc, WDOG_SR_REG, WDOG_SR_STEP1);
-	WR2(sc, WDOG_SR_REG, WDOG_SR_STEP2);
-
-	/* We don't require precession, so "-10" (/1024) is ok */
-	timeout = (1 << ((cmd & WD_INTERVAL) - 10)) / 1000000;
-	if (timeout > 1 && timeout < 128) {
-		if (timeout != sc->sc_timeout) {
-			device_printf(sc->sc_dev,
-			    "WARNING: watchdog can't be disabled!!!");
-			sc->sc_timeout = timeout;
-			reg = RD2(sc, WDOG_CR_REG);
-			reg &= ~WDOG_CR_WT_MASK;
-			reg |= (timeout << (WDOG_CR_WT_SHIFT + 1)) &
-			    WDOG_CR_WT_MASK;
-			WR2(sc, WDOG_CR_REG, reg);
+	if (cmd == 0) {
+		if (bootverbose)
+			device_printf(sc->sc_dev, "Can not be disabled.\n");
+		*error = EOPNOTSUPP;
+	} else {
+		timeout = (u_int)((1ULL << (cmd & WD_INTERVAL)) / 1000000000U);
+		if (timeout > 1 && timeout < 128) {
+			if (timeout != sc->sc_timeout) {
+				sc->sc_timeout = timeout;
+				reg = RD2(sc, WDOG_CR_REG);
+				reg &= ~WDOG_CR_WT_MASK;
+				reg |= (timeout << (WDOG_CR_WT_SHIFT + 1)) &
+				    WDOG_CR_WT_MASK;
+				WR2(sc, WDOG_CR_REG, reg | WDOG_CR_WDE);
+			}
 			/* Refresh counter */
 			WR2(sc, WDOG_SR_REG, WDOG_SR_STEP1);
 			WR2(sc, WDOG_SR_REG, WDOG_SR_STEP2);
 			*error = 0;
-		} else {
-			*error = EOPNOTSUPP;
 		}
-	} else {
-		device_printf(sc->sc_dev, "Can not be disabled.\n");
-		*error = EOPNOTSUPP;
 	}
 	mtx_unlock(&sc->sc_mtx);
-
 }
 
 static int
