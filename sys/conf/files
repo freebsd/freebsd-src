@@ -1236,6 +1236,7 @@ t5fw.fw			optional cxgbe					\
 dev/cy/cy.c			optional cy
 dev/cy/cy_isa.c			optional cy isa
 dev/cy/cy_pci.c			optional cy pci
+dev/cyapa/cyapa.c		optional cyapa smbus
 dev/dc/if_dc.c			optional dc pci
 dev/dc/dcphy.c			optional dc pci
 dev/dc/pnphy.c			optional dc pci
@@ -1461,8 +1462,8 @@ dev/hptiop/hptiop.c		optional hptiop scbus
 dev/hwpmc/hwpmc_logging.c	optional hwpmc
 dev/hwpmc/hwpmc_mod.c		optional hwpmc
 dev/hwpmc/hwpmc_soft.c		optional hwpmc
-dev/ichiic/ig4_iic.c		optional ichiic
-dev/ichiic/ig4_pci.c		optional ichiic pci
+dev/ichiic/ig4_iic.c		optional ig4 smbus
+dev/ichiic/ig4_pci.c		optional ig4 pci smbus
 dev/ichsmb/ichsmb.c		optional ichsmb
 dev/ichsmb/ichsmb_pci.c		optional ichsmb pci
 dev/ida/ida.c			optional ida
@@ -1557,6 +1558,7 @@ dev/iscsi_initiator/isc_soc.c	optional iscsi_initiator scbus
 dev/iscsi_initiator/isc_sm.c	optional iscsi_initiator scbus
 dev/iscsi_initiator/isc_subr.c	optional iscsi_initiator scbus
 dev/ismt/ismt.c			optional ismt
+dev/isl/isl.c			optional isl smbus
 dev/isp/isp.c			optional isp
 dev/isp/isp_freebsd.c		optional isp
 dev/isp/isp_library.c		optional isp
