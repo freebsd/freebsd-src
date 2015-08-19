@@ -69,14 +69,14 @@
       out of date by definition, but other copies are kept updated on
       the Internet and should be consulted as the <quote>current
       errata</quote> for this release.  These other copies of the
-      errata are located at <uri xlink:href="http://www.FreeBSD.org/releases/">http://www.FreeBSD.org/releases/</uri>, plus any sites
+      errata are located at <uri xlink:href="https://www.FreeBSD.org/releases/">https://www.FreeBSD.org/releases/</uri>, plus any sites
       which keep up-to-date mirrors of this location.</para>
 
     <para>Source and binary snapshots of &os; &release.branch; also
       contain up-to-date copies of this document (as of the time of
       the snapshot).</para>
 
-    <para>For a list of all &os; CERT security advisories, see <uri xlink:href="http://www.FreeBSD.org/security/">http://www.FreeBSD.org/security/</uri> or <uri xlink:href="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/">ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/</uri>.</para>
+    <para>For a list of all &os; CERT security advisories, see <uri xlink:href="https://www.FreeBSD.org/security/">https://www.FreeBSD.org/security/</uri>.</para>
 
   </sect1>
 
