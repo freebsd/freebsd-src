@@ -59,7 +59,6 @@ __FBSDID("$FreeBSD$");
 static int
 fsl_pcib_rc_probe(device_t dev)
 {
-	printf("Probe called\n");
 	if (pci_get_vendor(dev) != 0x1957)
 		return (ENXIO);
 	if (pci_get_progif(dev) != 0)
