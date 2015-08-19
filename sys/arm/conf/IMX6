@@ -136,5 +136,5 @@ device		ffec			# Freescale Fast Ethernet Controller
 device		fsliic			# Freescale i2c/iic
 device		iic			# iic protocol
 device		iicbus			# iic bus
-#device		imxwdt			# Watchdog. WARNING: can't be disabled!!!
+device		imxwdt			# Watchdog. WARNING: can't be disabled!!!
 
