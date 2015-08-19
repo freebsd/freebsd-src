@@ -1397,8 +1397,8 @@ print_arg(struct syscall_args *sc, unsigned long *args, long retval,
 
 			strmode(st.st_mode, mode);
 			fprintf(fp,
-			    "{ mode=%s,inode=%jd,size=%jd,blksize=%ld }", mode,
-			    (intmax_t)st.st_ino, (intmax_t)st.st_size,
+			    "{ mode=%s,inode=%ju,size=%jd,blksize=%ld }", mode,
+			    (uintmax_t)st.st_ino, (intmax_t)st.st_size,
 			    (long)st.st_blksize);
 		} else {
 			fprintf(fp, "0x%lx", args[sc->offset]);
