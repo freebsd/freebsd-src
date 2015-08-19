@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/cpuset.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/smp.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -61,6 +62,10 @@ static void gic_v3_dispatch(device_t, struct trapframe *);
 static void gic_v3_eoi(device_t, u_int);
 static void gic_v3_mask_irq(device_t, u_int);
 static void gic_v3_unmask_irq(device_t, u_int);
+#ifdef SMP
+static void gic_v3_init_secondary(device_t);
+static void gic_v3_ipi_send(device_t, cpuset_t, u_int);
+#endif
 
 static device_method_t gic_v3_methods[] = {
 	/* Device interface */
@@ -71,7 +76,10 @@ static device_method_t gic_v3_methods[] = {
 	DEVMETHOD(pic_eoi,		gic_v3_eoi),
 	DEVMETHOD(pic_mask,		gic_v3_mask_irq),
 	DEVMETHOD(pic_unmask,		gic_v3_unmask_irq),
-
+#ifdef SMP
+	DEVMETHOD(pic_init_secondary,	gic_v3_init_secondary),
+	DEVMETHOD(pic_ipi_send,		gic_v3_ipi_send),
+#endif
 	/* End */
 	DEVMETHOD_END
 };
@@ -95,6 +103,7 @@ enum gic_v3_xdist {
 
 /* Helper routines starting with gic_v3_ */
 static int gic_v3_dist_init(struct gic_v3_softc *);
+static int gic_v3_redist_alloc(struct gic_v3_softc *);
 static int gic_v3_redist_find(struct gic_v3_softc *);
 static int gic_v3_redist_init(struct gic_v3_softc *);
 static int gic_v3_cpu_init(struct gic_v3_softc *);
@@ -105,10 +114,20 @@ typedef int (*gic_v3_initseq_t) (struct gic_v3_softc *);
 /* Primary CPU initialization sequence */
 static gic_v3_initseq_t gic_v3_primary_init[] = {
 	gic_v3_dist_init,
+	gic_v3_redist_alloc,
 	gic_v3_redist_init,
 	gic_v3_cpu_init,
 	NULL
 };
+
+#ifdef SMP
+/* Secondary CPU initialization sequence */
+static gic_v3_initseq_t gic_v3_secondary_init[] = {
+	gic_v3_redist_init,
+	gic_v3_cpu_init,
+	NULL
+};
+#endif
 
 /*
  * Device interface.
@@ -213,7 +232,7 @@ gic_v3_detach(device_t dev)
 	for (rid = 0; rid < (sc->gic_redists.nregions + 1); rid++)
 		bus_release_resource(dev, SYS_RES_MEMORY, rid, sc->gic_res[rid]);
 
-	for (i = 0; i < MAXCPU; i++)
+	for (i = 0; i < mp_ncpus; i++)
 		free(sc->gic_redists.pcpu[i], M_GIC_V3);
 
 	free(sc->gic_res, M_GIC_V3);
@@ -258,13 +277,9 @@ gic_v3_dispatch(device_t dev, struct trapframe *frame)
 		}
 
 		if (active_irq <= GIC_LAST_SGI) {
-			/*
-			 * TODO: Implement proper SGI handling.
-			 *       Mask it if such is received for some reason.
-			 */
-			device_printf(dev,
-			    "Received unsupported interrupt type: SGI\n");
-			PIC_MASK(dev, active_irq);
+			gic_icc_write(EOIR1, (uint64_t)active_irq);
+			arm_dispatch_intr(active_irq, frame);
+			continue;
 		}
 	}
 }
@@ -283,7 +298,7 @@ gic_v3_mask_irq(device_t dev, u_int irq)
 
 	sc = device_get_softc(dev);
 
-	if (irq >= GIC_FIRST_PPI && irq <= GIC_LAST_PPI) { /* PPIs in corresponding Re-Distributor */
+	if (irq <= GIC_LAST_PPI) { /* SGIs and PPIs in corresponding Re-Distributor */
 		gic_r_write(sc, 4,
 		    GICR_SGI_BASE_SIZE + GICD_ICENABLER(irq), GICD_I_MASK(irq));
 		gic_v3_wait_for_rwp(sc, REDIST);
@@ -303,7 +318,7 @@ gic_v3_unmask_irq(device_t dev, u_int irq)
 
 	sc = device_get_softc(dev);
 
-	if (irq >= GIC_FIRST_PPI && irq <= GIC_LAST_PPI) { /* PPIs in corresponding Re-Distributor */
+	if (irq <= GIC_LAST_PPI) { /* SGIs and PPIs in corresponding Re-Distributor */
 		gic_r_write(sc, 4,
 		    GICR_SGI_BASE_SIZE + GICD_ISENABLER(irq), GICD_I_MASK(irq));
 		gic_v3_wait_for_rwp(sc, REDIST);
@@ -315,6 +330,101 @@ gic_v3_unmask_irq(device_t dev, u_int irq)
 	} else
 		panic("%s: Unsupported IRQ number %u", __func__, irq);
 }
+
+#ifdef SMP
+static void
+gic_v3_init_secondary(device_t dev)
+{
+	struct gic_v3_softc *sc;
+	gic_v3_initseq_t *init_func;
+	int err;
+
+	sc = device_get_softc(dev);
+
+	/* Train init sequence for boot CPU */
+	for (init_func = gic_v3_secondary_init; *init_func != NULL; init_func++) {
+		err = (*init_func)(sc);
+		if (err != 0) {
+			device_printf(dev,
+			    "Could not initialize GIC for CPU%u\n",
+			    PCPU_GET(cpuid));
+			return;
+		}
+	}
+
+	/*
+	 * Try to initialize ITS.
+	 * If there is no driver attached this routine will fail but that
+	 * does not mean failure here as only LPIs will not be functional
+	 * on the current CPU.
+	 */
+	if (its_init_cpu(NULL) != 0) {
+		device_printf(dev,
+		    "Could not initialize ITS for CPU%u. "
+		    "No LPIs will arrive on this CPU\n",
+		    PCPU_GET(cpuid));
+	}
+
+	/*
+	 * ARM64TODO:	Unmask timer PPIs. To be removed when appropriate
+	 *		mechanism is implemented.
+	 *		Activate the timer interrupts: virtual (27), secure (29),
+	 *		and non-secure (30). Use hardcoded values here as there
+	 *		should be no defines for them.
+	 */
+	gic_v3_unmask_irq(dev, 27);
+	gic_v3_unmask_irq(dev, 29);
+	gic_v3_unmask_irq(dev, 30);
+}
+
+static void
+gic_v3_ipi_send(device_t dev, cpuset_t cpuset, u_int ipi)
+{
+	u_int cpu;
+	uint64_t aff, tlist;
+	uint64_t val;
+	uint64_t aff_mask;
+
+	/* Set affinity mask to match level 3, 2 and 1 */
+	aff_mask = CPU_AFF1_MASK | CPU_AFF2_MASK | CPU_AFF3_MASK;
+
+	/* Iterate through all CPUs in set */
+	while (!CPU_EMPTY(&cpuset)) {
+		aff = tlist = 0;
+		for (cpu = 0; cpu < mp_ncpus; cpu++) {
+			/* Compose target list for single AFF3:AFF2:AFF1 set */
+			if (CPU_ISSET(cpu, &cpuset)) {
+				if (!tlist) {
+					/*
+					 * Save affinity of the first CPU to
+					 * send IPI to for later comparison.
+					 */
+					aff = CPU_AFFINITY(cpu);
+					tlist |= (1UL << CPU_AFF0(aff));
+					CPU_CLR(cpu, &cpuset);
+				}
+				/* Check for same Affinity level 3, 2 and 1 */
+				if ((aff & aff_mask) == (CPU_AFFINITY(cpu) & aff_mask)) {
+					tlist |= (1UL << CPU_AFF0(CPU_AFFINITY(cpu)));
+					/* Clear CPU in cpuset from target list */
+					CPU_CLR(cpu, &cpuset);
+				}
+			}
+		}
+		if (tlist) {
+			KASSERT((tlist & ~GICI_SGI_TLIST_MASK) == 0,
+			    ("Target list too long for GICv3 IPI"));
+			/* Send SGI to CPUs in target list */
+			val = tlist;
+			val |= (uint64_t)CPU_AFF3(aff) << GICI_SGI_AFF3_SHIFT;
+			val |= (uint64_t)CPU_AFF2(aff) << GICI_SGI_AFF2_SHIFT;
+			val |= (uint64_t)CPU_AFF1(aff) << GICI_SGI_AFF1_SHIFT;
+			val |= (uint64_t)(ipi & GICI_SGI_IPI_MASK) << GICI_SGI_IPI_SHIFT;
+			gic_icc_write(SGI1R, val);
+		}
+	}
+}
+#endif
 
 /*
  * Helper routines
@@ -463,6 +573,22 @@ gic_v3_dist_init(struct gic_v3_softc *sc)
 
 /* Re-Distributor */
 static int
+gic_v3_redist_alloc(struct gic_v3_softc *sc)
+{
+	u_int cpuid;
+
+	/* Allocate struct resource for all CPU's Re-Distributor registers */
+	for (cpuid = 0; cpuid < mp_ncpus; cpuid++)
+		if (CPU_ISSET(cpuid, &all_cpus) != 0)
+			sc->gic_redists.pcpu[cpuid] =
+				malloc(sizeof(*sc->gic_redists.pcpu[0]),
+				    M_GIC_V3, M_WAITOK);
+		else
+			sc->gic_redists.pcpu[cpuid] = NULL;
+	return (0);
+}
+
+static int
 gic_v3_redist_find(struct gic_v3_softc *sc)
 {
 	struct resource r_res;
@@ -474,10 +600,6 @@ gic_v3_redist_find(struct gic_v3_softc *sc)
 	size_t i;
 
 	cpuid = PCPU_GET(cpuid);
-
-	/* Allocate struct resource for this CPU's Re-Distributor registers */
-	sc->gic_redists.pcpu[cpuid] =
-	    malloc(sizeof(*sc->gic_redists.pcpu[0]), M_GIC_V3, M_WAITOK);
 
 	aff = CPU_AFFINITY(cpuid);
 	/* Affinity in format for comparison with typer */
@@ -502,7 +624,6 @@ gic_v3_redist_find(struct gic_v3_softc *sc)
 		default:
 			device_printf(sc->dev,
 			    "No Re-Distributor found for CPU%u\n", cpuid);
-			free(sc->gic_redists.pcpu[cpuid], M_GIC_V3);
 			return (ENODEV);
 		}
 
@@ -531,7 +652,6 @@ gic_v3_redist_find(struct gic_v3_softc *sc)
 		} while ((typer & GICR_TYPER_LAST) == 0);
 	}
 
-	free(sc->gic_redists.pcpu[cpuid], M_GIC_V3);
 	device_printf(sc->dev, "No Re-Distributor found for CPU%u\n", cpuid);
 	return (ENXIO);
 }
