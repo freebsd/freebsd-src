@@ -94,8 +94,6 @@ void init_secondary(uint64_t);
 
 uint8_t secondary_stacks[MAXCPU - 1][PAGE_SIZE * KSTACK_PAGES] __aligned(16);
 
-/* # of Applications processors */
-volatile int mp_naps;
 /* Set to 1 once we're ready to let the APs out of the pen. */
 volatile int aps_ready = 0;
 
@@ -210,16 +208,6 @@ init_secondary(uint64_t cpu)
 	__asm __volatile(
 	    "mov x18, %0 \n"
 	    "msr tpidr_el1, %0" :: "r"(pcpup));
-
-	/*
-	 * pcpu_init() updates queue, so it should not be executed in parallel
-	 * on several cores
-	 */
-	while(mp_naps < (cpu - 1))
-		;
-
-	/* Signal our startup to BSP */
-	atomic_add_rel_32(&mp_naps, 1);
 
 	/* Spin until the BSP releases the APs */
 	while (!aps_ready)
