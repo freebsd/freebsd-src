@@ -36,13 +36,14 @@
 #include <strings.h>
 
 __BEGIN_DECLS
-typedef void *(chunk_alloc_t)(void *, size_t, size_t, bool *, bool *, unsigned);
-typedef bool (chunk_dalloc_t)(void *, size_t, bool, unsigned);
-typedef bool (chunk_commit_t)(void *, size_t, size_t, size_t, unsigned);
-typedef bool (chunk_decommit_t)(void *, size_t, size_t, size_t, unsigned);
-typedef bool (chunk_purge_t)(void *, size_t, size_t, size_t, unsigned);
-typedef bool (chunk_split_t)(void *, size_t, size_t, size_t, bool, unsigned);
-typedef bool (chunk_merge_t)(void *, size_t, void *, size_t, bool, unsigned);
+typedef void *(chunk_alloc_t)(void *, size_t, size_t, _Bool *, _Bool *,
+    unsigned);
+typedef _Bool (chunk_dalloc_t)(void *, size_t, _Bool, unsigned);
+typedef _Bool (chunk_commit_t)(void *, size_t, size_t, size_t, unsigned);
+typedef _Bool (chunk_decommit_t)(void *, size_t, size_t, size_t, unsigned);
+typedef _Bool (chunk_purge_t)(void *, size_t, size_t, size_t, unsigned);
+typedef _Bool (chunk_split_t)(void *, size_t, size_t, size_t, _Bool, unsigned);
+typedef _Bool (chunk_merge_t)(void *, size_t, void *, size_t, _Bool, unsigned);
 typedef struct {
 	chunk_alloc_t		*alloc;
 	chunk_dalloc_t		*dalloc;
