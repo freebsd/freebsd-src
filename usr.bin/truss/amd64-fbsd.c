@@ -305,6 +305,7 @@ amd64_syscall_exit(struct trussinfo *trussinfo, int syscall_num __unused)
 		 */
 		for (i = 0; i < sc->nargs; i++) {
 			char *temp;
+
 			if (sc->args[i].type & OUT) {
 				/*
 				 * If an error occurred, then don't bother

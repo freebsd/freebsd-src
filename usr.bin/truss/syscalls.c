@@ -623,9 +623,11 @@ xlookup(struct xlat *xlat, int val)
 	return (lookup(xlat, val, 16));
 }
 
-/* Searches an xlat array containing bitfield values.  Remaining bits
-   set after removing the known ones are printed at the end:
-   IN|0x400 */
+/*
+ * Searches an xlat array containing bitfield values.  Remaining bits
+ * set after removing the known ones are printed at the end:
+ * IN|0x400.
+ */
 static char *
 xlookup_bits(struct xlat *xlat, int val)
 {
@@ -636,15 +638,21 @@ xlookup_bits(struct xlat *xlat, int val)
 	rem = val;
 	for (; xlat->str != NULL; xlat++) {
 		if ((xlat->val & rem) == xlat->val) {
-			/* don't print the "all-bits-zero" string unless all
-			   bits are really zero */
+			/*
+			 * Don't print the "all-bits-zero" string unless all
+			 * bits are really zero.
+			 */
 			if (xlat->val == 0 && val != 0)
 				continue;
 			len += sprintf(str + len, "%s|", xlat->str);
 			rem &= ~(xlat->val);
 		}
 	}
-	/* if we have leftover bits or didn't match anything */
+
+	/*
+	 * If we have leftover bits or didn't match anything, print
+	 * the remainder.
+	 */
 	if (rem || len == 0)
 		len += sprintf(str + len, "0x%x", rem);
 	if (len && str[len - 1] == '|')
@@ -657,7 +665,6 @@ xlookup_bits(struct xlat *xlat, int val)
  * If/when the list gets big, it might be desirable to do it
  * as a hash table or binary search.
  */
-
 struct syscall *
 get_syscall(const char *name)
 {
@@ -675,11 +682,8 @@ get_syscall(const char *name)
 }
 
 /*
- * get_struct
- *
  * Copy a fixed amount of bytes from the process.
  */
-
 static int
 get_struct(pid_t pid, void *offset, void *buf, int len)
 {
@@ -697,7 +701,6 @@ get_struct(pid_t pid, void *offset, void *buf, int len)
 #define	MAXSIZE		4096
 
 /*
- * get_string
  * Copy a string from the process.  Note that it is
  * expected to be a C string, but if max is set, it will
  * only get that much.
@@ -825,15 +828,11 @@ print_kevent(FILE *fp, struct kevent *ke, int input)
 }
 
 /*
- * print_arg
  * Converts a syscall argument into a string.  Said string is
- * allocated via malloc(), so needs to be free()'d.  The file
- * descriptor is for the process' memory (via /proc), and is used
- * to get any data (where the argument is a pointer).  sc is
+ * allocated via malloc(), so needs to be free()'d.  sc is
  * a pointer to the syscall description (see above); args is
  * an array of all of the system call arguments.
  */
-
 char *
 print_arg(struct syscall_args *sc, unsigned long *args, long retval,
     struct trussinfo *trussinfo)
@@ -864,18 +863,21 @@ print_arg(struct syscall_args *sc, unsigned long *args, long retval,
 	case Name: {
 		/* NULL-terminated string. */
 		char *tmp2;
+
 		tmp2 = get_string(pid, (void*)args[sc->offset], 0);
 		fprintf(fp, "\"%s\"", tmp2);
 		free(tmp2);
 		break;
 	}
 	case BinString: {
-		/* Binary block of data that might have printable characters.
-		   XXX If type|OUT, assume that the length is the syscall's
-		   return value.  Otherwise, assume that the length of the block
-		   is in the next syscall argument. */
+		/*
+		 * Binary block of data that might have printable characters.
+		 * XXX If type|OUT, assume that the length is the syscall's
+		 * return value.  Otherwise, assume that the length of the block
+		 * is in the next syscall argument.
+		 */
 		int max_string = trussinfo->strsize;
-		char tmp2[max_string+1], *tmp3;
+		char tmp2[max_string + 1], *tmp3;
 		int len;
 		int truncated = 0;
 
@@ -884,9 +886,10 @@ print_arg(struct syscall_args *sc, unsigned long *args, long retval,
 		else
 			len = args[sc->offset + 1];
 
-		/* Don't print more than max_string characters, to avoid word
-		   wrap.  If we have to truncate put some ... after the string.
-		*/
+		/*
+		 * Don't print more than max_string characters, to avoid word
+		 * wrap.  If we have to truncate put some ... after the string.
+		 */
 		if (len > max_string) {
 			len = max_string;
 			truncated = 1;
@@ -949,6 +952,7 @@ print_arg(struct syscall_args *sc, unsigned long *args, long retval,
 #else
 	case Quad: {
 		unsigned long long ll;
+
 		ll = *(unsigned long long *)(args + sc->offset);
 		fprintf(fp, "0x%llx", ll);
 		break;
@@ -959,6 +963,7 @@ print_arg(struct syscall_args *sc, unsigned long *args, long retval,
 		break;
 	case Readlinkres: {
 		char *tmp2;
+
 		if (retval == -1)
 			break;
 		tmp2 = get_string(pid, (void*)args[sc->offset], retval);
@@ -967,21 +972,25 @@ print_arg(struct syscall_args *sc, unsigned long *args, long retval,
 		break;
 	}
 	case Ioctl: {
-		const char *temp = ioctlname(args[sc->offset]);
+		const char *temp;
+		unsigned long cmd;
+
+		cmd = args[sc->offset];
+		temp = ioctlname(cmd);
 		if (temp)
 			fputs(temp, fp);
 		else {
-			unsigned long arg = args[sc->offset];
 			fprintf(fp, "0x%lx { IO%s%s 0x%lx('%c'), %lu, %lu }",
-			    arg, arg & IOC_OUT ? "R" : "",
-			    arg & IOC_IN ? "W" : "", IOCGROUP(arg),
-			    isprint(IOCGROUP(arg)) ? (char)IOCGROUP(arg) : '?',
-			    arg & 0xFF, IOCPARM_LEN(arg));
+			    cmd, cmd & IOC_OUT ? "R" : "",
+			    cmd & IOC_IN ? "W" : "", IOCGROUP(cmd),
+			    isprint(IOCGROUP(cmd)) ? (char)IOCGROUP(cmd) : '?',
+			    cmd & 0xFF, IOCPARM_LEN(cmd));
 		}
 		break;
 	}
 	case Timespec: {
 		struct timespec ts;
+
 		if (get_struct(pid, (void *)args[sc->offset], &ts,
 		    sizeof(ts)) != -1)
 			fprintf(fp, "{ %ld.%09ld }", (long)ts.tv_sec,
@@ -1022,6 +1031,7 @@ print_arg(struct syscall_args *sc, unsigned long *args, long retval,
 	}
 	case Timeval: {
 		struct timeval tv;
+
 		if (get_struct(pid, (void *)args[sc->offset], &tv, sizeof(tv))
 		    != -1)
 			fprintf(fp, "{ %ld.%06ld }", (long)tv.tv_sec,
@@ -1032,6 +1042,7 @@ print_arg(struct syscall_args *sc, unsigned long *args, long retval,
 	}
 	case Timeval2: {
 		struct timeval tv[2];
+
 		if (get_struct(pid, (void *)args[sc->offset], &tv, sizeof(tv))
 		    != -1)
 			fprintf(fp, "{ %ld.%06ld, %ld.%06ld }",
@@ -1043,6 +1054,7 @@ print_arg(struct syscall_args *sc, unsigned long *args, long retval,
 	}
 	case Itimerval: {
 		struct itimerval itv;
+
 		if (get_struct(pid, (void *)args[sc->offset], &itv,
 		    sizeof(itv)) != -1)
 			fprintf(fp, "{ %ld.%06ld, %ld.%06ld }",
@@ -1057,6 +1069,7 @@ print_arg(struct syscall_args *sc, unsigned long *args, long retval,
 	case LinuxSockArgs:
 	{
 		struct linux_socketcall_args largs;
+
 		if (get_struct(pid, (void *)args[sc->offset], (void *)&largs,
 		    sizeof(largs)) != -1)
 			fprintf(fp, "{ %s, 0x%lx }",
@@ -1154,8 +1167,8 @@ print_arg(struct syscall_args *sc, unsigned long *args, long retval,
 		break;
 	}
 	case Fcntlflag: {
-		/* XXX output depends on the value of the previous argument */
-		switch (args[sc->offset-1]) {
+		/* XXX: Output depends on the value of the previous argument. */
+		switch (args[sc->offset - 1]) {
 		case F_SETFD:
 			fputs(xlookup_bits(fcntlfd_arg, args[sc->offset]), fp);
 			break;
@@ -1287,14 +1300,14 @@ print_arg(struct syscall_args *sc, unsigned long *args, long retval,
 		switch (ss.ss_family) {
 		case AF_INET:
 			lsin = (struct sockaddr_in *)&ss;
-			inet_ntop(AF_INET, &lsin->sin_addr, addr, sizeof addr);
+			inet_ntop(AF_INET, &lsin->sin_addr, addr, sizeof(addr));
 			fprintf(fp, "{ AF_INET %s:%d }", addr,
 			    htons(lsin->sin_port));
 			break;
 		case AF_INET6:
 			lsin6 = (struct sockaddr_in6 *)&ss;
 			inet_ntop(AF_INET6, &lsin6->sin6_addr, addr,
-			    sizeof addr);
+			    sizeof(addr));
 			fprintf(fp, "{ AF_INET6 [%s]:%d }", addr,
 			    htons(lsin6->sin6_port));
 			break;
@@ -1336,8 +1349,8 @@ print_arg(struct syscall_args *sc, unsigned long *args, long retval,
 	}
 	case Kevent: {
 		/*
-		 * XXX XXX: the size of the array is determined by either the
-		 * next syscall argument, or by the syscall returnvalue,
+		 * XXX XXX: The size of the array is determined by either the
+		 * next syscall argument, or by the syscall return value,
 		 * depending on which argument number we are.  This matches the
 		 * kevent syscall, but luckily that's the only syscall that uses
 		 * them.
@@ -1376,9 +1389,11 @@ print_arg(struct syscall_args *sc, unsigned long *args, long retval,
 	}
 	case Stat: {
 		struct stat st;
+
 		if (get_struct(pid, (void *)args[sc->offset], &st, sizeof(st))
 		    != -1) {
 			char mode[12];
+
 			strmode(st.st_mode, mode);
 			fprintf(fp,
 			    "{ mode=%s,inode=%jd,size=%jd,blksize=%ld }", mode,
@@ -1391,6 +1406,7 @@ print_arg(struct syscall_args *sc, unsigned long *args, long retval,
 	}
 	case Rusage: {
 		struct rusage ru;
+
 		if (get_struct(pid, (void *)args[sc->offset], &ru, sizeof(ru))
 		    != -1) {
 			fprintf(fp,
@@ -1404,6 +1420,7 @@ print_arg(struct syscall_args *sc, unsigned long *args, long retval,
 	}
 	case Rlimit: {
 		struct rlimit rl;
+
 		if (get_struct(pid, (void *)args[sc->offset], &rl, sizeof(rl))
 		    != -1) {
 			fprintf(fp, "{ cur=%ju,max=%ju }",
@@ -1473,12 +1490,10 @@ print_arg(struct syscall_args *sc, unsigned long *args, long retval,
 }
 
 /*
- * print_syscall
  * Print (to outfile) the system call and its arguments.  Note that
  * nargs is the number of arguments (not the number of words; this is
  * potentially confusing, I know).
  */
-
 void
 print_syscall(struct trussinfo *trussinfo, const char *name, int nargs,
     char **s_args)
