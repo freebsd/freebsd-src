@@ -241,6 +241,8 @@ boot</screen>
 	  kernel.  The issue was resolved in the
 	  <literal>stable/10</literal> branch, and an Errata Notice is
 	  planned after &release.prev; is released.</para>
+
+	<para>[2015-08-19] Resolved as FreeBSD-EN-15:12.</para>
       </listitem>
 
       <listitem>
@@ -250,6 +252,8 @@ boot</screen>
 	  and after investigation and determining the issue does not
 	  cause source-based upgrades to fail, a post-release Errata
 	  Notice is planned.</para>
+
+	<para>[2015-08-19] Resolved as FreeBSD-EN-15:11.</para>
       </listitem>
 
       <listitem>
