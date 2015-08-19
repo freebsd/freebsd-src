@@ -63,7 +63,7 @@
       the Internet and should be consulted as the <quote>current
 	errata</quote> for this release.  These other copies of the
       errata are located at <link
-	xlink:href="http://www.FreeBSD.org/releases/" />, plus any
+	xlink:href="https://www.FreeBSD.org/releases/" />, plus any
       sites which keep up-to-date mirrors of this location.</para>
 
     <para>Source and binary snapshots of &os; &release.branch; also
@@ -71,8 +71,7 @@
       the snapshot).</para>
 
     <para>For a list of all &os; CERT security advisories, see <link
-	xlink:href="http://www.FreeBSD.org/security/"/> or <link
-      xlink:href="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/"/>.</para>
+	xlink:href="https://www.FreeBSD.org/security/"/>.</para>
   </sect1>
 
   <sect1 xml:id="security">
