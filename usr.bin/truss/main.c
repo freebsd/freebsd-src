@@ -149,15 +149,13 @@ set_etype(struct trussinfo *trussinfo)
 char *
 strsig(int sig)
 {
-	char *ret;
+	static char tmp[64];
 
-	ret = NULL;
 	if (sig > 0 && sig < NSIG) {
-		asprintf(&ret, "SIG%s", sys_signame[sig]);
-		if (ret == NULL)
-			return (NULL);
+		snprintf(tmp, sizeof(tmp), "SIG%s", sys_signame[sig]);
+		return (tmp);
 	}
-	return (ret);
+	return (NULL);
 }
 
 int
@@ -340,7 +338,6 @@ START_TRACE:
 			fprintf(trussinfo->outfile,
 			    "SIGNAL %u (%s)\n", trussinfo->pr_data,
 			    signame == NULL ? "?" : signame);
-			free(signame);
 			break;
 		case S_EXIT:
 			if (trussinfo->flags & COUNTONLY)
