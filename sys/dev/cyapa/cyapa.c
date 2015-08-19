@@ -149,7 +149,6 @@ struct cyapa_fifo {
 struct cyapa_softc {
 	device_t dev;
 	int	count;			/* >0 if device opened */
-	int	unit;
 	int	addr;
 	struct cdev *devnode;
 	struct selinfo selinfo;
@@ -450,7 +449,6 @@ static int
 cyapa_probe(device_t dev)
 {
 	struct cyapa_cap cap;
-	int unit;
 	int addr;
 	int error;
 
@@ -462,8 +460,6 @@ cyapa_probe(device_t dev)
 	 */
 	if (addr != 0x67)
 		return (ENXIO);
-
-	unit = device_get_unit(dev);
 
 	error = init_device(dev, &cap, addr, 1);
 	if (error != 0)
@@ -486,7 +482,7 @@ cyapa_attach(device_t dev)
 	sc->reporting_mode = 1;
 
 	unit = device_get_unit(dev);
-	addr = *((unsigned char*) device_get_ivars(dev));
+	addr = smbus_get_addr(dev);
 
 	if (init_device(dev, &cap, addr, 0))
 		return (ENXIO);
@@ -494,7 +490,6 @@ cyapa_attach(device_t dev)
 	mtx_init(&sc->mutex, "cyapa", NULL, MTX_DEF);
 
 	sc->dev = dev;
-	sc->unit = unit;
 	sc->addr = addr;
 
 	knlist_init_mtx(&sc->selinfo.si_note, &sc->mutex);
