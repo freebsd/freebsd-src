@@ -790,10 +790,13 @@ match:
 		 */
 		IF_AFDATA_WLOCK(ifp);
 		la = lla_create(LLTABLE(ifp), 0, (struct sockaddr *)&sin);
-		arp_update_lle(ah, ifp, la);
+		if (la != NULL)
+			arp_update_lle(ah, ifp, la);
 		IF_AFDATA_WUNLOCK(ifp);
-		arp_mark_lle_reachable(la);
-		LLE_WUNLOCK(la);
+		if (la != NULL) {
+			arp_mark_lle_reachable(la);
+			LLE_WUNLOCK(la);
+		}
 	}
 reply:
 	if (op != ARPOP_REQUEST)
