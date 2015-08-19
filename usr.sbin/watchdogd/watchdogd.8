@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 16, 2014
+.Dd May 11, 2015
 .Dt WATCHDOGD 8
 .Os
 .Sh NAME
@@ -46,6 +46,7 @@
 .Op Fl s Ar sleep
 .Op Fl t Ar timeout
 .Op Fl T Ar script_timeout
+.Op Fl x Ar exit_timeout
 .Sh DESCRIPTION
 The
 .Nm
@@ -103,14 +104,25 @@ defaults to the value specified by the
 .Fl s Ar sleep
 option.
 .Pp
+The
+.Fl x Ar exit_timeout
+argument is the timeout period (in seconds) to leave in effect when the
+program exits.
+Using
+.Fl x
+with a non-zero value protects against lockup during a reboot by
+triggering a hardware reset if the software reboot doesn't complete
+before the given timeout expires.
+.Pp
 Upon receiving the
 .Dv SIGTERM
 or
 .Dv SIGINT
 signals,
 .Nm
-will first instruct the kernel to no longer perform watchdog checks and then
-will terminate.
+will terminate, after first instructing the kernel to either disable the
+timeout or reset it to the value given by
+.Fl x Ar exit_timeout .
 .Pp
 The
 .Nm
