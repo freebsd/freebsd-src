@@ -580,7 +580,7 @@ ural_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
     const uint8_t bssid[IEEE80211_ADDR_LEN],
     const uint8_t mac[IEEE80211_ADDR_LEN])
 {
-	struct ural_softc *sc = ic->ic_ifp->if_softc;
+	struct ural_softc *sc = ic->ic_softc;
 	struct ural_vap *uvp;
 	struct ieee80211vap *vap;
 
@@ -697,7 +697,7 @@ ural_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 {
 	struct ural_vap *uvp = URAL_VAP(vap);
 	struct ieee80211com *ic = vap->iv_ic;
-	struct ural_softc *sc = ic->ic_ifp->if_softc;
+	struct ural_softc *sc = ic->ic_softc;
 	const struct ieee80211_txparam *tp;
 	struct ieee80211_node *ni;
 	struct mbuf *m;
@@ -1615,7 +1615,7 @@ static void
 ural_scan_start(struct ieee80211com *ic)
 {
 	struct ifnet *ifp = ic->ic_ifp;
-	struct ural_softc *sc = ifp->if_softc;
+	struct ural_softc *sc = ic->ic_softc;
 
 	RAL_LOCK(sc);
 	ural_write(sc, RAL_TXRX_CSR19, 0);
@@ -1626,7 +1626,7 @@ ural_scan_start(struct ieee80211com *ic)
 static void
 ural_scan_end(struct ieee80211com *ic)
 {
-	struct ural_softc *sc = ic->ic_ifp->if_softc;
+	struct ural_softc *sc = ic->ic_softc;
 
 	RAL_LOCK(sc);
 	ural_enable_tsf_sync(sc);
@@ -1638,7 +1638,7 @@ ural_scan_end(struct ieee80211com *ic)
 static void
 ural_set_channel(struct ieee80211com *ic)
 {
-	struct ural_softc *sc = ic->ic_ifp->if_softc;
+	struct ural_softc *sc = ic->ic_softc;
 
 	RAL_LOCK(sc);
 	ural_set_chan(sc, ic->ic_curchan);
@@ -1819,8 +1819,8 @@ ural_enable_tsf(struct ural_softc *sc)
 static void
 ural_update_slot(struct ifnet *ifp)
 {
-	struct ural_softc *sc = ifp->if_softc;
 	struct ieee80211com *ic = ifp->if_l2com;
+	struct ural_softc *sc = ic->ic_softc;
 	uint16_t slottime, sifs, eifs;
 
 	slottime = (ic->ic_flags & IEEE80211_F_SHSLOT) ? 9 : 20;
@@ -2194,7 +2194,7 @@ ural_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 {
 	struct ieee80211com *ic = ni->ni_ic;
 	struct ifnet *ifp = ic->ic_ifp;
-	struct ural_softc *sc = ifp->if_softc;
+	struct ural_softc *sc = ic->ic_softc;
 
 	RAL_LOCK(sc);
 	/* prevent management frames from being sent if we're not ready */
@@ -2267,7 +2267,7 @@ ural_ratectl_task(void *arg, int pending)
 	struct ieee80211vap *vap = &uvp->vap;
 	struct ieee80211com *ic = vap->iv_ic;
 	struct ifnet *ifp = ic->ic_ifp;
-	struct ural_softc *sc = ifp->if_softc;
+	struct ural_softc *sc = ic->ic_softc;
 	struct ieee80211_node *ni;
 	int ok, fail;
 	int sum, retrycnt;
