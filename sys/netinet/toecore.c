@@ -456,7 +456,7 @@ toe_route_redirect_event(void *arg __unused, struct rtentry *rt0,
 static int
 toe_nd6_resolve(struct ifnet *ifp, struct sockaddr *sa, uint8_t *lladdr)
 {
-	struct llentry *lle;
+	struct llentry *lle, *lle_tmp;
 	struct sockaddr_in6 *sin6 = (void *)sa;
 	int rc, flags = 0;
 
@@ -465,19 +465,32 @@ restart:
 	lle = lla_lookup(LLTABLE6(ifp), flags, sa);
 	IF_AFDATA_RUNLOCK(ifp);
 	if (lle == NULL) {
-		IF_AFDATA_LOCK(ifp);
-		lle = nd6_create(&sin6->sin6_addr, 0, ifp);
-		IF_AFDATA_UNLOCK(ifp);
+		lle = nd6_alloc(&sin6->sin6_addr, 0, ifp);
 		if (lle == NULL)
 			return (ENOMEM); /* Couldn't create entry in cache. */
 		lle->ln_state = ND6_LLINFO_INCOMPLETE;
-		nd6_llinfo_settimer_locked(lle,
-		    (long)ND_IFINFO(ifp)->retrans * hz / 1000);
-		LLE_WUNLOCK(lle);
+		IF_AFDATA_WLOCK(ifp);
+		LLE_WLOCK(lle);
+		lle_tmp = nd6_lookup(&sin6->sin6_addr, ND6_EXCLUSIVE, ifp);
+		/* Prefer any existing lle over newly-created one */
+		if (lle_tmp == NULL)
+			lltable_link_entry(LLTABLE6(ifp), lle); 
+		IF_AFDATA_WUNLOCK(ifp);
+		if (lle_tmp == NULL) {
+			/* Arm timer for newly-created entry and send NS */
+			nd6_llinfo_settimer_locked(lle,
+			    (long)ND_IFINFO(ifp)->retrans * hz / 1000);
+			LLE_WUNLOCK(lle);
 
-		nd6_ns_output(ifp, NULL, &sin6->sin6_addr, NULL, 0);
+			nd6_ns_output(ifp, NULL, &sin6->sin6_addr, NULL, 0);
 
-		return (EWOULDBLOCK);
+			return (EWOULDBLOCK);
+		} else {
+			/* Drop newly-created lle and switch to existing one */
+			lltable_free_entry(LLTABLE6(ifp), lle);
+			lle = lle_tmp;
+			lle_tmp = NULL;
+		}
 	}
 
 	if (lle->ln_state == ND6_LLINFO_STALE) {
