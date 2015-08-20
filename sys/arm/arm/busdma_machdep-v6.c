@@ -110,8 +110,8 @@ struct bounce_page {
 };
 
 struct sync_list {
-	vm_offset_t	vaddr;		/* kva of bounce buffer */
-	bus_addr_t	busaddr;	/* Physical address */
+	vm_offset_t	vaddr;		/* kva of client data */
+	bus_addr_t	busaddr;	/* client physical address */
 	bus_size_t	datacount;	/* client data count */
 };
 
@@ -625,7 +625,8 @@ out:
 	return (error);
 }
 
-static int allocate_bz_and_pages(bus_dma_tag_t dmat, bus_dmamap_t mapp)
+static int
+allocate_bz_and_pages(bus_dma_tag_t dmat, bus_dmamap_t mapp)
 {
 	struct bounce_zone *bz;
 	int maxpages;
