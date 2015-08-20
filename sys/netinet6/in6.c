@@ -2239,23 +2239,15 @@ in6_lltable_delete(struct lltable *llt, u_int flags,
 }
 
 static struct llentry *
-in6_lltable_create(struct lltable *llt, u_int flags,
+in6_lltable_alloc(struct lltable *llt, u_int flags,
 	const struct sockaddr *l3addr)
 {
 	const struct sockaddr_in6 *sin6 = (const struct sockaddr_in6 *)l3addr;
 	struct ifnet *ifp = llt->llt_ifp;
 	struct llentry *lle;
 
-	IF_AFDATA_WLOCK_ASSERT(ifp);
 	KASSERT(l3addr->sa_family == AF_INET6,
 	    ("sin_family %d", l3addr->sa_family));
-
-	lle = in6_lltable_find_dst(llt, &sin6->sin6_addr);
-
-	if (lle != NULL) {
-		LLE_WLOCK(lle);
-		return (lle);
-	}
 
 	/*
 	 * A route that covers the given address must have
@@ -2276,9 +2268,6 @@ in6_lltable_create(struct lltable *llt, u_int flags,
 		bcopy(IF_LLADDR(ifp), &lle->ll_addr, ifp->if_addrlen);
 		lle->la_flags |= (LLE_VALID | LLE_STATIC);
 	}
-
-	lltable_link_entry(llt, lle);
-	LLE_WLOCK(lle);
 
 	return (lle);
 }
@@ -2382,7 +2371,7 @@ in6_lltattach(struct ifnet *ifp)
 	llt->llt_ifp = ifp;
 
 	llt->llt_lookup = in6_lltable_lookup;
-	llt->llt_create = in6_lltable_create;
+	llt->llt_alloc_entry = in6_lltable_alloc;
 	llt->llt_delete = in6_lltable_delete;
 	llt->llt_dump_entry = in6_lltable_dump_entry;
 	llt->llt_hash = in6_lltable_hash;

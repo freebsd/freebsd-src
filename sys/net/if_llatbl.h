@@ -133,7 +133,7 @@ struct llentry {
 
 typedef	struct llentry *(llt_lookup_t)(struct lltable *, u_int flags,
     const struct sockaddr *l3addr);
-typedef	struct llentry *(llt_create_t)(struct lltable *, u_int flags,
+typedef	struct llentry *(llt_alloc_t)(struct lltable *, u_int flags,
     const struct sockaddr *l3addr);
 typedef	int (llt_delete_t)(struct lltable *, u_int flags,
     const struct sockaddr *l3addr);
@@ -161,7 +161,7 @@ struct lltable {
 	struct ifnet		*llt_ifp;
 
 	llt_lookup_t		*llt_lookup;
-	llt_create_t		*llt_create;
+	llt_alloc_t		*llt_alloc_entry;
 	llt_delete_t		*llt_delete;
 	llt_prefix_free_t	*llt_prefix_free;
 	llt_dump_entry_t	*llt_dump_entry;
@@ -209,8 +209,9 @@ struct llentry  *llentry_alloc(struct ifnet *, struct lltable *,
 /* helper functions */
 size_t lltable_drop_entry_queue(struct llentry *);
 
-struct llentry *lltable_create_lle(struct lltable *llt, u_int flags,
-    const void *paddr);
+struct llentry *lltable_alloc_entry(struct lltable *llt, u_int flags,
+    const struct sockaddr *l4addr);
+void lltable_free_entry(struct lltable *llt, struct llentry *lle);
 void lltable_link_entry(struct lltable *llt, struct llentry *lle);
 void lltable_unlink_entry(struct lltable *llt, struct llentry *lle);
 void lltable_fill_sa_entry(const struct llentry *lle, struct sockaddr *sa);
@@ -227,13 +228,6 @@ lla_lookup(struct lltable *llt, u_int flags, const struct sockaddr *l3addr)
 {
 
 	return (llt->llt_lookup(llt, flags, l3addr));
-}
-
-static __inline struct llentry *
-lla_create(struct lltable *llt, u_int flags, const struct sockaddr *l3addr)
-{
-
-	return (llt->llt_create(llt, flags, l3addr));
 }
 
 static __inline int

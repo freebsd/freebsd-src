@@ -1202,24 +1202,14 @@ in_lltable_delete(struct lltable *llt, u_int flags,
 }
 
 static struct llentry *
-in_lltable_create(struct lltable *llt, u_int flags, const struct sockaddr *l3addr)
+in_lltable_alloc(struct lltable *llt, u_int flags, const struct sockaddr *l3addr)
 {
 	const struct sockaddr_in *sin = (const struct sockaddr_in *)l3addr;
 	struct ifnet *ifp = llt->llt_ifp;
 	struct llentry *lle;
 
-	IF_AFDATA_WLOCK_ASSERT(ifp);
 	KASSERT(l3addr->sa_family == AF_INET,
 	    ("sin_family %d", l3addr->sa_family));
-
-	lle = in_lltable_find_dst(llt, sin->sin_addr);
-
-	if (lle != NULL) {
-		LLE_WLOCK(lle);
-		return (lle);
-	}
-
-	/* no existing record, we need to create new one */
 
 	/*
 	 * A route that covers the given address must have
@@ -1240,9 +1230,6 @@ in_lltable_create(struct lltable *llt, u_int flags, const struct sockaddr *l3add
 		bcopy(IF_LLADDR(ifp), &lle->ll_addr, ifp->if_addrlen);
 		lle->la_flags |= (LLE_VALID | LLE_STATIC);
 	}
-
-	lltable_link_entry(llt, lle);
-	LLE_WLOCK(lle);
 
 	return (lle);
 }
@@ -1346,7 +1333,7 @@ in_lltattach(struct ifnet *ifp)
  	llt->llt_ifp = ifp;
 
 	llt->llt_lookup = in_lltable_lookup;
-	llt->llt_create = in_lltable_create;
+	llt->llt_alloc_entry = in_lltable_alloc;
 	llt->llt_delete = in_lltable_delete;
 	llt->llt_dump_entry = in_lltable_dump_entry;
 	llt->llt_hash = in_lltable_hash;
