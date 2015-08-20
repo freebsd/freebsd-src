@@ -37,6 +37,7 @@ FILES+=		dollar-quote9.0
 FILES+=		dollar-quote10.0
 FILES+=		dollar-quote11.0
 FILES+=		dollar-quote12.0
+FILES+=		dollar-quote13.0
 FILES+=		empty-braces1.0
 FILES+=		empty-cmd1.0
 FILES+=		for1.0
