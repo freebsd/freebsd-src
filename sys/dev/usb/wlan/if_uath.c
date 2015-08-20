@@ -1559,7 +1559,7 @@ uath_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
 	struct ieee80211com *ic = ifp->if_l2com;
 	struct ifreq *ifr = (struct ifreq *) data;
-	struct uath_softc *sc = ifp->if_softc;
+	struct uath_softc *sc = ic->ic_softc;
 	int error;
 	int startall = 0;
 
@@ -1573,7 +1573,7 @@ uath_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	case SIOCSIFFLAGS:
 		if (ifp->if_flags & IFF_UP) {
 			if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
-				uath_init(ifp->if_softc);
+				uath_init(sc);
 				startall = 1;
 			}
 		} else {
@@ -1857,7 +1857,7 @@ uath_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	struct ieee80211com *ic = ni->ni_ic;
 	struct ifnet *ifp = ic->ic_ifp;
 	struct uath_data *bf;
-	struct uath_softc *sc = ifp->if_softc;
+	struct uath_softc *sc = ic->ic_softc;
 
 	/* prevent management frames from being sent if we're not ready */
 	if ((sc->sc_flags & UATH_FLAG_INVALID) ||
@@ -1908,7 +1908,7 @@ static void
 uath_set_channel(struct ieee80211com *ic)
 {
 	struct ifnet *ifp = ic->ic_ifp;
-	struct uath_softc *sc = ifp->if_softc;
+	struct uath_softc *sc = ic->ic_softc;
 
 	UATH_LOCK(sc);
 	if ((sc->sc_flags & UATH_FLAG_INVALID) ||
@@ -2075,7 +2075,7 @@ uath_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 	int error;
 	struct ieee80211_node *ni;
 	struct ieee80211com *ic = vap->iv_ic;
-	struct uath_softc *sc = ic->ic_ifp->if_softc;
+	struct uath_softc *sc = ic->ic_softc;
 	struct uath_vap *uvp = UATH_VAP(vap);
 
 	DPRINTF(sc, UATH_DEBUG_STATE,

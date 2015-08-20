@@ -509,8 +509,7 @@ static void
 rsu_scan_start(struct ieee80211com *ic)
 {
 	int error;
-	struct ifnet *ifp = ic->ic_ifp;
-	struct rsu_softc *sc = ifp->if_softc;
+	struct rsu_softc *sc = ic->ic_softc;
 
 	/* Scanning is done by the firmware. */
 	RSU_LOCK(sc);
@@ -935,7 +934,7 @@ rsu_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 {
 	struct rsu_vap *uvp = RSU_VAP(vap);
 	struct ieee80211com *ic = vap->iv_ic;
-	struct rsu_softc *sc = ic->ic_ifp->if_softc;
+	struct rsu_softc *sc = ic->ic_softc;
 	struct ieee80211_node *ni;
 	struct ieee80211_rateset *rs;
 	enum ieee80211_state ostate;
@@ -1819,6 +1818,7 @@ static int
 rsu_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
 	struct ieee80211com *ic = ifp->if_l2com;
+	struct rsu_softc *sc = ic->ic_softc;
 	struct ifreq *ifr = (struct ifreq *) data;
 	int error = 0, startall = 0;
 
@@ -1826,7 +1826,7 @@ rsu_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	case SIOCSIFFLAGS:
 		if (ifp->if_flags & IFF_UP) {
 			if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
-				rsu_init(ifp->if_softc);
+				rsu_init(sc);
 				startall = 1;
 			}
 		} else {
@@ -2297,7 +2297,7 @@ rsu_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 {
 	struct ieee80211com *ic = ni->ni_ic;
 	struct ifnet *ifp = ic->ic_ifp;
-	struct rsu_softc *sc = ifp->if_softc;
+	struct rsu_softc *sc = ic->ic_softc;
 	struct rsu_data *bf;
 
 	/* prevent management frames from being sent if we're not ready */

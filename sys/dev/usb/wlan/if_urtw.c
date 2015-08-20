@@ -1404,8 +1404,8 @@ urtw_abort_xfers(struct urtw_softc *sc)
 static int
 urtw_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
-	struct urtw_softc *sc = ifp->if_softc;
 	struct ieee80211com *ic = ifp->if_l2com;
+	struct urtw_softc *sc = ic->ic_softc;
 	struct ifreq *ifr = (struct ifreq *) data;
 	int error;
 	int startall = 0;
@@ -1424,7 +1424,7 @@ urtw_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 				    (IFF_ALLMULTI | IFF_PROMISC))
 					urtw_set_multi(sc);
 			} else {
-				urtw_init(ifp->if_softc);
+				urtw_init(sc);
 				startall = 1;
 			}
 		} else {
@@ -1567,7 +1567,7 @@ urtw_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	struct ieee80211com *ic = ni->ni_ic;
 	struct ifnet *ifp = ic->ic_ifp;
 	struct urtw_data *bf;
-	struct urtw_softc *sc = ifp->if_softc;
+	struct urtw_softc *sc = ic->ic_softc;
 
 	/* prevent management frames from being sent if we're not ready */
 	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
@@ -1615,7 +1615,7 @@ urtw_scan_end(struct ieee80211com *ic)
 static void
 urtw_set_channel(struct ieee80211com *ic)
 {
-	struct urtw_softc *sc  = ic->ic_ifp->if_softc;
+	struct urtw_softc *sc  = ic->ic_softc;
 	struct ifnet *ifp = sc->sc_ifp;
 	uint32_t data, orig;
 	usb_error_t error;
@@ -1862,7 +1862,7 @@ static int
 urtw_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 {
 	struct ieee80211com *ic = vap->iv_ic;
-	struct urtw_softc *sc = ic->ic_ifp->if_softc;
+	struct urtw_softc *sc = ic->ic_softc;
 	struct urtw_vap *uvp = URTW_VAP(vap);
 	struct ieee80211_node *ni;
 	usb_error_t error = 0;

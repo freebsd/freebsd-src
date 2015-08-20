@@ -765,8 +765,7 @@ upgt_set_macfilter(struct upgt_softc *sc, uint8_t state)
 static void
 upgt_setup_rates(struct ieee80211vap *vap, struct ieee80211com *ic)
 {
-	struct ifnet *ifp = ic->ic_ifp;
-	struct upgt_softc *sc = ifp->if_softc;
+	struct upgt_softc *sc = vap->iv_ic->ic_softc;
 	const struct ieee80211_txparam *tp;
 
 	/*
@@ -870,7 +869,7 @@ upgt_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 {
 	struct ieee80211com *ic = ni->ni_ic;
 	struct ifnet *ifp = ic->ic_ifp;
-	struct upgt_softc *sc = ifp->if_softc;
+	struct upgt_softc *sc = ic->ic_softc;
 	struct upgt_data *data_tx = NULL;
 
 	/* prevent management frames from being sent if we're not ready */
@@ -950,7 +949,7 @@ upgt_scan_end(struct ieee80211com *ic)
 static void
 upgt_set_channel(struct ieee80211com *ic)
 {
-	struct upgt_softc *sc = ic->ic_ifp->if_softc;
+	struct upgt_softc *sc = ic->ic_softc;
 
 	UPGT_LOCK(sc);
 	upgt_set_chan(sc, ic->ic_curchan);
@@ -1069,7 +1068,7 @@ upgt_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 {
 	struct upgt_vap *uvp = UPGT_VAP(vap);
 	struct ieee80211com *ic = vap->iv_ic;
-	struct upgt_softc *sc = ic->ic_ifp->if_softc;
+	struct upgt_softc *sc = ic->ic_softc;
 
 	/* do it in a process context */
 	sc->sc_state = nstate;
