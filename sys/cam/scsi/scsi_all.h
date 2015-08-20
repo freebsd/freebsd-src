@@ -986,6 +986,19 @@ struct scsi_read_buffer
         u_int8_t control;
 };
 
+
+//struct CDB fopr READ TOC
+struct scsi_read_tocc
+{
+        u_int8_t opcode;
+        u_int8_t byte2;
+        u_int8_t fmt;
+        u_int8_t reserved[3];
+        u_int8_t track_session;
+        u_int8_t length[2];
+        u_int8_t control;
+};
+
 struct scsi_write_buffer
 {
 	u_int8_t opcode;
