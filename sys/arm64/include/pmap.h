@@ -149,6 +149,9 @@ void	pmap_unmapbios(vm_offset_t, vm_size_t);
 boolean_t pmap_map_io_transient(vm_page_t *, vm_offset_t *, int, boolean_t);
 void	pmap_unmap_io_transient(vm_page_t *, vm_offset_t *, int, boolean_t);
 
+bool	pmap_get_tables(pmap_t, vm_offset_t, pd_entry_t **, pd_entry_t **,
+    pt_entry_t **);
+
 #define	pmap_page_is_mapped(m)	(!TAILQ_EMPTY(&(m)->md.pv_list))
 
 #endif	/* _KERNEL */
