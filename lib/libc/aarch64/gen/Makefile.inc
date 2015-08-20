@@ -5,6 +5,7 @@ SRCS+=	_ctx_start.S \
 	flt_rounds.c \
 	fpgetmask.c \
 	fpsetmask.c \
+	infinity.c \
 	ldexp.c \
 	makecontext.c \
 	_setjmp.S \
