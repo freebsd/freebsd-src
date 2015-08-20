@@ -124,6 +124,7 @@ progress_draw(progress_t *prog)
 					 * stars should contain at least
 					 * sizeof(buf) - BAROVERHEAD entries
 					 */
+#define	MIN_BAR_LEN	10
 	static const char	stars[] =
 "*****************************************************************************"
 "*****************************************************************************"
@@ -134,13 +135,31 @@ progress_draw(progress_t *prog)
 	uint64_t		bytespersec;
 	uint64_t		abbrevsize;
 	int64_t			secsleft;
-	size_t			barlength;
+	ssize_t			barlength;
 	size_t			starc;
 	char			hours[12];
 	char			buf[256];
 	int			len;
+	int			prefix_len;
 
-	barlength = MIN(sizeof(buf) - 1, (unsigned)prog->ttywidth) - BAROVERHEAD - strlen(prog->prefix);
+	prefix_len = strlen(prog->prefix);
+	barlength = MIN(sizeof(buf) - 1, (unsigned)prog->ttywidth) -
+		BAROVERHEAD - prefix_len;
+	if (barlength < MIN_BAR_LEN) {
+		int tmp_prefix_len;
+		/*
+		 * In this case the TTY width is too small or the prefix is
+		 * too large for a progress bar.  We'll try decreasing the
+		 * prefix length.
+		 */
+		barlength = MIN_BAR_LEN;
+		tmp_prefix_len = MIN(sizeof(buf) - 1,(unsigned)prog->ttywidth) -
+		    BAROVERHEAD - MIN_BAR_LEN;
+		if (tmp_prefix_len > 0)
+			prefix_len = tmp_prefix_len;
+		else
+			prefix_len = 0;
+	}
 	starc = (barlength * prog->percent) / 100;
 	abbrevsize = prog->done;
 	for (bytesabbrev = 0; abbrevsize >= 100000 && bytesabbrev < NSUFFIXES; bytesabbrev++) {
@@ -171,8 +190,8 @@ progress_draw(progress_t *prog)
 	}
 	secs = secsleft % SECSPERHOUR;
 	len = snprintf(buf, sizeof(buf),
-		"\r%s %3lld%% |%.*s%*s| %5lld %-3s %3lld.%02d %.2sB/s %s%02d:%02d ETA",
-		(prog->prefix) ? prog->prefix : "",
+		"\r%.*s %3lld%% |%.*s%*s| %5lld %-3s %3lld.%02d %.2sB/s %s%02d:%02d ETA",
+		prefix_len, (prog->prefix) ? prog->prefix : "",
 		(long long)prog->percent,
 		(int)starc, stars, (int)(barlength - starc), "",
 		(long long)abbrevsize,
