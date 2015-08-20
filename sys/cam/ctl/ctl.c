@@ -5789,6 +5789,36 @@ bailout:
 	return (CTL_RETVAL_COMPLETE);
 }
 
+//READ TOC function added
+
+int
+ctl_read_toc(struct ctl_scsiio *ctsio)
+{
+ 
+	struct scsi_read_tocc *cdb;
+        struct ctl_lun *lun;
+        int len;
+
+        CTL_DEBUG_PRINT(("ctl_read_toc\n"));
+        
+        lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
+        cdb = (struct scsi_read_tocc *)ctsio->cdb;
+        len = scsi_2btoul(cdb->length);
+	
+	ctsio->kern_data_ptr = malloc(len, M_CTL, M_WAITOK);
+        ctsio->kern_data_len = len;
+        ctsio->kern_total_len = len;
+        ctsio->kern_data_resid = 0;
+        ctsio->kern_rel_offset = 0;
+        ctsio->kern_sg_entries = 0;
+        ctsio->io_hdr.flags |= CTL_FLAG_ALLOCATED;
+        //ctl_set_success(ctsio);
+        ctsio->be_move_done = ctl_config_move_done;
+        ctl_datamove((union ctl_io *)ctsio);
+        return (CTL_RETVAL_COMPLETE);
+}
+
+
 int
 ctl_read_buffer(struct ctl_scsiio *ctsio)
 {
