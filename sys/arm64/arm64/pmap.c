@@ -314,6 +314,40 @@ pmap_l3(pmap_t pmap, vm_offset_t va)
 	return (pmap_l2_to_l3(l2, va));
 }
 
+bool
+pmap_get_tables(pmap_t pmap, vm_offset_t va, pd_entry_t **l1, pd_entry_t **l2,
+    pt_entry_t **l3)
+{
+	pd_entry_t *l1p, *l2p;
+
+	if (pmap->pm_l1 == NULL)
+		return (false);
+
+	l1p = pmap_l1(pmap, va);
+	*l1 = l1p;
+
+	if ((*l1p & ATTR_DESCR_MASK) == L1_BLOCK) {
+		*l2 = NULL;
+		*l3 = NULL;
+		return (true);
+	}
+
+	if ((*l1p & ATTR_DESCR_MASK) != L1_TABLE)
+		return (false);
+
+	l2p = pmap_l1_to_l2(l1p, va);
+	*l2 = l2p;
+
+	if ((*l2p & ATTR_DESCR_MASK) == L2_BLOCK) {
+		*l3 = NULL;
+		return (true);
+	}
+
+	*l3 = pmap_l2_to_l3(l2p, va);
+
+	return (true);
+}
+
 /*
  * These load the old table data and store the new value.
  * They need to be atomic as the System MMU may write to the table at
