@@ -245,11 +245,11 @@ static struct syscall syscalls[] = {
 	  .args = { { Int, 0 }, { BinString | IN, 1 }, { Int, 2 }, { Hex, 3 },
 		    { Sockaddr | IN, 4 }, { Ptr | IN, 5 } } },
 	{ .name = "execve", .ret_type = 1, .nargs = 3,
-	  .args = { { Name | IN, 0 }, { StringArray | IN, 1 },
-		    { StringArray | IN, 2 } } },
+	  .args = { { Name | IN, 0 }, { ExecArgs | IN, 1 },
+		    { ExecEnv | IN, 2 } } },
 	{ .name = "linux_execve", .ret_type = 1, .nargs = 3,
-	  .args = { { Name | IN, 0 }, { StringArray | IN, 1 },
-		    { StringArray | IN, 2 } } },
+	  .args = { { Name | IN, 0 }, { ExecArgs | IN, 1 },
+		    { ExecEnv | IN, 2 } } },
 	{ .name = "kldload", .ret_type = 0, .nargs = 1,
 	  .args = { { Name | IN, 0 } } },
 	{ .name = "kldunload", .ret_type = 0, .nargs = 1,
@@ -912,6 +912,8 @@ print_arg(struct syscall_args *sc, unsigned long *args, long retval,
 		}
 		break;
 	}
+	case ExecArgs:
+	case ExecEnv:
 	case StringArray: {
 		uintptr_t addr;
 		union {
@@ -922,6 +924,18 @@ print_arg(struct syscall_args *sc, unsigned long *args, long retval,
 		size_t len;
 		int first, i;
 
+		/*
+		 * Only parse argv[] and environment arrays from exec calls
+		 * if requested.
+		 */
+		if (((sc->type & ARG_MASK) == ExecArgs &&
+		    (trussinfo->flags & EXECVEARGS) == 0) ||
+		    ((sc->type & ARG_MASK) == ExecEnv &&
+		    (trussinfo->flags & EXECVEENVS) == 0)) {
+			fprintf(fp, "0x%lx", args[sc->offset]);
+			break;
+		}
+		    
 		/*
 		 * Read a page of pointers at a time.  Punt if the top-level
 		 * pointer is not aligned.  Note that the first read is of
