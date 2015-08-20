@@ -595,7 +595,7 @@ rum_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
     const uint8_t bssid[IEEE80211_ADDR_LEN],
     const uint8_t mac[IEEE80211_ADDR_LEN])
 {
-	struct rum_softc *sc = ic->ic_ifp->if_softc;
+	struct rum_softc *sc = ic->ic_softc;
 	struct rum_vap *rvp;
 	struct ieee80211vap *vap;
 
@@ -711,7 +711,7 @@ rum_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 {
 	struct rum_vap *rvp = RUM_VAP(vap);
 	struct ieee80211com *ic = vap->iv_ic;
-	struct rum_softc *sc = ic->ic_ifp->if_softc;
+	struct rum_softc *sc = ic->ic_softc;
 	const struct ieee80211_txparam *tp;
 	enum ieee80211_state ostate;
 	struct ieee80211_node *ni;
@@ -1333,8 +1333,8 @@ rum_start(struct ifnet *ifp)
 static int
 rum_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
-	struct rum_softc *sc = ifp->if_softc;
 	struct ieee80211com *ic = ifp->if_l2com;
+	struct rum_softc *sc = ic->ic_softc;
 	struct ifreq *ifr = (struct ifreq *) data;
 	int error;
 	int startall = 0;
@@ -1786,8 +1786,8 @@ rum_enable_tsf(struct rum_softc *sc)
 static void
 rum_update_slot(struct ifnet *ifp)
 {
-	struct rum_softc *sc = ifp->if_softc;
 	struct ieee80211com *ic = ifp->if_l2com;
+	struct rum_softc *sc = ic->ic_softc;
 	uint8_t slottime;
 	uint32_t tmp;
 
@@ -2189,7 +2189,7 @@ rum_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
     const struct ieee80211_bpf_params *params)
 {
 	struct ifnet *ifp = ni->ni_ic->ic_ifp;
-	struct rum_softc *sc = ifp->if_softc;
+	struct rum_softc *sc = ni->ni_ic->ic_softc;
 
 	RUM_LOCK(sc);
 	/* prevent management frames from being sent if we're not ready */
@@ -2263,7 +2263,7 @@ rum_ratectl_task(void *arg, int pending)
 	struct ieee80211vap *vap = &rvp->vap;
 	struct ieee80211com *ic = vap->iv_ic;
 	struct ifnet *ifp = ic->ic_ifp;
-	struct rum_softc *sc = ifp->if_softc;
+	struct rum_softc *sc = ic->ic_softc;
 	struct ieee80211_node *ni;
 	int ok, fail;
 	int sum, retrycnt;
@@ -2293,7 +2293,7 @@ static void
 rum_scan_start(struct ieee80211com *ic)
 {
 	struct ifnet *ifp = ic->ic_ifp;
-	struct rum_softc *sc = ifp->if_softc;
+	struct rum_softc *sc = ic->ic_softc;
 	uint32_t tmp;
 
 	RUM_LOCK(sc);
@@ -2308,7 +2308,7 @@ rum_scan_start(struct ieee80211com *ic)
 static void
 rum_scan_end(struct ieee80211com *ic)
 {
-	struct rum_softc *sc = ic->ic_ifp->if_softc;
+	struct rum_softc *sc = ic->ic_softc;
 
 	RUM_LOCK(sc);
 	rum_enable_tsf_sync(sc);
@@ -2320,7 +2320,7 @@ rum_scan_end(struct ieee80211com *ic)
 static void
 rum_set_channel(struct ieee80211com *ic)
 {
-	struct rum_softc *sc = ic->ic_ifp->if_softc;
+	struct rum_softc *sc = ic->ic_softc;
 
 	RUM_LOCK(sc);
 	rum_set_chan(sc, ic->ic_curchan);
