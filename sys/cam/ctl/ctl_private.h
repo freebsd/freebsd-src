@@ -520,6 +520,11 @@ int ctl_start_stop(struct ctl_scsiio *ctsio);
 int ctl_sync_cache(struct ctl_scsiio *ctsio);
 int ctl_format(struct ctl_scsiio *ctsio);
 int ctl_read_buffer(struct ctl_scsiio *ctsio);
+
+//READ TOC related function prototype added
+
+int ctl_read_toc(struct ctl_scsiio *ctsio);
+
 int ctl_write_buffer(struct ctl_scsiio *ctsio);
 int ctl_write_same(struct ctl_scsiio *ctsio);
 int ctl_unmap(struct ctl_scsiio *ctsio);
