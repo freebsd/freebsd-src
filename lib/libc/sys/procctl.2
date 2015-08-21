@@ -71,11 +71,11 @@ The control request to perform is specified by the
 .Fa cmd
 argument.
 The following commands are supported:
-.Bl -tag -width "Dv PROC_REAP_GETPIDS"
+.Bl -tag -width "PROC_REAP_GETPIDS"
 .It Dv PROC_SPROTECT
 Set process protection state.
 This is used to mark a process as protected from being killed if the system
-exhausts available memory and swap.
+exhausts the available memory and swap.
 The
 .Fa arg
 parameter must point to an integer containing an operation and zero or more
@@ -89,7 +89,7 @@ Clear the protected state of selected processes.
 .El
 .Pp
 The following optional flags are supported:
-.Bl -tag -width "Dv PPROT_DESCE"
+.Bl -tag -width "Dv PPROT_DESCEND"
 .It Dv PPROT_DESCEND
 Apply the requested operation to all child processes of each selected process
 in addition to each selected process.
@@ -101,18 +101,18 @@ Future child processes will also mark all of their future child processes.
 .El
 .It Dv PROC_REAP_ACQUIRE
 Acquires the reaper status for the current process.
-The status means that children orphaned by the reaper's descendants
-that were forked after the acquisition of the status are reparented to the
-reaper.
-After the system initialization,
+Reaper status means that children orphaned by the reaper's descendants
+that were forked after the acquisition of reaper status are reparented to the
+reaper process.
+After system initialization,
 .Xr init 8
 is the default reaper.
 .It Dv PROC_REAP_RELEASE
-Releases the reaper state for the current process.
+Release the reaper state for the current process.
 The reaper of the current process becomes the new reaper of the
 current process's descendants.
 .It Dv PROC_REAP_STATUS
-Provides the information about the reaper of the specified process,
+Provides information about the reaper of the specified process,
 or the process itself when it is a reaper.
 The
 .Fa data
@@ -133,7 +133,7 @@ The
 may have the following flags returned:
 .Bl -tag -width "Dv REAPER_STATUS_REALINIT"
 .It Dv REAPER_STATUS_OWNED
-The specified process has acquired the reaper status and has not
+The specified process has acquired reaper status and has not
 released it.
 When the flag is returned, the specified process
 .Fa id ,
@@ -142,15 +142,15 @@ pid, identifies the reaper, otherwise the
 field of the structure is set to the pid of the reaper
 for the specified process id.
 .It Dv REAPER_STATUS_REALINIT
-The specified process is the root of the reaper tree, i.e.
+The specified process is the root of the reaper tree, i.e.,
 .Xr init 8 .
 .El
 .Pp
 The
 .Fa rs_children
-field returns the number of children of the reaper among the descendands.
-It is possible to have a child which reaper is not the specified process,
-since the reaper for the existing children is not reset on the
+field returns the number of children of the reaper among the descendants.
+It is possible to have a child whose reaper is not the specified process,
+since the reaper for any existing children is not reset on the
 .Dv PROC_REAP_ACQUIRE
 operation.
 The
@@ -246,7 +246,7 @@ struct procctl_reaper_kill {
 The
 .Fa rk_sig
 field specifies the signal to be delivered.
-Zero is not a valid signal number, unlike
+Zero is not a valid signal number, unlike for
 .Xr kill 2 .
 The
 .Fa rk_flags
@@ -275,20 +275,20 @@ field identifies the number of processes signalled.
 The
 .Fa rk_fpid
 field is set to the pid of the first process for which signal
-delivery failed, e.g. due to the permission problems.
-If no such process exist, the
+delivery failed, e.g., due to permission problems.
+If no such process exists, the
 .Fa rk_fpid
 field is set to -1.
 .It Dv PROC_TRACE_CTL
 Enable or disable tracing of the specified process(es), according to the
 value of the integer argument.
-Tracing includes attachment to the process using
+Tracing includes attachment to the process using the
 .Xr ptrace 2
 and
 .Xr ktrace 2 ,
 debugging sysctls,
 .Xr hwpmc 4 ,
-.Xr dtrace 1
+.Xr dtrace 1 ,
 and core dumping.
 Possible values for the
 .Fa data
@@ -301,7 +301,7 @@ Only allowed for self.
 .It Dv PROC_TRACE_CTL_DISABLE
 Disable tracing for the specified process.
 Tracing is re-enabled when the process changes the executing
-program with
+program with the
 .Xr execve 2
 syscall.
 A child inherits the trace settings from the parent on
@@ -309,7 +309,7 @@ A child inherits the trace settings from the parent on
 .It Dv PROC_TRACE_CTL_DISABLE_EXEC
 Same as
 .Dv PROC_TRACE_CTL_DISABLE ,
-but the setting persist for the process even after
+but the setting persists for the process even after
 .Xr execve 2 .
 .El
 .It Dv PROC_TRACE_STATUS
@@ -319,7 +319,7 @@ the integer variable pointed to by
 If tracing is disabled,
 .Fa data
 is set to -1.
-If tracing is enabled, but no debugger is attached by
+If tracing is enabled, but no debugger is attached by the
 .Xr ptrace 2
 syscall,
 .Fa data
@@ -332,7 +332,7 @@ is set to the pid of the debugger process.
 Disabling tracing on a process should not be considered a security
 feature, as it is bypassable both by the kernel and privileged processes,
 and via other system mechanisms.
-As such, it should not be relied on to reliably protect cryptographic
+As such, it should not be utilized to reliably protect cryptographic
 keying material or other confidential data.
 .Sh RETURN VALUES
 If an error occurs, a value of -1 is returned and
@@ -408,9 +408,9 @@ request was issued for a process already being traced.
 .It Bq Er EPERM
 The
 .Dv PROC_TRACE_CTL
-request to re-enable tracing of the process (
-.Dv PROC_TRACE_CTL_ENABLE ) ,
-or to disable persistence of the
+request to re-enable tracing of the process
+.Po Dv PROC_TRACE_CTL_ENABLE Pc ,
+or to disable persistence of
 .Dv PROC_TRACE_CTL_DISABLE
 on
 .Xr execve 2
