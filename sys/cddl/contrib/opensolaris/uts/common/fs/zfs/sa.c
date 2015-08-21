@@ -220,7 +220,6 @@ static void
 sa_cache_destructor(void *buf, void *unused)
 {
 	sa_handle_t *hdl = buf;
-	hdl->sa_dbu.dbu_evict_func = NULL;
 	mutex_destroy(&hdl->sa_lock);
 }
 
@@ -1385,6 +1384,7 @@ sa_handle_get_from_db(objset_t *os, dmu_buf_t *db, void *userp,
 		sa_handle_t *winner = NULL;
 
 		handle = kmem_cache_alloc(sa_cache, KM_SLEEP);
+		handle->sa_dbu.dbu_evict_func = NULL;
 		handle->sa_userp = userp;
 		handle->sa_bonus = db;
 		handle->sa_os = os;
