@@ -400,8 +400,7 @@ link_elf_init(void* arg)
 	modptr = preload_search_by_type("elf" __XSTRING(__ELF_WORD_SIZE) " kernel");
 	if (modptr == NULL)
 		modptr = preload_search_by_type("elf kernel");
-	if (modptr != NULL)
-		modname = (char *)preload_search_info(modptr, MODINFO_NAME);
+	modname = (char *)preload_search_info(modptr, MODINFO_NAME);
 	if (modname == NULL)
 		modname = "kernel";
 	linker_kernel_file = linker_make_file(modname, &link_elf_class);

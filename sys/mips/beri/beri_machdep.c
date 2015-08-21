@@ -281,10 +281,7 @@ platform_start(__register_t a0, __register_t a1,  __register_t a2,
 	 * Prefer a dtb provided as a module to one from bootinfo as we may
 	 * have loaded an alternative one or created a modified version.
 	 */
-	if (kmdp != NULL)
-		dtbp = MD_FETCH(kmdp, MODINFOMD_DTBP, vm_offset_t);
-	else
-		dtbp = (vm_offset_t)NULL;
+	dtbp = MD_FETCH(kmdp, MODINFOMD_DTBP, vm_offset_t);
 	if (dtbp == (vm_offset_t)NULL &&
 	    bootinfop != NULL && bootinfop->bi_dtb != (bi_ptr_t)NULL) {
 		dtbp = bootinfop->bi_dtb;

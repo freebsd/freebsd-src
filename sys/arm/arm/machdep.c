@@ -1534,10 +1534,7 @@ initarm(struct arm_boot_params *abp)
 	 * Find the dtb passed in by the boot loader.
 	 */
 	kmdp = preload_search_by_type("elf kernel");
-	if (kmdp != NULL)
-		dtbp = MD_FETCH(kmdp, MODINFOMD_DTBP, vm_offset_t);
-	else
-		dtbp = (vm_offset_t)NULL;
+	dtbp = MD_FETCH(kmdp, MODINFOMD_DTBP, vm_offset_t);
 #if defined(FDT_DTB_STATIC)
 	/*
 	 * In case the device tree blob was not retrieved (from metadata) try
