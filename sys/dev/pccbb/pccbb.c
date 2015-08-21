@@ -330,7 +330,7 @@ cbb_detach(device_t brdev)
 
 	/*
 	 * Wait for the thread to die.  kproc_exit will do a wakeup
-	 * on the event thread's struct thread * so that we know it is
+	 * on the event thread's struct proc * so that we know it is
 	 * safe to proceed.  IF the thread is running, set the please
 	 * die flag and wait for it to comply.  Since the wakeup on
 	 * the event thread happens only in kproc_exit, we don't
