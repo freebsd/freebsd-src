@@ -5811,8 +5811,8 @@ ctl_read_toc(struct ctl_scsiio *ctsio)
         ctsio->kern_data_resid = 0;
         ctsio->kern_rel_offset = 0;
         ctsio->kern_sg_entries = 0;
-        ctsio->io_hdr.flags |= CTL_FLAG_ALLOCATED;
-        //ctl_set_success(ctsio);
+        //ctsio->io_hdr.flags |= CTL_FLAG_ALLOCATED;
+        ctl_set_success(ctsio);
         ctsio->be_move_done = ctl_config_move_done;
         ctl_datamove((union ctl_io *)ctsio);
         return (CTL_RETVAL_COMPLETE);
