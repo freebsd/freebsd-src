@@ -17,6 +17,7 @@ files.  In most cases it is only interesting to include bsd.prog.mk or
 bsd.lib.mk.
 
 bsd.arch.inc.mk		- includes arch-specific Makefile.$arch
+bsd.compiler.mk		- defined based on current compiler
 bsd.cpu.mk		- sets CPU/arch-related variables (included from sys.mk)
 bsd.dep.mk		- handle Makefile dependencies
 bsd.doc.mk		- building troff system documents
@@ -116,9 +117,29 @@ object.
 
 The following variables are common:
 
+CFLAGS.${COMPILER_TYPE}
+		Flags dependent on compiler added to CXXFLAGS.
+CFLAGS.${MACHINE_ARCH}
+		Architectural flags added to CFLAGS.
 CFLAGS_NO_SIMD	Add this to CFLAGS for programs that don't want any SIMD
 		instructions generated. It is setup in bsd.cpu.mk to an
 		appropriate value for the compiler and target.
+CXXFLAGS.${COMPILER_TYPE}
+		Flags dependent on compiler added to CXXFLAGS.
+CXXFLAGS.${MACHINE_ARCH}
+		Architectural flags added to CXXFLAGS.
+COMPILER_FEATURES
+		A list of features that the compiler supports. Zero or
+		more of:
+			c++11	Supports full C++ 11 standard.
+
+COMPILER_TYPE	Type of compiler, either clang or gcc, though other
+		values are possible. Don't assume != clang == gcc.
+
+COMPILER_VERSION
+		A numeric constant equal to:
+		     major * 10000 + minor * 100 + tiny
+		for the compiler's self-reported version.
 
 =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
