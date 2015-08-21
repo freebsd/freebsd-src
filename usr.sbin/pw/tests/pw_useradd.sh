@@ -338,6 +338,20 @@ user_add_w_yes_body() {
 		grep "^foo" ${HOME}/master.passwd
 }
 
+atf_test_case user_add_with_pw_conf
+user_add_with_pw_conf_body()
+{
+	populate_etc_skel
+	atf_check -s exit:0 \
+		${PW} useradd -D -C ${HOME}/pw.conf \
+		-u 2000,32767 -i 2000,32767
+	atf_check -s exit:0 \
+		-o inline:"minuid = 2000\nmaxuid = 32767\nmingid = 2000\nmaxgid = 32767\n" \
+		grep "^m.*id =" ${HOME}/pw.conf
+	atf_check -s exit:0 \
+		${PW} useradd foo -C ${HOME}/pw.conf
+}
+
 atf_init_test_cases() {
 	atf_add_test_case user_add
 	atf_add_test_case user_add_noupdate
@@ -367,4 +381,5 @@ atf_init_test_cases() {
 	atf_add_test_case user_add_bad_shell
 	atf_add_test_case user_add_already_exists
 	atf_add_test_case user_add_w_yes
+	atf_add_test_case user_add_with_pw_conf
 }
