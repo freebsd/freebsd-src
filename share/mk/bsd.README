@@ -16,6 +16,7 @@ can not/should not be used directly but are used by the other make include
 files.  In most cases it is only interesting to include bsd.prog.mk or
 bsd.lib.mk.
 
+bsd.arch.inc.mk		- includes arch-specific Makefile.$arch
 bsd.cpu.mk		- sets CPU/arch-related variables
 bsd.dep.mk		- handle Makefile dependencies
 bsd.doc.mk		- building troff system documents
@@ -115,6 +116,13 @@ object.
 
 The include file <sys.mk> has the default rules for all makes, in the BSD
 environment or otherwise.  You probably don't want to touch this file.
+
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+The include file <bsd.arch.inc.mk> includes other Makefiles for specific
+architectures, if they exist. It will include the first of the following
+files that it finds: Makefile.${MACHINE}, Makefile.${MACHINE_ARCH},
+Makefile.${MACHINE_CPUARCH}
 
 =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
