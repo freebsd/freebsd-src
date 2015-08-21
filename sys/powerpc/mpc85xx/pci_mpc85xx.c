@@ -265,7 +265,7 @@ fsl_pcib_attach(device_t dev)
 	 */
 	sc->sc_busnr = 0;
 	maxslot = (sc->sc_pcie) ? 0 : PCI_SLOTMAX;
-	fsl_pcib_init(sc, sc->sc_busnr, maxslot);
+	sc->sc_busnr = fsl_pcib_init(sc, sc->sc_busnr, maxslot);
 
 	if (sc->sc_pcie) {
 		ltssm = fsl_pcib_cfgread(sc, 0, 0, 0, PCIR_LTSSM, 1);
@@ -570,19 +570,8 @@ fsl_pcib_init(struct fsl_pcib_softc *sc, int bus, int maxslot)
 			subclass = fsl_pcib_read_config(sc->sc_dev, bus, slot,
 			    func, PCIR_SUBCLASS, 1);
 
-			/*
-			 * The PCI Root Complex comes up as a Processor/PowerPC,
-			 * but is a bridge.
-			 */
-			/* Allow only proper PCI-PCI briges */
-			if (class != PCIC_BRIDGE && class != PCIC_PROCESSOR)
-				continue;
-			if (subclass != PCIS_BRIDGE_PCI &&
-			    subclass != PCIS_PROCESSOR_POWERPC)
-				continue;
-
-			if (subclass == PCIS_PROCESSOR_POWERPC &&
-			    hdrtype != PCIM_HDRTYPE_BRIDGE)
+			/* Allow all DEVTYPE 1 devices */
+			if (hdrtype != PCIM_HDRTYPE_BRIDGE)
 				continue;
 
 			secbus++;
