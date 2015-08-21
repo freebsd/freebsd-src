@@ -21,7 +21,7 @@ bsd.dep.mk		- handle Makefile dependencies
 bsd.doc.mk		- building troff system documents
 bsd.files.mk		- install of general purpose files
 bsd.incs.mk		- install of include files
-bsd.info.mk		- building GNU Info hypertext system
+bsd.info.mk		- building GNU Info hypertext system (depreciated)
 bsd.init.mk		- initialization for the make include files
 bsd.kmod.mk		- building loadable kernel modules
 bsd.lib.mk		- support for building libraries
