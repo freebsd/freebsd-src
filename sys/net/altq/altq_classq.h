@@ -50,6 +50,7 @@ extern "C" {
 #define	Q_RED		0x01
 #define	Q_RIO		0x02
 #define	Q_DROPTAIL	0x03
+#define	Q_CODEL		0x04
 
 #ifdef _KERNEL
 
@@ -60,6 +61,7 @@ struct _class_queue_ {
 	struct mbuf	*tail_;	/* Tail of packet queue */
 	int	qlen_;		/* Queue length (in number of packets) */
 	int	qlim_;		/* Queue limit (in number of packets*) */
+	int	qsize_;		/* Queue size (in number of bytes*) */
 	int	qtype_;		/* Queue type */
 };
 
@@ -68,10 +70,12 @@ typedef struct _class_queue_	class_queue_t;
 #define	qtype(q)	(q)->qtype_		/* Get queue type */
 #define	qlimit(q)	(q)->qlim_		/* Max packets to be queued */
 #define	qlen(q)		(q)->qlen_		/* Current queue length. */
+#define	qsize(q)	(q)->qsize_		/* Current queue size. */
 #define	qtail(q)	(q)->tail_		/* Tail of the queue */
 #define	qhead(q)	((q)->tail_ ? (q)->tail_->m_nextpkt : NULL)
 
 #define	qempty(q)	((q)->qlen_ == 0)	/* Is the queue empty?? */
+#define	q_is_codel(q)	((q)->qtype_ == Q_CODEL) /* Is the queue a codel queue */
 #define	q_is_red(q)	((q)->qtype_ == Q_RED)	/* Is the queue a red queue */
 #define	q_is_rio(q)	((q)->qtype_ == Q_RIO)	/* Is the queue a rio queue */
 #define	q_is_red_or_rio(q)	((q)->qtype_ == Q_RED || (q)->qtype_ == Q_RIO)
@@ -101,6 +105,7 @@ _addq(class_queue_t *q, struct mbuf *m)
 	m0->m_nextpkt = m;
 	qtail(q) = m;
 	qlen(q)++;
+	qsize(q) += m_pktlen(m);
 }
 
 static __inline struct mbuf *
@@ -115,6 +120,7 @@ _getq(class_queue_t *q)
 	else
 		qtail(q) = NULL;
 	qlen(q)--;
+	qsize(q) -= m_pktlen(m0);
 	m0->m_nextpkt = NULL;
 	return (m0);
 }
