@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/altq/altq.h>
 #include <net/altq/altq_cbq.h>
+#include <net/altq/altq_codel.h>
 #include <net/altq/altq_priq.h>
 #include <net/altq/altq_hfsc.h>
 #include <net/altq/altq_fairq.h>
@@ -59,6 +60,9 @@ static int	eval_pfqueue_cbq(struct pfctl *, struct pf_altq *);
 static int	cbq_compute_idletime(struct pfctl *, struct pf_altq *);
 static int	check_commit_cbq(int, int, struct pf_altq *);
 static int	print_cbq_opts(const struct pf_altq *);
+
+static int	print_codel_opts(const struct pf_altq *,
+		    const struct node_queue_opt *);
 
 static int	eval_pfqueue_priq(struct pfctl *, struct pf_altq *);
 static int	check_commit_priq(int, int, struct pf_altq *);
@@ -184,6 +188,10 @@ print_altq(const struct pf_altq *a, unsigned int level,
 	case ALTQT_FAIRQ:
 		if (!print_fairq_opts(a, qopts))
 			printf("fairq ");
+		break;
+	case ALTQT_CODEL:
+		if (!print_codel_opts(a, qopts))
+			printf("codel ");
 		break;
 	}
 
@@ -591,6 +599,8 @@ print_cbq_opts(const struct pf_altq *a)
 			printf(" ecn");
 		if (opts->flags & CBQCLF_RIO)
 			printf(" rio");
+		if (opts->flags & CBQCLF_CODEL)
+			printf(" codel");
 		if (opts->flags & CBQCLF_CLEARDSCP)
 			printf(" cleardscp");
 		if (opts->flags & CBQCLF_FLOWVALVE)
@@ -678,6 +688,8 @@ print_priq_opts(const struct pf_altq *a)
 			printf(" ecn");
 		if (opts->flags & PRCF_RIO)
 			printf(" rio");
+		if (opts->flags & PRCF_CODEL)
+			printf(" codel");
 		if (opts->flags & PRCF_CLEARDSCP)
 			printf(" cleardscp");
 		if (opts->flags & PRCF_DEFAULTCLASS)
@@ -1010,6 +1022,8 @@ print_hfsc_opts(const struct pf_altq *a, const struct node_queue_opt *qopts)
 			printf(" ecn");
 		if (opts->flags & HFCF_RIO)
 			printf(" rio");
+		if (opts->flags & HFCF_CODEL)
+			printf(" codel");
 		if (opts->flags & HFCF_CLEARDSCP)
 			printf(" cleardscp");
 		if (opts->flags & HFCF_DEFAULTCLASS)
@@ -1029,6 +1043,28 @@ print_hfsc_opts(const struct pf_altq *a, const struct node_queue_opt *qopts)
 		return (1);
 	} else
 		return (0);
+}
+
+static int
+print_codel_opts(const struct pf_altq *a, const struct node_queue_opt *qopts)
+{
+	const struct codel_opts *opts;
+
+	opts = &a->pq_u.codel_opts;
+	if (opts->target || opts->interval || opts->ecn) {
+		printf("codel(");
+		if (opts->target)
+			printf(" target %d", opts->target);
+		if (opts->interval)
+			printf(" interval %d", opts->interval);
+		if (opts->ecn)
+			printf("ecn");
+		printf(" ) ");
+
+		return (1);
+	}
+
+	return (0);
 }
 
 static int
@@ -1053,6 +1089,8 @@ print_fairq_opts(const struct pf_altq *a, const struct node_queue_opt *qopts)
 			printf(" ecn");
 		if (opts->flags & FARF_RIO)
 			printf(" rio");
+		if (opts->flags & FARF_CODEL)
+			printf(" codel");
 		if (opts->flags & FARF_CLEARDSCP)
 			printf(" cleardscp");
 		if (opts->flags & FARF_DEFAULTCLASS)
@@ -1403,6 +1441,11 @@ eval_queue_opts(struct pf_altq *pa, struct node_queue_opt *opts,
 			pa->pq_u.fairq_opts.lssc_d =
 			    opts->data.fairq_opts.linkshare.d;
 		}
+		break;
+	case ALTQT_CODEL:
+		pa->pq_u.codel_opts.target = opts->data.codel_opts.target;
+		pa->pq_u.codel_opts.interval = opts->data.codel_opts.interval;
+		pa->pq_u.codel_opts.ecn = opts->data.codel_opts.ecn;
 		break;
 	default:
 		warnx("eval_queue_opts: unknown scheduler type %u",

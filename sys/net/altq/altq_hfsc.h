@@ -35,6 +35,7 @@
 
 #include <net/altq/altq.h>
 #include <net/altq/altq_classq.h>
+#include <net/altq/altq_codel.h>
 #include <net/altq/altq_red.h>
 #include <net/altq/altq_rio.h>
 
@@ -56,6 +57,7 @@ struct service_curve {
 #define	HFCF_RED		0x0001	/* use RED */
 #define	HFCF_ECN		0x0002  /* use RED/ECN */
 #define	HFCF_RIO		0x0004  /* use RIO */
+#define	HFCF_CODEL		0x0008	/* use CoDel */
 #define	HFCF_CLEARDSCP		0x0010  /* clear diffserv codepoint */
 #define	HFCF_DEFAULTCLASS	0x1000	/* default class */
 
@@ -102,9 +104,10 @@ struct hfsc_classstats {
 	u_int			parentperiod;	/* parent's vt period seqno */
 	int			nactive;	/* number of active children */
 
-	/* red and rio related info */
+	/* codel, red and rio related info */
 	int			qtype;
 	struct redstats		red[3];
+	struct codel_stats	codel;
 };
 
 #ifdef ALTQ3_COMPAT
@@ -230,7 +233,12 @@ struct hfsc_class {
 	struct hfsc_class *cl_children;	/* child classes */
 
 	class_queue_t	*cl_q;		/* class queue structure */
-	struct red	*cl_red;	/* RED state */
+	union {
+		struct red	*cl_red;	/* RED state */
+		struct codel	*cl_codel;	/* CoDel state */
+	} cl_aqm;
+#define	cl_red			cl_aqm.cl_red
+#define	cl_codel		cl_aqm.cl_codel
 	struct altq_pktattr *cl_pktattr; /* saved header used by ECN */
 
 	u_int64_t	cl_total;	/* total work in bytes */
