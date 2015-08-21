@@ -1959,6 +1959,7 @@ struct ata_pass_16 {
 #define	CHANGE_DEFINITION	0x40
 #define	WRITE_SAME_10		0x41
 #define	UNMAP			0x42
+#define READ_TOC		0x43
 #define	LOG_SELECT		0x4C
 #define	LOG_SENSE		0x4D
 #define	MODE_SELECT_10		0x55
