@@ -123,7 +123,7 @@ mkdir_home_parents(int dfd, const char *dir)
 			errx(EX_UNAVAILABLE, "out of memory");
 		if (mkdirat(dfd, tmp, _DEF_DIRMODE) != -1 || errno == EEXIST) {
 			fchownat(dfd, tmp, 0, 0, 0);
-			symlinkat(tmp, dfd, dirs + 1);
+			symlinkat(tmp, dfd, dirs);
 		}
 		free(tmp);
 	}

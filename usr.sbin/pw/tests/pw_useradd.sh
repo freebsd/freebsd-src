@@ -246,12 +246,24 @@ user_add_R_body() {
 
 	atf_check -s exit:0 ${RPW} useradd foo
 	atf_check -s exit:0 ${RPW} useradd bar -m
+	test -d ${HOME}/home || atf_fail "Home parent directory not created"
 	test -d ${HOME}/home/bar || atf_fail "Directory not created"
 	atf_check -s exit:0 ${RPW} userdel bar
 	test -d ${HOME}/home/bar || atf_fail "Directory removed"
 	atf_check -s exit:0 ${RPW} useradd bar
 	atf_check -s exit:0 ${RPW} userdel bar -r
 	[ ! -d ${HOME}/home/bar ] || atf_fail "Directory not removed"
+}
+
+atf_test_case user_add_R_symlink
+user_add_R_symlink_body() {
+	populate_root_etc_skel
+
+	mkdir ${HOME}/usr
+	atf_check -s exit:0 ${RPW} useradd foo -m
+	test -d ${HOME}/usr/home || atf_fail "Home parent directory not created"
+	test -h ${HOME}/home || atf_fail "/home directory is not a symlink"
+	atf_check -s exit:0 -o inline:"usr/home\n" readlink ${HOME}/home
 }
 
 atf_test_case user_add_skel
@@ -348,6 +360,7 @@ atf_init_test_cases() {
 	atf_add_test_case user_add_invalid_group_entry
 	atf_add_test_case user_add_password_from_h
 	atf_add_test_case user_add_R
+	atf_add_test_case user_add_R_symlink
 	atf_add_test_case user_add_skel
 	atf_add_test_case user_add_uid0
 	atf_add_test_case user_add_uid_too_large
