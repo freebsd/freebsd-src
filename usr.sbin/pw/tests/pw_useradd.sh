@@ -245,7 +245,6 @@ user_add_R_body() {
 	populate_root_etc_skel
 
 	atf_check -s exit:0 ${RPW} useradd foo
-	mkdir -p ${HOME}/home
 	atf_check -s exit:0 ${RPW} useradd bar -m
 	test -d ${HOME}/home/bar || atf_fail "Directory not created"
 	atf_check -s exit:0 ${RPW} userdel bar
@@ -260,7 +259,7 @@ user_add_skel_body() {
 	populate_root_etc_skel
 
 	mkdir ${HOME}/skel
-	echo "a" > ${HOME}/skel/.a
+	echo "a" > ${HOME}/skel/.ae
 	echo "b" > ${HOME}/skel/b
 	mkdir ${HOME}/skel/c
 	mkdir ${HOME}/skel/c/d
