@@ -144,7 +144,6 @@ VT_SYSCTL_INT(splash_cpu_style, 2, "Draw logo style "
     "(0 = Alternate beastie, 1 = Beastie, 2 = Orb)");
 VT_SYSCTL_INT(splash_cpu_duration, 10, "Hide logos after (seconds)");
 
-static struct vt_device	vt_consdev;
 static unsigned int vt_unit = 0;
 static MALLOC_DEFINE(M_VT, "vt", "vt device");
 struct vt_device *main_vd = &vt_consdev;
@@ -187,7 +186,7 @@ SET_DECLARE(vt_drv_set, struct vt_driver);
 
 struct terminal	vt_consterm;
 static struct vt_window	vt_conswindow;
-static struct vt_device	vt_consdev = {
+struct vt_device	vt_consdev = {
 	.vd_driver = NULL,
 	.vd_softc = NULL,
 	.vd_prev_driver = NULL,
