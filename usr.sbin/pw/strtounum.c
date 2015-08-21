@@ -41,6 +41,7 @@ strtounum(const char * __restrict np, uintmax_t minval, uintmax_t maxval,
 	char *endp;
 	uintmax_t ret;
 
+	*errpp = NULL;
 	if (minval > maxval) {
 		errno = EINVAL;
 		if (errpp != NULL)
