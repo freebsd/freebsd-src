@@ -271,7 +271,7 @@ user_add_skel_body() {
 	populate_root_etc_skel
 
 	mkdir ${HOME}/skel
-	echo "a" > ${HOME}/skel/.ae
+	echo "a" > ${HOME}/skel/.a
 	echo "b" > ${HOME}/skel/b
 	mkdir ${HOME}/skel/c
 	mkdir ${HOME}/skel/c/d
