@@ -3429,6 +3429,7 @@ libkern/zlib.c			optional crypto | geom_uzip | ipsec | \
 					 ddb_ctf | gzio | geom_uncompress
 net/altq/altq_cbq.c		optional altq
 net/altq/altq_cdnr.c		optional altq
+net/altq/altq_codel.c		optional altq
 net/altq/altq_hfsc.c		optional altq
 net/altq/altq_fairq.c		optional altq
 net/altq/altq_priq.c		optional altq
