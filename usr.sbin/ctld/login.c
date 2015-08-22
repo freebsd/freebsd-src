@@ -737,6 +737,30 @@ login_negotiate(struct connection *conn, struct pdu *request)
 	keys_delete(request_keys);
 }
 
+static void
+login_wait_transition(struct connection *conn)
+{
+	struct pdu *request, *response;
+	struct iscsi_bhs_login_request *bhslr;
+
+	log_debugx("waiting for state transition request");
+	request = login_receive(conn, false);
+	bhslr = (struct iscsi_bhs_login_request *)request->pdu_bhs;
+	if ((bhslr->bhslr_flags & BHSLR_FLAGS_TRANSIT) == 0) {
+		login_send_error(request, 0x02, 0x00);
+		log_errx(1, "got no \"T\" flag after answering AuthMethod");
+	}
+	pdu_delete(request);
+
+	log_debugx("got state transition request");
+	response = login_new_response(request);
+	login_set_nsg(response, BHSLR_STAGE_OPERATIONAL_NEGOTIATION);
+	pdu_send(response);
+	pdu_delete(response);
+
+	login_negotiate(conn, NULL);
+}
+
 void
 login(struct connection *conn)
 {
@@ -747,7 +771,7 @@ login(struct connection *conn)
 	struct portal_group *pg;
 	const char *initiator_name, *initiator_alias, *session_type,
 	    *target_name, *auth_method;
-	bool redirected;
+	bool redirected, fail, trans;
 
 	/*
 	 * Handle the initial Login Request - figure out required authentication
@@ -856,6 +880,19 @@ login(struct connection *conn)
 		}
 	}
 
+	if (ag->ag_type == AG_TYPE_DENY) {
+		login_send_error(request, 0x02, 0x01);
+		log_errx(1, "auth-type is \"deny\"");
+	}
+
+	if (ag->ag_type == AG_TYPE_UNKNOWN) {
+		/*
+		 * This can happen with empty auth-group.
+		 */
+		login_send_error(request, 0x02, 0x01);
+		log_errx(1, "auth-type not set, denying access");
+	}
+
 	/*
 	 * Enforce initiator-name and initiator-portal.
 	 */
@@ -889,80 +926,37 @@ login(struct connection *conn)
 		return;
 	}
 
-	if (ag->ag_type == AG_TYPE_NO_AUTHENTICATION) {
-		/*
-		 * Initiator might want to to authenticate,
-		 * but we don't need it.
-		 */
-		log_debugx("authentication not required; "
-		    "transitioning to operational parameter negotiation");
-
-		if ((bhslr->bhslr_flags & BHSLR_FLAGS_TRANSIT) == 0)
-			log_warnx("initiator did not set the \"T\" flag; "
-			    "transitioning anyway");
-
-		response = login_new_response(request);
-		login_set_nsg(response, BHSLR_STAGE_OPERATIONAL_NEGOTIATION);
-		response_keys = keys_new();
-		/*
-		 * Required by Linux initiator.
-		 */
-		auth_method = keys_find(request_keys, "AuthMethod");
-		if (auth_method != NULL &&
-		    login_list_contains(auth_method, "None"))
-			keys_add(response_keys, "AuthMethod", "None");
-
-		if (conn->conn_session_type == CONN_SESSION_TYPE_NORMAL) {
-			if (conn->conn_target->t_alias != NULL)
-				keys_add(response_keys,
-				    "TargetAlias", conn->conn_target->t_alias);
-			keys_add_int(response_keys,
-			    "TargetPortalGroupTag", pg->pg_tag);
-		}
-		keys_save(response_keys, response);
-		pdu_send(response);
-		pdu_delete(response);
-		keys_delete(response_keys);
-		pdu_delete(request);
-		keys_delete(request_keys);
-
-		login_negotiate(conn, NULL);
-		return;
-	}
-
-	if (ag->ag_type == AG_TYPE_DENY) {
-		login_send_error(request, 0x02, 0x01);
-		log_errx(1, "auth-type is \"deny\"");
-	}
-
-	if (ag->ag_type == AG_TYPE_UNKNOWN) {
-		/*
-		 * This can happen with empty auth-group.
-		 */
-		login_send_error(request, 0x02, 0x01);
-		log_errx(1, "auth-type not set, denying access");
-	}
-
-	log_debugx("CHAP authentication required");
-
-	auth_method = keys_find(request_keys, "AuthMethod");
-	if (auth_method == NULL) {
-		login_send_error(request, 0x02, 0x07);
-		log_errx(1, "received Login PDU without AuthMethod");
-	}
-	/*
-	 * XXX: This should be Reject, not just a login failure (5.3.2).
-	 */
-	if (login_list_contains(auth_method, "CHAP") == 0) {
-		login_send_error(request, 0x02, 0x01);
-		log_errx(1, "initiator requests unsupported AuthMethod \"%s\" "
-		    "instead of \"CHAP\"", auth_method);
-	}
-
+	fail = false;
 	response = login_new_response(request);
-
 	response_keys = keys_new();
-	keys_add(response_keys, "AuthMethod", "CHAP");
+	trans = (bhslr->bhslr_flags & BHSLR_FLAGS_TRANSIT) != 0;
+	auth_method = keys_find(request_keys, "AuthMethod");
+	if (ag->ag_type == AG_TYPE_NO_AUTHENTICATION) {
+		log_debugx("authentication not required");
+		if (auth_method == NULL ||
+		    login_list_contains(auth_method, "None")) {
+			keys_add(response_keys, "AuthMethod", "None");
+		} else {
+			log_warnx("initiator requests "
+			    "AuthMethod \"%s\" instead of \"None\"",
+			    auth_method);
+			keys_add(response_keys, "AuthMethod", "Reject");
+		}
+		if (trans)
+			login_set_nsg(response, BHSLR_STAGE_OPERATIONAL_NEGOTIATION);
+	} else {
+		log_debugx("CHAP authentication required");
+		if (auth_method == NULL ||
+		    login_list_contains(auth_method, "CHAP")) {
+			keys_add(response_keys, "AuthMethod", "CHAP");
+		} else {
+			log_warnx("initiator requests unsupported "
+			    "AuthMethod \"%s\" instead of \"CHAP\"",
+			    auth_method);
+			keys_add(response_keys, "AuthMethod", "Reject");
+			fail = true;
+		}
+	}
 	if (conn->conn_session_type == CONN_SESSION_TYPE_NORMAL) {
 		if (conn->conn_target->t_alias != NULL)
 			keys_add(response_keys,
@@ -978,7 +972,17 @@ login(struct connection *conn)
 	pdu_delete(request);
 	keys_delete(request_keys);
 
-	login_chap(conn, ag);
+	if (fail) {
+		log_debugx("sent reject for AuthMethod; exiting");
+		exit(1);
+	}
 
-	login_negotiate(conn, NULL);
+	if (ag->ag_type != AG_TYPE_NO_AUTHENTICATION) {
+		login_chap(conn, ag);
+		login_negotiate(conn, NULL);
+	} else if (trans) {
+		login_negotiate(conn, NULL);
+	} else {
+		login_wait_transition(conn);
+	}
 }
