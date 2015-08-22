@@ -573,6 +573,7 @@ ata_mode2str(int mode)
     case ATA_UDMA6: return "UDMA133";
     case ATA_SA150: return "SATA150";
     case ATA_SA300: return "SATA300";
+    case ATA_SA600: return "SATA600";
     default:
 	if (mode & ATA_DMA_MASK)
 	    return "BIOSDMA";
