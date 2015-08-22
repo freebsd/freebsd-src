@@ -129,6 +129,7 @@ powerpc/mambo/mambocall.S	optional	mambo
 powerpc/mambo/mambo.c		optional	mambo
 powerpc/mambo/mambo_console.c	optional	mambo
 powerpc/mambo/mambo_disk.c	optional	mambo
+powerpc/mikrotik/platform_rb.c	optional	mikrotik
 powerpc/mpc85xx/atpic.c		optional	mpc85xx isa
 powerpc/mpc85xx/ds1553_bus_fdt.c	optional	ds1553 fdt
 powerpc/mpc85xx/ds1553_core.c	optional	ds1553
