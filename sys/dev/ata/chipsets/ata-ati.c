@@ -64,9 +64,6 @@ static int ata_ati_setmode(device_t dev, int target, int mode);
 #define ATI_PATA	0x02
 #define ATI_AHCI	0x04
 
-static int force_ahci = 1;
-TUNABLE_INT("hw.ahci.force", &force_ahci);
-
 /*
  * ATI chipset support functions
  */
@@ -104,8 +101,6 @@ ata_ati_probe(device_t dev)
     if (!(ctlr->chip = ata_match_chip(dev, ids)))
 	return ENXIO;
 
-    ata_set_desc(dev);
-
     switch (ctlr->chip->cfg1) {
     case ATI_PATA:
 	ctlr->chipinit = ata_ati_chipinit;
@@ -117,12 +112,13 @@ ata_ati_probe(device_t dev)
 	ctlr->chipinit = ata_sii_chipinit;
 	break;
     case ATI_AHCI:
-	if (force_ahci == 1 || pci_get_subclass(dev) != PCIS_STORAGE_IDE)
-		ctlr->chipinit = ata_ahci_chipinit;
-	else
-		ctlr->chipinit = ata_ati_chipinit;
+	if (pci_get_subclass(dev) != PCIS_STORAGE_IDE)
+		return (ENXIO);
+	ctlr->chipinit = ata_ati_chipinit;
 	break;
     }
+
+    ata_set_desc(dev);
     return (BUS_PROBE_LOW_PRIORITY);
 }
 
@@ -264,5 +260,4 @@ ata_ati_setmode(device_t dev, int target, int mode)
 }
 
 ATA_DECLARE_DRIVER(ata_ati);
-MODULE_DEPEND(ata_ati, ata_ahci, 1, 1, 1);
 MODULE_DEPEND(ata_ati, ata_sii, 1, 1, 1);

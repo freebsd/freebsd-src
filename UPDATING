@@ -16,6 +16,12 @@ from older versions of FreeBSD, try WITHOUT_CLANG to bootstrap to the tip of
 stable/10, and then rebuild without this option. The bootstrap process from
 older version of current is a bit fragile.
 
+20150822:
+	From legacy ata(4) driver was removed support for SATA controllers
+	supported by more functional drivers ahci(4), siis(4) and mvs(4).
+	Kernel modules ataahci and ataadaptec were removed completely,
+	replaced by ahci and mvs modules respectively.
+
 20150813:
 	10.2-RELEASE.
 

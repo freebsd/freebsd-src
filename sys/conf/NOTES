@@ -1719,10 +1719,8 @@ device		ata
 #device		atapci		# PCI bus support; only generic chipset support
 
 # PCI ATA chipsets
-#device		ataahci		# AHCI SATA
 #device		ataacard	# ACARD
 #device		ataacerlabs	# Acer Labs Inc. (ALI)
-#device		ataadaptec	# Adaptec
 #device		ataamd		# American Micro Devices (AMD)
 #device		ataati		# ATI
 #device		atacenatek	# Cenatek
