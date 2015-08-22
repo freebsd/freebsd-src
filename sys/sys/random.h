@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2000-2013 Mark R. V. Murray
+ * Copyright (c) 2000-2015 Mark R. V. Murray
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -35,8 +35,10 @@
 
 #include "opt_random.h"
 
+#if !defined(KLD_MODULE)
 #if defined(RANDOM_LOADABLE) && defined(RANDOM_YARROW)
 #error "Cannot define both RANDOM_LOADABLE and RANDOM_YARROW"
+#endif
 #endif
 
 struct uio;
@@ -78,8 +80,8 @@ enum random_entropy_source {
 	RANDOM_INTERRUPT,
 	RANDOM_SWI,
 	RANDOM_FS_ATIME,
-	RANDOM_FAST,	/* Special!! Miscellaneous high performance stuff, like UMA/SLAB Allocator */
-	RANDOM_ENVIRONMENTAL_END = RANDOM_FAST,
+	RANDOM_UMA,	/* Special!! UMA/SLAB Allocator */
+	RANDOM_ENVIRONMENTAL_END = RANDOM_UMA,
 	/* Fast hardware random-number sources from here on. */
 	RANDOM_PURE_OCTEON,
 	RANDOM_PURE_SAFE,
@@ -104,6 +106,12 @@ void random_harvest_direct(const void *, u_int, u_int, enum random_entropy_sourc
 #define random_harvest_fast(a, b, c, d) do {} while (0)
 #define random_harvest_direct(a, b, c, d) do {} while (0)
 #endif
+
+#if defined(RANDOM_ENABLE_UMA)
+#define random_harvest_fast_uma(a, b, c, d)	random_harvest_fast(a, b, c, d)
+#else /* !defined(RANDOM_ENABLE_UMA) */
+#define random_harvest_fast_uma(a, b, c, d)	do {} while (0)
+#endif /* defined(RANDOM_ENABLE_UMA) */
 
 #endif /* _KERNEL */
 

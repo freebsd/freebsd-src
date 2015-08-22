@@ -170,7 +170,7 @@ random_kthread(void)
 		/* XXX: FIX!! Increase the high-performance data rate? Need some measurements first. */
 		for (i = 0; i < RANDOM_ACCUM_MAX; i++) {
 			if (harvest_context.hc_entropy_fast_accumulator.buf[i]) {
-				random_harvest_direct(harvest_context.hc_entropy_fast_accumulator.buf + i, sizeof(harvest_context.hc_entropy_fast_accumulator.buf[0]), 4, RANDOM_FAST);
+				random_harvest_direct(harvest_context.hc_entropy_fast_accumulator.buf + i, sizeof(harvest_context.hc_entropy_fast_accumulator.buf[0]), 4, RANDOM_UMA);
 				harvest_context.hc_entropy_fast_accumulator.buf[i] = 0;
 			}
 		}
@@ -261,7 +261,7 @@ static const char *(random_source_descr[]) = {
 	"INTERRUPT",
 	"SWI",
 	"FS_ATIME",
-	"HIGH_PERFORMANCE", /* ENVIRONMENTAL_END */
+	"UMA", /* ENVIRONMENTAL_END */
 	"PURE_OCTEON",
 	"PURE_SAFE",
 	"PURE_GLXSB",
