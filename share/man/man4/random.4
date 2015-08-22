@@ -32,6 +32,7 @@
 .Sh SYNOPSIS
 .Cd "device random"
 .Cd "options RANDOM_LOADABLE"
+.Cd "options RANDOM_ENABLE_UMA"
 .Sh DESCRIPTION
 The
 .Nm
@@ -177,6 +178,24 @@ must be locked against
 load and unload events,
 and also must be indirect calls
 to allow for removal.
+.Pp
+When
+.Cd "options RANDOM_ENABLE_UMA"
+is used,
+the
+.Pa /dev/random
+device will obtain entropy
+from the zone allocator.
+This is potentially very high rate,
+and if so will be of questionable use.
+If this is the case,
+use of this option
+is not recommended.
+Determining this is not trivial,
+so experimenting and measurement
+using tools such as
+.Xr dtrace 1
+will be required.
 .Sh RANDOMNESS
 The use of randomness in the field of computing
 is a rather subtle issue because randomness means
