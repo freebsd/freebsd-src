@@ -65,7 +65,7 @@ customize_cmd cust_ld32_cfg
 #)
 #customize_cmd cust_boot_cfg
 
-customize_cmd cust_pkg
+customize_cmd cust_pkgng
 
 cust_etc_cfg () (
   cd ${NANO_WORLDDIR}
