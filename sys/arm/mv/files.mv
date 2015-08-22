@@ -27,7 +27,6 @@ arm/mv/mv_common.c		standard
 arm/mv/mv_localbus.c		standard
 arm/mv/mv_machdep.c		standard
 arm/mv/mv_pci.c			optional	pci
-arm/mv/mv_sata.c		optional	ata | atamvsata
 arm/mv/mv_ts.c			standard
 arm/mv/timer.c			standard
 arm/mv/twsi.c			optional	iicbus

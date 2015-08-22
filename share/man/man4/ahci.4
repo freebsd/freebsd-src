@@ -138,12 +138,6 @@ device for localization and status reporting purposes.
 Supporting AHCI controllers may transmit that information to the backplane
 controllers via SGPIO interface. Backplane controllers interpret received
 statuses in some way (IBPI standard) to report them using present indicators.
-.Pp
-AHCI hardware is also supported by ataahci driver from
-.Xr ata 4
-subsystem.
-If both drivers are loaded at the same time, this one will be
-given precedence as the more functional of the two.
 .Sh HARDWARE
 The
 .Nm

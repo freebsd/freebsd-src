@@ -680,12 +680,8 @@ dev/ata/ata-card.c		optional ata pccard | atapccard
 dev/ata/ata-cbus.c		optional ata pc98 | atapc98
 dev/ata/ata-isa.c		optional ata isa | ataisa
 dev/ata/ata-pci.c		optional ata pci | atapci
-dev/ata/chipsets/ata-ahci.c	optional ata pci | ataahci | ataacerlabs | \
-					 ataati | ataintel | atajmicron | \
-					 atavia | atanvidia
 dev/ata/chipsets/ata-acard.c	optional ata pci | ataacard
 dev/ata/chipsets/ata-acerlabs.c	optional ata pci | ataacerlabs
-dev/ata/chipsets/ata-adaptec.c	optional ata pci | ataadaptec
 dev/ata/chipsets/ata-amd.c	optional ata pci | ataamd
 dev/ata/chipsets/ata-ati.c	optional ata pci | ataati
 dev/ata/chipsets/ata-cenatek.c	optional ata pci | atacenatek
@@ -695,7 +691,7 @@ dev/ata/chipsets/ata-highpoint.c	optional ata pci | atahighpoint
 dev/ata/chipsets/ata-intel.c	optional ata pci | ataintel
 dev/ata/chipsets/ata-ite.c	optional ata pci | ataite
 dev/ata/chipsets/ata-jmicron.c	optional ata pci | atajmicron
-dev/ata/chipsets/ata-marvell.c	optional ata pci | atamarvell | ataadaptec
+dev/ata/chipsets/ata-marvell.c	optional ata pci | atamarvell
 dev/ata/chipsets/ata-micron.c	optional ata pci | atamicron
 dev/ata/chipsets/ata-national.c	optional ata pci | atanational
 dev/ata/chipsets/ata-netcell.c	optional ata pci | atanetcell
