@@ -29,7 +29,7 @@
 /*
  Build this by going:
 
-cc -g -O0 -pthread -DRANDOM_<alg> -DRANDOM_DEBUG -I../.. -lstdthreads -Wall \
+cc -g -O0 -pthread -DRANDOM_<alg> -I../.. -lstdthreads -Wall \
 	unit_test.c \
 	yarrow.c \
 	fortuna.c \
