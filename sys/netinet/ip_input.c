@@ -874,7 +874,6 @@ ip_forward(struct mbuf *m, int srcrt)
 	struct mbuf *mcopy;
 	struct in_addr dest;
 	struct nhop4_basic nh4, *pnh4;
-	struct route ro;
 	struct route_info ri;
 	int error, type = 0, code = 0, mtu = 0;
 
@@ -970,25 +969,11 @@ ip_forward(struct mbuf *m, int srcrt)
 	dest.s_addr = 0;
 	if (!srcrt && V_ipsendredirects &&
 	    pnh4 != NULL && nh4.nh_ifp == m->m_pkthdr.rcvif) {
-		struct rtentry *rt;
-
-		rt = ro.ro_rt;
-
-		if (rt && (rt->rt_flags & (RTF_DYNAMIC|RTF_MODIFIED)) == 0 &&
-		    satosin(rt_key(rt))->sin_addr.s_addr != 0) {
-#define	RTA(rt)	((struct in_ifaddr *)(rt->rt_ifa))
-			u_long src = ntohl(ip->ip_src.s_addr);
-
-			if (RTA(rt) &&
-			    (src & RTA(rt)->ia_subnetmask) == RTA(rt)->ia_subnet) {
-				if (rt->rt_flags & RTF_GATEWAY)
-					dest.s_addr = satosin(rt->rt_gateway)->sin_addr.s_addr;
-				else
-					dest.s_addr = ip->ip_dst.s_addr;
-				/* Router requirements says to only send host redirects */
-				type = ICMP_REDIRECT;
-				code = ICMP_REDIRECT_HOST;
-			}
+		if ((nh4.nh_flags & (NHOP_REDIRECT|NHOP_DEFAULT)) == 0) {
+			dest = nh4.nh_addr;
+			/*Router requirements says to only send host redirects*/
+			type = ICMP_REDIRECT;
+			code = ICMP_REDIRECT_HOST;
 		}
 	}
 
