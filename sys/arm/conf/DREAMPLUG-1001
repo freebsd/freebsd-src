@@ -148,7 +148,6 @@ options 	ALTQ_NOPCC		# Required if the TSC is unusable
 
 # Debugging
 makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
-options 	BREAK_TO_DEBUGGER
 options 	ALT_BREAK_TO_DEBUGGER
 options 	DDB
 options 	KDB
