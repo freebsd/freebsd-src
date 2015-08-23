@@ -148,7 +148,7 @@ struct nhop6_basic {
 	struct in6_addr	nh_addr;	/* GW/DST IPv4 address */
 };
 
-struct nhop64_basic {
+struct nhopu_basic {
 	union {
 		struct nhop4_basic	nh4;
 		struct nhop6_basic	nh6;
@@ -176,7 +176,7 @@ struct nhop6_extended {
 	uint64_t	spare2[2];
 };
 
-struct nhop64_extended {
+struct nhopu_extended {
 	union {
 		struct nhop4_extended	nh4;
 		struct nhop6_extended	nh6;
@@ -199,13 +199,21 @@ struct route_compat {
 
 int fib4_lookup_nh_basic(uint32_t fibnum, struct in_addr dst, uint32_t flowid,
     struct nhop4_basic *pnh4);
-int fib6_lookup_nh_basic(uint32_t fibnum, struct in6_addr dst, uint32_t flowid,
-    struct nhop6_basic *pnh6);
-
 int fib4_lookup_nh_ext(uint32_t fibnum, struct in_addr dst,
     uint32_t flowid, uint32_t flags, struct nhop4_extended *pnh4);
 void fib4_free_nh_ext(uint32_t fibnum, struct nhop4_extended *pnh4);
 #define	NHOP_LOOKUP_REF	0x01
+
+
+int fib6_lookup_nh_basic(uint32_t fibnum, struct in6_addr dst, uint32_t flowid,
+    struct nhop6_basic *pnh6);
+int fib6_lookup_nh_ext(uint32_t fibnum, struct in6_addr dst,
+    uint32_t scopeid, uint32_t flowid, uint32_t flags,
+    struct nhop6_extended *pnh6);
+void fib6_free_nh_ext(uint32_t fibnum, struct nhop6_extended *pnh6);
+
+void fib_free_nh_ext(uint32_t fibnum, struct nhopu_extended *pnhu);
+
 
 void fib4_free_nh_prepend(uint32_t fibnum, struct nhop_prepend *nh);
 void fib4_choose_prepend(uint32_t fibnum, struct nhop_prepend *nh_src,

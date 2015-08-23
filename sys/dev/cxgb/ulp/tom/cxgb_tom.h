@@ -245,7 +245,7 @@ void toepcb_free(struct toepcb *);
 /* cxgb_cpl_io.c */
 void t3_init_cpl_io(struct adapter *);
 int t3_push_frames(struct socket *, int);
-int t3_connect(struct toedev *, struct socket *, struct rtentry *,
+int t3_connect(struct toedev *, struct socket *, struct nhopu_extended *,
     struct sockaddr *);
 int t3_tod_output(struct toedev *, struct tcpcb *);
 int t3_send_rst(struct toedev *, struct tcpcb *);

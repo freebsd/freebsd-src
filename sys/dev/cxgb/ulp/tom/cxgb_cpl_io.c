@@ -69,6 +69,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp_seq.h>
 #include <netinet/tcp_timer.h>
 #include <net/route.h>
+#include <net/rt_nhops.h>
 
 #include "cxgb_include.h"
 #include "ulp/tom/cxgb_l2t.h"
@@ -944,11 +945,11 @@ do_act_open_rpl(struct sge_qset *qs, struct rsp_desc *r, struct mbuf *m)
  * tcbinfo not locked (this has changed - used to be WLOCKed)
  * inp WLOCKed
  * tp->t_state = TCPS_SYN_SENT
- * rtalloc1, RT_UNLOCK on rt.
+ * fib4_lookup_nh_ext
  */
 int
 t3_connect(struct toedev *tod, struct socket *so,
-    struct rtentry *rt, struct sockaddr *nam)
+    struct nhopu_extended *nhu_ext, struct sockaddr *nam)
 {
 	struct mbuf *m = NULL;
 	struct l2t_entry *e = NULL;
@@ -959,8 +960,7 @@ t3_connect(struct toedev *tod, struct socket *so,
 	struct tcpcb *tp = intotcpcb(inp);
 	struct toepcb *toep;
 	int atid = -1, mtu_idx, rscale, cpu_idx, qset;
-	struct sockaddr *gw;
-	struct ifnet *ifp = rt->rt_ifp;
+	struct ifnet *ifp = nhu_ext->u.nh4.nh_ifp;
 	struct port_info *pi = ifp->if_softc;	/* XXX wrong for VLAN etc. */
 
 	INP_WLOCK_ASSERT(inp);
@@ -979,8 +979,22 @@ t3_connect(struct toedev *tod, struct socket *so,
 	if (m == NULL)
 		goto failed;
 
-	gw = rt->rt_flags & RTF_GATEWAY ? rt->rt_gateway : nam;
-	e = t3_l2t_get(pi, ifp, gw);
+	e = NULL;
+	if (nam->sa_family == AF_INET) {
+		struct sockaddr_in gw4;
+		memset(&gw4, 0, sizeof(gw4));
+		gw4.sin_family = AF_INET;
+		gw4.sin_len = sizeof(gw4);
+		gw4.sin_addr = nhu_ext->u.nh4.nh_addr;
+		e = t3_l2t_get(pi, ifp, (struct sockaddr *)&gw4);
+	} else if (nam->sa_family == AF_INET6) {
+		struct sockaddr_in6 gw6;
+		memset(&gw6, 0, sizeof(gw6));
+		gw6.sin6_family = AF_INET6;
+		gw6.sin6_len = sizeof(gw6);
+		gw6.sin6_addr = nhu_ext->u.nh6.nh_addr;
+		e = t3_l2t_get(pi, ifp, (struct sockaddr *)&gw6);
+	}
 	if (e == NULL)
 		goto failed;
 

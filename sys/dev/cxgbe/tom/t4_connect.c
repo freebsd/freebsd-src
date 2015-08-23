@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #define TCPSTATES
 #include <netinet/tcp_fsm.h>
 #include <netinet/toecore.h>
+#include <net/rt_nhops.h>
 
 #include "common/common.h"
 #include "common/t4_msg.h"
@@ -310,17 +311,17 @@ act_open_cpl_size(struct adapter *sc, int isipv6)
  * tcbinfo not locked (This has changed - used to be WLOCKed)
  * inp WLOCKed
  * tp->t_state = TCPS_SYN_SENT
- * rtalloc1, RT_UNLOCK on rt.
+ * fib4_lookup_nh_ext
  */
 int
-t4_connect(struct toedev *tod, struct socket *so, struct rtentry *rt,
-    struct sockaddr *nam)
+t4_connect(struct toedev *tod, struct socket *so,
+    struct nhopu_extended *nhu_ext, struct sockaddr *nam)
 {
 	struct adapter *sc = tod->tod_softc;
 	struct tom_data *td = tod_td(tod);
 	struct toepcb *toep = NULL;
 	struct wrqe *wr = NULL;
-	struct ifnet *rt_ifp = rt->rt_ifp;
+	struct ifnet *rt_ifp = nhu_ext->u.nh4.nh_ifp;
 	struct port_info *pi;
 	int mtu_idx, rscale, qid_atid, rc, isipv6;
 	struct inpcb *inp = sotoinpcb(so);
@@ -350,8 +351,23 @@ t4_connect(struct toedev *tod, struct socket *so, struct rtentry *rt,
 	if (toep->tid < 0)
 		DONT_OFFLOAD_ACTIVE_OPEN(ENOMEM);
 
-	toep->l2te = t4_l2t_get(pi, rt_ifp,
-	    rt->rt_flags & RTF_GATEWAY ? rt->rt_gateway : nam);
+	toep->l2te = NULL;
+	if (nam->sa_family == AF_INET) {
+		struct sockaddr_in gw4;
+		memset(&gw4, 0, sizeof(gw4));
+		gw4.sin_family = AF_INET;
+		gw4.sin_len = sizeof(gw4);
+		gw4.sin_addr = nhu_ext->u.nh4.nh_addr;
+		toep->l2te = t4_l2t_get(pi, rt_ifp, (struct sockaddr *)&gw4);
+	} else if (nam->sa_family == AF_INET6) {
+		struct sockaddr_in6 gw6;
+		memset(&gw6, 0, sizeof(gw6));
+		gw6.sin6_family = AF_INET6;
+		gw6.sin6_len = sizeof(gw6);
+		gw6.sin6_addr = nhu_ext->u.nh6.nh_addr;
+		toep->l2te = t4_l2t_get(pi, rt_ifp, (struct sockaddr *)&gw6);
+	}
+
 	if (toep->l2te == NULL)
 		DONT_OFFLOAD_ACTIVE_OPEN(ENOMEM);
 
