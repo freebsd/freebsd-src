@@ -3426,6 +3426,7 @@ net/raw_cb.c			standard
 net/raw_usrreq.c		standard
 net/route.c			standard
 net/rss_config.c		optional inet rss | inet6 rss
+net/rt_nhops.c			standard
 net/rtsock.c			standard
 net/slcompress.c		optional netgraph_vjc | sppp | \
 					 netgraph_sppp
