@@ -24,7 +24,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/stat.h>
 #include <err.h>
@@ -36,7 +35,7 @@
 
 #include "elfcopy.h"
 
-ELFTC_VCSID("$Id: binary.c 2358 2011-12-19 18:22:32Z kaiwang27 $");
+ELFTC_VCSID("$Id: binary.c 3174 2015-03-27 17:13:41Z emaste $");
 
 /*
  * Convert ELF object to `binary'. Sections with SHF_ALLOC flag set

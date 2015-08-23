@@ -250,6 +250,7 @@ ucl_emitter_common_start_array (struct ucl_emitter_context *ctx,
 		const ucl_object_t *obj, bool print_key, bool compact)
 {
 	const ucl_object_t *cur;
+	ucl_object_iter_t iter = NULL;
 	const struct ucl_emitter_functions *func = ctx->func;
 	bool first = true;
 
@@ -266,18 +267,22 @@ ucl_emitter_common_start_array (struct ucl_emitter_context *ctx,
 
 	if (obj->type == UCL_ARRAY) {
 		/* explicit array */
-		cur = obj->value.av;
+		while ((cur = ucl_iterate_object (obj, &iter, true)) != NULL) {
+			ucl_emitter_common_elt (ctx, cur, first, false, compact);
+			first = false;
+		}
 	}
 	else {
 		/* implicit array */
 		cur = obj;
+		while (cur) {
+			ucl_emitter_common_elt (ctx, cur, first, false, compact);
+			first = false;
+			cur = cur->next;
+		}
 	}
 
-	while (cur) {
-		ucl_emitter_common_elt (ctx, cur, first, false, compact);
-		first = false;
-		cur = cur->next;
-	}
+
 }
 
 /**

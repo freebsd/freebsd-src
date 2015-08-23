@@ -48,7 +48,7 @@ class SparcAsmParser : public MCTargetAsmParser {
   // public interface of the MCTargetAsmParser.
   bool MatchAndEmitInstruction(SMLoc IDLoc, unsigned &Opcode,
                                OperandVector &Operands, MCStreamer &Out,
-                               unsigned &ErrorInfo,
+                               uint64_t &ErrorInfo,
                                bool MatchingInlineAsm) override;
   bool ParseRegister(unsigned &RegNo, SMLoc &StartLoc, SMLoc &EndLoc) override;
   bool ParseInstruction(ParseInstructionInfo &Info, StringRef Name,
@@ -386,16 +386,13 @@ public:
 bool SparcAsmParser::MatchAndEmitInstruction(SMLoc IDLoc, unsigned &Opcode,
                                              OperandVector &Operands,
                                              MCStreamer &Out,
-                                             unsigned &ErrorInfo,
+                                             uint64_t &ErrorInfo,
                                              bool MatchingInlineAsm) {
   MCInst Inst;
   SmallVector<MCInst, 8> Instructions;
   unsigned MatchResult = MatchInstructionImpl(Operands, Inst, ErrorInfo,
                                               MatchingInlineAsm);
   switch (MatchResult) {
-  default:
-    break;
-
   case Match_Success: {
     Inst.setLoc(IDLoc);
     Out.EmitInstruction(Inst, STI);
@@ -408,7 +405,7 @@ bool SparcAsmParser::MatchAndEmitInstruction(SMLoc IDLoc, unsigned &Opcode,
 
   case Match_InvalidOperand: {
     SMLoc ErrorLoc = IDLoc;
-    if (ErrorInfo != ~0U) {
+    if (ErrorInfo != ~0ULL) {
       if (ErrorInfo >= Operands.size())
         return Error(IDLoc, "too few operands for instruction");
 
@@ -422,7 +419,7 @@ bool SparcAsmParser::MatchAndEmitInstruction(SMLoc IDLoc, unsigned &Opcode,
   case Match_MnemonicFail:
     return Error(IDLoc, "invalid instruction mnemonic");
   }
-  return true;
+  llvm_unreachable("Implement any new match types added!");
 }
 
 bool SparcAsmParser::
@@ -444,7 +441,7 @@ ParseRegister(unsigned &RegNo, SMLoc &StartLoc, SMLoc &EndLoc)
   return Error(StartLoc, "invalid register name");
 }
 
-static void applyMnemonicAliases(StringRef &Mnemonic, unsigned Features,
+static void applyMnemonicAliases(StringRef &Mnemonic, uint64_t Features,
                                  unsigned VariantID);
 
 bool SparcAsmParser::ParseInstruction(ParseInstructionInfo &Info,

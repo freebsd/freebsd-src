@@ -25,8 +25,8 @@
 using namespace clang;
 
 Module::Module(StringRef Name, SourceLocation DefinitionLoc, Module *Parent,
-               const FileEntry *File, bool IsFramework, bool IsExplicit)
-    : Name(Name), DefinitionLoc(DefinitionLoc), Parent(Parent), ModuleMap(File),
+               bool IsFramework, bool IsExplicit)
+    : Name(Name), DefinitionLoc(DefinitionLoc), Parent(Parent), Directory(),
       Umbrella(), ASTFile(nullptr), IsMissingRequirement(false),
       IsAvailable(true), IsFromModuleFile(false), IsFramework(IsFramework),
       IsExplicit(IsExplicit), IsSystem(false), IsExternC(false),
@@ -70,9 +70,9 @@ static bool hasFeature(StringRef Feature, const LangOptions &LangOpts,
            .Default(Target.hasFeature(Feature));
 }
 
-bool
-Module::isAvailable(const LangOptions &LangOpts, const TargetInfo &Target,
-                    Requirement &Req, HeaderDirective &MissingHeader) const {
+bool Module::isAvailable(const LangOptions &LangOpts, const TargetInfo &Target,
+                         Requirement &Req,
+                         UnresolvedHeaderDirective &MissingHeader) const {
   if (IsAvailable)
     return true;
 
@@ -293,9 +293,12 @@ void Module::print(raw_ostream &OS, unsigned Indent) const {
     OS << "explicit ";
   OS << "module " << Name;
 
-  if (IsSystem) {
+  if (IsSystem || IsExternC) {
     OS.indent(Indent + 2);
-    OS << " [system]";
+    if (IsSystem)
+      OS << " [system]";
+    if (IsExternC)
+      OS << " [extern_c]";
   }
 
   OS << " {\n";
@@ -338,30 +341,31 @@ void Module::print(raw_ostream &OS, unsigned Indent) const {
     OS << "\n";
   }
 
-  for (unsigned I = 0, N = NormalHeaders.size(); I != N; ++I) {
-    OS.indent(Indent + 2);
-    OS << "header \"";
-    OS.write_escaped(NormalHeaders[I]->getName());
-    OS << "\"\n";
+  struct {
+    StringRef Prefix;
+    HeaderKind Kind;
+  } Kinds[] = {{"", HK_Normal},
+               {"textual ", HK_Textual},
+               {"private ", HK_Private},
+               {"private textual ", HK_PrivateTextual},
+               {"exclude ", HK_Excluded}};
+
+  for (auto &K : Kinds) {
+    for (auto &H : Headers[K.Kind]) {
+      OS.indent(Indent + 2);
+      OS << K.Prefix << "header \"";
+      OS.write_escaped(H.NameAsWritten);
+      OS << "\"\n";
+    }
   }
 
-  for (unsigned I = 0, N = ExcludedHeaders.size(); I != N; ++I) {
-    OS.indent(Indent + 2);
-    OS << "exclude header \"";
-    OS.write_escaped(ExcludedHeaders[I]->getName());
-    OS << "\"\n";
-  }
-
-  for (unsigned I = 0, N = PrivateHeaders.size(); I != N; ++I) {
-    OS.indent(Indent + 2);
-    OS << "private header \"";
-    OS.write_escaped(PrivateHeaders[I]->getName());
-    OS << "\"\n";
-  }
-  
   for (submodule_const_iterator MI = submodule_begin(), MIEnd = submodule_end();
        MI != MIEnd; ++MI)
-    if (!(*MI)->IsInferred)
+    // Print inferred subframework modules so that we don't need to re-infer
+    // them (requires expensive directory iteration + stat calls) when we build
+    // the module. Regular inferred submodules are OK, as we need to look at all
+    // those header files anyway.
+    if (!(*MI)->IsInferred || (*MI)->IsFramework)
       (*MI)->print(OS, Indent + 2);
   
   for (unsigned I = 0, N = Exports.size(); I != N; ++I) {

@@ -17,6 +17,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "AMDGPU.h"
+#include "AMDGPUSubtarget.h"
+#include "SIDefines.h"
 #include "SIInstrInfo.h"
 #include "SIMachineFunctionInfo.h"
 #include "llvm/CodeGen/MachineFunction.h"
@@ -38,6 +40,12 @@ typedef union {
   unsigned Array[3];
 
 } Counters;
+
+typedef enum {
+  OTHER,
+  SMEM,
+  VMEM
+} InstType;
 
 typedef Counters RegCounters[512];
 typedef std::pair<unsigned, unsigned> RegInterval;
@@ -71,6 +79,11 @@ private:
   /// \brief Different export instruction types seen since last wait.
   unsigned ExpInstrTypesSeen;
 
+  /// \brief Type of the last opcode.
+  InstType LastOpcodeType;
+
+  bool LastInstWritesM0;
+
   /// \brief Get increment/decrement amount for this instruction.
   Counters getHwCounts(MachineInstr &MI);
 
@@ -81,7 +94,8 @@ private:
   RegInterval getRegInterval(MachineOperand &Op);
 
   /// \brief Handle instructions async components
-  void pushInstruction(MachineInstr &MI);
+  void pushInstruction(MachineBasicBlock &MBB,
+                       MachineBasicBlock::iterator I);
 
   /// \brief Insert the actual wait instruction
   bool insertWait(MachineBasicBlock &MBB,
@@ -93,6 +107,9 @@ private:
 
   /// \brief Resolve all operand dependencies to counter requirements
   Counters handleOperands(MachineInstr &MI);
+
+  /// \brief Insert S_NOP between an instruction writing M0 and S_SENDMSG.
+  void handleSendMsg(MachineBasicBlock &MBB, MachineBasicBlock::iterator I);
 
 public:
   SIInsertWaits(TargetMachine &tm) :
@@ -174,6 +191,29 @@ bool SIInsertWaits::isOpRelevant(MachineOperand &Op) {
   if (!MI.getDesc().mayStore())
     return false;
 
+  // Check if this operand is the value being stored.
+  // Special case for DS instructions, since the address
+  // operand comes before the value operand and it may have
+  // multiple data operands.
+
+  if (TII->isDS(MI.getOpcode())) {
+    MachineOperand *Data = TII->getNamedOperand(MI, AMDGPU::OpName::data);
+    if (Data && Op.isIdenticalTo(*Data))
+      return true;
+
+    MachineOperand *Data0 = TII->getNamedOperand(MI, AMDGPU::OpName::data0);
+    if (Data0 && Op.isIdenticalTo(*Data0))
+      return true;
+
+    MachineOperand *Data1 = TII->getNamedOperand(MI, AMDGPU::OpName::data1);
+    if (Data1 && Op.isIdenticalTo(*Data1))
+      return true;
+
+    return false;
+  }
+
+  // NOTE: This assumes that the value operand is before the
+  // address operand, and that there is only one value operand.
   for (MachineInstr::mop_iterator I = MI.operands_begin(),
        E = MI.operands_end(); I != E; ++I) {
 
@@ -201,10 +241,11 @@ RegInterval SIInsertWaits::getRegInterval(MachineOperand &Op) {
   return Result;
 }
 
-void SIInsertWaits::pushInstruction(MachineInstr &MI) {
+void SIInsertWaits::pushInstruction(MachineBasicBlock &MBB,
+                                    MachineBasicBlock::iterator I) {
 
   // Get the hardware counter increments and sum them up
-  Counters Increment = getHwCounts(MI);
+  Counters Increment = getHwCounts(*I);
   unsigned Sum = 0;
 
   for (unsigned i = 0; i < 3; ++i) {
@@ -213,17 +254,43 @@ void SIInsertWaits::pushInstruction(MachineInstr &MI) {
   }
 
   // If we don't increase anything then that's it
-  if (Sum == 0)
+  if (Sum == 0) {
+    LastOpcodeType = OTHER;
     return;
+  }
+
+  if (TRI->ST.getGeneration() >= AMDGPUSubtarget::VOLCANIC_ISLANDS) {
+    // Any occurence of consecutive VMEM or SMEM instructions forms a VMEM
+    // or SMEM clause, respectively.
+    //
+    // The temporary workaround is to break the clauses with S_NOP.
+    //
+    // The proper solution would be to allocate registers such that all source
+    // and destination registers don't overlap, e.g. this is illegal:
+    //   r0 = load r2
+    //   r2 = load r0
+    if ((LastOpcodeType == SMEM && TII->isSMRD(I->getOpcode())) ||
+        (LastOpcodeType == VMEM && Increment.Named.VM)) {
+      // Insert a NOP to break the clause.
+      BuildMI(MBB, I, DebugLoc(), TII->get(AMDGPU::S_NOP))
+          .addImm(0);
+      LastInstWritesM0 = false;
+    }
+
+    if (TII->isSMRD(I->getOpcode()))
+      LastOpcodeType = SMEM;
+    else if (Increment.Named.VM)
+      LastOpcodeType = VMEM;
+  }
 
   // Remember which export instructions we have seen
   if (Increment.Named.EXP) {
-    ExpInstrTypesSeen |= MI.getOpcode() == AMDGPU::EXP ? 1 : 2;
+    ExpInstrTypesSeen |= I->getOpcode() == AMDGPU::EXP ? 1 : 2;
   }
 
-  for (unsigned i = 0, e = MI.getNumOperands(); i != e; ++i) {
+  for (unsigned i = 0, e = I->getNumOperands(); i != e; ++i) {
 
-    MachineOperand &Op = MI.getOperand(i);
+    MachineOperand &Op = I->getOperand(i);
     if (!isOpRelevant(Op))
       continue;
 
@@ -300,6 +367,8 @@ bool SIInsertWaits::insertWait(MachineBasicBlock &MBB,
                   ((Counts.Named.EXP & 0x7) << 4) |
                   ((Counts.Named.LGKM & 0x7) << 8));
 
+  LastOpcodeType = OTHER;
+  LastInstWritesM0 = false;
   return true;
 }
 
@@ -341,18 +410,45 @@ Counters SIInsertWaits::handleOperands(MachineInstr &MI) {
   return Result;
 }
 
+void SIInsertWaits::handleSendMsg(MachineBasicBlock &MBB,
+                                  MachineBasicBlock::iterator I) {
+  if (TRI->ST.getGeneration() < AMDGPUSubtarget::VOLCANIC_ISLANDS)
+    return;
+
+  // There must be "S_NOP 0" between an instruction writing M0 and S_SENDMSG.
+  if (LastInstWritesM0 && I->getOpcode() == AMDGPU::S_SENDMSG) {
+    BuildMI(MBB, I, DebugLoc(), TII->get(AMDGPU::S_NOP)).addImm(0);
+    LastInstWritesM0 = false;
+    return;
+  }
+
+  // Set whether this instruction sets M0
+  LastInstWritesM0 = false;
+
+  unsigned NumOperands = I->getNumOperands();
+  for (unsigned i = 0; i < NumOperands; i++) {
+    const MachineOperand &Op = I->getOperand(i);
+
+    if (Op.isReg() && Op.isDef() && Op.getReg() == AMDGPU::M0)
+      LastInstWritesM0 = true;
+  }
+}
+
 // FIXME: Insert waits listed in Table 4.2 "Required User-Inserted Wait States"
 // around other non-memory instructions.
 bool SIInsertWaits::runOnMachineFunction(MachineFunction &MF) {
   bool Changes = false;
 
-  TII = static_cast<const SIInstrInfo*>(MF.getTarget().getInstrInfo());
-  TRI = static_cast<const SIRegisterInfo*>(MF.getTarget().getRegisterInfo());
+  TII = static_cast<const SIInstrInfo *>(MF.getSubtarget().getInstrInfo());
+  TRI =
+      static_cast<const SIRegisterInfo *>(MF.getSubtarget().getRegisterInfo());
 
   MRI = &MF.getRegInfo();
 
   WaitedOn = ZeroCounts;
   LastIssued = ZeroCounts;
+  LastOpcodeType = OTHER;
+  LastInstWritesM0 = false;
 
   memset(&UsedRegs, 0, sizeof(UsedRegs));
   memset(&DefinedRegs, 0, sizeof(DefinedRegs));
@@ -364,8 +460,14 @@ bool SIInsertWaits::runOnMachineFunction(MachineFunction &MF) {
     for (MachineBasicBlock::iterator I = MBB.begin(), E = MBB.end();
          I != E; ++I) {
 
-      Changes |= insertWait(MBB, I, handleOperands(*I));
-      pushInstruction(*I);
+      // Wait for everything before a barrier.
+      if (I->getOpcode() == AMDGPU::S_BARRIER)
+        Changes |= insertWait(MBB, I, LastIssued);
+      else
+        Changes |= insertWait(MBB, I, handleOperands(*I));
+
+      pushInstruction(MBB, I);
+      handleSendMsg(MBB, I);
     }
 
     // Wait for everything at the end of the MBB

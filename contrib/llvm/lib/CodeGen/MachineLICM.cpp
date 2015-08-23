@@ -39,6 +39,7 @@
 #include "llvm/Target/TargetLowering.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetRegisterInfo.h"
+#include "llvm/Target/TargetSubtargetInfo.h"
 using namespace llvm;
 
 #define DEBUG_TYPE "machine-licm"
@@ -47,6 +48,11 @@ static cl::opt<bool>
 AvoidSpeculation("avoid-speculation",
                  cl::desc("MachineLICM should avoid speculation"),
                  cl::init(true), cl::Hidden);
+
+static cl::opt<bool>
+HoistCheapInsts("hoist-cheap-insts",
+                cl::desc("MachineLICM should hoist even cheap instructions"),
+                cl::init(false), cl::Hidden);
 
 STATISTIC(NumHoisted,
           "Number of machine instructions hoisted out of loops");
@@ -61,7 +67,6 @@ STATISTIC(NumPostRAHoisted,
 
 namespace {
   class MachineLICM : public MachineFunctionPass {
-    const TargetMachine   *TM;
     const TargetInstrInfo *TII;
     const TargetLoweringBase *TLI;
     const TargetRegisterInfo *TRI;
@@ -142,9 +147,6 @@ namespace {
       RegPressure.clear();
       RegLimit.clear();
       BackTrace.clear();
-      for (DenseMap<unsigned,std::vector<const MachineInstr*> >::iterator
-             CI = CSEMap.begin(), CE = CSEMap.end(); CI != CE; ++CI)
-        CI->second.clear();
       CSEMap.clear();
     }
 
@@ -324,13 +326,12 @@ bool MachineLICM::runOnMachineFunction(MachineFunction &MF) {
     return false;
 
   Changed = FirstInLoop = false;
-  TM = &MF.getTarget();
-  TII = TM->getInstrInfo();
-  TLI = TM->getTargetLowering();
-  TRI = TM->getRegisterInfo();
+  TII = MF.getSubtarget().getInstrInfo();
+  TLI = MF.getSubtarget().getTargetLowering();
+  TRI = MF.getSubtarget().getRegisterInfo();
   MFI = MF.getFrameInfo();
   MRI = &MF.getRegInfo();
-  InstrItins = TM->getInstrItineraryData();
+  InstrItins = MF.getSubtarget().getInstrItineraryData();
 
   PreRegAlloc = MRI->isSSA();
 
@@ -822,7 +823,7 @@ void MachineLICM::InitRegPressure(MachineBasicBlock *BB) {
       if (!TargetRegisterInfo::isVirtualRegister(Reg))
         continue;
 
-      bool isNew = RegSeen.insert(Reg);
+      bool isNew = RegSeen.insert(Reg).second;
       unsigned RCId, RCCost;
       getRegisterClassIDAndCost(MI, Reg, i, RCId, RCCost);
       if (MO.isDef())
@@ -854,7 +855,7 @@ void MachineLICM::UpdateRegPressure(const MachineInstr *MI) {
     if (!TargetRegisterInfo::isVirtualRegister(Reg))
       continue;
 
-    bool isNew = RegSeen.insert(Reg);
+    bool isNew = RegSeen.insert(Reg).second;
     if (MO.isDef())
       Defs.push_back(Reg);
     else if (!isNew && isOperandKill(MO, MRI)) {
@@ -1039,7 +1040,7 @@ bool MachineLICM::HasHighOperandLatency(MachineInstr &MI,
 /// IsCheapInstruction - Return true if the instruction is marked "cheap" or
 /// the operand latency between its def and a use is one or less.
 bool MachineLICM::IsCheapInstruction(MachineInstr &MI) const {
-  if (MI.isAsCheapAsAMove() || MI.isCopyLike())
+  if (TII->isAsCheapAsAMove(&MI) || MI.isCopyLike())
     return true;
   if (!InstrItins || InstrItins->isEmpty())
     return false;
@@ -1079,7 +1080,7 @@ bool MachineLICM::CanCauseHighRegPressure(DenseMap<unsigned, int> &Cost,
 
     // Don't hoist cheap instructions if they would increase register pressure,
     // even if we're under the limit.
-    if (CheapInstr)
+    if (CheapInstr && !HoistCheapInsts)
       return true;
 
     for (unsigned i = BackTrace.size(); i != 0; --i) {
@@ -1299,15 +1300,7 @@ void MachineLICM::InitCSEMap(MachineBasicBlock *BB) {
   for (MachineBasicBlock::iterator I = BB->begin(),E = BB->end(); I != E; ++I) {
     const MachineInstr *MI = &*I;
     unsigned Opcode = MI->getOpcode();
-    DenseMap<unsigned, std::vector<const MachineInstr*> >::iterator
-      CI = CSEMap.find(Opcode);
-    if (CI != CSEMap.end())
-      CI->second.push_back(MI);
-    else {
-      std::vector<const MachineInstr*> CSEMIs;
-      CSEMIs.push_back(MI);
-      CSEMap.insert(std::make_pair(Opcode, CSEMIs));
-    }
+    CSEMap[Opcode].push_back(MI);
   }
 }
 
@@ -1447,11 +1440,8 @@ bool MachineLICM::Hoist(MachineInstr *MI, MachineBasicBlock *Preheader) {
     // Add to the CSE map.
     if (CI != CSEMap.end())
       CI->second.push_back(MI);
-    else {
-      std::vector<const MachineInstr*> CSEMIs;
-      CSEMIs.push_back(MI);
-      CSEMap.insert(std::make_pair(Opcode, CSEMIs));
-    }
+    else
+      CSEMap[Opcode].push_back(MI);
   }
 
   ++NumHoisted;

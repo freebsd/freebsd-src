@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 2, 2005
+.Dd January 21, 2015
 .Dt DEVICE_GET_SOFTC 9
 .Os
 .Sh NAME
@@ -40,7 +40,7 @@
 .Ft void *
 .Fn device_get_softc "device_t dev"
 .Sh DESCRIPTION
-Return the driver-specific state of
+Return the driver-specific software context of
 .Fa dev .
 The softc is automatically allocated and zeroed when the device is
 attached.

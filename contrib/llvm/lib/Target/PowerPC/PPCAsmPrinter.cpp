@@ -18,9 +18,9 @@
 
 #include "PPC.h"
 #include "InstPrinter/PPCInstPrinter.h"
-#include "PPCMachineFunctionInfo.h"
 #include "MCTargetDesc/PPCMCExpr.h"
 #include "MCTargetDesc/PPCPredicates.h"
+#include "PPCMachineFunctionInfo.h"
 #include "PPCSubtarget.h"
 #include "PPCTargetMachine.h"
 #include "PPCTargetStreamer.h"
@@ -34,6 +34,7 @@
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineModuleInfoImpls.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
+#include "llvm/CodeGen/StackMaps.h"
 #include "llvm/CodeGen/TargetLoweringObjectFileImpl.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/DebugInfo.h"
@@ -69,10 +70,11 @@ namespace {
     MapVector<MCSymbol*, MCSymbol*> TOC;
     const PPCSubtarget &Subtarget;
     uint64_t TOCLabelID;
+    StackMaps SM;
   public:
     explicit PPCAsmPrinter(TargetMachine &TM, MCStreamer &Streamer)
       : AsmPrinter(TM, Streamer),
-        Subtarget(TM.getSubtarget<PPCSubtarget>()), TOCLabelID(0) {}
+        Subtarget(TM.getSubtarget<PPCSubtarget>()), TOCLabelID(0), SM(*this) {}
 
     const char *getPassName() const override {
       return "PowerPC Assembly Printer";
@@ -90,6 +92,13 @@ namespace {
     bool PrintAsmMemoryOperand(const MachineInstr *MI, unsigned OpNo,
                                unsigned AsmVariant, const char *ExtraCode,
                                raw_ostream &O) override;
+
+    void EmitEndOfAsmFile(Module &M) override;
+
+    void LowerSTACKMAP(MCStreamer &OutStreamer, StackMaps &SM,
+                       const MachineInstr &MI);
+    void LowerPATCHPOINT(MCStreamer &OutStreamer, StackMaps &SM,
+                         const MachineInstr &MI);
   };
 
   /// PPCLinuxAsmPrinter - PowerPC assembly printer, customized for Linux
@@ -147,7 +156,7 @@ static const char *stripRegisterPrefix(const char *RegName) {
 
 void PPCAsmPrinter::printOperand(const MachineInstr *MI, unsigned OpNo,
                                  raw_ostream &O) {
-  const DataLayout *DL = TM.getDataLayout();
+  const DataLayout *DL = TM.getSubtargetImpl()->getDataLayout();
   const MachineOperand &MO = MI->getOperand(OpNo);
   
   switch (MO.getType()) {
@@ -275,6 +284,18 @@ bool PPCAsmPrinter::PrintAsmMemoryOperand(const MachineInstr *MI, unsigned OpNo,
         printOperand(MI, OpNo, O);
         return false;
       }
+    case 'U': // Print 'u' for update form.
+    case 'X': // Print 'x' for indexed form.
+      {
+	// FIXME: Currently for PowerPC memory operands are always loaded
+	// into a register, so we never get an update or indexed form.
+	// This is bad even for offset forms, since even if we know we
+	// have a value in -16(r1), we will generate a load into r<n>
+	// and then load from 0(r<n>).  Until that issue is fixed,
+	// tolerate 'U' and 'X' but don't output anything.
+	assert(MI->getOperand(OpNo).isReg());
+	return false;
+      }
     }
   }
 
@@ -290,7 +311,7 @@ bool PPCAsmPrinter::PrintAsmMemoryOperand(const MachineInstr *MI, unsigned OpNo,
 /// exists for it.  If not, create one.  Then return a symbol that references
 /// the TOC entry.
 MCSymbol *PPCAsmPrinter::lookUpOrCreateTOCEntry(MCSymbol *Sym) {
-  const DataLayout *DL = TM.getDataLayout();
+  const DataLayout *DL = TM.getSubtargetImpl()->getDataLayout();
   MCSymbol *&TOCEntry = TOC[Sym];
 
   // To avoid name clash check if the name already exists.
@@ -304,6 +325,80 @@ MCSymbol *PPCAsmPrinter::lookUpOrCreateTOCEntry(MCSymbol *Sym) {
   return TOCEntry;
 }
 
+void PPCAsmPrinter::EmitEndOfAsmFile(Module &M) {
+  SM.serializeToStackMapSection();
+}
+
+void PPCAsmPrinter::LowerSTACKMAP(MCStreamer &OutStreamer, StackMaps &SM,
+                                  const MachineInstr &MI) {
+  unsigned NumNOPBytes = MI.getOperand(1).getImm();
+
+  SM.recordStackMap(MI);
+  assert(NumNOPBytes % 4 == 0 && "Invalid number of NOP bytes requested!");
+
+  // Scan ahead to trim the shadow.
+  const MachineBasicBlock &MBB = *MI.getParent();
+  MachineBasicBlock::const_iterator MII(MI);
+  ++MII;
+  while (NumNOPBytes > 0) {
+    if (MII == MBB.end() || MII->isCall() ||
+        MII->getOpcode() == PPC::DBG_VALUE ||
+        MII->getOpcode() == TargetOpcode::PATCHPOINT ||
+        MII->getOpcode() == TargetOpcode::STACKMAP)
+      break;
+    ++MII;
+    NumNOPBytes -= 4;
+  }
+
+  // Emit nops.
+  for (unsigned i = 0; i < NumNOPBytes; i += 4)
+    EmitToStreamer(OutStreamer, MCInstBuilder(PPC::NOP));
+}
+
+// Lower a patchpoint of the form:
+// [<def>], <id>, <numBytes>, <target>, <numArgs>
+void PPCAsmPrinter::LowerPATCHPOINT(MCStreamer &OutStreamer, StackMaps &SM,
+                                    const MachineInstr &MI) {
+  SM.recordPatchPoint(MI);
+  PatchPointOpers Opers(&MI);
+
+  int64_t CallTarget = Opers.getMetaOper(PatchPointOpers::TargetPos).getImm();
+  unsigned EncodedBytes = 0;
+  if (CallTarget) {
+    assert((CallTarget & 0xFFFFFFFFFFFF) == CallTarget &&
+           "High 16 bits of call target should be zero.");
+    unsigned ScratchReg = MI.getOperand(Opers.getNextScratchIdx()).getReg();
+    EncodedBytes = 6*4;
+    // Materialize the jump address:
+    EmitToStreamer(OutStreamer, MCInstBuilder(PPC::LI8)
+                                    .addReg(ScratchReg)
+                                    .addImm((CallTarget >> 32) & 0xFFFF));
+    EmitToStreamer(OutStreamer, MCInstBuilder(PPC::RLDIC)
+                                    .addReg(ScratchReg)
+                                    .addReg(ScratchReg)
+                                    .addImm(32).addImm(16));
+    EmitToStreamer(OutStreamer, MCInstBuilder(PPC::ORIS8)
+                                    .addReg(ScratchReg)
+                                    .addReg(ScratchReg)
+                                    .addImm((CallTarget >> 16) & 0xFFFF));
+    EmitToStreamer(OutStreamer, MCInstBuilder(PPC::ORI8)
+                                    .addReg(ScratchReg)
+                                    .addReg(ScratchReg)
+                                    .addImm(CallTarget & 0xFFFF));
+
+    EmitToStreamer(OutStreamer, MCInstBuilder(PPC::MTCTR8).addReg(ScratchReg));
+    EmitToStreamer(OutStreamer, MCInstBuilder(PPC::BCTRL8));
+  }
+
+  // Emit padding.
+  unsigned NumBytes = Opers.getMetaOper(PatchPointOpers::NBytesPos).getImm();
+  assert(NumBytes >= EncodedBytes &&
+         "Patchpoint can't request size less than the length of a call.");
+  assert((NumBytes - EncodedBytes) % 4 == 0 &&
+         "Invalid number of NOP bytes requested!");
+  for (unsigned i = EncodedBytes; i < NumBytes; i += 4)
+    EmitToStreamer(OutStreamer, MCInstBuilder(PPC::NOP));
+}
 
 /// EmitInstruction -- Print out a single PowerPC MI in Darwin syntax to
 /// the current output stream.
@@ -320,6 +415,11 @@ void PPCAsmPrinter::EmitInstruction(const MachineInstr *MI) {
   default: break;
   case TargetOpcode::DBG_VALUE:
     llvm_unreachable("Should be handled target independently");
+  case TargetOpcode::STACKMAP:
+    return LowerSTACKMAP(OutStreamer, SM, *MI);
+  case TargetOpcode::PATCHPOINT:
+    return LowerPATCHPOINT(OutStreamer, SM, *MI);
+
   case PPC::MoveGOTtoLR: {
     // Transform %LR = MoveGOTtoLR
     // Into this: bl _GLOBAL_OFFSET_TABLE_@local-4
@@ -400,7 +500,7 @@ void PPCAsmPrinter::EmitInstruction(const MachineInstr *MI) {
     const MachineOperand &MO = MI->getOperand(1);
 
     // Map symbol -> label of TOC entry
-    assert(MO.isGlobal() || MO.isCPI() || MO.isJTI());
+    assert(MO.isGlobal() || MO.isCPI() || MO.isJTI() || MO.isBlockAddress());
     MCSymbol *MOSymbol = nullptr;
     if (MO.isGlobal())
       MOSymbol = getSymbol(MO.getGlobal());
@@ -408,6 +508,8 @@ void PPCAsmPrinter::EmitInstruction(const MachineInstr *MI) {
       MOSymbol = GetCPISymbol(MO.getIndex());
     else if (MO.isJTI())
       MOSymbol = GetJTISymbol(MO.getIndex());
+    else if (MO.isBlockAddress())
+      MOSymbol = GetBlockAddressSymbol(MO.getBlockAddress());
 
     if (PL == PICLevel::Small) {
       const MCExpr *Exp =
@@ -431,6 +533,7 @@ void PPCAsmPrinter::EmitInstruction(const MachineInstr *MI) {
   }
   case PPC::LDtocJTI:
   case PPC::LDtocCPT:
+  case PPC::LDtocBA:
   case PPC::LDtoc: {
     // Transform %X3 = LDtoc <ga:@min1>, %X2
     LowerPPCMachineInstrToMCInst(MI, TmpInst, *this, isDarwin);
@@ -441,7 +544,7 @@ void PPCAsmPrinter::EmitInstruction(const MachineInstr *MI) {
     const MachineOperand &MO = MI->getOperand(1);
 
     // Map symbol -> label of TOC entry
-    assert(MO.isGlobal() || MO.isCPI() || MO.isJTI());
+    assert(MO.isGlobal() || MO.isCPI() || MO.isJTI() || MO.isBlockAddress());
     MCSymbol *MOSymbol = nullptr;
     if (MO.isGlobal())
       MOSymbol = getSymbol(MO.getGlobal());
@@ -449,6 +552,8 @@ void PPCAsmPrinter::EmitInstruction(const MachineInstr *MI) {
       MOSymbol = GetCPISymbol(MO.getIndex());
     else if (MO.isJTI())
       MOSymbol = GetJTISymbol(MO.getIndex());
+    else if (MO.isBlockAddress())
+      MOSymbol = GetBlockAddressSymbol(MO.getBlockAddress());
 
     MCSymbol *TOCEntry = lookUpOrCreateTOCEntry(MOSymbol);
 
@@ -470,7 +575,8 @@ void PPCAsmPrinter::EmitInstruction(const MachineInstr *MI) {
     // reference the symbol directly.
     TmpInst.setOpcode(PPC::ADDIS8);
     const MachineOperand &MO = MI->getOperand(2);
-    assert((MO.isGlobal() || MO.isCPI() || MO.isJTI()) &&
+    assert((MO.isGlobal() || MO.isCPI() || MO.isJTI() ||
+            MO.isBlockAddress()) &&
            "Invalid operand for ADDIStocHA!");
     MCSymbol *MOSymbol = nullptr;
     bool IsExternal = false;
@@ -490,9 +596,12 @@ void PPCAsmPrinter::EmitInstruction(const MachineInstr *MI) {
       MOSymbol = GetCPISymbol(MO.getIndex());
     else if (MO.isJTI())
       MOSymbol = GetJTISymbol(MO.getIndex());
+    else if (MO.isBlockAddress())
+      MOSymbol = GetBlockAddressSymbol(MO.getBlockAddress());
 
     if (IsExternal || IsNonLocalFunction || IsCommon || IsAvailExt ||
-        MO.isJTI() || TM.getCodeModel() == CodeModel::Large)
+        MO.isJTI() || MO.isBlockAddress() ||
+        TM.getCodeModel() == CodeModel::Large)
       MOSymbol = lookUpOrCreateTOCEntry(MOSymbol);
 
     const MCExpr *Exp =
@@ -511,12 +620,17 @@ void PPCAsmPrinter::EmitInstruction(const MachineInstr *MI) {
     // associated TOC entry.  Otherwise reference the symbol directly.
     TmpInst.setOpcode(PPC::LD);
     const MachineOperand &MO = MI->getOperand(1);
-    assert((MO.isGlobal() || MO.isJTI() || MO.isCPI()) &&
+    assert((MO.isGlobal() || MO.isCPI() || MO.isJTI() ||
+            MO.isBlockAddress()) &&
            "Invalid operand for LDtocL!");
     MCSymbol *MOSymbol = nullptr;
 
     if (MO.isJTI())
       MOSymbol = lookUpOrCreateTOCEntry(GetJTISymbol(MO.getIndex()));
+    else if (MO.isBlockAddress()) {
+      MOSymbol = GetBlockAddressSymbol(MO.getBlockAddress());
+      MOSymbol = lookUpOrCreateTOCEntry(MOSymbol);
+    }
     else if (MO.isCPI()) {
       MOSymbol = GetCPISymbol(MO.getIndex());
       if (TM.getCodeModel() == CodeModel::Large)
@@ -918,7 +1032,7 @@ void PPCLinuxAsmPrinter::EmitFunctionEntryLabel() {
 
 
 bool PPCLinuxAsmPrinter::doFinalization(Module &M) {
-  const DataLayout *TD = TM.getDataLayout();
+  const DataLayout *TD = TM.getSubtargetImpl()->getDataLayout();
 
   bool isPPC64 = TD->getPointerSizeInBits() == 64;
 
@@ -941,7 +1055,7 @@ bool PPCLinuxAsmPrinter::doFinalization(Module &M) {
     for (MapVector<MCSymbol*, MCSymbol*>::iterator I = TOC.begin(),
          E = TOC.end(); I != E; ++I) {
       OutStreamer.EmitLabel(I->second);
-      MCSymbol *S = OutContext.GetOrCreateSymbol(I->first->getName());
+      MCSymbol *S = I->first;
       if (isPPC64)
         TS.emitTCEntry(*S);
       else
@@ -1124,7 +1238,8 @@ static MCSymbol *GetAnonSym(MCSymbol *Sym, MCContext &Ctx) {
 
 void PPCDarwinAsmPrinter::
 EmitFunctionStubs(const MachineModuleInfoMachO::SymbolListTy &Stubs) {
-  bool isPPC64 = TM.getDataLayout()->getPointerSizeInBits() == 64;
+  bool isPPC64 =
+      TM.getSubtargetImpl()->getDataLayout()->getPointerSizeInBits() == 64;
   bool isDarwin = Subtarget.isDarwin();
   
   const TargetLoweringObjectFileMachO &TLOFMacho = 
@@ -1260,7 +1375,8 @@ EmitFunctionStubs(const MachineModuleInfoMachO::SymbolListTy &Stubs) {
 
 
 bool PPCDarwinAsmPrinter::doFinalization(Module &M) {
-  bool isPPC64 = TM.getDataLayout()->getPointerSizeInBits() == 64;
+  bool isPPC64 =
+      TM.getSubtargetImpl()->getDataLayout()->getPointerSizeInBits() == 64;
 
   // Darwin/PPC always uses mach-o.
   const TargetLoweringObjectFileMachO &TLOFMacho = 

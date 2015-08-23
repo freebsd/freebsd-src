@@ -117,7 +117,7 @@ openpam_dispatch(pam_handle_t *pamh,
 			openpam_log(PAM_LOG_LIBDEBUG, "calling %s() in %s",
 			    pam_sm_func_name[primitive], chain->module->path);
 			r = (chain->module->func[primitive])(pamh, flags,
-			    chain->optc, (const char **)chain->optv);
+			    chain->optc, (const char **)(intptr_t)chain->optv);
 			pamh->current = NULL;
 			openpam_log(PAM_LOG_LIBDEBUG, "%s: %s(): %s",
 			    chain->module->path, pam_sm_func_name[primitive],

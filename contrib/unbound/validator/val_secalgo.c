@@ -41,8 +41,9 @@
  * and do the library calls (for the crypto library in use).
  */
 #include "config.h"
-#include "validator/val_secalgo.h"
+/* packed_rrset on top to define enum types (forced by c99 standard) */
 #include "util/data/packed_rrset.h"
+#include "validator/val_secalgo.h"
 #include "util/log.h"
 #include "ldns/rrdef.h"
 #include "ldns/keyraw.h"

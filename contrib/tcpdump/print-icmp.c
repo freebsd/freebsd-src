@@ -147,12 +147,10 @@ struct icmp {
 
 #define	ICMP_MAXTYPE		18
 
-#define	ICMP_INFOTYPE(type) \
-	((type) == ICMP_ECHOREPLY || (type) == ICMP_ECHO || \
-	(type) == ICMP_ROUTERADVERT || (type) == ICMP_ROUTERSOLICIT || \
-	(type) == ICMP_TSTAMP || (type) == ICMP_TSTAMPREPLY || \
-	(type) == ICMP_IREQ || (type) == ICMP_IREQREPLY || \
-	(type) == ICMP_MASKREQ || (type) == ICMP_MASKREPLY)
+#define ICMP_ERRTYPE(type) \
+	((type) == ICMP_UNREACH || (type) == ICMP_SOURCEQUENCH || \
+	(type) == ICMP_REDIRECT || (type) == ICMP_TIMXCEED || \
+	(type) == ICMP_PARAMPROB)
 #define	ICMP_MPLS_EXT_TYPE(type) \
 	((type) == ICMP_UNREACH || \
          (type) == ICMP_TIMXCEED || \
@@ -315,7 +313,8 @@ const char *icmp_tstamp_print(u_int);
 
 /* print the milliseconds since midnight UTC */
 const char *
-icmp_tstamp_print(u_int tstamp) {
+icmp_tstamp_print(u_int tstamp)
+{
     u_int msec,sec,min,hrs;
 
     static char buf[64];
@@ -578,7 +577,7 @@ icmp_print(netdissect_options *ndo, const u_char *bp, u_int plen, const u_char *
          * print the remnants of the IP packet.
          * save the snaplength as this may get overidden in the IP printer.
          */
-	if (ndo->ndo_vflag >= 1 && !ICMP_INFOTYPE(dp->icmp_type)) {
+	if (ndo->ndo_vflag >= 1 && ICMP_ERRTYPE(dp->icmp_type)) {
 		bp += 8;
 		ND_PRINT((ndo, "\n\t"));
 		ip = (struct ip *)bp;

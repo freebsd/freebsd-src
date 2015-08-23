@@ -104,11 +104,11 @@ mi_signal_thread(name)
 	for (;;)
 	{
 		sigerr = sig = 0;
-#if defined(SOLARIS) || defined(__svr5__)
+#if SIGWAIT_TAKES_1_ARG
 		if ((sig = sigwait(&set)) < 0)
-#else /* defined(SOLARIS) || defined(__svr5__) */
+#else
 		if ((sigerr = sigwait(&set, &sig)) != 0)
-#endif /* defined(SOLARIS) || defined(__svr5__) */
+#endif
 		{
 			/* some OS return -1 and set errno: copy it */
 			if (sigerr <= 0)

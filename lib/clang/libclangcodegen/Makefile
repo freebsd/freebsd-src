@@ -45,10 +45,11 @@ SRCS=	BackendUtil.cpp \
 	CodeGenPGO.cpp \
 	CodeGenTBAA.cpp \
 	CodeGenTypes.cpp \
+	CoverageMappingGen.cpp \
 	ItaniumCXXABI.cpp \
 	MicrosoftCXXABI.cpp \
 	ModuleBuilder.cpp \
-	SanitizerBlacklist.cpp \
+	SanitizerMetadata.cpp \
 	TargetInfo.cpp
 
 TGHDRS=	AttrList \

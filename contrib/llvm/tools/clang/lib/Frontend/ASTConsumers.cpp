@@ -57,7 +57,8 @@ namespace {
         bool ShowColors = Out.has_colors();
         if (ShowColors)
           Out.changeColor(raw_ostream::BLUE);
-        Out << (Dump ? "Dumping " : "Printing ") << getName(D) << ":\n";
+        Out << ((Dump || DumpLookups) ? "Dumping " : "Printing ") << getName(D)
+            << ":\n";
         if (ShowColors)
           Out.resetColor();
         print(D);
@@ -79,9 +80,13 @@ namespace {
     }
     void print(Decl *D) {
       if (DumpLookups) {
-        if (DeclContext *DC = dyn_cast<DeclContext>(D))
-          DC->dumpLookups(Out);
-        else
+        if (DeclContext *DC = dyn_cast<DeclContext>(D)) {
+          if (DC == DC->getPrimaryContext())
+            DC->dumpLookups(Out, Dump);
+          else
+            Out << "Lookup map is in primary DeclContext "
+                << DC->getPrimaryContext() << "\n";
+        } else
           Out << "Not a DeclContext\n";
       } else if (Dump)
         D->dump(Out);
@@ -118,17 +123,21 @@ namespace {
   };
 } // end anonymous namespace
 
-ASTConsumer *clang::CreateASTPrinter(raw_ostream *Out,
-                                     StringRef FilterString) {
-  return new ASTPrinter(Out, /*Dump=*/ false, FilterString);
+std::unique_ptr<ASTConsumer> clang::CreateASTPrinter(raw_ostream *Out,
+                                                     StringRef FilterString) {
+  return llvm::make_unique<ASTPrinter>(Out, /*Dump=*/false, FilterString);
 }
 
-ASTConsumer *clang::CreateASTDumper(StringRef FilterString, bool DumpLookups) {
-  return new ASTPrinter(nullptr, /*Dump=*/true, FilterString, DumpLookups);
+std::unique_ptr<ASTConsumer> clang::CreateASTDumper(StringRef FilterString,
+                                                    bool DumpDecls,
+                                                    bool DumpLookups) {
+  assert((DumpDecls || DumpLookups) && "nothing to dump");
+  return llvm::make_unique<ASTPrinter>(nullptr, DumpDecls, FilterString,
+                                       DumpLookups);
 }
 
-ASTConsumer *clang::CreateASTDeclNodeLister() {
-  return new ASTDeclNodeLister(nullptr);
+std::unique_ptr<ASTConsumer> clang::CreateASTDeclNodeLister() {
+  return llvm::make_unique<ASTDeclNodeLister>(nullptr);
 }
 
 //===----------------------------------------------------------------------===//
@@ -164,8 +173,9 @@ void ASTViewer::HandleTopLevelSingleDecl(Decl *D) {
   }
 }
 
-
-ASTConsumer *clang::CreateASTViewer() { return new ASTViewer(); }
+std::unique_ptr<ASTConsumer> clang::CreateASTViewer() {
+  return llvm::make_unique<ASTViewer>();
+}
 
 //===----------------------------------------------------------------------===//
 /// DeclContextPrinter - Decl and DeclContext Visualization
@@ -475,6 +485,6 @@ void DeclContextPrinter::PrintDeclContext(const DeclContext* DC,
     }
   }
 }
-ASTConsumer *clang::CreateDeclContextPrinter() {
-  return new DeclContextPrinter();
+std::unique_ptr<ASTConsumer> clang::CreateDeclContextPrinter() {
+  return llvm::make_unique<DeclContextPrinter>();
 }

@@ -43,7 +43,7 @@
 /* Whether the C compiler accepts the "unused" attribute */
 #define HAVE_ATTR_UNUSED 1
 
-/* Define to 1 if your system has a working `chown' function. */
+/* Define to 1 if you have the `chown' function. */
 #define HAVE_CHOWN 1
 
 /* Define to 1 if you have the `chroot' function. */
@@ -146,6 +146,9 @@
 
 /* Whether getaddrinfo is available */
 #define HAVE_GETADDRINFO 1
+
+/* Define to 1 if you have the `getauxval' function. */
+/* #undef HAVE_GETAUXVAL */
 
 /* Define to 1 if you have the `getentropy' function. */
 /* #undef HAVE_GETENTROPY */
@@ -351,6 +354,9 @@
 /* Define to 1 if `ipi_spec_dst' is a member of `struct in_pktinfo'. */
 /* #undef HAVE_STRUCT_IN_PKTINFO_IPI_SPEC_DST */
 
+/* Define to 1 if `sun_len' is a member of `struct sockaddr_un'. */
+#define HAVE_STRUCT_SOCKADDR_UN_SUN_LEN 1
+
 /* Define if you have Swig libraries and header files. */
 /* #undef HAVE_SWIG */
 
@@ -480,7 +486,7 @@
 #define PACKAGE_NAME "unbound"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "unbound 1.5.1"
+#define PACKAGE_STRING "unbound 1.5.3"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "unbound"
@@ -489,7 +495,7 @@
 #define PACKAGE_URL ""
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "1.5.1"
+#define PACKAGE_VERSION "1.5.3"
 
 /* default pidfile location */
 #define PIDFILE "/var/unbound/unbound.pid"
@@ -508,7 +514,7 @@
 #define ROOT_CERT_FILE "/var/unbound/icannbundle.pem"
 
 /* version number for resource files */
-#define RSRC_PACKAGE_VERSION 1,5,1,0
+#define RSRC_PACKAGE_VERSION 1,5,3,0
 
 /* Directory to chdir to */
 #define RUN_DIR "/var/unbound"
@@ -795,6 +801,10 @@
 #define ARG_LL "%ll"
 #else
 #define ARG_LL "%I64"
+#endif
+
+#ifndef AF_LOCAL
+#define AF_LOCAL AF_UNIX
 #endif
 
 

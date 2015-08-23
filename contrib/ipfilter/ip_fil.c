@@ -44,6 +44,9 @@ static int	write_output __P((struct ifnet *, struct mbuf *,
 # endif
 #endif
 
+struct ifaddr {
+	struct sockaddr_storage ifa_addr;
+};
 
 int
 ipfattach(softc)

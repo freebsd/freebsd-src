@@ -45,12 +45,13 @@ fi
 dtrace=$1
 local=127.0.0.1
 
-$dtrace -c "/sbin/ping $local 3" -qs /dev/stdin <<EOF | sort -n
+$dtrace -c "/sbin/ping -q -c 1 -t 3 $local" -qs /dev/stdin <<EOF | sort -n | \
+    grep -v -e '^round-trip ' -e '^--- '
 ip:::send
 /args[2]->ip_saddr == "$local" && args[2]->ip_daddr == "$local" &&
     args[4]->ipv4_protocol == IPPROTO_ICMP/
 {
-	printf("1 ip:::send    (");
+	printf("2 ip:::send    (");
 	printf("args[2]: %d %d, ", args[2]->ip_ver, args[2]->ip_plength);
 	printf("args[4]: %d %d %d %d %d)\n",
 	    args[4]->ipv4_ver, args[4]->ipv4_length, args[4]->ipv4_flags,
@@ -61,7 +62,7 @@ ip:::receive
 /args[2]->ip_saddr == "$local" && args[2]->ip_daddr == "$local" &&
     args[4]->ipv4_protocol == IPPROTO_ICMP/
 {
-	printf("2 ip:::receive (");
+	printf("3 ip:::receive (");
 	printf("args[2]: %d %d, ", args[2]->ip_ver, args[2]->ip_plength);
 	printf("args[4]: %d %d %d %d %d)\n",
 	    args[4]->ipv4_ver, args[4]->ipv4_length, args[4]->ipv4_flags,

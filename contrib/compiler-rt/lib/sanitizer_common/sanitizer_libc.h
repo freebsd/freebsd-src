@@ -26,6 +26,7 @@ namespace __sanitizer {
 // String functions
 s64 internal_atoll(const char *nptr);
 void *internal_memchr(const void *s, int c, uptr n);
+void *internal_memrchr(const void *s, int c, uptr n);
 int internal_memcmp(const void* s1, const void* s2, uptr n);
 void *internal_memcpy(void *dest, const void *src, uptr n);
 void *internal_memmove(void *dest, const void *src, uptr n);
@@ -38,6 +39,7 @@ char *internal_strchrnul(const char *s, int c);
 int internal_strcmp(const char *s1, const char *s2);
 uptr internal_strcspn(const char *s, const char *reject);
 char *internal_strdup(const char *s);
+char *internal_strndup(const char *s, uptr n);
 uptr internal_strlen(const char *s);
 char *internal_strncat(char *dst, const char *src, uptr n);
 int internal_strncmp(const char *s1, const char *s2, uptr n);
@@ -97,6 +99,25 @@ int internal_fork();
 
 // Threading
 uptr internal_sched_yield();
+
+// These functions call appropriate pthread_ functions directly, bypassing
+// the interceptor. They are weak and may not be present in some tools.
+SANITIZER_WEAK_ATTRIBUTE
+int real_pthread_create(void *th, void *attr, void *(*callback)(void *),
+                        void *param);
+SANITIZER_WEAK_ATTRIBUTE
+int real_pthread_join(void *th, void **ret);
+
+#define DEFINE_REAL_PTHREAD_FUNCTIONS                                          \
+  namespace __sanitizer {                                                      \
+  int real_pthread_create(void *th, void *attr, void *(*callback)(void *),     \
+                          void *param) {                                       \
+    return REAL(pthread_create)(th, attr, callback, param);                    \
+  }                                                                            \
+  int real_pthread_join(void *th, void **ret) {                                \
+    return REAL(pthread_join(th, ret));                                        \
+  }                                                                            \
+  }  // namespace __sanitizer
 
 // Error handling
 bool internal_iserror(uptr retval, int *rverrno = 0);

@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef MIPSSEISELLOWERING_H
-#define MIPSSEISELLOWERING_H
+#ifndef LLVM_LIB_TARGET_MIPS_MIPSSEISELLOWERING_H
+#define LLVM_LIB_TARGET_MIPS_MIPSSEISELLOWERING_H
 
 #include "MipsISelLowering.h"
 #include "MipsRegisterInfo.h"
@@ -20,7 +20,7 @@
 namespace llvm {
   class MipsSETargetLowering : public MipsTargetLowering  {
   public:
-    explicit MipsSETargetLowering(MipsTargetMachine &TM,
+    explicit MipsSETargetLowering(const MipsTargetMachine &TM,
                                   const MipsSubtarget &STI);
 
     /// \brief Enable MSA support for the given integer type and Register
@@ -31,8 +31,9 @@ namespace llvm {
     void addMSAFloatType(MVT::SimpleValueType Ty,
                          const TargetRegisterClass *RC);
 
-    bool allowsUnalignedMemoryAccesses(EVT VT, unsigned AS = 0,
-                                       bool *Fast = nullptr) const override;
+    bool allowsMisalignedMemoryAccesses(EVT VT, unsigned AS = 0,
+                                        unsigned Align = 1,
+                                        bool *Fast = nullptr) const override;
 
     SDValue LowerOperation(SDValue Op, SelectionDAG &DAG) const override;
 
@@ -50,15 +51,15 @@ namespace llvm {
     const TargetRegisterClass *getRepRegClassFor(MVT VT) const override;
 
   private:
-    bool isEligibleForTailCallOptimization(const MipsCC &MipsCCInfo,
-                                     unsigned NextStackOffset,
-                                     const MipsFunctionInfo& FI) const override;
+    bool isEligibleForTailCallOptimization(
+        const CCState &CCInfo, unsigned NextStackOffset,
+        const MipsFunctionInfo &FI) const override;
 
     void
     getOpndList(SmallVectorImpl<SDValue> &Ops,
                 std::deque< std::pair<unsigned, SDValue> > &RegsToPass,
                 bool IsPICCall, bool GlobalOrExternal, bool InternalLinkage,
-                CallLoweringInfo &CLI, SDValue Callee,
+                bool IsCallReloc, CallLoweringInfo &CLI, SDValue Callee,
                 SDValue Chain) const override;
 
     SDValue lowerLOAD(SDValue Op, SelectionDAG &DAG) const;
@@ -113,4 +114,4 @@ namespace llvm {
   };
 }
 
-#endif // MipsSEISELLOWERING_H
+#endif

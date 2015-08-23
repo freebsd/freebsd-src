@@ -8,11 +8,12 @@
 # and the main list to avoid needing a SUBDIR_DEPEND line on every library
 # naming just these few items.
 
-SUBDIR_ORDERED=	${_csu} \
+SUBDIR_ORDERED=	csu \
 	.WAIT \
 	libc \
 	libc_nonshared \
 	libcompiler_rt \
+	${_libclang_rt} \
 	${_libcplusplus} \
 	${_libcxxrt} \
 	libelf \
@@ -40,6 +41,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	${_libcom_err} \
 	libcompat \
 	libcrypt \
+	libdevctl \
 	libdevinfo \
 	libdevstat \
 	libdpv \
@@ -52,7 +54,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	libfetch \
 	libfigpar \
 	libgeom \
-	libgpio \
+	${_libgpio} \
 	${_libgssapi} \
 	${_librpcsec_gss} \
 	${_libiconv_modules} \
@@ -62,12 +64,12 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	libkvm \
 	${_libldns} \
 	liblzma \
-	libmagic \
-	libmandoc \
+	${_libmagic} \
 	libmemstat \
 	libmd \
 	${_libmilter} \
 	${_libmp} \
+	libmt \
 	${_libnandfs} \
 	libnetbsd \
 	${_libnetgraph} \
@@ -81,7 +83,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	${_libpmc} \
 	${_libproc} \
 	libprocstat \
-	libradius \
+	${_libradius} \
 	librpcsvc \
 	librt \
 	${_librtld_db} \
@@ -141,26 +143,16 @@ SUBDIR_DEPEND_liblibrpcsec_gss= libgssapi
 SUBDIR_DEPEND_libmagic= libz
 SUBDIR_DEPEND_libmemstat= libkvm
 SUBDIR_DEPEND_libopie= libmd
-SUBDIR_DEPEND_libpam= libcrypt libopie libradius librpcsvc libtacplus libutil ${_libypclnt} ${_libcom_err} 
+SUBDIR_DEPEND_libpam= libcrypt libopie ${_libradius} librpcsvc libtacplus libutil ${_libypclnt} ${_libcom_err} 
 SUBDIR_DEPEND_libpjdlog= libutil
 SUBDIR_DEPEND_libprocstat= libkvm libutil
 SUBDIR_DEPEND_libradius= libmd
-SUBDIR_DEPEND_libreadline= ncurses
 SUBDIR_DEPEND_libsmb= libkiconv
 SUBDIR_DEPEND_libstdc++= msun
 SUBDIR_DEPEND_libtacplus= libmd
 SUBDIR_DEPEND_libulog= libmd
 SUBDIR_DEPEND_libunbound= ${_libldns}
-
-.if exists(${.CURDIR}/csu/${MACHINE_ARCH}-elf)
-_csu=csu/${MACHINE_ARCH}-elf
-.elif exists(${.CURDIR}/csu/${MACHINE_ARCH})
-_csu=csu/${MACHINE_ARCH}
-.elif exists(${.CURDIR}/csu/${MACHINE_CPUARCH}/Makefile)
-_csu=csu/${MACHINE_CPUARCH}
-.else
-_csu=csu
-.endif
+SUBDIR_DEPEND_liblzma= ${_libthr}
 
 # NB: keep these sorted by MK_* knobs
 
@@ -194,6 +186,14 @@ _cuse=		libcuse
 _libelftc=	libelftc
 .endif
 
+.if ${MK_FILE} != "no"
+_libmagic=	libmagic
+.endif
+
+.if ${MK_GPIO} != "no"
+_libgpio=	libgpio
+.endif
+
 .if ${MK_GSSAPI} != "no"
 _libgssapi=	libgssapi
 _librpcsec_gss=	librpcsec_gss
@@ -209,6 +209,16 @@ _libcom_err= libcom_err
 
 .if ${MK_LDNS} != "no"
 _libldns=	libldns
+.endif
+
+# The libraries under libclang_rt can only be built by clang, and only make
+# sense to build when clang is enabled at all.  Furthermore, they can only be
+# built for certain architectures.
+.if ${MK_CLANG} != "no" && ${COMPILER_TYPE} == "clang" && \
+    (${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "amd64" || \
+    (${MACHINE_CPUARCH} == "arm" && ${MACHINE_ARCH} != "armeb") || \
+    (${MACHINE_CPUARCH} == "i386"))
+_libclang_rt=	libclang_rt
 .endif
 
 .if ${MK_LIBCPLUSPLUS} != "no"
@@ -244,7 +254,9 @@ _librtld_db=	librtld_db
 .endif
 
 .if ${MACHINE_CPUARCH} == "amd64"
+.if ${MK_BHYVE} != "no"
 _libvmmapi=	libvmmapi
+.endif
 .endif
 
 .if ${MACHINE_CPUARCH} == "mips"
@@ -262,12 +274,22 @@ _libsmb=	libsmb
 _libsmb=	libsmb
 .endif
 
+.if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "arm"
+_libsmb=	libsmb
+_libproc=	libproc
+_librtld_db=	librtld_db
+.endif
+
 .if ${MK_OPENSSL} != "no"
 _libmp=		libmp
 .endif
 
 .if ${MK_PMC} != "no"
 _libpmc=	libpmc
+.endif
+
+.if ${MK_RADIUS_SUPPORT} != "no"
+_libradius=	libradius
 .endif
 
 .if ${MK_SENDMAIL} != "no"

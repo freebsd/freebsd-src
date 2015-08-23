@@ -21,11 +21,13 @@
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCCodeGenInfo.h"
 #include "llvm/MC/MCContext.h"
+#include "llvm/MC/MCSectionMachO.h"
 #include "llvm/MC/MCTargetOptions.h"
 #include "llvm/MC/SectionKind.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Target/TargetLowering.h"
 #include "llvm/Target/TargetLoweringObjectFile.h"
+#include "llvm/Target/TargetSubtargetInfo.h"
 using namespace llvm;
 
 //---------------------------------------------------------------------------
@@ -47,17 +49,13 @@ TargetMachine::~TargetMachine() {
 }
 
 /// \brief Reset the target options based on the function's attributes.
-void TargetMachine::resetTargetOptions(const MachineFunction *MF) const {
-  const Function *F = MF->getFunction();
-  TargetOptions &TO = MF->getTarget().Options;
-
-#define RESET_OPTION(X, Y)                                              \
-  do {                                                                  \
-    if (F->hasFnAttribute(Y))                                           \
-      TO.X =                                                            \
-        (F->getAttributes().                                            \
-           getAttribute(AttributeSet::FunctionIndex,                    \
-                        Y).getValueAsString() == "true");               \
+void TargetMachine::resetTargetOptions(const Function &F) const {
+#define RESET_OPTION(X, Y)                                                     \
+  do {                                                                         \
+    if (F.hasFnAttribute(Y))                                                  \
+      Options.X = (F.getAttributes()                                          \
+                       .getAttribute(AttributeSet::FunctionIndex, Y)           \
+                       .getValueAsString() == "true");                         \
   } while (0)
 
   RESET_OPTION(NoFramePointerElim, "no-frame-pointer-elim");
@@ -68,7 +66,7 @@ void TargetMachine::resetTargetOptions(const MachineFunction *MF) const {
   RESET_OPTION(UseSoftFloat, "use-soft-float");
   RESET_OPTION(DisableTailCalls, "disable-tail-calls");
 
-  TO.MCOptions.SanitizeAddress = F->hasFnAttribute(Attribute::SanitizeAddress);
+  Options.MCOptions.SanitizeAddress = F.hasFnAttribute(Attribute::SanitizeAddress);
 }
 
 /// getRelocationModel - Returns the code generation relocation model. The
@@ -172,6 +170,19 @@ void TargetMachine::setDataSections(bool V) {
   Options.DataSections = V;
 }
 
+static bool canUsePrivateLabel(const MCAsmInfo &AsmInfo,
+                               const MCSection &Section) {
+  if (!AsmInfo.isSectionAtomizableBySymbols(Section))
+    return true;
+
+  // If it is not dead stripped, it is safe to use private labels.
+  const MCSectionMachO &SMO = cast<MCSectionMachO>(Section);
+  if (SMO.hasAttribute(MachO::S_ATTR_NO_DEAD_STRIP))
+    return true;
+
+  return false;
+}
+
 void TargetMachine::getNameWithPrefix(SmallVectorImpl<char> &Name,
                                       const GlobalValue *GV, Mangler &Mang,
                                       bool MayAlwaysUsePrivate) const {
@@ -183,9 +194,9 @@ void TargetMachine::getNameWithPrefix(SmallVectorImpl<char> &Name,
   }
   SectionKind GVKind = TargetLoweringObjectFile::getKindForGlobal(GV, *this);
   const TargetLoweringObjectFile &TLOF =
-      getTargetLowering()->getObjFileLowering();
+      getSubtargetImpl()->getTargetLowering()->getObjFileLowering();
   const MCSection *TheSection = TLOF.SectionForGlobal(GV, GVKind, Mang, *this);
-  bool CannotUsePrivateLabel = TLOF.isSectionAtomizableBySymbols(*TheSection);
+  bool CannotUsePrivateLabel = !canUsePrivateLabel(*AsmInfo, *TheSection);
   Mang.getNameWithPrefix(Name, GV, CannotUsePrivateLabel);
 }
 
@@ -193,6 +204,6 @@ MCSymbol *TargetMachine::getSymbol(const GlobalValue *GV, Mangler &Mang) const {
   SmallString<60> NameStr;
   getNameWithPrefix(NameStr, GV, Mang);
   const TargetLoweringObjectFile &TLOF =
-      getTargetLowering()->getObjFileLowering();
+      getSubtargetImpl()->getTargetLowering()->getObjFileLowering();
   return TLOF.getContext().GetOrCreateSymbol(NameStr.str());
 }

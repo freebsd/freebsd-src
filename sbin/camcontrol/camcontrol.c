@@ -96,7 +96,10 @@ typedef enum {
 	CAM_CMD_SECURITY	= 0x0000001d,
 	CAM_CMD_HPA		= 0x0000001e,
 	CAM_CMD_SANITIZE	= 0x0000001f,
-	CAM_CMD_PERSIST		= 0x00000020
+	CAM_CMD_PERSIST		= 0x00000020,
+	CAM_CMD_APM		= 0x00000021,
+	CAM_CMD_AAM		= 0x00000022,
+	CAM_CMD_ATTRIB		= 0x00000023
 } cam_cmdmask;
 
 typedef enum {
@@ -216,10 +219,13 @@ static struct camcontrol_opts option_table[] = {
 	{"idle", CAM_CMD_IDLE, CAM_ARG_NONE, "t:"},
 	{"standby", CAM_CMD_STANDBY, CAM_ARG_NONE, "t:"},
 	{"sleep", CAM_CMD_SLEEP, CAM_ARG_NONE, ""},
+	{"apm", CAM_CMD_APM, CAM_ARG_NONE, "l:"},
+	{"aam", CAM_CMD_AAM, CAM_ARG_NONE, "l:"},
 	{"fwdownload", CAM_CMD_DOWNLOAD_FW, CAM_ARG_NONE, "f:ys"},
 	{"security", CAM_CMD_SECURITY, CAM_ARG_NONE, "d:e:fh:k:l:qs:T:U:y"},
 	{"hpa", CAM_CMD_HPA, CAM_ARG_NONE, "Pflp:qs:U:y"},
 	{"persist", CAM_CMD_PERSIST, CAM_ARG_NONE, "ai:I:k:K:o:ps:ST:U"},
+	{"attrib", CAM_CMD_ATTRIB, CAM_ARG_NONE, "a:ce:F:p:r:s:T:w:V:"},
 #endif /* MINIMALISTIC */
 	{"help", CAM_CMD_USAGE, CAM_ARG_NONE, NULL},
 	{"-?", CAM_CMD_USAGE, CAM_ARG_NONE, NULL},
@@ -1406,7 +1412,7 @@ atacapprint(struct ata_params *parm)
 		parm->enabled.command2 & ATA_SUPPORT_APM ? "yes" : "no");
 		if (parm->support.command2 & ATA_SUPPORT_APM) {
 			printf("	%d/0x%02X\n",
-			    parm->apm_value, parm->apm_value);
+			    parm->apm_value & 0xff, parm->apm_value & 0xff);
 		} else
 			printf("\n");
 	printf("automatic acoustic management  %s	%s",
@@ -2562,12 +2568,11 @@ atahpa(struct cam_device *device, int retry_count, int timeout,
 	struct ata_params *ident_buf;
 	struct ccb_getdev cgd;
 	struct ata_set_max_pwd pwd;
-	int error, confirm, quiet, c, action, actions, setpwd, persist;
+	int error, confirm, quiet, c, action, actions, persist;
 	int security, is48bit, pwdsize;
 	u_int64_t hpasize, maxsize;
 
 	actions = 0;
-	setpwd = 0;
 	confirm = 0;
 	quiet = 0;
 	maxsize = 0;
@@ -7404,7 +7409,7 @@ getdevid(struct cam_devitem *item)
 retry:
 	ccb->ccb_h.func_code = XPT_DEV_ADVINFO;
 	ccb->ccb_h.flags = CAM_DIR_IN;
-	ccb->cdai.flags = 0;
+	ccb->cdai.flags = CDAI_FLAG_NONE;
 	ccb->cdai.buftype = CDAI_TYPE_SCSI_DEVID;
 	ccb->cdai.bufsiz = item->device_id_len;
 	if (item->device_id_len != 0)
@@ -7964,39 +7969,83 @@ atapm(struct cam_device *device, int argc, char **argv,
 	else
 		sc = 253;
 
-	cam_fill_ataio(&ccb->ataio,
-		      retry_count,
-		      NULL,
-		      /*flags*/CAM_DIR_NONE,
-		      MSG_SIMPLE_Q_TAG,
-		      /*data_ptr*/NULL,
-		      /*dxfer_len*/0,
-		      timeout ? timeout : 30 * 1000);
-	ata_28bit_cmd(&ccb->ataio, cmd, 0, 0, sc);
+	retval = ata_do_28bit_cmd(device,
+	    ccb,
+	    /*retries*/retry_count,
+	    /*flags*/CAM_DIR_NONE,
+	    /*protocol*/AP_PROTO_NON_DATA,
+	    /*tag_action*/MSG_SIMPLE_Q_TAG,
+	    /*command*/cmd,
+	    /*features*/0,
+	    /*lba*/0,
+	    /*sector_count*/sc,
+	    /*data_ptr*/NULL,
+	    /*dxfer_len*/0,
+	    /*timeout*/timeout ? timeout : 30 * 1000,
+	    /*quiet*/1);
 
-	/* Disable freezing the device queue */
-	ccb->ccb_h.flags |= CAM_DEV_QFRZDIS;
+	cam_freeccb(ccb);
+	return (retval);
+}
 
-	if (arglist & CAM_ARG_ERR_RECOVER)
-		ccb->ccb_h.flags |= CAM_PASS_ERR_RECOVER;
+static int
+ataaxm(struct cam_device *device, int argc, char **argv,
+		 char *combinedopt, int retry_count, int timeout)
+{
+	union ccb *ccb;
+	int retval = 0;
+	int l = -1;
+	int c;
+	u_char cmd, sc;
 
-	if (cam_send_ccb(device, ccb) < 0) {
-		warn("error sending command");
+	ccb = cam_getccb(device);
 
-		if (arglist & CAM_ARG_VERBOSE)
-			cam_error_print(device, ccb, CAM_ESF_ALL,
-					CAM_EPF_ALL, stderr);
-
-		retval = 1;
-		goto bailout;
+	if (ccb == NULL) {
+		warnx("%s: error allocating ccb", __func__);
+		return (1);
 	}
 
-	if ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
-		cam_error_print(device, ccb, CAM_ESF_ALL, CAM_EPF_ALL, stderr);
-		retval = 1;
-		goto bailout;
+	while ((c = getopt(argc, argv, combinedopt)) != -1) {
+		switch (c) {
+		case 'l':
+			l = atoi(optarg);
+			break;
+		default:
+			break;
+		}
 	}
-bailout:
+	sc = 0;
+	if (strcmp(argv[1], "apm") == 0) {
+		if (l == -1)
+			cmd = 0x85;
+		else {
+			cmd = 0x05;
+			sc = l;
+		}
+	} else /* aam */ {
+		if (l == -1)
+			cmd = 0xC2;
+		else {
+			cmd = 0x42;
+			sc = l;
+		}
+	}
+
+	retval = ata_do_28bit_cmd(device,
+	    ccb,
+	    /*retries*/retry_count,
+	    /*flags*/CAM_DIR_NONE,
+	    /*protocol*/AP_PROTO_NON_DATA,
+	    /*tag_action*/MSG_SIMPLE_Q_TAG,
+	    /*command*/ATA_SETFEATURES,
+	    /*features*/cmd,
+	    /*lba*/0,
+	    /*sector_count*/sc,
+	    /*data_ptr*/NULL,
+	    /*dxfer_len*/0,
+	    /*timeout*/timeout ? timeout : 30 * 1000,
+	    /*quiet*/1);
+
 	cam_freeccb(ccb);
 	return (retval);
 }
@@ -8009,7 +8058,7 @@ usage(int printlong)
 
 	fprintf(printlong ? stdout : stderr,
 "usage:  camcontrol <command>  [device id][generic args][command args]\n"
-"        camcontrol devlist    [-v]\n"
+"        camcontrol devlist    [-b] [-v]\n"
 #ifndef MINIMALISTIC
 "        camcontrol periphlist [dev_id][-n dev_name] [-u unit]\n"
 "        camcontrol tur        [dev_id][generic args]\n"
@@ -8058,6 +8107,8 @@ usage(int printlong)
 "        camcontrol idle       [dev_id][generic args][-t time]\n"
 "        camcontrol standby    [dev_id][generic args][-t time]\n"
 "        camcontrol sleep      [dev_id][generic args]\n"
+"        camcontrol apm        [dev_id][generic args][-l level]\n"
+"        camcontrol aam        [dev_id][generic args][-l level]\n"
 "        camcontrol fwdownload [dev_id][generic args] <-f fw_image> [-y][-s]\n"
 "        camcontrol security   [dev_id][generic args]\n"
 "                              <-d pwd | -e pwd | -f | -h pwd | -k pwd>\n"
@@ -8068,6 +8119,9 @@ usage(int printlong)
 "        camcontrol persist    [dev_id][generic args] <-i action|-o action>\n"
 "                              [-a][-I tid][-k key][-K sa_key][-p][-R rtp]\n"
 "                              [-s scope][-S][-T type][-U]\n"
+"        camcontrol attrib     [dev_id][generic args] <-r action|-w attr>\n"
+"                              [-a attr_num][-c][-e elem][-F form1,form1]\n"
+"                              [-p part][-s start][-T type][-V vol]\n"
 #endif /* MINIMALISTIC */
 "        camcontrol help\n");
 	if (!printlong)
@@ -8107,6 +8161,7 @@ usage(int printlong)
 "fwdownload  program firmware of the named device with the given image\n"
 "security    report or send ATA security commands to the named device\n"
 "persist     send the SCSI PERSISTENT RESERVE IN or OUT commands\n"
+"attrib      send the SCSI READ or WRITE ATTRIBUTE commands\n"
 "help        this message\n"
 "Device Identifiers:\n"
 "bus:target        specify the bus and target, lun defaults to 0\n"
@@ -8257,6 +8312,20 @@ usage(int printlong)
 "-T res_type       specify the reservation type: read_shared, wr_ex, rd_ex,\n"
 "                  ex_ac, wr_ex_ro, ex_ac_ro, wr_ex_ar, ex_ac_ar\n"
 "-U                unregister the current initiator for register_move\n"
+"attrib arguments:\n"
+"-r action         specify attr_values, attr_list, lv_list, part_list, or\n"
+"                  supp_attr\n"
+"-w attr           specify an attribute to write, one -w argument per attr\n"
+"-a attr_num       only display this attribute number\n"
+"-c                get cached attributes\n"
+"-e elem_addr      request attributes for the given element in a changer\n"
+"-F form1,form2    output format, comma separated list: text_esc, text_raw,\n"
+"                  nonascii_esc, nonascii_trim, nonascii_raw, field_all,\n"
+"                  field_none, field_desc, field_num, field_size, field_rw\n"
+"-p partition      request attributes for the given partition\n"
+"-s start_attr     request attributes starting at the given number\n"
+"-T elem_type      specify the element type (used with -e)\n"
+"-V logical_vol    specify the logical volume ID\n"
 );
 #endif /* MINIMALISTIC */
 }
@@ -8578,6 +8647,11 @@ main(int argc, char **argv)
 			error = atapm(cam_dev, argc, argv,
 				      combinedopt, retry_count, timeout);
 			break;
+		case CAM_CMD_APM:
+		case CAM_CMD_AAM:
+			error = ataaxm(cam_dev, argc, argv,
+				      combinedopt, retry_count, timeout);
+			break;
 		case CAM_CMD_SECURITY:
 			error = atasecurity(cam_dev, retry_count, timeout,
 					    argc, argv, combinedopt);
@@ -8593,6 +8667,11 @@ main(int argc, char **argv)
 			break;
 		case CAM_CMD_PERSIST:
 			error = scsipersist(cam_dev, argc, argv, combinedopt,
+			    retry_count, timeout, arglist & CAM_ARG_VERBOSE,
+			    arglist & CAM_ARG_ERR_RECOVER);
+			break;
+		case CAM_CMD_ATTRIB:
+			error = scsiattrib(cam_dev, argc, argv, combinedopt,
 			    retry_count, timeout, arglist & CAM_ARG_VERBOSE,
 			    arglist & CAM_ARG_ERR_RECOVER);
 			break;

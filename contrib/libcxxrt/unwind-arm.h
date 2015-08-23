@@ -36,6 +36,8 @@
 	_URC_FATAL_PHASE1_ERROR = _URC_FAILURE
 } _Unwind_Reason_Code;
 
+typedef int _Unwind_Action;
+
 typedef uint32_t _Unwind_State;
 #ifdef __clang__
 static const _Unwind_State _US_VIRTUAL_UNWIND_FRAME  = 0;

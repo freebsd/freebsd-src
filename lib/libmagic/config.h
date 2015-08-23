@@ -1,5 +1,13 @@
 /* $FreeBSD$ */
 
+/* Get __FreeBSD_version. */
+#include <osreldate.h>
+
+/* Only specific versions of FreeBSD support xlocale */
+#if __FreeBSD_version >= 1000002 || (__FreeBSD_version < 1000000 && __FreeBSD_version >= 900506)
+#define FREEBSD_XLOCALE_SUPPORT 1
+#endif
+
 /* config.h.  Generated from config.h.in by configure.  */
 /* config.h.in.  Generated from configure.ac by autoheader.  */
 
@@ -48,7 +56,9 @@
 #define HAVE_FORK 1
 
 /* Define to 1 if you have the `freelocale' function. */
+#ifdef FREEBSD_XLOCALE_SUPPORT
 #define HAVE_FREELOCALE 1
+#endif
 
 /* Define to 1 if fseeko (and presumably ftello) exists and is declared. */
 #define HAVE_FSEEKO 1
@@ -64,6 +74,9 @@
 
 /* Define to 1 if you have the `getpagesize' function. */
 #define HAVE_GETPAGESIZE 1
+
+/* Define to 1 if you have the `gmtime_r' function. */
+#define HAVE_GMTIME_R 1
 
 /* Define to 1 if the system has the type `intptr_t'. */
 #define HAVE_INTPTR_T 1
@@ -82,6 +95,9 @@
 
 /* Define to 1 if you have the <locale.h> header file. */
 #define HAVE_LOCALE_H 1
+
+/* Define to 1 if you have the `localtime_r' function. */
+#define HAVE_LOCALTIME_R 1
 
 /* Define to 1 if mbrtowc and mbstate_t are properly declared. */
 #define HAVE_MBRTOWC 1
@@ -102,13 +118,21 @@
 #define HAVE_MMAP 1
 
 /* Define to 1 if you have the `newlocale' function. */
+#ifdef FREEBSD_XLOCALE_SUPPORT
 #define HAVE_NEWLOCALE 1
+#endif
 
 /* Define to 1 if you have the `pread' function. */
 #define HAVE_PREAD 1
 
 /* Define to 1 if you have the `setlocale' function. */
 #define HAVE_SETLOCALE 1
+
+/* Define to 1 if you have the <signal.h> header file. */
+#define HAVE_SIGNAL_H 1
+
+/* Have sig_t type */
+#define HAVE_SIG_T 1
 
 /* Define to 1 if you have the <stddef.h> header file. */
 #define HAVE_STDDEF_H 1
@@ -195,7 +219,9 @@
 #define HAVE_UNISTD_H 1
 
 /* Define to 1 if you have the `uselocale' function. */
+#ifdef FREEBSD_XLOCALE_SUPPORT
 #define HAVE_USELOCALE 1
+#endif
 
 /* Define to 1 if you have the `utime' function. */
 #define HAVE_UTIME 1
@@ -235,7 +261,9 @@
 #define HAVE_WORKING_VFORK 1
 
 /* Define to 1 if you have the <xlocale.h> header file. */
+#ifdef FREEBSD_XLOCALE_SUPPORT
 #define HAVE_XLOCALE_H 1
+#endif
 
 /* Define to 1 if you have the <zlib.h> header file. */
 #define HAVE_ZLIB_H 1
@@ -262,7 +290,7 @@
 #define PACKAGE_NAME "file"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "file 5.22"
+#define PACKAGE_STRING "file 5.23"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "file"
@@ -271,7 +299,7 @@
 #define PACKAGE_URL ""
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "5.22"
+#define PACKAGE_VERSION "5.23"
 
 /* Define to 1 if you have the ANSI C header files. */
 #define STDC_HEADERS 1
@@ -302,7 +330,7 @@
 
 
 /* Version number of package */
-#define VERSION "5.22"
+#define VERSION "5.23"
 
 /* Define WORDS_BIGENDIAN to 1 if your processor stores words with the most
    significant byte first (like Motorola and SPARC, unlike Intel). */

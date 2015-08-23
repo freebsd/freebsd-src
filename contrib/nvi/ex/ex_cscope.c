@@ -61,15 +61,15 @@ find c|d|e|f|g|i|s|t buffer|pattern\n\
       s: find all uses of name\n\
       t: find assignments to name"
 
-static int cscope_add __P((SCR *, EXCMD *, CHAR_T *));
-static int cscope_find __P((SCR *, EXCMD*, CHAR_T *));
-static int cscope_help __P((SCR *, EXCMD *, CHAR_T *));
-static int cscope_kill __P((SCR *, EXCMD *, CHAR_T *));
-static int cscope_reset __P((SCR *, EXCMD *, CHAR_T *));
+static int cscope_add(SCR *, EXCMD *, CHAR_T *);
+static int cscope_find(SCR *, EXCMD*, CHAR_T *);
+static int cscope_help(SCR *, EXCMD *, CHAR_T *);
+static int cscope_kill(SCR *, EXCMD *, CHAR_T *);
+static int cscope_reset(SCR *, EXCMD *, CHAR_T *);
 
 typedef struct _cc {
 	char	 *name;
-	int	(*function) __P((SCR *, EXCMD *, CHAR_T *));
+	int	(*function)(SCR *, EXCMD *, CHAR_T *);
 	char	 *help_msg;
 	char	 *usage_msg;
 } CC;
@@ -88,23 +88,23 @@ static CC const cscope_cmds[] = {
 	{ NULL }
 };
 
-static TAGQ	*create_cs_cmd __P((SCR *, char *, size_t *));
-static int	 csc_help __P((SCR *, char *));
-static void	 csc_file __P((SCR *,
-		    CSC *, char *, char **, size_t *, int *));
-static int	 get_paths __P((SCR *, CSC *));
-static CC const	*lookup_ccmd __P((char *));
-static int	 parse __P((SCR *, CSC *, TAGQ *, int *));
-static int	 read_prompt __P((SCR *, CSC *));
-static int	 run_cscope __P((SCR *, CSC *, char *));
-static int	 start_cscopes __P((SCR *, EXCMD *));
-static int	 terminate __P((SCR *, CSC *, int));
+static TAGQ	*create_cs_cmd(SCR *, char *, size_t *);
+static int	 csc_help(SCR *, char *);
+static void	 csc_file(SCR *,
+		    CSC *, char *, char **, size_t *, int *);
+static int	 get_paths(SCR *, CSC *);
+static CC const	*lookup_ccmd(char *);
+static int	 parse(SCR *, CSC *, TAGQ *, int *);
+static int	 read_prompt(SCR *, CSC *);
+static int	 run_cscope(SCR *, CSC *, char *);
+static int	 start_cscopes(SCR *, EXCMD *);
+static int	 terminate(SCR *, CSC *, int);
 
 /*
  * ex_cscope --
  *	Perform an ex cscope.
  *
- * PUBLIC: int ex_cscope __P((SCR *, EXCMD *));
+ * PUBLIC: int ex_cscope(SCR *, EXCMD *);
  */
 int
 ex_cscope(SCR *sp, EXCMD *cmdp)
@@ -861,7 +861,7 @@ csc_help(SCR *sp, char *cmd)
 			return (1);
 		} else {
 			ex_printf(sp,
-		          "Command: %s (%s)\n", ccp->name, ccp->help_msg);
+			  "Command: %s (%s)\n", ccp->name, ccp->help_msg);
 			ex_printf(sp, "  Usage: %s\n", ccp->usage_msg);
 			return (0);
 		}
@@ -965,7 +965,7 @@ cscope_reset(SCR *sp, EXCMD *cmdp, CHAR_T *notusedp)
  * cscope_end --
  *	End all cscope connections.
  *
- * PUBLIC: int cscope_end __P((SCR *));
+ * PUBLIC: int cscope_end(SCR *);
  */
 int
 cscope_end(SCR *sp)
@@ -982,7 +982,7 @@ cscope_end(SCR *sp)
  * cscope_display --
  *	Display current connections.
  *
- * PUBLIC: int cscope_display __P((SCR *));
+ * PUBLIC: int cscope_display(SCR *);
  */
 int
 cscope_display(SCR *sp)
@@ -1006,7 +1006,7 @@ cscope_display(SCR *sp)
  * cscope_search --
  *	Search a file for a cscope entry.
  *
- * PUBLIC: int cscope_search __P((SCR *, TAGQ *, TAG *));
+ * PUBLIC: int cscope_search(SCR *, TAGQ *, TAG *);
  */
 int
 cscope_search(SCR *sp, TAGQ *tqp, TAG *tp)

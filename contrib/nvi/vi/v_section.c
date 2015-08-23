@@ -59,7 +59,7 @@ static const char sccsid[] = "$Id: v_section.c,v 10.10 2001/06/25 15:19:35 skimo
  * a section, it did NOT include the matched line.  If it matched a }, it
  * did include the line.  No clue why.
  *
- * PUBLIC: int v_sectionf __P((SCR *, VICMD *));
+ * PUBLIC: int v_sectionf(SCR *, VICMD *);
  */
 int
 v_sectionf(SCR *sp, VICMD *vp)
@@ -166,7 +166,7 @@ ret2:	if (ISMOTION(vp)) {
  * v_sectionb -- [count][[
  *	Move backward count sections/functions.
  *
- * PUBLIC: int v_sectionb __P((SCR *, VICMD *));
+ * PUBLIC: int v_sectionb(SCR *, VICMD *);
  */
 int
 v_sectionb(SCR *sp, VICMD *vp)

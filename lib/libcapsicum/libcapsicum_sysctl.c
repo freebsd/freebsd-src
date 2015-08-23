@@ -30,10 +30,10 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/nv.h>
+
 #include <errno.h>
 #include <string.h>
-
-#include <nv.h>
 
 #include "libcapsicum.h"
 #include "libcapsicum_sysctl.h"
@@ -63,7 +63,7 @@ cap_sysctlbyname(cap_channel_t *chan, const char *name, void *oldp,
 		nvlist_add_number(nvl, "oldlen", (uint64_t)*oldlenp);
 	if (newp != NULL)
 		nvlist_add_binary(nvl, "newp", newp, newlen);
-	nvl = cap_xfer_nvlist(chan, nvl);
+	nvl = cap_xfer_nvlist(chan, nvl, 0);
 	if (nvl == NULL)
 		return (-1);
 	if (nvlist_get_number(nvl, "error") != 0) {

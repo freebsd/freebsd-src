@@ -293,8 +293,8 @@ check_cancel(struct pthread *curthread, ucontext_t *ucp)
 	 * 2) because _thr_ast() may be called by
 	 *    THR_CRITICAL_LEAVE() which is used by rtld rwlock
 	 *    and any libthr internal locks, when rtld rwlock
-	 *    is used, it is mostly caused my an unresolved PLT.
-	 *    those routines may clear the TDP_WAKEUP flag by
+	 *    is used, it is mostly caused by an unresolved PLT.
+	 *    Those routines may clear the TDP_WAKEUP flag by
 	 *    invoking some system calls, in those cases, we
 	 *    also should reenable the flag.
 	 * 3) thread is in sigsuspend(), and the syscall insists
@@ -515,23 +515,6 @@ _thr_signal_deinit(void)
 }
 
 int
-__thr_pause(void)
-{
-	sigset_t oset;
-
-	if (_sigprocmask(SIG_BLOCK, NULL, &oset) == -1)
-		return (-1);
-	return (__thr_sigsuspend(&oset));
-}
-
-int
-__thr_raise(int sig)
-{
-
-	return (_thr_send_sig(_get_curthread(), sig));
-}
-
-int
 __thr_sigaction(int sig, const struct sigaction *act, struct sigaction *oact)
 {
 	struct sigaction newact, oldact, oldact2;
@@ -621,7 +604,8 @@ __weak_reference(_pthread_sigmask, pthread_sigmask);
 int
 _pthread_sigmask(int how, const sigset_t *set, sigset_t *oset)
 {
-	if (_sigprocmask(how, set, oset))
+
+	if (__thr_sigprocmask(how, set, oset))
 		return (errno);
 	return (0);
 }

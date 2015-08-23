@@ -12,8 +12,8 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_SOURCELOCATION_H
-#define LLVM_CLANG_SOURCELOCATION_H
+#ifndef LLVM_CLANG_BASIC_SOURCELOCATION_H
+#define LLVM_CLANG_BASIC_SOURCELOCATION_H
 
 #include "clang/Basic/LLVM.h"
 #include "llvm/Support/Compiler.h"
@@ -292,7 +292,6 @@ public:
 
   const char *getCharacterData(bool *Invalid = nullptr) const;
 
-  const llvm::MemoryBuffer* getBuffer(bool *Invalid = nullptr) const;
 
   /// \brief Return a StringRef to the source buffer data for the
   /// specified FileID.

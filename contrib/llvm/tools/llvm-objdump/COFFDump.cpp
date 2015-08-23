@@ -260,11 +260,8 @@ static void printLoadConfiguration(const COFFObjectFile *Obj) {
   if (!PE32Header)
     return;
 
-  const coff_file_header *Header;
-  if (error(Obj->getCOFFHeader(Header)))
-    return;
   // Currently only x86 is supported
-  if (Header->Machine != COFF::IMAGE_FILE_MACHINE_I386)
+  if (Obj->getMachine() != COFF::IMAGE_FILE_MACHINE_I386)
     return;
 
   const data_directory *DataDir;
@@ -325,7 +322,7 @@ static void printImportTables(const COFFObjectFile *Obj) {
     const import_lookup_table_entry32 *entry;
     if (I->getImportLookupEntry(entry))
       return;
-    for (; entry->data; ++entry) {
+    for (; entry->Data; ++entry) {
       if (entry->isOrdinal()) {
         outs() << format("      % 6d\n", entry->getOrdinal());
         continue;
@@ -518,11 +515,7 @@ static void printRuntimeFunctionRels(const COFFObjectFile *Obj,
 }
 
 void llvm::printCOFFUnwindInfo(const COFFObjectFile *Obj) {
-  const coff_file_header *Header;
-  if (error(Obj->getCOFFHeader(Header)))
-    return;
-
-  if (Header->Machine != COFF::IMAGE_FILE_MACHINE_AMD64) {
+  if (Obj->getMachine() != COFF::IMAGE_FILE_MACHINE_AMD64) {
     errs() << "Unsupported image machine type "
               "(currently only AMD64 is supported).\n";
     return;

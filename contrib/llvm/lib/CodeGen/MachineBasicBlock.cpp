@@ -24,7 +24,6 @@
 #include "llvm/CodeGen/SlotIndexes.h"
 #include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/DataLayout.h"
-#include "llvm/IR/LeakDetector.h"
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCContext.h"
 #include "llvm/Support/Debug.h"
@@ -32,6 +31,7 @@
 #include "llvm/Target/TargetInstrInfo.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetRegisterInfo.h"
+#include "llvm/Target/TargetSubtargetInfo.h"
 #include <algorithm>
 using namespace llvm;
 
@@ -44,7 +44,6 @@ MachineBasicBlock::MachineBasicBlock(MachineFunction &mf, const BasicBlock *bb)
 }
 
 MachineBasicBlock::~MachineBasicBlock() {
-  LeakDetector::removeGarbageObject(this);
 }
 
 /// getSymbol - Return the MCSymbol for this basic block.
@@ -53,8 +52,7 @@ MCSymbol *MachineBasicBlock::getSymbol() const {
   if (!CachedMCSymbol) {
     const MachineFunction *MF = getParent();
     MCContext &Ctx = MF->getContext();
-    const TargetMachine &TM = MF->getTarget();
-    const char *Prefix = TM.getDataLayout()->getPrivateGlobalPrefix();
+    const char *Prefix = Ctx.getAsmInfo()->getPrivateLabelPrefix();
     CachedMCSymbol = Ctx.GetOrCreateSymbol(Twine(Prefix) + "BB" +
                                            Twine(MF->getFunctionNumber()) +
                                            "_" + Twine(getNumber()));
@@ -85,14 +83,11 @@ void ilist_traits<MachineBasicBlock>::addNodeToList(MachineBasicBlock *N) {
   for (MachineBasicBlock::instr_iterator
          I = N->instr_begin(), E = N->instr_end(); I != E; ++I)
     I->AddRegOperandsToUseLists(RegInfo);
-
-  LeakDetector::removeGarbageObject(N);
 }
 
 void ilist_traits<MachineBasicBlock>::removeNodeFromList(MachineBasicBlock *N) {
   N->getParent()->removeFromMBBNumbering(N->Number);
   N->Number = -1;
-  LeakDetector::addGarbageObject(N);
 }
 
 
@@ -107,8 +102,6 @@ void ilist_traits<MachineInstr>::addNodeToList(MachineInstr *N) {
   // use/def lists.
   MachineFunction *MF = Parent->getParent();
   N->AddRegOperandsToUseLists(MF->getRegInfo());
-
-  LeakDetector::removeGarbageObject(N);
 }
 
 /// removeNodeFromList (MI) - When we remove an instruction from a basic block
@@ -122,8 +115,6 @@ void ilist_traits<MachineInstr>::removeNodeFromList(MachineInstr *N) {
     N->RemoveRegOperandsFromUseLists(MF->getRegInfo());
 
   N->setParent(nullptr);
-
-  LeakDetector::addGarbageObject(N);
 }
 
 /// transferNodesFromList (MI) - When moving a range of instructions from one
@@ -290,7 +281,7 @@ void MachineBasicBlock::print(raw_ostream &OS, SlotIndexes *Indexes) const {
 
   OS << '\n';
 
-  const TargetRegisterInfo *TRI = MF->getTarget().getRegisterInfo();
+  const TargetRegisterInfo *TRI = MF->getSubtarget().getRegisterInfo();
   if (!livein_empty()) {
     if (Indexes) OS << '\t';
     OS << "    Live Ins:";
@@ -359,7 +350,7 @@ MachineBasicBlock::addLiveIn(unsigned PhysReg, const TargetRegisterClass *RC) {
   bool LiveIn = isLiveIn(PhysReg);
   iterator I = SkipPHIsAndLabels(begin()), E = end();
   MachineRegisterInfo &MRI = getParent()->getRegInfo();
-  const TargetInstrInfo &TII = *getParent()->getTarget().getInstrInfo();
+  const TargetInstrInfo &TII = *getParent()->getSubtarget().getInstrInfo();
 
   // Look for an existing copy.
   if (LiveIn)
@@ -390,7 +381,7 @@ void MachineBasicBlock::moveAfter(MachineBasicBlock *NewBefore) {
 }
 
 void MachineBasicBlock::updateTerminator() {
-  const TargetInstrInfo *TII = getParent()->getTarget().getInstrInfo();
+  const TargetInstrInfo *TII = getParent()->getSubtarget().getInstrInfo();
   // A block with no successors has no concerns with fall-through edges.
   if (this->succ_empty()) return;
 
@@ -645,7 +636,7 @@ bool MachineBasicBlock::canFallThrough() {
   // Analyze the branches, if any, at the end of the block.
   MachineBasicBlock *TBB = nullptr, *FBB = nullptr;
   SmallVector<MachineOperand, 4> Cond;
-  const TargetInstrInfo *TII = getParent()->getTarget().getInstrInfo();
+  const TargetInstrInfo *TII = getParent()->getSubtarget().getInstrInfo();
   if (TII->AnalyzeBranch(*this, TBB, FBB, Cond)) {
     // If we couldn't analyze the branch, examine the last instruction.
     // If the block doesn't end in a known control barrier, assume fallthrough
@@ -690,7 +681,7 @@ MachineBasicBlock::SplitCriticalEdge(MachineBasicBlock *Succ, Pass *P) {
 
   // We may need to update this's terminator, but we can't do that if
   // AnalyzeBranch fails. If this uses a jump table, we won't touch it.
-  const TargetInstrInfo *TII = MF->getTarget().getInstrInfo();
+  const TargetInstrInfo *TII = MF->getSubtarget().getInstrInfo();
   MachineBasicBlock *TBB = nullptr, *FBB = nullptr;
   SmallVector<MachineOperand, 4> Cond;
   if (TII->AnalyzeBranch(*this, TBB, FBB, Cond))
@@ -795,7 +786,8 @@ MachineBasicBlock::SplitCriticalEdge(MachineBasicBlock *Succ, Pass *P) {
   NMBB->addSuccessor(Succ);
   if (!NMBB->isLayoutSuccessor(Succ)) {
     Cond.clear();
-    MF->getTarget().getInstrInfo()->InsertBranch(*NMBB, Succ, nullptr, Cond, dl);
+    MF->getSubtarget().getInstrInfo()->InsertBranch(*NMBB, Succ, nullptr, Cond,
+                                                    dl);
 
     if (Indexes) {
       for (instr_iterator I = NMBB->instr_begin(), E = NMBB->instr_end();
@@ -823,7 +815,7 @@ MachineBasicBlock::SplitCriticalEdge(MachineBasicBlock *Succ, Pass *P) {
     NMBB->addLiveIn(*I);
 
   // Update LiveVariables.
-  const TargetRegisterInfo *TRI = MF->getTarget().getRegisterInfo();
+  const TargetRegisterInfo *TRI = MF->getSubtarget().getRegisterInfo();
   if (LV) {
     // Restore kills of virtual registers that were killed by the terminators.
     while (!KilledRegs.empty()) {
@@ -903,31 +895,8 @@ MachineBasicBlock::SplitCriticalEdge(MachineBasicBlock *Succ, Pass *P) {
   }
 
   if (MachineDominatorTree *MDT =
-      P->getAnalysisIfAvailable<MachineDominatorTree>()) {
-    // Update dominator information.
-    MachineDomTreeNode *SucccDTNode = MDT->getNode(Succ);
-
-    bool IsNewIDom = true;
-    for (const_pred_iterator PI = Succ->pred_begin(), E = Succ->pred_end();
-         PI != E; ++PI) {
-      MachineBasicBlock *PredBB = *PI;
-      if (PredBB == NMBB)
-        continue;
-      if (!MDT->dominates(SucccDTNode, MDT->getNode(PredBB))) {
-        IsNewIDom = false;
-        break;
-      }
-    }
-
-    // We know "this" dominates the newly created basic block.
-    MachineDomTreeNode *NewDTNode = MDT->addNewBlock(NMBB, this);
-
-    // If all the other predecessors of "Succ" are dominated by "Succ" itself
-    // then the new block is the new immediate dominator of "Succ". Otherwise,
-    // the new block doesn't dominate anything.
-    if (IsNewIDom)
-      MDT->changeImmediateDominator(SucccDTNode, NewDTNode);
-  }
+      P->getAnalysisIfAvailable<MachineDominatorTree>())
+    MDT->recordSplitCriticalEdge(this, Succ, NMBB);
 
   if (MachineLoopInfo *MLI = P->getAnalysisIfAvailable<MachineLoopInfo>())
     if (MachineLoop *TIL = MLI->getLoopFor(this)) {
@@ -1086,7 +1055,7 @@ bool MachineBasicBlock::CorrectExtraCFGEdges(MachineBasicBlock *DestA,
   MachineBasicBlock::succ_iterator SI = succ_begin();
   while (SI != succ_end()) {
     const MachineBasicBlock *MBB = *SI;
-    if (!SeenMBBs.insert(MBB) ||
+    if (!SeenMBBs.insert(MBB).second ||
         (MBB != DestA && MBB != DestB && !MBB->isLandingPad())) {
       // This is a superfluous edge, remove it.
       SI = removeSuccessor(SI);

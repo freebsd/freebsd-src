@@ -1,4 +1,4 @@
-/*	$NetBSD: cond.c,v 1.67 2012/11/03 13:59:27 christos Exp $	*/
+/*	$NetBSD: cond.c,v 1.68 2015/05/05 21:51:09 sjg Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -70,14 +70,14 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: cond.c,v 1.67 2012/11/03 13:59:27 christos Exp $";
+static char rcsid[] = "$NetBSD: cond.c,v 1.68 2015/05/05 21:51:09 sjg Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)cond.c	8.2 (Berkeley) 1/2/94";
 #else
-__RCSID("$NetBSD: cond.c,v 1.67 2012/11/03 13:59:27 christos Exp $");
+__RCSID("$NetBSD: cond.c,v 1.68 2015/05/05 21:51:09 sjg Exp $");
 #endif
 #endif /* not lint */
 #endif
@@ -180,6 +180,15 @@ static Token	  condPushBack=TOK_NONE;	/* Single push-back token used in
 
 static unsigned int	cond_depth = 0;  	/* current .if nesting level */
 static unsigned int	cond_min_depth = 0;  	/* depth at makefile open */
+
+/*
+ * Indicate when we should be strict about lhs of comparisons.
+ * TRUE when Cond_EvalExpression is called from Cond_Eval (.if etc)
+ * FALSE when Cond_EvalExpression is called from var.c:ApplyModifiers
+ * since lhs is already expanded and we cannot tell if 
+ * it was a variable reference or not.
+ */
+static Boolean lhsStrict;
 
 static int
 istoken(const char *str, const char *tok, size_t len)
@@ -517,7 +526,7 @@ CondCvtArg(char *str, double *value)
  */
 /* coverity:[+alloc : arg-*2] */
 static char *
-CondGetString(Boolean doEval, Boolean *quoted, void **freeIt)
+CondGetString(Boolean doEval, Boolean *quoted, void **freeIt, Boolean strictLHS)
 {
     Buffer buf;
     char *cp;
@@ -601,6 +610,16 @@ CondGetString(Boolean doEval, Boolean *quoted, void **freeIt)
 	    condExpr--;			/* don't skip over next char */
 	    break;
 	default:
+	    if (strictLHS && !qt && *start != '$' &&
+		!isdigit((unsigned char) *start)) {
+		/* lhs must be quoted, a variable reference or number */
+		if (*freeIt) {
+		    free(*freeIt);
+		    *freeIt = NULL;
+		}
+		str = NULL;
+		goto cleanup;
+	    }
 	    Buf_AddByte(&buf, *condExpr);
 	    break;
 	}
@@ -648,7 +667,7 @@ compare_expression(Boolean doEval)
      * Parse the variable spec and skip over it, saving its
      * value in lhs.
      */
-    lhs = CondGetString(doEval, &lhsQuoted, &lhsFree);
+    lhs = CondGetString(doEval, &lhsQuoted, &lhsFree, lhsStrict);
     if (!lhs)
 	goto done;
 
@@ -709,7 +728,7 @@ compare_expression(Boolean doEval)
 	goto done;
     }
 
-    rhs = CondGetString(doEval, &rhsQuoted, &rhsFree);
+    rhs = CondGetString(doEval, &rhsQuoted, &rhsFree, FALSE);
     if (!rhs)
 	goto done;
 
@@ -1135,13 +1154,15 @@ CondE(Boolean doEval)
  *-----------------------------------------------------------------------
  */
 int
-Cond_EvalExpression(const struct If *info, char *line, Boolean *value, int eprint)
+Cond_EvalExpression(const struct If *info, char *line, Boolean *value, int eprint, Boolean strictLHS)
 {
     static const struct If *dflt_info;
     const struct If *sv_if_info = if_info;
     char *sv_condExpr = condExpr;
     Token sv_condPushBack = condPushBack;
     int rval;
+
+    lhsStrict = strictLHS;
 
     while (*line == ' ' || *line == '\t')
 	line++;
@@ -1359,7 +1380,7 @@ Cond_Eval(char *line)
     }
 
     /* And evaluate the conditional expresssion */
-    if (Cond_EvalExpression(ifp, line, &value, 1) == COND_INVALID) {
+    if (Cond_EvalExpression(ifp, line, &value, 1, TRUE) == COND_INVALID) {
 	/* Syntax error in conditional, error message already output. */
 	/* Skip everything to matching .endif */
 	cond_state[cond_depth] = SKIP_TO_ELSE;

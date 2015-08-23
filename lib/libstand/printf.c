@@ -187,7 +187,7 @@ ksprintn(char *nbuf, uintmax_t num, int base, int *lenp, int upper)
  * the next characters (up to a control character, i.e. a character <= 32),
  * give the name of the register.  Thus:
  *
- *	kvprintf("reg=%b\n", 3, "\10\2BITTWO\1BITONE\n");
+ *	kvprintf("reg=%b\n", 3, "\10\2BITTWO\1BITONE");
  *
  * would produce output:
  *
@@ -500,7 +500,7 @@ number:
 			while (percent < fmt)
 				PCHAR(*percent++);
 			/*
-			 * Since we ignore an formatting argument it is no 
+			 * Since we ignore a formatting argument it is no
 			 * longer safe to obey the remaining formatting
 			 * arguments as the arguments will no longer match
 			 * the format specs.

@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 2, 2014
+.Dd February 20, 2015
 .Dt RELEASE 7
 .Os
 .Sh NAME
@@ -256,6 +256,15 @@ Set to a non-empty value to compress the release images with
 The original
 .Pq uncompressed
 images are not removed.
+.It Va XZ_THREADS Pq Vt int
+Set to the number of threads
+.Xr xz 1
+should use when compressing images.
+By default,
+.Va XZ_THREADS
+is set to
+.Va 0 ,
+which uses all available cores on the system.
 .It Va VCSCMD
 The command run to obtain the source trees.
 Defaults to
@@ -406,6 +415,57 @@ See
 for valid format values
 .Pq requires version 20140927 or later .
 .El
+.Pp
+For a list of supported
+.Va VMFORMATS
+values
+.Pq including cloud hosting provider formats
+along with a brief description, run:
+.Bd -literal -offset indent
+cd /usr/src
+make -C release list-vmtargets
+.Ed
+.Sh CLOUD HOSTING MACHINE IMAGES
+The
+.Fx
+release build tools support building virtual machine images for various
+cloud hosting providers, each with their own specific configuration to
+include support for each hosting provider by default.
+.Pp
+The following
+.Xr make 1
+environment variables are supported:
+.Pp
+.Bl -tag -width Ev
+.It Va CLOUDWARE
+Set to a list of one or more cloud hosting providers, enclosed in quotes.
+Requires
+.Va WITH_CLOUDWARE
+to also be set.
+.It Va WITH_CLOUDWARE
+Set to a non-empty value to enable building virtual machine images
+for various cloud hosting providers.
+Requires
+.Va CLOUDWARE
+to also be set.
+.El
+.Pp
+Additionally, the
+.Va CLOUDWARE
+and
+.Va WITH_CLOUDWARE
+variables can be added to
+.Pa release.conf ,
+and used in conjunction with
+.Pa release.sh .
+.Pp
+For a list of supported
+.Va CLOUDWARE
+values, run:
+.Bd -literal -offset indent
+cd /usr/src
+make -C release list-cloudware
+.Ed
 .Sh MAKEFILE TARGETS
 The release makefile
 .Pq Pa src/release/Makefile
@@ -470,6 +530,23 @@ target requires the
 .Va WITH_VMIMAGES
 .Xr make 1
 envirionment variable to be set to a non-null value.
+.It Cm vm-cloudware
+Builds
+.Fx
+virtual machine images for various cloud hosting providers.
+See
+.Qq CLOUD HOSTING MACHINE IMAGES
+for implementation details.
+.It Cm list-cloudware
+Displays the list of valid
+.Va CLOUDWARE
+values.
+.It Cm list-vmtargets
+Displays the list of valid
+.Va VMFORMAT
+and
+.Va CLOUDWARE
+values.
 .El
 .Pp
 Major subtargets called by targets above:
@@ -478,7 +555,7 @@ Major subtargets called by targets above:
 Generates all the distribution archives
 .Pq base, kernel, ports, doc
 applicable on this platform.
-.It Cm system
+.It Cm disc1
 Builds a bootable installation system containing all the distribution files
 packaged by the
 .Cm packagesystem
@@ -576,8 +653,11 @@ Typically, one only needs to set
 .It Pa /usr/src/Makefile
 .It Pa /usr/src/Makefile.inc1
 .It Pa /usr/src/release/Makefile
+.It Pa /usr/src/release/Makefile.vm
 .It Pa /usr/src/release/release.sh
 .It Pa /usr/src/release/release.conf.sample
+.It Pa /usr/src/release/tools/*.conf
+.It Pa /usr/src/release/tools/vmimage.subr
 .El
 .Sh EXAMPLES
 The following sequence of commands can be used to build a

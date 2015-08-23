@@ -12,14 +12,15 @@
 
 libxo - A Library for Generating Text, XML, JSON, and HTML Output
 
-You live in the present, but you want to live in the future.  You'd
-love a flying car, but need to get to work today.  You want to support
-features like XML, JSON, and HTML rendering to allow integration with
-NETCONF, REST, and web browsers, but you need to make text output for
-command line users.  And you don't want multiple code paths that can't
-help but get out of sync.  None of this "if (xml) {... } else {...}"
-logic.  And ifdefs are right out.  But you'd really, really like all
-the fancy features that modern encoding formats can provide.
+You want to prepare for the future, but you need to live in the
+present.  You'd love a flying car, but need to get to work today.  You
+want to support features like XML, JSON, and HTML rendering to allow
+integration with NETCONF, REST, and web browsers, but you need to make
+text output for command line users.  And you don't want multiple code
+paths that can't help but get out of sync.  None of this "if (xml)
+{... } else {...}"  logic.  And ifdefs are right out.  But you'd
+really, really like all the fancy features that modern encoding
+formats can provide.  libxo can help.
 
 The libxo library allows an application to generate text, XML, JSON,
 and HTML output using a common set of function calls.  The application
@@ -83,31 +84,37 @@ The latest release of libxo is available at:
 
   https://github.com/Juniper/libxo/releases
 
-We are following the branching scheme from 
-^http://nvie.com/posts/a-successful-git-branching-model/^
-which means we will do development under the "develop" branch, and
-release from the master.  To clone a developer tree, run the following
+We are following the branching scheme from
+^http://nvie.com/posts/a-successful-git-branching-model/^ which means
+we will do development under the "develop" branch, and release from
+the "master" branch.  To clone a developer tree, run the following
 command:
 
   git clone https://github.com/Juniper/libxo.git -b develop
 
-We're using semantic release numbering.
+We're using semantic release numbering, as defined in
+^http://semver.org/spec/v2.0.0.html^.
+
+libxo is open source, distributed under the BSD license.  It
+is shipped as part of FreeBSD 11.0.
 
 * Overview
 
 Most unix commands emit text output aimed at humans.  It is designed
-to be parsed and understood by a user.  Humans are gifted at extracted
-details and pattern matching.  Often programmers need to extract
-information from this human-oriented output.  Programmers use tools
-like grep, awk, and regular expressions to ferret out the pieces of
-information they need.  Such solutions are fragile and require
-updates when output contents change or evolve, requiring testing and
-validation.
+to be parsed and understood by a user.  Humans are gifted at
+extracting details and pattern matching in such output.  Often
+programmers need to extract information from this human-oriented
+output.  Programmers use tools like grep, awk, and regular expressions
+to ferret out the pieces of information they need.  Such solutions are
+fragile and require maintenance when output contents change or evolve,
+along with testing and validation.
 
-Modern tool developers favors encoding schemes like XML and JSON,
+Modern tool developers favor encoding schemes like XML and JSON,
 which allow trivial parsing and extraction of data.  Such formats are
 simple, well understood, hierarchical, easily parsed, and often
-integrate easier with common tools and environments.
+integrate easier with common tools and environments.  Changes to
+content can be done in ways that do not break existing users of the
+data, which can reduce maintenance costs and increase feature velocity.
 
 In addition, modern reality means that more output ends up in web
 browsers than in terminals, making HTML output valuable.
@@ -127,7 +134,7 @@ A single libxo function call in source code is all that's required:
       <host>my-box</host>
       <domain>example.com</domain>
     JSON:
-      "host": my-box",
+      "host": "my-box",
       "domain": "example.com"
       
 For brevity, the HTML output is emitted.
@@ -221,17 +228,17 @@ data, including data type, description, and an XPath location.
     <div class="line">
       <div class="data" data-tag="blocks">36</div>
       <div class="padding">      </div>
-      <div class="data data-tag="path">./src</div>
+      <div class="data" data-tag="path">./src</div>
     </div>
     <div class="line">
       <div class="data" data-tag="blocks">40</div>
       <div class="padding">      </div>
-      <div class="data data-tag="path">./bin</div>
+      <div class="data" data-tag="path">./bin</div>
     </div>
     <div class="line">
       <div class="data" data-tag="blocks">90</div>
       <div class="padding">      </div>
-      <div class="data data-tag="path">./</div>
+      <div class="data" data-tag="path">./</div>
     </div>
 
 ** Format Strings @format-strings@
@@ -278,7 +285,8 @@ content.  The roles are listed below; only one role is permitted:
 |---+--------------+-------------------------------------------------|
 | M | Name         | Description                                     |
 |---+--------------+-------------------------------------------------|
-| D | decoration   | Field is non-text (e.g. colon, comma)           |
+| C | color/effect | Field has color and effect controls             |
+| D | decoration   | Field is non-text (e.g., colon, comma)          |
 | E | error        | Field is an error message                       |
 | L | label        | Field is text that prefixes a value             |
 | N | note         | Field is text that follows a value              |
@@ -290,6 +298,56 @@ content.  The roles are listed below; only one role is permitted:
 | [ | start anchor | Begin a section of anchored variable-width text |
 | ] | stop anchor  | End a section of anchored variable-width text   |
 |---+--------------+-------------------------------------------------|
+
+**** The Color Role ({C:})
+
+Colors and effects control how text values are displayed; they are
+used for display styles (TEXT and HTML).  The color content can be
+either static, when placed directly within the field descriptor, or a
+printf-style format descriptor can be used, if preceded by a slash ("/"):
+
+    xo_emit("{C:bold}{Lwc:Cost}{:cost/%u}{C:reset}\n", cost);
+    xo_emit("{C:/fg-%s,bg-%s}{Lwc:Cost}{:cost/%u}{C:reset}\n",
+            fg_color, bg_color, cost);
+
+The content should be a comma-separated list of zero or more colors or
+display effects.  Colors and effects remain in effect until
+modified by other "C" roles.  If the content is empty, the "reset"
+action is performed.
+
+|---------------+-------------------------------------------------|
+|  Name         | Description                                     |
+|---------------+-------------------------------------------------|
+|  bg-XXXXX     | Change background color                         |
+|  bold         | Start bold text effect                          |
+|  fg-XXXXX     | Change foreground color                         |
+|  inverse      | Start inverse (aka reverse) text effect         |
+|  no-bold      | Stop bold text effect                           |
+|  no-inverse   | Stop inverse (aka reverse) text effect          |
+|  no-underline | Stop underline text effect                      |
+|  normal       | Reset effects (only)                            |
+|  reset        | Reset colors and effects (restore defaults)     |
+|  underline    | Start underline text effect                     |
+|---------------+-------------------------------------------------|
+
+The following color names are supported:
+
+|---------------|
+|  Name         |
+|---------------|
+| black         |
+| blue          |
+| cyan          |
+| default       |
+| green         |
+| magenta       |
+| red           |
+| white         |
+| yellow        |
+|---------------|
+
+Color names are prefixed with either "fg-" or "bg-" to change the
+foreground and background colors, respectively.
 
 **** The Decoration Role ({D:})
 
@@ -321,7 +379,7 @@ the field descriptor, or a printf-style format descriptor can be used,
 if preceded by a slash ("/"):
 
     xo_emit("{P:        }{Lwc:Cost}{:cost/%u}\n", cost);
-    xo_emit("{P:/30s}{Lwc:Cost}{:cost/%u}\n", "", cost);
+    xo_emit("{P:/%30s}{Lwc:Cost}{:cost/%u}\n", "", cost);
 
 **** The Title Role ({T:})
 
@@ -332,6 +390,16 @@ if preceded by a slash ("/"):
 
     xo_emit("{T:Interface Statistics}\n");
     xo_emit("{T:/%20.20s}{T:/%6.6s}\n", "Item Name", "Cost");
+
+Title fields have an extra convenience feature; if both content and
+format are specified, instead of looking to the argument list for a
+value, the content is used, allowing a mixture of format and content
+within the field descriptor:
+
+    xo_emit("{T:Name/%20s}{T:Count/%6s}\n");
+
+Since the incoming argument is a string, the format must be "%s" or
+something suitable.
 
 **** The Units Role ({U:})
 
@@ -412,6 +480,7 @@ content emitted for some output styles:
 | d | display      | Only emit field for display styles (text/HTML)  |
 | e | encoding     | Only emit for encoding styles (XML/JSON)        |
 | k | key          | Field is a key, suitable for XPath predicates   |
+| l | leaf-list    | Field is a leaf-list
 | n | no-quotes    | Do not quote the field when using JSON style    |
 | q | quotes       | Quote the field when using JSON style           |
 | w | white space  | A blank (" ") is appended after the label       |
@@ -433,7 +502,7 @@ The colon modifier appends a single colon to the data value:
       Name:phil
 
 The colon modifier is only used for the TEXT and HTML output
-styles. It is commonly combined with the space modifier ('{w:').
+styles. It is commonly combined with the space modifier ('{w:}').
 It is purely a convenience feature.
 
 **** The Display Modifier ({d:})
@@ -485,6 +554,24 @@ Currently the key modifier is only used when generating XPath value
 for the HTML output style when XOF_XPATH is set, but other uses are
 likely in the near future.
 
+**** The Leaf-List Modifier ({l:})
+
+The leaf-list modifier is used to distinguish lists where each
+instance consists of only a single value.  In XML, these are
+rendered as single elements, where JSON renders them as arrays.
+
+    EXAMPLE:
+        for (i = 0; i < num_users; i++) {
+            xo_emit("Member {l:user}\n", user[i].u_name);
+        }
+    XML:
+        <user>phil</user>
+        <user>pallavi</user>
+    JSON:
+        "user": [ "phil", "pallavi" ]
+
+The name of the field must match the name of the leaf list.
+
 **** The No-Quotes Modifier ({n:})
 
 The no-quotes modifier (and its twin, the 'quotes' modifier) affect
@@ -522,7 +609,7 @@ The white space modifier appends a single space to the data value:
       Name phil
 
 The white space modifier is only used for the TEXT and HTML output
-styles. It is commonly combined with the colon modifier ('{c:').
+styles. It is commonly combined with the colon modifier ('{c:}').
 It is purely a convenience feature.
 
 Note that the sense of the 'w' modifier is reversed for the units role
@@ -530,14 +617,15 @@ Note that the sense of the 'w' modifier is reversed for the units role
 
 *** Field Formatting
 
-The field format is similar to the format string for printf(3).  It's
-used varies based on the role of the field, but generally is used to
+The field format is similar to the format string for printf(3).  Its
+use varies based on the role of the field, but generally is used to
 format the field's contents.
 
-If not provided, the format string defaults to "%s".
+If the format string is not provided for a value field, it defaults to
+"%s".
 
 Note a field definition can contain zero or more printf-style
-'directives', which are sequences that start with a '%' and end with a
+'directives', which are sequences that start with a '%' and end with
 one of following characters: "diouxXDOUeEfFgGaAcCsSp".  Each directive
 is matched by one of more arguments to the xo_emit function.
 
@@ -557,7 +645,7 @@ argument.  If the width in columns of the output value is less that
 the minumum width, the value will be padded to reach the minimum.
 - a period followed by one or more digits indicating the maximum
 number of bytes which will be examined for a string argument, or the maximum
-width for a non-string argument.  When handling ASCII strings this is
+width for a non-string argument.  When handling ASCII strings this
 functions as the field width but for multi-byte characters, a single
 character may be composed of multiple bytes.
 xo_emit will never dereference memory beyond the given number of bytes.
@@ -630,8 +718,8 @@ ASCII data, a normal 7-bit ASCII string can be used.  '%ls' expects a
 Unicode values.  '%hs' expects a 'char *' pointer to a multi-byte
 string encoded with the current locale, as given by the LC_CTYPE,
 LANG, or LC_ALL environment varibles.  The first of this list of
-variables is used and if none of the variables, the locale defaults to
-"UTF-8".
+variables is used and if none of the variables are set, the locale
+defaults to "UTF-8".
 
 For example, a function is passed a locale-base name, a hat size,
 and a time value.  The hat size is formatted in a UTF-8 (ASCII)
@@ -676,10 +764,10 @@ columns.
 
 *** Characters Outside of Field Definitions
 
-Characters in the format string are not part of a field definition are
-copied to the output for the TEXT style, and are ignored for the JSON
-and XML styles.  For HTML, these characters are placed in a <div> with
-class "text".
+Characters in the format string that are not part of a field
+definition are copied to the output for the TEXT style, and are
+ignored for the JSON and XML styles.  For HTML, these characters are
+placed in a <div> with class "text".
 
   EXAMPLE:
       xo_emit("The hat is {:size/%s}.\n", size_val);
@@ -854,7 +942,7 @@ container, a warning will be generated.
 *** Lists and Instances
 
 A list is set of one or more instances that appear under the same
-parent.  The instances contains details about a specific object.  One
+parent.  The instances contain details about a specific object.  One
 can think of instances as objects or records.  A call is needed to
 open and close the list, while a distinct call is needed to open and
 close each instance of the list:
@@ -874,8 +962,8 @@ generation of XML and JSON data.
 
 *** DTRT Mode
 
-Some user may find tracking the names of open containers, lists, and
-instances inconvenient.  libxo offers "Do The Right Thing" mode, where
+Some users may find tracking the names of open containers, lists, and
+instances inconvenient.  libxo offers a "Do The Right Thing" mode, where
 libxo will track the names of open containers, lists, and instances so
 the close function can be called without a name.  To enable DTRT mode,
 turn on the XOF_DTRT flag prior to making any other libxo output.
@@ -889,9 +977,41 @@ will close the open container, list, or instance:
     ...
     xo_close_container_d();
 
+This also works for lists and instances:
+
+    xo_open_list("item");
+    for (...) {
+        xo_open_instance("item");
+        xo_emit(...);
+        xo_close_instance_d();
+    }
+    xo_close_list_d();
+
 Note that the XOF_WARN flag will also cause libxo to track open
-containers, lists, and instances.  A warning is generated with the
+containers, lists, and instances.  A warning is generated when the
 name given to the close function and the name recorded do not match.
+
+*** Markers
+
+Markers are used to protect and restore the state of open constructs.
+While a marker is open, no other open constructs can be closed.  When
+a marker is closed, all constructs open since the marker was opened
+will be closed.
+
+Markers use names which are not user-visible, allowing the caller to
+choose appropriate internal names.
+
+In this example, the code whiffles through a list of fish, calling a
+function to emit details about each fish.  The marker "fish-guts" is
+used to ensure that any constructs opened by the function are closed
+properly.
+
+    for (i = 0; fish[i]; i++) {
+        xo_open_instance("fish");
+        xo_open_marker("fish-guts");
+        dump_fish_details(i);
+        xo_close_marker("fish-guts");
+    }
 
 ** Handles
 
@@ -952,7 +1072,7 @@ be passed NULL to access the default handle.
 
 For the typical command that is generating output on standard output,
 there is no need to create an explicit handle, but they are available
-when needed, e.g. for daemons that generate multiple streams of
+when needed, e.g., for daemons that generate multiple streams of
 output.
 
 *** xo_create
@@ -972,7 +1092,7 @@ See also ^styles^ and ^flags^.
 
 By default, libxo writes output to standard output.  A convenience
 function is provided for situations when output should be written to
-different file:
+a different file:
 
     xo_handle_t *xo_create_to_file (FILE *fp, unsigned style,
                                     unsigned flags);
@@ -987,10 +1107,13 @@ which can tailor how libxo writes data.  An opaque argument is
 recorded and passed back to the write function, allowing the function
 to acquire context information. The 'close' function can
 release this opaque data and any other resources as needed.
+The flush function can flush buffered data associated with the opaque
+object.
 
     void xo_set_writer (xo_handle_t *xop, void *opaque,
                         xo_write_func_t write_func,
                         xo_close_func_t close_func);
+                        xo_flush_func_t flush_func);
 
 *** xo_set_style
 
@@ -1068,7 +1191,7 @@ XML, JSON, and HTML output.  Text output is not affected.
 
 The XOF_WARN flag requests that warnings will trigger diagnostic
 output (on standard error) when the library notices errors during
-operations, or with arguments to functions.  Without warning enabled,
+operations, or with arguments to functions.  Without warnings enabled,
 such conditions are ignored.
 
 Warnings allow developers to debug their interaction with libxo.
@@ -1178,6 +1301,13 @@ parameter passed to xo_attr_hv().
     XML:
         <login-time seconds="1408336270">00:14</login-time>
 
+xo_attr is placed on the next container, instance, leaf, or leaf list
+that is emitted.
+
+Since attributes are only emitted in XML, their use should be limited
+to meta-data and additional or redundant representations of data
+already emitted in other form.
+
 *** Flushing Output (xo_flush)
 
 libxo buffers data, both for performance and consistency, but also to
@@ -1187,6 +1317,10 @@ xo_flush() call is used for this:
 
     void xo_flush (void);
     void xo_flush_h (xo_handle_t *xop);
+
+Calling xo_flush also triggers the flush function associated with the
+handle.  For the default handle, this is equivalent to
+"fflush(stdio);". 
 
 *** Finishing Output (xo_finish)
 
@@ -1250,7 +1384,7 @@ styles.  Calls must be made to open and close a list, and for each
 instance of data in that list, calls must be make to open and close
 that instance.
 
-The name given to all calls must be identical, and it is strong
+The name given to all calls must be identical, and it is strongly
 suggested that the name be singular, not plural, as a matter of
 style and usage expectations.
 
@@ -1314,6 +1448,28 @@ Following the call to xo_parse_args, the application can process the
 remaining arguments in a normal manner.  See ^command-line-arguments^
 for a description of valid arguments.
 
+*** xo_set_program
+
+The xo_set_program function sets name of the program as reported by
+functions like xo_failure, xo_warn, xo_err, etc.  The program name is
+initialized by xo_parse_args, but subsequent calls to xo_set_program
+can override this value.
+
+    xo_set_program(argv[0]);
+
+Note that the value is not copied, so the memory passed to
+xo_set_program (and xo_parse_args) must be maintained by the caller.
+
+*** xo_set_version
+
+The xo_set_version function records a version number to be emitted as
+part of the data for encoding styles (XML and JSON).  This version
+number is suitable for tracking changes in the content, allowing a
+user of the data to discern which version of the data model is in use.
+
+     void xo_set_version (const char *version);
+     void xo_set_version_h (xo_handle_t *xop, const char *version);
+
 *** Field Information (xo_info_t) @info@
 
 HTML data can include additional information in attributes that
@@ -1353,7 +1509,7 @@ known to the application:
     ...
     xo_set_info(NULL, info, info_count);
 
-Third, the emitting of info must be triggered with the XOF_INFO flag
+Third, the emission of info must be triggered with the XOF_INFO flag
 using either the xo_set_flags() function or the "--libxo=info" command
 line argument.
 
@@ -1405,6 +1561,10 @@ Complete HTML output can be generated with:
 
     % env LIBXO_OPTIONS=HXI my-app
 
+Since environment variables are inherited, child processes will have
+the same options, which may be undesirable, making the use of the
+"--libxo" option is preferable in most situations.
+
 *** Errors, Warnings, and Messages
 
 Many programs make use of the standard library functions err() and
@@ -1434,6 +1594,20 @@ message associated with either "errno" or the "code" parameter.
     EXAMPLE:
         if (open(filename, O_RDONLY) < 0)
             xo_err(1, "cannot open file '%s'", filename);
+
+*** xo_error
+
+The xo_error function can be used for generic errors that should be
+reported over the handle, rather than to stderr.  The xo_error
+function behaves like xo_err for TEXT and HTML output styles, but puts
+the error into XML or JSON elements:
+
+    EXAMPLE::
+        xo_error("Does not %s", "compute");
+    XML::
+        <error><message>Does not compute</message></error>
+    JSON::
+        "error": { "message": "Does not compute" }
 
 *** xo_no_setlocale
 
@@ -1580,7 +1754,7 @@ and errors, warning, or informational messages as needed.
 | -X         | Extract samples from xolint, suitable for testing |
 |------------+---------------------------------------------------|
 
-Output message contain the source filename and line number, the
+The output message will contain the source filename and line number, the
 class of the message, the message, and, if -p is given, the
 line that contains the error:
 
@@ -1593,6 +1767,32 @@ The "-I" option will generate a table of xo_info_t structures ,
 The "-V" option does not report errors, but prints a complete list of
 all field names, sorted alphabetically.  The output can help spot
 inconsistencies and spelling errors.
+
+* xohtml
+
+xohtml is a tool for turning the output of libxo-enabled commands into
+html files suitable for display in modern HTML web browsers.  It can
+be used to test and debug HTML output, as well as to make the user
+ache to escape the world of 70s terminal devices.
+
+xohtml is given a command, either on the command line or via the "-c"
+option.  If not command is given, standard input is used.  The
+command's output is wrapped in HTML tags, with references to
+supporting CSS and Javascript files, and written to standard output or
+the file given in the "-f" option.  The "-b" option can be used to
+provide an alternative base path for the support files.
+
+|--------------+---------------------------------------------------|
+| Option       | Meaning                                           |
+|--------------+---------------------------------------------------|
+| -b <base>    | Base path for finding css/javascript files        |
+| -c <command> | Command to execute                                |
+| -f <file>    | Output file name                                  |
+|--------------+---------------------------------------------------|
+
+The "-c" option takes a full command with arguments, including
+any libxo options needed to generate html ("--libxo=html").  This
+value must be quoted if it consists of multiple tokens.
 
 * FAQs
 
@@ -1627,6 +1827,88 @@ libxo is an effort to mix the best aspects of the JUNOS strategy into
 FreeBSD in a seemless way, allowing commands to make printf-like
 output calls without needing to care how the output is rendered.
 
+*** Did the complex semantics of format strings evolve over time?
+
+The history is both long and short: libxo's functionality is based
+on what JUNOS does in a data modeling language called ODL (output
+definition language).  In JUNOS, all subcomponents generate XML,
+which is feed to the CLI, where data from the ODL files tell is
+how to render that XML into text.  ODL might had a set of tags
+like:
+
+     tag docsis-state {
+         help "State of the DOCSIS interface";
+         type string;
+     }
+
+     tag docsis-mode {
+         help "DOCSIS mode (2.0/3.0) of the DOCSIS interface";
+         type string;
+     }
+
+     tag docsis-upstream-speed {
+         help "Operational upstream speed of the interface";
+         type string;
+     }
+
+     tag downstream-scanning {
+         help "Result of scanning in downstream direction";
+         type string;
+     }
+
+     tag ranging {
+         help "Result of ranging action";
+         type string;
+     }
+
+     tag signal-to-noise-ratio {
+         help "Signal to noise ratio for all channels";
+         type string;
+     }
+
+     tag power {
+         help "Operational power of the signal on all channels";
+         type string;
+     }
+
+     format docsis-status-format {
+         picture "
+   State   : @, Mode: @, Upstream speed: @
+   Downstream scanning: @, Ranging: @
+   Signal to noise ratio: @
+   Power: @
+";
+         line {
+             field docsis-state;
+             field docsis-mode;
+             field docsis-upstream-speed;
+             field downstream-scanning;
+             field ranging;
+             field signal-to-noise-ratio;
+             field power;
+         }
+     }
+
+These tag definitions are compiled into field definitions
+that are triggered when matching XML elements are seen.  ODL
+also supports other means of defining output.
+
+The roles and modifiers describe these details.
+
+In moving these ideas to bsd, two things had to happen: the
+formatting had to happen at the source since BSD won't have
+a JUNOS-like CLI to do the rendering, and we can't depend on
+external data models like ODL, which was seen as too hard a
+sell to the BSD community.
+
+The results were that the xo_emit strings are used to encode the
+roles, modifiers, names, and formats.  They are dense and a bit
+cryptic, but not so unlike printf format strings that developers will
+be lost.
+
+libxo is a new implementation of these ideas and is distinct from
+the previous implementation in JUNOS.
+
 *** What makes a good field name?
 
 To make useful, consistent field names, follow these guidelines:
@@ -1660,7 +1942,7 @@ Nothing's worse than writing expressions like:
     }
 
 Find someone else who is expressing similar data and follow their
-field's and hierarchy.  Remember the quote is not "Consistency is the
+fields and hierarchy.  Remember the quote is not "Consistency is the
 hobgoblin of little minds", but "A foolish consistency is the
 hobgoblin of little minds".
 = Think about your users
@@ -1670,7 +1952,7 @@ content with xo_attr() calls (^xo_attr^) or "{e:}" fields
 (^e-modifier^) to make the data useful.
 = Don't use an arbitrary number postfix
 What does "errors2" mean?  No one will know.  "errors-after-restart"
-would be a better choice.  Think of you users, and think of the
+would be a better choice.  Think of your users, and think of the
 future.  If you make "errors2", the next guy will happily make
 "errors3" and before you know it, someone will be asking what's the
 difference between errors37 and errors63.
@@ -1689,7 +1971,7 @@ After using "xolint" to find errors in your field descriptors, use
 "xolint -V" to spell check your field names and to detect different
 names for the same data.  "dropped-short" and "dropped-too-short" are
 both reasonable names, but using them both will lead users to ask the
-difference between the two fields.  If there isn't a difference,
+difference between the two fields.  If there is no difference,
 use only one of the field names.  If there is a difference, change the
 names to make that difference more obvious.
 

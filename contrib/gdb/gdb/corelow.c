@@ -432,15 +432,16 @@ get_core_register_section (char *name,
 			   char *human_name,
 			   int required)
 {
-  char section_name[100];
+  static char *section_name = NULL;
   struct bfd_section *section;
   bfd_size_type size;
   char *contents;
 
+  xfree (section_name);
   if (PIDGET (inferior_ptid))
-    sprintf (section_name, "%s/%d", name, PIDGET (inferior_ptid));
+    section_name = xstrprintf ("%s/%d", name, PIDGET (inferior_ptid));
   else
-    strcpy (section_name, name);
+    section_name = xstrdup (name);
 
   section = bfd_get_section_by_name (core_bfd, section_name);
   if (! section)

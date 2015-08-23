@@ -65,9 +65,7 @@ PragmaHandler *PragmaNamespace::FindHandler(StringRef Name,
 void PragmaNamespace::AddPragma(PragmaHandler *Handler) {
   assert(!Handlers.lookup(Handler->getName()) &&
          "A handler with this name is already registered in this namespace");
-  llvm::StringMapEntry<PragmaHandler *> &Entry =
-    Handlers.GetOrCreateValue(Handler->getName());
-  Entry.setValue(Handler);
+  Handlers[Handler->getName()] = Handler;
 }
 
 void PragmaNamespace::RemovePragmaHandler(PragmaHandler *Handler) {
@@ -193,7 +191,7 @@ void Preprocessor::Handle_Pragma(Token &Tok) {
   if (!tok::isStringLiteral(Tok.getKind())) {
     Diag(PragmaLoc, diag::err__Pragma_malformed);
     // Skip this token, and the ')', if present.
-    if (Tok.isNot(tok::r_paren))
+    if (Tok.isNot(tok::r_paren) && Tok.isNot(tok::eof))
       Lex(Tok);
     if (Tok.is(tok::r_paren))
       Lex(Tok);
@@ -472,9 +470,9 @@ void Preprocessor::HandlePragmaDependency(Token &DependencyTok) {
 
   // Search include directories for this file.
   const DirectoryLookup *CurDir;
-  const FileEntry *File = LookupFile(FilenameTok.getLocation(), Filename,
-                                     isAngled, nullptr, CurDir, nullptr,
-                                     nullptr, nullptr);
+  const FileEntry *File =
+      LookupFile(FilenameTok.getLocation(), Filename, isAngled, nullptr,
+                 nullptr, CurDir, nullptr, nullptr, nullptr);
   if (!File) {
     if (!SuppressIncludeNotFoundError)
       Diag(FilenameTok, diag::err_pp_file_not_found) << Filename;
@@ -605,7 +603,7 @@ void Preprocessor::HandlePragmaPopMacro(Token &PopMacroTok) {
     if (MacroToReInstall) {
       // Reinstall the previously pushed macro.
       appendDefMacroDirective(IdentInfo, MacroToReInstall, MessageLoc,
-                              /*isImported=*/false);
+                              /*isImported=*/false, /*Overrides*/None);
     }
 
     // Pop PragmaPushMacroInfo stack.
@@ -728,7 +726,7 @@ void Preprocessor::HandlePragmaIncludeAlias(Token &Tok) {
 /// pragma line before the pragma string starts, e.g. "STDC" or "GCC".
 void Preprocessor::AddPragmaHandler(StringRef Namespace,
                                     PragmaHandler *Handler) {
-  PragmaNamespace *InsertNS = PragmaHandlers;
+  PragmaNamespace *InsertNS = PragmaHandlers.get();
 
   // If this is specified to be in a namespace, step down into it.
   if (!Namespace.empty()) {
@@ -759,7 +757,7 @@ void Preprocessor::AddPragmaHandler(StringRef Namespace,
 /// a handler that has not been registered.
 void Preprocessor::RemovePragmaHandler(StringRef Namespace,
                                        PragmaHandler *Handler) {
-  PragmaNamespace *NS = PragmaHandlers;
+  PragmaNamespace *NS = PragmaHandlers.get();
 
   // If this is specified to be in a namespace, step down into it.
   if (!Namespace.empty()) {
@@ -772,9 +770,8 @@ void Preprocessor::RemovePragmaHandler(StringRef Namespace,
 
   NS->RemovePragmaHandler(Handler);
 
-  // If this is a non-default namespace and it is now empty, remove
-  // it.
-  if (NS != PragmaHandlers && NS->IsEmpty()) {
+  // If this is a non-default namespace and it is now empty, remove it.
+  if (NS != PragmaHandlers.get() && NS->IsEmpty()) {
     PragmaHandlers->RemovePragmaHandler(NS);
     delete NS;
   }

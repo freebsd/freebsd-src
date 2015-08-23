@@ -32,7 +32,7 @@ static const char sccsid[] = "$Id: v_util.c,v 10.14 2001/06/25 15:19:36 skimo Ex
  * v_eof --
  *	Vi end-of-file error.
  *
- * PUBLIC: void v_eof __P((SCR *, MARK *));
+ * PUBLIC: void v_eof(SCR *, MARK *);
  */
 void
 v_eof(SCR *sp, MARK *mp)
@@ -55,7 +55,7 @@ v_eof(SCR *sp, MARK *mp)
  * v_eol --
  *	Vi end-of-line error.
  *
- * PUBLIC: void v_eol __P((SCR *, MARK *));
+ * PUBLIC: void v_eol(SCR *, MARK *);
  */
 void
 v_eol(SCR *sp, MARK *mp)
@@ -78,7 +78,7 @@ v_eol(SCR *sp, MARK *mp)
  * v_nomove --
  *	Vi no cursor movement error.
  *
- * PUBLIC: void v_nomove __P((SCR *));
+ * PUBLIC: void v_nomove(SCR *);
  */
 void
 v_nomove(SCR *sp)
@@ -90,7 +90,7 @@ v_nomove(SCR *sp)
  * v_sof --
  *	Vi start-of-file error.
  *
- * PUBLIC: void v_sof __P((SCR *, MARK *));
+ * PUBLIC: void v_sof(SCR *, MARK *);
  */
 void
 v_sof(SCR *sp, MARK *mp)
@@ -105,7 +105,7 @@ v_sof(SCR *sp, MARK *mp)
  * v_sol --
  *	Vi start-of-line error.
  *
- * PUBLIC: void v_sol __P((SCR *));
+ * PUBLIC: void v_sol(SCR *);
  */
 void
 v_sol(SCR *sp)
@@ -117,7 +117,7 @@ v_sol(SCR *sp)
  * v_isempty --
  *	Return if the line contains nothing but white-space characters.
  *
- * PUBLIC: int v_isempty __P((CHAR_T *, size_t));
+ * PUBLIC: int v_isempty(CHAR_T *, size_t);
  */
 int
 v_isempty(CHAR_T *p, size_t len)
@@ -132,7 +132,7 @@ v_isempty(CHAR_T *p, size_t len)
  * v_emsg --
  *	Display a few common vi messages.
  *
- * PUBLIC: void v_emsg __P((SCR *, char *, vim_t));
+ * PUBLIC: void v_emsg(SCR *, char *, vim_t);
  */
 void
 v_emsg(SCR *sp, char *p, vim_t which)

@@ -45,6 +45,14 @@ class HostInfoBase
     static uint32_t GetNumberCPUS();
 
     //------------------------------------------------------------------
+    /// Returns the maximum length of a thread name on this platform.
+    ///
+    /// @return
+    ///     Maximum length of a thread name on this platform.
+    //------------------------------------------------------------------
+    static uint32_t GetMaxThreadNameLength();
+
+    //------------------------------------------------------------------
     /// Gets the host vendor string.
     ///
     /// @return
@@ -110,6 +118,7 @@ class HostInfoBase
     static bool ComputeTempFileDirectory(FileSpec &file_spec);
     static bool ComputeHeaderDirectory(FileSpec &file_spec);
     static bool ComputeSystemPluginsDirectory(FileSpec &file_spec);
+    static bool ComputeClangDirectory(FileSpec &file_spec);
     static bool ComputeUserPluginsDirectory(FileSpec &file_spec);
 
     static void ComputeHostArchitectureSupport(ArchSpec &arch_32, ArchSpec &arch_64);

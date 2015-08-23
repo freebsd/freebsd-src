@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef PPCINSTPRINTER_H
-#define PPCINSTPRINTER_H
+#ifndef LLVM_LIB_TARGET_POWERPC_INSTPRINTER_PPCINSTPRINTER_H
+#define LLVM_LIB_TARGET_POWERPC_INSTPRINTER_PPCINSTPRINTER_H
 
 #include "llvm/MC/MCInstPrinter.h"
 
@@ -44,6 +44,7 @@ public:
                              raw_ostream &O, const char *Modifier = nullptr);
 
   void printU2ImmOperand(const MCInst *MI, unsigned OpNo, raw_ostream &O);
+  void printU4ImmOperand(const MCInst *MI, unsigned OpNo, raw_ostream &O);
   void printS5ImmOperand(const MCInst *MI, unsigned OpNo, raw_ostream &O);
   void printU5ImmOperand(const MCInst *MI, unsigned OpNo, raw_ostream &O);
   void printU6ImmOperand(const MCInst *MI, unsigned OpNo, raw_ostream &O);

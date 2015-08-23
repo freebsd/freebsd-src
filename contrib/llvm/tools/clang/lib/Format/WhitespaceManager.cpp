@@ -81,7 +81,7 @@ void WhitespaceManager::replaceWhitespaceInToken(
       // FIXME: We still need to take this change in account to properly
       // calculate the new length of the comment and to calculate the changes
       // for which to do the alignment when aligning comments.
-      Tok.Type == TT_LineComment && Newlines > 0 ? tok::comment : tok::unknown,
+      Tok.is(TT_LineComment) && Newlines > 0 ? tok::comment : tok::unknown,
       InPPDirective && !Tok.IsFirst));
 }
 
@@ -163,15 +163,17 @@ void WhitespaceManager::alignTrailingComments() {
                                   Changes[i - 1].StartOfTokenColumn == 0;
     bool WasAlignedWithStartOfNextLine = false;
     if (Changes[i].NewlinesBefore == 1) { // A comment on its own line.
+      unsigned CommentColumn = SourceMgr.getSpellingColumnNumber(
+          Changes[i].OriginalWhitespaceRange.getEnd());
       for (unsigned j = i + 1; j != e; ++j) {
         if (Changes[j].Kind != tok::comment) { // Skip over comments.
+          unsigned NextColumn = SourceMgr.getSpellingColumnNumber(
+              Changes[j].OriginalWhitespaceRange.getEnd());
           // The start of the next token was previously aligned with the
           // start of this comment.
           WasAlignedWithStartOfNextLine =
-              (SourceMgr.getSpellingColumnNumber(
-                   Changes[i].OriginalWhitespaceRange.getEnd()) ==
-               SourceMgr.getSpellingColumnNumber(
-                   Changes[j].OriginalWhitespaceRange.getEnd()));
+              CommentColumn == NextColumn ||
+              CommentColumn == NextColumn + Style.IndentWidth;
           break;
         }
       }

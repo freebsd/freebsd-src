@@ -51,7 +51,7 @@ public:
 
   AArch64TTI(const AArch64TargetMachine *TM)
       : ImmutablePass(ID), TM(TM), ST(TM->getSubtargetImpl()),
-        TLI(TM->getTargetLowering()) {
+        TLI(TM->getSubtargetImpl()->getTargetLowering()) {
     initializeAArch64TTIPass(*PassRegistry::getPassRegistry());
   }
 
@@ -104,7 +104,7 @@ public:
     return 64;
   }
 
-  unsigned getMaximumUnrollFactor() const override { return 2; }
+  unsigned getMaxInterleaveFactor() const override;
 
   unsigned getCastInstrCost(unsigned Opcode, Type *Dst, Type *Src) const
       override;
@@ -112,10 +112,11 @@ public:
   unsigned getVectorInstrCost(unsigned Opcode, Type *Val, unsigned Index) const
       override;
 
-  unsigned getArithmeticInstrCost(unsigned Opcode, Type *Ty,
-                                  OperandValueKind Opd1Info = OK_AnyValue,
-                                  OperandValueKind Opd2Info = OK_AnyValue) const
-      override;
+  unsigned getArithmeticInstrCost(
+      unsigned Opcode, Type *Ty, OperandValueKind Opd1Info = OK_AnyValue,
+      OperandValueKind Opd2Info = OK_AnyValue,
+      OperandValueProperties Opd1PropInfo = OP_None,
+      OperandValueProperties Opd2PropInfo = OP_None) const override;
 
   unsigned getAddressComputationCost(Type *Ty, bool IsComplex) const override;
 
@@ -124,6 +125,13 @@ public:
 
   unsigned getMemoryOpCost(unsigned Opcode, Type *Src, unsigned Alignment,
                            unsigned AddressSpace) const override;
+
+  unsigned getCostOfKeepingLiveOverCall(ArrayRef<Type*> Tys) const override;
+
+  void getUnrollingPreferences(const Function *F, Loop *L,
+                               UnrollingPreferences &UP) const override;
+
+
   /// @}
 };
 
@@ -400,18 +408,42 @@ unsigned AArch64TTI::getVectorInstrCost(unsigned Opcode, Type *Val,
   return 2;
 }
 
-unsigned AArch64TTI::getArithmeticInstrCost(unsigned Opcode, Type *Ty,
-                                          OperandValueKind Opd1Info,
-                                          OperandValueKind Opd2Info) const {
+unsigned AArch64TTI::getArithmeticInstrCost(
+    unsigned Opcode, Type *Ty, OperandValueKind Opd1Info,
+    OperandValueKind Opd2Info, OperandValueProperties Opd1PropInfo,
+    OperandValueProperties Opd2PropInfo) const {
   // Legalize the type.
   std::pair<unsigned, MVT> LT = TLI->getTypeLegalizationCost(Ty);
 
   int ISD = TLI->InstructionOpcodeToISD(Opcode);
 
+  if (ISD == ISD::SDIV &&
+      Opd2Info == TargetTransformInfo::OK_UniformConstantValue &&
+      Opd2PropInfo == TargetTransformInfo::OP_PowerOf2) {
+    // On AArch64, scalar signed division by constants power-of-two are
+    // normally expanded to the sequence ADD + CMP + SELECT + SRA.
+    // The OperandValue properties many not be same as that of previous
+    // operation; conservatively assume OP_None.
+    unsigned Cost =
+      getArithmeticInstrCost(Instruction::Add, Ty, Opd1Info, Opd2Info,
+                             TargetTransformInfo::OP_None,
+                             TargetTransformInfo::OP_None);
+    Cost += getArithmeticInstrCost(Instruction::Sub, Ty, Opd1Info, Opd2Info,
+                                   TargetTransformInfo::OP_None,
+                                   TargetTransformInfo::OP_None);
+    Cost += getArithmeticInstrCost(Instruction::Select, Ty, Opd1Info, Opd2Info,
+                                   TargetTransformInfo::OP_None,
+                                   TargetTransformInfo::OP_None);
+    Cost += getArithmeticInstrCost(Instruction::AShr, Ty, Opd1Info, Opd2Info,
+                                   TargetTransformInfo::OP_None,
+                                   TargetTransformInfo::OP_None);
+    return Cost;
+  }
+
   switch (ISD) {
   default:
-    return TargetTransformInfo::getArithmeticInstrCost(Opcode, Ty, Opd1Info,
-                                                       Opd2Info);
+    return TargetTransformInfo::getArithmeticInstrCost(
+        Opcode, Ty, Opd1Info, Opd2Info, Opd1PropInfo, Opd2PropInfo);
   case ISD::ADD:
   case ISD::MUL:
   case ISD::XOR:
@@ -497,4 +529,28 @@ unsigned AArch64TTI::getMemoryOpCost(unsigned Opcode, Type *Src,
   }
 
   return LT.first;
+}
+
+unsigned AArch64TTI::getCostOfKeepingLiveOverCall(ArrayRef<Type*> Tys) const {
+  unsigned Cost = 0;
+  for (auto *I : Tys) {
+    if (!I->isVectorTy())
+      continue;
+    if (I->getScalarSizeInBits() * I->getVectorNumElements() == 128)
+      Cost += getMemoryOpCost(Instruction::Store, I, 128, 0) +
+        getMemoryOpCost(Instruction::Load, I, 128, 0);
+  }
+  return Cost;
+}
+
+unsigned AArch64TTI::getMaxInterleaveFactor() const {
+  if (ST->isCortexA57())
+    return 4;
+  return 2;
+}
+
+void AArch64TTI::getUnrollingPreferences(const Function *F, Loop *L,
+                                         UnrollingPreferences &UP) const {
+  // Disable partial & runtime unrolling on -Os.
+  UP.PartialOptSizeThreshold = 0;
 }

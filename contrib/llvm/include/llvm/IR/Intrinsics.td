@@ -112,6 +112,11 @@ class LLVMMatchType<int num>
 // the intrinsic is overloaded, so the matched type should be declared as iAny.
 class LLVMExtendedType<int num> : LLVMMatchType<num>;
 class LLVMTruncatedType<int num> : LLVMMatchType<num>;
+class LLVMVectorSameWidth<int num, LLVMType elty>
+  : LLVMMatchType<num> {
+  ValueType ElTy = elty.VT;
+}
+class LLVMPointerTo<int num> : LLVMMatchType<num>;
 
 // Match the type of another intrinsic parameter that is expected to be a
 // vector type, but change the element count to be half as many
@@ -254,6 +259,10 @@ def int_gcwrite : Intrinsic<[],
 //
 def int_returnaddress : Intrinsic<[llvm_ptr_ty], [llvm_i32_ty], [IntrNoMem]>;
 def int_frameaddress  : Intrinsic<[llvm_ptr_ty], [llvm_i32_ty], [IntrNoMem]>;
+def int_frameallocate : Intrinsic<[llvm_ptr_ty], [llvm_i32_ty]>;
+def int_framerecover : Intrinsic<[llvm_ptr_ty],
+                                             [llvm_ptr_ty, llvm_ptr_ty],
+                                             [IntrNoMem]>;
 def int_read_register  : Intrinsic<[llvm_anyint_ty], [llvm_metadata_ty],
                                    [IntrNoMem], "llvm.read_register">;
 def int_write_register : Intrinsic<[], [llvm_metadata_ty, llvm_anyint_ty],
@@ -277,11 +286,21 @@ def int_pcmarker      : Intrinsic<[], [llvm_i32_ty]>;
 
 def int_readcyclecounter : Intrinsic<[llvm_i64_ty]>;
 
+// The assume intrinsic is marked as arbitrarily writing so that proper
+// control dependencies will be maintained.
+def int_assume        : Intrinsic<[], [llvm_i1_ty], []>;
+
 // Stack Protector Intrinsic - The stackprotector intrinsic writes the stack
 // guard to the correct place on the stack frame.
 def int_stackprotector : Intrinsic<[], [llvm_ptr_ty, llvm_ptrptr_ty], []>;
 def int_stackprotectorcheck : Intrinsic<[], [llvm_ptrptr_ty],
                                         [IntrReadWriteArgMem]>;
+
+// A counter increment for instrumentation based profiling.
+def int_instrprof_increment : Intrinsic<[],
+                                        [llvm_ptr_ty, llvm_i64_ty,
+                                         llvm_i32_ty, llvm_i32_ty],
+                                        []>;
 
 //===------------------- Standard C Library Intrinsics --------------------===//
 //
@@ -324,6 +343,8 @@ let Properties = [IntrNoMem] in {
   def int_exp  : Intrinsic<[llvm_anyfloat_ty], [LLVMMatchType<0>]>;
   def int_exp2 : Intrinsic<[llvm_anyfloat_ty], [LLVMMatchType<0>]>;
   def int_fabs : Intrinsic<[llvm_anyfloat_ty], [LLVMMatchType<0>]>;
+  def int_minnum : Intrinsic<[llvm_anyfloat_ty], [LLVMMatchType<0>, LLVMMatchType<0>]>;
+  def int_maxnum : Intrinsic<[llvm_anyfloat_ty], [LLVMMatchType<0>, LLVMMatchType<0>]>;
   def int_copysign : Intrinsic<[llvm_anyfloat_ty],
                                [LLVMMatchType<0>, LLVMMatchType<0>]>;
   def int_floor : Intrinsic<[llvm_anyfloat_ty], [LLVMMatchType<0>]>;
@@ -369,9 +390,12 @@ let Properties = [IntrNoMem] in {
 // places.
 let Properties = [IntrNoMem] in {
   def int_dbg_declare      : Intrinsic<[],
-                                       [llvm_metadata_ty, llvm_metadata_ty]>;
+                                       [llvm_metadata_ty,
+                                       llvm_metadata_ty,
+                                       llvm_metadata_ty]>;
   def int_dbg_value        : Intrinsic<[],
                                        [llvm_metadata_ty, llvm_i64_ty,
+                                        llvm_metadata_ty,
                                         llvm_metadata_ty]>;
 }
 
@@ -476,11 +500,29 @@ def int_experimental_stackmap : Intrinsic<[],
 def int_experimental_patchpoint_void : Intrinsic<[],
                                                  [llvm_i64_ty, llvm_i32_ty,
                                                   llvm_ptr_ty, llvm_i32_ty,
-                                                  llvm_vararg_ty]>;
+                                                  llvm_vararg_ty],
+                                                  [Throws]>;
 def int_experimental_patchpoint_i64 : Intrinsic<[llvm_i64_ty],
                                                 [llvm_i64_ty, llvm_i32_ty,
                                                  llvm_ptr_ty, llvm_i32_ty,
-                                                 llvm_vararg_ty]>;
+                                                 llvm_vararg_ty],
+                                                 [Throws]>;
+
+
+//===------------------------ Garbage Collection Intrinsics ---------------===//
+// These are documented in docs/Statepoint.rst
+
+def int_experimental_gc_statepoint : Intrinsic<[llvm_i32_ty],
+                               [llvm_anyptr_ty, llvm_i32_ty,
+                                llvm_i32_ty, llvm_vararg_ty]>;
+
+def int_experimental_gc_result_int : Intrinsic<[llvm_anyint_ty], [llvm_i32_ty]>;
+def int_experimental_gc_result_float : Intrinsic<[llvm_anyfloat_ty], 
+                                                 [llvm_i32_ty]>;
+def int_experimental_gc_result_ptr : Intrinsic<[llvm_anyptr_ty], [llvm_i32_ty]>;
+
+def int_experimental_gc_relocate : Intrinsic<[llvm_anyptr_ty],
+                                [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty]>;
 
 //===-------------------------- Other Intrinsics --------------------------===//
 //
@@ -528,6 +570,17 @@ def int_convertuu  : Intrinsic<[llvm_anyint_ty],
 def int_clear_cache : Intrinsic<[], [llvm_ptr_ty, llvm_ptr_ty],
                                 [], "llvm.clear_cache">;
 
+//===-------------------------- Masked Intrinsics -------------------------===//
+//
+def int_masked_store : Intrinsic<[], [llvm_anyvector_ty, LLVMPointerTo<0>,
+                                      llvm_i32_ty,
+                                      LLVMVectorSameWidth<0, llvm_i1_ty>],
+                                 [IntrReadWriteArgMem]>;
+
+def int_masked_load  : Intrinsic<[llvm_anyvector_ty],
+                                 [LLVMPointerTo<0>, llvm_i32_ty,
+                                  LLVMVectorSameWidth<0, llvm_i1_ty>, LLVMMatchType<0>],
+                                 [IntrReadArgMem]>;
 //===----------------------------------------------------------------------===//
 // Target-specific intrinsics
 //===----------------------------------------------------------------------===//

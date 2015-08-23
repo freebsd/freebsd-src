@@ -27,7 +27,7 @@ using namespace llvm;
 static cl::opt<int> UsePrecDivF32(
     "nvptx-prec-divf32", cl::ZeroOrMore, cl::Hidden,
     cl::desc("NVPTX Specifies: 0 use div.approx, 1 use div.full, 2 use"
-             " IEEE Compliant F32 div.rnd if avaiable."),
+             " IEEE Compliant F32 div.rnd if available."),
     cl::init(2));
 
 static cl::opt<bool>
@@ -5041,14 +5041,7 @@ bool NVPTXDAGToDAGISel::SelectADDRri64(SDNode *OpNode, SDValue Addr,
 bool NVPTXDAGToDAGISel::ChkMemSDNodeAddressSpace(SDNode *N,
                                                  unsigned int spN) const {
   const Value *Src = nullptr;
-  // Even though MemIntrinsicSDNode is a subclas of MemSDNode,
-  // the classof() for MemSDNode does not include MemIntrinsicSDNode
-  // (See SelectionDAGNodes.h). So we need to check for both.
   if (MemSDNode *mN = dyn_cast<MemSDNode>(N)) {
-    if (spN == 0 && mN->getMemOperand()->getPseudoValue())
-      return true;
-    Src = mN->getMemOperand()->getValue();
-  } else if (MemSDNode *mN = dyn_cast<MemIntrinsicSDNode>(N)) {
     if (spN == 0 && mN->getMemOperand()->getPseudoValue())
       return true;
     Src = mN->getMemOperand()->getValue();

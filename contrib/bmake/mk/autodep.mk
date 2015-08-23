@@ -1,6 +1,6 @@
 #
 # RCSid:
-#	$Id: autodep.mk,v 1.33 2014/04/05 22:56:54 sjg Exp $
+#	$Id: autodep.mk,v 1.34 2014/08/04 05:12:27 sjg Exp $
 #
 #	@(#) Copyright (c) 1999-2010, Simon J. Gerraty
 #
@@ -19,13 +19,8 @@
 # The depend target is mainly for backwards compatibility,
 # dependencies are normally updated as part of compilation.
 
-# set MKDEP=autodep and dep.mk will include us
 .if !target(__${.PARSEFILE}__)
 __${.PARSEFILE}__:
-
-# different versions of bsd.dep.mk use these
-MKDEP=autodep
-MKDEPCMD=autodep
 
 DEPENDFILE?= .depend
 .for d in ${DEPENDFILE:N.depend}

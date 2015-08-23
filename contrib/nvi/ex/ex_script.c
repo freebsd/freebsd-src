@@ -45,18 +45,18 @@ static const char sccsid[] = "$Id: ex_script.c,v 10.44 2012/10/05 10:17:47 zy Ex
 #include "script.h"
 #include "pathnames.h"
 
-static void	sscr_check __P((SCR *));
-static int	sscr_getprompt __P((SCR *));
-static int	sscr_init __P((SCR *));
-static int	sscr_insert __P((SCR *));
-static int	sscr_matchprompt __P((SCR *, char *, size_t, size_t *));
-static int	sscr_setprompt __P((SCR *, char *, size_t));
+static void	sscr_check(SCR *);
+static int	sscr_getprompt(SCR *);
+static int	sscr_init(SCR *);
+static int	sscr_insert(SCR *);
+static int	sscr_matchprompt(SCR *, char *, size_t, size_t *);
+static int	sscr_setprompt(SCR *, char *, size_t);
 
 /*
  * ex_script -- : sc[ript][!] [file]
  *	Switch to script mode.
  *
- * PUBLIC: int ex_script __P((SCR *, EXCMD *));
+ * PUBLIC: int ex_script(SCR *, EXCMD *);
  */
 int
 ex_script(SCR *sp, EXCMD *cmdp)
@@ -292,7 +292,7 @@ prompterr:	sscr_end(sp);
  * sscr_exec --
  *	Take a line and hand it off to the shell.
  *
- * PUBLIC: int sscr_exec __P((SCR *, recno_t));
+ * PUBLIC: int sscr_exec(SCR *, recno_t);
  */
 int
 sscr_exec(SCR *sp, recno_t lno)
@@ -368,7 +368,7 @@ err1:			rval = 1;
  * sscr_input --
  *	Read any waiting shell input.
  *
- * PUBLIC: int sscr_input __P((SCR *));
+ * PUBLIC: int sscr_input(SCR *);
  */
 int
 sscr_input(SCR *sp)
@@ -577,7 +577,7 @@ sscr_matchprompt(SCR *sp, char *lp, size_t line_len, size_t *lenp)
  * sscr_end --
  *	End the pipe to a shell.
  *
- * PUBLIC: int sscr_end __P((SCR *));
+ * PUBLIC: int sscr_end(SCR *);
  */
 int
 sscr_end(SCR *sp)

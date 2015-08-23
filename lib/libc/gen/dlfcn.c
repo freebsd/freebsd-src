@@ -149,10 +149,8 @@ static void
 dl_init_phdr_info(void)
 {
 	Elf_Auxinfo *auxp;
-	size_t phent;
 	unsigned int i;
 
-	phent = 0;
 	for (auxp = __elf_aux_vector; auxp->a_type != AT_NULL; auxp++) {
 		switch (auxp->a_type) {
 		case AT_BASE:
@@ -164,9 +162,6 @@ dl_init_phdr_info(void)
 		case AT_PHDR:
 			phdr_info.dlpi_phdr =
 			    (const Elf_Phdr *)auxp->a_un.a_ptr;
-			break;
-		case AT_PHENT:
-			phent = auxp->a_un.a_val;
 			break;
 		case AT_PHNUM:
 			phdr_info.dlpi_phnum = (Elf_Half)auxp->a_un.a_val;

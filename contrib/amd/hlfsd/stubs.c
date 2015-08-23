@@ -164,8 +164,7 @@ nfsproc_getattr_2_svc(am_nfs_fh *argp, struct svc_req *rqstp)
     if (gid != hlfs_gid) {
       res.ns_status = NFSERR_STALE;
     } else {
-      memset((char *) &uid, 0, sizeof(int));
-      uid = *(u_int *) argp->fh_data;
+      (void)memcpy(&uid, argp->fh_data, sizeof(uid));
       if (plt_search(uid) != (uid2home_t *) NULL) {
 	res.ns_status = NFS_OK;
 	un_fattr.na_fileid = uid;
@@ -282,8 +281,8 @@ nfsproc_lookup_2_svc(nfsdiropargs *argp, struct svc_req *rqstp)
     } else {			/* entry found and gid is permitted */
       un_fattr.na_fileid = untab[idx].uid;
       res.dr_u.dr_drok_u.drok_attributes = un_fattr;
-      memset((char *) &un_fhandle, 0, sizeof(am_nfs_fh));
-      *(u_int *) un_fhandle.fh_data = (u_int) untab[idx].uid;
+      memset(&un_fhandle, 0, sizeof(un_fhandle));
+      memcpy(un_fhandle.fh_data, &untab[idx].uid, sizeof(untab[idx].uid));
       xstrlcpy((char *) &un_fhandle.fh_data[sizeof(int)],
 	       untab[idx].username,
 	       sizeof(am_nfs_fh) - sizeof(int));
@@ -338,8 +337,7 @@ nfsproc_readlink_2_svc(am_nfs_fh *argp, struct svc_req *rqstp)
     }
 
     if (groupid == hlfs_gid) {
-      memset((char *) &userid, 0, sizeof(int));
-      userid = *(u_int *) argp->fh_data;
+      memcpy(&userid, argp->fh_data, sizeof(userid));
       username = (char *) &argp->fh_data[sizeof(int)];
       if (!(res.rlr_u.rlr_data_u = mailbox(userid, username)))
 	return (nfsreadlinkres *) NULL;

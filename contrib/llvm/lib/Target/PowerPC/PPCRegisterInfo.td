@@ -131,8 +131,8 @@ foreach Index = 0-31 in {
 }
 
 // The reprsentation of r0 when treated as the constant 0.
-def ZERO  : GPR<0, "0">;
-def ZERO8 : GP8<ZERO, "0">;
+def ZERO  : GPR<0, "0">,    DwarfRegAlias<R0>;
+def ZERO8 : GP8<ZERO, "0">, DwarfRegAlias<X0>;
 
 // Representations of the frame pointer used by ISD::FRAMEADDR.
 def FP   : GPR<0 /* arbitrary */, "**FRAME POINTER**">;
@@ -188,13 +188,6 @@ def CR6 : CR<6, "cr6", [CR6LT, CR6GT, CR6EQ, CR6UN]>, DwarfRegNum<[74, 74]>;
 def CR7 : CR<7, "cr7", [CR7LT, CR7GT, CR7EQ, CR7UN]>, DwarfRegNum<[75, 75]>;
 }
 
-// The full condition-code register. This is not modeled fully, but defined
-// here primarily, for compatibility with gcc, to allow the inline asm "cc"
-// clobber specification to work.
-def CC : PPCReg<"cc">, DwarfRegAlias<CR0> {
-  let Aliases = [CR0, CR1, CR2, CR3, CR4, CR5, CR6, CR7];
-}
-
 // Link register
 def LR  : SPR<8, "lr">, DwarfRegNum<[-2, 65]>;
 //let Aliases = [LR] in
@@ -210,7 +203,7 @@ def VRSAVE: SPR<256, "vrsave">, DwarfRegNum<[109]>;
 // Carry bit.  In the architecture this is really bit 0 of the XER register
 // (which really is SPR register 1);  this is the only bit interesting to a
 // compiler.
-def CARRY: SPR<1, "ca">;
+def CARRY: SPR<1, "ca">, DwarfRegNum<[76]>;
 
 // FP rounding mode:  bits 30 and 31 of the FP status and control register
 // This is not allocated as a normal register; it appears only in
@@ -219,8 +212,7 @@ def CARRY: SPR<1, "ca">;
 // most registers, it has to be done in code; to make this work all the
 // return and call instructions are described as Uses of RM, so instructions
 // that do nothing but change RM will not get deleted.
-// Also, in the architecture it is not really a SPR; 512 is arbitrary.
-def RM: SPR<512, "**ROUNDING MODE**">;
+def RM: PPCReg<"**ROUNDING MODE**">;
 
 /// Register classes
 // Allocate volatiles first
@@ -306,9 +298,5 @@ def CTRRC8 : RegisterClass<"PPC", [i64], 64, (add CTR8)> {
 def VRSAVERC : RegisterClass<"PPC", [i32], 32, (add VRSAVE)>;
 def CARRYRC : RegisterClass<"PPC", [i32], 32, (add CARRY)> {
   let CopyCost = -1;
-}
-
-def CCRC : RegisterClass<"PPC", [i32], 32, (add CC)> {
-  let isAllocatable = 0;
 }
 

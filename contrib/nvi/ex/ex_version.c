@@ -28,7 +28,7 @@ static const char sccsid[] = "$Id: ex_version.c,v 10.32 2001/06/25 15:19:22 skim
  * ex_version -- :version
  *	Display the program version.
  *
- * PUBLIC: int ex_version __P((SCR *, EXCMD *));
+ * PUBLIC: int ex_version(SCR *, EXCMD *);
  */
 int
 ex_version(SCR *sp, EXCMD *cmdp)

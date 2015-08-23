@@ -35,7 +35,7 @@ namespace tooling {
 
 CompilationDatabase::~CompilationDatabase() {}
 
-CompilationDatabase *
+std::unique_ptr<CompilationDatabase>
 CompilationDatabase::loadFromDirectory(StringRef BuildDirectory,
                                        std::string &ErrorMessage) {
   std::stringstream ErrorStream;
@@ -45,17 +45,16 @@ CompilationDatabase::loadFromDirectory(StringRef BuildDirectory,
        It != Ie; ++It) {
     std::string DatabaseErrorMessage;
     std::unique_ptr<CompilationDatabasePlugin> Plugin(It->instantiate());
-    if (CompilationDatabase *DB =
-        Plugin->loadFromDirectory(BuildDirectory, DatabaseErrorMessage))
+    if (std::unique_ptr<CompilationDatabase> DB =
+            Plugin->loadFromDirectory(BuildDirectory, DatabaseErrorMessage))
       return DB;
-    else
-      ErrorStream << It->getName() << ": " << DatabaseErrorMessage << "\n";
+    ErrorStream << It->getName() << ": " << DatabaseErrorMessage << "\n";
   }
   ErrorMessage = ErrorStream.str();
   return nullptr;
 }
 
-static CompilationDatabase *
+static std::unique_ptr<CompilationDatabase>
 findCompilationDatabaseFromDirectory(StringRef Directory,
                                      std::string &ErrorMessage) {
   std::stringstream ErrorStream;
@@ -63,8 +62,8 @@ findCompilationDatabaseFromDirectory(StringRef Directory,
   while (!Directory.empty()) {
     std::string LoadErrorMessage;
 
-    if (CompilationDatabase *DB =
-           CompilationDatabase::loadFromDirectory(Directory, LoadErrorMessage))
+    if (std::unique_ptr<CompilationDatabase> DB =
+            CompilationDatabase::loadFromDirectory(Directory, LoadErrorMessage))
       return DB;
 
     if (!HasErrorMessage) {
@@ -79,14 +78,14 @@ findCompilationDatabaseFromDirectory(StringRef Directory,
   return nullptr;
 }
 
-CompilationDatabase *
+std::unique_ptr<CompilationDatabase>
 CompilationDatabase::autoDetectFromSource(StringRef SourceFile,
                                           std::string &ErrorMessage) {
   SmallString<1024> AbsolutePath(getAbsolutePath(SourceFile));
   StringRef Directory = llvm::sys::path::parent_path(AbsolutePath);
 
-  CompilationDatabase *DB = findCompilationDatabaseFromDirectory(Directory,
-                                                                 ErrorMessage);
+  std::unique_ptr<CompilationDatabase> DB =
+      findCompilationDatabaseFromDirectory(Directory, ErrorMessage);
 
   if (!DB)
     ErrorMessage = ("Could not auto-detect compilation database for file \"" +
@@ -94,13 +93,13 @@ CompilationDatabase::autoDetectFromSource(StringRef SourceFile,
   return DB;
 }
 
-CompilationDatabase *
+std::unique_ptr<CompilationDatabase>
 CompilationDatabase::autoDetectFromDirectory(StringRef SourceDir,
                                              std::string &ErrorMessage) {
   SmallString<1024> AbsolutePath(getAbsolutePath(SourceDir));
 
-  CompilationDatabase *DB = findCompilationDatabaseFromDirectory(AbsolutePath,
-                                                                 ErrorMessage);
+  std::unique_ptr<CompilationDatabase> DB =
+      findCompilationDatabaseFromDirectory(AbsolutePath, ErrorMessage);
 
   if (!DB)
     ErrorMessage = ("Could not auto-detect compilation database from directory \"" +
@@ -250,14 +249,13 @@ static bool stripPositionalArgs(std::vector<const char *> Args,
 
   CompileJobAnalyzer CompileAnalyzer;
 
-  for (driver::JobList::const_iterator I = Jobs.begin(), E = Jobs.end(); I != E;
-       ++I) {
-    if ((*I)->getKind() == driver::Job::CommandClass) {
-      const driver::Command *Cmd = cast<driver::Command>(*I);
+  for (const auto &Job : Jobs) {
+    if (Job.getKind() == driver::Job::CommandClass) {
+      const driver::Command &Cmd = cast<driver::Command>(Job);
       // Collect only for Assemble jobs. If we do all jobs we get duplicates
       // since Link jobs point to Assemble jobs as inputs.
-      if (Cmd->getSource().getKind() == driver::Action::AssembleJobClass)
-        CompileAnalyzer.run(&Cmd->getSource());
+      if (Cmd.getSource().getKind() == driver::Action::AssembleJobClass)
+        CompileAnalyzer.run(&Cmd.getSource());
     }
   }
 

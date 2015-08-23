@@ -13,8 +13,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef AMDGPUREGISTERINFO_H
-#define AMDGPUREGISTERINFO_H
+#ifndef LLVM_LIB_TARGET_R600_AMDGPUREGISTERINFO_H
+#define LLVM_LIB_TARGET_R600_AMDGPUREGISTERINFO_H
 
 #include "llvm/ADT/BitVector.h"
 #include "llvm/Target/TargetRegisterInfo.h"
@@ -51,7 +51,7 @@ struct AMDGPURegisterInfo : public AMDGPUGenRegisterInfo {
   unsigned getSubRegFromChannel(unsigned Channel) const;
 
   const MCPhysReg* getCalleeSavedRegs(const MachineFunction *MF) const override;
-  virtual void eliminateFrameIndex(MachineBasicBlock::iterator MI, int SPAdj,
+  void eliminateFrameIndex(MachineBasicBlock::iterator MI, int SPAdj,
                            unsigned FIOperandNum,
                            RegScavenger *RS) const override;
   unsigned getFrameRegister(const MachineFunction &MF) const override;
@@ -62,4 +62,4 @@ struct AMDGPURegisterInfo : public AMDGPUGenRegisterInfo {
 
 } // End namespace llvm
 
-#endif // AMDIDSAREGISTERINFO_H
+#endif

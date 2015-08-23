@@ -23,6 +23,8 @@ class AMDGPUInst <dag outs, dag ins, string asm, list<dag> pattern> : Instructio
   let Pattern = pattern;
   let Itinerary = NullALU;
 
+  let isCodeGenOnly = 1;
+
   let TSFlags{63} = isRegisterLoad;
   let TSFlags{62} = isRegisterStore;
 }
@@ -71,6 +73,11 @@ def COND_OEQ : PatLeaf <
   [{return N->get() == ISD::SETOEQ || N->get() == ISD::SETEQ;}]
 >;
 
+def COND_ONE : PatLeaf <
+  (cond),
+  [{return N->get() == ISD::SETONE || N->get() == ISD::SETNE;}]
+>;
+
 def COND_OGT : PatLeaf <
   (cond),
   [{return N->get() == ISD::SETOGT || N->get() == ISD::SETGT;}]
@@ -91,22 +98,27 @@ def COND_OLE : PatLeaf <
   [{return N->get() == ISD::SETOLE || N->get() == ISD::SETLE;}]
 >;
 
-def COND_UNE : PatLeaf <
-  (cond),
-  [{return N->get() == ISD::SETUNE || N->get() == ISD::SETNE;}]
->;
 
 def COND_O : PatLeaf <(cond), [{return N->get() == ISD::SETO;}]>;
 def COND_UO : PatLeaf <(cond), [{return N->get() == ISD::SETUO;}]>;
 
 //===----------------------------------------------------------------------===//
-// PatLeafs for unsigned comparisons
+// PatLeafs for unsigned / unordered comparisons
 //===----------------------------------------------------------------------===//
 
+def COND_UEQ : PatLeaf <(cond), [{return N->get() == ISD::SETUEQ;}]>;
+def COND_UNE : PatLeaf <(cond), [{return N->get() == ISD::SETUNE;}]>;
 def COND_UGT : PatLeaf <(cond), [{return N->get() == ISD::SETUGT;}]>;
 def COND_UGE : PatLeaf <(cond), [{return N->get() == ISD::SETUGE;}]>;
 def COND_ULT : PatLeaf <(cond), [{return N->get() == ISD::SETULT;}]>;
 def COND_ULE : PatLeaf <(cond), [{return N->get() == ISD::SETULE;}]>;
+
+// XXX - For some reason R600 version is preferring to use unordered
+// for setne?
+def COND_UNE_NE : PatLeaf <
+  (cond),
+  [{return N->get() == ISD::SETUNE || N->get() == ISD::SETNE;}]
+>;
 
 //===----------------------------------------------------------------------===//
 // PatLeafs for signed comparisons
@@ -133,7 +145,7 @@ def COND_NE : PatLeaf <
 
 def COND_NULL : PatLeaf <
   (cond),
-  [{return false;}]
+  [{(void)N; return false;}]
 >;
 
 //===----------------------------------------------------------------------===//
@@ -152,10 +164,6 @@ class PrivateStore <SDPatternOperator op> : PrivateMemOp <
   (ops node:$value, node:$ptr), (op node:$value, node:$ptr)
 >;
 
-def extloadi8_private : PrivateLoad <extloadi8>;
-def sextloadi8_private : PrivateLoad <sextloadi8>;
-def extloadi16_private : PrivateLoad <extloadi16>;
-def sextloadi16_private : PrivateLoad <sextloadi16>;
 def load_private : PrivateLoad <load>;
 
 def truncstorei8_private : PrivateStore <truncstorei8>;
@@ -195,6 +203,14 @@ def sextloadi8_global : PatFrag<(ops node:$ptr), (sextloadi8 node:$ptr), [{
     return isGlobalLoad(dyn_cast<LoadSDNode>(N));
 }]>;
 
+def az_extloadi8_flat : PatFrag<(ops node:$ptr), (az_extloadi8 node:$ptr), [{
+    return isFlatLoad(dyn_cast<LoadSDNode>(N));
+}]>;
+
+def sextloadi8_flat : PatFrag<(ops node:$ptr), (sextloadi8 node:$ptr), [{
+    return isFlatLoad(dyn_cast<LoadSDNode>(N));
+}]>;
+
 def az_extloadi8_constant : PatFrag<(ops node:$ptr), (az_extloadi8 node:$ptr), [{
     return isConstantLoad(dyn_cast<LoadSDNode>(N), -1);
 }]>;
@@ -211,6 +227,9 @@ def sextloadi8_local : PatFrag<(ops node:$ptr), (sextloadi8 node:$ptr), [{
     return isLocalLoad(dyn_cast<LoadSDNode>(N));
 }]>;
 
+def extloadi8_private : PrivateLoad <az_extloadi8>;
+def sextloadi8_private : PrivateLoad <sextloadi8>;
+
 def az_extloadi16 : PatFrag<(ops node:$ptr), (az_extload node:$ptr), [{
   return cast<LoadSDNode>(N)->getMemoryVT() == MVT::i16;
 }]>;
@@ -221,6 +240,14 @@ def az_extloadi16_global : PatFrag<(ops node:$ptr), (az_extloadi16 node:$ptr), [
 
 def sextloadi16_global : PatFrag<(ops node:$ptr), (sextloadi16 node:$ptr), [{
     return isGlobalLoad(dyn_cast<LoadSDNode>(N));
+}]>;
+
+def az_extloadi16_flat : PatFrag<(ops node:$ptr), (az_extloadi16 node:$ptr), [{
+    return isFlatLoad(dyn_cast<LoadSDNode>(N));
+}]>;
+
+def sextloadi16_flat : PatFrag<(ops node:$ptr), (sextloadi16 node:$ptr), [{
+    return isFlatLoad(dyn_cast<LoadSDNode>(N));
 }]>;
 
 def az_extloadi16_constant : PatFrag<(ops node:$ptr), (az_extloadi16 node:$ptr), [{
@@ -239,6 +266,9 @@ def sextloadi16_local : PatFrag<(ops node:$ptr), (sextloadi16 node:$ptr), [{
     return isLocalLoad(dyn_cast<LoadSDNode>(N));
 }]>;
 
+def extloadi16_private : PrivateLoad <az_extloadi16>;
+def sextloadi16_private : PrivateLoad <sextloadi16>;
+
 def az_extloadi32 : PatFrag<(ops node:$ptr), (az_extload node:$ptr), [{
   return cast<LoadSDNode>(N)->getMemoryVT() == MVT::i32;
 }]>;
@@ -246,6 +276,11 @@ def az_extloadi32 : PatFrag<(ops node:$ptr), (az_extload node:$ptr), [{
 def az_extloadi32_global : PatFrag<(ops node:$ptr),
                                    (az_extloadi32 node:$ptr), [{
   return isGlobalLoad(dyn_cast<LoadSDNode>(N));
+}]>;
+
+def az_extloadi32_flat : PatFrag<(ops node:$ptr),
+                                   (az_extloadi32 node:$ptr), [{
+  return isFlatLoad(dyn_cast<LoadSDNode>(N));
 }]>;
 
 def az_extloadi32_constant : PatFrag<(ops node:$ptr),
@@ -261,6 +296,16 @@ def truncstorei8_global : PatFrag<(ops node:$val, node:$ptr),
 def truncstorei16_global : PatFrag<(ops node:$val, node:$ptr),
                                   (truncstorei16 node:$val, node:$ptr), [{
   return isGlobalStore(dyn_cast<StoreSDNode>(N));
+}]>;
+
+def truncstorei8_flat : PatFrag<(ops node:$val, node:$ptr),
+                                  (truncstorei8 node:$val, node:$ptr), [{
+  return isFlatStore(dyn_cast<StoreSDNode>(N));
+}]>;
+
+def truncstorei16_flat : PatFrag<(ops node:$val, node:$ptr),
+                                  (truncstorei16 node:$val, node:$ptr), [{
+  return isFlatStore(dyn_cast<StoreSDNode>(N));
 }]>;
 
 def local_store : PatFrag<(ops node:$val, node:$ptr),
@@ -282,6 +327,17 @@ def local_load : PatFrag<(ops node:$ptr), (load node:$ptr), [{
     return isLocalLoad(dyn_cast<LoadSDNode>(N));
 }]>;
 
+class Aligned8Bytes <dag ops, dag frag> : PatFrag <ops, frag, [{
+    return cast<MemSDNode>(N)->getAlignment() % 8 == 0;
+}]>;
+
+def local_load_aligned8bytes : Aligned8Bytes <
+  (ops node:$ptr), (local_load node:$ptr)
+>;
+
+def local_store_aligned8bytes : Aligned8Bytes <
+  (ops node:$val, node:$ptr), (local_store node:$val, node:$ptr)
+>;
 
 class local_binary_atomic_op<SDNode atomic_op> :
   PatFrag<(ops node:$ptr, node:$value),
@@ -307,6 +363,7 @@ def mskor_global : PatFrag<(ops node:$val, node:$ptr),
   return dyn_cast<MemSDNode>(N)->getAddressSpace() == AMDGPUAS::GLOBAL_ADDRESS;
 }]>;
 
+
 def atomic_cmp_swap_32_local :
   PatFrag<(ops node:$ptr, node:$cmp, node:$swap),
           (atomic_cmp_swap node:$ptr, node:$cmp, node:$swap), [{
@@ -323,6 +380,45 @@ def atomic_cmp_swap_64_local :
          AN->getAddressSpace() == AMDGPUAS::LOCAL_ADDRESS;
 }]>;
 
+def flat_load : PatFrag<(ops node:$ptr), (load node:$ptr), [{
+    return isFlatLoad(dyn_cast<LoadSDNode>(N));
+}]>;
+
+def flat_store : PatFrag<(ops node:$val, node:$ptr),
+                         (store node:$val, node:$ptr), [{
+  return isFlatStore(dyn_cast<StoreSDNode>(N));
+}]>;
+
+def mskor_flat : PatFrag<(ops node:$val, node:$ptr),
+                            (AMDGPUstore_mskor node:$val, node:$ptr), [{
+  return dyn_cast<MemSDNode>(N)->getAddressSpace() == AMDGPUAS::FLAT_ADDRESS;
+}]>;
+
+class global_binary_atomic_op<SDNode atomic_op> : PatFrag<
+  (ops node:$ptr, node:$value),
+  (atomic_op node:$ptr, node:$value),
+  [{return cast<MemSDNode>(N)->getAddressSpace() == AMDGPUAS::GLOBAL_ADDRESS;}]
+>;
+
+def atomic_swap_global : global_binary_atomic_op<atomic_swap>;
+def atomic_add_global : global_binary_atomic_op<atomic_load_add>;
+def atomic_and_global : global_binary_atomic_op<atomic_load_and>;
+def atomic_max_global : global_binary_atomic_op<atomic_load_max>;
+def atomic_min_global : global_binary_atomic_op<atomic_load_min>;
+def atomic_or_global : global_binary_atomic_op<atomic_load_or>;
+def atomic_sub_global : global_binary_atomic_op<atomic_load_sub>;
+def atomic_umax_global : global_binary_atomic_op<atomic_load_umax>;
+def atomic_umin_global : global_binary_atomic_op<atomic_load_umin>;
+def atomic_xor_global : global_binary_atomic_op<atomic_load_xor>;
+
+//===----------------------------------------------------------------------===//
+// Misc Pattern Fragments
+//===----------------------------------------------------------------------===//
+
+def fmad : PatFrag <
+  (ops node:$src0, node:$src1, node:$src2),
+  (fadd (fmul node:$src0, node:$src1), node:$src2)
+>;
 
 class Constants {
 int TWO_PI = 0x40c90fdb;
@@ -442,8 +538,9 @@ class DwordAddrPat<ValueType vt, RegisterClass rc> : Pat <
 
 // BFI_INT patterns
 
-multiclass BFIPatterns <Instruction BFI_INT, Instruction LoadImm32> {
-
+multiclass BFIPatterns <Instruction BFI_INT,
+                        Instruction LoadImm32,
+                        RegisterClass RC64> {
   // Definition from ISA doc:
   // (y & x) | (z & ~x)
   def : Pat <
@@ -465,8 +562,8 @@ multiclass BFIPatterns <Instruction BFI_INT, Instruction LoadImm32> {
 
   def : Pat <
     (f64 (fcopysign f64:$src0, f64:$src1)),
-      (INSERT_SUBREG (INSERT_SUBREG (f64 (IMPLICIT_DEF)),
-      (i32 (EXTRACT_SUBREG $src0, sub0)), sub0),
+    (REG_SEQUENCE RC64,
+      (i32 (EXTRACT_SUBREG $src0, sub0)), sub0,
       (BFI_INT (LoadImm32 0x7fffffff),
                (i32 (EXTRACT_SUBREG $src0, sub1)),
                (i32 (EXTRACT_SUBREG $src1, sub1))), sub1)
@@ -554,17 +651,10 @@ class RcpPat<Instruction RcpInst, ValueType vt> : Pat <
   (RcpInst $src)
 >;
 
-multiclass RsqPat<Instruction RsqInst, ValueType vt> {
-  def : Pat <
-    (fdiv FP_ONE, (fsqrt vt:$src)),
-    (RsqInst $src)
-  >;
-
-  def : Pat <
-    (AMDGPUrcp (fsqrt vt:$src)),
-    (RsqInst $src)
-  >;
-}
+class RsqPat<Instruction RsqInst, ValueType vt> : Pat <
+  (AMDGPUrcp (fsqrt vt:$src)),
+  (RsqInst $src)
+>;
 
 include "R600Instructions.td"
 include "R700Instructions.td"

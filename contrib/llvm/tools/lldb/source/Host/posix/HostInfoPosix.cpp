@@ -69,6 +69,7 @@ HostInfoPosix::LookupUserName(uint32_t uid, std::string &user_name)
 const char *
 HostInfoPosix::LookupGroupName(uint32_t gid, std::string &group_name)
 {
+#ifndef __ANDROID__
     char group_buffer[PATH_MAX];
     size_t group_buffer_size = sizeof(group_buffer);
     struct group group_info;
@@ -94,6 +95,9 @@ HostInfoPosix::LookupGroupName(uint32_t gid, std::string &group_name)
         }
     }
     group_name.clear();
+#else
+    assert(false && "getgrgid_r() not supported on Android");
+#endif
     return NULL;
 }
 
@@ -119,6 +123,12 @@ uint32_t
 HostInfoPosix::GetEffectiveGroupID()
 {
     return getegid();
+}
+
+FileSpec
+HostInfoPosix::GetDefaultShell()
+{
+    return FileSpec("/bin/sh", false);
 }
 
 bool
@@ -173,8 +183,7 @@ HostInfoPosix::ComputeHeaderDirectory(FileSpec &file_spec)
 bool
 HostInfoPosix::ComputePythonDirectory(FileSpec &file_spec)
 {
-    return false; // No Python in FreeBSD base system
-#if 0
+#ifndef LLDB_DISABLE_PYTHON
     FileSpec lldb_file_spec;
     if (!GetLLDBPath(lldb::ePathTypeLLDBShlibDir, lldb_file_spec))
         return false;
@@ -192,5 +201,7 @@ HostInfoPosix::ComputePythonDirectory(FileSpec &file_spec)
 
     file_spec.GetDirectory().SetCString(raw_path);
     return true;
+#else
+    return false;
 #endif
 }

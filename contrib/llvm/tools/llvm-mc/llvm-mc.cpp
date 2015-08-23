@@ -204,16 +204,15 @@ static const Target *GetTarget(const char *ProgName) {
   return TheTarget;
 }
 
-static tool_output_file *GetOutputStream() {
+static std::unique_ptr<tool_output_file> GetOutputStream() {
   if (OutputFilename == "")
     OutputFilename = "-";
 
-  std::string Err;
-  tool_output_file *Out =
-      new tool_output_file(OutputFilename.c_str(), Err, sys::fs::F_None);
-  if (!Err.empty()) {
-    errs() << Err << '\n';
-    delete Out;
+  std::error_code EC;
+  auto Out = llvm::make_unique<tool_output_file>(OutputFilename, EC,
+                                                 sys::fs::F_None);
+  if (EC) {
+    errs() << EC.message() << '\n';
     return nullptr;
   }
 
@@ -239,7 +238,7 @@ static void setDwarfDebugProducer(void) {
 }
 
 static int AsLexInput(SourceMgr &SrcMgr, MCAsmInfo &MAI,
-                      tool_output_file *Out) {
+                      raw_ostream &OS) {
 
   AsmLexer Lexer(MAI);
   Lexer.setBuffer(SrcMgr.getMemoryBuffer(SrcMgr.getMainFileID())->getBuffer());
@@ -258,60 +257,60 @@ static int AsLexInput(SourceMgr &SrcMgr, MCAsmInfo &MAI,
       Error = true; // error already printed.
       break;
     case AsmToken::Identifier:
-      Out->os() << "identifier: " << Lexer.getTok().getString();
+      OS << "identifier: " << Lexer.getTok().getString();
       break;
     case AsmToken::Integer:
-      Out->os() << "int: " << Lexer.getTok().getString();
+      OS << "int: " << Lexer.getTok().getString();
       break;
     case AsmToken::Real:
-      Out->os() << "real: " << Lexer.getTok().getString();
+      OS << "real: " << Lexer.getTok().getString();
       break;
     case AsmToken::String:
-      Out->os() << "string: " << Lexer.getTok().getString();
+      OS << "string: " << Lexer.getTok().getString();
       break;
 
-    case AsmToken::Amp:            Out->os() << "Amp"; break;
-    case AsmToken::AmpAmp:         Out->os() << "AmpAmp"; break;
-    case AsmToken::At:             Out->os() << "At"; break;
-    case AsmToken::Caret:          Out->os() << "Caret"; break;
-    case AsmToken::Colon:          Out->os() << "Colon"; break;
-    case AsmToken::Comma:          Out->os() << "Comma"; break;
-    case AsmToken::Dollar:         Out->os() << "Dollar"; break;
-    case AsmToken::Dot:            Out->os() << "Dot"; break;
-    case AsmToken::EndOfStatement: Out->os() << "EndOfStatement"; break;
-    case AsmToken::Eof:            Out->os() << "Eof"; break;
-    case AsmToken::Equal:          Out->os() << "Equal"; break;
-    case AsmToken::EqualEqual:     Out->os() << "EqualEqual"; break;
-    case AsmToken::Exclaim:        Out->os() << "Exclaim"; break;
-    case AsmToken::ExclaimEqual:   Out->os() << "ExclaimEqual"; break;
-    case AsmToken::Greater:        Out->os() << "Greater"; break;
-    case AsmToken::GreaterEqual:   Out->os() << "GreaterEqual"; break;
-    case AsmToken::GreaterGreater: Out->os() << "GreaterGreater"; break;
-    case AsmToken::Hash:           Out->os() << "Hash"; break;
-    case AsmToken::LBrac:          Out->os() << "LBrac"; break;
-    case AsmToken::LCurly:         Out->os() << "LCurly"; break;
-    case AsmToken::LParen:         Out->os() << "LParen"; break;
-    case AsmToken::Less:           Out->os() << "Less"; break;
-    case AsmToken::LessEqual:      Out->os() << "LessEqual"; break;
-    case AsmToken::LessGreater:    Out->os() << "LessGreater"; break;
-    case AsmToken::LessLess:       Out->os() << "LessLess"; break;
-    case AsmToken::Minus:          Out->os() << "Minus"; break;
-    case AsmToken::Percent:        Out->os() << "Percent"; break;
-    case AsmToken::Pipe:           Out->os() << "Pipe"; break;
-    case AsmToken::PipePipe:       Out->os() << "PipePipe"; break;
-    case AsmToken::Plus:           Out->os() << "Plus"; break;
-    case AsmToken::RBrac:          Out->os() << "RBrac"; break;
-    case AsmToken::RCurly:         Out->os() << "RCurly"; break;
-    case AsmToken::RParen:         Out->os() << "RParen"; break;
-    case AsmToken::Slash:          Out->os() << "Slash"; break;
-    case AsmToken::Star:           Out->os() << "Star"; break;
-    case AsmToken::Tilde:          Out->os() << "Tilde"; break;
+    case AsmToken::Amp:            OS << "Amp"; break;
+    case AsmToken::AmpAmp:         OS << "AmpAmp"; break;
+    case AsmToken::At:             OS << "At"; break;
+    case AsmToken::Caret:          OS << "Caret"; break;
+    case AsmToken::Colon:          OS << "Colon"; break;
+    case AsmToken::Comma:          OS << "Comma"; break;
+    case AsmToken::Dollar:         OS << "Dollar"; break;
+    case AsmToken::Dot:            OS << "Dot"; break;
+    case AsmToken::EndOfStatement: OS << "EndOfStatement"; break;
+    case AsmToken::Eof:            OS << "Eof"; break;
+    case AsmToken::Equal:          OS << "Equal"; break;
+    case AsmToken::EqualEqual:     OS << "EqualEqual"; break;
+    case AsmToken::Exclaim:        OS << "Exclaim"; break;
+    case AsmToken::ExclaimEqual:   OS << "ExclaimEqual"; break;
+    case AsmToken::Greater:        OS << "Greater"; break;
+    case AsmToken::GreaterEqual:   OS << "GreaterEqual"; break;
+    case AsmToken::GreaterGreater: OS << "GreaterGreater"; break;
+    case AsmToken::Hash:           OS << "Hash"; break;
+    case AsmToken::LBrac:          OS << "LBrac"; break;
+    case AsmToken::LCurly:         OS << "LCurly"; break;
+    case AsmToken::LParen:         OS << "LParen"; break;
+    case AsmToken::Less:           OS << "Less"; break;
+    case AsmToken::LessEqual:      OS << "LessEqual"; break;
+    case AsmToken::LessGreater:    OS << "LessGreater"; break;
+    case AsmToken::LessLess:       OS << "LessLess"; break;
+    case AsmToken::Minus:          OS << "Minus"; break;
+    case AsmToken::Percent:        OS << "Percent"; break;
+    case AsmToken::Pipe:           OS << "Pipe"; break;
+    case AsmToken::PipePipe:       OS << "PipePipe"; break;
+    case AsmToken::Plus:           OS << "Plus"; break;
+    case AsmToken::RBrac:          OS << "RBrac"; break;
+    case AsmToken::RCurly:         OS << "RCurly"; break;
+    case AsmToken::RParen:         OS << "RParen"; break;
+    case AsmToken::Slash:          OS << "Slash"; break;
+    case AsmToken::Star:           OS << "Star"; break;
+    case AsmToken::Tilde:          OS << "Tilde"; break;
     }
 
     // Print the token string.
-    Out->os() << " (\"";
-    Out->os().write_escaped(Tok.getString());
-    Out->os() << "\")\n";
+    OS << " (\"";
+    OS.write_escaped(Tok.getString());
+    OS << "\")\n";
   }
 
   return Error;
@@ -333,7 +332,7 @@ static int AssembleInput(const char *ProgName, const Target *TheTarget,
   }
 
   Parser->setShowParsedOperands(ShowInstOperands);
-  Parser->setTargetParser(*TAP.get());
+  Parser->setTargetParser(*TAP);
 
   int Res = Parser->Run(NoInitialTextSection);
 
@@ -373,12 +372,12 @@ int main(int argc, char **argv) {
     errs() << ProgName << ": " << EC.message() << '\n';
     return 1;
   }
-  MemoryBuffer *Buffer = BufferPtr->release();
+  MemoryBuffer *Buffer = BufferPtr->get();
 
   SourceMgr SrcMgr;
 
   // Tell SrcMgr about this buffer, which is what the parser will pick up.
-  SrcMgr.AddNewSourceBuffer(Buffer, SMLoc());
+  SrcMgr.AddNewSourceBuffer(std::move(*BufferPtr), SMLoc());
 
   // Record the location of the include directories so that the lexer can find
   // it later.
@@ -435,7 +434,7 @@ int main(int argc, char **argv) {
     FeaturesStr = Features.getString();
   }
 
-  std::unique_ptr<tool_output_file> Out(GetOutputStream());
+  std::unique_ptr<tool_output_file> Out = GetOutputStream();
   if (!Out)
     return 1;
 
@@ -471,16 +470,17 @@ int main(int argc, char **argv) {
     assert(FileType == OFT_ObjectFile && "Invalid file type!");
     MCCodeEmitter *CE = TheTarget->createMCCodeEmitter(*MCII, *MRI, *STI, Ctx);
     MCAsmBackend *MAB = TheTarget->createMCAsmBackend(*MRI, TripleName, MCPU);
-    Str.reset(TheTarget->createMCObjectStreamer(TripleName, Ctx, *MAB,
-                                                FOS, CE, *STI, RelaxAll,
-                                                NoExecStack));
+    Str.reset(TheTarget->createMCObjectStreamer(TripleName, Ctx, *MAB, FOS, CE,
+                                                *STI, RelaxAll));
+    if (NoExecStack)
+      Str->InitSections(true);
   }
 
   int Res = 1;
   bool disassemble = false;
   switch (Action) {
   case AC_AsLex:
-    Res = AsLexInput(SrcMgr, *MAI, Out.get());
+    Res = AsLexInput(SrcMgr, *MAI, Out->os());
     break;
   case AC_Assemble:
     Res = AssembleInput(ProgName, TheTarget, SrcMgr, Ctx, *Str, *MAI, *STI,

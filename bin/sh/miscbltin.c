@@ -265,7 +265,7 @@ readcmd(int argc __unused, char **argv __unused)
 
 	/* Set any remaining args to "" */
 	while (*++ap != NULL)
-		setvar(*ap, nullstr, 0);
+		setvar(*ap, "", 0);
 	return status;
 }
 

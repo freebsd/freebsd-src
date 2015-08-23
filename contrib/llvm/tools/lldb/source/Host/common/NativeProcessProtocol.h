@@ -59,16 +59,24 @@ namespace lldb_private
         //------------------------------------------------------------------
         /// Sends a process a UNIX signal \a signal.
         ///
-        /// Implementer note: the WillSignal ()/DidSignal () calls
-        /// from the Process class are not replicated here since no
-        /// concrete classes implemented any behavior for those and
-        /// put all the work in DoSignal (...).
-        ///
         /// @return
         ///     Returns an error object.
         //------------------------------------------------------------------
         virtual Error
         Signal (int signo) = 0;
+
+        //------------------------------------------------------------------
+        /// Tells a process to interrupt all operations as if by a Ctrl-C.
+        ///
+        /// The default implementation will send a local host's equivalent of
+        /// a SIGSTOP to the process via the NativeProcessProtocol::Signal()
+        /// operation.
+        ///
+        /// @return
+        ///     Returns an error object.
+        //------------------------------------------------------------------
+        virtual Error
+        Interrupt ();
 
         virtual Error
         Kill () = 0;
@@ -296,7 +304,7 @@ namespace lldb_private
         void
         SetState (lldb::StateType state, bool notify_delegates = true);
 
-        // Derived classes need not impelment this.  It can be used as a
+        // Derived classes need not implement this.  It can be used as a
         // hook to clear internal caches that should be invalidated when
         // stop ids change.
         //
@@ -322,6 +330,9 @@ namespace lldb_private
         // -----------------------------------------------------------
         void
         NotifyDidExec ();
+
+        NativeThreadProtocolSP
+        GetThreadByIDUnlocked (lldb::tid_t tid);
 
     private:
 

@@ -47,6 +47,7 @@
 #include "lldb/Target/ExecutionContext.h"
 #include "lldb/Target/Process.h"
 
+#include <iterator>
 #include <mutex>
 
 using namespace lldb;
@@ -515,7 +516,7 @@ ClangASTType::GetNumberOfFunctionArguments () const
 }
 
 ClangASTType
-ClangASTType::GetFunctionArgumentAtIndex (const size_t index)
+ClangASTType::GetFunctionArgumentAtIndex (const size_t index) const
 {
     if (IsValid())
     {
@@ -1713,7 +1714,7 @@ ClangASTType::GetFunctionArgumentCount () const
 }
 
 ClangASTType
-ClangASTType::GetFunctionArgumentTypeAtIndex (size_t idx)
+ClangASTType::GetFunctionArgumentTypeAtIndex (size_t idx) const
 {
     if (IsValid())
     {
@@ -1741,6 +1742,199 @@ ClangASTType::GetFunctionReturnType () const
     return ClangASTType();
 }
 
+size_t
+ClangASTType::GetNumMemberFunctions () const
+{
+    size_t num_functions = 0;
+    if (IsValid())
+    {
+        clang::QualType qual_type(GetCanonicalQualType());
+        switch (qual_type->getTypeClass()) {
+            case clang::Type::Record:
+                if (GetCompleteQualType (m_ast, qual_type))
+                {
+                    const clang::RecordType *record_type = llvm::cast<clang::RecordType>(qual_type.getTypePtr());
+                    const clang::RecordDecl *record_decl = record_type->getDecl();
+                    assert(record_decl);
+                    const clang::CXXRecordDecl *cxx_record_decl = llvm::dyn_cast<clang::CXXRecordDecl>(record_decl);
+                    if (cxx_record_decl)
+                        num_functions = std::distance(cxx_record_decl->method_begin(), cxx_record_decl->method_end());
+                }
+                break;
+                
+            case clang::Type::ObjCObjectPointer:
+                if (GetCompleteType())
+                {
+                    const clang::ObjCObjectPointerType *objc_class_type = qual_type->getAsObjCInterfacePointerType();
+                    if (objc_class_type)
+                    {
+                        clang::ObjCInterfaceDecl *class_interface_decl = objc_class_type->getInterfaceDecl();
+                        if (class_interface_decl)
+                            num_functions = std::distance(class_interface_decl->meth_begin(), class_interface_decl->meth_end());
+                    }
+                }
+                break;
+                
+            case clang::Type::ObjCObject:
+            case clang::Type::ObjCInterface:
+                if (GetCompleteType())
+                {
+                    const clang::ObjCObjectType *objc_class_type = llvm::dyn_cast<clang::ObjCObjectType>(qual_type.getTypePtr());
+                    if (objc_class_type)
+                    {
+                        clang::ObjCInterfaceDecl *class_interface_decl = objc_class_type->getInterface();
+                        if (class_interface_decl)
+                            num_functions = std::distance(class_interface_decl->meth_begin(), class_interface_decl->meth_end());
+                    }
+                }
+                break;
+                
+                
+            case clang::Type::Typedef:
+                return ClangASTType (m_ast, llvm::cast<clang::TypedefType>(qual_type)->getDecl()->getUnderlyingType()).GetNumMemberFunctions();
+                
+            case clang::Type::Elaborated:
+                return ClangASTType (m_ast, llvm::cast<clang::ElaboratedType>(qual_type)->getNamedType()).GetNumMemberFunctions();
+                
+            case clang::Type::Paren:
+                return ClangASTType (m_ast, llvm::cast<clang::ParenType>(qual_type)->desugar()).GetNumMemberFunctions();
+                
+            default:
+                break;
+        }
+    }
+    return num_functions;
+}
+
+TypeMemberFunctionImpl
+ClangASTType::GetMemberFunctionAtIndex (size_t idx)
+{
+    std::string name("");
+    MemberFunctionKind kind(MemberFunctionKind::eMemberFunctionKindUnknown);
+    ClangASTType type{};
+    clang::ObjCMethodDecl *method_decl(nullptr);
+    if (IsValid())
+    {
+        clang::QualType qual_type(GetCanonicalQualType());
+        switch (qual_type->getTypeClass()) {
+            case clang::Type::Record:
+                if (GetCompleteQualType (m_ast, qual_type))
+                {
+                    const clang::RecordType *record_type = llvm::cast<clang::RecordType>(qual_type.getTypePtr());
+                    const clang::RecordDecl *record_decl = record_type->getDecl();
+                    assert(record_decl);
+                    const clang::CXXRecordDecl *cxx_record_decl = llvm::dyn_cast<clang::CXXRecordDecl>(record_decl);
+                    if (cxx_record_decl)
+                    {
+                        auto method_iter = cxx_record_decl->method_begin();
+                        auto method_end = cxx_record_decl->method_end();
+                        if (idx < static_cast<size_t>(std::distance(method_iter, method_end)))
+                        {
+                            std::advance(method_iter, idx);
+                            auto method_decl = method_iter->getCanonicalDecl();
+                            if (method_decl)
+                            {
+                                if (!method_decl->getName().empty())
+                                    name.assign(method_decl->getName().data());
+                                else
+                                    name.clear();
+                                if (method_decl->isStatic())
+                                    kind = lldb::eMemberFunctionKindStaticMethod;
+                                else if (llvm::isa<clang::CXXConstructorDecl>(method_decl))
+                                    kind = lldb::eMemberFunctionKindConstructor;
+                                else if (llvm::isa<clang::CXXDestructorDecl>(method_decl))
+                                    kind = lldb::eMemberFunctionKindDestructor;
+                                else
+                                    kind = lldb::eMemberFunctionKindInstanceMethod;
+                                type = ClangASTType(m_ast,method_decl->getType().getAsOpaquePtr());
+                            }
+                        }
+                    }
+                }
+                break;
+                
+            case clang::Type::ObjCObjectPointer:
+                if (GetCompleteType())
+                {
+                    const clang::ObjCObjectPointerType *objc_class_type = qual_type->getAsObjCInterfacePointerType();
+                    if (objc_class_type)
+                    {
+                        clang::ObjCInterfaceDecl *class_interface_decl = objc_class_type->getInterfaceDecl();
+                        if (class_interface_decl)
+                        {
+                            auto method_iter = class_interface_decl->meth_begin();
+                            auto method_end = class_interface_decl->meth_end();
+                            if (idx < static_cast<size_t>(std::distance(method_iter, method_end)))
+                            {
+                                std::advance(method_iter, idx);
+                                method_decl = method_iter->getCanonicalDecl();
+                                if (method_decl)
+                                {
+                                    name = method_decl->getSelector().getAsString();
+                                    if (method_decl->isClassMethod())
+                                        kind = lldb::eMemberFunctionKindStaticMethod;
+                                    else
+                                        kind = lldb::eMemberFunctionKindInstanceMethod;
+                                }
+                            }
+                        }
+                    }
+                }
+                break;
+                
+            case clang::Type::ObjCObject:
+            case clang::Type::ObjCInterface:
+                if (GetCompleteType())
+                {
+                    const clang::ObjCObjectType *objc_class_type = llvm::dyn_cast<clang::ObjCObjectType>(qual_type.getTypePtr());
+                    if (objc_class_type)
+                    {
+                        clang::ObjCInterfaceDecl *class_interface_decl = objc_class_type->getInterface();
+                        if (class_interface_decl)
+                        {
+                            auto method_iter = class_interface_decl->meth_begin();
+                            auto method_end = class_interface_decl->meth_end();
+                            if (idx < static_cast<size_t>(std::distance(method_iter, method_end)))
+                            {
+                                std::advance(method_iter, idx);
+                                method_decl = method_iter->getCanonicalDecl();
+                                if (method_decl)
+                                {
+                                    name = method_decl->getSelector().getAsString();
+                                    if (method_decl->isClassMethod())
+                                        kind = lldb::eMemberFunctionKindStaticMethod;
+                                    else
+                                        kind = lldb::eMemberFunctionKindInstanceMethod;
+                                }
+                            }
+                        }
+                    }
+                }
+                break;
+
+            case clang::Type::Typedef:
+                return ClangASTType (m_ast, llvm::cast<clang::TypedefType>(qual_type)->getDecl()->getUnderlyingType()).GetMemberFunctionAtIndex(idx);
+                
+            case clang::Type::Elaborated:
+                return ClangASTType (m_ast, llvm::cast<clang::ElaboratedType>(qual_type)->getNamedType()).GetMemberFunctionAtIndex(idx);
+                
+            case clang::Type::Paren:
+                return ClangASTType (m_ast, llvm::cast<clang::ParenType>(qual_type)->desugar()).GetMemberFunctionAtIndex(idx);
+                
+            default:
+                break;
+        }
+    }
+    
+    if (kind == eMemberFunctionKindUnknown)
+        return TypeMemberFunctionImpl();
+    if (method_decl)
+        return TypeMemberFunctionImpl(method_decl, name, kind);
+    if (type)
+        return TypeMemberFunctionImpl(type, name, kind);
+    
+    return TypeMemberFunctionImpl();
+}
 
 ClangASTType
 ClangASTType::GetLValueReferenceType () const
@@ -3294,9 +3488,9 @@ ClangASTType::GetChildClangTypeAtIndex (ExecutionContext *exe_ctx,
                                         
                                         child_name.assign(superclass_interface_decl->getNameAsString().c_str());
                                         
-                                        std::pair<uint64_t, unsigned> ivar_type_info = m_ast->getTypeInfo(ivar_qual_type.getTypePtr());
+                                        clang::TypeInfo ivar_type_info = m_ast->getTypeInfo(ivar_qual_type.getTypePtr());
                                         
-                                        child_byte_size = ivar_type_info.first / 8;
+                                        child_byte_size = ivar_type_info.Width / 8;
                                         child_byte_offset = 0;
                                         child_is_base_class = true;
                                         
@@ -3326,9 +3520,9 @@ ClangASTType::GetChildClangTypeAtIndex (ExecutionContext *exe_ctx,
                                     
                                     child_name.assign(ivar_decl->getNameAsString().c_str());
                                     
-                                    std::pair<uint64_t, unsigned> ivar_type_info = m_ast->getTypeInfo(ivar_qual_type.getTypePtr());
+                                    clang::TypeInfo  ivar_type_info = m_ast->getTypeInfo(ivar_qual_type.getTypePtr());
                                     
-                                    child_byte_size = ivar_type_info.first / 8;
+                                    child_byte_size = ivar_type_info.Width / 8;
                                     
                                     // Figure out the field offset within the current struct/union/class type
                                     // For ObjC objects, we can't trust the bit offset we get from the Clang AST, since
@@ -3448,7 +3642,7 @@ ClangASTType::GetChildClangTypeAtIndex (ExecutionContext *exe_ctx,
         case clang::Type::IncompleteArray:
             if (ignore_array_bounds || idx_is_valid)
             {
-                const clang::ArrayType *array = llvm::cast<clang::ArrayType>(parent_qual_type.getTypePtr());
+                const clang::ArrayType *array = GetQualType()->getAsArrayTypeUnsafe();
                 if (array)
                 {
                     ClangASTType element_type (m_ast, array->getElementType());
@@ -4752,6 +4946,17 @@ ClangASTType::BuildIndirectFields ()
     }
 }
 
+void
+ClangASTType::SetIsPacked ()
+{
+    clang::RecordDecl *record_decl = GetAsRecordDecl();
+    
+    if (!record_decl)
+        return;
+    
+    record_decl->addAttr(clang::PackedAttr::CreateImplicit(*m_ast));
+}
+
 clang::VarDecl *
 ClangASTType::AddVariableToRecordType (const char *name,
                                        const ClangASTType &var_type,
@@ -5176,9 +5381,12 @@ ClangASTType::AddObjCClassProperty (const char *property_name,
                     if (getter && metadata)
                         ClangASTContext::SetMetadata(m_ast, getter, *metadata);
                     
-                    getter->setMethodParams(*m_ast, llvm::ArrayRef<clang::ParmVarDecl*>(), llvm::ArrayRef<clang::SourceLocation>());
+                    if (getter)
+                    {
+                        getter->setMethodParams(*m_ast, llvm::ArrayRef<clang::ParmVarDecl*>(), llvm::ArrayRef<clang::SourceLocation>());
                     
-                    class_interface_decl->addDecl(getter);
+                        class_interface_decl->addDecl(getter);
+                    }
                 }
                 
                 if (!setter_sel.isNull() && !class_interface_decl->lookupInstanceMethod(setter_sel))
@@ -5223,9 +5431,12 @@ ClangASTType::AddObjCClassProperty (const char *property_name,
                                                                   clang::SC_Auto,
                                                                   nullptr));
                     
-                    setter->setMethodParams(*m_ast, llvm::ArrayRef<clang::ParmVarDecl*>(params), llvm::ArrayRef<clang::SourceLocation>());
+                    if (setter)
+                    {
+                        setter->setMethodParams(*m_ast, llvm::ArrayRef<clang::ParmVarDecl*>(params), llvm::ArrayRef<clang::SourceLocation>());
                     
-                    class_interface_decl->addDecl(setter);
+                        class_interface_decl->addDecl(setter);
+                    }
                 }
                 
                 return true;
@@ -5825,7 +6036,7 @@ ClangASTType::DumpValue (ExecutionContext *exe_ctx,
                     // Indent and print the base class type name
                     s->Printf("\n%*s%s ", depth + DEPTH_INCREMENT, "", base_class_type_name.c_str());
 
-                    std::pair<uint64_t, unsigned> base_class_type_info = m_ast->getTypeInfo(base_class_qual_type);
+                    clang::TypeInfo base_class_type_info = m_ast->getTypeInfo(base_class_qual_type);
 
                     // Dump the value of the member
                     ClangASTType base_clang_type(m_ast, base_class_qual_type);
@@ -5834,7 +6045,7 @@ ClangASTType::DumpValue (ExecutionContext *exe_ctx,
                                                base_clang_type.GetFormat(),         // The format with which to display the member
                                                data,                                // Data buffer containing all bytes for this type
                                                data_byte_offset + field_byte_offset,// Offset into "data" where to grab value from
-                                               base_class_type_info.first / 8,      // Size of this type in bytes
+                                               base_class_type_info.Width / 8,      // Size of this type in bytes
                                                0,                                   // Bitfield bit size
                                                0,                                   // Bitfield bit offset
                                                show_types,                          // Boolean indicating if we should show the variable types
@@ -5864,7 +6075,7 @@ ClangASTType::DumpValue (ExecutionContext *exe_ctx,
                 // Print the member type if requested
                 // Figure out the type byte size (field_type_info.first) and
                 // alignment (field_type_info.second) from the AST context.
-                std::pair<uint64_t, unsigned> field_type_info = m_ast->getTypeInfo(field_type);
+                clang::TypeInfo field_type_info = m_ast->getTypeInfo(field_type);
                 assert(field_idx < record_layout.getFieldCount());
                 // Figure out the field offset within the current struct/union/class type
                 field_bit_offset = record_layout.getFieldOffset (field_idx);
@@ -5893,7 +6104,7 @@ ClangASTType::DumpValue (ExecutionContext *exe_ctx,
                                             field_clang_type.GetFormat(),   // The format with which to display the member
                                             data,                           // Data buffer containing all bytes for this type
                                             data_byte_offset + field_byte_offset,// Offset into "data" where to grab value from
-                                            field_type_info.first / 8,      // Size of this type in bytes
+                                            field_type_info.Width / 8,      // Size of this type in bytes
                                             field_bitfield_bit_size,        // Bitfield bit size
                                             field_bitfield_bit_offset,      // Bitfield bit offset
                                             show_types,                     // Boolean indicating if we should show the variable types
@@ -5943,11 +6154,11 @@ ClangASTType::DumpValue (ExecutionContext *exe_ctx,
 
             const uint64_t element_count = array->getSize().getLimitedValue();
 
-            std::pair<uint64_t, unsigned> field_type_info = m_ast->getTypeInfo(element_qual_type);
+            clang::TypeInfo field_type_info = m_ast->getTypeInfo(element_qual_type);
 
             uint32_t element_idx = 0;
             uint32_t element_offset = 0;
-            uint64_t element_byte_size = field_type_info.first / 8;
+            uint64_t element_byte_size = field_type_info.Width / 8;
             uint32_t element_stride = element_byte_size;
 
             if (is_array_of_characters)
@@ -6006,8 +6217,8 @@ ClangASTType::DumpValue (ExecutionContext *exe_ctx,
             
             ClangASTType typedef_clang_type (m_ast, typedef_qual_type);
             lldb::Format typedef_format = typedef_clang_type.GetFormat();
-            std::pair<uint64_t, unsigned> typedef_type_info = m_ast->getTypeInfo(typedef_qual_type);
-            uint64_t typedef_byte_size = typedef_type_info.first / 8;
+            clang::TypeInfo typedef_type_info = m_ast->getTypeInfo(typedef_qual_type);
+            uint64_t typedef_byte_size = typedef_type_info.Width / 8;
 
             return typedef_clang_type.DumpValue (exe_ctx,
                                                  s,                  // Stream to dump to
@@ -6029,8 +6240,8 @@ ClangASTType::DumpValue (ExecutionContext *exe_ctx,
             clang::QualType elaborated_qual_type = llvm::cast<clang::ElaboratedType>(qual_type)->getNamedType();
             ClangASTType elaborated_clang_type (m_ast, elaborated_qual_type);
             lldb::Format elaborated_format = elaborated_clang_type.GetFormat();
-            std::pair<uint64_t, unsigned> elaborated_type_info = m_ast->getTypeInfo(elaborated_qual_type);
-            uint64_t elaborated_byte_size = elaborated_type_info.first / 8;
+            clang::TypeInfo elaborated_type_info = m_ast->getTypeInfo(elaborated_qual_type);
+            uint64_t elaborated_byte_size = elaborated_type_info.Width / 8;
 
             return elaborated_clang_type.DumpValue (exe_ctx,
                                                     s,                  // Stream to dump to
@@ -6053,8 +6264,8 @@ ClangASTType::DumpValue (ExecutionContext *exe_ctx,
             ClangASTType desugar_clang_type (m_ast, desugar_qual_type);
 
             lldb::Format desugar_format = desugar_clang_type.GetFormat();
-            std::pair<uint64_t, unsigned> desugar_type_info = m_ast->getTypeInfo(desugar_qual_type);
-            uint64_t desugar_byte_size = desugar_type_info.first / 8;
+            clang::TypeInfo desugar_type_info = m_ast->getTypeInfo(desugar_qual_type);
+            uint64_t desugar_byte_size = desugar_type_info.Width / 8;
             
             return desugar_clang_type.DumpValue (exe_ctx,
                                                  s,                  // Stream to dump to
@@ -6121,8 +6332,8 @@ ClangASTType::DumpTypeValue (Stream *s,
                 ClangASTType typedef_clang_type (m_ast, typedef_qual_type);
                 if (format == eFormatDefault)
                     format = typedef_clang_type.GetFormat();
-                std::pair<uint64_t, unsigned> typedef_type_info = m_ast->getTypeInfo(typedef_qual_type);
-                uint64_t typedef_byte_size = typedef_type_info.first / 8;
+                clang::TypeInfo typedef_type_info = m_ast->getTypeInfo(typedef_qual_type);
+                uint64_t typedef_byte_size = typedef_type_info.Width / 8;
 
                 return typedef_clang_type.DumpTypeValue (s,
                                                          format,                 // The format with which to display the element

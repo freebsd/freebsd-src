@@ -10,10 +10,14 @@
 #include "lldb/Target/Thread.h"
 #include "lldb/Core/RegisterValue.h"
 
-#include "RegisterContextPOSIX_arm64.h"
+#include "Plugins/Process/Utility/RegisterContextPOSIX_arm64.h"
 #include "ProcessPOSIX.h"
 #include "RegisterContextPOSIXProcessMonitor_arm64.h"
-#include "ProcessMonitor.h"
+#if defined(__FreeBSD__)
+#include "Plugins/Process/FreeBSD/ProcessMonitor.h"
+#else
+#include "Plugins/Process/Linux/ProcessMonitor.h"
+#endif
 
 #define REG_CONTEXT_SIZE (GetGPRSize())
 

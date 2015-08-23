@@ -31,7 +31,7 @@
 #include "iconv-internal.h"
 
 size_t
-__iconv(iconv_t a, const char **b, size_t *c, char **d,
+__iconv(iconv_t a, char **b, size_t *c, char **d,
      size_t *e, __uint32_t f, size_t *g)
 {
 	return __bsd___iconv(a, b, c, d, e, f, g);

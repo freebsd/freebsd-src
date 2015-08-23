@@ -7,7 +7,7 @@
 .\" # LICENSE.
 .\" # Phil Shafer, July 2014
 .\" 
-.Dd July, 2014
+.Dd December 4, 2014
 .Dt LIBXO 3
 .Os
 .Sh NAME
@@ -25,9 +25,11 @@
 Use the
 .Fn xo_set_style
 function to set the output style for a handle.
-To use the default handle, pass a NULL handle.
+To use the default handle, pass a
+.Dv NULL
+handle.
 The set of output styles used by
-.Em libxo
+.Nm libxo
 is:
 .Bl -column "XO_STYLE_TEXT12"
 .It Sy "Flag          Description"
@@ -47,18 +49,20 @@ The name can be any of the styles: "text", "xml", "json", or "html".
         xo_set_style_name(NULL, "html");
 .Ed
 .Sh ADDITIONAL DOCUMENTATION
-.Pp
 Complete documentation can be found on github:
 .Bd -literal -offset indent
 http://juniper.github.io/libxo/libxo-manual.html
 .Ed
 .Pp
-libxo lives on github as:
+.Nm libxo
+lives on github as:
 .Bd -literal -offset indent
 https://github.com/Juniper/libxo
 .Ed
 .Pp
-The latest release of libxo is available at:
+The latest release of
+.Nm libxo
+is available at:
 .Bd -literal -offset indent
 https://github.com/Juniper/libxo/releases
 .Ed
@@ -66,7 +70,8 @@ https://github.com/Juniper/libxo/releases
 .Xr xo_emit 3
 .Sh HISTORY
 The
-.Fa libxo
-library was added in FreeBSD 11.0.
+.Nm libxo
+library was added in
+.Fx 11.0 .
 .Sh AUTHOR
 Phil Shafer

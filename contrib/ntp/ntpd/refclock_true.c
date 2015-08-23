@@ -1,9 +1,8 @@
 /*
- * refclock_true - clock driver for the Kinemetrics Truetime receivers
+ * refclock_true - clock driver for the Kinemetrics/TrueTime receivers
  *	Receiver Version 3.0C - tested plain, with CLKLDISC
- *	Developement work being done:
- * 	- Properly handle varying satellite positions (more acurately)
- *	- Integrate GPSTM and/or OMEGA and/or TRAK and/or ??? drivers
+ *	Development work being done:
+ *      - Support TL-3 WWV TOD receiver
  */
 
 #ifdef HAVE_CONFIG_H
@@ -12,14 +11,20 @@
 
 #if defined(REFCLOCK) && defined(CLOCK_TRUETIME)
 
+#include <stdio.h>
+#include <ctype.h>
+
 #include "ntpd.h"
 #include "ntp_io.h"
 #include "ntp_refclock.h"
 #include "ntp_unixtime.h"
 #include "ntp_stdlib.h"
 
-#include <stdio.h>
-#include <ctype.h>
+#ifdef SYS_WINNT
+extern int async_write(int, const void *, unsigned int);
+#undef write
+#define write(fd, data, octets)	async_write(fd, data, octets)
+#endif
 
 /* This should be an atom clock but those are very hard to build.
  *
@@ -44,10 +49,11 @@
 
 /*
  * Support for Kinemetrics Truetime Receivers
- *	GOES
- *	GPS/TM-TMD
- *	XL-DC		(a 151-602-210, reported by the driver as a GPS/TM-TMD)
- *	GPS-800 TCU	(an 805-957 with the RS232 Talker/Listener module)
+ *	GOES:           (468-DC, usable with GPS->GOES converting antenna)
+ *	GPS/TM-TMD:	
+ *	XL-DC:		(a 151-602-210, reported by the driver as a GPS/TM-TMD)
+ *	GPS-800 TCU:	(an 805-957 with the RS232 Talker/Listener module)
+ *      TL-3:           3 channel WWV/H receiver w/ IRIG and RS-232 outputs
  *	OM-DC:		getting stale ("OMEGA")
  *
  * Most of this code is originally from refclock_wwvb.c with thanks.
@@ -65,15 +71,18 @@
  *       ?     +/- 1  milliseconds	#     +/- 100 microseconds
  *       *     +/- 10 microseconds	.     +/- 1   microsecond
  *     space   less than 1 microsecond
+ *   TL-3 Receiver: (default quality codes for TL-3)
+ *       ?     unknown quality (receiver is unlocked)
+ *     space   +/- 5 milliseconds
  *   OM-DC OMEGA Receiver: (default quality codes for OMEGA)
  *   WARNING OMEGA navigation system is no longer existent
  *       >     >+- 5 seconds
  *       ?     >+/- 500 milliseconds    #     >+/- 50 milliseconds
  *       *     >+/- 5 milliseconds      .     >+/- 1 millisecond
  *      A-H    less than 1 millisecond.  Character indicates which station
- *             is being received as follows:
- *             A = Norway, B = Liberia, C = Hawaii, D = North Dakota,
- *             E = La Reunion, F = Argentina, G = Australia, H = Japan.
+ *	       is being received as follows:
+ *	       A = Norway, B = Liberia, C = Hawaii, D = North Dakota,
+ *	       E = La Reunion, F = Argentina, G = Australia, H = Japan.
  *
  * The carriage return start bit begins on 0 seconds and extends to 1 bit time.
  *
@@ -97,16 +106,27 @@
  * This corrects the 4 milliseconds advance and 8 milliseconds retard
  * needed. The software will ask the clock which satellite it sees.
  *
- * Ntp.conf parameters:
- * time1 - offset applied to samples when reading WEST satellite (default = 0)
- * time2 - offset applied to samples when reading EAST satellite (default = 0)
- * val1  - stratum to assign to this clock (default = 0)
- * val2  - refid assigned to this clock (default = "TRUE", see below)
- * flag1 - will silence the clock side of ntpd, just reading the clock
- *         without trying to write to it.  (default = 0)
- * flag2 - generate a debug file /tmp/true%d.
- * flag3 - enable ppsclock streams module
- * flag4 - use the PCL-720 (BSD/OS only)
+ * Notes on the TrueTime TimeLink TL-3 WWV TOD receiver:
+ * 
+ * This clock may be polled, or send one timecode per second.
+ * That mode may be toggled via the front panel ("C" mode), or controlled
+ * from the RS-232 port.  Send the receiver "ST1" to turn it on, and
+ * "ST0" to turn it off.  Send "QV" to get the firmware revision (useful
+ * for identifying this model.)
+ * 
+ * Note that it can take several polling cycles, especially if the receiver
+ * was in the continuous timecode mode.  (It can be slow to leave that mode.)
+ * 
+ * ntp.conf parameters:
+ * time1   - offset applied to samples when reading WEST satellite (default = 0)
+ * time2   - offset applied to samples when reading EAST satellite (default = 0)
+ * stratum - stratum to assign to this clock (default = 0)
+ * refid   - refid assigned to this clock (default = "TRUE", see below)
+ * flag1   - will silence the clock side of ntpd, just reading the clock
+ *	     without trying to write to it.  (default = 0)
+ * flag2   - generate a debug file /tmp/true%d.
+ * flag3   - enable ppsclock streams module
+ * flag4   - use the PCL-720 (BSD/OS only)
  */
 
 
@@ -133,19 +153,19 @@
  * used by the state machine
  */
 enum true_event	{e_Init, e_Huh, e_F18, e_F50, e_F51, e_Satellite,
-		 e_Poll, e_Location, e_TS, e_Max};
+		 e_TL3, e_Poll, e_Location, e_TS, e_Max};
 const char *events[] = {"Init", "Huh", "F18", "F50", "F51", "Satellite",
-			"Poll", "Location", "TS"};
+			"TL3", "Poll", "Location", "TS"};
 #define eventStr(x) (((int)x<(int)e_Max) ? events[(int)x] : "?")
 
 enum true_state	{s_Base, s_InqTM, s_InqTCU, s_InqOmega, s_InqGOES,
-		 s_Init, s_F18, s_F50, s_Start, s_Auto, s_Max};
+		 s_InqTL3, s_Init, s_F18, s_F50, s_Start, s_Auto, s_Max};
 const char *states[] = {"Base", "InqTM", "InqTCU", "InqOmega", "InqGOES",
-			"Init", "F18", "F50", "Start", "Auto"};
+			"InqTL3", "Init", "F18", "F50", "Start", "Auto"};
 #define stateStr(x) (((int)x<(int)s_Max) ? states[(int)x] : "?")
 
-enum true_type	{t_unknown, t_goes, t_tm, t_tcu, t_omega, t_Max};
-const char *types[] = {"unknown", "goes", "tm", "tcu", "omega"};
+enum true_type	{t_unknown, t_goes, t_tm, t_tcu, t_omega, t_tl3, t_Max};
+const char *types[] = {"unknown", "goes", "tm", "tcu", "omega", "tl3"};
 #define typeStr(x) (((int)x<(int)t_Max) ? types[(int)x] : "?")
 
 /*
@@ -167,15 +187,15 @@ struct true_unit {
 /*
  * Function prototypes
  */
-static	int	true_start	P((int, struct peer *));
-static	void	true_shutdown	P((int, struct peer *));
-static	void	true_receive	P((struct recvbuf *));
-static	void	true_poll	P((int, struct peer *));
-static	void	true_send	P((struct peer *, const char *));
-static	void	true_doevent	P((struct peer *, enum true_event));
+static	int	true_start	(int, struct peer *);
+static	void	true_shutdown	(int, struct peer *);
+static	void	true_receive	(struct recvbuf *);
+static	void	true_poll	(int, struct peer *);
+static	void	true_send	(struct peer *, const char *);
+static	void	true_doevent	(struct peer *, enum true_event);
 
 #ifdef CLOCK_PPS720
-static	u_long	true_sample720	P((void));
+static	u_long	true_sample720	(void);
 #endif
 
 /*
@@ -195,6 +215,7 @@ struct	refclock refclock_true = {
 #if !defined(__STDC__)
 # define true_debug (void)
 #else
+NTP_PRINTF(2, 3)
 static void
 true_debug(struct peer *peer, const char *fmt, ...)
 {
@@ -205,36 +226,40 @@ true_debug(struct peer *peer, const char *fmt, ...)
 
 	va_start(ap, fmt);
 	pp = peer->procptr;
-	up = (struct true_unit *)pp->unitptr;
+	up = pp->unitptr;
 
 	want_debugging = (pp->sloppyclockflag & CLK_FLAG2) != 0;
 	now_debugging = (up->debug != NULL);
 	if (want_debugging != now_debugging)
 	{
 		if (want_debugging) {
-		    char filename[40];
-		    int fd;
+			char filename[40];
+			int fd;
 
-		    snprintf(filename, sizeof(filename), "/tmp/true%d.debug", up->unit);
-		    fd = open(filename, O_CREAT | O_WRONLY | O_EXCL, 0600);
-		    if (fd >= 0 && (up->debug = fdopen(fd, "r+"))) {
+			snprintf(filename, sizeof(filename),
+				 "/tmp/true%d.debug", up->unit);
+			fd = open(filename, O_CREAT | O_WRONLY | O_EXCL,
+				  0600);
+			if (fd >= 0 && (up->debug = fdopen(fd, "w"))) {
 #ifdef HAVE_SETVBUF
-			    static char buf[BUFSIZ];
-			    setvbuf(up->debug, buf, _IOLBF, BUFSIZ);
+				static char buf[BUFSIZ];
+
+				setvbuf(up->debug, buf, _IOLBF, BUFSIZ);
 #else
-			    setlinebuf(up->debug);
+				setlinebuf(up->debug);
 #endif
-		    }
-	    } else {
-		    fclose(up->debug);
-		    up->debug = NULL;
-	    }
+			}
+		} else {
+			fclose(up->debug);
+			up->debug = NULL;
+		}
 	}
 
 	if (up->debug) {
 		fprintf(up->debug, "true%d: ", up->unit);
 		vfprintf(up->debug, fmt, ap);
 	}
+	va_end(ap);
 }
 #endif /*STDC*/
 
@@ -255,43 +280,50 @@ true_start(
 	/*
 	 * Open serial port
 	 */
-	(void)snprintf(device, sizeof(device), DEVICE, unit);
-	if (!(fd = refclock_open(device, SPEED232, LDISC_CLK)))
-	    return (0);
+	snprintf(device, sizeof(device), DEVICE, unit);
+	fd = refclock_open(device, SPEED232, LDISC_CLK);
+	if (fd <= 0)
+		return 0;
 
 	/*
 	 * Allocate and initialize unit structure
 	 */
-	if (!(up = (struct true_unit *)
-	      emalloc(sizeof(struct true_unit)))) {
-		(void) close(fd);
-		return (0);
-	}
-	memset((char *)up, 0, sizeof(struct true_unit));
+	up = emalloc_zero(sizeof(*up));
 	pp = peer->procptr;
 	pp->io.clock_recv = true_receive;
-	pp->io.srcclock = (caddr_t)peer;
+	pp->io.srcclock = peer;
 	pp->io.datalen = 0;
 	pp->io.fd = fd;
 	if (!io_addclock(&pp->io)) {
-		(void) close(fd);
+		close(fd);
+		pp->io.fd = -1;
 		free(up);
 		return (0);
 	}
-	pp->unitptr = (caddr_t)up;
+	pp->unitptr = up;
 
 	/*
 	 * Initialize miscellaneous variables
 	 */
 	peer->precision = PRECISION;
 	pp->clockdesc = DESCRIPTION;
-	memcpy((char *)&pp->refid, REFID, 4);
+	memcpy(&pp->refid, REFID, 4);
 	up->pollcnt = 2;
 	up->type = t_unknown;
 	up->state = s_Base;
+
+	/*
+	 * Send a CTRL-C character at the start,
+	 * just in case the clock is already
+	 * sending timecodes
+	 */
+	true_send(peer, "\03\r");
+	
 	true_doevent(peer, e_Init);
+
 	return (1);
 }
+
 
 /*
  * true_shutdown - shut down the clock
@@ -306,9 +338,11 @@ true_shutdown(
 	struct refclockproc *pp;
 
 	pp = peer->procptr;
-	up = (struct true_unit *)pp->unitptr;
-	io_closeclock(&pp->io);
-	free(up);
+	up = pp->unitptr;
+	if (pp->io.fd != -1)
+		io_closeclock(&pp->io);
+	if (up != NULL)
+		free(up);
 }
 
 
@@ -327,33 +361,34 @@ true_receive(
 	char synced;
 	int i;
 	int lat, lon, off;	/* GOES Satellite position */
-        /* Use these variable to hold data until we decide its worth keeping */
-        char    rd_lastcode[BMAX];
-        l_fp    rd_tmp;
-        u_short rd_lencode;
+	/* These variables hold data until we decide to keep it */
+	char	rd_lastcode[BMAX];
+	l_fp	rd_tmp;
+	u_short	rd_lencode;
 
 	/*
 	 * Get the clock this applies to and pointers to the data.
 	 */
-	peer = (struct peer *)rbufp->recv_srcclock;
+	peer = rbufp->recv_peer;
 	pp = peer->procptr;
-	up = (struct true_unit *)pp->unitptr;
+	up = pp->unitptr;
 
 	/*
 	 * Read clock output.  Automatically handles STREAMS, CLKLDISC.
 	 */
-        rd_lencode = refclock_gtlin(rbufp, rd_lastcode, BMAX, &rd_tmp);
-        rd_lastcode[rd_lencode] = '\0';
+	rd_lencode = refclock_gtlin(rbufp, rd_lastcode, BMAX, &rd_tmp);
+	rd_lastcode[rd_lencode] = '\0';
 
 	/*
 	 * There is a case where <cr><lf> generates 2 timestamps.
 	 */
-        if (rd_lencode == 0)
-            return;
-        pp->lencode = rd_lencode;
-        strcpy(pp->a_lastcode, rd_lastcode);
-        pp->lastrec = rd_tmp;
-	true_debug(peer, "receive(%s) [%d]\n", pp->a_lastcode, pp->lencode);
+	if (rd_lencode == 0)
+		return;
+	pp->lencode = rd_lencode;
+	strlcpy(pp->a_lastcode, rd_lastcode, sizeof(pp->a_lastcode));
+	pp->lastrec = rd_tmp;
+	true_debug(peer, "receive(%s) [%d]\n", pp->a_lastcode,
+		   pp->lencode);
 
 	up->pollcnt = 2;
 	record_clock_stats(&peer->srcadr, pp->a_lastcode);
@@ -424,24 +459,37 @@ true_receive(
 	 */
 	if (sscanf(pp->a_lastcode, "F%2d", &i) == 1 && i > 0 && i < 80) {
 		switch (i) {
-		    case 50:
+		case 50:
 			true_doevent(peer, e_F50);
 			break;
-		    case 51:
+		case 51:
 			true_doevent(peer, e_F51);
 			break;
-		    default:
+		default:
 			true_debug(peer, "got F%02d - ignoring\n", i);
 			break;
 		}
 		return;
 	}
 
+        /*
+         * Timecode: "VER xx.xx"
+         * (from a TL3 when sent "QV", so id's it during initialization.)
+         */
+        if (pp->a_lastcode[0] == 'V' && pp->a_lastcode[1] == 'E' &&
+            pp->a_lastcode[2] == 'R' && pp->a_lastcode[6] == '.') {
+                true_doevent(peer, e_TL3);
+                NLOG(NLOG_CLOCKSTATUS) {
+                        msyslog(LOG_INFO, "TL3: %s", pp->a_lastcode);
+                }
+                return;
+        }
+
 	/*
 	 * Timecode: " TRUETIME Mk III" or " TRUETIME XL"
 	 * (from a TM/TMD/XL clock during initialization.)
 	 */
-	if (strcmp(pp->a_lastcode, " TRUETIME Mk III") == 0 ||
+	if (strncmp(pp->a_lastcode, " TRUETIME Mk III ", 17) == 0 ||
 	    strncmp(pp->a_lastcode, " TRUETIME XL", 12) == 0) {
 		true_doevent(peer, e_F18);
 		NLOG(NLOG_CLOCKSTATUS) {
@@ -452,8 +500,8 @@ true_receive(
 
 	/*
 	 * Timecode: "N03726428W12209421+000033"
-	 *                      1         2
-	 *            0123456789012345678901234
+	 *			1	   2
+	 * index      0123456789012345678901234
 	 * (from a TCU during initialization)
 	 */
 	if ((pp->a_lastcode[0] == 'N' || pp->a_lastcode[0] == 'S') &&
@@ -467,6 +515,8 @@ true_receive(
 	}
 	/*
 	 * Timecode: "ddd:hh:mm:ssQ"
+	 *			1	   2
+	 * index      0123456789012345678901234
 	 * (from all clocks supported by this driver.)
 	 */
 	if (pp->a_lastcode[3] == ':' &&
@@ -480,10 +530,11 @@ true_receive(
 		 * Adjust the synchronize indicator according to timecode
 		 * say were OK, and then say not if we really are not OK
 		 */
-		if (synced == '>' || synced == '#' || synced == '?')
-		    pp->leap = LEAP_NOTINSYNC;
+		if (synced == '>' || synced == '#' || synced == '?'
+		    || synced == 'X')
+			pp->leap = LEAP_NOTINSYNC;
 		else
-                    pp->leap = LEAP_NOWARNING;
+			pp->leap = LEAP_NOWARNING;
 
 		true_doevent(peer, e_TS);
 
@@ -535,9 +586,15 @@ true_receive(
 		 * want one when polled.  If we havn't been polled, bail out.
 		 */
 		if (!up->polled)
-		    return;
+			return;
 
-		true_doevent(peer, e_Poll);
+                /* We only call doevent if additional things need be done
+                 * at poll interval.  Currently, its only for GOES.  We also
+                 * call it for clock unknown so that it gets logged.
+                 */
+                if (up->type == t_goes || up->type == t_unknown)
+                    true_doevent(peer, e_Poll);
+
 		if (!refclock_process(pp)) {
 			refclock_report(peer, CEVNT_BADTIME);
 			return;
@@ -546,7 +603,7 @@ true_receive(
 		 * If clock is good we send a NOMINAL message so that
 		 * any previous BAD messages are nullified
 		 */
-                pp->lastref = pp->lastrec;
+		pp->lastref = pp->lastrec;
 		refclock_receive(peer);
 		refclock_report(peer, CEVNT_NOMINAL);
 
@@ -580,13 +637,13 @@ true_send(
 
 	pp = peer->procptr;
 	if (!(pp->sloppyclockflag & CLK_FLAG1)) {
-		register int len = strlen(cmd);
+		int len = strlen(cmd);
 
 		true_debug(peer, "Send '%s'\n", cmd);
 		if (write(pp->io.fd, cmd, (unsigned)len) != len)
-		    refclock_report(peer, CEVNT_FAULT);
+			refclock_report(peer, CEVNT_FAULT);
 		else
-		    pp->polls++;
+			pp->polls++;
 	}
 }
 
@@ -604,7 +661,7 @@ true_doevent(
 	struct refclockproc *pp;
 
 	pp = peer->procptr;
-	up = (struct true_unit *)pp->unitptr;
+	up = pp->unitptr;
 	if (event != e_TS) {
 		NLOG(NLOG_CLOCKSTATUS) {
 			msyslog(LOG_INFO, "TRUE: clock %s, state %s, event %s",
@@ -616,176 +673,233 @@ true_doevent(
 	true_debug(peer, "clock %s, state %s, event %s\n",
 		   typeStr(up->type), stateStr(up->state), eventStr(event));
 	switch (up->type) {
-	    case t_goes:
+	case t_goes:
 		switch (event) {
-		    case e_Init:	/* FALLTHROUGH */
-		    case e_Satellite:
+		case e_Init:	/* FALLTHROUGH */
+		case e_Satellite:
 			/*
 			 * Switch back to on-second time codes and return.
 			 */
 			true_send(peer, "C");
 			up->state = s_Start;
 			break;
-		    case e_Poll:
+		case e_Poll:
 			/*
 			 * After each poll, check the station (satellite).
 			 */
 			true_send(peer, "P");
 			/* No state change needed. */
 			break;
-		    default:
+		default:
 			break;
 		}
 		/* FALLTHROUGH */
-	    case t_omega:
+	case t_omega:
 		switch (event) {
-		    case e_Init:
+		case e_Init:
 			true_send(peer, "C");
 			up->state = s_Start;
 			break;
-		    case e_TS:
+		case e_TS:
 			if (up->state != s_Start && up->state != s_Auto) {
 				true_send(peer, "\03\r");
 				break;
 			}
 			up->state = s_Auto;
 			break;
-		    default:
+		default:
 			break;
 		}
 		break;
-	    case t_tm:
+	case t_tm:
 		switch (event) {
-		    case e_Init:
+		case e_Init:
 			true_send(peer, "F18\r");
 			up->state = s_Init;
 			break;
-		    case e_F18:
+		case e_F18:
 			true_send(peer, "F50\r");
+                        /*
+                         * Timecode: " TRUETIME Mk III" or " TRUETIME XL"
+                         * (from a TM/TMD/XL clock during initialization.)
+                         */
+                        if ( strcmp(pp->a_lastcode, " TRUETIME Mk III") == 0 ||
+                            strncmp(pp->a_lastcode, " TRUETIME XL", 12) == 0) {
+                                true_doevent(peer, e_F18);
+                                NLOG(NLOG_CLOCKSTATUS) {
+                                    msyslog(LOG_INFO, "TM/TMD/XL: %s", 
+                                            pp->a_lastcode);
+                                }
+                                return;
+                        }
 			up->state = s_F18;
 			break;
-		    case e_F50:
+		case e_F50:
 			true_send(peer, "F51\r");
 			up->state = s_F50;
 			break;
-		    case e_F51:
+		case e_F51:
 			true_send(peer, "F08\r");
 			up->state = s_Start;
 			break;
-		    case e_TS:
+		case e_TS:
 			if (up->state != s_Start && up->state != s_Auto) {
 				true_send(peer, "\03\r");
 				break;
 			}
 			up->state = s_Auto;
 			break;
-		    default:
+		default:
 			break;
 		}
 		break;
-	    case t_tcu:
+	case t_tcu:
 		switch (event) {
-		    case e_Init:
+		case e_Init:
 			true_send(peer, "MD3\r");	/* GPS Synch'd Gen. */
 			true_send(peer, "TSU\r");	/* UTC, not GPS. */
 			true_send(peer, "AU\r");	/* Auto Timestamps. */
 			up->state = s_Start;
 			break;
-		    case e_TS:
+		case e_TS:
 			if (up->state != s_Start && up->state != s_Auto) {
 				true_send(peer, "\03\r");
 				break;
 			}
 			up->state = s_Auto;
 			break;
-		    default:
+		default:
 			break;
 		}
 		break;
-	    case t_unknown:
+	case t_tl3:
+                switch (event) {
+                    case e_Init:
+                        true_send(peer, "ST1"); /* Turn on continuous stream */
+                        break;
+                    case e_TS:
+                        up->state = s_Auto;
+                        break;
+                    default:
+                        break;
+                }
+                break;
+	case t_unknown:
+               if (event == e_Poll)
+                   break;
 		switch (up->state) {
-		    case s_Base:
+		case s_Base:
 			if (event != e_Init)
 			    abort();
 			true_send(peer, "P\r");
 			up->state = s_InqGOES;
 			break;
-		    case s_InqGOES:
+		case s_InqGOES:
 			switch (event) {
-			    case e_Satellite:
+			case e_Satellite:
 				up->type = t_goes;
 				true_doevent(peer, e_Init);
 				break;
-			    case e_Init:	/*FALLTHROUGH*/
-			    case e_Huh:	/*FALLTHROUGH*/
-			    case e_TS:
+			case e_Init:	/*FALLTHROUGH*/
+			case e_Huh:
+			case e_TS:
+                                true_send(peer, "ST0"); /* turn off TL3 auto */
+                                sleep(1);               /* wait for it */
+                                up->state = s_InqTL3;
+                                true_send(peer, "QV");  /* see if its a TL3 */
+                                break;
+                            default:
+                                abort();
+                        }
+                        break;
+                    case s_InqTL3:
+                        switch (event) {
+                            case e_TL3:
+                                up->type = t_tl3;
+                                up->state = s_Auto;     /* Inq side-effect. */
+                                true_send(peer, "ST1"); /* Turn on 1/sec data */
+                                break;
+                            case e_Init:        /*FALLTHROUGH*/
+                            case e_Huh:
 				up->state = s_InqOmega;
 				true_send(peer, "C\r");
 				break;
+                            case e_TS:
+                                 up->type = t_tl3;    /* Already sending data */
+                                 up->state = s_Auto;
+                                 break;
 			    default:
-				abort();
+                                msyslog(LOG_INFO, 
+                                        "TRUE: TL3 init fellthrough! (%d)", event);
+                                break; 
 			}
 			break;
-		    case s_InqOmega:
+		case s_InqOmega:
 			switch (event) {
-			    case e_TS:
+			case e_TS:
 				up->type = t_omega;
 				up->state = s_Auto;	/* Inq side-effect. */
 				break;
-			    case e_Init:	/*FALLTHROUGH*/
-			    case e_Huh:
+			case e_Init:	/*FALLTHROUGH*/
+			case e_Huh:
 				up->state = s_InqTM;
 				true_send(peer, "F18\r");
 				break;
-			    default:
+			default:
 				abort();
 			}
 			break;
-		    case s_InqTM:
+		case s_InqTM:
 			switch (event) {
-			    case e_F18:
+			case e_F18:
 				up->type = t_tm;
 				true_doevent(peer, e_Init);
 				break;
-			    case e_Init:	/*FALLTHROUGH*/
-			    case e_Huh:
+			case e_Init:	/*FALLTHROUGH*/
+			case e_Huh:
 				true_send(peer, "PO\r");
 				up->state = s_InqTCU;
 				break;
-			    default:
-				abort();
+			default:
+                                msyslog(LOG_INFO, 
+                                        "TRUE: TM/TMD init fellthrough!");
+			        break;
 			}
 			break;
-		    case s_InqTCU:
+		case s_InqTCU:
 			switch (event) {
-			    case e_Location:
+			case e_Location:
 				up->type = t_tcu;
 				true_doevent(peer, e_Init);
 				break;
-			    case e_Init:	/*FALLTHROUGH*/
-			    case e_Huh:
+			case e_Init:	/*FALLTHROUGH*/
+			case e_Huh:
 				up->state = s_Base;
 				sleep(1);	/* XXX */
 				break;
-			    default:
-				abort();
+			default:
+                                msyslog(LOG_INFO, 
+                                        "TRUE: TCU init fellthrough!");
+                                break;
 			}
 			break;
 			/*
 			 * An expedient hack to prevent lint complaints,
 			 * these don't actually need to be used here...
 			 */
-		    case s_Init:
-		    case s_F18:
-		    case s_F50:
-		    case s_Start:
-		    case s_Auto:
-		    case s_Max:
-			msyslog(LOG_INFO, "TRUE: state %s is unexpected!", stateStr(up->state));
+		case s_Init:
+		case s_F18:
+		case s_F50:
+		case s_Start:
+		case s_Auto:
+		case s_Max:
+			msyslog(LOG_INFO, "TRUE: state %s is unexpected!",
+				stateStr(up->state));
 		}
 		break;
-	    default:
-		abort();
+	default:
+                msyslog(LOG_INFO, "TRUE: cannot identify refclock!");
+		abort();    
 		/* NOTREACHED */
 	}
 
@@ -825,10 +939,10 @@ true_poll(
 	 * The next time a timecode comes in, it will be fed back.
 	 */
 	pp = peer->procptr;
-	up = (struct true_unit *)pp->unitptr;
-	if (up->pollcnt > 0)
-	    up->pollcnt--;
-	else {
+	up = pp->unitptr;
+	if (up->pollcnt > 0) {
+		up->pollcnt--;
+	} else {
 		true_doevent(peer, e_Init);
 		refclock_report(peer, CEVNT_TIMEOUT);
 	}

@@ -99,11 +99,10 @@ void ClangCheckerRegistry::warnIncompatible(DiagnosticsEngine *diags,
       << pluginAPIVersion;
 }
 
-
-CheckerManager *ento::createCheckerManager(AnalyzerOptions &opts,
-                                           const LangOptions &langOpts,
-                                           ArrayRef<std::string> plugins,
-                                           DiagnosticsEngine &diags) {
+std::unique_ptr<CheckerManager>
+ento::createCheckerManager(AnalyzerOptions &opts, const LangOptions &langOpts,
+                           ArrayRef<std::string> plugins,
+                           DiagnosticsEngine &diags) {
   std::unique_ptr<CheckerManager> checkerMgr(
       new CheckerManager(langOpts, &opts));
 
@@ -118,12 +117,15 @@ CheckerManager *ento::createCheckerManager(AnalyzerOptions &opts,
   checkerMgr->finishedCheckerRegistration();
 
   for (unsigned i = 0, e = checkerOpts.size(); i != e; ++i) {
-    if (checkerOpts[i].isUnclaimed())
+    if (checkerOpts[i].isUnclaimed()) {
       diags.Report(diag::err_unknown_analyzer_checker)
           << checkerOpts[i].getName();
+      diags.Report(diag::note_suggest_disabling_all_checkers);
+    }
+
   }
 
-  return checkerMgr.release();
+  return std::move(checkerMgr);
 }
 
 void ento::printCheckerHelp(raw_ostream &out, ArrayRef<std::string> plugins) {

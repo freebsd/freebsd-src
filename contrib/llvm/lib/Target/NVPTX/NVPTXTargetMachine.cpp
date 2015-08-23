@@ -16,6 +16,7 @@
 #include "NVPTX.h"
 #include "NVPTXAllocaHoisting.h"
 #include "NVPTXLowerAggrCopies.h"
+#include "NVPTXTargetObjectFile.h"
 #include "llvm/Analysis/Passes.h"
 #include "llvm/CodeGen/AsmPrinter.h"
 #include "llvm/CodeGen/MachineFunctionAnalysis.h"
@@ -50,6 +51,7 @@ void initializeNVVMReflectPass(PassRegistry&);
 void initializeGenericToNVVMPass(PassRegistry&);
 void initializeNVPTXAssignValidGlobalNamesPass(PassRegistry&);
 void initializeNVPTXFavorNonGenericAddrSpacesPass(PassRegistry &);
+void initializeNVPTXLowerStructArgsPass(PassRegistry &);
 }
 
 extern "C" void LLVMInitializeNVPTXTarget() {
@@ -64,6 +66,7 @@ extern "C" void LLVMInitializeNVPTXTarget() {
   initializeNVPTXAssignValidGlobalNamesPass(*PassRegistry::getPassRegistry());
   initializeNVPTXFavorNonGenericAddrSpacesPass(
     *PassRegistry::getPassRegistry());
+  initializeNVPTXLowerStructArgsPass(*PassRegistry::getPassRegistry());
 }
 
 NVPTXTargetMachine::NVPTXTargetMachine(const Target &T, StringRef TT,
@@ -72,9 +75,12 @@ NVPTXTargetMachine::NVPTXTargetMachine(const Target &T, StringRef TT,
                                        Reloc::Model RM, CodeModel::Model CM,
                                        CodeGenOpt::Level OL, bool is64bit)
     : LLVMTargetMachine(T, TT, CPU, FS, Options, RM, CM, OL),
+      TLOF(make_unique<NVPTXTargetObjectFile>()),
       Subtarget(TT, CPU, FS, *this, is64bit) {
   initAsmInfo();
 }
+
+NVPTXTargetMachine::~NVPTXTargetMachine() {}
 
 void NVPTXTargetMachine32::anchor() {}
 
@@ -104,8 +110,7 @@ public:
 
   void addIRPasses() override;
   bool addInstSelector() override;
-  bool addPreRegAlloc() override;
-  bool addPostRegAlloc() override;
+  void addPostRegAlloc() override;
   void addMachineSSAOptimization() override;
 
   FunctionPass *createTargetRegisterAllocator(bool) override;
@@ -117,6 +122,14 @@ public:
 TargetPassConfig *NVPTXTargetMachine::createPassConfig(PassManagerBase &PM) {
   NVPTXPassConfig *PassConfig = new NVPTXPassConfig(this, PM);
   return PassConfig;
+}
+
+void NVPTXTargetMachine::addAnalysisPasses(PassManagerBase &PM) {
+  // Add first the target-independent BasicTTI pass, then our NVPTX pass. This
+  // allows the NVPTX pass to delegate to the target independent layer when
+  // appropriate.
+  PM.add(createBasicTargetTransformInfoPass(this));
+  PM.add(createNVPTXTargetTransformInfoPass(this));
 }
 
 void NVPTXPassConfig::addIRPasses() {
@@ -169,10 +182,8 @@ bool NVPTXPassConfig::addInstSelector() {
   return false;
 }
 
-bool NVPTXPassConfig::addPreRegAlloc() { return false; }
-bool NVPTXPassConfig::addPostRegAlloc() {
-  addPass(createNVPTXPrologEpilogPass());
-  return false;
+void NVPTXPassConfig::addPostRegAlloc() {
+  addPass(createNVPTXPrologEpilogPass(), false);
 }
 
 FunctionPass *NVPTXPassConfig::createTargetRegisterAllocator(bool) {

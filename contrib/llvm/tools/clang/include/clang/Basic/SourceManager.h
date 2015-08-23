@@ -32,8 +32,8 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_SOURCEMANAGER_H
-#define LLVM_CLANG_SOURCEMANAGER_H
+#ifndef LLVM_CLANG_BASIC_SOURCEMANAGER_H
+#define LLVM_CLANG_BASIC_SOURCEMANAGER_H
 
 #include "clang/Basic/FileManager.h"
 #include "clang/Basic/LLVM.h"
@@ -205,10 +205,10 @@ namespace SrcMgr {
     /// this content cache.  This is used for performance analysis.
     llvm::MemoryBuffer::BufferKind getMemoryBufferKind() const;
 
-    void setBuffer(llvm::MemoryBuffer *B) {
+    void setBuffer(std::unique_ptr<llvm::MemoryBuffer> B) {
       assert(!Buffer.getPointer() && "MemoryBuffer already set.");
-      Buffer.setPointer(B);
-      Buffer.setInt(false);
+      Buffer.setPointer(B.release());
+      Buffer.setInt(0);
     }
 
     /// \brief Get the underlying buffer, returning NULL if the buffer is not
@@ -685,9 +685,9 @@ class SourceManager : public RefCountedBase<SourceManager> {
   InBeforeInTUCacheEntry &getInBeforeInTUCache(FileID LFID, FileID RFID) const;
 
   // Cache for the "fake" buffer used for error-recovery purposes.
-  mutable llvm::MemoryBuffer *FakeBufferForRecovery;
+  mutable std::unique_ptr<llvm::MemoryBuffer> FakeBufferForRecovery;
 
-  mutable SrcMgr::ContentCache *FakeContentCacheForRecovery;
+  mutable std::unique_ptr<SrcMgr::ContentCache> FakeContentCacheForRecovery;
 
   /// \brief Lazily computed map of macro argument chunks to their expanded
   /// source location.
@@ -754,7 +754,6 @@ public:
 
   /// \brief Set the file ID for the main source file.
   void setMainFileID(FileID FID) {
-    assert(MainFileID.isInvalid() && "MainFileID already set!");
     MainFileID = FID;
   }
 
@@ -789,12 +788,12 @@ public:
   ///
   /// This does no caching of the buffer and takes ownership of the
   /// MemoryBuffer, so only pass a MemoryBuffer to this once.
-  FileID createFileID(llvm::MemoryBuffer *Buffer,
+  FileID createFileID(std::unique_ptr<llvm::MemoryBuffer> Buffer,
                       SrcMgr::CharacteristicKind FileCharacter = SrcMgr::C_User,
                       int LoadedID = 0, unsigned LoadedOffset = 0,
                       SourceLocation IncludeLoc = SourceLocation()) {
-    return createFileID(createMemBufferContentCache(Buffer), IncludeLoc,
-                        FileCharacter, LoadedID, LoadedOffset);
+    return createFileID(createMemBufferContentCache(std::move(Buffer)),
+                        IncludeLoc, FileCharacter, LoadedID, LoadedOffset);
   }
 
   /// \brief Return a new SourceLocation that encodes the
@@ -833,7 +832,11 @@ public:
   /// \param DoNotFree If true, then the buffer will not be freed when the
   /// source manager is destroyed.
   void overrideFileContents(const FileEntry *SourceFile,
-                            llvm::MemoryBuffer *Buffer, bool DoNotFree = false);
+                            llvm::MemoryBuffer *Buffer, bool DoNotFree);
+  void overrideFileContents(const FileEntry *SourceFile,
+                            std::unique_ptr<llvm::MemoryBuffer> Buffer) {
+    overrideFileContents(SourceFile, Buffer.release(), /*DoNotFree*/ false);
+  }
 
   /// \brief Override the given source file with another one.
   ///
@@ -1624,7 +1627,7 @@ private:
 
   /// \brief Create a new ContentCache for the specified  memory buffer.
   const SrcMgr::ContentCache *
-  createMemBufferContentCache(llvm::MemoryBuffer *Buf);
+  createMemBufferContentCache(std::unique_ptr<llvm::MemoryBuffer> Buf);
 
   FileID getFileIDSlow(unsigned SLocOffset) const;
   FileID getFileIDLocal(unsigned SLocOffset) const;
@@ -1674,7 +1677,7 @@ class BeforeThanCompare<SourceRange> {
 public:
   explicit BeforeThanCompare(SourceManager &SM) : SM(SM) { }
 
-  bool operator()(SourceRange LHS, SourceRange RHS) {
+  bool operator()(SourceRange LHS, SourceRange RHS) const {
     return SM.isBeforeInTranslationUnit(LHS.getBegin(), RHS.getBegin());
   }
 };

@@ -33,7 +33,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 10, 2006
+.Dd July 25, 2015
 .Dt MAC 9
 .Os
 .Sh NAME
@@ -62,14 +62,6 @@ opportunity to modify security behavior at those MAC API entry points.
 Both consumers of the API (normal kernel services) and security modules
 must be aware of the semantics of the API calls, particularly with respect
 to synchronization primitives (such as locking).
-.Ss Note on Appropriateness for Production Use
-The
-.Tn TrustedBSD
-MAC Framework included in
-.Fx 5.0
-is considered experimental, and should not be deployed in production
-environments without careful consideration of the risks associated with
-the use of experimental operating system features.
 .Ss Kernel Objects Supported by the Framework
 The MAC framework manages labels on a variety of types of in-kernel
 objects, including process credentials, vnodes, devfs_dirents, mount
@@ -232,13 +224,6 @@ Additional contributors include:
 and
 .An Tim Robbins .
 .Sh BUGS
-See the earlier section in this document concerning appropriateness
-for production use.
-The
-.Tn TrustedBSD
-MAC Framework is considered experimental in
-.Fx .
-.Pp
 While the MAC Framework design is intended to support the containment of
 the root user, not all attack channels are currently protected by entry
 point checks.

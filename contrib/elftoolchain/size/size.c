@@ -24,7 +24,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <assert.h>
 #include <err.h>
 #include <fcntl.h>
@@ -39,7 +38,7 @@
 
 #include "_elftc.h"
 
-ELFTC_VCSID("$Id: size.c 2350 2011-12-19 10:20:06Z jkoshy $");
+ELFTC_VCSID("$Id: size.c 3183 2015-04-10 16:18:42Z emaste $");
 
 #define	BUF_SIZE			1024
 #define	ELF_ALIGN(val,x) (((val)+(x)-1) & ~((x)-1))
@@ -605,7 +604,7 @@ handle_elf(char const *name)
 			    arhdr->ar_name);
 			continue;
 		}
-		/* Core dumps are handled seperately */
+		/* Core dumps are handled separately */
 		if (elfhdr.e_shnum == 0 && elfhdr.e_type == ET_CORE) {
 			exit_code = handle_core(name, elf, &elfhdr);
 			(void) elf_end(elf);

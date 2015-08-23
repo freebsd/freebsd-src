@@ -16,8 +16,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_FORMAT_H
-#define LLVM_CLANG_FORMAT_H
+#ifndef LLVM_CLANG_ANALYSIS_ANALYSES_FORMATSTRING_H
+#define LLVM_CLANG_ANALYSIS_ANALYSES_FORMATSTRING_H
 
 #include "clang/AST/CanonicalType.h"
 
@@ -79,6 +79,7 @@ public:
     AsLongDouble, // 'L'
     AsAllocate,   // for '%as', GNU extension to C90 scanf
     AsMAllocate,  // for '%ms', GNU extension to scanf
+    AsWide,       // 'w' (MSVCRT, like l but only for c, C, s, S, or Z
     AsWideChar = AsLong // for '%ls', only makes sense for printf
   };
 
@@ -154,14 +155,17 @@ public:
 
     // ** Printf-specific **
 
+    ZArg, // MS extension
+
     // Objective-C specific specifiers.
     ObjCObjArg,  // '@'
     ObjCBeg = ObjCObjArg, ObjCEnd = ObjCObjArg,
 
-    // FreeBSD specific specifiers
+    // FreeBSD kernel specific specifiers.
     FreeBSDbArg,
     FreeBSDDArg,
     FreeBSDrArg,
+    FreeBSDyArg,
 
     // GlibC specific specifiers.
     PrintErrno,   // 'm'
@@ -206,7 +210,8 @@ public:
     return EndScanList ? EndScanList - Position : 1;
   }
 
-  bool isIntArg() const { return kind >= IntArgBeg && kind <= IntArgEnd; }
+  bool isIntArg() const { return (kind >= IntArgBeg && kind <= IntArgEnd) ||
+    kind == FreeBSDrArg || kind == FreeBSDyArg; }
   bool isUIntArg() const { return kind >= UIntArgBeg && kind <= UIntArgEnd; }
   bool isAnyIntArg() const { return kind >= IntArgBeg && kind <= UIntArgEnd; }
   const char *toString() const;
@@ -648,7 +653,10 @@ public:
 
 bool ParsePrintfString(FormatStringHandler &H,
                        const char *beg, const char *end, const LangOptions &LO,
-                       const TargetInfo &Target);
+                       const TargetInfo &Target, bool isFreeBSDKPrintf);
+  
+bool ParseFormatStringHasSArg(const char *beg, const char *end, const LangOptions &LO,
+                              const TargetInfo &Target);
 
 bool ParseScanfString(FormatStringHandler &H,
                       const char *beg, const char *end, const LangOptions &LO,

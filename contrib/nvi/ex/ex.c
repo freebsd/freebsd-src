@@ -31,20 +31,20 @@ static const char sccsid[] = "$Id: ex.c,v 10.80 2012/10/03 16:24:40 zy Exp $";
 #include "../vi/vi.h"
 
 #if defined(DEBUG) && defined(COMLOG)
-static void	ex_comlog __P((SCR *, EXCMD *));
+static void	ex_comlog(SCR *, EXCMD *);
 #endif
 static EXCMDLIST const *
-		ex_comm_search __P((CHAR_T *, size_t));
-static int	ex_discard __P((SCR *));
-static int	ex_line __P((SCR *, EXCMD *, MARK *, int *, int *));
-static int	ex_load __P((SCR *));
-static void	ex_unknown __P((SCR *, CHAR_T *, size_t));
+		ex_comm_search(CHAR_T *, size_t);
+static int	ex_discard(SCR *);
+static int	ex_line(SCR *, EXCMD *, MARK *, int *, int *);
+static int	ex_load(SCR *);
+static void	ex_unknown(SCR *, CHAR_T *, size_t);
 
 /*
  * ex --
  *	Main ex loop.
  *
- * PUBLIC: int ex __P((SCR **));
+ * PUBLIC: int ex(SCR **);
  */
 int
 ex(SCR **spp)
@@ -187,7 +187,7 @@ ex(SCR **spp)
  *
  * For extra credit, try them in a startup .exrc file.
  *
- * PUBLIC: int ex_cmd __P((SCR *));
+ * PUBLIC: int ex_cmd(SCR *);
  */
 int
 ex_cmd(SCR *sp)
@@ -1616,7 +1616,7 @@ rsuccess:	tmp = 0;
  * ex_range --
  *	Get a line range for ex commands, or perform a vi ex address search.
  *
- * PUBLIC: int ex_range __P((SCR *, EXCMD *, int *));
+ * PUBLIC: int ex_range(SCR *, EXCMD *, int *);
  */
 int
 ex_range(SCR *sp, EXCMD *ecp, int *errp)
@@ -1689,12 +1689,12 @@ ex_range(SCR *sp, EXCMD *ecp, int *errp)
 			++ecp->cp;
 			--ecp->clen;
 			break;
-		case ',':               /* Comma delimiter. */
+		case ',':	       /* Comma delimiter. */
 			/* Vi ex address searches didn't permit commas. */
 			if (F_ISSET(ecp, E_VISEARCH))
 				goto ret;
 			/* FALLTHROUGH */
-		case ';':               /* Semi-colon delimiter. */
+		case ';':	       /* Semi-colon delimiter. */
 			if (sp->ep == NULL) {
 				ex_badaddr(sp, NULL, A_EMPTY, NUM_OK);
 				*errp = 1;
@@ -1825,7 +1825,7 @@ ex_line(SCR *sp, EXCMD *ecp, MARK *mp, int *isaddrp, int *errp)
 	GS *gp;
 	long total, val;
 	int isneg;
-	int (*sf) __P((SCR *, MARK *, MARK *, CHAR_T *, size_t, CHAR_T **, u_int));
+	int (*sf)(SCR *, MARK *, MARK *, CHAR_T *, size_t, CHAR_T **, u_int);
 	CHAR_T *endp;
 
 	gp = sp->gp;
@@ -2219,7 +2219,7 @@ alloc_err:
  *	[un]abbreviate command, so it can turn off abbreviations.  See
  *	the usual ranting in the vi/v_txt_ev.c:txt_abbrev() routine.
  *
- * PUBLIC: int ex_is_abbrev __P((CHAR_T *, size_t));
+ * PUBLIC: int ex_is_abbrev(CHAR_T *, size_t);
  */
 int
 ex_is_abbrev(CHAR_T *name, size_t len)
@@ -2236,7 +2236,7 @@ ex_is_abbrev(CHAR_T *name, size_t len)
  *	unmap command, so it can turn off input mapping.  See the usual
  *	ranting in the vi/v_txt_ev.c:txt_unmap() routine.
  *
- * PUBLIC: int ex_is_unmap __P((CHAR_T *, size_t));
+ * PUBLIC: int ex_is_unmap(CHAR_T *, size_t);
  */
 int
 ex_is_unmap(CHAR_T *name, size_t len)
@@ -2279,7 +2279,7 @@ ex_comm_search(CHAR_T *name, size_t len)
  *	Display a bad address message.
  *
  * PUBLIC: void ex_badaddr
- * PUBLIC:    __P((SCR *, EXCMDLIST const *, enum badaddr, enum nresult));
+ * PUBLIC:   (SCR *, EXCMDLIST const *, enum badaddr, enum nresult);
  */
 void
 ex_badaddr(SCR *sp, const EXCMDLIST *cp, enum badaddr ba, enum nresult nret)

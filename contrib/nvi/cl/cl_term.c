@@ -10,7 +10,7 @@
 #include "config.h"
 
 #ifndef lint
-static const char sccsid[] = "$Id: cl_term.c,v 10.34 2013/12/07 16:21:14 wjenkner Exp $";
+static const char sccsid[] = "$Id: cl_term.c,v 10.35 2015/04/08 02:12:11 zy Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -34,7 +34,7 @@ static const char sccsid[] = "$Id: cl_term.c,v 10.34 2013/12/07 16:21:14 wjenkne
 #include "../common/common.h"
 #include "cl.h"
 
-static int cl_pfmap __P((SCR *, seq_t, CHAR_T *, size_t, CHAR_T *, size_t));
+static int cl_pfmap(SCR *, seq_t, CHAR_T *, size_t, CHAR_T *, size_t);
 
 /*
  * XXX
@@ -81,7 +81,7 @@ static TKLIST const m2_tklist[] = {	/* Input mappings (set or delete). */
  * cl_term_init --
  *	Initialize the special keys defined by the termcap/terminfo entry.
  *
- * PUBLIC: int cl_term_init __P((SCR *));
+ * PUBLIC: int cl_term_init(SCR *);
  */
 int
 cl_term_init(SCR *sp)
@@ -182,7 +182,7 @@ cl_term_init(SCR *sp)
  * cl_term_end --
  *	End the special keys defined by the termcap/terminfo entry.
  *
- * PUBLIC: int cl_term_end __P((GS *));
+ * PUBLIC: int cl_term_end(GS *);
  */
 int
 cl_term_end(GS *gp)
@@ -206,7 +206,7 @@ cl_term_end(GS *gp)
  * cl_fmap --
  *	Map a function key.
  *
- * PUBLIC: int cl_fmap __P((SCR *, seq_t, CHAR_T *, size_t, CHAR_T *, size_t));
+ * PUBLIC: int cl_fmap(SCR *, seq_t, CHAR_T *, size_t, CHAR_T *, size_t);
  */
 int
 cl_fmap(SCR *sp, seq_t stype, CHAR_T *from, size_t flen, CHAR_T *to, size_t tlen)
@@ -258,7 +258,7 @@ cl_pfmap(SCR *sp, seq_t stype, CHAR_T *from, size_t flen, CHAR_T *to, size_t tle
  * cl_optchange --
  *	Curses screen specific "option changed" routine.
  *
- * PUBLIC: int cl_optchange __P((SCR *, int, char *, u_long *));
+ * PUBLIC: int cl_optchange(SCR *, int, char *, u_long *);
  */
 int
 cl_optchange(SCR *sp, int opt, char *str, u_long *valp)
@@ -268,15 +268,16 @@ cl_optchange(SCR *sp, int opt, char *str, u_long *valp)
 	clp = CLP(sp);
 
 	switch (opt) {
+	case O_TERM:
+		F_CLR(sp, SC_SCR_EX | SC_SCR_VI);
+		/* FALLTHROUGH */
 	case O_COLUMNS:
 	case O_LINES:
-	case O_TERM:
 		/*
-		 * Changing the columns, lines or terminal require that
-		 * we restart the screen.
+		 * Changing the terminal type requires that we reinitialize
+		 * curses, while resizing does not.
 		 */
 		F_SET(sp->gp, G_SRESTART);
-		F_CLR(sp, SC_SCR_EX | SC_SCR_VI);
 		break;
 	case O_MESG:
 		(void)cl_omesg(sp, clp, *valp);
@@ -305,7 +306,7 @@ cl_optchange(SCR *sp, int opt, char *str, u_long *valp)
  * cl_omesg --
  *	Turn the tty write permission on or off.
  *
- * PUBLIC: int cl_omesg __P((SCR *, CL_PRIVATE *, int));
+ * PUBLIC: int cl_omesg(SCR *, CL_PRIVATE *, int);
  */
 int
 cl_omesg(SCR *sp, CL_PRIVATE *clp, int on)
@@ -351,7 +352,7 @@ cl_omesg(SCR *sp, CL_PRIVATE *clp, int on)
  * cl_ssize --
  *	Return the terminal size.
  *
- * PUBLIC: int cl_ssize __P((SCR *, int, size_t *, size_t *, int *));
+ * PUBLIC: int cl_ssize(SCR *, int, size_t *, size_t *, int *);
  */
 int
 cl_ssize(SCR *sp, int sigwinch, size_t *rowp, size_t *colp, int *changedp)
@@ -467,7 +468,7 @@ noterm:	if (row == 0)
  * cl_putchar --
  *	Function version of putchar, for tputs.
  *
- * PUBLIC: int cl_putchar __P((int));
+ * PUBLIC: int cl_putchar(int);
  */
 int
 cl_putchar(int ch)

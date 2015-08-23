@@ -33,7 +33,6 @@ SRCS=	APFloat.cpp \
 	GraphWriter.cpp \
 	Hashing.cpp \
 	Host.cpp \
-	IncludeFile.cpp \
 	IntEqClasses.cpp \
 	IntervalMap.cpp \
 	IntrusiveRefCntPtr.cpp \
@@ -45,10 +44,12 @@ SRCS=	APFloat.cpp \
 	LockFileManager.cpp \
 	MD5.cpp \
 	ManagedStatic.cpp \
+	MathExtras.cpp \
 	Memory.cpp \
 	MemoryBuffer.cpp \
 	MemoryObject.cpp \
 	Mutex.cpp \
+	Options.cpp \
 	Path.cpp \
 	PluginLoader.cpp \
 	PrettyStackTrace.cpp \
@@ -65,12 +66,11 @@ SRCS=	APFloat.cpp \
 	SourceMgr.cpp \
 	SpecialCaseList.cpp \
 	Statistic.cpp \
-	StreamableMemoryObject.cpp \
+	StreamingMemoryObject.cpp \
 	StringExtras.cpp \
 	StringMap.cpp \
 	StringPool.cpp \
 	StringRef.cpp \
-	StringRefMemoryObject.cpp \
 	TargetRegistry.cpp \
 	ThreadLocal.cpp \
 	Threading.cpp \

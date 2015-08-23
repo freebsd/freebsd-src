@@ -1,6 +1,6 @@
 dnl
 dnl RCSid:
-dnl	$Id: configure.in,v 1.52 2014/02/15 22:27:59 sjg Exp $
+dnl	$Id: configure.in,v 1.53 2014/11/06 01:49:40 sjg Exp $
 dnl
 dnl Process this file with autoconf to produce a configure script
 dnl
@@ -82,6 +82,8 @@ dnl
 dnl Hurd refuses to define PATH_MAX or MAXPATHLEN
 if test -x /usr/bin/getconf; then
    bmake_path_max=`getconf PATH_MAX / 2> /dev/null`
+   # only a numeric response is useful
+   test ${bmake_path_max:-0} -gt 0 2> /dev/null || bmake_path_max=
 fi
 bmake_path_max=${bmake_path_max:-1024}
 if test $bmake_path_max -gt 1024; then

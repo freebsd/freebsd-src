@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_AST_COMMENT_SEMA_H
-#define LLVM_CLANG_AST_COMMENT_SEMA_H
+#ifndef LLVM_CLANG_AST_COMMENTSEMA_H
+#define LLVM_CLANG_AST_COMMENTSEMA_H
 
 #include "clang/AST/Comment.h"
 #include "clang/Basic/Diagnostic.h"
@@ -85,7 +85,7 @@ public:
       std::uninitialized_copy(Source.begin(), Source.end(), Mem);
       return llvm::makeArrayRef(Mem, Size);
     }
-    return ArrayRef<T>();
+    return None;
   }
 
   ParagraphComment *actOnParagraphComment(

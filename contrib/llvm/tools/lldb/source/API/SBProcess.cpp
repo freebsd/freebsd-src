@@ -38,6 +38,7 @@
 #include "lldb/API/SBEvent.h"
 #include "lldb/API/SBFileSpec.h"
 #include "lldb/API/SBThread.h"
+#include "lldb/API/SBThreadCollection.h"
 #include "lldb/API/SBStream.h"
 #include "lldb/API/SBStringList.h"
 #include "lldb/API/SBUnixSignals.h"
@@ -738,18 +739,10 @@ SBProcess::Continue ()
     {
         Mutex::Locker api_locker (process_sp->GetTarget().GetAPIMutex());
 
-        Error error (process_sp->Resume());
-        if (error.Success())
-        {
-            if (process_sp->GetTarget().GetDebugger().GetAsyncExecution () == false)
-            {
-                if (log)
-                    log->Printf ("SBProcess(%p)::Continue () waiting for process to stop...",
-                                 static_cast<void*>(process_sp.get()));
-                process_sp->WaitForProcessToStop (NULL);
-            }
-        }
-        sb_error.SetError(error);
+        if (process_sp->GetTarget().GetDebugger().GetAsyncExecution ())
+            sb_error.ref() = process_sp->Resume ();
+        else
+            sb_error.ref() = process_sp->ResumeSynchronous (NULL);
     }
     else
         sb_error.SetErrorString ("SBProcess is invalid");
@@ -1380,4 +1373,31 @@ SBProcess::GetExtendedBacktraceTypeAtIndex (uint32_t idx)
         }
     }
     return NULL;
+}
+
+SBThreadCollection
+SBProcess::GetHistoryThreads (addr_t addr)
+{
+    ProcessSP process_sp(GetSP());
+    SBThreadCollection threads;
+    if (process_sp)
+    {
+        threads = SBThreadCollection(process_sp->GetHistoryThreads(addr));
+    }
+    return threads;
+}
+
+bool
+SBProcess::IsInstrumentationRuntimePresent(InstrumentationRuntimeType type)
+{
+    ProcessSP process_sp(GetSP());
+    if (! process_sp)
+        return false;
+    
+    InstrumentationRuntimeSP runtime_sp = process_sp->GetInstrumentationRuntime(type);
+    
+    if (! runtime_sp.get())
+        return false;
+    
+    return runtime_sp->IsActive();
 }

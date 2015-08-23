@@ -57,33 +57,32 @@ let isTerminator = 1, isReturn = 1, isBarrier = 1,
 
 // Unconditional branches.
 let isBarrier = 1, isBranch = 1, isTerminator = 1, SchedRW = [WriteJump] in {
-  def JMP_4 : Ii32PCRel<0xE9, RawFrm, (outs), (ins brtarget:$dst),
-                        "jmp\t$dst", [(br bb:$dst)], IIC_JMP_REL>, OpSize32;
-  def JMP_2 : Ii16PCRel<0xE9, RawFrm, (outs), (ins brtarget:$dst),
-                        "jmp\t$dst", [(br bb:$dst)], IIC_JMP_REL>, OpSize16,
-                        Requires<[In16BitMode]>;
-  let hasSideEffects = 0 in
   def JMP_1 : Ii8PCRel<0xEB, RawFrm, (outs), (ins brtarget8:$dst),
-                       "jmp\t$dst", [], IIC_JMP_REL>;
+                       "jmp\t$dst", [(br bb:$dst)], IIC_JMP_REL>;
+  let hasSideEffects = 0, isCodeGenOnly = 1, ForceDisassemble = 1 in {
+    def JMP_2 : Ii16PCRel<0xE9, RawFrm, (outs), (ins brtarget16:$dst),
+                          "jmp\t$dst", [], IIC_JMP_REL>, OpSize16;
+    def JMP_4 : Ii32PCRel<0xE9, RawFrm, (outs), (ins brtarget32:$dst),
+                          "jmp\t$dst", [], IIC_JMP_REL>, OpSize32;
+  }
 }
 
 // Conditional Branches.
 let isBranch = 1, isTerminator = 1, Uses = [EFLAGS], SchedRW = [WriteJump] in {
   multiclass ICBr<bits<8> opc1, bits<8> opc4, string asm, PatFrag Cond> {
-    let hasSideEffects = 0 in
-    def _1 : Ii8PCRel <opc1, RawFrm, (outs), (ins brtarget8:$dst), asm, [],
-                       IIC_Jcc>;
-    def _2 : Ii16PCRel<opc4, RawFrm, (outs), (ins brtarget:$dst), asm,
-                       [(X86brcond bb:$dst, Cond, EFLAGS)], IIC_Jcc>, OpSize16,
-		       TB, Requires<[In16BitMode]>;
-    def _4 : Ii32PCRel<opc4, RawFrm, (outs), (ins brtarget:$dst), asm,
-                       [(X86brcond bb:$dst, Cond, EFLAGS)], IIC_Jcc>, TB,
-             OpSize32;
+    def _1 : Ii8PCRel <opc1, RawFrm, (outs), (ins brtarget8:$dst), asm,
+                       [(X86brcond bb:$dst, Cond, EFLAGS)], IIC_Jcc>;
+    let hasSideEffects = 0, isCodeGenOnly = 1, ForceDisassemble = 1 in {
+      def _2 : Ii16PCRel<opc4, RawFrm, (outs), (ins brtarget16:$dst), asm,
+                         [], IIC_Jcc>, OpSize16, TB;
+      def _4 : Ii32PCRel<opc4, RawFrm, (outs), (ins brtarget32:$dst), asm,
+                         [], IIC_Jcc>, TB, OpSize32;
+    }
   }
 }
 
 defm JO  : ICBr<0x70, 0x80, "jo\t$dst" , X86_COND_O>;
-defm JNO : ICBr<0x71, 0x81, "jno\t$dst" , X86_COND_NO>;
+defm JNO : ICBr<0x71, 0x81, "jno\t$dst", X86_COND_NO>;
 defm JB  : ICBr<0x72, 0x82, "jb\t$dst" , X86_COND_B>;
 defm JAE : ICBr<0x73, 0x83, "jae\t$dst", X86_COND_AE>;
 defm JE  : ICBr<0x74, 0x84, "je\t$dst" , X86_COND_E>;
@@ -106,20 +105,14 @@ let isBranch = 1, isTerminator = 1, hasSideEffects = 0, SchedRW = [WriteJump] in
   // jecxz.
   let Uses = [CX] in
     def JCXZ : Ii8PCRel<0xE3, RawFrm, (outs), (ins brtarget8:$dst),
-                        "jcxz\t$dst", [], IIC_JCXZ>, AdSize, Requires<[Not64BitMode]>;
+                        "jcxz\t$dst", [], IIC_JCXZ>, AdSize16;
   let Uses = [ECX] in
-    def JECXZ_32 : Ii8PCRel<0xE3, RawFrm, (outs), (ins brtarget8:$dst),
-                           "jecxz\t$dst", [], IIC_JCXZ>, Requires<[Not64BitMode]>;
+    def JECXZ : Ii8PCRel<0xE3, RawFrm, (outs), (ins brtarget8:$dst),
+                        "jecxz\t$dst", [], IIC_JCXZ>, AdSize32;
 
-  // J*CXZ instruction: 64-bit versions of this instruction for the asmparser.
-  // In 64-bit mode, the address size prefix is jecxz and the unprefixed version
-  // is jrcxz.
-  let Uses = [ECX] in
-    def JECXZ_64 : Ii8PCRel<0xE3, RawFrm, (outs), (ins brtarget8:$dst),
-                            "jecxz\t$dst", [], IIC_JCXZ>, AdSize, Requires<[In64BitMode]>;
   let Uses = [RCX] in
     def JRCXZ : Ii8PCRel<0xE3, RawFrm, (outs), (ins brtarget8:$dst),
-                           "jrcxz\t$dst", [], IIC_JCXZ>, Requires<[In64BitMode]>;
+                           "jrcxz\t$dst", [], IIC_JCXZ>, AdSize64;
 }
 
 // Indirect branches
@@ -145,14 +138,16 @@ let isBranch = 1, isTerminator = 1, isBarrier = 1, isIndirectBranch = 1 in {
                      [(brind (loadi64 addr:$dst))], IIC_JMP_MEM>,
                    Requires<[In64BitMode]>, Sched<[WriteJumpLd]>;
 
-  def FARJMP16i  : Iseg16<0xEA, RawFrmImm16, (outs),
-                          (ins i16imm:$off, i16imm:$seg),
-                          "ljmp{w}\t{$seg, $off|$off, $seg}", [],
-                          IIC_JMP_FAR_PTR>, OpSize16, Sched<[WriteJump]>;
-  def FARJMP32i  : Iseg32<0xEA, RawFrmImm16, (outs),
-                          (ins i32imm:$off, i16imm:$seg),
-                          "ljmp{l}\t{$seg, $off|$off, $seg}", [],
-                          IIC_JMP_FAR_PTR>, OpSize32, Sched<[WriteJump]>;
+  let Predicates = [Not64BitMode] in {
+    def FARJMP16i  : Iseg16<0xEA, RawFrmImm16, (outs),
+                            (ins i16imm:$off, i16imm:$seg),
+                            "ljmp{w}\t$seg, $off", [],
+                            IIC_JMP_FAR_PTR>, OpSize16, Sched<[WriteJump]>;
+    def FARJMP32i  : Iseg32<0xEA, RawFrmImm16, (outs),
+                            (ins i32imm:$off, i16imm:$seg),
+                            "ljmp{l}\t$seg, $off", [],
+                            IIC_JMP_FAR_PTR>, OpSize32, Sched<[WriteJump]>;
+  }
   def FARJMP64   : RI<0xFF, MRM5m, (outs), (ins opaque80mem:$dst),
                       "ljmp{q}\t{*}$dst", [], IIC_JMP_FAR_MEM>,
                    Sched<[WriteJump]>;
@@ -186,10 +181,11 @@ let isCall = 1 in
                            (outs), (ins i32imm_pcrel:$dst),
                            "call{l}\t$dst", [], IIC_CALL_RI>, OpSize32,
                       Requires<[Not64BitMode]>, Sched<[WriteJump]>;
-    def CALLpcrel16 : Ii16PCRel<0xE8, RawFrm,
-                           (outs), (ins i16imm_pcrel:$dst),
-                           "call{w}\t$dst", [], IIC_CALL_RI>, OpSize16,
-                      Sched<[WriteJump]>;
+    let hasSideEffects = 0 in
+      def CALLpcrel16 : Ii16PCRel<0xE8, RawFrm,
+                             (outs), (ins i16imm_pcrel:$dst),
+                             "call{w}\t$dst", [], IIC_CALL_RI>, OpSize16,
+                        Sched<[WriteJump]>;
     def CALL16r     : I<0xFF, MRM2r, (outs), (ins GR16:$dst),
                         "call{w}\t{*}$dst", [(X86call GR16:$dst)], IIC_CALL_RI>,
                       OpSize16, Requires<[Not64BitMode]>, Sched<[WriteJump]>;
@@ -207,14 +203,16 @@ let isCall = 1 in
                       Requires<[Not64BitMode,FavorMemIndirectCall]>,
                       Sched<[WriteJumpLd]>;
 
-    def FARCALL16i  : Iseg16<0x9A, RawFrmImm16, (outs),
-                             (ins i16imm:$off, i16imm:$seg),
-                             "lcall{w}\t{$seg, $off|$off, $seg}", [],
-                             IIC_CALL_FAR_PTR>, OpSize16, Sched<[WriteJump]>;
-    def FARCALL32i  : Iseg32<0x9A, RawFrmImm16, (outs),
-                             (ins i32imm:$off, i16imm:$seg),
-                             "lcall{l}\t{$seg, $off|$off, $seg}", [],
-                             IIC_CALL_FAR_PTR>, OpSize32, Sched<[WriteJump]>;
+    let Predicates = [Not64BitMode] in {
+      def FARCALL16i  : Iseg16<0x9A, RawFrmImm16, (outs),
+                               (ins i16imm:$off, i16imm:$seg),
+                               "lcall{w}\t$seg, $off", [],
+                               IIC_CALL_FAR_PTR>, OpSize16, Sched<[WriteJump]>;
+      def FARCALL32i  : Iseg32<0x9A, RawFrmImm16, (outs),
+                               (ins i32imm:$off, i16imm:$seg),
+                               "lcall{l}\t$seg, $off", [],
+                               IIC_CALL_FAR_PTR>, OpSize32, Sched<[WriteJump]>;
+    }
 
     def FARCALL16m  : I<0xFF, MRM3m, (outs), (ins opaque32mem:$dst),
                         "lcall{w}\t{*}$dst", [], IIC_CALL_FAR_MEM>, OpSize16,
@@ -281,7 +279,8 @@ let isCall = 1, Uses = [RSP], SchedRW = [WriteJump] in {
 }
 
 let isCall = 1, isCodeGenOnly = 1 in
-  // __chkstk(MSVC):     clobber R10, R11 and EFLAGS.
+  // __chkstk(MSVC):     clobber R10, R11 and EFLAGS
+  // ___chkstk_ms(Mingw64): clobber R10, R11 and EFLAGS
   // ___chkstk(Mingw64): clobber R10, R11, RAX and EFLAGS, and update RSP.
   let Defs = [RAX, R10, R11, RSP, EFLAGS],
       Uses = [RSP] in {

@@ -1,4 +1,4 @@
-/*	$Id: tbl_html.c,v 1.13 2014/10/14 02:16:06 schwarze Exp $ */
+/*	$Id: tbl_html.c,v 1.16 2015/01/30 17:32:16 schwarze Exp $ */
 /*
  * Copyright (c) 2011 Kristaps Dzonsons <kristaps@bsd.lv>
  *
@@ -49,12 +49,12 @@ html_tbl_strlen(const char *p, void *arg)
 static void
 html_tblopen(struct html *h, const struct tbl_span *sp)
 {
-	const struct tbl_head *hp;
 	struct htmlpair	 tag;
 	struct roffsu	 su;
 	struct roffcol	*col;
+	int		 ic;
 
-	if (TBL_SPAN_FIRST & sp->flags) {
+	if (h->tbl.cols == NULL) {
 		h->tbl.len = html_tbl_len;
 		h->tbl.slen = html_tbl_strlen;
 		tblcalc(&h->tbl, sp, 0);
@@ -64,9 +64,9 @@ html_tblopen(struct html *h, const struct tbl_span *sp)
 	PAIR_CLASS_INIT(&tag, "tbl");
 	h->tblt = print_otag(h, TAG_TABLE, 1, &tag);
 
-	for (hp = sp->head; hp; hp = hp->next) {
+	for (ic = 0; ic < sp->opts->cols; ic++) {
 		bufinit(h);
-		col = &h->tbl.cols[hp->ident];
+		col = h->tbl.cols + ic;
 		SCALE_HS_INIT(&su, col->width);
 		bufcat_su(h, "width", &su);
 		PAIR_STYLE_INIT(&tag, h);
@@ -88,14 +88,14 @@ print_tblclose(struct html *h)
 void
 print_tbl(struct html *h, const struct tbl_span *sp)
 {
-	const struct tbl_head *hp;
 	const struct tbl_dat *dp;
 	struct htmlpair	 tag;
 	struct tag	*tt;
+	int		 ic;
 
 	/* Inhibit printing of spaces: we do padding ourselves. */
 
-	if (NULL == h->tblt)
+	if (h->tblt == NULL)
 		html_tblopen(h, sp);
 
 	assert(h->tblt);
@@ -114,14 +114,14 @@ print_tbl(struct html *h, const struct tbl_span *sp)
 		break;
 	default:
 		dp = sp->first;
-		for (hp = sp->head; hp; hp = hp->next) {
+		for (ic = 0; ic < sp->opts->cols; ic++) {
 			print_stagq(h, tt);
 			print_otag(h, TAG_TD, 0, NULL);
 
-			if (NULL == dp)
-				break;
-			if (TBL_CELL_DOWN != dp->layout->pos)
-				if (dp->string)
+			if (dp == NULL || dp->layout->col > ic)
+				continue;
+			if (dp->layout->pos != TBL_CELL_DOWN)
+				if (dp->string != NULL)
 					print_text(h, dp->string);
 			dp = dp->next;
 		}
@@ -132,7 +132,7 @@ print_tbl(struct html *h, const struct tbl_span *sp)
 
 	h->flags &= ~HTML_NONOSPACE;
 
-	if (TBL_SPAN_LAST & sp->flags) {
+	if (sp->next == NULL) {
 		assert(h->tbl.cols);
 		free(h->tbl.cols);
 		h->tbl.cols = NULL;

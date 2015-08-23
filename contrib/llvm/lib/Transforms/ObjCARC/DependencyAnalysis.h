@@ -20,8 +20,8 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_TRANSFORMS_OBJCARC_DEPEDENCYANALYSIS_H
-#define LLVM_TRANSFORMS_OBJCARC_DEPEDENCYANALYSIS_H
+#ifndef LLVM_LIB_TRANSFORMS_OBJCARC_DEPENDENCYANALYSIS_H
+#define LLVM_LIB_TRANSFORMS_OBJCARC_DEPENDENCYANALYSIS_H
 
 #include "llvm/ADT/SmallPtrSet.h"
 
@@ -53,8 +53,8 @@ enum DependenceKind {
 void FindDependencies(DependenceKind Flavor,
                       const Value *Arg,
                       BasicBlock *StartBB, Instruction *StartInst,
-                      SmallPtrSet<Instruction *, 4> &DependingInstructions,
-                      SmallPtrSet<const BasicBlock *, 4> &Visited,
+                      SmallPtrSetImpl<Instruction *> &DependingInstructions,
+                      SmallPtrSetImpl<const BasicBlock *> &Visited,
                       ProvenanceAnalysis &PA);
 
 bool
@@ -76,4 +76,4 @@ CanAlterRefCount(const Instruction *Inst, const Value *Ptr,
 } // namespace objcarc
 } // namespace llvm
 
-#endif // LLVM_TRANSFORMS_OBJCARC_DEPEDENCYANALYSIS_H
+#endif

@@ -12,8 +12,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "ARMMCAsmInfo.h"
-#include "llvm/Support/CommandLine.h"
 #include "llvm/ADT/Triple.h"
+#include "llvm/Support/CommandLine.h"
 
 using namespace llvm;
 
@@ -55,7 +55,6 @@ ARMELFMCAsmInfo::ARMELFMCAsmInfo(StringRef TT) {
   Code16Directive = ".code\t16";
   Code32Directive = ".code\t32";
 
-  HasLEB128 = true;
   SupportsDebugInformation = true;
 
   // Exceptions handling
@@ -90,6 +89,7 @@ ARMCOFFMCAsmInfoMicrosoft::ARMCOFFMCAsmInfoMicrosoft() {
   AlignmentIsInBytes = false;
 
   PrivateGlobalPrefix = "$M";
+  PrivateLabelPrefix = "$M";
 }
 
 void ARMCOFFMCAsmInfoGNU::anchor() { }
@@ -102,8 +102,8 @@ ARMCOFFMCAsmInfoGNU::ARMCOFFMCAsmInfoGNU() {
   Code16Directive = ".code\t16";
   Code32Directive = ".code\t32";
   PrivateGlobalPrefix = ".L";
+  PrivateLabelPrefix = ".L";
 
-  HasLEB128 = true;
   SupportsDebugInformation = true;
   ExceptionsType = ExceptionHandling::None;
   UseParensForSymbolVariant = true;

@@ -310,7 +310,7 @@ int aes_gcm_ad(const u8 *key, size_t key_len, const u8 *iv, size_t iv_len,
 
 	aes_encrypt_deinit(aes);
 
-	if (os_memcmp(tag, T, 16) != 0) {
+	if (os_memcmp_const(tag, T, 16) != 0) {
 		wpa_printf(MSG_EXCESSIVE, "GCM: Tag mismatch");
 		return -1;
 	}

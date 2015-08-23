@@ -12,8 +12,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef MIPSELFSTREAMER_H
-#define MIPSELFSTREAMER_H
+#ifndef LLVM_LIB_TARGET_MIPS_MCTARGETDESC_MIPSELFSTREAMER_H
+#define LLVM_LIB_TARGET_MIPS_MCTARGETDESC_MIPSELFSTREAMER_H
 
 #include "MipsOptionRecord.h"
 #include "llvm/ADT/SmallVector.h"
@@ -29,6 +29,8 @@ class MCSubtargetInfo;
 class MipsELFStreamer : public MCELFStreamer {
   SmallVector<std::unique_ptr<MipsOptionRecord>, 8> MipsOptionRecords;
   MipsRegInfoRecord *RegInfoRecord;
+  SmallVector<MCSymbol*, 4> Labels;
+
 
 public:
   MipsELFStreamer(MCContext &Context, MCAsmBackend &MAB, raw_ostream &OS,
@@ -46,13 +48,27 @@ public:
   /// usage for the translation unit.
   void EmitInstruction(const MCInst &Inst, const MCSubtargetInfo &STI) override;
 
+  /// Overriding this function allows us to record all labels that should be
+  /// marked as microMIPS. Based on this data marking is done in
+  /// EmitInstruction.
+  void EmitLabel(MCSymbol *Symbol) override;
+
+  /// Overriding this function allows us to dismiss all labels that are
+  /// candidates for marking as microMIPS when .section directive is processed.
+  void SwitchSection(const MCSection *Section,
+                     const MCExpr *Subsection = nullptr) override;
+
+  /// Overriding this function allows us to dismiss all labels that are
+  /// candidates for marking as microMIPS when .word directive is emitted.
+  void EmitValueImpl(const MCExpr *Value, unsigned Size,
+                     const SMLoc &Loc) override;
+
   /// Emits all the option records stored up until the point it's called.
   void EmitMipsOptionRecords();
 };
 
 MCELFStreamer *createMipsELFStreamer(MCContext &Context, MCAsmBackend &MAB,
                                      raw_ostream &OS, MCCodeEmitter *Emitter,
-                                     const MCSubtargetInfo &STI, bool RelaxAll,
-                                     bool NoExecStack);
+                                     const MCSubtargetInfo &STI, bool RelaxAll);
 } // namespace llvm.
 #endif

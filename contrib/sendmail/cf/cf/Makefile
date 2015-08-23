@@ -100,6 +100,7 @@ M4FILES=\
 	${CFDIR}/feature/access_db.m4 \
 	${CFDIR}/feature/allmasquerade.m4 \
 	${CFDIR}/feature/always_add_domain.m4 \
+	${CFDIR}/feature/bcc.m4 \
 	${CFDIR}/feature/bestmx_is_local.m4 \
 	${CFDIR}/feature/bitdomain.m4 \
 	${CFDIR}/feature/blacklist_recipients.m4 \
@@ -118,9 +119,11 @@ M4FILES=\
 	${CFDIR}/feature/masquerade_envelope.m4 \
 	${CFDIR}/feature/no_default_msa.m4 \
 	${CFDIR}/feature/nocanonify.m4 \
+	${CFDIR}/feature/nopercenthack.m4 \
 	${CFDIR}/feature/notsticky.m4 \
 	${CFDIR}/feature/nouucp.m4 \
 	${CFDIR}/feature/nullclient.m4 \
+	${CFDIR}/feature/prefixmod.m4 \
 	${CFDIR}/feature/promiscuous_relay.m4 \
 	${CFDIR}/feature/redirect.m4 \
 	${CFDIR}/feature/ratecontrol.m4 \
@@ -131,12 +134,14 @@ M4FILES=\
 	${CFDIR}/feature/relay_mail_from.m4 \
 	${CFDIR}/feature/smrsh.m4 \
 	${CFDIR}/feature/stickyhost.m4 \
+	${CFDIR}/feature/tls_session_features.m4 \
 	${CFDIR}/feature/use_ct_file.m4 \
 	${CFDIR}/feature/use_cw_file.m4 \
 	${CFDIR}/feature/uucpdomain.m4 \
 	${CFDIR}/feature/virtuser_entire_domain.m4 \
 	${CFDIR}/feature/virtusertable.m4 \
 	${CFDIR}/hack/cssubdomain.m4 \
+	${CFDIR}/hack/xconnect.m4 \
 	${CFDIR}/m4/cf.m4 \
 	${CFDIR}/m4/cfhead.m4 \
 	${CFDIR}/m4/proto.m4 \

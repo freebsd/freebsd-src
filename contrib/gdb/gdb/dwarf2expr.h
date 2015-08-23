@@ -74,6 +74,51 @@ struct dwarf_expr_context
   /* Non-zero if the result is in a register.  The register number
      will be on the expression stack.  */
   int in_reg;
+  /* Initialization status of variable: Non-zero if variable has been
+     initialized; zero otherwise.  */
+  int initialized;
+
+  /* An array of pieces.  PIECES points to its first element;
+     NUM_PIECES is its length.
+
+     Each time DW_OP_piece is executed, we add a new element to the
+     end of this array, recording the current top of the stack, the
+     current in_reg flag, and the size given as the operand to
+     DW_OP_piece.  We then pop the top value from the stack, clear the
+     in_reg flag, and resume evaluation.
+
+     The Dwarf spec doesn't say whether DW_OP_piece pops the top value
+     from the stack.  We do, ensuring that clients of this interface
+     expecting to see a value left on the top of the stack (say, code
+     evaluating frame base expressions or CFA's specified with
+     DW_CFA_def_cfa_expression) will get an error if the expression
+     actually marks all the values it computes as pieces.
+
+     If an expression never uses DW_OP_piece, num_pieces will be zero.
+     (It would be nice to present these cases as expressions yielding
+     a single piece, with in_reg clear, so that callers need not
+     distinguish between the no-DW_OP_piece and one-DW_OP_piece cases.
+     But expressions with no DW_OP_piece operations have no value to
+     place in a piece's 'size' field; the size comes from the
+     surrounding data.  So the two cases need to be handled
+     separately.)  */
+  int num_pieces;
+  struct dwarf_expr_piece *pieces;
+};
+
+/* A piece of an object, as recorded by DW_OP_piece or DW_OP_bit_piece.  */
+struct dwarf_expr_piece
+{
+  /* If IN_REG is zero, then the piece is in memory, and VALUE is its address.
+     If IN_REG is non-zero, then the piece is in a register, and VALUE
+     is the register number.  */
+  int in_reg;
+
+  /* This piece's address or register number.  */
+  CORE_ADDR value;
+
+  /* The length of the piece, in bytes.  */
+  ULONGEST size;
 };
 
 struct dwarf_expr_context *new_dwarf_expr_context (void);

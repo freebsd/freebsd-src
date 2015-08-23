@@ -206,8 +206,8 @@ void
 llvm::objcarc::FindDependencies(DependenceKind Flavor,
                                 const Value *Arg,
                                 BasicBlock *StartBB, Instruction *StartInst,
-                                SmallPtrSet<Instruction *, 4> &DependingInsts,
-                                SmallPtrSet<const BasicBlock *, 4> &Visited,
+                                SmallPtrSetImpl<Instruction *> &DependingInsts,
+                                SmallPtrSetImpl<const BasicBlock *> &Visited,
                                 ProvenanceAnalysis &PA) {
   BasicBlock::iterator StartPos = StartInst;
 
@@ -229,7 +229,7 @@ llvm::objcarc::FindDependencies(DependenceKind Flavor,
           // Add the predecessors to the worklist.
           do {
             BasicBlock *PredBB = *PI;
-            if (Visited.insert(PredBB))
+            if (Visited.insert(PredBB).second)
               Worklist.push_back(std::make_pair(PredBB, PredBB->end()));
           } while (++PI != PE);
         break;
@@ -246,9 +246,7 @@ llvm::objcarc::FindDependencies(DependenceKind Flavor,
   // Determine whether the original StartBB post-dominates all of the blocks we
   // visited. If not, insert a sentinal indicating that most optimizations are
   // not safe.
-  for (SmallPtrSet<const BasicBlock *, 4>::const_iterator I = Visited.begin(),
-       E = Visited.end(); I != E; ++I) {
-    const BasicBlock *BB = *I;
+  for (const BasicBlock *BB : Visited) {
     if (BB == StartBB)
       continue;
     const TerminatorInst *TI = cast<TerminatorInst>(&BB->back());

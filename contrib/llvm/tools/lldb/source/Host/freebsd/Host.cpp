@@ -50,80 +50,6 @@ extern "C" {
 using namespace lldb;
 using namespace lldb_private;
 
-class FreeBSDThread
-{
-public:
-    FreeBSDThread(const char *thread_name)
-    {
-        Host::SetThreadName (LLDB_INVALID_PROCESS_ID, LLDB_INVALID_THREAD_ID, thread_name);
-    }
-    static void PThreadDestructor (void *v)
-    {
-        delete (FreeBSDThread*)v;
-    }
-};
-
-static pthread_once_t g_thread_create_once = PTHREAD_ONCE_INIT;
-static pthread_key_t g_thread_create_key = 0;
-
-static void
-InitThreadCreated()
-{
-    ::pthread_key_create (&g_thread_create_key, FreeBSDThread::PThreadDestructor);
-}
-
-void
-Host::ThreadCreated (const char *thread_name)
-{
-    ::pthread_once (&g_thread_create_once, InitThreadCreated);
-    if (g_thread_create_key)
-    {
-        ::pthread_setspecific (g_thread_create_key, new FreeBSDThread(thread_name));
-    }
-
-    Host::SetShortThreadName (LLDB_INVALID_PROCESS_ID, LLDB_INVALID_THREAD_ID, thread_name, 16);
-}
-
-std::string
-Host::GetThreadName (lldb::pid_t pid, lldb::tid_t tid)
-{
-    struct kinfo_proc *kp = nullptr, *nkp;
-    size_t len = 0;
-    int error;
-    int name[4] = {
-        CTL_KERN, KERN_PROC, KERN_PROC_PID | KERN_PROC_INC_THREAD, (int)pid
-    };
-
-    while (1) {
-        error = sysctl(name, 4, kp, &len, nullptr, 0);
-        if (kp == nullptr || (error != 0 && errno == ENOMEM)) {
-            // Add extra space in case threads are added before next call.
-            len += sizeof(*kp) + len / 10;
-            nkp = (struct kinfo_proc *)realloc(kp, len);
-            if (nkp == nullptr)
-            {
-                free(kp);
-                return std::string();
-            }
-            kp = nkp;
-            continue;
-        }
-        if (error != 0)
-            len = 0;
-        break;
-    }
-
-    std::string thread_name;
-    for (size_t i = 0; i < len / sizeof(*kp); i++) {
-        if (kp[i].ki_tid == (int)tid) {
-            thread_name = kp[i].ki_tdname;
-            break;
-        }
-    }
-    free(kp);
-    return thread_name;
-}
-
 void
 Host::Backtrace (Stream &strm, uint32_t max_frames)
 {
@@ -363,43 +289,19 @@ Host::GetProcessInfo (lldb::pid_t pid, ProcessInstanceInfo &process_info)
 lldb::DataBufferSP
 Host::GetAuxvData(lldb_private::Process *process)
 {
-   int mib[2] = { CTL_KERN, KERN_PS_STRINGS };
-   void *ps_strings_addr, *auxv_addr;
-   size_t ps_strings_size = sizeof(void *);
-   Elf_Auxinfo aux_info[AT_COUNT];
-   struct ps_strings ps_strings;
-   struct ptrace_io_desc pid;
+   int mib[4] = { CTL_KERN, KERN_PROC, KERN_PROC_AUXV, 0 };
+   size_t auxv_size = AT_COUNT * sizeof(Elf_Auxinfo);
    DataBufferSP buf_sp;
-   std::unique_ptr<DataBufferHeap> buf_ap(new DataBufferHeap(1024, 0));
 
-   if (::sysctl(mib, 2, &ps_strings_addr, &ps_strings_size, NULL, 0) == 0) {
-           pid.piod_op = PIOD_READ_D;
-           pid.piod_addr = &ps_strings;
-           pid.piod_offs = ps_strings_addr;
-           pid.piod_len = sizeof(ps_strings);
-           if (::ptrace(PT_IO, process->GetID(), (caddr_t)&pid, 0)) {
-                   perror("failed to fetch ps_strings");
-                   buf_ap.release();
-                   goto done;
-           }
+   std::unique_ptr<DataBufferHeap> buf_ap(new DataBufferHeap(auxv_size, 0));
 
-           auxv_addr = ps_strings.ps_envstr + ps_strings.ps_nenvstr + 1;
-
-           pid.piod_addr = aux_info;
-           pid.piod_offs = auxv_addr;
-           pid.piod_len = sizeof(aux_info);
-           if (::ptrace(PT_IO, process->GetID(), (caddr_t)&pid, 0)) {
-                   perror("failed to fetch aux_info");
-                   buf_ap.release();
-                   goto done;
-           }
-           memcpy(buf_ap->GetBytes(), aux_info, pid.piod_len);
+   mib[3] = process->GetID();
+   if (::sysctl(mib, 4, buf_ap->GetBytes(), &auxv_size, NULL, 0) == 0) {
            buf_sp.reset(buf_ap.release());
    } else {
-           perror("sysctl failed on ps_strings");
+           perror("sysctl failed on auxv");
    }
 
-   done:
    return buf_sp;
 }
 

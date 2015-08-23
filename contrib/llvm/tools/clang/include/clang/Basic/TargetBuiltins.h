@@ -13,8 +13,8 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_BASIC_TARGET_BUILTINS_H
-#define LLVM_CLANG_BASIC_TARGET_BUILTINS_H
+#ifndef LLVM_CLANG_BASIC_TARGETBUILTINS_H
+#define LLVM_CLANG_BASIC_TARGETBUILTINS_H
 
 #include "clang/Basic/Builtins.h"
 #undef PPC
@@ -164,6 +164,17 @@ namespace clang {
         LastTSBuiltin
     };
   }
+
+  /// \brief Le64 builtins
+  namespace Le64 {
+  enum {
+    LastTIBuiltin = clang::Builtin::FirstTSBuiltin - 1,
+  #define BUILTIN(ID, TYPE, ATTRS) BI##ID,
+  #include "clang/Basic/BuiltinsLe64.def"
+    LastTSBuiltin
+  };
+  }
+
 } // end namespace clang.
 
 #endif

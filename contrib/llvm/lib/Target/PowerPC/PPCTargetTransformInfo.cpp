@@ -38,6 +38,7 @@ void initializePPCTTIPass(PassRegistry &);
 namespace {
 
 class PPCTTI final : public ImmutablePass, public TargetTransformInfo {
+  const TargetMachine *TM;
   const PPCSubtarget *ST;
   const PPCTargetLowering *TLI;
 
@@ -47,16 +48,16 @@ public:
   }
 
   PPCTTI(const PPCTargetMachine *TM)
-      : ImmutablePass(ID), ST(TM->getSubtargetImpl()),
-        TLI(TM->getTargetLowering()) {
+      : ImmutablePass(ID), TM(TM), ST(TM->getSubtargetImpl()),
+        TLI(TM->getSubtargetImpl()->getTargetLowering()) {
     initializePPCTTIPass(*PassRegistry::getPassRegistry());
   }
 
-  virtual void initializePass() override {
+  void initializePass() override {
     pushTTIStack(this);
   }
 
-  virtual void getAnalysisUsage(AnalysisUsage &AU) const override {
+  void getAnalysisUsage(AnalysisUsage &AU) const override {
     TargetTransformInfo::getAnalysisUsage(AU);
   }
 
@@ -64,7 +65,7 @@ public:
   static char ID;
 
   /// Provide necessary pointer adjustments for the two base classes.
-  virtual void *getAdjustedAnalysisPointer(const void *ID) override {
+  void *getAdjustedAnalysisPointer(const void *ID) override {
     if (ID == &TargetTransformInfo::ID)
       return (TargetTransformInfo*)this;
     return this;
@@ -79,33 +80,31 @@ public:
   unsigned getIntImmCost(Intrinsic::ID IID, unsigned Idx, const APInt &Imm,
                          Type *Ty) const override;
 
-  virtual PopcntSupportKind
-  getPopcntSupport(unsigned TyWidth) const override;
-  virtual void getUnrollingPreferences(
-    Loop *L, UnrollingPreferences &UP) const override;
+  PopcntSupportKind getPopcntSupport(unsigned TyWidth) const override;
+  void getUnrollingPreferences(const Function *F, Loop *L,
+                               UnrollingPreferences &UP) const override;
 
   /// @}
 
   /// \name Vector TTI Implementations
   /// @{
 
-  virtual unsigned getNumberOfRegisters(bool Vector) const override;
-  virtual unsigned getRegisterBitWidth(bool Vector) const override;
-  virtual unsigned getMaximumUnrollFactor() const override;
-  virtual unsigned getArithmeticInstrCost(unsigned Opcode, Type *Ty,
-                                          OperandValueKind,
-                                          OperandValueKind) const override;
-  virtual unsigned getShuffleCost(ShuffleKind Kind, Type *Tp,
-                                  int Index, Type *SubTp) const override;
-  virtual unsigned getCastInstrCost(unsigned Opcode, Type *Dst,
-                                    Type *Src) const override;
-  virtual unsigned getCmpSelInstrCost(unsigned Opcode, Type *ValTy,
-                                      Type *CondTy) const override;
-  virtual unsigned getVectorInstrCost(unsigned Opcode, Type *Val,
-                                      unsigned Index) const override;
-  virtual unsigned getMemoryOpCost(unsigned Opcode, Type *Src,
-                                   unsigned Alignment,
-                                   unsigned AddressSpace) const override;
+  unsigned getNumberOfRegisters(bool Vector) const override;
+  unsigned getRegisterBitWidth(bool Vector) const override;
+  unsigned getMaxInterleaveFactor() const override;
+  unsigned getArithmeticInstrCost(unsigned Opcode, Type *Ty, OperandValueKind,
+                                  OperandValueKind, OperandValueProperties,
+                                  OperandValueProperties) const override;
+  unsigned getShuffleCost(ShuffleKind Kind, Type *Tp,
+                          int Index, Type *SubTp) const override;
+  unsigned getCastInstrCost(unsigned Opcode, Type *Dst,
+                            Type *Src) const override;
+  unsigned getCmpSelInstrCost(unsigned Opcode, Type *ValTy,
+                              Type *CondTy) const override;
+  unsigned getVectorInstrCost(unsigned Opcode, Type *Val,
+                              unsigned Index) const override;
+  unsigned getMemoryOpCost(unsigned Opcode, Type *Src, unsigned Alignment,
+                           unsigned AddressSpace) const override;
 
   /// @}
 };
@@ -182,6 +181,15 @@ unsigned PPCTTI::getIntImmCost(Intrinsic::ID IID, unsigned Idx,
   case Intrinsic::ssub_with_overflow:
   case Intrinsic::usub_with_overflow:
     if ((Idx == 1) && Imm.getBitWidth() <= 64 && isInt<16>(Imm.getSExtValue()))
+      return TCC_Free;
+    break;
+  case Intrinsic::experimental_stackmap:
+    if ((Idx < 2) || (Imm.getBitWidth() <= 64 && isInt<64>(Imm.getSExtValue())))
+      return TCC_Free;
+    break;
+  case Intrinsic::experimental_patchpoint_void:
+  case Intrinsic::experimental_patchpoint_i64:
+    if ((Idx < 4) || (Imm.getBitWidth() <= 64 && isInt<64>(Imm.getSExtValue())))
       return TCC_Free;
     break;
   }
@@ -271,12 +279,15 @@ unsigned PPCTTI::getIntImmCost(unsigned Opcode, unsigned Idx, const APInt &Imm,
   return PPCTTI::getIntImmCost(Imm, Ty);
 }
 
-void PPCTTI::getUnrollingPreferences(Loop *L, UnrollingPreferences &UP) const {
-  if (ST->getDarwinDirective() == PPC::DIR_A2) {
+void PPCTTI::getUnrollingPreferences(const Function *F, Loop *L,
+                                     UnrollingPreferences &UP) const {
+  if (TM->getSubtarget<PPCSubtarget>(F).getDarwinDirective() == PPC::DIR_A2) {
     // The A2 is in-order with a deep pipeline, and concatenation unrolling
     // helps expose latency-hiding opportunities to the instruction scheduler.
     UP.Partial = UP.Runtime = true;
   }
+
+  TargetTransformInfo::getUnrollingPreferences(F, L, UP);
 }
 
 unsigned PPCTTI::getNumberOfRegisters(bool Vector) const {
@@ -297,7 +308,7 @@ unsigned PPCTTI::getRegisterBitWidth(bool Vector) const {
 
 }
 
-unsigned PPCTTI::getMaximumUnrollFactor() const {
+unsigned PPCTTI::getMaxInterleaveFactor() const {
   unsigned Directive = ST->getDarwinDirective();
   // The 440 has no SIMD support, but floating-point instructions
   // have a 5-cycle latency, so unroll by 5x for latency hiding.
@@ -318,14 +329,15 @@ unsigned PPCTTI::getMaximumUnrollFactor() const {
   return 2;
 }
 
-unsigned PPCTTI::getArithmeticInstrCost(unsigned Opcode, Type *Ty,
-                                        OperandValueKind Op1Info,
-                                        OperandValueKind Op2Info) const {
+unsigned PPCTTI::getArithmeticInstrCost(
+    unsigned Opcode, Type *Ty, OperandValueKind Op1Info,
+    OperandValueKind Op2Info, OperandValueProperties Opd1PropInfo,
+    OperandValueProperties Opd2PropInfo) const {
   assert(TLI->InstructionOpcodeToISD(Opcode) && "Invalid opcode");
 
   // Fallback to the default implementation.
-  return TargetTransformInfo::getArithmeticInstrCost(Opcode, Ty, Op1Info,
-                                                     Op2Info);
+  return TargetTransformInfo::getArithmeticInstrCost(
+      Opcode, Ty, Op1Info, Op2Info, Opd1PropInfo, Opd2PropInfo);
 }
 
 unsigned PPCTTI::getShuffleCost(ShuffleKind Kind, Type *Tp, int Index,

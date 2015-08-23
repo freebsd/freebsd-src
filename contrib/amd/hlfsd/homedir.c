@@ -492,9 +492,10 @@ readent:
 
   /* read records */
   buf[0] = '\0';
-  fgets(buf, 256, passwd_fp);
+  if (fgets(buf, 256, passwd_fp) == NULL)
+    return NULL;
   passwd_line++;
-  if (!buf || buf[0] == '\0')
+  if (buf[0] == '\0')
     goto readent;
 
   /* read user name */

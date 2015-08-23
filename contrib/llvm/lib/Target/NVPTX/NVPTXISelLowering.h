@@ -12,8 +12,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef NVPTXISELLOWERING_H
-#define NVPTXISELLOWERING_H
+#ifndef LLVM_LIB_TARGET_NVPTX_NVPTXISELLOWERING_H
+#define LLVM_LIB_TARGET_NVPTX_NVPTXISELLOWERING_H
 
 #include "NVPTX.h"
 #include "llvm/CodeGen/SelectionDAG.h"
@@ -436,7 +436,7 @@ class NVPTXSubtarget;
 //===--------------------------------------------------------------------===//
 class NVPTXTargetLowering : public TargetLowering {
 public:
-  explicit NVPTXTargetLowering(NVPTXTargetMachine &TM);
+  explicit NVPTXTargetLowering(const NVPTXTargetMachine &TM);
   SDValue LowerOperation(SDValue Op, SelectionDAG &DAG) const override;
 
   SDValue LowerGlobalAddress(SDValue Op, SelectionDAG &DAG) const;
@@ -495,7 +495,7 @@ public:
                                     std::vector<SDValue> &Ops,
                                     SelectionDAG &DAG) const override;
 
-  NVPTXTargetMachine *nvTM;
+  const NVPTXTargetMachine *nvTM;
 
   // PTX always uses 32-bit shift amounts
   MVT getScalarShiftAmountTy(EVT LHSTy) const override { return MVT::i32; }
@@ -505,9 +505,9 @@ public:
 
   bool allowFMA(MachineFunction &MF, CodeGenOpt::Level OptLevel) const;
 
-  virtual bool isFMAFasterThanFMulAndFAdd(EVT) const {
-    return true;
-  }
+  bool isFMAFasterThanFMulAndFAdd(EVT) const override { return true; }
+
+  bool enableAggressiveFMAFusion(EVT VT) const override { return true; }
 
 private:
   const NVPTXSubtarget &nvptxSubtarget; // cache the subtarget here
@@ -538,4 +538,4 @@ private:
 };
 } // namespace llvm
 
-#endif // NVPTXISELLOWERING_H
+#endif

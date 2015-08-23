@@ -449,8 +449,7 @@ BreakpointLocation::ShouldStop (StoppointCallbackContext *context)
     bool should_stop = true;
     Log *log = lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_BREAKPOINTS);
 
-    IncrementHitCount();
-
+    // Do this first, if a location is disabled, it shouldn't increment its hit count.
     if (!IsEnabled())
         return false;
 
@@ -472,6 +471,13 @@ BreakpointLocation::ShouldStop (StoppointCallbackContext *context)
     }
     
     return should_stop;
+}
+
+void
+BreakpointLocation::BumpHitCount()
+{
+    if (IsEnabled())
+        IncrementHitCount();
 }
 
 bool
@@ -569,7 +575,7 @@ BreakpointLocation::GetDescription (Stream *s, lldb::DescriptionLevel level)
                 s->PutCString ("re-exported target = ");
             else
                 s->PutCString("where = ");
-            sc.DumpStopContext (s, m_owner.GetTarget().GetProcessSP().get(), m_address, false, true, false);
+            sc.DumpStopContext (s, m_owner.GetTarget().GetProcessSP().get(), m_address, false, true, false, true);
         }
         else
         {
@@ -717,4 +723,13 @@ BreakpointLocation::SendBreakpointLocationChangedEvent (lldb::BreakpointEventTyp
         m_owner.GetTarget().BroadcastEvent (Target::eBroadcastBitBreakpointChanged, data);
     }
 }
-    
+
+void
+BreakpointLocation::SwapLocation (BreakpointLocationSP swap_from)
+{
+    m_address = swap_from->m_address;
+    m_should_resolve_indirect_functions = swap_from->m_should_resolve_indirect_functions;
+    m_is_reexported = swap_from->m_is_reexported;
+    m_is_indirect = swap_from->m_is_indirect;
+    m_user_expression_sp.reset();
+}

@@ -18,7 +18,6 @@
 #include "llvm/Analysis/AliasSetTracker.h"
 #include "llvm/Analysis/CallPrinter.h"
 #include "llvm/Analysis/DomPrinter.h"
-#include "llvm/Analysis/FindUsedTypes.h"
 #include "llvm/Analysis/IntervalPartition.h"
 #include "llvm/Analysis/Lint.h"
 #include "llvm/Analysis/Passes.h"
@@ -33,6 +32,7 @@
 #include "llvm/Transforms/Instrumentation.h"
 #include "llvm/Transforms/ObjCARC.h"
 #include "llvm/Transforms/Scalar.h"
+#include "llvm/Transforms/Utils/SymbolRewriter.h"
 #include "llvm/Transforms/Utils/UnifyFunctionExitNodes.h"
 #include "llvm/Transforms/Vectorize.h"
 #include <cstdlib>
@@ -52,15 +52,18 @@ namespace {
       (void) llvm::createAliasAnalysisCounterPass();
       (void) llvm::createAliasDebugger();
       (void) llvm::createArgumentPromotionPass();
+      (void) llvm::createAlignmentFromAssumptionsPass();
       (void) llvm::createBasicAliasAnalysisPass();
       (void) llvm::createLibCallAliasAnalysisPass(nullptr);
       (void) llvm::createScalarEvolutionAliasAnalysisPass();
       (void) llvm::createTypeBasedAliasAnalysisPass();
+      (void) llvm::createScopedNoAliasAAPass();
       (void) llvm::createBoundsCheckingPass();
       (void) llvm::createBreakCriticalEdgesPass();
       (void) llvm::createCallGraphPrinterPass();
       (void) llvm::createCallGraphViewerPass();
       (void) llvm::createCFGSimplificationPass();
+      (void) llvm::createCFLAliasAnalysisPass();
       (void) llvm::createStructurizeCFGPass();
       (void) llvm::createConstantMergePass();
       (void) llvm::createConstantPropagationPass();
@@ -75,6 +78,7 @@ namespace {
       (void) llvm::createDomOnlyViewerPass();
       (void) llvm::createDomViewerPass();
       (void) llvm::createGCOVProfilerPass();
+      (void) llvm::createInstrProfilingPass();
       (void) llvm::createFunctionInliningPass();
       (void) llvm::createAlwaysInlinerPass();
       (void) llvm::createGlobalDCEPass();
@@ -107,6 +111,7 @@ namespace {
       (void) llvm::createObjCARCExpandPass();
       (void) llvm::createObjCARCContractPass();
       (void) llvm::createObjCARCOptPass();
+      (void) llvm::createPAEvalPass();
       (void) llvm::createPromoteMemoryToRegisterPass();
       (void) llvm::createDemoteRegisterToMemoryPass();
       (void) llvm::createPruneEHPass();
@@ -134,7 +139,7 @@ namespace {
       (void) llvm::createConstantHoistingPass();
       (void) llvm::createCodeGenPreparePass();
       (void) llvm::createEarlyCSEPass();
-      (void)llvm::createMergedLoadStoreMotionPass();
+      (void) llvm::createMergedLoadStoreMotionPass();
       (void) llvm::createGVNPass();
       (void) llvm::createMemCpyOptPass();
       (void) llvm::createLoopDeletionPass();
@@ -160,15 +165,15 @@ namespace {
       (void) llvm::createPartiallyInlineLibCallsPass();
       (void) llvm::createScalarizerPass();
       (void) llvm::createSeparateConstOffsetFromGEPPass();
+      (void) llvm::createRewriteSymbolsPass();
 
       (void)new llvm::IntervalPartition();
-      (void)new llvm::FindUsedTypes();
       (void)new llvm::ScalarEvolution();
       ((llvm::Function*)nullptr)->viewCFGOnly();
       llvm::RGPassManager RGM;
       ((llvm::RegionPass*)nullptr)->runOnRegion((llvm::Region*)nullptr, RGM);
       llvm::AliasSetTracker X(*(llvm::AliasAnalysis*)nullptr);
-      X.add((llvm::Value*)nullptr, 0, nullptr);  // for -print-alias-sets
+      X.add(nullptr, 0, llvm::AAMDNodes()); // for -print-alias-sets
     }
   } ForcePassLinking; // Force link by creating a global definition.
 }

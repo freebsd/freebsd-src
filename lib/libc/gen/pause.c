@@ -33,10 +33,8 @@ static char sccsid[] = "@(#)pause.c	8.1 (Berkeley) 6/4/93";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "namespace.h"
 #include <signal.h>
 #include <unistd.h>
-#include "un-namespace.h"
 
 #include "libc_private.h"
 
@@ -44,23 +42,14 @@ __FBSDID("$FreeBSD$");
  * Backwards compatible pause.
  */
 int
-__libc_pause(void)
+__pause(void)
 {
 	sigset_t oset;
 
-	if (_sigprocmask(SIG_BLOCK, NULL, &oset) == -1)
+	if (sigprocmask(SIG_BLOCK, NULL, &oset) == -1)
 		return (-1);
-	return (_sigsuspend(&oset));
+	return (sigsuspend(&oset));
 }
 
-#pragma weak pause
-int
-pause(void)
-{
-
-	return (((int (*)(void))
-	    __libc_interposing[INTERPOS_pause])());
-}
-
-__weak_reference(__libc_pause, __pause);
-__weak_reference(__libc_pause, _pause);
+__weak_reference(__pause, pause);
+__weak_reference(__pause, _pause);

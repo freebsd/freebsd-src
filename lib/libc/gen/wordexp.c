@@ -118,8 +118,10 @@ we_askshell(const char *words, wordexp_t *we, int flags)
 	char *nstrings;			/* Temporary for realloc() */
 	char **nwv;			/* Temporary for realloc() */
 	sigset_t newsigblock, oldsigblock;
+	const char *ifs;
 
 	serrno = errno;
+	ifs = getenv("IFS");
 
 	if (pipe2(pdes, O_CLOEXEC) < 0)
 		return (WRDE_NOSPACE);	/* XXX */
@@ -145,7 +147,8 @@ we_askshell(const char *words, wordexp_t *we, int flags)
 		    _fcntl(pdes[1], F_SETFD, 0)) < 0)
 			_exit(1);
 		execl(_PATH_BSHELL, "sh", flags & WRDE_UNDEF ? "-u" : "+u",
-		    "-c", "eval \"$1\";eval \"wordexp $2\"", "",
+		    "-c", "IFS=$1;eval \"$2\";eval \"wordexp $3\"", "",
+		    ifs != NULL ? ifs : " \t\n",
 		    flags & WRDE_SHOWERR ? "" : "exec 2>/dev/null", words,
 		    (char *)NULL);
 		_exit(1);

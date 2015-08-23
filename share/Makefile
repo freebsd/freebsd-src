@@ -8,7 +8,7 @@
 SUBDIR=	${_colldef} \
 	${_dict} \
 	${_doc} \
-	dtrace \
+	${_dtrace} \
 	${_examples} \
 	${_i18n} \
 	keys \
@@ -35,6 +35,10 @@ SUBDIR=	${_colldef} \
 
 .if ${MK_BSNMP} != "no"
 _snmp=		snmp
+.endif
+
+.if ${MK_CDDL} != "no"
+_dtrace=	dtrace
 .endif
 
 .if ${MK_DICT} != "no"

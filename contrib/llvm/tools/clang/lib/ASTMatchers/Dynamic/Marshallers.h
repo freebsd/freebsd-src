@@ -17,8 +17,8 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_AST_MATCHERS_DYNAMIC_MARSHALLERS_H
-#define LLVM_CLANG_AST_MATCHERS_DYNAMIC_MARSHALLERS_H
+#ifndef LLVM_CLANG_LIB_ASTMATCHERS_DYNAMIC_MARSHALLERS_H
+#define LLVM_CLANG_LIB_ASTMATCHERS_DYNAMIC_MARSHALLERS_H
 
 #include "clang/ASTMatchers/ASTMatchers.h"
 #include "clang/ASTMatchers/Dynamic/Diagnostics.h"
@@ -30,48 +30,8 @@
 namespace clang {
 namespace ast_matchers {
 namespace dynamic {
-
 namespace internal {
 
-struct ArgKind {
-  enum Kind {
-    AK_Matcher,
-    AK_Unsigned,
-    AK_String
-  };
-  ArgKind(Kind K)
-      : K(K) {}
-  ArgKind(ast_type_traits::ASTNodeKind MatcherKind)
-      : K(AK_Matcher), MatcherKind(MatcherKind) {}
-
-  std::string asString() const {
-    switch (getArgKind()) {
-    case AK_Matcher:
-      return (Twine("Matcher<") + MatcherKind.asStringRef() + ">").str();
-    case AK_Unsigned:
-      return "unsigned";
-    case AK_String:
-      return "string";
-    }
-    llvm_unreachable("unhandled ArgKind");
-  }
-
-  Kind getArgKind() const { return K; }
-  ast_type_traits::ASTNodeKind getMatcherKind() const {
-    assert(K == AK_Matcher);
-    return MatcherKind;
-  }
-
-  bool operator<(const ArgKind &Other) const {
-    if (K == AK_Matcher && Other.K == AK_Matcher)
-      return MatcherKind < Other.MatcherKind;
-    return K < Other.K;
-  }
-
-private:
-  Kind K;
-  ast_type_traits::ASTNodeKind MatcherKind;
-};
 
 /// \brief Helper template class to just from argument type to the right is/get
 ///   functions in VariantValue.
@@ -113,6 +73,27 @@ template <> struct ArgTypeTraits<unsigned> {
   }
   static ArgKind getKind() {
     return ArgKind(ArgKind::AK_Unsigned);
+  }
+};
+
+template <> struct ArgTypeTraits<attr::Kind> {
+private:
+  static attr::Kind getAttrKind(llvm::StringRef AttrKind) {
+    return llvm::StringSwitch<attr::Kind>(AttrKind)
+#define ATTR(X) .Case("attr::" #X, attr:: X)
+#include "clang/Basic/AttrList.inc"
+        .Default(attr::Kind(-1));
+  }
+public:
+  static bool is(const VariantValue &Value) {
+    return Value.isString() &&
+        getAttrKind(Value.getString()) != attr::Kind(-1);
+  }
+  static attr::Kind get(const VariantValue &Value) {
+    return getAttrKind(Value.getString());
+  }
+  static ArgKind getKind() {
+    return ArgKind(ArgKind::AK_String);
   }
 };
 
@@ -161,16 +142,10 @@ inline bool isRetKindConvertibleTo(
     ArrayRef<ast_type_traits::ASTNodeKind> RetKinds,
     ast_type_traits::ASTNodeKind Kind, unsigned *Specificity,
     ast_type_traits::ASTNodeKind *LeastDerivedKind) {
-  for (ArrayRef<ast_type_traits::ASTNodeKind>::const_iterator
-           i = RetKinds.begin(),
-           e = RetKinds.end();
-       i != e; ++i) {
-    unsigned Distance;
-    if (i->isBaseOf(Kind, &Distance)) {
-      if (Specificity)
-        *Specificity = 100 - Distance;
+  for (const ast_type_traits::ASTNodeKind &NodeKind : RetKinds) {
+    if (ArgKind(NodeKind).isConvertibleTo(Kind, Specificity)) {
       if (LeastDerivedKind)
-        *LeastDerivedKind = *i;
+        *LeastDerivedKind = NodeKind;
       return true;
     }
   }
@@ -322,8 +297,8 @@ variadicMatcherDescriptor(StringRef MatcherName, const SourceRange &NameRange,
 
   VariantMatcher Out;
   if (!HasError) {
-    Out = outvalueToVariantMatcher(
-        Func(ArrayRef<const ArgT *>(InnerArgs, Args.size())));
+    Out = outvalueToVariantMatcher(Func(llvm::makeArrayRef(InnerArgs,
+                                                           Args.size())));
   }
 
   for (size_t i = 0, e = Args.size(); i != e; ++i) {
@@ -498,7 +473,7 @@ private:
   template <typename FromTypeList>
   inline void collect(FromTypeList);
 
-  const StringRef Name;
+  StringRef Name;
   std::vector<MatcherDescriptor *> &Out;
 };
 
@@ -581,15 +556,15 @@ private:
 /// \brief Variadic operator marshaller function.
 class VariadicOperatorMatcherDescriptor : public MatcherDescriptor {
 public:
-  typedef ast_matchers::internal::VariadicOperatorFunction VarFunc;
+  typedef DynTypedMatcher::VariadicOperator VarOp;
   VariadicOperatorMatcherDescriptor(unsigned MinCount, unsigned MaxCount,
-                                    VarFunc Func, StringRef MatcherName)
-      : MinCount(MinCount), MaxCount(MaxCount), Func(Func),
+                                    VarOp Op, StringRef MatcherName)
+      : MinCount(MinCount), MaxCount(MaxCount), Op(Op),
         MatcherName(MatcherName) {}
 
   virtual VariantMatcher create(const SourceRange &NameRange,
                                 ArrayRef<ParserValue> Args,
-                                Diagnostics *Error) const {
+                                Diagnostics *Error) const override {
     if (Args.size() < MinCount || MaxCount < Args.size()) {
       const std::string MaxStr =
           (MaxCount == UINT_MAX ? "" : Twine(MaxCount)).str();
@@ -609,17 +584,17 @@ public:
       }
       InnerArgs.push_back(Value.getMatcher());
     }
-    return VariantMatcher::VariadicOperatorMatcher(Func, std::move(InnerArgs));
+    return VariantMatcher::VariadicOperatorMatcher(Op, std::move(InnerArgs));
   }
 
-  bool isVariadic() const { return true; }
-  unsigned getNumArgs() const { return 0; }
+  bool isVariadic() const override { return true; }
+  unsigned getNumArgs() const override { return 0; }
   void getArgKinds(ast_type_traits::ASTNodeKind ThisKind, unsigned ArgNo,
-                   std::vector<ArgKind> &Kinds) const {
+                   std::vector<ArgKind> &Kinds) const override {
     Kinds.push_back(ThisKind);
   }
   bool isConvertibleTo(ast_type_traits::ASTNodeKind Kind, unsigned *Specificity,
-                       ast_type_traits::ASTNodeKind *LeastDerivedKind) const {
+                       ast_type_traits::ASTNodeKind *LeastDerivedKind) const override {
     if (Specificity)
       *Specificity = 1;
     if (LeastDerivedKind)
@@ -631,7 +606,7 @@ public:
 private:
   const unsigned MinCount;
   const unsigned MaxCount;
-  const VarFunc Func;
+  const VarOp Op;
   const StringRef MatcherName;
 };
 
@@ -724,7 +699,7 @@ MatcherDescriptor *
 makeMatcherAutoMarshall(ast_matchers::internal::VariadicOperatorMatcherFunc<
                             MinCount, MaxCount> Func,
                         StringRef MatcherName) {
-  return new VariadicOperatorMatcherDescriptor(MinCount, MaxCount, Func.Func,
+  return new VariadicOperatorMatcherDescriptor(MinCount, MaxCount, Func.Op,
                                                MatcherName);
 }
 

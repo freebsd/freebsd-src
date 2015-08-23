@@ -42,7 +42,7 @@
 /* Whether the C compiler accepts the "unused" attribute */
 #undef HAVE_ATTR_UNUSED
 
-/* Define to 1 if your system has a working `chown' function. */
+/* Define to 1 if you have the `chown' function. */
 #undef HAVE_CHOWN
 
 /* Define to 1 if you have the `chroot' function. */
@@ -145,6 +145,9 @@
 
 /* Whether getaddrinfo is available */
 #undef HAVE_GETADDRINFO
+
+/* Define to 1 if you have the `getauxval' function. */
+#undef HAVE_GETAUXVAL
 
 /* Define to 1 if you have the `getentropy' function. */
 #undef HAVE_GETENTROPY
@@ -349,6 +352,9 @@
 
 /* Define to 1 if `ipi_spec_dst' is a member of `struct in_pktinfo'. */
 #undef HAVE_STRUCT_IN_PKTINFO_IPI_SPEC_DST
+
+/* Define to 1 if `sun_len' is a member of `struct sockaddr_un'. */
+#undef HAVE_STRUCT_SOCKADDR_UN_SUN_LEN
 
 /* Define if you have Swig libraries and header files. */
 #undef HAVE_SWIG
@@ -794,6 +800,10 @@
 #define ARG_LL "%ll"
 #else
 #define ARG_LL "%I64"
+#endif
+
+#ifndef AF_LOCAL
+#define AF_LOCAL AF_UNIX
 #endif
 
 

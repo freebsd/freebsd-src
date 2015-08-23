@@ -41,7 +41,7 @@ class TargetSchedModel {
   unsigned MicroOpFactor; // Multiply to normalize microops to resource units.
   unsigned ResourceLCM;   // Resource units per cycle. Latency normalization factor.
 public:
-  TargetSchedModel(): STI(nullptr), TII(nullptr) {}
+  TargetSchedModel(): SchedModel(MCSchedModel::GetDefaultSchedModel()), STI(nullptr), TII(nullptr) {}
 
   /// \brief Initialize the machine model for instruction scheduling.
   ///
@@ -167,6 +167,7 @@ public:
   /// if converter after moving it to TargetSchedModel).
   unsigned computeInstrLatency(const MachineInstr *MI,
                                bool UseDefaultDefLatency = true) const;
+  unsigned computeInstrLatency(unsigned Opcode) const;
 
   /// \brief Output dependency latency of a pair of defs of the same register.
   ///

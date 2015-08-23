@@ -95,14 +95,6 @@ __FBSDID("$FreeBSD$");
 #include "libc_private.h"
 #include "thr_private.h"
 
-#ifdef SYSCALL_COMPAT
-extern int __fcntl_compat(int, int, ...);
-#endif
-
-/*
- * Cancellation behavior:
- *   If thread is canceled, no socket is created.
- */
 static int
 __thr_accept(int s, struct sockaddr *addr, socklen_t *addrlen)
 {
@@ -189,25 +181,6 @@ __thr_connect(int fd, const struct sockaddr *name, socklen_t namelen)
  	return (ret);
 }
 
-
-/*
- * Cancellation behavior:
- *   If thread is canceled, file is not created.
- */
-static int
-__thr_creat(const char *path, mode_t mode)
-{
-	struct pthread *curthread;
-	int ret;
-
-	curthread = _get_curthread();
-	_thr_cancel_enter(curthread);
-	ret = __libc_creat(path, mode);
-	_thr_cancel_leave(curthread, ret == -1);
-	
-	return (ret);
-}
-
 /*
  * Cancellation behavior:
  *   According to specification, only F_SETLKW is a cancellation point.
@@ -226,18 +199,10 @@ __thr_fcntl(int fd, int cmd, ...)
 	va_start(ap, cmd);
 	if (cmd == F_OSETLKW || cmd == F_SETLKW) {
 		_thr_cancel_enter(curthread);
-#ifdef SYSCALL_COMPAT
-		ret = __fcntl_compat(fd, cmd, va_arg(ap, void *));
-#else
 		ret = __sys_fcntl(fd, cmd, va_arg(ap, void *));
-#endif
 		_thr_cancel_leave(curthread, ret == -1);
 	} else {
-#ifdef SYSCALL_COMPAT
-		ret = __fcntl_compat(fd, cmd, va_arg(ap, void *));
-#else
 		ret = __sys_fcntl(fd, cmd, va_arg(ap, void *));
-#endif
 	}
 	va_end(ap);
 
@@ -300,35 +265,6 @@ __thr_nanosleep(const struct timespec *time_to_sleep,
  *   If the thread is canceled, file is not opened.
  */
 static int
-__thr_open(const char *path, int flags,...)
-{
-	struct pthread *curthread;
-	int mode, ret;
-	va_list	ap;
-
-	/* Check if the file is being created: */
-	if ((flags & O_CREAT) != 0) {
-		/* Get the creation mode: */
-		va_start(ap, flags);
-		mode = va_arg(ap, int);
-		va_end(ap);
-	} else {
-		mode = 0;
-	}
-	
-	curthread = _get_curthread();
-	_thr_cancel_enter(curthread);
-	ret = __sys_open(path, flags, mode);
-	_thr_cancel_leave(curthread, ret == -1);
-
-	return (ret);
-}
-
-/*
- * Cancellation behavior:
- *   If the thread is canceled, file is not opened.
- */
-static int
 __thr_openat(int fd, const char *path, int flags, ...)
 {
 	struct pthread *curthread;
@@ -379,6 +315,26 @@ __thr_poll(struct pollfd *fds, unsigned int nfds, int timeout)
  *   the thread is not canceled.
  */
 static int
+__thr_ppoll(struct pollfd pfd[], nfds_t nfds, const struct timespec *
+    timeout, const sigset_t *newsigmask)
+{
+	struct pthread *curthread;
+	int ret;
+
+	curthread = _get_curthread();
+	_thr_cancel_enter(curthread);
+	ret = __sys_ppoll(pfd, nfds, timeout, newsigmask);
+	_thr_cancel_leave(curthread, ret == -1);
+
+	return (ret);
+}
+
+/*
+ * Cancellation behavior:
+ *   Thread may be canceled at start, but if the system call returns something,
+ *   the thread is not canceled.
+ */
+static int
 __thr_pselect(int count, fd_set *rfds, fd_set *wfds, fd_set *efds, 
 	const struct timespec *timo, const sigset_t *mask)
 {
@@ -389,6 +345,29 @@ __thr_pselect(int count, fd_set *rfds, fd_set *wfds, fd_set *efds,
 	_thr_cancel_enter(curthread);
 	ret = __sys_pselect(count, rfds, wfds, efds, timo, mask);
 	_thr_cancel_leave(curthread, ret == -1);
+
+	return (ret);
+}
+
+static int
+__thr_kevent(int kq, const struct kevent *changelist, int nchanges,
+    struct kevent *eventlist, int nevents, const struct timespec *timeout)
+{
+	struct pthread *curthread;
+	int ret;
+
+	if (nevents == 0) {
+		/*
+		 * No blocking, do not make the call cancellable.
+		 */
+		return (__sys_kevent(kq, changelist, nchanges, eventlist,
+		    nevents, timeout));
+	}
+	curthread = _get_curthread();
+	_thr_cancel_enter(curthread);
+	ret = __sys_kevent(kq, changelist, nchanges, eventlist, nevents,
+	    timeout);
+	_thr_cancel_leave(curthread, ret == -1 && nchanges == 0);
 
 	return (ret);
 }
@@ -523,19 +502,6 @@ __thr_sendto(int s, const void *m, size_t l, int f, const struct sockaddr *t,
 	return (ret);
 }
 
-static unsigned int
-__thr_sleep(unsigned int seconds)
-{
-	struct pthread *curthread;
-	unsigned int ret;
-
-	curthread = _get_curthread();
-	_thr_cancel_enter(curthread);
-	ret = __libc_sleep(seconds);
-	_thr_cancel_leave(curthread, 1);
-	return (ret);
-}
-
 static int
 __thr_system(const char *string)
 {
@@ -567,55 +533,6 @@ __thr_tcdrain(int fd)
 	return (ret);
 }
 
-static int
-__thr_usleep(useconds_t useconds)
-{
-	struct pthread *curthread;
-	int ret;
-
-	curthread = _get_curthread();
-	_thr_cancel_enter(curthread);
-	ret = __libc_usleep(useconds);
-	_thr_cancel_leave(curthread, 1);
-	return (ret);
-}
-
-/*
- * Cancellation behavior:
- *   Thread may be canceled at start, but if the system call returns
- *   a child pid, the thread is not canceled.
- */
-static pid_t
-__thr_wait(int *istat)
-{
-	struct pthread *curthread;
-	pid_t ret;
-
-	curthread = _get_curthread();
-	_thr_cancel_enter(curthread);
-	ret = __libc_wait(istat);
-	_thr_cancel_leave(curthread, ret <= 0);
-	return (ret);
-}
-
-/*
- * Cancellation behavior:
- *   Thread may be canceled at start, but if the system call returns
- *   a child pid, the thread is not canceled.
- */
-static pid_t
-__thr_wait3(int *status, int options, struct rusage *rusage)
-{
-	struct pthread *curthread;
-	pid_t ret;
-
-	curthread = _get_curthread();
-	_thr_cancel_enter(curthread);
-	ret = __libc_wait3(status, options, rusage);
-	_thr_cancel_leave(curthread, ret <= 0);
-	return (ret);
-}
-
 /*
  * Cancellation behavior:
  *   Thread may be canceled at start, but if the system call returns
@@ -640,14 +557,15 @@ __thr_wait4(pid_t pid, int *status, int options, struct rusage *rusage)
  *   a child pid, the thread is not canceled.
  */
 static pid_t
-__thr_waitpid(pid_t wpid, int *status, int options)
+__thr_wait6(idtype_t idtype, id_t id, int *status, int options,
+    struct __wrusage *ru, siginfo_t *infop)
 {
 	struct pthread *curthread;
 	pid_t ret;
 
 	curthread = _get_curthread();
 	_thr_cancel_enter(curthread);
-	ret = __libc_waitpid(wpid, status, options);
+	ret = __sys_wait6(idtype, id, status, options, ru, infop);
 	_thr_cancel_leave(curthread, ret <= 0);
 	return (ret);
 }
@@ -701,17 +619,14 @@ __thr_interpose_libc(void)
 	SLOT(aio_suspend);
 	SLOT(close);
 	SLOT(connect);
-	SLOT(creat);
 	SLOT(fcntl);
 	SLOT(fsync);
 	SLOT(fork);
 	SLOT(msync);
 	SLOT(nanosleep);
-	SLOT(open);
 	SLOT(openat);
 	SLOT(poll);
 	SLOT(pselect);
-	SLOT(raise);
 	SLOT(read);
 	SLOT(readv);
 	SLOT(recvfrom);
@@ -728,16 +643,15 @@ __thr_interpose_libc(void)
 	SLOT(sigwaitinfo);
 	SLOT(swapcontext);
 	SLOT(system);
-	SLOT(sleep);
 	SLOT(tcdrain);
-	SLOT(usleep);
-	SLOT(pause);
-	SLOT(wait);
-	SLOT(wait3);
 	SLOT(wait4);
-	SLOT(waitpid);
 	SLOT(write);
 	SLOT(writev);
+	SLOT(spinlock);
+	SLOT(spinunlock);
+	SLOT(kevent);
+	SLOT(wait6);
+	SLOT(ppoll);
 #undef SLOT
 	*(__libc_interposing_slot(
 	    INTERPOS__pthread_mutex_init_calloc_cb)) =

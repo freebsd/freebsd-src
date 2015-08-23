@@ -14,7 +14,7 @@ SRCS=	Mips16FrameLowering.cpp \
 	Mips16RegisterInfo.cpp \
 	MipsAnalyzeImmediate.cpp \
 	MipsAsmPrinter.cpp \
-	MipsCodeEmitter.cpp \
+	MipsCCState.cpp \
 	MipsConstantIslandPass.cpp \
 	MipsDelaySlotFiller.cpp \
 	MipsFastISel.cpp \
@@ -22,7 +22,6 @@ SRCS=	Mips16FrameLowering.cpp \
 	MipsISelDAGToDAG.cpp \
 	MipsISelLowering.cpp \
 	MipsInstrInfo.cpp \
-	MipsJITInfo.cpp \
 	MipsLongBranch.cpp \
 	MipsMCInstLower.cpp \
 	MipsMachineFunction.cpp \

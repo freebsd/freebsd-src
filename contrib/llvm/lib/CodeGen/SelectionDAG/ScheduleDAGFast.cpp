@@ -221,7 +221,7 @@ SUnit *ScheduleDAGFast::CopyAndMoveSuccessors(SUnit *SU) {
   SUnit *NewSU;
   bool TryUnfold = false;
   for (unsigned i = 0, e = N->getNumValues(); i != e; ++i) {
-    EVT VT = N->getValueType(i);
+    MVT VT = N->getSimpleValueType(i);
     if (VT == MVT::Glue)
       return nullptr;
     else if (VT == MVT::Other)
@@ -229,7 +229,7 @@ SUnit *ScheduleDAGFast::CopyAndMoveSuccessors(SUnit *SU) {
   }
   for (unsigned i = 0, e = N->getNumOperands(); i != e; ++i) {
     const SDValue &Op = N->getOperand(i);
-    EVT VT = Op.getNode()->getValueType(Op.getResNo());
+    MVT VT = Op.getNode()->getSimpleValueType(Op.getResNo());
     if (VT == MVT::Glue)
       return nullptr;
   }
@@ -431,17 +431,23 @@ void ScheduleDAGFast::InsertCopiesAndMoveSuccs(SUnit *SU, unsigned Reg,
 /// getPhysicalRegisterVT - Returns the ValueType of the physical register
 /// definition of the specified node.
 /// FIXME: Move to SelectionDAG?
-static EVT getPhysicalRegisterVT(SDNode *N, unsigned Reg,
+static MVT getPhysicalRegisterVT(SDNode *N, unsigned Reg,
                                  const TargetInstrInfo *TII) {
-  const MCInstrDesc &MCID = TII->get(N->getMachineOpcode());
-  assert(MCID.ImplicitDefs && "Physical reg def must be in implicit def list!");
-  unsigned NumRes = MCID.getNumDefs();
-  for (const uint16_t *ImpDef = MCID.getImplicitDefs(); *ImpDef; ++ImpDef) {
-    if (Reg == *ImpDef)
-      break;
-    ++NumRes;
+  unsigned NumRes;
+  if (N->getOpcode() == ISD::CopyFromReg) {
+    // CopyFromReg has: "chain, Val, glue" so operand 1 gives the type.
+    NumRes = 1;
+  } else {
+    const MCInstrDesc &MCID = TII->get(N->getMachineOpcode());
+    assert(MCID.ImplicitDefs && "Physical reg def must be in implicit def list!");
+    NumRes = MCID.getNumDefs();
+    for (const uint16_t *ImpDef = MCID.getImplicitDefs(); *ImpDef; ++ImpDef) {
+      if (Reg == *ImpDef)
+        break;
+      ++NumRes;
+    }
   }
-  return N->getValueType(NumRes);
+  return N->getSimpleValueType(NumRes);
 }
 
 /// CheckForLiveRegDef - Return true and update live register vector if the
@@ -454,7 +460,7 @@ static bool CheckForLiveRegDef(SUnit *SU, unsigned Reg,
   bool Added = false;
   for (MCRegAliasIterator AI(Reg, TRI, true); AI.isValid(); ++AI) {
     if (LiveRegDefs[*AI] && LiveRegDefs[*AI] != SU) {
-      if (RegAdded.insert(*AI)) {
+      if (RegAdded.insert(*AI).second) {
         LRegs.push_back(*AI);
         Added = true;
       }
@@ -572,7 +578,7 @@ void ScheduleDAGFast::ListScheduleBottomUp() {
         assert(LRegs.size() == 1 && "Can't handle this yet!");
         unsigned Reg = LRegs[0];
         SUnit *LRDef = LiveRegDefs[Reg];
-        EVT VT = getPhysicalRegisterVT(LRDef->getNode(), Reg, TII);
+        MVT VT = getPhysicalRegisterVT(LRDef->getNode(), Reg, TII);
         const TargetRegisterClass *RC =
           TRI->getMinimalPhysRegClass(Reg, VT);
         const TargetRegisterClass *DestRC = TRI->getCrossCopyRegClass(RC);

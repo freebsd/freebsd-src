@@ -28,7 +28,7 @@ static const char sccsid[] = "$Id: v_screen.c,v 10.12 2001/06/25 15:19:34 skimo 
  * v_screen -- ^W
  *	Switch screens.
  *
- * PUBLIC: int v_screen __P((SCR *, VICMD *));
+ * PUBLIC: int v_screen(SCR *, VICMD *);
  */
 int
 v_screen(SCR *sp, VICMD *vp)

@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: libdwarf.h 3064 2014-06-06 19:35:55Z kaiwang27 $
+ * $Id: libdwarf.h 3174 2015-03-27 17:13:41Z emaste $
  */
 
 #ifndef	_LIBDWARF_H_
@@ -439,11 +439,14 @@ enum Dwarf_ISA {
 	DW_ISA_SPARC,
 	DW_ISA_X86,
 	DW_ISA_X86_64,
+	DW_ISA_AARCH64,
 	DW_ISA_MAX
 };
 
 /* Function prototype definitions. */
-__BEGIN_DECLS
+#ifdef __cplusplus
+extern "C" {
+#endif
 Dwarf_P_Attribute dwarf_add_AT_comp_dir(Dwarf_P_Die, char *, Dwarf_Error *);
 Dwarf_P_Attribute dwarf_add_AT_const_value_signedint(Dwarf_P_Die, Dwarf_Signed,
 		    Dwarf_Error *);
@@ -830,6 +833,8 @@ int		dwarf_whatattr(Dwarf_Attribute, Dwarf_Half *, Dwarf_Error *);
 int		dwarf_whatform(Dwarf_Attribute, Dwarf_Half *, Dwarf_Error *);
 int		dwarf_whatform_direct(Dwarf_Attribute, Dwarf_Half *,
 		    Dwarf_Error *);
-__END_DECLS
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* !_LIBDWARF_H_ */

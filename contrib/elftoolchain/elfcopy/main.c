@@ -24,7 +24,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/stat.h>
 
@@ -40,7 +39,7 @@
 
 #include "elfcopy.h"
 
-ELFTC_VCSID("$Id: main.c 3111 2014-12-20 08:33:01Z kaiwang27 $");
+ELFTC_VCSID("$Id: main.c 3216 2015-05-23 21:16:36Z kaiwang27 $");
 
 enum options
 {
@@ -57,9 +56,11 @@ enum options
 	ECP_GLOBALIZE_SYMBOLS,
 	ECP_KEEP_SYMBOLS,
 	ECP_KEEP_GLOBAL_SYMBOLS,
+	ECP_LOCALIZE_HIDDEN,
 	ECP_LOCALIZE_SYMBOLS,
 	ECP_NO_CHANGE_WARN,
 	ECP_ONLY_DEBUG,
+	ECP_ONLY_DWO,
 	ECP_PAD_TO,
 	ECP_PREFIX_ALLOC,
 	ECP_PREFIX_SEC,
@@ -72,6 +73,7 @@ enum options
 	ECP_SET_START,
 	ECP_SREC_FORCE_S3,
 	ECP_SREC_LEN,
+	ECP_STRIP_DWO,
 	ECP_STRIP_SYMBOLS,
 	ECP_STRIP_UNNEEDED,
 	ECP_WEAKEN_ALL,
@@ -124,6 +126,7 @@ static struct option elfcopy_longopts[] =
 	{"change-warnings", no_argument, NULL, ECP_CHANGE_WARN},
 	{"discard-all", no_argument, NULL, 'x'},
 	{"discard-locals", no_argument, NULL, 'X'},
+	{"extract-dwo", no_argument, NULL, ECP_ONLY_DWO},
 	{"gap-fill", required_argument, NULL, ECP_GAP_FILL},
 	{"globalize-symbol", required_argument, NULL, ECP_GLOBALIZE_SYMBOL},
 	{"globalize-symbols", required_argument, NULL, ECP_GLOBALIZE_SYMBOLS},
@@ -134,6 +137,7 @@ static struct option elfcopy_longopts[] =
 	{"keep-global-symbol", required_argument, NULL, 'G'},
 	{"keep-global-symbols", required_argument, NULL,
 	 ECP_KEEP_GLOBAL_SYMBOLS},
+	{"localize-hidden", no_argument, NULL, ECP_LOCALIZE_HIDDEN},
 	{"localize-symbol", required_argument, NULL, 'L'},
 	{"localize-symbols", required_argument, NULL, ECP_LOCALIZE_SYMBOLS},
 	{"no-adjust-warnings", no_argument, NULL, ECP_NO_CHANGE_WARN},
@@ -157,6 +161,7 @@ static struct option elfcopy_longopts[] =
 	{"srec-len", required_argument, NULL, ECP_SREC_LEN},
 	{"strip-all", no_argument, NULL, 'S'},
 	{"strip-debug", no_argument, 0, 'g'},
+	{"strip-dwo", no_argument, NULL, ECP_STRIP_DWO},
 	{"strip-symbol", required_argument, NULL, 'N'},
 	{"strip-symbols", required_argument, NULL, ECP_STRIP_SYMBOLS},
 	{"strip-unneeded", no_argument, NULL, ECP_STRIP_UNNEEDED},
@@ -210,7 +215,7 @@ static struct {
 };
 
 static int	copy_from_tempfile(const char *src, const char *dst,
-    int infd, int *outfd);
+    int infd, int *outfd, int in_place);
 static void	create_file(struct elfcopy *ecp, const char *src,
     const char *dst);
 static void	elfcopy_main(struct elfcopy *ecp, int argc, char **argv);
@@ -348,6 +353,7 @@ create_elf(struct elfcopy *ecp)
 	if (ecp->strip == STRIP_DEBUG ||
 	    ecp->strip == STRIP_UNNEEDED ||
 	    ecp->flags & WEAKEN_ALL ||
+	    ecp->flags & LOCALIZE_HIDDEN ||
 	    ecp->flags & DISCARD_LOCAL ||
 	    ecp->flags & DISCARD_LLABEL ||
 	    ecp->prefix_sym != NULL ||
@@ -398,8 +404,19 @@ create_elf(struct elfcopy *ecp)
 	 * Insert SHDR table into the internal section list as a "pseudo"
 	 * section, so later it will get sorted and resynced just as "normal"
 	 * sections.
+	 *
+	 * Under FreeBSD, Binutils objcopy always put the section header
+	 * at the end of all the sections. We want to do the same here.
+	 *
+	 * However, note that the behaviour is still different with Binutils:
+	 * elfcopy checks the FreeBSD OSABI tag to tell whether it needs to
+	 * move the section headers, while Binutils is probably configured
+	 * this way when it's compiled on FreeBSD.
 	 */
-	shtab = insert_shtab(ecp, 0);
+	if (oeh.e_ident[EI_OSABI] == ELFOSABI_FREEBSD)
+		shtab = insert_shtab(ecp, 1);
+	else
+		shtab = insert_shtab(ecp, 0);
 
 	/*
 	 * Resync section offsets in the output object. This is needed
@@ -479,6 +496,11 @@ free_elf(struct elfcopy *ecp)
 			free(sec);
 		}
 	}
+
+	if (ecp->secndx != NULL) {
+		free(ecp->secndx);
+		ecp->secndx = NULL;
+	}
 }
 
 /* Create a temporary file. */
@@ -523,33 +545,39 @@ create_tempfile(char **fn, int *fd)
 #undef _TEMPFILEPATH
 }
 
+/*
+ * Copy temporary file with path src and file descriptor infd to path dst.
+ * If in_place is set act as if editing the file in place, avoiding rename()
+ * to preserve hard and symbolic links. Output file remains open, with file
+ * descriptor returned in outfd.
+ */
 static int
-copy_from_tempfile(const char *src, const char *dst, int infd, int *outfd)
+copy_from_tempfile(const char *src, const char *dst, int infd, int *outfd,
+    int in_place)
 {
 	int tmpfd;
 
 	/*
 	 * First, check if we can use rename().
 	 */
-	if (rename(src, dst) >= 0) {
-		*outfd = infd;
-		return (0);
-	} else if (errno != EXDEV)
-		return (-1);
+	if (in_place == 0) {
+		if (rename(src, dst) >= 0) {
+			*outfd = infd;
+			return (0);
+		} else if (errno != EXDEV)
+			return (-1);
+	
+		/*
+		 * If the rename() failed due to 'src' and 'dst' residing in
+		 * two different file systems, invoke a helper function in
+		 * libelftc to do the copy.
+		 */
 
-	/*
-	 * If the rename() failed due to 'src' and 'dst' residing in
-	 * two different file systems, invoke a helper function in
-	 * libelftc to do the copy.
-	 */
+		if (unlink(dst) < 0)
+			return (-1);
+	}
 
-	if (unlink(dst) < 0)
-		return (-1);
-
-	if ((tmpfd = open(dst, O_CREAT | O_WRONLY, 0755)) < 0)
-		return (-1);
-
-	if (lseek(infd, 0, SEEK_SET) < 0)
+	if ((tmpfd = open(dst, O_CREAT | O_TRUNC | O_WRONLY, 0755)) < 0)
 		return (-1);
 
 	if (elftc_copyfile(infd, tmpfd) < 0)
@@ -578,6 +606,7 @@ create_file(struct elfcopy *ecp, const char *src, const char *dst)
 	struct stat	 sb;
 	char		*tempfile, *elftemp;
 	int		 efd, ifd, ofd, ofd0, tfd;
+	int		 in_place;
 
 	tempfile = NULL;
 
@@ -718,10 +747,15 @@ copy_done:
 #endif
 
 	if (tempfile != NULL) {
-		if (dst == NULL)
+		in_place = 0;
+		if (dst == NULL) {
 			dst = src;
+			if (lstat(dst, &sb) != -1 &&
+			    (sb.st_nlink > 1 || S_ISLNK(sb.st_mode)))
+				in_place = 1;
+		}
 
-		if (copy_from_tempfile(tempfile, dst, ofd, &tfd) < 0)
+		if (copy_from_tempfile(tempfile, dst, ofd, &tfd, in_place) < 0)
 			err(EXIT_FAILURE, "creation of %s failed", dst);
 
 		free(tempfile);
@@ -858,6 +892,9 @@ elfcopy_main(struct elfcopy *ecp, int argc, char **argv)
 		case ECP_KEEP_GLOBAL_SYMBOLS:
 			parse_symlist_file(ecp, optarg, SYMOP_KEEPG);
 			break;
+		case ECP_LOCALIZE_HIDDEN:
+			ecp->flags |= LOCALIZE_HIDDEN;
+			break;
 		case ECP_LOCALIZE_SYMBOLS:
 			parse_symlist_file(ecp, optarg, SYMOP_LOCALIZE);
 			break;
@@ -866,6 +903,9 @@ elfcopy_main(struct elfcopy *ecp, int argc, char **argv)
 			break;
 		case ECP_ONLY_DEBUG:
 			ecp->strip = STRIP_NONDEBUG;
+			break;
+		case ECP_ONLY_DWO:
+			ecp->strip = STRIP_NONDWO;
 			break;
 		case ECP_PAD_TO:
 			ecp->pad_to = (uint64_t) strtoull(optarg, NULL, 0);
@@ -926,6 +966,9 @@ elfcopy_main(struct elfcopy *ecp, int argc, char **argv)
 		case ECP_SREC_LEN:
 			ecp->flags |= SREC_FORCE_LEN;
 			ecp->srec_len = strtoul(optarg, NULL, 0);
+			break;
+		case ECP_STRIP_DWO:
+			ecp->strip = STRIP_DWO;
 			break;
 		case ECP_STRIP_SYMBOLS:
 			parse_symlist_file(ecp, optarg, SYMOP_STRIP);
@@ -1367,6 +1410,8 @@ Usage: %s [options] infile [outfile]\n\
                                section by VAL.\n\
   --gap-fill=VAL               Fill the gaps between sections with bytes\n\
                                of value VAL.\n\
+  --localize-hidden            Make all hidden symbols local to the output\n\
+                               file.\n\
   --no-adjust-warning| --no-change-warnings\n\
                                Do not issue warnings for non-existent\n\
                                sections.\n\

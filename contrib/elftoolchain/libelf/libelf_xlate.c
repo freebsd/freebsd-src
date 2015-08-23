@@ -24,14 +24,12 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-
 #include <assert.h>
 #include <libelf.h>
 
 #include "_libelf.h"
 
-ELFTC_VCSID("$Id: libelf_xlate.c 3007 2014-03-22 08:10:14Z jkoshy $");
+ELFTC_VCSID("$Id: libelf_xlate.c 3174 2015-03-27 17:13:41Z emaste $");
 
 /*
  * Translate to/from the file representation of ELF objects.

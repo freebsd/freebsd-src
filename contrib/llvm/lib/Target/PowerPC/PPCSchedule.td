@@ -106,6 +106,7 @@ def IIC_SprSLBIE     : InstrItinClass;
 def IIC_SprSLBMTE    : InstrItinClass;
 def IIC_SprSLBMFEE   : InstrItinClass;
 def IIC_SprSLBIA     : InstrItinClass;
+def IIC_SprTLBIA     : InstrItinClass;
 def IIC_SprTLBIEL    : InstrItinClass;
 def IIC_SprTLBIE     : InstrItinClass;
 
@@ -118,6 +119,7 @@ include "PPCScheduleG4.td"
 include "PPCScheduleG4Plus.td"
 include "PPCScheduleG5.td"
 include "PPCScheduleP7.td"
+include "PPCScheduleP8.td"
 include "PPCScheduleA2.td"
 include "PPCScheduleE500mc.td"
 include "PPCScheduleE5500.td"

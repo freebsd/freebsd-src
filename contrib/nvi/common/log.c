@@ -63,13 +63,13 @@ static const char sccsid[] = "$Id: log.c,v 10.27 2011/07/13 06:25:50 zy Exp $";
  * behaved that way.
  */
 
-static int	log_cursor1 __P((SCR *, int));
-static void	log_err __P((SCR *, char *, int));
+static int	log_cursor1(SCR *, int);
+static void	log_err(SCR *, char *, int);
 #if defined(DEBUG) && 0
-static void	log_trace __P((SCR *, char *, recno_t, u_char *));
+static void	log_trace(SCR *, char *, recno_t, u_char *);
 #endif
-static int	apply_with __P((int (*)(SCR *, recno_t, CHAR_T *, size_t),
-					SCR *, recno_t, u_char *, size_t));
+static int	apply_with(int (*)(SCR *, recno_t, CHAR_T *, size_t),
+					SCR *, recno_t, u_char *, size_t);
 
 /* Try and restart the log on failure, i.e. if we run out of memory. */
 #define	LOG_ERR {							\
@@ -81,8 +81,8 @@ static int	apply_with __P((int (*)(SCR *, recno_t, CHAR_T *, size_t),
  * because it is passed to db_set as a string
  */
 typedef struct {
-    char    data[sizeof(u_char) /* type */ + sizeof(recno_t)];
-    CHAR_T  str[1];
+	char    data[sizeof(u_char) /* type */ + sizeof(recno_t)];
+	CHAR_T  str[1];
 } log_t;
 #define CHAR_T_OFFSET ((char *)(((log_t*)0)->str) - (char *)0)
 
@@ -90,7 +90,7 @@ typedef struct {
  * log_init --
  *	Initialize the logging subsystem.
  *
- * PUBLIC: int log_init __P((SCR *, EXF *));
+ * PUBLIC: int log_init(SCR *, EXF *);
  */
 int
 log_init(
@@ -126,7 +126,7 @@ log_init(
  * log_end --
  *	Close the logging subsystem.
  *
- * PUBLIC: int log_end __P((SCR *, EXF *));
+ * PUBLIC: int log_end(SCR *, EXF *);
  */
 int
 log_end(
@@ -156,7 +156,7 @@ log_end(
  * log_cursor --
  *	Log the current cursor position, starting an event.
  *
- * PUBLIC: int log_cursor __P((SCR *));
+ * PUBLIC: int log_cursor(SCR *);
  */
 int
 log_cursor(SCR *sp)
@@ -221,7 +221,7 @@ log_cursor1(
  * log_line --
  *	Log a line change.
  *
- * PUBLIC: int log_line __P((SCR *, recno_t, u_int));
+ * PUBLIC: int log_line(SCR *, recno_t, u_int);
  */
 int
 log_line(
@@ -324,7 +324,7 @@ log_line(
  *	would mean that undo operations would only reset marks, and not
  *	cause any other change.
  *
- * PUBLIC: int log_mark __P((SCR *, LMARK *));
+ * PUBLIC: int log_mark(SCR *, LMARK *);
  */
 int
 log_mark(
@@ -370,7 +370,7 @@ log_mark(
  * Log_backward --
  *	Roll the log backward one operation.
  *
- * PUBLIC: int log_backward __P((SCR *, MARK *));
+ * PUBLIC: int log_backward(SCR *, MARK *);
  */
 int
 log_backward(
@@ -474,7 +474,7 @@ err:	F_CLR(ep, F_NOLOG);
  * then move back on and do a 'U', the line will be restored to the way
  * it was before the original change.
  *
- * PUBLIC: int log_setline __P((SCR *));
+ * PUBLIC: int log_setline(SCR *);
  */
 int
 log_setline(SCR *sp)
@@ -558,7 +558,7 @@ err:	F_CLR(ep, F_NOLOG);
  * Log_forward --
  *	Roll the log forward one operation.
  *
- * PUBLIC: int log_forward __P((SCR *, MARK *));
+ * PUBLIC: int log_forward(SCR *, MARK *);
  */
 int
 log_forward(

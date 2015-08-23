@@ -40,7 +40,7 @@ ulimit(int cmd, ...)
 {
 	struct rlimit limit;
 	va_list ap;
-	long arg;
+	rlim_t arg;
 
 	if (cmd == UL_GETFSIZE) {
 		if (getrlimit(RLIMIT_FSIZE, &limit) == -1)
@@ -53,14 +53,16 @@ ulimit(int cmd, ...)
 		va_start(ap, cmd);
 		arg = va_arg(ap, long);
 		va_end(ap);
-		limit.rlim_max = limit.rlim_cur = (rlim_t)arg * 512;
+		if (arg < 0)
+			arg = LONG_MAX;
+		if (arg > RLIM_INFINITY / 512)
+			arg = RLIM_INFINITY / 512;
+		limit.rlim_max = limit.rlim_cur = arg * 512;
 
 		/* The setrlimit() function sets errno to EPERM if needed. */
 		if (setrlimit(RLIMIT_FSIZE, &limit) == -1)
 			return (-1);
-		if (arg * 512 > LONG_MAX)
-			return (LONG_MAX);
-		return (arg);
+		return ((long)arg);
 	} else {
 		errno = EINVAL;
 		return (-1);

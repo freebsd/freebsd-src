@@ -49,7 +49,7 @@ encode_in_place(lzma_coder *coder, uint8_t *buffer, size_t size)
 
 
 static lzma_ret
-delta_encode(lzma_coder *coder, lzma_allocator *allocator,
+delta_encode(lzma_coder *coder, const lzma_allocator *allocator,
 		const uint8_t *restrict in, size_t *restrict in_pos,
 		size_t in_size, uint8_t *restrict out,
 		size_t *restrict out_pos, size_t out_size, lzma_action action)
@@ -84,7 +84,7 @@ delta_encode(lzma_coder *coder, lzma_allocator *allocator,
 
 
 static lzma_ret
-delta_encoder_update(lzma_coder *coder, lzma_allocator *allocator,
+delta_encoder_update(lzma_coder *coder, const lzma_allocator *allocator,
 		const lzma_filter *filters_null lzma_attribute((__unused__)),
 		const lzma_filter *reversed_filters)
 {
@@ -97,7 +97,7 @@ delta_encoder_update(lzma_coder *coder, lzma_allocator *allocator,
 
 
 extern lzma_ret
-lzma_delta_encoder_init(lzma_next_coder *next, lzma_allocator *allocator,
+lzma_delta_encoder_init(lzma_next_coder *next, const lzma_allocator *allocator,
 		const lzma_filter_info *filters)
 {
 	next->code = &delta_encode;

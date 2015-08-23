@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 18, 2014
+.Dd June 2, 2015
 .Dt GELI 8
 .Os
 .Sh NAME
@@ -891,6 +891,13 @@ geli_da0_keyfile2_name="/boot/keys/da0.key2"
 geli_da1s3a_keyfile0_load="YES"
 geli_da1s3a_keyfile0_type="da1s3a:geli_keyfile0"
 geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"
+.Ed
+.Pp
+If there is only one keyfile, the index might be omitted:
+.Bd -literal -offset indent
+geli_da1s3a_keyfile_load="YES"
+geli_da1s3a_keyfile_type="da1s3a:geli_keyfile"
+geli_da1s3a_keyfile_name="/boot/keys/da1s3a.key"
 .Ed
 .Pp
 Not only configure encryption, but also data integrity verification using

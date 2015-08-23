@@ -2690,11 +2690,6 @@ DWARFExpression::Evaluate
                             }
                             break;
 
-                        default:
-                            if (error_ptr)
-                                error_ptr->SetErrorStringWithFormat ("unhandled value type for DW_OP_piece(%" PRIu64 ")", piece_byte_size);
-                            return false;
-
                         }
                         
                         // Check if this is the first piece?
@@ -2880,7 +2875,7 @@ DWARFExpression::Evaluate
                 if (cfa != LLDB_INVALID_ADDRESS)
                 {
                     stack.push_back(Scalar(cfa));
-                    stack.back().SetValueType (Value::eValueTypeHostAddress);
+                    stack.back().SetValueType (Value::eValueTypeLoadAddress);
                 }
                 else
                     if (error_ptr)

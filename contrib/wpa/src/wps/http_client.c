@@ -92,7 +92,7 @@ static void http_client_tx_ready(int sock, void *eloop_ctx, void *sock_ctx)
 		   (unsigned long) wpabuf_len(c->req),
 		   (unsigned long) wpabuf_len(c->req) - c->req_pos);
 
-	res = send(c->sd, wpabuf_head(c->req) + c->req_pos,
+	res = send(c->sd, wpabuf_head_u8(c->req) + c->req_pos,
 		   wpabuf_len(c->req) - c->req_pos, 0);
 	if (res < 0) {
 		wpa_printf(MSG_DEBUG, "HTTP: Failed to send buffer: %s",

@@ -3,13 +3,15 @@
 # subdir to warn folks if there is another version there.
 
 install-exec-hook:
-	@case ${BINSUBDIR} in					\
-	 bin) ODIR=${exec_prefix}/sbin ;;			\
-	 sbin) ODIR=${exec_prefix}/bin ;;			\
-	esac;							\
-	test -z "${bin_PROGRAMS}${bin_SCRIPTS}"			\
-	|| for i in ${bin_PROGRAMS} ${bin_SCRIPTS} " "; do		\
-	   test ! -f $$ODIR/$$i || echo "*** $$i is also in $$ODIR!";	\
+	@test -z "${bin_PROGRAMS}${bin_SCRIPTS}"		\
+	|| for i in ${bin_PROGRAMS} ${bin_SCRIPTS} " "; do	\
+	   test ! -f ${sbindir}/$$i				\
+		|| echo "*** $$i is also in ${sbindir}!";	\
+	done
+	@test -z "${sbin_PROGRAMS}${asbin_SCRIPTS}"		\
+	|| for i in ${sbin_PROGRAMS} ${sbin_SCRIPTS} " "; do	\
+	   test ! -f ${bindir}/$$i				\
+		|| echo "*** $$i is also in ${bindir}!";	\
 	done
 
 #

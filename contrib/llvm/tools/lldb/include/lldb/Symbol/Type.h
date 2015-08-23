@@ -810,6 +810,83 @@ private:
     TypePair m_type_pair;
     ConstString m_type_name;
 };
+    
+class TypeMemberFunctionImpl
+{
+public:
+    TypeMemberFunctionImpl() :
+        m_type(),
+        m_objc_method_decl(nullptr),
+        m_name(),
+        m_kind(lldb::eMemberFunctionKindUnknown)
+    {
+    }
+    
+    TypeMemberFunctionImpl (const ClangASTType& type,
+                            const std::string& name,
+                            const lldb::MemberFunctionKind& kind) :
+        m_type(type),
+        m_objc_method_decl(nullptr),
+        m_name(name),
+        m_kind(kind)
+    {
+    }
+    
+    TypeMemberFunctionImpl (clang::ObjCMethodDecl *method,
+                            const std::string& name,
+                            const lldb::MemberFunctionKind& kind) :
+    m_type(),
+    m_objc_method_decl(method),
+    m_name(name),
+    m_kind(kind)
+    {
+    }
+    
+    TypeMemberFunctionImpl (const TypeMemberFunctionImpl& rhs) :
+        m_type(rhs.m_type),
+        m_objc_method_decl(rhs.m_objc_method_decl),
+        m_name(rhs.m_name),
+        m_kind(rhs.m_kind)
+    {
+    }
+    
+    TypeMemberFunctionImpl&
+    operator = (const TypeMemberFunctionImpl& rhs);
+    
+    bool
+    IsValid ();
+    
+    ConstString
+    GetName () const;
+    
+    ClangASTType
+    GetType () const;
+    
+    ClangASTType
+    GetReturnType () const;
+    
+    size_t
+    GetNumArguments () const;
+    
+    ClangASTType
+    GetArgumentAtIndex (size_t idx) const;
+    
+    lldb::MemberFunctionKind
+    GetKind () const;
+    
+    bool
+    GetDescription (Stream& stream);
+    
+protected:
+    std::string
+    GetPrintableTypeName ();
+
+private:
+    ClangASTType m_type;
+    clang::ObjCMethodDecl *m_objc_method_decl;
+    ConstString m_name;
+    lldb::MemberFunctionKind m_kind;
+};
 
 class TypeEnumMemberImpl
 {

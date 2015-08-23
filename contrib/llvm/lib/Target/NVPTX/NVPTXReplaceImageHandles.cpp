@@ -16,11 +16,11 @@
 #include "NVPTX.h"
 #include "NVPTXMachineFunctionInfo.h"
 #include "NVPTXSubtarget.h"
+#include "llvm/ADT/DenseSet.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/ADT/DenseSet.h"
 
 using namespace llvm;
 
@@ -33,9 +33,9 @@ private:
 public:
   NVPTXReplaceImageHandles();
 
-  bool runOnMachineFunction(MachineFunction &MF);
+  bool runOnMachineFunction(MachineFunction &MF) override;
 
-  virtual const char *getPassName() const {
+  const char *getPassName() const override {
     return "NVPTX Replace Image Handles";
   }
 private:

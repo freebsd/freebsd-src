@@ -54,7 +54,7 @@
 
 int
 smb_smb_open_print_file(struct smb_ctx *ctx, int setuplen, int mode,
-	const char *ident, smbfh *fhp)
+	char *ident, smbfh *fhp)
 {
 	struct smb_rq *rqp;
 	struct mbdata *mbp;

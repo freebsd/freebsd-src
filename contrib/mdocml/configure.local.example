@@ -1,6 +1,6 @@
-# $Id: configure.local.example,v 1.2 2014/12/09 09:14:33 schwarze Exp $
+# $Id: configure.local.example,v 1.6 2015/02/16 14:56:22 schwarze Exp $
 #
-# Copyright (c) 2014 Ingo Schwarze <schwarze@openbsd.org>
+# Copyright (c) 2014, 2015 Ingo Schwarze <schwarze@openbsd.org>
 #
 # Permission to use, copy, modify, and distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
@@ -74,6 +74,21 @@ LIBDIR="${PREFIX}/lib/mandoc"
 MANDIR="${PREFIX}/man"
 EXAMPLEDIR="${PREFIX}/share/examples/mandoc"
 
+# The man(1) utility needs to know where the manuals reside.
+# We know of two ways to tell it: via manpath(1) or man.conf(5).
+# The latter is used by OpenBSD and NetBSD, the former by most
+# other systems.
+
+# Force usage of manpath(1).
+# If it is not installed or not operational,
+# man(1), makewhatis(8), and apropos(1) will not work properly.
+HAVE_MANPATH=1
+
+# Force usage of man.conf(5).
+# If it does not exist or contains no valid configuration,
+# man(1), makewhatis(8), and apropos(1) will not work properly.
+HAVE_MANPATH=0
+
 # Some distributions may want to avoid naming conflicts among manuals.
 # If you want to change the names of installed section 7 manual pages,
 # the following alternative names are suggested.
@@ -86,6 +101,15 @@ MANM_MDOC="mandoc_mdoc"		# default is "mdoc"
 MANM_ROFF="mandoc_roff"		# default is "roff"
 MANM_EQN="mandoc_eqn"		# default is "eqn"
 MANM_TBL="mandoc_tbl"		# default is "tbl"
+
+# Some distributions may want to avoid naming conflicts
+# with another man(1) utility.
+# If you want to change the name of the binary program,
+# the following alternative name is suggested.
+# Using a different name is possible as well.
+# This changes the name of the installed section 1 manual page as well.
+
+BINM_MAN=mman			# default is "man"
 
 # It is possible to change the utility program used for installation
 # and the modes files are installed with.  The defaults are:
@@ -121,37 +145,28 @@ DBLIB="-L/usr/local/lib -lsqlite3"
 
 CFLAGS="${CFLAGS} -I/usr/local/include"
 
-# The man(1) utility needs to know where the manuals reside.
-# We know of two ways to tell it: via manpath(1) or man.conf(5).
-# The latter is used by OpenBSD and NetBSD, the former by most
-# other systems.
-
-# Force usage of manpath(1).
-# If it is not installed or not operational,
-# makewhatis(8) and apropos(1) will not work properly.
-
-HAVE_MANPATH=1
-
-# Force usage of man.conf(5).
-# If it does not exist or contains no valid configuration,
-# makewhatis(8) and apropos(1) will not work properly.
-
-HAVE_MANPATH=0
-
 # Some distributions may want to avoid naming conflicts
-# with groff, man-db, or other tools.
-# If you want to change the names of binary programs,
+# with another implementation of apropos(1) and makewhatis(8).
+# If you want to change the names of the binary programs,
 # the following alternative names are suggested.
 # Using other names is possible as well.
 # This changes the names of the installed section 1 and section 8
 # manual pages as well.
-# It is possible to set only one or a few of these variables,
+# It is possible to set only one or two of these variables,
 # there is no need to copy the whole block.
 
 BINM_APROPOS=mapropos		# default is "apropos"
-BINM_MAN=mman			# default is "man"
 BINM_WHATIS=mwhatis		# default is "whatis"
 BINM_MAKEWHATIS=mandocdb	# default is "makewhatis"
+
+# When using the "homebrew" package manager on Mac OS X, the actual
+# manuals are located in a so-called "cellar" and only symlinked
+# into the manual trees.  To allow mandoc to follow such symlinks,
+# you have to specify the physical location of the cellar as returned
+# by realpath(3), for example:
+
+PREFIX="/usr/local"
+HOMEBREWDIR="${PREFIX}/Cellar"
 
 # --- user settings related man.cgi ------------------------------------
 
@@ -211,6 +226,7 @@ HAVE_STRLCAT=0
 HAVE_STRLCPY=0
 HAVE_STRPTIME=0
 HAVE_STRSEP=0
+HAVE_STRTONUM=0
 
 HAVE_SQLITE3=0
 HAVE_SQLITE3_ERRSTR=0

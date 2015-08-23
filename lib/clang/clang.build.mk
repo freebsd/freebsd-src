@@ -35,9 +35,28 @@ CFLAGS+=	-DLLVM_DEFAULT_TARGET_TRIPLE=\"${TARGET_TRIPLE}\" \
 		-DLLVM_HOST_TRIPLE=\"${BUILD_TRIPLE}\" \
 		-DDEFAULT_SYSROOT=\"${TOOLS_PREFIX}\"
 CXXFLAGS+=	-std=c++11 -fno-exceptions -fno-rtti
+CXXFLAGS.clang+= -stdlib=libc++
 
 .PATH:	${LLVM_SRCS}/${SRCDIR}
 
+.if empty(TOOLSDIR) || !exists(${TOOLSDIR}/usr/bin/clang-tblgen)
+.if ${MACHINE} == "host" && defined(BOOTSTRAPPING_TOOLS)
+.if !empty(LEGACY_TOOLS) && exists(${LEGACY_TOOLS}/usr/bin/tblgen)
+TOOLSDIR= ${LEGACY_TOOLS}
+.endif
+.endif
+.if ${MK_STAGING} == "yes" && exists(${STAGE_HOST_OBJTOP:Uno}/usr/bin/tblgen)
+TOOLSDIR= ${STAGE_HOST_OBJTOP}
+.endif
+.if exists(${LEGACY_TOOLS:Uno}/usr/bin/tblgen)
+TOOLSDIR= ${LEGACY_TOOLS}
+.endif
+.endif
+TOOLSDIR?=
+.if !empty(TOOLSDIR) && exists(${TOOLSDIR}/usr/bin/clang-tblgen)
+TBLGEN= ${TOOLSDIR}/usr/bin/tblgen
+CLANG_TBLGEN= ${TOOLSDIR}/usr/bin/clang-tblgen
+.endif
 TBLGEN?=	tblgen
 CLANG_TBLGEN?=	clang-tblgen
 
@@ -57,7 +76,7 @@ Intrinsics.inc.h: ${LLVM_SRCS}/include/llvm/IR/Intrinsics.td
 	DisassemblerTables/-gen-disassembler \
 	FastISel/-gen-fast-isel \
 	InstrInfo/-gen-instr-info \
-	MCCodeEmitter/-gen-emitter,-mc-emitter \
+	MCCodeEmitter/-gen-emitter \
 	MCPseudoLowering/-gen-pseudo-lowering \
 	RegisterInfo/-gen-register-info \
 	SubtargetInfo/-gen-subtarget
@@ -226,3 +245,7 @@ Checkers.inc.h: ${CLANG_SRCS}/lib/StaticAnalyzer/Checkers/Checkers.td
 SRCS+=		${TGHDRS:C/$/.inc.h/}
 DPSRCS+=	${TGHDRS:C/$/.inc.h/}
 CLEANFILES+=	${TGHDRS:C/$/.inc.h/} ${TGHDRS:C/$/.inc.d/}
+
+# if we are not doing explicit 'make depend', there is 
+# nothing to cause these to be generated.
+beforebuild: ${SRCS:M*.inc.h}

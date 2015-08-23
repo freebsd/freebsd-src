@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 30, 2012
+.Dd March 24, 2015
 .Dt WITNESS 4
 .Os
 .Sh NAME
@@ -32,7 +32,9 @@
 .Nd lock validation facility
 .Sh SYNOPSIS
 .Cd options WITNESS
+.Cd options WITNESS_COUNT
 .Cd options WITNESS_KDB
+.Cd options WITNESS_NO_VNODE
 .Cd options WITNESS_SKIPSPIN
 .Sh DESCRIPTION
 The
@@ -55,6 +57,28 @@ code also checks various other conditions such as verifying that one
 does not recurse on a non-recursive lock,
 or attempt an upgrade on a shared lock held by another thread.
 If any of these checks fail, then the kernel will panic.
+.Pp
+The
+.Dv WITNESS_COUNT
+kernel option controls the maximum number of
+.Xr witness 4
+entries that are tracked in the kernel.
+The maximum number of entries can be queried via the
+.Va debug.witness.count
+sysctl.
+It can also be set from the
+.Xr loader 8
+via the
+.Va debug.witness.count
+environment variable.
+.Pp
+The
+.Dv WITNESS_NO_VNODE
+kernel option tells
+.Xr witness 4
+to ignore locking issues between
+.Xr vnode 9
+objects.
 .Pp
 The flag that controls whether or not the kernel debugger is entered when a
 lock order violation is detected can be set in a variety of ways.
@@ -103,7 +127,7 @@ can be set via
 .Pp
 The
 .Nm
-code also provides two extra
+code also provides three extra
 .Xr ddb 4
 commands if both
 .Nm

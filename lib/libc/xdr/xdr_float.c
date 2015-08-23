@@ -64,7 +64,8 @@ __FBSDID("$FreeBSD$");
 #if defined(__m68k__) || defined(__sparc__) || defined(__i386__) || \
     defined(__mips__) || defined(__ns32k__) || defined(__alpha__) || \
     defined(__arm__) || defined(__ppc__) || \
-    defined(__arm26__) || defined(__sparc64__) || defined(__amd64__)
+    defined(__arm26__) || defined(__sparc64__) || defined(__amd64__) || \
+    defined(__aarch64__)
 #include <machine/endian.h>
 #define IEEEFP
 #endif
@@ -203,9 +204,7 @@ static struct dbl_limits {
 
 
 bool_t
-xdr_double(xdrs, dp)
-	XDR *xdrs;
-	double *dp;
+xdr_double(XDR *xdrs, double *dp)
 {
 #ifdef IEEEFP
 	int32_t *i32p;

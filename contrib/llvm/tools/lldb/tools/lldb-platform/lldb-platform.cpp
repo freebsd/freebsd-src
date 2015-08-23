@@ -25,10 +25,10 @@
 // Other libraries and framework includes
 #include "lldb/lldb-private-log.h"
 #include "lldb/Core/Error.h"
-#include "lldb/Core/ConnectionFileDescriptor.h"
 #include "lldb/Core/ConnectionMachPort.h"
 #include "lldb/Core/Debugger.h"
 #include "lldb/Core/StreamFile.h"
+#include "lldb/Host/ConnectionFileDescriptor.h"
 #include "lldb/Host/HostGetOpt.h"
 #include "lldb/Host/OptionParser.h"
 #include "lldb/Interpreter/CommandInterpreter.h"
@@ -233,10 +233,6 @@ main (int argc, char *argv[])
         exit(option_error);
     }
     
-    // Skip any options we consumed with getopt_long_only
-    argc -= optind;
-    argv += optind;
-
     // Execute any LLDB commands that we were asked to evaluate.
     for (const auto &lldb_command : lldb_commands)
     {

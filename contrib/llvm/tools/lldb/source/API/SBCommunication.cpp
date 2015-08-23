@@ -10,8 +10,8 @@
 #include "lldb/API/SBCommunication.h"
 #include "lldb/API/SBBroadcaster.h"
 #include "lldb/Core/Communication.h"
-#include "lldb/Core/ConnectionFileDescriptor.h"
 #include "lldb/Core/Log.h"
+#include "lldb/Host/ConnectionFileDescriptor.h"
 
 using namespace lldb;
 using namespace lldb_private;
@@ -71,7 +71,7 @@ SBCommunication::Connect (const char *url)
     if (m_opaque)
     {
         if (!m_opaque->HasConnection ())
-            m_opaque->SetConnection (new ConnectionFileDescriptor());
+            m_opaque->SetConnection(Connection::CreateDefaultConnection(url));
         return m_opaque->Connect (url, NULL);
     }
     return eConnectionStatusNoConnection;

@@ -22,6 +22,7 @@ using namespace llvm;
 using namespace object;
 
 static const char *const Magic = "!<arch>\n";
+static const char *const ThinMagic = "!<thin>\n";
 
 void Archive::anchor() { }
 
@@ -86,7 +87,10 @@ Archive::Child::Child(const Archive *Parent, const char *Start)
 
   const ArchiveMemberHeader *Header =
       reinterpret_cast<const ArchiveMemberHeader *>(Start);
-  Data = StringRef(Start, sizeof(ArchiveMemberHeader) + Header->getSize());
+  uint64_t Size = sizeof(ArchiveMemberHeader);
+  if (!Parent->IsThin || Header->getName() == "/" || Header->getName() == "//")
+    Size += Header->getSize();
+  Data = StringRef(Start, Size);
 
   // Setup StartOfFile and PaddingBytes.
   StartOfFile = sizeof(ArchiveMemberHeader);
@@ -100,6 +104,12 @@ Archive::Child::Child(const Archive *Parent, const char *Start)
   }
 }
 
+uint64_t Archive::Child::getSize() const {
+  if (Parent->IsThin)
+    return getHeader()->getSize();
+  return Data.size() - StartOfFile;
+}
+
 Archive::Child Archive::Child::getNext() const {
   size_t SpaceToSkip = Data.size();
   // If it's odd, add 1 to make it even.
@@ -109,7 +119,7 @@ Archive::Child Archive::Child::getNext() const {
   const char *NextLoc = Data.data() + SpaceToSkip;
 
   // Check to see if this is past the end of the archive.
-  if (NextLoc >= Parent->Data->getBufferEnd())
+  if (NextLoc >= Parent->Data.getBufferEnd())
     return Child(Parent, nullptr);
 
   return Child(Parent, NextLoc);
@@ -159,44 +169,40 @@ ErrorOr<StringRef> Archive::Child::getName() const {
   return name;
 }
 
-ErrorOr<std::unique_ptr<MemoryBuffer>>
-Archive::Child::getMemoryBuffer(bool FullPath) const {
+ErrorOr<MemoryBufferRef> Archive::Child::getMemoryBufferRef() const {
   ErrorOr<StringRef> NameOrErr = getName();
   if (std::error_code EC = NameOrErr.getError())
     return EC;
   StringRef Name = NameOrErr.get();
-  SmallString<128> Path;
-  std::unique_ptr<MemoryBuffer> Ret(MemoryBuffer::getMemBuffer(
-      getBuffer(),
-      FullPath
-          ? (Twine(Parent->getFileName()) + "(" + Name + ")").toStringRef(Path)
-          : Name,
-      false));
-  return std::move(Ret);
+  return MemoryBufferRef(getBuffer(), Name);
 }
 
 ErrorOr<std::unique_ptr<Binary>>
 Archive::Child::getAsBinary(LLVMContext *Context) const {
-  ErrorOr<std::unique_ptr<MemoryBuffer>> BuffOrErr = getMemoryBuffer();
+  ErrorOr<MemoryBufferRef> BuffOrErr = getMemoryBufferRef();
   if (std::error_code EC = BuffOrErr.getError())
     return EC;
 
-  return createBinary(std::move(*BuffOrErr), Context);
+  return createBinary(BuffOrErr.get(), Context);
 }
 
-ErrorOr<Archive *> Archive::create(std::unique_ptr<MemoryBuffer> Source) {
+ErrorOr<std::unique_ptr<Archive>> Archive::create(MemoryBufferRef Source) {
   std::error_code EC;
-  std::unique_ptr<Archive> Ret(new Archive(std::move(Source), EC));
+  std::unique_ptr<Archive> Ret(new Archive(Source, EC));
   if (EC)
     return EC;
-  return Ret.release();
+  return std::move(Ret);
 }
 
-Archive::Archive(std::unique_ptr<MemoryBuffer> Source, std::error_code &ec)
-    : Binary(Binary::ID_Archive, std::move(Source)), SymbolTable(child_end()) {
+Archive::Archive(MemoryBufferRef Source, std::error_code &ec)
+    : Binary(Binary::ID_Archive, Source), SymbolTable(child_end()) {
+  StringRef Buffer = Data.getBuffer();
   // Check for sufficient magic.
-  if (Data->getBufferSize() < 8 ||
-      StringRef(Data->getBufferStart(), 8) != Magic) {
+  if (Buffer.startswith(ThinMagic)) {
+    IsThin = true;
+  } else if (Buffer.startswith(Magic)) {
+    IsThin = false;
+  } else {
     ec = object_error::invalid_file_type;
     return;
   }
@@ -248,7 +254,7 @@ Archive::Archive(std::unique_ptr<MemoryBuffer> Source, std::error_code &ec)
     if (ec)
       return;
     Name = NameOrErr.get();
-    if (Name == "__.SYMDEF SORTED") {
+    if (Name == "__.SYMDEF SORTED" || Name == "__.SYMDEF") {
       SymbolTable = i;
       ++i;
     }
@@ -310,13 +316,13 @@ Archive::Archive(std::unique_ptr<MemoryBuffer> Source, std::error_code &ec)
 }
 
 Archive::child_iterator Archive::child_begin(bool SkipInternal) const {
-  if (Data->getBufferSize() == 8) // empty archive.
+  if (Data.getBufferSize() == 8) // empty archive.
     return child_end();
 
   if (SkipInternal)
     return FirstRegular;
 
-  const char *Loc = Data->getBufferStart() + strlen(Magic);
+  const char *Loc = Data.getBufferStart() + strlen(Magic);
   Child c(this, Loc);
   return c;
 }

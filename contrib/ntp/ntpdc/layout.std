@@ -1,19 +1,27 @@
-sizeof(struct req_pkt) = 212
+sizeof(union req_data_u_tag) = 176
+offsetof(u32) = 0
+offsetof(data) = 0
+
+sizeof(struct req_pkt) = 216
 offsetof(rm_vn_mode) = 0
 offsetof(auth_seq) = 1
 offsetof(implementation) = 2
 offsetof(request) = 3
 offsetof(err_nitems) = 4
 offsetof(mbz_itemsize) = 6
-offsetof(data) = 8
+offsetof(u) = 8
 offsetof(tstamp) = 184
 offsetof(keyid) = 192
 offsetof(mac) = 196
 
-sizeof(struct req_pkt_tail) = 28
+sizeof(struct req_pkt_tail) = 32
 offsetof(tstamp) = 0
 offsetof(keyid) = 8
 offsetof(mac) = 12
+
+sizeof(union resp_pkt_u_tag) = 500
+offsetof(data) = 0
+offsetof(u32) = 0
 
 sizeof(struct resp_pkt) = 508
 offsetof(rm_vn_mode) = 0
@@ -22,7 +30,7 @@ offsetof(implementation) = 2
 offsetof(request) = 3
 offsetof(err_nitems) = 4
 offsetof(mbz_itemsize) = 6
-offsetof(data) = 8
+offsetof(u) = 8
 
 sizeof(struct info_peer_list) = 32
 offsetof(addr) = 0
@@ -269,9 +277,9 @@ offsetof(addr6) = 16
 offsetof(mask6) = 32
 
 sizeof(struct info_monitor_1) = 72
-offsetof(lasttime) = 0
-offsetof(firsttime) = 4
-offsetof(lastdrop) = 8
+offsetof(avg_int) = 0
+offsetof(last_int) = 4
+offsetof(restr) = 8
 offsetof(count) = 12
 offsetof(addr) = 16
 offsetof(daddr) = 20
@@ -285,9 +293,9 @@ offsetof(addr6) = 40
 offsetof(daddr6) = 56
 
 sizeof(struct info_monitor) = 48
-offsetof(lasttime) = 0
-offsetof(firsttime) = 4
-offsetof(lastdrop) = 8
+offsetof(avg_int) = 0
+offsetof(last_int) = 4
+offsetof(restr) = 8
 offsetof(count) = 12
 offsetof(addr) = 16
 offsetof(port) = 20

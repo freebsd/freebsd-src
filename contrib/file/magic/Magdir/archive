@@ -1,5 +1,5 @@
 #------------------------------------------------------------------------------
-# $File: archive,v 1.88 2014/08/16 10:42:17 christos Exp $
+# $File: archive,v 1.90 2015/04/24 15:44:12 christos Exp $
 # archive:  file(1) magic for archive formats (see also "msdos" for self-
 #           extracting compressed archives)
 #
@@ -714,7 +714,7 @@
 >>>4	byte		0x0a		\b, at least v1.0 to extract
 >>>4	byte		0x0b		\b, at least v1.1 to extract
 >>>4	byte		0x14		\b, at least v2.0 to extract
->>>4	byte		0x2d		\b, at least v3.0 to extract
+>>>4	byte		0x2d		\b, at least v4.5 to extract
 >>>0x161	string		WINZIP		\b, WinZIP self-extracting
 
 # StarView Metafile
@@ -911,6 +911,9 @@
 # ZPAQ: http://mattmahoney.net/dc/zpaq.html
 0	string	zPQ	ZPAQ stream
 >3	byte	x	\b, level %d
+# From: Barry Carter <carter.barry@gmail.com>
+# http://encode.ru/threads/456-zpaq-updates/page32
+0	string	7kSt	ZPAQ file
 
 # BBeB ebook, unencrypted (LRF format)
 # URL: http://www.sven.de/librie/Librie/LrfFormat

@@ -192,7 +192,7 @@ typedef struct ucl_object_s {
 		int64_t iv;							/**< Int value of an object */
 		const char *sv;					/**< String value of an object */
 		double dv;							/**< Double value of an object */
-		struct ucl_object_s *av;			/**< Array					*/
+		void *av;							/**< Array					*/
 		void *ov;							/**< Object					*/
 		void* ud;							/**< Opaque user data		*/
 	} value;
@@ -715,6 +715,37 @@ typedef void* ucl_object_iter_t;
  */
 UCL_EXTERN const ucl_object_t* ucl_iterate_object (const ucl_object_t *obj,
 		ucl_object_iter_t *iter, bool expand_values);
+
+/**
+ * Create new safe iterator for the specified object
+ * @param obj object to iterate
+ * @return new iterator object that should be used with safe iterators API only
+ */
+UCL_EXTERN ucl_object_iter_t ucl_object_iterate_new (const ucl_object_t *obj)
+	UCL_WARN_UNUSED_RESULT;
+/**
+ * Reset initialized iterator to a new object
+ * @param obj new object to iterate
+ * @return modified iterator object
+ */
+UCL_EXTERN ucl_object_iter_t ucl_object_iterate_reset (ucl_object_iter_t it,
+		const ucl_object_t *obj);
+
+/**
+ * Get the next object from the `obj`. This fucntion iterates over arrays, objects
+ * and implicit arrays
+ * @param iter safe iterator
+ * @return the next object in sequence
+ */
+UCL_EXTERN const ucl_object_t* ucl_object_iterate_safe (ucl_object_iter_t iter,
+		bool expand_values);
+
+/**
+ * Free memory associated with the safe iterator
+ * @param it safe iterator object
+ */
+UCL_EXTERN void ucl_object_iterate_free (ucl_object_iter_t it);
+
 /** @} */
 
 
@@ -854,6 +885,13 @@ UCL_EXTERN ucl_object_t* ucl_parser_get_object (struct ucl_parser *parser);
  * @param parser parser object
  */
 UCL_EXTERN const char *ucl_parser_get_error(struct ucl_parser *parser);
+
+/**
+ * Clear the error in the parser
+ * @param parser parser object
+ */
+UCL_EXTERN void ucl_parser_clear_error(struct ucl_parser *parser);
+
 /**
  * Free ucl parser object
  * @param parser parser object

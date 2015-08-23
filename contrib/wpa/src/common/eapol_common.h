@@ -22,17 +22,28 @@ struct ieee802_1x_hdr {
 	/* followed by length octets of data */
 } STRUCT_PACKED;
 
+struct ieee8023_hdr {
+	u8 dest[ETH_ALEN];
+	u8 src[ETH_ALEN];
+	u16 ethertype;
+} STRUCT_PACKED;
+
 #ifdef _MSC_VER
 #pragma pack(pop)
 #endif /* _MSC_VER */
 
+#ifdef CONFIG_MACSEC
+#define EAPOL_VERSION 3
+#else /* CONFIG_MACSEC */
 #define EAPOL_VERSION 2
+#endif /* CONFIG_MACSEC */
 
 enum { IEEE802_1X_TYPE_EAP_PACKET = 0,
        IEEE802_1X_TYPE_EAPOL_START = 1,
        IEEE802_1X_TYPE_EAPOL_LOGOFF = 2,
        IEEE802_1X_TYPE_EAPOL_KEY = 3,
-       IEEE802_1X_TYPE_EAPOL_ENCAPSULATED_ASF_ALERT = 4
+       IEEE802_1X_TYPE_EAPOL_ENCAPSULATED_ASF_ALERT = 4,
+       IEEE802_1X_TYPE_EAPOL_MKA = 5,
 };
 
 enum { EAPOL_KEY_TYPE_RC4 = 1, EAPOL_KEY_TYPE_RSN = 2,

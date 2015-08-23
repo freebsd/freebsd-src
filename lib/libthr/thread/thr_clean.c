@@ -84,7 +84,7 @@ _pthread_cleanup_push(void (*routine) (void *), void *arg)
 	curthread->unwind_disabled = 1;
 #endif
 	if ((newbuf = (struct pthread_cleanup *)
-	    malloc(sizeof(struct _pthread_cleanup_info))) != NULL) {
+	    malloc(sizeof(struct pthread_cleanup))) != NULL) {
 		newbuf->routine = routine;
 		newbuf->routine_arg = arg;
 		newbuf->onheap = 1;

@@ -7,8 +7,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_RUNTIMEDYLDMACHOX86_64_H
-#define LLVM_RUNTIMEDYLDMACHOX86_64_H
+#ifndef LLVM_LIB_EXECUTIONENGINE_RUNTIMEDYLD_TARGETS_RUNTIMEDYLDMACHOX86_64_H
+#define LLVM_LIB_EXECUTIONENGINE_RUNTIMEDYLD_TARGETS_RUNTIMEDYLDMACHOX86_64_H
 
 #include "../RuntimeDyldMachO.h"
 
@@ -19,6 +19,9 @@ namespace llvm {
 class RuntimeDyldMachOX86_64
     : public RuntimeDyldMachOCRTPBase<RuntimeDyldMachOX86_64> {
 public:
+
+  typedef uint64_t TargetPtrT;
+
   RuntimeDyldMachOX86_64(RTDyldMemoryManager *MM)
       : RuntimeDyldMachOCRTPBase(MM) {}
 
@@ -28,29 +31,31 @@ public:
 
   relocation_iterator
   processRelocationRef(unsigned SectionID, relocation_iterator RelI,
-                       ObjectImage &ObjImg, ObjSectionToIDMap &ObjSectionToID,
-                       const SymbolTableMap &Symbols, StubMap &Stubs) override {
+                       const ObjectFile &BaseObjT,
+                       ObjSectionToIDMap &ObjSectionToID,
+                       StubMap &Stubs) override {
     const MachOObjectFile &Obj =
-        static_cast<const MachOObjectFile &>(*ObjImg.getObjectFile());
+      static_cast<const MachOObjectFile &>(BaseObjT);
     MachO::any_relocation_info RelInfo =
         Obj.getRelocation(RelI->getRawDataRefImpl());
 
     assert(!Obj.isRelocationScattered(RelInfo) &&
            "Scattered relocations not supported on X86_64");
 
-    RelocationEntry RE(getBasicRelocationEntry(SectionID, ObjImg, RelI));
+    RelocationEntry RE(getRelocationEntry(SectionID, Obj, RelI));
+    RE.Addend = memcpyAddend(RE);
     RelocationValueRef Value(
-        getRelocationValueRef(ObjImg, RelI, RE, ObjSectionToID, Symbols));
+        getRelocationValueRef(Obj, RelI, RE, ObjSectionToID));
 
     bool IsExtern = Obj.getPlainRelocationExternal(RelInfo);
     if (!IsExtern && RE.IsPCRel)
-      makeValueAddendPCRel(Value, ObjImg, RelI);
+      makeValueAddendPCRel(Value, Obj, RelI, 1 << RE.Size);
 
     if (RE.RelType == MachO::X86_64_RELOC_GOT ||
         RE.RelType == MachO::X86_64_RELOC_GOT_LOAD)
       processGOTRelocation(RE, Value, Stubs);
     else {
-      RE.Addend = Value.Addend;
+      RE.Addend = Value.Offset;
       if (Value.SymbolName)
         addRelocationForSymbol(RE, Value.SymbolName);
       else
@@ -60,7 +65,7 @@ public:
     return ++RelI;
   }
 
-  void resolveRelocation(const RelocationEntry &RE, uint64_t Value) {
+  void resolveRelocation(const RelocationEntry &RE, uint64_t Value) override {
     DEBUG(dumpRelocationToResolve(RE, Value));
     const SectionEntry &Section = Sections[RE.SectionID];
     uint8_t *LocalAddress = Section.Address + RE.Offset;
@@ -83,7 +88,7 @@ public:
     case MachO::X86_64_RELOC_SIGNED:
     case MachO::X86_64_RELOC_UNSIGNED:
     case MachO::X86_64_RELOC_BRANCH:
-      writeBytesUnaligned(LocalAddress, Value + RE.Addend, 1 << RE.Size);
+      writeBytesUnaligned(Value + RE.Addend, LocalAddress, 1 << RE.Size);
       break;
     case MachO::X86_64_RELOC_GOT_LOAD:
     case MachO::X86_64_RELOC_GOT:
@@ -93,7 +98,7 @@ public:
     }
   }
 
-  void finalizeSection(ObjectImage &ObjImg, unsigned SectionID,
+  void finalizeSection(const ObjectFile &Obj, unsigned SectionID,
                        const SectionRef &Section) {}
 
 private:
@@ -102,7 +107,7 @@ private:
     SectionEntry &Section = Sections[RE.SectionID];
     assert(RE.IsPCRel);
     assert(RE.Size == 2);
-    Value.Addend -= RE.Addend;
+    Value.Offset -= RE.Addend;
     RuntimeDyldMachO::StubMap::const_iterator i = Stubs.find(Value);
     uint8_t *Addr;
     if (i != Stubs.end()) {
@@ -111,7 +116,7 @@ private:
       Stubs[Value] = Section.StubOffset;
       uint8_t *GOTEntry = Section.Address + Section.StubOffset;
       RelocationEntry GOTRE(RE.SectionID, Section.StubOffset,
-                            MachO::X86_64_RELOC_UNSIGNED, Value.Addend, false,
+                            MachO::X86_64_RELOC_UNSIGNED, Value.Offset, false,
                             3);
       if (Value.SymbolName)
         addRelocationForSymbol(GOTRE, Value.SymbolName);
@@ -129,4 +134,4 @@ private:
 
 #undef DEBUG_TYPE
 
-#endif // LLVM_RUNTIMEDYLDMACHOX86_64_H
+#endif

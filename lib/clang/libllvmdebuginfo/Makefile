@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 LIB=	llvmdebuginfo
 
@@ -20,5 +20,10 @@ SRCS=	DIContext.cpp \
 	DWARFFormValue.cpp \
 	DWARFTypeUnit.cpp \
 	DWARFUnit.cpp
+
+.if ${MK_CLANG_EXTRAS} != "no"
+SRCS+=	DWARFAcceleratorTable.cpp \
+	SyntaxHighlighting.cpp
+.endif
 
 .include "../clang.lib.mk"

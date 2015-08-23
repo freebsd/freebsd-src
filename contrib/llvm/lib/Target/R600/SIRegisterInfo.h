@@ -13,10 +13,12 @@
 //===----------------------------------------------------------------------===//
 
 
-#ifndef SIREGISTERINFO_H_
-#define SIREGISTERINFO_H_
+#ifndef LLVM_LIB_TARGET_R600_SIREGISTERINFO_H
+#define LLVM_LIB_TARGET_R600_SIREGISTERINFO_H
 
 #include "AMDGPURegisterInfo.h"
+#include "AMDGPUSubtarget.h"
+#include "llvm/Support/Debug.h"
 
 namespace llvm {
 
@@ -26,8 +28,7 @@ struct SIRegisterInfo : public AMDGPURegisterInfo {
 
   BitVector getReservedRegs(const MachineFunction &MF) const override;
 
-  unsigned getRegPressureLimit(const TargetRegisterClass *RC,
-                               MachineFunction &MF) const override;
+  unsigned getRegPressureSetLimit(unsigned Idx) const override;
 
   bool requiresRegisterScavenging(const MachineFunction &Fn) const override;
 
@@ -42,11 +43,24 @@ struct SIRegisterInfo : public AMDGPURegisterInfo {
   unsigned getHWRegIndex(unsigned Reg) const override;
 
   /// \brief Return the 'base' register class for this register.
-  /// e.g. SGPR0 => SReg_32, VGPR => VReg_32 SGPR0_SGPR1 -> SReg_32, etc.
+  /// e.g. SGPR0 => SReg_32, VGPR => VGPR_32 SGPR0_SGPR1 -> SReg_32, etc.
   const TargetRegisterClass *getPhysRegClass(unsigned Reg) const;
 
   /// \returns true if this class contains only SGPR registers
-  bool isSGPRClass(const TargetRegisterClass *RC) const;
+  bool isSGPRClass(const TargetRegisterClass *RC) const {
+    if (!RC)
+      return false;
+
+    return !hasVGPRs(RC);
+  }
+
+  /// \returns true if this class ID contains only SGPR registers
+  bool isSGPRClassID(unsigned RCID) const {
+    if (static_cast<int>(RCID) == -1)
+      return false;
+
+    return isSGPRClass(getRegClass(RCID));
+  }
 
   /// \returns true if this class contains VGPR registers.
   bool hasVGPRs(const TargetRegisterClass *RC) const;
@@ -67,28 +81,50 @@ struct SIRegisterInfo : public AMDGPURegisterInfo {
   unsigned getPhysRegSubReg(unsigned Reg, const TargetRegisterClass *SubRC,
                             unsigned Channel) const;
 
-  /// \returns True if operands defined with this register class can accept
-  /// inline immediates.
-  bool regClassCanUseImmediate(int RCID) const;
+  /// \returns True if operands defined with this operand type can accept
+  /// a literal constant (i.e. any 32-bit immediate).
+  bool opCanUseLiteralConstant(unsigned OpType) const;
 
-  /// \returns True if operands defined with this register class can accept
-  /// inline immediates.
-  bool regClassCanUseImmediate(const TargetRegisterClass *RC) const;
+  /// \returns True if operands defined with this operand type can accept
+  /// an inline constant. i.e. An integer value in the range (-16, 64) or
+  /// -4.0f, -2.0f, -1.0f, -0.5f, 0.0f, 0.5f, 1.0f, 2.0f, 4.0f. 
+  bool opCanUseInlineConstant(unsigned OpType) const;
 
   enum PreloadedValue {
     TGID_X,
     TGID_Y,
     TGID_Z,
     SCRATCH_WAVE_OFFSET,
-    SCRATCH_PTR
+    SCRATCH_PTR,
+    INPUT_PTR,
+    TIDIG_X,
+    TIDIG_Y,
+    TIDIG_Z
   };
 
   /// \brief Returns the physical register that \p Value is stored in.
   unsigned getPreloadedValue(const MachineFunction &MF,
                              enum PreloadedValue Value) const;
 
+  /// \brief Give the maximum number of VGPRs that can be used by \p WaveCount
+  ///        concurrent waves.
+  unsigned getNumVGPRsAllowed(unsigned WaveCount) const;
+
+  /// \brief Give the maximum number of SGPRs that can be used by \p WaveCount
+  ///        concurrent waves.
+  unsigned getNumSGPRsAllowed(AMDGPUSubtarget::Generation gen,
+                              unsigned WaveCount) const;
+
+  unsigned findUnusedRegister(const MachineRegisterInfo &MRI,
+                              const TargetRegisterClass *RC) const;
+
+private:
+  void buildScratchLoadStore(MachineBasicBlock::iterator MI,
+                             unsigned LoadStoreOp, unsigned Value,
+                             unsigned ScratchRsrcReg, unsigned ScratchOffset,
+                             int64_t Offset, RegScavenger *RS) const;
 };
 
 } // End namespace llvm
 
-#endif // SIREGISTERINFO_H_
+#endif

@@ -10,8 +10,8 @@
 /// \file
 //===----------------------------------------------------------------------===//
 
-#ifndef AMDGPUMACHINEFUNCTION_H
-#define AMDGPUMACHINEFUNCTION_H
+#ifndef LLVM_LIB_TARGET_R600_AMDGPUMACHINEFUNCTION_H
+#define LLVM_LIB_TARGET_R600_AMDGPUMACHINEFUNCTION_H
 
 #include "llvm/CodeGen/MachineFunction.h"
 #include <map>
@@ -30,10 +30,16 @@ public:
   /// Number of bytes in the LDS that are being used.
   unsigned LDSSize;
 
+  /// Start of implicit kernel args
+  unsigned ABIArgOffset;
+
   unsigned getShaderType() const {
     return ShaderType;
   }
+
+  unsigned ScratchSize;
+  bool IsKernel;
 };
 
 }
-#endif // AMDGPUMACHINEFUNCTION_H
+#endif

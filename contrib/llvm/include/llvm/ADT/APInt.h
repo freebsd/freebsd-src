@@ -91,6 +91,8 @@ class APInt {
     APINT_WORD_SIZE = static_cast<unsigned int>(sizeof(uint64_t))
   };
 
+  friend struct DenseMapAPIntKeyInfo;
+
   /// \brief Fast internal constructor
   ///
   /// This constructor is used only internally for speed of construction of
@@ -277,7 +279,6 @@ public:
   /// Simply makes *this a copy of that.
   /// @brief Copy Constructor.
   APInt(const APInt &that) : BitWidth(that.BitWidth), VAL(0) {
-    assert(BitWidth && "bitwidth too small");
     if (isSingleWord())
       VAL = that.VAL;
     else
@@ -656,13 +657,24 @@ public:
 
   /// @brief Move assignment operator.
   APInt &operator=(APInt &&that) {
-    if (!isSingleWord())
+    if (!isSingleWord()) {
+      // The MSVC STL shipped in 2013 requires that self move assignment be a
+      // no-op.  Otherwise algorithms like stable_sort will produce answers
+      // where half of the output is left in a moved-from state.
+      if (this == &that)
+        return *this;
       delete[] pVal;
+    }
 
-    BitWidth = that.BitWidth;
-    VAL = that.VAL;
+    // Use memcpy so that type based alias analysis sees both VAL and pVal
+    // as modified.
+    memcpy(&VAL, &that.VAL, sizeof(uint64_t));
 
+    // If 'this == &that', avoid zeroing our own bitwidth by storing to 'that'
+    // first.
+    unsigned ThatBitWidth = that.BitWidth;
     that.BitWidth = 0;
+    BitWidth = ThatBitWidth;
 
     return *this;
   }
@@ -936,7 +948,8 @@ public:
   APInt sdiv_ov(const APInt &RHS, bool &Overflow) const;
   APInt smul_ov(const APInt &RHS, bool &Overflow) const;
   APInt umul_ov(const APInt &RHS, bool &Overflow) const;
-  APInt sshl_ov(unsigned Amt, bool &Overflow) const;
+  APInt sshl_ov(const APInt &Amt, bool &Overflow) const;
+  APInt ushl_ov(const APInt &Amt, bool &Overflow) const;
 
   /// \brief Array-indexing support.
   ///

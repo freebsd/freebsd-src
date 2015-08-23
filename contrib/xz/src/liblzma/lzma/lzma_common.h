@@ -171,53 +171,54 @@ literal_init(probability (*probs)[LITERAL_CODER_SIZE],
 // Match distance //
 ////////////////////
 
-// Different set of probabilities is used for match distances that have very
+// Different sets of probabilities are used for match distances that have very
 // short match length: Lengths of 2, 3, and 4 bytes have a separate set of
 // probabilities for each length. The matches with longer length use a shared
 // set of probabilities.
-#define LEN_TO_POS_STATES 4
+#define DIST_STATES 4
 
 // Macro to get the index of the appropriate probability array.
-#define get_len_to_pos_state(len) \
-	((len) < LEN_TO_POS_STATES + MATCH_LEN_MIN \
+#define get_dist_state(len) \
+	((len) < DIST_STATES + MATCH_LEN_MIN \
 		? (len) - MATCH_LEN_MIN \
-		: LEN_TO_POS_STATES - 1)
+		: DIST_STATES - 1)
 
-// The highest two bits of a match distance (pos slot) are encoded using six
-// bits. See fastpos.h for more explanation.
-#define POS_SLOT_BITS 6
-#define POS_SLOTS (1 << POS_SLOT_BITS)
+// The highest two bits of a match distance (distance slot) are encoded
+// using six bits. See fastpos.h for more explanation.
+#define DIST_SLOT_BITS 6
+#define DIST_SLOTS (1 << DIST_SLOT_BITS)
 
 // Match distances up to 127 are fully encoded using probabilities. Since
-// the highest two bits (pos slot) are always encoded using six bits, the
-// distances 0-3 don't need any additional bits to encode, since the pos
-// slot itself is the same as the actual distance. START_POS_MODEL_INDEX
-// indicates the first pos slot where at least one additional bit is needed.
-#define START_POS_MODEL_INDEX 4
+// the highest two bits (distance slot) are always encoded using six bits,
+// the distances 0-3 don't need any additional bits to encode, since the
+// distance slot itself is the same as the actual distance. DIST_MODEL_START
+// indicates the first distance slot where at least one additional bit is
+// needed.
+#define DIST_MODEL_START 4
 
 // Match distances greater than 127 are encoded in three pieces:
-//   - pos slot: the highest two bits
+//   - distance slot: the highest two bits
 //   - direct bits: 2-26 bits below the highest two bits
 //   - alignment bits: four lowest bits
 //
 // Direct bits don't use any probabilities.
 //
-// The pos slot value of 14 is for distances 128-191 (see the table in
+// The distance slot value of 14 is for distances 128-191 (see the table in
 // fastpos.h to understand why).
-#define END_POS_MODEL_INDEX 14
+#define DIST_MODEL_END 14
 
-// Pos slots that indicate a distance <= 127.
-#define FULL_DISTANCES_BITS (END_POS_MODEL_INDEX / 2)
+// Distance slots that indicate a distance <= 127.
+#define FULL_DISTANCES_BITS (DIST_MODEL_END / 2)
 #define FULL_DISTANCES (1 << FULL_DISTANCES_BITS)
 
 // For match distances greater than 127, only the highest two bits and the
 // lowest four bits (alignment) is encoded using probabilities.
 #define ALIGN_BITS 4
-#define ALIGN_TABLE_SIZE (1 << ALIGN_BITS)
-#define ALIGN_MASK (ALIGN_TABLE_SIZE - 1)
+#define ALIGN_SIZE (1 << ALIGN_BITS)
+#define ALIGN_MASK (ALIGN_SIZE - 1)
 
 // LZMA remembers the four most recent match distances. Reusing these distances
 // tends to take less space than re-encoding the actual distance value.
-#define REP_DISTANCES 4
+#define REPS 4
 
 #endif

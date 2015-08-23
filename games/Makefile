@@ -3,7 +3,6 @@
 .include <src.opts.mk>
 
 SUBDIR= \
-	bcd \
 	caesar \
 	factor \
 	fortune \
@@ -11,7 +10,6 @@ SUBDIR= \
 	morse \
 	number \
 	pom \
-	ppt \
 	primes \
 	random \
 	${_tests}

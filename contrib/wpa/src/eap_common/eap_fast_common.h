@@ -102,6 +102,6 @@ u8 * eap_fast_derive_key(void *ssl_ctx, struct tls_connection *conn,
 void eap_fast_derive_eap_msk(const u8 *simck, u8 *msk);
 void eap_fast_derive_eap_emsk(const u8 *simck, u8 *emsk);
 int eap_fast_parse_tlv(struct eap_fast_tlv_parse *tlv,
-		       int tlv_type, u8 *pos, int len);
+		       int tlv_type, u8 *pos, size_t len);
 
 #endif /* EAP_FAST_H */

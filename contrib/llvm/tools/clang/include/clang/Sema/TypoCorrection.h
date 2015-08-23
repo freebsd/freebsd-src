@@ -17,6 +17,7 @@
 
 #include "clang/AST/DeclCXX.h"
 #include "clang/Sema/DeclSpec.h"
+#include "clang/Sema/Ownership.h"
 #include "llvm/ADT/SmallVector.h"
 
 namespace clang {
@@ -198,10 +199,9 @@ public:
 
   void setCorrectionRange(CXXScopeSpec *SS,
                           const DeclarationNameInfo &TypoName) {
-    CorrectionRange.setBegin(ForceSpecifierReplacement && SS && !SS->isEmpty()
-                                 ? SS->getBeginLoc()
-                                 : TypoName.getLoc());
-    CorrectionRange.setEnd(TypoName.getLoc());
+    CorrectionRange = TypoName.getSourceRange();
+    if (ForceSpecifierReplacement && SS && !SS->isEmpty())
+      CorrectionRange.setBegin(SS->getBeginLoc());
   }
 
   SourceRange getCorrectionRange() const {
@@ -247,11 +247,13 @@ class CorrectionCandidateCallback {
 public:
   static const unsigned InvalidDistance = TypoCorrection::InvalidDistance;
 
-  CorrectionCandidateCallback()
+  explicit CorrectionCandidateCallback(IdentifierInfo *Typo = nullptr,
+                                       NestedNameSpecifier *TypoNNS = nullptr)
       : WantTypeSpecifiers(true), WantExpressionKeywords(true),
-        WantCXXNamedCasts(true), WantRemainingKeywords(true),
-        WantObjCSuper(false), IsObjCIvarLookup(false),
-        IsAddressOfOperand(false) {}
+        WantCXXNamedCasts(true), WantFunctionLikeCasts(true),
+        WantRemainingKeywords(true), WantObjCSuper(false),
+        IsObjCIvarLookup(false), IsAddressOfOperand(false), Typo(Typo),
+        TypoNNS(TypoNNS) {}
 
   virtual ~CorrectionCandidateCallback() {}
 
@@ -274,20 +276,39 @@ public:
   /// the default RankCandidate returns either 0 or InvalidDistance depending
   /// whether ValidateCandidate returns true or false.
   virtual unsigned RankCandidate(const TypoCorrection &candidate) {
-    return ValidateCandidate(candidate) ? 0 : InvalidDistance;
+    return (!MatchesTypo(candidate) && ValidateCandidate(candidate))
+               ? 0
+               : InvalidDistance;
   }
 
-  // Flags for context-dependent keywords.
+  void setTypoName(IdentifierInfo *II) { Typo = II; }
+  void setTypoNNS(NestedNameSpecifier *NNS) { TypoNNS = NNS; }
+
+  // Flags for context-dependent keywords. WantFunctionLikeCasts is only
+  // used/meaningful when WantCXXNamedCasts is false.
   // TODO: Expand these to apply to non-keywords or possibly remove them.
   bool WantTypeSpecifiers;
   bool WantExpressionKeywords;
   bool WantCXXNamedCasts;
+  bool WantFunctionLikeCasts;
   bool WantRemainingKeywords;
   bool WantObjCSuper;
   // Temporary hack for the one case where a CorrectTypoContext enum is used
   // when looking up results.
   bool IsObjCIvarLookup;
   bool IsAddressOfOperand;
+
+protected:
+  bool MatchesTypo(const TypoCorrection &candidate) {
+    return Typo && candidate.isResolved() && !candidate.requiresImport() &&
+           candidate.getCorrectionAsIdentifierInfo() == Typo &&
+           // FIXME: This probably does not return true when both
+           // NestedNameSpecifiers have the same textual representation.
+           candidate.getCorrectionSpecifier() == TypoNNS;
+  }
+
+  IdentifierInfo *Typo;
+  NestedNameSpecifier *TypoNNS;
 };
 
 /// @brief Simple template class for restricting typo correction candidates
@@ -325,6 +346,7 @@ public:
     WantTypeSpecifiers = false;
     WantExpressionKeywords = false;
     WantCXXNamedCasts = false;
+    WantFunctionLikeCasts = false;
     WantRemainingKeywords = false;
   }
 

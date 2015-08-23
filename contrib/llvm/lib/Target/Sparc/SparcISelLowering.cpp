@@ -190,8 +190,8 @@ SparcTargetLowering::LowerReturn_32(SDValue Chain,
   SmallVector<CCValAssign, 16> RVLocs;
 
   // CCState - Info about the registers and stack slot.
-  CCState CCInfo(CallConv, IsVarArg, DAG.getMachineFunction(),
-                 DAG.getTarget(), RVLocs, *DAG.getContext());
+  CCState CCInfo(CallConv, IsVarArg, DAG.getMachineFunction(), RVLocs,
+                 *DAG.getContext());
 
   // Analyze return values.
   CCInfo.AnalyzeReturn(Outs, RetCC_Sparc32);
@@ -250,8 +250,8 @@ SparcTargetLowering::LowerReturn_64(SDValue Chain,
   SmallVector<CCValAssign, 16> RVLocs;
 
   // CCState - Info about the registers and stack slot.
-  CCState CCInfo(CallConv, IsVarArg, DAG.getMachineFunction(),
-                 DAG.getTarget(), RVLocs, *DAG.getContext());
+  CCState CCInfo(CallConv, IsVarArg, DAG.getMachineFunction(), RVLocs,
+                 *DAG.getContext());
 
   // Analyze return values.
   CCInfo.AnalyzeReturn(Outs, RetCC_Sparc64);
@@ -349,8 +349,8 @@ LowerFormalArguments_32(SDValue Chain,
 
   // Assign locations to all of the incoming arguments.
   SmallVector<CCValAssign, 16> ArgLocs;
-  CCState CCInfo(CallConv, isVarArg, DAG.getMachineFunction(),
-                 getTargetMachine(), ArgLocs, *DAG.getContext());
+  CCState CCInfo(CallConv, isVarArg, DAG.getMachineFunction(), ArgLocs,
+                 *DAG.getContext());
   CCInfo.AnalyzeFormalArguments(Ins, CC_Sparc32);
 
   const unsigned StackOffset = 92;
@@ -474,7 +474,7 @@ LowerFormalArguments_32(SDValue Chain,
                           DAG.getConstant(Offset, MVT::i32));
       Load = DAG.getExtLoad(LoadOp, dl, MVT::i32, Chain, FIPtr,
                             MachinePointerInfo(),
-                            VA.getValVT(), false, false,0);
+                            VA.getValVT(), false, false, false,0);
       Load = DAG.getNode(ISD::TRUNCATE, dl, VA.getValVT(), Load);
     }
     InVals.push_back(Load);
@@ -549,8 +549,8 @@ LowerFormalArguments_64(SDValue Chain,
 
   // Analyze arguments according to CC_Sparc64.
   SmallVector<CCValAssign, 16> ArgLocs;
-  CCState CCInfo(CallConv, IsVarArg, DAG.getMachineFunction(),
-                 getTargetMachine(), ArgLocs, *DAG.getContext());
+  CCState CCInfo(CallConv, IsVarArg, DAG.getMachineFunction(), ArgLocs,
+                 *DAG.getContext());
   CCInfo.AnalyzeFormalArguments(Ins, CC_Sparc64);
 
   // The argument array begins at %fp+BIAS+128, after the register save area.
@@ -698,8 +698,8 @@ SparcTargetLowering::LowerCall_32(TargetLowering::CallLoweringInfo &CLI,
 
   // Analyze operands of the call, assigning locations to each operand.
   SmallVector<CCValAssign, 16> ArgLocs;
-  CCState CCInfo(CallConv, isVarArg, DAG.getMachineFunction(),
-                 DAG.getTarget(), ArgLocs, *DAG.getContext());
+  CCState CCInfo(CallConv, isVarArg, DAG.getMachineFunction(), ArgLocs,
+                 *DAG.getContext());
   CCInfo.AnalyzeCallOperands(Outs, CC_Sparc32);
 
   // Get the size of the outgoing arguments stack space requirement.
@@ -915,7 +915,7 @@ SparcTargetLowering::LowerCall_32(TargetLowering::CallLoweringInfo &CLI,
 
   // Add a register mask operand representing the call-preserved registers.
   const SparcRegisterInfo *TRI =
-    ((const SparcTargetMachine&)getTargetMachine()).getRegisterInfo();
+      getTargetMachine().getSubtarget<SparcSubtarget>().getRegisterInfo();
   const uint32_t *Mask = ((hasReturnsTwice)
                           ? TRI->getRTCallPreservedMask(CallConv)
                           : TRI->getCallPreservedMask(CallConv));
@@ -934,8 +934,8 @@ SparcTargetLowering::LowerCall_32(TargetLowering::CallLoweringInfo &CLI,
 
   // Assign locations to each value returned by this call.
   SmallVector<CCValAssign, 16> RVLocs;
-  CCState RVInfo(CallConv, isVarArg, DAG.getMachineFunction(),
-                 DAG.getTarget(), RVLocs, *DAG.getContext());
+  CCState RVInfo(CallConv, isVarArg, DAG.getMachineFunction(), RVLocs,
+                 *DAG.getContext());
 
   RVInfo.AnalyzeCallResult(Ins, RetCC_Sparc32);
 
@@ -1061,8 +1061,8 @@ SparcTargetLowering::LowerCall_64(TargetLowering::CallLoweringInfo &CLI,
 
   // Analyze operands of the call, assigning locations to each operand.
   SmallVector<CCValAssign, 16> ArgLocs;
-  CCState CCInfo(CLI.CallConv, CLI.IsVarArg, DAG.getMachineFunction(),
-                 DAG.getTarget(), ArgLocs, *DAG.getContext());
+  CCState CCInfo(CLI.CallConv, CLI.IsVarArg, DAG.getMachineFunction(), ArgLocs,
+                 *DAG.getContext());
   CCInfo.AnalyzeCallOperands(CLI.Outs, CC_Sparc64);
 
   // Get the size of the outgoing arguments stack space requirement.
@@ -1228,10 +1228,10 @@ SparcTargetLowering::LowerCall_64(TargetLowering::CallLoweringInfo &CLI,
 
   // Add a register mask operand representing the call-preserved registers.
   const SparcRegisterInfo *TRI =
-    ((const SparcTargetMachine&)getTargetMachine()).getRegisterInfo();
-  const uint32_t *Mask = ((hasReturnsTwice)
-                          ? TRI->getRTCallPreservedMask(CLI.CallConv)
-                          : TRI->getCallPreservedMask(CLI.CallConv));
+      getTargetMachine().getSubtarget<SparcSubtarget>().getRegisterInfo();
+  const uint32_t *Mask =
+      ((hasReturnsTwice) ? TRI->getRTCallPreservedMask(CLI.CallConv)
+                         : TRI->getCallPreservedMask(CLI.CallConv));
   assert(Mask && "Missing call preserved mask for calling convention");
   Ops.push_back(DAG.getRegisterMask(Mask));
 
@@ -1255,8 +1255,8 @@ SparcTargetLowering::LowerCall_64(TargetLowering::CallLoweringInfo &CLI,
 
   // Assign locations to each value returned by this call.
   SmallVector<CCValAssign, 16> RVLocs;
-  CCState RVInfo(CLI.CallConv, CLI.IsVarArg, DAG.getMachineFunction(),
-                 DAG.getTarget(), RVLocs, *DAG.getContext());
+  CCState RVInfo(CLI.CallConv, CLI.IsVarArg, DAG.getMachineFunction(), RVLocs,
+                 *DAG.getContext());
 
   // Set inreg flag manually for codegen generated library calls that
   // return float.
@@ -1366,7 +1366,7 @@ static SPCC::CondCodes FPCondCCodeToFCC(ISD::CondCode CC) {
 }
 
 SparcTargetLowering::SparcTargetLowering(TargetMachine &TM)
-  : TargetLowering(TM, new SparcELFTargetObjectFile()) {
+  : TargetLowering(TM) {
   Subtarget = &TM.getSubtarget<SparcSubtarget>();
 
   // Set up the register classes.
@@ -1378,11 +1378,14 @@ SparcTargetLowering::SparcTargetLowering(TargetMachine &TM)
     addRegisterClass(MVT::i64, &SP::I64RegsRegClass);
 
   // Turn FP extload into load/fextend
-  setLoadExtAction(ISD::EXTLOAD, MVT::f32, Expand);
-  setLoadExtAction(ISD::EXTLOAD, MVT::f64, Expand);
+  for (MVT VT : MVT::fp_valuetypes()) {
+    setLoadExtAction(ISD::EXTLOAD, VT, MVT::f32, Expand);
+    setLoadExtAction(ISD::EXTLOAD, VT, MVT::f64, Expand);
+  }
 
   // Sparc doesn't have i1 sign extending load
-  setLoadExtAction(ISD::SEXTLOAD, MVT::i1, Promote);
+  for (MVT VT : MVT::integer_valuetypes())
+    setLoadExtAction(ISD::SEXTLOAD, VT, MVT::i1, Promote);
 
   // Turn FP truncstore into trunc + store.
   setTruncStoreAction(MVT::f64, MVT::f32, Expand);
@@ -1905,7 +1908,9 @@ SDValue SparcTargetLowering::LowerGlobalTLSAddress(SDValue Op,
     Ops.push_back(Symbol);
     Ops.push_back(DAG.getRegister(SP::O0, PtrVT));
     const uint32_t *Mask = getTargetMachine()
-      .getRegisterInfo()->getCallPreservedMask(CallingConv::C);
+                               .getSubtargetImpl()
+                               ->getRegisterInfo()
+                               ->getCallPreservedMask(CallingConv::C);
     assert(Mask && "Missing call preserved mask for calling convention");
     Ops.push_back(DAG.getRegisterMask(Mask));
     Ops.push_back(InFlag);
@@ -2754,9 +2759,10 @@ static SDValue LowerUMULO_SMULO(SDValue Op, SelectionDAG &DAG,
                            ISD::SETNE);
   }
   // MulResult is a node with an illegal type. Because such things are not
-  // generally permitted during this phase of legalization, delete the
-  // node. The above EXTRACT_ELEMENT nodes should have been folded.
-  DAG.DeleteNode(MulResult.getNode());
+  // generally permitted during this phase of legalization, ensure that
+  // nothing is left using the node. The above EXTRACT_ELEMENT nodes should have
+  // been folded.
+  assert(MulResult->use_empty() && "Illegally typed node still in use!");
 
   SDValue Ops[2] = { BottomHalf, TopHalf } ;
   return DAG.getMergeValues(Ops, dl);
@@ -2900,7 +2906,8 @@ MachineBasicBlock*
 SparcTargetLowering::expandSelectCC(MachineInstr *MI,
                                     MachineBasicBlock *BB,
                                     unsigned BROpcode) const {
-  const TargetInstrInfo &TII = *getTargetMachine().getInstrInfo();
+  const TargetInstrInfo &TII =
+      *getTargetMachine().getSubtargetImpl()->getInstrInfo();
   DebugLoc dl = MI->getDebugLoc();
   unsigned CC = (SPCC::CondCodes)MI->getOperand(3).getImm();
 
@@ -2961,7 +2968,8 @@ SparcTargetLowering::expandAtomicRMW(MachineInstr *MI,
                                      MachineBasicBlock *MBB,
                                      unsigned Opcode,
                                      unsigned CondCode) const {
-  const TargetInstrInfo &TII = *getTargetMachine().getInstrInfo();
+  const TargetInstrInfo &TII =
+      *getTargetMachine().getSubtargetImpl()->getInstrInfo();
   MachineRegisterInfo &MRI = MBB->getParent()->getRegInfo();
   DebugLoc DL = MI->getDebugLoc();
 

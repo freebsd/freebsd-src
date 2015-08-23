@@ -37,7 +37,7 @@
 #include <stdio.h>
 #include <gelf.h>
 #include <libproc.h>
-#if !defined(sun)
+#ifndef illumos
 #include <rtld_db.h>
 #endif
 
@@ -554,7 +554,7 @@ extern int dtrace_probe_info(dtrace_hdl_t *,
  * entry point to obtain a library handle.
  */
 struct dtrace_vector {
-#if defined(sun)
+#ifdef illumos
 	int (*dtv_ioctl)(void *, int, void *);
 #else
 	int (*dtv_ioctl)(void *, u_long, void *);
@@ -605,7 +605,7 @@ extern int _dtrace_debug;
 }
 #endif
 
-#if !defined(sun)
+#ifndef illumos
 #define _SC_CPUID_MAX		_SC_NPROCESSORS_CONF
 #define _SC_NPROCESSORS_MAX	_SC_NPROCESSORS_CONF
 #endif

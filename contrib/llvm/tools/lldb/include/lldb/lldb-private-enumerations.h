@@ -22,7 +22,8 @@ typedef enum StepType
     eStepTypeTraceOver, ///< Single step one instruction, stepping over.
     eStepTypeInto,      ///< Single step into a specified context.
     eStepTypeOver,      ///< Single step over a specified context.
-    eStepTypeOut        ///< Single step out a specified context.
+    eStepTypeOut,       ///< Single step out a specified context.
+    eStepTypeScripted   ///< A step type implemented by the script interpreter.
 } StepType;
 
 //----------------------------------------------------------------------
@@ -163,7 +164,9 @@ typedef enum FormatCategoryItem
     eFormatCategoryItemSynth =           0x0010,
     eFormatCategoryItemRegexSynth =      0x0020,
     eFormatCategoryItemValue =           0x0040,
-    eFormatCategoryItemRegexValue =      0x0080
+    eFormatCategoryItemRegexValue =      0x0080,
+    eFormatCategoryItemValidator =       0x0100,
+    eFormatCategoryItemRegexValidator =  0x0200
 } FormatCategoryItem;
 
 //------------------------------------------------------------------
@@ -238,6 +241,14 @@ typedef enum ExitType {
     eExitTypeStop,    // The exit status represents the stop signal that caused the program to exit (i.e. WIFSTOPPED() was true)
 } ExitType;
 
+//----------------------------------------------------------------------
+// Boolean result of running a Type Validator
+//----------------------------------------------------------------------
+enum class TypeValidatorResult : bool {
+    Success = true,
+    Failure = false
+};
+    
 } // namespace lldb_private
 
 

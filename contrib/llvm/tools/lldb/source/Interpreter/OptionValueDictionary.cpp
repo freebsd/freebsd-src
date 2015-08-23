@@ -64,6 +64,7 @@ OptionValueDictionary::DumpValue (const ExecutionContext *exe_ctx, Stream &strm,
                     break;
 
                 case eTypeBoolean:
+                case eTypeChar:
                 case eTypeEnum:
                 case eTypeFileSpec:
                 case eTypeFormat:
@@ -220,7 +221,10 @@ Error
 OptionValueDictionary::SetValueFromCString (const char *value_cstr, VarSetOperationType op)
 {
     Args args(value_cstr);
-    return SetArgs (args, op);
+    Error error = SetArgs (args, op);
+    if (error.Success())
+        NotifyValueChanged();
+    return error;
 }
 
 lldb::OptionValueSP

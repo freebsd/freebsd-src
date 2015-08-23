@@ -29,7 +29,7 @@ static const char sccsid[] = "$Id: ex_mark.c,v 10.9 2001/06/25 15:19:17 skimo Ex
  *	Mark lines.
  *
  *
- * PUBLIC: int ex_mark __P((SCR *, EXCMD *));
+ * PUBLIC: int ex_mark(SCR *, EXCMD *);
  */
 int
 ex_mark(SCR *sp, EXCMD *cmdp)

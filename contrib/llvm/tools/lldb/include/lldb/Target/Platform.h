@@ -62,7 +62,7 @@ namespace lldb_private {
         /// or attaching to processes unless another platform is specified.
         //------------------------------------------------------------------
         static lldb::PlatformSP
-        GetDefaultPlatform ();
+        GetHostPlatform ();
 
         static lldb::PlatformSP
         GetPlatformForArchitecture (const ArchSpec &arch,
@@ -72,10 +72,14 @@ namespace lldb_private {
         GetHostPlatformName ();
 
         static void
-        SetDefaultPlatform (const lldb::PlatformSP &platform_sp);
+        SetHostPlatform (const lldb::PlatformSP &platform_sp);
+
+        // Find an existing platform plug-in by name
+        static lldb::PlatformSP
+        Find (const ConstString &name);
 
         static lldb::PlatformSP
-        Create (const char *platform_name, Error &error);
+        Create (const ConstString &name, Error &error);
 
         static lldb::PlatformSP
         Create (const ArchSpec &arch, ArchSpec *platform_arch_ptr, Error &error);
@@ -114,8 +118,8 @@ namespace lldb_private {
         ///     An optional name of a specific platform plug-in that
         ///     should be used. If NULL, pick the best plug-in.
         //------------------------------------------------------------------
-        static Platform*
-        FindPlugin (Process *process, const ConstString &plugin_name);
+//        static lldb::PlatformSP
+//        FindPlugin (Process *process, const ConstString &plugin_name);
 
         //------------------------------------------------------------------
         /// Set the target's executable based off of the existing 
@@ -137,8 +141,7 @@ namespace lldb_private {
         ///     a suitable executable, \b false otherwise.
         //------------------------------------------------------------------
         virtual Error
-        ResolveExecutable (const FileSpec &exe_file,
-                           const ArchSpec &arch,
+        ResolveExecutable (const ModuleSpec &module_spec,
                            lldb::ModuleSP &module_sp,
                            const FileSpecList *module_search_paths_ptr);
 
@@ -409,7 +412,6 @@ namespace lldb_private {
         DebugProcess (ProcessLaunchInfo &launch_info,
                       Debugger &debugger,
                       Target *target,       // Can be NULL, if NULL create a new target, else use existing one
-                      Listener &listener,
                       Error &error);
 
         //------------------------------------------------------------------
@@ -434,7 +436,6 @@ namespace lldb_private {
         Attach (ProcessAttachInfo &attach_info,
                 Debugger &debugger,
                 Target *target,       // Can be NULL, if NULL create a new target, else use existing one
-                Listener &listener,
                 Error &error) = 0;
 
         //------------------------------------------------------------------
@@ -559,7 +560,16 @@ namespace lldb_private {
         SetSDKBuild (const ConstString &sdk_build)
         {
             m_sdk_build = sdk_build;
-        }    
+        }
+        
+        // Override this to return true if your platform supports Clang modules.
+        // You may also need to override AddClangModuleCompilationOptions to pass the right Clang flags for your platform.
+        virtual bool
+        SupportsModules () { return false; }
+        
+        // Appends the platform-specific options required to find the modules for the current platform.
+        virtual void
+        AddClangModuleCompilationOptions (std::vector<std::string> &options);
 
         ConstString
         GetWorkingDirectory ();
@@ -571,7 +581,7 @@ namespace lldb_private {
         // The platform will return "true" from this call if the passed in module happens to be one of these.
         
         virtual bool
-        ModuleIsExcludedForNonModuleSpecificSearches (Target &target, const lldb::ModuleSP &module_sp)
+        ModuleIsExcludedForUnconstrainedSearches (Target &target, const lldb::ModuleSP &module_sp)
         {
             return false;
         }

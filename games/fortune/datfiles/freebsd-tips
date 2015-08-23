@@ -443,7 +443,7 @@ on this system.  Example entries are in
 %
 You can use "pkg info" to see a list of packages you have installed.
 %
-You can use the 'fetch' command to retrieve files over ftp or http.
+You can use the 'fetch' command to retrieve files over ftp, http or https.
 
 	 fetch http://www.FreeBSD.org/index.html
 

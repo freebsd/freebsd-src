@@ -12,8 +12,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_CFG_H
-#define LLVM_CLANG_CFG_H
+#ifndef LLVM_CLANG_ANALYSIS_CFG_H
+#define LLVM_CLANG_ANALYSIS_CFG_H
 
 #include "clang/AST/Stmt.h"
 #include "clang/Analysis/Support/BumpVector.h"
@@ -811,10 +811,9 @@ public:
     ImplTy I;
   };
 
-  /// buildCFG - Builds a CFG from an AST.  The responsibility to free the
-  ///   constructed CFG belongs to the caller.
-  static CFG* buildCFG(const Decl *D, Stmt *AST, ASTContext *C,
-                       const BuildOptions &BO);
+  /// buildCFG - Builds a CFG from an AST.
+  static std::unique_ptr<CFG> buildCFG(const Decl *D, Stmt *AST, ASTContext *C,
+                                       const BuildOptions &BO);
 
   /// createBlock - Create a new block in the CFG.  The CFG owns the block;
   ///  the caller should not directly free it.

@@ -42,7 +42,8 @@ public:
     NSStr_stringWithUTF8String,
     NSStr_stringWithCStringEncoding,
     NSStr_stringWithCString,
-    NSStr_initWithString
+    NSStr_initWithString,
+    NSStr_initWithUTF8String
   };
   static const unsigned NumNSStringMethods = 5;
 
@@ -100,8 +101,8 @@ public:
     NSDict_objectForKey,
     NSMutableDict_setObjectForKey
   };
-  static const unsigned NumNSDictionaryMethods = 11;
-
+  static const unsigned NumNSDictionaryMethods = 12;
+  
   /// \brief The Objective-C NSDictionary selectors.
   Selector getNSDictionarySelector(NSDictionaryMethodKind MK) const;
 
@@ -184,6 +185,9 @@ public:
   bool isObjCNSIntegerType(QualType T) const;
   /// \brief Returns true if \param T is a typedef of "NSUInteger" in objective-c.
   bool isObjCNSUIntegerType(QualType T) const;
+  /// \brief Returns one of NSIntegral typedef names if \param T is a typedef
+  /// of that name in objective-c.
+  StringRef GetNSIntegralKind(QualType T) const;
 
 private:
   bool isObjCTypedef(QualType T, StringRef name, IdentifierInfo *&II) const;

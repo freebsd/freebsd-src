@@ -123,6 +123,9 @@ public:
   typedef Type::subtype_iterator param_iterator;
   param_iterator param_begin() const { return ContainedTys + 1; }
   param_iterator param_end() const { return &ContainedTys[NumContainedTys]; }
+  ArrayRef<Type *> params() const {
+    return makeArrayRef(param_begin(), param_end());
+  }
 
   /// Parameter type accessors.
   Type *getParamType(unsigned i) const { return ContainedTys[i+1]; }
@@ -204,9 +207,6 @@ class StructType : public CompositeType {
   /// 
   void *SymbolTableEntry;
 public:
-  ~StructType() {
-    delete [] ContainedTys; // Delete the body.
-  }
 
   /// StructType::create - This creates an identified struct.
   static StructType *create(LLVMContext &Context, StringRef Name);
@@ -221,7 +221,7 @@ public:
                             StringRef Name,
                             bool isPacked = false);
   static StructType *create(LLVMContext &Context, ArrayRef<Type*> Elements);
-  static StructType *create(StringRef Name, Type *elt1, ...) END_WITH_NULL;
+  static StructType *create(StringRef Name, Type *elt1, ...) LLVM_END_WITH_NULL;
 
   /// StructType::get - This static method is the primary way to create a
   /// literal StructType.
@@ -236,7 +236,7 @@ public:
   /// structure types by specifying the elements as arguments.  Note that this
   /// method always returns a non-packed struct, and requires at least one
   /// element type.
-  static StructType *get(Type *elt1, ...) END_WITH_NULL;
+  static StructType *get(Type *elt1, ...) LLVM_END_WITH_NULL;
 
   bool isPacked() const { return (getSubclassData() & SCDB_Packed) != 0; }
   
@@ -249,7 +249,7 @@ public:
   bool isOpaque() const { return (getSubclassData() & SCDB_HasBody) == 0; }
 
   /// isSized - Return true if this is a sized type.
-  bool isSized(SmallPtrSet<const Type*, 4> *Visited = nullptr) const;
+  bool isSized(SmallPtrSetImpl<const Type*> *Visited = nullptr) const;
   
   /// hasName - Return true if this is a named struct that has a non-empty name.
   bool hasName() const { return SymbolTableEntry != nullptr; }
@@ -266,7 +266,7 @@ public:
 
   /// setBody - Specify a body for an opaque identified type.
   void setBody(ArrayRef<Type*> Elements, bool isPacked = false);
-  void setBody(Type *elt1, ...) END_WITH_NULL;
+  void setBody(Type *elt1, ...) LLVM_END_WITH_NULL;
   
   /// isValidElementType - Return true if the specified type is valid as a
   /// element type.
@@ -277,6 +277,9 @@ public:
   typedef Type::subtype_iterator element_iterator;
   element_iterator element_begin() const { return ContainedTys; }
   element_iterator element_end() const { return &ContainedTys[NumContainedTys];}
+  ArrayRef<Type *> const elements() const {
+    return makeArrayRef(element_begin(), element_end());
+  }
 
   /// isLayoutIdentical - Return true if this is layout identical to the
   /// specified struct.

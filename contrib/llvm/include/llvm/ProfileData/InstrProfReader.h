@@ -12,17 +12,17 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_PROFILEDATA_INSTRPROF_READER_H_
-#define LLVM_PROFILEDATA_INSTRPROF_READER_H_
+#ifndef LLVM_PROFILEDATA_INSTRPROFREADER_H
+#define LLVM_PROFILEDATA_INSTRPROFREADER_H
 
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/ProfileData/InstrProf.h"
+#include "llvm/Support/EndianStream.h"
+#include "llvm/Support/ErrorOr.h"
 #include "llvm/Support/LineIterator.h"
 #include "llvm/Support/MemoryBuffer.h"
-#include "llvm/Support/EndianStream.h"
 #include "llvm/Support/OnDiskHashTable.h"
-
 #include <iterator>
 
 namespace llvm {
@@ -94,8 +94,7 @@ public:
 
   /// Factory method to create an appropriately typed reader for the given
   /// instrprof file.
-  static std::error_code create(std::string Path,
-                                std::unique_ptr<InstrProfReader> &Result);
+  static ErrorOr<std::unique_ptr<InstrProfReader>> create(std::string Path);
 };
 
 /// Reader for the simple text based instrprof format.
@@ -120,7 +119,7 @@ private:
     LLVM_DELETED_FUNCTION;
 public:
   TextInstrProfReader(std::unique_ptr<MemoryBuffer> DataBuffer_)
-      : DataBuffer(std::move(DataBuffer_)), Line(*DataBuffer, '#') {}
+      : DataBuffer(std::move(DataBuffer_)), Line(*DataBuffer, true, '#') {}
 
   /// Read the header.
   std::error_code readHeader() override { return success(); }
@@ -206,12 +205,17 @@ enum class HashT : uint32_t;
 /// Trait for lookups into the on-disk hash table for the binary instrprof
 /// format.
 class InstrProfLookupTrait {
-  std::vector<uint64_t> CountBuffer;
+  std::vector<uint64_t> DataBuffer;
   IndexedInstrProf::HashT HashType;
 public:
   InstrProfLookupTrait(IndexedInstrProf::HashT HashType) : HashType(HashType) {}
 
-  typedef InstrProfRecord data_type;
+  struct data_type {
+    data_type(StringRef Name, ArrayRef<uint64_t> Data)
+        : Name(Name), Data(Data) {}
+    StringRef Name;
+    ArrayRef<uint64_t> Data;
+  };
   typedef StringRef internal_key_type;
   typedef StringRef external_key_type;
   typedef uint64_t hash_value_type;
@@ -234,25 +238,20 @@ public:
     return StringRef((const char *)D, N);
   }
 
-  InstrProfRecord ReadData(StringRef K, const unsigned char *D, offset_type N) {
-    if (N < 2 * sizeof(uint64_t) || N % sizeof(uint64_t)) {
+  data_type ReadData(StringRef K, const unsigned char *D, offset_type N) {
+    DataBuffer.clear();
+    if (N % sizeof(uint64_t))
       // The data is corrupt, don't try to read it.
-      CountBuffer.clear();
-      return InstrProfRecord("", 0, CountBuffer);
-    }
+      return data_type("", DataBuffer);
 
     using namespace support;
-
-    // The first stored value is the hash.
-    uint64_t Hash = endian::readNext<uint64_t, little, unaligned>(D);
-    // Each counter follows.
-    unsigned NumCounters = N / sizeof(uint64_t) - 1;
-    CountBuffer.clear();
-    CountBuffer.reserve(NumCounters - 1);
-    for (unsigned I = 0; I < NumCounters; ++I)
-      CountBuffer.push_back(endian::readNext<uint64_t, little, unaligned>(D));
-
-    return InstrProfRecord(K, Hash, CountBuffer);
+    // We just treat the data as opaque here. It's simpler to handle in
+    // IndexedInstrProfReader.
+    unsigned NumEntries = N / sizeof(uint64_t);
+    DataBuffer.reserve(NumEntries);
+    for (unsigned I = 0; I < NumEntries; ++I)
+      DataBuffer.push_back(endian::readNext<uint64_t, little, unaligned>(D));
+    return data_type(K, DataBuffer);
   }
 };
 typedef OnDiskIterableChainedHashTable<InstrProfLookupTrait>
@@ -267,7 +266,11 @@ private:
   std::unique_ptr<InstrProfReaderIndex> Index;
   /// Iterator over the profile data.
   InstrProfReaderIndex::data_iterator RecordIterator;
-  /// The maximal execution count among all fucntions.
+  /// Offset into our current data set.
+  size_t CurrentOffset;
+  /// The file format version of the profile data.
+  uint64_t FormatVersion;
+  /// The maximal execution count among all functions.
   uint64_t MaxFunctionCount;
 
   IndexedInstrProfReader(const IndexedInstrProfReader &) LLVM_DELETED_FUNCTION;
@@ -275,8 +278,7 @@ private:
     LLVM_DELETED_FUNCTION;
 public:
   IndexedInstrProfReader(std::unique_ptr<MemoryBuffer> DataBuffer)
-      : DataBuffer(std::move(DataBuffer)), Index(nullptr),
-        RecordIterator(InstrProfReaderIndex::data_iterator()) {}
+      : DataBuffer(std::move(DataBuffer)), Index(nullptr), CurrentOffset(0) {}
 
   /// Return true if the given buffer is in an indexed instrprof format.
   static bool hasFormat(const MemoryBuffer &DataBuffer);
@@ -287,7 +289,7 @@ public:
   std::error_code readNextRecord(InstrProfRecord &Record) override;
 
   /// Fill Counts with the profile data for the given function name.
-  std::error_code getFunctionCounts(StringRef FuncName, uint64_t &FuncHash,
+  std::error_code getFunctionCounts(StringRef FuncName, uint64_t FuncHash,
                                     std::vector<uint64_t> &Counts);
   /// Return the maximum of all known function counts.
   uint64_t getMaximumFunctionCount() { return MaxFunctionCount; }
@@ -299,4 +301,4 @@ public:
 
 } // end namespace llvm
 
-#endif // LLVM_PROFILEDATA_INSTRPROF_READER_H_
+#endif

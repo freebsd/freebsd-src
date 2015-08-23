@@ -32,8 +32,8 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_ANALYSIS_LAZY_CALL_GRAPH
-#define LLVM_ANALYSIS_LAZY_CALL_GRAPH
+#ifndef LLVM_ANALYSIS_LAZYCALLGRAPH_H
+#define LLVM_ANALYSIS_LAZYCALLGRAPH_H
 
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/PointerUnion.h"
@@ -46,11 +46,11 @@
 #include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Module.h"
+#include "llvm/IR/PassManager.h"
 #include "llvm/Support/Allocator.h"
 #include <iterator>
 
 namespace llvm {
-class ModuleAnalysisManager;
 class PreservedAnalyses;
 class raw_ostream;
 
@@ -251,6 +251,12 @@ public:
 
     /// \brief Test if this SCC is a descendant of \a C.
     bool isDescendantOf(const SCC &C) const;
+
+    /// \brief Short name useful for debugging or logging.
+    ///
+    /// We use the name of the first function in the SCC to name the SCC for
+    /// the purposes of debugging and logging.
+    StringRef getName() const { return (*begin())->getFunction().getName(); }
 
     ///@{
     /// \name Mutation API
@@ -537,11 +543,13 @@ public:
 
   static void *ID() { return (void *)&PassID; }
 
-  /// \brief Compute the \c LazyCallGraph for a the module \c M.
+  static StringRef name() { return "Lazy CallGraph Analysis"; }
+
+  /// \brief Compute the \c LazyCallGraph for the module \c M.
   ///
   /// This just builds the set of entry points to the call graph. The rest is
   /// built lazily as it is walked.
-  LazyCallGraph run(Module *M) { return LazyCallGraph(*M); }
+  LazyCallGraph run(Module &M) { return LazyCallGraph(M); }
 
 private:
   static char PassID;
@@ -556,7 +564,7 @@ class LazyCallGraphPrinterPass {
 public:
   explicit LazyCallGraphPrinterPass(raw_ostream &OS);
 
-  PreservedAnalyses run(Module *M, ModuleAnalysisManager *AM);
+  PreservedAnalyses run(Module &M, ModuleAnalysisManager *AM);
 
   static StringRef name() { return "LazyCallGraphPrinterPass"; }
 };

@@ -27,6 +27,7 @@
 #include "llvm/Target/TargetIntrinsicInfo.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetRegisterInfo.h"
+#include "llvm/Target/TargetSubtargetInfo.h"
 using namespace llvm;
 
 std::string SDNode::getOperationName(const SelectionDAG *G) const {
@@ -36,7 +37,7 @@ std::string SDNode::getOperationName(const SelectionDAG *G) const {
       return "<<Unknown DAG Node>>";
     if (isMachineOpcode()) {
       if (G)
-        if (const TargetInstrInfo *TII = G->getTarget().getInstrInfo())
+        if (const TargetInstrInfo *TII = G->getSubtarget().getInstrInfo())
           if (getMachineOpcode() < TII->getNumOpcodes())
             return TII->getName(getMachineOpcode());
       return "<<Unknown Machine Node #" + utostr(getOpcode()) + ">>";
@@ -140,6 +141,8 @@ std::string SDNode::getOperationName(const SelectionDAG *G) const {
 
   // Unary operators
   case ISD::FABS:                       return "fabs";
+  case ISD::FMINNUM:                    return "fminnum";
+  case ISD::FMAXNUM:                    return "fmaxnum";
   case ISD::FNEG:                       return "fneg";
   case ISD::FSQRT:                      return "fsqrt";
   case ISD::FSIN:                       return "fsin";
@@ -266,6 +269,8 @@ std::string SDNode::getOperationName(const SelectionDAG *G) const {
     // Other operators
   case ISD::LOAD:                       return "load";
   case ISD::STORE:                      return "store";
+  case ISD::MLOAD:                      return "masked_load";
+  case ISD::MSTORE:                     return "masked_store";
   case ISD::VAARG:                      return "vaarg";
   case ISD::VACOPY:                     return "vacopy";
   case ISD::VAEND:                      return "vaend";
@@ -433,7 +438,8 @@ void SDNode::print_details(raw_ostream &OS, const SelectionDAG *G) const {
       OS << LBB->getName() << " ";
     OS << (const void*)BBDN->getBasicBlock() << ">";
   } else if (const RegisterSDNode *R = dyn_cast<RegisterSDNode>(this)) {
-    OS << ' ' << PrintReg(R->getReg(), G ? G->getTarget().getRegisterInfo() :nullptr);
+    OS << ' ' << PrintReg(R->getReg(),
+                          G ? G->getSubtarget().getRegisterInfo() : nullptr);
   } else if (const ExternalSymbolSDNode *ES =
              dyn_cast<ExternalSymbolSDNode>(this)) {
     OS << "'" << ES->getSymbol() << "'";
@@ -565,7 +571,7 @@ void SDNode::printr(raw_ostream &OS, const SelectionDAG *G) const {
 typedef SmallPtrSet<const SDNode *, 128> VisitedSDNodeSet;
 static void DumpNodesr(raw_ostream &OS, const SDNode *N, unsigned indent,
                        const SelectionDAG *G, VisitedSDNodeSet &once) {
-  if (!once.insert(N))          // If we've been here before, return now.
+  if (!once.insert(N).second) // If we've been here before, return now.
     return;
 
   // Dump the current SDNode, but don't end the line yet.

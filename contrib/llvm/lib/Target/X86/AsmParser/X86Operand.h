@@ -7,8 +7,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef X86_OPERAND_H
-#define X86_OPERAND_H
+#ifndef LLVM_LIB_TARGET_X86_ASMPARSER_X86OPERAND_H
+#define LLVM_LIB_TARGET_X86_ASMPARSER_X86OPERAND_H
 
 #include "X86AsmParserCommon.h"
 #include "llvm/MC/MCExpr.h"
@@ -53,6 +53,7 @@ struct X86Operand : public MCParsedAsmOperand {
     unsigned IndexReg;
     unsigned Scale;
     unsigned Size;
+    unsigned ModeSize;
   };
 
   union {
@@ -120,6 +121,10 @@ struct X86Operand : public MCParsedAsmOperand {
     assert(Kind == Memory && "Invalid access!");
     return Mem.Scale;
   }
+  unsigned getMemModeSize() const {
+    assert(Kind == Memory && "Invalid access!");
+    return Mem.ModeSize;
+  }
 
   bool isToken() const override {return Kind == Token; }
 
@@ -152,20 +157,6 @@ struct X86Operand : public MCParsedAsmOperand {
     // Otherwise, check the value is in a range that makes sense for this
     // extension.
     return isImmSExti32i8Value(CE->getValue());
-  }
-  bool isImmZExtu32u8() const {
-    if (!isImm())
-      return false;
-
-    // If this isn't a constant expr, just assume it fits and let relaxation
-    // handle it.
-    const MCConstantExpr *CE = dyn_cast<MCConstantExpr>(getImm());
-    if (!CE)
-      return true;
-
-    // Otherwise, check the value is in a range that makes sense for this
-    // extension.
-    return isImmZExtu32u8Value(CE->getValue());
   }
   bool isImmSExti64i8() const {
     if (!isImm())
@@ -205,6 +196,9 @@ struct X86Operand : public MCParsedAsmOperand {
   }
 
   bool isMem() const override { return Kind == Memory; }
+  bool isMemUnsized() const {
+    return Kind == Memory && Mem.Size == 0;
+  }
   bool isMem8() const {
     return Kind == Memory && (!Mem.Size || Mem.Size == 8);
   }
@@ -260,6 +254,14 @@ struct X86Operand : public MCParsedAsmOperand {
       !getMemIndexReg() && getMemScale() == 1;
   }
 
+  bool isAbsMem16() const {
+    return isAbsMem() && Mem.ModeSize == 16;
+  }
+
+  bool isAbsMem32() const {
+    return isAbsMem() && Mem.ModeSize != 16;
+  }
+
   bool isSrcIdx() const {
     return !getMemIndexReg() && getMemScale() == 1 &&
       (getMemBaseReg() == X86::RSI || getMemBaseReg() == X86::ESI ||
@@ -299,21 +301,43 @@ struct X86Operand : public MCParsedAsmOperand {
     return isMem64() && isDstIdx();
   }
 
-  bool isMemOffs8() const {
-    return Kind == Memory && !getMemBaseReg() &&
-      !getMemIndexReg() && getMemScale() == 1 && (!Mem.Size || Mem.Size == 8);
+  bool isMemOffs() const {
+    return Kind == Memory && !getMemBaseReg() && !getMemIndexReg() &&
+      getMemScale() == 1;
   }
-  bool isMemOffs16() const {
-    return Kind == Memory && !getMemBaseReg() &&
-      !getMemIndexReg() && getMemScale() == 1 && (!Mem.Size || Mem.Size == 16);
+
+  bool isMemOffs16_8() const {
+    return isMemOffs() && Mem.ModeSize == 16 && (!Mem.Size || Mem.Size == 8);
   }
-  bool isMemOffs32() const {
-    return Kind == Memory && !getMemBaseReg() &&
-      !getMemIndexReg() && getMemScale() == 1 && (!Mem.Size || Mem.Size == 32);
+  bool isMemOffs16_16() const {
+    return isMemOffs() && Mem.ModeSize == 16 && (!Mem.Size || Mem.Size == 16);
   }
-  bool isMemOffs64() const {
-    return Kind == Memory && !getMemBaseReg() &&
-      !getMemIndexReg() && getMemScale() == 1 && (!Mem.Size || Mem.Size == 64);
+  bool isMemOffs16_32() const {
+    return isMemOffs() && Mem.ModeSize == 16 && (!Mem.Size || Mem.Size == 32);
+  }
+  bool isMemOffs32_8() const {
+    return isMemOffs() && Mem.ModeSize == 32 && (!Mem.Size || Mem.Size == 8);
+  }
+  bool isMemOffs32_16() const {
+    return isMemOffs() && Mem.ModeSize == 32 && (!Mem.Size || Mem.Size == 16);
+  }
+  bool isMemOffs32_32() const {
+    return isMemOffs() && Mem.ModeSize == 32 && (!Mem.Size || Mem.Size == 32);
+  }
+  bool isMemOffs32_64() const {
+    return isMemOffs() && Mem.ModeSize == 32 && (!Mem.Size || Mem.Size == 64);
+  }
+  bool isMemOffs64_8() const {
+    return isMemOffs() && Mem.ModeSize == 64 && (!Mem.Size || Mem.Size == 8);
+  }
+  bool isMemOffs64_16() const {
+    return isMemOffs() && Mem.ModeSize == 64 && (!Mem.Size || Mem.Size == 16);
+  }
+  bool isMemOffs64_32() const {
+    return isMemOffs() && Mem.ModeSize == 64 && (!Mem.Size || Mem.Size == 32);
+  }
+  bool isMemOffs64_64() const {
+    return isMemOffs() && Mem.ModeSize == 64 && (!Mem.Size || Mem.Size == 64);
   }
 
   bool isReg() const override { return Kind == Register; }
@@ -441,8 +465,9 @@ struct X86Operand : public MCParsedAsmOperand {
 
   /// Create an absolute memory operand.
   static std::unique_ptr<X86Operand>
-  CreateMem(const MCExpr *Disp, SMLoc StartLoc, SMLoc EndLoc, unsigned Size = 0,
-            StringRef SymName = StringRef(), void *OpDecl = nullptr) {
+  CreateMem(unsigned ModeSize, const MCExpr *Disp, SMLoc StartLoc, SMLoc EndLoc,
+            unsigned Size = 0, StringRef SymName = StringRef(),
+            void *OpDecl = nullptr) {
     auto Res = llvm::make_unique<X86Operand>(Memory, StartLoc, EndLoc);
     Res->Mem.SegReg   = 0;
     Res->Mem.Disp     = Disp;
@@ -450,6 +475,7 @@ struct X86Operand : public MCParsedAsmOperand {
     Res->Mem.IndexReg = 0;
     Res->Mem.Scale    = 1;
     Res->Mem.Size     = Size;
+    Res->Mem.ModeSize = ModeSize;
     Res->SymName      = SymName;
     Res->OpDecl       = OpDecl;
     Res->AddressOf    = false;
@@ -458,9 +484,9 @@ struct X86Operand : public MCParsedAsmOperand {
 
   /// Create a generalized memory operand.
   static std::unique_ptr<X86Operand>
-  CreateMem(unsigned SegReg, const MCExpr *Disp, unsigned BaseReg,
-            unsigned IndexReg, unsigned Scale, SMLoc StartLoc, SMLoc EndLoc,
-            unsigned Size = 0, StringRef SymName = StringRef(),
+  CreateMem(unsigned ModeSize, unsigned SegReg, const MCExpr *Disp,
+            unsigned BaseReg, unsigned IndexReg, unsigned Scale, SMLoc StartLoc,
+            SMLoc EndLoc, unsigned Size = 0, StringRef SymName = StringRef(),
             void *OpDecl = nullptr) {
     // We should never just have a displacement, that should be parsed as an
     // absolute memory operand.
@@ -476,6 +502,7 @@ struct X86Operand : public MCParsedAsmOperand {
     Res->Mem.IndexReg = IndexReg;
     Res->Mem.Scale    = Scale;
     Res->Mem.Size     = Size;
+    Res->Mem.ModeSize = ModeSize;
     Res->SymName      = SymName;
     Res->OpDecl       = OpDecl;
     Res->AddressOf    = false;
@@ -485,4 +512,4 @@ struct X86Operand : public MCParsedAsmOperand {
 
 } // End of namespace llvm
 
-#endif // X86_OPERAND
+#endif

@@ -64,8 +64,8 @@
 
 #include "ARMWinEHPrinter.h"
 #include "Error.h"
-#include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/StringExtras.h"
 #include "llvm/Support/ARMWinEH.h"
 #include "llvm/Support/Format.h"
 
@@ -186,13 +186,8 @@ void Decoder::printRegisters(const std::pair<uint16_t, uint32_t> &RegisterMask) 
 ErrorOr<object::SectionRef>
 Decoder::getSectionContaining(const COFFObjectFile &COFF, uint64_t VA) {
   for (const auto &Section : COFF.sections()) {
-    uint64_t Address;
-    uint64_t Size;
-
-    if (std::error_code EC = Section.getAddress(Address))
-      return EC;
-    if (std::error_code EC = Section.getSize(Size))
-      return EC;
+    uint64_t Address = Section.getAddress();
+    uint64_t Size = Section.getSize();
 
     if (VA >= Address && (VA - Address) <= Size)
       return Section;
@@ -233,7 +228,7 @@ ErrorOr<SymbolRef> Decoder::getRelocatedSymbol(const COFFObjectFile &,
   return readobj_error::unknown_symbol;
 }
 
-bool Decoder::opcode_0xxxxxxx(const ulittle8_t *OC, unsigned &Offset,
+bool Decoder::opcode_0xxxxxxx(const uint8_t *OC, unsigned &Offset,
                               unsigned Length, bool Prologue) {
   uint8_t Imm = OC[Offset] & 0x7f;
   SW.startLine() << format("0x%02x                ; %s sp, #(%u * 4)\n",
@@ -244,7 +239,7 @@ bool Decoder::opcode_0xxxxxxx(const ulittle8_t *OC, unsigned &Offset,
   return false;
 }
 
-bool Decoder::opcode_10Lxxxxx(const ulittle8_t *OC, unsigned &Offset,
+bool Decoder::opcode_10Lxxxxx(const uint8_t *OC, unsigned &Offset,
                               unsigned Length, bool Prologue) {
   unsigned Link = (OC[Offset] & 0x20) >> 5;
   uint16_t RegisterMask = (Link << (Prologue ? 14 : 15))
@@ -263,7 +258,7 @@ bool Decoder::opcode_10Lxxxxx(const ulittle8_t *OC, unsigned &Offset,
   return false;
 }
 
-bool Decoder::opcode_1100xxxx(const ulittle8_t *OC, unsigned &Offset,
+bool Decoder::opcode_1100xxxx(const uint8_t *OC, unsigned &Offset,
                               unsigned Length, bool Prologue) {
   if (Prologue)
     SW.startLine() << format("0x%02x                ; mov r%u, sp\n",
@@ -275,7 +270,7 @@ bool Decoder::opcode_1100xxxx(const ulittle8_t *OC, unsigned &Offset,
   return false;
 }
 
-bool Decoder::opcode_11010Lxx(const ulittle8_t *OC, unsigned &Offset,
+bool Decoder::opcode_11010Lxx(const uint8_t *OC, unsigned &Offset,
                               unsigned Length, bool Prologue) {
   unsigned Link = (OC[Offset] & 0x4) >> 3;
   unsigned Count = (OC[Offset] & 0x3);
@@ -292,7 +287,7 @@ bool Decoder::opcode_11010Lxx(const ulittle8_t *OC, unsigned &Offset,
   return false;
 }
 
-bool Decoder::opcode_11011Lxx(const ulittle8_t *OC, unsigned &Offset,
+bool Decoder::opcode_11011Lxx(const uint8_t *OC, unsigned &Offset,
                               unsigned Length, bool Prologue) {
   unsigned Link = (OC[Offset] & 0x4) >> 2;
   unsigned Count = (OC[Offset] & 0x3) + 4;
@@ -309,7 +304,7 @@ bool Decoder::opcode_11011Lxx(const ulittle8_t *OC, unsigned &Offset,
   return false;
 }
 
-bool Decoder::opcode_11100xxx(const ulittle8_t *OC, unsigned &Offset,
+bool Decoder::opcode_11100xxx(const uint8_t *OC, unsigned &Offset,
                               unsigned Length, bool Prologue) {
   unsigned High = (OC[Offset] & 0x7);
   uint32_t VFPMask = (((1 << (High + 1)) - 1) << 8);
@@ -323,7 +318,7 @@ bool Decoder::opcode_11100xxx(const ulittle8_t *OC, unsigned &Offset,
   return false;
 }
 
-bool Decoder::opcode_111010xx(const ulittle8_t *OC, unsigned &Offset,
+bool Decoder::opcode_111010xx(const uint8_t *OC, unsigned &Offset,
                               unsigned Length, bool Prologue) {
   uint16_t Imm = ((OC[Offset + 0] & 0x03) << 8) | ((OC[Offset + 1] & 0xff) << 0);
 
@@ -336,7 +331,7 @@ bool Decoder::opcode_111010xx(const ulittle8_t *OC, unsigned &Offset,
   return false;
 }
 
-bool Decoder::opcode_1110110L(const ulittle8_t *OC, unsigned &Offset,
+bool Decoder::opcode_1110110L(const uint8_t *OC, unsigned &Offset,
                               unsigned Length, bool Prologue) {
   uint8_t GPRMask = ((OC[Offset + 0] & 0x01) << (Prologue ? 14 : 15))
                   | ((OC[Offset + 1] & 0xff) << 0);
@@ -350,7 +345,7 @@ bool Decoder::opcode_1110110L(const ulittle8_t *OC, unsigned &Offset,
   return false;
 }
 
-bool Decoder::opcode_11101110(const ulittle8_t *OC, unsigned &Offset,
+bool Decoder::opcode_11101110(const uint8_t *OC, unsigned &Offset,
                               unsigned Length, bool Prologue) {
   assert(!Prologue && "may not be used in prologue");
 
@@ -366,7 +361,7 @@ bool Decoder::opcode_11101110(const ulittle8_t *OC, unsigned &Offset,
   return false;
 }
 
-bool Decoder::opcode_11101111(const ulittle8_t *OC, unsigned &Offset,
+bool Decoder::opcode_11101111(const uint8_t *OC, unsigned &Offset,
                               unsigned Length, bool Prologue) {
   assert(!Prologue && "may not be used in prologue");
 
@@ -382,7 +377,7 @@ bool Decoder::opcode_11101111(const ulittle8_t *OC, unsigned &Offset,
   return false;
 }
 
-bool Decoder::opcode_11110101(const ulittle8_t *OC, unsigned &Offset,
+bool Decoder::opcode_11110101(const uint8_t *OC, unsigned &Offset,
                               unsigned Length, bool Prologue) {
   unsigned Start = (OC[Offset + 1] & 0xf0) >> 4;
   unsigned End = (OC[Offset + 1] & 0x0f) >> 0;
@@ -397,7 +392,7 @@ bool Decoder::opcode_11110101(const ulittle8_t *OC, unsigned &Offset,
   return false;
 }
 
-bool Decoder::opcode_11110110(const ulittle8_t *OC, unsigned &Offset,
+bool Decoder::opcode_11110110(const uint8_t *OC, unsigned &Offset,
                               unsigned Length, bool Prologue) {
   unsigned Start = (OC[Offset + 1] & 0xf0) >> 4;
   unsigned End = (OC[Offset + 1] & 0x0f) >> 0;
@@ -412,7 +407,7 @@ bool Decoder::opcode_11110110(const ulittle8_t *OC, unsigned &Offset,
   return false;
 }
 
-bool Decoder::opcode_11110111(const ulittle8_t *OC, unsigned &Offset,
+bool Decoder::opcode_11110111(const uint8_t *OC, unsigned &Offset,
                               unsigned Length, bool Prologue) {
   uint32_t Imm = (OC[Offset + 1] << 8) | (OC[Offset + 2] << 0);
 
@@ -425,7 +420,7 @@ bool Decoder::opcode_11110111(const ulittle8_t *OC, unsigned &Offset,
   return false;
 }
 
-bool Decoder::opcode_11111000(const ulittle8_t *OC, unsigned &Offset,
+bool Decoder::opcode_11111000(const uint8_t *OC, unsigned &Offset,
                               unsigned Length, bool Prologue) {
   uint32_t Imm = (OC[Offset + 1] << 16)
                | (OC[Offset + 2] << 8)
@@ -440,7 +435,7 @@ bool Decoder::opcode_11111000(const ulittle8_t *OC, unsigned &Offset,
   return false;
 }
 
-bool Decoder::opcode_11111001(const ulittle8_t *OC, unsigned &Offset,
+bool Decoder::opcode_11111001(const uint8_t *OC, unsigned &Offset,
                               unsigned Length, bool Prologue) {
   uint32_t Imm = (OC[Offset + 1] << 8) | (OC[Offset + 2] << 0);
 
@@ -453,7 +448,7 @@ bool Decoder::opcode_11111001(const ulittle8_t *OC, unsigned &Offset,
   return false;
 }
 
-bool Decoder::opcode_11111010(const ulittle8_t *OC, unsigned &Offset,
+bool Decoder::opcode_11111010(const uint8_t *OC, unsigned &Offset,
                               unsigned Length, bool Prologue) {
   uint32_t Imm = (OC[Offset + 1] << 16)
                | (OC[Offset + 2] << 8)
@@ -468,41 +463,41 @@ bool Decoder::opcode_11111010(const ulittle8_t *OC, unsigned &Offset,
   return false;
 }
 
-bool Decoder::opcode_11111011(const ulittle8_t *OC, unsigned &Offset,
+bool Decoder::opcode_11111011(const uint8_t *OC, unsigned &Offset,
                               unsigned Length, bool Prologue) {
   SW.startLine() << format("0x%02x                ; nop\n", OC[Offset]);
   ++Offset;
   return false;
 }
 
-bool Decoder::opcode_11111100(const ulittle8_t *OC, unsigned &Offset,
+bool Decoder::opcode_11111100(const uint8_t *OC, unsigned &Offset,
                               unsigned Length, bool Prologue) {
   SW.startLine() << format("0x%02x                ; nop.w\n", OC[Offset]);
   ++Offset;
   return false;
 }
 
-bool Decoder::opcode_11111101(const ulittle8_t *OC, unsigned &Offset,
+bool Decoder::opcode_11111101(const uint8_t *OC, unsigned &Offset,
                               unsigned Length, bool Prologue) {
   SW.startLine() << format("0x%02x                ; b\n", OC[Offset]);
   ++Offset;
   return true;
 }
 
-bool Decoder::opcode_11111110(const ulittle8_t *OC, unsigned &Offset,
+bool Decoder::opcode_11111110(const uint8_t *OC, unsigned &Offset,
                               unsigned Length, bool Prologue) {
   SW.startLine() << format("0x%02x                ; b.w\n", OC[Offset]);
   ++Offset;
   return true;
 }
 
-bool Decoder::opcode_11111111(const ulittle8_t *OC, unsigned &Offset,
+bool Decoder::opcode_11111111(const uint8_t *OC, unsigned &Offset,
                               unsigned Length, bool Prologue) {
   ++Offset;
   return true;
 }
 
-void Decoder::decodeOpcodes(ArrayRef<ulittle8_t> Opcodes, unsigned Offset,
+void Decoder::decodeOpcodes(ArrayRef<uint8_t> Opcodes, unsigned Offset,
                             bool Prologue) {
   assert((!Prologue || Offset == 0) && "prologue should always use offset 0");
 
@@ -525,10 +520,7 @@ bool Decoder::dumpXDataRecord(const COFFObjectFile &COFF,
   if (COFF.getSectionContents(COFF.getCOFFSection(Section), Contents))
     return false;
 
-  uint64_t SectionVA;
-  if (Section.getAddress(SectionVA))
-    return false;
-
+  uint64_t SectionVA = Section.getAddress();
   uint64_t Offset = VA - SectionVA;
   const ulittle32_t *Data =
     reinterpret_cast<const ulittle32_t *>(Contents.data() + Offset);
@@ -546,7 +538,7 @@ bool Decoder::dumpXDataRecord(const COFFObjectFile &COFF,
                  static_cast<uint64_t>(XData.CodeWords() * sizeof(uint32_t)));
 
   if (XData.E()) {
-    ArrayRef<ulittle8_t> UC = XData.UnwindByteCode();
+    ArrayRef<uint8_t> UC = XData.UnwindByteCode();
     if (!XData.F()) {
       ListScope PS(SW, "Prologue");
       decodeOpcodes(UC, 0, /*Prologue=*/true);
@@ -741,4 +733,3 @@ std::error_code Decoder::dumpProcedureData(const COFFObjectFile &COFF) {
 }
 }
 }
-

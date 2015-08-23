@@ -22,13 +22,9 @@ PROGS += ${PROGS_CXX}
 
 # In meta mode, we can capture dependenices for _one_ of the progs.
 # if makefile doesn't nominate one, we use the first.
-.if defined(.PARSEDIR)
 .ifndef UPDATE_DEPENDFILE_PROG
 UPDATE_DEPENDFILE_PROG = ${PROGS:[1]}
 .export UPDATE_DEPENDFILE_PROG
-.endif
-.else
-UPDATE_DEPENDFILE_PROG?= no
 .endif
 
 .ifndef PROG
@@ -62,8 +58,6 @@ UPDATE_DEPENDFILE ?= yes
 .endif
 UPDATE_DEPENDFILE ?= NO
 
-# ensure that we don't clobber each other's dependencies
-DEPENDFILE?= .depend.${PROG}
 # prog.mk will do the rest
 .else
 all: ${FILES} ${PROGS} ${SCRIPTS}
@@ -95,17 +89,17 @@ x.$p= PROG_CXX=$p
 .endif
 
 $p ${p}_p: .PHONY .MAKE
-	(cd ${.CURDIR} && ${MAKE} -f ${MAKEFILE} _RECURSING_PROGS= \
-	    SUBDIR= PROG=$p \
-	    DEPENDFILE=.depend.$p .MAKE.DEPENDFILE=.depend.$p \
-	    ${x.$p})
+	(cd ${.CURDIR} && \
+	    DEPENDFILE=.depend.$p \
+	    ${MAKE} -f ${MAKEFILE} _RECURSING_PROGS= \
+	    SUBDIR= PROG=$p ${x.$p})
 
 .for t in ${PROGS_TARGETS:O:u}
 $p.$t: .PHONY .MAKE
-	(cd ${.CURDIR} && ${MAKE} -f ${MAKEFILE} _RECURSING_PROGS= \
-	    SUBDIR= PROG=$p \
-	    DEPENDFILE=.depend.$p .MAKE.DEPENDFILE=.depend.$p \
-	    ${x.$p} ${@:E})
+	(cd ${.CURDIR} && \
+	    DEPENDFILE=.depend.$p \
+	    ${MAKE} -f ${MAKEFILE} _RECURSING_PROGS= \
+	    SUBDIR= PROG=$p ${x.$p} ${@:E})
 .endfor
 .endfor
 

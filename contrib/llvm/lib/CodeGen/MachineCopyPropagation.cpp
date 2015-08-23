@@ -25,6 +25,7 @@
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Target/TargetInstrInfo.h"
 #include "llvm/Target/TargetRegisterInfo.h"
+#include "llvm/Target/TargetSubtargetInfo.h"
 using namespace llvm;
 
 #define DEBUG_TYPE "codegen-cp"
@@ -74,10 +75,9 @@ MachineCopyPropagation::SourceNoLongerAvailable(unsigned Reg,
            I != E; ++I) {
         unsigned MappedDef = *I;
         // Source of copy is no longer available for propagation.
-        if (AvailCopyMap.erase(MappedDef)) {
-          for (MCSubRegIterator SR(MappedDef, TRI); SR.isValid(); ++SR)
-            AvailCopyMap.erase(*SR);
-        }
+        AvailCopyMap.erase(MappedDef);
+        for (MCSubRegIterator SR(MappedDef, TRI); SR.isValid(); ++SR)
+          AvailCopyMap.erase(*SR);
       }
     }
   }
@@ -335,8 +335,8 @@ bool MachineCopyPropagation::runOnMachineFunction(MachineFunction &MF) {
 
   bool Changed = false;
 
-  TRI = MF.getTarget().getRegisterInfo();
-  TII = MF.getTarget().getInstrInfo();
+  TRI = MF.getSubtarget().getRegisterInfo();
+  TII = MF.getSubtarget().getInstrInfo();
   MRI = &MF.getRegInfo();
 
   for (MachineFunction::iterator I = MF.begin(), E = MF.end(); I != E; ++I)

@@ -1,77 +1,56 @@
 
 /*
- *  sort.c  $Id: sort.c,v 4.10 2007/04/28 22:19:23 bkorb Exp $
- * Time-stamp:      "2006-10-18 11:29:04 bkorb"
+ * \file sort.c
  *
  *  This module implements argument sorting.
+ *
+ * @addtogroup autoopts
+ * @{
  */
-
 /*
- *  Automated Options copyright 1992-2007 Bruce Korb
+ *  This file is part of AutoOpts, a companion to AutoGen.
+ *  AutoOpts is free software.
+ *  AutoOpts is Copyright (C) 1992-2015 by Bruce Korb - all rights reserved
  *
- *  Automated Options is free software.
- *  You may redistribute it and/or modify it under the terms of the
- *  GNU General Public License, as published by the Free Software
- *  Foundation; either version 2, or (at your option) any later version.
+ *  AutoOpts is available under any one of two licenses.  The license
+ *  in use must be one of these two and the choice is under the control
+ *  of the user of the license.
  *
- *  Automated Options is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
+ *   The GNU Lesser General Public License, version 3 or later
+ *      See the files "COPYING.lgplv3" and "COPYING.gplv3"
  *
- *  You should have received a copy of the GNU General Public License
- *  along with Automated Options.  See the file "COPYING".  If not,
- *  write to:  The Free Software Foundation, Inc.,
- *             51 Franklin Street, Fifth Floor,
- *             Boston, MA  02110-1301, USA.
+ *   The Modified Berkeley Software Distribution License
+ *      See the file "COPYING.mbsd"
  *
- * As a special exception, Bruce Korb gives permission for additional
- * uses of the text contained in his release of AutoOpts.
+ *  These files have the following sha256 sums:
  *
- * The exception is that, if you link the AutoOpts library with other
- * files to produce an executable, this does not by itself cause the
- * resulting executable to be covered by the GNU General Public License.
- * Your use of that executable is in no way restricted on account of
- * linking the AutoOpts library code into it.
- *
- * This exception does not however invalidate any other reasons why
- * the executable file might be covered by the GNU General Public License.
- *
- * This exception applies only to the code released by Bruce Korb under
- * the name AutoOpts.  If you copy code from other sources under the
- * General Public License into a copy of AutoOpts, as the General Public
- * License permits, the exception does not apply to the code that you add
- * in this way.  To avoid misleading anyone as to the status of such
- * modified files, you must delete this exception notice from them.
- *
- * If you write modifications of your own for AutoOpts, it is your choice
- * whether to permit this exception to apply to your modifications.
- * If you do not wish that, delete this exception notice.
+ *  8584710e9b04216a394078dc156b781d0b47e1729104d666658aecef8ee32e95  COPYING.gplv3
+ *  4379e7444a0e2ce2b12dd6f5a52a27a4d02d39d247901d3285c88cf0d37f477b  COPYING.lgplv3
+ *  13aa749a5b0a454917a944ed8fffc530b784f5ead522b1aacaf4ec8aa55a6239  COPYING.mbsd
  */
 
 /* = = = START-STATIC-FORWARD = = = */
-/* static forward declarations maintained by :mkfwd */
 static tSuccess
-mustHandleArg( tOptions* pOpts, char* pzArg, tOptState* pOS,
-               char** ppzOpts, int* pOptsIdx );
+must_arg(tOptions * opts, char * arg_txt, tOptState * pOS,
+         char ** opt_txt, uint32_t * opt_idx);
 
 static tSuccess
-mayHandleArg( tOptions* pOpts, char* pzArg, tOptState* pOS,
-              char** ppzOpts, int* pOptsIdx );
+maybe_arg(tOptions * opts, char * arg_txt, tOptState * pOS,
+          char ** opt_txt, uint32_t * opt_idx);
 
 static tSuccess
-checkShortOpts( tOptions* pOpts, char* pzArg, tOptState* pOS,
-                char** ppzOpts, int* pOptsIdx );
+short_opt_ck(tOptions * opts, char * arg_txt, tOptState * pOS,
+             char ** opt_txt, uint32_t * opt_idx);
 /* = = = END-STATIC-FORWARD = = = */
 
 /*
- *  "mustHandleArg" and "mayHandleArg" are really similar.  The biggest
+ *  "must_arg" and "maybe_arg" are really similar.  The biggest
  *  difference is that "may" will consume the next argument only if it
  *  does not start with a hyphen and "must" will consume it, hyphen or not.
  */
 static tSuccess
-mustHandleArg( tOptions* pOpts, char* pzArg, tOptState* pOS,
-               char** ppzOpts, int* pOptsIdx )
+must_arg(tOptions * opts, char * arg_txt, tOptState * pOS,
+         char ** opt_txt, uint32_t * opt_idx)
 {
     /*
      *  An option argument is required.  Long options can either have
@@ -84,7 +63,7 @@ mustHandleArg( tOptions* pOpts, char* pzArg, tOptState* pOS,
          *  See if an arg string follows the flag character.  If not,
          *  the next arg must be the option argument.
          */
-        if (*pzArg != NUL)
+        if (*arg_txt != NUL)
             return SUCCESS;
         break;
 
@@ -100,16 +79,16 @@ mustHandleArg( tOptions* pOpts, char* pzArg, tOptState* pOS,
     default:
         return FAILURE;
     }
-    if (pOpts->curOptIdx >= pOpts->origArgCt)
+    if (opts->curOptIdx >= opts->origArgCt)
         return FAILURE;
 
-    ppzOpts[ (*pOptsIdx)++ ] = pOpts->origArgVect[ (pOpts->curOptIdx)++ ];
+    opt_txt[ (*opt_idx)++ ] = opts->origArgVect[ (opts->curOptIdx)++ ];
     return SUCCESS;
 }
 
 static tSuccess
-mayHandleArg( tOptions* pOpts, char* pzArg, tOptState* pOS,
-              char** ppzOpts, int* pOptsIdx )
+maybe_arg(tOptions * opts, char * arg_txt, tOptState * pOS,
+          char ** opt_txt, uint32_t * opt_idx)
 {
     /*
      *  An option argument is optional.
@@ -121,7 +100,7 @@ mayHandleArg( tOptions* pOpts, char* pzArg, tOptState* pOS,
          *  THEN see if there is another argument.  If so and if it
          *  does *NOT* start with a hyphen, then it is the option arg.
          */
-        if (*pzArg != NUL)
+        if (*arg_txt != NUL)
             return SUCCESS;
         break;
 
@@ -137,12 +116,12 @@ mayHandleArg( tOptions* pOpts, char* pzArg, tOptState* pOS,
     default:
         return FAILURE;
     }
-    if (pOpts->curOptIdx >= pOpts->origArgCt)
+    if (opts->curOptIdx >= opts->origArgCt)
         return PROBLEM;
 
-    pzArg = pOpts->origArgVect[ pOpts->curOptIdx ];
-    if (*pzArg != '-')
-        ppzOpts[ (*pOptsIdx)++ ] = pOpts->origArgVect[ (pOpts->curOptIdx)++ ];
+    arg_txt = opts->origArgVect[ opts->curOptIdx ];
+    if (*arg_txt != '-')
+        opt_txt[ (*opt_idx)++ ] = opts->origArgVect[ (opts->curOptIdx)++ ];
     return SUCCESS;
 }
 
@@ -151,31 +130,31 @@ mayHandleArg( tOptions* pOpts, char* pzArg, tOptState* pOS,
  *  does or may take an argument, the do the argument processing and leave.
  */
 static tSuccess
-checkShortOpts( tOptions* pOpts, char* pzArg, tOptState* pOS,
-                char** ppzOpts, int* pOptsIdx )
+short_opt_ck(tOptions * opts, char * arg_txt, tOptState * pOS,
+             char ** opt_txt, uint32_t * opt_idx)
 {
-    while (*pzArg != NUL) {
-        if (FAILED( shortOptionFind( pOpts, (tAoUC)*pzArg, pOS )))
+    while (*arg_txt != NUL) {
+        if (FAILED(opt_find_short(opts, (uint8_t)*arg_txt, pOS)))
             return FAILURE;
 
         /*
          *  See if we can have an arg.
          */
         if (OPTST_GET_ARGTYPE(pOS->pOD->fOptState) == OPARG_TYPE_NONE) {
-            pzArg++;
+            arg_txt++;
 
         } else if (pOS->pOD->fOptState & OPTST_ARG_OPTIONAL) {
             /*
              *  Take an argument if it is not attached and it does not
              *  start with a hyphen.
              */
-            if (pzArg[1] != NUL)
+            if (arg_txt[1] != NUL)
                 return SUCCESS;
 
-            pzArg = pOpts->origArgVect[ pOpts->curOptIdx ];
-            if (*pzArg != '-')
-                ppzOpts[ (*pOptsIdx)++ ] =
-                    pOpts->origArgVect[ (pOpts->curOptIdx)++ ];
+            arg_txt = opts->origArgVect[ opts->curOptIdx ];
+            if (*arg_txt != '-')
+                opt_txt[ (*opt_idx)++ ] =
+                    opts->origArgVect[ (opts->curOptIdx)++ ];
             return SUCCESS;
 
         } else {
@@ -183,11 +162,11 @@ checkShortOpts( tOptions* pOpts, char* pzArg, tOptState* pOS,
              *  IF we need another argument, be sure it is there and
              *  take it.
              */
-            if (pzArg[1] == NUL) {
-                if (pOpts->curOptIdx >= pOpts->origArgCt)
+            if (arg_txt[1] == NUL) {
+                if (opts->curOptIdx >= opts->origArgCt)
                     return FAILURE;
-                ppzOpts[ (*pOptsIdx)++ ] =
-                    pOpts->origArgVect[ (pOpts->curOptIdx)++ ];
+                opt_txt[ (*opt_idx)++ ] =
+                    opts->origArgVect[ (opts->curOptIdx)++ ];
             }
             return SUCCESS;
         }
@@ -200,37 +179,37 @@ checkShortOpts( tOptions* pOpts, char* pzArg, tOptState* pOS,
  *  then this routine will to the trick.
  */
 LOCAL void
-optionSort( tOptions* pOpts )
+optionSort(tOptions * opts)
 {
-    char** ppzOpts;
-    char** ppzOpds;
-    int    optsIdx = 0;
-    int    opdsIdx = 0;
+    char **  opt_txt;
+    char **  ppzOpds;
+    uint32_t optsIdx = 0;
+    uint32_t opdsIdx = 0;
 
     tOptState os = OPTSTATE_INITIALIZER(DEFINED);
 
     /*
      *  Disable for POSIX conformance, or if there are no operands.
      */
-    if (  (getenv( "POSIXLY_CORRECT" ) != NULL)
-       || NAMED_OPTS(pOpts))
+    if (  (getenv("POSIXLY_CORRECT") != NULL)
+       || NAMED_OPTS(opts))
         return;
 
     /*
      *  Make sure we can allocate two full-sized arg vectors.
      */
-    ppzOpts = malloc( pOpts->origArgCt * sizeof( char* ));
-    if (ppzOpts == NULL)
+    opt_txt = malloc(opts->origArgCt * sizeof(char *));
+    if (opt_txt == NULL)
         goto exit_no_mem;
 
-    ppzOpds = malloc( pOpts->origArgCt * sizeof( char* ));
+    ppzOpds = malloc(opts->origArgCt * sizeof(char *));
     if (ppzOpds == NULL) {
-        free( ppzOpts );
+        free(opt_txt);
         goto exit_no_mem;
     }
 
-    pOpts->curOptIdx = 1;
-    pOpts->pzCurOpt  = NULL;
+    opts->curOptIdx = 1;
+    opts->pzCurOpt  = NULL;
 
     /*
      *  Now, process all the options from our current position onward.
@@ -238,30 +217,30 @@ optionSort( tOptions* pOpts )
      *  non-standard programs that require it.)
      */
     for (;;) {
-        char* pzArg;
+        char * arg_txt;
         tSuccess res;
 
         /*
          *  If we're out of arguments, we're done.  Join the option and
          *  operand lists into the original argument vector.
          */
-        if (pOpts->curOptIdx >= pOpts->origArgCt) {
+        if (opts->curOptIdx >= opts->origArgCt) {
             errno = 0;
             goto joinLists;
         }
 
-        pzArg = pOpts->origArgVect[ pOpts->curOptIdx ];
-        if (*pzArg != '-') {
-            ppzOpds[ opdsIdx++ ] = pOpts->origArgVect[ (pOpts->curOptIdx)++ ];
+        arg_txt = opts->origArgVect[ opts->curOptIdx ];
+        if (*arg_txt != '-') {
+            ppzOpds[ opdsIdx++ ] = opts->origArgVect[ (opts->curOptIdx)++ ];
             continue;
         }
 
-        switch (pzArg[1]) {
+        switch (arg_txt[1]) {
         case NUL:
             /*
              *  A single hyphen is an operand.
              */
-            ppzOpds[ opdsIdx++ ] = pOpts->origArgVect[ (pOpts->curOptIdx)++ ];
+            ppzOpds[ opdsIdx++ ] = opts->origArgVect[ (opts->curOptIdx)++ ];
             continue;
 
         case '-':
@@ -269,12 +248,12 @@ optionSort( tOptions* pOpts )
              *  Two consecutive hypens.  Put them on the options list and then
              *  _always_ force the remainder of the arguments to be operands.
              */
-            if (pzArg[2] == NUL) {
-                ppzOpts[ optsIdx++ ] =
-                    pOpts->origArgVect[ (pOpts->curOptIdx)++ ];
+            if (arg_txt[2] == NUL) {
+                opt_txt[ optsIdx++ ] =
+                    opts->origArgVect[ (opts->curOptIdx)++ ];
                 goto restOperands;
             }
-            res = longOptionFind( pOpts, pzArg+2, &os );
+            res = opt_find_long(opts, arg_txt+2, &os);
             break;
 
         default:
@@ -283,14 +262,14 @@ optionSort( tOptions* pOpts )
              *  option processing.  Otherwise the character must be a
              *  short (i.e. single character) option.
              */
-            if ((pOpts->fOptSet & OPTPROC_SHORTOPT) == 0) {
-                res = longOptionFind( pOpts, pzArg+1, &os );
+            if ((opts->fOptSet & OPTPROC_SHORTOPT) == 0) {
+                res = opt_find_long(opts, arg_txt+1, &os);
             } else {
-                res = shortOptionFind( pOpts, (tAoUC)pzArg[1], &os );
+                res = opt_find_short(opts, (uint8_t)arg_txt[1], &os);
             }
             break;
         }
-        if (FAILED( res )) {
+        if (FAILED(res)) {
             errno = EINVAL;
             goto freeTemps;
         }
@@ -300,7 +279,7 @@ optionSort( tOptions* pOpts )
          *  Next, we have to see if we need to pull another argument to be
          *  used as the option argument.
          */
-        ppzOpts[ optsIdx++ ] = pOpts->origArgVect[ (pOpts->curOptIdx)++ ];
+        opt_txt[ optsIdx++ ] = opts->origArgVect[ (opts->curOptIdx)++ ];
 
         if (OPTST_GET_ARGTYPE(os.pOD->fOptState) == OPARG_TYPE_NONE) {
             /*
@@ -309,20 +288,20 @@ optionSort( tOptions* pOpts )
              *  of the argument string.
              */
             if (  (os.optType == TOPT_SHORT)
-               && FAILED( checkShortOpts( pOpts, pzArg+2, &os,
-                                          ppzOpts, &optsIdx )) )  {
+               && FAILED(short_opt_ck(opts, arg_txt+2, &os, opt_txt,
+                                      &optsIdx)) )  {
                 errno = EINVAL;
                 goto freeTemps;
             }
 
         } else if (os.pOD->fOptState & OPTST_ARG_OPTIONAL) {
-            switch (mayHandleArg( pOpts, pzArg+2, &os, ppzOpts, &optsIdx )) {
+            switch (maybe_arg(opts, arg_txt+2, &os, opt_txt, &optsIdx)) {
             case FAILURE: errno = EIO; goto freeTemps;
             case PROBLEM: errno = 0;   goto joinLists;
             }
 
         } else {
-            switch (mustHandleArg( pOpts, pzArg+2, &os, ppzOpts, &optsIdx )) {
+            switch (must_arg(opts, arg_txt+2, &os, opt_txt, &optsIdx)) {
             case PROBLEM:
             case FAILURE: errno = EIO; goto freeTemps;
             }
@@ -330,19 +309,20 @@ optionSort( tOptions* pOpts )
     } /* for (;;) */
 
  restOperands:
-    while (pOpts->curOptIdx < pOpts->origArgCt)
-        ppzOpds[ opdsIdx++ ] = pOpts->origArgVect[ (pOpts->curOptIdx)++ ];
+    while (opts->curOptIdx < opts->origArgCt)
+        ppzOpds[ opdsIdx++ ] = opts->origArgVect[ (opts->curOptIdx)++ ];
 
  joinLists:
     if (optsIdx > 0)
-        memcpy( pOpts->origArgVect + 1, ppzOpts, optsIdx * sizeof( char* ));
+        memcpy(opts->origArgVect + 1, opt_txt,
+               (size_t)optsIdx * sizeof(char *));
     if (opdsIdx > 0)
-        memcpy( pOpts->origArgVect + 1 + optsIdx,
-                ppzOpds, opdsIdx * sizeof( char* ));
+        memcpy(opts->origArgVect + 1 + optsIdx, ppzOpds,
+               (size_t)opdsIdx * sizeof(char *));
 
  freeTemps:
-    free( ppzOpts );
-    free( ppzOpds );
+    free(opt_txt);
+    free(ppzOpds);
     return;
 
  exit_no_mem:
@@ -350,7 +330,8 @@ optionSort( tOptions* pOpts )
     return;
 }
 
-/*
+/** @}
+ *
  * Local Variables:
  * mode: C
  * c-file-style: "stroustrup"

@@ -49,7 +49,7 @@ CommandObject::CommandObject
     uint32_t flags
 ) :
     m_interpreter (interpreter),
-    m_cmd_name (name),
+    m_cmd_name (name ? name : ""),
     m_cmd_help_short (),
     m_cmd_help_long (),
     m_cmd_syntax (),
@@ -236,19 +236,34 @@ CommandObject::CheckRequirements (CommandReturnObject &result)
 
         if ((flags & eFlagRequiresProcess) && !m_exe_ctx.HasProcessScope())
         {
-            result.AppendError (GetInvalidProcessDescription());
+            if (!m_exe_ctx.HasTargetScope())
+                result.AppendError (GetInvalidTargetDescription());
+            else
+                result.AppendError (GetInvalidProcessDescription());
             return false;
         }
         
         if ((flags & eFlagRequiresThread) && !m_exe_ctx.HasThreadScope())
         {
-            result.AppendError (GetInvalidThreadDescription());
+            if (!m_exe_ctx.HasTargetScope())
+                result.AppendError (GetInvalidTargetDescription());
+            else if (!m_exe_ctx.HasProcessScope())
+                result.AppendError (GetInvalidProcessDescription());
+            else 
+                result.AppendError (GetInvalidThreadDescription());
             return false;
         }
         
         if ((flags & eFlagRequiresFrame) && !m_exe_ctx.HasFrameScope())
         {
-            result.AppendError (GetInvalidFrameDescription());
+            if (!m_exe_ctx.HasTargetScope())
+                result.AppendError (GetInvalidTargetDescription());
+            else if (!m_exe_ctx.HasProcessScope())
+                result.AppendError (GetInvalidProcessDescription());
+            else if (!m_exe_ctx.HasThreadScope())
+                result.AppendError (GetInvalidThreadDescription());
+            else
+                result.AppendError (GetInvalidFrameDescription());
             return false;
         }
         
@@ -733,6 +748,22 @@ BreakpointIDRangeHelpTextCallback ()
 }
 
 static const char *
+BreakpointNameHelpTextCallback ()
+{
+    return "A name that can be added to a breakpoint when it is created, or later "
+    "on with the \"breakpoint name add\" command.  "
+    "Breakpoint names can be used to specify breakpoints in all the places breakpoint ID's "
+    "and breakpoint ID ranges can be used.  As such they provide a convenient way to group breakpoints, "
+    "and to operate on breakpoints you create without having to track the breakpoint number.  "
+    "Note, the attributes you set when using a breakpoint name in a breakpoint command don't "
+    "adhere to the name, but instead are set individually on all the breakpoints currently tagged with that name.  Future breakpoints "
+    "tagged with that name will not pick up the attributes previously given using that name.  "
+    "In order to distinguish breakpoint names from breakpoint ID's and ranges, "
+    "names must start with a letter from a-z or A-Z and cannot contain spaces, \".\" or \"-\".  "
+    "Also, breakpoint names can only be applied to breakpoints, not to breakpoint locations.";
+}
+
+static const char *
 GDBFormatHelpTextCallback ()
 {
     return "A GDB format consists of a repeat count, a format letter and a size letter. "
@@ -1003,6 +1034,18 @@ CommandObject::GetArgumentDescriptionAsCString (const lldb::CommandArgumentType 
     return nullptr;
 }
 
+Target *
+CommandObject::GetDummyTarget()
+{
+    return m_interpreter.GetDebugger().GetDummyTarget();
+}
+
+Target *
+CommandObject::GetSelectedOrDummyTarget(bool prefer_dummy)
+{
+    return m_interpreter.GetDebugger().GetSelectedOrDummyTarget(prefer_dummy);
+}
+
 bool
 CommandObjectParsed::Execute (const char *args_string, CommandReturnObject &result)
 {
@@ -1085,6 +1128,7 @@ CommandObject::g_arguments_data[] =
     { eArgTypeBoolean, "boolean", CommandCompletions::eNoCompletion, { nullptr, false }, "A Boolean value: 'true' or 'false'" },
     { eArgTypeBreakpointID, "breakpt-id", CommandCompletions::eNoCompletion, { BreakpointIDHelpTextCallback, false }, nullptr },
     { eArgTypeBreakpointIDRange, "breakpt-id-list", CommandCompletions::eNoCompletion, { BreakpointIDRangeHelpTextCallback, false }, nullptr },
+    { eArgTypeBreakpointName, "breakpoint-name", CommandCompletions::eNoCompletion, { BreakpointNameHelpTextCallback, false }, nullptr },
     { eArgTypeByteSize, "byte-size", CommandCompletions::eNoCompletion, { nullptr, false }, "Number of bytes to use." },
     { eArgTypeClassName, "class-name", CommandCompletions::eNoCompletion, { nullptr, false }, "Then name of a class from the debug information in the program." },
     { eArgTypeCommandName, "cmd-name", CommandCompletions::eNoCompletion, { nullptr, false }, "A debugger command (may be multiple words), without any options or arguments." },
@@ -1103,6 +1147,7 @@ CommandObject::g_arguments_data[] =
     { eArgTypeFunctionName, "function-name", CommandCompletions::eNoCompletion, { nullptr, false }, "The name of a function." },
     { eArgTypeFunctionOrSymbol, "function-or-symbol", CommandCompletions::eNoCompletion, { nullptr, false }, "The name of a function or symbol." },
     { eArgTypeGDBFormat, "gdb-format", CommandCompletions::eNoCompletion, { GDBFormatHelpTextCallback, true }, nullptr },
+    { eArgTypeHelpText, "help-text", CommandCompletions::eNoCompletion, { nullptr, false }, "Text to be used as help for some other entity in LLDB" },
     { eArgTypeIndex, "index", CommandCompletions::eNoCompletion, { nullptr, false }, "An index into a list." },
     { eArgTypeLanguage, "language", CommandCompletions::eNoCompletion, { LanguageTypeHelpTextCallback, true }, nullptr },
     { eArgTypeLineNum, "linenum", CommandCompletions::eNoCompletion, { nullptr, false }, "Line number in a source file." },

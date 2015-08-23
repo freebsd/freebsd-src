@@ -1,13 +1,13 @@
 /*
- * /src/NTP/ntp4-dev/libparse/clk_trimtsip.c,v 4.17 2005/04/16 17:32:10 kardel RELEASE_20050508_A
+ * /src/NTP/REPOSITORY/ntp4-dev/libparse/clk_trimtsip.c,v 4.19 2009/11/01 10:47:49 kardel RELEASE_20091101_A
  *
- * clk_trimtsip.c,v 4.17 2005/04/16 17:32:10 kardel RELEASE_20050508_A
+ * clk_trimtsip.c,v 4.19 2009/11/01 10:47:49 kardel RELEASE_20091101_A
  *
  * Trimble TSIP support
  * Thanks to Sven Dietrich for providing test hardware
  *
- * Copyright (c) 1995-2005 by Frank Kardel <kardel <AT> ntp.org>
- * Copyright (c) 1989-1994 by Frank Kardel, Friedrich-Alexander Universität Erlangen-Nürnberg, Germany
+ * Copyright (c) 1995-2009 by Frank Kardel <kardel <AT> ntp.org>
+ * Copyright (c) 1989-1994 by Frank Kardel, Friedrich-Alexander Universitaet Erlangen-Nuernberg, Germany
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -44,7 +44,7 @@
 #include "ntp_syslog.h"
 #include "ntp_types.h"
 #include "ntp_fp.h"
-#include "ntp_unixtime.h"
+#include "timevalops.h"
 #include "ntp_calendar.h"
 #include "ntp_machine.h"
 #include "ntp_stdlib.h"
@@ -116,8 +116,8 @@ struct trimble
 #define STATUS_UNSAFE 1		/* not enough receivers for full precision */
 #define STATUS_SYNC   2		/* enough information for good operation */
 
-static unsigned long inp_tsip P((parse_t *, unsigned int, timestamp_t *));
-static unsigned long cvt_trimtsip P((unsigned char *, int, struct format *, clocktime_t *, void *));
+static unsigned long inp_tsip (parse_t *, char, timestamp_t *);
+static unsigned long cvt_trimtsip (unsigned char *, int, struct format *, clocktime_t *, void *);
 
 struct clockformat clock_trimtsip =
 {
@@ -136,7 +136,7 @@ struct clockformat clock_trimtsip =
 static unsigned long
 inp_tsip(
 	 parse_t      *parseio,
-	 unsigned int ch,
+	 char         ch,
 	 timestamp_t  *tstamp
 	)
 {
@@ -183,13 +183,14 @@ inp_tsip(
 			/* DLE,ETX -> end of packet */
 			parseio->parse_data[parseio->parse_index++] = DLE;
 			parseio->parse_data[parseio->parse_index] = ch;
-			parseio->parse_ldsize = parseio->parse_index+1;
+			parseio->parse_ldsize = (u_short) (parseio->parse_index + 1);
 			memcpy(parseio->parse_ldata, parseio->parse_data, parseio->parse_ldsize);
 			parseio->parse_dtime.parse_msg[parseio->parse_dtime.parse_msglen++] = DLE;
 			parseio->parse_dtime.parse_msg[parseio->parse_dtime.parse_msglen++] = ch;
 			t->t_in_pkt = t->t_dle = 0;
 			return PARSE_INP_TIME|PARSE_INP_DATA;
 		}
+		/*FALLTHROUGH*/
 
 	    default:		/* collect data */
 		t->t_dle = 0;
@@ -199,13 +200,13 @@ inp_tsip(
 
   return PARSE_INP_SKIP;
 }
-     
-static int
+
+static short
 getshort(
 	 unsigned char *p
 	 )
 {
-	return get_msb_short(&p);
+	return (short) get_msb_short(&p);
 }
 
 /*
@@ -244,7 +245,7 @@ cvt_trimtsip(
 	{
 		unsigned char *bp;
 		cmd = buffer[1];
-      
+
 		    switch(cmd)
 		    {
 		    case CMD_RCURTIME:
@@ -257,15 +258,15 @@ cvt_trimtsip(
 				    bp = &mb(0);
 				    if (fetch_ieee754(&bp, IEEE_SINGLE, &secs, trim_offsets) != IEEE_OK)
 					    return CVT_FAIL|CVT_BADFMT;
-				    
+
 				    if ((secs.l_i <= 0) ||
 					(t->t_utcknown == 0))
 				    {
 					    clock_time->flags = PARSEB_POWERUP;
 					    return CVT_OK;
 				    }
-				    if (week < 990) {
-					    week += 1024;
+				    if (week < GPSWRAP) {
+					    week += GPSWEEKS;
 				    }
 
 				    /* time OK */
@@ -274,7 +275,7 @@ cvt_trimtsip(
 				    bp = &mb(6);
 				    if (fetch_ieee754(&bp, IEEE_SINGLE, &utcoffset, trim_offsets) != IEEE_OK)
 					    return CVT_FAIL|CVT_BADFMT;
-				    
+
 				    L_SUB(&secs, &utcoffset); /* adjust GPS time to UTC time */
 
 				    gpstolfp((unsigned short)week, (unsigned short)0,
@@ -288,10 +289,10 @@ cvt_trimtsip(
 
 				    if (t->t_leap == ADDSECOND)
 					clock_time->flags |= PARSEB_LEAPADD;
-		      
+
 				    if (t->t_leap == DELSECOND)
 					clock_time->flags |= PARSEB_LEAPDEL;
-	
+
 				    switch (t->t_operable)
 				      {
 				      case STATUS_SYNC:
@@ -306,12 +307,12 @@ cvt_trimtsip(
 					clock_time->flags |= PARSEB_NOSYNC|PARSEB_POWERUP;
 					break;
 				      }
-					
+
 				    if (t->t_mode == 0)
 					    clock_time->flags |= PARSEB_POSITION;
-				    
+
 				    clock_time->flags |= PARSEB_S_LEAP|PARSEB_S_POSITION;
-				    
+
 				    return CVT_OK;
 
 			    } /* case 0x41 */
@@ -345,26 +346,26 @@ cvt_trimtsip(
 			    {
 			            l_fp t0t;
 				    unsigned char *lbp;
-				    
+
 				    /* UTC correction data - derive a leap warning */
-				    int tls   = t->t_gpsutc     = getshort((unsigned char *)&mb(12)); /* current leap correction (GPS-UTC) */
-				    int tlsf  = t->t_gpsutcleap = getshort((unsigned char *)&mb(24)); /* new leap correction */
+				    int tls   = t->t_gpsutc     = (u_short) getshort((unsigned char *)&mb(12)); /* current leap correction (GPS-UTC) */
+				    int tlsf  = t->t_gpsutcleap = (u_short) getshort((unsigned char *)&mb(24)); /* new leap correction */
 
-				    t->t_weekleap   = getshort((unsigned char *)&mb(20)); /* week no of leap correction */
-				    if (t->t_weekleap < 990)
-				      t->t_weekleap += 1024;
+				    t->t_weekleap   = (u_short) getshort((unsigned char *)&mb(20)); /* week no of leap correction */
+				    if (t->t_weekleap < GPSWRAP)
+				      t->t_weekleap = (u_short)(t->t_weekleap + GPSWEEKS);
 
-				    t->t_dayleap    = getshort((unsigned char *)&mb(22)); /* day in week of leap correction */
-				    t->t_week = getshort((unsigned char *)&mb(18)); /* current week no */
-				    if (t->t_week < 990)
-				      t->t_week += 1024;
-				    
+				    t->t_dayleap    = (u_short) getshort((unsigned char *)&mb(22)); /* day in week of leap correction */
+				    t->t_week = (u_short) getshort((unsigned char *)&mb(18)); /* current week no */
+				    if (t->t_week < GPSWRAP)
+				      t->t_week = (u_short)(t->t_weekleap + GPSWEEKS);
+
 				    lbp = (unsigned char *)&mb(14); /* last update time */
 				    if (fetch_ieee754(&lbp, IEEE_SINGLE, &t0t, trim_offsets) != IEEE_OK)
 					    return CVT_FAIL|CVT_BADFMT;
 
 				    t->t_utcknown = t0t.l_ui != 0;
-				      
+
 				    if ((t->t_utcknown) && /* got UTC information */
 					(tlsf != tls)   && /* something will change */
 					((t->t_weekleap - t->t_week) < 5)) /* and close in the future */
@@ -398,6 +399,12 @@ int clk_trimtsip_bs;
  * History:
  *
  * clk_trimtsip.c,v
+ * Revision 4.19  2009/11/01 10:47:49  kardel
+ * de-P()
+ *
+ * Revision 4.18  2009/11/01 08:46:46  kardel
+ * clarify case FALLTHROUGH
+ *
  * Revision 4.17  2005/04/16 17:32:10  kardel
  * update copyright
  *

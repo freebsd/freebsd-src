@@ -535,7 +535,7 @@ public:
     DumpUsingSettingsFormat (Stream &strm, uint32_t frame_idx);
 
     bool
-    GetDescription (Stream &s, lldb::DescriptionLevel level, bool json_output);
+    GetDescription (Stream &s, lldb::DescriptionLevel level, bool print_json_thread, bool print_json_stopinfo);
 
     //------------------------------------------------------------------
     /// Default implementation for stepping into.
@@ -912,6 +912,11 @@ public:
                                  bool stop_others,
                                  uint32_t frame_idx);
 
+    virtual lldb::ThreadPlanSP
+    QueueThreadPlanForStepScripted (bool abort_other_plans,
+                                    const char *class_name,
+                                    bool stop_other_threads);
+
     //------------------------------------------------------------------
     // Thread Plan accessors:
     //------------------------------------------------------------------
@@ -1041,6 +1046,20 @@ public:
 
     void
     DiscardThreadPlansUpToPlan (ThreadPlan *up_to_plan_ptr);
+
+    //------------------------------------------------------------------
+    /// Discards the plans queued on the plan stack of the current thread up to and
+    /// including the plan in that matches \a thread_index counting only
+    /// the non-Private plans.
+    ///
+    /// @param[in] up_to_plan_sp
+    ///   Discard all plans up to and including this user plan given by this index.
+    ///
+    /// @return
+    ///    \b true if there was a thread plan with that user index, \b false otherwise.
+    //------------------------------------------------------------------
+    bool
+    DiscardUserThreadPlansUpToIndex (uint32_t thread_index);
     
     //------------------------------------------------------------------
     /// Prints the current plan stack.
@@ -1050,7 +1069,10 @@ public:
     ///
     //------------------------------------------------------------------
     void
-    DumpThreadPlans (Stream *s) const;
+    DumpThreadPlans (Stream *s,
+                     lldb::DescriptionLevel desc_level = lldb::eDescriptionLevelVerbose,
+                     bool include_internal = true,
+                     bool ignore_boring = false) const;
     
     virtual bool
     CheckpointThreadState (ThreadStateCheckpoint &saved_state);
@@ -1293,6 +1315,7 @@ protected:
     lldb::ProcessWP     m_process_wp;           ///< The process that owns this thread.
     lldb::StopInfoSP    m_stop_info_sp;         ///< The private stop reason for this thread
     uint32_t            m_stop_info_stop_id;    // This is the stop id for which the StopInfo is valid.  Can use this so you know that
+    uint32_t            m_stop_info_override_stop_id;    // The stop ID containing the last time the stop info was checked against the stop info override
     // the thread's m_stop_info_sp is current and you don't have to fetch it again
     const uint32_t      m_index_id;             ///< A unique 1 based index assigned to each thread for easy UI/command line access.
     lldb::RegisterContextSP m_reg_context_sp;   ///< The register context for this thread's current register state.

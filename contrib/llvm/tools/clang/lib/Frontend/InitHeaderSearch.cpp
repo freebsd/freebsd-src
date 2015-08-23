@@ -14,7 +14,6 @@
 #include "clang/Frontend/Utils.h"
 #include "clang/Basic/FileManager.h"
 #include "clang/Basic/LangOptions.h"
-#include "clang/Basic/Version.h"
 #include "clang/Config/config.h" // C_INCLUDE_DIRS
 #include "clang/Lex/HeaderSearch.h"
 #include "clang/Lex/HeaderSearchOptions.h"
@@ -337,9 +336,6 @@ void InitHeaderSearch::AddDefaultCIncludePaths(const llvm::Triple &triple,
       break;
     }
     break;
-  case llvm::Triple::FreeBSD:
-    AddPath("/usr/include/clang/" CLANG_VERSION_STRING, System, false);
-    break;
   default:
     break;
   }
@@ -384,7 +380,6 @@ AddDefaultCPlusPlusIncludePaths(const llvm::Triple &triple, const HeaderSearchOp
       break;
 
     case llvm::Triple::aarch64:
-    case llvm::Triple::arm64:
       AddGnuCPlusPlusIncludePaths("/usr/include/c++/4.2.1",
                                   "arm64-apple-darwin10", "", "", triple);
       break;
@@ -395,7 +390,7 @@ AddDefaultCPlusPlusIncludePaths(const llvm::Triple &triple, const HeaderSearchOp
   switch (os) {
   case llvm::Triple::Linux:
     llvm_unreachable("Include management is handled in the driver.");
-
+    break;
   case llvm::Triple::Win32:
     switch (triple.getEnvironment()) {
     default: llvm_unreachable("Include management is handled in the driver.");
@@ -449,11 +444,6 @@ AddDefaultCPlusPlusIncludePaths(const llvm::Triple &triple, const HeaderSearchOp
   case llvm::Triple::Solaris:
     AddGnuCPlusPlusIncludePaths("/usr/gcc/4.5/include/c++/4.5.2/",
                                 "i386-pc-solaris2.11", "", "", triple);
-    // Solaris - Fall though..
-  case llvm::Triple::AuroraUX:
-    // AuroraUX
-    AddGnuCPlusPlusIncludePaths("/opt/gcc4/include/c++/4.2.4",
-                                "i386-pc-solaris2.11", "", "", triple);
     break;
   default:
     break;
@@ -477,7 +467,7 @@ void InitHeaderSearch::AddDefaultIncludePaths(const LangOptions &Lang,
   case llvm::Triple::Win32:
     if (triple.getEnvironment() == llvm::Triple::MSVC ||
         triple.getEnvironment() == llvm::Triple::Itanium ||
-        triple.getObjectFormat() == llvm::Triple::MachO)
+        triple.isOSBinFormatMachO())
       return;
     break;
   }
@@ -539,16 +529,16 @@ static unsigned RemoveDuplicates(std::vector<DirectoryLookup> &SearchList,
 
     if (CurEntry.isNormalDir()) {
       // If this isn't the first time we've seen this dir, remove it.
-      if (SeenDirs.insert(CurEntry.getDir()))
+      if (SeenDirs.insert(CurEntry.getDir()).second)
         continue;
     } else if (CurEntry.isFramework()) {
       // If this isn't the first time we've seen this framework dir, remove it.
-      if (SeenFrameworkDirs.insert(CurEntry.getFrameworkDir()))
+      if (SeenFrameworkDirs.insert(CurEntry.getFrameworkDir()).second)
         continue;
     } else {
       assert(CurEntry.isHeaderMap() && "Not a headermap or normal dir?");
       // If this isn't the first time we've seen this headermap, remove it.
-      if (SeenHeaderMaps.insert(CurEntry.getHeaderMap()))
+      if (SeenHeaderMaps.insert(CurEntry.getHeaderMap()).second)
         continue;
     }
 

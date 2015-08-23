@@ -16,7 +16,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 21, 2013
+.Dd May 7, 2015
 .Dt USB_QUIRK 4
 .Os
 .Sh NAME
@@ -170,6 +170,9 @@ ejects after Huawei SCSI command
 .It UQ_MSC_EJECT_TCT
 ejects after TCT SCSI command
 .Dv 0x06f504025270
+.It UQ_MSC_DYMO_EJECT
+ejects after HID command
+.Dv 0x1b5a01
 .El
 .Pp
 See

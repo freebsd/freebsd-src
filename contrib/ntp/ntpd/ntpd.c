@@ -12,12 +12,20 @@
 #include "ntp_stdlib.h"
 #include <ntp_random.h>
 
+#include "ntp_config.h"
+#include "ntp_syslog.h"
+#include "ntp_assert.h"
+#include "isc/error.h"
+#include "isc/strerror.h"
+#include "isc/formatcheck.h"
+#include "iosignal.h"
+
 #ifdef SIM
 # include "ntpsim.h"
-# include "ntpdsim-opts.h"
-#else
-# include "ntpd-opts.h"
 #endif
+
+#include "ntp_libopts.h"
+#include "ntpd-opts.h"
 
 #ifdef HAVE_UNISTD_H
 # include <unistd.h>
@@ -26,11 +34,9 @@
 # include <sys/stat.h>
 #endif
 #include <stdio.h>
-#if !defined(VMS)	/*wjm*/
-# ifdef HAVE_SYS_PARAM_H
-#  include <sys/param.h>
-# endif
-#endif /* VMS */
+#ifdef HAVE_SYS_PARAM_H
+# include <sys/param.h>
+#endif
 #ifdef HAVE_SYS_SIGNAL_H
 # include <sys/signal.h>
 #else
@@ -39,13 +45,7 @@
 #ifdef HAVE_SYS_IOCTL_H
 # include <sys/ioctl.h>
 #endif /* HAVE_SYS_IOCTL_H */
-#ifdef HAVE_SYS_RESOURCE_H
-# include <sys/resource.h>
-#endif /* HAVE_SYS_RESOURCE_H */
 #if defined(HAVE_RTPRIO)
-# ifdef HAVE_SYS_RESOURCE_H
-#  include <sys/resource.h>
-# endif
 # ifdef HAVE_SYS_LOCK_H
 #  include <sys/lock.h>
 # endif
@@ -78,8 +78,9 @@
 # include <apollo/base.h>
 #endif /* SYS_DOMAINOS */
 
-#include "recvbuff.h"  
-#include "ntp_cmdargs.h"  
+
+#include "recvbuff.h"
+#include "ntp_cmdargs.h"
 
 #if 0				/* HMS: I don't think we need this. 961223 */
 #ifdef LOCK_PROCESS
@@ -106,30 +107,34 @@
 #ifdef HAVE_LINUX_CAPABILITIES
 # include <sys/capability.h>
 # include <sys/prctl.h>
-#endif
-#endif
+#endif /* HAVE_LINUX_CAPABILITIES */
+#if defined(HAVE_PRIV_H) && defined(HAVE_SOLARIS_PRIVS)
+# include <priv.h>
+#endif /* HAVE_PRIV_H */
+#endif /* HAVE_DROPROOT */
 
-/*
- * Signals we catch for debugging.	If not debugging we ignore them.
- */
-#define MOREDEBUGSIG	SIGUSR1
-#define LESSDEBUGSIG	SIGUSR2
-
-/*
- * Signals which terminate us gracefully.
- */
-#ifndef SYS_WINNT
-# define SIGDIE1 	SIGHUP
-# define SIGDIE3 	SIGQUIT
-# define SIGDIE2 	SIGINT
-# define SIGDIE4 	SIGTERM
-#endif /* SYS_WINNT */
+#if defined (LIBSECCOMP) && (KERN_SECCOMP)
+/* # include <sys/types.h> */
+# include <sys/resource.h>
+# include <seccomp.h>
+#endif /* LIBSECCOMP and KERN_SECCOMP */
 
 #ifdef HAVE_DNSREGISTRATION
-#include <dns_sd.h>
+# include <dns_sd.h>
 DNSServiceRef mdns;
 #endif
 
+#ifdef HAVE_SETPGRP_0
+# define ntp_setpgrp(x, y)	setpgrp()
+#else
+# define ntp_setpgrp(x, y)	setpgrp(x, y)
+#endif
+
+#ifdef HAVE_SOLARIS_PRIVS
+# define LOWPRIVS "basic,sys_time,net_privaddr,proc_setid,!proc_info,!proc_session,!proc_exec"
+static priv_set_t *lowprivs = NULL;
+static priv_set_t *highprivs = NULL;
+#endif /* HAVE_SOLARIS_PRIVS */
 /*
  * Scheduling priority we run at
  */
@@ -140,32 +145,39 @@ int priority_done = 2;		/* 0 - Set priority */
 				/* 2 - Don't set priority */
 				/* 1 and 2 are pretty much the same */
 
-#ifdef DEBUG
-/*
- * Debugging flag
- */
-volatile int debug = 0;		/* No debugging by default */
-#endif
-
-int	listen_to_virtual_ips = 1;
-const char *specific_interface = NULL;        /* interface name or IP address to bind to */
+int listen_to_virtual_ips = TRUE;
 
 /*
  * No-fork flag.  If set, we do not become a background daemon.
  */
-int nofork = 0;			/* Fork by default */
+int nofork;			/* Fork by default */
+
+#ifdef HAVE_DNSREGISTRATION
+/*
+ * mDNS registration flag. If set, we attempt to register with the mDNS system, but only
+ * after we have synched the first time. If the attempt fails, then try again once per 
+ * minute for up to 5 times. After all, we may be starting before mDNS.
+ */
+int mdnsreg = FALSE;
+int mdnstries = 5;
+#endif  /* HAVE_DNSREGISTRATION */
 
 #ifdef HAVE_DROPROOT
-int droproot = 0;
-char *user = NULL;		/* User to switch to */
-char *group = NULL;		/* group to switch to */
-char *chrootdir = NULL;		/* directory to chroot to */
-int sw_uid;
-int sw_gid;
-char *endp;  
+int droproot;
+int root_dropped;
+char *user;		/* User to switch to */
+char *group;		/* group to switch to */
+const char *chrootdir;	/* directory to chroot to */
+uid_t sw_uid;
+gid_t sw_gid;
+char *endp;
 struct group *gr;
-struct passwd *pw; 
+struct passwd *pw;
 #endif /* HAVE_DROPROOT */
+
+#ifdef HAVE_WORKING_FORK
+int	waitsync_fd_to_close = -1;	/* -w/--wait-sync */
+#endif
 
 /*
  * Initializing flag.  All async routines watch this and only do their
@@ -186,105 +198,66 @@ int was_alarmed;
 /*
  * We put this here, since the argument profile is syscall-specific
  */
-extern int syscall	P((int, ...));
+extern int syscall	(int, ...);
 #endif /* DECL_SYSCALL */
 
 
-#ifdef	SIGDIE2
-static	RETSIGTYPE	finish		P((int));
-#endif	/* SIGDIE2 */
-
-#ifdef	DEBUG
-#ifndef SYS_WINNT
-static	RETSIGTYPE	moredebug	P((int));
-static	RETSIGTYPE	lessdebug	P((int));
+#if !defined(SIM) && defined(SIGDIE1)
+static	RETSIGTYPE	finish		(int);
 #endif
-#else /* not DEBUG */
-static	RETSIGTYPE	no_debug	P((int));
-#endif	/* not DEBUG */
 
-int 		ntpdmain		P((int, char **));
-static void	set_process_priority	P((void));
-static void	init_logging		P((char const *));
-static void	setup_logfile		P((void));
+#if !defined(SIM) && defined(HAVE_WORKING_FORK)
+static int	wait_child_sync_if	(int, long);
+#endif
 
-/*
- * Initialize the logging
- */
-void
-init_logging(char const *name)
-{
-	const char *cp;
+#if !defined(SIM) && !defined(SYS_WINNT)
+# ifdef	DEBUG
+static	RETSIGTYPE	moredebug	(int);
+static	RETSIGTYPE	lessdebug	(int);
+# else	/* !DEBUG follows */
+static	RETSIGTYPE	no_debug	(int);
+# endif	/* !DEBUG */
+#endif	/* !SIM && !SYS_WINNT */
 
-	/*
-	 * Logging.  This may actually work on the gizmo board.  Find a name
-	 * to log with by using the basename
-	 */
-	cp = strrchr(name, '/');
-	if (cp == 0)
-		cp = name;
-	else
-		cp++;
+int	saved_argc;
+char **	saved_argv;
 
-#if !defined(VMS)
-
-# ifndef LOG_DAEMON
-	openlog(cp, LOG_PID);
-# else /* LOG_DAEMON */
-
-#  ifndef LOG_NTP
-#	define	LOG_NTP LOG_DAEMON
-#  endif
-	openlog(cp, LOG_PID | LOG_NDELAY, LOG_NTP);
-#  ifdef DEBUG
-	if (debug)
-		setlogmask(LOG_UPTO(LOG_DEBUG));
-	else
-#  endif /* DEBUG */
-		setlogmask(LOG_UPTO(LOG_DEBUG)); /* @@@ was INFO */
-# endif /* LOG_DAEMON */
-#endif	/* !SYS_WINNT && !VMS */
-
-	NLOG(NLOG_SYSINFO) /* conditional if clause for conditional syslog */
-		msyslog(LOG_NOTICE, "%s", Version);
-}
+#ifndef SIM
+int		ntpdmain		(int, char **);
+static void	set_process_priority	(void);
+static void	assertion_failed	(const char *, int,
+					 isc_assertiontype_t,
+					 const char *)
+			__attribute__	((__noreturn__));
+static void	library_fatal_error	(const char *, int, 
+					 const char *, va_list)
+					ISC_FORMAT_PRINTF(3, 0);
+static void	library_unexpected_error(const char *, int,
+					 const char *, va_list)
+					ISC_FORMAT_PRINTF(3, 0);
+#endif	/* !SIM */
 
 
-/*
- * See if we should redirect the logfile
- */
+
 
 void
-setup_logfile(
-	void
+parse_cmdline_opts(
+	int *	pargc,
+	char ***pargv
 	)
 {
-	if (HAVE_OPT( LOGFILE )) {
-		const char *my_optarg = OPT_ARG( LOGFILE );
-		FILE *new_file;
+	static int	parsed;
+	static int	optct;
 
-		if(strcmp(my_optarg, "stderr") == 0)
-			new_file = stderr;
-		else if(strcmp(my_optarg, "stdout") == 0)
-			new_file = stdout;
-		else
-			new_file = fopen(my_optarg, "a");
-		if (new_file != NULL) {
-			NLOG(NLOG_SYSINFO)
-				msyslog(LOG_NOTICE, "logging to file %s", my_optarg);
-			if (syslog_file != NULL &&
-				fileno(syslog_file) != fileno(new_file))
-				(void)fclose(syslog_file);
+	if (!parsed)
+		optct = ntpOptionProcess(&ntpdOptions, *pargc, *pargv);
 
-			syslog_file = new_file;
-			syslogit = 0;
-		}
-		else
-			msyslog(LOG_ERR,
-				"Cannot open log file %s",
-				my_optarg);
-	}
+	parsed = 1;
+	
+	*pargc -= optct;
+	*pargv += optct;
 }
+
 
 #ifdef SIM
 int
@@ -293,12 +266,19 @@ main(
 	char *argv[]
 	)
 {
+	progname = argv[0];
+	parse_cmdline_opts(&argc, &argv);
+#ifdef DEBUG
+	debug = OPT_VALUE_SET_DEBUG_LEVEL;
+	DPRINTF(1, ("%s\n", Version));
+#endif
+
 	return ntpsim(argc, argv);
 }
-#else /* SIM */
+#else	/* !SIM follows */
 #ifdef NO_MAIN_ALLOWED
 CALL(ntpd,"ntpd",ntpdmain);
-#else
+#else	/* !NO_MAIN_ALLOWED follows */
 #ifndef SYS_WINNT
 int
 main(
@@ -308,18 +288,18 @@ main(
 {
 	return ntpdmain(argc, argv);
 }
-#endif /* SYS_WINNT */
-#endif /* NO_MAIN_ALLOWED */
-#endif /* SIM */
+#endif /* !SYS_WINNT */
+#endif /* !NO_MAIN_ALLOWED */
+#endif /* !SIM */
 
 #ifdef _AIX
 /*
  * OK. AIX is different than solaris in how it implements plock().
  * If you do NOT adjust the stack limit, you will get the MAXIMUM
- * stack size allocated and PINNED with you program. To check the 
- * value, use ulimit -a. 
+ * stack size allocated and PINNED with you program. To check the
+ * value, use ulimit -a.
  *
- * To fix this, we create an automatic variable and set our stack limit 
+ * To fix this, we create an automatic variable and set our stack limit
  * to that PLUS 32KB of extra space (we need some headroom).
  *
  * This subroutine gets the stack address.
@@ -349,11 +329,12 @@ catch_danger(int signo)
 /*
  * Set the process priority
  */
+#ifndef SIM
 static void
 set_process_priority(void)
 {
 
-#ifdef DEBUG
+# ifdef DEBUG
 	if (debug > 1)
 		msyslog(LOG_DEBUG, "set_process_priority: %s: priority_done is <%d>",
 			((priority_done)
@@ -361,13 +342,9 @@ set_process_priority(void)
 			 : "Attempt to set priority"
 				),
 			priority_done);
-#endif /* DEBUG */
+# endif /* DEBUG */
 
-#ifdef SYS_WINNT
-	priority_done += NT_set_process_priority();
-#endif
-
-#if defined(HAVE_SCHED_SETSCHEDULER)
+# if defined(HAVE_SCHED_SETSCHEDULER)
 	if (!priority_done) {
 		extern int config_priority_override, config_priority;
 		int pmax, pmin;
@@ -389,9 +366,9 @@ set_process_priority(void)
 		else
 			++priority_done;
 	}
-#endif /* HAVE_SCHED_SETSCHEDULER */
-#if defined(HAVE_RTPRIO)
-# ifdef RTP_SET
+# endif /* HAVE_SCHED_SETSCHEDULER */
+# ifdef HAVE_RTPRIO
+#  ifdef RTP_SET
 	if (!priority_done) {
 		struct rtprio srtp;
 
@@ -403,17 +380,17 @@ set_process_priority(void)
 		else
 			++priority_done;
 	}
-# else /* not RTP_SET */
+#  else	/* !RTP_SET follows */
 	if (!priority_done) {
 		if (rtprio(0, 120) < 0)
 			msyslog(LOG_ERR, "rtprio() error: %m");
 		else
 			++priority_done;
 	}
-# endif /* not RTP_SET */
-#endif  /* HAVE_RTPRIO */
-#if defined(NTPD_PRIO) && NTPD_PRIO != 0
-# ifdef HAVE_ATT_NICE
+#  endif	/* !RTP_SET */
+# endif	/* HAVE_RTPRIO */
+# if defined(NTPD_PRIO) && NTPD_PRIO != 0
+#  ifdef HAVE_ATT_NICE
 	if (!priority_done) {
 		errno = 0;
 		if (-1 == nice (NTPD_PRIO) && errno != 0)
@@ -421,148 +398,214 @@ set_process_priority(void)
 		else
 			++priority_done;
 	}
-# endif /* HAVE_ATT_NICE */
-# ifdef HAVE_BSD_NICE
+#  endif	/* HAVE_ATT_NICE */
+#  ifdef HAVE_BSD_NICE
 	if (!priority_done) {
 		if (-1 == setpriority(PRIO_PROCESS, 0, NTPD_PRIO))
 			msyslog(LOG_ERR, "setpriority() error: %m");
 		else
 			++priority_done;
 	}
-# endif /* HAVE_BSD_NICE */
-#endif /* NTPD_PRIO && NTPD_PRIO != 0 */
+#  endif	/* HAVE_BSD_NICE */
+# endif	/* NTPD_PRIO && NTPD_PRIO != 0 */
 	if (!priority_done)
 		msyslog(LOG_ERR, "set_process_priority: No way found to improve our priority");
 }
+#endif	/* !SIM */
 
 
 /*
  * Main program.  Initialize us, disconnect us from the tty if necessary,
  * and loop waiting for I/O and/or timer expiries.
  */
+#ifndef SIM
 int
 ntpdmain(
 	int argc,
 	char *argv[]
 	)
 {
-	l_fp now;
+	l_fp		now;
 	struct recvbuf *rbuf;
-#ifdef _AIX			/* HMS: ifdef SIGDANGER? */
+	const char *	logfilename;
+# ifdef HAVE_UMASK
+	mode_t		uv;
+# endif
+# if defined(HAVE_GETUID) && !defined(MPE) /* MPE lacks the concept of root */
+	uid_t		uid;
+# endif
+# if defined(HAVE_WORKING_FORK)
+	long		wait_sync = 0;
+	int		pipe_fds[2];
+	int		rc;
+	int		exit_code;
+#  ifdef _AIX
 	struct sigaction sa;
-#endif
+#  endif
+#  if !defined(HAVE_SETSID) && !defined (HAVE_SETPGID) && defined(TIOCNOTTY)
+	int		fid;
+#  endif
+# endif	/* HAVE_WORKING_FORK*/
+# ifdef SCO5_CLOCK
+	int		fd;
+	int		zero;
+# endif
 
+# ifdef HAVE_UMASK
+	uv = umask(0);
+	if (uv)
+		umask(uv);
+	else
+		umask(022);
+# endif
+	saved_argc = argc;
+	saved_argv = argv;
 	progname = argv[0];
+	initializing = TRUE;		/* mark that we are initializing */
+	parse_cmdline_opts(&argc, &argv);
+# ifdef DEBUG
+	debug = OPT_VALUE_SET_DEBUG_LEVEL;
+#  ifdef HAVE_SETLINEBUF
+	setlinebuf(stdout);
+#  endif
+# endif
 
-	initializing = 1;		/* mark that we are initializing */
+	if (HAVE_OPT(NOFORK) || HAVE_OPT(QUIT)
+# ifdef DEBUG
+	    || debug
+# endif
+	    || HAVE_OPT(SAVECONFIGQUIT))
+		nofork = TRUE;
 
-	{
-		int optct = optionProcess(
-#ifdef SIM
-					  &ntpdsimOptions
-#else
-					  &ntpdOptions
-#endif
-					  , argc, argv);
-		argc -= optct;
-		argv += optct;
+	init_logging(progname, NLOG_SYNCMASK, TRUE);
+	/* honor -l/--logfile option to log to a file */
+	if (HAVE_OPT(LOGFILE)) {
+		logfilename = OPT_ARG(LOGFILE);
+		syslogit = FALSE;
+		change_logfile(logfilename, FALSE);
+	} else {
+		logfilename = NULL;
+		if (nofork)
+			msyslog_term = TRUE;
+		if (HAVE_OPT(SAVECONFIGQUIT))
+			syslogit = FALSE;
 	}
+	msyslog(LOG_NOTICE, "%s: Starting", Version);
 
-	/* HMS: is this lame? Should we process -l first? */
-
-	init_logging(progname);		/* Open the log file */
-
-#ifdef HAVE_UMASK
 	{
-		mode_t uv;
+		int i;
+		char buf[1024];	/* Secret knowledge of msyslog buf length */
+		char *cp = buf;
 
-		uv = umask(0);
-		if(uv)
-			(void) umask(uv);
-		else
-			(void) umask(022);
-	}
-#endif
+		/* Note that every arg has an initial space character */
+		snprintf(cp, sizeof(buf), "Command line:");
+		cp += strlen(cp);
 
-#if defined(HAVE_GETUID) && !defined(MPE) /* MPE lacks the concept of root */
-	{
-		uid_t uid;
-
-		uid = getuid();
-		if (uid)
-		{
-			msyslog(LOG_ERR, "ntpd: must be run as root, not uid %ld", (long)uid);
-			printf("must be run as root, not uid %ld", (long)uid);
-			exit(1);
+		for (i = 0; i < saved_argc ; ++i) {
+			snprintf(cp, sizeof(buf) - (cp - buf),
+				" %s", saved_argv[i]);
+			cp += strlen(cp);
 		}
+		msyslog(LOG_INFO, "%s", buf);
 	}
-#endif
 
-#ifdef OPENSSL
-	if ((SSLeay() ^ OPENSSL_VERSION_NUMBER) & ~0xff0L) {
+	/*
+	 * Install trap handlers to log errors and assertion failures.
+	 * Default handlers print to stderr which doesn't work if detached.
+	 */
+	isc_assertion_setcallback(assertion_failed);
+	isc_error_setfatal(library_fatal_error);
+	isc_error_setunexpected(library_unexpected_error);
+
+	/* MPE lacks the concept of root */
+# if defined(HAVE_GETUID) && !defined(MPE)
+	uid = getuid();
+	if (uid && !HAVE_OPT( SAVECONFIGQUIT )) {
+		msyslog_term = TRUE;
 		msyslog(LOG_ERR,
-		    "ntpd: OpenSSL version mismatch. Built against %lx, you have %lx\n",
-		    OPENSSL_VERSION_NUMBER, SSLeay());
+			"must be run as root, not uid %ld", (long)uid);
 		exit(1);
 	}
-#endif
-
-	/* getstartup(argc, argv); / * startup configuration, may set debug */
-
-#ifdef DEBUG
-	debug = DESC(DEBUG_LEVEL).optOccCt;
-	if (debug)
-	    printf("%s\n", Version);
-#endif
+# endif
 
 /*
  * Enable the Multi-Media Timer for Windows?
  */
-#ifdef SYS_WINNT
+# ifdef SYS_WINNT
 	if (HAVE_OPT( MODIFYMMTIMER ))
 		set_mm_timer(MM_TIMER_HIRES);
-#endif
+# endif
 
-	if (HAVE_OPT( NOFORK ) || HAVE_OPT( QUIT ))
-		nofork = 1;
+#ifdef HAVE_DNSREGISTRATION
+/*
+ * Enable mDNS registrations?
+ */
+	if (HAVE_OPT( MDNS )) {
+		mdnsreg = TRUE;
+	}
+#endif  /* HAVE_DNSREGISTRATION */
 
 	if (HAVE_OPT( NOVIRTUALIPS ))
 		listen_to_virtual_ips = 0;
 
+	/*
+	 * --interface, listen on specified interfaces
+	 */
 	if (HAVE_OPT( INTERFACE )) {
-#if 0
-		int	ifacect = STACKCT_OPT( INTERFACE );
-		char**	ifaces  = STACKLST_OPT( INTERFACE );
+		int		ifacect = STACKCT_OPT( INTERFACE );
+		const char**	ifaces  = STACKLST_OPT( INTERFACE );
+		sockaddr_u	addr;
 
-		/* malloc space for the array of names */
 		while (ifacect-- > 0) {
-			next_iface = *ifaces++;
+			add_nic_rule(
+				is_ip_address(*ifaces, AF_UNSPEC, &addr)
+					? MATCH_IFADDR
+					: MATCH_IFNAME,
+				*ifaces, -1, ACTION_LISTEN);
+			ifaces++;
 		}
-#else
-		specific_interface = OPT_ARG( INTERFACE );
-#endif
 	}
 
 	if (HAVE_OPT( NICE ))
 		priority_done = 0;
 
-#if defined(HAVE_SCHED_SETSCHEDULER)
+# ifdef HAVE_SCHED_SETSCHEDULER
 	if (HAVE_OPT( PRIORITY )) {
 		config_priority = OPT_VALUE_PRIORITY;
 		config_priority_override = 1;
 		priority_done = 0;
 	}
-#endif
+# endif
 
-#ifdef SYS_WINNT
+# ifdef HAVE_WORKING_FORK
+	do {					/* 'loop' once */
+		if (!HAVE_OPT( WAIT_SYNC ))
+			break;
+		wait_sync = OPT_VALUE_WAIT_SYNC;
+		if (wait_sync <= 0) {
+			wait_sync = 0;
+			break;
+		}
+		/* -w requires a fork() even with debug > 0 */
+		nofork = FALSE;
+		if (pipe(pipe_fds)) {
+			exit_code = (errno) ? errno : -1;
+			msyslog(LOG_ERR,
+				"Pipe creation failed for --wait-sync: %m");
+			exit(exit_code);
+		}
+		waitsync_fd_to_close = pipe_fds[1];
+	} while (0);				/* 'loop' once */
+# endif	/* HAVE_WORKING_FORK */
+
+	init_lib();
+# ifdef SYS_WINNT
 	/*
-	 * Initialize the time structures and variables
+	 * Start interpolation thread, must occur before first
+	 * get_systime()
 	 */
 	init_winnt_time();
-#endif
-
-	setup_logfile();
-
+# endif
 	/*
 	 * Initialize random generator and public key pair
 	 */
@@ -570,256 +613,171 @@ ntpdmain(
 
 	ntp_srandom((int)(now.l_i * now.l_uf));
 
-#ifdef HAVE_DNSREGISTRATION
-	/* HMS: does this have to happen this early? */
-	msyslog(LOG_INFO, "Attemping to register mDNS");
-	if ( DNSServiceRegister (&mdns, 0, 0, NULL, "_ntp._udp", NULL, NULL, htons(NTP_PORT), 0, NULL, NULL, NULL) != kDNSServiceErr_NoError ) {
-		msyslog(LOG_ERR, "Unable to register mDNS");
-	}
-#endif
-
-#if !defined(VMS)
-# ifndef NODETACH
 	/*
 	 * Detach us from the terminal.  May need an #ifndef GIZMO.
 	 */
-	if (
-#  ifdef DEBUG
-	    !debug &&
-#  endif /* DEBUG */
-	    !nofork)
-	{
-#  ifndef SYS_WINNT
-#   ifdef HAVE_DAEMON
-		daemon(0, 0);
-#   else /* not HAVE_DAEMON */
-		if (fork())	/* HMS: What about a -1? */
-			exit(0);
+	if (!nofork) {
 
-		{
-#if !defined(F_CLOSEM)
-			u_long s;
-			int max_fd;
-#endif /* not F_CLOSEM */
-
-#if defined(F_CLOSEM)
-			/*
-			 * From 'Writing Reliable AIX Daemons,' SG24-4946-00,
-			 * by Eric Agar (saves us from doing 32767 system
-			 * calls)
-			 */
-			if (fcntl(0, F_CLOSEM, 0) == -1)
-			    msyslog(LOG_ERR, "ntpd: failed to close open files(): %m");
-#else  /* not F_CLOSEM */
-
-# if defined(HAVE_SYSCONF) && defined(_SC_OPEN_MAX)
-			max_fd = sysconf(_SC_OPEN_MAX);
-# else /* HAVE_SYSCONF && _SC_OPEN_MAX */
-			max_fd = getdtablesize();
-# endif /* HAVE_SYSCONF && _SC_OPEN_MAX */
-			for (s = 0; s < max_fd; s++)
-				(void) close((int)s);
-#endif /* not F_CLOSEM */
-			(void) open("/", 0);
-			(void) dup2(0, 1);
-			(void) dup2(0, 2);
-#ifdef SYS_DOMAINOS
-			{
-				uid_$t puid;
-				status_$t st;
-
-				proc2_$who_am_i(&puid);
-				proc2_$make_server(&puid, &st);
-			}
-#endif /* SYS_DOMAINOS */
-#if defined(HAVE_SETPGID) || defined(HAVE_SETSID)
-# ifdef HAVE_SETSID
-			if (setsid() == (pid_t)-1)
-				msyslog(LOG_ERR, "ntpd: setsid(): %m");
-# else
-			if (setpgid(0, 0) == -1)
-				msyslog(LOG_ERR, "ntpd: setpgid(): %m");
-# endif
-#else /* HAVE_SETPGID || HAVE_SETSID */
-			{
-# if defined(TIOCNOTTY)
-				int fid;
-
-				fid = open("/dev/tty", 2);
-				if (fid >= 0)
-				{
-					(void) ioctl(fid, (u_long) TIOCNOTTY, (char *) 0);
-					(void) close(fid);
-				}
-# endif /* defined(TIOCNOTTY) */
-# ifdef HAVE_SETPGRP_0
-				(void) setpgrp();
-# else /* HAVE_SETPGRP_0 */
-				(void) setpgrp(0, getpid());
-# endif /* HAVE_SETPGRP_0 */
-			}
-#endif /* HAVE_SETPGID || HAVE_SETSID */
-#ifdef _AIX
-			/* Don't get killed by low-on-memory signal. */
-			sa.sa_handler = catch_danger;
-			sigemptyset(&sa.sa_mask);
-			sa.sa_flags = SA_RESTART;
-
-			(void) sigaction(SIGDANGER, &sa, NULL);
-#endif /* _AIX */
+# ifdef HAVE_WORKING_FORK
+		rc = fork();
+		if (-1 == rc) {
+			exit_code = (errno) ? errno : -1;
+			msyslog(LOG_ERR, "fork: %m");
+			exit(exit_code);
 		}
-#   endif /* not HAVE_DAEMON */
-#  endif /* SYS_WINNT */
+		if (rc > 0) {	
+			/* parent */
+			exit_code = wait_child_sync_if(pipe_fds[0],
+						       wait_sync);
+			exit(exit_code);
+		}
+		
+		/*
+		 * child/daemon 
+		 * close all open files excepting waitsync_fd_to_close.
+		 * msyslog() unreliable until after init_logging().
+		 */
+		closelog();
+		if (syslog_file != NULL) {
+			fclose(syslog_file);
+			syslog_file = NULL;
+			syslogit = TRUE;
+		}
+		close_all_except(waitsync_fd_to_close);
+		INSIST(0 == open("/dev/null", 0) && 1 == dup2(0, 1) \
+			&& 2 == dup2(0, 2));
+
+		init_logging(progname, 0, TRUE);
+		/* we lost our logfile (if any) daemonizing */
+		setup_logfile(logfilename);
+
+#  ifdef SYS_DOMAINOS
+		{
+			uid_$t puid;
+			status_$t st;
+
+			proc2_$who_am_i(&puid);
+			proc2_$make_server(&puid, &st);
+		}
+#  endif	/* SYS_DOMAINOS */
+#  ifdef HAVE_SETSID
+		if (setsid() == (pid_t)-1)
+			msyslog(LOG_ERR, "setsid(): %m");
+#  elif defined(HAVE_SETPGID)
+		if (setpgid(0, 0) == -1)
+			msyslog(LOG_ERR, "setpgid(): %m");
+#  else		/* !HAVE_SETSID && !HAVE_SETPGID follows */
+#   ifdef TIOCNOTTY
+		fid = open("/dev/tty", 2);
+		if (fid >= 0) {
+			ioctl(fid, (u_long)TIOCNOTTY, NULL);
+			close(fid);
+		}
+#   endif	/* TIOCNOTTY */
+		ntp_setpgrp(0, getpid());
+#  endif	/* !HAVE_SETSID && !HAVE_SETPGID */
+#  ifdef _AIX
+		/* Don't get killed by low-on-memory signal. */
+		sa.sa_handler = catch_danger;
+		sigemptyset(&sa.sa_mask);
+		sa.sa_flags = SA_RESTART;
+		sigaction(SIGDANGER, &sa, NULL);
+#  endif	/* _AIX */
+# endif		/* HAVE_WORKING_FORK */
 	}
-# endif /* NODETACH */
-#endif /* VMS */
 
-	setup_logfile();	/* We lost any redirect when we daemonized */
-
-#ifdef SCO5_CLOCK
+# ifdef SCO5_CLOCK
 	/*
 	 * SCO OpenServer's system clock offers much more precise timekeeping
 	 * on the base CPU than the other CPUs (for multiprocessor systems),
 	 * so we must lock to the base CPU.
 	 */
-	{
-	    int fd = open("/dev/at1", O_RDONLY);
-	    if (fd >= 0) {
-		int zero = 0;
+	fd = open("/dev/at1", O_RDONLY);		
+	if (fd >= 0) {
+		zero = 0;
 		if (ioctl(fd, ACPU_LOCK, &zero) < 0)
-		    msyslog(LOG_ERR, "cannot lock to base CPU: %m");
-		close( fd );
-	    } /* else ...
-	       *   If we can't open the device, this probably just isn't
-	       *   a multiprocessor system, so we're A-OK.
-	       */
+			msyslog(LOG_ERR, "cannot lock to base CPU: %m");
+		close(fd);
 	}
-#endif
+# endif
 
-#if defined(HAVE_MLOCKALL) && defined(MCL_CURRENT) && defined(MCL_FUTURE)
-# ifdef HAVE_SETRLIMIT
+	/* Setup stack size in preparation for locking pages in memory. */
+# if defined(HAVE_MLOCKALL)
+#  ifdef HAVE_SETRLIMIT
+	ntp_rlimit(RLIMIT_STACK, DFLT_RLIMIT_STACK * 4096, 4096, "4k");
+#   ifdef RLIMIT_MEMLOCK
 	/*
-	 * Set the stack limit to something smaller, so that we don't lock a lot
-	 * of unused stack memory.
+	 * The default RLIMIT_MEMLOCK is very low on Linux systems.
+	 * Unless we increase this limit malloc calls are likely to
+	 * fail if we drop root privilege.  To be useful the value
+	 * has to be larger than the largest ntpd resident set size.
 	 */
-	{
-	    struct rlimit rl;
-
-	    /* HMS: must make the rlim_cur amount configurable */
-	    if (getrlimit(RLIMIT_STACK, &rl) != -1
-		&& (rl.rlim_cur = 50 * 4096) < rl.rlim_max)
-	    {
-		    if (setrlimit(RLIMIT_STACK, &rl) == -1)
-		    {
-			    msyslog(LOG_ERR,
-				"Cannot adjust stack limit for mlockall: %m");
-		    }
-	    }
-#  ifdef RLIMIT_MEMLOCK
-	    /*
-	     * The default RLIMIT_MEMLOCK is very low on Linux systems.
-	     * Unless we increase this limit malloc calls are likely to
-	     * fail if we drop root privlege.  To be useful the value
-	     * has to be larger than the largest ntpd resident set size.
-	     */
-	    rl.rlim_cur = rl.rlim_max = 32*1024*1024;
-	    if (setrlimit(RLIMIT_MEMLOCK, &rl) == -1) {
-	    	msyslog(LOG_ERR, "Cannot set RLIMIT_MEMLOCK: %m");
-	    }
-#  endif /* RLIMIT_MEMLOCK */
-	}
-# endif /* HAVE_SETRLIMIT */
+	ntp_rlimit(RLIMIT_MEMLOCK, DFLT_RLIMIT_MEMLOCK * 1024 * 1024, 1024 * 1024, "MB");
+#   endif	/* RLIMIT_MEMLOCK */
+#  endif	/* HAVE_SETRLIMIT */
+# else	/* !HAVE_MLOCKALL follows */
+#  ifdef HAVE_PLOCK
+#   ifdef PROCLOCK
+#    ifdef _AIX
 	/*
-	 * lock the process into memory
-	 */
-	if (mlockall(MCL_CURRENT|MCL_FUTURE) < 0)
-		msyslog(LOG_ERR, "mlockall(): %m");
-#else /* not (HAVE_MLOCKALL && MCL_CURRENT && MCL_FUTURE) */
-# ifdef HAVE_PLOCK
-#  ifdef PROCLOCK
-#   ifdef _AIX
-	/* 
 	 * set the stack limit for AIX for plock().
 	 * see get_aix_stack() for more info.
 	 */
-	if (ulimit(SET_STACKLIM, (get_aix_stack() - 8*4096)) < 0)
-	{
-		msyslog(LOG_ERR,"Cannot adjust stack limit for plock on AIX: %m");
-	}
-#   endif /* _AIX */
-	/*
-	 * lock the process into memory
-	 */
-	if (plock(PROCLOCK) < 0)
-		msyslog(LOG_ERR, "plock(PROCLOCK): %m");
-#  else /* not PROCLOCK */
-#   ifdef TXTLOCK
-	/*
-	 * Lock text into ram
-	 */
-	if (plock(TXTLOCK) < 0)
-		msyslog(LOG_ERR, "plock(TXTLOCK) error: %m");
-#   else /* not TXTLOCK */
-	msyslog(LOG_ERR, "plock() - don't know what to lock!");
-#   endif /* not TXTLOCK */
-#  endif /* not PROCLOCK */
-# endif /* HAVE_PLOCK */
-#endif /* not (HAVE_MLOCKALL && MCL_CURRENT && MCL_FUTURE) */
+	if (ulimit(SET_STACKLIM, (get_aix_stack() - 8 * 4096)) < 0)
+		msyslog(LOG_ERR,
+			"Cannot adjust stack limit for plock: %m");
+#    endif	/* _AIX */
+#   endif	/* PROCLOCK */
+#  endif	/* HAVE_PLOCK */
+# endif	/* !HAVE_MLOCKALL */
 
 	/*
 	 * Set up signals we pay attention to locally.
 	 */
-#ifdef SIGDIE1
-	(void) signal_no_reset(SIGDIE1, finish);
-#endif	/* SIGDIE1 */
-#ifdef SIGDIE2
-	(void) signal_no_reset(SIGDIE2, finish);
-#endif	/* SIGDIE2 */
-#ifdef SIGDIE3
-	(void) signal_no_reset(SIGDIE3, finish);
-#endif	/* SIGDIE3 */
-#ifdef SIGDIE4
-	(void) signal_no_reset(SIGDIE4, finish);
-#endif	/* SIGDIE4 */
+# ifdef SIGDIE1
+	signal_no_reset(SIGDIE1, finish);
+	signal_no_reset(SIGDIE2, finish);
+	signal_no_reset(SIGDIE3, finish);
+	signal_no_reset(SIGDIE4, finish);
+# endif
+# ifdef SIGBUS
+	signal_no_reset(SIGBUS, finish);
+# endif
 
-#ifdef SIGBUS
-	(void) signal_no_reset(SIGBUS, finish);
-#endif /* SIGBUS */
-
-#if !defined(SYS_WINNT) && !defined(VMS)
-# ifdef DEBUG
+# if !defined(SYS_WINNT) && !defined(VMS)
+#  ifdef DEBUG
 	(void) signal_no_reset(MOREDEBUGSIG, moredebug);
 	(void) signal_no_reset(LESSDEBUGSIG, lessdebug);
-# else
+#  else
 	(void) signal_no_reset(MOREDEBUGSIG, no_debug);
 	(void) signal_no_reset(LESSDEBUGSIG, no_debug);
-# endif /* DEBUG */
-#endif /* !SYS_WINNT && !VMS */
+#  endif	/* DEBUG */
+# endif	/* !SYS_WINNT && !VMS */
 
 	/*
 	 * Set up signals we should never pay attention to.
 	 */
-#if defined SIGPIPE
-	(void) signal_no_reset(SIGPIPE, SIG_IGN);
-#endif	/* SIGPIPE */
+# ifdef SIGPIPE
+	signal_no_reset(SIGPIPE, SIG_IGN);
+# endif
 
 	/*
 	 * Call the init_ routines to initialize the data structures.
 	 *
 	 * Exactly what command-line options are we expecting here?
 	 */
+	INIT_SSL();
 	init_auth();
 	init_util();
 	init_restrict();
 	init_mon();
 	init_timer();
-	init_lib();
 	init_request();
 	init_control();
 	init_peer();
-#ifdef REFCLOCK
+# ifdef REFCLOCK
 	init_refclock();
-#endif
+# endif
 	set_process_priority();
 	init_proto();		/* Call at high priority */
 	init_io();
@@ -831,45 +789,90 @@ ntpdmain(
 	 * Get the configuration.  This is done in a separate module
 	 * since this will definitely be different for the gizmo board.
 	 */
-
 	getconfig(argc, argv);
 
-	loop_config(LOOP_DRIFTCOMP, old_drift / 1e6);
-#ifdef OPENSSL
-	crypto_setup();
-#endif /* OPENSSL */
-	initializing = 0;
+	if (do_memlock) {
+# if defined(HAVE_MLOCKALL)
+		/*
+		 * lock the process into memory
+		 */
+		if (!HAVE_OPT(SAVECONFIGQUIT) &&
+		    0 != mlockall(MCL_CURRENT|MCL_FUTURE))
+			msyslog(LOG_ERR, "mlockall(): %m");
+# else	/* !HAVE_MLOCKALL follows */
+#  ifdef HAVE_PLOCK
+#   ifdef PROCLOCK
+		/*
+		 * lock the process into memory
+		 */
+		if (!HAVE_OPT(SAVECONFIGQUIT) && 0 != plock(PROCLOCK))
+			msyslog(LOG_ERR, "plock(PROCLOCK): %m");
+#   else	/* !PROCLOCK follows  */
+#    ifdef TXTLOCK
+		/*
+		 * Lock text into ram
+		 */
+		if (!HAVE_OPT(SAVECONFIGQUIT) && 0 != plock(TXTLOCK))
+			msyslog(LOG_ERR, "plock(TXTLOCK) error: %m");
+#    else	/* !TXTLOCK follows */
+		msyslog(LOG_ERR, "plock() - don't know what to lock!");
+#    endif	/* !TXTLOCK */
+#   endif	/* !PROCLOCK */
+#  endif	/* HAVE_PLOCK */
+# endif	/* !HAVE_MLOCKALL */
+	}
 
-#ifdef HAVE_DROPROOT
-	if( droproot ) {
+	loop_config(LOOP_DRIFTINIT, 0);
+	report_event(EVNT_SYSRESTART, NULL, NULL);
+	initializing = FALSE;
+
+# ifdef HAVE_DROPROOT
+	if (droproot) {
 		/* Drop super-user privileges and chroot now if the OS supports this */
 
-#ifdef HAVE_LINUX_CAPABILITIES
+#  ifdef HAVE_LINUX_CAPABILITIES
 		/* set flag: keep privileges accross setuid() call (we only really need cap_sys_time): */
-		if( prctl( PR_SET_KEEPCAPS, 1L, 0L, 0L, 0L ) == -1 ) {
+		if (prctl( PR_SET_KEEPCAPS, 1L, 0L, 0L, 0L ) == -1) {
 			msyslog( LOG_ERR, "prctl( PR_SET_KEEPCAPS, 1L ) failed: %m" );
 			exit(-1);
 		}
-#else
+#  elif HAVE_SOLARIS_PRIVS
+		/* Nothing to do here */
+#  else
 		/* we need a user to switch to */
-		if( user == NULL ) {
+		if (user == NULL) {
 			msyslog(LOG_ERR, "Need user name to drop root privileges (see -u flag!)" );
 			exit(-1);
 		}
-#endif /* HAVE_LINUX_CAPABILITIES */
-	
+#  endif	/* HAVE_LINUX_CAPABILITIES || HAVE_SOLARIS_PRIVS */
+
 		if (user != NULL) {
 			if (isdigit((unsigned char)*user)) {
 				sw_uid = (uid_t)strtoul(user, &endp, 0);
-				if (*endp != '\0') 
+				if (*endp != '\0')
 					goto getuser;
-			} else {
-getuser:	
-				if ((pw = getpwnam(user)) != NULL) {
-					sw_uid = pw->pw_uid;
+
+				if ((pw = getpwuid(sw_uid)) != NULL) {
+					free(user);
+					user = estrdup(pw->pw_name);
+					sw_gid = pw->pw_gid;
 				} else {
 					errno = 0;
-					msyslog(LOG_ERR, "Cannot find user `%s'", user);
+					msyslog(LOG_ERR, "Cannot find user ID %s", user);
+					exit (-1);
+				}
+
+			} else {
+getuser:
+				errno = 0;
+				if ((pw = getpwnam(user)) != NULL) {
+					sw_uid = pw->pw_uid;
+					sw_gid = pw->pw_gid;
+				} else {
+					if (errno)
+						msyslog(LOG_ERR, "getpwnam(%s) failed: %m", user);
+					else
+						msyslog(LOG_ERR, "Cannot find user `%s'", user);
 					exit (-1);
 				}
 			}
@@ -877,10 +880,10 @@ getuser:
 		if (group != NULL) {
 			if (isdigit((unsigned char)*group)) {
 				sw_gid = (gid_t)strtoul(group, &endp, 0);
-				if (*endp != '\0') 
+				if (*endp != '\0')
 					goto getgroup;
 			} else {
-getgroup:	
+getgroup:
 				if ((gr = getgrnam(group)) != NULL) {
 					sw_gid = gr->gr_gid;
 				} else {
@@ -890,17 +893,41 @@ getgroup:
 				}
 			}
 		}
-		
-		if( chrootdir ) {
+
+		if (chrootdir ) {
 			/* make sure cwd is inside the jail: */
-			if( chdir(chrootdir) ) {
+			if (chdir(chrootdir)) {
 				msyslog(LOG_ERR, "Cannot chdir() to `%s': %m", chrootdir);
 				exit (-1);
 			}
-			if( chroot(chrootdir) ) {
+			if (chroot(chrootdir)) {
 				msyslog(LOG_ERR, "Cannot chroot() to `%s': %m", chrootdir);
 				exit (-1);
 			}
+			if (chdir("/")) {
+				msyslog(LOG_ERR, "Cannot chdir() to`root after chroot(): %m");
+				exit (-1);
+			}
+		}
+#  ifdef HAVE_SOLARIS_PRIVS
+		if ((lowprivs = priv_str_to_set(LOWPRIVS, ",", NULL)) == NULL) {
+			msyslog(LOG_ERR, "priv_str_to_set() failed:%m");
+			exit(-1);
+		}
+		if ((highprivs = priv_allocset()) == NULL) {
+			msyslog(LOG_ERR, "priv_allocset() failed:%m");
+			exit(-1);
+		}
+		(void) getppriv(PRIV_PERMITTED, highprivs);
+		(void) priv_intersect(highprivs, lowprivs);
+		if (setppriv(PRIV_SET, PRIV_PERMITTED, lowprivs) == -1) {
+			msyslog(LOG_ERR, "setppriv() failed:%m");
+			exit(-1);
+		}
+#  endif /* HAVE_SOLARIS_PRIVS */
+		if (user && initgroups(user, sw_gid)) {
+			msyslog(LOG_ERR, "Cannot initgroups() to user `%s': %m", user);
+			exit (-1);
 		}
 		if (group && setgid(sw_gid)) {
 			msyslog(LOG_ERR, "Cannot setgid() to group `%s': %m", group);
@@ -910,6 +937,10 @@ getgroup:
 			msyslog(LOG_ERR, "Cannot setegid() to group `%s': %m", group);
 			exit (-1);
 		}
+		if (group)
+			setgroups(1, &sw_gid);
+		else
+			initgroups(pw->pw_name, pw->pw_gid);
 		if (user && setuid(sw_uid)) {
 			msyslog(LOG_ERR, "Cannot setuid() to user `%s': %m", user);
 			exit (-1);
@@ -918,192 +949,249 @@ getgroup:
 			msyslog(LOG_ERR, "Cannot seteuid() to user `%s': %m", user);
 			exit (-1);
 		}
-	
-#ifndef HAVE_LINUX_CAPABILITIES
+
+#  if !defined(HAVE_LINUX_CAPABILITIES) && !defined(HAVE_SOLARIS_PRIVS)
 		/*
 		 * for now assume that the privilege to bind to privileged ports
 		 * is associated with running with uid 0 - should be refined on
 		 * ports that allow binding to NTP_PORT with uid != 0
 		 */
 		disable_dynamic_updates |= (sw_uid != 0);  /* also notifies routing message listener */
-#endif
+#  endif /* !HAVE_LINUX_CAPABILITIES && !HAVE_SOLARIS_PRIVS */
 
 		if (disable_dynamic_updates && interface_interval) {
 			interface_interval = 0;
-			msyslog(LOG_INFO, "running in unprivileged mode disables dynamic interface tracking");
+			msyslog(LOG_INFO, "running as non-root disables dynamic interface tracking");
 		}
 
-#ifdef HAVE_LINUX_CAPABILITIES
-		do {
+#  ifdef HAVE_LINUX_CAPABILITIES
+		{
 			/*
 			 *  We may be running under non-root uid now, but we still hold full root privileges!
 			 *  We drop all of them, except for the crucial one or two: cap_sys_time and
 			 *  cap_net_bind_service if doing dynamic interface tracking.
 			 */
 			cap_t caps;
-			char *captext = interface_interval ?
-			       	"cap_sys_time,cap_net_bind_service=ipe" :
-			       	"cap_sys_time=ipe";
-			if( ! ( caps = cap_from_text( captext ) ) ) {
-				msyslog( LOG_ERR, "cap_from_text() failed: %m" );
+			char *captext;
+			
+			captext = (0 != interface_interval)
+				      ? "cap_sys_time,cap_net_bind_service=pe"
+				      : "cap_sys_time=pe";
+			caps = cap_from_text(captext);
+			if (!caps) {
+				msyslog(LOG_ERR,
+					"cap_from_text(%s) failed: %m",
+					captext);
 				exit(-1);
 			}
-			if( cap_set_proc( caps ) == -1 ) {
-				msyslog( LOG_ERR, "cap_set_proc() failed to drop root privileges: %m" );
+			if (-1 == cap_set_proc(caps)) {
+				msyslog(LOG_ERR,
+					"cap_set_proc() failed to drop root privs: %m");
 				exit(-1);
 			}
-			cap_free( caps );
-		} while(0);
-#endif /* HAVE_LINUX_CAPABILITIES */
+			cap_free(caps);
+		}
+#  endif	/* HAVE_LINUX_CAPABILITIES */
+#  ifdef HAVE_SOLARIS_PRIVS
+		if (priv_delset(lowprivs, "proc_setid") == -1) {
+			msyslog(LOG_ERR, "priv_delset() failed:%m");
+			exit(-1);
+		}
+		if (setppriv(PRIV_SET, PRIV_PERMITTED, lowprivs) == -1) {
+			msyslog(LOG_ERR, "setppriv() failed:%m");
+			exit(-1);
+		}
+		priv_freeset(lowprivs);
+		priv_freeset(highprivs);
+#  endif /* HAVE_SOLARIS_PRIVS */
+		root_dropped = TRUE;
+		fork_deferred_worker();
+	}	/* if (droproot) */
+# endif	/* HAVE_DROPROOT */
 
-	}    /* if( droproot ) */
-#endif /* HAVE_DROPROOT */
-	
-	/*
-	 * Report that we're up to any trappers
-	 */
-	report_event(EVNT_SYSRESTART, (struct peer *)0);
+/* libssecomp sandboxing */
+#if defined (LIBSECCOMP) && (KERN_SECCOMP)
+	scmp_filter_ctx ctx;
 
-	/*
-	 * Use select() on all on all input fd's for unlimited
-	 * time.  select() will terminate on SIGALARM or on the
-	 * reception of input.	Using select() means we can't do
-	 * robust signal handling and we get a potential race
-	 * between checking for alarms and doing the select().
-	 * Mostly harmless, I think.
-	 */
-	/* On VMS, I suspect that select() can't be interrupted
-	 * by a "signal" either, so I take the easy way out and
-	 * have select() time out after one second.
-	 * System clock updates really aren't time-critical,
-	 * and - lacking a hardware reference clock - I have
-	 * yet to learn about anything else that is.
-	 */
-#if defined(HAVE_IO_COMPLETION_PORT)
+	if ((ctx = seccomp_init(SCMP_ACT_KILL)) < 0)
+		msyslog(LOG_ERR, "%s: seccomp_init(SCMP_ACT_KILL) failed: %m", __func__);
+	else {
+		msyslog(LOG_DEBUG, "%s: seccomp_init(SCMP_ACT_KILL) succeeded", __func__);
+	}
+
+#ifdef __x86_64__
+int scmp_sc[] = {
+	SCMP_SYS(adjtimex),
+	SCMP_SYS(bind),
+	SCMP_SYS(brk),
+	SCMP_SYS(chdir),
+	SCMP_SYS(clock_gettime),
+	SCMP_SYS(clock_settime),
+	SCMP_SYS(close),
+	SCMP_SYS(connect),
+	SCMP_SYS(exit_group),
+	SCMP_SYS(fstat),
+	SCMP_SYS(fsync),
+	SCMP_SYS(futex),
+	SCMP_SYS(getitimer),
+	SCMP_SYS(getsockname),
+	SCMP_SYS(ioctl),
+	SCMP_SYS(lseek),
+	SCMP_SYS(madvise),
+	SCMP_SYS(mmap),
+	SCMP_SYS(munmap),
+	SCMP_SYS(open),
+	SCMP_SYS(poll),
+	SCMP_SYS(read),
+	SCMP_SYS(recvmsg),
+	SCMP_SYS(rename),
+	SCMP_SYS(rt_sigaction),
+	SCMP_SYS(rt_sigprocmask),
+	SCMP_SYS(rt_sigreturn),
+	SCMP_SYS(select),
+	SCMP_SYS(sendto),
+	SCMP_SYS(setitimer),
+	SCMP_SYS(setsid),
+	SCMP_SYS(socket),
+	SCMP_SYS(stat),
+	SCMP_SYS(time),
+	SCMP_SYS(write),
+};
+#endif
+#ifdef __i386__
+int scmp_sc[] = {
+	SCMP_SYS(_newselect),
+	SCMP_SYS(adjtimex),
+	SCMP_SYS(brk),
+	SCMP_SYS(chdir),
+	SCMP_SYS(clock_gettime),
+	SCMP_SYS(clock_settime),
+	SCMP_SYS(close),
+	SCMP_SYS(exit_group),
+	SCMP_SYS(fsync),
+	SCMP_SYS(futex),
+	SCMP_SYS(getitimer),
+	SCMP_SYS(madvise),
+	SCMP_SYS(mmap),
+	SCMP_SYS(mmap2),
+	SCMP_SYS(munmap),
+	SCMP_SYS(open),
+	SCMP_SYS(poll),
+	SCMP_SYS(read),
+	SCMP_SYS(rename),
+	SCMP_SYS(rt_sigaction),
+	SCMP_SYS(rt_sigprocmask),
+	SCMP_SYS(select),
+	SCMP_SYS(setitimer),
+	SCMP_SYS(setsid),
+	SCMP_SYS(sigprocmask),
+	SCMP_SYS(sigreturn),
+	SCMP_SYS(socketcall),
+	SCMP_SYS(stat64),
+	SCMP_SYS(time),
+	SCMP_SYS(write),
+};
+#endif
+	{
+		int i;
+
+		for (i = 0; i < COUNTOF(scmp_sc); i++) {
+			if (seccomp_rule_add(ctx,
+			    SCMP_ACT_ALLOW, scmp_sc[i], 0) < 0) {
+				msyslog(LOG_ERR,
+				    "%s: seccomp_rule_add() failed: %m",
+				    __func__);
+			}
+		}
+	}
+
+	if (seccomp_load(ctx) < 0)
+		msyslog(LOG_ERR, "%s: seccomp_load() failed: %m",
+		    __func__);	
+	else {
+		msyslog(LOG_DEBUG, "%s: seccomp_load() succeeded", __func__);
+	}
+#endif /* LIBSECCOMP and KERN_SECCOMP */
+
+# ifdef HAVE_IO_COMPLETION_PORT
 
 	for (;;) {
 		GetReceivedBuffers();
-#else /* normal I/O */
+# else /* normal I/O */
 
 	BLOCK_IO_AND_ALARM();
-	was_alarmed = 0;
-	for (;;)
-	{
-# if !defined(HAVE_SIGNALED_IO) 
-		extern fd_set activefds;
-		extern int maxactivefd;
+	was_alarmed = FALSE;
 
-		fd_set rdfdes;
-		int nfound;
-# endif
-
-		if (alarm_flag) 	/* alarmed? */
-		{
-			was_alarmed = 1;
-			alarm_flag = 0;
+	for (;;) {
+		if (alarm_flag) {	/* alarmed? */
+			was_alarmed = TRUE;
+			alarm_flag = FALSE;
 		}
 
-		if (!was_alarmed && has_full_recv_buffer() == ISC_FALSE)
-		{
+		if (!was_alarmed && !has_full_recv_buffer()) {
 			/*
 			 * Nothing to do.  Wait for something.
 			 */
-# ifndef HAVE_SIGNALED_IO
-			rdfdes = activefds;
-#  if defined(VMS) || defined(SYS_VXWORKS)
-			/* make select() wake up after one second */
-			{
-				struct timeval t1;
-
-				t1.tv_sec = 1; t1.tv_usec = 0;
-				nfound = select(maxactivefd+1, &rdfdes, (fd_set *)0,
-						(fd_set *)0, &t1);
-			}
-#  else
-			nfound = select(maxactivefd+1, &rdfdes, (fd_set *)0,
-					(fd_set *)0, (struct timeval *)0);
-#  endif /* VMS */
-			if (nfound > 0)
-			{
-				l_fp ts;
-
-				get_systime(&ts);
-
-				(void)input_handler(&ts);
-			}
-			else if (nfound == -1 && errno != EINTR)
-				netsyslog(LOG_ERR, "select() error: %m");
-#  ifdef DEBUG
-			else if (debug > 5)
-				netsyslog(LOG_DEBUG, "select(): nfound=%d, error: %m", nfound);
-#  endif /* DEBUG */
-# else /* HAVE_SIGNALED_IO */
-                        
-			wait_for_signal();
-# endif /* HAVE_SIGNALED_IO */
-			if (alarm_flag) 	/* alarmed? */
-			{
-				was_alarmed = 1;
-				alarm_flag = 0;
-			}
+			io_handler();
 		}
 
-		if (was_alarmed)
-		{
+		if (alarm_flag) {	/* alarmed? */
+			was_alarmed = TRUE;
+			alarm_flag = FALSE;
+		}
+
+		if (was_alarmed) {
 			UNBLOCK_IO_AND_ALARM();
 			/*
 			 * Out here, signals are unblocked.  Call timer routine
 			 * to process expiry.
 			 */
 			timer();
-			was_alarmed = 0;
-                        BLOCK_IO_AND_ALARM();
+			was_alarmed = FALSE;
+			BLOCK_IO_AND_ALARM();
 		}
 
-#endif /* HAVE_IO_COMPLETION_PORT */
+# endif		/* !HAVE_IO_COMPLETION_PORT */
 
-#ifdef DEBUG_TIMING
+# ifdef DEBUG_TIMING
 		{
 			l_fp pts;
 			l_fp tsa, tsb;
 			int bufcount = 0;
-			
+
 			get_systime(&pts);
 			tsa = pts;
-#endif
+# endif
 			rbuf = get_full_recv_buffer();
-			while (rbuf != NULL)
-			{
-				if (alarm_flag)
-				{
-					was_alarmed = 1;
-					alarm_flag = 0;
+			while (rbuf != NULL) {
+				if (alarm_flag) {
+					was_alarmed = TRUE;
+					alarm_flag = FALSE;
 				}
 				UNBLOCK_IO_AND_ALARM();
 
-				if (was_alarmed)
-				{	/* avoid timer starvation during lengthy I/O handling */
+				if (was_alarmed) {
+					/* avoid timer starvation during lengthy I/O handling */
 					timer();
-					was_alarmed = 0;
+					was_alarmed = FALSE;
 				}
 
 				/*
 				 * Call the data procedure to handle each received
 				 * packet.
 				 */
-				if (rbuf->receiver != NULL)	/* This should always be true */
-				{
-#ifdef DEBUG_TIMING
+				if (rbuf->receiver != NULL) {
+# ifdef DEBUG_TIMING
 					l_fp dts = pts;
 
 					L_SUB(&dts, &rbuf->recv_time);
 					DPRINTF(2, ("processing timestamp delta %s (with prec. fuzz)\n", lfptoa(&dts, 9)));
 					collect_timing(rbuf, "buffer processing delay", 1, &dts);
 					bufcount++;
-#endif
-					(rbuf->receiver)(rbuf);
+# endif
+					(*rbuf->receiver)(rbuf);
 				} else {
-					msyslog(LOG_ERR, "receive buffer corruption - receiver found to be NULL - ABORTING");
+					msyslog(LOG_ERR, "fatal: receive buffer callback NULL");
 					abort();
 				}
 
@@ -1111,7 +1199,7 @@ getgroup:
 				freerecvbuf(rbuf);
 				rbuf = get_full_recv_buffer();
 			}
-#ifdef DEBUG_TIMING
+# ifdef DEBUG_TIMING
 			get_systime(&tsb);
 			L_SUB(&tsb, &tsa);
 			if (bufcount) {
@@ -1119,18 +1207,38 @@ getgroup:
 				DPRINTF(2, ("processing time for %d buffers %s\n", bufcount, lfptoa(&tsb, 9)));
 			}
 		}
-#endif
+# endif
 
 		/*
 		 * Go around again
 		 */
+
+# ifdef HAVE_DNSREGISTRATION
+		if (mdnsreg && (current_time - mdnsreg ) > 60 && mdnstries && sys_leap != LEAP_NOTINSYNC) {
+			mdnsreg = current_time;
+			msyslog(LOG_INFO, "Attempting to register mDNS");
+			if ( DNSServiceRegister (&mdns, 0, 0, NULL, "_ntp._udp", NULL, NULL, 
+			    htons(NTP_PORT), 0, NULL, NULL, NULL) != kDNSServiceErr_NoError ) {
+				if (!--mdnstries) {
+					msyslog(LOG_ERR, "Unable to register mDNS, giving up.");
+				} else {	
+					msyslog(LOG_INFO, "Unable to register mDNS, will try later.");
+				}
+			} else {
+				msyslog(LOG_INFO, "mDNS service registered.");
+				mdnsreg = FALSE;
+			}
+		}
+# endif /* HAVE_DNSREGISTRATION */
+
 	}
 	UNBLOCK_IO_AND_ALARM();
 	return 1;
 }
+#endif	/* !SIM */
 
 
-#ifdef SIGDIE2
+#if !defined(SIM) && defined(SIGDIE1)
 /*
  * finish - exit gracefully
  */
@@ -1139,32 +1247,185 @@ finish(
 	int sig
 	)
 {
+	const char *sig_desc;
 
-	msyslog(LOG_NOTICE, "ntpd exiting on signal %d", sig);
-	write_stats();
-#ifdef HAVE_DNSREGISTRATION
+	sig_desc = NULL;
+#ifdef HAVE_STRSIGNAL
+	sig_desc = strsignal(sig);
+#endif
+	if (sig_desc == NULL)
+		sig_desc = "";
+	msyslog(LOG_NOTICE, "%s exiting on signal %d (%s)", progname,
+		sig, sig_desc);
+	/* See Bug 2513 and Bug 2522 re the unlink of PIDFILE */
+# ifdef HAVE_DNSREGISTRATION
 	if (mdns != NULL)
-	DNSServiceRefDeallocate(mdns);
+		DNSServiceRefDeallocate(mdns);
+# endif
+	peer_cleanup();
+	exit(0);
+}
+#endif	/* !SIM && SIGDIE1 */
+
+
+#ifndef SIM
+/*
+ * wait_child_sync_if - implements parent side of -w/--wait-sync
+ */
+# ifdef HAVE_WORKING_FORK
+static int
+wait_child_sync_if(
+	int	pipe_read_fd,
+	long	wait_sync
+	)
+{
+	int	rc;
+	int	exit_code;
+	time_t	wait_end_time;
+	time_t	cur_time;
+	time_t	wait_rem;
+	fd_set	readset;
+	struct timeval wtimeout;
+
+	if (0 == wait_sync) 
+		return 0;
+
+	/* waitsync_fd_to_close used solely by child */
+	close(waitsync_fd_to_close);
+	wait_end_time = time(NULL) + wait_sync;
+	do {
+		cur_time = time(NULL);
+		wait_rem = (wait_end_time > cur_time)
+				? (wait_end_time - cur_time)
+				: 0;
+		wtimeout.tv_sec = wait_rem;
+		wtimeout.tv_usec = 0;
+		FD_ZERO(&readset);
+		FD_SET(pipe_read_fd, &readset);
+		rc = select(pipe_read_fd + 1, &readset, NULL, NULL,
+			    &wtimeout);
+		if (-1 == rc) {
+			if (EINTR == errno)
+				continue;
+			exit_code = (errno) ? errno : -1;
+			msyslog(LOG_ERR,
+				"--wait-sync select failed: %m");
+			return exit_code;
+		}
+		if (0 == rc) {
+			/*
+			 * select() indicated a timeout, but in case
+			 * its timeouts are affected by a step of the
+			 * system clock, select() again with a zero 
+			 * timeout to confirm.
+			 */
+			FD_ZERO(&readset);
+			FD_SET(pipe_read_fd, &readset);
+			wtimeout.tv_sec = 0;
+			wtimeout.tv_usec = 0;
+			rc = select(pipe_read_fd + 1, &readset, NULL,
+				    NULL, &wtimeout);
+			if (0 == rc)	/* select() timeout */
+				break;
+			else		/* readable */
+				return 0;
+		} else			/* readable */
+			return 0;
+	} while (wait_rem > 0);
+
+	fprintf(stderr, "%s: -w/--wait-sync %ld timed out.\n",
+		progname, wait_sync);
+	return ETIMEDOUT;
+}
+# endif	/* HAVE_WORKING_FORK */
+
+
+/*
+ * assertion_failed - Redirect assertion failures to msyslog().
+ */
+static void
+assertion_failed(
+	const char *file,
+	int line,
+	isc_assertiontype_t type,
+	const char *cond
+	)
+{
+	isc_assertion_setcallback(NULL);    /* Avoid recursion */
+
+	msyslog(LOG_ERR, "%s:%d: %s(%s) failed",
+		file, line, isc_assertion_typetotext(type), cond);
+	msyslog(LOG_ERR, "exiting (due to assertion failure)");
+
+#if defined(DEBUG) && defined(SYS_WINNT)
+	if (debug)
+		DebugBreak();
 #endif
 
-	switch (sig)
-	{
-# ifdef SIGBUS
-		case SIGBUS:
-		printf("\nfinish(SIGBUS)\n");
-		exit(0);
-# endif
-		case 0: 		/* Should never happen... */
-		return;
-		default:
-		exit(0);
-	}
+	abort();
 }
-#endif	/* SIGDIE2 */
 
 
-#ifdef DEBUG
-#ifndef SYS_WINNT
+/*
+ * library_fatal_error - Handle fatal errors from our libraries.
+ */
+static void
+library_fatal_error(
+	const char *file,
+	int line,
+	const char *format,
+	va_list args
+	)
+{
+	char errbuf[256];
+
+	isc_error_setfatal(NULL);  /* Avoid recursion */
+
+	msyslog(LOG_ERR, "%s:%d: fatal error:", file, line);
+	vsnprintf(errbuf, sizeof(errbuf), format, args);
+	msyslog(LOG_ERR, "%s", errbuf);
+	msyslog(LOG_ERR, "exiting (due to fatal error in library)");
+
+#if defined(DEBUG) && defined(SYS_WINNT)
+	if (debug)
+		DebugBreak();
+#endif
+
+	abort();
+}
+
+
+/*
+ * library_unexpected_error - Handle non fatal errors from our libraries.
+ */
+# define MAX_UNEXPECTED_ERRORS 100
+int unexpected_error_cnt = 0;
+static void
+library_unexpected_error(
+	const char *file,
+	int line,
+	const char *format,
+	va_list args
+	)
+{
+	char errbuf[256];
+
+	if (unexpected_error_cnt >= MAX_UNEXPECTED_ERRORS)
+		return;	/* avoid clutter in log */
+
+	msyslog(LOG_ERR, "%s:%d: unexpected error:", file, line);
+	vsnprintf(errbuf, sizeof(errbuf), format, args);
+	msyslog(LOG_ERR, "%s", errbuf);
+
+	if (++unexpected_error_cnt == MAX_UNEXPECTED_ERRORS)
+		msyslog(LOG_ERR, "Too many errors.  Shutting up.");
+
+}
+#endif	/* !SIM */
+
+#if !defined(SIM) && !defined(SYS_WINNT)
+# ifdef DEBUG
+
 /*
  * moredebug - increase debugging verbosity
  */
@@ -1183,6 +1444,7 @@ moredebug(
 	errno = saved_errno;
 }
 
+
 /*
  * lessdebug - decrease debugging verbosity
  */
@@ -1200,9 +1462,10 @@ lessdebug(
 	}
 	errno = saved_errno;
 }
-#endif
-#else /* not DEBUG */
-#ifndef SYS_WINNT
+
+# else	/* !DEBUG follows */
+
+
 /*
  * no_debug - We don't do the debug here.
  */
@@ -1216,5 +1479,5 @@ no_debug(
 	msyslog(LOG_DEBUG, "ntpd not compiled for debugging (signal %d)", sig);
 	errno = saved_errno;
 }
-#endif  /* not SYS_WINNT */
-#endif	/* not DEBUG */
+# endif	/* !DEBUG */
+#endif	/* !SIM && !SYS_WINNT */

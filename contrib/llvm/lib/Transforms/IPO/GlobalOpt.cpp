@@ -88,6 +88,7 @@ namespace {
 
     const DataLayout *DL;
     TargetLibraryInfo *TLI;
+    SmallSet<const Comdat *, 8> NotDiscardableComdats;
   };
 }
 
@@ -612,7 +613,7 @@ static GlobalVariable *SRAGlobal(GlobalVariable *GV, const DataLayout &DL) {
 /// value will trap if the value is dynamically null.  PHIs keeps track of any
 /// phi nodes we've seen to avoid reprocessing them.
 static bool AllUsesOfValueWillTrapIfNull(const Value *V,
-                                         SmallPtrSet<const PHINode*, 8> &PHIs) {
+                                        SmallPtrSetImpl<const PHINode*> &PHIs) {
   for (const User *U : V->users())
     if (isa<LoadInst>(U)) {
       // Will trap.
@@ -638,7 +639,7 @@ static bool AllUsesOfValueWillTrapIfNull(const Value *V,
     } else if (const PHINode *PN = dyn_cast<PHINode>(U)) {
       // If we've already seen this phi node, ignore it, it has already been
       // checked.
-      if (PHIs.insert(PN) && !AllUsesOfValueWillTrapIfNull(PN, PHIs))
+      if (PHIs.insert(PN).second && !AllUsesOfValueWillTrapIfNull(PN, PHIs))
         return false;
     } else if (isa<ICmpInst>(U) &&
                isa<ConstantPointerNull>(U->getOperand(1))) {
@@ -957,7 +958,7 @@ static GlobalVariable *OptimizeGlobalAddressOfMalloc(GlobalVariable *GV,
 /// it is to the specified global.
 static bool ValueIsOnlyUsedLocallyOrStoredToOneGlobal(const Instruction *V,
                                                       const GlobalVariable *GV,
-                                         SmallPtrSet<const PHINode*, 8> &PHIs) {
+                                        SmallPtrSetImpl<const PHINode*> &PHIs) {
   for (const User *U : V->users()) {
     const Instruction *Inst = cast<Instruction>(U);
 
@@ -981,7 +982,7 @@ static bool ValueIsOnlyUsedLocallyOrStoredToOneGlobal(const Instruction *V,
     if (const PHINode *PN = dyn_cast<PHINode>(Inst)) {
       // PHIs are ok if all uses are ok.  Don't infinitely recurse through PHI
       // cycles.
-      if (PHIs.insert(PN))
+      if (PHIs.insert(PN).second)
         if (!ValueIsOnlyUsedLocallyOrStoredToOneGlobal(PN, GV, PHIs))
           return false;
       continue;
@@ -1047,8 +1048,8 @@ static void ReplaceUsesOfMallocWithGlobal(Instruction *Alloc,
 /// of a load) are simple enough to perform heap SRA on.  This permits GEP's
 /// that index through the array and struct field, icmps of null, and PHIs.
 static bool LoadUsesSimpleEnoughForHeapSRA(const Value *V,
-                        SmallPtrSet<const PHINode*, 32> &LoadUsingPHIs,
-                        SmallPtrSet<const PHINode*, 32> &LoadUsingPHIsPerLoad) {
+                        SmallPtrSetImpl<const PHINode*> &LoadUsingPHIs,
+                        SmallPtrSetImpl<const PHINode*> &LoadUsingPHIsPerLoad) {
   // We permit two users of the load: setcc comparing against the null
   // pointer, and a getelementptr of a specific form.
   for (const User *U : V->users()) {
@@ -1072,11 +1073,11 @@ static bool LoadUsesSimpleEnoughForHeapSRA(const Value *V,
     }
 
     if (const PHINode *PN = dyn_cast<PHINode>(UI)) {
-      if (!LoadUsingPHIsPerLoad.insert(PN))
+      if (!LoadUsingPHIsPerLoad.insert(PN).second)
         // This means some phi nodes are dependent on each other.
         // Avoid infinite looping!
         return false;
-      if (!LoadUsingPHIs.insert(PN))
+      if (!LoadUsingPHIs.insert(PN).second)
         // If we have already analyzed this PHI, then it is safe.
         continue;
 
@@ -1115,9 +1116,7 @@ static bool AllGlobalLoadUsesSimpleEnoughForHeapSRA(const GlobalVariable *GV,
   // that all inputs the to the PHI nodes are in the same equivalence sets.
   // Check to verify that all operands of the PHIs are either PHIS that can be
   // transformed, loads from GV, or MI itself.
-  for (SmallPtrSet<const PHINode*, 32>::const_iterator I = LoadUsingPHIs.begin()
-       , E = LoadUsingPHIs.end(); I != E; ++I) {
-    const PHINode *PN = *I;
+  for (const PHINode *PN : LoadUsingPHIs) {
     for (unsigned op = 0, e = PN->getNumIncomingValues(); op != e; ++op) {
       Value *InVal = PN->getIncomingValue(op);
 
@@ -1910,8 +1909,11 @@ bool GlobalOpt::OptimizeFunctions(Module &M) {
     // Functions without names cannot be referenced outside this module.
     if (!F->hasName() && !F->isDeclaration() && !F->hasLocalLinkage())
       F->setLinkage(GlobalValue::InternalLinkage);
+
+    const Comdat *C = F->getComdat();
+    bool inComdat = C && NotDiscardableComdats.count(C);
     F->removeDeadConstantUsers();
-    if (F->isDefTriviallyDead()) {
+    if ((!inComdat || F->hasLocalLinkage()) && F->isDefTriviallyDead()) {
       F->eraseFromParent();
       Changed = true;
       ++NumFnDeleted;
@@ -1943,12 +1945,6 @@ bool GlobalOpt::OptimizeFunctions(Module &M) {
 bool GlobalOpt::OptimizeGlobalVars(Module &M) {
   bool Changed = false;
 
-  SmallSet<const Comdat *, 8> NotDiscardableComdats;
-  for (const GlobalVariable &GV : M.globals())
-    if (const Comdat *C = GV.getComdat())
-      if (!GV.isDiscardableIfUnused())
-        NotDiscardableComdats.insert(C);
-
   for (Module::global_iterator GVI = M.global_begin(), E = M.global_end();
        GVI != E; ) {
     GlobalVariable *GV = GVI++;
@@ -1965,7 +1961,7 @@ bool GlobalOpt::OptimizeGlobalVars(Module &M) {
 
     if (GV->isDiscardableIfUnused()) {
       if (const Comdat *C = GV->getComdat())
-        if (NotDiscardableComdats.count(C))
+        if (NotDiscardableComdats.count(C) && !GV->hasLocalLinkage())
           continue;
       Changed |= ProcessGlobal(GV, GVI);
     }
@@ -1975,7 +1971,7 @@ bool GlobalOpt::OptimizeGlobalVars(Module &M) {
 
 static inline bool
 isSimpleEnoughValueToCommit(Constant *C,
-                            SmallPtrSet<Constant*, 8> &SimpleConstants,
+                            SmallPtrSetImpl<Constant*> &SimpleConstants,
                             const DataLayout *DL);
 
 
@@ -1988,7 +1984,7 @@ isSimpleEnoughValueToCommit(Constant *C,
 /// in SimpleConstants to avoid having to rescan the same constants all the
 /// time.
 static bool isSimpleEnoughValueToCommitHelper(Constant *C,
-                                   SmallPtrSet<Constant*, 8> &SimpleConstants,
+                                   SmallPtrSetImpl<Constant*> &SimpleConstants,
                                    const DataLayout *DL) {
   // Simple global addresses are supported, do not allow dllimport or
   // thread-local globals.
@@ -2046,10 +2042,11 @@ static bool isSimpleEnoughValueToCommitHelper(Constant *C,
 
 static inline bool
 isSimpleEnoughValueToCommit(Constant *C,
-                            SmallPtrSet<Constant*, 8> &SimpleConstants,
+                            SmallPtrSetImpl<Constant*> &SimpleConstants,
                             const DataLayout *DL) {
   // If we already checked this constant, we win.
-  if (!SimpleConstants.insert(C)) return true;
+  if (!SimpleConstants.insert(C).second)
+    return true;
   // Check the constant.
   return isSimpleEnoughValueToCommitHelper(C, SimpleConstants, DL);
 }
@@ -2217,7 +2214,7 @@ public:
     return MutatedMemory;
   }
 
-  const SmallPtrSet<GlobalVariable*, 8> &getInvariants() const {
+  const SmallPtrSetImpl<GlobalVariable*> &getInvariants() const {
     return Invariants;
   }
 
@@ -2394,6 +2391,17 @@ bool Evaluator::EvaluateBlock(BasicBlock::iterator CurInst,
                                            getVal(SI->getOperand(2)));
       DEBUG(dbgs() << "Found a Select! Simplifying: " << *InstResult
             << "\n");
+    } else if (auto *EVI = dyn_cast<ExtractValueInst>(CurInst)) {
+      InstResult = ConstantExpr::getExtractValue(
+          getVal(EVI->getAggregateOperand()), EVI->getIndices());
+      DEBUG(dbgs() << "Found an ExtractValueInst! Simplifying: " << *InstResult
+                   << "\n");
+    } else if (auto *IVI = dyn_cast<InsertValueInst>(CurInst)) {
+      InstResult = ConstantExpr::getInsertValue(
+          getVal(IVI->getAggregateOperand()),
+          getVal(IVI->getInsertedValueOperand()), IVI->getIndices());
+      DEBUG(dbgs() << "Found an InsertValueInst! Simplifying: " << *InstResult
+                   << "\n");
     } else if (GetElementPtrInst *GEP = dyn_cast<GetElementPtrInst>(CurInst)) {
       Constant *P = getVal(GEP->getOperand(0));
       SmallVector<Constant*, 8> GEPOps;
@@ -2663,7 +2671,7 @@ bool Evaluator::EvaluateFunction(Function *F, Constant *&RetVal,
     // Okay, we succeeded in evaluating this control flow.  See if we have
     // executed the new block before.  If so, we have a looping function,
     // which we cannot evaluate in reasonable time.
-    if (!ExecutedBlocks.insert(NextBB))
+    if (!ExecutedBlocks.insert(NextBB).second)
       return false;  // looped!
 
     // Okay, we have never been in this block before.  Check to see if there
@@ -2700,10 +2708,8 @@ static bool EvaluateStaticConstructor(Function *F, const DataLayout *DL,
            Eval.getMutatedMemory().begin(), E = Eval.getMutatedMemory().end();
          I != E; ++I)
       CommitValueTo(I->second, I->first);
-    for (SmallPtrSet<GlobalVariable*, 8>::const_iterator I =
-           Eval.getInvariants().begin(), E = Eval.getInvariants().end();
-         I != E; ++I)
-      (*I)->setConstant(true);
+    for (GlobalVariable *GV : Eval.getInvariants())
+      GV->setConstant(true);
   }
 
   return EvalSuccess;
@@ -2714,7 +2720,7 @@ static int compareNames(Constant *const *A, Constant *const *B) {
 }
 
 static void setUsedInitializer(GlobalVariable &V,
-                               SmallPtrSet<GlobalValue *, 8> Init) {
+                               const SmallPtrSet<GlobalValue *, 8> &Init) {
   if (Init.empty()) {
     V.eraseFromParent();
     return;
@@ -2724,10 +2730,9 @@ static void setUsedInitializer(GlobalVariable &V,
   PointerType *Int8PtrTy = Type::getInt8PtrTy(V.getContext(), 0);
 
   SmallVector<llvm::Constant *, 8> UsedArray;
-  for (SmallPtrSet<GlobalValue *, 8>::iterator I = Init.begin(), E = Init.end();
-       I != E; ++I) {
+  for (GlobalValue *GV : Init) {
     Constant *Cast
-      = ConstantExpr::getPointerBitCastOrAddrSpaceCast(*I, Int8PtrTy);
+      = ConstantExpr::getPointerBitCastOrAddrSpaceCast(GV, Int8PtrTy);
     UsedArray.push_back(Cast);
   }
   // Sort to get deterministic order.
@@ -2758,18 +2763,27 @@ public:
     CompilerUsedV = collectUsedGlobalVariables(M, CompilerUsed, true);
   }
   typedef SmallPtrSet<GlobalValue *, 8>::iterator iterator;
+  typedef iterator_range<iterator> used_iterator_range;
   iterator usedBegin() { return Used.begin(); }
   iterator usedEnd() { return Used.end(); }
+  used_iterator_range used() {
+    return used_iterator_range(usedBegin(), usedEnd());
+  }
   iterator compilerUsedBegin() { return CompilerUsed.begin(); }
   iterator compilerUsedEnd() { return CompilerUsed.end(); }
+  used_iterator_range compilerUsed() {
+    return used_iterator_range(compilerUsedBegin(), compilerUsedEnd());
+  }
   bool usedCount(GlobalValue *GV) const { return Used.count(GV); }
   bool compilerUsedCount(GlobalValue *GV) const {
     return CompilerUsed.count(GV);
   }
   bool usedErase(GlobalValue *GV) { return Used.erase(GV); }
   bool compilerUsedErase(GlobalValue *GV) { return CompilerUsed.erase(GV); }
-  bool usedInsert(GlobalValue *GV) { return Used.insert(GV); }
-  bool compilerUsedInsert(GlobalValue *GV) { return CompilerUsed.insert(GV); }
+  bool usedInsert(GlobalValue *GV) { return Used.insert(GV).second; }
+  bool compilerUsedInsert(GlobalValue *GV) {
+    return CompilerUsed.insert(GV).second;
+  }
 
   void syncVariablesAndSets() {
     if (UsedV)
@@ -2814,7 +2828,8 @@ static bool mayHaveOtherReferences(GlobalAlias &GA, const LLVMUsed &U) {
   return U.usedCount(&GA) || U.compilerUsedCount(&GA);
 }
 
-static bool hasUsesToReplace(GlobalAlias &GA, LLVMUsed &U, bool &RenameTarget) {
+static bool hasUsesToReplace(GlobalAlias &GA, const LLVMUsed &U,
+                             bool &RenameTarget) {
   RenameTarget = false;
   bool Ret = false;
   if (hasUseOtherThanLLVMUsed(GA, U))
@@ -2849,10 +2864,8 @@ bool GlobalOpt::OptimizeGlobalAliases(Module &M) {
   bool Changed = false;
   LLVMUsed Used(M);
 
-  for (SmallPtrSet<GlobalValue *, 8>::iterator I = Used.usedBegin(),
-                                               E = Used.usedEnd();
-       I != E; ++I)
-    Used.compilerUsedErase(*I);
+  for (GlobalValue *GV : Used.used())
+    Used.compilerUsedErase(GV);
 
   for (Module::alias_iterator I = M.alias_begin(), E = M.alias_end();
        I != E;) {
@@ -2963,7 +2976,7 @@ static bool cxxDtorIsEmpty(const Function &Fn,
       SmallPtrSet<const Function *, 8> NewCalledFunctions(CalledFunctions);
 
       // Don't treat recursive functions as empty.
-      if (!NewCalledFunctions.insert(CalledFn))
+      if (!NewCalledFunctions.insert(CalledFn).second)
         return false;
 
       if (!cxxDtorIsEmpty(*CalledFn, NewCalledFunctions))
@@ -3034,6 +3047,20 @@ bool GlobalOpt::runOnModule(Module &M) {
   bool LocalChange = true;
   while (LocalChange) {
     LocalChange = false;
+
+    NotDiscardableComdats.clear();
+    for (const GlobalVariable &GV : M.globals())
+      if (const Comdat *C = GV.getComdat())
+        if (!GV.isDiscardableIfUnused() || !GV.use_empty())
+          NotDiscardableComdats.insert(C);
+    for (Function &F : M)
+      if (const Comdat *C = F.getComdat())
+        if (!F.isDefTriviallyDead())
+          NotDiscardableComdats.insert(C);
+    for (GlobalAlias &GA : M.aliases())
+      if (const Comdat *C = GA.getComdat())
+        if (!GA.isDiscardableIfUnused() || !GA.use_empty())
+          NotDiscardableComdats.insert(C);
 
     // Delete functions that are trivially dead, ccc -> fastcc
     LocalChange |= OptimizeFunctions(M);

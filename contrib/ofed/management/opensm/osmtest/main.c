@@ -565,8 +565,9 @@ int main(int argc, char *argv[])
 			printf("Done with args\n");
 			break;
 
-		default:	/* something wrong */
-			abort();
+		default:
+			show_usage();
+			return 1;
 		}
 
 	}

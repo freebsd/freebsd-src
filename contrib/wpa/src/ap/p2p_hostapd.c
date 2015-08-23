@@ -96,9 +96,8 @@ u8 * hostapd_eid_p2p_manage(struct hostapd_data *hapd, u8 *eid)
 	u8 bitmap;
 	*eid++ = WLAN_EID_VENDOR_SPECIFIC;
 	*eid++ = 4 + 3 + 1;
-	WPA_PUT_BE24(eid, OUI_WFA);
-	eid += 3;
-	*eid++ = P2P_OUI_TYPE;
+	WPA_PUT_BE32(eid, P2P_IE_VENDOR_TYPE);
+	eid += 4;
 
 	*eid++ = P2P_ATTR_MANAGEABILITY;
 	WPA_PUT_LE16(eid, 1);

@@ -17,16 +17,16 @@
 #include "AArch64Subtarget.h"
 #include "AArch64TargetMachine.h"
 #include "llvm/ADT/Statistic.h"
-#include "llvm/IR/DataLayout.h"
-#include "llvm/IR/Function.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineModuleInfo.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/RegisterScavenging.h"
-#include "llvm/Support/Debug.h"
+#include "llvm/IR/DataLayout.h"
+#include "llvm/IR/Function.h"
 #include "llvm/Support/CommandLine.h"
+#include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
 
 using namespace llvm;
@@ -86,13 +86,14 @@ bool AArch64FrameLowering::hasFP(const MachineFunction &MF) const {
   const MachineFrameInfo *MFI = MF.getFrameInfo();
 
 #ifndef NDEBUG
-  const TargetRegisterInfo *RegInfo = MF.getTarget().getRegisterInfo();
+  const TargetRegisterInfo *RegInfo = MF.getSubtarget().getRegisterInfo();
   assert(!RegInfo->needsStackRealignment(MF) &&
          "No stack realignment on AArch64!");
 #endif
 
   return (MFI->hasCalls() || MFI->hasVarSizedObjects() ||
-          MFI->isFrameAddressTaken());
+          MFI->isFrameAddressTaken() || MFI->hasStackMap() ||
+          MFI->hasPatchPoint());
 }
 
 /// hasReservedCallFrame - Under normal circumstances, when a frame pointer is
@@ -109,13 +110,13 @@ void AArch64FrameLowering::eliminateCallFramePseudoInstr(
     MachineFunction &MF, MachineBasicBlock &MBB,
     MachineBasicBlock::iterator I) const {
   const AArch64InstrInfo *TII =
-      static_cast<const AArch64InstrInfo *>(MF.getTarget().getInstrInfo());
+      static_cast<const AArch64InstrInfo *>(MF.getSubtarget().getInstrInfo());
   DebugLoc DL = I->getDebugLoc();
   int Opc = I->getOpcode();
   bool IsDestroy = Opc == TII->getCallFrameDestroyOpcode();
   uint64_t CalleePopAmount = IsDestroy ? I->getOperand(1).getImm() : 0;
 
-  const TargetFrameLowering *TFI = MF.getTarget().getFrameLowering();
+  const TargetFrameLowering *TFI = MF.getSubtarget().getFrameLowering();
   if (!TFI->hasReservedCallFrame(MF)) {
     unsigned Align = getStackAlignment();
 
@@ -131,7 +132,7 @@ void AArch64FrameLowering::eliminateCallFramePseudoInstr(
       // FIXME: in-function stack adjustment for calls is limited to 24-bits
       // because there's no guaranteed temporary register available.
       //
-      // ADD/SUB (immediate) has only LSL #0 and LSL #12 avaiable.
+      // ADD/SUB (immediate) has only LSL #0 and LSL #12 available.
       // 1) For offset <= 12-bit, we use LSL #0
       // 2) For 12-bit <= offset <= 24-bit, we use two instructions. One uses
       // LSL #0, and the other uses LSL #12.
@@ -158,7 +159,7 @@ void AArch64FrameLowering::emitCalleeSavedFrameMoves(
   MachineFrameInfo *MFI = MF.getFrameInfo();
   MachineModuleInfo &MMI = MF.getMMI();
   const MCRegisterInfo *MRI = MMI.getContext().getRegisterInfo();
-  const TargetInstrInfo *TII = MF.getTarget().getInstrInfo();
+  const TargetInstrInfo *TII = MF.getSubtarget().getInstrInfo();
   DebugLoc DL = MBB.findDebugLoc(MBBI);
 
   // Add callee saved registers to move list.
@@ -166,7 +167,7 @@ void AArch64FrameLowering::emitCalleeSavedFrameMoves(
   if (CSI.empty())
     return;
 
-  const DataLayout *TD = MF.getTarget().getDataLayout();
+  const DataLayout *TD = MF.getSubtarget().getDataLayout();
   bool HasFP = hasFP(MF);
 
   // Calculate amount of bytes used for return address storing.
@@ -195,7 +196,8 @@ void AArch64FrameLowering::emitCalleeSavedFrameMoves(
     unsigned CFIIndex = MMI.addFrameInst(MCCFIInstruction::createOffset(
         nullptr, DwarfReg, Offset - TotalSkipped));
     BuildMI(MBB, MBBI, DL, TII->get(TargetOpcode::CFI_INSTRUCTION))
-        .addCFIIndex(CFIIndex);
+        .addCFIIndex(CFIIndex)
+        .setMIFlags(MachineInstr::FrameSetup);
   }
 }
 
@@ -205,13 +207,18 @@ void AArch64FrameLowering::emitPrologue(MachineFunction &MF) const {
   const MachineFrameInfo *MFI = MF.getFrameInfo();
   const Function *Fn = MF.getFunction();
   const AArch64RegisterInfo *RegInfo = static_cast<const AArch64RegisterInfo *>(
-      MF.getTarget().getRegisterInfo());
-  const TargetInstrInfo *TII = MF.getTarget().getInstrInfo();
+      MF.getSubtarget().getRegisterInfo());
+  const TargetInstrInfo *TII = MF.getSubtarget().getInstrInfo();
   MachineModuleInfo &MMI = MF.getMMI();
   AArch64FunctionInfo *AFI = MF.getInfo<AArch64FunctionInfo>();
   bool needsFrameMoves = MMI.hasDebugInfo() || Fn->needsUnwindTableEntry();
   bool HasFP = hasFP(MF);
   DebugLoc DL = MBB.findDebugLoc(MBBI);
+
+  // All calls are tail calls in GHC calling conv, and functions have no
+  // prologue/epilogue.
+  if (MF.getFunction()->getCallingConv() == CallingConv::GHC)
+    return;
 
   int NumBytes = (int)MFI->getStackSize();
   if (!AFI->hasStackFrame()) {
@@ -233,7 +240,8 @@ void AArch64FrameLowering::emitPrologue(MachineFunction &MF) const {
       unsigned CFIIndex = MMI.addFrameInst(
           MCCFIInstruction::createDefCfaOffset(FrameLabel, -NumBytes));
       BuildMI(MBB, MBBI, DL, TII->get(TargetOpcode::CFI_INSTRUCTION))
-          .addCFIIndex(CFIIndex);
+          .addCFIIndex(CFIIndex)
+          .setMIFlags(MachineInstr::FrameSetup);
     } else if (NumBytes) {
       ++NumRedZoneFunctions;
     }
@@ -300,7 +308,7 @@ void AArch64FrameLowering::emitPrologue(MachineFunction &MF) const {
     TII->copyPhysReg(MBB, MBBI, DL, AArch64::X19, AArch64::SP, false);
 
   if (needsFrameMoves) {
-    const DataLayout *TD = MF.getTarget().getDataLayout();
+    const DataLayout *TD = MF.getSubtarget().getDataLayout();
     const int StackGrowth = -TD->getPointerSize(0);
     unsigned FramePtr = RegInfo->getFrameRegister(MF);
 
@@ -376,26 +384,30 @@ void AArch64FrameLowering::emitPrologue(MachineFunction &MF) const {
       unsigned CFIIndex = MMI.addFrameInst(
           MCCFIInstruction::createDefCfa(nullptr, Reg, 2 * StackGrowth));
       BuildMI(MBB, MBBI, DL, TII->get(TargetOpcode::CFI_INSTRUCTION))
-          .addCFIIndex(CFIIndex);
+          .addCFIIndex(CFIIndex)
+          .setMIFlags(MachineInstr::FrameSetup);
 
       // Record the location of the stored LR
       unsigned LR = RegInfo->getDwarfRegNum(AArch64::LR, true);
       CFIIndex = MMI.addFrameInst(
           MCCFIInstruction::createOffset(nullptr, LR, StackGrowth));
       BuildMI(MBB, MBBI, DL, TII->get(TargetOpcode::CFI_INSTRUCTION))
-          .addCFIIndex(CFIIndex);
+          .addCFIIndex(CFIIndex)
+          .setMIFlags(MachineInstr::FrameSetup);
 
       // Record the location of the stored FP
       CFIIndex = MMI.addFrameInst(
           MCCFIInstruction::createOffset(nullptr, Reg, 2 * StackGrowth));
       BuildMI(MBB, MBBI, DL, TII->get(TargetOpcode::CFI_INSTRUCTION))
-          .addCFIIndex(CFIIndex);
+          .addCFIIndex(CFIIndex)
+          .setMIFlags(MachineInstr::FrameSetup);
     } else {
       // Encode the stack size of the leaf function.
       unsigned CFIIndex = MMI.addFrameInst(
           MCCFIInstruction::createDefCfaOffset(nullptr, -MFI->getStackSize()));
       BuildMI(MBB, MBBI, DL, TII->get(TargetOpcode::CFI_INSTRUCTION))
-          .addCFIIndex(CFIIndex);
+          .addCFIIndex(CFIIndex)
+          .setMIFlags(MachineInstr::FrameSetup);
     }
 
     // Now emit the moves for whatever callee saved regs we have.
@@ -435,14 +447,19 @@ void AArch64FrameLowering::emitEpilogue(MachineFunction &MF,
   assert(MBBI->isReturn() && "Can only insert epilog into returning blocks");
   MachineFrameInfo *MFI = MF.getFrameInfo();
   const AArch64InstrInfo *TII =
-      static_cast<const AArch64InstrInfo *>(MF.getTarget().getInstrInfo());
+      static_cast<const AArch64InstrInfo *>(MF.getSubtarget().getInstrInfo());
   const AArch64RegisterInfo *RegInfo = static_cast<const AArch64RegisterInfo *>(
-      MF.getTarget().getRegisterInfo());
+      MF.getSubtarget().getRegisterInfo());
   DebugLoc DL = MBBI->getDebugLoc();
   unsigned RetOpcode = MBBI->getOpcode();
 
   int NumBytes = MFI->getStackSize();
   const AArch64FunctionInfo *AFI = MF.getInfo<AArch64FunctionInfo>();
+
+  // All calls are tail calls in GHC calling conv, and functions have no
+  // prologue/epilogue.
+  if (MF.getFunction()->getCallingConv() == CallingConv::GHC)
+    return;
 
   // Initial and residual are named for consitency with the prologue. Note that
   // in the epilogue, the residual adjustment is executed first.
@@ -548,7 +565,7 @@ int AArch64FrameLowering::resolveFrameIndexReference(const MachineFunction &MF,
                                                      bool PreferFP) const {
   const MachineFrameInfo *MFI = MF.getFrameInfo();
   const AArch64RegisterInfo *RegInfo = static_cast<const AArch64RegisterInfo *>(
-      MF.getTarget().getRegisterInfo());
+      MF.getSubtarget().getRegisterInfo());
   const AArch64FunctionInfo *AFI = MF.getInfo<AArch64FunctionInfo>();
   int FPOffset = MFI->getObjectOffset(FI) + 16;
   int Offset = MFI->getObjectOffset(FI) + MFI->getStackSize();
@@ -617,7 +634,7 @@ bool AArch64FrameLowering::spillCalleeSavedRegisters(
     const std::vector<CalleeSavedInfo> &CSI,
     const TargetRegisterInfo *TRI) const {
   MachineFunction &MF = *MBB.getParent();
-  const TargetInstrInfo &TII = *MF.getTarget().getInstrInfo();
+  const TargetInstrInfo &TII = *MF.getSubtarget().getInstrInfo();
   unsigned Count = CSI.size();
   DebugLoc DL;
   assert((Count & 1) == 0 && "Odd number of callee-saved regs to spill!");
@@ -693,7 +710,7 @@ bool AArch64FrameLowering::restoreCalleeSavedRegisters(
     const std::vector<CalleeSavedInfo> &CSI,
     const TargetRegisterInfo *TRI) const {
   MachineFunction &MF = *MBB.getParent();
-  const TargetInstrInfo &TII = *MF.getTarget().getInstrInfo();
+  const TargetInstrInfo &TII = *MF.getSubtarget().getInstrInfo();
   unsigned Count = CSI.size();
   DebugLoc DL;
   assert((Count & 1) == 0 && "Odd number of callee-saved regs to spill!");
@@ -761,7 +778,7 @@ bool AArch64FrameLowering::restoreCalleeSavedRegisters(
 void AArch64FrameLowering::processFunctionBeforeCalleeSavedScan(
     MachineFunction &MF, RegScavenger *RS) const {
   const AArch64RegisterInfo *RegInfo = static_cast<const AArch64RegisterInfo *>(
-      MF.getTarget().getRegisterInfo());
+      MF.getSubtarget().getRegisterInfo());
   AArch64FunctionInfo *AFI = MF.getInfo<AArch64FunctionInfo>();
   MachineRegisterInfo *MRI = &MF.getRegInfo();
   SmallVector<unsigned, 4> UnspilledCSGPRs;

@@ -1265,8 +1265,8 @@ lldp_private_dcbx_print(netdissect_options *ndo,
 }
 
 static char *
-lldp_network_addr_print(netdissect_options *ndo, const u_char *tptr, u_int len) {
-
+lldp_network_addr_print(netdissect_options *ndo, const u_char *tptr, u_int len)
+{
     uint8_t af;
     static char buf[BUFSIZE];
     const char * (*pfunc)(netdissect_options *, const u_char *);
@@ -1311,8 +1311,8 @@ lldp_network_addr_print(netdissect_options *ndo, const u_char *tptr, u_int len) 
 
 static int
 lldp_mgmt_addr_tlv_print(netdissect_options *ndo,
-                         const u_char *pptr, u_int len) {
-
+                         const u_char *pptr, u_int len)
+{
     uint8_t mgmt_addr_len, intf_num_subtype, oid_len;
     const u_char *tptr;
     u_int tlen;
@@ -1373,8 +1373,8 @@ lldp_mgmt_addr_tlv_print(netdissect_options *ndo,
 
 void
 lldp_print(netdissect_options *ndo,
-           register const u_char *pptr, register u_int len) {
-
+           register const u_char *pptr, register u_int len)
+{
     uint8_t subtype;
     uint16_t tlv, cap, ena_cap;
     u_int oui, tlen, hexdump, tlv_type, tlv_len;

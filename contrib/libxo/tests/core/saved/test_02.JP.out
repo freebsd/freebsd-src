@@ -26,7 +26,9 @@
       "cur": 20,
       "max": 125,
       "flag": [
-         "one", "two", "three"
+        "one",
+        "two",
+        "three"
       ],
       "empty-tag": true,
       "t1": "1000",
@@ -34,7 +36,10 @@
       "t3": "ten-longx",
       "t4": "xtest",
       "count": 10,
-      "test": 4
+      "test": 4,
+      "error": {
+        "message": "Shut 'er down, Clancey!  She's a-pumpin' mud!  <>!,\"!<>\n"
+      }
     }
   }
 }

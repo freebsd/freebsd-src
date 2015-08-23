@@ -27,7 +27,7 @@ static const char sccsid[] = "$Id: ex_edit.c,v 10.15 2011/12/22 23:26:50 zy Exp 
 #include "../common/common.h"
 #include "../vi/vi.h"
 
-static int ex_N_edit __P((SCR *, EXCMD *, FREF *, int));
+static int ex_N_edit(SCR *, EXCMD *, FREF *, int);
 
 /*
  * ex_edit --	:e[dit][!] [+cmd] [file]
@@ -43,7 +43,7 @@ static int ex_N_edit __P((SCR *, EXCMD *, FREF *, int));
  * a file name as well.  This seems unreasonable, so we support it
  * regardless.
  *
- * PUBLIC: int ex_edit __P((SCR *, EXCMD *));
+ * PUBLIC: int ex_edit(SCR *, EXCMD *);
  */
 int
 ex_edit(SCR *sp, EXCMD *cmdp)

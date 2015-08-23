@@ -47,9 +47,9 @@ typedef union byteswap_u
 /*
  * Function prototypes
  */
-static	int	tt560_start	P((int, struct peer *));
-static	void	tt560_shutdown	P((int, struct peer *));
-static	void	tt560_poll	P((int unit, struct peer *));
+static	int	tt560_start	(int, struct peer *);
+static	void	tt560_shutdown	(int, struct peer *);
+static	void	tt560_poll	(int unit, struct peer *);
 
 /*
  * Transfer vector
@@ -76,14 +76,14 @@ tt560_start(
 {
 	register struct tt560unit *up;
 	struct refclockproc *pp;
-	char device[20];
-	int     fd;
-        caddr_t membase;
+	char	device[20];
+	int	fd;
+	caddr_t membase;
 
 	/*
 	 * Open TT560 device
 	 */
-	(void)sprintf(device, DEVICE, unit);
+	snprintf(device, sizeof(device), DEVICE, unit);
 	fd = open(device, O_RDWR);
 	if (fd == -1) {
 		msyslog(LOG_ERR, "tt560_start: open of %s: %m", device);
@@ -123,7 +123,6 @@ tt560_start(
 	 * Initialize miscellaneous peer variables
 	 */
 	peer->precision = PRECISION;
-	peer->burst = NSTAGE;
 	pp->clockdesc = DESCRIPTION;
 	memcpy((char *)&pp->refid, REFID, 4);
 	return (1);
@@ -195,9 +194,9 @@ tt560_poll(
 	 * proper format, we declare bad format and exit. Note: we
 	 * can't use the sec/usec conversion produced by the driver,
 	 * since the year may be suspect. All format error checking is
-	 * done by the sprintf() and sscanf() routines.
+	 * done by the snprintf() and sscanf() routines.
 	 */
-	sprintf(pp->a_lastcode,
+	snprintf(pp->a_lastcode, sizeof(pp->a_lastcode),
 	    "%1x%1x%1x %1x%1x:%1x%1x:%1x%1x.%1x%1x%1x%1x%1x%1x %1x",
 	    tp->hun_day,  tp->tens_day,  tp->unit_day,
 	                  tp->tens_hour, tp->unit_hour,
@@ -227,15 +226,12 @@ tt560_poll(
 		refclock_report(peer, CEVNT_BADTIME);
 		return;
 	}
-	if (peer->burst > 0)
-		return;
 	if (pp->coderecv == pp->codeproc) {
 		refclock_report(peer, CEVNT_TIMEOUT);
 		return;
 	}
 	record_clock_stats(&peer->srcadr, pp->a_lastcode);
 	refclock_receive(peer);
-	peer->burst = NSTAGE;
 }
 
 /******************************************************************

@@ -30,9 +30,9 @@ static const char sccsid[] = "$Id: options.c,v 10.73 2012/10/09 06:14:07 zy Exp 
 #include "../vi/vi.h"
 #include "pathnames.h"
 
-static int	 	 opts_abbcmp __P((const void *, const void *));
-static int	 	 opts_cmp __P((const void *, const void *));
-static int	 	 opts_print __P((SCR *, OPTLIST const *));
+static int	 	 opts_abbcmp(const void *, const void *);
+static int	 	 opts_cmp(const void *, const void *);
+static int	 	 opts_print(SCR *, OPTLIST const *);
 
 #ifdef USE_WIDECHAR
 #define OPT_WC	    0
@@ -243,8 +243,8 @@ OPTLIST const optlist[] = {
 };
 
 typedef struct abbrev {
-        CHAR_T *name;
-        int offset;
+	CHAR_T *name;
+	int offset;
 } OABBREV;
 
 static OABBREV const abbrev[] = {
@@ -294,7 +294,7 @@ static OABBREV const abbrev[] = {
  * opts_init --
  *	Initialize some of the options.
  *
- * PUBLIC: int opts_init __P((SCR *, int *));
+ * PUBLIC: int opts_init(SCR *, int *);
  */
 int
 opts_init(
@@ -460,7 +460,7 @@ err:	msgq_wstr(sp, M_ERR, optlist[optindx].name,
  * opts_set --
  *	Change the values of one or more options.
  *
- * PUBLIC: int opts_set __P((SCR *, ARGS *[], char *));
+ * PUBLIC: int opts_set(SCR *, ARGS *[], char *);
  */
 int
 opts_set(
@@ -754,7 +754,7 @@ badnum:				INT2CHAR(sp, name, STRLEN(name) + 1,
  * o_set --
  *	Set an option's value.
  *
- * PUBLIC: int o_set __P((SCR *, int, u_int, char *, u_long));
+ * PUBLIC: int o_set(SCR *, int, u_int, char *, u_long);
  */
 int
 o_set(
@@ -798,7 +798,7 @@ o_set(
  * opts_empty --
  *	Return 1 if the string option is invalid, 0 if it's OK.
  *
- * PUBLIC: int opts_empty __P((SCR *, int, int));
+ * PUBLIC: int opts_empty(SCR *, int, int);
  */
 int
 opts_empty(
@@ -821,7 +821,7 @@ opts_empty(
  * opts_dump --
  *	List the current values of selected options.
  *
- * PUBLIC: void opts_dump __P((SCR *, enum optdisp));
+ * PUBLIC: void opts_dump(SCR *, enum optdisp);
  */
 void
 opts_dump(
@@ -987,7 +987,7 @@ opts_print(
  * opts_save --
  *	Write the current configuration to a file.
  *
- * PUBLIC: int opts_save __P((SCR *, FILE *));
+ * PUBLIC: int opts_save(SCR *, FILE *);
  */
 int
 opts_save(
@@ -1045,7 +1045,7 @@ opts_save(
  * opts_search --
  *	Search for an option.
  *
- * PUBLIC: OPTLIST const *opts_search __P((CHAR_T *));
+ * PUBLIC: OPTLIST const *opts_search(CHAR_T *);
  */
 OPTLIST const *
 opts_search(CHAR_T *name)
@@ -1090,7 +1090,7 @@ opts_search(CHAR_T *name)
  * opts_nomatch --
  *	Standard nomatch error message for options.
  *
- * PUBLIC: void opts_nomatch __P((SCR *, CHAR_T *));
+ * PUBLIC: void opts_nomatch(SCR *, CHAR_T *);
  */
 void
 opts_nomatch(
@@ -1103,25 +1103,25 @@ opts_nomatch(
 
 static int
 opts_abbcmp(
-        const void *a,
-		const void *b)
+	const void *a,
+	const void *b)
 {
-        return(STRCMP(((OABBREV *)a)->name, ((OABBREV *)b)->name));
+	return(STRCMP(((OABBREV *)a)->name, ((OABBREV *)b)->name));
 }
 
 static int
 opts_cmp(
-        const void *a,
-		const void *b)
+	const void *a,
+	const void *b)
 {
-        return(STRCMP(((OPTLIST *)a)->name, ((OPTLIST *)b)->name));
+	return(STRCMP(((OPTLIST *)a)->name, ((OPTLIST *)b)->name));
 }
 
 /*
  * opts_copy --
  *	Copy a screen's OPTION array.
  *
- * PUBLIC: int opts_copy __P((SCR *, SCR *));
+ * PUBLIC: int opts_copy(SCR *, SCR *);
  */
 int
 opts_copy(
@@ -1169,7 +1169,7 @@ nomem:			msgq(orig, M_SYSERR, NULL);
  * opts_free --
  *	Free all option strings
  *
- * PUBLIC: void opts_free __P((SCR *));
+ * PUBLIC: void opts_free(SCR *);
  */
 void
 opts_free(SCR *sp)

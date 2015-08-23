@@ -44,8 +44,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/stat.h>
 #include <string.h>
 #include <stdio.h>
-#include <unistd.h>
-#include <stdlib.h>
 #include "pax.h"
 #include "extern.h"
 #include "tar.h"

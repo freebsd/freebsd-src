@@ -20,8 +20,13 @@ let TargetPrefix = "arm" in {  // All intrinsics start with "llvm.arm.".
 def int_arm_thread_pointer : GCCBuiltin<"__builtin_thread_pointer">,
             Intrinsic<[llvm_ptr_ty], [], [IntrNoMem]>;
 
+// A space-consuming intrinsic primarily for testing ARMConstantIslands. The
+// first argument is the number of bytes this "instruction" takes up, the second
+// and return value are essentially chains, used to force ordering during ISel.
+def int_arm_space : Intrinsic<[llvm_i32_ty], [llvm_i32_ty, llvm_i32_ty], []>;
+
 //===----------------------------------------------------------------------===//
-// Saturating Arithmentic
+// Saturating Arithmetic
 
 def int_arm_qadd : GCCBuiltin<"__builtin_arm_qadd">,
     Intrinsic<[llvm_i32_ty], [llvm_i32_ty, llvm_i32_ty],
@@ -132,6 +137,7 @@ def int_arm_crc32cw : Intrinsic<[llvm_i32_ty], [llvm_i32_ty, llvm_i32_ty],
 // HINT
 
 def int_arm_hint : Intrinsic<[], [llvm_i32_ty]>;
+def int_arm_dbg : Intrinsic<[], [llvm_i32_ty]>;
 
 //===----------------------------------------------------------------------===//
 // RBIT
@@ -340,10 +346,6 @@ def int_arm_neon_vqneg : Neon_1Arg_Intrinsic;
 
 // Vector Count Leading Sign/Zero Bits.
 def int_arm_neon_vcls : Neon_1Arg_Intrinsic;
-def int_arm_neon_vclz : Neon_1Arg_Intrinsic;
-
-// Vector Count One Bits.
-def int_arm_neon_vcnt : Neon_1Arg_Intrinsic;
 
 // Vector Reciprocal Estimate.
 def int_arm_neon_vrecpe : Neon_1Arg_Intrinsic;

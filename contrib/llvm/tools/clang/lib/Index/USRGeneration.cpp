@@ -198,7 +198,9 @@ void USRGenerator::VisitFunctionDecl(const FunctionDecl *D) {
     return;
 
   VisitDeclContext(D->getDeclContext());
+  bool IsTemplate = false;
   if (FunctionTemplateDecl *FunTmpl = D->getDescribedFunctionTemplate()) {
+    IsTemplate = true;
     Out << "@FT@";
     VisitTemplateParameterList(FunTmpl->getTemplateParameters());
   } else
@@ -226,12 +228,26 @@ void USRGenerator::VisitFunctionDecl(const FunctionDecl *D) {
   }
   if (D->isVariadic())
     Out << '.';
+  if (IsTemplate) {
+    // Function templates can be overloaded by return type, for example:
+    // \code
+    //   template <class T> typename T::A foo() {}
+    //   template <class T> typename T::B foo() {}
+    // \endcode
+    Out << '#';
+    VisitType(D->getReturnType());
+  }
   Out << '#';
   if (const CXXMethodDecl *MD = dyn_cast<CXXMethodDecl>(D)) {
     if (MD->isStatic())
       Out << 'S';
     if (unsigned quals = MD->getTypeQualifiers())
       Out << (char)('0' + quals);
+    switch (MD->getRefQualifier()) {
+    case RQ_None: break;
+    case RQ_LValue: Out << '&'; break;
+    case RQ_RValue: Out << "&&"; break;
+    }
   }
 }
 
@@ -414,8 +430,8 @@ void USRGenerator::VisitTagDecl(const TagDecl *D) {
       
       switch (D->getTagKind()) {
       case TTK_Interface:
+      case TTK_Class:
       case TTK_Struct: Out << "@ST"; break;
-      case TTK_Class:  Out << "@CT"; break;
       case TTK_Union:  Out << "@UT"; break;
       case TTK_Enum: llvm_unreachable("enum template");
       }
@@ -426,8 +442,8 @@ void USRGenerator::VisitTagDecl(const TagDecl *D) {
       
       switch (D->getTagKind()) {
       case TTK_Interface:
+      case TTK_Class:
       case TTK_Struct: Out << "@SP"; break;
-      case TTK_Class:  Out << "@CP"; break;
       case TTK_Union:  Out << "@UP"; break;
       case TTK_Enum: llvm_unreachable("enum partial specialization");
       }      
@@ -438,8 +454,8 @@ void USRGenerator::VisitTagDecl(const TagDecl *D) {
   if (!AlreadyStarted) {
     switch (D->getTagKind()) {
       case TTK_Interface:
+      case TTK_Class:
       case TTK_Struct: Out << "@S"; break;
-      case TTK_Class:  Out << "@C"; break;
       case TTK_Union:  Out << "@U"; break;
       case TTK_Enum:   Out << "@E"; break;
     }
@@ -455,8 +471,12 @@ void USRGenerator::VisitTagDecl(const TagDecl *D) {
       Buf[off] = 'A';
       Out << '@' << *TD;
     }
-    else
+  else {
+    if (D->isEmbeddedInDeclarator() && !D->isFreeStanding()) {
+      printLoc(Out, D->getLocation(), Context->getSourceManager(), true);
+    } else
       Buf[off] = 'a';
+  }
   }
   
   // For a class template specialization, mangle the template arguments.
@@ -540,7 +560,6 @@ void USRGenerator::VisitType(QualType T) {
           c = 'v'; break;
         case BuiltinType::Bool:
           c = 'b'; break;
-        case BuiltinType::Char_U:
         case BuiltinType::UChar:
           c = 'c'; break;
         case BuiltinType::Char16:
@@ -557,9 +576,11 @@ void USRGenerator::VisitType(QualType T) {
           c = 'k'; break;
         case BuiltinType::UInt128:
           c = 'j'; break;
+        case BuiltinType::Char_U:
         case BuiltinType::Char_S:
-        case BuiltinType::SChar:
           c = 'C'; break;
+        case BuiltinType::SChar:
+          c = 'r'; break;
         case BuiltinType::WChar_S:
         case BuiltinType::WChar_U:
           c = 'W'; break;
@@ -626,6 +647,11 @@ void USRGenerator::VisitType(QualType T) {
       T = PT->getPointeeType();
       continue;
     }
+    if (const RValueReferenceType *RT = T->getAs<RValueReferenceType>()) {
+      Out << "&&";
+      T = RT->getPointeeType();
+      continue;
+    }
     if (const ReferenceType *RT = T->getAs<ReferenceType>()) {
       Out << '&';
       T = RT->getPointeeType();
@@ -667,6 +693,22 @@ void USRGenerator::VisitType(QualType T) {
       for (unsigned I = 0, N = Spec->getNumArgs(); I != N; ++I)
         VisitTemplateArgument(Spec->getArg(I));
       return;
+    }
+    if (const DependentNameType *DNT = T->getAs<DependentNameType>()) {
+      Out << '^';
+      // FIXME: Encode the qualifier, don't just print it.
+      PrintingPolicy PO(Ctx.getLangOpts());
+      PO.SuppressTagKeyword = true;
+      PO.SuppressUnwrittenScope = true;
+      PO.ConstantArraySizeAsWritten = false;
+      PO.AnonymousTagLocations = false;
+      DNT->getQualifier()->print(Out, PO);
+      Out << ':' << DNT->getIdentifier()->getName();
+      return;
+    }
+    if (const InjectedClassNameType *InjT = T->getAs<InjectedClassNameType>()) {
+      T = InjT->getInjectedSpecializationType();
+      continue;
     }
     
     // Unhandled type.

@@ -87,8 +87,8 @@ static int ttyfd = -1;
 
 /* mode flags for dowait */
 #define DOWAIT_BLOCK	0x1 /* wait until a child exits */
-#define DOWAIT_SIG	0x2 /* if DOWAIT_BLOCK, abort on SIGINT/SIGQUIT */
-#define DOWAIT_SIG_ANY	0x4 /* if DOWAIT_SIG, abort on any signal */
+#define DOWAIT_SIG	0x2 /* if DOWAIT_BLOCK, abort on signal */
+#define DOWAIT_SIG_TRAP	0x4 /* if DOWAIT_SIG, abort on trapped signal only */
 
 #if JOBS
 static void restartjob(struct job *);
@@ -232,7 +232,7 @@ fgcmd(int argc __unused, char **argv __unused)
 
 
 int
-bgcmd(int argc, char **argv)
+bgcmd(int argc __unused, char **argv __unused)
 {
 	struct job *jp;
 
@@ -1028,7 +1028,7 @@ waitforjob(struct job *jp, int *origstatus)
 	TRACE(("waitforjob(%%%td) called\n", jp - jobtab + 1));
 	while (jp->state == 0)
 		if (dowait(DOWAIT_BLOCK | (Tflag ? DOWAIT_SIG |
-		    DOWAIT_SIG_ANY : 0), jp) == -1)
+		    DOWAIT_SIG_TRAP : 0), jp) == -1)
 			dotrap();
 #if JOBS
 	if (jp->jobctl) {
@@ -1057,7 +1057,7 @@ waitforjob(struct job *jp, int *origstatus)
 			CLEAR_PENDING_INT;
 	}
 #if JOBS
-	else if (rootshell && iflag && propagate_int &&
+	else if (rootshell && propagate_int &&
 			WIFSIGNALED(status) && WTERMSIG(status) == SIGINT)
 		kill(getpid(), SIGINT);
 #endif
@@ -1120,7 +1120,7 @@ dowait(int mode, struct job *job)
 		TRACE(("wait returns %d, status=%d\n", (int)pid, status));
 		if (pid == 0 && (mode & DOWAIT_SIG) != 0) {
 			pid = -1;
-			if (((mode & DOWAIT_SIG_ANY) != 0 ?
+			if (((mode & DOWAIT_SIG_TRAP) != 0 ?
 			    pendingsig : pendingsig_waitcmd) != 0) {
 				errno = EINTR;
 				break;

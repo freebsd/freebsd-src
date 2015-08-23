@@ -2,7 +2,7 @@
 # derrived from /etc/rc_d/os.sh
 
 # RCSid:
-#	$Id: machine.sh,v 1.16 2010/10/17 00:05:51 sjg Exp $
+#	$Id: machine.sh,v 1.17 2015/05/05 00:10:54 sjg Exp $
 #
 #	@(#) Copyright (c) 1994-2002 Simon J. Gerraty
 #
@@ -48,6 +48,10 @@ OpenBSD)
 	MACHINE=$OS$OSMAJOR.$machine
 	arch=`Which arch /usr/bin:/usr/ucb:$PATH`
 	MACHINE_ARCH=`$arch -s`;
+	;;
+Bitrig)
+	MACHINE=$OS$OSMAJOR.$machine
+	MACHINE_ARCH=`uname -m`;
 	;;
 *BSD)
 	MACHINE=$OS$OSMAJOR.$machine

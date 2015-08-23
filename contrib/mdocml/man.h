@@ -1,4 +1,4 @@
-/*	$Id: man.h,v 1.67 2014/12/01 04:05:32 schwarze Exp $ */
+/*	$Id: man.h,v 1.69 2015/01/24 02:41:49 schwarze Exp $ */
 /*
  * Copyright (c) 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2014 Ingo Schwarze <schwarze@openbsd.org>
@@ -38,7 +38,6 @@ enum	mant {
 	MAN_I,
 	MAN_IR,
 	MAN_RI,
-	MAN_na,
 	MAN_sp,
 	MAN_nf,
 	MAN_fi,
@@ -99,6 +98,7 @@ struct	man_node {
 	struct man_node	*body; /* BLOCK node BODY ptr */
 	const struct tbl_span *span; /* TBL */
 	const struct eqn *eqn; /* EQN */
+	int		 aux; /* decoded node data, type-dependent */
 };
 
 /* Names of macros.  Index is enum mant. */

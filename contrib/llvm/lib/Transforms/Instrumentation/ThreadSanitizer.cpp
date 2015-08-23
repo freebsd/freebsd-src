@@ -135,33 +135,33 @@ void ThreadSanitizer::initializeCallbacks(Module &M) {
   IRBuilder<> IRB(M.getContext());
   // Initialize the callbacks.
   TsanFuncEntry = checkInterfaceFunction(M.getOrInsertFunction(
-      "__tsan_func_entry", IRB.getVoidTy(), IRB.getInt8PtrTy(), NULL));
+      "__tsan_func_entry", IRB.getVoidTy(), IRB.getInt8PtrTy(), nullptr));
   TsanFuncExit = checkInterfaceFunction(M.getOrInsertFunction(
-      "__tsan_func_exit", IRB.getVoidTy(), NULL));
+      "__tsan_func_exit", IRB.getVoidTy(), nullptr));
   OrdTy = IRB.getInt32Ty();
   for (size_t i = 0; i < kNumberOfAccessSizes; ++i) {
     const size_t ByteSize = 1 << i;
     const size_t BitSize = ByteSize * 8;
     SmallString<32> ReadName("__tsan_read" + itostr(ByteSize));
     TsanRead[i] = checkInterfaceFunction(M.getOrInsertFunction(
-        ReadName, IRB.getVoidTy(), IRB.getInt8PtrTy(), NULL));
+        ReadName, IRB.getVoidTy(), IRB.getInt8PtrTy(), nullptr));
 
     SmallString<32> WriteName("__tsan_write" + itostr(ByteSize));
     TsanWrite[i] = checkInterfaceFunction(M.getOrInsertFunction(
-        WriteName, IRB.getVoidTy(), IRB.getInt8PtrTy(), NULL));
+        WriteName, IRB.getVoidTy(), IRB.getInt8PtrTy(), nullptr));
 
     Type *Ty = Type::getIntNTy(M.getContext(), BitSize);
     Type *PtrTy = Ty->getPointerTo();
     SmallString<32> AtomicLoadName("__tsan_atomic" + itostr(BitSize) +
                                    "_load");
     TsanAtomicLoad[i] = checkInterfaceFunction(M.getOrInsertFunction(
-        AtomicLoadName, Ty, PtrTy, OrdTy, NULL));
+        AtomicLoadName, Ty, PtrTy, OrdTy, nullptr));
 
     SmallString<32> AtomicStoreName("__tsan_atomic" + itostr(BitSize) +
                                     "_store");
     TsanAtomicStore[i] = checkInterfaceFunction(M.getOrInsertFunction(
         AtomicStoreName, IRB.getVoidTy(), PtrTy, Ty, OrdTy,
-        NULL));
+        nullptr));
 
     for (int op = AtomicRMWInst::FIRST_BINOP;
         op <= AtomicRMWInst::LAST_BINOP; ++op) {
@@ -185,33 +185,33 @@ void ThreadSanitizer::initializeCallbacks(Module &M) {
         continue;
       SmallString<32> RMWName("__tsan_atomic" + itostr(BitSize) + NamePart);
       TsanAtomicRMW[op][i] = checkInterfaceFunction(M.getOrInsertFunction(
-          RMWName, Ty, PtrTy, Ty, OrdTy, NULL));
+          RMWName, Ty, PtrTy, Ty, OrdTy, nullptr));
     }
 
     SmallString<32> AtomicCASName("__tsan_atomic" + itostr(BitSize) +
                                   "_compare_exchange_val");
     TsanAtomicCAS[i] = checkInterfaceFunction(M.getOrInsertFunction(
-        AtomicCASName, Ty, PtrTy, Ty, Ty, OrdTy, OrdTy, NULL));
+        AtomicCASName, Ty, PtrTy, Ty, Ty, OrdTy, OrdTy, nullptr));
   }
   TsanVptrUpdate = checkInterfaceFunction(M.getOrInsertFunction(
       "__tsan_vptr_update", IRB.getVoidTy(), IRB.getInt8PtrTy(),
-      IRB.getInt8PtrTy(), NULL));
+      IRB.getInt8PtrTy(), nullptr));
   TsanVptrLoad = checkInterfaceFunction(M.getOrInsertFunction(
-      "__tsan_vptr_read", IRB.getVoidTy(), IRB.getInt8PtrTy(), NULL));
+      "__tsan_vptr_read", IRB.getVoidTy(), IRB.getInt8PtrTy(), nullptr));
   TsanAtomicThreadFence = checkInterfaceFunction(M.getOrInsertFunction(
-      "__tsan_atomic_thread_fence", IRB.getVoidTy(), OrdTy, NULL));
+      "__tsan_atomic_thread_fence", IRB.getVoidTy(), OrdTy, nullptr));
   TsanAtomicSignalFence = checkInterfaceFunction(M.getOrInsertFunction(
-      "__tsan_atomic_signal_fence", IRB.getVoidTy(), OrdTy, NULL));
+      "__tsan_atomic_signal_fence", IRB.getVoidTy(), OrdTy, nullptr));
 
   MemmoveFn = checkInterfaceFunction(M.getOrInsertFunction(
     "memmove", IRB.getInt8PtrTy(), IRB.getInt8PtrTy(),
-    IRB.getInt8PtrTy(), IntptrTy, NULL));
+    IRB.getInt8PtrTy(), IntptrTy, nullptr));
   MemcpyFn = checkInterfaceFunction(M.getOrInsertFunction(
     "memcpy", IRB.getInt8PtrTy(), IRB.getInt8PtrTy(), IRB.getInt8PtrTy(),
-    IntptrTy, NULL));
+    IntptrTy, nullptr));
   MemsetFn = checkInterfaceFunction(M.getOrInsertFunction(
     "memset", IRB.getInt8PtrTy(), IRB.getInt8PtrTy(), IRB.getInt32Ty(),
-    IntptrTy, NULL));
+    IntptrTy, nullptr));
 }
 
 bool ThreadSanitizer::doInitialization(Module &M) {
@@ -224,7 +224,7 @@ bool ThreadSanitizer::doInitialization(Module &M) {
   IRBuilder<> IRB(M.getContext());
   IntptrTy = IRB.getIntPtrTy(DL);
   Value *TsanInit = M.getOrInsertFunction("__tsan_init",
-                                          IRB.getVoidTy(), NULL);
+                                          IRB.getVoidTy(), nullptr);
   appendToGlobalCtors(M, cast<Function>(TsanInit), 0);
 
   return true;
@@ -422,7 +422,7 @@ bool ThreadSanitizer::instrumentLoadOrStore(Instruction *I) {
 static ConstantInt *createOrdering(IRBuilder<> *IRB, AtomicOrdering ord) {
   uint32_t v = 0;
   switch (ord) {
-    case NotAtomic:              assert(false);
+    case NotAtomic: llvm_unreachable("unexpected atomic ordering!");
     case Unordered:              // Fall-through.
     case Monotonic:              v = 0; break;
     // case Consume:                v = 1; break;  // Not specified yet.
@@ -481,8 +481,7 @@ bool ThreadSanitizer::instrumentAtomic(Instruction *I) {
     Type *PtrTy = Ty->getPointerTo();
     Value *Args[] = {IRB.CreatePointerCast(Addr, PtrTy),
                      createOrdering(&IRB, LI->getOrdering())};
-    CallInst *C = CallInst::Create(TsanAtomicLoad[Idx],
-                                   ArrayRef<Value*>(Args));
+    CallInst *C = CallInst::Create(TsanAtomicLoad[Idx], Args);
     ReplaceInstWithInst(I, C);
 
   } else if (StoreInst *SI = dyn_cast<StoreInst>(I)) {
@@ -497,8 +496,7 @@ bool ThreadSanitizer::instrumentAtomic(Instruction *I) {
     Value *Args[] = {IRB.CreatePointerCast(Addr, PtrTy),
                      IRB.CreateIntCast(SI->getValueOperand(), Ty, false),
                      createOrdering(&IRB, SI->getOrdering())};
-    CallInst *C = CallInst::Create(TsanAtomicStore[Idx],
-                                   ArrayRef<Value*>(Args));
+    CallInst *C = CallInst::Create(TsanAtomicStore[Idx], Args);
     ReplaceInstWithInst(I, C);
   } else if (AtomicRMWInst *RMWI = dyn_cast<AtomicRMWInst>(I)) {
     Value *Addr = RMWI->getPointerOperand();
@@ -515,7 +513,7 @@ bool ThreadSanitizer::instrumentAtomic(Instruction *I) {
     Value *Args[] = {IRB.CreatePointerCast(Addr, PtrTy),
                      IRB.CreateIntCast(RMWI->getValOperand(), Ty, false),
                      createOrdering(&IRB, RMWI->getOrdering())};
-    CallInst *C = CallInst::Create(F, ArrayRef<Value*>(Args));
+    CallInst *C = CallInst::Create(F, Args);
     ReplaceInstWithInst(I, C);
   } else if (AtomicCmpXchgInst *CASI = dyn_cast<AtomicCmpXchgInst>(I)) {
     Value *Addr = CASI->getPointerOperand();
@@ -543,7 +541,7 @@ bool ThreadSanitizer::instrumentAtomic(Instruction *I) {
     Value *Args[] = {createOrdering(&IRB, FI->getOrdering())};
     Function *F = FI->getSynchScope() == SingleThread ?
         TsanAtomicSignalFence : TsanAtomicThreadFence;
-    CallInst *C = CallInst::Create(F, ArrayRef<Value*>(Args));
+    CallInst *C = CallInst::Create(F, Args);
     ReplaceInstWithInst(I, C);
   }
   return true;

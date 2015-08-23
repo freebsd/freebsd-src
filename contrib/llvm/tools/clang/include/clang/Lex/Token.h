@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_TOKEN_H
-#define LLVM_CLANG_TOKEN_H
+#ifndef LLVM_CLANG_LEX_TOKEN_H
+#define LLVM_CLANG_LEX_TOKEN_H
 
 #include "clang/Basic/OperatorKinds.h"
 #include "clang/Basic/SourceLocation.h"
@@ -58,6 +58,8 @@ class Token {
   ///    may be dirty (have trigraphs / escaped newlines).
   ///  Annotations (resolved type names, C++ scopes, etc): isAnnotation().
   ///    This is a pointer to sema-specific data for the annotation token.
+  ///  Eof:
+  //     This is a pointer to a Decl.
   ///  Other:
   ///    This is null.
   void *PtrData;
@@ -66,7 +68,7 @@ class Token {
   tok::TokenKind Kind;
 
   /// Flags - Bits we track about this token, members of the TokenFlags enum.
-  unsigned char Flags;
+  unsigned short Flags;
 public:
 
   // Various flags set per token:
@@ -80,7 +82,9 @@ public:
     LeadingEmptyMacro = 0x10, // Empty macro exists before this token.
     HasUDSuffix = 0x20,    // This string or character literal has a ud-suffix.
     HasUCN = 0x40,         // This identifier contains a UCN.
-    IgnoredComma = 0x80    // This comma is not a macro argument separator (MS).
+    IgnoredComma = 0x80,   // This comma is not a macro argument separator (MS).
+    StringifiedInMacro = 0x100, // This string or character literal is formed by
+                                // macro stringizing or charizing operator.
   };
 
   tok::TokenKind getKind() const { return Kind; }
@@ -162,10 +166,21 @@ public:
     assert(!isAnnotation() &&
            "getIdentifierInfo() on an annotation token!");
     if (isLiteral()) return nullptr;
+    if (is(tok::eof)) return nullptr;
     return (IdentifierInfo*) PtrData;
   }
   void setIdentifierInfo(IdentifierInfo *II) {
     PtrData = (void*) II;
+  }
+
+  const void *getEofData() const {
+    assert(is(tok::eof));
+    return reinterpret_cast<const void *>(PtrData);
+  }
+  void setEofData(const void *D) {
+    assert(is(tok::eof));
+    assert(!PtrData);
+    PtrData = const_cast<void *>(D);
   }
 
   /// getRawIdentifier - For a raw identifier token (i.e., an identifier
@@ -262,6 +277,12 @@ public:
 
   /// Returns true if this token contains a universal character name.
   bool hasUCN() const { return (Flags & HasUCN) ? true : false; }
+
+  /// Returns true if this token is formed by macro by stringizing or charizing
+  /// operator.
+  bool stringifiedInMacro() const {
+    return (Flags & StringifiedInMacro) ? true : false;
+  }
 };
 
 /// \brief Information about the conditional stack (\#if directives)

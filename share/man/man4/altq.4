@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 9, 2011
+.Dd June 24, 2015
 .Dt ALTQ 4
 .Os
 .Sh NAME
@@ -40,6 +40,7 @@
 .Cd options ALTQ_HFSC
 .Cd options ALTQ_CDNR
 .Cd options ALTQ_PRIQ
+.Cd options ALTQ_FAIRQ
 .Sh DESCRIPTION
 The
 .Nm
@@ -92,6 +93,10 @@ any of the available disciplines or consumers.
 .It Dv ALTQ_PRIQ
 Build the
 .Dq "Priority Queuing"
+discipline.
+.It Dv ALTQ_FAIRQ
+Build the
+.Dq "Fair Queuing"
 discipline.
 .It Dv ALTQ_NOPCC
 Required if the TSC is unusable.

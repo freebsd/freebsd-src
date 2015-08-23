@@ -74,13 +74,13 @@ fbt:::return
 	    (long long)curthread, pid, tid, (int)arg1, (int)arg0);
 }
 
-mutex_enter:adaptive-acquire
+mtx_lock:adaptive-acquire
 {
 	printf(" %u 0x%llX %d %d lock:0x%llX", timestamp,
 	    (long long)curthread, pid, tid, arg0);
 }
 
-mutex_exit:adaptive-release
+mtx_unlock:adaptive-release
 {
 	printf(" %u 0x%llX %d %d lock:0x%llX", timestamp,
 	    (long long) curthread, pid, tid, arg0);

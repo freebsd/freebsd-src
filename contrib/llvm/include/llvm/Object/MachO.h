@@ -49,6 +49,141 @@ public:
 };
 typedef content_iterator<DiceRef> dice_iterator;
 
+/// ExportEntry encapsulates the current-state-of-the-walk used when doing a
+/// non-recursive walk of the trie data structure.  This allows you to iterate
+/// across all exported symbols using:
+///      for (const llvm::object::ExportEntry &AnExport : Obj->exports()) {
+///      }
+class ExportEntry {
+public:
+  ExportEntry(ArrayRef<uint8_t> Trie);
+
+  StringRef name() const;
+  uint64_t flags() const;
+  uint64_t address() const;
+  uint64_t other() const;
+  StringRef otherName() const;
+  uint32_t nodeOffset() const;
+
+  bool operator==(const ExportEntry &) const;
+
+  void moveNext();
+
+private:
+  friend class MachOObjectFile;
+  void moveToFirst();
+  void moveToEnd();
+  uint64_t readULEB128(const uint8_t *&p);
+  void pushDownUntilBottom();
+  void pushNode(uint64_t Offset);
+
+  // Represents a node in the mach-o exports trie.
+  struct NodeState {
+    NodeState(const uint8_t *Ptr);
+    const uint8_t *Start;
+    const uint8_t *Current;
+    uint64_t Flags;
+    uint64_t Address;
+    uint64_t Other;
+    const char *ImportName;
+    unsigned ChildCount;
+    unsigned NextChildIndex;
+    unsigned ParentStringLength;
+    bool IsExportNode;
+  };
+
+  ArrayRef<uint8_t> Trie;
+  SmallString<256> CumulativeString;
+  SmallVector<NodeState, 16> Stack;
+  bool Malformed;
+  bool Done;
+};
+typedef content_iterator<ExportEntry> export_iterator;
+
+/// MachORebaseEntry encapsulates the current state in the decompression of   
+/// rebasing opcodes. This allows you to iterate through the compressed table of
+/// rebasing using:
+///    for (const llvm::object::MachORebaseEntry &Entry : Obj->rebaseTable()) {
+///    }
+class MachORebaseEntry {
+public:
+  MachORebaseEntry(ArrayRef<uint8_t> opcodes, bool is64Bit);
+
+  uint32_t segmentIndex() const;
+  uint64_t segmentOffset() const;
+  StringRef typeName() const;
+
+  bool operator==(const MachORebaseEntry &) const;
+
+  void moveNext();
+  
+private:
+  friend class MachOObjectFile;
+  void moveToFirst();
+  void moveToEnd();
+  uint64_t readULEB128();
+
+  ArrayRef<uint8_t> Opcodes;
+  const uint8_t *Ptr;
+  uint64_t SegmentOffset;
+  uint32_t SegmentIndex;
+  uint64_t RemainingLoopCount;
+  uint64_t AdvanceAmount;
+  uint8_t  RebaseType;
+  uint8_t  PointerSize;
+  bool     Malformed;
+  bool     Done;
+};
+typedef content_iterator<MachORebaseEntry> rebase_iterator;
+
+/// MachOBindEntry encapsulates the current state in the decompression of
+/// binding opcodes. This allows you to iterate through the compressed table of
+/// bindings using:
+///    for (const llvm::object::MachOBindEntry &Entry : Obj->bindTable()) {
+///    }
+class MachOBindEntry {
+public:
+  enum class Kind { Regular, Lazy, Weak };
+
+  MachOBindEntry(ArrayRef<uint8_t> Opcodes, bool is64Bit, MachOBindEntry::Kind);
+
+  uint32_t segmentIndex() const;
+  uint64_t segmentOffset() const;
+  StringRef typeName() const;
+  StringRef symbolName() const;
+  uint32_t flags() const;
+  int64_t addend() const;
+  int ordinal() const;
+
+  bool operator==(const MachOBindEntry &) const;
+
+  void moveNext();
+
+private:
+  friend class MachOObjectFile;
+  void moveToFirst();
+  void moveToEnd();
+  uint64_t readULEB128();
+  int64_t readSLEB128();
+
+  ArrayRef<uint8_t> Opcodes;
+  const uint8_t *Ptr;
+  uint64_t SegmentOffset;
+  uint32_t SegmentIndex;
+  StringRef SymbolName;
+  int      Ordinal;
+  uint32_t Flags;
+  int64_t  Addend;
+  uint64_t RemainingLoopCount;
+  uint64_t AdvanceAmount;
+  uint8_t  BindType;
+  uint8_t  PointerSize;
+  Kind     TableKind;
+  bool     Malformed;
+  bool     Done;
+};
+typedef content_iterator<MachOBindEntry> bind_iterator;
+
 class MachOObjectFile : public ObjectFile {
 public:
   struct LoadCommandInfo {
@@ -56,8 +191,8 @@ public:
     MachO::load_command C; // The command itself.
   };
 
-  MachOObjectFile(std::unique_ptr<MemoryBuffer> Object, bool IsLittleEndian,
-                  bool Is64Bits, std::error_code &EC);
+  MachOObjectFile(MemoryBufferRef Object, bool IsLittleEndian, bool Is64Bits,
+                  std::error_code &EC);
 
   void moveSymbolNext(DataRefImpl &Symb) const override;
   std::error_code getSymbolName(DataRefImpl Symb,
@@ -65,6 +200,7 @@ public:
 
   // MachO specific.
   std::error_code getIndirectName(DataRefImpl Symb, StringRef &Res) const;
+  unsigned getSectionType(SectionRef Sec) const;
 
   std::error_code getSymbolAddress(DataRefImpl Symb,
                                    uint64_t &Res) const override;
@@ -80,24 +216,16 @@ public:
   void moveSectionNext(DataRefImpl &Sec) const override;
   std::error_code getSectionName(DataRefImpl Sec,
                                  StringRef &Res) const override;
-  std::error_code getSectionAddress(DataRefImpl Sec,
-                                    uint64_t &Res) const override;
-  std::error_code getSectionSize(DataRefImpl Sec, uint64_t &Res) const override;
+  uint64_t getSectionAddress(DataRefImpl Sec) const override;
+  uint64_t getSectionSize(DataRefImpl Sec) const override;
   std::error_code getSectionContents(DataRefImpl Sec,
                                      StringRef &Res) const override;
-  std::error_code getSectionAlignment(DataRefImpl Sec,
-                                      uint64_t &Res) const override;
-  std::error_code isSectionText(DataRefImpl Sec, bool &Res) const override;
-  std::error_code isSectionData(DataRefImpl Sec, bool &Res) const override;
-  std::error_code isSectionBSS(DataRefImpl Sec, bool &Res) const override;
-  std::error_code isSectionRequiredForExecution(DataRefImpl Sec,
-                                                bool &Res) const override;
-  std::error_code isSectionVirtual(DataRefImpl Sec, bool &Res) const override;
-  std::error_code isSectionZeroInit(DataRefImpl Sec, bool &Res) const override;
-  std::error_code isSectionReadOnlyData(DataRefImpl Sec,
-                                        bool &Res) const override;
-  std::error_code sectionContainsSymbol(DataRefImpl Sec, DataRefImpl Symb,
-                                        bool &Result) const override;
+  uint64_t getSectionAlignment(DataRefImpl Sec) const override;
+  bool isSectionText(DataRefImpl Sec) const override;
+  bool isSectionData(DataRefImpl Sec) const override;
+  bool isSectionBSS(DataRefImpl Sec) const override;
+  bool isSectionVirtual(DataRefImpl Sec) const override;
+  bool sectionContainsSymbol(DataRefImpl Sec, DataRefImpl Symb) const override;
   relocation_iterator section_rel_begin(DataRefImpl Sec) const override;
   relocation_iterator section_rel_end(DataRefImpl Sec) const override;
 
@@ -118,13 +246,8 @@ public:
   std::error_code getRelocationHidden(DataRefImpl Rel,
                                       bool &Result) const override;
 
-  std::error_code getLibraryNext(DataRefImpl LibData,
-                                 LibraryRef &Res) const override;
-  std::error_code getLibraryPath(DataRefImpl LibData,
-                                 StringRef &Res) const override;
-
   // MachO specific.
-  std::error_code getLibraryShortNameByIndex(unsigned Index, StringRef &Res);
+  std::error_code getLibraryShortNameByIndex(unsigned Index, StringRef &) const;
 
   // TODO: Would be useful to have an iterator based version
   // of the load command interface too.
@@ -138,21 +261,45 @@ public:
   section_iterator section_begin() const override;
   section_iterator section_end() const override;
 
-  library_iterator needed_library_begin() const override;
-  library_iterator needed_library_end() const override;
-
   uint8_t getBytesInAddress() const override;
 
   StringRef getFileFormatName() const override;
   unsigned getArch() const override;
-
-  StringRef getLoadName() const override;
+  Triple getArch(const char **McpuDefault, Triple *ThumbTriple) const;
 
   relocation_iterator section_rel_begin(unsigned Index) const;
   relocation_iterator section_rel_end(unsigned Index) const;
 
   dice_iterator begin_dices() const;
   dice_iterator end_dices() const;
+  
+  /// For use iterating over all exported symbols.
+  iterator_range<export_iterator> exports() const;
+  
+  /// For use examining a trie not in a MachOObjectFile.
+  static iterator_range<export_iterator> exports(ArrayRef<uint8_t> Trie);
+
+  /// For use iterating over all rebase table entries.
+  iterator_range<rebase_iterator> rebaseTable() const;
+
+  /// For use examining rebase opcodes not in a MachOObjectFile.
+  static iterator_range<rebase_iterator> rebaseTable(ArrayRef<uint8_t> Opcodes,
+                                                     bool is64);
+
+  /// For use iterating over all bind table entries.
+  iterator_range<bind_iterator> bindTable() const;
+
+  /// For use iterating over all lazy bind table entries.
+  iterator_range<bind_iterator> lazyBindTable() const;
+
+  /// For use iterating over all lazy bind table entries.
+  iterator_range<bind_iterator> weakBindTable() const;
+
+  /// For use examining bind opcodes not in a MachOObjectFile.
+  static iterator_range<bind_iterator> bindTable(ArrayRef<uint8_t> Opcodes,
+                                                 bool is64,
+                                                 MachOBindEntry::Kind);
+
 
   // In a MachO file, sections have a segment name. This is used in the .o
   // files. They have a single segment, but this field specifies which segment
@@ -172,6 +319,8 @@ public:
   bool getScatteredRelocationScattered(
                                     const MachO::any_relocation_info &RE) const;
   uint32_t getScatteredRelocationValue(
+                                    const MachO::any_relocation_info &RE) const;
+  uint32_t getScatteredRelocationType(
                                     const MachO::any_relocation_info &RE) const;
   unsigned getAnyRelocationAddress(const MachO::any_relocation_info &RE) const;
   unsigned getAnyRelocationPCRel(const MachO::any_relocation_info &RE) const;
@@ -197,12 +346,42 @@ public:
   getSegmentLoadCommand(const LoadCommandInfo &L) const;
   MachO::segment_command_64
   getSegment64LoadCommand(const LoadCommandInfo &L) const;
-  MachO::linker_options_command
-  getLinkerOptionsLoadCommand(const LoadCommandInfo &L) const;
+  MachO::linker_option_command
+  getLinkerOptionLoadCommand(const LoadCommandInfo &L) const;
   MachO::version_min_command
   getVersionMinLoadCommand(const LoadCommandInfo &L) const;
   MachO::dylib_command
   getDylibIDLoadCommand(const LoadCommandInfo &L) const;
+  MachO::dyld_info_command
+  getDyldInfoLoadCommand(const LoadCommandInfo &L) const;
+  MachO::dylinker_command
+  getDylinkerCommand(const LoadCommandInfo &L) const;
+  MachO::uuid_command
+  getUuidCommand(const LoadCommandInfo &L) const;
+  MachO::rpath_command
+  getRpathCommand(const LoadCommandInfo &L) const;
+  MachO::source_version_command
+  getSourceVersionCommand(const LoadCommandInfo &L) const;
+  MachO::entry_point_command
+  getEntryPointCommand(const LoadCommandInfo &L) const;
+  MachO::encryption_info_command
+  getEncryptionInfoCommand(const LoadCommandInfo &L) const;
+  MachO::encryption_info_command_64
+  getEncryptionInfoCommand64(const LoadCommandInfo &L) const;
+  MachO::sub_framework_command
+  getSubFrameworkCommand(const LoadCommandInfo &L) const;
+  MachO::sub_umbrella_command
+  getSubUmbrellaCommand(const LoadCommandInfo &L) const;
+  MachO::sub_library_command
+  getSubLibraryCommand(const LoadCommandInfo &L) const;
+  MachO::sub_client_command
+  getSubClientCommand(const LoadCommandInfo &L) const;
+  MachO::routines_command
+  getRoutinesCommand(const LoadCommandInfo &L) const;
+  MachO::routines_command_64
+  getRoutinesCommand64(const LoadCommandInfo &L) const;
+  MachO::thread_command
+  getThreadCommand(const LoadCommandInfo &L) const;
 
   MachO::any_relocation_info getRelocation(DataRefImpl Rel) const;
   MachO::data_in_code_entry getDice(DataRefImpl Rel) const;
@@ -216,6 +395,12 @@ public:
   MachO::symtab_command getSymtabLoadCommand() const;
   MachO::dysymtab_command getDysymtabLoadCommand() const;
   MachO::linkedit_data_command getDataInCodeLoadCommand() const;
+  ArrayRef<uint8_t> getDyldInfoRebaseOpcodes() const;
+  ArrayRef<uint8_t> getDyldInfoBindOpcodes() const;
+  ArrayRef<uint8_t> getDyldInfoWeakBindOpcodes() const;
+  ArrayRef<uint8_t> getDyldInfoLazyBindOpcodes() const;
+  ArrayRef<uint8_t> getDyldInfoExportsTrie() const;
+  ArrayRef<uint8_t> getUuid() const;
 
   StringRef getStringTableData() const;
   bool is64Bit() const;
@@ -225,9 +410,18 @@ public:
                                          StringRef &Suffix);
 
   static Triple::ArchType getArch(uint32_t CPUType);
-  static Triple getArch(uint32_t CPUType, uint32_t CPUSubType);
-  static Triple getArch(StringRef ArchFlag);
+  static Triple getArch(uint32_t CPUType, uint32_t CPUSubType,
+                        const char **McpuDefault = nullptr);
+  static Triple getThumbArch(uint32_t CPUType, uint32_t CPUSubType,
+                             const char **McpuDefault = nullptr);
+  static Triple getArch(uint32_t CPUType, uint32_t CPUSubType,
+                        const char **McpuDefault, Triple *ThumbTriple);
+  static bool isValidArch(StringRef ArchFlag);
   static Triple getHostArch();
+
+  bool isRelocatableObject() const override;
+
+  bool hasPageZeroSegment() const { return HasPageZeroSegment; }
 
   static bool classof(const Binary *v) {
     return v->isMachO();
@@ -239,10 +433,13 @@ private:
   typedef SmallVector<const char*, 1> LibraryList;
   LibraryList Libraries;
   typedef SmallVector<StringRef, 1> LibraryShortName;
-  LibraryShortName LibrariesShortNames;
+  mutable LibraryShortName LibrariesShortNames;
   const char *SymtabLoadCmd;
   const char *DysymtabLoadCmd;
   const char *DataInCodeLoadCmd;
+  const char *DyldInfoLoadCmd;
+  const char *UuidLoadCmd;
+  bool HasPageZeroSegment;
 };
 
 /// DiceRef

@@ -26,12 +26,12 @@
  */
 
 #include <sys/types.h>
-#if defined(sun)
+#ifdef illumos
 #include <sys/sysmacros.h>
 #endif
 
 #include <strings.h>
-#if defined(sun)
+#ifdef illumos
 #include <alloca.h>
 #endif
 #include <assert.h>

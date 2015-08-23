@@ -181,7 +181,7 @@ fstabscan(void)
 			if (cp != NULL)
 				_fs_fstab.fs_passno = atoi(cp);
 		}
-		strcpy(subline, _fs_fstab.fs_mntops);
+		(void)strlcpy(subline, _fs_fstab.fs_mntops, sizeof(subline));
 		p = subline;
 		for (typexx = 0, cp = strsep(&p, ","); cp;
 		     cp = strsep(&p, ",")) {

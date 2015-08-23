@@ -24,8 +24,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-
 #include <assert.h>
 #include <ctype.h>
 #include <libelf.h>
@@ -35,7 +33,7 @@
 #include "_libelf.h"
 #include "_libelf_ar.h"
 
-ELFTC_VCSID("$Id: libelf_ar.c 3013 2014-03-23 06:16:59Z jkoshy $");
+ELFTC_VCSID("$Id: libelf_ar.c 3174 2015-03-27 17:13:41Z emaste $");
 
 #define	LIBELF_NALLOC_SIZE	16
 

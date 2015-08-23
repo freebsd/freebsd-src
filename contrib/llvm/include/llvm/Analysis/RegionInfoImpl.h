@@ -12,11 +12,11 @@
 #ifndef LLVM_ANALYSIS_REGIONINFOIMPL_H
 #define LLVM_ANALYSIS_REGIONINFOIMPL_H
 
-#include "llvm/Analysis/RegionInfo.h"
 #include "llvm/ADT/PostOrderIterator.h"
 #include "llvm/Analysis/DominanceFrontier.h"
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Analysis/PostDominators.h"
+#include "llvm/Analysis/RegionInfo.h"
 #include "llvm/Analysis/RegionIterator.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
@@ -25,7 +25,7 @@
 #include <iterator>
 #include <set>
 
-using namespace llvm;
+namespace llvm {
 
 #define DEBUG_TYPE "region"
 
@@ -915,5 +915,9 @@ void RegionInfoBase<Tr>::calculate(FuncT &F) {
   BlockT *BB = GraphTraits<FuncPtrT>::getEntryNode(&F);
   buildRegionsTree(DT->getNode(BB), TopLevelRegion);
 }
+
+#undef DEBUG_TYPE
+
+} // end namespace llvm
 
 #endif

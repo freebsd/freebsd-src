@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef MIPSSEINSTRUCTIONINFO_H
-#define MIPSSEINSTRUCTIONINFO_H
+#ifndef LLVM_LIB_TARGET_MIPS_MIPSSEINSTRINFO_H
+#define LLVM_LIB_TARGET_MIPS_MIPSSEINSTRINFO_H
 
 #include "MipsInstrInfo.h"
 #include "MipsSERegisterInfo.h"
@@ -21,7 +21,6 @@ namespace llvm {
 
 class MipsSEInstrInfo : public MipsInstrInfo {
   const MipsSERegisterInfo RI;
-  bool IsN64;
 
 public:
   explicit MipsSEInstrInfo(const MipsSubtarget &STI);

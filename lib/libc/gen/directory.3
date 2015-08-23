@@ -28,7 +28,7 @@
 .\"     @(#)directory.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd July 28, 2014
+.Dd May 6, 2015
 .Dt DIRECTORY 3
 .Os
 .Sh NAME
@@ -263,8 +263,25 @@ function appeared in
 function appeared in
 .Fx 10.0 .
 .Sh BUGS
-The invalidation of
+The behaviour of
 .Fn telldir
-tokens when calling
+and
 .Fn seekdir
-is non-standard.
+is likely to be wrong if there are parallel unlinks happening
+and the directory is larger than one page.
+There is code to ensure that a
+.Fn seekdir
+to the location given by a 
+.Fn telldir
+immediately before the last 
+.Fn readdir
+will always set the correct location to return the same value as that last
+.Fn readdir
+performed.
+This is enough for some applications which want to "push back the last entry read" E.g. Samba. 
+Seeks back to any other location,
+other than the beginning of the directory,
+may result in unexpected behaviour if deletes are present.
+It is hoped that this situation will be resolved with changes to
+.Fn getdirentries
+and the VFS.

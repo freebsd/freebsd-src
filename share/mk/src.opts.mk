@@ -52,16 +52,22 @@ __DEFAULT_YES_OPTIONS = \
     ATM \
     AUDIT \
     AUTHPF \
+    AUTOFS \
+    BHYVE \
     BINUTILS \
     BINUTILS_BOOTSTRAP \
     BLUETOOTH \
     BOOT \
+    BOOTPARAMD \
+    BOOTPD \
     BSD_CPIO \
+    BSDINSTALL \
     BSNMP \
     BZIP2 \
     CALENDAR \
     CAPSICUM \
     CASPER \
+    CCD \
     CDDL \
     CPP \
     CROSS_COMPILER \
@@ -73,14 +79,18 @@ __DEFAULT_YES_OPTIONS = \
     DMAGENT \
     DYNAMICROOT \
     ED_CRYPTO \
+    EE \
     ELFTOOLCHAIN_TOOLS \
     EXAMPLES \
     FDT \
+    FILE \
+    FINGER \
     FLOPPY \
     FMTREE \
     FORTH \
     FP_LIBC \
     FREEBSD_UPDATE \
+    FTP \
     GAMES \
     GCOV \
     GDB \
@@ -89,13 +99,16 @@ __DEFAULT_YES_OPTIONS = \
     GPIO \
     GPL_DTC \
     GROFF \
+    HAST \
     HTML \
     HYPERV \
     ICONV \
     INET \
     INET6 \
+    INETD \
     IPFILTER \
     IPFW \
+    ISCSI \
     JAIL \
     KDUMP \
     KVM \
@@ -113,6 +126,7 @@ __DEFAULT_YES_OPTIONS = \
     MAIL \
     MAILWRAPPER \
     MAKE \
+    MANDOCDB \
     NDIS \
     NETCAT \
     NETGRAPH \
@@ -128,7 +142,9 @@ __DEFAULT_YES_OPTIONS = \
     PORTSNAP \
     PPP \
     QUOTAS \
+    RADIUS_SUPPORT \
     RCMDS \
+    RBOOTD \
     RCS \
     RESCUE \
     ROUTED \
@@ -139,13 +155,16 @@ __DEFAULT_YES_OPTIONS = \
     SOURCELESS_HOST \
     SOURCELESS_UCODE \
     SVNLITE \
-    SYSCALL_COMPAT \
     SYSCONS \
     SYSINSTALL \
+    TALK \
+    TCP_WRAPPERS \
     TCSH \
     TELNET \
     TESTS \
     TEXTPROC \
+    TFTP \
+    TIMED \
     UNBOUND \
     USB \
     UTMPX \
@@ -160,7 +179,6 @@ __DEFAULT_NO_OPTIONS = \
     BSD_GREP \
     CLANG_EXTRAS \
     EISA \
-    FMAKE \
     HESIOD \
     LLDB \
     NAND \
@@ -196,15 +214,11 @@ __TT=${MACHINE}
 # If the compiler is not C++11 capable, disable clang and use gcc instead.
 __DEFAULT_YES_OPTIONS+=GCC GCC_BOOTSTRAP GNUCXX
 __DEFAULT_NO_OPTIONS+=CLANG CLANG_BOOTSTRAP CLANG_FULL CLANG_IS_CC
-.elif ${__T} == "amd64" || ${__T} == "i386"
-# On x86, clang is enabled, and will be installed as the default cc.
+.elif ${__T} == "aarch64" || ${__T} == "amd64" || ${__TT} == "arm" || \
+    ${__T} == "i386"
+# On x86 and arm, clang is enabled, and will be installed as the default cc.
 __DEFAULT_YES_OPTIONS+=CLANG CLANG_BOOTSTRAP CLANG_FULL CLANG_IS_CC
 __DEFAULT_NO_OPTIONS+=GCC GCC_BOOTSTRAP GNUCXX
-.elif ${__TT} == "arm" && ${__T:Marm*eb*} == ""
-# On little-endian arm, clang is enabled, and it is installed as the default
-# cc, but since gcc is unable to build the full clang, disable it by default.
-__DEFAULT_YES_OPTIONS+=CLANG CLANG_BOOTSTRAP CLANG_IS_CC
-__DEFAULT_NO_OPTIONS+=CLANG_FULL GCC GCC_BOOTSTRAP GNUCXX
 .elif ${__T:Mpowerpc*}
 # On powerpc, clang is enabled, but gcc is installed as the default cc.
 __DEFAULT_YES_OPTIONS+=CLANG CLANG_FULL GCC GCC_BOOTSTRAP GNUCXX
@@ -213,6 +227,16 @@ __DEFAULT_NO_OPTIONS+=CLANG_BOOTSTRAP CLANG_IS_CC
 # Everything else disables clang, and uses gcc instead.
 __DEFAULT_YES_OPTIONS+=GCC GCC_BOOTSTRAP GNUCXX
 __DEFAULT_NO_OPTIONS+=CLANG CLANG_BOOTSTRAP CLANG_FULL CLANG_IS_CC
+.endif
+.if ${__T} == "aarch64"
+BROKEN_OPTIONS+=BINUTILS BINUTILS_BOOTSTRAP GCC GCC_BOOTSTRAP GDB
+__DEFAULT_YES_OPTIONS+=ELFCOPY_AS_OBJCOPY
+.else
+__DEFAULT_NO_OPTIONS+=ELFCOPY_AS_OBJCOPY
+.endif
+# LLVM lacks support for FreeBSD 64-bit atomic operations for ARMv4/ARMv5
+.if ${__T} == "arm" || ${__T} == "armeb"
+BROKEN_OPTIONS+=LLDB
 .endif
 
 .include <bsd.mkopt.mk>

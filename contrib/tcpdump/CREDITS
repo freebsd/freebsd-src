@@ -2,7 +2,7 @@ This file lists people who have contributed to tcpdump:
 
 The current maintainers:
     Bill Fenner                   <fenner at research dot att dot com>
-    Denis Ovsienko                <infrastation at yandex dot ru>
+    Denis Ovsienko                <denis at ovsienko dot info>
     Fulvio Risso                  <risso at polito dot it>
     Guy Harris                    <guy at alum dot mit dot edu>
     Hannes Gredler                <hannes at juniper dot net>
@@ -85,6 +85,7 @@ Additional people who have contributed patches:
     Harry Raaymakers              <harryr at connect dot com dot au>
     Heinz-Ado Arnolds             <Ado dot Arnolds at dhm-systems dot de>
     Hendrik Scholz                <hendrik at scholz dot net>
+    Herwin Weststrate             <herwin at quarantainenet dot nl>
     Ian McDonald                  <imcdnzl at gmail dot com>
     Ilpo Järvinen                 <ilpo dot jarvinen at helsinki dot fi>
     Jacek Tobiasz                 <Jacek dot Tobiasz at atm dot com dot pl>
@@ -95,6 +96,7 @@ Additional people who have contributed patches:
     Jefferson Ogata               <jogata at nodc dot noaa dot gov>
     Jeffrey Hutzelman             <jhutz at cmu dot edu>
     Jesper Peterson               <jesper at endace dot com>
+    Jesse Gross                   <jesse at nicira dot com>
     Jim Hutchins                  <jim at ca dot sandia dot gov>
     João Medeiros                 <ignotus21 at sourceforge dot net>
     Joerg Mayer                   <jmayer at loplof dot de>

@@ -2,23 +2,6 @@
  * refclock_ulink - clock driver for Ultralink  WWVB receiver
  */
 
-/***********************************************************************
- *                                                                     *
- * Copyright (c) David L. Mills 1992-1998                              *
- *                                                                     *
- * Permission to use, copy, modify, and distribute this software and   *
- * its documentation for any purpose and without fee is hereby         *
- * granted, provided that the above copyright notice appears in all    *
- * copies and that both the copyright notice and this permission       *
- * notice appear in supporting documentation, and that the name        *
- * University of Delaware not be used in advertising or publicity      *
- * pertaining to distribution of the software without specific,        *
- * written prior permission. The University of Delaware makes no       *
- * representations about the suitability this software for any         *
- * purpose. It is provided "as is" without express or implied          *
- * warranty.                                                           *
- **********************************************************************/
-
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif
@@ -106,10 +89,10 @@ struct ulinkunit {
 /*
  * Function prototypes
  */
-static	int	ulink_start	P((int, struct peer *));
-static	void	ulink_shutdown	P((int, struct peer *));
-static	void	ulink_receive	P((struct recvbuf *));
-static	void	ulink_poll	P((int, struct peer *));
+static	int	ulink_start	(int, struct peer *);
+static	void	ulink_shutdown	(int, struct peer *);
+static	void	ulink_receive	(struct recvbuf *);
+static	void	ulink_poll	(int, struct peer *);
 
 /*
  * Transfer vector
@@ -142,36 +125,33 @@ ulink_start(
 	/*
 	 * Open serial port. Use CLK line discipline, if available.
 	 */
-	(void)sprintf(device, DEVICE, unit);
-	if (!(fd = refclock_open(device, SPEED232, LDISC_CLK)))
+	snprintf(device, sizeof(device), DEVICE, unit);
+	fd = refclock_open(device, SPEED232, LDISC_CLK);
+	if (fd <= 0)
 		return (0);
 
 	/*
 	 * Allocate and initialize unit structure
 	 */
-	if (!(up = (struct ulinkunit *)
-	      emalloc(sizeof(struct ulinkunit)))) {
-		(void) close(fd);
-		return (0);
-	}
-	memset((char *)up, 0, sizeof(struct ulinkunit));
+	up = emalloc(sizeof(struct ulinkunit));
+	memset(up, 0, sizeof(struct ulinkunit));
 	pp = peer->procptr;
-	pp->unitptr = (caddr_t)up;
 	pp->io.clock_recv = ulink_receive;
-	pp->io.srcclock = (caddr_t)peer;
+	pp->io.srcclock = peer;
 	pp->io.datalen = 0;
 	pp->io.fd = fd;
 	if (!io_addclock(&pp->io)) {
-		(void) close(fd);
+		close(fd);
+		pp->io.fd = -1;
 		free(up);
 		return (0);
 	}
+	pp->unitptr = up;
 
 	/*
 	 * Initialize miscellaneous variables
 	 */
 	peer->precision = PRECISION;
-	peer->burst = NSTAGE;
 	pp->clockdesc = DESCRIPTION;
 	memcpy((char *)&pp->refid, REFID, 4);
 	return (1);
@@ -191,9 +171,11 @@ ulink_shutdown(
 	struct refclockproc *pp;
 
 	pp = peer->procptr;
-	up = (struct ulinkunit *)pp->unitptr;
-	io_closeclock(&pp->io);
-	free(up);
+	up = pp->unitptr;
+	if (pp->io.fd != -1)
+		io_closeclock(&pp->io);
+	if (up != NULL)
+		free(up);
 }
 
 
@@ -209,21 +191,21 @@ ulink_receive(
 	struct refclockproc *pp;
 	struct peer *peer;
 
-	l_fp	trtmp;		/* arrival timestamp */
-	int	quality;	/* quality indicator */
-	int	temp;		/* int temp */
-	char	syncchar;	/* synchronization indicator */
-	char	leapchar;	/* leap indicator */
-	char	modechar;	/* model 320 mode flag */
-        char	siglchar;	/* model difference between 33x/325 */
+	l_fp	trtmp;			/* arrival timestamp */
+	int	quality = INT_MAX;	/* quality indicator */
+	int	temp;			/* int temp */
+	char	syncchar;		/* synchronization indicator */
+	char	leapchar;		/* leap indicator */
+	char	modechar;		/* model 320 mode flag */
+        char	siglchar;		/* model difference between 33x/325 */
 	char	char_quality[2];	/* temp quality flag */
 
 	/*
 	 * Initialize pointers and read the timecode and timestamp
 	 */
-	peer = (struct peer *)rbufp->recv_srcclock;
+	peer = rbufp->recv_peer;
 	pp = peer->procptr;
-	up = (struct ulinkunit *)pp->unitptr;
+	up = pp->unitptr;
 	temp = refclock_gtlin(rbufp, pp->a_lastcode, BMAX, &trtmp);
 
 	/*
@@ -571,8 +553,6 @@ ulink_poll(
 	else
       	            pp->polls++;
 
-        if (peer->burst > 0)
-                return;
         if (pp->coderecv == pp->codeproc) {
                 refclock_report(peer, CEVNT_TIMEOUT);
                 return;
@@ -580,7 +560,6 @@ ulink_poll(
         pp->lastref = pp->lastrec;
 	refclock_receive(peer);
 	record_clock_stats(&peer->srcadr, pp->a_lastcode);
-        peer->burst = NSTAGE;
 
 }
 

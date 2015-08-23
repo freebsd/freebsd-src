@@ -79,7 +79,8 @@ NOASM=
 .include "${LIBC_SRCTOP}/net/Makefile.inc"
 .include "${LIBC_SRCTOP}/nls/Makefile.inc"
 .include "${LIBC_SRCTOP}/posix1e/Makefile.inc"
-.if ${LIBC_ARCH} != "amd64" && \
+.if ${LIBC_ARCH} != "aarch64" && \
+    ${LIBC_ARCH} != "amd64" && \
     ${LIBC_ARCH} != "powerpc64" && \
     ${LIBC_ARCH} != "sparc64" && \
     ${MACHINE_ARCH:Mmipsn32*} == "" && \
@@ -149,20 +150,36 @@ KSRCS=	bcmp.c ffs.c ffsl.c fls.c flsl.c mcount.c strcat.c strchr.c \
 libkern: libkern.gen libkern.${LIBC_ARCH}
 
 libkern.gen: ${KQSRCS} ${KSRCS}
-	cp -fp ${LIBC_SRCTOP}/quad/quad.h ${.ALLSRC} ${DESTDIR}/sys/libkern
+	${CP} ${LIBC_SRCTOP}/quad/quad.h ${.ALLSRC} ${DESTDIR}/sys/libkern
 
 libkern.${LIBC_ARCH}:: ${KMSRCS}
 .if defined(KMSRCS) && !empty(KMSRCS)
-	cp -fp ${.ALLSRC} ${DESTDIR}/sys/libkern/${LIBC_ARCH}
+	${CP} ${.ALLSRC} ${DESTDIR}/sys/libkern/${LIBC_ARCH}
 .endif
 
-.if ${MK_SYSCALL_COMPAT} != "no"
-CFLAGS+=-DSYSCALL_COMPAT
+.if ${MK_TESTS} != "no"
+SUBDIR+=	tests
 .endif
-
-.include <bsd.arch.inc.mk>
 
 .include <bsd.lib.mk>
+
+.if !defined(_SKIP_BUILD)
+# We need libutil.h, get it directly to avoid
+# recording a build dependency
+CFLAGS+= -I${.CURDIR:H}/libutil
+# Same issue with libm
+MSUN_ARCH_SUBDIR != ${MAKE} -B -C ${.CURDIR:H}/msun -V ARCH_SUBDIR
+# unfortunately msun/src contains both private and public headers
+CFLAGS+= -I${.CURDIR:H}/msun/${MSUN_ARCH_SUBDIR} 
+.if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
+CFLAGS+= -I${.CURDIR:H}/msun/x86
+.endif
+CFLAGS+= -I${.CURDIR:H}/msun/src
+# and we do not want to record a dependency on msun
+.if ${.MAKE.LEVEL} > 0
+GENDIRDEPS_FILTER+= N${RELDIR:H}/msun
+.endif
+.endif
 
 # Disable warnings in contributed sources.
 CWARNFLAGS:=	${.IMPSRC:Ngdtoa_*.c:C/^.+$/${CWARNFLAGS}/:C/^$/-w/}

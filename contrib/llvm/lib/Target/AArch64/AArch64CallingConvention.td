@@ -16,7 +16,7 @@ class CCIfAlign<string Align, CCAction A> :
   CCIf<!strconcat("ArgFlags.getOrigAlign() == ", Align), A>;
 /// CCIfBigEndian - Match only if we're in big endian mode.
 class CCIfBigEndian<CCAction A> :
-  CCIf<"State.getTarget().getDataLayout()->isBigEndian()", A>;
+  CCIf<"State.getMachineFunction().getSubtarget().getDataLayout()->isBigEndian()", A>;
 
 //===----------------------------------------------------------------------===//
 // ARM AAPCS64 Calling Convention
@@ -40,6 +40,8 @@ def CC_AArch64_AAPCS : CallingConv<[
   // slot is 64-bit.
   CCIfByVal<CCPassByVal<8, 8>>,
 
+  CCIfConsecutiveRegs<CCCustom<"CC_AArch64_Custom_Block">>,
+
   // Handle i1, i8, i16, i32, i64, f32, f64 and v2f64 by passing in registers,
   // up to eight each of GPR and FPR.
   CCIfType<[i1, i8, i16], CCPromoteToType<i32>>,
@@ -60,18 +62,18 @@ def CC_AArch64_AAPCS : CallingConv<[
                                           [Q0, Q1, Q2, Q3, Q4, Q5, Q6, Q7]>>,
   CCIfType<[f64], CCAssignToRegWithShadow<[D0, D1, D2, D3, D4, D5, D6, D7],
                                           [Q0, Q1, Q2, Q3, Q4, Q5, Q6, Q7]>>,
-  CCIfType<[v1i64, v2i32, v4i16, v8i8, v1f64, v2f32],
+  CCIfType<[v1i64, v2i32, v4i16, v8i8, v1f64, v2f32, v4f16],
            CCAssignToRegWithShadow<[D0, D1, D2, D3, D4, D5, D6, D7],
                                    [Q0, Q1, Q2, Q3, Q4, Q5, Q6, Q7]>>,
-  CCIfType<[f128, v2i64, v4i32, v8i16, v16i8, v4f32, v2f64],
+  CCIfType<[f128, v2i64, v4i32, v8i16, v16i8, v4f32, v2f64, v8f16],
            CCAssignToReg<[Q0, Q1, Q2, Q3, Q4, Q5, Q6, Q7]>>,
 
   // If more than will fit in registers, pass them on the stack instead.
   CCIfType<[i1, i8, i16, f16], CCAssignToStack<8, 8>>,
   CCIfType<[i32, f32], CCAssignToStack<8, 8>>,
-  CCIfType<[i64, f64, v1f64, v2f32, v1i64, v2i32, v4i16, v8i8],
+  CCIfType<[i64, f64, v1f64, v2f32, v1i64, v2i32, v4i16, v8i8, v4f16],
            CCAssignToStack<8, 8>>,
-  CCIfType<[f128, v2i64, v4i32, v8i16, v16i8, v4f32, v2f64],
+  CCIfType<[f128, v2i64, v4i32, v8i16, v16i8, v4f32, v2f64, v8f16],
            CCAssignToStack<16, 16>>
 ]>;
 
@@ -96,10 +98,10 @@ def RetCC_AArch64_AAPCS : CallingConv<[
                                           [Q0, Q1, Q2, Q3, Q4, Q5, Q6, Q7]>>,
   CCIfType<[f64], CCAssignToRegWithShadow<[D0, D1, D2, D3, D4, D5, D6, D7],
                                           [Q0, Q1, Q2, Q3, Q4, Q5, Q6, Q7]>>,
-  CCIfType<[v1i64, v2i32, v4i16, v8i8, v1f64, v2f32],
+  CCIfType<[v1i64, v2i32, v4i16, v8i8, v1f64, v2f32, v4f16],
       CCAssignToRegWithShadow<[D0, D1, D2, D3, D4, D5, D6, D7],
                               [Q0, Q1, Q2, Q3, Q4, Q5, Q6, Q7]>>,
-  CCIfType<[f128, v2i64, v4i32, v8i16, v16i8, v4f32, v2f64],
+  CCIfType<[f128, v2i64, v4i32, v8i16, v16i8, v4f32, v2f64, v8f16],
       CCAssignToReg<[Q0, Q1, Q2, Q3, Q4, Q5, Q6, Q7]>>
 ]>;
 
@@ -118,6 +120,8 @@ def CC_AArch64_DarwinPCS : CallingConv<[
   // Put ByVal arguments directly on the stack. Minimum size and alignment of a
   // slot is 64-bit.
   CCIfByVal<CCPassByVal<8, 8>>,
+
+  CCIfConsecutiveRegs<CCCustom<"CC_AArch64_Custom_Block">>,
 
   // Handle i1, i8, i16, i32, i64, f32, f64 and v2f64 by passing in registers,
   // up to eight each of GPR and FPR.
@@ -139,24 +143,27 @@ def CC_AArch64_DarwinPCS : CallingConv<[
                                           [Q0, Q1, Q2, Q3, Q4, Q5, Q6, Q7]>>,
   CCIfType<[f64], CCAssignToRegWithShadow<[D0, D1, D2, D3, D4, D5, D6, D7],
                                           [Q0, Q1, Q2, Q3, Q4, Q5, Q6, Q7]>>,
-  CCIfType<[v1i64, v2i32, v4i16, v8i8, v1f64, v2f32],
+  CCIfType<[v1i64, v2i32, v4i16, v8i8, v1f64, v2f32, v4f16],
            CCAssignToRegWithShadow<[D0, D1, D2, D3, D4, D5, D6, D7],
                                    [Q0, Q1, Q2, Q3, Q4, Q5, Q6, Q7]>>,
-  CCIfType<[v2i64, v4i32, v8i16, v16i8, v4f32, v2f64],
+  CCIfType<[v2i64, v4i32, v8i16, v16i8, v4f32, v2f64, v8f16],
            CCAssignToReg<[Q0, Q1, Q2, Q3, Q4, Q5, Q6, Q7]>>,
 
   // If more than will fit in registers, pass them on the stack instead.
   CCIf<"ValVT == MVT::i1 || ValVT == MVT::i8", CCAssignToStack<1, 1>>,
   CCIf<"ValVT == MVT::i16 || ValVT == MVT::f16", CCAssignToStack<2, 2>>,
   CCIfType<[i32, f32], CCAssignToStack<4, 4>>,
-  CCIfType<[i64, f64, v1f64, v2f32, v1i64, v2i32, v4i16, v8i8],
+  CCIfType<[i64, f64, v1f64, v2f32, v1i64, v2i32, v4i16, v8i8, v4f16],
            CCAssignToStack<8, 8>>,
-  CCIfType<[v2i64, v4i32, v8i16, v16i8, v4f32, v2f64], CCAssignToStack<16, 16>>
+  CCIfType<[v2i64, v4i32, v8i16, v16i8, v4f32, v2f64, v8f16],
+           CCAssignToStack<16, 16>>
 ]>;
 
 def CC_AArch64_DarwinPCS_VarArg : CallingConv<[
   CCIfType<[v2f32], CCBitConvertToType<v2i32>>,
   CCIfType<[v2f64, v4f32, f128], CCBitConvertToType<v2i64>>,
+
+  CCIfConsecutiveRegs<CCCustom<"CC_AArch64_Custom_Stack_Block">>,
 
   // Handle all scalar types as either i64 or f64.
   CCIfType<[i8, i16, i32], CCPromoteToType<i64>>,
@@ -165,8 +172,10 @@ def CC_AArch64_DarwinPCS_VarArg : CallingConv<[
   // Everything is on the stack.
   // i128 is split to two i64s, and its stack alignment is 16 bytes.
   CCIfType<[i64], CCIfSplit<CCAssignToStack<8, 16>>>,
-  CCIfType<[i64, f64, v1i64, v2i32, v4i16, v8i8, v1f64, v2f32], CCAssignToStack<8, 8>>,
-  CCIfType<[v2i64, v4i32, v8i16, v16i8, v4f32, v2f64],   CCAssignToStack<16, 16>>
+  CCIfType<[i64, f64, v1i64, v2i32, v4i16, v8i8, v1f64, v2f32, v4f16],
+           CCAssignToStack<8, 8>>,
+  CCIfType<[v2i64, v4i32, v8i16, v16i8, v4f32, v2f64, v8f16],
+           CCAssignToStack<16, 16>>
 ]>;
 
 // The WebKit_JS calling convention only passes the first argument (the callee)
@@ -193,6 +202,44 @@ def RetCC_AArch64_WebKit_JS : CallingConv<[
                                           [Q0, Q1, Q2, Q3, Q4, Q5, Q6, Q7]>>,
   CCIfType<[f64], CCAssignToRegWithShadow<[D0, D1, D2, D3, D4, D5, D6, D7],
                                           [Q0, Q1, Q2, Q3, Q4, Q5, Q6, Q7]>>
+]>;
+
+//===----------------------------------------------------------------------===//
+// ARM64 Calling Convention for GHC
+//===----------------------------------------------------------------------===//
+
+// This calling convention is specific to the Glasgow Haskell Compiler.
+// The only documentation is the GHC source code, specifically the C header
+// file:
+//
+//     https://github.com/ghc/ghc/blob/master/includes/stg/MachRegs.h
+//
+// which defines the registers for the Spineless Tagless G-Machine (STG) that
+// GHC uses to implement lazy evaluation. The generic STG machine has a set of
+// registers which are mapped to appropriate set of architecture specific
+// registers for each CPU architecture.
+//
+// The STG Machine is documented here:
+//
+//    https://ghc.haskell.org/trac/ghc/wiki/Commentary/Compiler/GeneratedCode
+//
+// The AArch64 register mapping is under the heading "The ARMv8/AArch64 ABI
+// register mapping".
+
+def CC_AArch64_GHC : CallingConv<[
+  // Handle all vector types as either f64 or v2f64.
+  CCIfType<[v1i64, v2i32, v4i16, v8i8, v2f32], CCBitConvertToType<f64>>,
+  CCIfType<[v2i64, v4i32, v8i16, v16i8, v4f32, f128], CCBitConvertToType<v2f64>>,
+
+  CCIfType<[v2f64], CCAssignToReg<[Q4, Q5]>>,
+  CCIfType<[f32], CCAssignToReg<[S8, S9, S10, S11]>>,
+  CCIfType<[f64], CCAssignToReg<[D12, D13, D14, D15]>>,
+
+  // Promote i8/i16/i32 arguments to i64.
+  CCIfType<[i8, i16, i32], CCPromoteToType<i64>>,
+
+  // Pass in STG registers: Base, Sp, Hp, R1, R2, R3, R4, R5, R6, SpLim
+  CCIfType<[i64], CCAssignToReg<[X19, X20, X21, X22, X23, X24, X25, X26, X27, X28]>>
 ]>;
 
 // FIXME: LR is only callee-saved in the sense that *we* preserve it and are
@@ -240,3 +287,4 @@ def CSR_AArch64_AllRegs
                            (sequence "S%u", 0, 31), (sequence "D%u", 0, 31),
                            (sequence "Q%u", 0, 31))>;
 
+def CSR_AArch64_NoRegs : CalleeSavedRegs<(add)>;

@@ -104,7 +104,6 @@
 
 #define GoodLeap(Year) (((Year)%4 || (!((Year)%100) && (Year)%400)) ? 0 : 13 )
 
-volatile int debug = 0;		/* debugging requests for parse stuff */
 char const *progname = "check_y2k";
 
 long

@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/un.h>
+#include <sys/nv.h>
 
 #include <assert.h>
 #include <dirent.h>
@@ -56,7 +57,6 @@ __FBSDID("$FreeBSD$");
 #include <libcasper.h>
 #include <libcasper_impl.h>
 #include <msgio.h>
-#include <nv.h>
 #include <pjdlog.h>
 
 #include "msgio.h"
@@ -253,7 +253,7 @@ casper_command(const char *cmd, const nvlist_t *limits, nvlist_t *nvlin,
 		return (error);
 	}
 
-	if (zygote_clone(service_external_execute, 0, &chanfd, &procfd) == -1) {
+	if (zygote_clone(service_external_execute, &chanfd, &procfd) == -1) {
 		error = errno;
 		close(execfd);
 		return (error);
@@ -357,7 +357,7 @@ service_external_execute(int chanfd)
 	int stderrfd, execfd, procfd;
 	nvlist_t *nvl;
 
-	nvl = nvlist_recv(chanfd);
+	nvl = nvlist_recv(chanfd, 0);
 	if (nvl == NULL)
 		pjdlog_exit(1, "Unable to receive nvlist");
 	service = nvlist_take_string(nvl, "service");

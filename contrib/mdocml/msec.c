@@ -1,4 +1,4 @@
-/*	$Id: msec.c,v 1.13 2014/12/01 08:05:52 schwarze Exp $ */
+/*	$Id: msec.c,v 1.14 2014/12/21 14:14:35 schwarze Exp $ */
 /*
  * Copyright (c) 2009 Kristaps Dzonsons <kristaps@bsd.lv>
  *
@@ -20,6 +20,7 @@
 
 #include <string.h>
 
+#include "mandoc.h"
 #include "libmandoc.h"
 
 #define LINE(x, y) \

@@ -94,11 +94,9 @@ llvm::MemoryBuffer *ContentCache::getBuffer(DiagnosticsEngine &Diag,
     return Buffer.getPointer();
   }    
 
-  std::string ErrorStr;
   bool isVolatile = SM.userFilesAreVolatile() && !IsSystemFile;
-  Buffer.setPointer(SM.getFileManager().getBufferForFile(ContentsEntry,
-                                                         &ErrorStr,
-                                                         isVolatile));
+  auto BufferOrError =
+      SM.getFileManager().getBufferForFile(ContentsEntry, isVolatile);
 
   // If we were unable to open the file, then we are in an inconsistent
   // situation where the content cache referenced a file which no longer
@@ -110,27 +108,30 @@ llvm::MemoryBuffer *ContentCache::getBuffer(DiagnosticsEngine &Diag,
   // currently handle returning a null entry here. Ideally we should detect
   // that we are in an inconsistent situation and error out as quickly as
   // possible.
-  if (!Buffer.getPointer()) {
-    const StringRef FillStr("<<<MISSING SOURCE FILE>>>\n");
-    Buffer.setPointer(MemoryBuffer::getNewMemBuffer(ContentsEntry->getSize(), 
-                                                    "<invalid>"));
+  if (!BufferOrError) {
+    StringRef FillStr("<<<MISSING SOURCE FILE>>>\n");
+    Buffer.setPointer(MemoryBuffer::getNewMemBuffer(ContentsEntry->getSize(),
+                                                    "<invalid>").release());
     char *Ptr = const_cast<char*>(Buffer.getPointer()->getBufferStart());
     for (unsigned i = 0, e = ContentsEntry->getSize(); i != e; ++i)
       Ptr[i] = FillStr[i % FillStr.size()];
 
     if (Diag.isDiagnosticInFlight())
-      Diag.SetDelayedDiagnostic(diag::err_cannot_open_file, 
-                                ContentsEntry->getName(), ErrorStr);
-    else 
+      Diag.SetDelayedDiagnostic(diag::err_cannot_open_file,
+                                ContentsEntry->getName(),
+                                BufferOrError.getError().message());
+    else
       Diag.Report(Loc, diag::err_cannot_open_file)
-        << ContentsEntry->getName() << ErrorStr;
+          << ContentsEntry->getName() << BufferOrError.getError().message();
 
     Buffer.setInt(Buffer.getInt() | InvalidFlag);
     
     if (Invalid) *Invalid = true;
     return Buffer.getPointer();
   }
-  
+
+  Buffer.setPointer(BufferOrError->release());
+
   // Check that the file's size is the same as in the file entry (which may
   // have come from a stat cache).
   if (getRawBuffer()->getBufferSize() != (size_t)ContentsEntry->getSize()) {
@@ -176,17 +177,11 @@ llvm::MemoryBuffer *ContentCache::getBuffer(DiagnosticsEngine &Diag,
 }
 
 unsigned LineTableInfo::getLineTableFilenameID(StringRef Name) {
-  // Look up the filename in the string table, returning the pre-existing value
-  // if it exists.
-  llvm::StringMapEntry<unsigned> &Entry =
-    FilenameIDs.GetOrCreateValue(Name, ~0U);
-  if (Entry.getValue() != ~0U)
-    return Entry.getValue();
-
-  // Otherwise, assign this the next available ID.
-  Entry.setValue(FilenamesByID.size());
-  FilenamesByID.push_back(&Entry);
-  return FilenamesByID.size()-1;
+  auto IterBool =
+      FilenameIDs.insert(std::make_pair(Name, FilenamesByID.size()));
+  if (IterBool.second)
+    FilenamesByID.push_back(&*IterBool.first);
+  return IterBool.first->second;
 }
 
 /// AddLineNote - Add a line note to the line table that indicates that there
@@ -373,8 +368,7 @@ SourceManager::SourceManager(DiagnosticsEngine &Diag, FileManager &FileMgr,
   : Diag(Diag), FileMgr(FileMgr), OverridenFilesKeepOriginalName(true),
     UserFilesAreVolatile(UserFilesAreVolatile),
     ExternalSLocEntries(nullptr), LineTable(nullptr), NumLinearScans(0),
-    NumBinaryProbes(0), FakeBufferForRecovery(nullptr),
-    FakeContentCacheForRecovery(nullptr) {
+    NumBinaryProbes(0) {
   clearIDTables();
   Diag.setSourceManager(this);
 }
@@ -398,9 +392,6 @@ SourceManager::~SourceManager() {
       ContentCacheAlloc.Deallocate(I->second);
     }
   }
-  
-  delete FakeBufferForRecovery;
-  delete FakeContentCacheForRecovery;
 
   llvm::DeleteContainerSeconds(MacroArgsCacheMap);
 }
@@ -460,13 +451,13 @@ SourceManager::getOrCreateContentCache(const FileEntry *FileEnt,
 
 /// createMemBufferContentCache - Create a new ContentCache for the specified
 ///  memory buffer.  This does no caching.
-const ContentCache *
-SourceManager::createMemBufferContentCache(llvm::MemoryBuffer *Buffer) {
+const ContentCache *SourceManager::createMemBufferContentCache(
+    std::unique_ptr<llvm::MemoryBuffer> Buffer) {
   // Add a new ContentCache to the MemBufferInfos list and return it.
   ContentCache *Entry = ContentCacheAlloc.Allocate<ContentCache>();
   new (Entry) ContentCache();
   MemBufferInfos.push_back(Entry);
-  Entry->setBuffer(Buffer);
+  Entry->setBuffer(std::move(Buffer));
   return Entry;
 }
 
@@ -505,10 +496,10 @@ SourceManager::AllocateLoadedSLocEntries(unsigned NumSLocEntries,
 /// fake, non-empty buffer.
 llvm::MemoryBuffer *SourceManager::getFakeBufferForRecovery() const {
   if (!FakeBufferForRecovery)
-    FakeBufferForRecovery
-      = llvm::MemoryBuffer::getMemBuffer("<<<INVALID BUFFER>>");
-  
-  return FakeBufferForRecovery;
+    FakeBufferForRecovery =
+        llvm::MemoryBuffer::getMemBuffer("<<<INVALID BUFFER>>");
+
+  return FakeBufferForRecovery.get();
 }
 
 /// \brief As part of recovering from missing or changed content, produce a
@@ -516,11 +507,11 @@ llvm::MemoryBuffer *SourceManager::getFakeBufferForRecovery() const {
 const SrcMgr::ContentCache *
 SourceManager::getFakeContentCacheForRecovery() const {
   if (!FakeContentCacheForRecovery) {
-    FakeContentCacheForRecovery = new ContentCache();
+    FakeContentCacheForRecovery = llvm::make_unique<SrcMgr::ContentCache>();
     FakeContentCacheForRecovery->replaceBuffer(getFakeBufferForRecovery(),
                                                /*DoNotFree=*/true);
   }
-  return FakeContentCacheForRecovery;
+  return FakeContentCacheForRecovery.get();
 }
 
 /// \brief Returns the previous in-order FileID or an invalid FileID if there
@@ -2085,22 +2076,33 @@ bool SourceManager::isBeforeInTranslationUnit(SourceLocation LHS,
     return IsBeforeInTUCache.getCachedResult(LOffs.second, ROffs.second);
   }
 
-  // This can happen if a location is in a built-ins buffer.
-  // But see PR5662.
+  // If we arrived here, the location is either in a built-ins buffer or
+  // associated with global inline asm. PR5662 and PR22576 are examples.
+
   // Clear the lookup cache, it depends on a common location.
   IsBeforeInTUCache.clear();
-  bool LIsBuiltins = strcmp("<built-in>",
-                            getBuffer(LOffs.first)->getBufferIdentifier()) == 0;
-  bool RIsBuiltins = strcmp("<built-in>",
-                            getBuffer(ROffs.first)->getBufferIdentifier()) == 0;
-  // built-in is before non-built-in
-  if (LIsBuiltins != RIsBuiltins)
-    return LIsBuiltins;
-  assert(LIsBuiltins && RIsBuiltins &&
-         "Non-built-in locations must be rooted in the main file");
-  // Both are in built-in buffers, but from different files. We just claim that
-  // lower IDs come first.
-  return LOffs.first < ROffs.first;
+  llvm::MemoryBuffer *LBuf = getBuffer(LOffs.first);
+  llvm::MemoryBuffer *RBuf = getBuffer(ROffs.first);
+  bool LIsBuiltins = strcmp("<built-in>", LBuf->getBufferIdentifier()) == 0;
+  bool RIsBuiltins = strcmp("<built-in>", RBuf->getBufferIdentifier()) == 0;
+  // Sort built-in before non-built-in.
+  if (LIsBuiltins || RIsBuiltins) {
+    if (LIsBuiltins != RIsBuiltins)
+      return LIsBuiltins;
+    // Both are in built-in buffers, but from different files. We just claim that
+    // lower IDs come first.
+    return LOffs.first < ROffs.first;
+  }
+  bool LIsAsm = strcmp("<inline asm>", LBuf->getBufferIdentifier()) == 0;
+  bool RIsAsm = strcmp("<inline asm>", RBuf->getBufferIdentifier()) == 0;
+  // Sort assembler after built-ins, but before the rest.
+  if (LIsAsm || RIsAsm) {
+    if (LIsAsm != RIsAsm)
+      return RIsAsm;
+    assert(LOffs.first == ROffs.first);
+    return false;
+  }
+  llvm_unreachable("Unsortable locations found");
 }
 
 void SourceManager::PrintStats() const {

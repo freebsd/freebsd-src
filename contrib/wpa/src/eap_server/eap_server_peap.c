@@ -22,7 +22,6 @@
 /* Maximum supported PEAP version
  * 0 = Microsoft's PEAP version 0; draft-kamath-pppext-peapv0-00.txt
  * 1 = draft-josefsson-ppext-eap-tls-eap-05.txt
- * 2 = draft-josefsson-ppext-eap-tls-eap-10.txt
  */
 #define EAP_PEAP_VERSION 1
 
@@ -96,33 +95,6 @@ static void eap_peap_state(struct eap_peap_data *data, int state)
 		   eap_peap_state_txt(data->state),
 		   eap_peap_state_txt(state));
 	data->state = state;
-}
-
-
-static struct wpabuf * eap_peapv2_tlv_eap_payload(struct wpabuf *buf)
-{
-	struct wpabuf *e;
-	struct eap_tlv_hdr *tlv;
-
-	if (buf == NULL)
-		return NULL;
-
-	/* Encapsulate EAP packet in EAP-Payload TLV */
-	wpa_printf(MSG_DEBUG, "EAP-PEAPv2: Add EAP-Payload TLV");
-	e = wpabuf_alloc(sizeof(*tlv) + wpabuf_len(buf));
-	if (e == NULL) {
-		wpa_printf(MSG_DEBUG, "EAP-PEAPv2: Failed to allocate memory "
-			   "for TLV encapsulation");
-		wpabuf_free(buf);
-		return NULL;
-	}
-	tlv = wpabuf_put(e, sizeof(*tlv));
-	tlv->tlv_type = host_to_be16(EAP_TLV_TYPE_MANDATORY |
-				     EAP_TLV_EAP_PAYLOAD_TLV);
-	tlv->length = host_to_be16(wpabuf_len(buf));
-	wpabuf_put_buf(e, buf);
-	wpabuf_free(buf);
-	return e;
 }
 
 
@@ -200,7 +172,7 @@ static void eap_peap_reset(struct eap_sm *sm, void *priv)
 	wpabuf_free(data->pending_phase2_resp);
 	os_free(data->phase2_key);
 	wpabuf_free(data->soh_response);
-	os_free(data);
+	bin_clear_free(data, sizeof(*data));
 }
 
 
@@ -239,8 +211,6 @@ static struct wpabuf * eap_peap_build_phase2_req(struct eap_sm *sm,
 		return NULL;
 	}
 	buf = data->phase2_method->buildReq(sm, data->phase2_priv, id);
-	if (data->peap_version >= 2 && buf)
-		buf = eap_peapv2_tlv_eap_payload(buf);
 	if (buf == NULL)
 		return NULL;
 
@@ -374,12 +344,14 @@ static struct wpabuf * eap_peap_build_phase2_tlv(struct eap_sm *sm,
 	size_t mlen;
 
 	mlen = 6; /* Result TLV */
-	if (data->crypto_binding != NO_BINDING)
+	if (data->peap_version == 0 && data->tlv_request == TLV_REQ_SUCCESS &&
+	    data->crypto_binding != NO_BINDING) {
 		mlen += 60; /* Cryptobinding TLV */
 #ifdef EAP_SERVER_TNC
-	if (data->soh_response)
-		mlen += wpabuf_len(data->soh_response);
+		if (data->soh_response)
+			mlen += wpabuf_len(data->soh_response);
 #endif /* EAP_SERVER_TNC */
+	}
 
 	buf = eap_msg_alloc(EAP_VENDOR_IETF, EAP_TYPE_TLV, mlen,
 			    EAP_CODE_REQUEST, id);
@@ -425,8 +397,6 @@ static struct wpabuf * eap_peap_build_phase2_tlv(struct eap_sm *sm,
 		len[1] = 1;
 
 		tlv_type = EAP_TLV_CRYPTO_BINDING_TLV;
-		if (data->peap_version >= 2)
-			tlv_type |= EAP_TLV_TYPE_MANDATORY;
 		wpabuf_put_be16(buf, tlv_type);
 		wpabuf_put_be16(buf, 56);
 
@@ -505,8 +475,7 @@ static struct wpabuf * eap_peap_buildReq(struct eap_sm *sm, void *priv, u8 id)
 		return eap_peap_build_start(sm, data, id);
 	case PHASE1:
 	case PHASE1_ID2:
-		if (data->peap_version < 2 &&
-		    tls_connection_established(sm->ssl_ctx, data->ssl.conn)) {
+		if (tls_connection_established(sm->ssl_ctx, data->ssl.conn)) {
 			wpa_printf(MSG_DEBUG, "EAP-PEAP: Phase1 done, "
 				   "starting Phase2");
 			eap_peap_state(data, PHASE2_START);
@@ -626,7 +595,7 @@ static int eap_tlv_validate_cryptobinding(struct eap_sm *sm,
 	buf[60] = EAP_TYPE_PEAP;
 	hmac_sha1(data->cmk, 20, buf, sizeof(buf), mac);
 
-	if (os_memcmp(mac, pos, SHA1_MAC_LEN) != 0) {
+	if (os_memcmp_const(mac, pos, SHA1_MAC_LEN) != 0) {
 		wpa_printf(MSG_DEBUG, "EAP-PEAP: Invalid Compound_MAC in "
 			   "cryptobinding TLV");
 		wpa_hexdump_key(MSG_DEBUG, "EAP-PEAP: CMK", data->cmk, 20);
@@ -1079,47 +1048,6 @@ static void eap_peap_process_phase2(struct eap_sm *sm,
 		wpabuf_free(in_decrypted);
 
 		in_decrypted = nbuf;
-	} else if (data->peap_version >= 2) {
-		struct eap_tlv_hdr *tlv;
-		struct wpabuf *nmsg;
-
-		if (wpabuf_len(in_decrypted) < sizeof(*tlv) + sizeof(*hdr)) {
-			wpa_printf(MSG_INFO, "EAP-PEAPv2: Too short Phase 2 "
-				   "EAP TLV");
-			wpabuf_free(in_decrypted);
-			return;
-		}
-		tlv = wpabuf_mhead(in_decrypted);
-		if ((be_to_host16(tlv->tlv_type) & EAP_TLV_TYPE_MASK) !=
-		    EAP_TLV_EAP_PAYLOAD_TLV) {
-			wpa_printf(MSG_INFO, "EAP-PEAPv2: Not an EAP TLV");
-			wpabuf_free(in_decrypted);
-			return;
-		}
-		if (sizeof(*tlv) + be_to_host16(tlv->length) >
-		    wpabuf_len(in_decrypted)) {
-			wpa_printf(MSG_INFO, "EAP-PEAPv2: Invalid EAP TLV "
-				   "length");
-			wpabuf_free(in_decrypted);
-			return;
-		}
-		hdr = (struct eap_hdr *) (tlv + 1);
-		if (be_to_host16(hdr->length) > be_to_host16(tlv->length)) {
-			wpa_printf(MSG_INFO, "EAP-PEAPv2: No room for full "
-				   "EAP packet in EAP TLV");
-			wpabuf_free(in_decrypted);
-			return;
-		}
-
-		nmsg = wpabuf_alloc(be_to_host16(hdr->length));
-		if (nmsg == NULL) {
-			wpabuf_free(in_decrypted);
-			return;
-		}
-
-		wpabuf_put_data(nmsg, hdr, be_to_host16(hdr->length));
-		wpabuf_free(in_decrypted);
-		in_decrypted = nmsg;
 	}
 
 	hdr = wpabuf_head(in_decrypted);
@@ -1168,53 +1096,6 @@ static void eap_peap_process_phase2(struct eap_sm *sm,
 }
 
 
-static int eap_peapv2_start_phase2(struct eap_sm *sm,
-				   struct eap_peap_data *data)
-{
-	struct wpabuf *buf, *buf2;
-
-	wpa_printf(MSG_DEBUG, "EAP-PEAPv2: Phase1 done, include first Phase2 "
-		   "payload in the same message");
-	eap_peap_state(data, PHASE1_ID2);
-	if (eap_peap_phase2_init(sm, data, EAP_TYPE_IDENTITY))
-		return -1;
-
-	/* TODO: which Id to use here? */
-	buf = data->phase2_method->buildReq(sm, data->phase2_priv, 6);
-	if (buf == NULL)
-		return -1;
-
-	buf2 = eap_peapv2_tlv_eap_payload(buf);
-	if (buf2 == NULL)
-		return -1;
-
-	wpa_hexdump_buf(MSG_DEBUG, "EAP-PEAPv2: Identity Request", buf2);
-
-	buf = tls_connection_encrypt(sm->ssl_ctx, data->ssl.conn,
-				     buf2);
-	wpabuf_free(buf2);
-
-	if (buf == NULL) {
-		wpa_printf(MSG_INFO, "EAP-PEAPv2: Failed to encrypt Phase 2 "
-			   "data");
-		return -1;
-	}
-
-	wpa_hexdump_buf(MSG_DEBUG, "EAP-PEAPv2: Encrypted Identity Request",
-			buf);
-
-	/* Append TLS data into the pending buffer after the Server Finished */
-	if (wpabuf_resize(&data->ssl.tls_out, wpabuf_len(buf)) < 0) {
-		wpabuf_free(buf);
-		return -1;
-	}
-	wpabuf_put_buf(data->ssl.tls_out, buf);
-	wpabuf_free(buf);
-
-	return 0;
-}
-
-
 static int eap_peap_process_version(struct eap_sm *sm, void *priv,
 				    int peer_version)
 {
@@ -1248,14 +1129,6 @@ static void eap_peap_process_msg(struct eap_sm *sm, void *priv,
 		if (eap_server_tls_phase1(sm, &data->ssl) < 0) {
 			eap_peap_state(data, FAILURE);
 			break;
-		}
-
-		if (data->peap_version >= 2 &&
-		    tls_connection_established(sm->ssl_ctx, data->ssl.conn)) {
-			if (eap_peapv2_start_phase2(sm, data)) {
-				eap_peap_state(data, FAILURE);
-				break;
-			}
 		}
 		break;
 	case PHASE2_START:
@@ -1358,6 +1231,18 @@ static Boolean eap_peap_isSuccess(struct eap_sm *sm, void *priv)
 }
 
 
+static u8 * eap_peap_get_session_id(struct eap_sm *sm, void *priv, size_t *len)
+{
+	struct eap_peap_data *data = priv;
+
+	if (data->state != SUCCESS)
+		return NULL;
+
+	return eap_server_tls_derive_session_id(sm, &data->ssl, EAP_TYPE_PEAP,
+						len);
+}
+
+
 int eap_server_peap_register(void)
 {
 	struct eap_method *eap;
@@ -1376,6 +1261,7 @@ int eap_server_peap_register(void)
 	eap->isDone = eap_peap_isDone;
 	eap->getKey = eap_peap_getKey;
 	eap->isSuccess = eap_peap_isSuccess;
+	eap->getSessionId = eap_peap_get_session_id;
 
 	ret = eap_server_method_register(eap);
 	if (ret)

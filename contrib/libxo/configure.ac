@@ -12,7 +12,7 @@
 #
 
 AC_PREREQ(2.2)
-AC_INIT([libxo], [0.1.6], [phil@juniper.net])
+AC_INIT([libxo], [0.3.2], [phil@juniper.net])
 AM_INIT_AUTOMAKE([-Wall -Werror foreign -Wno-portability])
 
 # Support silent build rules.  Requires at least automake-1.11.
@@ -57,8 +57,10 @@ AC_CHECK_FUNCS([getpass])
 AC_CHECK_FUNCS([sysctlbyname])
 AC_CHECK_FUNCS([flock])
 AC_CHECK_FUNCS([asprintf])
+AC_CHECK_FUNCS([__flbf])
 
 AC_CHECK_HEADERS([dlfcn.h])
+AC_CHECK_HEADERS([stdio_ext.h])
 AC_CHECK_HEADERS([tzfile.h])
 AC_CHECK_HEADERS([stdtime/tzfile.h])
 AC_CHECK_FUNCS([dlfunc])
@@ -131,6 +133,14 @@ AC_ARG_ENABLE([debug],
 AC_MSG_RESULT([$LIBXO_DEBUG])
 AM_CONDITIONAL([LIBXO_DEBUG], [test "$LIBXO_DEBUG" != "no"])
 
+AC_MSG_CHECKING([whether to build with text-only rendering])
+AC_ARG_ENABLE([text-only],
+    [  --enable-text-only    Turn on text-only rendering],
+    [LIBXO_TEXT_ONLY=yes; AC_DEFINE([LIBXO_TEXT_ONLY], [1], [Enable text-only rendering])],
+    [LIBXO_TEXT_ONLY=no])
+AC_MSG_RESULT([$LIBXO_TEXT_ONLY])
+AM_CONDITIONAL([LIBXO_TEXT_ONLY], [test "$LIBXO_TEXT_ONLY" != "no"])
+
 AC_CHECK_LIB([m], [lrint])
 AM_CONDITIONAL([HAVE_LIBM], [test "$HAVE_LIBM" != "no"])
 
@@ -163,7 +173,6 @@ AC_ARG_ENABLE([libxo-options],
     [LIBXO_OPTS=yes])
 AC_MSG_RESULT([$LIBXO_OPTS])
 AM_CONDITIONAL([NO_LIBXO_OPTIONS], [test "$LIBXO_OPTS" != "yes"])
-
 
 case $host_os in
      darwin*)
@@ -232,12 +241,14 @@ AC_CONFIG_FILES([
   libxo/xoversion.h
   xo/Makefile
   xolint/Makefile
+  xohtml/Makefile
   packaging/libxo.pc
   doc/Makefile
   tests/Makefile
   tests/core/Makefile
   tests/xo/Makefile
   packaging/libxo.spec
+  packaging/libxo.rb.base
 ])
 AC_OUTPUT
 
@@ -251,6 +262,7 @@ AC_MSG_NOTICE([summary of build options:
   bindir:           ${XO_BINDIR}
   includedir:       ${XO_INCLUDEDIR}
   share dir:        ${XO_SHAREDIR}
+  oxtradoc dir:     ${SLAX_OXTRADOCDIR}
 
   compiler:         ${CC} (${HAVE_GCC:-no})
   compiler flags:   ${CFLAGS}
@@ -260,4 +272,5 @@ AC_MSG_NOTICE([summary of build options:
   debug:            ${LIBXO_DEBUG:-no}
   printf-like:      ${HAVE_PRINTFLIKE:-no}
   libxo-options:    ${LIBXO_OPTS:-no}
+  text-only:        ${LIBXO_TEXT_ONLY:-no}
 ])

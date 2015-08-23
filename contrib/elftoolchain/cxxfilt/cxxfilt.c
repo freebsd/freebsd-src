@@ -24,7 +24,6 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <ctype.h>
 #include <err.h>
@@ -36,7 +35,7 @@
 
 #include "_elftc.h"
 
-ELFTC_VCSID("$Id: cxxfilt.c 2185 2011-11-19 16:07:16Z jkoshy $");
+ELFTC_VCSID("$Id: cxxfilt.c 3174 2015-03-27 17:13:41Z emaste $");
 
 #define	STRBUFSZ	8192
 

@@ -76,6 +76,7 @@ cat > test.pl <<-EOPERL
 	    Timeout => 3);
 	die "Could not connect to host $dest port $tcpport" unless \$s;
 	close \$s;
+	sleep(2);
 EOPERL
 
 $dtrace -c '/usr/bin/perl test.pl' -qs /dev/stdin <<EODTRACE

@@ -17,10 +17,10 @@
 
 #include "clang/AST/Decl.h"
 #include "clang/AST/Expr.h"
+#include "clang/AST/LambdaCapture.h"
 #include "clang/AST/TemplateBase.h"
 #include "clang/AST/UnresolvedSet.h"
 #include "clang/Basic/ExpressionTraits.h"
-#include "clang/AST/LambdaCapture.h"
 #include "clang/Basic/TypeTraits.h"
 #include "llvm/Support/Compiler.h"
 
@@ -967,8 +967,14 @@ public:
   const FieldDecl *getField() const { return Field; }
 
   /// \brief Get the initialization expression that will be used.
-  const Expr *getExpr() const { return Field->getInClassInitializer(); }
-  Expr *getExpr() { return Field->getInClassInitializer(); }
+  const Expr *getExpr() const {
+    assert(Field->getInClassInitializer() && "initializer hasn't been parsed");
+    return Field->getInClassInitializer();
+  }
+  Expr *getExpr() {
+    assert(Field->getInClassInitializer() && "initializer hasn't been parsed");
+    return Field->getInClassInitializer();
+  }
 
   SourceLocation getLocStart() const LLVM_READONLY { return Loc; }
   SourceLocation getLocEnd() const LLVM_READONLY { return Loc; }
@@ -1165,6 +1171,13 @@ public:
 
   typedef ExprIterator arg_iterator;
   typedef ConstExprIterator const_arg_iterator;
+  typedef llvm::iterator_range<arg_iterator> arg_range;
+  typedef llvm::iterator_range<const_arg_iterator> arg_const_range;
+
+  arg_range arguments() { return arg_range(arg_begin(), arg_end()); }
+  arg_const_range arguments() const {
+    return arg_const_range(arg_begin(), arg_end());
+  }
 
   arg_iterator arg_begin() { return Args; }
   arg_iterator arg_end() { return Args + NumArgs; }
@@ -1569,12 +1582,12 @@ class CXXScalarValueInitExpr : public Expr {
 public:
   /// \brief Create an explicitly-written scalar-value initialization
   /// expression.
-  CXXScalarValueInitExpr(QualType Type,
-                         TypeSourceInfo *TypeInfo,
-                         SourceLocation rParenLoc ) :
-    Expr(CXXScalarValueInitExprClass, Type, VK_RValue, OK_Ordinary,
-         false, false, Type->isInstantiationDependentType(), false),
-    RParenLoc(rParenLoc), TypeInfo(TypeInfo) {}
+  CXXScalarValueInitExpr(QualType Type, TypeSourceInfo *TypeInfo,
+                         SourceLocation rParenLoc)
+      : Expr(CXXScalarValueInitExprClass, Type, VK_RValue, OK_Ordinary,
+             false, false, Type->isInstantiationDependentType(),
+             Type->containsUnexpandedParameterPack()),
+        RParenLoc(rParenLoc), TypeInfo(TypeInfo) {}
 
   explicit CXXScalarValueInitExpr(EmptyShell Shell)
     : Expr(CXXScalarValueInitExprClass, Shell) { }
@@ -2113,7 +2126,7 @@ public:
   
   /// \brief Retrieve the argument types.
   ArrayRef<TypeSourceInfo *> getArgs() const { 
-    return ArrayRef<TypeSourceInfo *>(getTypeSourceInfos(), getNumArgs());
+    return llvm::makeArrayRef(getTypeSourceInfos(), getNumArgs());
   }
   
   typedef TypeSourceInfo **arg_iterator;
@@ -2767,7 +2780,7 @@ public:
                                   ArrayRef<CleanupObject> objects);
 
   ArrayRef<CleanupObject> getObjects() const {
-    return ArrayRef<CleanupObject>(getObjectsBuffer(), getNumObjects());
+    return llvm::makeArrayRef(getObjectsBuffer(), getNumObjects());
   }
 
   unsigned getNumObjects() const { return ExprWithCleanupsBits.NumObjects; }
@@ -2902,8 +2915,9 @@ public:
 
   SourceLocation getLocStart() const LLVM_READONLY;
   SourceLocation getLocEnd() const LLVM_READONLY {
-    assert(RParenLoc.isValid() || NumArgs == 1);
-    return RParenLoc.isValid() ? RParenLoc : getArg(0)->getLocEnd();
+    if (!RParenLoc.isValid() && NumArgs > 0)
+      return getArg(NumArgs - 1)->getLocEnd();
+    return RParenLoc;
   }
 
   static bool classof(const Stmt *T) {
@@ -3809,6 +3823,69 @@ public:
     auto ES = State.get<ExtraState *>();
     return child_range(&ES->Temporary, &ES->Temporary + 1);
   }
+};
+
+/// \brief Represents a folding of a pack over an operator.
+///
+/// This expression is always dependent and represents a pack expansion of the
+/// forms:
+///
+///    ( expr op ... )
+///    ( ... op expr )
+///    ( expr op ... op expr )
+class CXXFoldExpr : public Expr {
+  SourceLocation LParenLoc;
+  SourceLocation EllipsisLoc;
+  SourceLocation RParenLoc;
+  Stmt *SubExprs[2];
+  BinaryOperatorKind Opcode;
+
+  friend class ASTStmtReader;
+  friend class ASTStmtWriter;
+public:
+  CXXFoldExpr(QualType T, SourceLocation LParenLoc, Expr *LHS,
+              BinaryOperatorKind Opcode, SourceLocation EllipsisLoc, Expr *RHS,
+              SourceLocation RParenLoc)
+      : Expr(CXXFoldExprClass, T, VK_RValue, OK_Ordinary,
+             /*Dependent*/ true, true, true,
+             /*ContainsUnexpandedParameterPack*/ false),
+        LParenLoc(LParenLoc), EllipsisLoc(EllipsisLoc), RParenLoc(RParenLoc),
+        Opcode(Opcode) {
+    SubExprs[0] = LHS;
+    SubExprs[1] = RHS;
+  }
+  CXXFoldExpr(EmptyShell Empty) : Expr(CXXFoldExprClass, Empty) {}
+
+  Expr *getLHS() const { return static_cast<Expr*>(SubExprs[0]); }
+  Expr *getRHS() const { return static_cast<Expr*>(SubExprs[1]); }
+
+  /// Does this produce a right-associated sequence of operators?
+  bool isRightFold() const {
+    return getLHS() && getLHS()->containsUnexpandedParameterPack();
+  }
+  /// Does this produce a left-associated sequence of operators?
+  bool isLeftFold() const { return !isRightFold(); }
+  /// Get the pattern, that is, the operand that contains an unexpanded pack.
+  Expr *getPattern() const { return isLeftFold() ? getRHS() : getLHS(); }
+  /// Get the operand that doesn't contain a pack, for a binary fold.
+  Expr *getInit() const { return isLeftFold() ? getLHS() : getRHS(); }
+
+  SourceLocation getEllipsisLoc() const { return EllipsisLoc; }
+  BinaryOperatorKind getOperator() const { return Opcode; }
+
+  SourceLocation getLocStart() const LLVM_READONLY {
+    return LParenLoc;
+  }
+  SourceLocation getLocEnd() const LLVM_READONLY {
+    return RParenLoc;
+  }
+
+  static bool classof(const Stmt *T) {
+    return T->getStmtClass() == CXXFoldExprClass;
+  }
+
+  // Iterators
+  child_range children() { return child_range(SubExprs, SubExprs + 2); }
 };
 
 }  // end namespace clang

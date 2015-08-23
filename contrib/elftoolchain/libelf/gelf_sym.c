@@ -24,8 +24,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-
 #include <assert.h>
 #include <gelf.h>
 #include <limits.h>
@@ -33,7 +31,7 @@
 
 #include "_libelf.h"
 
-ELFTC_VCSID("$Id: gelf_sym.c 2999 2014-03-18 17:19:06Z jkoshy $");
+ELFTC_VCSID("$Id: gelf_sym.c 3177 2015-03-30 18:19:41Z emaste $");
 
 GElf_Sym *
 gelf_getsym(Elf_Data *ed, int ndx, GElf_Sym *dst)

@@ -214,7 +214,8 @@ public:
   ///
   /// This returns true if the block was not considered live before.
   bool MarkBlockExecutable(BasicBlock *BB) {
-    if (!BBExecutable.insert(BB)) return false;
+    if (!BBExecutable.insert(BB).second)
+      return false;
     DEBUG(dbgs() << "Marking Block Executable: " << BB->getName() << '\n');
     BBWorkList.push_back(BB);  // Add the block to the work list!
     return true;
@@ -1010,7 +1011,7 @@ void SCCPSolver::visitGetElementPtrInst(GetElementPtrInst &I) {
   }
 
   Constant *Ptr = Operands[0];
-  ArrayRef<Constant *> Indices(Operands.begin() + 1, Operands.end());
+  auto Indices = makeArrayRef(Operands.begin() + 1, Operands.end());
   markConstant(&I, ConstantExpr::getGetElementPtr(Ptr, Indices));
 }
 
@@ -1053,7 +1054,7 @@ void SCCPSolver::visitLoadInst(LoadInst &I) {
 
   // load null -> null
   if (isa<ConstantPointerNull>(Ptr) && I.getPointerAddressSpace() == 0)
-    return markConstant(IV, &I, Constant::getNullValue(I.getType()));
+    return markConstant(IV, &I, UndefValue::get(I.getType()));
 
   // Transform load (constant global) into the value loaded.
   if (GlobalVariable *GV = dyn_cast<GlobalVariable>(Ptr)) {
@@ -1106,6 +1107,9 @@ CallOverdefined:
         assert(State.isConstant() && "Unknown state!");
         Operands.push_back(State.getConstant());
       }
+
+      if (getValueState(I).isOverdefined())
+        return;
 
       // If we can constant fold this, mark the result of the call as a
       // constant.

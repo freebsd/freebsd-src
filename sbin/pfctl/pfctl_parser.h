@@ -150,12 +150,27 @@ struct node_hfsc_opts {
 	int			flags;
 };
 
+struct node_fairq_sc {
+	struct node_queue_bw	m1;	/* slope of 1st segment; bps */
+	u_int			d;	/* x-projection of m1; msec */
+	struct node_queue_bw	m2;	/* slope of 2nd segment; bps */
+	u_int8_t		used;
+};
+
+struct node_fairq_opts {
+	struct node_fairq_sc	linkshare;
+	struct node_queue_bw	hogs_bw;
+	u_int			nbuckets;
+	int			flags;
+};
+
 struct node_queue_opt {
 	int			 qtype;
 	union {
 		struct cbq_opts		cbq_opts;
 		struct priq_opts	priq_opts;
 		struct node_hfsc_opts	hfsc_opts;
+		struct node_fairq_opts	fairq_opts;
 	}			 data;
 };
 

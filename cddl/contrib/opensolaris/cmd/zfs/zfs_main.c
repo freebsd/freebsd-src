@@ -65,7 +65,7 @@
 #include <zfs_prop.h>
 #include <zfs_deleg.h>
 #include <libuutil.h>
-#ifdef sun
+#ifdef illumos
 #include <aclutils.h>
 #include <directory.h>
 #include <idmap.h>
@@ -593,6 +593,17 @@ finish_progress(char *done)
 }
 
 /*
+ * Check if the dataset is mountable and should be automatically mounted.
+ */
+static boolean_t
+should_auto_mount(zfs_handle_t *zhp)
+{
+	if (!zfs_prop_valid_for_type(ZFS_PROP_CANMOUNT, zfs_get_type(zhp)))
+		return (B_FALSE);
+	return (zfs_prop_get_int(zhp, ZFS_PROP_CANMOUNT) == ZFS_CANMOUNT_ON);
+}
+
+/*
  * zfs clone [-p] [-o prop=value] ... <snap> <fs | vol>
  *
  * Given an existing dataset, create a writable copy whose initial contents
@@ -677,9 +688,22 @@ zfs_do_clone(int argc, char **argv)
 
 		clone = zfs_open(g_zfs, argv[1], ZFS_TYPE_DATASET);
 		if (clone != NULL) {
-			if (zfs_get_type(clone) != ZFS_TYPE_VOLUME)
-				if ((ret = zfs_mount(clone, NULL, 0)) == 0)
-					ret = zfs_share(clone);
+			/*
+			 * If the user doesn't want the dataset
+			 * automatically mounted, then skip the mount/share
+			 * step.
+			 */
+			if (should_auto_mount(clone)) {
+				if ((ret = zfs_mount(clone, NULL, 0)) != 0) {
+					(void) fprintf(stderr, gettext("clone "
+					    "successfully created, "
+					    "but not mounted\n"));
+				} else if ((ret = zfs_share(clone)) != 0) {
+					(void) fprintf(stderr, gettext("clone "
+					    "successfully created, "
+					    "but not shared\n"));
+				}
+			}
 			zfs_close(clone);
 		}
 	}
@@ -728,7 +752,6 @@ zfs_do_create(int argc, char **argv)
 	int ret = 1;
 	nvlist_t *props;
 	uint64_t intval;
-	int canmount = ZFS_CANMOUNT_OFF;
 
 	if (nvlist_alloc(&props, NV_UNIQUE_NAME, 0) != 0)
 		nomem();
@@ -868,19 +891,15 @@ zfs_do_create(int argc, char **argv)
 		goto error;
 
 	ret = 0;
-	/*
-	 * if the user doesn't want the dataset automatically mounted,
-	 * then skip the mount/share step
-	 */
-	if (zfs_prop_valid_for_type(ZFS_PROP_CANMOUNT, type))
-		canmount = zfs_prop_get_int(zhp, ZFS_PROP_CANMOUNT);
 
 	/*
 	 * Mount and/or share the new filesystem as appropriate.  We provide a
 	 * verbose error message to let the user know that their filesystem was
 	 * in fact created, even if we failed to mount or share it.
+	 * If the user doesn't want the dataset automatically mounted,
+	 * then skip the mount/share step altogether.
 	 */
-	if (!nomount && canmount == ZFS_CANMOUNT_ON) {
+	if (!nomount && should_auto_mount(zhp)) {
 		if (zfs_mount(zhp, NULL, 0) != 0) {
 			(void) fprintf(stderr, gettext("filesystem "
 			    "successfully created, but not mounted\n"));
@@ -2391,7 +2410,7 @@ userspace_cb(void *arg, const char *domain, uid_t rid, uint64_t space)
 		/* SMB */
 		char sid[ZFS_MAXNAMELEN + 32];
 		uid_t id;
-#ifdef sun
+#ifdef illumos
 		int err;
 		int flag = IDMAP_REQ_FLG_USE_CACHE;
 #endif
@@ -2402,17 +2421,17 @@ userspace_cb(void *arg, const char *domain, uid_t rid, uint64_t space)
 
 		if (prop == ZFS_PROP_GROUPUSED || prop == ZFS_PROP_GROUPQUOTA) {
 			type = USTYPE_SMB_GRP;
-#ifdef sun
+#ifdef illumos
 			err = sid_to_id(sid, B_FALSE, &id);
 #endif
 		} else {
 			type = USTYPE_SMB_USR;
-#ifdef sun
+#ifdef illumos
 			err = sid_to_id(sid, B_TRUE, &id);
 #endif
 		}
 
-#ifdef sun
+#ifdef illumos
 		if (err == 0) {
 			rid = id;
 			if (!cb->cb_sid2posix) {
@@ -6110,7 +6129,7 @@ unshare_unmount_path(int op, char *path, int flags, boolean_t is_manual)
 	/*
 	 * Search for the given (major,minor) pair in the mount table.
 	 */
-#ifdef sun
+#ifdef illumos
 	rewind(mnttab_file);
 	while ((ret = getextmntent(mnttab_file, &entry, 0)) == 0) {
 		if (entry.mnt_major == major(statbuf.st_dev) &&

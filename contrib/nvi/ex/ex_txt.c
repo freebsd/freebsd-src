@@ -44,14 +44,14 @@ static const char sccsid[] = "$Id: ex_txt.c,v 10.23 2001/06/25 15:19:21 skimo Ex
  * characters remaining when failure occurred.
  */
 
-static int	txt_dent __P((SCR *, TEXT *));
-static void	txt_prompt __P((SCR *, TEXT *, ARG_CHAR_T, u_int32_t));
+static int	txt_dent(SCR *, TEXT *);
+static void	txt_prompt(SCR *, TEXT *, ARG_CHAR_T, u_int32_t);
 
 /*
  * ex_txt --
  *	Get lines from the terminal for ex.
  *
- * PUBLIC: int ex_txt __P((SCR *, TEXTH *, ARG_CHAR_T, u_int32_t));
+ * PUBLIC: int ex_txt(SCR *, TEXTH *, ARG_CHAR_T, u_int32_t);
  */
 int
 ex_txt(SCR *sp, TEXTH *tiqh, ARG_CHAR_T prompt, u_int32_t flags)

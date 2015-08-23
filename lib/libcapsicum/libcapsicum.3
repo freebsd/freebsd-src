@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 14, 2014
+.Dd May 2, 2015
 .Dt LIBCAPSICUM 3
 .Os
 .Sh NAME
@@ -68,9 +68,9 @@
 .Ft "int"
 .Fn cap_send_nvlist "const cap_channel_t *chan" "const nvlist_t *nvl"
 .Ft "nvlist_t *"
-.Fn cap_recv_nvlist "const cap_channel_t *chan"
+.Fn cap_recv_nvlist "const cap_channel_t *chan" "int flags"
 .Ft "nvlist_t *"
-.Fn cap_xfer_nvlist "const cap_channel_t *chan" "nvlist_t *nvl"
+.Fn cap_xfer_nvlist "const cap_channel_t *chan" "nvlist_t *nvl" "int flags"
 .In libcapsicum_service.h
 .Ft "cap_channel_t *"
 .Fn cap_service_open "const cap_channel_t *chan" "const char *name"
@@ -171,11 +171,23 @@ Most services should provide higher level API.
 The
 .Fn cap_recv_nvlist
 function receives the given nvlist over the given capability.
+The
+.Fa flags
+argument defines what type the top nvlist is expected to be.
+If the nvlist flags do not match the flags passed to
+.Fn cap_recv_nvlist ,
+the nvlist will not be returned.
 .Pp
 The
 .Fn cap_xfer_nvlist
 function sends the given nvlist, destroys it and receives new nvlist in
 response over the given capability.
+The
+.Fa flags
+argument defines what type the top nvlist is expected to be.
+If the nvlist flags do not match the flags passed to
+.Fn cap_xfer_nvlist ,
+the nvlist will not be returned.
 It does not matter if the function succeeds or fails, the nvlist given
 for sending will always be destroyed once the function returns.
 .Pp

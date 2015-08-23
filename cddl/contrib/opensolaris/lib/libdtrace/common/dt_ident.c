@@ -28,18 +28,18 @@
 
 #pragma ident	"%Z%%M%	%I%	%E% SMI"
 
-#if defined(sun)
+#ifdef illumos
 #include <sys/sysmacros.h>
 #endif
 #include <strings.h>
 #include <stdlib.h>
-#if defined(sun)
+#ifdef illumos
 #include <alloca.h>
 #endif
 #include <assert.h>
 #include <errno.h>
 #include <ctype.h>
-#if defined(sun)
+#ifdef illumos
 #include <sys/procfs_isa.h>
 #endif
 #include <limits.h>

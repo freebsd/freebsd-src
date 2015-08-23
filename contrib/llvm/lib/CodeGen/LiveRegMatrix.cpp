@@ -18,8 +18,8 @@
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/VirtRegMap.h"
 #include "llvm/Support/Debug.h"
+#include "llvm/Support/Format.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetRegisterInfo.h"
 
 using namespace llvm;
@@ -48,7 +48,7 @@ void LiveRegMatrix::getAnalysisUsage(AnalysisUsage &AU) const {
 }
 
 bool LiveRegMatrix::runOnMachineFunction(MachineFunction &MF) {
-  TRI = MF.getTarget().getRegisterInfo();
+  TRI = MF.getSubtarget().getRegisterInfo();
   MRI = &MF.getRegInfo();
   LIS = &getAnalysis<LiveIntervals>();
   VRM = &getAnalysis<VirtRegMap>();
@@ -72,16 +72,44 @@ void LiveRegMatrix::releaseMemory() {
   }
 }
 
+template<typename Callable>
+bool foreachUnit(const TargetRegisterInfo *TRI, LiveInterval &VRegInterval,
+                 unsigned PhysReg, Callable Func) {
+  if (VRegInterval.hasSubRanges()) {
+    for (MCRegUnitMaskIterator Units(PhysReg, TRI); Units.isValid(); ++Units) {
+      unsigned Unit = (*Units).first;
+      unsigned Mask = (*Units).second;
+      for (LiveInterval::SubRange &S : VRegInterval.subranges()) {
+        if (S.LaneMask & Mask) {
+          if (Func(Unit, S))
+            return true;
+          break;
+        }
+      }
+    }
+  } else {
+    for (MCRegUnitIterator Units(PhysReg, TRI); Units.isValid(); ++Units) {
+      if (Func(*Units, VRegInterval))
+        return true;
+    }
+  }
+  return false;
+}
+
 void LiveRegMatrix::assign(LiveInterval &VirtReg, unsigned PhysReg) {
   DEBUG(dbgs() << "assigning " << PrintReg(VirtReg.reg, TRI)
                << " to " << PrintReg(PhysReg, TRI) << ':');
   assert(!VRM->hasPhys(VirtReg.reg) && "Duplicate VirtReg assignment");
   VRM->assignVirt2Phys(VirtReg.reg, PhysReg);
   MRI->setPhysRegUsed(PhysReg);
-  for (MCRegUnitIterator Units(PhysReg, TRI); Units.isValid(); ++Units) {
-    DEBUG(dbgs() << ' ' << PrintRegUnit(*Units, TRI));
-    Matrix[*Units].unify(VirtReg);
-  }
+
+  foreachUnit(TRI, VirtReg, PhysReg, [&](unsigned Unit,
+                                         const LiveRange &Range) {
+    DEBUG(dbgs() << ' ' << PrintRegUnit(Unit, TRI) << ' ' << Range);
+    Matrix[Unit].unify(VirtReg, Range);
+    return false;
+  });
+
   ++NumAssigned;
   DEBUG(dbgs() << '\n');
 }
@@ -91,10 +119,14 @@ void LiveRegMatrix::unassign(LiveInterval &VirtReg) {
   DEBUG(dbgs() << "unassigning " << PrintReg(VirtReg.reg, TRI)
                << " from " << PrintReg(PhysReg, TRI) << ':');
   VRM->clearVirt(VirtReg.reg);
-  for (MCRegUnitIterator Units(PhysReg, TRI); Units.isValid(); ++Units) {
-    DEBUG(dbgs() << ' ' << PrintRegUnit(*Units, TRI));
-    Matrix[*Units].extract(VirtReg);
-  }
+
+  foreachUnit(TRI, VirtReg, PhysReg, [&](unsigned Unit,
+                                         const LiveRange &Range) {
+    DEBUG(dbgs() << ' ' << PrintRegUnit(Unit, TRI));
+    Matrix[Unit].extract(VirtReg, Range);
+    return false;
+  });
+
   ++NumUnassigned;
   DEBUG(dbgs() << '\n');
 }
@@ -122,12 +154,13 @@ bool LiveRegMatrix::checkRegUnitInterference(LiveInterval &VirtReg,
   if (VirtReg.empty())
     return false;
   CoalescerPair CP(VirtReg.reg, PhysReg, *TRI);
-  for (MCRegUnitIterator Units(PhysReg, TRI); Units.isValid(); ++Units) {
-    const LiveRange &UnitRange = LIS->getRegUnit(*Units);
-    if (VirtReg.overlaps(UnitRange, CP, *LIS->getSlotIndexes()))
-      return true;
-  }
-  return false;
+
+  bool Result = foreachUnit(TRI, VirtReg, PhysReg, [&](unsigned Unit,
+                                                       const LiveRange &Range) {
+    const LiveRange &UnitRange = LIS->getRegUnit(Unit);
+    return Range.overlaps(UnitRange, CP, *LIS->getSlotIndexes());
+  });
+  return Result;
 }
 
 LiveIntervalUnion::Query &LiveRegMatrix::query(LiveInterval &VirtReg,

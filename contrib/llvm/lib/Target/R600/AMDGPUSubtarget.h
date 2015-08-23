@@ -12,24 +12,27 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef AMDGPUSUBTARGET_H
-#define AMDGPUSUBTARGET_H
+#ifndef LLVM_LIB_TARGET_R600_AMDGPUSUBTARGET_H
+#define LLVM_LIB_TARGET_R600_AMDGPUSUBTARGET_H
 #include "AMDGPU.h"
+#include "AMDGPUFrameLowering.h"
 #include "AMDGPUInstrInfo.h"
+#include "AMDGPUIntrinsicInfo.h"
+#include "AMDGPUSubtarget.h"
+#include "R600ISelLowering.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/StringRef.h"
+#include "llvm/IR/DataLayout.h"
 #include "llvm/Target/TargetSubtargetInfo.h"
 
 #define GET_SUBTARGETINFO_HEADER
 #include "AMDGPUGenSubtargetInfo.inc"
 
-#define MAX_CB_SIZE (1 << 16)
-
 namespace llvm {
 
-class AMDGPUSubtarget : public AMDGPUGenSubtargetInfo {
+class SIMachineFunctionInfo;
 
-  std::unique_ptr<AMDGPUInstrInfo> InstrInfo;
+class AMDGPUSubtarget : public AMDGPUGenSubtargetInfo {
 
 public:
   enum Generation {
@@ -38,7 +41,12 @@ public:
     EVERGREEN,
     NORTHERN_ISLANDS,
     SOUTHERN_ISLANDS,
-    SEA_ISLANDS
+    SEA_ISLANDS,
+    VOLCANIC_ISLANDS,
+  };
+
+  enum {
+    FIXED_SGPR_COUNT_FOR_INIT_BUG = 80
   };
 
 private:
@@ -53,24 +61,43 @@ private:
   bool FP64Denormals;
   bool FP32Denormals;
   bool CaymanISA;
+  bool FlatAddressSpace;
   bool EnableIRStructurizer;
   bool EnablePromoteAlloca;
   bool EnableIfCvt;
+  bool EnableLoadStoreOpt;
   unsigned WavefrontSize;
   bool CFALUBug;
   int LocalMemorySize;
+  bool EnableVGPRSpilling;
+  bool SGPRInitBug;
 
+  const DataLayout DL;
+  AMDGPUFrameLowering FrameLowering;
+  std::unique_ptr<AMDGPUTargetLowering> TLInfo;
+  std::unique_ptr<AMDGPUInstrInfo> InstrInfo;
   InstrItineraryData InstrItins;
+  Triple TargetTriple;
 
 public:
-  AMDGPUSubtarget(StringRef TT, StringRef CPU, StringRef FS);
+  AMDGPUSubtarget(StringRef TT, StringRef CPU, StringRef FS, TargetMachine &TM);
+  AMDGPUSubtarget &initializeSubtargetDependencies(StringRef GPU, StringRef FS);
 
-  const AMDGPUInstrInfo *getInstrInfo() const {
+  const AMDGPUFrameLowering *getFrameLowering() const override {
+    return &FrameLowering;
+  }
+  const AMDGPUInstrInfo *getInstrInfo() const override {
     return InstrInfo.get();
   }
-
-  const InstrItineraryData &getInstrItineraryData() const {
-    return InstrItins;
+  const AMDGPURegisterInfo *getRegisterInfo() const override {
+    return &InstrInfo->getRegisterInfo();
+  }
+  AMDGPUTargetLowering *getTargetLowering() const override {
+    return TLInfo.get();
+  }
+  const DataLayout *getDataLayout() const override { return &DL; }
+  const InstrItineraryData *getInstrItineraryData() const override {
+    return &InstrItins;
   }
 
   void ParseSubtargetFeatures(StringRef CPU, StringRef FS);
@@ -105,6 +132,10 @@ public:
 
   bool hasFP64Denormals() const {
     return FP64Denormals;
+  }
+
+  bool hasFlatAddressSpace() const {
+    return FlatAddressSpace;
   }
 
   bool hasBFE() const {
@@ -158,6 +189,10 @@ public:
     return EnableIfCvt;
   }
 
+  bool loadStoreOptEnabled() const {
+    return EnableLoadStoreOpt;
+  }
+
   unsigned getWavefrontSize() const {
     return WavefrontSize;
   }
@@ -173,9 +208,19 @@ public:
     return LocalMemorySize;
   }
 
+  bool hasSGPRInitBug() const {
+    return SGPRInitBug;
+  }
+
+  unsigned getAmdKernelCodeChipID() const;
+
   bool enableMachineScheduler() const override {
     return getGeneration() <= NORTHERN_ISLANDS;
   }
+
+  void overrideSchedPolicy(MachineSchedPolicy &Policy,
+                           MachineInstr *begin, MachineInstr *end,
+                           unsigned NumRegionInstrs) const override;
 
   // Helper functions to simplify if statements
   bool isTargetELF() const {
@@ -192,8 +237,20 @@ public:
   bool r600ALUEncoding() const {
     return R600ALUInst;
   }
+  bool isAmdHsaOS() const {
+    return TargetTriple.getOS() == Triple::AMDHSA;
+  }
+  bool isVGPRSpillingEnabled(const SIMachineFunctionInfo *MFI) const;
+
+  unsigned getMaxWavesPerCU() const {
+    if (getGeneration() >= AMDGPUSubtarget::SOUTHERN_ISLANDS)
+      return 10;
+
+    // FIXME: Not sure what this is for other subtagets.
+    llvm_unreachable("do not know max waves per CU for this subtarget.");
+  }
 };
 
 } // End namespace llvm
 
-#endif // AMDGPUSUBTARGET_H
+#endif

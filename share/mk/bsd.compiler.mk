@@ -25,8 +25,14 @@
 .if !target(__<bsd.compiler.mk>__)
 __<bsd.compiler.mk>__:
 
-.if !defined(COMPILER_TYPE) || !defined(COMPILER_VERSION)
+.if ${MACHINE} == "common"
+# common is a pseudo machine for architecture independent
+# generated files - thus there is no compiler.
+COMPILER_TYPE= none
+COMPILER_VERSION= 0
+.elif !defined(COMPILER_TYPE) || !defined(COMPILER_VERSION)
 _v!=	${CC} --version 2>/dev/null || echo 0.0.0
+
 .if !defined(COMPILER_TYPE)
 . if ${CC:T:M*gcc*}
 COMPILER_TYPE:=	gcc  

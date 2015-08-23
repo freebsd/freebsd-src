@@ -34,6 +34,7 @@ void llvm::initializeAnalysis(PassRegistry &Registry) {
   initializeCFGPrinterPass(Registry);
   initializeCFGOnlyViewerPass(Registry);
   initializeCFGOnlyPrinterPass(Registry);
+  initializeCFLAliasAnalysisPass(Registry);
   initializeDependenceAnalysisPass(Registry);
   initializeDelinearizationPass(Registry);
   initializeDominanceFrontierPass(Registry);
@@ -66,6 +67,7 @@ void llvm::initializeAnalysis(PassRegistry &Registry) {
   initializeScalarEvolutionAliasAnalysisPass(Registry);
   initializeTargetTransformInfoAnalysisGroup(Registry);
   initializeTypeBasedAliasAnalysisPass(Registry);
+  initializeScopedNoAliasAAPass(Registry);
 }
 
 void LLVMInitializeAnalysis(LLVMPassRegistryRef R) {

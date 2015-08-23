@@ -82,7 +82,7 @@ dtrace_sleep(dtrace_hdl_t *dtp)
 		return; /* sleep duration has already past */
 	}
 
-#if defined(sun)
+#ifdef illumos
 	tv.tv_sec = (earliest - now) / NANOSEC;
 	tv.tv_nsec = (earliest - now) % NANOSEC;
 

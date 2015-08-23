@@ -57,13 +57,13 @@ static const char sccsid[] = "$Id: v_itxt.c,v 10.21 2001/06/25 15:19:32 skimo Ex
 		(void)log_cursor(sp);					\
 }
 
-static u_int32_t set_txt_std __P((SCR *, VICMD *, u_int32_t));
+static u_int32_t set_txt_std(SCR *, VICMD *, u_int32_t);
 
 /*
  * v_iA -- [count]A
  *	Append text to the end of the line.
  *
- * PUBLIC: int v_iA __P((SCR *, VICMD *));
+ * PUBLIC: int v_iA(SCR *, VICMD *);
  */
 int
 v_iA(SCR *sp, VICMD *vp)
@@ -83,7 +83,7 @@ v_iA(SCR *sp, VICMD *vp)
  *	   [count]A
  *	Append text to the cursor position.
  *
- * PUBLIC: int v_ia __P((SCR *, VICMD *));
+ * PUBLIC: int v_ia(SCR *, VICMD *);
  */
 int
 v_ia(SCR *sp, VICMD *vp)
@@ -120,7 +120,7 @@ v_ia(SCR *sp, VICMD *vp)
  * v_iI -- [count]I
  *	Insert text at the first nonblank.
  *
- * PUBLIC: int v_iI __P((SCR *, VICMD *));
+ * PUBLIC: int v_iI(SCR *, VICMD *);
  */
 int
 v_iI(SCR *sp, VICMD *vp)
@@ -139,7 +139,7 @@ v_iI(SCR *sp, VICMD *vp)
  *	   [count]I
  *	Insert text at the cursor position.
  *
- * PUBLIC: int v_ii __P((SCR *, VICMD *));
+ * PUBLIC: int v_ii(SCR *, VICMD *);
  */
 int
 v_ii(SCR *sp, VICMD *vp)
@@ -166,13 +166,13 @@ v_ii(SCR *sp, VICMD *vp)
 }
 
 enum which { o_cmd, O_cmd };
-static int io __P((SCR *, VICMD *, enum which));
+static int io(SCR *, VICMD *, enum which);
 
 /*
  * v_iO -- [count]O
  *	Insert text above this line.
  *
- * PUBLIC: int v_iO __P((SCR *, VICMD *));
+ * PUBLIC: int v_iO(SCR *, VICMD *);
  */
 int
 v_iO(SCR *sp, VICMD *vp)
@@ -184,7 +184,7 @@ v_iO(SCR *sp, VICMD *vp)
  * v_io -- [count]o
  *	Insert text after this line.
  *
- * PUBLIC: int v_io __P((SCR *, VICMD *));
+ * PUBLIC: int v_io(SCR *, VICMD *);
  */
 int
 v_io(SCR *sp, VICMD *vp)
@@ -240,7 +240,7 @@ insert:		p = L("");
  *	       [buffer][count]S
  *	Change command.
  *
- * PUBLIC: int v_change __P((SCR *, VICMD *));
+ * PUBLIC: int v_change(SCR *, VICMD *);
  */
 int
 v_change(SCR *sp, VICMD *vp)
@@ -380,7 +380,7 @@ v_change(SCR *sp, VICMD *vp)
  * v_Replace -- [count]R
  *	Overwrite multiple characters.
  *
- * PUBLIC: int v_Replace __P((SCR *, VICMD *));
+ * PUBLIC: int v_Replace(SCR *, VICMD *);
  */
 int
 v_Replace(SCR *sp, VICMD *vp)
@@ -414,7 +414,7 @@ v_Replace(SCR *sp, VICMD *vp)
  * v_subst -- [buffer][count]s
  *	Substitute characters.
  *
- * PUBLIC: int v_subst __P((SCR *, VICMD *));
+ * PUBLIC: int v_subst(SCR *, VICMD *);
  */
 int
 v_subst(SCR *sp, VICMD *vp)

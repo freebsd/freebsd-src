@@ -57,6 +57,13 @@ public:
   bool isFormClass(FormClass FC) const;
 
   void dump(raw_ostream &OS, const DWARFUnit *U) const;
+
+  /// \brief extracts a value in data at offset *offset_ptr.
+  ///
+  /// The passed DWARFUnit is allowed to be nullptr, in which
+  /// case no relocation processing will be performed and some
+  /// kind of forms that depend on Unit information are disallowed.
+  /// \returns wether the extraction succeeded.
   bool extractValue(DataExtractor data, uint32_t *offset_ptr,
                     const DWARFUnit *u);
   bool isInlinedCStr() const {
@@ -70,6 +77,7 @@ public:
   Optional<const char *> getAsCString(const DWARFUnit *U) const;
   Optional<uint64_t> getAsAddress(const DWARFUnit *U) const;
   Optional<uint64_t> getAsSectionOffset() const;
+  Optional<ArrayRef<uint8_t>> getAsBlock() const;
 
   bool skipValue(DataExtractor debug_info_data, uint32_t *offset_ptr,
                  const DWARFUnit *u) const;

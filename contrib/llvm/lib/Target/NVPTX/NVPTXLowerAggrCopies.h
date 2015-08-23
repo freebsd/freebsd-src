@@ -12,10 +12,11 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef NVPTX_LOWER_AGGR_COPIES_H
-#define NVPTX_LOWER_AGGR_COPIES_H
+#ifndef LLVM_LIB_TARGET_NVPTX_NVPTXLOWERAGGRCOPIES_H
+#define LLVM_LIB_TARGET_NVPTX_NVPTXLOWERAGGRCOPIES_H
 
 #include "llvm/CodeGen/MachineFunctionAnalysis.h"
+#include "llvm/CodeGen/StackProtector.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/Pass.h"
 
@@ -29,8 +30,8 @@ struct NVPTXLowerAggrCopies : public FunctionPass {
 
   void getAnalysisUsage(AnalysisUsage &AU) const override {
     AU.addRequired<DataLayoutPass>();
-    AU.addPreserved("stack-protector");
     AU.addPreserved<MachineFunctionAnalysis>();
+    AU.addPreserved<StackProtector>();
   }
 
   bool runOnFunction(Function &F) override;

@@ -12,6 +12,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "ASTCommon.h"
+#include "clang/AST/DeclCXX.h"
 #include "clang/AST/DeclObjC.h"
 #include "clang/Basic/IdentifierTable.h"
 #include "clang/Serialization/ASTDeserializationListener.h"
@@ -150,7 +151,7 @@ bool serialization::isRedeclarableDeclKind(unsigned Kind) {
   switch (static_cast<Decl::Kind>(Kind)) {
   case Decl::TranslationUnit: // Special case of a "merged" declaration.
   case Decl::Namespace:
-  case Decl::NamespaceAlias: // FIXME: Not yet redeclarable, but will be.
+  case Decl::NamespaceAlias:
   case Decl::Typedef:
   case Decl::TypeAlias:
   case Decl::Enum:
@@ -188,8 +189,6 @@ bool serialization::isRedeclarableDeclKind(unsigned Kind) {
   case Decl::MSProperty:
   case Decl::ObjCIvar:
   case Decl::ObjCAtDefsField:
-  case Decl::ImplicitParam:
-  case Decl::ParmVar:
   case Decl::NonTypeTemplateParm:
   case Decl::TemplateTemplateParm:
   case Decl::Using:
@@ -212,7 +211,20 @@ bool serialization::isRedeclarableDeclKind(unsigned Kind) {
   case Decl::Import:
   case Decl::OMPThreadPrivate:
     return false;
+
+  // These indirectly derive from Redeclarable<T> but are not actually
+  // redeclarable.
+  case Decl::ImplicitParam:
+  case Decl::ParmVar:
+    return false;
   }
 
   llvm_unreachable("Unhandled declaration kind");
 }
+
+bool serialization::needsAnonymousDeclarationNumber(const NamedDecl *D) {
+  if (D->getDeclName() || !isa<CXXRecordDecl>(D->getLexicalDeclContext()))
+    return false;
+  return isa<TagDecl>(D) || isa<FieldDecl>(D);
+}
+

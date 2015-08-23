@@ -43,6 +43,7 @@ SUBDIR=	libclanganalysis \
 	libllvmirreader \
 	libllvmlinker \
 	libllvmmc \
+	libllvmmcdisassembler \
 	libllvmmcparser \
 	libllvmobjcarcopts \
 	libllvmobject \
@@ -96,14 +97,11 @@ SUBDIR=	libclanganalysis \
 	libllvmx86utils
 
 .if ${MK_CLANG_EXTRAS} != "no"
-SUBDIR+=libllvmdebuginfo \
-	libllvmmcanalysis
+SUBDIR+=libllvmdebuginfo
 .endif # MK_CLANG_EXTRAS
 .if ${MK_CLANG_EXTRAS} != "no" || ${MK_LLDB} != "no"
 SUBDIR+=libllvmexecutionengine \
 	libllvminterpreter \
-	libllvmjit \
-	libllvmmcdisassembler \
 	libllvmmcjit \
 	libllvmruntimedyld
 .endif # MK_CLANG_EXTRAS | LLDB
@@ -125,6 +123,8 @@ SUBDIR+=liblldb \
 	liblldbTarget \
 	liblldbUtility \
 	\
+	liblldbPluginABISysV_ppc \
+	liblldbPluginABISysV_ppc64 \
 	liblldbPluginABISysV_x86_64 \
 	liblldbPluginCXXItaniumABI \
 	liblldbPluginDisassemblerLLVM \
@@ -132,7 +132,9 @@ SUBDIR+=liblldb \
 	liblldbPluginDynamicLoaderPosixDYLD \
 	liblldbPluginInstructionARM \
 	liblldbPluginInstructionARM64 \
+	liblldbPluginInstrumentationRuntimeAddressSanitizer \
 	liblldbPluginJITLoaderGDB \
+	liblldbPluginMemoryHistoryASan \
 	liblldbPluginObjectContainerBSDArchive \
 	liblldbPluginObjectFileELF \
 	liblldbPluginObjectFileJIT \

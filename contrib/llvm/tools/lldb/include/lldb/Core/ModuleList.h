@@ -279,6 +279,16 @@ public:
                          SymbolContextList& sc_list);
 
     //------------------------------------------------------------------
+    /// @see Module::FindFunctions ()
+    //------------------------------------------------------------------
+    size_t
+        FindFunctions(const RegularExpression &name,
+        bool include_symbols,
+        bool include_inlines,
+        bool append,
+        SymbolContextList& sc_list);
+
+    //------------------------------------------------------------------
     /// Find global and static variables by name.
     ///
     /// @param[in] name
@@ -584,6 +594,13 @@ public:
     Modules()
     {
         return ModuleIterable(m_modules, GetMutex());
+    }
+    
+    typedef AdaptedIterable<collection, lldb::ModuleSP, vector_adapter> ModuleIterableNoLocking;
+    ModuleIterableNoLocking
+    ModulesNoLocking ()
+    {
+        return ModuleIterableNoLocking(m_modules);
     }
     
 };

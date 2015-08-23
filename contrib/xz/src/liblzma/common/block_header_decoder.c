@@ -15,7 +15,7 @@
 
 
 static void
-free_properties(lzma_block *block, lzma_allocator *allocator)
+free_properties(lzma_block *block, const lzma_allocator *allocator)
 {
 	// Free allocated filter options. The last array member is not
 	// touched after the initialization in the beginning of
@@ -32,7 +32,7 @@ free_properties(lzma_block *block, lzma_allocator *allocator)
 
 extern LZMA_API(lzma_ret)
 lzma_block_header_decode(lzma_block *block,
-		lzma_allocator *allocator, const uint8_t *in)
+		const lzma_allocator *allocator, const uint8_t *in)
 {
 	// NOTE: We consider the header to be corrupt not only when the
 	// CRC32 doesn't match, but also when variable-length integers
@@ -46,8 +46,16 @@ lzma_block_header_decode(lzma_block *block,
 		block->filters[i].options = NULL;
 	}
 
-	// Always zero for now.
-	block->version = 0;
+	// Versions 0 and 1 are supported. If a newer version was specified,
+	// we need to downgrade it.
+	if (block->version > 1)
+		block->version = 1;
+
+	// This isn't a Block Header option, but since the decompressor will
+	// read it if version >= 1, it's better to initialize it here than
+	// to expect the caller to do it since in almost all cases this
+	// should be false.
+	block->ignore_check = false;
 
 	// Validate Block Header Size and Check type. The caller must have
 	// already set these, so it is a programming error if this test fails.

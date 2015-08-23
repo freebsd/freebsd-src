@@ -70,7 +70,7 @@ bool QualType::isConstant(QualType T, ASTContext &Ctx) {
   if (const ArrayType *AT = Ctx.getAsArrayType(T))
     return AT->getElementType().isConstant(Ctx);
 
-  return false;
+  return T.getAddressSpace() == LangAS::opencl_constant;
 }
 
 unsigned ConstantArrayType::getNumAddressingBits(ASTContext &Context,
@@ -378,9 +378,10 @@ bool Type::isInterfaceType() const {
   return false;
 }
 bool Type::isStructureOrClassType() const {
-  if (const RecordType *RT = getAs<RecordType>())
-    return RT->getDecl()->isStruct() || RT->getDecl()->isClass() ||
-      RT->getDecl()->isInterface();
+  if (const RecordType *RT = getAs<RecordType>()) {
+    RecordDecl *RD = RT->getDecl();
+    return RD->isStruct() || RD->isClass() || RD->isInterface();
+  }
   return false;
 }
 bool Type::isVoidPointerType() const {
@@ -540,10 +541,13 @@ const CXXRecordDecl *Type::getPointeeCXXRecordDecl() const {
 }
 
 CXXRecordDecl *Type::getAsCXXRecordDecl() const {
-  if (const RecordType *RT = getAs<RecordType>())
-    return dyn_cast<CXXRecordDecl>(RT->getDecl());
-  else if (const InjectedClassNameType *Injected
-                                  = getAs<InjectedClassNameType>())
+  return dyn_cast_or_null<CXXRecordDecl>(getAsTagDecl());
+}
+
+TagDecl *Type::getAsTagDecl() const {
+  if (const auto *TT = getAs<TagType>())
+    return cast<TagDecl>(TT->getDecl());
+  if (const auto *Injected = getAs<InjectedClassNameType>())
     return Injected->getDecl();
 
   return nullptr;
@@ -1147,7 +1151,7 @@ bool Type::isLiteralType(const ASTContext &Ctx) const {
   // C++1y [basic.types]p10:
   //   A type is a literal type if it is:
   //   -- cv void; or
-  if (Ctx.getLangOpts().CPlusPlus1y && isVoidType())
+  if (Ctx.getLangOpts().CPlusPlus14 && isVoidType())
     return true;
 
   // C++11 [basic.types]p10:
@@ -1577,6 +1581,7 @@ StringRef FunctionType::getNameForCallConv(CallingConv CC) {
   case CC_X86FastCall: return "fastcall";
   case CC_X86ThisCall: return "thiscall";
   case CC_X86Pascal: return "pascal";
+  case CC_X86VectorCall: return "vectorcall";
   case CC_X86_64Win64: return "ms_abi";
   case CC_X86_64SysV: return "sysv_abi";
   case CC_AAPCS: return "aapcs";
@@ -1591,17 +1596,20 @@ StringRef FunctionType::getNameForCallConv(CallingConv CC) {
 FunctionProtoType::FunctionProtoType(QualType result, ArrayRef<QualType> params,
                                      QualType canonical,
                                      const ExtProtoInfo &epi)
-    : FunctionType(FunctionProto, result, epi.TypeQuals, canonical,
+    : FunctionType(FunctionProto, result, canonical,
                    result->isDependentType(),
                    result->isInstantiationDependentType(),
                    result->isVariablyModifiedType(),
                    result->containsUnexpandedParameterPack(), epi.ExtInfo),
-      NumParams(params.size()), NumExceptions(epi.NumExceptions),
-      ExceptionSpecType(epi.ExceptionSpecType),
+      NumParams(params.size()),
+      NumExceptions(epi.ExceptionSpec.Exceptions.size()),
+      ExceptionSpecType(epi.ExceptionSpec.Type),
       HasAnyConsumedParams(epi.ConsumedParameters != nullptr),
-      Variadic(epi.Variadic), HasTrailingReturn(epi.HasTrailingReturn),
-      RefQualifier(epi.RefQualifier) {
+      Variadic(epi.Variadic), HasTrailingReturn(epi.HasTrailingReturn) {
   assert(NumParams == params.size() && "function has too many parameters");
+
+  FunctionTypeBits.TypeQuals = epi.TypeQuals;
+  FunctionTypeBits.RefQualifier = epi.RefQualifier;
 
   // Fill in the trailing argument array.
   QualType *argSlot = reinterpret_cast<QualType*>(this+1);
@@ -1620,36 +1628,38 @@ FunctionProtoType::FunctionProtoType(QualType result, ArrayRef<QualType> params,
   if (getExceptionSpecType() == EST_Dynamic) {
     // Fill in the exception array.
     QualType *exnSlot = argSlot + NumParams;
-    for (unsigned i = 0, e = epi.NumExceptions; i != e; ++i) {
-      if (epi.Exceptions[i]->isDependentType())
-        setDependent();
-      else if (epi.Exceptions[i]->isInstantiationDependentType())
+    unsigned I = 0;
+    for (QualType ExceptionType : epi.ExceptionSpec.Exceptions) {
+      // Note that a dependent exception specification does *not* make
+      // a type dependent; it's not even part of the C++ type system.
+      if (ExceptionType->isInstantiationDependentType())
         setInstantiationDependent();
-      
-      if (epi.Exceptions[i]->containsUnexpandedParameterPack())
+
+      if (ExceptionType->containsUnexpandedParameterPack())
         setContainsUnexpandedParameterPack();
 
-      exnSlot[i] = epi.Exceptions[i];
+      exnSlot[I++] = ExceptionType;
     }
   } else if (getExceptionSpecType() == EST_ComputedNoexcept) {
     // Store the noexcept expression and context.
     Expr **noexSlot = reinterpret_cast<Expr **>(argSlot + NumParams);
-    *noexSlot = epi.NoexceptExpr;
-    
-    if (epi.NoexceptExpr) {
-      if (epi.NoexceptExpr->isValueDependent() 
-          || epi.NoexceptExpr->isTypeDependent())
-        setDependent();
-      else if (epi.NoexceptExpr->isInstantiationDependent())
+    *noexSlot = epi.ExceptionSpec.NoexceptExpr;
+
+    if (epi.ExceptionSpec.NoexceptExpr) {
+      if (epi.ExceptionSpec.NoexceptExpr->isValueDependent() ||
+          epi.ExceptionSpec.NoexceptExpr->isInstantiationDependent())
         setInstantiationDependent();
+
+      if (epi.ExceptionSpec.NoexceptExpr->containsUnexpandedParameterPack())
+        setContainsUnexpandedParameterPack();
     }
   } else if (getExceptionSpecType() == EST_Uninstantiated) {
     // Store the function decl from which we will resolve our
     // exception specification.
     FunctionDecl **slot =
         reinterpret_cast<FunctionDecl **>(argSlot + NumParams);
-    slot[0] = epi.ExceptionSpecDecl;
-    slot[1] = epi.ExceptionSpecTemplate;
+    slot[0] = epi.ExceptionSpec.SourceDecl;
+    slot[1] = epi.ExceptionSpec.SourceTemplate;
     // This exception specification doesn't make the type dependent, because
     // it's not instantiated as part of instantiating the type.
   } else if (getExceptionSpecType() == EST_Unevaluated) {
@@ -1657,7 +1667,7 @@ FunctionProtoType::FunctionProtoType(QualType result, ArrayRef<QualType> params,
     // exception specification.
     FunctionDecl **slot =
         reinterpret_cast<FunctionDecl **>(argSlot + NumParams);
-    slot[0] = epi.ExceptionSpecDecl;
+    slot[0] = epi.ExceptionSpec.SourceDecl;
   }
 
   if (epi.ConsumedParameters) {
@@ -1665,6 +1675,18 @@ FunctionProtoType::FunctionProtoType(QualType result, ArrayRef<QualType> params,
     for (unsigned i = 0; i != NumParams; ++i)
       consumedParams[i] = epi.ConsumedParameters[i];
   }
+}
+
+bool FunctionProtoType::hasDependentExceptionSpec() const {
+  if (Expr *NE = getNoexceptExpr())
+    return NE->isValueDependent();
+  for (QualType ET : exceptions())
+    // A pack expansion with a non-dependent pattern is still dependent,
+    // because we don't know whether the pattern is in the exception spec
+    // or not (that depends on whether the pack has 0 expansions).
+    if (ET->isDependentType() || ET->getAs<PackExpansionType>())
+      return true;
+  return false;
 }
 
 FunctionProtoType::NoexceptResult
@@ -1755,20 +1777,21 @@ void FunctionProtoType::Profile(llvm::FoldingSetNodeID &ID, QualType Result,
   assert(!(unsigned(epi.Variadic) & ~1) &&
          !(unsigned(epi.TypeQuals) & ~255) &&
          !(unsigned(epi.RefQualifier) & ~3) &&
-         !(unsigned(epi.ExceptionSpecType) & ~7) &&
+         !(unsigned(epi.ExceptionSpec.Type) & ~15) &&
          "Values larger than expected.");
   ID.AddInteger(unsigned(epi.Variadic) +
                 (epi.TypeQuals << 1) +
                 (epi.RefQualifier << 9) +
-                (epi.ExceptionSpecType << 11));
-  if (epi.ExceptionSpecType == EST_Dynamic) {
-    for (unsigned i = 0; i != epi.NumExceptions; ++i)
-      ID.AddPointer(epi.Exceptions[i].getAsOpaquePtr());
-  } else if (epi.ExceptionSpecType == EST_ComputedNoexcept && epi.NoexceptExpr){
-    epi.NoexceptExpr->Profile(ID, Context, false);
-  } else if (epi.ExceptionSpecType == EST_Uninstantiated ||
-             epi.ExceptionSpecType == EST_Unevaluated) {
-    ID.AddPointer(epi.ExceptionSpecDecl->getCanonicalDecl());
+                (epi.ExceptionSpec.Type << 11));
+  if (epi.ExceptionSpec.Type == EST_Dynamic) {
+    for (QualType Ex : epi.ExceptionSpec.Exceptions)
+      ID.AddPointer(Ex.getAsOpaquePtr());
+  } else if (epi.ExceptionSpec.Type == EST_ComputedNoexcept &&
+             epi.ExceptionSpec.NoexceptExpr) {
+    epi.ExceptionSpec.NoexceptExpr->Profile(ID, Context, false);
+  } else if (epi.ExceptionSpec.Type == EST_Uninstantiated ||
+             epi.ExceptionSpec.Type == EST_Unevaluated) {
+    ID.AddPointer(epi.ExceptionSpec.SourceDecl->getCanonicalDecl());
   }
   if (epi.ConsumedParameters) {
     for (unsigned i = 0; i != NumParams; ++i)
@@ -1909,6 +1932,7 @@ bool AttributedType::isCallingConv() const {
   case attr_fastcall:
   case attr_stdcall:
   case attr_thiscall:
+  case attr_vectorcall:
   case attr_pascal:
   case attr_ms_abi:
   case attr_sysv_abi:
@@ -1976,32 +2000,14 @@ anyDependentTemplateArguments(const TemplateArgumentLoc *Args, unsigned N,
   return false;
 }
 
-#ifndef NDEBUG
-static bool 
-anyDependentTemplateArguments(const TemplateArgument *Args, unsigned N,
-                              bool &InstantiationDependent) {
-  for (unsigned i = 0; i != N; ++i) {
-    if (Args[i].isDependent()) {
-      InstantiationDependent = true;
-      return true;
-    }
-    
-    if (Args[i].isInstantiationDependent())
-      InstantiationDependent = true;
-  }
-  return false;
-}
-#endif
-
 TemplateSpecializationType::
 TemplateSpecializationType(TemplateName T,
                            const TemplateArgument *Args, unsigned NumArgs,
                            QualType Canon, QualType AliasedType)
   : Type(TemplateSpecialization,
          Canon.isNull()? QualType(this, 0) : Canon,
-         Canon.isNull()? T.isDependent() : Canon->isDependentType(),
-         Canon.isNull()? T.isDependent() 
-                       : Canon->isInstantiationDependentType(),
+         Canon.isNull()? true : Canon->isDependentType(),
+         Canon.isNull()? true : Canon->isInstantiationDependentType(),
          false,
          T.containsUnexpandedParameterPack()),
     Template(T), NumArgs(NumArgs), TypeAlias(!AliasedType.isNull()) {
@@ -2011,18 +2017,11 @@ TemplateSpecializationType(TemplateName T,
           T.getKind() == TemplateName::SubstTemplateTemplateParm ||
           T.getKind() == TemplateName::SubstTemplateTemplateParmPack) &&
          "Unexpected template name for TemplateSpecializationType");
-  bool InstantiationDependent;
-  (void)InstantiationDependent;
-  assert((!Canon.isNull() ||
-          T.isDependent() || 
-          ::anyDependentTemplateArguments(Args, NumArgs, 
-                                          InstantiationDependent)) &&
-         "No canonical type for non-dependent class template specialization");
 
   TemplateArgument *TemplateArgs
     = reinterpret_cast<TemplateArgument *>(this + 1);
   for (unsigned Arg = 0; Arg < NumArgs; ++Arg) {
-    // Update dependent and variably-modified bits.
+    // Update instantiation-dependent and variably-modified bits.
     // If the canonical type exists and is non-dependent, the template
     // specialization type can be non-dependent even if one of the type
     // arguments is. Given:
@@ -2030,17 +2029,13 @@ TemplateSpecializationType(TemplateName T,
     // U<T> is always non-dependent, irrespective of the type T.
     // However, U<Ts> contains an unexpanded parameter pack, even though
     // its expansion (and thus its desugared type) doesn't.
-    if (Canon.isNull() && Args[Arg].isDependent())
-      setDependent();
-    else if (Args[Arg].isInstantiationDependent())
+    if (Args[Arg].isInstantiationDependent())
       setInstantiationDependent();
-    
     if (Args[Arg].getKind() == TemplateArgument::Type &&
         Args[Arg].getAsType()->isVariablyModifiedType())
       setVariablyModified();
     if (Args[Arg].containsUnexpandedParameterPack())
       setContainsUnexpandedParameterPack();
-
     new (&TemplateArgs[Arg]) TemplateArgument(Args[Arg]);
   }
 

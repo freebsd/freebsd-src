@@ -7,6 +7,7 @@
 ## defined in release.sh.
 #load_chroot_env() { }
 #load_target_env() { }
+#buildenv_setup() { }
 
 ## Set the directory within which the release will be built.
 CHROOTDIR="/scratch"
@@ -53,6 +54,9 @@ PORTBRANCH="ports/head@rHEAD"
 #WITH_DVD=
 #WITH_COMPRESSED_IMAGES=
 
+## Set to '1' to disable multi-threaded xz(1) compression.
+#XZ_THREADS=0
+
 ## Set when building embedded images.
 #EMBEDDEDBUILD=
 
@@ -98,3 +102,11 @@ PORTBRANCH="ports/head@rHEAD"
 ## image formats to create.  Valid values are listed in the mkimg(1)
 ## manual page, as well as 'mkimg --formats' output.
 #VMFORMATS="vhdf vmdk qcow2 raw"
+
+## Set to a non-empty value to build virtual machine images for various
+## cloud providers as part of the release build.
+#WITH_CLOUDWARE=
+
+## If WITH_CLOUDWARE is set to a non-empty value, this is a list of providers
+## to create disk images.
+#CLOUDWARE="AZURE OPENSTACK"

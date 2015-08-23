@@ -17,8 +17,8 @@
 #include "MCTargetDesc/NVPTXMCAsmInfo.h"
 #include "NVPTX.h"
 #include "NVPTXInstrInfo.h"
-#include "NVPTXMachineFunctionInfo.h"
 #include "NVPTXMCExpr.h"
+#include "NVPTXMachineFunctionInfo.h"
 #include "NVPTXRegisterInfo.h"
 #include "NVPTXTargetMachine.h"
 #include "NVPTXUtilities.h"
@@ -88,11 +88,8 @@ void VisitGlobalVariableForEmission(
     return;
 
   // Do we have a circular dependency?
-  if (Visiting.count(GV))
+  if (!Visiting.insert(GV).second)
     report_fatal_error("Circular dependency found in global variable set");
-
-  // Start visiting this global
-  Visiting.insert(GV);
 
   // Make sure we visit all dependents first
   DenseSet<const GlobalVariable *> Others;
@@ -109,159 +106,6 @@ void VisitGlobalVariableForEmission(
   Visited.insert(GV);
   Visiting.erase(GV);
 }
-}
-
-// @TODO: This is a copy from AsmPrinter.cpp.  The function is static, so we
-// cannot just link to the existing version.
-/// LowerConstant - Lower the specified LLVM Constant to an MCExpr.
-///
-using namespace nvptx;
-const MCExpr *nvptx::LowerConstant(const Constant *CV, AsmPrinter &AP) {
-  MCContext &Ctx = AP.OutContext;
-
-  if (CV->isNullValue() || isa<UndefValue>(CV))
-    return MCConstantExpr::Create(0, Ctx);
-
-  if (const ConstantInt *CI = dyn_cast<ConstantInt>(CV))
-    return MCConstantExpr::Create(CI->getZExtValue(), Ctx);
-
-  if (const GlobalValue *GV = dyn_cast<GlobalValue>(CV))
-    return MCSymbolRefExpr::Create(AP.getSymbol(GV), Ctx);
-
-  if (const BlockAddress *BA = dyn_cast<BlockAddress>(CV))
-    return MCSymbolRefExpr::Create(AP.GetBlockAddressSymbol(BA), Ctx);
-
-  const ConstantExpr *CE = dyn_cast<ConstantExpr>(CV);
-  if (!CE)
-    llvm_unreachable("Unknown constant value to lower!");
-
-  switch (CE->getOpcode()) {
-  default:
-    // If the code isn't optimized, there may be outstanding folding
-    // opportunities. Attempt to fold the expression using DataLayout as a
-    // last resort before giving up.
-    if (Constant *C = ConstantFoldConstantExpression(CE, AP.TM.getDataLayout()))
-      if (C != CE)
-        return LowerConstant(C, AP);
-
-    // Otherwise report the problem to the user.
-    {
-      std::string S;
-      raw_string_ostream OS(S);
-      OS << "Unsupported expression in static initializer: ";
-      CE->printAsOperand(OS, /*PrintType=*/ false,
-                         !AP.MF ? nullptr : AP.MF->getFunction()->getParent());
-      report_fatal_error(OS.str());
-    }
-  case Instruction::AddrSpaceCast: {
-    // Strip any addrspace(1)->addrspace(0) addrspace casts. These will be
-    // handled by the generic() logic in the MCExpr printer
-    PointerType *DstTy            = cast<PointerType>(CE->getType());
-    PointerType *SrcTy            = cast<PointerType>(CE->getOperand(0)->getType());
-    if (SrcTy->getAddressSpace() == 1 && DstTy->getAddressSpace() == 0) {
-      return LowerConstant(cast<const Constant>(CE->getOperand(0)), AP);
-    }
-    std::string S;
-    raw_string_ostream OS(S);
-    OS << "Unsupported expression in static initializer: ";
-    CE->printAsOperand(OS, /*PrintType=*/ false,
-                       !AP.MF ? nullptr : AP.MF->getFunction()->getParent());
-    report_fatal_error(OS.str());
-  }
-  case Instruction::GetElementPtr: {
-    const DataLayout &TD = *AP.TM.getDataLayout();
-    // Generate a symbolic expression for the byte address
-    APInt OffsetAI(TD.getPointerSizeInBits(), 0);
-    cast<GEPOperator>(CE)->accumulateConstantOffset(TD, OffsetAI);
-
-    const MCExpr *Base = LowerConstant(CE->getOperand(0), AP);
-    if (!OffsetAI)
-      return Base;
-
-    int64_t Offset = OffsetAI.getSExtValue();
-    return MCBinaryExpr::CreateAdd(Base, MCConstantExpr::Create(Offset, Ctx),
-                                   Ctx);
-  }
-
-  case Instruction::Trunc:
-    // We emit the value and depend on the assembler to truncate the generated
-    // expression properly.  This is important for differences between
-    // blockaddress labels.  Since the two labels are in the same function, it
-    // is reasonable to treat their delta as a 32-bit value.
-  // FALL THROUGH.
-  case Instruction::BitCast:
-    return LowerConstant(CE->getOperand(0), AP);
-
-  case Instruction::IntToPtr: {
-    const DataLayout &TD = *AP.TM.getDataLayout();
-    // Handle casts to pointers by changing them into casts to the appropriate
-    // integer type.  This promotes constant folding and simplifies this code.
-    Constant *Op = CE->getOperand(0);
-    Op = ConstantExpr::getIntegerCast(Op, TD.getIntPtrType(CV->getContext()),
-                                      false /*ZExt*/);
-    return LowerConstant(Op, AP);
-  }
-
-  case Instruction::PtrToInt: {
-    const DataLayout &TD = *AP.TM.getDataLayout();
-    // Support only foldable casts to/from pointers that can be eliminated by
-    // changing the pointer to the appropriately sized integer type.
-    Constant *Op = CE->getOperand(0);
-    Type *Ty = CE->getType();
-
-    const MCExpr *OpExpr = LowerConstant(Op, AP);
-
-    // We can emit the pointer value into this slot if the slot is an
-    // integer slot equal to the size of the pointer.
-    if (TD.getTypeAllocSize(Ty) == TD.getTypeAllocSize(Op->getType()))
-      return OpExpr;
-
-    // Otherwise the pointer is smaller than the resultant integer, mask off
-    // the high bits so we are sure to get a proper truncation if the input is
-    // a constant expr.
-    unsigned InBits = TD.getTypeAllocSizeInBits(Op->getType());
-    const MCExpr *MaskExpr =
-        MCConstantExpr::Create(~0ULL >> (64 - InBits), Ctx);
-    return MCBinaryExpr::CreateAnd(OpExpr, MaskExpr, Ctx);
-  }
-
-    // The MC library also has a right-shift operator, but it isn't consistently
-  // signed or unsigned between different targets.
-  case Instruction::Add:
-  case Instruction::Sub:
-  case Instruction::Mul:
-  case Instruction::SDiv:
-  case Instruction::SRem:
-  case Instruction::Shl:
-  case Instruction::And:
-  case Instruction::Or:
-  case Instruction::Xor: {
-    const MCExpr *LHS = LowerConstant(CE->getOperand(0), AP);
-    const MCExpr *RHS = LowerConstant(CE->getOperand(1), AP);
-    switch (CE->getOpcode()) {
-    default:
-      llvm_unreachable("Unknown binary operator constant cast expr");
-    case Instruction::Add:
-      return MCBinaryExpr::CreateAdd(LHS, RHS, Ctx);
-    case Instruction::Sub:
-      return MCBinaryExpr::CreateSub(LHS, RHS, Ctx);
-    case Instruction::Mul:
-      return MCBinaryExpr::CreateMul(LHS, RHS, Ctx);
-    case Instruction::SDiv:
-      return MCBinaryExpr::CreateDiv(LHS, RHS, Ctx);
-    case Instruction::SRem:
-      return MCBinaryExpr::CreateMod(LHS, RHS, Ctx);
-    case Instruction::Shl:
-      return MCBinaryExpr::CreateShl(LHS, RHS, Ctx);
-    case Instruction::And:
-      return MCBinaryExpr::CreateAnd(LHS, RHS, Ctx);
-    case Instruction::Or:
-      return MCBinaryExpr::CreateOr(LHS, RHS, Ctx);
-    case Instruction::Xor:
-      return MCBinaryExpr::CreateXor(LHS, RHS, Ctx);
-    }
-  }
-  }
 }
 
 void NVPTXAsmPrinter::emitLineNumberAsDotLoc(const MachineInstr &MI) {
@@ -502,8 +346,8 @@ MCOperand NVPTXAsmPrinter::GetSymbolRef(const MCSymbol *Symbol) {
 }
 
 void NVPTXAsmPrinter::printReturnValStr(const Function *F, raw_ostream &O) {
-  const DataLayout *TD = TM.getDataLayout();
-  const TargetLowering *TLI = TM.getTargetLowering();
+  const DataLayout *TD = TM.getSubtargetImpl()->getDataLayout();
+  const TargetLowering *TLI = TM.getSubtargetImpl()->getTargetLowering();
 
   Type *Ty = F->getReturnType();
 
@@ -530,17 +374,15 @@ void NVPTXAsmPrinter::printReturnValStr(const Function *F, raw_ostream &O) {
     } else if (isa<PointerType>(Ty)) {
       O << ".param .b" << TLI->getPointerTy().getSizeInBits()
         << " func_retval0";
-    } else {
-      if ((Ty->getTypeID() == Type::StructTyID) || isa<VectorType>(Ty)) {
-        unsigned totalsz = TD->getTypeAllocSize(Ty);
-        unsigned retAlignment = 0;
-        if (!llvm::getAlign(*F, 0, retAlignment))
-          retAlignment = TD->getABITypeAlignment(Ty);
-        O << ".param .align " << retAlignment << " .b8 func_retval0[" << totalsz
-          << "]";
-      } else
-        assert(false && "Unknown return type");
-    }
+    } else if ((Ty->getTypeID() == Type::StructTyID) || isa<VectorType>(Ty)) {
+       unsigned totalsz = TD->getTypeAllocSize(Ty);
+       unsigned retAlignment = 0;
+       if (!llvm::getAlign(*F, 0, retAlignment))
+         retAlignment = TD->getABITypeAlignment(Ty);
+       O << ".param .align " << retAlignment << " .b8 func_retval0[" << totalsz
+         << "]";
+    } else
+      llvm_unreachable("Unknown return type");
   } else {
     SmallVector<EVT, 16> vtparts;
     ComputeValueVTs(*TLI, Ty, vtparts);
@@ -626,13 +468,14 @@ void NVPTXAsmPrinter::EmitFunctionBodyEnd() {
 
 void NVPTXAsmPrinter::emitImplicitDef(const MachineInstr *MI) const {
   unsigned RegNo = MI->getOperand(0).getReg();
-  const TargetRegisterInfo *TRI = TM.getRegisterInfo();
+  const TargetRegisterInfo *TRI = TM.getSubtargetImpl()->getRegisterInfo();
   if (TRI->isVirtualRegister(RegNo)) {
     OutStreamer.AddComment(Twine("implicit-def: ") +
                            getVirtualRegisterName(RegNo));
   } else {
-    OutStreamer.AddComment(Twine("implicit-def: ") +
-                           TM.getRegisterInfo()->getName(RegNo));
+    OutStreamer.AddComment(
+        Twine("implicit-def: ") +
+        TM.getSubtargetImpl()->getRegisterInfo()->getName(RegNo));
   }
   OutStreamer.AddBlankLine();
 }
@@ -794,11 +637,6 @@ static bool usedInOneFunc(const User *U, Function const *&oneFunc) {
       return false;
   }
 
-  if (const MDNode *md = dyn_cast<MDNode>(U))
-    if (md->hasName() && ((md->getName().str() == "llvm.dbg.gv") ||
-                          (md->getName().str() == "llvm.dbg.sp")))
-      return true;
-
   for (const User *UU : U->users())
     if (usedInOneFunc(UU, oneFunc) == false)
       return false;
@@ -953,7 +791,7 @@ bool NVPTXAsmPrinter::doInitialization(Module &M) {
   const_cast<TargetLoweringObjectFile &>(getObjFileLowering())
       .Initialize(OutContext, TM);
 
-  Mang = new Mangler(TM.getDataLayout());
+  Mang = new Mangler(TM.getSubtargetImpl()->getDataLayout());
 
   // Emit header before any dwarf directives are emitted below.
   emitHeader(M, OS1);
@@ -1154,7 +992,7 @@ void NVPTXAsmPrinter::printModuleLevelGV(const GlobalVariable *GVar,
       GVar->getName().startswith("nvvm."))
     return;
 
-  const DataLayout *TD = TM.getDataLayout();
+  const DataLayout *TD = TM.getSubtargetImpl()->getDataLayout();
 
   // GlobalVariables are always constant pointers themselves.
   const PointerType *PTy = GVar->getType();
@@ -1288,7 +1126,7 @@ void NVPTXAsmPrinter::printModuleLevelGV(const GlobalVariable *GVar,
   else
     O << " .align " << GVar->getAlignment();
 
-  if (ETy->isSingleValueType()) {
+  if (ETy->isFloatingPointTy() || ETy->isIntegerTy() || ETy->isPointerTy()) {
     O << " .";
     // Special case: ABI requires that we use .u8 for predicates
     if (ETy->isIntegerTy(1))
@@ -1457,7 +1295,7 @@ NVPTXAsmPrinter::getPTXFundamentalTypeStr(const Type *Ty, bool useB4PTR) const {
 void NVPTXAsmPrinter::emitPTXGlobalVariable(const GlobalVariable *GVar,
                                             raw_ostream &O) {
 
-  const DataLayout *TD = TM.getDataLayout();
+  const DataLayout *TD = TM.getSubtargetImpl()->getDataLayout();
 
   // GlobalVariables are always constant pointers themselves.
   const PointerType *PTy = GVar->getType();
@@ -1470,7 +1308,7 @@ void NVPTXAsmPrinter::emitPTXGlobalVariable(const GlobalVariable *GVar,
   else
     O << " .align " << GVar->getAlignment();
 
-  if (ETy->isSingleValueType()) {
+  if (ETy->isFloatingPointTy() || ETy->isIntegerTy() || ETy->isPointerTy()) {
     O << " .";
     O << getPTXFundamentalTypeStr(ETy);
     O << " ";
@@ -1508,17 +1346,6 @@ static unsigned int getOpenCLAlignment(const DataLayout *TD, Type *Ty) {
   const ArrayType *ATy = dyn_cast<ArrayType>(Ty);
   if (ATy)
     return getOpenCLAlignment(TD, ATy->getElementType());
-
-  const VectorType *VTy = dyn_cast<VectorType>(Ty);
-  if (VTy) {
-    Type *ETy = VTy->getElementType();
-    unsigned int numE = VTy->getNumElements();
-    unsigned int alignE = TD->getPrefTypeAlignment(ETy);
-    if (numE == 3)
-      return 4 * alignE;
-    else
-      return numE * alignE;
-  }
 
   const StructType *STy = dyn_cast<StructType>(Ty);
   if (STy) {
@@ -1578,9 +1405,9 @@ void NVPTXAsmPrinter::printParamName(int paramIndex, raw_ostream &O) {
 }
 
 void NVPTXAsmPrinter::emitFunctionParamList(const Function *F, raw_ostream &O) {
-  const DataLayout *TD = TM.getDataLayout();
+  const DataLayout *TD = TM.getSubtargetImpl()->getDataLayout();
   const AttributeSet &PAL = F->getAttributes();
-  const TargetLowering *TLI = TM.getTargetLowering();
+  const TargetLowering *TLI = TM.getSubtargetImpl()->getTargetLowering();
   Function::const_arg_iterator I, E;
   unsigned paramIndex = 0;
   bool first = true;
@@ -1771,7 +1598,7 @@ void NVPTXAsmPrinter::setAndEmitFunctionVirtualRegisters(
 
   // Map the global virtual register number to a register class specific
   // virtual register number starting from 1 with that class.
-  const TargetRegisterInfo *TRI = MF.getTarget().getRegisterInfo();
+  const TargetRegisterInfo *TRI = MF.getSubtarget().getRegisterInfo();
   //unsigned numRegClasses = TRI->getNumRegClasses();
 
   // Emit the Fake Stack Object
@@ -1901,7 +1728,7 @@ void NVPTXAsmPrinter::printScalarConstant(const Constant *CPV, raw_ostream &O) {
       }
       return;
     } else {
-      O << *LowerConstant(CPV, *this);
+      O << *lowerConstant(CPV);
       return;
     }
   }
@@ -1911,7 +1738,7 @@ void NVPTXAsmPrinter::printScalarConstant(const Constant *CPV, raw_ostream &O) {
 void NVPTXAsmPrinter::bufferLEByte(const Constant *CPV, int Bytes,
                                    AggBuffer *aggBuffer) {
 
-  const DataLayout *TD = TM.getDataLayout();
+  const DataLayout *TD = TM.getSubtargetImpl()->getDataLayout();
 
   if (isa<UndefValue>(CPV) || CPV->isNullValue()) {
     int s = TD->getTypeAllocSize(CPV->getType());
@@ -2035,7 +1862,7 @@ void NVPTXAsmPrinter::bufferLEByte(const Constant *CPV, int Bytes,
 
 void NVPTXAsmPrinter::bufferAggregateConstant(const Constant *CPV,
                                               AggBuffer *aggBuffer) {
-  const DataLayout *TD = TM.getDataLayout();
+  const DataLayout *TD = TM.getSubtargetImpl()->getDataLayout();
   int Bytes;
 
   // Old constants

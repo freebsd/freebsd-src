@@ -7,8 +7,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_FRONTEND_LOG_DIAGNOSTIC_PRINTER_H_
-#define LLVM_CLANG_FRONTEND_LOG_DIAGNOSTIC_PRINTER_H_
+#ifndef LLVM_CLANG_FRONTEND_LOGDIAGNOSTICPRINTER_H
+#define LLVM_CLANG_FRONTEND_LOGDIAGNOSTICPRINTER_H
 
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/SourceLocation.h"
@@ -35,6 +35,9 @@ class LogDiagnosticPrinter : public DiagnosticConsumer {
   
     /// The ID of the diagnostic.
     unsigned DiagnosticID;
+
+    /// The Option Flag for the diagnostic
+    std::string WarningOption;
   
     /// The level of the diagnostic.
     DiagnosticsEngine::Level DiagnosticLevel;
@@ -43,13 +46,16 @@ class LogDiagnosticPrinter : public DiagnosticConsumer {
   void EmitDiagEntry(llvm::raw_ostream &OS,
                      const LogDiagnosticPrinter::DiagEntry &DE);
 
+  // Conditional ownership (when StreamOwner is non-null, it's keeping OS
+  // alive). We might want to replace this with a wrapper for conditional
+  // ownership eventually - it seems to pop up often enough.
   raw_ostream &OS;
+  std::unique_ptr<raw_ostream> StreamOwner;
   const LangOptions *LangOpts;
   IntrusiveRefCntPtr<DiagnosticOptions> DiagOpts;
 
   SourceLocation LastWarningLoc;
   FullSourceLoc LastLoc;
-  unsigned OwnsOutputStream : 1;
 
   SmallVector<DiagEntry, 8> Entries;
 
@@ -58,8 +64,7 @@ class LogDiagnosticPrinter : public DiagnosticConsumer {
 
 public:
   LogDiagnosticPrinter(raw_ostream &OS, DiagnosticOptions *Diags,
-                       bool OwnsOutputStream = false);
-  virtual ~LogDiagnosticPrinter();
+                       std::unique_ptr<raw_ostream> StreamOwner);
 
   void setDwarfDebugFlags(StringRef Value) {
     DwarfDebugFlags = Value;

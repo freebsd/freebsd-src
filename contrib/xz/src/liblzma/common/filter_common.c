@@ -123,7 +123,7 @@ static const struct {
 
 extern LZMA_API(lzma_ret)
 lzma_filters_copy(const lzma_filter *src, lzma_filter *dest,
-		lzma_allocator *allocator)
+		const lzma_allocator *allocator)
 {
 	if (src == NULL || dest == NULL)
 		return LZMA_PROG_ERROR;
@@ -239,7 +239,7 @@ validate_chain(const lzma_filter *filters, size_t *count)
 
 
 extern lzma_ret
-lzma_raw_coder_init(lzma_next_coder *next, lzma_allocator *allocator,
+lzma_raw_coder_init(lzma_next_coder *next, const lzma_allocator *allocator,
 		const lzma_filter *options,
 		lzma_filter_find coder_find, bool is_encoder)
 {

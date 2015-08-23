@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: audio,v 1.71 2014/05/14 23:30:28 christos Exp $
+# $File: audio,v 1.73 2015/03/15 23:21:42 christos Exp $
 # audio:  file(1) magic for sound formats (see also "iff")
 #
 # Jan Nicolai Langfeldt (janl@ifi.uio.no), Dan Quinlan (quinlan@yggdrasil.com),
@@ -300,7 +300,7 @@
 >>5	byte		&0x40	\b, extended header
 >>5	byte		&0x20	\b, experimental
 >>5	byte		&0x10	\b, footer present
->(6.I)	indirect	x	\b, contains: 
+>(6.I+10)	indirect	x	\b, contains: 
 
 # NSF (NES sound file) magic
 0	string		NESM\x1a	NES Sound File
@@ -312,6 +312,21 @@
 >122	byte&0x2	=1		dual PAL/NTSC
 >122	byte&0x1	=1		PAL
 >122	byte&0x1	=0		NTSC
+
+# NSFE (Extended NES sound file) magic
+# http://slickproductions.org/docs/NSF/nsfespec.txt 
+# From: David Pflug <david@pflug.email>
+0	string		NSFE		Extended NES Sound File
+>48	search/0x1000	auth
+>>&0	string		>\0		("%s"
+>>>&1	string		>\0		by %s
+>>>>&1	string		>\0		\b, copyright %s
+>>>>>&1	string		>\0		\b, ripped by %s
+>20	byte		x		\b), %d tracks,
+>18	byte&0x2	=1		dual PAL/NTSC
+>18     byte&0x2	=0
+>>18	byte&0x1	=1		PAL
+>>18	byte&0x1	=0		NTSC
 
 # Type: SNES SPC700 sound files
 # From: Josh Triplett <josh@freedesktop.org>

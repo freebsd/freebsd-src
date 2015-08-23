@@ -75,8 +75,23 @@ static void DescribeOrigin(u32 id) {
     DescribeStackOrigin(so, pc);
   } else {
     StackTrace stack = o.getStackTraceForHeapOrigin();
-    Printf("  %sUninitialized value was created by a heap allocation%s\n",
-           d.Origin(), d.End());
+    switch (stack.tag) {
+      case StackTrace::TAG_ALLOC:
+        Printf("  %sUninitialized value was created by a heap allocation%s\n",
+               d.Origin(), d.End());
+        break;
+      case StackTrace::TAG_DEALLOC:
+        Printf("  %sUninitialized value was created by a heap deallocation%s\n",
+               d.Origin(), d.End());
+        break;
+      case STACK_TRACE_TAG_POISON:
+        Printf("  %sMemory was marked as uninitialized%s\n", d.Origin(),
+               d.End());
+        break;
+      default:
+        Printf("  %sUninitialized value was created%s\n", d.Origin(), d.End());
+        break;
+    }
     stack.Print();
   }
 }
@@ -255,7 +270,7 @@ void ReportUMRInsideAddressRange(const char *what, const void *start, uptr size,
   Printf("%sUninitialized bytes in %s%s%s at offset %zu inside [%p, %zu)%s\n",
          d.Warning(), d.Name(), what, d.Warning(), offset, start, size,
          d.End());
-  if (__sanitizer::common_flags()->verbosity > 0)
+  if (__sanitizer::Verbosity())
     DescribeMemoryRange(start, size);
 }
 

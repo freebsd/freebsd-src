@@ -270,11 +270,10 @@ MachineModuleInfo::~MachineModuleInfo() {
 bool MachineModuleInfo::doInitialization(Module &M) {
 
   ObjFileMMI = nullptr;
-  CompactUnwindEncoding = 0;
   CurCallSite = 0;
   CallsEHReturn = 0;
   CallsUnwindInit = 0;
-  DbgInfoAvailable = UsesVAFloatArgument = false; 
+  DbgInfoAvailable = UsesVAFloatArgument = UsesMorestackAddr = false;
   // Always emit some info, by default "no personality" info.
   Personalities.push_back(nullptr);
   AddrLabelSymbols = nullptr;
@@ -312,7 +311,6 @@ void MachineModuleInfo::EndFunction() {
   FilterEnds.clear();
   CallsEHReturn = 0;
   CallsUnwindInit = 0;
-  CompactUnwindEncoding = 0;
   VariableDbgInfos.clear();
 }
 
@@ -429,7 +427,7 @@ void MachineModuleInfo::addPersonality(MachineBasicBlock *LandingPad,
 ///
 void MachineModuleInfo::
 addCatchTypeInfo(MachineBasicBlock *LandingPad,
-                 ArrayRef<const GlobalVariable *> TyInfo) {
+                 ArrayRef<const GlobalValue *> TyInfo) {
   LandingPadInfo &LP = getOrCreateLandingPadInfo(LandingPad);
   for (unsigned N = TyInfo.size(); N; --N)
     LP.TypeIds.push_back(getTypeIDFor(TyInfo[N - 1]));
@@ -439,7 +437,7 @@ addCatchTypeInfo(MachineBasicBlock *LandingPad,
 ///
 void MachineModuleInfo::
 addFilterTypeInfo(MachineBasicBlock *LandingPad,
-                  ArrayRef<const GlobalVariable *> TyInfo) {
+                  ArrayRef<const GlobalValue *> TyInfo) {
   LandingPadInfo &LP = getOrCreateLandingPadInfo(LandingPad);
   std::vector<unsigned> IdsInFilter(TyInfo.size());
   for (unsigned I = 0, E = TyInfo.size(); I != E; ++I)
@@ -508,7 +506,7 @@ void MachineModuleInfo::setCallSiteLandingPad(MCSymbol *Sym,
 
 /// getTypeIDFor - Return the type id for the specified typeinfo.  This is
 /// function wide.
-unsigned MachineModuleInfo::getTypeIDFor(const GlobalVariable *TI) {
+unsigned MachineModuleInfo::getTypeIDFor(const GlobalValue *TI) {
   for (unsigned i = 0, N = TypeInfos.size(); i != N; ++i)
     if (TypeInfos[i] == TI) return i + 1;
 

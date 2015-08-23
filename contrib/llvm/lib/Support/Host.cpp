@@ -17,8 +17,8 @@
 #include "llvm/ADT/StringSwitch.h"
 #include "llvm/ADT/Triple.h"
 #include "llvm/Config/config.h"
-#include "llvm/Support/DataStream.h"
 #include "llvm/Support/Debug.h"
+#include "llvm/Support/FileSystem.h"
 #include "llvm/Support/raw_ostream.h"
 #include <string.h>
 
@@ -48,6 +48,26 @@
 //===----------------------------------------------------------------------===//
 
 using namespace llvm;
+
+#if defined(__linux__)
+static ssize_t LLVM_ATTRIBUTE_UNUSED readCpuInfo(void *Buf, size_t Size) {
+  // Note: We cannot mmap /proc/cpuinfo here and then process the resulting
+  // memory buffer because the 'file' has 0 size (it can be read from only
+  // as a stream).
+
+  int FD;
+  std::error_code EC = sys::fs::openFileForRead("/proc/cpuinfo", FD);
+  if (EC) {
+    DEBUG(dbgs() << "Unable to open /proc/cpuinfo: " << EC.message() << "\n");
+    return -1;
+  }
+  int Ret = read(FD, Buf, Size);
+  int CloseStatus = close(FD);
+  if (CloseStatus)
+    return -1;
+  return Ret;
+}
+#endif
 
 #if defined(i386) || defined(__i386__) || defined(__x86__) || defined(_M_IX86)\
  || defined(__x86_64__) || defined(_M_AMD64) || defined (_M_X64)
@@ -489,22 +509,12 @@ StringRef sys::getHostCPUName() {
   // processor type. On Linux, this is exposed through the /proc/cpuinfo file.
   const char *generic = "generic";
 
-  // Note: We cannot mmap /proc/cpuinfo here and then process the resulting
-  // memory buffer because the 'file' has 0 size (it can be read from only
-  // as a stream).
-
-  std::string Err;
-  DataStreamer *DS = getDataFileStreamer("/proc/cpuinfo", &Err);
-  if (!DS) {
-    DEBUG(dbgs() << "Unable to open /proc/cpuinfo: " << Err << "\n");
-    return generic;
-  }
-
   // The cpu line is second (after the 'processor: 0' line), so if this
   // buffer is too small then something has changed (or is wrong).
   char buffer[1024];
-  size_t CPUInfoSize = DS->GetBytes((unsigned char*) buffer, sizeof(buffer));
-  delete DS;
+  ssize_t CPUInfoSize = readCpuInfo(buffer, sizeof(buffer));
+  if (CPUInfoSize == -1)
+    return generic;
 
   const char *CPUInfoStart = buffer;
   const char *CPUInfoEnd = buffer + CPUInfoSize;
@@ -578,22 +588,13 @@ StringRef sys::getHostCPUName() {
 StringRef sys::getHostCPUName() {
   // The cpuid register on arm is not accessible from user space. On Linux,
   // it is exposed through the /proc/cpuinfo file.
-  // Note: We cannot mmap /proc/cpuinfo here and then process the resulting
-  // memory buffer because the 'file' has 0 size (it can be read from only
-  // as a stream).
-
-  std::string Err;
-  DataStreamer *DS = getDataFileStreamer("/proc/cpuinfo", &Err);
-  if (!DS) {
-    DEBUG(dbgs() << "Unable to open /proc/cpuinfo: " << Err << "\n");
-    return "generic";
-  }
 
   // Read 1024 bytes from /proc/cpuinfo, which should contain the CPU part line
   // in all cases.
   char buffer[1024];
-  size_t CPUInfoSize = DS->GetBytes((unsigned char*) buffer, sizeof(buffer));
-  delete DS;
+  ssize_t CPUInfoSize = readCpuInfo(buffer, sizeof(buffer));
+  if (CPUInfoSize == -1)
+    return "generic";
 
   StringRef Str(buffer, CPUInfoSize);
 
@@ -643,22 +644,13 @@ StringRef sys::getHostCPUName() {
 #elif defined(__linux__) && defined(__s390x__)
 StringRef sys::getHostCPUName() {
   // STIDP is a privileged operation, so use /proc/cpuinfo instead.
-  // Note: We cannot mmap /proc/cpuinfo here and then process the resulting
-  // memory buffer because the 'file' has 0 size (it can be read from only
-  // as a stream).
-
-  std::string Err;
-  DataStreamer *DS = getDataFileStreamer("/proc/cpuinfo", &Err);
-  if (!DS) {
-    DEBUG(dbgs() << "Unable to open /proc/cpuinfo: " << Err << "\n");
-    return "generic";
-  }
 
   // The "processor 0:" line comes after a fair amount of other information,
   // including a cache breakdown, but this should be plenty.
   char buffer[2048];
-  size_t CPUInfoSize = DS->GetBytes((unsigned char*) buffer, sizeof(buffer));
-  delete DS;
+  ssize_t CPUInfoSize = readCpuInfo(buffer, sizeof(buffer));
+  if (CPUInfoSize == -1)
+    return "generic";
 
   StringRef Str(buffer, CPUInfoSize);
   SmallVector<StringRef, 32> Lines;
@@ -690,18 +682,12 @@ StringRef sys::getHostCPUName() {
 
 #if defined(__linux__) && (defined(__arm__) || defined(__aarch64__))
 bool sys::getHostCPUFeatures(StringMap<bool> &Features) {
-  std::string Err;
-  DataStreamer *DS = getDataFileStreamer("/proc/cpuinfo", &Err);
-  if (!DS) {
-    DEBUG(dbgs() << "Unable to open /proc/cpuinfo: " << Err << "\n");
-    return false;
-  }
-
   // Read 1024 bytes from /proc/cpuinfo, which should contain the Features line
   // in all cases.
   char buffer[1024];
-  size_t CPUInfoSize = DS->GetBytes((unsigned char*) buffer, sizeof(buffer));
-  delete DS;
+  ssize_t CPUInfoSize = readCpuInfo(buffer, sizeof(buffer));
+  if (CPUInfoSize == -1)
+    return false;
 
   StringRef Str(buffer, CPUInfoSize);
 
@@ -759,13 +745,13 @@ bool sys::getHostCPUFeatures(StringMap<bool> &Features) {
 #endif
 
     if (LLVMFeatureStr != "")
-      Features.GetOrCreateValue(LLVMFeatureStr).setValue(true);
+      Features[LLVMFeatureStr] = true;
   }
 
 #if defined(__aarch64__)
   // If we have all crypto bits we can add the feature
   if (crypto == (CAP_AES | CAP_PMULL | CAP_SHA1 | CAP_SHA2))
-    Features.GetOrCreateValue("crypto").setValue(true);
+    Features["crypto"] = true;
 #endif
 
   return true;

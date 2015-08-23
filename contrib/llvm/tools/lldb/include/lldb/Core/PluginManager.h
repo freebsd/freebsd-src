@@ -342,7 +342,46 @@ public:
 
     static UnwindAssemblyCreateInstance
     GetUnwindAssemblyCreateCallbackForPluginName (const ConstString &name);
+    
+    //------------------------------------------------------------------
+    // MemoryHistory
+    //------------------------------------------------------------------
+    static bool
+    RegisterPlugin (const ConstString &name,
+                    const char *description,
+                    MemoryHistoryCreateInstance create_callback);
+    
+    static bool
+    UnregisterPlugin (MemoryHistoryCreateInstance create_callback);
+    
+    static MemoryHistoryCreateInstance
+    GetMemoryHistoryCreateCallbackAtIndex (uint32_t idx);
+    
+    static MemoryHistoryCreateInstance
+    GetMemoryHistoryCreateCallbackForPluginName (const ConstString &name);
 
+    //------------------------------------------------------------------
+    // InstrumentationRuntime
+    //------------------------------------------------------------------
+    static bool
+    RegisterPlugin (const ConstString &name,
+                    const char *description,
+                    InstrumentationRuntimeCreateInstance create_callback,
+                    InstrumentationRuntimeGetType get_type_callback);
+    
+    static bool
+    UnregisterPlugin (InstrumentationRuntimeCreateInstance create_callback);
+
+    static InstrumentationRuntimeGetType
+    GetInstrumentationRuntimeGetTypeCallbackAtIndex (uint32_t idx);
+    
+    static InstrumentationRuntimeCreateInstance
+    GetInstrumentationRuntimeCreateCallbackAtIndex (uint32_t idx);
+    
+    static InstrumentationRuntimeCreateInstance
+    GetInstrumentationRuntimeCreateCallbackForPluginName (const ConstString &name);
+
+    
     //------------------------------------------------------------------
     // Some plug-ins might register a DebuggerInitializeCallback
     // callback when registering the plug-in. After a new Debugger

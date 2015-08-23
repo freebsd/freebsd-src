@@ -42,13 +42,8 @@ struct cmdfct_t
 typedef struct cmdfct_t cmdfct;
 
 /* possible values for cm_argt */
-#define	CM_ARG0	0	/* no args */
-#define	CM_ARG1	1	/* one arg (string) */
-#define	CM_ARG2	2	/* two args (strings) */
-#define	CM_ARGA	4	/* one string and _SOCK_ADDR */
-#define	CM_ARGO	5	/* two integers */
-#define	CM_ARGV	8	/* \0 separated list of args, NULL-terminated */
-#define	CM_ARGN	9	/* \0 separated list of args (strings) */
+#define	CM_BUF	0
+#define	CM_NULLOK 1
 
 /* possible values for cm_todo */
 #define	CT_CONT		0x0000	/* continue reading commands */
@@ -200,21 +195,21 @@ static int next_states[] =
 /* commands received by milter */
 static cmdfct cmds[] =
 {
-  {SMFIC_ABORT,	CM_ARG0, ST_ABRT,  CT_CONT,	CI_NONE, st_abortfct	}
-, {SMFIC_MACRO,	CM_ARGV, ST_NONE,  CT_KEEP,	CI_NONE, st_macros	}
-, {SMFIC_BODY,	CM_ARG1, ST_BODY,  CT_CONT,	CI_NONE, st_bodychunk	}
-, {SMFIC_CONNECT, CM_ARG2, ST_CONN,  CT_CONT,	CI_CONN, st_connectinfo	}
-, {SMFIC_BODYEOB, CM_ARG1, ST_ENDM,  CT_CONT,	CI_EOM,  st_bodyend	}
-, {SMFIC_HELO,	CM_ARG1, ST_HELO,  CT_CONT,	CI_HELO, st_helo	}
-, {SMFIC_HEADER, CM_ARG2, ST_HDRS,  CT_CONT,	CI_NONE, st_header	}
-, {SMFIC_MAIL,	CM_ARGV, ST_MAIL,  CT_CONT,	CI_MAIL, st_sender	}
-, {SMFIC_OPTNEG, CM_ARGO, ST_OPTS,  CT_CONT,	CI_NONE, st_optionneg	}
-, {SMFIC_EOH,	CM_ARG0, ST_EOHS,  CT_CONT,	CI_EOH,  st_eoh		}
-, {SMFIC_QUIT,	CM_ARG0, ST_QUIT,  CT_END,	CI_NONE, st_quit	}
-, {SMFIC_DATA,	CM_ARG0, ST_DATA,  CT_CONT,	CI_DATA, st_data	}
-, {SMFIC_RCPT,	CM_ARGV, ST_RCPT,  CT_IGNO,	CI_RCPT, st_rcpt	}
-, {SMFIC_UNKNOWN, CM_ARG1, ST_UNKN,  CT_IGNO,	CI_NONE, st_unknown	}
-, {SMFIC_QUIT_NC, CM_ARG0, ST_Q_NC,  CT_CONT,	CI_NONE, st_quit	}
+  {SMFIC_ABORT,		CM_NULLOK,	ST_ABRT,  CT_CONT,  CI_NONE, st_abortfct}
+, {SMFIC_MACRO,		CM_BUF,		ST_NONE,  CT_KEEP,  CI_NONE, st_macros	}
+, {SMFIC_BODY,		CM_BUF,		ST_BODY,  CT_CONT,  CI_NONE, st_bodychunk}
+, {SMFIC_CONNECT,	CM_BUF,		ST_CONN,  CT_CONT,  CI_CONN, st_connectinfo}
+, {SMFIC_BODYEOB,	CM_NULLOK,	ST_ENDM,  CT_CONT,  CI_EOM,  st_bodyend	}
+, {SMFIC_HELO,		CM_BUF,		ST_HELO,  CT_CONT,  CI_HELO, st_helo	}
+, {SMFIC_HEADER,	CM_BUF,		ST_HDRS,  CT_CONT,  CI_NONE, st_header	}
+, {SMFIC_MAIL,		CM_BUF,		ST_MAIL,  CT_CONT,  CI_MAIL, st_sender	}
+, {SMFIC_OPTNEG,	CM_BUF,		ST_OPTS,  CT_CONT,  CI_NONE, st_optionneg}
+, {SMFIC_EOH,		CM_NULLOK,	ST_EOHS,  CT_CONT,  CI_EOH,  st_eoh	}
+, {SMFIC_QUIT,		CM_NULLOK,	ST_QUIT,  CT_END,   CI_NONE, st_quit	}
+, {SMFIC_DATA,		CM_NULLOK,	ST_DATA,  CT_CONT,  CI_DATA, st_data	}
+, {SMFIC_RCPT,		CM_BUF,		ST_RCPT,  CT_IGNO,  CI_RCPT, st_rcpt	}
+, {SMFIC_UNKNOWN,	CM_BUF,		ST_UNKN,  CT_IGNO,  CI_NONE, st_unknown	}
+, {SMFIC_QUIT_NC,	CM_NULLOK,	ST_Q_NC,  CT_CONT,  CI_NONE, st_quit	}
 };
 
 /*
@@ -389,6 +384,15 @@ mi_engine(ctx)
 				}
 				continue;
 			}
+		}
+		if (cmds[i].cm_argt != CM_NULLOK && buf == NULL)
+		{
+			/* stop for now */
+			if (ctx->ctx_dbg > 1)
+				sm_dprintf("[%lu] cmd='%c', buf=NULL\n",
+					(long) ctx->ctx_id, cmd);
+			ret = MI_FAILURE;
+			break;
 		}
 		arg.a_len = len;
 		arg.a_buf = buf;
@@ -726,7 +730,7 @@ sendreply(r, sd, timeout_ptr, ctx)
 }
 
 /*
-**  CLR_MACROS -- clear set of macros starting from a given index
+**  MI_CLR_MACROS -- clear set of macros starting from a given index
 **
 **	Parameters:
 **		ctx -- context structure
@@ -1816,7 +1820,7 @@ dec_arg2(buf, len, s1, s2)
 }
 
 /*
-**  SENDOK -- is it ok for the filter to send stuff to the MTA?
+**  MI_SENDOK -- is it ok for the filter to send stuff to the MTA?
 **
 **	Parameters:
 **		ctx -- context structure

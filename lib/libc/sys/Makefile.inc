@@ -26,17 +26,9 @@ SRCS+=	\
 	__error.c \
 	interposing_table.c
 
-.if ${MK_SYSCALL_COMPAT} != "no"
-SYSCALL_COMPAT_SRCS= \
-	ftruncate.c \
-	lseek.c \
-	mmap.c \
-	pread.c \
-	pwrite.c \
-	truncate.c
-SRCS+=	${SYSCALL_COMPAT_SRCS}
-NOASM+=	${SYSCALL_COMPAT_SRCS:S/.c/.o/}
-.endif
+SRCS+= futimens.c utimensat.c
+NOASM+= futimens.o utimensat.o
+PSEUDO+= _futimens.o _utimensat.o
 
 INTERPOSED = \
 	accept \
@@ -47,11 +39,13 @@ INTERPOSED = \
 	fcntl \
 	fsync \
 	fork \
+	kevent \
 	msync \
 	nanosleep \
 	open \
 	openat \
 	poll \
+	ppoll \
 	pselect \
 	read \
 	readv \
@@ -61,7 +55,6 @@ INTERPOSED = \
 	sendmsg \
 	sendto \
 	setcontext \
-	sigaction \
 	sigprocmask \
 	sigsuspend \
 	sigtimedwait \
@@ -69,8 +62,16 @@ INTERPOSED = \
 	sigwaitinfo \
 	swapcontext \
 	wait4 \
+	wait6 \
 	write \
 	writev
+
+.if ${MACHINE_CPUARCH} == "sparc64"
+SRCS+=	sigaction.c
+NOASM+=	sigaction.o
+.else
+INTERPOSED+= sigaction
+.endif
 
 SRCS+=	${INTERPOSED:S/$/.c/}
 NOASM+=	${INTERPOSED:S/$/.o/}
@@ -234,6 +235,7 @@ MAN+=	abort2.2 \
 	nanosleep.2 \
 	nfssvc.2 \
 	ntp_adjtime.2 \
+	numa_getaffinity.2 \
 	open.2 \
 	pathconf.2 \
 	pdfork.2 \
@@ -310,6 +312,7 @@ MAN+=	sctp_generic_recvmsg.2 \
 	umask.2 \
 	undelete.2 \
 	unlink.2 \
+	utimensat.2 \
 	utimes.2 \
 	utrace.2 \
 	uuidgen.2 \
@@ -393,6 +396,7 @@ MLINKS+=mount.2 nmount.2 \
 MLINKS+=mq_receive.2 mq_timedreceive.2
 MLINKS+=mq_send.2 mq_timedsend.2
 MLINKS+=ntp_adjtime.2 ntp_gettime.2
+MLINKS+=numa_getaffinity.2 numa_setaffinity.2
 MLINKS+=open.2 openat.2
 MLINKS+=pathconf.2 fpathconf.2
 MLINKS+=pathconf.2 lpathconf.2
@@ -442,6 +446,7 @@ MLINKS+=timer_settime.2 timer_getoverrun.2 \
 	timer_settime.2 timer_gettime.2
 MLINKS+=truncate.2 ftruncate.2
 MLINKS+=unlink.2 unlinkat.2
+MLINKS+=utimensat.2 futimens.2
 MLINKS+=utimes.2 futimes.2 \
 	utimes.2 futimesat.2 \
 	utimes.2 lutimes.2

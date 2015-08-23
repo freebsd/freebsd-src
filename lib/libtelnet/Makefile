@@ -26,7 +26,4 @@ CFLAGS+=	-DKRB5 -I${KRB5DIR}/lib/krb5 -I${KRB5OBJDIR} -I${ASN1OBJDIR}
 CFLAGS+=	-DFORWARD -Dnet_write=telnet_net_write
 .endif
 
-INCS=		${TELNETDIR}/arpa/telnet.h
-INCSDIR=	${INCLUDEDIR}/arpa
-
 .include <bsd.lib.mk>

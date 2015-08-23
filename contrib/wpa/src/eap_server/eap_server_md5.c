@@ -126,7 +126,7 @@ static void eap_md5_process(struct eap_sm *sm, void *priv,
 		return;
 	}
 
-	if (os_memcmp(hash, pos, CHAP_MD5_LEN) == 0) {
+	if (os_memcmp_const(hash, pos, CHAP_MD5_LEN) == 0) {
 		wpa_printf(MSG_DEBUG, "EAP-MD5: Done - Success");
 		data->state = SUCCESS;
 	} else {

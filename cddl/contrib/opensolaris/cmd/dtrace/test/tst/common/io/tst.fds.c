@@ -26,6 +26,8 @@
 
 #pragma ident	"%Z%%M%	%I%	%E% SMI"
 
+#include <sys/ioctl.h>
+
 #include <assert.h>
 #include <setjmp.h>
 #include <signal.h>
@@ -69,7 +71,7 @@ main(int argc, char *argv[])
 	 */
 	if (sigsetjmp(env, 1) == 0) {
 		for (;;)
-			(void) ioctl(-1, -1, NULL);
+			(void) ioctl(-1, 0, NULL);
 	}
 
 	/*
@@ -80,20 +82,19 @@ main(int argc, char *argv[])
 	fds[n++] = open(file, O_WRONLY);
 	fds[n++] = open(file, O_RDWR);
 
-	fds[n++] = open(file, O_RDWR | O_APPEND | O_CREAT | O_DSYNC |
-	    O_LARGEFILE | O_NOCTTY | O_NONBLOCK | O_NDELAY | O_RSYNC |
-	    O_SYNC | O_TRUNC | O_XATTR, 0666);
+	fds[n++] = open(file, O_RDWR | O_APPEND | O_CREAT |
+	    O_NOCTTY | O_NONBLOCK | O_NDELAY | O_SYNC | O_TRUNC | 0666);
 
 	fds[n++] = open(file, O_RDWR);
 	(void) lseek(fds[n - 1], 123, SEEK_SET);
 
 	/*
 	 * Once we have all the file descriptors in the state we want to test,
-	 * issue a bogus ioctl() on each fd with cmd -1 and arg NULL to whack
+	 * issue a bogus ioctl() on each fd with cmd 0 and arg NULL to whack
 	 * our DTrace script into recording the content of the fds[] array.
 	 */
 	for (i = 0; i < n; i++)
-		(void) ioctl(fds[i], -1, NULL);
+		(void) ioctl(fds[i], 0, NULL);
 
 	assert(n <= sizeof (fds) / sizeof (fds[0]));
 	exit(0);

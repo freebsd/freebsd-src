@@ -85,16 +85,15 @@ static uptr GetKernelAreaSize() {
 
 uptr GetMaxVirtualAddress() {
 #if SANITIZER_WORDSIZE == 64
-# if defined(__powerpc64__)
+# if defined(__powerpc64__) || defined(__aarch64__)
   // On PowerPC64 we have two different address space layouts: 44- and 46-bit.
   // We somehow need to figure out which one we are using now and choose
   // one of 0x00000fffffffffffUL and 0x00003fffffffffffUL.
   // Note that with 'ulimit -s unlimited' the stack is moved away from the top
   // of the address space, so simply checking the stack address is not enough.
   // This should (does) work for both PowerPC64 Endian modes.
+  // Similarly, aarch64 has multiple address space layouts: 39, 42 and 47-bit.
   return (1ULL << (MostSignificantSetBitIndex(GET_CURRENT_FRAME()) + 1)) - 1;
-# elif defined(__aarch64__)
-  return (1ULL << 39) - 1;
 # elif defined(__mips64)
   return (1ULL << 40) - 1;  // 0x000000ffffffffffUL;
 # else
@@ -245,7 +244,8 @@ bool MemoryRangeIsAvailable(uptr range_start, uptr range_end) {
   while (proc_maps.Next(&start, &end,
                         /*offset*/0, /*filename*/0, /*filename_size*/0,
                         /*protection*/0)) {
-    if (!IntervalsAreSeparate(start, end, range_start, range_end))
+    CHECK_NE(0, end);
+    if (!IntervalsAreSeparate(start, end - 1, range_start, range_end))
       return false;
   }
   return true;

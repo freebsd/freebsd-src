@@ -18,9 +18,14 @@
 #include "sanitizer_common/sanitizer_libc.h"
 #include "tsan_stat.h"
 
-#ifndef TSAN_DEBUG
-#define TSAN_DEBUG 0
-#endif  // TSAN_DEBUG
+// Setup defaults for compile definitions.
+#ifndef TSAN_NO_HISTORY
+# define TSAN_NO_HISTORY 0
+#endif
+
+#ifndef TSAN_COLLECT_STATS
+# define TSAN_COLLECT_STATS 0
+#endif
 
 namespace __tsan {
 
@@ -39,23 +44,17 @@ const char *const kTsanOptionsEnv = "TSAN_OPTIONS";
 
 const int kTidBits = 13;
 const unsigned kMaxTid = 1 << kTidBits;
+#ifndef SANITIZER_GO
 const unsigned kMaxTidInClock = kMaxTid * 2;  // This includes msb 'freed' bit.
+#else
+const unsigned kMaxTidInClock = kMaxTid;  // Go does not track freed memory.
+#endif
 const int kClkBits = 42;
 const unsigned kMaxTidReuse = (1 << (64 - kClkBits)) - 1;
 const uptr kShadowStackSize = 64 * 1024;
 
-#ifdef TSAN_SHADOW_COUNT
-# if TSAN_SHADOW_COUNT == 2 \
-  || TSAN_SHADOW_COUNT == 4 || TSAN_SHADOW_COUNT == 8
-const uptr kShadowCnt = TSAN_SHADOW_COUNT;
-# else
-#   error "TSAN_SHADOW_COUNT must be one of 2,4,8"
-# endif
-#else
 // Count of shadow values in a shadow cell.
-#define TSAN_SHADOW_COUNT 4
 const uptr kShadowCnt = 4;
-#endif
 
 // That many user bytes are mapped onto a single shadow cell.
 const uptr kShadowCell = 8;
@@ -73,22 +72,16 @@ const uptr kMetaShadowCell = 8;
 // Size of a single meta shadow value (u32).
 const uptr kMetaShadowSize = 4;
 
-#if defined(TSAN_NO_HISTORY) && TSAN_NO_HISTORY
+#if TSAN_NO_HISTORY
 const bool kCollectHistory = false;
 #else
 const bool kCollectHistory = true;
 #endif
 
-#if defined(TSAN_COLLECT_STATS) && TSAN_COLLECT_STATS
-const bool kCollectStats = true;
-#else
-const bool kCollectStats = false;
-#endif
-
 // The following "build consistency" machinery ensures that all source files
 // are built in the same configuration. Inconsistent builds lead to
 // hard to debug crashes.
-#if TSAN_DEBUG
+#if SANITIZER_DEBUG
 void build_consistency_debug();
 #else
 void build_consistency_release();
@@ -100,18 +93,8 @@ void build_consistency_stats();
 void build_consistency_nostats();
 #endif
 
-#if TSAN_SHADOW_COUNT == 1
-void build_consistency_shadow1();
-#elif TSAN_SHADOW_COUNT == 2
-void build_consistency_shadow2();
-#elif TSAN_SHADOW_COUNT == 4
-void build_consistency_shadow4();
-#else
-void build_consistency_shadow8();
-#endif
-
 static inline void USED build_consistency() {
-#if TSAN_DEBUG
+#if SANITIZER_DEBUG
   build_consistency_debug();
 #else
   build_consistency_release();
@@ -120,15 +103,6 @@ static inline void USED build_consistency() {
   build_consistency_stats();
 #else
   build_consistency_nostats();
-#endif
-#if TSAN_SHADOW_COUNT == 1
-  build_consistency_shadow1();
-#elif TSAN_SHADOW_COUNT == 2
-  build_consistency_shadow2();
-#elif TSAN_SHADOW_COUNT == 4
-  build_consistency_shadow4();
-#else
-  build_consistency_shadow8();
 #endif
 }
 

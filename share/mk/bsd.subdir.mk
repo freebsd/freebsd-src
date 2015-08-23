@@ -34,6 +34,15 @@ __<bsd.subdir.mk>__:
 
 .include <bsd.init.mk>
 
+.if !defined(NEED_SUBDIR)
+.if ${.MAKE.LEVEL} == 0 && ${MK_META_MODE} == "yes" && !empty(SUBDIR) && !(make(clean*) || make(destroy*))
+.include <meta.subdir.mk>
+# ignore this
+_SUBDIR:
+.endif
+.endif
+.if !target(_SUBDIR)
+
 DISTRIBUTION?=	base
 .if !target(distribute)
 distribute: .MAKE
@@ -121,6 +130,8 @@ ${__target}: .MAKE
 	${_+_}set -e; cd ${.CURDIR}; ${MAKE} build${__target}; ${MAKE} install${__target}
 .endif
 .endfor
+
+.endif
 
 .if !target(install)
 .if !target(beforeinstall)

@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef MIPSASMPRINTER_H
-#define MIPSASMPRINTER_H
+#ifndef LLVM_LIB_TARGET_MIPS_MIPSASMPRINTER_H
+#define LLVM_LIB_TARGET_MIPS_MIPSASMPRINTER_H
 
 #include "Mips16HardFloatInfo.h"
 #include "MipsMCInstLower.h"
@@ -31,7 +31,7 @@ class Module;
 class raw_ostream;
 
 class LLVM_LIBRARY_VISIBILITY MipsAsmPrinter : public AsmPrinter {
-  MipsTargetStreamer &getTargetStreamer();
+  MipsTargetStreamer &getTargetStreamer() const;
 
   void EmitInstrWithMacroNoAT(const MachineInstr *MI);
 
@@ -59,6 +59,11 @@ private:
 
   std::map<const char *, const llvm::Mips16HardFloatInfo::FuncSignature *>
   StubsNeeded;
+
+  void emitInlineAsmStart(const MCSubtargetInfo &StartInfo) const override;
+
+  void emitInlineAsmEnd(const MCSubtargetInfo &StartInfo,
+                        const MCSubtargetInfo *EndInfo) const override;
 
   void EmitJal(MCSymbol *Symbol);
 
@@ -134,6 +139,7 @@ public:
   void printMemOperandEA(const MachineInstr *MI, int opNum, raw_ostream &O);
   void printFCCOperand(const MachineInstr *MI, int opNum, raw_ostream &O,
                        const char *Modifier = nullptr);
+  void printRegisterList(const MachineInstr *MI, int opNum, raw_ostream &O);
   void EmitStartOfAsmFile(Module &M) override;
   void EmitEndOfAsmFile(Module &M) override;
   void PrintDebugValueComment(const MachineInstr *MI, raw_ostream &OS);

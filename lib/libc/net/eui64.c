@@ -132,6 +132,7 @@ eui64_line(const char *l, struct eui64 *e, char *hostname, size_t len)
 			goto bad;
 	}
 
+	free(linehead);
 	return (0);
 
 bad:

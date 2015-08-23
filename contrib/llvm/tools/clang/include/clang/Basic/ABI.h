@@ -13,8 +13,8 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#ifndef CLANG_BASIC_ABI_H
-#define CLANG_BASIC_ABI_H
+#ifndef LLVM_CLANG_BASIC_ABI_H
+#define LLVM_CLANG_BASIC_ABI_H
 
 #include "llvm/Support/DataTypes.h"
 
@@ -24,14 +24,15 @@ namespace clang {
 enum CXXCtorType {
     Ctor_Complete,          ///< Complete object ctor
     Ctor_Base,              ///< Base object ctor
-    Ctor_CompleteAllocating ///< Complete object allocating ctor
+    Ctor_Comdat             ///< The COMDAT used for ctors
 };
 
 /// \brief C++ destructor types.
 enum CXXDtorType {
     Dtor_Deleting, ///< Deleting dtor
     Dtor_Complete, ///< Complete object dtor
-    Dtor_Base      ///< Base object dtor
+    Dtor_Base,     ///< Base object dtor
+    Dtor_Comdat    ///< The COMDAT used for dtors
 };
 
 /// \brief A return adjustment.
@@ -204,4 +205,4 @@ struct ThunkInfo {
 
 } // end namespace clang
 
-#endif // CLANG_BASIC_ABI_H
+#endif

@@ -24,7 +24,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: _libelftc.h 2856 2013-01-04 16:00:26Z jkoshy $
+ * $Id: _libelftc.h 3174 2015-03-27 17:13:41Z emaste $
  */
 
 #ifndef	__LIBELFTC_H_
@@ -64,7 +64,9 @@ struct vector_str {
 #define VECTOR_DEF_CAPACITY	8
 
 
-__BEGIN_DECLS
+#ifdef __cplusplus
+extern "C" {
+#endif
 char	*cpp_demangle_ARM(const char *_org);
 char	*cpp_demangle_gnu2(const char *_org);
 char	*cpp_demangle_gnu3(const char *_org);
@@ -84,6 +86,8 @@ bool	vector_str_push_vector_head(struct vector_str *_dst,
     struct vector_str *_org);
 char	*vector_str_substr(const struct vector_str *_vs, size_t _begin,
     size_t _end, size_t *_rlen);
-__END_DECLS
+#ifdef __cplusplus
+}
+#endif
 
 #endif	/* __LIBELFTC_H */

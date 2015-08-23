@@ -5,6 +5,7 @@ auto.obj.mk
 autoconf.mk
 autodep.mk
 auto.dep.mk
+cython.mk
 dep.mk
 doc.mk
 dpadd.mk
@@ -20,7 +21,9 @@ libnames.mk
 libs.mk
 links.mk
 man.mk
+manifest.mk
 mk-files.txt
+mkopt.sh
 nls.mk
 obj.mk
 options.mk
@@ -49,6 +52,7 @@ sys/SunOS.mk
 sys/UnixWare.mk
 target-flags.mk
 warnings.mk
+whats.mk
 yacc.mk
 dirdeps.mk
 gendirdeps.mk

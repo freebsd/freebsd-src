@@ -30,6 +30,7 @@
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/Statistic.h"
+#include "llvm/Analysis/AssumptionCache.h"
 #include "llvm/Analysis/CodeMetrics.h"
 #include "llvm/Analysis/InstructionSimplify.h"
 #include "llvm/Analysis/LoopInfo.h"
@@ -103,7 +104,8 @@ namespace {
 
       // Analyze loop. Check its size, calculate is it possible to unswitch
       // it. Returns true if we can unswitch this loop.
-      bool countLoop(const Loop *L, const TargetTransformInfo &TTI);
+      bool countLoop(const Loop *L, const TargetTransformInfo &TTI,
+                     AssumptionCache *AC);
 
       // Clean all data related to given loop.
       void forgetLoop(const Loop *L);
@@ -126,6 +128,7 @@ namespace {
   class LoopUnswitch : public LoopPass {
     LoopInfo *LI;  // Loop information
     LPPassManager *LPM;
+    AssumptionCache *AC;
 
     // LoopProcessWorklist - Used to check if second loop needs processing
     // after RewriteLoopBodyWithConditionConstant rewrites first loop.
@@ -164,6 +167,7 @@ namespace {
     /// loop preheaders be inserted into the CFG.
     ///
     void getAnalysisUsage(AnalysisUsage &AU) const override {
+      AU.addRequired<AssumptionCacheTracker>();
       AU.addRequiredID(LoopSimplifyID);
       AU.addPreservedID(LoopSimplifyID);
       AU.addRequired<LoopInfo>();
@@ -212,7 +216,8 @@ namespace {
 
 // Analyze loop. Check its size, calculate is it possible to unswitch
 // it. Returns true if we can unswitch this loop.
-bool LUAnalysisCache::countLoop(const Loop *L, const TargetTransformInfo &TTI) {
+bool LUAnalysisCache::countLoop(const Loop *L, const TargetTransformInfo &TTI,
+                                AssumptionCache *AC) {
 
   LoopPropsMapIt PropsIt;
   bool Inserted;
@@ -229,13 +234,16 @@ bool LUAnalysisCache::countLoop(const Loop *L, const TargetTransformInfo &TTI) {
     // large numbers of branches which cause loop unswitching to go crazy.
     // This is a very ad-hoc heuristic.
 
+    SmallPtrSet<const Value *, 32> EphValues;
+    CodeMetrics::collectEphemeralValues(L, AC, EphValues);
+
     // FIXME: This is overly conservative because it does not take into
     // consideration code simplification opportunities and code that can
     // be shared by the resultant unswitched loops.
     CodeMetrics Metrics;
     for (Loop::block_iterator I = L->block_begin(), E = L->block_end();
          I != E; ++I)
-      Metrics.analyzeBasicBlock(*I, TTI);
+      Metrics.analyzeBasicBlock(*I, TTI, EphValues);
 
     Props.SizeEstimation = std::min(Metrics.NumInsts, Metrics.NumBlocks * 5);
     Props.CanBeUnswitchedCount = MaxSize / (Props.SizeEstimation);
@@ -326,6 +334,7 @@ char LoopUnswitch::ID = 0;
 INITIALIZE_PASS_BEGIN(LoopUnswitch, "loop-unswitch", "Unswitch loops",
                       false, false)
 INITIALIZE_AG_DEPENDENCY(TargetTransformInfo)
+INITIALIZE_PASS_DEPENDENCY(AssumptionCacheTracker)
 INITIALIZE_PASS_DEPENDENCY(LoopSimplify)
 INITIALIZE_PASS_DEPENDENCY(LoopInfo)
 INITIALIZE_PASS_DEPENDENCY(LCSSA)
@@ -376,6 +385,8 @@ bool LoopUnswitch::runOnLoop(Loop *L, LPPassManager &LPM_Ref) {
   if (skipOptnoneFunction(L))
     return false;
 
+  AC = &getAnalysis<AssumptionCacheTracker>().getAssumptionCache(
+      *L->getHeader()->getParent());
   LI = &getAnalysis<LoopInfo>();
   LPM = &LPM_Ref;
   DominatorTreeWrapperPass *DTWP =
@@ -421,7 +432,8 @@ bool LoopUnswitch::processCurrentLoop() {
 
   // Probably we reach the quota of branches for this loop. If so
   // stop unswitching.
-  if (!BranchesInfo.countLoop(currentLoop, getAnalysis<TargetTransformInfo>()))
+  if (!BranchesInfo.countLoop(currentLoop, getAnalysis<TargetTransformInfo>(),
+                              AC))
     return false;
 
   // Loop over all of the basic blocks in the loop.  If we find an interior
@@ -822,6 +834,10 @@ void LoopUnswitch::UnswitchNontrivialCondition(Value *LIC, Constant *Val,
   // original preheader.
   F->getBasicBlockList().splice(NewPreheader, F->getBasicBlockList(),
                                 NewBlocks[0], F->end());
+
+  // FIXME: We could register any cloned assumptions instead of clearing the
+  // whole function's cache.
+  AC->clear();
 
   // Now we create the new Loop object for the versioned loop.
   Loop *NewLoop = CloneLoop(L, L->getParentLoop(), VMap, LI, LPM);

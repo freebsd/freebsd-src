@@ -25,27 +25,36 @@
 /*
  * Audio IRIG-B/E demodulator/decoder
  *
- * This driver receives, demodulates and decodes IRIG-B/E signals when
- * connected to the audio codec /dev/audio. The IRIG signal format is an
- * amplitude-modulated carrier with pulse-width modulated data bits. For
- * IRIG-B, the carrier frequency is 1000 Hz and bit rate 100 b/s; for
- * IRIG-E, the carrier frequenchy is 100 Hz and bit rate 10 b/s. The
- * driver automatically recognizes which format is in use.
+ * This driver synchronizes the computer time using data encoded in
+ * IRIG-B/E signals commonly produced by GPS receivers and other timing
+ * devices. The IRIG signal is an amplitude-modulated carrier with
+ * pulse-width modulated data bits. For IRIG-B, the carrier frequency is
+ * 1000 Hz and bit rate 100 b/s; for IRIG-E, the carrier frequenchy is
+ * 100 Hz and bit rate 10 b/s. The driver automatically recognizes which
+ & format is in use.
+ *
+ * The driver requires an audio codec or sound card with sampling rate 8
+ * kHz and mu-law companding. This is the same standard as used by the
+ * telephone industry and is supported by most hardware and operating
+ * systems, including Solaris, SunOS, FreeBSD, NetBSD and Linux. In this
+ * implementation, only one audio driver and codec can be supported on a
+ * single machine.
  *
  * The program processes 8000-Hz mu-law companded samples using separate
  * signal filters for IRIG-B and IRIG-E, a comb filter, envelope
  * detector and automatic threshold corrector. Cycle crossings relative
  * to the corrected slice level determine the width of each pulse and
- * its value - zero, one or position identifier. The data encode 20 BCD
- * digits which determine the second, minute, hour and day of the year
- * and sometimes the year and synchronization condition. The comb filter
- * exponentially averages the corresponding samples of successive baud
- * intervals in order to reliably identify the reference carrier cycle.
- * A type-II phase-lock loop (PLL) performs additional integration and
- * interpolation to accurately determine the zero crossing of that
- * cycle, which determines the reference timestamp. A pulse-width
- * discriminator demodulates the data pulses, which are then encoded as
- * the BCD digits of the timecode.
+ * its value - zero, one or position identifier.
+ *
+ * The data encode 20 BCD digits which determine the second, minute,
+ * hour and day of the year and sometimes the year and synchronization
+ * condition. The comb filter exponentially averages the corresponding
+ * samples of successive baud intervals in order to reliably identify
+ * the reference carrier cycle. A type-II phase-lock loop (PLL) performs
+ * additional integration and interpolation to accurately determine the
+ * zero crossing of that cycle, which determines the reference
+ * timestamp. A pulse-width discriminator demodulates the data pulses,
+ * which are then encoded as the BCD digits of the timecode.
  *
  * The timecode and reference timestamp are updated once each second
  * with IRIG-B (ten seconds with IRIG-E) and local clock offset samples
@@ -60,70 +69,60 @@
  * decompanded input signal amplitude must be greater than 100 units and
  * the codec sample frequency error less than 250 PPM (.025 percent).
  *
- * The program performs a number of error checks to protect against
- * overdriven or underdriven input signal levels, incorrect signal
- * format or improper hardware configuration. Specifically, if any of
- * the following errors occur for a time measurement, the data are
- * rejected.
- *
- * o The peak carrier amplitude is less than DRPOUT (100). This usually
- *   means dead IRIG signal source, broken cable or wrong input port.
- *
- * o The frequency error is greater than MAXFREQ +-250 PPM (.025%). This
- *   usually means broken codec hardware or wrong codec configuration.
- *
- * o The modulation index is less than MODMIN (0.5). This usually means
- *   overdriven IRIG signal or wrong IRIG format.
- *
- * o A frame synchronization error has occurred. This usually means
- *   wrong IRIG signal format or the IRIG signal source has lost
- *   synchronization (signature control).
- *
- * o A data decoding error has occurred. This usually means wrong IRIG
- *   signal format.
- *
- * o The current second of the day is not exactly one greater than the
- *   previous one. This usually means a very noisy IRIG signal or
- *   insufficient CPU resources.
- *
- * o An audio codec error (overrun) occurred. This usually means
- *   insufficient CPU resources, as sometimes happens with Sun SPARC
- *   IPCs when doing something useful.
- *
- * Note that additional checks are done elsewhere in the reference clock
- * interface routines.
- *
- * Debugging aids
+ * Monitor Data
  *
  * The timecode format used for debugging and data recording includes
  * data helpful in diagnosing problems with the IRIG signal and codec
- * connections. With debugging enabled (-d on the ntpd command line),
- * the driver produces one line for each timecode in the following
- * format:
+ * connections. The driver produces one line for each timecode in the
+ * following format:
  *
- * 00 1 98 23 19:26:52 721 143 0.694 20 0.1 66.5 3094572411.00027
+ * 00 00 98 23 19:26:52 2782 143 0.694 10 0.3 66.5 3094572411.00027
  *
- * The most recent line is also written to the clockstats file at 64-s
- * intervals.
+ * If clockstats is enabled, the most recent line is written to the
+ * clockstats file every 64 s. If verbose recording is enabled (fudge
+ * flag 4) each line is written as generated.
  *
- * The first field contains the error flags in hex, where the hex bits
- * are interpreted as below. This is followed by the IRIG status
- * indicator, year of century, day of year and time of day. The status
- * indicator and year are not produced by some IRIG devices. Following
- * these fields are the signal amplitude (0-8100), codec gain (0-255),
- * modulation index (0-1), time constant (2-20), carrier phase error
- * (us) and carrier frequency error (PPM). The last field is the on-time
- * timestamp in NTP format.
+ * The first field containes the error flags in hex, where the hex bits
+ * are interpreted as below. This is followed by the year of century,
+ * day of year and time of day. Note that the time of day is for the
+ * previous minute, not the current time. The status indicator and year
+ * are not produced by some IRIG devices and appear as zeros. Following
+ * these fields are the carrier amplitude (0-3000), codec gain (0-255),
+ * modulation index (0-1), time constant (4-10), carrier phase error
+ * +-.5) and carrier frequency error (PPM). The last field is the on-
+ * time timestamp in NTP format.
  *
- * The fraction part of the on-time timestamp is a good indicator of how
- * well the driver is doing. Once upon a time, an UltrSPARC 30 and
- * Solaris 2.7 kept the clock within a few tens of microseconds relative
- * to the IRIG-B signal. Accuracy with IRIG-E was about ten times worse.
- * Unfortunately, Sun broke the 2.7 audio driver in 2.8, which has a 10-
- * ms sawtooth modulation. The driver attempts to remove the modulation
- * by some clever estimation techniques which mostly work. With the
- * "mixerctl -o" command before starting the daemon, the jitter is down
- * to about 100 microseconds. Your experience may vary.
+ * The error flags are defined as follows in hex:
+ *
+ * x01	Low signal. The carrier amplitude is less than 100 units. This
+ *	is usually the result of no signal or wrong input port.
+ * x02	Frequency error. The codec frequency error is greater than 250
+ *	PPM. This may be due to wrong signal format or (rarely)
+ *	defective codec.
+ * x04	Modulation error. The IRIG modulation index is less than 0.5.
+ *	This is usually the result of an overdriven codec, wrong signal
+ *	format or wrong input port.
+ * x08	Frame synch error. The decoder frame does not match the IRIG
+ *	frame. This is usually the result of an overdriven codec, wrong
+ *	signal format or noisy IRIG signal. It may also be the result of
+ *	an IRIG signature check which indicates a failure of the IRIG
+ *	signal synchronization source.
+ * x10	Data bit error. The data bit length is out of tolerance. This is
+ *	usually the result of an overdriven codec, wrong signal format
+ *	or noisy IRIG signal.
+ * x20	Seconds numbering discrepancy. The decoder second does not match
+ *	the IRIG second. This is usually the result of an overdriven
+ *	codec, wrong signal format or noisy IRIG signal.
+ * x40	Codec error (overrun). The machine is not fast enough to keep up
+ *	with the codec.
+ * x80	Device status error (Spectracom).
+ *
+ *
+ * Once upon a time, an UltrSPARC 30 and Solaris 2.7 kept the clock
+ * within a few tens of microseconds relative to the IRIG-B signal.
+ * Accuracy with IRIG-E was about ten times worse. Unfortunately, Sun
+ * broke the 2.7 audio driver in 2.8, which has a 10-ms sawtooth
+ * modulation.
  *
  * Unlike other drivers, which can have multiple instantiations, this
  * one supports only one. It does not seem likely that more than one
@@ -137,8 +136,13 @@
  * port, where 0 is the mike port (default) and 1 is the line-in port.
  * It does not seem useful to select the compact disc player port. Fudge
  * flag3 enables audio monitoring of the input signal. For this purpose,
- * the monitor gain is set to a default value. Fudgetime2 is used as a
+ * the monitor gain is set t a default value. Fudgetime2 is used as a
  * frequency vernier for broken codec sample frequency.
+ *
+ * Alarm codes
+ *
+ * CEVNT_BADTIME	invalid date or time
+ * CEVNT_TIMEOUT	no IRIG data since last poll
  */
 /*
  * Interface definitions
@@ -152,26 +156,30 @@
 #define BAUD		80	/* samples per baud interval */
 #define OFFSET		128	/* companded sample offset */
 #define SIZE		256	/* decompanding table size */
-#define CYCLE		8	/* samples per carrier cycle */
-#define SUBFLD		10	/* bits per subfield */
-#define FIELD		10	/* subfields per field */
+#define CYCLE		8	/* samples per bit */
+#define SUBFLD		10	/* bits per frame */
+#define FIELD		100	/* bits per second */
 #define MINTC		2	/* min PLL time constant */
-#define MAXTC		20	/* max PLL time constant max */
-#define	MAXAMP		6000.	/* maximum signal level */
-#define	MAXCLP		100	/* max clips above reference per s */
-#define DRPOUT		100.	/* dropout signal level */
+#define MAXTC		10	/* max PLL time constant max */
+#define	MAXAMP		3000.	/* maximum signal amplitude */
+#define	MINAMP		2000.	/* minimum signal amplitude */
+#define DRPOUT		100.	/* dropout signal amplitude */
 #define MODMIN		0.5	/* minimum modulation index */
 #define MAXFREQ		(250e-6 * SECOND) /* freq tolerance (.025%) */
-#define PI		3.1415926535 /* the real thing */
-#ifdef IRIG_SUCKS
-#define	WIGGLE		11	/* wiggle filter length */
-#endif /* IRIG_SUCKS */
 
 /*
- * Experimentally determined filter delays
+ * The on-time synchronization point is the positive-going zero crossing
+ * of the first cycle of the second. The IIR baseband filter phase delay
+ * is 1.03 ms for IRIG-B and 3.47 ms for IRIG-E. The fudge value 2.68 ms
+ * due to the codec and other causes was determined by calibrating to a
+ * PPS signal from a GPS receiver.
+ *
+ * The results with a 2.4-GHz P4 running FreeBSD 6.1 are generally
+ * within .02 ms short-term with .02 ms jitter. The processor load due
+ * to the driver is 0.51 percent.
  */
-#define IRIG_B		.0019	/* IRIG-B filter delay */
-#define IRIG_E		.0019	/* IRIG-E filter delay */
+#define IRIG_B	((1.03 + 2.68) / 1000)	/* IRIG-B system delay (s) */
+#define IRIG_E	((3.47 + 2.68) / 1000)	/* IRIG-E system delay (s) */
 
 /*
  * Data bit definitions
@@ -181,7 +189,7 @@
 #define BITP		2	/* position identifier */
 
 /*
- * Error flags (up->errflg)
+ * Error flags
  */
 #define IRIG_ERR_AMP	0x01	/* low carrier amplitude */
 #define IRIG_ERR_FREQ	0x02	/* frequency tolerance exceeded */
@@ -192,13 +200,18 @@
 #define IRIG_ERR_ERROR	0x40	/* codec error (overrun) */
 #define IRIG_ERR_SIGERR	0x80	/* IRIG status error (Spectracom) */
 
+static	char	hexchar[] = "0123456789abcdef";
+
 /*
  * IRIG unit control structure
  */
 struct irigunit {
-	u_char	timecode[21];	/* timecode string */
+	u_char	timecode[2 * SUBFLD + 1]; /* timecode string */
 	l_fp	timestamp;	/* audio sample timestamp */
 	l_fp	tick;		/* audio sample increment */
+	l_fp	refstamp;	/* reference timestamp */
+	l_fp	chrstamp;	/* baud timestamp */
+	l_fp	prvstamp;	/* previous baud timestamp */
 	double	integ[BAUD];	/* baud integrator */
 	double	phase, freq;	/* logical clock phase and frequency */
 	double	zxing;		/* phase detector integrator */
@@ -212,20 +225,20 @@ struct irigunit {
 	 * Audio codec variables
 	 */
 	double	comp[SIZE];	/* decompanding table */
+	double	signal;		/* peak signal for AGC */
 	int	port;		/* codec port */
 	int	gain;		/* codec gain */
 	int	mongain;	/* codec monitor gain */
-	int	clipcnt;	/* sample clipped count */
 	int	seccnt;		/* second interval counter */
 
 	/*
 	 * RF variables
 	 */
-	double	hpf[5];		/* IRIG-B filter shift register */
+	double	bpf[9];		/* IRIG-B filter shift register */
 	double	lpf[5];		/* IRIG-E filter shift register */
+	double	envmin, envmax;	/* envelope min and max */
+	double	slice;		/* envelope slice level */
 	double	intmin, intmax;	/* integrated envelope min and max */
-	double	envmax;		/* peak amplitude */
-	double	envmin;		/* noise amplitude */
 	double	maxsignal;	/* integrated peak amplitude */
 	double	noise;		/* integrated noise amplitude */
 	double	lastenv[CYCLE];	/* last cycle amplitudes */
@@ -235,7 +248,6 @@ struct irigunit {
 	int	decim;		/* sample decimation factor */
 	int	envphase;	/* envelope phase */
 	int	envptr;		/* envelope phase pointer */
-	int	carphase;	/* carrier phase */
 	int	envsw;		/* envelope state */
 	int	envxing;	/* envelope slice crossing */
 	int	tc;		/* time constant */
@@ -248,36 +260,30 @@ struct irigunit {
 	int	pulse;		/* cycle counter */
 	int	cycles;		/* carrier cycles */
 	int	dcycles;	/* data cycles */
-	int	xptr;		/* translate table pointer */
-	int	lastbit;	/* last code element length */
+	int	lastbit;	/* last code element */
 	int	second;		/* previous second */
-	int	fieldcnt;	/* subfield count in field */
+	int	bitcnt;		/* bit count in frame */
+	int	frmcnt;		/* bit count in second */
+	int	xptr;		/* timecode pointer */
 	int	bits;		/* demodulated bits */
-	int	bitcnt;		/* bit count in subfield */
-#ifdef IRIG_SUCKS
-	l_fp	wigwag;		/* wiggle accumulator */
-	int	wp;		/* wiggle filter pointer */
-	l_fp	wiggle[WIGGLE];	/* wiggle filter */
-	l_fp	wigbot[WIGGLE];	/* wiggle bottom fisher*/
-#endif /* IRIG_SUCKS */
-	l_fp	wuggle;
 };
 
 /*
  * Function prototypes
  */
-static	int	irig_start	P((int, struct peer *));
-static	void	irig_shutdown	P((int, struct peer *));
-static	void	irig_receive	P((struct recvbuf *));
-static	void	irig_poll	P((int, struct peer *));
+static	int	irig_start	(int, struct peer *);
+static	void	irig_shutdown	(int, struct peer *);
+static	void	irig_receive	(struct recvbuf *);
+static	void	irig_poll	(int, struct peer *);
 
 /*
  * More function prototypes
  */
-static	void	irig_base	P((struct peer *, double));
-static	void	irig_rf		P((struct peer *, double));
-static	void	irig_decode	P((struct peer *, int));
-static	void	irig_gain	P((struct peer *));
+static	void	irig_base	(struct peer *, double);
+static	void	irig_rf		(struct peer *, double);
+static	void	irig_baud	(struct peer *, int);
+static	void	irig_decode	(struct peer *, int);
+static	void	irig_gain	(struct peer *);
 
 /*
  * Transfer vector
@@ -290,16 +296,6 @@ struct	refclock refclock_irig = {
 	noentry,		/* initialize driver (not used) */
 	noentry,		/* not used (old irig_buginfo) */
 	NOFLAGS			/* not used */
-};
-
-/*
- * Global variables
- */
-static char	hexchar[] = {	/* really quick decoding table */
-	'0', '8', '4', 'c',	/* 0000 0001 0010 0011 */
-	'2', 'a', '6', 'e',	/* 0100 0101 0110 0111 */
-	'1', '9', '5', 'd',	/* 1000 1001 1010 1011 */
-	'3', 'b', '7', 'f'	/* 1100 1101 1110 1111 */
 };
 
 
@@ -336,23 +332,19 @@ irig_start(
 	/*
 	 * Allocate and initialize unit structure
 	 */
-	if (!(up = (struct irigunit *)
-	      emalloc(sizeof(struct irigunit)))) {
-		(void) close(fd);
-		return (0);
-	}
-	memset((char *)up, 0, sizeof(struct irigunit));
+	up = emalloc_zero(sizeof(*up));
 	pp = peer->procptr;
-	pp->unitptr = (caddr_t)up;
 	pp->io.clock_recv = irig_receive;
-	pp->io.srcclock = (caddr_t)peer;
+	pp->io.srcclock = peer;
 	pp->io.datalen = 0;
 	pp->io.fd = fd;
 	if (!io_addclock(&pp->io)) {
-		(void)close(fd);
+		close(fd);
+		pp->io.fd = -1;
 		free(up);
 		return (0);
 	}
+	pp->unitptr = up;
 
 	/*
 	 * Initialize miscellaneous variables
@@ -362,7 +354,6 @@ irig_start(
 	memcpy((char *)&pp->refid, REFID, 4);
 	up->tc = MINTC;
 	up->decim = 1;
-	up->fdelay = IRIG_B;
 	up->gain = 127;
 
 	/*
@@ -376,7 +367,7 @@ irig_start(
 	for (i = 3; i < OFFSET; i++) {
 		up->comp[i] = up->comp[i - 1] + step;
 		up->comp[OFFSET + i] = -up->comp[i];
-                if (i % 16 == 0)
+		if (i % 16 == 0)
 			step *= 2.;
 	}
 	DTOLFP(1. / SECOND, &up->tick);
@@ -397,9 +388,11 @@ irig_shutdown(
 	struct irigunit *up;
 
 	pp = peer->procptr;
-	up = (struct irigunit *)pp->unitptr;
-	io_closeclock(&pp->io);
-	free(up);
+	up = pp->unitptr;
+	if (-1 != pp->io.fd)
+		io_closeclock(&pp->io);
+	if (NULL != up)
+		free(up);
 }
 
 
@@ -426,9 +419,9 @@ irig_receive(
 	int	bufcnt;		/* buffer counter */
 	l_fp	ltemp;		/* l_fp temp */
 
-	peer = (struct peer *)rbufp->recv_srcclock;
+	peer = rbufp->recv_peer;
 	pp = peer->procptr;
-	up = (struct irigunit *)pp->unitptr;
+	up = pp->unitptr;
 
 	/*
 	 * Main loop - read until there ain't no more. Note codec
@@ -442,19 +435,6 @@ irig_receive(
 		sample = up->comp[~*dpt++ & 0xff];
 
 		/*
-		 * Clip noise spikes greater than MAXAMP. If no clips,
-		 * increase the gain a tad; if the clips are too high, 
-		 * decrease a tad.
-		 */
-		if (sample > MAXAMP) {
-			sample = MAXAMP;
-			up->clipcnt++;
-		} else if (sample < -MAXAMP) {
-			sample = -MAXAMP;
-			up->clipcnt++;
-		}
-
-		/*
 		 * Variable frequency oscillator. The codec oscillator
 		 * runs at the nominal rate of 8000 samples per second,
 		 * or 125 us per sample. A frequency change of one unit
@@ -462,7 +442,7 @@ irig_receive(
 		 * per second, which results in a frequency change of
 		 * 125 PPM.
 		 */
-		up->phase += up->freq / SECOND;
+		up->phase += (up->freq + clock_codec) / SECOND;
 		up->phase += pp->fudgetime2 / 1e6;
 		if (up->phase >= .5) {
 			up->phase -= 1.;
@@ -474,6 +454,11 @@ irig_receive(
 			irig_rf(peer, sample);
 		}
 		L_ADD(&up->timestamp, &up->tick);
+		sample = fabs(sample);
+		if (sample > up->signal)
+			up->signal = sample;
+		up->signal += (sample - up->signal) /
+		    1000;
 
 		/*
 		 * Once each second, determine the IRIG format and gain.
@@ -487,8 +472,9 @@ irig_receive(
 				up->decim = 10;
 				up->fdelay = IRIG_E;
 			}
-			irig_gain(peer);
 			up->irig_b = up->irig_e = 0;
+			irig_gain(peer);
+
 		}
 	}
 
@@ -505,14 +491,14 @@ irig_receive(
 		up->mongain = 0;
 }
 
+
 /*
  * irig_rf - RF processing
  *
- * This routine filters the RF signal using a highpass filter for IRIG-B
+ * This routine filters the RF signal using a bandass filter for IRIG-B
  * and a lowpass filter for IRIG-E. In case of IRIG-E, the samples are
- * decimated by a factor of ten. The lowpass filter functions also as a
- * decimation filter in this case. Note that the codec filters function
- * as roofing filters to attenuate both the high and low ends of the
+ * decimated by a factor of ten. Note that the codec filters function as
+ * roofing filters to attenuate both the high and low ends of the
  * passband. IIR filter coefficients were determined using Matlab Signal
  * Processing Toolkit.
  */
@@ -531,39 +517,48 @@ irig_rf(
 	double	irig_b, irig_e;	/* irig filter outputs */
 
 	pp = peer->procptr;
-	up = (struct irigunit *)pp->unitptr;
+	up = pp->unitptr;
 
 	/*
-	 * IRIG-B filter. 4th-order elliptic, 800-Hz highpass, 0.3 dB
-	 * passband ripple, -50 dB stopband ripple, phase delay .0022
-	 * s)
+	 * IRIG-B filter. Matlab 4th-order IIR elliptic, 800-1200 Hz
+	 * bandpass, 0.3 dB passband ripple, -50 dB stopband ripple,
+	 * phase delay 1.03 ms.
 	 */
-	irig_b = (up->hpf[4] = up->hpf[3]) * 2.322484e-01;
-	irig_b += (up->hpf[3] = up->hpf[2]) * -1.103929e+00;
-	irig_b += (up->hpf[2] = up->hpf[1]) * 2.351081e+00;
-	irig_b += (up->hpf[1] = up->hpf[0]) * -2.335036e+00;
-	up->hpf[0] = sample - irig_b;
-	irig_b = up->hpf[0] * 4.335855e-01
-	    + up->hpf[1] * -1.695859e+00
-	    + up->hpf[2] * 2.525004e+00
-	    + up->hpf[3] * -1.695859e+00
-	    + up->hpf[4] * 4.335855e-01;
+	irig_b = (up->bpf[8] = up->bpf[7]) * 6.505491e-001;
+	irig_b += (up->bpf[7] = up->bpf[6]) * -3.875180e+000;
+	irig_b += (up->bpf[6] = up->bpf[5]) * 1.151180e+001;
+	irig_b += (up->bpf[5] = up->bpf[4]) * -2.141264e+001;
+	irig_b += (up->bpf[4] = up->bpf[3]) * 2.712837e+001;
+	irig_b += (up->bpf[3] = up->bpf[2]) * -2.384486e+001;
+	irig_b += (up->bpf[2] = up->bpf[1]) * 1.427663e+001;
+	irig_b += (up->bpf[1] = up->bpf[0]) * -5.352734e+000;
+	up->bpf[0] = sample - irig_b;
+	irig_b = up->bpf[0] * 4.952157e-003
+	    + up->bpf[1] * -2.055878e-002
+	    + up->bpf[2] * 4.401413e-002
+	    + up->bpf[3] * -6.558851e-002
+	    + up->bpf[4] * 7.462108e-002
+	    + up->bpf[5] * -6.558851e-002
+	    + up->bpf[6] * 4.401413e-002
+	    + up->bpf[7] * -2.055878e-002
+	    + up->bpf[8] * 4.952157e-003;
 	up->irig_b += irig_b * irig_b;
 
 	/*
-	 * IRIG-E filter. 4th-order elliptic, 130-Hz lowpass, 0.3 dB
-	 * passband ripple, -50 dB stopband ripple, phase delay .0219 s.
+	 * IRIG-E filter. Matlab 4th-order IIR elliptic, 130-Hz lowpass,
+	 * 0.3 dB passband ripple, -50 dB stopband ripple, phase delay
+	 * 3.47 ms.
 	 */
-	irig_e = (up->lpf[4] = up->lpf[3]) * 8.694604e-01;
-	irig_e += (up->lpf[3] = up->lpf[2]) * -3.589893e+00;
-	irig_e += (up->lpf[2] = up->lpf[1]) * 5.570154e+00;
-	irig_e += (up->lpf[1] = up->lpf[0]) * -3.849667e+00;
+	irig_e = (up->lpf[4] = up->lpf[3]) * 8.694604e-001;
+	irig_e += (up->lpf[3] = up->lpf[2]) * -3.589893e+000;
+	irig_e += (up->lpf[2] = up->lpf[1]) * 5.570154e+000;
+	irig_e += (up->lpf[1] = up->lpf[0]) * -3.849667e+000;
 	up->lpf[0] = sample - irig_e;
-	irig_e = up->lpf[0] * 3.215696e-03
-	    + up->lpf[1] * -1.174951e-02
-	    + up->lpf[2] * 1.712074e-02
-	    + up->lpf[3] * -1.174951e-02
-	    + up->lpf[4] * 3.215696e-03;
+	irig_e = up->lpf[0] * 3.215696e-003
+	    + up->lpf[1] * -1.174951e-002
+	    + up->lpf[2] * 1.712074e-002
+	    + up->lpf[3] * -1.174951e-002
+	    + up->lpf[4] * 3.215696e-003;
 	up->irig_e += irig_e * irig_e;
 
 	/*
@@ -583,7 +578,8 @@ irig_rf(
  *
  * This routine processes the baseband signal and demodulates the AM
  * carrier using a synchronous detector. It then synchronizes to the
- * data frame at the baud rate and decodes the data pulses.
+ * data frame at the baud rate and decodes the width-modulated data
+ * pulses.
  */
 static void
 irig_base(
@@ -597,61 +593,53 @@ irig_base(
 	/*
 	 * Local variables
 	 */
-	double	xxing;		/* phase detector interpolated output */
 	double	lope;		/* integrator output */
 	double	env;		/* envelope detector output */
-	double	dtemp;		/* double temp */
+	double	dtemp;
+	int	carphase;	/* carrier phase */
 
 	pp = peer->procptr;
-	up = (struct irigunit *)pp->unitptr;
+	up = pp->unitptr;
 
 	/*
 	 * Synchronous baud integrator. Corresponding samples of current
 	 * and past baud intervals are integrated to refine the envelope
-	 * amplitude and phase estimate. We keep one cycle of both the
-	 * raw and integrated data for later use.
+	 * amplitude and phase estimate. We keep one cycle (1 ms) of the
+	 * raw data and one baud (10 ms) of the integrated data.
 	 */
 	up->envphase = (up->envphase + 1) % BAUD;
-	up->carphase = (up->carphase + 1) % CYCLE;
 	up->integ[up->envphase] += (sample - up->integ[up->envphase]) /
 	    (5 * up->tc);
 	lope = up->integ[up->envphase];
-	up->lastenv[up->carphase] = sample;
-	up->lastint[up->carphase] = lope;
+	carphase = up->envphase % CYCLE;
+	up->lastenv[carphase] = sample;
+	up->lastint[carphase] = lope;
 
 	/*
-	 * Phase detector. Sample amplitudes are integrated over the
-	 * baud interval. Cycle phase is determined from these
-	 * amplitudes using an eight-sample cyclic buffer. A phase
-	 * change of 360 degrees produces an output change of one unit.
+	 * Phase detector. Find the negative-going zero crossing
+	 * relative to sample 4 in the 8-sample sycle. A phase change of
+	 * 360 degrees produces an output change of one unit.
 	 */ 
-	if (up->lastsig > 0 && lope <= 0) {
-		xxing = lope / (up->lastsig - lope);
-		up->zxing += (up->carphase - 4 + xxing) / CYCLE;
-	}
+	if (up->lastsig > 0 && lope <= 0)
+		up->zxing += (double)(carphase - 4) / CYCLE;
 	up->lastsig = lope;
 
 	/*
-	 * Update signal/noise estimates and PLL phase/frequency.
+	 * End of the baud. Update signal/noise estimates and PLL
+	 * phase, frequency and time constant.
 	 */
 	if (up->envphase == 0) {
-
-		/*
-		 * Update envelope signal and noise estimates and mess
-		 * with error bits.
-		 */
-		up->maxsignal = up->intmax;
-		up->noise = up->intmin;
+		up->maxsignal = up->intmax; up->noise = up->intmin;
+		up->intmin = 1e6; up->intmax = -1e6;
 		if (up->maxsignal < DRPOUT)
 			up->errflg |= IRIG_ERR_AMP;
 		if (up->maxsignal > 0)
-			up->modndx = (up->intmax - up->intmin) /
-			    up->intmax;
+			up->modndx = (up->maxsignal - up->noise) /
+			    up->maxsignal;
  		else
 			up->modndx = 0;
 		if (up->modndx < MODMIN)
 			up->errflg |= IRIG_ERR_MOD;
-		up->intmin = 1e6; up->intmax = 0;
 		if (up->errflg & (IRIG_ERR_AMP | IRIG_ERR_FREQ |
 		   IRIG_ERR_MOD | IRIG_ERR_SYNCH)) {
 			up->tc = MINTC;
@@ -681,17 +669,17 @@ irig_base(
 
 	/*
 	 * Synchronous demodulator. There are eight samples in the cycle
-	 * and ten cycles in the baud interval. The amplitude of each
-	 * cycle is determined at the last sample in the cycle. The
+	 * and ten cycles in the baud. Since the PLL has aligned the
+	 * negative-going zero crossing at sample 4, the maximum
+	 * amplitude is at sample 2 and minimum at sample 6. The
 	 * beginning of the data pulse is determined from the integrated
 	 * samples, while the end of the pulse is determined from the
 	 * raw samples. The raw data bits are demodulated relative to
 	 * the slice level and left-shifted in the decoding register.
 	 */
-	if (up->carphase != 7)
+	if (carphase != 7)
 		return;
 
-	env = (up->lastenv[2] - up->lastenv[6]) / 2.;
 	lope = (up->lastint[2] - up->lastint[6]) / 2.;
 	if (lope > up->intmax)
 		up->intmax = lope;
@@ -705,91 +693,130 @@ irig_base(
 	 * when three correct frames have been found.
 	 */
 	up->pulse = (up->pulse + 1) % 10;
-	if (up->pulse == 1)
-		up->envmax = env;
-	else if (up->pulse == 9)
-		up->envmin = env;
-	up->dcycles <<= 1;
-	if (env >= (up->envmax + up->envmin) / 2.)
-		up->dcycles |= 1;
 	up->cycles <<= 1;
 	if (lope >= (up->maxsignal + up->noise) / 2.)
 		up->cycles |= 1;
 	if ((up->cycles & 0x303c0f03) == 0x300c0300) {
-		l_fp ltemp;
-		int bitz;
-
-		/*
-		 * The PLL time constant starts out small, in order to
-		 * sustain a frequency tolerance of 250 PPM. It
-		 * gradually increases as the loop settles down. Note
-		 * that small wiggles are not believed, unless they
-		 * persist for lots of samples.
-		 */
-		if (up->pulse != 9)
+		if (up->pulse != 0)
 			up->errflg |= IRIG_ERR_SYNCH;
-		up->pulse = 9;
-		up->exing = -up->yxing;
-		if (fabs(up->envxing - up->envphase) <= 1) {
-			up->tcount++;
-			if (up->tcount > 50 * up->tc) {
-				up->tc++;
-				if (up->tc > MAXTC)
-					up->tc = MAXTC;
-				up->tcount = 0;
-				up->envxing = up->envphase;
-			} else {
-				up->exing -= up->envxing - up->envphase;
-			}
-		} else {
+		up->pulse = 0;
+	}
+
+	/*
+	 * Assemble the baud and max/min to get the slice level for the
+	 * next baud. The slice level is based on the maximum over the
+	 * first two bits and the minimum over the last two bits, with
+	 * the slice level halfway between the maximum and minimum.
+	 */
+	env = (up->lastenv[2] - up->lastenv[6]) / 2.;
+	up->dcycles <<= 1;
+	if (env >= up->slice)
+		up->dcycles |= 1;
+	switch(up->pulse) {
+
+	case 0:
+		irig_baud(peer, up->dcycles);
+		if (env < up->envmin)
+			up->envmin = env;
+		up->slice = (up->envmax + up->envmin) / 2;
+		up->envmin = 1e6; up->envmax = -1e6;
+		break;
+
+	case 1:
+		up->envmax = env;
+		break;
+
+	case 2:
+		if (env > up->envmax)
+			up->envmax = env;
+		break;
+
+	case 9:
+		up->envmin = env;
+		break;
+	}
+}
+
+/*
+ * irig_baud - update the PLL and decode the pulse-width signal
+ */
+static void
+irig_baud(
+	struct peer *peer,	/* peer structure pointer */
+	int	bits		/* decoded bits */
+	)
+{
+	struct refclockproc *pp;
+	struct irigunit *up;
+	double	dtemp;
+	l_fp	ltemp;
+
+        pp = peer->procptr;
+	up = pp->unitptr;
+
+	/*
+	 * The PLL time constant starts out small, in order to
+	 * sustain a frequency tolerance of 250 PPM. It
+	 * gradually increases as the loop settles down. Note
+	 * that small wiggles are not believed, unless they
+	 * persist for lots of samples.
+	 */
+	up->exing = -up->yxing;
+	if (abs(up->envxing - up->envphase) <= 1) {
+		up->tcount++;
+		if (up->tcount > 20 * up->tc) {
+			up->tc++;
+			if (up->tc > MAXTC)
+				up->tc = MAXTC;
 			up->tcount = 0;
 			up->envxing = up->envphase;
+		} else {
+			up->exing -= up->envxing - up->envphase;
 		}
+	} else {
+		up->tcount = 0;
+		up->envxing = up->envphase;
+	}
 
-		/*
-		 * Determine a reference timestamp, accounting for the
-		 * codec delay and filter delay. Note the timestamp is
-		 * for the previous frame, so we have to backtrack for
-		 * this plus the delay since the last carrier positive
-		 * zero crossing.
-		 */
-		dtemp = up->decim * ((up->exing + BAUD) / SECOND + 1.) +
-		    up->fdelay;
-		DTOLFP(dtemp, &ltemp);
-		pp->lastrec = up->timestamp;
-		L_SUB(&pp->lastrec, &ltemp);
+	/*
+	 * Strike the baud timestamp as the positive zero crossing of
+	 * the first bit, accounting for the codec delay and filter
+	 * delay.
+	 */
+	up->prvstamp = up->chrstamp;
+	dtemp = up->decim * (up->exing / SECOND) + up->fdelay;
+	DTOLFP(dtemp, &ltemp);
+	up->chrstamp = up->timestamp;
+	L_SUB(&up->chrstamp, &ltemp);
 
-		/*
-		 * The data bits are collected in ten-bit frames. The
-		 * first two and last two bits are determined by frame
-		 * sync and ignored here; the resulting patterns
-		 * represent zero (0-1 bits), one (2-4 bits) and
-		 * position identifier (5-6 bits). The remaining
-		 * patterns represent errors and are treated as zeros.
-		 */
-		bitz = up->dcycles & 0xfc;
-		switch(bitz) {
+	/*
+	 * The data bits are collected in ten-bit bauds. The first two
+	 * bits are not used. The resulting patterns represent runs of
+	 * 0-1 bits (0), 2-4 bits (1) and 5-7 bits (PI). The remaining
+	 * 8-bit run represents a soft error and is treated as 0.
+	 */
+	switch (up->dcycles & 0xff) {
 
-		case 0x00:
-		case 0x80:
-			irig_decode(peer, BIT0);
-			break;
+	case 0x00:		/* 0-1 bits (0) */
+	case 0x80:
+		irig_decode(peer, BIT0);
+		break;
 
-		case 0xc0:
-		case 0xe0:
-		case 0xf0:
-			irig_decode(peer, BIT1);
-			break;
+	case 0xc0:		/* 2-4 bits (1) */
+	case 0xe0:
+	case 0xf0:
+		irig_decode(peer, BIT1);
+		break;
 
-		case 0xf8:
-		case 0xfc:
-			irig_decode(peer, BITP);
-			break;
+	case 0xf8:		/* (5-7 bits (PI) */
+	case 0xfc:
+	case 0xfe:
+		irig_decode(peer, BITP);
+		break;
 
-		default:
-			irig_decode(peer, 0);
-			up->errflg |= IRIG_ERR_DECODE;
-		}
+	default:		/* 8 bits (error) */
+		irig_decode(peer, BIT0);
+		up->errflg |= IRIG_ERR_DECODE;
 	}
 }
 
@@ -797,11 +824,10 @@ irig_base(
 /*
  * irig_decode - decode the data
  *
- * This routine assembles bits into digits, digits into subfields and
- * subfields into the timecode field. Bits can have values of zero, one
- * or position identifier. There are four bits per digit, two digits per
- * subfield and ten subfields per field. The last bit in every subfield
- * and the first bit in the first subfield are position identifiers.
+ * This routine assembles bauds into digits, digits into frames and
+ * frames into the timecode fields. Bits can have values of zero, one
+ * or position identifier. There are four bits per digit, ten digits per
+ * frame and ten frames per second.
  */
 static void
 irig_decode(
@@ -811,115 +837,59 @@ irig_decode(
 {
 	struct refclockproc *pp;
 	struct irigunit *up;
-#ifdef IRIG_SUCKS
-	int	i;
-#endif /* IRIG_SUCKS */
 
 	/*
 	 * Local variables
 	 */
-	char	syncchar;	/* sync character (Spectracom) */
-	char	sbs[6];		/* binary seconds since 0h */
-	char	spare[2];	/* mulligan digits */
+	int	syncdig;	/* sync digit (Spectracom) */
+	char	sbs[6 + 1];	/* binary seconds since 0h */
+	char	spare[2 + 1];	/* mulligan digits */
+	int	temp;
 
-        pp = peer->procptr;
-	up = (struct irigunit *)pp->unitptr;
+	syncdig = 0;
+	pp = peer->procptr;
+	up = pp->unitptr;
 
 	/*
-	 * Assemble subfield bits.
+	 * Assemble frame bits.
 	 */
-	up->bits <<= 1;
+	up->bits >>= 1;
 	if (bit == BIT1) {
-		up->bits |= 1;
+		up->bits |= 0x200;
 	} else if (bit == BITP && up->lastbit == BITP) {
 
 		/*
-		 * Frame sync - two adjacent position identifiers.
-		 * Monitor the reference timestamp and wiggle the
-		 * clock, but only if no errors have occurred.
+		 * Frame sync - two adjacent position identifiers, which
+		 * mark the beginning of the second. The reference time
+		 * is the beginning of the second position identifier,
+		 * so copy the character timestamp to the reference
+		 * timestamp.
 		 */
-		up->bitcnt = 1;
-		up->fieldcnt = 0;
-		up->lastbit = 0;
-		if (up->errflg == 0) {
-#ifdef IRIG_SUCKS
-			l_fp	ltemp;
-
-			/*
-			 * You really don't wanna know what comes down
-			 * here. Leave it to say Solaris 2.8 broke the
-			 * nice clean audio stream, apparently affected
-			 * by a 5-ms sawtooth jitter. Sundown on
-			 * Solaris. This leaves a little twilight.
-			 *
-			 * The scheme involves differentiation, forward
-			 * learning and integration. The sawtooth has a
-			 * period of 11 seconds. The timestamp
-			 * differences are integrated and subtracted
-			 * from the signal.
-			 */
-			ltemp = pp->lastrec;
-			L_SUB(&ltemp, &pp->lastref);
-			if (ltemp.l_f < 0)
-				ltemp.l_i = -1;
-			else
-				ltemp.l_i = 0;
-			pp->lastref = pp->lastrec;
-			if (!L_ISNEG(&ltemp))
-				L_CLR(&up->wigwag);
-			else
-				L_ADD(&up->wigwag, &ltemp);
-			L_SUB(&pp->lastrec, &up->wigwag);
-			up->wiggle[up->wp] = ltemp;
-
-			/*
-			 * Bottom fisher. To understand this, you have
-			 * to know about velocity microphones and AM
-			 * transmitters. No further explanation is
-			 * offered, as this is truly a black art.
-			 */
-			up->wigbot[up->wp] = pp->lastrec;
-			for (i = 0; i < WIGGLE; i++) {
-				if (i != up->wp)
-					up->wigbot[i].l_ui++;
-				L_SUB(&pp->lastrec, &up->wigbot[i]);
-				if (L_ISNEG(&pp->lastrec))
-					L_ADD(&pp->lastrec,
-					    &up->wigbot[i]);
-				else
-					pp->lastrec = up->wigbot[i];
-			}
-			up->wp++;
-			up->wp %= WIGGLE;
-			up->wuggle = pp->lastrec;
-			refclock_process(pp);
-#else /* IRIG_SUCKS */
-			pp->lastref = pp->lastrec;
-			up->wuggle = pp->lastrec;
-			refclock_process(pp);
-#endif /* IRIG_SUCKS */
-		}
-		up->errflg = 0;
+		if (up->frmcnt != 1)
+			up->errflg |= IRIG_ERR_SYNCH;
+		up->frmcnt = 1;
+		up->refstamp = up->prvstamp;
 	}
-	up->bitcnt = (up->bitcnt + 1) % SUBFLD;
-	if (up->bitcnt == 0) {
+	up->lastbit = bit;
+	if (up->frmcnt % SUBFLD == 0) {
 
 		/*
-		 * End of subfield. Encode two hexadecimal digits in
-		 * little-endian timecode field.
+		 * End of frame. Encode two hexadecimal digits in
+		 * little-endian timecode field. Note frame 1 is shifted
+		 * right one bit to account for the marker PI.
 		 */
-		if (up->fieldcnt == 0)
-		    up->bits <<= 1;
-		if (up->xptr < 2)
-		    up->xptr = 2 * FIELD;
-		up->timecode[--up->xptr] = hexchar[(up->bits >> 5) &
-		    0xf];
-		up->timecode[--up->xptr] = hexchar[up->bits & 0xf];
-		up->fieldcnt = (up->fieldcnt + 1) % FIELD;
-		if (up->fieldcnt == 0) {
+		temp = up->bits;
+		if (up->frmcnt == 10)
+			temp >>= 1;
+		if (up->xptr >= 2) {
+			up->timecode[--up->xptr] = hexchar[temp & 0xf];
+			up->timecode[--up->xptr] = hexchar[(temp >> 5) &
+			    0xf];
+		}
+		if (up->frmcnt == 0) {
 
 			/*
-			 * End of field. Decode the timecode and wind
+			 * End of second. Decode the timecode and wind
 			 * the clock. Not all IRIG generators have the
 			 * year; if so, it is nonzero after year 2000.
 			 * Not all have the hardware status bit; if so,
@@ -931,40 +901,68 @@ irig_decode(
 			 * refclock_process() will reject the timecode
 			 * as invalid.
 			 */
-			up->xptr = 2 * FIELD;
+			up->xptr = 2 * SUBFLD;
 			if (sscanf((char *)up->timecode,
-			   "%6s%2d%c%2s%3d%2d%2d%2d", sbs, &pp->year,
-			    &syncchar, spare, &pp->day, &pp->hour,
+			   "%6s%2d%1d%2s%3d%2d%2d%2d", sbs, &pp->year,
+			    &syncdig, spare, &pp->day, &pp->hour,
 			    &pp->minute, &pp->second) != 8)
 				pp->leap = LEAP_NOTINSYNC;
 			else
 				pp->leap = LEAP_NOWARNING;
 			up->second = (up->second + up->decim) % 60;
-			if (pp->year > 0)
-				pp->year += 2000;
+
+			/*
+			 * Raise an alarm if the day field is zero,
+			 * which happens when signature control is
+			 * enabled and the device has lost
+			 * synchronization. Raise an alarm if the year
+			 * field is nonzero and the sync indicator is
+			 * zero, which happens when a Spectracom radio
+			 * has lost synchronization. Raise an alarm if
+			 * the expected second does not agree with the
+			 * decoded second, which happens with a garbled
+			 * IRIG signal. We are very particular.
+			 */
+			if (pp->day == 0 || (pp->year != 0 && syncdig ==
+			    0))
+				up->errflg |= IRIG_ERR_SIGERR;
 			if (pp->second != up->second)
 				up->errflg |= IRIG_ERR_CHECK;
 			up->second = pp->second;
-			sprintf(pp->a_lastcode,
-			    "%02x %c %2d %3d %02d:%02d:%02d %4.0f %3d %6.3f %2d %6.1f %6.1f %s",
-			    up->errflg, syncchar, pp->year, pp->day,
+
+			/*
+			 * Wind the clock only if there are no errors
+			 * and the time constant has reached the
+			 * maximum.
+			 */
+			if (up->errflg == 0 && up->tc == MAXTC) {
+				pp->lastref = pp->lastrec;
+				pp->lastrec = up->refstamp;
+				if (!refclock_process(pp))
+					refclock_report(peer,
+					    CEVNT_BADTIME);
+			}
+			snprintf(pp->a_lastcode, sizeof(pp->a_lastcode),
+			    "%02x %02d %03d %02d:%02d:%02d %4.0f %3d %6.3f %2d %6.2f %6.1f %s",
+			    up->errflg, pp->year, pp->day,
 			    pp->hour, pp->minute, pp->second,
 			    up->maxsignal, up->gain, up->modndx,
 			    up->tc, up->exing * 1e6 / SECOND, up->freq *
-			    1e6 / SECOND, ulfptoa(&up->wuggle, 6));
+			    1e6 / SECOND, ulfptoa(&pp->lastrec, 6));
 			pp->lencode = strlen(pp->a_lastcode);
+			up->errflg = 0;
 			if (pp->sloppyclockflag & CLK_FLAG4) {
 				record_clock_stats(&peer->srcadr,
 				    pp->a_lastcode);
 #ifdef DEBUG
 				if (debug)
-					printf("irig: %s\n",
+					printf("irig %s\n",
 					    pp->a_lastcode);
 #endif /* DEBUG */
 			}
 		}
 	}
-	up->lastbit = bit;
+	up->frmcnt = (up->frmcnt + 1) % FIELD;
 }
 
 
@@ -973,8 +971,7 @@ irig_decode(
  *
  * This routine sweeps up the timecode updates since the last poll. For
  * IRIG-B there should be at least 60 updates; for IRIG-E there should
- * be at least 6. If nothing is heard, a timeout event is declared and
- * any orphaned timecode updates are sent to foster care. 
+ * be at least 6. If nothing is heard, a timeout event is declared. 
  */
 static void
 irig_poll(
@@ -983,21 +980,20 @@ irig_poll(
 	)
 {
 	struct refclockproc *pp;
-	struct irigunit *up;
 
 	pp = peer->procptr;
-	up = (struct irigunit *)pp->unitptr;
 
 	if (pp->coderecv == pp->codeproc) {
 		refclock_report(peer, CEVNT_TIMEOUT);
 		return;
 
-	} else {
-		refclock_receive(peer);
+	}
+	refclock_receive(peer);
+	if (!(pp->sloppyclockflag & CLK_FLAG4)) {
 		record_clock_stats(&peer->srcadr, pp->a_lastcode);
 #ifdef DEBUG
 		if (debug)
-			printf("irig: %s\n", pp->a_lastcode);
+			printf("irig %s\n", pp->a_lastcode);
 #endif /* DEBUG */
 	}
 	pp->polls++;
@@ -1008,11 +1004,10 @@ irig_poll(
 /*
  * irig_gain - adjust codec gain
  *
- * This routine is called once each second. If the signal envelope
- * amplitude is too low, the codec gain is bumped up by four units; if
- * too high, it is bumped down. The decoder is relatively insensitive to
- * amplitude, so this crudity works just fine. The input port is set and
- * the error flag is cleared, mostly to be ornery.
+ * This routine is called at the end of each second. It uses the AGC to
+ * bradket the maximum signal level between MINAMP and MAXAMP to avoid
+ * hunting. The routine also jiggles the input port and selectively
+ * mutes the monitor.
  */
 static void
 irig_gain(
@@ -1023,25 +1018,25 @@ irig_gain(
 	struct irigunit *up;
 
 	pp = peer->procptr;
-	up = (struct irigunit *)pp->unitptr;
+	up = pp->unitptr;
 
 	/*
 	 * Apparently, the codec uses only the high order bits of the
 	 * gain control field. Thus, it may take awhile for changes to
 	 * wiggle the hardware bits.
 	 */
-	if (up->clipcnt == 0) {
+	if (up->maxsignal < MINAMP) {
 		up->gain += 4;
 		if (up->gain > MAXGAIN)
 			up->gain = MAXGAIN;
-	} else if (up->clipcnt > MAXCLP) {
+	} else if (up->maxsignal > MAXAMP) {
 		up->gain -= 4;
 		if (up->gain < 0)
 			up->gain = 0;
 	}
 	audio_gain(up->gain, up->mongain, up->port);
-	up->clipcnt = 0;
 }
+
 
 #else
 int refclock_irig_bs;

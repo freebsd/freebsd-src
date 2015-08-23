@@ -194,7 +194,7 @@ pax_options(int argc, char **argv)
 	/*
 	 * process option flags
 	 */
-	while ((c=getopt(argc,argv,"ab:cdf:iklno:p:rs:tuvwx:zB:DE:G:HLPT:U:XYZ"))
+	while ((c=getopt(argc,argv,"ab:cdf:iklno:p:rs:tuvwx:zB:DE:G:HLOPT:U:XYZ"))
 	    != -1) {
 		switch (c) {
 		case 'a':
@@ -447,6 +447,12 @@ pax_options(int argc, char **argv)
 			Lflag = 1;
 			flg |= CLF;
 			break;
+		case 'O':
+			/*
+			 * Force one volume. Non standard option.
+			 */
+			Oflag = 1;
+			break;
 		case 'P':
 			/*
 			 * do NOT follow symlinks (default)
@@ -584,7 +590,7 @@ tar_options(int argc, char **argv)
 {
 	int c;
 	int fstdin = 0;
-	int Oflag = 0;
+	int tar_Oflag = 0;
 	int nincfiles = 0;
 	int incfiles_max = 0;
 	struct incfile {
@@ -664,7 +670,7 @@ tar_options(int argc, char **argv)
 			if (opt_add("write_opt=nodir") < 0)
 				tar_usage();
 		case 'O':
-			Oflag = 1;
+			tar_Oflag = 1;
 			break;
 		case 'p':
 			/*
@@ -820,8 +826,8 @@ tar_options(int argc, char **argv)
 	 * (unless -o specified)
 	 */
 	if (act == ARCHIVE || act == APPND)
-		frmt = &(fsub[Oflag ? F_OTAR : F_TAR]);
-	else if (Oflag) {
+		frmt = &(fsub[tar_Oflag ? F_OTAR : F_TAR]);
+	else if (tar_Oflag) {
 		paxwarn(1, "The -O/-o options are only valid when writing an archive");
 		tar_usage();		/* only valid when writing */
 	}
@@ -1526,25 +1532,25 @@ no_op(void)
 void
 pax_usage(void)
 {
-	(void)fputs("usage: pax [-cdnvz] [-E limit] [-f archive] ", stderr);
+	(void)fputs("usage: pax [-cdnOvz] [-E limit] [-f archive] ", stderr);
 	(void)fputs("[-s replstr] ... [-U user] ...", stderr);
 	(void)fputs("\n	   [-G group] ... ", stderr);
 	(void)fputs("[-T [from_date][,to_date]] ... ", stderr);
 	(void)fputs("[pattern ...]\n", stderr);
-	(void)fputs("       pax -r [-cdiknuvzDYZ] [-E limit] ", stderr);
+	(void)fputs("       pax -r [-cdiknOuvzDYZ] [-E limit] ", stderr);
 	(void)fputs("[-f archive] [-o options] ... \n", stderr);
 	(void)fputs("	   [-p string] ... [-s replstr] ... ", stderr);
 	(void)fputs("[-U user] ... [-G group] ...\n	   ", stderr);
 	(void)fputs("[-T [from_date][,to_date]] ... ", stderr);
 	(void)fputs(" [pattern ...]\n", stderr);
-	(void)fputs("       pax -w [-dituvzHLPX] [-b blocksize] ", stderr);
+	(void)fputs("       pax -w [-dituvzHLOPX] [-b blocksize] ", stderr);
 	(void)fputs("[ [-a] [-f archive] ] [-x format] \n", stderr);
 	(void)fputs("	   [-B bytes] [-s replstr] ... ", stderr);
 	(void)fputs("[-o options] ... [-U user] ...", stderr);
 	(void)fputs("\n	   [-G group] ... ", stderr);
 	(void)fputs("[-T [from_date][,to_date][/[c][m]]] ... ", stderr);
 	(void)fputs("[file ...]\n", stderr);
-	(void)fputs("       pax -r -w [-diklntuvDHLPXYZ] ", stderr);
+	(void)fputs("       pax -r -w [-diklntuvDHLOPXYZ] ", stderr);
 	(void)fputs("[-p string] ... [-s replstr] ...", stderr);
 	(void)fputs("\n	   [-U user] ... [-G group] ... ", stderr);
 	(void)fputs("[-T [from_date][,to_date][/[c][m]]] ... ", stderr);

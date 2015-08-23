@@ -165,13 +165,14 @@ static_inet()
 
 static_inet6()
 {
-	local _action _if _skip fibmod fibs
+	local _action _if _skip fibmod fibs allfibs
 	_action=$1
 	_if=$2
 
 	# get the number of FIBs supported.
 	fibs=$((`${SYSCTL_N} net.fibs` - 1))
-	if [ "$fibs" -gt 0 ]; then
+	allfibs=`${SYSCTL_N} net.add_addr_allfibs`
+	if [ "$fibs" -gt 0 ] && [ "$allfibs" -ne 0 ]; then
 		fibmod="-fib 0-$fibs"
 	else
 		fibmod=

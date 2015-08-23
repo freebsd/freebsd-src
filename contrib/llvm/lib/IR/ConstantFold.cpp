@@ -27,12 +27,14 @@
 #include "llvm/IR/GlobalVariable.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Operator.h"
+#include "llvm/IR/PatternMatch.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/MathExtras.h"
 #include <limits>
 using namespace llvm;
+using namespace llvm::PatternMatch;
 
 //===----------------------------------------------------------------------===//
 //                ConstantFold*Instruction Implementations
@@ -593,8 +595,13 @@ Constant *llvm::ConstantFoldCastInstruction(unsigned opc, Constant *V,
       bool ignored;
       uint64_t x[2]; 
       uint32_t DestBitWidth = cast<IntegerType>(DestTy)->getBitWidth();
-      (void) V.convertToInteger(x, DestBitWidth, opc==Instruction::FPToSI,
-                                APFloat::rmTowardZero, &ignored);
+      if (APFloat::opInvalidOp ==
+          V.convertToInteger(x, DestBitWidth, opc==Instruction::FPToSI,
+                             APFloat::rmTowardZero, &ignored)) {
+        // Undefined behavior invoked - the destination type can't represent
+        // the input constant.
+        return UndefValue::get(DestTy);
+      }
       APInt Val(DestBitWidth, x);
       return ConstantInt::get(FPC->getContext(), Val);
     }
@@ -653,9 +660,13 @@ Constant *llvm::ConstantFoldCastInstruction(unsigned opc, Constant *V,
       APInt api = CI->getValue();
       APFloat apf(DestTy->getFltSemantics(),
                   APInt::getNullValue(DestTy->getPrimitiveSizeInBits()));
-      (void)apf.convertFromAPInt(api, 
-                                 opc==Instruction::SIToFP,
-                                 APFloat::rmNearestTiesToEven);
+      if (APFloat::opOverflow &
+          apf.convertFromAPInt(api, opc==Instruction::SIToFP,
+                              APFloat::rmNearestTiesToEven)) {
+        // Undefined behavior invoked - the destination type can't represent
+        // the input constant.
+        return UndefValue::get(DestTy);
+      }
       return ConstantFP::get(V->getContext(), apf);
     }
     return nullptr;
@@ -674,6 +685,9 @@ Constant *llvm::ConstantFoldCastInstruction(unsigned opc, Constant *V,
     }
     return nullptr;
   case Instruction::Trunc: {
+    if (V->getType()->isVectorTy())
+      return nullptr;
+
     uint32_t DestBitWidth = cast<IntegerType>(DestTy)->getBitWidth();
     if (ConstantInt *CI = dyn_cast<ConstantInt>(V)) {
       return ConstantInt::get(V->getContext(),
@@ -901,49 +915,70 @@ Constant *llvm::ConstantFoldBinaryInstruction(unsigned Opcode,
         return C1;
       return Constant::getNullValue(C1->getType());   // undef & X -> 0
     case Instruction::Mul: {
-      ConstantInt *CI;
-      // X * undef -> undef   if X is odd or undef
-      if (((CI = dyn_cast<ConstantInt>(C1)) && CI->getValue()[0]) ||
-          ((CI = dyn_cast<ConstantInt>(C2)) && CI->getValue()[0]) ||
-          (isa<UndefValue>(C1) && isa<UndefValue>(C2)))
-        return UndefValue::get(C1->getType());
+      // undef * undef -> undef
+      if (isa<UndefValue>(C1) && isa<UndefValue>(C2))
+        return C1;
+      const APInt *CV;
+      // X * undef -> undef   if X is odd
+      if (match(C1, m_APInt(CV)) || match(C2, m_APInt(CV)))
+        if ((*CV)[0])
+          return UndefValue::get(C1->getType());
 
       // X * undef -> 0       otherwise
       return Constant::getNullValue(C1->getType());
     }
-    case Instruction::UDiv:
     case Instruction::SDiv:
+    case Instruction::UDiv:
+      // X / undef -> undef
+      if (match(C1, m_Zero()))
+        return C2;
+      // undef / 0 -> undef
       // undef / 1 -> undef
-      if (Opcode == Instruction::UDiv || Opcode == Instruction::SDiv)
-        if (ConstantInt *CI2 = dyn_cast<ConstantInt>(C2))
-          if (CI2->isOne())
-            return C1;
-      // FALL THROUGH
+      if (match(C2, m_Zero()) || match(C2, m_One()))
+        return C1;
+      // undef / X -> 0       otherwise
+      return Constant::getNullValue(C1->getType());
     case Instruction::URem:
     case Instruction::SRem:
-      if (!isa<UndefValue>(C2))                    // undef / X -> 0
-        return Constant::getNullValue(C1->getType());
-      return C2;                                   // X / undef -> undef
+      // X % undef -> undef
+      if (match(C2, m_Undef()))
+        return C2;
+      // undef % 0 -> undef
+      if (match(C2, m_Zero()))
+        return C1;
+      // undef % X -> 0       otherwise
+      return Constant::getNullValue(C1->getType());
     case Instruction::Or:                          // X | undef -> -1
       if (isa<UndefValue>(C1) && isa<UndefValue>(C2)) // undef | undef -> undef
         return C1;
       return Constant::getAllOnesValue(C1->getType()); // undef | X -> ~0
     case Instruction::LShr:
-      if (isa<UndefValue>(C2) && isa<UndefValue>(C1))
-        return C1;                                  // undef lshr undef -> undef
-      return Constant::getNullValue(C1->getType()); // X lshr undef -> 0
-                                                    // undef lshr X -> 0
+      // X >>l undef -> undef
+      if (isa<UndefValue>(C2))
+        return C2;
+      // undef >>l 0 -> undef
+      if (match(C2, m_Zero()))
+        return C1;
+      // undef >>l X -> 0
+      return Constant::getNullValue(C1->getType());
     case Instruction::AShr:
-      if (!isa<UndefValue>(C2))                     // undef ashr X --> all ones
-        return Constant::getAllOnesValue(C1->getType());
-      else if (isa<UndefValue>(C1)) 
-        return C1;                                  // undef ashr undef -> undef
-      else
-        return C1;                                  // X ashr undef --> X
+      // X >>a undef -> undef
+      if (isa<UndefValue>(C2))
+        return C2;
+      // undef >>a 0 -> undef
+      if (match(C2, m_Zero()))
+        return C1;
+      // TODO: undef >>a X -> undef if the shift is exact
+      // undef >>a X -> 0
+      return Constant::getNullValue(C1->getType());
     case Instruction::Shl:
-      if (isa<UndefValue>(C2) && isa<UndefValue>(C1))
-        return C1;                                  // undef shl undef -> undef
-      // undef << X -> 0   or   X << undef -> 0
+      // X << undef -> undef
+      if (isa<UndefValue>(C2))
+        return C2;
+      // undef << 0 -> undef
+      if (match(C2, m_Zero()))
+        return C1;
+      // undef << X -> 0
       return Constant::getNullValue(C1->getType());
     }
   }
@@ -1085,27 +1120,18 @@ Constant *llvm::ConstantFoldBinaryInstruction(unsigned Opcode,
         return ConstantInt::get(CI1->getContext(), C1V | C2V);
       case Instruction::Xor:
         return ConstantInt::get(CI1->getContext(), C1V ^ C2V);
-      case Instruction::Shl: {
-        uint32_t shiftAmt = C2V.getZExtValue();
-        if (shiftAmt < C1V.getBitWidth())
-          return ConstantInt::get(CI1->getContext(), C1V.shl(shiftAmt));
-        else
-          return UndefValue::get(C1->getType()); // too big shift is undef
-      }
-      case Instruction::LShr: {
-        uint32_t shiftAmt = C2V.getZExtValue();
-        if (shiftAmt < C1V.getBitWidth())
-          return ConstantInt::get(CI1->getContext(), C1V.lshr(shiftAmt));
-        else
-          return UndefValue::get(C1->getType()); // too big shift is undef
-      }
-      case Instruction::AShr: {
-        uint32_t shiftAmt = C2V.getZExtValue();
-        if (shiftAmt < C1V.getBitWidth())
-          return ConstantInt::get(CI1->getContext(), C1V.ashr(shiftAmt));
-        else
-          return UndefValue::get(C1->getType()); // too big shift is undef
-      }
+      case Instruction::Shl:
+        if (C2V.ult(C1V.getBitWidth()))
+          return ConstantInt::get(CI1->getContext(), C1V.shl(C2V));
+        return UndefValue::get(C1->getType()); // too big shift is undef
+      case Instruction::LShr:
+        if (C2V.ult(C1V.getBitWidth()))
+          return ConstantInt::get(CI1->getContext(), C1V.lshr(C2V));
+        return UndefValue::get(C1->getType()); // too big shift is undef
+      case Instruction::AShr:
+        if (C2V.ult(C1V.getBitWidth()))
+          return ConstantInt::get(CI1->getContext(), C1V.ashr(C2V));
+        return UndefValue::get(C1->getType()); // too big shift is undef
       }
     }
 
@@ -1336,9 +1362,24 @@ static FCmpInst::Predicate evaluateFCmpRelation(Constant *V1, Constant *V2) {
 
 static ICmpInst::Predicate areGlobalsPotentiallyEqual(const GlobalValue *GV1,
                                                       const GlobalValue *GV2) {
+  auto isGlobalUnsafeForEquality = [](const GlobalValue *GV) {
+    if (GV->hasExternalWeakLinkage() || GV->hasWeakAnyLinkage())
+      return true;
+    if (const auto *GVar = dyn_cast<GlobalVariable>(GV)) {
+      Type *Ty = GVar->getType()->getPointerElementType();
+      // A global with opaque type might end up being zero sized.
+      if (!Ty->isSized())
+        return true;
+      // A global with an empty type might lie at the address of any other
+      // global.
+      if (Ty->isEmptyTy())
+        return true;
+    }
+    return false;
+  };
   // Don't try to decide equality of aliases.
   if (!isa<GlobalAlias>(GV1) && !isa<GlobalAlias>(GV2))
-    if (!GV1->hasExternalWeakLinkage() || !GV2->hasExternalWeakLinkage())
+    if (!isGlobalUnsafeForEquality(GV1) && !isGlobalUnsafeForEquality(GV2))
       return ICmpInst::ICMP_NE;
   return ICmpInst::BAD_ICMP_PREDICATE;
 }
@@ -2144,9 +2185,10 @@ static Constant *ConstantFoldGetElementPtrImpl(Constant *C,
 
   // If all indices are known integers and normalized, we can do a simple
   // check for the "inbounds" property.
-  if (!Unknown && !inBounds &&
-      isa<GlobalVariable>(C) && isInBoundsIndices(Idxs))
-    return ConstantExpr::getInBoundsGetElementPtr(C, Idxs);
+  if (!Unknown && !inBounds)
+    if (auto *GV = dyn_cast<GlobalVariable>(C))
+      if (!GV->hasExternalWeakLinkage() && isInBoundsIndices(Idxs))
+        return ConstantExpr::getInBoundsGetElementPtr(C, Idxs);
 
   return nullptr;
 }

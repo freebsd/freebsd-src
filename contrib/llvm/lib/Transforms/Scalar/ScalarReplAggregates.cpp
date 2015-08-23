@@ -23,6 +23,7 @@
 #include "llvm/ADT/SetVector.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/Statistic.h"
+#include "llvm/Analysis/AssumptionCache.h"
 #include "llvm/Analysis/Loads.h"
 #include "llvm/Analysis/ValueTracking.h"
 #include "llvm/IR/CallSite.h"
@@ -197,6 +198,7 @@ namespace {
     // getAnalysisUsage - This pass does not require any passes, but we know it
     // will not alter the CFG, so say so.
     void getAnalysisUsage(AnalysisUsage &AU) const override {
+      AU.addRequired<AssumptionCacheTracker>();
       AU.addRequired<DominatorTreeWrapperPass>();
       AU.setPreservesCFG();
     }
@@ -214,6 +216,7 @@ namespace {
     // getAnalysisUsage - This pass does not require any passes, but we know it
     // will not alter the CFG, so say so.
     void getAnalysisUsage(AnalysisUsage &AU) const override {
+      AU.addRequired<AssumptionCacheTracker>();
       AU.setPreservesCFG();
     }
   };
@@ -225,12 +228,14 @@ char SROA_SSAUp::ID = 0;
 
 INITIALIZE_PASS_BEGIN(SROA_DT, "scalarrepl",
                 "Scalar Replacement of Aggregates (DT)", false, false)
+INITIALIZE_PASS_DEPENDENCY(AssumptionCacheTracker)
 INITIALIZE_PASS_DEPENDENCY(DominatorTreeWrapperPass)
 INITIALIZE_PASS_END(SROA_DT, "scalarrepl",
                 "Scalar Replacement of Aggregates (DT)", false, false)
 
 INITIALIZE_PASS_BEGIN(SROA_SSAUp, "scalarrepl-ssa",
                       "Scalar Replacement of Aggregates (SSAUp)", false, false)
+INITIALIZE_PASS_DEPENDENCY(AssumptionCacheTracker)
 INITIALIZE_PASS_END(SROA_SSAUp, "scalarrepl-ssa",
                     "Scalar Replacement of Aggregates (SSAUp)", false, false)
 
@@ -1063,12 +1068,14 @@ public:
   void run(AllocaInst *AI, const SmallVectorImpl<Instruction*> &Insts) {
     // Remember which alloca we're promoting (for isInstInList).
     this->AI = AI;
-    if (MDNode *DebugNode = MDNode::getIfExists(AI->getContext(), AI)) {
-      for (User *U : DebugNode->users())
-        if (DbgDeclareInst *DDI = dyn_cast<DbgDeclareInst>(U))
-          DDIs.push_back(DDI);
-        else if (DbgValueInst *DVI = dyn_cast<DbgValueInst>(U))
-          DVIs.push_back(DVI);
+    if (auto *L = LocalAsMetadata::getIfExists(AI)) {
+      if (auto *DebugNode = MetadataAsValue::getIfExists(AI->getContext(), L)) {
+        for (User *U : DebugNode->users())
+          if (DbgDeclareInst *DDI = dyn_cast<DbgDeclareInst>(U))
+            DDIs.push_back(DDI);
+          else if (DbgValueInst *DVI = dyn_cast<DbgValueInst>(U))
+            DVIs.push_back(DVI);
+      }
     }
 
     LoadAndStorePromoter::run(Insts);
@@ -1119,9 +1126,9 @@ public:
       } else {
         continue;
       }
-      Instruction *DbgVal =
-        DIB->insertDbgValueIntrinsic(Arg, 0, DIVariable(DVI->getVariable()),
-                                     Inst);
+      Instruction *DbgVal = DIB->insertDbgValueIntrinsic(
+          Arg, 0, DIVariable(DVI->getVariable()),
+          DIExpression(DVI->getExpression()), Inst);
       DbgVal->setDebugLoc(DVI->getDebugLoc());
     }
   }
@@ -1333,12 +1340,15 @@ static bool tryToMakeAllocaBePromotable(AllocaInst *AI, const DataLayout *DL) {
         LoadInst *FalseLoad =
           Builder.CreateLoad(SI->getFalseValue(), LI->getName()+".f");
 
-        // Transfer alignment and TBAA info if present.
+        // Transfer alignment and AA info if present.
         TrueLoad->setAlignment(LI->getAlignment());
         FalseLoad->setAlignment(LI->getAlignment());
-        if (MDNode *Tag = LI->getMetadata(LLVMContext::MD_tbaa)) {
-          TrueLoad->setMetadata(LLVMContext::MD_tbaa, Tag);
-          FalseLoad->setMetadata(LLVMContext::MD_tbaa, Tag);
+
+        AAMDNodes Tags;
+        LI->getAAMetadata(Tags);
+        if (Tags) {
+          TrueLoad->setAAMetadata(Tags);
+          FalseLoad->setAAMetadata(Tags);
         }
 
         Value *V = Builder.CreateSelect(SI->getCondition(), TrueLoad, FalseLoad);
@@ -1364,10 +1374,12 @@ static bool tryToMakeAllocaBePromotable(AllocaInst *AI, const DataLayout *DL) {
     PHINode *NewPN = PHINode::Create(LoadTy, PN->getNumIncomingValues(),
                                      PN->getName()+".ld", PN);
 
-    // Get the TBAA tag and alignment to use from one of the loads.  It doesn't
+    // Get the AA tags and alignment to use from one of the loads.  It doesn't
     // matter which one we get and if any differ, it doesn't matter.
     LoadInst *SomeLoad = cast<LoadInst>(PN->user_back());
-    MDNode *TBAATag = SomeLoad->getMetadata(LLVMContext::MD_tbaa);
+
+    AAMDNodes AATags;
+    SomeLoad->getAAMetadata(AATags);
     unsigned Align = SomeLoad->getAlignment();
 
     // Rewrite all loads of the PN to use the new PHI.
@@ -1389,7 +1401,7 @@ static bool tryToMakeAllocaBePromotable(AllocaInst *AI, const DataLayout *DL) {
                             PN->getName() + "." + Pred->getName(),
                             Pred->getTerminator());
         Load->setAlignment(Align);
-        if (TBAATag) Load->setMetadata(LLVMContext::MD_tbaa, TBAATag);
+        if (AATags) Load->setAAMetadata(AATags);
       }
 
       NewPN->addIncoming(Load, Pred);
@@ -1407,9 +1419,11 @@ bool SROA::performPromotion(Function &F) {
   DominatorTree *DT = nullptr;
   if (HasDomTree)
     DT = &getAnalysis<DominatorTreeWrapperPass>().getDomTree();
+  AssumptionCache &AC =
+      getAnalysis<AssumptionCacheTracker>().getAssumptionCache(F);
 
   BasicBlock &BB = F.getEntryBlock();  // Get the entry node for the function
-  DIBuilder DIB(*F.getParent());
+  DIBuilder DIB(*F.getParent(), /*AllowUnresolved*/ false);
   bool Changed = false;
   SmallVector<Instruction*, 64> Insts;
   while (1) {
@@ -1425,7 +1439,7 @@ bool SROA::performPromotion(Function &F) {
     if (Allocas.empty()) break;
 
     if (HasDomTree)
-      PromoteMemToReg(Allocas, *DT);
+      PromoteMemToReg(Allocas, *DT, nullptr, &AC);
     else {
       SSAUpdater SSA;
       for (unsigned i = 0, e = Allocas.size(); i != e; ++i) {
@@ -1658,7 +1672,7 @@ void SROA::isSafePHISelectUseForScalarRepl(Instruction *I, uint64_t Offset,
                                            AllocaInfo &Info) {
   // If we've already checked this PHI, don't do it again.
   if (PHINode *PN = dyn_cast<PHINode>(I))
-    if (!Info.CheckedPHIs.insert(PN))
+    if (!Info.CheckedPHIs.insert(PN).second)
       return;
 
   for (User *U : I->users()) {

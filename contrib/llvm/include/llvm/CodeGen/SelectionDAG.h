@@ -16,9 +16,11 @@
 #define LLVM_CODEGEN_SELECTIONDAG_H
 
 #include "llvm/ADT/DenseSet.h"
+#include "llvm/ADT/SetVector.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/ilist.h"
 #include "llvm/CodeGen/DAGCombine.h"
+#include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/SelectionDAGNodes.h"
 #include "llvm/Support/RecyclingAllocator.h"
 #include "llvm/Target/TargetMachine.h"
@@ -170,7 +172,7 @@ void checkForCycles(const SelectionDAG *DAG, bool force = false);
 ///
 class SelectionDAG {
   const TargetMachine &TM;
-  const TargetSelectionDAGInfo &TSI;
+  const TargetSelectionDAGInfo *TSI;
   const TargetLowering *TLI;
   MachineFunction *MF;
   LLVMContext *Context;
@@ -270,7 +272,7 @@ public:
   /// init - Prepare this SelectionDAG to process code in the given
   /// MachineFunction.
   ///
-  void init(MachineFunction &mf, const TargetLowering *TLI);
+  void init(MachineFunction &mf);
 
   /// clear - Clear state and free memory necessary to make this
   /// SelectionDAG ready to process a new block.
@@ -279,8 +281,9 @@ public:
 
   MachineFunction &getMachineFunction() const { return *MF; }
   const TargetMachine &getTarget() const { return TM; }
+  const TargetSubtargetInfo &getSubtarget() const { return MF->getSubtarget(); }
   const TargetLowering &getTargetLoweringInfo() const { return *TLI; }
-  const TargetSelectionDAGInfo &getSelectionDAGInfo() const { return TSI; }
+  const TargetSelectionDAGInfo &getSelectionDAGInfo() const { return *TSI; }
   LLVMContext *getContext() const {return Context; }
 
   /// viewGraph - Pop up a GraphViz/gv window with the DAG rendered using 'dot'.
@@ -367,6 +370,27 @@ public:
   /// Note that this is an involved process that may invalidate pointers into
   /// the graph.
   void Legalize();
+
+  /// \brief Transforms a SelectionDAG node and any operands to it into a node
+  /// that is compatible with the target instruction selector, as indicated by
+  /// the TargetLowering object.
+  ///
+  /// \returns true if \c N is a valid, legal node after calling this.
+  ///
+  /// This essentially runs a single recursive walk of the \c Legalize process
+  /// over the given node (and its operands). This can be used to incrementally
+  /// legalize the DAG. All of the nodes which are directly replaced,
+  /// potentially including N, are added to the output parameter \c
+  /// UpdatedNodes so that the delta to the DAG can be understood by the
+  /// caller.
+  ///
+  /// When this returns false, N has been legalized in a way that make the
+  /// pointer passed in no longer valid. It may have even been deleted from the
+  /// DAG, and so it shouldn't be used further. When this returns true, the
+  /// N passed in is a legal node, and can be immediately processed as such.
+  /// This may still have done some work on the DAG, and will still populate
+  /// UpdatedNodes with any new nodes replacing those originally in the DAG.
+  bool LegalizeOp(SDNode *N, SmallSetVector<SDNode *, 16> &UpdatedNodes);
 
   /// LegalizeVectors - This transforms the SelectionDAG into a SelectionDAG
   /// that only uses vector math operations supported by the target.  This is
@@ -729,7 +753,7 @@ public:
                    SDValue SV, unsigned Align);
 
   /// getAtomicCmpSwap - Gets a node for an atomic cmpxchg op. There are two
-  /// valid Opcodes. ISD::ATOMIC_CMO_SWAP produces a the value loaded and a
+  /// valid Opcodes. ISD::ATOMIC_CMO_SWAP produces the value loaded and a
   /// chain result. ISD::ATOMIC_CMP_SWAP_WITH_SUCCESS produces the value loaded,
   /// a success flag (initially i1), and a chain.
   SDValue getAtomicCmpSwap(unsigned Opcode, SDLoc dl, EVT MemVT, SDVTList VTs,
@@ -782,7 +806,8 @@ public:
                               ArrayRef<SDValue> Ops,
                               EVT MemVT, MachinePointerInfo PtrInfo,
                               unsigned Align = 0, bool Vol = false,
-                              bool ReadMem = true, bool WriteMem = true);
+                              bool ReadMem = true, bool WriteMem = true,
+                              unsigned Size = 0);
 
   SDValue getMemIntrinsicNode(unsigned Opcode, SDLoc dl, SDVTList VTList,
                               ArrayRef<SDValue> Ops,
@@ -797,15 +822,15 @@ public:
   SDValue getLoad(EVT VT, SDLoc dl, SDValue Chain, SDValue Ptr,
                   MachinePointerInfo PtrInfo, bool isVolatile,
                   bool isNonTemporal, bool isInvariant, unsigned Alignment,
-                  const MDNode *TBAAInfo = nullptr,
+                  const AAMDNodes &AAInfo = AAMDNodes(),
                   const MDNode *Ranges = nullptr);
   SDValue getLoad(EVT VT, SDLoc dl, SDValue Chain, SDValue Ptr,
                   MachineMemOperand *MMO);
   SDValue getExtLoad(ISD::LoadExtType ExtType, SDLoc dl, EVT VT,
                      SDValue Chain, SDValue Ptr, MachinePointerInfo PtrInfo,
                      EVT MemVT, bool isVolatile,
-                     bool isNonTemporal, unsigned Alignment,
-                     const MDNode *TBAAInfo = nullptr);
+                     bool isNonTemporal, bool isInvariant, unsigned Alignment,
+                     const AAMDNodes &AAInfo = AAMDNodes());
   SDValue getExtLoad(ISD::LoadExtType ExtType, SDLoc dl, EVT VT,
                      SDValue Chain, SDValue Ptr, EVT MemVT,
                      MachineMemOperand *MMO);
@@ -816,7 +841,7 @@ public:
                   SDValue Chain, SDValue Ptr, SDValue Offset,
                   MachinePointerInfo PtrInfo, EVT MemVT,
                   bool isVolatile, bool isNonTemporal, bool isInvariant,
-                  unsigned Alignment, const MDNode *TBAAInfo = nullptr,
+                  unsigned Alignment, const AAMDNodes &AAInfo = AAMDNodes(),
                   const MDNode *Ranges = nullptr);
   SDValue getLoad(ISD::MemIndexedMode AM, ISD::LoadExtType ExtType,
                   EVT VT, SDLoc dl,
@@ -828,19 +853,25 @@ public:
   SDValue getStore(SDValue Chain, SDLoc dl, SDValue Val, SDValue Ptr,
                    MachinePointerInfo PtrInfo, bool isVolatile,
                    bool isNonTemporal, unsigned Alignment,
-                   const MDNode *TBAAInfo = nullptr);
+                   const AAMDNodes &AAInfo = AAMDNodes());
   SDValue getStore(SDValue Chain, SDLoc dl, SDValue Val, SDValue Ptr,
                    MachineMemOperand *MMO);
   SDValue getTruncStore(SDValue Chain, SDLoc dl, SDValue Val, SDValue Ptr,
                         MachinePointerInfo PtrInfo, EVT TVT,
                         bool isNonTemporal, bool isVolatile,
                         unsigned Alignment,
-                        const MDNode *TBAAInfo = nullptr);
+                        const AAMDNodes &AAInfo = AAMDNodes());
   SDValue getTruncStore(SDValue Chain, SDLoc dl, SDValue Val, SDValue Ptr,
                         EVT TVT, MachineMemOperand *MMO);
   SDValue getIndexedStore(SDValue OrigStoe, SDLoc dl, SDValue Base,
                            SDValue Offset, ISD::MemIndexedMode AM);
 
+  SDValue getMaskedLoad(EVT VT, SDLoc dl, SDValue Chain, SDValue Ptr,
+                        SDValue Mask, SDValue Src0, EVT MemVT,
+                        MachineMemOperand *MMO, ISD::LoadExtType);
+  SDValue getMaskedStore(SDValue Chain, SDLoc dl, SDValue Val,
+                         SDValue Ptr, SDValue Mask, EVT MemVT,
+                         MachineMemOperand *MMO, bool IsTrunc);
   /// getSrcValue - Construct a node to track a Value* through the backend.
   SDValue getSrcValue(const Value *v);
 
@@ -963,15 +994,18 @@ public:
 
   /// getDbgValue - Creates a SDDbgValue node.
   ///
-  SDDbgValue *getDbgValue(MDNode *MDPtr, SDNode *N, unsigned R,
-			  bool IsIndirect, uint64_t Off,
-                          DebugLoc DL, unsigned O);
-  /// Constant.
-  SDDbgValue *getConstantDbgValue(MDNode *MDPtr, const Value *C, uint64_t Off,
-				  DebugLoc DL, unsigned O);
-  /// Frame index.
-  SDDbgValue *getFrameIndexDbgValue(MDNode *MDPtr, unsigned FI, uint64_t Off,
-				    DebugLoc DL, unsigned O);
+  /// SDNode
+  SDDbgValue *getDbgValue(MDNode *Var, MDNode *Expr, SDNode *N, unsigned R,
+                          bool IsIndirect, uint64_t Off, DebugLoc DL,
+                          unsigned O);
+
+  /// Constant
+  SDDbgValue *getConstantDbgValue(MDNode *Var, MDNode *Expr, const Value *C,
+                                  uint64_t Off, DebugLoc DL, unsigned O);
+
+  /// FrameIndex
+  SDDbgValue *getFrameIndexDbgValue(MDNode *Var, MDNode *Expr, unsigned FI,
+                                    uint64_t Off, DebugLoc DL, unsigned O);
 
   /// RemoveDeadNode - Remove the specified node from the system. If any of its
   /// operands then becomes dead, remove them as well. Inform UpdateListener
@@ -1043,7 +1077,10 @@ public:
     case ISD::SADDO:
     case ISD::UADDO:
     case ISD::ADDC:
-    case ISD::ADDE: return true;
+    case ISD::ADDE:
+    case ISD::FMINNUM:
+    case ISD::FMAXNUM:
+      return true;
     default: return false;
     }
   }
@@ -1202,6 +1239,7 @@ public:
   unsigned getEVTAlignment(EVT MemoryVT) const;
 
 private:
+  void InsertNode(SDNode *N);
   bool RemoveNodeFromCSEMaps(SDNode *N);
   void AddModifiedNodeToCSEMaps(SDNode *N);
   SDNode *FindModifiedNodeSlot(SDNode *N, SDValue Op, void *&InsertPos);

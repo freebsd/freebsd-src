@@ -19,6 +19,22 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 
+/*
+ * txtproto_print() derived from original code by Hannes Gredler
+ * (hannes@juniper.net):
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that: (1) source code
+ * distributions retain the above copyright notice and this paragraph
+ * in its entirety, and (2) distributions including binary code include
+ * the above copyright notice and this paragraph in its entirety in
+ * the documentation or other materials provided with the distribution.
+ * THIS SOFTWARE IS PROVIDED ``AS IS'' AND
+ * WITHOUT ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, WITHOUT
+ * LIMITATION, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+ * FOR A PARTICULAR PURPOSE.
+ */
+
 #define NETDISSECT_REWORKED
 #ifdef HAVE_CONFIG_H
 #include "config.h"
@@ -135,7 +151,11 @@ fn_printzp(netdissect_options *ndo,
  * Format the timestamp
  */
 static char *
-ts_format(netdissect_options *ndo, int sec, int usec)
+ts_format(netdissect_options *ndo
+#ifndef HAVE_PCAP_SET_TSTAMP_PRECISION
+_U_
+#endif
+, int sec, int usec)
 {
 	static char buf[sizeof("00:00:00.000000000")];
 	const char *format;
@@ -317,7 +337,7 @@ tok2strbuf(register const struct tok *lp, register const char *fmt,
  */
 const char *
 tok2str(register const struct tok *lp, register const char *fmt,
-	register int v)
+	register u_int v)
 {
 	static char buf[4][128];
 	static int idx = 0;
@@ -335,12 +355,12 @@ tok2str(register const struct tok *lp, register const char *fmt,
  */
 static char *
 bittok2str_internal(register const struct tok *lp, register const char *fmt,
-	   register int v, register int sep)
+	   register u_int v, const char *sep)
 {
         static char buf[256]; /* our stringbuffer */
         int buflen=0;
-        register int rotbit; /* this is the bit we rotate through all bitpositions */
-        register int tokval;
+        register u_int rotbit; /* this is the bit we rotate through all bitpositions */
+        register u_int tokval;
         const char * sepstr = "";
 
 	while (lp != NULL && lp->s != NULL) {
@@ -355,7 +375,7 @@ bittok2str_internal(register const struct tok *lp, register const char *fmt,
                     /* ok we have found something */
                     buflen+=snprintf(buf+buflen, sizeof(buf)-buflen, "%s%s",
                                      sepstr, lp->s);
-                    sepstr = sep ? ", " : "";
+                    sepstr = sep;
                     break;
                 }
                 rotbit=rotbit<<1; /* no match - lets shift and try again */
@@ -365,7 +385,7 @@ bittok2str_internal(register const struct tok *lp, register const char *fmt,
 
         if (buflen == 0)
             /* bummer - lets print the "unknown" message as advised in the fmt string if we got one */
-            (void)snprintf(buf, sizeof(buf), fmt == NULL ? "#%d" : fmt, v);
+            (void)snprintf(buf, sizeof(buf), fmt == NULL ? "#%08x" : fmt, v);
         return (buf);
 }
 
@@ -375,9 +395,9 @@ bittok2str_internal(register const struct tok *lp, register const char *fmt,
  */
 char *
 bittok2str_nosep(register const struct tok *lp, register const char *fmt,
-	   register int v)
+	   register u_int v)
 {
-    return (bittok2str_internal(lp, fmt, v, 0));
+    return (bittok2str_internal(lp, fmt, v, ""));
 }
 
 /*
@@ -386,9 +406,9 @@ bittok2str_nosep(register const struct tok *lp, register const char *fmt,
  */
 char *
 bittok2str(register const struct tok *lp, register const char *fmt,
-	   register int v)
+	   register u_int v)
 {
-    return (bittok2str_internal(lp, fmt, v, 1));
+    return (bittok2str_internal(lp, fmt, v, ", "));
 }
 
 /*
@@ -470,6 +490,249 @@ mask62plen(const u_char *mask)
 	return (cidr_len);
 }
 #endif /* INET6 */
+
+/*
+ * Routine to print out information for text-based protocols such as FTP,
+ * HTTP, SMTP, RTSP, SIP, ....
+ */
+#define MAX_TOKEN	128
+
+/*
+ * Fetch a token from a packet, starting at the specified index,
+ * and return the length of the token.
+ *
+ * Returns 0 on error; yes, this is indistinguishable from an empty
+ * token, but an "empty token" isn't a valid token - it just means
+ * either a space character at the beginning of the line (this
+ * includes a blank line) or no more tokens remaining on the line.
+ */
+static int
+fetch_token(netdissect_options *ndo, const u_char *pptr, u_int idx, u_int len,
+    u_char *tbuf, size_t tbuflen)
+{
+	size_t toklen = 0;
+
+	for (; idx < len; idx++) {
+		if (!ND_TTEST(*(pptr + idx))) {
+			/* ran past end of captured data */
+			return (0);
+		}
+		if (!isascii(*(pptr + idx))) {
+			/* not an ASCII character */
+			return (0);
+		}
+		if (isspace(*(pptr + idx))) {
+			/* end of token */
+			break;
+		}
+		if (!isprint(*(pptr + idx))) {
+			/* not part of a command token or response code */
+			return (0);
+		}
+		if (toklen + 2 > tbuflen) {
+			/* no room for this character and terminating '\0' */
+			return (0);
+		}
+		tbuf[toklen] = *(pptr + idx);
+		toklen++;
+	}
+	if (toklen == 0) {
+		/* no token */
+		return (0);
+	}
+	tbuf[toklen] = '\0';
+
+	/*
+	 * Skip past any white space after the token, until we see
+	 * an end-of-line (CR or LF).
+	 */
+	for (; idx < len; idx++) {
+		if (!ND_TTEST(*(pptr + idx))) {
+			/* ran past end of captured data */
+			break;
+		}
+		if (*(pptr + idx) == '\r' || *(pptr + idx) == '\n') {
+			/* end of line */
+			break;
+		}
+		if (!isascii(*(pptr + idx)) || !isprint(*(pptr + idx))) {
+			/* not a printable ASCII character */
+			break;
+		}
+		if (!isspace(*(pptr + idx))) {
+			/* beginning of next token */
+			break;
+		}
+	}
+	return (idx);
+}
+
+/*
+ * Scan a buffer looking for a line ending - LF or CR-LF.
+ * Return the index of the character after the line ending or 0 if
+ * we encounter a non-ASCII or non-printable character or don't find
+ * the line ending.
+ */
+static u_int
+print_txt_line(netdissect_options *ndo, const char *protoname,
+    const char *prefix, const u_char *pptr, u_int idx, u_int len)
+{
+	u_int startidx;
+	u_int linelen;
+
+	startidx = idx;
+	while (idx < len) {
+		ND_TCHECK(*(pptr+idx));
+		if (*(pptr+idx) == '\n') {
+			/*
+			 * LF without CR; end of line.
+			 * Skip the LF and print the line, with the
+			 * exception of the LF.
+			 */
+			linelen = idx - startidx;
+			idx++;
+			goto print;
+		} else if (*(pptr+idx) == '\r') {
+			/* CR - any LF? */
+			if ((idx+1) >= len) {
+				/* not in this packet */
+				return (0);
+			}
+			ND_TCHECK(*(pptr+idx+1));
+			if (*(pptr+idx+1) == '\n') {
+				/*
+				 * CR-LF; end of line.
+				 * Skip the CR-LF and print the line, with
+				 * the exception of the CR-LF.
+				 */
+				linelen = idx - startidx;
+				idx += 2;
+				goto print;
+			}
+
+			/*
+			 * CR followed by something else; treat this
+			 * as if it were binary data, and don't print
+			 * it.
+			 */
+			return (0);
+		} else if (!isascii(*(pptr+idx)) ||
+		    (!isprint(*(pptr+idx)) && *(pptr+idx) != '\t')) {
+			/*
+			 * Not a printable ASCII character and not a tab;
+			 * treat this as if it were binary data, and
+			 * don't print it.
+			 */
+			return (0);
+		}
+		idx++;
+	}
+
+	/*
+	 * All printable ASCII, but no line ending after that point
+	 * in the buffer; treat this as if it were truncated.
+	 */
+trunc:
+	linelen = idx - startidx;
+	ND_PRINT((ndo, "%s%.*s[!%s]", prefix, (int)linelen, pptr + startidx,
+	    protoname));
+	return (0);
+
+print:
+	ND_PRINT((ndo, "%s%.*s", prefix, (int)linelen, pptr + startidx));
+	return (idx);
+}
+
+void
+txtproto_print(netdissect_options *ndo, const u_char *pptr, u_int len,
+    const char *protoname, const char **cmds, u_int flags)
+{
+	u_int idx, eol;
+	u_char token[MAX_TOKEN+1];
+	const char *cmd;
+	int is_reqresp = 0;
+	const char *pnp;
+
+	if (cmds != NULL) {
+		/*
+		 * This protocol has more than just request and
+		 * response lines; see whether this looks like a
+		 * request or response.
+		 */
+		idx = fetch_token(ndo, pptr, 0, len, token, sizeof(token));
+		if (idx != 0) {
+			/* Is this a valid request name? */
+			while ((cmd = *cmds++) != NULL) {
+				if (strcasecmp((const char *)token, cmd) == 0) {
+					/* Yes. */
+					is_reqresp = 1;
+					break;
+				}
+			}
+
+			/*
+			 * No - is this a valid response code (3 digits)?
+			 *
+			 * Is this token the response code, or is the next
+			 * token the response code?
+			 */
+			if (flags & RESP_CODE_SECOND_TOKEN) {
+				/*
+				 * Next token - get it.
+				 */
+				idx = fetch_token(ndo, pptr, idx, len, token,
+				    sizeof(token));
+			}
+			if (idx != 0) {
+				if (isdigit(token[0]) && isdigit(token[1]) &&
+				    isdigit(token[2]) && token[3] == '\0') {
+					/* Yes. */
+					is_reqresp = 1;
+				}
+			}
+		}
+	} else {
+		/*
+		 * This protocol has only request and response lines
+		 * (e.g., FTP, where all the data goes over a
+		 * different connection); assume the payload is
+		 * a request or response.
+		 */
+		is_reqresp = 1;
+	}
+
+	/* Capitalize the protocol name */
+	for (pnp = protoname; *pnp != '\0'; pnp++)
+		ND_PRINT((ndo, "%c", toupper(*pnp)));
+
+	if (is_reqresp) {
+		/*
+		 * In non-verbose mode, just print the protocol, followed
+		 * by the first line as the request or response info.
+		 *
+		 * In verbose mode, print lines as text until we run out
+		 * of characters or see something that's not a
+		 * printable-ASCII line.
+		 */
+		if (ndo->ndo_vflag) {
+			/*
+			 * We're going to print all the text lines in the
+			 * request or response; just print the length
+			 * on the first line of the output.
+			 */
+			ND_PRINT((ndo, ", length: %u", len));
+			for (idx = 0;
+			    idx < len && (eol = print_txt_line(ndo, protoname, "\n\t", pptr, idx, len)) != 0;
+			    idx = eol)
+				;
+		} else {
+			/*
+			 * Just print the first text line.
+			 */
+			print_txt_line(ndo, protoname, ": ", pptr, 0, len);
+		}
+	}
+}
 
 /* VARARGS */
 void

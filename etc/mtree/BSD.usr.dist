@@ -7,12 +7,26 @@
 .
     bin
     ..
-    games
-    ..
     include
+        private
+            bsdstat
+            ..
+            ucl
+            ..
+        ..
     ..
     lib
         aout
+        ..
+        clang
+            3.6.1
+                include
+                ..
+                lib
+                    freebsd
+                    ..
+                ..
+            ..
         ..
         compat
             aout
@@ -24,15 +38,11 @@
         ..
         i18n
         ..
-        private
-        ..
     ..
     lib32
         dtrace
         ..
         i18n
-        ..
-        private
         ..
     ..
     libdata
@@ -175,8 +185,6 @@
             ..
             atm
             ..
-            binutils
-            ..
             legal
                 intel_ipw
                 ..
@@ -192,6 +200,20 @@
             ncurses
             ..
             ntp
+                drivers
+                    icons
+                    ..
+                    scripts
+                    ..
+                ..
+                hints
+                ..
+                icons
+                ..
+                pic
+                ..
+                scripts
+                ..
             ..
             papers
             ..
@@ -271,14 +293,6 @@
                 06.bc
                 ..
                 07.mail
-                ..
-                10.exref
-                ..
-                11.edit
-                ..
-                12.vi
-                ..
-                13.viref
                 ..
                 18.msdiffs
                 ..
@@ -408,6 +422,8 @@
                 ..
             ..
             tcsh
+            ..
+            uefisign
             ..
         ..
         games

@@ -41,6 +41,7 @@
 #include "llvm/Support/ToolOutputFile.h"
 #include "llvm/Target/TargetLibraryInfo.h"
 #include "llvm/Target/TargetMachine.h"
+#include "llvm/Target/TargetSubtargetInfo.h"
 #include <memory>
 using namespace llvm;
 
@@ -94,32 +95,20 @@ static cl::opt<bool> AsmVerbose("asm-verbose",
 
 static int compileModule(char **, LLVMContext &);
 
-// GetFileNameRoot - Helper function to get the basename of a filename.
-static inline std::string
-GetFileNameRoot(const std::string &InputFilename) {
-  std::string IFN = InputFilename;
-  std::string outputFilename;
-  int Len = IFN.length();
-  if ((Len > 2) &&
-      IFN[Len-3] == '.' &&
-      ((IFN[Len-2] == 'b' && IFN[Len-1] == 'c') ||
-       (IFN[Len-2] == 'l' && IFN[Len-1] == 'l'))) {
-    outputFilename = std::string(IFN.begin(), IFN.end()-3); // s/.bc/.s/
-  } else {
-    outputFilename = IFN;
-  }
-  return outputFilename;
-}
-
-static tool_output_file *GetOutputStream(const char *TargetName,
-                                         Triple::OSType OS,
-                                         const char *ProgName) {
+static std::unique_ptr<tool_output_file>
+GetOutputStream(const char *TargetName, Triple::OSType OS,
+                const char *ProgName) {
   // If we don't yet have an output filename, make one.
   if (OutputFilename.empty()) {
     if (InputFilename == "-")
       OutputFilename = "-";
     else {
-      OutputFilename = GetFileNameRoot(InputFilename);
+      // If InputFilename ends in .bc or .ll, remove it.
+      StringRef IFN = InputFilename;
+      if (IFN.endswith(".bc") || IFN.endswith(".ll"))
+        OutputFilename = IFN.drop_back(3);
+      else
+        OutputFilename = IFN;
 
       switch (FileType) {
       case TargetMachine::CGFT_AssemblyFile:
@@ -158,15 +147,14 @@ static tool_output_file *GetOutputStream(const char *TargetName,
   }
 
   // Open the file.
-  std::string error;
+  std::error_code EC;
   sys::fs::OpenFlags OpenFlags = sys::fs::F_None;
   if (!Binary)
     OpenFlags |= sys::fs::F_Text;
-  tool_output_file *FDOut = new tool_output_file(OutputFilename.c_str(), error,
-                                                 OpenFlags);
-  if (!error.empty()) {
-    errs() << error << '\n';
-    delete FDOut;
+  auto FDOut = llvm::make_unique<tool_output_file>(OutputFilename, EC,
+                                                   OpenFlags);
+  if (EC) {
+    errs() << EC.message() << '\n';
     return nullptr;
   }
 
@@ -217,7 +205,6 @@ static int compileModule(char **argv, LLVMContext &Context) {
   // Load the module to be compiled...
   SMDiagnostic Err;
   std::unique_ptr<Module> M;
-  Module *mod = nullptr;
   Triple TheTriple;
 
   bool SkipModule = MCPU == "help" ||
@@ -231,17 +218,16 @@ static int compileModule(char **argv, LLVMContext &Context) {
 
   // If user just wants to list available options, skip module loading
   if (!SkipModule) {
-    M.reset(ParseIRFile(InputFilename, Err, Context));
-    mod = M.get();
-    if (mod == nullptr) {
+    M = parseIRFile(InputFilename, Err, Context);
+    if (!M) {
       Err.print(argv[0], errs());
       return 1;
     }
 
     // If we are supposed to override the target triple, do so now.
     if (!TargetTriple.empty())
-      mod->setTargetTriple(Triple::normalize(TargetTriple));
-    TheTriple = Triple(mod->getTargetTriple());
+      M->setTargetTriple(Triple::normalize(TargetTriple));
+    TheTriple = Triple(M->getTargetTriple());
   } else {
     TheTriple = Triple(Triple::normalize(TargetTriple));
   }
@@ -285,10 +271,10 @@ static int compileModule(char **argv, LLVMContext &Context) {
   Options.MCOptions.MCUseDwarfDirectory = EnableDwarfDirectory;
   Options.MCOptions.AsmVerbose = AsmVerbose;
 
-  std::unique_ptr<TargetMachine> target(
+  std::unique_ptr<TargetMachine> Target(
       TheTarget->createTargetMachine(TheTriple.getTriple(), MCPU, FeaturesStr,
                                      Options, RelocModel, CMModel, OLvl));
-  assert(target.get() && "Could not allocate target machine!");
+  assert(Target && "Could not allocate target machine!");
 
   // If we don't have a module then just exit now. We do this down
   // here since the CPU/Feature help is underneath the target machine
@@ -296,15 +282,14 @@ static int compileModule(char **argv, LLVMContext &Context) {
   if (SkipModule)
     return 0;
 
-  assert(mod && "Should have exited if we didn't have a module!");
-  TargetMachine &Target = *target.get();
+  assert(M && "Should have exited if we didn't have a module!");
 
   if (GenerateSoftFloatCalls)
     FloatABIForCalls = FloatABI::Soft;
 
   // Figure out where we are going to send the output.
-  std::unique_ptr<tool_output_file> Out(
-      GetOutputStream(TheTarget->getName(), TheTriple.getOS(), argv[0]));
+  std::unique_ptr<tool_output_file> Out =
+      GetOutputStream(TheTarget->getName(), TheTriple.getOS(), argv[0]);
   if (!Out) return 1;
 
   // Build up all of the passes that we want to do to the module.
@@ -317,9 +302,9 @@ static int compileModule(char **argv, LLVMContext &Context) {
   PM.add(TLI);
 
   // Add the target data from the target machine, if it exists, or the module.
-  if (const DataLayout *DL = Target.getDataLayout())
-    mod->setDataLayout(DL);
-  PM.add(new DataLayoutPass(mod));
+  if (const DataLayout *DL = Target->getSubtargetImpl()->getDataLayout())
+    M->setDataLayout(DL);
+  PM.add(new DataLayoutPass());
 
   if (RelaxAll.getNumOccurrences() > 0 &&
       FileType != TargetMachine::CGFT_ObjectFile)
@@ -350,8 +335,8 @@ static int compileModule(char **argv, LLVMContext &Context) {
     }
 
     // Ask the target to add backend passes as necessary.
-    if (Target.addPassesToEmitFile(PM, FOS, FileType, NoVerify,
-                                   StartAfterID, StopAfterID)) {
+    if (Target->addPassesToEmitFile(PM, FOS, FileType, NoVerify,
+                                    StartAfterID, StopAfterID)) {
       errs() << argv[0] << ": target does not support generation of this"
              << " file type!\n";
       return 1;
@@ -360,7 +345,7 @@ static int compileModule(char **argv, LLVMContext &Context) {
     // Before executing passes, print the final values of the LLVM options.
     cl::PrintOptionValues();
 
-    PM.run(*mod);
+    PM.run(*M);
   }
 
   // Declare success.

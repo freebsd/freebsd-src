@@ -1443,7 +1443,7 @@ Value *SCEVExpander::visitAddRecExpr(const SCEVAddRecExpr *S) {
     Constant *One = ConstantInt::get(Ty, 1);
     for (pred_iterator HPI = HPB; HPI != HPE; ++HPI) {
       BasicBlock *HP = *HPI;
-      if (!PredSeen.insert(HP)) {
+      if (!PredSeen.insert(HP).second) {
         // There must be an incoming value for each predecessor, even the
         // duplicates!
         CanonicalIV->addIncoming(CanonicalIV->getIncomingValueForBlock(HP), HP);
@@ -1711,7 +1711,7 @@ unsigned SCEVExpander::replaceCongruentIVs(Loop *L, const DominatorTree *DT,
 
     // Fold constant phis. They may be congruent to other constant phis and
     // would confuse the logic below that expects proper IVs.
-    if (Value *V = SimplifyInstruction(Phi, SE.DL, SE.TLI, SE.DT)) {
+    if (Value *V = SimplifyInstruction(Phi, SE.DL, SE.TLI, SE.DT, SE.AC)) {
       Phi->replaceAllUsesWith(V);
       DeadInsts.push_back(Phi);
       ++NumElim;
@@ -1776,9 +1776,12 @@ unsigned SCEVExpander::replaceCongruentIVs(Loop *L, const DominatorTree *DT,
                         << *IsomorphicInc << '\n');
         Value *NewInc = OrigInc;
         if (OrigInc->getType() != IsomorphicInc->getType()) {
-          Instruction *IP = isa<PHINode>(OrigInc)
-            ? (Instruction*)L->getHeader()->getFirstInsertionPt()
-            : OrigInc->getNextNode();
+          Instruction *IP = nullptr;
+          if (PHINode *PN = dyn_cast<PHINode>(OrigInc))
+            IP = PN->getParent()->getFirstInsertionPt();
+          else
+            IP = OrigInc->getNextNode();
+
           IRBuilder<> Builder(IP);
           Builder.SetCurrentDebugLocation(IsomorphicInc->getDebugLoc());
           NewInc = Builder.

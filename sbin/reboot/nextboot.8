@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 31, 2012
+.Dd March 17, 2015
 .Dt NEXTBOOT 8
 .Os
 .Sh NAME
@@ -130,3 +130,9 @@ It is also my first attempt to write in Forth.
 Finally, it does some evil things like writing to the file system before it
 has been checked.
 If it scrambles your file system, do not blame me.
+.Pp
+.Xr loader 8
+is only able to read ZFS, not write to it.
+.Pa nextboot.conf
+will NOT be reset in case of a kernel boot failure.
+

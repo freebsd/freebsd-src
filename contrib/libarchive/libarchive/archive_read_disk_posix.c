@@ -974,7 +974,7 @@ next_entry(struct archive_read_disk *a, struct tree *t,
 		t->initial_filesystem_id = t->current_filesystem_id;
 	if (!a->traverse_mount_points) {
 		if (t->initial_filesystem_id != t->current_filesystem_id)
-			return (ARCHIVE_RETRY);
+			descend = 0;
 	}
 	t->descend = descend;
 

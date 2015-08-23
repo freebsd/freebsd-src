@@ -111,10 +111,8 @@ INITIALIZE_PASS(HexagonPeephole, "hexagon-peephole", "Hexagon Peephole",
                 false, false)
 
 bool HexagonPeephole::runOnMachineFunction(MachineFunction &MF) {
-  QII = static_cast<const HexagonInstrInfo *>(MF.getTarget().
-                                        getInstrInfo());
-  QRI = static_cast<const HexagonRegisterInfo *>(MF.getTarget().
-                                       getRegisterInfo());
+  QII = static_cast<const HexagonInstrInfo *>(MF.getSubtarget().getInstrInfo());
+  QRI = MF.getTarget().getSubtarget<HexagonSubtarget>().getRegisterInfo();
   MRI = &MF.getRegInfo();
 
   DenseMap<unsigned, unsigned> PeepholeMap;
@@ -135,7 +133,7 @@ bool HexagonPeephole::runOnMachineFunction(MachineFunction &MF) {
       MachineInstr *MI = MII;
       // Look for sign extends:
       // %vreg170<def> = SXTW %vreg166
-      if (!DisableOptSZExt && MI->getOpcode() == Hexagon::SXTW) {
+      if (!DisableOptSZExt && MI->getOpcode() == Hexagon::A2_sxtw) {
         assert (MI->getNumOperands() == 2);
         MachineOperand &Dst = MI->getOperand(0);
         MachineOperand &Src  = MI->getOperand(1);
@@ -154,7 +152,7 @@ bool HexagonPeephole::runOnMachineFunction(MachineFunction &MF) {
       // Look for  %vreg170<def> = COMBINE_ir_V4 (0, %vreg169)
       // %vreg170:DoublRegs, %vreg169:IntRegs
       if (!DisableOptExtTo64 &&
-          MI->getOpcode () == Hexagon::COMBINE_Ir_V4) {
+          MI->getOpcode () == Hexagon::A4_combineir) {
         assert (MI->getNumOperands() == 3);
         MachineOperand &Dst = MI->getOperand(0);
         MachineOperand &Src1 = MI->getOperand(1);
@@ -171,7 +169,7 @@ bool HexagonPeephole::runOnMachineFunction(MachineFunction &MF) {
       // %vregIntReg = COPY %vregDoubleReg1:subreg_loreg.
       // and convert into
       // %vregIntReg = COPY %vregDoubleReg0:subreg_hireg.
-      if (MI->getOpcode() == Hexagon::LSRd_ri) {
+      if (MI->getOpcode() == Hexagon::S2_lsr_i_p) {
         assert(MI->getNumOperands() == 3);
         MachineOperand &Dst = MI->getOperand(0);
         MachineOperand &Src1 = MI->getOperand(1);
@@ -186,7 +184,7 @@ bool HexagonPeephole::runOnMachineFunction(MachineFunction &MF) {
 
       // Look for P=NOT(P).
       if (!DisablePNotP &&
-          (MI->getOpcode() == Hexagon::NOT_p)) {
+          (MI->getOpcode() == Hexagon::C2_not)) {
         assert (MI->getNumOperands() == 2);
         MachineOperand &Dst = MI->getOperand(0);
         MachineOperand &Src  = MI->getOperand(1);
@@ -271,10 +269,9 @@ bool HexagonPeephole::runOnMachineFunction(MachineFunction &MF) {
           unsigned PR = 1, S1 = 2, S2 = 3;   // Operand indices.
 
           switch (Op) {
-            case Hexagon::TFR_condset_rr:
+            case Hexagon::C2_mux:
+            case Hexagon::C2_muxii:
             case Hexagon::TFR_condset_ii:
-            case Hexagon::MUX_ii:
-            case Hexagon::MUX_rr:
               NewOp = Op;
               break;
             case Hexagon::TFR_condset_ri:
@@ -283,11 +280,11 @@ bool HexagonPeephole::runOnMachineFunction(MachineFunction &MF) {
             case Hexagon::TFR_condset_ir:
               NewOp = Hexagon::TFR_condset_ri;
               break;
-            case Hexagon::MUX_ri:
-              NewOp = Hexagon::MUX_ir;
+            case Hexagon::C2_muxri:
+              NewOp = Hexagon::C2_muxir;
               break;
-            case Hexagon::MUX_ir:
-              NewOp = Hexagon::MUX_ri;
+            case Hexagon::C2_muxir:
+              NewOp = Hexagon::C2_muxri;
               break;
           }
           if (NewOp) {

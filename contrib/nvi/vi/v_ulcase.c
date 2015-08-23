@@ -28,7 +28,7 @@ static const char sccsid[] = "$Id: v_ulcase.c,v 10.12 2011/12/02 19:58:32 zy Exp
 #include "../common/common.h"
 #include "vi.h"
 
-static int ulcase __P((SCR *, recno_t, CHAR_T *, size_t, size_t, size_t));
+static int ulcase(SCR *, recno_t, CHAR_T *, size_t, size_t, size_t);
 
 /*
  * v_ulcase -- [count]~
@@ -44,7 +44,7 @@ static int ulcase __P((SCR *, recno_t, CHAR_T *, size_t, size_t, size_t));
  * if there had been an associated motion, but it's too late to make
  * that the default now.
  *
- * PUBLIC: int v_ulcase __P((SCR *, VICMD *));
+ * PUBLIC: int v_ulcase(SCR *, VICMD *);
  */
 int
 v_ulcase(SCR *sp, VICMD *vp)
@@ -102,7 +102,7 @@ v_ulcase(SCR *sp, VICMD *vp)
  * v_mulcase -- [count]~[count]motion
  *	Toggle upper & lower case letters over a range.
  *
- * PUBLIC: int v_mulcase __P((SCR *, VICMD *));
+ * PUBLIC: int v_mulcase(SCR *, VICMD *);
  */
 int
 v_mulcase(SCR *sp, VICMD *vp)

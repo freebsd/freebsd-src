@@ -61,6 +61,7 @@ struct format_opts {
 	int bcwidth;
 	int pcwidth;
 	int show_counters;
+	int show_time;		/* show timestamp */
 	uint32_t set_mask;	/* enabled sets mask */
 	uint32_t flags;		/* request flags */
 	uint32_t first;		/* first rule to request */
@@ -373,6 +374,13 @@ static int ipfw_get_config(struct cmdline_opts *co, struct format_opts *fo,
 static int ipfw_show_config(struct cmdline_opts *co, struct format_opts *fo,
     ipfw_cfg_lheader *cfg, size_t sz, int ac, char **av);
 static void ipfw_list_tifaces(void);
+
+struct tidx;
+static uint16_t pack_object(struct tidx *tstate, char *name, int otype);
+static uint16_t pack_table(struct tidx *tstate, char *name);
+
+static char *table_search_ctlv(ipfw_obj_ctlv *ctlv, uint16_t idx);
+static void object_sort_ctlv(ipfw_obj_ctlv *ctlv);
 
 /*
  * Simple string buffer API.
@@ -1524,11 +1532,14 @@ show_static_rule(struct cmdline_opts *co, struct format_opts *fo,
 
 		case O_FORWARD_IP6:
 		    {
-			char buf[4 + INET6_ADDRSTRLEN + 1];
+			char buf[INET6_ADDRSTRLEN + IF_NAMESIZE + 2];
 			ipfw_insn_sa6 *s = (ipfw_insn_sa6 *)cmd;
 
-			bprintf(bp, "fwd %s", inet_ntop(AF_INET6,
-			    &s->sa.sin6_addr, buf, sizeof(buf)));
+			bprintf(bp, "fwd ");
+			if (getnameinfo((const struct sockaddr *)&s->sa,
+			    sizeof(struct sockaddr_in6), buf, sizeof(buf),
+			    NULL, 0, NI_NUMERICHOST) == 0)
+				bprintf(bp, "%s", buf);
 			if (s->sa.sin6_port)
 				bprintf(bp, ",%d", s->sa.sin6_port);
 		    }
@@ -2402,7 +2413,7 @@ list_static_range(struct cmdline_opts *co, struct format_opts *fo,
 	for (n = seen = 0; n < rcnt; n++,
 	    rtlv = (ipfw_obj_tlv *)((caddr_t)rtlv + rtlv->length)) {
 
-		if (fo->show_counters != 0) {
+		if ((fo->show_counters | fo->show_time) != 0) {
 			cntr = (struct ip_fw_bcounter *)(rtlv + 1);
 			r = (struct ip_fw_rule *)((caddr_t)cntr + cntr->size);
 		} else {
@@ -2504,10 +2515,11 @@ ipfw_list(int ac, char *av[], int show_counters)
 	/* get configuraion from kernel */
 	cfg = NULL;
 	sfo.show_counters = show_counters;
+	sfo.show_time = co.do_time;
 	sfo.flags = IPFW_CFG_GET_STATIC;
 	if (co.do_dynamic != 0)
 		sfo.flags |= IPFW_CFG_GET_STATES;
-	if (sfo.show_counters != 0)
+	if ((sfo.show_counters | sfo.show_time) != 0)
 		sfo.flags |= IPFW_CFG_GET_COUNTERS;
 	if (ipfw_get_config(&co, &sfo, &cfg, &sz) != 0)
 		err(EX_OSERR, "retrieving config failed");
@@ -2553,6 +2565,7 @@ ipfw_show_config(struct cmdline_opts *co, struct format_opts *fo,
 	if (cfg->flags & IPFW_CFG_GET_STATIC) {
 		/* We've requested static rules */
 		if (ctlv->head.type == IPFW_TLV_TBLNAME_LIST) {
+			object_sort_ctlv(ctlv);
 			fo->tstate = ctlv;
 			readsz += ctlv->head.length;
 			ctlv = (ipfw_obj_ctlv *)((caddr_t)ctlv +
@@ -2719,18 +2732,17 @@ struct tidx {
 };
 
 static uint16_t
-pack_table(struct tidx *tstate, char *name)
+pack_object(struct tidx *tstate, char *name, int otype)
 {
 	int i;
 	ipfw_obj_ntlv *ntlv;
-
-	if (table_check_name(name) != 0)
-		return (0);
 
 	for (i = 0; i < tstate->count; i++) {
 		if (strcmp(tstate->idx[i].name, name) != 0)
 			continue;
 		if (tstate->idx[i].set != tstate->set)
+			continue;
+		if (tstate->idx[i].head.type != otype)
 			continue;
 
 		return (tstate->idx[i].idx);
@@ -2747,13 +2759,23 @@ pack_table(struct tidx *tstate, char *name)
 	ntlv = &tstate->idx[i];
 	memset(ntlv, 0, sizeof(ipfw_obj_ntlv));
 	strlcpy(ntlv->name, name, sizeof(ntlv->name));
-	ntlv->head.type = IPFW_TLV_TBL_NAME;
+	ntlv->head.type = otype;
 	ntlv->head.length = sizeof(ipfw_obj_ntlv);
 	ntlv->set = tstate->set;
 	ntlv->idx = ++tstate->counter;
 	tstate->count++;
 
 	return (ntlv->idx);
+}
+
+static uint16_t
+pack_table(struct tidx *tstate, char *name)
+{
+
+	if (table_check_name(name) != 0)
+		return (0);
+
+	return (pack_object(tstate, name, IPFW_TLV_TBL_NAME));
 }
 
 static void
@@ -3606,7 +3628,6 @@ compile_rule(char *av[], uint32_t *rbuf, int *rbufsize, struct tidx *tstate)
 			break;
 		} else
 			goto chkarg;
-
 	case TOK_QUEUE:
 		action->opcode = O_QUEUE;
 		goto chkarg;
@@ -3739,8 +3760,8 @@ chkarg:
 			p->sa.sin6_family = AF_INET6;
 			p->sa.sin6_port = port_number;
 			p->sa.sin6_flowinfo = 0;
-			p->sa.sin6_scope_id = 0;
-			/* No table support for v6 yet. */
+			p->sa.sin6_scope_id =
+			    ((struct sockaddr_in6 *)&result)->sin6_scope_id;
 			bcopy(&((struct sockaddr_in6*)&result)->sin6_addr,
 			    &p->sa.sin6_addr, sizeof(p->sa.sin6_addr));
 		} else {
@@ -4651,6 +4672,101 @@ done:
 	*rbufsize = (char *)dst - (char *)rule;
 }
 
+static int
+compare_ntlv(const void *_a, const void *_b)
+{
+	ipfw_obj_ntlv *a, *b;
+
+	a = (ipfw_obj_ntlv *)_a;
+	b = (ipfw_obj_ntlv *)_b;
+
+	if (a->set < b->set)
+		return (-1);
+	else if (a->set > b->set)
+		return (1);
+
+	if (a->idx < b->idx)
+		return (-1);
+	else if (a->idx > b->idx)
+		return (1);
+
+	if (a->head.type < b->head.type)
+		return (-1);
+	else if (a->head.type > b->head.type)
+		return (1);
+
+	return (0);
+}
+
+/*
+ * Provide kernel with sorted list of referenced objects
+ */
+static void
+object_sort_ctlv(ipfw_obj_ctlv *ctlv)
+{
+
+	qsort(ctlv + 1, ctlv->count, ctlv->objsize, compare_ntlv);
+}
+
+struct object_kt {
+	uint16_t	uidx;
+	uint16_t	type;
+};
+static int
+compare_object_kntlv(const void *k, const void *v)
+{
+	ipfw_obj_ntlv *ntlv;
+	struct object_kt key;
+
+	key = *((struct object_kt *)k);
+	ntlv = (ipfw_obj_ntlv *)v;
+
+	if (key.uidx < ntlv->idx)
+		return (-1);
+	else if (key.uidx > ntlv->idx)
+		return (1);
+
+	if (key.type < ntlv->head.type)
+		return (-1);
+	else if (key.type > ntlv->head.type)
+		return (1);
+
+	return (0);
+}
+
+/*
+ * Finds object name in @ctlv by @idx and @type.
+ * Uses the following facts:
+ * 1) All TLVs are the same size
+ * 2) Kernel implementation provides already sorted list.
+ *
+ * Returns table name or NULL.
+ */
+static char *
+object_search_ctlv(ipfw_obj_ctlv *ctlv, uint16_t idx, uint16_t type)
+{
+	ipfw_obj_ntlv *ntlv;
+	struct object_kt key;
+
+	key.uidx = idx;
+	key.type = type;
+
+	ntlv = bsearch(&key, (ctlv + 1), ctlv->count, ctlv->objsize,
+	    compare_object_kntlv);
+
+	if (ntlv != 0)
+		return (ntlv->name);
+
+	return (NULL);
+}
+
+static char *
+table_search_ctlv(ipfw_obj_ctlv *ctlv, uint16_t idx)
+{
+
+	return (object_search_ctlv(ctlv, idx, IPFW_TLV_TBL_NAME));
+}
+
 /*
  * Adds one or more rules to ipfw chain.
  * Data layout:
@@ -4719,7 +4835,7 @@ ipfw_add(char *av[])
 		ctlv->count = ts.count;
 		ctlv->objsize = sizeof(ipfw_obj_ntlv);
 		memcpy(ctlv + 1, ts.idx, tlen);
-		table_sort_ctlv(ctlv);
+		object_sort_ctlv(ctlv);
 		tstate = ctlv;
 		/* Rule next */
 		ctlv = (ipfw_obj_ctlv *)((caddr_t)ctlv + ctlv->head.length);

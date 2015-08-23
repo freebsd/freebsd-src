@@ -29,7 +29,7 @@ static const char sccsid[] = "$Id: ex_preserve.c,v 10.15 2001/06/25 15:19:18 ski
  * ex_preserve -- :pre[serve]
  *	Push the file to recovery.
  *
- * PUBLIC: int ex_preserve __P((SCR *, EXCMD *));
+ * PUBLIC: int ex_preserve(SCR *, EXCMD *);
  */
 int
 ex_preserve(SCR *sp, EXCMD *cmdp)
@@ -63,7 +63,7 @@ ex_preserve(SCR *sp, EXCMD *cmdp)
  * ex_recover -- :rec[over][!] file
  *	Recover the file.
  *
- * PUBLIC: int ex_recover __P((SCR *, EXCMD *));
+ * PUBLIC: int ex_recover(SCR *, EXCMD *);
  */
 int
 ex_recover(SCR *sp, EXCMD *cmdp)

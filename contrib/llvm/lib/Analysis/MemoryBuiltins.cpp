@@ -332,7 +332,11 @@ const CallInst *llvm::isFreeCall(const Value *I, const TargetLibraryInfo *TLI) {
       TLIFn == LibFunc::ZdlPv || // operator delete(void*)
       TLIFn == LibFunc::ZdaPv)   // operator delete[](void*)
     ExpectedNumParams = 1;
-  else if (TLIFn == LibFunc::ZdlPvRKSt9nothrow_t || // delete(void*, nothrow)
+  else if (TLIFn == LibFunc::ZdlPvj ||              // delete(void*, uint)
+           TLIFn == LibFunc::ZdlPvm ||              // delete(void*, ulong)
+           TLIFn == LibFunc::ZdlPvRKSt9nothrow_t || // delete(void*, nothrow)
+           TLIFn == LibFunc::ZdaPvj ||              // delete[](void*, uint)
+           TLIFn == LibFunc::ZdaPvm ||              // delete[](void*, ulong)
            TLIFn == LibFunc::ZdaPvRKSt9nothrow_t)   // delete[](void*, nothrow)
     ExpectedNumParams = 2;
   else
@@ -412,7 +416,7 @@ SizeOffsetType ObjectSizeOffsetVisitor::compute(Value *V) {
   if (Instruction *I = dyn_cast<Instruction>(V)) {
     // If we have already seen this instruction, bail out. Cycles can happen in
     // unreachable code after constant propagation.
-    if (!SeenInsts.insert(I))
+    if (!SeenInsts.insert(I).second)
       return unknown();
 
     if (GEPOperator *GEP = dyn_cast<GEPOperator>(V))
@@ -648,7 +652,7 @@ SizeOffsetEvalType ObjectSizeOffsetEvaluator::compute_(Value *V) {
   // Record the pointers that were handled in this run, so that they can be
   // cleaned later if something fails. We also use this set to break cycles that
   // can occur in dead code.
-  if (!SeenVals.insert(V)) {
+  if (!SeenVals.insert(V).second) {
     Result = unknown();
   } else if (GEPOperator *GEP = dyn_cast<GEPOperator>(V)) {
     Result = visitGEPOperator(*GEP);

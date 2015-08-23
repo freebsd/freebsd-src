@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $Id: dwarf_next_cu_header.3 3128 2014-12-21 20:06:22Z jkoshy $
+.\" $Id: dwarf_next_cu_header.3 3182 2015-04-10 16:08:10Z emaste $
 .\"
 .Dd December 21, 2014
 .Os
@@ -220,8 +220,7 @@ unit in the section.
 .Ss Iterating Through Type Units in a Debug Context
 When a DWARF debug context is allocated using
 .Xr dwarf_init 3 ,
-an internal pointer assoicated with the context will point to the
-fisrt
+an internal pointer associated with the context will point to the first
 .Dq \&.debug_types
 section found in the debug object.
 The first call to function

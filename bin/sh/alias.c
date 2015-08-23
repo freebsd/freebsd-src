@@ -248,7 +248,7 @@ hashalias(const char *p)
 {
 	unsigned int hashval;
 
-	hashval = *p << 4;
+	hashval = (unsigned char)*p << 4;
 	while (*p)
 		hashval+= *p++;
 	return &atab[hashval % ATABSIZE];

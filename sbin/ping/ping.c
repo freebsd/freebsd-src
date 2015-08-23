@@ -713,7 +713,7 @@ main(int argc, char *const *argv)
 		ip->ip_hl = sizeof(struct ip) >> 2;
 		ip->ip_tos = tos;
 		ip->ip_id = 0;
-		ip->ip_off = df ? IP_DF : 0;
+		ip->ip_off = htons(df ? IP_DF : 0);
 		ip->ip_ttl = ttl;
 		ip->ip_p = IPPROTO_ICMP;
 		ip->ip_src.s_addr = source ? sock_in.sin_addr.s_addr : INADDR_ANY;
@@ -736,9 +736,6 @@ main(int argc, char *const *argv)
 	 */
 	if (cansandbox && cap_enter() < 0 && errno != ENOSYS)
 		err(1, "cap_enter");
-
-	if (cap_sandboxed())
-		fprintf(stderr, "capability mode sandbox enabled\n");
 
 	cap_rights_init(&rights, CAP_RECV, CAP_EVENT, CAP_SETSOCKOPT);
 	if (cap_rights_limit(srecv, &rights) < 0 && errno != ENOSYS)
@@ -1078,7 +1075,7 @@ pinger(void)
 	if (options & F_HDRINCL) {
 		cc += sizeof(struct ip);
 		ip = (struct ip *)outpackhdr;
-		ip->ip_len = cc;
+		ip->ip_len = htons(cc);
 		ip->ip_sum = in_cksum((u_short *)outpackhdr, cc);
 		packet = outpackhdr;
 	}

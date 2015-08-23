@@ -48,7 +48,6 @@ static const char rcsid[] =
 #include <arpa/inet.h>
 
 #include <netinet/in.h>
-#include <net/if_var.h>		/* for struct ifaddr */
 #include <netinet/in_var.h>
 #include <arpa/inet.h>
 #include <netdb.h>
@@ -58,8 +57,8 @@ static const char rcsid[] =
 #include "ifconfig.h"
 
 static	struct in6_ifreq in6_ridreq;
-static	struct in6_aliasreq in6_addreq = 
-  { .ifra_flags = 0, 
+static	struct in6_aliasreq in6_addreq =
+  { .ifra_flags = 0,
     .ifra_lifetime = { 0, 0, ND6_INFINITE_LIFETIME, ND6_INFINITE_LIFETIME } };
 static	int ip6lifetime;
 
@@ -265,14 +264,16 @@ in6_status(int s __unused, const struct ifaddrs *ifa)
 		printf("pltime ");
 		if (lifetime.ia6t_preferred) {
 			printf("%s ", lifetime.ia6t_preferred < now.tv_sec
-				? "0" : sec2str(lifetime.ia6t_preferred - now.tv_sec));
+			    ? "0" :
+			    sec2str(lifetime.ia6t_preferred - now.tv_sec));
 		} else
 			printf("infty ");
 
 		printf("vltime ");
 		if (lifetime.ia6t_expire) {
 			printf("%s ", lifetime.ia6t_expire < now.tv_sec
-				? "0" : sec2str(lifetime.ia6t_expire - now.tv_sec));
+			    ? "0" :
+			    sec2str(lifetime.ia6t_expire - now.tv_sec));
 		} else
 			printf("infty ");
 	}
@@ -347,25 +348,25 @@ in6_getaddr(const char *s, int which)
 static int
 prefix(void *val, int size)
 {
-        u_char *name = (u_char *)val;
-        int byte, bit, plen = 0;
+	u_char *name = (u_char *)val;
+	int byte, bit, plen = 0;
 
-        for (byte = 0; byte < size; byte++, plen += 8)
-                if (name[byte] != 0xff)
-                        break;
+	for (byte = 0; byte < size; byte++, plen += 8)
+		if (name[byte] != 0xff)
+			break;
 	if (byte == size)
 		return (plen);
 	for (bit = 7; bit != 0; bit--, plen++)
-                if (!(name[byte] & (1 << bit)))
-                        break;
-        for (; bit != 0; bit--)
-                if (name[byte] & (1 << bit))
-                        return(0);
-        byte++;
-        for (; byte < size; byte++)
-                if (name[byte])
-                        return(0);
-        return (plen);
+		if (!(name[byte] & (1 << bit)))
+			break;
+	for (; bit != 0; bit--)
+		if (name[byte] & (1 << bit))
+			return(0);
+	byte++;
+	for (; byte < size; byte++)
+		if (name[byte])
+			return(0);
+	return (plen);
 }
 
 static char *
@@ -483,6 +484,8 @@ static struct cmd inet6_cmds[] = {
 	DEF_CMD("-auto_linklocal",-ND6_IFF_AUTO_LINKLOCAL,setnd6flags),
 	DEF_CMD("no_prefer_iface",ND6_IFF_NO_PREFER_IFACE,setnd6flags),
 	DEF_CMD("-no_prefer_iface",-ND6_IFF_NO_PREFER_IFACE,setnd6flags),
+	DEF_CMD("no_dad",	ND6_IFF_NO_DAD,		setnd6flags),
+	DEF_CMD("-no_dad",	-ND6_IFF_NO_DAD,	setnd6flags),
 	DEF_CMD_ARG("pltime",        			setip6pltime),
 	DEF_CMD_ARG("vltime",        			setip6vltime),
 	DEF_CMD("eui64",	0,			setip6eui64),
@@ -509,7 +512,11 @@ in6_Lopt_cb(const char *optarg __unused)
 {
 	ip6lifetime++;	/* print IPv6 address lifetime */
 }
-static struct option in6_Lopt = { .opt = "L", .opt_usage = "[-L]", .cb = in6_Lopt_cb };
+static struct option in6_Lopt = {
+	.opt = "L",
+	.opt_usage = "[-L]",
+	.cb = in6_Lopt_cb
+};
 
 static __constructor void
 inet6_ctor(void)

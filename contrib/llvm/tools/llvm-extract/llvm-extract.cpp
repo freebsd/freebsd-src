@@ -101,8 +101,7 @@ int main(int argc, char **argv) {
 
   // Use lazy loading, since we only care about selected global values.
   SMDiagnostic Err;
-  std::unique_ptr<Module> M;
-  M.reset(getLazyIRFileModule(InputFilename, Err, Context));
+  std::unique_ptr<Module> M = getLazyIRFileModule(InputFilename, Err, Context);
 
   if (!M.get()) {
     Err.print(argv[0], errs());
@@ -217,31 +216,28 @@ int main(int argc, char **argv) {
   if (!DeleteFn)
     for (size_t i = 0, e = GVs.size(); i != e; ++i) {
       GlobalValue *GV = GVs[i];
-      if (GV->isMaterializable()) {
-        std::string ErrInfo;
-        if (GV->Materialize(&ErrInfo)) {
-          errs() << argv[0] << ": error reading input: " << ErrInfo << "\n";
-          return 1;
-        }
+      if (std::error_code EC = GV->materialize()) {
+        errs() << argv[0] << ": error reading input: " << EC.message() << "\n";
+        return 1;
       }
     }
   else {
     // Deleting. Materialize every GV that's *not* in GVs.
     SmallPtrSet<GlobalValue *, 8> GVSet(GVs.begin(), GVs.end());
     for (auto &G : M->globals()) {
-      if (!GVSet.count(&G) && G.isMaterializable()) {
-        std::string ErrInfo;
-        if (G.Materialize(&ErrInfo)) {
-          errs() << argv[0] << ": error reading input: " << ErrInfo << "\n";
+      if (!GVSet.count(&G)) {
+        if (std::error_code EC = G.materialize()) {
+          errs() << argv[0] << ": error reading input: " << EC.message()
+                 << "\n";
           return 1;
         }
       }
     }
     for (auto &F : *M) {
-      if (!GVSet.count(&F) && F.isMaterializable()) {
-        std::string ErrInfo;
-        if (F.Materialize(&ErrInfo)) {
-          errs() << argv[0] << ": error reading input: " << ErrInfo << "\n";
+      if (!GVSet.count(&F)) {
+        if (std::error_code EC = F.materialize()) {
+          errs() << argv[0] << ": error reading input: " << EC.message()
+                 << "\n";
           return 1;
         }
       }
@@ -251,7 +247,7 @@ int main(int argc, char **argv) {
   // In addition to deleting all other functions, we also want to spiff it
   // up a little bit.  Do this now.
   PassManager Passes;
-  Passes.add(new DataLayoutPass(M.get())); // Use correct DataLayout
+  Passes.add(new DataLayoutPass()); // Use correct DataLayout
 
   std::vector<GlobalValue*> Gvs(GVs.begin(), GVs.end());
 
@@ -261,10 +257,10 @@ int main(int argc, char **argv) {
   Passes.add(createStripDeadDebugInfoPass());    // Remove dead debug info
   Passes.add(createStripDeadPrototypesPass());   // Remove dead func decls
 
-  std::string ErrorInfo;
-  tool_output_file Out(OutputFilename.c_str(), ErrorInfo, sys::fs::F_None);
-  if (!ErrorInfo.empty()) {
-    errs() << ErrorInfo << '\n';
+  std::error_code EC;
+  tool_output_file Out(OutputFilename, EC, sys::fs::F_None);
+  if (EC) {
+    errs() << EC.message() << '\n';
     return 1;
   }
 

@@ -138,7 +138,7 @@ SYMLINKS=
 .for enc2 in ${ENCODINGS}
 .for lang_terr in ${${enc1}_${enc2}}
 SYMLINKS+=	../${lang_terr:C/:.*$//}.${enc1}/${FILESNAME} \
-		${LOCALEDIR}/${lang_terr:C/^.*://}.${enc2}
+		${LOCALEDIR}/${lang_terr:C/^.*://}.${enc2}/${FILESNAME}
 .endfor
 .endfor
 .endfor

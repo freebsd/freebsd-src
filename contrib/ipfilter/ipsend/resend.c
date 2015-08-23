@@ -22,9 +22,6 @@ static const char rcsid[] = "@(#)$Id$";
 #ifndef	linux
 # include <netinet/ip_var.h>
 # include <netinet/if_ether.h>
-# if __FreeBSD_version >= 300000
-#  include <net/if_var.h>
-# endif
 #endif
 #include <stdio.h>
 #include <netdb.h>

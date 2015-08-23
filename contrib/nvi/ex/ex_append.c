@@ -27,14 +27,14 @@ static const char sccsid[] = "$Id: ex_append.c,v 10.34 2001/06/25 15:19:14 skimo
 
 enum which {APPEND, CHANGE, INSERT};
 
-static int ex_aci __P((SCR *, EXCMD *, enum which));
+static int ex_aci(SCR *, EXCMD *, enum which);
 
 /*
  * ex_append -- :[line] a[ppend][!]
  *	Append one or more lines of new text after the specified line,
  *	or the current line if no address is specified.
  *
- * PUBLIC: int ex_append __P((SCR *, EXCMD *));
+ * PUBLIC: int ex_append(SCR *, EXCMD *);
  */
 int
 ex_append(SCR *sp, EXCMD *cmdp)
@@ -46,7 +46,7 @@ ex_append(SCR *sp, EXCMD *cmdp)
  * ex_change -- :[line[,line]] c[hange][!] [count]
  *	Change one or more lines to the input text.
  *
- * PUBLIC: int ex_change __P((SCR *, EXCMD *));
+ * PUBLIC: int ex_change(SCR *, EXCMD *);
  */
 int
 ex_change(SCR *sp, EXCMD *cmdp)
@@ -59,7 +59,7 @@ ex_change(SCR *sp, EXCMD *cmdp)
  *	Insert one or more lines of new text before the specified line,
  *	or the current line if no address is specified.
  *
- * PUBLIC: int ex_insert __P((SCR *, EXCMD *));
+ * PUBLIC: int ex_insert(SCR *, EXCMD *);
  */
 int
 ex_insert(SCR *sp, EXCMD *cmdp)

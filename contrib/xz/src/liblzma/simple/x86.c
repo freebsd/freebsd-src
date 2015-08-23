@@ -123,7 +123,7 @@ x86_code(lzma_simple *simple, uint32_t now_pos, bool is_encoder,
 
 
 static lzma_ret
-x86_coder_init(lzma_next_coder *next, lzma_allocator *allocator,
+x86_coder_init(lzma_next_coder *next, const lzma_allocator *allocator,
 		const lzma_filter_info *filters, bool is_encoder)
 {
 	const lzma_ret ret = lzma_simple_coder_init(next, allocator, filters,
@@ -139,7 +139,8 @@ x86_coder_init(lzma_next_coder *next, lzma_allocator *allocator,
 
 
 extern lzma_ret
-lzma_simple_x86_encoder_init(lzma_next_coder *next, lzma_allocator *allocator,
+lzma_simple_x86_encoder_init(lzma_next_coder *next,
+		const lzma_allocator *allocator,
 		const lzma_filter_info *filters)
 {
 	return x86_coder_init(next, allocator, filters, true);
@@ -147,7 +148,8 @@ lzma_simple_x86_encoder_init(lzma_next_coder *next, lzma_allocator *allocator,
 
 
 extern lzma_ret
-lzma_simple_x86_decoder_init(lzma_next_coder *next, lzma_allocator *allocator,
+lzma_simple_x86_decoder_init(lzma_next_coder *next,
+		const lzma_allocator *allocator,
 		const lzma_filter_info *filters)
 {
 	return x86_coder_init(next, allocator, filters, false);

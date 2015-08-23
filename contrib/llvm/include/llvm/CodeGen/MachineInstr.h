@@ -244,12 +244,22 @@ public:
   ///
   DebugLoc getDebugLoc() const { return debugLoc; }
 
-  /// getDebugVariable() - Return the debug variable referenced by
+  /// \brief Return the debug variable referenced by
   /// this DBG_VALUE instruction.
   DIVariable getDebugVariable() const {
     assert(isDebugValue() && "not a DBG_VALUE");
-    const MDNode *Var = getOperand(getNumOperands() - 1).getMetadata();
-    return DIVariable(Var);
+    DIVariable Var(getOperand(2).getMetadata());
+    assert(Var.Verify() && "not a DIVariable");
+    return Var;
+  }
+
+  /// \brief Return the complex address expression referenced by
+  /// this DBG_VALUE instruction.
+  DIExpression getDebugExpression() const {
+    assert(isDebugValue() && "not a DBG_VALUE");
+    DIExpression Expr(getOperand(3).getMetadata());
+    assert(Expr.Verify() && "not a DIExpression");
+    return Expr;
   }
 
   /// emitError - Emit an error referring to the source location of this
@@ -510,6 +520,49 @@ public:
     return hasProperty(MCID::FoldableAsLoad, Type);
   }
 
+  /// \brief Return true if this instruction behaves
+  /// the same way as the generic REG_SEQUENCE instructions.
+  /// E.g., on ARM,
+  /// dX VMOVDRR rY, rZ
+  /// is equivalent to
+  /// dX = REG_SEQUENCE rY, ssub_0, rZ, ssub_1.
+  ///
+  /// Note that for the optimizers to be able to take advantage of
+  /// this property, TargetInstrInfo::getRegSequenceLikeInputs has to be
+  /// override accordingly.
+  bool isRegSequenceLike(QueryType Type = IgnoreBundle) const {
+    return hasProperty(MCID::RegSequence, Type);
+  }
+
+  /// \brief Return true if this instruction behaves
+  /// the same way as the generic EXTRACT_SUBREG instructions.
+  /// E.g., on ARM,
+  /// rX, rY VMOVRRD dZ
+  /// is equivalent to two EXTRACT_SUBREG:
+  /// rX = EXTRACT_SUBREG dZ, ssub_0
+  /// rY = EXTRACT_SUBREG dZ, ssub_1
+  ///
+  /// Note that for the optimizers to be able to take advantage of
+  /// this property, TargetInstrInfo::getExtractSubregLikeInputs has to be
+  /// override accordingly.
+  bool isExtractSubregLike(QueryType Type = IgnoreBundle) const {
+    return hasProperty(MCID::ExtractSubreg, Type);
+  }
+
+  /// \brief Return true if this instruction behaves
+  /// the same way as the generic INSERT_SUBREG instructions.
+  /// E.g., on ARM,
+  /// dX = VSETLNi32 dY, rZ, Imm
+  /// is equivalent to a INSERT_SUBREG:
+  /// dX = INSERT_SUBREG dY, rZ, translateImmToSubIdx(Imm)
+  ///
+  /// Note that for the optimizers to be able to take advantage of
+  /// this property, TargetInstrInfo::getInsertSubregLikeInputs has to be
+  /// override accordingly.
+  bool isInsertSubregLike(QueryType Type = IgnoreBundle) const {
+    return hasProperty(MCID::InsertSubreg, Type);
+  }
+
   //===--------------------------------------------------------------------===//
   // Side Effect Analysis
   //===--------------------------------------------------------------------===//
@@ -614,7 +667,6 @@ public:
   /// are not marking copies from and to the same register class with this flag.
   bool isAsCheapAsAMove(QueryType Type = AllInBundle) const {
     // Only returns true for a bundle if all bundled instructions are cheap.
-    // FIXME: This probably requires a target hook.
     return hasProperty(MCID::CheapAsAMove, Type);
   }
 
@@ -671,6 +723,12 @@ public:
   /// This function can not be used for instructions inside a bundle, use
   /// eraseFromBundle() to erase individual bundled instructions.
   void eraseFromParent();
+
+  /// Unlink 'this' from the containing basic block and delete it.
+  ///
+  /// For all definitions mark their uses in DBG_VALUE nodes
+  /// as undefined. Otherwise like eraseFromParent().
+  void eraseFromParentAndMarkDBGValuesForRemoval();
 
   /// Unlink 'this' form its basic block and delete it.
   ///
@@ -1081,7 +1139,10 @@ public:
   /// setDebugLoc - Replace current source information with new such.
   /// Avoid using this, the constructor argument is preferable.
   ///
-  void setDebugLoc(const DebugLoc dl) { debugLoc = dl; }
+  void setDebugLoc(const DebugLoc dl) {
+    debugLoc = dl;
+    assert(debugLoc.hasTrivialDestructor() && "Expected trivial destructor");
+  }
 
   /// RemoveOperand - Erase an operand  from an instruction, leaving it with one
   /// fewer operand than it started with.

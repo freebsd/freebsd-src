@@ -120,7 +120,7 @@ __bsd_iconv_close(iconv_t handle)
 }
 
 size_t
-__bsd_iconv(iconv_t handle, const char **in, size_t *szin, char **out, size_t *szout)
+__bsd_iconv(iconv_t handle, char **in, size_t *szin, char **out, size_t *szout)
 {
 	size_t ret;
 	int err;
@@ -141,7 +141,7 @@ __bsd_iconv(iconv_t handle, const char **in, size_t *szin, char **out, size_t *s
 }
 
 size_t
-__bsd___iconv(iconv_t handle, const char **in, size_t *szin, char **out,
+__bsd___iconv(iconv_t handle, char **in, size_t *szin, char **out,
     size_t *szout, uint32_t flags, size_t *invalids)
 {
 	size_t ret;

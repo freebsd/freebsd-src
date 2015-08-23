@@ -21,6 +21,7 @@
 #include "lldb/Core/State.h"
 #include "lldb/Core/Timer.h"
 #include "lldb/Host/Host.h"
+#include "lldb/Host/HostInfo.h"
 #include "lldb/Interpreter/CommandInterpreter.h"
 #include "lldb/Interpreter/OptionGroupPlatform.h"
 #include "lldb/Symbol/ObjectFile.h"
@@ -68,6 +69,41 @@ TargetList::CreateTarget (Debugger &debugger,
                           bool get_dependent_files,
                           const OptionGroupPlatform *platform_options,
                           TargetSP &target_sp)
+{
+    return CreateTargetInternal (debugger,
+                                 user_exe_path,
+                                 triple_cstr,
+                                 get_dependent_files,
+                                 platform_options,
+                                 target_sp,
+                                 false);
+}
+
+Error
+TargetList::CreateTarget (Debugger &debugger,
+                          const char *user_exe_path,
+                          const ArchSpec& specified_arch,
+                          bool get_dependent_files,
+                          PlatformSP &platform_sp,
+                          TargetSP &target_sp)
+{
+    return CreateTargetInternal (debugger,
+                                 user_exe_path,
+                                 specified_arch,
+                                 get_dependent_files,
+                                 platform_sp,
+                                 target_sp,
+                                 false);
+}
+
+Error
+TargetList::CreateTargetInternal (Debugger &debugger,
+                          const char *user_exe_path,
+                          const char *triple_cstr,
+                          bool get_dependent_files,
+                          const OptionGroupPlatform *platform_options,
+                          TargetSP &target_sp,
+                          bool is_dummy_target)
 {
     Error error;
     PlatformSP platform_sp;
@@ -170,7 +206,7 @@ TargetList::CreateTarget (Debugger &debugger,
                     
                     typedef std::vector<PlatformSP> PlatformList;
                     PlatformList platforms;
-                    PlatformSP host_platform_sp = Platform::GetDefaultPlatform();
+                    PlatformSP host_platform_sp = Platform::GetHostPlatform();
                     for (size_t i=0; i<num_specs; ++i)
                     {
                         ModuleSpec module_spec;
@@ -258,7 +294,11 @@ TargetList::CreateTarget (Debugger &debugger,
         if (!prefer_platform_arch && arch.IsValid())
         {
             if (!platform_sp->IsCompatibleArchitecture(arch, false, &platform_arch))
+            {
                 platform_sp = Platform::GetPlatformForArchitecture(arch, &platform_arch);
+                if (platform_sp)
+                    debugger.GetPlatformList().SetSelectedPlatform(platform_sp);
+            }
         }
         else if (platform_arch.IsValid())
         {
@@ -266,30 +306,69 @@ TargetList::CreateTarget (Debugger &debugger,
             // a single architecture which should be used
             ArchSpec fixed_platform_arch;
             if (!platform_sp->IsCompatibleArchitecture(platform_arch, false, &fixed_platform_arch))
+            {
                 platform_sp = Platform::GetPlatformForArchitecture(platform_arch, &fixed_platform_arch);
+                if (platform_sp)
+                    debugger.GetPlatformList().SetSelectedPlatform(platform_sp);
+            }
         }
     }
     
     if (!platform_arch.IsValid())
         platform_arch = arch;
 
-    error = TargetList::CreateTarget (debugger,
-                                      user_exe_path,
-                                      platform_arch,
-                                      get_dependent_files,
-                                      platform_sp,
-                                      target_sp);
+    error = TargetList::CreateTargetInternal (debugger,
+                                              user_exe_path,
+                                              platform_arch,
+                                              get_dependent_files,
+                                              platform_sp,
+                                              target_sp,
+                                              is_dummy_target);
     return error;
 }
 
-Error
-TargetList::CreateTarget (Debugger &debugger,
-                          const char *user_exe_path,
-                          const ArchSpec& specified_arch,
-                          bool get_dependent_files,
-                          PlatformSP &platform_sp,
-                          TargetSP &target_sp)
+lldb::TargetSP
+TargetList::GetDummyTarget (lldb_private::Debugger &debugger)
 {
+    // FIXME: Maybe the dummy target should be per-Debugger
+    if (!m_dummy_target_sp || !m_dummy_target_sp->IsValid())
+    {
+        ArchSpec arch(Target::GetDefaultArchitecture());
+        if (!arch.IsValid())
+            arch = HostInfo::GetArchitecture();
+        Error err = CreateDummyTarget(debugger,
+                                      arch.GetTriple().getTriple().c_str(),
+                                      m_dummy_target_sp);
+    }
+
+    return m_dummy_target_sp;
+}
+
+Error
+TargetList::CreateDummyTarget (Debugger &debugger,
+                               const char *specified_arch_name,
+                               lldb::TargetSP &target_sp)
+{
+    PlatformSP host_platform_sp(Platform::GetHostPlatform());
+    return CreateTargetInternal (debugger,
+                                 (const char *) nullptr,
+                                 specified_arch_name,
+                                 false,
+                                 (const OptionGroupPlatform *) nullptr,
+                                 target_sp,
+                                 true);
+}
+
+Error
+TargetList::CreateTargetInternal (Debugger &debugger,
+                      const char *user_exe_path,
+                      const ArchSpec& specified_arch,
+                      bool get_dependent_files,
+                      lldb::PlatformSP &platform_sp,
+                      lldb::TargetSP &target_sp,
+                      bool is_dummy_target)
+{
+
     Timer scoped_timer (__PRETTY_FUNCTION__,
                         "TargetList::CreateTarget (file = '%s', arch = '%s')",
                         user_exe_path,
@@ -332,7 +411,7 @@ TargetList::CreateTarget (Debugger &debugger,
         if (file.GetFileType() == FileSpec::eFileTypeDirectory)
             user_exe_path_is_bundle = true;
 
-        if (file.IsRelativeToCurrentWorkingDirectory())
+        if (file.IsRelativeToCurrentWorkingDirectory() && user_exe_path)
         {
             // Ignore paths that start with "./" and "../"
             if (!((user_exe_path[0] == '.' && user_exe_path[1] == '/') ||
@@ -355,8 +434,8 @@ TargetList::CreateTarget (Debugger &debugger,
         if (platform_sp)
         {
             FileSpecList executable_search_paths (Target::GetDefaultExecutableSearchPaths());
-            error = platform_sp->ResolveExecutable (file,
-                                                    arch,
+            ModuleSpec module_spec(file, arch);
+            error = platform_sp->ResolveExecutable (module_spec,
                                                     exe_module_sp, 
                                                     executable_search_paths.GetSize() ? &executable_search_paths : NULL);
         }
@@ -378,7 +457,7 @@ TargetList::CreateTarget (Debugger &debugger,
                 }
                 return error;
             }
-            target_sp.reset(new Target(debugger, arch, platform_sp));
+            target_sp.reset(new Target(debugger, arch, platform_sp, is_dummy_target));
             target_sp->SetExecutableModule (exe_module_sp, get_dependent_files);
             if (user_exe_path_is_bundle)
                 exe_module_sp->GetFileSpec().GetPath(resolved_bundle_exe_path, sizeof(resolved_bundle_exe_path));
@@ -388,7 +467,7 @@ TargetList::CreateTarget (Debugger &debugger,
     {
         // No file was specified, just create an empty target with any arch
         // if a valid arch was specified
-        target_sp.reset(new Target(debugger, arch, platform_sp));
+        target_sp.reset(new Target(debugger, arch, platform_sp, is_dummy_target));
     }
 
     if (target_sp)
@@ -415,11 +494,20 @@ TargetList::CreateTarget (Debugger &debugger,
             file_dir.GetDirectory() = file.GetDirectory();
             target_sp->GetExecutableSearchPaths ().Append (file_dir);
         }
-        Mutex::Locker locker(m_target_list_mutex);
-        m_selected_target_idx = m_target_list.size();
-        m_target_list.push_back(target_sp);
-        
-        
+
+        // Don't put the dummy target in the target list, it's held separately.
+        if (!is_dummy_target)
+        {
+            Mutex::Locker locker(m_target_list_mutex);
+            m_selected_target_idx = m_target_list.size();
+            m_target_list.push_back(target_sp);
+            // Now prime this from the dummy target:
+            target_sp->PrimeFromDummyTarget(debugger.GetDummyTarget());
+        }
+        else
+        {
+            m_dummy_target_sp = target_sp;
+        }
     }
 
     return error;

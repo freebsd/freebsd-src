@@ -12,14 +12,15 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_IR_ASSEMBLYWRITER_H
-#define LLVM_IR_ASSEMBLYWRITER_H
+#ifndef LLVM_LIB_IR_ASMWRITER_H
+#define LLVM_LIB_IR_ASMWRITER_H
 
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SetVector.h"
 #include "llvm/IR/Attributes.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/TypeFinder.h"
+#include "llvm/IR/UseListOrder.h"
 #include "llvm/Support/FormattedStream.h"
 
 namespace llvm {
@@ -73,6 +74,7 @@ private:
   TypePrinting TypePrinter;
   AssemblyAnnotationWriter *AnnotationWriter;
   SetVector<const Comdat *> Comdats;
+  UseListOrderStack UseListOrders;
 
 public:
   /// Construct an AssemblyWriter with an external SlotTracker
@@ -111,6 +113,9 @@ public:
   void printInstructionLine(const Instruction &I);
   void printInstruction(const Instruction &I);
 
+  void printUseListOrder(const UseListOrder &Order);
+  void printUseLists(const Function *F);
+
 private:
   void init();
 
@@ -121,4 +126,4 @@ private:
 
 } // namespace llvm
 
-#endif //LLVM_IR_ASMWRITER_H
+#endif

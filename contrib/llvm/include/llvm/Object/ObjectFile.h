@@ -27,6 +27,8 @@ namespace llvm {
 namespace object {
 
 class ObjectFile;
+class COFFObjectFile;
+class MachOObjectFile;
 
 class SymbolRef;
 class symbol_iterator;
@@ -93,23 +95,19 @@ public:
   void moveNext();
 
   std::error_code getName(StringRef &Result) const;
-  std::error_code getAddress(uint64_t &Result) const;
-  std::error_code getSize(uint64_t &Result) const;
+  uint64_t getAddress() const;
+  uint64_t getSize() const;
   std::error_code getContents(StringRef &Result) const;
 
   /// @brief Get the alignment of this section as the actual value (not log 2).
-  std::error_code getAlignment(uint64_t &Result) const;
+  uint64_t getAlignment() const;
 
-  // FIXME: Move to the normalization layer when it's created.
-  std::error_code isText(bool &Result) const;
-  std::error_code isData(bool &Result) const;
-  std::error_code isBSS(bool &Result) const;
-  std::error_code isRequiredForExecution(bool &Result) const;
-  std::error_code isVirtual(bool &Result) const;
-  std::error_code isZeroInit(bool &Result) const;
-  std::error_code isReadOnlyData(bool &Result) const;
+  bool isText() const;
+  bool isData() const;
+  bool isBSS() const;
+  bool isVirtual() const;
 
-  std::error_code containsSymbol(SymbolRef S, bool &Result) const;
+  bool containsSymbol(SymbolRef S) const;
 
   relocation_iterator relocation_begin() const;
   relocation_iterator relocation_end() const;
@@ -120,6 +118,7 @@ public:
   section_iterator getRelocatedSection() const;
 
   DataRefImpl getRawDataRefImpl() const;
+  const ObjectFile *getObject() const;
 };
 
 /// SymbolRef - This is a value type class that represents a single symbol in
@@ -176,30 +175,6 @@ public:
   }
 };
 
-/// LibraryRef - This is a value type class that represents a single library in
-/// the list of libraries needed by a shared or dynamic object.
-class LibraryRef {
-  friend class SectionRef;
-  DataRefImpl LibraryPimpl;
-  const ObjectFile *OwningObject;
-
-public:
-  LibraryRef() : OwningObject(nullptr) { }
-
-  LibraryRef(DataRefImpl LibraryP, const ObjectFile *Owner);
-
-  bool operator==(const LibraryRef &Other) const;
-  bool operator<(const LibraryRef &Other) const;
-
-  std::error_code getNext(LibraryRef &Result) const;
-
-  // Get the path to this library, as stored in the object file.
-  std::error_code getPath(StringRef &Result) const;
-
-  DataRefImpl getRawDataRefImpl() const;
-};
-typedef content_iterator<LibraryRef> library_iterator;
-
 /// ObjectFile - This class is the base class for all object file types.
 /// Concrete instances of this object are created by createObjectFile, which
 /// figures out which type to create.
@@ -209,10 +184,10 @@ class ObjectFile : public SymbolicFile {
   ObjectFile(const ObjectFile &other) LLVM_DELETED_FUNCTION;
 
 protected:
-  ObjectFile(unsigned int Type, std::unique_ptr<MemoryBuffer> Source);
+  ObjectFile(unsigned int Type, MemoryBufferRef Source);
 
   const uint8_t *base() const {
-    return reinterpret_cast<const uint8_t *>(Data->getBufferStart());
+    return reinterpret_cast<const uint8_t *>(Data.getBufferStart());
   }
 
   // These functions are for SymbolRef to call internally. The main goal of
@@ -248,29 +223,18 @@ protected:
   virtual void moveSectionNext(DataRefImpl &Sec) const = 0;
   virtual std::error_code getSectionName(DataRefImpl Sec,
                                          StringRef &Res) const = 0;
-  virtual std::error_code getSectionAddress(DataRefImpl Sec,
-                                            uint64_t &Res) const = 0;
-  virtual std::error_code getSectionSize(DataRefImpl Sec,
-                                         uint64_t &Res) const = 0;
+  virtual uint64_t getSectionAddress(DataRefImpl Sec) const = 0;
+  virtual uint64_t getSectionSize(DataRefImpl Sec) const = 0;
   virtual std::error_code getSectionContents(DataRefImpl Sec,
                                              StringRef &Res) const = 0;
-  virtual std::error_code getSectionAlignment(DataRefImpl Sec,
-                                              uint64_t &Res) const = 0;
-  virtual std::error_code isSectionText(DataRefImpl Sec, bool &Res) const = 0;
-  virtual std::error_code isSectionData(DataRefImpl Sec, bool &Res) const = 0;
-  virtual std::error_code isSectionBSS(DataRefImpl Sec, bool &Res) const = 0;
-  virtual std::error_code isSectionRequiredForExecution(DataRefImpl Sec,
-                                                        bool &Res) const = 0;
+  virtual uint64_t getSectionAlignment(DataRefImpl Sec) const = 0;
+  virtual bool isSectionText(DataRefImpl Sec) const = 0;
+  virtual bool isSectionData(DataRefImpl Sec) const = 0;
+  virtual bool isSectionBSS(DataRefImpl Sec) const = 0;
   // A section is 'virtual' if its contents aren't present in the object image.
-  virtual std::error_code isSectionVirtual(DataRefImpl Sec,
-                                           bool &Res) const = 0;
-  virtual std::error_code isSectionZeroInit(DataRefImpl Sec,
-                                            bool &Res) const = 0;
-  virtual std::error_code isSectionReadOnlyData(DataRefImpl Sec,
-                                                bool &Res) const = 0;
-  virtual std::error_code sectionContainsSymbol(DataRefImpl Sec,
-                                                DataRefImpl Symb,
-                                                bool &Result) const = 0;
+  virtual bool isSectionVirtual(DataRefImpl Sec) const = 0;
+  virtual bool sectionContainsSymbol(DataRefImpl Sec,
+                                     DataRefImpl Symb) const = 0;
   virtual relocation_iterator section_rel_begin(DataRefImpl Sec) const = 0;
   virtual relocation_iterator section_rel_end(DataRefImpl Sec) const = 0;
   virtual section_iterator getRelocatedSection(DataRefImpl Sec) const;
@@ -297,13 +261,6 @@ protected:
     return object_error::success;
   }
 
-  // Same for LibraryRef
-  friend class LibraryRef;
-  virtual std::error_code getLibraryNext(DataRefImpl Lib,
-                                         LibraryRef &Res) const = 0;
-  virtual std::error_code getLibraryPath(DataRefImpl Lib,
-                                         StringRef &Res) const = 0;
-
 public:
   typedef iterator_range<symbol_iterator> symbol_iterator_range;
   symbol_iterator_range symbols() const {
@@ -318,9 +275,6 @@ public:
     return section_iterator_range(section_begin(), section_end());
   }
 
-  virtual library_iterator needed_library_begin() const = 0;
-  virtual library_iterator needed_library_end() const = 0;
-
   /// @brief The number of bytes used to represent an address in this object
   ///        file format.
   virtual uint8_t getBytesInAddress() const = 0;
@@ -328,27 +282,26 @@ public:
   virtual StringRef getFileFormatName() const = 0;
   virtual /* Triple::ArchType */ unsigned getArch() const = 0;
 
-  /// For shared objects, returns the name which this object should be
-  /// loaded from at runtime. This corresponds to DT_SONAME on ELF and
-  /// LC_ID_DYLIB (install name) on MachO.
-  virtual StringRef getLoadName() const = 0;
-
   /// Returns platform-specific object flags, if any.
   virtual std::error_code getPlatformFlags(unsigned &Result) const {
     Result = 0;
     return object_error::invalid_file_type;
   }
 
+  /// True if this is a relocatable object (.o/.obj).
+  virtual bool isRelocatableObject() const = 0;
+
   /// @returns Pointer to ObjectFile subclass to handle this type of object.
   /// @param ObjectPath The path to the object file. ObjectPath.isObject must
   ///        return true.
   /// @brief Create ObjectFile from path.
-  static ErrorOr<ObjectFile *> createObjectFile(StringRef ObjectPath);
-  static ErrorOr<ObjectFile *>
-  createObjectFile(std::unique_ptr<MemoryBuffer> &Object,
-                   sys::fs::file_magic Type);
-  static ErrorOr<ObjectFile *>
-  createObjectFile(std::unique_ptr<MemoryBuffer> &Object) {
+  static ErrorOr<OwningBinary<ObjectFile>>
+  createObjectFile(StringRef ObjectPath);
+
+  static ErrorOr<std::unique_ptr<ObjectFile>>
+  createObjectFile(MemoryBufferRef Object, sys::fs::file_magic Type);
+  static ErrorOr<std::unique_ptr<ObjectFile>>
+  createObjectFile(MemoryBufferRef Object) {
     return createObjectFile(Object, sys::fs::file_magic::unknown);
   }
 
@@ -357,13 +310,14 @@ public:
     return v->isObject();
   }
 
-public:
-  static ErrorOr<ObjectFile *>
-  createCOFFObjectFile(std::unique_ptr<MemoryBuffer> Object);
-  static ErrorOr<ObjectFile *>
-  createELFObjectFile(std::unique_ptr<MemoryBuffer> &Object);
-  static ErrorOr<ObjectFile *>
-  createMachOObjectFile(std::unique_ptr<MemoryBuffer> &Object);
+  static ErrorOr<std::unique_ptr<COFFObjectFile>>
+  createCOFFObjectFile(MemoryBufferRef Object);
+
+  static ErrorOr<std::unique_ptr<ObjectFile>>
+  createELFObjectFile(MemoryBufferRef Object);
+
+  static ErrorOr<std::unique_ptr<MachOObjectFile>>
+  createMachOObjectFile(MemoryBufferRef Object);
 };
 
 // Inline function definitions.
@@ -430,54 +384,41 @@ inline std::error_code SectionRef::getName(StringRef &Result) const {
   return OwningObject->getSectionName(SectionPimpl, Result);
 }
 
-inline std::error_code SectionRef::getAddress(uint64_t &Result) const {
-  return OwningObject->getSectionAddress(SectionPimpl, Result);
+inline uint64_t SectionRef::getAddress() const {
+  return OwningObject->getSectionAddress(SectionPimpl);
 }
 
-inline std::error_code SectionRef::getSize(uint64_t &Result) const {
-  return OwningObject->getSectionSize(SectionPimpl, Result);
+inline uint64_t SectionRef::getSize() const {
+  return OwningObject->getSectionSize(SectionPimpl);
 }
 
 inline std::error_code SectionRef::getContents(StringRef &Result) const {
   return OwningObject->getSectionContents(SectionPimpl, Result);
 }
 
-inline std::error_code SectionRef::getAlignment(uint64_t &Result) const {
-  return OwningObject->getSectionAlignment(SectionPimpl, Result);
+inline uint64_t SectionRef::getAlignment() const {
+  return OwningObject->getSectionAlignment(SectionPimpl);
 }
 
-inline std::error_code SectionRef::isText(bool &Result) const {
-  return OwningObject->isSectionText(SectionPimpl, Result);
+inline bool SectionRef::isText() const {
+  return OwningObject->isSectionText(SectionPimpl);
 }
 
-inline std::error_code SectionRef::isData(bool &Result) const {
-  return OwningObject->isSectionData(SectionPimpl, Result);
+inline bool SectionRef::isData() const {
+  return OwningObject->isSectionData(SectionPimpl);
 }
 
-inline std::error_code SectionRef::isBSS(bool &Result) const {
-  return OwningObject->isSectionBSS(SectionPimpl, Result);
+inline bool SectionRef::isBSS() const {
+  return OwningObject->isSectionBSS(SectionPimpl);
 }
 
-inline std::error_code SectionRef::isRequiredForExecution(bool &Result) const {
-  return OwningObject->isSectionRequiredForExecution(SectionPimpl, Result);
+inline bool SectionRef::isVirtual() const {
+  return OwningObject->isSectionVirtual(SectionPimpl);
 }
 
-inline std::error_code SectionRef::isVirtual(bool &Result) const {
-  return OwningObject->isSectionVirtual(SectionPimpl, Result);
-}
-
-inline std::error_code SectionRef::isZeroInit(bool &Result) const {
-  return OwningObject->isSectionZeroInit(SectionPimpl, Result);
-}
-
-inline std::error_code SectionRef::isReadOnlyData(bool &Result) const {
-  return OwningObject->isSectionReadOnlyData(SectionPimpl, Result);
-}
-
-inline std::error_code SectionRef::containsSymbol(SymbolRef S,
-                                                  bool &Result) const {
+inline bool SectionRef::containsSymbol(SymbolRef S) const {
   return OwningObject->sectionContainsSymbol(SectionPimpl,
-                                             S.getRawDataRefImpl(), Result);
+                                             S.getRawDataRefImpl());
 }
 
 inline relocation_iterator SectionRef::relocation_begin() const {
@@ -494,6 +435,10 @@ inline section_iterator SectionRef::getRelocatedSection() const {
 
 inline DataRefImpl SectionRef::getRawDataRefImpl() const {
   return SectionPimpl;
+}
+
+inline const ObjectFile *SectionRef::getObject() const {
+  return OwningObject;
 }
 
 /// RelocationRef
@@ -548,26 +493,6 @@ inline const ObjectFile *RelocationRef::getObjectFile() const {
   return OwningObject;
 }
 
-// Inline function definitions.
-inline LibraryRef::LibraryRef(DataRefImpl LibraryP, const ObjectFile *Owner)
-  : LibraryPimpl(LibraryP)
-  , OwningObject(Owner) {}
-
-inline bool LibraryRef::operator==(const LibraryRef &Other) const {
-  return LibraryPimpl == Other.LibraryPimpl;
-}
-
-inline bool LibraryRef::operator<(const LibraryRef &Other) const {
-  return LibraryPimpl < Other.LibraryPimpl;
-}
-
-inline std::error_code LibraryRef::getNext(LibraryRef &Result) const {
-  return OwningObject->getLibraryNext(LibraryPimpl, Result);
-}
-
-inline std::error_code LibraryRef::getPath(StringRef &Result) const {
-  return OwningObject->getLibraryPath(LibraryPimpl, Result);
-}
 
 } // end namespace object
 } // end namespace llvm

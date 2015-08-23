@@ -17,7 +17,7 @@
 
 
 extern lzma_ret lzma_alone_decoder_init(
-		lzma_next_coder *next, lzma_allocator *allocator,
+		lzma_next_coder *next, const lzma_allocator *allocator,
 		uint64_t memlimit, bool picky);
 
 #endif

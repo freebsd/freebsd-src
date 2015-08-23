@@ -10,7 +10,7 @@
 #include "config.h"
 
 #ifndef lint
-static const char sccsid[] = "$Id: line.c,v 10.26 2011/08/12 12:36:41 zy Exp $";
+static const char sccsid[] = "$Id: line.c,v 10.27 2015/04/03 14:17:21 zy Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -26,13 +26,13 @@ static const char sccsid[] = "$Id: line.c,v 10.26 2011/08/12 12:36:41 zy Exp $";
 #include "common.h"
 #include "../vi/vi.h"
 
-static int scr_update __P((SCR *, recno_t, lnop_t, int));
+static int scr_update(SCR *, recno_t, lnop_t, int);
 
 /*
  * db_eget --
  *	Front-end to db_get, special case handling for empty files.
  *
- * PUBLIC: int db_eget __P((SCR *, recno_t, CHAR_T **, size_t *, int *));
+ * PUBLIC: int db_eget(SCR *, recno_t, CHAR_T **, size_t *, int *);
  */
 int
 db_eget(
@@ -76,7 +76,7 @@ db_eget(
  *	Look in the text buffers for a line, followed by the cache, followed
  *	by the database.
  *
- * PUBLIC: int db_get __P((SCR *, recno_t, u_int32_t, CHAR_T **, size_t *));
+ * PUBLIC: int db_get(SCR *, recno_t, u_int32_t, CHAR_T **, size_t *);
  */
 int
 db_get(
@@ -92,7 +92,6 @@ db_get(
 	recno_t l1, l2;
 	CHAR_T *wp;
 	size_t wlen;
-	size_t nlen;
 
 	/*
 	 * The underlying recno stuff handles zero by returning NULL, but
@@ -152,8 +151,6 @@ db_get(
 	ep->c_lno = OOBLNO;
 
 nocache:
-	nlen = 1024;
-retry:
 	/* Get the line from the underlying database. */
 	key.data = &lno;
 	key.size = sizeof(lno);
@@ -169,11 +166,6 @@ err3:		if (lenp != NULL)
 		if (pp != NULL)
 			*pp = NULL;
 		return (1);
-	case 0:
-		if (data.size > nlen) {
-			nlen = data.size;
-			goto retry;
-		}
 	}
 
 	if (FILE2INT(sp, data.data, data.size, wp, wlen)) {
@@ -207,7 +199,7 @@ err3:		if (lenp != NULL)
  * db_delete --
  *	Delete a line from the file.
  *
- * PUBLIC: int db_delete __P((SCR *, recno_t));
+ * PUBLIC: int db_delete(SCR *, recno_t);
  */
 int
 db_delete(
@@ -238,13 +230,11 @@ db_delete(
 	/* Update file. */
 	key.data = &lno;
 	key.size = sizeof(lno);
-	SIGBLOCK;
 	if (ep->db->del(ep->db, &key, 0) == 1) {
 		msgq(sp, M_SYSERR,
 		    "003|unable to delete line %lu", (u_long)lno);
 		return (1);
 	}
-	SIGUNBLOCK;
 
 	/* Flush the cache, update line count, before screen update. */
 	if (lno <= ep->c_lno)
@@ -265,7 +255,7 @@ db_delete(
  * db_append --
  *	Append a line into the file.
  *
- * PUBLIC: int db_append __P((SCR *, int, recno_t, CHAR_T *, size_t));
+ * PUBLIC: int db_append(SCR *, int, recno_t, CHAR_T *, size_t);
  */
 int
 db_append(
@@ -297,13 +287,11 @@ db_append(
 	key.size = sizeof(lno);
 	data.data = fp;
 	data.size = flen;
-	SIGBLOCK;
 	if (ep->db->put(ep->db, &key, &data, R_IAFTER) == -1) {
 		msgq(sp, M_SYSERR,
 		    "004|unable to append to line %lu", (u_long)lno);
 		return (1);
 	}
-	SIGUNBLOCK;
 
 	/* Flush the cache, update line count, before screen update. */
 	if (lno < ep->c_lno)
@@ -343,7 +331,7 @@ db_append(
  * db_insert --
  *	Insert a line into the file.
  *
- * PUBLIC: int db_insert __P((SCR *, recno_t, CHAR_T *, size_t));
+ * PUBLIC: int db_insert(SCR *, recno_t, CHAR_T *, size_t);
  */
 int
 db_insert(
@@ -375,13 +363,11 @@ db_insert(
 	key.size = sizeof(lno);
 	data.data = fp;
 	data.size = flen;
-	SIGBLOCK;
 	if (ep->db->put(ep->db, &key, &data, R_IBEFORE) == -1) {
 		msgq(sp, M_SYSERR,
 		    "005|unable to insert at line %lu", (u_long)lno);
 		return (1);
 	}
-	SIGUNBLOCK;
 
 	/* Flush the cache, update line count, before screen update. */
 	if (lno >= ep->c_lno)
@@ -412,7 +398,7 @@ db_insert(
  * db_set --
  *	Store a line in the file.
  *
- * PUBLIC: int db_set __P((SCR *, recno_t, CHAR_T *, size_t));
+ * PUBLIC: int db_set(SCR *, recno_t, CHAR_T *, size_t);
  */
 int
 db_set(
@@ -446,13 +432,11 @@ db_set(
 	key.size = sizeof(lno);
 	data.data = fp;
 	data.size = flen;
-	SIGBLOCK;
 	if (ep->db->put(ep->db, &key, &data, 0) == -1) {
 		msgq(sp, M_SYSERR,
 		    "006|unable to store line %lu", (u_long)lno);
 		return (1);
 	}
-	SIGUNBLOCK;
 
 	/* Flush the cache, before logging or screen update. */
 	if (lno == ep->c_lno)
@@ -474,7 +458,7 @@ db_set(
  * db_exist --
  *	Return if a line exists.
  *
- * PUBLIC: int db_exist __P((SCR *, recno_t));
+ * PUBLIC: int db_exist(SCR *, recno_t);
  */
 int
 db_exist(
@@ -509,7 +493,7 @@ db_exist(
  * db_last --
  *	Return the number of lines in the file.
  *
- * PUBLIC: int db_last __P((SCR *, recno_t *));
+ * PUBLIC: int db_last(SCR *, recno_t *);
  */
 int
 db_last(
@@ -552,8 +536,6 @@ alloc_err:
 	case 1:
 		*lnop = 0;
 		return (0);
-	case 0:
-		;
 	}
 
 	memcpy(&lno, key.data, sizeof(lno));
@@ -581,9 +563,9 @@ alloc_err:
 
 /*
  * db_rget --
- *	Retrieve a raw line from database. No cache, no conversion.
+ *	Retrieve a raw line from the database.
  *
- * PUBLIC: int db_rget __P((SCR *, recno_t, char **, size_t *));
+ * PUBLIC: int db_rget(SCR *, recno_t, char **, size_t *);
  */
 int
 db_rget(
@@ -593,31 +575,26 @@ db_rget(
 	size_t *lenp)				/* Length store. */
 {
 	DBT data, key;
-	EXF *ep;
-
-	/* Check for no underlying file. */
-	if ((ep = sp->ep) == NULL)
-		return (1);
+	EXF *ep = sp->ep;
+	int rval;
 
 	/* Get the line from the underlying database. */
 	key.data = &lno;
 	key.size = sizeof(lno);
-	if (ep->db->get(ep->db, &key, &data, 0))
-	/* We do not report error, and do not ensure the size! */
-		return (1);
-
-	if (lenp != NULL)
+	if ((rval = ep->db->get(ep->db, &key, &data, 0)) == 0)
+	{
 		*lenp = data.size;
-	if (pp != NULL)
 		*pp = data.data;
-	return (0);
+	}
+
+	return (rval);
 }
 
 /*
  * db_rset --
- *	Store a line in the file. No log, no conversion.
+ *	Store a raw line into the database.
  *
- * PUBLIC: int db_rset __P((SCR *, recno_t, char *, size_t));
+ * PUBLIC: int db_rset(SCR *, recno_t, char *, size_t);
  */
 int
 db_rset(
@@ -627,29 +604,21 @@ db_rset(
 	size_t len)
 {
 	DBT data, key;
-	EXF *ep;
+	EXF *ep = sp->ep;
 
-	/* Check for no underlying file. */
-	if ((ep = sp->ep) == NULL)
-		return (1);
-		
 	/* Update file. */
 	key.data = &lno;
 	key.size = sizeof(lno);
 	data.data = p;
 	data.size = len;
-	if (ep->db->put(ep->db, &key, &data, 0) == -1)
-	/* We do not report error, and do not ensure the size! */
-		return (1);
-
-	return (0);
+	return ep->db->put(ep->db, &key, &data, 0);
 }
 
 /*
  * db_err --
  *	Report a line error.
  *
- * PUBLIC: void db_err __P((SCR *, recno_t));
+ * PUBLIC: void db_err(SCR *, recno_t);
  */
 void
 db_err(

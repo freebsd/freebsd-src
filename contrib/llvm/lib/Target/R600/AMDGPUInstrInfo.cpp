@@ -86,21 +86,6 @@ AMDGPUInstrInfo::convertToThreeAddress(MachineFunction::iterator &MFI,
 // TODO: Implement this function
   return nullptr;
 }
-bool AMDGPUInstrInfo::getNextBranchInstr(MachineBasicBlock::iterator &iter,
-                                        MachineBasicBlock &MBB) const {
-  while (iter != MBB.end()) {
-    switch (iter->getOpcode()) {
-    default:
-      break;
-    case AMDGPU::BRANCH_COND_i32:
-    case AMDGPU::BRANCH_COND_f32:
-    case AMDGPU::BRANCH:
-      return true;
-    };
-    ++iter;
-  }
-  return false;
-}
 
 void
 AMDGPUInstrInfo::storeRegToStackSlot(MachineBasicBlock &MBB,
@@ -147,7 +132,6 @@ bool AMDGPUInstrInfo::expandPostRAPseudo (MachineBasicBlock::iterator MI) const 
   } else if (isRegisterStore(*MI)) {
     int ValOpIdx = AMDGPU::getNamedOperandIdx(MI->getOpcode(),
                                               AMDGPU::OpName::val);
-    AMDGPU::getNamedOperandIdx(MI->getOpcode(), AMDGPU::OpName::dst);
     unsigned RegIndex = MI->getOperand(RegOpIdx).getImm();
     unsigned Channel = MI->getOperand(ChanOpIdx).getImm();
     unsigned Address = calculateIndirectAddress(RegIndex, Channel);
@@ -215,15 +199,30 @@ AMDGPUInstrInfo::getOpcodeAfterMemoryUnfold(unsigned Opc,
   return 0;
 }
 
-bool AMDGPUInstrInfo::shouldScheduleLoadsNear(SDNode *Load1, SDNode *Load2,
-                                             int64_t Offset1, int64_t Offset2,
-                                             unsigned NumLoads) const {
-  assert(Offset2 > Offset1
-         && "Second offset should be larger than first offset!");
-  // If we have less than 16 loads in a row, and the offsets are within 16,
-  // then schedule together.
-  // TODO: Make the loads schedule near if it fits in a cacheline
-  return (NumLoads < 16 && (Offset2 - Offset1) < 16);
+bool AMDGPUInstrInfo::enableClusterLoads() const {
+  return true;
+}
+
+// FIXME: This behaves strangely. If, for example, you have 32 load + stores,
+// the first 16 loads will be interleaved with the stores, and the next 16 will
+// be clustered as expected. It should really split into 2 16 store batches.
+//
+// Loads are clustered until this returns false, rather than trying to schedule
+// groups of stores. This also means we have to deal with saying different
+// address space loads should be clustered, and ones which might cause bank
+// conflicts.
+//
+// This might be deprecated so it might not be worth that much effort to fix.
+bool AMDGPUInstrInfo::shouldScheduleLoadsNear(SDNode *Load0, SDNode *Load1,
+                                              int64_t Offset0, int64_t Offset1,
+                                              unsigned NumLoads) const {
+  assert(Offset1 > Offset0 &&
+         "Second offset should be larger than first offset!");
+  // If we have less than 16 loads in a row, and the offsets are within 64
+  // bytes, then schedule together.
+
+  // A cacheline is 64 bytes (for global memory).
+  return (NumLoads <= 16 && (Offset1 - Offset0) < 64);
 }
 
 bool
@@ -320,7 +319,10 @@ int AMDGPUInstrInfo::getIndirectIndexEnd(const MachineFunction &MF) const {
     return -1;
   }
 
-  Offset = MF.getTarget().getFrameLowering()->getFrameIndexOffset(MF, -1);
+  Offset = MF.getTarget()
+               .getSubtargetImpl()
+               ->getFrameLowering()
+               ->getFrameIndexOffset(MF, -1);
 
   return getIndirectIndexBegin(MF) + Offset;
 }
@@ -335,12 +337,43 @@ int AMDGPUInstrInfo::getMaskedMIMGOp(uint16_t Opcode, unsigned Channels) const {
 }
 
 // Wrapper for Tablegen'd function.  enum Subtarget is not defined in any
-// header files, so we need to wrap it in a function that takes unsigned 
+// header files, so we need to wrap it in a function that takes unsigned
 // instead.
 namespace llvm {
 namespace AMDGPU {
-int getMCOpcode(uint16_t Opcode, unsigned Gen) {
-  return getMCOpcode(Opcode);
+static int getMCOpcode(uint16_t Opcode, unsigned Gen) {
+  return getMCOpcodeGen(Opcode, (enum Subtarget)Gen);
 }
 }
+}
+
+// This must be kept in sync with the SISubtarget class in SIInstrInfo.td
+enum SISubtarget {
+  SI = 0,
+  VI = 1
+};
+
+enum SISubtarget AMDGPUSubtargetToSISubtarget(unsigned Gen) {
+  switch (Gen) {
+  default:
+    return SI;
+  case AMDGPUSubtarget::VOLCANIC_ISLANDS:
+    return VI;
+  }
+}
+
+int AMDGPUInstrInfo::pseudoToMCOpcode(int Opcode) const {
+  int MCOp = AMDGPU::getMCOpcode(Opcode,
+                        AMDGPUSubtargetToSISubtarget(RI.ST.getGeneration()));
+
+  // -1 means that Opcode is already a native instruction.
+  if (MCOp == -1)
+    return Opcode;
+
+  // (uint16_t)-1 means that Opcode is a pseudo instruction that has
+  // no encoding in the given subtarget generation.
+  if (MCOp == (uint16_t)-1)
+    return -1;
+
+  return MCOp;
 }

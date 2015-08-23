@@ -13,6 +13,7 @@
 #include "llvm/Support/SourceMgr.h"
 #include "lldb/Core/DataBufferHeap.h"
 #include "lldb/Core/DataExtractor.h"
+#include "lldb/Core/Debugger.h"
 #include "lldb/Core/Disassembler.h"
 #include "lldb/Core/Log.h"
 #include "lldb/Core/Module.h"
@@ -199,6 +200,11 @@ IRExecutionUnit::DisassembleFunction (Stream &stream,
 
     InstructionList &instruction_list = disassembler_sp->GetInstructionList();
     const uint32_t max_opcode_byte_size = instruction_list.GetMaxOpcocdeByteSize();
+    const char *disassemble_format = "${addr-file-or-load}: ";
+    if (exe_ctx.HasTargetScope())
+    {
+        disassemble_format = exe_ctx.GetTargetRef().GetDebugger().GetDisassemblyFormat();
+    }
 
     for (size_t instruction_index = 0, num_instructions = instruction_list.GetSize();
          instruction_index < num_instructions;
@@ -209,7 +215,10 @@ IRExecutionUnit::DisassembleFunction (Stream &stream,
                            max_opcode_byte_size,
                            true,
                            true,
-                           &exe_ctx);
+                           &exe_ctx,
+                           NULL,
+                           NULL,
+                           disassemble_format);
         stream.PutChar('\n');
     }
     // FIXME: The DisassemblerLLVMC has a reference cycle and won't go away if it has any active instructions.
@@ -295,16 +304,14 @@ IRExecutionUnit::GetRunnableInfo(Error &error,
 
     m_module_ap->getContext().setInlineAsmDiagnosticHandler(ReportInlineAsmError, &error);
 
-    llvm::EngineBuilder builder(m_module_ap.get());
+    llvm::EngineBuilder builder(std::move(m_module_ap));
 
     builder.setEngineKind(llvm::EngineKind::JIT)
     .setErrorStr(&error_string)
     .setRelocationModel(relocModel)
-    .setJITMemoryManager(new MemoryManager(*this))
-    .setOptLevel(llvm::CodeGenOpt::Less)
-    .setAllocateGVsWithCode(true)
+    .setMCJITMemoryManager(std::unique_ptr<MemoryManager>(new MemoryManager(*this)))
     .setCodeModel(codeModel)
-    .setUseMCJIT(true);
+    .setOptLevel(llvm::CodeGenOpt::Less);
 
     llvm::StringRef mArch;
     llvm::StringRef mCPU;
@@ -325,10 +332,6 @@ IRExecutionUnit::GetRunnableInfo(Error &error,
         error.SetErrorToGenericError();
         error.SetErrorStringWithFormat("Couldn't JIT the function: %s", error_string.c_str());
         return;
-    }
-    else
-    {
-        m_module_ap.release(); // ownership was transferred
     }
 
     // Make sure we see all sections, including ones that don't have relocations...
@@ -429,67 +432,13 @@ IRExecutionUnit::~IRExecutionUnit ()
 }
 
 IRExecutionUnit::MemoryManager::MemoryManager (IRExecutionUnit &parent) :
-    m_default_mm_ap (llvm::JITMemoryManager::CreateDefaultMemManager()),
+    m_default_mm_ap (new llvm::SectionMemoryManager()),
     m_parent (parent)
 {
 }
 
 IRExecutionUnit::MemoryManager::~MemoryManager ()
 {
-}
-void
-IRExecutionUnit::MemoryManager::setMemoryWritable ()
-{
-    m_default_mm_ap->setMemoryWritable();
-}
-
-void
-IRExecutionUnit::MemoryManager::setMemoryExecutable ()
-{
-    m_default_mm_ap->setMemoryExecutable();
-}
-
-
-uint8_t *
-IRExecutionUnit::MemoryManager::startFunctionBody(const llvm::Function *F,
-                                                  uintptr_t &ActualSize)
-{
-    return m_default_mm_ap->startFunctionBody(F, ActualSize);
-}
-
-uint8_t *
-IRExecutionUnit::MemoryManager::allocateStub(const llvm::GlobalValue* F,
-                                             unsigned StubSize,
-                                             unsigned Alignment)
-{
-    Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_EXPRESSIONS));
-
-    uint8_t *return_value = m_default_mm_ap->allocateStub(F, StubSize, Alignment);
-
-    m_parent.m_records.push_back(AllocationRecord((uintptr_t)return_value,
-                                                  lldb::ePermissionsReadable | lldb::ePermissionsWritable,
-                                                  GetSectionTypeFromSectionName (llvm::StringRef(), AllocationKind::Stub),
-                                                  StubSize,
-                                                  Alignment,
-                                                  eSectionIDInvalid,
-                                                  NULL));
-
-    if (log)
-    {
-        log->Printf("IRExecutionUnit::allocateStub (F=%p, StubSize=%u, Alignment=%u) = %p",
-                    static_cast<const void*>(F), StubSize, Alignment,
-                    static_cast<void*>(return_value));
-    }
-
-    return return_value;
-}
-
-void
-IRExecutionUnit::MemoryManager::endFunctionBody(const llvm::Function *F,
-                                                uint8_t *FunctionStart,
-                                                uint8_t *FunctionEnd)
-{
-    m_default_mm_ap->endFunctionBody(F, FunctionStart, FunctionEnd);
 }
 
 lldb::SectionType
@@ -602,30 +551,6 @@ IRExecutionUnit::GetSectionTypeFromSectionName (const llvm::StringRef &name, IRE
 }
 
 uint8_t *
-IRExecutionUnit::MemoryManager::allocateSpace(intptr_t Size, unsigned Alignment)
-{
-    Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_EXPRESSIONS));
-
-    uint8_t *return_value = m_default_mm_ap->allocateSpace(Size, Alignment);
-
-    m_parent.m_records.push_back(AllocationRecord((uintptr_t)return_value,
-                                                  lldb::ePermissionsReadable | lldb::ePermissionsWritable,
-                                                  GetSectionTypeFromSectionName (llvm::StringRef(), AllocationKind::Bytes),
-                                                  Size,
-                                                  Alignment,
-                                                  eSectionIDInvalid,
-                                                  NULL));
-
-    if (log)
-    {
-        log->Printf("IRExecutionUnit::allocateSpace(Size=%" PRIu64 ", Alignment=%u) = %p",
-                               (uint64_t)Size, Alignment, return_value);
-    }
-
-    return return_value;
-}
-
-uint8_t *
 IRExecutionUnit::MemoryManager::allocateCodeSection(uintptr_t Size,
                                                     unsigned Alignment,
                                                     unsigned SectionID,
@@ -677,37 +602,6 @@ IRExecutionUnit::MemoryManager::allocateDataSection(uintptr_t Size,
     }
 
     return return_value;
-}
-
-uint8_t *
-IRExecutionUnit::MemoryManager::allocateGlobal(uintptr_t Size,
-                                               unsigned Alignment)
-{
-    Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_EXPRESSIONS));
-
-    uint8_t *return_value = m_default_mm_ap->allocateGlobal(Size, Alignment);
-
-    m_parent.m_records.push_back(AllocationRecord((uintptr_t)return_value,
-                                                  lldb::ePermissionsReadable | lldb::ePermissionsWritable,
-                                                  GetSectionTypeFromSectionName (llvm::StringRef(), AllocationKind::Global),
-                                                  Size,
-                                                  Alignment,
-                                                  eSectionIDInvalid,
-                                                  NULL));
-
-    if (log)
-    {
-        log->Printf("IRExecutionUnit::allocateGlobal(Size=0x%" PRIx64 ", Alignment=%u) = %p",
-                    (uint64_t)Size, Alignment, return_value);
-    }
-
-    return return_value;
-}
-
-void
-IRExecutionUnit::MemoryManager::deallocateFunctionBody(void *Body)
-{
-    m_default_mm_ap->deallocateFunctionBody(Body);
 }
 
 lldb::addr_t

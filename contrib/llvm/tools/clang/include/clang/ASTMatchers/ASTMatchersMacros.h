@@ -34,8 +34,19 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_AST_MATCHERS_AST_MATCHERS_MACROS_H
-#define LLVM_CLANG_AST_MATCHERS_AST_MATCHERS_MACROS_H
+#ifndef LLVM_CLANG_ASTMATCHERS_ASTMATCHERSMACROS_H
+#define LLVM_CLANG_ASTMATCHERS_ASTMATCHERSMACROS_H
+
+/// \brief AST_MATCHER_FUNCTION(ReturnType, DefineMatcher) {
+/// defines a zero parameter function named DefineMatcher() that returns a
+/// ReturnType object.
+#define AST_MATCHER_FUNCTION(ReturnType, DefineMatcher)                        \
+  inline ReturnType DefineMatcher##_getInstance();                             \
+  inline ReturnType DefineMatcher() {                                          \
+    return internal::MemoizedMatcher<                                          \
+        ReturnType, DefineMatcher##_getInstance>::getInstance();               \
+  }                                                                            \
+  inline ReturnType DefineMatcher##_getInstance()
 
 /// \brief AST_MATCHER_FUNCTION_P(ReturnType, DefineMatcher, ParamType, Param) {
 /// defines a single-parameter function named DefineMatcher() that returns a
@@ -352,4 +363,4 @@
       internal::TypeLocTraverseMatcher, ReturnTypesF>::Func MatcherName##Loc;  \
   AST_TYPE_TRAVERSE_MATCHER(MatcherName, FunctionName##Type, ReturnTypesF)
 
-#endif // LLVM_CLANG_AST_MATCHERS_AST_MATCHERS_MACROS_H
+#endif

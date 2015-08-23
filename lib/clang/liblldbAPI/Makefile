@@ -19,6 +19,7 @@ SRCS=	SBAddress.cpp \
 	SBDeclaration.cpp \
 	SBError.cpp \
 	SBEvent.cpp \
+	SBExecutionContext.cpp \
 	SBExpressionOptions.cpp \
 	SBFileSpec.cpp \
 	SBFileSpecList.cpp \
@@ -43,6 +44,8 @@ SRCS=	SBAddress.cpp \
 	SBSymbolContext.cpp \
 	SBSymbolContextList.cpp \
 	SBTarget.cpp \
+	SBThreadCollection.cpp \
+	SBThreadPlan.cpp \
 	SBThread.cpp \
 	SBType.cpp \
 	SBTypeCategory.cpp \

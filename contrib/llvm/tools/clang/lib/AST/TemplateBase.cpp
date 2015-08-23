@@ -33,10 +33,25 @@ using namespace clang;
 /// \param TemplArg the TemplateArgument instance to print.
 ///
 /// \param Out the raw_ostream instance to use for printing.
+///
+/// \param Policy the printing policy for EnumConstantDecl printing.
 static void printIntegral(const TemplateArgument &TemplArg,
-                          raw_ostream &Out) {
+                          raw_ostream &Out, const PrintingPolicy& Policy) {
   const ::clang::Type *T = TemplArg.getIntegralType().getTypePtr();
   const llvm::APSInt &Val = TemplArg.getAsIntegral();
+
+  if (const EnumType *ET = T->getAs<EnumType>()) {
+    for (const EnumConstantDecl* ECD : ET->getDecl()->enumerators()) {
+      // In Sema::CheckTemplateArugment, enum template arguments value are
+      // extended to the size of the integer underlying the enum type.  This
+      // may create a size difference between the enum value and template
+      // argument value, requiring isSameValue here instead of operator==.
+      if (llvm::APSInt::isSameValue(ECD->getInitVal(), Val)) {
+        ECD->printQualifiedName(Out, Policy);
+        return;
+      }
+    }
+  }
 
   if (T->isBooleanType()) {
     Out << (Val.getBoolValue() ? "true" : "false");
@@ -90,7 +105,8 @@ bool TemplateArgument::isDependent() const {
     llvm_unreachable("Should not have a NULL template argument");
 
   case Type:
-    return getAsType()->isDependentType();
+    return getAsType()->isDependentType() ||
+           isa<PackExpansionType>(getAsType());
 
   case Template:
     return getAsTemplate().isDependent();
@@ -111,7 +127,8 @@ bool TemplateArgument::isDependent() const {
     return false;
 
   case Expression:
-    return (getAsExpr()->isTypeDependent() || getAsExpr()->isValueDependent());
+    return (getAsExpr()->isTypeDependent() || getAsExpr()->isValueDependent() ||
+            isa<PackExpansionExpr>(getAsExpr()));
 
   case Pack:
     for (const auto &P : pack_elements())
@@ -294,8 +311,7 @@ bool TemplateArgument::structurallyEquals(const TemplateArgument &Other) const {
     return TypeOrValue.V == Other.TypeOrValue.V;
 
   case Declaration:
-    return getAsDecl() == Other.getAsDecl() && 
-           isDeclForReferenceParam() && Other.isDeclForReferenceParam();
+    return getAsDecl() == Other.getAsDecl();
 
   case Integral:
     return getIntegralType() == Other.getIntegralType() &&
@@ -377,7 +393,7 @@ void TemplateArgument::print(const PrintingPolicy &Policy,
     break;
       
   case Integral: {
-    printIntegral(*this, Out);
+    printIntegral(*this, Out, Policy);
     break;
   }
     

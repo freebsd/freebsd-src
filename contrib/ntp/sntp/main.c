@@ -1,1735 +1,1600 @@
-/*  Copyright (C) 1996, 1997, 2000 N.M. Maclaren
-    Copyright (C) 1996, 1997, 2000 The University of Cambridge
+#include <config.h>
 
-This is a complete SNTP implementation, which was easier to write than to port
-xntp to a new version of Unix with any hope of maintaining it thereafter.  It
-supports the full SNTP (RFC 2030) client- and server-side challenge-response
-and broadcast protocols.  It should achieve nearly optimal accuracy with very
-few transactions, provided only that a client has access to a trusted server
-and that communications are not INVARIABLY slow.  As this is the environment in
-which 90-99% of all NTP systems are run ....
+#include <event2/util.h>
+#include <event2/event.h>
 
-The specification of this program is:
+#include "ntp_workimpl.h"
+#ifdef WORK_THREAD
+# include <event2/thread.h>
+#endif
 
-    sntp [ --help | -h | -? ] [ -v | -V | -W ]
-        [ -q [ -f savefile ] |
-            [ { -r | -a } [ -P prompt ] [ -l lockfile ] ]
-            [ -c count ] [ -e minerr ][ -E maxerr ]
-            [ -d delay | -x [ separation ] [ -f savefile ] ]
-            [ -4 | -6 ] [ address(es) ] ]
-
-    --help, -h and -? all print the syntax of the command.
-
-    -v indicates that diagnostic messages should be written to standard error,
-and -V requests more output for investigating apparently inconsistent
-timestamps.  -W requests very verbose debugging output, and will interfere with
-the timing when writing to the terminal (because of line buffered output from
-C); it is useful only when debugging the source.  Note that the times produced
-by -V and -W are the corrections needed, and not the error in the local clock.
-
-    -q indicates that it will query a savefile that is being maintained by
-it being run in daemon mode.
-
-     The default is that it should behave as a client, and the following options
-are then relevant:
-
-    -r indicates that the system clock should be reset by 'settimeofday'.
-Naturally, this will work only if the user has enough privilege.
-
-    -a indicates that the system clock should be reset by 'adjtime'.
-Naturally, this will work only if the user has enough privilege.
-
-    -x indicates that the program should run as a daemon (i.e. forever), and
-allow for clock drift.
-
-    -4 or -6 force dns resolving to ipv4 or ipv6 addresses.
-
-    The default is to write the current date and time to the standard output in
-a format like '1996 Oct 15 20:17:25.123 + 4.567 +/- 0.089 secs', indicating the
-estimated true (local) time and the error in the local clock.  In daemon mode,
-it will add drift information in a format like ' + 1.3 +/- 0.1 ppm', and
-display this at roughly 'separation' intervals.
-
-    'minerr' is the maximum ignorable variation between the clocks.  Acceptable
-values are from 0.001 to 1, and the default is 0.1 if 'address' is specified
-and 0.5 otherwise.
-
-    'maxerr' is the maximum value of various delays that are deemed acceptable.
-Acceptable values are from 1 to 60, and the default is 5.  It should sometimes
-be increased if there are problems with the network, NTP server or system
-clock, but take care.
-
-    'prompt' is the maximum clock change that will be made automatically.
-Acceptable values are from 1 to 3600, and the default is 30.  If the program is
-being run interactively, larger values will cause a prompt.  The value may also
-be 'no', and the change will be made without prompting.
-
-    'count' is the maximum number of NTP packets to require.  Acceptable values
-are from 1 to 25 if 'address' is specified and '-x' is not, and from 5 to 25
-otherwise; the default is 5.  If the maximum isn't enough, you need a better
-consistency algorithm than this program uses.  Don't increase it.
-
-    'delay' is a rough limit on the total running time in seconds.  Acceptable
-values are from 1 to 3600, and the default is 15 if 'address' is specified and
-300 otherwise.
-
-    'separation' is the time to wait between calls to the server in minutes if
-'address' is specified, and the minimum time between broadcast packets if not.
-Acceptable values are from 1 to 1440 (a day), and the default is 300.
-
-    'lockfile' may be used in an update mode to ensure that there is only
-one copy of sntp running at once.  The default is installation-dependent,
-but will usually be /etc/sntp.pid.
-
-    'savefile' may be used in daemon mode to store a record of previous
-packets, which may speed up recalculating the drift after sntp has to be
-restarted (e.g. because of network or server outages).  The default is
-installation-dependent, but will usually be /etc/sntp.state.  Note that
-there is no locking of this file, and using it twice may cause chaos.
-
-    'address' is the DNS name or IP number of a host to poll; if no name is
-given, the program waits for broadcasts.  Note that a single component numeric
-address is not allowed.
-
-For sanity, it is also required that 'minerr' < 'maxerr' < 'delay' (if
-listening for broadcasts, 'delay/count' and, in daemon mode, 'separation') and,
-for sordid Unixish reasons, that 2*'count' < 'delay'.  The last could be fixed,
-but isn't worth it.  Note that none of the above values are closely linked to
-the limits described in the NTP protocol (RFC 1305).  Do not increase the
-compiled-in bounds excessively, or the code will fail.
-
-The algorithm used to decide whether to accept a correction is whether it would
-seem to improve matters.  Unlike the 'xntp' suite, little attempt is made to
-handle really knotted scenarios, and diagnostics are written to standard error.
-In non-daemon client mode, it is intended to be run as a command or in a 'cron'
-job.  Unlike 'ntpdate', its default mode is simply to display the clock error.
-
-It assumes that floating-point arithmetic is tolerably efficient, which is true
-for even the cheapest personal computer nowadays.  If, however, you want to
-port this to a toaster, you may have problems!
-
-In its terminating modes, its return code is EXIT_SUCCESS if the operation was
-completed successfully and EXIT_FAILURE otherwise.
-
-In daemon mode, it runs for ever and stops with a return code EXIT_FAILURE
-only after a severe error.  In daemon mode, it will fail if the server is
-inaccessible for a long time or seriously sick, and will need manual
-restarting.
+#include "main.h"
+#include "ntp_libopts.h"
+#include "kod_management.h"
+#include "networking.h"
+#include "utilities.h"
+#include "log.h"
+#include "libntp.h"
 
 
-WARNING: this program has reached its 'hack count' and needs restructuring,
-badly.  Perhaps the worst code is in run_daemon().  You are advised not to
-fiddle unless you really have to. */
+int shutting_down;
+int time_derived;
+int time_adjusted;
+int n_pending_dns = 0;
+int n_pending_ntp = 0;
+int ai_fam_pref = AF_UNSPEC;
+int ntpver = 4;
+double steplimit = -1;
+SOCKET sock4 = -1;		/* Socket for IPv4 */
+SOCKET sock6 = -1;		/* Socket for IPv6 */
+/*
+** BCAST *must* listen on port 123 (by default), so we can only
+** use the UCST sockets (above) if they too are using port 123
+*/
+SOCKET bsock4 = -1;		/* Broadcast Socket for IPv4 */
+SOCKET bsock6 = -1;		/* Broadcast Socket for IPv6 */
+struct event_base *base;
+struct event *ev_sock4;
+struct event *ev_sock6;
+struct event *ev_worker_timeout;
+struct event *ev_xmt_timer;
+
+struct dns_ctx {
+	const char *	name;
+	int		flags;
+#define CTX_BCST	0x0001
+#define CTX_UCST	0x0002
+#define CTX_xCST	0x0003
+#define CTX_CONC	0x0004
+#define CTX_unused	0xfffd
+	int		key_id;
+	struct timeval	timeout;
+	struct key *	key;
+};
+
+typedef struct sent_pkt_tag sent_pkt;
+struct sent_pkt_tag {
+	sent_pkt *		link;
+	struct dns_ctx *	dctx;
+	sockaddr_u		addr;
+	time_t			stime;
+	int			done;
+	struct pkt		x_pkt;
+};
+
+typedef struct xmt_ctx_tag xmt_ctx;
+struct xmt_ctx_tag {
+	xmt_ctx *		link;
+	SOCKET			sock;
+	time_t			sched;
+	sent_pkt *		spkt;
+};
+
+struct timeval	gap;
+xmt_ctx *	xmt_q;
+struct key *	keys = NULL;
+int		response_timeout;
+struct timeval	response_tv;
+struct timeval	start_tv;
+/* check the timeout at least once per second */
+struct timeval	wakeup_tv = { 0, 888888 };
+
+sent_pkt *	fam_listheads[2];
+#define v4_pkts_list	(fam_listheads[0])
+#define v6_pkts_list	(fam_listheads[1])
+
+static union {
+	struct pkt pkt;
+	char   buf[LEN_PKT_NOMAC + NTP_MAXEXTEN + MAX_MAC_LEN];
+} rbuf;
+
+#define r_pkt  rbuf.pkt
+
+#ifdef HAVE_DROPROOT
+int droproot;			/* intres imports these */
+int root_dropped;
+#endif
+u_long current_time;		/* libntp/authkeys.c */
+
+void open_sockets(void);
+void handle_lookup(const char *name, int flags);
+void sntp_addremove_fd(int fd, int is_pipe, int remove_it);
+void worker_timeout(evutil_socket_t, short, void *);
+void worker_resp_cb(evutil_socket_t, short, void *);
+void sntp_name_resolved(int, int, void *, const char *, const char *,
+			const struct addrinfo *,
+			const struct addrinfo *);
+void queue_xmt(SOCKET sock, struct dns_ctx *dctx, sent_pkt *spkt,
+	       u_int xmt_delay);
+void xmt_timer_cb(evutil_socket_t, short, void *ptr);
+void xmt(xmt_ctx *xctx);
+int  check_kod(const struct addrinfo *ai);
+void timeout_query(sent_pkt *);
+void timeout_queries(void);
+void sock_cb(evutil_socket_t, short, void *);
+void check_exit_conditions(void);
+void sntp_libevent_log_cb(int, const char *);
+void set_li_vn_mode(struct pkt *spkt, char leap, char version, char mode);
+int  set_time(double offset);
+void dec_pending_ntp(const char *, sockaddr_u *);
+int  libevent_version_ok(void);
+int  gettimeofday_cached(struct event_base *b, struct timeval *tv);
 
 
+/*
+ * The actual main function.
+ */
+int
+sntp_main (
+	int argc,
+	char **argv,
+	const char *sntpVersion
+	)
+{
+	int			i;
+	int			exitcode;
+	int			optct;
+	struct event_config *	evcfg;
 
-#include "header.h"
+	/* Initialize logging system - sets up progname */
+	sntp_init_logging(argv[0]);
 
-#include <limits.h>
-#include <float.h>
-#include <math.h>
+	if (!libevent_version_ok())
+		exit(EX_SOFTWARE);
 
-#define MAIN
-#include "kludges.h"
-#undef MAIN
+	init_lib();
+	init_auth();
 
-
-
-/* NTP definitions.  Note that these assume 8-bit bytes - sigh.  There is
-little point in parameterising everything, as it is neither feasible nor
-useful.  It would be very useful if more fields could be defined as
-unspecified.  The NTP packet-handling routines contain a lot of extra
-assumptions. */
-
-#define JAN_1970   2208988800.0        /* 1970 - 1900 in seconds */
-#define NTP_SCALE  4294967296.0        /* 2^32, of course! */
-
-#define NTP_PACKET_MIN       48        /* Without authentication */
-#define NTP_PACKET_MAX       68        /* With authentication (ignored) */
-#define NTP_DISP_FIELD        8        /* Offset of dispersion field */
-#define NTP_REFERENCE        16        /* Offset of reference timestamp */
-#define NTP_ORIGINATE        24        /* Offset of originate timestamp */
-#define NTP_RECEIVE          32        /* Offset of receive timestamp */
-#define NTP_TRANSMIT         40        /* Offset of transmit timestamp */
-
-#define NTP_LI_FUDGE          0        /* The current 'status' */
-#define NTP_VERSION           3        /* The current version */
-#define NTP_VERSION_MAX       4        /* The maximum valid version */
-#define NTP_STRATUM          15        /* The current stratum as a server */
-#define NTP_STRATUM_MAX      15        /* The maximum valid stratum */
-#define NTP_POLLING           8        /* The current 'polling interval' */
-#define NTP_PRECISION         0        /* The current 'precision' - 1 sec. */
-
-#define NTP_ACTIVE            1        /* NTP symmetric active request */
-#define NTP_PASSIVE           2        /* NTP symmetric passive response */
-#define NTP_CLIENT            3        /* NTP client request */
-#define NTP_SERVER            4        /* NTP server response */
-#define NTP_BROADCAST         5        /* NTP server broadcast */
-
-#define NTP_INSANITY     3600.0        /* Errors beyond this are hopeless */
-#define RESET_MIN            15        /* Minimum period between resets */
-#define ABSCISSA            3.0        /* Scale factor for standard errors */
+	optct = ntpOptionProcess(&sntpOptions, argc, argv);
+	argc -= optct;
+	argv += optct;
 
 
+	debug = OPT_VALUE_SET_DEBUG_LEVEL;
 
-/* Local definitions and global variables (mostly options).  These are all of
-the quantities that control the main actions of the program.  The first three 
-are the only ones that are exported to other modules. */
+	TRACE(2, ("init_lib() done, %s%s\n",
+		  (ipv4_works)
+		      ? "ipv4_works "
+		      : "",
+		  (ipv6_works)
+		      ? "ipv6_works "
+		      : ""));
+	ntpver = OPT_VALUE_NTPVERSION;
+	steplimit = OPT_VALUE_STEPLIMIT / 1e3;
+	gap.tv_usec = max(0, OPT_VALUE_GAP * 1000);
+	gap.tv_usec = min(gap.tv_usec, 999999);
 
-const char *argv0 = NULL;              /* For diagnostics only - not NULL */
-int verbose = 0,                       /* Default = 0, -v = 1, -V = 2, -W = 3 */
-    operation = 0;                     /* Defined in header.h - see action */
-const char *lockname = NULL;           /* The name of the lock file */
-int unprivport = 0;			/* Use an unpriv port for query? */
+	if (HAVE_OPT(LOGFILE))
+		open_logfile(OPT_ARG(LOGFILE));
 
-#define COUNT_MAX          25          /* Do NOT increase this! */
-#define WEEBLE_FACTOR     1.2          /* See run_server() and run_daemon() */
-#define ETHERNET_MAX        5          /* See run_daemon() and run_client() */
+	msyslog(LOG_INFO, "%s", sntpVersion);
 
-#define action_display      1          /* Just display the result */
-#define action_reset        2          /* Reset using 'settimeofday' */
-#define action_adjust       3          /* Reset using 'adjtime' */
-#define action_broadcast    4          /* Behave as a server, broadcasting */
-#define action_server       5          /* Behave as a server for clients */
-#define action_query        6          /* Query a daemon savefile */
-
-#define save_read_only      1          /* Read the saved state only */
-#define save_read_check     2          /* Read and check it */
-#define save_write          3          /* Write the saved state */
-#define save_clear          4          /* Clear the saved state */
-
-static const char version[] = VERSION; /* For reverse engineering :-) */
-static int action = 0,                 /* Defined above - see operation */
-    count = 0,                         /* -c value in seconds */
-    delay = 0,                         /* -d or -x value in seconds */
-    attempts = 0,                      /* Packets transmitted up to 2*count */
-    waiting = 0,                       /* -d/-c except for in daemon mode */
-    locked = 0;                        /* set_lock(1) has been called */
-static double outgoing[2*COUNT_MAX],   /* Transmission timestamps */
-    minerr = 0.0,                      /* -e value in seconds */
-    maxerr = 0.0,                      /* -E value in seconds */
-    prompt = 0.0,                      /* -p value in seconds */
-    dispersion = 0.0;                  /* The source dispersion in seconds */
-static FILE *savefile = NULL;          /* Holds the data to restart from */
+	if (0 == argc && !HAVE_OPT(BROADCAST) && !HAVE_OPT(CONCURRENT)) {
+		printf("%s: Must supply at least one of -b hostname, -c hostname, or hostname.\n",
+		       progname);
+		exit(EX_USAGE);
+	}
 
 
+	/*
+	** Eventually, we probably want:
+	** - separate bcst and ucst timeouts (why?)
+	** - multiple --timeout values in the commandline
+	*/
 
-/* The unpacked NTP data structure, with all the fields even remotely relevant
-to SNTP. */
+	response_timeout = OPT_VALUE_TIMEOUT;
+	response_tv.tv_sec = response_timeout;
+	response_tv.tv_usec = 0;
 
-typedef struct NTP_DATA {
-    unsigned char status, version, mode, stratum, polling;
-    signed char precision;
-    double dispersion, reference, originate, receive, transmit, current;
-} ntp_data;
+	/* IPv6 available? */
+	if (isc_net_probeipv6() != ISC_R_SUCCESS) {
+		ai_fam_pref = AF_INET;
+		TRACE(1, ("No ipv6 support available, forcing ipv4\n"));
+	} else {
+		/* Check for options -4 and -6 */
+		if (HAVE_OPT(IPV4))
+			ai_fam_pref = AF_INET;
+		else if (HAVE_OPT(IPV6))
+			ai_fam_pref = AF_INET6;
+	}
+
+	/* TODO: Parse config file if declared */
+
+	/*
+	** Init the KOD system.
+	** For embedded systems with no writable filesystem,
+	** -K /dev/null can be used to disable KoD storage.
+	*/
+	kod_init_kod_db(OPT_ARG(KOD), FALSE);
+
+	// HMS: Should we use arg-defalt for this too?
+	if (HAVE_OPT(KEYFILE))
+		auth_init(OPT_ARG(KEYFILE), &keys);
+
+	/*
+	** Considering employing a variable that prevents functions of doing
+	** anything until everything is initialized properly
+	**
+	** HMS: What exactly does the above mean?
+	*/
+	event_set_log_callback(&sntp_libevent_log_cb);
+	if (debug > 0)
+		event_enable_debug_mode();
+#ifdef WORK_THREAD
+	evthread_use_pthreads();
+	/* we use libevent from main thread only, locks should be academic */
+	if (debug > 0)
+		evthread_enable_lock_debuging();
+#endif
+	evcfg = event_config_new();
+	if (NULL == evcfg) {
+		printf("%s: event_config_new() failed!\n", progname);
+		return -1;
+	}
+#ifndef HAVE_SOCKETPAIR
+	event_config_require_features(evcfg, EV_FEATURE_FDS);
+#endif
+	/* all libevent calls are from main thread */
+	/* event_config_set_flag(evcfg, EVENT_BASE_FLAG_NOLOCK); */
+	base = event_base_new_with_config(evcfg);
+	event_config_free(evcfg);
+	if (NULL == base) {
+		printf("%s: event_base_new() failed!\n", progname);
+		return -1;
+	}
+
+	/* wire into intres resolver */
+	worker_per_query = TRUE;
+	addremove_io_fd = &sntp_addremove_fd;
+
+	open_sockets();
+
+	if (HAVE_OPT(BROADCAST)) {
+		int		cn = STACKCT_OPT(  BROADCAST );
+		const char **	cp = STACKLST_OPT( BROADCAST );
+
+		while (cn-- > 0) {
+			handle_lookup(*cp, CTX_BCST);
+			cp++;
+		}
+	}
+
+	if (HAVE_OPT(CONCURRENT)) {
+		int		cn = STACKCT_OPT( CONCURRENT );
+		const char **	cp = STACKLST_OPT( CONCURRENT );
+
+		while (cn-- > 0) {
+			handle_lookup(*cp, CTX_UCST | CTX_CONC);
+			cp++;
+		}
+	}
+
+	for (i = 0; i < argc; ++i)
+		handle_lookup(argv[i], CTX_UCST);
+
+	gettimeofday_cached(base, &start_tv);
+	event_base_dispatch(base);
+	event_base_free(base);
+
+	if (!time_adjusted &&
+	    (ENABLED_OPT(STEP) || ENABLED_OPT(SLEW)))
+		exitcode = 1;
+	else
+		exitcode = 0;
+
+	return exitcode;
+}
 
 
+/*
+** open sockets and make them non-blocking
+*/
+void
+open_sockets(
+	void
+	)
+{
+	sockaddr_u	name;
 
-/* The following structure is used to keep a record of packets in daemon mode;
-it contains only the information that is actually used for the drift and error
-calculations. */
+	if (-1 == sock4) {
+		sock4 = socket(PF_INET, SOCK_DGRAM, 0);
+		if (-1 == sock4) {
+			/* error getting a socket */
+			msyslog(LOG_ERR, "open_sockets: socket(PF_INET) failed: %m");
+			exit(1);
+		}
+		/* Make it non-blocking */
+		make_socket_nonblocking(sock4);
 
-typedef struct {
-    double dispersion, weight, when, offset, error;
-} data_record;
+		/* Let's try using a wildcard... */
+		ZERO(name);
+		AF(&name) = AF_INET;
+		SET_ADDR4N(&name, INADDR_ANY);
+		SET_PORT(&name, (HAVE_OPT(USERESERVEDPORT) ? 123 : 0));
 
-void syntax(int);
-void display_data(ntp_data *);
-void display_packet(unsigned char *, int);
-void pack_ntp(unsigned char *, int, ntp_data *);
-void unpack_ntp(ntp_data *, unsigned char *, int);
-void make_packet(ntp_data *, int);
-int read_packet(int, ntp_data *, double *, double *);
-void format_time(char *, int, double, double, double, double, int);
-double reset_clock(double, double, int);
-void run_server(void);
-double estimate_stats(int *, int *, data_record *, double, double *, double *,
-	double *, double *, double *, double *, int *, int);
-double correct_drift(double *, double *, double);
-void handle_saving(int, int *, int *, int *, data_record *, double *,
-	double *, double *);
-void query_savefile(void);
-void run_daemon(char **, int, int);
-void run_client(char **, int);
+		if (-1 == bind(sock4, &name.sa,
+			       SOCKLEN(&name))) {
+			msyslog(LOG_ERR, "open_sockets: bind(sock4) failed: %m");
+			exit(1);
+		}
 
-void fatal (int syserr, const char *message, const char *insert) {
+		/* Register an NTP callback for recv/timeout */
+		ev_sock4 = event_new(base, sock4,
+				     EV_TIMEOUT | EV_READ | EV_PERSIST,
+				     &sock_cb, NULL);
+		if (NULL == ev_sock4) {
+			msyslog(LOG_ERR,
+				"open_sockets: event_new(base, sock4) failed!");
+		} else {
+			event_add(ev_sock4, &wakeup_tv);
+		}
+	}
 
-/* Issue a diagnostic and stop.  Be a little paranoid about recursion. */
+	/* We may not always have IPv6... */
+	if (-1 == sock6 && ipv6_works) {
+		sock6 = socket(PF_INET6, SOCK_DGRAM, 0);
+		if (-1 == sock6 && ipv6_works) {
+			/* error getting a socket */
+			msyslog(LOG_ERR, "open_sockets: socket(PF_INET6) failed: %m");
+			exit(1);
+		}
+		/* Make it non-blocking */
+		make_socket_nonblocking(sock6);
 
-    int k = errno;
-    static int called = 0;
+		/* Let's try using a wildcard... */
+		ZERO(name);
+		AF(&name) = AF_INET6;
+		SET_ADDR6N(&name, in6addr_any);
+		SET_PORT(&name, (HAVE_OPT(USERESERVEDPORT) ? 123 : 0));
 
-    if (message != NULL) {
-        fprintf(stderr,"%s: ",argv0);
-        fprintf(stderr,message,insert);
-        fprintf(stderr,"\n");
-    }
-    errno = k;
-    if (syserr) perror(argv0);
-    if (! called) {
-        called = 1;
-        if (savefile != NULL && fclose(savefile))
-            fatal(1,"unable to close the daemon save file",NULL);
-        if (locked) set_lock(0);
-    }
-    exit(EXIT_FAILURE);
+		if (-1 == bind(sock6, &name.sa,
+			       SOCKLEN(&name))) {
+			msyslog(LOG_ERR, "open_sockets: bind(sock6) failed: %m");
+			exit(1);
+		}
+		/* Register an NTP callback for recv/timeout */
+		ev_sock6 = event_new(base, sock6,
+				     EV_TIMEOUT | EV_READ | EV_PERSIST,
+				     &sock_cb, NULL);
+		if (NULL == ev_sock6) {
+			msyslog(LOG_ERR,
+				"open_sockets: event_new(base, sock6) failed!");
+		} else {
+			event_add(ev_sock6, &wakeup_tv);
+		}
+	}
+	
+	return;
+}
+
+
+/*
+** handle_lookup
+*/
+void
+handle_lookup(
+	const char *name,
+	int flags
+	)
+{
+	struct addrinfo	hints;	/* Local copy is OK */
+	struct dns_ctx *ctx;
+	long		l;
+	char *		name_copy;
+	size_t		name_sz;
+	size_t		octets;
+
+	TRACE(1, ("handle_lookup(%s,%#x)\n", name, flags));
+
+	ZERO(hints);
+	hints.ai_family = ai_fam_pref;
+	hints.ai_flags = AI_CANONNAME | Z_AI_NUMERICSERV;
+	/*
+	** Unless we specify a socktype, we'll get at least two
+	** entries for each address: one for TCP and one for
+	** UDP. That's not what we want.
+	*/
+	hints.ai_socktype = SOCK_DGRAM;
+	hints.ai_protocol = IPPROTO_UDP;
+
+	name_sz = 1 + strlen(name);
+	octets = sizeof(*ctx) + name_sz;	// Space for a ctx and the name
+	ctx = emalloc_zero(octets);		// ctx at ctx[0]
+	name_copy = (char *)(ctx + 1);		// Put the name at ctx[1]
+	memcpy(name_copy, name, name_sz);	// copy the name to ctx[1]
+	ctx->name = name_copy;			// point to it...
+	ctx->flags = flags;
+	ctx->timeout = response_tv;
+
+	/* The following should arguably be passed in... */
+	if (ENABLED_OPT(AUTHENTICATION) &&
+	    atoint(OPT_ARG(AUTHENTICATION), &l)) {
+		ctx->key_id = l;
+		get_key(ctx->key_id, &ctx->key);
+	} else {
+		ctx->key_id = -1;
+		ctx->key = NULL;
+	}
+
+	++n_pending_dns;
+	getaddrinfo_sometime(name, "123", &hints, 0,
+			     &sntp_name_resolved, ctx);
+}
+
+
+/*
+** DNS Callback:
+** - For each IP:
+** - - open a socket
+** - - increment n_pending_ntp
+** - - send a request if this is a Unicast callback
+** - - queue wait for response
+** - decrement n_pending_dns
+*/
+void
+sntp_name_resolved(
+	int			rescode,
+	int			gai_errno,
+	void *			context,
+	const char *		name,
+	const char *		service,
+	const struct addrinfo *	hints,
+	const struct addrinfo *	addr
+	)
+{
+	struct dns_ctx *	dctx;
+	sent_pkt *		spkt;
+	const struct addrinfo *	ai;
+	SOCKET			sock;
+	u_int			xmt_delay_v4;
+	u_int			xmt_delay_v6;
+	u_int			xmt_delay;
+	size_t			octets;
+
+	xmt_delay_v4 = 0;
+	xmt_delay_v6 = 0;
+	dctx = context;
+	if (rescode) {
+#ifdef EAI_SYSTEM
+		if (EAI_SYSTEM == rescode) {
+			errno = gai_errno;
+			mfprintf(stderr, "%s lookup error %m\n",
+				 dctx->name);
+		} else
+#endif
+			fprintf(stderr, "%s lookup error %s\n",
+				dctx->name, gai_strerror(rescode));
+	} else {
+		TRACE(3, ("%s [%s]\n", dctx->name,
+			  (addr->ai_canonname != NULL)
+			      ? addr->ai_canonname
+			      : ""));
+
+		for (ai = addr; ai != NULL; ai = ai->ai_next) {
+
+			if (check_kod(ai))
+				continue;
+
+			switch (ai->ai_family) {
+
+			case AF_INET:
+				sock = sock4;
+				xmt_delay = xmt_delay_v4;
+				xmt_delay_v4++;
+				break;
+
+			case AF_INET6:
+				if (!ipv6_works)
+					continue;
+
+				sock = sock6;
+				xmt_delay = xmt_delay_v6;
+				xmt_delay_v6++;
+				break;
+
+			default:
+				msyslog(LOG_ERR, "sntp_name_resolved: unexpected ai_family: %d",
+					ai->ai_family);
+				exit(1);
+				break;
+			}
+
+			/*
+			** We're waiting for a response for either unicast
+			** or broadcast, so...
+			*/
+			++n_pending_ntp;
+
+			/* If this is for a unicast IP, queue a request */
+			if (dctx->flags & CTX_UCST) {
+				spkt = emalloc_zero(sizeof(*spkt));
+				spkt->dctx = dctx;
+				octets = min(ai->ai_addrlen, sizeof(spkt->addr));
+				memcpy(&spkt->addr, ai->ai_addr, octets);
+				queue_xmt(sock, dctx, spkt, xmt_delay);
+			}
+		}
+	}
+	/* n_pending_dns really should be >0 here... */
+	--n_pending_dns;
+	check_exit_conditions();
+}
+
+
+/*
+** queue_xmt
+*/
+void
+queue_xmt(
+	SOCKET			sock,
+	struct dns_ctx *	dctx,
+	sent_pkt *		spkt,
+	u_int			xmt_delay
+	)
+{
+	sockaddr_u *	dest;
+	sent_pkt **	pkt_listp;
+	sent_pkt *	match;
+	xmt_ctx *	xctx;
+	struct timeval	start_cb;
+	struct timeval	delay;
+
+	dest = &spkt->addr;
+	if (IS_IPV6(dest))
+		pkt_listp = &v6_pkts_list;
+	else
+		pkt_listp = &v4_pkts_list;
+
+	/* reject attempts to add address already listed */
+	for (match = *pkt_listp; match != NULL; match = match->link) {
+		if (ADDR_PORT_EQ(&spkt->addr, &match->addr)) {
+			if (strcasecmp(spkt->dctx->name,
+				       match->dctx->name))
+				printf("%s %s duplicate address from %s ignored.\n",
+				       sptoa(&match->addr),
+				       match->dctx->name,
+				       spkt->dctx->name);
+			else
+				printf("%s %s, duplicate address ignored.\n",
+				       sptoa(&match->addr),
+				       match->dctx->name);
+			dec_pending_ntp(spkt->dctx->name, &spkt->addr);
+			free(spkt);
+			return;
+		}
+	}
+
+	LINK_SLIST(*pkt_listp, spkt, link);	
+
+	xctx = emalloc_zero(sizeof(*xctx));
+	xctx->sock = sock;
+	xctx->spkt = spkt;
+	gettimeofday_cached(base, &start_cb);
+	xctx->sched = start_cb.tv_sec + (2 * xmt_delay);
+
+	LINK_SORT_SLIST(xmt_q, xctx, (xctx->sched < L_S_S_CUR()->sched),
+			link, xmt_ctx);
+	if (xmt_q == xctx) {
+		/*
+		 * The new entry is the first scheduled.  The timer is
+		 * either not active or is set for the second xmt
+		 * context in xmt_q.
+		 */
+		if (NULL == ev_xmt_timer)
+			ev_xmt_timer = event_new(base, INVALID_SOCKET,
+						 EV_TIMEOUT,
+						 &xmt_timer_cb, NULL);
+		if (NULL == ev_xmt_timer) {
+			msyslog(LOG_ERR,
+				"queue_xmt: event_new(base, -1, EV_TIMEOUT) failed!");
+			exit(1);
+		}
+		ZERO(delay);
+		if (xctx->sched > start_cb.tv_sec)
+			delay.tv_sec = xctx->sched - start_cb.tv_sec;
+		event_add(ev_xmt_timer, &delay);
+		TRACE(2, ("queue_xmt: xmt timer for %u usec\n",
+			  (u_int)delay.tv_usec));
+	}
+}
+
+
+/*
+** xmt_timer_cb
+*/
+void
+xmt_timer_cb(
+	evutil_socket_t	fd,
+	short		what,
+	void *		ctx
+	)
+{
+	struct timeval	start_cb;
+	struct timeval	delay;
+	xmt_ctx *	x;
+
+	UNUSED_ARG(fd);
+	UNUSED_ARG(ctx);
+	DEBUG_INSIST(EV_TIMEOUT == what);
+
+	if (NULL == xmt_q || shutting_down)
+		return;
+	gettimeofday_cached(base, &start_cb);
+	if (xmt_q->sched <= start_cb.tv_sec) {
+		UNLINK_HEAD_SLIST(x, xmt_q, link);
+		TRACE(2, ("xmt_timer_cb: at .%6.6u -> %s\n",
+			  (u_int)start_cb.tv_usec, stoa(&x->spkt->addr)));
+		xmt(x);
+		free(x);
+		if (NULL == xmt_q)
+			return;
+	}
+	if (xmt_q->sched <= start_cb.tv_sec) {
+		event_add(ev_xmt_timer, &gap);
+		TRACE(2, ("xmt_timer_cb: at .%6.6u gap %6.6u\n",
+			  (u_int)start_cb.tv_usec,
+			  (u_int)gap.tv_usec));
+	} else {
+		delay.tv_sec = xmt_q->sched - start_cb.tv_sec;
+		delay.tv_usec = 0;
+		event_add(ev_xmt_timer, &delay);
+		TRACE(2, ("xmt_timer_cb: at .%6.6u next %ld seconds\n",
+			  (u_int)start_cb.tv_usec,
+			  (long)delay.tv_sec));
+	}
+}
+
+
+/*
+** xmt()
+*/
+void
+xmt(
+	xmt_ctx *	xctx
+	)
+{
+	SOCKET		sock = xctx->sock;
+	struct dns_ctx *dctx = xctx->spkt->dctx;
+	sent_pkt *	spkt = xctx->spkt;
+	sockaddr_u *	dst = &spkt->addr;
+	struct timeval	tv_xmt;
+	struct pkt	x_pkt;
+	size_t		pkt_len;
+	int		sent;
+
+	if (0 != gettimeofday(&tv_xmt, NULL)) {
+		msyslog(LOG_ERR,
+			"xmt: gettimeofday() failed: %m");
+		exit(1);
+	}
+	tv_xmt.tv_sec += JAN_1970;
+
+	pkt_len = generate_pkt(&x_pkt, &tv_xmt, dctx->key_id,
+			       dctx->key);
+
+	sent = sendpkt(sock, dst, &x_pkt, pkt_len);
+	if (sent) {
+		/* Save the packet we sent... */
+		memcpy(&spkt->x_pkt, &x_pkt, min(sizeof(spkt->x_pkt),
+		       pkt_len));
+		spkt->stime = tv_xmt.tv_sec - JAN_1970;
+
+		TRACE(2, ("xmt: %lx.%6.6u %s %s\n", (u_long)tv_xmt.tv_sec,
+			  (u_int)tv_xmt.tv_usec, dctx->name, stoa(dst)));
+	} else {
+		dec_pending_ntp(dctx->name, dst);
+	}
+
+	return;
+}
+
+
+/*
+ * timeout_queries() -- give up on unrequited NTP queries
+ */
+void
+timeout_queries(void)
+{
+	struct timeval	start_cb;
+	u_int		idx;
+	sent_pkt *	head;
+	sent_pkt *	spkt;
+	sent_pkt *	spkt_next;
+	long		age;
+	int didsomething = 0;
+
+	TRACE(3, ("timeout_queries: called to check %u items\n",
+		  (unsigned)COUNTOF(fam_listheads)));
+
+	gettimeofday_cached(base, &start_cb);
+	for (idx = 0; idx < COUNTOF(fam_listheads); idx++) {
+		head = fam_listheads[idx];
+		for (spkt = head; spkt != NULL; spkt = spkt_next) {
+			char xcst;
+
+			didsomething = 1;
+			switch (spkt->dctx->flags & CTX_xCST) {
+			    case CTX_BCST:
+				xcst = 'B';
+				break;
+
+			    case CTX_UCST:
+				xcst = 'U';
+				break;
+
+			    default:
+				INSIST(!"spkt->dctx->flags neither UCST nor BCST");
+				break;
+			}
+
+			spkt_next = spkt->link;
+			if (0 == spkt->stime || spkt->done)
+				continue;
+			age = start_cb.tv_sec - spkt->stime;
+			TRACE(3, ("%s %s %cCST age %ld\n",
+				  stoa(&spkt->addr),
+				  spkt->dctx->name, xcst, age));
+			if (age > response_timeout)
+				timeout_query(spkt);
+		}
+	}
+	// Do we care about didsomething?
+	TRACE(3, ("timeout_queries: didsomething is %d, age is %ld\n",
+		  didsomething, (long) (start_cb.tv_sec - start_tv.tv_sec)));
+	if (start_cb.tv_sec - start_tv.tv_sec > response_timeout) {
+		TRACE(3, ("timeout_queries: bail!\n"));
+		event_base_loopexit(base, NULL);
+		shutting_down = TRUE;
+	}
+}
+
+
+void dec_pending_ntp(
+	const char *	name,
+	sockaddr_u *	server
+	)
+{
+	if (n_pending_ntp > 0) {
+		--n_pending_ntp;
+		check_exit_conditions();
+	} else {
+		INSIST(0 == n_pending_ntp);
+		TRACE(1, ("n_pending_ntp was zero before decrement for %s\n",
+			  hostnameaddr(name, server)));
+	}
+}
+
+
+void timeout_query(
+	sent_pkt *	spkt
+	)
+{
+	sockaddr_u *	server;
+	char		xcst;
+
+
+	switch (spkt->dctx->flags & CTX_xCST) {
+	    case CTX_BCST:
+		xcst = 'B';
+		break;
+
+	    case CTX_UCST:
+		xcst = 'U';
+		break;
+
+	    default:
+		INSIST(!"spkt->dctx->flags neither UCST nor BCST");
+		break;
+	}
+	spkt->done = TRUE;
+	server = &spkt->addr;
+	msyslog(LOG_INFO, "%s no %cCST response after %d seconds",
+		hostnameaddr(spkt->dctx->name, server), xcst,
+		response_timeout);
+	dec_pending_ntp(spkt->dctx->name, server);
+	return;
+}
+
+
+/*
+** check_kod
+*/
+int
+check_kod(
+	const struct addrinfo *	ai
+	)
+{
+	char *hostname;
+	struct kod_entry *reason;
+
+	/* Is there a KoD on file for this address? */
+	hostname = addrinfo_to_str(ai);
+	TRACE(2, ("check_kod: checking <%s>\n", hostname));
+	if (search_entry(hostname, &reason)) {
+		printf("prior KoD for %s, skipping.\n",
+			hostname);
+		free(reason);
+		free(hostname);
+
+		return 1;
+	}
+	free(hostname);
+
+	return 0;
+}
+
+
+/*
+** Socket readable/timeout Callback:
+** Read in the packet
+** Unicast:
+** - close socket
+** - decrement n_pending_ntp
+** - If packet is good, set the time and "exit"
+** Broadcast:
+** - If packet is good, set the time and "exit"
+*/
+void
+sock_cb(
+	evutil_socket_t fd,
+	short what,
+	void *ptr
+	)
+{
+	sockaddr_u	sender;
+	sockaddr_u *	psau;
+	sent_pkt **	p_pktlist;
+	sent_pkt *	spkt;
+	int		rpktl;
+	int		rc;
+
+	INSIST(sock4 == fd || sock6 == fd);
+
+	TRACE(3, ("sock_cb: event on sock%s:%s%s%s%s\n",
+		  (fd == sock6)
+		      ? "6"
+		      : "4",
+		  (what & EV_TIMEOUT) ? " timeout" : "",
+		  (what & EV_READ)    ? " read" : "",
+		  (what & EV_WRITE)   ? " write" : "",
+		  (what & EV_SIGNAL)  ? " signal" : ""));
+
+	if (!(EV_READ & what)) {
+		if (EV_TIMEOUT & what)
+			timeout_queries();
+
+		return;
+	}
+
+	/* Read in the packet */
+	rpktl = recvdata(fd, &sender, &rbuf, sizeof(rbuf));
+	if (rpktl < 0) {
+		msyslog(LOG_DEBUG, "recvfrom error %m");
+		return;
+	}
+
+	if (sock6 == fd)
+		p_pktlist = &v6_pkts_list;
+	else
+		p_pktlist = &v4_pkts_list;
+
+	for (spkt = *p_pktlist; spkt != NULL; spkt = spkt->link) {
+		psau = &spkt->addr;
+		if (SOCK_EQ(&sender, psau))
+			break;
+	}
+	if (NULL == spkt) {
+		msyslog(LOG_WARNING,
+			"Packet from unexpected source %s dropped",
+			sptoa(&sender));
+		return;
+	}
+
+	TRACE(1, ("sock_cb: %s %s\n", spkt->dctx->name,
+		  sptoa(&sender)));
+
+	rpktl = process_pkt(&r_pkt, &sender, rpktl, MODE_SERVER,
+			    &spkt->x_pkt, "sock_cb");
+
+	TRACE(2, ("sock_cb: process_pkt returned %d\n", rpktl));
+
+	/* If this is a Unicast packet, one down ... */
+	if (!spkt->done && (CTX_UCST & spkt->dctx->flags)) {
+		dec_pending_ntp(spkt->dctx->name, &spkt->addr);
+		spkt->done = TRUE;
+	}
+
+
+	/* If the packet is good, set the time and we're all done */
+	rc = handle_pkt(rpktl, &r_pkt, &spkt->addr, spkt->dctx->name);
+	if (0 != rc)
+		TRACE(1, ("sock_cb: handle_pkt() returned %d\n", rc));
+	check_exit_conditions();
+}
+
+
+/*
+ * check_exit_conditions()
+ *
+ * If sntp has a reply, ask the event loop to stop after this round of
+ * callbacks, unless --wait was used.
+ */
+void
+check_exit_conditions(void)
+{
+	if ((0 == n_pending_ntp && 0 == n_pending_dns) ||
+	    (time_derived && !HAVE_OPT(WAIT))) {
+		event_base_loopexit(base, NULL);
+		shutting_down = TRUE;
+	} else {
+		TRACE(2, ("%d NTP and %d name queries pending\n",
+			  n_pending_ntp, n_pending_dns));
+	}
+}
+
+
+/*
+ * sntp_addremove_fd() is invoked by the intres blocking worker code
+ * to read from a pipe, or to stop same.
+ */
+void sntp_addremove_fd(
+	int	fd,
+	int	is_pipe,
+	int	remove_it
+	)
+{
+	u_int		idx;
+	blocking_child *c;
+	struct event *	ev;
+
+#ifdef HAVE_SOCKETPAIR
+	if (is_pipe) {
+		/* sntp only asks for EV_FEATURE_FDS without HAVE_SOCKETPAIR */
+		msyslog(LOG_ERR, "fatal: pipes not supported on systems with socketpair()");
+		exit(1);
+	}
+#endif
+
+	c = NULL;
+	for (idx = 0; idx < blocking_children_alloc; idx++) {
+		c = blocking_children[idx];
+		if (NULL == c)
+			continue;
+		if (fd == c->resp_read_pipe)
+			break;
+	}
+	if (idx == blocking_children_alloc)
+		return;
+
+	if (remove_it) {
+		ev = c->resp_read_ctx;
+		c->resp_read_ctx = NULL;
+		event_del(ev);
+		event_free(ev);
+
+		return;
+	}
+
+	ev = event_new(base, fd, EV_READ | EV_PERSIST,
+		       &worker_resp_cb, c);
+	if (NULL == ev) {
+		msyslog(LOG_ERR,
+			"sntp_addremove_fd: event_new(base, fd) failed!");
+		return;
+	}
+	c->resp_read_ctx = ev;
+	event_add(ev, NULL);
+}
+
+
+/* called by forked intres child to close open descriptors */
+#ifdef WORK_FORK
+void
+kill_asyncio(
+	int	startfd
+	)
+{
+	if (INVALID_SOCKET != sock4) {
+		closesocket(sock4);
+		sock4 = INVALID_SOCKET;
+	}
+	if (INVALID_SOCKET != sock6) {
+		closesocket(sock6);
+		sock6 = INVALID_SOCKET;
+	}
+	if (INVALID_SOCKET != bsock4) {
+		closesocket(sock4);
+		sock4 = INVALID_SOCKET;
+	}
+	if (INVALID_SOCKET != bsock6) {
+		closesocket(sock6);
+		sock6 = INVALID_SOCKET;
+	}
+}
+#endif
+
+
+/*
+ * worker_resp_cb() is invoked when resp_read_pipe is readable.
+ */
+void
+worker_resp_cb(
+	evutil_socket_t	fd,
+	short		what,
+	void *		ctx	/* blocking_child * */
+	)
+{
+	blocking_child *	c;
+
+	DEBUG_INSIST(EV_READ & what);
+	c = ctx;
+	DEBUG_INSIST(fd == c->resp_read_pipe);
+	process_blocking_resp(c);
+}
+
+
+/*
+ * intres_timeout_req(s) is invoked in the parent to schedule an idle
+ * timeout to fire in s seconds, if not reset earlier by a call to
+ * intres_timeout_req(0), which clears any pending timeout.  When the
+ * timeout expires, worker_idle_timer_fired() is invoked (again, in the
+ * parent).
+ *
+ * sntp and ntpd each provide implementations adapted to their timers.
+ */
+void
+intres_timeout_req(
+	u_int	seconds		/* 0 cancels */
+	)
+{
+	struct timeval	tv_to;
+
+	if (NULL == ev_worker_timeout) {
+		ev_worker_timeout = event_new(base, -1,
+					      EV_TIMEOUT | EV_PERSIST,
+					      &worker_timeout, NULL);
+		DEBUG_INSIST(NULL != ev_worker_timeout);
+	} else {
+		event_del(ev_worker_timeout);
+	}
+	if (0 == seconds)
+		return;
+	tv_to.tv_sec = seconds;
+	tv_to.tv_usec = 0;
+	event_add(ev_worker_timeout, &tv_to);
+}
+
+
+void
+worker_timeout(
+	evutil_socket_t	fd,
+	short		what,
+	void *		ctx
+	)
+{
+	UNUSED_ARG(fd);
+	UNUSED_ARG(ctx);
+
+	DEBUG_REQUIRE(EV_TIMEOUT & what);
+	worker_idle_timer_fired();
+}
+
+
+void
+sntp_libevent_log_cb(
+	int		severity,
+	const char *	msg
+	)
+{
+	int		level;
+
+	switch (severity) {
+
+	default:
+	case _EVENT_LOG_DEBUG:
+		level = LOG_DEBUG;
+		break;
+
+	case _EVENT_LOG_MSG:
+		level = LOG_NOTICE;
+		break;
+
+	case _EVENT_LOG_WARN:
+		level = LOG_WARNING;
+		break;
+
+	case _EVENT_LOG_ERR:
+		level = LOG_ERR;
+		break;
+	}
+
+	msyslog(level, "%s", msg);
+}
+
+
+int
+generate_pkt (
+	struct pkt *x_pkt,
+	const struct timeval *tv_xmt,
+	int key_id,
+	struct key *pkt_key
+	)
+{
+	l_fp	xmt_fp;
+	int	pkt_len;
+	int	mac_size;
+
+	pkt_len = LEN_PKT_NOMAC;
+	ZERO(*x_pkt);
+	TVTOTS(tv_xmt, &xmt_fp);
+	HTONL_FP(&xmt_fp, &x_pkt->xmt);
+	x_pkt->stratum = STRATUM_TO_PKT(STRATUM_UNSPEC);
+	x_pkt->ppoll = 8;
+	/* FIXME! Modus broadcast + adr. check -> bdr. pkt */
+	set_li_vn_mode(x_pkt, LEAP_NOTINSYNC, ntpver, 3);
+	if (pkt_key != NULL) {
+		x_pkt->exten[0] = htonl(key_id);
+		mac_size = 20; /* max room for MAC */
+		mac_size = make_mac((char *)x_pkt, pkt_len, mac_size,
+				    pkt_key, (char *)&x_pkt->exten[1]);
+		if (mac_size > 0)
+			pkt_len += mac_size + 4;
+	}
+	return pkt_len;
+}
+
+
+int
+handle_pkt(
+	int		rpktl,
+	struct pkt *	rpkt,
+	sockaddr_u *	host,
+	const char *	hostname
+	)
+{
+	char		disptxt[32];
+	const char *	addrtxt;
+	struct timeval	tv_dst;
+	int		cnt;
+	int		sw_case;
+	int		digits;
+	int		stratum;
+	char *		ref;
+	char *		ts_str;
+	const char *	leaptxt;
+	double		offset;
+	double		precision;
+	double		synch_distance;
+	char *		p_SNTP_PRETEND_TIME;
+	time_t		pretend_time;
+#if SIZEOF_TIME_T == 8
+	long long	ll;
+#else
+	long		l;
+#endif
+
+	ts_str = NULL;
+
+	if (rpktl > 0)
+		sw_case = 1;
+	else
+		sw_case = rpktl;
+
+	switch (sw_case) {
+
+	case SERVER_UNUSEABLE:
+		return -1;
+		break;
+
+	case PACKET_UNUSEABLE:
+		break;
+
+	case SERVER_AUTH_FAIL:
+		break;
+
+	case KOD_DEMOBILIZE:
+		/* Received a DENY or RESTR KOD packet */
+		addrtxt = stoa(host);
+		ref = (char *)&rpkt->refid;
+		add_entry(addrtxt, ref);
+		msyslog(LOG_WARNING, "KOD code %c%c%c%c from %s %s",
+			ref[0], ref[1], ref[2], ref[3], addrtxt, hostname);
+		break;
+
+	case KOD_RATE:
+		/*
+		** Hmm...
+		** We should probably call add_entry() with an
+		** expiration timestamp of several seconds in the future,
+		** and back-off even more if we get more RATE responses.
+		*/
+		break;
+
+	case 1:
+		TRACE(3, ("handle_pkt: %d bytes from %s %s\n",
+			  rpktl, stoa(host), hostname));
+
+		gettimeofday_cached(base, &tv_dst);
+
+		p_SNTP_PRETEND_TIME = getenv("SNTP_PRETEND_TIME");
+		if (p_SNTP_PRETEND_TIME) {
+			pretend_time = 0;
+#if SIZEOF_TIME_T == 4
+			if (1 == sscanf(p_SNTP_PRETEND_TIME, "%ld", &l))
+				pretend_time = (time_t)l;
+#elif SIZEOF_TIME_T == 8
+			if (1 == sscanf(p_SNTP_PRETEND_TIME, "%lld", &ll))
+				pretend_time = (time_t)ll;
+#else
+# include "GRONK: unexpected value for SIZEOF_TIME_T"
+#endif
+			if (0 != pretend_time)
+				tv_dst.tv_sec = pretend_time;
+		}
+
+		offset_calculation(rpkt, rpktl, &tv_dst, &offset,
+				   &precision, &synch_distance);
+		time_derived = TRUE;
+
+		for (digits = 0; (precision *= 10.) < 1.; ++digits)
+			/* empty */ ;
+		if (digits > 6)
+			digits = 6;
+
+		ts_str = tv_to_str(&tv_dst);
+		stratum = rpkt->stratum;
+		if (0 == stratum)
+				stratum = 16;
+
+		if (synch_distance > 0.) {
+			cnt = snprintf(disptxt, sizeof(disptxt),
+				       " +/- %f", synch_distance);
+			if ((size_t)cnt >= sizeof(disptxt))
+				snprintf(disptxt, sizeof(disptxt),
+					 "ERROR %d >= %d", cnt,
+					 (int)sizeof(disptxt));
+		} else {
+			disptxt[0] = '\0';
+		}
+
+		switch (PKT_LEAP(rpkt->li_vn_mode)) {
+		    case LEAP_NOWARNING:
+		    	leaptxt = "no-leap";
+			break;
+		    case LEAP_ADDSECOND:
+		    	leaptxt = "add-leap";
+			break;
+		    case LEAP_DELSECOND:
+		    	leaptxt = "del-leap";
+			break;
+		    case LEAP_NOTINSYNC:
+		    	leaptxt = "unsync";
+			break;
+		    default:
+		    	leaptxt = "LEAP-ERROR";
+			break;
+		}
+
+		msyslog(LOG_INFO, "%s %+.*f%s %s s%d %s%s", ts_str,
+			digits, offset, disptxt,
+			hostnameaddr(hostname, host), stratum,
+			leaptxt,
+			(time_adjusted)
+			    ? " [excess]"
+			    : "");
+		free(ts_str);
+
+		if (p_SNTP_PRETEND_TIME)
+			return 0;
+
+		if (!time_adjusted &&
+		    (ENABLED_OPT(STEP) || ENABLED_OPT(SLEW)))
+			return set_time(offset);
+
+		return EX_OK;
+	}
+
+	return 1;
+}
+
+
+void
+offset_calculation(
+	struct pkt *rpkt,
+	int rpktl,
+	struct timeval *tv_dst,
+	double *offset,
+	double *precision,
+	double *synch_distance
+	)
+{
+	l_fp p_rec, p_xmt, p_ref, p_org, tmp, dst;
+	u_fp p_rdly, p_rdsp;
+	double t21, t34, delta;
+
+	/* Convert timestamps from network to host byte order */
+	p_rdly = NTOHS_FP(rpkt->rootdelay);
+	p_rdsp = NTOHS_FP(rpkt->rootdisp);
+	NTOHL_FP(&rpkt->reftime, &p_ref);
+	NTOHL_FP(&rpkt->org, &p_org);
+	NTOHL_FP(&rpkt->rec, &p_rec);
+	NTOHL_FP(&rpkt->xmt, &p_xmt);
+
+	*precision = LOGTOD(rpkt->precision);
+
+	TRACE(3, ("offset_calculation: LOGTOD(rpkt->precision): %f\n", *precision));
+
+	/* Compute offset etc. */
+	tmp = p_rec;
+	L_SUB(&tmp, &p_org);
+	LFPTOD(&tmp, t21);
+	TVTOTS(tv_dst, &dst);
+	dst.l_ui += JAN_1970;
+	tmp = p_xmt;
+	L_SUB(&tmp, &dst);
+	LFPTOD(&tmp, t34);
+	*offset = (t21 + t34) / 2.;
+	delta = t21 - t34;
+
+	// synch_distance is:
+	// (peer->delay + peer->rootdelay) / 2 + peer->disp
+	// + peer->rootdisp + clock_phi * (current_time - peer->update)
+	// + peer->jitter;
+	//
+	// and peer->delay = fabs(peer->offset - p_offset) * 2;
+	// and peer->offset needs history, so we're left with
+	// p_offset = (t21 + t34) / 2.;
+	// peer->disp = 0; (we have no history to augment this)
+	// clock_phi = 15e-6; 
+	// peer->jitter = LOGTOD(sys_precision); (we have no history to augment this)
+	// and ntp_proto.c:set_sys_tick_precision() should get us sys_precision.
+	//
+	// so our answer seems to be:
+	//
+	// (fabs(t21 + t34) + peer->rootdelay) / 3.
+	// + 0 (peer->disp)
+	// + peer->rootdisp
+	// + 15e-6 (clock_phi)
+	// + LOGTOD(sys_precision)
+
+	INSIST( FPTOD(p_rdly) >= 0. );
+#if 1
+	*synch_distance = (fabs(t21 + t34) + FPTOD(p_rdly)) / 3.
+		+ 0.
+		+ FPTOD(p_rdsp)
+		+ 15e-6
+		+ 0.	/* LOGTOD(sys_precision) when we can get it */
+		;
+	INSIST( *synch_distance >= 0. );
+#else
+	*synch_distance = (FPTOD(p_rdly) + FPTOD(p_rdsp))/2.0;
+#endif
+
+#ifdef DEBUG
+	if (debug > 3) {
+		printf("sntp rootdelay: %f\n", FPTOD(p_rdly));
+		printf("sntp rootdisp: %f\n", FPTOD(p_rdsp));
+		printf("sntp syncdist: %f\n", *synch_distance);
+
+		pkt_output(rpkt, rpktl, stdout);
+
+		printf("sntp offset_calculation: rpkt->reftime:\n");
+		l_fp_output(&p_ref, stdout);
+		printf("sntp offset_calculation: rpkt->org:\n");
+		l_fp_output(&p_org, stdout);
+		printf("sntp offset_calculation: rpkt->rec:\n");
+		l_fp_output(&p_rec, stdout);
+		printf("sntp offset_calculation: rpkt->xmt:\n");
+		l_fp_output(&p_xmt, stdout);
+	}
+#endif
+
+	TRACE(3, ("sntp offset_calculation:\trec - org t21: %.6f\n"
+		  "\txmt - dst t34: %.6f\tdelta: %.6f\toffset: %.6f\n",
+		  t21, t34, delta, *offset));
+
+	return;
 }
 
 
 
-void syntax (int halt) {
+/* Compute the 8 bits for li_vn_mode */
+void
+set_li_vn_mode (
+	struct pkt *spkt,
+	char leap,
+	char version,
+	char mode
+	)
+{
+	if (leap > 3) {
+		msyslog(LOG_DEBUG, "set_li_vn_mode: leap > 3, using max. 3");
+		leap = 3;
+	}
 
-/* The standard, unfriendly Unix error message.  Some errors are diagnosed more
-helpfully.  This is called before any files or sockets are opened. */
+	if ((unsigned char)version > 7) {
+		msyslog(LOG_DEBUG, "set_li_vn_mode: version < 0 or > 7, using 4");
+		version = 4;
+	}
 
-    fprintf(stderr,"Syntax: %s [ --help | -h | -? ] [ -v | -V | -W ] \n",argv0);
-    fprintf(stderr,"    [ -q [ -f savefile ] |\n");
-    fprintf(stderr,"        [ { -r | -a } [ -P prompt ] [ -l lockfile ] ]\n");
-    fprintf(stderr,"            [ -c count ] [ -e minerr ] [ -E maxerr ]\n");
-    fprintf(stderr,"            [ -d delay | -x [ separation ] ");
-    fprintf(stderr,"[ -f savefile ] ]\n");
-    fprintf(stderr,"        [ -4 | -6 ] [-u] [ address(es) ] ]\n");
-    if (halt) exit(EXIT_FAILURE);
+	if (mode > 7) {
+		msyslog(LOG_DEBUG, "set_li_vn_mode: mode > 7, using client mode 3");
+		mode = 3;
+	}
+
+	spkt->li_vn_mode  = leap << 6;
+	spkt->li_vn_mode |= version << 3;
+	spkt->li_vn_mode |= mode;
 }
 
 
+/*
+** set_time applies 'offset' to the local clock.
+*/
+int
+set_time(
+	double offset
+	)
+{
+	int rc;
 
-void display_data (ntp_data *data) {
+	if (time_adjusted)
+		return EX_OK;
 
-/* This formats the essential NTP data, as a debugging aid. */
+	/*
+	** If we can step but we cannot slew, then step.
+	** If we can step or slew and and |offset| > steplimit, then step.
+	*/
+	if (ENABLED_OPT(STEP) &&
+	    (   !ENABLED_OPT(SLEW)
+	     || (ENABLED_OPT(SLEW) && (fabs(offset) > steplimit))
+	    )) {
+		rc = step_systime(offset);
 
-    fprintf(stderr,"sta=%d ver=%d mod=%d str=%d pol=%d dis=%.6f ref=%.6f\n",
-        data->status,data->version,data->mode,data->stratum,data->polling,
-        data->dispersion,data->reference);
-    fprintf(stderr,"ori=%.6f rec=%.6f\n",data->originate,data->receive);
-    fprintf(stderr,"tra=%.6f cur=%.6f\n",data->transmit,data->current);
+		/* If there was a problem, can we rely on errno? */
+		if (1 == rc)
+			time_adjusted = TRUE;
+		return (time_adjusted)
+			   ? EX_OK 
+			   : 1;
+		/*
+		** In case of error, what should we use?
+		** EX_UNAVAILABLE?
+		** EX_OSERR?
+		** EX_NOPERM?
+		*/
+	}
+
+	if (ENABLED_OPT(SLEW)) {
+		rc = adj_systime(offset);
+
+		/* If there was a problem, can we rely on errno? */
+		if (1 == rc)
+			time_adjusted = TRUE;
+		return (time_adjusted)
+			   ? EX_OK 
+			   : 1;
+		/*
+		** In case of error, what should we use?
+		** EX_UNAVAILABLE?
+		** EX_OSERR?
+		** EX_NOPERM?
+		*/
+	}
+
+	return EX_SOFTWARE;
 }
 
 
+int
+libevent_version_ok(void)
+{
+	ev_uint32_t v_compile_maj;
+	ev_uint32_t v_run_maj;
 
-void display_packet (unsigned char *packet, int length) {
-
-/* This formats a possible packet very roughly, as a debugging aid. */
-
-    int i;
-
-    if (length < NTP_PACKET_MIN || length > NTP_PACKET_MAX) return;
-    for (i = 0; i < length; ++i) {
-        if (i != 0 && i%32 == 0)
-            fprintf(stderr,"\n");
-         else if (i != 0 && i%4 == 0)
-             fprintf(stderr," ");
-         fprintf(stderr,"%.2x",packet[i]);
-    }
-    fprintf(stderr,"\n");
+	v_compile_maj = LIBEVENT_VERSION_NUMBER & 0xffff0000;
+	v_run_maj = event_get_version_number() & 0xffff0000;
+	if (v_compile_maj != v_run_maj) {
+		fprintf(stderr,
+			"Incompatible libevent versions: have %s, built with %s\n",
+			event_get_version(),
+			LIBEVENT_VERSION);
+		return 0;
+	}
+	return 1;
 }
 
+/*
+ * gettimeofday_cached()
+ *
+ * Clones the event_base_gettimeofday_cached() interface but ensures the
+ * times are always on the gettimeofday() 1970 scale.  Older libevent 2
+ * sometimes used gettimeofday(), sometimes the since-system-start
+ * clock_gettime(CLOCK_MONOTONIC), depending on the platform.
+ *
+ * It is not cleanly possible to tell which timescale older libevent is
+ * using.
+ *
+ * The strategy involves 1 hour thresholds chosen to be far longer than
+ * the duration of a round of libevent callbacks, which share a cached
+ * start-of-round time.  First compare the last cached time with the
+ * current gettimeofday() time.  If they are within one hour, libevent
+ * is using the proper timescale so leave the offset 0.  Otherwise,
+ * compare libevent's cached time and the current time on the monotonic
+ * scale.  If they are within an hour, libevent is using the monotonic
+ * scale so calculate the offset to add to such times to bring them to
+ * gettimeofday()'s scale.
+ */
+int
+gettimeofday_cached(
+	struct event_base *	b,
+	struct timeval *	caller_tv
+	)
+{
+#if defined(_EVENT_HAVE_CLOCK_GETTIME) && defined(CLOCK_MONOTONIC)
+	static struct event_base *	cached_b;
+	static struct timeval		cached;
+	static struct timeval		adj_cached;
+	static struct timeval		offset;
+	static int			offset_ready;
+	struct timeval			latest;
+	struct timeval			systemt;
+	struct timespec			ts;
+	struct timeval			mono;
+	struct timeval			diff;
+	int				cgt_rc;
+	int				gtod_rc;
 
+	event_base_gettimeofday_cached(b, &latest);
+	if (b == cached_b &&
+	    !memcmp(&latest, &cached, sizeof(latest))) {
+		*caller_tv = adj_cached;
+		return 0;
+	}
+	cached = latest;
+	cached_b = b;
+	if (!offset_ready) {
+		cgt_rc = clock_gettime(CLOCK_MONOTONIC, &ts);
+		gtod_rc = gettimeofday(&systemt, NULL);
+		if (0 != gtod_rc) {
+			msyslog(LOG_ERR,
+				"%s: gettimeofday() error %m",
+				progname);
+			exit(1);
+		}
+		diff = sub_tval(systemt, latest);
+		if (debug > 1)
+			printf("system minus cached %+ld.%06ld\n",
+			       (long)diff.tv_sec, (long)diff.tv_usec);
+		if (0 != cgt_rc || labs((long)diff.tv_sec) < 3600) {
+			/*
+			 * Either use_monotonic == 0, or this libevent
+			 * has been repaired.  Leave offset at zero.
+			 */
+		} else {
+			mono.tv_sec = ts.tv_sec;
+			mono.tv_usec = ts.tv_nsec / 1000;
+			diff = sub_tval(latest, mono);
+			if (debug > 1)
+				printf("cached minus monotonic %+ld.%06ld\n",
+				       (long)diff.tv_sec, (long)diff.tv_usec);
+			if (labs((long)diff.tv_sec) < 3600) {
+				/* older libevent2 using monotonic */
+				offset = sub_tval(systemt, mono);
+				TRACE(1, ("%s: Offsetting libevent CLOCK_MONOTONIC times  by %+ld.%06ld\n",
+					 "gettimeofday_cached",
+					 (long)offset.tv_sec,
+					 (long)offset.tv_usec));
+			}
+		}
+		offset_ready = TRUE;
+	}
+	adj_cached = add_tval(cached, offset);
+	*caller_tv = adj_cached;
 
-void pack_ntp (unsigned char *packet, int length, ntp_data *data) {
-
-/* Pack the essential data into an NTP packet, bypassing struct layout and
-endian problems.  Note that it ignores fields irrelevant to SNTP. */
-
-    int i, k;
-    double d;
-
-    memset(packet,0,(size_t)length);
-    packet[0] = (data->status<<6)|(data->version<<3)|data->mode;
-    packet[1] = data->stratum;
-    packet[2] = data->polling;
-    packet[3] = data->precision;
-    d = data->originate/NTP_SCALE;
-    for (i = 0; i < 8; ++i) {
-        if ((k = (int)(d *= 256.0)) >= 256) k = 255;
-        packet[NTP_ORIGINATE+i] = k;
-        d -= k;
-    }
-    d = data->receive/NTP_SCALE;
-    for (i = 0; i < 8; ++i) {
-        if ((k = (int)(d *= 256.0)) >= 256) k = 255;
-        packet[NTP_RECEIVE+i] = k;
-        d -= k;
-    }
-    d = data->transmit/NTP_SCALE;
-    for (i = 0; i < 8; ++i) {
-        if ((k = (int)(d *= 256.0)) >= 256) k = 255;
-        packet[NTP_TRANSMIT+i] = k;
-        d -= k;
-    }
+	return 0;
+#else
+	return event_base_gettimeofday_cached(b, caller_tv);
+#endif
 }
 
-
-
-void unpack_ntp (ntp_data *data, unsigned char *packet, int length) {
-
-/* Unpack the essential data from an NTP packet, bypassing struct layout and
-endian problems.  Note that it ignores fields irrelevant to SNTP. */
-
-    int i;
-    double d;
-
-    data->current = current_time(JAN_1970);    /* Best to come first */
-    data->status = (packet[0] >> 6);
-    data->version = (packet[0] >> 3)&0x07;
-    data->mode = packet[0]&0x07;
-    data->stratum = packet[1];
-    data->polling = packet[2];
-    data->precision = packet[3];
-    d = 0.0;
-    for (i = 0; i < 4; ++i) d = 256.0*d+packet[NTP_DISP_FIELD+i];
-    data->dispersion = d/65536.0;
-    d = 0.0;
-    for (i = 0; i < 8; ++i) d = 256.0*d+packet[NTP_REFERENCE+i];
-    data->reference = d/NTP_SCALE;
-    d = 0.0;
-    for (i = 0; i < 8; ++i) d = 256.0*d+packet[NTP_ORIGINATE+i];
-    data->originate = d/NTP_SCALE;
-    d = 0.0;
-    for (i = 0; i < 8; ++i) d = 256.0*d+packet[NTP_RECEIVE+i];
-    data->receive = d/NTP_SCALE;
-    d = 0.0;
-    for (i = 0; i < 8; ++i) d = 256.0*d+packet[NTP_TRANSMIT+i];
-    data->transmit = d/NTP_SCALE;
-}
-
-
-
-void make_packet (ntp_data *data, int mode) {
-
-/* Create an outgoing NTP packet, either from scratch or starting from a
-request from a client.  Note that it implements the NTP specification, even
-when this is clearly misguided, except possibly for the setting of LI.  It
-would be easy enough to add a sanity flag, but I am not in the business of
-designing an alternative protocol (however much better it might be). */
-
-    data->status = NTP_LI_FUDGE<<6;
-    data->stratum = NTP_STRATUM;
-    data->reference = data->dispersion = 0.0;
-    if (mode == NTP_SERVER) {
-        data->mode = (data->mode == NTP_CLIENT ? NTP_SERVER : NTP_PASSIVE);
-        data->originate = data->transmit;
-        data->receive = data->current;
-    } else {
-        data->version = NTP_VERSION;
-        data->mode = mode;
-        data->polling = NTP_POLLING;
-        data->precision = NTP_PRECISION;
-        data->receive = data->originate = 0.0;
-    }
-    data->current = data->transmit = current_time(JAN_1970);
-}
-
-
-
-int read_packet (int which, ntp_data *data, double *off, double *err) {
-
-/* Check the packet and work out the offset and optionally the error.  Note
-that this contains more checking than xntp does.  This returns 0 for success, 1
-for failure and 2 for an ignored broadcast packet (a kludge for servers).  Note
-that it must not change its arguments if it fails. */
-
-    unsigned char receive[NTP_PACKET_MAX+1];
-    double delay1, delay2, x, y;
-    int response = 0, failed, length, i, k;
-
-/* Read the packet and deal with diagnostics. */
-
-    if ((length = read_socket(which,receive,NTP_PACKET_MAX+1,waiting)) <= 0)
-        return 1;
-    if (length < NTP_PACKET_MIN || length > NTP_PACKET_MAX) {
-        if (verbose)
-            fprintf(stderr,"%s: bad length %d for NTP packet on socket %d\n",
-                argv0,length,which);
-        return 1;
-    }
-    if (verbose > 2) {
-        fprintf(stderr,"Incoming packet on socket %d:\n",which);
-        display_packet(receive,length);
-    }
-    unpack_ntp(data,receive,length);
-    if (verbose > 2) display_data(data);
-
-/* Start by checking that the packet looks reasonable.  Be a little paranoid,
-but allow for version 1 semantics and sick clients. */
-
-    if (operation == op_listen)
-        failed = (data->mode != NTP_BROADCAST);
-    else {
-        failed = (data->mode != NTP_SERVER && data->mode != NTP_PASSIVE);
-        response = 1;
-    }
-    if (failed || data->status == 3 || data->version < 1 ||
-            data->version > NTP_VERSION_MAX ||
-            data->stratum > NTP_STRATUM_MAX) {
-        if (verbose)
-            fprintf(stderr,
-                "%s: Unusable NTP packet rejected on socket %d (f=%d, status %d, version %d, stratum %d)\n",
-                argv0, which,
-		failed, data->status, data->version, data->stratum);
-        return 1;
-    }
-
-/* Note that the conventions are very poorly defined in the NTP protocol, so we
-have to guess.  Any full NTP server perpetrating completely unsynchronised
-packets is an abomination, anyway, so reject it. */
-
-    delay1 = data->transmit-data->receive;
-    delay2 = data->current-data->originate;
-    failed = (
-	      (  data->stratum != 0
-	      /* && data->stratum != NTP_STRATUM_MAX */
-	      && data->reference == 0.0
-	      )
-	     || data->transmit == 0.0
-	     );
-    if (response &&
-            (data->originate == 0.0 || data->receive == 0.0 ||
-                (data->reference != 0.0 && data->receive < data->reference) ||
-                delay1 < 0.0 || delay1 > NTP_INSANITY || delay2 < 0.0 ||
-                data->dispersion > NTP_INSANITY))
-        failed = 1;
-    if (failed) {
-        if (verbose)
-            fprintf(stderr,
-                "%s: incomprehensible NTP packet rejected on socket %d\n",
-                argv0,which);
-        return 1;
-    }
-    if (data->stratum == NTP_STRATUM_MAX) {
-	fprintf(stderr,
-	    "%s: unsynch NTP response on socket %d\n",
-	    argv0,which);
-        return 1;
-    }
-
-/* If it is a response, check that it corresponds to one of our requests and
-has got here in a reasonable length of time. */
-
-    if (response) {
-        k = 0;
-        for (i = 0; i < attempts; ++i)
-            if (data->originate == outgoing[i]) {
-                outgoing[i] = 0.0;
-                ++k;
-            }
-        if (k != 1 || delay2 > NTP_INSANITY) {
-            if (verbose)
-                fprintf(stderr,
-                    "%s: bad response from NTP server rejected on socket %d\n",
-                    argv0,which);
-            return 1;
-        }
-    }
-
-/* Now return the time information.  If it is a server response, it contains
-enough information that we can be almost certain that we have not been fooled
-too badly.  Heaven help us with broadcasts - make a wild kludge here, and see
-elsewhere for other kludges. */
-
-    if (dispersion < data->dispersion) dispersion = data->dispersion;
-    if (operation == op_listen) {
-        *off = data->transmit-data->current;
-        *err = NTP_INSANITY;
-    } else {
-        x = data->receive-data->originate;
-        y = (data->transmit == 0.0 ? 0.0 : data->transmit-data->current);
-        *off = 0.5*(x+y);
-        *err = x-y;
-        x = data->current-data->originate;
-        if (0.5*x > *err) *err = 0.5*x;
-    }
-    return 0;
-}
-
-
-
-void format_time (char *text, int length, double offset, double error,
-    double drift, double drifterr, int precision) {
-
-/* Format the current time into a string, with the extra information as
-requested.  Note that the rest of the program uses the correction needed, which
-is what is printed for diagnostics, but this formats the error in the local
-system for display to users.  So the results from this are the negation of
-those printed by the verbose options. */
-
-    int milli, len;
-    time_t now;
-    struct tm *gmt;
-    static const char *months[] = {
-        "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-        "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
-    };
-
-/* Work out and format the current local time.  Note that some semi-ANSI
-systems do not set the return value from (s)printf. */
-
-    now = convert_time(current_time(offset),&milli);
-    errno = 0;
-    if ((gmt = localtime(&now)) == NULL)
-        fatal(1,"unable to work out local time",NULL);
-    len = 21;
-    if (length <= len) fatal(0,"internal error calling format_time",NULL);
-    errno = 0;
-    precision /= -3;
-    len += precision;
-    sprintf(text,"%.4d %s %.2d %.2d:%.2d:%.2d.%.*d",
-            gmt->tm_year+1900,months[gmt->tm_mon],gmt->tm_mday,
-            gmt->tm_hour,gmt->tm_min,gmt->tm_sec,precision,milli);
-    if (strlen(text) != len)
-        fatal(1,"unable to format current local time",NULL);
-
-/* Append the information about the offset, if requested. */
-
-    if (error >= 0.0) {
-        if (length < len+30)
-            fatal(0,"internal error calling format_time",NULL);
-        errno = 0;
-        sprintf(&text[len]," %c %.*f +/- %.*f secs",(offset > 0.0 ? '-' : '+'),
-		precision,(offset > 0.0 ? offset : -offset),
-		precision,dispersion+error);
-        if (strlen(&text[len]) < 22)
-            fatal(1,"unable to format clock correction",NULL);
-    }
-
-/* Append the information about the drift, if requested. */
-
-    if (drifterr >= 0.0) {
-        len = strlen(text);
-        if (length < len+25)
-            fatal(0,"internal error calling format_time",NULL);
-        errno = 0;
-        sprintf(&text[len]," %c %.1f +/- %.1f ppm",
-                (drift > 0.0 ? '-' : '+'),1.0e6*fabs(drift),
-                1.0e6*drifterr);
-        if (strlen(&text[len]) < 17)
-            fatal(1,"unable to format clock correction",NULL);
-    }
-
-/* It would be better to check for field overflow, but it is a lot of code to
-trap extremely implausible scenarios.  This will usually stop chaos from
-spreading. */
-
-    if (strlen(text) >= length)
-        fatal(0,"internal error calling format_time",NULL);
-}
-
-
-
-double reset_clock (double offset, double error, int daemon) {
-
-/* Reset the clock, if appropriate, and return the correction actually used.
-This contains most of the checking for whether changes are worthwhile, except
-in daemon mode. */
-
-    double absoff = (offset < 0 ? -offset : offset);
-    char text[50];
-
-/* If the correction is large, ask for confirmation before proceeding. */
-
-    if (absoff > prompt) {
-        if (! daemon && ftty(stdin) && ftty(stdout)) {
-            printf("The time correction is %.3f +/- %.3f+%.3f seconds\n",
-                offset,dispersion,error);
-            printf("Do you want to correct the time anyway? ");
-            fflush(stdout);
-            if (toupper(getchar()) != 'Y') {
-                printf("OK - quitting\n");
-                fatal(0,NULL,NULL);
-            }
-        } else {
-            sprintf(text,"%.3f +/- %.3f+%.3f",offset,dispersion,error);
-            fatal(0,"time correction too large: %s seconds",text);
-        }
-    }
-
-/* See if the correction is reasonably reliable and worth making. */
-
-    if (absoff < (daemon ? 0.5 : 1.0)*minerr) {
-        if (daemon ? verbose > 1 : verbose)
-            fprintf(stderr,"%s: correction %.3f +/- %.3f+%.3f secs - ignored\n",
-                argv0,offset,dispersion,error);
-        return 0.0;
-    } else if (absoff < 2.0*error) {
-        if (daemon ? verbose > 1 : verbose)
-            fprintf(stderr,
-                "%s: correction %.3f +/- %.3f+%.3f secs - suppressed\n",
-                argv0,offset,dispersion,error);
-        return 0.0;
-    }
-
-/* Make the correction.  Provide some protection against the previous
-correction not having completed, but it will rarely help much. */
-
-    adjust_time(offset,(action == action_reset ? 1 : 0),
-        (daemon ? 2.0*minerr : 0.0));
-    if (daemon ? verbose > 1 : verbose) {
-        format_time(text,50,0.0,-1.0,0.0,-1.0,-10);
-        fprintf(stderr,
-            "%s: time changed by %.3f secs to %s +/- %.3f+%.3f\n",
-            argv0,offset,text,dispersion,error);
-    }
-    return offset;
-}
-
-
-double estimate_stats (int *a_total, int *a_index, data_record *record,
-    double correction, double *a_disp, double *a_when, double *a_offset,
-    double *a_error, double *a_drift, double *a_drifterr, int *a_wait,
-    int update) {
-
-/* This updates the running statistics and returns the best estimate of what to
-do now.  It returns the timestamp relevant to the correction.  If broadcasts
-are rare and the drift is large, it will fail - you should then use a better
-synchronisation method.  It will also fail if something goes severely wrong
-(e.g. if the local clock is reset by another process or the transmission errors
-are beyond reason).
-
-There is a kludge for synchronisation loss during down time.  If it detects
-this, it will update only the history data and return zero; this is then
-handled specially in run_daemon().  While it could correct the offset, this
-might not always be the right thing to do. */
-
-    double weight, disp, when, offset, error, drift, drifterr,
-        now, e, w, x, y, z;
-    int total = *a_total, index = *a_index, wait = *a_wait, i;
-    char text[50];
- 
-/* Correct the previous data and store a new entry in the circular buffer. */
-
-    for (i = 0; i < total; ++i) {
-        record[i].when += correction;
-        record[i].offset -= correction;
-    }
-    if (update) {
-        record[index].dispersion = *a_disp;
-        record[index].when = *a_when;
-        record[index].offset = *a_offset;
-        if (verbose > 1)
-            fprintf(stderr,"%s: corr=%.3f when=%.3f disp=%.3f off=%.3f",
-                argv0,correction,*a_when,*a_disp,*a_offset); /* See below */
-        if (operation == op_listen) {
-            if (verbose > 1) fprintf(stderr,"\n");
-            record[index].error = minerr;
-            record[index].weight = 1.0;
-        } else {
-            if (verbose > 1) fprintf(stderr," err=%.3f\n",*a_error);
-            record[index].error = x = *a_error;
-            record[index].weight = 1.0/(x > minerr ? x*x : minerr*minerr);
-        }
-        if (++index >= count) index = 0;
-        *a_index = index;
-        if (++total > count) total = count;
-        *a_total = total;
-        if (verbose > 2)
-            fprintf(stderr,"corr=%.6f tot=%d ind=%d\n",correction,total,index);
-    }
-
-/* If there is insufficient data yet, use the latest estimates and return
-forthwith.  Note that this will not work for broadcasts, but they will be
-disabled in run_daemon(). */
-
-    if ((operation == op_listen && total < count && update) || total < 3) {
-        *a_drift = 0.0;
-        *a_drifterr = -1.0;
-        *a_wait = delay;
-        return *a_when;
-    }
-
-/* Work out the average time, offset, error etc.  Note that the dispersion is
-not subject to the central limit theorem.  Unfortunately, the variation in the
-source's dispersion is our only indication of how consistent its clock is. */
-
-    disp = weight = when = offset = y = 0.0;
-    for (i = 0; i < total; ++i) {
-        weight += w = record[i].weight;
-        when += w*record[i].when;
-        offset += w*record[i].offset;
-        y += w*record[i].dispersion;
-        if (disp < record[i].dispersion)
-            disp = record[i].dispersion;
-    }
-    when /= weight;
-    offset /= weight;
-    y /= weight;
-    if (verbose > 2)
-        fprintf(stderr,"disp=%.6f wgt=%.3f when=%.6f off=%.6f\n",
-            disp,weight,when,offset);
-
-/* If there is enough data, estimate the drift and errors by regression.  Note
-that it is essential to calculate the mean square error, not the mean error. */
-
-    error = drift = x = z = 0.0;
-    for (i = 0; i < total; ++i) {
-        w = record[i].weight/weight;
-        x += w*(record[i].when-when)*(record[i].when-when);
-        drift += w*(record[i].when-when)*(record[i].offset-offset);
-        z += w*(record[i].offset-offset)*(record[i].offset-offset);
-        error += w*record[i].error*record[i].error+
-            2.0*w*(record[i].dispersion-y)*(record[i].dispersion-y);
-    }
-    if (verbose > 2)
-        fprintf(stderr,"X2=%.3f XY=%.6f Y2=%.9f E2=%.9f ",x,drift,z,error);
-
-/* When calculating the errors, add some paranoia mainly to check for coding
-errors and complete lunacy, attempting to retry if at all possible.  Because
-glitches at this point are so common, log a reset even in non-verbose mode.
-There will be more thorough checks later.  Note that we cannot usefully check
-the error for broadcasts. */
-
-    z -= drift*drift/x;
-    if (verbose > 2) fprintf(stderr,"S2=%.9f\n",z);
-    if (! update) {
-        if (z > 1.0e6)
-            fatal(0,"stored data too unreliable for time estimation",NULL);
-    } else if (operation == op_client) {
-        e = error+disp*disp+minerr*minerr;
-        if (z > e) {
-            if (verbose || z >= maxerr*maxerr)
-                fprintf(stderr,
-                    "%s: excessively high error %.3f > %.3f > %.3f\n",
-                    argv0,sqrt(z),sqrt(e),sqrt(error));
-            if (total <= 1)
-                return 0.0;
-            else if (z < maxerr*maxerr) {
-                sprintf(text,"resetting on error %.3g > %.3g",
-                    sqrt(z),sqrt(e));
-                log_message(text);
-                return 0.0;
-            } else
-                fatal(0,"incompatible (i.e. erroneous) timestamps",NULL);
-        } else if (z > error && verbose)
-            fprintf(stderr,
-                "%s: anomalously high error %.3f > %.3f, but < %.3f\n",
-                argv0,sqrt(z),sqrt(error),sqrt(e));
-    } else {
-        if (z > maxerr*maxerr)
-            fatal(0,"broadcasts too unreliable for time estimation",NULL);
-    }
-    drift /= x;
-    drifterr = ABSCISSA*sqrt(z/(x*total));
-    error = (operation == op_listen ? minerr : 0.0)+ABSCISSA*sqrt(z/total);
-    if (verbose > 2)
-        fprintf(stderr,"err=%.6f drift=%.6f+/-%.6f\n",error,drift,drifterr);
-    if (error+drifterr*delay > NTP_INSANITY)
-        fatal(0,"unable to get a reasonable drift estimate",NULL);
-
-/* Estimate the optimal short-loop period, checking it carefully.  Remember to
-check that this whole process is likely to be accurate enough and that the
-delay function may be inaccurate. */
-
-    wait = delay;
-    x = (drift < 0.0 ? -drift : drift);
-    if (x*delay < 0.5*minerr) {
-        if (verbose > 2) fprintf(stderr,"Drift too small to correct\n");
-    } else if (x < 2.0*drifterr) {
-        if (verbose > 2)
-            fprintf(stderr,"Drift correction suppressed\n");
-    } else {
-        if ((z = drifterr*delay) < 0.5*minerr) z = 0.5*minerr;
-        wait = (x < z/delay ? delay : (int)(z/x+0.5));
-        wait = (int)(delay/(int)(delay/(double)wait+0.999)+0.999);
-        if (wait > delay)
-            fatal(0,"internal error in drift calculation",NULL);
-        if (update && (drift*wait > maxerr || wait < RESET_MIN)) {
-            sprintf(text,"%.6f+/-%.6f",drift,drifterr);
-            fatal(0,"drift correction too large: %s",text);
-        }
-    }
-    if (wait < *a_wait/2) wait = *a_wait/2;
-    if (wait > *a_wait*2) wait = *a_wait*2;
-
-/* Now work out what the correction should be, as distinct from what it should
-have been, remembering that older times are less certain. */
-
-    now = current_time(JAN_1970);
-    x = now-when;
-    offset += x*drift;
-    error += x*drifterr;
-    for (i = 0; i < total; ++i) {
-        x = now-record[i].when;
-        z = record[i].error+x*drifterr;
-        if (z < error) {
-            when = record[i].when;
-            offset = record[i].offset+x*drift;
-            error = z;
-        }
-    }
-    if (verbose > 2)
-        fprintf(stderr,"now=%.6f when=%.6f off=%.6f err=%.6f wait=%d\n",
-            now,when,offset,error,wait);
-
-/* Finally, return the result. */
-
-    *a_disp = disp;
-    *a_when = when;
-    *a_offset = offset;
-    *a_error = error;
-    *a_drift = drift;
-    *a_drifterr = drifterr;
-    *a_wait = wait;
-    return now;
-}
-
-
-
-double correct_drift (double *a_when, double *a_offset, double drift) {
-
-/* Correct for the drift since the last time it was done, provided that a long
-enough time has elapsed.  And do remember to kludge up the time and
-discrepancy, when appropriate. */
-
-    double d, x;
-
-    d = current_time(JAN_1970)-*a_when;
-    *a_when += d;
-    x = *a_offset+d*drift;
-    if (verbose > 2)
-        fprintf(stderr,"Correction %.6f @ %.6f off=%.6f ",x,*a_when,*a_offset);
-    if (d >= waiting && (x < 0.0 ? -x : x) >= 0.5*minerr) {
-        if (verbose > 2) fprintf(stderr,"performed\n");
-        adjust_time(x,(action == action_reset ? 1 : 0),0.5*minerr);
-        *a_offset = 0.0;
-        return x;
-    } else {
-        if (verbose > 2) fprintf(stderr,"ignored\n");
-        *a_offset = x;
-        return 0.0;
-    }
-}
-
-
-
-void handle_saving (int operation, int *total, int *index, int *cycle,
-    data_record *record, double *previous, double *when, double *correction) {
-
-/* This handles the saving and restoring of the state to a file.  While it is
-subject to spoofing, this is not a major security problem.  But, out of general
-paranoia, check everything in sight when restoring.  Note that this function
-has no external effect if something goes wrong. */
-
-    struct {
-        data_record record[COUNT_MAX];
-        double previous, when, correction;
-        int operation, delay, count, total, index, cycle, waiting;
-    } buffer;
-    double x, y;
-    int i, j;
-
-    if (savefile == NULL) return;
-
-/* Read the restart file and print its data in diagnostic mode.  Note that some
-care is necessary to avoid introducing a security exposure - but we trust the
-C library not to trash the stack on bad numbers! */
-
-    if (operation == save_read_only || operation == save_read_check) {
-        if (fread(&buffer,sizeof(buffer),1,savefile) != 1 || ferror(savefile)) {
-            if (ferror(savefile))
-                fatal(1,"unable to read record from daemon save file",NULL);
-            else if (verbose)
-                fprintf(stderr,"%s: bad daemon restart information\n",argv0);
-            return;
-        }
-        if (verbose > 2) {
-            fprintf(stderr,"Reading prev=%.6f when=%.6f corr=%.6f\n",
-                buffer.previous,buffer.when,buffer.correction);
-            fprintf(stderr,"op=%d dly=%d cnt=%d tot=%d ind=%d cyc=%d wait=%d\n",
-                buffer.operation,buffer.delay,buffer.count,buffer.total,
-                buffer.index,buffer.cycle,buffer.waiting);
-            if (buffer.total < COUNT_MAX)
-                for (i = 0; i < buffer.total; ++i)
-                    fprintf(stderr,
-                        "disp=%.6f wgt=%.3f when=%.6f off=%.6f err=%.6f\n",
-                        buffer.record[i].dispersion,buffer.record[i].weight,
-                        buffer.record[i].when,buffer.record[i].offset,
-                        buffer.record[i].error);
-        }
-
-
-/* Start checking the data for sanity. */
-
-        if (buffer.operation == 0 && buffer.delay == 0 && buffer.count == 0) {
-            if (operation < 0)
-                fatal(0,"the daemon save file has been cleared",NULL);
-            if (verbose)
-                fprintf(stderr,"%s: restarting from a cleared file\n",argv0);
-            return;
-        }
-        if (operation == save_read_check) {
-            if (buffer.operation != operation || buffer.delay != delay ||
-                    buffer.count != count) {
-                if (verbose)
-                    fprintf(stderr,"%s: different parameters for restart\n",
-                        argv0);
-                return;
-            }
-            if (buffer.total < 1 || buffer.total > count || buffer.index < 0 ||
-                    buffer.index >= count || buffer.cycle < 0 ||
-                    buffer.cycle >= count || buffer.correction < -maxerr ||
-                    buffer.correction > maxerr || buffer.waiting < RESET_MIN ||
-                    buffer.waiting > delay || buffer.previous > buffer.when ||
-                    buffer.previous < buffer.when-count*delay ||
-                    buffer.when >= *when) {
-                if (verbose)
-                    fprintf(stderr,"%s: corrupted restart information\n",argv0);
-                return;
-            }
-
-/* Checking the record is even more tedious. */
-
-            x = *when;
-            y = 0.0;
-            for (i = 0; i < buffer.total; ++i) {
-                if (buffer.record[i].dispersion < 0.0 ||
-                        buffer.record[i].dispersion > maxerr ||
-                        buffer.record[i].weight <= 0.0 ||
-                        buffer.record[i].weight > 1.001/(minerr*minerr) ||
-                        buffer.record[i].offset < -count*maxerr ||
-                        buffer.record[i].offset > count*maxerr ||
-                        buffer.record[i].error < 0.0 ||
-                        buffer.record[i].error > maxerr) {
-                    if (verbose)
-                        fprintf(stderr,"%s: corrupted restart record\n",argv0);
-                    return;
-                }
-                if (buffer.record[i].when < x) x = buffer.record[i].when;
-                if (buffer.record[i].when > y) y = buffer.record[i].when;
-            }
-
-/* Check for consistency and, finally, whether this is too old. */
-
-            if (y > buffer.when || y-x < (buffer.total-1)*delay ||
-                    y-x > (buffer.total-1)*count*delay) {
-                if (verbose)
-                    fprintf(stderr,"%s: corrupted restart times\n",argv0);
-                return;
-            }
-            if (buffer.when < *when-count*delay) {
-                if (verbose)
-                    fprintf(stderr,"%s: restart information too old\n",argv0);
-                return;
-            }
-        }
-
-/* If we get here, just copy the data back. */
-
-        memcpy(record,buffer.record,sizeof(buffer.record));
-        *previous = buffer.previous;
-        *when = buffer.when;
-        *correction = buffer.correction;
-        *total = buffer.total;
-        *index = buffer.index;
-        *cycle = buffer.cycle;
-        waiting = buffer.waiting;
-        memset(&buffer,0,sizeof(buffer));
-
-/* Print out the data if requested. */
-
-        if (verbose > 1) {
-            fprintf(stderr,"%s: prev=%.3f when=%.3f corr=%.3f\n",
-                argv0,*previous,*when,*correction);
-            for (i = 0; i < *total; ++i) {
-                if ((j = i+*index-*total) < 0) j += *total;
-                fprintf(stderr,"%s: when=%.3f disp=%.3f off=%.3f",
-                    argv0,record[j].when,record[j].dispersion,record[j].offset);
-                if (operation == op_client)
-                    fprintf(stderr," err=%.3f\n",record[j].error);
-                else
-                    fprintf(stderr,"\n");
-            }
-        }
-
-/* All errors on output are fatal. */
-
-    } else if (operation == save_write) {
-        memcpy(buffer.record,record,sizeof(buffer.record));
-        buffer.previous = *previous;
-        buffer.when = *when;
-        buffer.correction = *correction;
-        buffer.operation = operation;
-        buffer.delay = delay;
-        buffer.count = count;
-        buffer.total = *total;
-        buffer.index = *index;
-        buffer.cycle = *cycle;
-        buffer.waiting = waiting;
-        if (fseek(savefile,0l,SEEK_SET) != 0 ||
-                fwrite(&buffer,sizeof(buffer),1,savefile) != 1 ||
-                fflush(savefile) != 0 || ferror(savefile))
-            fatal(1,"unable to write record to daemon save file",NULL);
-        if (verbose > 2) {
-            fprintf(stderr,"Writing prev=%.6f when=%.6f corr=%.6f\n",
-                *previous,*when,*correction);
-            fprintf(stderr,"op=%d dly=%d cnt=%d tot=%d ind=%d cyc=%d wait=%d\n",
-                operation,delay,count,*total,*index,*cycle,waiting);
-            if (*total < COUNT_MAX)
-                for (i = 0; i < *total; ++i)
-                    fprintf(stderr,
-                        "disp=%.6f wgt=%.3f when=%.6f off=%.6f err=%.6f\n",
-                        record[i].dispersion,record[i].weight,
-                        record[i].when,record[i].offset,record[i].error);
-        }
-
-/* Clearing the save file is similar. */
-
-    } else if (operation == save_clear) {
-        if (fseek(savefile,0l,SEEK_SET) != 0 ||
-                fwrite(&buffer,sizeof(buffer),1,savefile) != 1 ||
-                fflush(savefile) != 0 || ferror(savefile))
-            fatal(1,"unable to clear daemon save file",NULL);
-    } else
-        fatal(0,"internal error in handle_saving",NULL);
-}
-
-
-
-void query_savefile (void) {
-
-/* This queries a daemon save file. */
-
-    double previous, when, correction = 0.0, offset = 0.0, error = -1.0,
-        drift = 0.0, drifterr = -1.0;
-    data_record record[COUNT_MAX];
-    int total = 0, index = 0, cycle = 0;
-    char text[100];
-
-/* This is a few lines stripped out of run_daemon() and slightly hacked. */
-
-    previous = when = current_time(JAN_1970);
-    if (verbose > 2) {
-        format_time(text,50,0.0,-1.0,0.0,-1.0,-10);
-        fprintf(stderr,"Started=%.6f %s\n",when,text);
-    }
-    handle_saving(save_read_only,&total,&index,&cycle,record,&previous,&when,
-        &correction);
-    estimate_stats(&total,&index,record,correction,&dispersion,
-        &when,&offset,&error,&drift,&drifterr,&waiting,0);
-    format_time(text,100,offset,error,drift,drifterr,-10);
-    printf("%s\n",text);
-    if (fclose(savefile)) fatal(1,"unable to close daemon save file",NULL);
-    if (verbose > 2) fprintf(stderr,"Stopped normally\n");
-    exit(EXIT_SUCCESS);
-}
-
-
-
-void run_daemon (char *hostnames[], int nhosts, int initial) {
-
-/* This does not adjust the time between calls to the server, but it does
-adjust the time between clock resets.  This function will survive short periods
-of server inaccessibility or network glitches, but not long ones, and will then
-need restarting manually.
-
-It is far too complex for a single function, but could really only be
-simplified by making most of its variables global or by a similarly horrible
-trick.  Oh, for nested scopes as in Algol 68! */
-
-    double history[COUNT_MAX], started, previous, when, correction = 0.0,
-        weeble = 1.0, accepts = 0.0, rejects = 0.0, flushes = 0.0,
-        replicates = 0.0, skips = 0.0, offset = 0.0, error = -1.0,
-        drift = 0.0, drifterr = -1.0, maxoff = 0.0, x;
-    data_record record[COUNT_MAX];
-    int total = 0, index = 0, item = 0, rej_level = 0, rep_level = 0,
-        cycle = 0, retry = 1, i, j, k;
-    unsigned char transmit[NTP_PACKET_MIN];
-    ntp_data data;
-    char text[100];
-
-/* After initialising, restore from a previous run if possible.  Note that
-only a few of the variables are actually needed to control the operation and
-the rest are mainly for diagnostics. */
-
-    started = previous = when = current_time(JAN_1970);
-    if (verbose > 2) {
-        format_time(text,50,0.0,-1.0,0.0,-1.0,-10);
-        fprintf(stderr,"Started=%.6f %s\n",when,text);
-    }
-    if (initial) {
-        handle_saving(save_read_check,&total,&index,&cycle,record,
-            &previous,&when,&correction);
-        cycle = (nhosts > 0 ? cycle%nhosts : 0);
-        if (total > 0 && started-previous < delay) {
-            if (verbose > 2) fprintf(stderr,"Last packet too recent\n");
-            retry = 0;
-        }
-        if (verbose > 2)
-            fprintf(stderr,"prev=%.6f when=%.6f retry=%d\n",
-                previous,when,retry);
-        for (i = 0; i < nhosts; ++i) open_socket(i,hostnames[i],delay);
-        if (action != action_display) {
-            set_lock(1);
-            locked = 1;
-        }
-    }
-    dispersion = 0.0;
-    attempts = 0;
-    for (i = 0; i < count; ++i) history[i] = 0.0;
-    while (1) {
-
-/* Print out a reasonable amount of diagnostics, rather like a server.  Note
-that it may take a little time, but shouldn't affect the estimates much.  Then
-check that we aren't in a failing loop. */
-
-        if (verbose > 2) fprintf(stderr,"item=%d rej=%d\n",item,rej_level);
-        x = current_time(JAN_1970)-started;
-        if (verbose &&
-                x/3600.0+accepts+rejects+flushes+replicates+skips >= weeble) {
-            weeble *= WEEBLE_FACTOR;
-            x -= 3600.0*(i = (int)(x/3600.0));
-            x -= 60.0*(j = (int)(x/60.0));
-            if (i > 0)
-                fprintf(stderr,"%s: after %d hours %d mins ",argv0,i,j);
-            else if (j > 0)
-                fprintf(stderr,"%s: after %d mins %.0f secs ",argv0,j,x);
-            else
-                fprintf(stderr,"%s: after %.1f secs ",argv0,x);
-            fprintf(stderr,"acc. %.0f rej. %.0f flush %.0f",
-                accepts,rejects,flushes);
-            if (operation == op_listen)
-                fprintf(stderr," rep. %.0f skip %.0f",replicates,skips);
-            fprintf(stderr," max.off. %.3f corr. %.3f\n",maxoff,correction);
-            format_time(text,100,offset,error,drift,drifterr,-10);
-            fprintf(stderr,"%s: %s\n",argv0,text);
-            maxoff = 0.0;
-        }
-        if (current_time(JAN_1970)-previous > count*delay) {
-            if (verbose)
-                fprintf(stderr,"%s: no packets in too long a period\n",argv0);
-            return;
-        }
-
-/* Listen for the next broadcast packet.  This allows up to ETHERNET_MAX
-replications per packet, for systems with multiple addresses for receiving
-broadcasts; the only reason for a limit is to protect against broken NTP
-servers always returning the same time. */
-
-        if (operation == op_listen) {
-            flushes += flush_socket(0);
-            if (read_packet(0,&data,&offset,&error)) {
-                ++rejects;
-                if (++rej_level > count)
-                    fatal(0,"too many bad or lost packets",NULL);
-                if (action != action_display && drifterr >= 0.0) {
-                    correction += correct_drift(&when,&offset,drift);
-                    handle_saving(save_write,&total,&index,&cycle,record,
-                        &previous,&when,&correction);
-                }
-                continue;
-            }
-            if ((rej_level -= (count < 5 ? count : 5)) < 0) rej_level = 0;
-            x = data.transmit;
-            for (i = 0; i < count; ++i)
-                if (x == history[i]) {
-                    ++replicates;
-                    if (++rep_level > ETHERNET_MAX)
-                        fatal(0,"too many replicated packets",NULL);
-                    goto continue1;
-                }
-            rep_level = 0;
-            history[item] = x;
-            if (++item >= count) item = 0;
-
-/* Accept a packet only after a long enough period has elapsed. */
-
-            when = data.current;
-            if (! retry && when < previous+delay) {
-                if (verbose > 2) fprintf(stderr,"Skipping too recent packet\n");
-                ++skips;
-                continue;
-            }
-            retry = 0;
-            if (verbose > 2)
-                fprintf(stderr,"Offset=%.6f @ %.6f disp=%.6f\n",
-                    offset,when,dispersion);
-
-/* Handle the client/server model.  It keeps a record of transmitted times,
-mainly out of paranoia.  The waiting time is kludged up to attempt to provide
-reasonable resilience against both lost packets and dead servers.  But it
-won't handle much of either, and will stop after a while, needing manual
-restarting.  Running it under cron is the best approach. */
-
-        } else {
-            if (! retry) {
-               if (verbose > 2) fprintf(stderr,"Sleeping for %d\n",waiting);
-               do_nothing(waiting);
-            }
-            make_packet(&data,NTP_CLIENT);
-            outgoing[item] = data.transmit;
-            if (++item >= 2*count) item = 0;
-            if (attempts < 2*count) ++attempts;
-            if (verbose > 2) {
-                fprintf(stderr,"Outgoing packet on socket %d:\n",cycle);
-                display_data(&data);
-            }
-            pack_ntp(transmit,NTP_PACKET_MIN,&data);
-            if (verbose > 2) display_packet(transmit,NTP_PACKET_MIN);
-            flushes += flush_socket(cycle);
-            write_socket(cycle,transmit,NTP_PACKET_MIN);
-
-/* Read the packet and check that it is an appropriate response.  Because this
-is rather more numerically sensitive than simple resynchronisation, reject all
-very inaccurate packets.  Be careful if you modify this, because the error
-handling is rather nasty to avoid replicating code. */
-
-            k = read_packet(cycle,&data,&offset,&error);
-            if (++cycle >= nhosts) cycle = 0;
-            if (! k)
-                when = (data.originate+data.current)/2.0;
-            else if (action != action_display && drifterr >= 0.0) {
-                correction += correct_drift(&when,&offset,drift);
-                handle_saving(save_write,&total,&index,&cycle,record,
-                    &previous,&when,&correction);
-            }
-            if (! k && ! retry && when < previous+delay-2) {
-                if (verbose)
-                    fprintf(stderr,"%s: packets out of order on socket %d\n",
-                        argv0,cycle);
-                k = 1;
-            }
-            if (! k && data.current-data.originate > maxerr) {
-                if (verbose)
-                    fprintf(stderr,
-                        "%s: very slow response rejected on socket %d\n",
-                        argv0,cycle);
-                k = 1;
-            }
-
-/* Count the number of rejected packets and fail if there are too many. */
-
-            if (k) {
-                ++rejects;
-                if (++rej_level > count)
-                    fatal(0,"too many bad or lost packets",NULL);
-                else {
-                    retry = 1;
-                    continue;
-                }
-            } else
-                retry = 0;
-            if ((rej_level -= (count < 5 ? count : 5)) < 0) rej_level = 0;
-            if (verbose > 2)
-                fprintf(stderr,"Offset=%.6f+/-%.6f @ %.6f disp=%.6f\n",
-                    offset,error,when,dispersion);
-        }
-   
-/* Calculate the statistics, and display the results or make the initial
-correction.  Note that estimate_stats() will return zero if a timestamp
-indicates synchronisation loss (usually due to down time or a change of server,
-somewhere upstream), and that the recovery operation is unstructured, so great
-care should be taken when modifying it.  Also, we want to clear the saved state
-is the statistics are bad. */
-
-        handle_saving(save_clear,&total,&index,&cycle,record,&previous,&when,
-            &correction);
-        ++accepts;
-        dispersion = data.dispersion;
-        previous = when =
-            estimate_stats(&total,&index,record,correction,&dispersion,
-                &when,&offset,&error,&drift,&drifterr,&waiting,1);
-        if (verbose > 2) {
-            fprintf(stderr,"tot=%d ind=%d dis=%.3f when=%.3f off=%.3f ",
-                total,index,dispersion,when,offset);
-            fprintf(stderr,"err=%.3f wait=%d\n",error,waiting);
-        }
-        if (when == 0.0) return;
-        x = (maxoff < 0.0 ? -maxoff : maxoff);
-        if ((offset < 0.0 ? -offset : offset) > x) maxoff = offset;
-        correction = 0.0;
-        if (operation == op_client || accepts >= count) {
-            if (action == action_display) {
-                format_time(text,100,offset,error,drift,drifterr,-10);
-                printf("%s\n",text);
-            } else {
-                x = reset_clock(offset,error,1);
-                correction += x;
-                offset -= x;
-            }
-        } else
-            waiting = delay;
-        handle_saving(save_write,&total,&index,&cycle,record,&previous,&when,
-            &correction);
-
-/* Now correct the clock for a while, before getting another packet and
-updating the statistics. */
-
-        while (when < previous+delay-waiting) {
-            do_nothing(waiting);
-            if (action == action_display)
-                when += waiting;
-            else {
-                correction += correct_drift(&when,&offset,drift);
-                handle_saving(save_write,&total,&index,&cycle,record,
-                    &previous,&when,&correction);
-            }
-        }
-continue1: ;
-    }
-}
-
-
-
-void run_client (char *hostnames[], int nhosts) {
-
-/* Get enough responses to do something with; or not, as the case may be.  Note
-that it allows for half of the packets to be bad, so may make up to twice as
-many attempts as specified by the -c value.  The deadline checking is merely
-paranoia, to protect against broken signal handling - it cannot easily be
-triggered if the signal handling works. */
-
-    double history[COUNT_MAX], guesses[COUNT_MAX], offset, error, deadline,
-        a, b, x, y;
-    int precs[COUNT_MAX], precision = 0;
-    int accepts = 0, rejects = 0, flushes = 0, replicates = 0, cycle = 0, k;
-    unsigned char transmit[NTP_PACKET_MIN];
-    ntp_data data;
-    char text[100];
-
-    if (verbose > 2) {
-        format_time(text,50,0.0,-1.0,0.0,-1.0,-10);
-        fprintf(stderr,"Started=%.6f %s\n",current_time(JAN_1970),text);
-    }
-    for (k = 0; k < nhosts; ++k) open_socket(k,hostnames[k],delay);
-    if (action != action_display) {
-        set_lock(1);
-        locked = 1;
-    }
-    attempts = 0;
-    deadline = current_time(JAN_1970)+delay;
-
-/* Listen to broadcast packets and select the best (i.e. earliest).  This will
-be sensitive to a bad NTP broadcaster, but I believe such things are very rare
-in practice.  In any case, if you have one, it is probably the only one on your
-subnet, so you are knackered!  This allows up to ETHERNET_MAX replications per
-packet, for systems with multiple addresses for receiving broadcasts; the only
-reason for a limit is to protect against broken NTP servers always returning
-the same time. */
-
-    if (operation == op_listen) {
-        while (accepts < count) {
-            if (current_time(JAN_1970) > deadline)
-                fatal(0,"not enough valid broadcasts received in time",NULL);
-            flushes += flush_socket(0);
-            if (read_packet(0,&data,&x,&y)) {
-                if (++rejects > count)
-                    fatal(0,"too many bad or lost packets",NULL);
-                else
-                    continue;
-            } else {
-                a = data.transmit;
-                for (k = 0; k < accepts; ++k)
-                    if (a == history[k]) {
-                        if (++replicates > ETHERNET_MAX*count)
-                            fatal(0,"too many replicated packets",NULL);
-                        goto continue1;
-                    }
-                history[accepts] = a;
-		precs[accepts] = data.precision;
-                guesses[accepts++] = x;
-            }
-            if (verbose > 2)
-                fprintf(stderr,"Offset=%.6f disp=%.6f\n",x,dispersion);
-            else if (verbose > 1)
-                fprintf(stderr,"%s: offset=%.3f disp=%.3f\n",
-                    argv0,x,dispersion);
-
-/* Note that bubblesort IS a good method for this amount of data.  */
-
-            for (k = accepts-2; k >= 0; --k)
-                if (guesses[k] < guesses[k+1])
-                    break;
-                else {
-                    x = guesses[k];
-                    guesses[k] = guesses[k+1];
-                    guesses[k+1] = x;
-		    precision = precs[k];
-		    precs[k] = precs[k+1];
-		    precs[k+1] = precision;
-                }
-continue1:  ;
-        }
-        offset = guesses[0];
-	precision = precs[0];
-        error = minerr+guesses[count <= 5 ? count-1 : 5]-offset;
-        if (verbose > 2)
-            fprintf(stderr,"accepts=%d rejects=%d flushes=%d replicates=%d\n",
-                accepts,rejects,flushes,replicates);
-
-/* Handle the client/server model.  It keeps a record of transmitted times,
-mainly out of paranoia. */
-
-    } else {
-        offset = 0.0;
-	precision = 0;
-        error = NTP_INSANITY;
-        while (accepts < count && attempts < 2*count) {
-            if (current_time(JAN_1970) > deadline)
-                fatal(0,"not enough valid responses received in time",NULL);
-            make_packet(&data,NTP_CLIENT);
-            precs[attempts] = data.precision;
-            outgoing[attempts++] = data.transmit;
-            if (verbose > 2) {
-                fprintf(stderr,"Outgoing packet on socket %d:\n",cycle);
-                display_data(&data);
-            }
-            pack_ntp(transmit,NTP_PACKET_MIN,&data);
-            if (verbose > 2) display_packet(transmit,NTP_PACKET_MIN);
-            flushes += flush_socket(cycle);
-            write_socket(cycle,transmit,NTP_PACKET_MIN);
-            if (read_packet(cycle,&data,&x,&y)) {
-                if (++rejects > count)
-                    fatal(0,"too many bad or lost packets",NULL);
-                else
-                    continue;
-            } else
-                ++accepts;
-            if (++cycle >= nhosts) cycle = 0;
-
-/* Work out the most accurate time, and check that it isn't more accurate than
-the results warrant. */
-
-            if (verbose > 2)
-                fprintf(stderr,"Offset=%.6f+/-%.6f disp=%.6f\n",x,y,dispersion);
-            else if (verbose > 1)
-                fprintf(stderr,"%s: offset=%.3f+/-%.3f disp=%.3f\n",
-                    argv0,x,y,dispersion);
-            if ((a = x-offset) < 0.0) a = -a;
-            if (accepts <= 1) a = 0.0;
-            b = error+y;
-            if (y < error) {
-                offset = x;
-                error = y;
-		precision = data.precision;
-            }
-            if (verbose > 2)
-                fprintf(stderr,"best=%.6f+/-%.6f\n",offset,error);
-            if (a > b) {
-                sprintf(text,"%d",cycle);
-                fatal(0,"inconsistent times got from NTP server on socket %s",
-                    text);
-            }
-            if (error <= minerr) break;
-        }
-        if (verbose > 2)
-            fprintf(stderr,"accepts=%d rejects=%d flushes=%d\n",
-                accepts,rejects,flushes);
-    }
-
-/* Tidy up the socket, issues diagnostics and perform the action. */
-
-    for (k = 0; k < nhosts; ++k) close_socket(k);
-    if (accepts == 0) fatal(0,"no acceptable packets received",NULL);
-    if (error > NTP_INSANITY)
-        fatal(0,"unable to get a reasonable time estimate",NULL);
-    if (verbose > 2)
-        fprintf(stderr,"Correction: %.6f +/- %.6f disp=%.6f\n",
-            offset,error,dispersion);
-    if (action == action_display) {
-        format_time(text,75,offset,error,0.0,-1.0,precision);
-        printf("%s\n",text);
-    } else
-        (void)reset_clock(offset,error,0);
-    if (locked) set_lock(0);
-    if (verbose > 2) fprintf(stderr,"Stopped normally\n");
-    exit(EXIT_SUCCESS);
-}
-
-
-
-int main (int argc, char *argv[]) {
-
-/* This is the entry point and all that.  It decodes the arguments and calls
-one of the specialised routines to do the work. */
-
-    char *hostnames[MAX_SOCKETS], *savename = NULL;
-    int daemon = 0, nhosts = 0, help = 0, args = argc-1, k;
-    char c;
-
-    if (argv[0] == NULL || argv[0][0] == '\0')
-        argv0 = "sntp";
-    else if ((argv0 = strrchr(argv[0],'/')) != NULL)
-        ++argv0;
-    else
-        argv0 = argv[0];
-
-    setvbuf(stdout,NULL,_IOLBF,BUFSIZ);
-    setvbuf(stderr,NULL,_IOLBF,BUFSIZ);
-
-    if (INT_MAX < 2147483647) fatal(0,"sntp requires >= 32-bit ints",NULL);
-    if (DBL_EPSILON > 1.0e-13)
-        fatal(0,"sntp requires doubles with eps <= 1.0e-13",NULL);
-    for (k = 0; k < MAX_SOCKETS; ++k) hostnames[k] = NULL;
-
-/* Decode the arguments. */
-
-    while (argc > 1) {
-        k = 1;
-	if (strcmp(argv[1],"-4") == 0)
-	    preferred_family(PREF_FAM_INET);
-	else if (strcmp(argv[1],"-6") == 0)
-	    preferred_family(PREF_FAM_INET6);
-        else if (strcmp(argv[1],"-u") == 0)
-            ++unprivport;
-        else if (strcmp(argv[1],"-q") == 0 && action == 0)
-            action = action_query;
-        else if (strcmp(argv[1],"-r") == 0 && action == 0)
-            action = action_reset;
-        else if (strcmp(argv[1],"-a") == 0 && action == 0)
-            action = action_adjust;
-        else if (strcmp(argv[1],"-l") == 0 && lockname == NULL && argc > 2) {
-            lockname = argv[2];
-            k = 2;
-        } else if ((strcmp(argv[1],"-x") == 0) &&
-                daemon == 0) {
-            if (argc > 2 && sscanf(argv[2],"%d%c",&daemon,&c) == 1) {
-                if (daemon < 1 || daemon > 1440)
-                    fatal(0,"%s option value out of range",argv[1]);
-                k = 2;
-            } else
-                daemon = 300;
-        } else if (strcmp(argv[1],"-f") == 0 && savename == NULL && argc > 2) {
-            savename = argv[2];
-            k = 2;
-        } else if ((strcmp(argv[1],"--help") == 0 ||
-                    strcmp(argv[1],"-h") == 0 || strcmp(argv[1],"-?") == 0) &&
-                help == 0)
-            help = 1;
-        else if (strcmp(argv[1],"-v") == 0 && verbose == 0)
-            verbose = 1;
-        else if (strcmp(argv[1],"-V") == 0 && verbose == 0)
-            verbose = 2;
-        else if (strcmp(argv[1],"-W") == 0 && verbose == 0)
-            verbose = 3;
-        else if (strcmp(argv[1],"-e") == 0 && minerr == 0.0 && argc > 2) {
-            if (sscanf(argv[2],"%lf%c",&minerr,&c) != 1) syntax(1);
-            if (minerr <= 0.000999999 || minerr > 1.0)
-                fatal(0,"%s option value out of range","-e");
-            k = 2;
-        } else if (strcmp(argv[1],"-E") == 0 && maxerr == 0.0 && argc > 2) {
-            if (sscanf(argv[2],"%lf%c",&maxerr,&c) != 1) syntax(1);
-            if (maxerr < 1.0 || maxerr > 60.0)
-                fatal(0,"%s option value out of range","-E");
-            k = 2;
-        } else if (strcmp(argv[1],"-P") == 0 && prompt == 0.0 && argc > 2) {
-            if (strcmp(argv[2],"no") == 0)
-                prompt = (double)INT_MAX;
-            else {
-                if (sscanf(argv[2],"%lf%c",&prompt,&c) != 1) syntax(1);
-                if (prompt < 1.0 || prompt > 3600.0)
-                    fatal(0,"%s option value out of range","-p");
-            }
-            k = 2;
-        } else if (strcmp(argv[1],"-d") == 0 && delay == 0 && argc > 2) {
-            if (sscanf(argv[2],"%d%c",&delay,&c) != 1) syntax(1);
-            if (delay < 1 || delay > 3600)
-                fatal(0,"%s option value out of range","-d");
-            k = 2;
-        } else if (strcmp(argv[1],"-c") == 0 && count == 0 && argc > 2) {
-            if (sscanf(argv[2],"%d%c",&count,&c) != 1) syntax(1);
-            if (count < 1 || count > COUNT_MAX)
-                fatal(0,"%s option value out of range","-c");
-            k = 2;
-        } else
-            break;
-        argc -= k;
-        argv += k;
-    }
-
-/* Check the arguments for consistency and set the defaults. */
-
-    if (action == action_query) {
-        if (argc != 1 || minerr != 0.0 || maxerr != 0.0 || count != 0 ||
-                delay != 0 || daemon != 0 || prompt != 0.0 || lockname != NULL)
-            syntax(1);
-    } else {
-        if (argc < 1 || argc > MAX_SOCKETS || (daemon != 0 && delay != 0))
-            syntax(1);
-        if ((prompt || lockname != NULL) &&
-                action != action_reset && action != action_adjust)
-            syntax(1);
-        if (count > 0 && count < argc-1)
-            fatal(0,"-c value less than number of addresses",NULL);
-       if (argc > 1) {
-            operation = op_client;
-            for (k = 1; k < argc; ++k) {
-                if (argv[k][0] == '\0' || argv[k][0] == '-')
-                    fatal(0,"invalid Internet address '%s'",argv[k]);
-                hostnames[k-1] = argv[k];
-            }
-            nhosts = argc-1;
-        } else {
-            operation = op_listen;
-            nhosts = 0;
-        }
-        if (action == 0) action = action_display;
-        if (minerr <= 0.0) minerr = (operation == op_listen ? 0.5 : 0.1);
-        if (maxerr <= 0.0) maxerr = 5.0;
-        if (count == 0) count = (argc-1 < 5 ? 5 : argc-1);
-        if ((argc == 1 || (daemon != 0 && action != action_query)) && count < 5)
-            fatal(0,"at least 5 packets needed in this mode",NULL);
-        if ((action == action_reset || action == action_adjust) &&
-                lockname == NULL)
-            lockname = LOCKNAME;
-
-/* The '-x' option changes the implications of many other settings, though this
-is not usually apparent to the caller.  Most of the time delays are to ensure
-that stuck states terminate, and do not affect the result. */
-
-        if (daemon != 0) {
-            if (minerr >= maxerr || maxerr >= daemon)
-                fatal(0,"values not in order -e < -E < -x",NULL);
-            waiting = delay = daemon *= 60;
-        } else {
-            if (savename != NULL)
-                fatal(0,"-f can be specified only with -x",NULL);
-            if (delay == 0)
-                delay = (operation == op_listen ? 300 :
-                        (2*count >= 15 ? 2*count+1 :15));
-            if (operation == op_listen) {
-                if (minerr >= maxerr || maxerr >= delay/count)
-                    fatal(0,"values not in order -e < -E < -d/-c",NULL);
-            } else {
-                if (minerr >= maxerr || maxerr >= delay)
-                    fatal(0,"values not in order -e < -E < -d",NULL);
-            }
-            if (2*count >= delay) fatal(0,"-c must be less than half -d",NULL);
-            waiting = delay/count;
-        }
-        if (prompt == 0.0) prompt = 30.0;
-    }
-    if ((daemon || action == action_query) && savename == NULL)
-        savename = SAVENAME;
-
-/* Diagnose where we are, if requested, and separate out the classes of 
-operation.  The calls do not return. */
-
-    if (help) syntax(args == 1);
-    if (verbose) {
-        fprintf(stderr,"%s options: a=%d v=%d e=%.3f E=%.3f P=%.3f\n",
-            argv0,action,verbose,minerr,maxerr,prompt);
-        fprintf(stderr,"    d=%d c=%d %c=%d op=%d l=%s f=%s",
-            delay,count,'x',daemon,operation,
-            (lockname == NULL ? "" : lockname),
-            (savename == NULL ? "" : savename));
-        for (k = 0; k < MAX_SOCKETS; ++k)
-            if (hostnames[k] != NULL) fprintf(stderr," %s",hostnames[k]);
-        fprintf(stderr,"\n");
-    }
-    if (nhosts == 0) nhosts = 1;    /* Kludge for broadcasts */
-    if (action == action_query) {
-        if (savename == NULL || savename[0] == '\0')
-            fatal(0,"no daemon save file specified",NULL);
-        else if ((savefile = fopen(savename,"rb")) == NULL)
-            fatal(0,"unable to open the daemon save file",NULL);
-        query_savefile();
-    } else if (daemon != 0) {
-        if (savename != NULL && savename[0] != '\0' &&
-                (savefile = fopen(savename,"rb+")) == NULL &&
-                (savefile = fopen(savename,"wb+")) == NULL)
-            fatal(0,"unable to open the daemon save file",NULL);
-        run_daemon(hostnames,nhosts,1);
-        while (1) run_daemon(hostnames,nhosts,0);
-    } else
-        run_client(hostnames,nhosts);
-    fatal(0,"internal error at end of main",NULL);
-    return EXIT_FAILURE;
-}

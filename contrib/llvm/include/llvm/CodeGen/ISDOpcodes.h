@@ -72,6 +72,11 @@ namespace ISD {
     /// the parent's frame or return address, and so on.
     FRAMEADDR, RETURNADDR,
 
+    /// FRAME_ALLOC_RECOVER - Represents the llvm.framerecover
+    /// intrinsic. Materializes the offset from the frame pointer of another
+    /// function to the result of llvm.frameallocate.
+    FRAME_ALLOC_RECOVER,
+
     /// READ_REGISTER, WRITE_REGISTER - This node represents llvm.register on
     /// the DAG, which implements the named register global variables extension.
     READ_REGISTER,
@@ -485,7 +490,8 @@ namespace ISD {
     FNEG, FABS, FSQRT, FSIN, FCOS, FPOWI, FPOW,
     FLOG, FLOG2, FLOG10, FEXP, FEXP2,
     FCEIL, FTRUNC, FRINT, FNEARBYINT, FROUND, FFLOOR,
-    
+    FMINNUM, FMAXNUM,
+
     /// FSINCOS - Compute both fsin and fcos as a single operation.
     FSINCOS,
 
@@ -674,6 +680,9 @@ namespace ISD {
     ATOMIC_LOAD_UMIN,
     ATOMIC_LOAD_UMAX,
 
+    // Masked load and store
+    MLOAD, MSTORE,
+
     /// This corresponds to the llvm.lifetime.* intrinsics. The first operand
     /// is the chain and the second operand is the alloca pointer.
     LIFETIME_START, LIFETIME_END,
@@ -744,7 +753,7 @@ namespace ISD {
     LAST_LOADEXT_TYPE
   };
 
-  NodeType getExtForLoadExtType(LoadExtType);
+  NodeType getExtForLoadExtType(bool IsFP, LoadExtType);
 
   //===--------------------------------------------------------------------===//
   /// ISD::CondCode enum - These are ordered carefully to make the bitfields

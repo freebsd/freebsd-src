@@ -11,7 +11,6 @@
 #include "MCTargetDesc/X86FixupKinds.h"
 #include "llvm/ADT/StringSwitch.h"
 #include "llvm/MC/MCAsmBackend.h"
-#include "llvm/MC/MCAssembler.h"
 #include "llvm/MC/MCELFObjectWriter.h"
 #include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCFixupKindInfo.h"
@@ -437,10 +436,30 @@ class DarwinX86AsmBackend : public X86AsmBackend {
   bool Is64Bit;
 
   unsigned OffsetSize;                   ///< Offset of a "push" instruction.
-  unsigned PushInstrSize;                ///< Size of a "push" instruction.
   unsigned MoveInstrSize;                ///< Size of a "move" instruction.
-  unsigned StackDivide;                  ///< Amount to adjust stack stize by.
+  unsigned StackDivide;                  ///< Amount to adjust stack size by.
 protected:
+  /// \brief Size of a "push" instruction for the given register.
+  unsigned PushInstrSize(unsigned Reg) const {
+    switch (Reg) {
+      case X86::EBX:
+      case X86::ECX:
+      case X86::EDX:
+      case X86::EDI:
+      case X86::ESI:
+      case X86::EBP:
+      case X86::RBX:
+      case X86::RBP:
+        return 1;
+      case X86::R12:
+      case X86::R13:
+      case X86::R14:
+      case X86::R15:
+        return 2;
+    }
+    return 1;
+  }
+
   /// \brief Implementation of algorithm to generate the compact unwind encoding
   /// for the CFI instructions.
   uint32_t
@@ -493,7 +512,7 @@ protected:
         // Defines a new offset for the CFA. E.g.
         //
         //  With frame:
-        //  
+        //
         //     pushq %rbp
         //  L0:
         //     .cfi_def_cfa_offset 16
@@ -530,7 +549,7 @@ protected:
         unsigned Reg = MRI.getLLVMRegNum(Inst.getRegister(), true);
         SavedRegs[SavedRegIdx++] = Reg;
         StackAdjust += OffsetSize;
-        InstrOffset += PushInstrSize;
+        InstrOffset += PushInstrSize(Reg);
         break;
       }
       }
@@ -663,7 +682,7 @@ private:
     //     4       3
     //     5       3
     //
-    for (unsigned i = 0; i != CU_NUM_SAVED_REGS; ++i) {
+    for (unsigned i = 0; i < RegCount; ++i) {
       int CUReg = getCompactUnwindRegNum(SavedRegs[i]);
       if (CUReg == -1) return ~0U;
       SavedRegs[i] = CUReg;
@@ -724,7 +743,6 @@ public:
     OffsetSize = Is64Bit ? 8 : 4;
     MoveInstrSize = Is64Bit ? 3 : 2;
     StackDivide = Is64Bit ? 8 : 4;
-    PushInstrSize = 1;
   }
 };
 
@@ -770,26 +788,6 @@ public:
     // See <rdar://problem/4765733>.
     const MCSectionMachO &SMO = static_cast<const MCSectionMachO&>(Section);
     return SMO.getType() == MachO::S_CSTRING_LITERALS;
-  }
-
-  bool isSectionAtomizable(const MCSection &Section) const override {
-    const MCSectionMachO &SMO = static_cast<const MCSectionMachO&>(Section);
-    // Fixed sized data sections are uniqued, they cannot be diced into atoms.
-    switch (SMO.getType()) {
-    default:
-      return true;
-
-    case MachO::S_4BYTE_LITERALS:
-    case MachO::S_8BYTE_LITERALS:
-    case MachO::S_16BYTE_LITERALS:
-    case MachO::S_LITERAL_POINTERS:
-    case MachO::S_NON_LAZY_SYMBOL_POINTERS:
-    case MachO::S_LAZY_SYMBOL_POINTERS:
-    case MachO::S_MOD_INIT_FUNC_POINTERS:
-    case MachO::S_MOD_TERM_FUNC_POINTERS:
-    case MachO::S_INTERPOSING:
-      return false;
-    }
   }
 
   /// \brief Generate the compact unwind encoding for the CFI instructions.

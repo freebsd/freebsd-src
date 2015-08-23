@@ -22,9 +22,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $Id: dwarf_set_reloc_application.3 2075 2011-10-27 03:47:28Z jkoshy $
+.\" $Id: dwarf_set_reloc_application.3 3161 2015-02-15 21:43:36Z emaste $
 .\"
-.Dd June 26, 2011
+.Dd February 11, 2015
 .Os
 .Dt DWARF_SET_RELOC_APPLICATION 3
 .Sh NAME
@@ -47,6 +47,8 @@ handled by the DWARF(3) library.
 If the argument
 .Ar apply
 holds a non-zero value, the library will process all the relevant
+.Dq ".rel"
+and
 .Dq ".rela"
 relocation sections and will apply the relocation records found to
 their corresponding DWARF sections.

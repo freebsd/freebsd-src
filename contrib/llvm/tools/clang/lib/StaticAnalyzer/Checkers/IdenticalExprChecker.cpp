@@ -445,7 +445,12 @@ static bool isIdenticalStmt(const ASTContext &Ctx, const Stmt *Stmt1,
   case Stmt::IntegerLiteralClass: {
     const IntegerLiteral *IntLit1 = cast<IntegerLiteral>(Stmt1);
     const IntegerLiteral *IntLit2 = cast<IntegerLiteral>(Stmt2);
-    return IntLit1->getValue() == IntLit2->getValue();
+
+    llvm::APInt I1 = IntLit1->getValue();
+    llvm::APInt I2 = IntLit2->getValue();
+    if (I1.getBitWidth() != I2.getBitWidth())
+      return false;
+    return  I1 == I2;
   }
   case Stmt::FloatingLiteralClass: {
     const FloatingLiteral *FloatLit1 = cast<FloatingLiteral>(Stmt1);
@@ -455,7 +460,7 @@ static bool isIdenticalStmt(const ASTContext &Ctx, const Stmt *Stmt1,
   case Stmt::StringLiteralClass: {
     const StringLiteral *StringLit1 = cast<StringLiteral>(Stmt1);
     const StringLiteral *StringLit2 = cast<StringLiteral>(Stmt2);
-    return StringLit1->getString() == StringLit2->getString();
+    return StringLit1->getBytes() == StringLit2->getBytes();
   }
   case Stmt::MemberExprClass: {
     const MemberExpr *MemberStmt1 = cast<MemberExpr>(Stmt1);

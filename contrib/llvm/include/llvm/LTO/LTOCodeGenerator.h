@@ -32,8 +32,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LTO_CODE_GENERATOR_H
-#define LTO_CODE_GENERATOR_H
+#ifndef LLVM_LTO_LTOCODEGENERATOR_H
+#define LLVM_LTO_LTOCODEGENERATOR_H
 
 #include "llvm-c/lto.h"
 #include "llvm/ADT/ArrayRef.h"
@@ -61,10 +61,11 @@ struct LTOCodeGenerator {
   static const char *getVersionString();
 
   LTOCodeGenerator();
+  LTOCodeGenerator(std::unique_ptr<LLVMContext> Context);
   ~LTOCodeGenerator();
 
   // Merge given module, return true on success.
-  bool addModule(struct LTOModule*, std::string &errMsg);
+  bool addModule(struct LTOModule *);
 
   void setTargetOptions(TargetOptions options);
   void setDebugInfo(lto_debug_model);
@@ -101,6 +102,7 @@ struct LTOCodeGenerator {
                        bool disableOpt,
                        bool disableInline,
                        bool disableGVNLoadPRE,
+                       bool disableVectorization,
                        std::string &errMsg);
 
   // As with compile_to_file(), this function compiles the merged module into
@@ -112,19 +114,23 @@ struct LTOCodeGenerator {
                       bool disableOpt,
                       bool disableInline,
                       bool disableGVNLoadPRE,
+                      bool disableVectorization,
                       std::string &errMsg);
 
   void setDiagnosticHandler(lto_diagnostic_handler_t, void *);
+
+  LLVMContext &getContext() { return Context; }
 
 private:
   void initializeLTOPasses();
 
   bool generateObjectFile(raw_ostream &out, bool disableOpt, bool disableInline,
-                          bool disableGVNLoadPRE, std::string &errMsg);
+                          bool disableGVNLoadPRE, bool disableVectorization,
+                          std::string &errMsg);
   void applyScopeRestrictions();
-  void applyRestriction(GlobalValue &GV, const ArrayRef<StringRef> &Libcalls,
+  void applyRestriction(GlobalValue &GV, ArrayRef<StringRef> Libcalls,
                         std::vector<const char *> &MustPreserveList,
-                        SmallPtrSet<GlobalValue *, 8> &AsmUsed,
+                        SmallPtrSetImpl<GlobalValue *> &AsmUsed,
                         Mangler &Mangler);
   bool determineTarget(std::string &errMsg);
 
@@ -134,6 +140,8 @@ private:
 
   typedef StringMap<uint8_t> StringSet;
 
+  void initialize();
+  std::unique_ptr<LLVMContext> OwnedContext;
   LLVMContext &Context;
   Linker IRLinker;
   TargetMachine *TargetMach;
@@ -142,7 +150,7 @@ private:
   lto_codegen_model CodeModel;
   StringSet MustPreserveSymbols;
   StringSet AsmUndefinedRefs;
-  MemoryBuffer *NativeObjectFile;
+  std::unique_ptr<MemoryBuffer> NativeObjectFile;
   std::vector<char *> CodegenOptions;
   std::string MCpu;
   std::string MAttr;
@@ -152,4 +160,4 @@ private:
   void *DiagContext;
 };
 }
-#endif // LTO_CODE_GENERATOR_H
+#endif

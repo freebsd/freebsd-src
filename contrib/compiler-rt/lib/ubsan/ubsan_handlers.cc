@@ -37,14 +37,17 @@ const char *TypeCheckKinds[] = {
 }
 
 static void handleTypeMismatchImpl(TypeMismatchData *Data, ValueHandle Pointer,
-                                   Location FallbackLoc, ReportOptions Opts) {
+                                   ReportOptions Opts) {
   Location Loc = Data->Loc.acquire();
   // Use the SourceLocation from Data to track deduplication, even if 'invalid'
   if (ignoreReport(Loc.getSourceLocation(), Opts))
     return;
 
-  if (Data->Loc.isInvalid())
+  SymbolizedStackHolder FallbackLoc;
+  if (Data->Loc.isInvalid()) {
+    FallbackLoc.reset(getCallerLocation(Opts.pc));
     Loc = FallbackLoc;
+  }
 
   ScopedReport R(Opts, Loc);
 
@@ -67,12 +70,12 @@ static void handleTypeMismatchImpl(TypeMismatchData *Data, ValueHandle Pointer,
 void __ubsan::__ubsan_handle_type_mismatch(TypeMismatchData *Data,
                                            ValueHandle Pointer) {
   GET_REPORT_OPTIONS(false);
-  handleTypeMismatchImpl(Data, Pointer, getCallerLocation(), Opts);
+  handleTypeMismatchImpl(Data, Pointer, Opts);
 }
 void __ubsan::__ubsan_handle_type_mismatch_abort(TypeMismatchData *Data,
                                                  ValueHandle Pointer) {
   GET_REPORT_OPTIONS(true);
-  handleTypeMismatchImpl(Data, Pointer, getCallerLocation(), Opts);
+  handleTypeMismatchImpl(Data, Pointer, Opts);
   Die();
 }
 
@@ -288,7 +291,8 @@ void __ubsan::__ubsan_handle_vla_bound_not_positive_abort(VLABoundData *Data,
 static void handleFloatCastOverflow(FloatCastOverflowData *Data,
                                     ValueHandle From, ReportOptions Opts) {
   // TODO: Add deduplication once a SourceLocation is generated for this check.
-  Location Loc = getCallerLocation();
+  SymbolizedStackHolder CallerLoc(getCallerLocation(Opts.pc));
+  Location Loc = CallerLoc;
   ScopedReport R(Opts, Loc);
 
   Diag(Loc, DL_Error,
@@ -337,16 +341,21 @@ void __ubsan::__ubsan_handle_load_invalid_value_abort(InvalidValueData *Data,
 static void handleFunctionTypeMismatch(FunctionTypeMismatchData *Data,
                                        ValueHandle Function,
                                        ReportOptions Opts) {
-  const char *FName = "(unknown)";
+  SourceLocation CallLoc = Data->Loc.acquire();
+  if (ignoreReport(CallLoc, Opts))
+    return;
 
-  Location Loc = getFunctionLocation(Function, &FName);
+  ScopedReport R(Opts, CallLoc);
 
-  ScopedReport R(Opts, Loc);
+  SymbolizedStackHolder FLoc(getSymbolizedLocation(Function));
+  const char *FName = FLoc.get()->info.function;
+  if (!FName)
+    FName = "(unknown)";
 
-  Diag(Data->Loc, DL_Error,
+  Diag(CallLoc, DL_Error,
        "call to function %0 through pointer to incorrect function type %1")
-    << FName << Data->Type;
-  Diag(Loc, DL_Note, "%0 defined here") << FName;
+      << FName << Data->Type;
+  Diag(FLoc, DL_Note, "%0 defined here") << FName;
 }
 
 void

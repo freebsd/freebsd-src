@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_EXECUTIONENGINE_RT_DYLD_MEMORY_MANAGER_H
-#define LLVM_EXECUTIONENGINE_RT_DYLD_MEMORY_MANAGER_H
+#ifndef LLVM_EXECUTIONENGINE_RTDYLDMEMORYMANAGER_H
+#define LLVM_EXECUTIONENGINE_RTDYLDMEMORYMANAGER_H
 
 #include "llvm-c/ExecutionEngine.h"
 #include "llvm/ADT/StringRef.h"
@@ -22,7 +22,10 @@
 namespace llvm {
 
 class ExecutionEngine;
-class ObjectImage;
+
+  namespace object {
+    class ObjectFile;
+  }
 
 // RuntimeDyld clients often want to handle the memory management of
 // what gets placed where. For JIT clients, this is the subset of
@@ -76,9 +79,15 @@ public:
 
   virtual void deregisterEHFrames(uint8_t *Addr, uint64_t LoadAddr, size_t Size);
 
+  /// This method returns the address of the specified function or variable in
+  /// the current process.
+  static uint64_t getSymbolAddressInProcess(const std::string &Name);
+
   /// This method returns the address of the specified function or variable.
   /// It is used to resolve symbols during module linking.
-  virtual uint64_t getSymbolAddress(const std::string &Name);
+  virtual uint64_t getSymbolAddress(const std::string &Name) {
+    return getSymbolAddressInProcess(Name);
+  }
 
   /// This method returns the address of the specified function. As such it is
   /// only useful for resolving library symbols, not code generated symbols.
@@ -103,7 +112,7 @@ public:
   /// address space can use this call to remap the section addresses for the
   /// newly loaded object.
   virtual void notifyObjectLoaded(ExecutionEngine *EE,
-                                  const ObjectImage *) {}
+                                  const object::ObjectFile &) {}
 
   /// This method is called when object loading is complete and section page
   /// permissions can be applied.  It is up to the memory manager implementation
@@ -123,4 +132,4 @@ DEFINE_SIMPLE_CONVERSION_FUNCTIONS(
 
 } // namespace llvm
 
-#endif // LLVM_EXECUTIONENGINE_RT_DYLD_MEMORY_MANAGER_H
+#endif

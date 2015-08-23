@@ -23,6 +23,7 @@
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/Pass.h"
 #include "llvm/Target/TargetLowering.h"
+#include "llvm/Target/TargetSubtargetInfo.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Transforms/Utils/SSAUpdater.h"
 using namespace llvm;
@@ -49,6 +50,11 @@ namespace {
     }
 
     bool runOnFunction(Function &Fn) override;
+
+    bool doFinalization(Module &M) override {
+      RewindFunction = nullptr;
+      return false;
+    }
 
     void getAnalysisUsage(AnalysisUsage &AU) const override { }
 
@@ -118,7 +124,7 @@ bool DwarfEHPrepare::InsertUnwindResumeCalls(Function &Fn) {
     return false;
 
   // Find the rewind function if we didn't already.
-  const TargetLowering *TLI = TM->getTargetLowering();
+  const TargetLowering *TLI = TM->getSubtargetImpl()->getTargetLowering();
   if (!RewindFunction) {
     LLVMContext &Ctx = Resumes[0]->getContext();
     FunctionType *FTy = FunctionType::get(Type::getVoidTy(Ctx),

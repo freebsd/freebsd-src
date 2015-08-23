@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: riff,v 1.30 2014/09/23 17:02:12 christos Exp $
+# $File: riff,v 1.31 2015/02/14 17:30:03 christos Exp $
 # riff:  file(1) magic for RIFF format
 # See
 #
@@ -230,6 +230,7 @@
 # AMV-type AVI file: http://wiki.multimedia.cx/index.php?title=AMV
 >8	string		AMV\040		\b, AMV 
 >8      string          WEBP            \b, Web/P image
+!:mime	image/webp
 >>12	use		riff-walk
 
 #

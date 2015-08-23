@@ -13,20 +13,21 @@
 //===----------------------------------------------------------------------===//
 
 #include "AArch64InstrInfo.h"
+#include "AArch64Subtarget.h"
 #include "MCTargetDesc/AArch64AddressingModes.h"
 #include "llvm/ADT/BitVector.h"
+#include "llvm/ADT/Statistic.h"
 #include "llvm/CodeGen/MachineBasicBlock.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/MachineInstr.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
-#include "llvm/Target/TargetInstrInfo.h"
-#include "llvm/Target/TargetMachine.h"
-#include "llvm/Target/TargetRegisterInfo.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/ADT/Statistic.h"
+#include "llvm/Target/TargetInstrInfo.h"
+#include "llvm/Target/TargetMachine.h"
+#include "llvm/Target/TargetRegisterInfo.h"
 using namespace llvm;
 
 #define DEBUG_TYPE "aarch64-ldst-opt"
@@ -108,7 +109,7 @@ private:
   int getMemSize(MachineInstr *MemMI);
 };
 char AArch64LoadStoreOpt::ID = 0;
-}
+} // namespace
 
 static bool isUnscaledLdst(unsigned Opc) {
   switch (Opc) {
@@ -931,8 +932,9 @@ bool AArch64LoadStoreOpt::optimizeBlock(MachineBasicBlock &MBB) {
 
 bool AArch64LoadStoreOpt::runOnMachineFunction(MachineFunction &Fn) {
   const TargetMachine &TM = Fn.getTarget();
-  TII = static_cast<const AArch64InstrInfo *>(TM.getInstrInfo());
-  TRI = TM.getRegisterInfo();
+  TII = static_cast<const AArch64InstrInfo *>(
+      TM.getSubtargetImpl()->getInstrInfo());
+  TRI = TM.getSubtargetImpl()->getRegisterInfo();
 
   bool Modified = false;
   for (auto &MBB : Fn)

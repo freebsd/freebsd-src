@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-SRCS+=	__vdso_gettc.c
+SRCS+=	trivial-vdso_tc.c
 
 # Long double is 64-bits
 MDSRCS+=machdep_ldisd.c

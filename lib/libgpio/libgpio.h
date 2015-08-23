@@ -71,6 +71,11 @@ int		gpio_pin_list(gpio_handle_t, gpio_config_t **);
  */
 int		gpio_pin_config(gpio_handle_t, gpio_config_t *);
 /*
+ * Sets the GPIO pin name.  The pin number and pin name to be set are passed
+ * as parameters.
+ */
+int		gpio_pin_set_name(gpio_handle_t, gpio_pin_t, char *);
+/*
  * Sets the GPIO flags on a specific GPIO pin.  The pin number and the flags
  * to be set are passed through the gpio_config_t structure.
  */

@@ -128,7 +128,7 @@ bool llvm::ConstantFoldTerminator(BasicBlock *BB, bool DeleteDeadConditions,
       // Check to see if this branch is going to the same place as the default
       // dest.  If so, eliminate it as an explicit compare.
       if (i.getCaseSuccessor() == DefaultDest) {
-        MDNode* MD = SI->getMetadata(LLVMContext::MD_prof);
+        MDNode *MD = SI->getMetadata(LLVMContext::MD_prof);
         unsigned NCases = SI->getNumCases();
         // Fold the case metadata into the default if there will be any branches
         // left, unless the metadata doesn't match the switch.
@@ -137,7 +137,8 @@ bool llvm::ConstantFoldTerminator(BasicBlock *BB, bool DeleteDeadConditions,
           SmallVector<uint32_t, 8> Weights;
           for (unsigned MD_i = 1, MD_e = MD->getNumOperands(); MD_i < MD_e;
                ++MD_i) {
-            ConstantInt* CI = dyn_cast<ConstantInt>(MD->getOperand(MD_i));
+            ConstantInt *CI =
+                mdconst::dyn_extract<ConstantInt>(MD->getOperand(MD_i));
             assert(CI);
             Weights.push_back(CI->getValue().getZExtValue());
           }
@@ -206,10 +207,12 @@ bool llvm::ConstantFoldTerminator(BasicBlock *BB, bool DeleteDeadConditions,
       BranchInst *NewBr = Builder.CreateCondBr(Cond,
                                                FirstCase.getCaseSuccessor(),
                                                SI->getDefaultDest());
-      MDNode* MD = SI->getMetadata(LLVMContext::MD_prof);
+      MDNode *MD = SI->getMetadata(LLVMContext::MD_prof);
       if (MD && MD->getNumOperands() == 3) {
-        ConstantInt *SICase = dyn_cast<ConstantInt>(MD->getOperand(2));
-        ConstantInt *SIDef = dyn_cast<ConstantInt>(MD->getOperand(1));
+        ConstantInt *SICase =
+            mdconst::dyn_extract<ConstantInt>(MD->getOperand(2));
+        ConstantInt *SIDef =
+            mdconst::dyn_extract<ConstantInt>(MD->getOperand(1));
         assert(SICase && SIDef);
         // The TrueWeight should be the weight for the single case of SI.
         NewBr->setMetadata(LLVMContext::MD_prof,
@@ -301,6 +304,14 @@ bool llvm::isInstructionTriviallyDead(Instruction *I,
     if (II->getIntrinsicID() == Intrinsic::lifetime_start ||
         II->getIntrinsicID() == Intrinsic::lifetime_end)
       return isa<UndefValue>(II->getArgOperand(1));
+
+    // Assumptions are dead if their condition is trivially true.
+    if (II->getIntrinsicID() == Intrinsic::assume) {
+      if (ConstantInt *Cond = dyn_cast<ConstantInt>(II->getArgOperand(0)))
+        return !Cond->isZero();
+
+      return false;
+    }
   }
 
   if (isAllocLikeFn(I, TLI)) return true;
@@ -384,7 +395,7 @@ bool llvm::RecursivelyDeleteDeadPHINode(PHINode *PN,
 
     // If we find an instruction more than once, we're on a cycle that
     // won't prove fruitful.
-    if (!Visited.insert(I)) {
+    if (!Visited.insert(I).second) {
       // Break the cycle and delete the instruction and its operands.
       I->replaceAllUsesWith(UndefValue::get(I->getType()));
       (void)RecursivelyDeleteTriviallyDeadInstructions(I, TLI);
@@ -931,13 +942,16 @@ static unsigned enforceKnownAlignment(Value *V, unsigned Align,
 /// and it is more than the alignment of the ultimate object, see if we can
 /// increase the alignment of the ultimate object, making this check succeed.
 unsigned llvm::getOrEnforceKnownAlignment(Value *V, unsigned PrefAlign,
-                                          const DataLayout *DL) {
+                                          const DataLayout *DL,
+                                          AssumptionCache *AC,
+                                          const Instruction *CxtI,
+                                          const DominatorTree *DT) {
   assert(V->getType()->isPointerTy() &&
          "getOrEnforceKnownAlignment expects a pointer!");
   unsigned BitWidth = DL ? DL->getPointerTypeSizeInBits(V->getType()) : 64;
 
   APInt KnownZero(BitWidth, 0), KnownOne(BitWidth, 0);
-  computeKnownBits(V, KnownZero, KnownOne, DL);
+  computeKnownBits(V, KnownZero, KnownOne, DL, 0, AC, CxtI, DT);
   unsigned TrailZ = KnownZero.countTrailingOnes();
 
   // Avoid trouble with ridiculously large TrailZ values, such as
@@ -982,6 +996,7 @@ static bool LdStHasDebugValue(DIVariable &DIVar, Instruction *I) {
 bool llvm::ConvertDebugDeclareToDebugValue(DbgDeclareInst *DDI,
                                            StoreInst *SI, DIBuilder &Builder) {
   DIVariable DIVar(DDI->getVariable());
+  DIExpression DIExpr(DDI->getExpression());
   assert((!DIVar || DIVar.isVariable()) &&
          "Variable in DbgDeclareInst should be either null or a DIVariable.");
   if (!DIVar)
@@ -999,9 +1014,10 @@ bool llvm::ConvertDebugDeclareToDebugValue(DbgDeclareInst *DDI,
   if (SExtInst *SExt = dyn_cast<SExtInst>(SI->getOperand(0)))
     ExtendedArg = dyn_cast<Argument>(SExt->getOperand(0));
   if (ExtendedArg)
-    DbgVal = Builder.insertDbgValueIntrinsic(ExtendedArg, 0, DIVar, SI);
+    DbgVal = Builder.insertDbgValueIntrinsic(ExtendedArg, 0, DIVar, DIExpr, SI);
   else
-    DbgVal = Builder.insertDbgValueIntrinsic(SI->getOperand(0), 0, DIVar, SI);
+    DbgVal = Builder.insertDbgValueIntrinsic(SI->getOperand(0), 0, DIVar,
+                                             DIExpr, SI);
   DbgVal->setDebugLoc(DDI->getDebugLoc());
   return true;
 }
@@ -1011,6 +1027,7 @@ bool llvm::ConvertDebugDeclareToDebugValue(DbgDeclareInst *DDI,
 bool llvm::ConvertDebugDeclareToDebugValue(DbgDeclareInst *DDI,
                                            LoadInst *LI, DIBuilder &Builder) {
   DIVariable DIVar(DDI->getVariable());
+  DIExpression DIExpr(DDI->getExpression());
   assert((!DIVar || DIVar.isVariable()) &&
          "Variable in DbgDeclareInst should be either null or a DIVariable.");
   if (!DIVar)
@@ -1020,8 +1037,7 @@ bool llvm::ConvertDebugDeclareToDebugValue(DbgDeclareInst *DDI,
     return true;
 
   Instruction *DbgVal =
-    Builder.insertDbgValueIntrinsic(LI->getOperand(0), 0,
-                                    DIVar, LI);
+      Builder.insertDbgValueIntrinsic(LI->getOperand(0), 0, DIVar, DIExpr, LI);
   DbgVal->setDebugLoc(DDI->getDebugLoc());
   return true;
 }
@@ -1035,7 +1051,7 @@ static bool isArray(AllocaInst *AI) {
 /// LowerDbgDeclare - Lowers llvm.dbg.declare intrinsics into appropriate set
 /// of llvm.dbg.value intrinsics.
 bool llvm::LowerDbgDeclare(Function &F) {
-  DIBuilder DIB(*F.getParent());
+  DIBuilder DIB(*F.getParent(), /*AllowUnresolved*/ false);
   SmallVector<DbgDeclareInst *, 4> Dbgs;
   for (auto &FI : F)
     for (BasicBlock::iterator BI : FI)
@@ -1061,14 +1077,14 @@ bool llvm::LowerDbgDeclare(Function &F) {
         else if (LoadInst *LI = dyn_cast<LoadInst>(U))
           ConvertDebugDeclareToDebugValue(DDI, LI, DIB);
         else if (CallInst *CI = dyn_cast<CallInst>(U)) {
-	  // This is a call by-value or some other instruction that
-	  // takes a pointer to the variable. Insert a *value*
-	  // intrinsic that describes the alloca.
-	  auto DbgVal =
-	    DIB.insertDbgValueIntrinsic(AI, 0,
-					DIVariable(DDI->getVariable()), CI);
-	  DbgVal->setDebugLoc(DDI->getDebugLoc());
-	}
+          // This is a call by-value or some other instruction that
+          // takes a pointer to the variable. Insert a *value*
+          // intrinsic that describes the alloca.
+          auto DbgVal = DIB.insertDbgValueIntrinsic(
+              AI, 0, DIVariable(DDI->getVariable()),
+              DIExpression(DDI->getExpression()), CI);
+          DbgVal->setDebugLoc(DDI->getDebugLoc());
+        }
       DDI->eraseFromParent();
     }
   }
@@ -1078,10 +1094,11 @@ bool llvm::LowerDbgDeclare(Function &F) {
 /// FindAllocaDbgDeclare - Finds the llvm.dbg.declare intrinsic describing the
 /// alloca 'V', if any.
 DbgDeclareInst *llvm::FindAllocaDbgDeclare(Value *V) {
-  if (MDNode *DebugNode = MDNode::getIfExists(V->getContext(), V))
-    for (User *U : DebugNode->users())
-      if (DbgDeclareInst *DDI = dyn_cast<DbgDeclareInst>(U))
-        return DDI;
+  if (auto *L = LocalAsMetadata::getIfExists(V))
+    if (auto *MDV = MetadataAsValue::getIfExists(V->getContext(), L))
+      for (User *U : MDV->users())
+        if (DbgDeclareInst *DDI = dyn_cast<DbgDeclareInst>(U))
+          return DDI;
 
   return nullptr;
 }
@@ -1092,33 +1109,27 @@ bool llvm::replaceDbgDeclareForAlloca(AllocaInst *AI, Value *NewAllocaAddress,
   if (!DDI)
     return false;
   DIVariable DIVar(DDI->getVariable());
+  DIExpression DIExpr(DDI->getExpression());
   assert((!DIVar || DIVar.isVariable()) &&
          "Variable in DbgDeclareInst should be either null or a DIVariable.");
   if (!DIVar)
     return false;
 
-  // Create a copy of the original DIDescriptor for user variable, appending
+  // Create a copy of the original DIDescriptor for user variable, prepending
   // "deref" operation to a list of address elements, as new llvm.dbg.declare
   // will take a value storing address of the memory for variable, not
   // alloca itself.
-  Type *Int64Ty = Type::getInt64Ty(AI->getContext());
-  SmallVector<Value*, 4> NewDIVarAddress;
-  if (DIVar.hasComplexAddress()) {
-    for (unsigned i = 0, n = DIVar.getNumAddrElements(); i < n; ++i) {
-      NewDIVarAddress.push_back(
-          ConstantInt::get(Int64Ty, DIVar.getAddrElement(i)));
-    }
-  }
-  NewDIVarAddress.push_back(ConstantInt::get(Int64Ty, DIBuilder::OpDeref));
-  DIVariable NewDIVar = Builder.createComplexVariable(
-      DIVar.getTag(), DIVar.getContext(), DIVar.getName(),
-      DIVar.getFile(), DIVar.getLineNumber(), DIVar.getType(),
-      NewDIVarAddress, DIVar.getArgNumber());
+  SmallVector<int64_t, 4> NewDIExpr;
+  NewDIExpr.push_back(dwarf::DW_OP_deref);
+  if (DIExpr)
+    for (unsigned i = 0, n = DIExpr.getNumElements(); i < n; ++i)
+      NewDIExpr.push_back(DIExpr.getElement(i));
 
   // Insert llvm.dbg.declare in the same basic block as the original alloca,
   // and remove old llvm.dbg.declare.
   BasicBlock *BB = AI->getParent();
-  Builder.insertDeclare(NewAllocaAddress, NewDIVar, BB);
+  Builder.insertDeclare(NewAllocaAddress, DIVar,
+                        Builder.createExpression(NewDIExpr), BB);
   DDI->eraseFromParent();
   return true;
 }
@@ -1170,7 +1181,7 @@ static void changeToCall(InvokeInst *II) {
 }
 
 static bool markAliveBlocks(BasicBlock *BB,
-                            SmallPtrSet<BasicBlock*, 128> &Reachable) {
+                            SmallPtrSetImpl<BasicBlock*> &Reachable) {
 
   SmallVector<BasicBlock*, 128> Worklist;
   Worklist.push_back(BB);
@@ -1183,6 +1194,26 @@ static bool markAliveBlocks(BasicBlock *BB,
     // instructions into LLVM unreachable insts.  The instruction combining pass
     // canonicalizes unreachable insts into stores to null or undef.
     for (BasicBlock::iterator BBI = BB->begin(), E = BB->end(); BBI != E;++BBI){
+      // Assumptions that are known to be false are equivalent to unreachable.
+      // Also, if the condition is undefined, then we make the choice most
+      // beneficial to the optimizer, and choose that to also be unreachable.
+      if (IntrinsicInst *II = dyn_cast<IntrinsicInst>(BBI))
+        if (II->getIntrinsicID() == Intrinsic::assume) {
+          bool MakeUnreachable = false;
+          if (isa<UndefValue>(II->getArgOperand(0)))
+            MakeUnreachable = true;
+          else if (ConstantInt *Cond =
+                   dyn_cast<ConstantInt>(II->getArgOperand(0)))
+            MakeUnreachable = Cond->isZero();
+
+          if (MakeUnreachable) {
+            // Don't insert a call to llvm.trap right before the unreachable.
+            changeToUnreachable(BBI, false);
+            Changed = true;
+            break;
+          }
+        }
+
       if (CallInst *CI = dyn_cast<CallInst>(BBI)) {
         if (CI->doesNotReturn()) {
           // If we found a call to a no-return function, insert an unreachable
@@ -1237,7 +1268,7 @@ static bool markAliveBlocks(BasicBlock *BB,
 
     Changed |= ConstantFoldTerminator(BB, true);
     for (succ_iterator SI = succ_begin(BB), SE = succ_end(BB); SI != SE; ++SI)
-      if (Reachable.insert(*SI))
+      if (Reachable.insert(*SI).second)
         Worklist.push_back(*SI);
   } while (!Worklist.empty());
   return Changed;
@@ -1276,4 +1307,46 @@ bool llvm::removeUnreachableBlocks(Function &F) {
       ++I;
 
   return true;
+}
+
+void llvm::combineMetadata(Instruction *K, const Instruction *J, ArrayRef<unsigned> KnownIDs) {
+  SmallVector<std::pair<unsigned, MDNode *>, 4> Metadata;
+  K->dropUnknownMetadata(KnownIDs);
+  K->getAllMetadataOtherThanDebugLoc(Metadata);
+  for (unsigned i = 0, n = Metadata.size(); i < n; ++i) {
+    unsigned Kind = Metadata[i].first;
+    MDNode *JMD = J->getMetadata(Kind);
+    MDNode *KMD = Metadata[i].second;
+
+    switch (Kind) {
+      default:
+        K->setMetadata(Kind, nullptr); // Remove unknown metadata
+        break;
+      case LLVMContext::MD_dbg:
+        llvm_unreachable("getAllMetadataOtherThanDebugLoc returned a MD_dbg");
+      case LLVMContext::MD_tbaa:
+        K->setMetadata(Kind, MDNode::getMostGenericTBAA(JMD, KMD));
+        break;
+      case LLVMContext::MD_alias_scope:
+        K->setMetadata(Kind, MDNode::getMostGenericAliasScope(JMD, KMD));
+        break;
+      case LLVMContext::MD_noalias:
+        K->setMetadata(Kind, MDNode::intersect(JMD, KMD));
+        break;
+      case LLVMContext::MD_range:
+        K->setMetadata(Kind, MDNode::getMostGenericRange(JMD, KMD));
+        break;
+      case LLVMContext::MD_fpmath:
+        K->setMetadata(Kind, MDNode::getMostGenericFPMath(JMD, KMD));
+        break;
+      case LLVMContext::MD_invariant_load:
+        // Only set the !invariant.load if it is present in both instructions.
+        K->setMetadata(Kind, JMD);
+        break;
+      case LLVMContext::MD_nonnull:
+        // Only set the !nonnull if it is present in both instructions.
+        K->setMetadata(Kind, JMD);
+        break;
+    }
+  }
 }

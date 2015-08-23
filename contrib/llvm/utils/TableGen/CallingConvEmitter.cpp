@@ -35,23 +35,26 @@ private:
 } // End anonymous namespace
 
 void CallingConvEmitter::run(raw_ostream &O) {
-
   std::vector<Record*> CCs = Records.getAllDerivedDefinitions("CallingConv");
-  
-  // Emit prototypes for all of the CC's so that they can forward ref each
-  // other.
+
+  // Emit prototypes for all of the non-custom CC's so that they can forward ref
+  // each other.
   for (unsigned i = 0, e = CCs.size(); i != e; ++i) {
-    O << "static bool " << CCs[i]->getName()
-      << "(unsigned ValNo, MVT ValVT,\n"
-      << std::string(CCs[i]->getName().size()+13, ' ')
-      << "MVT LocVT, CCValAssign::LocInfo LocInfo,\n"
-      << std::string(CCs[i]->getName().size()+13, ' ')
-      << "ISD::ArgFlagsTy ArgFlags, CCState &State);\n";
+    if (!CCs[i]->getValueAsBit("Custom")) {
+      O << "static bool " << CCs[i]->getName()
+        << "(unsigned ValNo, MVT ValVT,\n"
+        << std::string(CCs[i]->getName().size() + 13, ' ')
+        << "MVT LocVT, CCValAssign::LocInfo LocInfo,\n"
+        << std::string(CCs[i]->getName().size() + 13, ' ')
+        << "ISD::ArgFlagsTy ArgFlags, CCState &State);\n";
+    }
   }
-  
-  // Emit each calling convention description in full.
-  for (unsigned i = 0, e = CCs.size(); i != e; ++i)
-    EmitCallingConv(CCs[i], O);
+
+  // Emit each non-custom calling convention description in full.
+  for (unsigned i = 0, e = CCs.size(); i != e; ++i) {
+    if (!CCs[i]->getValueAsBit("Custom"))
+      EmitCallingConv(CCs[i], O);
+  }
 }
 
 
@@ -178,13 +181,17 @@ void CallingConvEmitter::EmitAction(Record *Action,
       if (Size)
         O << Size << ", ";
       else
-        O << "\n" << IndentStr << "  State.getTarget().getDataLayout()"
-          "->getTypeAllocSize(EVT(LocVT).getTypeForEVT(State.getContext())), ";
+        O << "\n" << IndentStr
+          << "  State.getMachineFunction().getSubtarget().getDataLayout()"
+             "->getTypeAllocSize(EVT(LocVT).getTypeForEVT(State.getContext())),"
+             " ";
       if (Align)
         O << Align;
       else
-        O << "\n" << IndentStr << "  State.getTarget().getDataLayout()"
-          "->getABITypeAlignment(EVT(LocVT).getTypeForEVT(State.getContext()))";
+        O << "\n" << IndentStr
+          << "  State.getMachineFunction().getSubtarget().getDataLayout()"
+             "->getABITypeAlignment(EVT(LocVT).getTypeForEVT(State.getContext()"
+             "))";
       O << ");\n" << IndentStr
         << "State.addLoc(CCValAssign::getMem(ValNo, ValVT, Offset"
         << Counter << ", LocVT, LocInfo));\n";
@@ -226,6 +233,21 @@ void CallingConvEmitter::EmitAction(Record *Action,
           << IndentStr << IndentStr << "LocInfo = CCValAssign::ZExt;\n"
           << IndentStr << "else\n"
           << IndentStr << IndentStr << "LocInfo = CCValAssign::AExt;\n";
+      }
+    } else if (Action->isSubClassOf("CCPromoteToUpperBitsInType")) {
+      Record *DestTy = Action->getValueAsDef("DestTy");
+      MVT::SimpleValueType DestVT = getValueType(DestTy);
+      O << IndentStr << "LocVT = " << getEnumName(DestVT) << ";\n";
+      if (MVT(DestVT).isFloatingPoint()) {
+        PrintFatalError("CCPromoteToUpperBitsInType does not handle floating "
+                        "point");
+      } else {
+        O << IndentStr << "if (ArgFlags.isSExt())\n"
+          << IndentStr << IndentStr << "LocInfo = CCValAssign::SExtUpper;\n"
+          << IndentStr << "else if (ArgFlags.isZExt())\n"
+          << IndentStr << IndentStr << "LocInfo = CCValAssign::ZExtUpper;\n"
+          << IndentStr << "else\n"
+          << IndentStr << IndentStr << "LocInfo = CCValAssign::AExtUpper;\n";
       }
     } else if (Action->isSubClassOf("CCBitConvertToType")) {
       Record *DestTy = Action->getValueAsDef("DestTy");

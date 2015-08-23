@@ -119,7 +119,7 @@ struct lzma_mf_s {
 	lzma_action action;
 
 	/// Number of elements in hash[]
-	uint32_t hash_size_sum;
+	uint32_t hash_count;
 
 	/// Number of elements in son[]
 	uint32_t sons_count;
@@ -199,7 +199,7 @@ typedef struct {
 			size_t *restrict out_pos, size_t out_size);
 
 	/// Free allocated resources
-	void (*end)(lzma_coder *coder, lzma_allocator *allocator);
+	void (*end)(lzma_coder *coder, const lzma_allocator *allocator);
 
 	/// Update the options in the middle of the encoding.
 	lzma_ret (*options_update)(lzma_coder *coder,
@@ -296,10 +296,10 @@ mf_read(lzma_mf *mf, uint8_t *out, size_t *out_pos, size_t out_size,
 
 
 extern lzma_ret lzma_lz_encoder_init(
-		lzma_next_coder *next, lzma_allocator *allocator,
+		lzma_next_coder *next, const lzma_allocator *allocator,
 		const lzma_filter_info *filters,
 		lzma_ret (*lz_init)(lzma_lz_encoder *lz,
-			lzma_allocator *allocator, const void *options,
+			const lzma_allocator *allocator, const void *options,
 			lzma_lz_options *lz_options));
 
 

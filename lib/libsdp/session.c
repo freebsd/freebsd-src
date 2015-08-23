@@ -28,7 +28,7 @@
  * $Id: session.c,v 1.2 2003/09/04 22:12:13 max Exp $
  * $FreeBSD$
  */
-
+#define L2CAP_SOCKET_CHECKED
 #include <bluetooth.h>
 #include <errno.h>
 #include <stdlib.h>
@@ -62,6 +62,9 @@ sdp_open(bdaddr_t const *l, bdaddr_t const *r)
 	sa.l2cap_len = sizeof(sa);
 	sa.l2cap_family = AF_BLUETOOTH;
 	sa.l2cap_psm = 0;
+	sa.l2cap_cid = 0;
+	sa.l2cap_bdaddr_type = BDADDR_BREDR;
+	
 	memcpy(&sa.l2cap_bdaddr, l, sizeof(sa.l2cap_bdaddr));
 	if (bind(ss->s, (struct sockaddr *) &sa, sizeof(sa)) < 0) {
 		ss->error = errno;

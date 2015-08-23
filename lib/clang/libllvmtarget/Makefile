@@ -7,7 +7,6 @@ LIB=	llvmtarget
 SRCDIR=	lib/Target
 SRCS=	Target.cpp \
 	TargetIntrinsicInfo.cpp \
-	TargetJITInfo.cpp \
 	TargetLibraryInfo.cpp \
 	TargetLoweringObjectFile.cpp \
 	TargetMachine.cpp \

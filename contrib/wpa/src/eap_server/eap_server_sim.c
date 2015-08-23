@@ -94,7 +94,7 @@ static void eap_sim_reset(struct eap_sm *sm, void *priv)
 	struct eap_sim_data *data = priv;
 	os_free(data->next_pseudonym);
 	os_free(data->next_reauth_id);
-	os_free(data);
+	bin_clear_free(data, sizeof(*data));
 }
 
 
@@ -140,7 +140,7 @@ static struct wpabuf * eap_sim_build_start(struct eap_sm *sm,
 	ver[1] = EAP_SIM_VERSION;
 	eap_sim_msg_add(msg, EAP_SIM_AT_VERSION_LIST, sizeof(ver),
 			ver, sizeof(ver));
-	return eap_sim_msg_finish(msg, NULL, NULL, 0);
+	return eap_sim_msg_finish(msg, EAP_TYPE_SIM, NULL, NULL, 0);
 }
 
 
@@ -240,8 +240,8 @@ static struct wpabuf * eap_sim_build_challenge(struct eap_sm *sm,
 
 	wpa_printf(MSG_DEBUG, "   AT_MAC");
 	eap_sim_msg_add_mac(msg, EAP_SIM_AT_MAC);
-	return eap_sim_msg_finish(msg, data->k_aut, data->nonce_mt,
-				  EAP_SIM_NONCE_MT_LEN);
+	return eap_sim_msg_finish(msg, EAP_TYPE_SIM, data->k_aut,
+				  data->nonce_mt, EAP_SIM_NONCE_MT_LEN);
 }
 
 
@@ -278,7 +278,7 @@ static struct wpabuf * eap_sim_build_reauth(struct eap_sm *sm,
 
 	wpa_printf(MSG_DEBUG, "   AT_MAC");
 	eap_sim_msg_add_mac(msg, EAP_SIM_AT_MAC);
-	return eap_sim_msg_finish(msg, data->k_aut, NULL, 0);
+	return eap_sim_msg_finish(msg, EAP_TYPE_SIM, data->k_aut, NULL, 0);
 }
 
 
@@ -317,7 +317,7 @@ static struct wpabuf * eap_sim_build_notification(struct eap_sm *sm,
 		wpa_printf(MSG_DEBUG, "   AT_MAC");
 		eap_sim_msg_add_mac(msg, EAP_SIM_AT_MAC);
 	}
-	return eap_sim_msg_finish(msg, data->k_aut, NULL, 0);
+	return eap_sim_msg_finish(msg, EAP_TYPE_SIM, data->k_aut, NULL, 0);
 }
 
 
@@ -820,6 +820,29 @@ static Boolean eap_sim_isSuccess(struct eap_sm *sm, void *priv)
 }
 
 
+static u8 * eap_sim_get_session_id(struct eap_sm *sm, void *priv, size_t *len)
+{
+	struct eap_sim_data *data = priv;
+	u8 *id;
+
+	if (data->state != SUCCESS)
+		return NULL;
+
+	*len = 1 + data->num_chal * GSM_RAND_LEN + EAP_SIM_NONCE_MT_LEN;
+	id = os_malloc(*len);
+	if (id == NULL)
+		return NULL;
+
+	id[0] = EAP_TYPE_SIM;
+	os_memcpy(id + 1, data->rand, data->num_chal * GSM_RAND_LEN);
+	os_memcpy(id + 1 + data->num_chal * GSM_RAND_LEN, data->nonce_mt,
+		  EAP_SIM_NONCE_MT_LEN);
+	wpa_hexdump(MSG_DEBUG, "EAP-SIM: Derived Session-Id", id, *len);
+
+	return id;
+}
+
+
 int eap_server_sim_register(void)
 {
 	struct eap_method *eap;
@@ -839,6 +862,7 @@ int eap_server_sim_register(void)
 	eap->getKey = eap_sim_getKey;
 	eap->isSuccess = eap_sim_isSuccess;
 	eap->get_emsk = eap_sim_get_emsk;
+	eap->getSessionId = eap_sim_get_session_id;
 
 	ret = eap_server_method_register(eap);
 	if (ret)

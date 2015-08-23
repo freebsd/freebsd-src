@@ -13,10 +13,9 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef AMDGPUINSTRUCTIONINFO_H
-#define AMDGPUINSTRUCTIONINFO_H
+#ifndef LLVM_LIB_TARGET_R600_AMDGPUINSTRINFO_H
+#define LLVM_LIB_TARGET_R600_AMDGPUINSTRINFO_H
 
-#include "AMDGPUInstrInfo.h"
 #include "AMDGPURegisterInfo.h"
 #include "llvm/Target/TargetInstrInfo.h"
 #include <map>
@@ -41,8 +40,6 @@ class MachineInstrBuilder;
 class AMDGPUInstrInfo : public AMDGPUGenInstrInfo {
 private:
   const AMDGPURegisterInfo RI;
-  bool getNextBranchInstr(MachineBasicBlock::iterator &iter,
-                          MachineBasicBlock &MBB) const;
   virtual void anchor();
 protected:
   const AMDGPUSubtarget &ST;
@@ -74,11 +71,6 @@ public:
                         LiveVariables *LV) const override;
 
 
-  virtual void copyPhysReg(MachineBasicBlock &MBB,
-                           MachineBasicBlock::iterator MI, DebugLoc DL,
-                           unsigned DestReg, unsigned SrcReg,
-                           bool KillSrc) const = 0;
-
   bool expandPostRAPseudo(MachineBasicBlock::iterator MI) const override;
 
   void storeRegToStackSlot(MachineBasicBlock &MBB,
@@ -101,6 +93,7 @@ protected:
                                       MachineInstr *MI,
                                       const SmallVectorImpl<unsigned> &Ops,
                                       MachineInstr *LoadMI) const override;
+public:
   /// \returns the smallest register index that will be accessed by an indirect
   /// read or write or -1 if indirect addressing is not used by this program.
   int getIndirectIndexBegin(const MachineFunction &MF) const;
@@ -109,7 +102,6 @@ protected:
   /// read or write or -1 if indirect addressing is not used by this program.
   int getIndirectIndexEnd(const MachineFunction &MF) const;
 
-public:
   bool canFoldMemoryOperand(const MachineInstr *MI,
                            const SmallVectorImpl<unsigned> &Ops) const override;
   bool unfoldMemoryOperand(MachineFunction &MF, MachineInstr *MI,
@@ -120,6 +112,9 @@ public:
   unsigned getOpcodeAfterMemoryUnfold(unsigned Opc,
                                bool UnfoldLoad, bool UnfoldStore,
                                unsigned *LoadRegIndex = nullptr) const override;
+
+  bool enableClusterLoads() const override;
+
   bool shouldScheduleLoadsNear(SDNode *Load1, SDNode *Load2,
                                int64_t Offset1, int64_t Offset2,
                                unsigned NumLoads) const override;
@@ -139,6 +134,17 @@ public:
   // Helper functions that check the opcode for status information
   bool isRegisterStore(const MachineInstr &MI) const;
   bool isRegisterLoad(const MachineInstr &MI) const;
+
+  /// \brief Return a target-specific opcode if Opcode is a pseudo instruction.
+  /// Return -1 if the target-specific opcode for the pseudo instruction does
+  /// not exist. If Opcode is not a pseudo instruction, this is identity.
+  int pseudoToMCOpcode(int Opcode) const;
+
+  /// \brief Return the descriptor of the target-specific machine instruction
+  /// that corresponds to the specified pseudo or native opcode.
+  const MCInstrDesc &getMCOpcodeFromPseudo(unsigned Opcode) const {
+    return get(pseudoToMCOpcode(Opcode));
+  }
 
 //===---------------------------------------------------------------------===//
 // Pure virtual funtions to be implemented by sub-classes.
@@ -196,4 +202,4 @@ namespace AMDGPU {
 #define AMDGPU_FLAG_REGISTER_LOAD  (UINT64_C(1) << 63)
 #define AMDGPU_FLAG_REGISTER_STORE (UINT64_C(1) << 62)
 
-#endif // AMDGPUINSTRINFO_H
+#endif

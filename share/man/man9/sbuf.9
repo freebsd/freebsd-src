@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 11, 2013
+.Dd March 14, 2015
 .Dt SBUF 9
 .Os
 .Sh NAME
@@ -34,6 +34,9 @@
 .Nm sbuf_new_auto ,
 .Nm sbuf_new_for_sysctl ,
 .Nm sbuf_clear ,
+.Nm sbuf_get_flags ,
+.Nm sbuf_set_flags ,
+.Nm sbuf_clear_flags ,
 .Nm sbuf_setpos ,
 .Nm sbuf_bcat ,
 .Nm sbuf_bcopyin ,
@@ -53,7 +56,8 @@
 .Nm sbuf_done ,
 .Nm sbuf_delete ,
 .Nm sbuf_start_section ,
-.Nm sbuf_end_section
+.Nm sbuf_end_section ,
+.Nm sbuf_hexdump
 .Nd safe string composition
 .Sh SYNOPSIS
 .In sys/types.h
@@ -66,6 +70,12 @@
 .Fn sbuf_new_auto
 .Ft void
 .Fn sbuf_clear "struct sbuf *s"
+.Ft int
+.Fn sbuf_get_flags "struct sbuf *s"
+.Ft void
+.Fn sbuf_set_flags "struct sbuf *s" "int flags"
+.Ft void
+.Fn sbuf_clear_flags "struct sbuf *s" "int flags"
 .Ft int
 .Fn sbuf_setpos "struct sbuf *s" "int pos"
 .Ft int
@@ -106,6 +116,14 @@
 .Fn sbuf_start_section "struct sbuf *s" "ssize_t *old_lenp"
 .Ft ssize_t
 .Fn sbuf_end_section "struct sbuf *s" "ssize_t old_len" "size_t pad" "int c"
+.Ft void
+.Fo sbuf_hexdump
+.Fa "struct sbuf *sb"
+.Fa "void *ptr"
+.Fa "int length"
+.Fa "const char *hdr"
+.Fa "int flags"
+.Fc
 .In sys/sysctl.h
 .Ft struct sbuf *
 .Fn sbuf_new_for_sysctl "struct sbuf *s" "char *buf" "int length" "struct sysctl_req *req"
@@ -159,6 +177,8 @@ Attempting to extend the sbuf beyond this size results in an overflow condition.
 .It Dv SBUF_AUTOEXTEND
 This indicates that the storage buffer may be extended as necessary, so long
 as resources allow, to hold additional data.
+.It Dv SBUF_INCLUDENUL
+This causes the final nulterm byte to be counted in the length of the data.
 .El
 .Pp
 Note that if
@@ -209,6 +229,18 @@ The
 function invalidates the contents of the
 .Fa sbuf
 and resets its position to zero.
+.Pp
+The
+.Fn sbuf_get_flags
+function returns the current user flags.
+The
+.Fn sbuf_set_flags
+and
+.Fn sbuf_get_flags
+functions set or clear one or more user flags, respectively.
+The user flags are described under the
+.Fn sbuf_new
+function.
 .Pp
 The
 .Fn sbuf_setpos
@@ -432,6 +464,14 @@ and \-1 can be specified for
 and
 .Fa old_len
 respectively.
+.Pp
+The
+.Fn sbuf_hexdump
+function prints an array of bytes to the supplied sbuf, along with an ASCII
+representation of the bytes if possible.
+See the
+.Xr hexdump 3
+man page for more details on the interface.
 .Sh NOTES
 If an operation caused an
 .Fa sbuf
@@ -535,6 +575,7 @@ transmit_msg(sbuf_data(sb), sbuf_len(sb));
 sbuf_delete(sb);
 .Ed
 .Sh SEE ALSO
+.Xr hexdump 3 ,
 .Xr printf 3 ,
 .Xr strcat 3 ,
 .Xr strcpy 3 ,

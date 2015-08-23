@@ -39,6 +39,7 @@ SRCS=	ASanStackFrameLayout.cpp \
 	SimplifyIndVar.cpp \
 	SimplifyInstructions.cpp \
 	SimplifyLibCalls.cpp \
+	SymbolRewriter.cpp \
 	UnifyFunctionExitNodes.cpp \
 	ValueMapper.cpp
 

@@ -116,8 +116,9 @@ extern LZMA_API(lzma_bool) lzma_filter_decoder_is_supported(lzma_vli id)
  *                is not NULL.
  *              - LZMA_PROG_ERROR: src or dest is NULL.
  */
-extern LZMA_API(lzma_ret) lzma_filters_copy(const lzma_filter *src,
-		lzma_filter *dest, lzma_allocator *allocator) lzma_nothrow;
+extern LZMA_API(lzma_ret) lzma_filters_copy(
+		const lzma_filter *src, lzma_filter *dest,
+		const lzma_allocator *allocator) lzma_nothrow;
 
 
 /**
@@ -256,7 +257,7 @@ extern LZMA_API(lzma_ret) lzma_filters_update(
  *              won't necessarily meet that bound.)
  */
 extern LZMA_API(lzma_ret) lzma_raw_buffer_encode(
-		const lzma_filter *filters, lzma_allocator *allocator,
+		const lzma_filter *filters, const lzma_allocator *allocator,
 		const uint8_t *in, size_t in_size, uint8_t *out,
 		size_t *out_pos, size_t out_size) lzma_nothrow;
 
@@ -280,7 +281,7 @@ extern LZMA_API(lzma_ret) lzma_raw_buffer_encode(
  *                          which no data is written to is out[out_size].
  */
 extern LZMA_API(lzma_ret) lzma_raw_buffer_decode(
-		const lzma_filter *filters, lzma_allocator *allocator,
+		const lzma_filter *filters, const lzma_allocator *allocator,
 		const uint8_t *in, size_t *in_pos, size_t in_size,
 		uint8_t *out, size_t *out_pos, size_t out_size) lzma_nothrow;
 
@@ -356,7 +357,7 @@ extern LZMA_API(lzma_ret) lzma_properties_encode(
  *              - LZMA_MEM_ERROR
  */
 extern LZMA_API(lzma_ret) lzma_properties_decode(
-		lzma_filter *filter, lzma_allocator *allocator,
+		lzma_filter *filter, const lzma_allocator *allocator,
 		const uint8_t *props, size_t props_size) lzma_nothrow;
 
 
@@ -419,6 +420,6 @@ extern LZMA_API(lzma_ret) lzma_filter_flags_encode(const lzma_filter *filter,
  *              - LZMA_PROG_ERROR
  */
 extern LZMA_API(lzma_ret) lzma_filter_flags_decode(
-		lzma_filter *filter, lzma_allocator *allocator,
+		lzma_filter *filter, const lzma_allocator *allocator,
 		const uint8_t *in, size_t *in_pos, size_t in_size)
 		lzma_nothrow lzma_attr_warn_unused_result;

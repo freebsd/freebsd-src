@@ -10,7 +10,7 @@
 #include "config.h"
 
 #ifndef lint
-static const char sccsid[] = "$Id: cl_main.c,v 10.55 2011/08/15 19:52:28 zy Exp $";
+static const char sccsid[] = "$Id: cl_main.c,v 10.56 2015/04/05 06:20:53 zy Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -36,20 +36,20 @@ static const char sccsid[] = "$Id: cl_main.c,v 10.55 2011/08/15 19:52:28 zy Exp 
 GS *__global_list;				/* GLOBAL: List of screens. */
 sigset_t __sigblockset;				/* GLOBAL: Blocked signals. */
 
-static void	   cl_func_std __P((GS *));
-static CL_PRIVATE *cl_init __P((GS *));
-static GS	  *gs_init __P((char *));
-static void	   perr __P((char *, char *));
-static int	   setsig __P((int, struct sigaction *, void (*)(int)));
-static void	   sig_end __P((GS *));
-static void	   term_init __P((char *, char *));
+static void	   cl_func_std(GS *);
+static CL_PRIVATE *cl_init(GS *);
+static GS	  *gs_init(char *);
+static void	   perr(char *, char *);
+static int	   setsig(int, struct sigaction *, void (*)(int));
+static void	   sig_end(GS *);
+static void	   term_init(char *, char *);
 
 /*
  * main --
  *	This is the main loop for the standalone curses editor.
  */
 int
-main(int argc, char **argv)
+main(int argc, char *argv[])
 {
 	static int reenter;
 	CL_PRIVATE *clp;
@@ -92,7 +92,7 @@ main(int argc, char **argv)
 	 * have to use termcap/terminfo to find out how big the screen is.
 	 */
 	if ((ttype = getenv("TERM")) == NULL)
-		ttype = "unknown";
+		ttype = "ansi";
 	term_init(gp->progname, ttype);
 
 	/* Add the terminal type to the global structure. */
@@ -146,7 +146,7 @@ main(int argc, char **argv)
 	}
 
 	/* Free the global and CL private areas. */
-#if defined(DEBUG) || defined(PURIFY) || defined(LIBRARY)
+#if defined(DEBUG) || defined(PURIFY)
 	if (clp->oname != NULL)
 		free(clp->oname);
 	free(clp);
@@ -292,7 +292,7 @@ h_winch(int signo)
  * sig_init --
  *	Initialize signals.
  *
- * PUBLIC: int sig_init __P((GS *, SCR *));
+ * PUBLIC: int sig_init(GS *, SCR *);
  */
 int
 sig_init(GS *gp, SCR *sp)
@@ -337,7 +337,7 @@ sig_init(GS *gp, SCR *sp)
  *	Set a signal handler.
  */
 static int
-setsig(int signo, struct sigaction *oactp, void (*handler) (int))
+setsig(int signo, struct sigaction *oactp, void (*handler)(int))
 {
 	struct sigaction act;
 
@@ -345,21 +345,12 @@ setsig(int signo, struct sigaction *oactp, void (*handler) (int))
 	 * Use sigaction(2), not signal(3), since we don't always want to
 	 * restart system calls.  The example is when waiting for a command
 	 * mode keystroke and SIGWINCH arrives.  Besides, you can't portably
-	 * restart system calls (thanks, POSIX!).  On the other hand, you
-	 * can't portably NOT restart system calls (thanks, Sun!).  SunOS
-	 * used SA_INTERRUPT as their extension to NOT restart read calls.
-	 * We sure hope nobody else used it for anything else.  Mom told me
-	 * there'd be days like this.  She just never told me that there'd
-	 * be so many.
+	 * restart system calls (thanks, POSIX!).
 	 */
 	act.sa_handler = handler;
 	sigemptyset(&act.sa_mask);
 
-#ifdef SA_INTERRUPT
-	act.sa_flags = SA_INTERRUPT;
-#else
 	act.sa_flags = 0;
-#endif
 	return (sigaction(signo, &act, oactp));
 }
 

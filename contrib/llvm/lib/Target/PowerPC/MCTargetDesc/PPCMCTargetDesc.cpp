@@ -79,7 +79,7 @@ static MCAsmInfo *createPPCMCAsmInfo(const MCRegisterInfo &MRI, StringRef TT) {
   if (TheTriple.isOSDarwin())
     MAI = new PPCMCAsmInfoDarwin(isPPC64, TheTriple);
   else
-    MAI = new PPCLinuxMCAsmInfo(isPPC64, TheTriple);
+    MAI = new PPCELFMCAsmInfo(isPPC64, TheTriple);
 
   // Initial state of the frame pointer is R1.
   unsigned Reg = isPPC64 ? PPC::X1 : PPC::R1;
@@ -129,10 +129,10 @@ public:
   void emitMachine(StringRef CPU) override {
     OS << "\t.machine " << CPU << '\n';
   }
-  virtual void emitAbiVersion(int AbiVersion) override {
+  void emitAbiVersion(int AbiVersion) override {
     OS << "\t.abiversion " << AbiVersion << '\n';
   }
-  virtual void emitLocalEntry(MCSymbol *S, const MCExpr *LocalOffset) {
+  void emitLocalEntry(MCSymbol *S, const MCExpr *LocalOffset) override {
     OS << "\t.localentry\t" << *S << ", " << *LocalOffset << '\n';
   }
 };
@@ -143,7 +143,7 @@ public:
   MCELFStreamer &getStreamer() {
     return static_cast<MCELFStreamer &>(Streamer);
   }
-  virtual void emitTCEntry(const MCSymbol &S) override {
+  void emitTCEntry(const MCSymbol &S) override {
     // Creates a R_PPC64_TOC relocation
     Streamer.EmitSymbolValue(&S, 8);
   }
@@ -151,14 +151,14 @@ public:
     // FIXME: Is there anything to do in here or does this directive only
     // limit the parser?
   }
-  virtual void emitAbiVersion(int AbiVersion) override {
+  void emitAbiVersion(int AbiVersion) override {
     MCAssembler &MCA = getStreamer().getAssembler();
     unsigned Flags = MCA.getELFHeaderEFlags();
     Flags &= ~ELF::EF_PPC64_ABI;
     Flags |= (AbiVersion & ELF::EF_PPC64_ABI);
     MCA.setELFHeaderEFlags(Flags);
   }
-  virtual void emitLocalEntry(MCSymbol *S, const MCExpr *LocalOffset) {
+  void emitLocalEntry(MCSymbol *S, const MCExpr *LocalOffset) override {
     MCAssembler &MCA = getStreamer().getAssembler();
     MCSymbolData &Data = getStreamer().getOrCreateSymbolData(S);
 
@@ -184,6 +184,23 @@ public:
     if ((Flags & ELF::EF_PPC64_ABI) == 0)
       MCA.setELFHeaderEFlags(Flags | 2);
   }
+  void emitAssignment(MCSymbol *Symbol, const MCExpr *Value) override {
+    // When encoding an assignment to set symbol A to symbol B, also copy
+    // the st_other bits encoding the local entry point offset.
+    if (Value->getKind() != MCExpr::SymbolRef)
+      return;
+    const MCSymbol &RhsSym =
+        static_cast<const MCSymbolRefExpr *>(Value)->getSymbol();
+    MCSymbolData &Data = getStreamer().getOrCreateSymbolData(&RhsSym);
+    MCSymbolData &SymbolData = getStreamer().getOrCreateSymbolData(Symbol);
+    // The "other" values are stored in the last 6 bits of the second byte.
+    // The traditional defines for STO values assume the full byte and thus
+    // the shift to pack it.
+    unsigned Other = MCELF::getOther(SymbolData) << 2;
+    Other &= ~ELF::STO_PPC64_LOCAL_MASK;
+    Other |= (MCELF::getOther(Data) << 2) & ELF::STO_PPC64_LOCAL_MASK;
+    MCELF::setOther(SymbolData, Other >> 2);
+  }
 };
 
 class PPCTargetMachOStreamer : public PPCTargetStreamer {
@@ -196,10 +213,10 @@ public:
     // FIXME: We should update the CPUType, CPUSubType in the Object file if
     // the new values are different from the defaults.
   }
-  virtual void emitAbiVersion(int AbiVersion) override {
+  void emitAbiVersion(int AbiVersion) override {
     llvm_unreachable("Unknown pseudo-op: .abiversion");
   }
-  virtual void emitLocalEntry(MCSymbol *S, const MCExpr *LocalOffset) {
+  void emitLocalEntry(MCSymbol *S, const MCExpr *LocalOffset) override {
     llvm_unreachable("Unknown pseudo-op: .localentry");
   }
 };
@@ -208,19 +225,15 @@ public:
 // This is duplicated code. Refactor this.
 static MCStreamer *createMCStreamer(const Target &T, StringRef TT,
                                     MCContext &Ctx, MCAsmBackend &MAB,
-                                    raw_ostream &OS,
-                                    MCCodeEmitter *Emitter,
-                                    const MCSubtargetInfo &STI,
-                                    bool RelaxAll,
-                                    bool NoExecStack) {
+                                    raw_ostream &OS, MCCodeEmitter *Emitter,
+                                    const MCSubtargetInfo &STI, bool RelaxAll) {
   if (Triple(TT).isOSDarwin()) {
     MCStreamer *S = createMachOStreamer(Ctx, MAB, OS, Emitter, RelaxAll);
     new PPCTargetMachOStreamer(*S);
     return S;
   }
 
-  MCStreamer *S =
-      createELFStreamer(Ctx, MAB, OS, Emitter, RelaxAll, NoExecStack);
+  MCStreamer *S = createELFStreamer(Ctx, MAB, OS, Emitter, RelaxAll);
   new PPCTargetELFStreamer(*S);
   return S;
 }

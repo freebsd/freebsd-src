@@ -1,6 +1,6 @@
 # LIBUCL
 
-[![Build Status](https://travis-ci.org/vstakhov/libucl.svg?branch=master)](https://travis-ci.org/vstakhov/libucl)
+[![Build Status](https://travis-ci.org/vstakhov/libucl.svg?branch=master)](https://travis-ci.org/vstakhov/libucl)[![Coverity](https://scan.coverity.com/projects/4138/badge.svg)](https://scan.coverity.com/projects/4138)
 
 **Table of Contents**  *generated with [DocToc](http://doctoc.herokuapp.com/)*
 
@@ -156,10 +156,10 @@ is converted to the following object:
 ```nginx
 section {
 	blah {
-			key = value;
+		key = value;
 	}
 	foo {
-			key = value;
+		key = value;
 	}
 }
 ```
@@ -177,9 +177,9 @@ is presented as:
 ```nginx    
 section {
 	blah {
-			foo {
-					key = value;
-			}
+		foo {
+			key = value;
+		}
 	}
 }
 ```
@@ -219,8 +219,8 @@ UCL supports external macros both multiline and single line ones:
 ```nginx
 .macro "sometext";
 .macro {
-     Some long text
-     ....
+    Some long text
+    ....
 };
 ```
 

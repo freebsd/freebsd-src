@@ -14,7 +14,6 @@
 
 #include "RemoteMemoryManager.h"
 #include "llvm/ExecutionEngine/ExecutionEngine.h"
-#include "llvm/ExecutionEngine/ObjectImage.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/Format.h"
 
@@ -78,7 +77,7 @@ sys::MemoryBlock RemoteMemoryManager::allocateSection(uintptr_t Size) {
 }
 
 void RemoteMemoryManager::notifyObjectLoaded(ExecutionEngine *EE,
-                                                const ObjectImage *Obj) {
+                                             const object::ObjectFile &Obj) {
   // The client should have called setRemoteTarget() before triggering any
   // code generation.
   assert(Target);
@@ -171,37 +170,4 @@ bool RemoteMemoryManager::finalizeMemory(std::string *ErrMsg) {
   MappedSections.clear();
 
   return false;
-}
-
-void RemoteMemoryManager::setMemoryWritable() { llvm_unreachable("Unexpected!"); }
-void RemoteMemoryManager::setMemoryExecutable() { llvm_unreachable("Unexpected!"); }
-void RemoteMemoryManager::setPoisonMemory(bool poison) { llvm_unreachable("Unexpected!"); }
-void RemoteMemoryManager::AllocateGOT() { llvm_unreachable("Unexpected!"); }
-uint8_t *RemoteMemoryManager::getGOTBase() const {
-  llvm_unreachable("Unexpected!");
-  return nullptr;
-}
-uint8_t *RemoteMemoryManager::startFunctionBody(const Function *F, uintptr_t &ActualSize){
-  llvm_unreachable("Unexpected!");
-  return nullptr;
-}
-uint8_t *RemoteMemoryManager::allocateStub(const GlobalValue* F, unsigned StubSize,
-                                              unsigned Alignment) {
-  llvm_unreachable("Unexpected!");
-  return nullptr;
-}
-void RemoteMemoryManager::endFunctionBody(const Function *F, uint8_t *FunctionStart,
-                                             uint8_t *FunctionEnd) {
-  llvm_unreachable("Unexpected!");
-}
-uint8_t *RemoteMemoryManager::allocateSpace(intptr_t Size, unsigned Alignment) {
-  llvm_unreachable("Unexpected!");
-  return nullptr;
-}
-uint8_t *RemoteMemoryManager::allocateGlobal(uintptr_t Size, unsigned Alignment) {
-  llvm_unreachable("Unexpected!");
-  return nullptr;
-}
-void RemoteMemoryManager::deallocateFunctionBody(void *Body) {
-  llvm_unreachable("Unexpected!");
 }

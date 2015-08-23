@@ -50,12 +50,6 @@ struct tcb {
 	struct pthread		*tcb_thread;
 };
 
-/*
- * The tcb constructors.
- */
-struct tcb	*_tcb_ctor(struct pthread *, int);
-void		_tcb_dtor(struct tcb *);
-
 /* Called from the thread to set its private data. */
 static __inline void
 _tcb_set(struct tcb *tcb)

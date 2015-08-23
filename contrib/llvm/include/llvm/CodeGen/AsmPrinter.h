@@ -44,6 +44,7 @@ class MachineModuleInfo;
 class MCAsmInfo;
 class MCCFIInstruction;
 class MCContext;
+class MCExpr;
 class MCInst;
 class MCInstrInfo;
 class MCSection;
@@ -132,6 +133,7 @@ public:
   virtual ~AsmPrinter();
 
   DwarfDebug *getDwarfDebug() { return DD; }
+  DwarfDebug *getDwarfDebug() const { return DD; }
 
   /// Return true if assembly output should contain comments.
   ///
@@ -203,6 +205,8 @@ public:
 
   void emitCFIInstruction(const MachineInstr &MI);
 
+  void emitFrameAlloc(const MachineInstr &MI);
+
   enum CFIMoveType { CFI_M_None, CFI_M_EH, CFI_M_Debug };
   CFIMoveType needsCFIMoves();
 
@@ -238,6 +242,9 @@ public:
   /// alignment (if present) and a comment describing it if appropriate.
   void EmitBasicBlockStart(const MachineBasicBlock &MBB) const;
 
+  /// Lower the specified LLVM Constant to an MCExpr.
+  const MCExpr *lowerConstant(const Constant *CV);
+
   /// \brief Print a general LLVM constant to the .s file.
   void EmitGlobalConstant(const Constant *CV);
 
@@ -263,6 +270,9 @@ public:
   /// Targets can override this to emit stuff after the last basic block in the
   /// function.
   virtual void EmitFunctionBodyEnd() {}
+
+  /// Targets can override this to emit stuff at the end of a basic block.
+  virtual void EmitBasicBlockEnd(const MachineBasicBlock &MBB) {}
 
   /// Targets should implement this to emit instructions.
   virtual void EmitInstruction(const MachineInstr *) {
@@ -346,12 +356,6 @@ public:
   void EmitLabelDifference(const MCSymbol *Hi, const MCSymbol *Lo,
                            unsigned Size) const;
 
-  /// Emit something like ".long Hi+Offset-Lo" where the size in bytes of the
-  /// directive is specified by Size and Hi/Lo specify the labels.  This
-  /// implicitly uses .set if it is available.
-  void EmitLabelOffsetDifference(const MCSymbol *Hi, uint64_t Offset,
-                                 const MCSymbol *Lo, unsigned Size) const;
-
   /// Emit something like ".long Label+Offset" where the size in bytes of the
   /// directive is specified by Size and Label specifies the label.  This
   /// implicitly uses .set if it is available.
@@ -402,6 +406,13 @@ public:
   /// Get the value for DW_AT_APPLE_isa. Zero if no isa encoding specified.
   virtual unsigned getISAEncoding() { return 0; }
 
+  /// Emit a dwarf register operation for describing
+  /// - a small value occupying only part of a register or
+  /// - a register representing only part of a value.
+  void EmitDwarfOpPiece(ByteStreamer &Streamer, unsigned SizeInBits,
+                        unsigned OffsetInBits = 0) const;
+
+
   /// \brief Emit a partial DWARF register operation.
   /// \param MLoc             the register
   /// \param PieceSize        size and
@@ -418,7 +429,7 @@ public:
                            unsigned PieceSize = 0,
                            unsigned PieceOffset = 0) const;
 
-  /// Emit dwarf register operation.
+  /// EmitDwarfRegOp - Emit a dwarf register operation.
   /// \param Indirect   whether this is a register-indirect address
   virtual void EmitDwarfRegOp(ByteStreamer &BS, const MachineLocation &MLoc,
                               bool Indirect) const;
@@ -460,6 +471,10 @@ public:
   virtual bool PrintAsmMemoryOperand(const MachineInstr *MI, unsigned OpNo,
                                      unsigned AsmVariant, const char *ExtraCode,
                                      raw_ostream &OS);
+
+  /// Let the target do anything it needs to do before emitting inlineasm.
+  /// \p StartInfo - the subtarget info before parsing inline asm
+  virtual void emitInlineAsmStart(const MCSubtargetInfo &StartInfo) const;
 
   /// Let the target do anything it needs to do after emitting inlineasm.
   /// This callback can be used restore the original mode in case the

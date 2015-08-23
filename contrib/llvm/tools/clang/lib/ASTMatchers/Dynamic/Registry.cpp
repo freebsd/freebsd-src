@@ -101,8 +101,8 @@ RegistryMaps::RegistryMaps() {
   REGISTER_MATCHER(argumentCountIs);
   REGISTER_MATCHER(arraySubscriptExpr);
   REGISTER_MATCHER(arrayType);
-  REGISTER_MATCHER(asString);
   REGISTER_MATCHER(asmStmt);
+  REGISTER_MATCHER(asString);
   REGISTER_MATCHER(atomicType);
   REGISTER_MATCHER(autoType);
   REGISTER_MATCHER(binaryOperator);
@@ -111,7 +111,6 @@ RegistryMaps::RegistryMaps() {
   REGISTER_MATCHER(boolLiteral);
   REGISTER_MATCHER(breakStmt);
   REGISTER_MATCHER(builtinType);
-  REGISTER_MATCHER(cStyleCastExpr);
   REGISTER_MATCHER(callExpr);
   REGISTER_MATCHER(caseStmt);
   REGISTER_MATCHER(castExpr);
@@ -123,18 +122,20 @@ RegistryMaps::RegistryMaps() {
   REGISTER_MATCHER(compoundLiteralExpr);
   REGISTER_MATCHER(compoundStmt);
   REGISTER_MATCHER(conditionalOperator);
-  REGISTER_MATCHER(constCastExpr);
   REGISTER_MATCHER(constantArrayType);
+  REGISTER_MATCHER(constCastExpr);
   REGISTER_MATCHER(constructExpr);
   REGISTER_MATCHER(constructorDecl);
   REGISTER_MATCHER(containsDeclaration);
   REGISTER_MATCHER(continueStmt);
+  REGISTER_MATCHER(cStyleCastExpr);
   REGISTER_MATCHER(ctorInitializer);
+  REGISTER_MATCHER(CUDAKernelCallExpr);
   REGISTER_MATCHER(decl);
+  REGISTER_MATCHER(declaratorDecl);
   REGISTER_MATCHER(declCountIs);
   REGISTER_MATCHER(declRefExpr);
   REGISTER_MATCHER(declStmt);
-  REGISTER_MATCHER(declaratorDecl);
   REGISTER_MATCHER(defaultArgExpr);
   REGISTER_MATCHER(defaultStmt);
   REGISTER_MATCHER(deleteExpr);
@@ -147,6 +148,7 @@ RegistryMaps::RegistryMaps() {
   REGISTER_MATCHER(enumConstantDecl);
   REGISTER_MATCHER(enumDecl);
   REGISTER_MATCHER(equalsBoundNode);
+  REGISTER_MATCHER(equalsIntegralValue);
   REGISTER_MATCHER(explicitCastExpr);
   REGISTER_MATCHER(expr);
   REGISTER_MATCHER(exprWithCleanups);
@@ -160,10 +162,10 @@ RegistryMaps::RegistryMaps() {
   REGISTER_MATCHER(forRangeStmt);
   REGISTER_MATCHER(forStmt);
   REGISTER_MATCHER(friendDecl);
+  REGISTER_MATCHER(functionalCastExpr);
   REGISTER_MATCHER(functionDecl);
   REGISTER_MATCHER(functionTemplateDecl);
   REGISTER_MATCHER(functionType);
-  REGISTER_MATCHER(functionalCastExpr);
   REGISTER_MATCHER(gotoStmt);
   REGISTER_MATCHER(has);
   REGISTER_MATCHER(hasAncestor);
@@ -175,19 +177,21 @@ RegistryMaps::RegistryMaps() {
   REGISTER_MATCHER(hasAnyUsingShadowDecl);
   REGISTER_MATCHER(hasArgument);
   REGISTER_MATCHER(hasArgumentOfType);
+  REGISTER_MATCHER(hasAttr);
   REGISTER_MATCHER(hasBase);
   REGISTER_MATCHER(hasBody);
   REGISTER_MATCHER(hasCanonicalType);
   REGISTER_MATCHER(hasCaseConstant);
   REGISTER_MATCHER(hasCondition);
   REGISTER_MATCHER(hasConditionVariableStatement);
-  REGISTER_MATCHER(hasDeclContext);
   REGISTER_MATCHER(hasDeclaration);
+  REGISTER_MATCHER(hasDeclContext);
   REGISTER_MATCHER(hasDeducedType);
   REGISTER_MATCHER(hasDescendant);
   REGISTER_MATCHER(hasDestinationType);
   REGISTER_MATCHER(hasEitherOperand);
   REGISTER_MATCHER(hasElementType);
+  REGISTER_MATCHER(hasElse);
   REGISTER_MATCHER(hasFalseExpression);
   REGISTER_MATCHER(hasGlobalStorage);
   REGISTER_MATCHER(hasImplicitDestinationType);
@@ -198,6 +202,7 @@ RegistryMaps::RegistryMaps() {
   REGISTER_MATCHER(hasLocalQualifiers);
   REGISTER_MATCHER(hasLocalStorage);
   REGISTER_MATCHER(hasLoopInit);
+  REGISTER_MATCHER(hasLoopVariable);
   REGISTER_MATCHER(hasMethod);
   REGISTER_MATCHER(hasName);
   REGISTER_MATCHER(hasObjectExpression);
@@ -206,6 +211,7 @@ RegistryMaps::RegistryMaps() {
   REGISTER_MATCHER(hasParameter);
   REGISTER_MATCHER(hasParent);
   REGISTER_MATCHER(hasQualifier);
+  REGISTER_MATCHER(hasRangeInit);
   REGISTER_MATCHER(hasRHS);
   REGISTER_MATCHER(hasSingleDecl);
   REGISTER_MATCHER(hasSize);
@@ -213,6 +219,7 @@ RegistryMaps::RegistryMaps() {
   REGISTER_MATCHER(hasSourceExpression);
   REGISTER_MATCHER(hasTargetDecl);
   REGISTER_MATCHER(hasTemplateArgument);
+  REGISTER_MATCHER(hasThen);
   REGISTER_MATCHER(hasTrueExpression);
   REGISTER_MATCHER(hasTypeLoc);
   REGISTER_MATCHER(hasUnaryOperand);
@@ -230,22 +237,30 @@ RegistryMaps::RegistryMaps() {
   REGISTER_MATCHER(isConst);
   REGISTER_MATCHER(isConstQualified);
   REGISTER_MATCHER(isDefinition);
+  REGISTER_MATCHER(isDeleted);
   REGISTER_MATCHER(isExplicitTemplateSpecialization);
   REGISTER_MATCHER(isExpr);
   REGISTER_MATCHER(isExternC);
   REGISTER_MATCHER(isImplicit);
+  REGISTER_MATCHER(isExpansionInFileMatching);
+  REGISTER_MATCHER(isExpansionInMainFile);
+  REGISTER_MATCHER(isInstantiated);
+  REGISTER_MATCHER(isExpansionInSystemHeader);
   REGISTER_MATCHER(isInteger);
+  REGISTER_MATCHER(isIntegral);
+  REGISTER_MATCHER(isInTemplateInstantiation);
   REGISTER_MATCHER(isListInitialization);
   REGISTER_MATCHER(isOverride);
   REGISTER_MATCHER(isPrivate);
   REGISTER_MATCHER(isProtected);
   REGISTER_MATCHER(isPublic);
+  REGISTER_MATCHER(isPure);
   REGISTER_MATCHER(isTemplateInstantiation);
   REGISTER_MATCHER(isVirtual);
   REGISTER_MATCHER(isWritten);
-  REGISTER_MATCHER(lValueReferenceType);
   REGISTER_MATCHER(labelStmt);
   REGISTER_MATCHER(lambdaExpr);
+  REGISTER_MATCHER(lValueReferenceType);
   REGISTER_MATCHER(matchesName);
   REGISTER_MATCHER(materializeTemporaryExpr);
   REGISTER_MATCHER(member);
@@ -254,8 +269,8 @@ RegistryMaps::RegistryMaps() {
   REGISTER_MATCHER(memberPointerType);
   REGISTER_MATCHER(methodDecl);
   REGISTER_MATCHER(namedDecl);
-  REGISTER_MATCHER(namesType);
   REGISTER_MATCHER(namespaceDecl);
+  REGISTER_MATCHER(namesType);
   REGISTER_MATCHER(nestedNameSpecifier);
   REGISTER_MATCHER(nestedNameSpecifierLoc);
   REGISTER_MATCHER(newExpr);
@@ -271,15 +286,16 @@ RegistryMaps::RegistryMaps() {
   REGISTER_MATCHER(pointee);
   REGISTER_MATCHER(pointerType);
   REGISTER_MATCHER(qualType);
-  REGISTER_MATCHER(rValueReferenceType);
   REGISTER_MATCHER(recordDecl);
   REGISTER_MATCHER(recordType);
   REGISTER_MATCHER(referenceType);
   REGISTER_MATCHER(refersToDeclaration);
+  REGISTER_MATCHER(refersToIntegralType);
   REGISTER_MATCHER(refersToType);
   REGISTER_MATCHER(reinterpretCastExpr);
-  REGISTER_MATCHER(returnStmt);
   REGISTER_MATCHER(returns);
+  REGISTER_MATCHER(returnStmt);
+  REGISTER_MATCHER(rValueReferenceType);
   REGISTER_MATCHER(sizeOfExpr);
   REGISTER_MATCHER(specifiesNamespace);
   REGISTER_MATCHER(specifiesType);
@@ -288,8 +304,11 @@ RegistryMaps::RegistryMaps() {
   REGISTER_MATCHER(staticCastExpr);
   REGISTER_MATCHER(stmt);
   REGISTER_MATCHER(stringLiteral);
+  REGISTER_MATCHER(substNonTypeTemplateParmExpr);
   REGISTER_MATCHER(switchCase);
   REGISTER_MATCHER(switchStmt);
+  REGISTER_MATCHER(templateArgument);
+  REGISTER_MATCHER(templateArgumentCountIs);
   REGISTER_MATCHER(templateSpecializationType);
   REGISTER_MATCHER(temporaryObjectExpr);
   REGISTER_MATCHER(thisExpr);
@@ -298,8 +317,9 @@ RegistryMaps::RegistryMaps() {
   REGISTER_MATCHER(to);
   REGISTER_MATCHER(tryStmt);
   REGISTER_MATCHER(type);
-  REGISTER_MATCHER(typeLoc);
+  REGISTER_MATCHER(typedefDecl);
   REGISTER_MATCHER(typedefType);
+  REGISTER_MATCHER(typeLoc);
   REGISTER_MATCHER(unaryExprOrTypeTraitExpr);
   REGISTER_MATCHER(unaryOperator);
   REGISTER_MATCHER(unaryTransformType);
@@ -308,8 +328,11 @@ RegistryMaps::RegistryMaps() {
   REGISTER_MATCHER(unresolvedUsingValueDecl);
   REGISTER_MATCHER(userDefinedLiteral);
   REGISTER_MATCHER(usingDecl);
+  REGISTER_MATCHER(usingDirectiveDecl);
+  REGISTER_MATCHER(valueDecl);
   REGISTER_MATCHER(varDecl);
   REGISTER_MATCHER(variableArrayType);
+  REGISTER_MATCHER(voidType);
   REGISTER_MATCHER(whileStmt);
   REGISTER_MATCHER(withInitializer);
 }
@@ -353,77 +376,63 @@ llvm::raw_ostream &operator<<(llvm::raw_ostream &OS,
   return OS;
 }
 
-struct ReverseSpecificityThenName {
-  bool operator()(const std::pair<unsigned, std::string> &A,
-                  const std::pair<unsigned, std::string> &B) const {
-    return A.first > B.first || (A.first == B.first && A.second < B.second);
-  }
-};
+}  // namespace
 
-}
-
-std::vector<MatcherCompletion> Registry::getCompletions(
-    ArrayRef<std::pair<MatcherCtor, unsigned> > Context) {
+std::vector<ArgKind> Registry::getAcceptedCompletionTypes(
+    ArrayRef<std::pair<MatcherCtor, unsigned>> Context) {
   ASTNodeKind InitialTypes[] = {
-    ASTNodeKind::getFromNodeKind<Decl>(),
-    ASTNodeKind::getFromNodeKind<QualType>(),
-    ASTNodeKind::getFromNodeKind<Type>(),
-    ASTNodeKind::getFromNodeKind<Stmt>(),
-    ASTNodeKind::getFromNodeKind<NestedNameSpecifier>(),
-    ASTNodeKind::getFromNodeKind<NestedNameSpecifierLoc>(),
-    ASTNodeKind::getFromNodeKind<TypeLoc>()
-  };
-  ArrayRef<ASTNodeKind> InitialTypesRef(InitialTypes);
+      ASTNodeKind::getFromNodeKind<Decl>(),
+      ASTNodeKind::getFromNodeKind<QualType>(),
+      ASTNodeKind::getFromNodeKind<Type>(),
+      ASTNodeKind::getFromNodeKind<Stmt>(),
+      ASTNodeKind::getFromNodeKind<NestedNameSpecifier>(),
+      ASTNodeKind::getFromNodeKind<NestedNameSpecifierLoc>(),
+      ASTNodeKind::getFromNodeKind<TypeLoc>()};
 
   // Starting with the above seed of acceptable top-level matcher types, compute
   // the acceptable type set for the argument indicated by each context element.
-  std::set<ASTNodeKind> TypeSet(InitialTypesRef.begin(), InitialTypesRef.end());
-  for (ArrayRef<std::pair<MatcherCtor, unsigned> >::iterator
-           CtxI = Context.begin(),
-           CtxE = Context.end();
-       CtxI != CtxE; ++CtxI) {
-    std::vector<internal::ArgKind> NextTypeSet;
-    for (std::set<ASTNodeKind>::iterator I = TypeSet.begin(), E = TypeSet.end();
-         I != E; ++I) {
-      if (CtxI->first->isConvertibleTo(*I) &&
-          (CtxI->first->isVariadic() ||
-           CtxI->second < CtxI->first->getNumArgs()))
-        CtxI->first->getArgKinds(*I, CtxI->second, NextTypeSet);
+  std::set<ArgKind> TypeSet(std::begin(InitialTypes), std::end(InitialTypes));
+  for (const auto &CtxEntry : Context) {
+    MatcherCtor Ctor = CtxEntry.first;
+    unsigned ArgNumber = CtxEntry.second;
+    std::vector<ArgKind> NextTypeSet;
+    for (const ArgKind &Kind : TypeSet) {
+      if (Kind.getArgKind() == Kind.AK_Matcher &&
+          Ctor->isConvertibleTo(Kind.getMatcherKind()) &&
+          (Ctor->isVariadic() || ArgNumber < Ctor->getNumArgs()))
+        Ctor->getArgKinds(Kind.getMatcherKind(), ArgNumber, NextTypeSet);
     }
     TypeSet.clear();
-    for (std::vector<internal::ArgKind>::iterator I = NextTypeSet.begin(),
-                                                  E = NextTypeSet.end();
-         I != E; ++I) {
-      if (I->getArgKind() == internal::ArgKind::AK_Matcher)
-        TypeSet.insert(I->getMatcherKind());
-    }
+    TypeSet.insert(NextTypeSet.begin(), NextTypeSet.end());
   }
+  return std::vector<ArgKind>(TypeSet.begin(), TypeSet.end());
+}
 
-  typedef std::map<std::pair<unsigned, std::string>, MatcherCompletion,
-                   ReverseSpecificityThenName> CompletionsTy;
-  CompletionsTy Completions;
+std::vector<MatcherCompletion>
+Registry::getMatcherCompletions(ArrayRef<ArgKind> AcceptedTypes) {
+  std::vector<MatcherCompletion> Completions;
 
-  // TypeSet now contains the list of acceptable types for the argument we are
-  // completing.  Search the registry for acceptable matchers.
+  // Search the registry for acceptable matchers.
   for (ConstructorMap::const_iterator I = RegistryData->constructors().begin(),
                                       E = RegistryData->constructors().end();
        I != E; ++I) {
     std::set<ASTNodeKind> RetKinds;
     unsigned NumArgs = I->second->isVariadic() ? 1 : I->second->getNumArgs();
     bool IsPolymorphic = I->second->isPolymorphic();
-    std::vector<std::vector<internal::ArgKind> > ArgsKinds(NumArgs);
+    std::vector<std::vector<ArgKind>> ArgsKinds(NumArgs);
     unsigned MaxSpecificity = 0;
-    for (std::set<ASTNodeKind>::iterator TI = TypeSet.begin(),
-                                         TE = TypeSet.end();
-         TI != TE; ++TI) {
+    for (const ArgKind& Kind : AcceptedTypes) {
+      if (Kind.getArgKind() != Kind.AK_Matcher)
+        continue;
       unsigned Specificity;
       ASTNodeKind LeastDerivedKind;
-      if (I->second->isConvertibleTo(*TI, &Specificity, &LeastDerivedKind)) {
+      if (I->second->isConvertibleTo(Kind.getMatcherKind(), &Specificity,
+                                     &LeastDerivedKind)) {
         if (MaxSpecificity < Specificity)
           MaxSpecificity = Specificity;
         RetKinds.insert(LeastDerivedKind);
         for (unsigned Arg = 0; Arg != NumArgs; ++Arg)
-          I->second->getArgKinds(*TI, Arg, ArgsKinds[Arg]);
+          I->second->getArgKinds(Kind.getMatcherKind(), Arg, ArgsKinds[Arg]);
         if (IsPolymorphic)
           break;
       }
@@ -437,24 +446,25 @@ std::vector<MatcherCompletion> Registry::getCompletions(
         OS << "Matcher<T> " << I->first() << "(Matcher<T>";
       } else {
         OS << "Matcher<" << RetKinds << "> " << I->first() << "(";
-        for (std::vector<std::vector<internal::ArgKind> >::iterator
-                 KI = ArgsKinds.begin(),
-                 KE = ArgsKinds.end();
-             KI != KE; ++KI) {
-          if (KI != ArgsKinds.begin())
+        for (const std::vector<ArgKind> &Arg : ArgsKinds) {
+          if (&Arg != &ArgsKinds[0])
             OS << ", ";
-          // This currently assumes that a matcher may not overload a
-          // non-matcher, and all non-matcher overloads have identical
-          // arguments.
-          if ((*KI)[0].getArgKind() == internal::ArgKind::AK_Matcher) {
-            std::set<ASTNodeKind> MatcherKinds;
-            std::transform(
-                KI->begin(), KI->end(),
-                std::inserter(MatcherKinds, MatcherKinds.end()),
-                std::mem_fun_ref(&internal::ArgKind::getMatcherKind));
+
+          bool FirstArgKind = true;
+          std::set<ASTNodeKind> MatcherKinds;
+          // Two steps. First all non-matchers, then matchers only.
+          for (const ArgKind &AK : Arg) {
+            if (AK.getArgKind() == ArgKind::AK_Matcher) {
+              MatcherKinds.insert(AK.getMatcherKind());
+            } else {
+              if (!FirstArgKind) OS << "|";
+              FirstArgKind = false;
+              OS << AK.asString();
+            }
+          }
+          if (!MatcherKinds.empty()) {
+            if (!FirstArgKind) OS << "|";
             OS << "Matcher<" << MatcherKinds << ">";
-          } else {
-            OS << (*KI)[0].asString();
           }
         }
       }
@@ -466,19 +476,14 @@ std::vector<MatcherCompletion> Registry::getCompletions(
       TypedText += "(";
       if (ArgsKinds.empty())
         TypedText += ")";
-      else if (ArgsKinds[0][0].getArgKind() == internal::ArgKind::AK_String)
+      else if (ArgsKinds[0][0].getArgKind() == ArgKind::AK_String)
         TypedText += "\"";
 
-      Completions[std::make_pair(MaxSpecificity, I->first())] =
-          MatcherCompletion(TypedText, OS.str());
+      Completions.emplace_back(TypedText, OS.str(), MaxSpecificity);
     }
   }
 
-  std::vector<MatcherCompletion> RetVal;
-  for (CompletionsTy::iterator I = Completions.begin(), E = Completions.end();
-       I != E; ++I)
-    RetVal.push_back(I->second);
-  return RetVal;
+  return Completions;
 }
 
 // static

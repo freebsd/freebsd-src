@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 5, 2015
+.Dd March 11, 2015
 .Dt MBUF 9
 .Os
 .\"
@@ -140,6 +140,8 @@
 .Fn m_getptr "struct mbuf *mbuf" "int loc" "int *off"
 .Ft struct mbuf *
 .Fn m_defrag "struct mbuf *m0" "int how"
+.Ft struct mbuf *
+.Fn m_collapse "struct mbuf *m0" "int how" "int maxfrags"
 .Ft struct mbuf *
 .Fn m_unshare "struct mbuf *m0" "int how"
 .\"
@@ -983,6 +985,20 @@ depending on the caller's preference.
 This function is especially useful in network drivers, where
 certain long mbuf chains must be shortened before being added
 to TX descriptor lists.
+.It Fn m_collapse m0 how maxfrags
+Defragment an mbuf chain, returning a chain of at most
+.Fa maxfrags
+mbufs and clusters.
+If allocation fails or the chain cannot be collapsed as requested,
+.Dv NULL
+will be returned, with the original chain possibly modified.
+As with
+.Fn m_defrag ,
+.Fa how
+should be one of
+.Dv M_WAITOK
+or
+.Dv M_NOWAIT .
 .It Fn m_unshare m0 how
 Create a version of the specified mbuf chain whose
 contents can be safely modified without affecting other users.

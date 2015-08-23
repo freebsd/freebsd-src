@@ -8,7 +8,6 @@ SRCDIR=	lib/Analysis/IPA
 SRCS=	CallGraph.cpp \
 	CallGraphSCCPass.cpp \
 	CallPrinter.cpp \
-	FindUsedTypes.cpp \
 	GlobalsModRef.cpp \
 	InlineCost.cpp
 

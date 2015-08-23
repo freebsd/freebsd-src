@@ -43,15 +43,21 @@ ATF_TC_BODY(fmod, tc)
 {
 	ATF_CHECK(fmodf(2.0, 1.0) == 0);
 	ATF_CHECK(fmod(2.0, 1.0) == 0);
+#if !defined(__FreeBSD__) || LDBL_PREC != 53
 	ATF_CHECK(fmodl(2.0, 1.0) == 0);
+#endif
 
 	ATF_CHECK(fmodf(2.0, 0.5) == 0);
 	ATF_CHECK(fmod(2.0, 0.5) == 0);
+#if !defined(__FreeBSD__) || LDBL_PREC != 53
 	ATF_CHECK(fmodl(2.0, 0.5) == 0);
+#endif
 
 	ATF_CHECK(fabsf(fmodf(1.0, 0.1) - 0.1f) <= 55 * FLT_EPSILON);
 	ATF_CHECK(fabs(fmod(1.0, 0.1) - 0.1) <= 55 * DBL_EPSILON);
+#if !defined(__FreeBSD__) || LDBL_PREC != 53
 	ATF_CHECK(fabsl(fmodl(1.0, 0.1L) - 0.1L) <= 55 * LDBL_EPSILON);
+#endif
 }
 
 ATF_TP_ADD_TCS(tp)

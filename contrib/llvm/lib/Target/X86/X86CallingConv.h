@@ -12,13 +12,26 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef X86CALLINGCONV_H
-#define X86CALLINGCONV_H
+#ifndef LLVM_LIB_TARGET_X86_X86CALLINGCONV_H
+#define LLVM_LIB_TARGET_X86_X86CALLINGCONV_H
 
 #include "llvm/CodeGen/CallingConvLower.h"
 #include "llvm/IR/CallingConv.h"
 
 namespace llvm {
+
+inline bool CC_X86_32_VectorCallIndirect(unsigned &ValNo, MVT &ValVT,
+                                         MVT &LocVT,
+                                         CCValAssign::LocInfo &LocInfo,
+                                         ISD::ArgFlagsTy &ArgFlags,
+                                         CCState &State) {
+  // Similar to CCPassIndirect, with the addition of inreg.
+  LocVT = MVT::i32;
+  LocInfo = CCValAssign::Indirect;
+  ArgFlags.setInReg();
+  return false; // Continue the search, but now for i32.
+}
+
 
 inline bool CC_X86_AnyReg_Error(unsigned &, MVT &, MVT &,
                                 CCValAssign::LocInfo &, ISD::ArgFlagsTy &,

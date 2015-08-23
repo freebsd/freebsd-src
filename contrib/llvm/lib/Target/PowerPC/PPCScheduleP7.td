@@ -380,6 +380,9 @@ def P7Model : SchedMachineModel {
                        // Itineraries are queried instead.
   let MispredictPenalty = 16;
 
+  // Try to make sure we have at least 10 dispatch groups in a loop.
+  let LoopMicroOpBufferSize = 40;
+
   let Itineraries = P7Itineraries;
 }
 

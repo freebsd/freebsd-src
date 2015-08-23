@@ -34,7 +34,7 @@ typedef struct {
 	char *string;
 	long ival;
 	u_long uval;
-	struct sockaddr_storage netnum;
+	sockaddr_u netnum;
 } arg_v;
 
 /*
@@ -43,7 +43,7 @@ typedef struct {
 struct parse {
 	char *keyword;
 	arg_v argval[MAXARGS + MOREARGS];
-	int nargs;
+	size_t nargs;
 };
 
 /*
@@ -53,7 +53,7 @@ struct parse {
  */
 struct xcmd {
   const char *keyword;		/* command key word */
-	void (*handler)	P((struct parse *, FILE *));	/* command handler */
+	void (*handler)	(struct parse *, FILE *);	/* command handler */
 	u_char arg[MAXARGS];	/* descriptors for arguments */
   const char *desc[MAXARGS];	/* descriptions for arguments */
   const char *comment;
@@ -63,5 +63,5 @@ extern	int impl_ver;
 extern	int showhostnames;
 extern	int s_port;
 
-extern	int	doquery	P((int, int, int, int, int, char *, int *, int *, char **, int, int));
-extern	char *	nntohost	P((struct sockaddr_storage *));
+extern	int	doquery	(int, int, int, int, int, char *, int *, int *, char **, int, int);
+extern	const char * nntohost	(sockaddr_u *);

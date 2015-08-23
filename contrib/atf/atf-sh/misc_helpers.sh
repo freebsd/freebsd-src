@@ -139,16 +139,20 @@ atf_check_equal_eval_fail_body()
     atf_check_equal '${x}' '${y}'
 }
 
-atf_test_case atf_check_timeout
-atf_check_timeout_head()
+atf_test_case atf_check_flush_stdout
+atf_check_flush_stdout_head()
 {
     atf_set "descr" "Helper test case for the t_atf_check test program"
-    atf_set "timeout" 1
+    atf_set "timeout" "30"
 }
-atf_check_timeout_body()
+atf_check_flush_stdout_body()
 {
     atf_check true
-    atf_check sleep 42
+    atf_check -s exit:1 false
+    touch "${CONTROL_FILE:-done}"
+    while :; do
+        sleep 1
+    done
 }
 
 # -------------------------------------------------------------------------
@@ -281,7 +285,7 @@ atf_init_test_cases()
     atf_add_test_case atf_check_equal_fail
     atf_add_test_case atf_check_equal_eval_ok
     atf_add_test_case atf_check_equal_eval_fail
-    atf_add_test_case atf_check_timeout
+    atf_add_test_case atf_check_flush_stdout
 
     # Add helper tests for t_config.
     atf_add_test_case config_get

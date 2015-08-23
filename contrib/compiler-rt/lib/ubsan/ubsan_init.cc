@@ -11,12 +11,12 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "ubsan_diag.h"
 #include "ubsan_init.h"
 #include "ubsan_flags.h"
 #include "sanitizer_common/sanitizer_common.h"
 #include "sanitizer_common/sanitizer_libc.h"
 #include "sanitizer_common/sanitizer_mutex.h"
-#include "sanitizer_common/sanitizer_suppressions.h"
 #include "sanitizer_common/sanitizer_symbolizer.h"
 
 using namespace __ubsan;
@@ -31,6 +31,7 @@ void __ubsan::InitIfNecessary() {
 #endif
   if (LIKELY(ubsan_inited))
    return;
+  bool standalone = false;
   if (0 == internal_strcmp(SanitizerToolName, "SanitizerTool")) {
     // WARNING: If this condition holds, then either UBSan runs in a standalone
     // mode, or initializer for another sanitizer hasn't run yet. In a latter
@@ -38,11 +39,12 @@ void __ubsan::InitIfNecessary() {
     // common flags. It means, that we are not allowed to *use* common flags
     // in this function.
     SanitizerToolName = "UndefinedBehaviorSanitizer";
-    InitializeCommonFlags();
+    standalone = true;
   }
   // Initialize UBSan-specific flags.
-  InitializeFlags();
-  SuppressionContext::InitIfNecessary();
+  InitializeFlags(standalone);
+  InitializeSuppressions();
+  InitializeCoverage(common_flags()->coverage, common_flags()->coverage_dir);
   ubsan_inited = true;
 }
 

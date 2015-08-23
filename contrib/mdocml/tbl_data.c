@@ -1,7 +1,7 @@
-/*	$Id: tbl_data.c,v 1.32 2014/08/10 23:54:41 schwarze Exp $ */
+/*	$Id: tbl_data.c,v 1.39 2015/01/30 17:32:16 schwarze Exp $ */
 /*
  * Copyright (c) 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
- * Copyright (c) 2011 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2011, 2015 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -30,32 +30,24 @@
 #include "libmandoc.h"
 #include "libroff.h"
 
-static	int		 getdata(struct tbl_node *, struct tbl_span *,
+static	void		 getdata(struct tbl_node *, struct tbl_span *,
 				int, const char *, int *);
 static	struct tbl_span	*newspan(struct tbl_node *, int,
 				struct tbl_row *);
 
 
-static int
+static void
 getdata(struct tbl_node *tbl, struct tbl_span *dp,
 		int ln, const char *p, int *pos)
 {
 	struct tbl_dat	*dat;
 	struct tbl_cell	*cp;
-	int		 sv, spans;
+	int		 sv;
 
-	cp = NULL;
-	if (dp->last && dp->last->layout)
-		cp = dp->last->layout->next;
-	else if (NULL == dp->last)
-		cp = dp->layout->first;
+	/* Advance to the next layout cell, skipping spanners. */
 
-	/*
-	 * Skip over spanners, since
-	 * we want to match data with data layout cells in the header.
-	 */
-
-	while (cp && TBL_CELL_SPAN == cp->pos)
+	cp = dp->last == NULL ? dp->layout->first : dp->last->layout->next;
+	while (cp != NULL && cp->pos == TBL_CELL_SPAN)
 		cp = cp->next;
 
 	/*
@@ -63,34 +55,30 @@ getdata(struct tbl_node *tbl, struct tbl_span *dp,
 	 * cells.  This means that we have extra input.
 	 */
 
-	if (NULL == cp) {
-		mandoc_msg(MANDOCERR_TBLEXTRADAT, tbl->parse,
-		    ln, *pos, NULL);
+	if (cp == NULL) {
+		mandoc_msg(MANDOCERR_TBLDATA_EXTRA, tbl->parse,
+		    ln, *pos, p + *pos);
 		/* Skip to the end... */
 		while (p[*pos])
 			(*pos)++;
-		return(1);
+		return;
 	}
 
-	dat = mandoc_calloc(1, sizeof(struct tbl_dat));
+	dat = mandoc_calloc(1, sizeof(*dat));
 	dat->layout = cp;
 	dat->pos = TBL_DATA_NONE;
-
-	assert(TBL_CELL_SPAN != cp->pos);
-
-	for (spans = 0, cp = cp->next; cp; cp = cp->next)
-		if (TBL_CELL_SPAN == cp->pos)
-			spans++;
+	dat->spans = 0;
+	for (cp = cp->next; cp != NULL; cp = cp->next)
+		if (cp->pos == TBL_CELL_SPAN)
+			dat->spans++;
 		else
 			break;
 
-	dat->spans = spans;
-
-	if (dp->last) {
+	if (dp->last == NULL)
+		dp->first = dat;
+	else
 		dp->last->next = dat;
-		dp->last = dat;
-	} else
-		dp->last = dp->first = dat;
+	dp->last = dat;
 
 	sv = *pos;
 	while (p[*pos] && p[*pos] != tbl->opts.tab)
@@ -102,16 +90,12 @@ getdata(struct tbl_node *tbl, struct tbl_span *dp,
 	 * until a standalone `T}', are included in our cell.
 	 */
 
-	if (*pos - sv == 2 && 'T' == p[sv] && '{' == p[sv + 1]) {
+	if (*pos - sv == 2 && p[sv] == 'T' && p[sv + 1] == '{') {
 		tbl->part = TBL_PART_CDATA;
-		return(1);
+		return;
 	}
 
-	assert(*pos - sv >= 0);
-
-	dat->string = mandoc_malloc((size_t)(*pos - sv + 1));
-	memcpy(dat->string, &p[sv], (size_t)(*pos - sv));
-	dat->string[*pos - sv] = '\0';
+	dat->string = mandoc_strndup(p + sv, *pos - sv);
 
 	if (p[*pos])
 		(*pos)++;
@@ -127,24 +111,19 @@ getdata(struct tbl_node *tbl, struct tbl_span *dp,
 	else
 		dat->pos = TBL_DATA_DATA;
 
-	if (TBL_CELL_HORIZ == dat->layout->pos ||
-	    TBL_CELL_DHORIZ == dat->layout->pos ||
-	    TBL_CELL_DOWN == dat->layout->pos)
-		if (TBL_DATA_DATA == dat->pos && '\0' != *dat->string)
-			mandoc_msg(MANDOCERR_TBLIGNDATA,
-			    tbl->parse, ln, sv, NULL);
-
-	return(1);
+	if ((dat->layout->pos == TBL_CELL_HORIZ ||
+	    dat->layout->pos == TBL_CELL_DHORIZ ||
+	    dat->layout->pos == TBL_CELL_DOWN) &&
+	    dat->pos == TBL_DATA_DATA && *dat->string != '\0')
+		mandoc_msg(MANDOCERR_TBLDATA_SPAN,
+		    tbl->parse, ln, sv, dat->string);
 }
 
 int
-tbl_cdata(struct tbl_node *tbl, int ln, const char *p)
+tbl_cdata(struct tbl_node *tbl, int ln, const char *p, int pos)
 {
 	struct tbl_dat	*dat;
 	size_t		 sz;
-	int		 pos;
-
-	pos = 0;
 
 	dat = tbl->last_span->last;
 
@@ -153,8 +132,9 @@ tbl_cdata(struct tbl_node *tbl, int ln, const char *p)
 		if (p[pos] == tbl->opts.tab) {
 			tbl->part = TBL_PART_DATA;
 			pos++;
-			return(getdata(tbl, tbl->last_span, ln, p, &pos));
-		} else if ('\0' == p[pos]) {
+			getdata(tbl, tbl->last_span, ln, p, &pos);
+			return(1);
+		} else if (p[pos] == '\0') {
 			tbl->part = TBL_PART_DATA;
 			return(1);
 		}
@@ -164,17 +144,17 @@ tbl_cdata(struct tbl_node *tbl, int ln, const char *p)
 
 	dat->pos = TBL_DATA_DATA;
 
-	if (dat->string) {
-		sz = strlen(p) + strlen(dat->string) + 2;
+	if (dat->string != NULL) {
+		sz = strlen(p + pos) + strlen(dat->string) + 2;
 		dat->string = mandoc_realloc(dat->string, sz);
 		(void)strlcat(dat->string, " ", sz);
-		(void)strlcat(dat->string, p, sz);
+		(void)strlcat(dat->string, p + pos, sz);
 	} else
-		dat->string = mandoc_strdup(p);
+		dat->string = mandoc_strdup(p + pos);
 
-	if (TBL_CELL_DOWN == dat->layout->pos)
-		mandoc_msg(MANDOCERR_TBLIGNDATA, tbl->parse,
-		    ln, pos, NULL);
+	if (dat->layout->pos == TBL_CELL_DOWN)
+		mandoc_msg(MANDOCERR_TBLDATA_SPAN, tbl->parse,
+		    ln, pos, dat->string);
 
 	return(0);
 }
@@ -184,37 +164,27 @@ newspan(struct tbl_node *tbl, int line, struct tbl_row *rp)
 {
 	struct tbl_span	*dp;
 
-	dp = mandoc_calloc(1, sizeof(struct tbl_span));
+	dp = mandoc_calloc(1, sizeof(*dp));
 	dp->line = line;
 	dp->opts = &tbl->opts;
 	dp->layout = rp;
-	dp->head = tbl->first_head;
+	dp->prev = tbl->last_span;
 
-	if (tbl->last_span) {
-		tbl->last_span->next = dp;
-		tbl->last_span = dp;
-	} else {
-		tbl->last_span = tbl->first_span = dp;
+	if (dp->prev == NULL) {
+		tbl->first_span = dp;
 		tbl->current_span = NULL;
-		dp->flags |= TBL_SPAN_FIRST;
-	}
+	} else
+		dp->prev->next = dp;
+	tbl->last_span = dp;
 
 	return(dp);
 }
 
-int
-tbl_data(struct tbl_node *tbl, int ln, const char *p)
+void
+tbl_data(struct tbl_node *tbl, int ln, const char *p, int pos)
 {
 	struct tbl_span	*dp;
 	struct tbl_row	*rp;
-	int		 pos;
-
-	pos = 0;
-
-	if ('\0' == p[pos]) {
-		mandoc_msg(MANDOCERR_TBL, tbl->parse, ln, pos, NULL);
-		return(0);
-	}
 
 	/*
 	 * Choose a layout row: take the one following the last parsed
@@ -224,11 +194,11 @@ tbl_data(struct tbl_node *tbl, int ln, const char *p)
 	 * (it doesn't "consume" the layout).
 	 */
 
-	if (tbl->last_span) {
-		assert(tbl->last_span->layout);
+	if (tbl->last_span != NULL) {
 		if (tbl->last_span->pos == TBL_SPAN_DATA) {
 			for (rp = tbl->last_span->layout->next;
-					rp && rp->first; rp = rp->next) {
+			     rp != NULL && rp->first != NULL;
+			     rp = rp->next) {
 				switch (rp->first->pos) {
 				case TBL_CELL_HORIZ:
 					dp = newspan(tbl, ln, rp);
@@ -246,7 +216,7 @@ tbl_data(struct tbl_node *tbl, int ln, const char *p)
 		} else
 			rp = tbl->last_span->layout;
 
-		if (NULL == rp)
+		if (rp == NULL)
 			rp = tbl->last_span->layout;
 	} else
 		rp = tbl->first_row;
@@ -257,19 +227,14 @@ tbl_data(struct tbl_node *tbl, int ln, const char *p)
 
 	if ( ! strcmp(p, "_")) {
 		dp->pos = TBL_SPAN_HORIZ;
-		return(1);
+		return;
 	} else if ( ! strcmp(p, "=")) {
 		dp->pos = TBL_SPAN_DHORIZ;
-		return(1);
+		return;
 	}
 
 	dp->pos = TBL_SPAN_DATA;
 
-	/* This returns 0 when TBL_PART_CDATA is entered. */
-
-	while ('\0' != p[pos])
-		if ( ! getdata(tbl, dp, ln, p, &pos))
-			return(0);
-
-	return(1);
+	while (p[pos] != '\0')
+		getdata(tbl, dp, ln, p, &pos);
 }

@@ -14,5 +14,9 @@ n0=`namegen`
 
 cp -pf `which sleep` ${n0}
 ./${n0} 3 &
+while ! pkill -0 -f ./${n0}; do
+	sleep 0.1
+done
 expect ETXTBSY truncate ${n0} 123
+pkill -9 -f ./${n0}
 expect 0 unlink ${n0}

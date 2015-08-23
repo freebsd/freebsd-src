@@ -13,4 +13,6 @@ _zfs=	zfs
 _zpool=	zpool
 .endif
 
+SUBDIR_PARALLEL=
+
 .include <bsd.subdir.mk>

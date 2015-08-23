@@ -378,20 +378,25 @@ class Instruction {
   bit isAsCheapAsAMove = 0; // As cheap (or cheaper) than a move instruction.
   bit hasExtraSrcRegAllocReq = 0; // Sources have special regalloc requirement?
   bit hasExtraDefRegAllocReq = 0; // Defs have special regalloc requirement?
+  bit isRegSequence = 0;    // Is this instruction a kind of reg sequence?
+                            // If so, make sure to override
+                            // TargetInstrInfo::getRegSequenceLikeInputs.
   bit isPseudo     = 0;     // Is this instruction a pseudo-instruction?
                             // If so, won't have encoding information for
                             // the [MC]CodeEmitter stuff.
+  bit isExtractSubreg = 0;  // Is this instruction a kind of extract subreg?
+                             // If so, make sure to override
+                             // TargetInstrInfo::getExtractSubregLikeInputs.
+  bit isInsertSubreg = 0;   // Is this instruction a kind of insert subreg?
+                            // If so, make sure to override
+                            // TargetInstrInfo::getInsertSubregLikeInputs.
 
   // Side effect flags - When set, the flags have these meanings:
   //
   //  hasSideEffects - The instruction has side effects that are not
   //    captured by any operands of the instruction or other flags.
   //
-  //  neverHasSideEffects (deprecated) - Set on an instruction with no pattern
-  //    if it has no side effects. This is now equivalent to setting
-  //    "hasSideEffects = 0".
   bit hasSideEffects = ?;
-  bit neverHasSideEffects = 0;
 
   // Is this instruction a "real" instruction (with a distinct machine
   // encoding), or is it a pseudo instruction used for codegen modeling
@@ -583,7 +588,6 @@ class Operand<ValueType ty> : DAGOperand {
   string PrintMethod = "printOperand";
   string EncoderMethod = "";
   string DecoderMethod = "";
-  string AsmOperandLowerMethod = ?;
   string OperandType = "OPERAND_UNKNOWN";
   dag MIOperandInfo = (ops);
 
@@ -620,6 +624,9 @@ class RegisterOperand<RegisterClass regclass, string pm = "printOperand">
   // can match a subset of some other class, in which case the AsmOperandClass
   // should declare the other operand as one of its super classes.
   AsmOperandClass ParserMatchClass;
+
+  string OperandNamespace = "MCOI";
+  string OperandType = "OPERAND_REGISTER";
 }
 
 let OperandType = "OPERAND_IMMEDIATE" in {
@@ -726,7 +733,7 @@ def INLINEASM : Instruction {
   let OutOperandList = (outs);
   let InOperandList = (ins variable_ops);
   let AsmString = "";
-  let neverHasSideEffects = 1;  // Note side effect is encoded in an operand.
+  let hasSideEffects = 0;  // Note side effect is encoded in an operand.
 }
 def CFI_INSTRUCTION : Instruction {
   let OutOperandList = (outs);
@@ -753,26 +760,26 @@ def KILL : Instruction {
   let OutOperandList = (outs);
   let InOperandList = (ins variable_ops);
   let AsmString = "";
-  let neverHasSideEffects = 1;
+  let hasSideEffects = 0;
 }
 def EXTRACT_SUBREG : Instruction {
   let OutOperandList = (outs unknown:$dst);
   let InOperandList = (ins unknown:$supersrc, i32imm:$subidx);
   let AsmString = "";
-  let neverHasSideEffects = 1;
+  let hasSideEffects = 0;
 }
 def INSERT_SUBREG : Instruction {
   let OutOperandList = (outs unknown:$dst);
   let InOperandList = (ins unknown:$supersrc, unknown:$subsrc, i32imm:$subidx);
   let AsmString = "";
-  let neverHasSideEffects = 1;
+  let hasSideEffects = 0;
   let Constraints = "$supersrc = $dst";
 }
 def IMPLICIT_DEF : Instruction {
   let OutOperandList = (outs unknown:$dst);
   let InOperandList = (ins);
   let AsmString = "";
-  let neverHasSideEffects = 1;
+  let hasSideEffects = 0;
   let isReMaterializable = 1;
   let isAsCheapAsAMove = 1;
 }
@@ -780,33 +787,33 @@ def SUBREG_TO_REG : Instruction {
   let OutOperandList = (outs unknown:$dst);
   let InOperandList = (ins unknown:$implsrc, unknown:$subsrc, i32imm:$subidx);
   let AsmString = "";
-  let neverHasSideEffects = 1;
+  let hasSideEffects = 0;
 }
 def COPY_TO_REGCLASS : Instruction {
   let OutOperandList = (outs unknown:$dst);
   let InOperandList = (ins unknown:$src, i32imm:$regclass);
   let AsmString = "";
-  let neverHasSideEffects = 1;
+  let hasSideEffects = 0;
   let isAsCheapAsAMove = 1;
 }
 def DBG_VALUE : Instruction {
   let OutOperandList = (outs);
   let InOperandList = (ins variable_ops);
   let AsmString = "DBG_VALUE";
-  let neverHasSideEffects = 1;
+  let hasSideEffects = 0;
 }
 def REG_SEQUENCE : Instruction {
   let OutOperandList = (outs unknown:$dst);
-  let InOperandList = (ins variable_ops);
+  let InOperandList = (ins unknown:$supersrc, variable_ops);
   let AsmString = "";
-  let neverHasSideEffects = 1;
+  let hasSideEffects = 0;
   let isAsCheapAsAMove = 1;
 }
 def COPY : Instruction {
   let OutOperandList = (outs unknown:$dst);
   let InOperandList = (ins unknown:$src);
   let AsmString = "";
-  let neverHasSideEffects = 1;
+  let hasSideEffects = 0;
   let isAsCheapAsAMove = 1;
 }
 def BUNDLE : Instruction {
@@ -818,13 +825,13 @@ def LIFETIME_START : Instruction {
   let OutOperandList = (outs);
   let InOperandList = (ins i32imm:$id);
   let AsmString = "LIFETIME_START";
-  let neverHasSideEffects = 1;
+  let hasSideEffects = 0;
 }
 def LIFETIME_END : Instruction {
   let OutOperandList = (outs);
   let InOperandList = (ins i32imm:$id);
   let AsmString = "LIFETIME_END";
-  let neverHasSideEffects = 1;
+  let hasSideEffects = 0;
 }
 def STACKMAP : Instruction {
   let OutOperandList = (outs);
@@ -840,6 +847,32 @@ def PATCHPOINT : Instruction {
   let isCall = 1;
   let mayLoad = 1;
   let usesCustomInserter = 1;
+}
+def STATEPOINT : Instruction {
+  let OutOperandList = (outs);
+  let InOperandList = (ins variable_ops);
+  let usesCustomInserter = 1;
+  let mayLoad = 1;
+  let mayStore = 1;
+  let hasSideEffects = 1;
+  let isCall = 1;
+}
+def LOAD_STACK_GUARD : Instruction {
+  let OutOperandList = (outs ptr_rc:$dst);
+  let InOperandList = (ins);
+  let mayLoad = 1;
+  bit isReMaterializable = 1;
+  let hasSideEffects = 0;
+  bit isPseudo = 1;
+}
+def FRAME_ALLOC : Instruction {
+  // This instruction is really just a label. It has to be part of the chain so
+  // that it doesn't get dropped from the DAG, but it produces nothing and has
+  // no side effects.
+  let OutOperandList = (outs);
+  let InOperandList = (ins ptr_rc:$symbol, i32imm:$id);
+  let hasSideEffects = 0;
+  let hasCtrlDep = 1;
 }
 }
 
@@ -989,9 +1022,6 @@ class AsmWriter {
   // will specify which alternative to use.  For example "{x|y|z}" with Variant
   // == 1, will expand to "y".
   int Variant = 0;
-
-  // OperandSpacing - Space between operand columns.
-  int OperandSpacing = -1;
 }
 def DefaultAsmWriter : AsmWriter;
 

@@ -25,6 +25,7 @@
    along with this program; see the file COPYING.  If not, write to
    the Free Software Foundation, 51 Franklin Street, Fifth Floor,
    Boston, MA 02110-1301, USA.  */
+#define __ARM_STATIC_INLINE
 #include "unwind.h"
 
 /* We add a prototype for abort here to avoid creating a dependency on
@@ -1089,4 +1090,11 @@ _Unwind_GetIPInfo (struct _Unwind_Context *context, int *ip_before_insn)
   *ip_before_insn = 0;
   return _Unwind_GetGR (context, 15) & ~(_Unwind_Word)1;
 }
+
+void
+_Unwind_SetIP (struct _Unwind_Context *context, _Unwind_Ptr val)
+{
+  _Unwind_SetGR (context, 15, val | (_Unwind_GetGR (context, 15) & 1));
+}
+
 #endif

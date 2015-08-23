@@ -15,7 +15,13 @@ _toolkit=	toolkit
 SCRIPTS=	disklatency \
 		disklatencycmd \
 		hotopen \
-		nfsclienttime
+		nfsattrstats \
+		nfsclienttime \
+		siftr \
+		tcpconn \
+		tcpstate \
+		tcptrack \
+		udptrack
 
 SCRIPTSDIR= ${SHAREDIR}/dtrace
 

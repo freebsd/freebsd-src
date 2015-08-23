@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: elfdefinitions.h 3110 2014-12-20 08:32:46Z kaiwang27 $
+ * $Id: elfdefinitions.h 3198 2015-05-14 18:36:19Z emaste $
  */
 
 /*
@@ -171,7 +171,7 @@ _ELF_DEFINE_DT(DT_MOVEENT,          0x6FFFFDFAUL,			\
 	"size of DT_MOVETAB entries")					\
 _ELF_DEFINE_DT(DT_MOVESZ,           0x6FFFFDFBUL,			\
 	"total size of the MOVETAB table")				\
-_ELF_DEFINE_DT(DT_FEATURE_1,        0x6FFFFDFCUL, "feature values")	\
+_ELF_DEFINE_DT(DT_FEATURE,          0x6FFFFDFCUL, "feature values")	\
 _ELF_DEFINE_DT(DT_POSFLAG_1,        0x6FFFFDFDUL,			\
 	"dynamic position flags")					\
 _ELF_DEFINE_DT(DT_SYMINSZ,          0x6FFFFDFEUL,			\
@@ -565,6 +565,7 @@ _ELF_DEFINE_EM(EM_SPARC,            2, "SPARC")				\
 _ELF_DEFINE_EM(EM_386,              3, "Intel 80386")			\
 _ELF_DEFINE_EM(EM_68K,              4, "Motorola 68000")		\
 _ELF_DEFINE_EM(EM_88K,              5, "Motorola 88000")		\
+_ELF_DEFINE_EM(EM_IAMCU,            6, "Intel MCU")			\
 _ELF_DEFINE_EM(EM_860,              7, "Intel 80860")			\
 _ELF_DEFINE_EM(EM_MIPS,             8, "MIPS I Architecture")		\
 _ELF_DEFINE_EM(EM_S370,             9, "IBM System/370 Processor")	\
@@ -812,7 +813,8 @@ _ELF_DEFINE_EM(EM_KM32,             210, "KM211 KM32 32-bit processor") \
 _ELF_DEFINE_EM(EM_KMX32,            211, "KM211 KMX32 32-bit processor") \
 _ELF_DEFINE_EM(EM_KMX16,            212, "KM211 KMX16 16-bit processor") \
 _ELF_DEFINE_EM(EM_KMX8,             213, "KM211 KMX8 8-bit processor")  \
-_ELF_DEFINE_EM(EM_KVARC,            214, "KM211 KMX32 KVARC processor")
+_ELF_DEFINE_EM(EM_KVARC,            214, "KM211 KMX32 KVARC processor") \
+_ELF_DEFINE_EM(EM_RISCV,            243, "RISC-V")
 
 #undef	_ELF_DEFINE_EM
 #define	_ELF_DEFINE_EM(N, V, DESCR)	N = V ,
@@ -1396,6 +1398,12 @@ _ELF_DEFINE_RELOC(R_386_8,		22)	\
 _ELF_DEFINE_RELOC(R_386_PC8,		23)
 
 /*
+ */
+#define	_ELF_DEFINE_AARCH64_RELOCATIONS()		\
+_ELF_DEFINE_RELOC(R_AARCH64_ABS64,		257)	\
+_ELF_DEFINE_RELOC(R_AARCH64_ABS32,		258)	\
+
+/*
  * These are the symbols used in the Sun ``Linkers and Loaders
  * Guide'', Document No: 817-1984-17.  See the X86_64 relocations list
  * below for the spellings used in the ELF specification.
@@ -1948,14 +1956,21 @@ _ELF_DEFINE_RELOC(R_X86_64_TPOFF32,	23)	\
 _ELF_DEFINE_RELOC(R_X86_64_PC64,	24)	\
 _ELF_DEFINE_RELOC(R_X86_64_GOTOFF64,	25)	\
 _ELF_DEFINE_RELOC(R_X86_64_GOTPC32,	26)	\
+_ELF_DEFINE_RELOC(R_X86_64_GOT64,	27)	\
+_ELF_DEFINE_RELOC(R_X86_64_GOTPCREL64,	28)	\
+_ELF_DEFINE_RELOC(R_X86_64_GOTPC64,	29)	\
+_ELF_DEFINE_RELOC(R_X86_64_GOTPLT64,	30)	\
+_ELF_DEFINE_RELOC(R_X86_64_PLTOFF64,	31)	\
 _ELF_DEFINE_RELOC(R_X86_64_SIZE32,	32)	\
 _ELF_DEFINE_RELOC(R_X86_64_SIZE64,	33)	\
 _ELF_DEFINE_RELOC(R_X86_64_GOTPC32_TLSDESC, 34)	\
 _ELF_DEFINE_RELOC(R_X86_64_TLSDESC_CALL, 35)	\
-_ELF_DEFINE_RELOC(R_X86_64_TLSDESC,	36)
+_ELF_DEFINE_RELOC(R_X86_64_TLSDESC,	36)	\
+_ELF_DEFINE_RELOC(R_X86_64_IRELATIVE,	37)
 
 #define	_ELF_DEFINE_RELOCATIONS()		\
 _ELF_DEFINE_386_RELOCATIONS()			\
+_ELF_DEFINE_AARCH64_RELOCATIONS()		\
 _ELF_DEFINE_AMD64_RELOCATIONS()			\
 _ELF_DEFINE_ARM_RELOCATIONS()			\
 _ELF_DEFINE_IA64_RELOCATIONS()			\

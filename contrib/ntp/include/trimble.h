@@ -132,7 +132,7 @@ typedef struct cmd_info
 extern cmd_info_t trimble_rcmds[];
 extern cmd_info_t trimble_scmds[];
 
-extern cmd_info_t *trimble_convert P((unsigned int cmd, cmd_info_t *tbl));
+extern cmd_info_t *trimble_convert (unsigned int cmd, cmd_info_t *tbl);
 
 #endif
 /*

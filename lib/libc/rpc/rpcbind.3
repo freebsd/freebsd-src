@@ -25,7 +25,7 @@
 .Ft bool_t
 .Fn rpcb_gettime "const char *host" "time_t * timep"
 .Ft "enum clnt_stat"
-.Fn rpcb_rmtcall "const struct netconfig *netconf" "const char *host" "const rpcprog_t prognum, const rpcvers_t versnum" "const rpcproc_t procnum, const xdrproc_t inproc" "const caddr_t in" "const xdrproc_t outproc" "const caddr_t out" "const struct timeval tout, const struct netbuf *svcaddr"
+.Fn rpcb_rmtcall "const struct netconfig *netconf" "const char *host" "const rpcprog_t prognum" "const rpcvers_t versnum" "const rpcproc_t procnum" "const xdrproc_t inproc" "const caddr_t in" "const xdrproc_t outproc" "const caddr_t out" "const struct timeval tout" "const struct netbuf *svcaddr"
 .Ft bool_t
 .Fn rpcb_set "const rpcprog_t prognum" "const rpcvers_t versnum" "const struct netconfig *netconf" "const struct netbuf *svcaddr"
 .Ft bool_t

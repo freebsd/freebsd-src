@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef ARM_FRAMEINFO_H
-#define ARM_FRAMEINFO_H
+#ifndef LLVM_LIB_TARGET_ARM_ARMFRAMELOWERING_H
+#define LLVM_LIB_TARGET_ARM_ARMFRAMELOWERING_H
 
 #include "llvm/Target/TargetFrameLowering.h"
 
@@ -30,6 +30,8 @@ public:
   /// the function.
   void emitPrologue(MachineFunction &MF) const override;
   void emitEpilogue(MachineFunction &MF, MachineBasicBlock &MBB) const override;
+
+  void fixTCReturn(MachineFunction &MF, MachineBasicBlock &MBB) const;
 
   bool spillCalleeSavedRegisters(MachineBasicBlock &MBB,
                                  MachineBasicBlock::iterator MI,

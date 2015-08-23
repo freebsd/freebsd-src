@@ -22,8 +22,8 @@
 //===----------------------------------------------------------------------===//
 
 
-#ifndef LLVM_SUPPORT_GENERIC_DOM_TREE_CONSTRUCTION_H
-#define LLVM_SUPPORT_GENERIC_DOM_TREE_CONSTRUCTION_H
+#ifndef LLVM_SUPPORT_GENERICDOMTREECONSTRUCTION_H
+#define LLVM_SUPPORT_GENERICDOMTREECONSTRUCTION_H
 
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/Support/GenericDomTree.h"
@@ -125,7 +125,7 @@ Eval(DominatorTreeBase<typename GraphT::NodeType>& DT,
     typename GraphT::NodeType* VAncestor = DT.Vertex[VInfo.Parent];
 
     // Process Ancestor first
-    if (Visited.insert(VAncestor) && VInfo.Parent >= LastLinked) {
+    if (Visited.insert(VAncestor).second && VInfo.Parent >= LastLinked) {
       Work.push_back(VAncestor);
       continue;
     } 

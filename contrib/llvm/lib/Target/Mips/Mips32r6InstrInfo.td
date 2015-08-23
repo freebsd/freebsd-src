@@ -379,7 +379,6 @@ class JMP_IDX_COMPACT_DESC_BASE<string opstr, DAGOperand opnd,
   list<dag> Pattern = [];
   bit isTerminator = 1;
   bit hasDelaySlot = 0;
-  string DecoderMethod = "DecodeSimm16";
 }
 
 class JIALC_DESC : JMP_IDX_COMPACT_DESC_BASE<"jialc", calloffset16,
@@ -550,6 +549,7 @@ class CACHE_HINT_DESC<string instr_asm, Operand MemOpnd,
   dag InOperandList = (ins MemOpnd:$addr, uimm5:$hint);
   string AsmString = !strconcat(instr_asm, "\t$hint, $addr");
   list<dag> Pattern = [];
+  string DecoderMethod = "DecodeCacheOpR6";
 }
 
 class CACHE_DESC : CACHE_HINT_DESC<"cache", mem_simm9, GPR32Opnd>;
@@ -561,6 +561,7 @@ class COP2LD_DESC_BASE<string instr_asm, RegisterOperand COPOpnd> {
   string AsmString = !strconcat(instr_asm, "\t$rt, $addr");
   list<dag> Pattern = [];
   bit mayLoad = 1;
+  string DecoderMethod = "DecodeFMemCop2R6";
 }
 
 class LDC2_R6_DESC : COP2LD_DESC_BASE<"ldc2", COP2Opnd>;
@@ -572,6 +573,7 @@ class COP2ST_DESC_BASE<string instr_asm, RegisterOperand COPOpnd> {
   string AsmString = !strconcat(instr_asm, "\t$rt, $addr");
   list<dag> Pattern = [];
   bit mayStore = 1;
+  string DecoderMethod = "DecodeFMemCop2R6";
 }
 
 class SDC2_R6_DESC : COP2ST_DESC_BASE<"sdc2", COP2Opnd>;
@@ -756,7 +758,7 @@ def : MipsPat<(setge f32:$lhs, f32:$rhs), (CMP_LT_S f32:$rhs, f32:$lhs)>,
       ISA_MIPS32R6;
 def : MipsPat<(setlt f32:$lhs, f32:$rhs), (CMP_LT_S f32:$lhs, f32:$rhs)>,
       ISA_MIPS32R6;
-def : MipsPat<(setlt f32:$lhs, f32:$rhs), (CMP_LE_S f32:$lhs, f32:$rhs)>,
+def : MipsPat<(setle f32:$lhs, f32:$rhs), (CMP_LE_S f32:$lhs, f32:$rhs)>,
       ISA_MIPS32R6;
 def : MipsPat<(setne f32:$lhs, f32:$rhs),
               (NOR (CMP_EQ_S f32:$lhs, f32:$rhs), ZERO)>, ISA_MIPS32R6;
@@ -776,7 +778,7 @@ def : MipsPat<(setge f64:$lhs, f64:$rhs), (CMP_LT_D f64:$rhs, f64:$lhs)>,
       ISA_MIPS32R6;
 def : MipsPat<(setlt f64:$lhs, f64:$rhs), (CMP_LT_D f64:$lhs, f64:$rhs)>,
       ISA_MIPS32R6;
-def : MipsPat<(setlt f64:$lhs, f64:$rhs), (CMP_LE_D f64:$lhs, f64:$rhs)>,
+def : MipsPat<(setle f64:$lhs, f64:$rhs), (CMP_LE_D f64:$lhs, f64:$rhs)>,
       ISA_MIPS32R6;
 def : MipsPat<(setne f64:$lhs, f64:$rhs),
               (NOR (CMP_EQ_D f64:$lhs, f64:$rhs), ZERO)>, ISA_MIPS32R6;
