@@ -36,6 +36,7 @@
 #include <pwd.h>
 #include <grp.h>
 #include <stdbool.h>
+#include <stringlist.h>
 
 #if defined(__FreeBSD__)
 #define	RET_SETGRENT	int
@@ -58,38 +59,33 @@ struct pwf {
 };
 
 struct userconf {
-	int	default_password;	/* Default password for new users? */
-	int	reuse_uids;		/* Reuse uids? */
-	int	reuse_gids;		/* Reuse gids? */
-	char	*nispasswd;		/* Path to NIS version of the passwd file */
-	char	*dotdir;		/* Where to obtain skeleton files */
-	char	*newmail;		/* Mail to send to new accounts */
-	char	*logfile;		/* Where to log changes */
-	char	*home;			/* Where to create home directory */
-	mode_t	homemode;		/* Home directory permissions */
-	char	*shelldir;		/* Where shells are located */
-	char	**shells;		/* List of shells */
-	char	*shell_default;		/* Default shell */
-	char	*default_group;		/* Default group number */
-	char	**groups;		/* Default (additional) groups */
-	char	*default_class;		/* Default user class */
-	uid_t	min_uid, max_uid;	/* Allowed range of uids */
-	gid_t	min_gid, max_gid;	/* Allowed range of gids */
-	int	expire_days;		/* Days to expiry */
-	int	password_days;		/* Days to password expiry */
-	int	numgroups;		/* (internal) size of default_group array */
+	int		default_password;	/* Default password for new users? */
+	int		reuse_uids;		/* Reuse uids? */
+	int		reuse_gids;		/* Reuse gids? */
+	char		*nispasswd;		/* Path to NIS version of the passwd file */
+	char		*dotdir;		/* Where to obtain skeleton files */
+	char		*newmail;		/* Mail to send to new accounts */
+	char		*logfile;		/* Where to log changes */
+	char		*home;			/* Where to create home directory */
+	mode_t		homemode;		/* Home directory permissions */
+	char		*shelldir;		/* Where shells are located */
+	char		**shells;		/* List of shells */
+	char		*shell_default;		/* Default shell */
+	char		*default_group;		/* Default group number */
+	StringList	*groups;		/* Default (additional) groups */
+	char		*default_class;		/* Default user class */
+	uid_t		min_uid, max_uid;	/* Allowed range of uids */
+	gid_t		min_gid, max_gid;	/* Allowed range of gids */
+	time_t		expire_days;		/* Days to expiry */
+	time_t		password_days;		/* Days to password expiry */
 };
 
 struct pwconf {
 	char		 rootdir[MAXPATHLEN];
 	char		 etcpath[MAXPATHLEN];
-	char		*newname;
-	char		*config;
-	bool		 dryrun;
-	bool		 pretty;
-	bool		 v7;
+	int		 fd;
+	int		 rootfd;
 	bool		 checkduplicate;
-	struct userconf	*userconf;
 };
 
 extern struct pwf PWF;
@@ -148,9 +144,9 @@ struct group * vgetgrnam(const char * nam);
 RET_SETGRENT   vsetgrent(void);
 void           vendgrent(void);
 
-void copymkdir(char const * dir, char const * skel, mode_t mode, uid_t uid, gid_t gid);
-void rm_r(char const * dir, uid_t uid);
-int extendarray(char ***buf, int *buflen, int needed);
+void copymkdir(int rootfd, char const * dir, int skelfd, mode_t mode, uid_t uid,
+    gid_t gid, int flags);
+void rm_r(int rootfd, char const * dir, uid_t uid);
 __END_DECLS
 
 #endif				/* !_PWUPD_H */
