@@ -104,8 +104,9 @@ in_addroute(void *v_arg, void *n_arg, struct radix_node_head *head,
 			rt->rt_mtu = rt->rt_ifp->if_mtu;
 	}
 
-	return (rn_addroute(v_arg, n_arg, head, treenodes));
+	return (rn_addroute(v_arg, n_arg, &head->rh, treenodes));
 }
+
 
 static int _in_rt_was_here;
 /*

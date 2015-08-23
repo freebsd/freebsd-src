@@ -149,7 +149,7 @@ in6_addroute(void *v_arg, void *n_arg, struct radix_node_head *head,
 			rt->rt_mtu = IN6_LINKMTU(rt->rt_ifp);
 	}
 
-	ret = rn_addroute(v_arg, n_arg, head, treenodes);
+	ret = rn_addroute(v_arg, n_arg, &head->rh, treenodes);
 	if (ret == NULL) {
 		struct rtentry *rt2;
 		/*
