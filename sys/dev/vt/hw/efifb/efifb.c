@@ -25,8 +25,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 #include <sys/cdefs.h>
@@ -178,4 +176,3 @@ vt_efifb_remap(void *xinfo)
 	info->fb_vbase = (intptr_t)pmap_mapdev_attr(info->fb_pbase,
 	    info->fb_size, VM_MEMATTR_WRITE_COMBINING);
 }
-

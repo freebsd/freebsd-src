@@ -90,7 +90,7 @@
 #define PAGE_MASK	(PAGE_SIZE-1)
 #define NPTEPG		(PAGE_SIZE/(sizeof (pt_entry_t)))
 
-#ifdef PAE
+#if defined(PAE) || defined(PAE_TABLES)
 #define NPGPTD		4
 #define PDRSHIFT	21		/* LOG2(NBPDR) */
 #define NPGPTD_SHIFT	9
@@ -156,5 +156,8 @@
 #define i386_ptob(x)		((x) << PAGE_SHIFT)
 
 #define	pgtok(x)		((x) * (PAGE_SIZE / 1024))
+
+#define INKERNEL(va)	(((vm_offset_t)(va)) >= VM_MAXUSER_ADDRESS && \
+    ((vm_offset_t)(va)) < VM_MAX_KERNEL_ADDRESS)
 
 #endif /* !_I386_INCLUDE_PARAM_H_ */

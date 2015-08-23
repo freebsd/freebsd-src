@@ -46,7 +46,7 @@ fdt_pinctrl_configure(device_t client, u_int index)
 	char name[16];
 
 	snprintf(name, sizeof(name), "pinctrl-%u", index);
-	nconfigs = OF_getprop_alloc(ofw_bus_get_node(client), name,
+	nconfigs = OF_getencprop_alloc(ofw_bus_get_node(client), name,
 	    sizeof(*configs), (void **)&configs);
 	if (nconfigs < 0)
 		return (ENOENT);
@@ -122,12 +122,12 @@ pinctrl_configure_children(device_t pinctrl, phandle_t parent)
 		if (!fdt_is_enabled(node))
 			continue;
 		pinctrl_configure_children(pinctrl, node);
-		nconfigs = OF_getencprop_alloc(node, "pinctrl-0", 
+		nconfigs = OF_getencprop_alloc(node, "pinctrl-0",
 		    sizeof(*configs), (void **)&configs);
 		if (nconfigs <= 0)
 			continue;
 		if (bootverbose) {
-			char name[32]; 
+			char name[32];
 			OF_getprop(node, "name", &name, sizeof(name));
 			printf("Processing %d pin-config node(s) in pinctrl-0 for %s\n",
 			    nconfigs, name);

@@ -30,7 +30,7 @@
 #define CXGB_TOEPCB_H_
 #include <sys/bus.h>
 #include <sys/condvar.h>
-#include <sys/mbufq.h>
+#include <sys/limits.h>
 
 #define TP_DATASENT         	(1 << 0)
 #define TP_TX_WAIT_IDLE      	(1 << 1)
@@ -64,26 +64,26 @@ struct toepcb {
 	struct inpcb 		*tp_inp;
 	struct mbuf		*tp_m_last;
 
-	struct mbuf_head 	wr_list;
-	struct mbuf_head 	out_of_order_queue;
+	struct mbufq 		wr_list;
+	struct mbufq 		out_of_order_queue;
 };
 
 static inline void
 reset_wr_list(struct toepcb *toep)
 {
-	mbufq_init(&toep->wr_list);
+	mbufq_init(&toep->wr_list, INT_MAX);	/* XXX: sane limit needed */
 }
 
 static inline void
 enqueue_wr(struct toepcb *toep, struct mbuf *m)
 {
-	mbufq_tail(&toep->wr_list, m);
+	(void )mbufq_enqueue(&toep->wr_list, m);
 }
 
 static inline struct mbuf *
 peek_wr(const struct toepcb *toep)
 {
-	return (mbufq_peek(&toep->wr_list));
+	return (mbufq_first(&toep->wr_list));
 }
 
 static inline struct mbuf *

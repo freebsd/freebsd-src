@@ -583,6 +583,8 @@ sdhci_init_slot(device_t dev, struct sdhci_slot *slot, int num)
 		    "support voltages.\n");
 	}
 	slot->host.caps = MMC_CAP_4_BIT_DATA;
+	if (caps & SDHCI_CAN_DO_8BITBUS)
+		slot->host.caps |= MMC_CAP_8_BIT_DATA;
 	if (caps & SDHCI_CAN_DO_HISPD)
 		slot->host.caps |= MMC_CAP_HSPEED;
 	/* Decide if we have usable DMA. */
@@ -602,19 +604,27 @@ sdhci_init_slot(device_t dev, struct sdhci_slot *slot, int num)
 		slot->opt &= ~SDHCI_HAVE_DMA;
 
 	if (bootverbose || sdhci_debug) {
-		slot_printf(slot, "%uMHz%s 4bits%s%s%s %s\n",
+		slot_printf(slot, "%uMHz%s %s%s%s%s %s\n",
 		    slot->max_clk / 1000000,
 		    (caps & SDHCI_CAN_DO_HISPD) ? " HS" : "",
+		    (caps & MMC_CAP_8_BIT_DATA) ? "8bits" :
+			((caps & MMC_CAP_4_BIT_DATA) ? "4bits" : "1bit"),
 		    (caps & SDHCI_CAN_VDD_330) ? " 3.3V" : "",
 		    (caps & SDHCI_CAN_VDD_300) ? " 3.0V" : "",
 		    (caps & SDHCI_CAN_VDD_180) ? " 1.8V" : "",
 		    (slot->opt & SDHCI_HAVE_DMA) ? "DMA" : "PIO");
 		sdhci_dumpregs(slot);
 	}
-	
+
+	slot->timeout = 10;
+	SYSCTL_ADD_INT(device_get_sysctl_ctx(slot->bus),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(slot->bus)), OID_AUTO,
+	    "timeout", CTLFLAG_RW, &slot->timeout, 0,
+	    "Maximum timeout for SDHCI transfers (in secs)");
 	TASK_INIT(&slot->card_task, 0, sdhci_card_task, slot);
 	callout_init(&slot->card_callout, 1);
 	callout_init_mtx(&slot->timeout_callout, &slot->mtx, 0);
+
 	return (0);
 }
 
@@ -691,12 +701,21 @@ sdhci_generic_update_ios(device_t brdev, device_t reqdev)
 	}
 	/* Configure the bus. */
 	sdhci_set_clock(slot, ios->clock);
-	sdhci_set_power(slot, (ios->power_mode == power_off)?0:ios->vdd);
-	if (ios->bus_width == bus_width_4)
-		slot->hostctrl |= SDHCI_CTRL_4BITBUS;
-	else
+	sdhci_set_power(slot, (ios->power_mode == power_off) ? 0 : ios->vdd);
+	if (ios->bus_width == bus_width_8) {
+		slot->hostctrl |= SDHCI_CTRL_8BITBUS;
 		slot->hostctrl &= ~SDHCI_CTRL_4BITBUS;
-	if (ios->timing == bus_timing_hs)
+	} else if (ios->bus_width == bus_width_4) {
+		slot->hostctrl &= ~SDHCI_CTRL_8BITBUS;
+		slot->hostctrl |= SDHCI_CTRL_4BITBUS;
+	} else if (ios->bus_width == bus_width_1) {
+		slot->hostctrl &= ~SDHCI_CTRL_8BITBUS;
+		slot->hostctrl &= ~SDHCI_CTRL_4BITBUS;
+	} else {
+		panic("Invalid bus width: %d", ios->bus_width);
+	}
+	if (ios->timing == bus_timing_hs && 
+	    !(slot->quirks & SDHCI_QUIRK_DONT_SET_HISPD_BIT))
 		slot->hostctrl |= SDHCI_CTRL_HISPD;
 	else
 		slot->hostctrl &= ~SDHCI_CTRL_HISPD;
@@ -859,7 +878,8 @@ sdhci_start_command(struct sdhci_slot *slot, struct mmc_command *cmd)
 	/* Start command. */
 	WR2(slot, SDHCI_COMMAND_FLAGS, (cmd->opcode << 8) | (flags & 0xff));
 	/* Start timeout callout. */
-	callout_reset(&slot->timeout_callout, 2*hz, sdhci_timeout, slot);
+	callout_reset(&slot->timeout_callout, slot->timeout * hz,
+	    sdhci_timeout, slot);
 }
 
 static void
@@ -984,7 +1004,6 @@ sdhci_finish_data(struct sdhci_slot *slot)
 {
 	struct mmc_data *data = slot->curcmd->data;
 
-	slot->data_done = 1;
 	/* Interrupt aggregation: Restore command interrupt.
 	 * Auxiliary restore point for the case when data interrupt
 	 * happened first. */
@@ -993,7 +1012,7 @@ sdhci_finish_data(struct sdhci_slot *slot)
 		    slot->intmask |= SDHCI_INT_RESPONSE);
 	}
 	/* Unload rest of data from DMA buffer. */
-	if (slot->flags & SDHCI_USE_DMA) {
+	if (!slot->data_done && (slot->flags & SDHCI_USE_DMA)) {
 		if (data->flags & MMC_DATA_READ) {
 			size_t left = data->len - slot->offset;
 			bus_dmamap_sync(slot->dmatag, slot->dmamap, 
@@ -1004,6 +1023,7 @@ sdhci_finish_data(struct sdhci_slot *slot)
 			bus_dmamap_sync(slot->dmatag, slot->dmamap, 
 			    BUS_DMASYNC_POSTWRITE);
 	}
+	slot->data_done = 1;
 	/* If there was error - reset the host. */
 	if (slot->curcmd->error) {
 		sdhci_reset(slot, SDHCI_RESET_CMD);
@@ -1171,12 +1191,7 @@ sdhci_data_irq(struct sdhci_slot *slot, uint32_t intmask)
 	}
 	if (slot->curcmd->error) {
 		/* No need to continue after any error. */
-		if (slot->flags & PLATFORM_DATA_STARTED) {
-			slot->flags &= ~PLATFORM_DATA_STARTED;
-			SDHCI_PLATFORM_FINISH_TRANSFER(slot->bus, slot);
-		} else
-			sdhci_finish_data(slot);
-		return;
+		goto done;
 	}
 
 	/* Handle PIO interrupt. */
@@ -1232,6 +1247,15 @@ sdhci_data_irq(struct sdhci_slot *slot, uint32_t intmask)
 			SDHCI_PLATFORM_FINISH_TRANSFER(slot->bus, slot);
 		} else
 			sdhci_finish_data(slot);
+	}
+done:
+	if (slot->curcmd != NULL && slot->curcmd->error != 0) {
+		if (slot->flags & PLATFORM_DATA_STARTED) {
+			slot->flags &= ~PLATFORM_DATA_STARTED;
+			SDHCI_PLATFORM_FINISH_TRANSFER(slot->bus, slot);
+		} else
+			sdhci_finish_data(slot);
+		return;
 	}
 }
 

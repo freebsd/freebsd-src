@@ -260,7 +260,7 @@ struct lagg_port {
 	/* Redirected callbacks */
 	int	(*lp_ioctl)(struct ifnet *, u_long, caddr_t);
 	int	(*lp_output)(struct ifnet *, struct mbuf *,
-		     const struct sockaddr *, struct nhop_info *);
+		     const struct sockaddr *, struct route *);
 	struct lagg_counters		port_counters;	/* ifp counters copy */
 
 	SLIST_ENTRY(lagg_port)		lp_entries;
@@ -279,7 +279,6 @@ extern struct mbuf *(*lagg_input_p)(struct ifnet *, struct mbuf *);
 extern void	(*lagg_linkstate_p)(struct ifnet *, int );
 
 int		lagg_enqueue(struct ifnet *, struct mbuf *);
-uint32_t	lagg_hashmbuf(struct lagg_softc *, struct mbuf *, uint32_t);
 
 SYSCTL_DECL(_net_link_lagg);
 

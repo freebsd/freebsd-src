@@ -339,7 +339,7 @@ p6_pcpu_init(struct pmc_mdep *md, int cpu)
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[p6,%d] bad cpu %d", __LINE__, cpu));
 
-	PMCDBG(MDP,INI,0,"p6-init cpu=%d", cpu);
+	PMCDBG1(MDP,INI,0,"p6-init cpu=%d", cpu);
 
 	p6c = malloc(sizeof (struct p6_cpu), M_PMC, M_WAITOK|M_ZERO);
 	pc = pmc_pcpu[cpu];
@@ -371,7 +371,7 @@ p6_pcpu_fini(struct pmc_mdep *md, int cpu)
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[p6,%d] bad cpu %d", __LINE__, cpu));
 
-	PMCDBG(MDP,INI,0,"p6-cleanup cpu=%d", cpu);
+	PMCDBG1(MDP,INI,0,"p6-cleanup cpu=%d", cpu);
 
 	p6c = p6_pcpu[cpu];
 	p6_pcpu[cpu] = NULL;
@@ -412,7 +412,7 @@ p6_read_pmc(int cpu, int ri, pmc_value_t *v)
 	else
 		*v = tmp;
 
-	PMCDBG(MDP,REA,1, "p6-read cpu=%d ri=%d msr=0x%x -> v=%jx", cpu, ri,
+	PMCDBG4(MDP,REA,1, "p6-read cpu=%d ri=%d msr=0x%x -> v=%jx", cpu, ri,
 	    pd->pm_pmc_msr, *v);
 
 	return (0);
@@ -435,7 +435,7 @@ p6_write_pmc(int cpu, int ri, pmc_value_t v)
 	KASSERT(pm,
 	    ("[p6,%d] cpu %d ri %d pmc not configured", __LINE__, cpu, ri));
 
-	PMCDBG(MDP,WRI,1, "p6-write cpu=%d ri=%d msr=0x%x v=%jx", cpu, ri,
+	PMCDBG4(MDP,WRI,1, "p6-write cpu=%d ri=%d msr=0x%x v=%jx", cpu, ri,
 	    pd->pm_pmc_msr, v);
 
 	if (PMC_IS_SAMPLING_MODE(PMC_TO_MODE(pm)))
@@ -455,7 +455,7 @@ p6_config_pmc(int cpu, int ri, struct pmc *pm)
 	KASSERT(ri >= 0 && ri < P6_NPMCS,
 	    ("[p6,%d] illegal row-index %d", __LINE__, ri));
 
-	PMCDBG(MDP,CFG,1, "p6-config cpu=%d ri=%d pm=%p", cpu, ri, pm);
+	PMCDBG3(MDP,CFG,1, "p6-config cpu=%d ri=%d pm=%p", cpu, ri, pm);
 
 	KASSERT(p6_pcpu[cpu] != NULL, ("[p6,%d] null per-cpu %d", __LINE__,
 	    cpu));
@@ -508,7 +508,7 @@ p6_allocate_pmc(int cpu, int ri, struct pmc *pm,
 
 	pd = &p6_pmcdesc[ri];
 
-	PMCDBG(MDP,ALL,1, "p6-allocate ri=%d class=%d pmccaps=0x%x "
+	PMCDBG4(MDP,ALL,1, "p6-allocate ri=%d class=%d pmccaps=0x%x "
 	    "reqcaps=0x%x", ri, pd->pm_descr.pd_class, pd->pm_descr.pd_caps,
 	    pm->pm_caps);
 
@@ -579,7 +579,7 @@ p6_allocate_pmc(int cpu, int ri, struct pmc *pm,
 
 	pm->pm_md.pm_ppro.pm_ppro_evsel = config;
 
-	PMCDBG(MDP,ALL,2, "p6-allocate config=0x%x", config);
+	PMCDBG1(MDP,ALL,2, "p6-allocate config=0x%x", config);
 
 	return (0);
 }
@@ -589,7 +589,7 @@ p6_release_pmc(int cpu, int ri, struct pmc *pm)
 {
 	(void) pm;
 
-	PMCDBG(MDP,REL,1, "p6-release cpu=%d ri=%d pm=%p", cpu, ri, pm);
+	PMCDBG3(MDP,REL,1, "p6-release cpu=%d ri=%d pm=%p", cpu, ri, pm);
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[p6,%d] illegal CPU value %d", __LINE__, cpu));
@@ -623,11 +623,11 @@ p6_start_pmc(int cpu, int ri)
 	    ("[p6,%d] starting cpu%d,ri%d with no pmc configured",
 		__LINE__, cpu, ri));
 
-	PMCDBG(MDP,STA,1, "p6-start cpu=%d ri=%d", cpu, ri);
+	PMCDBG2(MDP,STA,1, "p6-start cpu=%d ri=%d", cpu, ri);
 
 	config = pm->pm_md.pm_ppro.pm_ppro_evsel;
 
-	PMCDBG(MDP,STA,2, "p6-start/2 cpu=%d ri=%d evselmsr=0x%x config=0x%x",
+	PMCDBG4(MDP,STA,2, "p6-start/2 cpu=%d ri=%d evselmsr=0x%x config=0x%x",
 	    cpu, ri, pd->pm_evsel_msr, config);
 
 	P6_MARK_STARTED(pc, ri);
@@ -658,14 +658,14 @@ p6_stop_pmc(int cpu, int ri)
 	    ("[p6,%d] cpu%d ri%d no configured PMC to stop", __LINE__,
 		cpu, ri));
 
-	PMCDBG(MDP,STO,1, "p6-stop cpu=%d ri=%d", cpu, ri);
+	PMCDBG2(MDP,STO,1, "p6-stop cpu=%d ri=%d", cpu, ri);
 
 	wrmsr(pd->pm_evsel_msr, 0);	/* stop hw */
 	P6_MARK_STOPPED(pc, ri);	/* update software state */
 
 	P6_SYNC_CTR_STATE(pc);		/* restart CTR1 if need be */
 
-	PMCDBG(MDP,STO,2, "p6-stop/2 cpu=%d ri=%d", cpu, ri);
+	PMCDBG2(MDP,STO,2, "p6-stop/2 cpu=%d ri=%d", cpu, ri);
 
 	return (0);
 }
@@ -788,7 +788,7 @@ pmc_p6_initialize(struct pmc_mdep *md, int ncpus)
 	KASSERT(cpu_vendor_id == CPU_VENDOR_INTEL,
 	    ("[p6,%d] Initializing non-intel processor", __LINE__));
 
-	PMCDBG(MDP,INI,1, "%s", "p6-initialize");
+	PMCDBG0(MDP,INI,1, "p6-initialize");
 
 	/* Allocate space for pointers to per-cpu descriptors. */
 	p6_pcpu = malloc(sizeof(struct p6_cpu **) * ncpus, M_PMC,

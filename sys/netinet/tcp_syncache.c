@@ -1569,7 +1569,7 @@ syncache_respond(struct syncache *sc, struct syncache_head *sch, int locked)
 			return (error);
 		}
 #endif
-		error = ip6_output(m, NULL, NULL, 0, NULL, NULL);
+		error = ip6_output(m, NULL, NULL, 0, NULL, NULL, NULL);
 	}
 #endif
 #if defined(INET6) && defined(INET)
@@ -1742,6 +1742,7 @@ syncookie_mac(struct in_conninfo *inc, tcp_seq irs, uint8_t flags,
 	}
 	SipHash_Update(&ctx, &inc->inc_fport, sizeof(inc->inc_fport));
 	SipHash_Update(&ctx, &inc->inc_lport, sizeof(inc->inc_lport));
+	SipHash_Update(&ctx, &irs, sizeof(irs));
 	SipHash_Update(&ctx, &flags, sizeof(flags));
 	SipHash_Update(&ctx, &secmod, sizeof(secmod));
 	SipHash_Final((u_int8_t *)&siphash, &ctx);

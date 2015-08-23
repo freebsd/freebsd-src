@@ -881,6 +881,7 @@ ath_hal_getdiagstate(struct ath_hal *ah, int request,
 	const void *args, uint32_t argsize,
 	void **result, uint32_t *resultsize)
 {
+
 	switch (request) {
 	case HAL_DIAG_REVS:
 		*result = &AH_PRIVATE(ah)->ah_devid;
@@ -937,6 +938,10 @@ ath_hal_getdiagstate(struct ath_hal *ah, int request,
 			AH_PRIVATE(ah)->ah_11nCompat = *(const uint32_t *)args;
 		} else
 			return AH_FALSE;
+		return AH_TRUE;
+	case HAL_DIAG_CHANSURVEY:
+		*result = &AH_PRIVATE(ah)->ah_chansurvey;
+		*resultsize = sizeof(HAL_CHANNEL_SURVEY);
 		return AH_TRUE;
 	}
 	return AH_FALSE;
@@ -1432,4 +1437,33 @@ ath_hal_mhz2ieee_2ghz(struct ath_hal *ah, HAL_CHANNEL_INTERNAL *ichan)
 		return ((int) ichan->channel - 2407) / 5;
 	else
 		return 15 + ((ichan->channel - 2512) / 20);
+}
+
+/*
+ * Clear the current survey data.
+ *
+ * This should be done during a channel change.
+ */
+void
+ath_hal_survey_clear(struct ath_hal *ah)
+{
+
+	OS_MEMZERO(&AH_PRIVATE(ah)->ah_chansurvey,
+	    sizeof(AH_PRIVATE(ah)->ah_chansurvey));
+}
+
+/*
+ * Add a sample to the channel survey.
+ */
+void
+ath_hal_survey_add_sample(struct ath_hal *ah, HAL_SURVEY_SAMPLE *hs)
+{
+	HAL_CHANNEL_SURVEY *cs;
+
+	cs = &AH_PRIVATE(ah)->ah_chansurvey;
+
+	OS_MEMCPY(&cs->samples[cs->cur_sample], hs, sizeof(*hs));
+	cs->samples[cs->cur_sample].seq_num = cs->cur_seq;
+	cs->cur_sample = (cs->cur_sample + 1) % CHANNEL_SURVEY_SAMPLE_COUNT;
+	cs->cur_seq++;
 }

@@ -212,7 +212,7 @@ sbused(struct sockbuf *sb)
 static inline long
 sbspace(struct sockbuf *sb)
 {
-	long bleft, mleft;
+	int bleft, mleft;		/* size should match sockbuf fields */
 
 #if 0
 	SOCKBUF_LOCK_ASSERT(sb);

@@ -29,6 +29,7 @@
 #ifndef _LINUX_KREF_H_
 #define _LINUX_KREF_H_
 
+#include <sys/types.h>
 #include <sys/refcount.h>
 
 struct kref {

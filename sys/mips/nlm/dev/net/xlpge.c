@@ -12,7 +12,7 @@
  *    notice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY BROADCOM ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -108,7 +108,7 @@ __FBSDID("$FreeBSD$");
 static struct nae_port_config nae_port_config[64];
 
 int poe_cl_tbl[MAX_POE_CLASSES] = {
-	0x0, 0x249249, 
+	0x0, 0x249249,
 	0x492492, 0x6db6db,
 	0x924924, 0xb6db6d,
 	0xdb6db6, 0xffffff
@@ -116,7 +116,7 @@ int poe_cl_tbl[MAX_POE_CLASSES] = {
 
 /* #define DUMP_PACKET */
 
-static uint64_t 
+static uint64_t
 nlm_paddr_ld(uint64_t paddr)
 {
 	uint64_t xkaddr = 0x9800000000000000 | paddr;
@@ -189,7 +189,7 @@ static device_method_t nlm_xlpge_methods[] = {
 	DEVMETHOD(device_resume,	nlm_xlpge_resume),
 	DEVMETHOD(device_shutdown,	nlm_xlpge_shutdown),
 
-	/* Methods from the nexus bus needed for explicitly 
+	/* Methods from the nexus bus needed for explicitly
 	 * probing children when driver is loaded as a kernel module
 	 */
 	DEVMETHOD(miibus_readreg,	nlm_xlpge_mii_read),
@@ -240,7 +240,7 @@ atomic_incr_long(unsigned long *addr)
 /*
  * xlpnae driver implementation
  */
-static int 
+static int
 nlm_xlpnae_probe(device_t dev)
 {
 	if (pci_get_vendor(dev) != PCI_VENDOR_NETLOGIC ||
@@ -539,7 +539,7 @@ nlm_setup_portcfg(struct nlm_xlpnae_softc *sc, struct xlp_nae_ivars *naep,
 	sc->total_num_ports++;
 }
 
-static int 
+static int
 nlm_xlpnae_attach(device_t dev)
 {
 	struct xlp_nae_ivars	*nae_ivars;
@@ -566,14 +566,14 @@ nlm_xlpnae_attach(device_t dev)
 	sc->sgmiimask = nae_ivars->sgmiimask;
 	sc->nblocks = nae_ivars->nblocks;
 	sc->freq = nae_ivars->freq;
-	
-	/* flow table generation is done by CRC16 polynomial */
-	sc->flow_crc_poly = nae_ivars->flow_crc_poly; 
 
-	sc->hw_parser_en = nae_ivars->hw_parser_en; 
-	sc->prepad_en = nae_ivars->prepad_en; 
-	sc->prepad_size = nae_ivars->prepad_size; 
-	sc->ieee_1588_en = nae_ivars->ieee_1588_en; 
+	/* flow table generation is done by CRC16 polynomial */
+	sc->flow_crc_poly = nae_ivars->flow_crc_poly;
+
+	sc->hw_parser_en = nae_ivars->hw_parser_en;
+	sc->prepad_en = nae_ivars->prepad_en;
+	sc->prepad_size = nae_ivars->prepad_size;
+	sc->ieee_1588_en = nae_ivars->ieee_1588_en;
 
 	nae_pcibase = nlm_get_nae_pcibase(sc->node);
 	sc->ncontexts = nlm_read_reg(nae_pcibase, XLP_PCI_DEVINFO_REG5);
@@ -692,26 +692,26 @@ nlm_xlpnae_attach(device_t dev)
 	return (0);
 }
 
-static int 
+static int
 nlm_xlpnae_detach(device_t dev)
 {
 	/*  TODO - free zone here */
 	return (0);
 }
 
-static int 
+static int
 nlm_xlpnae_suspend(device_t dev)
 {
 	return (0);
 }
 
-static int 
+static int
 nlm_xlpnae_resume(device_t dev)
 {
 	return (0);
 }
 
-static int 
+static int
 nlm_xlpnae_shutdown(device_t dev)
 {
 	return (0);
@@ -745,13 +745,13 @@ nlm_xlpge_mac_set_rx_mode(struct nlm_xlpge_softc *sc)
 	}
 }
 
-static int 
+static int
 nlm_xlpge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 {
 	struct mii_data		*mii;
 	struct nlm_xlpge_softc	*sc;
 	struct ifreq		*ifr;
-	int 			error;
+	int			error;
 
 	sc = ifp->if_softc;
 	error = 0;
@@ -819,7 +819,7 @@ xlpge_tx(struct ifnet *ifp, struct mbuf *mbuf_chain)
 	xlp_handle_msg_vc(1 << XLPGE_FB_VC, 2);
 
 	/* vfb id table is setup to map cpu to vc 3 of the cpu */
-	fbid = nlm_cpuid(); 
+	fbid = nlm_cpuid();
 	dst = sc->txq;
 
 	pos = 0;
@@ -943,7 +943,7 @@ nlm_mii_pollstat(void *arg)
 
 		mii_pollstat(mii);
 
-		callout_reset(&sc->xlpge_callout, hz, 
+		callout_reset(&sc->xlpge_callout, hz,
 		    nlm_mii_pollstat, sc);
 	}
 }
@@ -1033,7 +1033,7 @@ xlpge_mediastatus(struct ifnet *ifp, struct ifmediareq *ifmr)
 	ifmr->ifm_status |= IFM_ACTIVE;
 }
 
-static int 
+static int
 nlm_xlpge_ifinit(struct nlm_xlpge_softc *sc)
 {
 	struct ifnet *ifp;
@@ -1079,7 +1079,7 @@ nlm_xlpge_ifinit(struct nlm_xlpge_softc *sc)
 	return (0);
 }
 
-static int 
+static int
 nlm_xlpge_probe(device_t dev)
 {
 	return (BUS_PROBE_DEFAULT);
@@ -1159,7 +1159,7 @@ nlm_xlpge_setup_stats_sysctl(device_t dev, struct nlm_xlpge_softc *sc)
 	child = SYSCTL_CHILDREN(tree);
 
 #define XLPGE_STAT(name, offset, desc) \
-	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, name, 	\
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, name,	\
 	    CTLTYPE_UINT | CTLFLAG_RD, sc, offset,	\
 	    xlpge_stats_sysctl, "IU", desc)
 
@@ -1208,7 +1208,7 @@ nlm_xlpge_setup_stats_sysctl(device_t dev, struct nlm_xlpge_softc *sc)
 #undef XLPGE_STAT
 }
 
-static int 
+static int
 nlm_xlpge_attach(device_t dev)
 {
 	struct xlp_port_ivars *pv;
@@ -1240,7 +1240,7 @@ nlm_xlpge_attach(device_t dev)
 	sc->prepad_en = sc->network_sc->prepad_en;
 	sc->prepad_size = sc->network_sc->prepad_size;
 
-	callout_init(&sc->xlpge_callout, CALLOUT_MPSAFE);
+	callout_init(&sc->xlpge_callout, 1);
 
 	XLPGE_LOCK_INIT(sc, device_get_nameunit(dev));
 
@@ -1263,25 +1263,25 @@ nlm_xlpge_attach(device_t dev)
 	return (0);
 }
 
-static int 
+static int
 nlm_xlpge_detach(device_t dev)
 {
 	return (0);
 }
 
-static int 
+static int
 nlm_xlpge_suspend(device_t dev)
 {
 	return (0);
 }
 
-static int 
+static int
 nlm_xlpge_resume(device_t dev)
 {
 	return (0);
 }
 
-static int 
+static int
 nlm_xlpge_shutdown(device_t dev)
 {
 	return (0);
@@ -1290,14 +1290,14 @@ nlm_xlpge_shutdown(device_t dev)
 /*
  * miibus function with custom implementation
  */
-static int 
+static int
 nlm_xlpge_mii_read(struct device *dev, int phyaddr, int regidx)
 {
 	struct nlm_xlpge_softc *sc;
 	int val;
 
 	sc = device_get_softc(dev);
-	if (sc->type == SGMIIC) 
+	if (sc->type == SGMIIC)
 		val = nlm_gmac_mdio_read(sc->base_addr, sc->mdio_bus,
 		    BLOCK_7, LANE_CFG, phyaddr, regidx);
 	else
@@ -1306,7 +1306,7 @@ nlm_xlpge_mii_read(struct device *dev, int phyaddr, int regidx)
 	return (val);
 }
 
-static int 
+static int
 nlm_xlpge_mii_write(struct device *dev, int phyaddr, int regidx, int val)
 {
 	struct nlm_xlpge_softc *sc;
@@ -1319,7 +1319,7 @@ nlm_xlpge_mii_write(struct device *dev, int phyaddr, int regidx, int val)
 	return (0);
 }
 
-static void 
+static void
 nlm_xlpge_mii_statchg(device_t dev)
 {
 	struct nlm_xlpge_softc *sc;

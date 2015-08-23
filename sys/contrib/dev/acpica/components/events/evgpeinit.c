@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2014, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -395,7 +395,7 @@ AcpiEvMatchGpeMethod (
 
     /* 4) The last two characters of the name are the hex GPE Number */
 
-    GpeNumber = ACPI_STRTOUL (&Name[2], NULL, 16);
+    GpeNumber = strtoul (&Name[2], NULL, 16);
     if (GpeNumber == ACPI_UINT32_MAX)
     {
         /* Conversion failed; invalid method, just ignore it */
@@ -419,15 +419,17 @@ AcpiEvMatchGpeMethod (
         return_ACPI_STATUS (AE_OK);
     }
 
-    if ((GpeEventInfo->Flags & ACPI_GPE_DISPATCH_MASK) ==
-            ACPI_GPE_DISPATCH_HANDLER)
+    if ((ACPI_GPE_DISPATCH_TYPE (GpeEventInfo->Flags) ==
+            ACPI_GPE_DISPATCH_HANDLER) ||
+        (ACPI_GPE_DISPATCH_TYPE (GpeEventInfo->Flags) ==
+            ACPI_GPE_DISPATCH_RAW_HANDLER))
     {
         /* If there is already a handler, ignore this GPE method */
 
         return_ACPI_STATUS (AE_OK);
     }
 
-    if ((GpeEventInfo->Flags & ACPI_GPE_DISPATCH_MASK) ==
+    if (ACPI_GPE_DISPATCH_TYPE (GpeEventInfo->Flags) ==
             ACPI_GPE_DISPATCH_METHOD)
     {
         /*

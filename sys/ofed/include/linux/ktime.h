@@ -288,4 +288,13 @@ static inline s64 ktime_to_ns(const ktime_t kt)
 
 #endif	/* !((BITS_PER_LONG == 64) || defined(CONFIG_KTIME_SCALAR)) */
 
+static inline s64 ktime_get_ns(void)
+{
+	struct timespec ts;
+	ktime_t kt;
+	ktime_get_ts(&ts);
+	kt = timespec_to_ktime(ts);
+	return (ktime_to_ns(kt));
+}
+
 #endif	/* _LINUX_KTIME_H */

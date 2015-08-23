@@ -36,11 +36,14 @@ __FBSDID("$FreeBSD$");
 typedef u_int		atomic_t;
 typedef uint64_t	atomic64_t;
 
-#define	BITS_PER_LONG			(sizeof(long) * NBBY)
-#define	BITS_TO_LONGS(x)		howmany(x, BITS_PER_LONG)
+#define	NB_BITS_PER_LONG		(sizeof(long) * NBBY)
+#define	BITS_TO_LONGS(x)		howmany(x, NB_BITS_PER_LONG)
 
 #define	atomic_read(p)			(*(volatile u_int *)(p))
 #define	atomic_set(p, v)		do { *(u_int *)(p) = (v); } while (0)
+
+#define	atomic64_read(p)		atomic_load_acq_64(p)
+#define	atomic64_set(p, v)		atomic_store_rel_64(p, v)
 
 #define	atomic_add(v, p)		atomic_add_int(p, v)
 #define	atomic_sub(v, p)		atomic_subtract_int(p, v)
@@ -60,8 +63,8 @@ typedef uint64_t	atomic64_t;
 #define	atomic_xchg(p, v)		atomic_swap_int(p, v)
 #define	atomic64_xchg(p, v)		atomic_swap_64(p, v)
 
-#define	__bit_word(b)			((b) / BITS_PER_LONG)
-#define	__bit_mask(b)			(1UL << (b) % BITS_PER_LONG)
+#define	__bit_word(b)			((b) / NB_BITS_PER_LONG)
+#define	__bit_mask(b)			(1UL << (b) % NB_BITS_PER_LONG)
 #define	__bit_addr(p, b)		((volatile u_long *)(p) + __bit_word(b))
 
 #define	clear_bit(b, p) \
@@ -70,17 +73,21 @@ typedef uint64_t	atomic64_t;
     atomic_set_long(__bit_addr(p, b), __bit_mask(b))
 #define	test_bit(b, p) \
     ((*__bit_addr(p, b) & __bit_mask(b)) != 0)
+#define	test_and_set_bit(b, p) \
+    (atomic_xchg((p), 1) != b)
+#define	cmpxchg(ptr, old, new) \
+    (atomic_cmpset_int((volatile u_int *)(ptr),(old),(new)) ? (old) : (0))
 
 static __inline u_long
 find_first_zero_bit(const u_long *p, u_long max)
 {
 	u_long i, n;
 
-	KASSERT(max % BITS_PER_LONG == 0, ("invalid bitmap size %lu", max));
-	for (i = 0; i < max / BITS_PER_LONG; i++) {
+	KASSERT(max % NB_BITS_PER_LONG == 0, ("invalid bitmap size %lu", max));
+	for (i = 0; i < max / NB_BITS_PER_LONG; i++) {
 		n = ~p[i];
 		if (n != 0)
-			return (i * BITS_PER_LONG + ffsl(n) - 1);
+			return (i * NB_BITS_PER_LONG + ffsl(n) - 1);
 	}
 	return (max);
 }

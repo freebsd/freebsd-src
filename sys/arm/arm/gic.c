@@ -98,6 +98,10 @@ __FBSDID("$FreeBSD$");
 #define GICD_ICFGR_TRIG_EDGE	(1 << 1)
 #define GICD_ICFGR_TRIG_MASK	0x2
 
+#ifndef	GIC_DEFAULT_ICFGR_INIT
+#define	GIC_DEFAULT_ICFGR_INIT	0x00000000
+#endif
+
 struct arm_gic_softc {
 	device_t		gic_dev;
 	struct resource *	gic_res[3];
@@ -155,10 +159,10 @@ arm_gic_probe(device_t dev)
 	return (BUS_PROBE_DEFAULT);
 }
 
-void
-gic_init_secondary(void)
+static void
+arm_gic_init_secondary(device_t dev)
 {
-	struct arm_gic_softc *sc = arm_gic_sc;
+	struct arm_gic_softc *sc = device_get_softc(dev);
 	int i;
 
 	for (i = 0; i < sc->nirqs; i += 4)
@@ -193,8 +197,8 @@ gic_decode_fdt(uint32_t iparent, uint32_t *intr, int *interrupt,
 	static u_int num_intr_cells;
 
 	if (num_intr_cells == 0) {
-		if (OF_searchencprop(OF_node_from_xref(iparent), 
-		    "#interrupt-cells", &num_intr_cells, 
+		if (OF_searchencprop(OF_node_from_xref(iparent),
+		    "#interrupt-cells", &num_intr_cells,
 		    sizeof(num_intr_cells)) == -1) {
 			num_intr_cells = 1;
 		}
@@ -205,7 +209,7 @@ gic_decode_fdt(uint32_t iparent, uint32_t *intr, int *interrupt,
 		*trig = INTR_TRIGGER_CONFORM;
 		*pol = INTR_POLARITY_CONFORM;
 	} else {
-		if (intr[0] == 0)
+		if (fdt32_to_cpu(intr[0]) == 0)
 			*interrupt = fdt32_to_cpu(intr[1]) + GIC_FIRST_SPI;
 		else
 			*interrupt = fdt32_to_cpu(intr[1]) + GIC_FIRST_PPI;
@@ -217,13 +221,13 @@ gic_decode_fdt(uint32_t iparent, uint32_t *intr, int *interrupt,
 		 *   8 = active low level-sensitive
 		 * The hardware only supports active-high-level or rising-edge.
 		 */
-		if (intr[2] & 0x0a) {
+		if (fdt32_to_cpu(intr[2]) & 0x0a) {
 			printf("unsupported trigger/polarity configuration "
-			    "0x%2x\n", intr[2] & 0x0f);
+			    "0x%2x\n", fdt32_to_cpu(intr[2]) & 0x0f);
 			return (ENOTSUP);
 		}
 		*pol  = INTR_POLARITY_CONFORM;
-		if (intr[2] & 0x01)
+		if (fdt32_to_cpu(intr[2]) & 0x01)
 			*trig = INTR_TRIGGER_EDGE;
 		else
 			*trig = INTR_TRIGGER_LEVEL;
@@ -280,7 +284,7 @@ arm_gic_attach(device_t dev)
 
 	/* Set all global interrupts to be level triggered, active low. */
 	for (i = 32; i < sc->nirqs; i += 16) {
-		gic_d_write_4(sc, GICD_ICFGR(i >> 4), 0x00000000);
+		gic_d_write_4(sc, GICD_ICFGR(i >> 4), GIC_DEFAULT_ICFGR_INIT);
 	}
 
 	/* Disable all interrupts. */
@@ -311,21 +315,9 @@ arm_gic_attach(device_t dev)
 	return (0);
 }
 
-static void
-gic_post_filter(void *arg)
+static int
+arm_gic_next_irq(struct arm_gic_softc *sc, int last_irq)
 {
-	struct arm_gic_softc *sc = arm_gic_sc;
-	uintptr_t irq = (uintptr_t) arg;
-
-	if (irq > GIC_LAST_IPI)
-		arm_irq_memory_barrier(irq);
-	gic_c_write_4(sc, GICC_EOIR, irq);
-}
-
-int
-arm_get_next_irq(int last_irq)
-{
-	struct arm_gic_softc *sc = arm_gic_sc;
 	uint32_t active_irq;
 
 	active_irq = gic_c_read_4(sc, GICC_IAR);
@@ -348,31 +340,11 @@ arm_get_next_irq(int last_irq)
 	return active_irq;
 }
 
-void
-arm_mask_irq(uintptr_t nb)
-{
-	struct arm_gic_softc *sc = arm_gic_sc;
-
-	gic_d_write_4(sc, GICD_ICENABLER(nb >> 5), (1UL << (nb & 0x1F)));
-	gic_c_write_4(sc, GICC_EOIR, nb);
-}
-
-void
-arm_unmask_irq(uintptr_t nb)
-{
-	struct arm_gic_softc *sc = arm_gic_sc;
-
-	if (nb > GIC_LAST_IPI)
-		arm_irq_memory_barrier(nb);
-	gic_d_write_4(sc, GICD_ISENABLER(nb >> 5), (1UL << (nb & 0x1F)));
-}
-
 static int
-gic_config_irq(int irq, enum intr_trigger trig,
+arm_gic_config(device_t dev, int irq, enum intr_trigger trig,
     enum intr_polarity pol)
 {
-	struct arm_gic_softc *sc = arm_gic_sc;
-	device_t dev = sc->gic_dev;
+	struct arm_gic_softc *sc = device_get_softc(dev);
 	uint32_t reg;
 	uint32_t mask;
 
@@ -421,11 +393,32 @@ invalid_args:
 	return (EINVAL);
 }
 
-#ifdef SMP
-void
-pic_ipi_send(cpuset_t cpus, u_int ipi)
+
+static void
+arm_gic_mask(device_t dev, int irq)
 {
-	struct arm_gic_softc *sc = arm_gic_sc;
+	struct arm_gic_softc *sc = device_get_softc(dev);
+
+	gic_d_write_4(sc, GICD_ICENABLER(irq >> 5), (1UL << (irq & 0x1F)));
+	gic_c_write_4(sc, GICC_EOIR, irq);
+}
+
+static void
+arm_gic_unmask(device_t dev, int irq)
+{
+	struct arm_gic_softc *sc = device_get_softc(dev);
+
+	if (irq > GIC_LAST_IPI)
+		arm_irq_memory_barrier(irq);
+
+	gic_d_write_4(sc, GICD_ISENABLER(irq >> 5), (1UL << (irq & 0x1F)));
+}
+
+#ifdef SMP
+static void
+arm_gic_ipi_send(device_t dev, cpuset_t cpus, u_int ipi)
+{
+	struct arm_gic_softc *sc = device_get_softc(dev);
 	uint32_t val = 0, i;
 
 	for (i = 0; i < MAXCPU; i++)
@@ -435,8 +428,8 @@ pic_ipi_send(cpuset_t cpus, u_int ipi)
 	gic_d_write_4(sc, GICD_SGIR(0), val | ipi);
 }
 
-int
-pic_ipi_read(int i)
+static int
+arm_gic_ipi_read(device_t dev, int i)
 {
 
 	if (i != -1) {
@@ -452,9 +445,79 @@ pic_ipi_read(int i)
 	return (0x3ff);
 }
 
+static void
+arm_gic_ipi_clear(device_t dev, int ipi)
+{
+	/* no-op */
+}
+#endif
+
+static void
+gic_post_filter(void *arg)
+{
+	struct arm_gic_softc *sc = arm_gic_sc;
+	uintptr_t irq = (uintptr_t) arg;
+
+	if (irq > GIC_LAST_IPI)
+		arm_irq_memory_barrier(irq);
+	gic_c_write_4(sc, GICC_EOIR, irq);
+}
+
+static int
+gic_config_irq(int irq, enum intr_trigger trig, enum intr_polarity pol)
+{
+
+	return (arm_gic_config(arm_gic_sc->gic_dev, irq, trig, pol));
+}
+
+void
+arm_mask_irq(uintptr_t nb)
+{
+
+	arm_gic_mask(arm_gic_sc->gic_dev, nb);
+}
+
+void
+arm_unmask_irq(uintptr_t nb)
+{
+
+	arm_gic_unmask(arm_gic_sc->gic_dev, nb);
+}
+
+int
+arm_get_next_irq(int last_irq)
+{
+
+	return (arm_gic_next_irq(arm_gic_sc, last_irq));
+}
+
+void
+arm_init_secondary_ic(void)
+{
+
+	arm_gic_init_secondary(arm_gic_sc->gic_dev);
+}
+
+#ifdef SMP
+void
+pic_ipi_send(cpuset_t cpus, u_int ipi)
+{
+
+	arm_gic_ipi_send(arm_gic_sc->gic_dev, cpus, ipi);
+}
+
+int
+pic_ipi_read(int i)
+{
+
+	return (arm_gic_ipi_read(arm_gic_sc->gic_dev, i));
+}
+
 void
 pic_ipi_clear(int ipi)
 {
+
+	arm_gic_ipi_clear(arm_gic_sc->gic_dev, ipi);
 }
 #endif
 

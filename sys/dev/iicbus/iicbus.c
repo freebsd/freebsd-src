@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
+#include <sys/rman.h>
 #include <sys/sysctl.h>
 #include <sys/bus.h> 
 
@@ -147,6 +148,7 @@ iicbus_print_child(device_t dev, device_t child)
 	retval += bus_print_child_header(dev, child);
 	if (devi->addr != 0)
 		retval += printf(" at addr %#x", devi->addr);
+	resource_list_print_type(&devi->rl, "irq", SYS_RES_IRQ, "%ld");
 	retval += bus_print_child_footer(dev, child);
 
 	return (retval);
@@ -157,9 +159,7 @@ iicbus_probe_nomatch(device_t bus, device_t child)
 {
 	struct iicbus_ivar *devi = IICBUS_IVAR(child);
 
-	device_printf(bus, "<unknown card>");
-	printf(" at addr %#x\n", devi->addr);
-	return;
+	device_printf(bus, "<unknown card> at addr %#x\n", devi->addr);
 }
 
 static int
@@ -209,6 +209,7 @@ iicbus_add_child(device_t dev, u_int order, const char *name, int unit)
 		device_delete_child(dev, child);
 		return (0);
 	}
+	resource_list_init(&devi->rl);
 	device_set_ivars(child, devi);
 	return (child);
 }
@@ -217,11 +218,26 @@ static void
 iicbus_hinted_child(device_t bus, const char *dname, int dunit)
 {
 	device_t child;
+	int irq;
 	struct iicbus_ivar *devi;
 
 	child = BUS_ADD_CHILD(bus, 0, dname, dunit);
 	devi = IICBUS_IVAR(child);
 	resource_int_value(dname, dunit, "addr", &devi->addr);
+	if (resource_int_value(dname, dunit, "irq", &irq) == 0) {
+		if (bus_set_resource(child, SYS_RES_IRQ, 0, irq, 1) != 0)
+			device_printf(bus,
+			    "warning: bus_set_resource() failed\n");
+	}
+}
+
+static struct resource_list *
+iicbus_get_resource_list(device_t bus __unused, device_t child)
+{
+	struct iicbus_ivar *devi;
+
+	devi = IICBUS_IVAR(child);
+	return (&devi->rl);
 }
 
 int
@@ -291,14 +307,24 @@ iicbus_get_frequency(device_t dev, u_char speed)
 }
 
 static device_method_t iicbus_methods[] = {
-        /* device interface */
-        DEVMETHOD(device_probe,         iicbus_probe),
-        DEVMETHOD(device_attach,        iicbus_attach),
-        DEVMETHOD(device_detach,        iicbus_detach),
+	/* device interface */
+	DEVMETHOD(device_probe,		iicbus_probe),
+	DEVMETHOD(device_attach,	iicbus_attach),
+	DEVMETHOD(device_detach,	iicbus_detach),
 
-        /* bus interface */
-        DEVMETHOD(bus_add_child,	iicbus_add_child),
-        DEVMETHOD(bus_print_child,      iicbus_print_child),
+	/* bus interface */
+	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
+	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
+	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
+	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
+	DEVMETHOD(bus_adjust_resource,	bus_generic_adjust_resource),
+	DEVMETHOD(bus_alloc_resource,	bus_generic_rl_alloc_resource),
+	DEVMETHOD(bus_get_resource,	bus_generic_rl_get_resource),
+	DEVMETHOD(bus_release_resource, bus_generic_rl_release_resource),
+	DEVMETHOD(bus_set_resource,	bus_generic_rl_set_resource),
+	DEVMETHOD(bus_get_resource_list, iicbus_get_resource_list),
+	DEVMETHOD(bus_add_child,	iicbus_add_child),
+	DEVMETHOD(bus_print_child,	iicbus_print_child),
 	DEVMETHOD(bus_probe_nomatch,	iicbus_probe_nomatch),
 	DEVMETHOD(bus_read_ivar,	iicbus_read_ivar),
 	DEVMETHOD(bus_child_pnpinfo_str, iicbus_child_pnpinfo_str),
@@ -322,4 +348,3 @@ devclass_t iicbus_devclass;
 
 MODULE_VERSION(iicbus, IICBUS_MODVER);
 DRIVER_MODULE(iicbus, iichb, iicbus_driver, iicbus_devclass, 0, 0);
-

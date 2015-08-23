@@ -89,7 +89,7 @@ cn_drvinit(void *unused)
 
 		polltime = 1;
 
-		callout_init(&mambo_callout, CALLOUT_MPSAFE);
+		callout_init(&mambo_callout, 1);
 		callout_reset(&mambo_callout, polltime, mambo_timeout, NULL);
 	}
 }

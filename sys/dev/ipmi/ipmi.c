@@ -49,6 +49,23 @@ __FBSDID("$FreeBSD$");
 #include <dev/ipmi/ipmivars.h>
 #endif
 
+/*
+ * Driver request structures are allocated on the stack via alloca() to
+ * avoid calling malloc(), especially for the watchdog handler.
+ * To avoid too much stack growth, a previously allocated structure can
+ * be reused via IPMI_INIT_DRIVER_REQUEST(), but the caller should ensure
+ * that there is adequate reply/request space in the original allocation.
+ */
+#define	IPMI_INIT_DRIVER_REQUEST(req, addr, cmd, reqlen, replylen)	\
+	bzero((req), sizeof(struct ipmi_request));			\
+	ipmi_init_request((req), NULL, 0, (addr), (cmd), (reqlen), (replylen))
+
+#define	IPMI_ALLOC_DRIVER_REQUEST(req, addr, cmd, reqlen, replylen)	\
+	(req) = __builtin_alloca(sizeof(struct ipmi_request) +		\
+	    (reqlen) + (replylen));					\
+	IPMI_INIT_DRIVER_REQUEST((req), (addr), (cmd), (reqlen),	\
+	    (replylen))
+
 #ifdef IPMB
 static int ipmi_ipmb_checksum(u_char, int);
 static int ipmi_ipmb_send_message(device_t, u_char, u_char, u_char,
@@ -181,8 +198,8 @@ ipmi_dtor(void *arg)
 		 */
 		dev->ipmi_closing = 1;
 		while (dev->ipmi_requests > 0) {
-			msleep(&dev->ipmi_requests, &sc->ipmi_lock, PWAIT,
-			    "ipmidrain", 0);
+			msleep(&dev->ipmi_requests, &sc->ipmi_requests_lock,
+			    PWAIT, "ipmidrain", 0);
 			ipmi_purge_completed_requests(dev);
 		}
 	}
@@ -215,7 +232,7 @@ ipmi_ipmb_send_message(device_t dev, u_char channel, u_char netfn,
 	u_char slave_addr = 0x52;
 	int error;
 
-	req = ipmi_alloc_driver_request(IPMI_ADDR(IPMI_APP_REQUEST, 0),
+	IPMI_ALLOC_DRIVER_REQUEST(req, IPMI_ADDR(IPMI_APP_REQUEST, 0),
 	    IPMI_SEND_MSG, data_len + 8, 0);
 	req->ir_request[0] = channel;
 	req->ir_request[1] = slave_addr;
@@ -231,7 +248,6 @@ ipmi_ipmb_send_message(device_t dev, u_char channel, u_char netfn,
 
 	ipmi_submit_driver_request(sc, req);
 	error = req->ir_error;
-	ipmi_free_request(req);
 
 	return (error);
 }
@@ -243,7 +259,7 @@ ipmi_handle_attn(struct ipmi_softc *sc)
 	int error;
 
 	device_printf(sc->ipmi_dev, "BMC has a message\n");
-	req = ipmi_alloc_driver_request(IPMI_ADDR(IPMI_APP_REQUEST, 0),
+	IPMI_ALLOC_DRIVER_REQUEST(req, IPMI_ADDR(IPMI_APP_REQUEST, 0),
 	    IPMI_GET_MSG_FLAGS, 0, 1);
 
 	ipmi_submit_driver_request(sc, req);
@@ -257,9 +273,7 @@ ipmi_handle_attn(struct ipmi_softc *sc)
 			    "watchdog about to go off");
 		}
 		if (req->ir_reply[0] & IPMI_MSG_AVAILABLE) {
-			ipmi_free_request(req);
-
-			req = ipmi_alloc_driver_request(
+			IPMI_ALLOC_DRIVER_REQUEST(req,
 			    IPMI_ADDR(IPMI_APP_REQUEST, 0), IPMI_GET_MSG, 0,
 			    16);
 
@@ -268,7 +282,6 @@ ipmi_handle_attn(struct ipmi_softc *sc)
 		}
 	}
 	error = req->ir_error;
-	ipmi_free_request(req);
 
 	return (error);
 }
@@ -478,15 +491,11 @@ ipmi_ioctl(struct cdev *cdev, u_long cmd, caddr_t data,
  * Request management.
  */
 
-/* Allocate a new request with request and reply buffers. */
-struct ipmi_request *
-ipmi_alloc_request(struct ipmi_device *dev, long msgid, uint8_t addr,
-    uint8_t command, size_t requestlen, size_t replylen)
+static __inline void
+ipmi_init_request(struct ipmi_request *req, struct ipmi_device *dev, long msgid,
+    uint8_t addr, uint8_t command, size_t requestlen, size_t replylen)
 {
-	struct ipmi_request *req;
 
-	req = malloc(sizeof(struct ipmi_request) + requestlen + replylen,
-	    M_IPMI, M_WAITOK | M_ZERO);
 	req->ir_owner = dev;
 	req->ir_msgid = msgid;
 	req->ir_addr = addr;
@@ -499,6 +508,18 @@ ipmi_alloc_request(struct ipmi_device *dev, long msgid, uint8_t addr,
 		req->ir_reply = (char *)&req[1] + requestlen;
 		req->ir_replybuflen = replylen;
 	}
+}
+
+/* Allocate a new request with request and reply buffers. */
+struct ipmi_request *
+ipmi_alloc_request(struct ipmi_device *dev, long msgid, uint8_t addr,
+    uint8_t command, size_t requestlen, size_t replylen)
+{
+	struct ipmi_request *req;
+
+	req = malloc(sizeof(struct ipmi_request) + requestlen + replylen,
+	    M_IPMI, M_WAITOK | M_ZERO);
+	ipmi_init_request(req, dev, msgid, addr, command, requestlen, replylen);
 	return (req);
 }
 
@@ -533,21 +554,13 @@ ipmi_complete_request(struct ipmi_softc *sc, struct ipmi_request *req)
 	}
 }
 
-/* Enqueue an internal driver request and wait until it is completed. */
+/* Perform an internal driver request. */
 int
 ipmi_submit_driver_request(struct ipmi_softc *sc, struct ipmi_request *req,
     int timo)
 {
-	int error;
 
-	IPMI_LOCK(sc);
-	error = sc->ipmi_enqueue_request(sc, req);
-	if (error == 0)
-		error = msleep(req, &sc->ipmi_lock, 0, "ipmireq", timo);
-	if (error == 0)
-		error = req->ir_error;
-	IPMI_UNLOCK(sc);
-	return (error);
+	return (sc->ipmi_driver_request(sc, req, timo));
 }
 
 /*
@@ -564,7 +577,7 @@ ipmi_dequeue_request(struct ipmi_softc *sc)
 	IPMI_LOCK_ASSERT(sc);
 
 	while (!sc->ipmi_detaching && TAILQ_EMPTY(&sc->ipmi_pending_requests))
-		cv_wait(&sc->ipmi_request_added, &sc->ipmi_lock);
+		cv_wait(&sc->ipmi_request_added, &sc->ipmi_requests_lock);
 	if (sc->ipmi_detaching)
 		return (NULL);
 
@@ -598,7 +611,7 @@ ipmi_set_watchdog(struct ipmi_softc *sc, unsigned int sec)
 	if (sec > 0xffff / 10)
 		return (EINVAL);
 
-	req = ipmi_alloc_driver_request(IPMI_ADDR(IPMI_APP_REQUEST, 0),
+	IPMI_ALLOC_DRIVER_REQUEST(req, IPMI_ADDR(IPMI_APP_REQUEST, 0),
 	    IPMI_SET_WDOG, 6, 0);
 
 	if (sec) {
@@ -622,9 +635,7 @@ ipmi_set_watchdog(struct ipmi_softc *sc, unsigned int sec)
 	if (error)
 		device_printf(sc->ipmi_dev, "Failed to set watchdog\n");
 	else if (sec) {
-		ipmi_free_request(req);
-
-		req = ipmi_alloc_driver_request(IPMI_ADDR(IPMI_APP_REQUEST, 0),
+		IPMI_INIT_DRIVER_REQUEST(req, IPMI_ADDR(IPMI_APP_REQUEST, 0),
 		    IPMI_RESET_WDOG, 0, 0);
 
 		error = ipmi_submit_driver_request(sc, req, 0);
@@ -633,7 +644,6 @@ ipmi_set_watchdog(struct ipmi_softc *sc, unsigned int sec)
 			    "Failed to reset watchdog\n");
 	}
 
-	ipmi_free_request(req);
 	return (error);
 	/*
 	dump_watchdog(sc);
@@ -680,7 +690,8 @@ ipmi_startup(void *arg)
 	dev = sc->ipmi_dev;
 
 	/* Initialize interface-independent state. */
-	mtx_init(&sc->ipmi_lock, device_get_nameunit(dev), "ipmi", MTX_DEF);
+	mtx_init(&sc->ipmi_requests_lock, "ipmi requests", NULL, MTX_DEF);
+	mtx_init(&sc->ipmi_io_lock, "ipmi io", NULL, MTX_DEF);
 	cv_init(&sc->ipmi_request_added, "ipmireq");
 	TAILQ_INIT(&sc->ipmi_pending_requests);
 
@@ -693,28 +704,24 @@ ipmi_startup(void *arg)
 	}
 
 	/* Send a GET_DEVICE_ID request. */
-	req = ipmi_alloc_driver_request(IPMI_ADDR(IPMI_APP_REQUEST, 0),
+	IPMI_ALLOC_DRIVER_REQUEST(req, IPMI_ADDR(IPMI_APP_REQUEST, 0),
 	    IPMI_GET_DEVICE_ID, 0, 15);
 
 	error = ipmi_submit_driver_request(sc, req, MAX_TIMEOUT);
 	if (error == EWOULDBLOCK) {
 		device_printf(dev, "Timed out waiting for GET_DEVICE_ID\n");
-		ipmi_free_request(req);
 		return;
 	} else if (error) {
 		device_printf(dev, "Failed GET_DEVICE_ID: %d\n", error);
-		ipmi_free_request(req);
 		return;
 	} else if (req->ir_compcode != 0) {
 		device_printf(dev,
 		    "Bad completion code for GET_DEVICE_ID: %d\n",
 		    req->ir_compcode);
-		ipmi_free_request(req);
 		return;
 	} else if (req->ir_replylen < 5) {
 		device_printf(dev, "Short reply for GET_DEVICE_ID: %d\n",
 		    req->ir_replylen);
-		ipmi_free_request(req);
 		return;
 	}
 
@@ -724,9 +731,7 @@ ipmi_startup(void *arg)
 	     req->ir_reply[2] & 0x7f, req->ir_reply[3] >> 4, req->ir_reply[3] & 0x0f,
 	     req->ir_reply[4] & 0x0f, req->ir_reply[4] >> 4);
 
-	ipmi_free_request(req);
-
-	req = ipmi_alloc_driver_request(IPMI_ADDR(IPMI_APP_REQUEST, 0),
+	IPMI_INIT_DRIVER_REQUEST(req, IPMI_ADDR(IPMI_APP_REQUEST, 0),
 	    IPMI_CLEAR_FLAGS, 1, 0);
 
 	ipmi_submit_driver_request(sc, req, 0);
@@ -738,36 +743,36 @@ ipmi_startup(void *arg)
 	if (req->ir_compcode == 0xc1) {
 		device_printf(dev, "Clear flags illegal\n");
 	}
-	ipmi_free_request(req);
 
 	for (i = 0; i < 8; i++) {
-		req = ipmi_alloc_driver_request(IPMI_ADDR(IPMI_APP_REQUEST, 0),
+		IPMI_INIT_DRIVER_REQUEST(req, IPMI_ADDR(IPMI_APP_REQUEST, 0),
 		    IPMI_GET_CHANNEL_INFO, 1, 0);
 		req->ir_request[0] = i;
 
 		ipmi_submit_driver_request(sc, req, 0);
 
-		if (req->ir_compcode != 0) {
-			ipmi_free_request(req);
+		if (req->ir_compcode != 0)
 			break;
-		}
-		ipmi_free_request(req);
 	}
 	device_printf(dev, "Number of channels %d\n", i);
 
-	/* probe for watchdog */
-	req = ipmi_alloc_driver_request(IPMI_ADDR(IPMI_APP_REQUEST, 0),
-	    IPMI_GET_WDOG, 0, 0);
+	/*
+	 * Probe for watchdog, but only for backends which support
+	 * polled driver requests.
+	 */
+	if (sc->ipmi_driver_requests_polled) {
+		IPMI_INIT_DRIVER_REQUEST(req, IPMI_ADDR(IPMI_APP_REQUEST, 0),
+		    IPMI_GET_WDOG, 0, 0);
 
-	ipmi_submit_driver_request(sc, req, 0);
+		ipmi_submit_driver_request(sc, req, 0);
 
-	if (req->ir_compcode == 0x00) {
-		device_printf(dev, "Attached watchdog\n");
-		/* register the watchdog event handler */
-		sc->ipmi_watchdog_tag = EVENTHANDLER_REGISTER(watchdog_list,
-		    ipmi_wd_event, sc, 0);
+		if (req->ir_compcode == 0x00) {
+			device_printf(dev, "Attached watchdog\n");
+			/* register the watchdog event handler */
+			sc->ipmi_watchdog_tag = EVENTHANDLER_REGISTER(
+			    watchdog_list, ipmi_wd_event, sc, 0);
+		}
 	}
-	ipmi_free_request(req);
 
 	sc->ipmi_cdev = make_dev(&ipmi_cdevsw, device_get_unit(dev),
 	    UID_ROOT, GID_OPERATOR, 0660, "ipmi%d", device_get_unit(dev));
@@ -834,14 +839,16 @@ ipmi_detach(device_t dev)
 	sc->ipmi_detaching = 1;
 	if (sc->ipmi_kthread) {
 		cv_broadcast(&sc->ipmi_request_added);
-		msleep(sc->ipmi_kthread, &sc->ipmi_lock, 0, "ipmi_wait", 0);
+		msleep(sc->ipmi_kthread, &sc->ipmi_requests_lock, 0,
+		    "ipmi_wait", 0);
 	}
 	IPMI_UNLOCK(sc);
 	if (sc->ipmi_irq)
 		bus_teardown_intr(dev, sc->ipmi_irq_res, sc->ipmi_irq);
 
 	ipmi_release_resources(dev);
-	mtx_destroy(&sc->ipmi_lock);
+	mtx_destroy(&sc->ipmi_io_lock);
+	mtx_destroy(&sc->ipmi_requests_lock);
 	return (0);
 }
 

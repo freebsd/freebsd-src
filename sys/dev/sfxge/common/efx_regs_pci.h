@@ -1,26 +1,31 @@
 /*-
- * Copyright 2007-2010 Solarflare Communications Inc.  All rights reserved.
+ * Copyright (c) 2007-2015 Solarflare Communications Inc.
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
+ * modification, are permitted provided that the following conditions are met:
  *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
+ * 1. Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+ * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+ * OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+ * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+ * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * The views and conclusions contained in the software and documentation are
+ * those of the authors and should not be interpreted as representing official
+ * policies, either expressed or implied, of the FreeBSD Project.
  *
  * $FreeBSD$
  */
@@ -366,6 +371,10 @@ extern "C" {
 
 #define	PCRF_AZ_INT_PIN_LBN 0
 #define	PCRF_AZ_INT_PIN_WIDTH 8
+#define	PCFE_DZ_INTPIN_INTD 4
+#define	PCFE_DZ_INTPIN_INTC 3
+#define	PCFE_DZ_INTPIN_INTB 2
+#define	PCFE_DZ_INTPIN_INTA 1
 
 
 /*
@@ -373,11 +382,8 @@ extern "C" {
  * Power management capability ID
  */
 
-#define	PCR_AC_PM_CAP_ID_REG 0x00000040
-/* falcona0,falconb0,sienaa0=pci_f0_config */
-
-#define	PCR_DZ_PM_CAP_ID_REG 0x00000080
-/* hunta0=pci_f0_config */
+#define	PCR_AZ_PM_CAP_ID_REG 0x00000040
+/* falcona0,falconb0,sienaa0,hunta0=pci_f0_config */
 
 #define	PCRF_AZ_PM_CAP_ID_LBN 0
 #define	PCRF_AZ_PM_CAP_ID_WIDTH 8
@@ -388,11 +394,8 @@ extern "C" {
  * Power management next item pointer
  */
 
-#define	PCR_AC_PM_NXT_PTR_REG 0x00000041
-/* falcona0,falconb0,sienaa0=pci_f0_config */
-
-#define	PCR_DZ_PM_NXT_PTR_REG 0x00000081
-/* hunta0=pci_f0_config */
+#define	PCR_AZ_PM_NXT_PTR_REG 0x00000041
+/* falcona0,falconb0,sienaa0,hunta0=pci_f0_config */
 
 #define	PCRF_AZ_PM_NXT_PTR_LBN 0
 #define	PCRF_AZ_PM_NXT_PTR_WIDTH 8
@@ -403,11 +406,8 @@ extern "C" {
  * Power management capabilities register
  */
 
-#define	PCR_AC_PM_CAP_REG 0x00000042
-/* falcona0,falconb0,sienaa0=pci_f0_config */
-
-#define	PCR_DZ_PM_CAP_REG 0x00000082
-/* hunta0=pci_f0_config */
+#define	PCR_AZ_PM_CAP_REG 0x00000042
+/* falcona0,falconb0,sienaa0,hunta0=pci_f0_config */
 
 #define	PCRF_AZ_PM_PME_SUPT_LBN 11
 #define	PCRF_AZ_PM_PME_SUPT_WIDTH 5
@@ -430,11 +430,8 @@ extern "C" {
  * Power management control & status register
  */
 
-#define	PCR_AC_PM_CS_REG 0x00000044
-/* falcona0,falconb0,sienaa0=pci_f0_config */
-
-#define	PCR_DZ_PM_CS_REG 0x00000084
-/* hunta0=pci_f0_config */
+#define	PCR_AZ_PM_CS_REG 0x00000044
+/* falcona0,falconb0,sienaa0,hunta0=pci_f0_config */
 
 #define	PCRF_AZ_PM_PME_STAT_LBN 15
 #define	PCRF_AZ_PM_PME_STAT_WIDTH 1
@@ -455,11 +452,8 @@ extern "C" {
  * MSI capability ID
  */
 
-#define	PCR_AC_MSI_CAP_ID_REG 0x00000050
-/* falcona0,falconb0,sienaa0=pci_f0_config */
-
-#define	PCR_DZ_MSI_CAP_ID_REG 0x00000090
-/* hunta0=pci_f0_config */
+#define	PCR_AZ_MSI_CAP_ID_REG 0x00000050
+/* falcona0,falconb0,sienaa0,hunta0=pci_f0_config */
 
 #define	PCRF_AZ_MSI_CAP_ID_LBN 0
 #define	PCRF_AZ_MSI_CAP_ID_WIDTH 8
@@ -470,11 +464,8 @@ extern "C" {
  * MSI next item pointer
  */
 
-#define	PCR_AC_MSI_NXT_PTR_REG 0x00000051
-/* falcona0,falconb0,sienaa0=pci_f0_config */
-
-#define	PCR_DZ_MSI_NXT_PTR_REG 0x00000091
-/* hunta0=pci_f0_config */
+#define	PCR_AZ_MSI_NXT_PTR_REG 0x00000051
+/* falcona0,falconb0,sienaa0,hunta0=pci_f0_config */
 
 #define	PCRF_AZ_MSI_NXT_PTR_LBN 0
 #define	PCRF_AZ_MSI_NXT_PTR_WIDTH 8
@@ -485,11 +476,8 @@ extern "C" {
  * MSI control register
  */
 
-#define	PCR_AC_MSI_CTL_REG 0x00000052
-/* falcona0,falconb0,sienaa0=pci_f0_config */
-
-#define	PCR_DZ_MSI_CTL_REG 0x00000092
-/* hunta0=pci_f0_config */
+#define	PCR_AZ_MSI_CTL_REG 0x00000052
+/* falcona0,falconb0,sienaa0,hunta0=pci_f0_config */
 
 #define	PCRF_AZ_MSI_64_EN_LBN 7
 #define	PCRF_AZ_MSI_64_EN_WIDTH 1
@@ -506,53 +494,11 @@ extern "C" {
  * MSI low 32 bits address register
  */
 
-#define	PCR_AC_MSI_ADR_LO_REG 0x00000054
-/* falcona0,falconb0,sienaa0=pci_f0_config */
-
-#define	PCR_DZ_MSI_ADR_LO_REG 0x00000094
-/* hunta0=pci_f0_config */
+#define	PCR_AZ_MSI_ADR_LO_REG 0x00000054
+/* falcona0,falconb0,sienaa0,hunta0=pci_f0_config */
 
 #define	PCRF_AZ_MSI_ADR_LO_LBN 2
 #define	PCRF_AZ_MSI_ADR_LO_WIDTH 30
-
-
-/*
- * PC_VPD_CAP_CTL_REG(8bit):
- * VPD control and capabilities register
- */
-
-#define	PCR_DZ_VPD_CAP_CTL_REG 0x00000054
-/* hunta0=pci_f0_config */
-
-#define	PCR_CC_VPD_CAP_CTL_REG 0x000000d0
-/* sienaa0=pci_f0_config */
-
-#define	PCRF_CZ_VPD_FLAG_LBN 31
-#define	PCRF_CZ_VPD_FLAG_WIDTH 1
-#define	PCRF_CZ_VPD_ADDR_LBN 16
-#define	PCRF_CZ_VPD_ADDR_WIDTH 15
-#define	PCRF_CZ_VPD_NXT_PTR_LBN 8
-#define	PCRF_CZ_VPD_NXT_PTR_WIDTH 8
-#define	PCRF_CZ_VPD_CAP_ID_LBN 0
-#define	PCRF_CZ_VPD_CAP_ID_WIDTH 8
-
-
-/*
- * PC_VPD_CAP_DATA_REG(32bit):
- * documentation to be written for sum_PC_VPD_CAP_DATA_REG
- */
-
-#define	PCR_DZ_VPD_CAP_DATA_REG 0x00000058
-/* hunta0=pci_f0_config */
-
-#define	PCR_AB_VPD_CAP_DATA_REG 0x000000b4
-/* falcona0,falconb0=pci_f0_config */
-
-#define	PCR_CC_VPD_CAP_DATA_REG 0x000000d4
-/* sienaa0=pci_f0_config */
-
-#define	PCRF_AZ_VPD_DATA_LBN 0
-#define	PCRF_AZ_VPD_DATA_WIDTH 32
 
 
 /*
@@ -560,11 +506,8 @@ extern "C" {
  * MSI high 32 bits address register
  */
 
-#define	PCR_AC_MSI_ADR_HI_REG 0x00000058
-/* falcona0,falconb0,sienaa0=pci_f0_config */
-
-#define	PCR_DZ_MSI_ADR_HI_REG 0x00000098
-/* hunta0=pci_f0_config */
+#define	PCR_AZ_MSI_ADR_HI_REG 0x00000058
+/* falcona0,falconb0,sienaa0,hunta0=pci_f0_config */
 
 #define	PCRF_AZ_MSI_ADR_HI_LBN 0
 #define	PCRF_AZ_MSI_ADR_HI_WIDTH 32
@@ -575,11 +518,8 @@ extern "C" {
  * MSI data register
  */
 
-#define	PCR_AC_MSI_DAT_REG 0x0000005c
-/* falcona0,falconb0,sienaa0=pci_f0_config */
-
-#define	PCR_DZ_MSI_DAT_REG 0x0000009c
-/* hunta0=pci_f0_config */
+#define	PCR_AZ_MSI_DAT_REG 0x0000005c
+/* falcona0,falconb0,sienaa0,hunta0=pci_f0_config */
 
 #define	PCRF_AZ_MSI_DAT_LBN 0
 #define	PCRF_AZ_MSI_DAT_WIDTH 16
@@ -593,11 +533,8 @@ extern "C" {
 #define	PCR_AB_PCIE_CAP_LIST_REG 0x00000060
 /* falcona0,falconb0=pci_f0_config */
 
-#define	PCR_CC_PCIE_CAP_LIST_REG 0x00000070
-/* sienaa0=pci_f0_config */
-
-#define	PCR_DZ_PCIE_CAP_LIST_REG 0x000000c0
-/* hunta0=pci_f0_config */
+#define	PCR_CZ_PCIE_CAP_LIST_REG 0x00000070
+/* sienaa0,hunta0=pci_f0_config */
 
 #define	PCRF_AZ_PCIE_NXT_PTR_LBN 8
 #define	PCRF_AZ_PCIE_NXT_PTR_WIDTH 8
@@ -613,11 +550,8 @@ extern "C" {
 #define	PCR_AB_PCIE_CAP_REG 0x00000062
 /* falcona0,falconb0=pci_f0_config */
 
-#define	PCR_CC_PCIE_CAP_REG 0x00000072
-/* sienaa0=pci_f0_config */
-
-#define	PCR_DZ_PCIE_CAP_REG 0x000000c2
-/* hunta0=pci_f0_config */
+#define	PCR_CZ_PCIE_CAP_REG 0x00000072
+/* sienaa0,hunta0=pci_f0_config */
 
 #define	PCRF_AZ_PCIE_INT_MSG_NUM_LBN 9
 #define	PCRF_AZ_PCIE_INT_MSG_NUM_WIDTH 5
@@ -637,11 +571,8 @@ extern "C" {
 #define	PCR_AB_DEV_CAP_REG 0x00000064
 /* falcona0,falconb0=pci_f0_config */
 
-#define	PCR_CC_DEV_CAP_REG 0x00000074
-/* sienaa0=pci_f0_config */
-
-#define	PCR_DZ_DEV_CAP_REG 0x000000c4
-/* hunta0=pci_f0_config */
+#define	PCR_CZ_DEV_CAP_REG 0x00000074
+/* sienaa0=pci_f0_config,hunta0=pci_f0_config */
 
 #define	PCRF_CZ_CAP_FN_LEVEL_RESET_LBN 28
 #define	PCRF_CZ_CAP_FN_LEVEL_RESET_WIDTH 1
@@ -677,11 +608,8 @@ extern "C" {
 #define	PCR_AB_DEV_CTL_REG 0x00000068
 /* falcona0,falconb0=pci_f0_config */
 
-#define	PCR_CC_DEV_CTL_REG 0x00000078
-/* sienaa0=pci_f0_config */
-
-#define	PCR_DZ_DEV_CTL_REG 0x000000c8
-/* hunta0=pci_f0_config */
+#define	PCR_CZ_DEV_CTL_REG 0x00000078
+/* sienaa0,hunta0=pci_f0_config */
 
 #define	PCRF_CZ_FN_LEVEL_RESET_LBN 15
 #define	PCRF_CZ_FN_LEVEL_RESET_WIDTH 1
@@ -693,7 +621,6 @@ extern "C" {
 #define	PCFE_AZ_MAX_RD_REQ_SIZE_512 2
 #define	PCFE_AZ_MAX_RD_REQ_SIZE_256 1
 #define	PCFE_AZ_MAX_RD_REQ_SIZE_128 0
-#define	PCFE_DZ_OTHER other
 #define	PCRF_AZ_EN_NO_SNOOP_LBN 11
 #define	PCRF_AZ_EN_NO_SNOOP_WIDTH 1
 #define	PCRF_AZ_AUX_PWR_PM_EN_LBN 10
@@ -712,7 +639,6 @@ extern "C" {
 #define	PCFE_AZ_MAX_PAYL_SIZE_512 2
 #define	PCFE_AZ_MAX_PAYL_SIZE_256 1
 #define	PCFE_AZ_MAX_PAYL_SIZE_128 0
-#define	PCFE_DZ_OTHER other
 #define	PCRF_AZ_EN_RELAX_ORDER_LBN 4
 #define	PCRF_AZ_EN_RELAX_ORDER_WIDTH 1
 #define	PCRF_AZ_UNSUP_REQ_RPT_EN_LBN 3
@@ -733,11 +659,8 @@ extern "C" {
 #define	PCR_AB_DEV_STAT_REG 0x0000006a
 /* falcona0,falconb0=pci_f0_config */
 
-#define	PCR_CC_DEV_STAT_REG 0x0000007a
-/* sienaa0=pci_f0_config */
-
-#define	PCR_DZ_DEV_STAT_REG 0x000000ca
-/* hunta0=pci_f0_config */
+#define	PCR_CZ_DEV_STAT_REG 0x0000007a
+/* sienaa0,hunta0=pci_f0_config */
 
 #define	PCRF_AZ_TRNS_PEND_LBN 5
 #define	PCRF_AZ_TRNS_PEND_WIDTH 1
@@ -761,14 +684,13 @@ extern "C" {
 #define	PCR_AB_LNK_CAP_REG 0x0000006c
 /* falcona0,falconb0=pci_f0_config */
 
-#define	PCR_CC_LNK_CAP_REG 0x0000007c
-/* sienaa0=pci_f0_config */
-
-#define	PCR_DZ_LNK_CAP_REG 0x000000cc
-/* hunta0=pci_f0_config */
+#define	PCR_CZ_LNK_CAP_REG 0x0000007c
+/* sienaa0,hunta0=pci_f0_config */
 
 #define	PCRF_AZ_PORT_NUM_LBN 24
 #define	PCRF_AZ_PORT_NUM_WIDTH 8
+#define	PCRF_DZ_ASPM_OPTIONALITY_CAP_LBN 22
+#define	PCRF_DZ_ASPM_OPTIONALITY_CAP_WIDTH 1
 #define	PCRF_CZ_LINK_BWDITH_NOTIF_CAP_LBN 21
 #define	PCRF_CZ_LINK_BWDITH_NOTIF_CAP_WIDTH 1
 #define	PCRF_CZ_DATA_LINK_ACTIVE_RPT_CAP_LBN 20
@@ -797,11 +719,8 @@ extern "C" {
 #define	PCR_AB_LNK_CTL_REG 0x00000070
 /* falcona0,falconb0=pci_f0_config */
 
-#define	PCR_CC_LNK_CTL_REG 0x00000080
-/* sienaa0=pci_f0_config */
-
-#define	PCR_DZ_LNK_CTL_REG 0x000000d0
-/* hunta0=pci_f0_config */
+#define	PCR_CZ_LNK_CTL_REG 0x00000080
+/* sienaa0,hunta0=pci_f0_config */
 
 #define	PCRF_AZ_EXT_SYNC_LBN 7
 #define	PCRF_AZ_EXT_SYNC_WIDTH 1
@@ -827,11 +746,8 @@ extern "C" {
 #define	PCR_AB_LNK_STAT_REG 0x00000072
 /* falcona0,falconb0=pci_f0_config */
 
-#define	PCR_CC_LNK_STAT_REG 0x00000082
-/* sienaa0=pci_f0_config */
-
-#define	PCR_DZ_LNK_STAT_REG 0x000000d2
-/* hunta0=pci_f0_config */
+#define	PCR_CZ_LNK_STAT_REG 0x00000082
+/* sienaa0,hunta0=pci_f0_config */
 
 #define	PCRF_AZ_SLOT_CLK_CFG_LBN 12
 #define	PCRF_AZ_SLOT_CLK_CFG_WIDTH 1
@@ -977,32 +893,6 @@ extern "C" {
 
 
 /*
- * PC_DEV_CAP2_REG(16bit):
- * PCIe Device Capabilities 2
- */
-
-#define	PCR_CC_DEV_CAP2_REG 0x00000094
-/* sienaa0=pci_f0_config */
-
-#define	PCR_DZ_DEV_CAP2_REG 0x000000e4
-/* hunta0=pci_f0_config */
-
-#define	PCRF_CZ_CMPL_TIMEOUT_DIS_LBN 4
-#define	PCRF_CZ_CMPL_TIMEOUT_DIS_WIDTH 1
-#define	PCRF_CZ_CMPL_TIMEOUT_LBN 0
-#define	PCRF_CZ_CMPL_TIMEOUT_WIDTH 4
-#define	PCFE_CZ_CMPL_TIMEOUT_17000_TO_6400MS 14
-#define	PCFE_CZ_CMPL_TIMEOUT_4000_TO_1300MS 13
-#define	PCFE_CZ_CMPL_TIMEOUT_1000_TO_3500MS 10
-#define	PCFE_CZ_CMPL_TIMEOUT_260_TO_900MS 9
-#define	PCFE_CZ_CMPL_TIMEOUT_65_TO_210MS 6
-#define	PCFE_CZ_CMPL_TIMEOUT_16_TO_55MS 5
-#define	PCFE_CZ_CMPL_TIMEOUT_1_TO_10MS 2
-#define	PCFE_CZ_CMPL_TIMEOUT_50_TO_100US 1
-#define	PCFE_CZ_CMPL_TIMEOUT_DEFAULT 0
-
-
-/*
  * PC_MSIX_TBL_BASE_REG(32bit):
  * MSIX Capability Vector Table Base
  */
@@ -1020,16 +910,52 @@ extern "C" {
 
 
 /*
+ * PC_DEV_CAP2_REG(32bit):
+ * PCIe Device Capabilities 2
+ */
+
+#define	PCR_CZ_DEV_CAP2_REG 0x00000094
+/* sienaa0=pci_f0_config,hunta0=pci_f0_config */
+
+#define	PCRF_DZ_OBFF_SUPPORTED_LBN 18
+#define	PCRF_DZ_OBFF_SUPPORTED_WIDTH 2
+#define	PCRF_DZ_TPH_CMPL_SUPPORTED_LBN 12
+#define	PCRF_DZ_TPH_CMPL_SUPPORTED_WIDTH 2
+#define	PCRF_DZ_LTR_M_SUPPORTED_LBN 11
+#define	PCRF_DZ_LTR_M_SUPPORTED_WIDTH 1
+#define	PCRF_CC_CMPL_TIMEOUT_DIS_LBN 4
+#define	PCRF_CC_CMPL_TIMEOUT_DIS_WIDTH 1
+#define	PCRF_DZ_CMPL_TIMEOUT_DIS_SUPPORTED_LBN 4
+#define	PCRF_DZ_CMPL_TIMEOUT_DIS_SUPPORTED_WIDTH 1
+#define	PCRF_CZ_CMPL_TIMEOUT_LBN 0
+#define	PCRF_CZ_CMPL_TIMEOUT_WIDTH 4
+#define	PCFE_CZ_CMPL_TIMEOUT_17000_TO_6400MS 14
+#define	PCFE_CZ_CMPL_TIMEOUT_4000_TO_1300MS 13
+#define	PCFE_CZ_CMPL_TIMEOUT_1000_TO_3500MS 10
+#define	PCFE_CZ_CMPL_TIMEOUT_260_TO_900MS 9
+#define	PCFE_CZ_CMPL_TIMEOUT_65_TO_210MS 6
+#define	PCFE_CZ_CMPL_TIMEOUT_16_TO_55MS 5
+#define	PCFE_CZ_CMPL_TIMEOUT_1_TO_10MS 2
+#define	PCFE_CZ_CMPL_TIMEOUT_50_TO_100US 1
+#define	PCFE_CZ_CMPL_TIMEOUT_DEFAULT 0
+
+
+/*
  * PC_DEV_CTL2_REG(16bit):
  * PCIe Device Control 2
  */
 
-#define	PCR_CC_DEV_CTL2_REG 0x00000098
-/* sienaa0=pci_f0_config */
+#define	PCR_CZ_DEV_CTL2_REG 0x00000098
+/* sienaa0,hunta0=pci_f0_config */
 
-#define	PCR_DZ_DEV_CTL2_REG 0x000000e8
-/* hunta0=pci_f0_config */
-
+#define	PCRF_DZ_OBFF_ENABLE_LBN 13
+#define	PCRF_DZ_OBFF_ENABLE_WIDTH 2
+#define	PCRF_DZ_LTR_ENABLE_LBN 10
+#define	PCRF_DZ_LTR_ENABLE_WIDTH 1
+#define	PCRF_DZ_IDO_COMPLETION_ENABLE_LBN 9
+#define	PCRF_DZ_IDO_COMPLETION_ENABLE_WIDTH 1
+#define	PCRF_DZ_IDO_REQUEST_ENABLE_LBN 8
+#define	PCRF_DZ_IDO_REQUEST_ENABLE_WIDTH 1
 #define	PCRF_CZ_CMPL_TIMEOUT_DIS_CTL_LBN 4
 #define	PCRF_CZ_CMPL_TIMEOUT_DIS_CTL_WIDTH 1
 #define	PCRF_CZ_CMPL_TIMEOUT_CTL_LBN 0
@@ -1054,15 +980,24 @@ extern "C" {
 
 
 /*
+ * PC_LNK_CAP2_REG(32bit):
+ * PCIe Link Capability 2
+ */
+
+#define	PCR_DZ_LNK_CAP2_REG 0x0000009c
+/* hunta0=pci_f0_config */
+
+#define	PCRF_DZ_LNK_SPEED_SUP_LBN 1
+#define	PCRF_DZ_LNK_SPEED_SUP_WIDTH 7
+
+
+/*
  * PC_LNK_CTL2_REG(16bit):
  * PCIe Link Control 2
  */
 
-#define	PCR_CC_LNK_CTL2_REG 0x000000a0
-/* sienaa0=pci_f0_config */
-
-#define	PCR_DZ_LNK_CTL2_REG 0x000000f0
-/* hunta0=pci_f0_config */
+#define	PCR_CZ_LNK_CTL2_REG 0x000000a0
+/* sienaa0,hunta0=pci_f0_config */
 
 #define	PCRF_CZ_POLLING_DEEMPH_LVL_LBN 12
 #define	PCRF_CZ_POLLING_DEEMPH_LVL_WIDTH 1
@@ -1080,6 +1015,9 @@ extern "C" {
 #define	PCRF_CZ_ENTER_COMPLIANCE_CTL_WIDTH 1
 #define	PCRF_CZ_TGT_LNK_SPEED_CTL_LBN 0
 #define	PCRF_CZ_TGT_LNK_SPEED_CTL_WIDTH 4
+#define	PCFE_DZ_LCTL2_TGT_SPEED_GEN3 3
+#define	PCFE_DZ_LCTL2_TGT_SPEED_GEN2 2
+#define	PCFE_DZ_LCTL2_TGT_SPEED_GEN1 1
 
 
 /*
@@ -1087,11 +1025,8 @@ extern "C" {
  * PCIe Link Status 2
  */
 
-#define	PCR_CC_LNK_STAT2_REG 0x000000a2
-/* sienaa0=pci_f0_config */
-
-#define	PCR_DZ_LNK_STAT2_REG 0x000000f2
-/* hunta0=pci_f0_config */
+#define	PCR_CZ_LNK_STAT2_REG 0x000000a2
+/* sienaa0,hunta0=pci_f0_config */
 
 #define	PCRF_CZ_CURRENT_DEEMPH_LBN 0
 #define	PCRF_CZ_CURRENT_DEEMPH_WIDTH 1
@@ -1133,6 +1068,39 @@ extern "C" {
 #define	PCRF_AB_VPD_FLAG_WIDTH 1
 #define	PCRF_AB_VPD_ADDR_LBN 0
 #define	PCRF_AB_VPD_ADDR_WIDTH 15
+
+
+/*
+ * PC_VPD_CAP_DATA_REG(32bit):
+ * documentation to be written for sum_PC_VPD_CAP_DATA_REG
+ */
+
+#define	PCR_AB_VPD_CAP_DATA_REG 0x000000b4
+/* falcona0,falconb0=pci_f0_config */
+
+#define	PCR_CZ_VPD_CAP_DATA_REG 0x000000d4
+/* sienaa0,hunta0=pci_f0_config */
+
+#define	PCRF_AZ_VPD_DATA_LBN 0
+#define	PCRF_AZ_VPD_DATA_WIDTH 32
+
+
+/*
+ * PC_VPD_CAP_CTL_REG(8bit):
+ * VPD control and capabilities register
+ */
+
+#define	PCR_CZ_VPD_CAP_CTL_REG 0x000000d0
+/* sienaa0,hunta0=pci_f0_config */
+
+#define	PCRF_CZ_VPD_FLAG_LBN 31
+#define	PCRF_CZ_VPD_FLAG_WIDTH 1
+#define	PCRF_CZ_VPD_ADDR_LBN 16
+#define	PCRF_CZ_VPD_ADDR_WIDTH 15
+#define	PCRF_CZ_VPD_NXT_PTR_LBN 8
+#define	PCRF_CZ_VPD_NXT_PTR_WIDTH 8
+#define	PCRF_CZ_VPD_CAP_ID_LBN 0
+#define	PCRF_CZ_VPD_CAP_ID_WIDTH 8
 
 
 /*
@@ -1191,6 +1159,10 @@ extern "C" {
 #define	PCR_AZ_AER_UNCORR_ERR_MASK_REG 0x00000108
 /* falcona0,falconb0,sienaa0,hunta0=pci_f0_config */
 
+#define	PCRF_DZ_ATOMIC_OP_EGR_BLOCKED_MASK_LBN 24
+#define	PCRF_DZ_ATOMIC_OP_EGR_BLOCKED_MASK_WIDTH 1
+#define	PCRF_DZ_UNCORR_INT_ERR_MASK_LBN 22
+#define	PCRF_DZ_UNCORR_INT_ERR_MASK_WIDTH 1
 #define	PCRF_AZ_UNSUPT_REQ_ERR_MASK_LBN 20
 #define	PCRF_AZ_UNSUPT_REQ_ERR_MASK_WIDTH 1
 #define	PCRF_AZ_ECRC_ERR_MASK_LBN 19
@@ -1328,11 +1300,8 @@ extern "C" {
  * Device serial number capability header register
  */
 
-#define	PCR_DZ_DEVSN_CAP_HDR_REG 0x00000130
-/* hunta0=pci_f0_config */
-
-#define	PCR_CC_DEVSN_CAP_HDR_REG 0x00000140
-/* sienaa0=pci_f0_config */
+#define	PCR_CZ_DEVSN_CAP_HDR_REG 0x00000140
+/* sienaa0,hunta0=pci_f0_config */
 
 #define	PCRF_CZ_DEVSNCAPHDR_NXT_PTR_LBN 20
 #define	PCRF_CZ_DEVSNCAPHDR_NXT_PTR_WIDTH 12
@@ -1347,11 +1316,8 @@ extern "C" {
  * Device serial number DWORD0
  */
 
-#define	PCR_DZ_DEVSN_DWORD0_REG 0x00000134
-/* hunta0=pci_f0_config */
-
-#define	PCR_CC_DEVSN_DWORD0_REG 0x00000144
-/* sienaa0=pci_f0_config */
+#define	PCR_CZ_DEVSN_DWORD0_REG 0x00000144
+/* sienaa0,hunta0=pci_f0_config */
 
 #define	PCRF_CZ_DEVSN_DWORD0_LBN 0
 #define	PCRF_CZ_DEVSN_DWORD0_WIDTH 32
@@ -1362,11 +1328,8 @@ extern "C" {
  * Device serial number DWORD0
  */
 
-#define	PCR_DZ_DEVSN_DWORD1_REG 0x00000138
-/* hunta0=pci_f0_config */
-
-#define	PCR_CC_DEVSN_DWORD1_REG 0x00000148
-/* sienaa0=pci_f0_config */
+#define	PCR_CZ_DEVSN_DWORD1_REG 0x00000148
+/* sienaa0,hunta0=pci_f0_config */
 
 #define	PCRF_CZ_DEVSN_DWORD1_LBN 0
 #define	PCRF_CZ_DEVSN_DWORD1_WIDTH 32
@@ -1377,11 +1340,8 @@ extern "C" {
  * ARI capability header register
  */
 
-#define	PCR_DZ_ARI_CAP_HDR_REG 0x00000140
-/* hunta0=pci_f0_config */
-
-#define	PCR_CC_ARI_CAP_HDR_REG 0x00000150
-/* sienaa0=pci_f0_config */
+#define	PCR_CZ_ARI_CAP_HDR_REG 0x00000150
+/* sienaa0,hunta0=pci_f0_config */
 
 #define	PCRF_CZ_ARICAPHDR_NXT_PTR_LBN 20
 #define	PCRF_CZ_ARICAPHDR_NXT_PTR_WIDTH 12
@@ -1396,11 +1356,8 @@ extern "C" {
  * ARI Capabilities
  */
 
-#define	PCR_DZ_ARI_CAP_REG 0x00000144
-/* hunta0=pci_f0_config */
-
-#define	PCR_CC_ARI_CAP_REG 0x00000154
-/* sienaa0=pci_f0_config */
+#define	PCR_CZ_ARI_CAP_REG 0x00000154
+/* sienaa0,hunta0=pci_f0_config */
 
 #define	PCRF_CZ_ARI_NXT_FN_NUM_LBN 8
 #define	PCRF_CZ_ARI_NXT_FN_NUM_WIDTH 8
@@ -1415,11 +1372,8 @@ extern "C" {
  * ARI Control
  */
 
-#define	PCR_DZ_ARI_CTL_REG 0x00000146
-/* hunta0=pci_f0_config */
-
-#define	PCR_CC_ARI_CTL_REG 0x00000156
-/* sienaa0=pci_f0_config */
+#define	PCR_CZ_ARI_CTL_REG 0x00000156
+/* sienaa0,hunta0=pci_f0_config */
 
 #define	PCRF_CZ_ARI_FN_GRP_LBN 4
 #define	PCRF_CZ_ARI_FN_GRP_WIDTH 3
@@ -1430,6 +1384,22 @@ extern "C" {
 
 
 /*
+ * PC_SEC_PCIE_CAP_REG(32bit):
+ * Secondary PCIE Capability Register
+ */
+
+#define	PCR_DZ_SEC_PCIE_CAP_REG 0x00000160
+/* hunta0=pci_f0_config */
+
+#define	PCRF_DZ_SEC_NXT_PTR_LBN 20
+#define	PCRF_DZ_SEC_NXT_PTR_WIDTH 12
+#define	PCRF_DZ_SEC_VERSION_LBN 16
+#define	PCRF_DZ_SEC_VERSION_WIDTH 4
+#define	PCRF_DZ_SEC_EXT_CAP_ID_LBN 0
+#define	PCRF_DZ_SEC_EXT_CAP_ID_WIDTH 16
+
+
+/*
  * PC_SRIOV_CAP_HDR_REG(32bit):
  * SRIOV capability header register
  */
@@ -1437,7 +1407,7 @@ extern "C" {
 #define	PCR_CC_SRIOV_CAP_HDR_REG 0x00000160
 /* sienaa0=pci_f0_config */
 
-#define	PCR_DZ_SRIOV_CAP_HDR_REG 0x00000200
+#define	PCR_DZ_SRIOV_CAP_HDR_REG 0x00000180
 /* hunta0=pci_f0_config */
 
 #define	PCRF_CZ_SRIOVCAPHDR_NXT_PTR_LBN 20
@@ -1456,13 +1426,41 @@ extern "C" {
 #define	PCR_CC_SRIOV_CAP_REG 0x00000164
 /* sienaa0=pci_f0_config */
 
-#define	PCR_DZ_SRIOV_CAP_REG 0x00000204
+#define	PCR_DZ_SRIOV_CAP_REG 0x00000184
 /* hunta0=pci_f0_config */
 
 #define	PCRF_CZ_VF_MIGR_INT_MSG_NUM_LBN 21
 #define	PCRF_CZ_VF_MIGR_INT_MSG_NUM_WIDTH 11
+#define	PCRF_DZ_VF_ARI_CAP_PRESV_LBN 1
+#define	PCRF_DZ_VF_ARI_CAP_PRESV_WIDTH 1
 #define	PCRF_CZ_VF_MIGR_CAP_LBN 0
 #define	PCRF_CZ_VF_MIGR_CAP_WIDTH 1
+
+
+/*
+ * PC_LINK_CONTROL3_REG(32bit):
+ * Link Control 3.
+ */
+
+#define	PCR_DZ_LINK_CONTROL3_REG 0x00000164
+/* hunta0=pci_f0_config */
+
+#define	PCRF_DZ_LINK_EQ_INT_EN_LBN 1
+#define	PCRF_DZ_LINK_EQ_INT_EN_WIDTH 1
+#define	PCRF_DZ_PERFORM_EQL_LBN 0
+#define	PCRF_DZ_PERFORM_EQL_WIDTH 1
+
+
+/*
+ * PC_LANE_ERROR_STAT_REG(32bit):
+ * Lane Error Status Register.
+ */
+
+#define	PCR_DZ_LANE_ERROR_STAT_REG 0x00000168
+/* hunta0=pci_f0_config */
+
+#define	PCRF_DZ_LANE_STATUS_LBN 0
+#define	PCRF_DZ_LANE_STATUS_WIDTH 8
 
 
 /*
@@ -1473,7 +1471,7 @@ extern "C" {
 #define	PCR_CC_SRIOV_CTL_REG 0x00000168
 /* sienaa0=pci_f0_config */
 
-#define	PCR_DZ_SRIOV_CTL_REG 0x00000208
+#define	PCR_DZ_SRIOV_CTL_REG 0x00000188
 /* hunta0=pci_f0_config */
 
 #define	PCRF_CZ_VF_ARI_CAP_HRCHY_LBN 4
@@ -1496,11 +1494,25 @@ extern "C" {
 #define	PCR_CC_SRIOV_STAT_REG 0x0000016a
 /* sienaa0=pci_f0_config */
 
-#define	PCR_DZ_SRIOV_STAT_REG 0x0000020a
+#define	PCR_DZ_SRIOV_STAT_REG 0x0000018a
 /* hunta0=pci_f0_config */
 
 #define	PCRF_CZ_VF_MIGR_STAT_LBN 0
 #define	PCRF_CZ_VF_MIGR_STAT_WIDTH 1
+
+
+/*
+ * PC_LANE01_EQU_CONTROL_REG(32bit):
+ * Lanes 0,1 Equalization Control Register.
+ */
+
+#define	PCR_DZ_LANE01_EQU_CONTROL_REG 0x0000016c
+/* hunta0=pci_f0_config */
+
+#define	PCRF_DZ_LANE1_EQ_CTRL_LBN 16
+#define	PCRF_DZ_LANE1_EQ_CTRL_WIDTH 16
+#define	PCRF_DZ_LANE0_EQ_CTRL_LBN 0
+#define	PCRF_DZ_LANE0_EQ_CTRL_WIDTH 16
 
 
 /*
@@ -1511,7 +1523,7 @@ extern "C" {
 #define	PCR_CC_SRIOV_INITIALVFS_REG 0x0000016c
 /* sienaa0=pci_f0_config */
 
-#define	PCR_DZ_SRIOV_INITIALVFS_REG 0x0000020c
+#define	PCR_DZ_SRIOV_INITIALVFS_REG 0x0000018c
 /* hunta0=pci_f0_config */
 
 #define	PCRF_CZ_VF_INITIALVFS_LBN 0
@@ -1526,7 +1538,7 @@ extern "C" {
 #define	PCR_CC_SRIOV_TOTALVFS_REG 0x0000016e
 /* sienaa0=pci_f0_config */
 
-#define	PCR_DZ_SRIOV_TOTALVFS_REG 0x0000020e
+#define	PCR_DZ_SRIOV_TOTALVFS_REG 0x0000018e
 /* hunta0=pci_f0_config */
 
 #define	PCRF_CZ_VF_TOTALVFS_LBN 0
@@ -1541,11 +1553,25 @@ extern "C" {
 #define	PCR_CC_SRIOV_NUMVFS_REG 0x00000170
 /* sienaa0=pci_f0_config */
 
-#define	PCR_DZ_SRIOV_NUMVFS_REG 0x00000210
+#define	PCR_DZ_SRIOV_NUMVFS_REG 0x00000190
 /* hunta0=pci_f0_config */
 
 #define	PCRF_CZ_VF_NUMVFS_LBN 0
 #define	PCRF_CZ_VF_NUMVFS_WIDTH 16
+
+
+/*
+ * PC_LANE23_EQU_CONTROL_REG(32bit):
+ * Lanes 2,3 Equalization Control Register.
+ */
+
+#define	PCR_DZ_LANE23_EQU_CONTROL_REG 0x00000170
+/* hunta0=pci_f0_config */
+
+#define	PCRF_DZ_LANE3_EQ_CTRL_LBN 16
+#define	PCRF_DZ_LANE3_EQ_CTRL_WIDTH 16
+#define	PCRF_DZ_LANE2_EQ_CTRL_LBN 0
+#define	PCRF_DZ_LANE2_EQ_CTRL_WIDTH 16
 
 
 /*
@@ -1556,7 +1582,7 @@ extern "C" {
 #define	PCR_CC_SRIOV_FN_DPND_LNK_REG 0x00000172
 /* sienaa0=pci_f0_config */
 
-#define	PCR_DZ_SRIOV_FN_DPND_LNK_REG 0x00000212
+#define	PCR_DZ_SRIOV_FN_DPND_LNK_REG 0x00000192
 /* hunta0=pci_f0_config */
 
 #define	PCRF_CZ_SRIOV_FN_DPND_LNK_LBN 0
@@ -1571,11 +1597,25 @@ extern "C" {
 #define	PCR_CC_SRIOV_1STVF_OFFSET_REG 0x00000174
 /* sienaa0=pci_f0_config */
 
-#define	PCR_DZ_SRIOV_1STVF_OFFSET_REG 0x00000214
+#define	PCR_DZ_SRIOV_1STVF_OFFSET_REG 0x00000194
 /* hunta0=pci_f0_config */
 
 #define	PCRF_CZ_VF_1STVF_OFFSET_LBN 0
 #define	PCRF_CZ_VF_1STVF_OFFSET_WIDTH 16
+
+
+/*
+ * PC_LANE45_EQU_CONTROL_REG(32bit):
+ * Lanes 4,5 Equalization Control Register.
+ */
+
+#define	PCR_DZ_LANE45_EQU_CONTROL_REG 0x00000174
+/* hunta0=pci_f0_config */
+
+#define	PCRF_DZ_LANE5_EQ_CTRL_LBN 16
+#define	PCRF_DZ_LANE5_EQ_CTRL_WIDTH 16
+#define	PCRF_DZ_LANE4_EQ_CTRL_LBN 0
+#define	PCRF_DZ_LANE4_EQ_CTRL_WIDTH 16
 
 
 /*
@@ -1586,11 +1626,25 @@ extern "C" {
 #define	PCR_CC_SRIOV_VFSTRIDE_REG 0x00000176
 /* sienaa0=pci_f0_config */
 
-#define	PCR_DZ_SRIOV_VFSTRIDE_REG 0x00000216
+#define	PCR_DZ_SRIOV_VFSTRIDE_REG 0x00000196
 /* hunta0=pci_f0_config */
 
 #define	PCRF_CZ_VF_VFSTRIDE_LBN 0
 #define	PCRF_CZ_VF_VFSTRIDE_WIDTH 16
+
+
+/*
+ * PC_LANE67_EQU_CONTROL_REG(32bit):
+ * Lanes 6,7 Equalization Control Register.
+ */
+
+#define	PCR_DZ_LANE67_EQU_CONTROL_REG 0x00000178
+/* hunta0=pci_f0_config */
+
+#define	PCRF_DZ_LANE7_EQ_CTRL_LBN 16
+#define	PCRF_DZ_LANE7_EQ_CTRL_WIDTH 16
+#define	PCRF_DZ_LANE6_EQ_CTRL_LBN 0
+#define	PCRF_DZ_LANE6_EQ_CTRL_WIDTH 16
 
 
 /*
@@ -1601,7 +1655,7 @@ extern "C" {
 #define	PCR_CC_SRIOV_DEVID_REG 0x0000017a
 /* sienaa0=pci_f0_config */
 
-#define	PCR_DZ_SRIOV_DEVID_REG 0x0000021a
+#define	PCR_DZ_SRIOV_DEVID_REG 0x0000019a
 /* hunta0=pci_f0_config */
 
 #define	PCRF_CZ_VF_DEVID_LBN 0
@@ -1616,7 +1670,7 @@ extern "C" {
 #define	PCR_CC_SRIOV_SUP_PAGESZ_REG 0x0000017c
 /* sienaa0=pci_f0_config */
 
-#define	PCR_DZ_SRIOV_SUP_PAGESZ_REG 0x0000021c
+#define	PCR_DZ_SRIOV_SUP_PAGESZ_REG 0x0000019c
 /* hunta0=pci_f0_config */
 
 #define	PCRF_CZ_VF_SUP_PAGESZ_LBN 0
@@ -1631,7 +1685,7 @@ extern "C" {
 #define	PCR_CC_SRIOV_SYS_PAGESZ_REG 0x00000180
 /* sienaa0=pci_f0_config */
 
-#define	PCR_DZ_SRIOV_SYS_PAGESZ_REG 0x00000220
+#define	PCR_DZ_SRIOV_SYS_PAGESZ_REG 0x000001a0
 /* hunta0=pci_f0_config */
 
 #define	PCRF_CZ_VF_SYS_PAGESZ_LBN 0
@@ -1646,13 +1700,19 @@ extern "C" {
 #define	PCR_CC_SRIOV_BAR0_REG 0x00000184
 /* sienaa0=pci_f0_config */
 
-#define	PCR_DZ_SRIOV_BAR0_REG 0x00000224
+#define	PCR_DZ_SRIOV_BAR0_REG 0x000001a4
 /* hunta0=pci_f0_config */
 
 #define	PCRF_CC_VF_BAR_ADDRESS_LBN 0
 #define	PCRF_CC_VF_BAR_ADDRESS_WIDTH 32
-#define	PCRF_DZ_VF_BAR0_ADDRESS_LBN 0
-#define	PCRF_DZ_VF_BAR0_ADDRESS_WIDTH 32
+#define	PCRF_DZ_VF_BAR0_ADDRESS_LBN 4
+#define	PCRF_DZ_VF_BAR0_ADDRESS_WIDTH 28
+#define	PCRF_DZ_VF_BAR0_PREF_LBN 3
+#define	PCRF_DZ_VF_BAR0_PREF_WIDTH 1
+#define	PCRF_DZ_VF_BAR0_TYPE_LBN 1
+#define	PCRF_DZ_VF_BAR0_TYPE_WIDTH 2
+#define	PCRF_DZ_VF_BAR0_IOM_LBN 0
+#define	PCRF_DZ_VF_BAR0_IOM_WIDTH 1
 
 
 /*
@@ -1663,7 +1723,7 @@ extern "C" {
 #define	PCR_CC_SRIOV_BAR1_REG 0x00000188
 /* sienaa0=pci_f0_config */
 
-#define	PCR_DZ_SRIOV_BAR1_REG 0x00000228
+#define	PCR_DZ_SRIOV_BAR1_REG 0x000001a8
 /* hunta0=pci_f0_config */
 
 /* defined as PCRF_CC_VF_BAR_ADDRESS_LBN 0; */
@@ -1680,13 +1740,19 @@ extern "C" {
 #define	PCR_CC_SRIOV_BAR2_REG 0x0000018c
 /* sienaa0=pci_f0_config */
 
-#define	PCR_DZ_SRIOV_BAR2_REG 0x0000022c
+#define	PCR_DZ_SRIOV_BAR2_REG 0x000001ac
 /* hunta0=pci_f0_config */
 
 /* defined as PCRF_CC_VF_BAR_ADDRESS_LBN 0; */
 /* defined as PCRF_CC_VF_BAR_ADDRESS_WIDTH 32 */
-#define	PCRF_DZ_VF_BAR2_ADDRESS_LBN 0
-#define	PCRF_DZ_VF_BAR2_ADDRESS_WIDTH 32
+#define	PCRF_DZ_VF_BAR2_ADDRESS_LBN 4
+#define	PCRF_DZ_VF_BAR2_ADDRESS_WIDTH 28
+#define	PCRF_DZ_VF_BAR2_PREF_LBN 3
+#define	PCRF_DZ_VF_BAR2_PREF_WIDTH 1
+#define	PCRF_DZ_VF_BAR2_TYPE_LBN 1
+#define	PCRF_DZ_VF_BAR2_TYPE_WIDTH 2
+#define	PCRF_DZ_VF_BAR2_IOM_LBN 0
+#define	PCRF_DZ_VF_BAR2_IOM_WIDTH 1
 
 
 /*
@@ -1697,7 +1763,7 @@ extern "C" {
 #define	PCR_CC_SRIOV_BAR3_REG 0x00000190
 /* sienaa0=pci_f0_config */
 
-#define	PCR_DZ_SRIOV_BAR3_REG 0x00000230
+#define	PCR_DZ_SRIOV_BAR3_REG 0x000001b0
 /* hunta0=pci_f0_config */
 
 /* defined as PCRF_CC_VF_BAR_ADDRESS_LBN 0; */
@@ -1714,7 +1780,7 @@ extern "C" {
 #define	PCR_CC_SRIOV_BAR4_REG 0x00000194
 /* sienaa0=pci_f0_config */
 
-#define	PCR_DZ_SRIOV_BAR4_REG 0x00000234
+#define	PCR_DZ_SRIOV_BAR4_REG 0x000001b4
 /* hunta0=pci_f0_config */
 
 /* defined as PCRF_CC_VF_BAR_ADDRESS_LBN 0; */
@@ -1731,13 +1797,25 @@ extern "C" {
 #define	PCR_CC_SRIOV_BAR5_REG 0x00000198
 /* sienaa0=pci_f0_config */
 
-#define	PCR_DZ_SRIOV_BAR5_REG 0x00000238
+#define	PCR_DZ_SRIOV_BAR5_REG 0x000001b8
 /* hunta0=pci_f0_config */
 
 /* defined as PCRF_CC_VF_BAR_ADDRESS_LBN 0; */
 /* defined as PCRF_CC_VF_BAR_ADDRESS_WIDTH 32 */
 #define	PCRF_DZ_VF_BAR5_ADDRESS_LBN 0
 #define	PCRF_DZ_VF_BAR5_ADDRESS_WIDTH 32
+
+
+/*
+ * PC_SRIOV_RSVD_REG(16bit):
+ * Reserved register
+ */
+
+#define	PCR_DZ_SRIOV_RSVD_REG 0x00000198
+/* hunta0=pci_f0_config */
+
+#define	PCRF_DZ_VF_RSVD_LBN 0
+#define	PCRF_DZ_VF_RSVD_WIDTH 16
 
 
 /*
@@ -1748,7 +1826,7 @@ extern "C" {
 #define	PCR_CC_SRIOV_MIBR_SARRAY_OFFSET_REG 0x0000019c
 /* sienaa0=pci_f0_config */
 
-#define	PCR_DZ_SRIOV_MIBR_SARRAY_OFFSET_REG 0x0000023c
+#define	PCR_DZ_SRIOV_MIBR_SARRAY_OFFSET_REG 0x000001bc
 /* hunta0=pci_f0_config */
 
 #define	PCRF_CZ_VF_MIGR_OFFSET_LBN 3
@@ -1758,45 +1836,11 @@ extern "C" {
 
 
 /*
- * PC_LTR_CAP_HDR_REG(32bit):
- * Latency Tolerance Reporting Cap Header Reg
- */
-
-#define	PCR_DZ_LTR_CAP_HDR_REG 0x00000240
-/* hunta0=pci_f0_config */
-
-#define	PCRF_DZ_LTR_NXT_PTR_LBN 20
-#define	PCRF_DZ_LTR_NXT_PTR_WIDTH 12
-#define	PCRF_DZ_LTR_VERSION_LBN 16
-#define	PCRF_DZ_LTR_VERSION_WIDTH 4
-#define	PCRF_DZ_LTR_EXT_CAP_ID_LBN 0
-#define	PCRF_DZ_LTR_EXT_CAP_ID_WIDTH 16
-
-
-/*
- * PC_LTR_MAX_SNOOP_REG(32bit):
- * LTR Maximum Snoop/No Snoop Register
- */
-
-#define	PCR_DZ_LTR_MAX_SNOOP_REG 0x00000244
-/* hunta0=pci_f0_config */
-
-#define	PCRF_DZ_LTR_MAX_NOSNOOP_SCALE_LBN 26
-#define	PCRF_DZ_LTR_MAX_NOSNOOP_SCALE_WIDTH 3
-#define	PCRF_DZ_LTR_MAX_NOSNOOP_LAT_LBN 16
-#define	PCRF_DZ_LTR_MAX_NOSNOOP_LAT_WIDTH 10
-#define	PCRF_DZ_LTR_MAX_SNOOP_SCALE_LBN 10
-#define	PCRF_DZ_LTR_MAX_SNOOP_SCALE_WIDTH 3
-#define	PCRF_DZ_LTR_MAX_SNOOP_LAT_LBN 0
-#define	PCRF_DZ_LTR_MAX_SNOOP_LAT_WIDTH 10
-
-
-/*
  * PC_TPH_CAP_HDR_REG(32bit):
  * TPH Capability Header Register
  */
 
-#define	PCR_DZ_TPH_CAP_HDR_REG 0x00000274
+#define	PCR_DZ_TPH_CAP_HDR_REG 0x000001c0
 /* hunta0=pci_f0_config */
 
 #define	PCRF_DZ_TPH_NXT_PTR_LBN 20
@@ -1812,7 +1856,7 @@ extern "C" {
  * TPH Requester Capability Register
  */
 
-#define	PCR_DZ_TPH_REQ_CAP_REG 0x00000278
+#define	PCR_DZ_TPH_REQ_CAP_REG 0x000001c4
 /* hunta0=pci_f0_config */
 
 #define	PCRF_DZ_ST_TBLE_SIZE_LBN 16
@@ -1834,7 +1878,7 @@ extern "C" {
  * TPH Requester Control Register
  */
 
-#define	PCR_DZ_TPH_REQ_CTL_REG 0x0000027c
+#define	PCR_DZ_TPH_REQ_CTL_REG 0x000001c8
 /* hunta0=pci_f0_config */
 
 #define	PCRF_DZ_TPH_REQ_ENABLE_LBN 8
@@ -1844,101 +1888,37 @@ extern "C" {
 
 
 /*
- * PC_SEC_PCIE_CAP_REG(32bit):
- * Secondary PCIE Capability Register
+ * PC_LTR_CAP_HDR_REG(32bit):
+ * Latency Tolerance Reporting Cap Header Reg
  */
 
-#define	PCR_DZ_SEC_PCIE_CAP_REG 0x00000300
+#define	PCR_DZ_LTR_CAP_HDR_REG 0x00000290
 /* hunta0=pci_f0_config */
 
-#define	PCRF_DZ_SEC_NXT_PTR_LBN 20
-#define	PCRF_DZ_SEC_NXT_PTR_WIDTH 12
-#define	PCRF_DZ_SEC_VERSION_LBN 16
-#define	PCRF_DZ_SEC_VERSION_WIDTH 4
-#define	PCRF_DZ_SEC_EXT_CAP_ID_LBN 0
-#define	PCRF_DZ_SEC_EXT_CAP_ID_WIDTH 16
+#define	PCRF_DZ_LTR_NXT_PTR_LBN 20
+#define	PCRF_DZ_LTR_NXT_PTR_WIDTH 12
+#define	PCRF_DZ_LTR_VERSION_LBN 16
+#define	PCRF_DZ_LTR_VERSION_WIDTH 4
+#define	PCRF_DZ_LTR_EXT_CAP_ID_LBN 0
+#define	PCRF_DZ_LTR_EXT_CAP_ID_WIDTH 16
 
 
 /*
- * PC_LINK_CONTROL3_REG(32bit):
- * Link Control 3.
+ * PC_LTR_MAX_SNOOP_REG(32bit):
+ * LTR Maximum Snoop/No Snoop Register
  */
 
-#define	PCR_DZ_LINK_CONTROL3_REG 0x00000304
+#define	PCR_DZ_LTR_MAX_SNOOP_REG 0x00000294
 /* hunta0=pci_f0_config */
 
-#define	PCRF_DZ_LINK_EQ_INT_EN_LBN 1
-#define	PCRF_DZ_LINK_EQ_INT_EN_WIDTH 1
-#define	PCRF_DZ_PERFORM_EQL_LBN 0
-#define	PCRF_DZ_PERFORM_EQL_WIDTH 1
-
-
-/*
- * PC_LANE_ERROR_STAT_REG(32bit):
- * Lane Error Status Register.
- */
-
-#define	PCR_DZ_LANE_ERROR_STAT_REG 0x00000308
-/* hunta0=pci_f0_config */
-
-#define	PCRF_DZ_LANE_STATUS_LBN 0
-#define	PCRF_DZ_LANE_STATUS_WIDTH 8
-
-
-/*
- * PC_LANE01_EQU_CONTROL_REG(32bit):
- * Lanes 0,1 Equalization Control Register.
- */
-
-#define	PCR_DZ_LANE01_EQU_CONTROL_REG 0x0000030c
-/* hunta0=pci_f0_config */
-
-#define	PCRF_DZ_LANE1_EQ_CTRL_LBN 16
-#define	PCRF_DZ_LANE1_EQ_CTRL_WIDTH 16
-#define	PCRF_DZ_LANE0_EQ_CTRL_LBN 0
-#define	PCRF_DZ_LANE0_EQ_CTRL_WIDTH 16
-
-
-/*
- * PC_LANE23_EQU_CONTROL_REG(32bit):
- * Lanes 2,3 Equalization Control Register.
- */
-
-#define	PCR_DZ_LANE23_EQU_CONTROL_REG 0x00000310
-/* hunta0=pci_f0_config */
-
-#define	PCRF_DZ_LANE3_EQ_CTRL_LBN 16
-#define	PCRF_DZ_LANE3_EQ_CTRL_WIDTH 16
-#define	PCRF_DZ_LANE2_EQ_CTRL_LBN 0
-#define	PCRF_DZ_LANE2_EQ_CTRL_WIDTH 16
-
-
-/*
- * PC_LANE45_EQU_CONTROL_REG(32bit):
- * Lanes 4,5 Equalization Control Register.
- */
-
-#define	PCR_DZ_LANE45_EQU_CONTROL_REG 0x00000314
-/* hunta0=pci_f0_config */
-
-#define	PCRF_DZ_LANE5_EQ_CTRL_LBN 16
-#define	PCRF_DZ_LANE5_EQ_CTRL_WIDTH 16
-#define	PCRF_DZ_LANE4_EQ_CTRL_LBN 0
-#define	PCRF_DZ_LANE4_EQ_CTRL_WIDTH 16
-
-
-/*
- * PC_LANE67_EQU_CONTROL_REG(32bit):
- * Lanes 6,7 Equalization Control Register.
- */
-
-#define	PCR_DZ_LANE67_EQU_CONTROL_REG 0x00000318
-/* hunta0=pci_f0_config */
-
-#define	PCRF_DZ_LANE7_EQ_CTRL_LBN 16
-#define	PCRF_DZ_LANE7_EQ_CTRL_WIDTH 16
-#define	PCRF_DZ_LANE6_EQ_CTRL_LBN 0
-#define	PCRF_DZ_LANE6_EQ_CTRL_WIDTH 16
+#define	PCRF_DZ_LTR_MAX_NOSNOOP_SCALE_LBN 26
+#define	PCRF_DZ_LTR_MAX_NOSNOOP_SCALE_WIDTH 3
+#define	PCRF_DZ_LTR_MAX_NOSNOOP_LAT_LBN 16
+#define	PCRF_DZ_LTR_MAX_NOSNOOP_LAT_WIDTH 10
+#define	PCRF_DZ_LTR_MAX_SNOOP_SCALE_LBN 10
+#define	PCRF_DZ_LTR_MAX_SNOOP_SCALE_WIDTH 3
+#define	PCRF_DZ_LTR_MAX_SNOOP_LAT_LBN 0
+#define	PCRF_DZ_LTR_MAX_SNOOP_LAT_WIDTH 10
 
 
 /*
@@ -2140,6 +2120,18 @@ extern "C" {
 
 
 /*
+ * PC_FLT_MSK_REG(32bit):
+ * Filter Mask Register 2
+ */
+
+#define	PCR_CC_FLT_MSK_REG 0x00000720
+/* sienaa0=pci_f0_config */
+
+#define	PCRF_CC_DEFAULT_FLT_MSK2_LBN 0
+#define	PCRF_CC_DEFAULT_FLT_MSK2_WIDTH 32
+
+
+/*
  * PC_PHY_STAT_REG(32bit):
  * PHY status register
  */
@@ -2158,18 +2150,6 @@ extern "C" {
 #define	PCRF_AC_SSCL_WIDTH 1
 #define	PCRF_AC_SSCD_LBN 0
 #define	PCRF_AC_SSCD_WIDTH 1
-
-
-/*
- * PC_FLT_MSK_REG(32bit):
- * Filter Mask Register 2
- */
-
-#define	PCR_CC_FLT_MSK_REG 0x00000720
-/* sienaa0=pci_f0_config */
-
-#define	PCRF_CC_DEFAULT_FLT_MSK2_LBN 0
-#define	PCRF_CC_DEFAULT_FLT_MSK2_WIDTH 32
 
 
 /*

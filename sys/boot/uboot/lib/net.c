@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include "api_public.h"
 #include "glue.h"
 #include "libuboot.h"
+#include "dev_net.h"
 
 static int	net_probe(struct netif *, void *);
 static int	net_match(struct netif *, void *);
@@ -83,6 +84,109 @@ struct uboot_softc {
 };
 
 static struct uboot_softc uboot_softc;
+
+/*
+ * get_env_net_params()
+ *
+ * Attempt to obtain all the parms we need for netbooting from the U-Boot
+ * environment.  If we fail to obtain the values it may still be possible to
+ * netboot; the net_dev code will attempt to get the values from bootp, rarp,
+ * and other such sources.
+ *
+ * If rootip.s_addr is non-zero net_dev assumes the required global variables
+ * are set and skips the bootp inquiry.  For that reason, we don't set rootip
+ * until we've verified that we have at least the minimum required info.
+ *
+ * This is called from netif_init() which can result in it getting called
+ * multiple times, by design.  The network code at higher layers zeroes out
+ * rootip when it closes a network interface, so if it gets opened again we have
+ * to obtain all this info again.
+ */
+static void
+get_env_net_params()
+{
+	char *envstr;
+	in_addr_t rootaddr, serveraddr;
+
+	/* Silently get out right away if we don't have rootpath. */
+	if (ub_env_get("rootpath") == NULL)
+		return;
+
+	/*
+	 * Our own IP address must be valid.  Silently get out if it's not set,
+	 * but whine if it's there and we can't parse it.
+	 */
+	if ((envstr = ub_env_get("ipaddr")) == NULL)
+		return;
+	if ((myip.s_addr = inet_addr(envstr)) == INADDR_NONE) {
+		printf("Could not parse ipaddr '%s'\n", envstr);
+		return;
+	}
+
+	/*
+	 * Netmask is optional, default to the "natural" netmask for our IP, but
+	 * whine if it was provided and we couldn't parse it.
+	 */
+	if ((envstr = ub_env_get("netmask")) != NULL &&
+	    (netmask = inet_addr(envstr)) == INADDR_NONE) {
+		printf("Could not parse netmask '%s'\n", envstr);
+	}
+	if (netmask == INADDR_NONE) {
+		if (IN_CLASSA(myip.s_addr))
+			netmask = IN_CLASSA_NET;
+		else if (IN_CLASSB(myip.s_addr))
+			netmask = IN_CLASSB_NET;
+		else
+			netmask = IN_CLASSC_NET;
+	}
+
+	/*
+	 * Get optional serverip before rootpath; the latter can override it.
+	 * Whine only if it's present but can't be parsed.
+	 */
+	serveraddr = INADDR_NONE;
+	if ((envstr = ub_env_get("serverip")) != NULL) {
+		if ((serveraddr = inet_addr(envstr)) == INADDR_NONE) 
+			printf("Could not parse serverip '%s'\n", envstr);
+	}
+
+	/*
+	 * There must be a rootpath.  It may be ip:/path or it may be just the
+	 * path in which case the ip needs to be in serverip.
+	 */
+	if ((envstr = ub_env_get("rootpath")) == NULL)
+		return;
+	strncpy(rootpath, envstr, sizeof(rootpath) - 1);
+	rootaddr = net_parse_rootpath();
+	if (rootaddr == INADDR_NONE)
+		rootaddr = serveraddr;
+	if (rootaddr == INADDR_NONE) {
+		printf("No server address for rootpath '%s'\n", envstr);
+		return;
+	}
+	rootip.s_addr = rootaddr;
+
+	/*
+	 * Gateway IP is optional unless rootip is on a different net in which
+	 * case whine if it's missing or we can't parse it, and set rootip addr
+	 * to zero, which signals to other network code that network params
+	 * aren't set (so it will try dhcp, bootp, etc).
+	 */
+	envstr = ub_env_get("gatewayip");
+	if (!SAMENET(myip, rootip, netmask)) {
+		if (envstr == NULL)  {
+			printf("Need gatewayip for a root server on a "
+			    "different network.\n");
+			rootip.s_addr = 0;
+			return;
+		}
+		if ((gateip.s_addr = inet_addr(envstr) == INADDR_NONE)) {
+			printf("Could not parse gatewayip '%s'\n", envstr);
+			rootip.s_addr = 0;
+			return;
+		}
+	}
+}
 
 static int
 net_match(struct netif *nif, void *machdep_hint)
@@ -221,6 +325,11 @@ net_init(struct iodesc *desc, void *machdep_hint)
 		panic("%s%d: empty ethernet address!",
 		    nif->nif_driver->netif_bname, nif->nif_unit);
 	}
+
+	/* Attempt to get netboot params from the u-boot env. */
+	get_env_net_params();
+	if (myip.s_addr != 0)
+		desc->myip = myip;
 
 #if defined(NETIF_DEBUG)
 	printf("network: %s%d attached to %s\n", nif->nif_driver->netif_bname,

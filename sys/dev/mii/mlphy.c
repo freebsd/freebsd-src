@@ -128,8 +128,7 @@ mlphy_probe(dev)
 	 * encountered the 6692 on an Olicom card with a ThunderLAN
 	 * controller chip.
 	 */
-	if (strcmp(device_get_name(device_get_parent(device_get_parent(dev))),
-	    "tl") != 0)
+	if (!mii_dev_mac_match(dev, "tl"))
 		return (ENXIO);
 
 	device_set_desc(dev, "Micro Linear 6692 media interface");
@@ -221,29 +220,11 @@ mlphy_service(xsc, mii, cmd)
 			msc->ml_linked = 0;
 			return (0);
 		case IFM_10_T:
-			/*
-			 * For 10baseT modes, reset and program the
-			 * companion PHY (of any), then program ourselves
-			 * to match. This will put us in pass-through
-			 * mode and let the companion PHY do all the
-			 * work.
-			 *
-			 * BMCR data is stored in the ifmedia entry.
-			 */
-			if (other != NULL) {
-				PHY_RESET(other);
-				PHY_WRITE(other, MII_BMCR, ife->ifm_data);
-			}
-			mii_phy_setmedia(sc);
-			msc->ml_state = 0;
-			break;
 		case IFM_100_TX:
 			/*
-			 * For 100baseTX modes, reset and isolate the
-			 * companion PHY (if any), then program ourselves
+			 * For 10baseT and 100baseTX modes, reset and isolate
+			 * the companion PHY (if any), then program ourselves
 			 * accordingly.
-			 *
-			 * BMCR data is stored in the ifmedia entry.
 			 */
 			if (other != NULL) {
 				PHY_RESET(other);

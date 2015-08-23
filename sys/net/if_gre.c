@@ -64,6 +64,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_types.h>
 #include <net/netisr.h>
 #include <net/vnet.h>
+#include <net/route.h>
 
 #include <netinet/in.h>
 #ifdef INET
@@ -112,7 +113,7 @@ static void	gre_qflush(struct ifnet *);
 static int	gre_transmit(struct ifnet *, struct mbuf *);
 static int	gre_ioctl(struct ifnet *, u_long, caddr_t);
 static int	gre_output(struct ifnet *, struct mbuf *,
-		    const struct sockaddr *, struct nhop_info *);
+		    const struct sockaddr *, struct route *);
 
 static void	gre_updatehdr(struct gre_softc *);
 static int	gre_set_tunnel(struct ifnet *, struct sockaddr *,
@@ -441,6 +442,17 @@ gre_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 #endif
 		}
 		break;
+	case SIOCGTUNFIB:
+		ifr->ifr_fib = sc->gre_fibnum;
+		break;
+	case SIOCSTUNFIB:
+		if ((error = priv_check(curthread, PRIV_NET_GRE)) != 0)
+			break;
+		if (ifr->ifr_fib >= rt_numfibs)
+			error = EINVAL;
+		else
+			sc->gre_fibnum = ifr->ifr_fib;
+		break;
 	case GRESKEY:
 		if ((error = priv_check(curthread, PRIV_NET_GRE)) != 0)
 			break;
@@ -454,7 +466,8 @@ gre_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		}
 		break;
 	case GREGKEY:
-		error = copyout(&sc->gre_key, ifr->ifr_data, sizeof(sc->gre_key));
+		error = copyout(&sc->gre_key, ifr->ifr_data,
+		    sizeof(sc->gre_key));
 		break;
 	case GRESOPTS:
 		if ((error = priv_check(curthread, PRIV_NET_GRE)) != 0)
@@ -725,7 +738,7 @@ gre_input(struct mbuf **mp, int *offp, int proto)
 	m_adj(m, *offp + hlen);
 	m_clrprotoflags(m);
 	m->m_pkthdr.rcvif = ifp;
-	M_SETFIB(m, sc->gre_fibnum);
+	M_SETFIB(m, ifp->if_fib);
 #ifdef MAC
 	mac_ifnet_create_mbuf(ifp, m);
 #endif
@@ -752,7 +765,7 @@ gre_check_nesting(struct ifnet *ifp, struct mbuf *m)
 
 	count = 1;
 	mtag = NULL;
-	while ((mtag = m_tag_locate(m, MTAG_GRE, 0, NULL)) != NULL) {
+	while ((mtag = m_tag_locate(m, MTAG_GRE, 0, mtag)) != NULL) {
 		if (*(struct ifnet **)(mtag + 1) == ifp) {
 			log(LOG_NOTICE, "%s: loop detected\n", ifp->if_xname);
 			return (EIO);
@@ -775,7 +788,7 @@ gre_check_nesting(struct ifnet *ifp, struct mbuf *m)
 
 static int
 gre_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
-   struct nhop_info *ni)
+   struct route *ro)
 {
 	uint32_t af;
 	int error;

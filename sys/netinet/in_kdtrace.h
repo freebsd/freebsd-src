@@ -32,6 +32,8 @@
 	SDT_PROBE6(ip, , , probe, arg0, arg1, arg2, arg3, arg4, arg5)
 #define	UDP_PROBE(probe, arg0, arg1, arg2, arg3, arg4)			\
 	SDT_PROBE5(udp, , , probe, arg0, arg1, arg2, arg3, arg4)
+#define	TCP_PROBE1(probe, arg0) \
+	SDT_PROBE1(tcp, , , probe, arg0)
 #define	TCP_PROBE5(probe, arg0, arg1, arg2, arg3, arg4)			\
 	SDT_PROBE5(tcp, , , probe, arg0, arg1, arg2, arg3, arg4)
 #define	TCP_PROBE6(probe, arg0, arg1, arg2, arg3, arg4, arg5)		\
@@ -51,6 +53,7 @@ SDT_PROBE_DECLARE(tcp, , , connect__refused);
 SDT_PROBE_DECLARE(tcp, , , connect__request);
 SDT_PROBE_DECLARE(tcp, , , receive);
 SDT_PROBE_DECLARE(tcp, , , send);
+SDT_PROBE_DECLARE(tcp, , , siftr);
 SDT_PROBE_DECLARE(tcp, , , state__change);
 
 SDT_PROBE_DECLARE(udp, , , receive);

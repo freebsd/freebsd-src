@@ -2381,7 +2381,7 @@ vxlan_encap6(struct vxlan_softc *sc, const union vxlan_sockaddr *fvxlsa,
 	mcast = (m->m_flags & (M_MCAST | M_BCAST)) ? 1 : 0;
 	m->m_flags &= ~(M_MCAST | M_BCAST);
 
-	error = ip6_output(m, NULL, NULL, 0, sc->vxl_im6o, NULL);
+	error = ip6_output(m, NULL, NULL, 0, sc->vxl_im6o, NULL, NULL);
 	if (error == 0) {
 		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 		if_inc_counter(ifp, IFCOUNTER_OBYTES, len);

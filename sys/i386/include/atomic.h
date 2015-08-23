@@ -37,9 +37,31 @@
 #include <machine/specialreg.h>
 #endif
 
-#define	mb()	__asm __volatile("lock; addl $0,(%%esp)" : : : "memory", "cc")
-#define	wmb()	__asm __volatile("lock; addl $0,(%%esp)" : : : "memory", "cc")
-#define	rmb()	__asm __volatile("lock; addl $0,(%%esp)" : : : "memory", "cc")
+#ifndef __OFFSETOF_MONITORBUF
+/*
+ * __OFFSETOF_MONITORBUF == __pcpu_offset(pc_monitorbuf).
+ *
+ * The open-coded number is used instead of the symbolic expression to
+ * avoid a dependency on sys/pcpu.h in machine/atomic.h consumers.
+ * An assertion in i386/vm_machdep.c ensures that the value is correct.
+ */
+#define	__OFFSETOF_MONITORBUF	0x180
+
+static __inline void
+__mbk(void)
+{
+
+	__asm __volatile("lock; addl $0,%%fs:%0"
+	    : "+m" (*(u_int *)__OFFSETOF_MONITORBUF) : : "memory", "cc");
+}
+
+static __inline void
+__mbu(void)
+{
+
+	__asm __volatile("lock; addl $0,(%%esp)" : : : "memory", "cc");
+}
+#endif
 
 /*
  * Various simple operations on memory, each of which is atomic in the
@@ -86,8 +108,12 @@ void atomic_##NAME##_barr_##TYPE(volatile u_##TYPE *p, u_##TYPE v)
 int	atomic_cmpset_int(volatile u_int *dst, u_int expect, u_int src);
 u_int	atomic_fetchadd_int(volatile u_int *p, u_int v);
 int	atomic_testandset_int(volatile u_int *p, u_int v);
+void	atomic_thread_fence_acq(void);
+void	atomic_thread_fence_acq_rel(void);
+void	atomic_thread_fence_rel(void);
+void	atomic_thread_fence_seq_cst(void);
 
-#define	ATOMIC_LOAD(TYPE, LOP)					\
+#define	ATOMIC_LOAD(TYPE)					\
 u_##TYPE	atomic_load_acq_##TYPE(volatile u_##TYPE *p)
 #define	ATOMIC_STORE(TYPE)					\
 void		atomic_store_rel_##TYPE(volatile u_##TYPE *p, u_##TYPE v)
@@ -228,53 +254,80 @@ atomic_testandset_int(volatile u_int *p, u_int v)
  * We assume that a = b will do atomic loads and stores.  Due to the
  * IA32 memory model, a simple store guarantees release semantics.
  *
- * However, loads may pass stores, so for atomic_load_acq we have to
- * ensure a Store/Load barrier to do the load in SMP kernels.  We use
- * "lock cmpxchg" as recommended by the AMD Software Optimization
- * Guide, and not mfence.  For UP kernels, however, the cache of the
- * single processor is always consistent, so we only need to take care
- * of the compiler.
+ * However, a load may pass a store if they are performed on distinct
+ * addresses, so we need Store/Load barrier for sequentially
+ * consistent fences in SMP kernels.  We use "lock addl $0,mem" for a
+ * Store/Load barrier, as recommended by the AMD Software Optimization
+ * Guide, and not mfence.  In the kernel, we use a private per-cpu
+ * cache line for "mem", to avoid introducing false data
+ * dependencies.  In user space, we use the word at the top of the
+ * stack.
+ *
+ * For UP kernels, however, the memory of the single processor is
+ * always consistent, so we only need to stop the compiler from
+ * reordering accesses in a way that violates the semantics of acquire
+ * and release.
  */
-#define	ATOMIC_STORE(TYPE)				\
-static __inline void					\
-atomic_store_rel_##TYPE(volatile u_##TYPE *p, u_##TYPE v)\
-{							\
-	__compiler_membar();				\
-	*p = v;						\
-}							\
+
+#if defined(_KERNEL)
+#if defined(SMP)
+#define	__storeload_barrier()	__mbk()
+#else /* _KERNEL && UP */
+#define	__storeload_barrier()	__compiler_membar()
+#endif /* SMP */
+#else /* !_KERNEL */
+#define	__storeload_barrier()	__mbu()
+#endif /* _KERNEL*/
+
+#define	ATOMIC_LOAD(TYPE)					\
+static __inline u_##TYPE					\
+atomic_load_acq_##TYPE(volatile u_##TYPE *p)			\
+{								\
+	u_##TYPE res;						\
+								\
+	res = *p;						\
+	__compiler_membar();					\
+	return (res);						\
+}								\
 struct __hack
 
-#if defined(_KERNEL) && !defined(SMP)
-
-#define	ATOMIC_LOAD(TYPE, LOP)				\
-static __inline u_##TYPE				\
-atomic_load_acq_##TYPE(volatile u_##TYPE *p)		\
-{							\
-	u_##TYPE tmp;					\
-							\
-	tmp = *p;					\
-	__compiler_membar();				\
-	return (tmp);					\
-}							\
+#define	ATOMIC_STORE(TYPE)					\
+static __inline void						\
+atomic_store_rel_##TYPE(volatile u_##TYPE *p, u_##TYPE v)	\
+{								\
+								\
+	__compiler_membar();					\
+	*p = v;							\
+}								\
 struct __hack
 
-#else /* !(_KERNEL && !SMP) */
+static __inline void
+atomic_thread_fence_acq(void)
+{
 
-#define	ATOMIC_LOAD(TYPE, LOP)				\
-static __inline u_##TYPE				\
-atomic_load_acq_##TYPE(volatile u_##TYPE *p)		\
-{							\
-	u_##TYPE res;					\
-							\
-	__asm __volatile(MPLOCKED LOP			\
-	: "=a" (res),			/* 0 */		\
-	  "+m" (*p)			/* 1 */		\
-	: : "memory", "cc");				\
-	return (res);					\
-}							\
-struct __hack
+	__compiler_membar();
+}
 
-#endif /* _KERNEL && !SMP */
+static __inline void
+atomic_thread_fence_rel(void)
+{
+
+	__compiler_membar();
+}
+
+static __inline void
+atomic_thread_fence_acq_rel(void)
+{
+
+	__compiler_membar();
+}
+
+static __inline void
+atomic_thread_fence_seq_cst(void)
+{
+
+	__storeload_barrier();
+}
 
 #ifdef _KERNEL
 
@@ -511,19 +564,19 @@ ATOMIC_ASM(clear,    long,  "andl %1,%0",  "ir", ~v);
 ATOMIC_ASM(add,	     long,  "addl %1,%0",  "ir",  v);
 ATOMIC_ASM(subtract, long,  "subl %1,%0",  "ir",  v);
 
-ATOMIC_LOAD(char,  "cmpxchgb %b0,%1");
-ATOMIC_LOAD(short, "cmpxchgw %w0,%1");
-ATOMIC_LOAD(int,   "cmpxchgl %0,%1");
-ATOMIC_LOAD(long,  "cmpxchgl %0,%1");
+#define	ATOMIC_LOADSTORE(TYPE)				\
+	ATOMIC_LOAD(TYPE);				\
+	ATOMIC_STORE(TYPE)
 
-ATOMIC_STORE(char);
-ATOMIC_STORE(short);
-ATOMIC_STORE(int);
-ATOMIC_STORE(long);
+ATOMIC_LOADSTORE(char);
+ATOMIC_LOADSTORE(short);
+ATOMIC_LOADSTORE(int);
+ATOMIC_LOADSTORE(long);
 
 #undef ATOMIC_ASM
 #undef ATOMIC_LOAD
 #undef ATOMIC_STORE
+#undef ATOMIC_LOADSTORE
 
 #ifndef WANT_FUNCTIONS
 
@@ -719,5 +772,15 @@ u_long	atomic_swap_long(volatile u_long *p, u_long v);
 	atomic_readandclear_int((volatile u_int *)(p))
 
 #endif /* !WANT_FUNCTIONS */
+
+#if defined(_KERNEL)
+#define	mb()	__mbk()
+#define	wmb()	__mbk()
+#define	rmb()	__mbk()
+#else
+#define	mb()	__mbu()
+#define	wmb()	__mbu()
+#define	rmb()	__mbu()
+#endif
 
 #endif /* !_MACHINE_ATOMIC_H_ */

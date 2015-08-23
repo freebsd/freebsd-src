@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2014, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,7 +41,6 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-#define __RSXFACE_C__
 #define EXPORT_ACPI_INTERFACES
 
 #include <contrib/dev/acpica/include/acpi.h>
@@ -62,11 +61,11 @@
     ACPI_COPY_FIELD(Out, In, MinAddressFixed);           \
     ACPI_COPY_FIELD(Out, In, MaxAddressFixed);           \
     ACPI_COPY_FIELD(Out, In, Info);                      \
-    ACPI_COPY_FIELD(Out, In, Granularity);               \
-    ACPI_COPY_FIELD(Out, In, Minimum);                   \
-    ACPI_COPY_FIELD(Out, In, Maximum);                   \
-    ACPI_COPY_FIELD(Out, In, TranslationOffset);         \
-    ACPI_COPY_FIELD(Out, In, AddressLength);             \
+    ACPI_COPY_FIELD(Out, In, Address.Granularity);       \
+    ACPI_COPY_FIELD(Out, In, Address.Minimum);           \
+    ACPI_COPY_FIELD(Out, In, Address.Maximum);           \
+    ACPI_COPY_FIELD(Out, In, Address.TranslationOffset); \
+    ACPI_COPY_FIELD(Out, In, Address.AddressLength);     \
     ACPI_COPY_FIELD(Out, In, ResourceSource);
 
 
@@ -448,7 +447,7 @@ AcpiResourceToAddress64 (
 
         /* Simple copy for 64 bit source */
 
-        ACPI_MEMCPY (Out, &Resource->Data, sizeof (ACPI_RESOURCE_ADDRESS64));
+        memcpy (Out, &Resource->Data, sizeof (ACPI_RESOURCE_ADDRESS64));
         break;
 
     default:
@@ -559,7 +558,7 @@ AcpiRsMatchVendorResource (
      */
     if ((Vendor->ByteLength < (ACPI_UUID_LENGTH + 1)) ||
         (Vendor->UuidSubtype != Info->Uuid->Subtype)  ||
-        (ACPI_MEMCMP (Vendor->Uuid, Info->Uuid->Data, ACPI_UUID_LENGTH)))
+        (memcmp (Vendor->Uuid, Info->Uuid->Data, ACPI_UUID_LENGTH)))
     {
         return (AE_OK);
     }
@@ -575,7 +574,7 @@ AcpiRsMatchVendorResource (
 
     /* Found the correct resource, copy and return it */
 
-    ACPI_MEMCPY (Buffer->Pointer, Resource, Resource->Length);
+    memcpy (Buffer->Pointer, Resource, Resource->Length);
     Buffer->Length = Resource->Length;
 
     /* Found the desired descriptor, terminate resource walk */

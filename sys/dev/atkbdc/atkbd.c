@@ -44,19 +44,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/resource.h>
 
-#if defined(__i386__) || defined(__amd64__)
-#include <machine/md_var.h>
-#include <machine/psl.h>
-#include <compat/x86bios/x86bios.h>
-#include <machine/pc/bios.h>
-
-#include <vm/vm.h>
-#include <vm/pmap.h>
-#include <vm/vm_param.h>
-
-#include <isa/isareg.h>
-#endif /* __i386__ || __amd64__ */
-
 #include <sys/kbio.h>
 #include <dev/kbd/kbdreg.h>
 #include <dev/atkbdc/atkbdreg.h>
@@ -77,6 +64,13 @@ typedef struct atkbd_state {
 
 static void		atkbd_timeout(void *arg);
 static void		atkbd_shutdown_final(void *v);
+static int		atkbd_reset(KBDC kbdc, int flags, int c);
+
+#define HAS_QUIRK(p, q)		(((atkbdc_softc_t *)(p))->quirks & q)
+#define ALLOW_DISABLE_KBD(kbdc)	!HAS_QUIRK(kbdc, KBDC_QUIRK_KEEP_ACTIVATED)
+
+#define DEFAULT_DELAY		0x1  /* 500ms */
+#define DEFAULT_RATE		0x10 /* 14Hz */
 
 int
 atkbd_probe_unit(device_t dev, int irq, int flags)
@@ -245,7 +239,7 @@ static keyboard_switch_t atkbdsw = {
 KEYBOARD_DRIVER(atkbd, atkbdsw, atkbd_configure);
 
 /* local functions */
-static int		get_typematic(keyboard_t *kbd);
+static int		set_typematic(keyboard_t *kbd);
 static int		setup_kbd_port(KBDC kbdc, int port, int intr);
 static int		get_kbd_echo(KBDC kbdc);
 static int		probe_keyboard(KBDC kbdc, int flags);
@@ -439,7 +433,7 @@ atkbd_init(int unit, keyboard_t **kbdp, void *arg, int flags)
 			goto bad;
 		}
 		atkbd_ioctl(kbd, KDSETLED, (caddr_t)&state->ks_state);
-		get_typematic(kbd);
+		set_typematic(kbd);
 		delay[0] = kbd->kb_delay1;
 		delay[1] = kbd->kb_delay2;
 		atkbd_ioctl(kbd, KDSETREPEAT, (caddr_t)delay);
@@ -499,7 +493,7 @@ atkbd_intr(keyboard_t *kbd, void *arg)
 		init_keyboard(state->kbdc, &kbd->kb_type, kbd->kb_config);
 		KBD_FOUND_DEVICE(kbd);
 		atkbd_ioctl(kbd, KDSETLED, (caddr_t)&state->ks_state);
-		get_typematic(kbd);
+		set_typematic(kbd);
 		delay[0] = kbd->kb_delay1;
 		delay[1] = kbd->kb_delay2;
 		atkbd_ioctl(kbd, KDSETREPEAT, (caddr_t)delay);
@@ -1095,60 +1089,55 @@ atkbd_shutdown_final(void *v)
 #endif
 }
 
+static int
+atkbd_reset(KBDC kbdc, int flags, int c)
+{
+	/* reset keyboard hardware */
+	if (!(flags & KB_CONF_NO_RESET) && !reset_kbd(kbdc)) {
+		/*
+		 * KEYBOARD ERROR
+		 * Keyboard reset may fail either because the keyboard
+		 * doen't exist, or because the keyboard doesn't pass
+		 * the self-test, or the keyboard controller on the
+		 * motherboard and the keyboard somehow fail to shake hands.
+		 * It is just possible, particularly in the last case,
+		 * that the keyboard controller may be left in a hung state.
+		 * test_controller() and test_kbd_port() appear to bring
+		 * the keyboard controller back (I don't know why and how,
+		 * though.)
+		 */
+		empty_both_buffers(kbdc, 10);
+		test_controller(kbdc);
+		test_kbd_port(kbdc);
+		/*
+		 * We could disable the keyboard port and interrupt... but, 
+		 * the keyboard may still exist (see above). 
+		 */
+		set_controller_command_byte(kbdc,
+		    ALLOW_DISABLE_KBD(kbdc) ? 0xff : KBD_KBD_CONTROL_BITS, c);
+		if (bootverbose)
+			printf("atkbd: failed to reset the keyboard.\n");
+		return (EIO);
+	}
+	return (0);
+}
+
 /* local functions */
 
 static int
-get_typematic(keyboard_t *kbd)
+set_typematic(keyboard_t *kbd)
 {
-#if defined(__i386__) || defined(__amd64__)
-	/*
-	 * Only some systems allow us to retrieve the keyboard repeat
-	 * rate previously set via the BIOS...
-	 */
-	x86regs_t regs;
-	uint8_t *p;
+	int val, error;
+	atkbd_state_t *state = kbd->kb_data;
 
-	/*
-	 * Traditional entry points of int 0x15 and 0x16 are fixed
-	 * and later BIOSes follow them.  (U)EFI CSM specification
-	 * also mandates these fixed entry points.
-	 *
-	 * Validate the entry points here before we proceed further.
-	 * It's known that some recent laptops does not have the
-	 * same entry point and hang on boot if we call it.
-	 */
-	if (x86bios_get_intr(0x15) != 0xf000f859 ||
-	    x86bios_get_intr(0x16) != 0xf000e82e)
-		return (ENODEV);
+	val = typematic(DEFAULT_DELAY, DEFAULT_RATE);
+	error = write_kbd(state->kbdc, KBDC_SET_TYPEMATIC, val);
+	if (error == 0) {
+		kbd->kb_delay1 = typematic_delay(val);
+		kbd->kb_delay2 = typematic_rate(val);
+	}
 
-	/* Is BIOS system configuration table supported? */
-	x86bios_init_regs(&regs);
-	regs.R_AH = 0xc0;
-	x86bios_intr(&regs, 0x15);
-	if ((regs.R_FLG & PSL_C) != 0 || regs.R_AH != 0)
-		return (ENODEV);
-
-	/* Is int 0x16, function 0x09 supported? */
-	p = x86bios_offset((regs.R_ES << 4) + regs.R_BX);
-	if (readw(p) < 5 || (readb(p + 6) & 0x40) == 0)
-		return (ENODEV);
-
-	/* Is int 0x16, function 0x0306 supported? */
-	x86bios_init_regs(&regs);
-	regs.R_AH = 0x09;
-	x86bios_intr(&regs, 0x16);
-	if ((regs.R_AL & 0x08) == 0)
-		return (ENODEV);
-
-	x86bios_init_regs(&regs);
-	regs.R_AX = 0x0306;
-	x86bios_intr(&regs, 0x16);
-	kbd->kb_delay1 = typematic_delay(regs.R_BH << 5);
-	kbd->kb_delay2 = typematic_rate(regs.R_BL);
-	return (0);
-#else
-	return (ENODEV);
-#endif /* __i386__ || __amd64__ */
+	return (error);
 }
 
 static int
@@ -1250,13 +1239,14 @@ probe_keyboard(KBDC kbdc, int flags)
 		kbdc_set_device_mask(kbdc, m | KBD_KBD_CONTROL_BITS);
 	} else {
 		/* try to restore the command byte as before */
-		set_controller_command_byte(kbdc, 0xff, c);
+		set_controller_command_byte(kbdc,
+		    ALLOW_DISABLE_KBD(kbdc) ? 0xff : KBD_KBD_CONTROL_BITS, c);
 		kbdc_set_device_mask(kbdc, m);
 	}
 #endif
 
 	kbdc_lock(kbdc, FALSE);
-	return err;
+	return (HAS_QUIRK(kbdc, KBDC_QUIRK_IGNORE_PROBE_RESULT) ? 0 : err);
 }
 
 static int
@@ -1295,6 +1285,12 @@ init_keyboard(KBDC kbdc, int *type, int flags)
 	if (setup_kbd_port(kbdc, TRUE, FALSE)) {
 		/* CONTROLLER ERROR: there is very little we can do... */
 		printf("atkbd: unable to set the command byte.\n");
+		kbdc_lock(kbdc, FALSE);
+		return EIO;
+	}
+
+	if (HAS_QUIRK(kbdc, KBDC_QUIRK_RESET_AFTER_PROBE) &&
+	    atkbd_reset(kbdc, flags, c)) {
 		kbdc_lock(kbdc, FALSE);
 		return EIO;
 	}
@@ -1343,31 +1339,9 @@ init_keyboard(KBDC kbdc, int *type, int flags)
 	if (bootverbose)
 		printf("atkbd: keyboard ID 0x%x (%d)\n", id, *type);
 
-	/* reset keyboard hardware */
-	if (!(flags & KB_CONF_NO_RESET) && !reset_kbd(kbdc)) {
-		/*
-		 * KEYBOARD ERROR
-		 * Keyboard reset may fail either because the keyboard
-		 * doen't exist, or because the keyboard doesn't pass
-		 * the self-test, or the keyboard controller on the
-		 * motherboard and the keyboard somehow fail to shake hands.
-		 * It is just possible, particularly in the last case,
-		 * that the keyboard controller may be left in a hung state.
-		 * test_controller() and test_kbd_port() appear to bring
-		 * the keyboard controller back (I don't know why and how,
-		 * though.)
-		 */
-		empty_both_buffers(kbdc, 10);
-		test_controller(kbdc);
-		test_kbd_port(kbdc);
-		/*
-		 * We could disable the keyboard port and interrupt... but, 
-		 * the keyboard may still exist (see above). 
-		 */
-		set_controller_command_byte(kbdc, 0xff, c);
+	if (!HAS_QUIRK(kbdc, KBDC_QUIRK_RESET_AFTER_PROBE) &&
+	    atkbd_reset(kbdc, flags, c)) {
 		kbdc_lock(kbdc, FALSE);
-		if (bootverbose)
-			printf("atkbd: failed to reset the keyboard.\n");
 		return EIO;
 	}
 
@@ -1387,7 +1361,8 @@ init_keyboard(KBDC kbdc, int *type, int flags)
 			 * The XT kbd isn't usable unless the proper scan
 			 * code set is selected. 
 			 */
-			set_controller_command_byte(kbdc, 0xff, c);
+			set_controller_command_byte(kbdc, ALLOW_DISABLE_KBD(kbdc)
+			    ? 0xff : KBD_KBD_CONTROL_BITS, c);
 			kbdc_lock(kbdc, FALSE);
 			printf("atkbd: unable to set the XT keyboard mode.\n");
 			return EIO;
@@ -1402,6 +1377,17 @@ init_keyboard(KBDC kbdc, int *type, int flags)
 	c |= KBD_TRANSLATION;
 #endif
 
+	/*
+	 * Some keyboards require a SETLEDS command to be sent after
+	 * the reset command before they will send keystrokes to us
+	 */
+	if (HAS_QUIRK(kbdc, KBDC_QUIRK_SETLEDS_ON_INIT) &&
+	    send_kbd_command_and_data(kbdc, KBDC_SET_LEDS, 0) != KBD_ACK) {
+		printf("atkbd: setleds failed\n");
+	}
+	if (!ALLOW_DISABLE_KBD(kbdc))
+	    send_kbd_command(kbdc, KBDC_ENABLE_KBD);
+
 	/* enable the keyboard port and intr. */
 	if (!set_controller_command_byte(kbdc, 
 		KBD_KBD_CONTROL_BITS | KBD_TRANSLATION | KBD_OVERRIDE_KBD_LOCK,
@@ -1412,7 +1398,9 @@ init_keyboard(KBDC kbdc, int *type, int flags)
 		 * This is serious; we are left with the disabled
 		 * keyboard intr. 
 		 */
-		set_controller_command_byte(kbdc, 0xff, c);
+		set_controller_command_byte(kbdc, ALLOW_DISABLE_KBD(kbdc)
+		    ? 0xff : (KBD_KBD_CONTROL_BITS | KBD_TRANSLATION |
+			KBD_OVERRIDE_KBD_LOCK), c);
 		kbdc_lock(kbdc, FALSE);
 		printf("atkbd: unable to enable the keyboard port and intr.\n");
 		return EIO;

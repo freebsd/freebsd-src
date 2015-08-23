@@ -58,7 +58,6 @@ __FBSDID("$FreeBSD$");
 #define TCPSTATES
 #include <netinet/tcp_fsm.h>
 #include <netinet/toecore.h>
-#include <net/rt_nhops.h>
 
 #include "common/common.h"
 #include "common/t4_msg.h"
@@ -524,7 +523,7 @@ t4_listen_start(struct toedev *tod, struct tcpcb *tp)
 		goto done;
 	}
 
-	KASSERT(sc->flags & TOM_INIT_DONE,
+	KASSERT(uld_active(sc, ULD_TOM),
 	    ("%s: TOM not initialized", __func__));
 #endif
 
@@ -1091,98 +1090,51 @@ pass_accept_req_to_protohdrs(const struct mbuf *m, struct in_conninfo *inc,
 	}
 }
 
-static int
-ifnet_has_ip6(struct ifnet *ifp, struct in6_addr *ip6)
-{
-	struct ifaddr *ifa;
-	struct sockaddr_in6 *sin6;
-	int found = 0;
-	struct in6_addr in6 = *ip6;
-
-	/* Just as in ip6_input */
-	if (in6_clearscope(&in6) || in6_clearscope(&in6))
-		return (0);
-	in6_setscope(&in6, ifp, NULL);
-
-	if_addr_rlock(ifp);
-	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
-		sin6 = (void *)ifa->ifa_addr;
-		if (sin6->sin6_family != AF_INET6)
-			continue;
-
-		if (IN6_ARE_ADDR_EQUAL(&sin6->sin6_addr, &in6)) {
-			found = 1;
-			break;
-		}
-	}
-	if_addr_runlock(ifp);
-
-	return (found);
-}
-
 static struct l2t_entry *
 get_l2te_for_nexthop(struct port_info *pi, struct ifnet *ifp,
     struct in_conninfo *inc)
 {
+	struct rtentry *rt;
 	struct l2t_entry *e;
 	struct sockaddr_in6 sin6;
-	struct nhopu_extended nhu;
 	struct sockaddr *dst = (void *)&sin6;
  
 	if (inc->inc_flags & INC_ISIPV6) {
 		dst->sa_len = sizeof(struct sockaddr_in6);
 		dst->sa_family = AF_INET6;
+		((struct sockaddr_in6 *)dst)->sin6_addr = inc->inc6_faddr;
 
 		if (IN6_IS_ADDR_LINKLOCAL(&inc->inc6_laddr)) {
 			/* no need for route lookup */
 			e = t4_l2t_get(pi, ifp, dst);
 			return (e);
 		}
-
-		/* TODO: Multipath */
-		if (fib6_lookup_nh_ext(inc->inc_fibnum, &inc->inc6_faddr,
-		    0, 0, 0, &nhu.u.nh6) != 0)
-			return (NULL);
-		((struct sockaddr_in6 *)dst)->sin6_addr = nhu.u.nh6.nh_addr;
 	} else {
 		dst->sa_len = sizeof(struct sockaddr_in);
 		dst->sa_family = AF_INET;
-
-		/* TODO: Multipath */
-		if (fib4_lookup_nh_ext(inc->inc_fibnum, inc->inc_faddr,
-		    0, 0, &nhu.u.nh4) != 0)
-			return (NULL);
-		((struct sockaddr_in *)dst)->sin_addr = nhu.u.nh4.nh_addr;
+		((struct sockaddr_in *)dst)->sin_addr = inc->inc_faddr;
 	}
 
-	if (nhu.u.nh4.nh_ifp != ifp)
+	rt = rtalloc1(dst, 0, 0);
+	if (rt == NULL)
 		return (NULL);
-	e = t4_l2t_get(pi, ifp, dst);
+	else {
+		struct sockaddr *nexthop;
+
+		RT_UNLOCK(rt);
+		if (rt->rt_ifp != ifp)
+			e = NULL;
+		else {
+			if (rt->rt_flags & RTF_GATEWAY)
+				nexthop = rt->rt_gateway;
+			else
+				nexthop = dst;
+			e = t4_l2t_get(pi, ifp, nexthop);
+		}
+		RTFREE(rt);
+	}
 
 	return (e);
-}
-
-static int
-ifnet_has_ip(struct ifnet *ifp, struct in_addr in)
-{
-	struct ifaddr *ifa;
-	struct sockaddr_in *sin;
-	int found = 0;
-
-	if_addr_rlock(ifp);
-	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
-		sin = (void *)ifa->ifa_addr;
-		if (sin->sin_family != AF_INET)
-			continue;
-
-		if (sin->sin_addr.s_addr == in.s_addr) {
-			found = 1;
-			break;
-		}
-	}
-	if_addr_runlock(ifp);
-
-	return (found);
 }
 
 #define REJECT_PASS_ACCEPT()	do { \
@@ -1277,7 +1229,7 @@ do_pass_accept_req(struct sge_iq *iq, const struct rss_header *rss,
 		 * SYN must be directed to an IP6 address on this ifnet.  This
 		 * is more restrictive than in6_localip.
 		 */
-		if (!ifnet_has_ip6(ifp, &inc.inc6_laddr))
+		if (!in6_ifhasaddr(ifp, &inc.inc6_laddr))
 			REJECT_PASS_ACCEPT();
 	} else {
 
@@ -1289,7 +1241,7 @@ do_pass_accept_req(struct sge_iq *iq, const struct rss_header *rss,
 		 * SYN must be directed to an IP address on this ifnet.  This
 		 * is more restrictive than in_localip.
 		 */
-		if (!ifnet_has_ip(ifp, inc.inc_laddr))
+		if (!in_ifhasaddr(ifp, inc.inc_laddr))
 			REJECT_PASS_ACCEPT();
 	}
 

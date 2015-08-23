@@ -78,7 +78,8 @@ struct ar9300_txc {
     u_int32_t   ds_ctl20;  /* DMA control 20 */
     u_int32_t   ds_ctl21;  /* DMA control 21 */
     u_int32_t   ds_ctl22;  /* DMA control 22 */
-    u_int32_t   ds_pad[9]; /* pad to cache line (128 bytes/32 dwords) */
+    u_int32_t   ds_ctl23;  /* DMA control 23 */
+    u_int32_t   ds_pad[8]; /* pad to cache line (128 bytes/32 dwords) */
 };
 
 
@@ -429,11 +430,11 @@ struct ar9300_txc {
 #define RXSTATUS_NUMWORDS(ah) 11
 
 
-#define TXC_INFO(_qcu) (ATHEROS_VENDOR_ID << AR_desc_id_S) \
+#define TXC_INFO(_qcu, _desclen) (ATHEROS_VENDOR_ID << AR_desc_id_S) \
                         | (1 << AR_tx_rx_desc_S) \
                         | (1 << AR_ctrl_stat_S) \
                         | (_qcu << AR_tx_qcu_num_S) \
-                        | (0x17)
+                        | (_desclen)
 
 #define VALID_KEY_TYPES \
         ((1 << HAL_KEY_TYPE_CLEAR) | (1 << HAL_KEY_TYPE_WEP)|\

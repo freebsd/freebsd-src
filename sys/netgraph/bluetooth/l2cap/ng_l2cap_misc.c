@@ -49,7 +49,7 @@
 #include <netgraph/bluetooth/l2cap/ng_l2cap_ulpi.h>
 #include <netgraph/bluetooth/l2cap/ng_l2cap_misc.h>
 
-static u_int16_t	ng_l2cap_get_cid	(ng_l2cap_p);
+static u_int16_t	ng_l2cap_get_cid	(ng_l2cap_p, int);
 
 /******************************************************************************
  ******************************************************************************
@@ -67,6 +67,7 @@ ng_l2cap_send_hook_info(node_p node, hook_p hook, void *arg1, int arg2)
 	ng_l2cap_p	 l2cap = NULL;
 	struct ng_mesg	*msg = NULL;
 	int		 error = 0;
+	ng_l2cap_node_hook_info_ep *ep ;
 
 	if (node == NULL || NG_NODE_NOT_VALID(node) ||
 	    hook == NULL || NG_HOOK_NOT_VALID(hook))
@@ -78,9 +79,11 @@ ng_l2cap_send_hook_info(node_p node, hook_p hook, void *arg1, int arg2)
 		return;
 
 	NG_MKMESSAGE(msg, NGM_L2CAP_COOKIE, NGM_L2CAP_NODE_HOOK_INFO,
-		sizeof(bdaddr_t), M_NOWAIT);
+		     sizeof(*ep), M_NOWAIT);
+
 	if (msg != NULL) {
-		bcopy(&l2cap->bdaddr, msg->data, sizeof(bdaddr_t));
+		ep = (ng_l2cap_node_hook_info_ep *) &msg->data;
+		bcopy(&l2cap->bdaddr, &ep->addr, sizeof(bdaddr_t));
 		NG_SEND_MSG_HOOK(error, node, msg, hook, 0);
 	} else
 		error = ENOMEM;
@@ -98,7 +101,7 @@ ng_l2cap_send_hook_info(node_p node, hook_p hook, void *arg1, int arg2)
  */
 
 ng_l2cap_con_p
-ng_l2cap_new_con(ng_l2cap_p l2cap, bdaddr_p bdaddr)
+ng_l2cap_new_con(ng_l2cap_p l2cap, bdaddr_p bdaddr, int type)
 {
 	static int	fake_con_handle = 0x0f00;
 	ng_l2cap_con_p	con = NULL;
@@ -131,6 +134,7 @@ ng_l2cap_new_con(ng_l2cap_p l2cap, bdaddr_p bdaddr)
 		fake_con_handle = 0x0f00;
 
 	bcopy(bdaddr, &con->remote, sizeof(con->remote));
+	con->linktype = type;
 	ng_callout_init(&con->con_timo);
 
 	con->ident = NG_L2CAP_FIRST_IDENT - 1;
@@ -292,12 +296,13 @@ ng_l2cap_free_con(ng_l2cap_con_p con)
  */
 
 ng_l2cap_con_p
-ng_l2cap_con_by_addr(ng_l2cap_p l2cap, bdaddr_p bdaddr)
+ng_l2cap_con_by_addr(ng_l2cap_p l2cap, bdaddr_p bdaddr, unsigned int type)
 {
 	ng_l2cap_con_p	con = NULL;
 
 	LIST_FOREACH(con, &l2cap->con_list, next)
-		if (bcmp(bdaddr, &con->remote, sizeof(con->remote)) == 0)
+		if ((bcmp(bdaddr, &con->remote, sizeof(con->remote)) == 0)&&
+		    (con->linktype == type))
 			break;
 
 	return (con);
@@ -325,7 +330,7 @@ ng_l2cap_con_by_handle(ng_l2cap_p l2cap, u_int16_t con_handle)
  */
 
 ng_l2cap_chan_p
-ng_l2cap_new_chan(ng_l2cap_p l2cap, ng_l2cap_con_p con, u_int16_t psm)
+ng_l2cap_new_chan(ng_l2cap_p l2cap, ng_l2cap_con_p con, u_int16_t psm, int idtype)
 {
 	ng_l2cap_chan_p	ch = NULL;
 
@@ -333,8 +338,12 @@ ng_l2cap_new_chan(ng_l2cap_p l2cap, ng_l2cap_con_p con, u_int16_t psm)
 		M_NOWAIT|M_ZERO);
 	if (ch == NULL)
 		return (NULL);
-
-	ch->scid = ng_l2cap_get_cid(l2cap);
+	if(idtype == NG_L2CAP_L2CA_IDTYPE_ATT){
+		ch->scid = ch->dcid = NG_L2CAP_ATT_CID;
+	}else{
+		ch->scid = ng_l2cap_get_cid(l2cap,
+					    (con->linktype!= NG_HCI_LINK_ACL));
+	}
 
 	if (ch->scid != NG_L2CAP_NULL_CID) {
 		/* Initialize channel */
@@ -364,19 +373,42 @@ ng_l2cap_new_chan(ng_l2cap_p l2cap, ng_l2cap_con_p con, u_int16_t psm)
 	return (ch);
 } /* ng_l2cap_new_chan */
 
-/*
- * Get channel by source (local) channel ID
- */
 
 ng_l2cap_chan_p
-ng_l2cap_chan_by_scid(ng_l2cap_p l2cap, u_int16_t scid)
+ng_l2cap_chan_by_scid(ng_l2cap_p l2cap, u_int16_t scid, int idtype)
 {
 	ng_l2cap_chan_p	ch = NULL;
 
-	LIST_FOREACH(ch, &l2cap->chan_list, next)
+	if(idtype == NG_L2CAP_L2CA_IDTYPE_ATT){
+		return NULL;
+	}
+	
+	LIST_FOREACH(ch, &l2cap->chan_list, next){
+		if((idtype != NG_L2CAP_L2CA_IDTYPE_BREDR)&&
+		   (ch->con->linktype == NG_HCI_LINK_ACL ))
+			continue;
+		if((idtype != NG_L2CAP_L2CA_IDTYPE_LE)&&
+		   (ch->con->linktype != NG_HCI_LINK_ACL ))
+			continue;
+
 		if (ch->scid == scid)
 			break;
+	}
+	return (ch);
+} /* ng_l2cap_chan_by_scid */
 
+ng_l2cap_chan_p
+ng_l2cap_chan_by_conhandle(ng_l2cap_p l2cap, uint16_t scid,
+			   u_int16_t con_handle)
+{
+	ng_l2cap_chan_p	ch = NULL;
+
+	
+	LIST_FOREACH(ch, &l2cap->chan_list, next){
+		if ((ch->scid == scid) &&
+		    (ch->con->con_handle == con_handle))
+			break;
+	}
 	return (ch);
 } /* ng_l2cap_chan_by_scid */
 
@@ -390,6 +422,7 @@ ng_l2cap_free_chan(ng_l2cap_chan_p ch)
 	ng_l2cap_cmd_p	f = NULL, n = NULL;
 
 	f = TAILQ_FIRST(&ch->con->cmd_list);
+
 	while (f != NULL) {
 		n = TAILQ_NEXT(f, next);
 
@@ -591,21 +624,40 @@ ng_l2cap_default_flow(void)
  */
 
 static u_int16_t
-ng_l2cap_get_cid(ng_l2cap_p l2cap)
+ng_l2cap_get_cid(ng_l2cap_p l2cap,int isle)
 {
-	u_int16_t	cid = l2cap->cid + 1;
-
+	u_int16_t	cid ;
+	u_int16_t 	endcid;
+	uint16_t	 mask;
+	int idtype;
+	if(isle){
+		endcid = l2cap->lecid;
+		/*Assume Last CID is 2^n-1 */
+		mask = NG_L2CAP_LELAST_CID;
+		idtype = NG_L2CAP_L2CA_IDTYPE_LE;
+	}else{
+		endcid = l2cap->cid;
+		/*Assume Last CID is 2^n-1 */		
+		mask = NG_L2CAP_LAST_CID;
+		idtype = NG_L2CAP_L2CA_IDTYPE_BREDR;
+	}
+	cid = (endcid+1) & mask;
+	     
 	if (cid < NG_L2CAP_FIRST_CID)
 		cid = NG_L2CAP_FIRST_CID;
 
-	while (cid != l2cap->cid) {
-		if (ng_l2cap_chan_by_scid(l2cap, cid) == NULL) {
-			l2cap->cid = cid;
-
+	while (cid != endcid) {
+		if (ng_l2cap_chan_by_scid(l2cap, cid, idtype) == NULL) {
+			if(!isle){
+				l2cap->cid = cid;
+			}else{
+				l2cap->lecid = cid;
+			}
 			return (cid);
 		}
 
 		cid ++;
+		cid &= mask;
 		if (cid < NG_L2CAP_FIRST_CID)
 			cid = NG_L2CAP_FIRST_CID;
 	}

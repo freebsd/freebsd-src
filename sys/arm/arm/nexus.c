@@ -127,7 +127,7 @@ static driver_t nexus_driver = {
 	nexus_methods,
 	1			/* no softc */
 };
-EARLY_DRIVER_MODULE(nexus, root, nexus_driver, nexus_devclass, 0, 0, 
+EARLY_DRIVER_MODULE(nexus, root, nexus_driver, nexus_devclass, 0, 0,
     BUS_PASS_BUS + BUS_PASS_ORDER_EARLY);
 
 static int
@@ -236,7 +236,7 @@ nexus_release_resource(device_t bus, device_t child, int type, int rid,
     struct resource *res)
 {
 	int error;
-	
+
 	if (rman_get_flags(res) & RF_ACTIVE) {
 		error = bus_deactivate_resource(child, type, rid, res);
 		if (error)

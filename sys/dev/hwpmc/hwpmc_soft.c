@@ -136,7 +136,7 @@ soft_config_pmc(int cpu, int ri, struct pmc *pm)
 {
 	struct pmc_hw *phw;
 
-	PMCDBG(MDP,CFG,1, "cpu=%d ri=%d pm=%p", cpu, ri, pm);
+	PMCDBG3(MDP,CFG,1, "cpu=%d ri=%d pm=%p", cpu, ri, pm);
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[soft,%d] illegal CPU value %d", __LINE__, cpu));
@@ -276,7 +276,7 @@ soft_read_pmc(int cpu, int ri, pmc_value_t *v)
 	KASSERT(pm != NULL,
 	    ("[soft,%d] no owner for PHW [cpu%d,pmc%d]", __LINE__, cpu, ri));
 
-	PMCDBG(MDP,REA,1,"soft-read id=%d", ri);
+	PMCDBG1(MDP,REA,1,"soft-read id=%d", ri);
 
 	*v = soft_pcpu[cpu]->soft_values[ri];
 
@@ -300,7 +300,7 @@ soft_write_pmc(int cpu, int ri, pmc_value_t v)
 	KASSERT(pm,
 	    ("[soft,%d] cpu %d ri %d pmc not configured", __LINE__, cpu, ri));
 
-	PMCDBG(MDP,WRI,1, "soft-write cpu=%d ri=%d v=%jx", cpu, ri, v);
+	PMCDBG3(MDP,WRI,1, "soft-write cpu=%d ri=%d v=%jx", cpu, ri, v);
 
 	soft_pcpu[cpu]->soft_values[ri] = v;
 

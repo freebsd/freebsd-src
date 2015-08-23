@@ -59,6 +59,7 @@
 #include <dev/usb/usb_busdma.h>
 #include <dev/usb/usb_dynamic.h>
 #include <dev/usb/usb_device.h>
+#include <dev/usb/usb_dev.h>
 #include <dev/usb/usb_hub.h>
 
 #include <dev/usb/usb_controller.h>
@@ -219,6 +220,11 @@ usb_detach(device_t dev)
 	usb_proc_mwait(USB_BUS_EXPLORE_PROC(bus),
 	    &bus->detach_msg[0], &bus->detach_msg[1]);
 
+#if USB_HAVE_UGEN
+	/* Wait for cleanup to complete */
+	usb_proc_mwait(USB_BUS_EXPLORE_PROC(bus),
+	    &bus->cleanup_msg[0], &bus->cleanup_msg[1]);
+#endif
 	USB_BUS_UNLOCK(bus);
 
 #if USB_HAVE_PER_BUS_PROCESS
@@ -631,6 +637,32 @@ usb_bus_shutdown(struct usb_proc_msg *pm)
 	USB_BUS_LOCK(bus);
 }
 
+/*------------------------------------------------------------------------*
+ *	usb_bus_cleanup
+ *
+ * This function is used to cleanup leftover USB character devices.
+ *------------------------------------------------------------------------*/
+#if USB_HAVE_UGEN
+static void
+usb_bus_cleanup(struct usb_proc_msg *pm)
+{
+	struct usb_bus *bus;
+	struct usb_fs_privdata *pd;
+
+	bus = ((struct usb_bus_msg *)pm)->bus;
+
+	while ((pd = LIST_FIRST(&bus->pd_cleanup_list)) != NULL) {
+
+		LIST_REMOVE(pd, pd_next);
+		USB_BUS_UNLOCK(bus);
+
+		usb_destroy_dev_sync(pd);
+
+		USB_BUS_LOCK(bus);
+	}
+}
+#endif
+
 static void
 usb_power_wdog(void *arg)
 {
@@ -812,6 +844,14 @@ usb_attach_sub(device_t dev, struct usb_bus *bus)
 	bus->shutdown_msg[0].bus = bus;
 	bus->shutdown_msg[1].hdr.pm_callback = &usb_bus_shutdown;
 	bus->shutdown_msg[1].bus = bus;
+
+#if USB_HAVE_UGEN
+	LIST_INIT(&bus->pd_cleanup_list);
+	bus->cleanup_msg[0].hdr.pm_callback = &usb_bus_cleanup;
+	bus->cleanup_msg[0].bus = bus;
+	bus->cleanup_msg[1].hdr.pm_callback = &usb_bus_cleanup;
+	bus->cleanup_msg[1].bus = bus;
+#endif
 
 #if USB_HAVE_PER_BUS_PROCESS
 	/* Create USB explore and callback processes */

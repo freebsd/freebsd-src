@@ -228,7 +228,7 @@ struct bridge_softc {
 
 static VNET_DEFINE(struct mtx, bridge_list_mtx);
 #define	V_bridge_list_mtx	VNET(bridge_list_mtx)
-eventhandler_tag	bridge_detach_cookie = NULL;
+static eventhandler_tag bridge_detach_cookie;
 
 int	bridge_rtable_prune_period = BRIDGE_RTABLE_PRUNE_PERIOD;
 
@@ -538,6 +538,7 @@ vnet_bridge_uninit(const void *unused __unused)
 {
 
 	if_clone_detach(V_bridge_cloner);
+	V_bridge_cloner = NULL;
 	BRIDGE_LIST_LOCK_DESTROY();
 }
 VNET_SYSUNINIT(vnet_bridge_uninit, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY,
@@ -1032,9 +1033,12 @@ bridge_delete_member(struct bridge_softc *sc, struct bridge_iflist *bif,
 		case IFT_ETHER:
 		case IFT_L2VLAN:
 			/*
-			 * Take the interface out of promiscuous mode.
+			 * Take the interface out of promiscuous mode, but only
+			 * if it was promiscuous in the first place. It might
+			 * not be if we're in the bridge_ioctl_add() error path.
 			 */
-			(void) ifpromisc(ifs, 0);
+			if (ifs->if_flags & IFF_PROMISC)
+				(void) ifpromisc(ifs, 0);
 			break;
 
 		case IFT_GIF:
@@ -1202,10 +1206,8 @@ bridge_ioctl_add(struct bridge_softc *sc, void *arg)
 			break;
 	}
 
-	if (error) {
+	if (error)
 		bridge_delete_member(sc, bif, 0);
-		free(bif, M_DEVBUF);
-	}
 	return (error);
 }
 
@@ -1797,7 +1799,13 @@ bridge_ifdetach(void *arg __unused, struct ifnet *ifp)
 
 	if (ifp->if_flags & IFF_RENAMING)
 		return;
-
+	if (V_bridge_cloner == NULL) {
+		/*
+		 * This detach handler can be called after
+		 * vnet_bridge_uninit().  Just return in that case.
+		 */
+		return;
+	}
 	/* Check if the interface is a bridge member */
 	if (sc != NULL) {
 		BRIDGE_LOCK(sc);
@@ -3058,9 +3066,11 @@ bridge_state_change(struct ifnet *ifp, int state)
 		"discarding"
 	};
 
+	CURVNET_SET(ifp->if_vnet);
 	if (V_log_stp)
 		log(LOG_NOTICE, "%s: state changed to %s on %s\n",
 		    sc->sc_ifp->if_xname, stpstates[state], ifp->if_xname);
+	CURVNET_RESTORE();
 }
 
 /*

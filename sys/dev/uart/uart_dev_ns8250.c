@@ -45,6 +45,9 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/uart/uart.h>
 #include <dev/uart/uart_cpu.h>
+#ifdef FDT
+#include <dev/uart/uart_cpu_fdt.h>
+#endif
 #include <dev/uart/uart_bus.h>
 #include <dev/uart/uart_dev_ns8250.h>
 
@@ -375,8 +378,17 @@ struct uart_class uart_ns8250_class = {
 	sizeof(struct ns8250_softc),
 	.uc_ops = &uart_ns8250_ops,
 	.uc_range = 8,
-	.uc_rclk = DEFAULT_RCLK
+	.uc_rclk = DEFAULT_RCLK,
+	.uc_rshift = 0
 };
+
+#ifdef FDT
+static struct ofw_compat_data compat_data[] = {
+	{"ns16550",		(uintptr_t)&uart_ns8250_class},
+	{NULL,			(uintptr_t)NULL},
+};
+UART_FDT_CLASS_AND_DEVICE(compat_data);
+#endif
 
 #define	SIGCHG(c, i, s, d)				\
 	if (c) {					\
@@ -404,10 +416,10 @@ ns8250_bus_attach(struct uart_softc *sc)
 	 * has broken txfifo. 
 	 */
 	node = ofw_bus_get_node(sc->sc_dev);
-	if ((OF_getprop(node, "busy-detect", &cell, sizeof(cell))) > 0)
-		ns8250->busy_detect = 1;
-	if ((OF_getprop(node, "broken-txfifo", &cell, sizeof(cell))) > 0)
-		broken_txfifo = 1;
+	if ((OF_getencprop(node, "busy-detect", &cell, sizeof(cell))) > 0)
+		ns8250->busy_detect = cell ? 1 : 0;
+	if ((OF_getencprop(node, "broken-txfifo", &cell, sizeof(cell))) > 0)
+		broken_txfifo =  cell ? 1 : 0;
 #endif
 
 	bas = &sc->sc_bas;

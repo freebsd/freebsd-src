@@ -53,6 +53,16 @@ __FBSDID("$FreeBSD$");
 #define FIRMWARE_RS600		"radeonkmsfw_RS600_cp"
 #define FIRMWARE_R520		"radeonkmsfw_R520_cp"
 
+#ifdef __linux__
+MODULE_FIRMWARE(FIRMWARE_R100);
+MODULE_FIRMWARE(FIRMWARE_R200);
+MODULE_FIRMWARE(FIRMWARE_R300);
+MODULE_FIRMWARE(FIRMWARE_R420);
+MODULE_FIRMWARE(FIRMWARE_RS690);
+MODULE_FIRMWARE(FIRMWARE_RS600);
+MODULE_FIRMWARE(FIRMWARE_R520);
+#endif
+
 static int radeon_do_cleanup_cp(struct drm_device * dev);
 static void radeon_do_cp_start(drm_radeon_private_t * dev_priv);
 
@@ -834,7 +844,7 @@ static void radeon_cp_init_ring_buffer(struct drm_device * dev,
 	RADEON_WRITE(RADEON_LAST_CLEAR_REG, 0);
 
 	/* reset sarea copies of these */
-	master_priv = file_priv->masterp->driver_priv;
+	master_priv = file_priv->master->driver_priv;
 	if (master_priv->sarea_priv) {
 		master_priv->sarea_priv->last_frame = 0;
 		master_priv->sarea_priv->last_dispatch = 0;
@@ -1163,7 +1173,7 @@ static int radeon_do_init_cp(struct drm_device *dev, drm_radeon_init_t *init,
 			     struct drm_file *file_priv)
 {
 	drm_radeon_private_t *dev_priv = dev->dev_private;
-	struct drm_radeon_master_private *master_priv = file_priv->masterp->driver_priv;
+	struct drm_radeon_master_private *master_priv = file_priv->master->driver_priv;
 
 	DRM_DEBUG("\n");
 
@@ -1655,7 +1665,6 @@ int radeon_cp_init(struct drm_device *dev, void *data, struct drm_file *file_pri
 		return radeon_do_init_cp(dev, init, file_priv);
 	case RADEON_INIT_R600_CP:
 		return r600_do_init_cp(dev, init, file_priv);
-		break;
 	case RADEON_CLEANUP_CP:
 		if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_R600)
 			return r600_do_cleanup_cp(dev);
@@ -2066,7 +2075,7 @@ int radeon_driver_load(struct drm_device *dev, unsigned long flags)
 	int ret = 0;
 
 	dev_priv = malloc(sizeof(drm_radeon_private_t),
-	    DRM_MEM_DRIVER, M_ZERO | M_WAITOK);
+	    DRM_MEM_DRIVER, M_NOWAIT | M_ZERO);
 	if (dev_priv == NULL)
 		return -ENOMEM;
 
@@ -2093,11 +2102,11 @@ int radeon_driver_load(struct drm_device *dev, unsigned long flags)
 		break;
 	}
 
-	pci_enable_busmaster(dev->device);
+	pci_enable_busmaster(dev->dev);
 
-	if (drm_device_is_agp(dev))
+	if (drm_pci_device_is_agp(dev))
 		dev_priv->flags |= RADEON_IS_AGP;
-	else if (drm_device_is_pcie(dev))
+	else if (drm_pci_device_is_pcie(dev))
 		dev_priv->flags |= RADEON_IS_PCIE;
 	else
 		dev_priv->flags |= RADEON_IS_PCI;
@@ -2126,7 +2135,7 @@ int radeon_master_create(struct drm_device *dev, struct drm_master *master)
 	int ret;
 
 	master_priv = malloc(sizeof(*master_priv),
-	    DRM_MEM_DRIVER, M_ZERO | M_WAITOK);
+	    DRM_MEM_DRIVER, M_NOWAIT | M_ZERO);
 	if (!master_priv)
 		return -ENOMEM;
 
@@ -2160,11 +2169,7 @@ void radeon_master_destroy(struct drm_device *dev, struct drm_master *master)
 
 	master_priv->sarea_priv = NULL;
 	if (master_priv->sarea)
-#ifdef __linux__
 		drm_rmmap_locked(dev, master_priv->sarea);
-#else
-		drm_rmmap(dev, master_priv->sarea);
-#endif
 
 	free(master_priv, DRM_MEM_DRIVER);
 

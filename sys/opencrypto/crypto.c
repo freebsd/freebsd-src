@@ -1181,8 +1181,8 @@ crypto_kdone(struct cryptkop *krp)
 	/* XXX: What if driver is loaded in the meantime? */
 	if (krp->krp_hid < crypto_drivers_num) {
 		cap = &crypto_drivers[krp->krp_hid];
+		KASSERT(cap->cc_koperations > 0, ("cc_koperations == 0"));
 		cap->cc_koperations--;
-		KASSERT(cap->cc_koperations >= 0, ("cc_koperations < 0"));
 		if (cap->cc_flags & CRYPTOCAP_F_CLEANUP)
 			crypto_remove(cap);
 	}

@@ -46,6 +46,9 @@
  *
  * $FreeBSD$
  */
+#ifdef ARM_NEW_PMAP
+#include <machine/pmap-v6.h>
+#else /* ARM_NEW_PMAP */
 
 #ifndef _MACHINE_PMAP_H_
 #define _MACHINE_PMAP_H_
@@ -255,7 +258,8 @@ void	pmap_bootstrap(vm_offset_t firstaddr, struct pv_addr *l1pt);
 int	pmap_change_attr(vm_offset_t, vm_size_t, int);
 void	pmap_kenter(vm_offset_t va, vm_paddr_t pa);
 void	pmap_kenter_nocache(vm_offset_t va, vm_paddr_t pa);
-void	pmap_kenter_device(vm_offset_t va, vm_paddr_t pa);
+void	pmap_kenter_device(vm_offset_t, vm_size_t, vm_paddr_t);
+void	pmap_kremove_device(vm_offset_t, vm_size_t);
 void	*pmap_kenter_temporary(vm_paddr_t pa, int i);
 void 	pmap_kenter_user(vm_offset_t va, vm_paddr_t pa);
 vm_paddr_t pmap_kextract(vm_offset_t va);
@@ -619,12 +623,6 @@ void	pmap_copy_page_generic(vm_paddr_t, vm_paddr_t);
 void	pmap_zero_page_generic(vm_paddr_t, int, int);
 
 void	pmap_pte_init_generic(void);
-#if defined(CPU_ARM9)
-void	pmap_pte_init_arm9(void);
-#endif /* CPU_ARM9 */
-#if defined(CPU_ARM10)
-void	pmap_pte_init_arm10(void);
-#endif /* CPU_ARM10 */
 #if (ARM_MMU_V6 + ARM_MMU_V7) != 0
 void	pmap_pte_init_mmu_v6(void);
 #endif /* (ARM_MMU_V6 + ARM_MMU_V7) != 0 */
@@ -706,3 +704,4 @@ extern vm_paddr_t dump_avail[];
 #endif	/* !LOCORE */
 
 #endif	/* !_MACHINE_PMAP_H_ */
+#endif	/* !ARM_NEW_PMAP */

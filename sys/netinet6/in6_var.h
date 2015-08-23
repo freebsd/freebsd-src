@@ -97,7 +97,7 @@ struct in6_addrlifetime {
 struct nd_ifinfo;
 struct scope6_id;
 struct lltable;
-struct mld_ifinfo;
+struct mld_ifsoftc;
 
 struct in6_ifextra {
 	counter_u64_t *in6_ifstat;
@@ -105,10 +105,12 @@ struct in6_ifextra {
 	struct nd_ifinfo *nd_ifinfo;
 	struct scope6_id *scope6_id;
 	struct lltable *lltable;
-	struct mld_ifinfo *mld_ifinfo;
+	struct mld_ifsoftc *mld_ifinfo;
 };
 
-#if defined(_KERNEL) || defined(_WANT_IFADDR)
+#define	LLTABLE6(ifp)	(((struct in6_ifextra *)(ifp)->if_afdata[AF_INET6])->lltable)
+
+#ifdef _KERNEL
 struct	in6_ifaddr {
 	struct	ifaddr ia_ifa;		/* protocol-independent info */
 #define	ia_ifp		ia_ifa.ifa_ifp
@@ -139,7 +141,7 @@ struct	in6_ifaddr {
 /* List of in6_ifaddr's. */
 TAILQ_HEAD(in6_ifaddrhead, in6_ifaddr);
 LIST_HEAD(in6_ifaddrlisthead, in6_ifaddr);
-#endif
+#endif	/* _KERNEL */
 
 /* control structure to manage address selection policy */
 struct in6_addrpolicy {
@@ -533,14 +535,14 @@ in6_addrhash(const struct in6_addr *in6)
 	return (fnv_32_buf(&x, sizeof(x), FNV1_32_INIT));
 }
 
-extern struct rwlock in6_ifaddr_lock;
-#define	IN6_IFADDR_LOCK_ASSERT(	)	rw_assert(&in6_ifaddr_lock, RA_LOCKED)
-#define	IN6_IFADDR_RLOCK()		rw_rlock(&in6_ifaddr_lock)
-#define	IN6_IFADDR_RLOCK_ASSERT()	rw_assert(&in6_ifaddr_lock, RA_RLOCKED)
-#define	IN6_IFADDR_RUNLOCK()		rw_runlock(&in6_ifaddr_lock)
-#define	IN6_IFADDR_WLOCK()		rw_wlock(&in6_ifaddr_lock)
-#define	IN6_IFADDR_WLOCK_ASSERT()	rw_assert(&in6_ifaddr_lock, RA_WLOCKED)
-#define	IN6_IFADDR_WUNLOCK()		rw_wunlock(&in6_ifaddr_lock)
+extern struct rmlock in6_ifaddr_lock;
+#define	IN6_IFADDR_LOCK_ASSERT()	rm_assert(&in6_ifaddr_lock, RA_LOCKED)
+#define	IN6_IFADDR_RLOCK(t)		rm_rlock(&in6_ifaddr_lock, (t))
+#define	IN6_IFADDR_RLOCK_ASSERT()	rm_assert(&in6_ifaddr_lock, RA_RLOCKED)
+#define	IN6_IFADDR_RUNLOCK(t)		rm_runlock(&in6_ifaddr_lock, (t))
+#define	IN6_IFADDR_WLOCK()		rm_wlock(&in6_ifaddr_lock)
+#define	IN6_IFADDR_WLOCK_ASSERT()	rm_assert(&in6_ifaddr_lock, RA_WLOCKED)
+#define	IN6_IFADDR_WUNLOCK()		rm_wunlock(&in6_ifaddr_lock)
 
 #define in6_ifstat_inc(ifp, tag) \
 do {								\
@@ -594,7 +596,6 @@ ip6_msource_cmp(const struct ip6_msource *a, const struct ip6_msource *b)
 	return (memcmp(&a->im6s_addr, &b->im6s_addr, sizeof(struct in6_addr)));
 }
 RB_PROTOTYPE(ip6_msource_tree, ip6_msource, im6s_link, ip6_msource_cmp);
-#endif /* _KERNEL */
 
 /*
  * IPv6 multicast PCB-layer group filter descriptor.
@@ -645,12 +646,12 @@ struct in6_multi {
 	u_int	in6m_timer;		/* MLD6 listener report timer */
 
 	/* New fields for MLDv2 follow. */
-	struct mld_ifinfo	*in6m_mli;	/* MLD info */
+	struct mld_ifsoftc	*in6m_mli;	/* MLD info */
 	SLIST_ENTRY(in6_multi)	 in6m_nrele;	/* to-be-released by MLD */
 	struct ip6_msource_tree	 in6m_srcs;	/* tree of sources */
 	u_long			 in6m_nsrc;	/* # of tree entries */
 
-	struct ifqueue		 in6m_scq;	/* queue of pending
+	struct mbufq		 in6m_scq;	/* queue of pending
 						 * state-change packets */
 	struct timeval		 in6m_lastgsrtv;	/* last G-S-R query */
 	uint16_t		 in6m_sctimer;	/* state-change timer */
@@ -693,8 +694,6 @@ im6s_get_mode(const struct in6_multi *inm, const struct ip6_msource *ims,
 		return (MCAST_INCLUDE);
 	return (MCAST_UNDEFINED);
 }
-
-#ifdef _KERNEL
 
 /*
  * Lock macros for IPv6 layer multicast address lists.  IPv6 lock goes
@@ -812,7 +811,6 @@ struct in6_ifaddr *in6ifa_ifpforlinklocal(struct ifnet *, int);
 struct in6_ifaddr *in6ifa_ifpwithaddr(struct ifnet *, struct in6_addr *);
 struct in6_ifaddr *in6ifa_ifwithaddr(const struct in6_addr *, uint32_t);
 struct in6_ifaddr *in6ifa_llaonifp(struct ifnet *);
-char	*ip6_sprintf(char *, const struct in6_addr *);
 int	in6_addr2zoneid(struct ifnet *, struct in6_addr *, u_int32_t *);
 int	in6_matchlen(struct in6_addr *, struct in6_addr *);
 int	in6_are_prefix_equal(struct in6_addr *, struct in6_addr *, int);
@@ -834,6 +832,8 @@ void	in6_rtredirect(struct sockaddr *, struct sockaddr *, struct sockaddr *,
 	    int, struct sockaddr *, u_int);
 int	in6_rtrequest(int, struct sockaddr *, struct sockaddr *,
 	    struct sockaddr *, int, struct rtentry **, u_int);
+void	in6_rtalloc(struct route_in6 *, u_int);
+void	in6_rtalloc_ign(struct route_in6 *, u_long, u_int);
 struct rtentry *in6_rtalloc1(struct sockaddr *, int, u_long, u_int);
 #endif /* _KERNEL */
 

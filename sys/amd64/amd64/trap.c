@@ -257,8 +257,8 @@ trap(struct trapframe *frame)
 		td->td_pticks = 0;
 		td->td_frame = frame;
 		addr = frame->tf_rip;
-		if (td->td_ucred != p->p_ucred) 
-			cred_update_thread(td);
+		if (td->td_cowgen != p->p_cowgen)
+			thread_cow_update(td);
 
 		switch (type) {
 		case T_PRIVINFLT:	/* privileged instruction fault */
@@ -443,8 +443,6 @@ trap(struct trapframe *frame)
 			goto out;
 
 		case T_STKFLT:		/* stack fault */
-			break;
-
 		case T_PROTFLT:		/* general protection fault */
 		case T_SEGNPFLT:	/* segment not present fault */
 			if (td->td_intr_nesting_level != 0)
@@ -774,12 +772,6 @@ nogo:
 			frame->tf_rip = (long)curpcb->pcb_onfault;
 			return (0);
 		}
-		if ((td->td_pflags & TDP_DEVMEMIO) != 0) {
-			KASSERT(curpcb->pcb_onfault != NULL,
-			    ("/dev/mem without pcb_onfault"));
-			frame->tf_rip = (long)curpcb->pcb_onfault;
-			return (0);
-		}
 		trap_fatal(frame, eva);
 		return (-1);
 	}
@@ -848,14 +840,8 @@ trap_fatal(frame, eva)
 	if (frame->tf_rflags & PSL_RF)
 		printf("resume, ");
 	printf("IOPL = %ld\n", (frame->tf_rflags & PSL_IOPL) >> 12);
-	printf("current process		= ");
-	if (curproc) {
-		printf("%lu (%s)\n",
-		    (u_long)curproc->p_pid, curthread->td_name ?
-		    curthread->td_name : "");
-	} else {
-		printf("Idle\n");
-	}
+	printf("current process		= %d (%s)\n",
+	    curproc->p_pid, curthread->td_name);
 
 #ifdef KDB
 	if (debugger_on_panic || kdb_active)

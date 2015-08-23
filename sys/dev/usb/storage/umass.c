@@ -2698,8 +2698,7 @@ umass_rbc_transform(struct umass_softc *sc, uint8_t *cmd_ptr, uint8_t cmd_len)
 	case START_STOP_UNIT:
 	case SYNCHRONIZE_CACHE:
 	case WRITE_10:
-	case 0x2f:			/* VERIFY_10 is absent from
-					 * scsi_all.h??? */
+	case VERIFY_10:
 	case INQUIRY:
 	case MODE_SELECT_10:
 	case MODE_SENSE_10:

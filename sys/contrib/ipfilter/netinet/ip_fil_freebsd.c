@@ -71,7 +71,6 @@ static const char rcsid[] = "@(#)$Id$";
 #ifdef USE_INET6
 # include <netinet/icmp6.h>
 #endif
-#include <net/rt_nhops.h>
 #include "netinet/ip_fil.h"
 #include "netinet/ip_nat.h"
 #include "netinet/ip_frag.h"
@@ -98,7 +97,6 @@ MALLOC_DEFINE(M_IPFILTER, "ipfilter", "IP Filter packet filter data structures")
 # endif
 
 
-static	u_short	ipid = 0;
 static	int	(*ipf_savep) __P((void *, ip_t *, int, void *, int, struct mbuf **));
 static	int	ipf_send_ip __P((fr_info_t *, mb_t *));
 static void	ipf_timer_func __P((void *arg));
@@ -191,7 +189,7 @@ ipf_timer_func(arg)
 #if 0
 		softc->ipf_slow_ch = timeout(ipf_timer_func, softc, hz/2);
 #endif
-		callout_init(&softc->ipf_slow_ch, CALLOUT_MPSAFE);
+		callout_init(&softc->ipf_slow_ch, 1);
 		callout_reset(&softc->ipf_slow_ch,
 			(hz / IPF_HZ_DIVIDE) * IPF_HZ_MULT,
 			ipf_timer_func, softc);
@@ -232,14 +230,12 @@ ipfattach(softc)
 	if (softc->ipf_control_forwarding & 1)
 		V_ipforwarding = 1;
 
-	ipid = 0;
-
 	SPL_X(s);
 #if 0
 	softc->ipf_slow_ch = timeout(ipf_timer_func, softc,
 				     (hz / IPF_HZ_DIVIDE) * IPF_HZ_MULT);
 #endif
-	callout_init(&softc->ipf_slow_ch, CALLOUT_MPSAFE);
+	callout_init(&softc->ipf_slow_ch, 1);
 	callout_reset(&softc->ipf_slow_ch, (hz / IPF_HZ_DIVIDE) * IPF_HZ_MULT,
 		ipf_timer_func, softc);
 	return 0;
@@ -716,16 +712,16 @@ ipf_fastroute(m0, mpp, fin, fdp)
 {
 	register struct ip *ip, *mhip;
 	register struct mbuf *m = *mpp;
+	register struct route *ro;
 	int len, off, error = 0, hlen, code;
-	u_int fibnum;
 	struct ifnet *ifp, *sifp;
-	struct in_addr dst;
-	struct nhop_prepend nhd, *pnhd;
+	struct sockaddr_in *dst;
+	struct route iproute;
 	u_short ip_off;
 	frdest_t node;
 	frentry_t *fr;
 
-	pnhd = NULL;
+	ro = NULL;
 
 #ifdef M_WRITABLE
 	/*
@@ -759,7 +755,7 @@ ipf_fastroute(m0, mpp, fin, fdp)
 		 * currently "to <if>" and "to <if>:ip#" are not supported
 		 * for IPv6
 		 */
-		return ip6_output(m, NULL, NULL, 0, NULL, NULL);
+		return ip6_output(m, NULL, NULL, 0, NULL, NULL, NULL);
 	}
 #endif
 
@@ -770,10 +766,11 @@ ipf_fastroute(m0, mpp, fin, fdp)
 	/*
 	 * Route packet.
 	 */
-	fibnum = M_GETFIB(m0);
-	dst = ip->ip_dst;
-	memset(&nhd, 0, sizeof(nhd));
-	pnhd = &nhd;
+	ro = &iproute;
+	bzero(ro, sizeof (*ro));
+	dst = (struct sockaddr_in *)&ro->ro_dst;
+	dst->sin_family = AF_INET;
+	dst->sin_addr = ip->ip_dst;
 
 	fr = fin->fin_fr;
 	if ((fr != NULL) && !(fr->fr_flags & FR_KEEPSTATE) && (fdp != NULL) &&
@@ -793,21 +790,25 @@ ipf_fastroute(m0, mpp, fin, fdp)
 	}
 
 	if ((fdp != NULL) && (fdp->fd_ip.s_addr != 0))
-		dst = fdp->fd_ip;
+		dst->sin_addr = fdp->fd_ip;
 
+	dst->sin_len = sizeof(*dst);
+	in_rtalloc(ro, M_GETFIB(m0));
 
-	error = fib4_lookup_prepend(fibnum, dst, m0, pnhd, NULL);
+	if ((ifp == NULL) && (ro->ro_rt != NULL))
+		ifp = ro->ro_rt->rt_ifp;
 
-	if (error != 0) {
-		pnhd = NULL;
+	if ((ro->ro_rt == NULL) || (ifp == NULL)) {
 		if (in_localaddr(ip->ip_dst))
 			error = EHOSTUNREACH;
 		else
 			error = ENETUNREACH;
 		goto bad;
 	}
-
-	ifp = NH_LIFP(pnhd);
+	if (ro->ro_rt->rt_flags & RTF_GATEWAY)
+		dst = (struct sockaddr_in *)ro->ro_rt->rt_gateway;
+	if (ro->ro_rt)
+		counter_u64_add(ro->ro_rt->rt_pksent, 1);
 
 	/*
 	 * For input packets which are being "fastrouted", they won't
@@ -851,7 +852,9 @@ ipf_fastroute(m0, mpp, fin, fdp)
 	if (ntohs(ip->ip_len) <= ifp->if_mtu) {
 		if (!ip->ip_sum)
 			ip->ip_sum = in_cksum(m, hlen);
-		error = fib4_sendmbuf(ifp, m, pnhd, dst);
+		error = (*ifp->if_output)(ifp, m, (struct sockaddr *)dst,
+			    ro
+			);
 		goto done;
 	}
 	/*
@@ -931,7 +934,10 @@ sendorfree:
 		m0 = m->m_act;
 		m->m_act = 0;
 		if (error == 0)
-			error = fib4_sendmbuf(ifp, m, pnhd, dst);
+			error = (*ifp->if_output)(ifp, m,
+			    (struct sockaddr *)dst,
+			    ro
+			    );
 		else
 			FREE_MB_T(m);
 	}
@@ -942,8 +948,9 @@ done:
 	else
 		ipfmain.ipf_frouteok[1]++;
 
-	if (pnhd != NULL)
-		fib4_free_nh_prepend(fibnum, pnhd);
+	if ((ro != NULL) && (ro->ro_rt != NULL)) {
+		RTFREE(ro->ro_rt);
+	}
 	return 0;
 bad:
 	if (error == EMSGSIZE) {
@@ -964,13 +971,18 @@ int
 ipf_verifysrc(fin)
 	fr_info_t *fin;
 {
-	struct nhop4_basic nh4;
+	struct sockaddr_in *dst;
+	struct route iproute;
 
-	memset(&nh4, 0, sizeof(nh4));
-	if (fib4_lookup_nh(RT_DEFAULT_FIB, fin->fin_src, 0, 0, &nh4) != 0)
-		return (0);
-
-	return (fin->fin_ifp == nh4.nh_ifp);
+	bzero((char *)&iproute, sizeof(iproute));
+	dst = (struct sockaddr_in *)&iproute.ro_dst;
+	dst->sin_len = sizeof(*dst);
+	dst->sin_family = AF_INET;
+	dst->sin_addr = fin->fin_src;
+	in_rtalloc(&iproute, 0);
+	if (iproute.ro_rt == NULL)
+		return 0;
+	return (fin->fin_ifp == iproute.ro_rt->rt_ifp);
 }
 
 
@@ -1056,31 +1068,6 @@ ipf_newisn(fin)
 	u_32_t newiss;
 	newiss = arc4random();
 	return newiss;
-}
-
-
-/* ------------------------------------------------------------------------ */
-/* Function:    ipf_nextipid                                                */
-/* Returns:     int - 0 == success, -1 == error (packet should be droppped) */
-/* Parameters:  fin(I) - pointer to packet information                      */
-/*                                                                          */
-/* Returns the next IPv4 ID to use for this packet.                         */
-/* ------------------------------------------------------------------------ */
-u_short
-ipf_nextipid(fin)
-	fr_info_t *fin;
-{
-	u_short id;
-
-#ifndef	RANDOM_IP_ID
-	MUTEX_ENTER(&ipfmain.ipf_rw);
-	id = ipid++;
-	MUTEX_EXIT(&ipfmain.ipf_rw);
-#else
-	id = ip_randomid();
-#endif
-
-	return id;
 }
 
 

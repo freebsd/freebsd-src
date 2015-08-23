@@ -29,15 +29,22 @@ __FBSDID("$FreeBSD$");
 #define _ARM32_BUS_DMA_PRIVATE
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/bus.h>
+
 #include <vm/vm.h>
+
 #include <machine/devmap.h>
+#include <machine/intr.h>
 #include <machine/machdep.h>
 #include <machine/platform.h> 
+
 #include <arm/at91/at91var.h>
 #include <arm/at91/at91soc.h>
 #include <arm/at91/at91_aicreg.h>
+
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
+
 #include <machine/fdt.h>
 
 extern const struct arm_devmap_entry at91_devmap[];

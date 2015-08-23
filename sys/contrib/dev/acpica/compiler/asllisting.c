@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2014, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -270,7 +270,10 @@ LsTreeWriteWalk (
 
     UtPrintFormattedName (Op->Asl.ParseOpcode, Level);
 
-    DbgPrint (ASL_TREE_OUTPUT, "    (%.4X)\n", Op->Asl.ParseOpcode);
+    DbgPrint (ASL_TREE_OUTPUT, "    (%.4X) Flags %8.8X",
+        Op->Asl.ParseOpcode, Op->Asl.CompileFlags);
+    TrPrintNodeCompileFlags (Op->Asl.CompileFlags);
+    DbgPrint (ASL_TREE_OUTPUT, "\n");
     return (AE_OK);
 }
 

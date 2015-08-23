@@ -307,7 +307,8 @@ struct uart_class uart_z8530_class = {
 	sizeof(struct z8530_softc),
 	.uc_ops = &uart_z8530_ops,
 	.uc_range = 2,
-	.uc_rclk = DEFAULT_RCLK
+	.uc_rclk = DEFAULT_RCLK,
+	.uc_rshift = 0
 };
 
 #define	SIGCHG(c, i, s, d)				\

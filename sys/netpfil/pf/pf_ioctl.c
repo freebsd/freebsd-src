@@ -84,10 +84,10 @@ __FBSDID("$FreeBSD$");
 #endif /* INET6 */
 
 #ifdef ALTQ
-#include <altq/altq.h>
+#include <net/altq/altq.h>
 #endif
 
-static int		 pf_vnet_init(void);
+static int		 pfattach(void);
 static struct pf_pool	*pf_get_pool(char *, u_int32_t, u_int8_t, u_int32_t,
 			    u_int8_t, u_int8_t, u_int8_t);
 
@@ -189,6 +189,7 @@ static struct cdevsw pf_cdevsw = {
 
 static volatile VNET_DEFINE(int, pf_pfil_hooked);
 #define V_pf_pfil_hooked	VNET(pf_pfil_hooked)
+VNET_DEFINE(int,		pf_end_threads);
 
 struct rwlock			pf_rules_lock;
 struct sx			pf_ioctl_lock;
@@ -204,20 +205,17 @@ pfsync_defer_t			*pfsync_defer_ptr = NULL;
 pflog_packet_t			*pflog_packet_ptr = NULL;
 
 static int
-pf_vnet_init(void)
+pfattach(void)
 {
 	u_int32_t *my_timeout = V_pf_default_rule.timeout;
 	int error;
 
 	if (IS_DEFAULT_VNET(curvnet))
 		pf_mtag_initialize();
-	TAILQ_INIT(&V_pf_tags);
-	TAILQ_INIT(&V_pf_qids);
-
-	pf_vnet_initialize();
+	pf_initialize();
 	pfr_initialize();
-	pfi_vnet_initialize();
-	pf_vnet_normalize_init();
+	pfi_initialize();
+	pf_normalize_init();
 
 	V_pf_limits[PF_LIMIT_STATES].limit = PFSTATE_HIWAT;
 	V_pf_limits[PF_LIMIT_SRC_NODES].limit = PFSNODE_HIWAT;
@@ -278,13 +276,10 @@ pf_vnet_init(void)
 	for (int i = 0; i < SCNT_MAX; i++)
 		V_pf_status.scounters[i] = counter_u64_alloc(M_WAITOK);
 
-	if (IS_DEFAULT_VNET(curvnet)) {
-	    if ((error = kproc_create(pf_purge_thread, curvnet, NULL, 0, 0,
-		"pf purge")) != 0) {
-		    /* XXXGL: leaked all above. */
-		    return (error);
-	    }
-	}
+	if ((error = kproc_create(pf_purge_thread, curvnet, NULL, 0, 0,
+	    "pf purge")) != 0)
+		/* XXXGL: leaked all above. */
+		return (error);
 	if ((error = swi_add(NULL, "pf send", pf_intr, curvnet, SWI_NET,
 	    INTR_MPSAFE, &V_pf_swi_cookie)) != 0)
 		/* XXXGL: leaked all above. */
@@ -3441,7 +3436,7 @@ pf_kill_srcnodes(struct pfioc_src_node_kill *psnk)
 			      &psnk->psnk_dst.addr.v.a.addr,
 			      &psnk->psnk_dst.addr.v.a.mask,
 			      &sn->raddr, sn->af)) {
-				pf_unlink_src_node_locked(sn);
+				pf_unlink_src_node(sn);
 				LIST_INSERT_HEAD(&kill, sn, entry);
 				sn->expire = 1;
 			}
@@ -3454,18 +3449,10 @@ pf_kill_srcnodes(struct pfioc_src_node_kill *psnk)
 
 		PF_HASHROW_LOCK(ih);
 		LIST_FOREACH(s, &ih->states, entry) {
-			if (s->src_node && s->src_node->expire == 1) {
-#ifdef INVARIANTS
-				s->src_node->states--;
-#endif
+			if (s->src_node && s->src_node->expire == 1)
 				s->src_node = NULL;
-			}
-			if (s->nat_src_node && s->nat_src_node->expire == 1) {
-#ifdef INVARIANTS
-				s->nat_src_node->states--;
-#endif
+			if (s->nat_src_node && s->nat_src_node->expire == 1)
 				s->nat_src_node = NULL;
-			}
 		}
 		PF_HASHROW_UNLOCK(ih);
 	}
@@ -3720,11 +3707,27 @@ dehook_pf(void)
 static int
 pf_load(void)
 {
+	int error;
+
+	VNET_ITERATOR_DECL(vnet_iter);
+
+	VNET_LIST_RLOCK();
+	VNET_FOREACH(vnet_iter) {
+		CURVNET_SET(vnet_iter);
+		V_pf_pfil_hooked = 0;
+		V_pf_end_threads = 0;
+		TAILQ_INIT(&V_pf_tags);
+		TAILQ_INIT(&V_pf_qids);
+		CURVNET_RESTORE();
+	}
+	VNET_LIST_RUNLOCK();
 
 	rw_init(&pf_rules_lock, "pf rulesets");
 	sx_init(&pf_ioctl_lock, "pf ioctl");
 
 	pf_dev = make_dev(&pf_cdevsw, 0, 0, 0, 0600, PF_NAME);
+	if ((error = pfattach()) != 0)
+		return (error);
 
 	return (0);
 }
@@ -3748,6 +3751,12 @@ pf_unload(void)
 	}
 	PF_RULES_WLOCK();
 	shutdown_pf();
+	V_pf_end_threads = 1;
+	while (V_pf_end_threads < 2) {
+		wakeup_one(pf_purge_thread);
+		rw_sleep(pf_purge_thread, &pf_rules_lock, 0, "pftmo", 0);
+	}
+	PF_RULES_WUNLOCK();
 	pf_normalize_cleanup();
 	pfi_cleanup();
 	pfr_cleanup();
@@ -3755,7 +3764,6 @@ pf_unload(void)
 	pf_cleanup();
 	if (IS_DEFAULT_VNET(curvnet))
 		pf_mtag_cleanup();
-	PF_RULES_WUNLOCK();
 	destroy_dev(pf_dev);
 	rw_destroy(&pf_rules_lock);
 	sx_destroy(&pf_ioctl_lock);
@@ -3797,5 +3805,3 @@ static moduledata_t pf_mod = {
 
 DECLARE_MODULE(pf, pf_mod, SI_SUB_PSEUDO, SI_ORDER_FIRST);
 MODULE_VERSION(pf, PF_MODVER);
-VNET_SYSINIT(pf_vnet_init, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY - 255,
-	    pf_vnet_init, NULL);

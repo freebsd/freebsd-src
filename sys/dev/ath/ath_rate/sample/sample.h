@@ -113,7 +113,7 @@ struct sample_node {
 #ifdef	_KERNEL
 
 #define	ATH_NODE_SAMPLE(an)	((struct sample_node *)&(an)[1])
-#define	IS_RATE_DEFINED(sn, rix)	(((sn)->ratemask & (1<<(rix))) != 0)
+#define	IS_RATE_DEFINED(sn, rix)	(((uint64_t) (sn)->ratemask & (1ULL<<((uint64_t) rix))) != 0)
 
 #ifndef MIN
 #define	MIN(a,b)	((a) < (b) ? (a) : (b))

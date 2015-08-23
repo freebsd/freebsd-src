@@ -68,8 +68,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp.h>
 #include <netinet/tcpip.h>
 
-#include <net/rt_nhops.h>
-
 #include <rdma/ib_verbs.h>
 #include <linux/idr.h>
 #include <ulp/iw_cxgb/iw_cxgb_ib_intfc.h>
@@ -165,7 +163,7 @@ start_ep_timer(struct iwch_ep *ep)
 		 * XXX this looks racy
 		 */
 		get_ep(&ep->com);
-		callout_init(&ep->timer, TRUE);
+		callout_init(&ep->timer, 1);
 	}
 	callout_reset(&ep->timer, ep_timeout_secs * hz, ep_timeout, ep);
 }
@@ -264,6 +262,22 @@ void __free_ep(struct iwch_ep_common *epc)
 	KASSERT(!epc->so, ("%s warning ep->so %p \n", __FUNCTION__, epc->so));
 	KASSERT(!epc->entry.tqe_prev, ("%s epc %p still on req list!\n", __FUNCTION__, epc));
 	free(epc, M_DEVBUF);
+}
+
+static struct rtentry *
+find_route(__be32 local_ip, __be32 peer_ip, __be16 local_port,
+    __be16 peer_port, u8 tos)
+{
+        struct route iproute;
+        struct sockaddr_in *dst = (struct sockaddr_in *)&iproute.ro_dst;
+ 
+        bzero(&iproute, sizeof iproute);
+	dst->sin_family = AF_INET;
+	dst->sin_len = sizeof *dst;
+        dst->sin_addr.s_addr = peer_ip;
+ 
+        rtalloc(&iproute);
+	return iproute.ro_rt;
 }
 
 static void
@@ -1279,7 +1293,7 @@ iwch_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	int err = 0;
 	struct iwch_dev *h = to_iwch_dev(cm_id->device);
 	struct iwch_ep *ep;
-	struct nhop4_extended nh_ext;
+	struct rtentry *rt;
 	struct toedev *tdev;
 	
 	if (is_loopback_dst(cm_id)) {
@@ -1293,7 +1307,7 @@ iwch_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 		err = (-ENOMEM);
 		goto out;
 	}
-	callout_init(&ep->timer, TRUE);
+	callout_init(&ep->timer, 1);
 	ep->plen = conn_param->private_data_len;
 	if (ep->plen)
 		memcpy(ep->mpa_pkt + sizeof(struct mpa_message),
@@ -1315,8 +1329,11 @@ iwch_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 		goto fail2;
 
 	/* find a route */
-	if (fib4_lookup_nh_ext(RT_DEFAULT_FIB, cm_id->remote_addr.sin_addr, 0,
-	    NHOP_LOOKUP_REF, &nh_ext) != 0) {
+	rt = find_route(cm_id->local_addr.sin_addr.s_addr,
+			cm_id->remote_addr.sin_addr.s_addr,
+			cm_id->local_addr.sin_port,
+			cm_id->remote_addr.sin_port, IPTOS_LOWDELAY);
+	if (!rt) {
 		printf("%s - cannot find route.\n", __FUNCTION__);
 		err = EHOSTUNREACH;
 		goto fail2;
@@ -1324,16 +1341,16 @@ iwch_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 
 	if (!(rt->rt_ifp->if_flags & IFCAP_TOE)) {
 		printf("%s - interface not TOE capable.\n", __FUNCTION__);
-		fib4_free_nh_ext(RT_DEFAULT_FIB, &nh_ext);
+		RTFREE(rt);
 		goto fail2;
 	}
 	tdev = TOEDEV(rt->rt_ifp);
 	if (tdev == NULL) {
 		printf("%s - No toedev for interface.\n", __FUNCTION__);
-		fib4_free_nh_ext(RT_DEFAULT_FIB, &nh_ext);
+		RTFREE(rt);
 		goto fail2;
 	}
-	fib4_free_nh_ext(RT_DEFAULT_FIB, &nh_ext);
+	RTFREE(rt);
 
 	state_set(&ep->com, CONNECTING);
 	ep->com.local_addr = cm_id->local_addr;
@@ -1581,7 +1598,7 @@ process_newconn(struct iwch_ep *parent_ep)
 	free(remote, M_SONAME);
 	get_ep(&parent_ep->com);
 	child_ep->parent_ep = parent_ep;
-	callout_init(&child_ep->timer, TRUE);
+	callout_init(&child_ep->timer, 1);
 	state_set(&child_ep->com, MPA_REQ_WAIT);
 	start_ep_timer(child_ep);
 

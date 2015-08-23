@@ -309,6 +309,7 @@ struct iwn_softc {
 	struct task		sc_radioon_task;
 	struct task		sc_radiooff_task;
 	struct task		sc_panic_task;
+	struct task		sc_xmit_task;
 
 	/* Taskqueue */
 	struct taskqueue	*sc_tq;
@@ -385,6 +386,9 @@ struct iwn_softc {
 	/* Are we doing a scan? */
 	int			sc_is_scanning;
 
+	/* Are we waiting for a beacon before xmit? */
+	int			sc_beacon_wait;
+
 	struct ieee80211_tx_ampdu *qid2tap[IWN5000_NTXQUEUES];
 
 	int			(*sc_ampdu_rx_start)(struct ieee80211_node *,
@@ -417,6 +421,13 @@ struct iwn_softc {
 
 #define	IWN_UCODE_API(ver)	(((ver) & 0x0000FF00) >> 8)
 	uint32_t		ucode_rev;
+
+	/*
+	 * Global queue for queuing xmit frames
+	 * when we can't yet transmit (eg raw
+	 * frames whilst waiting for beacons.)
+	 */
+	struct mbufq		sc_xmit_queue;
 };
 
 #define IWN_LOCK_INIT(_sc) \

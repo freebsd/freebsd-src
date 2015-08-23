@@ -143,7 +143,7 @@ SVCXPRT *
 svc_vc_create(SVCPOOL *pool, struct socket *so, size_t sendsize,
     size_t recvsize)
 {
-	SVCXPRT *xprt;
+	SVCXPRT *xprt = NULL;
 	struct sockaddr* sa;
 	int error;
 
@@ -177,7 +177,7 @@ svc_vc_create(SVCPOOL *pool, struct socket *so, size_t sendsize,
 
 	xprt_register(xprt);
 
-	solisten(so, SOMAXCONN, curthread);
+	solisten(so, -1, curthread);
 
 	SOCKBUF_LOCK(&so->so_rcv);
 	xprt->xp_upcallset = 1;
@@ -860,7 +860,7 @@ svc_vc_reply(SVCXPRT *xprt, struct rpc_msg *msg,
 		len = mrep->m_pkthdr.len;
 		*mtod(mrep, uint32_t *) =
 			htonl(0x80000000 | (len - sizeof(uint32_t)));
-		atomic_add_acq_32(&xprt->xp_snd_cnt, len);
+		atomic_add_32(&xprt->xp_snd_cnt, len);
 		error = sosend(xprt->xp_socket, NULL, NULL, mrep, NULL,
 		    0, curthread);
 		if (!error) {

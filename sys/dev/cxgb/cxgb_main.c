@@ -592,7 +592,7 @@ cxgb_controller_attach(device_t dev)
 
 	
 	/* Create a periodic callout for checking adapter status */
-	callout_init(&sc->cxgb_tick_ch, TRUE);
+	callout_init(&sc->cxgb_tick_ch, 1);
 	
 	if (t3_check_fw_version(sc) < 0 || force_fw_update) {
 		/*
@@ -1006,7 +1006,7 @@ cxgb_port_attach(device_t dev)
 	    device_get_unit(device_get_parent(dev)), p->port_id);
 	PORT_LOCK_INIT(p, p->lockbuf);
 
-	callout_init(&p->link_check_ch, CALLOUT_MPSAFE);
+	callout_init(&p->link_check_ch, 1);
 	TASK_INIT(&p->link_check_task, 0, check_link_status, p);
 
 	/* Allocate an ifnet object and set it up */
@@ -2289,7 +2289,8 @@ check_link_status(void *arg, int pending)
 
 	t3_link_changed(sc, pi->port_id);
 
-	if (pi->link_fault || !(pi->phy.caps & SUPPORTED_LINK_IRQ))
+	if (pi->link_fault || !(pi->phy.caps & SUPPORTED_LINK_IRQ) ||
+	    pi->link_config.link_ok == 0)
 		callout_reset(&pi->link_check_ch, hz, link_check_callout, pi);
 }
 

@@ -39,9 +39,6 @@
 #include <sys/kernel.h>
 #include <sys/domain.h>
 #include <sys/lock.h>
-#include <sys/lock.h>
-#include <sys/rwlock.h>
-#include <sys/rmlock.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/priv.h>
@@ -62,7 +59,6 @@
 #include <net/netisr.h>
 #include <net/raw_cb.h>
 #include <net/route.h>
-#include <net/route_internal.h>
 #include <net/vnet.h>
 
 #include <netinet/in.h>
@@ -524,7 +520,7 @@ route_output(struct mbuf *m, struct socket *so, ...)
 {
 	struct rt_msghdr *rtm = NULL;
 	struct rtentry *rt = NULL;
-	struct rib_head *rh;
+	struct radix_node_head *rnh;
 	struct rt_addrinfo info;
 	struct sockaddr_storage ss;
 #ifdef INET6
@@ -618,13 +614,11 @@ route_output(struct mbuf *m, struct socket *so, ...)
 	 */
 	if (info.rti_info[RTAX_GATEWAY] != NULL &&
 	    info.rti_info[RTAX_GATEWAY]->sa_family != AF_LINK) {
-		struct rtentry *rt;
-		/* XXX-ME: Is this enough? */
-		struct sockaddr dst;
+		struct route gw_ro;
 
-		bzero(&dst, sizeof(dst));
-		dst = *info.rti_info[RTAX_GATEWAY];
-		rt = rtalloc1_fib(&dst, 0, 0, fibnum);
+		bzero(&gw_ro, sizeof(gw_ro));
+		gw_ro.ro_dst = *info.rti_info[RTAX_GATEWAY];
+		rtalloc_ign_fib(&gw_ro, 0, fibnum);
 		/* 
 		 * A host route through the loopback interface is 
 		 * installed for each interface adddress. In pre 8.0
@@ -635,13 +629,14 @@ route_output(struct mbuf *m, struct socket *so, ...)
 		 * AF_LINK sa_family type of the rt_gateway, and the
 		 * rt_ifp has the IFF_LOOPBACK flag set.
 		 */
-		if (rt != NULL && rt->rt_gateway->sa_family == AF_LINK &&
-		    rt->rt_ifp->if_flags & IFF_LOOPBACK) {
+		if (gw_ro.ro_rt != NULL &&
+		    gw_ro.ro_rt->rt_gateway->sa_family == AF_LINK &&
+		    gw_ro.ro_rt->rt_ifp->if_flags & IFF_LOOPBACK) {
 			info.rti_flags &= ~RTF_GATEWAY;
 			info.rti_flags |= RTF_GWFLAG_COMPAT;
 		}
-		if (rt != NULL)
-			RTFREE_LOCKED(rt);
+		if (gw_ro.ro_rt != NULL)
+			RTFREE(gw_ro.ro_rt);
 	}
 
 	switch (rtm->rtm_type) {
@@ -702,11 +697,11 @@ route_output(struct mbuf *m, struct socket *so, ...)
 		break;
 
 	case RTM_GET:
-		rh = rt_tables_get_rnh(fibnum, saf);
-		if (rh == NULL)
+		rnh = rt_tables_get_rnh(fibnum, saf);
+		if (rnh == NULL)
 			senderr(EAFNOSUPPORT);
 
-		RIB_CFG_RLOCK(rh);
+		RADIX_NODE_HEAD_RLOCK(rnh);
 
 		if (info.rti_info[RTAX_NETMASK] == NULL &&
 		    rtm->rtm_type == RTM_GET) {
@@ -715,15 +710,15 @@ route_output(struct mbuf *m, struct socket *so, ...)
 			 * address lookup (no mask).
 			 * 'route -n get addr'
 			 */
-			rt = (struct rtentry *) rh->rnh_matchaddr(
-			    info.rti_info[RTAX_DST], &rh->head);
+			rt = (struct rtentry *) rnh->rnh_matchaddr(
+			    info.rti_info[RTAX_DST], rnh);
 		} else
-			rt = (struct rtentry *) rh->rnh_lookup(
+			rt = (struct rtentry *) rnh->rnh_lookup(
 			    info.rti_info[RTAX_DST],
-			    info.rti_info[RTAX_NETMASK], &rh->head);
+			    info.rti_info[RTAX_NETMASK], rnh);
 
 		if (rt == NULL) {
-			RIB_CFG_RUNLOCK(rh);
+			RADIX_NODE_HEAD_RUNLOCK(rnh);
 			senderr(ESRCH);
 		}
 #ifdef RADIX_MPATH
@@ -735,11 +730,11 @@ route_output(struct mbuf *m, struct socket *so, ...)
 		 * if gate == NULL the first match is returned.
 		 * (no need to call rt_mpath_matchgate if gate == NULL)
 		 */
-		if (rn_mpath_capable(rh) &&
+		if (rn_mpath_capable(rnh) &&
 		    (rtm->rtm_type != RTM_GET || info.rti_info[RTAX_GATEWAY])) {
 			rt = rt_mpath_matchgate(rt, info.rti_info[RTAX_GATEWAY]);
 			if (!rt) {
-				RIB_CFG_RUNLOCK(rh);
+				RADIX_NODE_HEAD_RUNLOCK(rnh);
 				senderr(ESRCH);
 			}
 		}
@@ -770,15 +765,15 @@ route_output(struct mbuf *m, struct socket *so, ...)
 			/* 
 			 * refactor rt and no lock operation necessary
 			 */
-			rt = (struct rtentry *)rh->rnh_matchaddr(&laddr, &rh->head);
+			rt = (struct rtentry *)rnh->rnh_matchaddr(&laddr, rnh);
 			if (rt == NULL) {
-				RIB_CFG_RUNLOCK(rh);
+				RADIX_NODE_HEAD_RUNLOCK(rnh);
 				senderr(ESRCH);
 			}
 		} 
 		RT_LOCK(rt);
 		RT_ADDREF(rt);
-		RIB_CFG_RUNLOCK(rh);
+		RADIX_NODE_HEAD_RUNLOCK(rnh);
 
 report:
 		RT_LOCK_ASSERT(rt);
@@ -925,6 +920,7 @@ rt_getmetrics(const struct rtentry *rt, struct rt_metrics *out)
 	bzero(out, sizeof(*out));
 	out->rmx_mtu = rt->rt_mtu;
 	out->rmx_weight = rt->rt_weight;
+	out->rmx_pksent = counter_u64_fetch(rt->rt_pksent);
 	/* Kernel -> userland timebase conversion. */
 	out->rmx_expire = rt->rt_expire ?
 	    rt->rt_expire - time_uptime + time_second : 0;
@@ -1802,7 +1798,7 @@ sysctl_rtsock(SYSCTL_HANDLER_ARGS)
 {
 	int	*name = (int *)arg1;
 	u_int	namelen = arg2;
-	struct rib_head *rh = NULL; /* silence compiler. */
+	struct radix_node_head *rnh = NULL; /* silence compiler. */
 	int	i, lim, error = EINVAL;
 	int	fib = 0;
 	u_char	af;
@@ -1869,12 +1865,12 @@ sysctl_rtsock(SYSCTL_HANDLER_ARGS)
 		 * take care of routing entries
 		 */
 		for (error = 0; error == 0 && i <= lim; i++) {
-			rh = rt_tables_get_rnh(fib, i);
-			if (rh != NULL) {
-				RIB_CFG_RLOCK(rh); 
-			    	error = rh->rnh_walktree(&rh->head,
+			rnh = rt_tables_get_rnh(fib, i);
+			if (rnh != NULL) {
+				RADIX_NODE_HEAD_RLOCK(rnh); 
+			    	error = rnh->rnh_walktree(rnh,
 				    sysctl_dumpentry, &w);
-				RIB_CFG_RUNLOCK(rh);
+				RADIX_NODE_HEAD_RUNLOCK(rnh);
 			} else if (af != 0)
 				error = EAFNOSUPPORT;
 		}

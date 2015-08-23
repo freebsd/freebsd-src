@@ -77,7 +77,6 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>
 #include <net/if_var.h>
 #include <net/route.h>
-#include <net/route_internal.h>
 
 #include <netinet/in.h>
 #include <netinet/ip_var.h>
@@ -103,25 +102,16 @@ extern int	in6_detachhead(void **head, int off);
  * Do what we need to do when inserting a route.
  */
 static struct radix_node *
-in6_addroute(void *v_arg, void *n_arg, struct radix_head *head,
+in6_addroute(void *v_arg, void *n_arg, struct radix_node_head *head,
     struct radix_node *treenodes)
 {
-	unsigned int mtu, rt_flags;
-	struct rtentry *rt;
-	const struct sockaddr_in6 *sin6;
-	struct ifnet *ifp;
-	struct ifaddr *ifa;
-
-	rt = (struct rtentry *)treenodes;
-	sin6 = (const struct sockaddr_in6 *)rte_get_dst(rt);
-	rt_flags = rte_get_flags(rt);
-	ifp = rte_get_lifp(rt);
-	ifa = rte_get_ifa(rt);
-	
+	struct rtentry *rt = (struct rtentry *)treenodes;
+	struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)rt_key(rt);
 	struct radix_node *ret;
 
+	RADIX_NODE_HEAD_WLOCK_ASSERT(head);
 	if (IN6_IS_ADDR_MULTICAST(&sin6->sin6_addr))
-		rt_flags |= RTF_MULTICAST;
+		rt->rt_flags |= RTF_MULTICAST;
 
 	/*
 	 * A little bit of help for both IPv6 output and input:
@@ -137,33 +127,30 @@ in6_addroute(void *v_arg, void *n_arg, struct radix_head *head,
 	 * XXX
 	 * should elaborate the code.
 	 */
-	if (rt_flags & RTF_HOST) {
-		if (IN6_ARE_ADDR_EQUAL(&satosin6(ifa->ifa_addr)->sin6_addr,
-		    &sin6->sin6_addr)) {
-			rt_flags |= RTF_LOCAL;
+	if (rt->rt_flags & RTF_HOST) {
+		if (IN6_ARE_ADDR_EQUAL(&satosin6(rt->rt_ifa->ifa_addr)
+					->sin6_addr,
+				       &sin6->sin6_addr)) {
+			rt->rt_flags |= RTF_LOCAL;
 		}
 	}
 
-	rte_set_flags(rt, rt_flags);
-
-	if (ifp != NULL) {
+	if (rt->rt_ifp != NULL) {
 
 		/*
 		 * Check route MTU:
 		 * inherit interface MTU if not set or
 		 * check if MTU is too large.
 		 */
-		mtu = rte_get_mtu(rt);
-		if (mtu == 0) {
-			rte_set_mtu(rt, IN6_LINKMTU(rt->rt_ifp));
-		} else if (mtu > IN6_LINKMTU(rt->rt_ifp))
-			rte_set_mtu(rt, IN6_LINKMTU(rt->rt_ifp));
+		if (rt->rt_mtu == 0) {
+			rt->rt_mtu = IN6_LINKMTU(rt->rt_ifp);
+		} else if (rt->rt_mtu > IN6_LINKMTU(rt->rt_ifp))
+			rt->rt_mtu = IN6_LINKMTU(rt->rt_ifp);
 	}
 
 	ret = rn_addroute(v_arg, n_arg, head, treenodes);
 	if (ret == NULL) {
 		struct rtentry *rt2;
-		struct sockaddr *gw;
 		/*
 		 * We are trying to add a net route, but can't.
 		 * The following case should be allowed, so we'll make a
@@ -179,19 +166,81 @@ in6_addroute(void *v_arg, void *n_arg, struct radix_head *head,
 		rt2 = in6_rtalloc1((struct sockaddr *)sin6, 0, RTF_RNH_LOCKED,
 		    rt->rt_fibnum);
 		if (rt2) {
-			rt_flags = rte_get_flags(rt2);
-			ifp = rte_get_lifp(rt2);
-			gw = rte_get_gw(rt2);
-			if (((rt_flags & (RTF_HOST|RTF_GATEWAY)) == 0)
-			 && gw != NULL 
-			 && gw->sa_family == AF_LINK
-			 && ifp == rte_get_lifp(rt)) {
+			if (((rt2->rt_flags & (RTF_HOST|RTF_GATEWAY)) == 0)
+			 && rt2->rt_gateway
+			 && rt2->rt_gateway->sa_family == AF_LINK
+			 && rt2->rt_ifp == rt->rt_ifp) {
 				ret = rt2->rt_nodes;
 			}
 			RTFREE_LOCKED(rt2);
 		}
 	}
 	return (ret);
+}
+
+/*
+ * Age old PMTUs.
+ */
+struct mtuex_arg {
+	struct radix_node_head *rnh;
+	time_t nextstop;
+};
+static VNET_DEFINE(struct callout, rtq_mtutimer);
+#define	V_rtq_mtutimer			VNET(rtq_mtutimer)
+
+static int
+in6_mtuexpire(struct radix_node *rn, void *rock)
+{
+	struct rtentry *rt = (struct rtentry *)rn;
+	struct mtuex_arg *ap = rock;
+
+	/* sanity */
+	if (!rt)
+		panic("rt == NULL in in6_mtuexpire");
+
+	if (rt->rt_expire && !(rt->rt_flags & RTF_PROBEMTU)) {
+		if (rt->rt_expire <= time_uptime) {
+			rt->rt_flags |= RTF_PROBEMTU;
+		} else {
+			ap->nextstop = lmin(ap->nextstop, rt->rt_expire);
+		}
+	}
+
+	return 0;
+}
+
+#define	MTUTIMO_DEFAULT	(60*1)
+
+static void
+in6_mtutimo_one(struct radix_node_head *rnh)
+{
+	struct mtuex_arg arg;
+
+	arg.rnh = rnh;
+	arg.nextstop = time_uptime + MTUTIMO_DEFAULT;
+	RADIX_NODE_HEAD_LOCK(rnh);
+	rnh->rnh_walktree(rnh, in6_mtuexpire, &arg);
+	RADIX_NODE_HEAD_UNLOCK(rnh);
+}
+
+static void
+in6_mtutimo(void *rock)
+{
+	CURVNET_SET_QUIET((struct vnet *) rock);
+	struct radix_node_head *rnh;
+	struct timeval atv;
+	u_int fibnum;
+
+	for (fibnum = 0; fibnum < rt_numfibs; fibnum++) {
+		rnh = rt_tables_get_rnh(fibnum, AF_INET6);
+		if (rnh != NULL)
+			in6_mtutimo_one(rnh);
+	}
+
+	atv.tv_sec = MTUTIMO_DEFAULT;
+	atv.tv_usec = 0;
+	callout_reset(&V_rtq_mtutimer, tvtohz(&atv), in6_mtutimo, rock);
+	CURVNET_RESTORE();
 }
 
 /*
@@ -203,17 +252,21 @@ static VNET_DEFINE(int, _in6_rt_was_here);
 int
 in6_inithead(void **head, int off)
 {
-	struct rib_head *rh;
+	struct radix_node_head *rnh;
 
-	rh = rt_table_init(offsetof(struct sockaddr_in6, sin6_addr) << 3);
-	if (rh == NULL)
+	if (!rn_inithead(head, offsetof(struct sockaddr_in6, sin6_addr) << 3))
 		return (0);
 
-	rh->rnh_addaddr = in6_addroute;
-	*head = (void *)rh;
+	rnh = *head;
+	RADIX_NODE_HEAD_LOCK_INIT(rnh);
 
-	if (V__in6_rt_was_here == 0)
+	rnh->rnh_addaddr = in6_addroute;
+
+	if (V__in6_rt_was_here == 0) {
+		callout_init(&V_rtq_mtutimer, 1);
+		in6_mtutimo(curvnet);	/* kick off timeout first time */
 		V__in6_rt_was_here = 1;
+	}
 
 	return (1);
 }
@@ -245,6 +298,20 @@ in6_rtrequest(int req, struct sockaddr *dst, struct sockaddr *gw,
 {
 
 	return (rtrequest_fib(req, dst, gw, mask, flags, ret_nrt, fibnum));
+}
+
+void
+in6_rtalloc(struct route_in6 *ro, u_int fibnum)
+{
+
+	rtalloc_ign_fib((struct route *)ro, 0ul, fibnum);
+}
+
+void
+in6_rtalloc_ign(struct route_in6 *ro, u_long ignflags, u_int fibnum)
+{
+
+	rtalloc_ign_fib((struct route *)ro, ignflags, fibnum);
 }
 
 struct rtentry *

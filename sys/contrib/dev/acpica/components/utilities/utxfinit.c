@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2014, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,7 +41,6 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-#define __UTXFINIT_C__
 #define EXPORT_ACPI_INTERFACES
 
 #include <contrib/dev/acpica/include/acpi.h>
@@ -53,6 +52,11 @@
 
 #define _COMPONENT          ACPI_UTILITIES
         ACPI_MODULE_NAME    ("utxfinit")
+
+/* For AcpiExec only */
+void
+AeDoObjectOverrides (
+    void);
 
 
 /*******************************************************************************
@@ -190,11 +194,14 @@ AcpiEnableSubsystem (
      * Obtain a permanent mapping for the FACS. This is required for the
      * Global Lock and the Firmware Waking Vector
      */
-    Status = AcpiTbInitializeFacs ();
-    if (ACPI_FAILURE (Status))
+    if (!(Flags & ACPI_NO_FACS_INIT))
     {
-        ACPI_WARNING ((AE_INFO, "Could not map the FACS table"));
-        return_ACPI_STATUS (Status);
+        Status = AcpiTbInitializeFacs ();
+        if (ACPI_FAILURE (Status))
+        {
+            ACPI_WARNING ((AE_INFO, "Could not map the FACS table"));
+            return_ACPI_STATUS (Status);
+        }
     }
 
 #endif /* !ACPI_REDUCED_HARDWARE */
@@ -308,6 +315,14 @@ AcpiInitializeObjects (
             return_ACPI_STATUS (Status);
         }
     }
+
+#ifdef ACPI_EXEC_APP
+    /*
+     * This call implements the "initialization file" option for AcpiExec.
+     * This is the precise point that we want to perform the overrides.
+     */
+    AeDoObjectOverrides ();
+#endif
 
     /*
      * Execute any module-level code that was detected during the table load

@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2011, 2014 by Delphix. All rights reserved.
+ * Copyright (c) 2011, 2015 by Delphix. All rights reserved.
  * Copyright 2011 Nexenta Systems, Inc.  All rights reserved.
  * Copyright 2013 Martin Matuska <mm@FreeBSD.org>. All rights reserved.
  */
@@ -147,6 +147,8 @@ struct spa {
 	objset_t	*spa_meta_objset;	/* copy of dp->dp_meta_objset */
 	txg_list_t	spa_vdev_txg_list;	/* per-txg dirty vdev list */
 	vdev_t		*spa_root_vdev;		/* top-level vdev container */
+	int		spa_min_ashift;		/* of vdevs in normal class */
+	int		spa_max_ashift;		/* of vdevs in normal class */
 	uint64_t	spa_config_guid;	/* config pool guid */
 	uint64_t	spa_load_guid;		/* spa_load initialized guid */
 	uint64_t	spa_last_synced_guid;	/* last synced guid */
@@ -245,7 +247,7 @@ struct spa {
 	uint64_t	spa_feat_refcount_cache[SPA_FEATURES];
 #ifdef illumos
 	cyclic_id_t	spa_deadman_cycid;	/* cyclic id */
-#else	/* FreeBSD */
+#else	/* !illumos */
 #ifdef _KERNEL
 	struct callout	spa_deadman_cycid;	/* callout id */
 #endif
@@ -275,7 +277,7 @@ struct spa {
 	 */
 	spa_config_lock_t spa_config_lock[SCL_LOCKS]; /* config changes */
 	refcount_t	spa_refcount;		/* number of opens */
-#ifndef sun
+#ifndef illumos
 	boolean_t	spa_splitting_newspa;	/* creating new spa in split */
 #endif
 };

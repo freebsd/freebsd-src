@@ -961,7 +961,7 @@ adw_init(struct adw_softc *adw)
 			/* highaddr	*/ BUS_SPACE_MAXADDR,
 			/* filter	*/ NULL,
 			/* filterarg	*/ NULL,
-			/* maxsize	*/ MAXBSIZE,
+			/* maxsize	*/ DFLTPHYS,
 			/* nsegments	*/ ADW_SGSIZE,
 			/* maxsegsz	*/ BUS_SPACE_MAXSIZE_32BIT,
 			/* flags	*/ BUS_DMA_ALLOCNOW,

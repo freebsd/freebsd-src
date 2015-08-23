@@ -39,6 +39,13 @@ CODE {
 	{
 		return (PCI_INVALID_IRQ);
 	}
+
+	static int
+	pcib_null_ari_enabled(device_t pcib)
+	{
+
+		return (0);
+	}
 };
 
 #
@@ -181,4 +188,22 @@ METHOD int try_enable_ari {
 	device_t	pcib;
 	device_t	dev;
 };
+
+#
+# Return non-zero if PCI ARI is enabled, or zero otherwise
+#
+METHOD int ari_enabled {
+	device_t	pcib;
+} DEFAULT pcib_null_ari_enabled;
+
+#
+# Decode a PCI Routing Identifier (RID) into PCI bus/slot/function
+#
+METHOD void decode_rid {
+	device_t	pcib;
+	uint16_t	rid;
+	int 		*bus;
+	int 		*slot;
+	int 		*func;
+} DEFAULT pcib_decode_rid;
 

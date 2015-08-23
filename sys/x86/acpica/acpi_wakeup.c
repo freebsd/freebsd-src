@@ -30,6 +30,11 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#if defined(__amd64__)
+#define DEV_APIC
+#else
+#include "opt_apic.h"
+#endif
 #ifdef __i386__
 #include "opt_npx.h"
 #endif
@@ -55,8 +60,11 @@ __FBSDID("$FreeBSD$");
 #include <machine/specialreg.h>
 #include <machine/md_var.h>
 
-#ifdef SMP
+#ifdef DEV_APIC
 #include <x86/apicreg.h>
+#include <x86/apicvar.h>
+#endif
+#ifdef SMP
 #include <machine/smp.h>
 #include <machine/vmparam.h>
 #endif
@@ -202,7 +210,7 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 	if (acpi_resume_beep != 0)
 		timer_spkr_acquire();
 
-	AcpiSetFirmwareWakingVector(WAKECODE_PADDR(sc));
+	AcpiSetFirmwareWakingVector(WAKECODE_PADDR(sc), 0);
 
 	intr_suspend();
 
@@ -270,6 +278,9 @@ acpi_wakeup_machdep(struct acpi_softc *sc, int state, int sleep_result,
 			initializecpu();
 			PCPU_SET(switchtime, 0);
 			PCPU_SET(switchticks, ticks);
+#ifdef DEV_APIC
+			lapic_xapic_mode();
+#endif
 #ifdef SMP
 			if (!CPU_EMPTY(&suspcpus))
 				acpi_wakeup_cpus(sc);
@@ -287,7 +298,7 @@ acpi_wakeup_machdep(struct acpi_softc *sc, int state, int sleep_result,
 #endif
 		intr_resume(/*suspend_cancelled*/false);
 
-		AcpiSetFirmwareWakingVector(0);
+		AcpiSetFirmwareWakingVector(0, 0);
 	} else {
 		/* Wakeup MD procedures in interrupt enabled context */
 		if (sleep_result == 1 && mem_range_softc.mr_op != NULL &&
@@ -368,7 +379,7 @@ acpi_install_wakeup_handler(struct acpi_softc *sc)
 	/* Save pointers to some global data. */
 	WAKECODE_FIXUP(wakeup_ret, void *, resumectx);
 #ifndef __amd64__
-#ifdef PAE
+#if defined(PAE) || defined(PAE_TABLES)
 	WAKECODE_FIXUP(wakeup_cr3, register_t, vtophys(kernel_pmap->pm_pdpt));
 #else
 	WAKECODE_FIXUP(wakeup_cr3, register_t, vtophys(kernel_pmap->pm_pdir));

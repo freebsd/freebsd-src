@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2014 Marcel Moolenaar
+ * Copyright (c) 2014, 2015 Marcel Moolenaar
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -33,11 +33,15 @@
 
 #define	PROTO_RES_UNUSED	0
 #define	PROTO_RES_PCICFG	10
+#define	PROTO_RES_BUSDMA	11
 
 struct proto_res {
 	int		r_type;
 	int		r_rid;
-	struct resource *r_res;
+	union {
+		struct resource *res;
+		void *busdma;
+	} r_d;
 	u_long		r_size;
 	union {
 		void		*cookie;
@@ -57,6 +61,7 @@ extern char proto_driver_name[];
 
 int proto_add_resource(struct proto_softc *, int, int, struct resource *);
 
+int proto_probe(device_t dev, const char *prefix, char ***devnamesp);
 int proto_attach(device_t dev);
 int proto_detach(device_t dev);
 

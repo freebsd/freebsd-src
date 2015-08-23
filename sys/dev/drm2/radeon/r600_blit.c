@@ -539,7 +539,7 @@ static void r600_nomm_put_vb(struct drm_device *dev)
 	drm_radeon_private_t *dev_priv = dev->dev_private;
 
 	dev_priv->blit_vb->used = 0;
-	radeon_cp_discard_buffer(dev, dev_priv->blit_vb->file_priv->masterp, dev_priv->blit_vb);
+	radeon_cp_discard_buffer(dev, dev_priv->blit_vb->file_priv->master, dev_priv->blit_vb);
 }
 
 static void *r600_nomm_get_vb_ptr(struct drm_device *dev)

@@ -465,28 +465,6 @@ nvme_ns_bio_process(struct nvme_namespace *ns, struct bio *bp,
 	return (err);
 }
 
-#ifdef CHATHAM2
-static void
-nvme_ns_populate_chatham_data(struct nvme_namespace *ns)
-{
-	struct nvme_controller		*ctrlr;
-	struct nvme_namespace_data	*nsdata;
-
-	ctrlr = ns->ctrlr;
-	nsdata = &ns->data;
-
-	nsdata->nsze = ctrlr->chatham_lbas;
-	nsdata->ncap = ctrlr->chatham_lbas;
-	nsdata->nuse = ctrlr->chatham_lbas;
-
-	/* Chatham2 doesn't support thin provisioning. */
-	nsdata->nsfeat.thin_prov = 0;
-
-	/* Set LBA size to 512 bytes. */
-	nsdata->lbaf[0].lbads = 9;
-}
-#endif /* CHATHAM2 */
-
 int
 nvme_ns_construct(struct nvme_namespace *ns, uint16_t id,
     struct nvme_controller *ctrlr)
@@ -513,23 +491,15 @@ nvme_ns_construct(struct nvme_namespace *ns, uint16_t id,
 	if (!mtx_initialized(&ns->lock))
 		mtx_init(&ns->lock, "nvme ns lock", NULL, MTX_DEF);
 
-#ifdef CHATHAM2
-	if (pci_get_devid(ctrlr->dev) == CHATHAM_PCI_ID)
-		nvme_ns_populate_chatham_data(ns);
-	else {
-#endif
-		status.done = FALSE;
-		nvme_ctrlr_cmd_identify_namespace(ctrlr, id, &ns->data,
-		    nvme_completion_poll_cb, &status);
-		while (status.done == FALSE)
-			DELAY(5);
-		if (nvme_completion_is_error(&status.cpl)) {
-			nvme_printf(ctrlr, "nvme_identify_namespace failed\n");
-			return (ENXIO);
-		}
-#ifdef CHATHAM2
+	status.done = FALSE;
+	nvme_ctrlr_cmd_identify_namespace(ctrlr, id, &ns->data,
+	    nvme_completion_poll_cb, &status);
+	while (status.done == FALSE)
+		DELAY(5);
+	if (nvme_completion_is_error(&status.cpl)) {
+		nvme_printf(ctrlr, "nvme_identify_namespace failed\n");
+		return (ENXIO);
 	}
-#endif
 
 	/*
 	 * Note: format is a 0-based value, so > is appropriate here,

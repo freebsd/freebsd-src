@@ -233,7 +233,8 @@ twe_attach(device_t dev)
 			   BUS_SPACE_MAXADDR_32BIT, 		/* lowaddr */
 			   BUS_SPACE_MAXADDR, 			/* highaddr */
 			   NULL, NULL, 				/* filter, filterarg */
-			   MAXBSIZE, TWE_MAX_SGL_LENGTH,	/* maxsize, nsegments */
+			   BUS_SPACE_MAXSIZE_32BIT,		/* maxsize */
+			   BUS_SPACE_UNRESTRICTED,		/* nsegments */
 			   BUS_SPACE_MAXSIZE_32BIT,		/* maxsegsize */
 			   0,					/* flags */
 			   NULL,				/* lockfunc */
@@ -301,7 +302,8 @@ twe_attach(device_t dev)
 			   BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
 			   BUS_SPACE_MAXADDR, 		/* highaddr */
 			   NULL, NULL, 			/* filter, filterarg */
-			   MAXBSIZE, TWE_MAX_SGL_LENGTH,/* maxsize, nsegments */
+			   (TWE_MAX_SGL_LENGTH - 1) * PAGE_SIZE,/* maxsize */
+			   TWE_MAX_SGL_LENGTH,		/* nsegments */
 			   BUS_SPACE_MAXSIZE_32BIT,	/* maxsegsize */
 			   BUS_DMA_ALLOCNOW,		/* flags */
 			   busdma_lock_mutex,		/* lockfunc */
@@ -320,7 +322,7 @@ twe_attach(device_t dev)
 			   BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
 			   BUS_SPACE_MAXADDR, 		/* highaddr */
 			   NULL, NULL, 			/* filter, filterarg */
-			   MAXBSIZE, 1,			/* maxsize, nsegments */
+			   DFLTPHYS, 1,			/* maxsize, nsegments */
 			   BUS_SPACE_MAXSIZE_32BIT,	/* maxsegsize */
 			   0,				/* flags */
 			   NULL,			/* lockfunc */

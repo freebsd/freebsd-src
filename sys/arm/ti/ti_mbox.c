@@ -47,14 +47,12 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus_subr.h>
 
 #include <machine/bus.h>
-#include <machine/fdt.h>
 
 #include <arm/ti/ti_mbox.h>
 #include <arm/ti/ti_prcm.h>
 
 #include "mbox_if.h"
 
-#define DEBUG
 #ifdef DEBUG
 #define	DPRINTF(fmt, ...)	do {	\
 	printf("%s: ", __func__);	\
@@ -123,7 +121,7 @@ ti_mbox_probe(device_t dev)
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
-	if (ofw_bus_is_compatible(dev, "ti,system-mbox")) {
+	if (ofw_bus_is_compatible(dev, "ti,omap4-mailbox")) {
 		device_set_desc(dev, "TI System Mailbox");
 		return (BUS_PROBE_DEFAULT);
 	}

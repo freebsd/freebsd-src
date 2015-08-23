@@ -471,7 +471,7 @@ static void uhso_if_start(struct ifnet *);
 static void uhso_if_stop(struct uhso_softc *);
 static int  uhso_if_ioctl(struct ifnet *, u_long, caddr_t);
 static int  uhso_if_output(struct ifnet *, struct mbuf *,
-    const struct sockaddr *, struct nhop_info *);
+    const struct sockaddr *, struct route *);
 static void uhso_if_rxflush(void *);
 
 static device_probe_t uhso_probe;
@@ -1883,7 +1883,7 @@ uhso_if_init(void *priv)
 
 static int
 uhso_if_output(struct ifnet *ifp, struct mbuf *m0, const struct sockaddr *dst,
-    struct nhop_info *ni)
+    struct route *ro)
 {
 	int error;
 

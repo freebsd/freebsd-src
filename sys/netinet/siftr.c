@@ -75,6 +75,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/pcpu.h>
 #include <sys/proc.h>
 #include <sys/sbuf.h>
+#include <sys/sdt.h>
 #include <sys/smp.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
@@ -86,6 +87,7 @@ __FBSDID("$FreeBSD$");
 #include <net/pfil.h>
 
 #include <netinet/in.h>
+#include <netinet/in_kdtrace.h>
 #include <netinet/in_pcb.h>
 #include <netinet/in_systm.h>
 #include <netinet/in_var.h>
@@ -227,6 +229,10 @@ struct pkt_node {
 	u_int			sent_inflight_bytes;
 	/* Number of segments currently in the reassembly queue. */
 	int			t_segqlen;
+	/* Flowid for the connection. */
+	u_int			flowid;	
+	/* Flow type for the connection. */
+	u_int			flowtype;	
 	/* Link to next pkt_node in the list. */
 	STAILQ_ENTRY(pkt_node)	nodes;
 };
@@ -444,7 +450,7 @@ siftr_process_pkt(struct pkt_node * pkt_node)
 		    MAX_LOG_MSG_LEN,
 		    "%c,0x%08x,%zd.%06ld,%x:%x:%x:%x:%x:%x:%x:%x,%u,%x:%x:%x:"
 		    "%x:%x:%x:%x:%x,%u,%ld,%ld,%ld,%ld,%ld,%u,%u,%u,%u,%u,%u,"
-		    "%u,%d,%u,%u,%u,%u,%u,%u\n",
+		    "%u,%d,%u,%u,%u,%u,%u,%u,%u,%u\n",
 		    direction[pkt_node->direction],
 		    pkt_node->hash,
 		    pkt_node->tval.tv_sec,
@@ -485,7 +491,9 @@ siftr_process_pkt(struct pkt_node * pkt_node)
 		    pkt_node->rcv_buf_hiwater,
 		    pkt_node->rcv_buf_cc,
 		    pkt_node->sent_inflight_bytes,
-		    pkt_node->t_segqlen);
+		    pkt_node->t_segqlen,
+		    pkt_node->flowid,
+		    pkt_node->flowtype);
 	} else { /* IPv4 packet */
 		pkt_node->ip_laddr[0] = FIRST_OCTET(pkt_node->ip_laddr[3]);
 		pkt_node->ip_laddr[1] = SECOND_OCTET(pkt_node->ip_laddr[3]);
@@ -501,7 +509,7 @@ siftr_process_pkt(struct pkt_node * pkt_node)
 		log_buf->ae_bytesused = snprintf(log_buf->ae_data,
 		    MAX_LOG_MSG_LEN,
 		    "%c,0x%08x,%jd.%06ld,%u.%u.%u.%u,%u,%u.%u.%u.%u,%u,%ld,%ld,"
-		    "%ld,%ld,%ld,%u,%u,%u,%u,%u,%u,%u,%d,%u,%u,%u,%u,%u,%u\n",
+		    "%ld,%ld,%ld,%u,%u,%u,%u,%u,%u,%u,%d,%u,%u,%u,%u,%u,%u,%u,%u\n",
 		    direction[pkt_node->direction],
 		    pkt_node->hash,
 		    (intmax_t)pkt_node->tval.tv_sec,
@@ -534,7 +542,9 @@ siftr_process_pkt(struct pkt_node * pkt_node)
 		    pkt_node->rcv_buf_hiwater,
 		    pkt_node->rcv_buf_cc,
 		    pkt_node->sent_inflight_bytes,
-		    pkt_node->t_segqlen);
+		    pkt_node->t_segqlen,
+		    pkt_node->flowid,
+		    pkt_node->flowtype);
 #ifdef SIFTR_IPV6
 	}
 #endif
@@ -787,6 +797,8 @@ siftr_siftdata(struct pkt_node *pn, struct inpcb *inp, struct tcpcb *tp,
 	pn->rcv_buf_cc = sbused(&inp->inp_socket->so_rcv);
 	pn->sent_inflight_bytes = tp->snd_max - tp->snd_una;
 	pn->t_segqlen = tp->t_segqlen;
+	pn->flowid = inp->inp_flowid;
+	pn->flowtype = inp->inp_flowtype;
 
 	/* We've finished accessing the tcb so release the lock. */
 	if (inp_locally_locked)
@@ -801,6 +813,8 @@ siftr_siftdata(struct pkt_node *pn, struct inpcb *inp, struct tcpcb *tp,
 	 * maximum pps throughput processing when SIFTR is loaded and enabled.
 	 */
 	microtime(&pn->tval);
+	TCP_PROBE1(siftr, &pn);
+
 }
 
 

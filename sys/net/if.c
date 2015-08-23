@@ -51,7 +51,6 @@
 #include <sys/lock.h>
 #include <sys/refcount.h>
 #include <sys/module.h>
-#include <sys/rmlock.h>
 #include <sys/rwlock.h>
 #include <sys/sockio.h>
 #include <sys/syslog.h>
@@ -161,19 +160,21 @@ static void	if_attachdomain1(struct ifnet *);
 static int	ifconf(u_long, caddr_t);
 static void	if_freemulti(struct ifmultiaddr *);
 static void	if_grow(void);
+static void	if_input_default(struct ifnet *, struct mbuf *);
 static void	if_route(struct ifnet *, int flag, int fam);
 static int	if_setflag(struct ifnet *, int, int, int *, int);
 static int	if_transmit(struct ifnet *ifp, struct mbuf *m);
 static void	if_unroute(struct ifnet *, int flag, int fam);
 static void	link_rtrequest(int, struct rtentry *, struct rt_addrinfo *);
+static int	if_rtdel(struct radix_node *, void *);
 static int	ifhwioctl(u_long, struct ifnet *, caddr_t, struct thread *);
 static int	if_delmulti_locked(struct ifnet *, struct ifmultiaddr *, int);
 static void	do_link_state_change(void *, int);
 static int	if_getgroup(struct ifgroupreq *, struct ifnet *);
 static int	if_getgroupmembers(struct ifgroupreq *);
 static void	if_delgroups(struct ifnet *);
-static void	if_attach_internal(struct ifnet *, int);
-static void	if_detach_internal(struct ifnet *, int);
+static void	if_attach_internal(struct ifnet *, int, struct if_clone *);
+static void	if_detach_internal(struct ifnet *, int, struct if_clone **);
 
 #ifdef INET6
 /*
@@ -334,11 +335,12 @@ ifnet_setbyindex(u_short idx, struct ifnet *ifp)
 struct ifaddr *
 ifaddr_byindex(u_short idx)
 {
-	struct ifaddr *ifa;
+	struct ifnet *ifp;
+	struct ifaddr *ifa = NULL;
 
 	IFNET_RLOCK_NOSLEEP();
-	ifa = ifnet_byindex_locked(idx)->if_addr;
-	if (ifa != NULL)
+	ifp = ifnet_byindex_locked(idx);
+	if (ifp != NULL && (ifa = ifp->if_addr) != NULL)
 		ifa_ref(ifa);
 	IFNET_RUNLOCK_NOSLEEP();
 	return (ifa);
@@ -558,6 +560,15 @@ ifq_delete(struct ifaltq *ifq)
  * tasks, given that we are moving from one vnet to another an ifnet which
  * has already been fully initialized.
  *
+ * Note that if_detach_internal() removes group membership unconditionally
+ * even when vmove flag is set, and if_attach_internal() adds only IFG_ALL.
+ * Thus, when if_vmove() is applied to a cloned interface, group membership
+ * is lost while a cloned one always joins a group whose name is
+ * ifc->ifc_name.  To recover this after if_detach_internal() and
+ * if_attach_internal(), the cloner should be specified to
+ * if_attach_internal() via ifc.  If it is non-NULL, if_attach_internal()
+ * attempts to join a group whose name is ifc->ifc_name.
+ *
  * XXX:
  *  - The decision to return void and thus require this function to
  *    succeed is questionable.
@@ -568,7 +579,7 @@ void
 if_attach(struct ifnet *ifp)
 {
 
-	if_attach_internal(ifp, 0);
+	if_attach_internal(ifp, 0, NULL);
 }
 
 /*
@@ -623,7 +634,7 @@ if_hw_tsomax_update(if_t ifp, struct ifnet_hw_tsomax *pmax)
 }
 
 static void
-if_attach_internal(struct ifnet *ifp, int vmove)
+if_attach_internal(struct ifnet *ifp, int vmove, struct if_clone *ifc)
 {
 	unsigned socksize, ifasize;
 	int namelen, masklen;
@@ -642,6 +653,10 @@ if_attach_internal(struct ifnet *ifp, int vmove)
 
 	if_addgroup(ifp, IFG_ALL);
 
+	/* Restore group membership for cloned interfaces. */
+	if (vmove && ifc != NULL)
+		if_clone_addgroup(ifp, ifc);
+
 	getmicrotime(&ifp->if_lastchange);
 	ifp->if_epoch = time_uptime;
 
@@ -652,6 +667,8 @@ if_attach_internal(struct ifnet *ifp, int vmove)
 		ifp->if_transmit = if_transmit;
 		ifp->if_qflush = if_qflush;
 	}
+	if (ifp->if_input == NULL)
+		ifp->if_input = if_input_default;
 
 	if (!vmove) {
 #ifdef MAC
@@ -773,16 +790,16 @@ if_attachdomain1(struct ifnet *ifp)
 	 * Since dp->dom_ifattach calls malloc() with M_WAITOK, we
 	 * cannot lock ifp->if_afdata initialization, entirely.
 	 */
-	if (IF_AFDATA_CFG_TRY_WLOCK(ifp) == 0)
+	if (IF_AFDATA_TRYLOCK(ifp) == 0)
 		return;
 	if (ifp->if_afdata_initialized >= domain_init_status) {
-		IF_AFDATA_CFG_WUNLOCK(ifp);
+		IF_AFDATA_UNLOCK(ifp);
 		log(LOG_WARNING, "%s called more than once on %s\n",
 		    __func__, ifp->if_xname);
 		return;
 	}
 	ifp->if_afdata_initialized = domain_init_status;
-	IF_AFDATA_CFG_WUNLOCK(ifp);
+	IF_AFDATA_UNLOCK(ifp);
 
 	/* address family dependent data region */
 	bzero(ifp->if_afdata, sizeof(ifp->if_afdata));
@@ -860,15 +877,16 @@ if_detach(struct ifnet *ifp)
 {
 
 	CURVNET_SET_QUIET(ifp->if_vnet);
-	if_detach_internal(ifp, 0);
+	if_detach_internal(ifp, 0, NULL);
 	CURVNET_RESTORE();
 }
 
 static void
-if_detach_internal(struct ifnet *ifp, int vmove)
+if_detach_internal(struct ifnet *ifp, int vmove, struct if_clone **ifcp)
 {
 	struct ifaddr *ifa;
-	int i;
+	struct radix_node_head	*rnh;
+	int i, j;
 	struct domain *dp;
  	struct ifnet *iter;
  	int found = 0;
@@ -892,6 +910,10 @@ if_detach_internal(struct ifnet *ifp, int vmove)
 		else
 			return; /* XXX this should panic as well? */
 	}
+
+	/* Check if this is a cloned interface or not. */
+	if (vmove && ifcp != NULL)
+		*ifcp = if_clone_findifc(ifp);
 
 	/*
 	 * Remove/wait for pending events.
@@ -952,7 +974,23 @@ if_detach_internal(struct ifnet *ifp, int vmove)
 		}
 	}
 
-	rt_flushifroutes(ifp);
+	/*
+	 * Delete all remaining routes using this interface
+	 * Unfortuneatly the only way to do this is to slog through
+	 * the entire routing table looking for routes which point
+	 * to this interface...oh well...
+	 */
+	for (i = 1; i <= AF_MAX; i++) {
+		for (j = 0; j < rt_numfibs; j++) {
+			rnh = rt_tables_get_rnh(j, i);
+			if (rnh == NULL)
+				continue;
+			RADIX_NODE_HEAD_LOCK(rnh);
+			(void) rnh->rnh_walktree(rnh, if_rtdel, ifp);
+			RADIX_NODE_HEAD_UNLOCK(rnh);
+		}
+	}
+
 	if_delgroups(ifp);
 
 	/*
@@ -960,10 +998,10 @@ if_detach_internal(struct ifnet *ifp, int vmove)
 	 * sleep, for example trying to drain a callout, thus open up the
 	 * theoretical race with re-attaching.
 	 */
-	IF_AFDATA_CFG_WLOCK(ifp);
+	IF_AFDATA_LOCK(ifp);
 	i = ifp->if_afdata_initialized;
 	ifp->if_afdata_initialized = 0;
-	IF_AFDATA_CFG_WUNLOCK(ifp);
+	IF_AFDATA_UNLOCK(ifp);
 	for (dp = domains; i > 0 && dp; dp = dp->dom_next) {
 		if (dp->dom_ifdetach && ifp->if_afdata[dp->dom_family])
 			(*dp->dom_ifdetach)(ifp,
@@ -982,12 +1020,13 @@ if_detach_internal(struct ifnet *ifp, int vmove)
 void
 if_vmove(struct ifnet *ifp, struct vnet *new_vnet)
 {
+	struct if_clone *ifc;
 
 	/*
 	 * Detach from current vnet, but preserve LLADDR info, do not
 	 * mark as dead etc. so that the ifnet can be reattached later.
 	 */
-	if_detach_internal(ifp, 1);
+	if_detach_internal(ifp, 1, &ifc);
 
 	/*
 	 * Unlink the ifnet from ifindex_table[] in current vnet, and shrink
@@ -1017,7 +1056,7 @@ if_vmove(struct ifnet *ifp, struct vnet *new_vnet)
 	ifnet_setbyindex_locked(ifp->if_index, ifp);
 	IFNET_WUNLOCK();
 
-	if_attach_internal(ifp, 1);
+	if_attach_internal(ifp, 1, ifc);
 
 	CURVNET_RESTORE();
 }
@@ -1372,6 +1411,49 @@ if_getgroupmembers(struct ifgroupreq *data)
 }
 
 /*
+ * Delete Routes for a Network Interface
+ *
+ * Called for each routing entry via the rnh->rnh_walktree() call above
+ * to delete all route entries referencing a detaching network interface.
+ *
+ * Arguments:
+ *	rn	pointer to node in the routing table
+ *	arg	argument passed to rnh->rnh_walktree() - detaching interface
+ *
+ * Returns:
+ *	0	successful
+ *	errno	failed - reason indicated
+ *
+ */
+static int
+if_rtdel(struct radix_node *rn, void *arg)
+{
+	struct rtentry	*rt = (struct rtentry *)rn;
+	struct ifnet	*ifp = arg;
+	int		err;
+
+	if (rt->rt_ifp == ifp) {
+
+		/*
+		 * Protect (sorta) against walktree recursion problems
+		 * with cloned routes
+		 */
+		if ((rt->rt_flags & RTF_UP) == 0)
+			return (0);
+
+		err = rtrequest_fib(RTM_DELETE, rt_key(rt), rt->rt_gateway,
+				rt_mask(rt),
+				rt->rt_flags|RTF_RNH_LOCKED|RTF_PINNED,
+				(struct rtentry **) NULL, rt->rt_fibnum);
+		if (err) {
+			log(LOG_WARNING, "if_rtdel: error %d\n", err);
+		}
+	}
+
+	return (0);
+}
+
+/*
  * Return counter values from counter(9)s stored in ifnet.
  */
 uint64_t
@@ -1527,28 +1609,27 @@ ifa_free(struct ifaddr *ifa)
 int
 ifa_add_loopback_route(struct ifaddr *ifa, struct sockaddr *ia)
 {
-	int error;
+	int error = 0;
+	struct rtentry *rt = NULL;
 	struct rt_addrinfo info;
-	struct sockaddr_dl null_sdl;
-	struct ifnet *ifp;
-
-	ifp = ifa->ifa_ifp;
+	static struct sockaddr_dl null_sdl = {sizeof(null_sdl), AF_LINK};
 
 	bzero(&info, sizeof(info));
 	info.rti_ifp = V_loif;
 	info.rti_flags = ifa->ifa_flags | RTF_HOST | RTF_STATIC;
 	info.rti_info[RTAX_DST] = ia;
 	info.rti_info[RTAX_GATEWAY] = (struct sockaddr *)&null_sdl;
+	error = rtrequest1_fib(RTM_ADD, &info, &rt, ifa->ifa_ifp->if_fib);
 
-	bzero(&null_sdl, sizeof(null_sdl));
-	null_sdl.sdl_len = sizeof(null_sdl);
-	null_sdl.sdl_family = AF_LINK;
-	null_sdl.sdl_type = ifp->if_type;
-	null_sdl.sdl_index = ifp->if_index;
-
-	error = rtrequest1_fib(RTM_ADD, &info, NULL, ifp->if_fib);
-
-	if (error != 0)
+	if (error == 0 && rt != NULL) {
+		RT_LOCK(rt);
+		((struct sockaddr_dl *)rt->rt_gateway)->sdl_type  =
+			ifa->ifa_ifp->if_type;
+		((struct sockaddr_dl *)rt->rt_gateway)->sdl_index =
+			ifa->ifa_ifp->if_index;
+		RT_REMREF(rt);
+		RT_UNLOCK(rt);
+	} else if (error != 0)
 		log(LOG_DEBUG, "%s: insertion failed: %u\n", __func__, error);
 
 	return (error);
@@ -1581,8 +1662,20 @@ ifa_del_loopback_route(struct ifaddr *ifa, struct sockaddr *ia)
 int
 ifa_switch_loopback_route(struct ifaddr *ifa, struct sockaddr *sa, int fib)
 {
+	struct rtentry *rt;
 
-	return (rt_switch_loopback_route(fib, sa, ifa->ifa_ifp));
+	rt = rtalloc1_fib(sa, 0, 0, fib);
+	if (rt == NULL) {
+		log(LOG_DEBUG, "%s: fail", __func__);
+		return (EHOSTUNREACH);
+	}
+	((struct sockaddr_dl *)rt->rt_gateway)->sdl_type =
+	    ifa->ifa_ifp->if_type;
+	((struct sockaddr_dl *)rt->rt_gateway)->sdl_index =
+	    ifa->ifa_ifp->if_index;
+	RTFREE_LOCKED(rt);
+
+	return (0);
 }
 
 /*
@@ -1892,6 +1985,8 @@ ifa_preferred(struct ifaddr *cur, struct ifaddr *next)
 	    ((*carp_master_p)(next) && !(*carp_master_p)(cur))));
 }
 
+#include <net/if_llatbl.h>
+
 /*
  * Default action when installing a route with a Link Level gateway.
  * Lookup an appropriate real ifa to point to.
@@ -1901,18 +1996,16 @@ static void
 link_rtrequest(int cmd, struct rtentry *rt, struct rt_addrinfo *info)
 {
 	struct ifaddr *ifa, *oifa;
-	const struct sockaddr *dst;
+	struct sockaddr *dst;
 	struct ifnet *ifp;
 
-	ifp = rte_get_lifp(rt);
-	oifa = rte_get_ifa(rt);
-	dst = rte_get_dst(rt);
-
-	if (cmd != RTM_ADD || oifa == NULL || ifp == NULL || dst == NULL)
+	if (cmd != RTM_ADD || ((ifa = rt->rt_ifa) == 0) ||
+	    ((ifp = ifa->ifa_ifp) == 0) || ((dst = rt_key(rt)) == 0))
 		return;
-	ifa = ifaof_ifpforaddr(__DECONST(struct sockaddr *, dst), ifp);
+	ifa = ifaof_ifpforaddr(dst, ifp);
 	if (ifa) {
-		rte_set_ifa(rt, ifa);
+		oifa = rt->rt_ifa;
+		rt->rt_ifa = ifa;
 		ifa_free(oifa);
 		if (ifa->ifa_rtrequest && ifa->ifa_rtrequest != link_rtrequest)
 			ifa->ifa_rtrequest(cmd, rt, info);
@@ -2490,6 +2583,7 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 	case SIOCGIFPSRCADDR:
 	case SIOCGIFPDSTADDR:
 	case SIOCGIFMEDIA:
+	case SIOCGIFXMEDIA:
 	case SIOCGIFGENERIC:
 		if (ifp->if_ioctl == NULL)
 			return (EOPNOTSUPP);
@@ -3427,6 +3521,13 @@ if_transmit(struct ifnet *ifp, struct mbuf *m)
 	return (error);
 }
 
+static void
+if_input_default(struct ifnet *ifp __unused, struct mbuf *m)
+{
+
+	m_freem(m);
+}
+
 int
 if_handoff(struct ifqueue *ifq, struct mbuf *m, struct ifnet *ifp, int adjust)
 {
@@ -3905,7 +4006,7 @@ if_setgetcounterfn(if_t ifp, if_get_counter_t fn)
 int
 drbr_inuse_drv(if_t ifh, struct buf_ring *br)
 {
-	return drbr_inuse_drv(ifh, br);
+	return drbr_inuse(ifh, br);
 }
 
 struct mbuf*
@@ -3926,39 +4027,3 @@ drbr_enqueue_drv(if_t ifh, struct buf_ring *br, struct mbuf *m)
 	return drbr_enqueue(ifh, br, m);
 
 }
-
-void
-if_afdata_cfg_rlock(struct ifnet *ifp)
-{
-
-	rw_rlock(&ifp->if_afdata_cfg_lock);
-}
-
-void
-if_afdata_cfg_runlock(struct ifnet *ifp)
-{
-
-	rw_runlock(&ifp->if_afdata_cfg_lock);
-}
-
-void
-if_afdata_cfg_wlock(struct ifnet *ifp)
-{
-
-	rw_wlock(&ifp->if_afdata_cfg_lock);
-}
-
-void
-if_afdata_cfg_wunlock(struct ifnet *ifp)
-{
-
-	rw_wunlock(&ifp->if_afdata_cfg_lock);
-}
-
-int
-if_afdata_cfg_try_wlock(struct ifnet *ifp)
-{
-
-	return (rw_try_wlock(&ifp->if_afdata_cfg_lock));
-}
-

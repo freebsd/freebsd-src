@@ -46,7 +46,7 @@ struct blkif_x86_32_request {
 	blkif_vdev_t   handle;       /* only for read/write requests         */
 	uint64_t       id;           /* private guest value, echoed in resp  */
 	blkif_sector_t sector_number;/* start sector idx on disk (r/w only)  */
-	struct blkif_request_segment seg[BLKIF_MAX_SEGMENTS_PER_HEADER_BLOCK];
+	struct blkif_request_segment seg[BLKIF_MAX_SEGMENTS_PER_REQUEST];
 };
 struct blkif_x86_32_response {
 	uint64_t        id;              /* copied from request */
@@ -64,7 +64,7 @@ struct blkif_x86_64_request {
 	blkif_vdev_t   handle;       /* only for read/write requests         */
 	uint64_t       __attribute__((__aligned__(8))) id;
 	blkif_sector_t sector_number;/* start sector idx on disk (r/w only)  */
-	struct blkif_request_segment seg[BLKIF_MAX_SEGMENTS_PER_HEADER_BLOCK];
+	struct blkif_request_segment seg[BLKIF_MAX_SEGMENTS_PER_REQUEST];
 };
 struct blkif_x86_64_response {
 	uint64_t       __attribute__((__aligned__(8))) id;
@@ -114,7 +114,7 @@ enum blkif_protocol {
 
 static void inline blkif_get_x86_32_req(blkif_request_t *dst, blkif_x86_32_request_t *src)
 {
-	int i, n = BLKIF_MAX_SEGMENTS_PER_HEADER_BLOCK;
+	int i, n = BLKIF_MAX_SEGMENTS_PER_REQUEST;
 	dst->operation = src->operation;
 	dst->nr_segments = src->nr_segments;
 	dst->handle = src->handle;
@@ -129,7 +129,7 @@ static void inline blkif_get_x86_32_req(blkif_request_t *dst, blkif_x86_32_reque
 
 static void inline blkif_get_x86_64_req(blkif_request_t *dst, blkif_x86_64_request_t *src)
 {
-	int i, n = BLKIF_MAX_SEGMENTS_PER_HEADER_BLOCK;
+	int i, n = BLKIF_MAX_SEGMENTS_PER_REQUEST;
 	dst->operation = src->operation;
 	dst->nr_segments = src->nr_segments;
 	dst->handle = src->handle;

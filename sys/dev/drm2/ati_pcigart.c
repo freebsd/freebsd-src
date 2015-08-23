@@ -42,7 +42,7 @@ static int drm_ati_alloc_pcigart_table(struct drm_device *dev,
 				       struct drm_ati_pcigart_info *gart_info)
 {
 	gart_info->table_handle = drm_pci_alloc(dev, gart_info->table_size,
-						PAGE_SIZE, 0xFFFFFFFFUL);
+						PAGE_SIZE, BUS_SPACE_MAXADDR);
 	if (gart_info->table_handle == NULL)
 		return -ENOMEM;
 
@@ -97,6 +97,7 @@ int drm_ati_pcigart_cleanup(struct drm_device *dev, struct drm_ati_pcigart_info 
 
 	return 1;
 }
+EXPORT_SYMBOL(drm_ati_pcigart_cleanup);
 
 int drm_ati_pcigart_init(struct drm_device *dev, struct drm_ati_pcigart_info *gart_info)
 {
@@ -197,7 +198,7 @@ int drm_ati_pcigart_init(struct drm_device *dev, struct drm_ati_pcigart_info *ga
 	}
 	ret = 1;
 
-#if defined(__i386) || defined(__amd64)
+#if defined(__i386__) || defined(__x86_64__)
 	wbinvd();
 #else
 	mb();
@@ -208,3 +209,4 @@ int drm_ati_pcigart_init(struct drm_device *dev, struct drm_ati_pcigart_info *ga
 	gart_info->bus_addr = bus_address;
 	return ret;
 }
+EXPORT_SYMBOL(drm_ati_pcigart_init);

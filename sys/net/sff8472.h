@@ -377,7 +377,7 @@ enum {
 
 /*
  * Table 3.2 Identifier values.
- * Identifier constants has taken from SFF-8024 rev 2.2 table 4.1
+ * Identifier constants has taken from SFF-8024 rev 2.9 table 4.1
  * (as referenced by table 3.2 footer)
  * */
 enum {
@@ -400,28 +400,36 @@ enum {
 	SFF_8024_ID_HD8X	= 0x10, /* Shielded Mini Multilane HD 8X */ 
 	SFF_8024_ID_QSFP28	= 0x11, /* QSFP28 */
 	SFF_8024_ID_CXP2	= 0x12, /* CXP2 (aka CXP28) */
-	SFF_8024_ID_LAST	= SFF_8024_ID_CXP2
+	SFF_8024_ID_CDFP	= 0x13, /* CDFP (Style 1/Style 2) */
+	SFF_8024_ID_SMM4	= 0x14, /* Shielded Mini Multilate HD 4X Fanout */
+	SFF_8024_ID_SMM8	= 0x15, /* Shielded Mini Multilate HD 8X Fanout */
+	SFF_8024_ID_CDFP3	= 0x16, /* CDFP (Style3) */
+	SFF_8024_ID_LAST	= SFF_8024_ID_CDFP3
 	};
 
 static const char *sff_8024_id[SFF_8024_ID_LAST + 1] = {"Unknown",
 					     "GBIC",
 					     "SFF",
-					     "SFP/SFP+",
+					     "SFP/SFP+/SFP28",
 					     "XBI",
 					     "Xenpak",
 					     "XFP",
 					     "XFF",
 					     "XFP-E",
-					     "XPAk",
+					     "XPAK",
 					     "X2",
-					     "DWDM-SFP",
+					     "DWDM-SFP/SFP+",
 					     "QSFP",
 					     "QSFP+",
 					     "CXP",
 					     "HD4X",
 					     "HD8X",
 					     "QSFP28",
-					     "CXP2"};
+					     "CXP2",
+					     "CDFP",
+					     "SMM4",
+					     "SMM8",
+					     "CDFP3"};
 
 /* Keep compability with old definitions */
 #define	SFF_8472_ID_UNKNOWN	SFF_8024_ID_UNKNOWN

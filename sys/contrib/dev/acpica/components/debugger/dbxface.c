@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2014, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -45,7 +45,9 @@
 #include <contrib/dev/acpica/include/accommon.h>
 #include <contrib/dev/acpica/include/amlcode.h>
 #include <contrib/dev/acpica/include/acdebug.h>
+#ifdef ACPI_DISASSEMBLER
 #include <contrib/dev/acpica/include/acdisasm.h>
+#endif
 
 
 #ifdef ACPI_DEBUGGER
@@ -179,6 +181,7 @@ AcpiDbSingleStep (
     UINT32                  OriginalDebugLevel;
     ACPI_PARSE_OBJECT       *DisplayOp;
     ACPI_PARSE_OBJECT       *ParentOp;
+    UINT32                  AmlOffset;
 
 
     ACPI_FUNCTION_ENTRY ();
@@ -192,15 +195,18 @@ AcpiDbSingleStep (
         return (AE_ABORT_METHOD);
     }
 
+    AmlOffset = (UINT32) ACPI_PTR_DIFF (Op->Common.Aml,
+                    WalkState->ParserState.AmlStart);
+
     /* Check for single-step breakpoint */
 
     if (WalkState->MethodBreakpoint &&
-       (WalkState->MethodBreakpoint <= Op->Common.AmlOffset))
+       (WalkState->MethodBreakpoint <= AmlOffset))
     {
         /* Check if the breakpoint has been reached or passed */
         /* Hit the breakpoint, resume single step, reset breakpoint */
 
-        AcpiOsPrintf ("***Break*** at AML offset %X\n", Op->Common.AmlOffset);
+        AcpiOsPrintf ("***Break*** at AML offset %X\n", AmlOffset);
         AcpiGbl_CmSingleStep = TRUE;
         AcpiGbl_StepToNextCall = FALSE;
         WalkState->MethodBreakpoint = 0;
@@ -209,10 +215,10 @@ AcpiDbSingleStep (
     /* Check for user breakpoint (Must be on exact Aml offset) */
 
     else if (WalkState->UserBreakpoint &&
-            (WalkState->UserBreakpoint == Op->Common.AmlOffset))
+            (WalkState->UserBreakpoint == AmlOffset))
     {
         AcpiOsPrintf ("***UserBreakpoint*** at AML offset %X\n",
-            Op->Common.AmlOffset);
+            AmlOffset);
         AcpiGbl_CmSingleStep = TRUE;
         AcpiGbl_StepToNextCall = FALSE;
         WalkState->MethodBreakpoint = 0;
@@ -424,20 +430,18 @@ AcpiDbInitialize (
     AcpiGbl_DbConsoleDebugLevel = ACPI_NORMAL_DEFAULT | ACPI_LV_TABLES;
     AcpiGbl_DbOutputFlags       = ACPI_DB_CONSOLE_OUTPUT;
 
-    AcpiGbl_DbOpt_tables        = FALSE;
-    AcpiGbl_DbOpt_disasm        = FALSE;
-    AcpiGbl_DbOpt_stats         = FALSE;
-#ifdef ACPI_DISASSEMBLER
-    AcpiGbl_DbOpt_verbose       = TRUE;
+    AcpiGbl_DbOpt_Disasm        = FALSE;
+#ifndef _KERNEL
+    AcpiGbl_DbOpt_Verbose       = TRUE;
 #endif
-    AcpiGbl_DbOpt_ini_methods   = TRUE;
+    AcpiGbl_DbOpt_NoIniMethods  = FALSE;
 
     AcpiGbl_DbBuffer = AcpiOsAllocate (ACPI_DEBUG_BUFFER_SIZE);
     if (!AcpiGbl_DbBuffer)
     {
         return_ACPI_STATUS (AE_NO_MEMORY);
     }
-    ACPI_MEMSET (AcpiGbl_DbBuffer, 0, ACPI_DEBUG_BUFFER_SIZE);
+    memset (AcpiGbl_DbBuffer, 0, ACPI_DEBUG_BUFFER_SIZE);
 
     /* Initial scope is the root */
 
@@ -478,11 +482,10 @@ AcpiDbInitialize (
         }
     }
 
-#ifdef ACPI_DISASSEMBLER
-    if (!AcpiGbl_DbOpt_verbose)
+#ifndef _KERNEL
+    if (!AcpiGbl_DbOpt_Verbose)
     {
-        AcpiGbl_DbOpt_disasm = TRUE;
-        AcpiGbl_DbOpt_stats = FALSE;
+        AcpiGbl_DbOpt_Disasm = TRUE;
     }
 #endif
 

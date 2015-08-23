@@ -661,9 +661,9 @@ static void atom_op_delay(atom_exec_context *ctx, int *ptr, int arg)
 	unsigned count = U8((*ptr)++);
 	ATOM_SDEBUG_PRINT("   count: %d\n", count);
 	if (arg == ATOM_UNIT_MICROSEC)
-		DRM_UDELAY(count);
+		udelay(count);
 	else if (!drm_can_sleep())
-		DRM_MDELAY(count);
+		mdelay(count);
 	else
 		DRM_MSLEEP(count);
 }
@@ -1178,7 +1178,7 @@ static int atom_execute_table_locked(struct atom_context *ctx, int index, uint32
 	ectx.abort = false;
 	ectx.last_jump = 0;
 	if (ws)
-		ectx.ws = malloc(4 * ws, DRM_MEM_DRIVER, M_ZERO | M_WAITOK);
+		ectx.ws = malloc(4 * ws, DRM_MEM_DRIVER, M_NOWAIT | M_ZERO);
 	else
 		ectx.ws = NULL;
 
@@ -1234,7 +1234,7 @@ static int atom_iio_len[] = { 1, 2, 3, 3, 3, 3, 4, 4, 4, 3 };
 
 static void atom_index_iio(struct atom_context *ctx, int base)
 {
-	ctx->iio = malloc(2 * 256, DRM_MEM_DRIVER, M_ZERO | M_WAITOK);
+	ctx->iio = malloc(2 * 256, DRM_MEM_DRIVER, M_NOWAIT | M_ZERO);
 	while (CU8(base) == ATOM_IIO_START) {
 		ctx->iio[CU8(base + 1)] = base + 2;
 		base += 2;
@@ -1248,7 +1248,7 @@ struct atom_context *atom_parse(struct card_info *card, void *bios)
 {
 	int base;
 	struct atom_context *ctx =
-	    malloc(sizeof(struct atom_context), DRM_MEM_DRIVER, M_ZERO | M_WAITOK);
+	    malloc(sizeof(struct atom_context), DRM_MEM_DRIVER, M_NOWAIT | M_ZERO);
 	char *str;
 	char name[512];
 	int i;
@@ -1386,16 +1386,16 @@ int atom_allocate_fb_scratch(struct atom_context *ctx)
 		firmware_usage = (struct _ATOM_VRAM_USAGE_BY_FIRMWARE *)((char *)ctx->bios + data_offset);
 
 		DRM_DEBUG("atom firmware requested %08x %dkb\n",
-			  firmware_usage->asFirmwareVramReserveInfo[0].ulStartAddrUsedByFirmware,
-			  firmware_usage->asFirmwareVramReserveInfo[0].usFirmwareUseInKb);
+			  le32_to_cpu(firmware_usage->asFirmwareVramReserveInfo[0].ulStartAddrUsedByFirmware),
+			  le16_to_cpu(firmware_usage->asFirmwareVramReserveInfo[0].usFirmwareUseInKb));
 
-		usage_bytes = firmware_usage->asFirmwareVramReserveInfo[0].usFirmwareUseInKb * 1024;
+		usage_bytes = le16_to_cpu(firmware_usage->asFirmwareVramReserveInfo[0].usFirmwareUseInKb) * 1024;
 	}
 	ctx->scratch_size_bytes = 0;
 	if (usage_bytes == 0)
 		usage_bytes = 20 * 1024;
 	/* allocate some scratch memory */
-	ctx->scratch = malloc(usage_bytes, DRM_MEM_DRIVER, M_ZERO | M_WAITOK);
+	ctx->scratch = malloc(usage_bytes, DRM_MEM_DRIVER, M_NOWAIT | M_ZERO);
 	if (!ctx->scratch)
 		return -ENOMEM;
 	ctx->scratch_size_bytes = usage_bytes;

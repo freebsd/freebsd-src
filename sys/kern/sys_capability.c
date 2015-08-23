@@ -104,7 +104,7 @@ sys_cap_enter(struct thread *td, struct cap_enter_args *uap)
 	PROC_LOCK(p);
 	oldcred = crcopysafe(p, newcred);
 	newcred->cr_flags |= CRED_FLAG_CAPMODE;
-	p->p_ucred = newcred;
+	proc_set_cred(p, newcred);
 	PROC_UNLOCK(p);
 	crfree(oldcred);
 	return (0);

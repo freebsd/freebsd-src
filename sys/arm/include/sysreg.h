@@ -210,8 +210,11 @@
  * CP15 C9 registers
  */
 #if __ARM_ARCH == 6 && defined(CPU_ARM1176)
+#define	CP15_PMUSERENR(rr)	p15, 0, rr, c15,  c9, 0 /* Access Validation Control Register */
+#define	CP15_PMCR(rr)		p15, 0, rr, c15, c12, 0 /* Performance Monitor Control Register */
 #define	CP15_PMCCNTR(rr)	p15, 0, rr, c15, c12, 1 /* PM Cycle Count Register */
 #elif __ARM_ARCH > 6
+#define	CP15_L2CTLR(rr)		p15, 1, rr,  c9, c0,  2 /* L2 Control Register */
 #define	CP15_PMCR(rr)		p15, 0, rr,  c9, c12, 0 /* Performance Monitor Control Register */
 #define	CP15_PMCNTENSET(rr)	p15, 0, rr,  c9, c12, 1 /* PM Count Enable Set Register */
 #define	CP15_PMCNTENCLR(rr)	p15, 0, rr,  c9, c12, 2 /* PM Count Enable Clear Register */
@@ -255,6 +258,28 @@
 #define	CP15_TPIDRURW(rr)	p15, 0, rr, c13, c0, 2 /* User Read/Write Thread ID Register */
 #define	CP15_TPIDRURO(rr)	p15, 0, rr, c13, c0, 3 /* User Read-Only Thread ID Register */
 #define	CP15_TPIDRPRW(rr)	p15, 0, rr, c13, c0, 4 /* PL1 only Thread ID Register */
+
+/*
+ * CP15 C14 registers
+ * These are the Generic Timer registers and may be unallocated on some SoCs.
+ * Only use these when you know the Generic Timer is available.
+ */
+#define	CP15_CNTFRQ(rr)		p15, 0, rr, c14, c0, 0 /* Counter Frequency Register */
+#define	CP15_CNTKCTL(rr)	p15, 0, rr, c14, c1, 0 /* Timer PL1 Control Register */
+#define	CP15_CNTP_TVAL(rr)	p15, 0, rr, c14, c2, 0 /* PL1 Physical Timer Value Register */
+#define	CP15_CNTP_CTL(rr)	p15, 0, rr, c14, c2, 1 /* PL1 Physical Timer Control Register */
+#define	CP15_CNTV_TVAL(rr)	p15, 0, rr, c14, c3, 0 /* Virtual Timer Value Register */
+#define	CP15_CNTV_CTL(rr)	p15, 0, rr, c14, c3, 1 /* Virtual Timer Control Register */
+#define	CP15_CNTHCTL(rr)	p15, 4, rr, c14, c1, 0 /* Timer PL2 Control Register */
+#define	CP15_CNTHP_TVAL(rr)	p15, 4, rr, c14, c2, 0 /* PL2 Physical Timer Value Register */
+#define	CP15_CNTHP_CTL(rr)	p15, 4, rr, c14, c2, 1 /* PL2 Physical Timer Control Register */
+/* 64-bit registers for use with mcrr/mrrc */
+#define	CP15_CNTPCT(rq, rr)	p15, 0, rq, rr, c14	/* Physical Count Register */
+#define	CP15_CNTVCT(rq, rr)	p15, 1, rq, rr, c14	/* Virtual Count Register */
+#define	CP15_CNTP_CVAL(rq, rr)	p15, 2, rq, rr, c14	/* PL1 Physical Timer Compare Value Register */
+#define	CP15_CNTV_CVAL(rq, rr)	p15, 3, rq, rr, c14	/* Virtual Timer Compare Value Register */
+#define	CP15_CNTVOFF(rq, rr)	p15, 4, rq, rr, c14	/* Virtual Offset Register */
+#define	CP15_CNTHP_CVAL(rq, rr)	p15, 6, rq, rr, c14	/* PL2 Physical Timer Compare Value Register */
 
 /*
  * CP15 C15 registers

@@ -30,8 +30,7 @@
 #ifndef	_LINUX_CACHE_H_
 #define _LINUX_CACHE_H_
 
-
 #define	cache_line_size()	CACHE_LINE_SIZE
-
+#define	L1_CACHE_BYTES		CACHE_LINE_SIZE
 
 #endif	/* _LINUX_CACHE_H_ */

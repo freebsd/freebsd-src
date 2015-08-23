@@ -79,7 +79,7 @@ imx_ata_probe(device_t dev)
 	ctrl = device_get_softc(dev);
 
 	device_set_desc(dev, "Freescale Integrated PATA Controller");
-	return (BUS_PROBE_DEFAULT);
+	return (BUS_PROBE_LOW_PRIORITY);
 }
 
 static void

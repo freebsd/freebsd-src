@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2014, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -69,7 +69,7 @@ AuValidateUuid (
     UINT32                  i;
 
 
-    if (!InString || (ACPI_STRLEN (InString) != UUID_STRING_LENGTH))
+    if (!InString || (strlen (InString) != UUID_STRING_LENGTH))
     {
         return (AE_BAD_PARAMETER);
     }

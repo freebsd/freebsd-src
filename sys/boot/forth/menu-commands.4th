@@ -1,4 +1,4 @@
-\ Copyright (c) 2006-2013 Devin Teske <dteske@FreeBSD.org>
+\ Copyright (c) 2006-2015 Devin Teske <dteske@FreeBSD.org>
 \ All rights reserved.
 \ 
 \ Redistribution and use in source and binary forms, with or without
@@ -28,10 +28,14 @@ marker task-menu-commands.4th
 
 include /boot/menusets.4th
 
+only forth definitions
+
 variable kernel_state
 variable root_state
 0 kernel_state !
 0 root_state !
+
+also menu-namespace also menu-command-helpers
 
 \ 
 \ Boot
@@ -67,7 +71,7 @@ variable root_state
 	evaluate
 ;
 
-: altboot ( -- )
+: altboot ( N -- NOTREACHED )
 	s" boot_single" 2dup getenv -1 <> if
 		drop ( c-addr/u c-addr -- c-addr/u ) \ unused
 		unsetenv ( c-addr/u -- )
@@ -346,3 +350,5 @@ variable root_state
 	verbose_disable
 	2 goto_menu
 ;
+
+only forth definitions

@@ -96,8 +96,8 @@ static MALLOC_DEFINE(M_KTR, "KTR", "KTR");
 FEATURE(ktr, "Kernel support for KTR kernel tracing facility");
 
 volatile int	ktr_idx = 0;
-int	ktr_mask = KTR_MASK;
-int	ktr_compile = KTR_COMPILE;
+uint64_t ktr_mask = KTR_MASK;
+uint64_t ktr_compile = KTR_COMPILE;
 int	ktr_entries = KTR_BOOT_ENTRIES;
 int	ktr_version = KTR_VERSION;
 struct	ktr_entry ktr_buf_init[KTR_BOOT_ENTRIES];
@@ -109,7 +109,7 @@ static SYSCTL_NODE(_debug, OID_AUTO, ktr, CTLFLAG_RD, 0, "KTR options");
 SYSCTL_INT(_debug_ktr, OID_AUTO, version, CTLFLAG_RD,
     &ktr_version, 0, "Version of the KTR interface");
 
-SYSCTL_UINT(_debug_ktr, OID_AUTO, compile, CTLFLAG_RD,
+SYSCTL_UQUAD(_debug_ktr, OID_AUTO, compile, CTLFLAG_RD,
     &ktr_compile, 0, "Bitmask of KTR event classes compiled into the kernel");
 
 static int
@@ -162,18 +162,19 @@ SYSCTL_PROC(_debug_ktr, OID_AUTO, clear, CTLTYPE_INT|CTLFLAG_RW, 0, 0,
 static int
 sysctl_debug_ktr_mask(SYSCTL_HANDLER_ARGS)
 {
-	int mask, error;
+	uint64_t mask;
+	int error;
 
 	mask = ktr_mask;
-	error = sysctl_handle_int(oidp, &mask, 0, req);
+	error = sysctl_handle_64(oidp, &mask, 0, req);
 	if (error || !req->newptr)
 		return (error);
 	ktr_mask = mask;
 	return (error);
 }
 
-SYSCTL_PROC(_debug_ktr, OID_AUTO, mask, CTLTYPE_UINT|CTLFLAG_RWTUN, 0, 0,
-    sysctl_debug_ktr_mask, "IU",
+SYSCTL_PROC(_debug_ktr, OID_AUTO, mask, CTLTYPE_U64 | CTLFLAG_RWTUN, 0, 0,
+    sysctl_debug_ktr_mask, "QU",
     "Bitmask of KTR event classes for which logging is enabled");
 
 #if KTR_ENTRIES > KTR_BOOT_ENTRIES
@@ -184,7 +185,7 @@ SYSCTL_PROC(_debug_ktr, OID_AUTO, mask, CTLTYPE_UINT|CTLFLAG_RWTUN, 0, 0,
 static void
 ktr_entries_initializer(void *dummy __unused)
 {
-	int mask;
+	uint64_t mask;
 
 	/* Temporarily disable ktr in case malloc() is being traced. */
 	mask = ktr_mask;
@@ -208,7 +209,8 @@ SYSINIT(ktr_entries_initializer, SI_SUB_KMEM, SI_ORDER_ANY,
 static int
 sysctl_debug_ktr_entries(SYSCTL_HANDLER_ARGS)
 {
-	int entries, error, mask;
+	uint64_t mask;
+	int entries, error;
 	struct ktr_entry *buf, *oldbuf;
 
 	entries = ktr_entries;
@@ -219,7 +221,7 @@ sysctl_debug_ktr_entries(SYSCTL_HANDLER_ARGS)
 		return (ERANGE);
 	/* Disable ktr temporarily. */
 	mask = ktr_mask;
-	atomic_store_rel_int(&ktr_mask, 0);
+	ktr_mask = 0;
 	/* Wait for threads to go idle. */
 	if ((error = quiesce_all_cpus("ktrent", PCATCH)) != 0) {
 		ktr_mask = mask;
@@ -235,7 +237,7 @@ sysctl_debug_ktr_entries(SYSCTL_HANDLER_ARGS)
 	ktr_buf = buf;
 	ktr_entries = entries;
 	ktr_idx = 0;
-	atomic_store_rel_int(&ktr_mask, mask);
+	ktr_mask = mask;
 	if (oldbuf != NULL)
 		free(oldbuf, M_KTR);
 
@@ -310,7 +312,7 @@ SYSCTL_PROC(_debug_ktr, OID_AUTO, alq_enable,
 #endif
 
 void
-ktr_tracepoint(u_int mask, const char *file, int line, const char *format,
+ktr_tracepoint(uint64_t mask, const char *file, int line, const char *format,
     u_long arg1, u_long arg2, u_long arg3, u_long arg4, u_long arg5,
     u_long arg6)
 {

@@ -155,7 +155,7 @@ ue_sysctl_parent(SYSCTL_HANDLER_ARGS)
 	const char *name;
 
 	name = device_get_nameunit(ue->ue_dev);
-	return SYSCTL_OUT(req, name, strlen(name));
+	return SYSCTL_OUT_STR(req, name);
 }
 
 int

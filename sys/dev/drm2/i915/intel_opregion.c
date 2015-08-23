@@ -147,7 +147,7 @@ struct opregion_asle {
 #define ACPI_DIGITAL_OUTPUT (3<<8)
 #define ACPI_LVDS_OUTPUT (4<<8)
 
-#if 1
+#if defined(CONFIG_ACPI)
 static u32 asle_set_backlight(struct drm_device *dev, u32 bclp)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -350,7 +350,7 @@ static void intel_didl_outputs(struct drm_device *dev)
 	ACPI_STATUS status;
 	int i = 0;
 
-	handle = acpi_get_handle(dev->device);
+	handle = acpi_get_handle(dev->dev);
 	if (!handle)
 		return;
 
@@ -377,7 +377,7 @@ static void intel_didl_outputs(struct drm_device *dev)
 	}
 
 	if (!acpi_video_bus) {
-		device_printf(dev->device, "No ACPI video bus found\n");
+		device_printf(dev->dev, "No ACPI video bus found\n");
 		return;
 	}
 
@@ -385,7 +385,7 @@ static void intel_didl_outputs(struct drm_device *dev)
 	while (AcpiGetNextObject(ACPI_TYPE_DEVICE, acpi_video_bus, acpi_cdev,
 				&acpi_cdev) != AE_NOT_FOUND) {
 		if (i >= 8) {
-			device_printf(dev->device, "More than 8 outputs detected\n");
+			device_printf(dev->dev, "More than 8 outputs detected\n");
 			return;
 		}
 		status = acpi_GetInteger(acpi_cdev, "_ADR", &device_id);
@@ -426,7 +426,7 @@ blind_set:
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 		int output_type = ACPI_OTHER_OUTPUT;
 		if (i >= 8) {
-			device_printf(dev->device,
+			device_printf(dev->dev,
 				    "More than 8 outputs detected\n");
 			return;
 		}
@@ -569,7 +569,7 @@ int intel_opregion_setup(struct drm_device *dev)
 	u32 asls, mboxes;
 	int err = 0;
 
-	asls = pci_read_config(dev->device, PCI_ASLS, 4);
+	asls = pci_read_config(dev->dev, PCI_ASLS, 4);
 	DRM_DEBUG("graphic opregion physical addr: 0x%x\n", asls);
 	if (asls == 0) {
 		DRM_DEBUG("ACPI OpRegion not supported!\n");

@@ -27,11 +27,11 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <stand.h>
 #include <sys/param.h>
 #include <sys/endian.h>
 #include <sys/queue.h>
 #include <machine/stdarg.h>
-#include <stand.h>
 
 #include "bootstrap.h"
 

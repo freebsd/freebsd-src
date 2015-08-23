@@ -34,6 +34,7 @@
 #define TARGETNAME hptnr
 #define __dummy_reg hptnr___dummy_reg
 #define __ldm_alloc_cmd hptnr___ldm_alloc_cmd
+#define debug_flag hptnr_debug_flag
 #define delay_between_spinup hptnr_delay_between_spinup
 #define dmapool_active hptnr_dmapool_active
 #define dmapool_get_page hptnr_dmapool_get_page
@@ -114,6 +115,7 @@
 #define ldm_timer_probe_device hptnr_ldm_timer_probe_device
 #define ldm_unregister_device hptnr_ldm_unregister_device
 #define log_sector_repair hptnr_log_sector_repair
+#define msi hptnr_msi
 #define num_drives_per_spinup hptnr_num_drives_per_spinup
 #define os_get_stamp hptnr_os_get_stamp
 #define os_get_vbus_seq hptnr_os_get_vbus_seq

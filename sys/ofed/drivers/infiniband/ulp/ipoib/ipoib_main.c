@@ -87,7 +87,7 @@ static void ipoib_add_one(struct ib_device *device);
 static void ipoib_remove_one(struct ib_device *device);
 static void ipoib_start(struct ifnet *dev);
 static int ipoib_output(struct ifnet *ifp, struct mbuf *m,
-	    const struct sockaddr *dst, struct nhop_info *ni);
+	    const struct sockaddr *dst, struct route *ro);
 static int ipoib_ioctl(struct ifnet *ifp, u_long command, caddr_t data);
 static void ipoib_input(struct ifnet *ifp, struct mbuf *m);
 
@@ -832,6 +832,7 @@ ipoib_priv_alloc(void)
 
 	priv = malloc(sizeof(struct ipoib_dev_priv), M_TEMP, M_ZERO|M_WAITOK);
 	spin_lock_init(&priv->lock);
+	spin_lock_init(&priv->drain_lock);
 	mutex_init(&priv->vlan_mutex);
 	INIT_LIST_HEAD(&priv->path_list);
 	INIT_LIST_HEAD(&priv->child_intfs);
@@ -1253,7 +1254,7 @@ ipoib_cleanup_module(void)
  */
 static int
 ipoib_output(struct ifnet *ifp, struct mbuf *m,
-	const struct sockaddr *dst, struct nhop_info *ni)
+	const struct sockaddr *dst, struct route *ro)
 {
 	u_char edst[INFINIBAND_ALEN];
 	struct llentry *lle = NULL;
@@ -1262,7 +1263,6 @@ ipoib_output(struct ifnet *ifp, struct mbuf *m,
 	int error = 0, is_gw = 0;
 	short type;
 
-#if 0
 	if (ro != NULL) {
 		if (!(m->m_flags & (M_BCAST | M_MCAST)))
 			lle = ro->ro_lle;
@@ -1270,7 +1270,6 @@ ipoib_output(struct ifnet *ifp, struct mbuf *m,
 		if (rt0 != NULL && (rt0->rt_flags & RTF_GATEWAY) != 0)
 			is_gw = 1;
 	}
-#endif
 #ifdef MAC
 	error = mac_ifnet_check_transmit(ifp, m);
 	if (error)
@@ -1529,8 +1528,6 @@ ipoib_resolvemulti(struct ifnet *ifp, struct sockaddr **llsa,
 module_init(ipoib_init_module);
 module_exit(ipoib_cleanup_module);
 
-#undef MODULE_VERSION
-#include <sys/module.h>
 static int
 ipoib_evhand(module_t mod, int event, void *arg)
 {
@@ -1544,4 +1541,4 @@ static moduledata_t ipoib_mod = {
 
 DECLARE_MODULE(ipoib, ipoib_mod, SI_SUB_SMP, SI_ORDER_ANY);
 MODULE_DEPEND(ipoib, ibcore, 1, 1, 1);
-
+MODULE_DEPEND(ipoib, linuxapi, 1, 1, 1);

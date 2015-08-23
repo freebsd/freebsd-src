@@ -113,9 +113,8 @@ static int
 null_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	const struct ieee80211_bpf_params *params)
 {
-	struct ifnet *ifp = ni->ni_ic->ic_ifp;
 
-	if_printf(ifp, "missing ic_raw_xmit callback, drop frame\n");
+	ic_printf(ni->ni_ic, "missing ic_raw_xmit callback, drop frame\n");
 	m_freem(m);
 	return ENETDOWN;
 }
@@ -195,7 +194,7 @@ ieee80211_proto_vattach(struct ieee80211vap *vap)
 	vap->iv_fragthreshold = IEEE80211_FRAG_DEFAULT;
 	vap->iv_bmiss_max = IEEE80211_BMISS_MAX;
 	callout_init_mtx(&vap->iv_swbmiss, IEEE80211_LOCK_OBJ(ic), 0);
-	callout_init(&vap->iv_mgtsend, CALLOUT_MPSAFE);
+	callout_init(&vap->iv_mgtsend, 1);
 	TASK_INIT(&vap->iv_nstate_task, 0, ieee80211_newstate_cb, vap);
 	TASK_INIT(&vap->iv_swbmiss_task, 0, beacon_swmiss, vap);
 	/*
@@ -251,7 +250,7 @@ ieee80211_proto_vdetach(struct ieee80211vap *vap)
 {
 #define	FREEAPPIE(ie) do { \
 	if (ie != NULL) \
-		free(ie, M_80211_NODE_IE); \
+		IEEE80211_FREE(ie, M_80211_NODE_IE); \
 } while (0)
 	/*
 	 * Detach operating mode module.
@@ -651,7 +650,7 @@ ieee80211_set_shortslottime(struct ieee80211com *ic, int onoff)
 		ic->ic_flags &= ~IEEE80211_F_SHSLOT;
 	/* notify driver */
 	if (ic->ic_updateslot != NULL)
-		ic->ic_updateslot(ic->ic_ifp);
+		ic->ic_updateslot(ic);
 }
 
 /*
@@ -1165,18 +1164,16 @@ static void
 update_mcast(void *arg, int npending)
 {
 	struct ieee80211com *ic = arg;
-	struct ifnet *parent = ic->ic_ifp;
 
-	ic->ic_update_mcast(parent);
+	ic->ic_update_mcast(ic);
 }
 
 static void
 update_promisc(void *arg, int npending)
 {
 	struct ieee80211com *ic = arg;
-	struct ifnet *parent = ic->ic_ifp;
 
-	ic->ic_update_promisc(parent);
+	ic->ic_update_promisc(ic);
 }
 
 static void

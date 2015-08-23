@@ -157,10 +157,21 @@ static int
 fe_isa_attach(device_t dev)
 {
 	struct fe_softc *sc = device_get_softc(dev);
+	int error = 0;
 
-	if (sc->port_used)
-		fe98_alloc_port(dev, sc->type);
-	fe_alloc_irq(dev, 0);
+	/*
+	 * Note: these routines aren't expected to fail since we also call
+	 * them in the probe routine.  But coverity complains, so we'll honor
+	 * that complaint since the intention here was never to ignore them..
+	 */
+	if (sc->port_used) {
+		error = fe98_alloc_port(dev, sc->type);
+		if (error != 0)
+			return (error);
+	}
+	error = fe_alloc_irq(dev, 0);
+	if (error != 0)
+		return (error);
 
 	return fe_attach(dev);
 }

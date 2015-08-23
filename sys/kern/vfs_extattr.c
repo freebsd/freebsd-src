@@ -226,7 +226,7 @@ sys_extattr_set_fd(td, uap)
 		return (error);
 	AUDIT_ARG_TEXT(attrname);
 
-	error = getvnode(td->td_proc->p_fd, uap->fd,
+	error = getvnode(td, uap->fd,
 	    cap_rights_init(&rights, CAP_EXTATTR_SET), &fp);
 	if (error)
 		return (error);
@@ -401,7 +401,7 @@ sys_extattr_get_fd(td, uap)
 		return (error);
 	AUDIT_ARG_TEXT(attrname);
 
-	error = getvnode(td->td_proc->p_fd, uap->fd,
+	error = getvnode(td, uap->fd,
 	    cap_rights_init(&rights, CAP_EXTATTR_GET), &fp);
 	if (error)
 		return (error);
@@ -545,7 +545,7 @@ sys_extattr_delete_fd(td, uap)
 		return (error);
 	AUDIT_ARG_TEXT(attrname);
 
-	error = getvnode(td->td_proc->p_fd, uap->fd,
+	error = getvnode(td, uap->fd,
 	    cap_rights_init(&rights, CAP_EXTATTR_DELETE), &fp);
 	if (error)
 		return (error);
@@ -697,7 +697,7 @@ sys_extattr_list_fd(td, uap)
 
 	AUDIT_ARG_FD(uap->fd);
 	AUDIT_ARG_VALUE(uap->attrnamespace);
-	error = getvnode(td->td_proc->p_fd, uap->fd,
+	error = getvnode(td, uap->fd,
 	    cap_rights_init(&rights, CAP_EXTATTR_LIST), &fp);
 	if (error)
 		return (error);

@@ -24,6 +24,7 @@
  * All rights reserved.
  * Copyright (c) 2012, 2014 by Delphix. All rights reserved.
  * Copyright (c) 2014 Joyent, Inc. All rights reserved.
+ * Copyright 2015 Nexenta Systems, Inc. All rights reserved.
  */
 
 #include <sys/dmu.h>
@@ -408,7 +409,7 @@ dsl_dir_hold(dsl_pool_t *dp, const char *name, void *tag,
 	/* Make sure the name is in the specified pool. */
 	spaname = spa_name(dp->dp_spa);
 	if (strcmp(buf, spaname) != 0)
-		return (SET_ERROR(EINVAL));
+		return (SET_ERROR(EXDEV));
 
 	ASSERT(dsl_pool_config_held(dp));
 
@@ -1389,7 +1390,7 @@ dsl_dir_diduse_space(dsl_dir_t *dd, dd_used_t type,
 		    accounted_delta, compressed, uncompressed, tx);
 		dsl_dir_transfer_space(dd->dd_parent,
 		    used - accounted_delta,
-		    DD_USED_CHILD_RSRV, DD_USED_CHILD, tx);
+		    DD_USED_CHILD_RSRV, DD_USED_CHILD, NULL);
 	}
 }
 
@@ -1397,7 +1398,7 @@ void
 dsl_dir_transfer_space(dsl_dir_t *dd, int64_t delta,
     dd_used_t oldtype, dd_used_t newtype, dmu_tx_t *tx)
 {
-	ASSERT(dmu_tx_is_syncing(tx));
+	ASSERT(tx == NULL || dmu_tx_is_syncing(tx));
 	ASSERT(oldtype < DD_USED_NUM);
 	ASSERT(newtype < DD_USED_NUM);
 
@@ -1405,7 +1406,8 @@ dsl_dir_transfer_space(dsl_dir_t *dd, int64_t delta,
 	    !(dsl_dir_phys(dd)->dd_flags & DD_FLAG_USED_BREAKDOWN))
 		return;
 
-	dmu_buf_will_dirty(dd->dd_dbuf, tx);
+	if (tx != NULL)
+		dmu_buf_will_dirty(dd->dd_dbuf, tx);
 	mutex_enter(&dd->dd_lock);
 	ASSERT(delta > 0 ?
 	    dsl_dir_phys(dd)->dd_used_breakdown[oldtype] >= delta :
@@ -1705,7 +1707,7 @@ dsl_dir_rename_check(void *arg, dmu_tx_t *tx)
 	if (dd->dd_pool != newparent->dd_pool) {
 		dsl_dir_rele(newparent, FTAG);
 		dsl_dir_rele(dd, FTAG);
-		return (SET_ERROR(ENXIO));
+		return (SET_ERROR(EXDEV));
 	}
 
 	/* new name should not already exist */

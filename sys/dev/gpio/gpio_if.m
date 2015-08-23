@@ -32,6 +32,13 @@
 INTERFACE gpio;
 
 CODE {
+	static device_t
+	gpio_default_get_bus(void)
+	{
+
+		return (NULL);
+	}
+
 	static int
 	gpio_default_map_gpios(device_t bus, phandle_t dev,
 	    phandle_t gparent, int gcells, pcell_t *gpios, uint32_t *pin,
@@ -54,6 +61,13 @@ CODE {
 HEADER {
 	#include <dev/ofw/openfirm.h>
 };
+
+#
+# Return the gpiobus device reference
+#
+METHOD device_t get_bus {
+	device_t dev;
+} DEFAULT gpio_default_get_bus;
 
 #
 # Get maximum pin number

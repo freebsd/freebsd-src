@@ -80,6 +80,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_map.h>
 #include <vm/vm_extern.h>
 #include <vm/uma.h>
+#include <vm/vm_domain.h>
 
 #ifdef KDTRACE_HOOKS
 #include <sys/dtrace_bsd.h>
@@ -103,7 +104,7 @@ sys_fork(struct thread *td, struct fork_args *uap)
 	int error;
 	struct proc *p2;
 
-	error = fork1(td, RFFDG | RFPROC, 0, &p2, NULL, 0);
+	error = fork1(td, RFFDG | RFPROC, 0, &p2, NULL, 0, NULL);
 	if (error == 0) {
 		td->td_retval[0] = p2->p_pid;
 		td->td_retval[1] = 0;
@@ -126,7 +127,7 @@ sys_pdfork(td, uap)
 	 * itself from the parent using the return value.
 	 */
 	error = fork1(td, RFFDG | RFPROC | RFPROCDESC, 0, &p2,
-	    &fd, uap->flags);
+	    &fd, uap->flags, NULL);
 	if (error == 0) {
 		td->td_retval[0] = p2->p_pid;
 		td->td_retval[1] = 0;
@@ -143,7 +144,7 @@ sys_vfork(struct thread *td, struct vfork_args *uap)
 	struct proc *p2;
 
 	flags = RFFDG | RFPROC | RFPPWAIT | RFMEM;
-	error = fork1(td, flags, 0, &p2, NULL, 0);
+	error = fork1(td, flags, 0, &p2, NULL, 0, NULL);
 	if (error == 0) {
 		td->td_retval[0] = p2->p_pid;
 		td->td_retval[1] = 0;
@@ -162,7 +163,7 @@ sys_rfork(struct thread *td, struct rfork_args *uap)
 		return (EINVAL);
 
 	AUDIT_ARG_FFLAGS(uap->flags);
-	error = fork1(td, uap->flags, 0, &p2, NULL, 0);
+	error = fork1(td, uap->flags, 0, &p2, NULL, 0, NULL);
 	if (error == 0) {
 		td->td_retval[0] = p2 ? p2->p_pid : 0;
 		td->td_retval[1] = 0;
@@ -405,12 +406,11 @@ do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
 	bcopy(&p1->p_startcopy, &p2->p_startcopy,
 	    __rangeof(struct proc, p_startcopy, p_endcopy));
 	pargs_hold(p2->p_args);
+
 	PROC_UNLOCK(p1);
 
 	bzero(&p2->p_startzero,
 	    __rangeof(struct proc, p_startzero, p_endzero));
-
-	p2->p_ucred = crhold(td->td_ucred);
 
 	/* Tell the prison that we exist. */
 	prison_proc_hold(p2->p_ucred->cr_prison);
@@ -494,11 +494,18 @@ do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
 	 * Increase reference counts on shared objects.
 	 */
 	p2->p_flag = P_INMEM;
-	p2->p_flag2 = 0;
+	p2->p_flag2 = p1->p_flag2 & (P2_NOTRACE | P2_NOTRACE_EXEC);
 	p2->p_swtick = ticks;
 	if (p1->p_flag & P_PROFIL)
 		startprofclock(p2);
-	td2->td_ucred = crhold(p2->p_ucred);
+
+	/*
+	 * Whilst the proc lock is held, copy the VM domain data out
+	 * using the VM domain method.
+	 */
+	vm_domain_policy_init(&p2->p_vm_dom_policy);
+	vm_domain_policy_localcopy(&p2->p_vm_dom_policy,
+	    &p1->p_vm_dom_policy);
 
 	if (flags & RFSIGSHARE) {
 		p2->p_sigacts = sigacts_hold(p1->p_sigacts);
@@ -527,6 +534,8 @@ do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
 	 * p_limit is copy-on-write.  Bump its refcount.
 	 */
 	lim_fork(p1, p2);
+
+	thread_cow_get_proc(td2, p2);
 
 	pstats_fork(p1->p_stats, p2->p_stats);
 
@@ -759,7 +768,7 @@ do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
 
 int
 fork1(struct thread *td, int flags, int pages, struct proc **procp,
-    int *procdescp, int pdflags)
+    int *procdescp, int pdflags, struct filecaps *fcaps)
 {
 	struct proc *p1;
 	struct proc *newproc;
@@ -815,7 +824,7 @@ fork1(struct thread *td, int flags, int pages, struct proc **procp,
 	 * later.
 	 */
 	if (flags & RFPROCDESC) {
-		error = falloc(td, &fp_procdesc, procdescp, 0);
+		error = falloc_caps(td, &fp_procdesc, procdescp, 0, fcaps);
 		if (error != 0)
 			return (error);
 	}
@@ -831,7 +840,7 @@ fork1(struct thread *td, int flags, int pages, struct proc **procp,
 		td2 = thread_alloc(pages);
 		if (td2 == NULL) {
 			error = ENOMEM;
-			goto fail1;
+			goto fail2;
 		}
 		proc_linkup(newproc, td2);
 	} else {
@@ -840,7 +849,7 @@ fork1(struct thread *td, int flags, int pages, struct proc **procp,
 				vm_thread_dispose(td2);
 			if (!thread_alloc_stack(td2, pages)) {
 				error = ENOMEM;
-				goto fail1;
+				goto fail2;
 			}
 		}
 	}
@@ -849,7 +858,7 @@ fork1(struct thread *td, int flags, int pages, struct proc **procp,
 		vm2 = vmspace_fork(p1->p_vmspace, &mem_charged);
 		if (vm2 == NULL) {
 			error = ENOMEM;
-			goto fail1;
+			goto fail2;
 		}
 		if (!swap_reserve(mem_charged)) {
 			/*
@@ -860,7 +869,7 @@ fork1(struct thread *td, int flags, int pages, struct proc **procp,
 			 */
 			swap_reserve_force(mem_charged);
 			error = ENOMEM;
-			goto fail1;
+			goto fail2;
 		}
 	} else
 		vm2 = NULL;
@@ -869,7 +878,7 @@ fork1(struct thread *td, int flags, int pages, struct proc **procp,
 	 * XXX: This is ugly; when we copy resource usage, we need to bump
 	 *      per-cred resource counters.
 	 */
-	newproc->p_ucred = p1->p_ucred;
+	proc_set_cred_init(newproc, crhold(td->td_ucred));
 
 	/*
 	 * Initialize resource accounting for the child process.
@@ -913,10 +922,8 @@ fork1(struct thread *td, int flags, int pages, struct proc **procp,
 	if (error == 0)
 		ok = chgproccnt(td->td_ucred->cr_ruidinfo, 1, 0);
 	else {
-		PROC_LOCK(p1);
 		ok = chgproccnt(td->td_ucred->cr_ruidinfo, 1,
-		    lim_cur(p1, RLIMIT_NPROC));
-		PROC_UNLOCK(p1);
+		    lim_cur(td, RLIMIT_NPROC));
 	}
 	if (ok) {
 		do_fork(td, flags, newproc, td2, vm2, pdflags);
@@ -945,11 +952,14 @@ fail:
 #endif
 	racct_proc_exit(newproc);
 fail1:
+	crfree(newproc->p_ucred);
+	newproc->p_ucred = NULL;
+fail2:
 	if (vm2 != NULL)
 		vmspace_free(vm2);
 	uma_zfree(proc_zone, newproc);
 	if ((flags & RFPROCDESC) != 0 && fp_procdesc != NULL) {
-		fdclose(td->td_proc->p_fd, fp_procdesc, *procdescp, td);
+		fdclose(td, fp_procdesc, *procdescp);
 		fdrop(fp_procdesc, td);
 	}
 	pause("fork", hz / 2);
@@ -1034,6 +1044,9 @@ fork_return(struct thread *td, struct trapframe *frame)
 			dbg = p->p_pptr->p_pptr;
 			p->p_flag |= P_TRACED;
 			p->p_oppid = p->p_pptr->p_pid;
+			CTR2(KTR_PTRACE,
+		    "fork_return: attaching to new child pid %d: oppid %d",
+			    p->p_pid, p->p_oppid);
 			proc_reparent(p, dbg);
 			sx_xunlock(&proctree_lock);
 			td->td_dbgflags |= TDB_CHILD;

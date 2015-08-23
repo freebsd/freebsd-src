@@ -136,7 +136,7 @@ dsl_dataset_block_born(dsl_dataset_t *ds, const blkptr_t *bp, dmu_tx_t *tx)
 	dsl_dir_diduse_space(ds->ds_dir, DD_USED_HEAD, delta,
 	    compressed, uncompressed, tx);
 	dsl_dir_transfer_space(ds->ds_dir, used - delta,
-	    DD_USED_REFRSRV, DD_USED_HEAD, tx);
+	    DD_USED_REFRSRV, DD_USED_HEAD, NULL);
 }
 
 int
@@ -179,7 +179,7 @@ dsl_dataset_block_kill(dsl_dataset_t *ds, const blkptr_t *bp, dmu_tx_t *tx,
 		dsl_dir_diduse_space(ds->ds_dir, DD_USED_HEAD,
 		    delta, -compressed, -uncompressed, tx);
 		dsl_dir_transfer_space(ds->ds_dir, -used - delta,
-		    DD_USED_REFRSRV, DD_USED_HEAD, tx);
+		    DD_USED_REFRSRV, DD_USED_HEAD, NULL);
 	} else {
 		dprintf_bp(bp, "putting on dead list: %s", "");
 		if (async) {
@@ -413,7 +413,8 @@ dsl_dataset_hold_obj(dsl_pool_t *dp, uint64_t dsobj, void *tag,
 		    offsetof(dmu_sendarg_t, dsa_link));
 
 		if (doi.doi_type == DMU_OTN_ZAP_METADATA) {
-			int zaperr = zap_contains(mos, dsobj, DS_FIELD_LARGE_BLOCKS);
+			int zaperr = zap_contains(mos, dsobj,
+			    DS_FIELD_LARGE_BLOCKS);
 			if (zaperr != ENOENT) {
 				VERIFY0(zaperr);
 				ds->ds_large_blocks = B_TRUE;
@@ -2160,12 +2161,14 @@ dsl_dataset_promote_check(void *arg, dmu_tx_t *tx)
 	int err;
 	uint64_t unused;
 	uint64_t ss_mv_cnt;
+	size_t max_snap_len;
 
 	err = promote_hold(ddpa, dp, FTAG);
 	if (err != 0)
 		return (err);
 
 	hds = ddpa->ddpa_clone;
+	max_snap_len = MAXNAMELEN - strlen(ddpa->ddpa_clonename) - 1;
 
 	if (dsl_dataset_phys(hds)->ds_flags & DS_FLAG_NOPROMOTE) {
 		promote_rele(ddpa, FTAG);
@@ -2229,6 +2232,10 @@ dsl_dataset_promote_check(void *arg, dmu_tx_t *tx)
 
 		/* Check that the snapshot name does not conflict */
 		VERIFY0(dsl_dataset_get_snapname(ds));
+		if (strlen(ds->ds_snapname) >= max_snap_len) {
+			err = SET_ERROR(ENAMETOOLONG);
+			goto out;
+		}
 		err = dsl_dataset_snap_lookup(hds, ds->ds_snapname, &val);
 		if (err == 0) {
 			(void) strcpy(ddpa->err_ds, snap->ds->ds_snapname);
@@ -2837,7 +2844,7 @@ dsl_dataset_clone_swap_sync_impl(dsl_dataset_t *clone,
 		    origin_head->ds_dir->dd_origin_txg, UINT64_MAX,
 		    &odl_used, &odl_comp, &odl_uncomp);
 		dsl_dir_transfer_space(origin_head->ds_dir, cdl_used - odl_used,
-		    DD_USED_HEAD, DD_USED_SNAP, tx);
+		    DD_USED_HEAD, DD_USED_SNAP, NULL);
 	}
 
 	/* swap ds_*_bytes */

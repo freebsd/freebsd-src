@@ -65,7 +65,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip6.h>
 #include <netinet6/ip6_var.h>
 #include <netinet6/in6_var.h>
-#include <netinet6/scope6_var.h>
 #endif
 #include <netinet/ip_ecn.h>
 #ifdef INET6
@@ -73,7 +72,6 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #include <net/if_gif.h>
-#include <net/rt_nhops.h>
 
 #define GIF_HLIM	30
 static VNET_DEFINE(int, ip6_gif_hlim) = GIF_HLIM;
@@ -83,8 +81,6 @@ SYSCTL_DECL(_net_inet6_ip6);
 SYSCTL_INT(_net_inet6_ip6, IPV6CTL_GIF_HLIM, gifhlim, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(ip6_gif_hlim), 0, "");
 
-static int gif_validate6(const struct ip6_hdr *, struct gif_softc *,
-			 struct ifnet *);
 static int in6_gif_input(struct mbuf **, int *, int);
 
 extern  struct domain inet6domain;
@@ -144,7 +140,7 @@ in6_gif_output(struct ifnet *ifp, struct mbuf *m, int proto, uint8_t ecn)
 	 * it is too painful to ask for resend of inner packet, to achieve
 	 * path MTU discovery for encapsulated packets.
 	 */
-	return (ip6_output(m, 0, NULL, IPV6_MINMTU, 0, NULL));
+	return (ip6_output(m, 0, NULL, IPV6_MINMTU, 0, NULL, NULL));
 }
 
 static int
@@ -176,61 +172,56 @@ in6_gif_input(struct mbuf **mp, int *offp, int proto)
 }
 
 /*
- * validate outer address.
- */
-static int
-gif_validate6(const struct ip6_hdr *ip6, struct gif_softc *sc,
-    struct ifnet *ifp)
-{
-
-	GIF_RLOCK_ASSERT(sc);
-	/*
-	 * Check for address match.  Note that the check is for an incoming
-	 * packet.  We should compare the *source* address in our configuration
-	 * and the *destination* address of the packet, and vice versa.
-	 */
-	if (!IN6_ARE_ADDR_EQUAL(&sc->gif_ip6hdr->ip6_src, &ip6->ip6_dst) ||
-	    !IN6_ARE_ADDR_EQUAL(&sc->gif_ip6hdr->ip6_dst, &ip6->ip6_src))
-		return (0);
-
-	/* martian filters on outer source - done in ip6_input */
-
-	/* ingress filters on outer source */
-	if ((GIF2IFP(sc)->if_flags & IFF_LINK2) == 0 && ifp) {
-		struct nhop6_basic nh6;
-		struct in6_addr src;
-		uint32_t fibnum, scopeid;
-
-		fibnum = sc->gif_fibnum;
-		in6_splitscope(&ip6->ip6_src, &src, &scopeid);
-
-		if (fib6_lookup_nh(fibnum, &src, scopeid, 0, 0, &nh6) != 0)
-			return (0);
-		if (nh6.nh_ifp != ifp)
-			return (0);
-	}
-
-	return (128 * 2);
-}
-
-/*
  * we know that we are in IFF_UP, outer address available, and outer family
  * matched the physical addr family.  see gif_encapcheck().
  */
 int
 in6_gif_encapcheck(const struct mbuf *m, int off, int proto, void *arg)
 {
-	struct ip6_hdr ip6;
+	const struct ip6_hdr *ip6;
 	struct gif_softc *sc;
-	struct ifnet *ifp;
+	int ret;
 
 	/* sanity check done in caller */
 	sc = (struct gif_softc *)arg;
 	GIF_RLOCK_ASSERT(sc);
 
-	m_copydata(m, 0, sizeof(ip6), (caddr_t)&ip6);
-	ifp = ((m->m_flags & M_PKTHDR) != 0) ? m->m_pkthdr.rcvif : NULL;
-	return (gif_validate6(&ip6, sc, ifp));
+	/*
+	 * Check for address match.  Note that the check is for an incoming
+	 * packet.  We should compare the *source* address in our configuration
+	 * and the *destination* address of the packet, and vice versa.
+	 */
+	ip6 = mtod(m, const struct ip6_hdr *);
+	if (!IN6_ARE_ADDR_EQUAL(&sc->gif_ip6hdr->ip6_src, &ip6->ip6_dst))
+		return (0);
+	ret = 128;
+	if (!IN6_ARE_ADDR_EQUAL(&sc->gif_ip6hdr->ip6_dst, &ip6->ip6_src)) {
+		if ((sc->gif_options & GIF_IGNORE_SOURCE) == 0)
+			return (0);
+	} else
+		ret += 128;
+
+	/* ingress filters on outer source */
+	if ((GIF2IFP(sc)->if_flags & IFF_LINK2) == 0) {
+		struct sockaddr_in6 sin6;
+		struct rtentry *rt;
+
+		bzero(&sin6, sizeof(sin6));
+		sin6.sin6_family = AF_INET6;
+		sin6.sin6_len = sizeof(struct sockaddr_in6);
+		sin6.sin6_addr = ip6->ip6_src;
+		sin6.sin6_scope_id = 0; /* XXX */
+
+		rt = in6_rtalloc1((struct sockaddr *)&sin6, 0, 0UL,
+		    sc->gif_fibnum);
+		if (rt == NULL || rt->rt_ifp != m->m_pkthdr.rcvif) {
+			if (rt != NULL)
+				RTFREE_LOCKED(rt);
+			return (0);
+		}
+		RTFREE_LOCKED(rt);
+	}
+	return (ret);
 }
 
 int

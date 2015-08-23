@@ -13,9 +13,9 @@ SRCS+=	acl_common.c
 .PATH:	${SUNW}/common/avl
 SRCS+=	avl.c
 .PATH:	${SUNW}/common/nvpair
-SRCS+=	nvpair.c
-SRCS+=	nvpair_alloc_fixed.c
-SRCS+=	fnvpair.c
+SRCS+=	opensolaris_nvpair.c
+SRCS+=	opensolaris_nvpair_alloc_fixed.c
+SRCS+=	opensolaris_fnvpair.c
 .PATH:	${SYSDIR}/cddl/contrib/opensolaris/common/unicode
 SRCS+=	u8_textprep.c
 

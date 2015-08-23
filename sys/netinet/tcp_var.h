@@ -46,6 +46,15 @@ VNET_DECLARE(int, tcp_do_rfc1323);
 
 #endif /* _KERNEL */
 
+/* TCP segment queue entry */
+struct tseg_qent {
+	LIST_ENTRY(tseg_qent) tqe_q;
+	int	tqe_len;		/* TCP segment data length */
+	struct	tcphdr *tqe_th;		/* a pointer to tcp header */
+	struct	mbuf	*tqe_m;		/* mbuf contains packet */
+};
+LIST_HEAD(tsegqe_head, tseg_qent);
+
 struct sackblk {
 	tcp_seq start;		/* start seq no. of sack block */
 	tcp_seq end;		/* end seq no. */
@@ -91,7 +100,7 @@ do {								\
  * Organized for 16 byte cacheline efficiency.
  */
 struct tcpcb {
-	struct	mbuf *t_segq;		/* segment reassembly queue */
+	struct	tsegqe_head t_segq;	/* segment reassembly queue */
 	void	*t_pspare[2];		/* new reassembly queue */
 	int	t_segqlen;		/* segment reassembly queue length */
 	int	t_dupacks;		/* consecutive dup acks recd */
@@ -104,7 +113,7 @@ struct tcpcb {
 
 	struct	vnet *t_vnet;		/* back pointer to parent vnet */
 
-	tcp_seq	snd_una;		/* send unacknowledged */
+	tcp_seq	snd_una;		/* sent but unacknowledged */
 	tcp_seq	snd_max;		/* highest sequence number sent;
 					 * used to recognize retransmits
 					 */
@@ -667,6 +676,7 @@ char	*tcp_log_addrs(struct in_conninfo *, struct tcphdr *, void *,
 char	*tcp_log_vain(struct in_conninfo *, struct tcphdr *, void *,
 	    const void *);
 int	 tcp_reass(struct tcpcb *, struct tcphdr *, int *, struct mbuf *);
+void	 tcp_reass_global_init(void);
 void	 tcp_reass_flush(struct tcpcb *);
 int	 tcp_input(struct mbuf **, int *, int);
 u_long	 tcp_maxmtu(struct in_conninfo *, struct tcp_ifcap *);
@@ -708,8 +718,9 @@ void	 tcp_slowtimo(void);
 struct tcptemp *
 	 tcpip_maketemplate(struct inpcb *);
 void	 tcpip_fillheaders(struct inpcb *, void *, void *);
-void	 tcp_timer_activate(struct tcpcb *, int, u_int);
-int	 tcp_timer_active(struct tcpcb *, int);
+void	 tcp_timer_activate(struct tcpcb *, uint32_t, u_int);
+int	 tcp_timer_active(struct tcpcb *, uint32_t);
+void	 tcp_timer_stop(struct tcpcb *, uint32_t);
 void	 tcp_trace(short, short, struct tcpcb *, void *, struct tcphdr *, int);
 /*
  * All tcp_hc_* functions are IPv4 and IPv6 (via in_conninfo)

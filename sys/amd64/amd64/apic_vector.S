@@ -39,6 +39,7 @@
 #include "opt_smp.h"
 
 #include <machine/asmacros.h>
+#include <machine/specialreg.h>
 #include <x86/apicreg.h>
 
 #include "assym.s"
@@ -48,6 +49,22 @@
 #else
 #define LK
 #endif
+
+	.text
+	SUPERALIGN_TEXT
+	/* End Of Interrupt to APIC */
+as_lapic_eoi:
+	cmpl	$0,x2apic_mode
+	jne	1f
+	movq	lapic_map,%rax
+	movl	$0,LA_EOI(%rax)
+	ret
+1:
+	movl	$MSR_APIC_EOI,%ecx
+	xorl	%eax,%eax
+	xorl	%edx,%edx
+	wrmsr
+	ret
 
 /*
  * I/O Interrupt Entry Point.  Rather than having one entry point for
@@ -62,15 +79,22 @@
 IDTVEC(vec_name) ;							\
 	PUSH_FRAME ;							\
 	FAKE_MCOUNT(TF_RIP(%rsp)) ;					\
-	movq	lapic, %rdx ;	/* pointer to local APIC */		\
+	cmpl	$0,x2apic_mode ;					\
+	je	1f ;							\
+	movl	$(MSR_APIC_ISR0 + index),%ecx ;				\
+	rdmsr ;								\
+	jmp	2f ;							\
+1: ;									\
+	movq	lapic_map, %rdx ;	/* pointer to local APIC */	\
 	movl	LA_ISR + 16 * (index)(%rdx), %eax ;	/* load ISR */	\
+2: ;									\
 	bsrl	%eax, %eax ;	/* index of highest set bit in ISR */	\
-	jz	1f ;							\
+	jz	3f ;							\
 	addl	$(32 * index),%eax ;					\
 	movq	%rsp, %rsi	;                                       \
 	movl	%eax, %edi ;	/* pass the IRQ */			\
 	call	lapic_handle_intr ;					\
-1: ;									\
+3: ;									\
 	MEXITCOUNT ;							\
 	jmp	doreti
 
@@ -150,28 +174,33 @@ IDTVEC(xen_intr_upcall)
 	jmp	doreti
 #endif
 
+#ifdef HYPERV
+/*
+ * This is the Hyper-V vmbus channel direct callback interrupt.
+ * Only used when it is running on Hyper-V.
+ */
+	.text
+	SUPERALIGN_TEXT
+IDTVEC(hv_vmbus_callback)
+	PUSH_FRAME
+	FAKE_MCOUNT(TF_RIP(%rsp))
+	movq	%rsp, %rdi
+	call	hv_vector_handler
+	MEXITCOUNT
+	jmp	doreti
+#endif
+
 #ifdef SMP
 /*
  * Global address space TLB shootdown.
  */
 	.text
 
-#define	NAKE_INTR_CS	24
-
 	SUPERALIGN_TEXT
 invltlb_ret:
-	movq	lapic, %rax
-	movl	$0, LA_EOI(%rax)	/* End Of Interrupt to APIC */
+	call	as_lapic_eoi
 	POP_FRAME
 	jmp	doreti_iret
-
-	SUPERALIGN_TEXT
-IDTVEC(invltlb_pcid)
-	PUSH_FRAME
-
-	call	invltlb_pcid_handler
-	jmp	invltlb_ret
-
 
 	SUPERALIGN_TEXT
 IDTVEC(invltlb)
@@ -180,16 +209,22 @@ IDTVEC(invltlb)
 	call	invltlb_handler
 	jmp	invltlb_ret
 
+IDTVEC(invltlb_pcid)
+	PUSH_FRAME
+
+	call	invltlb_pcid_handler
+	jmp	invltlb_ret
+
+IDTVEC(invltlb_invpcid)
+	PUSH_FRAME
+
+	call	invltlb_invpcid_handler
+	jmp	invltlb_ret
+
 /*
  * Single page TLB shootdown
  */
 	.text
-	SUPERALIGN_TEXT
-IDTVEC(invlpg_pcid)
-	PUSH_FRAME
-
-	call	invlpg_pcid_handler
-	jmp	invltlb_ret
 
 	SUPERALIGN_TEXT
 IDTVEC(invlpg)
@@ -228,8 +263,7 @@ IDTVEC(invlcache)
 IDTVEC(ipi_intr_bitmap_handler)		
 	PUSH_FRAME
 
-	movq	lapic, %rdx
-	movl	$0, LA_EOI(%rdx)	/* End Of Interrupt to APIC */
+	call	as_lapic_eoi
 	
 	FAKE_MCOUNT(TF_RIP(%rsp))
 
@@ -245,8 +279,7 @@ IDTVEC(ipi_intr_bitmap_handler)
 IDTVEC(cpustop)
 	PUSH_FRAME
 
-	movq	lapic, %rax
-	movl	$0, LA_EOI(%rax)	/* End Of Interrupt to APIC */
+	call	as_lapic_eoi
 
 	call	cpustop_handler
 	jmp	doreti
@@ -260,8 +293,7 @@ IDTVEC(cpususpend)
 	PUSH_FRAME
 
 	call	cpususpend_handler
-	movq	lapic, %rax
-	movl	$0, LA_EOI(%rax)	/* End Of Interrupt to APIC */
+	call	as_lapic_eoi
 	jmp	doreti
 
 /*
@@ -279,7 +311,37 @@ IDTVEC(rendezvous)
 	incq	(%rax)
 #endif
 	call	smp_rendezvous_action
-	movq	lapic, %rax
-	movl	$0, LA_EOI(%rax)	/* End Of Interrupt to APIC */
+	call	as_lapic_eoi
 	jmp	doreti
+
+/*
+ * IPI handler whose purpose is to interrupt the CPU with minimum overhead.
+ * This is used by bhyve to force a host cpu executing in guest context to
+ * trap into the hypervisor.
+ *
+ * This handler is different from other IPI handlers in the following aspects:
+ *
+ * 1. It doesn't push a trapframe on the stack.
+ *
+ * This implies that a DDB backtrace involving 'justreturn' will skip the
+ * function that was interrupted by this handler.
+ *
+ * 2. It doesn't 'swapgs' when userspace is interrupted.
+ *
+ * The 'justreturn' handler does not access any pcpu data so it is not an
+ * issue. Moreover the 'justreturn' handler can only be interrupted by an NMI
+ * whose handler already doesn't trust GS.base when kernel code is interrupted.
+ */
+	.text
+	SUPERALIGN_TEXT
+IDTVEC(justreturn)
+	pushq	%rax
+	pushq	%rcx
+	pushq	%rdx
+	call	as_lapic_eoi
+	popq	%rdx
+	popq	%rcx
+	popq	%rax
+	jmp	doreti_iret
+
 #endif /* SMP */

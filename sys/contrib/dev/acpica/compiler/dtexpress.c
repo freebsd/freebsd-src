@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2014, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -40,8 +40,6 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  */
-
-#define __DTEXPRESS_C__
 
 #include <contrib/dev/acpica/compiler/aslcompiler.h>
 #include <contrib/dev/acpica/compiler/dtcompiler.h>
@@ -415,7 +413,7 @@ DtLookupLabel (
     LabelField = Gbl_LabelList;
     while (LabelField)
     {
-        if (!ACPI_STRCMP (Name, LabelField->Value))
+        if (!strcmp (Name, LabelField->Value))
         {
             return (LabelField);
         }

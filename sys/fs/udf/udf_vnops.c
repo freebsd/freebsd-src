@@ -526,8 +526,9 @@ udf_transname(char *cs0string, char *destname, int len, struct udf_mnt *udfmp)
 		}
 
 		while (unilen > 0 && destleft > 0) {
-			udf_iconv->conv(udfmp->im_d2l, (const char **)&unibuf,
-				(size_t *)&unilen, (char **)&destname, &destleft);
+			udf_iconv->conv(udfmp->im_d2l, __DECONST(const char **,
+			    &unibuf), (size_t *)&unilen, (char **)&destname,
+			    &destleft);
 			/* Unconverted character found */
 			if (unilen > 0 && destleft > 0) {
 				*destname++ = '?';

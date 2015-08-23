@@ -467,7 +467,7 @@ static int
 ti_adc_probe(device_t dev)
 {
 
-	if (!ofw_bus_is_compatible(dev, "ti,adc"))
+	if (!ofw_bus_is_compatible(dev, "ti,am3359-tscadc"))
 		return (ENXIO);
 	device_set_desc(dev, "TI ADC controller");
 

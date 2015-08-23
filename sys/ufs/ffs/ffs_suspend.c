@@ -177,7 +177,6 @@ out:
 static int
 ffs_susp_suspend(struct mount *mp)
 {
-	struct fs *fs;
 	struct ufsmount *ump;
 	int error;
 
@@ -189,7 +188,6 @@ ffs_susp_suspend(struct mount *mp)
 		return (EBUSY);
 
 	ump = VFSTOUFS(mp);
-	fs = ump->um_fs;
 
 	/*
 	 * Make sure the calling thread is permitted to access the mounted

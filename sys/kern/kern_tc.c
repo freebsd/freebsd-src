@@ -23,10 +23,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/limits.h>
-#ifdef FFCLOCK
 #include <sys/lock.h>
 #include <sys/mutex.h>
-#endif
+#include <sys/sbuf.h>
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
 #include <sys/systm.h>
@@ -72,7 +71,7 @@ struct timehands {
 	struct timeval		th_microtime;
 	struct timespec		th_nanotime;
 	/* Fields not to be copied in tc_windup start with th_generation. */
-	volatile u_int		th_generation;
+	u_int			th_generation;
 	struct timehands	*th_next;
 };
 
@@ -205,9 +204,10 @@ fbclock_binuptime(struct bintime *bt)
 
 	do {
 		th = timehands;
-		gen = th->th_generation;
+		gen = atomic_load_acq_int(&th->th_generation);
 		*bt = th->th_offset;
 		bintime_addx(bt, th->th_scale * tc_delta(th));
+		atomic_thread_fence_acq();
 	} while (gen == 0 || gen != th->th_generation);
 }
 
@@ -263,8 +263,9 @@ fbclock_getbinuptime(struct bintime *bt)
 
 	do {
 		th = timehands;
-		gen = th->th_generation;
+		gen = atomic_load_acq_int(&th->th_generation);
 		*bt = th->th_offset;
+		atomic_thread_fence_acq();
 	} while (gen == 0 || gen != th->th_generation);
 }
 
@@ -276,8 +277,9 @@ fbclock_getnanouptime(struct timespec *tsp)
 
 	do {
 		th = timehands;
-		gen = th->th_generation;
+		gen = atomic_load_acq_int(&th->th_generation);
 		bintime2timespec(&th->th_offset, tsp);
+		atomic_thread_fence_acq();
 	} while (gen == 0 || gen != th->th_generation);
 }
 
@@ -289,8 +291,9 @@ fbclock_getmicrouptime(struct timeval *tvp)
 
 	do {
 		th = timehands;
-		gen = th->th_generation;
+		gen = atomic_load_acq_int(&th->th_generation);
 		bintime2timeval(&th->th_offset, tvp);
+		atomic_thread_fence_acq();
 	} while (gen == 0 || gen != th->th_generation);
 }
 
@@ -302,8 +305,9 @@ fbclock_getbintime(struct bintime *bt)
 
 	do {
 		th = timehands;
-		gen = th->th_generation;
+		gen = atomic_load_acq_int(&th->th_generation);
 		*bt = th->th_offset;
+		atomic_thread_fence_acq();
 	} while (gen == 0 || gen != th->th_generation);
 	bintime_add(bt, &boottimebin);
 }
@@ -316,8 +320,9 @@ fbclock_getnanotime(struct timespec *tsp)
 
 	do {
 		th = timehands;
-		gen = th->th_generation;
+		gen = atomic_load_acq_int(&th->th_generation);
 		*tsp = th->th_nanotime;
+		atomic_thread_fence_acq();
 	} while (gen == 0 || gen != th->th_generation);
 }
 
@@ -329,8 +334,9 @@ fbclock_getmicrotime(struct timeval *tvp)
 
 	do {
 		th = timehands;
-		gen = th->th_generation;
+		gen = atomic_load_acq_int(&th->th_generation);
 		*tvp = th->th_microtime;
+		atomic_thread_fence_acq();
 	} while (gen == 0 || gen != th->th_generation);
 }
 #else /* !FFCLOCK */
@@ -342,9 +348,10 @@ binuptime(struct bintime *bt)
 
 	do {
 		th = timehands;
-		gen = th->th_generation;
+		gen = atomic_load_acq_int(&th->th_generation);
 		*bt = th->th_offset;
 		bintime_addx(bt, th->th_scale * tc_delta(th));
+		atomic_thread_fence_acq();
 	} while (gen == 0 || gen != th->th_generation);
 }
 
@@ -400,8 +407,9 @@ getbinuptime(struct bintime *bt)
 
 	do {
 		th = timehands;
-		gen = th->th_generation;
+		gen = atomic_load_acq_int(&th->th_generation);
 		*bt = th->th_offset;
+		atomic_thread_fence_acq();
 	} while (gen == 0 || gen != th->th_generation);
 }
 
@@ -413,8 +421,9 @@ getnanouptime(struct timespec *tsp)
 
 	do {
 		th = timehands;
-		gen = th->th_generation;
+		gen = atomic_load_acq_int(&th->th_generation);
 		bintime2timespec(&th->th_offset, tsp);
+		atomic_thread_fence_acq();
 	} while (gen == 0 || gen != th->th_generation);
 }
 
@@ -426,8 +435,9 @@ getmicrouptime(struct timeval *tvp)
 
 	do {
 		th = timehands;
-		gen = th->th_generation;
+		gen = atomic_load_acq_int(&th->th_generation);
 		bintime2timeval(&th->th_offset, tvp);
+		atomic_thread_fence_acq();
 	} while (gen == 0 || gen != th->th_generation);
 }
 
@@ -439,8 +449,9 @@ getbintime(struct bintime *bt)
 
 	do {
 		th = timehands;
-		gen = th->th_generation;
+		gen = atomic_load_acq_int(&th->th_generation);
 		*bt = th->th_offset;
+		atomic_thread_fence_acq();
 	} while (gen == 0 || gen != th->th_generation);
 	bintime_add(bt, &boottimebin);
 }
@@ -453,8 +464,9 @@ getnanotime(struct timespec *tsp)
 
 	do {
 		th = timehands;
-		gen = th->th_generation;
+		gen = atomic_load_acq_int(&th->th_generation);
 		*tsp = th->th_nanotime;
+		atomic_thread_fence_acq();
 	} while (gen == 0 || gen != th->th_generation);
 }
 
@@ -466,8 +478,9 @@ getmicrotime(struct timeval *tvp)
 
 	do {
 		th = timehands;
-		gen = th->th_generation;
+		gen = atomic_load_acq_int(&th->th_generation);
 		*tvp = th->th_microtime;
+		atomic_thread_fence_acq();
 	} while (gen == 0 || gen != th->th_generation);
 }
 #endif /* FFCLOCK */
@@ -881,10 +894,11 @@ ffclock_read_counter(ffcounter *ffcount)
 	 */
 	do {
 		th = timehands;
-		gen = th->th_generation;
+		gen = atomic_load_acq_int(&th->th_generation);
 		ffth = fftimehands;
 		delta = tc_delta(th);
 		*ffcount = ffth->tick_ffcount;
+		atomic_thread_fence_acq();
 	} while (gen == 0 || gen != th->th_generation);
 
 	*ffcount += delta;
@@ -989,8 +1003,9 @@ dtrace_getnanotime(struct timespec *tsp)
 
 	do {
 		th = timehands;
-		gen = th->th_generation;
+		gen = atomic_load_acq_int(&th->th_generation);
 		*tsp = th->th_nanotime;
+		atomic_thread_fence_acq();
 	} while (gen == 0 || gen != th->th_generation);
 }
 
@@ -1029,7 +1044,7 @@ sysclock_getsnapshot(struct sysclock_snap *clock_snap, int fast)
 
 	do {
 		th = timehands;
-		gen = th->th_generation;
+		gen = atomic_load_acq_int(&th->th_generation);
 		fbi->th_scale = th->th_scale;
 		fbi->tick_time = th->th_offset;
 #ifdef FFCLOCK
@@ -1043,6 +1058,7 @@ sysclock_getsnapshot(struct sysclock_snap *clock_snap, int fast)
 #endif
 		if (!fast)
 			delta = tc_delta(th);
+		atomic_thread_fence_acq();
 	} while (gen == 0 || gen != th->th_generation);
 
 	clock_snap->delta = delta;
@@ -1254,14 +1270,19 @@ tc_windup(void)
 	time_t t;
 
 	/*
-	 * Make the next timehands a copy of the current one, but do not
-	 * overwrite the generation or next pointer.  While we update
-	 * the contents, the generation must be zero.
+	 * Make the next timehands a copy of the current one, but do
+	 * not overwrite the generation or next pointer.  While we
+	 * update the contents, the generation must be zero.  We need
+	 * to ensure that the zero generation is visible before the
+	 * data updates become visible, which requires release fence.
+	 * For similar reasons, re-reading of the generation after the
+	 * data is read should use acquire fence.
 	 */
 	tho = timehands;
 	th = tho->th_next;
 	ogen = th->th_generation;
 	th->th_generation = 0;
+	atomic_thread_fence_rel();
 	bcopy(tho, th, offsetof(struct timehands, th_generation));
 
 	/*
@@ -1378,7 +1399,7 @@ tc_windup(void)
 	 */
 	if (++ogen == 0)
 		ogen = 1;
-	th->th_generation = ogen;
+	atomic_store_rel_int(&th->th_generation, ogen);
 
 	/* Go live with the new struct timehands. */
 #ifdef FFCLOCK
@@ -1424,7 +1445,15 @@ sysctl_kern_timecounter_hardware(SYSCTL_HANDLER_ARGS)
 		(void)newtc->tc_get_timecount(newtc);
 
 		timecounter = newtc;
-		timekeep_push_vdso();
+
+		/*
+		 * The vdso timehands update is deferred until the next
+		 * 'tc_windup()'.
+		 *
+		 * This is prudent given that 'timekeep_push_vdso()' does not
+		 * use any locking and that it can be called in hard interrupt
+		 * context via 'tc_windup()'.
+		 */
 		return (0);
 	}
 	return (EINVAL);
@@ -1439,18 +1468,18 @@ SYSCTL_PROC(_kern_timecounter, OID_AUTO, hardware, CTLTYPE_STRING | CTLFLAG_RW,
 static int
 sysctl_kern_timecounter_choice(SYSCTL_HANDLER_ARGS)
 {
-	char buf[32], *spc;
+	struct sbuf sb;
 	struct timecounter *tc;
 	int error;
 
-	spc = "";
-	error = 0;
-	for (tc = timecounters; error == 0 && tc != NULL; tc = tc->tc_next) {
-		sprintf(buf, "%s%s(%d)",
-		    spc, tc->tc_name, tc->tc_quality);
-		error = SYSCTL_OUT(req, buf, strlen(buf));
-		spc = " ";
+	sbuf_new_for_sysctl(&sb, NULL, 0, req);
+	for (tc = timecounters; tc != NULL; tc = tc->tc_next) {
+		if (tc != timecounters)
+			sbuf_putc(&sb, ' ');
+		sbuf_printf(&sb, "%s(%d)", tc->tc_name, tc->tc_quality);
 	}
+	error = sbuf_finish(&sb);
+	sbuf_delete(&sb);
 	return (error);
 }
 
@@ -1460,6 +1489,17 @@ SYSCTL_PROC(_kern_timecounter, OID_AUTO, choice, CTLTYPE_STRING | CTLFLAG_RD,
 /*
  * RFC 2783 PPS-API implementation.
  */
+
+/*
+ *  Return true if the driver is aware of the abi version extensions in the
+ *  pps_state structure, and it supports at least the given abi version number.
+ */
+static inline int
+abi_aware(struct pps_state *pps, int vers)
+{
+
+	return ((pps->kcmode & KCMODE_ABIFLAG) && pps->driver_abi >= vers);
+}
 
 static int
 pps_fetch(struct pps_fetch_args *fapi, struct pps_state *pps)
@@ -1490,7 +1530,17 @@ pps_fetch(struct pps_fetch_args *fapi, struct pps_state *pps)
 		cseq = pps->ppsinfo.clear_sequence;
 		while (aseq == pps->ppsinfo.assert_sequence &&
 		    cseq == pps->ppsinfo.clear_sequence) {
-			err = tsleep(pps, PCATCH, "ppsfch", timo);
+			if (abi_aware(pps, 1) && pps->driver_mtx != NULL) {
+				if (pps->flags & PPSFLAG_MTX_SPIN) {
+					err = msleep_spin(pps, pps->driver_mtx,
+					    "ppsfch", timo);
+				} else {
+					err = msleep(pps, pps->driver_mtx, PCATCH,
+					    "ppsfch", timo);
+				}
+			} else {
+				err = tsleep(pps, PCATCH, "ppsfch", timo);
+			}
 			if (err == EWOULDBLOCK && fapi->timeout.tv_sec == -1) {
 				continue;
 			} else if (err != 0) {
@@ -1580,7 +1630,8 @@ pps_ioctl(u_long cmd, caddr_t data, struct pps_state *pps)
 			return (EINVAL);
 		if (kapi->edge & ~pps->ppscap)
 			return (EINVAL);
-		pps->kcmode = kapi->edge;
+		pps->kcmode = (kapi->edge & KCMODE_EDGEMASK) |
+		    (pps->kcmode & KCMODE_ABIFLAG);
 		return (0);
 #else
 		return (EOPNOTSUPP);
@@ -1601,6 +1652,18 @@ pps_init(struct pps_state *pps)
 #ifdef FFCLOCK
 	pps->ppscap |= PPS_TSCLK_MASK;
 #endif
+	pps->kcmode &= ~KCMODE_ABIFLAG;
+}
+
+void
+pps_init_abi(struct pps_state *pps)
+{
+
+	pps_init(pps);
+	if (pps->driver_abi > 0) {
+		pps->kcmode |= KCMODE_ABIFLAG;
+		pps->kernel_abi = PPS_ABI_VERSION;
+	}
 }
 
 void
@@ -1610,12 +1673,13 @@ pps_capture(struct pps_state *pps)
 
 	KASSERT(pps != NULL, ("NULL pps pointer in pps_capture"));
 	th = timehands;
-	pps->capgen = th->th_generation;
+	pps->capgen = atomic_load_acq_int(&th->th_generation);
 	pps->capth = th;
 #ifdef FFCLOCK
 	pps->capffth = fftimehands;
 #endif
 	pps->capcount = th->th_counter->tc_get_timecount(th->th_counter);
+	atomic_thread_fence_acq();
 	if (pps->capgen != th->th_generation)
 		pps->capgen = 0;
 }
@@ -1636,7 +1700,8 @@ pps_event(struct pps_state *pps, int event)
 
 	KASSERT(pps != NULL, ("NULL pps pointer in pps_event"));
 	/* If the timecounter was wound up underneath us, bail out. */
-	if (pps->capgen == 0 || pps->capgen != pps->capth->th_generation)
+	if (pps->capgen == 0 || pps->capgen !=
+	    atomic_load_acq_int(&pps->capth->th_generation))
 		return;
 
 	/* Things would be easier with arrays. */
@@ -1686,6 +1751,7 @@ pps_event(struct pps_state *pps, int event)
 	bintime2timespec(&bt, &ts);
 
 	/* If the timecounter was wound up underneath us, bail out. */
+	atomic_thread_fence_acq();
 	if (pps->capgen != pps->capth->th_generation)
 		return;
 
@@ -1982,7 +2048,6 @@ sysctl_fast_gettime(SYSCTL_HANDLER_ARGS)
 	if (error != 0)
 		return (error);
 	vdso_th_enable = old_vdso_th_enable;
-	timekeep_push_vdso();
 	return (0);
 }
 SYSCTL_PROC(_kern_timecounter, OID_AUTO, fast_gettime,
@@ -2002,7 +2067,7 @@ tc_fill_vdso_timehands(struct vdso_timehands *vdso_th)
 	vdso_th->th_counter_mask = th->th_counter->tc_counter_mask;
 	vdso_th->th_offset = th->th_offset;
 	vdso_th->th_boottime = boottimebin;
-	enabled = cpu_fill_vdso_timehands(vdso_th);
+	enabled = cpu_fill_vdso_timehands(vdso_th, th->th_counter);
 	if (!vdso_th_enable)
 		enabled = 0;
 	return (enabled);
@@ -2024,7 +2089,7 @@ tc_fill_vdso_timehands32(struct vdso_timehands32 *vdso_th32)
 	*(uint64_t *)&vdso_th32->th_offset.frac[0] = th->th_offset.frac;
 	vdso_th32->th_boottime.sec = boottimebin.sec;
 	*(uint64_t *)&vdso_th32->th_boottime.frac[0] = boottimebin.frac;
-	enabled = cpu_fill_vdso_timehands32(vdso_th32);
+	enabled = cpu_fill_vdso_timehands32(vdso_th32, th->th_counter);
 	if (!vdso_th_enable)
 		enabled = 0;
 	return (enabled);

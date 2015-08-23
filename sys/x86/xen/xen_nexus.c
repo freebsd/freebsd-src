@@ -66,14 +66,11 @@ static int
 nexus_xen_attach(device_t dev)
 {
 	int error;
-#ifndef XEN
 	device_t acpi_dev = NULL;
-#endif
 
 	nexus_init_resources();
 	bus_generic_probe(dev);
 
-#ifndef XEN
 	if (xen_initial_domain()) {
 		/* Disable some ACPI devices that are not usable by Dom0 */
 		acpi_cpu_disabled = true;
@@ -84,13 +81,10 @@ nexus_xen_attach(device_t dev)
 		if (acpi_dev == NULL)
 			panic("Unable to add ACPI bus to Xen Dom0");
 	}
-#endif
 
 	error = bus_generic_attach(dev);
-#ifndef XEN
 	if (xen_initial_domain() && (error == 0))
 		acpi_install_wakeup_handler(device_get_softc(acpi_dev));
-#endif
 
 	return (error);
 }

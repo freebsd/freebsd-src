@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2014, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -40,8 +40,6 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  */
-
-#define __EXSTOROB_C__
 
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/accommon.h>
@@ -111,8 +109,8 @@ AcpiExStoreBufferToBuffer (
     {
         /* Clear existing buffer and copy in the new one */
 
-        ACPI_MEMSET (TargetDesc->Buffer.Pointer, 0, TargetDesc->Buffer.Length);
-        ACPI_MEMCPY (TargetDesc->Buffer.Pointer, Buffer, Length);
+        memset (TargetDesc->Buffer.Pointer, 0, TargetDesc->Buffer.Length);
+        memcpy (TargetDesc->Buffer.Pointer, Buffer, Length);
 
 #ifdef ACPI_OBSOLETE_BEHAVIOR
         /*
@@ -141,7 +139,7 @@ AcpiExStoreBufferToBuffer (
     {
         /* Truncate the source, copy only what will fit */
 
-        ACPI_MEMCPY (TargetDesc->Buffer.Pointer, Buffer,
+        memcpy (TargetDesc->Buffer.Pointer, Buffer,
             TargetDesc->Buffer.Length);
 
         ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
@@ -205,9 +203,9 @@ AcpiExStoreStringToString (
          * String will fit in existing non-static buffer.
          * Clear old string and copy in the new one
          */
-        ACPI_MEMSET (TargetDesc->String.Pointer, 0,
+        memset (TargetDesc->String.Pointer, 0,
             (ACPI_SIZE) TargetDesc->String.Length + 1);
-        ACPI_MEMCPY (TargetDesc->String.Pointer, Buffer, Length);
+        memcpy (TargetDesc->String.Pointer, Buffer, Length);
     }
     else
     {
@@ -231,7 +229,7 @@ AcpiExStoreStringToString (
         }
 
         TargetDesc->Common.Flags &= ~AOPOBJ_STATIC_POINTER;
-        ACPI_MEMCPY (TargetDesc->String.Pointer, Buffer, Length);
+        memcpy (TargetDesc->String.Pointer, Buffer, Length);
     }
 
     /* Set the new target length */

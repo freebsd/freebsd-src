@@ -103,6 +103,7 @@ enum {
 	IDX_MSR_STAR,
 	IDX_MSR_SF_MASK,
 	IDX_MSR_KGSBASE,
+	IDX_MSR_PAT,
 	GUEST_MSR_NUM		/* must be the last enumeration */
 };
 
@@ -133,6 +134,8 @@ void	vmx_call_isr(uintptr_t entry);
 
 u_long	vmx_fix_cr0(u_long cr0);
 u_long	vmx_fix_cr4(u_long cr4);
+
+int	vmx_set_tsc_offset(struct vmx *vmx, int vcpu, uint64_t offset);
 
 extern char	vmx_exit_guest[];
 

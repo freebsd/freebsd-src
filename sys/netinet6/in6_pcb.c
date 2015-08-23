@@ -328,6 +328,7 @@ in6_pcbladdr(register struct inpcb *inp, struct sockaddr *nam,
 {
 	register struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)nam;
 	int error = 0;
+	struct ifnet *ifp = NULL;
 	int scope_ambiguous = 0;
 	struct in6_addr in6a;
 
@@ -357,10 +358,15 @@ in6_pcbladdr(register struct inpcb *inp, struct sockaddr *nam,
 	if ((error = prison_remote_ip6(inp->inp_cred, &sin6->sin6_addr)) != 0)
 		return (error);
 
-	error = in6_selectsrc_scope(sin6, inp->in6p_outputopts,
-	    inp, inp->inp_cred, scope_ambiguous, &in6a);
+	error = in6_selectsrc(sin6, inp->in6p_outputopts,
+	    inp, NULL, inp->inp_cred, &ifp, &in6a);
 	if (error)
 		return (error);
+
+	if (ifp && scope_ambiguous &&
+	    (error = in6_setscope(&sin6->sin6_addr, ifp, NULL)) != 0) {
+		return(error);
+	}
 
 	/*
 	 * Do not update this earlier, in case we return with an error.
@@ -636,18 +642,12 @@ in6_pcbnotify(struct inpcbinfo *pcbinfo, struct sockaddr *dst,
 		/*
 		 * If the error designates a new path MTU for a destination
 		 * and the application (associated with this socket) wanted to
-		 * know the value, notify. Note that we notify for all
-		 * disconnected sockets if the corresponding application
-		 * wanted. This is because some UDP applications keep sending
-		 * sockets disconnected.
+		 * know the value, notify.
 		 * XXX: should we avoid to notify the value to TCP sockets?
 		 */
-		if (cmd == PRC_MSGSIZE && (inp->inp_flags & IN6P_MTU) != 0 &&
-		    (IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_faddr) ||
-		     IN6_ARE_ADDR_EQUAL(&inp->in6p_faddr, &sa6_dst->sin6_addr))) {
+		if (cmd == PRC_MSGSIZE && cmdarg != NULL)
 			ip6_notify_pmtu(inp, (struct sockaddr_in6 *)dst,
-					(u_int32_t *)cmdarg);
-		}
+					*(u_int32_t *)cmdarg);
 
 		/*
 		 * Detect if we should notify the error. If no source and

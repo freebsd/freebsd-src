@@ -168,7 +168,7 @@ svc_tp_create(
 		taddr = uaddr2taddr(nconf, uaddr);
 		bind.addr = *taddr;
 		free(taddr, M_RPC);
-		bind.qlen = SOMAXCONN;
+		bind.qlen = -1;
 		xprt = svc_tli_create(pool, NULL, nconf, &bind, 0, 0);
 		free(bind.addr.buf, M_RPC);
 	} else {
@@ -256,7 +256,7 @@ svc_tli_create(
 					goto freedata;
 				}
 			}
-			solisten(so, SOMAXCONN, curthread);
+			solisten(so, -1, curthread);
 		} else {
 			if (bindresvport(so,
 				(struct sockaddr *)bindaddr->addr.buf)) {

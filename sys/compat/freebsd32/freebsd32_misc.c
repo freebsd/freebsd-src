@@ -248,24 +248,26 @@ freebsd4_freebsd32_getfsstat(struct thread *td, struct freebsd4_freebsd32_getfss
 {
 	struct statfs *buf, *sp;
 	struct statfs32 stat32;
-	size_t count, size;
+	size_t count, size, copycount;
 	int error;
 
 	count = uap->bufsize / sizeof(struct statfs32);
 	size = count * sizeof(struct statfs);
-	error = kern_getfsstat(td, &buf, size, UIO_SYSSPACE, uap->flags);
+	error = kern_getfsstat(td, &buf, size, &count, UIO_SYSSPACE, uap->flags);
 	if (size > 0) {
-		count = td->td_retval[0];
 		sp = buf;
-		while (count > 0 && error == 0) {
+		copycount = count;
+		while (copycount > 0 && error == 0) {
 			copy_statfs(sp, &stat32);
 			error = copyout(&stat32, uap->buf, sizeof(stat32));
 			sp++;
 			uap->buf++;
-			count--;
+			copycount--;
 		}
 		free(buf, M_TEMP);
 	}
+	if (error == 0)
+		td->td_retval[0] = count;
 	return (error);
 }
 #endif
@@ -400,12 +402,17 @@ int
 freebsd32_execve(struct thread *td, struct freebsd32_execve_args *uap)
 {
 	struct image_args eargs;
+	struct vmspace *oldvmspace;
 	int error;
 
+	error = pre_execve(td, &oldvmspace);
+	if (error != 0)
+		return (error);
 	error = freebsd32_exec_copyin_args(&eargs, uap->fname, UIO_USERSPACE,
 	    uap->argv, uap->envv);
 	if (error == 0)
 		error = kern_execve(td, &eargs, NULL);
+	post_execve(td, error, oldvmspace);
 	return (error);
 }
 
@@ -413,14 +420,19 @@ int
 freebsd32_fexecve(struct thread *td, struct freebsd32_fexecve_args *uap)
 {
 	struct image_args eargs;
+	struct vmspace *oldvmspace;
 	int error;
 
+	error = pre_execve(td, &oldvmspace);
+	if (error != 0)
+		return (error);
 	error = freebsd32_exec_copyin_args(&eargs, NULL, UIO_SYSSPACE,
 	    uap->argv, uap->envv);
 	if (error == 0) {
 		eargs.fd = uap->fd;
 		error = kern_execve(td, &eargs, NULL);
 	}
+	post_execve(td, error, oldvmspace);
 	return (error);
 }
 
@@ -1297,6 +1309,49 @@ freebsd32_futimesat(struct thread *td, struct freebsd32_futimesat_args *uap)
 		sp = NULL;
 	return (kern_utimesat(td, uap->fd, uap->path, UIO_USERSPACE,
 		sp, UIO_SYSSPACE));
+}
+
+int
+freebsd32_futimens(struct thread *td, struct freebsd32_futimens_args *uap)
+{
+	struct timespec32 ts32[2];
+	struct timespec ts[2], *tsp;
+	int error;
+
+	if (uap->times != NULL) {
+		error = copyin(uap->times, ts32, sizeof(ts32));
+		if (error)
+			return (error);
+		CP(ts32[0], ts[0], tv_sec);
+		CP(ts32[0], ts[0], tv_nsec);
+		CP(ts32[1], ts[1], tv_sec);
+		CP(ts32[1], ts[1], tv_nsec);
+		tsp = ts;
+	} else
+		tsp = NULL;
+	return (kern_futimens(td, uap->fd, tsp, UIO_SYSSPACE));
+}
+
+int
+freebsd32_utimensat(struct thread *td, struct freebsd32_utimensat_args *uap)
+{
+	struct timespec32 ts32[2];
+	struct timespec ts[2], *tsp;
+	int error;
+
+	if (uap->times != NULL) {
+		error = copyin(uap->times, ts32, sizeof(ts32));
+		if (error)
+			return (error);
+		CP(ts32[0], ts[0], tv_sec);
+		CP(ts32[0], ts[0], tv_nsec);
+		CP(ts32[1], ts[1], tv_sec);
+		CP(ts32[1], ts[1], tv_nsec);
+		tsp = ts;
+	} else
+		tsp = NULL;
+	return (kern_utimensat(td, uap->fd, uap->path, UIO_USERSPACE,
+	    tsp, UIO_SYSSPACE, uap->flag));
 }
 
 int
@@ -2969,6 +3024,7 @@ freebsd32_procctl(struct thread *td, struct freebsd32_procctl_args *uap)
 
 	switch (uap->com) {
 	case PROC_SPROTECT:
+	case PROC_TRACE_CTL:
 		error = copyin(PTRIN(uap->data), &flags, sizeof(flags));
 		if (error != 0)
 			return (error);
@@ -2997,6 +3053,9 @@ freebsd32_procctl(struct thread *td, struct freebsd32_procctl_args *uap)
 			return (error);
 		data = &x.rk;
 		break;
+	case PROC_TRACE_STATUS:
+		data = &flags;
+		break;
 	default:
 		return (EINVAL);
 	}
@@ -3011,6 +3070,10 @@ freebsd32_procctl(struct thread *td, struct freebsd32_procctl_args *uap)
 		error1 = copyout(&x.rk, uap->data, sizeof(x.rk));
 		if (error == 0)
 			error = error1;
+		break;
+	case PROC_TRACE_STATUS:
+		if (error == 0)
+			error = copyout(&flags, uap->data, sizeof(flags));
 		break;
 	}
 	return (error);
@@ -3032,6 +3095,9 @@ freebsd32_fcntl(struct thread *td, struct freebsd32_fcntl_args *uap)
 	case F_GETLK:
 	case F_SETFD:
 	case F_SETFL:
+	case F_OGETLK:
+	case F_OSETLK:
+	case F_OSETLKW:
 		tmp = (unsigned int)(uap->arg);
 		break;
 	default:

@@ -64,7 +64,7 @@ struct	socket;
 struct	carp_if;
 struct	carp_softc;
 struct  ifvlantrunk;
-struct	nhop_info;		/* if_output */
+struct	route;			/* if_output */
 struct	vnet;
 struct	ifmedia;
 struct	netmap_adapter;
@@ -83,7 +83,7 @@ struct	netmap_adapter;
 
 #define	IF_DUNIT_NONE	-1
 
-#include <altq/if_altq.h>
+#include <net/altq/if_altq.h>
 
 TAILQ_HEAD(ifnethead, ifnet);	/* we use TAILQs so that the order of */
 TAILQ_HEAD(ifaddrhead, ifaddr);	/* instantiation is preserved in the list */
@@ -192,7 +192,7 @@ struct ifnet {
 	int	if_amcount;		/* number of all-multicast requests */
 	struct	ifaddr	*if_addr;	/* pointer to link-level address */
 	const u_int8_t *if_broadcastaddr; /* linklevel broadcast bytestring */
-	struct	rmlock if_afdata_run_lock;
+	struct	rwlock if_afdata_lock;
 	void	*if_afdata[AF_MAX];
 	int	if_afdata_initialized;
 
@@ -213,7 +213,7 @@ struct ifnet {
 	/* Various procedures of the layer2 encapsulation and drivers. */
 	int	(*if_output)		/* output routine (enqueue) */
 		(struct ifnet *, struct mbuf *, const struct sockaddr *,
-		     struct nhop_info *);
+		     struct route *);
 	void	(*if_input)		/* input routine (from h/w driver) */
 		(struct ifnet *, struct mbuf *);
 	if_start_fn_t	if_start;	/* initiate output routine */
@@ -253,7 +253,6 @@ struct ifnet {
 	u_int	if_hw_tsomaxsegcount;	/* TSO maximum segment count */
 	u_int	if_hw_tsomaxsegsize;	/* TSO maximum segment size in bytes */
 
-	struct	rwlock if_afdata_cfg_lock;
 	/*
 	 * Spare fields to be added before branching a stable branch, so
 	 * that structure can be enhanced without changing the kernel
@@ -340,53 +339,22 @@ typedef void (*group_change_event_handler_t)(void *, const char *);
 EVENTHANDLER_DECLARE(group_change_event, group_change_event_handler_t);
 #endif /* _SYS_EVENTHANDLER_H_ */
 
-#define	IF_AFDATA_LOCK_INIT(ifp)	do {			\
-	rw_init(&(ifp)->if_afdata_cfg_lock, "if_afdata_cfg");	\
-	rm_init(&(ifp)->if_afdata_run_lock, "if_afdata_run");	\
-} while (0)
+#define	IF_AFDATA_LOCK_INIT(ifp)	\
+	rw_init(&(ifp)->if_afdata_lock, "if_afdata")
 
-#define	IF_AFDATA_DESTROY(ifp)		do {	\
-	rw_destroy(&(ifp)->if_afdata_cfg_lock);	\
-	rm_destroy(&(ifp)->if_afdata_run_lock);	\
-} while(0)
+#define	IF_AFDATA_WLOCK(ifp)	rw_wlock(&(ifp)->if_afdata_lock)
+#define	IF_AFDATA_RLOCK(ifp)	rw_rlock(&(ifp)->if_afdata_lock)
+#define	IF_AFDATA_WUNLOCK(ifp)	rw_wunlock(&(ifp)->if_afdata_lock)
+#define	IF_AFDATA_RUNLOCK(ifp)	rw_runlock(&(ifp)->if_afdata_lock)
+#define	IF_AFDATA_LOCK(ifp)	IF_AFDATA_WLOCK(ifp)
+#define	IF_AFDATA_UNLOCK(ifp)	IF_AFDATA_WUNLOCK(ifp)
+#define	IF_AFDATA_TRYLOCK(ifp)	rw_try_wlock(&(ifp)->if_afdata_lock)
+#define	IF_AFDATA_DESTROY(ifp)	rw_destroy(&(ifp)->if_afdata_lock)
 
-/* if_afdata lock: control plane functions */
-#define	IF_AFDATA_CFG_RLOCK(ifp)	if_afdata_cfg_rlock(ifp)
-#define	IF_AFDATA_CFG_RUNLOCK(ifp)	if_afdata_cfg_runlock(ifp)
-#define	IF_AFDATA_CFG_WLOCK(ifp)	if_afdata_cfg_wlock(ifp)
-#define	IF_AFDATA_CFG_WUNLOCK(ifp)	if_afdata_cfg_wunlock(ifp)
-#define	IF_AFDATA_CFG_TRY_WLOCK(ifp)	if_afdata_cfg_try_wlock(ifp)
-
-#define	IF_AFDATA_CFG_LOCK_ASSERT(i)	if_afdata_cfg_lock_assert(i, RA_LOCKED)
-#define	IF_AFDATA_CFG_RLOCK_ASSERT(i)	if_afdata_cfg_lock_assert(i, RA_RLOCKED)
-#define	IF_AFDATA_CFG_WLOCK_ASSERT(i)	if_afdata_cfg_lock_assert(i, RA_WLOCKED)
-#define	IF_AFDATA_CFG_UNLOCK_ASSERT(i)	if_afdata_cfg_lock_assert(i,RA_UNLOCKED)
-
-#define	if_afdata_cfg_lock_assert(ifp, what)	\
-	rw_assert(&(ifp)->if_afdata_cfg_lock, what)
-
-void if_afdata_cfg_rlock(struct ifnet *ifp);
-void if_afdata_cfg_runlock(struct ifnet *ifp);
-void if_afdata_cfg_wlock(struct ifnet *ifp);
-void if_afdata_cfg_wunlock(struct ifnet *ifp);
-int if_afdata_cfg_try_wlock(struct ifnet *ifp);
-
-/* Wrappers */
-#define	IF_AFDATA_RLOCK		IF_AFDATA_CFG_RLOCK
-#define	IF_AFDATA_RUNLOCK	IF_AFDATA_CFG_RUNLOCK
-
-
-/* if_afdata lock: fast path */
-#define	IF_AFDATA_RUN_WLOCK(ifp)	rm_wlock(&(ifp)->if_afdata_run_lock)
-#define	IF_AFDATA_RUN_WUNLOCK(ifp)	rm_wunlock(&(ifp)->if_afdata_run_lock)
-#define	IF_AFDATA_RUN_RLOCK(ifp)	\
-	rm_rlock(&(ifp)->if_afdata_run_lock, &if_afdata_tracker)
-#define	IF_AFDATA_RUN_RUNLOCK(ifp)	\
-	rm_runlock(&(ifp)->if_afdata_run_lock, &if_afdata_tracker)
-#define	IF_AFDATA_RUN_TRACKER		struct rm_priotracker if_afdata_tracker
-
-#define	IF_AFDATA_RUN_WLOCK_ASSERT(ifp)	\
-	rm_assert(&(ifp)->if_afdata_run_lock, RA_WLOCKED)
+#define	IF_AFDATA_LOCK_ASSERT(ifp)	rw_assert(&(ifp)->if_afdata_lock, RA_LOCKED)
+#define	IF_AFDATA_RLOCK_ASSERT(ifp)	rw_assert(&(ifp)->if_afdata_lock, RA_RLOCKED)
+#define	IF_AFDATA_WLOCK_ASSERT(ifp)	rw_assert(&(ifp)->if_afdata_lock, RA_WLOCKED)
+#define	IF_AFDATA_UNLOCK_ASSERT(ifp)	rw_assert(&(ifp)->if_afdata_lock, RA_UNLOCKED)
 
 /*
  * 72 was chosen below because it is the size of a TCP/IP
@@ -396,8 +364,6 @@ int if_afdata_cfg_try_wlock(struct ifnet *ifp);
 #define	IF_MAXMTU	65535
 
 #define	TOEDEV(ifp)	((ifp)->if_llsoftc)
-
-#endif /* _KERNEL */
 
 /*
  * The ifaddr structure contains information about one address
@@ -409,7 +375,6 @@ int if_afdata_cfg_try_wlock(struct ifnet *ifp);
  * chunk of malloc'ed memory, where we store the three addresses
  * (ifa_addr, ifa_dstaddr and ifa_netmask) referenced here.
  */
-#if defined(_KERNEL) || defined(_WANT_IFADDR)
 struct ifaddr {
 	struct	sockaddr *ifa_addr;	/* address of interface */
 	struct	sockaddr *ifa_dstaddr;	/* other end of p-to-p link */
@@ -421,6 +386,8 @@ struct ifaddr {
 	void	(*ifa_rtrequest)	/* check or clean routes (+ or -)'d */
 		(int, struct rtentry *, struct rt_addrinfo *);
 	u_short	ifa_flags;		/* mostly rt_flags for cloning */
+#define	IFA_ROUTE	RTF_UP		/* route installed */
+#define	IFA_RTSELF	RTF_HOST	/* loopback route to self installed */
 	u_int	ifa_refcnt;		/* references to this structure */
 
 	counter_u64_t	ifa_ipackets;
@@ -428,11 +395,6 @@ struct ifaddr {
 	counter_u64_t	ifa_ibytes;
 	counter_u64_t	ifa_obytes;
 };
-#endif
-
-#ifdef _KERNEL
-#define	IFA_ROUTE	RTF_UP		/* route installed */
-#define	IFA_RTSELF	RTF_HOST	/* loopback route to self installed */
 
 /* For compatibility with other BSDs. SCTP uses it. */
 #define	ifa_list	ifa_link
@@ -440,7 +402,6 @@ struct ifaddr {
 struct ifaddr *	ifa_alloc(size_t size, int flags);
 void	ifa_free(struct ifaddr *ifa);
 void	ifa_ref(struct ifaddr *ifa);
-#endif /* _KERNEL */
 
 /*
  * Multicast address structure.  This is analogous to the ifaddr
@@ -455,8 +416,6 @@ struct ifmultiaddr {
 	void	*ifma_protospec;	/* protocol-specific state, if any */
 	struct	ifmultiaddr *ifma_llifma; /* pointer to ifma for ifma_lladdr */
 };
-
-#ifdef _KERNEL
 
 extern	struct rwlock ifnet_rwlock;
 extern	struct sx ifnet_sxlock;

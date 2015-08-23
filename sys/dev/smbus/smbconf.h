@@ -68,9 +68,30 @@
 #define SMB_QREAD	0x1
 
 /*
+ * smbus transction op with pass-thru capabilities
+ *
+ * This smbus function is capable of doing a smbus command transaction
+ * (read or write), and can be flagged to not issue the 'cmd' and/or
+ * issue or expect a count field as well as flagged for chaining (no STOP),
+ * which gives it an i2c pass-through capability.
+ *
+ * NOSTOP- Caller chaining transactions, do not issue STOP
+ * NOCMD-  Do not transmit the command field
+ * NOCNT-  Do not transmit (wr) or expect (rd) the count field
+ */
+#define SMB_TRANS_NOSTOP  0x0001  /* do not send STOP at end */
+#define SMB_TRANS_NOCMD   0x0002  /* ignore cmd field (do not tx) */ 
+#define SMB_TRANS_NOCNT   0x0004  /* do not tx or rx count field */  
+#define SMB_TRANS_7BIT    0x0008  /* change address mode to 7-bit */ 
+#define SMB_TRANS_10BIT   0x0010  /* change address mode to 10-bit */
+#define SMB_TRANS_NOREPORT  0x0020  /* do not report errors */
+
+/*
  * ivars codes
  */
-#define SMBUS_IVAR_ADDR	0x1	/* slave address of the device */
+enum smbus_ivars {
+    SMBUS_IVAR_ADDR,	/* slave address of the device */
+};
 
 int	smbus_request_bus(device_t, device_t, int);
 int	smbus_release_bus(device_t, device_t);
@@ -79,7 +100,12 @@ int	smbus_error(int error);
 
 void	smbus_intr(device_t, u_char, char low, char high, int error);
 
-u_char	smbus_get_addr(device_t);
+#define SMBUS_ACCESSOR(var, ivar, type)					\
+	__BUS_ACCESSOR(smbus, var, SMBUS, ivar, type)
+
+SMBUS_ACCESSOR(addr,		ADDR,		int)
+
+#undef SMBUS_ACCESSOR
 
 extern driver_t smbus_driver;
 extern devclass_t smbus_devclass;
@@ -104,6 +130,9 @@ extern devclass_t smbus_devclass;
 	(SMBUS_BWRITE(device_get_parent(bus), slave, cmd, count, buf))
 #define smbus_bread(bus,slave,cmd,count,buf) \
 	(SMBUS_BREAD(device_get_parent(bus), slave, cmd, count, buf))
+#define smbus_trans(bus,slave,cmd,op,wbuf,wcount,rbuf,rcount,actualp) \
+	(SMBUS_TRANS(device_get_parent(bus), slave, cmd, op, \
+	wbuf, wcount, rbuf, rcount, actualp))
 
 #define SMBUS_MODVER	1
 #define SMBUS_MINVER	1

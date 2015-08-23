@@ -71,7 +71,6 @@ __FBSDID("$FreeBSD$");
 #include <net/if_types.h>
 #include <net/if_var.h>
 #include <net/route.h>
-#include <net/route_internal.h>
 #include <net/vnet.h>
 
 #include <netinet/in.h>
@@ -96,7 +95,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip6.h>
 #include <netinet6/ip6_var.h>
 #include <netinet6/in6_pcb.h>
-#include <netinet/icmp6.h>
 #include <netinet6/ip6protosw.h>
 #include <netinet6/nd6.h>
 #include <netinet6/scope6_var.h>
@@ -300,7 +298,7 @@ typedef struct callout sctp_os_timer_t;
 #define SCTP_BUF_RESV_UF(m, size) m->m_data += size
 #define SCTP_BUF_AT(m, size) m->m_data + size
 #define SCTP_BUF_IS_EXTENDED(m) (m->m_flags & M_EXT)
-#define SCTP_BUF_EXTEND_SIZE(m) (m->m_ext.ext_size)
+#define SCTP_BUF_SIZE M_SIZE
 #define SCTP_BUF_TYPE(m) (m->m_type)
 #define SCTP_BUF_RECVIF(m) (m->m_pkthdr.rcvif)
 #define SCTP_BUF_PREPEND	M_PREPEND
@@ -390,8 +388,11 @@ typedef struct callout sctp_os_timer_t;
 #define SCTP_CLEAR_SO_NBIO(so)	((so)->so_state &= ~SS_NBIO)
 /* get the socket type */
 #define SCTP_SO_TYPE(so)	((so)->so_type)
-/* Use a macro for renaming sb_cc to sb_ccc */
-#define sb_cc sb_ccc
+/* Use a macro for renaming sb_cc to sb_acc.
+ * Initially sb_ccc was used, but this broke select() when used
+ * with SCTP sockets.
+ */
+#define sb_cc sb_acc
 /* reserve sb space for a socket */
 #define SCTP_SORESERVE(so, send, recv)	soreserve(so, send, recv)
 /* wakeup a socket */
@@ -411,13 +412,8 @@ typedef struct callout sctp_os_timer_t;
 typedef struct route sctp_route_t;
 typedef struct rtentry sctp_rtentry_t;
 
-/*
- * XXX multi-FIB support was backed out in r179783 and it seems clear that the
- * VRF support as currently in FreeBSD is not ready to support multi-FIB.
- * It might be best to implement multi-FIB support for both v4 and v6 indepedent
- * of VRFs and leave those to a real MPLS stack.
- */
-#define SCTP_RTALLOC(ro, vrf_id) rtalloc_ign((struct route *)ro, 0UL)
+#define SCTP_RTALLOC(ro, vrf_id, fibnum) \
+	rtalloc_ign_fib((struct route *)ro, 0UL, fibnum)
 
 /* Future zero copy wakeup/send  function */
 #define SCTP_ZERO_COPY_EVENT(inp, so)
@@ -441,7 +437,7 @@ typedef struct rtentry sctp_rtentry_t;
 	    local_stcb->sctp_ep->sctp_socket) \
 		o_flgs |= local_stcb->sctp_ep->sctp_socket->so_options & SO_DONTROUTE; \
 	m_clrprotoflags(o_pak); \
-	result = ip_output(o_pak, NULL, NULL, o_flgs, 0, NULL); \
+	result = ip_output(o_pak, NULL, ro, o_flgs, 0, NULL); \
 }
 
 #define SCTP_IP6_OUTPUT(result, o_pak, ro, ifp, stcb, vrf_id) \
@@ -451,9 +447,9 @@ typedef struct rtentry sctp_rtentry_t;
 	if (local_stcb && local_stcb->sctp_ep) \
 		result = ip6_output(o_pak, \
 				    ((struct in6pcb *)(local_stcb->sctp_ep))->in6p_outputopts, \
-				    NULL, 0, NULL, NULL); \
+				    (ro), 0, 0, ifp, NULL); \
 	else \
-		result = ip6_output(o_pak, NULL, NULL, 0, NULL, NULL); \
+		result = ip6_output(o_pak, NULL, (ro), 0, 0, ifp, NULL); \
 }
 
 struct mbuf *

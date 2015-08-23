@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2012 Marius Strobl <marius@FreeBSD.org>
+ * Copyright (c) 2015 Juraj Lutter
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,6 +32,8 @@ __FBSDID("$FreeBSD$");
  * Driver for NXP PCF8563 real-time clock/calendar
  */
 
+#include "opt_platform.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
@@ -41,6 +44,11 @@ __FBSDID("$FreeBSD$");
 #include <dev/iicbus/iicbus.h>
 #include <dev/iicbus/iiconf.h>
 #include <dev/iicbus/pcf8563reg.h>
+#ifdef FDT
+#include <dev/ofw/openfirm.h>
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+#endif
 
 #include "clock_if.h"
 #include "iicbus_if.h"
@@ -48,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #define	PCF8563_NCLOCKREGS	(PCF8563_R_YEAR - PCF8563_R_CS1 + 1)
 
 struct pcf8563_softc {
+	struct intr_config_hook	enum_hook;
 	uint32_t	sc_flags;
 #define	PCF8563_CPOL	(1 << 0)	/* PCF8563_R_MONTH_C means 19xx */
 	uint16_t	sc_addr;	/* PCF8563 slave address */
@@ -58,30 +67,62 @@ static device_attach_t pcf8563_attach;
 static device_probe_t pcf8563_probe;
 static clock_gettime_t pcf8563_gettime;
 static clock_settime_t pcf8563_settime;
+static void pcf8563_start(void *);
 
 static int
 pcf8563_probe(device_t dev)
 {
 
+#ifdef FDT
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+	if (!ofw_bus_is_compatible(dev, "nxp,pcf8563") &&
+	    !ofw_bus_is_compatible(dev, "philips,pcf8563") &&
+	    !ofw_bus_is_compatible(dev, "pcf8563"))
+		return (ENXIO);
+#endif
 	device_set_desc(dev, "NXP PCF8563 RTC");
-	return (BUS_PROBE_NOWILDCARD);
+
+	return (BUS_PROBE_DEFAULT);
 }
 
 static int
 pcf8563_attach(device_t dev)
 {
+	struct pcf8563_softc *sc;
+
+	sc = device_get_softc(dev);
+	sc->sc_addr = iicbus_get_addr(dev);
+	if (sc->sc_addr == 0)
+		sc->sc_addr = PCF8563_ADDR;
+	sc->sc_year0 = 1900;
+	sc->enum_hook.ich_func = pcf8563_start;
+	sc->enum_hook.ich_arg = dev;
+
+	/*
+	 * We have to wait until interrupts are enabled.  Sometimes I2C read
+	 * and write only works when the interrupts are available.
+	 */
+	if (config_intrhook_establish(&sc->enum_hook) != 0)
+		return (ENOMEM);
+
+	return (0);
+}
+
+static void
+pcf8563_start(void *xdev)
+{
+	device_t dev;
 	uint8_t reg = PCF8563_R_SECOND, val;
 	struct iic_msg msgs[] = {
 		{ 0, IIC_M_WR, sizeof(reg), &reg },
 		{ 0, IIC_M_RD, sizeof(val), &val }
 	};
 	struct pcf8563_softc *sc;
-	int error;
 
+	dev = (device_t)xdev;
 	sc = device_get_softc(dev);
-	sc->sc_addr = iicbus_get_addr(dev);
-	if (sc->sc_addr == 0)
-		sc->sc_addr = PCF8563_ADDR;
+	config_intrhook_disestablish(&sc->enum_hook);
 
 	/*
 	 * NB: PCF8563_R_SECOND_VL doesn't automatically clear when VDD
@@ -94,18 +135,14 @@ pcf8563_attach(device_t dev)
 	 * as a side-effect.
 	 */
 	msgs[0].slave = msgs[1].slave = sc->sc_addr;
-	error = iicbus_transfer(device_get_parent(dev), msgs, sizeof(msgs) /
-	    sizeof(*msgs));
-	if (error != 0) {
+	if (iicbus_transfer(dev, msgs, nitems(msgs)) != 0) {
 		device_printf(dev, "%s: cannot read RTC\n", __func__);
-		return (error);
+		return;
 	}
 	if ((val & PCF8563_R_SECOND_VL) != 0)
 		device_printf(dev, "%s: battery low\n", __func__);
 
-	sc->sc_year0 = 1900;
 	clock_register(dev, 1000000);   /* 1 second resolution */
-	return (0);
 }
 
 static int
@@ -122,8 +159,7 @@ pcf8563_gettime(device_t dev, struct timespec *ts)
 
 	sc = device_get_softc(dev);
 	msgs[0].slave = msgs[1].slave = sc->sc_addr;
-	error = iicbus_transfer(device_get_parent(dev), msgs, sizeof(msgs) /
-	    sizeof(*msgs));
+	error = iicbus_transfer(dev, msgs, nitems(msgs));
 	if (error != 0) {
 		device_printf(dev, "%s: cannot read RTC\n", __func__);
 		return (error);
@@ -145,6 +181,7 @@ pcf8563_gettime(device_t dev, struct timespec *ts)
 			sc->sc_flags |= PCF8563_CPOL;
 	} else if (ct.year < 100 + sc->sc_year0)
 			sc->sc_flags |= PCF8563_CPOL;
+
 	return (clock_ct_to_ts(&ct, ts));
 }
 
@@ -180,10 +217,10 @@ pcf8563_settime(device_t dev, struct timespec *ts)
 			val[PCF8563_R_MONTH] |= PCF8563_R_MONTH_C;
 
 	msgs[0].slave = sc->sc_addr;
-	error = iicbus_transfer(device_get_parent(dev), msgs, sizeof(msgs) /
-	    sizeof(*msgs));
+	error = iicbus_transfer(dev, msgs, nitems(msgs));
 	if (error != 0)
 		device_printf(dev, "%s: cannot write RTC\n", __func__);
+
 	return (error);
 }
 

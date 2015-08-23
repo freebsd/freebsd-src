@@ -527,7 +527,7 @@ smc_start_locked(struct ifnet *ifp)
 	 * Work out how many 256 byte "pages" we need.  We have to include the
 	 * control data for the packet in this calculation.
 	 */
-	npages = (len * PKT_CTRL_DATA_LEN) >> 8;
+	npages = (len + PKT_CTRL_DATA_LEN) >> 8;
 	if (npages == 0)
 		npages = 1;
 
@@ -805,12 +805,24 @@ static int
 smc_intr(void *context)
 {
 	struct smc_softc	*sc;
-	
+	uint32_t curbank;
+
 	sc = (struct smc_softc *)context;
+
+	/*
+	 * Save current bank and restore later in this function
+	 */
+	curbank = (smc_read_2(sc, BSR) & BSR_BANK_MASK);
+
 	/*
 	 * Block interrupts in order to let smc_task_intr to kick in
 	 */
+	smc_select_bank(sc, 2);
 	smc_write_1(sc, MSK, 0);
+
+	/* Restore bank */
+	smc_select_bank(sc, curbank);
+
 	taskqueue_enqueue_fast(sc->smc_tq, &sc->smc_intr);
 	return (FILTER_HANDLED);
 }
@@ -844,13 +856,19 @@ smc_task_intr(void *context, int pending)
 		 */
 		packet = smc_read_1(sc, FIFO_TX);
 		if ((packet & FIFO_EMPTY) == 0) {
+			callout_stop(&sc->smc_watchdog);
+			smc_select_bank(sc, 2);
 			smc_write_1(sc, PNR, packet);
 			smc_write_2(sc, PTR, 0 | PTR_READ | 
 			    PTR_AUTO_INCR);
-			tcr = smc_read_2(sc, DATA0);
+			smc_select_bank(sc, 0);
+			tcr = smc_read_2(sc, EPHSR);
+#if 0
 			if ((tcr & EPHSR_TX_SUC) == 0)
 				device_printf(sc->smc_dev,
 				    "bad packet\n");
+#endif
+			smc_select_bank(sc, 2);
 			smc_mmu_wait(sc);
 			smc_write_2(sc, MMUCR, MMUCR_CMD_RELEASE_PKT);
 
@@ -921,6 +939,7 @@ smc_task_intr(void *context, int pending)
 	/*
 	 * Update the interrupt mask.
 	 */
+	smc_select_bank(sc, 2);
 	if ((ifp->if_capenable & IFCAP_POLLING) == 0)
 		smc_write_1(sc, MSK, sc->smc_mask);
 

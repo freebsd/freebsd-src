@@ -28,8 +28,6 @@
 #include <machine/asm.h>
 __FBSDID("$FreeBSD$");
 
-#ifdef __ARM_EABI__
-
 /*
  * These calculate:
  * q = n / m 
@@ -64,6 +62,3 @@ ENTRY_NP(__aeabi_uldivmod)
 	ldmfd	sp!, {r2, r3}	/* Load the remainder */
 	RET
 END(__aeabi_uldivmod)
-
-#endif
-

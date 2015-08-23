@@ -106,7 +106,6 @@ struct pcib_softc
 #define	PCIB_DISABLE_MSI	0x2
 #define	PCIB_DISABLE_MSIX	0x4
 #define	PCIB_ENABLE_ARI		0x8
-    uint16_t	command;	/* command register */
     u_int	domain;		/* domain number */
     u_int	pribus;		/* primary bus number */
     struct pcib_secbus bus;	/* secondary bus numbers */
@@ -122,9 +121,7 @@ struct pcib_softc
     uint32_t	iobase;		/* base address of port window */
     uint32_t	iolimit;	/* topmost address of port window */
 #endif
-    uint16_t	secstat;	/* secondary bus status register */
     uint16_t	bridgectl;	/* bridge control register */
-    uint8_t	seclat;		/* secondary bus latency timer */
 };
 
 #define	PCIB_SUPPORTED_ARI_VER	1
@@ -148,6 +145,7 @@ void		pcib_setup_secbus(device_t dev, struct pcib_secbus *bus,
 #endif
 int		pcib_attach(device_t dev);
 void		pcib_attach_common(device_t dev);
+void		pcib_bridge_init(device_t dev);	
 #ifdef NEW_PCIB
 const char	*pcib_child_name(device_t child);
 #endif
@@ -170,5 +168,7 @@ int		pcib_alloc_msix(device_t pcib, device_t dev, int *irq);
 int		pcib_release_msix(device_t pcib, device_t dev, int irq);
 int		pcib_map_msi(device_t pcib, device_t dev, int irq, uint64_t *addr, uint32_t *data);
 uint16_t	pcib_get_rid(device_t pcib, device_t dev);
+void		pcib_decode_rid(device_t pcib, uint16_t rid, int *bus, 
+		    int *slot, int *func);
 
 #endif

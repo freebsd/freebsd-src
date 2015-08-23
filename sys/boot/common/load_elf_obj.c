@@ -129,17 +129,10 @@ __elfN(obj_loadfile)(char *filename, u_int64_t dest,
 		goto oerr;
 	}
 
-	kfp = file_findfile(NULL, NULL);
+	kfp = file_findfile(NULL, __elfN(obj_kerneltype));
 	if (kfp == NULL) {
 		printf("elf" __XSTRING(__ELF_WORD_SIZE)
 		    "_obj_loadfile: can't load module before kernel\n");
-		err = EPERM;
-		goto oerr;
-	}
-	if (strcmp(__elfN(obj_kerneltype), kfp->f_type)) {
-		printf("elf" __XSTRING(__ELF_WORD_SIZE)
-		    "_obj_loadfile: can't load module with kernel type '%s'\n",
-		    kfp->f_type);
 		err = EPERM;
 		goto oerr;
 	}
@@ -416,6 +409,7 @@ __elfN(obj_parse_modmetadata)(struct preloaded_file *fp, elf_file_t ef)
 			modcnt++;
 			break;
 		case MDT_MODULE:
+		case MDT_PNP_INFO:
 			break;
 		default:
 			printf("unknown type %d\n", md.md_type);

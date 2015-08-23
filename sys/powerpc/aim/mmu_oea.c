@@ -250,7 +250,7 @@ static int		moea_pte_insert(u_int, struct pte *);
  * PVO calls.
  */
 static int	moea_pvo_enter(pmap_t, uma_zone_t, struct pvo_head *,
-		    vm_offset_t, vm_offset_t, u_int, int);
+		    vm_offset_t, vm_paddr_t, u_int, int);
 static void	moea_pvo_remove(struct pvo_entry *, int);
 static struct	pvo_entry *moea_pvo_find_va(pmap_t, vm_offset_t, int *);
 static struct	pte *moea_pvo_to_pte(const struct pvo_entry *, int);
@@ -260,7 +260,7 @@ static struct	pte *moea_pvo_to_pte(const struct pvo_entry *, int);
  */
 static int		moea_enter_locked(pmap_t, vm_offset_t, vm_page_t,
 			    vm_prot_t, u_int, int8_t);
-static void		moea_syncicache(vm_offset_t, vm_size_t);
+static void		moea_syncicache(vm_paddr_t, vm_size_t);
 static boolean_t	moea_query_bit(vm_page_t, int);
 static u_int		moea_clear_bit(vm_page_t, int);
 static void		moea_kremove(mmu_t, vm_offset_t);
@@ -306,10 +306,10 @@ void moea_deactivate(mmu_t, struct thread *);
 void moea_cpu_bootstrap(mmu_t, int);
 void moea_bootstrap(mmu_t, vm_offset_t, vm_offset_t);
 void *moea_mapdev(mmu_t, vm_paddr_t, vm_size_t);
-void *moea_mapdev_attr(mmu_t, vm_offset_t, vm_size_t, vm_memattr_t);
+void *moea_mapdev_attr(mmu_t, vm_paddr_t, vm_size_t, vm_memattr_t);
 void moea_unmapdev(mmu_t, vm_offset_t, vm_size_t);
 vm_paddr_t moea_kextract(mmu_t, vm_offset_t);
-void moea_kenter_attr(mmu_t, vm_offset_t, vm_offset_t, vm_memattr_t);
+void moea_kenter_attr(mmu_t, vm_offset_t, vm_paddr_t, vm_memattr_t);
 void moea_kenter(mmu_t, vm_offset_t, vm_paddr_t);
 void moea_page_set_memattr(mmu_t mmu, vm_page_t m, vm_memattr_t ma);
 boolean_t moea_dev_direct_mapped(mmu_t, vm_paddr_t, vm_size_t);
@@ -371,7 +371,7 @@ static mmu_method_t moea_methods[] = {
 MMU_DEF(oea_mmu, MMU_TYPE_OEA, moea_methods, 0);
 
 static __inline uint32_t
-moea_calc_wimg(vm_offset_t pa, vm_memattr_t ma)
+moea_calc_wimg(vm_paddr_t pa, vm_memattr_t ma)
 {
 	uint32_t pte_lo;
 	int i;
@@ -420,7 +420,7 @@ static void
 tlbia(void)
 {
 	vm_offset_t va;
- 
+
 	for (va = 0; va < 0x00040000; va += 0x00001000) {
 		__asm __volatile("tlbie %0" :: "r"(va));
 		powerpc_sync();
@@ -623,17 +623,8 @@ moea_cpu_bootstrap(mmu_t mmup, int ap)
 		isync();
 	}
 
-#ifdef WII
-	/*
-	 * Special case for the Wii: don't install the PCI BAT.
-	 */
-	if (strcmp(installed_platform(), "wii") != 0) {
-#endif
-		__asm __volatile("mtdbatu 1,%0" :: "r"(battable[8].batu));
-		__asm __volatile("mtdbatl 1,%0" :: "r"(battable[8].batl));
-#ifdef WII
-	}
-#endif
+	__asm __volatile("mtdbatu 1,%0" :: "r"(battable[8].batu));
+	__asm __volatile("mtdbatl 1,%0" :: "r"(battable[8].batl));
 	isync();
 
 	__asm __volatile("mtibatu 1,%0" :: "r"(0));
@@ -706,15 +697,9 @@ moea_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend)
 	    :: "r"(battable[0].batu), "r"(battable[0].batl));
 	mtmsr(msr);
 
-#ifdef WII
-        if (strcmp(installed_platform(), "wii") != 0) {
-#endif
-		/* map pci space */
-		__asm __volatile("mtdbatu 1,%0" :: "r"(battable[8].batu));
-		__asm __volatile("mtdbatl 1,%0" :: "r"(battable[8].batl));
-#ifdef WII
-	}
-#endif
+	/* map pci space */
+	__asm __volatile("mtdbatu 1,%0" :: "r"(battable[8].batu));
+	__asm __volatile("mtdbatl 1,%0" :: "r"(battable[8].batl));
 	isync();
 
 	/* set global direct map flag */
@@ -885,7 +870,7 @@ moea_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend)
 	 */
 	chosen = OF_finddevice("/chosen");
 	if (chosen != -1 && OF_getprop(chosen, "mmu", &mmui, 4) != -1 &&
-	    (mmu = OF_instance_to_package(mmui)) != -1 && 
+	    (mmu = OF_instance_to_package(mmui)) != -1 &&
 	    (sz = OF_getproplen(mmu, "translations")) != -1) {
 		translations = NULL;
 		for (i = 0; phys_avail[i] != 0; i += 2) {
@@ -917,7 +902,7 @@ moea_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend)
 			/* Enter the pages */
 			for (off = 0; off < translations[i].om_len;
 			    off += PAGE_SIZE)
-				moea_kenter(mmup, translations[i].om_va + off, 
+				moea_kenter(mmup, translations[i].om_va + off,
 					    translations[i].om_pa + off);
 		}
 	}
@@ -1001,6 +986,8 @@ moea_activate(mmu_t mmu, struct thread *td)
 
 	CPU_SET(PCPU_GET(cpuid), &pm->pm_active);
 	PCPU_SET(curpmap, pmr);
+
+	mtsrin(USER_SR << ADDR_SR_SHFT, td->td_pcb->pcb_cpu.aim.usr_vsid);
 }
 
 void
@@ -1485,10 +1472,10 @@ moea_kenter(mmu_t mmu, vm_offset_t va, vm_paddr_t pa)
 }
 
 void
-moea_kenter_attr(mmu_t mmu, vm_offset_t va, vm_offset_t pa, vm_memattr_t ma)
+moea_kenter_attr(mmu_t mmu, vm_offset_t va, vm_paddr_t pa, vm_memattr_t ma)
 {
 	u_int		pte_lo;
-	int		error;	
+	int		error;
 
 #if 0
 	if (va < VM_MIN_KERNEL_ADDRESS)
@@ -1637,7 +1624,7 @@ moea_pinit(mmu_t mmu, pmap_t pmap)
 	    == NULL) {
 		pmap->pmap_phys = pmap;
 	}
-	
+
 
 	mtx_lock(&moea_vsid_mutex);
 	/*
@@ -1782,7 +1769,7 @@ void
 moea_release(mmu_t mmu, pmap_t pmap)
 {
         int idx, mask;
-        
+
 	/*
 	 * Free segment register's VSID
 	 */
@@ -1890,14 +1877,14 @@ moea_bootstrap_alloc(vm_size_t size, u_int align)
 }
 
 static void
-moea_syncicache(vm_offset_t pa, vm_size_t len)
+moea_syncicache(vm_paddr_t pa, vm_size_t len)
 {
 	__syncicache((void *)pa, len);
 }
 
 static int
 moea_pvo_enter(pmap_t pm, uma_zone_t zone, struct pvo_head *pvo_head,
-    vm_offset_t va, vm_offset_t pa, u_int pte_lo, int flags)
+    vm_offset_t va, vm_paddr_t pa, u_int pte_lo, int flags)
 {
 	struct	pvo_entry *pvo;
 	u_int	sr;
@@ -1957,7 +1944,7 @@ moea_pvo_enter(pmap_t pm, uma_zone_t zone, struct pvo_head *pvo_head,
 	} else {
 		if (moea_bpvo_pool_index >= BPVO_POOL_SIZE) {
 			panic("moea_enter: bpvo pool exhausted, %d, %d, %d",
-			      moea_bpvo_pool_index, BPVO_POOL_SIZE, 
+			      moea_bpvo_pool_index, BPVO_POOL_SIZE,
 			      BPVO_POOL_SIZE * sizeof(struct pvo_entry));
 		}
 		pvo = &moea_bpvo_pool[moea_bpvo_pool_index];
@@ -2307,7 +2294,7 @@ moea_pte_spillable_ident(u_int ptegidx)
 		if (!(pt->pte_lo & PTE_REF))
 			return (pvo_walk);
 	}
-	
+
 	return (pvo);
 }
 
@@ -2485,7 +2472,7 @@ moea_clear_bit(vm_page_t m, int ptebit)
  * Return true if the physical range is encompassed by the battable[idx]
  */
 static int
-moea_bat_mapped(int idx, vm_offset_t pa, vm_size_t size)
+moea_bat_mapped(int idx, vm_paddr_t pa, vm_size_t size)
 {
 	u_int prot;
 	u_int32_t start;
@@ -2504,7 +2491,7 @@ moea_bat_mapped(int idx, vm_offset_t pa, vm_size_t size)
 	 */
 	prot = battable[idx].batl & (BAT_I|BAT_G|BAT_PP_RW);
 	if (prot != (BAT_I|BAT_G|BAT_PP_RW))
-		return (EPERM);	
+		return (EPERM);
 
 	/*
 	 * The address should be within the BAT range. Assume that the
@@ -2527,7 +2514,7 @@ moea_dev_direct_mapped(mmu_t mmu, vm_paddr_t pa, vm_size_t size)
 	int i;
 
 	/*
-	 * This currently does not work for entries that 
+	 * This currently does not work for entries that
 	 * overlap 256M BAT segments.
 	 */
 
@@ -2552,7 +2539,7 @@ moea_mapdev(mmu_t mmu, vm_paddr_t pa, vm_size_t size)
 }
 
 void *
-moea_mapdev_attr(mmu_t mmu, vm_offset_t pa, vm_size_t size, vm_memattr_t ma)
+moea_mapdev_attr(mmu_t mmu, vm_paddr_t pa, vm_size_t size, vm_memattr_t ma)
 {
 	vm_offset_t va, tmpva, ppa, offset;
 	int i;
@@ -2560,7 +2547,7 @@ moea_mapdev_attr(mmu_t mmu, vm_offset_t pa, vm_size_t size, vm_memattr_t ma)
 	ppa = trunc_page(pa);
 	offset = pa & PAGE_MASK;
 	size = roundup(offset + size, PAGE_SIZE);
-	
+
 	/*
 	 * If the physical address lies within a valid BAT table entry,
 	 * return the 1:1 mapping. This currently doesn't work

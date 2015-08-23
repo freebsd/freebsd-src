@@ -474,7 +474,7 @@ static void __ecore_vlan_mac_h_exec_pending(struct bxe_softc *sc,
 	o->head_exe_request = FALSE;
 	o->saved_ramrod_flags = 0;
 	rc = ecore_exe_queue_step(sc, &o->exe_queue, &ramrod_flags);
-	if (rc != ECORE_SUCCESS) {
+	if ((rc != ECORE_SUCCESS) && (rc != ECORE_PENDING)) {
 		ECORE_ERR("execution of pending commands failed with rc %d\n",
 			  rc);
 #ifdef ECORE_STOP_ON_ERROR

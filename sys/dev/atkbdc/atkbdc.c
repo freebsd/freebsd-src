@@ -114,6 +114,41 @@ static int wait_for_kbd_ack(atkbdc_softc_t *kbdc);
 static int wait_for_aux_data(atkbdc_softc_t *kbdc);
 static int wait_for_aux_ack(atkbdc_softc_t *kbdc);
 
+struct atkbdc_quirks {
+    const char* bios_vendor;
+    const char*	maker;
+    const char*	product;
+    int		quirk;
+};
+
+static struct atkbdc_quirks quirks[] = {
+    {"coreboot", "Acer", "Peppy",
+	KBDC_QUIRK_KEEP_ACTIVATED | KBDC_QUIRK_IGNORE_PROBE_RESULT |
+	KBDC_QUIRK_RESET_AFTER_PROBE | KBDC_QUIRK_SETLEDS_ON_INIT},
+
+    {NULL, NULL, NULL, 0}
+};
+
+#define QUIRK_STR_MATCH(s1, s2) (s1 == NULL || \
+    (s2 != NULL && !strcmp(s1, s2)))
+
+static int
+atkbdc_getquirks(void)
+{
+    int i;
+    char* bios_vendor = kern_getenv("smbios.bios.vendor");
+    char* maker = kern_getenv("smbios.system.maker");
+    char* product = kern_getenv("smbios.system.product");
+
+    for (i=0; quirks[i].quirk != 0; ++i)
+	if (QUIRK_STR_MATCH(quirks[i].bios_vendor, bios_vendor) &&
+	    QUIRK_STR_MATCH(quirks[i].maker, maker) &&
+	    QUIRK_STR_MATCH(quirks[i].product, product))
+		return (quirks[i].quirk);
+
+    return (0);
+}
+
 atkbdc_softc_t
 *atkbdc_get_softc(int unit)
 {
@@ -295,6 +330,7 @@ atkbdc_setup(atkbdc_softc_t *sc, bus_space_tag_t tag, bus_space_handle_t h0,
 #else
 	sc->retry = 5000;
 #endif
+	sc->quirks = atkbdc_getquirks();
 
 	return 0;
 }
@@ -1124,7 +1160,8 @@ void
 kbdc_set_device_mask(KBDC p, int mask)
 {
     kbdcp(p)->command_mask = 
-	mask & (KBD_KBD_CONTROL_BITS | KBD_AUX_CONTROL_BITS);
+	mask & (((kbdcp(p)->quirks & KBDC_QUIRK_KEEP_ACTIVATED)
+	    ? 0 : KBD_KBD_CONTROL_BITS) | KBD_AUX_CONTROL_BITS);
 }
 
 int

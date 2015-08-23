@@ -35,6 +35,7 @@
 #define ATH_SUPPORT_PAPRD       1
 #define ATH_SUPPORT_TxBF        0
 #define AH_PRIVATE_DIAG         1
+#define ATH_SUPPORT_KEYPLUMB_WAR 0
 
 /* XXX need to reverify these; they came in with qcamain */
 #define ATH_SUPPORT_FAST_CC 0

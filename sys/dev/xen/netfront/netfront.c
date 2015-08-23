@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sockio.h>
+#include <sys/limits.h>
 #include <sys/mbuf.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
@@ -86,8 +87,6 @@ __FBSDID("$FreeBSD$");
 #include <xen/xenbus/xenbusvar.h>
 
 #include <machine/xen/xenvar.h>
-
-#include <dev/xen/netfront/mbufq.h>
 
 #include "xenbus_if.h"
 
@@ -277,7 +276,7 @@ struct netfront_info {
 	int			rx_ring_ref;
 	uint8_t			mac[ETHER_ADDR_LEN];
 	struct xn_chain_data	xn_cdata;	/* mbufs */
-	struct mbuf_head	xn_rx_batch;	/* head of the batch queue */
+	struct mbufq		xn_rx_batch;	/* batch queue */
 
 	int			xn_if_flags;
 	struct callout	        xn_stat_ch;
@@ -286,6 +285,8 @@ struct netfront_info {
 	multicall_entry_t	rx_mcl[NET_RX_RING_SIZE+1];
 	mmu_update_t		rx_mmu[NET_RX_RING_SIZE];
 	struct ifmedia		sc_media;
+
+	bool			xn_resume;
 };
 
 #define rx_mbufs xn_cdata.xn_rx_chain
@@ -501,6 +502,7 @@ netfront_resume(device_t dev)
 {
 	struct netfront_info *info = device_get_softc(dev);
 
+	info->xn_resume = true;
 	netif_disconnect_backend(info);
 	return (0);
 }
@@ -683,7 +685,6 @@ netfront_backend_changed(device_t dev, XenbusState newstate)
 	switch (newstate) {
 	case XenbusStateInitialising:
 	case XenbusStateInitialised:
-	case XenbusStateConnected:
 	case XenbusStateUnknown:
 	case XenbusStateClosed:
 	case XenbusStateReconfigured:
@@ -695,12 +696,14 @@ netfront_backend_changed(device_t dev, XenbusState newstate)
 		if (network_connect(sc) != 0)
 			break;
 		xenbus_set_state(dev, XenbusStateConnected);
-#ifdef INET
-		netfront_send_fake_arp(dev, sc);
-#endif
 		break;
 	case XenbusStateClosing:
 		xenbus_set_state(dev, XenbusStateClosed);
+		break;
+	case XenbusStateConnected:
+#ifdef INET
+		netfront_send_fake_arp(dev, sc);
+#endif
 		break;
 	}
 }
@@ -816,17 +819,8 @@ network_alloc_rx_buffers(struct netfront_info *sc)
 	 */
 	batch_target = sc->rx_target - (req_prod - sc->rx.rsp_cons);
 	for (i = mbufq_len(&sc->xn_rx_batch); i < batch_target; i++) {
-		MGETHDR(m_new, M_NOWAIT, MT_DATA);
+		m_new = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR, MJUMPAGESIZE);
 		if (m_new == NULL) {
-			printf("%s: MGETHDR failed\n", __func__);
-			goto no_mbuf;
-		}
-
-		if (m_cljget(m_new, M_NOWAIT, MJUMPAGESIZE) == NULL) {
-			printf("%s: m_cljget failed\n", __func__);
-			m_freem(m_new);
-
-no_mbuf:
 			if (i != 0)
 				goto refill;
 			/*
@@ -837,7 +831,7 @@ no_mbuf:
 		m_new->m_len = m_new->m_pkthdr.len = MJUMPAGESIZE;
 		
 		/* queue the mbufs allocated */
-		mbufq_tail(&sc->xn_rx_batch, m_new);
+		(void )mbufq_enqueue(&sc->xn_rx_batch, m_new);
 	}
 	
 	/*
@@ -889,12 +883,11 @@ refill:
 		if (sc->copying_receiver == 0) {
 			gnttab_grant_foreign_transfer_ref(ref,
 			    otherend_id, pfn);
-			sc->rx_pfn_array[nr_flips] = PFNTOMFN(pfn);
+			sc->rx_pfn_array[nr_flips] = pfn;
 			if (!xen_feature(XENFEAT_auto_translated_physmap)) {
 				/* Remove this page before passing
 				 * back to Xen.
 				 */
-				set_phys_to_machine(pfn, INVALID_P2M_ENTRY);
 				MULTI_update_va_mapping(&sc->rx_mcl[i],
 				    vaddr, 0, 0);
 			}
@@ -902,7 +895,7 @@ refill:
 		} else {
 			gnttab_grant_foreign_access_ref(ref,
 			    otherend_id,
-			    PFNTOMFN(pfn), 0);
+			    pfn, 0);
 		}
 		req->id = id;
 		req->gref = ref;
@@ -917,7 +910,6 @@ refill:
 	 * We may have allocated buffers which have entries outstanding
 	 * in the page * update queue -- make sure we flush those first!
 	 */
-	PT_UPDATES_FLUSH();
 	if (nr_flips != 0) {
 #ifdef notyet
 		/* Tell the ballon driver what is going on. */
@@ -973,7 +965,7 @@ xn_rxeof(struct netfront_info *np)
 	RING_IDX i, rp;
 	multicall_entry_t *mcl;
 	struct mbuf *m;
-	struct mbuf_head rxq, errq;
+	struct mbufq rxq, errq;
 	int err, pages_flipped = 0, work_to_do;
 
 	do {
@@ -981,8 +973,9 @@ xn_rxeof(struct netfront_info *np)
 		if (!netfront_carrier_ok(np))
 			return;
 
-		mbufq_init(&errq);
-		mbufq_init(&rxq);
+		/* XXX: there should be some sane limit. */
+		mbufq_init(&errq, INT_MAX);
+		mbufq_init(&rxq, INT_MAX);
 
 		ifp = np->xn_ifp;
 	
@@ -1000,7 +993,7 @@ xn_rxeof(struct netfront_info *np)
 
 			if (__predict_false(err)) {
 				if (m)
-					mbufq_tail(&errq, m);
+					(void )mbufq_enqueue(&errq, m);
 				np->stats.rx_errors++;
 				continue;
 			}
@@ -1022,7 +1015,7 @@ xn_rxeof(struct netfront_info *np)
 			np->stats.rx_packets++;
 			np->stats.rx_bytes += m->m_pkthdr.len;
 
-			mbufq_tail(&rxq, m);
+			(void )mbufq_enqueue(&rxq, m);
 			np->rx.rsp_cons = i;
 		}
 
@@ -1046,8 +1039,7 @@ xn_rxeof(struct netfront_info *np)
 			}
 		}
 	
-		while ((m = mbufq_dequeue(&errq)))
-			m_freem(m);
+		mbufq_drain(&errq);
 
 		/* 
 		 * Process all the mbufs after the remapping is complete.
@@ -1371,8 +1363,6 @@ xennet_get_responses(struct netfront_info *np,
 				mmu->ptr = ((vm_paddr_t)mfn << PAGE_SHIFT) |
 				    MMU_MACHPHYS_UPDATE;
 				mmu->val = pfn;
-
-				set_phys_to_machine(pfn, mfn);
 			}
 			pages_flipped++;
 		} else {
@@ -1482,7 +1472,6 @@ xn_assemble_tx_request(struct netfront_info *sc, struct mbuf *m_head)
 	struct ifnet *ifp;
 	struct mbuf *m;
 	u_int nfrags;
-	netif_extra_info_t *extra;
 	int otherend_id;
 
 	ifp = sc->xn_ifp;
@@ -1556,7 +1545,6 @@ xn_assemble_tx_request(struct netfront_info *sc, struct mbuf *m_head)
 	 * of fragments or hit the end of the mbuf chain.
 	 */
 	m = m_head;
-	extra = NULL;
 	otherend_id = xenbus_get_otherend_id(sc->xbdev);
 	for (m = m_head; m; m = m->m_next) {
 		netif_tx_request_t *tx;
@@ -1741,7 +1729,6 @@ xn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	int mask, error = 0;
 	switch(cmd) {
 	case SIOCSIFADDR:
-	case SIOCGIFADDR:
 #ifdef INET
 		XN_LOCK(sc);
 		if (ifa->ifa_addr->sa_family == AF_INET) {
@@ -1940,7 +1927,7 @@ network_connect(struct netfront_info *np)
 		} else {
 			gnttab_grant_foreign_access_ref(ref,
 			    xenbus_get_otherend_id(np->xbdev),
-			    PFNTOMFN(pfn), 0);
+			    pfn, 0);
 		}
 		req->gref = ref;
 		req->id   = requeue_idx;
@@ -1998,18 +1985,33 @@ xn_query_features(struct netfront_info *np)
 static int
 xn_configure_features(struct netfront_info *np)
 {
-	int err;
+	int err, cap_enabled;
 
 	err = 0;
+
+	if (np->xn_resume &&
+	    ((np->xn_ifp->if_capenable & np->xn_ifp->if_capabilities)
+	    == np->xn_ifp->if_capenable)) {
+		/* Current options are available, no need to do anything. */
+		return (0);
+	}
+
+	/* Try to preserve as many options as possible. */
+	if (np->xn_resume)
+		cap_enabled = np->xn_ifp->if_capenable;
+	else
+		cap_enabled = UINT_MAX;
+
 #if __FreeBSD_version >= 700000 && (defined(INET) || defined(INET6))
-	if ((np->xn_ifp->if_capenable & IFCAP_LRO) != 0)
+	if ((np->xn_ifp->if_capenable & IFCAP_LRO) == (cap_enabled & IFCAP_LRO))
 		tcp_lro_free(&np->xn_lro);
 #endif
     	np->xn_ifp->if_capenable =
-	    np->xn_ifp->if_capabilities & ~(IFCAP_LRO|IFCAP_TSO4);
+	    np->xn_ifp->if_capabilities & ~(IFCAP_LRO|IFCAP_TSO4) & cap_enabled;
 	np->xn_ifp->if_hwassist &= ~CSUM_TSO;
 #if __FreeBSD_version >= 700000 && (defined(INET) || defined(INET6))
-	if (xn_enable_lro && (np->xn_ifp->if_capabilities & IFCAP_LRO) != 0) {
+	if (xn_enable_lro && (np->xn_ifp->if_capabilities & IFCAP_LRO) ==
+	    (cap_enabled & IFCAP_LRO)) {
 		err = tcp_lro_init(&np->xn_lro);
 		if (err) {
 			device_printf(np->xbdev, "LRO initialization failed\n");
@@ -2018,7 +2020,8 @@ xn_configure_features(struct netfront_info *np)
 			np->xn_ifp->if_capenable |= IFCAP_LRO;
 		}
 	}
-	if ((np->xn_ifp->if_capabilities & IFCAP_TSO4) != 0) {
+	if ((np->xn_ifp->if_capabilities & IFCAP_TSO4) ==
+	    (cap_enabled & IFCAP_TSO4)) {
 		np->xn_ifp->if_capenable |= IFCAP_TSO4;
 		np->xn_ifp->if_hwassist |= CSUM_TSO;
 	}
@@ -2064,6 +2067,9 @@ create_netdev(device_t dev)
 		np->rx_mbufs[i] = NULL;
 		np->grant_rx_ref[i] = GRANT_REF_INVALID;
 	}
+
+	mbufq_init(&np->xn_rx_batch, INT_MAX);
+
 	/* A grant for every tx ring slot */
 	if (gnttab_alloc_grant_references(NET_TX_RING_SIZE,
 					  &np->gref_tx_head) != 0) {
@@ -2105,7 +2111,7 @@ create_netdev(device_t dev)
 	ifp->if_hw_tsomaxsegsize = PAGE_SIZE;
 	
     	ether_ifattach(ifp, np->mac);
-    	callout_init(&np->xn_stat_ch, CALLOUT_MPSAFE);
+    	callout_init(&np->xn_stat_ch, 1);
 	netfront_carrier_off(np);
 
 	return (0);

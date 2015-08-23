@@ -28,16 +28,10 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/types.h>
-#include <sys/queue.h>
-#include <sys/cpuset.h>
 #include <sys/systm.h>
-
-#include <vm/vm.h>
 
 #include <machine/vmm.h>
 #include <machine/vmm_instruction_emul.h>
-#include <x86/psl.h>
 
 #include "vatpic.h"
 #include "vatpit.h"
@@ -74,7 +68,7 @@ inout_instruction(struct vm_exit *vmexit)
 	static const char *iodesc[] = {
 		"outb", "outw", "outl",
 		"inb", "inw", "inl",
-		"outsb", "outsw", "outsd"
+		"outsb", "outsw", "outsd",
 		"insb", "insw", "insd",
 	};
 

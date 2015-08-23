@@ -47,15 +47,28 @@
 		ranges = <0x0 0x18000000 0x04000000>;
 		bus-frequency = <0>;
 
+		pic: pic@4000 {
+			compatible = "netlogic,xlp-pic";
+			interrupt-controller;
+			#address-cells = <0>;
+			#interrupt-cells = <1>;
+			reg = <0x4000 0x200>;
+		};
+
 		serial0: serial@30100 {
 			compatible = "ns16550";
 			reg = <0x30100 0x200>;
 			reg-shift = <2>;
 			current-speed = <115200>;
 			clock-frequency = <133000000>;
-			interrupts = <9>;
+			interrupt-parent = <&pic>;
+			interrupts = <17>;
 		};
 
+		pci0: pci@18000000 {
+			compatible = "netlogic,xlp-pci", "pci";
+			reg = <0xd0000000 0x10000000>;
+		};
 	};
 
 	chosen {

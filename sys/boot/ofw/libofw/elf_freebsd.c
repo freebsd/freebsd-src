@@ -67,7 +67,7 @@ int
 __elfN(ofw_exec)(struct preloaded_file *fp)
 {
 	struct file_metadata	*fmp;
-	vm_offset_t		mdp;
+	vm_offset_t		mdp, dtbp;
 	Elf_Ehdr		*e;
 	int			error;
 	intptr_t		entry;
@@ -78,15 +78,21 @@ __elfN(ofw_exec)(struct preloaded_file *fp)
 	e = (Elf_Ehdr *)&fmp->md_data;
 	entry = e->e_entry;
 
-	if ((error = md_load(fp->f_args, &mdp)) != 0)
+	if ((error = md_load(fp->f_args, &mdp, &dtbp)) != 0)
 		return (error);
 
 	printf("Kernel entry at 0x%lx ...\n", e->e_entry);
 
 	dev_cleanup();
 	ofw_release_heap();
-	OF_chain((void *)reloc, end - (char *)reloc, (void *)entry,
-	    (void *)mdp, sizeof(mdp));
+	if (dtbp != 0) {
+		OF_quiesce();
+		((int (*)(u_long, u_long, u_long, void *, u_long))entry)(dtbp, 0, 0,
+		    mdp, sizeof(mdp));
+	} else {
+		OF_chain((void *)reloc, end - (char *)reloc, (void *)entry,
+		    (void *)mdp, sizeof(mdp));
+	}
 
 	panic("exec returned");
 }

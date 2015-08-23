@@ -37,8 +37,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/mbuf.h>
 #include <sys/module.h>
 #include <sys/types.h>
-#include <sys/lock.h>
-#include <sys/rmlock.h>
 #include <sys/sockopt.h>
 #include <sys/sysctl.h>
 #include <sys/socket.h>
@@ -49,7 +47,6 @@ __FBSDID("$FreeBSD$");
 #include <net/if_types.h>
 #include <net/if_vlan_var.h>
 #include <net/if_llatbl.h>
-#include <net/if_llatbl_var.h>
 #include <net/route.h>
 
 #include <netinet/if_ether.h>
@@ -77,7 +74,7 @@ static eventhandler_tag route_redirect_eh;
 
 static int
 toedev_connect(struct toedev *tod __unused, struct socket *so __unused,
-    struct nhopu_extended *nh __unused, struct sockaddr *nam __unused)
+    struct rtentry *rt __unused, struct sockaddr *nam __unused)
 {
 
 	return (ENOTSUP);
@@ -138,7 +135,7 @@ toedev_l2_update(struct toedev *tod __unused, struct ifnet *ifp __unused,
 
 static void
 toedev_route_redirect(struct toedev *tod __unused, struct ifnet *ifp __unused,
-    struct nhopu_extended *nh0 __unused, struct nhopu_extended *nh1 __unused)
+    struct rtentry *rt0 __unused, struct rtentry *rt1 __unused)
 {
 
 	return;
@@ -393,26 +390,21 @@ toe_lle_event(void *arg __unused, struct llentry *lle, int evt)
 	struct sockaddr *sa;
 	uint8_t *lladdr;
 	uint16_t vtag;
-	int sa_family;
-	struct sockaddr_storage ss;
 
 	LLE_WLOCK_ASSERT(lle);
 
-	ifp = lltable_get_ifp(lle->lle_tbl);
-	sa_family = lltable_get_af(lle->lle_tbl);
+	ifp = lle->lle_tbl->llt_ifp;
+	sa = L3_ADDR(lle);
 
-#if 0
-	/* XXX: Do not panic, ignore event instead */
 	KASSERT(sa->sa_family == AF_INET || sa->sa_family == AF_INET6,
 	    ("%s: lle_event %d for lle %p but sa %p !INET && !INET6",
 	    __func__, evt, lle, sa));
-#endif
 
 	/*
 	 * Not interested if the interface's TOE capability is not enabled.
 	 */
-	if ((sa_family == AF_INET && !(ifp->if_capenable & IFCAP_TOE4)) ||
-	    (sa_family == AF_INET6 && !(ifp->if_capenable & IFCAP_TOE6)))
+	if ((sa->sa_family == AF_INET && !(ifp->if_capenable & IFCAP_TOE4)) ||
+	    (sa->sa_family == AF_INET6 && !(ifp->if_capenable & IFCAP_TOE6)))
 		return;
 
 	tod = TOEDEV(ifp);
@@ -439,8 +431,6 @@ toe_lle_event(void *arg __unused, struct llentry *lle, int evt)
 #endif
 	}
 
-	sa = (struct sockaddr *)&ss;
-	lltable_fill_sa_entry(lle, sa);
 	tod->tod_l2_update(tod, ifp, sa, lladdr, vtag);
 }
 
@@ -448,8 +438,8 @@ toe_lle_event(void *arg __unused, struct llentry *lle, int evt)
  * XXX: implement.
  */
 static void
-toe_route_redirect_event(void *arg __unused, struct nhopu_extended *nh0,
-    struct nhopu_extended *nh1, struct sockaddr *sa)
+toe_route_redirect_event(void *arg __unused, struct rtentry *rt0,
+    struct rtentry *rt1, struct sockaddr *sa)
 {
 
 	return;
@@ -463,50 +453,29 @@ toe_route_redirect_event(void *arg __unused, struct nhopu_extended *nh0,
 static int
 toe_nd6_resolve(struct ifnet *ifp, struct sockaddr *sa, uint8_t *lladdr)
 {
-	struct llentry *lle, *lle_tmp;
-	struct in6_addr *dst;
+	struct llentry *lle;
+	struct sockaddr_in6 *sin6 = (void *)sa;
 	int rc, flags = 0;
-
-	dst = &((struct sockaddr_in6 *)sa)->sin6_addr;
 
 restart:
 	IF_AFDATA_RLOCK(ifp);
-	lle = lltable_lookup_lle6(ifp, flags, dst);
+	lle = lla_lookup(LLTABLE6(ifp), flags, sa);
 	IF_AFDATA_RUNLOCK(ifp);
 	if (lle == NULL) {
-		lle = lltable_create_lle6(ifp, 0, dst);
+		IF_AFDATA_LOCK(ifp);
+		lle = nd6_lookup(&sin6->sin6_addr, ND6_CREATE | ND6_EXCLUSIVE,
+		    ifp);
+		IF_AFDATA_UNLOCK(ifp);
 		if (lle == NULL)
 			return (ENOMEM); /* Couldn't create entry in cache. */
 		lle->ln_state = ND6_LLINFO_INCOMPLETE;
-		IF_AFDATA_CFG_WLOCK(ifp);
-		LLE_WLOCK(lle);
-		/* Check if the same record was addded */
-		lle_tmp = lltable_lookup_lle6(ifp, LLE_EXCLUSIVE, dst);
-		if (lle_tmp == NULL) {
-			/*
-			 * No entry has been found. Link new one.
-			 */
-			IF_AFDATA_RUN_WLOCK(ifp);
-			lltable_link_entry(LLTABLE6(ifp), lle);
-			IF_AFDATA_RUN_WUNLOCK(ifp);
-		}
-		IF_AFDATA_CFG_WUNLOCK(ifp);
-		if (lle_tmp == NULL) {
-			/* Set up timer for our new lle */
-			nd6_llinfo_settimer_locked(lle,
-			    (long)ND_IFINFO(ifp)->retrans * hz / 1000);
-			LLE_WUNLOCK(lle);
+		nd6_llinfo_settimer_locked(lle,
+		    (long)ND_IFINFO(ifp)->retrans * hz / 1000);
+		LLE_WUNLOCK(lle);
 
-			nd6_ns_output(ifp, NULL, dst, NULL, 0);
+		nd6_ns_output(ifp, NULL, &sin6->sin6_addr, NULL, 0);
 
-			return (EWOULDBLOCK);
-		}
-
-		/* Existing lle has been found. Free new one */
-		LLE_FREE_LOCKED(lle);
-		lle = lle_tmp;
-		lle_tmp = NULL;
-		flags |= LLE_EXCLUSIVE;
+		return (EWOULDBLOCK);
 	}
 
 	if (lle->ln_state == ND6_LLINFO_STALE) {

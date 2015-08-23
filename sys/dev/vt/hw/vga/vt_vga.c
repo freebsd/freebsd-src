@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/vt/vt.h>
 #include <dev/vt/hw/vga/vt_vga_reg.h>
+#include <dev/pci/pcivar.h>
 
 #include <machine/bus.h>
 
@@ -1034,11 +1035,12 @@ vga_initialize_graphics(struct vt_device *vd)
 	REG_WRITE1(sc, VGA_GC_DATA, 0xff);
 }
 
-static void
+static int
 vga_initialize(struct vt_device *vd, int textmode)
 {
 	struct vga_softc *sc = vd->vd_softc;
 	uint8_t x;
+	int timeout;
 
 	/* Make sure the VGA adapter is not in monochrome emulation mode. */
 	x = REG_READ1(sc, VGA_GEN_MISC_OUTPUT_R);
@@ -1059,10 +1061,16 @@ vga_initialize(struct vt_device *vd, int textmode)
 	 * code therefore also removes that guarantee and appropriate measures
 	 * need to be taken.
 	 */
+	timeout = 10000;
 	do {
+		DELAY(10);
 		x = REG_READ1(sc, VGA_GEN_INPUT_STAT_1);
 		x &= VGA_GEN_IS1_VR | VGA_GEN_IS1_DE;
-	} while (x != (VGA_GEN_IS1_VR | VGA_GEN_IS1_DE));
+	} while (x != (VGA_GEN_IS1_VR | VGA_GEN_IS1_DE) && --timeout != 0);
+	if (timeout == 0) {
+		printf("Timeout initializing vt_vga\n");
+		return (ENXIO);
+	}
 
 	/* Now, disable the sync. signals. */
 	REG_WRITE1(sc, VGA_CRTC_ADDRESS, VGA_CRTC_MODE_CONTROL);
@@ -1193,6 +1201,8 @@ vga_initialize(struct vt_device *vd, int textmode)
 		 */
 		sc->vga_curfg = sc->vga_curbg = 0xff;
 	}
+
+	return (0);
 }
 
 static int
@@ -1213,6 +1223,9 @@ vga_init(struct vt_device *vd)
 	sc = vd->vd_softc;
 	textmode = 0;
 
+	if (vd->vd_flags & VDF_DOWNGRADE && vd->vd_video_dev != NULL)
+		vga_pci_repost(vd->vd_video_dev);
+
 #if defined(__amd64__) || defined(__i386__)
 	sc->vga_fb_tag = X86_BUS_SPACE_MEM;
 	sc->vga_fb_handle = KERNBASE + VGA_MEM_BASE;
@@ -1231,7 +1244,8 @@ vga_init(struct vt_device *vd)
 		vd->vd_width = VT_VGA_WIDTH;
 		vd->vd_height = VT_VGA_HEIGHT;
 	}
-	vga_initialize(vd, textmode);
+	if (vga_initialize(vd, textmode) != 0)
+		return (CN_DEAD);
 	sc->vga_enabled = true;
 
 	return (CN_INTERNAL);
@@ -1263,7 +1277,8 @@ static int
 vtvga_probe(device_t dev)
 {
 
-	device_set_desc(dev, "vt_vga driver");
+	device_set_desc(dev, "VT VGA driver");
+
 	return (BUS_PROBE_NOWILDCARD);
 }
 

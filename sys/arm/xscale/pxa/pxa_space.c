@@ -57,7 +57,6 @@ static MALLOC_DEFINE(M_PXATAG, "PXA bus_space tags", "Bus_space tags for PXA");
 
 /* Prototypes for all the bus_space structure functions */
 bs_protos(generic);
-bs_protos(generic_armv4);
 bs_protos(pxa);
 
 /*
@@ -66,73 +65,109 @@ bs_protos(pxa);
  */
 struct bus_space _base_tag = {
 	/* cookie */
-	(void *) 0,
+	.bs_privdata	= NULL,
 
 	/* mapping/unmapping */
-	generic_bs_map,
-	generic_bs_unmap,
-	generic_bs_subregion,
+	.bs_map		= generic_bs_map,
+	.bs_unmap	= generic_bs_unmap,
+	.bs_subregion	= generic_bs_subregion,
 
 	/* allocation/deallocation */
-	generic_bs_alloc,
-	generic_bs_free,
+	.bs_alloc	= generic_bs_alloc,
+	.bs_free	= generic_bs_free,
 
 	/* barrier */
-	generic_bs_barrier,
+	.bs_barrier	= generic_bs_barrier,
 
 	/* read (single) */
-	pxa_bs_r_1,
-	pxa_bs_r_2,
-	pxa_bs_r_4,
-	NULL,
+	.bs_r_1		= pxa_bs_r_1,
+	.bs_r_2		= pxa_bs_r_2,
+	.bs_r_4		= pxa_bs_r_4,
+	.bs_r_8		= BS_UNIMPLEMENTED,
 
 	/* read multiple */
-	pxa_bs_rm_1,
-	pxa_bs_rm_2,
-	NULL,
-	NULL,
+	.bs_rm_1	= pxa_bs_rm_1,
+	.bs_rm_2	= pxa_bs_rm_2,
+	.bs_rm_4	= BS_UNIMPLEMENTED,
+	.bs_rm_8	= BS_UNIMPLEMENTED,
 
 	/* read region */
-	pxa_bs_rr_1,
-	NULL,
-	NULL,
-	NULL,
+	.bs_rr_1	= pxa_bs_rr_1,
+	.bs_rr_2	= BS_UNIMPLEMENTED,
+	.bs_rr_4	= BS_UNIMPLEMENTED,
+	.bs_rr_8	= BS_UNIMPLEMENTED,
 
 	/* write (single) */
-	pxa_bs_w_1,
-	pxa_bs_w_2,
-	pxa_bs_w_4,
-	NULL,
+	.bs_w_1		= pxa_bs_w_1,
+	.bs_w_2		= pxa_bs_w_2,
+	.bs_w_4		= pxa_bs_w_4,
+	.bs_w_8		= BS_UNIMPLEMENTED,
 
 	/* write multiple */
-	pxa_bs_wm_1,
-	pxa_bs_wm_2,
-	NULL,
-	NULL,
+	.bs_wm_1	= pxa_bs_wm_1,
+	.bs_wm_2	= pxa_bs_wm_2,
+	.bs_wm_4	= BS_UNIMPLEMENTED,
+	.bs_wm_8	= BS_UNIMPLEMENTED,
 
 	/* write region */
-	NULL,
-	NULL,
-	NULL,
-	NULL,
+	.bs_wr_1	= BS_UNIMPLEMENTED,
+	.bs_wr_2	= BS_UNIMPLEMENTED,
+	.bs_wr_4	= BS_UNIMPLEMENTED,
+	.bs_wr_8	= BS_UNIMPLEMENTED,
 
 	/* set multiple */
-	NULL,
-	NULL,
-	NULL,
-	NULL,
+	.bs_sm_1	= BS_UNIMPLEMENTED,
+	.bs_sm_2	= BS_UNIMPLEMENTED,
+	.bs_sm_4	= BS_UNIMPLEMENTED,
+	.bs_sm_8	= BS_UNIMPLEMENTED,
 
 	/* set region */
-	NULL,
-	NULL,
-	NULL,
-	NULL,
+	.bs_sr_1	= BS_UNIMPLEMENTED,
+	.bs_sr_2	= BS_UNIMPLEMENTED,
+	.bs_sr_4	= BS_UNIMPLEMENTED,
+	.bs_sr_8	= BS_UNIMPLEMENTED,
 
 	/* copy */
-	NULL,
-	NULL,
-	NULL,
-	NULL,
+	.bs_c_1		= BS_UNIMPLEMENTED,
+	.bs_c_2		= BS_UNIMPLEMENTED,
+	.bs_c_4		= BS_UNIMPLEMENTED,
+	.bs_c_8		= BS_UNIMPLEMENTED,
+
+	/* read stream (single) */
+	.bs_r_1_s	= BS_UNIMPLEMENTED,
+	.bs_r_2_s	= BS_UNIMPLEMENTED,
+	.bs_r_4_s	= BS_UNIMPLEMENTED,
+	.bs_r_8_s	= BS_UNIMPLEMENTED,
+
+	/* read multiple stream */
+	.bs_rm_1_s	= BS_UNIMPLEMENTED,
+	.bs_rm_2_s	= BS_UNIMPLEMENTED,
+	.bs_rm_4_s	= BS_UNIMPLEMENTED,
+	.bs_rm_8_s	= BS_UNIMPLEMENTED,
+
+	/* read region stream */
+	.bs_rr_1_s	= BS_UNIMPLEMENTED,
+	.bs_rr_2_s	= BS_UNIMPLEMENTED,
+	.bs_rr_4_s	= BS_UNIMPLEMENTED,
+	.bs_rr_8_s	= BS_UNIMPLEMENTED,
+
+	/* write stream (single) */
+	.bs_w_1_s	= BS_UNIMPLEMENTED, 
+	.bs_w_2_s	= BS_UNIMPLEMENTED, 
+	.bs_w_4_s	= BS_UNIMPLEMENTED, 
+	.bs_w_8_s	= BS_UNIMPLEMENTED, 
+
+	/* write multiple stream */
+	.bs_wm_1_s	= BS_UNIMPLEMENTED,
+	.bs_wm_2_s	= BS_UNIMPLEMENTED,
+	.bs_wm_4_s	= BS_UNIMPLEMENTED,
+	.bs_wm_8_s	= BS_UNIMPLEMENTED,
+
+	/* write region stream */
+	.bs_wr_1_s	= BS_UNIMPLEMENTED,
+	.bs_wr_2_s	= BS_UNIMPLEMENTED,
+	.bs_wr_4_s	= BS_UNIMPLEMENTED,
+	.bs_wr_8_s	= BS_UNIMPLEMENTED,
 };
 
 static struct bus_space	_obio_tag;
@@ -145,7 +180,7 @@ pxa_obio_tag_init()
 {
 
 	bcopy(&_base_tag, &_obio_tag, sizeof(struct bus_space));
-	_obio_tag.bs_cookie = (void *)PXA2X0_PERIPH_OFFSET;
+	_obio_tag.bs_privdata = (void *)PXA2X0_PERIPH_OFFSET;
 	obio_tag = &_obio_tag;
 }
 
@@ -161,7 +196,7 @@ pxa_bus_tag_alloc(bus_addr_t offset)
 	}
 
 	bcopy(&_base_tag, tag, sizeof(struct bus_space));
-	tag->bs_cookie = (void *)offset;
+	tag->bs_privdata = (void *)offset;
 
 	return ((bus_space_tag_t)tag);
 }
@@ -169,49 +204,49 @@ pxa_bus_tag_alloc(bus_addr_t offset)
 
 #define	READ_SINGLE(type, proto, base)					\
 	type								\
-	proto(void *cookie, bus_space_handle_t bsh, bus_size_t offset)	\
+	proto(bus_space_tag_t tag, bus_space_handle_t bsh, bus_size_t offset)	\
 	{								\
 		bus_addr_t	tag_offset;				\
 		type		value;					\
-		tag_offset = (bus_addr_t)cookie;			\
+		tag_offset = (bus_addr_t)tag->bs_privdata;		\
 		value = base(NULL, bsh + tag_offset, offset);		\
 		return (value);						\
 	}
 
 READ_SINGLE(u_int8_t,  pxa_bs_r_1, generic_bs_r_1)
-READ_SINGLE(u_int16_t, pxa_bs_r_2, generic_armv4_bs_r_2)
+READ_SINGLE(u_int16_t, pxa_bs_r_2, generic_bs_r_2)
 READ_SINGLE(u_int32_t, pxa_bs_r_4, generic_bs_r_4)
 
 #undef READ_SINGLE
 
 #define	WRITE_SINGLE(type, proto, base)					\
 	void								\
-	proto(void *cookie, bus_space_handle_t bsh, bus_size_t offset,	\
+	proto(bus_space_tag_t tag, bus_space_handle_t bsh, bus_size_t offset,	\
 	    type value)							\
 	{								\
 		bus_addr_t	tag_offset;				\
-		tag_offset = (bus_addr_t)cookie;			\
+		tag_offset = (bus_addr_t)tag->bs_privdata;		\
 		base(NULL, bsh + tag_offset, offset, value);		\
 	}
 
 WRITE_SINGLE(u_int8_t,  pxa_bs_w_1, generic_bs_w_1)
-WRITE_SINGLE(u_int16_t, pxa_bs_w_2, generic_armv4_bs_w_2)
+WRITE_SINGLE(u_int16_t, pxa_bs_w_2, generic_bs_w_2)
 WRITE_SINGLE(u_int32_t, pxa_bs_w_4, generic_bs_w_4)
 
 #undef WRITE_SINGLE
 
 #define	READ_MULTI(type, proto, base)					\
 	void								\
-	proto(void *cookie, bus_space_handle_t bsh, bus_size_t offset,	\
+	proto(bus_space_tag_t tag, bus_space_handle_t bsh, bus_size_t offset,	\
 	    type *dest, bus_size_t count)				\
 	{								\
 		bus_addr_t	tag_offset;				\
-		tag_offset = (bus_addr_t)cookie;			\
+		tag_offset = (bus_addr_t)tag->bs_privdata;		\
 		base(NULL, bsh + tag_offset, offset, dest, count);	\
 	}
 
 READ_MULTI(u_int8_t,  pxa_bs_rm_1, generic_bs_rm_1)
-READ_MULTI(u_int16_t, pxa_bs_rm_2, generic_armv4_bs_rm_2)
+READ_MULTI(u_int16_t, pxa_bs_rm_2, generic_bs_rm_2)
 
 READ_MULTI(u_int8_t,  pxa_bs_rr_1, generic_bs_rr_1)
 
@@ -219,15 +254,15 @@ READ_MULTI(u_int8_t,  pxa_bs_rr_1, generic_bs_rr_1)
 
 #define	WRITE_MULTI(type, proto, base)					\
 	void								\
-	proto(void *cookie, bus_space_handle_t bsh, bus_size_t offset,	\
+	proto(bus_space_tag_t tag, bus_space_handle_t bsh, bus_size_t offset,	\
 	    const type *src, bus_size_t count)				\
 	{								\
 		bus_addr_t	tag_offset;				\
-		tag_offset = (bus_addr_t)cookie;			\
+		tag_offset = (bus_addr_t)tag->bs_privdata;		\
 		base(NULL, bsh + tag_offset, offset, src, count);	\
 	}
 
 WRITE_MULTI(u_int8_t,  pxa_bs_wm_1, generic_bs_wm_1)
-WRITE_MULTI(u_int16_t, pxa_bs_wm_2, generic_armv4_bs_wm_2)
+WRITE_MULTI(u_int16_t, pxa_bs_wm_2, generic_bs_wm_2)
 
 #undef WRITE_MULTI

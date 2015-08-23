@@ -192,21 +192,20 @@ extern struct rwlock pf_rules_lock;
 
 #define PF_AEQ(a, b, c) \
 	((c == AF_INET && (a)->addr32[0] == (b)->addr32[0]) || \
-	((a)->addr32[3] == (b)->addr32[3] && \
+	(c == AF_INET6 && (a)->addr32[3] == (b)->addr32[3] && \
 	(a)->addr32[2] == (b)->addr32[2] && \
 	(a)->addr32[1] == (b)->addr32[1] && \
 	(a)->addr32[0] == (b)->addr32[0])) \
 
 #define PF_ANEQ(a, b, c) \
-	((c == AF_INET && (a)->addr32[0] != (b)->addr32[0]) || \
-	((a)->addr32[3] != (b)->addr32[3] || \
-	(a)->addr32[2] != (b)->addr32[2] || \
+	((a)->addr32[0] != (b)->addr32[0] || \
 	(a)->addr32[1] != (b)->addr32[1] || \
-	(a)->addr32[0] != (b)->addr32[0])) \
+	(a)->addr32[2] != (b)->addr32[2] || \
+	(a)->addr32[3] != (b)->addr32[3]) \
 
 #define PF_AZERO(a, c) \
 	((c == AF_INET && !(a)->addr32[0]) || \
-	(!(a)->addr32[0] && !(a)->addr32[1] && \
+	(c == AF_INET6 && !(a)->addr32[0] && !(a)->addr32[1] && \
 	!(a)->addr32[2] && !(a)->addr32[3] )) \
 
 #define PF_MATCHA(n, a, m, b, f) \
@@ -829,6 +828,7 @@ typedef int pflog_packet_t(struct pfi_kif *, struct mbuf *, sa_family_t,
     struct pf_ruleset *, struct pf_pdesc *, int);
 extern pflog_packet_t		*pflog_packet_ptr;
 
+#define	V_pf_end_threads	VNET(pf_end_threads)
 #endif /* _KERNEL */
 
 #define	PFSYNC_FLAG_SRCNODE	0x04
@@ -1494,7 +1494,7 @@ VNET_DECLARE(struct pf_altqqueue *,	 pf_altqs_inactive);
 VNET_DECLARE(struct pf_rulequeue, pf_unlinked_rules);
 #define	V_pf_unlinked_rules	VNET(pf_unlinked_rules)
 
-void				 pf_vnet_initialize(void);
+void				 pf_initialize(void);
 void				 pf_mtag_initialize(void);
 void				 pf_mtag_cleanup(void);
 void				 pf_cleanup(void);
@@ -1549,7 +1549,6 @@ extern struct pf_state		*pf_find_state_all(struct pf_state_key_cmp *,
 extern struct pf_src_node	*pf_find_src_node(struct pf_addr *,
 				    struct pf_rule *, sa_family_t, int);
 extern void			 pf_unlink_src_node(struct pf_src_node *);
-extern void			 pf_unlink_src_node_locked(struct pf_src_node *);
 extern u_int			 pf_free_src_nodes(struct pf_src_node_list *);
 extern void			 pf_print_state(struct pf_state *);
 extern void			 pf_print_flags(u_int8_t);
@@ -1566,13 +1565,18 @@ void				pf_free_rule(struct pf_rule *);
 
 #ifdef INET
 int	pf_test(int, struct ifnet *, struct mbuf **, struct inpcb *);
+int	pf_normalize_ip(struct mbuf **, int, struct pfi_kif *, u_short *,
+	    struct pf_pdesc *);
 #endif /* INET */
 
 #ifdef INET6
 int	pf_test6(int, struct ifnet *, struct mbuf **, struct inpcb *);
+int	pf_normalize_ip6(struct mbuf **, int, struct pfi_kif *, u_short *,
+	    struct pf_pdesc *);
 void	pf_poolmask(struct pf_addr *, struct pf_addr*,
 	    struct pf_addr *, struct pf_addr *, u_int8_t);
 void	pf_addr_inc(struct pf_addr *, sa_family_t);
+int	pf_refragment6(struct ifnet *, struct mbuf **, struct m_tag *);
 #endif /* INET6 */
 
 u_int32_t	pf_new_isn(struct pf_state *);
@@ -1586,12 +1590,8 @@ int	pf_match_addr_range(struct pf_addr *, struct pf_addr *,
 	    struct pf_addr *, sa_family_t);
 int	pf_match_port(u_int8_t, u_int16_t, u_int16_t, u_int16_t);
 
-void	pf_vnet_normalize_init(void);
+void	pf_normalize_init(void);
 void	pf_normalize_cleanup(void);
-int	pf_normalize_ip(struct mbuf **, int, struct pfi_kif *, u_short *,
-	    struct pf_pdesc *);
-int	pf_normalize_ip6(struct mbuf **, int, struct pfi_kif *, u_short *,
-	    struct pf_pdesc *);
 int	pf_normalize_tcp(int, struct pfi_kif *, struct mbuf *, int, int, void *,
 	    struct pf_pdesc *);
 void	pf_normalize_tcp_cleanup(struct pf_state *);
@@ -1648,7 +1648,7 @@ MALLOC_DECLARE(PFI_MTYPE);
 VNET_DECLARE(struct pfi_kif *,		 pfi_all);
 #define	V_pfi_all	 		 VNET(pfi_all)
 
-void		 pfi_vnet_initialize(void);
+void		 pfi_initialize(void);
 void		 pfi_cleanup(void);
 void		 pfi_kif_ref(struct pfi_kif *);
 void		 pfi_kif_unref(struct pfi_kif *);
@@ -1668,6 +1668,8 @@ int		 pfi_clear_flags(const char *, int);
 
 int		 pf_match_tag(struct mbuf *, struct pf_rule *, int *, int);
 int		 pf_tag_packet(struct mbuf *, struct pf_pdesc *, int);
+int		 pf_addr_cmp(struct pf_addr *, struct pf_addr *,
+		    sa_family_t);
 void		 pf_qid2qname(u_int32_t, char *);
 
 VNET_DECLARE(struct pf_kstatus, pf_status);

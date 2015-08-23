@@ -136,7 +136,8 @@ device		uart_z8530
 # Ethernet hardware
 device		em		# Intel PRO/1000 Gigabit Ethernet Family
 device		igb		# Intel PRO/1000 PCIE Server Gigabit Family
-device		ixgbe		# Intel PRO/10GbE PCIE Ethernet Family
+device		ix		# Intel PRO/10GbE PCIE PF Ethernet Family
+device		ixv		# Intel PRO/10GbE PCIE VF Ethernet Family
 device		glc		# Sony Playstation 3 Ethernet
 device		llan		# IBM pSeries Virtual Ethernet
 

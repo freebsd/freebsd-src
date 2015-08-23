@@ -251,6 +251,13 @@ tcp_twstart(struct tcpcb *tp)
 		}
 	}
 
+
+	/*
+	 * For use only by DTrace.  We do not reference the state
+	 * after this point so modifying it in place is not a problem.
+	 */
+	tcp_state_change(tp, TCPS_TIME_WAIT);
+
 	tw = uma_zalloc(V_tcptw_zone, M_NOWAIT);
 	if (tw == NULL) {
 		/*
@@ -585,7 +592,7 @@ tcp_twrespond(struct tcptw *tw, int flags)
 		    sizeof(struct tcphdr) + optlen, IPPROTO_TCP, 0);
 		ip6->ip6_hlim = in6_selecthlim(inp, NULL);
 		error = ip6_output(m, inp->in6p_outputopts, NULL,
-		    (tw->tw_so_options & SO_DONTROUTE), NULL, inp);
+		    (tw->tw_so_options & SO_DONTROUTE), NULL, NULL, inp);
 	}
 #endif
 #if defined(INET6) && defined(INET)

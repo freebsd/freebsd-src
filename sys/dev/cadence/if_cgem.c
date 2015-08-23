@@ -52,7 +52,6 @@ __FBSDID("$FreeBSD$");
 
 #include <net/ethernet.h>
 #include <net/if.h>
-#include <net/if_var.h>
 #include <net/if_arp.h>
 #include <net/if_dl.h>
 #include <net/if_media.h>
@@ -98,7 +97,7 @@ __FBSDID("$FreeBSD$");
 				 CSUM_TCP_IPV6 | CSUM_UDP_IPV6)
 
 struct cgem_softc {
-	struct ifnet		*ifp;
+	if_t			ifp;
 	struct mtx		sc_mtx;
 	device_t		dev;
 	device_t		miibus;
@@ -298,9 +297,10 @@ cgem_mac_hash(u_char eaddr[])
 static void
 cgem_rx_filter(struct cgem_softc *sc)
 {
-	struct ifnet *ifp = sc->ifp;
-	struct ifmultiaddr *ifma;
-	int index;
+	if_t ifp = sc->ifp;
+	u_char *mta;
+
+	int index, i, mcnt;
 	uint32_t hash_hi, hash_lo;
 	uint32_t net_cfg;
 
@@ -313,28 +313,34 @@ cgem_rx_filter(struct cgem_softc *sc)
 		     CGEM_NET_CFG_NO_BCAST | 
 		     CGEM_NET_CFG_COPY_ALL);
 
-	if ((ifp->if_flags & IFF_PROMISC) != 0)
+	if ((if_getflags(ifp) & IFF_PROMISC) != 0)
 		net_cfg |= CGEM_NET_CFG_COPY_ALL;
 	else {
-		if ((ifp->if_flags & IFF_BROADCAST) == 0)
+		if ((if_getflags(ifp) & IFF_BROADCAST) == 0)
 			net_cfg |= CGEM_NET_CFG_NO_BCAST;
-		if ((ifp->if_flags & IFF_ALLMULTI) != 0) {
+		if ((if_getflags(ifp) & IFF_ALLMULTI) != 0) {
 			hash_hi = 0xffffffff;
 			hash_lo = 0xffffffff;
 		} else {
-			if_maddr_rlock(ifp);
-			TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
-				if (ifma->ifma_addr->sa_family != AF_LINK)
-					continue;
+			mcnt = if_multiaddr_count(ifp, -1);
+			mta = malloc(ETHER_ADDR_LEN * mcnt, M_DEVBUF,
+				     M_NOWAIT);
+			if (mta == NULL) {
+				device_printf(sc->dev,
+				      "failed to allocate temp mcast list\n");
+				return;
+			}
+			if_multiaddr_array(ifp, mta, &mcnt, mcnt);
+			for (i = 0; i < mcnt; i++) {
 				index = cgem_mac_hash(
 					LLADDR((struct sockaddr_dl *)
-					       ifma->ifma_addr));
+					       (mta + (i * ETHER_ADDR_LEN))));
 				if (index > 31)
-					hash_hi |= (1<<(index-32));
+					hash_hi |= (1 << (index - 32));
 				else
-					hash_lo |= (1<<index);
+					hash_lo |= (1 << index);
 			}
-			if_maddr_runlock(ifp);
+			free(mta, M_DEVBUF);
 		}
 
 		if (hash_hi != 0 || hash_lo != 0)
@@ -418,10 +424,7 @@ cgem_setup_descs(struct cgem_softc *sc)
 		sc->rxring[i].addr = CGEM_RXDESC_OWN;
 		sc->rxring[i].ctl = 0;
 		sc->rxring_m[i] = NULL;
-		err = bus_dmamap_create(sc->mbuf_dma_tag, 0,
-					&sc->rxring_m_dmamap[i]);
-		if (err)
-			return (err);
+		sc->rxring_m_dmamap[i] = NULL;
 	}
 	sc->rxring[CGEM_NUM_RX_DESCS - 1].addr |= CGEM_RXDESC_WRAP;
 
@@ -451,10 +454,7 @@ cgem_setup_descs(struct cgem_softc *sc)
 		sc->txring[i].addr = 0;
 		sc->txring[i].ctl = CGEM_TXDESC_USED;
 		sc->txring_m[i] = NULL;
-		err = bus_dmamap_create(sc->mbuf_dma_tag, 0,
-					&sc->txring_m_dmamap[i]);
-		if (err)
-			return (err);
+		sc->txring_m_dmamap[i] = NULL;
 	}
 	sc->txring[CGEM_NUM_TX_DESCS - 1].ctl |= CGEM_TXDESC_WRAP;
 
@@ -486,10 +486,19 @@ cgem_fill_rqueue(struct cgem_softc *sc)
 		m->m_pkthdr.rcvif = sc->ifp;
 
 		/* Load map and plug in physical address. */
+		if (bus_dmamap_create(sc->mbuf_dma_tag, 0,
+			      &sc->rxring_m_dmamap[sc->rxring_hd_ptr])) {
+			sc->rxdmamapfails++;
+			m_free(m);
+			break;
+		}
 		if (bus_dmamap_load_mbuf_sg(sc->mbuf_dma_tag, 
 			      sc->rxring_m_dmamap[sc->rxring_hd_ptr], m,
 			      segs, &nsegs, BUS_DMA_NOWAIT)) {
 			sc->rxdmamapfails++;
+			bus_dmamap_destroy(sc->mbuf_dma_tag,
+				   sc->rxring_m_dmamap[sc->rxring_hd_ptr]);
+			sc->rxring_m_dmamap[sc->rxring_hd_ptr] = NULL;
 			m_free(m);
 			break;
 		}
@@ -517,7 +526,7 @@ cgem_fill_rqueue(struct cgem_softc *sc)
 static void
 cgem_recv(struct cgem_softc *sc)
 {
-	struct ifnet *ifp = sc->ifp;
+	if_t ifp = sc->ifp;
 	struct mbuf *m, *m_hd, **m_tl;
 	uint32_t ctl;
 
@@ -540,9 +549,12 @@ cgem_recv(struct cgem_softc *sc)
 				sc->rxring_m_dmamap[sc->rxring_tl_ptr],
 				BUS_DMASYNC_POSTREAD);
 
-		/* Unload dmamap. */
+		/* Unload and destroy dmamap. */
 		bus_dmamap_unload(sc->mbuf_dma_tag,
 		  	sc->rxring_m_dmamap[sc->rxring_tl_ptr]);
+		bus_dmamap_destroy(sc->mbuf_dma_tag,
+				   sc->rxring_m_dmamap[sc->rxring_tl_ptr]);
+		sc->rxring_m_dmamap[sc->rxring_tl_ptr] = NULL;
 
 		/* Increment tail pointer. */
 		if (++sc->rxring_tl_ptr == CGEM_NUM_RX_DESCS)
@@ -571,7 +583,7 @@ cgem_recv(struct cgem_softc *sc)
 		/* Are we using hardware checksumming?  Check the
 		 * status in the receive descriptor.
 		 */
-		if ((ifp->if_capenable & IFCAP_RXCSUM) != 0) {
+		if ((if_getcapenable(ifp) & IFCAP_RXCSUM) != 0) {
 			/* TCP or UDP checks out, IP checks out too. */
 			if ((ctl & CGEM_RXDESC_CKSUM_STAT_MASK) ==
 			    CGEM_RXDESC_CKSUM_STAT_TCP_GOOD ||
@@ -605,7 +617,7 @@ cgem_recv(struct cgem_softc *sc)
 		m_hd = m_hd->m_next;
 		m->m_next = NULL;
 		if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
-		(*ifp->if_input)(ifp, m);
+		if_input(ifp, m);
 	}
 	CGEM_LOCK(sc);
 }
@@ -624,14 +636,17 @@ cgem_clean_tx(struct cgem_softc *sc)
 	       ((ctl = sc->txring[sc->txring_tl_ptr].ctl) &
 		CGEM_TXDESC_USED) != 0) {
 
-		/* Sync cache.  nop? */
+		/* Sync cache. */
 		bus_dmamap_sync(sc->mbuf_dma_tag,
 				sc->txring_m_dmamap[sc->txring_tl_ptr],
 				BUS_DMASYNC_POSTWRITE);
 
-		/* Unload DMA map. */
+		/* Unload and destroy DMA map. */
 		bus_dmamap_unload(sc->mbuf_dma_tag,
 				  sc->txring_m_dmamap[sc->txring_tl_ptr]);
+		bus_dmamap_destroy(sc->mbuf_dma_tag,
+				   sc->txring_m_dmamap[sc->txring_tl_ptr]);
+		sc->txring_m_dmamap[sc->txring_tl_ptr] = NULL;
 
 		/* Free up the mbuf. */
 		m = sc->txring_m[sc->txring_tl_ptr];
@@ -674,15 +689,15 @@ cgem_clean_tx(struct cgem_softc *sc)
 			sc->txring_tl_ptr++;
 		sc->txring_queued--;
 
-		sc->ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+		if_setdrvflagbits(sc->ifp, 0, IFF_DRV_OACTIVE);
 	}
 }
 
 /* Start transmits. */
 static void
-cgem_start_locked(struct ifnet *ifp)
+cgem_start_locked(if_t ifp)
 {
-	struct cgem_softc *sc = (struct cgem_softc *) ifp->if_softc;
+	struct cgem_softc *sc = (struct cgem_softc *) if_getsoftc(ifp);
 	struct mbuf *m;
 	bus_dma_segment_t segs[TX_MAX_DMA_SEGS];
 	uint32_t ctl;
@@ -690,7 +705,7 @@ cgem_start_locked(struct ifnet *ifp)
 
 	CGEM_ASSERT_LOCKED(sc);
 
-	if ((ifp->if_drv_flags & IFF_DRV_OACTIVE) != 0)
+	if ((if_getdrvflags(ifp) & IFF_DRV_OACTIVE) != 0)
 		return;
 
 	for (;;) {
@@ -704,18 +719,24 @@ cgem_start_locked(struct ifnet *ifp)
 			/* Still no room? */
 			if (sc->txring_queued >=
 			    CGEM_NUM_TX_DESCS - TX_MAX_DMA_SEGS * 2) {
-				ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+				if_setdrvflagbits(ifp, IFF_DRV_OACTIVE, 0);
 				sc->txfull++;
 				break;
 			}
 		}
 
 		/* Grab next transmit packet. */
-		IFQ_DRV_DEQUEUE(&ifp->if_snd, m);
+		m = if_dequeue(ifp);
 		if (m == NULL)
 			break;
 
-		/* Load DMA map. */
+		/* Create and load DMA map. */
+		if (bus_dmamap_create(sc->mbuf_dma_tag, 0,
+			      &sc->txring_m_dmamap[sc->txring_hd_ptr])) {
+			m_freem(m);
+			sc->txdmamapfails++;
+			continue;
+		}
 		err = bus_dmamap_load_mbuf_sg(sc->mbuf_dma_tag,
 				      sc->txring_m_dmamap[sc->txring_hd_ptr],
 				      m, segs, &nsegs, BUS_DMA_NOWAIT);
@@ -726,6 +747,9 @@ cgem_start_locked(struct ifnet *ifp)
 			if (m2 == NULL) {
 				sc->txdefragfails++;
 				m_freem(m);
+				bus_dmamap_destroy(sc->mbuf_dma_tag,
+				   sc->txring_m_dmamap[sc->txring_hd_ptr]);
+				sc->txring_m_dmamap[sc->txring_hd_ptr] = NULL;
 				continue;
 			}
 			m = m2;
@@ -737,6 +761,9 @@ cgem_start_locked(struct ifnet *ifp)
 		if (err) {
 			/* Give up. */
 			m_freem(m);
+			bus_dmamap_destroy(sc->mbuf_dma_tag,
+				   sc->txring_m_dmamap[sc->txring_hd_ptr]);
+			sc->txring_m_dmamap[sc->txring_hd_ptr] = NULL;
 			sc->txdmamapfails++;
 			continue;
 		}
@@ -788,9 +815,9 @@ cgem_start_locked(struct ifnet *ifp)
 }
 
 static void
-cgem_start(struct ifnet *ifp)
+cgem_start(if_t ifp)
 {
-	struct cgem_softc *sc = (struct cgem_softc *) ifp->if_softc;
+	struct cgem_softc *sc = (struct cgem_softc *) if_getsoftc(ifp);
 
 	CGEM_LOCK(sc);
 	cgem_start_locked(ifp);
@@ -902,11 +929,12 @@ static void
 cgem_intr(void *arg)
 {
 	struct cgem_softc *sc = (struct cgem_softc *)arg;
+	if_t ifp = sc->ifp;
 	uint32_t istatus;
 
 	CGEM_LOCK(sc);
 
-	if ((sc->ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
+	if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) == 0) {
 		CGEM_UNLOCK(sc);
 		return;
 	}
@@ -945,8 +973,8 @@ cgem_intr(void *arg)
 	}
 
 	/* Restart transmitter if needed. */
-	if (!IFQ_DRV_IS_EMPTY(&sc->ifp->if_snd))
-		cgem_start_locked(sc->ifp);
+	if (!if_sendq_empty(ifp))
+		cgem_start_locked(ifp);
 
 	CGEM_UNLOCK(sc);
 }
@@ -982,9 +1010,10 @@ cgem_reset(struct cgem_softc *sc)
 static void
 cgem_config(struct cgem_softc *sc)
 {
+	if_t ifp = sc->ifp;
 	uint32_t net_cfg;
 	uint32_t dma_cfg;
-	u_char *eaddr = IF_LLADDR(sc->ifp);
+	u_char *eaddr = if_getlladdr(ifp);
 
 	CGEM_ASSERT_LOCKED(sc);
 
@@ -999,7 +1028,7 @@ cgem_config(struct cgem_softc *sc)
 		CGEM_NET_CFG_SPEED100;
 
 	/* Enable receive checksum offloading? */
-	if ((sc->ifp->if_capenable & IFCAP_RXCSUM) != 0)
+	if ((if_getcapenable(ifp) & IFCAP_RXCSUM) != 0)
 		net_cfg |=  CGEM_NET_CFG_RX_CHKSUM_OFFLD_EN;
 
 	WR4(sc, CGEM_NET_CFG, net_cfg);
@@ -1012,7 +1041,7 @@ cgem_config(struct cgem_softc *sc)
 		CGEM_DMA_CFG_DISC_WHEN_NO_AHB;
 
 	/* Enable transmit checksum offloading? */
-	if ((sc->ifp->if_capenable & IFCAP_TXCSUM) != 0)
+	if ((if_getcapenable(ifp) & IFCAP_TXCSUM) != 0)
 		dma_cfg |= CGEM_DMA_CFG_CHKSUM_GEN_OFFLOAD_EN;
 
 	WR4(sc, CGEM_DMA_CFG, dma_cfg);
@@ -1045,14 +1074,13 @@ cgem_init_locked(struct cgem_softc *sc)
 
 	CGEM_ASSERT_LOCKED(sc);
 
-	if ((sc->ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+	if ((if_getdrvflags(sc->ifp) & IFF_DRV_RUNNING) != 0)
 		return;
 
 	cgem_config(sc);
 	cgem_fill_rqueue(sc);
 
-	sc->ifp->if_drv_flags |= IFF_DRV_RUNNING;
-	sc->ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+	if_setdrvflagbits(sc->ifp, IFF_DRV_RUNNING, IFF_DRV_OACTIVE);
 
 	mii = device_get_softc(sc->miibus);
 	mii_mediachg(mii);
@@ -1088,8 +1116,12 @@ cgem_stop(struct cgem_softc *sc)
 		sc->txring[i].ctl = CGEM_TXDESC_USED;
 		sc->txring[i].addr = 0;
 		if (sc->txring_m[i]) {
+			/* Unload and destroy dmamap. */
 			bus_dmamap_unload(sc->mbuf_dma_tag,
 					  sc->txring_m_dmamap[i]);
+			bus_dmamap_destroy(sc->mbuf_dma_tag,
+					   sc->txring_m_dmamap[i]);
+			sc->txring_m_dmamap[i] = NULL;
 			m_freem(sc->txring_m[i]);
 			sc->txring_m[i] = NULL;
 		}
@@ -1105,9 +1137,12 @@ cgem_stop(struct cgem_softc *sc)
 		sc->rxring[i].addr = CGEM_RXDESC_OWN;
 		sc->rxring[i].ctl = 0;
 		if (sc->rxring_m[i]) {
-			/* Unload dmamap. */
+			/* Unload and destroy dmamap. */
 			bus_dmamap_unload(sc->mbuf_dma_tag,
-				  sc->rxring_m_dmamap[sc->rxring_tl_ptr]);
+				  sc->rxring_m_dmamap[i]);
+			bus_dmamap_destroy(sc->mbuf_dma_tag,
+				   sc->rxring_m_dmamap[i]);
+			sc->rxring_m_dmamap[i] = NULL;
 
 			m_freem(sc->rxring_m[i]);
 			sc->rxring_m[i] = NULL;
@@ -1125,9 +1160,9 @@ cgem_stop(struct cgem_softc *sc)
 
 
 static int
-cgem_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
+cgem_ioctl(if_t ifp, u_long cmd, caddr_t data)
 {
-	struct cgem_softc *sc = ifp->if_softc;
+	struct cgem_softc *sc = if_getsoftc(ifp);
 	struct ifreq *ifr = (struct ifreq *)data;
 	struct mii_data *mii;
 	int error = 0, mask;
@@ -1135,27 +1170,27 @@ cgem_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	switch (cmd) {
 	case SIOCSIFFLAGS:
 		CGEM_LOCK(sc);
-		if ((ifp->if_flags & IFF_UP) != 0) {
-			if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0) {
-				if (((ifp->if_flags ^ sc->if_old_flags) &
+		if ((if_getflags(ifp) & IFF_UP) != 0) {
+			if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) != 0) {
+				if (((if_getflags(ifp) ^ sc->if_old_flags) &
 				     (IFF_PROMISC | IFF_ALLMULTI)) != 0) {
 					cgem_rx_filter(sc);
 				}
 			} else {
 				cgem_init_locked(sc);
 			}
-		} else if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0) {
-			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+		} else if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) != 0) {
+			if_setdrvflagbits(ifp, 0, IFF_DRV_RUNNING);
 			cgem_stop(sc);
 		}
-		sc->if_old_flags = ifp->if_flags;
+		sc->if_old_flags = if_getflags(ifp);
 		CGEM_UNLOCK(sc);
 		break;
 
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
 		/* Set up multi-cast filters. */
-		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0) {
+		if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) != 0) {
 			CGEM_LOCK(sc);
 			cgem_rx_filter(sc);
 			CGEM_UNLOCK(sc);
@@ -1170,23 +1205,23 @@ cgem_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 
 	case SIOCSIFCAP:
 		CGEM_LOCK(sc);
-		mask = ifp->if_capenable ^ ifr->ifr_reqcap;
+		mask = if_getcapenable(ifp) ^ ifr->ifr_reqcap;
 
 		if ((mask & IFCAP_TXCSUM) != 0) {
 			if ((ifr->ifr_reqcap & IFCAP_TXCSUM) != 0) {
 				/* Turn on TX checksumming. */
-				ifp->if_capenable |= (IFCAP_TXCSUM |
-						      IFCAP_TXCSUM_IPV6);
-				ifp->if_hwassist |= CGEM_CKSUM_ASSIST;
+				if_setcapenablebit(ifp, IFCAP_TXCSUM |
+						   IFCAP_TXCSUM_IPV6, 0);
+				if_sethwassistbits(ifp, CGEM_CKSUM_ASSIST, 0);
 
 				WR4(sc, CGEM_DMA_CFG,
 				    RD4(sc, CGEM_DMA_CFG) |
 				     CGEM_DMA_CFG_CHKSUM_GEN_OFFLOAD_EN);
 			} else {
 				/* Turn off TX checksumming. */
-				ifp->if_capenable &= ~(IFCAP_TXCSUM |
-						       IFCAP_TXCSUM_IPV6);
-				ifp->if_hwassist &= ~CGEM_CKSUM_ASSIST;
+				if_setcapenablebit(ifp, 0, IFCAP_TXCSUM |
+						   IFCAP_TXCSUM_IPV6);
+				if_sethwassistbits(ifp, 0, CGEM_CKSUM_ASSIST);
 
 				WR4(sc, CGEM_DMA_CFG,
 				    RD4(sc, CGEM_DMA_CFG) &
@@ -1196,25 +1231,25 @@ cgem_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		if ((mask & IFCAP_RXCSUM) != 0) {
 			if ((ifr->ifr_reqcap & IFCAP_RXCSUM) != 0) {
 				/* Turn on RX checksumming. */
-				ifp->if_capenable |= (IFCAP_RXCSUM |
-						      IFCAP_RXCSUM_IPV6);
+				if_setcapenablebit(ifp, IFCAP_RXCSUM |
+						   IFCAP_RXCSUM_IPV6, 0);
 				WR4(sc, CGEM_NET_CFG,
 				    RD4(sc, CGEM_NET_CFG) |
 				     CGEM_NET_CFG_RX_CHKSUM_OFFLD_EN);
 			} else {
 				/* Turn off RX checksumming. */
-				ifp->if_capenable &= ~(IFCAP_RXCSUM |
-						       IFCAP_RXCSUM_IPV6);
+				if_setcapenablebit(ifp, 0, IFCAP_RXCSUM |
+						   IFCAP_RXCSUM_IPV6);
 				WR4(sc, CGEM_NET_CFG,
 				    RD4(sc, CGEM_NET_CFG) &
 				     ~CGEM_NET_CFG_RX_CHKSUM_OFFLD_EN);
 			}
 		}
-		if ((ifp->if_capenable & (IFCAP_RXCSUM | IFCAP_TXCSUM)) == 
+		if ((if_getcapenable(ifp) & (IFCAP_RXCSUM | IFCAP_TXCSUM)) == 
 		    (IFCAP_RXCSUM | IFCAP_TXCSUM))
-			ifp->if_capenable |= IFCAP_VLAN_HWCSUM;
+			if_setcapenablebit(ifp, IFCAP_VLAN_HWCSUM, 0);
 		else
-			ifp->if_capenable &= ~IFCAP_VLAN_HWCSUM;
+			if_setcapenablebit(ifp, 0, IFCAP_VLAN_HWCSUM);
 
 		CGEM_UNLOCK(sc);
 		break;
@@ -1238,16 +1273,16 @@ cgem_child_detached(device_t dev, device_t child)
 }
 
 static int
-cgem_ifmedia_upd(struct ifnet *ifp)
+cgem_ifmedia_upd(if_t ifp)
 {
-	struct cgem_softc *sc = (struct cgem_softc *) ifp->if_softc;
+	struct cgem_softc *sc = (struct cgem_softc *) if_getsoftc(ifp);
 	struct mii_data *mii;
 	struct mii_softc *miisc;
 	int error = 0;
 
 	mii = device_get_softc(sc->miibus);
 	CGEM_LOCK(sc);
-	if ((ifp->if_flags & IFF_UP) != 0) {
+	if ((if_getflags(ifp) & IFF_UP) != 0) {
 		LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
 			PHY_RESET(miisc);
 		error = mii_mediachg(mii);
@@ -1258,9 +1293,9 @@ cgem_ifmedia_upd(struct ifnet *ifp)
 }
 
 static void
-cgem_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
+cgem_ifmedia_sts(if_t ifp, struct ifmediareq *ifmr)
 {
-	struct cgem_softc *sc = (struct cgem_softc *) ifp->if_softc;
+	struct cgem_softc *sc = (struct cgem_softc *) if_getsoftc(ifp);
 	struct mii_data *mii;
 
 	mii = device_get_softc(sc->miibus);
@@ -1606,7 +1641,7 @@ static int
 cgem_attach(device_t dev)
 {
 	struct cgem_softc *sc = device_get_softc(dev);
-	struct ifnet *ifp = NULL;
+	if_t ifp = NULL;
 	phandle_t node;
 	pcell_t cell;
 	int rid, err;
@@ -1647,23 +1682,23 @@ cgem_attach(device_t dev)
 		cgem_detach(dev);
 		return (ENOMEM);
 	}
-	ifp->if_softc = sc;
+	if_setsoftc(ifp, sc);
 	if_initname(ifp, IF_CGEM_NAME, device_get_unit(dev));
-	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
-	ifp->if_start = cgem_start;
-	ifp->if_ioctl = cgem_ioctl;
-	ifp->if_init = cgem_init;
-	ifp->if_capabilities |= IFCAP_HWCSUM | IFCAP_HWCSUM_IPV6 |
-		IFCAP_VLAN_MTU | IFCAP_VLAN_HWCSUM;
-	/* Disable hardware checksumming by default. */
-	ifp->if_hwassist = 0;
-	ifp->if_capenable = ifp->if_capabilities &
-		~(IFCAP_HWCSUM | IFCAP_HWCSUM_IPV6 | IFCAP_VLAN_HWCSUM);
-	ifp->if_snd.ifq_drv_maxlen = CGEM_NUM_TX_DESCS;
-	IFQ_SET_MAXLEN(&ifp->if_snd, ifp->if_snd.ifq_drv_maxlen);
-	IFQ_SET_READY(&ifp->if_snd);
+	if_setflags(ifp, IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST);
+	if_setinitfn(ifp, cgem_init);
+	if_setioctlfn(ifp, cgem_ioctl);
+	if_setstartfn(ifp, cgem_start);
+	if_setcapabilitiesbit(ifp, IFCAP_HWCSUM | IFCAP_HWCSUM_IPV6 |
+			      IFCAP_VLAN_MTU | IFCAP_VLAN_HWCSUM, 0);
+	if_setsendqlen(ifp, CGEM_NUM_TX_DESCS);
+	if_setsendqready(ifp);
 
-	sc->if_old_flags = ifp->if_flags;
+	/* Disable hardware checksumming by default. */
+	if_sethwassist(ifp, 0);
+	if_setcapenable(ifp, if_getcapabilities(ifp) &
+		~(IFCAP_HWCSUM | IFCAP_HWCSUM_IPV6 | IFCAP_VLAN_HWCSUM));
+
+	sc->if_old_flags = if_getflags(ifp);
 	sc->rxbufs = DEFAULT_NUM_RX_BUFS;
 	sc->rxhangwar = 1;
 
@@ -1726,7 +1761,7 @@ cgem_detach(device_t dev)
 		cgem_stop(sc);
 		CGEM_UNLOCK(sc);
 		callout_drain(&sc->tick_ch);
-		sc->ifp->if_flags &= ~IFF_UP;
+		if_setflagbits(sc->ifp, 0, IFF_UP);
 		ether_ifdetach(sc->ifp);
 	}
 
@@ -1752,7 +1787,8 @@ cgem_detach(device_t dev)
 	/* Release DMA resources. */
 	if (sc->rxring != NULL) {
 		if (sc->rxring_physaddr != 0) {
-			bus_dmamap_unload(sc->desc_dma_tag, sc->rxring_dma_map);
+			bus_dmamap_unload(sc->desc_dma_tag,
+					  sc->rxring_dma_map);
 			sc->rxring_physaddr = 0;
 		}
 		bus_dmamem_free(sc->desc_dma_tag, sc->rxring,
@@ -1767,7 +1803,8 @@ cgem_detach(device_t dev)
 	}
 	if (sc->txring != NULL) {
 		if (sc->txring_physaddr != 0) {
-			bus_dmamap_unload(sc->desc_dma_tag, sc->txring_dma_map);
+			bus_dmamap_unload(sc->desc_dma_tag,
+					  sc->txring_dma_map);
 			sc->txring_physaddr = 0;
 		}
 		bus_dmamem_free(sc->desc_dma_tag, sc->txring,

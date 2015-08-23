@@ -70,8 +70,6 @@
 #include <netinet/ip6.h>
 #endif
 
-#include <net/rt_nhops.h>
-
 #include <security/mac/mac_framework.h>
 
 #ifdef TINY_LOMTU
@@ -91,7 +89,7 @@
 
 int		loioctl(struct ifnet *, u_long, caddr_t);
 int		looutput(struct ifnet *ifp, struct mbuf *m,
-		    const struct sockaddr *dst, struct nhop_info *ni);
+		    const struct sockaddr *dst, struct route *ro);
 static int	lo_clone_create(struct if_clone *, int, caddr_t);
 static void	lo_clone_destroy(struct ifnet *);
 
@@ -201,24 +199,18 @@ DECLARE_MODULE(if_lo, loop_mod, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY);
 
 int
 looutput(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
-    struct nhop_info *ni)
+    struct route *ro)
 {
-	uint32_t af;
-	uint32_t nh_flags;
+	u_int32_t af;
+	struct rtentry *rt = NULL;
 #ifdef MAC
 	int error;
 #endif
 
 	M_ASSERTPKTHDR(m); /* check if we have the packet header */
 
-	nh_flags = 0;
-	af = AF_UNSPEC;
-	if (ni != NULL && ni->ni_nh != NULL) {
-		nh_flags = ni->ni_nh->nh_flags;
-		af = ni->ni_family;
-	} else if (dst != NULL)
-		af = dst->sa_family;
-
+	if (ro != NULL)
+		rt = ro->ro_rt;
 #ifdef MAC
 	error = mac_ifnet_check_transmit(ifp, m);
 	if (error) {
@@ -227,18 +219,20 @@ looutput(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 	}
 #endif
 
-	if (nh_flags & (NHF_REJECT | NHF_BLACKHOLE)) {
+	if (rt && rt->rt_flags & (RTF_REJECT|RTF_BLACKHOLE)) {
 		m_freem(m);
-		/* XXX: RTF_HOST */
-		return (nh_flags & NHF_BLACKHOLE ? 0 : EHOSTUNREACH);
+		return (rt->rt_flags & RTF_BLACKHOLE ? 0 :
+		        rt->rt_flags & RTF_HOST ? EHOSTUNREACH : ENETUNREACH);
 	}
 
 	if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 	if_inc_counter(ifp, IFCOUNTER_OBYTES, m->m_pkthdr.len);
 
 	/* BPF writes need to be handled specially. */
-	if (af == AF_UNSPEC && dst != NULL)
+	if (dst->sa_family == AF_UNSPEC || dst->sa_family == pseudo_AF_HDRCMPLT)
 		bcopy(dst->sa_data, &af, sizeof(af));
+	else
+		af = dst->sa_family;
 
 #if 1	/* XXX */
 	switch (af) {

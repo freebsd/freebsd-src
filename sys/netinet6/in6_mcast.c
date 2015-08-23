@@ -69,8 +69,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/mld6_var.h>
 #include <netinet6/scope6_var.h>
 
-#include <net/rt_nhops.h>
-
 #ifndef KTR_MLD
 #define KTR_MLD KTR_INET6
 #endif
@@ -481,7 +479,7 @@ in6_mc_get(struct ifnet *ifp, const struct in6_addr *group,
 	inm->in6m_ifma = ifma;
 	inm->in6m_refcount = 1;
 	inm->in6m_state = MLD_NOT_MEMBER;
-	IFQ_SET_MAXLEN(&inm->in6m_scq, MLD_MAX_STATE_CHANGES);
+	mbufq_init(&inm->in6m_scq, MLD_MAX_STATE_CHANGES);
 
 	inm->in6m_st[0].iss_fmode = MCAST_UNDEFINED;
 	inm->in6m_st[1].iss_fmode = MCAST_UNDEFINED;
@@ -1076,7 +1074,7 @@ in6m_purge(struct in6_multi *inm)
 		inm->in6m_nsrc--;
 	}
 	/* Free state-change requests that might be queued. */
-	_IF_DRAIN(&inm->in6m_scq);
+	mbufq_drain(&inm->in6m_scq);
 }
 
 /*
@@ -1774,22 +1772,26 @@ static struct ifnet *
 in6p_lookup_mcast_ifp(const struct inpcb *in6p,
     const struct sockaddr_in6 *gsin6)
 {
-	struct nhop6_basic	nh6;
-	struct in6_addr		dst;
-	uint32_t		scopeid;
-	uint32_t		fibnum;
+	struct route_in6	 ro6;
+	struct ifnet		*ifp;
 
 	KASSERT(in6p->inp_vflag & INP_IPV6,
 	    ("%s: not INP_IPV6 inpcb", __func__));
 	KASSERT(gsin6->sin6_family == AF_INET6,
 	    ("%s: not AF_INET6 group", __func__));
 
-	in6_splitscope(&gsin6->sin6_addr, &dst, &scopeid);
-	fibnum = in6p ? in6p->inp_inc.inc_fibnum : RT_DEFAULT_FIB;
-	if (fib6_lookup_nh(fibnum, &dst, scopeid, 0, 0, &nh6) != 0)
-		return (NULL);
+	ifp = NULL;
+	memset(&ro6, 0, sizeof(struct route_in6));
+	memcpy(&ro6.ro_dst, gsin6, sizeof(struct sockaddr_in6));
+	rtalloc_ign_fib((struct route *)&ro6, 0,
+	    in6p ? in6p->inp_inc.inc_fibnum : RT_DEFAULT_FIB);
+	if (ro6.ro_rt != NULL) {
+		ifp = ro6.ro_rt->rt_ifp;
+		KASSERT(ifp != NULL, ("%s: null ifp", __func__));
+		RTFREE(ro6.ro_rt);
+	}
 
-	return (nh6.nh_ifp);
+	return (ifp);
 }
 
 /*
@@ -2346,11 +2348,15 @@ in6p_set_multicast_if(struct inpcb *inp, struct sockopt *sopt)
 		return (error);
 	if (V_if_index < ifindex)
 		return (EINVAL);
-
-	ifp = ifnet_byindex(ifindex);
-	if (ifp == NULL || (ifp->if_flags & IFF_MULTICAST) == 0)
-		return (EADDRNOTAVAIL);
-
+	if (ifindex == 0)
+		ifp = NULL;
+	else {
+		ifp = ifnet_byindex(ifindex);
+		if (ifp == NULL)
+			return (EINVAL);
+		if ((ifp->if_flags & IFF_MULTICAST) == 0)
+			return (EADDRNOTAVAIL);
+	}
 	imo = in6p_findmoptions(inp);
 	imo->im6o_multicast_ifp = ifp;
 	INP_WUNLOCK(inp);
@@ -2802,7 +2808,7 @@ in6m_print(const struct in6_multi *inm)
 	    inm->in6m_timer,
 	    in6m_state_str(inm->in6m_state),
 	    inm->in6m_refcount,
-	    inm->in6m_scq.ifq_len);
+	    mbufq_len(&inm->in6m_scq));
 	printf("mli %p nsrc %lu sctimer %u scrv %u\n",
 	    inm->in6m_mli,
 	    inm->in6m_nsrc,

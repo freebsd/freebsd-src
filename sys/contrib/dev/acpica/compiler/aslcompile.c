@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2014, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -100,9 +100,16 @@ CmDoCompile (
     Event = UtBeginEvent ("Preprocess input file");
     if (Gbl_PreprocessFlag)
     {
+        /* Enter compiler name as a #define */
+
+        PrAddDefine (ASL_DEFINE, "", FALSE);
+
         /* Preprocessor */
 
         PrDoPreprocess ();
+        Gbl_CurrentLineNumber = 1;
+        Gbl_LogicalLineNumber = 1;
+
         if (Gbl_PreprocessOnly)
         {
             UtEndEvent (Event);
@@ -112,16 +119,16 @@ CmDoCompile (
     }
     UtEndEvent (Event);
 
+
     /* Build the parse tree */
 
     Event = UtBeginEvent ("Parse source code and build parse tree");
     AslCompilerparse();
     UtEndEvent (Event);
 
-    /* Check for parse errors */
+    /* Check for parser-detected syntax errors */
 
-    Status = AslCheckForErrorExit ();
-    if (ACPI_FAILURE (Status))
+    if (Gbl_SyntaxError)
     {
         fprintf (stderr, "Compiler aborting due to parser-detected syntax error(s)\n");
         LsDumpParseTree ();
@@ -146,6 +153,13 @@ CmDoCompile (
 
     Event = UtBeginEvent ("Flush source input");
     CmFlushSourceCode ();
+
+    /* Prune the parse tree if requested (debug purposes only) */
+
+    if (Gbl_PruneParseTree)
+    {
+        AslPruneParseTree (Gbl_PruneDepth, Gbl_PruneType);
+    }
 
     /* Optional parse tree dump, compiler debug output only */
 
@@ -189,8 +203,16 @@ CmDoCompile (
     Event = UtBeginEvent ("Constant folding via AML interpreter");
     DbgPrint (ASL_DEBUG_OUTPUT,
         "\nInterpreting compile-time constant expressions\n\n");
-    TrWalkParseTree (RootNode, ASL_WALK_VISIT_DOWNWARD,
-        OpcAmlConstantWalk, NULL, NULL);
+
+    if (Gbl_FoldConstants)
+    {
+        TrWalkParseTree (RootNode, ASL_WALK_VISIT_DOWNWARD,
+            OpcAmlConstantWalk, NULL, NULL);
+    }
+    else
+    {
+        DbgPrint (ASL_PARSE_OUTPUT, "    Optional folding disabled\n");
+    }
     UtEndEvent (Event);
 
     /* Update AML opcodes if necessary, after constant folding */
@@ -694,7 +716,7 @@ CmCleanupAndExit (
     /* Close all open files */
 
     /*
-     * Take care with the preprocessor file (.i), it might be the same
+     * Take care with the preprocessor file (.pre), it might be the same
      * as the "input" file, depending on where the compiler has terminated
      * or aborted. Prevent attempt to close the same file twice in
      * loop below.
@@ -719,10 +741,9 @@ CmCleanupAndExit (
         FlDeleteFile (ASL_FILE_AML_OUTPUT);
     }
 
-    /* Delete the preprocessor output file (.i) unless -li flag is set */
+    /* Delete the preprocessor temp file unless full debug was specified */
 
-    if (!Gbl_PreprocessorOutputFlag &&
-        Gbl_PreprocessFlag)
+    if (Gbl_PreprocessFlag && !Gbl_KeepPreprocessorTempFile)
     {
         FlDeleteFile (ASL_FILE_PREPROCESSOR);
     }
@@ -738,8 +759,6 @@ CmCleanupAndExit (
      * Note: Handles are cleared by FlCloseFile above, so we look at the
      * filename instead, to determine if the .SRC file was actually
      * created.
-     *
-     * TBD: SourceOutput should be .TMP, then rename if we want to keep it?
      */
     if (!Gbl_SourceOutputFlag)
     {

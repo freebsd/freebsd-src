@@ -50,7 +50,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/kdb.h>
 
 #include <machine/bus.h>
-#include <machine/fdt.h>
 
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>

@@ -21,6 +21,6 @@ ${BOOT}: ${BOOT}.bin
 	cat ${BOOT}.bin /dev/zero | dd of=${BOOT} bs=1 count=7168
 
 ${BOOT}.bin: ${BOOT}.out
-	objcopy -S -O binary ${BOOT}.out ${.TARGET}
+	${OBJCOPY} -S -O binary ${BOOT}.out ${.TARGET}
 
 .include <bsd.prog.mk>

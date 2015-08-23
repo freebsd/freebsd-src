@@ -27,7 +27,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #ifndef _LINUX_TIMER_H_
-#define _LINUX_TIMER_H_
+#define	_LINUX_TIMER_H_
 
 #include <linux/types.h>
 
@@ -36,57 +36,37 @@
 #include <sys/callout.h>
 
 struct timer_list {
-	struct callout	timer_callout;
-	void		(*function)(unsigned long);
-	unsigned long	data;
-	unsigned long	expires;
+	struct callout timer_callout;
+	void    (*function) (unsigned long);
+	unsigned long data;
+	unsigned long expires;
 };
 
-static inline void
-_timer_fn(void *context)
-{
-	struct timer_list *timer;
-
-	timer = context;
-	timer->function(timer->data);
-}
+extern unsigned long linux_timer_hz_mask;
 
 #define	setup_timer(timer, func, dat)					\
 do {									\
 	(timer)->function = (func);					\
 	(timer)->data = (dat);						\
-	callout_init(&(timer)->timer_callout, CALLOUT_MPSAFE);		\
+	callout_init(&(timer)->timer_callout, 1);			\
 } while (0)
 
 #define	init_timer(timer)						\
 do {									\
 	(timer)->function = NULL;					\
 	(timer)->data = 0;						\
-	callout_init(&(timer)->timer_callout, CALLOUT_MPSAFE);		\
+	callout_init(&(timer)->timer_callout, 1);			\
 } while (0)
 
-#define	mod_timer(timer, exp)						\
-do {									\
-	(timer)->expires = (exp);					\
-	callout_reset(&(timer)->timer_callout, (exp) - jiffies,		\
-	    _timer_fn, (timer));					\
-} while (0)
-
-#define	add_timer(timer)						\
-	callout_reset(&(timer)->timer_callout,				\
-	    (timer)->expires - jiffies, _timer_fn, (timer))
+extern void mod_timer(struct timer_list *, unsigned long);
+extern void add_timer(struct timer_list *);
 
 #define	del_timer(timer)	callout_stop(&(timer)->timer_callout)
 #define	del_timer_sync(timer)	callout_drain(&(timer)->timer_callout)
-
 #define	timer_pending(timer)	callout_pending(&(timer)->timer_callout)
+#define	round_jiffies(j) \
+	((unsigned long)(((j) + linux_timer_hz_mask) & ~linux_timer_hz_mask))
+#define	round_jiffies_relative(j) \
+	round_jiffies(j)
 
-static inline unsigned long
-round_jiffies(unsigned long j)
-{
-	return roundup(j, hz);
-}
-
-#define round_jiffies_relative(j) round_jiffies(j)
-
-#endif /* _LINUX_TIMER_H_ */
+#endif					/* _LINUX_TIMER_H_ */

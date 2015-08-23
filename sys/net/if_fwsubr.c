@@ -77,7 +77,7 @@ struct fw_hwaddr firewire_broadcastaddr = {
 
 static int
 firewire_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
-    struct nhop_info *ni)
+    struct route *ro)
 {
 	struct fw_com *fc = IFP2FWC(ifp);
 	int error, type;
@@ -141,7 +141,9 @@ firewire_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 		 */
 		if (unicast) {
 			is_gw = 0;
-			/* XXX: do proper @ni checks for NHF_GATEWAY */
+			if (ro != NULL && ro->ro_rt != NULL &&
+			    (ro->ro_rt->rt_flags & RTF_GATEWAY) != 0)
+				is_gw = 1;
 			error = arpresolve(ifp, is_gw, m, dst, (u_char *) destfw, NULL);
 			if (error)
 				return (error == EWOULDBLOCK ? 0 : error);

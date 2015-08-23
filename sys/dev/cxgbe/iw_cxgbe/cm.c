@@ -52,8 +52,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp.h>
 #include <netinet/tcpip.h>
 
-#include <net/rt_nhops.h>
-
 #include <netinet/toecore.h>
 
 struct sge_iq;
@@ -88,6 +86,8 @@ static void __state_set(struct c4iw_ep_common *epc, enum c4iw_ep_state tostate);
 static void state_set(struct c4iw_ep_common *epc, enum c4iw_ep_state tostate);
 static void *alloc_ep(int size, gfp_t flags);
 void __free_ep(struct c4iw_ep_common *epc);
+static struct rtentry * find_route(__be32 local_ip, __be32 peer_ip, __be16 local_port,
+		__be16 peer_port, u8 tos);
 static int close_socket(struct c4iw_ep_common *epc, int close);
 static int shutdown_socket(struct c4iw_ep_common *epc);
 static void abort_socket(struct c4iw_ep *ep);
@@ -199,6 +199,25 @@ done:
 	INP_WUNLOCK(inp);
 	return (rc);
 
+}
+
+static struct rtentry *
+find_route(__be32 local_ip, __be32 peer_ip, __be16 local_port,
+		__be16 peer_port, u8 tos)
+{
+	struct route iproute;
+	struct sockaddr_in *dst = (struct sockaddr_in *)&iproute.ro_dst;
+
+	CTR5(KTR_IW_CXGBE, "%s:frtB %x, %x, %d, %d", __func__, local_ip,
+	    peer_ip, ntohs(local_port), ntohs(peer_port));
+	bzero(&iproute, sizeof iproute);
+	dst->sin_family = AF_INET;
+	dst->sin_len = sizeof *dst;
+	dst->sin_addr.s_addr = peer_ip;
+
+	rtalloc(&iproute);
+	CTR2(KTR_IW_CXGBE, "%s:frtE %p", __func__, (uint64_t)iproute.ro_rt);
+	return iproute.ro_rt;
 }
 
 static int
@@ -936,18 +955,14 @@ send_mpa_req(struct c4iw_ep *ep)
 	if (mpa_rev_to_use == 2)
 		mpalen += sizeof(struct mpa_v2_conn_params);
 
-	if (mpalen > MHLEN)
-		CXGBE_UNIMPLEMENTED(__func__);
-
-	m = m_gethdr(M_NOWAIT, MT_DATA);
-	if (m == NULL) {
+	mpa = malloc(mpalen, M_CXGBE, M_NOWAIT);
+	if (mpa == NULL) {
+failed:
 		connect_reply_upcall(ep, -ENOMEM);
 		return;
 	}
 
-	mpa = mtod(m, struct mpa_message *);
-	m->m_len = mpalen;
-	m->m_pkthdr.len = mpalen;
+	memset(mpa, 0, mpalen);
 	memcpy(mpa->key, MPA_KEY_REQ, sizeof(mpa->key));
 	mpa->flags = (crc_enabled ? MPA_CRC : 0) |
 		(markers_enabled ? MPA_MARKERS : 0) |
@@ -994,11 +1009,18 @@ send_mpa_req(struct c4iw_ep *ep)
 		CTR2(KTR_IW_CXGBE, "%s:smr7 %p", __func__, ep);
 	}
 
-	err = sosend(ep->com.so, NULL, NULL, m, NULL, MSG_DONTWAIT, ep->com.thread);
-	if (err) {
-		connect_reply_upcall(ep, -ENOMEM);
-		return;
+	m = m_getm(NULL, mpalen, M_NOWAIT, MT_DATA);
+	if (m == NULL) {
+		free(mpa, M_CXGBE);
+		goto failed;
 	}
+	m_copyback(m, 0, mpalen, (void *)mpa);
+	free(mpa, M_CXGBE);
+
+	err = sosend(ep->com.so, NULL, NULL, m, NULL, MSG_DONTWAIT,
+	    ep->com.thread);
+	if (err)
+		goto failed;
 
 	START_EP_TIMER(ep);
 	state_set(&ep->com, MPA_REQ_SENT);
@@ -1025,22 +1047,11 @@ static int send_mpa_reject(struct c4iw_ep *ep, const void *pdata, u8 plen)
 		    ep->mpa_attr.version, mpalen);
 	}
 
-	if (mpalen > MHLEN)
-		CXGBE_UNIMPLEMENTED(__func__);
-
-	m = m_gethdr(M_NOWAIT, MT_DATA);
-	if (m == NULL) {
-
-		printf("%s - cannot alloc mbuf!\n", __func__);
-		CTR2(KTR_IW_CXGBE, "%s:smrej2 %p", __func__, ep);
+	mpa = malloc(mpalen, M_CXGBE, M_NOWAIT);
+	if (mpa == NULL)
 		return (-ENOMEM);
-	}
 
-
-	mpa = mtod(m, struct mpa_message *);
-	m->m_len = mpalen;
-	m->m_pkthdr.len = mpalen;
-	memset(mpa, 0, sizeof(*mpa));
+	memset(mpa, 0, mpalen);
 	memcpy(mpa->key, MPA_KEY_REP, sizeof(mpa->key));
 	mpa->flags = MPA_REJECT;
 	mpa->revision = mpa_rev;
@@ -1072,7 +1083,15 @@ static int send_mpa_reject(struct c4iw_ep *ep, const void *pdata, u8 plen)
 		if (plen)
 			memcpy(mpa->private_data, pdata, plen);
 
-	err = sosend(ep->com.so, NULL, NULL, m, NULL, MSG_DONTWAIT, ep->com.thread);
+	m = m_getm(NULL, mpalen, M_NOWAIT, MT_DATA);
+	if (m == NULL) {
+		free(mpa, M_CXGBE);
+		return (-ENOMEM);
+	}
+	m_copyback(m, 0, mpalen, (void *)mpa);
+	free(mpa, M_CXGBE);
+
+	err = -sosend(ep->com.so, NULL, NULL, m, NULL, MSG_DONTWAIT, ep->com.thread);
 	if (!err)
 		ep->snd_seq += mpalen;
 	CTR4(KTR_IW_CXGBE, "%s:smrejE %p %u %d", __func__, ep, ep->hwtid, err);
@@ -1098,21 +1117,10 @@ static int send_mpa_reply(struct c4iw_ep *ep, const void *pdata, u8 plen)
 		mpalen += sizeof(struct mpa_v2_conn_params);
 	}
 
-	if (mpalen > MHLEN)
-		CXGBE_UNIMPLEMENTED(__func__);
-
-	m = m_gethdr(M_NOWAIT, MT_DATA);
-	if (m == NULL) {
-
-		CTR2(KTR_IW_CXGBE, "%s:smrep2 %p", __func__, ep);
-		printf("%s - cannot alloc mbuf!\n", __func__);
+	mpa = malloc(mpalen, M_CXGBE, M_NOWAIT);
+	if (mpa == NULL)
 		return (-ENOMEM);
-	}
 
-
-	mpa = mtod(m, struct mpa_message *);
-	m->m_len = mpalen;
-	m->m_pkthdr.len = mpalen;
 	memset(mpa, 0, sizeof(*mpa));
 	memcpy(mpa->key, MPA_KEY_REP, sizeof(mpa->key));
 	mpa->flags = (ep->mpa_attr.crc_enabled ? MPA_CRC : 0) |
@@ -1163,9 +1171,18 @@ static int send_mpa_reply(struct c4iw_ep *ep, const void *pdata, u8 plen)
 		if (plen)
 			memcpy(mpa->private_data, pdata, plen);
 
+	m = m_getm(NULL, mpalen, M_NOWAIT, MT_DATA);
+	if (m == NULL) {
+		free(mpa, M_CXGBE);
+		return (-ENOMEM);
+	}
+	m_copyback(m, 0, mpalen, (void *)mpa);
+	free(mpa, M_CXGBE);
+
+
 	state_set(&ep->com, MPA_REP_SENT);
 	ep->snd_seq += mpalen;
-	err = sosend(ep->com.so, NULL, NULL, m, NULL, MSG_DONTWAIT,
+	err = -sosend(ep->com.so, NULL, NULL, m, NULL, MSG_DONTWAIT,
 			ep->com.thread);
 	CTR3(KTR_IW_CXGBE, "%s:smrepE %p %d", __func__, ep, err);
 	return err;
@@ -1999,7 +2016,7 @@ int c4iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	int err = 0;
 	struct c4iw_dev *dev = to_c4iw_dev(cm_id->device);
 	struct c4iw_ep *ep = NULL;
-	struct nhop4_extended nh_ext;
+	struct rtentry *rt;
 	struct toedev *tdev;
 
 	CTR2(KTR_IW_CXGBE, "%s:ccB %p", __func__, cm_id);
@@ -2055,8 +2072,13 @@ int c4iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	init_sock(&ep->com);
 
 	/* find a route */
-	if (fib4_lookup_nh_ext(RT_DEFAULT_FIB, cm_id->remote_addr.sin_addr, 0,
-	    NHOP_LOOKUP_REF, &nh_ext) != 0) {
+	rt = find_route(
+		cm_id->local_addr.sin_addr.s_addr,
+		cm_id->remote_addr.sin_addr.s_addr,
+		cm_id->local_addr.sin_port,
+		cm_id->remote_addr.sin_port, 0);
+
+	if (!rt) {
 
 		CTR2(KTR_IW_CXGBE, "%s:cc7 %p", __func__, ep);
 		printk(KERN_ERR MOD "%s - cannot find route.\n", __func__);
@@ -2080,7 +2102,7 @@ int c4iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 		printf("%s - No toedev for interface.\n", __func__);
 		goto fail3;
 	}
-	fib4_free_nh_ext(RT_DEFAULT_FIB, &nh_ext);
+	RTFREE(rt);
 
 	state_set(&ep->com, CONNECTING);
 	ep->tos = 0;
@@ -2099,7 +2121,7 @@ int c4iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 
 fail3:
 	CTR2(KTR_IW_CXGBE, "%s:ccb %p", __func__, ep);
-	fib4_free_nh_ext(RT_DEFAULT_FIB, &nh_ext);
+	RTFREE(rt);
 fail2:
 	cm_id->rem_ref(cm_id);
 	c4iw_put_ep(&ep->com);

@@ -33,6 +33,9 @@
  *
  * $FreeBSD$
  */
+#ifdef ARM_NEW_PMAP
+#include <machine/pte-v6.h>
+#else /* ARM_NEW_PMAP */
 
 #ifndef _MACHINE_PTE_H_
 #define _MACHINE_PTE_H_
@@ -352,5 +355,6 @@ typedef	uint32_t	pt_entry_t;		/* page table entry */
  * 1 X 1 1 1	Y	  Y		WT	Y		Y
  */
 #endif /* !_MACHINE_PTE_H_ */
+#endif /* !ARM_NEW_PMAP */
 
 /* End of pte.h */

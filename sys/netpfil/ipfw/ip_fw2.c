@@ -89,7 +89,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/scope6_var.h>
 #include <netinet6/ip6_var.h>
 #endif
-#include <net/rt_nhops.h>
 
 #include <netpfil/ipfw/ip_fw_private.h>
 
@@ -438,10 +437,19 @@ verify_path(struct in_addr src, struct ifnet *ifp, u_int fib)
 #if defined(USERSPACE) || !defined(__FreeBSD__)
 	return 0;
 #else
-	struct nhop4_basic nh4;
+	struct route ro;
+	struct sockaddr_in *dst;
 
-	if (fib4_lookup_nh(fib, src, 0, NHOP_LOOKUP_AIFP, &nh4) != 0)
-		return (0);
+	bzero(&ro, sizeof(ro));
+
+	dst = (struct sockaddr_in *)&(ro.ro_dst);
+	dst->sin_family = AF_INET;
+	dst->sin_len = sizeof(*dst);
+	dst->sin_addr = src;
+	in_rtalloc_ign(&ro, 0, fib);
+
+	if (ro.ro_rt == NULL)
+		return 0;
 
 	/*
 	 * If ifp is provided, check for equality with rtentry.
@@ -450,18 +458,27 @@ verify_path(struct in_addr src, struct ifnet *ifp, u_int fib)
 	 * routing entry (via lo0) for our own address
 	 * may exist, so we need to handle routing assymetry.
 	 */
-	if (ifp != NULL && ifp != nh4.nh_ifp)
-		return (0);
+	if (ifp != NULL && ro.ro_rt->rt_ifa->ifa_ifp != ifp) {
+		RTFREE(ro.ro_rt);
+		return 0;
+	}
 
 	/* if no ifp provided, check if rtentry is not default route */
-	if (ifp == NULL && (nh4.nh_flags & NHF_DEFAULT) != 0)
-		return (0);
+	if (ifp == NULL &&
+	     satosin(rt_key(ro.ro_rt))->sin_addr.s_addr == INADDR_ANY) {
+		RTFREE(ro.ro_rt);
+		return 0;
+	}
 
 	/* or if this is a blackhole/reject route */
-	if (ifp == NULL && (nh4.nh_flags & (NHF_REJECT|NHF_BLACKHOLE)) != 0)
-		return (0);
+	if (ifp == NULL && ro.ro_rt->rt_flags & (RTF_REJECT|RTF_BLACKHOLE)) {
+		RTFREE(ro.ro_rt);
+		return 0;
+	}
 
-	return (1);
+	/* found valid route */
+	RTFREE(ro.ro_rt);
+	return 1;
 #endif /* __FreeBSD__ */
 }
 
@@ -486,55 +503,83 @@ flow6id_match( int curr_flow, ipfw_insn_u32 *cmd )
 }
 
 /* support for IP6_*_ME opcodes */
-static int
-search_ip6_addr_net (struct in6_addr * ip6_addr)
-{
-	struct ifnet *mdc;
-	struct ifaddr *mdc2;
-	struct in6_ifaddr *fdm;
-	struct in6_addr copia;
+static const struct in6_addr lla_mask = {{{
+	0xff, 0xff, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff,
+	0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff
+}}};
 
-	TAILQ_FOREACH(mdc, &V_ifnet, if_link) {
-		if_addr_rlock(mdc);
-		TAILQ_FOREACH(mdc2, &mdc->if_addrhead, ifa_link) {
-			if (mdc2->ifa_addr->sa_family == AF_INET6) {
-				fdm = (struct in6_ifaddr *)mdc2;
-				copia = fdm->ia_addr.sin6_addr;
-				/* need for leaving scope_id in the sock_addr */
-				in6_clearscope(&copia);
-				if (IN6_ARE_ADDR_EQUAL(ip6_addr, &copia)) {
-					if_addr_runlock(mdc);
-					return 1;
-				}
-			}
+static int
+ipfw_localip6(struct in6_addr *in6)
+{
+	struct rm_priotracker in6_ifa_tracker;
+	struct in6_ifaddr *ia;
+
+	if (IN6_IS_ADDR_MULTICAST(in6))
+		return (0);
+
+	if (!IN6_IS_ADDR_LINKLOCAL(in6))
+		return (in6_localip(in6));
+
+	IN6_IFADDR_RLOCK(&in6_ifa_tracker);
+	TAILQ_FOREACH(ia, &V_in6_ifaddrhead, ia_link) {
+		if (!IN6_IS_ADDR_LINKLOCAL(&ia->ia_addr.sin6_addr))
+			continue;
+		if (IN6_ARE_MASKED_ADDR_EQUAL(&ia->ia_addr.sin6_addr,
+		    in6, &lla_mask)) {
+			IN6_IFADDR_RUNLOCK(&in6_ifa_tracker);
+			return (1);
 		}
-		if_addr_runlock(mdc);
 	}
-	return 0;
+	IN6_IFADDR_RUNLOCK(&in6_ifa_tracker);
+	return (0);
 }
 
 static int
 verify_path6(struct in6_addr *src, struct ifnet *ifp, u_int fib)
 {
-	struct nhop6_basic nh6;
+	struct route_in6 ro;
+	struct sockaddr_in6 *dst;
 
-	/* XXX: unembed scope? */
-	if (fib6_lookup_nh(fib, src, 0, 0, NHOP_LOOKUP_AIFP, &nh6) != 0)
-		return (0);
+	bzero(&ro, sizeof(ro));
 
-	/* If ifp is provided, check for equality with route table. */
-	if (ifp != NULL && ifp != nh6.nh_ifp)
-		return (0);
+	dst = (struct sockaddr_in6 * )&(ro.ro_dst);
+	dst->sin6_family = AF_INET6;
+	dst->sin6_len = sizeof(*dst);
+	dst->sin6_addr = *src;
+
+	in6_rtalloc_ign(&ro, 0, fib);
+	if (ro.ro_rt == NULL)
+		return 0;
+
+	/* 
+	 * if ifp is provided, check for equality with rtentry
+	 * We should use rt->rt_ifa->ifa_ifp, instead of rt->rt_ifp,
+	 * to support the case of sending packets to an address of our own.
+	 * (where the former interface is the first argument of if_simloop()
+	 *  (=ifp), the latter is lo0)
+	 */
+	if (ifp != NULL && ro.ro_rt->rt_ifa->ifa_ifp != ifp) {
+		RTFREE(ro.ro_rt);
+		return 0;
+	}
 
 	/* if no ifp provided, check if rtentry is not default route */
-	if (ifp == NULL && (nh6.nh_flags & NHF_DEFAULT) != 0)
-		return (0);
+	if (ifp == NULL &&
+	    IN6_IS_ADDR_UNSPECIFIED(&satosin6(rt_key(ro.ro_rt))->sin6_addr)) {
+		RTFREE(ro.ro_rt);
+		return 0;
+	}
 
 	/* or if this is a blackhole/reject route */
-	if (ifp == NULL && (nh6.nh_flags & (NHF_REJECT|NHF_BLACKHOLE)) != 0)
-		return (0);
+	if (ifp == NULL && ro.ro_rt->rt_flags & (RTF_REJECT|RTF_BLACKHOLE)) {
+		RTFREE(ro.ro_rt);
+		return 0;
+	}
 
-	return (1);
+	/* found valid route */
+	RTFREE(ro.ro_rt);
+	return 1;
+
 }
 
 static int
@@ -567,7 +612,8 @@ send_reject6(struct ip_fw_args *args, int code, u_int hlen, struct ip6_hdr *ip6)
 			    ntohl(tcp->th_seq), ntohl(tcp->th_ack),
 			    tcp->th_flags | TH_RST);
 			if (m0 != NULL)
-				ip6_output(m0, NULL, NULL, 0, NULL, NULL);
+				ip6_output(m0, NULL, NULL, 0, NULL, NULL,
+				    NULL);
 		}
 		FREE_PKT(m);
 	} else if (code != ICMP6_UNREACH_RST) { /* Send an ICMPv6 unreach. */
@@ -1490,8 +1536,9 @@ do {								\
 					    else if (v == 5 /* O_JAIL */)
 						key = ucred_cache.xid;
 #endif /* !__FreeBSD__ */
-					} else
+					}
 #endif /* !USERSPACE */
+					else
 					    break;
 				    }
 				    match = ipfw_lookup_table(chain,
@@ -1554,7 +1601,7 @@ do {								\
 #ifdef INET6
 				/* FALLTHROUGH */
 			case O_IP6_SRC_ME:
-				match= is_ipv6 && search_ip6_addr_net(&args->f_id.src_ip6);
+				match= is_ipv6 && ipfw_localip6(&args->f_id.src_ip6);
 #endif
 				break;
 
@@ -1593,7 +1640,7 @@ do {								\
 #ifdef INET6
 				/* FALLTHROUGH */
 			case O_IP6_DST_ME:
-				match= is_ipv6 && search_ip6_addr_net(&args->f_id.dst_ip6);
+				match= is_ipv6 && ipfw_localip6(&args->f_id.dst_ip6);
 #endif
 				break;
 
@@ -2345,13 +2392,48 @@ do {								\
 				if (q == NULL || q->rule != f ||
 				    dyn_dir == MATCH_FORWARD) {
 				    struct sockaddr_in *sa;
+
 				    sa = &(((ipfw_insn_sa *)cmd)->sa);
 				    if (sa->sin_addr.s_addr == INADDR_ANY) {
-					bcopy(sa, &args->hopstore,
-							sizeof(*sa));
-					args->hopstore.sin_addr.s_addr =
-						    htonl(tablearg);
-					args->next_hop = &args->hopstore;
+#ifdef INET6
+					/*
+					 * We use O_FORWARD_IP opcode for
+					 * fwd rule with tablearg, but tables
+					 * now support IPv6 addresses. And
+					 * when we are inspecting IPv6 packet,
+					 * we can use nh6 field from
+					 * table_value as next_hop6 address.
+					 */
+					if (is_ipv6) {
+						struct sockaddr_in6 *sa6;
+
+						sa6 = args->next_hop6 =
+						    &args->hopstore6;
+						sa6->sin6_family = AF_INET6;
+						sa6->sin6_len = sizeof(*sa6);
+						sa6->sin6_addr = TARG_VAL(
+						    chain, tablearg, nh6);
+						/*
+						 * Set sin6_scope_id only for
+						 * link-local unicast addresses.
+						 */
+						if (IN6_IS_ADDR_LINKLOCAL(
+						    &sa6->sin6_addr))
+							sa6->sin6_scope_id =
+							    TARG_VAL(chain,
+								tablearg,
+								zoneid);
+					} else
+#endif
+					{
+						sa = args->next_hop =
+						    &args->hopstore;
+						sa->sin_family = AF_INET;
+						sa->sin_len = sizeof(*sa);
+						sa->sin_addr.s_addr = htonl(
+						    TARG_VAL(chain, tablearg,
+						    nh4));
+					}
 				    } else {
 					args->next_hop = sa;
 				    }
@@ -2409,12 +2491,13 @@ do {								\
 				code = TARG(cmd->arg1, dscp) & 0x3F;
 				l = 0;		/* exit inner loop */
 				if (is_ipv4) {
-					uint16_t a;
+					uint16_t old;
 
-					a = ip->ip_tos;
-					ip->ip_tos = (code << 2) | (ip->ip_tos & 0x03);
-					a += ntohs(ip->ip_sum) - ip->ip_tos;
-					ip->ip_sum = htons(a);
+					old = *(uint16_t *)ip;
+					ip->ip_tos = (code << 2) |
+					    (ip->ip_tos & 0x03);
+					ip->ip_sum = cksum_adjust(ip->ip_sum,
+					    old, *(uint16_t *)ip);
 				} else if (is_ipv6) {
 					uint8_t *v;
 
@@ -2685,6 +2768,10 @@ vnet_ipfw_init(const void *unused)
 	LIST_INIT(&chain->nat);
 #endif
 
+	/* Init shared services hash table */
+	ipfw_init_srv(chain);
+
+	ipfw_init_obj_rewriter();
 	ipfw_init_counters();
 	/* insert the default rule and create the initial map */
 	chain->n_rules = 1;
@@ -2783,9 +2870,11 @@ vnet_ipfw_uninit(const void *unused)
 	if (reap != NULL)
 		ipfw_reap_rules(reap);
 	vnet_ipfw_iface_destroy(chain);
+	ipfw_destroy_srv(chain);
 	IPFW_LOCK_DESTROY(chain);
 	ipfw_dyn_uninit(1);	/* free the remaining parts */
 	ipfw_destroy_counters();
+	ipfw_destroy_obj_rewriter();
 	return (0);
 }
 

@@ -1227,6 +1227,7 @@ bxe_drv_stats_update(struct bxe_softc *sc)
         UPDATE_ESTAT_QSTAT(rx_calls);
         UPDATE_ESTAT_QSTAT(rx_pkts);
         UPDATE_ESTAT_QSTAT(rx_tpa_pkts);
+        UPDATE_ESTAT_QSTAT(rx_jumbo_sge_pkts);
         UPDATE_ESTAT_QSTAT(rx_soft_errors);
         UPDATE_ESTAT_QSTAT(rx_hw_csum_errors);
         UPDATE_ESTAT_QSTAT(rx_ofld_frames_csum_ip);

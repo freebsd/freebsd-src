@@ -112,38 +112,15 @@ struct sockaddr_inarp {
 extern u_char	ether_ipmulticast_min[ETHER_ADDR_LEN];
 extern u_char	ether_ipmulticast_max[ETHER_ADDR_LEN];
 
-struct lltable;
-struct llentry;
 struct ifaddr;
-struct rt_addrinfo;
-
-#define LLTABLE(ifp)	\
-	((struct in_ifinfo *)(ifp)->if_afdata[AF_INET])->ii_llt
-
-static __inline const void *
-_check_in_addr_typecast(const struct in_addr *paddr)
-{
-
-	return ((const void *)paddr);
-}
-
-#define	lltable_lookup_lle4(i, f, a)	\
-	lltable_lookup_lle(LLTABLE(i), (f), _check_in_addr_typecast(a))
-#define	lltable_create_lle4(i, f, a)	\
-	lltable_create_lle(LLTABLE(i), (f), _check_in_addr_typecast(a))
 
 int	arpresolve(struct ifnet *ifp, int is_gw, struct mbuf *m,
 	    const struct sockaddr *dst, u_char *desten, uint32_t *pflags);
-int	arpresolve_fast(struct ifnet *ifp, struct in_addr dst, u_int mflags,
-	    u_char *dst_addr);
 void	arprequest(struct ifnet *, const struct in_addr *,
 	    const struct in_addr *, u_char *);
 void	arp_ifinit(struct ifnet *, struct ifaddr *);
 void	arp_ifinit2(struct ifnet *, struct ifaddr *, u_char *);
 void	arp_ifscrub(struct ifnet *, uint32_t);
-void	arp_lltable_clear_entry(struct lltable *, struct llentry *);
-int	arp_lltable_prepare_static_entry(struct lltable *, struct llentry *,
-	    struct rt_addrinfo *);
 #endif
 
 #endif

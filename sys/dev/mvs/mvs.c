@@ -107,7 +107,7 @@ mvs_ch_probe(device_t dev)
 {
 
 	device_set_desc_copy(dev, "Marvell SATA channel");
-	return (0);
+	return (BUS_PROBE_DEFAULT);
 }
 
 static int

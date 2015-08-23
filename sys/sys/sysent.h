@@ -136,6 +136,7 @@ struct sysentvec {
 	uint32_t	sv_timekeep_gen;
 	void		*sv_shared_page_obj;
 	void		(*sv_schedtail)(struct thread *);
+	void		(*sv_thread_detach)(struct thread *);
 };
 
 #define	SV_ILP32	0x000100
@@ -152,6 +153,7 @@ struct sysentvec {
 /* same as ELFOSABI_XXX, to prevent header pollution */
 #define	SV_ABI_LINUX	3
 #define	SV_ABI_FREEBSD 	9
+#define	SV_ABI_CLOUDABI	17
 #define	SV_ABI_UNDEF	255
 
 #ifdef _KERNEL

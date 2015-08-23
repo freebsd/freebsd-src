@@ -29,6 +29,10 @@
 #ifndef	_LINUX_MODULE_H_
 #define	_LINUX_MODULE_H_
 
+#include <sys/cdefs.h>
+#include <sys/types.h>
+#include <sys/module.h>
+
 #include <linux/list.h>
 #include <linux/compiler.h>
 #include <linux/kobject.h>
@@ -38,10 +42,6 @@
 #define MODULE_AUTHOR(name)
 #define MODULE_DESCRIPTION(name)
 #define MODULE_LICENSE(name)
-
-#ifndef MODULE_VERSION
-#define MODULE_VERSION(name)
-#endif
 
 #define	THIS_MODULE	((struct module *)0)
 

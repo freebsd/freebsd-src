@@ -41,7 +41,6 @@ __FBSDID("$FreeBSD$");
 #include "host_syscall.h"
 
 extern char		end[];
-extern vm_offset_t	reloc;	/* From <arch>/conf.c */
 extern void		*kerneltramp;
 extern size_t		szkerneltramp;
 extern int		nkexec_segments;
@@ -68,17 +67,22 @@ ppc64_elf_exec(struct preloaded_file *fp)
 	Elf_Ehdr		*e;
 	int			error;
 	uint32_t		*trampoline;
-	vm_offset_t		trampolinebase = 96*1024*1024; /* XXX */
+	uint64_t		entry;
+	vm_offset_t		trampolinebase;
 
 	if ((fmp = file_findmetadata(fp, MODINFOMD_ELFHDR)) == NULL) {
 		return(EFTYPE);
 	}
 	e = (Elf_Ehdr *)&fmp->md_data;
+
+	/* Figure out where to put it */
+	trampolinebase = archsw.arch_loadaddr(LOAD_RAW, NULL, 0);
 	
-	/* Handle function descriptor */
+	/* Set up interesting values in function descriptor */
 	trampoline = malloc(szkerneltramp);
 	memcpy(trampoline, &kerneltramp, szkerneltramp);
-	trampoline[2] = e->e_entry;
+	archsw.arch_copyout(e->e_entry + elf64_relocation_offset, &entry, 8);
+	trampoline[2] = entry + elf64_relocation_offset;
 	trampoline[4] = 0; /* Phys. mem offset */
 	trampoline[5] = 0; /* OF entry point */
 
@@ -88,7 +92,8 @@ ppc64_elf_exec(struct preloaded_file *fp)
 	trampoline[3] = dtb;
 	trampoline[6] = mdp;
 	trampoline[7] = sizeof(mdp);
-	printf("Kernel entry at %#jx ...\n", e->e_entry);
+	printf("Kernel entry at %#jx (%#x) ...\n", e->e_entry, trampoline[2]);
+	printf("DTB at %#x, mdp at %#x\n", dtb, mdp);
 
 	dev_cleanup();
 

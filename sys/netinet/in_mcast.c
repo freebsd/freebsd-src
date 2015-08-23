@@ -38,10 +38,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/protosw.h>
-#include <sys/lock.h>
 #include <sys/rmlock.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
@@ -64,8 +64,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip_var.h>
 #include <netinet/igmp_var.h>
 
-#include <net/rt_nhops.h>
-
 #ifndef KTR_IGMPV3
 #define KTR_IGMPV3 KTR_INET
 #endif
@@ -87,8 +85,6 @@ static MALLOC_DEFINE(M_IPMADDR, "in_multi", "IPv4 multicast group");
 static MALLOC_DEFINE(M_IPMOPTS, "ip_moptions", "IPv4 multicast options");
 static MALLOC_DEFINE(M_IPMSOURCE, "ip_msource",
     "IPv4 multicast IGMP-layer source filter");
-
-IN_IFADDR_FAST_LOCK_DECLARATION;
 
 /*
  * Locking:
@@ -529,12 +525,7 @@ in_getmulti(struct ifnet *ifp, const struct in_addr *group,
 	inm->inm_ifma = ifma;
 	inm->inm_refcount = 1;
 	inm->inm_state = IGMP_NOT_MEMBER;
-
-	/*
-	 * Pending state-changes per group are subject to a bounds check.
-	 */
-	IFQ_SET_MAXLEN(&inm->inm_scq, IGMP_MAX_STATE_CHANGES);
-
+	mbufq_init(&inm->inm_scq, IGMP_MAX_STATE_CHANGES);
 	inm->inm_st[0].iss_fmode = MCAST_UNDEFINED;
 	inm->inm_st[1].iss_fmode = MCAST_UNDEFINED;
 	RB_INIT(&inm->inm_srcs);
@@ -1759,6 +1750,7 @@ inp_get_source_filters(struct inpcb *inp, struct sockopt *sopt)
 int
 inp_getmoptions(struct inpcb *inp, struct sockopt *sopt)
 {
+	struct rm_priotracker	 in_ifa_tracker;
 	struct ip_mreqn		 mreqn;
 	struct ip_moptions	*imo;
 	struct ifnet		*ifp;
@@ -1798,7 +1790,7 @@ inp_getmoptions(struct inpcb *inp, struct sockopt *sopt)
 				mreqn.imr_address = imo->imo_multicast_addr;
 			} else if (ifp != NULL) {
 				mreqn.imr_ifindex = ifp->if_index;
-				IFP_TO_IA(ifp, ia);
+				IFP_TO_IA(ifp, ia, &in_ifa_tracker);
 				if (ia != NULL) {
 					mreqn.imr_address =
 					    IA_SIN(ia)->sin_addr;
@@ -1883,15 +1875,14 @@ inp_getmoptions(struct inpcb *inp, struct sockopt *sopt)
  * Returns NULL if no ifp could be found.
  *
  * SMPng: TODO: Acquire the appropriate locks for INADDR_TO_IFP.
- * TODO: Provide guarantees @ifp won't disappear
  * FUTURE: Implement IPv4 source-address selection.
  */
 static struct ifnet *
 inp_lookup_mcast_ifp(const struct inpcb *inp,
     const struct sockaddr_in *gsin, const struct in_addr ina)
 {
+	struct rm_priotracker in_ifa_tracker;
 	struct ifnet *ifp;
-	IN_IFADDR_RUN_TRACKER;
 
 	KASSERT(gsin->sin_family == AF_INET, ("%s: not AF_INET", __func__));
 	KASSERT(IN_MULTICAST(ntohl(gsin->sin_addr.s_addr)),
@@ -1901,17 +1892,21 @@ inp_lookup_mcast_ifp(const struct inpcb *inp,
 	if (!in_nullhost(ina)) {
 		INADDR_TO_IFP(ina, ifp);
 	} else {
-		struct nhop4_basic nh4;
-	
-		if (fib4_lookup_nh(inp ? inp->inp_inc.inc_fibnum : 0,
-		    gsin->sin_addr, 0, 0, &nh4) != 0) {
-			return (nh4.nh_ifp);
+		struct route ro;
+
+		ro.ro_rt = NULL;
+		memcpy(&ro.ro_dst, gsin, sizeof(struct sockaddr_in));
+		in_rtalloc_ign(&ro, 0, inp ? inp->inp_inc.inc_fibnum : 0);
+		if (ro.ro_rt != NULL) {
+			ifp = ro.ro_rt->rt_ifp;
+			KASSERT(ifp != NULL, ("%s: null ifp", __func__));
+			RTFREE(ro.ro_rt);
 		} else {
 			struct in_ifaddr *ia;
 			struct ifnet *mifp;
 
 			mifp = NULL;
-			IN_IFADDR_RUN_RLOCK();
+			IN_IFADDR_RLOCK(&in_ifa_tracker);
 			TAILQ_FOREACH(ia, &V_in_ifaddrhead, ia_link) {
 				mifp = ia->ia_ifp;
 				if (!(mifp->if_flags & IFF_LOOPBACK) &&
@@ -1920,7 +1915,7 @@ inp_lookup_mcast_ifp(const struct inpcb *inp,
 					break;
 				}
 			}
-			IN_IFADDR_RUN_RUNLOCK();
+			IN_IFADDR_RUNLOCK(&in_ifa_tracker);
 		}
 	}
 
@@ -2987,7 +2982,7 @@ inm_print(const struct in_multi *inm)
 	    inm->inm_timer,
 	    inm_state_str(inm->inm_state),
 	    inm->inm_refcount,
-	    inm->inm_scq.ifq_len);
+	    inm->inm_scq.mq_len);
 	printf("igi %p nsrc %lu sctimer %u scrv %u\n",
 	    inm->inm_igi,
 	    inm->inm_nsrc,

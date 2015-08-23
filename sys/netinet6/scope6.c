@@ -148,11 +148,11 @@ scope6_set(struct ifnet *ifp, struct scope6_id *idlist)
 	int error = 0;
 	struct scope6_id *sid = NULL;
 
-	IF_AFDATA_CFG_WLOCK(ifp);
+	IF_AFDATA_WLOCK(ifp);
 	sid = SID(ifp);
 
 	if (!sid) {	/* paranoid? */
-		IF_AFDATA_CFG_WUNLOCK(ifp);
+		IF_AFDATA_WUNLOCK(ifp);
 		return (EINVAL);
 	}
 
@@ -175,7 +175,7 @@ scope6_set(struct ifnet *ifp, struct scope6_id *idlist)
 			 */
 			if (i == IPV6_ADDR_SCOPE_INTFACELOCAL &&
 			    idlist->s6id_list[i] != ifp->if_index) {
-				IF_AFDATA_CFG_WUNLOCK(ifp);
+				IF_AFDATA_WUNLOCK(ifp);
 				return (EINVAL);
 			}
 
@@ -187,7 +187,7 @@ scope6_set(struct ifnet *ifp, struct scope6_id *idlist)
 				 * IDs, but we check the consistency for
 				 * safety in later use.
 				 */
-				IF_AFDATA_CFG_WUNLOCK(ifp);
+				IF_AFDATA_WUNLOCK(ifp);
 				return (EINVAL);
 			}
 
@@ -196,11 +196,10 @@ scope6_set(struct ifnet *ifp, struct scope6_id *idlist)
 			 * but we simply set the new value in this initial
 			 * implementation.
 			 */
-			/* XXX: Use runtime lock? */
 			sid->s6id_list[i] = idlist->s6id_list[i];
 		}
 	}
-	IF_AFDATA_CFG_WUNLOCK(ifp);
+	IF_AFDATA_WUNLOCK(ifp);
 
 	return (error);
 }
@@ -385,20 +384,6 @@ sa6_recoverscope(struct sockaddr_in6 *sin6)
 }
 
 /*
- * Embed interface index for link-local addresses
- *
- */
-void
-in6_setllascope(struct in6_addr *in6, struct ifnet *ifp)
-{
-	uint32_t zoneid;
-
-	KASSERT(IN6_IS_SCOPE_LINKLOCAL(in6), ("Non-linklocal address"));
-	zoneid = ifp->if_index;
-	in6->s6_addr16[1] = htons(zoneid & 0xffff);
-}
-
-/*
  * Determine the appropriate scope zone ID for in6 and ifp.  If ret_id is
  * non NULL, it is set to the zone ID.  If the zone ID needs to be embedded
  * in the in6_addr structure, in6 will be modified.
@@ -473,18 +458,6 @@ in6_getscope(struct in6_addr *in6)
 		return (in6->s6_addr16[1]);
 
 	return (0);
-}
-
-void
-in6_splitscope(const struct in6_addr *src, struct in6_addr *dst,
-    uint32_t *scopeid)
-{
-	uint32_t zoneid;
-
-	*dst = *src;
-	zoneid = ntohs(in6_getscope(dst));
-	in6_clearscope(dst);
-	*scopeid = zoneid;
 }
 
 /*

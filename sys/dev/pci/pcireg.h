@@ -51,6 +51,7 @@
 #define	PCIE_ARI_SLOTMAX 0
 #define	PCIE_ARI_FUNCMAX 255
 
+#define	PCI_RID_DOMAIN_SHIFT	16
 #define	PCI_RID_BUS_SHIFT	8
 #define	PCI_RID_SLOT_SHIFT	3
 #define	PCI_RID_FUNC_SHIFT	0
@@ -67,6 +68,10 @@
 #define PCI_RID2BUS(rid) (((rid) >> PCI_RID_BUS_SHIFT) & PCI_BUSMAX)
 #define PCI_RID2SLOT(rid) (((rid) >> PCI_RID_SLOT_SHIFT) & PCI_SLOTMAX)
 #define PCI_RID2FUNC(rid) (((rid) >> PCI_RID_FUNC_SHIFT) & PCI_FUNCMAX)
+
+#define PCIE_ARI_RID2SLOT(rid) (0)
+#define PCIE_ARI_RID2FUNC(rid) \
+    (((rid) >> PCI_RID_FUNC_SHIFT) & PCIE_ARI_FUNCMAX)
 
 #define PCIE_ARI_SLOT(func) (((func) >> PCI_RID_SLOT_SHIFT) & PCI_SLOTMAX)
 #define PCIE_ARI_FUNC(func) (((func) >> PCI_RID_FUNC_SHIFT) & PCI_FUNCMAX)
@@ -919,4 +924,22 @@
 /* Serial Number definitions */
 #define	PCIR_SERIAL_LOW		0x04
 #define	PCIR_SERIAL_HIGH	0x08
+
+/* SR-IOV definitions */
+#define	PCIR_SRIOV_CTL		0x08
+#define	PCIM_SRIOV_VF_EN	0x01
+#define	PCIM_SRIOV_VF_MSE	0x08	/* Memory space enable. */
+#define	PCIM_SRIOV_ARI_EN	0x10
+#define	PCIR_SRIOV_TOTAL_VFS	0x0E
+#define	PCIR_SRIOV_NUM_VFS	0x10
+#define	PCIR_SRIOV_VF_OFF	0x14
+#define	PCIR_SRIOV_VF_STRIDE	0x16
+#define	PCIR_SRIOV_VF_DID	0x1A
+#define	PCIR_SRIOV_PAGE_CAP	0x1C
+#define	PCIR_SRIOV_PAGE_SIZE	0x20
+
+#define	PCI_SRIOV_BASE_PAGE_SHIFT	12
+
+#define	PCIR_SRIOV_BARS		0x24
+#define	PCIR_SRIOV_BAR(x)	(PCIR_SRIOV_BARS + (x) * 4)
 

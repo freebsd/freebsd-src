@@ -72,9 +72,22 @@ struct zy7_devcfg_softc {
 	bus_dmamap_t	dma_map;
 
 	int		is_open;
+
+	struct sysctl_ctx_list sysctl_tree;
+	struct sysctl_oid *sysctl_tree_top;
 };
 
 static struct zy7_devcfg_softc *zy7_devcfg_softc_p;
+
+#define	FCLK_NUM	4
+
+struct zy7_fclk_config {
+	int		source;
+	int		frequency;
+	int		actual_frequency;
+};
+
+static struct zy7_fclk_config fclk_configs[FCLK_NUM];
 
 #define DEVCFG_SC_LOCK(sc)		mtx_lock(&(sc)->sc_mtx)
 #define	DEVCFG_SC_UNLOCK(sc)		mtx_unlock(&(sc)->sc_mtx)
@@ -103,12 +116,16 @@ static int zy7_ps_vers = 0;
 SYSCTL_INT(_hw, OID_AUTO, ps_vers, CTLFLAG_RD, &zy7_ps_vers, 0,
 	   "Zynq-7000 PS version");
 
+static int zy7_devcfg_fclk_sysctl_level_shifters(SYSCTL_HANDLER_ARGS);
+SYSCTL_PROC(_hw_fpga, OID_AUTO, level_shifters, 
+		    CTLFLAG_RW | CTLTYPE_INT, 
+		    NULL, 0, zy7_devcfg_fclk_sysctl_level_shifters,
+		    "I", "Enable/disable level shifters");
 
 /* cdev entry points. */
 static int zy7_devcfg_open(struct cdev *, int, int, struct thread *);
 static int zy7_devcfg_write(struct cdev *, struct uio *, int);
 static int zy7_devcfg_close(struct cdev *, int, int, struct thread *);
-
 
 struct cdevsw zy7_devcfg_cdevsw = {
 	.d_version =	D_VERSION,
@@ -230,6 +247,151 @@ struct cdevsw zy7_devcfg_cdevsw = {
 #define ZY7_DEVCFG_XADCIF_RD_FIFO	0x114
 #define ZY7_DEVCFG_XADCIF_MCTL		0x118
 
+static int
+zy7_devcfg_fclk_sysctl_source(SYSCTL_HANDLER_ARGS)
+{
+	char buf[4];
+	struct zy7_fclk_config *cfg;
+	int unit;
+	int error;
+
+	cfg = arg1;
+	unit = arg2;
+
+	switch (cfg->source) {
+		case ZY7_PL_FCLK_SRC_IO:
+		case ZY7_PL_FCLK_SRC_IO_ALT:
+			strncpy(buf, "IO", sizeof(buf));
+			break;
+		case ZY7_PL_FCLK_SRC_DDR:
+			strncpy(buf, "DDR", sizeof(buf));
+			break;
+		case ZY7_PL_FCLK_SRC_ARM:
+			strncpy(buf, "ARM", sizeof(buf));
+			break;
+		default:
+			strncpy(buf, "???", sizeof(buf));
+			break;
+	}
+
+	error = sysctl_handle_string(oidp, buf, sizeof(buf), req);
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+
+	if (strcasecmp(buf, "io") == 0)
+		cfg->source = ZY7_PL_FCLK_SRC_IO;
+	else if (strcasecmp(buf, "ddr") == 0)
+		cfg->source = ZY7_PL_FCLK_SRC_DDR;
+	else if (strcasecmp(buf, "arm") == 0)
+		cfg->source = ZY7_PL_FCLK_SRC_ARM;
+	else
+		return (EINVAL);
+
+	zy7_pl_fclk_set_source(unit, cfg->source);
+	if (cfg->frequency > 0)
+		cfg->actual_frequency = zy7_pl_fclk_get_freq(unit);
+
+	return (0);
+}
+
+static int
+zy7_devcfg_fclk_sysctl_freq(SYSCTL_HANDLER_ARGS)
+{
+	struct zy7_fclk_config *cfg;
+	int unit;
+	int error;
+	int freq;
+	int new_actual_freq;
+
+	cfg = arg1;
+	unit = arg2;
+
+	freq = cfg->frequency;
+
+	error = sysctl_handle_int(oidp, &freq, 0, req);
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+
+	if (freq > 0) {
+		new_actual_freq = zy7_pl_fclk_set_freq(unit, freq);
+		if (new_actual_freq < 0)
+			return (EINVAL);
+		if (!zy7_pl_fclk_enabled(unit))
+			zy7_pl_fclk_enable(unit);
+	}
+	else {
+		zy7_pl_fclk_disable(unit);
+		new_actual_freq = 0;
+	}
+
+	cfg->frequency = freq;
+	cfg->actual_frequency = new_actual_freq;
+
+	return (0);
+}
+
+static int
+zy7_devcfg_fclk_sysctl_level_shifters(SYSCTL_HANDLER_ARGS)
+{
+	int error, enabled;
+
+	enabled = zy7_pl_level_shifters_enabled();
+
+	error = sysctl_handle_int(oidp, &enabled, 0, req);
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+
+	if (enabled)
+		zy7_pl_level_shifters_enable();
+	else
+		zy7_pl_level_shifters_disable();
+
+	return (0);
+}
+
+static int
+zy7_devcfg_init_fclk_sysctl(struct zy7_devcfg_softc *sc)
+{
+	struct sysctl_oid *fclk_node;
+	char fclk_num[4];
+	int i;
+
+	sysctl_ctx_init(&sc->sysctl_tree);
+	sc->sysctl_tree_top = SYSCTL_ADD_NODE(&sc->sysctl_tree,
+	    SYSCTL_STATIC_CHILDREN(_hw_fpga), OID_AUTO, "fclk",
+	    CTLFLAG_RD, 0, "");
+	if (sc->sysctl_tree_top == NULL) {
+		sysctl_ctx_free(&sc->sysctl_tree);
+		return (-1);
+	}
+
+	for (i = 0; i < FCLK_NUM; i++) {
+		snprintf(fclk_num, sizeof(fclk_num), "%d", i);
+		fclk_node = SYSCTL_ADD_NODE(&sc->sysctl_tree,
+		    SYSCTL_CHILDREN(sc->sysctl_tree_top), OID_AUTO, fclk_num,
+		    CTLFLAG_RD, 0, "");
+
+		SYSCTL_ADD_INT(&sc->sysctl_tree,
+		    SYSCTL_CHILDREN(fclk_node), OID_AUTO,
+		    "actual_freq", CTLFLAG_RD, 
+		    &fclk_configs[i].actual_frequency, i,
+		    "Actual frequency");
+		SYSCTL_ADD_PROC(&sc->sysctl_tree,
+		    SYSCTL_CHILDREN(fclk_node), OID_AUTO,
+		    "freq", CTLFLAG_RW | CTLTYPE_INT, 
+		    &fclk_configs[i], i,
+		    zy7_devcfg_fclk_sysctl_freq,
+		    "I", "Configured frequency");
+		SYSCTL_ADD_PROC(&sc->sysctl_tree,
+		    SYSCTL_CHILDREN(fclk_node), OID_AUTO,
+		    "source", CTLFLAG_RW | CTLTYPE_STRING, 
+		    &fclk_configs[i], i, 
+		    zy7_devcfg_fclk_sysctl_source,
+		    "A", "Clock source");
+	}
+
+	return (0);
+}
 
 /* Enable programming the PL through PCAP. */
 static void
@@ -333,7 +495,6 @@ zy7_dma_cb2(void *arg, bus_dma_segment_t *seg, int nsegs, int error)
 	if (!error && nsegs == 1)
 		*(bus_addr_t *)arg = seg[0].ds_addr;
 }
-
 
 static int
 zy7_devcfg_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
@@ -474,9 +635,10 @@ zy7_devcfg_close(struct cdev *dev, int fflag, int devtype, struct thread *td)
 	bus_dma_tag_destroy(sc->dma_tag);
 	DEVCFG_SC_UNLOCK(sc);
 
+	zy7_slcr_postload_pl(zy7_en_level_shifters);
+
 	return (0);
 }
-
 
 static void
 zy7_devcfg_intr(void *arg)
@@ -549,6 +711,7 @@ static int
 zy7_devcfg_attach(device_t dev)
 {
 	struct zy7_devcfg_softc *sc = device_get_softc(dev);
+	int i;
 	int rid, err;
 
 	/* Allow only one attach. */
@@ -612,6 +775,17 @@ zy7_devcfg_attach(device_t dev)
 		       ZY7_DEVCFG_MCTRL_PS_VERS_MASK) >>
 		ZY7_DEVCFG_MCTRL_PS_VERS_SHIFT;
 
+	for (i = 0; i < FCLK_NUM; i++) {
+		fclk_configs[i].source = zy7_pl_fclk_get_source(i);
+		fclk_configs[i].actual_frequency = 
+			zy7_pl_fclk_enabled(i) ? zy7_pl_fclk_get_freq(i) : 0;
+		/* Initially assume actual frequency is the configure one */
+		fclk_configs[i].frequency = fclk_configs[i].actual_frequency;
+	}
+
+	if (zy7_devcfg_init_fclk_sysctl(sc) < 0)
+		device_printf(dev, "failed to initialized sysctl tree\n");
+
 	return (0);
 }
 
@@ -619,6 +793,11 @@ static int
 zy7_devcfg_detach(device_t dev)
 {
 	struct zy7_devcfg_softc *sc = device_get_softc(dev);
+
+	if (sc->sysctl_tree_top != NULL) {
+		sysctl_ctx_free(&sc->sysctl_tree);
+		sc->sysctl_tree_top = NULL;
+	}
 
 	if (device_is_attached(dev))
 		bus_generic_detach(dev);

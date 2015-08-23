@@ -23,12 +23,13 @@ NO_WSHIFT_COUNT_OVERFLOW=	-Wno-shift-count-overflow
 NO_WSELF_ASSIGN=		-Wno-self-assign
 NO_WUNNEEDED_INTERNAL_DECL=	-Wno-unneeded-internal-declaration
 NO_WSOMETIMES_UNINITIALIZED=	-Wno-error-sometimes-uninitialized
+NO_WCAST_QUAL=			-Wno-cast-qual
 # Several other warnings which might be useful in some cases, but not severe
 # enough to error out the whole kernel build.  Display them anyway, so there is
 # some incentive to fix them eventually.
 CWARNEXTRA?=	-Wno-error-tautological-compare -Wno-error-empty-body \
 		-Wno-error-parentheses-equality -Wno-error-unused-function \
-		-Wno-error-pointer-sign -Wno-error-format -Wno-error-parentheses
+		-Wno-error-pointer-sign
 
 CLANG_NO_IAS= -no-integrated-as
 .if ${COMPILER_VERSION} < 30500
@@ -38,7 +39,6 @@ CLANG_NO_IAS34= -no-integrated-as
 .endif
 
 .if ${COMPILER_TYPE} == "gcc"
-GCC_MS_EXTENSIONS= -fms-extensions
 .if ${COMPILER_VERSION} >= 40300
 # Catch-all for all the things that are in our tree, but for which we're
 # not yet ready for this compiler. Note: we likely only really "support"
@@ -58,6 +58,8 @@ CWARNEXTRA?=	-Wno-uninitialized
 # to be disabled.  WARNING: format checking is disabled in this case.
 .if ${MK_FORMAT_EXTENSIONS} == "no"
 FORMAT_EXTENSIONS=	-Wno-format
+.elif ${COMPILER_TYPE} == "clang" && ${COMPILER_VERSION} >= 30600
+FORMAT_EXTENSIONS=	-D__printf__=__freebsd_kprintf__
 .else
 FORMAT_EXTENSIONS=	-fformat-extensions
 .endif
@@ -131,7 +133,9 @@ INLINE_LIMIT?=	8000
 # Also explicitly disable Altivec instructions inside the kernel.
 #
 .if ${MACHINE_CPUARCH} == "powerpc"
-CFLAGS+=	-msoft-float -mno-altivec
+CFLAGS+=	-mno-altivec
+CFLAGS.clang+=	-mllvm -disable-ppc-float-in-variadic=true
+CFLAGS.gcc+=	-msoft-float
 INLINE_LIMIT?=	15000
 .endif
 
@@ -139,7 +143,7 @@ INLINE_LIMIT?=	15000
 # Use dot symbols on powerpc64 to make ddb happy
 #
 .if ${MACHINE_ARCH} == "powerpc64"
-CFLAGS+=	-mcall-aixdesc
+CFLAGS.gcc+=	-mcall-aixdesc
 .endif
 
 #
@@ -155,6 +159,14 @@ INLINE_LIMIT?=	8000
 # assumption that the program is linked against libc.  Stop this.
 #
 CFLAGS+=	-ffreestanding
+
+#
+# The C standard leaves signed integer overflow behavior undefined.
+# gcc and clang opimizers take advantage of this.  The kernel makes
+# use of signed integer wraparound mechanics so we need the compiler
+# to treat it as a wraparound and not take shortcuts.
+# 
+CFLAGS+=	-fwrapv
 
 #
 # GCC SSP support
@@ -175,7 +187,7 @@ CFLAGS+=	-fstack-protector
 CFLAGS+=	-gdwarf-2
 .endif
 
-CFLAGS+= ${CWARNEXTRA} ${CWARNFLAGS} ${CWARNFLAGS.${.IMPSRC:T}}
+CFLAGS+= ${CWARNFLAGS} ${CWARNFLAGS.${.IMPSRC:T}}
 CFLAGS+= ${CFLAGS.${COMPILER_TYPE}} ${CFLAGS.${.IMPSRC:T}}
 
 # Tell bmake not to mistake standard targets for things to be searched for

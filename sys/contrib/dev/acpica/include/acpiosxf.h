@@ -7,7 +7,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2014, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -597,6 +597,15 @@ AcpiOsSetFileOffset (
     ACPI_FILE               File,
     long                    Offset,
     UINT8                   From);
+#endif
+
+#ifndef ACPI_USE_ALTERNATE_PROTOTYPE_AcpiOsTracePoint
+void
+AcpiOsTracePoint (
+    ACPI_TRACE_EVENT_TYPE   Type,
+    BOOLEAN                 Begin,
+    UINT8                   *Aml,
+    char                    *Pathname);
 #endif
 
 

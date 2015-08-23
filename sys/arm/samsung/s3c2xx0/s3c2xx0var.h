@@ -74,7 +74,7 @@ struct s3c2xx0_ivar {
 
 typedef void *s3c2xx0_chipset_tag_t;
 
-extern struct bus_space s3c2xx0_bs_tag;
+extern bus_space_tag_t s3c2xx0_bs_tag;
 extern struct s3c2xx0_softc *s3c2xx0_softc;
 extern struct arm32_bus_dma_tag s3c2xx0_bus_dma;
 

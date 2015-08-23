@@ -46,6 +46,7 @@ typedef struct __mcontext {
 	uint32_t	mc_av[2];
 	register_t	mc_frame[42];
 	uint64_t	mc_fpreg[33];
+	uint64_t	mc_vsxfpreg[32];	/* low-order half of VSR0-31 */
 } mcontext_t __aligned(16);
 
 #if defined(_KERNEL) && defined(__powerpc64__)
@@ -60,6 +61,7 @@ typedef struct __mcontext32 {
 	uint32_t	mc_av[2];
 	uint32_t	mc_frame[42];
 	uint64_t	mc_fpreg[33];
+	uint64_t	mc_vsxfpreg[32];	/* low-order half of VSR0-31 */
 } mcontext32_t __aligned(16);
 #endif
 

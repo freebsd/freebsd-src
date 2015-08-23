@@ -260,7 +260,8 @@ amr_pci_attach(device_t dev)
 			   BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
 			   BUS_SPACE_MAXADDR, 		/* highaddr */
 			   NULL, NULL, 			/* filter, filterarg */
-			   MAXBSIZE, AMR_NSEG,		/* maxsize, nsegments */
+			   BUS_SPACE_MAXSIZE,		/* maxsize */
+			   BUS_SPACE_UNRESTRICTED,	/* nsegments */
 			   BUS_SPACE_MAXSIZE_32BIT,	/* maxsegsize */
 			   0,				/* flags */
 			   NULL, NULL,			/* lockfunc, lockarg */
@@ -277,8 +278,9 @@ amr_pci_attach(device_t dev)
 			   BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
 			   BUS_SPACE_MAXADDR,		/* highaddr */
 			   NULL, NULL,			/* filter, filterarg */
-			   MAXBSIZE, AMR_NSEG,		/* maxsize, nsegments */
-			   MAXBSIZE,			/* maxsegsize */
+			   DFLTPHYS,			/* maxsize */
+			   AMR_NSEG,			/* nsegments */
+			   BUS_SPACE_MAXSIZE_32BIT,	/* maxsegsize */
 			   0,		/* flags */
 			   busdma_lock_mutex,		/* lockfunc */
 			   &sc->amr_list_lock,		/* lockarg */
@@ -292,8 +294,9 @@ amr_pci_attach(device_t dev)
 			   BUS_SPACE_MAXADDR,		/* lowaddr */
 			   BUS_SPACE_MAXADDR,		/* highaddr */
 			   NULL, NULL,			/* filter, filterarg */
-			   MAXBSIZE, AMR_NSEG,		/* maxsize, nsegments */
-			   MAXBSIZE,			/* maxsegsize */
+			   DFLTPHYS,			/* maxsize */
+			   AMR_NSEG,			/* nsegments */
+			   BUS_SPACE_MAXSIZE_32BIT,	/* maxsegsize */
 			   0,		/* flags */
 			   busdma_lock_mutex,		/* lockfunc */
 			   &sc->amr_list_lock,		/* lockarg */

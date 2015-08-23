@@ -33,9 +33,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/lock.h>
-#include <sys/rwlock.h>
-#include <sys/rmlock.h>
 #include <sys/sysctl.h>
 #include <sys/socket.h>
 #include <sys/mbuf.h>
@@ -43,7 +40,6 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>
 #include <net/if_var.h>
 #include <net/route.h>
-#include <net/route_internal.h>
 #include <net/vnet.h>
 
 #include <netinet/in.h>
@@ -61,21 +57,13 @@ extern int	in_detachhead(void **head, int off);
  * Do what we need to do when inserting a route.
  */
 static struct radix_node *
-in_addroute(void *v_arg, void *n_arg, struct radix_head *head,
+in_addroute(void *v_arg, void *n_arg, struct radix_node_head *head,
     struct radix_node *treenodes)
 {
-	unsigned int mtu, rt_flags;
-	struct rtentry *rt;
-	const struct sockaddr_in *sin;
-	struct ifnet *ifp;
-	struct ifaddr *ifa;
+	struct rtentry *rt = (struct rtentry *)treenodes;
+	struct sockaddr_in *sin = (struct sockaddr_in *)rt_key(rt);
 
-	rt = (struct rtentry *)treenodes;
-	sin = (const struct sockaddr_in *)rte_get_dst(rt);
-	rt_flags = rte_get_flags(rt);
-	ifp = rte_get_lifp(rt);
-	ifa = rte_get_ifa(rt);
-	
+	RADIX_NODE_HEAD_WLOCK_ASSERT(head);
 	/*
 	 * A little bit of help for both IP output and input:
 	 *   For host routes, we make sure that RTF_BROADCAST
@@ -91,31 +79,28 @@ in_addroute(void *v_arg, void *n_arg, struct radix_head *head,
 	 * it's easy to do and might be useful (but this is much more
 	 * dubious since it's so easy to inspect the address).
 	 */
-	if (rt_flags & RTF_HOST) {
-		if (in_broadcast(sin->sin_addr, ifp)) {
-			rt_flags |= RTF_BROADCAST;
-		} else if (satosin(ifa->ifa_addr)->sin_addr.s_addr ==
+	if (rt->rt_flags & RTF_HOST) {
+		if (in_broadcast(sin->sin_addr, rt->rt_ifp)) {
+			rt->rt_flags |= RTF_BROADCAST;
+		} else if (satosin(rt->rt_ifa->ifa_addr)->sin_addr.s_addr ==
 		    sin->sin_addr.s_addr) {
-			rt_flags |= RTF_LOCAL;
+			rt->rt_flags |= RTF_LOCAL;
 		}
 	}
 	if (IN_MULTICAST(ntohl(sin->sin_addr.s_addr)))
-		rt_flags |= RTF_MULTICAST;
+		rt->rt_flags |= RTF_MULTICAST;
 
-	rte_set_flags(rt, rt_flags);
-
-	if (ifp != NULL) {
+	if (rt->rt_ifp != NULL) {
 
 		/*
 		 * Check route MTU:
 		 * inherit interface MTU if not set or
 		 * check if MTU is too large.
 		 */
-		mtu = rte_get_mtu(rt);
-		if (mtu == 0) {
-			rte_set_mtu(rt, ifp->if_mtu);
-		} else if (mtu > ifp->if_mtu)
-			rte_set_mtu(rt, ifp->if_mtu);
+		if (rt->rt_mtu == 0) {
+			rt->rt_mtu = rt->rt_ifp->if_mtu;
+		} else if (rt->rt_mtu > rt->rt_ifp->if_mtu)
+			rt->rt_mtu = rt->rt_ifp->if_mtu;
 	}
 
 	return (rn_addroute(v_arg, n_arg, head, treenodes));
@@ -128,15 +113,15 @@ static int _in_rt_was_here;
 int
 in_inithead(void **head, int off)
 {
-	struct rib_head *rh;
+	struct radix_node_head *rnh;
 
-	rh = rt_table_init(32);
-	if (rh == NULL)
-		return (0);
+	if (!rn_inithead(head, 32))
+		return 0;
 
-	rh->rnh_addaddr = in_addroute;
-	*head = (void *)rh;
+	rnh = *head;
+	RADIX_NODE_HEAD_LOCK_INIT(rnh);
 
+	rnh->rnh_addaddr = in_addroute;
 	if (_in_rt_was_here == 0 ) {
 		_in_rt_was_here = 1;
 	}
@@ -162,15 +147,16 @@ in_detachhead(void **head, int off)
  * plug back in.
  */
 struct in_ifadown_arg {
-	struct rib_head *rh;
+	struct radix_node_head *rnh;
 	struct ifaddr *ifa;
 	int del;
 };
 
 static int
-in_ifadownkill(struct rtentry *rt, void *xap)
+in_ifadownkill(struct radix_node *rn, void *xap)
 {
 	struct in_ifadown_arg *ap = xap;
+	struct rtentry *rt = (struct rtentry *)rn;
 
 	RT_LOCK(rt);
 	if (rt->rt_ifa == ap->ifa &&
@@ -185,7 +171,7 @@ in_ifadownkill(struct rtentry *rt, void *xap)
 		 * Disconnect it from the tree and permit protocols
 		 * to cleanup.
 		 */
-		rt_expunge(ap->rh, rt);
+		rt_expunge(ap->rnh, rt);
 		/*
 		 * At this point it is an rttrash node, and in case
 		 * the above is the only reference we must free it.
@@ -203,30 +189,26 @@ in_ifadownkill(struct rtentry *rt, void *xap)
 	return 0;
 }
 
-static void
-in_setifarnh(struct rib_head *rh, uint32_t fibnum, int af,
-    void *_arg)
-{
-	struct in_ifadown_arg *arg;
-
-	arg = (struct in_ifadown_arg *)_arg;
-
-	arg->rh = rh;
-}
-
 void
 in_ifadown(struct ifaddr *ifa, int delete)
 {
 	struct in_ifadown_arg arg;
+	struct radix_node_head *rnh;
+	int	fibnum;
 
 	KASSERT(ifa->ifa_addr->sa_family == AF_INET,
 	    ("%s: wrong family", __func__));
 
-	arg.ifa = ifa;
-	arg.del = delete;
-
-	rt_foreach_fib(AF_INET, in_setifarnh, in_ifadownkill, &arg);
-	ifa->ifa_flags &= ~IFA_ROUTE;		/* XXXlocking? */
+	for ( fibnum = 0; fibnum < rt_numfibs; fibnum++) {
+		rnh = rt_tables_get_rnh(fibnum, AF_INET);
+		arg.rnh = rnh;
+		arg.ifa = ifa;
+		arg.del = delete;
+		RADIX_NODE_HEAD_LOCK(rnh);
+		rnh->rnh_walktree(rnh, in_ifadownkill, &arg);
+		RADIX_NODE_HEAD_UNLOCK(rnh);
+		ifa->ifa_flags &= ~IFA_ROUTE;		/* XXXlocking? */
+	}
 }
 
 /*
@@ -234,6 +216,12 @@ in_ifadown(struct ifaddr *ifa, int delete)
  * for now will just reference the _fib variants.
  * eventually this order will be reversed,
  */
+void
+in_rtalloc_ign(struct route *ro, u_long ignflags, u_int fibnum)
+{
+	rtalloc_ign_fib(ro, ignflags, fibnum);
+}
+
 int
 in_rtrequest( int req,
 	struct sockaddr *dst,
@@ -247,6 +235,12 @@ in_rtrequest( int req,
 	    flags, ret_nrt, fibnum));
 }
 
+struct rtentry *
+in_rtalloc1(struct sockaddr *dst, int report, u_long ignflags, u_int fibnum)
+{
+	return (rtalloc1_fib(dst, report, ignflags, fibnum));
+}
+
 void
 in_rtredirect(struct sockaddr *dst,
 	struct sockaddr *gateway,
@@ -258,6 +252,12 @@ in_rtredirect(struct sockaddr *dst,
 	rtredirect_fib(dst, gateway, netmask, flags, src, fibnum);
 }
  
+void
+in_rtalloc(struct route *ro, u_int fibnum)
+{
+	rtalloc_ign_fib(ro, 0UL, fibnum);
+}
+
 #if 0
 int	 in_rt_getifa(struct rt_addrinfo *, u_int fibnum);
 int	 in_rtioctl(u_long, caddr_t, u_int);

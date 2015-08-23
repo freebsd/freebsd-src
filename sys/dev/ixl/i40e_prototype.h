@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2013-2014, Intel Corporation 
+  Copyright (c) 2013-2015, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -58,6 +58,7 @@ enum i40e_status_code i40e_shutdown_arq(struct i40e_hw *hw);
 u16 i40e_clean_asq(struct i40e_hw *hw);
 void i40e_free_adminq_asq(struct i40e_hw *hw);
 void i40e_free_adminq_arq(struct i40e_hw *hw);
+enum i40e_status_code i40e_validate_mac_addr(u8 *mac_addr);
 void i40e_adminq_init_ring_data(struct i40e_hw *hw);
 enum i40e_status_code i40e_clean_arq_element(struct i40e_hw *hw,
 					     struct i40e_arq_event_info *e,
@@ -77,6 +78,21 @@ void i40e_idle_aq(struct i40e_hw *hw);
 void i40e_resume_aq(struct i40e_hw *hw);
 bool i40e_check_asq_alive(struct i40e_hw *hw);
 enum i40e_status_code i40e_aq_queue_shutdown(struct i40e_hw *hw, bool unloading);
+#ifdef X722_SUPPORT
+
+enum i40e_status_code i40e_aq_get_rss_lut(struct i40e_hw *hw, u16 seid,
+					  bool pf_lut, u8 *lut, u16 lut_size);
+enum i40e_status_code i40e_aq_set_rss_lut(struct i40e_hw *hw, u16 seid,
+					  bool pf_lut, u8 *lut, u16 lut_size);
+enum i40e_status_code i40e_aq_get_rss_key(struct i40e_hw *hw,
+				     u16 seid,
+				     struct i40e_aqc_get_set_rss_key_data *key);
+enum i40e_status_code i40e_aq_set_rss_key(struct i40e_hw *hw,
+				     u16 seid,
+				     struct i40e_aqc_get_set_rss_key_data *key);
+#endif
+char *i40e_aq_str(struct i40e_hw *hw, enum i40e_admin_queue_err aq_err);
+char *i40e_stat_str(struct i40e_hw *hw, enum i40e_status_code stat_err);
 
 
 u32 i40e_led_get(struct i40e_hw *hw);
@@ -86,10 +102,14 @@ void i40e_led_set(struct i40e_hw *hw, u32 mode, bool blink);
 
 enum i40e_status_code i40e_aq_get_firmware_version(struct i40e_hw *hw,
 				u16 *fw_major_version, u16 *fw_minor_version,
+				u32 *fw_build,
 				u16 *api_major_version, u16 *api_minor_version,
 				struct i40e_asq_cmd_details *cmd_details);
 enum i40e_status_code i40e_aq_debug_write_register(struct i40e_hw *hw,
 				u32 reg_addr, u64 reg_val,
+				struct i40e_asq_cmd_details *cmd_details);
+enum i40e_status_code i40e_aq_debug_read_register(struct i40e_hw *hw,
+				u32  reg_addr, u64 *reg_val,
 				struct i40e_asq_cmd_details *cmd_details);
 enum i40e_status_code i40e_aq_set_phy_debug(struct i40e_hw *hw, u8 cmd_flags,
 				struct i40e_asq_cmd_details *cmd_details);
@@ -124,8 +144,6 @@ enum i40e_status_code i40e_aq_set_link_restart_an(struct i40e_hw *hw,
 enum i40e_status_code i40e_aq_get_link_info(struct i40e_hw *hw,
 				bool enable_lse, struct i40e_link_status *link,
 				struct i40e_asq_cmd_details *cmd_details);
-enum i40e_status_code i40e_update_link_info(struct i40e_hw *hw,
-					    bool enable_lse);
 enum i40e_status_code i40e_aq_set_local_advt_reg(struct i40e_hw *hw,
 				u64 advt_reg,
 				struct i40e_asq_cmd_details *cmd_details);
@@ -142,6 +160,12 @@ enum i40e_status_code i40e_aq_set_vsi_unicast_promiscuous(struct i40e_hw *hw,
 		u16 vsi_id, bool set, struct i40e_asq_cmd_details *cmd_details);
 enum i40e_status_code i40e_aq_set_vsi_multicast_promiscuous(struct i40e_hw *hw,
 		u16 vsi_id, bool set, struct i40e_asq_cmd_details *cmd_details);
+enum i40e_status_code i40e_aq_set_vsi_mc_promisc_on_vlan(struct i40e_hw *hw,
+				u16 seid, bool enable, u16 vid,
+				struct i40e_asq_cmd_details *cmd_details);
+enum i40e_status_code i40e_aq_set_vsi_uc_promisc_on_vlan(struct i40e_hw *hw,
+				u16 seid, bool enable, u16 vid,
+				struct i40e_asq_cmd_details *cmd_details);
 enum i40e_status_code i40e_aq_get_vsi_params(struct i40e_hw *hw,
 				struct i40e_vsi_context *vsi_ctx,
 				struct i40e_asq_cmd_details *cmd_details);
@@ -193,6 +217,17 @@ enum i40e_status_code i40e_aq_read_nvm(struct i40e_hw *hw, u8 module_pointer,
 enum i40e_status_code i40e_aq_erase_nvm(struct i40e_hw *hw, u8 module_pointer,
 				u32 offset, u16 length, bool last_command,
 				struct i40e_asq_cmd_details *cmd_details);
+enum i40e_status_code i40e_aq_read_nvm_config(struct i40e_hw *hw,
+				u8 cmd_flags, u32 field_id, void *data,
+				u16 buf_size, u16 *element_count,
+				struct i40e_asq_cmd_details *cmd_details);
+enum i40e_status_code i40e_aq_write_nvm_config(struct i40e_hw *hw,
+				u8 cmd_flags, void *data, u16 buf_size,
+				u16 element_count,
+				struct i40e_asq_cmd_details *cmd_details);
+enum i40e_status_code i40e_aq_oem_post_update(struct i40e_hw *hw,
+				void *buff, u16 buff_size,
+				struct i40e_asq_cmd_details *cmd_details);
 enum i40e_status_code i40e_aq_discover_capabilities(struct i40e_hw *hw,
 				void *buff, u16 buff_size, u16 *data_size,
 				enum i40e_admin_queue_opc list_type_opc,
@@ -204,6 +239,9 @@ enum i40e_status_code i40e_aq_update_nvm(struct i40e_hw *hw, u8 module_pointer,
 enum i40e_status_code i40e_aq_get_lldp_mib(struct i40e_hw *hw, u8 bridge_type,
 				u8 mib_type, void *buff, u16 buff_size,
 				u16 *local_len, u16 *remote_len,
+				struct i40e_asq_cmd_details *cmd_details);
+enum i40e_status_code i40e_aq_set_lldp_mib(struct i40e_hw *hw,
+				u8 mib_type, void *buff, u16 buff_size,
 				struct i40e_asq_cmd_details *cmd_details);
 enum i40e_status_code i40e_aq_cfg_lldp_mib_change_event(struct i40e_hw *hw,
 				bool enable_update,
@@ -224,6 +262,12 @@ enum i40e_status_code i40e_aq_delete_lldp_tlv(struct i40e_hw *hw,
 enum i40e_status_code i40e_aq_stop_lldp(struct i40e_hw *hw, bool shutdown_agent,
 				struct i40e_asq_cmd_details *cmd_details);
 enum i40e_status_code i40e_aq_start_lldp(struct i40e_hw *hw,
+				struct i40e_asq_cmd_details *cmd_details);
+enum i40e_status_code i40e_aq_get_cee_dcb_config(struct i40e_hw *hw,
+				void *buff, u16 buff_size,
+				struct i40e_asq_cmd_details *cmd_details);
+enum i40e_status_code i40e_aq_start_stop_dcbx(struct i40e_hw *hw,
+				bool start_agent,
 				struct i40e_asq_cmd_details *cmd_details);
 enum i40e_status_code i40e_aq_add_udp_tunnel(struct i40e_hw *hw,
 				u16 udp_port, u8 protocol_index,
@@ -324,6 +368,8 @@ enum i40e_status_code i40e_aq_query_switch_comp_bw_config(struct i40e_hw *hw,
 		struct i40e_asq_cmd_details *cmd_details);
 enum i40e_status_code i40e_aq_resume_port_tx(struct i40e_hw *hw,
 				struct i40e_asq_cmd_details *cmd_details);
+enum i40e_status_code i40e_read_lldp_cfg(struct i40e_hw *hw,
+					struct i40e_lldp_variables *lldp_cfg);
 enum i40e_status_code i40e_aq_add_cloud_filters(struct i40e_hw *hw,
 		u16 vsi,
 		struct i40e_aqc_add_remove_cloud_filters_element_data *filters,
@@ -355,7 +401,8 @@ enum i40e_status_code i40e_init_shared_code(struct i40e_hw *hw);
 enum i40e_status_code i40e_pf_reset(struct i40e_hw *hw);
 void i40e_clear_hw(struct i40e_hw *hw);
 void i40e_clear_pxe_mode(struct i40e_hw *hw);
-bool i40e_get_link_status(struct i40e_hw *hw);
+enum i40e_status_code i40e_get_link_status(struct i40e_hw *hw, bool *link_up);
+enum i40e_status_code i40e_update_link_info(struct i40e_hw *hw);
 enum i40e_status_code i40e_get_mac_addr(struct i40e_hw *hw, u8 *mac_addr);
 enum i40e_status_code i40e_read_bw_from_alt_ram(struct i40e_hw *hw,
 		u32 *max_bw, u32 *min_bw, bool *min_valid, bool *max_valid);
@@ -363,16 +410,15 @@ enum i40e_status_code i40e_aq_configure_partition_bw(struct i40e_hw *hw,
 			struct i40e_aqc_configure_partition_bw_data *bw_data,
 			struct i40e_asq_cmd_details *cmd_details);
 enum i40e_status_code i40e_get_port_mac_addr(struct i40e_hw *hw, u8 *mac_addr);
+enum i40e_status_code i40e_read_pba_string(struct i40e_hw *hw, u8 *pba_num,
+					    u32 pba_num_size);
 void i40e_pre_tx_queue_cfg(struct i40e_hw *hw, u32 queue, bool enable);
-enum i40e_status_code i40e_validate_mac_addr(u8 *mac_addr);
 enum i40e_aq_link_speed i40e_get_link_speed(struct i40e_hw *hw);
 /* prototype for functions used for NVM access */
 enum i40e_status_code i40e_init_nvm(struct i40e_hw *hw);
 enum i40e_status_code i40e_acquire_nvm(struct i40e_hw *hw,
 				      enum i40e_aq_resource_access_type access);
 void i40e_release_nvm(struct i40e_hw *hw);
-enum i40e_status_code i40e_read_nvm_srrd(struct i40e_hw *hw, u16 offset,
-					 u16 *data);
 enum i40e_status_code i40e_read_nvm_word(struct i40e_hw *hw, u16 offset,
 					 u16 *data);
 enum i40e_status_code i40e_read_nvm_buffer(struct i40e_hw *hw, u16 offset,
@@ -423,5 +469,10 @@ enum i40e_status_code i40e_aq_add_rem_control_packet_filter(struct i40e_hw *hw,
 				u8 *mac_addr, u16 ethtype, u16 flags,
 				u16 vsi_seid, u16 queue, bool is_add,
 				struct i40e_control_filter_stats *stats,
+				struct i40e_asq_cmd_details *cmd_details);
+enum i40e_status_code i40e_aq_debug_dump(struct i40e_hw *hw, u8 cluster_id,
+				u8 table_id, u32 start_index, u16 buff_size,
+				void *buff, u16 *ret_buff_size,
+				u8 *ret_next_table, u32 *ret_next_index,
 				struct i40e_asq_cmd_details *cmd_details);
 #endif /* _I40E_PROTOTYPE_H_ */

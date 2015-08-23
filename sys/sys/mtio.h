@@ -80,6 +80,8 @@ struct mtop {
 #define MTWSS		16	/* write setmark(s) */
 #define MTFSS		17	/* forward space setmark */
 #define MTBSS		18	/* backward space setmark */
+#define MTLOAD		19	/* load tape in drive */
+#define MTWEOFI		20	/* write an end-of-file record without waiting*/
 
 #define MT_COMP_ENABLE		0xffffffff
 #define MT_COMP_DISABLED	0xfffffffe
@@ -176,6 +178,112 @@ union mterrstat {
 	char _reserved_padding[256];
 };
 
+struct mtrblim {
+	uint32_t granularity;
+	uint32_t min_block_length;
+	uint32_t max_block_length;
+};
+
+typedef enum {
+	MT_LOCATE_DEST_OBJECT	= 0x00,
+	MT_LOCATE_DEST_FILE	= 0x01,
+	MT_LOCATE_DEST_SET	= 0x02,
+	MT_LOCATE_DEST_EOD	= 0x03
+} mt_locate_dest_type;
+
+typedef enum {
+	MT_LOCATE_BAM_IMPLICIT	= 0x00,
+	MT_LOCATE_BAM_EXPLICIT	= 0x01
+} mt_locate_bam;
+
+typedef enum {
+	MT_LOCATE_FLAG_IMMED		= 0x01,
+	MT_LOCATE_FLAG_CHANGE_PART	= 0x02
+} mt_locate_flags;
+
+struct mtlocate {
+	mt_locate_flags		flags;
+	mt_locate_dest_type 	dest_type;
+	mt_locate_bam		block_address_mode;
+	int64_t			partition;
+	uint64_t		logical_id;
+	uint8_t			reserved[64];
+};
+
+typedef enum {
+	MT_EXT_GET_NONE,
+	MT_EXT_GET_OK,
+	MT_EXT_GET_NEED_MORE_SPACE,
+	MT_EXT_GET_ERROR
+} mt_ext_get_status;
+
+struct mtextget {
+	uint32_t		alloc_len;
+	char			*status_xml;
+	uint32_t		fill_len;
+	mt_ext_get_status	status;
+	char			error_str[128];
+	uint8_t			reserved[64];
+};
+
+#define	MT_EXT_GET_ROOT_NAME		"mtextget"
+#define	MT_DENSITY_ROOT_NAME		"mtdensity"
+#define	MT_MEDIA_DENSITY_NAME		"media_density"
+#define	MT_DENSITY_REPORT_NAME		"density_report"
+#define	MT_MEDIUM_TYPE_REPORT_NAME	"medium_type_report"
+#define	MT_MEDIA_REPORT_NAME		"media_report"
+#define	MT_DENSITY_ENTRY_NAME		"density_entry"
+
+#define	MT_DENS_WRITE_OK		0x80
+#define	MT_DENS_DUP			0x40
+#define	MT_DENS_DEFLT			0x20
+
+
+#define	MT_PARAM_FIXED_STR_LEN	32
+union mt_param_value {
+	int64_t		value_signed;
+	uint64_t	value_unsigned;
+	char		*value_var_str;
+	char		value_fixed_str[MT_PARAM_FIXED_STR_LEN];
+	uint8_t		reserved[64];
+};
+
+typedef enum {
+	MT_PARAM_SET_NONE,
+	MT_PARAM_SET_SIGNED,
+	MT_PARAM_SET_UNSIGNED,
+	MT_PARAM_SET_VAR_STR,
+	MT_PARAM_SET_FIXED_STR
+} mt_param_set_type;
+
+typedef enum {
+	MT_PARAM_STATUS_NONE,
+	MT_PARAM_STATUS_OK,
+	MT_PARAM_STATUS_ERROR
+} mt_param_set_status;
+
+#define	MT_PARAM_VALUE_NAME_LEN	64
+struct mtparamset {
+	char			value_name[MT_PARAM_VALUE_NAME_LEN];
+	mt_param_set_type	value_type;
+	int			value_len;
+	union mt_param_value	value;
+	mt_param_set_status	status;
+	char			error_str[128];
+};
+
+#define	MT_PARAM_ROOT_NAME	"mtparamget"
+#define	MT_PROTECTION_NAME	"protection"
+
+/*
+ * Set a list of parameters.
+ */
+struct mtsetlist {
+	int num_params;
+	int param_len;
+	struct mtparamset *params;
+};
+
 /*
  * Constants for mt_type byte.  These are the same
  * for controllers compatible with the types listed.
@@ -218,6 +326,7 @@ union mterrstat {
 #define	MTIOCSLOCATE	_IOW('m', 5, u_int32_t)	/* seek to logical blk addr */
 #define	MTIOCHLOCATE	_IOW('m', 6, u_int32_t)	/* seek to hardware blk addr */
 #define	MTIOCERRSTAT	_IOR('m', 7, union mterrstat)	/* get tape errors */
+
 /*
  * Set EOT model- argument is number of filemarks to end a tape with.
  * Note that not all possible values will be accepted.
@@ -225,6 +334,13 @@ union mterrstat {
 #define	MTIOCSETEOTMODEL	_IOW('m', 8, u_int32_t)
 /* Get current EOT model */
 #define	MTIOCGETEOTMODEL	_IOR('m', 8, u_int32_t)
+
+#define	MTIOCRBLIM	_IOR('m', 9, struct mtrblim)    /* get block limits */
+#define	MTIOCEXTLOCATE	_IOW('m', 10, struct mtlocate)  /* seek to position */
+#define	MTIOCEXTGET	_IOWR('m', 11, struct mtextget) /* get tape status */
+#define	MTIOCPARAMGET	_IOWR('m', 12, struct mtextget) /* get tape params */
+#define	MTIOCPARAMSET	_IOWR('m', 13, struct mtparamset) /* set tape params */
+#define	MTIOCSETLIST	_IOWR('m', 14, struct mtsetlist) /* set N params */
 
 #ifndef _KERNEL
 #define	DEFTAPE	"/dev/nsa0"

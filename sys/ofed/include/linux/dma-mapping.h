@@ -139,6 +139,14 @@ dma_alloc_coherent(struct device *dev, size_t size, dma_addr_t *dma_handle,
 		*dma_handle = 0;
 	return (mem);
 }
+
+static inline void *
+dma_zalloc_coherent(struct device *dev, size_t size, dma_addr_t *dma_handle,
+    gfp_t flag)
+{
+
+	return (dma_alloc_coherent(dev, size, dma_handle, flag | __GFP_ZERO));
+}
                        
 static inline void
 dma_free_coherent(struct device *dev, size_t size, void *cpu_addr,

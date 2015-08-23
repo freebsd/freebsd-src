@@ -259,7 +259,7 @@ ath_tdma_config(struct ath_softc *sc, struct ieee80211vap *vap)
 	if (vap == NULL) {
 		vap = TAILQ_FIRST(&ic->ic_vaps);   /* XXX */
 		if (vap == NULL) {
-			if_printf(ifp, "%s: no vaps?\n", __func__);
+			device_printf(sc->sc_dev, "%s: no vaps?\n", __func__);
 			return;
 		}
 	}

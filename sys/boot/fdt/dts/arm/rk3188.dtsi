@@ -231,22 +231,26 @@
 		};
 
 		mmc@10214000 {
-			compatible = "rockchip,rk30xx-mmc";
+			compatible = "rockchip,rk2928-dw-mshc";
 			reg = <0x10214000 0x1000>;
 			interrupts = <55>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			clock-frequency = <24000000>;	/* TODO: verify freq */
+			bus-frequency = <48000000>;	/* TODO: verify freq */
+			fifo-depth = <0x40>;
+			num-slots = <1>;
 			status = "disabled";
 		};
 
 		mmc@10218000 {
-			compatible = "rockchip,rk30xx-mmc";
+			compatible = "rockchip,rk2928-dw-mshc";
 			reg = <0x10218000 0x1000>;
 			interrupts = <56>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			clock-frequency = <24000000>;	/* TODO: verify freq */
+			bus-frequency = <48000000>;	/* TODO: verify freq */
+			fifo-depth = <0x40>;
+			num-slots = <1>;
 			status = "disabled";
 		};
 	};

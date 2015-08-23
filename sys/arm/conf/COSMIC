@@ -19,7 +19,7 @@
 
 #NO_UNIVERSE
 
-include		"VYBRID"
+include 	"VYBRID"
 ident		COSMIC
 
 #FDT

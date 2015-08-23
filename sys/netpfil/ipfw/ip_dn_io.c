@@ -429,8 +429,7 @@ ecn_mark(struct mbuf* m)
 	switch (ip->ip_v) {
 	case IPVERSION:
 	{
-		u_int8_t otos;
-		int sum;
+		uint16_t old;
 
 		if ((ip->ip_tos & IPTOS_ECN_MASK) == IPTOS_ECN_NOTECT)
 			return (0);	/* not-ECT */
@@ -441,17 +440,9 @@ ecn_mark(struct mbuf* m)
 		 * ecn-capable but not marked,
 		 * mark CE and update checksum
 		 */
-		otos = ip->ip_tos;
+		old = *(uint16_t *)ip;
 		ip->ip_tos |= IPTOS_ECN_CE;
-		/*
-		 * update checksum (from RFC1624)
-		 *	   HC' = ~(~HC + ~m + m')
-		 */
-		sum = ~ntohs(ip->ip_sum) & 0xffff;
-		sum += (~otos & 0xffff) + ip->ip_tos;
-		sum = (sum >> 16) + (sum & 0xffff);
-		sum += (sum >> 16);  /* add carry */
-		ip->ip_sum = htons(~sum & 0xffff);
+		ip->ip_sum = cksum_adjust(ip->ip_sum, old, *(uint16_t *)ip);
 		return (1);
 	}
 #ifdef INET6
@@ -777,7 +768,7 @@ dummynet_send(struct mbuf *m)
 			break;
 
 		case DIR_OUT | PROTO_IPV6:
-			ip6_output(m, NULL, NULL, IPV6_FORWARDING, NULL, NULL);
+			ip6_output(m, NULL, NULL, IPV6_FORWARDING, NULL, NULL, NULL);
 			break;
 #endif
 

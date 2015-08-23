@@ -5,17 +5,13 @@
 #
 arm/arm/bus_space_asm_generic.S		standard
 arm/arm/bus_space_generic.c		standard
-arm/arm/cpufunc_asm_arm11.S		standard
-arm/arm/cpufunc_asm_armv5.S		standard
-arm/arm/cpufunc_asm_armv7.S		standard
 kern/kern_clocksource.c			standard
 
 #
 # Standard imx6 devices and support.
 #
-arm/arm/gic.c				standard
 arm/arm/pl310.c				standard
-arm/arm/bus_space-v6.c			standard
+arm/arm/bus_space_base.c		standard
 arm/arm/mpcore_timer.c			standard
 arm/freescale/fsl_ocotp.c		standard
 arm/freescale/imx/imx6_anatop.c		standard
@@ -28,6 +24,9 @@ arm/freescale/imx/imx_machdep.c		standard
 arm/freescale/imx/imx_gpt.c		standard
 arm/freescale/imx/imx_gpio.c		optional gpio
 arm/freescale/imx/imx_i2c.c		optional fsliic
+arm/freescale/imx/imx6_sdma.c		optional sdma
+arm/freescale/imx/imx6_audmux.c		optional sound
+arm/freescale/imx/imx6_ssi.c		optional sound
 
 #
 # Optional devices.
@@ -52,3 +51,19 @@ arm/freescale/imx/imx6_usbphy.c		optional ehci
 # Not ready yet...
 #
 #arm/freescale/imx/imx51_ipuv3.c  	optional sc
+
+# SDMA firmware
+sdma_fw.c				optional sdma_fw		\
+	compile-with	"${AWK} -f $S/tools/fw_stub.awk sdma-imx6q-to1.bin:sdma_fw -msdma -c${.TARGET}" \
+	no-implicit-rule before-depend local				\
+	clean		"sdma_fw.c"
+sdma-imx6q-to1.fwo			optional sdma_fw		\
+	dependency	"sdma-imx6q-to1.bin"				\
+	compile-with	"${LD} -b binary -d -warn-common -r -d -o ${.TARGET} sdma-imx6q-to1.bin" \
+	no-implicit-rule						\
+	clean		"sdma-imx6q-to1.fwo"
+sdma-imx6q-to1.bin			optional sdma_fw		\
+	dependency	"$S/contrib/dev/imx/sdma-imx6q-to1.bin.uu"	\
+	compile-with	"uudecode < $S/contrib/dev/imx/sdma-imx6q-to1.bin.uu" \
+	no-obj no-implicit-rule						\
+	clean		"sdma-imx6q-to1.bin"

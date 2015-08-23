@@ -369,15 +369,15 @@ bootpboot_p_tree(struct radix_node *rn)
 void
 bootpboot_p_rtlist(void)
 {
-	struct rib_head *rh;
+	struct radix_node_head *rnh;
 
 	printf("Routing table:\n");
 	rnh = rt_tables_get_rnh(0, AF_INET);
 	if (rnh == NULL)
 		return;
-	RIB_CFG_RLOCK(rnh);	/* could sleep XXX */
-	bootpboot_p_tree(rh->rnh_treetop);
-	RIB_CFG_RUNLOCK(rnh);
+	RADIX_NODE_HEAD_RLOCK(rnh);	/* could sleep XXX */
+	bootpboot_p_tree(rnh->rnh_treetop);
+	RADIX_NODE_HEAD_RUNLOCK(rnh);
 }
 
 void

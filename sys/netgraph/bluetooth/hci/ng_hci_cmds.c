@@ -71,10 +71,14 @@ static int process_status_params
 	(ng_hci_unit_p, u_int16_t, struct mbuf *, struct mbuf *);
 static int process_testing_params
 	(ng_hci_unit_p, u_int16_t, struct mbuf *, struct mbuf *);
+static int process_le_params
+	(ng_hci_unit_p, u_int16_t, struct mbuf *, struct mbuf *);
 
 static int process_link_control_status
 	(ng_hci_unit_p, ng_hci_command_status_ep *, struct mbuf *);
 static int process_link_policy_status
+	(ng_hci_unit_p, ng_hci_command_status_ep *, struct mbuf *);
+static int process_le_status
 	(ng_hci_unit_p, ng_hci_command_status_ep *, struct mbuf *);
 
 /*
@@ -222,7 +226,10 @@ ng_hci_process_command_complete(ng_hci_unit_p unit, struct mbuf *e)
 			error = process_testing_params(unit,
 					NG_HCI_OCF(ep->opcode), cp, e);
 			break;
-
+		case NG_HCI_OGF_LE:
+			error = process_le_params(unit,
+					  NG_HCI_OCF(ep->opcode), cp, e);
+			break;
 		case NG_HCI_OGF_BT_LOGO:
 		case NG_HCI_OGF_VENDOR:
 			NG_FREE_M(cp);
@@ -294,7 +301,9 @@ ng_hci_process_command_status(ng_hci_unit_p unit, struct mbuf *e)
 	case NG_HCI_OGF_LINK_POLICY:
 		error = process_link_policy_status(unit, ep, cp);
 		break;
-
+	case NG_HCI_OGF_LE:
+		error = process_le_status(unit, ep, cp);
+		break;
 	case NG_HCI_OGF_BT_LOGO:
 	case NG_HCI_OGF_VENDOR:
 		NG_FREE_M(cp);
@@ -604,6 +613,8 @@ process_hc_baseband_params(ng_hci_unit_p unit, u_int16_t ocf,
 	case NG_HCI_OCF_READ_LOCAL_NAME:
 	case NG_HCI_OCF_READ_UNIT_CLASS:
 	case NG_HCI_OCF_WRITE_UNIT_CLASS:
+	case NG_HCI_OCF_READ_LE_HOST_SUPPORTED:
+	case NG_HCI_OCF_WRITE_LE_HOST_SUPPORTED:
 		/* These do not need post processing */
 		break;
 
@@ -795,6 +806,132 @@ process_testing_params(ng_hci_unit_p unit, u_int16_t ocf, struct mbuf *mcp,
 
 	return (error);
 } /* process_testing_params */
+
+/* 
+ * Process LE command return parameters
+ */
+
+static int
+process_le_params(ng_hci_unit_p unit, u_int16_t ocf,
+		struct mbuf *mcp, struct mbuf *mrp)
+{
+	int	error = 0;
+
+	switch (ocf){
+	case NG_HCI_OCF_LE_SET_EVENT_MASK:
+	case NG_HCI_OCF_LE_READ_BUFFER_SIZE:
+	case NG_HCI_OCF_LE_READ_LOCAL_SUPPORTED_FEATURES:
+	case NG_HCI_OCF_LE_SET_RANDOM_ADDRESS:
+	case NG_HCI_OCF_LE_SET_ADVERTISING_PARAMETERS:
+	case NG_HCI_OCF_LE_READ_ADVERTISING_CHANNEL_TX_POWER:
+	case NG_HCI_OCF_LE_SET_ADVERTISING_DATA:
+	case NG_HCI_OCF_LE_SET_SCAN_RESPONSE_DATA:
+	case NG_HCI_OCF_LE_SET_ADVERTISE_ENABLE:
+	case NG_HCI_OCF_LE_SET_SCAN_PARAMETERS:
+	case NG_HCI_OCF_LE_SET_SCAN_ENABLE:
+	case NG_HCI_OCF_LE_CREATE_CONNECTION_CANCEL:
+	case NG_HCI_OCF_LE_CLEAR_WHITE_LIST:
+	case NG_HCI_OCF_LE_READ_WHITE_LIST_SIZE:
+	case NG_HCI_OCF_LE_ADD_DEVICE_TO_WHITE_LIST:
+	case NG_HCI_OCF_LE_REMOVE_DEVICE_FROM_WHITE_LIST:
+	case NG_HCI_OCF_LE_SET_HOST_CHANNEL_CLASSIFICATION:
+	case NG_HCI_OCF_LE_READ_CHANNEL_MAP:
+	case NG_HCI_OCF_LE_ENCRYPT:
+	case NG_HCI_OCF_LE_RAND:
+	case NG_HCI_OCF_LE_LONG_TERM_KEY_REQUEST_REPLY:
+	case NG_HCI_OCF_LE_LONG_TERM_KEY_REQUEST_NEGATIVE_REPLY:
+	case NG_HCI_OCF_LE_READ_SUPPORTED_STATUS:
+	case NG_HCI_OCF_LE_RECEIVER_TEST:
+	case NG_HCI_OCF_LE_TRANSMITTER_TEST:
+	case NG_HCI_OCF_LE_TEST_END:
+
+		/* These do not need post processing */
+		break;
+	case NG_HCI_OCF_LE_CREATE_CONNECTION:
+	case NG_HCI_OCF_LE_CONNECTION_UPDATE:
+	case NG_HCI_OCF_LE_READ_REMOTE_USED_FEATURES:
+	case NG_HCI_OCF_LE_START_ENCRYPTION:
+
+
+	default:
+		/*
+		 * None of these command was supposed to generate 
+		 * Command_Complete event. Instead Command_Status event 
+		 * should have been generated and then appropriate event
+		 * should have been sent to indicate the final result.
+		 */
+
+		error = EINVAL;
+		break;
+	} 
+
+	NG_FREE_M(mcp);
+	NG_FREE_M(mrp);
+
+	return (error);
+
+}
+
+
+
+static int
+process_le_status(ng_hci_unit_p unit,ng_hci_command_status_ep *ep,
+		struct mbuf *mcp)
+{
+	int	error = 0;
+
+	switch (NG_HCI_OCF(ep->opcode)){
+	case NG_HCI_OCF_LE_CREATE_CONNECTION:
+	case NG_HCI_OCF_LE_CONNECTION_UPDATE:
+	case NG_HCI_OCF_LE_READ_REMOTE_USED_FEATURES:
+	case NG_HCI_OCF_LE_START_ENCRYPTION:
+
+		/* These do not need post processing */
+		break;
+
+	case NG_HCI_OCF_LE_SET_EVENT_MASK:
+	case NG_HCI_OCF_LE_READ_BUFFER_SIZE:
+	case NG_HCI_OCF_LE_READ_LOCAL_SUPPORTED_FEATURES:
+	case NG_HCI_OCF_LE_SET_RANDOM_ADDRESS:
+	case NG_HCI_OCF_LE_SET_ADVERTISING_PARAMETERS:
+	case NG_HCI_OCF_LE_READ_ADVERTISING_CHANNEL_TX_POWER:
+	case NG_HCI_OCF_LE_SET_ADVERTISING_DATA:
+	case NG_HCI_OCF_LE_SET_SCAN_RESPONSE_DATA:
+	case NG_HCI_OCF_LE_SET_ADVERTISE_ENABLE:
+	case NG_HCI_OCF_LE_SET_SCAN_PARAMETERS:
+	case NG_HCI_OCF_LE_SET_SCAN_ENABLE:
+	case NG_HCI_OCF_LE_CREATE_CONNECTION_CANCEL:
+	case NG_HCI_OCF_LE_CLEAR_WHITE_LIST:
+	case NG_HCI_OCF_LE_READ_WHITE_LIST_SIZE:
+	case NG_HCI_OCF_LE_ADD_DEVICE_TO_WHITE_LIST:
+	case NG_HCI_OCF_LE_REMOVE_DEVICE_FROM_WHITE_LIST:
+	case NG_HCI_OCF_LE_SET_HOST_CHANNEL_CLASSIFICATION:
+	case NG_HCI_OCF_LE_READ_CHANNEL_MAP:
+	case NG_HCI_OCF_LE_ENCRYPT:
+	case NG_HCI_OCF_LE_RAND:
+	case NG_HCI_OCF_LE_LONG_TERM_KEY_REQUEST_REPLY:
+	case NG_HCI_OCF_LE_LONG_TERM_KEY_REQUEST_NEGATIVE_REPLY:
+	case NG_HCI_OCF_LE_READ_SUPPORTED_STATUS:
+	case NG_HCI_OCF_LE_RECEIVER_TEST:
+	case NG_HCI_OCF_LE_TRANSMITTER_TEST:
+	case NG_HCI_OCF_LE_TEST_END:
+
+
+	default:
+		/*
+		 * None of these command was supposed to generate 
+		 * Command_Stutus event. Command Complete instead.
+		 */
+
+		error = EINVAL;
+		break;
+	} 
+
+	NG_FREE_M(mcp);
+
+	return (error);
+
+}
 
 /*
  * Process link control command status

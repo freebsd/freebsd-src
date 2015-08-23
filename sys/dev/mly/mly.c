@@ -392,7 +392,8 @@ mly_pci_attach(struct mly_softc *sc)
 			   BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
 			   BUS_SPACE_MAXADDR, 		/* highaddr */
 			   NULL, NULL, 			/* filter, filterarg */
-			   MAXBSIZE, MLY_MAX_SGENTRIES,	/* maxsize, nsegments */
+			   BUS_SPACE_MAXSIZE_32BIT,	/* maxsize */
+			   BUS_SPACE_UNRESTRICTED,	/* nsegments */
 			   BUS_SPACE_MAXSIZE_32BIT,	/* maxsegsize */
 			   BUS_DMA_ALLOCNOW,		/* flags */
 			   NULL,			/* lockfunc */
@@ -410,7 +411,8 @@ mly_pci_attach(struct mly_softc *sc)
 			   BUS_SPACE_MAXADDR,		/* lowaddr */
 			   BUS_SPACE_MAXADDR, 		/* highaddr */
 			   NULL, NULL, 			/* filter, filterarg */
-			   MAXBSIZE, MLY_MAX_SGENTRIES,	/* maxsize, nsegments */
+			   DFLTPHYS,			/* maxsize */
+			   MLY_MAX_SGENTRIES,		/* nsegments */
 			   BUS_SPACE_MAXSIZE_32BIT,	/* maxsegsize */
 			   0,				/* flags */
 			   busdma_lock_mutex,		/* lockfunc */

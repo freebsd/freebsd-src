@@ -38,6 +38,15 @@ extern mmu_def_t oea64_mmu;
 
 /* Allocate physical memory for use in moea64_bootstrap. */
 vm_offset_t	moea64_bootstrap_alloc(vm_size_t, u_int);
+/* Set an LPTE structure to match the contents of a PVO */
+void	moea64_pte_from_pvo(const struct pvo_entry *pvo, struct lpte *lpte);
+
+/*
+ * Flags
+ */
+
+#define MOEA64_PTE_PROT_UPDATE	1
+#define MOEA64_PTE_INVALIDATE	2
 
 /*
  * Bootstrap subroutines
@@ -68,7 +77,6 @@ extern u_int	moea64_pte_overflow;
  * State variables
  */
 
-extern struct pvo_head *moea64_pvo_table;
 extern int		moea64_large_page_shift;
 extern uint64_t		moea64_large_page_size;
 extern u_int		moea64_pteg_count;

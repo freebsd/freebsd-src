@@ -47,7 +47,6 @@ __FBSDID("$FreeBSD$");
 #define TCPSTATES
 #include <netinet/tcp_fsm.h>
 #include <netinet/toecore.h>
-#include <net/rt_nhops.h>
 
 #include "cxgb_include.h"
 #include "ulp/tom/cxgb_tom.h"
@@ -481,7 +480,8 @@ do_pass_accept_req(struct sge_qset *qs, struct rsp_desc *r, struct mbuf *m)
 	unsigned int tid = GET_TID(req);
 	struct listen_ctx *lctx = lookup_stid(&td->tid_maps, stid);
 	struct l2t_entry *e = NULL;
-	struct nhop4_extended nh_ext;
+	struct sockaddr_in nam;
+	struct rtentry *rt;
 	struct inpcb *inp;
 	struct socket *so;
 	struct port_info *pi;
@@ -521,17 +521,22 @@ do_pass_accept_req(struct sge_qset *qs, struct rsp_desc *r, struct mbuf *m)
 	 * Don't offload if the outgoing interface for the route back to the
 	 * peer is not the same as the interface that received the SYN.
 	 */
-	/* XXX: Multipath */
-	if (fib4_lookup_nh_ext(RT_DEFAULT_FIB, inc.inc_faddr, 0, 0,
-	    &nh_ext) != 0)
+	bzero(&nam, sizeof(nam));
+	nam.sin_len = sizeof(nam);
+	nam.sin_family = AF_INET;
+	nam.sin_addr = inc.inc_faddr;
+	rt = rtalloc1((struct sockaddr *)&nam, 0, 0);
+	if (rt == NULL)
 		REJECT_PASS_ACCEPT();
 	else {
-		struct sockaddr_in gw4;
-		memset(&gw4, 0, sizeof(gw4));
-		gw4.sin_family = AF_INET;
-		gw4.sin_len = sizeof(gw4);
-		gw4.sin_addr = nh_ext.nh_addr;
-		e = t3_l2t_get(pi, ifp, (struct sockaddr *)&gw4);
+		struct sockaddr *nexthop;
+
+		RT_UNLOCK(rt);
+		nexthop = rt->rt_flags & RTF_GATEWAY ? rt->rt_gateway :
+		    (struct sockaddr *)&nam;
+		if (rt->rt_ifp == ifp)
+			e = t3_l2t_get(pi, rt->rt_ifp, nexthop);
+		RTFREE(rt);
 		if (e == NULL)
 			REJECT_PASS_ACCEPT();	/* no l2te, or ifp mismatch */
 	}

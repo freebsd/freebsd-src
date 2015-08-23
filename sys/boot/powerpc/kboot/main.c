@@ -48,6 +48,7 @@ ssize_t kboot_copyin(const void *src, vm_offset_t dest, const size_t len);
 ssize_t kboot_copyout(vm_offset_t src, void *dest, const size_t len);
 ssize_t kboot_readin(const int fd, vm_offset_t dest, const size_t len);
 int kboot_autoload(void);
+uint64_t kboot_loadaddr(u_int type, void *data, uint64_t addr);
 int kboot_setcurrdev(struct env_var *ev, int flags, const void *value);
 
 extern int command_fdt_internal(int argc, char *argv[]);
@@ -116,6 +117,7 @@ main(int argc, const char **argv)
 	archsw.arch_copyout = kboot_copyout;
 	archsw.arch_readin = kboot_readin;
 	archsw.arch_autoload = kboot_autoload;
+	archsw.arch_loadaddr = kboot_loadaddr;
 
 	printf("\n");
 	printf("%s, Revision %s\n", bootprog_name, bootprog_rev);
@@ -280,6 +282,22 @@ kboot_autoload(void)
 {
 
 	return (0);
+}
+
+uint64_t
+kboot_loadaddr(u_int type, void *data, uint64_t addr)
+{
+	/*
+	 * Need to stay out of the way of Linux. /chosen/linux,kernel-end does
+	 * a better job here, but use a fixed offset for now.
+	 */
+
+	if (type == LOAD_ELF)
+		addr = roundup(addr, PAGE_SIZE);
+	else
+		addr += 64*1024*1024; /* Stay out of the way of Linux */
+
+	return (addr);
 }
 
 void

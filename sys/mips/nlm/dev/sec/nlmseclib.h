@@ -12,7 +12,7 @@
  *    notice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY BROADCOM ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -105,13 +105,13 @@ struct xlp_sec_command {
 	uint32_t hashoff;
 	uint32_t hashlen;
 	uint32_t cipheroff;
-	uint32_t cipherlen;	
+	uint32_t cipherlen;
 	uint32_t ivoff;
 	uint32_t ivlen;
 	uint32_t hashalg;
 	uint32_t hashmode;
 	uint32_t cipheralg;
-	uint32_t ciphermode;	
+	uint32_t ciphermode;
 	uint32_t nsegs;
 	uint32_t hash_dst_len; /* used to store hash alg dst size */
 };

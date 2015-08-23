@@ -89,9 +89,9 @@ __FBSDID("$FreeBSD$");
 #define	 GUSB3PIPECTL_SUSPHY		(1 << 17)
 
 /* Forward declarations */
-static int	exynos_xhci_attach(device_t dev);
-static int	exynos_xhci_detach(device_t dev);
-static int	exynos_xhci_probe(device_t dev);
+static device_attach_t exynos_xhci_attach;
+static device_detach_t exynos_xhci_detach;
+static device_probe_t exynos_xhci_probe;
 
 struct exynos_xhci_softc {
 	device_t		dev;
@@ -152,12 +152,9 @@ exynos_xhci_probe(device_t dev)
 static int
 dwc3_init(struct exynos_xhci_softc *esc)
 {
-	struct xhci_softc *sc;
 	int hwparams1;
 	int rev;
 	int reg;
-
-	sc = &esc->base;
 
 	rev = READ4(esc, GSNPSID);
 	if ((rev & GSNPSID_MASK) != 0x55330000) {
@@ -210,32 +207,21 @@ dwc3_init(struct exynos_xhci_softc *esc)
 static int
 exynos_xhci_attach(device_t dev)
 {
-	struct exynos_xhci_softc *esc;
-	struct xhci_softc *sc;
+	struct exynos_xhci_softc *esc = device_get_softc(dev);
 	bus_space_handle_t bsh;
 	int err;
 
-	esc = device_get_softc(dev);
 	esc->dev = dev;
-
-	sc = &esc->base;
-
-	if (xhci_init(sc, dev)) {
-		device_printf(dev, "Could not initialize softc\n");
-		return (ENXIO);
-	}
 
 	if (bus_alloc_resources(dev, exynos_xhci_spec, esc->res)) {
 		device_printf(dev, "could not allocate resources\n");
 		return (ENXIO);
 	}
 
-	usb_callout_init_mtx(&sc->sc_callout, &sc->sc_bus.bus_mtx, 0);
-
 	/* XHCI registers */
-	sc->sc_io_tag = rman_get_bustag(esc->res[0]);
+	esc->base.sc_io_tag = rman_get_bustag(esc->res[0]);
 	bsh = rman_get_bushandle(esc->res[0]);
-	sc->sc_io_size = rman_get_size(esc->res[0]);
+	esc->base.sc_io_size = rman_get_size(esc->res[0]);
 
 	/* DWC3 ctrl registers */
 	esc->bst = rman_get_bustag(esc->res[1]);
@@ -245,95 +231,89 @@ exynos_xhci_attach(device_t dev)
 	 * Set handle to USB related registers subregion used by
 	 * generic XHCI driver.
 	 */
-	err = bus_space_subregion(sc->sc_io_tag, bsh, 0x0,
-	    sc->sc_io_size, &sc->sc_io_hdl);
-	if (err != 0)
+	err = bus_space_subregion(esc->base.sc_io_tag, bsh, 0x0,
+	    esc->base.sc_io_size, &esc->base.sc_io_hdl);
+	if (err != 0) {
+		device_printf(dev, "Subregion failed\n");
+		bus_release_resources(dev, exynos_xhci_spec, esc->res);
 		return (ENXIO);
+	}
+
+	if (xhci_init(&esc->base, dev, 0)) {
+		device_printf(dev, "Could not initialize softc\n");
+		bus_release_resources(dev, exynos_xhci_spec, esc->res);
+		return (ENXIO);
+	}
 
 	/* Setup interrupt handler */
 	err = bus_setup_intr(dev, esc->res[2], INTR_TYPE_BIO | INTR_MPSAFE,
-	    NULL, (driver_intr_t *)xhci_interrupt, sc,
-	    &sc->sc_intr_hdl);
+	    NULL, (driver_intr_t *)xhci_interrupt, &esc->base,
+	    &esc->base.sc_intr_hdl);
 	if (err) {
 		device_printf(dev, "Could not setup irq, %d\n", err);
-		return (1);
+		esc->base.sc_intr_hdl = NULL;
+		goto error;
 	}
 
 	/* Add USB device */
-	sc->sc_bus.bdev = device_add_child(dev, "usbus", -1);
-	if (!sc->sc_bus.bdev) {
+	esc->base.sc_bus.bdev = device_add_child(dev, "usbus", -1);
+	if (esc->base.sc_bus.bdev == NULL) {
 		device_printf(dev, "Could not add USB device\n");
-		err = bus_teardown_intr(dev, esc->res[2],
-		    sc->sc_intr_hdl);
-		if (err)
-			device_printf(dev, "Could not tear down irq,"
-			    " %d\n", err);
-		return (1);
+		goto error;
 	}
-	device_set_ivars(sc->sc_bus.bdev, &sc->sc_bus);
-	strlcpy(sc->sc_vendor, "Samsung", sizeof(sc->sc_vendor));
+	device_set_ivars(esc->base.sc_bus.bdev, &esc->base.sc_bus);
+	strlcpy(esc->base.sc_vendor, "Samsung", sizeof(esc->base.sc_vendor));
 
 	dwc3_init(esc);
 
-	err = xhci_halt_controller(sc);
+	err = xhci_halt_controller(&esc->base);
 	if (err == 0) {
 		device_printf(dev, "Starting controller\n");
-		err = xhci_start_controller(sc);
+		err = xhci_start_controller(&esc->base);
 	}
-
 	if (err == 0) {
 		device_printf(dev, "Controller started\n");
-		err = device_probe_and_attach(sc->sc_bus.bdev);
+		err = device_probe_and_attach(esc->base.sc_bus.bdev);
 	}
-
-	if (err == 0) {
-		device_printf(dev, "Attached success\n");
-	} else {
-		device_printf(dev, "USB 3.0 init failed err=%d\n", err);
-
-		device_delete_child(dev, sc->sc_bus.bdev);
-		sc->sc_bus.bdev = NULL;
-
-		err = bus_teardown_intr(dev, esc->res[2],
-		    sc->sc_intr_hdl);
-		if (err)
-			device_printf(dev, "Could not tear down irq,"
-			    " %d\n", err);
-		return (1);
-	}
+	if (err != 0)
+		goto error;
 	return (0);
+
+error:
+	exynos_xhci_detach(dev);
+	return (ENXIO);
 }
 
 static int
 exynos_xhci_detach(device_t dev)
 {
-	struct exynos_xhci_softc *esc;
-	struct xhci_softc *sc;
+	struct exynos_xhci_softc *esc = device_get_softc(dev);
+	device_t bdev;
 	int err;
 
-	esc = device_get_softc(dev);
-	sc = &esc->base;
-
-	if (esc->res[2] && sc->sc_intr_hdl) {
-		err = bus_teardown_intr(dev, esc->res[2],
-		    sc->sc_intr_hdl);
-		if (err) {
-			device_printf(dev, "Could not tear down irq,"
-			    " %d\n", err);
-			return (err);
-		}
-		sc->sc_intr_hdl = NULL;
+	if (esc->base.sc_bus.bdev != NULL) {
+		bdev = esc->base.sc_bus.bdev;
+		device_detach(bdev);
+		device_delete_child(dev, bdev);
 	}
-
-	if (sc->sc_bus.bdev) {
-		device_delete_child(dev, sc->sc_bus.bdev);
-		sc->sc_bus.bdev = NULL;
-	}
-
 	/* During module unload there are lots of children leftover */
 	device_delete_children(dev);
 
+	xhci_halt_controller(&esc->base);
+	
+	if (esc->res[2] && esc->base.sc_intr_hdl) {
+		err = bus_teardown_intr(dev, esc->res[2],
+		    esc->base.sc_intr_hdl);
+		if (err) {
+			device_printf(dev, "Could not tear down IRQ,"
+			    " %d\n", err);
+			return (err);
+		}
+	}
+
 	bus_release_resources(dev, exynos_xhci_spec, esc->res);
 
+	xhci_uninit(&esc->base);
+	
 	return (0);
 }

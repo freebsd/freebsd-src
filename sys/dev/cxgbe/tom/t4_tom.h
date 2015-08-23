@@ -244,7 +244,7 @@ void release_lip(struct tom_data *, struct clip_entry *);
 
 /* t4_connect.c */
 void t4_init_connect_cpl_handlers(struct adapter *);
-int t4_connect(struct toedev *, struct socket *, struct nhopu_extended *,
+int t4_connect(struct toedev *, struct socket *, struct rtentry *,
     struct sockaddr *);
 void act_open_failure_cleanup(struct adapter *, u_int, u_int);
 
@@ -281,9 +281,10 @@ void t4_init_ddp(struct adapter *, struct tom_data *);
 void t4_uninit_ddp(struct adapter *, struct tom_data *);
 int t4_soreceive_ddp(struct socket *, struct sockaddr **, struct uio *,
     struct mbuf **, struct mbuf **, int *);
-struct mbuf *get_ddp_mbuf(int);
 void enable_ddp(struct adapter *, struct toepcb *toep);
 void release_ddp_resources(struct toepcb *toep);
+void handle_ddp_close(struct toepcb *, struct tcpcb *, struct sockbuf *,
+    uint32_t);
 void insert_ddp_data(struct toepcb *, uint32_t);
 
 /* ULP related */

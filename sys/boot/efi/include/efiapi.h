@@ -88,7 +88,7 @@ EFI_STATUS
     IN VOID                         *Buffer
     );
 
-typedef 
+typedef
 EFI_STATUS
 (EFIAPI *EFI_SET_VIRTUAL_ADDRESS_MAP) (
     IN UINTN                        MemoryMapSize,
@@ -103,7 +103,7 @@ EFI_STATUS
 #define EFI_INTERNAL_PTR            0x00000004      // Pointer to internal runtime data
 
 
-typedef 
+typedef
 EFI_STATUS
 (EFIAPI *EFI_CONVERT_POINTER) (
     IN UINTN                        DebugDisposition,
@@ -168,7 +168,7 @@ EFI_STATUS
     IN EFI_EVENT                Event
     );
 
-typedef 
+typedef
 EFI_STATUS
 (EFIAPI *EFI_WAIT_FOR_EVENT) (
     IN UINTN                    NumberOfEvents,
@@ -194,8 +194,8 @@ EFI_STATUS
 
 #define TPL_APPLICATION    4
 #define TPL_CALLBACK       8
-#define TPL_NOTIFY        16 
-#define TPL_HIGH_LEVEL    31 
+#define TPL_NOTIFY        16
+#define TPL_HIGH_LEVEL    31
 
 typedef
 EFI_TPL
@@ -320,14 +320,14 @@ EFI_STATUS
 
 // Image Entry prototype
 
-typedef 
+typedef
 EFI_STATUS
 (EFIAPI *EFI_IMAGE_ENTRY_POINT) (
     IN EFI_HANDLE                   ImageHandle,
     IN struct _EFI_SYSTEM_TABLE     *SystemTable
     );
 
-typedef 
+typedef
 EFI_STATUS
 (EFIAPI *EFI_IMAGE_LOAD) (
     IN BOOLEAN                      BootPolicy,
@@ -338,7 +338,7 @@ EFI_STATUS
     OUT EFI_HANDLE                  *ImageHandle
     );
 
-typedef 
+typedef
 EFI_STATUS
 (EFIAPI *EFI_IMAGE_START) (
     IN EFI_HANDLE                   ImageHandle,
@@ -355,7 +355,7 @@ EFI_STATUS
     IN CHAR16                       *ExitData OPTIONAL
     );
 
-typedef 
+typedef
 EFI_STATUS
 (EFIAPI *EFI_IMAGE_UNLOAD) (
     IN EFI_HANDLE                   ImageHandle
@@ -491,7 +491,7 @@ EFI_STATUS
     );
 
 typedef
-EFI_STATUS 
+EFI_STATUS
 (EFIAPI *EFI_REGISTER_PROTOCOL_NOTIFY) (
     IN EFI_GUID                 *Protocol,
     IN EFI_EVENT                Event,
@@ -535,7 +535,7 @@ EFI_STATUS
     );
 
 typedef
-EFI_STATUS 
+EFI_STATUS
 (EFIAPI *EFI_CONNECT_CONTROLLER) (
   IN  EFI_HANDLE                    ControllerHandle,
   IN  EFI_HANDLE                    *DriverImageHandle    OPTIONAL,
@@ -544,19 +544,19 @@ EFI_STATUS
   );
 
 typedef
-EFI_STATUS 
+EFI_STATUS
 (EFIAPI *EFI_DISCONNECT_CONTROLLER)(
   IN EFI_HANDLE           ControllerHandle,
   IN EFI_HANDLE           DriverImageHandle, OPTIONAL
   IN EFI_HANDLE           ChildHandle        OPTIONAL
-  );    
+  );
 
-#define EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL	 0x00000001  
-#define EFI_OPEN_PROTOCOL_GET_PROTOCOL	       0x00000002  
-#define EFI_OPEN_PROTOCOL_TEST_PROTOCOL        0x00000004  
-#define EFI_OPEN_PROTOCOL_BY_CHILD_CONTROLLER  0x00000008  
-#define EFI_OPEN_PROTOCOL_BY_DRIVER            0x00000010  
-#define EFI_OPEN_PROTOCOL_EXCLUSIVE            0x00000020  
+#define EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL	 0x00000001
+#define EFI_OPEN_PROTOCOL_GET_PROTOCOL	       0x00000002
+#define EFI_OPEN_PROTOCOL_TEST_PROTOCOL        0x00000004
+#define EFI_OPEN_PROTOCOL_BY_CHILD_CONTROLLER  0x00000008
+#define EFI_OPEN_PROTOCOL_BY_DRIVER            0x00000010
+#define EFI_OPEN_PROTOCOL_EXCLUSIVE            0x00000020
 
 typedef
 EFI_STATUS
@@ -804,7 +804,7 @@ typedef struct {
   //
   EFI_PROTOCOLS_PER_HANDLE        ProtocolsPerHandle;
   EFI_LOCATE_HANDLE_BUFFER        LocateHandleBuffer;
-  EFI_LOCATE_PROTOCOL             LocateProtocol;    
+  EFI_LOCATE_PROTOCOL             LocateProtocol;
 
   EFI_INSTALL_MULTIPLE_PROTOCOL_INTERFACES    InstallMultipleProtocolInterfaces;
   EFI_UNINSTALL_MULTIPLE_PROTOCOL_INTERFACES  UninstallMultipleProtocolInterfaces;
@@ -844,6 +844,18 @@ typedef struct {
 
 #define FDT_TABLE_GUID    \
   { 0xb1b621d5, 0xf19c, 0x41a5, 0x83, 0x0b, 0xd9, 0x15, 0x2c, 0x69, 0xaa, 0xe0 }
+
+#define DXE_SERVICES_TABLE_GUID	\
+  { 0x5ad34ba, 0x6f02, 0x4214, 0x95, 0x2e, 0x4d, 0xa0, 0x39, 0x8e, 0x2b, 0xb9 }
+
+#define	HOB_LIST_TABLE_GUID	\
+  { 0x7739f24c, 0x93d7, 0x11d4, 0x9a, 0x3a, 0x0, 0x90, 0x27, 0x3f, 0xc1, 0x4d }
+
+#define MEMORY_TYPE_INFORMATION_TABLE_GUID \
+  { 0x4c19049f, 0x4137, 0x4dd3, 0x9c, 0x10, 0x8b, 0x97, 0xa8, 0x3f, 0xfd, 0xfa }
+
+#define DEBUG_IMAGE_INFO_TABLE_GUID \
+  { 0x49152e77, 0x1ada, 0x4764, 0xb7, 0xa2, 0x7a, 0xfe, 0xfe, 0xd9, 0x5e, 0x8b }
 
 typedef struct _EFI_CONFIGURATION_TABLE {
   EFI_GUID                VendorGuid;

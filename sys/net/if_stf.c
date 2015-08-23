@@ -74,9 +74,6 @@
  * Note that there is no way to be 100% secure.
  */
 
-#include "opt_inet.h"
-#include "opt_inet6.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/socket.h>
@@ -84,10 +81,12 @@
 #include <sys/mbuf.h>
 #include <sys/errno.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/module.h>
 #include <sys/protosw.h>
 #include <sys/proc.h>
 #include <sys/queue.h>
+#include <sys/rmlock.h>
 #include <sys/sysctl.h>
 #include <machine/cpu.h>
 
@@ -113,8 +112,6 @@
 #include <netinet/ip_ecn.h>
 
 #include <netinet/ip_encap.h>
-
-#include <net/rt_nhops.h>
 
 #include <machine/stdarg.h>
 
@@ -175,7 +172,7 @@ static int stfmodevent(module_t, int, void *);
 static int stf_encapcheck(const struct mbuf *, int, int, void *);
 static int stf_getsrcifa6(struct ifnet *, struct in6_addr *, struct in6_addr *);
 static int stf_output(struct ifnet *, struct mbuf *, const struct sockaddr *,
-	struct nhop_info *);
+	struct route *);
 static int isrfc1918addr(struct in_addr *);
 static int stf_checkaddr4(struct stf_softc *, struct in_addr *,
 	struct ifnet *);
@@ -275,10 +272,7 @@ stf_clone_destroy(struct if_clone *ifc, struct ifnet *ifp)
 }
 
 static int
-stfmodevent(mod, type, data)
-	module_t mod;
-	int type;
-	void *data;
+stfmodevent(module_t mod, int type, void *data)
 {
 
 	switch (type) {
@@ -305,11 +299,7 @@ static moduledata_t stf_mod = {
 DECLARE_MODULE(if_stf, stf_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
 
 static int
-stf_encapcheck(m, off, proto, arg)
-	const struct mbuf *m;
-	int off;
-	int proto;
-	void *arg;
+stf_encapcheck(const struct mbuf *m, int off, int proto, void *arg)
 {
 	struct ip ip;
 	struct stf_softc *sc;
@@ -404,7 +394,7 @@ stf_getsrcifa6(struct ifnet *ifp, struct in6_addr *addr, struct in6_addr *mask)
 
 static int
 stf_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
-	struct nhop_info *ni)
+    struct route *ro)
 {
 	struct stf_softc *sc;
 	const struct sockaddr_in6 *dst6;
@@ -510,8 +500,7 @@ stf_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 }
 
 static int
-isrfc1918addr(in)
-	struct in_addr *in;
+isrfc1918addr(struct in_addr *in)
 {
 	/*
 	 * returns 1 if private address range:
@@ -527,11 +516,9 @@ isrfc1918addr(in)
 }
 
 static int
-stf_checkaddr4(sc, in, inifp)
-	struct stf_softc *sc;
-	struct in_addr *in;
-	struct ifnet *inifp;	/* incoming interface */
+stf_checkaddr4(struct stf_softc *sc, struct in_addr *in, struct ifnet *inifp)
 {
+	struct rm_priotracker in_ifa_tracker;
 	struct in_ifaddr *ia4;
 
 	/*
@@ -555,37 +542,48 @@ stf_checkaddr4(sc, in, inifp)
 	/*
 	 * reject packets with broadcast
 	 */
-	IN_IFADDR_RLOCK();
+	IN_IFADDR_RLOCK(&in_ifa_tracker);
 	TAILQ_FOREACH(ia4, &V_in_ifaddrhead, ia_link) {
 		if ((ia4->ia_ifa.ifa_ifp->if_flags & IFF_BROADCAST) == 0)
 			continue;
 		if (in->s_addr == ia4->ia_broadaddr.sin_addr.s_addr) {
-			IN_IFADDR_RUNLOCK();
+			IN_IFADDR_RUNLOCK(&in_ifa_tracker);
 			return -1;
 		}
 	}
-	IN_IFADDR_RUNLOCK();
+	IN_IFADDR_RUNLOCK(&in_ifa_tracker);
 
 	/*
 	 * perform ingress filter
 	 */
 	if (sc && (STF2IFP(sc)->if_flags & IFF_LINK2) == 0 && inifp) {
-		struct nhop4_basic nh4;
+		struct sockaddr_in sin;
+		struct rtentry *rt;
 
-		if (fib4_lookup_nh(sc->sc_fibnum, *in, 0, 0, &nh4) != 0)
-			return (-1);
-		if (nh4.nh_ifp != inifp)
-			return (-1);
+		bzero(&sin, sizeof(sin));
+		sin.sin_family = AF_INET;
+		sin.sin_len = sizeof(struct sockaddr_in);
+		sin.sin_addr = *in;
+		rt = rtalloc1_fib((struct sockaddr *)&sin, 0,
+		    0UL, sc->sc_fibnum);
+		if (!rt || rt->rt_ifp != inifp) {
+#if 0
+			log(LOG_WARNING, "%s: packet from 0x%x dropped "
+			    "due to ingress filter\n", if_name(STF2IFP(sc)),
+			    (u_int32_t)ntohl(sin.sin_addr.s_addr));
+#endif
+			if (rt)
+				RTFREE_LOCKED(rt);
+			return -1;
+		}
+		RTFREE_LOCKED(rt);
 	}
 
 	return 0;
 }
 
 static int
-stf_checkaddr6(sc, in6, inifp)
-	struct stf_softc *sc;
-	struct in6_addr *in6;
-	struct ifnet *inifp;	/* incoming interface */
+stf_checkaddr6(struct stf_softc *sc, struct in6_addr *in6, struct ifnet *inifp)
 {
 	/*
 	 * check 6to4 addresses
@@ -708,10 +706,7 @@ in_stf_input(struct mbuf **mp, int *offp, int proto)
 }
 
 static int
-stf_ioctl(ifp, cmd, data)
-	struct ifnet *ifp;
-	u_long cmd;
-	caddr_t data;
+stf_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
 	struct ifaddr *ifa;
 	struct ifreq *ifr;

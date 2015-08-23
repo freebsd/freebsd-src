@@ -82,6 +82,12 @@ struct cpuinfo {
 	int generic_timer_ext;
 	int virtualization_ext;
 	int security_ext;
+
+	/* L1 cache info */
+	int dcache_line_size;
+	int dcache_line_mask;
+	int icache_line_size;
+	int icache_line_mask;
 };
 
 extern struct cpuinfo cpuinfo;

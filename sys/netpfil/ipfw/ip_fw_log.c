@@ -121,7 +121,7 @@ log_dummy(struct ifnet *ifp, u_long cmd, caddr_t addr)
 
 static int
 ipfw_log_output(struct ifnet *ifp, struct mbuf *m,
-	const struct sockaddr *dst, struct nhop_info *ni)
+	const struct sockaddr *dst, struct route *ro)
 {
 	if (m != NULL)
 		FREE_PKT(m);
@@ -525,7 +525,7 @@ ipfw_log(struct ip_fw_chain *chain, struct ip_fw *f, u_int hlen,
 
 #ifdef INET6
 		if (IS_IP6_FLOW_ID(&(args->f_id))) {
-			if (offset & (IP6F_OFF_MASK | IP6F_MORE_FRAG))
+			if (offset || ip6f_mf)
 				snprintf(SNPARGS(fragment, 0),
 				    " (frag %08x:%d@%d%s)",
 				    args->f_id.extra,

@@ -70,6 +70,7 @@ struct uart_class {
 	struct uart_ops *uc_ops;	/* Low-level console operations. */
 	u_int	uc_range;		/* Bus space address range. */
 	u_int	uc_rclk;		/* Default rclk for this device. */
+	u_int	uc_rshift;		/* Default regshift for this device. */
 };
 
 struct uart_softc {
@@ -98,6 +99,7 @@ struct uart_softc {
 	int		sc_polled:1;	/* This UART has no interrupts. */
 	int		sc_txbusy:1;	/* This UART is transmitting. */
 	int		sc_isquelch:1;	/* This UART has input squelched. */
+	int		sc_testintr:1;	/* This UART is under int. testing. */
 
 	struct uart_devinfo *sc_sysdev;	/* System device (or NULL). */
 
@@ -134,7 +136,7 @@ struct uart_softc {
 };
 
 extern devclass_t uart_devclass;
-extern char uart_driver_name[];
+extern const char uart_driver_name[];
 
 int uart_bus_attach(device_t dev);
 int uart_bus_detach(device_t dev);
@@ -156,14 +158,16 @@ void uart_tty_intr(void *arg);
 static __inline int
 uart_rx_empty(struct uart_softc *sc)
 {
+
 	return ((sc->sc_rxget == sc->sc_rxput) ? 1 : 0);
 }
 
 static __inline int
 uart_rx_full(struct uart_softc *sc)
 {
-	return ((sc->sc_rxput + 1 < sc->sc_rxbufsz)
-	    ? (sc->sc_rxput + 1 == sc->sc_rxget) : (sc->sc_rxget == 0));
+
+	return ((sc->sc_rxput + 1 < sc->sc_rxbufsz) ?
+	    (sc->sc_rxput + 1 == sc->sc_rxget) : (sc->sc_rxget == 0));
 }
 
 static __inline int

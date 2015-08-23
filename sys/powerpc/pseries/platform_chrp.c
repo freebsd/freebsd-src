@@ -58,7 +58,7 @@ extern void *ap_pcpu;
 #endif
 
 #ifdef __powerpc64__
-static uint8_t splpar_vpa[640] __aligned(64);
+static uint8_t splpar_vpa[MAXCPU][640] __aligned(128); /* XXX: dpcpu */
 #endif
 
 static vm_offset_t realmaxaddr = VM_MAX_ADDRESS;
@@ -125,6 +125,8 @@ static int
 chrp_attach(platform_t plat)
 {
 #ifdef __powerpc64__
+	int i;
+
 	/* XXX: check for /rtas/ibm,hypertas-functions? */
 	if (!(mfmsr() & PSL_HV)) {
 		struct mem_region *phys, *avail;
@@ -136,14 +138,19 @@ chrp_attach(platform_t plat)
 		cpu_idle_hook = phyp_cpu_idle;
 
 		/* Set up important VPA fields */
-		bzero(splpar_vpa, sizeof(splpar_vpa));
-		splpar_vpa[4] = (uint8_t)((sizeof(splpar_vpa) >> 8) & 0xff);
-		splpar_vpa[5] = (uint8_t)(sizeof(splpar_vpa) & 0xff);
-		splpar_vpa[0xba] = 1;			/* Maintain FPRs */
-		splpar_vpa[0xbb] = 1;			/* Maintain PMCs */
-		splpar_vpa[0xfc] = 0xff;		/* Maintain full SLB */
-		splpar_vpa[0xfd] = 0xff;
-		splpar_vpa[0xff] = 1;			/* Maintain Altivec */
+		for (i = 0; i < MAXCPU; i++) {
+			bzero(splpar_vpa[i], sizeof(splpar_vpa));
+			/* First two: VPA size */
+			splpar_vpa[i][4] =
+			    (uint8_t)((sizeof(splpar_vpa[i]) >> 8) & 0xff);
+			splpar_vpa[i][5] =
+			    (uint8_t)(sizeof(splpar_vpa[i]) & 0xff);
+			splpar_vpa[i][0xba] = 1;	/* Maintain FPRs */
+			splpar_vpa[i][0xbb] = 1;	/* Maintain PMCs */
+			splpar_vpa[i][0xfc] = 0xff;	/* Maintain full SLB */
+			splpar_vpa[i][0xfd] = 0xff;
+			splpar_vpa[i][0xff] = 1;	/* Maintain Altivec */
+		}
 		mb();
 
 		/* Set up hypervisor CPU stuff */
@@ -492,11 +499,12 @@ static void
 chrp_smp_ap_init(platform_t platform)
 {
 	if (!(mfmsr() & PSL_HV)) {
+		/* Register VPA */
+		phyp_hcall(H_REGISTER_VPA, 1UL, PCPU_GET(cpuid),
+		    splpar_vpa[PCPU_GET(cpuid)]);
+
 		/* Set interrupt priority */
 		phyp_hcall(H_CPPR, 0xff);
-
-		/* Register VPA */
-		phyp_hcall(H_REGISTER_VPA, 1UL, PCPU_GET(cpuid), splpar_vpa);
 	}
 }
 #else

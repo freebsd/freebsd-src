@@ -43,7 +43,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/vmm.h>
 
 #include "vmx_cpufunc.h"
-#include "vmm_ipi.h"
 #include "ept.h"
 
 #define	EPT_SUPPORTS_EXEC_ONLY(cap)	((cap) & (1UL << 0))

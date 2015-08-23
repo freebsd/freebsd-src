@@ -28,9 +28,6 @@
 #
 # KMODUNLOAD	Command to unload a kernel module [/sbin/kldunload]
 #
-# MFILES	Optionally a list of interfaces used by the module.
-#		This file contains a default list of interfaces.
-#
 # PROG		The name of the kernel module to build.
 #		If not supplied, ${KMOD}.ko is used.
 #
@@ -70,8 +67,9 @@ OBJCOPY?=	objcopy
 # do this after bsd.own.mk.
 .include "kern.opts.mk"
 .include <bsd.compiler.mk>
+.include "config.mk"
 
-.SUFFIXES: .out .o .c .cc .cxx .C .y .l .s .S
+.SUFFIXES: .out .o .c .cc .cxx .C .y .l .s .S .m
 
 # amd64 and mips use direct linking for kmod, all others use shared binaries
 .if ${MACHINE_CPUARCH} != amd64 && ${MACHINE_CPUARCH} != mips
@@ -100,11 +98,8 @@ CFLAGS+=	-DHAVE_KERNEL_OPTION_HEADERS -include ${KERNBUILDDIR}/opt_global.h
 # set because there are no standard paths for non-headers.
 CFLAGS+=	-I. -I${SYSDIR}
 
-# Add -I path for altq headers as they are included via net/if_var.h
-# for example.
-CFLAGS+=	-I${SYSDIR}/contrib/altq
-
 CFLAGS.gcc+=	-finline-limit=${INLINE_LIMIT}
+CFLAGS.gcc+=	-fms-extensions
 CFLAGS.gcc+= --param inline-unit-growth=100
 CFLAGS.gcc+= --param large-function-growth=1000
 
@@ -123,6 +118,7 @@ CFLAGS+=	-fno-omit-frame-pointer -mno-omit-leaf-frame-pointer
 .if ${MACHINE_CPUARCH} == arm
 CFLAGS.clang+=	-mllvm -arm-use-movt=0
 CFLAGS.clang+=	-mfpu=none
+CFLAGS+=	-funwind-tables
 .endif
 
 .if ${MACHINE_CPUARCH} == powerpc
@@ -161,6 +157,11 @@ ${_firmw:C/\:.*$/.fwo/}:	${_firmw:C/\:.*$//}
 OBJS+=	${_firmw:C/\:.*$/.fwo/}
 .endfor
 .endif
+
+# Conditionally include SRCS based on kernel config options.
+.for _o in ${KERN_OPTS}
+SRCS+=${SRCS.${_o}}
+.endfor
 
 OBJS+=	${SRCS:N*.h:R:S/$/.o/g}
 
@@ -235,7 +236,7 @@ beforedepend: ${_ILINKS}
 # causes all the modules to be rebuilt when the directory pointed to changes.
 .for _link in ${_ILINKS}
 .if !exists(${.OBJDIR}/${_link})
-${OBJS}: ${.OBJDIR}/${_link}
+${OBJS}: ${_link}
 .endif
 .endfor
 
@@ -249,12 +250,10 @@ SYSDIR=	${_dir}
 .error "can't find kernel source tree"
 .endif
 
-.for _link in ${_ILINKS}
-.PHONY: ${_link}
-${_link}: ${.OBJDIR}/${_link}
+.NOPATH: ${_ILINKS}
 
-${.OBJDIR}/${_link}:
-	@case ${.TARGET:T} in \
+${_ILINKS}:
+	@case ${.TARGET} in \
 	machine) \
 		path=${SYSDIR}/${MACHINE}/include ;; \
 	*) \
@@ -263,7 +262,6 @@ ${.OBJDIR}/${_link}:
 	path=`(cd $$path && /bin/pwd)` ; \
 	${ECHO} ${.TARGET:T} "->" $$path ; \
 	ln -sf $$path ${.TARGET:T}
-.endfor
 
 CLEANFILES+= ${PROG} ${KMOD}.kld ${OBJS}
 
@@ -315,34 +313,6 @@ unload:
 	${KMODUNLOAD} -v ${PROG}
 .endif
 
-# Generate options files that otherwise would be built
-# in substantially similar ways through the tree. Move
-# the code here when they all produce identical results
-# (or should)
-.if !defined(KERNBUILDDIR)
-opt_bpf.h:
-	echo "#define DEV_BPF 1" > ${.TARGET}
-.if ${MK_INET_SUPPORT} != "no"
-opt_inet.h:
-	@echo "#define INET 1" > ${.TARGET}
-	@echo "#define TCP_OFFLOAD 1" >> ${.TARGET}
-.endif
-.if ${MK_INET6_SUPPORT} != "no"
-opt_inet6.h:
-	@echo "#define INET6 1" > ${.TARGET}
-.endif
-opt_mrouting.h:
-	echo "#define MROUTING 1" > ${.TARGET}
-opt_natm.h:
-	echo "#define NATM 1" > ${.TARGET}
-opt_scsi.h:
-	echo "#define SCSI_DELAY 15000" > ${.TARGET}
-opt_wlan.h:
-	echo "#define IEEE80211_DEBUG 1" > ${.TARGET}
-	echo "#define IEEE80211_AMPDU_AGE 1" >> ${.TARGET}
-	echo "#define IEEE80211_SUPPORT_MESH 1" >> ${.TARGET}
-.endif
-
 .if defined(KERNBUILDDIR)
 .PATH: ${KERNBUILDDIR}
 CFLAGS+=	-I${KERNBUILDDIR}
@@ -366,37 +336,6 @@ ${_src}:
 # Respect configuration-specific C flags.
 CFLAGS+=	${CONF_CFLAGS}
 
-MFILES?= dev/acpica/acpi_if.m dev/acpi_support/acpi_wmi_if.m \
-	dev/agp/agp_if.m dev/ata/ata_if.m dev/eisa/eisa_if.m \
-	dev/fb/fb_if.m dev/gpio/gpio_if.m dev/gpio/gpiobus_if.m \
-	dev/iicbus/iicbb_if.m dev/iicbus/iicbus_if.m \
-	dev/mbox/mbox_if.m dev/mmc/mmcbr_if.m dev/mmc/mmcbus_if.m \
-	dev/mii/miibus_if.m dev/mvs/mvs_if.m dev/ofw/ofw_bus_if.m \
-	dev/pccard/card_if.m dev/pccard/power_if.m dev/pci/pci_if.m \
-	dev/pci/pcib_if.m dev/ppbus/ppbus_if.m \
-	dev/sdhci/sdhci_if.m dev/smbus/smbus_if.m dev/spibus/spibus_if.m \
-	dev/sound/pci/hda/hdac_if.m \
-	dev/sound/pcm/ac97_if.m dev/sound/pcm/channel_if.m \
-	dev/sound/pcm/feeder_if.m dev/sound/pcm/mixer_if.m \
-	dev/sound/midi/mpu_if.m dev/sound/midi/mpufoi_if.m \
-	dev/sound/midi/synth_if.m dev/usb/usb_if.m isa/isa_if.m \
-	kern/bus_if.m kern/clock_if.m \
-	kern/cpufreq_if.m kern/device_if.m kern/serdev_if.m \
-	libkern/iconv_converter_if.m opencrypto/cryptodev_if.m \
-	pc98/pc98/canbus_if.m dev/etherswitch/mdio_if.m
-
-.for _srcsrc in ${MFILES}
-.for _ext in c h
-.for _src in ${SRCS:M${_srcsrc:T:R}.${_ext}}
-CLEANFILES+=	${_src}
-.if !target(${_src})
-${_src}: ${SYSDIR}/tools/makeobjops.awk ${SYSDIR}/${_srcsrc}
-	${AWK} -f ${SYSDIR}/tools/makeobjops.awk ${SYSDIR}/${_srcsrc} -${_ext}
-.endif
-.endfor # _src
-.endfor # _ext
-.endfor # _srcsrc
-
 .if !empty(SRCS:Mvnode_if.c)
 CLEANFILES+=	vnode_if.c
 vnode_if.c: ${SYSDIR}/tools/vnode_if.awk ${SYSDIR}/kern/vnode_if.src
@@ -414,6 +353,23 @@ vnode_if_newproto.h:
 vnode_if_typedef.h:
 	${AWK} -f ${SYSDIR}/tools/vnode_if.awk ${SYSDIR}/kern/vnode_if.src -q
 .endif
+
+# Build _if.[ch] from _if.m, and clean them when we're done.
+.if !defined(_MPATH)
+__MPATH!=find ${SYSDIR:tA}/ -name \*_if.m
+_MPATH=${__MPATH:H:O:u}
+.endif
+.PATH.m: ${_MPATH}
+.for _s in ${SRCS:M*_if.[ch]}
+.if eixsts(${_s:R}.m})
+CLEANFILES+=	${_s}
+.endif
+.endfor # _s
+.m.c:	${SYSDIR}/tools/makeobjops.awk
+	${AWK} -f ${SYSDIR}/tools/makeobjops.awk ${.IMPSRC} -c
+
+.m.h:	${SYSDIR}/tools/makeobjops.awk
+	${AWK} -f ${SYSDIR}/tools/makeobjops.awk ${.IMPSRC} -h
 
 .for _i in mii pccard
 .if !empty(SRCS:M${_i}devs.h)
@@ -449,10 +405,10 @@ genassym.o: opt_global.h
 .endif
 assym.s: ${SYSDIR}/kern/genassym.sh
 	sh ${SYSDIR}/kern/genassym.sh genassym.o > ${.TARGET}
-genassym.o: ${SYSDIR}/${MACHINE_CPUARCH}/${MACHINE_CPUARCH}/genassym.c
+genassym.o: ${SYSDIR}/${MACHINE}/${MACHINE}/genassym.c
 genassym.o: ${SRCS:Mopt_*.h}
 	${CC} -c ${CFLAGS:N-fno-common} \
-	    ${SYSDIR}/${MACHINE_CPUARCH}/${MACHINE_CPUARCH}/genassym.c
+	    ${SYSDIR}/${MACHINE}/${MACHINE}/genassym.c
 .endif
 
 lint: ${SRCS}

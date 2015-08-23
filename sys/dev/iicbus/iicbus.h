@@ -50,6 +50,7 @@ struct iicbus_softc
 struct iicbus_ivar
 {
 	uint32_t	addr;
+	struct resource_list	rl;
 	bool		nostop;
 };
 

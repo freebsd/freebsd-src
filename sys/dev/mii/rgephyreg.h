@@ -35,6 +35,10 @@
 #ifndef _DEV_MII_RGEPHYREG_H_
 #define	_DEV_MII_RGEPHYREG_H_
 
+#define	RGEPHY_8211B		2
+#define	RGEPHY_8211C		3
+#define	RGEPHY_8211F		6
+
 /*
  * RealTek 8169S/8110S gigE PHY registers
  */
@@ -161,5 +165,22 @@
 #define	RGEPHY_SSR_MDI_XOVER	0x0040	/* MDI crossover */
 #define	RGEPHY_SSR_ALDPS	0x0008	/* RTL8211C(L) only */
 #define	RGEPHY_SSR_JABBER	0x0001	/* Jabber */
+
+/* RTL8211F */
+#define	RGEPHY_F_MII_PCR1	0x18	/* PHY Specific control register 1 */
+#define	RGEPHY_F_PCR1_MDI_MM	0x0200	/* MDI / MDIX Manual Mode */
+#define	RGEPHY_F_PCR1_MDI_MODE	0x0100	/* MDI Mode (0=MDIX,1=MDI) */
+#define	RGEPHY_F_PCR1_ALDPS_EN	0x0004	/* Link Down Power Saving Enable */
+
+/* RTL8211F */
+#define	RGEPHY_F_MII_SSR	0x1A	/* PHY Specific status register */
+#define	RGEPHY_F_SSR_S1000	0x0020	/* 1000Mbps */
+#define	RGEPHY_F_SSR_S100	0x0010	/* 100Mbps */
+#define	RGEPHY_F_SSR_S10	0x0000	/* 10Mbps */
+#define	RGEPHY_F_SSR_SPD_MASK	0x0030
+#define	RGEPHY_F_SSR_FDX	0x0008	/* full duplex */
+#define	RGEPHY_F_SSR_LINK	0x0004	/* link up */
+#define	RGEPHY_F_SSR_MDI	0x0002	/* MDI/MDIX */
+#define	RGEPHY_F_SSR_JABBER	0x0001	/* Jabber */
 
 #endif /* _DEV_RGEPHY_MIIREG_H_ */

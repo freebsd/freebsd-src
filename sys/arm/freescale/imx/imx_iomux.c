@@ -58,7 +58,6 @@
 #include <sys/rman.h>
 
 #include <machine/bus.h>
-#include <machine/fdt.h>
 
 #include <dev/fdt/fdt_common.h>
 #include <dev/fdt/fdt_pinctrl.h>
@@ -117,10 +116,36 @@ WR4(struct iomux_softc *sc, bus_size_t off, uint32_t val)
 	bus_write_4(sc->mem_res, off, val);
 }
 
+static void
+iomux_configure_input(struct iomux_softc *sc, uint32_t reg, uint32_t val)
+{
+	u_int select, mask, shift, width;
+
+	/* If register and value are zero, there is nothing to configure. */
+	if (reg == 0 && val == 0)
+		return;
+
+	/*
+	 * If the config value has 0xff in the high byte it is encoded:
+	 * 	31     23      15      7        0
+	 *      | 0xff | shift | width | select |
+	 * We need to mask out the old select value and OR in the new, using a
+	 * mask of the given width and shifting the values up by shift.
+	 */
+	if ((val & 0xff000000) == 0xff000000) {
+		select = val & 0x000000ff;
+		width = (val & 0x0000ff00) >> 8;
+		shift = (val & 0x00ff0000) >> 16;
+		mask  = ((1u << width) - 1) << shift;
+		val = (RD4(sc, reg) & ~mask) | (select << shift);
+	}
+	WR4(sc, reg, val);
+}
+
 static int
 iomux_configure_pins(device_t dev, phandle_t cfgxref)
 {
-	struct iomux_softc * sc;
+	struct iomux_softc *sc;
 	struct pincfg *cfgtuples, *cfg;
 	phandle_t cfgnode;
 	int i, ntuples;
@@ -137,8 +162,7 @@ iomux_configure_pins(device_t dev, phandle_t cfgxref)
 	for (i = 0, cfg = cfgtuples; i < ntuples; i++, cfg++) {
 		sion = (cfg->padconf_val & PADCONF_SION) ? PADMUX_SION : 0;
 		WR4(sc, cfg->mux_reg, cfg->mux_val | sion);
-		if (cfg->input_reg != 0)
-			WR4(sc, cfg->input_reg, cfg->input_val);
+		iomux_configure_input(sc, cfg->input_reg, cfg->input_val);
 		if ((cfg->padconf_val & PADCONF_NONE) == 0)
 			WR4(sc, cfg->padconf_reg, cfg->padconf_val);
 		if (bootverbose) {

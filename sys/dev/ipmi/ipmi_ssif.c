@@ -359,6 +359,22 @@ ssif_startup(struct ipmi_softc *sc)
 	    "%s: ssif", device_get_nameunit(sc->ipmi_dev)));
 }
 
+static int
+ssif_driver_request(struct ipmi_softc *sc, struct ipmi_request *req, int timo)
+{
+	int error;
+
+	IPMI_LOCK(sc);
+	error = ipmi_polled_enqueue_request(sc, req);
+	if (error == 0)
+		error = msleep(req, &sc->ipmi_requests_lock, 0, "ipmireq",
+		    timo);
+	if (error == 0)
+		error = req->ir_error;
+	IPMI_UNLOCK(sc);
+	return (error);
+}
+
 int
 ipmi_ssif_attach(struct ipmi_softc *sc, device_t smbus, int smbus_address)
 {
@@ -370,6 +386,7 @@ ipmi_ssif_attach(struct ipmi_softc *sc, device_t smbus, int smbus_address)
 	/* Setup function pointers. */
 	sc->ipmi_startup = ssif_startup;
 	sc->ipmi_enqueue_request = ipmi_polled_enqueue_request;
+	sc->ipmi_driver_request = ssif_driver_request;
 
 	return (0);
 }

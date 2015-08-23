@@ -325,7 +325,7 @@ extern struct mtx	sigio_lock;
 
 int	cursig(struct thread *td);
 int	sigdeferstop(void);
-void	sigallowstop(void);
+int	sigallowstop(void);
 void	execsigs(struct proc *p);
 void	gsignal(int pgid, int sig, ksiginfo_t *ksi);
 void	killproc(struct proc *p, char *why);

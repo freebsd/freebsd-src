@@ -169,6 +169,8 @@ typedef struct {
 #define	ELFOSABI_OPENVMS	13	/* Open VMS */
 #define	ELFOSABI_NSK		14	/* HP Non-Stop Kernel */
 #define	ELFOSABI_AROS		15	/* Amiga Research OS */
+#define	ELFOSABI_FENIXOS	16	/* FenixOS */
+#define	ELFOSABI_CLOUDABI	17	/* Nuxi CloudABI */
 #define	ELFOSABI_ARM		97	/* ARM */
 #define	ELFOSABI_STANDALONE	255	/* Standalone (embedded) application */
 
@@ -200,6 +202,7 @@ typedef struct {
 #define	EM_386		3	/* Intel i386. */
 #define	EM_68K		4	/* Motorola 68000. */
 #define	EM_88K		5	/* Motorola 88000. */
+#define	EM_IAMCU	6	/* Intel MCU. */
 #define	EM_860		7	/* Intel i860. */
 #define	EM_MIPS		8	/* MIPS R3000 Big-Endian only. */
 #define	EM_S370		9	/* IBM System/370. */
@@ -294,6 +297,7 @@ typedef struct {
 #define	EM_UNICORE	110	/* Microprocessor series from PKU-Unity Ltd.
 				   and MPRC of Peking University */
 #define	EM_AARCH64	183	/* AArch64 (64-bit ARM) */
+#define	EM_RISCV	243	/* RISC-V */
 
 /* Non-standard or deprecated. */
 #define	EM_486		6	/* Intel i486. */
@@ -361,6 +365,9 @@ typedef struct {
 #define	SHN_LOPROC	0xff00		/* First processor-specific. */
 #define	SHN_HIPROC	0xff1f		/* Last processor-specific. */
 #define	SHN_LOOS	0xff20		/* First operating system-specific. */
+#define	SHN_FBSD_CACHED	SHN_LOOS	/* Transient, for sys/kern/link_elf_obj
+					   linker only: Cached global in local
+					   symtab. */
 #define	SHN_HIOS	0xff3f		/* Last operating system-specific. */
 #define	SHN_ABS		0xfff1		/* Absolute values. */
 #define	SHN_COMMON	0xfff2		/* Common data. */
@@ -466,6 +473,9 @@ typedef struct {
 #define	SHF_TLS			0x400	/* Section contains TLS data. */
 #define	SHF_MASKOS	0x0ff00000	/* OS-specific semantics. */
 #define	SHF_MASKPROC	0xf0000000	/* Processor-specific semantics. */
+
+/* Flags for section groups. */
+#define	GRP_COMDAT	0x1	/* COMDAT semantics. */
 
 /* Values for p_type. */
 #define	PT_NULL		0	/* Unused entry. */
@@ -858,6 +868,7 @@ typedef struct {
 #define	R_386_TLS_TPOFF32	37	/* GOT entry of -ve static TLS offset */
 #define	R_386_IRELATIVE		42	/* PLT entry resolved indirectly at runtime */
 
+#define	R_AARCH64_NONE		0	/* No relocation */
 #define	R_AARCH64_ABS64		257	/* Absolute offset */
 #define	R_AARCH64_ABS32		258	/* Absolute, 32-bit overflow check */
 #define	R_AARCH64_ABS16		259	/* Absolute, 16-bit overflow check */
@@ -868,7 +879,11 @@ typedef struct {
 #define	R_AARCH64_GLOB_DAT	1025	/* Set GOT entry to data address */
 #define	R_AARCH64_JUMP_SLOT	1026	/* Set GOT entry to code address */
 #define	R_AARCH64_RELATIVE 	1027	/* Add load address of shared object */
+#define	R_AARCH64_TLS_DTPREL64	1028
+#define	R_AARCH64_TLS_DTPMOD64	1029
+#define	R_AARCH64_TLS_TPREL64 	1030
 #define	R_AARCH64_TLSDESC 	1031	/* Identify the TLS descriptor */
+#define	R_AARCH64_IRELATIVE	1032
 
 #define	R_ARM_NONE		0	/* No relocation. */
 #define	R_ARM_PC24		1
@@ -1223,6 +1238,19 @@ typedef struct {
 #define	R_X86_64_DTPOFF32	21	/* Offset in TLS block */
 #define	R_X86_64_GOTTPOFF	22	/* PC relative offset to IE GOT entry */
 #define	R_X86_64_TPOFF32	23	/* Offset in static TLS block */
+#define	R_X86_64_PC64		24	/* PC-relative 64 bit signed sym value. */
+#define	R_X86_64_GOTOFF64	25
+#define	R_X86_64_GOTPC32	26
+#define	R_X86_64_GOT64		27
+#define	R_X86_64_GOTPCREL64	28
+#define	R_X86_64_GOTPC64	29
+#define	R_X86_64_GOTPLT64	30
+#define	R_X86_64_PLTOFF64	31
+#define	R_X86_64_SIZE32		32
+#define	R_X86_64_SIZE64		33
+#define	R_X86_64_GOTPC32_TLSDESC 34
+#define	R_X86_64_TLSDESC_CALL	35
+#define	R_X86_64_TLSDESC	36
 #define	R_X86_64_IRELATIVE	37
 
 

@@ -83,6 +83,8 @@ struct cam_ed {
 	uint8_t		 supported_vpds_len;
 	uint32_t	 device_id_len;
 	uint8_t		 *device_id;
+	uint32_t	 ext_inq_len;
+	uint8_t		 *ext_inq;
 	uint8_t		 physpath_len;
 	uint8_t		 *physpath;	/* physical path string form */
 	uint32_t	 rcap_len;

@@ -205,6 +205,7 @@ typedef struct ng_hci_neighbor {
 	bdaddr_t			bdaddr;         /* address */
 	u_int8_t			features[NG_HCI_FEATURES_SIZE];
 					                /* LMP features */
+	u_int8_t 			addrtype;	/*Address Type*/
 
 	u_int8_t			page_scan_rep_mode; /* PS rep. mode */
 	u_int8_t			page_scan_mode; /* page scan mode */

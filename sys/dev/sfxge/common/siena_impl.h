@@ -1,26 +1,31 @@
 /*-
- * Copyright 2009 Solarflare Communications Inc.  All rights reserved.
+ * Copyright (c) 2009-2015 Solarflare Communications Inc.
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
+ * modification, are permitted provided that the following conditions are met:
  *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
+ * 1. Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+ * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+ * OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+ * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+ * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * The views and conclusions contained in the software and documentation are
+ * those of the authors and should not be interpreted as representing official
+ * policies, either expressed or implied, of the FreeBSD Project.
  *
  * $FreeBSD$
  */
@@ -101,6 +106,49 @@ siena_sram_test(
 
 #endif	/* EFSYS_OPT_DIAG */
 
+#if EFSYS_OPT_MCDI
+
+extern	__checkReturn	int
+siena_mcdi_init(
+	__in		efx_nic_t *enp,
+	__in		const efx_mcdi_transport_t *mtp);
+
+extern			void
+siena_mcdi_request_copyin(
+	__in		efx_nic_t *enp,
+	__in		efx_mcdi_req_t *emrp,
+	__in		unsigned int seq,
+	__in		boolean_t ev_cpl,
+	__in		boolean_t new_epoch);
+
+extern	__checkReturn	boolean_t
+siena_mcdi_request_poll(
+	__in		efx_nic_t *enp);
+
+extern			void
+siena_mcdi_request_copyout(
+	__in		efx_nic_t *enp,
+	__in		efx_mcdi_req_t *emrp);
+
+extern			int
+siena_mcdi_poll_reboot(
+	__in		efx_nic_t *enp);
+
+extern			void
+siena_mcdi_fini(
+	__in		efx_nic_t *enp);
+
+extern	__checkReturn	int
+siena_mcdi_fw_update_supported(
+	__in		efx_nic_t *enp,
+	__out		boolean_t *supportedp);
+
+extern	__checkReturn	int
+siena_mcdi_macaddr_change_supported(
+	__in		efx_nic_t *enp,
+	__out		boolean_t *supportedp);
+
+#endif /* EFSYS_OPT_MCDI */
 
 #if EFSYS_OPT_NVRAM || EFSYS_OPT_VPD
 
@@ -170,6 +218,12 @@ siena_nvram_size(
 	__out			size_t *sizep);
 
 extern	__checkReturn		int
+siena_nvram_get_subtype(
+	__in			efx_nic_t *enp,
+	__in			unsigned int partn,
+	__out			uint32_t *subtypep);
+
+extern	__checkReturn		int
 siena_nvram_get_version(
 	__in			efx_nic_t *enp,
 	__in			efx_nvram_type_t type,
@@ -212,7 +266,7 @@ extern	__checkReturn		int
 siena_nvram_set_version(
 	__in			efx_nic_t *enp,
 	__in			efx_nvram_type_t type,
-	__out			uint16_t version[4]);
+	__in_ecount(4)		uint16_t version[4]);
 
 #endif	/* EFSYS_OPT_NVRAM */
 
@@ -341,7 +395,7 @@ siena_phy_stats_update(
 
 #if EFSYS_OPT_NAMES
 
-extern		const char __cs *
+extern		const char *
 siena_phy_prop_name(
 	__in	efx_nic_t *enp,
 	__in	unsigned int id);
@@ -363,18 +417,18 @@ siena_phy_prop_set(
 
 #endif	/* EFSYS_OPT_PHY_PROPS */
 
-#if EFSYS_OPT_PHY_BIST
+#if EFSYS_OPT_BIST
 
 extern	__checkReturn		int
 siena_phy_bist_start(
 	__in			efx_nic_t *enp,
-	__in			efx_phy_bist_type_t type);
+	__in			efx_bist_type_t type);
 
 extern	__checkReturn		int
 siena_phy_bist_poll(
 	__in			efx_nic_t *enp,
-	__in			efx_phy_bist_type_t type,
-	__out			efx_phy_bist_result_t *resultp,
+	__in			efx_bist_type_t type,
+	__out			efx_bist_result_t *resultp,
 	__out_opt __drv_when(count > 0, __notnull)
 	uint32_t 	*value_maskp,
 	__out_ecount_opt(count)	__drv_when(count > 0, __notnull)
@@ -384,9 +438,9 @@ siena_phy_bist_poll(
 extern				void
 siena_phy_bist_stop(
 	__in			efx_nic_t *enp,
-	__in			efx_phy_bist_type_t type);
+	__in			efx_bist_type_t type);
 
-#endif	/* EFSYS_OPT_PHY_BIST */
+#endif	/* EFSYS_OPT_BIST */
 
 extern	__checkReturn	int
 siena_mac_poll(
@@ -415,22 +469,6 @@ siena_mac_loopback_set(
 #if EFSYS_OPT_MAC_STATS
 
 extern	__checkReturn			int
-siena_mac_stats_clear(
-	__in				efx_nic_t *enp);
-
-extern	__checkReturn			int
-siena_mac_stats_upload(
-	__in				efx_nic_t *enp,
-	__in				efsys_mem_t *esmp);
-
-extern	__checkReturn			int
-siena_mac_stats_periodic(
-	__in				efx_nic_t *enp,
-	__in				efsys_mem_t *esmp,
-	__in				uint16_t period_ms,
-	__in				boolean_t events);
-
-extern	__checkReturn			int
 siena_mac_stats_update(
 	__in				efx_nic_t *enp,
 	__in				efsys_mem_t *esmp,
@@ -438,39 +476,6 @@ siena_mac_stats_update(
 	__out_opt			uint32_t *generationp);
 
 #endif	/* EFSYS_OPT_MAC_STATS */
-
-extern	__checkReturn	int
-siena_mon_reset(
-	__in		efx_nic_t *enp);
-
-extern	__checkReturn	int
-siena_mon_reconfigure(
-	__in		efx_nic_t *enp);
-
-#if EFSYS_OPT_MON_STATS
-
-extern					void
-siena_mon_decode_stats(
-	__in				efx_nic_t *enp,
-	__in				uint32_t dmask,
-	__in_opt			efsys_mem_t *esmp,
-	__out_opt				uint32_t *vmaskp,
-	__out_ecount_opt(EFX_MON_NSTATS)	efx_mon_stat_value_t *value);
-
-extern	__checkReturn			int
-siena_mon_ev(
-	__in				efx_nic_t *enp,
-	__in				efx_qword_t *eqp,
-	__out				efx_mon_stat_t *idp,
-	__out				efx_mon_stat_value_t *valuep);
-
-extern	__checkReturn			int
-siena_mon_stats_update(
-	__in				efx_nic_t *enp,
-	__in				efsys_mem_t *esmp,
-	__out_ecount(EFX_MON_NSTATS)	efx_mon_stat_value_t *values);
-
-#endif	/* EFSYS_OPT_MON_STATS */
 
 #ifdef	__cplusplus
 }

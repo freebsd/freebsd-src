@@ -124,6 +124,6 @@ strtol(nptr, endptr, base)
 	} else if (neg)
 		acc = -acc;
 	if (endptr != 0)
-		*((const char **)endptr) = any ? s - 1 : nptr;
+		*endptr = __DECONST(char *, any ? s - 1 : nptr);
 	return (acc);
 }

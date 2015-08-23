@@ -165,6 +165,8 @@ find_next_bit(unsigned long *addr, unsigned long size, unsigned long offset)
 		mask = (*addr) & ~BIT_MASK(offs);
 		if (mask)
 			return (bit + __ffsl(mask));
+		if (size - bit <= BITS_PER_LONG)
+			return (size);
 		bit += BITS_PER_LONG;
 		addr++;
 	}
@@ -203,6 +205,8 @@ find_next_zero_bit(unsigned long *addr, unsigned long size,
 		mask = ~(*addr) & ~BIT_MASK(offs);
 		if (mask)
 			return (bit + __ffsl(mask));
+		if (size - bit <= BITS_PER_LONG)
+			return (size);
 		bit += BITS_PER_LONG;
 		addr++;
 	}
@@ -288,8 +292,14 @@ bitmap_empty(unsigned long *addr, int size)
 
 #define	NBLONG	(NBBY * sizeof(long))
 
+#define	__set_bit(i, a)							\
+    atomic_set_long(&((volatile long *)(a))[(i)/NBLONG], 1UL << ((i) % NBLONG))
+
 #define	set_bit(i, a)							\
     atomic_set_long(&((volatile long *)(a))[(i)/NBLONG], 1UL << ((i) % NBLONG))
+
+#define	__clear_bit(i, a)						\
+    atomic_clear_long(&((volatile long *)(a))[(i)/NBLONG], 1UL << ((i) % NBLONG))
 
 #define	clear_bit(i, a)							\
     atomic_clear_long(&((volatile long *)(a))[(i)/NBLONG], 1UL << ((i) % NBLONG))

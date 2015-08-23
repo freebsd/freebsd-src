@@ -189,6 +189,61 @@ void i915_ppgtt_unbind_object(struct i915_hw_ppgtt *ppgtt,
 	    obj->base.size >> PAGE_SHIFT);
 }
 
+void i915_gem_init_ppgtt(struct drm_device *dev)
+{
+	drm_i915_private_t *dev_priv;
+	struct i915_hw_ppgtt *ppgtt;
+	uint32_t pd_offset, pd_entry;
+	vm_paddr_t pt_addr;
+	struct intel_ring_buffer *ring;
+	u_int first_pd_entry_in_global_pt, i;
+
+	dev_priv = dev->dev_private;
+	ppgtt = dev_priv->mm.aliasing_ppgtt;
+	if (ppgtt == NULL)
+		return;
+
+	first_pd_entry_in_global_pt = 512 * 1024 - I915_PPGTT_PD_ENTRIES;
+	for (i = 0; i < ppgtt->num_pd_entries; i++) {
+		pt_addr = VM_PAGE_TO_PHYS(ppgtt->pt_pages[i]);
+		pd_entry = GEN6_PDE_ADDR_ENCODE(pt_addr);
+		pd_entry |= GEN6_PDE_VALID;
+		intel_gtt_write(first_pd_entry_in_global_pt + i, pd_entry);
+	}
+	intel_gtt_read_pte(first_pd_entry_in_global_pt);
+
+	pd_offset = ppgtt->pd_offset;
+	pd_offset /= 64; /* in cachelines, */
+	pd_offset <<= 16;
+
+	if (INTEL_INFO(dev)->gen == 6) {
+		uint32_t ecochk, gab_ctl, ecobits;
+
+		ecobits = I915_READ(GAC_ECO_BITS); 
+		I915_WRITE(GAC_ECO_BITS, ecobits | ECOBITS_PPGTT_CACHE64B);
+
+		gab_ctl = I915_READ(GAB_CTL);
+		I915_WRITE(GAB_CTL, gab_ctl | GAB_CTL_CONT_AFTER_PAGEFAULT);
+
+		ecochk = I915_READ(GAM_ECOCHK);
+		I915_WRITE(GAM_ECOCHK, ecochk | ECOCHK_SNB_BIT |
+				       ECOCHK_PPGTT_CACHE64B);
+		I915_WRITE(GFX_MODE, _MASKED_BIT_ENABLE(GFX_PPGTT_ENABLE));
+	} else if (INTEL_INFO(dev)->gen >= 7) {
+		I915_WRITE(GAM_ECOCHK, ECOCHK_PPGTT_CACHE64B);
+		/* GFX_MODE is per-ring on gen7+ */
+	}
+
+	for_each_ring(ring, dev_priv, i) {
+		if (INTEL_INFO(dev)->gen >= 7)
+			I915_WRITE(RING_MODE_GEN7(ring),
+				   _MASKED_BIT_ENABLE(GFX_PPGTT_ENABLE));
+
+		I915_WRITE(RING_PP_DIR_DCLV(ring), PP_DIR_DCLV_2G);
+		I915_WRITE(RING_PP_DIR_BASE(ring), pd_offset);
+	}
+}
+
 void
 i915_gem_cleanup_aliasing_ppgtt(struct drm_device *dev)
 {
@@ -245,7 +300,7 @@ do_idling(struct drm_i915_private *dev_priv)
 
 	if (dev_priv->mm.gtt.do_idle_maps) {
 		dev_priv->mm.interruptible = false;
-		if (i915_gpu_idle(dev_priv->dev, false)) {
+		if (i915_gpu_idle(dev_priv->dev)) {
 			DRM_ERROR("Couldn't idle GPU\n");
 			/* Wait a bit, in hopes it avoids the hang */
 			DELAY(10);
@@ -277,28 +332,21 @@ i915_gem_restore_gtt_mappings(struct drm_device *dev)
 
 	list_for_each_entry(obj, &dev_priv->mm.gtt_list, gtt_list) {
 		i915_gem_clflush_object(obj);
-		i915_gem_gtt_rebind_object(obj, obj->cache_level);
+		i915_gem_gtt_bind_object(obj, obj->cache_level);
 	}
 
 	intel_gtt_chipset_flush();
 }
 
 int
-i915_gem_gtt_bind_object(struct drm_i915_gem_object *obj)
+i915_gem_gtt_prepare_object(struct drm_i915_gem_object *obj)
 {
-	unsigned int agp_type;
-
-	agp_type = cache_level_to_agp_type(obj->base.dev, obj->cache_level);
-	intel_gtt_insert_pages(obj->gtt_space->start >> PAGE_SHIFT,
-	    obj->base.size >> PAGE_SHIFT, obj->pages, agp_type);
-
-	obj->has_global_gtt_mapping = 1;
 
 	return (0);
 }
 
 void
-i915_gem_gtt_rebind_object(struct drm_i915_gem_object *obj,
+i915_gem_gtt_bind_object(struct drm_i915_gem_object *obj,
     enum i915_cache_level cache_level)
 {
 	struct drm_device *dev;
@@ -312,11 +360,21 @@ i915_gem_gtt_rebind_object(struct drm_i915_gem_object *obj,
 	intel_gtt_insert_pages(obj->gtt_space->start >> PAGE_SHIFT,
 	    obj->base.size >> PAGE_SHIFT, obj->pages, agp_type);
 
-	obj->has_global_gtt_mapping = 0;
+	obj->has_global_gtt_mapping = 1;
 }
 
 void
 i915_gem_gtt_unbind_object(struct drm_i915_gem_object *obj)
+{
+
+	intel_gtt_clear_range(obj->gtt_space->start >> PAGE_SHIFT,
+	    obj->base.size >> PAGE_SHIFT);
+
+	obj->has_global_gtt_mapping = 0;
+}
+
+void
+i915_gem_gtt_finish_object(struct drm_i915_gem_object *obj)
 {
 	struct drm_device *dev = obj->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -327,8 +385,35 @@ i915_gem_gtt_unbind_object(struct drm_i915_gem_object *obj)
 
 	interruptible = do_idling(dev_priv);
 
-	intel_gtt_clear_range(obj->gtt_space->start >> PAGE_SHIFT,
-	    obj->base.size >> PAGE_SHIFT);
-
 	undo_idling(dev_priv, interruptible);
+}
+
+int
+i915_gem_init_global_gtt(struct drm_device *dev, unsigned long start,
+    unsigned long mappable_end, unsigned long end)
+{
+	drm_i915_private_t *dev_priv;
+	unsigned long mappable;
+	int error;
+
+	dev_priv = dev->dev_private;
+	mappable = min(end, mappable_end) - start;
+
+	/* Substract the guard page ... */
+	drm_mm_init(&dev_priv->mm.gtt_space, start, end - start - PAGE_SIZE);
+
+	dev_priv->mm.gtt_start = start;
+	dev_priv->mm.gtt_mappable_end = mappable_end;
+	dev_priv->mm.gtt_end = end;
+	dev_priv->mm.gtt_total = end - start;
+	dev_priv->mm.mappable_gtt_total = mappable;
+
+	/* ... but ensure that we clear the entire range. */
+	intel_gtt_clear_range(start / PAGE_SIZE, (end-start) / PAGE_SIZE);
+	device_printf(dev->dev,
+	    "taking over the fictitious range 0x%lx-0x%lx\n",
+	    dev->agp->base + start, dev->agp->base + start + mappable);
+	error = -vm_phys_fictitious_reg_range(dev->agp->base + start,
+	    dev->agp->base + start + mappable, VM_MEMATTR_WRITE_COMBINING);
+	return (error);
 }

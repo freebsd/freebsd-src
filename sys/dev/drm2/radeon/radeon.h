@@ -72,8 +72,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/linker.h>
 #include <sys/firmware.h>
 
+#if defined(CONFIG_ACPI)
 #include <contrib/dev/acpica/include/acpi.h>
 #include <dev/acpica/acpivar.h>
+#endif
 
 #include <dev/drm2/ttm/ttm_bo_api.h>
 #include <dev/drm2/ttm/ttm_bo_driver.h>
@@ -111,7 +113,7 @@ extern int radeon_lockup_timeout;
  * symbol;
  */
 #define RADEON_MAX_USEC_TIMEOUT			100000	/* 100 ms */
-#define RADEON_FENCE_JIFFIES_TIMEOUT		(DRM_HZ / 2)
+#define RADEON_FENCE_JIFFIES_TIMEOUT		(HZ / 2)
 /* RADEON_IB_POOL_SIZE must be a power of 2 */
 #define RADEON_IB_POOL_SIZE			16
 #define RADEON_DEBUGFS_MAX_COMPONENTS		32
@@ -1103,9 +1105,9 @@ struct radeon_pm {
 	/* selected pm method */
 	enum radeon_pm_method     pm_method;
 	/* dynpm power management */
-#ifdef DUMBBELL_WIP
+#ifdef FREEBSD_WIP
 	struct delayed_work	dynpm_idle_work;
-#endif /* DUMBBELL_WIP */
+#endif /* FREEBSD_WIP */
 	enum radeon_dynpm_state	dynpm_state;
 	enum radeon_dynpm_action	dynpm_planned_action;
 	unsigned long		dynpm_action_timeout;
@@ -1117,9 +1119,9 @@ struct radeon_pm {
 	struct radeon_pm_profile profiles[PM_PROFILE_MAX];
 	/* internal thermal controller on rv6xx+ */
 	enum radeon_int_thermal_type int_thermal_type;
-#ifdef DUMBBELL_WIP
+#ifdef FREEBSD_WIP
 	struct device	        *int_hwmon_dev;
-#endif /* DUMBBELL_WIP */
+#endif /* FREEBSD_WIP */
 };
 
 int radeon_pm_get_type_index(struct radeon_device *rdev,
@@ -1637,10 +1639,12 @@ struct radeon_device {
 	struct sx dc_hw_i2c_mutex; /* display controller hw i2c mutex */
 	bool audio_enabled;
 	struct r600_audio audio_status; /* audio stuff */
+#if defined(CONFIG_ACPI)
 	struct {
 		ACPI_HANDLE		handle;
 		ACPI_NOTIFY_HANDLER	notifier_call;
 	} acpi;
+#endif
 	/* only one userspace can use Hyperz features or CMASK at a time */
 	struct drm_file *hyperz_filp;
 	struct drm_file *cmask_filp;
@@ -1796,7 +1800,7 @@ void radeon_atombios_fini(struct radeon_device *rdev);
 /*
  * RING helpers.
  */
-#if !defined(DRM_DEBUG_CODE) || DRM_DEBUG_CODE == 0
+#if DRM_DEBUG_CODE == 0
 static inline void radeon_ring_write(struct radeon_ring *ring, uint32_t v)
 {
 	ring->ring[ring->wptr++] = v;
@@ -1985,8 +1989,13 @@ extern int ni_mc_load_microcode(struct radeon_device *rdev);
 extern void ni_fini_microcode(struct radeon_device *rdev);
 
 /* radeon_acpi.c */
+#if defined(CONFIG_ACPI)
 extern int radeon_acpi_init(struct radeon_device *rdev);
 extern void radeon_acpi_fini(struct radeon_device *rdev);
+#else
+static inline int radeon_acpi_init(struct radeon_device *rdev) { return 0; }
+static inline void radeon_acpi_fini(struct radeon_device *rdev) { }
+#endif
 
 /* Prototypes added by @dumbbell. */
 

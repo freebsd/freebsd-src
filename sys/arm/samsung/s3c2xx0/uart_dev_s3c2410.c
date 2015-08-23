@@ -402,4 +402,5 @@ struct uart_class uart_s3c2410_class = {
 	.uc_ops = &uart_s3c2410_ops,
 	.uc_range = 8,
 	.uc_rclk = 0,
+	.uc_rshift = 0
 };

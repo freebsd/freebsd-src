@@ -301,6 +301,11 @@ vdev_queue_timestamp_compare(const void *x1, const void *x2)
 	if (z1->io_timestamp > z2->io_timestamp)
 		return (1);
 
+	if (z1->io_offset < z2->io_offset)
+		return (-1);
+	if (z1->io_offset > z2->io_offset)
+		return (1);
+
 	if (z1 < z2)
 		return (-1);
 	if (z1 > z2)

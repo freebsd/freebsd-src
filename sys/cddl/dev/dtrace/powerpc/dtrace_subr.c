@@ -285,7 +285,7 @@ dtrace_trap(struct trapframe *frame, u_int type)
 		case EXC_DSE:
 			/* Flag a bad address. */
 			cpu_core[curcpu].cpuc_dtrace_flags |= CPU_DTRACE_BADADDR;
-			cpu_core[curcpu].cpuc_dtrace_illval = frame->cpu.aim.dar;
+			cpu_core[curcpu].cpuc_dtrace_illval = frame->dar;
 
 			/*
 			 * Offset the instruction pointer to the instruction

@@ -44,11 +44,9 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp.h>
 #include <netinet/tcp_var.h>
 #include <netinet/tcp_offload.h>
-#include <net/rt_nhops.h>
 #define	TCPOUTFLAGS
 #include <netinet/tcp_fsm.h>
 #include <netinet/toecore.h>
-#include <netinet6/scope6_var.h>
 
 int registered_toedevs;
 
@@ -60,9 +58,8 @@ tcp_offload_connect(struct socket *so, struct sockaddr *nam)
 {
 	struct ifnet *ifp;
 	struct toedev *tod;
-	struct nhopu_extended nhu_ext;
-	int af, error = EOPNOTSUPP;
-	int fibnum;
+	struct rtentry *rt;
+	int error = EOPNOTSUPP;
 
 	INP_WLOCK_ASSERT(sotoinpcb(so));
 	KASSERT(nam->sa_family == AF_INET || nam->sa_family == AF_INET6,
@@ -71,42 +68,24 @@ tcp_offload_connect(struct socket *so, struct sockaddr *nam)
 	if (registered_toedevs == 0)
 		return (error);
 
-	af = nam->sa_family;
-	fibnum = so->so_fibnum;
-	ifp = NULL;
+	rt = rtalloc1(nam, 0, 0);
+	if (rt)
+		RT_UNLOCK(rt);
+	else
+		return (EHOSTUNREACH);
 
-	/* TODO: Multipath */
-	if (af == AF_INET) {
-		if (fib4_lookup_nh_ext(fibnum,
-		    ((struct sockaddr_in *)nam)->sin_addr,
-		    0, NHOP_LOOKUP_REF, &nhu_ext.u.nh4) != 0)
-			return (EHOSTUNREACH);
+	ifp = rt->rt_ifp;
 
-		ifp = nhu_ext.u.nh4.nh_ifp;
-		if ((ifp->if_capenable & IFCAP_TOE4) == 0)
-			goto done;
-	} else if (af == AF_INET6) {
-		struct sockaddr_in6 *sin6;
-		struct in6_addr dst;
-		uint32_t scopeid;
-
-		sin6 = (struct sockaddr_in6 *)nam;
-		in6_splitscope(&sin6->sin6_addr, &dst, &scopeid);
-
-		if (fib6_lookup_nh_ext(fibnum, &dst, scopeid,
-		    0, NHOP_LOOKUP_REF, &nhu_ext.u.nh6) != 0)
-			return (EHOSTUNREACH);
-
-		ifp = nhu_ext.u.nh6.nh_ifp;
-		if ((ifp->if_capenable & IFCAP_TOE6) == 0)
-			goto done;
-	}
+	if (nam->sa_family == AF_INET && !(ifp->if_capenable & IFCAP_TOE4))
+		goto done;
+	if (nam->sa_family == AF_INET6 && !(ifp->if_capenable & IFCAP_TOE6))
+		goto done;
 
 	tod = TOEDEV(ifp);
 	if (tod != NULL)
-		error = tod->tod_connect(tod, so, &nhu_ext, nam);
+		error = tod->tod_connect(tod, so, rt, nam);
 done:
-	fib_free_nh_ext(fibnum, &nhu_ext);
+	RTFREE(rt);
 	return (error);
 }
 

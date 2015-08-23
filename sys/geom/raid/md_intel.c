@@ -1487,7 +1487,6 @@ g_raid_md_taste_intel(struct g_raid_md_object *md, struct g_class *mp,
 
 	/* Read metadata from device. */
 	meta = NULL;
-	vendor = 0xffff;
 	disk_pos = 0;
 	g_topology_unlock();
 	error = g_raid_md_get_label(cp, serial, sizeof(serial));
@@ -1496,7 +1495,8 @@ g_raid_md_taste_intel(struct g_raid_md_object *md, struct g_class *mp,
 		    pp->name, error);
 		goto fail2;
 	}
-	len = 2;
+	vendor = 0xffff;
+	len = sizeof(vendor);
 	if (pp->geom->rank == 1)
 		g_io_getattr("GEOM::hba_vendor", cp, &len, &vendor);
 	meta = intel_meta_read(cp);

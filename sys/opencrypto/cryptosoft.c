@@ -147,8 +147,10 @@ swcr_encdec(struct cryptodesc *crd, struct swcr_data *sw, caddr_t buf,
 	iovalloc = 0;
 	uio = &uiolcl;
 	if ((flags & CRYPTO_F_IMBUF) != 0) {
-		crypto_mbuftoiov((struct mbuf *)buf, &iov, &iovcnt,
+		error = crypto_mbuftoiov((struct mbuf *)buf, &iov, &iovcnt,
 		    &iovalloc);
+		if (error)
+			return (error);
 		uio->uio_iov = iov;
 		uio->uio_iovcnt = iovcnt;
 	} else if ((flags & CRYPTO_F_IOV) != 0)

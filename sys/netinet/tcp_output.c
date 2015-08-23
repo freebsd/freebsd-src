@@ -81,8 +81,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp_offload.h>
 #endif
 
-#include <net/rt_nhops.h>
-
 #ifdef IPSEC
 #include <netipsec/ipsec.h>
 #endif /*IPSEC*/
@@ -402,7 +400,7 @@ after_sack_rexmit:
 		flags &= ~TH_FIN;
 	}
 
-	if (len < 0) {
+	if (len <= 0) {
 		/*
 		 * If FIN has been sent but not acked,
 		 * but we haven't been called to retransmit,
@@ -412,9 +410,16 @@ after_sack_rexmit:
 		 * to (closed) window, and set the persist timer
 		 * if it isn't already going.  If the window didn't
 		 * close completely, just wait for an ACK.
+		 *
+		 * We also do a general check here to ensure that
+		 * we will set the persist timer when we have data
+		 * to send, but a 0-byte window. This makes sure
+		 * the persist timer is set even if the packet
+		 * hits one of the "goto send" lines below.
 		 */
 		len = 0;
-		if (sendwin == 0) {
+		if ((sendwin == 0) && (TCPS_HAVEESTABLISHED(tp->t_state)) &&
+			(off < (int) sbavail(&so->so_snd))) {
 			tcp_timer_activate(tp, TT_REXMT, 0);
 			tp->t_rxtshift = 0;
 			tp->snd_nxt = tp->snd_una;
@@ -1207,7 +1212,6 @@ send:
 	/*
 	 * Enable TSO and specify the size of the segments.
 	 * The TCP pseudo header checksum is always provided.
-	 * XXX: Fixme: This is currently not the case for IPv6.
 	 */
 	if (tso) {
 		KASSERT(len > tp->t_maxopd - optlen,
@@ -1262,9 +1266,9 @@ send:
 	 */
 #ifdef INET6
 	if (isipv6) {
-		struct route_info ri;
+		struct route_in6 ro;
 
-		bzero(&ri, sizeof(ri));
+		bzero(&ro, sizeof(ro));
 		/*
 		 * we separately set hoplimit for every segment, since the
 		 * user might want to change the value via setsockopt.
@@ -1291,12 +1295,13 @@ send:
 		TCP_PROBE5(send, NULL, tp, ip6, tp, th);
 
 		/* TODO: IPv6 IP6TOS_ECT bit on */
-		error = ip6_output(m, tp->t_inpcb->in6p_outputopts, &ri,
+		error = ip6_output(m, tp->t_inpcb->in6p_outputopts, &ro,
 		    ((so->so_options & SO_DONTROUTE) ?  IP_ROUTETOIF : 0),
-		    NULL, tp->t_inpcb);
+		    NULL, NULL, tp->t_inpcb);
 
-		if (error == EMSGSIZE)
-			mtu = ri.ri_mtu;
+		if (error == EMSGSIZE && ro.ro_rt != NULL)
+			mtu = ro.ro_rt->rt_mtu;
+		RO_RTFREE(&ro);
 	}
 #endif /* INET6 */
 #if defined(INET) && defined(INET6)
@@ -1304,9 +1309,9 @@ send:
 #endif
 #ifdef INET
     {
-	struct route_info ri;
+	struct route ro;
 
-	bzero(&ri, sizeof(ri));
+	bzero(&ro, sizeof(ro));
 	ip->ip_len = htons(m->m_pkthdr.len);
 #ifdef INET6
 	if (tp->t_inpcb->inp_vflag & INP_IPV6PROTO)
@@ -1332,12 +1337,13 @@ send:
 
 	TCP_PROBE5(send, NULL, tp, ip, tp, th);
 
-	error = ip_output(m, tp->t_inpcb->inp_options, &ri,
-	    ((so->so_options & SO_DONTROUTE) ? IP_ROUTETOIF : 0), NULL,
+	error = ip_output(m, tp->t_inpcb->inp_options, &ro,
+	    ((so->so_options & SO_DONTROUTE) ? IP_ROUTETOIF : 0), 0,
 	    tp->t_inpcb);
 
-	if (error == EMSGSIZE)
-		mtu = ri.ri_mtu;
+	if (error == EMSGSIZE && ro.ro_rt != NULL)
+		mtu = ro.ro_rt->rt_mtu;
+	RO_RTFREE(&ro);
     }
 #endif /* INET */
 
@@ -1394,6 +1400,30 @@ timer:
 				tp->t_rxtshift = 0;
 			}
 			tcp_timer_activate(tp, TT_REXMT, tp->t_rxtcur);
+		} else if (len == 0 && sbavail(&so->so_snd) &&
+		    !tcp_timer_active(tp, TT_REXMT) &&
+		    !tcp_timer_active(tp, TT_PERSIST)) {
+			/*
+			 * Avoid a situation where we do not set persist timer
+			 * after a zero window condition. For example:
+			 * 1) A -> B: packet with enough data to fill the window
+			 * 2) B -> A: ACK for #1 + new data (0 window
+			 *    advertisement)
+			 * 3) A -> B: ACK for #2, 0 len packet
+			 *
+			 * In this case, A will not activate the persist timer,
+			 * because it chose to send a packet. Unless tcp_output
+			 * is called for some other reason (delayed ack timer,
+			 * another input packet from B, socket syscall), A will
+			 * not send zero window probes.
+			 *
+			 * So, if you send a 0-length packet, but there is data
+			 * in the socket buffer, and neither the rexmt or
+			 * persist timer is already set, then activate the
+			 * persist timer.
+			 */
+			tp->t_rxtshift = 0;
+			tcp_setpersist(tp);
 		}
 	} else {
 		/*

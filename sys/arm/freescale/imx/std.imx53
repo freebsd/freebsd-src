@@ -13,5 +13,4 @@ options		PHYSADDR=0x70000000
 
 device  	fdt_pinctrl
 
-files "../freescale/imx/files.imx53"
-
+files "../freescale/imx/files.imx5"

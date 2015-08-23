@@ -48,7 +48,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus_subr.h>
 
 #include <machine/bus.h>
-#include <machine/fdt.h>
 
 #define	SP804_TIMER1_LOAD	0x00
 #define	SP804_TIMER1_VALUE	0x04

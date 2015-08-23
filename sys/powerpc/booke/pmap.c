@@ -51,6 +51,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_kstack_pages.h"
+
 #include <sys/param.h>
 #include <sys/conf.h>
 #include <sys/malloc.h>
@@ -159,7 +161,8 @@ unsigned int kernel_ptbls;	/* Number of KVA ptbls. */
 #define PMAP_REMOVE_DONE(pmap) \
 	((pmap) != kernel_pmap && (pmap)->pm_stats.resident_count == 0)
 
-extern void tid_flush(tlbtid_t);
+extern void tid_flush(tlbtid_t tid, int tlb0_ways, int tlb0_entries_per_way);
+extern int elf32_nxstack;
 
 /**************************************************************************/
 /* TLB and TID handling */
@@ -193,7 +196,7 @@ static tlbtid_t tid_alloc(struct pmap *);
 
 static void tlb_print_entry(int, uint32_t, uint32_t, uint32_t, uint32_t);
 
-static int tlb1_set_entry(vm_offset_t, vm_offset_t, vm_size_t, uint32_t);
+static int tlb1_set_entry(vm_offset_t, vm_paddr_t, vm_size_t, uint32_t);
 static void tlb1_write_entry(unsigned int);
 static int tlb1_iomapped(int, vm_paddr_t, vm_size_t, vm_offset_t *);
 static vm_size_t tlb1_mapin_region(vm_offset_t, vm_paddr_t, vm_size_t);
@@ -261,7 +264,9 @@ static vm_offset_t ptbl_buf_pool_vabase;
 /* Pointer to ptbl_buf structures. */
 static struct ptbl_buf *ptbl_bufs;
 
+#ifdef SMP
 void pmap_bootstrap_ap(volatile uint32_t *);
+#endif
 
 /*
  * Kernel MMU interface
@@ -389,7 +394,7 @@ static mmu_method_t mmu_booke_methods[] = {
 MMU_DEF(booke_mmu, MMU_TYPE_BOOKE, mmu_booke_methods, 0);
 
 static __inline uint32_t
-tlb_calc_wimg(vm_offset_t pa, vm_memattr_t ma)
+tlb_calc_wimg(vm_paddr_t pa, vm_memattr_t ma)
 {
 	uint32_t attrib;
 	int i;
@@ -1014,6 +1019,10 @@ mmu_booke_bootstrap(mmu_t mmu, vm_offset_t start, vm_offset_t kernelend)
 
 	debugf("mmu_booke_bootstrap: entered\n");
 
+	/* Set interesting system properties */
+	hw_direct_map = 0;
+	elf32_nxstack = 1;
+
 	/* Initialize invalidation mutex */
 	mtx_init(&tlbivax_mutex, "tlbivax", NULL, MTX_SPIN);
 
@@ -1024,13 +1033,8 @@ mmu_booke_bootstrap(mmu_t mmu, vm_offset_t start, vm_offset_t kernelend)
 	 * Align kernel start and end address (kernel image).
 	 * Note that kernel end does not necessarily relate to kernsize.
 	 * kernsize is the size of the kernel that is actually mapped.
-	 * Also note that "start - 1" is deliberate. With SMP, the
-	 * entry point is exactly a page from the actual load address.
-	 * As such, trunc_page() has no effect and we're off by a page.
-	 * Since we always have the ELF header between the load address
-	 * and the entry point, we can safely subtract 1 to compensate.
 	 */
-	kernstart = trunc_page(start - 1);
+	kernstart = trunc_page(start);
 	data_start = round_page(kernelend);
 	data_end = data_start;
 
@@ -1315,6 +1319,8 @@ mmu_booke_bootstrap(mmu_t mmu, vm_offset_t start, vm_offset_t kernelend)
 		kstack0 += PAGE_SIZE;
 		kstack0_phys += PAGE_SIZE;
 	}
+
+	pmap_bootstrapped = 1;
 	
 	debugf("virtual_avail = %08x\n", virtual_avail);
 	debugf("virtual_end   = %08x\n", virtual_end);
@@ -1322,6 +1328,7 @@ mmu_booke_bootstrap(mmu_t mmu, vm_offset_t start, vm_offset_t kernelend)
 	debugf("mmu_booke_bootstrap: exit\n");
 }
 
+#ifdef SMP
 void
 pmap_bootstrap_ap(volatile uint32_t *trcp __unused)
 {
@@ -1342,6 +1349,7 @@ pmap_bootstrap_ap(volatile uint32_t *trcp __unused)
 
 	set_mas4_defaults();
 }
+#endif
 
 /*
  * Get the physical page address for the given pmap/virtual address.
@@ -1939,6 +1947,8 @@ mmu_booke_activate(mmu_t mmu, struct thread *td)
 	mtspr(SPR_PID0, pmap->pm_tid[cpuid]);
 	__asm __volatile("isync");
 
+	mtspr(SPR_DBCR0, td->td_pcb->pcb_cpu.booke.dbcr0);
+
 	sched_unpin();
 
 	CTR3(KTR_PMAP, "%s: e (tid = %d for '%s')", __func__,
@@ -1957,6 +1967,8 @@ mmu_booke_deactivate(mmu_t mmu, struct thread *td)
 	
 	CTR5(KTR_PMAP, "%s: td=%p, proc = '%s', id = %d, pmap = 0x%08x",
 	    __func__, td, td->td_proc->p_comm, td->td_proc->p_pid, pmap);
+
+	td->td_pcb->pcb_cpu.booke.dbcr0 = mfspr(SPR_DBCR0);
 
 	CPU_CLR_ATOMIC(PCPU_GET(cpuid), &pmap->pm_active);
 	PCPU_SET(curpmap, NULL);
@@ -2807,7 +2819,7 @@ tid_alloc(pmap_t pmap)
 		tidbusy[thiscpu][tid]->pm_tid[thiscpu] = TID_NONE;
 
 		/* Flush all entries from TLB0 matching this TID. */
-		tid_flush(tid);
+		tid_flush(tid, tlb0_ways, tlb0_entries_per_way);
 	}
 
 	tidbusy[thiscpu][tid] = pmap;
@@ -3006,7 +3018,7 @@ size2tsize(vm_size_t size)
  * kept in tlb1_idx) and are not supposed to be invalidated.
  */
 static int
-tlb1_set_entry(vm_offset_t va, vm_offset_t pa, vm_size_t size,
+tlb1_set_entry(vm_offset_t va, vm_paddr_t pa, vm_size_t size,
     uint32_t flags)
 {
 	uint32_t ts, tid;
@@ -3150,7 +3162,7 @@ tlb1_init()
 		tlb1[i].phys = mas3 & MAS3_RPN;
 
 		if (i == 0)
-			kernload = mas3 & MAS3_RPN;
+			kernload = tlb1[i].phys;
 
 		tsz = (mas1 & MAS1_TSIZE_MASK) >> MAS1_TSIZE_SHIFT;
 		tlb1[i].size = (tsz > 0) ? tsize2size(tsz) : 0;

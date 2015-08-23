@@ -197,7 +197,8 @@ ar5212Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 		saveFrameSeqCount = 0;		/* NB: silence compiler */
 
 	/* Blank the channel survey statistics */
-	OS_MEMZERO(&ahp->ah_chansurvey, sizeof(ahp->ah_chansurvey));
+	ath_hal_survey_clear(ah);
+
 #if 0
 	/*
 	 * XXX disable for now; this appears to sometimes cause OFDM

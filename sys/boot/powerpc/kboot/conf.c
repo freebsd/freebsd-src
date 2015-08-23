@@ -115,7 +115,3 @@ struct console *consoles[] = {
     NULL
 };
 
-/*
- * reloc - our load address
- */
-vm_offset_t	reloc = RELOC;

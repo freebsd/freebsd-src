@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2014, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -77,6 +77,7 @@
 #define ACPI_LARGE_NAMESPACE_NODE
 #define ACPI_DATA_TABLE_DISASSEMBLY
 #define ACPI_SINGLE_THREADED
+#define ACPI_32BIT_PHYSICAL_ADDRESS
 #endif
 
 /* AcpiExec configuration. Multithreaded with full AML debugger */
@@ -173,6 +174,9 @@
 
 #elif defined(_APPLE) || defined(__APPLE__)
 #include "acmacosx.h"
+
+#elif defined(__DragonFly__)
+#include "acdragonfly.h"
 
 #elif defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
 #include <contrib/dev/acpica/include/platform/acfreebsd.h>
@@ -345,28 +349,6 @@
 
 /* We will be linking to the standard Clib functions */
 
-#define ACPI_STRSTR(s1,s2)      strstr((s1), (s2))
-#define ACPI_STRCHR(s1,c)       strchr((s1), (c))
-#define ACPI_STRLEN(s)          (ACPI_SIZE) strlen((s))
-#define ACPI_STRCPY(d,s)        (void) strcpy((d), (s))
-#define ACPI_STRNCPY(d,s,n)     (void) strncpy((d), (s), (ACPI_SIZE)(n))
-#define ACPI_STRNCMP(d,s,n)     strncmp((d), (s), (ACPI_SIZE)(n))
-#define ACPI_STRCMP(d,s)        strcmp((d), (s))
-#define ACPI_STRCAT(d,s)        (void) strcat((d), (s))
-#define ACPI_STRNCAT(d,s,n)     strncat((d), (s), (ACPI_SIZE)(n))
-#define ACPI_STRTOUL(d,s,n)     strtoul((d), (s), (ACPI_SIZE)(n))
-#define ACPI_MEMCMP(s1,s2,n)    memcmp((const char *)(s1), (const char *)(s2), (ACPI_SIZE)(n))
-#define ACPI_MEMCPY(d,s,n)      (void) memcpy((d), (s), (ACPI_SIZE)(n))
-#define ACPI_MEMSET(d,s,n)      (void) memset((d), (s), (ACPI_SIZE)(n))
-#define ACPI_TOUPPER(i)         toupper((int) (i))
-#define ACPI_TOLOWER(i)         tolower((int) (i))
-#define ACPI_IS_XDIGIT(i)       isxdigit((int) (i))
-#define ACPI_IS_DIGIT(i)        isdigit((int) (i))
-#define ACPI_IS_SPACE(i)        isspace((int) (i))
-#define ACPI_IS_UPPER(i)        isupper((int) (i))
-#define ACPI_IS_PRINT(i)        isprint((int) (i))
-#define ACPI_IS_ALPHA(i)        isalpha((int) (i))
-
 #else
 
 /******************************************************************************
@@ -403,22 +385,6 @@ typedef char *va_list;
 #endif /* va_arg */
 
 /* Use the local (ACPICA) definitions of the clib functions */
-
-#define ACPI_STRSTR(s1,s2)      AcpiUtStrstr ((s1), (s2))
-#define ACPI_STRCHR(s1,c)       AcpiUtStrchr ((s1), (c))
-#define ACPI_STRLEN(s)          (ACPI_SIZE) AcpiUtStrlen ((s))
-#define ACPI_STRCPY(d,s)        (void) AcpiUtStrcpy ((d), (s))
-#define ACPI_STRNCPY(d,s,n)     (void) AcpiUtStrncpy ((d), (s), (ACPI_SIZE)(n))
-#define ACPI_STRNCMP(d,s,n)     AcpiUtStrncmp ((d), (s), (ACPI_SIZE)(n))
-#define ACPI_STRCMP(d,s)        AcpiUtStrcmp ((d), (s))
-#define ACPI_STRCAT(d,s)        (void) AcpiUtStrcat ((d), (s))
-#define ACPI_STRNCAT(d,s,n)     AcpiUtStrncat ((d), (s), (ACPI_SIZE)(n))
-#define ACPI_STRTOUL(d,s,n)     AcpiUtStrtoul ((d), (s), (ACPI_SIZE)(n))
-#define ACPI_MEMCMP(s1,s2,n)    AcpiUtMemcmp((const char *)(s1), (const char *)(s2), (ACPI_SIZE)(n))
-#define ACPI_MEMCPY(d,s,n)      (void) AcpiUtMemcpy ((d), (s), (ACPI_SIZE)(n))
-#define ACPI_MEMSET(d,v,n)      (void) AcpiUtMemset ((d), (v), (ACPI_SIZE)(n))
-#define ACPI_TOUPPER(c)         AcpiUtToUpper ((int) (c))
-#define ACPI_TOLOWER(c)         AcpiUtToLower ((int) (c))
 
 #endif /* ACPI_USE_SYSTEM_CLIBRARY */
 

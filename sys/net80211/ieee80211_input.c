@@ -88,7 +88,8 @@ ieee80211_input_mimo(struct ieee80211_node *ni, struct mbuf *m,
 {
 	/* XXX should assert IEEE80211_R_NF and IEEE80211_R_RSSI are set */
 	ieee80211_process_mimo(ni, rx);
-	return ieee80211_input(ni, m, rx->rssi, rx->nf);
+	//return ieee80211_input(ni, m, rx->rssi, rx->nf);
+	return ni->ni_vap->iv_input(ni, m, rx, rx->rssi, rx->nf);
 }
 
 int
@@ -252,9 +253,7 @@ ieee80211_deliver_data(struct ieee80211vap *vap,
 
 	/* clear driver/net80211 flags before passing up */
 	m->m_flags &= ~(M_MCAST | M_BCAST);
-#if __FreeBSD_version >= 1000046
 	m_clrprotoflags(m);
-#endif
 
 	/* NB: see hostap_deliver_data, this path doesn't handle hostap */
 	KASSERT(vap->iv_opmode != IEEE80211_M_HOSTAP, ("gack, hostap"));
@@ -448,8 +447,9 @@ int
 ieee80211_alloc_challenge(struct ieee80211_node *ni)
 {
 	if (ni->ni_challenge == NULL)
-		ni->ni_challenge = (uint32_t *) malloc(IEEE80211_CHALLENGE_LEN,
-		    M_80211_NODE, M_NOWAIT);
+		ni->ni_challenge = (uint32_t *)
+		    IEEE80211_MALLOC(IEEE80211_CHALLENGE_LEN,
+		      M_80211_NODE, IEEE80211_M_NOWAIT);
 	if (ni->ni_challenge == NULL) {
 		IEEE80211_NOTE(ni->ni_vap,
 		    IEEE80211_MSG_DEBUG | IEEE80211_MSG_AUTH, ni,
@@ -468,7 +468,7 @@ ieee80211_alloc_challenge(struct ieee80211_node *ni)
  */
 int
 ieee80211_parse_beacon(struct ieee80211_node *ni, struct mbuf *m,
-	struct ieee80211_scanparams *scan)
+	struct ieee80211_channel *rxchan, struct ieee80211_scanparams *scan)
 {
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211com *ic = ni->ni_ic;
@@ -505,7 +505,7 @@ ieee80211_parse_beacon(struct ieee80211_node *ni, struct mbuf *m,
 	scan->tstamp  = frm;				frm += 8;
 	scan->bintval = le16toh(*(uint16_t *)frm);	frm += 2;
 	scan->capinfo = le16toh(*(uint16_t *)frm);	frm += 2;
-	scan->bchan = ieee80211_chan2ieee(ic, ic->ic_curchan);
+	scan->bchan = ieee80211_chan2ieee(ic, rxchan);
 	scan->chan = scan->bchan;
 	scan->ies = frm;
 	scan->ies_len = efrm - frm;
@@ -648,7 +648,8 @@ ieee80211_parse_beacon(struct ieee80211_node *ni, struct mbuf *m,
 		 */
 		IEEE80211_DISCARD(vap,
 		    IEEE80211_MSG_ELEMID | IEEE80211_MSG_INPUT,
-		    wh, NULL, "for off-channel %u", scan->chan);
+		    wh, NULL, "for off-channel %u (bchan=%u)",
+		    scan->chan, scan->bchan);
 		vap->iv_stats.is_rx_chanmismatch++;
 		scan->status |= IEEE80211_BPARSE_OFFCHAN;
 	}

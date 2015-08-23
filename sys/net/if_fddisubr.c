@@ -82,7 +82,7 @@ static const u_char fddibroadcastaddr[FDDI_ADDR_LEN] =
 static int fddi_resolvemulti(struct ifnet *, struct sockaddr **,
 			      struct sockaddr *);
 static int fddi_output(struct ifnet *, struct mbuf *, const struct sockaddr *,
-		       struct nhop_info *); 
+		       struct route *); 
 static void fddi_input(struct ifnet *ifp, struct mbuf *m);
 
 #define	senderr(e)	do { error = (e); goto bad; } while (0)
@@ -95,7 +95,7 @@ static void fddi_input(struct ifnet *ifp, struct mbuf *m);
  */
 static int
 fddi_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
-	struct nhop_info *ni)
+	struct route *ro)
 {
 	u_int16_t type;
 	int loop_copy = 0, error = 0, hdrcmplt = 0;

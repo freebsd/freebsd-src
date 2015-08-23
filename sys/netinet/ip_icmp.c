@@ -41,6 +41,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/rmlock.h>
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
 
@@ -62,8 +64,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp_var.h>
 #include <netinet/tcpip.h>
 #include <netinet/icmp_var.h>
-
-#include <net/rt_nhops.h>
 
 #ifdef INET
 
@@ -649,13 +649,13 @@ freeit:
 static void
 icmp_reflect(struct mbuf *m)
 {
+	struct rm_priotracker in_ifa_tracker;
 	struct ip *ip = mtod(m, struct ip *);
 	struct ifaddr *ifa;
 	struct ifnet *ifp;
 	struct in_ifaddr *ia;
 	struct in_addr t;
 	struct mbuf *opts = 0;
-	struct nhop4_extended nh_ext;
 	int optlen = (ip->ip_hl << 2) - sizeof(struct ip);
 
 	if (IN_MULTICAST(ntohl(ip->ip_src.s_addr)) ||
@@ -675,15 +675,15 @@ icmp_reflect(struct mbuf *m)
 	 * If the incoming packet was addressed directly to one of our
 	 * own addresses, use dst as the src for the reply.
 	 */
-	IN_IFADDR_RLOCK();
+	IN_IFADDR_RLOCK(&in_ifa_tracker);
 	LIST_FOREACH(ia, INADDR_HASH(t.s_addr), ia_hash) {
 		if (t.s_addr == IA_SIN(ia)->sin_addr.s_addr) {
 			t = IA_SIN(ia)->sin_addr;
-			IN_IFADDR_RUNLOCK();
+			IN_IFADDR_RUNLOCK(&in_ifa_tracker);
 			goto match;
 		}
 	}
-	IN_IFADDR_RUNLOCK();
+	IN_IFADDR_RUNLOCK(&in_ifa_tracker);
 
 	/*
 	 * If the incoming packet was addressed to one of our broadcast
@@ -748,12 +748,14 @@ icmp_reflect(struct mbuf *m)
 	 * When we don't have a route back to the packet source, stop here
 	 * and drop the packet.
 	 */
-	if (fib4_lookup_nh_ext(M_GETFIB(m), ip->ip_dst, 0, 0, &nh_ext) != 0) {
+	ia = ip_rtaddr(ip->ip_dst, M_GETFIB(m));
+	if (ia == NULL) {
 		m_freem(m);
 		ICMPSTAT_INC(icps_noroute);
 		goto done;
 	}
-	t = nh_ext.nh_src;
+	t = IA_SIN(ia)->sin_addr;
+	ifa_free(&ia->ia_ifa);
 match:
 #ifdef MAC
 	mac_netinet_icmp_replyinplace(m);

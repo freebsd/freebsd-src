@@ -646,5 +646,9 @@ static driver_t at91_pio_driver = {
 	sizeof(struct at91_pio_softc),
 };
 
+#ifdef FDT
 EARLY_DRIVER_MODULE(at91_pio, at91_pinctrl, at91_pio_driver, at91_pio_devclass,
     NULL, NULL, BUS_PASS_INTERRUPT);
+#else
+DRIVER_MODULE(at91_pio, atmelarm, at91_pio_driver, at91_pio_devclass, NULL, NULL);
+#endif

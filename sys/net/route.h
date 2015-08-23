@@ -33,6 +33,7 @@
 #ifndef _NET_ROUTE_H_
 #define _NET_ROUTE_H_
 
+#include <sys/counter.h>
 #include <net/vnet.h>
 
 /*
@@ -43,7 +44,10 @@
  */
 
 /*
- * Legacy structure.
+ * A route consists of a destination address, a reference
+ * to a routing entry, and a reference to an llentry.  
+ * These are often held by protocols in their control
+ * blocks, e.g. inpcb.
  */
 struct route {
 	struct	rtentry *ro_rt;
@@ -52,6 +56,9 @@ struct route {
 	int		ro_flags;
 	struct	sockaddr ro_dst;
 };
+
+#define	RT_CACHING_CONTEXT	0x1	/* XXX: not used anywhere */
+#define	RT_NORTREF		0x2	/* doesn't hold reference on ro_rt */
 
 struct rt_metrics {
 	u_long	rmx_locks;	/* Kernel must leave these values alone */
@@ -99,26 +106,7 @@ VNET_DECLARE(u_int, rt_add_addr_allfibs); /* Announce interfaces to all fibs */
 #endif
 #endif
 
-struct rib_head;
-struct rtentry;
-struct nhop_prepend;
-
-/*
- * Structure used to pass prepend information
- * to if_output() routines.
- */
-struct nhop_info {
-	struct nhop_prepend	*ni_nh;		/* MUST be non-NULL */
-	uint32_t		ni_flags;
-	uint8_t			ni_family;
-	uint8_t			spare[3];
-};
-
-#define	RT_NHOP			0x01
-#define	RT_NORTREF		0x2	/* doesn't hold reference on ro_rt */
-
-#if !defined(_KERNEL) || defined(_WANT_RTENTRY)
-/* This structure is kept for compatibility reasons only */
+#if defined(_KERNEL) || defined(_WANT_RTENTRY)
 struct rtentry {
 	struct	radix_node rt_nodes[2];	/* tree glue, and other values */
 	/*
@@ -137,8 +125,11 @@ struct rtentry {
 	u_long		rt_mtu;		/* MTU for this path */
 	u_long		rt_weight;	/* absolute weight */ 
 	u_long		rt_expire;	/* lifetime for route, e.g. redirect */
+#define	rt_endzero	rt_pksent
+	counter_u64_t	rt_pksent;	/* packets sent using this route */
+	struct mtx	rt_mtx;		/* mutex for routing entry */
 };
-#endif /* !_KERNEL || _WANT_RTENTRY */
+#endif /* _KERNEL || _WANT_RTENTRY */
 
 #define	RTF_UP		0x1		/* route usable */
 #define	RTF_GATEWAY	0x2		/* destination is a gateway */
@@ -177,19 +168,6 @@ struct rtentry {
 #define RTF_FMASK	\
 	(RTF_PROTO1 | RTF_PROTO2 | RTF_PROTO3 | RTF_BLACKHOLE | \
 	 RTF_REJECT | RTF_STATIC | RTF_STICKY)
-
-const struct sockaddr *rte_get_dst(struct rtentry *rte);
-const struct sockaddr *rte_get_mask(struct rtentry *rte);
-struct sockaddr *rte_get_gw(struct rtentry *rte);
-struct ifnet *rte_get_lifp(struct rtentry *rte);
-struct ifaddr *rte_get_ifa(struct rtentry *rte);
-void rte_set_ifa(struct rtentry *rte, struct ifaddr *ifa);
-unsigned int rte_get_flags(struct rtentry *rte);
-void rte_set_flags(struct rtentry *rte, unsigned int rt_flags);
-unsigned long rte_get_mtu(struct rtentry *rte);
-void rte_set_mtu(struct rtentry *rte, unsigned long mtu);
-unsigned long rte_get_weight(struct rtentry *rte);
-void rte_set_weight(struct rtentry *rte, unsigned long weight);;
 
 /*
  * Routing statistics.
@@ -312,7 +290,60 @@ struct rt_addrinfo {
 #define RT_LINK_IS_UP(ifp)	(!((ifp)->if_capabilities & IFCAP_LINKSTATE) \
 				 || (ifp)->if_link_state == LINK_STATE_UP)
 
-struct rib_head *rt_tables_get_rnh(int, int);
+#define	RT_LOCK_INIT(_rt) \
+	mtx_init(&(_rt)->rt_mtx, "rtentry", NULL, MTX_DEF | MTX_DUPOK)
+#define	RT_LOCK(_rt)		mtx_lock(&(_rt)->rt_mtx)
+#define	RT_UNLOCK(_rt)		mtx_unlock(&(_rt)->rt_mtx)
+#define	RT_LOCK_DESTROY(_rt)	mtx_destroy(&(_rt)->rt_mtx)
+#define	RT_LOCK_ASSERT(_rt)	mtx_assert(&(_rt)->rt_mtx, MA_OWNED)
+#define	RT_UNLOCK_COND(_rt)	do {				\
+	if (mtx_owned(&(_rt)->rt_mtx))				\
+		mtx_unlock(&(_rt)->rt_mtx);			\
+} while (0)
+
+#define	RT_ADDREF(_rt)	do {					\
+	RT_LOCK_ASSERT(_rt);					\
+	KASSERT((_rt)->rt_refcnt >= 0,				\
+		("negative refcnt %d", (_rt)->rt_refcnt));	\
+	(_rt)->rt_refcnt++;					\
+} while (0)
+
+#define	RT_REMREF(_rt)	do {					\
+	RT_LOCK_ASSERT(_rt);					\
+	KASSERT((_rt)->rt_refcnt > 0,				\
+		("bogus refcnt %d", (_rt)->rt_refcnt));	\
+	(_rt)->rt_refcnt--;					\
+} while (0)
+
+#define	RTFREE_LOCKED(_rt) do {					\
+	if ((_rt)->rt_refcnt <= 1)				\
+		rtfree(_rt);					\
+	else {							\
+		RT_REMREF(_rt);					\
+		RT_UNLOCK(_rt);					\
+	}							\
+	/* guard against invalid refs */			\
+	_rt = 0;						\
+} while (0)
+
+#define	RTFREE(_rt) do {					\
+	RT_LOCK(_rt);						\
+	RTFREE_LOCKED(_rt);					\
+} while (0)
+
+#define	RO_RTFREE(_ro) do {					\
+	if ((_ro)->ro_rt) {					\
+		if ((_ro)->ro_flags & RT_NORTREF) {		\
+			(_ro)->ro_flags &= ~RT_NORTREF;		\
+			(_ro)->ro_rt = NULL;			\
+		} else {					\
+			RT_LOCK((_ro)->ro_rt);			\
+			RTFREE_LOCKED((_ro)->ro_rt);		\
+		}						\
+	}							\
+} while (0)
+
+struct radix_node_head *rt_tables_get_rnh(int, int);
 
 struct ifmultiaddr;
 
@@ -335,6 +366,8 @@ int	rtsock_routemsg(int, struct ifnet *ifp, int, struct rtentry *, int);
 /*
  * Note the following locking behavior:
  *
+ *    rtalloc_ign() and rtalloc() return ro->ro_rt unlocked
+ *
  *    rtalloc1() returns a locked rtentry
  *
  *    rtfree() and RTFREE_LOCKED() require a locked rtentry
@@ -342,21 +375,16 @@ int	rtsock_routemsg(int, struct ifnet *ifp, int, struct rtentry *, int);
  *    RTFREE() uses an unlocked entry.
  */
 
-int	 rt_expunge(struct rib_head *, struct rtentry *);
+int	 rt_expunge(struct radix_node_head *, struct rtentry *);
 void	 rtfree(struct rtentry *);
 int	 rt_check(struct rtentry **, struct rtentry **, struct sockaddr *);
 void	rt_updatemtu(struct ifnet *);
-
-typedef int rt_walktree_f_t(struct rtentry *, void *);
-typedef void rt_setwarg_t(struct rib_head *, uint32_t, int, void *);
-void	rt_foreach_fib(int af, rt_setwarg_t *, rt_walktree_f_t *, void *);
-void	rt_flushifroutes(struct ifnet *ifp);
-int	rt_switch_loopback_route(uint32_t, struct sockaddr *, struct ifnet *);
 
 /* XXX MRT COMPAT VERSIONS THAT SET UNIVERSE to 0 */
 /* Thes are used by old code not yet converted to use multiple FIBS */
 int	 rt_getifa(struct rt_addrinfo *);
 void	 rtalloc_ign(struct route *ro, u_long ignflags);
+void	 rtalloc(struct route *ro); /* XXX deprecated, use rtalloc_ign(ro, 0) */
 struct rtentry *rtalloc1(struct sockaddr *, int, u_long);
 int	 rtinit(struct ifaddr *, int, int);
 int	 rtioctl(u_long, caddr_t);
@@ -370,6 +398,8 @@ int	 rtrequest(int, struct sockaddr *,
  * but this will change.. 
  */
 int	 rt_getifa_fib(struct rt_addrinfo *, u_int fibnum);
+void	 rtalloc_ign_fib(struct route *ro, u_long ignflags, u_int fibnum);
+void	 rtalloc_fib(struct route *ro, u_int fibnum);
 struct rtentry *rtalloc1_fib(struct sockaddr *, int, u_long, u_int);
 int	 rtioctl_fib(u_long, caddr_t, u_int);
 void	 rtredirect_fib(struct sockaddr *, struct sockaddr *,

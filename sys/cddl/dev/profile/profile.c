@@ -128,6 +128,23 @@
 
 struct profile_probe_percpu;
 
+#ifdef __mips
+/* bogus */
+#define	PROF_ARTIFICIAL_FRAMES	3
+#endif
+
+#ifdef __arm__
+/*
+ * At least on ARMv7, this appears to work quite well.
+ */
+#define	PROF_ARTIFICIAL_FRAMES	10
+#endif
+
+#ifdef __aarch64__
+/* TODO: verify */
+#define	PROF_ARTIFICIAL_FRAMES	10
+#endif
+
 typedef struct profile_probe {
 	char		prof_name[PROF_NAMELEN];
 	dtrace_id_t	prof_id;
@@ -330,7 +347,7 @@ profile_create(hrtime_t interval, char *name, int kind)
 	prof->prof_cyclic = CYCLIC_NONE;
 #else
 	prof->prof_interval = nsec_to_sbt(interval);
-	callout_init(&prof->prof_cyclic, CALLOUT_MPSAFE);
+	callout_init(&prof->prof_cyclic, 1);
 #endif
 	prof->prof_kind = kind;
 	prof->prof_id = dtrace_probe_create(profile_id,
@@ -578,7 +595,7 @@ profile_enable_omni(profile_probe_t *prof)
 		pcpu->profc_probe = prof;
 		pcpu->profc_expected = sbinuptime() + prof->prof_interval;
 		pcpu->profc_interval = prof->prof_interval;
-		callout_init(&pcpu->profc_cyclic, CALLOUT_MPSAFE);
+		callout_init(&pcpu->profc_cyclic, 1);
 		callout_reset_sbt_on(&pcpu->profc_cyclic,
 		    pcpu->profc_expected, 0, profile_fire, pcpu,
 		    cpu, C_DIRECT_EXEC | C_ABSOLUTE);

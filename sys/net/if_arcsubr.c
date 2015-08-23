@@ -96,7 +96,7 @@ u_int8_t  arcbroadcastaddr = 0;
  */
 int
 arc_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
-    struct nhop_info *ni)
+    struct route *ro)
 {
 	struct arc_header	*ah;
 	int			error;
@@ -167,7 +167,7 @@ arc_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 #endif
 #ifdef INET6
 	case AF_INET6:
-		if ((m->m_flags & M_MCAST) != NULL)
+		if ((m->m_flags & M_MCAST) != 0)
 			adst = arcbroadcastaddr; /* ARCnet broadcast address */
 		else
 			error = nd6_storelladdr(ifp, m, dst, (u_char *)&adst, NULL);

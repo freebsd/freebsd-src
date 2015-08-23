@@ -57,6 +57,10 @@
 			status = "okay";
 		};
 
+		mmc0: mmc@01c0f000 {
+			status = "okay";
+		};
+
 		emac@01c0b000 {
 			status = "okay";
 		};

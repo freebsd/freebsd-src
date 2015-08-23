@@ -449,7 +449,7 @@ static int r100_hw_i2c_xfer(struct radeon_i2c_chan *i2c,
 				break;
 			default:
 				DRM_ERROR("gpio not supported with hw i2c\n");
-				ret = EINVAL;
+				ret = -EINVAL;
 				goto done;
 			}
 			break;
@@ -464,7 +464,7 @@ static int r100_hw_i2c_xfer(struct radeon_i2c_chan *i2c,
 				break;
 			default:
 				DRM_ERROR("gpio not supported with hw i2c\n");
-				ret = EINVAL;
+				ret = -EINVAL;
 				goto done;
 			}
 			break;
@@ -483,7 +483,7 @@ static int r100_hw_i2c_xfer(struct radeon_i2c_chan *i2c,
 				break;
 			default:
 				DRM_ERROR("gpio not supported with hw i2c\n");
-				ret = EINVAL;
+				ret = -EINVAL;
 				goto done;
 			}
 			break;
@@ -499,7 +499,7 @@ static int r100_hw_i2c_xfer(struct radeon_i2c_chan *i2c,
 				break;
 			default:
 				DRM_ERROR("gpio not supported with hw i2c\n");
-				ret = EINVAL;
+				ret = -EINVAL;
 				goto done;
 			}
 			break;
@@ -523,13 +523,13 @@ static int r100_hw_i2c_xfer(struct radeon_i2c_chan *i2c,
 				break;
 			default:
 				DRM_ERROR("gpio not supported with hw i2c\n");
-				ret = EINVAL;
+				ret = -EINVAL;
 				goto done;
 			}
 			break;
 		default:
 			DRM_ERROR("unsupported asic\n");
-			ret = EINVAL;
+			ret = -EINVAL;
 			goto done;
 			break;
 		}
@@ -550,7 +550,7 @@ static int r100_hw_i2c_xfer(struct radeon_i2c_chan *i2c,
 				    (48 << RADEON_I2C_TIME_LIMIT_SHIFT)));
 		WREG32(i2c_cntl_0, reg);
 		for (k = 0; k < 32; k++) {
-			DRM_UDELAY(10);
+			udelay(10);
 			tmp = RREG32(i2c_cntl_0);
 			if (tmp & RADEON_I2C_GO)
 				continue;
@@ -560,7 +560,7 @@ static int r100_hw_i2c_xfer(struct radeon_i2c_chan *i2c,
 			else {
 				DRM_DEBUG("i2c write error 0x%08x\n", tmp);
 				WREG32(i2c_cntl_0, tmp | RADEON_I2C_ABORT);
-				ret = EIO;
+				ret = -EIO;
 				goto done;
 			}
 		}
@@ -582,7 +582,7 @@ static int r100_hw_i2c_xfer(struct radeon_i2c_chan *i2c,
 						    (48 << RADEON_I2C_TIME_LIMIT_SHIFT)));
 				WREG32(i2c_cntl_0, reg | RADEON_I2C_RECEIVE);
 				for (k = 0; k < 32; k++) {
-					DRM_UDELAY(10);
+					udelay(10);
 					tmp = RREG32(i2c_cntl_0);
 					if (tmp & RADEON_I2C_GO)
 						continue;
@@ -592,7 +592,7 @@ static int r100_hw_i2c_xfer(struct radeon_i2c_chan *i2c,
 					else {
 						DRM_DEBUG("i2c read error 0x%08x\n", tmp);
 						WREG32(i2c_cntl_0, tmp | RADEON_I2C_ABORT);
-						ret = EIO;
+						ret = -EIO;
 						goto done;
 					}
 				}
@@ -610,7 +610,7 @@ static int r100_hw_i2c_xfer(struct radeon_i2c_chan *i2c,
 						    (48 << RADEON_I2C_TIME_LIMIT_SHIFT)));
 				WREG32(i2c_cntl_0, reg);
 				for (k = 0; k < 32; k++) {
-					DRM_UDELAY(10);
+					udelay(10);
 					tmp = RREG32(i2c_cntl_0);
 					if (tmp & RADEON_I2C_GO)
 						continue;
@@ -620,7 +620,7 @@ static int r100_hw_i2c_xfer(struct radeon_i2c_chan *i2c,
 					else {
 						DRM_DEBUG("i2c write error 0x%08x\n", tmp);
 						WREG32(i2c_cntl_0, tmp | RADEON_I2C_ABORT);
-						ret = EIO;
+						ret = -EIO;
 						goto done;
 					}
 				}
@@ -710,13 +710,13 @@ static int r500_hw_i2c_xfer(struct radeon_i2c_chan *i2c,
 
 	WREG32(AVIVO_DC_I2C_ARBITRATION, AVIVO_DC_I2C_SW_WANTS_TO_USE_I2C);
 	for (i = 0; i < 50; i++) {
-		DRM_UDELAY(1);
+		udelay(1);
 		if (RREG32(AVIVO_DC_I2C_ARBITRATION) & AVIVO_DC_I2C_SW_CAN_USE_I2C)
 			break;
 	}
 	if (i == 50) {
 		DRM_ERROR("failed to get i2c bus\n");
-		ret = EBUSY;
+		ret = -EBUSY;
 		goto done;
 	}
 
@@ -733,7 +733,7 @@ static int r500_hw_i2c_xfer(struct radeon_i2c_chan *i2c,
 		break;
 	default:
 		DRM_ERROR("gpio not supported with hw i2c\n");
-		ret = EINVAL;
+		ret = -EINVAL;
 		goto done;
 	}
 
@@ -744,7 +744,7 @@ static int r500_hw_i2c_xfer(struct radeon_i2c_chan *i2c,
 					      AVIVO_DC_I2C_NACK |
 					      AVIVO_DC_I2C_HALT));
 		WREG32(AVIVO_DC_I2C_RESET, AVIVO_DC_I2C_SOFT_RESET);
-		DRM_UDELAY(1);
+		udelay(1);
 		WREG32(AVIVO_DC_I2C_RESET, 0);
 
 		WREG32(AVIVO_DC_I2C_DATA, (p->slave << 1) & 0xff);
@@ -757,7 +757,7 @@ static int r500_hw_i2c_xfer(struct radeon_i2c_chan *i2c,
 		WREG32(AVIVO_DC_I2C_CONTROL1, reg);
 		WREG32(AVIVO_DC_I2C_STATUS1, AVIVO_DC_I2C_GO);
 		for (j = 0; j < 200; j++) {
-			DRM_UDELAY(50);
+			udelay(50);
 			tmp = RREG32(AVIVO_DC_I2C_STATUS1);
 			if (tmp & AVIVO_DC_I2C_GO)
 				continue;
@@ -767,7 +767,7 @@ static int r500_hw_i2c_xfer(struct radeon_i2c_chan *i2c,
 			else {
 				DRM_DEBUG("i2c write error 0x%08x\n", tmp);
 				WREG32(AVIVO_DC_I2C_RESET, AVIVO_DC_I2C_ABORT);
-				ret = EIO;
+				ret = -EIO;
 				goto done;
 			}
 		}
@@ -788,7 +788,7 @@ static int r500_hw_i2c_xfer(struct radeon_i2c_chan *i2c,
 							      AVIVO_DC_I2C_NACK |
 							      AVIVO_DC_I2C_HALT));
 				WREG32(AVIVO_DC_I2C_RESET, AVIVO_DC_I2C_SOFT_RESET);
-				DRM_UDELAY(1);
+				udelay(1);
 				WREG32(AVIVO_DC_I2C_RESET, 0);
 
 				WREG32(AVIVO_DC_I2C_DATA, ((p->slave << 1) & 0xff) | 0x1);
@@ -799,7 +799,7 @@ static int r500_hw_i2c_xfer(struct radeon_i2c_chan *i2c,
 				WREG32(AVIVO_DC_I2C_CONTROL1, reg | AVIVO_DC_I2C_RECEIVE);
 				WREG32(AVIVO_DC_I2C_STATUS1, AVIVO_DC_I2C_GO);
 				for (j = 0; j < 200; j++) {
-					DRM_UDELAY(50);
+					udelay(50);
 					tmp = RREG32(AVIVO_DC_I2C_STATUS1);
 					if (tmp & AVIVO_DC_I2C_GO)
 						continue;
@@ -809,7 +809,7 @@ static int r500_hw_i2c_xfer(struct radeon_i2c_chan *i2c,
 					else {
 						DRM_DEBUG("i2c read error 0x%08x\n", tmp);
 						WREG32(AVIVO_DC_I2C_RESET, AVIVO_DC_I2C_ABORT);
-						ret = EIO;
+						ret = -EIO;
 						goto done;
 					}
 				}
@@ -828,7 +828,7 @@ static int r500_hw_i2c_xfer(struct radeon_i2c_chan *i2c,
 							      AVIVO_DC_I2C_NACK |
 							      AVIVO_DC_I2C_HALT));
 				WREG32(AVIVO_DC_I2C_RESET, AVIVO_DC_I2C_SOFT_RESET);
-				DRM_UDELAY(1);
+				udelay(1);
 				WREG32(AVIVO_DC_I2C_RESET, 0);
 
 				WREG32(AVIVO_DC_I2C_DATA, (p->slave << 1) & 0xff);
@@ -842,7 +842,7 @@ static int r500_hw_i2c_xfer(struct radeon_i2c_chan *i2c,
 				WREG32(AVIVO_DC_I2C_CONTROL1, reg);
 				WREG32(AVIVO_DC_I2C_STATUS1, AVIVO_DC_I2C_GO);
 				for (j = 0; j < 200; j++) {
-					DRM_UDELAY(50);
+					udelay(50);
 					tmp = RREG32(AVIVO_DC_I2C_STATUS1);
 					if (tmp & AVIVO_DC_I2C_GO)
 						continue;
@@ -852,7 +852,7 @@ static int r500_hw_i2c_xfer(struct radeon_i2c_chan *i2c,
 					else {
 						DRM_DEBUG("i2c write error 0x%08x\n", tmp);
 						WREG32(AVIVO_DC_I2C_RESET, AVIVO_DC_I2C_ABORT);
-						ret = EIO;
+						ret = -EIO;
 						goto done;
 					}
 				}
@@ -867,7 +867,7 @@ done:
 				      AVIVO_DC_I2C_NACK |
 				      AVIVO_DC_I2C_HALT));
 	WREG32(AVIVO_DC_I2C_RESET, AVIVO_DC_I2C_SOFT_RESET);
-	DRM_UDELAY(1);
+	udelay(1);
 	WREG32(AVIVO_DC_I2C_RESET, 0);
 
 	WREG32(AVIVO_DC_I2C_ARBITRATION, AVIVO_DC_I2C_SW_DONE_USING_I2C);
@@ -953,11 +953,11 @@ static int radeon_hw_i2c_xfer(device_t dev,
 		break;
 	default:
 		DRM_ERROR("i2c: unhandled radeon chip\n");
-		ret = EIO;
+		ret = -EIO;
 		break;
 	}
 
-	return ret;
+	return -ret;
 }
 
 static int
@@ -1043,7 +1043,7 @@ struct radeon_i2c_chan *radeon_i2c_create(struct drm_device *dev,
 		return NULL;
 
 	i2c = malloc(sizeof(struct radeon_i2c_chan),
-	    DRM_MEM_DRIVER, M_ZERO | M_WAITOK);
+	    DRM_MEM_DRIVER, M_NOWAIT | M_ZERO);
 	if (i2c == NULL)
 		return NULL;
 
@@ -1063,7 +1063,7 @@ struct radeon_i2c_chan *radeon_i2c_create(struct drm_device *dev,
 		/* set the radeon hw i2c adapter */
 		snprintf(i2c->name, sizeof(i2c->name),
 			 "Radeon i2c hw bus %s", name);
-		iicbus_dev = device_add_child(dev->device, "radeon_hw_i2c", -1);
+		iicbus_dev = device_add_child(dev->dev, "radeon_hw_i2c", -1);
 		if (iicbus_dev == NULL) {
 			DRM_ERROR("Failed to create bridge for hw i2c %s\n",
 			    name);
@@ -1076,14 +1076,14 @@ struct radeon_i2c_chan *radeon_i2c_create(struct drm_device *dev,
 		if (ret != 0) {
 			DRM_ERROR("Attach failed for bridge for hw i2c %s\n",
 			    name);
-			device_delete_child(dev->device, iicbus_dev);
+			device_delete_child(dev->dev, iicbus_dev);
 			goto out_free;
 		}
 
 		i2c->adapter = device_find_child(iicbus_dev, "iicbus", -1);
 		if (i2c->adapter == NULL) {
 			DRM_ERROR("hw i2c bridge doesn't have iicbus child\n");
-			device_delete_child(dev->device, iicbus_dev);
+			device_delete_child(dev->dev, iicbus_dev);
 			goto out_free;
 		}
 	} else if (rec->hw_capable &&
@@ -1092,7 +1092,7 @@ struct radeon_i2c_chan *radeon_i2c_create(struct drm_device *dev,
 		/* hw i2c using atom */
 		snprintf(i2c->name, sizeof(i2c->name),
 			 "Radeon i2c hw bus %s", name);
-		iicbus_dev = device_add_child(dev->device, "radeon_atom_hw_i2c", -1);
+		iicbus_dev = device_add_child(dev->dev, "radeon_atom_hw_i2c", -1);
 		if (iicbus_dev == NULL) {
 			DRM_ERROR("Failed to create bridge for hw i2c %s\n",
 			    name);
@@ -1105,14 +1105,14 @@ struct radeon_i2c_chan *radeon_i2c_create(struct drm_device *dev,
 		if (ret != 0) {
 			DRM_ERROR("Attach failed for bridge for hw i2c %s\n",
 			    name);
-			device_delete_child(dev->device, iicbus_dev);
+			device_delete_child(dev->dev, iicbus_dev);
 			goto out_free;
 		}
 
 		i2c->adapter = device_find_child(iicbus_dev, "iicbus", -1);
 		if (i2c->adapter == NULL) {
 			DRM_ERROR("hw i2c bridge doesn't have iicbus child\n");
-			device_delete_child(dev->device, iicbus_dev);
+			device_delete_child(dev->dev, iicbus_dev);
 			goto out_free;
 		}
 	} else {
@@ -1121,7 +1121,7 @@ struct radeon_i2c_chan *radeon_i2c_create(struct drm_device *dev,
 		/* set the radeon bit adapter */
 		snprintf(i2c->name, sizeof(i2c->name),
 			 "Radeon i2c bit bus %s", name);
-		iicbus_dev = device_add_child(dev->device, "radeon_iicbb", -1);
+		iicbus_dev = device_add_child(dev->dev, "radeon_iicbb", -1);
 		if (iicbus_dev == NULL) {
 			DRM_ERROR("Failed to create bridge for bb i2c %s\n",
 			    name);
@@ -1134,14 +1134,14 @@ struct radeon_i2c_chan *radeon_i2c_create(struct drm_device *dev,
 		if (ret != 0) {
 			DRM_ERROR("Attach failed for bridge for bb i2c %s\n",
 			    name);
-			device_delete_child(dev->device, iicbus_dev);
+			device_delete_child(dev->dev, iicbus_dev);
 			goto out_free;
 		}
 
 		iicbb_dev = device_find_child(iicbus_dev, "iicbb", -1);
 		if (iicbb_dev == NULL) {
 			DRM_ERROR("bb i2c bridge doesn't have iicbb child\n");
-			device_delete_child(dev->device, iicbus_dev);
+			device_delete_child(dev->dev, iicbus_dev);
 			goto out_free;
 		}
 
@@ -1149,7 +1149,7 @@ struct radeon_i2c_chan *radeon_i2c_create(struct drm_device *dev,
 		if (i2c->adapter == NULL) {
 			DRM_ERROR(
 			    "bbbus bridge doesn't have iicbus grandchild\n");
-			device_delete_child(dev->device, iicbus_dev);
+			device_delete_child(dev->dev, iicbus_dev);
 			goto out_free;
 		}
 	}
@@ -1174,7 +1174,7 @@ struct radeon_i2c_chan *radeon_i2c_create_dp(struct drm_device *dev,
 	int ret;
 
 	i2c = malloc(sizeof(struct radeon_i2c_chan),
-	    DRM_MEM_DRIVER, M_ZERO | M_WAITOK);
+	    DRM_MEM_DRIVER, M_NOWAIT | M_ZERO);
 	if (i2c == NULL)
 		return NULL;
 
@@ -1182,7 +1182,7 @@ struct radeon_i2c_chan *radeon_i2c_create_dp(struct drm_device *dev,
 	i2c->dev = dev;
 	snprintf(i2c->name, sizeof(i2c->name),
 		 "Radeon aux bus %s", name);
-	ret = iic_dp_aux_add_bus(dev->device, i2c->name,
+	ret = iic_dp_aux_add_bus(dev->dev, i2c->name,
 	    radeon_dp_i2c_aux_ch, i2c, &i2c->iic_bus,
 	    &i2c->adapter);
 	if (ret) {
@@ -1205,7 +1205,7 @@ void radeon_i2c_destroy(struct radeon_i2c_chan *i2c)
 		int ret;
 
 		mtx_lock(&Giant);
-		ret = device_delete_child(i2c->dev->device, i2c->iic_bus);
+		ret = device_delete_child(i2c->dev->dev, i2c->iic_bus);
 		mtx_unlock(&Giant);
 		KASSERT(ret == 0, ("unable to detach iic bus %s: %d",
 		    i2c->name, ret));

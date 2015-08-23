@@ -44,6 +44,11 @@
 #include <sys/cdefs.h>
 #include <sys/uio.h>
 
+MALLOC_DECLARE(M_LINUX);
+MALLOC_DECLARE(M_EPOLL);
+MALLOC_DECLARE(M_FUTEX);
+MALLOC_DECLARE(M_FUTEX_WP);
+
 extern const char linux_emul_path[];
 
 int linux_emul_convpath(struct thread *, const char *, enum uio_seg, char **, int, int);
@@ -115,7 +120,6 @@ void	linux_free_get_char_devices(char *string);
 #define	LINUX_CTRFMT(nm, fmt)	#nm"("fmt")"
 
 #define	LINUX_CTR6(f, m, p1, p2, p3, p4, p5, p6) do {			\
-	if (ldebug(f))							\
 		CTR6(KTR_LINUX, LINUX_CTRFMT(f, m),			\
 		    p1, p2, p3, p4, p5, p6);				\
 } while (0)

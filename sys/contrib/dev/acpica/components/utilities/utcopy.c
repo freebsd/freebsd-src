@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2014, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -40,8 +40,6 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  */
-
-#define __UTCOPY_C__
 
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/accommon.h>
@@ -148,7 +146,7 @@ AcpiUtCopyIsimpleToEsimple (
 
     /* Always clear the external object */
 
-    ACPI_MEMSET (ExternalObject, 0, sizeof (ACPI_OBJECT));
+    memset (ExternalObject, 0, sizeof (ACPI_OBJECT));
 
     /*
      * In general, the external object will be the same type as
@@ -167,7 +165,7 @@ AcpiUtCopyIsimpleToEsimple (
         *BufferSpaceUsed = ACPI_ROUND_UP_TO_NATIVE_WORD (
                             (ACPI_SIZE) InternalObject->String.Length + 1);
 
-        ACPI_MEMCPY ((void *) DataSpace,
+        memcpy ((void *) DataSpace,
             (void *) InternalObject->String.Pointer,
             (ACPI_SIZE) InternalObject->String.Length + 1);
         break;
@@ -179,7 +177,7 @@ AcpiUtCopyIsimpleToEsimple (
         *BufferSpaceUsed = ACPI_ROUND_UP_TO_NATIVE_WORD (
                             InternalObject->String.Length);
 
-        ACPI_MEMCPY ((void *) DataSpace,
+        memcpy ((void *) DataSpace,
             (void *) InternalObject->Buffer.Pointer,
             InternalObject->Buffer.Length);
         break;
@@ -530,7 +528,7 @@ AcpiUtCopyEsimpleToIsimple (
             goto ErrorExit;
         }
 
-        ACPI_MEMCPY (InternalObject->String.Pointer,
+        memcpy (InternalObject->String.Pointer,
                      ExternalObject->String.Pointer,
                      ExternalObject->String.Length);
 
@@ -546,7 +544,7 @@ AcpiUtCopyEsimpleToIsimple (
             goto ErrorExit;
         }
 
-        ACPI_MEMCPY (InternalObject->Buffer.Pointer,
+        memcpy (InternalObject->Buffer.Pointer,
                      ExternalObject->Buffer.Pointer,
                      ExternalObject->Buffer.Length);
 
@@ -734,7 +732,7 @@ AcpiUtCopySimpleObject (
         CopySize = sizeof (ACPI_NAMESPACE_NODE);
     }
 
-    ACPI_MEMCPY (ACPI_CAST_PTR (char, DestDesc),
+    memcpy (ACPI_CAST_PTR (char, DestDesc),
         ACPI_CAST_PTR (char, SourceDesc), CopySize);
 
     /* Restore the saved fields */
@@ -768,7 +766,7 @@ AcpiUtCopySimpleObject (
 
             /* Copy the actual buffer data */
 
-            ACPI_MEMCPY (DestDesc->Buffer.Pointer,
+            memcpy (DestDesc->Buffer.Pointer,
                 SourceDesc->Buffer.Pointer, SourceDesc->Buffer.Length);
         }
         break;
@@ -790,7 +788,7 @@ AcpiUtCopySimpleObject (
 
             /* Copy the actual string data */
 
-            ACPI_MEMCPY (DestDesc->String.Pointer, SourceDesc->String.Pointer,
+            memcpy (DestDesc->String.Pointer, SourceDesc->String.Pointer,
                 (ACPI_SIZE) SourceDesc->String.Length + 1);
         }
         break;

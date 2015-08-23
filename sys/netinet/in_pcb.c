@@ -47,12 +47,12 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/callout.h>
 #include <sys/domain.h>
 #include <sys/protosw.h>
-#include <sys/lock.h>
 #include <sys/rmlock.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
@@ -73,12 +73,12 @@ __FBSDID("$FreeBSD$");
 #include <net/if_var.h>
 #include <net/if_types.h>
 #include <net/route.h>
+#include <net/rss_config.h>
 #include <net/vnet.h>
 
 #if defined(INET) || defined(INET6)
 #include <netinet/in.h>
 #include <netinet/in_pcb.h>
-#include <netinet/in_rss.h>
 #include <netinet/ip_var.h>
 #include <netinet/tcp_var.h>
 #include <netinet/udp.h>
@@ -93,7 +93,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/in6_var.h>
 #include <netinet6/ip6_var.h>
 #endif /* INET6 */
-#include <net/rt_nhops.h>
 
 
 #ifdef IPSEC
@@ -102,8 +101,6 @@ __FBSDID("$FreeBSD$");
 #endif /* IPSEC */
 
 #include <security/mac/mac_framework.h>
-
-IN_IFADDR_FAST_LOCK_DECLARATION;
 
 static struct callout	ipport_tick_callout;
 
@@ -759,9 +756,8 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 {
 	struct ifaddr *ifa;
 	struct sockaddr *sa;
-	struct sockaddr_in *sin, sin_storage;
-	struct nhop4_extended nh_ext, *pnh4;
-	u_int fibnum;
+	struct sockaddr_in *sin;
+	struct route sro;
 	int error;
 
 	KASSERT(laddr != NULL, ("%s: laddr NULL", __func__));
@@ -774,8 +770,9 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 		return (0);
 
 	error = 0;
+	bzero(&sro, sizeof(sro));
 
-	sin = &sin_storage;
+	sin = (struct sockaddr_in *)&sro.ro_dst;
 	sin->sin_family = AF_INET;
 	sin->sin_len = sizeof(struct sockaddr_in);
 	sin->sin_addr.s_addr = faddr->s_addr;
@@ -786,16 +783,8 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 	 *
 	 * Find out route to destination.
 	 */
-	fibnum = inp->inp_inc.inc_fibnum;
-	pnh4 = &nh_ext;
-	memset(&nh_ext, 0, sizeof(nh_ext));
 	if ((inp->inp_socket->so_options & SO_DONTROUTE) == 0)
-		error = fib4_lookup_nh_ext(fibnum, *faddr, 0, NHOP_LOOKUP_REF,
-		    &nh_ext);
-	if (error != 0) {
-		pnh4 = NULL;
-		error = 0;
-	}
+		in_rtalloc_ign(&sro, 0, inp->inp_inc.inc_fibnum);
 
 	/*
 	 * If we found a route, use the address corresponding to
@@ -805,7 +794,7 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 	 * network and try to find a corresponding interface to take
 	 * the source address from.
 	 */
-	if (pnh4 == NULL) {
+	if (sro.ro_rt == NULL || sro.ro_rt->rt_ifp == NULL) {
 		struct in_ifaddr *ia;
 		struct ifnet *ifp;
 
@@ -861,22 +850,23 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 	 *    belonging to this jail. If so use it.
 	 * 3. as a last resort return the 'default' jail address.
 	 */
-	if ((nh_ext.nh_ifp->if_flags & IFF_LOOPBACK) == 0) {
+	if ((sro.ro_rt->rt_ifp->if_flags & IFF_LOOPBACK) == 0) {
 		struct in_ifaddr *ia;
 		struct ifnet *ifp;
-		struct in_addr addr;
 
 		/* If not jailed, use the default returned. */
 		if (cred == NULL || !prison_flag(cred, PR_IP4)) {
-			laddr->s_addr = nh_ext.nh_src.s_addr;
+			ia = (struct in_ifaddr *)sro.ro_rt->rt_ifa;
+			laddr->s_addr = ia->ia_addr.sin_addr.s_addr;
 			goto done;
 		}
 
 		/* Jailed. */
 		/* 1. Check if the iface address belongs to the jail. */
-		addr = nh_ext.nh_src;
-		if (prison_check_ip4(cred, &addr) == 0) {
-			laddr->s_addr = nh_ext.nh_src.s_addr;
+		sin = (struct sockaddr_in *)sro.ro_rt->rt_ifa->ifa_addr;
+		if (prison_check_ip4(cred, &sin->sin_addr) == 0) {
+			ia = (struct in_ifaddr *)sro.ro_rt->rt_ifa;
+			laddr->s_addr = ia->ia_addr.sin_addr.s_addr;
 			goto done;
 		}
 
@@ -885,7 +875,7 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 		 *    belonging to this jail.
 		 */
 		ia = NULL;
-		ifp = nh_ext.nh_ifp;
+		ifp = sro.ro_rt->rt_ifp;
 		IF_ADDR_RLOCK(ifp);
 		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			sa = ifa->ifa_addr;
@@ -918,7 +908,7 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 	 * In case of jails, check that it is an address of the jail
 	 * and if we cannot find, fall back to the 'default' jail address.
 	 */
-	if ((nh_ext.nh_ifp->if_flags & IFF_LOOPBACK) != 0) {
+	if ((sro.ro_rt->rt_ifp->if_flags & IFF_LOOPBACK) != 0) {
 		struct sockaddr_in sain;
 		struct in_ifaddr *ia;
 
@@ -979,8 +969,8 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 	}
 
 done:
-	if (pnh4 != NULL)
-		fib4_free_nh_ext(fibnum, pnh4);
+	if (sro.ro_rt != NULL)
+		RTFREE(sro.ro_rt);
 	return (error);
 }
 
@@ -1004,13 +994,13 @@ in_pcbconnect_setup(struct inpcb *inp, struct sockaddr *nam,
     in_addr_t *laddrp, u_short *lportp, in_addr_t *faddrp, u_short *fportp,
     struct inpcb **oinpp, struct ucred *cred)
 {
+	struct rm_priotracker in_ifa_tracker;
 	struct sockaddr_in *sin = (struct sockaddr_in *)nam;
 	struct in_ifaddr *ia;
 	struct inpcb *oinp;
 	struct in_addr laddr, faddr;
 	u_short lport, fport;
 	int error;
-	IN_IFADDR_RUN_TRACKER;
 
 	/*
 	 * Because a global state change doesn't actually occur here, a read
@@ -1041,20 +1031,20 @@ in_pcbconnect_setup(struct inpcb *inp, struct sockaddr *nam,
 		 * choose the broadcast address for that interface.
 		 */
 		if (faddr.s_addr == INADDR_ANY) {
-			IN_IFADDR_RUN_RLOCK();
+			IN_IFADDR_RLOCK(&in_ifa_tracker);
 			faddr =
 			    IA_SIN(TAILQ_FIRST(&V_in_ifaddrhead))->sin_addr;
-			IN_IFADDR_RUN_RUNLOCK();
+			IN_IFADDR_RUNLOCK(&in_ifa_tracker);
 			if (cred != NULL &&
 			    (error = prison_get_ip4(cred, &faddr)) != 0)
 				return (error);
 		} else if (faddr.s_addr == (u_long)INADDR_BROADCAST) {
-			IN_IFADDR_RUN_RLOCK();
+			IN_IFADDR_RLOCK(&in_ifa_tracker);
 			if (TAILQ_FIRST(&V_in_ifaddrhead)->ia_ifp->if_flags &
 			    IFF_BROADCAST)
 				faddr = satosin(&TAILQ_FIRST(
 				    &V_in_ifaddrhead)->ia_broadaddr)->sin_addr;
-			IN_IFADDR_RUN_RUNLOCK();
+			IN_IFADDR_RUNLOCK(&in_ifa_tracker);
 		}
 	}
 	if (laddr.s_addr == INADDR_ANY) {
@@ -1072,7 +1062,7 @@ in_pcbconnect_setup(struct inpcb *inp, struct sockaddr *nam,
 			imo = inp->inp_moptions;
 			if (imo->imo_multicast_ifp != NULL) {
 				ifp = imo->imo_multicast_ifp;
-				IN_IFADDR_RLOCK();
+				IN_IFADDR_RLOCK(&in_ifa_tracker);
 				TAILQ_FOREACH(ia, &V_in_ifaddrhead, ia_link) {
 					if ((ia->ia_ifp == ifp) &&
 					    (cred == NULL ||
@@ -1086,7 +1076,7 @@ in_pcbconnect_setup(struct inpcb *inp, struct sockaddr *nam,
 					laddr = ia->ia_addr.sin_addr;
 					error = 0;
 				}
-				IN_IFADDR_RUNLOCK();
+				IN_IFADDR_RUNLOCK(&in_ifa_tracker);
 			}
 		}
 		if (error)
@@ -2262,7 +2252,7 @@ ipport_tick_init(const void *unused __unused)
 {
 
 	/* Start ipport_tick. */
-	callout_init(&ipport_tick_callout, CALLOUT_MPSAFE);
+	callout_init(&ipport_tick_callout, 1);
 	callout_reset(&ipport_tick_callout, 1, ipport_tick, NULL);
 	EVENTHANDLER_REGISTER(shutdown_pre_sync, ip_fini, NULL,
 		SHUTDOWN_PRI_DEFAULT);

@@ -186,8 +186,19 @@ enum {
 	MLX4_DEV_CAP_FLAG2_ETH_BACKPL_AN_REP	= 1LL <<  10,
 	MLX4_DEV_CAP_FLAG2_FLOWSTATS_EN		= 1LL <<  11,
 	MLX4_DEV_CAP_FLAG2_RECOVERABLE_ERROR_EVENT = 1LL << 12,
-	MLX4_DEV_CAP_FLAG2_TS                   = 1LL <<  13,
-	MLX4_DEV_CAP_FLAG2_DRIVER_VERSION_TO_FW    = 1LL <<  14
+	MLX4_DEV_CAP_FLAG2_TS			= 1LL <<  13,
+	MLX4_DEV_CAP_FLAG2_DRIVER_VERSION_TO_FW	   = 1LL <<  14,
+	MLX4_DEV_CAP_FLAG2_REASSIGN_MAC_EN	= 1LL <<  15,
+	MLX4_DEV_CAP_FLAG2_VXLAN_OFFLOADS	= 1LL <<  16,
+	MLX4_DEV_CAP_FLAG2_FS_EN_NCSI		= 1LL <<  17,
+	MLX4_DEV_CAP_FLAG2_80_VFS		= 1LL <<  18,
+	MLX4_DEV_CAP_FLAG2_DMFS_TAG_MODE	= 1LL <<  19,
+	MLX4_DEV_CAP_FLAG2_ROCEV2		= 1LL <<  20,
+	MLX4_DEV_CAP_FLAG2_ETH_PROT_CTRL	= 1LL <<  21,
+	MLX4_DEV_CAP_FLAG2_CQE_STRIDE		= 1LL <<  22,
+	MLX4_DEV_CAP_FLAG2_EQE_STRIDE		= 1LL <<  23,
+	MLX4_DEV_CAP_FLAG2_UPDATE_QP_SRC_CHECK_LB = 1LL << 24,
+	MLX4_DEV_CAP_FLAG2_RX_CSUM_MODE		= 1LL <<  25,
 };
 
 /* bit enums for an 8-bit flags field indicating special use
@@ -881,6 +892,26 @@ struct mlx4_init_port_param {
 	u64			si_guid;
 };
 
+#define MAD_IFC_DATA_SZ 192
+/* MAD IFC Mailbox */
+struct mlx4_mad_ifc {
+	u8      base_version;
+	u8      mgmt_class;
+	u8      class_version;
+	u8      method;
+	__be16  status;
+	__be16  class_specific;
+	__be64  tid;
+	__be16  attr_id;
+	__be16  resv;
+	__be32  attr_mod;
+	__be64  mkey;
+	__be16  dr_slid;
+	__be16  dr_dlid;
+	u8      reserved[28];
+	u8      data[MAD_IFC_DATA_SZ];
+} __packed;
+
 #define mlx4_foreach_port(port, dev, type)				\
 	for ((port) = 1; (port) <= (dev)->caps.num_ports; (port)++)	\
 		if ((type) == (dev)->caps.port_mask[(port)])
@@ -948,9 +979,9 @@ void mlx4_buf_free(struct mlx4_dev *dev, int size, struct mlx4_buf *buf);
 static inline void *mlx4_buf_offset(struct mlx4_buf *buf, int offset)
 {
 	if (BITS_PER_LONG == 64 || buf->nbufs == 1)
-		return buf->direct.buf + offset;
+		return (u8 *)buf->direct.buf + offset;
 	else
-		return buf->page_list[offset >> PAGE_SHIFT].buf +
+		return (u8 *)buf->page_list[offset >> PAGE_SHIFT].buf +
 			(offset & (PAGE_SIZE - 1));
 }
 
@@ -1282,5 +1313,8 @@ int mlx4_FLOW_STEERING_IB_UC_QP_RANGE(struct mlx4_dev *dev, u32 min_range_qpn, u
 int mlx4_read_clock(struct mlx4_dev *dev);
 int mlx4_get_internal_clock_params(struct mlx4_dev *dev,
 				   struct mlx4_clock_params *params);
+
+int mlx4_get_module_info(struct mlx4_dev *dev, u8 port,
+			u16 offset, u16 size, u8 *data);
 
 #endif /* MLX4_DEVICE_H */

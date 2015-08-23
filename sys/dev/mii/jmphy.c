@@ -100,12 +100,10 @@ jmphy_probe(device_t dev)
 static int
 jmphy_attach(device_t dev)
 {
-	struct mii_attach_args *ma;
 	u_int flags;
 
-	ma = device_get_ivars(dev);
 	flags = 0;
-	if (strcmp(if_getdname(ma->mii_data->mii_ifp), "jme") == 0 &&
+	if (mii_dev_mac_match(dev, "jme") &&
 	    (miibus_get_flags(dev) & MIIF_MACPRIV0) != 0)
 		flags |= MIIF_PHYPRIV0;
 	mii_phy_dev_attach(dev, flags, &jmphy_funcs, 1);

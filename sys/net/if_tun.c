@@ -126,7 +126,7 @@ static int	tunifioctl(struct ifnet *, u_long, caddr_t);
 static void	tuninit(struct ifnet *);
 static int	tunmodevent(module_t, int, void *);
 static int	tunoutput(struct ifnet *, struct mbuf *,
-		    const struct sockaddr *, struct nhop_info *ni);
+		    const struct sockaddr *, struct route *ro);
 static void	tunstart(struct ifnet *);
 
 static int	tun_clone_create(struct if_clone *, int, caddr_t);
@@ -571,7 +571,7 @@ tunifioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
  */
 static int
 tunoutput(struct ifnet *ifp, struct mbuf *m0, const struct sockaddr *dst,
-    struct nhop_info *ni)
+    struct route *ro)
 {
 	struct tun_softc *tp = ifp->if_softc;
 	u_short cached_tun_flags;
@@ -906,7 +906,7 @@ tunwrite(struct cdev *dev, struct uio *uio, int flag)
 		m_freem(m);
 		return (EAFNOSUPPORT);
 	}
-	random_harvest(&(m->m_data), 12, 2, RANDOM_NET_TUN);
+	random_harvest_queue(m, sizeof(*m), 2, RANDOM_NET_TUN);
 	if_inc_counter(ifp, IFCOUNTER_IBYTES, m->m_pkthdr.len);
 	if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 	CURVNET_SET(ifp->if_vnet);

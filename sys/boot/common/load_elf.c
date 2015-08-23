@@ -76,7 +76,8 @@ static int __elfN(loadimage)(struct preloaded_file *mp, elf_file_t ef, u_int64_t
 static int __elfN(lookup_symbol)(struct preloaded_file *mp, elf_file_t ef, const char* name, Elf_Sym* sym);
 static int __elfN(reloc_ptr)(struct preloaded_file *mp, elf_file_t ef,
     Elf_Addr p, void *val, size_t len);
-static int __elfN(parse_modmetadata)(struct preloaded_file *mp, elf_file_t ef);
+static int __elfN(parse_modmetadata)(struct preloaded_file *mp, elf_file_t ef,
+    Elf_Addr p_start, Elf_Addr p_end);
 static symaddr_fn __elfN(symaddr);
 static char	*fake_modname(const char *name);
 
@@ -84,6 +85,61 @@ const char	*__elfN(kerneltype) = "elf kernel";
 const char	*__elfN(moduletype) = "elf module";
 
 u_int64_t	__elfN(relocation_offset) = 0;
+
+static int
+__elfN(load_elf_header)(char *filename, elf_file_t ef)
+{
+	ssize_t			 bytes_read;
+	Elf_Ehdr		*ehdr;
+	int 			 err;
+
+	/*
+	* Open the image, read and validate the ELF header 
+	*/
+	if (filename == NULL)	/* can't handle nameless */
+		return (EFTYPE);
+	if ((ef->fd = open(filename, O_RDONLY)) == -1)
+		return (errno);
+	ef->firstpage = malloc(PAGE_SIZE);
+	if (ef->firstpage == NULL) {
+		close(ef->fd);
+		return (ENOMEM);
+	}
+	bytes_read = read(ef->fd, ef->firstpage, PAGE_SIZE);
+	ef->firstlen = (size_t)bytes_read;
+	if (bytes_read < 0 || ef->firstlen <= sizeof(Elf_Ehdr)) {
+		err = EFTYPE; /* could be EIO, but may be small file */
+		goto error;
+	}
+	ehdr = ef->ehdr = (Elf_Ehdr *)ef->firstpage;
+
+	/* Is it ELF? */
+	if (!IS_ELF(*ehdr)) {
+		err = EFTYPE;
+		goto error;
+	}
+	if (ehdr->e_ident[EI_CLASS] != ELF_TARG_CLASS || /* Layout ? */
+	    ehdr->e_ident[EI_DATA] != ELF_TARG_DATA ||
+	    ehdr->e_ident[EI_VERSION] != EV_CURRENT || /* Version ? */
+	    ehdr->e_version != EV_CURRENT ||
+	    ehdr->e_machine != ELF_TARG_MACH) { /* Machine ? */
+		err = EFTYPE;
+		goto error;
+	}
+
+	return (0);
+
+error:
+	if (ef->firstpage != NULL) {
+		free(ef->firstpage);
+		ef->firstpage = NULL;
+	}
+	if (ef->fd != -1) {
+		close(ef->fd);
+		ef->fd = -1;
+	}
+	return (err);
+}
 
 /*
  * Attempt to load the file (file) as an ELF module.  It will be stored at
@@ -93,56 +149,73 @@ u_int64_t	__elfN(relocation_offset) = 0;
 int
 __elfN(loadfile)(char *filename, u_int64_t dest, struct preloaded_file **result)
 {
+	return (__elfN(loadfile_raw)(filename, dest, result, 0));
+}
+
+int
+__elfN(loadfile_raw)(char *filename, u_int64_t dest,
+    struct preloaded_file **result, int multiboot)
+{
     struct preloaded_file	*fp, *kfp;
     struct elf_file		ef;
     Elf_Ehdr 			*ehdr;
     int				err;
-    ssize_t			bytes_read;
 
     fp = NULL;
     bzero(&ef, sizeof(struct elf_file));
+    ef.fd = -1;
 
-    /*
-     * Open the image, read and validate the ELF header 
-     */
-    if (filename == NULL)	/* can't handle nameless */
-	return(EFTYPE);
-    if ((ef.fd = open(filename, O_RDONLY)) == -1)
-	return(errno);
-    ef.firstpage = malloc(PAGE_SIZE);
-    if (ef.firstpage == NULL) {
-	close(ef.fd);
-	return(ENOMEM);
-    }
-    bytes_read = read(ef.fd, ef.firstpage, PAGE_SIZE);
-    ef.firstlen = (size_t)bytes_read;
-    if (bytes_read < 0 || ef.firstlen <= sizeof(Elf_Ehdr)) {
-	err = EFTYPE;		/* could be EIO, but may be small file */
-	goto oerr;
-    }
-    ehdr = ef.ehdr = (Elf_Ehdr *)ef.firstpage;
+    err = __elfN(load_elf_header)(filename, &ef);
+    if (err != 0)
+    	return (err);
 
-    /* Is it ELF? */
-    if (!IS_ELF(*ehdr)) {
-	err = EFTYPE;
-	goto oerr;
-    }
-    if (ehdr->e_ident[EI_CLASS] != ELF_TARG_CLASS ||	/* Layout ? */
-	ehdr->e_ident[EI_DATA] != ELF_TARG_DATA ||
-	ehdr->e_ident[EI_VERSION] != EV_CURRENT ||	/* Version ? */
-	ehdr->e_version != EV_CURRENT ||
-	ehdr->e_machine != ELF_TARG_MACH) {		/* Machine ? */
-	err = EFTYPE;
-	goto oerr;
-    }
-
+    ehdr = ef.ehdr;
 
     /*
      * Check to see what sort of module we are.
      */
-    kfp = file_findfile(NULL, NULL);
-    if (ehdr->e_type == ET_DYN) {
+    kfp = file_findfile(NULL, __elfN(kerneltype));
+#ifdef __powerpc__
+    /*
+     * Kernels can be ET_DYN, so just assume the first loaded object is the
+     * kernel. This assumption will be checked later.
+     */
+    if (kfp == NULL)
+        ef.kernel = 1;
+#endif
+    if (ef.kernel || ehdr->e_type == ET_EXEC) {
+	/* Looks like a kernel */
+	if (kfp != NULL) {
+	    printf("elf" __XSTRING(__ELF_WORD_SIZE) "_loadfile: kernel already loaded\n");
+	    err = EPERM;
+	    goto oerr;
+	}
+	/* 
+	 * Calculate destination address based on kernel entrypoint.
+	 *
+	 * For ARM, the destination address is independent of any values in the
+	 * elf header (an ARM kernel can be loaded at any 2MB boundary), so we
+	 * leave dest set to the value calculated by archsw.arch_loadaddr() and
+	 * passed in to this function.
+	 */
+#ifndef __arm__
+        if (ehdr->e_type == ET_EXEC)
+	    dest = (ehdr->e_entry & ~PAGE_MASK);
+#endif
+	if ((ehdr->e_entry & ~PAGE_MASK) == 0) {
+	    printf("elf" __XSTRING(__ELF_WORD_SIZE) "_loadfile: not a kernel (maybe static binary?)\n");
+	    err = EPERM;
+	    goto oerr;
+	}
+	ef.kernel = 1;
+
+    } else if (ehdr->e_type == ET_DYN) {
 	/* Looks like a kld module */
+	if (multiboot != 0) {
+		printf("elf" __XSTRING(__ELF_WORD_SIZE) "_loadfile: can't load module as multiboot\n");
+		err = EPERM;
+		goto oerr;
+	}
 	if (kfp == NULL) {
 	    printf("elf" __XSTRING(__ELF_WORD_SIZE) "_loadfile: can't load module before kernel\n");
 	    err = EPERM;
@@ -155,24 +228,6 @@ __elfN(loadfile)(char *filename, u_int64_t dest, struct preloaded_file **result)
 	}
 	/* Looks OK, got ahead */
 	ef.kernel = 0;
-
-    } else if (ehdr->e_type == ET_EXEC) {
-	/* Looks like a kernel */
-	if (kfp != NULL) {
-	    printf("elf" __XSTRING(__ELF_WORD_SIZE) "_loadfile: kernel already loaded\n");
-	    err = EPERM;
-	    goto oerr;
-	}
-	/* 
-	 * Calculate destination address based on kernel entrypoint 	
-	 */
-	dest = (ehdr->e_entry & ~PAGE_MASK);
-	if (dest == 0) {
-	    printf("elf" __XSTRING(__ELF_WORD_SIZE) "_loadfile: not a kernel (maybe static binary?)\n");
-	    err = EPERM;
-	    goto oerr;
-	}
-	ef.kernel = 1;
 
     } else {
 	err = EFTYPE;
@@ -193,10 +248,14 @@ __elfN(loadfile)(char *filename, u_int64_t dest, struct preloaded_file **result)
 	    err = EPERM;
 	    goto out;
     }
-    if (ef.kernel)
+    if (ef.kernel == 1 && multiboot == 0)
 	setenv("kernelname", filename, 1);
     fp->f_name = strdup(filename);
-    fp->f_type = strdup(ef.kernel ? __elfN(kerneltype) : __elfN(moduletype));
+    if (multiboot == 0)
+    	fp->f_type = strdup(ef.kernel ?
+    	    __elfN(kerneltype) : __elfN(moduletype));
+    else
+    	fp->f_type = strdup("elf multiboot kernel");
 
 #ifdef ELF_VERBOSE
     if (ef.kernel)
@@ -224,7 +283,8 @@ __elfN(loadfile)(char *filename, u_int64_t dest, struct preloaded_file **result)
  out:
     if (ef.firstpage)
 	free(ef.firstpage);
-    close(ef.fd);
+    if (ef.fd != -1)
+    	close(ef.fd);
     return(err);
 }
 
@@ -255,13 +315,15 @@ __elfN(loadimage)(struct preloaded_file *fp, elf_file_t ef, u_int64_t off)
     int		symtabindex;
     Elf_Size	size;
     u_int	fpcopy;
+    Elf_Sym	sym;
+    Elf_Addr	p_start, p_end;
 
     dp = NULL;
     shdr = NULL;
     ret = 0;
     firstaddr = lastaddr = 0;
     ehdr = ef->ehdr;
-    if (ef->kernel) {
+    if (ehdr->e_type == ET_EXEC) {
 #if defined(__i386__) || defined(__amd64__)
 #if __ELF_WORD_SIZE == 64
 	off = - (off & 0xffffffffff000000ull);/* x86_64 relocates after locore */
@@ -293,31 +355,29 @@ __elfN(loadimage)(struct preloaded_file *fp, elf_file_t ef, u_int64_t off)
 	    off = 0;
 #elif defined(__arm__)
 	/*
-	 * The elf headers in some kernels specify virtual addresses in all
-	 * header fields.  More recently, the e_entry and p_paddr fields are the
-	 * proper physical addresses.  Even when the p_paddr fields are correct,
-	 * the MI code below uses the p_vaddr fields with an offset added for
-	 * loading (doing so is arguably wrong).  To make loading work, we need
-	 * an offset that represents the difference between physical and virtual
-	 * addressing.  ARM kernels are always linked at 0xCnnnnnnn.  Depending
-	 * on the headers, the offset value passed in may be physical or virtual
-	 * (because it typically comes from e_entry), but we always replace
-	 * whatever is passed in with the va<->pa offset.  On the other hand, we
-	 * always remove the high-order part of the entry address whether it's
-	 * physical or virtual, because it will be adjusted later for the actual
-	 * physical entry point based on where the image gets loaded.
+	 * The elf headers in arm kernels specify virtual addresses in all
+	 * header fields, even the ones that should be physical addresses.
+	 * We assume the entry point is in the first page, and masking the page
+	 * offset will leave us with the virtual address the kernel was linked
+	 * at.  We subtract that from the load offset, making 'off' into the
+	 * value which, when added to a virtual address in an elf header,
+	 * translates it to a physical address.  We do the va->pa conversion on
+	 * the entry point address in the header now, so that later we can
+	 * launch the kernel by just jumping to that address.
 	 */
-	off = -0xc0000000;
-	ehdr->e_entry &= ~0xf0000000;
+	off -= ehdr->e_entry & ~PAGE_MASK;
+	ehdr->e_entry += off;
 #ifdef ELF_VERBOSE
 	printf("ehdr->e_entry 0x%08x, va<->pa off %llx\n", ehdr->e_entry, off);
 #endif
 #else
 	off = 0;		/* other archs use direct mapped kernels */
 #endif
-	__elfN(relocation_offset) = off;
     }
     ef->off = off;
+
+    if (ef->kernel)
+	__elfN(relocation_offset) = off;
 
     if ((ehdr->e_phoff + ehdr->e_phnum * sizeof(*phdr)) > ef->firstlen) {
 	printf("elf" __XSTRING(__ELF_WORD_SIZE) "_loadimage: program header not within first page\n");
@@ -587,7 +647,15 @@ nosyms:
     COPYOUT(ef->hashtab + 1, &ef->nchains, sizeof(ef->nchains));
     ef->buckets = ef->hashtab + 2;
     ef->chains = ef->buckets + ef->nbuckets;
-    if (__elfN(parse_modmetadata)(fp, ef) == 0)
+
+    if (__elfN(lookup_symbol)(fp, ef, "__start_set_modmetadata_set", &sym) != 0)
+	return 0;
+    p_start = sym.st_value + ef->off;
+    if (__elfN(lookup_symbol)(fp, ef, "__stop_set_modmetadata_set", &sym) != 0)
+	return ENOENT;
+    p_end = sym.st_value + ef->off;
+
+    if (__elfN(parse_modmetadata)(fp, ef, p_start, p_end) == 0)
 	goto out;
 
     if (ef->kernel)			/* kernel must not depend on anything */
@@ -650,7 +718,123 @@ struct mod_metadata32 {
 #endif
 
 int
-__elfN(parse_modmetadata)(struct preloaded_file *fp, elf_file_t ef)
+__elfN(load_modmetadata)(struct preloaded_file *fp, u_int64_t dest)
+{
+	struct elf_file		 ef;
+	int			 err, i, j;
+	Elf_Shdr		*sh_meta, *shdr = NULL;
+	Elf_Shdr		*sh_data[2];
+	char			*shstrtab = NULL;
+	size_t			 size;
+	Elf_Addr		 p_start, p_end;
+
+	bzero(&ef, sizeof(struct elf_file));
+	ef.fd = -1;
+
+	err = __elfN(load_elf_header)(fp->f_name, &ef);
+	if (err != 0)
+		goto out;
+
+	if (ef.kernel == 1 || ef.ehdr->e_type == ET_EXEC) {
+		ef.kernel = 1;
+	} else if (ef.ehdr->e_type != ET_DYN) {
+		err = EFTYPE;
+		goto out;
+	}
+
+	size = ef.ehdr->e_shnum * ef.ehdr->e_shentsize;
+	shdr = alloc_pread(ef.fd, ef.ehdr->e_shoff, size);
+	if (shdr == NULL) {
+		err = ENOMEM;
+		goto out;
+	}
+
+	/* Load shstrtab. */
+	shstrtab = alloc_pread(ef.fd, shdr[ef.ehdr->e_shstrndx].sh_offset,
+	    shdr[ef.ehdr->e_shstrndx].sh_size);
+	if (shstrtab == NULL) {
+		printf("\nelf" __XSTRING(__ELF_WORD_SIZE)
+		    "load_modmetadata: unable to load shstrtab\n");
+		err = EFTYPE;
+		goto out;
+	}
+
+	/* Find set_modmetadata_set and data sections. */
+	sh_data[0] = sh_data[1] = sh_meta = NULL;
+	for (i = 0, j = 0; i < ef.ehdr->e_shnum; i++) {
+		if (strcmp(&shstrtab[shdr[i].sh_name],
+		    "set_modmetadata_set") == 0) {
+			sh_meta = &shdr[i];
+		}
+		if ((strcmp(&shstrtab[shdr[i].sh_name], ".data") == 0) ||
+		    (strcmp(&shstrtab[shdr[i].sh_name], ".rodata") == 0)) {
+			sh_data[j++] = &shdr[i];
+		}
+	}
+	if (sh_meta == NULL || sh_data[0] == NULL || sh_data[1] == NULL) {
+		printf("\nelf" __XSTRING(__ELF_WORD_SIZE)
+    "load_modmetadata: unable to find set_modmetadata_set or data sections\n");
+		err = EFTYPE;
+		goto out;
+	}
+
+	/* Load set_modmetadata_set into memory */
+	err = kern_pread(ef.fd, dest, sh_meta->sh_size, sh_meta->sh_offset);
+	if (err != 0) {
+		printf("\nelf" __XSTRING(__ELF_WORD_SIZE)
+    "load_modmetadata: unable to load set_modmetadata_set: %d\n", err);
+		goto out;
+	}
+	p_start = dest;
+	p_end = dest + sh_meta->sh_size;
+	dest += sh_meta->sh_size;
+
+	/* Load data sections into memory. */
+	err = kern_pread(ef.fd, dest, sh_data[0]->sh_size,
+	    sh_data[0]->sh_offset);
+	if (err != 0) {
+		printf("\nelf" __XSTRING(__ELF_WORD_SIZE)
+		    "load_modmetadata: unable to load data: %d\n", err);
+		goto out;
+	}
+
+	/*
+	 * We have to increment the dest, so that the offset is the same into
+	 * both the .rodata and .data sections.
+	 */
+	ef.off = -(sh_data[0]->sh_addr - dest);
+	dest +=	(sh_data[1]->sh_addr - sh_data[0]->sh_addr);
+
+	err = kern_pread(ef.fd, dest, sh_data[1]->sh_size,
+	    sh_data[1]->sh_offset);
+	if (err != 0) {
+		printf("\nelf" __XSTRING(__ELF_WORD_SIZE)
+		    "load_modmetadata: unable to load data: %d\n", err);
+		goto out;
+	}
+
+	err = __elfN(parse_modmetadata)(fp, &ef, p_start, p_end);
+	if (err != 0) {
+		printf("\nelf" __XSTRING(__ELF_WORD_SIZE)
+		    "load_modmetadata: unable to parse metadata: %d\n", err);
+		goto out;
+	}
+
+out:
+	if (shstrtab != NULL)
+		free(shstrtab);
+	if (shdr != NULL)
+		free(shdr);
+	if (ef.firstpage != NULL)
+		free(ef.firstpage);
+	if (ef.fd != -1)
+		close(ef.fd);
+	return (err);
+}
+
+int
+__elfN(parse_modmetadata)(struct preloaded_file *fp, elf_file_t ef,
+    Elf_Addr p_start, Elf_Addr p_end)
 {
     struct mod_metadata md;
 #if (defined(__i386__) || defined(__powerpc__)) && __ELF_WORD_SIZE == 64
@@ -660,20 +844,13 @@ __elfN(parse_modmetadata)(struct preloaded_file *fp, elf_file_t ef)
 #endif
     struct mod_depend *mdepend;
     struct mod_version mver;
-    Elf_Sym sym;
     char *s;
     int error, modcnt, minfolen;
-    Elf_Addr v, p, p_stop;
-
-    if (__elfN(lookup_symbol)(fp, ef, "__start_set_modmetadata_set", &sym) != 0)
-	return 0;
-    p = sym.st_value + ef->off;
-    if (__elfN(lookup_symbol)(fp, ef, "__stop_set_modmetadata_set", &sym) != 0)
-	return ENOENT;
-    p_stop = sym.st_value + ef->off;
+    Elf_Addr v, p;
 
     modcnt = 0;
-    while (p < p_stop) {
+    p = p_start;
+    while (p < p_end) {
 	COPYOUT(p, &v, sizeof(v));
 	error = __elfN(reloc_ptr)(fp, ef, p, &v, sizeof(v));
 	if (error == EOPNOTSUPP)

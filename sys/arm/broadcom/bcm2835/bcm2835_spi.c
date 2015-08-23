@@ -43,7 +43,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 #include <machine/cpufunc.h>
 #include <machine/resource.h>
-#include <machine/fdt.h>
 #include <machine/intr.h>
 
 #include <dev/fdt/fdt_common.h>
@@ -428,6 +427,15 @@ bcm_spi_transfer(device_t dev, device_t child, struct spi_command *cmd)
 	KASSERT(cmd->tx_data_sz == cmd->rx_data_sz, 
 	    ("TX/RX data sizes should be equal"));
 
+	/* Get the proper chip select for this child. */
+	spibus_get_cs(child, &cs);
+	if (cs < 0 || cs > 2) {
+		device_printf(dev,
+		    "Invalid chip select %d requested by %s\n", cs,
+		    device_get_nameunit(child));
+		return (EINVAL);
+	}
+
 	BCM_SPI_LOCK(sc);
 
 	/* If the controller is in use wait until it is available. */
@@ -441,16 +449,6 @@ bcm_spi_transfer(device_t dev, device_t child, struct spi_command *cmd)
 	bcm_spi_modifyreg(sc, SPI_CS,
 	    SPI_CS_CLEAR_RXFIFO | SPI_CS_CLEAR_TXFIFO,
 	    SPI_CS_CLEAR_RXFIFO | SPI_CS_CLEAR_TXFIFO);
-
-	/* Get the proper chip select for this child. */
-	spibus_get_cs(child, &cs);
-	if (cs < 0 || cs > 2) {
-		device_printf(dev,
-		    "Invalid chip select %d requested by %s\n", cs,
-		    device_get_nameunit(child));
-		BCM_SPI_UNLOCK(sc);
-		return (EINVAL);
-	}
 
 	/* Save a pointer to the SPI command. */
 	sc->sc_cmd = cmd;
@@ -472,8 +470,10 @@ bcm_spi_transfer(device_t dev, device_t child, struct spi_command *cmd)
 	/* Make sure the SPI engine and interrupts are disabled. */
 	bcm_spi_modifyreg(sc, SPI_CS, SPI_CS_TA | SPI_CS_INTR | SPI_CS_INTD, 0);
 
-	/* Clear the controller flags. */
+	/* Release the controller and wakeup the next thread waiting for it. */
 	sc->sc_flags = 0;
+	wakeup_one(dev);
+	BCM_SPI_UNLOCK(sc);
 
 	/*
 	 * Check for transfer timeout.  The SPI controller doesn't
@@ -483,8 +483,6 @@ bcm_spi_transfer(device_t dev, device_t child, struct spi_command *cmd)
 		device_printf(sc->sc_dev, "SPI error\n");
 		err = EIO;
 	}
-
-	BCM_SPI_UNLOCK(sc);
 
 	return (err);
 }

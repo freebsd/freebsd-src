@@ -258,7 +258,7 @@ static void	pfsync_clone_destroy(struct ifnet *);
 static int	pfsync_alloc_scrub_memory(struct pfsync_state_peer *,
 		    struct pf_state_peer *);
 static int	pfsyncoutput(struct ifnet *, struct mbuf *,
-		    const struct sockaddr *, struct nhop_info *);
+		    const struct sockaddr *, struct route *);
 static int	pfsyncioctl(struct ifnet *, u_long, caddr_t);
 
 static int	pfsync_defer(struct pf_state *, struct mbuf *);
@@ -324,7 +324,7 @@ pfsync_clone_create(struct if_clone *ifc, int unit, caddr_t param)
 	ifp->if_mtu = ETHERMTU;
 	mtx_init(&sc->sc_mtx, pfsyncname, NULL, MTX_DEF);
 	mtx_init(&sc->sc_bulk_mtx, "pfsync bulk", NULL, MTX_DEF);
-	callout_init(&sc->sc_tmo, CALLOUT_MPSAFE);
+	callout_init(&sc->sc_tmo, 1);
 	callout_init_mtx(&sc->sc_bulk_tmo, &sc->sc_bulk_mtx, 0);
 	callout_init_mtx(&sc->sc_bulkfail_tmo, &sc->sc_bulk_mtx, 0);
 
@@ -1263,7 +1263,7 @@ pfsync_in_error(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 
 static int
 pfsyncoutput(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
-	struct nhop_info *ni)
+	struct route *rt)
 {
 	m_freem(m);
 	return (0);
@@ -1538,7 +1538,7 @@ pfsync_sendout(int schedswi)
 	offset = sizeof(*ip);
 
 	ip->ip_len = htons(m->m_pkthdr.len);
-	ip->ip_id = htons(ip_randomid());
+	ip_fillid(ip);
 
 	/* build the pfsync header */
 	ph = (struct pfsync_header *)(m->m_data + offset);

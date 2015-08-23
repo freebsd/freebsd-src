@@ -89,6 +89,13 @@ xen_initial_domain(void)
 	    (HYPERVISOR_start_info->flags & SIF_INITDOMAIN) != 0);
 }
 
+/*
+ * Functions to allocate/free unused memory in order
+ * to map memory from other domains.
+ */
+struct resource *xenmem_alloc(device_t dev, int *res_id, size_t size);
+int xenmem_free(device_t dev, int res_id, struct resource *res);
+
 /* Debug/emergency function, prints directly to hypervisor console */
 void xc_printf(const char *, ...) __printflike(1, 2);
 

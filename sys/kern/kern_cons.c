@@ -292,7 +292,8 @@ sysctl_kern_console(SYSCTL_HANDLER_ARGS)
 	int delete, error;
 	struct sbuf *sb;
 
-	sb = sbuf_new(NULL, NULL, CNDEVPATHMAX * 2, SBUF_AUTOEXTEND);
+	sb = sbuf_new(NULL, NULL, CNDEVPATHMAX * 2, SBUF_AUTOEXTEND |
+	    SBUF_INCLUDENUL);
 	if (sb == NULL)
 		return (ENOMEM);
 	sbuf_clear(sb);
@@ -653,7 +654,7 @@ static void
 sysbeep_init(void *unused)
 {
 
-	callout_init(&beeping_timer, CALLOUT_MPSAFE);
+	callout_init(&beeping_timer, 1);
 }
 SYSINIT(sysbeep, SI_SUB_SOFTINTR, SI_ORDER_ANY, sysbeep_init, NULL);
 #else

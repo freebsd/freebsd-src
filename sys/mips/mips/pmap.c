@@ -1036,7 +1036,7 @@ pmap_grow_direct_page_cache()
 {
 
 #ifdef __mips_n64
-	vm_pageout_grow_cache(3, 0, MIPS_XKPHYS_LARGEST_PHYS);
+	VM_WAIT;
 #else
 	vm_pageout_grow_cache(3, 0, MIPS_KSEG0_LARGEST_PHYS);
 #endif
@@ -3243,7 +3243,7 @@ DB_SHOW_COMMAND(ptable, ddb_pid_dump)
 	vm_offset_t va;
 
 	if (have_addr) {
-		td = db_lookup_thread(addr, TRUE);
+		td = db_lookup_thread(addr, true);
 		if (td == NULL) {
 			db_printf("Invalid pid or tid");
 			return;
@@ -3293,56 +3293,6 @@ DB_SHOW_COMMAND(ptable, ddb_pid_dump)
 	}
 }
 #endif
-
-#if defined(DEBUG)
-
-static void pads(pmap_t pm);
-void pmap_pvdump(vm_offset_t pa);
-
-/* print address space of pmap*/
-static void
-pads(pmap_t pm)
-{
-	unsigned va, i, j;
-	pt_entry_t *ptep;
-
-	if (pm == kernel_pmap)
-		return;
-	for (i = 0; i < NPTEPG; i++)
-		if (pm->pm_segtab[i])
-			for (j = 0; j < NPTEPG; j++) {
-				va = (i << SEGSHIFT) + (j << PAGE_SHIFT);
-				if (pm == kernel_pmap && va < KERNBASE)
-					continue;
-				if (pm != kernel_pmap &&
-				    va >= VM_MAXUSER_ADDRESS)
-					continue;
-				ptep = pmap_pte(pm, va);
-				if (pte_test(ptep, PTE_V))
-					printf("%x:%x ", va, *(int *)ptep);
-			}
-
-}
-
-void
-pmap_pvdump(vm_offset_t pa)
-{
-	register pv_entry_t pv;
-	vm_page_t m;
-
-	printf("pa %x", pa);
-	m = PHYS_TO_VM_PAGE(pa);
-	for (pv = TAILQ_FIRST(&m->md.pv_list); pv;
-	    pv = TAILQ_NEXT(pv, pv_list)) {
-		printf(" -> pmap %p, va %x", (void *)pv->pv_pmap, pv->pv_va);
-		pads(pv->pv_pmap);
-	}
-	printf(" ");
-}
-
-/* N/C */
-#endif
-
 
 /*
  * Allocate TLB address space tag (called ASID or TLBPID) and return it.

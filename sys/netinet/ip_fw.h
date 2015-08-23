@@ -40,10 +40,12 @@
 #define	IPFW_MAX_SETS		32	/* Number of sets supported by ipfw*/
 
 /*
- * Default number of ipfw tables.
+ * Compat values for old clients
  */
+#ifndef	_KERNEL
 #define	IPFW_TABLES_MAX		65535
 #define	IPFW_TABLES_DEFAULT	128
+#endif
 
 /*
  * Most commands (queue, pipe, tag, untag, limit...) can have a 16-bit
@@ -721,7 +723,7 @@ struct _ipfw_dyn_rule {
 #define	IPFW_VTYPE_TAG		0x00000020	/* tag/untag */
 #define	IPFW_VTYPE_DIVERT	0x00000040	/* divert/tee */
 #define	IPFW_VTYPE_NETGRAPH	0x00000080	/* netgraph/ngtee */
-#define	IPFW_VTYPE_LIMIT	0x00000100	/* IPv6 nexthop */
+#define	IPFW_VTYPE_LIMIT	0x00000100	/* limit */
 #define	IPFW_VTYPE_NH4		0x00000200	/* IPv4 nexthop */
 #define	IPFW_VTYPE_NH6		0x00000400	/* IPv6 nexthop */
 
@@ -817,10 +819,11 @@ typedef struct _ipfw_table_value {
 	uint32_t	nat;		/* O_NAT */
 	uint32_t	nh4;
 	uint8_t		dscp;
-	uint8_t		spare0[3];
+	uint8_t		spare0;
+	uint16_t	spare1;
 	struct in6_addr	nh6;
 	uint32_t	limit;		/* O_LIMIT */
-	uint32_t	spare1;
+	uint32_t	zoneid;		/* scope zone id for nh6 */
 	uint64_t	reserved;
 } ipfw_table_value;
 
@@ -962,7 +965,6 @@ typedef struct _ipfw_ta_info {
 	uint64_t	spare1;
 } ipfw_ta_info;
 
-#define	IPFW_OBJTYPE_TABLE	1
 typedef struct _ipfw_obj_header {
 	ip_fw3_opheader	opheader;	/* IP_FW3 opcode		*/
 	uint32_t	spare;

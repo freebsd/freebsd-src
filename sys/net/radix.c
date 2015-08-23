@@ -56,15 +56,18 @@
 #include <net/radix.h>
 #endif /* !_KERNEL */
 
+static int	rn_walktree_from(struct radix_node_head *h, void *a, void *m,
+		    walktree_f_t *f, void *w);
+static int rn_walktree(struct radix_node_head *, walktree_f_t *, void *);
 static struct radix_node
-	 *rn_insert(void *, struct radix_head *, int *,
+	 *rn_insert(void *, struct radix_node_head *, int *,
 	     struct radix_node [2]),
 	 *rn_newpair(void *, int, struct radix_node[2]),
 	 *rn_search(void *, struct radix_node *),
 	 *rn_search_m(void *, struct radix_node *, void *);
-static struct radix_node *rn_addmask(void *, struct radix_head *, int, int);
 
 static void rn_detachhead_internal(void **head);
+static int rn_inithead_internal(void **head, int off);
 
 #define	RADIX_MAX_KEY_LEN	32
 
@@ -212,7 +215,7 @@ rn_refines(void *m_arg, void *n_arg)
  * from host routes.
  */
 struct radix_node *
-rn_lookup(void *v_arg, void *m_arg, struct radix_head *head)
+rn_lookup(void *v_arg, void *m_arg, struct radix_node_head *head)
 {
 	struct radix_node *x;
 	caddr_t netmask;
@@ -221,7 +224,7 @@ rn_lookup(void *v_arg, void *m_arg, struct radix_head *head)
 		/*
 		 * Most common case: search exact prefix/mask
 		 */
-		x = rn_addmask(m_arg, head->s.rnh_masks, 1,
+		x = rn_addmask(m_arg, head->rnh_masks, 1,
 		    head->rnh_treetop->rn_offset);
 		if (x == NULL)
 			return (NULL);
@@ -274,7 +277,7 @@ rn_satisfies_leaf(char *trial, struct radix_node *leaf, int skip)
  * Search for longest-prefix match in given @head
  */
 struct radix_node *
-rn_match(void *v_arg, struct radix_head *head)
+rn_match(void *v_arg, struct radix_node_head *head)
 {
 	caddr_t v = v_arg;
 	struct radix_node *t = head->rnh_treetop, *x;
@@ -423,7 +426,7 @@ rn_newpair(void *v, int b, struct radix_node nodes[2])
 }
 
 static struct radix_node *
-rn_insert(void *v_arg, struct radix_head *head, int *dupentry,
+rn_insert(void *v_arg, struct radix_node_head *head, int *dupentry,
     struct radix_node nodes[2])
 {
 	caddr_t v = v_arg;
@@ -486,9 +489,8 @@ on1:
 	return (tt);
 }
 
-/* XXX: Convert mask tree to hash */
 struct radix_node *
-rn_addmask(void *n_arg, struct radix_head *maskhead, int search, int skip)
+rn_addmask(void *n_arg, struct radix_node_head *maskhead, int search, int skip)
 {
 	unsigned char *netmask = n_arg;
 	unsigned char *cp, *cplim;
@@ -503,7 +505,7 @@ rn_addmask(void *n_arg, struct radix_head *maskhead, int search, int skip)
 	if (skip == 0)
 		skip = 1;
 	if (mlen <= skip)
-		return (maskhead->s.mask_nodes);
+		return (maskhead->rnh_nodes);
 
 	bzero(addmask_key, RADIX_MAX_KEY_LEN);
 	if (skip > 1)
@@ -516,7 +518,7 @@ rn_addmask(void *n_arg, struct radix_head *maskhead, int search, int skip)
 		cp--;
 	mlen = cp - addmask_key;
 	if (mlen <= skip)
-		return (maskhead->s.mask_nodes);
+		return (maskhead->rnh_nodes);
 	*addmask_key = mlen;
 	x = rn_search(addmask_key, maskhead->rnh_treetop);
 	if (bcmp(addmask_key, x->rn_key, mlen) != 0)
@@ -531,7 +533,7 @@ rn_addmask(void *n_arg, struct radix_head *maskhead, int search, int skip)
 	x = rn_insert(cp, maskhead, &maskduplicated, x);
 	if (maskduplicated) {
 		log(LOG_ERR, "rn_addmask: mask impossibly already in tree");
-		Free(saved_x);
+		R_Free(saved_x);
 		return (x);
 	}
 	/*
@@ -596,7 +598,7 @@ rn_new_radix_mask(struct radix_node *tt, struct radix_mask *next)
 }
 
 struct radix_node *
-rn_addroute(void *v_arg, void *n_arg, struct radix_head *head,
+rn_addroute(void *v_arg, void *n_arg, struct radix_node_head *head,
     struct radix_node treenodes[2])
 {
 	caddr_t v = (caddr_t)v_arg, netmask = (caddr_t)n_arg;
@@ -615,7 +617,7 @@ rn_addroute(void *v_arg, void *n_arg, struct radix_head *head,
 	 * nodes and possibly save time in calculating indices.
 	 */
 	if (netmask)  {
-		x = rn_addmask(netmask, head->s.rnh_masks, 0, top->rn_offset);
+		x = rn_addmask(netmask, head->rnh_masks, 0, top->rn_offset);
 		if (x == NULL)
 			return (0);
 		b_leaf = x->rn_bit;
@@ -770,7 +772,7 @@ on2:
 }
 
 struct radix_node *
-rn_delete(void *v_arg, void *netmask_arg, struct radix_head *head)
+rn_delete(void *v_arg, void *netmask_arg, struct radix_node_head *head)
 {
 	struct radix_node *t, *p, *x, *tt;
 	struct radix_mask *m, *saved_m, **mp;
@@ -793,7 +795,7 @@ rn_delete(void *v_arg, void *netmask_arg, struct radix_head *head)
 	 * Delete our route from mask lists.
 	 */
 	if (netmask) {
-		x = rn_addmask(netmask, head->s.rnh_masks, 1, head_off);
+		x = rn_addmask(netmask, head->rnh_masks, 1, head_off);
 		if (x == NULL)
 			return (0);
 		netmask = x->rn_key;
@@ -827,7 +829,7 @@ rn_delete(void *v_arg, void *netmask_arg, struct radix_head *head)
 	for (mp = &x->rn_mklist; (m = *mp); mp = &m->rm_mklist)
 		if (m == saved_m) {
 			*mp = m->rm_mklist;
-			Free(m);
+			R_Free(m);
 			break;
 		}
 	if (m == 0) {
@@ -918,7 +920,7 @@ on1:
 					struct radix_mask *mm = m->rm_mklist;
 					x->rn_mklist = 0;
 					if (--(m->rm_refs) < 0)
-						Free(m);
+						R_Free(m);
 					m = mm;
 				}
 			if (m)
@@ -957,8 +959,8 @@ out:
  * This is the same as rn_walktree() except for the parameters and the
  * exit.
  */
-int
-rn_walktree_from(struct radix_head *h, void *a, void *m,
+static int
+rn_walktree_from(struct radix_node_head *h, void *a, void *m,
     walktree_f_t *f, void *w)
 {
 	int error;
@@ -1063,8 +1065,8 @@ rn_walktree_from(struct radix_head *h, void *a, void *m,
 	return (0);
 }
 
-int
-rn_walktree(struct radix_head *h, walktree_f_t *f, void *w)
+static int
+rn_walktree(struct radix_node_head *h, walktree_f_t *f, void *w)
 {
 	int error;
 	struct radix_node *base, *next;
@@ -1103,74 +1105,75 @@ rn_walktree(struct radix_head *h, walktree_f_t *f, void *w)
 }
 
 /*
- * Initialize an empty tree. This has 3 nodes, which are passed
- * via base_nodes (in the order <left,root,right>) and are
+ * Allocate and initialize an empty tree. This has 3 nodes, which are
+ * part of the radix_node_head (in the order <left,root,right>) and are
  * marked RNF_ROOT so they cannot be freed.
  * The leaves have all-zero and all-one keys, with significant
  * bits starting at 'off'.
+ * Return 1 on success, 0 on error.
  */
-void
-rn_inithead_internal(struct radix_head *rh, struct radix_node *base_nodes, int off)
+static int
+rn_inithead_internal(void **head, int off)
 {
+	struct radix_node_head *rnh;
 	struct radix_node *t, *tt, *ttt;
-
-	t = rn_newpair(rn_zeros, off, base_nodes);
-	ttt = base_nodes + 2;
+	if (*head)
+		return (1);
+	R_Zalloc(rnh, struct radix_node_head *, sizeof (*rnh));
+	if (rnh == 0)
+		return (0);
+	*head = rnh;
+	t = rn_newpair(rn_zeros, off, rnh->rnh_nodes);
+	ttt = rnh->rnh_nodes + 2;
 	t->rn_right = ttt;
 	t->rn_parent = t;
-	tt = t->rn_left;	/* ... which in turn is base_nodes */
+	tt = t->rn_left;	/* ... which in turn is rnh->rnh_nodes */
 	tt->rn_flags = t->rn_flags = RNF_ROOT | RNF_ACTIVE;
 	tt->rn_bit = -1 - off;
 	*ttt = *tt;
 	ttt->rn_key = rn_ones;
-
-	rh->rnh_treetop = t;
-}
-
-static void
-rn_detachhead_internal(void **head)
-{
-
-	KASSERT((head != NULL && *head != NULL),
-	    ("%s: head already freed", __func__));
-	
-	/* Free <left,root,right> nodes. */
-	Free(*head);
-
-	*head = NULL;
-}
-
-/* BELOW ARE FUNCTIONS TO SUPPORT struct radix_node_head USERS */
-int
-rn_inithead(void **head, int off)
-{
-	struct radix_node_head *rnh;
-	struct radix_mask_head *rmh;
-
-	if (*head != NULL)
-		return (1);
-
-	R_Zalloc(rnh, struct radix_node_head *, sizeof (*rnh));
-	R_Zalloc(rmh, struct radix_mask_head *, sizeof (*rmh));
-	if (rnh == NULL || rmh == NULL) {
-		if (rnh != NULL)
-			Free(rnh);
-		return (1);
-	}
-
-	/* Init trees */
-	rn_inithead_internal(&rnh->rh, rnh->rnh_nodes, off);
-	rn_inithead_internal(&rmh->head, rmh->mask_nodes, 0);
-	rnh->rh.s.rnh_masks = &rmh->head;
-	rmh->head.s.mask_nodes = rmh->mask_nodes;
-
-	/* Finally, set base callbacks */
 	rnh->rnh_addaddr = rn_addroute;
 	rnh->rnh_deladdr = rn_delete;
 	rnh->rnh_matchaddr = rn_match;
 	rnh->rnh_lookup = rn_lookup;
 	rnh->rnh_walktree = rn_walktree;
 	rnh->rnh_walktree_from = rn_walktree_from;
+	rnh->rnh_treetop = t;
+	return (1);
+}
+
+static void
+rn_detachhead_internal(void **head)
+{
+	struct radix_node_head *rnh;
+
+	KASSERT((head != NULL && *head != NULL),
+	    ("%s: head already freed", __func__));
+	rnh = *head;
+	
+	/* Free <left,root,right> nodes. */
+	R_Free(rnh);
+
+	*head = NULL;
+}
+
+int
+rn_inithead(void **head, int off)
+{
+	struct radix_node_head *rnh;
+
+	if (*head != NULL)
+		return (1);
+
+	if (rn_inithead_internal(head, off) == 0)
+		return (0);
+
+	rnh = (struct radix_node_head *)(*head);
+
+	if (rn_inithead_internal((void **)&rnh->rnh_masks, 0) == 0) {
+		rn_detachhead_internal(head);
+		return (0);
+	}
 
 	return (1);
 }
@@ -1178,12 +1181,12 @@ rn_inithead(void **head, int off)
 static int
 rn_freeentry(struct radix_node *rn, void *arg)
 {
-	struct radix_head * const rnh = arg;
+	struct radix_node_head * const rnh = arg;
 	struct radix_node *x;
 
 	x = (struct radix_node *)rn_delete(rn + 2, NULL, rnh);
 	if (x != NULL)
-		Free(x);
+		R_Free(x);
 	return (0);
 }
 
@@ -1197,8 +1200,8 @@ rn_detachhead(void **head)
 
 	rnh = *head;
 
-	rn_walktree(rnh->rh.s.rnh_masks, rn_freeentry, rnh->rh.s.rnh_masks);
-	rn_detachhead_internal((void **)&rnh->rh.s.rnh_masks);
+	rn_walktree(rnh->rnh_masks, rn_freeentry, rnh->rnh_masks);
+	rn_detachhead_internal((void **)&rnh->rnh_masks);
 	rn_detachhead_internal(head);
 	return (1);
 }

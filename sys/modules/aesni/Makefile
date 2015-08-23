@@ -21,4 +21,10 @@ aesni_wrap.o: aesni_wrap.c
 	     -mmmx -msse -msse4 -maes ${.IMPSRC}
 	${CTFCONVERT_CMD}
 
+aesni_ghash.o: aesni.h
+aesni_wrap.o: aesni.h
+
 .include <bsd.kmod.mk>
+
+CWARNFLAGS.aesni_ghash.c=	${NO_WCAST_QUAL}
+CWARNFLAGS.aesni_wrap.c=	${NO_WCAST_QUAL}

@@ -111,6 +111,7 @@ fatblock(struct msdosfsmount *pmp, u_long ofs, u_long *bnp, u_long *sizep,
  *	    If this pointer is null then don't return this quantity.
  * cnp	  - address of where to place the filesystem relative cluster number.
  *	    If this pointer is null then don't return this quantity.
+ * sp     - pointer to returned block size
  *
  * NOTE: Either bnp or cnp must be non-null.
  * This function has one side effect.  If the requested file relative cluster
@@ -379,6 +380,8 @@ usemap_alloc(struct msdosfsmount *pmp, u_long cn)
 
 	MSDOSFS_ASSERT_MP_LOCKED(pmp);
 
+	KASSERT((pmp->pm_flags & MSDOSFSMNT_RONLY) == 0,
+	    ("usemap_alloc on ro msdosfs mount"));
 	KASSERT((pmp->pm_inusemap[cn / N_INUSEBITS] & (1 << (cn % N_INUSEBITS)))
 	    == 0, ("Allocating used sector %ld %ld %x", cn, cn % N_INUSEBITS,
 		(unsigned)pmp->pm_inusemap[cn / N_INUSEBITS]));
@@ -393,6 +396,8 @@ usemap_free(struct msdosfsmount *pmp, u_long cn)
 {
 
 	MSDOSFS_ASSERT_MP_LOCKED(pmp);
+	KASSERT((pmp->pm_flags & MSDOSFSMNT_RONLY) == 0,
+	    ("usemap_free on ro msdosfs mount"));
 	pmp->pm_freeclustercount++;
 	pmp->pm_flags |= MSDOSFS_FSIMOD;
 	KASSERT((pmp->pm_inusemap[cn / N_INUSEBITS] & (1 << (cn % N_INUSEBITS)))
@@ -443,7 +448,8 @@ clusterfree(struct msdosfsmount *pmp, u_long cluster, u_long *oldcnp)
  * the msdosfsmount structure. This is left to the caller.
  */
 int
-fatentry(int function, struct msdosfsmount *pmp, u_long cn, u_long *oldcontents,   u_long  newcontents)
+fatentry(int function, struct msdosfsmount *pmp, u_long cn, u_long *oldcontents,
+    u_long newcontents)
 {
 	int error;
 	u_long readcn;
@@ -673,6 +679,8 @@ chainalloc(struct msdosfsmount *pmp, u_long start, u_long count,
 	u_long cl, n;
 
 	MSDOSFS_ASSERT_MP_LOCKED(pmp);
+	KASSERT((pmp->pm_flags & MSDOSFSMNT_RONLY) == 0,
+	    ("chainalloc on ro msdosfs mount"));
 
 	for (cl = start, n = count; n-- > 0;)
 		usemap_alloc(pmp, cl++);

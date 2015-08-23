@@ -82,6 +82,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/errno.h>
 #include <sys/time.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/rmlock.h>
 #include <sys/syslog.h>
 
 #include <net/if.h>
@@ -89,7 +91,6 @@ __FBSDID("$FreeBSD$");
 #include <net/if_types.h>
 #include <net/if_dl.h>
 #include <net/route.h>
-#include <net/route_internal.h>
 #include <net/netisr.h>
 #include <net/pfil.h>
 #include <net/vnet.h>
@@ -145,8 +146,8 @@ VNET_PCPUSTAT_SYSINIT(ip6stat);
 VNET_PCPUSTAT_SYSUNINIT(ip6stat);
 #endif /* VIMAGE */
 
-struct rwlock in6_ifaddr_lock;
-RW_SYSINIT(in6_ifaddr_lock, &in6_ifaddr_lock, "in6_ifaddr_lock");
+struct rmlock in6_ifaddr_lock;
+RM_SYSINIT(in6_ifaddr_lock, &in6_ifaddr_lock, "in6_ifaddr_lock");
 
 static void ip6_init2(void *);
 static int ip6_hopopts_input(u_int32_t *, u_int32_t *, struct mbuf **, int *);
@@ -1344,24 +1345,28 @@ ip6_savecontrol(struct inpcb *in6p, struct mbuf *m, struct mbuf **mp)
 #undef IS2292
 
 void
-ip6_notify_pmtu(struct inpcb *in6p, struct sockaddr_in6 *dst, u_int32_t *mtu)
+ip6_notify_pmtu(struct inpcb *inp, struct sockaddr_in6 *dst, u_int32_t mtu)
 {
 	struct socket *so;
 	struct mbuf *m_mtu;
 	struct ip6_mtuinfo mtuctl;
 
-	so =  in6p->inp_socket;
-
-	if (mtu == NULL)
+	KASSERT(inp != NULL, ("%s: inp == NULL", __func__));
+	/*
+	 * Notify the error by sending IPV6_PATHMTU ancillary data if
+	 * application wanted to know the MTU value.
+	 * NOTE: we notify disconnected sockets, because some udp
+	 * applications keep sending sockets disconnected.
+	 * NOTE: our implementation doesn't notify connected sockets that has
+	 * foreign address that is different than given destination addresses
+	 * (this is permitted by RFC 3542).
+	 */
+	if ((inp->inp_flags & IN6P_MTU) == 0 || (
+	    !IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_faddr) &&
+	    !IN6_ARE_ADDR_EQUAL(&inp->in6p_faddr, &dst->sin6_addr)))
 		return;
 
-#ifdef DIAGNOSTIC
-	if (so == NULL)		/* I believe this is impossible */
-		panic("ip6_notify_pmtu: socket is NULL");
-#endif
-
-	bzero(&mtuctl, sizeof(mtuctl));	/* zero-clear for safety */
-	mtuctl.ip6m_mtu = *mtu;
+	mtuctl.ip6m_mtu = mtu;
 	mtuctl.ip6m_addr = *dst;
 	if (sa6_recoverscope(&mtuctl.ip6m_addr))
 		return;
@@ -1370,14 +1375,13 @@ ip6_notify_pmtu(struct inpcb *in6p, struct sockaddr_in6 *dst, u_int32_t *mtu)
 	    IPV6_PATHMTU, IPPROTO_IPV6)) == NULL)
 		return;
 
+	so =  inp->inp_socket;
 	if (sbappendaddr(&so->so_rcv, (struct sockaddr *)dst, NULL, m_mtu)
 	    == 0) {
 		m_freem(m_mtu);
 		/* XXX: should count statistics */
 	} else
 		sorwakeup(so);
-
-	return;
 }
 
 #ifdef PULLDOWN_TEST

@@ -20,6 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, Joyent, Inc. All rights reserved.
  * Copyright (c) 2011, 2014 by Delphix. All rights reserved.
  * Copyright (c) 2014 by Saso Kiselkov. All rights reserved.
  * Copyright 2014 Nexenta Systems, Inc.  All rights reserved.
@@ -1207,7 +1208,7 @@ arc_cksum_compute(arc_buf_t *buf, boolean_t force)
 	mutex_exit(&buf->b_hdr->b_freeze_lock);
 #ifdef illumos
 	arc_buf_watch(buf);
-#endif /* illumos */
+#endif
 }
 
 #ifdef illumos
@@ -1282,7 +1283,7 @@ arc_buf_thaw(arc_buf_t *buf)
 
 #ifdef illumos
 	arc_buf_unwatch(buf);
-#endif /* illumos */
+#endif
 }
 
 void
@@ -1742,7 +1743,7 @@ arc_buf_destroy(arc_buf_t *buf, boolean_t recycle, boolean_t remove)
 		arc_cksum_verify(buf);
 #ifdef illumos
 		arc_buf_unwatch(buf);
-#endif /* illumos */
+#endif
 
 		if (!recycle) {
 			if (type == ARC_BUFC_METADATA) {
@@ -1825,7 +1826,7 @@ arc_hdr_destroy(arc_buf_hdr_t *hdr)
 
 		if (l2hdr != NULL) {
 			trim_map_free(l2hdr->b_dev->l2ad_vdev, l2hdr->b_daddr,
-			    hdr->b_size, 0);
+			    l2hdr->b_asize, 0);
 			list_remove(l2hdr->b_dev->l2ad_buflist, hdr);
 			arc_buf_l2_cdata_free(hdr);
 			ARCSTAT_INCR(arcstat_l2_size, -hdr->b_size);
@@ -2540,13 +2541,9 @@ arc_shrink(void)
 	if (arc_c > arc_c_min) {
 		uint64_t to_free;
 
+		to_free = arc_c >> arc_shrink_shift;
 		DTRACE_PROBE4(arc__shrink, uint64_t, arc_c, uint64_t,
 			arc_c_min, uint64_t, arc_p, uint64_t, to_free);
-#ifdef _KERNEL
-		to_free = arc_c >> arc_shrink_shift;
-#else
-		to_free = arc_c >> arc_shrink_shift;
-#endif
 		if (arc_c > arc_c_min + to_free)
 			atomic_add_64(&arc_c, -to_free);
 		else
@@ -2595,7 +2592,7 @@ arc_reclaim_needed(void)
 		return (1);
 	}
 
-#ifdef sun
+#ifdef illumos
 	/*
 	 * take 'desfree' extra pages, so we reclaim sooner, rather than later
 	 */
@@ -2631,7 +2628,7 @@ arc_reclaim_needed(void)
 	if (availrmem <= pages_pp_maximum)
 		return (1);
 
-#endif	/* sun */
+#endif	/* illumos */
 #if defined(__i386) || !defined(UMA_MD_SMALL_ALLOC)
 	/*
 	 * If we're on an i386 platform, it's possible that we'll exhaust the
@@ -2651,8 +2648,11 @@ arc_reclaim_needed(void)
 		    (vmem_size(heap_arena, VMEM_FREE | VMEM_ALLOC)) >> 2);
 		return (1);
 	}
+#define	zio_arena	NULL
+#else
+#define	zio_arena	heap_arena
 #endif
-#ifdef sun
+
 	/*
 	 * If zio data pages are being allocated out of a separate heap segment,
 	 * then enforce that the size of available vmem for this arena remains
@@ -2666,7 +2666,18 @@ arc_reclaim_needed(void)
 	    vmem_size(zio_arena, VMEM_FREE) <
 	    (vmem_size(zio_arena, VMEM_ALLOC) >> 4))
 		return (1);
-#endif	/* sun */
+
+	/*
+	 * Above limits know nothing about real level of KVA fragmentation.
+	 * Start aggressive reclamation if too little sequential KVA left.
+	 */
+	if (vmem_size(heap_arena, VMEM_MAXFREE) < zfs_max_recordsize) {
+		DTRACE_PROBE2(arc__reclaim_maxfree, uint64_t,
+		    vmem_size(heap_arena, VMEM_MAXFREE),
+		    uint64_t, zfs_max_recordsize);
+		return (1);
+	}
+
 #else	/* _KERNEL */
 	if (spa_get_random(100) == 0)
 		return (1);
@@ -2680,7 +2691,7 @@ extern kmem_cache_t	*zio_buf_cache[];
 extern kmem_cache_t	*zio_data_buf_cache[];
 extern kmem_cache_t	*range_seg_cache;
 
-static void __noinline
+static __noinline void
 arc_kmem_reap_now(arc_reclaim_strategy_t strat)
 {
 	size_t			i;
@@ -2725,7 +2736,7 @@ arc_kmem_reap_now(arc_reclaim_strategy_t strat)
 	kmem_cache_reap_now(hdr_cache);
 	kmem_cache_reap_now(range_seg_cache);
 
-#ifdef sun
+#ifdef illumos
 	/*
 	 * Ask the vmem arena to reclaim unused memory from its
 	 * quantum caches.
@@ -3213,7 +3224,7 @@ arc_read_done(zio_t *zio)
 	arc_cksum_compute(buf, B_FALSE);
 #ifdef illumos
 	arc_buf_watch(buf);
-#endif /* illumos */
+#endif
 
 	if (hash_lock && zio->io_error == 0 && hdr->b_state == arc_anon) {
 		/*
@@ -3816,7 +3827,7 @@ arc_release(arc_buf_t *buf, void *tag)
 		arc_cksum_verify(buf);
 #ifdef illumos
 		arc_buf_unwatch(buf);
-#endif /* illumos */
+#endif
 
 		mutex_exit(hash_lock);
 
@@ -3857,7 +3868,7 @@ arc_release(arc_buf_t *buf, void *tag)
 		vdev_space_update(l2hdr->b_dev->l2ad_vdev,
 		    -l2hdr->b_asize, 0, 0);
 		trim_map_free(l2hdr->b_dev->l2ad_vdev, l2hdr->b_daddr,
-		    hdr->b_size, 0);
+		    l2hdr->b_asize, 0);
 		kmem_free(l2hdr, sizeof (l2arc_buf_hdr_t));
 		ARCSTAT_INCR(arcstat_l2_size, -buf_size);
 		mutex_exit(&l2arc_buflist_mtx);
@@ -4186,7 +4197,7 @@ arc_init(void)
 	/* Start out with 1/8 of all memory */
 	arc_c = kmem_size() / 8;
 
-#ifdef sun
+#ifdef illumos
 #ifdef _KERNEL
 	/*
 	 * On architectures where the physical memory can be larger
@@ -4195,12 +4206,12 @@ arc_init(void)
 	 */
 	arc_c = MIN(arc_c, vmem_size(heap_arena, VMEM_ALLOC | VMEM_FREE) / 8);
 #endif
-#endif	/* sun */
+#endif	/* illumos */
 	/* set min cache to 1/32 of all memory, or 16MB, whichever is more */
-	arc_c_min = MAX(arc_c / 4, 64<<18);
+	arc_c_min = MAX(arc_c / 4, 16 << 20);
 	/* set max to 1/2 of all memory, or all but 1GB, whichever is more */
-	if (arc_c * 8 >= 1<<30)
-		arc_c_max = (arc_c * 8) - (1<<30);
+	if (arc_c * 8 >= 1 << 30)
+		arc_c_max = (arc_c * 8) - (1 << 30);
 	else
 		arc_c_max = arc_c_min;
 	arc_c_max = MAX(arc_c * 5, arc_c_max);
@@ -4210,9 +4221,9 @@ arc_init(void)
 	 * Allow the tunables to override our calculations if they are
 	 * reasonable (ie. over 16MB)
 	 */
-	if (zfs_arc_max > 64<<18 && zfs_arc_max < kmem_size())
+	if (zfs_arc_max > 16 << 20 && zfs_arc_max < kmem_size())
 		arc_c_max = zfs_arc_max;
-	if (zfs_arc_min > 64<<18 && zfs_arc_min <= arc_c_max)
+	if (zfs_arc_min > 16 << 20 && zfs_arc_min <= arc_c_max)
 		arc_c_min = zfs_arc_min;
 #endif
 
@@ -4802,7 +4813,7 @@ l2arc_write_done(zio_t *zio)
 			bytes_dropped += abl2->b_asize;
 			hdr->b_l2hdr = NULL;
 			trim_map_free(abl2->b_dev->l2ad_vdev, abl2->b_daddr,
-			    hdr->b_size, 0);
+			    abl2->b_asize, 0);
 			kmem_free(abl2, sizeof (l2arc_buf_hdr_t));
 			ARCSTAT_INCR(arcstat_l2_size, -hdr->b_size);
 		}

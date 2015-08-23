@@ -97,6 +97,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_var.h>
 #include <net/if_types.h>
 #include <net/route.h>
+#include <net/rss_config.h>
 
 #include <netinet/in.h>
 #include <netinet/in_kdtrace.h>
@@ -112,11 +113,11 @@ __FBSDID("$FreeBSD$");
 #include <netinet/udp.h>
 #include <netinet/udp_var.h>
 #include <netinet/udplite.h>
-#include <netinet/in_rss.h>
 
 #include <netinet6/ip6protosw.h>
 #include <netinet6/ip6_var.h>
 #include <netinet6/in6_pcb.h>
+#include <netinet6/in6_rss.h>
 #include <netinet6/udp6_var.h>
 #include <netinet6/scope6_var.h>
 
@@ -135,7 +136,7 @@ __FBSDID("$FreeBSD$");
 extern struct protosw	inetsw[];
 static void		udp6_detach(struct socket *so);
 
-static void
+static int
 udp6_append(struct inpcb *inp, struct mbuf *n, int off,
     struct sockaddr_in6 *fromsa)
 {
@@ -150,21 +151,24 @@ udp6_append(struct inpcb *inp, struct mbuf *n, int off,
 	 */
 	up = intoudpcb(inp);
 	if (up->u_tun_func != NULL) {
+		in_pcbref(inp);
+		INP_RUNLOCK(inp);
 		(*up->u_tun_func)(n, off, inp, (struct sockaddr *)fromsa,
 		    up->u_tun_ctx);
-		return;
+		INP_RLOCK(inp);
+		return (in_pcbrele_rlocked(inp));
 	}
 #ifdef IPSEC
 	/* Check AH/ESP integrity. */
 	if (ipsec6_in_reject(n, inp)) {
 		m_freem(n);
-		return;
+		return (0);
 	}
 #endif /* IPSEC */
 #ifdef MAC
 	if (mac_inpcb_check_deliver(inp, n) != 0) {
 		m_freem(n);
-		return;
+		return (0);
 	}
 #endif
 	opts = NULL;
@@ -184,6 +188,7 @@ udp6_append(struct inpcb *inp, struct mbuf *n, int off,
 		UDPSTAT_INC(udps_fullsock);
 	} else
 		sorwakeup_locked(so);
+	return (0);
 }
 
 int
@@ -366,7 +371,8 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 					INP_RLOCK(last);
 					UDP_PROBE(receive, NULL, last, ip6,
 					    last, uh);
-					udp6_append(last, n, off, &fromsa);
+					if (udp6_append(last, n, off, &fromsa))
+						goto inp_lost;
 					INP_RUNLOCK(last);
 				}
 			}
@@ -397,8 +403,9 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 		INP_RLOCK(last);
 		INP_INFO_RUNLOCK(pcbinfo);
 		UDP_PROBE(receive, NULL, last, ip6, last, uh);
-		udp6_append(last, m, off, &fromsa);
-		INP_RUNLOCK(last);
+		if (udp6_append(last, m, off, &fromsa) == 0) 
+			INP_RUNLOCK(last);
+	inp_lost:
 		return (IPPROTO_DONE);
 	}
 	/*
@@ -476,8 +483,8 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 		}
 	}
 	UDP_PROBE(receive, NULL, inp, ip6, inp, uh);
-	udp6_append(inp, m, off, &fromsa);
-	INP_RUNLOCK(inp);
+	if (udp6_append(inp, m, off, &fromsa) == 0)
+		INP_RUNLOCK(inp);
 	return (IPPROTO_DONE);
 
 badheadlocked:
@@ -624,6 +631,7 @@ udp6_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr6,
 	struct udphdr *udp6;
 	struct in6_addr *laddr, *faddr, in6a;
 	struct sockaddr_in6 *sin6 = NULL;
+	struct ifnet *oifp = NULL;
 	int cscov_partial = 0;
 	int scope_ambiguous = 0;
 	u_short fport;
@@ -721,10 +729,15 @@ udp6_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr6,
 		}
 
 		if (!IN6_IS_ADDR_V4MAPPED(faddr)) {
-			error = in6_selectsrc_scope(sin6, optp, inp,
-			    td->td_ucred, scope_ambiguous, &in6a);
+			error = in6_selectsrc(sin6, optp, inp, NULL,
+			    td->td_ucred, &oifp, &in6a);
 			if (error)
 				goto release;
+			if (oifp && scope_ambiguous &&
+			    (error = in6_setscope(&sin6->sin6_addr,
+			    oifp, NULL))) {
+				goto release;
+			}
 			laddr = &in6a;
 		} else
 			laddr = &inp->in6p_laddr;	/* XXX */
@@ -853,7 +866,7 @@ udp6_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr6,
 		UDP_PROBE(send, NULL, inp, ip6, inp, udp6);
 		UDPSTAT_INC(udps_opackets);
 		error = ip6_output(m, optp, NULL, flags, inp->in6p_moptions,
-		    inp);
+		    NULL, inp);
 		break;
 	case AF_INET:
 		error = EAFNOSUPPORT;

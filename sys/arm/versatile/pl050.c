@@ -57,7 +57,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/kbd/kbdreg.h>
 
 #include <machine/bus.h>
-#include <machine/fdt.h>
 
 #include <dev/kbd/kbdtables.h>
 

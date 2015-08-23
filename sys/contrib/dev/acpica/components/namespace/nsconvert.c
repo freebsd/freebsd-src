@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2014, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,8 +41,6 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  */
-
-#define __NSCONVERT_C__
 
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/accommon.h>
@@ -204,7 +202,7 @@ AcpiNsConvertToString (
          * Copy the raw buffer data with no transform. String is already NULL
          * terminated at Length+1.
          */
-        ACPI_MEMCPY (NewObject->String.Pointer,
+        memcpy (NewObject->String.Pointer,
             OriginalObject->Buffer.Pointer, Length);
         break;
 
@@ -271,7 +269,7 @@ AcpiNsConvertToBuffer (
             return (AE_NO_MEMORY);
         }
 
-        ACPI_MEMCPY (NewObject->Buffer.Pointer,
+        memcpy (NewObject->Buffer.Pointer,
             OriginalObject->String.Pointer, OriginalObject->String.Length);
         break;
 

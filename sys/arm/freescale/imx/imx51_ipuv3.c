@@ -53,6 +53,9 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/kdb.h>
 
+#include <vm/vm.h>
+#include <vm/pmap.h>
+
 #include <machine/bus.h>
 #include <machine/cpu.h>
 #include <machine/cpufunc.h>

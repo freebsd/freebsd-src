@@ -123,7 +123,7 @@ static MALLOC_DEFINE(M_IFATM, "ifatm", "atm interface internals");
  */
 int
 atm_output(struct ifnet *ifp, struct mbuf *m0, const struct sockaddr *dst,
-    struct nhop_info *ni)
+    struct route *ro)
 {
 	u_int16_t etype = 0;			/* if using LLC/SNAP */
 	int error = 0, sz;

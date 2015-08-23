@@ -74,6 +74,7 @@ enum intr_polarity;
 
 void	acpi_SetDefaultIntrModel(int model);
 void	acpi_cpu_c1(void);
+void	acpi_cpu_idle_mwait(uint32_t mwait_hint);
 void	*acpi_map_table(vm_paddr_t pa, const char *sig);
 void	acpi_unmap_table(void *table);
 vm_paddr_t acpi_find_table(const char *sig);

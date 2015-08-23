@@ -44,7 +44,7 @@
 #define	 CONF_TE		(1 << 3)
 #define	 CONF_RE		(1 << 2)
 #define	MAC_FRAME_FILTER	0x4
-#define	 FRAME_FILTER_RA	(1 << 31)	/* Receive All */
+#define	 FRAME_FILTER_RA	(1U << 31)	/* Receive All */
 #define	 FRAME_FILTER_HPF	(1 << 10)	/* Hash or Perfect Filter */
 #define	 FRAME_FILTER_PM	(1 << 4)	/* Pass multicast */
 #define	 FRAME_FILTER_HMC	(1 << 2)
