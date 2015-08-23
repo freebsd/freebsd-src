@@ -169,7 +169,6 @@ ether_output_full(struct ifnet *ifp, struct mbuf *m,
 	int error = 0, hdrcmplt = 0;
 	u_char edst[ETHER_ADDR_LEN];
 	struct llentry *lle = NULL;
-	struct rtentry *rt0 = NULL;
 	struct ether_header *eh;
 	struct pf_mtag *t;
 	int loop_copy = 1;
@@ -177,6 +176,7 @@ ether_output_full(struct ifnet *ifp, struct mbuf *m,
 	int is_gw = 0;
 	uint32_t pflags = 0;
 
+#if 0
 	if (ro != NULL) {
 		if (!(m->m_flags & (M_BCAST | M_MCAST))) {
 			lle = ro->ro_lle;
@@ -187,6 +187,7 @@ ether_output_full(struct ifnet *ifp, struct mbuf *m,
 		if (rt0 != NULL && (rt0->rt_flags & RTF_GATEWAY) != 0)
 			is_gw = 1;
 	}
+#endif
 #ifdef MAC
 	error = mac_ifnet_check_transmit(ifp, m);
 	if (error)
