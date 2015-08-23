@@ -40,6 +40,9 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/syslog.h>
+#include <sys/lock.h>
+#include <sys/rwlock.h>
+#include <sys/rmlock.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
@@ -262,8 +265,8 @@ fib4_lookup_prepend(uint32_t fibnum, struct in_addr dst, struct mbuf *m,
 	struct in_addr gw;
 	struct ether_header *eh;
 	int error, flags;
-	//uint32_t flowid;
 	struct rtentry *rte;
+	RIB_LOCK_READER;
 
 	KASSERT((fibnum < rt_numfibs), ("fib4_lookup_prepend: bad fibnum"));
 	rh = rt_tables_get_rnh(fibnum, AF_INET);
@@ -506,6 +509,7 @@ fib4_lookup_nh_basic(uint32_t fibnum, struct in_addr dst, uint32_t flowid,
 	struct radix_node *rn;
 	struct sockaddr_in sin;
 	struct rtentry *rte;
+	RIB_LOCK_READER;
 
 	KASSERT((fibnum < rt_numfibs), ("fib4_lookup_nh_basic: bad fibnum"));
 	rh = rt_tables_get_rnh(fibnum, AF_INET);
@@ -542,6 +546,7 @@ fib4_lookup_nh_ifp(uint32_t fibnum, struct in_addr dst, uint32_t flowid,
 	struct radix_node *rn;
 	struct sockaddr_in sin;
 	struct rtentry *rte;
+	RIB_LOCK_READER;
 
 	KASSERT((fibnum < rt_numfibs), ("fib4_lookup_nh_ifp: bad fibnum"));
 	rh = rt_tables_get_rnh(fibnum, AF_INET);
@@ -587,6 +592,7 @@ fib4_lookup_nh_ext(uint32_t fibnum, struct in_addr dst, uint32_t flowid,
 	struct radix_node *rn;
 	struct sockaddr_in sin;
 	struct rtentry *rte;
+	RIB_LOCK_READER;
 
 	KASSERT((fibnum < rt_numfibs), ("fib4_lookup_nh_ext: bad fibnum"));
 	rh = rt_tables_get_rnh(fibnum, AF_INET);
@@ -641,6 +647,7 @@ rib4_lookup_nh_ext(uint32_t fibnum, struct in_addr dst, uint32_t flowid,
 	struct radix_node *rn;
 	struct sockaddr_in sin;
 	struct rtentry *rte;
+	RIB_LOCK_READER;
 
 	KASSERT((fibnum < rt_numfibs), ("rib4_lookup_nh_ext: bad fibnum"));
 	rh = rt_tables_get_rnh(fibnum, AF_INET);
@@ -766,6 +773,7 @@ fib6_lookup_prepend(uint32_t fibnum, struct in6_addr *dst, uint32_t scopeid,
 	struct rtentry *rte;
 	struct ifnet *lifp;
 	struct ether_header *eh;
+	RIB_LOCK_READER;
 	uint32_t flags;
 	int error;
 
@@ -1138,6 +1146,7 @@ fib6_lookup_nh_ifp(uint32_t fibnum, struct in6_addr *dst, uint32_t scopeid,
 	struct radix_node *rn;
 	struct sockaddr_in6 sin6;
 	struct rtentry *rte;
+	RIB_LOCK_READER;
 
 	if (IN6_IS_SCOPE_LINKLOCAL(dst)) {
 		/* Do not lookup link-local addresses in rtable */
@@ -1181,6 +1190,7 @@ fib6_lookup_nh_basic(uint32_t fibnum, const struct in6_addr *dst, uint32_t scope
 	struct radix_node *rn;
 	struct sockaddr_in6 sin6;
 	struct rtentry *rte;
+	RIB_LOCK_READER;
 
 	if (IN6_IS_SCOPE_LINKLOCAL(dst)) {
 		/* Do not lookup link-local addresses in rtable */
@@ -1231,6 +1241,7 @@ fib6_lookup_nh_ext(uint32_t fibnum, struct in6_addr *dst, uint32_t scopeid,
 	struct radix_node *rn;
 	struct sockaddr_in6 sin6;
 	struct rtentry *rte;
+	RIB_LOCK_READER;
 
 	if (IN6_IS_SCOPE_LINKLOCAL(dst)) {
 		/* Do not lookup link-local addresses in rtable */
@@ -1284,6 +1295,7 @@ rib6_lookup_nh_ext(uint32_t fibnum, struct in6_addr *dst, uint32_t scopeid,
 	struct radix_node *rn;
 	struct sockaddr_in6 sin6;
 	struct rtentry *rte;
+	RIB_LOCK_READER;
 
 	if (IN6_IS_SCOPE_LINKLOCAL(dst)) {
 		/* Do not lookup link-local addresses in rtable */

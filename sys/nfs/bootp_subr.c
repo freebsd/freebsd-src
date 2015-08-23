@@ -375,9 +375,9 @@ bootpboot_p_rtlist(void)
 	rnh = rt_tables_get_rnh(0, AF_INET);
 	if (rnh == NULL)
 		return;
-	RIB_RLOCK(rnh);	/* could sleep XXX */
+	RIB_CFG_RLOCK(rnh);	/* could sleep XXX */
 	bootpboot_p_tree(rh->rnh_treetop);
-	RIB_RUNLOCK(rnh);
+	RIB_CFG_RUNLOCK(rnh);
 }
 
 void
