@@ -44,8 +44,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 #include <machine/intr.h>
 
-#include "opt_ntp.h"
-
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
@@ -198,7 +196,6 @@ am335x_dmtimer_et_write_4(struct am335x_dmtimer_softc *sc, uint32_t reg,
  * latched value from the timer.  The remaining work (done by pps_event()) is
  * scheduled to be done later in a non-interrupt context.
  */
-#ifdef PPS_SYNC
 
 #define	PPS_CDEV_NAME	"dmtpps"
 
@@ -405,7 +402,7 @@ am335x_dmtimer_pps_init(device_t dev, struct am335x_dmtimer_softc *sc)
 	/* Create the PPS cdev.  */
 	unit = device_get_unit(dev);
 	sc->pps_cdev = make_dev(&am335x_dmtimer_pps_cdevsw, unit, 
-	    UID_ROOT, GID_WHEEL, 0600, PPS_CDEV_NAME "%d", unit);
+	    UID_ROOT, GID_WHEEL, 0600, PPS_CDEV_NAME);
 	sc->pps_cdev->si_drv1 = sc;
 
 	device_printf(dev, "Using DMTimer%d for PPS device /dev/%s%d\n", 
@@ -414,20 +411,6 @@ am335x_dmtimer_pps_init(device_t dev, struct am335x_dmtimer_softc *sc)
 	return (timer_num);
 }
 
-#else /* PPS_SYNC */
-
-static int
-am335x_dmtimer_pps_init(device_t dev, struct am335x_dmtimer_softc *sc)
-{
-
-	/*
-	 * When PPS support is not compiled in, there's no need to use a timer
-	 * that has an associated capture-input pin, so use the default.
-	 */
-	return (DEFAULT_TC_TIMER);
-}
-
-#endif /* PPS_SYNC */
 /*
  * End of PPS driver code.
  */
