@@ -29,28 +29,14 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif /* not lint */
 
-#include <stdio.h>
+#include <ctype.h>
+#include <err.h>
 #include <stdlib.h>
 #include <string.h>
-#include <ctype.h>
+#include <xlocale.h>
 
 #include "psdate.h"
 
-
-static int
-a2i(char const ** str)
-{
-	int             i = 0;
-	char const     *s = *str;
-
-	if (isdigit((unsigned char)*s)) {
-		i = atoi(s);
-		while (isdigit((unsigned char)*s))
-			++s;
-		*str = s;
-	}
-	return i;
-}
 
 static int
 numerics(char const * str)
@@ -95,61 +81,73 @@ weekday(char const ** str)
 	return aindex(days, str, 3);
 }
 
-static int
-month(char const ** str)
-{
-	static char const *months[] =
-	{"jan", "feb", "mar", "apr", "may", "jun", "jul",
-	"aug", "sep", "oct", "nov", "dec", NULL};
-
-	return aindex(months, str, 3);
-}
-
 static void
-parse_time(char const * str, int *hour, int *min, int *sec)
+parse_datesub(char const * str, struct tm *t)
 {
-	*hour = a2i(&str);
-	if ((str = strchr(str, ':')) == NULL)
-		*min = *sec = 0;
-	else {
-		++str;
-		*min = a2i(&str);
-		*sec = ((str = strchr(str, ':')) == NULL) ? 0 : atoi(++str);
+	struct tm	 tm;
+	locale_t	 l;
+	int		 i;
+	char		*ret;
+	const char	*valid_formats[] = {
+		"%d-%b-%y",
+		"%d-%b-%Y",
+		"%d-%m-%y",
+		"%d-%m-%Y",
+		"%H:%M %d-%b-%y",
+		"%H:%M %d-%b-%Y",
+		"%H:%M %d-%m-%y",
+		"%H:%M %d-%m-%Y",
+		"%H:%M:%S %d-%b-%y",
+		"%H:%M:%S %d-%b-%Y",
+		"%H:%M:%S %d-%m-%y",
+		"%H:%M:%S %d-%m-%Y",
+		"%d-%b-%y %H:%M",
+		"%d-%b-%Y %H:%M",
+		"%d-%m-%y %H:%M",
+		"%d-%m-%Y %H:%M",
+		"%d-%b-%y %H:%M:%S",
+		"%d-%b-%Y %H:%M:%S",
+		"%d-%m-%y %H:%M:%S",
+		"%d-%m-%Y %H:%M:%S",
+		"%H:%M\t%d-%b-%y",
+		"%H:%M\t%d-%b-%Y",
+		"%H:%M\t%d-%m-%y",
+		"%H:%M\t%d-%m-%Y",
+		"%H:%M\t%S %d-%b-%y",
+		"%H:%M\t%S %d-%b-%Y",
+		"%H:%M\t%S %d-%m-%y",
+		"%H:%M\t%S %d-%m-%Y",
+		"%d-%b-%y\t%H:%M",
+		"%d-%b-%Y\t%H:%M",
+		"%d-%m-%y\t%H:%M",
+		"%d-%m-%Y\t%H:%M",
+		"%d-%b-%y\t%H:%M:%S",
+		"%d-%b-%Y\t%H:%M:%S",
+		"%d-%m-%y\t%H:%M:%S",
+		"%d-%m-%Y\t%H:%M:%S",
+		NULL,
+	};
+
+	l = newlocale(LC_ALL_MASK, "C", NULL);
+
+	memset(&tm, 0, sizeof(tm));
+	for (i=0; valid_formats[i] != NULL; i++) {
+		ret = strptime_l(str, valid_formats[i], &tm, l);
+		if (ret && *ret == '\0') {
+			t->tm_mday = tm.tm_mday;
+			t->tm_mon = tm.tm_mon;
+			t->tm_year = tm.tm_year;
+			t->tm_hour = tm.tm_hour;
+			t->tm_min = tm.tm_min;
+			t->tm_sec = tm.tm_sec;
+			freelocale(l);
+			return;
+		}
 	}
-}
 
+	freelocale(l);
 
-static void
-parse_datesub(char const * str, int *day, int *mon, int *year)
-{
-	int             i;
-
-	static char const nchrs[] = "0123456789 \t,/-.";
-
-	if ((i = month(&str)) != -1) {
-		*mon = i;
-		if ((i = a2i(&str)) != 0)
-			*day = i;
-	} else if ((i = a2i(&str)) != 0) {
-		*day = i;
-		while (*str && strchr(nchrs + 10, *str) != NULL)
-			++str;
-		if ((i = month(&str)) != -1)
-			*mon = i;
-		else if ((i = a2i(&str)) != 0)
-			*mon = i - 1;
-	} else
-		return;
-
-	while (*str && strchr(nchrs + 10, *str) != NULL)
-		++str;
-	if (isdigit((unsigned char)*str)) {
-		*year = atoi(str);
-		if (*year > 1900)
-			*year -= 1900;
-		else if (*year < 32)
-			*year += 100;
-	}
+	errx(EXIT_FAILURE, "Invalid date");
 }
 
 
@@ -256,39 +254,7 @@ parse_date(time_t dt, char const * str)
 			}
 		}
 
-		/*
-		 * See if there is a time hh:mm[:ss]
-		 */
-		if ((p = strchr(tmp, ':')) == NULL) {
-
-			/*
-			 * No time string involved
-			 */
-			T->tm_hour = T->tm_min = T->tm_sec = 0;
-			parse_datesub(tmp, &T->tm_mday, &T->tm_mon, &T->tm_year);
-		} else {
-			char            datestr[64], timestr[64];
-
-			/*
-			 * Let's chip off the time string
-			 */
-			if ((q = strpbrk(p, " \t")) != NULL) {	/* Time first? */
-				int             l = q - str;
-
-				strlcpy(timestr, str, l + 1);
-				strlcpy(datestr, q + 1, sizeof(datestr));
-				parse_time(timestr, &T->tm_hour, &T->tm_min, &T->tm_sec);
-				parse_datesub(datestr, &T->tm_mday, &T->tm_mon, &T->tm_year);
-			} else if ((q = strrchr(tmp, ' ')) != NULL) {	/* Time last */
-				int             l = q - tmp;
-
-				strlcpy(timestr, q + 1, sizeof(timestr));
-				strlcpy(datestr, tmp, l + 1);
-			} else	/* Bail out */
-				return dt;
-			parse_time(timestr, &T->tm_hour, &T->tm_min, &T->tm_sec);
-			parse_datesub(datestr, &T->tm_mday, &T->tm_mon, &T->tm_year);
-		}
+		parse_datesub(tmp, T);
 		dt = mktime(T);
 	}
 	return dt;
