@@ -169,6 +169,7 @@ struct nhop4_extended {
 	uint64_t	spare2[2];
 };
 
+/* Does not differ from nhop6_basic */
 struct nhop6_extended {
 	struct ifnet	*nh_ifp;	/* Logical egress interface */
 	uint16_t	nh_mtu;		/* nexthop mtu */
@@ -176,6 +177,27 @@ struct nhop6_extended {
 	uint8_t		spare[4];
 	struct in6_addr	nh_addr;	/* GW/DST IPv6 address */
 	uint64_t	spare2[2];
+};
+
+/* route info used for control plane purposes */
+struct rt4_basic {
+	struct in_addr	rt_addr;	/* route prefix */
+	struct in_addr	rt_gateway;	/* GW used */
+	int		rt_flags;	/* Copy of rte flags */
+	uint16_t	rt_mtu;
+	uint16_t	rt_nhop;	/* nexthop id (might bi mpath) */
+	struct in_addr	rt_mask;	/* route mask */
+	uint16_t	spare[2];
+};
+
+struct rt6_basic {
+	struct in6_addr	rt_addr;
+	struct in6_addr	rt_gateway;
+	int		rt_flags;
+	uint16_t	rt_mtu;
+	uint16_t	rt_nhop;
+	uint8_t		rt_mask;
+	uint8_t		spare[7];
 };
 
 struct nhopu_extended {
@@ -200,6 +222,8 @@ struct route_compat {
 	int			ro_flags;
 };
 
+int fib4_lookup_nh_ifp(uint32_t fibnum, struct in_addr dst, uint32_t flowid,
+    struct nhop4_basic *pnh4);
 int fib4_lookup_nh_basic(uint32_t fibnum, struct in_addr dst, uint32_t flowid,
     struct nhop4_basic *pnh4);
 int fib4_lookup_nh_ext(uint32_t fibnum, struct in_addr dst,

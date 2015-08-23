@@ -498,6 +498,42 @@ fib4_lookup_nh_basic(uint32_t fibnum, struct in_addr dst, uint32_t flowid,
 	return (ENOENT);
 }
 
+int
+fib4_lookup_nh_ifp(uint32_t fibnum, struct in_addr dst, uint32_t flowid,
+    struct nhop4_basic *pnh4)
+{
+	struct radix_node_head *rnh;
+	struct radix_node *rn;
+	struct sockaddr_in sin;
+	struct rtentry *rte;
+
+	KASSERT((fibnum < rt_numfibs), ("fib4_lookup_nh_ifp: bad fibnum"));
+	rnh = rt_tables_get_rnh(fibnum, AF_INET);
+	if (rnh == NULL)
+		return (ENOENT);
+
+	/* Prepare lookup key */
+	memset(&sin, 0, sizeof(sin));
+	sin.sin_len = sizeof(struct sockaddr_in);
+	sin.sin_addr = dst;
+
+	RADIX_NODE_HEAD_RLOCK(rnh);
+	rn = rnh->rnh_matchaddr((void *)&sin, rnh);
+	if (rn != NULL && ((rn->rn_flags & RNF_ROOT) == 0)) {
+		rte = RNTORT(rn);
+		/* Ensure route & ifp is UP */
+		if (RT_LINK_IS_UP(rte->rt_ifp)) {
+			fib4_rte_to_nh_basic(rte, dst, pnh4);
+			RADIX_NODE_HEAD_RUNLOCK(rnh);
+			pnh4->nh_ifp = rte->rt_ifp;
+			return (0);
+		}
+	}
+	RADIX_NODE_HEAD_RUNLOCK(rnh);
+
+	return (ENOENT);
+}
+
 /*
  * Performs IPv4 route table lookup on @dst. Returns 0 on success.
  * Stores extende nexthop info provided @pnh4 structure.
