@@ -210,6 +210,8 @@ void fib4_source_to_sa_ext(const struct nhopu_extended *pnhu,
     struct sockaddr_in *sin);
 
 
+int fib6_lookup_nh_ifp(uint32_t fibnum, struct in6_addr *dst, uint32_t scopeid,
+    uint32_t flowid, struct nhop6_basic *pnh6);
 int fib6_lookup_nh_basic(uint32_t fibnum, const struct in6_addr *dst,
     uint32_t scopeid, uint32_t flowid, struct nhop6_basic *pnh6);
 int fib6_lookup_nh_ext(uint32_t fibnum, struct in6_addr *dst,

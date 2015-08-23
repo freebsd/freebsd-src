@@ -475,7 +475,8 @@ in6_getscope(struct in6_addr *in6)
 }
 
 void
-in6_splitscope(struct in6_addr *src, struct in6_addr *dst, uint32_t *scopeid)
+in6_splitscope(const struct in6_addr *src, struct in6_addr *dst,
+    uint32_t *scopeid)
 {
 	uint32_t zoneid;
 
