@@ -327,6 +327,7 @@ el0_excp_unknown(struct trapframe *frame)
 void
 do_el0_sync(struct trapframe *frame)
 {
+	struct thread *td;
 	uint32_t exception;
 	uint64_t esr;
 
@@ -367,6 +368,11 @@ do_el0_sync(struct trapframe *frame)
 		break;
 	case EXCP_UNKNOWN:
 		el0_excp_unknown(frame);
+		break;
+	case EXCP_BRK:
+		td = curthread;
+		call_trapsignal(td, SIGTRAP, TRAP_BRKPT, (void *)frame->tf_elr);
+		userret(td, frame);
 		break;
 	default:
 		print_registers(frame);
