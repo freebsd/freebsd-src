@@ -8,7 +8,6 @@ SRCS=		bthidd.c client.c hid.c kbd.c lexer.l parser.y server.c \
 		session.c
 
 CFLAGS+=	-I${.CURDIR}
-DEBUG_FLAGS=	-g
 
 LIBADD+=	bluetooth usbhid
 

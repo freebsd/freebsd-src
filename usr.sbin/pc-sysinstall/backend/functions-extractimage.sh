@@ -303,7 +303,7 @@ fetch_split_files()
     OUTFILE="${FSMNT}/.fetch-${INSFILE}"
   fi
 
-  DIRS="base catpages dict doc games info manpages proflibs kernels src"
+  DIRS="base catpages dict doc info manpages proflibs kernels src"
   if [ "${FBSD_ARCH}" = "amd64" ]
   then
     DIRS="${DIRS} lib32"

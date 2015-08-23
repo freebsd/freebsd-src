@@ -13,11 +13,10 @@ SRCDIR=	tools/lldb/tools/driver
 SRCS=	Driver.cpp \
 	Platform.cpp
 
-lldb.1:
-	ln -fs ${LLDB_SRCS}/docs/lldb.1 ${.TARGET}
+# Man page directory
+.PATH: ${LLDB_SRCS}/docs
 
-DPADD=	${LIBEDIT} ${LIBNCURSESW} ${LIBEXECINFO} ${LIBPANEL} ${LIBZ}
-LDADD=	-ledit -lncursesw -lexecinfo -lpanel -lz
+LIBADD=	edit panel ncursesw execinfo z
 
 LLDB_LIBS=\
 	lldb \
@@ -36,16 +35,20 @@ LLDB_LIBS=\
 	lldbTarget \
 	lldbUtility \
 	\
+	lldbPluginABISysV_ppc \
+	lldbPluginABISysV_ppc64 \
 	lldbPluginABISysV_x86_64 \
 	lldbPluginCXXItaniumABI \
 	lldbPluginDisassemblerLLVM \
 	lldbPluginInstructionARM \
 	lldbPluginInstructionARM64 \
+	lldbPluginInstrumentationRuntimeAddressSanitizer \
 	lldbPluginJITLoaderGDB \
 	lldbPluginSymbolFileDWARF \
 	lldbPluginSymbolFileSymtab \
 	lldbPluginDynamicLoaderStatic \
 	lldbPluginDynamicLoaderPosixDYLD \
+	lldbPluginMemoryHistoryASan \
 	lldbPluginObjectContainerBSDArchive \
 	lldbPluginObjectFileELF \
 	lldbPluginObjectFileJIT \
@@ -89,7 +92,6 @@ LIBDEPS=\
 	llvmlinker \
 	llvmmcjit \
 	llvmruntimedyld \
-	llvmjit \
 	llvmexecutionengine \
 	llvmirreader \
 	llvmipo \

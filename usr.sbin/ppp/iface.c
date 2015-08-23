@@ -31,9 +31,6 @@
 #include <netinet/in.h>
 #include <net/if.h>
 #include <net/if_dl.h>
-#ifdef __FreeBSD__
-#include <net/if_var.h>
-#endif
 #include <net/route.h>
 #include <netinet/in_systm.h>
 #include <netinet/in_var.h>

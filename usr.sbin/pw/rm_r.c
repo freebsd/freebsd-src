@@ -29,47 +29,42 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif /* not lint */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/types.h>
 #include <sys/stat.h>
-#include <sys/param.h>
-#include <unistd.h>
+
 #include <dirent.h>
+#include <fcntl.h>
+#include <string.h>
+#include <unistd.h>
 
 #include "pwupd.h"
 
 void
-rm_r(char const * dir, uid_t uid)
+rm_r(int rootfd, const char *path, uid_t uid)
 {
-	DIR            *d = opendir(dir);
+	int dirfd;
+	DIR *d;
+	struct dirent  *e;
+	struct stat     st;
 
-	if (d != NULL) {
-		struct dirent  *e;
-		struct stat     st;
-		char            file[MAXPATHLEN];
+	if (*path == '/')
+		path++;
 
-		while ((e = readdir(d)) != NULL) {
-			if (strcmp(e->d_name, ".") != 0 && strcmp(e->d_name, "..") != 0) {
-				snprintf(file, sizeof(file), "%s/%s", dir, e->d_name);
-				if (lstat(file, &st) == 0) {	/* Need symlinks, not
-								 * linked file */
-					if (S_ISDIR(st.st_mode))	/* Directory - recurse */
-						rm_r(file, uid);
-					else {
-						if (S_ISLNK(st.st_mode) || st.st_uid == uid)
-							remove(file);
-					}
-				}
-			}
-		}
-		closedir(d);
-		if (lstat(dir, &st) == 0) {
-			if (S_ISLNK(st.st_mode))
-				remove(dir);
-			else if (st.st_uid == uid)
-				rmdir(dir);
-		}
+	dirfd = openat(rootfd, path, O_DIRECTORY);
+
+	d = fdopendir(dirfd);
+	while ((e = readdir(d)) != NULL) {
+		if (strcmp(e->d_name, ".") == 0 || strcmp(e->d_name, "..") == 0)
+			continue;
+
+		if (fstatat(dirfd, e->d_name, &st, AT_SYMLINK_NOFOLLOW) != 0)
+			continue;
+		if (S_ISDIR(st.st_mode))
+			rm_r(dirfd, e->d_name, uid);
+		else if (S_ISLNK(st.st_mode) || st.st_uid == uid)
+			unlinkat(dirfd, e->d_name, 0);
 	}
+	closedir(d);
+	if (fstatat(rootfd, path, &st, AT_SYMLINK_NOFOLLOW) != 0)
+		return;
+	unlinkat(rootfd, path, S_ISDIR(st.st_mode) ? AT_REMOVEDIR : 0);
 }

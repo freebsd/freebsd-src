@@ -65,6 +65,7 @@ static void showtime(FILE *, struct timeval *, struct timeval *,
 static void siginfo(int);
 static void usage(void);
 
+static sig_atomic_t siginfo_recvd;
 static char decimal_point;
 static struct timeval before_tv;
 static int hflag, pflag;
@@ -130,8 +131,17 @@ main(int argc, char **argv)
 	/* parent */
 	(void)signal(SIGINT, SIG_IGN);
 	(void)signal(SIGQUIT, SIG_IGN);
+	siginfo_recvd = 0;
 	(void)signal(SIGINFO, siginfo);
-	while (wait4(pid, &status, 0, &ru) != pid);
+	(void)siginterrupt(SIGINFO, 1);
+	while (wait4(pid, &status, 0, &ru) != pid) {
+		if (siginfo_recvd) {
+			siginfo_recvd = 0;
+			(void)gettimeofday(&after, NULL);
+			getrusage(RUSAGE_CHILDREN, &ru);
+			showtime(stdout, &before_tv, &after, &ru);
+		}
+	}
 	(void)gettimeofday(&after, NULL);
 	if ( ! WIFEXITED(status))
 		warnx("command terminated abnormally");
@@ -292,10 +302,6 @@ showtime(FILE *out, struct timeval *before, struct timeval *after,
 static void
 siginfo(int sig __unused)
 {
-	struct timeval after;
-	struct rusage ru;
 
-	(void)gettimeofday(&after, NULL);
-	getrusage(RUSAGE_CHILDREN, &ru);
-	showtime(stdout, &before_tv, &after, &ru);
+	siginfo_recvd = 1;
 }

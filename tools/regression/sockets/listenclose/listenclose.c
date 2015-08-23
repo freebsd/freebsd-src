@@ -52,7 +52,7 @@
  */
 
 int
-main(int argc, char *argv[])
+main(void)
 {
 	int listen_sock, connect_sock;
 	struct sockaddr_in sin;

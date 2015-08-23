@@ -39,7 +39,7 @@ case "${MACHINE}" in
 esac
 
 awk -v x="$ioctl_includes" 'BEGIN {print x}' |
-	$CPP -I$1 -dM -DCOMPAT_43TTY - |
+	$CPP -nostdinc -I$includedir -dM -DCOMPAT_43TTY - |
 	awk -v ioctl_includes="$ioctl_includes" -v style="$style" '
 BEGIN {
 	print "/* XXX obnoxious prerequisites. */"
@@ -54,7 +54,6 @@ BEGIN {
 	print "#include <bsm/audit.h>"
 	print "#include <net/ethernet.h>"
 	print "#include <net/if.h>"
-	print "#include <net/if_var.h>"
 	print "#ifdef PF"
 	print "#include <net/pfvar.h>"
 	print "#include <net/if_pfsync.h>"

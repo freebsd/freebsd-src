@@ -21,7 +21,7 @@
 .\"
 .\" $OpenBSD: patch.1,v 1.27 2014/04/15 06:26:54 jmc Exp $
 .\" $FreeBSD$
-.Dd June 15, 2014
+.Dd July 21, 2015
 .Dt PATCH 1
 .Os
 .Sh NAME
@@ -39,7 +39,7 @@
 .Op Fl o Ar out-file
 .Op Fl p Ar strip-count
 .Op Fl r Ar rej-name
-.Op Fl V Cm t | nil | never
+.Op Fl V Cm t | nil | never | none
 .Op Fl x Ar number
 .Op Fl z Ar backup-ext
 .Op Fl Fl posix
@@ -296,8 +296,8 @@ Forces
 .Nm
 to interpret the patch file as a unified context diff (a unidiff).
 .It Xo
-.Fl V Cm t | nil | never ,
-.Fl Fl version-control Cm t | nil | never
+.Fl V Cm t | nil | never | none ,
+.Fl Fl version-control Cm t | nil | never | none
 .Xc
 Causes the next argument to be interpreted as a method for creating
 backup file names.
@@ -328,6 +328,8 @@ Make numbered backups of files that already have them,
 simple backups of the others.
 .It Cm never , simple
 Always make simple backups.
+.It Cm none
+Do not make backups.
 .El
 .It Fl v , Fl Fl version
 Causes

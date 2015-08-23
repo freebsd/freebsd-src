@@ -34,7 +34,6 @@
 #include <stdint.h>
 #include <string.h>
 
-#include "ctld.h"
 #include "y.tab.h"
 
 int lineno;
@@ -65,12 +64,14 @@ listen			{ return LISTEN; }
 listen-iser		{ return LISTEN_ISER; }
 lun			{ return LUN; }
 maxproc			{ return MAXPROC; }
+offload			{ return OFFLOAD; }
 option			{ return OPTION; }
 path			{ return PATH; }
 pidfile			{ return PIDFILE; }
 isns-server		{ return ISNS_SERVER; }
 isns-period		{ return ISNS_PERIOD; }
 isns-timeout		{ return ISNS_TIMEOUT; }
+port			{ return PORT; }
 portal-group		{ return PORTAL_GROUP; }
 redirect		{ return REDIRECT; }
 serial			{ return SERIAL; }
@@ -79,7 +80,7 @@ target			{ return TARGET; }
 timeout			{ return TIMEOUT; }
 \"[^"]+\"		{ yylval.str = strndup(yytext + 1,
 			    strlen(yytext) - 2); return STR; }
-[a-zA-Z0-9\.\-_/\:\[\]]+ { yylval.str = strdup(yytext); return STR; }
+[a-zA-Z0-9\.\-@_/\:\[\]]+ { yylval.str = strdup(yytext); return STR; }
 \{			{ return OPENING_BRACKET; }
 \}			{ return CLOSING_BRACKET; }
 #.*$			/* ignore comments */;

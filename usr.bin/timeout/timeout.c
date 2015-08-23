@@ -172,6 +172,7 @@ main(int argc, char **argv)
 	double second_kill;
 	bool timedout = false;
 	bool do_second_kill = false;
+	bool child_done = false;
 	struct sigaction signals;
 	struct procctl_reaper_status info;
 	struct procctl_reaper_kill killemall;
@@ -187,7 +188,6 @@ main(int argc, char **argv)
 
 	foreground = preserve = 0;
 	second_kill = 0;
-	cpid = -1;
 
 	const struct option longopts[] = {
 		{ "preserve-status", no_argument,       &preserve,    1 },
@@ -281,20 +281,26 @@ main(int argc, char **argv)
 
 		if (sig_chld) {
 			sig_chld = 0;
-			while (((cpid = wait(&status)) < 0) && errno == EINTR)
-				continue;
 
-			if (cpid == pid) {
-				pstat = status;
-				if (!foreground)
-					break;
+			while ((cpid = waitpid(-1, &status, WNOHANG)) != 0) {
+				if (cpid < 0) {
+					if (errno == EINTR)
+						continue;
+					else
+						break;
+				} else if (cpid == pid) {
+					pstat = status;
+					child_done = true;
+				}
 			}
-			if (!foreground) {
-				procctl(P_PID, getpid(), PROC_REAP_STATUS,
-				    &info);
-				if (info.rs_children == 0) {
-					cpid = pid;
+			if (child_done) {
+				if (foreground) {
 					break;
+				} else {
+					procctl(P_PID, getpid(),
+					    PROC_REAP_STATUS, &info);
+					if (info.rs_children == 0)
+						break;
 				}
 			}
 		} else if (sig_alrm) {
@@ -336,7 +342,7 @@ main(int argc, char **argv)
 		}
 	}
 
-	while (cpid != pid  && wait(&pstat) == -1) {
+	while (!child_done && wait(&pstat) == -1) {
 		if (errno != EINTR)
 			err(EX_OSERR, "waitpid()");
 	}

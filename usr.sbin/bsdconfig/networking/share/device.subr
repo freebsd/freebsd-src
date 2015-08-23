@@ -1,6 +1,6 @@
 if [ ! "$_NETWORKING_DEVICE_SUBR" ]; then _NETWORKING_DEVICE_SUBR=1
 #
-# Copyright (c) 2006-2013 Devin Teske
+# Copyright (c) 2006-2015 Devin Teske
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -207,7 +207,7 @@ f_dialog_menu_netdev_edit()
 			'3 $msg_ipaddr4'   '$ipaddr'
 			'4 $msg_netmask'   '$netmask'
 			'5 $msg_options'   '$options'
-		"
+		" # END-QUOTE
 		eval f_dialog_menu_size height width rows \
 		                        \"\$DIALOG_TITLE\"     \
 		                        \"\$DIALOG_BACKTITLE\" \

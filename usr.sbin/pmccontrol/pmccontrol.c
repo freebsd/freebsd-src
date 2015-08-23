@@ -147,10 +147,8 @@ pmcc_do_enable_disable(struct pmcc_op_list *op_list)
 	if (npmc == 0)
 		errx(EX_CONFIG, "No PMCs found");
 
-	if ((map = malloc(npmc * ncpu)) == NULL)
+	if ((map = calloc(npmc, ncpu)) == NULL)
 		err(EX_SOFTWARE, "Out of memory");
-
-	(void) memset(map, PMCC_OP_IGNORE, npmc*ncpu);
 
 	error = 0;
 	STAILQ_FOREACH(np, op_list, op_next) {

@@ -121,6 +121,13 @@ if [ $# -gt 0 ] ; then
 	usage
 fi
 
+#######################################################################
+# And then it is as simple as that...
+
+# File descriptor 3 is used for logging output, see pprint
+exec 3>&1
+set_defaults_and_export
+
 if [ ! -d "${NANO_TOOLS}" ]; then
 	echo "NANO_TOOLS directory does not exist" 1>&2
 	exit 1
@@ -129,13 +136,6 @@ fi
 if ! $do_clean; then
 	NANO_PMAKE="${NANO_PMAKE} -DNO_CLEAN"
 fi
-
-#######################################################################
-# And then it is as simple as that...
-
-# File descriptor 3 is used for logging output, see pprint
-exec 3>&1
-set_defaults_and_export
 
 pprint 1 "NanoBSD image ${NANO_NAME} build starting"
 

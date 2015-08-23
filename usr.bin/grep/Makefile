@@ -11,7 +11,7 @@ PROG=	bsdgrep
 CLEANFILES+= bsdgrep.1
 
 bsdgrep.1: grep.1
-	cp -f ${.ALLSRC} ${.TARGET}
+	${CP} ${.ALLSRC} ${.TARGET}
 .endif
 SRCS=	file.c grep.c queue.c util.c
 
@@ -19,6 +19,8 @@ SRCS=	file.c grep.c queue.c util.c
 .PATH: ${.CURDIR}/regex
 SRCS+=	fastmatch.c hashtable.c tre-compile.c tre-fastmatch.c xmalloc.c
 CFLAGS+=-I${.CURDIR}/regex
+
+CFLAGS.gcc+= --param max-inline-insns-single=500
 
 .if ${MK_BSD_GREP} == "yes"
 LINKS=	${BINDIR}/grep ${BINDIR}/egrep \
@@ -31,13 +33,7 @@ MLINKS= grep.1 egrep.1 \
 	grep.1 fgrep.1 \
 	grep.1 zgrep.1 \
 	grep.1 zegrep.1 \
-	grep.1 zfgrep.1 \
-	grep.1 xzgrep.1 \
-	grep.1 xzegrep.1 \
-	grep.1 xzfgrep.1 \
-	grep.1 lzgrep.1 \
-	grep.1 lzegrep.1 \
-	grep.1 lzfgrep.1
+	grep.1 zfgrep.1
 .endif
 
 LIBADD=	z
@@ -45,12 +41,21 @@ LIBADD=	z
 .if ${MK_LZMA_SUPPORT} != "no"
 LIBADD+=	lzma
 
+.if ${MK_BSD_GREP} == "yes"
 LINKS+=	${BINDIR}/${PROG} ${BINDIR}/xzgrep \
 	${BINDIR}/${PROG} ${BINDIR}/xzegrep \
 	${BINDIR}/${PROG} ${BINDIR}/xzfgrep \
 	${BINDIR}/${PROG} ${BINDIR}/lzgrep \
 	${BINDIR}/${PROG} ${BINDIR}/lzegrep \
 	${BINDIR}/${PROG} ${BINDIR}/lzfgrep
+
+MLINKS+= grep.1 xzgrep.1 \
+	 grep.1 xzegrep.1 \
+	 grep.1 xzfgrep.1 \
+	 grep.1 lzgrep.1 \
+	 grep.1 lzegrep.1 \
+	 grep.1 lzfgrep.1
+.endif
 .else
 CFLAGS+= -DWITHOUT_LZMA
 .endif

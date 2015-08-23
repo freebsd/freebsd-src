@@ -206,12 +206,11 @@ newfs_command(const char *fstype, char *command, int use_default)
 	}
 }
 
-int
-gpart_partition(const char *lg_name, const char *scheme)
+const char *
+choose_part_type(const char *def_scheme)
 {
 	int cancel, choice;
-	struct gctl_req *r;
-	const char *errstr;
+	const char *scheme = NULL;
 
 	DIALOG_LISTITEM items[] = {
 		{"APM", "Apple Partition Map",
@@ -228,30 +227,61 @@ gpart_partition(const char *lg_name, const char *scheme)
 		    "Bootable on Sun SPARC systems", 0 },
 	};
 
+parttypemenu:
+	dialog_vars.default_item = __DECONST(char *, def_scheme);
+	cancel = dlg_menu("Partition Scheme",
+	    "Select a partition scheme for this volume:", 0, 0, 0,
+	    sizeof(items) / sizeof(items[0]), items, &choice, NULL);
+	dialog_vars.default_item = NULL;
+
+	if (cancel)
+		return NULL;
+
+	if (!is_scheme_bootable(items[choice].name)) {
+		char message[512];
+		sprintf(message, "This partition scheme (%s) is not "
+		    "bootable on this platform. Are you sure you want "
+		    "to proceed?", items[choice].name);
+		dialog_vars.defaultno = TRUE;
+		cancel = dialog_yesno("Warning", message, 0, 0);
+		dialog_vars.defaultno = FALSE;
+		if (cancel) /* cancel */
+			goto parttypemenu;
+	}
+
+	scheme = items[choice].name;
+
+	return scheme;
+}
+
+int
+gpart_partition(const char *lg_name, const char *scheme)
+{
+	int cancel;
+	struct gctl_req *r;
+	const char *errstr;
+
 schememenu:
 	if (scheme == NULL) {
-		dialog_vars.default_item = __DECONST(char *, default_scheme());
-		cancel = dlg_menu("Partition Scheme",
-		    "Select a partition scheme for this volume:", 0, 0, 0,
-		    sizeof(items) / sizeof(items[0]), items, &choice, NULL);
-		dialog_vars.default_item = NULL;
+		scheme = choose_part_type(default_scheme());
 
-		if (cancel)
+		if (scheme == NULL)
 			return (-1);
 
-		if (!is_scheme_bootable(items[choice].name)) {
+		if (!is_scheme_bootable(scheme)) {
 			char message[512];
 			sprintf(message, "This partition scheme (%s) is not "
 			    "bootable on this platform. Are you sure you want "
-			    "to proceed?", items[choice].name);
+			    "to proceed?", scheme);
 			dialog_vars.defaultno = TRUE;
 			cancel = dialog_yesno("Warning", message, 0, 0);
 			dialog_vars.defaultno = FALSE;
-			if (cancel) /* cancel */
+			if (cancel) { /* cancel */
+				/* Reset scheme so user can choose another */
+				scheme = NULL;
 				goto schememenu;
+			}
 		}
-
-		scheme = items[choice].name;
 	}
 
 	r = gctl_get_handle();
@@ -318,6 +348,26 @@ gpart_activate(struct gprovider *pp)
 	errstr = gctl_issue(r);
 	if (errstr != NULL && errstr[0] != '\0') 
 		gpart_show_error("Error", "Error marking partition active:",
+		    errstr);
+	gctl_free(r);
+}
+
+void
+gpart_set_root(const char *lg_name, const char *attribute)
+{
+	struct gctl_req *r;
+	const char *errstr;
+
+	r = gctl_get_handle();
+	gctl_ro_param(r, "class", -1, "PART");
+	gctl_ro_param(r, "arg0", -1, lg_name);
+	gctl_ro_param(r, "flags", -1, "C");
+	gctl_ro_param(r, "verb", -1, "set");
+	gctl_ro_param(r, "attrib", -1, attribute);
+
+	errstr = gctl_issue(r);
+	if (errstr != NULL && errstr[0] != '\0') 
+		gpart_show_error("Error", "Error setting parameter on disk:",
 		    errstr);
 	gctl_free(r);
 }

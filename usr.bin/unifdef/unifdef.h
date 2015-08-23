@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Tony Finch <dot@dotat.at>
+ * Copyright (c) 2012 - 2013 Tony Finch <dot@dotat.at>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -39,6 +39,8 @@
 /* portabiity stubs */
 
 #define fbinmode(fp) (fp)
+
+#define replace(old,new) rename(old,new)
 
 static FILE *
 mktempmode(char *tmp, int mode)

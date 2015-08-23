@@ -12,6 +12,7 @@ CLEANFILES+=	opt_ah.h
 
 CFLAGS+=-DATH_SUPPORT_ANI
 CFLAGS+=-DATH_SUPPORT_TDMA
+CFLAGS+=-I${.CURDIR}/../../../../lib/libbsdstat/
 LIBADD+=	bsdstat
 
 opt_ah.h:

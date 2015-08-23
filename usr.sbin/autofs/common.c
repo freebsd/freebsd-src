@@ -86,58 +86,36 @@ checked_strdup(const char *s)
 }
 
 /*
- * Take two pointers to strings, concatenate the contents with "/" in the
- * middle, make the first pointer point to the result, the second pointer
- * to NULL, and free the old strings.
- *
- * Concatenate pathnames, basically.
- */
-static void
-concat(char **p1, char **p2)
-{
-	int ret;
-	char *path;
-
-	assert(p1 != NULL);
-	assert(p2 != NULL);
-
-	if (*p1 == NULL)
-		*p1 = checked_strdup("");
-
-	if (*p2 == NULL)
-		*p2 = checked_strdup("");
-
-	ret = asprintf(&path, "%s/%s", *p1, *p2);
-	if (ret < 0)
-		log_err(1, "asprintf");
-
-	/*
-	 * XXX
-	 */
-	//free(*p1);
-	//free(*p2);
-
-	*p1 = path;
-	*p2 = NULL;
-}
-
-/*
  * Concatenate two strings, inserting separator between them, unless not needed.
- *
- * This function is very convenient to use when you do not care about freeing
- * memory - which is okay here, because we are a short running process.
  */
 char *
-separated_concat(const char *s1, const char *s2, char separator)
+concat(const char *s1, char separator, const char *s2)
 {
 	char *result;
+	char s1last, s2first;
 	int ret;
 
-	assert(s1 != NULL);
-	assert(s2 != NULL);
+	if (s1 == NULL)
+		s1 = "";
+	if (s2 == NULL)
+		s2 = "";
 
-	if (s1[0] == '\0' || s2[0] == '\0' ||
-	    s1[strlen(s1) - 1] == separator || s2[0] == separator) {
+	if (s1[0] == '\0')
+		s1last = '\0';
+	else
+		s1last = s1[strlen(s1) - 1];
+
+	s2first = s2[0];
+
+	if (s1last == separator && s2first == separator) {
+		/*
+		 * If s1 ends with the separator and s2 begins with
+		 * it - skip the latter; otherwise concatenating "/"
+		 * and "/foo" would end up returning "//foo".
+		 */
+		ret = asprintf(&result, "%s%s", s1, s2 + 1);
+	} else if (s1last == separator || s2first == separator ||
+	    s1[0] == '\0' || s2[0] == '\0') {
 		ret = asprintf(&result, "%s%s", s1, s2);
 	} else {
 		ret = asprintf(&result, "%s%c%s", s1, separator, s2);
@@ -145,7 +123,7 @@ separated_concat(const char *s1, const char *s2, char separator)
 	if (ret < 0)
 		log_err(1, "asprintf");
 
-	//log_debugx("separated_concat: got %s and %s, returning %s", s1, s2, result);
+	//log_debugx("%s: got %s and %s, returning %s", __func__, s1, s2, result);
 
 	return (result);
 }
@@ -153,7 +131,7 @@ separated_concat(const char *s1, const char *s2, char separator)
 void
 create_directory(const char *path)
 {
-	char *component, *copy, *tofree, *partial;
+	char *component, *copy, *tofree, *partial, *tmp;
 	int error;
 
 	assert(path[0] == '/');
@@ -163,12 +141,14 @@ create_directory(const char *path)
 	 */
 	copy = tofree = checked_strdup(path + 1);
 
-	partial = NULL;
+	partial = checked_strdup("");
 	for (;;) {
 		component = strsep(&copy, "/");
 		if (component == NULL)
 			break;
-		concat(&partial, &component);
+		tmp = concat(partial, '/', component);
+		free(partial);
+		partial = tmp;
 		//log_debugx("creating \"%s\"", partial);
 		error = mkdir(partial, 0755);
 		if (error != 0 && errno != EEXIST) {
@@ -480,6 +460,18 @@ node_expand_defined(struct node *n)
 	return (cumulated_error);
 }
 
+static bool
+node_is_direct_key(const struct node *n)
+{
+
+	if (n->n_parent != NULL && n->n_parent->n_parent == NULL &&
+	    strcmp(n->n_key, "/-") == 0) {
+		return (true);
+	}
+
+	return (false);
+}
+
 bool
 node_is_direct_map(const struct node *n)
 {
@@ -491,11 +483,7 @@ node_is_direct_map(const struct node *n)
 		n = n->n_parent;
 	}
 
-	assert(n->n_key != NULL);
-	if (strcmp(n->n_key, "/-") != 0)
-		return (false);
-
-	return (true);
+	return (node_is_direct_key(n));
 }
 
 bool
@@ -561,7 +549,6 @@ static char *
 node_path_x(const struct node *n, char *x)
 {
 	char *path;
-	size_t len;
 
 	if (n->n_parent == NULL)
 		return (x);
@@ -570,23 +557,12 @@ node_path_x(const struct node *n, char *x)
 	 * Return "/-" for direct maps only if we were asked for path
 	 * to the "/-" node itself, not to any of its subnodes.
 	 */
-	if (n->n_parent->n_parent == NULL &&
-	    strcmp(n->n_key, "/-") == 0 &&
-	    x[0] != '\0') {
+	if (node_is_direct_key(n) && x[0] != '\0')
 		return (x);
-	}
 
 	assert(n->n_key[0] != '\0');
-	path = separated_concat(n->n_key, x, '/');
+	path = concat(n->n_key, '/', x);
 	free(x);
-
-	/*
-	 * Strip trailing slash.
-	 */
-	len = strlen(path);
-	assert(len > 0);
-	if (path[len - 1] == '/')
-		path[len - 1] = '\0';
 
 	return (node_path_x(n->n_parent, path));
 }
@@ -598,8 +574,19 @@ node_path_x(const struct node *n, char *x)
 char *
 node_path(const struct node *n)
 {
+	char *path;
+	size_t len;
 
-	return (node_path_x(n, checked_strdup("")));
+	path = node_path_x(n, checked_strdup(""));
+
+	/*
+	 * Strip trailing slash, unless the whole path is "/".
+	 */
+	len = strlen(path);
+	if (len > 1 && path[len - 1] == '/')
+		path[len - 1] = '\0';
+
+	return (path);
 }
 
 static char *
@@ -607,9 +594,11 @@ node_options_x(const struct node *n, char *x)
 {
 	char *options;
 
-	options = separated_concat(x, n->n_options, ',');
-	if (n->n_parent == NULL)
-		return (options);
+	if (n == NULL)
+		return (x);
+
+	options = concat(x, ',', n->n_options);
+	free(x);
 
 	return (node_options_x(n->n_parent, options));
 }
@@ -627,13 +616,16 @@ node_options(const struct node *n)
 }
 
 static void
-node_print_indent(const struct node *n, int indent)
+node_print_indent(const struct node *n, const char *cmdline_options,
+    int indent)
 {
 	const struct node *child, *first_child;
-	char *path, *options;
+	char *path, *options, *tmp;
 
 	path = node_path(n);
-	options = node_options(n);
+	tmp = node_options(n);
+	options = concat(cmdline_options, ',', tmp);
+	free(tmp);
 
 	/*
 	 * Do not show both parent and child node if they have the same
@@ -664,16 +656,21 @@ node_print_indent(const struct node *n, int indent)
 	free(options);
 
 	TAILQ_FOREACH(child, &n->n_children, n_next)
-		node_print_indent(child, indent + 2);
+		node_print_indent(child, cmdline_options, indent + 2);
 }
 
+/*
+ * Recursively print node with all its children.  The cmdline_options
+ * argument is used for additional options to be prepended to all the
+ * others - usually those are the options passed by command line.
+ */
 void
-node_print(const struct node *n)
+node_print(const struct node *n, const char *cmdline_options)
 {
 	const struct node *child;
 
 	TAILQ_FOREACH(child, &n->n_children, n_next)
-		node_print_indent(child, 0);
+		node_print_indent(child, cmdline_options, 0);
 }
 
 static struct node *
@@ -683,29 +680,34 @@ node_find_x(struct node *node, const char *path)
 	char *tmp;
 	size_t tmplen;
 
-	//log_debugx("looking up %s in %s", path, node->n_key);
+	//log_debugx("looking up %s in %s", path, node_path(node));
 
-	tmp = node_path(node);
-	tmplen = strlen(tmp);
-	if (strncmp(tmp, path, tmplen) != 0) {
+	if (!node_is_direct_key(node)) {
+		tmp = node_path(node);
+		tmplen = strlen(tmp);
+		if (strncmp(tmp, path, tmplen) != 0) {
+			free(tmp);
+			return (NULL);
+		}
+		if (path[tmplen] != '/' && path[tmplen] != '\0') {
+			/*
+			 * If we have two map entries like 'foo' and 'foobar', make
+			 * sure the search for 'foobar' won't match 'foo' instead.
+			 */
+			free(tmp);
+			return (NULL);
+		}
 		free(tmp);
-		return (NULL);
 	}
-	if (path[tmplen] != '/' && path[tmplen] != '\0') {
-		/*
-		 * If we have two map entries like 'foo' and 'foobar', make
-		 * sure the search for 'foobar' won't match 'foo' instead.
-		 */
-		free(tmp);
-		return (NULL);
-	}
-	free(tmp);
 
 	TAILQ_FOREACH(child, &node->n_children, n_next) {
 		found = node_find_x(child, path);
 		if (found != NULL)
 			return (found);
 	}
+
+	if (node->n_parent == NULL || node_is_direct_key(node))
+		return (NULL);
 
 	return (node);
 }
@@ -715,9 +717,12 @@ node_find(struct node *root, const char *path)
 {
 	struct node *node;
 
+	assert(root->n_parent == NULL);
+
 	node = node_find_x(root, path);
-	if (node == root)
-		return (NULL);
+	if (node != NULL)
+		assert(node != root);
+
 	return (node);
 }
 

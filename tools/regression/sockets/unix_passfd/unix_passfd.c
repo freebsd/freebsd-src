@@ -139,7 +139,7 @@ sendfd_payload(const char *test, int sockfd, int sendfd,
 	len = sendmsg(sockfd, &msghdr, 0);
 	if (len < 0)
 		err(-1, "%s: sendmsg", test);
-	if (len != paylen)
+	if ((size_t)len != paylen)
 		errx(-1, "%s: sendmsg: %zd bytes sent", test, len);
 }
 
@@ -175,7 +175,7 @@ recvfd_payload(const char *test, int sockfd, int *recvfd,
 	len = recvmsg(sockfd, &msghdr, 0);
 	if (len < 0)
 		err(-1, "%s: recvmsg", test);
-	if (len != buflen)
+	if ((size_t)len != buflen)
 		errx(-1, "%s: recvmsg: %zd bytes received", test, len);
 
 	cmsghdr = CMSG_FIRSTHDR(&msghdr);
@@ -205,7 +205,7 @@ recvfd(const char *test, int sockfd, int *recvfd)
 }
 
 int
-main(int argc, char *argv[])
+main(void)
 {
 	struct stat putfd_1_stat, putfd_2_stat, getfd_1_stat, getfd_2_stat;
 	int fd[2], putfd_1, putfd_2, getfd_1, getfd_2;
@@ -354,7 +354,7 @@ main(int argc, char *argv[])
 	 * payload. Payload + SCM_RIGHTS + LOCAL_CREDS hit socket buffer
 	 * limit, and receiver receives truncated data.
 	 */
-	test = "test8-rigths+creds+payload";
+	test = "test8-rights+creds+payload";
 	printf("beginning %s\n", test);
 
 	{

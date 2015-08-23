@@ -47,6 +47,7 @@ LIBDEPS=llvmirreader \
 	llvmasmprinter \
 	llvmcodegen \
 	llvmscalaropts \
+	llvmprofiledata \
 	llvminstcombine \
 	llvmtransformutils \
 	llvmipa \
@@ -56,11 +57,12 @@ LIBDEPS=llvmirreader \
 	llvmobject \
 	llvmmcparser \
 	llvmbitreader \
-	llvmcore \
+	llvmmcdisassembler \
 	llvmx86info \
 	llvmx86instprinter \
 	llvmmc \
 	llvmx86utils \
+	llvmcore \
 	llvmsupport
 
 .include "../clang.prog.mk"

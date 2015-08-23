@@ -16,7 +16,7 @@ LIBADD+=	krb5 roken
 CFLAGS+= -DWITHOUT_KERBEROS
 .endif
 
-CLEANFILES= gssd_svc.c gssd.h
+CLEANFILES= gssd_svc.c gssd_xdr.c gssd.h
 
 RPCSRC=	${.CURDIR}/../../sys/kgssapi/gssd.x
 RPCGEN= RPCGEN_CPP=${CPP:Q} rpcgen -L -C -M

@@ -38,7 +38,6 @@
 
 #include <net/if.h>
 #include <net/if_dl.h>
-#include <net/if_var.h>
 
 #include <netinet/in.h>
 #include <netinet/icmp6.h>

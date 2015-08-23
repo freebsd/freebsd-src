@@ -229,34 +229,38 @@ usage(bool opt_err)
 static void
 read_fns_from_file0(const char *fn)
 {
-	if (fn) {
-		struct file0_reader f0r;
-		FILE *f;
+	FILE *f;
+	char *line = NULL;
+	size_t linesize = 0;
+	ssize_t linelen;
 
-		f = fopen(fn, "r");
-		if (f == NULL)
-			err(2, NULL);
+	if (fn == NULL)
+		return;
 
-		memset(&f0r, 0, sizeof(f0r));
-		f0r.f = f;
+	f = fopen(fn, "r");
+	if (f == NULL)
+		err(2, "%s", fn);
 
-		while (!feof(f)) {
-			char *line = read_file0_line(&f0r);
-
-			if (line && *line) {
-				if (argc_from_file0 == (size_t)-1)
-					argc_from_file0 = 0;
-				++argc_from_file0;
-				argv_from_file0 = sort_realloc(argv_from_file0,
-				    argc_from_file0 * sizeof(char *));
-				if (argv_from_file0 == NULL)
-					err(2, NULL);
-				argv_from_file0[argc_from_file0 - 1] =
-				    sort_strdup(line);
-			}
+	while ((linelen = getdelim(&line, &linesize, '\0', f)) != -1) {
+		if (*line != '\0') {
+			if (argc_from_file0 == (size_t) - 1)
+				argc_from_file0 = 0;
+			++argc_from_file0;
+			argv_from_file0 = sort_realloc(argv_from_file0,
+			    argc_from_file0 * sizeof(char *));
+			if (argv_from_file0 == NULL)
+				err(2, NULL);
+			argv_from_file0[argc_from_file0 - 1] = line;
+		} else {
+			free(line);
 		}
-		closefile(f, fn);
+		line = NULL;
+		linesize = 0;
 	}
+	if (ferror(f))
+		err(2, "%s: getdelim", fn);
+
+	closefile(f, fn);
 }
 
 /*
@@ -523,7 +527,7 @@ check_mutually_exclusive_flags(char c, bool *mef_flags)
 	int fo_index, mec;
 	bool found_others, found_this;
 
-	found_others = found_this =false;
+	found_others = found_this = false;
 	fo_index = 0;
 
 	for (int i = 0; i < NUMBER_OF_MUTUALLY_EXCLUSIVE_FLAGS; i++) {

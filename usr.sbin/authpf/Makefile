@@ -13,7 +13,7 @@ SRCS=   authpf.c
 # XXX ALTQ:
 CFLAGS+= -DENABLE_ALTQ
 
-LIBADD=	m md util
+LIBADD=	m util
 
 WARNS?=	3
 

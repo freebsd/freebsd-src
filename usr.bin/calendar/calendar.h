@@ -168,10 +168,6 @@ void	closecal(FILE *);
 FILE	*opencalin(void);
 FILE	*opencalout(void);
 
-/* calcpp.c */
-void	initcpp(void);
-FILE	*fincludegets(char *buf, int size, FILE *fp);
-
 /* ostern.c / paskha.c */
 int	paskha(int);
 int	easter(int);

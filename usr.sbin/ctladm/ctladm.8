@@ -34,7 +34,7 @@
 .\" $Id: //depot/users/kenm/FreeBSD-test2/usr.sbin/ctladm/ctladm.8#3 $
 .\" $FreeBSD$
 .\"
-.Dd December 17, 2014
+.Dd June 3, 2015
 .Dt CTLADM 8
 .Os
 .Sh NAME
@@ -196,10 +196,16 @@
 .Ic portlist
 .Op Fl f Ar frontend
 .Op Fl i
+.Op Fl l
 .Op Fl p Ar targ_port
 .Op Fl q
 .Op Fl v
 .Op Fl x
+.Nm
+.Ic lunmap
+.Aq Fl p Ar targ_port
+.Op Fl l Ar pLUN
+.Op Fl L Ar cLUN
 .Nm
 .Ic dumpooa
 .Nm
@@ -782,7 +788,9 @@ List CTL frontend ports.
 .It Fl f Ar frontend
 Specify the frontend type.
 .It Fl i
-Report target and connected initiators addresses
+Report target and connected initiators addresses.
+.It Fl l
+Report LUN mapping.
 .It Fl p Ar targ_port
 Specify the frontend port number.
 .It Fl q
@@ -791,6 +799,31 @@ Omit the header in the port list output.
 Enable verbose output (report all port options).
 .It Fl x
 Output the port list in XML format.
+.El
+.It Ic lunmap
+Change LUN mapping for specified port.
+If both
+.Ar pLUN
+and
+.Ar cLUN
+are specified -- LUN will be mapped.
+If
+.Ar pLUN
+is specified, but
+.Ar cLUN
+is not -- LUN will be unmapped.
+If neither
+.Ar pLUN
+nor
+.Ar cLUN
+are specified -- LUN mapping will be disabled, exposing all CTL LUNs.
+.Bl -tag -width 12n
+.It Fl p Ar targ_port
+Specify the frontend port number.
+.It Fl l Ar pLUN
+LUN number visible by specified port.
+.It Fl L Ar cLUN
+CTL LUN number.
 .El
 .It Ic dumpooa
 Dump the OOA (Order Of Arrival) queue for each LUN registered with CTL.
@@ -918,21 +951,21 @@ If you specify
 the entire LUN database is displayed in XML format.
 .El
 .It Ic islist
-Get a list of currently running iSCSI connections.
+Get a list of currently running iSCSI sessions.
 This includes initiator and target names and the unique connection IDs.
 .Bl -tag -width 11n
 .It Fl v
 Verbose mode.
 .It Fl x
 Dump the raw XML.
-The connections list information from the kernel comes in XML format, and this
+The sessions list information from the kernel comes in XML format, and this
 option allows the display of the raw XML data.
 .El
 .It Ic islogout
-Ask the initiator to log out iSCSI connections matching criteria.
+Ask the initiator to log out iSCSI sessions matching criteria.
 .Bl -tag -width 11n
 .It Fl a
-Log out all connections.
+Log out all sessions.
 .It Fl c
 Specify connection ID.
 .It Fl i
@@ -941,10 +974,10 @@ Specify initiator name.
 Specify initiator portal (hostname or IP address).
 .El
 .It Ic isterminate
-Forcibly terminate iSCSI connections matching criteria.
+Forcibly terminate iSCSI sessions matching criteria.
 .Bl -tag -width 11n
 .It Fl a
-Terminate all connections.
+Terminate all sessions.
 .It Fl c
 Specify connection ID.
 .It Fl i
@@ -1002,11 +1035,11 @@ Set to "off" to allow them be issued in parallel.
 Parallel issue of consecutive operations may confuse logic of the
 backing file system, hurting performance; but it may improve performance
 of backing stores without prefetch/write-back.
-.It Va psectorsize
-.It Va psectoroffset
+.It Va pblocksize
+.It Va pblockoffset
 Specify physical block size and offset of the device.
-.It Va usectorsize
-.It Va usectoroffset
+.It Va ublocksize
+.It Va ublockoffset
 Specify UNMAP block size and offset of the device.
 .It Va rpm
 .It Va rpm
@@ -1127,7 +1160,8 @@ This will result in a sense key of NOT READY (0x02), and an ASC/ASCQ of
 .Xr ctl 4 ,
 .Xr xpt 4 ,
 .Xr camcontrol 8 ,
-.Xr ctld 8
+.Xr ctld 8 ,
+.Xr ctlstat 8
 .Sh HISTORY
 The
 .Nm

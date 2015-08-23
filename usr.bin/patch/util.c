@@ -27,13 +27,13 @@
  * $FreeBSD$
  */
 
-#include <sys/param.h>
 #include <sys/stat.h>
 
 #include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <libgen.h>
+#include <limits.h>
 #include <paths.h>
 #include <signal.h>
 #include <stdarg.h>
@@ -96,7 +96,7 @@ int
 backup_file(const char *orig)
 {
 	struct stat	filestat;
-	char		bakname[MAXPATHLEN], *s, *simplename;
+	char		bakname[PATH_MAX], *s, *simplename;
 	dev_t		orig_device;
 	ino_t		orig_inode;
 
@@ -406,7 +406,7 @@ fetchname(const char *at, bool *exists, int strip_leading)
 char *
 checked_in(char *file)
 {
-	char		*filebase, *filedir, tmpbuf[MAXPATHLEN];
+	char		*filebase, *filedir, tmpbuf[PATH_MAX];
 	struct stat	filestat;
 
 	filebase = basename(file);

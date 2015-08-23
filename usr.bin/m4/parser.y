@@ -19,15 +19,9 @@
  */
 
 #include <math.h>
-#include <stddef.h>
-#include <stdio.h>
 #include <stdint.h>
-
-#include "mdef.h"
-#include "extern.h"
-
 #define YYSTYPE	int32_t
-
+extern int32_t end_result;
 extern int yylex(void);
 extern int yyerror(const char *);
 %}

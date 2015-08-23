@@ -53,7 +53,8 @@ SRCS+=	tls_openssl.c
 .endif
 
 .if defined(CONFIG_INTERNAL_AES)
-SRCS+=	aes-internal.c \
+SRCS+=	aes-unwrap.c aes-wrap.c \
+	aes-internal.c \
 	aes-internal-dec.c \
 	aes-internal-enc.c
 .endif
@@ -92,7 +93,7 @@ SRCS+=	md4-internal.c
 .endif
 
 .if defined(CONFIG_INTERNAL_MD5)
-SRCS+=	md5-internal.c
+SRCS+=	md5.c md5-internal.c
 .endif
 
 .if defined(NEED_FIPS186_2_PRF)

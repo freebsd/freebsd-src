@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2009 Advanced Computing Technologies LLC
+ * Copyright (c) 2009 Hudson River Trading LLC
  * Written by: George V. Neville-Neil <gnn@FreeBSD.org>
  * All rights reserved.
  *

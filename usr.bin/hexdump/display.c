@@ -380,7 +380,7 @@ doskip(const char *fname, int statok)
 			return;
 		}
 	}
-	if (S_ISREG(sb.st_mode)) {
+	if (statok && S_ISREG(sb.st_mode)) {
 		if (fseeko(stdin, skip, SEEK_SET))
 			err(1, "%s", fname);
 		address += skip;

@@ -172,6 +172,10 @@ parse_entry(struct mod_metadata *md, const char *cval,
 			record_string(kldname);
 		}
 		break;
+	case MDT_PNP_INFO:
+		if (dflag) {
+			printf("  pnp info for bus %s\n", cval);
+		}
 	default:
 		warnx("unknown metadata record %d in file %s", md->md_type, kldname);
 	}

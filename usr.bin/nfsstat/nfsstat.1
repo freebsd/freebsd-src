@@ -28,7 +28,7 @@
 .\"     From: @(#)nfsstat.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd May 1, 2013
+.Dd April 23, 2015
 .Dt NFSSTAT 1
 .Os
 .Sh NAME
@@ -38,7 +38,7 @@
 statistics
 .Sh SYNOPSIS
 .Nm
-.Op Fl cemoszW
+.Op Fl cemszW
 .Op Fl M Ar core
 .Op Fl N Ar system
 .Op Fl w Ar wait
@@ -58,10 +58,8 @@ The options are as follows:
 .It Fl c
 Only display client side statistics.
 .It Fl e
-Report the extra statistics collected by the new NFS client and
+Report the extra statistics collected by the NFS client and
 server for NFSv4.
-This option is incompatible with
-.Fl o .
 .It Fl M
 Extract values associated with the name list from the specified core
 instead of the default
@@ -75,10 +73,6 @@ This option is only supported by the new NFS client.
 .It Fl N
 Extract the name list from the specified system instead of the default
 .Pa /boot/kernel/kernel .
-.It Fl o
-Report statistics for the old NFS client and/or server.
-Without this
-option statistics for the new NFS client and/or server will be reported.
 .It Fl s
 Only display server side statistics.
 .It Fl W

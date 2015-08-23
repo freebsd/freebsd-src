@@ -182,7 +182,7 @@ expire_automounted(double expiration_time)
 {
 	struct automounted_fs *af, *tmpaf;
 	time_t now;
-	double mounted_for, mounted_max = 0;
+	double mounted_for, mounted_max = -1.0;
 	int error;
 
 	now = time(NULL);
@@ -231,21 +231,28 @@ do_wait(int kq, double sleep_time)
 {
 	struct timespec timeout;
 	struct kevent unused;
-	int error;
+	int nevents;
 
-	assert(sleep_time > 0);
-	timeout.tv_sec = sleep_time;
-	timeout.tv_nsec = 0;
+	if (sleep_time != -1.0) {
+		assert(sleep_time > 0.0);
+		timeout.tv_sec = sleep_time;
+		timeout.tv_nsec = 0;
 
-	log_debugx("waiting for filesystem event for %.0f seconds", sleep_time);
-	error = kevent(kq, NULL, 0, &unused, 1, &timeout);
-	if (error < 0)
+		log_debugx("waiting for filesystem event for %.0f seconds", sleep_time);
+		nevents = kevent(kq, NULL, 0, &unused, 1, &timeout);
+	} else {
+		log_debugx("waiting for filesystem event");
+		nevents = kevent(kq, NULL, 0, &unused, 1, NULL);
+	}
+	if (nevents < 0)
 		log_err(1, "kevent");
 
-	if (error == 0)
+	if (nevents == 0) {
 		log_debugx("timeout reached");
-	else
+		assert(sleep_time > 0.0);
+	} else {
 		log_debugx("got filesystem event");
+	}
 }
 
 int
@@ -324,7 +331,10 @@ main_autounmountd(int argc, char **argv)
 	for (;;) {
 		refresh_automounted();
 		mounted_max = expire_automounted(expiration_time);
-		if (mounted_max < expiration_time) {
+		if (mounted_max == -1.0) {
+			sleep_time = mounted_max;
+			log_debugx("no filesystems to expire");
+		} else if (mounted_max < expiration_time) {
 			sleep_time = difftime(expiration_time, mounted_max);
 			log_debugx("some filesystems expire in %.0f seconds",
 			    sleep_time);

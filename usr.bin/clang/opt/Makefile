@@ -53,8 +53,7 @@ LIBDEPS=llvmaarch64disassembler \
 	llvmasmprinter \
 	llvmcodegen \
 	llvmx86desc \
-	llvmobject \
-	llvmmcparser \
+	llvmmcdisassembler \
 	llvmx86info \
 	llvmx86instprinter \
 	llvmx86utils \
@@ -62,6 +61,9 @@ LIBDEPS=llvmaarch64disassembler \
 	llvmvectorize \
 	llvmobjcarcopts \
 	llvmscalaropts \
+	llvmprofiledata \
+	llvmobject \
+	llvmmcparser \
 	llvminstcombine \
 	llvminstrumentation \
 	llvmtransformutils \

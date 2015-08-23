@@ -14,7 +14,7 @@ SRCS+=	icmp6.c ip6.c
 CFLAGS+= -DINET6
 .endif
 
-WARNS?=	0
+WARNS?=	1
 
 LIBADD=	ncursesw m devstat kvm
 

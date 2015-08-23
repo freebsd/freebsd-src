@@ -67,9 +67,6 @@ static int		 u_opt;		/* update */
 static int		 v_opt;		/* verbose/list */
 static int		 Z1_opt;	/* zipinfo mode list files only */
 
-/* time when unzip started */
-static time_t		 now;
-
 /* debug flag */
 static int		 unzip_debug;
 
@@ -470,9 +467,9 @@ static void
 extract_file(struct archive *a, struct archive_entry *e, char **path)
 {
 	int mode;
-	time_t mtime;
+	struct timespec mtime;
 	struct stat sb;
-	struct timeval tv[2];
+	struct timespec ts[2];
 	int cr, fd, text, warn, check;
 	ssize_t len;
 	unsigned char *p, *q, *end;
@@ -480,14 +477,18 @@ extract_file(struct archive *a, struct archive_entry *e, char **path)
 	mode = archive_entry_mode(e) & 0777;
 	if (mode == 0)
 		mode = 0644;
-	mtime = archive_entry_mtime(e);
+	mtime.tv_sec = archive_entry_mtime(e);
+	mtime.tv_nsec = archive_entry_mtime_nsec(e);
 
 	/* look for existing file of same name */
 recheck:
 	if (lstat(*path, &sb) == 0) {
 		if (u_opt || f_opt) {
 			/* check if up-to-date */
-			if (S_ISREG(sb.st_mode) && sb.st_mtime >= mtime)
+			if (S_ISREG(sb.st_mode) &&
+			    (sb.st_mtim.tv_sec > mtime.tv_sec ||
+			    (sb.st_mtim.tv_sec == mtime.tv_sec &&
+			    sb.st_mtim.tv_nsec >= mtime.tv_nsec)))
 				return;
 			(void)unlink(*path);
 		} else if (o_opt) {
@@ -593,12 +594,11 @@ recheck:
 	info("\n");
 
 	/* set access and modification time */
-	tv[0].tv_sec = now;
-	tv[0].tv_usec = 0;
-	tv[1].tv_sec = mtime;
-	tv[1].tv_usec = 0;
-	if (futimes(fd, tv) != 0)
-		error("utimes('%s')", *path);
+	ts[0].tv_sec = 0;
+	ts[0].tv_nsec = UTIME_NOW;
+	ts[1] = mtime;
+	if (futimens(fd, ts) != 0)
+		error("futimens('%s')", *path);
 	if (close(fd) != 0)
 		error("close('%s')", *path);
 }
@@ -1064,8 +1064,6 @@ main(int argc, char *argv[])
 
 	if (n_opt + o_opt + u_opt > 1)
 		errorx("-n, -o and -u are contradictory");
-
-	time(&now);
 
 	unzip(zipfile);
 

@@ -54,12 +54,13 @@
 #include <unistd.h>
 #include <err.h>
 
-#define	UNIXSTR_PATH	"/tmp/mytest.socket"
+static char socket_path[] = "tmp.XXXXXXXX";
+
 #define	USLEEP	100
 #define	LOOPS	100000
 
 int
-main(int argc, char **argv)
+main(void)
 {
 	struct sockaddr_un servaddr;
 	int listenfd, connfd, pid;
@@ -74,16 +75,20 @@ main(int argc, char **argv)
 	if (ncpus < 2)
 		warnx("SMP not present, test may be unable to trigger race");
 
+	if (mkstemp(socket_path) == -1)
+		err(1, "mkstemp failed");
+	unlink(socket_path);
+
 	/*
 	 * Create a UNIX domain socket that the child will repeatedly
 	 * accept() from, and that the parent will repeatedly connect() to.
 	 */
 	if ((listenfd = socket(AF_LOCAL, SOCK_STREAM, 0)) < 0)
 		err(1, "parent: socket error");
-	(void)unlink(UNIXSTR_PATH);
+	(void)unlink(socket_path);
 	bzero(&servaddr, sizeof(servaddr));
 	servaddr.sun_family = AF_LOCAL;
-	strcpy(servaddr.sun_path, UNIXSTR_PATH);
+	strcpy(servaddr.sun_path, socket_path);
 	if (bind(listenfd, (struct sockaddr *) &servaddr,
 	    sizeof(servaddr)) < 0)
 		err(1, "parent: bind error");
@@ -102,7 +107,7 @@ main(int argc, char **argv)
 		sleep(1);
 		bzero(&servaddr, sizeof(servaddr));
 		servaddr.sun_family = AF_LOCAL;
-		strcpy(servaddr.sun_path, UNIXSTR_PATH);
+		strcpy(servaddr.sun_path, socket_path);
 		for (counter = 0; counter < LOOPS; counter++) {
 			if ((connfd = socket(AF_LOCAL, SOCK_STREAM, 0)) < 0) {
 				(void)kill(pid, SIGTERM);

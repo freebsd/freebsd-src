@@ -1,4 +1,4 @@
-/*	$NetBSD: init.c,v 1.9 2001/09/18 18:15:54 wiz Exp $	*/
+/*	$NetBSD: init.c,v 1.10 2002/01/31 19:36:54 tv Exp $	*/
 
 /*
  * Copyright (c) 1994, 1995 Jochen Pohl
@@ -33,11 +33,13 @@
 
 #include <sys/cdefs.h>
 #if defined(__RCSID) && !defined(lint)
-__RCSID("$NetBSD: init.c,v 1.9 2001/09/18 18:15:54 wiz Exp $");
+__RCSID("$NetBSD: init.c,v 1.10 2002/01/31 19:36:54 tv Exp $");
 #endif
 __FBSDID("$FreeBSD$");
 
+#include <ctype.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "lint1.h"
 
@@ -54,6 +56,15 @@ sym_t	*initsym;
 /* Points to the top element of the initialisation stack. */
 istk_t	*initstk;
 
+typedef struct namlist {
+	const char *n_name;
+	struct namlist *n_prev;
+	struct namlist *n_next;
+} namlist_t;
+
+/* Points to a c9x named member; */
+namlist_t	*namedmem = NULL;
+
 
 static	void	popi2(void);
 static	void	popinit(int);
@@ -61,6 +72,53 @@ static	void	pushinit(void);
 static	void	testinit(void);
 static	void	nextinit(int);
 static	int	strginit(tnode_t *);
+static	void	memberpop(void);
+
+#ifndef DEBUG
+#define DPRINTF(a)
+#else
+#define DPRINTF(a) printf a
+#endif
+
+void
+memberpush(sb)
+	sbuf_t *sb;
+{
+	namlist_t *nam = xcalloc(1, sizeof (namlist_t)); 
+	nam->n_name = sb->sb_name;
+	DPRINTF(("memberpush = %s\n", nam->n_name));
+	if (namedmem == NULL) {
+		nam->n_prev = nam->n_next = nam;
+		namedmem = nam;
+	} else {
+		namedmem->n_prev->n_next = nam;
+		nam->n_prev = namedmem->n_prev;
+		nam->n_next = namedmem;
+		namedmem->n_prev = nam;
+	}
+#if 0
+	nam->n_next = namedmem;
+	namedmem = nam;
+#endif
+}
+
+static void
+memberpop()
+{
+	DPRINTF(("memberpop = %s\n", namedmem->n_name));
+	if (namedmem->n_next == namedmem) {
+		free(namedmem);
+		namedmem = NULL;
+	} else {
+		namlist_t *nam = namedmem;
+		namedmem = namedmem->n_next;
+		free(nam);
+	}
+#if 0
+	namedmem = namedmem->n_next;
+	free(nam);
+#endif
+}
 
 
 /*
@@ -97,29 +155,53 @@ prepinit(void)
 static void
 popi2(void)
 {
+#ifdef DEBUG
+	char	buf[64];
+#endif
 	istk_t	*istk;
 	sym_t	*m;
 
 	initstk = (istk = initstk)->i_nxt;
 	if (initstk == NULL)
-		lerror("popi2() 1");
+		LERROR("popi2()");
 	free(istk);
 
 	istk = initstk;
 
 	istk->i_cnt--;
 	if (istk->i_cnt < 0)
-		lerror("popi2() 3");
+		LERROR("popi2()");
 
+	DPRINTF(("popi2(): %d %s\n", istk->i_cnt,
+	    namedmem ? namedmem->n_name : "*null*"));
+	if (istk->i_cnt >= 0 && namedmem != NULL) {
+		DPRINTF(("popi2(): %d %s %s\n", istk->i_cnt,
+		    tyname(buf, sizeof(buf), istk->i_type), namedmem->n_name));
+		for (m = istk->i_type->t_str->memb; m != NULL; m = m->s_nxt) {
+			if (m->s_field && m->s_name == unnamed)
+				continue;
+			if (strcmp(m->s_name, namedmem->n_name) == 0) {
+				istk->i_subt = m->s_type;
+				istk->i_cnt++;
+				memberpop();
+				return;
+			}
+		}
+		error(101, namedmem->n_name);
+		memberpop();
+		istk->i_namedmem = 1;
+		return;
+	}
 	/*
 	 * If the removed element was a structure member, we must go
 	 * to the next structure member.
 	 */
-	if (istk->i_cnt > 0 && istk->i_type->t_tspec == STRUCT) {
+	if (istk->i_cnt > 0 && istk->i_type->t_tspec == STRUCT &&
+	    !istk->i_namedmem) {
 		do {
 			m = istk->i_mem = istk->i_mem->s_nxt;
 			if (m == NULL)
-				lerror("popi2() 2");
+				LERROR("popi2()");
 		} while (m->s_field && m->s_name == unnamed);
 		istk->i_subt = m->s_type;
 	}
@@ -128,6 +210,7 @@ popi2(void)
 static void
 popinit(int brace)
 {
+	DPRINTF(("popinit(%d)\n", brace));
 
 	if (brace) {
 		/*
@@ -154,6 +237,9 @@ popinit(int brace)
 static void
 pushinit(void)
 {
+#ifdef DEBUG
+	char	buf[64];
+#endif
 	istk_t	*istk;
 	int	cnt;
 	sym_t	*m;
@@ -162,35 +248,45 @@ pushinit(void)
 
 	/* Extend an incomplete array type by one element */
 	if (istk->i_cnt == 0) {
+		DPRINTF(("pushinit(extend) %s\n", tyname(buf, sizeof(buf),
+		    istk->i_type)));
 		/*
 		 * Inside of other aggregate types must not be an incomplete
 		 * type.
 		 */
 		if (istk->i_nxt->i_nxt != NULL)
-			lerror("pushinit() 1");
+			LERROR("pushinit()");
 		istk->i_cnt = 1;
 		if (istk->i_type->t_tspec != ARRAY)
-			lerror("pushinit() 2");
+			LERROR("pushinit()");
 		istk->i_type->t_dim++;
 		/* from now its a complete type */
 		setcompl(istk->i_type, 0);
 	}
 
 	if (istk->i_cnt <= 0)
-		lerror("pushinit() 3");
+		LERROR("pushinit()");
 	if (istk->i_type != NULL && issclt(istk->i_type->t_tspec))
-		lerror("pushinit() 4");
+		LERROR("pushinit() 4");
 
 	initstk = xcalloc(1, sizeof (istk_t));
 	initstk->i_nxt = istk;
 	initstk->i_type = istk->i_subt;
 	if (initstk->i_type->t_tspec == FUNC)
-		lerror("pushinit() 5");
+		LERROR("pushinit()");
 
+again:
 	istk = initstk;
 
+	DPRINTF(("pushinit(%s)\n", tyname(buf, sizeof(buf), istk->i_type)));
 	switch (istk->i_type->t_tspec) {
 	case ARRAY:
+		if (namedmem) {
+			DPRINTF(("pushinit ARRAY %s\n", namedmem->n_name));
+			free(istk);
+			initstk = initstk->i_nxt;
+			goto again;
+		}
 		if (incompl(istk->i_type) && istk->i_nxt->i_nxt != NULL) {
 			/* initialisation of an incomplete type */
 			error(175);
@@ -200,6 +296,9 @@ pushinit(void)
 		istk->i_subt = istk->i_type->t_subt;
 		istk->i_nolimit = incompl(istk->i_type);
 		istk->i_cnt = istk->i_type->t_dim;
+		DPRINTF(("elements array %s[%d] %s\n",
+		    tyname(buf, sizeof(buf), istk->i_subt), istk->i_cnt,
+		    namedmem ? namedmem->n_name : "*none*"));
 		break;
 	case UNION:
 		if (tflag)
@@ -214,13 +313,37 @@ pushinit(void)
 			return;
 		}
 		cnt = 0;
+		DPRINTF(("2. member lookup %s %s\n",
+		    tyname(buf, sizeof(buf), istk->i_type),
+		    namedmem ? namedmem->n_name : "*none*"));
 		for (m = istk->i_type->t_str->memb; m != NULL; m = m->s_nxt) {
 			if (m->s_field && m->s_name == unnamed)
 				continue;
+			if (namedmem != NULL) {
+				DPRINTF(("pushinit():[member:%s, looking:%s]\n",
+				    m->s_name, namedmem->n_name));
+				if (strcmp(m->s_name, namedmem->n_name) == 0) {
+					cnt++;
+					break;
+				} else
+					continue;
+			}
 			if (++cnt == 1) {
 				istk->i_mem = m;
 				istk->i_subt = m->s_type;
 			}
+		}
+		if (namedmem != NULL) {
+			istk->i_namedmem = 1;
+			if (m == NULL) {
+				error(101, namedmem->n_name);
+				initerr = 1;
+			} else {
+				istk->i_mem = m;
+				istk->i_subt = m->s_type;
+			}
+			memberpop();
+			cnt = istk->i_type->t_tspec == STRUCT ? 2 : 1;
 		}
 		if (cnt == 0) {
 			/* cannot init. struct/union with no named member */
@@ -231,6 +354,12 @@ pushinit(void)
 		istk->i_cnt = istk->i_type->t_tspec == STRUCT ? cnt : 1;
 		break;
 	default:
+		if (namedmem) {
+			DPRINTF(("pushinit(): pop\n"));
+			free(istk);
+			initstk = initstk->i_nxt;
+			goto again;
+		}
 		istk->i_cnt = 1;
 		break;
 	}
@@ -247,7 +376,7 @@ testinit(void)
 	 * If a closing brace is expected we have at least one initializer
 	 * too much.
 	 */
-	if (istk->i_cnt == 0 && !istk->i_nolimit) {
+	if (istk->i_cnt == 0 && !istk->i_nolimit && !istk->i_namedmem) {
 		switch (istk->i_type->t_tspec) {
 		case ARRAY:
 			/* too many array initializers */
@@ -270,7 +399,9 @@ testinit(void)
 static void
 nextinit(int brace)
 {
+	char buf[64];
 
+	DPRINTF(("nextinit(%d)\n", brace));
 	if (!brace) {
 		if (initstk->i_type == NULL &&
 		    !issclt(initstk->i_subt->t_tspec)) {
@@ -346,14 +477,18 @@ mkinit(tnode_t *tn)
 	tnode_t	*ln;
 	struct	mbl *tmem;
 	scl_t	sc;
+#ifdef DEBUG
+	char	buf[64];
+#endif
 
+	DPRINTF(("mkinit(%s)\n", tyname(buf, sizeof(buf), tn->tn_type)));
 	if (initerr || tn == NULL)
 		goto end;
 
 	sc = initsym->s_scl;
 
 	/*
-	 * Do not test for automatic aggregat initialisation. If the
+	 * Do not test for automatic aggregate initialisation. If the
 	 * initializer starts with a brace we have the warning already.
 	 * If not, an error will be printed that the initializer must
 	 * be enclosed by braces.
@@ -369,7 +504,7 @@ mkinit(tnode_t *tn)
 		ln->tn_type = tduptyp(ln->tn_type);
 		ln->tn_type->t_const = 0;
 		tn = build(ASSIGN, ln, tn);
-		expr(tn, 0, 0);
+		expr(tn, 0, 0, 1);
 		goto end;
 	}
 
@@ -388,7 +523,7 @@ mkinit(tnode_t *tn)
 		goto end;
 
 	initstk->i_cnt--;
-
+	DPRINTF(("mkinit() cnt=%d tn=%p\n", initstk->i_cnt, tn));
 	/* Create a temporary node for the left side. */
 	ln = tgetblk(sizeof (tnode_t));
 	ln->tn_op = NAME;
@@ -403,7 +538,7 @@ mkinit(tnode_t *tn)
 	rt = tn->tn_type->t_tspec;
 
 	if (!issclt(lt))
-		lerror("mkinit() 1");
+		LERROR("mkinit()");
 
 	if (!typeok(INIT, 0, ln, tn))
 		goto end;
@@ -413,7 +548,7 @@ mkinit(tnode_t *tn)
 	 * expr() would free it.
 	 */
 	tmem = tsave();
-	expr(tn, 1, 0);
+	expr(tn, 1, 0, 1);
 	trestor(tmem);
 
 	if (isityp(lt) && ln->tn_type->t_isfield && !isityp(rt)) {
@@ -444,7 +579,13 @@ mkinit(tnode_t *tn)
 	}
 
  end:
-	tfreeblk();
+	/*
+	 * We only free the block, if we are not a compound declaration
+	 * We know that the only symbols that start with a digit are the
+	 * ones we allocate with mktempsym() for compound declarations
+	 */
+	if (!isdigit((unsigned char)initsym->s_name[0]))
+		tfreeblk();
 }
 
 
@@ -466,7 +607,7 @@ strginit(tnode_t *tn)
 	 * Check if we have an array type which can be initialized by
 	 * the string.
 	 */
-	if (istk->i_subt->t_tspec == ARRAY) {
+	if (istk->i_subt != NULL && istk->i_subt->t_tspec == ARRAY) {
 		t = istk->i_subt->t_subt->t_tspec;
 		if (!((strg->st_tspec == CHAR &&
 		       (t == CHAR || t == UCHAR || t == SCHAR)) ||

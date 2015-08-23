@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <sysexits.h>
+#include <unistd.h>
 
 #include "ar.h"
 
@@ -61,6 +62,7 @@ static void	create_symtab_entry(struct bsdar *bsdar, void *maddr,
 static void	free_obj(struct bsdar *bsdar, struct ar_obj *obj);
 static void	insert_obj(struct bsdar *bsdar, struct ar_obj *obj,
 		    struct ar_obj *pos);
+static void	prefault_buffer(const char *buf, size_t s);
 static void	read_objs(struct bsdar *bsdar, const char *archive,
 		    int checkargv);
 static void	write_archive(struct bsdar *bsdar, char mode);
@@ -551,11 +553,35 @@ write_cleanup(struct bsdar *bsdar)
 }
 
 /*
+ * Fault in the buffer prior to writing as a workaround for poor performance
+ * due to interaction with kernel fs deadlock avoidance code. See the comment
+ * above vn_io_fault_doio() in sys/kern/vfs_vnops.c for details of the issue.
+ */
+static void
+prefault_buffer(const char *buf, size_t s)
+{
+	volatile const char *p;
+	size_t page_size;
+
+	if (s == 0)
+		return;
+	page_size = sysconf(_SC_PAGESIZE);
+	for (p = buf; p < buf + s; p += page_size)
+		*p;
+	/*
+	 * Ensure we touch the last page as well, in case the buffer is not
+	 * page-aligned.
+	 */
+	*(volatile const char *)(buf + s - 1);
+}
+
+/*
  * Wrapper for archive_write_data().
  */
 static void
 write_data(struct bsdar *bsdar, struct archive *a, const void *buf, size_t s)
 {
+	prefault_buffer(buf, s);
 	if (archive_write_data(a, buf, s) != (ssize_t)s)
 		bsdar_errc(bsdar, EX_SOFTWARE, 0, "%s",
 		    archive_error_string(a));

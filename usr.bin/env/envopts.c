@@ -372,9 +372,9 @@ str_done:
 	*nextarg = NULL;
 
 	/* Update optind/argc/argv in the calling routine */
-	*origind = 1;
-	*origc += addcount;
+	*origc += addcount - *origind + 1;
 	*origv = newargv;
+	*origind = 1;
 }
 
 /**

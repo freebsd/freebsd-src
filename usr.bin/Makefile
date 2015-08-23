@@ -36,11 +36,10 @@ SUBDIR=	${_addr2line} \
 	csplit \
 	ctlstat \
 	cut \
-	demandoc \
+	${_cxxfilt} \
 	dirname \
 	dpv \
 	du \
-	ee \
 	elf2aout \
 	${_elfcopy} \
 	elfdump \
@@ -49,14 +48,11 @@ SUBDIR=	${_addr2line} \
 	expand \
 	false \
 	fetch \
-	file \
 	find \
-	finger \
 	fmt \
 	fold \
 	fstat \
 	fsync \
-	ftp \
 	gcore \
 	gencat \
 	getconf \
@@ -68,9 +64,9 @@ SUBDIR=	${_addr2line} \
 	hexdump \
 	${_iconv} \
 	id \
+	ident \
 	ipcrm \
 	ipcs \
-	iscsictl \
 	join \
 	jot \
 	${_kdump} \
@@ -122,6 +118,7 @@ SUBDIR=	${_addr2line} \
 	nice \
 	nl \
 	${_nm} \
+	numactl \
 	nohup \
 	opieinfo \
 	opiekey \
@@ -138,6 +135,7 @@ SUBDIR=	${_addr2line} \
 	procstat \
 	protect \
 	rctl \
+	${_readelf} \
 	renice \
 	rev \
 	revoke \
@@ -154,7 +152,7 @@ SUBDIR=	${_addr2line} \
 	showmount \
 	${_size} \
 	sockstat \
-	soeliminate \
+	soelim \
 	sort \
 	split \
 	stat \
@@ -164,12 +162,10 @@ SUBDIR=	${_addr2line} \
 	systat \
 	tabs \
 	tail \
-	talk \
 	tar \
 	tcopy \
 	tee \
 	${_tests} \
-	tftp \
 	time \
 	timeout \
 	tip \
@@ -203,12 +199,9 @@ SUBDIR=	${_addr2line} \
 	write \
 	xargs \
 	xinstall \
-	${_xlint} \
 	xo \
-	${_xstr} \
 	xz \
 	xzdec \
-	${_yacc} \
 	yes \
 	${_ypcat} \
 	${_ypmatch} \
@@ -240,16 +233,30 @@ SUBDIR+=	calendar
 _clang=		clang
 .endif
 
+.if ${MK_EE} != "no"
+SUBDIR+=	ee
+.endif
+
 .if ${MK_ELFTOOLCHAIN_TOOLS} != "no"
 _addr2line=	addr2line
+_cxxfilt=	cxxfilt
 _elfcopy=	elfcopy
 _nm=		nm
+_readelf=	readelf
 _size=		size
 _strings=	strings
 .endif
 
-.if ${MK_FMAKE} != "no"
-SUBDIR+=	make
+.if ${MK_FILE} != "no"
+SUBDIR+=	file
+.endif
+
+.if ${MK_FINGER} != "no"
+SUBDIR+=	finger
+.endif
+
+.if ${MK_FTP} != "no"
+SUBDIR+=	ftp
 .endif
 
 .if ${MK_GPL_DTC} != "yes"
@@ -270,9 +277,15 @@ _mkcsmapper=	mkcsmapper
 _mkesdb=	mkesdb
 .endif
 
+.if ${MK_ISCSI} != "no"
+SUBDIR+=	iscsictl
+.endif
+
 .if ${MK_KDUMP} != "no"
 SUBDIR+=        kdump
+.if ${MACHINE_ARCH} != "aarch64" # ARM64TODO truss does not build
 SUBDIR+=        truss
+.endif
 .endif
 
 .if ${MK_KERBEROS_SUPPORT} != "no"
@@ -302,7 +315,9 @@ SUBDIR+=	bmake
 
 .if ${MK_MAN_UTILS} != "no"
 SUBDIR+=	catman
+.if ${MK_MANDOCDB} == "no"
 _makewhatis=	makewhatis
+.endif
 _man=		man
 .endif
 
@@ -342,6 +357,10 @@ SUBDIR+=	rwho
 SUBDIR+=	vacation
 .endif
 
+.if ${MK_TALK} != "no"
+SUBDIR+=	talk
+.endif
+
 .if ${MK_TELNET} != "no"
 SUBDIR+=	telnet
 .endif
@@ -356,19 +375,27 @@ SUBDIR+=	colcrt
 SUBDIR+=	ul
 .endif
 
+.if ${MK_TFTP} != "no"
+SUBDIR+=	tftp
+.endif
+
 .if ${MK_TOOLCHAIN} != "no"
 SUBDIR+=	ar
 SUBDIR+=	c89
 SUBDIR+=	c99
 SUBDIR+=	ctags
 SUBDIR+=	file2c
+.if ${MACHINE_ARCH} != "aarch64" # ARM64TODO gprof does not build
 SUBDIR+=	gprof
+.endif
 SUBDIR+=	indent
 SUBDIR+=	lex
 SUBDIR+=	mkstr
 SUBDIR+=	rpcgen
 SUBDIR+=	unifdef
+.if ${MACHINE_ARCH} != "aarch64" # ARM64TODO xlint does not build
 SUBDIR+=	xlint
+.endif
 SUBDIR+=	xstr
 SUBDIR+=	yacc
 .endif

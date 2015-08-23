@@ -180,6 +180,17 @@ Look up and list the record for the
 image activator:
 .Dl # binmiscctl lookup llvmbc
 .Pp
+Add QEMU bsd-user program as an image activator for ARM AARCH64 binaries:
+.Bd -literal -offset indent
+# binmiscctl add arm64 \e
+  --interpreter "/usr/local/bin/qemu-aarch64-static" \e
+  --magic "\ex7f\ex45\ex4c\ex46\ex02\ex01\ex01\ex00\ex00\ex00\e
+           \ex00\ex00\ex00\ex00\ex00\ex00\ex02\ex00\exb7\ex00" \e
+  --mask  "\exff\exff\exff\exff\exff\exff\exff\ex00\exff\exff\e
+           \exff\exff\exff\exff\exff\exff\exfe\exff\exff\exff" \e
+  --size 20 --set-enabled
+.Ed
+.Pp
 Add QEMU bsd-user program as an image activator for ARM little-endian binaries:
 .Bd -literal -offset indent
 # binmiscctl add armelf \e

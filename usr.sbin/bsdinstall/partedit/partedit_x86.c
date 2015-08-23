@@ -51,7 +51,10 @@ x86_bootmethod(void)
 const char *
 default_scheme(void)
 {
-	return ("GPT");
+	if (strcmp(x86_bootmethod(), "UEFI") == 0)
+		return ("GPT");
+	else
+		return ("MBR");
 }
 
 int

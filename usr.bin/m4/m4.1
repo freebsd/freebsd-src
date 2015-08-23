@@ -33,7 +33,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 12, 2014
+.Dd $Mdocdate: April 14 2014 $
 .Dt M4 1
 .Os
 .Sh NAME
@@ -98,7 +98,9 @@ recognized as special when not followed by an open parenthesis.
 .Pp
 The options are as follows:
 .Bl -tag -width Ds
-.It Fl D Ns Ar name Ns Op Pf = Ns Ar value
+.It Fl D Ns Ar name Ns Oo
+.Pf = Ns Ar value
+.Oc
 Define the symbol
 .Ar name
 to have some value (or

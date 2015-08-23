@@ -34,6 +34,7 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <assert.h>
+#define L2CAP_SOCKET_CHECKED
 #include <bluetooth.h>
 #include <err.h>
 #include <errno.h>

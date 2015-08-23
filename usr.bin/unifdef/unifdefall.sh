@@ -47,32 +47,14 @@ trap 'rm -r "$tmp" || exit 2' EXIT
 
 export LC_ALL=C
 
-# list of all controlling macros
-"$unifdef" $debug -s "$@" | sort | uniq >"$tmp/ctrl"
+# list of all controlling macros; assume these are undefined
+"$unifdef" $debug -s "$@" | sort -u | sed 's/^/#undef /' >"$tmp/undefs"
 # list of all macro definitions
-cpp -dM "$@" | sort | sed 's/^#define //' >"$tmp/hashdefs"
-# list of defined macro names
-sed 's/[^A-Za-z0-9_].*$//' <"$tmp/hashdefs" >"$tmp/alldef"
-# list of undefined and defined controlling macros
-comm -23 "$tmp/ctrl" "$tmp/alldef" >"$tmp/undef"
-comm -12 "$tmp/ctrl" "$tmp/alldef" >"$tmp/def"
-# create a sed script that extracts the controlling macro definitions
-# and converts them to unifdef command-line arguments
-sed 's|.*|s/^&\\(([^)]*)\\)\\{0,1\\} /-D&=/p|' <"$tmp/def" >"$tmp/script"
-# create the final unifdef command
-{	echo "$unifdef" $debug -k '\'
-	# convert the controlling undefined macros to -U arguments
-	sed 's/.*/-U& \\/' <"$tmp/undef"
-	# convert the controlling defined macros to quoted -D arguments
-	sed -nf "$tmp/script" <"$tmp/hashdefs" |
-		sed "s/'/'\\\\''/g;s/.*/'&' \\\\/"
-	echo '"$@"'
-} >"$tmp/cmd"
+cc -E -dM "$@" | sort >"$tmp/defs"
+
 case $debug in
--d)	for i in ctrl hashdefs alldef undef def script cmd
-	do	echo ==== $i
-		cat "$tmp/$i"
-	done 1>&2
+-d)	cat "$tmp/undefs" "$tmp/defs" 1>&2
 esac
-# run the command we just created
-sh "$tmp/cmd" "$@"
+
+# order of -f arguments means definitions override undefs
+"$unifdef" $debug -k -f "$tmp/undefs" -f "$tmp/defs" "$@"

@@ -6,6 +6,7 @@ MAN=
 
 SRCS=	main.c mwlstats.c
 LIBADD=	bsdstat
+CFLAGS+=-I${.CURDIR}/../../../../lib/libbsdstat/
 
 .include <bsd.prog.mk>
 

@@ -17,26 +17,27 @@ LIBDEPS=llvmx86disassembler \
 	llvmx86codegen \
 	llvmx86desc \
 	llvmx86info \
+	llvmmcdisassembler \
 	llvmx86instprinter \
 	llvmx86utils \
 	llvmselectiondag \
 	llvmasmprinter \
 	llvminterpreter \
-	llvminstrumentation \
-	llvmjit \
 	llvmcodegen \
 	llvmscalaropts \
+	llvmprofiledata \
 	llvminstcombine \
+	llvminstrumentation \
 	llvmtransformutils \
 	llvmipa \
 	llvmanalysis \
 	llvmmcjit \
 	llvmtarget \
 	llvmruntimedyld \
+	llvmexecutionengine \
 	llvmobject \
 	llvmmcparser \
 	llvmbitreader \
-	llvmexecutionengine \
 	llvmmc \
 	llvmcore \
 	llvmsupport
