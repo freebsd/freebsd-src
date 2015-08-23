@@ -65,6 +65,7 @@
 #include <sys/vnode.h>
 
 static struct vop_vector devfs_vnodeops;
+static struct vop_vector devfs_specops;
 static struct fileops devfs_ops_f;
 
 #include <fs/devfs/devfs.h>
@@ -1862,7 +1863,7 @@ static struct vop_vector devfs_vnodeops = {
 	.vop_vptocnp =		devfs_vptocnp,
 };
 
-struct vop_vector devfs_specops = {
+static struct vop_vector devfs_specops = {
 	.vop_default =		&default_vnodeops,
 
 	.vop_access =		devfs_access,
