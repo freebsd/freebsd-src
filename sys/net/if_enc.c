@@ -89,7 +89,7 @@ struct enc_softc {
 
 static int	enc_ioctl(struct ifnet *, u_long, caddr_t);
 static int	enc_output(struct ifnet *ifp, struct mbuf *m,
-		    const struct sockaddr *dst, struct route *ro);
+		    const struct sockaddr *dst, struct nhop_info *ni);
 static int	enc_clone_create(struct if_clone *, int, caddr_t);
 static void	enc_clone_destroy(struct ifnet *);
 static struct if_clone *enc_cloner;
@@ -190,7 +190,7 @@ DECLARE_MODULE(if_enc, enc_mod, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY);
 
 static int
 enc_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
-    struct route *ro)
+    struct nhop_info *ni)
 {
 	m_freem(m);
 	return (0);

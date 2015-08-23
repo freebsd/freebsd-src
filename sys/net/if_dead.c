@@ -43,7 +43,7 @@ __FBSDID("$FreeBSD$");
 
 static int
 ifdead_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *sa,
-    struct route *ro)
+    struct nhop_info *ni)
 {
 
 	m_freem(m);

@@ -384,7 +384,7 @@ struct ether_vlan_header {
 
 struct ifnet;
 struct mbuf;
-struct route;
+struct nhop_info;
 struct sockaddr;
 struct bpf_if;
 
@@ -395,7 +395,7 @@ extern	void ether_ifattach(struct ifnet *, const u_int8_t *);
 extern	void ether_ifdetach(struct ifnet *);
 extern	int  ether_ioctl(struct ifnet *, u_long, caddr_t);
 extern	int  ether_output(struct ifnet *, struct mbuf *,
-	    const struct sockaddr *, struct route *);
+	    const struct sockaddr *, struct nhop_info *);
 extern	int  ether_output_frame(struct ifnet *, struct mbuf *);
 extern	char *ether_sprintf(const u_int8_t *);
 void	ether_vlan_mtap(struct bpf_if *, struct mbuf *,

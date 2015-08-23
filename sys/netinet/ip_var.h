@@ -171,7 +171,6 @@ void	kmod_ipstat_dec(int statnum);
 
 struct ip;
 struct inpcb;
-struct route;
 struct route_info;
 struct sockopt;
 

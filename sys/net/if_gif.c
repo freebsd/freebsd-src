@@ -501,7 +501,7 @@ gif_check_nesting(struct ifnet *ifp, struct mbuf *m)
 
 int
 gif_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
-	struct route *ro)
+	struct nhop_info *ni)
 {
 	uint32_t af;
 

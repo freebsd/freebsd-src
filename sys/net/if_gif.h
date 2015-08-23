@@ -109,7 +109,7 @@ struct etherip_header {
 /* Prototypes */
 void gif_input(struct mbuf *, struct ifnet *, int, uint8_t);
 int gif_output(struct ifnet *, struct mbuf *, const struct sockaddr *,
-	       struct route *);
+	       struct nhop_info *);
 int gif_encapcheck(const struct mbuf *, int, int, void *);
 #ifdef INET
 int in_gif_output(struct ifnet *, struct mbuf *, int, uint8_t);

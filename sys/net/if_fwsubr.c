@@ -62,6 +62,7 @@
 #ifdef INET6
 #include <netinet6/nd6.h>
 #endif
+#include <net/rt_nhops.h>
 
 #include <security/mac/mac_framework.h>
 
@@ -78,7 +79,7 @@ struct fw_hwaddr firewire_broadcastaddr = {
 
 static int
 firewire_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
-    struct route *ro)
+    struct nhop_info *ni)
 {
 	struct fw_com *fc = IFP2FWC(ifp);
 	int error, type;
@@ -142,8 +143,7 @@ firewire_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 		 */
 		if (unicast) {
 			is_gw = 0;
-			if (ro != NULL && ro->ro_rt != NULL &&
-			    (ro->ro_rt->rt_flags & RTF_GATEWAY) != 0)
+			if (ni != NULL && ni->ni_nh->nh_flags & NHF_GATEWAY)
 				is_gw = 1;
 			error = arpresolve(ifp, is_gw, m, dst, (u_char *) destfw, NULL);
 			if (error)

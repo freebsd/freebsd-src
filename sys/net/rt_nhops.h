@@ -113,10 +113,6 @@ struct nhop_multi {
 	uint16_t	nh_nhops[30];	/* Nexthop indexes */
 };
 
-/* Control plane nexthop data */
-struct nhop_info {
-};
-
 /* Per-AF per-fib nhop table */
 struct nhops_descr {
 	uint32_t	nhop_size;	/* Nehthop data size */
@@ -218,13 +214,6 @@ struct route_info {
 	uint16_t		ri_mtu;		/* Get selected route MTU */
 	uint16_t		spare;
 	uint32_t		scopeid;	/* Desired scope id to use */
-};
-
-struct route_compat {
-	struct nhop_prepend	*ro_nh;
-	void			*spare0;
-	void			*spare1;
-	int			ro_flags;
 };
 
 int fib4_lookup_nh_ifp(uint32_t fibnum, struct in_addr dst, uint32_t flowid,

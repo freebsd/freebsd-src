@@ -64,7 +64,7 @@ struct	socket;
 struct	carp_if;
 struct	carp_softc;
 struct  ifvlantrunk;
-struct	route;			/* if_output */
+struct	nhop_info;		/* if_output */
 struct	vnet;
 struct	ifmedia;
 struct	netmap_adapter;
@@ -213,7 +213,7 @@ struct ifnet {
 	/* Various procedures of the layer2 encapsulation and drivers. */
 	int	(*if_output)		/* output routine (enqueue) */
 		(struct ifnet *, struct mbuf *, const struct sockaddr *,
-		     struct route *);
+		     struct nhop_info *);
 	void	(*if_input)		/* input routine (from h/w driver) */
 		(struct ifnet *, struct mbuf *);
 	if_start_fn_t	if_start;	/* initiate output routine */

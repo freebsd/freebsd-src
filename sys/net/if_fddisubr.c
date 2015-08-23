@@ -69,6 +69,7 @@
 #ifdef INET6
 #include <netinet6/nd6.h>
 #endif
+#include <net/rt_nhops.h>
 
 #ifdef DECNET
 #include <netdnet/dn.h>
@@ -82,7 +83,7 @@ static const u_char fddibroadcastaddr[FDDI_ADDR_LEN] =
 static int fddi_resolvemulti(struct ifnet *, struct sockaddr **,
 			      struct sockaddr *);
 static int fddi_output(struct ifnet *, struct mbuf *, const struct sockaddr *,
-		       struct route *); 
+		       struct nhop_info *); 
 static void fddi_input(struct ifnet *ifp, struct mbuf *m);
 
 #define	senderr(e)	do { error = (e); goto bad; } while (0)
@@ -95,7 +96,7 @@ static void fddi_input(struct ifnet *ifp, struct mbuf *m);
  */
 static int
 fddi_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
-	struct route *ro)
+	struct nhop_info *ni)
 {
 	u_int16_t type;
 	int loop_copy = 0, error = 0, hdrcmplt = 0;
@@ -122,8 +123,7 @@ fddi_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 #ifdef INET
 	case AF_INET: {
 		is_gw = 0;
-		if (ro != NULL && ro->ro_rt != NULL &&
-		    (ro->ro_rt->rt_flags & RTF_GATEWAY) != 0)
+		if (ni != NULL && ni->ni_nh->nh_flags & NHF_GATEWAY)
 			is_gw = 1;
 		error = arpresolve(ifp, is_gw, m, dst, edst, NULL);
 		if (error)

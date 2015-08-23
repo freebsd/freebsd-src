@@ -67,7 +67,7 @@ struct disc_softc {
 };
 
 static int	discoutput(struct ifnet *, struct mbuf *,
-		    const struct sockaddr *, struct route *);
+		    const struct sockaddr *, struct nhop_info *);
 static int	discioctl(struct ifnet *, u_long, caddr_t);
 static int	disc_clone_create(struct if_clone *, int, caddr_t);
 static void	disc_clone_destroy(struct ifnet *);
@@ -174,7 +174,7 @@ DECLARE_MODULE(if_disc, disc_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
 
 static int
 discoutput(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
-    struct route *ro)
+    struct nhop_info *ni)
 {
 	u_int32_t af;
 
