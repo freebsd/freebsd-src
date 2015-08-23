@@ -77,6 +77,7 @@ static int debugging = 0;
 static int end_program = 0;
 static const char *pidfile = _PATH_VARRUN "watchdogd.pid";
 static u_int timeout = WD_TO_128SEC;
+static u_int exit_timeout = WD_TO_NEVER;
 static u_int pretimeout = 0;
 static u_int timeout_sec;
 static u_int passive = 0;
@@ -461,10 +462,10 @@ watchdog_onoff(int onoff)
 		/* pat one more time for good measure */
 		return watchdog_patpat((timeout|WD_ACTIVE));
 	 } else {
-		return watchdog_patpat(0);
+		return watchdog_patpat(exit_timeout);
 	 }
 failsafe:
-	watchdog_patpat(0);
+	watchdog_patpat(exit_timeout);
 	return (error);
 }
 
@@ -476,8 +477,8 @@ usage(void)
 {
 	if (is_daemon)
 		fprintf(stderr, "usage:\n"
-"  watchdogd [-dnSw] [-e cmd] [-I file] [-s sleep] [-t timeout]\n"
-"            [-T script_timeout]\n"
+"  watchdogd [-dnSw] [-e cmd] [-I pidfile] [-s sleep] [-t timeout]\n"
+"            [-T script_timeout] [-x exit_timeout]\n"
 "            [--debug]\n"
 "            [--pretimeout seconds] [-pretimeout-action action]\n"
 "            [--softtimeout] [-softtimeout-action action]\n"
@@ -697,7 +698,7 @@ parseargs(int argc, char *argv[])
 		is_daemon = 1;
 
 	if (is_daemon)
-		getopt_shortopts = "I:de:ns:t:ST:w?";
+		getopt_shortopts = "I:de:ns:t:ST:wx:?";
 	else
 		getopt_shortopts = "dt:?";
 
@@ -740,6 +741,11 @@ parseargs(int argc, char *argv[])
 			break;
 		case 'w':
 			do_timedog = 1;
+			break;
+		case 'x':
+			exit_timeout = parse_timeout_to_pow2ns(c, NULL, optarg);
+			if (exit_timeout != 0)
+				exit_timeout |= WD_ACTIVE;
 			break;
 		case 0:
 			lopt = longopts[longindex].name;
