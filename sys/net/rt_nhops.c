@@ -384,6 +384,7 @@ fib_rte_to_nh_flags(int rt_flags)
 	res |= (rt_flags & RTF_BLACKHOLE) ? NHF_BLACKHOLE : 0;
 	res |= (rt_flags & (RTF_DYNAMIC|RTF_MODIFIED)) ? NHF_REDIRECT : 0;
 	res |= (rt_flags & RTF_BROADCAST) ? NHF_BROADCAST : 0;
+	res |= (rt_flags & RTF_GATEWAY) ? NHF_GATEWAY : 0;
 
 	return (res);
 }

@@ -98,6 +98,7 @@ struct nhop_prepend {
 #define	NHF_REDIRECT		0x0040	/* RTF_DYNAMIC|RTF_MODIFIED */
 #define	NHF_DEFAULT		0x0080	/* Default route */
 #define	NHF_BROADCAST		0x0100	/* RTF_BROADCAST */
+#define	NHF_GATEWAY		0x0200	/* RTF_GATEWAY */
 
 #define	NH_LIFP(nh)	ifnet_byindex_locked((nh)->lifp_idx)
 #define	NH_TIFP(nh)	ifnet_byindex_locked((nh)->i.ifp_idx)
