@@ -223,7 +223,7 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route_info *ri, int flags,
 	struct in_ifaddr *ia;
 	int isbroadcast;
 	uint16_t ip_len, ip_off;
-	struct nhop_data local_nh, *nh;
+	struct nhop_prepend local_nh, *nh;
 	struct nhop4_extended nhe, *pnhe;
 	uint32_t fibnum;
 #ifdef IPSEC
@@ -577,13 +577,12 @@ sendit:
 			/* Reset everything for a new round */
 			/* TODO: Carefully inspect multipath cached route case */
 			if (nh != NULL) {
-				fib4_free_nh(fibnum, nh);
+				fib4_free_nh_prepend(fibnum, nh);
 				nh = NULL;
 			}
 			ri = NULL;
 			ip = mtod(m, struct ip *);
 			goto again;
-
 		}
 	}
 
@@ -696,7 +695,7 @@ sendit:
 done:
 	/* TODO: Carefully inspect multipath cached route case */
 	if (nh != NULL)
-		fib4_free_nh(fibnum, nh);
+		fib4_free_nh_prepend(fibnum, nh);
 	return (error);
 bad:
 	m_freem(m);

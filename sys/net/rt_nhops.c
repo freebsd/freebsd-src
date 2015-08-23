@@ -109,6 +109,7 @@ int fwd_attach_fib(struct fwd_module *fm, u_int fib);
 int fwd_destroy_fib(struct fwd_module *fm, u_int fib);
 #endif
 
+static inline uint16_t fib_rte_to_nh_flags(int rt_flags);
 #ifdef INET
 static void fib4_rte_to_nh_extended(struct rtentry *rte, struct in_addr dst,
     struct nhop4_extended *pnh4);
@@ -145,7 +146,6 @@ MALLOC_DEFINE(M_RTFIB, "rtfib", "routing fwd");
  * Returns 0 on match, error code overwise.
  */
 
-#define	NHOP_FLAGS_MASK	(RTF_REJECT|RTF_BLACKHOLE)
 //#define	NHOP_DIRECT	
 #define RNTORT(p)	((struct rtentry *)(p))
 
@@ -159,13 +159,13 @@ MALLOC_DEFINE(M_RTFIB, "rtfib", "routing fwd");
  *
  */
 static inline void
-fib_choose_prepend(uint32_t fibnum, struct nhop_data *nh_src,
-    uint32_t flowid, struct nhop_data *nh, int af)
+fib_choose_prepend(uint32_t fibnum, struct nhop_prepend *nh_src,
+    uint32_t flowid, struct nhop_prepend *nh, int af)
 {
 	struct nhop_multi *nh_multi;
 	int idx;
 
-	if ((nh_src->nh_flags & NH_FLAGS_RECURSE) != 0) {
+	if ((nh_src->nh_flags & NHF_RECURSE) != 0) {
 
 		/*
 		 * Recursive nexthop. Choose direct nexthop
@@ -185,7 +185,7 @@ fib_choose_prepend(uint32_t fibnum, struct nhop_data *nh_src,
 }
 
 static inline void
-fib_free_nh(uint32_t fibnum, struct nhop_data *nh, int af)
+fib_free_nh_prepend(uint32_t fibnum, struct nhop_prepend *nh, int af)
 {
 
 	/* TODO: Do some light-weight refcounting on egress ifp's */
@@ -193,15 +193,15 @@ fib_free_nh(uint32_t fibnum, struct nhop_data *nh, int af)
 
 #ifdef INET
 void
-fib4_free_nh(uint32_t fibnum, struct nhop_data *nh)
+fib4_free_nh_prepend(uint32_t fibnum, struct nhop_prepend *nh)
 {
 
-	fib_free_nh(fibnum, nh, AF_INET);
+	fib_free_nh_prepend(fibnum, nh, AF_INET);
 }
 
 void
-fib4_choose_prepend(uint32_t fibnum, struct nhop_data *nh_src,
-    uint32_t flowid, struct nhop_data *nh, struct nhop4_extended *nh_ext)
+fib4_choose_prepend(uint32_t fibnum, struct nhop_prepend *nh_src,
+    uint32_t flowid, struct nhop_prepend *nh, struct nhop4_extended *nh_ext)
 {
 
 	fib_choose_prepend(fibnum, nh_src, flowid, nh, AF_INET);
@@ -224,7 +224,7 @@ fib4_choose_prepend(uint32_t fibnum, struct nhop_data *nh_src,
  * In case of successful lookup @nh header is filled with
  * appropriate interface info and full L2 header to prepend.
  *
- * If no valid ARP record is present, NH_FLAGS_L2_INCOMPLETE flag
+ * If no valid ARP record is present, NHF_L2_INCOMPLETE flag
  * is set and gateway address is stored into nh->d.gw4
  *
  * If @nh_ext is not NULL, additional nexthop data is stored there.
@@ -234,7 +234,7 @@ fib4_choose_prepend(uint32_t fibnum, struct nhop_data *nh_src,
  */
 int
 fib4_lookup_prepend(uint32_t fibnum, struct in_addr dst, struct mbuf *m,
-    struct nhop_data *nh, struct nhop4_extended *nh_ext)
+    struct nhop_prepend *nh, struct nhop4_extended *nh_ext)
 {
 	struct radix_node_head *rnh;
 	struct radix_node *rn;
@@ -279,10 +279,10 @@ fib4_lookup_prepend(uint32_t fibnum, struct in_addr dst, struct mbuf *m,
 	} else
 		gw = dst;
 	/* Set flags */
-	flags = rte->rt_flags & NHOP_FLAGS_MASK;
+	flags = fib_rte_to_nh_flags(rte->rt_flags);
 	gw_sa = (struct sockaddr_in *)rt_key(rte);
 	if (gw_sa->sin_addr.s_addr == 0)
-		flags |= NHOP_DEFAULT;
+		flags |= NHF_DEFAULT;
 
 	/*
 	 * TODO: nh L2/L3 resolve.
@@ -327,19 +327,19 @@ fib4_lookup_prepend(uint32_t fibnum, struct in_addr dst, struct mbuf *m,
 
 	/* Notify caller that no L2 info is linked */
 	nh->nh_count = 0;
-	nh->nh_flags |= NH_FLAGS_L2_INCOMPLETE;
+	nh->nh_flags |= NHF_L2_INCOMPLETE;
 	/* ..And save gateway address */
 	nh->d.gw4 = gw;
 	return (0);
 }
 
 int
-fib4_sendmbuf(struct ifnet *ifp, struct mbuf *m, struct nhop_data *nh,
+fib4_sendmbuf(struct ifnet *ifp, struct mbuf *m, struct nhop_prepend *nh,
     struct in_addr dst)
 {
 	int error;
 
-	if (nh != NULL && (nh->nh_flags & NH_FLAGS_L2_INCOMPLETE) == 0) {
+	if (nh != NULL && (nh->nh_flags & NHF_L2_INCOMPLETE) == 0) {
 
 		/*
 		 * Fast path case. Most packets should
@@ -372,6 +372,19 @@ fib4_sendmbuf(struct ifnet *ifp, struct mbuf *m, struct nhop_data *nh,
 	return (error);
 }
 
+static inline uint16_t
+fib_rte_to_nh_flags(int rt_flags)
+{
+	uint16_t res;
+
+	res = (rt_flags & RTF_REJECT) ? NHF_REJECT : 0;
+	res |= (rt_flags & RTF_BLACKHOLE) ? NHF_BLACKHOLE : 0;
+	res |= (rt_flags & (RTF_DYNAMIC|RTF_MODIFIED)) ? NHF_REDIRECT : 0;
+	res |= (rt_flags & RTF_BROADCAST) ? NHF_BROADCAST : 0;
+
+	return (res);
+}
+
 
 static void
 fib4_rte_to_nh_extended(struct rtentry *rte, struct in_addr dst,
@@ -392,12 +405,10 @@ fib4_rte_to_nh_extended(struct rtentry *rte, struct in_addr dst,
 	pnh4->nh_src = IA_SIN(ia)->sin_addr;
 
 	/* Set flags */
-	pnh4->nh_flags = rte->rt_flags & NHOP_FLAGS_MASK;
-	if (rte->rt_flags & (RTF_DYNAMIC|RTF_MODIFIED))
-		pnh4->nh_flags |= NHOP_REDIRECT;
+	pnh4->nh_flags = fib_rte_to_nh_flags(rte->rt_flags);
 	gw = (struct sockaddr_in *)rt_key(rte);
 	if (gw->sin_addr.s_addr == 0)
-		pnh4->nh_flags |= NHOP_DEFAULT;
+		pnh4->nh_flags |= NHF_DEFAULT;
 }
 
 
@@ -415,14 +426,22 @@ fib4_rte_to_nh_basic(struct rtentry *rte, struct in_addr dst,
 	} else
 		pnh4->nh_addr = dst;
 	/* Set flags */
-	pnh4->nh_flags = rte->rt_flags & NHOP_FLAGS_MASK;
-	if (rte->rt_flags & (RTF_DYNAMIC|RTF_MODIFIED))
-		pnh4->nh_flags |= NHOP_REDIRECT;
+	pnh4->nh_flags = fib_rte_to_nh_flags(rte->rt_flags);
 	gw = (struct sockaddr_in *)rt_key(rte);
 	if (gw->sin_addr.s_addr == 0)
-		pnh4->nh_flags |= NHOP_DEFAULT;
+		pnh4->nh_flags |= NHF_DEFAULT;
 }
 
+/*
+ * Performs IPv4 route table lookup on @dst. Returns 0 on success.
+ * Stores nexthop info provided @pnh4 structure.
+ * Note that
+ * - nh_ifp cannot be safely dereferenced
+ * - nh_ifp represents ifaddr ifp (e.g. if looking up address on
+ *   interface "ix0" pointer to "ix0" interface will be returned instead
+ *   of "lo0")
+ * - howewer mtu from "transmit" interface will be returned.
+ */
 int
 fib4_lookup_nh_basic(uint32_t fibnum, struct in_addr dst, uint32_t flowid,
     struct nhop4_basic *pnh4)
@@ -459,16 +478,25 @@ fib4_lookup_nh_basic(uint32_t fibnum, struct in_addr dst, uint32_t flowid,
 	return (ENOENT);
 }
 
+/*
+ * Performs IPv4 route table lookup on @dst. Returns 0 on success.
+ * Stores extende nexthop info provided @pnh4 structure.
+ * Note that
+ * - nh_ifp cannot be safely dereferenced unless NHOP_LOOKUP_REF is specified.
+ * - in that case you need to call fib4_free_nh_ext()
+ * - nh_ifp represents logical transmit interface (rt_ifp)
+ * - mtu from logical transmit interface will be returned.
+ */
 int
-fib4_lookup_nh_extended(uint32_t fibnum, struct in_addr dst, uint32_t flowid,
-    struct nhop4_extended *pnh4)
+fib4_lookup_nh_ext(uint32_t fibnum, struct in_addr dst, uint32_t flowid,
+    uint32_t flags, struct nhop4_extended *pnh4)
 {
 	struct radix_node_head *rnh;
 	struct radix_node *rn;
 	struct sockaddr_in sin;
 	struct rtentry *rte;
 
-	KASSERT((fibnum < rt_numfibs), ("fib4_lookup_nh_basic: bad fibnum"));
+	KASSERT((fibnum < rt_numfibs), ("fib4_lookup_nh_ext: bad fibnum"));
 	rnh = rt_tables_get_rnh(fibnum, AF_INET);
 	if (rnh == NULL)
 		return (ENOENT);
@@ -485,6 +513,9 @@ fib4_lookup_nh_extended(uint32_t fibnum, struct in_addr dst, uint32_t flowid,
 		/* Ensure route & ifp is UP */
 		if (RT_LINK_IS_UP(rte->rt_ifp)) {
 			fib4_rte_to_nh_extended(rte, dst, pnh4);
+			if ((flags & NHOP_LOOKUP_REF) != 0) {
+				/* TODO: Do lwref on egress ifp's */
+			}
 			RADIX_NODE_HEAD_RUNLOCK(rnh);
 
 			return (0);
@@ -505,15 +536,15 @@ fib4_free_nh_ext(uint32_t fibnum, struct nhop4_extended *pnh4)
 
 #ifdef INET6
 void
-fib6_free_nh(uint32_t fibnum, struct nhop_data *nh)
+fib6_free_nh_prepend(uint32_t fibnum, struct nhop_prepend *nh)
 {
 
-	fib_free_nh(fibnum, nh, AF_INET6);
+	fib_free_nh_prepend(fibnum, nh, AF_INET6);
 }
 
 void
-fib6_choose_prepend(uint32_t fibnum, struct nhop_data *nh_src,
-    uint32_t flowid, struct nhop_data *nh, struct nhop6_extended *nh_ext)
+fib6_choose_prepend(uint32_t fibnum, struct nhop_prepend *nh_src,
+    uint32_t flowid, struct nhop_prepend *nh, struct nhop6_extended *nh_ext)
 {
 
 	fib_choose_prepend(fibnum, nh_src, flowid, nh, AF_INET6);
@@ -544,10 +575,10 @@ fib6_rte_to_nh_basic(struct rtentry *rte, struct in6_addr dst,
 	} else
 		pnh6->nh_addr = dst;
 	/* Set flags */
-	pnh6->nh_flags = rte->rt_flags & NHOP_FLAGS_MASK;
+	pnh6->nh_flags = fib_rte_to_nh_flags(rte->rt_flags);
 	gw = (struct sockaddr_in6 *)rt_key(rte);
 	if (IN6_IS_ADDR_UNSPECIFIED(&gw->sin6_addr))
-		pnh6->nh_flags |= NHOP_DEFAULT;
+		pnh6->nh_flags |= NHF_DEFAULT;
 }
 
 int
