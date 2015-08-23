@@ -59,6 +59,7 @@
 #include <net/if_var.h>
 #include <net/netisr.h>
 #include <net/route.h>
+#include <net/route_internal.h>
 #include <net/if_dl.h>
 #include <net/if_types.h>
 #include <net/if_arc.h>
