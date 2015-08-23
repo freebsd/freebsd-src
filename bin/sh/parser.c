@@ -1662,7 +1662,7 @@ varname:
 				pungetc();
 			else if (c == '\n' || c == PEOF)
 				synerror("Unexpected end of line in substitution");
-			else
+			else if (BASESYNTAX[c] != CCTL)
 				USTPUTC(c, out);
 		}
 		if (subtype == 0) {
@@ -1678,7 +1678,8 @@ varname:
 						synerror("Unexpected end of line in substitution");
 					if (flags == VSNUL)
 						STPUTC(':', out);
-					STPUTC(c, out);
+					if (BASESYNTAX[c] != CCTL)
+						STPUTC(c, out);
 					subtype = VSERROR;
 				} else
 					subtype = p - types + VSNORMAL;
