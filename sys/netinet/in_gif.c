@@ -61,6 +61,8 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip_encap.h>
 #include <netinet/ip_ecn.h>
 
+#include <net/rt_nhops.h>
+
 #ifdef INET6
 #include <netinet/ip6.h>
 #endif
@@ -188,22 +190,13 @@ in_gif_encapcheck(const struct mbuf *m, int off, int proto, void *arg)
 
 	/* ingress filters on outer source */
 	if ((GIF2IFP(sc)->if_flags & IFF_LINK2) == 0) {
-		struct sockaddr_in sin;
-		struct rtentry *rt;
+		struct nhop4_basic nh4;
 
-		bzero(&sin, sizeof(sin));
-		sin.sin_family = AF_INET;
-		sin.sin_len = sizeof(struct sockaddr_in);
-		sin.sin_addr = ip->ip_src;
-		/* XXX MRT  check for the interface we would use on output */
-		rt = in_rtalloc1((struct sockaddr *)&sin, 0,
-		    0UL, sc->gif_fibnum);
-		if (rt == NULL || rt->rt_ifp != m->m_pkthdr.rcvif) {
-			if (rt != NULL)
-				RTFREE_LOCKED(rt);
+		if (fib4_lookup_nh_basic(sc->gif_fibnum, ip->ip_src, 0,
+		    &nh4) != 0)
 			return (0);
-		}
-		RTFREE_LOCKED(rt);
+		if (nh4.nh_ifp != m->m_pkthdr.rcvif)
+			return (0);
 	}
 	return (ret);
 }

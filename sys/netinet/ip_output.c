@@ -200,9 +200,13 @@ ip_output_pfil(struct mbuf *m, struct ifnet *ifp, struct inpcb *inp,
  * header (with len, off, ttl, proto, tos, src, dst).
  * The mbuf chain containing the packet will be freed.
  * The mbuf opt, if present, will not be freed.
- * If route ro is present and has ro_rt initialized, route lookup would be
- * skipped and ro->ro_rt would be used. If ro is present but ro->ro_rt is NULL,
- * then result of route lookup is stored in ro->ro_rt.
+ *
+ * If @ri is present:
+ *  - if ri->ri_nh is not null, route will be calculated using ri_nh.
+ *  - if ri->ri_nh_info is set, nhop4_basic route info will be stored on
+ *    successful transmit (error=0).
+ *  - ri->ri_mtu will be set if packet fails to be transmitted due to MTU
+ *    issues
  *
  * In the IP forwarding case, the packet will arrive with options already
  * inserted, so must have a NULL opt pointer.
@@ -407,18 +411,11 @@ again:
 		nh = &local_nh;
 		ifp = NH_LIFP(nh);
 		mtu = nh->nh_mtu;
-		if (nh->nh_flags & (RTF_HOST|RTF_GATEWAY)) {
-			/* XXX: Set RTF_BROADCAST if GW address is broadcast */
+		if (nh->nh_flags & (RTF_HOST|RTF_GATEWAY))
 			isbroadcast = (nh->nh_flags & RTF_BROADCAST);
-		} else
+		else
 			isbroadcast = in_broadcast(dst, ifp);
 	}
-
-	/*
-	 * XXX: Move somewhere to sendit
-	 */
-	if (ri != NULL)
-		ri->ri_mtu = mtu;
 
 	/* Catch a possible divide by zero later. */
 	KASSERT(mtu > 0, ("%s: mtu %d <= 0, rte=%p (rt_flags=0x%08x) ifp=%p",
@@ -583,6 +580,20 @@ sendit:
 			ri = NULL;
 			ip = mtod(m, struct ip *);
 			goto again;
+		}
+	}
+
+	if (ri != NULL) {
+		ri->ri_mtu = mtu;
+		if (ri->ri_nh_info != NULL) {
+			struct nhop4_basic *pnh4;
+
+			pnh4 = &ri->ri_nh_info->u.nh4;
+			pnh4->nh_ifp = ifp;
+			pnh4->nh_flags = nh ? nh->nh_flags : 0;
+			pnh4->nh_mtu = mtu;
+			/* XXX: This is not always correct. */
+			pnh4->nh_addr = dst;
 		}
 	}
 

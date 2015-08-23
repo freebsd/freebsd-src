@@ -2115,13 +2115,17 @@ icmp6_rip6_input(struct mbuf **mp, int off)
 void
 icmp6_reflect(struct mbuf *m, size_t off)
 {
-	struct in6_addr src, *srcp = NULL;
 	struct ip6_hdr *ip6;
 	struct icmp6_hdr *icmp6;
 	struct in6_ifaddr *ia = NULL;
-	struct ifnet *outif = NULL;
 	int plen;
 	int type, code;
+	struct ifnet *outif = NULL;
+	struct in6_addr origdst, src, dst;
+	struct route_info ri;
+	struct nhop6_basic nh6;
+	uint32_t scopeid;
+	int e;
 
 	/* too short to reflect */
 	if (off < sizeof(struct ip6_hdr)) {
@@ -2175,48 +2179,61 @@ icmp6_reflect(struct mbuf *m, size_t off)
 	 * (for example) when we encounter an error while forwarding procedure
 	 * destined to a duplicated address of ours.
 	 */
-	if (!IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst)) {
-		ia = in6ifa_ifwithaddr(&ip6->ip6_dst, 0 /* XXX */);
-		if (ia != NULL && !(ia->ia6_flags &
-		    (IN6_IFF_ANYCAST|IN6_IFF_NOTREADY)))
-			srcp = &ia->ia_addr.sin6_addr;
+	memset(&src, 0, sizeof(src));
+	if (!IN6_IS_ADDR_MULTICAST(&origdst)) {
+		if ((ia = in6ifa_ifwithaddr(&ip6->ip6_dst, 0 /* XXX */))) {
+			if (!(ia->ia6_flags &
+			    (IN6_IFF_ANYCAST|IN6_IFF_NOTREADY)))
+				src = ia->ia_addr.sin6_addr;
+			ifa_free(&ia->ia_ifa);
+		}
 	}
 
-	if (srcp == NULL) {
-		int e;
-		struct sockaddr_in6 sin6;
-		struct route_in6 ro;
+
+	ip6->ip6_src = src;
+	ip6->ip6_flow = 0;
+	ip6->ip6_vfc &= ~IPV6_VERSION_MASK;
+	ip6->ip6_vfc |= IPV6_VERSION;
+	ip6->ip6_nxt = IPPROTO_ICMPV6;
+	if (outif)
+		ip6->ip6_hlim = ND_IFINFO(outif)->chlim;
+	else if (m->m_pkthdr.rcvif) {
+		/* XXX: This may not be the outgoing interface */
+		ip6->ip6_hlim = ND_IFINFO(m->m_pkthdr.rcvif)->chlim;
+	} else
+		ip6->ip6_hlim = V_ip6_defhlim;
+
+
+	/*
+	 * Deembed scope
+	 */
+	in6_splitscope(&ip6->ip6_dst, &dst, &scopeid);
+
+	if (IN6_IS_ADDR_UNSPECIFIED(&src)) {
 
 		/*
 		 * This case matches to multicasts, our anycast, or unicasts
 		 * that we do not own.  Select a source address based on the
 		 * source address of the erroneous packet.
 		 */
-		bzero(&sin6, sizeof(sin6));
-		sin6.sin6_family = AF_INET6;
-		sin6.sin6_len = sizeof(sin6);
-		sin6.sin6_addr = ip6->ip6_dst; /* zone ID should be embedded */
 
-		bzero(&ro, sizeof(ro));
-		e = in6_selectsrc(&sin6, NULL, NULL, &ro, NULL, &outif, &src);
-		if (ro.ro_rt)
-			RTFREE(ro.ro_rt); /* XXX: we could use this */
+		e = in6_selectsrc_addr(M_GETFIB(m), &dst, scopeid, &src);
 		if (e) {
 			char ip6buf[INET6_ADDRSTRLEN];
 			nd6log((LOG_DEBUG,
 			    "icmp6_reflect: source can't be determined: "
 			    "dst=%s, error=%d\n",
-			    ip6_sprintf(ip6buf, &sin6.sin6_addr), e));
+			    ip6_sprintf(ip6buf, &dst), e));
 			goto bad;
 		}
-		srcp = &src;
+		ip6->ip6_src = src;
 	}
 	/*
 	 * ip6_input() drops a packet if its src is multicast.
 	 * So, the src is never multicast.
 	 */
 	ip6->ip6_dst = ip6->ip6_src;
-	ip6->ip6_src = *srcp;
+	ip6->ip6_src = src;
 	ip6->ip6_flow = 0;
 	ip6->ip6_vfc &= ~IPV6_VERSION_MASK;
 	ip6->ip6_vfc |= IPV6_VERSION;
@@ -2239,17 +2256,20 @@ icmp6_reflect(struct mbuf *m, size_t off)
 
 	m->m_flags &= ~(M_BCAST|M_MCAST);
 
-	ip6_output(m, NULL, NULL, 0, NULL, &outif, NULL);
-	if (outif)
-		icmp6_ifoutstat_inc(outif, type, code);
+	memset(&ri, 0, sizeof(ri));
+	ri.ri_nh_info = (struct nhopu_basic *)&nh6;
+	ri.scopeid = scopeid;
 
-	if (ia != NULL)
-		ifa_free(&ia->ia_ifa);
+	e = ip6_output(m, NULL, &ri, 0, NULL, NULL);
+	if (e == 0) {
+		/* XXX: Possible use after free */
+		outif = nh6.nh_ifp;
+		//icmp6_ifoutstat_inc(outif, type, code);
+	}
+
 	return;
 
  bad:
-	if (ia != NULL)
-		ifa_free(&ia->ia_ifa);
 	m_freem(m);
 	return;
 }
@@ -2345,11 +2365,11 @@ icmp6_redirect_input(struct mbuf *m, int off)
 	}
     {
 	/* ip6->ip6_src must be equal to gw for icmp6->icmp6_reddst */
-	struct nhop6_extended nh_ext;
+	struct nhop6_basic nh6;
 
-	if (fib6_lookup_nh_ext(RT_DEFAULT_FIB, reddst6, 0, 0, 0, &nh_ext) == 0){
+	if (fib6_lookup_nh_basic(RT_DEFAULT_FIB, &reddst6, 0, 0, &nh6)==0) {
 		/* XXX: Think about AF_LINK GW */
-		if ((nh_ext.nh_flags & NHF_GATEWAY) == 0) {
+		if ((nh6.nh_flags & NHF_GATEWAY) == 0) {
 			nd6log((LOG_ERR,
 			    "ICMP6 redirect rejected; no route "
 			    "with inet6 gateway found for redirect dst: %s\n",
@@ -2357,12 +2377,12 @@ icmp6_redirect_input(struct mbuf *m, int off)
 			goto bad;
 		}
 
-		if (bcmp(&src6, &nh_ext.nh_addr, sizeof(struct in6_addr)) != 0){
+		if (IN6_ARE_ADDR_EQUAL(&src6, &nh6.nh_addr) == 0) {
 			nd6log((LOG_ERR,
 			    "ICMP6 redirect rejected; "
 			    "not equal to gw-for-src=%s (must be same): "
 			    "%s\n",
-			    ip6_sprintf(ip6buf, &nh_ext.nh_addr),
+			    ip6_sprintf(ip6buf, &nh6.nh_addr),
 			    icmp6_redirect_diag(&src6, &reddst6, &redtgt6)));
 			goto bad;
 		}
@@ -2482,6 +2502,9 @@ icmp6_redirect_output(struct mbuf *m0, struct rtentry *rt)
 	u_char *p;
 	struct ifnet *outif = NULL;
 	struct sockaddr_in6 src_sa;
+	struct route_info ri;
+	struct nhop6_basic nh6;
+	int e;
 
 	icmp6_errcount(ND_REDIRECT, 0);
 
@@ -2740,9 +2763,14 @@ noredhdropt:;
 		m_tag_prepend(m, mtag);
 	}
 
+	memset(&ri, 0, sizeof(ri));
+	memset(&nh6, 0, sizeof(nh6));
+	ri.ri_nh_info = (struct nhopu_basic *)&nh6;
+
 	/* send the packet to outside... */
-	ip6_output(m, NULL, NULL, 0, NULL, &outif, NULL);
-	if (outif) {
+	e = ip6_output(m, NULL, &ri, 0, NULL, NULL);
+	if (e == 0) {
+		outif = nh6.nh_ifp;
 		icmp6_ifstat_inc(outif, ifs6_out_msg);
 		icmp6_ifstat_inc(outif, ifs6_out_redirect);
 	}

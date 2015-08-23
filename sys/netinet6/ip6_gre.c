@@ -130,7 +130,7 @@ in6_gre_output(struct mbuf *m, int af, int hlen)
 
 	gi6 = mtod(m, struct greip6 *);
 	gi6->gi6_ip6.ip6_hlim = V_ip6_gre_hlim;
-	return (ip6_output(m, NULL, NULL, IPV6_MINMTU, NULL, NULL, NULL));
+	return (ip6_output(m, NULL, NULL, IPV6_MINMTU, NULL, NULL));
 }
 
 int

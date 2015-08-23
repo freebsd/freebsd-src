@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #define	TCPOUTFLAGS
 #include <netinet/tcp_fsm.h>
 #include <netinet/toecore.h>
+#include <netinet6/scope6_var.h>
 
 int registered_toedevs;
 
@@ -86,11 +87,13 @@ tcp_offload_connect(struct socket *so, struct sockaddr *nam)
 			goto done;
 	} else if (af == AF_INET6) {
 		struct sockaddr_in6 *sin6;
+		struct in6_addr dst;
+		uint32_t scopeid;
 
 		sin6 = (struct sockaddr_in6 *)nam;
+		in6_splitscope(&sin6->sin6_addr, &dst, &scopeid);
 
-		if (fib6_lookup_nh_ext(fibnum,
-		    sin6->sin6_addr, sin6->sin6_scope_id,
+		if (fib6_lookup_nh_ext(fibnum, &dst, scopeid,
 		    0, NHOP_LOOKUP_REF, &nhu_ext.u.nh6) != 0)
 			return (EHOSTUNREACH);
 

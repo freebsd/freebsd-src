@@ -271,8 +271,7 @@ ng_ipfw_rcvdata(hook_p hook, item_p item)
 #endif
 #ifdef INET6
 		case IPV6_VERSION >> 4:
-			return (ip6_output(m, NULL, NULL, 0, NULL,
-			    NULL, NULL));
+			return (ip6_output(m, NULL, NULL, 0, NULL, NULL));
 #endif
 		}
 	}
