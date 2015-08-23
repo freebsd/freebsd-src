@@ -59,6 +59,7 @@ struct route {
 
 #define	RT_CACHING_CONTEXT	0x1	/* XXX: not used anywhere */
 #define	RT_NORTREF		0x2	/* doesn't hold reference on ro_rt */
+#define	RT_NHOP			0x4
 
 struct rt_metrics {
 	u_long	rmx_locks;	/* Kernel must leave these values alone */

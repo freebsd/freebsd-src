@@ -30,7 +30,6 @@
 #ifndef _NET_RT_NHOPS_H_
 #define	_NET_RT_NHOPS_H_
 
-#define	MAX_PREPEND_LEN		64	/* Max data that can be prepended */
 
 
 #define	NH_TYPE_DIRECT		1	/* Directly reachable, no data */
@@ -40,7 +39,7 @@
 #define	NH_TYPE_MUTATOR		5	/* NH+callback function  */
 #define	NH_TYPE_MULTIPATH	6	/* Multipath route */
 
-struct nhop_info {
+struct nhop_ctl_info {
 	uint64_t	refcnt;		/* Use references */
 	uint64_t	flags;		/* Options */
 
@@ -61,18 +60,48 @@ struct nhop_mutator_info {
 	char		data[];
 };
 
-/* Structure used for forwarding purposes */
+/* Structures used for forwarding purposes */
+#define	MAX_PREPEND_LEN		56	/* Max data that can be prepended */
+
+/* Non-recursive nexthop */
 struct nhop_data {
-	uint8_t		flags;	/* NH flags */
-	uint8_t		count;	/* Number of nexthops or data length */
-	uint16_t	mtu;
+	uint8_t		nh_flags;		/* NH flags */
+	uint8_t		nh_count;		/* Number of nexthops or data length */
+	uint16_t	nh_mtu;		/* given nhop MTU */
 	uint16_t	lifp_idx;	/* Logical interface index */
-	uint16_t	ifp_idx;	/* Transmit interface index */
 	union {
-		struct nhop_mpath_info mp[32];	/* Multipath info */
-		struct nhop_mutator_info mm;	/* mutator info */
-		char	data[MAX_PREPEND_LEN - 8];	/* data to prepend */
+		uint16_t	ifp_idx;	/* Transmit interface index */
+		uint16_t	nhop_idx;	/* L2 multipath nhop index */
+	} i;
+	union {
+		char	data[MAX_PREPEND_LEN];	/* data to prepend */
+#ifdef INET
+		struct in_addr	gw4;		/* IPv4 gw address */
+#endif
+#ifdef INET6
+		struct in6_addr	gw6;		/* IPv4 gw address */
+#endif
 	} d;
+};
+/* Internal flags */
+#define	NH_FLAGS_RECURSE	0x01	/* Nexthop structure is recursive */
+#define	NH_FLAGS_L2_NHOP	0x02	/* L2 interface has to be selected */
+#define	NH_FLAGS_L2_ME		0x04	/* dst L2 address is our address */
+#define	NH_FLAGS_L2_INCOMPLETE 	0x08	/* L2 header not prepended */
+
+#define	NH_LIFP(nh)	ifnet_byindex_locked((nh)->lifp_idx)
+#define	NH_TIFP(nh)	ifnet_byindex_locked((nh)->i.ifp_idx)
+
+/* L2/L3 recursive nexthop */
+struct nhop_multi {
+	uint8_t		nh_flags;	/* NH flags */
+	uint8_t		nh_count;	/* Number of nexthops or data length */
+	uint8_t		spare[2];
+	uint16_t	nh_nhops[30];	/* Nexthop indexes */
+};
+
+/* Control plane nexthop data */
+struct nhop_info {
 };
 
 /* Per-AF per-fib nhop table */
@@ -105,6 +134,7 @@ struct nhop6_basic {
 	struct ifnet	*nh_ifp;	/* Logical egress interface */
 	uint16_t	nh_mtu;		/* nexthop mtu */
 	uint16_t	nh_flags;	/* nhop flags */
+	uint8_t		spare[4];
 	struct in6_addr	nh_addr;	/* GW/DST IPv4 address */
 };
 
@@ -115,10 +145,62 @@ struct nhop64_basic {
 	} u;
 };
 
+/* Extended nexthop info used for control protocols */
+struct nhop4_extended {
+	struct ifnet	*nh_ifp;	/* Logical egress interface */
+	uint16_t	nh_mtu;		/* nexthop mtu */
+	uint16_t	nh_flags;	/* nhop flags */
+	uint8_t		spare[4];
+	struct in_addr	nh_addr;	/* GW/DST IPv4 address */
+	struct in_addr	nh_src;		/* default source IPv4 address */
+	uint64_t	spare2[2];
+};
+
+struct nhop6_extended {
+	struct ifnet	*nh_ifp;	/* Logical egress interface */
+	uint16_t	nh_mtu;		/* nexthop mtu */
+	uint16_t	nh_flags;	/* nhop flags */
+	uint8_t		spare[4];
+	struct in6_addr	nh_addr;	/* GW/DST IPv6 address */
+	struct in6_addr	nh_src;		/* default source IPv6 address */
+	uint64_t	spare2[2];
+};
+
+struct nhop64_extended {
+	union {
+		struct nhop4_extended	nh4;
+		struct nhop6_extended	nh6;
+	} u;
+};
+
+struct route_info {
+	struct nhop_data	*ri_nh;		/* Desired nexthop to use */
+	struct nhop64_basic	*ri_nh_info;	/* Get selected route info */
+	uint16_t		ri_mtu;
+	uint16_t		spare[3];
+};
+
+struct route_compat {
+	struct nhop_data	*ro_nh;
+	void			*spare0;
+	void			*spare1;
+	int			ro_flags;
+};
+
 int fib4_lookup_nh_basic(uint32_t fibnum, struct in_addr dst, uint32_t flowid,
     struct nhop4_basic *pnh4);
 int fib6_lookup_nh_basic(uint32_t fibnum, struct in6_addr dst, uint32_t flowid,
     struct nhop6_basic *pnh6);
+
+void fib4_free_nh(uint32_t fibnum, struct nhop_data *nh);
+void fib4_choose_prepend(uint32_t fibnum, struct nhop_data *nh_src,
+    uint32_t flowid, struct nhop_data *nh, struct nhop4_extended *nh_ext);
+int fib4_lookup_prepend(uint32_t fibnum, struct in_addr dst, struct mbuf *m,
+    struct nhop_data *nh, struct nhop4_extended *nh_ext);
+
+void fib6_free_nh(uint32_t fibnum, struct nhop_data *nh);
+void fib6_choose_prepend(uint32_t fibnum, struct nhop_data *nh_src,
+    uint32_t flowid, struct nhop_data *nh, struct nhop6_extended *nh_ext);
 
 #define	NHOP_REJECT	RTF_REJECT
 #define	NHOP_BLACKHOLE	RTF_BLACKHOLE

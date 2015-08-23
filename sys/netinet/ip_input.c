@@ -82,6 +82,8 @@ __FBSDID("$FreeBSD$");
 #endif /* IPSEC */
 #include <netinet/in_rss.h>
 
+#include <net/rt_nhops.h>
+
 #include <sys/socketvar.h>
 
 #include <security/mac/mac_framework.h>
@@ -901,6 +903,7 @@ ip_forward(struct mbuf *m, int srcrt)
 	struct sockaddr_in *sin;
 	struct in_addr dest;
 	struct route ro;
+	struct route_info ri;
 	int error, type = 0, code = 0, mtu = 0;
 
 	if (m->m_flags & (M_BCAST|M_MCAST) || in_canforward(ip->ip_dst) == 0) {
@@ -1031,11 +1034,12 @@ ip_forward(struct mbuf *m, int srcrt)
 		}
 	}
 
-	error = ip_output(m, NULL, &ro, IP_FORWARDING, NULL, NULL);
+	bzero(&ri, sizeof(ri));
 
-	if (error == EMSGSIZE && ro.ro_rt)
-		mtu = ro.ro_rt->rt_mtu;
-	RO_RTFREE(&ro);
+	error = ip_output(m, NULL, &ri, IP_FORWARDING, NULL, NULL);
+
+	if (error == EMSGSIZE)
+		mtu = ri.ri_mtu;
 
 	if (error)
 		IPSTAT_INC(ips_cantforward);

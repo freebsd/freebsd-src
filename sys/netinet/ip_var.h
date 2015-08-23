@@ -172,6 +172,7 @@ void	kmod_ipstat_dec(int statnum);
 struct ip;
 struct inpcb;
 struct route;
+struct route_info;
 struct sockopt;
 
 VNET_DECLARE(int, ip_defttl);			/* default IP ttl */
@@ -216,7 +217,7 @@ extern int
 	(*ip_mforward)(struct ip *, struct ifnet *, struct mbuf *,
 	    struct ip_moptions *);
 int	ip_output(struct mbuf *,
-	    struct mbuf *, struct route *, int, struct ip_moptions *,
+	    struct mbuf *, struct route_info *, int, struct ip_moptions *,
 	    struct inpcb *);
 int	ipproto_register(short);
 int	ipproto_unregister(short);
