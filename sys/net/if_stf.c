@@ -114,6 +114,8 @@
 
 #include <netinet/ip_encap.h>
 
+#include <net/rt_nhops.h>
+
 #include <machine/stdarg.h>
 
 #include <net/bpf.h>
@@ -558,26 +560,12 @@ stf_checkaddr4(struct stf_softc *sc, struct in_addr *in, struct ifnet *inifp)
 	 * perform ingress filter
 	 */
 	if (sc && (STF2IFP(sc)->if_flags & IFF_LINK2) == 0 && inifp) {
-		struct sockaddr_in sin;
-		struct rtentry *rt;
+		struct nhop4_basic nh4;
 
-		bzero(&sin, sizeof(sin));
-		sin.sin_family = AF_INET;
-		sin.sin_len = sizeof(struct sockaddr_in);
-		sin.sin_addr = *in;
-		rt = rtalloc1_fib((struct sockaddr *)&sin, 0,
-		    0UL, sc->sc_fibnum);
-		if (!rt || rt->rt_ifp != inifp) {
-#if 0
-			log(LOG_WARNING, "%s: packet from 0x%x dropped "
-			    "due to ingress filter\n", if_name(STF2IFP(sc)),
-			    (u_int32_t)ntohl(sin.sin_addr.s_addr));
-#endif
-			if (rt)
-				RTFREE_LOCKED(rt);
-			return -1;
-		}
-		RTFREE_LOCKED(rt);
+		if (fib4_lookup_nh_basic(sc->sc_fibnum, *in, 0, &nh4) != 0)
+			return (-1);
+		if (nh4.nh_ifp != inifp)
+			return (-1);
 	}
 
 	return 0;
