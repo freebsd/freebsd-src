@@ -63,6 +63,8 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip_icmp.h>
 #include <machine/in_cksum.h>
 
+#include <net/rt_nhops.h>
+
 #include <sys/socketvar.h>
 
 static VNET_DEFINE(int, ip_dosourceroute);
@@ -104,6 +106,7 @@ ip_dooptions(struct mbuf *m, int pass)
 	int opt, optlen, cnt, off, code, type = ICMP_PARAMPROB, forward = 0;
 	struct in_addr *sin, dst;
 	uint32_t ntime;
+	struct nhop4_extended nh_ext;
 	struct	sockaddr_in ipaddr = { sizeof(ipaddr), AF_INET };
 
 	/* Ignore or reject packets with IP options. */
@@ -235,18 +238,28 @@ dropit:
 			    if (ia == NULL)
 				    ia = (INA)ifa_ifwithnet((SA)&ipaddr, 0,
 						    RT_ALL_FIBS);
-			} else
-/* XXX MRT 0 for routing */
-				ia = ip_rtaddr(ipaddr.sin_addr, M_GETFIB(m));
-			if (ia == NULL) {
-				type = ICMP_UNREACH;
-				code = ICMP_UNREACH_SRCFAIL;
-				goto bad;
+				if (ia == NULL) {
+					type = ICMP_UNREACH;
+					code = ICMP_UNREACH_SRCFAIL;
+					goto bad;
+				}
+
+				memcpy(cp + off, &(IA_SIN(ia)->sin_addr),
+				    sizeof(struct in_addr));
+				ifa_free(&ia->ia_ifa);
+			} else {
+				/* XXX MRT 0 for routing */
+				if (fib4_lookup_nh_extended(M_GETFIB(m),
+				    ipaddr.sin_addr, 0, &nh_ext) != 0) {
+					type = ICMP_UNREACH;
+					code = ICMP_UNREACH_SRCFAIL;
+					goto bad;
+				}
+
+				memcpy(cp + off, &nh_ext.nh_src,
+				    sizeof(struct in_addr));
 			}
 			ip->ip_dst = ipaddr.sin_addr;
-			(void)memcpy(cp + off, &(IA_SIN(ia)->sin_addr),
-			    sizeof(struct in_addr));
-			ifa_free(&ia->ia_ifa);
 			cp[IPOPT_OFFSET] += sizeof(struct in_addr);
 			/*
 			 * Let ip_intr's mcast routing check handle mcast pkts
@@ -280,15 +293,19 @@ dropit:
 			 * destination, use the incoming interface (should be
 			 * same).
 			 */
-			if ((ia = (INA)ifa_ifwithaddr((SA)&ipaddr)) == NULL &&
-			    (ia = ip_rtaddr(ipaddr.sin_addr, M_GETFIB(m))) == NULL) {
+			if ((ia = (INA)ifa_ifwithaddr((SA)&ipaddr)) != NULL) {
+				memcpy(cp + off, &(IA_SIN(ia)->sin_addr),
+				    sizeof(struct in_addr));
+				ifa_free(&ia->ia_ifa);
+			} else if (fib4_lookup_nh_extended(M_GETFIB(m),
+			    ipaddr.sin_addr, 0, &nh_ext) == 0) {
+				memcpy(cp + off, &nh_ext.nh_src,
+				    sizeof(struct in_addr));
+			} else {
 				type = ICMP_UNREACH;
 				code = ICMP_UNREACH_HOST;
 				goto bad;
 			}
-			(void)memcpy(cp + off, &(IA_SIN(ia)->sin_addr),
-			    sizeof(struct in_addr));
-			ifa_free(&ia->ia_ifa);
 			cp[IPOPT_OFFSET] += sizeof(struct in_addr);
 			break;
 
