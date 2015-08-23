@@ -54,6 +54,11 @@ extern int	in_inithead(void **head, int off);
 extern int	in_detachhead(void **head, int off);
 #endif
 
+static void in_setifarnh(struct radix_node_head *rnh, uint32_t fibnum,
+    int af, void *_arg);
+static void in_rtqtimo_setrnh(struct radix_node_head *rnh, uint32_t fibnum,
+    int af, void *_arg);
+
 /*
  * Do what we need to do when inserting a route.
  */
@@ -91,22 +96,11 @@ in_addroute(void *v_arg, void *n_arg, struct radix_node_head *head,
 	if (IN_MULTICAST(ntohl(sin->sin_addr.s_addr)))
 		rt->rt_flags |= RTF_MULTICAST;
 
-	if (rt->rt_ifp != NULL) {
-
-		/*
-		 * Check route MTU:
-		 * inherit interface MTU if not set or
-		 * check if MTU is too large.
-		 */
-		if (rt->rt_mtu == 0) {
-			rt->rt_mtu = rt->rt_ifp->if_mtu;
-		} else if (rt->rt_mtu > rt->rt_ifp->if_mtu)
-			rt->rt_mtu = rt->rt_ifp->if_mtu;
-	}
+	if (rt->rt_mtu == 0 && rt->rt_ifp != NULL)
+		rt->rt_mtu = rt->rt_ifp->if_mtu;
 
 	return (rn_addroute(v_arg, n_arg, &head->rh, treenodes));
 }
-
 
 static int _in_rt_was_here;
 /*
@@ -155,10 +149,9 @@ struct in_ifadown_arg {
 };
 
 static int
-in_ifadownkill(struct radix_node *rn, void *xap)
+in_ifadownkill(struct rtentry *rt, void *xap)
 {
 	struct in_ifadown_arg *ap = xap;
-	struct rtentry *rt = (struct rtentry *)rn;
 
 	RT_LOCK(rt);
 	if (rt->rt_ifa == ap->ifa &&
@@ -191,26 +184,30 @@ in_ifadownkill(struct radix_node *rn, void *xap)
 	return 0;
 }
 
+static void
+in_setifarnh(struct radix_node_head *rnh, uint32_t fibnum, int af,
+    void *_arg)
+{
+	struct in_ifadown_arg *arg;
+
+	arg = (struct in_ifadown_arg *)_arg;
+
+	arg->rnh = rnh;
+}
+
 void
 in_ifadown(struct ifaddr *ifa, int delete)
 {
 	struct in_ifadown_arg arg;
-	struct radix_node_head *rnh;
-	int	fibnum;
 
 	KASSERT(ifa->ifa_addr->sa_family == AF_INET,
 	    ("%s: wrong family", __func__));
 
-	for ( fibnum = 0; fibnum < rt_numfibs; fibnum++) {
-		rnh = rt_tables_get_rnh(fibnum, AF_INET);
-		arg.rnh = rnh;
-		arg.ifa = ifa;
-		arg.del = delete;
-		RADIX_NODE_HEAD_LOCK(rnh);
-		rnh->rnh_walktree(rnh, in_ifadownkill, &arg);
-		RADIX_NODE_HEAD_UNLOCK(rnh);
-		ifa->ifa_flags &= ~IFA_ROUTE;		/* XXXlocking? */
-	}
+	arg.ifa = ifa;
+	arg.del = delete;
+
+	rt_foreach_fib(AF_INET, in_setifarnh, in_ifadownkill, &arg);
+	ifa->ifa_flags &= ~IFA_ROUTE;		/* XXXlocking? */
 }
 
 /*
