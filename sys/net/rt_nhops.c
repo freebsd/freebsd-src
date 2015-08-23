@@ -532,6 +532,15 @@ fib4_free_nh_ext(uint32_t fibnum, struct nhop4_extended *pnh4)
 
 }
 
+void
+fib4_source_to_sa_ext(const struct nhopu_extended *pnhu, struct sockaddr_in *sin)
+{
+
+	sin->sin_family = AF_INET;
+	sin->sin_len = sizeof(*sin);
+	sin->sin_addr = pnhu->u.nh4.nh_src;
+}
+
 #endif
 
 #ifdef INET6
@@ -692,6 +701,15 @@ fib6_free_nh_ext(uint32_t fibnum, struct nhop6_extended *pnh6)
 
 }
 
+void
+fib6_source_to_sa_ext(const struct nhopu_extended *pnhu,
+    struct sockaddr_in6 *sin6)
+{
+
+	sin6->sin6_family = AF_INET6;
+	sin6->sin6_len = sizeof(*sin6);
+	sin6->sin6_addr = pnhu->u.nh6.nh_src;
+}
 #endif
 
 void

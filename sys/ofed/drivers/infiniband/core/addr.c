@@ -194,6 +194,21 @@ static void queue_req(struct addr_req *req)
 	mutex_unlock(&lock);
 }
 
+static void copy_src_sockaddr(struct sockaddr *src_in,
+			const struct nhopu_extended *pnhu,
+			int family)
+{
+
+#ifdef INET
+	if (family == AF_INET)
+		fib4_source_to_sa_ext(pnhu, (struct sodkaddr_in *)src_in);
+#endif
+#ifdef INET6
+	if (family == AF_INET6)
+		fib6_source_to_sa_ext(pnhu, (struct sodkaddr_in6 *)src_in);
+#endif
+}
+
 static int addr_resolve(struct sockaddr *src_in,
 			struct sockaddr *dst_in,
 			struct rdma_dev_addr *addr)
@@ -202,7 +217,8 @@ static int addr_resolve(struct sockaddr *src_in,
 	struct sockaddr_in6 *sin6;
 	struct ifaddr *ifa;
 	struct ifnet *ifp;
-	struct rtentry *rte;
+	struct nhopu_extended nhu;
+	uint32_t fibnum;
 	in_port_t port;
 	u_char edst[MAX_ADDR_LEN];
 	int multi;
@@ -218,7 +234,6 @@ static int addr_resolve(struct sockaddr *src_in,
 	sin = NULL;
 	sin6 = NULL;
 	ifp = NULL;
-	rte = NULL;
 	switch (dst_in->sa_family) {
 #ifdef INET
 	case AF_INET:
@@ -255,9 +270,11 @@ static int addr_resolve(struct sockaddr *src_in,
 	default:
 		return -EINVAL;
 	}
+	memset(&nhu, 0, sizeof(nhu));
 	/*
 	 * If we have a source address to use look it up first and verify
 	 * that it is a local interface.
+	 * XXX: IPv6 case?
 	 */
 	if (sin->sin_addr.s_addr != INADDR_ANY) {
 		ifa = ifa_ifwithaddr(src_in);
@@ -268,6 +285,12 @@ static int addr_resolve(struct sockaddr *src_in,
 		if (ifa == NULL)
 			return -ENETUNREACH;
 		ifp = ifa->ifa_ifp;
+		if (sin)
+			nhu.u.nh4.nh_src =
+			    ((struct sockaddr_in *)ifa->ifa_addr)->sin_addr;
+		if (sin6)
+			nhu.u.nh6.nh_src =
+			    ((struct sockaddr_in6 *)ifa->ifa_addr)->sin6_addr;
 		ifa_free(ifa);
 		if (bcast || multi)
 			goto mcast;
@@ -275,10 +298,26 @@ static int addr_resolve(struct sockaddr *src_in,
 	/*
 	 * Make sure the route exists and has a valid link.
 	 */
-	rte = rtalloc1(dst_in, 1, 0);
-	if (rte == NULL || rte->rt_ifp == NULL || !RT_LINK_IS_UP(rte->rt_ifp)) {
-		if (rte) 
-			RTFREE_LOCKED(rte);
+	fibnum = RT_DEFAULT_FIB;
+#ifdef INET
+	if (dst_in->sa_family == AF_INET) {
+		error = fib4_lookup_nh_ext(fibnum,
+		    ((struct sockaddr_in *)dst_in)->sin_addr, 0,
+		    NHOP_LOOKUP_REF, &nhu.u.nh4);
+	} else
+#endif
+#ifdef INET6
+	if (dst_in->sa_family == AF_INET6) {
+		struct sockaddr_in6 *dst6;
+		dst6 = (struct sockaddr_in6 *)dst_in;
+		error = fib6_lookup_nh_ext(fibnum,
+		    dst6->sin6_addr, dst6->sin6_scope_id, 0,
+		    NHOP_LOOKUP_REF, &nhu.u.nh6);
+	}
+#endif
+	if (error != 0 || !RT_LINK_IS_UP(nhu.u.nh4.nh_ifp)) {
+		if (error == 0)
+			fib_free_nh_ext(fibnum, &nhu);
 		return -EHOSTUNREACH;
 	}
 	if (rte->rt_flags & RTF_GATEWAY)
@@ -289,21 +328,15 @@ static int addr_resolve(struct sockaddr *src_in,
 	 * correct interface pointer and unlock the route.
 	 */
 	if (multi || bcast) {
-		if (ifp == NULL) {
-			ifp = rte->rt_ifp;
-			/* rt_ifa holds the route answer source address */
-			ifa = rte->rt_ifa;
-		}
-		RTFREE_LOCKED(rte);
-	} else if (ifp && ifp != rte->rt_ifp) {
-		RTFREE_LOCKED(rte);
+		if (ifp == NULL)
+			ifp = nhu.u.nh4.nh_ifp;
+		fib_free_nh_ext(fibnum, &nhu);
+	} else if (ifp && ifp != nhu.u.nh4.nh_ifp) {
+		fib_free_nh_ext(fibnum, &nhu);
 		return -ENETUNREACH;
 	} else {
-		if (ifp == NULL) {
-			ifp = rte->rt_ifp;
-			ifa = rte->rt_ifa;
-		}
-		RT_UNLOCK(rte);
+		if (ifp == NULL)
+			ifp = nhu.u.nh4.nh_ifp;
 	}
 mcast:
 	if (bcast)
@@ -318,7 +351,7 @@ mcast:
 		    LLADDR((struct sockaddr_dl *)llsa));
 		free(llsa, M_IFMADDR);
 		if (error == 0)
-			memcpy(src_in, ifa->ifa_addr, ip_addr_size(ifa->ifa_addr));
+			copy_src_sockaddr(src_in, &nhu, dst_in->sa_family);
 		return error;
 	}
 	/*
@@ -339,9 +372,9 @@ mcast:
 		/* XXX: Shouldn't happen. */
 		error = -EINVAL;
 	}
-	RTFREE(rte);
+	fib_free_nh_ext(fibnum, &nhu);
 	if (error == 0) {
-		memcpy(src_in, ifa->ifa_addr, ip_addr_size(ifa->ifa_addr));
+		copy_src_sockaddr(src_in, &nhu, dst_in->sa_family);
 		return rdma_copy_addr(addr, ifp, edst);
 	}
 	if (error == EWOULDBLOCK)

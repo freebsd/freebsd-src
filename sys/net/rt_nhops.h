@@ -203,6 +203,8 @@ int fib4_lookup_nh_ext(uint32_t fibnum, struct in_addr dst,
     uint32_t flowid, uint32_t flags, struct nhop4_extended *pnh4);
 void fib4_free_nh_ext(uint32_t fibnum, struct nhop4_extended *pnh4);
 #define	NHOP_LOOKUP_REF	0x01
+void fib4_source_to_sa_ext(const struct nhopu_extended *pnhu,
+    struct sockaddr_in *sin);
 
 
 int fib6_lookup_nh_basic(uint32_t fibnum, struct in6_addr dst, uint32_t flowid,
@@ -211,6 +213,8 @@ int fib6_lookup_nh_ext(uint32_t fibnum, struct in6_addr dst,
     uint32_t scopeid, uint32_t flowid, uint32_t flags,
     struct nhop6_extended *pnh6);
 void fib6_free_nh_ext(uint32_t fibnum, struct nhop6_extended *pnh6);
+void fib6_source_to_sa_ext(const struct nhopu_extended *pnhu,
+    struct sockaddr_in6 *sin6);
 
 void fib_free_nh_ext(uint32_t fibnum, struct nhopu_extended *pnhu);
 
