@@ -54,22 +54,21 @@ extern int	in_inithead(void **head, int off);
 extern int	in_detachhead(void **head, int off);
 #endif
 
-static void in_setifarnh(struct radix_node_head *rnh, uint32_t fibnum,
+static void in_setifarnh(struct rib_head *rh, uint32_t fibnum,
     int af, void *_arg);
-static void in_rtqtimo_setrnh(struct radix_node_head *rnh, uint32_t fibnum,
+static void in_rtqtimo_setrnh(struct rib_head *rh, uint32_t fibnum,
     int af, void *_arg);
 
 /*
  * Do what we need to do when inserting a route.
  */
 static struct radix_node *
-in_addroute(void *v_arg, void *n_arg, struct radix_node_head *head,
+in_addroute(void *v_arg, void *n_arg, struct radix_head *head,
     struct radix_node *treenodes)
 {
 	struct rtentry *rt = (struct rtentry *)treenodes;
 	struct sockaddr_in *sin = (struct sockaddr_in *)rt_key(rt);
 
-	RADIX_NODE_HEAD_WLOCK_ASSERT(head);
 	/*
 	 * A little bit of help for both IP output and input:
 	 *   For host routes, we make sure that RTF_BROADCAST
@@ -99,7 +98,7 @@ in_addroute(void *v_arg, void *n_arg, struct radix_node_head *head,
 	if (rt->rt_mtu == 0 && rt->rt_ifp != NULL)
 		rt->rt_mtu = rt->rt_ifp->if_mtu;
 
-	return (rn_addroute(v_arg, n_arg, &head->rh, treenodes));
+	return (rn_addroute(v_arg, n_arg, head, treenodes));
 }
 
 static int _in_rt_was_here;
@@ -109,15 +108,15 @@ static int _in_rt_was_here;
 int
 in_inithead(void **head, int off)
 {
-	struct radix_node_head *rnh;
+	struct rib_head *rh;
 
-	if (!rn_inithead(head, 32))
-		return 0;
+	rh = rt_table_init(32);
+	if (rh == NULL)
+		return (0);
 
-	rnh = *head;
-	RADIX_NODE_HEAD_LOCK_INIT(rnh);
+	rh->rnh_addaddr = in_addroute;
+	*head = (void *)rh;
 
-	rnh->rnh_addaddr = in_addroute;
 	if (_in_rt_was_here == 0 ) {
 		_in_rt_was_here = 1;
 	}
@@ -143,7 +142,7 @@ in_detachhead(void **head, int off)
  * plug back in.
  */
 struct in_ifadown_arg {
-	struct radix_node_head *rnh;
+	struct rib_head *rh;
 	struct ifaddr *ifa;
 	int del;
 };
@@ -166,7 +165,7 @@ in_ifadownkill(struct rtentry *rt, void *xap)
 		 * Disconnect it from the tree and permit protocols
 		 * to cleanup.
 		 */
-		rt_expunge(ap->rnh, rt);
+		rt_expunge(ap->rh, rt);
 		/*
 		 * At this point it is an rttrash node, and in case
 		 * the above is the only reference we must free it.
@@ -185,14 +184,14 @@ in_ifadownkill(struct rtentry *rt, void *xap)
 }
 
 static void
-in_setifarnh(struct radix_node_head *rnh, uint32_t fibnum, int af,
+in_setifarnh(struct rib_head *rh, uint32_t fibnum, int af,
     void *_arg)
 {
 	struct in_ifadown_arg *arg;
 
 	arg = (struct in_ifadown_arg *)_arg;
 
-	arg->rnh = rnh;
+	arg->rh = rh;
 }
 
 void

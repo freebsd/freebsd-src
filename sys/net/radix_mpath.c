@@ -167,7 +167,7 @@ rt_mpath_conflict(struct radix_node_head *rnh, struct rtentry *rt,
 	struct rtentry *rt1;
 
 	rn = (struct radix_node *)rt;
-	rn1 = rnh->rnh_lookup(rt_key(rt), netmask, rnh);
+	rn1 = rnh->rnh_lookup(rt_key(rt), netmask, &rnh->rh);
 	if (!rn1 || rn1->rn_flags & RNF_ROOT)
 		return (0);
 
