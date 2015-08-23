@@ -80,9 +80,7 @@
 #include <sys/syscallsubr.h>
 #include <net/if.h>
 #include <net/if_var.h>
-#include <net/radix.h>
 #include <net/route.h>
-#include <net/route_internal.h>
 #include <net/if_dl.h>
 #include <netinet/in.h>
 #include <netinet/in_pcb.h>
