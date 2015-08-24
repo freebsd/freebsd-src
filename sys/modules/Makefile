@@ -158,6 +158,7 @@ SUBDIR=	\
 	${_iir} \
 	imgact_binmisc \
 	${_io} \
+	${_ioat} \
         ${_ipoib} \
 	${_ipdivert} \
 	${_ipfilter} \
@@ -630,6 +631,7 @@ _x86bios=	x86bios
 
 .if ${MACHINE_CPUARCH} == "amd64"
 _cloudabi64=	cloudabi64
+_ioat=		ioat
 _ixl=		ixl
 _ixlv=		ixlv
 _linux64=	linux64
