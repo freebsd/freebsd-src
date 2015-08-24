@@ -1087,7 +1087,7 @@ static s32 e1000_platform_pm_pch_lpt(struct e1000_hw *hw, bool link)
 		u16 speed, duplex, scale = 0;
 		u16 max_snoop, max_nosnoop;
 		u16 max_ltr_enc;	/* max LTR latency encoded */
-		s64 lat_ns;		/* latency (ns) */
+		s64 lat_ns;
 		s64 value;
 		u32 rxa;
 
@@ -1119,8 +1119,8 @@ static s32 e1000_platform_pm_pch_lpt(struct e1000_hw *hw, bool link)
 			lat_ns = 0;
 		else
 			lat_ns /= speed;
-
 		value = lat_ns;
+
 		while (value > E1000_LTRV_VALUE_MASK) {
 			scale++;
 			value = E1000_DIVIDE_ROUND_UP(value, (1 << 5));
@@ -2997,7 +2997,6 @@ static s32 e1000_set_lplu_state_pchlan(struct e1000_hw *hw, bool active)
 	u16 oem_reg;
 
 	DEBUGFUNC("e1000_set_lplu_state_pchlan");
-
 	ret_val = hw->phy.ops.read_reg(hw, HV_OEM_BITS, &oem_reg);
 	if (ret_val)
 		return ret_val;
@@ -4998,7 +4997,6 @@ void e1000_resume_workarounds_pchlan(struct e1000_hw *hw)
 	s32 ret_val;
 
 	DEBUGFUNC("e1000_resume_workarounds_pchlan");
-
 	if (hw->mac.type < e1000_pch2lan)
 		return;
 
