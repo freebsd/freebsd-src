@@ -13,9 +13,8 @@
 #include <stdarg.h>
 #include <string.h>
 
-#include "xoconfig.h"
+#include "xo_config.h"
 #include "xo.h"
-#include "xoversion.h"
 
 #include <getopt.h>		/* Include after xo.h for testing */
 
@@ -95,7 +94,8 @@ static int
 formatter (xo_handle_t *xop, char *buf, int bufsiz,
 	   const char *fmt, va_list vap UNUSED)
 {
-    int lflag = 0, hflag = 0, jflag = 0, tflag = 0,
+    int lflag UNUSED = 0;	/* Parse long flag, though currently ignored */
+    int hflag = 0, jflag = 0, tflag = 0,
 	zflag = 0, qflag = 0, star1 = 0, star2 = 0;
     int rc = 0;
     int w1 = 0, w2 = 0;
@@ -201,6 +201,7 @@ print_help (void)
 "    --leading-xpath <path> OR -l <path> "
 	    "Add a prefix to generated XPaths (HTML)\n"
 "    --open <path>         Open tags for the given path\n"
+"    --option <opts> -or -O <opts>  Give formatting options\n"
 "    --pretty OR -p        Make 'pretty' output (add indent, newlines)\n"
 "    --style <style> OR -s <style>  "
 	    "Generate given style (xml, json, text, html)\n"
@@ -259,7 +260,7 @@ main (int argc UNUSED, char **argv)
     if (argc < 0)
 	return 1;
 
-    while ((rc = getopt_long(argc, argv, "c:HJl:ps:TXW",
+    while ((rc = getopt_long(argc, argv, "c:HJl:O:o:ps:TXW",
 				long_opts, NULL)) != -1) {
 	switch (rc) {
 	case 'c':

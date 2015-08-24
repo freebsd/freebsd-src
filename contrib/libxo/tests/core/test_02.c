@@ -15,6 +15,8 @@
 
 #include "xo.h"
 
+#include "xo_humanize.h"
+
 int
 main (int argc, char **argv)
 {
@@ -45,6 +47,35 @@ main (int argc, char **argv)
 
     xo_open_container("data");
 
+    xo_emit("We are {{emit}}{{ting}} some {:what}\n", "braces");
+
+    xo_message("abcdef");
+    close(-1);
+    xo_message_e("abcdef");
+
+    xo_message("improper use of profanity; %s; %s",
+	       "ten yard penalty", "first down");
+
+    xo_emit("length {:length/%6.6s}\n", "abcdefghijklmnopqrstuvwxyz");
+
+    close(-1);
+    xo_emit("close {:fd/%d} returned {:error/%m} {:test}\n", -1, "good");
+    close(-1);
+    xo_emit("close {:fd/%d} returned {:error/%6.6m} {:test}\n", -1, "good");
+
+
+    xo_message("improper use of profanity; %s; %s",
+	       "ten yard penalty", "first down");
+
+    xo_emit(" {:lines/%7ju} {:words/%7ju} "
+            "{:characters/%7ju} {d:filename/%s}\n",
+            20, 30, 40, "file");
+
+    int i;
+    for (i = 0; i < 5; i++)
+	xo_emit("{lw:bytes/%d}{Np:byte,bytes}\n", i);
+
+
     xo_emit("{:mbuf-current/%u}/{:mbuf-cache/%u}/{:mbuf-total/%u} "
 	    "{N:mbufs <&> in use (current\\/cache\\/total)}\n",
 	    10, 20, 30);
@@ -54,13 +85,18 @@ main (int argc, char **argv)
     xo_emit("{:memory/%u}{U:/%s} left out of {:total/%u}{U:/%s}\n",
 	    64, "k", 640, "kilobytes");
 
-    xo_emit("{T:/before%safter:}\n", "working");
+    xo_emit("{,title:/before%safter:}\n", "working");
 
-    xo_emit("{d:some/%s}{:ten/%ju}{:eleven/%ju}\n",
+    xo_emit("{,display,white,colon:some/%s}"
+	    "{,value:ten/%ju}{,value:eleven/%ju}\n",
 	    "string", (uintmax_t) 10, (uintmax_t) 11);
 
     xo_emit("{:unknown/%u} "
 	    "{N:/packet%s here\\/there\\/everywhere}\n",
+	    1010, "s");
+
+    xo_emit("{:unknown/%u} "
+	    "{,note:/packet%s here\\/there\\/everywhere}\n",
 	    1010, "s");
 
     xo_emit("({[:/%d}{n:min/15}/{n:cur/20}/{:max/%d}{]:})\n", 30, 125);
@@ -68,12 +104,24 @@ main (int argc, char **argv)
     xo_emit("({[:-30}{n:min/15}/{n:cur/20}/{n:max/125}{]:})\n");
     xo_emit("({[:}{:min/%u}/{:cur/%u}/{:max/%u}{]:/%d})\n", 15, 20, 125, -30);
 
+    xo_emit("Humanize: {h:val1/%u}, {h,hn-space:val2/%u}, "
+	    "{h,hn-decimal:val3/%u}, {h,hn-1000:val4/%u}, "
+	    "{h,hn-decimal:val5/%u}\n",
+            21,
+	    57 * 1024,
+	    96 * 1024 * 1024,
+	    (42 * 1024 + 420) * 1024,
+	    1342172800);
+
     xo_open_list("flag");
     xo_emit("{lq:flag/one} {lq:flag/two} {lq:flag/three}\n");
     xo_close_list("flag");
 
+    xo_emit("{n:works/%s}\n", NULL);
+
     xo_emit("{e:empty-tag/}");
-    xo_emit("1:{qt:t1/%*d} 2:{qt:t2/test%-*u} 3:{qt:t3/%10sx} 4:{qt:t4/x%-*.*s}\n",
+    xo_emit("1:{qt:t1/%*d} 2:{qt:t2/test%-*u} "
+	    "3:{qt:t3/%10sx} 4:{qt:t4/x%-*.*s}\n",
 	    6, 1000, 8, 5000, "ten-long", 10, 10, "test");
     xo_emit("{E:this is an error}\n");
     xo_emit("{E:/%s more error%s}\n", "two", "s" );
