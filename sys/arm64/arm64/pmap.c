@@ -3050,10 +3050,32 @@ pmap_activate(struct thread *td)
 }
 
 void
-pmap_sync_icache(pmap_t pm, vm_offset_t va, vm_size_t sz)
+pmap_sync_icache(pmap_t pmap, vm_offset_t va, vm_size_t sz)
 {
 
-	panic("ARM64TODO: pmap_sync_icache");
+	if (va >= VM_MIN_KERNEL_ADDRESS) {
+		cpu_icache_sync_range(va, sz);
+	} else {
+		u_int len, offset;
+		vm_paddr_t pa;
+
+		/* Find the length of data in this page to flush */
+		offset = va & PAGE_MASK;
+		len = imin(PAGE_SIZE - offset, sz);
+
+		while (sz != 0) {
+			/* Extract the physical address & find it in the DMAP */
+			pa = pmap_extract(pmap, va);
+			if (pa != 0)
+				cpu_icache_sync_range(PHYS_TO_DMAP(pa), len);
+
+			/* Move to the next page */
+			sz -= len;
+			va += len;
+			/* Set the length for the next iteration */
+			len = imin(PAGE_SIZE, sz);
+		}
+	}
 }
 
 /*
