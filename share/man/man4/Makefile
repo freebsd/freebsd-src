@@ -207,6 +207,7 @@ MAN=	aac.4 \
 	intpm.4 \
 	intro.4 \
 	${_io.4} \
+	${_ioat.4} \
 	ip.4 \
 	ip6.4 \
 	ipfirewall.4 \
@@ -800,6 +801,7 @@ _xnb.4=		xnb.4
 
 .if ${MACHINE_CPUARCH} == "amd64"
 _if_ntb.4=	if_ntb.4
+_ioat.4=	ioat.4
 _ntb.4=		ntb.4
 _ntb_hw.4=	ntb_hw.4
 _qlxge.4=	qlxge.4
