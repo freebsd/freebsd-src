@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #elif defined(__amd64__) || defined(__i386__)
 #define	BREAKPOINT_INSTR	0xcc	/* int 0x3 */
 #define	BREAKPOINT_INSTR_SZ	1
+#define	BREAKPOINT_ADJUST_SZ	BREAKPOINT_INSTR_SZ
 #elif defined(__arm__)
 #define	BREAKPOINT_INSTR	0xe7ffffff	/* bkpt */
 #define	BREAKPOINT_INSTR_SZ	4
@@ -195,11 +196,19 @@ proc_bkptdel(struct proc_handle *phdl, uintptr_t address,
 /*
  * Decrement pc so that we delete the breakpoint at the correct
  * address, i.e. at the BREAKPOINT_INSTR address.
+ *
+ * This is only needed on some architectures where the pc value
+ * when reading registers points at the instruction after the
+ * breakpoint, e.g. x86.
  */
 void
 proc_bkptregadj(unsigned long *pc)
 {
-	*pc = *pc - BREAKPOINT_INSTR_SZ;
+
+	(void)pc;
+#ifdef BREAKPOINT_ADJUST_SZ
+	*pc = *pc - BREAKPOINT_ADJUST_SZ;
+#endif
 }
 
 /*
