@@ -11,8 +11,9 @@
 .Dt LIBXO 3
 .Os
 .Sh NAME
-.Nm xo_err
-.Nd emit errors and warnings in multiple formats
+.Nm xo_err , xo_errc , xo_errx
+.Nm xo_warn , xo_warnx , xo_warn_c , xo_warn_hc
+.Nd emit errors and warnings in multiple output styles
 .Sh LIBRARY
 .Lb libxo
 .Sh SYNOPSIS
@@ -31,14 +32,6 @@
 .Fn xo_errc "int eval" "int code" "const char *fmt" "..."
 .Ft void
 .Fn xo_errx "int eval" "const char *fmt" "..."
-.Ft void
-.Fn xo_message "const char *fmt" "..."
-.Ft void
-.Fn xo_message_c "int code" "const char *fmt" "..."
-.Ft void
-.Fn xo_message_hc "xo_handle_t *xop" "int code, const char *fmt" "..."
-.Ft void
-.Fn xo_message_hcv "xo_handle_t *xop" "int code" "const char *fmt" "va_list vap"
 .Sh DESCRIPTION
 Many programs make use of the standard library functions
 .Xr err 3
@@ -49,6 +42,19 @@ to generate errors and warnings for the user.
 wants to
 pass that information via the current output style, and provides
 compatible functions to allow this.
+.Pp
+The
+.Fa fmt
+argument is one compatible with
+.Xr printf 3
+rather than
+.Xr xo_emit 3
+to aid in simple conversion.  This means
+these functions make unstructured data.
+To generate structured data,
+use the
+.Xr xo_emit_err 3
+functions.
 .Pp
 These functions display the program name, a colon, a formatted message
 based on the arguments, and then optionally a colon and an error
@@ -62,30 +68,7 @@ parameter.
         if (open(filename, O_RDONLY) < 0)
             xo_err(1, "cannot open file '%s'", filename);
 .Ed
-.Sh ADDITIONAL DOCUMENTATION
-Complete documentation can be found on github:
-.Bd -literal -offset indent
-http://juniper.github.io/libxo/libxo-manual.html
-.Ed
-.Pp
-.Nm libxo
-lives on github as:
-.Bd -literal -offset indent
-https://github.com/Juniper/libxo
-.Ed
-.Pp
-The latest release of
-.Nm libxo
-is available at:
-.Bd -literal -offset indent
-https://github.com/Juniper/libxo/releases
-.Ed
 .Sh SEE ALSO
-.Xr xo_emit 3
-.Sh HISTORY
-The
-.Nm libxo
-library was added in
-.Fx 11.0 .
-.Sh AUTHOR
-Phil Shafer
+.Xr xo_emit 3 ,
+.Xr xo_emit_err 3 ,
+.Xr libxo 3
