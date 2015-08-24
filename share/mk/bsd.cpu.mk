@@ -273,7 +273,9 @@ CFLAGS += -G0
 .endif
 
 .if ${MACHINE_ARCH} == "armv6"
-_CPUCFLAGS += -mfloat-abi=softfp
+# Needs to be CFLAGS not _CPUCFLAGS because it's needed for the ABI
+# not a nice optimization.
+CFLAGS += -mfloat-abi=softfp
 .endif
 
 # NB: COPTFLAGS is handled in /usr/src/sys/conf/kern.pre.mk
