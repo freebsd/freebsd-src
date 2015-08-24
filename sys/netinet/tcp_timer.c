@@ -355,12 +355,10 @@ tcp_timer_2msl(void *xtp)
 		TCPSTAT_INC(tcps_finwait2_drops);
 		tp = tcp_close(tp);             
 	} else {
-		if (ticks - tp->t_rcvtime <= TP_MAXIDLE(tp)) {
-			if (!callout_reset(&tp->t_timers->tt_2msl,
-			   TP_KEEPINTVL(tp), tcp_timer_2msl, tp)) {
-				tp->t_timers->tt_flags &= ~TT_2MSL_RST;
-			}
-		} else
+		if (ticks - tp->t_rcvtime <= TP_MAXIDLE(tp))
+		       callout_reset(&tp->t_timers->tt_2msl,
+			   TP_KEEPINTVL(tp), tcp_timer_2msl, tp);
+		else
 		       tp = tcp_close(tp);
        }
 
@@ -440,14 +438,11 @@ tcp_timer_keep(void *xtp)
 				    tp->rcv_nxt, tp->snd_una - 1, 0);
 			free(t_template, M_TEMP);
 		}
-		if (!callout_reset(&tp->t_timers->tt_keep, TP_KEEPINTVL(tp),
-		    tcp_timer_keep, tp)) {
-			tp->t_timers->tt_flags &= ~TT_KEEP_RST;
-		}
-	} else if (!callout_reset(&tp->t_timers->tt_keep, TP_KEEPIDLE(tp),
-		    tcp_timer_keep, tp)) {
-			tp->t_timers->tt_flags &= ~TT_KEEP_RST;
-		}
+		callout_reset(&tp->t_timers->tt_keep, TP_KEEPINTVL(tp),
+		    tcp_timer_keep, tp);
+	} else
+		callout_reset(&tp->t_timers->tt_keep, TP_KEEPIDLE(tp),
+		    tcp_timer_keep, tp);
 
 #ifdef TCPDEBUG
 	if (inp->inp_socket->so_options & SO_DEBUG)
@@ -806,7 +801,6 @@ tcp_timer_activate(struct tcpcb *tp, uint32_t timer_type, u_int delta)
 	timeout_t *f_callout;
 	struct inpcb *inp = tp->t_inpcb;
 	int cpu = inp_to_cpuid(inp);
-	uint32_t f_reset;
 
 #ifdef TCP_OFFLOAD
 	if (tp->t_flags & TF_TOE)
@@ -820,49 +814,38 @@ tcp_timer_activate(struct tcpcb *tp, uint32_t timer_type, u_int delta)
 		case TT_DELACK:
 			t_callout = &tp->t_timers->tt_delack;
 			f_callout = tcp_timer_delack;
-			f_reset = TT_DELACK_RST;
 			break;
 		case TT_REXMT:
 			t_callout = &tp->t_timers->tt_rexmt;
 			f_callout = tcp_timer_rexmt;
-			f_reset = TT_REXMT_RST;
 			break;
 		case TT_PERSIST:
 			t_callout = &tp->t_timers->tt_persist;
 			f_callout = tcp_timer_persist;
-			f_reset = TT_PERSIST_RST;
 			break;
 		case TT_KEEP:
 			t_callout = &tp->t_timers->tt_keep;
 			f_callout = tcp_timer_keep;
-			f_reset = TT_KEEP_RST;
 			break;
 		case TT_2MSL:
 			t_callout = &tp->t_timers->tt_2msl;
 			f_callout = tcp_timer_2msl;
-			f_reset = TT_2MSL_RST;
 			break;
 		default:
 			panic("tp %p bad timer_type %#x", tp, timer_type);
 		}
 	if (delta == 0) {
 		if ((tp->t_timers->tt_flags & timer_type) &&
-		    callout_stop(t_callout) &&
-		    (tp->t_timers->tt_flags & f_reset)) {
-			tp->t_timers->tt_flags &= ~(timer_type | f_reset);
+		    callout_stop(t_callout)) {
+			tp->t_timers->tt_flags &= ~timer_type;
 		}
 	} else {
 		if ((tp->t_timers->tt_flags & timer_type) == 0) {
-			tp->t_timers->tt_flags |= (timer_type | f_reset);
+			tp->t_timers->tt_flags |= timer_type;
 			callout_reset_on(t_callout, delta, f_callout, tp, cpu);
 		} else {
 			/* Reset already running callout on the same CPU. */
-			if (!callout_reset(t_callout, delta, f_callout, tp)) {
-				/*
-				 * Callout not cancelled, consider it as not
-				 * properly restarted. */
-				tp->t_timers->tt_flags &= ~f_reset;
-			}
+			callout_reset(t_callout, delta, f_callout, tp);
 		}
 	}
 }
@@ -899,7 +882,6 @@ tcp_timer_stop(struct tcpcb *tp, uint32_t timer_type)
 {
 	struct callout *t_callout;
 	timeout_t *f_callout;
-	uint32_t f_reset;
 
 	tp->t_timers->tt_flags |= TT_STOPPED;
 
@@ -907,36 +889,30 @@ tcp_timer_stop(struct tcpcb *tp, uint32_t timer_type)
 		case TT_DELACK:
 			t_callout = &tp->t_timers->tt_delack;
 			f_callout = tcp_timer_delack_discard;
-			f_reset = TT_DELACK_RST;
 			break;
 		case TT_REXMT:
 			t_callout = &tp->t_timers->tt_rexmt;
 			f_callout = tcp_timer_rexmt_discard;
-			f_reset = TT_REXMT_RST;
 			break;
 		case TT_PERSIST:
 			t_callout = &tp->t_timers->tt_persist;
 			f_callout = tcp_timer_persist_discard;
-			f_reset = TT_PERSIST_RST;
 			break;
 		case TT_KEEP:
 			t_callout = &tp->t_timers->tt_keep;
 			f_callout = tcp_timer_keep_discard;
-			f_reset = TT_KEEP_RST;
 			break;
 		case TT_2MSL:
 			t_callout = &tp->t_timers->tt_2msl;
 			f_callout = tcp_timer_2msl_discard;
-			f_reset = TT_2MSL_RST;
 			break;
 		default:
 			panic("tp %p bad timer_type %#x", tp, timer_type);
 		}
 
 	if (tp->t_timers->tt_flags & timer_type) {
-		if (callout_stop(t_callout) &&
-		    (tp->t_timers->tt_flags & f_reset)) {
-			tp->t_timers->tt_flags &= ~(timer_type | f_reset);
+		if (callout_stop(t_callout)) {
+			tp->t_timers->tt_flags &= ~timer_type;
 		} else {
 			/*
 			 * Can't stop the callout, defer tcpcb actual deletion
