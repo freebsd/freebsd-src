@@ -16,25 +16,44 @@ include ${top_srcdir}/warnings.mk
 
 libxoincdir = ${includedir}/libxo
 
-AM_CFLAGS = -I${top_srcdir} ${WARNINGS}
+AM_CFLAGS = \
+    -I${top_srcdir} \
+    ${WARNINGS} \
+    ${GETTEXT_CFLAGS}
+
+AM_CFLAGS += \
+    -DXO_ENCODERDIR=\"${XO_ENCODERDIR}\"
 
 lib_LTLIBRARIES = libxo.la
 
+LIBS = \
+    ${GETTEXT_LIBS}
+
 libxoinc_HEADERS = \
-     xo.h
+     xo.h \
+     xo_encoder.h
+
+noinst_HEADERS = \
+     xo_buf.h \
+     xo_humanize.h \
+     xo_wcwidth.h
 
 libxo_la_SOURCES = \
-    libxo.c
+    libxo.c \
+    xo_encoder.c \
+    xo_syslog.c
 
-man_MANS = \
+man3_files = \
     libxo.3 \
     xo_attr.3 \
     xo_create.3 \
     xo_emit.3 \
+    xo_emit_err.3 \
     xo_err.3 \
+    xo_error.3 \
     xo_finish.3 \
     xo_flush.3 \
-    xo_format.5 \
+    xo_message.3 \
     xo_no_setlocale.3 \
     xo_open_container.3 \
     xo_open_list.3 \
@@ -45,8 +64,26 @@ man_MANS = \
     xo_set_info.3 \
     xo_set_options.3 \
     xo_set_style.3 \
+    xo_set_syslog_enterprise_id.3 \
     xo_set_version.3 \
-    xo_set_writer.3
+    xo_set_writer.3 \
+    xo_syslog.3
 
-EXTRA_DIST = ${man_MANS}
+man5_files = \
+    xo_format.5
 
+man_MANS = ${man3_files} ${man5_files}
+
+EXTRA_DIST = \
+    ${man_MANS}
+
+call-graph:
+	${RM} libxo.o
+	${MAKE} CC="clang -Xclang -analyze -Xclang \
+            -analyzer-checker=debug.ViewCallGraph" libxo.o
+
+install-data-hook:
+	for file in ${man3_files}; do \
+	    cat ../libxo/add.man >> ${DESTDIR}${man3dir}/$$file ; done
+	for file in ${man5_files}; do \
+	    cat ../libxo/add.man >> ${DESTDIR}${man5dir}/$$file ; done

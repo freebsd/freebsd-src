@@ -6,7 +6,11 @@
 # using the SOFTWARE, you agree to be bound by the terms of that
 # LICENSE.
 
-SUBDIRS=core xo
+SUBDIRS = core xo
+
+if HAVE_GETTEXT
+SUBDIRS += gettext
+endif
 
 test tests:
 	@(cur=`pwd` ; for dir in $(SUBDIRS) ; do \

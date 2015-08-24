@@ -310,9 +310,67 @@ sub check_text {
     info("a percent sign appearing in text is a literal") if $text =~ /%/;
 }
 
+%short = (
+    # Roles
+    "color" => "C",
+    "decoration" => "D",
+    "error" => "E",
+    "label" => "L",
+    "note" => "N",
+    "padding" => "P",
+    "title" => "T",
+    "units" => "U",
+    "value" => "V",
+    "warning" => "W",
+    "start-anchor" => "[",
+    "stop-anchor" => "]",
+    # Modifiers
+    "colon" => "c",
+    "display" => "d",
+    "encoding" => "e",
+    "hn" => "h",
+    "hn-decimal" => "@",
+    "hn-space" => "@",
+    "hn-1000" => "@",
+    "humanize" => "h",
+    "key" => "k",
+    "leaf-list" => "l",
+    "no-quotes" => "n",
+    "quotes" => "q",
+    "trim" => "t",
+    "white" => "w",
+ );
+
 sub check_field {
     my(@field) = @_;
     print "checking field: [" . join("][", @field) . "]\n" if $opt_debug;
+
+    if ($field[0] =~ /,/) {
+	# We have long names; deal with it by turning them into short names
+	my @parts = split(/,/, $field[0]);
+	my $new = "";
+	for (my $i = 1; $i <= $#parts; $i++) {
+	    my $v = $parts[$i];
+	    $v =~ s/^\s+//;
+	    $v =~ s/\s+$//;
+	    if ($short{$v} eq "@") {
+		# ignore; has no short version
+	    } elsif ($short{$v}) {
+		$new .= $short{$v};
+	    } else {
+		#@ Unknown long name for role/modifier
+		#@   xo_emit("{,humanization:value}", value);
+		#@ Should be:
+		#@   xo_emit("{,humanize:value}", value);
+		#@ The hn-* modifiers (hn-decimal, hn-space, hn-1000)
+		#@ are only valid for fields with the {h:} modifier.
+		error("Unknown long name for role/modifier ($v)");
+	    }
+	}
+
+	$field[4] = substr($field[0], index($field[0], ","));
+	$field[0] = $parts[0] . $new;
+    }
 
     if ($opt_vocabulary) {
 	$vocabulary{$field[1]} = 1
@@ -423,6 +481,32 @@ sub check_field {
 		    error("Field has invalid color or effect (role: C) ($val)");
 		}
 	    }
+	}
+    }
+
+    # Humanized field
+    if ($field[0] =~ /h/) {
+	if (length($field[2]) == 0) {
+	    #@ Field has humanize modifier but no format string
+	    #@   xo_emit("{h:value}", value);
+	    #@ Should be:
+	    #@   xo_emit("{h:value/%d}", value);
+	    #@ Humanization is only value for numbers, which are not
+	    #@ likely to use the default format ("%s").
+	    error("Field has humanize modifier but no format string");
+	}
+    }
+
+    # hn-* on non-humanize field
+    if ($field[0] !~ /h/) {
+	if ($field[4] =~ /,hn-/) {
+	    #@ Field has hn-* modifier but not 'h' modifier
+	    #@   xo_emit("{,hn-1000:value}", value);
+	    #@ Should be:
+	    #@   xo_emit("{h,hn-1000:value}", value);
+	    #@ The hn-* modifiers (hn-decimal, hn-space, hn-1000)
+	    #@ are only valid for fields with the {h:} modifier.
+	    error("Field has hn-* modifier but not 'h' modifier");
 	}
     }
 

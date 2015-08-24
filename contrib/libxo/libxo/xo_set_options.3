@@ -12,7 +12,7 @@
 .Os
 .Sh NAME
 .Nm xo_set_options
-.Nd change options used by a handle
+.Nd change options used by a libxo handle
 .Sh LIBRARY
 .Lb libxo
 .Sh SYNOPSIS
@@ -26,30 +26,6 @@ function accepts a comma-separated list of styles
 and flags and enables them for a specific handle.
 The options are identical to those listed in
 .Xr xo_parse_args 3 .
-.Sh ADDITIONAL DOCUMENTATION
-Complete documentation can be found on github:
-.Bd -literal -offset indent
-http://juniper.github.io/libxo/libxo-manual.html
-.Ed
-.Pp
-.Nm libxo
-lives on github as:
-.Bd -literal -offset indent
-https://github.com/Juniper/libxo
-.Ed
-.Pp
-The latest release of
-.Nm libxo
-is available at:
-.Bd -literal -offset indent
-https://github.com/Juniper/libxo/releases
-.Ed
 .Sh SEE ALSO
-.Xr xo_emit 3
-.Sh HISTORY
-The
-.Nm libxo
-library was added in
-.Fx 11.0 .
-.Sh AUTHOR
-Phil Shafer
+.Xr xo_emit 3 ,
+.Xr libxo 3

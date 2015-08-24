@@ -1,4 +1,82 @@
 <div class="line">
+  <div class="text">We are </div>
+  <div class="text">{emit}</div>
+  <div class="text">{ting}</div>
+  <div class="text"> some </div>
+  <div class="data" data-tag="what">braces</div>
+</div>
+<div class="line">
+  <div class="message">abcdef
+</div>
+</div>
+<div class="line">
+  <div class="message">abcdef: Bad file descriptor
+</div>
+</div>
+<div class="line">
+  <div class="message">improper use of profanity; ten yard penalty; first down
+</div>
+</div>
+<div class="line">
+  <div class="text">length </div>
+  <div class="data" data-tag="length">abcdef</div>
+</div>
+<div class="line">
+  <div class="text">close </div>
+  <div class="data" data-tag="fd">-1</div>
+  <div class="text"> returned </div>
+  <div class="data" data-tag="error">Bad file descriptor</div>
+  <div class="text"> </div>
+  <div class="data" data-tag="test">good</div>
+</div>
+<div class="line">
+  <div class="text">close </div>
+  <div class="data" data-tag="fd">-1</div>
+  <div class="text"> returned </div>
+  <div class="data" data-tag="error">Bad fi</div>
+  <div class="text"> </div>
+  <div class="data" data-tag="test">good</div>
+</div>
+<div class="line">
+  <div class="message">improper use of profanity; ten yard penalty; first down
+</div>
+</div>
+<div class="line">
+  <div class="text"> </div>
+  <div class="data" data-tag="lines">     20</div>
+  <div class="text"> </div>
+  <div class="data" data-tag="words">     30</div>
+  <div class="text"> </div>
+  <div class="data" data-tag="characters">     40</div>
+  <div class="text"> </div>
+  <div class="data" data-tag="filename">file</div>
+</div>
+<div class="line">
+  <div class="data" data-tag="bytes">0</div>
+  <div class="padding"> </div>
+  <div class="note">bytes</div>
+</div>
+<div class="line">
+  <div class="data" data-tag="bytes">1</div>
+  <div class="padding"> </div>
+  <div class="note">byte</div>
+</div>
+<div class="line">
+  <div class="data" data-tag="bytes">2</div>
+  <div class="padding"> </div>
+  <div class="note">bytes</div>
+</div>
+<div class="line">
+  <div class="data" data-tag="bytes">3</div>
+  <div class="padding"> </div>
+  <div class="note">bytes</div>
+</div>
+<div class="line">
+  <div class="data" data-tag="bytes">4</div>
+  <div class="padding"> </div>
+  <div class="note">bytes</div>
+</div>
+<div class="line">
   <div class="data" data-tag="mbuf-current">10</div>
   <div class="text">/</div>
   <div class="data" data-tag="mbuf-cache">20</div>
@@ -28,8 +106,15 @@
 </div>
 <div class="line">
   <div class="data" data-tag="some">string</div>
+  <div class="decoration">:</div>
+  <div class="padding"> </div>
   <div class="data" data-tag="ten">10</div>
   <div class="data" data-tag="eleven">11</div>
+</div>
+<div class="line">
+  <div class="data" data-tag="unknown">1010</div>
+  <div class="text"> </div>
+  <div class="note">packets here/there/everywhere</div>
 </div>
 <div class="line">
   <div class="data" data-tag="unknown">1010</div>
@@ -77,11 +162,26 @@
   <div class="text">)</div>
 </div>
 <div class="line">
+  <div class="text">Humanize: </div>
+  <div class="data" data-tag="val1" data-number="21">21</div>
+  <div class="text">, </div>
+  <div class="data" data-tag="val2" data-number="58368">57 K</div>
+  <div class="text">, </div>
+  <div class="data" data-tag="val3" data-number="100663296">96M</div>
+  <div class="text">, </div>
+  <div class="data" data-tag="val4" data-number="44470272">44M</div>
+  <div class="text">, </div>
+  <div class="data" data-tag="val5" data-number="1342172800">1.2G</div>
+</div>
+<div class="line">
   <div class="data" data-tag="flag">one</div>
   <div class="text"> </div>
   <div class="data" data-tag="flag">two</div>
   <div class="text"> </div>
   <div class="data" data-tag="flag">three</div>
+</div>
+<div class="line">
+  <div class="data" data-tag="works">(null)</div>
 </div>
 <div class="line">
   <div class="text">1:</div>
