@@ -4146,6 +4146,8 @@ spa_import_rootpool(const char *name)
 		    &spa->spa_ubsync.ub_version) != 0)
 			spa->spa_ubsync.ub_version = SPA_VERSION_INITIAL;
 	} else if ((spa = spa_lookup(name)) == NULL) {
+		mutex_exit(&spa_namespace_lock);
+		nvlist_free(config);
 		cmn_err(CE_NOTE, "Cannot find the pool label for '%s'",
 		    name);
 		return (EIO);
