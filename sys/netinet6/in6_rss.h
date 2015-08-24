@@ -42,4 +42,12 @@ uint32_t	rss_hash_ip6_4tuple(const struct in6_addr *src, u_short srcport,
 uint32_t	rss_hash_ip6_2tuple(const struct in6_addr *src,
 		    const struct in6_addr *dst);
 
+/*
+ * Functions to calculate a software RSS hash for a given mbuf or
+ * packet detail.
+ */
+int		rss_proto_software_hash_v6(const struct in6_addr *src,
+		    const struct in6_addr *dst, u_short src_port,
+		    u_short dst_port, int proto, uint32_t *hashval,
+		    uint32_t *hashtype);
 #endif /* !_NETINET6_IN6_RSS_H_ */
