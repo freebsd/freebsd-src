@@ -121,28 +121,26 @@ static int32_t thiszone;	/* time difference with gmt */
 static int s = -1;
 static int repeat = 0;
 
-char ntop_buf[INET6_ADDRSTRLEN];	/* inet_ntop() */
-char host_buf[NI_MAXHOST];		/* getnameinfo() */
-char ifix_buf[IFNAMSIZ];		/* if_indextoname() */
+static char host_buf[NI_MAXHOST];	/* getnameinfo() */
+static char ifix_buf[IFNAMSIZ];		/* if_indextoname() */
 
-int main(int, char **);
 static int file(char *);
-void getsocket(void);
-int set(int, char **);
-void get(char *);
-int delete(char *);
-void dump(struct sockaddr_in6 *, int);
+static void getsocket(void);
+static int set(int, char **);
+static void get(char *);
+static int delete(char *);
+static void dump(struct sockaddr_in6 *, int);
 static struct in6_nbrinfo *getnbrinfo(struct in6_addr *, int, int);
 static char *ether_str(struct sockaddr_dl *);
-int ndp_ether_aton(char *, u_char *);
-void usage(void);
-int rtmsg(int);
-void ifinfo(char *, int, char **);
-void rtrlist(void);
-void plist(void);
-void pfx_flush(void);
-void rtr_flush(void);
-void harmonize_rtr(void);
+static int ndp_ether_aton(char *, u_char *);
+static void usage(void);
+static int rtmsg(int);
+static void ifinfo(char *, int, char **);
+static void rtrlist(void);
+static void plist(void);
+static void pfx_flush(void);
+static void rtr_flush(void);
+static void harmonize_rtr(void);
 #ifdef SIOCSDEFIFACE_IN6	/* XXX: check SIOCGDEFIFACE_IN6 as well? */
 static void getdefif(void);
 static void setdefif(char *);
@@ -157,13 +155,11 @@ static char *rtpref_str[] = {
 	"low"			/* 11 */
 };
 
-int mode = 0;
-char *arg = NULL;
-
 int
 main(int argc, char **argv)
 {
-	int ch;
+	int ch, mode = 0;
+	char *arg = NULL;
 
 	pid = getpid();
 	thiszone = gmt2local(0);
@@ -346,7 +342,7 @@ file(char *name)
 	return (retval);
 }
 
-void
+static void
 getsocket()
 {
 	if (s < 0) {
@@ -358,20 +354,31 @@ getsocket()
 	}
 }
 
-struct	sockaddr_in6 so_mask = {sizeof(so_mask), AF_INET6 };
-struct	sockaddr_in6 blank_sin = {sizeof(blank_sin), AF_INET6 }, sin_m;
-struct	sockaddr_dl blank_sdl = {sizeof(blank_sdl), AF_LINK }, sdl_m;
-time_t	expire_time;
-int	flags, found_entry;
-struct	{
+static struct sockaddr_in6 so_mask = {
+	.sin6_len = sizeof(so_mask),
+	.sin6_family = AF_INET6
+};
+static struct sockaddr_in6 blank_sin = {
+	.sin6_len = sizeof(blank_sin),
+	.sin6_family = AF_INET6
+};
+static struct sockaddr_in6 sin_m;
+static struct sockaddr_dl blank_sdl = {
+	.sdl_len = sizeof(blank_sdl),
+	.sdl_family = AF_LINK
+};
+static struct sockaddr_dl sdl_m;
+static time_t expire_time;
+static int flags, found_entry;
+static struct {
 	struct	rt_msghdr m_rtm;
 	char	m_space[512];
-}	m_rtmsg;
+} m_rtmsg;
 
 /*
  * Set an individual neighbor cache entry
  */
-int
+static int
 set(int argc, char **argv)
 {
 	register struct sockaddr_in6 *sin = &sin_m;
@@ -446,7 +453,7 @@ overwrite:
 /*
  * Display an individual neighbor cache entry
  */
-void
+static void
 get(char *host)
 {
 	struct sockaddr_in6 *sin = &sin_m;
@@ -478,7 +485,7 @@ get(char *host)
 /*
  * Delete a neighbor cache entry
  */
-int
+static int
 delete(char *host)
 {
 	struct sockaddr_in6 *sin = &sin_m;
@@ -546,7 +553,7 @@ delete:
 /*
  * Dump the entire neighbor cache
  */
-void
+static void
 dump(struct sockaddr_in6 *addr, int cflag)
 {
 	int mib[6];
@@ -780,7 +787,6 @@ static char *
 ether_str(struct sockaddr_dl *sdl)
 {
 	static char hbuf[NI_MAXHOST];
-	char *cp;
 
 	if (sdl->sdl_alen == ETHER_ADDR_LEN) {
 		strlcpy(hbuf, ether_ntoa((struct ether_addr *)LLADDR(sdl)),
@@ -794,7 +800,7 @@ ether_str(struct sockaddr_dl *sdl)
 	return(hbuf);
 }
 
-int
+static int
 ndp_ether_aton(char *a, u_char *n)
 {
 	int i, o[6];
@@ -810,7 +816,7 @@ ndp_ether_aton(char *a, u_char *n)
 	return (0);
 }
 
-void
+static void
 usage()
 {
 	printf("usage: ndp [-nt] hostname\n");
@@ -826,7 +832,7 @@ usage()
 	exit(1);
 }
 
-int
+static int
 rtmsg(int cmd)
 {
 	static int seq;
@@ -891,7 +897,7 @@ doit:
 	return (0);
 }
 
-void
+static void
 ifinfo(char *ifname, int argc, char **argv)
 {
 	struct in6_ndireq nd;
@@ -1051,7 +1057,7 @@ ifinfo(char *ifname, int argc, char **argv)
 #define ND_RA_FLAG_RTPREF_MASK	0x18 /* 00011000 */
 #endif
 
-void
+static void
 rtrlist()
 {
 	int mib[] = { CTL_NET, PF_INET6, IPPROTO_ICMPV6, ICMPV6CTL_ND6_DRLIST };
@@ -1103,7 +1109,7 @@ rtrlist()
 	free(buf);
 }
 
-void
+static void
 plist()
 {
 	int mib[] = { CTL_NET, PF_INET6, IPPROTO_ICMPV6, ICMPV6CTL_ND6_PRLIST };
@@ -1217,7 +1223,7 @@ plist()
 	free(buf);
 }
 
-void
+static void
 pfx_flush()
 {
 	char dummyif[IFNAMSIZ+8];
@@ -1230,7 +1236,7 @@ pfx_flush()
 		err(1, "ioctl(SIOCSPFXFLUSH_IN6)");
 }
 
-void
+static void
 rtr_flush()
 {
 	char dummyif[IFNAMSIZ+8];
@@ -1245,7 +1251,7 @@ rtr_flush()
 	close(s);
 }
 
-void
+static void
 harmonize_rtr()
 {
 	char dummyif[IFNAMSIZ+8];
