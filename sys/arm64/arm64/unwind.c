@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 
 #include <machine/stack.h>
+#include <machine/vmparam.h>
 
 int
 unwind_frame(struct unwind_state *frame)
@@ -39,7 +40,7 @@ unwind_frame(struct unwind_state *frame)
 	uint64_t fp;
 
 	fp = frame->fp;
-	if (fp == 0)
+	if (!INKERNEL(fp))
 		return (-1);
 
 	frame->sp = fp + 0x10;
