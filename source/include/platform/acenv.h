@@ -71,13 +71,14 @@
 
 #ifdef ACPI_ASL_COMPILER
 #define ACPI_APPLICATION
-#define ACPI_DISASSEMBLER
 #define ACPI_DEBUG_OUTPUT
 #define ACPI_CONSTANT_EVAL_ONLY
 #define ACPI_LARGE_NAMESPACE_NODE
 #define ACPI_DATA_TABLE_DISASSEMBLY
 #define ACPI_SINGLE_THREADED
 #define ACPI_32BIT_PHYSICAL_ADDRESS
+
+#define ACPI_DISASSEMBLER 1
 #endif
 
 /* AcpiExec configuration. Multithreaded with full AML debugger */
@@ -90,8 +91,8 @@
 #endif
 
 /*
- * AcpiBin/AcpiDump/AcpiHelp/AcpiNames/AcpiSrc/AcpiXtract/Example configuration.
- * All single threaded.
+ * AcpiBin/AcpiDump/AcpiHelp/AcpiNames/AcpiSrc/AcpiXtract/Example
+ * configuration. All single threaded.
  */
 #if (defined ACPI_BIN_APP)      || \
     (defined ACPI_DUMP_APP)     || \
@@ -124,7 +125,7 @@
 #define ACPI_USE_NATIVE_RSDP_POINTER
 #endif
 
-/* AcpiDump configuration. Native mapping used if provied by OSPMs */
+/* AcpiDump configuration. Native mapping used if provided by the host */
 
 #ifdef ACPI_DUMP_APP
 #define ACPI_USE_NATIVE_MEMORY_MAPPING
@@ -142,6 +143,7 @@
 
 #ifdef ACPI_LIBRARY
 #define ACPI_USE_LOCAL_CACHE
+#define ACPI_FULL_DEBUG
 #endif
 
 /* Common for all ACPICA applications */
@@ -151,14 +153,13 @@
 #define ACPI_USE_LOCAL_CACHE
 #endif
 
-/* Common debug support */
+/* Common debug/disassembler support */
 
 #ifdef ACPI_FULL_DEBUG
-#define ACPI_DEBUGGER
 #define ACPI_DEBUG_OUTPUT
-#define ACPI_DISASSEMBLER
+#define ACPI_DEBUGGER 1
+#define ACPI_DISASSEMBLER 1
 #endif
-
 
 /*! [Begin] no source code translation */
 
@@ -326,8 +327,8 @@
  * ACPI_USE_STANDARD_HEADERS - Define this if linking to a C library and
  *      the standard header files may be used.
  *
- * The ACPICA subsystem only uses low level C library functions that do not call
- * operating system services and may therefore be inlined in the code.
+ * The ACPICA subsystem only uses low level C library functions that do not
+ * call operating system services and may therefore be inlined in the code.
  *
  * It may be necessary to tailor these include files to the target
  * generation environment.

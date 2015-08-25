@@ -665,7 +665,8 @@ AeMiscellaneousTests (
     ReturnBuf.Length = 32;
     ReturnBuf.Pointer = Buffer;
 
-    Status = AcpiGetName (ACPI_ROOT_OBJECT, ACPI_FULL_PATHNAME, &ReturnBuf);
+    Status = AcpiGetName (ACPI_ROOT_OBJECT,
+        ACPI_FULL_PATHNAME_NO_TRAILING, &ReturnBuf);
     AE_CHECK_OK (AcpiGetName, Status);
 
     /* Get Devices */

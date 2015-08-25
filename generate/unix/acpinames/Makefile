@@ -39,6 +39,7 @@ OBJECTS = \
 	$(OBJDIR)/antables.o\
 	$(OBJDIR)/cmfsize.o\
 	$(OBJDIR)/dsfield.o\
+	$(OBJDIR)/dsinit.o\
 	$(OBJDIR)/dsmthdat.o\
 	$(OBJDIR)/dsobject.o\
 	$(OBJDIR)/dsutils.o\
@@ -50,6 +51,7 @@ OBJECTS = \
 	$(OBJDIR)/exdump.o\
 	$(OBJDIR)/exmutex.o\
 	$(OBJDIR)/exnames.o\
+	$(OBJDIR)/exprep.o\
 	$(OBJDIR)/exresnte.o\
 	$(OBJDIR)/exresolv.o\
 	$(OBJDIR)/exsystem.o\

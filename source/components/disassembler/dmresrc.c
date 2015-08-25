@@ -46,7 +46,6 @@
 #include "amlcode.h"
 #include "acdisasm.h"
 
-#ifdef ACPI_DISASSEMBLER
 
 #define _COMPONENT          ACPI_CA_DEBUGGER
         ACPI_MODULE_NAME    ("dbresrc")
@@ -444,5 +443,3 @@ AcpiDmIsResourceTemplate (
      */
     return (AE_OK);
 }
-
-#endif

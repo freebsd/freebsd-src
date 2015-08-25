@@ -170,7 +170,7 @@ AhFindPredefinedNames (
     strncpy (&Name[1], NamePrefix, 7);
 
     Length = strlen (Name);
-    if (Length > 4)
+    if (Length > ACPI_NAME_SIZE)
     {
         printf ("%.8s: Predefined name must be 4 characters maximum\n", Name);
         return;
