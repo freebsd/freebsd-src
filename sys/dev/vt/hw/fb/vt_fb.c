@@ -280,6 +280,7 @@ vt_fb_bitblt_bitmap(struct vt_device *vd, const struct vt_window *vw,
 			if (mask != NULL && (mask[byte] & bit) == 0)
 				continue;
 			o = (y + yi) * info->fb_stride + (x + xi) * bpp;
+			o += vd->vd_transpose;
 			cc = pattern[byte] & bit ? fgc : bgc;
 
 			switch(bpp) {
@@ -397,11 +398,16 @@ int
 vt_fb_init(struct vt_device *vd)
 {
 	struct fb_info *info;
+	u_int margin;
 	int err;
 
 	info = vd->vd_softc;
-	vd->vd_height = info->fb_height;
-	vd->vd_width = info->fb_width;
+	vd->vd_height = MIN(VT_FB_DEFAULT_HEIGHT, info->fb_height);
+	margin = (info->fb_height - vd->vd_height) >> 1;
+	vd->vd_transpose = margin * info->fb_stride;
+	vd->vd_width = MIN(VT_FB_DEFAULT_WIDTH, info->fb_width);
+	margin = (info->fb_width - vd->vd_width) >> 1;
+	vd->vd_transpose += margin * (info->fb_bpp / NBBY);
 
 	if (info->fb_size == 0)
 		return (CN_DEAD);

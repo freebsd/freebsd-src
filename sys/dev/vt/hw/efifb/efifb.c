@@ -98,7 +98,6 @@ vt_efifb_probe(struct vt_device *vd)
 static int
 vt_efifb_init(struct vt_device *vd)
 {
-	int		depth, d;
 	struct fb_info	*info;
 	struct efi_fb	*efifb;
 	caddr_t		kmdp;
@@ -118,16 +117,13 @@ vt_efifb_init(struct vt_device *vd)
 	info->fb_height = efifb->fb_height;
 	info->fb_width = efifb->fb_width;
 
-	depth = fls(efifb->fb_mask_red);
-	d = fls(efifb->fb_mask_green);
-	depth = d > depth ? d : depth;
-	d = fls(efifb->fb_mask_blue);
-	depth = d > depth ? d : depth;
-	d = fls(efifb->fb_mask_reserved);
-	depth = d > depth ? d : depth;
-	info->fb_depth = depth;
+	info->fb_depth = fls(efifb->fb_mask_red | efifb->fb_mask_green |
+	    efifb->fb_mask_blue | efifb->fb_mask_reserved);
+	/* Round to a multiple of the bits in a byte. */
+	info->fb_bpp = (info->fb_depth + NBBY - 1) & ~(NBBY - 1);
 
-	info->fb_stride = efifb->fb_stride * (depth / 8);
+	/* Stride in bytes, not pixels */
+	info->fb_stride = efifb->fb_stride * (info->fb_bpp / NBBY);
 
 	vt_generate_cons_palette(info->fb_cmap, COLOR_FORMAT_RGB,
 	    efifb->fb_mask_red, ffs(efifb->fb_mask_red) - 1,
@@ -138,16 +134,6 @@ vt_efifb_init(struct vt_device *vd)
 	info->fb_pbase = efifb->fb_addr;
 	info->fb_vbase = (intptr_t)pmap_mapdev_attr(info->fb_pbase,
 	    info->fb_size, VM_MEMATTR_WRITE_COMBINING);
-
-	/* Get pixel storage size. */
-	info->fb_bpp = info->fb_stride / info->fb_width * 8;
-
-	/*
-	 * Early FB driver work with static window buffer, so reduce to minimal
-	 * size, buffer or screen.
-	 */
-	info->fb_width = MIN(info->fb_width, VT_FB_DEFAULT_WIDTH);
-	info->fb_height = MIN(info->fb_height, VT_FB_DEFAULT_HEIGHT);
 
 	vt_fb_init(vd);
 
