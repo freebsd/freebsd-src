@@ -150,6 +150,7 @@ _CPUCFLAGS = -mcpu=ultrasparc3
 # unordered list to make it easy for client makefiles to test for the
 # presence of a CPU feature.
 
+########## i386
 . if ${MACHINE_CPUARCH} == "i386"
 .  if ${CPUTYPE} == "bdver4"
 MACHINE_CPU = xop avx2 avx sse42 sse41 ssse3 sse4a sse3 sse2 sse mmx k6 k5 i586
@@ -218,6 +219,7 @@ MACHINE_CPU = 3dnow mmx
 MACHINE_CPU = mmx
 .  endif
 MACHINE_CPU += i486
+########## amd64
 . elif ${MACHINE_CPUARCH} == "amd64"
 .  if ${CPUTYPE} == "bdver4"
 MACHINE_CPU = xop avx2 avx sse42 sse41 ssse3 sse4a sse3
@@ -253,10 +255,12 @@ MACHINE_CPU = ssse3 sse3
 MACHINE_CPU = sse3
 .  endif
 MACHINE_CPU += amd64 sse2 sse mmx
+########## powerpc
 . elif ${MACHINE_ARCH} == "powerpc"
 .  if ${CPUTYPE} == "e500"
-MACHINE_CPU = booke
+MACHINE_CPU = booke softfp
 .  endif
+########## sparc64
 . elif ${MACHINE_ARCH} == "sparc64"
 .  if ${CPUTYPE} == "v9"
 MACHINE_CPU = v9
@@ -272,10 +276,20 @@ MACHINE_CPU = v9 ultrasparc ultrasparc3
 CFLAGS += -G0
 .endif
 
+########## arm
+.if ${MACHINE_CPUARCH} == "arm"
+MACHINE_CPU += arm
+. if ${MACHINE_ARCH:Marmv6*} != ""
+MACHINE_CPU += armv6
+. endif
+. if ${MACHINE_ARCH:M*hf} == ""
+MACHINE_CPU += softfp
+. endif
 .if ${MACHINE_ARCH} == "armv6"
 # Needs to be CFLAGS not _CPUCFLAGS because it's needed for the ABI
 # not a nice optimization.
 CFLAGS += -mfloat-abi=softfp
+.endif
 .endif
 
 # NB: COPTFLAGS is handled in /usr/src/sys/conf/kern.pre.mk
