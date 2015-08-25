@@ -1464,21 +1464,11 @@ patmatch(const char *pattern, const char *string, int squoted)
 			bt_q = q;
 			break;
 		case '[': {
-			const char *endp;
+			const char *savep, *saveq;
 			int invert, found;
 			wchar_t chr;
 
-			endp = p;
-			if (*endp == '!' || *endp == '^')
-				endp++;
-			do {
-				while (*endp == CTLQUOTEMARK)
-					endp++;
-				if (*endp == 0)
-					goto dft;		/* no matching ] */
-				if (*endp == CTLESC)
-					endp++;
-			} while (*++endp != ']');
+			savep = p, saveq = q;
 			invert = 0;
 			if (*p == '!' || *p == '^') {
 				invert++;
@@ -1497,6 +1487,11 @@ patmatch(const char *pattern, const char *string, int squoted)
 				chr = (unsigned char)*q++;
 			c = *p++;
 			do {
+				if (c == '\0') {
+					p = savep, q = saveq;
+					c = '[';
+					goto dft;
+				}
 				if (c == CTLQUOTEMARK)
 					continue;
 				if (c == '[' && *p == ':') {
