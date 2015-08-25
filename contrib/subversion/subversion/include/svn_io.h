@@ -1148,6 +1148,8 @@ svn_stream_read(svn_stream_t *stream,
  * of reads or a simple seek operation. If the stream implementation has
  * not provided a skip function, this will read from the stream and
  * discard the data.
+ *
+ * @since New in 1.7.
  */
 svn_error_t *
 svn_stream_skip(svn_stream_t *stream,

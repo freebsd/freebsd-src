@@ -68,12 +68,6 @@ usage(void)
 	fprintf(stderr, "%s\n%s\n",
 	    "usage: ypmatch [-kt] [-d domainname] key ... mapname",
 	    "       ypmatch -x");
-	fprintf(stderr,
-	    "where\n"
-	    "\tmapname may be either a mapname or a nickname for a map.\n"
-	    "\t-k prints keys as well as values.\n"
-	    "\t-t inhibits map nickname translation.\n"
-	    "\t-x dumps the map nickname translation table.\n");
 	exit(1);
 }
 
@@ -87,10 +81,10 @@ main(int argc, char *argv[])
 
 	domainname = NULL;
 	notrans = key = 0;
-	while ((c=getopt(argc, argv, "xd:kt")) != -1)
+	while ((c = getopt(argc, argv, "xd:kt")) != -1)
 		switch (c) {
 		case 'x':
-			for (i=0; i<sizeof ypaliases/sizeof ypaliases[0]; i++)
+			for (i = 0; i < nitems(ypaliases); i++)
 				printf("Use \"%s\" for \"%s\"\n",
 					ypaliases[i].alias,
 					ypaliases[i].name);
@@ -108,22 +102,21 @@ main(int argc, char *argv[])
 			usage();
 		}
 
-	if ((argc-optind) < 2 )
+	if (argc - optind < 2)
 		usage();
 
-	if (domainname == NULL) {
+	if (domainname == NULL)
 		yp_get_default_domain(&domainname);
-	}
 
 	inmap = argv[argc-1];
 	if (notrans == 0) {
-		for (i=0; i<sizeof ypaliases/sizeof ypaliases[0]; i++)
+		for (i = 0; i < nitems(ypaliases); i++)
 			if (strcmp(inmap, ypaliases[i].alias) == 0)
 				inmap = ypaliases[i].name;
 	}
 
 	rval = 0;
-	for (; optind < argc-1; optind++) {
+	for (; optind < argc - 1; optind++) {
 		inkey = argv[optind];
 
 		r = yp_match(domainname, inmap, inkey,
@@ -137,7 +130,7 @@ main(int argc, char *argv[])
 		case YPERR_YPBIND:
 			errx(1, "not running ypbind");
 		default:
-			errx(1, "can't match key %s in map %s. Reason: %s",
+			errx(1, "can't match key %s in map %s. reason: %s",
 			    inkey, inmap, yperr_string(r));
 			rval = 1;
 			break;

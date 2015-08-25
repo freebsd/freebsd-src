@@ -2874,7 +2874,7 @@ iwm_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 {
 	struct ieee80211com *ic = ni->ni_ic;
 	struct ifnet *ifp = ic->ic_ifp;
-	struct iwm_softc *sc = ifp->if_softc;
+	struct iwm_softc *sc = ic->ic_softc;
 	int error = 0;
 
 	IWM_DPRINTF(sc, IWM_DEBUG_XMIT,
@@ -3510,8 +3510,7 @@ iwm_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 {
 	struct iwm_vap *ivp = IWM_VAP(vap);
 	struct ieee80211com *ic = vap->iv_ic;
-	struct ifnet *ifp = ic->ic_ifp;
-	struct iwm_softc *sc = ifp->if_softc;
+	struct iwm_softc *sc = ic->ic_softc;
 	struct iwm_node *in;
 	int error;
 
@@ -4820,7 +4819,7 @@ fail:
 static int
 iwm_update_edca(struct ieee80211com *ic)
 {
-	struct iwm_softc *sc = ic->ic_ifp->if_softc;
+	struct iwm_softc *sc = ic->ic_softc;
 
 	device_printf(sc->sc_dev, "%s: called\n", __func__);
 	return (0);
@@ -4960,7 +4959,7 @@ static void
 iwm_scan_start(struct ieee80211com *ic)
 {
 	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
-        struct iwm_softc *sc = ic->ic_ifp->if_softc;
+        struct iwm_softc *sc = ic->ic_softc;
 	int error;
 
 	if (sc->sc_scanband)

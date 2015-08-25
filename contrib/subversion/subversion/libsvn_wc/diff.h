@@ -47,9 +47,6 @@ extern "C" {
    svn_wc__db_status_added. When DIFF_PRISTINE is TRUE, report the pristine
    version of LOCAL_ABSPATH as ADDED. In this case an
    svn_wc__db_status_deleted may shadow an added or deleted node.
-
-   If CHANGELIST_HASH is not NULL and LOCAL_ABSPATH's changelist is not
-   in the changelist, don't report the node.
  */
 svn_error_t *
 svn_wc__diff_local_only_file(svn_wc__db_t *db,
@@ -57,7 +54,6 @@ svn_wc__diff_local_only_file(svn_wc__db_t *db,
                              const char *relpath,
                              const svn_diff_tree_processor_t *processor,
                              void *processor_parent_baton,
-                             apr_hash_t *changelist_hash,
                              svn_boolean_t diff_pristine,
                              svn_cancel_func_t cancel_func,
                              void *cancel_baton,
@@ -73,9 +69,6 @@ svn_wc__diff_local_only_file(svn_wc__db_t *db,
    svn_wc__db_status_added. When DIFF_PRISTINE is TRUE, report the pristine
    version of LOCAL_ABSPATH as ADDED. In this case an
    svn_wc__db_status_deleted may shadow an added or deleted node.
-
-   If CHANGELIST_HASH is not NULL and LOCAL_ABSPATH's changelist is not
-   in the changelist, don't report the node.
  */
 svn_error_t *
 svn_wc__diff_local_only_dir(svn_wc__db_t *db,
@@ -84,7 +77,6 @@ svn_wc__diff_local_only_dir(svn_wc__db_t *db,
                             svn_depth_t depth,
                             const svn_diff_tree_processor_t *processor,
                             void *processor_parent_baton,
-                            apr_hash_t *changelist_hash,
                             svn_boolean_t diff_pristine,
                             svn_cancel_func_t cancel_func,
                             void *cancel_baton,
@@ -132,13 +124,38 @@ svn_wc__diff_base_working_diff(svn_wc__db_t *db,
                                const char *local_abspath,
                                const char *relpath,
                                svn_revnum_t revision,
-                               apr_hash_t *changelist_hash,
                                const svn_diff_tree_processor_t *processor,
                                void *processor_dir_baton,
                                svn_boolean_t diff_pristine,
                                svn_cancel_func_t cancel_func,
                                void *cancel_baton,
                                apr_pool_t *scratch_pool);
+
+/* Return a tree processor filter that filters by changelist membership.
+ *
+ * This filter only passes on the changes for a file if the file's path
+ * (in the WC) is assigned to one of the changelists in @a changelist_hash.
+ * It also passes on the opening and closing of each directory that contains
+ * such a change, and possibly also of other directories, but not addition
+ * or deletion or changes to a directory.
+ *
+ * If @a changelist_hash is null then no filtering is performed and the
+ * returned diff processor is driven exactly like the input @a processor.
+ *
+ * @a wc_ctx is the WC context and @a root_local_abspath is the WC path of
+ * the root of the diff (for which relpath = "" in the diff processor).
+ *
+ * Allocate the returned diff processor in @a result_pool, or if no
+ * filtering is required then the input pointer @a processor itself may be
+ * returned.
+ */
+const svn_diff_tree_processor_t *
+svn_wc__changelist_filter_tree_processor_create(
+                                const svn_diff_tree_processor_t *processor,
+                                svn_wc_context_t *wc_ctx,
+                                const char *root_local_abspath,
+                                apr_hash_t *changelist_hash,
+                                apr_pool_t *result_pool);
 
 
 #ifdef __cplusplus

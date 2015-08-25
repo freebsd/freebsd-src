@@ -104,7 +104,7 @@ __FBSDID("$FreeBSD$");
 
 	/* Read the current thread flags */
 1:	ldr	x1, [x18, #PC_CURTHREAD]	/* Load curthread */
-	ldr	x2, [x1, #TD_FLAGS]! /* TODO: No need for the ! but clang fails without it */
+	ldr	x2, [x1, #TD_FLAGS]
 
 	/* Check if we have either bits set */
 	mov	x3, #((TDF_ASTPENDING|TDF_NEEDRESCHED) >> 8)

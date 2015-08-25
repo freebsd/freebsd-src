@@ -1308,14 +1308,12 @@ print_icmptypes(struct buf_pr *bp, ipfw_insn_u32 *cmd)
 static void
 print_dscp(struct buf_pr *bp, ipfw_insn_u32 *cmd)
 {
-	int i, c;
+	int i = 0;
 	uint32_t *v;
 	char sep= ' ';
 	const char *code;
 
 	bprintf(bp, " dscp");
-	i = 0;
-	c = 0;
 	v = cmd->d;
 	while (i < 64) {
 		if (*v & (1 << i)) {
@@ -2869,14 +2867,14 @@ fill_ip(ipfw_insn_ip *cmd, char *av, int cblen, struct tidx *tstate)
 	case '/':
 		masklen = atoi(p);
 		if (masklen == 0)
-			d[1] = htonl(0);	/* mask */
+			d[1] = htonl(0U);	/* mask */
 		else if (masklen > 32)
 			errx(EX_DATAERR, "bad width ``%s''", p);
 		else
-			d[1] = htonl(~0 << (32 - masklen));
+			d[1] = htonl(~0U << (32 - masklen));
 		break;
 	case '{':	/* no mask, assume /24 and put back the '{' */
-		d[1] = htonl(~0 << (32 - 24));
+		d[1] = htonl(~0U << (32 - 24));
 		*(--p) = md;
 		break;
 
@@ -2885,7 +2883,7 @@ fill_ip(ipfw_insn_ip *cmd, char *av, int cblen, struct tidx *tstate)
 		/* FALLTHROUGH */
 	case 0:		/* initialization value */
 	default:
-		d[1] = htonl(~0);	/* force /32 */
+		d[1] = htonl(~0U);	/* force /32 */
 		break;
 	}
 	d[0] &= d[1];		/* mask base address with mask */

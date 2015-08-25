@@ -272,7 +272,7 @@ static apr_status_t asio_pollset_create(apr_pollset_t *pollset,
                                            APR_THREAD_MUTEX_DEFAULT,
                                            p) != APR_SUCCESS) {
             DBG1(1, "apr_thread_mutex_create returned %d\n", rv);
-            pollset = NULL;
+            pollset->p = NULL;
             return rv;
         }
         rv = msgget(IPC_PRIVATE, S_IWUSR+S_IRUSR); /* user r/w perms */
@@ -280,7 +280,7 @@ static apr_status_t asio_pollset_create(apr_pollset_t *pollset,
 #if DEBUG
             perror(__FUNCTION__ " msgget returned < 0 ");
 #endif
-            pollset = NULL;
+            pollset->p = NULL;
             return rv;
         }
 
@@ -292,7 +292,7 @@ static apr_status_t asio_pollset_create(apr_pollset_t *pollset,
         APR_RING_INIT(&priv->prior_ready_ring, asio_elem_t, link);
 
 #else  /* APR doesn't have threads but caller wants a threadsafe pollset */
-        pollset = NULL;
+        pollset->p = NULL;
         return APR_ENOTIMPL;
 #endif
 
@@ -304,6 +304,7 @@ static apr_status_t asio_pollset_create(apr_pollset_t *pollset,
         priv->query_set = apr_palloc(p, size * sizeof(apr_pollfd_t));
 
         if ((!priv->pollset) || (!priv->query_set)) {
+            pollset->p = NULL;
             return APR_ENOMEM;
         }
     }
@@ -314,6 +315,10 @@ static apr_status_t asio_pollset_create(apr_pollset_t *pollset,
     priv->size    = size;
     priv->result_set = apr_palloc(p, size * sizeof(apr_pollfd_t));
     if (!priv->result_set) {
+        if (flags & APR_POLLSET_THREADSAFE) {
+            msgctl(priv->msg_q, IPC_RMID, NULL);
+        }
+        pollset->p = NULL;
         return APR_ENOMEM;
     }
 
@@ -379,6 +384,7 @@ static apr_status_t asio_pollset_add(apr_pollset_t *pollset,
             APR_RING_REMOVE(elem, link);
             DBG1(3, "used recycled memory at %08p\n", elem);
             elem->state = ASIO_INIT;
+            elem->a.aio_cflags = 0;
         }
         else {
             elem = (asio_elem_t *) apr_pcalloc(pollset->pool, sizeof(asio_elem_t));
@@ -659,6 +665,7 @@ static apr_status_t asio_pollset_poll(apr_pollset_t *pollset,
             if (ret == 1) {
                 DBG(4, "asyncio() completed inline\n");
                 /* it's ready now */
+                elem->state = ASIO_COMPLETE;
                 APR_RING_INSERT_TAIL(&(priv->ready_ring), elem, asio_elem_t,
                                      link);
             }

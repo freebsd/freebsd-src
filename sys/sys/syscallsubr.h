@@ -74,6 +74,7 @@ int	kern_alternate_path(struct thread *td, const char *prefix, const char *path,
 int	kern_bindat(struct thread *td, int dirfd, int fd, struct sockaddr *sa);
 int	kern_cap_ioctls_limit(struct thread *td, int fd, u_long *cmds,
 	    size_t ncmds);
+int	kern_cap_rights_limit(struct thread *td, int fd, cap_rights_t *rights);
 int	kern_chdir(struct thread *td, char *path, enum uio_seg pathseg);
 int	kern_clock_getcpuclockid2(struct thread *td, id_t id, int which,
 	    clockid_t *clk_id);
@@ -123,6 +124,8 @@ int	kern_jail_get(struct thread *td, struct uio *options, int flags);
 int	kern_jail_set(struct thread *td, struct uio *options, int flags);
 int	kern_kevent(struct thread *td, int fd, int nchanges, int nevents,
 	    struct kevent_copyops *k_ops, const struct timespec *timeout);
+int	kern_kevent_anonymous(struct thread *td, int nevents,
+	    struct kevent_copyops *k_ops);
 int	kern_kevent_fp(struct thread *td, struct file *fp, int nchanges,
 	    int nevents, struct kevent_copyops *k_ops,
 	    const struct timespec *timeout);

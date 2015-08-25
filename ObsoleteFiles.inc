@@ -39,10 +39,70 @@
 # done
 
 # 20150809: String collation improvements
+OLD_FILES+=usr/share/locale/kk_KZ.PT154/LC_COLLATE
+OLD_FILES+=usr/share/locale/kk_KZ.PT154/LC_CTYPE
+OLD_FILES+=usr/share/locale/kk_KZ.PT154/LC_MESSAGES
+OLD_FILES+=usr/share/locale/kk_KZ.PT154/LC_MONETARY
+OLD_FILES+=usr/share/locale/kk_KZ.PT154/LC_NUMERIC
+OLD_FILES+=usr/share/locale/kk_KZ.PT154/LC_TIME
+OLD_FILES+=usr/share/locale/kk_KZ.UTF-8/LC_COLLATE
+OLD_FILES+=usr/share/locale/kk_KZ.UTF-8/LC_CTYPE
+OLD_FILES+=usr/share/locale/kk_KZ.UTF-8/LC_MESSAGES
+OLD_FILES+=usr/share/locale/kk_KZ.UTF-8/LC_MONETARY
+OLD_FILES+=usr/share/locale/kk_KZ.UTF-8/LC_NUMERIC
+OLD_FILES+=usr/share/locale/kk_KZ.UTF-8/LC_TIME
+OLD_FILES+=usr/share/locale/la_LN.ISO8859-1/LC_COLLATE
+OLD_FILES+=usr/share/locale/la_LN.ISO8859-1/LC_CTYPE
+OLD_FILES+=usr/share/locale/la_LN.ISO8859-1/LC_TIME
+OLD_FILES+=usr/share/locale/la_LN.ISO8859-13/LC_COLLATE
+OLD_FILES+=usr/share/locale/la_LN.ISO8859-13/LC_CTYPE
+OLD_FILES+=usr/share/locale/la_LN.ISO8859-15/LC_COLLATE
+OLD_FILES+=usr/share/locale/la_LN.ISO8859-15/LC_CTYPE
+OLD_FILES+=usr/share/locale/la_LN.ISO8859-15/LC_TIME
+OLD_FILES+=usr/share/locale/la_LN.ISO8859-2/LC_COLLATE
+OLD_FILES+=usr/share/locale/la_LN.ISO8859-2/LC_CTYPE
+OLD_FILES+=usr/share/locale/la_LN.ISO8859-2/LC_TIME
+OLD_FILES+=usr/share/locale/la_LN.ISO8859-4/LC_COLLATE
+OLD_FILES+=usr/share/locale/la_LN.ISO8859-4/LC_CTYPE
+OLD_FILES+=usr/share/locale/la_LN.ISO8859-4/LC_TIME
+OLD_FILES+=usr/share/locale/la_LN.US-ASCII/LC_COLLATE
+OLD_FILES+=usr/share/locale/la_LN.US-ASCII/LC_CTYPE
+OLD_FILES+=usr/share/locale/la_LN.US-ASCII/LC_TIME
+OLD_FILES+=usr/share/locale/mn_MN.UTF-8/LC_COLLATE
+OLD_FILES+=usr/share/locale/mn_MN.UTF-8/LC_CTYPE
+OLD_FILES+=usr/share/locale/mn_MN.UTF-8/LC_MESSAGES
+OLD_FILES+=usr/share/locale/mn_MN.UTF-8/LC_MONETARY
+OLD_FILES+=usr/share/locale/mn_MN.UTF-8/LC_NUMERIC
+OLD_FILES+=usr/share/locale/mn_MN.UTF-8/LC_TIME
+OLD_FILES+=usr/share/locale/no_NO.ISO8859-1/LC_COLLATE
+OLD_FILES+=usr/share/locale/no_NO.ISO8859-1/LC_CTYPE
+OLD_FILES+=usr/share/locale/no_NO.ISO8859-1/LC_MESSAGES
+OLD_FILES+=usr/share/locale/no_NO.ISO8859-1/LC_MONETARY
+OLD_FILES+=usr/share/locale/no_NO.ISO8859-1/LC_NUMERIC
+OLD_FILES+=usr/share/locale/no_NO.ISO8859-1/LC_TIME
+OLD_FILES+=usr/share/locale/no_NO.ISO8859-15/LC_COLLATE
+OLD_FILES+=usr/share/locale/no_NO.ISO8859-15/LC_CTYPE
+OLD_FILES+=usr/share/locale/no_NO.ISO8859-15/LC_MESSAGES
+OLD_FILES+=usr/share/locale/no_NO.ISO8859-15/LC_MONETARY
+OLD_FILES+=usr/share/locale/no_NO.ISO8859-15/LC_NUMERIC
+OLD_FILES+=usr/share/locale/no_NO.ISO8859-15/LC_TIME
+OLD_FILES+=usr/share/locale/no_NO.UTF-8/LC_COLLATE
+OLD_FILES+=usr/share/locale/no_NO.UTF-8/LC_CTYPE
+OLD_FILES+=usr/share/locale/no_NO.UTF-8/LC_MESSAGES
+OLD_FILES+=usr/share/locale/no_NO.UTF-8/LC_MONETARY
+OLD_FILES+=usr/share/locale/no_NO.UTF-8/LC_NUMERIC
+OLD_FILES+=usr/share/locale/no_NO.UTF-8/LC_TIME
+OLD_FILES+=usr/share/locale/UTF-8/LC_CTYPE
 OLD_FILES+=usr/bin/colldef
 OLD_FILES+=usr/share/man/man1/colldef.1.gz
 OLD_FILES+=usr/bin/mklocale
 OLD_FILES+=usr/share/man/man1/mklocale.1.gz
+# 20150818: *allocm() are gone in jemalloc 4.0.0
+OLD_FILES+=usr/share/man/man3/allocm.3.gz
+OLD_FILES+=usr/share/man/man3/dallocm.3.gz
+OLD_FILES+=usr/share/man/man3/nallocm.3.gz
+OLD_FILES+=usr/share/man/man3/rallocm.3.gz
+OLD_FILES+=usr/share/man/man3/sallocm.3.gz
 # 20150802: Remove netbsd's test on pw(8)
 OLD_FILES+=usr/tests/usr.sbin/pw/pw_test
 # 20150719: Remove libarchive.pc

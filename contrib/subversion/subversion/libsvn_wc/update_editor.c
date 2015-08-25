@@ -2125,13 +2125,12 @@ add_directory(const char *path,
       if (tree_conflict)
         {
           svn_wc_conflict_reason_t reason;
+          const char *move_src_op_root_abspath;
           /* So this deletion wasn't just a deletion, it is actually a
              replacement. Let's install a better tree conflict. */
 
-          /* ### Should store the conflict in DB to allow reinstalling
-             ### with theoretically more data in close_directory() */
-
-          SVN_ERR(svn_wc__conflict_read_tree_conflict(&reason, NULL, NULL,
+          SVN_ERR(svn_wc__conflict_read_tree_conflict(&reason, NULL,
+                                                      &move_src_op_root_abspath,
                                                       eb->db,
                                                       db->local_abspath,
                                                       tree_conflict,
@@ -2143,7 +2142,7 @@ add_directory(const char *path,
                                         tree_conflict,
                                         eb->db, db->local_abspath,
                                         reason, svn_wc_conflict_action_replace,
-                                        NULL,
+                                        move_src_op_root_abspath,
                                         db->pool, db->pool));
 
           /* And now stop checking for conflicts here and just perform
@@ -3266,13 +3265,12 @@ add_file(const char *path,
       if (tree_conflict)
         {
           svn_wc_conflict_reason_t reason;
+          const char *move_src_op_root_abspath;
           /* So this deletion wasn't just a deletion, it is actually a
              replacement. Let's install a better tree conflict. */
 
-          /* ### Should store the conflict in DB to allow reinstalling
-             ### with theoretically more data in close_directory() */
-
-          SVN_ERR(svn_wc__conflict_read_tree_conflict(&reason, NULL, NULL,
+          SVN_ERR(svn_wc__conflict_read_tree_conflict(&reason, NULL,
+                                                      &move_src_op_root_abspath,
                                                       eb->db,
                                                       fb->local_abspath,
                                                       tree_conflict,
@@ -3284,7 +3282,7 @@ add_file(const char *path,
                                         tree_conflict,
                                         eb->db, fb->local_abspath,
                                         reason, svn_wc_conflict_action_replace,
-                                        NULL,
+                                        move_src_op_root_abspath,
                                         fb->pool, fb->pool));
 
           /* And now stop checking for conflicts here and just perform
@@ -5553,8 +5551,8 @@ svn_wc__complete_directory_add(svn_wc_context_t *wc_ctx,
                                    original_repos_relpath, original_root_url,
                                    original_uuid, original_revision,
                                    NULL /* children */,
-                                   FALSE /* is_move */,
                                    svn_depth_infinity,
+                                   FALSE /* is_move */,
                                    NULL /* conflict */,
                                    NULL /* work_items */,
                                    scratch_pool));

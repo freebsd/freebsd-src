@@ -6,7 +6,7 @@ CFLAGS+=	-I${.CURDIR}
 CFLAGS+=	-I${.CURDIR}/../../sys/dev/iscsi
 MAN=		iscsi.conf.5 iscsictl.8
 
-LIBADD=		xo
+LIBADD=		xo util
 
 YFLAGS+=	-v
 LFLAGS+=	-i

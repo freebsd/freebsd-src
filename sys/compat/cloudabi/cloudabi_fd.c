@@ -74,7 +74,7 @@ __FBSDID("$FreeBSD$");
 	MAPPING(CLOUDABI_RIGHT_MEM_MAP_EXEC, CAP_MMAP_X)		\
 	MAPPING(CLOUDABI_RIGHT_POLL_FD_READWRITE, CAP_EVENT)		\
 	MAPPING(CLOUDABI_RIGHT_POLL_MODIFY, CAP_KQUEUE_CHANGE)		\
-	MAPPING(CLOUDABI_RIGHT_POLL_PROC_TERMINATE, CAP_PDWAIT)		\
+	MAPPING(CLOUDABI_RIGHT_POLL_PROC_TERMINATE, CAP_EVENT)		\
 	MAPPING(CLOUDABI_RIGHT_POLL_WAIT, CAP_KQUEUE_EVENT)		\
 	MAPPING(CLOUDABI_RIGHT_PROC_EXEC, CAP_FEXECVE)			\
 	MAPPING(CLOUDABI_RIGHT_SOCK_ACCEPT, CAP_ACCEPT)			\
@@ -380,7 +380,8 @@ cloudabi_remove_conflicting_rights(cloudabi_filetype_t filetype,
 		*inheriting = 0;
 		break;
 	case CLOUDABI_FILETYPE_PROCESS:
-		*base &= ~CLOUDABI_RIGHT_FILE_ADVISE;
+		*base &= ~(CLOUDABI_RIGHT_FILE_ADVISE |
+		    CLOUDABI_RIGHT_POLL_FD_READWRITE);
 		*inheriting = 0;
 		break;
 	case CLOUDABI_FILETYPE_REGULAR_FILE:
@@ -523,6 +524,7 @@ cloudabi_sys_fd_stat_put(struct thread *td,
     struct cloudabi_sys_fd_stat_put_args *uap)
 {
 	cloudabi_fdstat_t fsb;
+	cap_rights_t rights;
 	int error, oflags;
 
 	error = copyin(uap->buf, &fsb, sizeof(fsb));
@@ -540,6 +542,13 @@ cloudabi_sys_fd_stat_put(struct thread *td,
 		    CLOUDABI_FDFLAG_DSYNC | CLOUDABI_FDFLAG_RSYNC))
 			oflags |= O_SYNC;
 		return (kern_fcntl(td, uap->fd, F_SETFL, oflags));
+	} else if (uap->flags == CLOUDABI_FDSTAT_RIGHTS) {
+		/* Convert rights. */
+		error = cloudabi_convert_rights(
+		    fsb.fs_rights_base | fsb.fs_rights_inheriting, &rights);
+		if (error != 0)
+			return (error);
+		return (kern_cap_rights_limit(td, uap->fd, &rights));
 	}
 	return (EINVAL);
 }

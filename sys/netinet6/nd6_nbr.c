@@ -68,7 +68,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in.h>
 #include <netinet/in_var.h>
 #include <net/if_llatbl.h>
-#define	L3_ADDR_SIN6(le)	((struct sockaddr_in6 *) L3_ADDR(le))
 #include <netinet6/in6_var.h>
 #include <netinet6/in6_ifattach.h>
 #include <netinet/ip6.h>
@@ -575,7 +574,7 @@ nd6_ns_output_fib(struct ifnet *ifp, const struct in6_addr *daddr6,
 	/*
 	 * Add a Nonce option (RFC 3971) to detect looped back NS messages.
 	 * This behavior is documented as Enhanced Duplicate Address
-	 * Detection in draft-ietf-6man-enhanced-dad-13.
+	 * Detection in RFC 7527.
 	 * net.inet6.ip6.dad_enhanced=0 disables this.
 	 */
 	if (V_dad_enhanced != 0 && nonce != NULL) {
@@ -898,7 +897,7 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 			struct nd_defrouter *dr;
 			struct in6_addr *in6;
 
-			in6 = &L3_ADDR_SIN6(ln)->sin6_addr;
+			in6 = &ln->r_l3addr.addr6;
 
 			/*
 			 * Lock to protect the default router list.
@@ -1303,11 +1302,16 @@ nd6_dad_start(struct ifaddr *ifa, int delay)
 	}
 	if (ifa->ifa_ifp == NULL)
 		panic("nd6_dad_start: ifa->ifa_ifp == NULL");
-	if (!(ifa->ifa_ifp->if_flags & IFF_UP)) {
+	if (ND_IFINFO(ifa->ifa_ifp)->flags & ND6_IFF_NO_DAD) {
+		ia->ia6_flags &= ~IN6_IFF_TENTATIVE;
 		return;
 	}
-	if (ND_IFINFO(ifa->ifa_ifp)->flags & ND6_IFF_IFDISABLED)
+	if (!(ifa->ifa_ifp->if_flags & IFF_UP) ||
+	    !(ifa->ifa_ifp->if_drv_flags & IFF_DRV_RUNNING) ||
+	    (ND_IFINFO(ifa->ifa_ifp)->flags & ND6_IFF_IFDISABLED)) {
+		ia->ia6_flags |= IN6_IFF_TENTATIVE;
 		return;
+	}
 	if ((dp = nd6_dad_find(ifa, NULL)) != NULL) {
 		/* DAD already in progress */
 		nd6_dad_rele(dp);

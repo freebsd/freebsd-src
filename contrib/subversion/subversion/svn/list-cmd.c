@@ -49,6 +49,12 @@ struct print_baton {
   svn_boolean_t in_external;
 };
 
+/* Field flags required for this function */
+static const apr_uint32_t print_dirent_fields = SVN_DIRENT_KIND;
+static const apr_uint32_t print_dirent_fields_verbose = (
+    SVN_DIRENT_KIND  | SVN_DIRENT_SIZE | SVN_DIRENT_TIME |
+    SVN_DIRENT_CREATED_REV | SVN_DIRENT_LAST_AUTHOR);
+
 /* This implements the svn_client_list_func2_t API, printing a single
    directory entry in text format. */
 static svn_error_t *
@@ -161,7 +167,10 @@ print_dirent(void *baton,
     }
 }
 
-
+/* Field flags required for this function */
+static const apr_uint32_t print_dirent_xml_fields = (
+    SVN_DIRENT_KIND  | SVN_DIRENT_SIZE | SVN_DIRENT_TIME |
+    SVN_DIRENT_CREATED_REV | SVN_DIRENT_LAST_AUTHOR);
 /* This implements the svn_client_list_func2_t API, printing a single dirent
    in XML format. */
 static svn_error_t *
@@ -313,10 +322,12 @@ svn_cl__list(apr_getopt_t *os,
                                   "mode"));
     }
 
-  if (opt_state->verbose || opt_state->xml)
-    dirent_fields = SVN_DIRENT_ALL;
+  if (opt_state->xml)
+    dirent_fields = print_dirent_xml_fields;
+  else if (opt_state->verbose)
+    dirent_fields = print_dirent_fields_verbose;
   else
-    dirent_fields = SVN_DIRENT_KIND; /* the only thing we actually need... */
+    dirent_fields = print_dirent_fields;
 
   pb.ctx = ctx;
   pb.verbose = opt_state->verbose;

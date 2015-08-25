@@ -61,8 +61,7 @@ static const char rcsid[] =
 
 #include "linux32_syscalls.h"
 
-static int nsyscalls =
-	sizeof(linux32_syscallnames) / sizeof(linux32_syscallnames[0]);
+static int nsyscalls = nitems(linux32_syscallnames);
 
 /*
  * This is what this particular file uses to keep track of a system call.
@@ -207,28 +206,6 @@ amd64_linux32_syscall_entry(struct trussinfo *trussinfo, int nargs)
 	fprintf(trussinfo->outfile, "\n");
 #endif
 
-	if (fsc->name != NULL && (strcmp(fsc->name, "linux_execve") == 0 ||
-	    strcmp(fsc->name, "exit") == 0)) {
-		/*
-		 * XXX
-		 * This could be done in a more general
-		 * manner but it still wouldn't be very pretty.
-		 */
-		if (strcmp(fsc->name, "linux_execve") == 0) {
-			if ((trussinfo->flags & EXECVEARGS) == 0) {
-				if (fsc->s_args[1]) {
-					free(fsc->s_args[1]);
-					fsc->s_args[1] = NULL;
-				}
-			}
-			if ((trussinfo->flags & EXECVEENVS) == 0) {
-				if (fsc->s_args[2]) {
-					free(fsc->s_args[2]);
-					fsc->s_args[2] = NULL;
-				}
-			}
-		}
-	}
 	trussinfo->curthread->fsc = fsc;
 }
 
@@ -288,6 +265,7 @@ amd64_linux32_syscall_exit(struct trussinfo *trussinfo,
 		 */
 		for (i = 0; i < sc->nargs; i++) {
 			char *temp;
+
 			if (sc->args[i].type & OUT) {
 				/*
 				 * If an error occurred, then don't bother
@@ -310,8 +288,7 @@ amd64_linux32_syscall_exit(struct trussinfo *trussinfo,
 	 * but that complicates things considerably.
 	 */
 	if (errorp) {
-		for (i = 0;
-		    (size_t)i < sizeof(bsd_to_linux_errno) / sizeof(int); i++) {
+		for (i = 0; (size_t)i < nitems(bsd_to_linux_errno); i++) {
 			if (retval == bsd_to_linux_errno[i])
 				break;
 		}
