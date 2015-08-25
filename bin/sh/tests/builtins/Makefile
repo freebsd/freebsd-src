@@ -39,6 +39,7 @@ FILES+=		case16.0
 FILES+=		case17.0
 FILES+=		case18.0
 FILES+=		case19.0
+FILES+=		case20.0
 FILES+=		cd1.0
 FILES+=		cd2.0
 FILES+=		cd3.0
