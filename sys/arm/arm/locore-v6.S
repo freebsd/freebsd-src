@@ -45,11 +45,46 @@ __FBSDID("$FreeBSD$");
 #define	PTE1_SIZE	L1_S_SIZE
 #endif
 
+#if __ARM_ARCH >= 7
+#if defined(__ARM_ARCH_7VE__) || defined(__clang__)
+/*
+ * HYP support is in bintuils >= 2.21 and gcc >= 4.9 defines __ARM_ARCH_7VE__
+ * when enabled. llvm >= 3.6 supports it too.
+ */
+.arch_extension virt
+#define	MSR_ELR_HYP(regnum)	msr	elr_hyp, lr
+#define	ERET	eret
+#else
+#define MSR_ELR_HYP(regnum) .word (0xe12ef300 | regnum)
+#define ERET .word 0xe160006e
+#endif
+#endif /* __ARM_ARCH >= 7 */
+
 /* A small statically-allocated stack used only during initarm() and AP startup. */
 #define	INIT_ARM_STACK_SIZE	2048
 
 	.text
 	.align	2
+
+#if __ARM_ARCH >= 7
+#define LEAVE_HYP							\
+       /* Leave HYP mode */						;\
+       mrs	r0, cpsr		   				;\
+       and	r0, r0, #(PSR_MODE)     /* Mode is in the low 5 bits of CPSR */	;\
+       teq	r0, #(PSR_HYP32_MODE)   /* Hyp Mode? */			;\
+       bne	1f							;\
+       /* Ensure that IRQ, FIQ and Aborts will be disabled after eret */;\
+       mrs	r0, spsr						;\
+       orr	r0, r0, #(PSR_I | PSR_F | PSR_A)			;\
+       msr	spsr, r0						;\
+       /* Exit hypervisor mode */					;\
+       adr	lr, 1f							;\
+       MSR_ELR_HYP(14)							;\
+       ERET								;\
+1:
+#else
+#define LEAVE_HYP
+#endif /* __ARM_ARCH >= 7 */
 
 /*
  * On entry for FreeBSD boot ABI:
@@ -75,6 +110,8 @@ ASENTRY_NP(_start)
 	mov	r9, r1		/* Save Machine type */
 	mov	r10, r2		/* Save meta data */
 	mov	r11, r3		/* Future expansion */
+
+	LEAVE_HYP
 
 	/*
 	 * Check whether data cache is enabled.  If it is, then we know
@@ -400,6 +437,8 @@ boot_pt1:
 ASENTRY_NP(mpentry)
 	/* Make sure interrupts are disabled. */
 	cpsid	ifa
+
+	LEAVE_HYP
 
 	/* Setup core, disable all caches. */
 	mrc	CP15_SCTLR(r0)
