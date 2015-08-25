@@ -100,7 +100,7 @@ struct db_variable db_regs[] = {
 	{ "sp", DB_OFFSET(tf_sp), db_frame },
 };
 
-struct db_variable *db_eregs = db_regs + sizeof(db_regs)/sizeof(db_regs[0]);
+struct db_variable *db_eregs = db_regs + nitems(db_regs);
 
 void
 db_show_mdpcpu(struct pcpu *pc)
