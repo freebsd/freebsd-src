@@ -415,10 +415,13 @@ more:
 			ib = 0;
 			break;
 		}
-		vm_page_lock(p);
 		vm_page_test_dirty(p);
-		if (p->dirty == 0 ||
-		    p->queue != PQ_INACTIVE ||
+		if (p->dirty == 0) {
+			ib = 0;
+			break;
+		}
+		vm_page_lock(p);
+		if (p->queue != PQ_INACTIVE ||
 		    p->hold_count != 0) {	/* may be undergoing I/O */
 			vm_page_unlock(p);
 			ib = 0;
@@ -442,10 +445,11 @@ more:
 
 		if ((p = vm_page_next(ps)) == NULL || vm_page_busied(p))
 			break;
-		vm_page_lock(p);
 		vm_page_test_dirty(p);
-		if (p->dirty == 0 ||
-		    p->queue != PQ_INACTIVE ||
+		if (p->dirty == 0)
+			break;
+		vm_page_lock(p);
+		if (p->queue != PQ_INACTIVE ||
 		    p->hold_count != 0) {	/* may be undergoing I/O */
 			vm_page_unlock(p);
 			break;
