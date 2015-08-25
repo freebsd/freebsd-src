@@ -155,6 +155,13 @@ data_abort(struct trapframe *frame, uint64_t esr, int lower)
 	uint64_t far;
 	int error, sig, ucode;
 
+#ifdef KDB
+	if (kdb_active) {
+		kdb_reenter();
+		return;
+	}
+#endif
+
 	td = curthread;
 	pcb = td->td_pcb;
 
@@ -221,6 +228,11 @@ data_abort(struct trapframe *frame, uint64_t esr, int lower)
 				frame->tf_elr = pcb->pcb_onfault;
 				return;
 			}
+#ifdef KDB
+			if (debugger_on_panic || kdb_active)
+				if (kdb_trap(ESR_ELx_EXCEPTION(esr), 0, frame))
+					return;
+#endif
 			panic("vm_fault failed: %lx", frame->tf_elr);
 		}
 	}
@@ -293,6 +305,7 @@ do_el1h_sync(struct trapframe *frame)
 			break;
 		}
 #endif
+		/* FALLTHROUGH */
 	case EXCP_WATCHPT_EL1:
 	case EXCP_SOFTSTP_EL1:
 #ifdef KDB
