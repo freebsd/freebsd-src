@@ -3320,6 +3320,40 @@ init386(first)
 	 */
 	i8254_init();
 
+	finishidentcpu();	/* Final stage of CPU initialization */
+	setidt(IDT_UD, &IDTVEC(ill),  SDT_SYS386TGT, SEL_KPL,
+	    GSEL(GCODE_SEL, SEL_KPL));
+	setidt(IDT_GP, &IDTVEC(prot),  SDT_SYS386TGT, SEL_KPL,
+	    GSEL(GCODE_SEL, SEL_KPL));
+	initializecpu();	/* Initialize CPU registers */
+	initializecpucache();
+
+	/* pointer to selector slot for %fs/%gs */
+	PCPU_SET(fsgs_gdt, &gdt[GUFS_SEL].sd);
+
+	dblfault_tss.tss_esp = dblfault_tss.tss_esp0 = dblfault_tss.tss_esp1 =
+	    dblfault_tss.tss_esp2 = (int)&dblfault_stack[sizeof(dblfault_stack)];
+	dblfault_tss.tss_ss = dblfault_tss.tss_ss0 = dblfault_tss.tss_ss1 =
+	    dblfault_tss.tss_ss2 = GSEL(GDATA_SEL, SEL_KPL);
+#if defined(PAE) || defined(PAE_TABLES)
+	dblfault_tss.tss_cr3 = (int)IdlePDPT;
+#else
+	dblfault_tss.tss_cr3 = (int)IdlePTD;
+#endif
+	dblfault_tss.tss_eip = (int)dblfault_handler;
+	dblfault_tss.tss_eflags = PSL_KERNEL;
+	dblfault_tss.tss_ds = dblfault_tss.tss_es =
+	    dblfault_tss.tss_gs = GSEL(GDATA_SEL, SEL_KPL);
+	dblfault_tss.tss_fs = GSEL(GPRIV_SEL, SEL_KPL);
+	dblfault_tss.tss_cs = GSEL(GCODE_SEL, SEL_KPL);
+	dblfault_tss.tss_ldt = GSEL(GLDT_SEL, SEL_KPL);
+
+	vm86_initialize();
+	getmemsize(first);
+	init_param2(physmem);
+
+	/* now running on new page tables, configured,and u/iom is accessible */
+
 	/*
 	 * Initialize the console before we print anything out.
 	 */
@@ -3360,40 +3394,6 @@ init386(first)
 	if (boothowto & RB_KDB)
 		kdb_enter(KDB_WHY_BOOTFLAGS, "Boot flags requested debugger");
 #endif
-
-	finishidentcpu();	/* Final stage of CPU initialization */
-	setidt(IDT_UD, &IDTVEC(ill),  SDT_SYS386TGT, SEL_KPL,
-	    GSEL(GCODE_SEL, SEL_KPL));
-	setidt(IDT_GP, &IDTVEC(prot),  SDT_SYS386TGT, SEL_KPL,
-	    GSEL(GCODE_SEL, SEL_KPL));
-	initializecpu();	/* Initialize CPU registers */
-	initializecpucache();
-
-	/* pointer to selector slot for %fs/%gs */
-	PCPU_SET(fsgs_gdt, &gdt[GUFS_SEL].sd);
-
-	dblfault_tss.tss_esp = dblfault_tss.tss_esp0 = dblfault_tss.tss_esp1 =
-	    dblfault_tss.tss_esp2 = (int)&dblfault_stack[sizeof(dblfault_stack)];
-	dblfault_tss.tss_ss = dblfault_tss.tss_ss0 = dblfault_tss.tss_ss1 =
-	    dblfault_tss.tss_ss2 = GSEL(GDATA_SEL, SEL_KPL);
-#if defined(PAE) || defined(PAE_TABLES)
-	dblfault_tss.tss_cr3 = (int)IdlePDPT;
-#else
-	dblfault_tss.tss_cr3 = (int)IdlePTD;
-#endif
-	dblfault_tss.tss_eip = (int)dblfault_handler;
-	dblfault_tss.tss_eflags = PSL_KERNEL;
-	dblfault_tss.tss_ds = dblfault_tss.tss_es =
-	    dblfault_tss.tss_gs = GSEL(GDATA_SEL, SEL_KPL);
-	dblfault_tss.tss_fs = GSEL(GPRIV_SEL, SEL_KPL);
-	dblfault_tss.tss_cs = GSEL(GCODE_SEL, SEL_KPL);
-	dblfault_tss.tss_ldt = GSEL(GLDT_SEL, SEL_KPL);
-
-	vm86_initialize();
-	getmemsize(first);
-	init_param2(physmem);
-
-	/* now running on new page tables, configured,and u/iom is accessible */
 
 	msgbufinit(msgbufp, msgbufsize);
 #ifdef DEV_NPX

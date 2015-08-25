@@ -42,13 +42,6 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 
-#if defined(__amd64__) || defined(__i386__)
-#include <vm/vm.h>
-#include <vm/pmap.h>
-#include <machine/pmap.h>
-#include <machine/vmparam.h>
-#endif /* __amd64__ || __i386__ */
-
 struct vga_softc {
 	bus_space_tag_t		 vga_fb_tag;
 	bus_space_handle_t	 vga_fb_handle;
@@ -885,9 +878,9 @@ vga_bitblt_text_txtmode(struct vt_device *vd, const struct vt_window *vw,
 			/* Convert colors to VGA attributes. */
 			attr = bg << 4 | fg;
 
-			MEM_WRITE1(sc, 0x18000 + (row * 80 + col) * 2 + 0,
+			MEM_WRITE1(sc, (row * 80 + col) * 2 + 0,
 			    ch);
-			MEM_WRITE1(sc, 0x18000 + (row * 80 + col) * 2 + 1,
+			MEM_WRITE1(sc, (row * 80 + col) * 2 + 1,
 			    attr);
 		}
 	}
@@ -1211,9 +1204,7 @@ vga_init(struct vt_device *vd)
 
 #if defined(__amd64__) || defined(__i386__)
 	sc->vga_fb_tag = X86_BUS_SPACE_MEM;
-	sc->vga_fb_handle = KERNBASE + VGA_MEM_BASE;
 	sc->vga_reg_tag = X86_BUS_SPACE_IO;
-	sc->vga_reg_handle = VGA_REG_BASE;
 #elif defined(__ia64__)
 	sc->vga_fb_tag = IA64_BUS_SPACE_MEM;
 	sc->vga_fb_handle = IA64_PHYS_TO_RR6(VGA_MEM_BASE);
@@ -1223,14 +1214,21 @@ vga_init(struct vt_device *vd)
 # error "Architecture not yet supported!"
 #endif
 
+	bus_space_map(sc->vga_reg_tag, VGA_REG_BASE, VGA_REG_SIZE, 0,
+	    &sc->vga_reg_handle);
+
 	TUNABLE_INT_FETCH("hw.vga.textmode", &textmode);
 	if (textmode) {
 		vd->vd_flags |= VDF_TEXTMODE;
 		vd->vd_width = 80;
 		vd->vd_height = 25;
+		bus_space_map(sc->vga_fb_tag, VGA_TXT_BASE, VGA_TXT_SIZE, 0,
+		    &sc->vga_fb_handle);
 	} else {
 		vd->vd_width = VT_VGA_WIDTH;
 		vd->vd_height = VT_VGA_HEIGHT;
+		bus_space_map(sc->vga_fb_tag, VGA_MEM_BASE, VGA_MEM_SIZE, 0,
+		    &sc->vga_fb_handle);
 	}
 	vga_initialize(vd, textmode);
 
