@@ -840,19 +840,36 @@ udp6_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr6,
 			m->m_pkthdr.csum_data = offsetof(struct udphdr, uh_sum);
 		}
 
-		/*
-		 * XXX for now assume UDP is 2-tuple.
-		 * Later on this may become configurable as 4-tuple;
-		 * we should support that.
-		 *
-		 * XXX .. and we should likely cache this in the inpcb.
-		 */
 #ifdef	RSS
-		m->m_pkthdr.flowid = rss_hash_ip6_2tuple(faddr, laddr);
-		M_HASHTYPE_SET(m, M_HASHTYPE_RSS_IPV6);
+		{
+			uint32_t hash_val, hash_type;
+			uint8_t pr;
+
+			pr = inp->inp_socket->so_proto->pr_protocol;
+			/*
+			 * Calculate an appropriate RSS hash for UDP and
+			 * UDP Lite.
+			 *
+			 * The called function will take care of figuring out
+			 * whether a 2-tuple or 4-tuple hash is required based
+			 * on the currently configured scheme.
+			 *
+			 * Later later on connected socket values should be
+			 * cached in the inpcb and reused, rather than constantly
+			 * re-calculating it.
+			 *
+			 * UDP Lite is a different protocol number and will
+			 * likely end up being hashed as a 2-tuple until
+			 * RSS / NICs grow UDP Lite protocol awareness.
+			 */
+			if (rss_proto_software_hash_v6(faddr, laddr, fport,
+			    inp->inp_lport, pr, &hash_val, &hash_type) == 0) {
+				m->m_pkthdr.flowid = hash_val;
+				M_HASHTYPE_SET(m, hash_type);
+			}
+		}
 #endif
 		flags = 0;
-
 #ifdef	RSS
 		/*
 		 * Don't override with the inp cached flowid.
