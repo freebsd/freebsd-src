@@ -16,6 +16,13 @@ from older versions of FreeBSD, try WITHOUT_CLANG to bootstrap to the tip of
 stable/10, and then rebuild without this option. The bootstrap process from
 older version of current is a bit fragile.
 
+20150825:	p2	FreeBSD-SA-15:22.openssh
+			FreeBSD-EN-15:15.pkg
+	Fix OpenSSH multiple vulnerabilities. [SA-15:22]
+
+	Fix insufficient check of unsupported pkg(7) signature methods.
+	[EN-15:15]
+
 20150818:	p1	FreeBSD-SA-15:20.expat
 			FreeBSD-EN-15:11.toolchain
 			FreeBSD-EN-15:12.netstat
