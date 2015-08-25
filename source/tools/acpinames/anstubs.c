@@ -85,6 +85,14 @@ AcpiUtCopyIobjectToIobject (
     return (AE_NOT_IMPLEMENTED);
 }
 
+/* Hardware */
+
+UINT32
+AcpiHwGetMode (
+    void)
+{
+    return (0);
+}
 
 /* Event manager */
 
@@ -110,6 +118,20 @@ AcpiEvInitializeRegion (
     return (AE_OK);
 }
 
+ACPI_STATUS
+AcpiEvInstallXruptHandlers (
+    void)
+{
+    return (AE_OK);
+}
+
+ACPI_STATUS
+AcpiEvInitializeEvents (
+    void)
+{
+    return (AE_OK);
+}
+
 
 /* AML Interpreter */
 
@@ -129,13 +151,6 @@ AcpiExWriteDataToField (
     ACPI_OPERAND_OBJECT     **ResultDesc)
 {
     return (AE_NOT_IMPLEMENTED);
-}
-
-ACPI_STATUS
-AcpiExPrepFieldValue (
-    ACPI_CREATE_FIELD_INFO  *Info)
-{
-    return (AE_OK);
 }
 
 ACPI_STATUS
@@ -222,9 +237,16 @@ AcpiExTracePoint (
 /* Dispatcher */
 
 ACPI_STATUS
-AcpiDsInitializeObjects (
-    UINT32                  TableIndex,
-    ACPI_NAMESPACE_NODE     *StartNode)
+AcpiDsAutoSerializeMethod (
+    ACPI_NAMESPACE_NODE     *Node,
+    ACPI_OPERAND_OBJECT     *ObjDesc)
+{
+    return (AE_OK);
+}
+
+ACPI_STATUS
+AcpiDsInitializeRegion (
+    ACPI_HANDLE             ObjHandle)
 {
     return (AE_OK);
 }

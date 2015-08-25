@@ -90,12 +90,13 @@ BOOLEAN                     AcpiGbl_DbOpt_NoRegionSupport = FALSE;
 UINT8                       AcpiGbl_UseHwReducedFadt = FALSE;
 BOOLEAN                     AcpiGbl_DoInterfaceTests = FALSE;
 BOOLEAN                     AcpiGbl_LoadTestTables = FALSE;
+BOOLEAN                     AcpiGbl_AeLoadOnly = FALSE;
 static UINT8                AcpiGbl_ExecutionMode = AE_MODE_COMMAND_LOOP;
 static char                 BatchBuffer[AE_BUFFER_SIZE];    /* Batch command buffer */
 static AE_TABLE_DESC        *AeTableListHead = NULL;
 
 #define ACPIEXEC_NAME               "AML Execution/Debug Utility"
-#define AE_SUPPORTED_OPTIONS        "?b:d:e:f^ghm^orv^:x:"
+#define AE_SUPPORTED_OPTIONS        "?b:d:e:f^ghi:lm^rv^:x:"
 
 
 /* Stubs for the disassembler */
@@ -158,8 +159,12 @@ usage (
     ACPI_OPTION ("-et",                 "Enable debug semaphore timeout");
     printf ("\n");
 
+    ACPI_OPTION ("-fi <File>",          "Specify namespace initialization file");
     ACPI_OPTION ("-fv <Value>",         "Operation Region initialization fill value");
-    ACPI_OPTION ("-fi <file>",          "Specify namespace initialization file");
+    printf ("\n");
+
+    ACPI_OPTION ("-i <Count>",          "Maximum iterations for AML while loops");
+    ACPI_OPTION ("-l",                  "Load tables and namespace only");
     ACPI_OPTION ("-r",                  "Use hardware-reduced FADT V5");
     ACPI_OPTION ("-v",                  "Display version information");
     ACPI_OPTION ("-vi",                 "Verbose initialization output");
@@ -189,6 +194,7 @@ AeDoOptions (
     char                    **argv)
 {
     int                     j;
+    UINT32                  Temp;
 
 
     while ((j = AcpiGetopt (argc, argv, AE_SUPPORTED_OPTIONS)) != ACPI_OPT_END) switch (j)
@@ -332,6 +338,25 @@ AeDoOptions (
         usage();
         return (0);
 
+    case 'i':
+
+        Temp = strtoul (AcpiGbl_Optarg, NULL, 0);
+        if (!Temp || (Temp > ACPI_UINT16_MAX))
+        {
+            printf ("%s: Invalid max loops value\n", AcpiGbl_Optarg);
+            return (1);
+        }
+
+        AcpiGbl_MaxLoopIterations = (UINT16) Temp;
+        printf ("Max Loop Iterations is %u (0x%X)\n",
+            AcpiGbl_MaxLoopIterations, AcpiGbl_MaxLoopIterations);
+        break;
+
+    case 'l':
+
+        AcpiGbl_AeLoadOnly = TRUE;
+        break;
+
     case 'm':
 
         AcpiGbl_ExecutionMode = AE_MODE_BATCH_SINGLE;
@@ -347,11 +372,6 @@ AeDoOptions (
             strcpy (BatchBuffer, AcpiGbl_Optarg);
             break;
         }
-        break;
-
-    case 'o':
-
-        AcpiGbl_DbOpt_Disasm = TRUE;
         break;
 
     case 'r':
@@ -444,6 +464,20 @@ main (
         goto ErrorExit;
     }
 
+    /* ACPICA runtime configuration */
+
+    AcpiGbl_MaxLoopIterations = 400;
+
+
+    /* Initialize the AML debugger */
+
+    Status = AcpiInitializeDebugger ();
+    AE_CHECK_OK (AcpiInitializeDebugger, Status);
+    if (ACPI_FAILURE (Status))
+    {
+        goto ErrorExit;
+    }
+
     printf (ACPI_COMMON_SIGNON (ACPIEXEC_NAME));
     if (argc < 2)
     {
@@ -478,7 +512,7 @@ main (
         Status = AcpiUtReadTableFromFile (argv[AcpiGbl_Optind], &Table);
         if (ACPI_FAILURE (Status))
         {
-            printf ("**** Could not get table from file %s, %s\n",
+            fprintf (stderr, "**** Could not get table from file %s, %s\n",
                 argv[AcpiGbl_Optind], AcpiFormatException (Status));
             goto ErrorExit;
         }
@@ -488,9 +522,9 @@ main (
         if (!ACPI_COMPARE_NAME (Table->Signature, ACPI_SIG_FADT) &&
             !AcpiUtIsAmlTable (Table))
         {
-            ACPI_INFO ((AE_INFO,
-                "Table [%4.4s] is not an AML table, ignoring",
-                Table->Signature));
+            fprintf (stderr, "    %s: [%4.4s] is not an AML table - ignoring\n",
+                 argv[AcpiGbl_Optind], Table->Signature);
+
             AcpiOsFree (Table);
         }
         else
@@ -519,6 +553,17 @@ main (
     }
 
     Status = AeInstallTables ();
+
+    /*
+     * Exit namespace initialization for the "load namespace only" option.
+     * No control methods will be executed. However, still enter the
+     * the debugger.
+     */
+    if (AcpiGbl_AeLoadOnly)
+    {
+        goto EnterDebugger;
+    }
+
     if (ACPI_FAILURE (Status))
     {
         printf ("**** Could not load ACPI tables, %s\n",
@@ -602,6 +647,10 @@ EnterDebugger:
     case AE_MODE_BATCH_SINGLE:
 
         AcpiDbExecute (BatchBuffer, NULL, NULL, EX_NO_SINGLE_STEP);
+
+        /* Shut down the debugger */
+
+        AcpiTerminateDebugger ();
         Status = AcpiTerminate ();
         break;
     }
@@ -666,6 +715,9 @@ AcpiDbRunBatchMode (
         }
     }
 
+    /* Shut down the debugger */
+
+    AcpiTerminateDebugger ();
     Status = AcpiTerminate ();
     return (Status);
 }

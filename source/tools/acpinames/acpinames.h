@@ -47,10 +47,12 @@
 #include "acpi.h"
 #include "accommon.h"
 #include "acapps.h"
+#include "acutils.h"
 #include "../acpiexec/aecommon.h"
 
 #include <stdio.h>
 
 #define ACPI_MAX_INIT_TABLES    (32)
 
+extern BOOLEAN          AcpiGbl_NsLoadOnly;
 #endif

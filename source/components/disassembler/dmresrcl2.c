@@ -46,8 +46,6 @@
 #include "acdisasm.h"
 
 
-#ifdef ACPI_DISASSEMBLER
-
 #define _COMPONENT          ACPI_CA_DEBUGGER
         ACPI_MODULE_NAME    ("dbresrcl2")
 
@@ -726,5 +724,3 @@ AcpiDmSerialBusDescriptor (
     SerialBusResourceDispatch [Resource->CommonSerialBus.Type] (
         Info, Resource, Length, Level);
 }
-
-#endif

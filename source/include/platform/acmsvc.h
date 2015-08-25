@@ -47,6 +47,13 @@
 /* Note: do not include any C library headers here */
 
 /*
+ * Note: MSVC project files should define ACPI_DEBUGGER and ACPI_DISASSEMBLER
+ * as appropriate to enable editor functions like "Find all references".
+ * The editor isn't smart enough to dig through the include files to find
+ * out if these are actually defined.
+ */
+
+/*
  * Map low I/O functions for MS. This allows us to disable MS language
  * extensions for maximum portability.
  */

@@ -932,13 +932,13 @@ OpnDoDefinitionBlock (
     if (Child->Asl.Value.String)
     {
         Gbl_TableSignature = Child->Asl.Value.String;
-        if (strlen (Gbl_TableSignature) != 4)
+        if (strlen (Gbl_TableSignature) != ACPI_NAME_SIZE)
         {
             AslError (ASL_ERROR, ASL_MSG_TABLE_SIGNATURE, Child,
-                "Length not exactly 4");
+                "Length is not exactly 4");
         }
 
-        for (i = 0; i < 4; i++)
+        for (i = 0; i < ACPI_NAME_SIZE; i++)
         {
             if (!isalnum ((int) Gbl_TableSignature[i]))
             {
