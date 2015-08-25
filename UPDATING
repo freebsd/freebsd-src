@@ -16,6 +16,20 @@ from older versions of FreeBSD, try WITHOUT_CLANG to bootstrap to the tip of
 stable/10, and then rebuild without this option. The bootstrap process from
 older version of current is a bit fragile.
 
+20150825:	p19	FreeBSD-SA-15:21.amd64
+			FreeBSD-SA-15:22.openssh
+			FreeBSD-EN-15:14.ixgbe
+			FreeBSD-EN-15:15.pkg
+
+	Fix local privilege escalation in IRET handler. [SA-15:21]
+
+	Fix OpenSSH multiple vulnerabilities. [SA-15:22]
+
+	Disabled ixgbe(4) flow-director support. [EN-15:14]
+
+	Fix insufficient check of unsupported pkg(7) signature methods.
+	[EN-15:15]
+
 20150818:	p18	FreeBSD-SA-15:20.expat
 
 	Fix multiple integer overflows in expat (libbsdxml) XML parser.

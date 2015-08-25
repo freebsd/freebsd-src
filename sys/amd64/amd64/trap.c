@@ -457,8 +457,6 @@ trap(struct trapframe *frame)
 			goto out;
 
 		case T_STKFLT:		/* stack fault */
-			break;
-
 		case T_PROTFLT:		/* general protection fault */
 		case T_SEGNPFLT:	/* segment not present fault */
 			if (td->td_intr_nesting_level != 0)

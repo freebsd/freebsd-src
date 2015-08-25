@@ -1704,7 +1704,7 @@ dev/ixgb/if_ixgb.c		optional ixgb
 dev/ixgb/ixgb_ee.c		optional ixgb
 dev/ixgb/ixgb_hw.c		optional ixgb
 dev/ixgbe/ixgbe.c		optional ixgbe inet \
-	compile-with "${NORMAL_C} -I$S/dev/ixgbe -DSMP -DIXGBE_FDIR"
+	compile-with "${NORMAL_C} -I$S/dev/ixgbe -DSMP"
 dev/ixgbe/ixv.c			optional ixgbe inet \
 	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
 dev/ixgbe/ixgbe_phy.c		optional ixgbe inet \

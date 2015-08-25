@@ -774,7 +774,13 @@ bootstrap_pkg(bool force)
 		goto fetchfail;
 
 	if (signature_type != NULL &&
-	    strcasecmp(signature_type, "FINGERPRINTS") == 0) {
+	    strcasecmp(signature_type, "NONE") != 0) {
+		if (strcasecmp(signature_type, "FINGERPRINTS") != 0) {
+			warnx("Signature type %s is not supported for "
+			    "bootstrapping.", signature_type);
+			goto cleanup;
+		}
+
 		snprintf(tmpsig, MAXPATHLEN, "%s/pkg.txz.sig.XXXXXX",
 		    getenv("TMPDIR") ? getenv("TMPDIR") : _PATH_TMP);
 		snprintf(url, MAXPATHLEN, "%s/Latest/pkg.txz.sig",
@@ -854,7 +860,13 @@ bootstrap_pkg_local(const char *pkgpath, bool force)
 		return (-1);
 	}
 	if (signature_type != NULL &&
-	    strcasecmp(signature_type, "FINGERPRINTS") == 0) {
+	    strcasecmp(signature_type, "NONE") != 0) {
+		if (strcasecmp(signature_type, "FINGERPRINTS") != 0) {
+			warnx("Signature type %s is not supported for "
+			    "bootstrapping.", signature_type);
+			goto cleanup;
+		}
+
 		snprintf(path, sizeof(path), "%s.sig", pkgpath);
 
 		if ((fd_sig = open(path, O_RDONLY)) == -1) {
