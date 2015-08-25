@@ -1308,14 +1308,12 @@ print_icmptypes(struct buf_pr *bp, ipfw_insn_u32 *cmd)
 static void
 print_dscp(struct buf_pr *bp, ipfw_insn_u32 *cmd)
 {
-	int i, c;
+	int i = 0;
 	uint32_t *v;
 	char sep= ' ';
 	const char *code;
 
 	bprintf(bp, " dscp");
-	i = 0;
-	c = 0;
 	v = cmd->d;
 	while (i < 64) {
 		if (*v & (1 << i)) {
