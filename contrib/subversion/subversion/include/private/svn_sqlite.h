@@ -484,6 +484,32 @@ svn_sqlite__with_immediate_transaction(svn_sqlite__db_t *db,
     SVN_ERR(svn_sqlite__finish_savepoint(svn_sqlite__db, svn_sqlite__err));   \
   } while (0)
 
+/* Evaluate the expression EXPR1..EXPR4 within a 'savepoint'.  Savepoints can
+ * be nested.
+ *
+ * Begin a savepoint in DB; evaluate the expression EXPR1, which would
+ * typically be a function call that does some work in DB; if no error occurred,
+ * run EXPR2; if no error occurred EXPR3; ... and finally release
+ * the savepoint if EXPR evaluated to SVN_NO_ERROR, otherwise roll back
+ * to the savepoint and then release it.
+ */
+#define SVN_SQLITE__WITH_LOCK4(expr1, expr2, expr3, expr4, db)                \
+  do {                                                                        \
+    svn_sqlite__db_t *svn_sqlite__db = (db);                                  \
+    svn_error_t *svn_sqlite__err;                                             \
+                                                                              \
+    SVN_ERR(svn_sqlite__begin_savepoint(svn_sqlite__db));                     \
+    svn_sqlite__err = (expr1);                                                \
+    if (!svn_sqlite__err)                                                     \
+      svn_sqlite__err = (expr2);                                              \
+    if (!svn_sqlite__err)                                                     \
+      svn_sqlite__err = (expr3);                                              \
+    if (!svn_sqlite__err)                                                     \
+      svn_sqlite__err = (expr4);                                              \
+    SVN_ERR(svn_sqlite__finish_savepoint(svn_sqlite__db, svn_sqlite__err));   \
+  } while (0)
+
+
 /* Helper function to handle several SQLite operations inside a shared lock.
    This callback is similar to svn_sqlite__with_transaction(), but can be
    nested (even with a transaction).

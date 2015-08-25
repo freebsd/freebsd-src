@@ -456,6 +456,7 @@ static devclass_t am335x_prcm_devclass;
 
 DRIVER_MODULE(am335x_prcm, simplebus, am335x_prcm_driver,
 	am335x_prcm_devclass, 0, 0);
+MODULE_VERSION(am335x_prcm, 1);
 MODULE_DEPEND(am335x_prcm, ti_scm, 1, 1, 1);
 
 static struct am335x_clk_details*

@@ -46,14 +46,19 @@ cloudabi_sys_proc_exec(struct thread *td,
     struct cloudabi_sys_proc_exec_args *uap)
 {
 	struct image_args args;
+	struct vmspace *oldvmspace;
 	int error;
 
+	error = pre_execve(td, &oldvmspace);
+	if (error != 0)
+		return (error);
 	error = exec_copyin_data_fds(td, &args, uap->data, uap->datalen,
 	    uap->fds, uap->fdslen);
 	if (error == 0) {
 		args.fd = uap->fd;
 		error = kern_execve(td, &args, NULL);
 	}
+	post_execve(td, error, oldvmspace);
 	return (error);
 }
 
@@ -74,7 +79,7 @@ cloudabi_sys_proc_fork(struct thread *td,
 	struct proc *p2;
 	int error, fd;
 
-	cap_rights_init(&fcaps.fc_rights, CAP_FSTAT, CAP_PDWAIT);
+	cap_rights_init(&fcaps.fc_rights, CAP_FSTAT, CAP_EVENT);
 	error = fork1(td, RFFDG | RFPROC | RFPROCDESC, 0, &p2, &fd, 0, &fcaps);
 	if (error != 0)
 		return (error);

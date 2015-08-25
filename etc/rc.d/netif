@@ -37,8 +37,6 @@ name="netif"
 rcvar="${name}_enable"
 start_cmd="netif_start"
 stop_cmd="netif_stop"
-wlanup_cmd="wlan_up"
-wlandown_cmd="wlan_down"
 cloneup_cmd="clone_up"
 clonedown_cmd="clone_down"
 clear_cmd="doclear"
@@ -67,9 +65,6 @@ netif_start()
 		trap : 2
 	fi
 
-	# Create IEEE802.3 interface
-	wlan_up $cmdifn
-
 	# Create cloned interfaces
 	clone_up $cmdifn
 
@@ -96,14 +91,12 @@ netif_start()
 netif_stop()
 {
 	_clone_down=1
-	_wlan_down=1
 	netif_stop0 $*
 }
 
 doclear()
 {
 	_clone_down=
-	_wlan_down=
 	netif_stop0 $*
 }
 
@@ -117,11 +110,6 @@ netif_stop0()
 
 	# Deconfigure the interface(s)
 	netif_common ifn_stop $cmdifn
-
-	# Destroy wlan interfaces
-	if [ -n "$_wlan_down" ]; then
-		wlan_down $cmdifn
-	fi
 
 	# Destroy cloned interfaces
 	if [ -n "$_clone_down" ]; then

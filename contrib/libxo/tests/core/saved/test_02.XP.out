@@ -1,5 +1,29 @@
 <top>
   <data>
+    <what>braces</what>
+  <message>abcdef
+</message>
+  <message>abcdef: Bad file descriptor
+</message>
+  <message>improper use of profanity; ten yard penalty; first down
+</message>
+    <length>abcdef</length>
+    <fd>-1</fd>
+    <error>Bad file descriptor</error>
+    <test>good</test>
+    <fd>-1</fd>
+    <error>Bad fi</error>
+    <test>good</test>
+  <message>improper use of profanity; ten yard penalty; first down
+</message>
+    <lines>20</lines>
+    <words>30</words>
+    <characters>40</characters>
+    <bytes>0</bytes>
+    <bytes>1</bytes>
+    <bytes>2</bytes>
+    <bytes>3</bytes>
+    <bytes>4</bytes>
     <mbuf-current>10</mbuf-current>
     <mbuf-cache>20</mbuf-cache>
     <mbuf-total>30</mbuf-total>
@@ -11,6 +35,7 @@
     <total units="kilobytes">640</total>
     <ten>10</ten>
     <eleven>11</eleven>
+    <unknown>1010</unknown>
     <unknown>1010</unknown>
     <min>15</min>
     <cur>20</cur>
@@ -24,29 +49,36 @@
     <min>15</min>
     <cur>20</cur>
     <max>125</max>
+    <val1>21</val1>
+    <val2>58368</val2>
+    <val3>100663296</val3>
+    <val4>44470272</val4>
+    <val5>1342172800</val5>
     <flag>one</flag>
     <flag>two</flag>
     <flag>three</flag>
+    <works>null</works>
     <empty-tag></empty-tag>
     <t1>1000</t1>
     <t2>test5000</t2>
     <t3>ten-longx</t3>
     <t4>xtest</t4>
-    <error>
+    <__error>
       <message>this is an error</message>
-    </error>
-    <error>
+    </__error>
+    <__error>
       <message>two more errors</message>
-    </error>
-    <warning>
+    </__error>
+    <__warning>
       <message>this is an warning</message>
-    </warning>
-    <warning>
+    </__warning>
+    <__warning>
       <message>two more warnings</message>
-    </warning>
+    </__warning>
     <count>10</count>
     <test>4</test>
-  <message>improper use of profanity; ten yard penalty; first down</message>
+  <message>improper use of profanity; ten yard penalty; first down
+</message>
     <error>
       <message>Shut 'er down, Clancey!  She's a-pumpin' mud!  &lt;&gt;!,"!&lt;&gt;
 </message>

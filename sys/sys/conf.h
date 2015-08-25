@@ -299,6 +299,7 @@ void	devfs_free_cdp_inode(ino_t ino);
 #define		GID_OPERATOR	5
 #define		GID_BIN		7
 #define		GID_GAMES	13
+#define		GID_VIDEO	44
 #define		GID_DIALER	68
 #define		GID_NOBODY	65534
 

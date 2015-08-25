@@ -47,18 +47,6 @@
 #define	CTL_PROCESSOR_PRODUCT	"CTLPROCESSOR    "
 #define	CTL_UNKNOWN_PRODUCT	"CTLDEVICE       "
 
-struct ctl_fe_ioctl_startstop_info {
-	struct cv			sem;
-	struct ctl_hard_startstop_info	hs_info;
-};
-
-struct ctl_fe_ioctl_bbrread_info {
-	struct cv			sem;
-	struct ctl_bbrread_info		*bbr_info;
-	int				wakeup_done;
-	struct mtx			*lock;
-};
-
 typedef enum {
 	CTL_IOCTL_INPROG,
 	CTL_IOCTL_DATAMOVE,
@@ -78,18 +66,6 @@ struct ctl_io_pool {
 	uint32_t			id;
 	struct ctl_softc		*ctl_softc;
 	struct uma_zone			*zone;
-};
-
-typedef enum {
-	CTL_IOCTL_FLAG_NONE	= 0x00,
-	CTL_IOCTL_FLAG_ENABLED	= 0x01
-} ctl_ioctl_flags;
-
-struct ctl_ioctl_info {
-	ctl_ioctl_flags		flags;
-	uint32_t		cur_tag_num;
-	struct ctl_port		port;
-	char			port_name[24];
 };
 
 typedef enum {
@@ -472,7 +448,6 @@ struct ctl_softc {
 	int inquiry_pq_no_lun;
 	struct sysctl_ctx_list sysctl_ctx;
 	struct sysctl_oid *sysctl_tree;
-	struct ctl_ioctl_info ioctl_info;
 	void *othersc_pool;
 	struct proc *ctl_proc;
 	int targ_online;

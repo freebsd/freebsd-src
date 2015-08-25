@@ -808,6 +808,7 @@ struct adapter {
 #ifdef INVARIANTS
 	const char *last_op;
 	const void *last_op_thr;
+	int last_op_flags;
 #endif
 
 	int sc_do_rxcopy;

@@ -101,3 +101,52 @@ rss_hash_ip6_4tuple(const struct in6_addr *src, u_short srcport,
 	datalen += sizeof(dstport);
 	return (rss_hash(datalen, data));
 }
+
+/*
+ * Calculate an appropriate ipv6 2-tuple or 4-tuple given the given
+ * IPv6 source/destination address, UDP or TCP source/destination ports
+ * and the protocol type.
+ *
+ * The protocol code may wish to do a software hash of the given
+ * tuple.  This depends upon the currently configured RSS hash types.
+ *
+ * This assumes that the packet in question isn't a fragment.
+ *
+ * It also assumes the packet source/destination address
+ * are in "incoming" packet order (ie, source is "far" address.)
+ */
+int
+rss_proto_software_hash_v6(const struct in6_addr *s, const struct in6_addr *d,
+    u_short sp, u_short dp, int proto,
+    uint32_t *hashval, uint32_t *hashtype)
+{
+	uint32_t hash;
+
+	/*
+	 * Next, choose the hash type depending upon the protocol
+	 * identifier.
+	 */
+	if ((proto == IPPROTO_TCP) &&
+	    (rss_gethashconfig() & RSS_HASHTYPE_RSS_TCP_IPV6)) {
+		hash = rss_hash_ip6_4tuple(s, sp, d, dp);
+		*hashval = hash;
+		*hashtype = M_HASHTYPE_RSS_TCP_IPV6;
+		return (0);
+	} else if ((proto == IPPROTO_UDP) &&
+	    (rss_gethashconfig() & RSS_HASHTYPE_RSS_UDP_IPV6)) {
+		hash = rss_hash_ip6_4tuple(s, sp, d, dp);
+		*hashval = hash;
+		*hashtype = M_HASHTYPE_RSS_UDP_IPV6;
+		return (0);
+	} else if (rss_gethashconfig() & RSS_HASHTYPE_RSS_IPV6) {
+		/* RSS doesn't hash on other protocols like SCTP; so 2-tuple */
+		hash = rss_hash_ip6_2tuple(s, d);
+		*hashval = hash;
+		*hashtype = M_HASHTYPE_RSS_IPV6;
+		return (0);
+	}
+
+	/* No configured available hashtypes! */
+	printf("%s: no available hashtypes!\n", __func__);
+	return (-1);
+}

@@ -121,6 +121,7 @@ FILES+=		read4.0 read4.0.stdout
 FILES+=		read5.0
 FILES+=		read6.0
 FILES+=		read7.0
+FILES+=		read8.0
 FILES+=		return1.0
 FILES+=		return2.1
 FILES+=		return3.1

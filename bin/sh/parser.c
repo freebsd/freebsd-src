@@ -1195,7 +1195,8 @@ parsebackq(char *out, struct nodelist **pbqlist,
 static char *
 readcstyleesc(char *out)
 {
-	int c, v, i, n;
+	int c, vc, i, n;
+	unsigned int v;
 
 	c = pgetc();
 	switch (c) {
@@ -1310,12 +1311,12 @@ readcstyleesc(char *out)
 	default:
 		  synerror("Bad escape sequence");
 	}
-	v = (char)v;
+	vc = (char)v;
 	/*
 	 * We can't handle NUL bytes.
 	 * POSIX says we should skip till the closing quote.
 	 */
-	if (v == '\0') {
+	if (vc == '\0') {
 		while ((c = pgetc()) != '\'') {
 			if (c == '\\')
 				c = pgetc();
@@ -1332,9 +1333,9 @@ readcstyleesc(char *out)
 		pungetc();
 		return out;
 	}
-	if (SQSYNTAX[v] == CCTL)
+	if (SQSYNTAX[vc] == CCTL)
 		USTPUTC(CTLESC, out);
-	USTPUTC(v, out);
+	USTPUTC(vc, out);
 	return out;
 }
 
@@ -1661,7 +1662,7 @@ varname:
 				pungetc();
 			else if (c == '\n' || c == PEOF)
 				synerror("Unexpected end of line in substitution");
-			else
+			else if (BASESYNTAX[c] != CCTL)
 				USTPUTC(c, out);
 		}
 		if (subtype == 0) {
@@ -1677,7 +1678,8 @@ varname:
 						synerror("Unexpected end of line in substitution");
 					if (flags == VSNUL)
 						STPUTC(':', out);
-					STPUTC(c, out);
+					if (BASESYNTAX[c] != CCTL)
+						STPUTC(c, out);
 					subtype = VSERROR;
 				} else
 					subtype = p - types + VSNORMAL;

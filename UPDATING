@@ -31,6 +31,48 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20150817:
+	Kernel-loadable modules for the random(4) device are back. To use
+	them, the kernel must have
+
+	device	random
+	options	RANDOM_LOADABLE
+
+	kldload(8) can then be used to load random_fortuna.ko
+	or random_yarrow.ko. Please note that due to the indirect
+	function calls that the loadable modules need to provide,
+	the build-in variants will be slightly more efficient.
+
+	The random(4) kernel option RANDOM_DUMMY has been retired due to
+	unpopularity. It was not all that useful anyway.
+
+20150813:
+	The WITHOUT_ELFTOOLCHAIN_TOOLS src.conf(5) knob has been retired.
+	Control over building the ELF Tool Chain tools is now provided by
+	the WITHOUT_TOOLCHAIN knob.
+
+20150810:
+	The polarity of Pulse Per Second (PPS) capture events with the
+	uart(4) driver has been corrected.  Prior to this change the PPS
+	"assert" event corresponded to the trailing edge of a positive PPS
+	pulse and the "clear" event was the leading edge of the next pulse.
+
+	As the width of a PPS pulse in a typical GPS receiver is on the
+	order of 1 millisecond, most users will not notice any significant
+	difference with this change.
+
+	Anyone who has compensated for the historical polarity reversal by
+	configuring a negative offset equal to the pulse width will need to
+	remove that workaround.
+
+20150809:
+	The default group assigned to /dev/dri entries has been changed
+	from 'wheel' to 'video' with the id of '44'. If you want to have
+	access to the dri devices please add yourself to the video group
+	with:
+
+	# pw groupmod video -m $USER
+
 20150806:
 	The menu.rc and loader.rc files will now be replaced during 
 	upgrades. Please migrate local changes to menu.rc.local and

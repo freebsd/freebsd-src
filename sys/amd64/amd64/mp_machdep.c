@@ -282,7 +282,7 @@ init_secondary(void)
 	mp_naps++;
 
 	/* Spin until the BSP releases the AP's. */
-	while (!aps_ready)
+	while (atomic_load_acq_int(&aps_ready) == 0)
 		ia32_pause();
 
 	init_secondary_tail();
@@ -348,7 +348,7 @@ native_start_all_aps(void)
 
 		/* allocate and set up an idle stack data page */
 		bootstacks[cpu] = (void *)kmem_malloc(kernel_arena,
-		    KSTACK_PAGES * PAGE_SIZE, M_WAITOK | M_ZERO);
+		    kstack_pages * PAGE_SIZE, M_WAITOK | M_ZERO);
 		doublefault_stack = (char *)kmem_malloc(kernel_arena,
 		    PAGE_SIZE, M_WAITOK | M_ZERO);
 		nmi_stack = (char *)kmem_malloc(kernel_arena, PAGE_SIZE,
@@ -356,7 +356,7 @@ native_start_all_aps(void)
 		dpcpu = (void *)kmem_malloc(kernel_arena, DPCPU_SIZE,
 		    M_WAITOK | M_ZERO);
 
-		bootSTK = (char *)bootstacks[cpu] + KSTACK_PAGES * PAGE_SIZE - 8;
+		bootSTK = (char *)bootstacks[cpu] + kstack_pages * PAGE_SIZE - 8;
 		bootAP = cpu;
 
 		/* attempt to start the Application Processor */
@@ -440,7 +440,7 @@ smp_targeted_tlb_shootdown(cpuset_t mask, u_int vector, pmap_t pmap,
 	smp_tlb_addr1 = addr1;
 	smp_tlb_addr2 = addr2;
 	smp_tlb_pmap = pmap;
-	atomic_store_rel_int(&smp_tlb_wait, 0);
+	smp_tlb_wait =  0;
 	if (CPU_ISFULLSET(&mask)) {
 		ncpu = othercpus;
 		ipi_all_but_self(vector);

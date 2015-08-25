@@ -215,7 +215,7 @@ start_xen_ap(int cpu)
 {
 	struct vcpu_guest_context *ctxt;
 	int ms, cpus = mp_naps;
-	const size_t stacksize = KSTACK_PAGES * PAGE_SIZE;
+	const size_t stacksize = kstack_pages * PAGE_SIZE;
 
 	/* allocate and set up an idle stack data page */
 	bootstacks[cpu] =
@@ -227,7 +227,7 @@ start_xen_ap(int cpu)
 	dpcpu =
 	    (void *)kmem_malloc(kernel_arena, DPCPU_SIZE, M_WAITOK | M_ZERO);
 
-	bootSTK = (char *)bootstacks[cpu] + KSTACK_PAGES * PAGE_SIZE - 8;
+	bootSTK = (char *)bootstacks[cpu] + kstack_pages * PAGE_SIZE - 8;
 	bootAP = cpu;
 
 	ctxt = malloc(sizeof(*ctxt), M_TEMP, M_WAITOK | M_ZERO);

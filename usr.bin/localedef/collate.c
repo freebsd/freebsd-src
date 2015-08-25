@@ -1090,13 +1090,20 @@ wsncpy(wchar_t *s1, const wchar_t *s2, size_t n)
 	return (os1);
 }
 
+#define RB_COUNT(x, name, head, cnt) do { \
+	(cnt) = 0; \
+	RB_FOREACH(x, name, (head)) { \
+		(cnt)++; \
+	} \
+} while (0)
+
 #define RB_NUMNODES(type, name, head, cnt) do { \
 	type *t; \
 	cnt = 0; \
 	RB_FOREACH(t, name, head) { \
 		cnt++; \
 	} \
-} while (0);
+} while (0)
 
 void
 dump_collate(void)
@@ -1196,7 +1203,8 @@ dump_collate(void)
 	 */
 	for (i = 0; i < NUM_WT; i++) {
 		collate_subst_t *st = NULL;
-		RB_NUMNODES(subst_t, substs, &substs[i], n);
+		subst_t *temp;
+		RB_COUNT(temp, substs, &substs[i], n);
 		collinfo.subst_count[i] = n;
 		if ((st = calloc(sizeof (collate_subst_t) * n, 1)) == NULL) {
 			fprintf(stderr, "out of memory");

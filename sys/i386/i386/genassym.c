@@ -101,8 +101,6 @@ ASSYM(TDF_NEEDRESCHED, TDF_NEEDRESCHED);
 ASSYM(V_TRAP, offsetof(struct vmmeter, v_trap));
 ASSYM(V_SYSCALL, offsetof(struct vmmeter, v_syscall));
 ASSYM(V_INTR, offsetof(struct vmmeter, v_intr));
-/* ASSYM(UPAGES, UPAGES);*/
-ASSYM(KSTACK_PAGES, KSTACK_PAGES);
 ASSYM(TD0_KSTACK_PAGES, TD0_KSTACK_PAGES);
 ASSYM(PAGE_SIZE, PAGE_SIZE);
 ASSYM(NPTEPG, NPTEPG);

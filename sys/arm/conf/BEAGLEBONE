@@ -26,12 +26,7 @@ ident		BEAGLEBONE
 include 	"std.armv6"
 include 	"../ti/am335x/std.am335x"
 
-makeoptions	MODULES_EXTRA="dtb/am335x"
-
-# DTrace support
-options 	KDTRACE_HOOKS		# Kernel DTrace hooks
-options 	DDB_CTF			# all architectures - kernel ELF linker loads CTF data
-makeoptions	WITH_CTF=1
+makeoptions	MODULES_EXTRA="dtb/am335x am335x_dmtpps"
 
 options 	HZ=100
 options 	SCHED_4BSD		# 4BSD scheduler
@@ -77,6 +72,7 @@ device		ti_i2c
 device		am335x_pmic		# AM335x Power Management IC (TPC65217)
 
 device		am335x_rtc		# RTC support (power management only)
+#define 	am335x_dmtpps		# Pulse Per Second capture driver
 
 # Console and misc
 device		uart

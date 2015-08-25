@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 20, 2015
+.Dd August 23, 2015
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -4442,9 +4442,9 @@ polled at a 1-second interval.
 The default is 30.
 .It Va rctl_enable
 .Pq Vt bool
-Set to
-.Dq Li YES
-to load
+If set to
+.Dq Li YES ,
+load
 .Xr rctl 8
 rules from the defined ruleset.
 The kernel must be built with
