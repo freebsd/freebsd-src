@@ -798,7 +798,7 @@ resize_ring(struct ioat_softc *ioat, int order)
 			new_idx = (ioat->tail + i) & (new_size - 1);
 
 			ring[new_idx] = ioat_alloc_ring_entry(ioat);
-			if (!ring[new_idx]) {
+			if (ring[new_idx] == NULL) {
 				while (i--) {
 					new_idx2 = (ioat->tail + i) &
 					    (new_size - 1);
