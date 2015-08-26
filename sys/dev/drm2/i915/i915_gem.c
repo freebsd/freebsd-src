@@ -206,7 +206,7 @@ int i915_mutex_lock_interruptible(struct drm_device *dev)
 static inline bool
 i915_gem_object_is_inactive(struct drm_i915_gem_object *obj)
 {
-	return obj->gtt_space && !obj->active;
+	return !obj->active;
 }
 
 int
