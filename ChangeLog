@@ -1,3 +1,121 @@
+commit e91346dc2bbf460246df2ab591b7613908c1b0ad
+Author: Damien Miller <djm@mindrot.org>
+Date:   Fri Aug 21 14:49:03 2015 +1000
+
+    we don't use Github for issues/pull-requests
+
+commit a4f5b507c708cc3dc2c8dd2d02e4416d7514dc23
+Author: Damien Miller <djm@mindrot.org>
+Date:   Fri Aug 21 14:43:55 2015 +1000
+
+    fix URL for connect.c
+
+commit d026a8d3da0f8186598442997c7d0a28e7275414
+Author: Damien Miller <djm@mindrot.org>
+Date:   Fri Aug 21 13:47:10 2015 +1000
+
+    update version numbers for 7.1
+
+commit 78f8f589f0ca1c9f41e5a9bae3cda5ce8a6b42ed
+Author: djm@openbsd.org <djm@openbsd.org>
+Date:   Fri Aug 21 03:45:26 2015 +0000
+
+    upstream commit
+    
+    openssh-7.1
+    
+    Upstream-ID: ff7b1ef4b06caddfb45e08ba998128c88be3d73f
+
+commit 32a181980c62fce94f7f9ffaf6a79d90f0c309cf
+Author: djm@openbsd.org <djm@openbsd.org>
+Date:   Fri Aug 21 03:42:19 2015 +0000
+
+    upstream commit
+    
+    fix inverted logic that broke PermitRootLogin; reported
+     by Mantas Mikulenas; ok markus@
+    
+    Upstream-ID: 260dd6a904c1bb7e43267e394b1c9cf70bdd5ea5
+
+commit ce445b0ed927e45bd5bdce8f836eb353998dd65c
+Author: deraadt@openbsd.org <deraadt@openbsd.org>
+Date:   Thu Aug 20 22:32:42 2015 +0000
+
+    upstream commit
+    
+    Do not cast result of malloc/calloc/realloc* if stdlib.h
+     is in scope ok krw millert
+    
+    Upstream-ID: 5e50ded78cadf3841556649a16cc4b1cb6c58667
+
+commit 05291e5288704d1a98bacda269eb5a0153599146
+Author: naddy@openbsd.org <naddy@openbsd.org>
+Date:   Thu Aug 20 19:20:06 2015 +0000
+
+    upstream commit
+    
+    In the certificates section, be consistent about using
+     "host_key" and "user_key" for the respective key types.  ok sthen@ deraadt@
+    
+    Upstream-ID: 9e037ea3b15577b238604c5533e082a3947f13cb
+
+commit 8543d4ef6f2e9f98c3e6b77c894ceec30c5e4ae4
+Author: djm@openbsd.org <djm@openbsd.org>
+Date:   Wed Aug 19 23:21:42 2015 +0000
+
+    upstream commit
+    
+    Better compat matching for WinSCP, add compat matching
+     for FuTTY (fork of PuTTY); ok markus@ deraadt@
+    
+    Upstream-ID: 24001d1ac115fa3260fbdc329a4b9aeb283c5389
+
+commit ec6eda16ebab771aa3dfc90629b41953b999cb1e
+Author: djm@openbsd.org <djm@openbsd.org>
+Date:   Wed Aug 19 23:19:01 2015 +0000
+
+    upstream commit
+    
+    fix double-free() in error path of DSA key generation
+     reported by Mateusz Kocielski; ok markus@
+    
+    Upstream-ID: 4735d8f888b10599a935fa1b374787089116713c
+
+commit 45b0eb752c94954a6de046bfaaf129e518ad4b5b
+Author: djm@openbsd.org <djm@openbsd.org>
+Date:   Wed Aug 19 23:18:26 2015 +0000
+
+    upstream commit
+    
+    fix free() of uninitialised pointer reported by Mateusz
+     Kocielski; ok markus@
+    
+    Upstream-ID: 519552b050618501a06b7b023de5cb104e2c5663
+
+commit c837643b93509a3ef538cb6624b678c5fe32ff79
+Author: djm@openbsd.org <djm@openbsd.org>
+Date:   Wed Aug 19 23:17:51 2015 +0000
+
+    upstream commit
+    
+    fixed unlink([uninitialised memory]) reported by Mateusz
+     Kocielski; ok markus@
+    
+    Upstream-ID: 14a0c4e7d891f5a8dabc4b89d4f6b7c0d5a20109
+
+commit 1f8d3d629cd553031021068eb9c646a5f1e50994
+Author: jmc@openbsd.org <jmc@openbsd.org>
+Date:   Fri Aug 14 15:32:41 2015 +0000
+
+    upstream commit
+    
+    match myproposal.h order; from brian conway (i snuck in a
+     tweak while here)
+    
+    ok dtucker
+    
+    Upstream-ID: 35174a19b5237ea36aa3798f042bf5933b772c67
+
 commit 1dc8d93ce69d6565747eb44446ed117187621b26
 Author: deraadt@openbsd.org <deraadt@openbsd.org>
 Date:   Thu Aug 6 14:53:21 2015 +0000
@@ -9013,134 +9131,3 @@ Date:   Wed Aug 28 12:49:43 2013 +1000
      - (djm) [openbsd-compat/bsd-snprintf.c] teach our local snprintf code the
        'j' (intmax_t/uintmax_t) and 'z' (size_t/ssize_t) conversions in case we
        start to use them in the future.
-
-commit f2f6c315a920a256937e1b6a3702757f3195a592
-Author: Damien Miller <djm@mindrot.org>
-Date:   Wed Aug 21 02:44:58 2013 +1000
-
-       - jmc@cvs.openbsd.org 2013/08/20 06:56:07
-         [ssh.1 ssh_config.5]
-         some proxyusefdpass tweaks;
-
-commit 1262b6638f7d01ab110fd373dd90d915c882fe1a
-Author: Damien Miller <djm@mindrot.org>
-Date:   Wed Aug 21 02:44:24 2013 +1000
-
-       - djm@cvs.openbsd.org 2013/08/20 00:11:38
-         [readconf.c readconf.h ssh_config.5 sshconnect.c]
-         Add a ssh_config ProxyUseFDPass option that supports the use of
-         ProxyCommands that establish a connection and then pass a connected
-         file descriptor back to ssh(1). This allows the ProxyCommand to exit
-         rather than have to shuffle data back and forth and enables ssh to use
-         getpeername, etc. to obtain address information just like it does with
-         regular directly-connected sockets. ok markus@
-
-commit b7727df37efde4dbe4f5a33b19cbf42022aabf66
-Author: Damien Miller <djm@mindrot.org>
-Date:   Wed Aug 21 02:43:49 2013 +1000
-
-       - jmc@cvs.openbsd.org 2013/08/14 08:39:27
-         [scp.1 ssh.1]
-         some Bx/Ox conversion;
-         From: Jan Stary
-
-commit d5d9d7b1fdacf0551de4c747728bd159be40590a
-Author: Damien Miller <djm@mindrot.org>
-Date:   Wed Aug 21 02:43:27 2013 +1000
-
-       - djm@cvs.openbsd.org 2013/08/13 18:33:08
-         [ssh-keygen.c]
-         another of the same typo
-
-commit d234afb0b3a8de1be78cbeafed5fc86912594c3c
-Author: Damien Miller <djm@mindrot.org>
-Date:   Wed Aug 21 02:42:58 2013 +1000
-
-       - djm@cvs.openbsd.org 2013/08/13 18:32:08
-         [ssh-keygen.c]
-         typo in error message; from Stephan Rickauer
-
-commit e0ee727b8281a7c2ae20630ce83f6b200b404059
-Author: Damien Miller <djm@mindrot.org>
-Date:   Wed Aug 21 02:42:35 2013 +1000
-
-       - djm@cvs.openbsd.org 2013/08/09 03:56:42
-         [sftp.c]
-         enable ctrl-left-arrow and ctrl-right-arrow to move forward/back a word;
-         matching ksh's relatively recent change.
-
-commit fec029f1dc2c338f3fae3fa82aabc988dc07868c
-Author: Damien Miller <djm@mindrot.org>
-Date:   Wed Aug 21 02:42:12 2013 +1000
-
-       - djm@cvs.openbsd.org 2013/08/09 03:39:13
-         [sftp-client.c]
-         two problems found by a to-be-committed regress test: 1) msg_id was not
-         being initialised so was starting at a random value from the heap
-         (harmless, but confusing). 2) some error conditions were not being
-         propagated back to the caller
-
-commit 036d30743fc914089f9849ca52d615891d47e616
-Author: Damien Miller <djm@mindrot.org>
-Date:   Wed Aug 21 02:41:46 2013 +1000
-
-       - djm@cvs.openbsd.org 2013/08/09 03:37:25
-         [sftp.c]
-         do getopt parsing for all sftp commands (with an empty optstring for
-         commands without arguments) to ensure consistent behaviour
-
-commit c7dba12bf95eb1d69711881a153cc286c1987663
-Author: Damien Miller <djm@mindrot.org>
-Date:   Wed Aug 21 02:41:15 2013 +1000
-
-       - djm@cvs.openbsd.org 2013/08/08 05:04:03
-         [sftp-client.c sftp-client.h sftp.c]
-         add a "-l" flag for the rename command to force it to use the silly
-         standard SSH_FXP_RENAME command instead of the POSIX-rename- like
-         posix-rename@openssh.com extension.
-    
-         intended for use in regress tests, so no documentation.
-
-commit 034f27a0c09e69fe3589045b41f03f6e345b63f5
-Author: Damien Miller <djm@mindrot.org>
-Date:   Wed Aug 21 02:40:44 2013 +1000
-
-       - djm@cvs.openbsd.org 2013/08/08 04:52:04
-         [sftp.c]
-         fix two year old regression: symlinking a file would incorrectly
-         canonicalise the target path. bz#2129 report from delphij AT freebsd.org
-
-commit c6895c5c67492144dd28589e5788f783be9152ed
-Author: Damien Miller <djm@mindrot.org>
-Date:   Wed Aug 21 02:40:21 2013 +1000
-
-       - jmc@cvs.openbsd.org 2013/08/07 06:24:51
-         [sftp.1 sftp.c]
-         sort -a;
-
-commit a6d6c1f38ac9b4a5e1bd4df889e1020a8370ed55
-Author: Damien Miller <djm@mindrot.org>
-Date:   Wed Aug 21 02:40:01 2013 +1000
-
-       - djm@cvs.openbsd.org 2013/08/06 23:06:01
-         [servconf.c]
-         add cast to avoid format warning; from portable
-
-commit eec840673bce3f69ad269672fba7ed8ff05f154f
-Author: Damien Miller <djm@mindrot.org>
-Date:   Wed Aug 21 02:39:39 2013 +1000
-
-       - djm@cvs.openbsd.org 2013/08/06 23:05:01
-         [sftp.1]
-         document top-level -a option (the -a option to 'get' was already
-         documented)
-
-commit 02e878070d0eddad4e11f2c82644b275418eb112
-Author: Damien Miller <djm@mindrot.org>
-Date:   Wed Aug 21 02:38:51 2013 +1000
-
-       - djm@cvs.openbsd.org 2013/08/06 23:03:49
-         [sftp.c]
-         fix some whitespace at EOL
-         make list of commands an enum rather than a long list of defines
-         add -a to usage()

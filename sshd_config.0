@@ -286,9 +286,9 @@ DESCRIPTION
 
              The default is:
 
+                   chacha20-poly1305@openssh.com,
                    aes128-ctr,aes192-ctr,aes256-ctr,
-                   aes128-gcm@openssh.com,aes256-gcm@openssh.com,
-                   chacha20-poly1305@openssh.com
+                   aes128-gcm@openssh.com,aes256-gcm@openssh.com
 
              The list of available ciphers may also be obtained using the -Q
              option of ssh(1) with an argument of M-bM-^@M-^\cipherM-bM-^@M-^].
@@ -927,7 +927,7 @@ DESCRIPTION
 
              If this option is set to M-bM-^@M-^\noM-bM-^@M-^] (the default) then only addresses
              and not host names may be used in ~/.ssh/known_hosts from and
-             sshd_config(5) Match Host directives.
+             sshd_config Match Host directives.
 
      UseLogin
              Specifies whether login(1) is used for interactive login
@@ -1049,4 +1049,4 @@ AUTHORS
      versions 1.5 and 2.0.  Niels Provos and Markus Friedl contributed support
      for privilege separation.
 
-OpenBSD 5.8                     August 6, 2015                     OpenBSD 5.8
+OpenBSD 5.8                     August 14, 2015                    OpenBSD 5.8

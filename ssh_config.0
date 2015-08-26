@@ -205,9 +205,9 @@ DESCRIPTION
 
              The default is:
 
+                   chacha20-poly1305@openssh.com,
                    aes128-ctr,aes192-ctr,aes256-ctr,
                    aes128-gcm@openssh.com,aes256-gcm@openssh.com,
-                   chacha20-poly1305@openssh.com,
                    arcfour256,arcfour128,
                    aes128-cbc,3des-cbc,blowfish-cbc,cast128-cbc,
                    aes192-cbc,aes256-cbc,arcfour
@@ -1023,4 +1023,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 5.8                      July 30, 2015                     OpenBSD 5.8
+OpenBSD 5.8                     August 14, 2015                    OpenBSD 5.8
