@@ -47,13 +47,12 @@
 #include <contrib/dev/acpica/include/acdebug.h>
 #include <contrib/dev/acpica/include/actables.h>
 
-#if (defined ACPI_DEBUGGER || defined ACPI_DISASSEMBLER)
 
 #define _COMPONENT          ACPI_CA_DEBUGGER
         ACPI_MODULE_NAME    ("dbfileio")
 
-#ifdef ACPI_DEBUGGER
 
+#ifdef ACPI_DEBUGGER
 /*******************************************************************************
  *
  * FUNCTION:    AcpiDbCloseDebugFile
@@ -78,7 +77,8 @@ AcpiDbCloseDebugFile (
        fclose (AcpiGbl_DebugFile);
        AcpiGbl_DebugFile = NULL;
        AcpiGbl_DbOutputToFile = FALSE;
-       AcpiOsPrintf ("Debug output file %s closed\n", AcpiGbl_DbDebugFilename);
+       AcpiOsPrintf ("Debug output file %s closed\n",
+            AcpiGbl_DbDebugFilename);
     }
 #endif
 }
@@ -145,12 +145,12 @@ AeLocalLoadTable (
     ACPI_TABLE_HEADER       *Table)
 {
     ACPI_STATUS             Status = AE_OK;
-/*    ACPI_TABLE_DESC         TableInfo; */
 
 
     ACPI_FUNCTION_TRACE (AeLocalLoadTable);
-#if 0
 
+#if 0
+/*    ACPI_TABLE_DESC         TableInfo; */
 
     if (!Table)
     {
@@ -282,5 +282,3 @@ AcpiDbGetTableFromFile (
 #endif  /* ACPI_APPLICATION */
     return (AE_OK);
 }
-
-#endif  /* ACPI_DEBUGGER */
