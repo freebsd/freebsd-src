@@ -146,7 +146,7 @@ void hsw_fdi_link_train(struct drm_crtc *crtc)
 	I915_WRITE(SPLL_CTL,
 			SPLL_PLL_ENABLE |
 			SPLL_PLL_FREQ_1350MHz |
-			SPLL_PLL_SCC);
+			SPLL_PLL_SSC);
 
 	/* Use SPLL to drive the output when in FDI mode */
 	I915_WRITE(PORT_CLK_SEL(PORT_E),
@@ -200,14 +200,14 @@ void hsw_fdi_link_train(struct drm_crtc *crtc)
 						DP_TP_CTL_ENHANCED_FRAME_ENABLE |
 						DP_TP_CTL_ENABLE);
 
-			/* Enable PIPE_DDI_FUNC_CTL for the pipe to work in FDI mode */
-			temp = I915_READ(DDI_FUNC_CTL(pipe));
-			temp &= ~PIPE_DDI_PORT_MASK;
-			temp |= PIPE_DDI_SELECT_PORT(PORT_E) |
-					PIPE_DDI_MODE_SELECT_FDI |
-					PIPE_DDI_FUNC_ENABLE |
-					PIPE_DDI_PORT_WIDTH_X2;
-			I915_WRITE(DDI_FUNC_CTL(pipe),
+			/* Enable PIPE_TRANS_DDI_FUNC_CTL for the pipe to work in FDI mode */
+			temp = I915_READ(TRANS_DDI_FUNC_CTL(pipe));
+			temp &= ~TRANS_DDI_PORT_MASK;
+			temp |= TRANS_DDI_SELECT_PORT(PORT_E) |
+					TRANS_DDI_MODE_SELECT_FDI |
+					TRANS_DDI_FUNC_ENABLE |
+					TRANS_DDI_PORT_WIDTH_X2;
+			I915_WRITE(TRANS_DDI_FUNC_CTL(pipe),
 					temp);
 			break;
 		} else {
@@ -719,18 +719,18 @@ void intel_ddi_mode_set(struct drm_encoder *encoder,
 				 pipe_name(intel_crtc->pipe));
 	}
 
-	/* Enable PIPE_DDI_FUNC_CTL for the pipe to work in HDMI mode */
-	temp = I915_READ(DDI_FUNC_CTL(pipe));
-	temp &= ~PIPE_DDI_PORT_MASK;
-	temp &= ~PIPE_DDI_BPC_12;
-	temp |= PIPE_DDI_SELECT_PORT(port) |
-			PIPE_DDI_MODE_SELECT_HDMI |
+	/* Enable PIPE_TRANS_DDI_FUNC_CTL for the pipe to work in HDMI mode */
+	temp = I915_READ(TRANS_DDI_FUNC_CTL(pipe));
+	temp &= ~TRANS_DDI_PORT_MASK;
+	temp &= ~TRANS_DDI_BPC_12;
+	temp |= TRANS_DDI_SELECT_PORT(port) |
+			TRANS_DDI_MODE_SELECT_HDMI |
 			((intel_crtc->bpp > 24) ?
-				PIPE_DDI_BPC_12 :
-				PIPE_DDI_BPC_8) |
-			PIPE_DDI_FUNC_ENABLE;
+				TRANS_DDI_BPC_12 :
+				TRANS_DDI_BPC_8) |
+			TRANS_DDI_FUNC_ENABLE;
 
-	I915_WRITE(DDI_FUNC_CTL(pipe), temp);
+	I915_WRITE(TRANS_DDI_FUNC_CTL(pipe), temp);
 
 	intel_hdmi_set_avi_infoframe(encoder, adjusted_mode);
 	intel_hdmi_set_spd_infoframe(encoder);
