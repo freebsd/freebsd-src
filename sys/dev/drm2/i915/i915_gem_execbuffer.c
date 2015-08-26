@@ -405,10 +405,7 @@ i915_gem_execbuffer_relocate_entry(struct drm_i915_gem_object *obj,
 		if (ret)
 			return ret;
 
-		/*
-		 * Map the page containing the relocation we're going
-		 * to perform.
-		 */
+		/* Map the page containing the relocation we're going to perform.  */
 		reloc->offset += obj->gtt_offset;
 		reloc_page = pmap_mapdev_attr(dev->agp->base + (reloc->offset &
 		    ~PAGE_MASK), PAGE_SIZE, PAT_WRITE_COMBINING);
@@ -436,7 +433,7 @@ i915_gem_execbuffer_relocate_entry(struct drm_i915_gem_object *obj,
 
 static int
 i915_gem_execbuffer_relocate_object(struct drm_i915_gem_object *obj,
-    struct eb_objects *eb)
+				    struct eb_objects *eb)
 {
 #define N_RELOC(x) ((x) / sizeof(struct drm_i915_gem_relocation_entry))
 	struct drm_i915_gem_relocation_entry stack_reloc[N_RELOC(512)];
@@ -459,7 +456,7 @@ i915_gem_execbuffer_relocate_object(struct drm_i915_gem_object *obj,
 
 		do {
 			u64 offset = r->presumed_offset;
- 
+
 			ret = i915_gem_execbuffer_relocate_entry(obj, eb, r);
 			if (ret)
 				return ret;
@@ -475,13 +472,15 @@ i915_gem_execbuffer_relocate_object(struct drm_i915_gem_object *obj,
 			r++;
 		} while (--count);
 	}
+
+	return 0;
 #undef N_RELOC
-	return (0);
 }
 
 static int
 i915_gem_execbuffer_relocate_object_slow(struct drm_i915_gem_object *obj,
-    struct eb_objects *eb, struct drm_i915_gem_relocation_entry *relocs)
+					 struct eb_objects *eb,
+					 struct drm_i915_gem_relocation_entry *relocs)
 {
 	const struct drm_i915_gem_exec_object2 *entry = obj->exec_entry;
 	int i, ret;
@@ -520,11 +519,12 @@ i915_gem_execbuffer_relocate(struct drm_device *dev,
 
 	list_for_each_entry(obj, objects, exec_list) {
 		ret = i915_gem_execbuffer_relocate_object(obj, eb);
-		if (ret != 0)
+		if (ret)
 			break;
 	}
 	vm_fault_enable_pagefaults(pflags);
-	return (ret);
+
+	return ret;
 }
 
 #define  __EXEC_OBJECT_HAS_FENCE (1<<31)
@@ -583,9 +583,9 @@ i915_gem_execbuffer_reserve(struct intel_ring_buffer *ring,
 {
 	drm_i915_private_t *dev_priv;
 	struct drm_i915_gem_object *obj;
-	int ret, retry;
-	bool has_fenced_gpu_access = INTEL_INFO(ring->dev)->gen < 4;
 	struct list_head ordered_objects;
+	bool has_fenced_gpu_access = INTEL_INFO(ring->dev)->gen < 4;
+	int ret, retry;
 
 	dev_priv = ring->dev->dev_private;
 	INIT_LIST_HEAD(&ordered_objects);
@@ -619,12 +619,11 @@ i915_gem_execbuffer_reserve(struct intel_ring_buffer *ring,
 	 *
 	 * 1a. Unbind all objects that do not match the GTT constraints for
 	 *     the execbuffer (fenceable, mappable, alignment etc).
-	 * 1b. Increment pin count for already bound objects and obtain
-	 *     a fence register if required.
+	 * 1b. Increment pin count for already bound objects.
 	 * 2.  Bind new objects.
 	 * 3.  Decrement pin count.
 	 *
-	 * This avoid unnecessary unbinding of later objects in order to makr
+	 * This avoid unnecessary unbinding of later objects in order to make
 	 * room for the earlier objects *unless* we need to defragment.
 	 */
 	retry = 0;
@@ -735,9 +734,12 @@ err:
 
 static int
 i915_gem_execbuffer_relocate_slow(struct drm_device *dev,
-    struct drm_file *file, struct intel_ring_buffer *ring,
-    struct list_head *objects, struct eb_objects *eb,
-    struct drm_i915_gem_exec_object2 *exec, int count)
+				  struct drm_file *file,
+				  struct intel_ring_buffer *ring,
+				  struct list_head *objects,
+				  struct eb_objects *eb,
+				  struct drm_i915_gem_exec_object2 *exec,
+				  int count)
 {
 	struct drm_i915_gem_relocation_entry *reloc;
 	struct drm_i915_gem_object *obj;
@@ -812,7 +814,7 @@ i915_gem_execbuffer_relocate_slow(struct drm_device *dev,
 	list_for_each_entry(obj, objects, exec_list) {
 		int offset = obj->exec_entry - exec;
 		ret = i915_gem_execbuffer_relocate_object_slow(obj, eb,
-		    reloc + reloc_offset[offset]);
+							       reloc + reloc_offset[offset]);
 		if (ret)
 			goto err;
 	}
@@ -1210,7 +1212,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 
 	if (args->num_cliprects != 0) {
 		if (ring != &dev_priv->rings[RCS]) {
-	DRM_DEBUG("clip rectangles are only valid with the render ring\n");
+			DRM_DEBUG("clip rectangles are only valid with the render ring\n");
 			ret = -EINVAL;
 			goto pre_struct_lock_err;
 		}
@@ -1256,6 +1258,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	INIT_LIST_HEAD(&objects);
 	for (i = 0; i < args->buffer_count; i++) {
 		struct drm_i915_gem_object *obj;
+
 		obj = to_intel_bo(drm_gem_object_lookup(dev, file,
 							exec[i].handle));
 		if (&obj->base == NULL) {
@@ -1294,7 +1297,9 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	if (ret) {
 		if (ret == -EFAULT) {
 			ret = i915_gem_execbuffer_relocate_slow(dev, file, ring,
-			    &objects, eb, exec,	args->buffer_count);
+								&objects, eb,
+								exec,
+								args->buffer_count);
 			DRM_LOCK_ASSERT(dev);
 		}
 		if (ret)
@@ -1368,17 +1373,18 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	if (cliprects) {
 		for (i = 0; i < args->num_cliprects; i++) {
 			ret = i915_emit_box_p(dev, &cliprects[i],
-			    args->DR1, args->DR4);
+					    args->DR1, args->DR4);
 			if (ret)
 				goto err;
 
-			ret = ring->dispatch_execbuffer(ring, exec_start,
-			    exec_len);
+			ret = ring->dispatch_execbuffer(ring,
+							exec_start, exec_len);
 			if (ret)
 				goto err;
 		}
 	} else {
-		ret = ring->dispatch_execbuffer(ring, exec_start, exec_len);
+		ret = ring->dispatch_execbuffer(ring,
+						exec_start, exec_len);
 		if (ret)
 			goto err;
 	}
@@ -1391,8 +1397,9 @@ err:
 	while (!list_empty(&objects)) {
 		struct drm_i915_gem_object *obj;
 
-		obj = list_first_entry(&objects, struct drm_i915_gem_object,
-		    exec_list);
+		obj = list_first_entry(&objects,
+				       struct drm_i915_gem_object,
+				       exec_list);
 		list_del_init(&obj->exec_list);
 		drm_gem_object_unreference(&obj->base);
 	}
@@ -1520,7 +1527,7 @@ i915_gem_execbuffer2(struct drm_device *dev, void *data,
 		DRM_DEBUG("copy %d exec entries failed %d\n",
 			  args->buffer_count, ret);
 		free(exec2_list, DRM_I915_GEM);
-		return (ret);
+		return -EFAULT;
 	}
 
 	ret = i915_gem_do_execbuffer(dev, data, file, args, exec2_list);

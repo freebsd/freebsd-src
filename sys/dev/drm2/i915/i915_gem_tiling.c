@@ -209,7 +209,7 @@ i915_tiling_ok(struct drm_device *dev, int stride, int size, int tiling_mode)
 
 	/* Linear is always fine */
 	if (tiling_mode == I915_TILING_NONE)
-		return (true);
+		return true;
 
 	if (IS_GEN2(dev) ||
 	    (tiling_mode == I915_TILING_Y && HAS_128_BYTE_Y_TILING(dev)))
@@ -222,35 +222,35 @@ i915_tiling_ok(struct drm_device *dev, int stride, int size, int tiling_mode)
 		/* i965 stores the end address of the gtt mapping in the fence
 		 * reg, so dont bother to check the size */
 		if (stride / 128 > I965_FENCE_MAX_PITCH_VAL)
-			return (false);
+			return false;
 	} else {
 		if (stride > 8192)
-			return (false);
+			return false;
 
 		if (IS_GEN3(dev)) {
 			if (size > I830_FENCE_MAX_SIZE_VAL << 20)
-				return (false);
+				return false;
 		} else {
 			if (size > I830_FENCE_MAX_SIZE_VAL << 19)
-				return (false);
+				return false;
 		}
 	}
 
 	/* 965+ just needs multiples of tile width */
 	if (INTEL_INFO(dev)->gen >= 4) {
 		if (stride & (tile_width - 1))
-			return (false);
-		return (true);
+			return false;
+		return true;
 	}
 
 	/* Pre-965 needs power of two tile widths */
 	if (stride < tile_width)
-		return (false);
+		return false;
 
 	if (stride & (stride - 1))
-		return (false);
+		return false;
 
-	return (true);
+	return true;
 }
 
 /* Is the current GTT allocation valid for the change in tiling? */
@@ -260,17 +260,17 @@ i915_gem_object_fence_ok(struct drm_i915_gem_object *obj, int tiling_mode)
 	u32 size;
 
 	if (tiling_mode == I915_TILING_NONE)
-		return (true);
+		return true;
 
 	if (INTEL_INFO(obj->base.dev)->gen >= 4)
-		return (true);
+		return true;
 
 	if (INTEL_INFO(obj->base.dev)->gen == 3) {
 		if (obj->gtt_offset & ~I915_FENCE_START_MASK)
-			return (false);
+			return false;
 	} else {
 		if (obj->gtt_offset & ~I830_FENCE_START_MASK)
-			return (false);
+			return false;
 	}
 
 	/*
@@ -286,12 +286,12 @@ i915_gem_object_fence_ok(struct drm_i915_gem_object *obj, int tiling_mode)
 		size <<= 1;
 
 	if (obj->gtt_space->size != size)
-		return (false);
+		return false;
 
 	if (obj->gtt_offset & (size - 1))
-		return (false);
+		return false;
 
-	return (true);
+	return true;
 }
 
 /**
@@ -305,9 +305,8 @@ i915_gem_set_tiling(struct drm_device *dev, void *data,
 	struct drm_i915_gem_set_tiling *args = data;
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct drm_i915_gem_object *obj;
-	int ret;
+	int ret = 0;
 
-	ret = 0;
 	obj = to_intel_bo(drm_gem_object_lookup(dev, file, args->handle));
 	if (&obj->base == NULL)
 		return -ENOENT;
@@ -370,15 +369,15 @@ i915_gem_set_tiling(struct drm_device *dev, void *data,
 
 		obj->map_and_fenceable =
 			obj->gtt_space == NULL ||
-		    (obj->gtt_offset + obj->base.size <=
-		    dev_priv->mm.gtt_mappable_end &&
-		    i915_gem_object_fence_ok(obj, args->tiling_mode));
+			(obj->gtt_offset + obj->base.size <= dev_priv->mm.gtt_mappable_end &&
+			 i915_gem_object_fence_ok(obj, args->tiling_mode));
 
 		/* Rebind if we need a change of alignment */
 		if (!obj->map_and_fenceable) {
-			uint32_t unfenced_alignment =
-			    i915_gem_get_unfenced_gtt_alignment(dev,
-				obj->base.size, args->tiling_mode);
+			u32 unfenced_alignment =
+				i915_gem_get_unfenced_gtt_alignment(dev,
+								    obj->base.size,
+								    args->tiling_mode);
 			if (obj->gtt_offset & (unfenced_alignment - 1))
 				ret = i915_gem_object_unbind(obj);
 		}
@@ -387,7 +386,6 @@ i915_gem_set_tiling(struct drm_device *dev, void *data,
 			obj->fence_dirty =
 				obj->fenced_gpu_access ||
 				obj->fence_reg != I915_FENCE_REG_NONE;
-
 
 			obj->tiling_mode = args->tiling_mode;
 			obj->stride = args->stride;
@@ -402,7 +400,7 @@ i915_gem_set_tiling(struct drm_device *dev, void *data,
 	drm_gem_object_unreference(&obj->base);
 	DRM_UNLOCK(dev);
 
-	return (ret);
+	return ret;
 }
 
 /**
