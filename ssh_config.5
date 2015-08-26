@@ -33,8 +33,8 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: ssh_config.5,v 1.214 2015/07/30 00:01:34 djm Exp $
-.Dd $Mdocdate: July 30 2015 $
+.\" $OpenBSD: ssh_config.5,v 1.215 2015/08/14 15:32:41 jmc Exp $
+.Dd $Mdocdate: August 14 2015 $
 .Dt SSH_CONFIG 5
 .Os
 .Sh NAME
@@ -415,9 +415,9 @@ chacha20-poly1305@openssh.com
 .Pp
 The default is:
 .Bd -literal -offset indent
+chacha20-poly1305@openssh.com,
 aes128-ctr,aes192-ctr,aes256-ctr,
 aes128-gcm@openssh.com,aes256-gcm@openssh.com,
-chacha20-poly1305@openssh.com,
 arcfour256,arcfour128,
 aes128-cbc,3des-cbc,blowfish-cbc,cast128-cbc,
 aes192-cbc,aes256-cbc,arcfour

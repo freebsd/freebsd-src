@@ -426,7 +426,7 @@ CERTIFICATES
      providing the token library using -D and identifying the CA key by
      providing its public half as an argument to -s:
 
-           $ ssh-keygen -s ca_key.pub -D libpkcs11.so -I key_id host_key.pub
+           $ ssh-keygen -s ca_key.pub -D libpkcs11.so -I key_id user_key.pub
 
      In all cases, key_id is a "key identifier" that is logged by the server
      when the certificate is used for authentication.
@@ -437,7 +437,7 @@ CERTIFICATES
      principals:
 
            $ ssh-keygen -s ca_key -I key_id -n user1,user2 user_key.pub
-           $ ssh-keygen -s ca_key -I key_id -h -n host.domain user_key.pub
+           $ ssh-keygen -s ca_key -I key_id -h -n host.domain host_key.pub
 
      Additional limitations on the validity and use of user certificates may
      be specified through certificate options.  A certificate option may
@@ -563,4 +563,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 5.8                      July 3, 2015                      OpenBSD 5.8
+OpenBSD 5.8                     August 20, 2015                    OpenBSD 5.8

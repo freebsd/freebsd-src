@@ -1,4 +1,4 @@
-/* $OpenBSD: packet.c,v 1.213 2015/07/29 04:43:06 djm Exp $ */
+/* $OpenBSD: packet.c,v 1.214 2015/08/20 22:32:42 deraadt Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -1272,7 +1272,7 @@ ssh_packet_read_seqnr(struct ssh *ssh, u_char *typep, u_int32_t *seqnr_p)
 
 	DBG(debug("packet_read()"));
 
-	setp = (fd_set *)calloc(howmany(state->connection_in + 1,
+	setp = calloc(howmany(state->connection_in + 1,
 	    NFDBITS), sizeof(fd_mask));
 	if (setp == NULL)
 		return SSH_ERR_ALLOC_FAIL;
@@ -2036,7 +2036,7 @@ ssh_packet_write_wait(struct ssh *ssh)
 	struct timeval start, timeout, *timeoutp = NULL;
 	struct session_state *state = ssh->state;
 
-	setp = (fd_set *)calloc(howmany(state->connection_out + 1,
+	setp = calloc(howmany(state->connection_out + 1,
 	    NFDBITS), sizeof(fd_mask));
 	if (setp == NULL)
 		return SSH_ERR_ALLOC_FAIL;
