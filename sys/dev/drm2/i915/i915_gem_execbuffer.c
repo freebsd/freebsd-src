@@ -1372,7 +1372,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 
 	if (cliprects) {
 		for (i = 0; i < args->num_cliprects; i++) {
-			ret = i915_emit_box_p(dev, &cliprects[i],
+			ret = i915_emit_box(dev, &cliprects[i],
 					    args->DR1, args->DR4);
 			if (ret)
 				goto err;
