@@ -1,4 +1,4 @@
-/* $OpenBSD: key.h,v 1.47 2015/01/28 22:36:00 djm Exp $ */
+/* $OpenBSD: key.h,v 1.48 2015/07/03 03:43:18 djm Exp $ */
 
 /*
  * Copyright (c) 2000, 2001 Markus Friedl.  All rights reserved.
@@ -51,7 +51,6 @@ typedef struct sshkey Key;
 #define key_ecdsa_key_to_nid	sshkey_ecdsa_key_to_nid
 #define key_is_cert		sshkey_is_cert
 #define key_type_plain		sshkey_type_plain
-#define key_cert_is_legacy	sshkey_cert_is_legacy
 #define key_curve_name_to_nid	sshkey_curve_name_to_nid
 #define key_curve_nid_to_bits	sshkey_curve_nid_to_bits
 #define key_curve_nid_to_name	sshkey_curve_nid_to_name
@@ -69,7 +68,7 @@ int	 key_read(Key *, char **);
 
 Key	*key_generate(int, u_int);
 Key	*key_from_private(const Key *);
-int	 key_to_certified(Key *, int);
+int	 key_to_certified(Key *);
 int	 key_drop_cert(Key *);
 int	 key_certify(Key *, Key *);
 void	 key_cert_copy(const Key *, Key *);

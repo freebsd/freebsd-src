@@ -33,8 +33,8 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: sshd.8,v 1.279 2015/05/01 07:11:47 djm Exp $
-.Dd $Mdocdate: May 1 2015 $
+.\" $OpenBSD: sshd.8,v 1.280 2015/07/03 03:49:45 djm Exp $
+.Dd $Mdocdate: July 3 2015 $
 .Dt SSHD 8
 .Os
 .Sh NAME
@@ -184,15 +184,12 @@ Specifies that
 .Nm
 is being run from
 .Xr inetd 8 .
+If SSH protocol 1 is enabled,
 .Nm
-is normally not run
+should not  normally be run
 from inetd because it needs to generate the server key before it can
-respond to the client, and this may take tens of seconds.
-Clients would have to wait too long if the key was regenerated every time.
-However, with small key sizes (e.g. 512) using
-.Nm
-from inetd may
-be feasible.
+respond to the client, and this may take some time.
+Clients may have to wait too long if the key was regenerated every time.
 .It Fl k Ar key_gen_time
 Specifies how often the ephemeral protocol version 1 server key is
 regenerated (default 3600 seconds, or one hour).
@@ -287,7 +284,7 @@ used to identify the host.
 .Pp
 Forward security for protocol 1 is provided through
 an additional server key,
-normally 768 bits,
+normally 1024 bits,
 generated when the server starts.
 This key is normally regenerated every hour if it has been used, and
 is never stored on disk.

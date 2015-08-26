@@ -122,7 +122,7 @@ AC_CHECK_DECL([PR_SET_NO_NEW_PRIVS], [have_linux_no_new_privs=1], , [
 ])
 
 openssl=yes
-ssh1=yes
+ssh1=no
 AC_ARG_WITH([openssl],
 	[  --without-openssl       Disable use of OpenSSL; use only limited internal crypto **EXPERIMENTAL** ],
 	[  if test "x$withval" = "xno" ; then
@@ -1674,7 +1674,6 @@ AC_CHECK_FUNCS([ \
 	pstat \
 	readpassphrase \
 	reallocarray \
-	realpath \
 	recvmsg \
 	rresvport_af \
 	sendmsg \
@@ -1888,6 +1887,32 @@ AC_CHECK_FUNCS([setresgid], [
 			[Define if your setresgid() is broken])
 		 AC_MSG_RESULT([not implemented])],
 		[AC_MSG_WARN([cross compiling: not checking setresuid])]
+	)
+])
+
+AC_CHECK_FUNCS([realpath], [
+	dnl the sftp v3 spec says SSH_FXP_REALPATH will "canonicalize any given
+	dnl path name", however some implementations of realpath (and some
+	dnl versions of the POSIX spec) do not work on non-existent files,
+	dnl so we use the OpenBSD implementation on those platforms.
+	AC_MSG_CHECKING([if realpath works with non-existent files])
+	AC_RUN_IFELSE(
+		[AC_LANG_PROGRAM([[
+#include <limits.h>
+#include <stdlib.h>
+#include <errno.h>
+		]], [[
+		char buf[PATH_MAX];
+		if (realpath("/opensshnonexistentfilename1234", buf) == NULL)
+			if (errno == ENOENT)
+				exit(1);
+		exit(0);
+		]])],
+		[AC_MSG_RESULT([yes])],
+		[AC_DEFINE([BROKEN_REALPATH], [1],
+			[realpath does not work with nonexistent files])
+		 AC_MSG_RESULT([no])],
+		[AC_MSG_WARN([cross compiling: assuming working])]
 	)
 ])
 

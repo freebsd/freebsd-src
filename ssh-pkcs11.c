@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-pkcs11.c,v 1.19 2015/05/27 05:15:02 djm Exp $ */
+/* $OpenBSD: ssh-pkcs11.c,v 1.21 2015/07/18 08:02:17 djm Exp $ */
 /*
  * Copyright (c) 2010 Markus Friedl.  All rights reserved.
  *
@@ -481,15 +481,23 @@ pkcs11_fetch_keys_filter(struct pkcs11_provider *p, CK_ULONG slotidx,
 			error("C_GetAttributeValue failed: %lu", rv);
 			continue;
 		}
-		/* check that none of the attributes are zero length */
-		if (attribs[0].ulValueLen == 0 ||
-		    attribs[1].ulValueLen == 0 ||
+		/*
+		 * Allow CKA_ID (always first attribute) to be empty, but
+		 * ensure that none of the others are zero length.
+		 * XXX assumes CKA_ID is always first.
+		 */
+		if (attribs[1].ulValueLen == 0 ||
 		    attribs[2].ulValueLen == 0) {
 			continue;
 		}
 		/* allocate buffers for attributes */
-		for (i = 0; i < 3; i++)
-			attribs[i].pValue = xmalloc(attribs[i].ulValueLen);
+		for (i = 0; i < 3; i++) {
+			if (attribs[i].ulValueLen > 0) {
+				attribs[i].pValue = xmalloc(
+				    attribs[i].ulValueLen);
+			}
+		}
+
 		/*
 		 * retrieve ID, modulus and public exponent of RSA key,
 		 * or ID, subject and value for certificates.
@@ -629,6 +637,11 @@ pkcs11_add_provider(char *provider_id, char *pin, struct sshkey ***keyp)
 		if ((rv = f->C_GetTokenInfo(p->slotlist[i], token))
 		    != CKR_OK) {
 			error("C_GetTokenInfo failed: %lu", rv);
+			continue;
+		}
+		if ((token->flags & CKF_TOKEN_INITIALIZED) == 0) {
+			debug2("%s: ignoring uninitialised token in slot %lu",
+			    __func__, (unsigned long)i);
 			continue;
 		}
 		rmspace(token->label, sizeof(token->label));

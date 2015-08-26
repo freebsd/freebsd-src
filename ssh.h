@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh.h,v 1.79 2010/06/25 07:14:46 djm Exp $ */
+/* $OpenBSD: ssh.h,v 1.81 2015/08/04 05:23:06 djm Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
