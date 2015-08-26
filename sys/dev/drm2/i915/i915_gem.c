@@ -1,4 +1,4 @@
-/*-
+/*
  * Copyright © 2008 Intel Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -203,11 +203,10 @@ int i915_mutex_lock_interruptible(struct drm_device *dev)
 	return 0;
 }
 
-static bool
+static inline bool
 i915_gem_object_is_inactive(struct drm_i915_gem_object *obj)
 {
-
-	return !obj->active;
+	return obj->gtt_space && !obj->active;
 }
 
 int
@@ -1239,9 +1238,17 @@ i915_gem_set_domain_ioctl(struct drm_device *dev, void *data,
 	uint32_t write_domain = args->write_domain;
 	int ret;
 
-	if ((write_domain & I915_GEM_GPU_DOMAINS) != 0 ||
-	    (read_domains & I915_GEM_GPU_DOMAINS) != 0 ||
-	    (write_domain != 0 && read_domains != write_domain))
+	/* Only handle setting domains to types used by the CPU. */
+	if (write_domain & I915_GEM_GPU_DOMAINS)
+		return -EINVAL;
+
+	if (read_domains & I915_GEM_GPU_DOMAINS)
+		return -EINVAL;
+
+	/* Having something in the write domain implies it's in the read
+	 * domain, and only that read domain.  Enforce that in the request.
+	 */
+	if (write_domain != 0 && read_domains != write_domain)
 		return -EINVAL;
 
 	ret = i915_mutex_lock_interruptible(dev);
@@ -1686,13 +1693,11 @@ i915_gem_get_unfenced_gtt_alignment(struct drm_device *dev,
 				    uint32_t size,
 				    int tiling_mode)
 {
-	if (tiling_mode == I915_TILING_NONE)
-		return 4096;
-
 	/*
 	 * Minimum alignment is 4k (GTT page size) for sane hw.
 	 */
-	if (INTEL_INFO(dev)->gen >= 4 || IS_G33(dev))
+	if (INTEL_INFO(dev)->gen >= 4 || IS_G33(dev) ||
+	    tiling_mode == I915_TILING_NONE)
 		return 4096;
 
 	/* Previous hardware however needs to be aligned to a power-of-two
@@ -3155,7 +3160,7 @@ i915_gem_object_set_to_gtt_domain(struct drm_i915_gem_object *obj, bool write)
 
 	ret = i915_gem_object_flush_gpu_write_domain(obj);
 	if (ret)
-		return (ret);
+		return ret;
 
 	if (obj->pending_gpu_write || write) {
 		ret = i915_gem_object_wait_rendering(obj);
@@ -3366,6 +3371,12 @@ i915_gem_object_finish_gpu(struct drm_i915_gem_object *obj)
 	return 0;
 }
 
+/**
+ * Moves a single object to the CPU read, and possibly write domain.
+ *
+ * This function returns when the move is complete, including waiting on
+ * flushes to occur.
+ */
 int
 i915_gem_object_set_to_cpu_domain(struct drm_i915_gem_object *obj, bool write)
 {
@@ -3644,7 +3655,6 @@ int
 i915_gem_throttle_ioctl(struct drm_device *dev, void *data,
 			struct drm_file *file_priv)
 {
-
 	return i915_gem_ring_throttle(dev, file_priv);
 }
 
@@ -4101,6 +4111,10 @@ i915_gem_unload(struct drm_device *dev)
 	EVENTHANDLER_DEREGISTER(vm_lowmem, dev_priv->mm.i915_lowmem);
 }
 
+/*
+ * Create a physically contiguous memory object for this object
+ * e.g. for cursor + overlay regs
+ */
 static int i915_gem_init_phys_object(struct drm_device *dev,
 				     int id, int size, int align)
 {
