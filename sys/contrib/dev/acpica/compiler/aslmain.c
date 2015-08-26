@@ -192,6 +192,7 @@ Usage (
     ACPI_OPTION ("-e  <f1 f2 ...>", "Include ACPI table(s) for external symbol resolution");
     ACPI_OPTION ("-fe <file>",      "Specify external symbol declaration file");
     ACPI_OPTION ("-in",             "Ignore NoOp opcodes");
+    ACPI_OPTION ("-l",              "Disassemble to mixed ASL and AML code");
     ACPI_OPTION ("-vt",             "Dump binary table data in hex format within output file");
 
     printf ("\nDebug Options:\n");
@@ -297,6 +298,8 @@ AslInitialize (
 {
     UINT32                  i;
 
+
+    AcpiGbl_DmOpt_Verbose = FALSE;
 
     for (i = 0; i < ASL_NUM_FILES; i++)
     {

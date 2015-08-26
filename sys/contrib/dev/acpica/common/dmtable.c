@@ -702,7 +702,7 @@ AcpiDmLineHeader2 (
  *              SubtableLength      - Length of this sub-descriptor
  *              Info                - Info table for this ACPI table
  *
- * RETURN:      None
+ * RETURN:      Status
  *
  * DESCRIPTION: Display ACPI table contents by walking the Info table.
  *

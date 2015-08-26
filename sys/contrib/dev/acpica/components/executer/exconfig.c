@@ -178,15 +178,6 @@ AcpiExLoadTableOp (
     ACPI_FUNCTION_TRACE (ExLoadTableOp);
 
 
-    /* Validate lengths for the Signature, OemId, and OemTableId strings */
-
-    if ((Operand[0]->String.Length > ACPI_NAME_SIZE) ||
-        (Operand[1]->String.Length > ACPI_OEM_ID_SIZE) ||
-        (Operand[2]->String.Length > ACPI_OEM_TABLE_ID_SIZE))
-    {
-        return_ACPI_STATUS (AE_AML_STRING_LIMIT);
-    }
-
     /* Find the ACPI table in the RSDT/XSDT */
 
     Status = AcpiTbFindTable (

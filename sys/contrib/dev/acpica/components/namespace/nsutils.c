@@ -90,7 +90,7 @@ AcpiNsPrintNodePathname (
 
     Buffer.Length = ACPI_ALLOCATE_LOCAL_BUFFER;
 
-    Status = AcpiNsHandleToPathname (Node, &Buffer, FALSE);
+    Status = AcpiNsHandleToPathname (Node, &Buffer, TRUE);
     if (ACPI_SUCCESS (Status))
     {
         if (Message)
@@ -696,6 +696,24 @@ AcpiNsTerminate (
 
     ACPI_FUNCTION_TRACE (NsTerminate);
 
+
+#ifdef ACPI_EXEC_APP
+    {
+        ACPI_OPERAND_OBJECT     *Prev;
+        ACPI_OPERAND_OBJECT     *Next;
+
+        /* Delete any module-level code blocks */
+
+        Next = AcpiGbl_ModuleCodeList;
+        while (Next)
+        {
+            Prev = Next;
+            Next = Next->Method.Mutex;
+            Prev->Method.Mutex = NULL; /* Clear the Mutex (cheated) field */
+            AcpiUtRemoveReference (Prev);
+        }
+    }
+#endif
 
     /*
      * Free the entire namespace -- all nodes and all objects

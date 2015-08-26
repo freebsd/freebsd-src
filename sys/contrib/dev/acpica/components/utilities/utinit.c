@@ -227,6 +227,7 @@ AcpiUtInitGlobals (
     AcpiGbl_DebuggerConfiguration       = DEBUGGER_THREADING;
     AcpiGbl_OsiMutex                    = NULL;
     AcpiGbl_RegMethodsExecuted          = FALSE;
+    AcpiGbl_MaxLoopIterations           = 0xFFFF;
 
     /* Hardware oriented */
 

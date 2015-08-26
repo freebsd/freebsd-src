@@ -59,11 +59,12 @@ ACPI_GLOBAL (ACPI_TABLE_LIST,           AcpiGbl_RootTableList);
 
 ACPI_GLOBAL (ACPI_TABLE_HEADER *,       AcpiGbl_DSDT);
 ACPI_GLOBAL (ACPI_TABLE_HEADER,         AcpiGbl_OriginalDsdtHeader);
+ACPI_INIT_GLOBAL (UINT32,               AcpiGbl_DsdtIndex, ACPI_INVALID_TABLE_INDEX);
+ACPI_INIT_GLOBAL (UINT32,               AcpiGbl_FacsIndex, ACPI_INVALID_TABLE_INDEX);
+ACPI_INIT_GLOBAL (UINT32,               AcpiGbl_XFacsIndex, ACPI_INVALID_TABLE_INDEX);
 
 #if (!ACPI_REDUCED_HARDWARE)
 ACPI_GLOBAL (ACPI_TABLE_FACS *,         AcpiGbl_FACS);
-ACPI_GLOBAL (ACPI_TABLE_FACS *,         AcpiGbl_Facs32);
-ACPI_GLOBAL (ACPI_TABLE_FACS *,         AcpiGbl_Facs64);
 
 #endif /* !ACPI_REDUCED_HARDWARE */
 
@@ -240,6 +241,10 @@ ACPI_INIT_GLOBAL (UINT32,               AcpiGbl_NestingLevel, 0);
 
 ACPI_GLOBAL (ACPI_THREAD_STATE *,       AcpiGbl_CurrentWalkList);
 
+/* Maximum number of While() loop iterations before forced abort */
+
+ACPI_GLOBAL (UINT16,                    AcpiGbl_MaxLoopIterations);
+
 /* Control method single step flag */
 
 ACPI_GLOBAL (UINT8,                     AcpiGbl_CmSingleStep);
@@ -311,10 +316,10 @@ ACPI_INIT_GLOBAL (UINT8,                AcpiGbl_NoResourceDisassembly, FALSE);
 ACPI_INIT_GLOBAL (BOOLEAN,              AcpiGbl_IgnoreNoopOperator, FALSE);
 ACPI_INIT_GLOBAL (BOOLEAN,              AcpiGbl_CstyleDisassembly, TRUE);
 ACPI_INIT_GLOBAL (BOOLEAN,              AcpiGbl_ForceAmlDisassembly, FALSE);
-ACPI_INIT_GLOBAL (ACPI_PARSE_OBJECT *,  AcpiGbl_PreviousOp, NULL);
+ACPI_INIT_GLOBAL (BOOLEAN,              AcpiGbl_DmOpt_Verbose, TRUE);
 
-ACPI_GLOBAL (BOOLEAN,                   AcpiGbl_DbOpt_Disasm);
-ACPI_GLOBAL (BOOLEAN,                   AcpiGbl_DbOpt_Verbose);
+ACPI_GLOBAL (BOOLEAN,                   AcpiGbl_DmOpt_Disasm);
+ACPI_GLOBAL (BOOLEAN,                   AcpiGbl_DmOpt_Listing);
 ACPI_GLOBAL (BOOLEAN,                   AcpiGbl_NumExternalMethods);
 ACPI_GLOBAL (UINT32,                    AcpiGbl_ResolvedExternalMethods);
 ACPI_GLOBAL (ACPI_EXTERNAL_LIST *,      AcpiGbl_ExternalList);
@@ -349,8 +354,8 @@ ACPI_GLOBAL (char,                      AcpiGbl_DbDebugFilename[ACPI_DB_LINE_BUF
 /*
  * Statistic globals
  */
-ACPI_GLOBAL (UINT16,                    AcpiGbl_ObjTypeCount[ACPI_TYPE_NS_NODE_MAX+1]);
-ACPI_GLOBAL (UINT16,                    AcpiGbl_NodeTypeCount[ACPI_TYPE_NS_NODE_MAX+1]);
+ACPI_GLOBAL (UINT16,                    AcpiGbl_ObjTypeCount[ACPI_TOTAL_TYPES]);
+ACPI_GLOBAL (UINT16,                    AcpiGbl_NodeTypeCount[ACPI_TOTAL_TYPES]);
 ACPI_GLOBAL (UINT16,                    AcpiGbl_ObjTypeCountMisc);
 ACPI_GLOBAL (UINT16,                    AcpiGbl_NodeTypeCountMisc);
 ACPI_GLOBAL (UINT32,                    AcpiGbl_NumNodes);
