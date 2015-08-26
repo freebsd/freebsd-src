@@ -7,6 +7,7 @@ SUBDIR=	doc\
 	libbfd \
 	libopcodes \
 	libbinutils \
+	.WAIT \
 	as \
 	ld \
 	${_objcopy} \
@@ -14,6 +15,11 @@ SUBDIR=	doc\
 
 .if ${MK_ELFCOPY_AS_OBJCOPY} == "no"
 _objcopy=	objcopy
+.endif
+
+
+.if !make(install)
+SUBDIR_PARALLEL=
 .endif
 
 .include <bsd.subdir.mk>
