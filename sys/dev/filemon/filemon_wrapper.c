@@ -88,6 +88,10 @@ filemon_pid_check(struct proc *p)
 	struct filemon *filemon;
 
 	filemon_lock_read();
+	if (TAILQ_EMPTY(&filemons_inuse)) {
+		filemon_unlock_read();
+		return (NULL);
+	}
 	sx_slock(&proctree_lock);
 	while (p != initproc) {
 		TAILQ_FOREACH(filemon, &filemons_inuse, link) {
