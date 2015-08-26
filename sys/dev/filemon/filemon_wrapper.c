@@ -114,9 +114,6 @@ filemon_comment(struct filemon *filemon)
 	/* Load timestamp before locking.  Less accurate but less contention. */
 	getmicrotime(&now);
 
-	/* Grab a read lock on the filemon inuse list. */
-	filemon_lock_read();
-
 	/* Lock the found filemon structure. */
 	filemon_filemon_lock(filemon);
 
@@ -129,9 +126,6 @@ filemon_comment(struct filemon *filemon)
 
 	/* Unlock the found filemon structure. */
 	filemon_filemon_unlock(filemon);
-
-	/* Release the read lock. */
-	filemon_unlock_read();
 }
 
 static int
