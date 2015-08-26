@@ -50,8 +50,6 @@
 #include <contrib/dev/acpica/include/acinterp.h>
 
 
-#ifdef ACPI_DISASSEMBLER
-
 #define _COMPONENT          ACPI_CA_DEBUGGER
         ACPI_MODULE_NAME    ("dmbuffer")
 
@@ -773,21 +771,18 @@ AcpiDmPldBuffer (
     AcpiOsPrintf (ACPI_PLD_OUTPUT08,  "PLD_Reference", PldInfo->Reference);
     AcpiOsPrintf (ACPI_PLD_OUTPUT08,  "PLD_Rotation", PldInfo->Rotation);
 
-    if (ByteCount < ACPI_PLD_REV1_BUFFER_SIZE)
-    {
-        AcpiOsPrintf (ACPI_PLD_OUTPUT08P, "PLD_Order", PldInfo->Order);
-    }
-    else
+    if (ByteCount >= ACPI_PLD_REV2_BUFFER_SIZE)
     {
         AcpiOsPrintf (ACPI_PLD_OUTPUT08, "PLD_Order", PldInfo->Order);
-    }
 
-    /* Fifth 32-bit dword */
+        /* Fifth 32-bit dword */
 
-    if (ByteCount >= ACPI_PLD_REV1_BUFFER_SIZE)
-    {
-        AcpiOsPrintf (ACPI_PLD_OUTPUT16, "PLD_VerticalOffset", PldInfo->VerticalOffset);
+        AcpiOsPrintf (ACPI_PLD_OUTPUT16,  "PLD_VerticalOffset", PldInfo->VerticalOffset);
         AcpiOsPrintf (ACPI_PLD_OUTPUT16P, "PLD_HorizontalOffset", PldInfo->HorizontalOffset);
+    }
+    else /* Rev 1 buffer */
+    {
+        AcpiOsPrintf (ACPI_PLD_OUTPUT08P, "PLD_Order", PldInfo->Order);
     }
 
     ACPI_FREE (PldInfo);
@@ -1030,5 +1025,3 @@ AcpiDmDecompressEisaId (
         AcpiOsPrintf (" /* %s */", Info->Description);
     }
 }
-
-#endif
