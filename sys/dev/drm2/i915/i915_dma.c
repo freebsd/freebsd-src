@@ -410,21 +410,8 @@ static int i915_emit_cmds(struct drm_device * dev, int *buffer, int dwords)
 	return 0;
 }
 
-int i915_emit_box(struct drm_device * dev,
-		  struct drm_clip_rect *boxes,
-		  int i, int DR1, int DR4)
-{
-	struct drm_clip_rect box;
-
-	if (DRM_COPY_FROM_USER_UNCHECKED(&box, &boxes[i], sizeof(box))) {
-		return -EFAULT;
-	}
-
-	return (i915_emit_box_p(dev, &box, DR1, DR4));
-}
-
 int
-i915_emit_box_p(struct drm_device *dev,
+i915_emit_box(struct drm_device *dev,
 	      struct drm_clip_rect *box,
 	      int DR1, int DR4)
 {
@@ -506,8 +493,8 @@ static int i915_dispatch_cmdbuffer(struct drm_device * dev,
 
 	for (i = 0; i < count; i++) {
 		if (i < nbox) {
-			ret = i915_emit_box_p(dev, &cmd->cliprects[i],
-			    cmd->DR1, cmd->DR4);
+			ret = i915_emit_box(dev, &cliprects[i],
+					    cmd->DR1, cmd->DR4);
 			if (ret)
 				return ret;
 		}
@@ -542,8 +529,8 @@ static int i915_dispatch_batchbuffer(struct drm_device * dev,
 	count = nbox ? nbox : 1;
 	for (i = 0; i < count; i++) {
 		if (i < nbox) {
-			int ret = i915_emit_box_p(dev, &cliprects[i],
-			    batch->DR1, batch->DR4);
+			ret = i915_emit_box(dev, &cliprects[i],
+					    batch->DR1, batch->DR4);
 			if (ret)
 				return ret;
 		}
