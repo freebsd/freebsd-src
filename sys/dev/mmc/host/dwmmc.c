@@ -582,7 +582,7 @@ dwmmc_attach(device_t dev)
 	if ((sc->hwtype & HWTYPE_MASK) == HWTYPE_ROCKCHIP) {
 		sc->use_pio = 1;
 		sc->pwren_inverted = 1;
-	} else {
+	} else if ((sc->hwtype & HWTYPE_MASK) == HWTYPE_EXYNOS) {
 		WRITE4(sc, EMMCP_MPSBEGIN0, 0);
 		WRITE4(sc, EMMCP_SEND0, 0);
 		WRITE4(sc, EMMCP_CTRL0, (MPSCTRL_SECURE_READ_BIT |
