@@ -33,11 +33,13 @@
 
 #if !defined(HAVE_REALPATH) || defined(BROKEN_REALPATH)
 
+#include <sys/types.h>
 #include <sys/param.h>
 #include <sys/stat.h>
 
 #include <errno.h>
 #include <stdlib.h>
+#include <stddef.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -90,7 +92,7 @@ realpath(const char *path, char resolved[PATH_MAX])
 		 */
 		p = strchr(left, '/');
 		s = p ? p : left + left_len;
-		if (s - left >= sizeof(next_token)) {
+		if (s - left >= (ptrdiff_t)sizeof(next_token)) {
 			errno = ENAMETOOLONG;
 			return (NULL);
 		}
@@ -169,7 +171,8 @@ realpath(const char *path, char resolved[PATH_MAX])
 			 */
 			if (p != NULL) {
 				if (symlink[slen - 1] != '/') {
-					if (slen + 1 >= sizeof(symlink)) {
+					if (slen + 1 >=
+					    (ptrdiff_t)sizeof(symlink)) {
 						errno = ENAMETOOLONG;
 						return (NULL);
 					}

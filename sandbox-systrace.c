@@ -1,4 +1,4 @@
-/* $OpenBSD: sandbox-systrace.c,v 1.16 2015/06/29 22:35:12 djm Exp $ */
+/* $OpenBSD: sandbox-systrace.c,v 1.17 2015/07/27 16:29:23 guenther Exp $ */
 /*
  * Copyright (c) 2011 Damien Miller <djm@mindrot.org>
  *
@@ -63,6 +63,9 @@ static const struct sandbox_policy preauth_policy[] = {
 	{ SYS_getpid, SYSTR_POLICY_PERMIT },
 	{ SYS_getpgid, SYSTR_POLICY_PERMIT },
 	{ SYS_gettimeofday, SYSTR_POLICY_PERMIT },
+#ifdef SYS_kbind
+	{ SYS_kbind, SYSTR_POLICY_PERMIT },
+#endif
 	{ SYS_madvise, SYSTR_POLICY_PERMIT },
 	{ SYS_mmap, SYSTR_POLICY_PERMIT },
 	{ SYS_mprotect, SYSTR_POLICY_PERMIT },

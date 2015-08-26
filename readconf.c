@@ -1,4 +1,4 @@
-/* $OpenBSD: readconf.c,v 1.237 2015/06/26 05:13:20 djm Exp $ */
+/* $OpenBSD: readconf.c,v 1.239 2015/07/30 00:01:34 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -157,6 +157,7 @@ typedef enum {
 	oCanonicalizeFallbackLocal, oCanonicalizePermittedCNAMEs,
 	oStreamLocalBindMask, oStreamLocalBindUnlink, oRevokedHostKeys,
 	oFingerprintHash, oUpdateHostkeys, oHostbasedKeyTypes,
+	oPubkeyAcceptedKeyTypes,
 	oIgnoredUnknownOption, oDeprecated, oUnsupported
 } OpCodes;
 
@@ -275,6 +276,7 @@ static struct {
 	{ "fingerprinthash", oFingerprintHash },
 	{ "updatehostkeys", oUpdateHostkeys },
 	{ "hostbasedkeytypes", oHostbasedKeyTypes },
+	{ "pubkeyacceptedkeytypes", oPubkeyAcceptedKeyTypes },
 	{ "ignoreunknown", oIgnoreUnknown },
 
 	{ NULL, oBadOption }
@@ -1084,7 +1086,7 @@ parse_int:
 		arg = strdelim(&s);
 		if (!arg || *arg == '\0')
 			fatal("%.200s line %d: Missing argument.", filename, linenum);
-		if (!ciphers_valid(arg))
+		if (!ciphers_valid(*arg == '+' ? arg + 1 : arg))
 			fatal("%.200s line %d: Bad SSH2 cipher spec '%s'.",
 			    filename, linenum, arg ? arg : "<NONE>");
 		if (*activep && options->ciphers == NULL)
@@ -1095,7 +1097,7 @@ parse_int:
 		arg = strdelim(&s);
 		if (!arg || *arg == '\0')
 			fatal("%.200s line %d: Missing argument.", filename, linenum);
-		if (!mac_valid(arg))
+		if (!mac_valid(*arg == '+' ? arg + 1 : arg))
 			fatal("%.200s line %d: Bad SSH2 Mac spec '%s'.",
 			    filename, linenum, arg ? arg : "<NONE>");
 		if (*activep && options->macs == NULL)
@@ -1107,7 +1109,7 @@ parse_int:
 		if (!arg || *arg == '\0')
 			fatal("%.200s line %d: Missing argument.",
 			    filename, linenum);
-		if (!kex_names_valid(arg))
+		if (!kex_names_valid(*arg == '+' ? arg + 1 : arg))
 			fatal("%.200s line %d: Bad SSH2 KexAlgorithms '%s'.",
 			    filename, linenum, arg ? arg : "<NONE>");
 		if (*activep && options->kex_algorithms == NULL)
@@ -1115,14 +1117,17 @@ parse_int:
 		break;
 
 	case oHostKeyAlgorithms:
+		charptr = &options->hostkeyalgorithms;
+parse_keytypes:
 		arg = strdelim(&s);
 		if (!arg || *arg == '\0')
-			fatal("%.200s line %d: Missing argument.", filename, linenum);
-		if (!sshkey_names_valid2(arg, 1))
-			fatal("%.200s line %d: Bad protocol 2 host key algorithms '%s'.",
-			    filename, linenum, arg ? arg : "<NONE>");
-		if (*activep && options->hostkeyalgorithms == NULL)
-			options->hostkeyalgorithms = xstrdup(arg);
+			fatal("%.200s line %d: Missing argument.",
+			    filename, linenum);
+		if (!sshkey_names_valid2(*arg == '+' ? arg + 1 : arg, 1))
+			fatal("%s line %d: Bad key types '%s'.",
+				filename, linenum, arg ? arg : "<NONE>");
+		if (*activep && *charptr == NULL)
+			*charptr = xstrdup(arg);
 		break;
 
 	case oProtocol:
@@ -1485,16 +1490,11 @@ parse_int:
 
 	case oHostbasedKeyTypes:
 		charptr = &options->hostbased_key_types;
-		arg = strdelim(&s);
-		if (!arg || *arg == '\0')
-			fatal("%.200s line %d: Missing argument.",
-			    filename, linenum);
-		if (!sshkey_names_valid2(arg, 1))
-			fatal("%s line %d: Bad key types '%s'.",
-				filename, linenum, arg ? arg : "<NONE>");
-		if (*activep && *charptr == NULL)
-			*charptr = xstrdup(arg);
-		break;
+		goto parse_keytypes;
+
+	case oPubkeyAcceptedKeyTypes:
+		charptr = &options->pubkey_key_types;
+		goto parse_keytypes;
 
 	case oDeprecated:
 		debug("%s line %d: Deprecated option \"%s\"",
@@ -1676,6 +1676,7 @@ initialize_options(Options * options)
 	options->fingerprint_hash = -1;
 	options->update_hostkeys = -1;
 	options->hostbased_key_types = NULL;
+	options->pubkey_key_types = NULL;
 }
 
 /*
@@ -1761,9 +1762,6 @@ fill_default_options(Options * options)
 	/* Selected in ssh_login(). */
 	if (options->cipher == -1)
 		options->cipher = SSH_CIPHER_NOT_SET;
-	/* options->ciphers, default set in myproposals.h */
-	/* options->macs, default set in myproposals.h */
-	/* options->kex_algorithms, default set in myproposals.h */
 	/* options->hostkeyalgorithms, default set in myproposals.h */
 	if (options->protocol == SSH_PROTO_UNKNOWN)
 		options->protocol = SSH_PROTO_2;
@@ -1857,8 +1855,14 @@ fill_default_options(Options * options)
 		options->fingerprint_hash = SSH_FP_HASH_DEFAULT;
 	if (options->update_hostkeys == -1)
 		options->update_hostkeys = 0;
-	if (options->hostbased_key_types == NULL)
-		options->hostbased_key_types = xstrdup("*");
+	if (kex_assemble_names(KEX_CLIENT_ENCRYPT, &options->ciphers) != 0 ||
+	    kex_assemble_names(KEX_CLIENT_MAC, &options->macs) != 0 ||
+	    kex_assemble_names(KEX_CLIENT_KEX, &options->kex_algorithms) != 0 ||
+	    kex_assemble_names(KEX_DEFAULT_PK_ALG,
+	    &options->hostbased_key_types) != 0 ||
+	    kex_assemble_names(KEX_DEFAULT_PK_ALG,
+	    &options->pubkey_key_types) != 0)
+		fatal("%s: kex_assemble_names failed", __func__);
 
 #define CLEAR_ON_NONE(v) \
 	do { \
