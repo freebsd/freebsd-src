@@ -94,7 +94,15 @@ test_sandbox_simple_method(const struct cheri_test *ctp __unused,
 	 * test-specific functions that have more rich definitions of
 	 * 'success'.
 	 */
-	cheritest_success();
+	if (methodnum == CHERITEST_HELPER_OP_ABORT) {
+		if (v == -2)
+			cheritest_success();
+		else
+			cheritest_failure_errx("Sandbox did not abort()");
+	} else if (v < 0)
+		cheritest_failure_errx("Sandbox returned -1");
+	else
+		cheritest_success();
 }
 
 void
