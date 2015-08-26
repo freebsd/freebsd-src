@@ -302,7 +302,7 @@ void i915_gem_context_fini(struct drm_device *dev)
 	do_destroy(dev_priv->rings[RCS].default_context);
 }
 
-static int context_idr_cleanup(int id, void *p, void *data)
+static int context_idr_cleanup(uint32_t id, void *p, void *data)
 {
 	struct i915_hw_context *ctx = p;
 
