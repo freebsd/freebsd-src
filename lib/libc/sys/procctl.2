@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 29, 2014
+.Dd August 21, 2015
 .Dt PROCCTL 2
 .Os
 .Sh NAME
@@ -148,7 +148,11 @@ The specified process is the root of the reaper tree, i.e.
 .El
 The
 .Fa rs_children
-field returns the number of children of the reaper.
+field returns the number of children of the reaper among the descendands.
+It is possible to have a child which reaper is not the specified process,
+since the reaper for the existing children is not reset on the
+.Dv PROC_REAP_ACQUIRE
+operation.
 The
 .Fa rs_descendants
 field returns the total number of descendants of the reaper(s),
