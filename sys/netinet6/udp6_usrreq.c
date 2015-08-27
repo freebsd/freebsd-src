@@ -282,7 +282,7 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 	init_sin6(&fromsa, m);
 	fromsa.sin6_port = uh->uh_sport;
 
-	pcbinfo = get_inpcbinfo(nxt);
+	pcbinfo = udp_get_inpcbinfo(nxt);
 	if (IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst)) {
 		struct inpcb *last;
 		struct inpcbhead *pcblist;
@@ -304,7 +304,7 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 		 * here.  We need udphdr for IPsec processing so we do that
 		 * later.
 		 */
-		pcblist = get_pcblist(nxt);
+		pcblist = udp_get_pcblist(nxt);
 		last = NULL;
 		LIST_FOREACH(inp, pcblist, inp_list) {
 			if ((inp->inp_vflag & INP_IPV6) == 0)
@@ -908,7 +908,7 @@ udp6_abort(struct socket *so)
 	struct inpcb *inp;
 	struct inpcbinfo *pcbinfo;
 
-	pcbinfo = get_inpcbinfo(so->so_proto->pr_protocol);
+	pcbinfo = udp_get_inpcbinfo(so->so_proto->pr_protocol);
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("udp6_abort: inp == NULL"));
 
@@ -940,7 +940,7 @@ udp6_attach(struct socket *so, int proto, struct thread *td)
 	struct inpcbinfo *pcbinfo;
 	int error;
 
-	pcbinfo = get_inpcbinfo(so->so_proto->pr_protocol);
+	pcbinfo = udp_get_inpcbinfo(so->so_proto->pr_protocol);
 	inp = sotoinpcb(so);
 	KASSERT(inp == NULL, ("udp6_attach: inp != NULL"));
 
@@ -988,7 +988,7 @@ udp6_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 	struct inpcbinfo *pcbinfo;
 	int error;
 
-	pcbinfo = get_inpcbinfo(so->so_proto->pr_protocol);
+	pcbinfo = udp_get_inpcbinfo(so->so_proto->pr_protocol);
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("udp6_bind: inp == NULL"));
 
@@ -1032,7 +1032,7 @@ udp6_close(struct socket *so)
 	struct inpcb *inp;
 	struct inpcbinfo *pcbinfo;
 
-	pcbinfo = get_inpcbinfo(so->so_proto->pr_protocol);
+	pcbinfo = udp_get_inpcbinfo(so->so_proto->pr_protocol);
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("udp6_close: inp == NULL"));
 
@@ -1064,7 +1064,7 @@ udp6_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	struct sockaddr_in6 *sin6;
 	int error;
 
-	pcbinfo = get_inpcbinfo(so->so_proto->pr_protocol);
+	pcbinfo = udp_get_inpcbinfo(so->so_proto->pr_protocol);
 	inp = sotoinpcb(so);
 	sin6 = (struct sockaddr_in6 *)nam;
 	KASSERT(inp != NULL, ("udp6_connect: inp == NULL"));
@@ -1126,7 +1126,7 @@ udp6_detach(struct socket *so)
 	struct inpcbinfo *pcbinfo;
 	struct udpcb *up;
 
-	pcbinfo = get_inpcbinfo(so->so_proto->pr_protocol);
+	pcbinfo = udp_get_inpcbinfo(so->so_proto->pr_protocol);
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("udp6_detach: inp == NULL"));
 
@@ -1147,7 +1147,7 @@ udp6_disconnect(struct socket *so)
 	struct inpcbinfo *pcbinfo;
 	int error;
 
-	pcbinfo = get_inpcbinfo(so->so_proto->pr_protocol);
+	pcbinfo = udp_get_inpcbinfo(so->so_proto->pr_protocol);
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("udp6_disconnect: inp == NULL"));
 
@@ -1188,7 +1188,7 @@ udp6_send(struct socket *so, int flags, struct mbuf *m,
 	struct inpcbinfo *pcbinfo;
 	int error = 0;
 
-	pcbinfo = get_inpcbinfo(so->so_proto->pr_protocol);
+	pcbinfo = udp_get_inpcbinfo(so->so_proto->pr_protocol);
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("udp6_send: inp == NULL"));
 
