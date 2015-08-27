@@ -133,6 +133,7 @@ powerpc/mikrotik/platform_rb.c	optional	mikrotik
 powerpc/mpc85xx/atpic.c		optional	mpc85xx isa
 powerpc/mpc85xx/ds1553_bus_fdt.c	optional	ds1553 fdt
 powerpc/mpc85xx/ds1553_core.c	optional	ds1553
+powerpc/mpc85xx/fsl_sdhc.c	optional	mpc85xx sdhc
 powerpc/mpc85xx/i2c.c		optional	iicbus fdt
 powerpc/mpc85xx/isa.c		optional	mpc85xx isa
 powerpc/mpc85xx/lbc.c		optional	mpc85xx
