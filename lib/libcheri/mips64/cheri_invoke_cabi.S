@@ -107,17 +107,17 @@ cheri_invoke:
 	#
 cheri_invoke_save_regs:
 	daddiu	$sp, -96
-	sd	$s0, 0($sp)
-	sd	$s1, 8($sp)
-	sd	$s2, 16($sp)
-	sd	$s3, 24($sp)
-	sd	$s4, 32($sp)
-	sd	$s5, 40($sp)
-	sd	$s6, 48($sp)
-	sd	$s7, 56($sp)
-	sd	$gp, 64($sp)
-	sd	$fp, 72($sp)
-	sd	$ra, 80($sp)
+	csd	$s0, $sp, 0($c11)
+	csd	$s1, $sp, 8($c11)
+	csd	$s2, $sp, 16($c11)
+	csd	$s3, $sp, 24($c11)
+	csd	$s4, $sp, 32($c11)
+	csd	$s5, $sp, 40($c11)
+	csd	$s6, $sp, 48($c11)
+	csd	$s7, $sp, 56($c11)
+	csd	$gp, $sp, 64($c11)
+	csd	$fp, $sp, 72($c11)
+	csd	$ra, $sp, 80($c11)
 
 	#
 	# Save capability registers we later need to restore (that won't be
@@ -210,17 +210,17 @@ cheri_invoke_restore_caps:
 	# should be doing this?
 	#
 cheri_invoke_restore_regs:
-	ld	$s0, 0($sp)
-	ld	$s1, 8($sp)
-	ld	$s2, 16($sp)
-	ld	$s3, 24($sp)
-	ld	$s4, 32($sp)
-	ld	$s5, 40($sp)
-	ld	$s6, 48($sp)
-	ld	$s7, 56($sp)
-	ld	$gp, 64($sp)
-	ld	$fp, 72($sp)
-	ld	$ra, 80($sp)
+	cld	$s0, $sp, 0($c11)
+	cld	$s1, $sp, 8($c11)
+	cld	$s2, $sp, 16($c11)
+	cld	$s3, $sp, 24($c11)
+	cld	$s4, $sp, 32($c11)
+	cld	$s5, $sp, 40($c11)
+	cld	$s6, $sp, 48($c11)
+	cld	$s7, $sp, 56($c11)
+	cld	$gp, $sp, 64($c11)
+	cld	$fp, $sp, 72($c11)
+	cld	$ra, $sp, 80($c11)
 	daddiu	$sp, 96
 
 	#
