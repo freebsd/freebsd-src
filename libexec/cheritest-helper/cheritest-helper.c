@@ -212,7 +212,7 @@ invoke_malloc(void)
 	for (i = 0; i < sizeof(sizes) / sizeof(*sizes); i++) {
 		tmp = malloc(sizes[i]);
 		if (tmp == NULL)
-			return (-1);
+			return (-i);
 		free(tmp);
 	}
 	return (0);
