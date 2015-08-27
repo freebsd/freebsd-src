@@ -32,9 +32,9 @@ CAT+=	$c.UTF-8
 
 .for c in ${CAT}
 ${c}:	${c}.base 
-	@echo "... $c";							\
+	echo "... $c";							\
 	rm -f $c;							\
-	sort -u ${.ALLSRC} |						\
+	env LANG=C sort -u ${.ALLSRC} |					\
 	awk '{								\
 		if ($$1 == 1) {						\
 			print "\nMESSAGE NUMBER 1 IS NOT LEGAL";	\
@@ -44,7 +44,7 @@ ${c}:	${c}.base
 			print "DUPLICATE MESSAGE NUMBER " $$1;		\
 			exit 1;						\
 		}							\
-		print $0;						\
+		print $$0;						\
 	}' |								\
 	sed -e '1s/^/$$set 1~$$quote "~/; 1y/~/\n/' |			\
 	gencat $c /dev/stdin;						\
