@@ -1029,10 +1029,9 @@ vm_pageout_scan(struct vm_domain *vmd, int pass)
 	struct vm_pagequeue *pq;
 	vm_object_t object;
 	long min_scan;
-	int act_delta, addl_page_shortage, deficit, maxscan, page_shortage;
-	int vnodes_skipped = 0;
-	int maxlaunder, scan_tick, scanned;
-	boolean_t queues_locked;
+	int act_delta, addl_page_shortage, deficit, error, maxlaunder, maxscan;
+	int page_shortage, scan_tick, scanned, vnodes_skipped;
+	boolean_t pageout_ok, queues_locked;
 
 	/*
 	 * If we need to reclaim memory ask kernel caches to return
@@ -1085,6 +1084,8 @@ vm_pageout_scan(struct vm_domain *vmd, int pass)
 		maxlaunder = 1;
 	if (pass > 1)
 		maxlaunder = 10000;
+
+	vnodes_skipped = 0;
 
 	/*
 	 * Start scanning the inactive queue for pages we can move to the
@@ -1265,23 +1266,22 @@ vm_pageout_scan(struct vm_domain *vmd, int pass)
 			 * pressure where there are insufficient clean pages
 			 * on the inactive queue, we may have to go all out.
 			 */
-			int swap_pageouts_ok;
-			int error;
 
-			if ((object->type != OBJT_SWAP) && (object->type != OBJT_DEFAULT)) {
-				swap_pageouts_ok = 1;
-			} else {
-				swap_pageouts_ok = !(defer_swap_pageouts || disable_swap_pageouts);
-				swap_pageouts_ok |= (!disable_swap_pageouts && defer_swap_pageouts &&
-				vm_page_count_min());
-										
-			}
+			if (object->type != OBJT_SWAP &&
+			    object->type != OBJT_DEFAULT)
+				pageout_ok = TRUE;
+			else if (disable_swap_pageouts)
+				pageout_ok = FALSE;
+			else if (defer_swap_pageouts)
+				pageout_ok = vm_page_count_min();
+			else
+				pageout_ok = TRUE;
 
 			/*
 			 * We don't bother paging objects that are "dead".  
 			 * Those objects are in a "rundown" state.
 			 */
-			if (!swap_pageouts_ok || (object->flags & OBJ_DEAD)) {
+			if (!pageout_ok || (object->flags & OBJ_DEAD) != 0) {
 				vm_pagequeue_lock(pq);
 				vm_page_unlock(m);
 				VM_OBJECT_WUNLOCK(object);
