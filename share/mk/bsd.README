@@ -21,6 +21,7 @@ bsd.compiler.mk		- defined based on current compiler
 bsd.cpu.mk		- sets CPU/arch-related variables (included from sys.mk)
 bsd.dep.mk		- handle Makefile dependencies
 bsd.doc.mk		- building troff system documents
+bsd.endian.mk		- TARGET_ENDIAN=1234(little) or 4321 (big) for target
 bsd.files.mk		- install of general purpose files
 bsd.incs.mk		- install of include files
 bsd.info.mk		- building GNU Info hypertext system (deprecated)
