@@ -815,7 +815,7 @@ db_trap_glue(struct trapframe *frame)
 	    && (frame->exc == EXC_TRC || frame->exc == EXC_RUNMODETRC
 #ifdef AIM
 		|| (frame->exc == EXC_PGM
-		    && (frame->srr1 & 0x20000))
+		    && (frame->srr1 & EXC_PGM_TRAP))
 #else
 		|| (frame->exc == EXC_DEBUG)
 #endif
@@ -827,7 +827,7 @@ db_trap_glue(struct trapframe *frame)
 		if (*(uint32_t *)frame->srr0 == EXC_DTRACE)
 			return (0);
 #ifdef AIM
-		if (type == EXC_PGM && (frame->srr1 & 0x20000)) {
+		if (type == EXC_PGM && (frame->srr1 & EXC_PGM_TRAP)) {
 #else
 		if (frame->cpu.booke.esr & ESR_PTR) {
 #endif
