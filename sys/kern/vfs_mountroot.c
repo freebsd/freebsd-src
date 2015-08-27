@@ -791,6 +791,11 @@ retry:
 			break;
 		default:
 			error = parse_mount(&conf);
+			if (error == -1) {
+				printf("mountroot: invalid file system "
+				    "specification.\n");
+				error = 0;
+			}
 			break;
 		}
 		if (error < 0)
