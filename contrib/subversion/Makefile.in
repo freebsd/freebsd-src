@@ -357,6 +357,7 @@ TEST_SHLIB_VAR_SWIG_RB=\
   fi;
 
 APXS = @APXS@
+HTTPD_VERSION = @HTTPD_VERSION@
 
 PYTHON = @PYTHON@
 PERL = @PERL@
@@ -508,6 +509,9 @@ check: bin @TRANSFORM_LIBTOOL_SCRIPTS@ $(TEST_DEPS) @BDB_TEST_DEPS@
 	  fi;                                                                \
 	  if test "$(HTTP_LIBRARY)" != ""; then                              \
 	    flags="--http-library $(HTTP_LIBRARY) $$flags";                  \
+	  fi;                                                                \
+	  if test "$(HTTPD_VERSION)" != ""; then                              \
+	    flags="--httpd-version $(HTTPD_VERSION) $$flags";                  \
 	  fi;                                                                \
 	  if test "$(SERVER_MINOR_VERSION)" != ""; then                      \
 	    flags="--server-minor-version $(SERVER_MINOR_VERSION) $$flags";  \

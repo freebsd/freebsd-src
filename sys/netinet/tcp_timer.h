@@ -76,7 +76,6 @@
 #define	TCPTV_SRTTBASE	0			/* base roundtrip time;
 						   if 0, no idea yet */
 #define	TCPTV_RTOBASE	(  3*hz)		/* assumed RTO if no info */
-#define	TCPTV_SRTTDFLT	(  3*hz)		/* assumed RTT if no info */
 
 #define	TCPTV_PERSMIN	(  5*hz)		/* retransmit persistence */
 #define	TCPTV_PERSMAX	( 60*hz)		/* maximum persist interval */
@@ -159,12 +158,6 @@ struct tcp_timer {
 #define TT_KEEP		0x0008
 #define TT_2MSL		0x0010
 #define TT_MASK		(TT_DELACK|TT_REXMT|TT_PERSIST|TT_KEEP|TT_2MSL)
-
-#define TT_DELACK_RST	0x0100
-#define TT_REXMT_RST	0x0200
-#define TT_PERSIST_RST	0x0400
-#define TT_KEEP_RST	0x0800
-#define TT_2MSL_RST	0x1000
 
 #define TT_STOPPED	0x00010000
 

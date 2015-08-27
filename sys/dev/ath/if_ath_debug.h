@@ -91,7 +91,7 @@ enum {
 
 extern uint64_t ath_debug;
 
-#define	IFF_DUMPPKTS(sc, m)	((sc->sc_debug & (m))
+#define	IFF_DUMPPKTS(sc, m)	(sc->sc_debug & (m))
 #define	DPRINTF(sc, m, fmt, ...) do {				\
 	if (sc->sc_debug & (m))					\
 		device_printf(sc->sc_dev, fmt, __VA_ARGS__);		\

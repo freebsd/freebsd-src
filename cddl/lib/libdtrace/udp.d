@@ -26,6 +26,7 @@
  */
 
 #pragma D depends_on library ip.d
+#pragma D depends_on module kernel
 #pragma D depends_on provider udp
 
 /*

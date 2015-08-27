@@ -364,7 +364,13 @@ MODULE_DEPEND(em, netmap, 1, 1, 1);
 #define CSUM_TSO	0
 #endif
 
+#define TSO_WORKAROUND	4
+
 static SYSCTL_NODE(_hw, OID_AUTO, em, CTLFLAG_RD, 0, "EM driver parameters");
+
+static int em_disable_crc_stripping = 0;
+SYSCTL_INT(_hw_em, OID_AUTO, disable_crc_stripping, CTLFLAG_RDTUN,
+    &em_disable_crc_stripping, 0, "Disable CRC Stripping");
 
 static int em_tx_int_delay_dflt = EM_TICKS_TO_USECS(EM_TIDV);
 static int em_rx_int_delay_dflt = EM_TICKS_TO_USECS(EM_RDTR);
@@ -1872,13 +1878,15 @@ em_xmit(struct tx_ring *txr, struct mbuf **m_headp)
 	struct ether_header	*eh;
 	struct ip		*ip = NULL;
 	struct tcphdr		*tp = NULL;
-	u32			txd_upper = 0, txd_lower = 0, txd_used = 0;
+	u32			txd_upper = 0, txd_lower = 0;
 	int			ip_off, poff;
 	int			nsegs, i, j, first, last = 0;
-	int			error, do_tso, tso_desc = 0, remap = 1;
+	int			error;
+	bool			do_tso, tso_desc, remap = TRUE;
 
 	m_head = *m_headp;
-	do_tso = ((m_head->m_pkthdr.csum_flags & CSUM_TSO) != 0);
+	do_tso = (m_head->m_pkthdr.csum_flags & CSUM_TSO);
+	tso_desc = FALSE;
 	ip_off = poff = 0;
 
 	/*
@@ -1914,74 +1922,82 @@ em_xmit(struct tx_ring *txr, struct mbuf **m_headp)
 		 * for IPv6 yet.
 		 */
 		ip_off = sizeof(struct ether_header);
-		m_head = m_pullup(m_head, ip_off);
-		if (m_head == NULL) {
-			*m_headp = NULL;
-			return (ENOBUFS);
-		}
-		eh = mtod(m_head, struct ether_header *);
-		if (eh->ether_type == htons(ETHERTYPE_VLAN)) {
-			ip_off = sizeof(struct ether_vlan_header);
+		if (m_head->m_len < ip_off) {
 			m_head = m_pullup(m_head, ip_off);
 			if (m_head == NULL) {
 				*m_headp = NULL;
 				return (ENOBUFS);
 			}
 		}
-		m_head = m_pullup(m_head, ip_off + sizeof(struct ip));
-		if (m_head == NULL) {
-			*m_headp = NULL;
-			return (ENOBUFS);
+		eh = mtod(m_head, struct ether_header *);
+		if (eh->ether_type == htons(ETHERTYPE_VLAN)) {
+			ip_off = sizeof(struct ether_vlan_header);
+			if (m_head->m_len < ip_off) {
+				m_head = m_pullup(m_head, ip_off);
+				if (m_head == NULL) {
+					*m_headp = NULL;
+					return (ENOBUFS);
+				}
+			}
 		}
-		ip = (struct ip *)(mtod(m_head, char *) + ip_off);
-		poff = ip_off + (ip->ip_hl << 2);
-		if (do_tso) {
-			m_head = m_pullup(m_head, poff + sizeof(struct tcphdr));
+		if (m_head->m_len < ip_off + sizeof(struct ip)) {
+			m_head = m_pullup(m_head, ip_off + sizeof(struct ip));
 			if (m_head == NULL) {
 				*m_headp = NULL;
 				return (ENOBUFS);
+			}
+		}
+		ip = (struct ip *)(mtod(m_head, char *) + ip_off);
+		poff = ip_off + (ip->ip_hl << 2);
+
+		if (do_tso || (m_head->m_pkthdr.csum_flags & CSUM_TCP)) {
+			if (m_head->m_len < poff + sizeof(struct tcphdr)) {
+				m_head = m_pullup(m_head, poff +
+				    sizeof(struct tcphdr));
+				if (m_head == NULL) {
+					*m_headp = NULL;
+					return (ENOBUFS);
+				}
 			}
 			tp = (struct tcphdr *)(mtod(m_head, char *) + poff);
 			/*
 			 * TSO workaround:
 			 *   pull 4 more bytes of data into it.
 			 */
-			m_head = m_pullup(m_head, poff + (tp->th_off << 2) + 4);
-			if (m_head == NULL) {
-				*m_headp = NULL;
-				return (ENOBUFS);
-			}
-			ip = (struct ip *)(mtod(m_head, char *) + ip_off);
-			ip->ip_len = 0;
-			ip->ip_sum = 0;
-			/*
-			 * The pseudo TCP checksum does not include TCP payload
-			 * length so driver should recompute the checksum here
-			 * what hardware expect to see. This is adherence of
-			 * Microsoft's Large Send specification.
-			 */
-			tp = (struct tcphdr *)(mtod(m_head, char *) + poff);
-			tp->th_sum = in_pseudo(ip->ip_src.s_addr,
-			    ip->ip_dst.s_addr, htons(IPPROTO_TCP));
-		} else if (m_head->m_pkthdr.csum_flags & CSUM_TCP) {
-			m_head = m_pullup(m_head, poff + sizeof(struct tcphdr));
-			if (m_head == NULL) {
-				*m_headp = NULL;
-				return (ENOBUFS);
-			}
-			tp = (struct tcphdr *)(mtod(m_head, char *) + poff);
-			m_head = m_pullup(m_head, poff + (tp->th_off << 2));
-			if (m_head == NULL) {
-				*m_headp = NULL;
-				return (ENOBUFS);
+			if (m_head->m_len < poff + (tp->th_off << 2)) {
+				m_head = m_pullup(m_head, poff +
+				                 (tp->th_off << 2) +
+				                 TSO_WORKAROUND);
+				if (m_head == NULL) {
+					*m_headp = NULL;
+					return (ENOBUFS);
+				}
 			}
 			ip = (struct ip *)(mtod(m_head, char *) + ip_off);
 			tp = (struct tcphdr *)(mtod(m_head, char *) + poff);
+			if (do_tso) {
+				ip->ip_len = htons(m_head->m_pkthdr.tso_segsz +
+				                  (ip->ip_hl << 2) +
+				                  (tp->th_off << 2));
+				ip->ip_sum = 0;
+				/*
+				 * The pseudo TCP checksum does not include TCP
+				 * payload length so driver should recompute
+				 * the checksum here what hardware expect to
+				 * see. This is adherence of Microsoft's Large
+				 * Send specification.
+			 	*/
+				tp->th_sum = in_pseudo(ip->ip_src.s_addr,
+				    ip->ip_dst.s_addr, htons(IPPROTO_TCP));
+			}
 		} else if (m_head->m_pkthdr.csum_flags & CSUM_UDP) {
-			m_head = m_pullup(m_head, poff + sizeof(struct udphdr));
-			if (m_head == NULL) {
-				*m_headp = NULL;
-				return (ENOBUFS);
+			if (m_head->m_len < poff + sizeof(struct udphdr)) {
+				m_head = m_pullup(m_head, poff +
+				    sizeof(struct udphdr));
+				if (m_head == NULL) {
+					*m_headp = NULL;
+					return (ENOBUFS);
+				}
 			}
 			ip = (struct ip *)(mtod(m_head, char *) + ip_off);
 		}
@@ -2027,7 +2043,7 @@ retry:
 		*m_headp = m;
 
 		/* Try it again, but only once */
-		remap = 0;
+		remap = FALSE;
 		goto retry;
 	} else if (error != 0) {
 		adapter->no_tx_dma_setup++;
@@ -2042,13 +2058,13 @@ retry:
 	 * it follows a TSO burst, then we need to add a
 	 * sentinel descriptor to prevent premature writeback.
 	 */
-	if ((do_tso == 0) && (txr->tx_tso == TRUE)) {
+	if ((!do_tso) && (txr->tx_tso == TRUE)) {
 		if (nsegs == 1)
 			tso_desc = TRUE;
 		txr->tx_tso = FALSE;
 	}
 
-        if (nsegs > (txr->tx_avail - 2)) {
+        if (nsegs > (txr->tx_avail - EM_MAX_SCATTER)) {
                 txr->no_desc_avail++;
 		bus_dmamap_unload(txr->txtag, map);
 		return (ENOBUFS);
@@ -2088,23 +2104,23 @@ retry:
 		** If this is the last descriptor, we want to
 		** split it so we have a small final sentinel
 		*/
-		if (tso_desc && (j == (nsegs -1)) && (seg_len > 8)) {
-			seg_len -= 4;
+		if (tso_desc && (j == (nsegs - 1)) && (seg_len > 8)) {
+			seg_len -= TSO_WORKAROUND;
 			ctxd->buffer_addr = htole64(seg_addr);
 			ctxd->lower.data = htole32(
-			adapter->txd_cmd | txd_lower | seg_len);
-			ctxd->upper.data =
-			    htole32(txd_upper);
+				adapter->txd_cmd | txd_lower | seg_len);
+			ctxd->upper.data = htole32(txd_upper);
 			if (++i == adapter->num_tx_desc)
 				i = 0;
+
 			/* Now make the sentinel */	
-			++txd_used; /* using an extra txd */
+			txr->tx_avail--;
 			ctxd = &txr->tx_base[i];
 			tx_buffer = &txr->tx_buffers[i];
 			ctxd->buffer_addr =
 			    htole64(seg_addr + seg_len);
 			ctxd->lower.data = htole32(
-			adapter->txd_cmd | txd_lower | 4);
+			adapter->txd_cmd | txd_lower | TSO_WORKAROUND);
 			ctxd->upper.data =
 			    htole32(txd_upper);
 			last = i;
@@ -2114,8 +2130,7 @@ retry:
 			ctxd->buffer_addr = htole64(seg_addr);
 			ctxd->lower.data = htole32(
 			adapter->txd_cmd | txd_lower | seg_len);
-			ctxd->upper.data =
-			    htole32(txd_upper);
+			ctxd->upper.data = htole32(txd_upper);
 			last = i;
 			if (++i == adapter->num_tx_desc)
 				i = 0;
@@ -2126,8 +2141,6 @@ retry:
 
 	txr->next_avail_desc = i;
 	txr->tx_avail -= nsegs;
-	if (tso_desc) /* TSO used an extra for sentinel */
-		txr->tx_avail -= txd_used;
 
         tx_buffer->m_head = m_head;
 	/*
@@ -3030,6 +3043,11 @@ em_setup_interface(device_t dev, struct adapter *adapter)
 	if_setflags(ifp, IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST);
 	if_setioctlfn(ifp, em_ioctl);
 	if_setgetcounterfn(ifp, em_get_counter);
+	/* TSO parameters */
+	ifp->if_hw_tsomax = EM_TSO_SIZE;
+	ifp->if_hw_tsomaxsegcount = EM_MAX_SCATTER;
+	ifp->if_hw_tsomaxsegsize = EM_TSO_SEG_SIZE;
+
 #ifdef EM_MULTIQUEUE
 	/* Multiqueue stack interface */
 	if_settransmitfn(ifp, em_mq_start);
@@ -4514,7 +4532,8 @@ em_initialize_receive_unit(struct adapter *adapter)
 	    (hw->mac.mc_filter_type << E1000_RCTL_MO_SHIFT);
 
         /* Strip the CRC */
-        rctl |= E1000_RCTL_SECRC;
+        if (!em_disable_crc_stripping)
+		rctl |= E1000_RCTL_SECRC;
 
         /* Make sure VLAN Filters are off */
         rctl &= ~E1000_RCTL_VFE;
@@ -4888,8 +4907,8 @@ em_enable_intr(struct adapter *adapter)
 	u32 ims_mask = IMS_ENABLE_MASK;
 
 	if (hw->mac.type == e1000_82574) {
-		E1000_WRITE_REG(hw, EM_EIAC, EM_MSIX_MASK);
-		ims_mask |= EM_MSIX_MASK;
+		E1000_WRITE_REG(hw, EM_EIAC, adapter->ims);
+		ims_mask |= adapter->ims;
 	} 
 	E1000_WRITE_REG(hw, E1000_IMS, ims_mask);
 }

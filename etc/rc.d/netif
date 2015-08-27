@@ -67,7 +67,7 @@ netif_start()
 		trap : 2
 	fi
 
-	# Create IEEE802.3 interface
+	# Create IEEE802.11 interface
 	wlan_up $cmdifn
 
 	# Create cloned interfaces

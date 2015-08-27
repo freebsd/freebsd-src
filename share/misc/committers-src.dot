@@ -113,6 +113,7 @@ andre [label="Andre Oppermann\nandre@FreeBSD.org\n2003/11/12"]
 andreast [label="Andreas Tobler\nandreast@FreeBSD.org\n2010/09/05"]
 andrew [label="Andrew Turner\nandrew@FreeBSD.org\n2010/07/19"]
 antoine [label="Antoine Brodin\nantoine@FreeBSD.org\n2008/02/03"]
+araujo [label="Marcelo Araujo\naraujo@FreeBSD.org\n2015/08/04"]
 ariff [label="Ariff Abdullah\nariff@FreeBSD.org\n2005/11/14"]
 art [label="Artem Belevich\nart@FreeBSD.org\n2011/03/29"]
 arybchik [label="Andrew Rybchenko\narybchik@FreeBSD.org\n2014/10/12"]
@@ -263,6 +264,7 @@ rmacklem [label="Rick Macklem\nrmacklem@FreeBSD.org\n2009/03/27"]
 rmh [label="Robert Millan\nrmh@FreeBSD.org\n2011/09/18"]
 rnoland [label="Robert Noland\nrnoland@FreeBSD.org\n2008/09/15"]
 roberto [label="Ollivier Robert\nroberto@FreeBSD.org\n1995/02/22"]
+rodrigc [label="Craig Rodrigues\nrodrigc@FreeBSD.org\n2005/05/14"]
 royger [label="Roger Pau Monne\nroyger@FreeBSD.org\n2013/11/26"]
 rpaulo [label="Rui Paulo\nrpaulo@FreeBSD.org\n2007/09/25"]
 rrs [label="Randall R Stewart\nrrs@FreeBSD.org\n2007/02/08"]
@@ -348,6 +350,7 @@ avg -> pluknet
 avg -> smh
 
 bapt -> allanjude
+bapt -> araujo
 bapt -> bdrewery
 
 benno -> grehan
@@ -389,6 +392,7 @@ cperciva -> simon
 csjp -> bushman
 
 das -> kargl
+das -> rodrigc
 
 delphij -> gabor
 delphij -> rafan
@@ -687,6 +691,8 @@ rwatson -> tmm
 rwatson -> trasz
 rwatson -> trhodes
 rwatson -> wsalamon
+
+rodrigc -> araujo
 
 sam -> andre
 sam -> benjsc

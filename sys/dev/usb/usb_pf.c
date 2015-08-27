@@ -199,7 +199,13 @@ usbpf_clone_destroy(struct if_clone *ifc, if_t ifp)
 	struct usb_bus *ubus;
 
 	ubus = if_getsoftc(ifp, IF_DRIVER_SOFTC);
+	/*
+	 * Lock USB before clearing the "ifp" pointer, to avoid
+	 * clearing the pointer in the middle of a TAP operation:
+	 */
+	USB_BUS_LOCK(ubus);
 	ubus->ifp = NULL;
+	USB_BUS_UNLOCK(ubus);
 	if_detach(ifp);
 
 	return (0);

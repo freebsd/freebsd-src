@@ -245,10 +245,10 @@ enum {
 static	void mwl_printrxbuf(const struct mwl_rxbuf *bf, u_int ix);
 static	void mwl_printtxbuf(const struct mwl_txbuf *bf, u_int qnum, u_int ix);
 #else
-#define	IFF_DUMPPKTS_RECV(sc, wh)	do {} while (0)
-#define	IFF_DUMPPKTS_XMIT(sc)		do {} while (0)
-#define	DPRINTF(sc, m, fmt, ...)	do {} while (0)
-#define	KEYPRINTF(sc, k, mac)		do {} while (0)
+#define	IFF_DUMPPKTS_RECV(sc, wh)	0
+#define	IFF_DUMPPKTS_XMIT(sc)		0
+#define	DPRINTF(sc, m, fmt, ...)	do { (void )sc; } while (0)
+#define	KEYPRINTF(sc, k, mac)		do { (void )sc; } while (0)
 #endif
 
 static MALLOC_DEFINE(M_MWLDEV, "mwldev", "mwl driver dma buffers");

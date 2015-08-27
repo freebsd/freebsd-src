@@ -82,6 +82,14 @@ fetch_repos_info(const char **repos_root,
   return SVN_NO_ERROR;
 }
 
+/* Forward definition. Upgrades svn:externals properties in the working copy
+   LOCAL_ABSPATH to the WC-NG  storage.
+ */
+static svn_error_t *
+upgrade_externals_from_properties(svn_client_ctx_t *ctx,
+                                  const char *local_abspath,
+                                  apr_pool_t *scratch_pool);
+
 svn_error_t *
 svn_client_upgrade(const char *path,
                    svn_client_ctx_t *ctx,
@@ -89,10 +97,6 @@ svn_client_upgrade(const char *path,
 {
   const char *local_abspath;
   apr_hash_t *externals;
-  apr_hash_index_t *hi;
-  apr_pool_t *iterpool;
-  apr_pool_t *iterpool2;
-  svn_opt_revision_t rev = {svn_opt_revision_unspecified, {0}};
   struct repos_info_baton info_baton;
 
   info_baton.state_pool = scratch_pool;
@@ -110,6 +114,80 @@ svn_client_upgrade(const char *path,
                          ctx->cancel_func, ctx->cancel_baton,
                          ctx->notify_func2, ctx->notify_baton2,
                          scratch_pool));
+
+  SVN_ERR(svn_wc__externals_defined_below(&externals,
+                                          ctx->wc_ctx, local_abspath,
+                                          scratch_pool, scratch_pool));
+
+  if (apr_hash_count(externals) > 0)
+    {
+      apr_pool_t *iterpool = svn_pool_create(scratch_pool);
+      apr_hash_index_t *hi;
+
+      /* We are upgrading from >= 1.7. No need to upgrade from
+         svn:externals properties. And by that avoiding the removal
+         of recorded externals information (issue #4519)
+
+         Only directory externals need an explicit upgrade */
+      for (hi = apr_hash_first(scratch_pool, externals);
+           hi;
+           hi = apr_hash_next(hi))
+        {
+          const char *ext_abspath;
+          svn_node_kind_t kind;
+
+          svn_pool_clear(iterpool);
+
+          ext_abspath = svn__apr_hash_index_key(hi);
+
+          SVN_ERR(svn_wc__read_external_info(&kind, NULL, NULL, NULL, NULL,
+                                             ctx->wc_ctx, local_abspath,
+                                             ext_abspath, FALSE,
+                                             iterpool, iterpool));
+
+          if (kind == svn_node_dir)
+            {
+              svn_error_t *err = svn_client_upgrade(ext_abspath, ctx, iterpool);
+
+              if (err)
+                {
+                  svn_wc_notify_t *notify =
+                            svn_wc_create_notify(ext_abspath,
+                                                 svn_wc_notify_failed_external,
+                                                 iterpool);
+                  notify->err = err;
+                  ctx->notify_func2(ctx->notify_baton2,
+                                    notify, iterpool);
+                  svn_error_clear(err);
+                  /* Next external node, please... */
+                }
+            }
+        }
+
+      svn_pool_destroy(iterpool);
+    }
+  else
+    {
+      /* Upgrading from <= 1.6, or no svn:properties defined.
+         (There is no way to detect the difference from libsvn_client :( ) */
+
+      SVN_ERR(upgrade_externals_from_properties(ctx, local_abspath,
+                                                scratch_pool));
+    }
+  return SVN_NO_ERROR;
+}
+
+static svn_error_t *
+upgrade_externals_from_properties(svn_client_ctx_t *ctx,
+                                  const char *local_abspath,
+                                  apr_pool_t *scratch_pool)
+{
+  apr_hash_index_t *hi;
+  apr_pool_t *iterpool;
+  apr_pool_t *iterpool2;
+  apr_hash_t *externals;
+  svn_opt_revision_t rev = {svn_opt_revision_unspecified, {0}};
+  struct repos_info_baton info_baton;
 
   /* Now it's time to upgrade the externals too. We do it after the wc
      upgrade to avoid that errors in the externals causes the wc upgrade to
@@ -163,7 +241,7 @@ svn_client_upgrade(const char *path,
                                     iterpool);
       if (!err)
         err = svn_wc_parse_externals_description3(
-                  &externals_p, svn_dirent_dirname(path, iterpool),
+                  &externals_p, svn_dirent_dirname(local_abspath, iterpool),
                   external_desc->data, FALSE, iterpool);
       if (err)
         {

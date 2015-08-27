@@ -1218,6 +1218,41 @@ ieee80211_waitfor_parent(struct ieee80211com *ic)
 }
 
 /*
+ * Check to see whether the current channel needs reset.
+ *
+ * Some devices don't handle being given an invalid channel
+ * in their operating mode very well (eg wpi(4) will throw a
+ * firmware exception.)
+ *
+ * Return 0 if we're ok, 1 if the channel needs to be reset.
+ *
+ * See PR kern/202502.
+ */
+static int
+ieee80211_start_check_reset_chan(struct ieee80211vap *vap)
+{
+	struct ieee80211com *ic = vap->iv_ic;
+
+	if ((vap->iv_opmode == IEEE80211_M_IBSS &&
+	     IEEE80211_IS_CHAN_NOADHOC(ic->ic_curchan)) ||
+	    (vap->iv_opmode == IEEE80211_M_HOSTAP &&
+	     IEEE80211_IS_CHAN_NOHOSTAP(ic->ic_curchan)))
+		return (1);
+	return (0);
+}
+
+/*
+ * Reset the curchan to a known good state.
+ */
+static void
+ieee80211_start_reset_chan(struct ieee80211vap *vap)
+{
+	struct ieee80211com *ic = vap->iv_ic;
+
+	ic->ic_curchan = &ic->ic_channels[0];
+}
+
+/*
  * Start a vap running.  If this is the first vap to be
  * set running on the underlying device then we
  * automatically bring the device up.
@@ -1249,6 +1284,11 @@ ieee80211_start_locked(struct ieee80211vap *vap)
 		 * to be brought up auto-up the parent if necessary.
 		 */
 		if (ic->ic_nrunning++ == 0) {
+
+			/* reset the channel to a known good channel */
+			if (ieee80211_start_check_reset_chan(vap))
+				ieee80211_start_reset_chan(vap);
+
 			IEEE80211_DPRINTF(vap,
 			    IEEE80211_MSG_STATE | IEEE80211_MSG_DEBUG,
 			    "%s: up parent %s\n", __func__, ic->ic_name);

@@ -566,9 +566,6 @@ in6_ifattach_loopback(struct ifnet *ifp)
 	ifra.ifra_lifetime.ia6t_vltime = ND6_INFINITE_LIFETIME;
 	ifra.ifra_lifetime.ia6t_pltime = ND6_INFINITE_LIFETIME;
 
-	/* we don't need to perform DAD on loopback interfaces. */
-	ifra.ifra_flags |= IN6_IFF_NODAD;
-
 	/* skip registration to the prefix list. XXX should be temporary. */
 	ifra.ifra_flags |= IN6_IFF_NOPFX;
 

@@ -110,8 +110,8 @@ struct bounce_page {
 };
 
 struct sync_list {
-	vm_offset_t	vaddr;		/* kva of bounce buffer */
-	bus_addr_t	busaddr;	/* Physical address */
+	vm_offset_t	vaddr;		/* kva of client data */
+	bus_addr_t	busaddr;	/* client physical address */
 	bus_size_t	datacount;	/* client data count */
 };
 
@@ -625,7 +625,8 @@ out:
 	return (error);
 }
 
-static int allocate_bz_and_pages(bus_dma_tag_t dmat, bus_dmamap_t mapp)
+static int
+allocate_bz_and_pages(bus_dma_tag_t dmat, bus_dmamap_t mapp)
 {
 	struct bounce_zone *bz;
 	int maxpages;
@@ -1380,22 +1381,11 @@ _bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
 		 */
 		if (op & BUS_DMASYNC_POSTREAD) {
 			while (bpage != NULL) {
-				vm_offset_t startv;
-				vm_paddr_t startp;
-				int len;
-
-				startv = bpage->vaddr &~ arm_dcache_align_mask;
-				startp = bpage->busaddr &~ arm_dcache_align_mask;
-				len = bpage->datacount;
-
-				if (startv != bpage->vaddr)
-					len += bpage->vaddr & arm_dcache_align_mask;
-				if (len & arm_dcache_align_mask)
-					len = (len -
-					    (len & arm_dcache_align_mask)) +
-					    arm_dcache_align;
-				l2cache_inv_range(startv, startp, len);
-				cpu_dcache_inv_range(startv, len);
+				l2cache_inv_range((vm_offset_t)bpage->vaddr,
+				    (vm_offset_t)bpage->busaddr,
+				    bpage->datacount);
+				cpu_dcache_inv_range((vm_offset_t)bpage->vaddr,
+				    bpage->datacount);
 				if (bpage->datavaddr != 0)
 					bcopy((void *)bpage->vaddr,
 					    (void *)bpage->datavaddr,

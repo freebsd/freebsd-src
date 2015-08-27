@@ -151,8 +151,7 @@ static struct ieee80211vap *ath_vap_create(struct ieee80211com *,
 		    const uint8_t [IEEE80211_ADDR_LEN],
 		    const uint8_t [IEEE80211_ADDR_LEN]);
 static void	ath_vap_delete(struct ieee80211vap *);
-static void	ath_init(struct ath_softc *);
-static void	ath_stop_locked(struct ath_softc *);
+static int	ath_init(struct ath_softc *);
 static void	ath_stop(struct ath_softc *);
 static int	ath_reset_vap(struct ieee80211vap *, u_long);
 static int	ath_transmit(struct ieee80211com *, struct mbuf *);
@@ -1334,7 +1333,7 @@ ath_detach(struct ath_softc *sc)
 	/*
 	 * Stop things cleanly.
 	 */
-	ath_stop_locked(sc);
+	ath_stop(sc);
 	ATH_UNLOCK(sc);
 
 	ieee80211_ifdetach(&sc->sc_ic);
@@ -1728,7 +1727,7 @@ ath_vap_delete(struct ieee80211vap *vap)
 	 * may be being scheduled between sw->hw txq. Tsk.
 	 *
 	 * TODO: figure out why a new node gets allocated somewhere around
-	 * here (after the ath_tx_swq() call; and after an ath_stop_locked()
+	 * here (after the ath_tx_swq() call; and after an ath_stop()
 	 * call!)
 	 */
 
@@ -1898,10 +1897,6 @@ ath_resume(struct ath_softc *sc)
 	struct ath_hal *ah = sc->sc_ah;
 	HAL_STATUS status;
 
-	DPRINTF(sc, ATH_DEBUG_ANY, "%s: if_flags %x\n",
-		__func__, ifp->if_flags);
-
-	/* Re-enable PCIe, re-enable the PCIe bus */
 	ath_hal_enablepcie(ah, 0, 0);
 
 	/*
@@ -1968,7 +1963,9 @@ void
 ath_shutdown(struct ath_softc *sc)
 {
 
+	ATH_LOCK(sc);
 	ath_stop(sc);
+	ATH_UNLOCK(sc);
 	/* NB: no point powering down chip as we're about to reboot */
 }
 
@@ -2103,7 +2100,7 @@ ath_intr(void *arg)
 #ifdef IEEE80211_SUPPORT_TDMA
 			if (sc->sc_tdma) {
 				if (sc->sc_tdmaswba == 0) {
-					struct ieee80211com *ic = ifp->if_l2com;
+					struct ieee80211com *ic = &sc->sc_ic;
 					struct ieee80211vap *vap =
 					    TAILQ_FIRST(&ic->ic_vaps);
 					ath_tdma_beacon_send(sc, vap);
@@ -2418,17 +2415,15 @@ ath_settkipmic(struct ath_softc *sc)
 	}
 }
 
-static void
+static int
 ath_init(struct ath_softc *sc)
 {
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ath_hal *ah = sc->sc_ah;
 	HAL_STATUS status;
 
-	DPRINTF(sc, ATH_DEBUG_ANY, "%s: if_flags 0x%x\n",
-		__func__, ifp->if_flags);
+	ATH_LOCK_ASSERT(sc);
 
-	ATH_LOCK(sc);
 	/*
 	 * Force the sleep state awake.
 	 */
@@ -2440,7 +2435,7 @@ ath_init(struct ath_softc *sc)
 	 * Stop anything previously setup.  This is safe
 	 * whether this is the first time through or not.
 	 */
-	ath_stop_locked(sc);
+	ath_stop(sc);
 
 	/*
 	 * The basic interface to setting the hardware in a good
@@ -2458,8 +2453,7 @@ ath_init(struct ath_softc *sc)
 	    &status)) {
 		device_printf(sc->sc_dev,
 		    "unable to reset hardware; hal status %u\n", status);
-		ATH_UNLOCK(sc);
-		return;
+		return (ENODEV);
 	}
 
 	ATH_RX_LOCK(sc);
@@ -2517,8 +2511,7 @@ ath_init(struct ath_softc *sc)
 	if (ath_startrecv(sc) != 0) {
 		device_printf(sc->sc_dev, "unable to start recv logic\n");
 		ath_power_restore_power_state(sc);
-		ATH_UNLOCK(sc);
-		return;
+		return (ENODEV);
 	}
 
 	/*
@@ -2571,18 +2564,12 @@ ath_init(struct ath_softc *sc)
 	ath_hal_intrset(ah, sc->sc_imask);
 
 	ath_power_restore_power_state(sc);
-	ATH_UNLOCK(sc);
 
-#ifdef ATH_TX99_DIAG
-	if (sc->sc_tx99 != NULL)
-		sc->sc_tx99->start(sc->sc_tx99);
-	else
-#endif
-	ieee80211_start_all(ic);		/* start all vap's */
+	return (0);
 }
 
 static void
-ath_stop_locked(struct ath_softc *sc)
+ath_stop(struct ath_softc *sc)
 {
 	struct ath_hal *ah = sc->sc_ah;
 
@@ -2761,19 +2748,6 @@ ath_reset_grablock(struct ath_softc *sc, int dowait)
 	return w;
 }
 #undef MAX_RESET_ITERATIONS
-
-/*
- * XXX TODO: write ath_reset_releaselock
- */
-
-static void
-ath_stop(struct ath_softc *sc)
-{
-	
-	ATH_LOCK(sc);
-	ath_stop_locked(sc);
-	ATH_UNLOCK(sc);
-}
 
 /*
  * Reset the hardware w/o losing operational state.  This is
@@ -3435,7 +3409,7 @@ ath_media_change(struct ifnet *ifp)
 static void
 ath_key_update_begin(struct ieee80211vap *vap)
 {
-	struct ath_softc *sc =  vap->iv_ic->ic_softc;
+	struct ath_softc *sc = vap->iv_ic->ic_softc;
 
 	DPRINTF(sc, ATH_DEBUG_KEYCACHE, "%s:\n", __func__);
 	taskqueue_block(sc->sc_tq);
@@ -3444,7 +3418,7 @@ ath_key_update_begin(struct ieee80211vap *vap)
 static void
 ath_key_update_end(struct ieee80211vap *vap)
 {
-	struct ath_softc *sc =  vap->iv_ic->ic_softc;
+	struct ath_softc *sc = vap->iv_ic->ic_softc;
 
 	DPRINTF(sc, ATH_DEBUG_KEYCACHE, "%s:\n", __func__);
 	taskqueue_unblock(sc->sc_tq);
@@ -4568,7 +4542,7 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq, int dosched)
 	struct ath_tx_status *ts;
 	struct ieee80211_node *ni;
 #ifdef	IEEE80211_SUPPORT_SUPERG
-	struct ieee80211com *ic = sc->sc_ifp->if_l2com;
+	struct ieee80211com *ic = &sc->sc_ic;
 #endif	/* IEEE80211_SUPPORT_SUPERG */
 	int nacked;
 	HAL_STATUS status;
@@ -6559,6 +6533,7 @@ static void
 ath_parent(struct ieee80211com *ic)
 {
 	struct ath_softc *sc = ic->ic_softc;
+	int error = EDOOFUS;
 
 	ATH_LOCK(sc);
 	if (ic->ic_nrunning > 0) {
@@ -6581,16 +6556,23 @@ ath_parent(struct ieee80211com *ic)
 			 * torn down much of our state.  There's
 			 * probably a better way to deal with this.
 			 */
-			ATH_UNLOCK(sc);
-			ath_init(sc);	/* XXX lose error */
-			return;
+			error = ath_init(sc);
 		}
 	} else {
-		ath_stop_locked(sc);
+		ath_stop(sc);
 		if (!sc->sc_invalid)
 			ath_power_setpower(sc, HAL_PM_FULL_SLEEP);
 	}
 	ATH_UNLOCK(sc);
+
+	if (error == 0) {                        
+#ifdef ATH_TX99_DIAG
+		if (sc->sc_tx99 != NULL)
+			sc->sc_tx99->start(sc->sc_tx99);
+		else
+#endif
+		ieee80211_start_all(ic);
+	}
 }
 
 static int

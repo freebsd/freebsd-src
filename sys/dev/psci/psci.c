@@ -288,20 +288,21 @@ psci_v0_2_init(device_t dev)
 	if (version == PSCI_RETVAL_NOT_SUPPORTED)
 		return (1);
 
-	if ((PSCI_VER_MAJOR(version) != 0) && (PSCI_VER_MINOR(version) != 2)) {
-		device_printf(dev, "PSCI version number mismatched with DT\n");
-		return (1);
+	if ((PSCI_VER_MAJOR(version) == 0 && PSCI_VER_MINOR(version) == 2) ||
+	    (PSCI_VER_MAJOR(version) == 1 && PSCI_VER_MINOR(version) == 0)) {
+		if (bootverbose)
+			device_printf(dev, "PSCI version 0.2 available\n");
+
+		/*
+		 * We only register this for v0.2 since v0.1 doesn't support
+		 * system_reset.
+		 */
+		EVENTHANDLER_REGISTER(shutdown_final, psci_shutdown, sc,
+		    SHUTDOWN_PRI_LAST);
+
+		return (0);
 	}
 
-	if (bootverbose)
-		device_printf(dev, "PSCI version 0.2 available\n");
-
-	/*
-	 * We only register this for v0.2 since v0.1 doesn't support
-	 * system_reset.
-	 */
-	EVENTHANDLER_REGISTER(shutdown_final, psci_shutdown, sc,
-	    SHUTDOWN_PRI_LAST);
-
-	return (0);
+	device_printf(dev, "PSCI version number mismatched with DT\n");
+	return (1);
 }

@@ -974,9 +974,9 @@ static void assert_fdi_tx(struct drm_i915_private *dev_priv,
 
 	if (IS_HASWELL(dev_priv->dev)) {
 		/* On Haswell, DDI is used instead of FDI_TX_CTL */
-		reg = DDI_FUNC_CTL(pipe);
+		reg = TRANS_DDI_FUNC_CTL(pipe);
 		val = I915_READ(reg);
-		cur_state = !!(val & PIPE_DDI_FUNC_ENABLE);
+		cur_state = !!(val & TRANS_DDI_FUNC_ENABLE);
 	} else {
 		reg = FDI_TX_CTL(pipe);
 		val = I915_READ(reg);
@@ -1878,13 +1878,13 @@ static int i9xx_update_plane(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 		break;
 	case 16:
 		if (fb->depth == 15)
-			dspcntr |= DISPPLANE_15_16BPP;
+			dspcntr |= DISPPLANE_BGRX555;
 		else
-			dspcntr |= DISPPLANE_16BPP;
+			dspcntr |= DISPPLANE_BGRX565;
 		break;
 	case 24:
 	case 32:
-		dspcntr |= DISPPLANE_32BPP_NO_ALPHA;
+		dspcntr |= DISPPLANE_BGRX888;
 		break;
 	default:
 		DRM_ERROR("Unknown color depth %d\n", fb->bits_per_pixel);
@@ -1956,14 +1956,14 @@ static int ironlake_update_plane(struct drm_crtc *crtc,
 			return -EINVAL;
 		}
 
-		dspcntr |= DISPPLANE_16BPP;
+		dspcntr |= DISPPLANE_BGRX565;
 		break;
 	case 24:
 	case 32:
 		if (fb->depth == 24)
-			dspcntr |= DISPPLANE_32BPP_NO_ALPHA;
+			dspcntr |= DISPPLANE_BGRX888;
 		else if (fb->depth == 30)
-			dspcntr |= DISPPLANE_32BPP_30BIT_NO_ALPHA;
+			dspcntr |= DISPPLANE_BGRX101010;
 		else {
 			DRM_ERROR("bpp %d depth %d\n", fb->bits_per_pixel,
 			    fb->depth);

@@ -31,4 +31,7 @@
 clk_ident_t ti_hwmods_get_clock(device_t dev);
 int ti_hwmods_contains(device_t dev, const char *hwmod);
 
+/* Returns the N from "hwmodN" in the ti,hwmods property; 0 on failure. */
+int ti_hwmods_get_unit(device_t dev, const char *hwmod);
+
 #endif /* _TI_HWMODS_H_ */

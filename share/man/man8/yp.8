@@ -464,9 +464,11 @@ Some systems, such as
 .Tn NIS
 to be running in order
 for their hostname resolution functions
-.Fn ( gethostbyname ,
+.Po Fn gethostbyname ,
 .Fn gethostbyaddr ,
-etc.) to work properly.
+etc.
+.Pc
+to work properly.
 On these systems,
 .Xr ypserv 8
 performs
@@ -499,13 +501,14 @@ It can also be made to register itself as an
 v1 server
 in order to placate certain systems that insist on the presence of
 a v1 server
-.No ( Fx
+.Po Fx
 uses only
 .Tn NIS
 v2, but many other systems,
 including
 .Tn SunOS
-4.x, search for both a v1 and v2 server when binding).
+4.x, search for both a v1 and v2 server when binding
+.Pc .
 .Fx Ns 's
 .Xr ypserv 8
 does not actually handle

@@ -1066,7 +1066,7 @@ init_proc0(vm_offset_t kstack)
 	proc_linkup0(&proc0, &thread0);
 	thread0.td_kstack = kstack;
 	thread0.td_pcb = (struct pcb *)
-		(thread0.td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;
+		(thread0.td_kstack + kstack_pages * PAGE_SIZE) - 1;
 	thread0.td_pcb->pcb_flags = 0;
 	thread0.td_pcb->pcb_vfpcpu = -1;
 	thread0.td_pcb->pcb_vfpstate.fpscr = VFPSCR_DN | VFPSCR_FZ;
@@ -1360,7 +1360,7 @@ initarm(struct arm_boot_params *abp)
 	valloc_pages(irqstack, IRQ_STACK_SIZE * MAXCPU);
 	valloc_pages(abtstack, ABT_STACK_SIZE * MAXCPU);
 	valloc_pages(undstack, UND_STACK_SIZE * MAXCPU);
-	valloc_pages(kernelstack, KSTACK_PAGES * MAXCPU);
+	valloc_pages(kernelstack, kstack_pages * MAXCPU);
 	valloc_pages(msgbufpv, round_page(msgbufsize) / PAGE_SIZE);
 
 	/*
@@ -1534,10 +1534,7 @@ initarm(struct arm_boot_params *abp)
 	 * Find the dtb passed in by the boot loader.
 	 */
 	kmdp = preload_search_by_type("elf kernel");
-	if (kmdp != NULL)
-		dtbp = MD_FETCH(kmdp, MODINFOMD_DTBP, vm_offset_t);
-	else
-		dtbp = (vm_offset_t)NULL;
+	dtbp = MD_FETCH(kmdp, MODINFOMD_DTBP, vm_offset_t);
 #if defined(FDT_DTB_STATIC)
 	/*
 	 * In case the device tree blob was not retrieved (from metadata) try
@@ -1614,7 +1611,7 @@ initarm(struct arm_boot_params *abp)
 	irqstack    = pmap_preboot_get_vpages(IRQ_STACK_SIZE * MAXCPU);
 	abtstack    = pmap_preboot_get_vpages(ABT_STACK_SIZE * MAXCPU);
 	undstack    = pmap_preboot_get_vpages(UND_STACK_SIZE * MAXCPU );
-	kernelstack = pmap_preboot_get_vpages(KSTACK_PAGES * MAXCPU);
+	kernelstack = pmap_preboot_get_vpages(kstack_pages * MAXCPU);
 
 	/* Allocate message buffer. */
 	msgbufp = (void *)pmap_preboot_get_vpages(

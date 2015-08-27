@@ -1516,12 +1516,6 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	char *env;
 	size_t kstack0_sz;
 
-	thread0.td_kstack = physfree + KERNBASE;
-	thread0.td_kstack_pages = KSTACK_PAGES;
-	kstack0_sz = thread0.td_kstack_pages * PAGE_SIZE;
-	bzero((void *)thread0.td_kstack, kstack0_sz);
-	physfree += kstack0_sz;
-
 	/*
  	 * This may be done better later if it gets more high level
  	 * components in it. If so just link td->td_proc here.
@@ -1532,6 +1526,12 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 
 	/* Init basic tunables, hz etc */
 	init_param1();
+
+	thread0.td_kstack = physfree + KERNBASE;
+	thread0.td_kstack_pages = kstack_pages;
+	kstack0_sz = thread0.td_kstack_pages * PAGE_SIZE;
+	bzero((void *)thread0.td_kstack, kstack0_sz);
+	physfree += kstack0_sz;
 
 	/*
 	 * make gdt memory segments
@@ -1621,41 +1621,9 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	 * Use vt(4) by default for UEFI boot (during the sc(4)/vt(4)
 	 * transition).
 	 */
-	if (kmdp != NULL && preload_search_info(kmdp,
-	    MODINFO_METADATA | MODINFOMD_EFI_MAP) != NULL)
+	if (preload_search_info(kmdp, MODINFO_METADATA | MODINFOMD_EFI_MAP)
+	    != NULL)
 		vty_set_preferred(VTY_VT);
-
-	/*
-	 * Initialize the console before we print anything out.
-	 */
-	cninit();
-
-#ifdef DEV_ISA
-#ifdef DEV_ATPIC
-	elcr_probe();
-	atpic_startup();
-#else
-	/* Reset and mask the atpics and leave them shut down. */
-	atpic_reset();
-
-	/*
-	 * Point the ICU spurious interrupt vectors at the APIC spurious
-	 * interrupt handler.
-	 */
-	setidt(IDT_IO_INTS + 7, IDTVEC(spuriousint), SDT_SYSIGT, SEL_KPL, 0);
-	setidt(IDT_IO_INTS + 15, IDTVEC(spuriousint), SDT_SYSIGT, SEL_KPL, 0);
-#endif
-#else
-#error "have you forgotten the isa device?";
-#endif
-
-	kdb_init();
-
-#ifdef KDB
-	if (boothowto & RB_KDB)
-		kdb_enter(KDB_WHY_BOOTFLAGS,
-		    "Boot flags requested debugger");
-#endif
 
 	identify_cpu();		/* Final stage of CPU initialization */
 	initializecpu();	/* Initialize CPU registers */
@@ -1692,6 +1660,35 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	init_param2(physmem);
 
 	/* now running on new page tables, configured,and u/iom is accessible */
+
+	cninit();
+
+#ifdef DEV_ISA
+#ifdef DEV_ATPIC
+	elcr_probe();
+	atpic_startup();
+#else
+	/* Reset and mask the atpics and leave them shut down. */
+	atpic_reset();
+
+	/*
+	 * Point the ICU spurious interrupt vectors at the APIC spurious
+	 * interrupt handler.
+	 */
+	setidt(IDT_IO_INTS + 7, IDTVEC(spuriousint), SDT_SYSIGT, SEL_KPL, 0);
+	setidt(IDT_IO_INTS + 15, IDTVEC(spuriousint), SDT_SYSIGT, SEL_KPL, 0);
+#endif
+#else
+#error "have you forgotten the isa device?";
+#endif
+
+	kdb_init();
+
+#ifdef KDB
+	if (boothowto & RB_KDB)
+		kdb_enter(KDB_WHY_BOOTFLAGS,
+		    "Boot flags requested debugger");
+#endif
 
 	msgbufinit(msgbufp, msgbufsize);
 	fpuinit();

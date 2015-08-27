@@ -93,6 +93,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sdt.h>
 #include <sys/signalvar.h>
 #include <sys/smp.h>
+#include <sys/time.h>
 #include <sys/vnode.h>
 #include <sys/vmmeter.h>
 #include <sys/rwlock.h>
@@ -171,7 +172,7 @@ static int vm_pageout_update_period;
 static int defer_swap_pageouts;
 static int disable_swap_pageouts;
 static int lowmem_period = 10;
-static int lowmem_ticks;
+static time_t lowmem_uptime;
 
 #if defined(NO_SWAPPING)
 static int vm_swap_enabled = 0;
@@ -414,10 +415,13 @@ more:
 			ib = 0;
 			break;
 		}
-		vm_page_lock(p);
 		vm_page_test_dirty(p);
-		if (p->dirty == 0 ||
-		    p->queue != PQ_INACTIVE ||
+		if (p->dirty == 0) {
+			ib = 0;
+			break;
+		}
+		vm_page_lock(p);
+		if (p->queue != PQ_INACTIVE ||
 		    p->hold_count != 0) {	/* may be undergoing I/O */
 			vm_page_unlock(p);
 			ib = 0;
@@ -441,10 +445,11 @@ more:
 
 		if ((p = vm_page_next(ps)) == NULL || vm_page_busied(p))
 			break;
-		vm_page_lock(p);
 		vm_page_test_dirty(p);
-		if (p->dirty == 0 ||
-		    p->queue != PQ_INACTIVE ||
+		if (p->dirty == 0)
+			break;
+		vm_page_lock(p);
+		if (p->queue != PQ_INACTIVE ||
 		    p->hold_count != 0) {	/* may be undergoing I/O */
 			vm_page_unlock(p);
 			break;
@@ -566,11 +571,6 @@ vm_pageout_flush(vm_page_t *mc, int count, int flags, int mreq, int *prunlen,
 		if (pageout_status[i] != VM_PAGER_PEND) {
 			vm_object_pip_wakeup(object);
 			vm_page_sunbusy(mt);
-			if (vm_page_count_severe()) {
-				vm_page_lock(mt);
-				vm_page_try_to_cache(mt);
-				vm_page_unlock(mt);
-			}
 		}
 	}
 	if (prunlen != NULL)
@@ -1039,7 +1039,7 @@ vm_pageout_scan(struct vm_domain *vmd, int pass)
 	 * some.  We rate limit to avoid thrashing.
 	 */
 	if (vmd == &vm_dom[0] && pass > 0 &&
-	    (ticks - lowmem_ticks) / hz >= lowmem_period) {
+	    (time_uptime - lowmem_uptime) >= lowmem_period) {
 		/*
 		 * Decrease registered cache sizes.
 		 */
@@ -1050,7 +1050,7 @@ vm_pageout_scan(struct vm_domain *vmd, int pass)
 		 * drained above.
 		 */
 		uma_reclaim();
-		lowmem_ticks = ticks;
+		lowmem_uptime = time_uptime;
 	}
 
 	/*
