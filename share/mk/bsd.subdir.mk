@@ -16,7 +16,8 @@
 #
 # SUBDIR	A list of subdirectories that should be built as well.
 #		Each of the targets will execute the same target in the
-#		subdirectories.
+#		subdirectories. SUBDIR.yes is automatically appeneded
+#		to this list.
 #
 # +++ targets +++
 #
@@ -42,6 +43,11 @@ _SUBDIR:
 .endif
 .endif
 .if !target(_SUBDIR)
+
+.if defined(SUBDIR)
+SUBDIR:=${SUBDIR} ${SUBDIR.yes}
+SUBDIR:=${SUBDIR:u}
+.endif
 
 DISTRIBUTION?=	base
 .if !target(distribute)
