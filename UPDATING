@@ -31,6 +31,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20150827:
+	pf no longer supports 'scrub fragment crop' or 'scrub fragment drop-ovl'
+	These configurations are now automatically interpreted as
+	'scrub fragment reassemble'.
+
 20150817:
 	Kernel-loadable modules for the random(4) device are back. To use
 	them, the kernel must have
