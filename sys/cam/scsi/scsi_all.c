@@ -8419,6 +8419,38 @@ scsi_security_protocol_out(struct ccb_scsiio *csio, uint32_t retries,
 		      timeout);
 }
 
+void
+scsi_report_supported_opcodes(struct ccb_scsiio *csio, uint32_t retries, 
+			      void (*cbfcnp)(struct cam_periph *, union ccb *),
+			      uint8_t tag_action, int options, int req_opcode,
+			      int req_service_action, uint8_t *data_ptr,
+			      uint32_t dxfer_len, int sense_len, int timeout)
+{
+	struct scsi_report_supported_opcodes *scsi_cmd;
+
+	scsi_cmd = (struct scsi_report_supported_opcodes *)
+	    &csio->cdb_io.cdb_bytes;
+	bzero(scsi_cmd, sizeof(*scsi_cmd));
+
+	scsi_cmd->opcode = MAINTENANCE_IN;
+	scsi_cmd->service_action = REPORT_SUPPORTED_OPERATION_CODES;
+	scsi_cmd->options = options;
+	scsi_cmd->requested_opcode = req_opcode;
+	scsi_ulto2b(req_service_action, scsi_cmd->requested_service_action);
+	scsi_ulto4b(dxfer_len, scsi_cmd->length);
+
+	cam_fill_csio(csio,
+		      retries,
+		      cbfcnp,
+		      /*flags*/CAM_DIR_IN,
+		      tag_action,
+		      data_ptr,
+		      dxfer_len,
+		      sense_len,
+		      sizeof(*scsi_cmd),
+		      timeout);
+}
+
 /*      
  * Try make as good a match as possible with
  * available sub drivers

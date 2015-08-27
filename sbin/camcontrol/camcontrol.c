@@ -99,7 +99,8 @@ typedef enum {
 	CAM_CMD_PERSIST		= 0x00000020,
 	CAM_CMD_APM		= 0x00000021,
 	CAM_CMD_AAM		= 0x00000022,
-	CAM_CMD_ATTRIB		= 0x00000023
+	CAM_CMD_ATTRIB		= 0x00000023,
+	CAM_CMD_OPCODES		= 0x00000024
 } cam_cmdmask;
 
 typedef enum {
@@ -221,11 +222,12 @@ static struct camcontrol_opts option_table[] = {
 	{"sleep", CAM_CMD_SLEEP, CAM_ARG_NONE, ""},
 	{"apm", CAM_CMD_APM, CAM_ARG_NONE, "l:"},
 	{"aam", CAM_CMD_AAM, CAM_ARG_NONE, "l:"},
-	{"fwdownload", CAM_CMD_DOWNLOAD_FW, CAM_ARG_NONE, "f:ys"},
+	{"fwdownload", CAM_CMD_DOWNLOAD_FW, CAM_ARG_NONE, "f:qsy"},
 	{"security", CAM_CMD_SECURITY, CAM_ARG_NONE, "d:e:fh:k:l:qs:T:U:y"},
 	{"hpa", CAM_CMD_HPA, CAM_ARG_NONE, "Pflp:qs:U:y"},
 	{"persist", CAM_CMD_PERSIST, CAM_ARG_NONE, "ai:I:k:K:o:ps:ST:U"},
 	{"attrib", CAM_CMD_ATTRIB, CAM_ARG_NONE, "a:ce:F:p:r:s:T:w:V:"},
+	{"opcodes", CAM_CMD_OPCODES, CAM_ARG_NONE, "No:s:T"},
 #endif /* MINIMALISTIC */
 	{"help", CAM_CMD_USAGE, CAM_ARG_NONE, NULL},
 	{"-?", CAM_CMD_USAGE, CAM_ARG_NONE, NULL},
@@ -264,7 +266,6 @@ static int scsistart(struct cam_device *device, int startstop, int loadeject,
 		     int retry_count, int timeout);
 static int scsiinquiry(struct cam_device *device, int retry_count, int timeout);
 static int scsiserial(struct cam_device *device, int retry_count, int timeout);
-static int camxferrate(struct cam_device *device);
 #endif /* MINIMALISTIC */
 static int parse_btl(char *tstr, path_id_t *bus, target_id_t *target,
 		     lun_id_t *lun, cam_argmask *arglst);
@@ -319,6 +320,14 @@ static int atasecurity(struct cam_device *device, int retry_count, int timeout,
 		       int argc, char **argv, char *combinedopt);
 static int atahpa(struct cam_device *device, int retry_count, int timeout,
 		  int argc, char **argv, char *combinedopt);
+static int scsiprintoneopcode(struct cam_device *device, int req_opcode,
+			      int sa_set, int req_sa, uint8_t *buf,
+			      uint32_t valid_len);
+static int scsiprintopcodes(struct cam_device *device, int td_req, uint8_t *buf,
+			    uint32_t valid_len);
+static int scsiopcodes(struct cam_device *device, int argc, char **argv,
+		       char *combinedopt, int retry_count, int timeout,
+		       int verbose);
 
 #endif /* MINIMALISTIC */
 #ifndef min
@@ -1018,7 +1027,7 @@ scsiserial(struct cam_device *device, int retry_count, int timeout)
 	return(0);
 }
 
-static int
+int
 camxferrate(struct cam_device *device)
 {
 	struct ccb_pathinq cpi;
@@ -2034,7 +2043,7 @@ atahpa_freeze_lock(struct cam_device *device, int retry_count,
 }
 
 
-static int
+int
 ata_do_identify(struct cam_device *device, int retry_count, int timeout,
 		union ccb *ccb, struct ata_params** ident_bufp)
 {
@@ -4941,25 +4950,172 @@ get_cgd_bailout:
 	return(retval);
 }
 
-/* return the type of disk (really the command type) */
-static const char *
-get_disk_type(struct cam_device *device)
+/*
+ * Returns 1 if the device has the VPD page, 0 if it does not, and -1 on an
+ * error.
+ */
+int
+dev_has_vpd_page(struct cam_device *dev, uint8_t page_id, int retry_count,
+		 int timeout, int verbosemode)
 {
-	struct ccb_getdev	cgd;
+	union ccb *ccb = NULL;
+	struct scsi_vpd_supported_page_list sup_pages;
+	int i;
+	int retval = 0;
 
-	(void) memset(&cgd, 0x0, sizeof(cgd));
-	get_cgd(device, &cgd);
-	switch(cgd.protocol) {
+	ccb = cam_getccb(dev);
+	if (ccb == NULL) {
+		warn("Unable to allocate CCB");
+		retval = -1;
+		goto bailout;
+	}
+	
+	/* cam_getccb cleans up the header, caller has to zero the payload */
+	bzero(&(&ccb->ccb_h)[1],
+	      sizeof(struct ccb_scsiio) - sizeof(struct ccb_hdr));
+
+	bzero(&sup_pages, sizeof(sup_pages));
+
+	scsi_inquiry(&ccb->csio,
+		     /*retries*/ retry_count,
+		     /*cbfcnp*/ NULL,
+		     /* tag_action */ MSG_SIMPLE_Q_TAG,
+		     /* inq_buf */ (u_int8_t *)&sup_pages,
+		     /* inq_len */ sizeof(sup_pages),
+		     /* evpd */ 1,
+		     /* page_code */ SVPD_SUPPORTED_PAGE_LIST,
+		     /* sense_len */ SSD_FULL_SIZE,
+		     /* timeout */ timeout ? timeout : 5000);
+
+	/* Disable freezing the device queue */
+	ccb->ccb_h.flags |= CAM_DEV_QFRZDIS;
+
+	if (retry_count != 0)
+		ccb->ccb_h.flags |= CAM_PASS_ERR_RECOVER;
+
+	if (cam_send_ccb(dev, ccb) < 0) {
+		cam_freeccb(ccb);
+		retval = -1;
+		goto bailout;
+	}
+
+	if ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
+		if (verbosemode != 0)
+			cam_error_print(dev, ccb, CAM_ESF_ALL,
+					CAM_EPF_ALL, stderr);
+		retval = -1;
+		goto bailout;
+	}
+
+	for (i = 0; i < sup_pages.length; i++) {
+		if (sup_pages.list[i] == page_id) {
+			retval = 1;
+			goto bailout;
+		}
+	}
+bailout:
+	if (ccb != NULL)
+		cam_freeccb(ccb);
+	
+	return (retval);
+}
+
+/*
+ * devtype is filled in with the type of device.
+ * Returns 0 for success, non-zero for failure.
+ */
+int
+get_device_type(struct cam_device *dev, int retry_count, int timeout,
+		    int verbosemode, camcontrol_devtype *devtype)
+{
+	struct ccb_getdev cgd;
+	int retval = 0;
+
+	retval = get_cgd(dev, &cgd);
+	if (retval != 0)
+		goto bailout;
+
+	switch (cgd.protocol) {
 	case PROTO_SCSI:
-		return "scsi";
+		break;
 	case PROTO_ATA:
 	case PROTO_ATAPI:
 	case PROTO_SATAPM:
-		return "ata";
+		*devtype = CC_DT_ATA;
+		goto bailout;
+		break; /*NOTREACHED*/
 	default:
-		return "unknown";
+		*devtype = CC_DT_UNKNOWN;
+		goto bailout; 
+		break; /*NOTREACHED*/
+	}
+
+	/*
+	 * Check for the ATA Information VPD page (0x89).  If this is an
+	 * ATA device behind a SCSI to ATA translation layer, this VPD page
+	 * should be present.
+	 *
+	 * If that VPD page isn't present, or we get an error back from the
+	 * INQUIRY command, we'll just treat it as a normal SCSI device.
+	 */
+	retval = dev_has_vpd_page(dev, SVPD_ATA_INFORMATION, retry_count,
+				  timeout, verbosemode);
+	if (retval == 1)
+		*devtype = CC_DT_ATA_BEHIND_SCSI;
+	else
+		*devtype = CC_DT_SCSI;
+
+	retval = 0;
+
+bailout:
+	return (retval);
+}
+
+void
+build_ata_cmd(union ccb *ccb, uint32_t retry_count, uint32_t flags,
+    uint8_t tag_action, uint8_t protocol, uint8_t ata_flags, uint16_t features,
+    uint16_t sector_count, uint64_t lba, uint8_t command, uint8_t *data_ptr,
+    uint16_t dxfer_len, uint8_t sense_len, uint32_t timeout,
+    int is48bit, camcontrol_devtype devtype)
+{
+	if (devtype == CC_DT_ATA) {
+		cam_fill_ataio(&ccb->ataio,
+		    /*retries*/ retry_count,
+		    /*cbfcnp*/ NULL,
+		    /*flags*/ flags,
+		    /*tag_action*/ tag_action,
+		    /*data_ptr*/ data_ptr,
+		    /*dxfer_len*/ dxfer_len,
+		    /*timeout*/ timeout);
+		if (is48bit || lba > ATA_MAX_28BIT_LBA)
+			ata_48bit_cmd(&ccb->ataio, command, features, lba,
+			    sector_count);
+		else
+			ata_28bit_cmd(&ccb->ataio, command, features, lba,
+			    sector_count);
+	} else {
+		if (is48bit || lba > ATA_MAX_28BIT_LBA)
+			protocol |= AP_EXTEND;
+
+		scsi_ata_pass_16(&ccb->csio,
+		    /*retries*/ retry_count,
+		    /*cbfcnp*/ NULL,
+		    /*flags*/ flags,
+		    /*tag_action*/ tag_action,
+		    /*protocol*/ protocol,
+		    /*ata_flags*/ ata_flags,
+		    /*features*/ features,
+		    /*sector_count*/ sector_count, 
+		    /*lba*/ lba,
+		    /*command*/ command,
+		    /*control*/ 0,
+		    /*data_ptr*/ data_ptr,
+		    /*dxfer_len*/ dxfer_len,
+		    /*sense_len*/ sense_len,
+		    /*timeout*/ timeout);
 	}
 }
+
 
 static void
 cpi_print(struct ccb_pathinq *cpi)
@@ -8051,6 +8207,461 @@ ataaxm(struct cam_device *device, int argc, char **argv,
 	return (retval);
 }
 
+int
+scsigetopcodes(struct cam_device *device, int opcode_set, int opcode,
+	       int show_sa_errors, int sa_set, int service_action,
+	       int timeout_desc, int retry_count, int timeout, int verbosemode,
+	       uint32_t *fill_len, uint8_t **data_ptr)
+{
+	union ccb *ccb = NULL;
+	uint8_t *buf = NULL;
+	uint32_t alloc_len = 0, num_opcodes;
+	uint32_t valid_len = 0;
+	uint32_t avail_len = 0;
+	struct scsi_report_supported_opcodes_all *all_hdr;
+	struct scsi_report_supported_opcodes_one *one;
+	int options = 0;
+	int retval = 0;
+
+	/*
+	 * Make it clear that we haven't yet allocated or filled anything.
+	 */
+	*fill_len = 0;
+	*data_ptr = NULL;
+
+	ccb = cam_getccb(device);
+	if (ccb == NULL) {
+		warnx("couldn't allocate CCB");
+		retval = 1;
+		goto bailout;
+	}
+
+	/* cam_getccb cleans up the header, caller has to zero the payload */
+	bzero(&(&ccb->ccb_h)[1],
+	      sizeof(struct ccb_scsiio) - sizeof(struct ccb_hdr));
+
+	if (opcode_set != 0) {
+		options |= RSO_OPTIONS_OC;
+		num_opcodes = 1;
+		alloc_len = sizeof(*one) + CAM_MAX_CDBLEN;
+	} else {
+		num_opcodes = 256;
+		alloc_len = sizeof(*all_hdr) + (num_opcodes *
+		    sizeof(struct scsi_report_supported_opcodes_descr));
+	}
+
+	if (timeout_desc != 0) {
+		options |= RSO_RCTD;
+		alloc_len += num_opcodes *
+		    sizeof(struct scsi_report_supported_opcodes_timeout);
+	}
+	
+	if (sa_set != 0) {
+		options |= RSO_OPTIONS_OC_SA;
+		if (show_sa_errors != 0)
+			options &= ~RSO_OPTIONS_OC;
+	}
+
+retry_alloc:
+	if (buf != NULL) {
+		free(buf);
+		buf = NULL;
+	} 
+
+	buf = malloc(alloc_len);
+	if (buf == NULL) {
+		warn("Unable to allocate %u bytes", alloc_len);
+		retval = 1;
+		goto bailout;
+	}
+	bzero(buf, alloc_len);
+
+	scsi_report_supported_opcodes(&ccb->csio,
+				      /*retries*/ retry_count,
+				      /*cbfcnp*/ NULL,
+				      /*tag_action*/ MSG_SIMPLE_Q_TAG,
+				      /*options*/ options,
+				      /*req_opcode*/ opcode,
+				      /*req_service_action*/ service_action,
+				      /*data_ptr*/ buf,
+				      /*dxfer_len*/ alloc_len,
+				      /*sense_len*/ SSD_FULL_SIZE,
+				      /*timeout*/ timeout ? timeout : 10000);
+
+	ccb->ccb_h.flags |= CAM_DEV_QFRZDIS;
+
+	if (retry_count != 0)
+		ccb->ccb_h.flags |= CAM_PASS_ERR_RECOVER;
+
+	if (cam_send_ccb(device, ccb) < 0) {
+		perror("error sending REPORT SUPPORTED OPERATION CODES");
+		retval = 1;
+		goto bailout;
+	}
+
+	if ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
+		if (verbosemode != 0)
+			cam_error_print(device, ccb, CAM_ESF_ALL,
+					CAM_EPF_ALL, stderr);
+		
+		retval = 1;
+		goto bailout;
+	}
+
+	valid_len = ccb->csio.dxfer_len - ccb->csio.resid;
+
+	if (((options & RSO_OPTIONS_MASK) == RSO_OPTIONS_ALL)
+	 && (valid_len >= sizeof(*all_hdr))) {
+		all_hdr = (struct scsi_report_supported_opcodes_all *)buf;
+		avail_len = scsi_4btoul(all_hdr->length) + sizeof(*all_hdr);
+	} else if (((options & RSO_OPTIONS_MASK) != RSO_OPTIONS_ALL)
+		&& (valid_len >= sizeof(*one))) {
+		uint32_t cdb_length;
+
+		one = (struct scsi_report_supported_opcodes_one *)buf;
+		cdb_length = scsi_2btoul(one->cdb_length);
+		avail_len = sizeof(*one) + cdb_length;
+		if (one->support & RSO_ONE_CTDP) {
+			struct scsi_report_supported_opcodes_timeout *td;
+
+			td = (struct scsi_report_supported_opcodes_timeout *)
+			    &buf[avail_len];
+			if (valid_len >= (avail_len + sizeof(td->length))) {
+				avail_len += scsi_2btoul(td->length) +
+				    sizeof(td->length);
+			} else {
+				avail_len += sizeof(*td);
+			}
+		}
+	}
+
+	/*
+	 * avail_len could be zero if we didn't get enough data back from
+	 * thet target to determine
+	 */
+	if ((avail_len != 0)
+	 && (avail_len > valid_len)) {
+		alloc_len = avail_len;
+		goto retry_alloc;
+	}
+
+	*fill_len = valid_len;
+	*data_ptr = buf;
+bailout:
+	if (retval != 0)
+		free(buf);
+
+	cam_freeccb(ccb);
+
+	return (retval);
+}
+
+static int
+scsiprintoneopcode(struct cam_device *device, int req_opcode, int sa_set,
+		   int req_sa, uint8_t *buf, uint32_t valid_len)
+{
+	struct scsi_report_supported_opcodes_one *one;
+	struct scsi_report_supported_opcodes_timeout *td;
+	uint32_t cdb_len = 0, td_len = 0;
+	const char *op_desc = NULL;
+	unsigned int i;
+	int retval = 0;
+
+	one = (struct scsi_report_supported_opcodes_one *)buf;
+
+	/*
+	 * If we don't have the full single opcode descriptor, no point in
+	 * continuing.
+	 */
+	if (valid_len < __offsetof(struct scsi_report_supported_opcodes_one,
+	    cdb_length)) {
+		warnx("Only %u bytes returned, not enough to verify support",
+		      valid_len);
+		retval = 1;
+		goto bailout;
+	}
+
+	op_desc = scsi_op_desc(req_opcode, &device->inq_data);
+
+	printf("%s (0x%02x)", op_desc != NULL ? op_desc : "UNKNOWN",
+	       req_opcode);
+	if (sa_set != 0)
+		printf(", SA 0x%x", req_sa);
+	printf(": ");
+
+	switch (one->support & RSO_ONE_SUP_MASK) {
+	case RSO_ONE_SUP_UNAVAIL:
+		printf("No command support information currently available\n");
+		break;
+	case RSO_ONE_SUP_NOT_SUP:
+		printf("Command not supported\n");
+		retval = 1;
+		goto bailout;
+		break; /*NOTREACHED*/
+	case RSO_ONE_SUP_AVAIL:
+		printf("Command is supported, complies with a SCSI standard\n");
+		break;
+	case RSO_ONE_SUP_VENDOR:
+		printf("Command is supported, vendor-specific "
+		       "implementation\n");
+		break;
+	default:
+		printf("Unknown command support flags 0x%#x\n",
+		       one->support & RSO_ONE_SUP_MASK);
+		break;
+	}
+
+	/*
+	 * If we don't have the CDB length, it isn't exactly an error, the
+	 * command probably isn't supported.
+	 */
+	if (valid_len < __offsetof(struct scsi_report_supported_opcodes_one,
+	    cdb_usage))
+		goto bailout;
+
+	cdb_len = scsi_2btoul(one->cdb_length);
+
+	/*
+	 * If our valid data doesn't include the full reported length,
+	 * return.  The caller should have detected this and adjusted his
+	 * allocation length to get all of the available data.
+	 */
+	if (valid_len < sizeof(*one) + cdb_len) {
+		retval = 1;
+		goto bailout;
+	}
+
+	/*
+	 * If all we have is the opcode, there is no point in printing out
+	 * the usage bitmap.
+	 */
+	if (cdb_len <= 1) {
+		retval = 1;
+		goto bailout;
+	}
+
+	printf("CDB usage bitmap:");
+	for (i = 0; i < cdb_len; i++) {
+		printf(" %02x", one->cdb_usage[i]);
+	}
+	printf("\n");
+
+	/*
+	 * If we don't have a timeout descriptor, we're done.
+	 */
+	if ((one->support & RSO_ONE_CTDP) == 0)
+		goto bailout;
+
+	/*
+	 * If we don't have enough valid length to include the timeout
+	 * descriptor length, we're done.
+	 */
+	if (valid_len < (sizeof(*one) + cdb_len + sizeof(td->length)))
+		goto bailout;
+
+	td = (struct scsi_report_supported_opcodes_timeout *)
+	    &buf[sizeof(*one) + cdb_len];
+	td_len = scsi_2btoul(td->length);
+	td_len += sizeof(td->length);
+
+	/*
+	 * If we don't have the full timeout descriptor, we're done.
+	 */
+	if (td_len < sizeof(*td))
+		goto bailout;
+
+	/*
+	 * If we don't have enough valid length to contain the full timeout
+	 * descriptor, we're done.
+	 */
+	if (valid_len < (sizeof(*one) + cdb_len + td_len))
+		goto bailout;
+
+	printf("Timeout information:\n");
+	printf("Command-specific:    0x%02x\n", td->cmd_specific);
+	printf("Nominal timeout:     %u seconds\n",
+	       scsi_4btoul(td->nominal_time));
+	printf("Recommended timeout: %u seconds\n",
+	       scsi_4btoul(td->recommended_time));
+
+bailout:
+	return (retval);
+}
+
+static int
+scsiprintopcodes(struct cam_device *device, int td_req, uint8_t *buf,
+		 uint32_t valid_len)
+{
+	struct scsi_report_supported_opcodes_all *hdr;
+	struct scsi_report_supported_opcodes_descr *desc;
+	uint32_t avail_len = 0, used_len = 0;
+	uint8_t *cur_ptr;
+	int retval = 0;
+
+	if (valid_len < sizeof(*hdr)) {
+		warnx("%s: not enough returned data (%u bytes) opcode list",
+		      __func__, valid_len);
+		retval = 1;
+		goto bailout;
+	}
+	hdr = (struct scsi_report_supported_opcodes_all *)buf;
+	avail_len = scsi_4btoul(hdr->length);
+	avail_len += sizeof(hdr->length);
+	/*
+	 * Take the lesser of the amount of data the drive claims is
+	 * available, and the amount of data the HBA says was returned.
+	 */
+	avail_len = MIN(avail_len, valid_len);
+
+	used_len = sizeof(hdr->length);
+
+	printf("%-6s %4s %8s ",
+	       "Opcode", "SA", "CDB len" );
+
+	if (td_req != 0)
+		printf("%5s %6s %6s ", "CS", "Nom", "Rec");
+	printf(" Description\n");
+
+	while ((avail_len - used_len) > sizeof(*desc)) {
+		struct scsi_report_supported_opcodes_timeout *td;
+		uint32_t td_len;
+		const char *op_desc = NULL;
+
+		cur_ptr = &buf[used_len];
+		desc = (struct scsi_report_supported_opcodes_descr *)cur_ptr;
+
+		op_desc = scsi_op_desc(desc->opcode, &device->inq_data);
+		if (op_desc == NULL)
+			op_desc = "UNKNOWN";
+
+		printf("0x%02x   %#4x %8u ", desc->opcode,
+		       scsi_2btoul(desc->service_action),
+		       scsi_2btoul(desc->cdb_length));
+
+		used_len += sizeof(*desc);
+
+		if ((desc->flags & RSO_CTDP) == 0) {
+			printf(" %s\n", op_desc);
+			continue;
+		}
+
+		/*
+		 * If we don't have enough space to fit a timeout
+		 * descriptor, then we're done.
+		 */
+		if (avail_len - used_len < sizeof(*td)) {
+			used_len = avail_len;
+			printf(" %s\n", op_desc);
+			continue;
+		}
+		cur_ptr = &buf[used_len];
+		td = (struct scsi_report_supported_opcodes_timeout *)cur_ptr;
+		td_len = scsi_2btoul(td->length);
+		td_len += sizeof(td->length);
+
+		used_len += td_len;
+		/*
+		 * If the given timeout descriptor length is less than what
+		 * we understand, skip it.
+		 */
+		if (td_len < sizeof(*td)) {
+			printf(" %s\n", op_desc);
+			continue;
+		}
+
+		printf(" 0x%02x %6u %6u  %s\n", td->cmd_specific,
+		       scsi_4btoul(td->nominal_time),
+		       scsi_4btoul(td->recommended_time), op_desc);
+	}
+bailout:
+	return (retval);
+}
+
+static int
+scsiopcodes(struct cam_device *device, int argc, char **argv,
+	    char *combinedopt, int retry_count, int timeout, int verbosemode)
+{
+	int c;
+	uint32_t opcode = 0, service_action = 0;
+	int td_set = 0, opcode_set = 0, sa_set = 0;
+	int show_sa_errors = 1;
+	uint32_t valid_len = 0;
+	uint8_t *buf = NULL;
+	char *endptr;
+	int retval = 0;
+
+	while ((c = getopt(argc, argv, combinedopt)) != -1) {
+		switch (c) {
+		case 'N':
+			show_sa_errors = 0;
+			break;
+		case 'o':
+			opcode = strtoul(optarg, &endptr, 0);
+			if (*endptr != '\0') {
+				warnx("Invalid opcode \"%s\", must be a number",
+				      optarg);
+				retval = 1;
+				goto bailout;
+			}
+			if (opcode > 0xff) {
+				warnx("Invalid opcode 0x%#x, must be between"
+				      "0 and 0xff inclusive", opcode);
+				retval = 1;
+				goto bailout;
+			}
+			opcode_set = 1;
+			break;
+		case 's':
+			service_action = strtoul(optarg, &endptr, 0);
+			if (*endptr != '\0') {
+				warnx("Invalid service action \"%s\", must "
+				      "be a number", optarg);
+				retval = 1;
+				goto bailout;
+			}
+			if (service_action > 0xffff) {
+				warnx("Invalid service action 0x%#x, must "
+				      "be between 0 and 0xffff inclusive",
+				      service_action);
+				retval = 1;
+			}
+			sa_set = 1;
+			break;
+		case 'T':
+			td_set = 1;
+			break;
+		default:
+			break;
+		}
+	}
+
+	if ((sa_set != 0)
+	 && (opcode_set == 0)) {
+		warnx("You must specify an opcode with -o if a service "
+		      "action is given");
+		retval = 1;
+		goto bailout;
+	}
+	retval = scsigetopcodes(device, opcode_set, opcode, show_sa_errors,
+				sa_set, service_action, td_set, retry_count,
+				timeout, verbosemode, &valid_len, &buf);
+	if (retval != 0)
+		goto bailout;
+
+	if ((opcode_set != 0)
+	 || (sa_set != 0)) {
+		retval = scsiprintoneopcode(device, opcode, sa_set,
+					    service_action, buf, valid_len);
+	} else {
+		retval = scsiprintopcodes(device, td_set, buf, valid_len);
+	}
+
+bailout:
+	free(buf);
+
+	return (retval);
+}
+
 #endif /* MINIMALISTIC */
 
 void
@@ -8110,7 +8721,8 @@ usage(int printlong)
 "        camcontrol sleep      [dev_id][generic args]\n"
 "        camcontrol apm        [dev_id][generic args][-l level]\n"
 "        camcontrol aam        [dev_id][generic args][-l level]\n"
-"        camcontrol fwdownload [dev_id][generic args] <-f fw_image> [-y][-s]\n"
+"        camcontrol fwdownload [dev_id][generic args] <-f fw_image> [-q]\n"
+"                              [-s][-y]\n"
 "        camcontrol security   [dev_id][generic args]\n"
 "                              <-d pwd | -e pwd | -f | -h pwd | -k pwd>\n"
 "                              [-l <high|maximum>] [-q] [-s pwd] [-T timeout]\n"
@@ -8123,6 +8735,8 @@ usage(int printlong)
 "        camcontrol attrib     [dev_id][generic args] <-r action|-w attr>\n"
 "                              [-a attr_num][-c][-e elem][-F form1,form1]\n"
 "                              [-p part][-s start][-T type][-V vol]\n"
+"        camcontrol opcodes    [dev_id][generic args][-o opcode][-s SA]\n"
+"                              [-N][-T]\n"
 #endif /* MINIMALISTIC */
 "        camcontrol help\n");
 	if (!printlong)
@@ -8163,6 +8777,7 @@ usage(int printlong)
 "security    report or send ATA security commands to the named device\n"
 "persist     send the SCSI PERSISTENT RESERVE IN or OUT commands\n"
 "attrib      send the SCSI READ or WRITE ATTRIBUTE commands\n"
+"opcodes     send the SCSI REPORT SUPPORTED OPCODES command\n"
 "help        this message\n"
 "Device Identifiers:\n"
 "bus:target        specify the bus and target, lun defaults to 0\n"
@@ -8267,9 +8882,10 @@ usage(int printlong)
 "-t <arg>          number of seconds before respective state.\n"
 "fwdownload arguments:\n"
 "-f fw_image       path to firmware image file\n"
-"-y                don't ask any questions\n"
+"-q                don't print informational messages, only errors\n"
 "-s                run in simulation mode\n"
 "-v                print info for every firmware segment sent to device\n"
+"-y                don't ask any questions\n"
 "security arguments:\n"
 "-d pwd            disable security using the given password for the selected\n"
 "                  user\n"
@@ -8327,6 +8943,11 @@ usage(int printlong)
 "-s start_attr     request attributes starting at the given number\n"
 "-T elem_type      specify the element type (used with -e)\n"
 "-V logical_vol    specify the logical volume ID\n"
+"opcodes arguments:\n"
+"-o opcode         specify the individual opcode to list\n"
+"-s service_action specify the service action for the opcode\n"
+"-N                do not return SCSI error for unsupported SA\n"
+"-T                request nominal and recommended timeout values\n"
 );
 #endif /* MINIMALISTIC */
 }
@@ -8659,8 +9280,7 @@ main(int argc, char **argv)
 			break;
 		case CAM_CMD_DOWNLOAD_FW:
 			error = fwdownload(cam_dev, argc, argv, combinedopt,
-			    arglist & CAM_ARG_VERBOSE, retry_count, timeout,
-			    get_disk_type(cam_dev));
+			    arglist & CAM_ARG_VERBOSE, retry_count, timeout);
 			break;
 		case CAM_CMD_SANITIZE:
 			error = scsisanitize(cam_dev, argc, argv,
@@ -8675,6 +9295,10 @@ main(int argc, char **argv)
 			error = scsiattrib(cam_dev, argc, argv, combinedopt,
 			    retry_count, timeout, arglist & CAM_ARG_VERBOSE,
 			    arglist & CAM_ARG_ERR_RECOVER);
+			break;
+		case CAM_CMD_OPCODES:
+			error = scsiopcodes(cam_dev, argc, argv, combinedopt,
+			    retry_count, timeout, arglist & CAM_ARG_VERBOSE);
 			break;
 #endif /* MINIMALISTIC */
 		case CAM_CMD_USAGE:

@@ -1457,6 +1457,11 @@ struct scsi_report_supported_opcodes_one
 	uint8_t  reserved;
 	uint8_t  support;
 #define RSO_ONE_CTDP		0x80
+#define RSO_ONE_SUP_MASK	0x07
+#define RSO_ONE_SUP_UNAVAIL	0x00
+#define RSO_ONE_SUP_NOT_SUP	0x01
+#define RSO_ONE_SUP_AVAIL	0x03
+#define RSO_ONE_SUP_VENDOR	0x05
 	uint8_t  cdb_length[2];
 	uint8_t  cdb_usage[];
 };
@@ -3966,6 +3971,14 @@ void scsi_persistent_reserve_out(struct ccb_scsiio *csio, uint32_t retries,
 				 int scope, int res_type, uint8_t *data_ptr,
 				 uint32_t dxfer_len, int sense_len,
 				 int timeout);
+
+void scsi_report_supported_opcodes(struct ccb_scsiio *csio, uint32_t retries, 
+				   void (*cbfcnp)(struct cam_periph *,
+						  union ccb *),
+				   uint8_t tag_action, int options,
+				   int req_opcode, int req_service_action,
+				   uint8_t *data_ptr, uint32_t dxfer_len,
+				   int sense_len, int timeout);
 
 int		scsi_inquiry_match(caddr_t inqbuffer, caddr_t table_entry);
 int		scsi_static_inquiry_match(caddr_t inqbuffer,

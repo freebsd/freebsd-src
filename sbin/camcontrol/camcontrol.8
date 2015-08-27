@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 19, 2015
+.Dd August 6, 2015
 .Dt CAMCONTROL 8
 .Os
 .Sh NAME
@@ -253,8 +253,9 @@
 .Op device id
 .Op generic args
 .Aq Fl f Ar fw_image
-.Op Fl y
+.Op Fl q
 .Op Fl s
+.Op Fl y
 .Nm
 .Ic security
 .Op device id
@@ -310,6 +311,14 @@
 .Op Fl s Ar start_addr
 .Op Fl T Ar elem_type
 .Op Fl V Ar lv_num
+.Nm
+.Ic opcodes
+.Op device id
+.Op generic args
+.Op Fl o Ar opcode
+.Op Fl s Ar service_action
+.Op Fl N
+.Op Fl T
 .Nm
 .Ic help
 .Sh DESCRIPTION
@@ -1517,24 +1526,41 @@ without prompting for confirmation
 The password for all HPA commands is limited to 32 characters, longer passwords
 will fail.
 .It Ic fwdownload
-Program firmware of the named SCSI device using the image file provided.
+Program firmware of the named
+.Tn SCSI
+or ATA device using the image file provided.
 .Pp
-Current list of supported vendors:
-.Bl -bullet -offset indent -compact
-.It
-HITACHI
-.It
-HP
-.It
-IBM
-.It
-PLEXTOR
-.It
-QUANTUM
-.It
-SAMSUNG
-.It
-SEAGATE
+If the device is a
+.Tn SCSI
+device and it provides a recommended timeout for the WRITE BUFFER command
+(see the
+.Nm 
+opcodes subcommand), that timeout will be used for the firmware download.
+The drive-recommended timeout value may be overridden on the command line
+with the
+.Fl t
+option.
+.Pp
+Current list of supported vendors for SCSI/SAS drives:
+.Bl -tag -width 10n
+.It HGST
+Tested with 4TB SAS drives, model number HUS724040ALS640.
+.It HITACHI
+.It HP
+.It IBM
+Tested with LTO-5 (ULTRIUM-HH5) and LTO-6 (ULTRIUM-HH6) tape drives.
+There is a separate table entry for hard drives, because the update method
+for hard drives is different than the method for tape drives.
+.It PLEXTOR
+.It QUALSTAR
+.It QUANTUM
+.It SAMSUNG
+Tested with SM1625 SSDs.
+.It SEAGATE
+Tested with Constellation ES (ST32000444SS), ES.2 (ST33000651SS) and
+ES.3 (ST1000NM0023) drives.
+.It SmrtStor
+Tested with 400GB Optimus SSDs (TXA2D20400GA6001).
 .El
 .Pp
 .Em WARNING! WARNING! WARNING!
@@ -1548,23 +1574,81 @@ Extra caution should be taken when using this command since there is no
 guarantee it will not break a device from the listed vendors.
 Ensure that you have a recent backup of the data on the device before
 performing a firmware update.
+.Pp
+Note that unknown
+.Tn SCSI
+protocol devices will not be programmed, since there is little chance of
+the firmware download succeeding.
+.Pp
+.Nm
+will currently attempt a firmware download to any
+.Tn ATA
+or
+.Tn SATA
+device, since the standard 
+.Tn ATA
+DOWNLOAD MICROCODE command may work.
+Firmware downloads to
+.Tn ATA
+and 
+.Tn SATA
+devices are supported for devices connected
+to standard
+.Tn ATA
+and
+.Tn SATA
+controllers, and devices connected to SAS controllers
+with
+.Tn SCSI 
+to
+.Tn ATA
+translation capability.
+In the latter case,
+.Nm
+uses the
+.Tn SCSI
+.Tn ATA
+PASS-THROUGH command to send the 
+.Tn ATA
+DOWNLOAD MICROCODE command to the drive.
+Some
+.Tn SCSI
+to
+.Tn ATA
+translation implementations don't work fully when translating
+.Tn SCSI
+WRITE BUFFER commands to
+.Tn ATA
+DOWNLOAD MICROCODE commands, but do support
+.Tn ATA
+passthrough well enough to do a firmware download.
 .Bl -tag -width 11n
 .It Fl f Ar fw_image
 Path to the firmware image file to be downloaded to the specified device.
-.It Fl y
-Do not ask for confirmation.
+.It Fl q
+Do not print informational messages, only print errors.
+This option should be used with the
+.Fl y
+option to suppress all output.
 .It Fl s
 Run in simulation mode.
-Packet sizes that will be sent are shown, but no actual packet is sent to the
-device.
-No confirmation is asked in simulation mode.
+Device checks are run and the confirmation dialog is shown, but no firmware
+download will occur.
 .It Fl v
-Besides showing sense information in case of a failure, the verbose option
-causes
-.Nm
-to output a line for every firmware segment that is sent to the device by the
-fwdownload command
--- the same as the ones shown in simulation mode.
+Show
+.Tn SCSI
+or
+.Tn ATA
+errors in the event of a failure.
+.Pp
+In simulation mode, print out the
+.Tn SCSI
+CDB
+or
+.Tn ATA
+register values that would be used for the firmware download command.
+.It Fl y
+Do not ask for confirmation.
 .El
 .It Ic persist
 Persistent reservation support.
@@ -1959,6 +2043,52 @@ and
 Specify the number of the logical volume to operate on.
 If the media has multiple logical volumes, this will allow displaying
 or writing attributes on the given logical volume.
+.It Ic opcodes
+Issue the REPORT SUPPORTED OPCODES service action of the
+.Tn SCSI
+MAINTENANCE IN
+command.
+Without arguments, this command will return a list of all
+.Tn SCSI
+commands supported by the device, including service actions of commands
+that support service actions.
+It will also include the
+.Tn SCSI
+CDB (Command Data Block) length for each command, and the description of
+each command if it is known.
+.Bl -tag -width 18n
+.It Fl o Ar opcode
+Request information on a specific opcode instead of the list of supported
+commands.
+If supported, the target will return a CDB-like structure that indicates
+the opcode, service action (if any), and a mask of bits that are supported
+in that CDB.
+.It Fl s Ar service_action
+For commands that support a service action, specify the service action to
+query.
+.It Fl N
+If a service action is specified for a given opcode, and the device does
+not support the given service action, the device should not return a
+.Tn SCSI
+error, but rather indicate in the returned parameter data that the command
+is not supported.
+By default, if a service action is specified for an opcode, and service
+actions are not supported for the opcode in question, the device will
+return an error.
+.It Fl T
+Include timeout values.
+This option works with the default display, which includes all commands
+supported by the device, and with the
+.Fl o
+and
+.Fl s
+options, which request information on a specific command and service
+action.
+This requests that the device report Nominal and Recommended timeout values
+for the given command or commands.
+The timeout values are in seconds.
+The timeout descriptor also includes a command-specific 
+.El
 .It Ic help
 Print out verbose usage information.
 .El
