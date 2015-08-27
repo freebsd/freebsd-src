@@ -39,7 +39,6 @@
 /*
  * Testing against Clang-specific extensions.
  */
-
 #ifndef	__has_attribute
 #define	__has_attribute(x)	0
 #endif
@@ -212,6 +211,8 @@
 #define	__unused
 #define	__packed
 #define	__aligned(x)
+#define	__alloc_align(x)
+#define	__alloc_size(x)
 #define	__section(x)
 #define	__weak_symbol
 #else
@@ -235,6 +236,16 @@
 #define	__packed	__attribute__((__packed__))
 #define	__aligned(x)	__attribute__((__aligned__(x)))
 #define	__section(x)	__attribute__((__section__(x)))
+#endif
+#if __has_attribute(alloc_size) || __GNUC_PREREQ__(4, 3)
+#define	__alloc_size(x)	__attribute__((__alloc_size__(x)))
+#else
+#define	__alloc_size(x)
+#endif
+#if __has_attribute(alloc_align) || __GNUC_PREREQ__(4, 9)
+#define	__alloc_align(x)	__attribute__((__alloc_align__(x)))
+#else
+#define	__alloc_align(x)
 #endif
 #endif /* lint */
 
@@ -371,22 +382,10 @@
 #define	__returns_twice
 #endif
 
-#if __has_attribute(alloc_size) || __GNUC_PREREQ__(4, 3)
-#define	__alloc_size(x)	__attribute__((__alloc_size__(x)))
-#else
-#define	__alloc_size(x)
-#endif
-
 #if __has_builtin(__builtin_unreachable) || __GNUC_PREREQ__(4, 6)
 #define	__unreachable()	__builtin_unreachable()
 #else
 #define	__unreachable()	((void)0)
-#endif
-
-#if __has_attribute(alloc_align) || __GNUC_PREREQ__(4, 9)
-#define	__alloc_align(x)	__attribute__((__alloc_align__(x)))
-#else
-#define	__alloc_align(x)
 #endif
 
 /* XXX: should use `#if __STDC_VERSION__ < 199901'. */
