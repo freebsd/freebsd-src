@@ -187,15 +187,13 @@ static struct mbuf *
 static void	rsu_txeof(struct usb_xfer *, struct rsu_data *);
 static int	rsu_raw_xmit(struct ieee80211_node *, struct mbuf *, 
 		    const struct ieee80211_bpf_params *);
-static void	rsu_init(void *);
-static void	rsu_init_locked(struct rsu_softc *);
+static void	rsu_init(struct rsu_softc *);
 static int	rsu_tx_start(struct rsu_softc *, struct ieee80211_node *, 
 		    struct mbuf *, struct rsu_data *);
-static void	rsu_start(struct ifnet *);
-static void	rsu_start_locked(struct ifnet *);
-static int	rsu_ioctl(struct ifnet *, u_long, caddr_t);
-static void	rsu_stop(struct ifnet *, int);
-static void	rsu_stop_locked(struct ifnet *, int);
+static int	rsu_transmit(struct ieee80211com *, struct mbuf *);
+static void	rsu_start(struct rsu_softc *);
+static void	rsu_parent(struct ieee80211com *);
+static void	rsu_stop(struct rsu_softc *);
 static void	rsu_ms_delay(struct rsu_softc *);
 
 static device_method_t rsu_methods[] = {
@@ -285,8 +283,7 @@ rsu_attach(device_t self)
 {
 	struct usb_attach_arg *uaa = device_get_ivars(self);
 	struct rsu_softc *sc = device_get_softc(self);
-	struct ifnet *ifp;
-	struct ieee80211com *ic;
+	struct ieee80211com *ic = &sc->sc_ic;
 	int error;
 	uint8_t iface_index, bands;
 
@@ -298,6 +295,7 @@ rsu_attach(device_t self)
 	    MTX_DEF);
 	TIMEOUT_TASK_INIT(taskqueue_thread, &sc->calib_task, 0, 
 	    rsu_calib_task, sc);
+	mbufq_init(&sc->sc_snd, ifqmaxlen);
 
 	/* Allocate Tx/Rx buffers. */
 	error = rsu_alloc_rx_list(sc);
@@ -333,28 +331,9 @@ rsu_attach(device_t self)
 		device_printf(self, "could not read ROM\n");
 		goto fail_rom;
 	}
-	IEEE80211_ADDR_COPY(sc->sc_bssid, &sc->rom[0x12]);
+	IEEE80211_ADDR_COPY(ic->ic_macaddr, &sc->rom[0x12]);
 	device_printf(self, "MAC/BB RTL8712 cut %d\n", sc->cut);
-	ifp = sc->sc_ifp = if_alloc(IFT_IEEE80211);
-	if (ifp == NULL) {
-		device_printf(self, "cannot allocate interface\n");
-		goto fail_ifalloc;
-	}
-	ic = ifp->if_l2com;
-	ifp->if_softc = sc;
-	if_initname(ifp, "rsu", device_get_unit(self));
-	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
-	ifp->if_init = rsu_init;
-	ifp->if_ioctl = rsu_ioctl;
-	ifp->if_start = rsu_start;
-	IFQ_SET_MAXLEN(&ifp->if_snd, ifqmaxlen);
-	ifp->if_snd.ifq_drv_maxlen = ifqmaxlen;
-	IFQ_SET_READY(&ifp->if_snd);
-	ifp->if_capabilities |= IFCAP_RXCSUM;
-	ifp->if_capenable |= IFCAP_RXCSUM;
-	ifp->if_hwassist = CSUM_TCP;
 
-	ic->ic_ifp = ifp;
 	ic->ic_softc = sc;
 	ic->ic_name = device_get_nameunit(self);
 	ic->ic_phytype = IEEE80211_T_OFDM;	/* Not only, but not used. */
@@ -387,7 +366,7 @@ rsu_attach(device_t self)
 	setbit(&bands, IEEE80211_MODE_11G);
 	ieee80211_init_channels(ic, NULL, &bands);
 
-	ieee80211_ifattach(ic, sc->sc_bssid);
+	ieee80211_ifattach(ic);
 	ic->ic_raw_xmit = rsu_raw_xmit;
 	ic->ic_scan_start = rsu_scan_start;
 	ic->ic_scan_end = rsu_scan_end;
@@ -395,6 +374,8 @@ rsu_attach(device_t self)
 	ic->ic_vap_create = rsu_vap_create;
 	ic->ic_vap_delete = rsu_vap_delete;
 	ic->ic_update_mcast = rsu_update_mcast;
+	ic->ic_parent = rsu_parent;
+	ic->ic_transmit = rsu_transmit;
 
 	ieee80211_radiotap_attach(ic, &sc->sc_txtap.wt_ihdr,
 	    sizeof(sc->sc_txtap), RSU_TX_RADIOTAP_PRESENT, 
@@ -406,7 +387,6 @@ rsu_attach(device_t self)
 
 	return (0);
 
-fail_ifalloc:
 fail_rom:
 	usbd_transfer_unsetup(sc->sc_xfer, RSU_N_TRANSFER);
 fail_usb:
@@ -418,10 +398,11 @@ static int
 rsu_detach(device_t self)
 {
 	struct rsu_softc *sc = device_get_softc(self);
-	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
+	struct ieee80211com *ic = &sc->sc_ic;
 
-	rsu_stop(ifp, 1);
+	RSU_LOCK(sc);
+	rsu_stop(sc);
+	RSU_UNLOCK(sc);
 	usbd_transfer_unsetup(sc->sc_xfer, RSU_N_TRANSFER);
 	ieee80211_ifdetach(ic);
 
@@ -431,7 +412,7 @@ rsu_detach(device_t self)
 	rsu_free_tx_list(sc);
 	rsu_free_rx_list(sc);
 
-	if_free(ifp);
+	mbufq_drain(&sc->sc_snd);
 	mtx_destroy(&sc->sc_mtx);
 
 	return (0);
@@ -471,14 +452,11 @@ rsu_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
 	if (!TAILQ_EMPTY(&ic->ic_vaps))         /* only one at a time */
 		return (NULL);
 
-	uvp = (struct rsu_vap *) malloc(sizeof(struct rsu_vap),
-	    M_80211_VAP, M_NOWAIT | M_ZERO);
-	if (uvp == NULL)
-		return (NULL);
+	uvp =  malloc(sizeof(struct rsu_vap), M_80211_VAP, M_WAITOK | M_ZERO);
 	vap = &uvp->vap;
 
 	if (ieee80211_vap_setup(ic, vap, name, unit, opmode,
-	    flags, bssid, mac) != 0) {
+	    flags, bssid) != 0) {
 		/* out of memory */
 		free(uvp, M_80211_VAP);
 		return (NULL);
@@ -490,7 +468,7 @@ rsu_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
 
 	/* complete setup */
 	ieee80211_vap_attach(vap, ieee80211_media_change,
-	    ieee80211_media_status);
+	    ieee80211_media_status, mac);
 	ic->ic_opmode = opmode;
 
 	return (vap);
@@ -508,8 +486,8 @@ rsu_vap_delete(struct ieee80211vap *vap)
 static void
 rsu_scan_start(struct ieee80211com *ic)
 {
-	int error;
 	struct rsu_softc *sc = ic->ic_softc;
+	int error;
 
 	/* Scanning is done by the firmware. */
 	RSU_LOCK(sc);
@@ -675,11 +653,8 @@ rsu_getbuf(struct rsu_softc *sc)
 	RSU_ASSERT_LOCKED(sc);
 
 	bf = _rsu_getbuf(sc);
-	if (bf == NULL) {
-		struct ifnet *ifp = sc->sc_ifp;
+	if (bf == NULL)
 		DPRINTF("stop queue\n");
-		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
-	}
 	return (bf);
 }
 
@@ -1032,29 +1007,27 @@ static int
 rsu_site_survey(struct rsu_softc *sc, struct ieee80211vap *vap)
 {
 	struct r92s_fw_cmd_sitesurvey cmd;
-	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
+	struct ieee80211com *ic = &sc->sc_ic;
 
 	memset(&cmd, 0, sizeof(cmd));
-	if ((ic->ic_flags & IEEE80211_F_ASCAN) || sc->scan_pass == 1)
+	if ((ic->ic_flags & IEEE80211_F_ASCAN) || sc->sc_scan_pass == 1)
 		cmd.active = htole32(1);
 	cmd.limit = htole32(48);
-	if (sc->scan_pass == 1 && vap->iv_des_nssid > 0) {
+	if (sc->sc_scan_pass == 1 && vap->iv_des_nssid > 0) {
 		/* Do a directed scan for second pass. */
 		cmd.ssidlen = htole32(vap->iv_des_ssid[0].len);
 		memcpy(cmd.ssid, vap->iv_des_ssid[0].ssid,
 		    vap->iv_des_ssid[0].len);
 
 	}
-	DPRINTF("sending site survey command, pass=%d\n", sc->scan_pass);
+	DPRINTF("sending site survey command, pass=%d\n", sc->sc_scan_pass);
 	return (rsu_fw_cmd(sc, R92S_CMD_SITE_SURVEY, &cmd, sizeof(cmd)));
 }
 
 static int
 rsu_join_bss(struct rsu_softc *sc, struct ieee80211_node *ni)
 {
-	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
+	struct ieee80211com *ic = &sc->sc_ic;
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct ndis_wlan_bssid_ex *bss;
 	struct ndis_802_11_fixed_ies *fixed;
@@ -1132,8 +1105,7 @@ rsu_disconnect(struct rsu_softc *sc)
 static void
 rsu_event_survey(struct rsu_softc *sc, uint8_t *buf, int len)
 {
-	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
+	struct ieee80211com *ic = &sc->sc_ic;
 	struct ieee80211_frame *wh;
 	struct ieee80211_channel *c;
 	struct ndis_wlan_bssid_ex *bss;
@@ -1164,7 +1136,7 @@ rsu_event_survey(struct rsu_softc *sc, uint8_t *buf, int len)
 	    IEEE80211_FC0_SUBTYPE_BEACON;
 	wh->i_fc[1] = IEEE80211_FC1_DIR_NODS;
 	USETW(wh->i_dur, 0);
-	IEEE80211_ADDR_COPY(wh->i_addr1, ifp->if_broadcastaddr);
+	IEEE80211_ADDR_COPY(wh->i_addr1, ieee80211broadcastaddr);
 	IEEE80211_ADDR_COPY(wh->i_addr2, bss->macaddr);
 	IEEE80211_ADDR_COPY(wh->i_addr3, bss->macaddr);
 	*(uint16_t *)wh->i_seq = 0;
@@ -1172,7 +1144,6 @@ rsu_event_survey(struct rsu_softc *sc, uint8_t *buf, int len)
 
 	/* Finalize mbuf. */
 	m->m_pkthdr.len = m->m_len = pktlen;
-	m->m_pkthdr.rcvif = ifp;
 	/* Fix the channel. */
 	c = ieee80211_find_channel_byieee(ic, 
 	    le32toh(bss->config.dsconfig), 
@@ -1190,8 +1161,7 @@ rsu_event_survey(struct rsu_softc *sc, uint8_t *buf, int len)
 static void
 rsu_event_join_bss(struct rsu_softc *sc, uint8_t *buf, int len)
 {
-	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
+	struct ieee80211com *ic = &sc->sc_ic;
 	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
 	struct ieee80211_node *ni = vap->iv_bss;
 	struct r92s_event_join_bss *rsp;
@@ -1227,8 +1197,7 @@ rsu_event_join_bss(struct rsu_softc *sc, uint8_t *buf, int len)
 static void
 rsu_rx_event(struct rsu_softc *sc, uint8_t code, uint8_t *buf, int len)
 {
-	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
+	struct ieee80211com *ic = &sc->sc_ic;
 	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
 
 	DPRINTFN(4, "Rx event code=%d len=%d\n", code, len);
@@ -1239,18 +1208,18 @@ rsu_rx_event(struct rsu_softc *sc, uint8_t code, uint8_t *buf, int len)
 		break;
 	case R92S_EVT_SURVEY_DONE:
 		DPRINTF("site survey pass %d done, found %d BSS\n",
-		    sc->scan_pass, le32toh(*(uint32_t *)buf));
+		    sc->sc_scan_pass, le32toh(*(uint32_t *)buf));
 		if (vap->iv_state != IEEE80211_S_SCAN)
 			break;	/* Ignore if not scanning. */
-		if (sc->scan_pass == 0 && vap->iv_des_nssid != 0) {
+		if (sc->sc_scan_pass == 0 && vap->iv_des_nssid != 0) {
 			/* Schedule a directed scan for hidden APs. */
-			sc->scan_pass = 1;
+			sc->sc_scan_pass = 1;
 			RSU_UNLOCK(sc);
 			ieee80211_new_state(vap, IEEE80211_S_SCAN, -1);
 			RSU_LOCK(sc);
 			break;
 		}
-		sc->scan_pass = 0;
+		sc->sc_scan_pass = 0;
 		break;
 	case R92S_EVT_JOIN_BSS:
 		if (vap->iv_state == IEEE80211_S_AUTH)
@@ -1273,7 +1242,7 @@ XXX and disrupts the WLAN traffic. Disable for now.
 		DPRINTF("WPS PBC pushed.\n");
 		break;
 	case R92S_EVT_FWDBG:
-		if (ifp->if_flags & IFF_DEBUG) {
+		if (vap->iv_ifp->if_flags & IFF_DEBUG) {
 			buf[60] = '\0';
 			printf("FWDBG: %s\n", (char *)buf);
 		}
@@ -1340,8 +1309,7 @@ rsu_get_rssi(struct rsu_softc *sc, int rate, void *physt)
 static struct mbuf *
 rsu_rx_frame(struct rsu_softc *sc, uint8_t *buf, int pktlen, int *rssi)
 {
-	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
+	struct ieee80211com *ic = &sc->sc_ic;
 	struct ieee80211_frame *wh;
 	struct r92s_rx_stat *stat;
 	uint32_t rxdw0, rxdw3;
@@ -1354,11 +1322,11 @@ rsu_rx_frame(struct rsu_softc *sc, uint8_t *buf, int pktlen, int *rssi)
 	rxdw3 = le32toh(stat->rxdw3);
 
 	if (__predict_false(rxdw0 & R92S_RXDW0_CRCERR)) {
-		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
+		counter_u64_add(ic->ic_ierrors, 1);
 		return NULL;
 	}
 	if (__predict_false(pktlen < sizeof(*wh) || pktlen > MCLBYTES)) {
-		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
+		counter_u64_add(ic->ic_ierrors, 1);
 		return NULL;
 	}
 
@@ -1376,11 +1344,9 @@ rsu_rx_frame(struct rsu_softc *sc, uint8_t *buf, int pktlen, int *rssi)
 
 	m = m_get2(pktlen, M_NOWAIT, MT_DATA, M_PKTHDR);
 	if (__predict_false(m == NULL)) {
-		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
+		counter_u64_add(ic->ic_ierrors, 1);
 		return NULL;
 	}
-	/* Finalize mbuf. */
-	m->m_pkthdr.rcvif = ifp;
 	/* Hardware does Rx TCP checksum offload. */
 	if (rxdw3 & R92S_RXDW3_TCPCHKVALID) {
 		if (__predict_true(rxdw3 & R92S_RXDW3_TCPCHKRPT))
@@ -1478,6 +1444,7 @@ static struct mbuf *
 rsu_rxeof(struct usb_xfer *xfer, struct rsu_data *data, int *rssi)
 {
 	struct rsu_softc *sc = data->sc;
+	struct ieee80211com *ic = &sc->sc_ic;
 	struct r92s_rx_stat *stat;
 	int len;
 
@@ -1485,7 +1452,7 @@ rsu_rxeof(struct usb_xfer *xfer, struct rsu_data *data, int *rssi)
 
 	if (__predict_false(len < sizeof(*stat))) {
 		DPRINTF("xfer too short %d\n", len);
-		if_inc_counter(sc->sc_ifp, IFCOUNTER_IERRORS, 1);
+		counter_u64_add(ic->ic_ierrors, 1);
 		return (NULL);
 	}
 	/* Determine if it is a firmware C2H event or an 802.11 frame. */
@@ -1502,8 +1469,7 @@ static void
 rsu_bulk_rx_callback(struct usb_xfer *xfer, usb_error_t error)
 {
 	struct rsu_softc *sc = usbd_xfer_softc(xfer);
-	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
+	struct ieee80211com *ic = &sc->sc_ic;
 	struct ieee80211_frame *wh;
 	struct ieee80211_node *ni;
 	struct mbuf *m = NULL, *next;
@@ -1563,7 +1529,7 @@ tr_setup:
 		}
 		if (error != USB_ERR_CANCELLED) {
 			usbd_xfer_set_stall(xfer);
-			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
+			counter_u64_add(ic->ic_ierrors, 1);
 			goto tr_setup;
 		}
 		break;
@@ -1571,35 +1537,16 @@ tr_setup:
 
 }
 
-
 static void
 rsu_txeof(struct usb_xfer *xfer, struct rsu_data *data)
 {
-	struct rsu_softc *sc = usbd_xfer_softc(xfer);
-	struct ifnet *ifp = sc->sc_ifp;
-	struct mbuf *m;
 
-	RSU_ASSERT_LOCKED(sc);
-
-	/*
-	 * Do any tx complete callback.  Note this must be done before releasing
-	 * the node reference.
-	 */
 	if (data->m) {
-		m = data->m;
-		if (m->m_flags & M_TXCB) {
-			/* XXX status? */
-			ieee80211_process_callback(data->ni, m, 0);
-		}
-		m_freem(m);
+		/* XXX status? */
+		ieee80211_tx_complete(data->ni, data->m, 0);
 		data->m = NULL;
-	}
-	if (data->ni) {
-		ieee80211_free_node(data->ni);
 		data->ni = NULL;
 	}
-	if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
-	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 }
 
 static void
@@ -1607,7 +1554,7 @@ rsu_bulk_tx_callback_sub(struct usb_xfer *xfer, usb_error_t error,
     uint8_t which)
 {
 	struct rsu_softc *sc = usbd_xfer_softc(xfer);
-	struct ifnet *ifp = sc->sc_ifp;
+	struct ieee80211com *ic = &sc->sc_ic;
 	struct rsu_data *data;
 
 	RSU_ASSERT_LOCKED(sc);
@@ -1642,7 +1589,7 @@ tr_setup:
 			rsu_txeof(xfer, data);
 			STAILQ_INSERT_TAIL(&sc->sc_tx_inactive, data, next);
 		}
-		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
+		counter_u64_add(ic->ic_oerrors, 1);
 
 		if (error != USB_ERR_CANCELLED) {
 			usbd_xfer_set_stall(xfer);
@@ -1668,8 +1615,7 @@ static int
 rsu_tx_start(struct rsu_softc *sc, struct ieee80211_node *ni, 
     struct mbuf *m0, struct rsu_data *data)
 {
-	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
+	struct ieee80211com *ic = &sc->sc_ic;
         struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211_frame *wh;
 	struct ieee80211_key *k = NULL;
@@ -1771,83 +1717,75 @@ rsu_tx_start(struct rsu_softc *sc, struct ieee80211_node *ni,
 	return (0);
 }
 
-static void
-rsu_start(struct ifnet *ifp)
+static int
+rsu_transmit(struct ieee80211com *ic, struct mbuf *m)   
 {
-	struct rsu_softc *sc = ifp->if_softc;
-
-	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
-		return;
+	struct rsu_softc *sc = ic->ic_softc;
+	int error;
 
 	RSU_LOCK(sc);
-	rsu_start_locked(ifp);
+	if (!sc->sc_running) {
+		RSU_UNLOCK(sc);
+		return (ENXIO);
+	}
+	error = mbufq_enqueue(&sc->sc_snd, m);
+	if (error) {
+		RSU_UNLOCK(sc);
+		return (error);
+	}
+	rsu_start(sc);
 	RSU_UNLOCK(sc);
+
+	return (0);
 }
 
 static void
-rsu_start_locked(struct ifnet *ifp)
+rsu_start(struct rsu_softc *sc)
 {
-	struct rsu_softc *sc = ifp->if_softc;
 	struct ieee80211_node *ni;
 	struct rsu_data *bf;
 	struct mbuf *m;
 
 	RSU_ASSERT_LOCKED(sc);
 
-	for (;;) {
-		IFQ_DRV_DEQUEUE(&ifp->if_snd, m);
-		if (m == NULL)
+	while ((m = mbufq_dequeue(&sc->sc_snd)) != NULL) {
+		bf = rsu_getbuf(sc);
+		if (bf == NULL) {
+			mbufq_prepend(&sc->sc_snd, m);
 			break;
+		}
+
 		ni = (struct ieee80211_node *)m->m_pkthdr.rcvif;
 		m->m_pkthdr.rcvif = NULL;
 
-		bf = rsu_getbuf(sc);
-		if (bf == NULL) {
-			if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
-			m_freem(m);
-			ieee80211_free_node(ni);
-		} else if (rsu_tx_start(sc, ni, m, bf) != 0) {
-			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
+		if (rsu_tx_start(sc, ni, m, bf) != 0) {
+			if_inc_counter(ni->ni_vap->iv_ifp,
+			    IFCOUNTER_OERRORS, 1);
 			STAILQ_INSERT_HEAD(&sc->sc_tx_inactive, bf, next);
 			ieee80211_free_node(ni);
+			break;
 		}
 	}
 }
 
-static int
-rsu_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
+static void
+rsu_parent(struct ieee80211com *ic)
 {
-	struct ieee80211com *ic = ifp->if_l2com;
 	struct rsu_softc *sc = ic->ic_softc;
-	struct ifreq *ifr = (struct ifreq *) data;
-	int error = 0, startall = 0;
+	int startall = 0;
 
-	switch (cmd) {
-	case SIOCSIFFLAGS:
-		if (ifp->if_flags & IFF_UP) {
-			if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
-				rsu_init(sc);
-				startall = 1;
-			}
-		} else {
-			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
-				rsu_stop(ifp, 1);
+	RSU_LOCK(sc);
+	if (ic->ic_nrunning > 0) {
+		if (!sc->sc_running) {
+			rsu_init(sc);
+			startall = 1;
 		}
-		if (startall)
-			ieee80211_start_all(ic);
-		break;
-	case SIOCGIFMEDIA:
-		error = ifmedia_ioctl(ifp, ifr, &ic->ic_media, cmd);
-		break;
-	case SIOCGIFADDR:
-		error = ether_ioctl(ifp, cmd, data);
-		break;
-	default:
-		error = EINVAL;
-		break;
-	}
+	} else if (sc->sc_running)
+		rsu_stop(sc);
+	RSU_UNLOCK(sc);
 
-	return (error);
+	if (startall)
+		ieee80211_start_all(ic);
 }
 
 /*
@@ -2296,12 +2234,11 @@ rsu_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
     const struct ieee80211_bpf_params *params)
 {
 	struct ieee80211com *ic = ni->ni_ic;
-	struct ifnet *ifp = ic->ic_ifp;
 	struct rsu_softc *sc = ic->ic_softc;
 	struct rsu_data *bf;
 
 	/* prevent management frames from being sent if we're not ready */
-	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
+	if (!sc->sc_running) {
 		m_freem(m);
 		ieee80211_free_node(ni);
 		return (ENETDOWN);
@@ -2314,10 +2251,8 @@ rsu_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 		RSU_UNLOCK(sc);
 		return (ENOBUFS);
 	}
-	if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 	if (rsu_tx_start(sc, ni, m, bf) != 0) {
 		ieee80211_free_node(ni);
-		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		STAILQ_INSERT_HEAD(&sc->sc_tx_inactive, bf, next);
 		RSU_UNLOCK(sc);
 		return (EIO);
@@ -2328,22 +2263,16 @@ rsu_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 }
 
 static void
-rsu_init(void *arg)
+rsu_init(struct rsu_softc *sc)
 {
-	struct rsu_softc *sc = arg;
-
-	RSU_LOCK(sc);
-	rsu_init_locked(arg);
-	RSU_UNLOCK(sc);
-}
-
-static void
-rsu_init_locked(struct rsu_softc *sc)
-{
-	struct ifnet *ifp = sc->sc_ifp;
+	struct ieee80211com *ic = &sc->sc_ic;
+	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
+	uint8_t macaddr[IEEE80211_ADDR_LEN];
 	struct r92s_set_pwr_mode cmd;
 	int error;
 	int i;
+
+	RSU_ASSERT_LOCKED(sc);
 
 	/* Init host async commands ring. */
 	sc->cmdq.cur = sc->cmdq.next = sc->cmdq.queued = 0;
@@ -2384,14 +2313,14 @@ rsu_init_locked(struct rsu_softc *sc)
 	    rsu_read_1(sc, 0xfe5c) | 0x80);
 
 	/* Set MAC address. */
-	rsu_write_region_1(sc, R92S_MACID, IF_LLADDR(ifp), 
-	    IEEE80211_ADDR_LEN);
+	IEEE80211_ADDR_COPY(macaddr, vap ? vap->iv_myaddr : ic->ic_macaddr);
+	rsu_write_region_1(sc, R92S_MACID, macaddr, IEEE80211_ADDR_LEN);
 
 	/* It really takes 1.5 seconds for the firmware to boot: */
 	usb_pause_mtx(&sc->sc_mtx, (3 * hz) / 2);
 
-	DPRINTF("setting MAC address to %s\n", ether_sprintf(IF_LLADDR(ifp)));
-	error = rsu_fw_cmd(sc, R92S_CMD_SET_MAC_ADDRESS, IF_LLADDR(ifp),
+	DPRINTF("setting MAC address to %s\n", ether_sprintf(macaddr));
+	error = rsu_fw_cmd(sc, R92S_CMD_SET_MAC_ADDRESS, macaddr,
 	    IEEE80211_ADDR_LEN);
 	if (error != 0) {
 		device_printf(sc->sc_dev, "could not set MAC address\n");
@@ -2427,12 +2356,11 @@ rsu_init_locked(struct rsu_softc *sc)
 	/* Set default channel. */
 	ic->ic_bss->ni_chan = ic->ic_ibss_chan;
 #endif
-	sc->scan_pass = 0;
+	sc->sc_scan_pass = 0;
 	usbd_transfer_start(sc->sc_xfer[RSU_BULK_RX]);
 
 	/* We're ready to go. */
-	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-	ifp->if_drv_flags |= IFF_DRV_RUNNING;
+	sc->sc_running = 1;
 	return;
 fail:
 	/* Need to stop all failed transfers, if any */
@@ -2441,22 +2369,11 @@ fail:
 }
 
 static void
-rsu_stop(struct ifnet *ifp, int disable)
+rsu_stop(struct rsu_softc *sc)
 {
-	struct rsu_softc *sc = ifp->if_softc;
-
-	RSU_LOCK(sc);
-	rsu_stop_locked(ifp, disable);
-	RSU_UNLOCK(sc);
-}
-
-static void
-rsu_stop_locked(struct ifnet *ifp, int disable __unused)
-{
-	struct rsu_softc *sc = ifp->if_softc;
 	int i;
 
-	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
+	sc->sc_running = 0;
 	sc->sc_calibrating = 0;
 	taskqueue_cancel_timeout(taskqueue_thread, &sc->calib_task, NULL);
 
