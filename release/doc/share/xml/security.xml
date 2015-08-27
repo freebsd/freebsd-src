@@ -209,6 +209,21 @@
 	<entry><para>Fix multiple integer overflows in
 	    &man.libbsdxml.3;.</para></entry>
       </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-15:21.amd64.asc">FreeBSD-SA-15:21.amd64</link></entry>
+	<entry>25&nbsp;August&nbsp;2015</entry>
+	<entry><para>Fix local privilege escalation in IRET
+	    handler.</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-15:22.openssh.asc">FreeBSD-SA-15:22.openssh</link></entry>
+	<entry>25&nbsp;August&nbsp;2015</entry>
+	<entry><para>Multiple vulnerabilities</para></entry>
+      </row>
     </tbody>
   </tgroup>
 </informaltable>

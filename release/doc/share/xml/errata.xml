@@ -100,6 +100,14 @@
 	<entry>30&nbsp;June&nbsp;2015</entry>
 	<entry><para>Fix inconsistency between locale and rune locale states</para></entry>
       </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-EN-15:15.pkg.asc">FreeBSD-EN-15:15.pkg</link></entry>
+	<entry>25&nbsp;August&nbsp;2015</entry>
+	<entry><para>Insufficient check of supported &man.pkg.7;
+	  signature methods.</para></entry>
+      </row>
     </tbody>
   </tgroup>
 </informaltable>
