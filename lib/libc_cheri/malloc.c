@@ -265,8 +265,9 @@ static void
 morecore(bucket)
 	int bucket;
 {
-	register union overhead *op;
-	register int sz;		/* size of desired block */
+	char *buf;
+	union overhead *op;
+	int sz;			/* size of desired block */
 	int amt;			/* amount to allocate */
 	int nblks;			/* how many blocks we get */
 
@@ -288,22 +289,32 @@ morecore(bucket)
 		amt = sz + pagesz;
 		nblks = 1;
 	}
-	if (amt > pagepool_end - pagepool_start)
+	if (amt > pagepool_end - pagepool_start) {
+		/*
+		 * XXX-BD: Debugging output preserved to work around
+		 * compiler bug.
+		 */
+		printf("%s: amt (%d) > pagepool_end - pagepool_start\n",
+		    __func__, amt);
+		CHERI_PRINT_PTR(pagepool_start);
+		CHERI_PRINT_PTR(pagepool_end);
 		abort();	/* XXX: sandbox_panic */
+}
 
 	/* non-zero offsets cause trouble */
 	ASSERT(cheri_getoffset(pagepool_start) == 0);
-	op = (union overhead *)pagepool_start;
+	buf = cheri_csetbounds(pagepool_start, amt);
 	pagepool_start += amt;
 
 	/*
 	 * Add new memory allocated to that on
 	 * free list for this hash bucket.
 	 */
-	nextf[bucket] = cheri_csetbounds(op, sz);
+	nextf[bucket] = op = cheri_csetbounds(buf, sz);
 	while (--nblks > 0) {
-		op->ov_next = (union overhead *)cheri_csetbounds(op + sz, sz);
-		op = (union overhead *)(cheri_incbase(op, sz));
+		op->ov_next = (union overhead *)cheri_csetbounds(buf + sz, sz);
+		buf += sz;
+		op = op->ov_next;
 	}
 }
 
