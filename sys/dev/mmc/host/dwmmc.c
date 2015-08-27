@@ -117,8 +117,6 @@ struct idmac_desc {
 
 struct dwmmc_softc {
 	struct resource		*res[2];
-	bus_space_tag_t		bst;
-	bus_space_handle_t	bsh;
 	device_t		dev;
 	void			*intr_cookie;
 	struct mmc_host		host;
@@ -562,10 +560,6 @@ dwmmc_attach(device_t dev)
 		device_printf(dev, "could not allocate resources\n");
 		return (ENXIO);
 	}
-
-	/* Memory interface */
-	sc->bst = rman_get_bustag(sc->res[0]);
-	sc->bsh = rman_get_bushandle(sc->res[0]);
 
 	/* Setup interrupt handler. */
 	error = bus_setup_intr(dev, sc->res[1], INTR_TYPE_NET | INTR_MPSAFE,
