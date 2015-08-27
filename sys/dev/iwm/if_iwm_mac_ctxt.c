@@ -242,7 +242,7 @@ static void
 iwm_mvm_mac_ctxt_cmd_common(struct iwm_softc *sc, struct iwm_node *in,
 	struct iwm_mac_ctx_cmd *cmd, uint32_t action)
 {
-	struct ieee80211com *ic = sc->sc_ic;
+	struct ieee80211com *ic = &sc->sc_ic;
 	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
 	struct ieee80211_node *ni = vap->iv_bss;
 	int cck_ack_rates, ofdm_ack_rates;
@@ -273,7 +273,7 @@ iwm_mvm_mac_ctxt_cmd_common(struct iwm_softc *sc, struct iwm_node *in,
 	 */
 	cmd->tsf_id = htole32(IWM_DEFAULT_TSFID);
 
-	IEEE80211_ADDR_COPY(cmd->node_addr, sc->sc_bssid);
+	IEEE80211_ADDR_COPY(cmd->node_addr, ic->ic_macaddr);
 
 	/*
 	 * XXX should we error out if in_assoc is 1 and ni == NULL?
@@ -342,7 +342,7 @@ iwm_mvm_mac_ctxt_cmd_fill_sta(struct iwm_softc *sc, struct iwm_node *in,
 {
 	struct ieee80211_node *ni = &in->in_ni;
 	unsigned dtim_period, dtim_count;
-	struct ieee80211com *ic = sc->sc_ic;
+	struct ieee80211com *ic = &sc->sc_ic;
 	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
 
 	/* will this work? */
