@@ -100,7 +100,7 @@ test_sandbox_simple_method(const struct cheri_test *ctp __unused,
 		else
 			cheritest_failure_errx("Sandbox did not abort()");
 	} else if (v < 0)
-		cheritest_failure_errx("Sandbox returned -1");
+		cheritest_failure_errx("Sandbox returned %jd", (intmax_t)v);
 	else
 		cheritest_success();
 }
