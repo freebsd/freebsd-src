@@ -238,7 +238,7 @@ parse_options()
 
 		eval : \${jail_${_j}_mount_enable:=${jail_mount_enable:-NO}}
 		if checkyesno jail_${_j}_mount_enable; then
-			echo "	allow.mount;" >> $_conf
+			echo "	allow.mount;"
 		fi
 
 		extract_var $_j set_hostname_allow allow.set_hostname YN NO
