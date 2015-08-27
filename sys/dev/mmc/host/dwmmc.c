@@ -466,16 +466,17 @@ parse_fdt(struct dwmmc_softc *sc)
 		return (ENXIO);
 
 	/* fifo-depth */
-	if ((len = OF_getproplen(node, "fifo-depth")) <= 0)
-		return (ENXIO);
-	OF_getencprop(node, "fifo-depth", dts_value, len);
-	sc->fifo_depth = dts_value[0];
+	if ((len = OF_getproplen(node, "fifo-depth")) > 0) {
+		OF_getencprop(node, "fifo-depth", dts_value, len);
+		sc->fifo_depth = dts_value[0];
+	}
 
 	/* num-slots */
-	if ((len = OF_getproplen(node, "num-slots")) <= 0)
-		return (ENXIO);
-	OF_getencprop(node, "num-slots", dts_value, len);
-	sc->num_slots = dts_value[0];
+	sc->num_slots = 1;
+	if ((len = OF_getproplen(node, "num-slots")) > 0) {
+		OF_getencprop(node, "num-slots", dts_value, len);
+		sc->num_slots = dts_value[0];
+	}
 
 	/*
 	 * We need some platform-specific code to know
@@ -609,6 +610,13 @@ dwmmc_attach(device_t dev)
 		return (ENXIO);
 
 	dwmmc_setup_bus(sc, sc->host.f_min);
+
+	if (sc->fifo_depth == 0) {
+		sc->fifo_depth = 1 +
+		    ((READ4(sc, SDMMC_FIFOTH) >> SDMMC_FIFOTH_RXWMARK_S) & 0xfff);
+		device_printf(dev, "No fifo-depth, using FIFOTH %x\n",
+		    sc->fifo_depth);
+	}
 
 	if (!sc->use_pio) {
 		if (dma_setup(sc))
