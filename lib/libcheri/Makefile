@@ -1,7 +1,10 @@
 # $FreeBSD$
 
 LIB=	cheri
-SRCS=	cheri_invoke.S			\
+
+# XXXRW: When compiling for CheriABI, will need to use cheri_invoke_cabi.S
+# here.
+SRCS=	cheri_invoke_hybrid.S		\
 	cheri_enter.c			\
 	cheri_fd.c			\
 	cheri_stack.c			\
