@@ -111,8 +111,8 @@ struct idmac_desc {
 	uint32_t	des3;	/* buf2 phys addr or next descr */
 };
 
-#define	DESC_COUNT	256
-#define	DESC_SIZE	(sizeof(struct idmac_desc) * DESC_COUNT)
+#define	DESC_MAX	256
+#define	DESC_SIZE	(sizeof(struct idmac_desc) * DESC_MAX)
 #define	DEF_MSIZE	0x2	/* Burst size of multiple transaction */
 
 struct dwmmc_softc {
@@ -130,6 +130,7 @@ struct dwmmc_softc {
 	uint32_t		use_auto_stop;
 	uint32_t		use_pio;
 	uint32_t		pwren_inverted;
+	u_int			desc_count;
 
 	bus_dma_tag_t		desc_tag;
 	bus_dmamap_t		desc_map;
@@ -283,10 +284,10 @@ dma_setup(struct dwmmc_softc *sc)
 		return (1);
 	}
 
-	for (idx = 0; idx < DESC_COUNT; idx++) {
+	for (idx = 0; idx < sc->desc_count; idx++) {
 		sc->desc_ring[idx].des0 = DES0_CH;
 		sc->desc_ring[idx].des1 = 0;
-		nidx = (idx + 1) % DESC_COUNT;
+		nidx = (idx + 1) % sc->desc_count;
 		sc->desc_ring[idx].des3 = sc->desc_ring_paddr + \
 		    (nidx * sizeof(struct idmac_desc));
 	}
@@ -297,8 +298,8 @@ dma_setup(struct dwmmc_softc *sc)
 	    BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
 	    BUS_SPACE_MAXADDR,		/* highaddr */
 	    NULL, NULL,			/* filter, filterarg */
-	    DESC_COUNT*MMC_SECTOR_SIZE,	/* maxsize */
-	    DESC_COUNT,			/* nsegments */
+	    sc->desc_count * MMC_SECTOR_SIZE, /* maxsize */
+	    sc->desc_count,		/* nsegments */
 	    MMC_SECTOR_SIZE,		/* maxsegsize */
 	    0,				/* flags */
 	    NULL, NULL,			/* lockfunc, lockarg */
@@ -578,6 +579,7 @@ dwmmc_attach(device_t dev)
 
 	sc->use_pio = 0;
 	sc->pwren_inverted = 0;
+	sc->desc_count = DESC_MAX;
 
 	if ((sc->hwtype & HWTYPE_MASK) == HWTYPE_ROCKCHIP) {
 		sc->use_pio = 1;
@@ -1131,7 +1133,7 @@ dwmmc_read_ivar(device_t bus, device_t child, int which, uintptr_t *result)
 		*(int *)result = sc->host.caps;
 		break;
 	case MMCBR_IVAR_MAX_DATA:
-		*(int *)result = DESC_COUNT;
+		*(int *)result = sc->desc_count;
 	}
 	return (0);
 }
