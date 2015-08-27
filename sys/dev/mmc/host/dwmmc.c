@@ -651,7 +651,7 @@ dwmmc_attach(device_t dev)
 	WRITE4(sc, SDMMC_CTRL, SDMMC_CTRL_INT_ENABLE);
 
 	sc->host.f_min = 400000;
-	sc->host.f_max = 200000000;
+	sc->host.f_max = min(200000000, sc->bus_hz);
 	sc->host.host_ocr = MMC_OCR_320_330 | MMC_OCR_330_340;
 	sc->host.caps = MMC_CAP_4_BIT_DATA;
 
