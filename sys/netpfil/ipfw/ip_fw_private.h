@@ -256,7 +256,7 @@ struct ip_fw {
 	ipfw_insn	cmd[1];		/* storage for commands		*/
 };
 
-#define	IPFW_RULE_CNTR_SIZE	(2 * sizeof(counter_u64_t))
+#define	IPFW_RULE_CNTR_SIZE	(2 * sizeof(uint64_t))
 
 #endif
 
