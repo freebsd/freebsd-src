@@ -578,7 +578,7 @@ pfi_address_add(struct sockaddr *sa, int af, int net)
 			    __func__, V_pfi_buffer_cnt, PFI_BUFFER_MAX);
 			return;
 		}
-		memcpy(V_pfi_buffer, p, V_pfi_buffer_cnt * sizeof(*V_pfi_buffer));
+		memcpy(p, V_pfi_buffer, V_pfi_buffer_max * sizeof(*V_pfi_buffer));
 		/* no need to zero buffer */
 		free(V_pfi_buffer, PFI_MTYPE);
 		V_pfi_buffer = p;
