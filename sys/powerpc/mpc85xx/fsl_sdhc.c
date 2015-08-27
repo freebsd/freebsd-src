@@ -117,14 +117,14 @@ static device_method_t fsl_sdhc_methods[] = {
 
 /* kobj_class definition */
 static driver_t fsl_sdhc_driver = {
-	"sdhci",
+	"sdhci_fsl",
 	fsl_sdhc_methods,
 	sizeof(struct fsl_sdhc_softc)
 };
 
 static devclass_t fsl_sdhc_devclass;
 
-DRIVER_MODULE(sdhci, simplebus, fsl_sdhc_driver, fsl_sdhc_devclass, 0, 0);
+DRIVER_MODULE(sdhci_fsl, simplebus, fsl_sdhc_driver, fsl_sdhc_devclass, 0, 0);
 
 
 /*****************************************************************************
@@ -481,7 +481,7 @@ static void
 finalize_request(struct fsl_sdhc_softc *sc)
 {
 
-	DPRINTF("finishing request %x\n", sc->request);
+	DPRINTF("finishing request %p\n", sc->request);
 
 	sc->request->done(sc->request);
 	sc->request = NULL;
@@ -982,7 +982,6 @@ dump_registers(struct fsl_sdhc_softc *sc)
 {
 	printf("PRSSTAT = 0x%08x\n", read4(sc, SDHC_PRSSTAT));
 	printf("PROCTL = 0x%08x\n", read4(sc, SDHC_PROCTL));
-	printf("PMUXCR = 0x%08x\n", ccsr_read4(OCP85XX_PMUXCR));
 	printf("HOSTCAPBLT = 0x%08x\n", read4(sc, SDHC_HOSTCAPBLT));
 	printf("IRQSTAT = 0x%08x\n", read4(sc, SDHC_IRQSTAT));
 	printf("IRQSTATEN = 0x%08x\n", read4(sc, SDHC_IRQSTATEN));
@@ -990,7 +989,6 @@ dump_registers(struct fsl_sdhc_softc *sc)
 	printf("WML = 0x%08x\n", read4(sc, SDHC_WML));
 	printf("DSADDR = 0x%08x\n", read4(sc, SDHC_DSADDR));
 	printf("XFERTYP = 0x%08x\n", read4(sc, SDHC_XFERTYP));
-	printf("ECMCR = 0x%08x\n", ccsr_read4(OCP85XX_ECMCR));
 	printf("DCR = 0x%08x\n", read4(sc, SDHC_DCR));
 }
 #endif
