@@ -1150,7 +1150,8 @@ _callout_stop_safe(struct callout *c, int safe)
 	struct callout_cpu *cc, *old_cc;
 	struct lock_class *class;
 	int direct, sq_locked, use_lock;
-	int not_on_a_list, not_running;
+	int not_on_a_list;
+	int not_running = 1;
 
 	if (safe)
 		WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, c->c_lock,
@@ -1385,8 +1386,7 @@ again:
 		 * and indeed impossible to stop then return 0.
 		 */
 		not_running = !(cc_exec_curr(cc, direct) == c);
-	} else
-		not_running = 1;
+	}
 
 	CC_UNLOCK(cc);
 	return (not_running);
