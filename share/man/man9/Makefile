@@ -190,6 +190,8 @@ MAN=	accept_filter.9 \
 	netisr.9 \
 	nv.9 \
 	osd.9 \
+	owll.9 \
+	own.9 \
 	panic.9 \
 	pbuf.9 \
 	PCBGROUP.9 \
