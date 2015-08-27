@@ -1385,7 +1385,8 @@ again:
 		 * and indeed impossible to stop then return 0.
 		 */
 		not_running = !(cc_exec_curr(cc, direct) == c);
-	}
+	} else
+		not_running = 1;
 
 	CC_UNLOCK(cc);
 	return (not_running);
