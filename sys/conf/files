@@ -2088,6 +2088,13 @@ dev/ofw/ofw_iicbus.c		optional fdt iicbus
 dev/ofw/ofwbus.c		optional fdt
 dev/ofw/openfirm.c		optional fdt
 dev/ofw/openfirmio.c		optional fdt
+dev/ow/ow.c			optional ow				\
+	dependency	"owll_if.h"					\
+	dependency	"own_if.h"
+dev/ow/owll_if.m		optional ow
+dev/ow/own_if.m			optional ow
+dev/ow/ow_temp.c		optional ow_temp
+dev/ow/owc_gpiobus.c		optional owc gpio
 dev/patm/if_patm.c		optional patm pci
 dev/patm/if_patm_attach.c	optional patm pci
 dev/patm/if_patm_intr.c		optional patm pci
