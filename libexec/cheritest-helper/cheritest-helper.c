@@ -43,6 +43,7 @@
 
 #include <inttypes.h>
 #include <md5.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -485,4 +486,31 @@ call_invoke_md5_2(size_t len, char *data_input, char *data_output)
 {
 
 	return (invoke_md5(len, data_input, data_output));
+}
+
+int
+sandbox_test_ptrdiff(void)
+{
+	const int n = 100;
+	char array[n];
+	char *p1, *p2;
+	ptrdiff_t diff;
+
+	p1 = &array[0];
+	p2 = &array[1];
+	diff = p2 - p1;
+	if (diff != 1) {
+		printf("expected diff = 1, got diff = %jd\n", (intmax_t)diff);
+		return (-1);
+	}
+	p1 = &array[0];
+	p2 = &array[n];
+	diff = p2 - p1;
+	if (diff != n) {
+		printf("expected diff = %d, got diff = %jd\n", n,
+		    (intmax_t)diff);
+		return (-1);
+	}
+
+	return (0);
 }

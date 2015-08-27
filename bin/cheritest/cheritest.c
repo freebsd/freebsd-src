@@ -728,6 +728,10 @@ static const struct cheri_test cheri_tests[] = {
 	  .ct_func_arg = test_sandbox_simple_method,
 	  .ct_arg = CHERITEST_HELPER_OP_MALLOC },
 
+	{ .ct_name = "test_sandbox_ptrdiff",
+	  .ct_desc = "Verify that pointer subtraction works",
+	  .ct_func = test_sandbox_ptrdiff },
+
 	{ .ct_name = "test_sandbox_system_calloc",
 	  .ct_desc = "Allocate memory in base for use in the sandbox",
 	  .ct_func_arg = test_sandbox_simple_method,

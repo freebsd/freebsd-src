@@ -309,6 +309,18 @@ test_2sandbox_md5(const struct cheri_test *ctp __unused)
 	cheritest_success();
 }
 
+void
+test_sandbox_ptrdiff(void)
+{
+	intmax_t ret;
+
+	if ((ret = sandbox_test_ptrdiff()) != 0)
+		cheritest_failure_errx("sandbox_test_ptrdiff returned %jd\n",
+		    ret);
+	else
+		cheritest_success();
+}
+
 int
 cheritest_libcheri_setup(void)
 {
