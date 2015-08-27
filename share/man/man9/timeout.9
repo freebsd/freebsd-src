@@ -246,9 +246,8 @@ argument.
 The number of ticks in a second is defined by
 .Dv hz
 and can vary from system to system.
-This function returns a non-zero value if the given callout was pending and
-the callback function was prevented from being called.
-Otherwise, a value of zero is returned.
+This function has the same return value like
+.Fn callout_stop .
 If a lock is associated with the callout given by the
 .Fa c
 argument and it is exclusivly locked when this function is called, this
@@ -483,17 +482,25 @@ is undefined.
 This function is used to stop a timeout function invocation associated with the callout pointed to by the
 .Fa c
 argument, in a non-blocking fashion.
-This function can be called multiple times in a row with no side effects, even if the callout is already stopped. This function however should not be called before the callout has been initialized.
-This function returns a non-zero value if the given callout was pending and
-the callback function was prevented from being called.
-Else a value of zero is returned.
+This function can be called multiple times in a row with no side effects, even if the callout is already stopped.
+This function however should not be called before the callout has been initialized.
 If a lock is associated with the callout given by the
 .Fa c
 argument and it is exclusivly locked when this function is called, the
 .Fn callout_stop
 function will always ensure that the callback function is never reached.
 In other words the callout will be atomically stopped.
-Else there is no such guarantee.
+When a callout is atomically stopped a return value of non-zero is returned.
+Else a value of zero is returned.
+If there is no lock associated with the callout given by the
+.Fa c
+argument the return values are slightly different.
+If the callout was stopped ahead of the callback function a return
+value of non-zero is returned.
+If the callback function is currently executing and also if the
+callout was restarted before being stopped again, a return value of
+zero is returned.
+In all other cases a value of zero is returned.
 .Sh DRAINING CALLOUTS
 .Ft int
 .Fn callout_drain "struct callout *c"
