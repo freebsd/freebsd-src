@@ -481,10 +481,12 @@ parse_fdt(struct dwmmc_softc *sc)
 	 * what the clock is supplied for our device.
 	 * For now rely on the value specified in FDT.
 	 */
-	if ((len = OF_getproplen(node, "bus-frequency")) <= 0)
-		return (ENXIO);
-	OF_getencprop(node, "bus-frequency", dts_value, len);
-	sc->bus_hz = dts_value[0];
+	if (sc->bus_hz == 0) {
+		if ((len = OF_getproplen(node, "bus-frequency")) <= 0)
+			return (ENXIO);
+		OF_getencprop(node, "bus-frequency", dts_value, len);
+		sc->bus_hz = dts_value[0];
+	}
 
 	/*
 	 * Platform-specific stuff
