@@ -32,7 +32,7 @@
 
 #include <sys/cdefs.h>
 
-void	 brace_subst(char *, char **, char *, int);
+void	 brace_subst(char *, char **, char *, size_t);
 PLAN	*find_create(char ***);
 int	 find_execute(PLAN *, char **);
 PLAN	*find_formplan(char **);
