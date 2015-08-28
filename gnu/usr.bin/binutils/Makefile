@@ -5,6 +5,7 @@
 SUBDIR=	doc\
 	libiberty \
 	libbfd \
+	.WAIT \
 	libopcodes \
 	libbinutils \
 	.WAIT \
