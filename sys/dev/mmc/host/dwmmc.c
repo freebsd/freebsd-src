@@ -59,7 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 #include <machine/intr.h>
 
-#include <dev/mmc/host/dwmmc.h>
+#include <dev/mmc/host/dwmmc_reg.h>
 
 #include "mmcbr_if.h"
 
