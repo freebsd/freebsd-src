@@ -99,6 +99,7 @@ VNET_DECLARE(u_int, rt_add_addr_allfibs); /* Announce interfaces to all fibs */
 #endif
 #endif
 
+#ifdef _KERNEL
 struct rib_head;
 struct rtentry;
 struct nhop_prepend;
@@ -116,6 +117,7 @@ struct nhop_info {
 
 #define	RT_NHOP			0x01
 #define	RT_NORTREF		0x2	/* doesn't hold reference on ro_rt */
+#endif
 
 #if !defined(_KERNEL) || defined(_WANT_RTENTRY)
 /* This structure is kept for compatibility reasons only */
@@ -137,8 +139,6 @@ struct rtentry {
 	u_long		rt_mtu;		/* MTU for this path */
 	u_long		rt_weight;	/* absolute weight */ 
 	u_long		rt_expire;	/* lifetime for route, e.g. redirect */
-#define	rt_endzero	rt_mtx
-	struct mtx	rt_mtx;		/* mutex for routing entry */
 };
 #endif /* !_KERNEL || _WANT_RTENTRY */
 
