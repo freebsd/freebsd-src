@@ -1243,8 +1243,6 @@ udp6_send(struct socket *so, int flags, struct mbuf *m,
 	INP_HASH_WLOCK(pcbinfo);
 	error = udp6_output(inp, m, addr, control, td);
 	INP_HASH_WUNLOCK(pcbinfo);
-#ifdef INET
-#endif	
 	INP_WUNLOCK(inp);
 	return (error);
 
