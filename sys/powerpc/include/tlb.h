@@ -34,7 +34,7 @@
 
 /*  PowerPC E500 MAS registers */
 #define MAS0_TLBSEL(x)		((x << 28) & 0x10000000)
-#define MAS0_ESEL(x)		((x << 16) & 0x000F0000)
+#define MAS0_ESEL(x)		((x << 16) & 0x003F0000)
 
 #define MAS0_TLBSEL1		0x10000000
 #define MAS0_TLBSEL0		0x00000000

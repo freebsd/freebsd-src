@@ -605,6 +605,9 @@ search_failed:
 	mtspr	SPR_MAS3, %r23
 	isync
 
+	bl	zero_mas7
+	bl	zero_mas8
+
 	tlbwe
 	msync
 	isync
@@ -713,6 +716,10 @@ tlb_fill_entry:
 	isync
 	mtspr	SPR_MAS7, %r23
 	isync
+
+	mflr	%r21
+	bl	zero_mas8
+	mtlr	%r21
 
 	tlbwe
 	isync
