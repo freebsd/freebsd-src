@@ -491,7 +491,7 @@ ow_child_location_str(device_t dev, device_t child, char *buf,
     size_t buflen)
 {
 
-	snprintf(buf, buflen, "");
+	*buf = '\0';
 	return (0);
 }
 
