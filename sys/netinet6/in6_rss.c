@@ -147,6 +147,6 @@ rss_proto_software_hash_v6(const struct in6_addr *s, const struct in6_addr *d,
 	}
 
 	/* No configured available hashtypes! */
-	printf("%s: no available hashtypes!\n", __func__);
+	RSS_DEBUG("no available hashtypes!\n");
 	return (-1);
 }

@@ -152,6 +152,15 @@ SYSCTL_INT(_net_inet_rss, OID_AUTO, basecpu, CTLFLAG_RD,
     __DECONST(int *, &rss_basecpu), 0, "RSS base CPU");
 
 /*
+ * Print verbose debugging messages.
+ * 0 - disable
+ * non-zero - enable
+ */
+int	rss_debug = 0;
+SYSCTL_INT(_net_inet_rss, OID_AUTO, debug, CTLFLAG_RWTUN, &rss_debug, 0,
+    "RSS debug level");
+
+/*
  * RSS secret key, intended to prevent attacks on load-balancing.  Its
  * effectiveness may be limited by algorithm choice and available entropy
  * during the boot.
@@ -194,8 +203,8 @@ rss_init(__unused void *arg)
 		break;
 
 	default:
-		printf("%s: invalid RSS hashalgo %u, coercing to %u",
-		    __func__, rss_hashalgo, RSS_HASH_TOEPLITZ);
+		RSS_DEBUG("invalid RSS hashalgo %u, coercing to %u\n",
+		    rss_hashalgo, RSS_HASH_TOEPLITZ);
 		rss_hashalgo = RSS_HASH_TOEPLITZ;
 	}
 
@@ -229,8 +238,8 @@ rss_init(__unused void *arg)
 		 * ones.
 		 */
 		if (rss_bits == 0 || rss_bits > RSS_MAXBITS) {
-			printf("%s: RSS bits %u not valid, coercing to  %u",
-			    __func__, rss_bits, RSS_MAXBITS);
+			RSS_DEBUG("RSS bits %u not valid, coercing to %u\n",
+			    rss_bits, RSS_MAXBITS);
 			rss_bits = RSS_MAXBITS;
 		}
 
@@ -241,9 +250,8 @@ rss_init(__unused void *arg)
 		 */
 		rss_buckets = (1 << rss_bits);
 		if (rss_buckets < rss_ncpus)
-			printf("%s: WARNING: rss_buckets (%u) less than "
-			    "rss_ncpus (%u)\n", __func__, rss_buckets,
-			    rss_ncpus);
+			RSS_DEBUG("WARNING: rss_buckets (%u) less than "
+			    "rss_ncpus (%u)\n", rss_buckets, rss_ncpus);
 		rss_mask = rss_buckets - 1;
 	} else {
 		rss_bits = 0;
