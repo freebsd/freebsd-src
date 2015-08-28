@@ -101,25 +101,28 @@ SYSCTL_INT(_net_inet_ip, OID_AUTO, mbuf_frag_size, CTLFLAG_RW,
 	&mbuf_frag_size, 0, "Fragment outgoing mbufs to this size");
 #endif
 
-static void ip_mloopback (struct ifnet *, struct mbuf *, int);
+static void	ip_mloopback(struct ifnet *, const struct mbuf *, int);
 
 extern int in_mcast_loop;
 extern	struct protosw inetsw[];
 
 static inline int
-ip_output_pfil(struct mbuf *m, struct ifnet *ifp, struct inpcb *inp,
+ip_output_pfil(struct mbuf **mp, struct ifnet *ifp, struct inpcb *inp,
 	struct in_addr *dst, int *fibnum, int *error)
 {
 	struct m_tag *fwd_tag = NULL;
+	struct mbuf *m;
 	struct in_addr odst;
 	struct ip *ip;
 	struct sockaddr_in *dst_sa;
 
+	m = *mp;
 	ip = mtod(m, struct ip *);
 
 	/* Run through list of hooks for output packets. */
 	odst.s_addr = ip->ip_dst.s_addr;
-	*error = pfil_run_hooks(&V_inet_pfil_hook, &m, ifp, PFIL_OUT, inp);
+	*error = pfil_run_hooks(&V_inet_pfil_hook, mp, ifp, PFIL_OUT, inp);
+	m = *mp;
 	if ((*error) != 0 || m == NULL)
 		return 1; /* Finished */
 
@@ -411,8 +414,9 @@ again:
 		nh = &local_nh;
 		ifp = NH_LIFP(nh);
 		mtu = nh->nh_mtu;
-		if (nh->nh_flags & (RTF_HOST|RTF_GATEWAY))
-			isbroadcast = (nh->nh_flags & RTF_BROADCAST);
+		/* XXX: Add NHF_HOST or in_broadcast into lookup */
+		if (nh->nh_flags & (NHF_GATEWAY))
+			isbroadcast = (nh->nh_flags & NHF_BROADCAST);
 		else
 			isbroadcast = in_broadcast(dst, ifp);
 	}
@@ -562,7 +566,7 @@ sendit:
 
 	/* Jump over all PFIL processing if hooks are not active. */
 	if (PFIL_HOOKED(&V_inet_pfil_hook)) {
-		switch (ip_output_pfil(m, ifp, inp, &dst, &fibnum, &error)) {
+		switch (ip_output_pfil(&m, ifp, inp, &dst, &fibnum, &error)) {
 		case 1: /* Finished */
 			goto done;
 
@@ -1373,9 +1377,9 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
  * replicating that code here.
  */
 static void
-ip_mloopback(struct ifnet *ifp, struct mbuf *m, int hlen)
+ip_mloopback(struct ifnet *ifp, const struct mbuf *m, int hlen)
 {
-	register struct ip *ip;
+	struct ip *ip;
 	struct mbuf *copym;
 
 	/*

@@ -668,15 +668,22 @@ fib6_selectroute(uint32_t fibnum, struct in6_addr *dst, uint32_t scopeid,
 	    
 		sin6_next = satosin6(opts->ip6po_nexthop);
 		
-		/* at this moment, we only support AF_INET6 next hops */
-		if (sin6_next->sin6_family != AF_INET6) {
-			error = EAFNOSUPPORT; /* or should we proceed? */
-			goto done;
+		if (IN6_IS_ADDR_LINKLOCAL(&sin6_next->sin6_addr)) {
+			/*
+			 * Next hop is LLA, thus it should be neighbor.
+			 * Determine outgoing interface by zone index.
+			 */
+			uint32_t zoneid;
+			zoneid = ntohs(in6_getscope(&sin6_next->sin6_addr));
+			if (zoneid > 0) {
+				ifp = in6_getlinkifnet(zoneid);
+				goto done;
+			}
 		}
 
-		in6_splitscope(&sin6_next->sin6_addr, dst, &scopeid);
-
-		if (fib6_lookup_prepend(fibnum, dst, scopeid, m, nh, NULL) != 0) {
+		/* XXXME: Handle nextroute case */
+		if (fib6_lookup_prepend(fibnum, &sin6_next->sin6_addr, 0,
+		    m, nh, NULL) != 0) {
 			error = EHOSTUNREACH;
 			goto done;
 		}

@@ -1156,6 +1156,21 @@ pmap_bootstrap(vm_offset_t firstaddr)
 	virtual_end = vm_max_kernel_address;
 }
 
+static void
+pmap_init_qpages(void)
+{
+	struct pcpu *pc;
+	int i;
+
+	CPU_FOREACH(i) {
+		pc = pcpu_find(i);
+		pc->pc_qmap_addr = kva_alloc(PAGE_SIZE);
+		if (pc->pc_qmap_addr == 0)
+			panic("%s: unable to allocate KVA", __func__);
+	}
+}
+SYSINIT(qpages_init, SI_SUB_CPU, SI_ORDER_ANY, pmap_init_qpages, NULL);
+
 /*
  *  The function can already be use in second initialization stage.
  *  As such, the function DOES NOT call pmap_growkernel() where PT2
@@ -5707,6 +5722,41 @@ pmap_copy_pages(vm_page_t ma[], vm_offset_t a_offset, vm_page_t mb[],
 	pte2_clear(sysmaps->CMAP2);
 	sched_unpin();
 	mtx_unlock(&sysmaps->lock);
+}
+
+vm_offset_t
+pmap_quick_enter_page(vm_page_t m)
+{
+	pt2_entry_t *pte2p;
+	vm_offset_t qmap_addr;
+
+	critical_enter();
+	qmap_addr = PCPU_GET(qmap_addr);
+	pte2p = pt2map_entry(qmap_addr);
+
+	KASSERT(pte2_load(pte2p) == 0, ("%s: PTE2 busy", __func__));
+
+	pte2_store(pte2p, PTE2_KERN_NG(VM_PAGE_TO_PHYS(m), PTE2_AP_KRW,
+	    pmap_page_get_memattr(m)));
+	tlb_flush_local(qmap_addr);
+
+	return (qmap_addr);
+}
+
+void
+pmap_quick_remove_page(vm_offset_t addr)
+{
+	pt2_entry_t *pte2p;
+	vm_offset_t qmap_addr;
+
+	qmap_addr = PCPU_GET(qmap_addr);
+	pte2p = pt2map_entry(qmap_addr);
+
+	KASSERT(addr == qmap_addr, ("%s: invalid address", __func__));
+	KASSERT(pte2_load(pte2p) != 0, ("%s: PTE2 not in use", __func__));
+
+	pte2_clear(pte2p);
+	critical_exit();
 }
 
 /*

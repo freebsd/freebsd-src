@@ -101,8 +101,6 @@ See description of rmx_mtu below.
 See description of rmx_weight below.
 .It Vt "u_long rt_expire";
 See description of rmx_expire below.
-.It Vt "counter64_t rt_pksent";
-See description of rmx_pksent below.
 .It Vt "struct rtentry *rt_gwroute" ;
 This member is a reference to a route whose destination is
 .Va rt_gateway .
@@ -174,9 +172,9 @@ passed with routing control messages via
 .Xr route 4
 API.
 Currently only
-.Vt rmx_mtu , rmx_expire ,
+.Vt rmx_mtu ,
 and
-.Vt rmx_pksent
+.Vt rmx_expire
 metrics are supplied.
 All others are ignored.
 .Pp
@@ -221,8 +219,6 @@ The average deviation of the round-trip time to this destination, in
 units of
 .Dv RMX_RTTUNIT
 per second.
-.It Vt "u_long rmx_pksent" ;
-A count of packets successfully sent via this route.
 .It Vt "u_long rmx_filler[4]" ;
 .\" XXX badly named
 Empty space available for protocol-specific information.

@@ -231,7 +231,7 @@ in6_mtutimo(void *rock)
 	struct timeval atv;
 	struct mtuex_arg arg;
 
-	rt_foreach_fib(AF_INET6, in6_mtutimo_setwa, in6_mtuexpire, &arg);
+	rt_foreach_fib_walk(AF_INET6, in6_mtutimo_setwa, in6_mtuexpire, &arg);
 
 	atv.tv_sec = MTUTIMO_DEFAULT;
 	atv.tv_usec = 0;

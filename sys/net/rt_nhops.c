@@ -342,6 +342,7 @@ fib4_lookup_prepend(uint32_t fibnum, struct in_addr dst, struct mbuf *m,
 		 */
 		error = arpresolve_fast(lifp, gw, m ? m->m_flags : 0,
 		    eh->ether_dhost);
+		printf("Resolve for ifp %s returned %d\n", lifp->if_xname, error);
 		if (error == 0) {
 			memcpy(&eh->ether_shost, IF_LLADDR(lifp), ETHER_ADDR_LEN);
 			eh->ether_type = htons(ETHERTYPE_IP);
@@ -350,6 +351,7 @@ fib4_lookup_prepend(uint32_t fibnum, struct in_addr dst, struct mbuf *m,
 		}
 	}
 
+	printf("Incomplete for ifp %s ()\n", lifp->if_xname);
 	/* Notify caller that no L2 info is linked */
 	nh->nh_count = 0;
 	nh->nh_flags |= NHF_L2_INCOMPLETE;
@@ -384,6 +386,7 @@ fib4_sendmbuf(struct ifnet *ifp, struct mbuf *m, struct nhop_prepend *nh,
 			return (ENOBUFS);
 		eh = mtod(m, struct ether_header *);
 		memcpy(eh, nh->d.data, nh->nh_count);
+		printf("FP %s\n", ifp->if_xname);
 		error = (*ifp->if_output)(ifp, m, NULL, &ni);
 	} else {
 		struct sockaddr_in gw_out;
@@ -391,6 +394,7 @@ fib4_sendmbuf(struct ifnet *ifp, struct mbuf *m, struct nhop_prepend *nh,
 		gw_out.sin_len = sizeof(gw_out);
 		gw_out.sin_family = AF_INET;
 		gw_out.sin_addr = nh ? nh->d.gw4 : dst;
+		printf("SLOW %s\n", ifp->if_xname);
 		error = (*ifp->if_output)(ifp, m,
 		    (const struct sockaddr *)&gw_out, NULL);
 	}

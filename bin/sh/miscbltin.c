@@ -191,9 +191,10 @@ readcmd(int argc __unused, char **argv __unused)
 		CHECKSTRSPACE(1, p);
 		if (backslash) {
 			backslash = 0;
-			startword = 0;
-			if (c != '\n')
+			if (c != '\n') {
+				startword = 0;
 				USTPUTC(c, p);
+			}
 			continue;
 		}
 		if (!rflag && c == '\\') {

@@ -593,7 +593,7 @@ zyd_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 {
 	struct zyd_vap *zvp = ZYD_VAP(vap);
 	struct ieee80211com *ic = vap->iv_ic;
-	struct zyd_softc *sc = ic->ic_ifp->if_softc;
+	struct zyd_softc *sc = ic->ic_softc;
 	int error;
 
 	DPRINTF(sc, ZYD_DEBUG_STATE, "%s: %s -> %s\n", __func__,
@@ -2623,7 +2623,7 @@ zyd_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 {
 	struct ieee80211com *ic = ni->ni_ic;
 	struct ifnet *ifp = ic->ic_ifp;
-	struct zyd_softc *sc = ifp->if_softc;
+	struct zyd_softc *sc = ic->ic_softc;
 
 	ZYD_LOCK(sc);
 	/* prevent management frames from being sent if we're not ready */
@@ -2659,8 +2659,8 @@ zyd_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 static int
 zyd_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
-	struct zyd_softc *sc = ifp->if_softc;
 	struct ieee80211com *ic = ifp->if_l2com;
+	struct zyd_softc *sc = ic->ic_softc;
 	struct ifreq *ifr = (struct ifreq *) data;
 	int error;
 	int startall = 0;
@@ -2926,7 +2926,7 @@ static void
 zyd_scan_start(struct ieee80211com *ic)
 {
 	struct ifnet *ifp = ic->ic_ifp;
-	struct zyd_softc *sc = ifp->if_softc;
+	struct zyd_softc *sc = ic->ic_softc;
 
 	ZYD_LOCK(sc);
 	/* want broadcast address while scanning */
@@ -2937,7 +2937,7 @@ zyd_scan_start(struct ieee80211com *ic)
 static void
 zyd_scan_end(struct ieee80211com *ic)
 {
-	struct zyd_softc *sc = ic->ic_ifp->if_softc;
+	struct zyd_softc *sc = ic->ic_softc;
 
 	ZYD_LOCK(sc);
 	/* restore previous bssid */
@@ -2948,7 +2948,7 @@ zyd_scan_end(struct ieee80211com *ic)
 static void
 zyd_set_channel(struct ieee80211com *ic)
 {
-	struct zyd_softc *sc = ic->ic_ifp->if_softc;
+	struct zyd_softc *sc = ic->ic_softc;
 
 	ZYD_LOCK(sc);
 	zyd_set_chan(sc, ic->ic_curchan);

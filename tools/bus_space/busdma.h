@@ -51,6 +51,6 @@ int	bd_md_next_seg(int mdid, int sid);
 int	bd_seg_get_addr(int sid, u_long *);
 int	bd_seg_get_size(int sid, u_long *);
 
-int	bd_sync(int mdid, u_int op, u_long base, u_long size);
+int	bd_sync(int mdid, u_int op, u_long ofs, u_long len);
 
 #endif /* _TOOLS_BUS_DMA_H_ */

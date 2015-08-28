@@ -598,26 +598,31 @@ CREATE UNIQUE INDEX I_EXTERNALS_DEFINED ON EXTERNALS (wc_id,
 ANALYZE sqlite_master; /* Creates empty sqlite_stat1 if necessary */
 
 DELETE FROM sqlite_stat1
-WHERE tbl in ('NODES', 'ACTUAL_NODE', 'LOCK', 'WC_LOCK');
+WHERE tbl in ('NODES', 'ACTUAL_NODE', 'LOCK', 'WC_LOCK', 'EXTERNALS');
 
-INSERT OR REPLACE INTO sqlite_stat1(tbl, idx, stat) VALUES
+INSERT INTO sqlite_stat1(tbl, idx, stat) VALUES
     ('NODES', 'sqlite_autoindex_NODES_1',               '8000 8000 2 1');
-INSERT OR REPLACE INTO sqlite_stat1(tbl, idx, stat) VALUES
+INSERT INTO sqlite_stat1(tbl, idx, stat) VALUES
     ('NODES', 'I_NODES_PARENT',                         '8000 8000 10 2 1');
 /* Tell a lie: We ignore that 99.9% of all moved_to values are NULL */
-INSERT OR REPLACE INTO sqlite_stat1(tbl, idx, stat) VALUES
+INSERT INTO sqlite_stat1(tbl, idx, stat) VALUES
     ('NODES', 'I_NODES_MOVED',                          '8000 8000 1 1');
 
-INSERT OR REPLACE INTO sqlite_stat1(tbl, idx, stat) VALUES
+INSERT INTO sqlite_stat1(tbl, idx, stat) VALUES
     ('ACTUAL_NODE', 'sqlite_autoindex_ACTUAL_NODE_1',   '8000 8000 1');
-INSERT OR REPLACE INTO sqlite_stat1(tbl, idx, stat) VALUES
+INSERT INTO sqlite_stat1(tbl, idx, stat) VALUES
     ('ACTUAL_NODE', 'I_ACTUAL_PARENT',                  '8000 8000 10 1');
 
-INSERT OR REPLACE INTO sqlite_stat1(tbl, idx, stat) VALUES
+INSERT INTO sqlite_stat1(tbl, idx, stat) VALUES
     ('LOCK', 'sqlite_autoindex_LOCK_1',                 '100 100 1');
 
-INSERT OR REPLACE INTO sqlite_stat1(tbl, idx, stat) VALUES
+INSERT INTO sqlite_stat1(tbl, idx, stat) VALUES
     ('WC_LOCK', 'sqlite_autoindex_WC_LOCK_1',           '100 100 1');
+
+INSERT INTO sqlite_stat1(tbl, idx, stat) VALUES
+    ('EXTERNALS','sqlite_autoindex_EXTERNALS_1',        '100 100 1');
+INSERT INTO sqlite_stat1(tbl, idx, stat) VALUES
+    ('EXTERNALS','I_EXTERNALS_DEFINED',                 '100 100 3 1');
 
 /* sqlite_autoindex_WORK_QUEUE_1 doesn't exist because WORK_QUEUE is
    a INTEGER PRIMARY KEY AUTOINCREMENT table */

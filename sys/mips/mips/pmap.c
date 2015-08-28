@@ -2638,6 +2638,62 @@ pmap_copy_pages(vm_page_t ma[], vm_offset_t a_offset, vm_page_t mb[],
 	}
 }
 
+vm_offset_t
+pmap_quick_enter_page(vm_page_t m)
+{
+#if defined(__mips_n64)
+	return MIPS_PHYS_TO_DIRECT(VM_PAGE_TO_PHYS(m));
+#else
+	vm_paddr_t pa;
+	struct local_sysmaps *sysm;
+	pt_entry_t *pte;
+
+	pa = VM_PAGE_TO_PHYS(m);
+
+	if (MIPS_DIRECT_MAPPABLE(pa))
+		return (MIPS_PHYS_TO_DIRECT(pa));
+
+	critical_enter();
+	sysm = &sysmap_lmem[PCPU_GET(cpuid)];
+
+	KASSERT(sysm->valid1 == 0, ("pmap_quick_enter_page: PTE busy"));
+
+	pte = pmap_pte(kernel_pmap, sysm->base);
+	*pte = TLBLO_PA_TO_PFN(pa) | PTE_D | PTE_V | PTE_G |
+	    (is_cacheable_mem(pa) ? PTE_C_CACHE : PTE_C_UNCACHED);
+	sysm->valid1 = 1;
+
+	return (sysm->base);
+#endif
+}
+
+void
+pmap_quick_remove_page(vm_offset_t addr)
+{
+	mips_dcache_wbinv_range(addr, PAGE_SIZE);
+
+#if !defined(__mips_n64)
+	struct local_sysmaps *sysm;
+	pt_entry_t *pte;
+
+	if (addr >= MIPS_KSEG0_START && addr < MIPS_KSEG0_END)
+		return;
+
+	sysm = &sysmap_lmem[PCPU_GET(cpuid)];
+
+	KASSERT(sysm->valid1 != 0,
+	    ("pmap_quick_remove_page: PTE not in use"));
+	KASSERT(sysm->base == addr,
+	    ("pmap_quick_remove_page: invalid address"));
+
+	pte = pmap_pte(kernel_pmap, addr);
+	*pte = PTE_G;
+	tlb_invalidate_address(kernel_pmap, addr);
+	sysm->valid1 = 0;
+	critical_exit();
+#endif
+}
+
 /*
  * Returns true if the pmap's pv is one of the first
  * 16 pvs linked to from this page.  This count may

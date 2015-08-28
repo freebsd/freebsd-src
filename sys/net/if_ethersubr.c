@@ -210,6 +210,7 @@ ether_output_full(struct ifnet *ifp, struct mbuf *m,
 			error = arpresolve(ifp, is_gw, m, dst, edst, &pflags);
 		if (error)
 			return (error == EWOULDBLOCK ? 0 : error);
+		printf("EO: arpresolve() returned %d /%X\n", error, pflags);
 		type = htons(ETHERTYPE_IP);
 		break;
 	case AF_ARP:

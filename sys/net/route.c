@@ -43,6 +43,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/lock.h>
 #include <sys/rwlock.h>
 #include <sys/rmlock.h>
 #include <sys/malloc.h>
@@ -791,9 +792,16 @@ rtrequest_fib(int req,
 	return rtrequest1_fib(req, &info, ret_nrt, fibnum);
 }
 
-
+/*
+ * Iterates over all existing fibs in system calling
+ *  @setwa_f function prior to traversing each fib.
+ *  Calls @wa_f function for each element in current fib.
+ * If af is not AF_UNSPEC, iterates over fibs in particular
+ * address family.
+ */
 void
-rt_foreach_fib(int af, rt_setwarg_t *setwa_f, rt_walktree_f_t *wa_f, void *arg)
+rt_foreach_fib_walk(int af, rt_setwarg_t *setwa_f, rt_walktree_f_t *wa_f,
+    void *arg)
 {
 	struct rib_head *rh;
 	uint32_t fibnum;
@@ -884,7 +892,7 @@ void
 rt_flushifroutes(struct ifnet *ifp)
 {
 
-	rt_foreach_fib(AF_UNSPEC, NULL, rt_ifdelroute, ifp);
+	rt_foreach_fib_walk(AF_UNSPEC, NULL, rt_ifdelroute, ifp);
 }
 
 /*
@@ -1081,7 +1089,7 @@ rt_updatemtu(struct ifnet *ifp)
 	ifmtu.ifp = ifp;
 
 	/* Try to update rt_mtu for all routes */
-	rt_foreach_fib(AF_UNSPEC, rt_getmtu_fib, if_updatemtu_cb, &ifmtu);
+	rt_foreach_fib_walk(AF_UNSPEC, rt_getmtu_fib, if_updatemtu_cb, &ifmtu);
 }
 
 

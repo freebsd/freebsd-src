@@ -76,29 +76,16 @@ struct userconf {
 	char		*default_class;		/* Default user class */
 	uid_t		min_uid, max_uid;	/* Allowed range of uids */
 	gid_t		min_gid, max_gid;	/* Allowed range of gids */
-	int		expire_days;		/* Days to expiry */
-	int		password_days;		/* Days to password expiry */
+	time_t		expire_days;		/* Days to expiry */
+	time_t		password_days;		/* Days to password expiry */
 };
 
 struct pwconf {
 	char		 rootdir[MAXPATHLEN];
 	char		 etcpath[MAXPATHLEN];
-	char		*newname;
-	char		*config;
-	char		*gecos;
 	int		 fd;
 	int		 rootfd;
-	int		 which;
-	bool		 quiet;
-	bool		 force;
-	bool		 all;
-	bool		 dryrun;
-	bool		 pretty;
-	bool		 v7;
 	bool		 checkduplicate;
-	bool		 deletehome;
-	bool		 precrypted;
-	struct userconf	*userconf;
 };
 
 extern struct pwf PWF;

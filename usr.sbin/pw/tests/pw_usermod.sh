@@ -100,6 +100,36 @@ user_mod_name_noupdate_body() {
 		grep "^foo:.*" $HOME/master.passwd
 }
 
+atf_test_case user_mod_rename_multigroups
+user_mod_rename_multigroups_body() {
+	populate_etc_skel
+
+	atf_check -s exit:0 ${PW} groupadd test1
+	atf_check -s exit:0 ${PW} groupadd test2
+	atf_check -s exit:0 ${PW} useradd foo -G test1,test2
+	atf_check -o match:"foo" -s exit:0 ${PW} groupshow test1
+	atf_check -o match:"foo" -s exit:0 ${PW} groupshow test2
+	atf_check -s exit:0 ${PW} usermod foo -l bar
+	atf_check -o match:"bar" -s exit:0 ${PW} groupshow test1
+	atf_check -o match:"bar" -s exit:0 ${PW} groupshow test2
+}
+
+atf_test_case user_mod_nogroups
+user_mod_nogroups_body() {
+	populate_etc_skel
+
+	atf_check -s exit:0 ${PW} groupadd test1
+	atf_check -s exit:0 ${PW} groupadd test2
+	atf_check -s exit:0 ${PW} groupadd test3
+	atf_check -s exit:0 ${PW} groupadd test4
+	atf_check -s exit:0 ${PW} useradd foo -G test1,test2
+	atf_check -o match:"foo" -s exit:0 ${PW} groupshow test1
+	atf_check -o match:"foo" -s exit:0 ${PW} groupshow test2
+	atf_check -s exit:0 ${PW} usermod foo -G test3,test4
+	atf_check -s exit:0 -o inline:"test3\ntest4\n" \
+		awk -F\: '$4 == "foo" { print $1 }' ${HOME}/group
+}
+
 atf_test_case user_mod_rename
 user_mod_rename_body() {
 	populate_etc_skel
@@ -134,7 +164,7 @@ user_mod_h_body() {
 	EOF
 	atf_check -s exit:0 -o match:"^foo:\*:.*" \
 		grep "^foo" ${HOME}/master.passwd
-	atf_check -e inline:"pw: '-h' expects a file descriptor or '-'\n" \
+	atf_check -e inline:"pw: Bad file descriptor 'a': invalid\n" \
 		-s exit:64 ${PW} usermod foo -h a <<- EOF
 	$(echo a)
 	EOF
@@ -150,8 +180,27 @@ user_mod_H_body() {
 	EOF
 	atf_check -s exit:0 -o match:"^foo:a:.*" \
 		grep "^foo" ${HOME}/master.passwd
-	atf_check -s exit:64 -e inline:"pw: '-H' expects a file descriptor\n" \
+	atf_check -s exit:64 -e inline:"pw: -H expects a file descriptor\n" \
 		${PW} usermod foo -H -
+}
+
+atf_test_case user_mod_renamehome
+user_mod_renamehome_body() {
+	populate_root_etc_skel
+
+	mkdir -p ${HOME}/home
+	atf_check -s exit:0 ${RPW} useradd foo -m
+	test -d ${HOME}/home/foo || atf_fail "Directory not created"
+	atf_check -s exit:0 ${RPW} usermod foo -l bar -d /home/bar -m
+	test -d ${HOME}/home/bar || atf_fail "Directory not created"
+}
+
+atf_test_case user_mod_uid
+user_mod_uid_body() {
+	populate_etc_skel
+
+	atf_check -s exit:0 ${PW} useradd foo
+	atf_check -s exit:0 ${PW} usermod foo -u 5000
 }
 
 atf_init_test_cases() {
@@ -161,10 +210,13 @@ atf_init_test_cases() {
 	atf_add_test_case user_mod_comments_noupdate
 	atf_add_test_case user_mod_comments_invalid
 	atf_add_test_case user_mod_comments_invalid_noupdate
+	atf_add_test_case user_mod_nogroups
 	atf_add_test_case user_mod_rename
 	atf_add_test_case user_mod_name_noupdate
-	atf_add_test_case user_mod_rename
 	atf_add_test_case user_mod_rename_too_long
+	atf_add_test_case user_mod_rename_multigroups
 	atf_add_test_case user_mod_h
 	atf_add_test_case user_mod_H
+	atf_add_test_case user_mod_renamehome
+	atf_add_test_case user_mod_uid
 }

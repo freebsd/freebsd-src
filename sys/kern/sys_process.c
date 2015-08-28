@@ -947,7 +947,15 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 			}
 			break;
 		case PT_DETACH:
-			/* reset process parent */
+			/*
+			 * Reset the process parent.
+			 *
+			 * NB: This clears P_TRACED before reparenting
+			 * a detached process back to its original
+			 * parent.  Otherwise the debugee will be set
+			 * as an orphan of the debugger.
+			 */
+			p->p_flag &= ~(P_TRACED | P_WAITED | P_FOLLOWFORK);
 			if (p->p_oppid != p->p_pptr->p_pid) {
 				PROC_LOCK(p->p_pptr);
 				sigqueue_take(p->p_ksi);
@@ -963,7 +971,6 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 			} else
 				CTR1(KTR_PTRACE, "PT_DETACH: pid %d", p->p_pid);
 			p->p_oppid = 0;
-			p->p_flag &= ~(P_TRACED | P_WAITED | P_FOLLOWFORK);
 			p->p_stops = 0;
 
 			/* should we send SIGCHLD? */

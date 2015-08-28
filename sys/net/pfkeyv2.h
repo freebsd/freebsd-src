@@ -39,10 +39,6 @@
 #ifndef _NET_PFKEYV2_H_
 #define _NET_PFKEYV2_H_
 
-#ifndef _KERNEL
-#define CTASSERT(x)	struct __thisisjustnothing;
-#endif
-
 /*
 This file defines structures and symbols for the PF_KEY Version 2
 key management interface. It was written at the U.S. Naval Research
@@ -231,7 +227,7 @@ struct sadb_x_policy {
   u_int32_t sadb_x_policy_id;
   u_int32_t sadb_x_policy_reserved2;
 };
-CTASSERT(sizeof(struct sadb_x_policy) == 16);
+_Static_assert(sizeof(struct sadb_x_policy) == 16, "struct size mismatch");
 
 /*
  * When policy_type == IPSEC, it is followed by some of
@@ -267,7 +263,7 @@ struct sadb_x_nat_t_type {
   u_int8_t sadb_x_nat_t_type_type;
   u_int8_t sadb_x_nat_t_type_reserved[3];
 };
-CTASSERT(sizeof(struct sadb_x_nat_t_type) == 8);
+_Static_assert(sizeof(struct sadb_x_nat_t_type) == 8, "struct size mismatch");
 
 /* NAT-Traversal source or destination port. */
 struct sadb_x_nat_t_port { 
@@ -276,7 +272,7 @@ struct sadb_x_nat_t_port {
   u_int16_t sadb_x_nat_t_port_port;
   u_int16_t sadb_x_nat_t_port_reserved;
 };
-CTASSERT(sizeof(struct sadb_x_nat_t_port) == 8);
+_Static_assert(sizeof(struct sadb_x_nat_t_port) == 8, "struct size mismatch");
 
 /* ESP fragmentation size. */
 struct sadb_x_nat_t_frag {
@@ -285,7 +281,7 @@ struct sadb_x_nat_t_frag {
   u_int16_t sadb_x_nat_t_frag_fraglen;
   u_int16_t sadb_x_nat_t_frag_reserved;
 };
-CTASSERT(sizeof(struct sadb_x_nat_t_frag) == 8);
+_Static_assert(sizeof(struct sadb_x_nat_t_frag) == 8, "struct size mismatch");
 
 
 #define SADB_EXT_RESERVED             0

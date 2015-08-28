@@ -151,7 +151,7 @@ int
 op_ip(struct snmp_context *ctx, struct snmp_value *value,
     u_int sub, u_int idx __unused, enum snmp_op op)
 {
-	int old;
+	int old = 0;
 
 	switch (op) {
 

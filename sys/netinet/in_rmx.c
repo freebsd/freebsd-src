@@ -59,8 +59,6 @@ extern int	in_detachhead(void **head, int off);
 
 static void in_setifarnh(struct rib_head *rh, uint32_t fibnum,
     int af, void *_arg);
-static void in_rtqtimo_setrnh(struct rib_head *rh, uint32_t fibnum,
-    int af, void *_arg);
 
 /*
  * Do what we need to do when inserting a route.
@@ -208,7 +206,7 @@ in_ifadown(struct ifaddr *ifa, int delete)
 	arg.ifa = ifa;
 	arg.del = delete;
 
-	rt_foreach_fib(AF_INET, in_setifarnh, in_ifadownkill, &arg);
+	rt_foreach_fib_walk(AF_INET, in_setifarnh, in_ifadownkill, &arg);
 	ifa->ifa_flags &= ~IFA_ROUTE;		/* XXXlocking? */
 }
 

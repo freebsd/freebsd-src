@@ -1,5 +1,5 @@
 /*-
- * Copyright (C) Baptiste Daroussin <bapt@FreeBSD.org>
+ * Copyright (C) 2015 Baptiste Daroussin <bapt@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,6 +41,7 @@ strtounum(const char * __restrict np, uintmax_t minval, uintmax_t maxval,
 	char *endp;
 	uintmax_t ret;
 
+	*errpp = NULL;
 	if (minval > maxval) {
 		errno = EINVAL;
 		if (errpp != NULL)

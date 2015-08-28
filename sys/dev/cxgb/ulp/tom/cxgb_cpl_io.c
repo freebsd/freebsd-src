@@ -640,7 +640,7 @@ t3_send_fin(struct toedev *tod, struct tcpcb *tp)
 	unsigned int tid = toep->tp_tid;
 #endif
 
-	INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
+	INP_INFO_RLOCK_ASSERT(&V_tcbinfo);
 	INP_WLOCK_ASSERT(inp);
 
 	CTR4(KTR_CXGB, "%s: tid %d, toep %p, flags %x", __func__, tid, toep,
@@ -926,12 +926,12 @@ do_act_open_rpl(struct sge_qset *qs, struct rsp_desc *r, struct mbuf *m)
 
 	rc = act_open_rpl_status_to_errno(s);
 	if (rc != EAGAIN)
-		INP_INFO_WLOCK(&V_tcbinfo);
+		INP_INFO_RLOCK(&V_tcbinfo);
 	INP_WLOCK(inp);
 	toe_connect_failed(tod, inp, rc);
 	toepcb_release(toep);	/* unlocks inp */
 	if (rc != EAGAIN)
-		INP_INFO_WUNLOCK(&V_tcbinfo);
+		INP_INFO_RUNLOCK(&V_tcbinfo);
 
 	m_freem(m);
 	return (0);
@@ -1075,7 +1075,7 @@ send_reset(struct toepcb *toep)
 	struct adapter *sc = tod->tod_softc;
 	struct mbuf *m;
 
-	INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
+	INP_INFO_RLOCK_ASSERT(&V_tcbinfo);
 	INP_WLOCK_ASSERT(inp);
 
 	CTR4(KTR_CXGB, "%s: tid %d, toep %p (%x)", __func__, tid, toep,
@@ -1186,12 +1186,12 @@ do_rx_data(struct sge_qset *qs, struct rsp_desc *r, struct mbuf *m)
 		SOCKBUF_UNLOCK(so_rcv);
 		INP_WUNLOCK(inp);
 
-		INP_INFO_WLOCK(&V_tcbinfo);
+		INP_INFO_RLOCK(&V_tcbinfo);
 		INP_WLOCK(inp);
 		tp = tcp_drop(tp, ECONNRESET);
 		if (tp)
 			INP_WUNLOCK(inp);
-		INP_INFO_WUNLOCK(&V_tcbinfo);
+		INP_INFO_RUNLOCK(&V_tcbinfo);
 
 		m_freem(m);
 		return (0);
@@ -1236,7 +1236,7 @@ do_peer_close(struct sge_qset *qs, struct rsp_desc *r, struct mbuf *m)
 	struct tcpcb *tp;
 	struct socket *so;
 
-	INP_INFO_WLOCK(&V_tcbinfo);
+	INP_INFO_RLOCK(&V_tcbinfo);
 	INP_WLOCK(inp);
 	tp = intotcpcb(inp);
 
@@ -1264,7 +1264,7 @@ do_peer_close(struct sge_qset *qs, struct rsp_desc *r, struct mbuf *m)
 	case TCPS_FIN_WAIT_2:
 		tcp_twstart(tp);
 		INP_UNLOCK_ASSERT(inp);	/* safe, we have a ref on the  inp */
-		INP_INFO_WUNLOCK(&V_tcbinfo);
+		INP_INFO_RUNLOCK(&V_tcbinfo);
 
 		INP_WLOCK(inp);
 		toepcb_release(toep);	/* no more CPLs expected */
@@ -1278,7 +1278,7 @@ do_peer_close(struct sge_qset *qs, struct rsp_desc *r, struct mbuf *m)
 
 done:
 	INP_WUNLOCK(inp);
-	INP_INFO_WUNLOCK(&V_tcbinfo);
+	INP_INFO_RUNLOCK(&V_tcbinfo);
 
 	m_freem(m);
 	return (0);
@@ -1299,7 +1299,7 @@ do_close_con_rpl(struct sge_qset *qs, struct rsp_desc *r, struct mbuf *m)
 	struct tcpcb *tp;
 	struct socket *so;
 
-	INP_INFO_WLOCK(&V_tcbinfo);
+	INP_INFO_RLOCK(&V_tcbinfo);
 	INP_WLOCK(inp);
 	tp = intotcpcb(inp);
 
@@ -1317,7 +1317,7 @@ do_close_con_rpl(struct sge_qset *qs, struct rsp_desc *r, struct mbuf *m)
 		tcp_twstart(tp);
 release:
 		INP_UNLOCK_ASSERT(inp);	/* safe, we have a ref on the  inp */
-		INP_INFO_WUNLOCK(&V_tcbinfo);
+		INP_INFO_RUNLOCK(&V_tcbinfo);
 
 		INP_WLOCK(inp);
 		toepcb_release(toep);	/* no more CPLs expected */
@@ -1342,7 +1342,7 @@ release:
 
 done:
 	INP_WUNLOCK(inp);
-	INP_INFO_WUNLOCK(&V_tcbinfo);
+	INP_INFO_RUNLOCK(&V_tcbinfo);
 
 	m_freem(m);
 	return (0);
@@ -1503,7 +1503,7 @@ do_abort_req(struct sge_qset *qs, struct rsp_desc *r, struct mbuf *m)
 		return (do_abort_req_synqe(qs, r, m));
 
 	inp = toep->tp_inp;
-	INP_INFO_WLOCK(&V_tcbinfo);	/* for tcp_close */
+	INP_INFO_RLOCK(&V_tcbinfo);	/* for tcp_close */
 	INP_WLOCK(inp);
 
 	tp = intotcpcb(inp);
@@ -1517,7 +1517,7 @@ do_abort_req(struct sge_qset *qs, struct rsp_desc *r, struct mbuf *m)
 		toep->tp_flags |= TP_ABORT_REQ_RCVD;
 		toep->tp_flags |= TP_ABORT_SHUTDOWN;
 		INP_WUNLOCK(inp);
-		INP_INFO_WUNLOCK(&V_tcbinfo);
+		INP_INFO_RUNLOCK(&V_tcbinfo);
 		m_freem(m);
 		return (0);
 	}
@@ -1537,7 +1537,7 @@ do_abort_req(struct sge_qset *qs, struct rsp_desc *r, struct mbuf *m)
 			INP_WLOCK(inp);	/* re-acquire */
 		toepcb_release(toep);	/* no more CPLs expected */
 	}
-	INP_INFO_WUNLOCK(&V_tcbinfo);
+	INP_INFO_RUNLOCK(&V_tcbinfo);
 
 	send_abort_rpl(tod, tid, qset);
 	m_freem(m);

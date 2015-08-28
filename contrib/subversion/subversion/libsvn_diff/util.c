@@ -34,6 +34,7 @@
 #include "svn_diff.h"
 #include "svn_types.h"
 #include "svn_ctype.h"
+#include "svn_sorts.h"
 #include "svn_utf.h"
 #include "svn_version.h"
 
@@ -486,23 +487,37 @@ display_mergeinfo_diff(const char *old_mergeinfo_val,
   return SVN_NO_ERROR;
 }
 
+/* qsort callback handling svn_prop_t by name */
+static int
+propchange_sort(const void *k1, const void *k2)
+{
+  const svn_prop_t *propchange1 = k1;
+  const svn_prop_t *propchange2 = k2;
+
+  return strcmp(propchange1->name, propchange2->name);
+}
+
 svn_error_t *
 svn_diff__display_prop_diffs(svn_stream_t *outstream,
                              const char *encoding,
                              const apr_array_header_t *propchanges,
                              apr_hash_t *original_props,
                              svn_boolean_t pretty_print_mergeinfo,
-                             apr_pool_t *pool)
+                             apr_pool_t *scratch_pool)
 {
+  apr_pool_t *pool = scratch_pool;
   apr_pool_t *iterpool = svn_pool_create(pool);
+  apr_array_header_t *changes = apr_array_copy(scratch_pool, propchanges);
   int i;
 
-  for (i = 0; i < propchanges->nelts; i++)
+  qsort(changes->elts, changes->nelts, changes->elt_size, propchange_sort);
+
+  for (i = 0; i < changes->nelts; i++)
     {
       const char *action;
       const svn_string_t *original_value;
       const svn_prop_t *propchange
-        = &APR_ARRAY_IDX(propchanges, i, svn_prop_t);
+        = &APR_ARRAY_IDX(changes, i, svn_prop_t);
 
       if (original_props)
         original_value = svn_hash_gets(original_props, propchange->name);

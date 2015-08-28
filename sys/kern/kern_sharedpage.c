@@ -119,6 +119,13 @@ shared_page_init(void *dummy __unused)
 SYSINIT(shp, SI_SUB_EXEC, SI_ORDER_FIRST, (sysinit_cfunc_t)shared_page_init,
     NULL);
 
+/*
+ * Push the timehands update to the shared page.
+ *
+ * The lockless update scheme is similar to the one used to update the
+ * in-kernel timehands, see sys/kern/kern_tc.c:tc_windup() (which
+ * calls us after the timehands are updated).
+ */
 static void
 timehands_update(struct sysentvec *sv)
 {
@@ -127,47 +134,56 @@ timehands_update(struct sysentvec *sv)
 	uint32_t enabled, idx;
 
 	enabled = tc_fill_vdso_timehands(&th);
-	tk = (struct vdso_timekeep *)(shared_page_mapping +
-	    sv->sv_timekeep_off);
+	th.th_gen = 0;
 	idx = sv->sv_timekeep_curr;
-	atomic_store_rel_32(&tk->tk_th[idx].th_gen, 0);
 	if (++idx >= VDSO_TH_NUM)
 		idx = 0;
 	sv->sv_timekeep_curr = idx;
 	if (++sv->sv_timekeep_gen == 0)
 		sv->sv_timekeep_gen = 1;
-	th.th_gen = 0;
+
+	tk = (struct vdso_timekeep *)(shared_page_mapping +
+	    sv->sv_timekeep_off);
+	tk->tk_th[idx].th_gen = 0;
+	atomic_thread_fence_rel();
 	if (enabled)
 		tk->tk_th[idx] = th;
-	tk->tk_enabled = enabled;
 	atomic_store_rel_32(&tk->tk_th[idx].th_gen, sv->sv_timekeep_gen);
-	tk->tk_current = idx;
+	atomic_store_rel_32(&tk->tk_current, idx);
+
+	/*
+	 * The ordering of the assignment to tk_enabled relative to
+	 * the update of the vdso_timehands is not important.
+	 */
+	tk->tk_enabled = enabled;
 }
 
 #ifdef COMPAT_FREEBSD32
 static void
 timehands_update32(struct sysentvec *sv)
 {
-	struct vdso_timekeep32 *tk;
 	struct vdso_timehands32 th;
+	struct vdso_timekeep32 *tk;
 	uint32_t enabled, idx;
 
 	enabled = tc_fill_vdso_timehands32(&th);
-	tk = (struct vdso_timekeep32 *)(shared_page_mapping +
-	    sv->sv_timekeep_off);
+	th.th_gen = 0;
 	idx = sv->sv_timekeep_curr;
-	atomic_store_rel_32(&tk->tk_th[idx].th_gen, 0);
 	if (++idx >= VDSO_TH_NUM)
 		idx = 0;
 	sv->sv_timekeep_curr = idx;
 	if (++sv->sv_timekeep_gen == 0)
 		sv->sv_timekeep_gen = 1;
-	th.th_gen = 0;
+
+	tk = (struct vdso_timekeep32 *)(shared_page_mapping +
+	    sv->sv_timekeep_off);
+	tk->tk_th[idx].th_gen = 0;
+	atomic_thread_fence_rel();
 	if (enabled)
 		tk->tk_th[idx] = th;
-	tk->tk_enabled = enabled;
 	atomic_store_rel_32(&tk->tk_th[idx].th_gen, sv->sv_timekeep_gen);
-	tk->tk_current = idx;
+	atomic_store_rel_32(&tk->tk_current, idx);
+	tk->tk_enabled = enabled;
 }
 #endif
 

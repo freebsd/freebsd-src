@@ -103,8 +103,7 @@ static int
 we_askshell(const char *words, wordexp_t *we, int flags)
 {
 	int pdes[2];			/* Pipe to child */
-	char bbuf[9];			/* Buffer for byte count */
-	char wbuf[9];			/* Buffer for word count */
+	char buf[18];			/* Buffer for byte and word count */
 	long nwords, nbytes;		/* Number of words, bytes from child */
 	long i;				/* Handy integer */
 	size_t sofs;			/* Offset into we->we_strings */
@@ -119,6 +118,7 @@ we_askshell(const char *words, wordexp_t *we, int flags)
 	char **nwv;			/* Temporary for realloc() */
 	sigset_t newsigblock, oldsigblock;
 	const char *ifs;
+	char save;
 
 	serrno = errno;
 	ifs = getenv("IFS");
@@ -138,8 +138,7 @@ we_askshell(const char *words, wordexp_t *we, int flags)
 	}
 	else if (pid == 0) {
 		/*
-		 * We are the child; just get /bin/sh to run the wordexp
-		 * builtin on `words'.
+		 * We are the child; make /bin/sh expand `words'.
 		 */
 		(void)_sigprocmask(SIG_SETMASK, &oldsigblock, NULL);
 		if ((pdes[1] != STDOUT_FILENO ?
@@ -147,7 +146,10 @@ we_askshell(const char *words, wordexp_t *we, int flags)
 		    _fcntl(pdes[1], F_SETFD, 0)) < 0)
 			_exit(1);
 		execl(_PATH_BSHELL, "sh", flags & WRDE_UNDEF ? "-u" : "+u",
-		    "-c", "IFS=$1;eval \"$2\";eval \"wordexp $3\"", "",
+		    "-c", "IFS=$1;eval \"$2\";eval \"echo;set -- $3\";"
+		    "IFS=;a=\"$*\";printf '%08x' \"$#\" \"${#a}\";"
+		    "printf '%s\\0' \"$@\"",
+		    "",
 		    ifs != NULL ? ifs : " \t\n",
 		    flags & WRDE_SHOWERR ? "" : "exec 2>/dev/null", words,
 		    (char *)NULL);
@@ -156,20 +158,30 @@ we_askshell(const char *words, wordexp_t *we, int flags)
 
 	/*
 	 * We are the parent; read the output of the shell wordexp function,
-	 * which is a 32-bit hexadecimal word count, a 32-bit hexadecimal
-	 * byte count (not including terminating null bytes), followed by
-	 * the expanded words separated by nulls.
+	 * which is a byte indicating that the words were parsed successfully,
+	 * a 32-bit hexadecimal word count, a 32-bit hexadecimal byte count
+	 * (not including terminating null bytes), followed by the expanded
+	 * words separated by nulls.
 	 */
 	_close(pdes[1]);
-	if (we_read_fully(pdes[0], wbuf, 8) != 8 ||
-			we_read_fully(pdes[0], bbuf, 8) != 8) {
-		error = flags & WRDE_UNDEF ? WRDE_BADVAL : WRDE_SYNTAX;
+	switch (we_read_fully(pdes[0], buf, 17)) {
+	case 1:
+		error = WRDE_BADVAL;
+		serrno = errno;
+		goto cleanup;
+	case 17:
+		break;
+	default:
+		error = WRDE_SYNTAX;
 		serrno = errno;
 		goto cleanup;
 	}
-	wbuf[8] = bbuf[8] = '\0';
-	nwords = strtol(wbuf, NULL, 16);
-	nbytes = strtol(bbuf, NULL, 16) + nwords;
+	save = buf[9];
+	buf[9] = '\0';
+	nwords = strtol(buf + 1, NULL, 16);
+	buf[9] = save;
+	buf[17] = '\0';
+	nbytes = strtol(buf + 9, NULL, 16) + nwords;
 
 	/*
 	 * Allocate or reallocate (when flags & WRDE_APPEND) the word vector
@@ -199,7 +211,7 @@ we_askshell(const char *words, wordexp_t *we, int flags)
 	we->we_strings = nstrings;
 
 	if (we_read_fully(pdes[0], we->we_strings + sofs, nbytes) != nbytes) {
-		error = flags & WRDE_UNDEF ? WRDE_BADVAL : WRDE_SYNTAX;
+		error = WRDE_NOSPACE; /* abort for unknown reason */
 		serrno = errno;
 		goto cleanup;
 	}
@@ -216,7 +228,7 @@ cleanup:
 		return (error);
 	}
 	if (wpid < 0 || !WIFEXITED(status) || WEXITSTATUS(status) != 0)
-		return (flags & WRDE_UNDEF ? WRDE_BADVAL : WRDE_SYNTAX);
+		return (WRDE_NOSPACE); /* abort for unknown reason */
 
 	/*
 	 * Break the null-terminated expanded word strings out into

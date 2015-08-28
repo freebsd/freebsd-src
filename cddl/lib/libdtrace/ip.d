@@ -25,6 +25,7 @@
  * Copyright (c) 2013 Mark Johnston <markj@freebsd.org>
  */
 
+#pragma D depends_on module kernel
 #pragma D depends_on provider ip
 
 /*

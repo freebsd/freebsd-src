@@ -286,7 +286,7 @@ EndElement(void *userData, const char *name)
 			    "element", name);
 			return;
 		}
-		gc->lg_val = p ? p : strdup("1");
+		gc->lg_val = p;
 		LIST_INSERT_HEAD(c, gc, lg_config);
 		return;
 	}

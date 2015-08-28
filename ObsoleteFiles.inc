@@ -38,6 +38,14 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20150818: *allocm() are gone in jemalloc 4.0.0
+OLD_FILES+=usr/share/man/man3/allocm.3.gz
+OLD_FILES+=usr/share/man/man3/dallocm.3.gz
+OLD_FILES+=usr/share/man/man3/nallocm.3.gz
+OLD_FILES+=usr/share/man/man3/rallocm.3.gz
+OLD_FILES+=usr/share/man/man3/sallocm.3.gz
+# 20150802: Remove netbsd's test on pw(8)
+OLD_FILES+=usr/tests/usr.sbin/pw/pw_test
 # 20150719: Remove libarchive.pc
 OLD_FILES+=usr/libdata/pkgconfig/libarchive.pc
 # 20150705: Rename DTrace provider man pages.

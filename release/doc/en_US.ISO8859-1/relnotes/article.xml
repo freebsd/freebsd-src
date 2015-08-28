@@ -1405,7 +1405,7 @@
       &os;.</para>
 
     <sect2 xml:id="network-protocols">
-      <title>Network Procols</title>
+      <title>Network Protocols</title>
 
       <para revision="263140">Support for the IPX network transport
 	protocol has been removed, and will not be supported in

@@ -97,6 +97,18 @@ ar9300_freebsd_get_cts_timeout(struct ath_hal *ah)
     return ath_hal_mac_usec(ah, clks);      /* convert from system clocks */
 }
 
+static void
+ar9300_freebsd_set_tsf64(struct ath_hal *ah, uint64_t tsf64)
+{
+
+	/*
+	 * XXX TODO: read ar5416SetTsf64() - we should wait before we do
+	 * this.
+	 */
+	OS_REG_WRITE(ah, AR_TSF_L32, tsf64 & 0xffffffff);
+	OS_REG_WRITE(ah, AR_TSF_U32, (tsf64 >> 32) & 0xffffffff);
+}
+
 void
 ar9300_attach_freebsd_ops(struct ath_hal *ah)
 {
@@ -182,6 +194,7 @@ ar9300_attach_freebsd_ops(struct ath_hal *ah)
 	ah->ah_getTsf32		= ar9300_get_tsf32;
 	ah->ah_getTsf64		= ar9300_get_tsf64;
 	ah->ah_resetTsf		= ar9300_reset_tsf;
+	ah->ah_setTsf64		= ar9300_freebsd_set_tsf64;
 	ah->ah_detectCardPresent	= ar9300_detect_card_present;
 	// ah->ah_updateMibCounters	= ar9300_update_mib_counters;
 	ah->ah_getRfGain		= ar9300_get_rfgain;

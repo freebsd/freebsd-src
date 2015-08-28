@@ -408,8 +408,8 @@ g_eli_auth_run(struct g_eli_worker *wr, struct bio *bp)
 	struct cryptodesc *crde, *crda;
 	u_int i, lsec, nsec, data_secsize, decr_secsize, encr_secsize;
 	off_t dstoff;
-	int err, error;
 	u_char *p, *data, *auth, *authkey, *plaindata;
+	int error;
 
 	G_ELI_LOGREQ(3, bp, "%s", __func__);
 
@@ -451,7 +451,6 @@ g_eli_auth_run(struct g_eli_worker *wr, struct bio *bp)
 	bp->bio_inbed = 0;
 	bp->bio_children = nsec;
 
-	error = 0;
 	for (i = 1; i <= nsec; i++, dstoff += encr_secsize) {
 		crp = (struct cryptop *)p;	p += sizeof(*crp);
 		crde = (struct cryptodesc *)p;	p += sizeof(*crde);
@@ -519,10 +518,8 @@ g_eli_auth_run(struct g_eli_worker *wr, struct bio *bp)
 		crda->crd_klen = G_ELI_AUTH_SECKEYLEN * 8;
 
 		crp->crp_etype = 0;
-		err = crypto_dispatch(crp);
-		if (err != 0 && error == 0)
-			error = err;
+		error = crypto_dispatch(crp);
+		KASSERT(error == 0, ("crypto_dispatch() failed (error=%d)",
+		    error));
 	}
-	if (bp->bio_error == 0)
-		bp->bio_error = error;
 }

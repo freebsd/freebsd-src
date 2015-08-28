@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/endian.h>
 #include <sys/ata.h>
+#include <sys/bio.h>
 #include <sys/conf.h>
 #include <sys/ctype.h>
 #include <sys/bus.h>
@@ -43,6 +44,12 @@ __FBSDID("$FreeBSD$");
 #include <dev/ata/ata-all.h>
 #include <dev/ata/ata-pci.h>
 #include <ata_if.h>
+
+#include <vm/vm.h>
+#include <vm/pmap.h>
+
+#include <cam/cam.h>
+#include <cam/cam_ccb.h>
 
 /* prototypes */
 static int ata_generic_status(device_t dev);
@@ -811,86 +818,176 @@ ata_tf_write(struct ata_request *request)
 static void
 ata_pio_read(struct ata_request *request, int length)
 {
-    struct ata_channel *ch = device_get_softc(request->parent);
-    uint8_t *addr;
-    int size = min(request->transfersize, length);
-    int resid;
-    uint8_t buf[2] __aligned(sizeof(int16_t));
-#ifndef __NO_STRICT_ALIGNMENT
-    int i;
-#endif
+	struct ata_channel *ch = device_get_softc(request->parent);
+	struct bio *bio;
+	uint8_t *addr;
+	vm_offset_t page;
+	int todo, done, off, moff, resid, size, i;
+	uint8_t buf[2] __aligned(2);
 
-    addr = (uint8_t *)request->data + request->donecount;
-    if (__predict_false(ch->flags & ATA_USE_16BIT ||
-      (size % sizeof(int32_t)) || ((uintptr_t)addr % sizeof(int32_t)))) {
+	todo = min(request->transfersize, length);
+	page = done = resid = 0;
+	while (done < todo) {
+		size = todo - done;
+
+		/* Prepare data address and limit size (if not sequential). */
+		off = request->donecount + done;
+		if ((request->flags & ATA_R_DATA_IN_CCB) == 0 ||
+		    (request->ccb->ccb_h.flags & CAM_DATA_MASK) == CAM_DATA_VADDR) {
+			addr = (uint8_t *)request->data + off;
+		} else if ((request->ccb->ccb_h.flags & CAM_DATA_MASK) == CAM_DATA_BIO) {
+			bio = (struct bio *)request->data;
+			if ((bio->bio_flags & BIO_UNMAPPED) == 0) {
+				addr = (uint8_t *)bio->bio_data + off;
+			} else {
+				moff = bio->bio_ma_offset + off;
+				page = pmap_quick_enter_page(
+				    bio->bio_ma[moff / PAGE_SIZE]);
+				moff %= PAGE_SIZE;
+				size = min(size, PAGE_SIZE - moff);
+				addr = (void *)(page + moff);
+			}
+		} else
+			panic("ata_pio_read: Unsupported CAM data type %x\n",
+			    (request->ccb->ccb_h.flags & CAM_DATA_MASK));
+
+		/* We may have extra byte already red but not stored. */
+		if (resid) {
+			addr[0] = buf[1];
+			addr++;
+			done++;
+			size--;
+		}
+
+		/* Process main part of data. */
+		resid = size % 2;
+		if (__predict_false((ch->flags & ATA_USE_16BIT) ||
+		    (size % 4) != 0 || ((uintptr_t)addr % 4) != 0)) {
 #ifndef __NO_STRICT_ALIGNMENT
-	if (__predict_false((uintptr_t)addr % sizeof(int16_t))) {
-	    for (i = 0, resid = size & ~1; resid > 0; resid -=
-	      sizeof(int16_t)) {
-		*(uint16_t *)&buf = ATA_IDX_INW_STRM(ch, ATA_DATA);
-	        addr[i++] = buf[0];
-	        addr[i++] = buf[1];
-	    }
-	} else
+			if (__predict_false((uintptr_t)addr % 2)) {
+				for (i = 0; i + 1 < size; i += 2) {
+					*(uint16_t *)&buf =
+					    ATA_IDX_INW_STRM(ch, ATA_DATA);
+					addr[i] = buf[0];
+					addr[i + 1] = buf[1];
+				}
+			} else
 #endif
-	    ATA_IDX_INSW_STRM(ch, ATA_DATA, (void*)addr, size /
-	      sizeof(int16_t));
-	if (size & 1) {
-	    *(uint16_t *)&buf = ATA_IDX_INW_STRM(ch, ATA_DATA);
-	    (addr + (size & ~1))[0] = buf[0];
+				ATA_IDX_INSW_STRM(ch, ATA_DATA, (void*)addr,
+				    size / 2);
+
+			/* If we have extra byte of data, leave it for later. */
+			if (resid) {
+				*(uint16_t *)&buf =
+				    ATA_IDX_INW_STRM(ch, ATA_DATA);
+				addr[size - 1] = buf[0];
+			}
+		} else
+			ATA_IDX_INSL_STRM(ch, ATA_DATA, (void*)addr, size / 4);
+
+		if (page) {
+			pmap_quick_remove_page(page);
+			page = 0;
+		}
+		done += size;
 	}
-    } else
-	ATA_IDX_INSL_STRM(ch, ATA_DATA, (void*)addr, size / sizeof(int32_t));
 
-    if (request->transfersize < length) {
-	device_printf(request->parent, "WARNING - %s read data overrun %d>%d\n",
-		   ata_cmd2str(request), length, request->transfersize);
-	for (resid = request->transfersize + (size & 1); resid < length;
-	     resid += sizeof(int16_t))
-	    ATA_IDX_INW(ch, ATA_DATA);
-    }
+	if (length > done) {
+		device_printf(request->parent,
+		    "WARNING - %s read data overrun %d > %d\n",
+		    ata_cmd2str(request), length, done);
+		for (i = done + resid; i < length; i += 2)
+			ATA_IDX_INW(ch, ATA_DATA);
+	}
 }
 
 static void
 ata_pio_write(struct ata_request *request, int length)
 {
-    struct ata_channel *ch = device_get_softc(request->parent);
-    uint8_t *addr;
-    int size = min(request->transfersize, length);
-    int resid;
-    uint8_t buf[2] __aligned(sizeof(int16_t));
-#ifndef __NO_STRICT_ALIGNMENT
-    int i;
-#endif
+	struct ata_channel *ch = device_get_softc(request->parent);
+	struct bio *bio;
+	uint8_t *addr;
+	vm_offset_t page;
+	int todo, done, off, moff, resid, size, i;
+	uint8_t buf[2] __aligned(2);
 
-    size = min(request->transfersize, length);
-    addr = (uint8_t *)request->data + request->donecount;
-    if (__predict_false(ch->flags & ATA_USE_16BIT ||
-      (size % sizeof(int32_t)) || ((uintptr_t)addr % sizeof(int32_t)))) {
+	todo = min(request->transfersize, length);
+	page = done = resid = 0;
+	while (done < todo) {
+		size = todo - done;
+
+		/* Prepare data address and limit size (if not sequential). */
+		off = request->donecount + done;
+		if ((request->flags & ATA_R_DATA_IN_CCB) == 0 ||
+		    (request->ccb->ccb_h.flags & CAM_DATA_MASK) == CAM_DATA_VADDR) {
+			addr = (uint8_t *)request->data + off;
+		} else if ((request->ccb->ccb_h.flags & CAM_DATA_MASK) == CAM_DATA_BIO) {
+			bio = (struct bio *)request->data;
+			if ((bio->bio_flags & BIO_UNMAPPED) == 0) {
+				addr = (uint8_t *)bio->bio_data + off;
+			} else {
+				moff = bio->bio_ma_offset + off;
+				page = pmap_quick_enter_page(
+				    bio->bio_ma[moff / PAGE_SIZE]);
+				moff %= PAGE_SIZE;
+				size = min(size, PAGE_SIZE - moff);
+				addr = (void *)(page + moff);
+			}
+		} else
+			panic("ata_pio_write: Unsupported CAM data type %x\n",
+			    (request->ccb->ccb_h.flags & CAM_DATA_MASK));
+
+		/* We may have extra byte to be written first. */
+		if (resid) {
+			buf[1] = addr[0];
+			ATA_IDX_OUTW_STRM(ch, ATA_DATA, *(uint16_t *)&buf);
+			addr++;
+			done++;
+			size--;
+		}
+
+		/* Process main part of data. */
+		resid = size % 2;
+		if (__predict_false((ch->flags & ATA_USE_16BIT) ||
+		    (size % 4) != 0 || ((uintptr_t)addr % 4) != 0)) {
 #ifndef __NO_STRICT_ALIGNMENT
-	if (__predict_false((uintptr_t)addr % sizeof(int16_t))) {
-	    for (i = 0, resid = size & ~1; resid > 0; resid -=
-	      sizeof(int16_t)) {
-	        buf[0] = addr[i++];
-	        buf[1] = addr[i++];
-		ATA_IDX_OUTW_STRM(ch, ATA_DATA, *(uint16_t *)&buf);
-	    }
-	} else
+			if (__predict_false((uintptr_t)addr % 2)) {
+				for (i = 0; i + 1 < size; i += 2) {
+					buf[0] = addr[i];
+					buf[1] = addr[i + 1];
+					ATA_IDX_OUTW_STRM(ch, ATA_DATA,
+					    *(uint16_t *)&buf);
+				}
+			} else
 #endif
-	    ATA_IDX_OUTSW_STRM(ch, ATA_DATA, (void*)addr, size /
-	      sizeof(int16_t));
-	if (size & 1) {
-	    buf[0] = (addr + (size & ~1))[0];
-	    ATA_IDX_OUTW_STRM(ch, ATA_DATA, *(uint16_t *)&buf);
+				ATA_IDX_OUTSW_STRM(ch, ATA_DATA, (void*)addr,
+				    size / 2);
+
+			/* If we have extra byte of data, save it for later. */
+			if (resid)
+				buf[0] = addr[size - 1];
+		} else
+			ATA_IDX_OUTSL_STRM(ch, ATA_DATA,
+			    (void*)addr, size / sizeof(int32_t));
+
+		if (page) {
+			pmap_quick_remove_page(page);
+			page = 0;
+		}
+		done += size;
 	}
-    } else
-	ATA_IDX_OUTSL_STRM(ch, ATA_DATA, (void*)addr, size / sizeof(int32_t));
 
-    if (request->transfersize < length) {
-	device_printf(request->parent, "WARNING - %s write data underrun %d>%d\n",
-		   ata_cmd2str(request), length, request->transfersize);
-	for (resid = request->transfersize + (size & 1); resid < length;
-	     resid += sizeof(int16_t))
-	    ATA_IDX_OUTW(ch, ATA_DATA, 0);
-    }
+	/* We may have extra byte of data to be written. Pad it with zero. */
+	if (resid) {
+		buf[1] = 0;
+		ATA_IDX_OUTW_STRM(ch, ATA_DATA, *(uint16_t *)&buf);
+	}
+
+	if (length > done) {
+		device_printf(request->parent,
+		    "WARNING - %s write data underrun %d > %d\n",
+		    ata_cmd2str(request), length, done);
+		for (i = done + resid; i < length; i += 2)
+			ATA_IDX_OUTW(ch, ATA_DATA, 0);
+	}
 }

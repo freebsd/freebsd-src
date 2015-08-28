@@ -119,7 +119,7 @@ db_validate_address(vm_offset_t addr)
 	else
 		pmap = p->p_vmspace->vm_map.pmap;
 
-	return (pmap_extract(pmap, addr) == FALSE);
+	return (pmap_extract(pmap, addr) != 0);
 }
 
 /*
