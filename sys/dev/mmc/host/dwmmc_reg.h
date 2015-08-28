@@ -30,6 +30,9 @@
  * $FreeBSD$
  */
 
+#ifndef DEV_MMC_HOST_DWMMC_REG_H
+#define DEV_MMC_HOST_DWMMC_REG_H
+
 #define	SDMMC_CTRL		0x0	/* Control Register */
 #define	 SDMMC_CTRL_USE_IDMAC	(1 << 25)	/* Use Internal DMAC */
 #define	 SDMMC_CTRL_DMA_ENABLE	(1 << 5)	/* */
@@ -150,3 +153,5 @@
 #define	 SDMMC_CLKSEL_SAMPLE_SHIFT	0
 #define	 SDMMC_CLKSEL_DRIVE_SHIFT	16
 #define	 SDMMC_CLKSEL_DIVIDER_SHIFT	24
+
+#endif /* DEV_MMC_HOST_DWMMC_REG_H */
