@@ -237,12 +237,12 @@
 #define	__aligned(x)	__attribute__((__aligned__(x)))
 #define	__section(x)	__attribute__((__section__(x)))
 #endif
-#if __has_attribute(alloc_size) || __GNUC_PREREQ__(4, 3)
+#if __GNUC_PREREQ__(4, 3) || __has_attribute(alloc_size)
 #define	__alloc_size(x)	__attribute__((__alloc_size__(x)))
 #else
 #define	__alloc_size(x)
 #endif
-#if __has_attribute(alloc_align) || __GNUC_PREREQ__(4, 9)
+#if __GNUC_PREREQ__(4, 9) || __has_attribute(alloc_align)
 #define	__alloc_align(x)	__attribute__((__alloc_align__(x)))
 #else
 #define	__alloc_align(x)
@@ -382,7 +382,7 @@
 #define	__returns_twice
 #endif
 
-#if __has_builtin(__builtin_unreachable) || __GNUC_PREREQ__(4, 6)
+#if __GNUC_PREREQ__(4, 6) || __has_builtin(__builtin_unreachable) 
 #define	__unreachable()	__builtin_unreachable()
 #else
 #define	__unreachable()	((void)0)
@@ -535,7 +535,7 @@
  * well enough to use them in limited cases.
  */ 
 #if defined(__GNUC_GNU_INLINE__) || defined(__GNUC_STDC_INLINE__)
-#if __has_attribute(artificial) || __GNUC_PREREQ__(4, 3)
+#if __GNUC_PREREQ__(4, 3) || __has_attribute(artificial)
 #define	__gnu_inline	__attribute__((__gnu_inline__, __artificial__))
 #else
 #define	__gnu_inline	__attribute__((__gnu_inline__))
