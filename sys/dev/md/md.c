@@ -89,6 +89,7 @@
 #include <sys/vnode.h>
 
 #include <geom/geom.h>
+#include <geom/geom_int.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -1621,9 +1622,11 @@ g_md_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 			    "read-only");
 			sbuf_printf(sb, "%s<type>%s</type>\n", indent,
 			    type);
-			if (mp->type == MD_VNODE && mp->vnode != NULL)
-				sbuf_printf(sb, "%s<file>%s</file>\n",
-				    indent, mp->file);
+			if (mp->type == MD_VNODE && mp->vnode != NULL) {
+				sbuf_printf(sb, "%s<file>", indent);
+				g_conf_printf_escaped(sb, "%s", mp->file);
+				sbuf_printf(sb, "</file>\n");
+			}
 		}
 	}
 }
