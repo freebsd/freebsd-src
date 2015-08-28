@@ -934,7 +934,7 @@ tcp_timer_stop(struct tcpcb *tp, uint32_t timer_type)
 		}
 
 	if (tp->t_timers->tt_flags & timer_type) {
-		if (callout_stop(t_callout) &&
+		if (callout_drain_async(t_callout, f_callout, tp) == 0 &&
 		    (tp->t_timers->tt_flags & f_reset)) {
 			tp->t_timers->tt_flags &= ~(timer_type | f_reset);
 		} else {
@@ -948,7 +948,6 @@ tcp_timer_stop(struct tcpcb *tp, uint32_t timer_type)
 			 * classical check for callout reset/stop events:
 			 * callout_pending() || !callout_active()
 			 */
-			callout_reset(t_callout, 1, f_callout, tp);
 		}
 	}
 }
