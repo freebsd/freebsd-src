@@ -1028,19 +1028,8 @@ callout_restart_async(struct callout *c, struct callout_args *coa,
 		 */
 		if (cc_exec_cancel(cc, direct) == false ||
 		    (c->c_flags & CALLOUT_DEFRESTART) != 0) {
-			/*
-			 * MPSAFE callouts should not return they were
-			 * cancelled when the callback is scheduled
-			 * for completion. Even if a deferred callback
-			 * was actually stopped. This helps MPSAFE
-			 * clients decide when they have a pending
-			 * callback or not.
-			 */
 			cc_exec_cancel(cc, direct) = true;
-			if (c->c_lock == NULL)
-				cancelled = CALLOUT_RET_NORMAL;
-			else
-				cancelled = CALLOUT_RET_CANCELLED;
+			cancelled = CALLOUT_RET_CANCELLED;
 		} else {
 			cancelled = CALLOUT_RET_NORMAL;
 		}
