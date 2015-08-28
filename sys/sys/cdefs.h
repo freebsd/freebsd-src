@@ -382,7 +382,7 @@
 #define	__returns_twice
 #endif
 
-#if __GNUC_PREREQ__(4, 6) || __has_builtin(__builtin_unreachable) 
+#if __GNUC_PREREQ__(4, 6) || __has_builtin(__builtin_unreachable)
 #define	__unreachable()	__builtin_unreachable()
 #else
 #define	__unreachable()	((void)0)
