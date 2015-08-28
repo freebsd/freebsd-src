@@ -361,7 +361,8 @@ _MPATH=${__MPATH:H:O:u}
 .endif
 .PATH.m: ${_MPATH}
 .for _i in ${SRCS:M*_if.[ch]}
-CLEANFILES+=	${_i}
+#removes too much, comment out until it's more constrained.
+#CLEANFILES+=	${_i}
 .endfor # _i
 .m.c:	${SYSDIR}/tools/makeobjops.awk
 	${AWK} -f ${SYSDIR}/tools/makeobjops.awk ${.IMPSRC} -c
