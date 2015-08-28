@@ -600,9 +600,6 @@ setup_device(device_t dev, struct netfront_info *info)
 	netif_tx_sring_t *txs;
 	netif_rx_sring_t *rxs;
 	int error;
-	struct ifnet *ifp;
-	
-	ifp = info->xn_ifp;
 
 	info->tx_ring_ref = GRANT_REF_INVALID;
 	info->rx_ring_ref = GRANT_REF_INVALID;

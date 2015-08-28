@@ -264,7 +264,7 @@ iwm_mvm_power_build_cmd(struct iwm_softc *sc, struct iwm_node *in,
 	struct ieee80211_node *ni = &in->in_ni;
 	int dtimper, dtimper_msec;
 	int keep_alive;
-	struct ieee80211com *ic = sc->sc_ic;
+	struct ieee80211com *ic = &sc->sc_ic;
 	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
 
 	cmd->id_and_color = htole32(IWM_FW_CMD_ID_AND_COLOR(IWM_DEFAULT_MACID,

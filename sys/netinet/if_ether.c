@@ -398,7 +398,6 @@ arpresolve_full(struct ifnet *ifp, int is_gw, int create, struct mbuf *m,
 
 	if (pflags != NULL)
 		*pflags = 0;
-	printf("arpresolve_full for %s create=%d\n", ifp->if_xname, create);
 
 	if (create == 0) {
 		IF_AFDATA_RLOCK(ifp);
@@ -406,7 +405,6 @@ arpresolve_full(struct ifnet *ifp, int is_gw, int create, struct mbuf *m,
 		IF_AFDATA_RUNLOCK(ifp);
 	}
 	if (la == NULL && (ifp->if_flags & (IFF_NOARP | IFF_STATICARP)) == 0) {
-		printf("ALLOC for %s\n", ifp->if_xname);
 		la = lltable_alloc_entry(LLTABLE(ifp), 0, dst);
 		if (la == NULL) {
 			log(LOG_DEBUG,
@@ -540,20 +538,16 @@ arpresolve(struct ifnet *ifp, int is_gw, struct mbuf *m,
 	if (pflags != NULL)
 		*pflags = 0;
 
-	printf("arpresolve() ARRRR on %s\n", ifp->if_xname);
-
 	if (m != NULL) {
 		if (m->m_flags & M_BCAST) {
 			/* broadcast */
 			(void)memcpy(desten,
 			    ifp->if_broadcastaddr, ifp->if_addrlen);
-			printf(" BCAST on %s\n", ifp->if_xname);
 			return (0);
 		}
 		if (m->m_flags & M_MCAST) {
 			/* multicast */
 			ETHER_MAP_IP_MULTICAST(&SIN(dst)->sin_addr, desten);
-			printf(" MCAST on %s\n", ifp->if_xname);
 			return (0);
 		}
 	}
@@ -562,7 +556,6 @@ arpresolve(struct ifnet *ifp, int is_gw, struct mbuf *m,
 	la = lla_lookup(LLTABLE(ifp), 0, dst);
 	IF_AFDATA_RUNLOCK(ifp);
 
-	printf("arpresolve()=%p\n", la);
 	if (la == NULL)
 		return (arpresolve_full(ifp, is_gw, 1, m, dst, desten, pflags));
 

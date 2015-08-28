@@ -124,14 +124,14 @@ u32  e1000_translate_register_82542(u32 reg);
  * TBI_ACCEPT macro definition:
  *
  * This macro requires:
- *      adapter = a pointer to struct e1000_hw
+ *      a = a pointer to struct e1000_hw
  *      status = the 8 bit status field of the Rx descriptor with EOP set
- *      error = the 8 bit error field of the Rx descriptor with EOP set
+ *      errors = the 8 bit error field of the Rx descriptor with EOP set
  *      length = the sum of all the length fields of the Rx descriptors that
  *               make up the current frame
  *      last_byte = the last byte of the frame DMAed by the hardware
- *      max_frame_length = the maximum frame length we want to accept.
- *      min_frame_length = the minimum frame length we want to accept.
+ *      min_frame_size = the minimum frame length we want to accept.
+ *      max_frame_size = the maximum frame length we want to accept.
  *
  * This macro is a conditional that should be used in the interrupt
  * handler's Rx processing routine when RxErrors have been detected.
@@ -157,10 +157,10 @@ u32  e1000_translate_register_82542(u32 reg);
 	 (((errors) & E1000_RXD_ERR_FRAME_ERR_MASK) == E1000_RXD_ERR_CE) && \
 	 ((last_byte) == CARRIER_EXTENSION) && \
 	 (((status) & E1000_RXD_STAT_VP) ? \
-	  (((length) > (min_frame_size - VLAN_TAG_SIZE)) && \
-	  ((length) <= (max_frame_size + 1))) : \
-	  (((length) > min_frame_size) && \
-	  ((length) <= (max_frame_size + VLAN_TAG_SIZE + 1)))))
+	  (((length) > ((min_frame_size) - VLAN_TAG_SIZE)) && \
+	  ((length) <= ((max_frame_size) + 1))) : \
+	  (((length) > (min_frame_size)) && \
+	  ((length) <= ((max_frame_size) + VLAN_TAG_SIZE + 1)))))
 
 #define E1000_MAX(a, b) ((a) > (b) ? (a) : (b))
 #define E1000_DIVIDE_ROUND_UP(a, b)	(((a) + (b) - 1) / (b)) /* ceil(a/b) */

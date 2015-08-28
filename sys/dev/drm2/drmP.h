@@ -204,17 +204,42 @@ struct drm_device;
 			__func__ , ##__VA_ARGS__);			\
 } while (0)
 
+#define DRM_DEBUG_DRIVER(fmt, ...) do {					\
+	if ((drm_debug & DRM_DEBUGBITS_KMS) != 0)			\
+		printf("[" DRM_NAME ":KMS:pid%d:%s] " fmt, DRM_CURRENTPID,\
+			__func__ , ##__VA_ARGS__);			\
+} while (0)
+
 #define DRM_DEBUG_KMS(fmt, ...) do {					\
 	if ((drm_debug & DRM_DEBUGBITS_KMS) != 0)			\
 		printf("[" DRM_NAME ":KMS:pid%d:%s] " fmt, DRM_CURRENTPID,\
 			__func__ , ##__VA_ARGS__);			\
 } while (0)
 
-#define DRM_DEBUG_DRIVER(fmt, ...) do {					\
+#define DRM_LOG(fmt, ...) do {						\
 	if ((drm_debug & DRM_DEBUGBITS_KMS) != 0)			\
-		printf("[" DRM_NAME ":KMS:pid%d:%s] " fmt, DRM_CURRENTPID,\
+		printf("[" DRM_NAME "]:pid%d:%s]" fmt, DRM_CURRENTPID,	\
 			__func__ , ##__VA_ARGS__);			\
 } while (0)
+
+#define DRM_LOG_KMS(fmt, ...) do {					\
+	if ((drm_debug & DRM_DEBUGBITS_KMS) != 0)			\
+		printf("[" DRM_NAME "]:KMS:pid%d:%s]" fmt, DRM_CURRENTPID,\
+			__func__ , ##__VA_ARGS__);			\
+} while (0)
+
+#define DRM_LOG_MODE(fmt, ...) do {					\
+	if ((drm_debug & DRM_DEBUGBITS_KMS) != 0)			\
+		printf("[" DRM_NAME "]:pid%d:%s]" fmt, DRM_CURRENTPID,	\
+			__func__ , ##__VA_ARGS__);			\
+} while (0)
+
+#define DRM_LOG_DRIVER(fmt, ...) do {					\
+	if ((drm_debug & DRM_DEBUGBITS_KMS) != 0)			\
+		printf("[" DRM_NAME "]:KMS:pid%d:%s]" fmt, DRM_CURRENTPID,\
+			__func__ , ##__VA_ARGS__);			\
+} while (0)
+
 
 /*@}*/
 

@@ -95,6 +95,11 @@ static struct mntarg *parse_mountroot_options(struct mntarg *, const char *);
  */
 struct vnode *rootvnode;
 
+/*
+ * Mount of the system's /dev.
+ */
+struct mount *rootdevmp;
+
 char *rootdevnames[2] = {NULL, NULL};
 
 struct mtx root_holds_mtx;
@@ -236,6 +241,7 @@ vfs_mountroot_devfs(struct thread *td, struct mount **mpp)
 	mtx_unlock(&mountlist_mtx);
 
 	*mpp = mp;
+	rootdevmp = mp;
 	set_rootvnode();
 
 	error = kern_symlinkat(td, "/", AT_FDCWD, "dev", UIO_SYSSPACE);
@@ -785,6 +791,11 @@ retry:
 			break;
 		default:
 			error = parse_mount(&conf);
+			if (error == -1) {
+				printf("mountroot: invalid file system "
+				    "specification.\n");
+				error = 0;
+			}
 			break;
 		}
 		if (error < 0)

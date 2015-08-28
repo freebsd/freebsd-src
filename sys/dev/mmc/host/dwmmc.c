@@ -111,14 +111,12 @@ struct idmac_desc {
 	uint32_t	des3;	/* buf2 phys addr or next descr */
 };
 
-#define	DESC_COUNT	256
-#define	DESC_SIZE	(sizeof(struct idmac_desc) * DESC_COUNT)
+#define	DESC_MAX	256
+#define	DESC_SIZE	(sizeof(struct idmac_desc) * DESC_MAX)
 #define	DEF_MSIZE	0x2	/* Burst size of multiple transaction */
 
 struct dwmmc_softc {
 	struct resource		*res[2];
-	bus_space_tag_t		bst;
-	bus_space_handle_t	bsh;
 	device_t		dev;
 	void			*intr_cookie;
 	struct mmc_host		host;
@@ -130,6 +128,7 @@ struct dwmmc_softc {
 	uint32_t		use_auto_stop;
 	uint32_t		use_pio;
 	uint32_t		pwren_inverted;
+	u_int			desc_count;
 
 	bus_dma_tag_t		desc_tag;
 	bus_dmamap_t		desc_map;
@@ -283,10 +282,10 @@ dma_setup(struct dwmmc_softc *sc)
 		return (1);
 	}
 
-	for (idx = 0; idx < DESC_COUNT; idx++) {
+	for (idx = 0; idx < sc->desc_count; idx++) {
 		sc->desc_ring[idx].des0 = DES0_CH;
 		sc->desc_ring[idx].des1 = 0;
-		nidx = (idx + 1) % DESC_COUNT;
+		nidx = (idx + 1) % sc->desc_count;
 		sc->desc_ring[idx].des3 = sc->desc_ring_paddr + \
 		    (nidx * sizeof(struct idmac_desc));
 	}
@@ -297,8 +296,8 @@ dma_setup(struct dwmmc_softc *sc)
 	    BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
 	    BUS_SPACE_MAXADDR,		/* highaddr */
 	    NULL, NULL,			/* filter, filterarg */
-	    DESC_COUNT*MMC_SECTOR_SIZE,	/* maxsize */
-	    DESC_COUNT,			/* nsegments */
+	    sc->desc_count * MMC_SECTOR_SIZE, /* maxsize */
+	    sc->desc_count,		/* nsegments */
 	    MMC_SECTOR_SIZE,		/* maxsegsize */
 	    0,				/* flags */
 	    NULL, NULL,			/* lockfunc, lockarg */
@@ -465,16 +464,17 @@ parse_fdt(struct dwmmc_softc *sc)
 		return (ENXIO);
 
 	/* fifo-depth */
-	if ((len = OF_getproplen(node, "fifo-depth")) <= 0)
-		return (ENXIO);
-	OF_getencprop(node, "fifo-depth", dts_value, len);
-	sc->fifo_depth = dts_value[0];
+	if ((len = OF_getproplen(node, "fifo-depth")) > 0) {
+		OF_getencprop(node, "fifo-depth", dts_value, len);
+		sc->fifo_depth = dts_value[0];
+	}
 
 	/* num-slots */
-	if ((len = OF_getproplen(node, "num-slots")) <= 0)
-		return (ENXIO);
-	OF_getencprop(node, "num-slots", dts_value, len);
-	sc->num_slots = dts_value[0];
+	sc->num_slots = 1;
+	if ((len = OF_getproplen(node, "num-slots")) > 0) {
+		OF_getencprop(node, "num-slots", dts_value, len);
+		sc->num_slots = dts_value[0];
+	}
 
 	/*
 	 * We need some platform-specific code to know
@@ -561,10 +561,6 @@ dwmmc_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	/* Memory interface */
-	sc->bst = rman_get_bustag(sc->res[0]);
-	sc->bsh = rman_get_bushandle(sc->res[0]);
-
 	/* Setup interrupt handler. */
 	error = bus_setup_intr(dev, sc->res[1], INTR_TYPE_NET | INTR_MPSAFE,
 	    NULL, dwmmc_intr, sc, &sc->intr_cookie);
@@ -578,11 +574,12 @@ dwmmc_attach(device_t dev)
 
 	sc->use_pio = 0;
 	sc->pwren_inverted = 0;
+	sc->desc_count = DESC_MAX;
 
 	if ((sc->hwtype & HWTYPE_MASK) == HWTYPE_ROCKCHIP) {
 		sc->use_pio = 1;
 		sc->pwren_inverted = 1;
-	} else {
+	} else if ((sc->hwtype & HWTYPE_MASK) == HWTYPE_EXYNOS) {
 		WRITE4(sc, EMMCP_MPSBEGIN0, 0);
 		WRITE4(sc, EMMCP_SEND0, 0);
 		WRITE4(sc, EMMCP_CTRL0, (MPSCTRL_SECURE_READ_BIT |
@@ -607,6 +604,13 @@ dwmmc_attach(device_t dev)
 		return (ENXIO);
 
 	dwmmc_setup_bus(sc, sc->host.f_min);
+
+	if (sc->fifo_depth == 0) {
+		sc->fifo_depth = 1 +
+		    ((READ4(sc, SDMMC_FIFOTH) >> SDMMC_FIFOTH_RXWMARK_S) & 0xfff);
+		device_printf(dev, "No fifo-depth, using FIFOTH %x\n",
+		    sc->fifo_depth);
+	}
 
 	if (!sc->use_pio) {
 		if (dma_setup(sc))
@@ -641,7 +645,7 @@ dwmmc_attach(device_t dev)
 	WRITE4(sc, SDMMC_CTRL, SDMMC_CTRL_INT_ENABLE);
 
 	sc->host.f_min = 400000;
-	sc->host.f_max = 200000000;
+	sc->host.f_max = min(200000000, sc->bus_hz);
 	sc->host.host_ocr = MMC_OCR_320_330 | MMC_OCR_330_340;
 	sc->host.caps = MMC_CAP_4_BIT_DATA;
 
@@ -1131,7 +1135,7 @@ dwmmc_read_ivar(device_t bus, device_t child, int which, uintptr_t *result)
 		*(int *)result = sc->host.caps;
 		break;
 	case MMCBR_IVAR_MAX_DATA:
-		*(int *)result = DESC_COUNT;
+		*(int *)result = sc->desc_count;
 	}
 	return (0);
 }
