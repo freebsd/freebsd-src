@@ -349,7 +349,7 @@ equiv_node(tdesc_t *ctdp, tdesc_t *mtdp, equiv_data_t *ed)
 	int (*equiv)(tdesc_t *, tdesc_t *, equiv_data_t *);
 	int mapping;
 
-	if (ctdp->t_emark > ed->ed_clear_mark ||
+	if (ctdp->t_emark > ed->ed_clear_mark &&
 	    mtdp->t_emark > ed->ed_clear_mark)
 		return (ctdp->t_emark == mtdp->t_emark);
 
