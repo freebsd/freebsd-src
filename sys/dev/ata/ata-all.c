@@ -64,18 +64,15 @@ static void ata_cam_end_transaction(device_t dev, struct ata_request *request);
 static void ata_cam_request_sense(device_t dev, struct ata_request *request);
 static int ata_check_ids(device_t dev, union ccb *ccb);
 static void ata_conn_event(void *context, int dummy);
-static void ata_init(void);
 static void ata_interrupt_locked(void *data);
 static int ata_module_event_handler(module_t mod, int what, void *arg);
 static void ata_periodic_poll(void *data);
 static int ata_str2mode(const char *str);
-static void ata_uninit(void);
 
 /* global vars */
 MALLOC_DEFINE(M_ATA, "ata_generic", "ATA driver generic layer");
 int (*ata_raid_ioctl_func)(u_long cmd, caddr_t data) = NULL;
 devclass_t ata_devclass;
-uma_zone_t ata_request_zone;
 int ata_dma_check_80pin = 1;
 
 /* sysctl vars */
@@ -651,12 +648,7 @@ ata_cam_begin_transaction(device_t dev, union ccb *ccb)
 	struct ata_channel *ch = device_get_softc(dev);
 	struct ata_request *request;
 
-	if (!(request = ata_alloc_request())) {
-		device_printf(dev, "FAILURE - out of memory in start\n");
-		ccb->ccb_h.status = CAM_REQ_INVALID;
-		xpt_done(ccb);
-		return;
-	}
+	request = &ch->request;
 	bzero(request, sizeof(*request));
 
 	/* setup request */
@@ -795,7 +787,6 @@ ata_cam_process_sense(device_t dev, struct ata_request *request)
 		ccb->ccb_h.status |= CAM_AUTOSENSE_FAIL;
 	}
 
-	ata_free_request(request);
 	xpt_done(ccb);
 	/* Do error recovery if needed. */
 	if (fatalerr)
@@ -866,10 +857,8 @@ ata_cam_end_transaction(device_t dev, struct ata_request *request)
 	if ((ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_SCSI_STATUS_ERROR &&
 	    (ccb->ccb_h.flags & CAM_DIS_AUTOSENSE) == 0)
 		ata_cam_request_sense(dev, request);
-	else {
-		ata_free_request(request);
+	else
 		xpt_done(ccb);
-	}
 	/* Do error recovery if needed. */
 	if (fatalerr)
 		ata_reinit(dev);
@@ -1149,18 +1138,3 @@ static moduledata_t ata_moduledata = { "ata", ata_module_event_handler, NULL };
 DECLARE_MODULE(ata, ata_moduledata, SI_SUB_CONFIGURE, SI_ORDER_SECOND);
 MODULE_VERSION(ata, 1);
 MODULE_DEPEND(ata, cam, 1, 1, 1);
-
-static void
-ata_init(void)
-{
-    ata_request_zone = uma_zcreate("ata_request", sizeof(struct ata_request),
-				   NULL, NULL, NULL, NULL, 0, 0);
-}
-SYSINIT(ata_register, SI_SUB_DRIVERS, SI_ORDER_SECOND, ata_init, NULL);
-
-static void
-ata_uninit(void)
-{
-    uma_zdestroy(ata_request_zone);
-}
-SYSUNINIT(ata_unregister, SI_SUB_DRIVERS, SI_ORDER_SECOND, ata_uninit, NULL);
