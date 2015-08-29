@@ -2817,7 +2817,7 @@ mmu_booke_mapdev_attr(mmu_t mmu, vm_paddr_t pa, vm_size_t size, vm_memattr_t ma)
 		sz = 1 << (ilog2(size) & ~1);
 		if (va % sz != 0) {
 			do {
-				sz >>= 1;
+				sz >>= 2;
 			} while (va % sz != 0);
 		}
 		if (bootverbose)
