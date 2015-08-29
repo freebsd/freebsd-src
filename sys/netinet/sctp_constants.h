@@ -458,7 +458,7 @@ __FBSDID("$FreeBSD$");
 
 
 /*
- * SCTP states for internal state machine XXX (should match "user" values)
+ * SCTP states for internal state machine
  */
 #define SCTP_STATE_EMPTY		0x0000
 #define SCTP_STATE_INUSE		0x0001
