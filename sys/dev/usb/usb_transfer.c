@@ -2292,8 +2292,11 @@ usbd_callback_wrapper(struct usb_xfer_queue *pq)
 	}
 
 #if USB_HAVE_PF
-	if (xfer->usb_state != USB_ST_SETUP)
+	if (xfer->usb_state != USB_ST_SETUP) {
+		USB_BUS_LOCK(info->bus);
 		usbpf_xfertap(xfer, USBPF_XFERTAP_DONE);
+		USB_BUS_UNLOCK(info->bus);
+	}
 #endif
 	/* call processing routine */
 	(xfer->callback) (xfer, xfer->error);
