@@ -63,7 +63,8 @@ struct llentry {
 		uint16_t	mac16[3];
 		uint8_t		mac8[20];	/* IB needs 20 bytes. */
 	} ll_addr;
-	uint32_t		spare0;
+	uint16_t		r_flags;	/* LLE runtime flags */
+	uint16_t		r_kick;		/* feedback from fast path */
 	uint64_t		spare1;
 
 	struct lltable		 *lle_tbl;
@@ -188,6 +189,11 @@ MALLOC_DECLARE(M_LLTABLE);
 #define	LLE_LINKED	0x0040	/* linked to lookup structure */
 /* LLE request flags */
 #define	LLE_EXCLUSIVE	0x2000	/* return lle xlocked  */
+#define	LLE_UNLOCKED	0x4000	/* return lle unlocked */
+
+/* LLE flags used by fastpath code */
+#define	RLLE_VALID	0x0001		/* entry is valid */
+#define	RLLE_IFADDR	LLE_IFADDR	/* entry is ifaddr */
 
 #define LLATBL_HASH(key, mask) \
 	(((((((key >> 8) ^ key) >> 8) ^ key) >> 8) ^ key) & mask)

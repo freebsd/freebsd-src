@@ -1195,9 +1195,12 @@ in_lltable_alloc(struct lltable *llt, u_int flags, const struct sockaddr *l3addr
 		return (NULL);
 	}
 	lle->la_flags = flags;
+	if (flags & LLE_STATIC)
+		lle->r_flags |= RLLE_VALID;
 	if ((flags & LLE_IFADDR) == LLE_IFADDR) {
 		bcopy(IF_LLADDR(ifp), &lle->ll_addr, ifp->if_addrlen);
 		lle->la_flags |= (LLE_VALID | LLE_STATIC);
+		lle->r_flags |= RLLE_IFADDR;
 	}
 
 	return (lle);
@@ -1220,6 +1223,9 @@ in_lltable_lookup(struct lltable *llt, u_int flags, const struct sockaddr *l3add
 
 	if (lle == NULL)
 		return (NULL);
+
+	if (flags & LLE_UNLOCKED)
+		return (lle);
 
 	if (flags & LLE_EXCLUSIVE)
 		LLE_WLOCK(lle);

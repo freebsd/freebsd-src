@@ -600,6 +600,7 @@ lla_rt_output(struct rt_msghdr *rtm, struct rt_addrinfo *info)
 		if ((rtm->rtm_flags & RTF_ANNOUNCE))
 			lle->la_flags |= LLE_PUB;
 		lle->la_flags |= LLE_VALID;
+		lle->r_flags |= RLLE_VALID;
 #ifdef INET6
 		/*
 		 * ND6
