@@ -349,7 +349,7 @@ uhub_tt_buffer_reset_async_locked(struct usb_device *child, struct usb_endpoint 
 	}
 	up->req_reset_tt = req;
 	/* get reset transfer started */
-	usb_proc_msignal(USB_BUS_NON_GIANT_PROC(udev->bus),
+	usb_proc_msignal(USB_BUS_TT_PROC(udev->bus),
 	    &hub->tt_msg[0], &hub->tt_msg[1]);
 }
 #endif
@@ -1592,7 +1592,7 @@ uhub_detach(device_t dev)
 #if USB_HAVE_TT_SUPPORT
 	/* Make sure our TT messages are not queued anywhere */
 	USB_BUS_LOCK(bus);
-	usb_proc_mwait(USB_BUS_NON_GIANT_PROC(bus),
+	usb_proc_mwait(USB_BUS_TT_PROC(bus),
 	    &hub->tt_msg[0], &hub->tt_msg[1]);
 	USB_BUS_UNLOCK(bus);
 #endif
