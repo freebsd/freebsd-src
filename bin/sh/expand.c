@@ -886,7 +886,7 @@ varvalue(const char *name, int quoted, int subtype, int flag)
 		num = backgndpidval();
 		break;
 	case '-':
-		for (i = 0 ; i < NOPTS ; i++) {
+		for (i = 0 ; i < NSHORTOPTS ; i++) {
 			if (optlist[i].val)
 				STPUTC(optlist[i].letter, expdest);
 		}
