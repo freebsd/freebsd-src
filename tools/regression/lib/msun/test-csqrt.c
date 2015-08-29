@@ -31,6 +31,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/param.h>
+
 #include <assert.h>
 #include <complex.h>
 #include <float.h>
@@ -38,8 +40,6 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 
 #include "test-utils.h"
-
-#define	N(i)	(sizeof(i) / sizeof((i)[0]))
 
 /*
  * This is a test hook that can point to csqrtl(), _csqrt(), or to _csqrtf().
@@ -127,8 +127,8 @@ test_finite()
 	double x, y;
 	int i, j;
 
-	for (i = 0; i < N(tests); i += 4) {
-		for (j = 0; j < N(mults); j++) {
+	for (i = 0; i < nitems(tests); i += 4) {
+		for (j = 0; j < nitems(mults); j++) {
 			a = tests[i] * mults[j] * mults[j];
 			b = tests[i + 1] * mults[j] * mults[j];
 			x = tests[i + 2] * mults[j];
@@ -169,7 +169,7 @@ test_infinities()
 
 	int i;
 
-	for (i = 0; i < N(vals); i++) {
+	for (i = 0; i < nitems(vals); i++) {
 		if (isfinite(vals[i])) {
 			assert_equal(t_csqrt(CMPLXL(-INFINITY, vals[i])),
 			    CMPLXL(0.0, copysignl(INFINITY, vals[i])));
