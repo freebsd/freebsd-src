@@ -53,18 +53,6 @@ __FBSDID("$FreeBSD$");
 #include <net/rss_config.h>
 #include <net/toeplitz.h>
 
-#if 0
-#include <netinet/in.h>
-#include <netinet/in_pcb.h>
-#include <netinet/in_rss.h>
-#include <netinet/in_var.h>
-
-/* for software rss hash support */
-#include <netinet/ip.h>
-#include <netinet/tcp.h>
-#include <netinet/udp.h>
-#endif
-
 /*-
  * Operating system parts of receiver-side scaling (RSS), which allows
  * network cards to direct flows to particular receive queues based on hashes
