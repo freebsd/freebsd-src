@@ -42,7 +42,8 @@
 #define	M_USBDEV 0
 #define	USB_PROC_MAX 3
 #define	USB_BUS_GIANT_PROC(bus) (usb_process + 2)
-#define	USB_BUS_NON_GIANT_PROC(bus) (usb_process + 2)
+#define	USB_BUS_NON_GIANT_BULK_PROC(bus) (usb_process + 2)
+#define	USB_BUS_NON_GIANT_ISOC_PROC(bus) (usb_process + 2)
 #define	USB_BUS_EXPLORE_PROC(bus) (usb_process + 0)
 #define	USB_BUS_CONTROL_XFER_PROC(bus) (usb_process + 1)
 #define	SYSCTL_DECL(...)
