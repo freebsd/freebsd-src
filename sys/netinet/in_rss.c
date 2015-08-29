@@ -332,7 +332,7 @@ rss_mbuf_software_hash_v4(const struct mbuf *m, int dir, uint32_t *hashval,
  * XXX TODO: definitely want statistics here!
  */
 struct mbuf *
-rss_soft_m2cpuid(struct mbuf *m, uintptr_t source, u_int *cpuid)
+rss_soft_m2cpuid_v4(struct mbuf *m, uintptr_t source, u_int *cpuid)
 {
 	uint32_t hash_val, hash_type;
 	int ret;
