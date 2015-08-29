@@ -32,6 +32,14 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
 20150827:
+	The wireless drivers had undergone changes that remove the 'parent
+	interface' from the ifconfig -l output. The rc.d network scripts
+	used to check presence of a parent interface in the list, so old
+	scripts would fail to start wireless networking. Thus, etcupdate(3)
+	or mergemaster(8) run is required after kernel update, to update your
+	rc.d scripts in /etc.
+
+20150827:
 	pf no longer supports 'scrub fragment crop' or 'scrub fragment drop-ovl'
 	These configurations are now automatically interpreted as
 	'scrub fragment reassemble'.
