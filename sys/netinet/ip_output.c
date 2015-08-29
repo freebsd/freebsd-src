@@ -291,8 +291,7 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route_info *ri, int flags,
 	 *   we have GW info inside @nh.
 	 */
 
-	/* Make compiler happy */
-	dst.s_addr = INADDR_ANY;
+	dst = ip->ip_dst;
 
 	fibnum = (inp != NULL) ? inp->inp_inc.inc_fibnum : M_GETFIB(m);
 again:
