@@ -68,6 +68,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_ipfw.h"
 #include "opt_ipsec.h"
 #include "opt_route.h"
+#include "opt_rss.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -112,6 +113,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/scope6_var.h>
 #include <netinet6/in6_ifattach.h>
 #include <netinet6/nd6.h>
+#include <netinet6/in6_rss.h>
 
 #ifdef IPSEC
 #include <netipsec/ipsec.h>
@@ -132,7 +134,13 @@ static struct netisr_handler ip6_nh = {
 	.nh_name = "ip6",
 	.nh_handler = ip6_input,
 	.nh_proto = NETISR_IPV6,
+#ifdef RSS
+	.nh_m2cpuid = rss_soft_m2cpuid_v6,
+	.nh_policy = NETISR_POLICY_CPU,
+	.nh_dispatch = NETISR_DISPATCH_HYBRID,
+#else
 	.nh_policy = NETISR_POLICY_FLOW,
+#endif
 };
 
 VNET_DECLARE(struct callout, in6_tmpaddrtimer_ch);
@@ -1440,7 +1448,7 @@ ip6_pullexthdr(struct mbuf *m, size_t off, int nxt)
  * we develop `neater' mechanism to process extension headers.
  */
 char *
-ip6_get_prevhdr(struct mbuf *m, int off)
+ip6_get_prevhdr(const struct mbuf *m, int off)
 {
 	struct ip6_hdr *ip6 = mtod(m, struct ip6_hdr *);
 
@@ -1479,7 +1487,7 @@ ip6_get_prevhdr(struct mbuf *m, int off)
  * get next header offset.  m will be retained.
  */
 int
-ip6_nexthdr(struct mbuf *m, int off, int proto, int *nxtp)
+ip6_nexthdr(const struct mbuf *m, int off, int proto, int *nxtp)
 {
 	struct ip6_hdr ip6;
 	struct ip6_ext ip6e;
@@ -1547,14 +1555,14 @@ ip6_nexthdr(struct mbuf *m, int off, int proto, int *nxtp)
 		return -1;
 	}
 
-	return -1;
+	/* NOTREACHED */
 }
 
 /*
  * get offset for the last header in the chain.  m will be kept untainted.
  */
 int
-ip6_lasthdr(struct mbuf *m, int off, int proto, int *nxtp)
+ip6_lasthdr(const struct mbuf *m, int off, int proto, int *nxtp)
 {
 	int newoff;
 	int nxt;
