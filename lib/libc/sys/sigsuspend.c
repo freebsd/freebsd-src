@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include "libc_private.h"
 
 __weak_reference(__sys_sigsuspend, __sigsuspend);
+__weak_reference(sigsuspend, __libc_sigsuspend);
 
 #pragma weak sigsuspend
 int
