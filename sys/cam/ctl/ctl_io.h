@@ -173,35 +173,11 @@ union ctl_priv {
 #define	CTL_PRIV_MODEPAGE	1	/* Modepage info for config write */
 #define	CTL_PRIV_BACKEND	2	/* Reserved for block, RAIDCore */
 #define	CTL_PRIV_BACKEND_LUN	3	/* Backend LUN pointer */
-#define	CTL_PRIV_FRONTEND	4	/* LSI driver, ioctl front end */
-#define	CTL_PRIV_USER		5	/* Userland use */
+#define	CTL_PRIV_FRONTEND	4	/* Frontend storage */
+#define	CTL_PRIV_FRONTEND2	5	/* Another frontend storage */
 
 #define CTL_INVALID_PORTNAME 0xFF
 #define CTL_UNMAPPED_IID     0xFF
-/*
- * XXX KDM this size is for the port_priv variable in struct ctl_io_hdr
- * below.  This should be defined in terms of the size of struct
- * ctlfe_lun_cmd_info at the moment:
- * struct ctlfe_lun_cmd_info {
- *	int cur_transfer_index;
- * 	ctlfe_cmd_flags flags;
- * 	bus_dma_segment_t cam_sglist[32];
- * };
- *
- * This isn't really the way I'd prefer to do it, but it does make some
- * sense, AS LONG AS we can guarantee that there will always only be one
- * outstanding DMA request per ctl_io.  If that assumption isn't valid,
- * then we've got problems.
- *
- * At some point it may be nice switch CTL over to using CCBs for
- * everything.  At that point we can probably use the ATIO/CTIO model, so
- * that multiple simultaneous DMAs per command will just work.
- *
- * Also note that the current size, 600, is appropriate for 64-bit
- * architectures, but is overkill for 32-bit architectures.  Need a way to
- * figure out the size at compile time, or just get rid of this altogether.
- */
-#define	CTL_PORT_PRIV_SIZE	600
 
 struct ctl_sg_entry {
 	void	*addr;
@@ -268,7 +244,6 @@ struct ctl_io_hdr {
 	union ctl_io	  *serializing_sc;
 	void		  *pool;	/* I/O pool */
 	union ctl_priv	  ctl_private[CTL_NUM_PRIV];/* CTL private area */
-	uint8_t		  port_priv[CTL_PORT_PRIV_SIZE];/* PORT private area*/
 	struct ctl_sg_entry remote_sglist[CTL_NUM_SG_ENTRIES];
 	struct ctl_sg_entry remote_dma_sglist[CTL_NUM_SG_ENTRIES];
 	struct ctl_sg_entry local_sglist[CTL_NUM_SG_ENTRIES];
