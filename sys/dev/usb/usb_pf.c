@@ -103,13 +103,16 @@ usbpf_detach(struct usb_bus *ubus)
 {
 	struct ifnet *ifp = ubus->ifp;
 
+	USB_BUS_LOCK(ubus);
+	ubus->ifp = NULL;
+	USB_BUS_UNLOCK(ubus);
+
 	if (ifp != NULL) {
 		bpfdetach(ifp);
 		if_down(ifp);
 		if_detach(ifp);
 		if_free(ifp);
 	}
-	ubus->ifp = NULL;
 }
 
 static uint32_t
