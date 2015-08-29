@@ -35,6 +35,8 @@
  */
 #include <sys/param.h>
 
+#include <strings.h>
+
 /*
  * Bus i/o type definitions.
  */
