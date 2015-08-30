@@ -33,6 +33,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <signal.h>
+#include <fcntl.h>
 #include <unistd.h>
 #include <string.h>
 #include <err.h>
@@ -50,22 +51,23 @@
 #include "iwnstats.h"
 #include "iwn_ioctl.h"
 
-#define	IWN_DEFAULT_IF		"wlan0"
+#define	IWN_DEFAULT_IF		"iwn0"
 
 static struct iwnstats *
 iwnstats_new(const char *ifname)
 {
 	struct iwnstats *is;
+	char buf[128];
 
 	is = calloc(1, sizeof(struct iwnstats));
 	if (is == NULL)
 		return (NULL);
 
-	is->s = socket(AF_INET, SOCK_DGRAM, 0);
+	snprintf(buf, sizeof(buf), "/dev/%s", ifname);
+	is->s = open(buf, O_RDWR);
 	if (is->s < 0)
-		err(1, "socket");
+		err(1, "open");
 
-	iwn_setifname(is, ifname);
 	return (is);
 }
 
