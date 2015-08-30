@@ -1151,7 +1151,6 @@ _callout_stop_safe(struct callout *c, int safe)
 	struct lock_class *class;
 	int direct, sq_locked, use_lock;
 	int not_on_a_list;
-	int not_running = 1;
 
 	if (safe)
 		WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, c->c_lock,
@@ -1379,17 +1378,8 @@ again:
 		}
 	}
 	callout_cc_del(c, cc);
-
-	if (!use_lock) {
-		/*
-		 * If we are asked to stop a callout which is currently in progress
-		 * and indeed impossible to stop then return 0.
-		 */
-		not_running = !(cc_exec_curr(cc, direct) == c);
-	}
-
 	CC_UNLOCK(cc);
-	return (not_running);
+	return (1);
 }
 
 void
