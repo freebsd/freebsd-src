@@ -1,6 +1,5 @@
 #
-# CUBIEBOARD2 -- Custom configuration for the CUBIEBOARD2 ARM development
-# platform, check out http://www.cubieboard.org
+# A20 -- Custom configuration for the Allwinner A20 ARM SoC
 #
 # For more information on this file, please read the config(5) manual page,
 # and/or the handbook section on Kernel Configuration Files:
@@ -19,7 +18,7 @@
 #
 # $FreeBSD$
 
-ident		CUBIEBOARD2
+ident		A20
 
 include 	"std.armv6"
 include 	"../allwinner/a20/std.a20"
@@ -109,6 +108,4 @@ device		miibus
 
 # Flattened Device Tree
 options 	FDT			# Configure using FDT/DTB data
-options 	FDT_DTB_STATIC
-makeoptions	FDT_DTS_FILE=cubieboard2.dts
 makeoptions	MODULES_EXTRA=dtb/allwinner
