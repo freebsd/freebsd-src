@@ -235,6 +235,7 @@ struct iwn_vap {
 struct iwn_softc {
 	device_t		sc_dev;
 	int			sc_debug;
+	struct cdev		*sc_cdev;
 	struct mtx		sc_mtx;
 	struct ieee80211com	sc_ic;
 	struct mbufq		sc_snd;
