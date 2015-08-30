@@ -194,13 +194,6 @@ struct ipmi_ipmb {
 #define	IPMI_IO_UNLOCK(sc)	mtx_unlock(&(sc)->ipmi_io_lock)
 #define	IPMI_IO_LOCK_ASSERT(sc)	mtx_assert(&(sc)->ipmi_io_lock, MA_OWNED)
 
-#if __FreeBSD_version < 601105
-#define bus_read_1(r, o) \
-	bus_space_read_1(rman_get_bustag(r), rman_get_bushandle(r), (o))
-#define bus_write_1(r, o, v) \
-	bus_space_write_1(rman_get_bustag(r), rman_get_bushandle(r), (o), (v))
-#endif
-
 /* I/O to a single I/O resource. */
 #define INB_SINGLE(sc, x)						\
 	bus_read_1((sc)->ipmi_io_res[0], (sc)->ipmi_io_spacing * (x))
