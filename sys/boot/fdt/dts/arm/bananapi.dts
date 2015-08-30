@@ -30,6 +30,8 @@
 
 /include/ "sun7i-a20.dtsi"
 
+#include <dt-bindings/gpio/gpio.h>
+
 / {
 	model = "LeMaker Banana Pi";
 	compatible = "lemaker,bananapi", "allwinner,sun7i-a20";
@@ -69,6 +71,15 @@
 
 		ahci: sata@01c18000 {
 			status = "okay";
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		green {
+			label = "bananapi:green:usr";
+			gpios = <&pio 7 24 GPIO_ACTIVE_HIGH>;
 		};
 	};
 

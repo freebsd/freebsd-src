@@ -78,6 +78,7 @@ device		random			# Entropy device
 
 # GPIO
 device		gpio
+device		gpioled
 
 device		scbus			# SCSI bus (required for ATA/SCSI)
 device		da			# Direct Access (disks)
