@@ -31,7 +31,8 @@
 /include/ "sun7i-a20.dtsi"
 
 / {
-	model = "BananaPi";
+	model = "LeMaker Banana Pi";
+	compatible = "lemaker,bananapi", "allwinner,sun7i-a20";
 
 	memory {
 		device_type = "memory";
