@@ -9,6 +9,8 @@ MAN=
 CFLAGS+=-I${.CURDIR}/../../../../sys/dev/iwn/
 CFLAGS+=-I${.CURDIR}/../../../../sys/
 
+CFLAGS+=	-g -ggdb -O0
+
 PROG=	iwnstats
 
 # Because of a clang preprocessor parser limitation causing this
