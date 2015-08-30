@@ -123,13 +123,13 @@ process_spawnattr(const posix_spawnattr_t sa)
 	 * Use unwrapped syscall, libthr is in undefined state after vfork().
 	 */
 	if (sa->sa_flags & POSIX_SPAWN_SETSIGMASK) {
-		__libc_sigprocmask(SIG_SETMASK, &sa->sa_sigmask, NULL);
+		__sys_sigprocmask(SIG_SETMASK, &sa->sa_sigmask, NULL);
 	}
 
 	if (sa->sa_flags & POSIX_SPAWN_SETSIGDEF) {
 		for (i = 1; i <= _SIG_MAXSIG; i++) {
 			if (sigismember(&sa->sa_sigdefault, i))
-				if (__libc_sigaction(i, &sigact, NULL) != 0)
+				if (__sys_sigaction(i, &sigact, NULL) != 0)
 					return (errno);
 		}
 	}
