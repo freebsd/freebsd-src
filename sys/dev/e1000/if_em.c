@@ -3044,7 +3044,7 @@ em_setup_interface(device_t dev, struct adapter *adapter)
 	if_setioctlfn(ifp, em_ioctl);
 	if_setgetcounterfn(ifp, em_get_counter);
 	/* TSO parameters */
-	ifp->if_hw_tsomax = EM_TSO_SIZE;
+	ifp->if_hw_tsomax = IP_MAXPACKET;
 	ifp->if_hw_tsomaxsegcount = EM_MAX_SCATTER;
 	ifp->if_hw_tsomaxsegsize = EM_TSO_SEG_SIZE;
 
