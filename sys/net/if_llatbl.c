@@ -592,7 +592,10 @@ lla_rt_output(struct rt_msghdr *rtm, struct rt_addrinfo *info)
 	switch (rtm->rtm_type) {
 	case RTM_ADD:
 		/* Add static LLE */
-		lle = lltable_alloc_entry(llt, 0, dst);
+		laflags = 0;
+		if (rtm->rtm_rmx.rmx_expire == 0)
+			laflags = LLE_STATIC;
+		lle = lltable_alloc_entry(llt, laflags, dst);
 		if (lle == NULL)
 			return (ENOMEM);
 
@@ -600,22 +603,8 @@ lla_rt_output(struct rt_msghdr *rtm, struct rt_addrinfo *info)
 		if ((rtm->rtm_flags & RTF_ANNOUNCE))
 			lle->la_flags |= LLE_PUB;
 		lle->la_flags |= LLE_VALID;
-#ifdef INET6
-		/*
-		 * ND6
-		 */
-		if (dst->sa_family == AF_INET6)
-			lle->ln_state = ND6_LLINFO_REACHABLE;
-#endif
-		/*
-		 * NB: arp and ndp always set (RTF_STATIC | RTF_HOST)
-		 */
+		lle->la_expire = rtm->rtm_rmx.rmx_expire;
 
-		if (rtm->rtm_rmx.rmx_expire == 0) {
-			lle->la_flags |= LLE_STATIC;
-			lle->la_expire = 0;
-		} else
-			lle->la_expire = rtm->rtm_rmx.rmx_expire;
 		laflags = lle->la_flags;
 
 		/* Try to link new entry */

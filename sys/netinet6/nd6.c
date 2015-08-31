@@ -2275,9 +2275,6 @@ nd6_add_ifa_lle(struct in6_ifaddr *ia)
 	if (ln == NULL)
 		return (ENOBUFS);
 
-	ln->la_expire = 0;  /* for IPv6 this means permanent */
-	ln->ln_state = ND6_LLINFO_REACHABLE;
-
 	IF_AFDATA_WLOCK(ifp);
 	LLE_WLOCK(ln);
 	/* Unlink any entry if exists */
