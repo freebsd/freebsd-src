@@ -67,23 +67,23 @@ __FBSDID("$FreeBSD$");
 	.align	2
 
 #if __ARM_ARCH >= 7
-#define LEAVE_HYP							\
-       /* Leave HYP mode */						;\
-       mrs	r0, cpsr		   				;\
-       and	r0, r0, #(PSR_MODE)     /* Mode is in the low 5 bits of CPSR */	;\
-       teq	r0, #(PSR_HYP32_MODE)   /* Hyp Mode? */			;\
-       bne	1f							;\
-       /* Ensure that IRQ, FIQ and Aborts will be disabled after eret */;\
-       mrs	r0, spsr						;\
-       orr	r0, r0, #(PSR_I | PSR_F | PSR_A)			;\
-       msr	spsr, r0						;\
-       /* Exit hypervisor mode */					;\
-       adr	lr, 1f							;\
-       MSR_ELR_HYP(14)							;\
-       ERET								;\
+#define	LEAVE_HYP							\
+	/* Leave HYP mode */						;\
+	mrs	r0, cpsr						;\
+	and	r0, r0, #(PSR_MODE)   /* Mode is in the low 5 bits of CPSR */ ;\
+	teq	r0, #(PSR_HYP32_MODE) /* Hyp Mode? */			;\
+	bne	1f							;\
+	/* Ensure that IRQ, FIQ and Aborts will be disabled after eret */ ;\
+	mrs	r0, spsr						;\
+	orr	r0, r0, #(PSR_I | PSR_F | PSR_A)			;\
+	msr	spsr, r0						;\
+	/* Exit hypervisor mode */					;\
+	adr	lr, 1f							;\
+	MSR_ELR_HYP(14)							;\
+	ERET								;\
 1:
 #else
-#define LEAVE_HYP
+#define	LEAVE_HYP
 #endif /* __ARM_ARCH >= 7 */
 
 /*
