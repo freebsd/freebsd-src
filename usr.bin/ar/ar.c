@@ -148,7 +148,7 @@ main(int argc, char **argv)
 		if (Uflag == 0)
 			bsdar->options |= AR_D;
 		bsdar->options |= AR_S;
-		for (;(bsdar->filename = *argv++) != NULL;)
+		while ((bsdar->filename = *argv++) != NULL)
 			ar_mode_s(bsdar);
 
 		exit(EX_OK);
