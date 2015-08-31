@@ -144,6 +144,9 @@ main(int argc, char **argv)
 		if (*argv == NULL)
 			ranlib_usage();
 
+		/* Enable determinstic mode unless -U is set. */
+		if (Uflag == 0)
+			bsdar->options |= AR_D;
 		bsdar->options |= AR_S;
 		for (;(bsdar->filename = *argv++) != NULL;)
 			ar_mode_s(bsdar);
