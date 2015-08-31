@@ -96,6 +96,16 @@ usage(void)
 	exit(1);
 }
 
+static void *
+xmalloc(size_t size)
+{
+	void *m;
+
+	if ((m = malloc(size)) == NULL)
+		errx(1, "memory allocation failure");
+	return (m);
+}
+
 static int
 add_mapping(struct glyph *gl, unsigned int c, unsigned int map_idx)
 {
@@ -104,7 +114,7 @@ add_mapping(struct glyph *gl, unsigned int c, unsigned int map_idx)
 
 	mapping_total++;
 
-	mp = malloc(sizeof *mp);
+	mp = xmalloc(sizeof *mp);
 	mp->m_char = c;
 	mp->m_glyph = gl;
 	mp->m_length = 0;
@@ -163,8 +173,8 @@ add_glyph(const uint8_t *bytes, unsigned int map_idx, int fallback)
 		}
 	}
 
-	gl = malloc(sizeof *gl);
-	gl->g_data = malloc(wbytes * height);
+	gl = xmalloc(sizeof *gl);
+	gl->g_data = xmalloc(wbytes * height);
 	memcpy(gl->g_data, bytes, wbytes * height);
 	if (fallback)
 		TAILQ_INSERT_HEAD(&glyphs[map_idx], gl, g_list);
