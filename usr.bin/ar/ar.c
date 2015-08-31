@@ -113,7 +113,7 @@ main(int argc, char **argv)
 	len = strlen(bsdar->progname);
 	if (len >= strlen("ranlib") &&
 	    strcmp(bsdar->progname + len - strlen("ranlib"), "ranlib") == 0) {
-		while ((opt = getopt_long(argc, argv, "tDV", longopts,
+		while ((opt = getopt_long(argc, argv, "tDUV", longopts,
 		    NULL)) != -1) {
 			switch(opt) {
 			case 't':
@@ -121,6 +121,9 @@ main(int argc, char **argv)
 				break;
 			case 'D':
 				bsdar->options |= AR_D;
+				break;
+			case 'U':
+				bsdar->options &= ~AR_D;
 				break;
 			case 'V':
 				ranlib_version();
@@ -157,7 +160,7 @@ main(int argc, char **argv)
 		}
 	}
 
-	while ((opt = getopt_long(argc, argv, "abCcdDfijlMmopqrSsTtuVvxz",
+	while ((opt = getopt_long(argc, argv, "abCcdDfijlMmopqrSsTtUuVvxz",
 	    longopts, NULL)) != -1) {
 		switch(opt) {
 		case 'a':
@@ -215,6 +218,9 @@ main(int argc, char **argv)
 			break;
 		case 't':
 			set_mode(bsdar, opt);
+			break;
+		case 'U':
+			bsdar->options &= ~AR_D;
 			break;
 		case 'u':
 			bsdar->options |= AR_U;
@@ -364,9 +370,9 @@ bsdar_usage(void)
 	(void)fprintf(stderr, "\tar -m [-Tjsvz] archive file ...\n");
 	(void)fprintf(stderr, "\tar -m [-Tabijsvz] position archive file ...\n");
 	(void)fprintf(stderr, "\tar -p [-Tv] archive [file ...]\n");
-	(void)fprintf(stderr, "\tar -q [-TcDjsvz] archive file ...\n");
-	(void)fprintf(stderr, "\tar -r [-TcDjsuvz] archive file ...\n");
-	(void)fprintf(stderr, "\tar -r [-TabcDijsuvz] position archive file ...\n");
+	(void)fprintf(stderr, "\tar -q [-TcDjsUvz] archive file ...\n");
+	(void)fprintf(stderr, "\tar -r [-TcDjsUuvz] archive file ...\n");
+	(void)fprintf(stderr, "\tar -r [-TabcDijsUuvz] position archive file ...\n");
 	(void)fprintf(stderr, "\tar -s [-jz] archive\n");
 	(void)fprintf(stderr, "\tar -t [-Tv] archive [file ...]\n");
 	(void)fprintf(stderr, "\tar -x [-CTouv] archive [file ...]\n");
@@ -378,7 +384,7 @@ static void
 ranlib_usage(void)
 {
 
-	(void)fprintf(stderr, "usage:	ranlib [-t] archive ...\n");
+	(void)fprintf(stderr, "usage:	ranlib [-DtU] archive ...\n");
 	(void)fprintf(stderr, "\tranlib -V\n");
 	exit(EX_USAGE);
 }
