@@ -2264,6 +2264,9 @@ in6_lltable_alloc(struct lltable *llt, u_int flags,
 		lle->la_flags |= (LLE_VALID | LLE_STATIC);
 	}
 
+	if ((lle->la_flags & LLE_STATIC) != 0)
+		lle->ln_state = ND6_LLINFO_REACHABLE;
+
 	return (lle);
 }
 
