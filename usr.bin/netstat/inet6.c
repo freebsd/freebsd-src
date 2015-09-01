@@ -71,8 +71,6 @@ __FBSDID("$FreeBSD$");
 #include <libxo/xo.h>
 #include "netstat.h"
 
-struct	socket sockb;
-
 char	*inet6name(struct in6_addr *);
 
 static char ntop_buf[INET6_ADDRSTRLEN];

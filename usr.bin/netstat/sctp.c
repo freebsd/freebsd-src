@@ -79,7 +79,7 @@ static void sctp_statesprint(uint32_t state);
 #define	NETSTAT_SCTP_STATES_SHUTDOWN_ACK_SENT	0x8
 #define	NETSTAT_SCTP_STATES_SHUTDOWN_PENDING	0x9
 
-const char *sctpstates[] = {
+static const char *sctpstates[] = {
 	"CLOSED",
 	"BOUND",
 	"LISTEN",
@@ -92,13 +92,13 @@ const char *sctpstates[] = {
 	"SHUTDOWN_PENDING"
 };
 
-LIST_HEAD(xladdr_list, xladdr_entry) xladdr_head;
+static LIST_HEAD(xladdr_list, xladdr_entry) xladdr_head;
 struct xladdr_entry {
 	struct xsctp_laddr *xladdr;
 	LIST_ENTRY(xladdr_entry) xladdr_entries;
 };
 
-LIST_HEAD(xraddr_list, xraddr_entry) xraddr_head;
+static LIST_HEAD(xraddr_list, xraddr_entry) xraddr_head;
 struct xraddr_entry {
 	struct xsctp_raddr *xraddr;
 	LIST_ENTRY(xraddr_entry) xraddr_entries;
