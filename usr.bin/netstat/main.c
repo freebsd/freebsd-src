@@ -374,7 +374,8 @@ main(int argc, char *argv[])
 			else if (strcmp(optarg, "pfkey") == 0)
 				af = PF_KEY;
 #endif
-			else if (strcmp(optarg, "unix") == 0)
+			else if (strcmp(optarg, "unix") == 0 ||
+				 strcmp(optarg, "local") == 0)
 				af = AF_UNIX;
 #ifdef NETGRAPH
 			else if (strcmp(optarg, "ng") == 0
@@ -547,7 +548,7 @@ main(int argc, char *argv[])
 #endif
 	if (iflag && !sflag) {
 		xo_open_container("statistics");
-		intpr(interval, NULL, af);
+		intpr(NULL, af);
 		xo_close_container("statistics");
 		xo_finish();
 		exit(0);
@@ -645,7 +646,7 @@ printproto(struct protox *tp, const char *name, bool *first)
 	if (sflag) {
 		if (iflag) {
 			if (tp->pr_istats)
-				intpr(interval, tp->pr_istats, af);
+				intpr(tp->pr_istats, af);
 			else if (pflag)
 				xo_message("%s: no per-interface stats routine",
 				    tp->pr_name);

@@ -75,11 +75,7 @@ __FBSDID("$FreeBSD$");
 
 #include "netstat.h"
 
-static void sidewaysintpr(int);
-
-#ifdef INET6
-static char addr_buf[NI_MAXHOST];		/* for getnameinfo() */
-#endif
+static void sidewaysintpr(void);
 
 #ifdef PF
 static const char* pfsyncacts[] = {
@@ -280,13 +276,13 @@ next_ifma(struct ifmaddrs *ifma, const char *name, const sa_family_t family)
  * Print a description of the network interfaces.
  */
 void
-intpr(int interval, void (*pfunc)(char *), int af)
+intpr(void (*pfunc)(char *), int af)
 {
 	struct ifaddrs *ifap, *ifa;
 	struct ifmaddrs *ifmap, *ifma;
 	
 	if (interval)
-		return sidewaysintpr(interval);
+		return sidewaysintpr();
 
 	if (getifaddrs(&ifap) != 0)
 		err(EX_OSERR, "getifaddrs");
@@ -366,63 +362,54 @@ intpr(int interval, void (*pfunc)(char *), int af)
 			xo_emit("{:address/%-15.15s} ", "none");
 			break;
 		case AF_INET:
-		    {
-			struct sockaddr_in *sin, *mask;
-
-			sin = (struct sockaddr_in *)ifa->ifa_addr;
-			mask = (struct sockaddr_in *)ifa->ifa_netmask;
-			xo_emit("{t:network/%-13.13s} ",
-			    netname(sin->sin_addr.s_addr,
-			    mask->sin_addr.s_addr));
-			xo_emit("{t:address/%-17.17s} ",
-			    routename(sin->sin_addr.s_addr));
+			if (Wflag) {
+				xo_emit("{t:network/%-13s} ",
+				    netname(ifa->ifa_addr, ifa->ifa_netmask));
+				xo_emit("{t:address/%-17s} ",
+				    routename(ifa->ifa_addr, numeric_addr));
+			} else {
+				xo_emit("{t:network/%-13.13s} ",
+				    netname(ifa->ifa_addr, ifa->ifa_netmask));
+				xo_emit("{t:address/%-17.17s} ",
+				    routename(ifa->ifa_addr, numeric_addr));
+			}
 
 			network = true;
 			break;
-		    }
 #ifdef INET6
 		case AF_INET6:
-		    {
-			struct sockaddr_in6 *sin6, *mask;
+			if (Wflag) {
+				xo_emit("{t:network/%-13s} ",
+				    netname(ifa->ifa_addr, ifa->ifa_netmask));
+				xo_emit("{t:address/%-17s} ",
+				    routename(ifa->ifa_addr, numeric_addr));
+			} else {
+				xo_emit("{t:network/%-13.13s} ",
+				    netname(ifa->ifa_addr, ifa->ifa_netmask));
+				xo_emit("{t:address/%-17.17s} ",
+				    routename(ifa->ifa_addr, numeric_addr));
+			}
 
-			sin6 = (struct sockaddr_in6 *)ifa->ifa_addr;
-			mask = (struct sockaddr_in6 *)ifa->ifa_netmask;
-
-			xo_emit("{t:network/%-13.13s} ",
-			    netname6(sin6, &mask->sin6_addr));
-			getnameinfo(ifa->ifa_addr, ifa->ifa_addr->sa_len,
-			    addr_buf, sizeof(addr_buf), 0, 0, NI_NUMERICHOST);
-			xo_emit("{t:address/%-17.17s} ", addr_buf);
-
-			network = 1;
+			network = true;
 			break;
-		    }
 #endif /* INET6 */
 		case AF_LINK:
 		    {
 			struct sockaddr_dl *sdl;
-			char *cp, linknum[10];
-			int len = 32;
-			char buf[len];
-			int n, z;
+			char linknum[10];
 
 			sdl = (struct sockaddr_dl *)ifa->ifa_addr;
-			cp = (char *)LLADDR(sdl);
-			n = sdl->sdl_alen;
 			sprintf(linknum, "<Link#%d>", sdl->sdl_index);
 			xo_emit("{t:network/%-13.13s} ", linknum);
-			buf[0] = '\0';
-			z = 0;
-			while ((--n >= 0) && (z < len)) {
-				snprintf(buf + z, len - z, "%02x%c",
-				    *cp++ & 0xff, n > 0 ? ':' : ' ');
-				z += 3;
-			}
-			if (z > 0)
-				xo_emit("{:address/%*s}", 32 - z, buf);
-			else
+			if (sdl->sdl_nlen == 0 &&
+			    sdl->sdl_alen == 0 &&
+			    sdl->sdl_slen == 0)
 				xo_emit("{P:                  }");
-			link = 1;
+			else
+				xo_emit("{:address/%*s}",
+				    32 - 3 * sdl->sdl_alen,
+				    routename(ifa->ifa_addr, 1));
+			link = true;
 			break;
 		    }
 		}
@@ -465,44 +452,30 @@ intpr(int interval, void (*pfunc)(char *), int af)
 
 			xo_open_instance("multicast-address");
 			switch (ifma->ifma_addr->sa_family) {
-			case AF_INET:
-			    {
-				struct sockaddr_in *sin;
-
-				sin = (struct sockaddr_in *)ifma->ifma_addr;
-				fmt = routename(sin->sin_addr.s_addr);
-				break;
-			    }
-#ifdef INET6
-			case AF_INET6:
-
-				/* in6_fillscopeid(&msa.in6); */
-				getnameinfo(ifma->ifma_addr,
-				    ifma->ifma_addr->sa_len, addr_buf,
-				    sizeof(addr_buf), 0, 0, NI_NUMERICHOST);
-				xo_emit("{P:/%*s }{t:address/%-19.19s}",
-				    Wflag ? 27 : 25, "", addr_buf);
-				break;
-#endif /* INET6 */
 			case AF_LINK:
 			    {
 				struct sockaddr_dl *sdl;
 
 				sdl = (struct sockaddr_dl *)ifma->ifma_addr;
-				switch (sdl->sdl_type) {
-				case IFT_ETHER:
-				case IFT_FDDI:
-					fmt = ether_ntoa(
-					    (struct ether_addr *)LLADDR(sdl));
+				if (sdl->sdl_type != IFT_ETHER &&
+				    sdl->sdl_type != IFT_FDDI)
 					break;
-				}
-				break;
 			    }
+				/* FALLTHROUGH */
+			case AF_INET:
+#ifdef INET6
+			case AF_INET6:
+#endif /* INET6 */
+				fmt = routename(ifma->ifma_addr, numeric_addr);
+				break;
 			}
-
 			if (fmt) {
-				xo_emit("{P:/%*s }{t:address/%-17.17s/}",
-				    Wflag ? 27 : 25, "", fmt);
+				if (Wflag)
+					xo_emit("{P:/%27s }"
+					    "{t:address/%-17s/}", "", fmt);
+				else
+					xo_emit("{P:/%25s }"
+					    "{t:address/%-17.17s/}", "", fmt);
 				if (ifma->ifma_addr->sa_family == AF_LINK) {
 					xo_emit(" {:received-packets/%8lu}",
 					    IFA_STAT(imcasts));
@@ -596,7 +569,7 @@ catchalarm(int signo __unused)
  * First line printed at top of screen is always cumulative.
  */
 static void
-sidewaysintpr(int interval)
+sidewaysintpr(void)
 {
 	struct iftot ift[2], *new, *old;
 	struct itimerval interval_it;

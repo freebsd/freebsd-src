@@ -32,6 +32,10 @@
 
 #include <sys/cdefs.h>
 
+#define	satosin(sa)	((struct sockaddr_in *)(sa))
+#define	satosin6(sa)	((struct sockaddr_in6 *)(sa))
+#define	sin6tosa(sin6)	((struct sockaddr *)(sin6))
+
 extern int	Aflag;	/* show addresses of protocol control block */
 extern int	aflag;	/* show all sockets (including servers) */
 extern int	bflag;	/* show i/f total bytes in/out */
@@ -106,8 +110,6 @@ void	mrt6_stats(void);
 struct sockaddr_in6;
 struct in6_addr;
 void in6_fillscopeid(struct sockaddr_in6 *);
-char *routename6(struct sockaddr_in6 *);
-const char *netname6(struct sockaddr_in6 *, struct in6_addr *);
 void	inet6print(const char *, struct in6_addr *, int, const char *, int);
 #endif /*INET6*/
 
@@ -122,15 +124,14 @@ void	netisr_stats(void *);
 void	hostpr(u_long, u_long);
 void	impstats(u_long, u_long);
 
-void	intpr(int, void (*)(char *), int);
+void	intpr(void (*)(char *), int);
 
-void	pr_rthdr(int);
 void	pr_family(int);
 void	rt_stats(void);
 void	flowtable_stats(void);
 
-char	*routename(in_addr_t);
-char	*netname(in_addr_t, in_addr_t);
+char	*routename(struct sockaddr *, int);
+const char *netname(struct sockaddr *, struct sockaddr *);
 char	*ns_print(struct sockaddr *);
 void	routepr(int, int);
 

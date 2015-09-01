@@ -186,9 +186,11 @@ mroute6pr()
 			xo_open_instance("multicast-forwarding-cache");
 
 			xo_emit(" {:origin/%-*.*s}", WID_ORG, WID_ORG,
-			    routename6(&mfc.mf6c_origin));
+			    routename(sin6tosa(&mfc.mf6c_origin),
+			    numeric_addr));
 			xo_emit(" {:group/%-*.*s}", WID_GRP, WID_GRP,
-			    routename6(&mfc.mf6c_mcastgrp));
+			    routename(sin6tosa(&mfc.mf6c_mcastgrp),
+			    numeric_addr));
 			xo_emit(" {:total-packets/%9ju}",
 			    (uintmax_t)mfc.mf6c_pkt_cnt);
 
