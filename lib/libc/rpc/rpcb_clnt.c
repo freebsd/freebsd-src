@@ -655,7 +655,7 @@ got_entry(rpcb_entry_list_ptr relp, const struct netconfig *nconf)
  * local transport.
  */
 static bool_t
-__rpcbind_is_up()
+__rpcbind_is_up(void)
 {
 	struct netconfig *nconf;
 	struct sockaddr_un sun;

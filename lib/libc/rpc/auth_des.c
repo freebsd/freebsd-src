@@ -69,7 +69,7 @@ __FBSDID("$FreeBSD$");
 
 extern bool_t xdr_authdes_cred( XDR *, struct authdes_cred *);
 extern bool_t xdr_authdes_verf( XDR *, struct authdes_verf *);
-extern int key_encryptsession_pk();
+extern int key_encryptsession_pk(char *, netobj *, des_block *);
 
 extern bool_t __rpc_get_time_offset(struct timeval *, nis_server *, char *,
 	char **, char **);
