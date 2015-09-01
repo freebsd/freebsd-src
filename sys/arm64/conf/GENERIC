@@ -116,6 +116,11 @@ device		dwmmc
 device		uart		# Generic UART driver
 device		pl011
 
+# USB support
+options 	USB_DEBUG		# enable debug msgs
+device		dwcotg			# DWC OTG controller
+device		usb			# USB Bus (required)
+
 # Pseudo devices.
 device		loop		# Network loopback
 device		random		# Entropy device
