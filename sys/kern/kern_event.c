@@ -1120,10 +1120,16 @@ kqueue_register(struct kqueue *kq, struct kevent *kev, struct thread *td, int wa
 	if (fops == NULL)
 		return EINVAL;
 
-	if (kev->flags & EV_ADD)
-		tkn = knote_alloc(waitok);	/* prevent waiting with locks */
-	else
+	if (kev->flags & EV_ADD) {
+		/*
+		 * Prevent waiting with locks.  Non-sleepable
+		 * allocation failures are handled in the loop, only
+		 * if the spare knote appears to be actually required.
+		 */
+		tkn = knote_alloc(waitok);
+	} else {
 		tkn = NULL;
+	}
 
 findkn:
 	if (fops->f_isfd) {
@@ -1329,8 +1335,7 @@ done:
 		FILEDESC_XUNLOCK(td->td_proc->p_fd);
 	if (fp != NULL)
 		fdrop(fp, td);
-	if (tkn != NULL)
-		knote_free(tkn);
+	knote_free(tkn);
 	if (fops != NULL)
 		kqueue_fo_release(filt);
 	return (error);
@@ -1526,10 +1531,6 @@ kqueue_scan(struct kqueue *kq, int maxevents, struct kevent_copyops *k_ops,
 	} else
 		asbt = 0;
 	marker = knote_alloc(1);
-	if (marker == NULL) {
-		error = ENOMEM;
-		goto done_nl;
-	}
 	marker->kn_status = KN_MARKER;
 	KQ_LOCK(kq);
 
@@ -2404,20 +2405,20 @@ SYSINIT(knote, SI_SUB_PSEUDO, SI_ORDER_ANY, knote_init, NULL);
 static struct knote *
 knote_alloc(int waitok)
 {
-	return ((struct knote *)uma_zalloc(knote_zone,
-	    (waitok ? M_WAITOK : M_NOWAIT)|M_ZERO));
+
+	return (uma_zalloc(knote_zone, (waitok ? M_WAITOK : M_NOWAIT) |
+	    M_ZERO));
 }
 
 static void
 knote_free(struct knote *kn)
 {
-	if (kn != NULL) {
+
 #ifdef CPU_CHERI
-		if (kn->kn_kevent.flags & EV_FREEUDATA)
-			free(kn->kn_kevent.udata, M_KQUEUE);
+	if (kn->kn_kevent.flags & EV_FREEUDATA)
+		free(kn->kn_kevent.udata, M_KQUEUE);
 #endif
-		uma_zfree(knote_zone, kn);
-	}
+	uma_zfree(knote_zone, kn);
 }
 
 /*
