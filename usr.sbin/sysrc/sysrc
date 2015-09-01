@@ -40,7 +40,7 @@ BSDCFG_SHARE="/usr/share/bsdconfig"
 #
 # Version information
 #
-SYSRC_VERSION="6.4 Sep-1,2015"
+SYSRC_VERSION="6.5 Sep-1,2015"
 
 #
 # Options
