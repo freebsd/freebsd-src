@@ -61,7 +61,7 @@ VERBOSE=
 
 ############################################################ FUNCTIONS
 
-# die [ $fmt [ $opts ... ]]
+# die [$fmt [$opts ...]]
 #
 # Optionally print a message to stderr before exiting with failure status.
 #
