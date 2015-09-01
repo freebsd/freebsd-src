@@ -107,6 +107,11 @@ device		ahci
 device		scbus
 device		da
 
+# MMC/SD/SDIO Card slot support
+device		mmc			# mmc/sd bus
+device		mmcsd			# mmc/sd flash cards
+device		dwmmc
+
 # Serial (COM) ports
 device		uart		# Generic UART driver
 device		pl011
