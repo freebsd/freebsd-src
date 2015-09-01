@@ -195,6 +195,14 @@ jail_depend()
 	cat $BSDCFG_SHARE/sysrc.subr
 }
 
+# escape $string [$var_to_set]
+#
+# Escape $string contents so that the contents can be properly encapsulated in
+# single-quotes (making for safe evaluation).
+#
+# NB: See `bsdconfig includes -dF escape' for relevant information/discussion.
+# NB: Abridged version of `f_shell_escape()' from bsdconfig(8) `strings.subr'.
+#
 escape()
 {
 	local __start="$1" __var_to_set="$2" __string=
