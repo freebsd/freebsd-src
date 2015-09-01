@@ -67,6 +67,7 @@ dev/psci/psci.c			optional	psci
 dev/psci/psci_arm64.S		optional	psci
 dev/uart/uart_cpu_fdt.c		optional	uart fdt
 dev/uart/uart_dev_pl011.c	optional	uart pl011
+dev/usb/controller/dwc_otg_hisi.c optional	dwcotg soc_hisi_hi6220
 kern/kern_clocksource.c		standard
 kern/subr_dummy_vdso_tc.c	standard
 libkern/bcmp.c			standard
