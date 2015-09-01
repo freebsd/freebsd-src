@@ -170,7 +170,7 @@ syscallenter(struct thread *td, struct syscall_args *sa)
 }
 
 static inline void
-syscallret(struct thread *td, int error, struct syscall_args *sa __unused)
+syscallret(struct thread *td, int error, struct syscall_args *sa)
 {
 	struct proc *p, *p2;
 	int traced;
