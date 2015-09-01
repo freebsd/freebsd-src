@@ -200,7 +200,7 @@ jail_depend()
 #
 # Perform sanity checks
 #
-[ $# -gt 0 ] || usage
+[ $# -gt 0 ] || usage # NOTREACHED
 
 #
 # Check for `--help' and `--version' command-line option
@@ -233,7 +233,7 @@ while getopts aAcdDef:Fhij:nNqR:vxX flag; do
 	e) SHOW_EQUALS=1 ;;
 	f) RC_CONFS="$RC_CONFS${RC_CONFS:+ }$OPTARG" ;;
 	F) SHOW_FILE=1 ;;
-	h) usage ;;
+	h) usage ;; # NOTREACHED
 	i) IGNORE_UNKNOWNS=1 ;;
 	j) [ "$OPTARG" ] || die \
 	   	"%s: Missing or null argument to \`-j' flag" "$pgm"
@@ -247,7 +247,7 @@ while getopts aAcdDef:Fhij:nNqR:vxX flag; do
 	v) VERBOSE=1 QUIET= ;;
 	x) DELETE=${DELETE:-1} ;;
 	X) DELETE=2 ;;
-	\?) usage ;;
+	\?) usage ;; # NOTREACHED
 	esac
 done
 shift $(( $OPTIND - 1 ))
@@ -255,7 +255,7 @@ shift $(( $OPTIND - 1 ))
 #
 # [More] Sanity checks (e.g., "sysrc --")
 #
-[ $# -eq 0 -a ! "$SHOW_ALL" ] && usage
+[ $# -eq 0 -a ! "$SHOW_ALL" ] && usage # NOTREACHED
 
 #
 # Taint-check all rc.conf(5) files
