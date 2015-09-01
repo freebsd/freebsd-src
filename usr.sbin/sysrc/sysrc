@@ -231,20 +231,16 @@ escape()
 #
 # Check for `--help' and `--version' command-line option
 #
-( # Operate in sub-shell to protect $@ in parent
-	while [ $# -gt 0 ]; do
-		case "$1" in
-		--help) help ;;
-		--version) # see GLOBALS
-			echo "$SYSRC_VERSION"
-			exit 1 ;;
-		-[fRj]) # These flags take an argument
-			shift 1 ;;
-		esac
-		shift 1
-	done
-	exit 0
-) || die
+for arg in "$@"; do
+	case "$arg" in
+	--) break ;;
+	--help) help ;; # NOTREACHED
+	--version) # see GLOBALS
+		echo "$SYSRC_VERSION"
+		exit $FAILURE ;;
+	esac
+done
+unset arg
 
 #
 # Process command-line flags
