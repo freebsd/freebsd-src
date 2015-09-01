@@ -1930,7 +1930,7 @@ void
 knote(struct knlist *list, long hint, int lockflags)
 {
 	struct kqueue *kq;
-	struct knote *kn;
+	struct knote *kn, *tkn;
 	int error;
 
 	if (list == NULL)
@@ -1942,14 +1942,13 @@ knote(struct knlist *list, long hint, int lockflags)
 		list->kl_lock(list->kl_lockarg); 
 
 	/*
-	 * If we unlock the list lock (and set KN_INFLUX), we can eliminate
-	 * the kqueue scheduling, but this will introduce four
-	 * lock/unlock's for each knote to test.  If we do, continue to use
-	 * SLIST_FOREACH, SLIST_FOREACH_SAFE is not safe in our case, it is
-	 * only safe if you want to remove the current item, which we are
-	 * not doing.
+	 * If we unlock the list lock (and set KN_INFLUX), we can
+	 * eliminate the kqueue scheduling, but this will introduce
+	 * four lock/unlock's for each knote to test.  Also, marker
+	 * would be needed to keep iteration position, since filters
+	 * or other threads could remove events.
 	 */
-	SLIST_FOREACH(kn, &list->kl_list, kn_selnext) {
+	SLIST_FOREACH_SAFE(kn, &list->kl_list, kn_selnext, tkn) {
 		kq = kn->kn_kq;
 		KQ_LOCK(kq);
 		if ((kn->kn_status & (KN_INFLUX | KN_SCAN)) == KN_INFLUX) {
