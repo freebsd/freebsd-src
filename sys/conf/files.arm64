@@ -59,6 +59,8 @@ dev/acpica/acpi_if.m		optional	acpi
 dev/fdt/fdt_arm64.c		optional	fdt
 dev/hwpmc/hwpmc_arm64.c		optional	hwpmc
 dev/hwpmc/hwpmc_arm64_md.c	optional	hwpmc
+dev/mmc/host/dwmmc.c		optional	dwmmc
+dev/mmc/host/dwmmc_hisi.c	optional	dwmmc soc_hisi_hi6220
 dev/ofw/ofw_cpu.c		optional	fdt
 dev/pci/pci_host_generic.c	optional	pci fdt
 dev/psci/psci.c			optional	psci
