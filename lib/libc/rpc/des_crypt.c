@@ -70,12 +70,7 @@ extern int _des_crypt_call(char *, int, struct desparams *);
  * CBC mode encryption
  */
 int
-cbc_crypt(key, buf, len, mode, ivec)
-	char *key;
-	char *buf;
-	unsigned len;
-	unsigned mode;
-	char *ivec;	
+cbc_crypt(char *key, char *buf, unsigned len, unsigned mode, char *ivec)
 {
 	int err;
 	struct desparams dp;
@@ -97,11 +92,7 @@ cbc_crypt(key, buf, len, mode, ivec)
  * ECB mode encryption
  */
 int
-ecb_crypt(key, buf, len, mode)
-	char *key;
-	char *buf;
-	unsigned len;
-	unsigned mode;
+ecb_crypt(char *key, char *buf, unsigned len, unsigned mode)
 {
 	struct desparams dp;
 
@@ -120,12 +111,8 @@ ecb_crypt(key, buf, len, mode)
  * Common code to cbc_crypt() & ecb_crypt()
  */
 static int
-common_crypt(key, buf, len, mode, desp)	
-	char *key;	
-	char *buf;
-	unsigned len;
-	unsigned mode;
-	struct desparams *desp;
+common_crypt(char *key, char *buf, unsigned len, unsigned mode,
+    struct desparams *desp)
 {
 	int desdev;
 
