@@ -70,6 +70,7 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <string.h>
 #include <libxo/xo.h>
 #include "netstat.h"
 
@@ -178,12 +179,17 @@ print_bw_meter(struct bw_meter *bw_meter, int *banner_printed)
 static void
 print_mfc(struct mfc *m, int maxvif, int *banner_printed)
 {
+	struct sockaddr_in sin;
+	struct sockaddr *sa = (struct sockaddr *)&sin;
 	struct bw_meter bw_meter, *bwm;
 	int bw_banner_printed;
 	int error;
 	vifi_t vifi;
 
 	bw_banner_printed = 0;
+	memset(&sin, 0, sizeof(sin));
+	sin.sin_len = sizeof(sin);
+	sin.sin_family = AF_INET;
 
 	if (! *banner_printed) {
 		xo_open_list("multicast-forwarding-entry");
@@ -193,9 +199,11 @@ print_mfc(struct mfc *m, int maxvif, int *banner_printed)
 		*banner_printed = 1;
 	}
 
-	xo_emit(" {:origin-address/%-15.15s}", routename(m->mfc_origin.s_addr));
+	memcpy(&sin.sin_addr, &m->mfc_origin, sizeof(sin.sin_addr));
+	xo_emit(" {:origin-address/%-15.15s}", routename(sa, numeric_addr));
+	memcpy(&sin.sin_addr, &m->mfc_mcastgrp, sizeof(sin.sin_addr));
 	xo_emit(" {:group-address/%-15.15s}",
-	    routename(m->mfc_mcastgrp.s_addr));
+	    routename(sa, numeric_addr));
 	xo_emit(" {:sent-packets/%9lu}", m->mfc_pkt_cnt);
 	xo_emit("  {:parent/%3d}   ", m->mfc_parent);
 	xo_open_list("vif-ttl");
@@ -230,6 +238,8 @@ print_mfc(struct mfc *m, int maxvif, int *banner_printed)
 void
 mroutepr()
 {
+	struct sockaddr_in sin;
+	struct sockaddr *sa = (struct sockaddr *)&sin;
 	struct vif viftable[MAXVIFS];
 	struct vif *v;
 	struct mfc *m;
@@ -241,6 +251,10 @@ mroutepr()
 
 	saved_numeric_addr = numeric_addr;
 	numeric_addr = 1;
+
+	memset(&sin, 0, sizeof(sin));
+	sin.sin_len = sizeof(sin);
+	sin.sin_family = AF_INET;
 
 	/*
 	 * TODO:
@@ -294,12 +308,14 @@ mroutepr()
 		}
 
 		xo_open_instance("vif");
+		memcpy(&sin.sin_addr, &v->v_lcl_addr, sizeof(sin.sin_addr));
 		xo_emit(" {:vif/%2u}    {:threshold/%6u}   {:route/%-15.15s}",
 					/* opposite math of add_vif() */
 		    vifi, v->v_threshold,
-		    routename(v->v_lcl_addr.s_addr));
+		    routename(sa, numeric_addr));
+		memcpy(&sin.sin_addr, &v->v_rmt_addr, sizeof(sin.sin_addr));
 		xo_emit(" {:source/%-15.15s}", (v->v_flags & VIFF_TUNNEL) ?
-		    routename(v->v_rmt_addr.s_addr) : "");
+		    routename(sa, numeric_addr) : "");
 
 		xo_emit(" {:received-packets/%9lu}  {:sent-packets/%9lu}\n",
 		    v->v_pkt_in, v->v_pkt_out);
