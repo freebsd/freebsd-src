@@ -538,7 +538,6 @@ static int
 dwmmc_attach(device_t dev)
 {
 	struct dwmmc_softc *sc;
-	device_t child;
 	int error;
 	int slot;
 
@@ -574,8 +573,6 @@ dwmmc_attach(device_t dev)
 	device_printf(dev, "Hardware version ID is %04x\n",
 		READ4(sc, SDMMC_VERID) & 0xffff);
 
-	sc->use_pio = 0;
-	sc->pwren_inverted = 0;
 	sc->desc_count = DESC_MAX;
 
 	if ((sc->hwtype & HWTYPE_MASK) == HWTYPE_ROCKCHIP) {
@@ -651,7 +648,7 @@ dwmmc_attach(device_t dev)
 	sc->host.host_ocr = MMC_OCR_320_330 | MMC_OCR_330_340;
 	sc->host.caps = MMC_CAP_4_BIT_DATA;
 
-	child = device_add_child(dev, "mmc", 0);
+	device_add_child(dev, "mmc", 0);
 	return (bus_generic_attach(dev));
 }
 
