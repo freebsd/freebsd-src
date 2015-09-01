@@ -304,17 +304,21 @@ ctl_port_online(struct ctl_port *port)
 	struct ctl_lun *lun;
 	uint32_t l;
 
-	if (port->lun_map) {
-		for (l = 0; l < CTL_MAX_LUNS; l++) {
-			if (ctl_lun_map_from_port(port, l) >= CTL_MAX_LUNS)
-				continue;
-			port->lun_enable(port->targ_lun_arg, l);
+	if (port->lun_enable != NULL) {
+		if (port->lun_map) {
+			for (l = 0; l < CTL_MAX_LUNS; l++) {
+				if (ctl_lun_map_from_port(port, l) >=
+				    CTL_MAX_LUNS)
+					continue;
+				port->lun_enable(port->targ_lun_arg, l);
+			}
+		} else {
+			STAILQ_FOREACH(lun, &softc->lun_list, links)
+				port->lun_enable(port->targ_lun_arg, lun->lun);
 		}
-	} else {
-		STAILQ_FOREACH(lun, &softc->lun_list, links)
-			port->lun_enable(port->targ_lun_arg, lun->lun);
 	}
-	port->port_online(port->onoff_arg);
+	if (port->port_online != NULL)
+		port->port_online(port->onoff_arg);
 	/* XXX KDM need a lock here? */
 	port->status |= CTL_PORT_STATUS_ONLINE;
 }
@@ -326,16 +330,20 @@ ctl_port_offline(struct ctl_port *port)
 	struct ctl_lun *lun;
 	uint32_t l;
 
-	port->port_offline(port->onoff_arg);
-	if (port->lun_map) {
-		for (l = 0; l < CTL_MAX_LUNS; l++) {
-			if (ctl_lun_map_from_port(port, l) >= CTL_MAX_LUNS)
-				continue;
-			port->lun_disable(port->targ_lun_arg, l);
+	if (port->port_offline != NULL)
+		port->port_offline(port->onoff_arg);
+	if (port->lun_disable != NULL) {
+		if (port->lun_map) {
+			for (l = 0; l < CTL_MAX_LUNS; l++) {
+				if (ctl_lun_map_from_port(port, l) >=
+				    CTL_MAX_LUNS)
+					continue;
+				port->lun_disable(port->targ_lun_arg, l);
+			}
+		} else {
+			STAILQ_FOREACH(lun, &softc->lun_list, links)
+				port->lun_disable(port->targ_lun_arg, lun->lun);
 		}
-	} else {
-		STAILQ_FOREACH(lun, &softc->lun_list, links)
-			port->lun_disable(port->targ_lun_arg, lun->lun);
 	}
 	/* XXX KDM need a lock here? */
 	port->status &= ~CTL_PORT_STATUS_ONLINE;
