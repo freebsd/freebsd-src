@@ -498,8 +498,10 @@ main(int argc, char *argv[])
 	 * guys can't print interesting stuff from kernel memory.
 	 */
 	live = (nlistf == NULL && memf == NULL);
-	if (!live)
-		setgid(getgid());
+	if (!live) {
+		if (setgid(getgid()) != 0)
+			xo_err(-1, "setgid");
+	}
 
 	if (xflag && Tflag)
 		xo_errx(1, "-x and -T are incompatible, pick one.");
@@ -704,7 +706,8 @@ kvmd_init(void)
 		return (0);
 
 	kvmd = kvm_openfiles(nlistf, memf, NULL, O_RDONLY, errbuf);
-	setgid(getgid());
+	if (setgid(getgid()) != 0)
+		xo_err(-1, "setgid");
 
 	if (kvmd == NULL) {
 		xo_warnx("kvm not available: %s", errbuf);
