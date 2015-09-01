@@ -73,13 +73,13 @@ CFLAGS+=	-DEFI_STAGING_SIZE=${EFI_STAGING_SIZE}
 .include	"${.CURDIR}/../../common/Makefile.inc"
 CFLAGS+=	-I${.CURDIR}/../../common
 
-FILES=	loader.efi
+FILES+=	loader.efi
 FILESMODE_loader.efi=	${BINMODE}
 
 LDSCRIPT=	${.CURDIR}/arch/${MACHINE}/ldscript.${MACHINE}
 LDFLAGS+=	-Wl,-T${LDSCRIPT} -Wl,-Bsymbolic -shared
 
-CLEANFILES=	vers.c loader.efi
+CLEANFILES+=	vers.c loader.efi
 
 NEWVERSWHAT=	"EFI loader" ${MACHINE}
 
