@@ -1125,31 +1125,45 @@ vm_pageout_scan(struct vm_domain *vmd, int pass)
 		 * different position within the queue.  In either
 		 * case, addl_page_shortage should not be incremented.
 		 */
-		if (!vm_pageout_page_lock(m, &next)) {
-			vm_page_unlock(m);
-			continue;
+		if (!vm_pageout_page_lock(m, &next))
+			goto unlock_page;
+		else if (m->hold_count != 0) {
+			/*
+			 * Held pages are essentially stuck in the
+			 * queue.  So, they ought to be discounted
+			 * from the inactive count.  See the
+			 * calculation of the page_shortage for the
+			 * loop over the active queue below.
+			 */
+			addl_page_shortage++;
+			goto unlock_page;
 		}
 		object = m->object;
-		if (!VM_OBJECT_TRYWLOCK(object) &&
-		    !vm_pageout_fallback_object_lock(m, &next)) {
-			vm_page_unlock(m);
-			VM_OBJECT_WUNLOCK(object);
-			continue;
+		if (!VM_OBJECT_TRYWLOCK(object)) {
+			if (!vm_pageout_fallback_object_lock(m, &next))
+				goto unlock_object;
+			else if (m->hold_count != 0) {
+				addl_page_shortage++;
+				goto unlock_object;
+			}
 		}
-
-		/*
-		 * Don't mess with busy pages, keep them at at the
-		 * front of the queue, most likely they are being
-		 * paged out.  Increment addl_page_shortage for busy
-		 * pages, because they may leave the inactive queue
-		 * shortly after page scan is finished.
-		 */
 		if (vm_page_busied(m)) {
-			vm_page_unlock(m);
-			VM_OBJECT_WUNLOCK(object);
+			/*
+			 * Don't mess with busy pages.  Leave them at
+			 * the front of the queue.  Most likely, they
+			 * are being paged out and will leave the
+			 * queue shortly after the scan finishes.  So,
+			 * they ought to be discounted from the
+			 * inactive count.
+			 */
 			addl_page_shortage++;
+unlock_object:
+			VM_OBJECT_WUNLOCK(object);
+unlock_page:
+			vm_page_unlock(m);
 			continue;
 		}
+		KASSERT(m->hold_count == 0, ("Held page %p", m));
 
 		/*
 		 * We unlock the inactive page queue, invalidating the
@@ -1164,7 +1178,7 @@ vm_pageout_scan(struct vm_domain *vmd, int pass)
 		 * Invalid pages can be easily freed. They cannot be
 		 * mapped, vm_page_free() asserts this.
 		 */
-		if (m->valid == 0 && m->hold_count == 0) {
+		if (m->valid == 0) {
 			vm_page_free(m);
 			PCPU_INC(cnt.v_dfree);
 			--page_shortage;
@@ -1205,18 +1219,6 @@ vm_pageout_scan(struct vm_domain *vmd, int pass)
 				queues_locked = TRUE;
 				vm_page_requeue_locked(m);
 			}
-			goto drop_page;
-		}
-
-		if (m->hold_count != 0) {
-			/*
-			 * Held pages are essentially stuck in the
-			 * queue.  So, they ought to be discounted
-			 * from the inactive count.  See the
-			 * calculation of the page_shortage for the
-			 * loop over the active queue below.
-			 */
-			addl_page_shortage++;
 			goto drop_page;
 		}
 
