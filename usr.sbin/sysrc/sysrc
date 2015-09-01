@@ -195,6 +195,24 @@ jail_depend()
 	cat $BSDCFG_SHARE/sysrc.subr
 }
 
+escape()
+{
+	local __start="$1" __var_to_set="$2" __string=
+	while [ "$__start" ]; do
+		case "$__start" in *\'*)
+			__string="$__string${__start%%\'*}'\\''"
+			__start="${__start#*\'}" continue
+		esac
+		break
+	done
+	__string="$__string$__start"
+	if [ "$__var_to_set" ]; then
+		setvar "$__var_to_set" "$__string"
+	else
+		echo "$__string"
+	fi
+}
+
 ############################################################ MAIN SOURCE
 
 #
@@ -330,9 +348,12 @@ if [ "$JAIL" -o "$ROOTDIR" ]; then
 		$( [ "$SHOW_FILE"  ] && echo \ -F )
 	"
 	if [ "${RC_CONFS+set}" ]; then
-		args="$args -f '$RC_CONFS'"
+		escape "$RC_CONFS" _RC_CONFS
+		args="$args -f '$_RC_CONFS'"
+		unset _RC_CONFS
 	fi
 	for arg in "$@"; do
+		escape "$arg" arg
 		args="$args '$arg'"
 	done
 
