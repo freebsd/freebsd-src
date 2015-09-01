@@ -396,9 +396,24 @@ getnameinfo_link(const struct sockaddr *sa, socklen_t salen,
 		n = snprintf(host, hostlen, "link#%d", sdl->sdl_index);
 		if (n > hostlen) {
 			*host = '\0';
-			return EAI_MEMORY;
+			return (EAI_MEMORY);
 		}
-		return 0;
+		return (0);
+	}
+
+	if (sdl->sdl_nlen > 0) {
+		if (sdl->sdl_nlen + 1 > hostlen) {
+			*host = '\0';
+			return (EAI_MEMORY);
+		}
+		memcpy(host, sdl->sdl_data, sdl->sdl_nlen);
+		n = sdl->sdl_nlen;
+		host += n;
+		if (sdl->sdl_alen > 0) {
+			*host++ = ':';
+			n++;
+		}
+		hostlen -= n;
 	}
 
 	switch (sdl->sdl_type) {
@@ -440,10 +455,7 @@ getnameinfo_link(const struct sockaddr *sa, socklen_t salen,
 }
 
 static int
-hexname(cp, len, host, hostlen)
-	const u_int8_t *cp;
-	char *host;
-	size_t len, hostlen;
+hexname(const u_int8_t *cp, size_t len, char *host, size_t hostlen)
 {
 	int i, n;
 	char *outp = host;
