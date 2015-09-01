@@ -46,7 +46,7 @@ __FBSDID("$FreeBSD$");
 static char *default_domain = 0;
 
 static char *
-get_default_domain()
+get_default_domain(void)
 {
 	char temp[256];
 
