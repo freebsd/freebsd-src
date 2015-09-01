@@ -60,6 +60,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/intr.h>
 
 #include <dev/mmc/host/dwmmc_reg.h>
+#include <dev/mmc/host/dwmmc_var.h>
 
 #include "mmcbr_if.h"
 
@@ -115,39 +116,6 @@ struct idmac_desc {
 #define	DESC_SIZE	(sizeof(struct idmac_desc) * DESC_MAX)
 #define	DEF_MSIZE	0x2	/* Burst size of multiple transaction */
 
-struct dwmmc_softc {
-	struct resource		*res[2];
-	device_t		dev;
-	void			*intr_cookie;
-	struct mmc_host		host;
-	struct mtx		sc_mtx;
-	struct mmc_request	*req;
-	struct mmc_command	*curcmd;
-	uint32_t		flags;
-	uint32_t		hwtype;
-	uint32_t		use_auto_stop;
-	uint32_t		use_pio;
-	uint32_t		pwren_inverted;
-	u_int			desc_count;
-
-	bus_dma_tag_t		desc_tag;
-	bus_dmamap_t		desc_map;
-	struct idmac_desc	*desc_ring;
-	bus_addr_t		desc_ring_paddr;
-	bus_dma_tag_t		buf_tag;
-	bus_dmamap_t		buf_map;
-
-	uint32_t		bus_busy;
-	uint32_t		dto_rcvd;
-	uint32_t		acd_rcvd;
-	uint32_t		cmd_done;
-	uint32_t		bus_hz;
-	uint32_t		fifo_depth;
-	uint32_t		num_slots;
-	uint32_t		sdr_timing;
-	uint32_t		ddr_timing;
-};
-
 static void dwmmc_next_operation(struct dwmmc_softc *);
 static int dwmmc_setup_bus(struct dwmmc_softc *, int);
 static int dma_done(struct dwmmc_softc *, struct mmc_command *);
@@ -159,13 +127,6 @@ static struct resource_spec dwmmc_spec[] = {
 	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
 	{ SYS_RES_IRQ,		0,	RF_ACTIVE },
 	{ -1, 0 }
-};
-
-enum {
-	HWTYPE_NONE,
-	HWTYPE_ALTERA,
-	HWTYPE_EXYNOS,
-	HWTYPE_ROCKCHIP,
 };
 
 #define	HWTYPE_MASK		(0x0000ffff)
@@ -534,7 +495,7 @@ dwmmc_probe(device_t dev)
 	return (BUS_PROBE_DEFAULT);
 }
 
-static int
+int
 dwmmc_attach(device_t dev)
 {
 	struct dwmmc_softc *sc;
@@ -544,7 +505,10 @@ dwmmc_attach(device_t dev)
 	sc = device_get_softc(dev);
 
 	sc->dev = dev;
-	sc->hwtype = ofw_bus_search_compatible(dev, compat_data)->ocd_data;
+	if (sc->hwtype == HWTYPE_NONE) {
+		sc->hwtype =
+		    ofw_bus_search_compatible(dev, compat_data)->ocd_data;
+	}
 
 	/* Why not to use Auto Stop? It save a hundred of irq per second */
 	sc->use_auto_stop = 1;
@@ -573,7 +537,8 @@ dwmmc_attach(device_t dev)
 	device_printf(dev, "Hardware version ID is %04x\n",
 		READ4(sc, SDMMC_VERID) & 0xffff);
 
-	sc->desc_count = DESC_MAX;
+	if (sc->desc_count == 0)
+		sc->desc_count = DESC_MAX;
 
 	if ((sc->hwtype & HWTYPE_MASK) == HWTYPE_ROCKCHIP) {
 		sc->use_pio = 1;
@@ -648,7 +613,7 @@ dwmmc_attach(device_t dev)
 	sc->host.host_ocr = MMC_OCR_320_330 | MMC_OCR_330_340;
 	sc->host.caps = MMC_CAP_4_BIT_DATA;
 
-	device_add_child(dev, "mmc", 0);
+	device_add_child(dev, "mmc", -1);
 	return (bus_generic_attach(dev));
 }
 
@@ -1202,7 +1167,7 @@ static device_method_t dwmmc_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t dwmmc_driver = {
+driver_t dwmmc_driver = {
 	"dwmmc",
 	dwmmc_methods,
 	sizeof(struct dwmmc_softc),
