@@ -663,7 +663,7 @@ while [ $# -gt 0 ]; do
 			unset remove delim oldIFS b add r
 			[ "$SHOW_FILE" ] && before=$( f_sysrc_find "$NAME" )
 			;;
-		*)
+		*) # ASSIGN
 			if [ "$SHOW_FILE" ]; then
 				before=$( f_sysrc_find "$NAME" )
 			else
