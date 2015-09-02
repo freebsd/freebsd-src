@@ -53,12 +53,14 @@ __FBSDID("$FreeBSD$");
 static int ioat_probe(device_t device);
 static int ioat_attach(device_t device);
 static int ioat_detach(device_t device);
+static int ioat_setup_intr(struct ioat_softc *ioat);
+static int ioat_teardown_intr(struct ioat_softc *ioat);
 static int ioat3_attach(device_t device);
 static int ioat_map_pci_bar(struct ioat_softc *ioat);
 static void ioat_dmamap_cb(void *arg, bus_dma_segment_t *segs, int nseg,
     int error);
-static int ioat_interrupt_setup(struct ioat_softc *ioat);
 static void ioat_interrupt_handler(void *arg);
+static boolean_t ioat_is_bdxde(struct ioat_softc *ioat);
 static void ioat_process_events(struct ioat_softc *ioat);
 static inline uint32_t ioat_get_active(struct ioat_softc *ioat);
 static inline uint32_t ioat_get_ring_space(struct ioat_softc *ioat);
@@ -220,12 +222,14 @@ ioat_attach(device_t device)
 		goto err;
 
 	ioat->version = ioat_read_cbver(ioat);
-	ioat_interrupt_setup(ioat);
-
 	if (ioat->version < IOAT_VER_3_0) {
 		error = ENODEV;
 		goto err;
 	}
+
+	error = ioat_setup_intr(ioat);
+	if (error != 0)
+		return (error);
 
 	error = ioat3_attach(device);
 	if (error != 0)
@@ -273,15 +277,23 @@ ioat_detach(device_t device)
 
 	bus_dma_tag_destroy(ioat->hw_desc_tag);
 
+	ioat_teardown_intr(ioat);
+
+	return (0);
+}
+
+static int
+ioat_teardown_intr(struct ioat_softc *ioat)
+{
+
 	if (ioat->tag != NULL)
-		bus_teardown_intr(device, ioat->res, ioat->tag);
+		bus_teardown_intr(ioat->device, ioat->res, ioat->tag);
 
 	if (ioat->res != NULL)
-		bus_release_resource(device, SYS_RES_IRQ,
+		bus_release_resource(ioat->device, SYS_RES_IRQ,
 		    rman_get_rid(ioat->res), ioat->res);
 
-	pci_release_msi(device);
-
+	pci_release_msi(ioat->device);
 	return (0);
 }
 
@@ -455,7 +467,7 @@ ioat_dmamap_cb(void *arg, bus_dma_segment_t *segs, int nseg, int error)
  * Interrupt setup and handlers
  */
 static int
-ioat_interrupt_setup(struct ioat_softc *ioat)
+ioat_setup_intr(struct ioat_softc *ioat)
 {
 	uint32_t num_vectors;
 	int error;
@@ -496,6 +508,23 @@ ioat_interrupt_setup(struct ioat_softc *ioat)
 
 	ioat_write_intrctrl(ioat, IOAT_INTRCTRL_MASTER_INT_EN);
 	return (0);
+}
+
+static boolean_t
+ioat_is_bdxde(struct ioat_softc *ioat)
+{
+	u_int32_t pciid;
+
+	pciid = pci_get_devid(ioat->device);
+	switch (pciid) {
+	case 0x6f508086:
+	case 0x6f518086:
+	case 0x6f528086:
+	case 0x6f538086:
+		return (TRUE);
+	}
+
+	return (FALSE);
 }
 
 static void
@@ -918,7 +947,7 @@ ioat_reset_hw(struct ioat_softc *ioat)
 {
 	uint64_t status;
 	uint32_t chanerr;
-	int timeout;
+	int timeout, error;
 
 	status = ioat_get_chansts(ioat);
 	if (is_ioat_active(status) || is_ioat_idle(status))
@@ -952,6 +981,20 @@ ioat_reset_hw(struct ioat_softc *ioat)
 		DELAY(1000);
 	if (timeout == 20)
 		return (ETIMEDOUT);
+
+	/*
+	 * BDXDE models reset MSI-X registers on device reset.  We must
+	 * teardown and re-setup interrupts.
+	 */
+	if (ioat_is_bdxde(ioat)) {
+		error = ioat_teardown_intr(ioat);
+		if (error)
+			return (error);
+
+		error = ioat_setup_intr(ioat);
+		if (error)
+			return (error);
+	}
 
 	return (0);
 }
