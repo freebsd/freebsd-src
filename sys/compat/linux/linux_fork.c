@@ -285,10 +285,20 @@ linux_clone_thread(struct thread *td, struct linux_clone_args *args)
 
 	p = td->td_proc;
 
+#ifdef RACCT
+	if (racct_enable) {
+		PROC_LOCK(p);
+		error = racct_add(p, RACCT_NTHR, 1);
+		PROC_UNLOCK(p);
+		if (error != 0)
+			return (EPROCLIM);
+	}
+#endif
+
 	/* Initialize our td */
 	error = kern_thr_alloc(p, 0, &newtd);
 	if (error)
-		return (error);
+		goto fail;
 														
 	cpu_set_upcall(newtd, td);
 
@@ -369,6 +379,16 @@ linux_clone_thread(struct thread *td, struct linux_clone_args *args)
 	td->td_retval[0] = newtd->td_tid;
 
 	return (0);
+
+fail:
+#ifdef RACCT
+	if (racct_enable) {
+		PROC_LOCK(p);
+		racct_sub(p, RACCT_NTHR, 1);
+		PROC_UNLOCK(p);
+	}
+#endif
+	return (error);
 }
 
 int

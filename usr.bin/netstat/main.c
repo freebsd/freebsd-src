@@ -374,7 +374,8 @@ main(int argc, char *argv[])
 			else if (strcmp(optarg, "pfkey") == 0)
 				af = PF_KEY;
 #endif
-			else if (strcmp(optarg, "unix") == 0)
+			else if (strcmp(optarg, "unix") == 0 ||
+				 strcmp(optarg, "local") == 0)
 				af = AF_UNIX;
 #ifdef NETGRAPH
 			else if (strcmp(optarg, "ng") == 0
@@ -498,8 +499,10 @@ main(int argc, char *argv[])
 	 * guys can't print interesting stuff from kernel memory.
 	 */
 	live = (nlistf == NULL && memf == NULL);
-	if (!live)
-		setgid(getgid());
+	if (!live) {
+		if (setgid(getgid()) != 0)
+			xo_err(-1, "setgid");
+	}
 
 	if (xflag && Tflag)
 		xo_errx(1, "-x and -T are incompatible, pick one.");
@@ -545,7 +548,7 @@ main(int argc, char *argv[])
 #endif
 	if (iflag && !sflag) {
 		xo_open_container("statistics");
-		intpr(interval, NULL, af);
+		intpr(NULL, af);
 		xo_close_container("statistics");
 		xo_finish();
 		exit(0);
@@ -643,7 +646,7 @@ printproto(struct protox *tp, const char *name, bool *first)
 	if (sflag) {
 		if (iflag) {
 			if (tp->pr_istats)
-				intpr(interval, tp->pr_istats, af);
+				intpr(tp->pr_istats, af);
 			else if (pflag)
 				xo_message("%s: no per-interface stats routine",
 				    tp->pr_name);
@@ -704,7 +707,8 @@ kvmd_init(void)
 		return (0);
 
 	kvmd = kvm_openfiles(nlistf, memf, NULL, O_RDONLY, errbuf);
-	setgid(getgid());
+	if (setgid(getgid()) != 0)
+		xo_err(-1, "setgid");
 
 	if (kvmd == NULL) {
 		xo_warnx("kvm not available: %s", errbuf);

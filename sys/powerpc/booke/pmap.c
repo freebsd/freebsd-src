@@ -178,15 +178,17 @@ static volatile pmap_t tidbusy[MAXCPU][TID_MAX + 1];
 uint32_t tlb0_entries;
 uint32_t tlb0_ways;
 uint32_t tlb0_entries_per_way;
+uint32_t tlb1_entries;
 
 #define TLB0_ENTRIES		(tlb0_entries)
 #define TLB0_WAYS		(tlb0_ways)
 #define TLB0_ENTRIES_PER_WAY	(tlb0_entries_per_way)
 
-#define TLB1_ENTRIES 16
+#define TLB1_ENTRIES (tlb1_entries)
+#define TLB1_MAXENTRIES	64
 
 /* In-ram copy of the TLB1 */
-static tlb_entry_t tlb1[TLB1_ENTRIES];
+static tlb_entry_t tlb1[TLB1_MAXENTRIES];
 
 /* Next free entry in the TLB1 */
 static unsigned int tlb1_idx;
@@ -493,6 +495,16 @@ tlb0_get_tlbconf(void)
 	tlb0_entries = tlb0_cfg & TLBCFG_NENTRY_MASK;
 	tlb0_ways = (tlb0_cfg & TLBCFG_ASSOC_MASK) >> TLBCFG_ASSOC_SHIFT;
 	tlb0_entries_per_way = tlb0_entries / tlb0_ways;
+}
+
+/* Return number of entries in TLB1. */
+static __inline void
+tlb1_get_tlbconf(void)
+{
+	uint32_t tlb1_cfg;
+
+	tlb1_cfg = mfspr(SPR_TLB1CFG);
+	tlb1_entries = tlb1_cfg & TLBCFG_NENTRY_MASK;
 }
 
 /* Initialize pool of kva ptbl buffers. */
@@ -1224,7 +1236,7 @@ mmu_booke_bootstrap(mmu_t mmu, vm_offset_t start, vm_offset_t kernelend)
 	debugf("fill in phys_avail:\n");
 	for (i = 0, j = 0; i < availmem_regions_sz; i++, j += 2) {
 
-		debugf(" region: 0x%08x - 0x%08x (0x%08x)\n",
+		debugf(" region: 0x%jx - 0x%jx (0x%jx)\n",
 		    availmem_regions[i].mr_start,
 		    availmem_regions[i].mr_start +
 		        availmem_regions[i].mr_size,
@@ -2803,6 +2815,11 @@ mmu_booke_mapdev_attr(mmu_t mmu, vm_paddr_t pa, vm_size_t size, vm_memattr_t ma)
 
 	do {
 		sz = 1 << (ilog2(size) & ~1);
+		if (va % sz != 0) {
+			do {
+				sz >>= 2;
+			} while (va % sz != 0);
+		}
 		if (bootverbose)
 			printf("Wiring VA=%x to PA=%llx (size=%x), "
 			    "using TLB1[%d]\n", va, pa, sz, tlb1_idx);
@@ -3042,8 +3059,21 @@ tlb1_write_entry(unsigned int idx)
 	__asm __volatile("isync");
 	mtspr(SPR_MAS3, tlb1[idx].mas3);
 	__asm __volatile("isync");
-	mtspr(SPR_MAS7, tlb1[idx].mas7);
-	__asm __volatile("isync; tlbwe; isync; msync");
+	switch ((mfpvr() >> 16) & 0xFFFF) {
+	case FSL_E500mc:
+	case FSL_E5500:
+		mtspr(SPR_MAS8, 0);
+		__asm __volatile("isync");
+		/* FALLTHROUGH */
+	case FSL_E500v2:
+		mtspr(SPR_MAS7, tlb1[idx].mas7);
+		__asm __volatile("isync");
+		break;
+	default:
+		break;
+	}
+
+	__asm __volatile("tlbwe; isync; msync");
 
 	//debugf("tlb1_write_entry: e\n");
 }
@@ -3210,42 +3240,34 @@ tlb1_init()
 {
 	uint32_t mas0, mas1, mas2, mas3, mas7;
 	uint32_t tsz;
-	u_int i;
+	int i;
 
-	if (bootinfo != NULL && bootinfo[0] != 1) {
-		tlb1_idx = *((uint16_t *)(bootinfo + 8));
-	} else
-		tlb1_idx = 1;
+	tlb1_idx = 1;
 
-	/* The first entry/entries are used to map the kernel. */
-	for (i = 0; i < tlb1_idx; i++) {
-		mas0 = MAS0_TLBSEL(1) | MAS0_ESEL(i);
-		mtspr(SPR_MAS0, mas0);
-		__asm __volatile("isync; tlbre");
+	tlb1_get_tlbconf();
 
-		mas1 = mfspr(SPR_MAS1);
-		if ((mas1 & MAS1_VALID) == 0)
-			continue;
+	mas0 = MAS0_TLBSEL(1) | MAS0_ESEL(0);
+	mtspr(SPR_MAS0, mas0);
+	__asm __volatile("isync; tlbre");
 
-		mas2 = mfspr(SPR_MAS2);
-		mas3 = mfspr(SPR_MAS3);
-		mas7 = mfspr(SPR_MAS7);
+	mas1 = mfspr(SPR_MAS1);
+	mas2 = mfspr(SPR_MAS2);
+	mas3 = mfspr(SPR_MAS3);
+	mas7 = mfspr(SPR_MAS7);
 
-		tlb1[i].mas1 = mas1;
-		tlb1[i].mas2 = mfspr(SPR_MAS2);
-		tlb1[i].mas3 = mas3;
-		tlb1[i].mas7 = mas7;
-		tlb1[i].virt = mas2 & MAS2_EPN_MASK;
-		tlb1[i].phys =  ((vm_paddr_t)(mas7 & MAS7_RPN) << 32) |
-		    (mas3 & MAS3_RPN);
+	tlb1[0].mas1 = mas1;
+	tlb1[0].mas2 = mfspr(SPR_MAS2);
+	tlb1[0].mas3 = mas3;
+	tlb1[0].mas7 = mas7;
+	tlb1[0].virt = mas2 & MAS2_EPN_MASK;
+	tlb1[0].phys =  ((vm_paddr_t)(mas7 & MAS7_RPN) << 32) |
+	    (mas3 & MAS3_RPN);
 
-		if (i == 0)
-			kernload = tlb1[i].phys;
+	kernload = tlb1[0].phys;
 
-		tsz = (mas1 & MAS1_TSIZE_MASK) >> MAS1_TSIZE_SHIFT;
-		tlb1[i].size = (tsz > 0) ? tsize2size(tsz) : 0;
-		kernsize += tlb1[i].size;
-	}
+	tsz = (mas1 & MAS1_TSIZE_MASK) >> MAS1_TSIZE_SHIFT;
+	tlb1[0].size = (tsz > 0) ? tsize2size(tsz) : 0;
+	kernsize += tlb1[0].size;
 
 #ifdef SMP
 	bp_ntlb1s = tlb1_idx;

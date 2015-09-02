@@ -1029,10 +1029,9 @@ vm_pageout_scan(struct vm_domain *vmd, int pass)
 	struct vm_pagequeue *pq;
 	vm_object_t object;
 	long min_scan;
-	int act_delta, addl_page_shortage, deficit, maxscan, page_shortage;
-	int vnodes_skipped = 0;
-	int maxlaunder, scan_tick, scanned;
-	boolean_t queues_locked;
+	int act_delta, addl_page_shortage, deficit, error, maxlaunder, maxscan;
+	int page_shortage, scan_tick, scanned, vnodes_skipped;
+	boolean_t pageout_ok, queues_locked;
 
 	/*
 	 * If we need to reclaim memory ask kernel caches to return
@@ -1086,6 +1085,8 @@ vm_pageout_scan(struct vm_domain *vmd, int pass)
 	if (pass > 1)
 		maxlaunder = 10000;
 
+	vnodes_skipped = 0;
+
 	/*
 	 * Start scanning the inactive queue for pages we can move to the
 	 * cache or free.  The scan will stop when the target is reached or
@@ -1124,31 +1125,45 @@ vm_pageout_scan(struct vm_domain *vmd, int pass)
 		 * different position within the queue.  In either
 		 * case, addl_page_shortage should not be incremented.
 		 */
-		if (!vm_pageout_page_lock(m, &next)) {
-			vm_page_unlock(m);
-			continue;
+		if (!vm_pageout_page_lock(m, &next))
+			goto unlock_page;
+		else if (m->hold_count != 0) {
+			/*
+			 * Held pages are essentially stuck in the
+			 * queue.  So, they ought to be discounted
+			 * from the inactive count.  See the
+			 * calculation of the page_shortage for the
+			 * loop over the active queue below.
+			 */
+			addl_page_shortage++;
+			goto unlock_page;
 		}
 		object = m->object;
-		if (!VM_OBJECT_TRYWLOCK(object) &&
-		    !vm_pageout_fallback_object_lock(m, &next)) {
-			vm_page_unlock(m);
-			VM_OBJECT_WUNLOCK(object);
-			continue;
+		if (!VM_OBJECT_TRYWLOCK(object)) {
+			if (!vm_pageout_fallback_object_lock(m, &next))
+				goto unlock_object;
+			else if (m->hold_count != 0) {
+				addl_page_shortage++;
+				goto unlock_object;
+			}
 		}
-
-		/*
-		 * Don't mess with busy pages, keep them at at the
-		 * front of the queue, most likely they are being
-		 * paged out.  Increment addl_page_shortage for busy
-		 * pages, because they may leave the inactive queue
-		 * shortly after page scan is finished.
-		 */
 		if (vm_page_busied(m)) {
-			vm_page_unlock(m);
-			VM_OBJECT_WUNLOCK(object);
+			/*
+			 * Don't mess with busy pages.  Leave them at
+			 * the front of the queue.  Most likely, they
+			 * are being paged out and will leave the
+			 * queue shortly after the scan finishes.  So,
+			 * they ought to be discounted from the
+			 * inactive count.
+			 */
 			addl_page_shortage++;
+unlock_object:
+			VM_OBJECT_WUNLOCK(object);
+unlock_page:
+			vm_page_unlock(m);
 			continue;
 		}
+		KASSERT(m->hold_count == 0, ("Held page %p", m));
 
 		/*
 		 * We unlock the inactive page queue, invalidating the
@@ -1163,7 +1178,7 @@ vm_pageout_scan(struct vm_domain *vmd, int pass)
 		 * Invalid pages can be easily freed. They cannot be
 		 * mapped, vm_page_free() asserts this.
 		 */
-		if (m->valid == 0 && m->hold_count == 0) {
+		if (m->valid == 0) {
 			vm_page_free(m);
 			PCPU_INC(cnt.v_dfree);
 			--page_shortage;
@@ -1204,18 +1219,6 @@ vm_pageout_scan(struct vm_domain *vmd, int pass)
 				queues_locked = TRUE;
 				vm_page_requeue_locked(m);
 			}
-			goto drop_page;
-		}
-
-		if (m->hold_count != 0) {
-			/*
-			 * Held pages are essentially stuck in the
-			 * queue.  So, they ought to be discounted
-			 * from the inactive count.  See the
-			 * calculation of the page_shortage for the
-			 * loop over the active queue below.
-			 */
-			addl_page_shortage++;
 			goto drop_page;
 		}
 
@@ -1265,23 +1268,22 @@ vm_pageout_scan(struct vm_domain *vmd, int pass)
 			 * pressure where there are insufficient clean pages
 			 * on the inactive queue, we may have to go all out.
 			 */
-			int swap_pageouts_ok;
-			int error;
 
-			if ((object->type != OBJT_SWAP) && (object->type != OBJT_DEFAULT)) {
-				swap_pageouts_ok = 1;
-			} else {
-				swap_pageouts_ok = !(defer_swap_pageouts || disable_swap_pageouts);
-				swap_pageouts_ok |= (!disable_swap_pageouts && defer_swap_pageouts &&
-				vm_page_count_min());
-										
-			}
+			if (object->type != OBJT_SWAP &&
+			    object->type != OBJT_DEFAULT)
+				pageout_ok = TRUE;
+			else if (disable_swap_pageouts)
+				pageout_ok = FALSE;
+			else if (defer_swap_pageouts)
+				pageout_ok = vm_page_count_min();
+			else
+				pageout_ok = TRUE;
 
 			/*
 			 * We don't bother paging objects that are "dead".  
 			 * Those objects are in a "rundown" state.
 			 */
-			if (!swap_pageouts_ok || (object->flags & OBJ_DEAD)) {
+			if (!pageout_ok || (object->flags & OBJ_DEAD) != 0) {
 				vm_pagequeue_lock(pq);
 				vm_page_unlock(m);
 				VM_OBJECT_WUNLOCK(object);
