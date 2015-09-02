@@ -56,9 +56,11 @@
 #include <cheri/sandbox.h>
 #include <cheri/cheri_invoke.h>
 #include <cheri_bench-helper.h>
+
+static useconds_t console_usleep = 100000;
+
 #define CAP
 struct cheri_object cheri_bench;
-static useconds_t console_usleep = 100000;
 
 #define DEFINE_RDHWR_COUNTER_GETTER(name,regno)      \
   static inline int32_t get_##name##_count (void) \
