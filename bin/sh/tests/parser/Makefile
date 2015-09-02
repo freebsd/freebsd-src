@@ -57,6 +57,7 @@ FILES+=		heredoc9.0
 FILES+=		heredoc10.0
 FILES+=		heredoc11.0
 FILES+=		heredoc12.0
+FILES+=		heredoc13.0
 FILES+=		line-cont1.0
 FILES+=		line-cont2.0
 FILES+=		line-cont3.0
