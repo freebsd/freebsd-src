@@ -57,8 +57,6 @@
 #include <cheri/cheri_invoke.h>
 #include <cheri_bench-helper.h>
 
-static useconds_t console_usleep = 100000;
-
 #define CAP
 struct cheri_object cheri_bench;
 
@@ -91,7 +89,9 @@ struct cheri_object cheri_bench;
   }
 
 #endif
-  
+
+static useconds_t console_usleep = 100000;
+
 DEFINE_RDHWR_COUNTER_GETTER(cycle,2)
 DEFINE_RDHWR_COUNTER_GETTER(inst,4)
 DEFINE_RDHWR_COUNTER_GETTER(tlb_inst,5)
