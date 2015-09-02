@@ -17,6 +17,9 @@ stop_precmd="checkauto"
 stop_cmd="pccard_ether_stop"
 restart_precmd="checkauto"
 restart_cmd="pccard_ether_restart"
+startchildren_cmd="pccard_ether_startchildren"
+stopchildren_cmd="pccard_ether_stopchildren"
+extra_commands="startchildren stopchildren"
 
 setup_routes()
 {
@@ -112,6 +115,20 @@ pccard_ether_restart()
 	# doesn't support that syntax
 	pccard_ether_stop
 	pccard_ether_start
+}
+
+pccard_ether_startchildren()
+{
+	for child in `get_if_var $ifn wlans_IF`; do
+		/etc/rc.d/netif quietstart $child
+	done
+}
+
+pccard_ether_stopchildren()
+{
+	for child in `get_if_var $ifn wlans_IF`; do
+		/etc/rc.d/netif quietstop $child
+	done
 }
 
 ifn=$1
