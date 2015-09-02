@@ -65,7 +65,6 @@ __FBSDID("$FreeBSD$");
 #undef _KERNEL
 
 #include <err.h>
-#include <nlist.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -73,21 +72,7 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <libxo/xo.h>
 #include "netstat.h"
-
-/*
- * kvm(3) bindings for every needed symbol
- */
-static struct nlist mrl[] = {
-#define	N_MRTSTAT	0
-	{ .n_name = "_mrtstat" },
-#define	N_MFCHASHTBL	1
-	{ .n_name = "_mfchashtbl" },
-#define	N_VIFTABLE	2
-	{ .n_name = "_viftable" },
-#define	N_MFCTABLESIZE	3
-	{ .n_name = "_mfctablesize" },
-	{ .n_name = NULL },
-};
+#include "nl_defs.h"
 
 static void	print_bw_meter(struct bw_meter *, int *);
 static void	print_mfc(struct mfc *, int, int *);
@@ -280,10 +265,9 @@ mroutepr()
 			return;
 		}
 	} else {
-		kresolve_list(mrl);
-		pmfchashtbl = mrl[N_MFCHASHTBL].n_value;
-		pmfctablesize = mrl[N_MFCTABLESIZE].n_value;
-		pviftbl = mrl[N_VIFTABLE].n_value;
+		pmfchashtbl = nl[N_MFCHASHTBL].n_value;
+		pmfctablesize = nl[N_MFCTABLESIZE].n_value;
+		pviftbl = nl[N_VIFTABLE].n_value;
 
 		if (pmfchashtbl == 0 || pmfctablesize == 0 || pviftbl == 0) {
 			xo_warnx("No IPv4 MROUTING kernel support.");
@@ -418,8 +402,7 @@ mrt_stats()
 	u_long mstaddr;
 	size_t len = sizeof(mrtstat);
 
-	kresolve_list(mrl);
-	mstaddr = mrl[N_MRTSTAT].n_value;
+	mstaddr = nl[N_MRTSTAT].n_value;
 
 	if (mstaddr == 0) {
 		fprintf(stderr, "No IPv4 MROUTING kernel support.\n");
