@@ -60,7 +60,7 @@ static int ioat_map_pci_bar(struct ioat_softc *ioat);
 static void ioat_dmamap_cb(void *arg, bus_dma_segment_t *segs, int nseg,
     int error);
 static void ioat_interrupt_handler(void *arg);
-static boolean_t ioat_is_bdxde(struct ioat_softc *ioat);
+static boolean_t ioat_model_resets_msix(struct ioat_softc *ioat);
 static void ioat_process_events(struct ioat_softc *ioat);
 static inline uint32_t ioat_get_active(struct ioat_softc *ioat);
 static inline uint32_t ioat_get_ring_space(struct ioat_softc *ioat);
@@ -511,12 +511,18 @@ ioat_setup_intr(struct ioat_softc *ioat)
 }
 
 static boolean_t
-ioat_is_bdxde(struct ioat_softc *ioat)
+ioat_model_resets_msix(struct ioat_softc *ioat)
 {
 	u_int32_t pciid;
 
 	pciid = pci_get_devid(ioat->device);
 	switch (pciid) {
+		/* BWD: */
+	case 0x0c508086:
+	case 0x0c518086:
+	case 0x0c528086:
+	case 0x0c538086:
+		/* BDXDE: */
 	case 0x6f508086:
 	case 0x6f518086:
 	case 0x6f528086:
@@ -947,7 +953,7 @@ ioat_reset_hw(struct ioat_softc *ioat)
 {
 	uint64_t status;
 	uint32_t chanerr;
-	int timeout, error;
+	int timeout;
 
 	status = ioat_get_chansts(ioat);
 	if (is_ioat_active(status) || is_ioat_idle(status))
@@ -974,6 +980,13 @@ ioat_reset_hw(struct ioat_softc *ioat)
 	chanerr = pci_read_config(ioat->device, IOAT_CFG_CHANERR_INT_OFFSET, 4);
 	pci_write_config(ioat->device, IOAT_CFG_CHANERR_INT_OFFSET, chanerr, 4);
 
+	/*
+	 * BDXDE and BWD models reset MSI-X registers on device reset.
+	 * Save/restore their contents manually.
+	 */
+	if (ioat_model_resets_msix(ioat))
+		pci_save_state(ioat->device);
+
 	ioat_reset(ioat);
 
 	/* Wait at most 20 ms */
@@ -982,19 +995,8 @@ ioat_reset_hw(struct ioat_softc *ioat)
 	if (timeout == 20)
 		return (ETIMEDOUT);
 
-	/*
-	 * BDXDE models reset MSI-X registers on device reset.  We must
-	 * teardown and re-setup interrupts.
-	 */
-	if (ioat_is_bdxde(ioat)) {
-		error = ioat_teardown_intr(ioat);
-		if (error)
-			return (error);
-
-		error = ioat_setup_intr(ioat);
-		if (error)
-			return (error);
-	}
+	if (ioat_model_resets_msix(ioat))
+		pci_restore_state(ioat->device);
 
 	return (0);
 }
