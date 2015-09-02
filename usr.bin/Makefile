@@ -157,6 +157,7 @@ SUBDIR=	alias \
 	tee \
 	${_tests} \
 	time \
+	timeout \
 	tip \
 	top \
 	touch \
