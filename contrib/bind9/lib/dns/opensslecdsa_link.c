@@ -14,8 +14,6 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
-
 #include <config.h>
 
 #ifdef HAVE_OPENSSL_ECDSA
@@ -159,9 +157,9 @@ opensslecdsa_sign(dst_context_t *dctx, isc_buffer_t *sig) {
 					       "ECDSA_do_sign",
 					       DST_R_SIGNFAILURE));
 	BN_bn2bin_fixed(ecdsasig->r, r.base, siglen / 2);
-	r.base += siglen / 2;
+	isc_region_consume(&r, siglen / 2);
 	BN_bn2bin_fixed(ecdsasig->s, r.base, siglen / 2);
-	r.base += siglen / 2;
+	isc_region_consume(&r, siglen / 2);
 	ECDSA_SIG_free(ecdsasig);
 	isc_buffer_add(sig, siglen);
 	ret = ISC_R_SUCCESS;
