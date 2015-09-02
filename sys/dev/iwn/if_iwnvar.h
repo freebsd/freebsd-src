@@ -238,7 +238,6 @@ struct iwn_softc {
 	struct cdev		*sc_cdev;
 	struct mtx		sc_mtx;
 	struct ieee80211com	sc_ic;
-	struct mbufq		sc_snd;
 
 	u_int			sc_flags;
 #define IWN_FLAG_HAS_OTPROM	(1 << 1)
