@@ -201,7 +201,7 @@ pfsync_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
  */
 static void
 show_stat(const char *fmt, int width, const char *name,
-    u_long value, short showvalue)
+    u_long value, short showvalue, int div1000)
 {
 	const char *lsep, *rsep;
 	char newfmt[64];
@@ -238,7 +238,8 @@ show_stat(const char *fmt, int width, const char *name,
 
 		/* Format in human readable form. */
 		humanize_number(buf, sizeof(buf), (int64_t)value, "",
-		    HN_AUTOSCALE, HN_NOSPACE | HN_DECIMAL);
+		    HN_AUTOSCALE, HN_NOSPACE | HN_DECIMAL | \
+		    ((div1000) ? HN_DIVISOR_1000 : 0));
 		maybe_pad(lsep);
 		snprintf(newfmt, sizeof(newfmt), "{:%s/%%%ds}", name, width);
 		xo_emit(newfmt, buf);
@@ -353,7 +354,7 @@ intpr(void (*pfunc)(char *), int af)
 			    name, ifa->ifa_flags, xname);
 
 #define IFA_MTU(ifa)	(((struct if_data *)(ifa)->ifa_data)->ifi_mtu)
-		show_stat("lu", 6, "mtu", IFA_MTU(ifa), IFA_MTU(ifa));
+		show_stat("lu", 6, "mtu", IFA_MTU(ifa), IFA_MTU(ifa), 0);
 #undef IFA_MTU
 
 		switch (ifa->ifa_addr->sa_family) {
@@ -416,22 +417,25 @@ intpr(void (*pfunc)(char *), int af)
 
 #define	IFA_STAT(s)	(((struct if_data *)ifa->ifa_data)->ifi_ ## s)
 		show_stat("lu", 8, "received-packets", IFA_STAT(ipackets),
-		    link|network);
-		show_stat("lu", 5, "received-errors", IFA_STAT(ierrors), link);
-		show_stat("lu", 5, "dropped-packets", IFA_STAT(iqdrops), link);
+		    link|network, 1);
+		show_stat("lu", 5, "received-errors", IFA_STAT(ierrors),
+		    link, 1);
+		show_stat("lu", 5, "dropped-packets", IFA_STAT(iqdrops),
+		    link, 1);
 		if (bflag)
 			show_stat("lu", 10, "received-bytes", IFA_STAT(ibytes),
-			    link|network);
+			    link|network, 0);
 		show_stat("lu", 8, "sent-packets", IFA_STAT(opackets),
-		    link|network);
-		show_stat("lu", 5, "send-errors", IFA_STAT(oerrors), link);
+		    link|network, 1);
+		show_stat("lu", 5, "send-errors", IFA_STAT(oerrors), link, 1);
 		if (bflag)
 			show_stat("lu", 10, "sent-bytes", IFA_STAT(obytes),
-			    link|network);
-		show_stat("NRSlu", 5, "collisions", IFA_STAT(collisions), link);
+			    link|network, 0);
+		show_stat("NRSlu", 5, "collisions", IFA_STAT(collisions),
+		    link, 1);
 		if (dflag)
 			show_stat("LSlu", 5, "dropped-packets",
-			    IFA_STAT(oqdrops), link);
+			    IFA_STAT(oqdrops), link, 1);
 		xo_emit("\n");
 
 		if (!aflag) {
@@ -616,24 +620,24 @@ loop:
 
 	xo_open_instance("stats");
 	show_stat("lu", 10, "received-packets",
-	    new->ift_ip - old->ift_ip, 1);
+	    new->ift_ip - old->ift_ip, 1, 1);
 	show_stat("lu", 5, "received-errors",
-	    new->ift_ie - old->ift_ie, 1);
+	    new->ift_ie - old->ift_ie, 1, 1);
 	show_stat("lu", 5, "dropped-packets",
-	    new->ift_id - old->ift_id, 1);
+	    new->ift_id - old->ift_id, 1, 1);
 	show_stat("lu", 10, "received-bytes",
-	    new->ift_ib - old->ift_ib, 1);
+	    new->ift_ib - old->ift_ib, 1, 0);
 	show_stat("lu", 10, "sent-packets",
-	    new->ift_op - old->ift_op, 1);
+	    new->ift_op - old->ift_op, 1, 1);
 	show_stat("lu", 5, "send-errors",
-	    new->ift_oe - old->ift_oe, 1);
+	    new->ift_oe - old->ift_oe, 1, 1);
 	show_stat("lu", 10, "sent-bytes",
-	    new->ift_ob - old->ift_ob, 1);
+	    new->ift_ob - old->ift_ob, 1, 0);
 	show_stat("NRSlu", 5, "collisions",
-	    new->ift_co - old->ift_co, 1);
+	    new->ift_co - old->ift_co, 1, 1);
 	if (dflag)
 		show_stat("LSlu", 5, "dropped-packets",
-		    new->ift_od - old->ift_od, 1);
+		    new->ift_od - old->ift_od, 1, 1);
 	xo_close_instance("stats");
 	xo_emit("\n");
 	xo_flush();
