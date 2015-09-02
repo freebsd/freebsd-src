@@ -1127,6 +1127,7 @@ reinstallkernel reinstallkernel.debug: _installcheck_kernel
 	cd ${KRNLOBJDIR}/${INSTALLKERNEL}; \
 	    ${CROSSENV} PATH=${TMPPATH} \
 	    ${MAKE} ${IMAKE_INSTALL} KERNEL=${INSTKERNNAME} ${.TARGET:S/kernel//}
+.if ${BUILDKERNELS:[#]} > 1
 .for _kernel in ${BUILDKERNELS:[2..-1]}
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Installing kernel ${_kernel}"
@@ -1135,6 +1136,7 @@ reinstallkernel reinstallkernel.debug: _installcheck_kernel
 	    ${CROSSENV} PATH=${TMPPATH} \
 	    ${MAKE} ${IMAKE_INSTALL} KERNEL=${INSTKERNNAME}.${_kernel} ${.TARGET:S/kernel//}
 .endfor
+.endif
 
 distributekernel distributekernel.debug:
 .if empty(INSTALLKERNEL)
@@ -1154,6 +1156,7 @@ distributekernel distributekernel.debug:
 	sed -e 's|^./kernel|.|' ${DESTDIR}/${DISTDIR}/kernel.premeta > \
 	    ${DESTDIR}/${DISTDIR}/kernel.meta
 .endif
+.if ${BUILDKERNELS:[#]} > 1
 .for _kernel in ${BUILDKERNELS:[2..-1]}
 .if defined(NO_ROOT)
 	echo "#${MTREE_MAGIC}" > ${DESTDIR}/${DISTDIR}/kernel.${_kernel}.premeta
@@ -1170,26 +1173,31 @@ distributekernel distributekernel.debug:
 	    ${DESTDIR}/${DISTDIR}/kernel.${_kernel}.meta
 .endif
 .endfor
+.endif
 
 packagekernel:
 .if defined(NO_ROOT)
 	cd ${DESTDIR}/${DISTDIR}/kernel; \
 	    tar cvf - @${DESTDIR}/${DISTDIR}/kernel.meta | \
 	    ${XZ_CMD} > ${DESTDIR}/${DISTDIR}/kernel.txz
+.if ${BUILDKERNELS:[#]} > 1
 .for _kernel in ${BUILDKERNELS:[2..-1]}
 	cd ${DESTDIR}/${DISTDIR}/kernel.${_kernel}; \
 	    tar cvf - @${DESTDIR}/${DISTDIR}/kernel.${_kernel}.meta | \
 	    ${XZ_CMD} > ${DESTDIR}/${DISTDIR}/kernel.${_kernel}.txz
 .endfor
+.endif
 .else
 	cd ${DESTDIR}/${DISTDIR}/kernel; \
 	    tar cvf - . | \
 	    ${XZ_CMD} > ${DESTDIR}/${DISTDIR}/kernel.txz
+.if ${BUILDKERNELS:[#]} > 1
 .for _kernel in ${BUILDKERNELS:[2..-1]}
 	cd ${DESTDIR}/${DISTDIR}/kernel.${_kernel}; \
 	    tar cvf - . | \
 	    ${XZ_CMD} > ${DESTDIR}/${DISTDIR}/kernel.${_kernel}.txz
 .endfor
+.endif
 .endif
 
 #
