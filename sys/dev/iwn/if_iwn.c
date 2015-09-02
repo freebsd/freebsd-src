@@ -231,7 +231,6 @@ static void	iwn_xmit_task(void *arg0, int pending);
 static int	iwn_raw_xmit(struct ieee80211_node *, struct mbuf *,
 		    const struct ieee80211_bpf_params *);
 static int	iwn_transmit(struct ieee80211com *, struct mbuf *);
-static void	iwn_start_locked(struct iwn_softc *);
 static void	iwn_watchdog(void *);
 static int	iwn_ioctl(struct ieee80211com *, u_long , void *);
 static void	iwn_parent(struct ieee80211com *);
@@ -471,7 +470,6 @@ iwn_attach(device_t dev)
 	}
 
 	IWN_LOCK_INIT(sc);
-	mbufq_init(&sc->sc_snd, ifqmaxlen);
 
 	/* Read hardware revision and attach. */
 	sc->hw_type = (IWN_READ(sc, IWN_HW_REV) >> IWN_HW_REV_TYPE_SHIFT)
@@ -1408,8 +1406,6 @@ iwn_detach(device_t dev)
 		callout_drain(&sc->calib_to);
 		ieee80211_ifdetach(&sc->sc_ic);
 	}
-
-	mbufq_drain(&sc->sc_snd);
 
 	/* Uninstall interrupt handler. */
 	if (sc->irq != NULL) {
@@ -3597,14 +3593,10 @@ iwn_tx_done(struct iwn_softc *sc, struct iwn_rx_desc *desc, int ackfailcnt,
 		    (status & IWN_TX_FAIL) != 0);
 
 	sc->sc_tx_timer = 0;
-	if (--ring->queued < IWN_TX_RING_LOMARK) {
+	if (--ring->queued < IWN_TX_RING_LOMARK)
 		sc->qfullmsk &= ~(1 << ring->qid);
-		if (sc->qfullmsk == 0)
-			iwn_start_locked(sc);
-	}
 
 	DPRINTF(sc, IWN_DEBUG_TRACE, "->%s: end\n",__func__);
-
 }
 
 /*
@@ -3781,14 +3773,10 @@ iwn_ampdu_tx_done(struct iwn_softc *sc, int qid, int idx, int nframes,
 	}
 
 	sc->sc_tx_timer = 0;
-	if (ring->queued < IWN_TX_RING_LOMARK) {
+	if (ring->queued < IWN_TX_RING_LOMARK)
 		sc->qfullmsk &= ~(1 << ring->qid);
-		if (sc->qfullmsk == 0)
-			iwn_start_locked(sc);
-	}
 
 	DPRINTF(sc, IWN_DEBUG_TRACE, "->%s: end\n",__func__);
-
 }
 
 /*
@@ -4948,54 +4936,30 @@ iwn_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 static int
 iwn_transmit(struct ieee80211com *ic, struct mbuf *m)
 {
-	struct iwn_softc *sc;
+	struct iwn_softc *sc = ic->ic_softc;
+	struct ieee80211_node *ni;
 	int error;
 
-	sc = ic->ic_softc;
-
 	IWN_LOCK(sc);
-	if ((sc->sc_flags & IWN_FLAG_RUNNING) == 0) {
+	if ((sc->sc_flags & IWN_FLAG_RUNNING) == 0 || sc->sc_beacon_wait) {
 		IWN_UNLOCK(sc);
 		return (ENXIO);
 	}
-	error = mbufq_enqueue(&sc->sc_snd, m);
-	if (error) {
+
+	if (sc->qfullmsk) {
 		IWN_UNLOCK(sc);
-		return (error);
+		return (ENOBUFS);
 	}
-	iwn_start_locked(sc);
+
+	ni = (struct ieee80211_node *)m->m_pkthdr.rcvif;
+	error = iwn_tx_data(sc, m, ni);
+	if (error) {
+		if_inc_counter(ni->ni_vap->iv_ifp, IFCOUNTER_OERRORS, 1);
+		ieee80211_free_node(ni);
+	} else
+		sc->sc_tx_timer = 5;
 	IWN_UNLOCK(sc);
-	return (0);
-}
-
-static void
-iwn_start_locked(struct iwn_softc *sc)
-{
-	struct ieee80211_node *ni;
-	struct mbuf *m;
-
-	IWN_LOCK_ASSERT(sc);
-
-	/*
-	 * If we're waiting for a beacon, we can just exit out here
-	 * and wait for the taskqueue to be kicked.
-	 */
-	if (sc->sc_beacon_wait) {
-		return;
-	}
-
-	DPRINTF(sc, IWN_DEBUG_XMIT, "%s: called\n", __func__);
-	while (sc->qfullmsk == 0 && 
-	    (m = mbufq_dequeue(&sc->sc_snd)) != NULL) {
-		ni = (struct ieee80211_node *)m->m_pkthdr.rcvif;
-		if (iwn_tx_data(sc, m, ni) != 0) {
-			if_inc_counter(ni->ni_vap->iv_ifp,
-			    IFCOUNTER_OERRORS, 1);
-			ieee80211_free_node(ni);
-		} else
-			sc->sc_tx_timer = 5;
-	}
-	DPRINTF(sc, IWN_DEBUG_XMIT, "%s: done\n", __func__);
+	return (error);
 }
 
 static void
@@ -8730,9 +8694,6 @@ iwn_panicked(void *arg0, int pending)
 		device_printf(sc->sc_dev,
 		    "%s: could not move to run state\n", __func__);
 	}
-
-	/* Only run start once the NIC is in a useful state, like associated */
-	iwn_start_locked(sc);
 
 	IWN_UNLOCK(sc);
 }
