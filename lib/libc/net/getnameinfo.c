@@ -394,26 +394,22 @@ getnameinfo_link(const struct sockaddr *sa, socklen_t salen,
 
 	if (sdl->sdl_nlen == 0 && sdl->sdl_alen == 0 && sdl->sdl_slen == 0) {
 		n = snprintf(host, hostlen, "link#%d", sdl->sdl_index);
-		if (n > hostlen) {
+		if (n >= hostlen) {
 			*host = '\0';
 			return (EAI_MEMORY);
 		}
 		return (0);
 	}
 
-	if (sdl->sdl_nlen > 0) {
-		if (sdl->sdl_nlen + 1 > hostlen) {
+	if (sdl->sdl_nlen > 0 && sdl->sdl_alen == 0) {
+		n = sdl->sdl_nlen;
+		if (n >= hostlen) {
 			*host = '\0';
 			return (EAI_MEMORY);
 		}
 		memcpy(host, sdl->sdl_data, sdl->sdl_nlen);
-		n = sdl->sdl_nlen;
-		host += n;
-		if (sdl->sdl_alen > 0) {
-			*host++ = ':';
-			n++;
-		}
-		hostlen -= n;
+		host[n] = '\0';
+		return (0);
 	}
 
 	switch (sdl->sdl_type) {
