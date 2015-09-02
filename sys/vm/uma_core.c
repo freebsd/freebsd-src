@@ -1946,8 +1946,8 @@ uma_zcreate(const char *name, size_t size, uma_ctor ctor, uma_dtor dtor,
 	 * destructor, pass UMA constructor/destructor which checks for
 	 * memory use after free.
 	 */
-	if ((!(flags & UMA_ZONE_ZINIT)) && ctor == NULL && dtor == NULL &&
-	    uminit == NULL && fini == NULL) {
+	if ((!(flags & (UMA_ZONE_ZINIT | UMA_ZONE_NOFREE))) &&
+	    ctor == NULL && dtor == NULL && uminit == NULL && fini == NULL) {
 		args.ctor = trash_ctor;
 		args.dtor = trash_dtor;
 		args.uminit = trash_init;
