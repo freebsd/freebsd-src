@@ -224,6 +224,13 @@
 	<entry>25&nbsp;August&nbsp;2015</entry>
 	<entry><para>Multiple vulnerabilities</para></entry>
       </row>
+
+      <row>
+	<entry><link xlink:href="&security.url;/FreeBSD-SA-15:23.bind.asc">FreeBSD-SA-15:23.bind</link></entry>
+	<entry>2&nbsp;September&nbsp;2015</entry>
+	<entry><para>Remote denial of service
+	    vulnerability</para></entry>
+      </row>
     </tbody>
   </tgroup>
 </informaltable>
