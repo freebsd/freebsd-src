@@ -257,14 +257,14 @@ while getopts aAcdDef:Fhij:nNqR:vxX flag; do
 	F) SHOW_FILE=1 ;;
 	h) usage ;; # NOTREACHED
 	i) IGNORE_UNKNOWNS=1 ;;
-	j) [ "$OPTARG" ] || die \
-	   	"%s: Missing or null argument to \`-j' flag" "$pgm"
+	j) [ "$OPTARG" ] ||
+		die "%s: Missing or null argument to \`-j' flag" "$pgm"
 	   JAIL="$OPTARG" ;;
 	n) SHOW_NAME= ;;
 	N) SHOW_VALUE= ;;
 	q) QUIET=1 VERBOSE= ;;
-	R) [ "$OPTARG" ] || die \
-	   	"%s: Missing or null argument to \`-R' flag" "$pgm"
+	R) [ "$OPTARG" ] ||
+		die "%s: Missing or null argument to \`-R' flag" "$pgm"
 	   ROOTDIR="$OPTARG" ;;
 	v) VERBOSE=1 QUIET= ;;
 	x) DELETE=${DELETE:-1} ;;
@@ -384,13 +384,12 @@ if [ "$JAIL" -o "$ROOTDIR" ]; then
 		# jls(1) or jexec(8) utilities are missing.
 		#
 		if f_have jexec && f_have jls; then
-			jid="`jls jid path | \
-			(
+			jid=$( jls jid path |
 				while read JID JROOT; do
 					[ "$JROOT" = "$ROOTDIR" ] || continue
 					echo $JID
 				done
-			)`"
+			)
 
 			#
 			# If multiple running jails match the specified root
@@ -472,8 +471,8 @@ if [ "$SHOW_ALL" ]; then
 			# If passed `-a' (rather than `-A'), re-purge the
 			# environment, removing the rc.conf(5) defaults.
 			#
-			[ "$SHOW_ALL" = "1" ] \
-				&& f_clean_env --except rc_conf_files $EXCEPT
+			[ "$SHOW_ALL" = "1" ] &&
+				f_clean_env --except rc_conf_files $EXCEPT
 
 			#
 			# If `-f file' was passed, set $rc_conf_files to an
@@ -491,8 +490,7 @@ if [ "$SHOW_ALL" ]; then
 			#
 			[ "$SHOW_ALL" = "1" -a \
 			  "$( f_sysrc_find rc_conf_files )" = "$RC_DEFAULTS" \
-			] \
-			&& unset rc_conf_files
+			] && unset rc_conf_files
 		fi
 
 		for NAME in $( set |
@@ -524,7 +522,7 @@ if [ "$SHOW_ALL" ]; then
 				continue
 			fi
 
-			[ "$VERBOSE" ] && \
+			[ "$VERBOSE" ] &&
 				echo -n "$( f_sysrc_find "$NAME" ): "
 
 			#
@@ -560,7 +558,7 @@ while [ $# -gt 0 ]; do
 	 *) mode=ASSIGN
 	esac
 
-	[ "$DESCRIBE" ] && \
+	[ "$DESCRIBE" ] &&
 		echo "$NAME: $( f_sysrc_desc "$NAME" )"
 
 	case "$1" in
@@ -573,7 +571,7 @@ while [ $# -gt 0 ]; do
 		# If verbose, prefix line with where the directive lives
 		if [ "$VERBOSE" -a ! "$CHECK_ONLY" ]; then
 			file=$( f_sysrc_find "$NAME" )
-			[ "$file" = "$RC_DEFAULTS" -o ! "$file" ] && \
+			[ "$file" = "$RC_DEFAULTS" -o ! "$file" ] &&
 				file=$( f_sysrc_get 'rc_conf_files%%[$IFS]*' )
 			if [ "$SHOW_EQUALS" ]; then
 				echo -n ": $file; "
