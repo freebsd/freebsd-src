@@ -106,6 +106,8 @@ static int startlinno;		/* line # where last token started */
 static int funclinno;		/* line # where the current function started */
 static struct parser_temp *parser_temp;
 
+#define NOEOFMARK ((const char *)&heredoclist)
+
 
 static union node *list(int);
 static union node *andor(void);
@@ -972,6 +974,10 @@ checkend(int c, const char *eofmark, int striptabs)
 			pungetc();
 			pushstring(eofmark + 1, q - (eofmark + 1), NULL);
 		}
+	} else if (c == '\n' && *eofmark == '\0') {
+		c = PEOF;
+		plinno++;
+		needprompt = doprompt;
 	}
 	return (c);
 }
@@ -1383,7 +1389,7 @@ readtoken1(int firstc, char const *initialsyntax, const char *eofmark,
 
 	STARTSTACKSTR(out);
 	loop: {	/* for each line, until end of word */
-		if (eofmark)
+		if (eofmark && eofmark != NOEOFMARK)
 			/* set c to PEOF if at end of here document */
 			c = checkend(c, eofmark, striptabs);
 		for (;;) {	/* until end of line or end of word */
@@ -2046,7 +2052,7 @@ expandstr(const char *ps)
 		parser_temp = NULL;
 		setinputstring(ps, 1);
 		doprompt = 0;
-		readtoken1(pgetc(), DQSYNTAX, "", 0);
+		readtoken1(pgetc(), DQSYNTAX, NOEOFMARK, 0);
 		if (backquotelist != NULL)
 			error("Command substitution not allowed here");
 
