@@ -56,7 +56,6 @@ __FBSDID("$FreeBSD$");
 #include <ifaddrs.h>
 #include <libutil.h>
 #include <netdb.h>
-#include <nlist.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -67,6 +66,7 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <libxo/xo.h>
 #include "netstat.h"
+#include "nl_defs.h"
 
 /*
  * Definitions for showing gateway flags.
@@ -94,17 +94,6 @@ static struct bits {
 	{ RTF_LLINFO,	'L', "llinfo" },
 #endif
 	{ 0 , 0, NULL }
-};
-
-/*
- * kvm(3) bindings for every needed symbol
- */
-static struct nlist rl[] = {
-#define	N_RTSTAT	0
-	{ .n_name = "_rtstat" },
-#define	N_RTTRASH	1
-	{ .n_name = "_rttrash" },
-	{ .n_name = NULL },
 };
 
 struct ifmap_entry {
@@ -745,13 +734,11 @@ rt_stats(void)
 	u_long rtsaddr, rttaddr;
 	int rttrash;
 
-	kresolve_list(rl);
-
-	if ((rtsaddr = rl[N_RTSTAT].n_value) == 0) {
+	if ((rtsaddr = nl[N_RTSTAT].n_value) == 0) {
 		xo_emit("{W:rtstat: symbol not in namelist}\n");
 		return;
 	}
-	if ((rttaddr = rl[N_RTTRASH].n_value) == 0) {
+	if ((rttaddr = nl[N_RTTRASH].n_value) == 0) {
 		xo_emit("{W:rttrash: symbol not in namelist}\n");
 		return;
 	}

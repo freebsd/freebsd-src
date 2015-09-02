@@ -63,11 +63,10 @@ extern int	unit;	/* unit number for above */
 
 extern int	live;	/* true if we are examining a live system */
 
-struct nlist;
 int	kread(u_long addr, void *buf, size_t size);
 uint64_t kread_counter(u_long addr);
 int	kread_counters(u_long addr, void *buf, size_t size);
-int	kresolve_list(struct nlist *);
+void	kset_dpcpu(u_int);
 const char *plural(uintmax_t);
 const char *plurales(uintmax_t);
 const char *pluralies(uintmax_t);
@@ -119,7 +118,7 @@ void	pfkey_stats(u_long, const char *, int, int);
 
 void	mbpr(void *, u_long);
 
-void	netisr_stats(void *);
+void	netisr_stats(void);
 
 void	hostpr(u_long, u_long);
 void	impstats(u_long, u_long);
