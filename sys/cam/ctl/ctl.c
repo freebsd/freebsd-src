@@ -8951,7 +8951,7 @@ ctl_report_luns(struct ctl_scsiio *ctsio)
 		 */
 		if (request_lun != NULL) {
 			mtx_lock(&lun->lun_lock);
-			ctl_clr_ua(lun, initidx, CTL_UA_RES_RELEASE);
+			ctl_clr_ua(lun, initidx, CTL_UA_LUN_CHANGE);
 			mtx_unlock(&lun->lun_lock);
 		}
 	}
