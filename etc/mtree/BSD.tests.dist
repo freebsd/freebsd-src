@@ -388,6 +388,8 @@
     usr.sbin
         etcupdate
         ..
+        fstyp
+        ..
         newsyslog
         ..
         nmtree
