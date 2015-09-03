@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 4, 2015
+.Dd September 2, 2015
 .Dt SYSRC 8
 .Os
 .Sh NAME
@@ -394,27 +394,6 @@ usbd_flags-"default"
 .Nm
 cloned_interfaces+"alternate"
 .Dl returns "alternate" if $cloned_interfaces is set .
-.Pp
-.Nm
-\&'#kern_securelevel'
-.Dl returns length in characters of $kern_securelevel .
-.Pp
-.Nm
-\&'hostname?'
-.Dl returns NULL and error status 2 if $hostname is unset Pq or if set, returns the value of $hostname with no error status .
-.Pp
-.Nm
-\&'hostname:?'
-.Dl returns NULL and error status 2 if $hostname is unset or NULL Pq or if set and non-NULL, returns value without error status .
-.Sh LIMITATIONS
-The
-.Nm
-utility presently does not support the
-.Ql rc.conf.d
-collection of system configuration files
-.Pq which requires a service name to be known during execution .
-.Pp
-This will be corrected by a future enhancement.
 .Sh SEE ALSO
 .Xr jls 1 ,
 .Xr rc.conf 5 ,
