@@ -43,6 +43,21 @@ static EFI_GUID gop_guid = EFI_GRAPHICS_OUTPUT_PROTOCOL_GUID;
 static EFI_GUID pciio_guid = EFI_PCI_IO_PROTOCOL_GUID;
 static EFI_GUID uga_guid = EFI_UGA_DRAW_PROTOCOL_GUID;
 
+static u_int
+efifb_color_depth(struct efi_fb *efifb)
+{
+	uint32_t mask;
+	u_int depth;
+
+	mask = efifb->fb_mask_red | efifb->fb_mask_green |
+	    efifb->fb_mask_blue | efifb->fb_mask_reserved;
+	if (mask == 0)
+		return (0);
+	for (depth = 1; mask != 1; depth++)
+		mask >>= 1;
+	return (depth);
+}
+
 static int
 efifb_mask_from_pixfmt(struct efi_fb *efifb, EFI_GRAPHICS_PIXEL_FORMAT pixfmt,
     EFI_PIXEL_BITMASK *pixinfo)
@@ -92,83 +107,198 @@ efifb_from_gop(struct efi_fb *efifb, EFI_GRAPHICS_OUTPUT_PROTOCOL_MODE *mode,
 	return (result);
 }
 
+static ssize_t
+efifb_uga_find_pixel(EFI_UGA_DRAW_PROTOCOL *uga, u_int line,
+    EFI_PCI_IO_PROTOCOL *pciio, uint64_t addr, uint64_t size)
+{
+	EFI_UGA_PIXEL pix0, pix1;
+	uint8_t *data1, *data2;
+	size_t count, maxcount = 1024;
+	ssize_t ofs;
+	EFI_STATUS status;
+	u_int idx;
+
+	status = uga->Blt(uga, &pix0, EfiUgaVideoToBltBuffer,
+	    0, line, 0, 0, 1, 1, 0);
+	if (EFI_ERROR(status)) {
+		printf("UGA BLT operation failed (video->buffer)");
+		return (-1);
+	}
+	pix1.Red = ~pix0.Red;
+	pix1.Green = ~pix0.Green;
+	pix1.Blue = ~pix0.Blue;
+	pix1.Reserved = 0;
+
+	data1 = calloc(maxcount, 2);
+	if (data1 == NULL) {
+		printf("Unable to allocate memory");
+		return (-1);
+	}
+	data2 = data1 + maxcount;
+
+	ofs = 0;
+	while (size > 0) {
+		count = min(size, maxcount);
+
+		status = pciio->Mem.Read(pciio, EfiPciIoWidthUint32,
+		    EFI_PCI_IO_PASS_THROUGH_BAR, addr + ofs, count >> 2,
+		    data1);
+		if (EFI_ERROR(status)) {
+			printf("Error reading frame buffer (before)");
+			goto fail;
+		}
+		status = uga->Blt(uga, &pix1, EfiUgaBltBufferToVideo,
+		    0, 0, 0, line, 1, 1, 0);
+		if (EFI_ERROR(status)) {
+			printf("UGA BLT operation failed (modify)");
+			goto fail;
+		}
+		status = pciio->Mem.Read(pciio, EfiPciIoWidthUint32,
+		    EFI_PCI_IO_PASS_THROUGH_BAR, addr + ofs, count >> 2,
+		    data2);
+		if (EFI_ERROR(status)) {
+			printf("Error reading frame buffer (after)");
+			goto fail;
+		}
+		status = uga->Blt(uga, &pix0, EfiUgaBltBufferToVideo,
+		    0, 0, 0, line, 1, 1, 0);
+		if (EFI_ERROR(status)) {
+			printf("UGA BLT operation failed (restore)");
+			goto fail;
+		}
+		for (idx = 0; idx < count; idx++) {
+			if (data1[idx] != data2[idx]) {
+				free(data1);
+				return (ofs + (idx & ~3));
+			}
+		}
+		ofs += count;
+		size -= count;
+	}
+	printf("Couldn't find the pixel");
+
+ fail:
+	printf(" -- error %lu\n", status & ~EFI_ERROR_MASK);
+	free(data1);
+	return (-1);
+}
+
+static EFI_STATUS
+efifb_uga_detect_framebuffer(EFI_UGA_DRAW_PROTOCOL *uga,
+    EFI_PCI_IO_PROTOCOL **pciiop, uint64_t *addrp, uint64_t *sizep)
+{
+	EFI_PCI_IO_PROTOCOL *pciio;
+	EFI_HANDLE *buf, *hp;
+	uint8_t *resattr;
+	uint64_t a, addr, s, size;
+	ssize_t ofs;
+	EFI_STATUS status;
+	UINTN bufsz;
+	u_int bar;
+
+	/* Get all handles that support the UGA protocol. */
+	bufsz = 0;
+	status = BS->LocateHandle(ByProtocol, &uga_guid, NULL, &bufsz, NULL);
+	if (status != EFI_BUFFER_TOO_SMALL)
+		return (status);
+	buf = malloc(bufsz);
+	status = BS->LocateHandle(ByProtocol, &uga_guid, NULL, &bufsz, buf);
+	if (status != EFI_SUCCESS) {
+		free(buf);
+		return (status);
+	}
+	bufsz /= sizeof(EFI_HANDLE);
+
+	/* Get the PCI I/O interface of the first handle that supports it. */
+	pciio = NULL;
+	for (hp = buf; hp < buf + bufsz; hp++) {
+		status = BS->HandleProtocol(*hp, &pciio_guid, (void **)&pciio);
+		if (status == EFI_SUCCESS)
+			break;
+	}
+	free(buf);
+	if (status != EFI_SUCCESS || pciio == NULL)
+		return (EFI_NOT_FOUND);
+
+	/* Attempt to get the frame buffer address (imprecise). */
+	addr = 0;
+	size = 0;
+	for (bar = 0; bar < 6; bar++) {
+		status = pciio->GetBarAttributes(pciio, bar, NULL,
+		    (void **)&resattr);
+		if (status != EFI_SUCCESS)
+			continue;
+		/* XXX magic offsets and constants. */
+		if (resattr[0] == 0x87 && resattr[3] == 0) {
+			/* 32-bit address space descriptor (MEMIO) */
+			a = le32dec(resattr + 10);
+			s = le32dec(resattr + 22);
+		} else if (resattr[0] == 0x8a && resattr[3] == 0) {
+			/* 64-bit address space descriptor (MEMIO) */
+			a = le64dec(resattr + 14);
+			s = le64dec(resattr + 38);
+		} else {
+			a = 0;
+			s = 0;
+		}
+		BS->FreePool(resattr);
+		if (a == 0 || s == 0)
+			continue;
+
+		/* We assume the largest BAR is the frame buffer. */
+		if (s > size) {
+			addr = a;
+			size = s;
+		}
+	}
+	if (addr == 0 || size == 0)
+		return (EFI_DEVICE_ERROR);
+
+	/*
+	 * The visible part of the frame buffer may not start at offset
+	 * 0, so try to detect it.
+	 */
+	ofs = efifb_uga_find_pixel(uga, 0, pciio, addr, size);
+	if (ofs == -1)
+		return (EFI_NO_RESPONSE);
+
+	addr += ofs;
+	size -= ofs;
+
+	*pciiop = pciio;
+	*addrp = addr;
+	*sizep = size;
+	return (0);
+}
+
 static int
 efifb_from_uga(struct efi_fb *efifb, EFI_UGA_DRAW_PROTOCOL *uga)
 {
-	uint8_t *buf;
 	EFI_PCI_IO_PROTOCOL *pciio;
-	EFI_HANDLE handle;
 	EFI_STATUS status;
-	UINTN bufofs, bufsz;
-	uint64_t address, length;
+	ssize_t ofs;
 	uint32_t horiz, vert, depth, refresh;
-	u_int bar;
 
 	status = uga->GetMode(uga, &horiz, &vert, &depth, &refresh);
-        if (EFI_ERROR(status))
+	if (EFI_ERROR(status))
 		return (1);
 	efifb->fb_height = vert;
 	efifb->fb_width = horiz;
 	efifb_mask_from_pixfmt(efifb, PixelBlueGreenRedReserved8BitPerColor,
 	    NULL);
-	/* Find all handles that support the UGA protocol. */
-	bufsz = 0;
-	status = BS->LocateHandle(ByProtocol, &uga_guid, NULL, &bufsz, NULL);
-	if (status != EFI_BUFFER_TOO_SMALL)
+
+	/* Try and find the frame buffer. */
+	status = efifb_uga_detect_framebuffer(uga, &pciio, &efifb->fb_addr,
+	    &efifb->fb_size);
+	if (EFI_ERROR(status))
 		return (1);
-	buf = malloc(bufsz);
-	status = BS->LocateHandle(ByProtocol, &uga_guid, NULL, &bufsz,
-	    (EFI_HANDLE *)buf);
-	if (status != EFI_SUCCESS) {
-		free(buf);
+
+	/* Try and detect the stride. */
+	ofs = efifb_uga_find_pixel(uga, 1, pciio, efifb->fb_addr,
+	    efifb->fb_size);
+	if (ofs == -1)
 		return (1);
-	}
-	/* Get the PCI I/O interface of the first handle that supports it. */
-	pciio = NULL;
-	for (bufofs = 0; bufofs < bufsz; bufofs += sizeof(EFI_HANDLE)) {
-		handle = *(EFI_HANDLE *)(buf + bufofs);
-		status = BS->HandleProtocol(handle, &pciio_guid,
-		    (void **)&pciio);
-		if (status == EFI_SUCCESS)
-			break;
-	}
-	free(buf);
-	if (pciio == NULL)
-		return (1);
-	/* Attempt to get the frame buffer address (imprecise). */
-	efifb->fb_addr = 0;
-	efifb->fb_size = 0;
-	for (bar = 0; bar < 6; bar++) {
-		status = pciio->GetBarAttributes(pciio, bar, NULL,
-		    (EFI_HANDLE *)&buf);
-		if (status != EFI_SUCCESS)
-			continue;
-		/* XXX magic offsets and constants. */
-		if (buf[0] == 0x87 && buf[3] == 0) {
-			/* 32-bit address space descriptor (MEMIO) */
-			address = le32dec(buf + 10);
-			length = le32dec(buf + 22);
-		} else if (buf[0] == 0x8a && buf[3] == 0) {
-			/* 64-bit address space descriptor (MEMIO) */
-			address = le64dec(buf + 14);
-			length = le64dec(buf + 38);
-		} else {
-			address = 0;
-			length = 0;
-		}
-		BS->FreePool(buf);
-		if (address == 0 || length == 0)
-			continue;
-		/* We assume the largest BAR is the frame buffer. */
-		if (length > efifb->fb_size) {
-			efifb->fb_addr = address;
-			efifb->fb_size = length;
-		}
-	}
-	if (efifb->fb_addr == 0 || efifb->fb_size == 0)
-		return (1);
-	/* TODO determine the stride. */
-	efifb->fb_stride = efifb->fb_width;	/* XXX */
+	efifb->fb_stride = ofs >> 2;
 	return (0);
 }
 
@@ -193,18 +323,11 @@ efi_find_framebuffer(struct efi_fb *efifb)
 static void
 print_efifb(int mode, struct efi_fb *efifb, int verbose)
 {
-	uint32_t mask;
 	u_int depth;
 
 	if (mode >= 0)
 		printf("mode %d: ", mode);
-	mask = efifb->fb_mask_red | efifb->fb_mask_green |
-	    efifb->fb_mask_blue | efifb->fb_mask_reserved;
-	if (mask > 0) {
-		for (depth = 1; mask != 1; depth++)
-			mask >>= 1;
-	} else
-		depth = 0;
+	depth = efifb_color_depth(efifb);
 	printf("%ux%ux%u, stride=%u", efifb->fb_width, efifb->fb_height,
 	    depth, efifb->fb_stride);
 	if (verbose) {
