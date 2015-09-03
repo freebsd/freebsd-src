@@ -473,6 +473,7 @@ kcs_loop(void *arg)
 
 	IPMI_LOCK(sc);
 	while ((req = ipmi_dequeue_request(sc)) != NULL) {
+		IPMI_UNLOCK(sc);
 		ok = 0;
 		for (i = 0; i < 3 && !ok; i++)
 			ok = kcs_polled_request(sc, req);
@@ -480,6 +481,7 @@ kcs_loop(void *arg)
 			req->ir_error = 0;
 		else
 			req->ir_error = EIO;
+		IPMI_LOCK(sc);
 		ipmi_complete_request(sc, req);
 	}
 	IPMI_UNLOCK(sc);

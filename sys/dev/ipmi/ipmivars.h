@@ -222,7 +222,7 @@ struct ipmi_ipmb {
 	((sc)->ipmi_io_res[1] != NULL ? OUTB_MULTIPLE(sc, x, value) :	\
 	    OUTB_SINGLE(sc, x, value))
 
-#define MAX_TIMEOUT 3 * hz
+#define MAX_TIMEOUT 6 * hz
 
 int	ipmi_attach(device_t);
 int	ipmi_detach(device_t);
