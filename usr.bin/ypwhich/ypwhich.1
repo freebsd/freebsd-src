@@ -30,12 +30,12 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 23, 1994
+.Dd September 3, 2015
 .Dt YPWHICH 1
 .Os
 .Sh NAME
 .Nm ypwhich
-.Nd return hostname of YP server of map master
+.Nd return hostname of NIS server of map master
 .Sh SYNOPSIS
 .Nm
 .Op Fl d Ar domain
@@ -49,18 +49,18 @@
 The
 .Nm
 utility tells which
-.Tn YP
+.Tn NIS
 server supplies
-.Tn YP
+.Tn NIS
 services to a client, or which is the master for a map.
 If invoked without arguments, it gives the
-.Tn YP
+.Tn NIS
 server for the local machine.
 If
 .Ar host
 is specified, that machine is queried to find out
 which
-.Tn YP
+.Tn NIS
 server it is using.
 .Pp
 The options are as follows:
@@ -72,7 +72,7 @@ Inhibit translation of map nicknames
 to their corresponding map names.
 .It Fl m Op Ar mname
 Find the master
-.Tn YP
+.Tn NIS
 server for the named map.
 No
 .Ar host
