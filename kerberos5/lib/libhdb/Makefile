@@ -1,9 +1,9 @@
 # $FreeBSD$
 
 LIB=	hdb
-LDFLAGS=	-Wl,--no-undefined
+LDFLAGS=	-Wl,--no-undefined ${LDAPLDFLAGS}
 VERSION_MAP=	${KRB5DIR}/lib/hdb/version-script.map
-LDADD=	-lasn1 -lcom_err -lkrb5 -lroken -lheimsqlite
+LDADD=	-lasn1 -lcom_err -lkrb5 -lroken -lheimsqlite ${LDAPLDADD}
 DPADD=	${LIBASN1} ${LIBCOM_ERR} ${LIBKRB5} ${LIBROKEN} ${LIBHEIMSQLITE} ${LDAPDPADD}
 
 MAN=	HDB.3 hdb_entry_ex.3

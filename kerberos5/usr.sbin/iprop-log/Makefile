@@ -12,6 +12,7 @@ DPADD=	${LIBKADM5SRV} ${LIBHDB} ${LIBKRB5} ${LIBASN1} ${LIBCRYPTO} \
 	${LIBCRYPT} ${LIBSL} ${LIBROKEN} ${LIBVERS} ${LIBEDIT}
 LDADD=	-lkadm5srv -lhdb -lkrb5 -lasn1 -lcrypto -lcrypt ${LIBSL} -lroken \
 	${LIBVERS} -ledit
+LDFLAGS=${LDAPLDFLAGS}
 
 iprop-commands.h: iprop-commands.in
 	${SLC} ${.ALLSRC:M*.in}

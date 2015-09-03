@@ -12,6 +12,7 @@ DPADD=	${LIBHDB} ${LIBKDC} ${LIBHEIMIPCS} ${LIBKRB5} ${LIBROKEN} ${LIBASN1} \
 	${LIBCRYPTO} ${LIBCRYPT} ${LIBVERS}
 LDADD=	-lhdb -lkdc -lheimipcs -lkrb5 -lroken -lasn1 -lcrypto -lcrypt \
 	${LIBVERS} -lheimntlm
+LDFLAGS=${LDAPLDFLAGS}
 USEPRIVATELIB= heimipcs
 
 .include <bsd.prog.mk>
