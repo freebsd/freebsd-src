@@ -323,8 +323,6 @@
                     ..
                 ..
             ..
-            timeout
-            ..
             variables
                 modifier_M
                 ..
@@ -369,6 +367,8 @@
         sed
             regress.multitest.out
             ..
+        ..
+        timeout
         ..
         tr
         ..
