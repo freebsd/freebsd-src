@@ -199,8 +199,8 @@ syntax to add items to existing values,
 the first character of the value is taken as the delimiter separating items
 .Pq usually Qo \  Qc or Qo , Qc .
 For example, in the following statement:
-.Bl -tag -width indent+
-.It \ 
+.Bl -item -offset indent
+.It
 .Nm
 cloned_interfaces+=" gif0"
 .El
@@ -223,25 +223,25 @@ For example, the above and below statements are equivalent since
 .Dq gif0
 starts with an alpha-numeric character
 .Pq the letter Li g :
-.Bl -tag -width indent+
-.It \ 
+.Bl -item -offset indent
+.It
 .Nm
 cloned_interfaces+=gif0
 .El
 .Pp
 Take the following sequence for example:
-.Bl -tag -width indent+
-.It \ 
+.Bl -item -offset indent
+.It
 .Nm
 cloned_interfaces= # start with NULL
-.It \ 
+.It
 .Nm
 cloned_interfaces+=gif0
 .Dl # NULL -> `gif0' Pq NB: no preceding delimiter
-.It \ 
+.It
 .Nm
 cloned_interfaces+=gif0 # no change
-.It \ 
+.It
 .Nm
 cloned_interfaces+="tun0 gif0"
 .Dl # `gif0' -> `gif0 tun0' Pq NB: no duplication
@@ -277,21 +277,21 @@ For example, the above and below statements are equivalent since
 .Dq gif0
 starts with an alpha-numeric character
 .Pq the letter Li g :
-.Bl -tag -width indent+
-.It \ 
+.Bl -item -offset indent
+.It
 .Nm
 cloned_interfaces-=gif0
 .El
 .Pp
 Take the following sequence for example:
-.Bl -tag -width indent+
-.It \ 
+.Bl -item -offset indent
+.It
 .Nm
 foo="bar baz" # start
-.It \ 
+.It
 .Nm
 foo-=bar # `bar baz' -> `baz'
-.It \ 
+.It
 .Nm
 foo-=baz # `baz' -> NULL
 .El
