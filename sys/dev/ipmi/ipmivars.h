@@ -105,6 +105,7 @@ struct ipmi_softc {
 	int			ipmi_opened;
 	struct cdev		*ipmi_cdev;
 	TAILQ_HEAD(,ipmi_request) ipmi_pending_requests;
+	int			ipmi_driver_requests_polled;
 	eventhandler_tag	ipmi_watchdog_tag;
 	int			ipmi_watchdog_active;
 	struct intr_config_hook	ipmi_ich;
