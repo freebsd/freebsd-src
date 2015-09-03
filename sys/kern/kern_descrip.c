@@ -3283,7 +3283,7 @@ pack_kinfo(struct kinfo_file *kif)
 
 static void
 export_file_to_kinfo(struct file *fp, int fd, cap_rights_t *rightsp,
-    struct kinfo_file *kif, struct filedesc *fdp)
+    struct kinfo_file *kif, struct filedesc *fdp, int flags)
 {
 	int error;
 
@@ -3307,12 +3307,15 @@ export_file_to_kinfo(struct file *fp, int fd, cap_rights_t *rightsp,
 	error = fo_fill_kinfo(fp, kif, fdp);
 	if (error == 0)
 		kif->kf_status |= KF_ATTR_VALID;
-	pack_kinfo(kif);
+	if ((flags & KERN_FILEDESC_PACK_KINFO) != 0)
+		pack_kinfo(kif);
+	else
+		kif->kf_structsize = roundup2(sizeof(*kif), sizeof(uint64_t));
 }
 
 static void
 export_vnode_to_kinfo(struct vnode *vp, int fd, int fflags,
-    struct kinfo_file *kif)
+    struct kinfo_file *kif, int flags)
 {
 	int error;
 
@@ -3327,7 +3330,10 @@ export_vnode_to_kinfo(struct vnode *vp, int fd, int fflags,
 	kif->kf_fd = fd;
 	kif->kf_ref_count = -1;
 	kif->kf_offset = -1;
-	pack_kinfo(kif);
+	if ((flags & KERN_FILEDESC_PACK_KINFO) != 0)
+		pack_kinfo(kif);
+	else
+		kif->kf_structsize = roundup2(sizeof(*kif), sizeof(uint64_t));
 	vrele(vp);
 }
 
@@ -3336,6 +3342,7 @@ struct export_fd_buf {
 	struct sbuf 		*sb;
 	ssize_t			remainder;
 	struct kinfo_file	kif;
+	int			flags;
 };
 
 static int
@@ -3363,7 +3370,8 @@ export_file_to_sb(struct file *fp, int fd, cap_rights_t *rightsp,
 
 	if (efbuf->remainder == 0)
 		return (0);
-	export_file_to_kinfo(fp, fd, rightsp, &efbuf->kif, efbuf->fdp);
+	export_file_to_kinfo(fp, fd, rightsp, &efbuf->kif, efbuf->fdp,
+	    efbuf->flags);
 	FILEDESC_SUNLOCK(efbuf->fdp);
 	error = export_kinfo_to_sb(efbuf);
 	FILEDESC_SLOCK(efbuf->fdp);
@@ -3380,7 +3388,7 @@ export_vnode_to_sb(struct vnode *vp, int fd, int fflags,
 		return (0);
 	if (efbuf->fdp != NULL)
 		FILEDESC_SUNLOCK(efbuf->fdp);
-	export_vnode_to_kinfo(vp, fd, fflags, &efbuf->kif);
+	export_vnode_to_kinfo(vp, fd, fflags, &efbuf->kif, efbuf->flags);
 	error = export_kinfo_to_sb(efbuf);
 	if (efbuf->fdp != NULL)
 		FILEDESC_SLOCK(efbuf->fdp);
@@ -3393,7 +3401,8 @@ export_vnode_to_sb(struct vnode *vp, int fd, int fflags,
  * Takes a locked proc as argument, and returns with the proc unlocked.
  */
 int
-kern_proc_filedesc_out(struct proc *p,  struct sbuf *sb, ssize_t maxlen)
+kern_proc_filedesc_out(struct proc *p,  struct sbuf *sb, ssize_t maxlen,
+    int flags)
 {
 	struct file *fp;
 	struct filedesc *fdp;
@@ -3425,6 +3434,7 @@ kern_proc_filedesc_out(struct proc *p,  struct sbuf *sb, ssize_t maxlen)
 	efbuf->fdp = NULL;
 	efbuf->sb = sb;
 	efbuf->remainder = maxlen;
+	efbuf->flags = flags;
 	if (tracevp != NULL)
 		export_vnode_to_sb(tracevp, KF_FD_TYPE_TRACE, FREAD | FWRITE,
 		    efbuf);
@@ -3501,7 +3511,8 @@ sysctl_kern_proc_filedesc(SYSCTL_HANDLER_ARGS)
 		return (error);
 	}
 	maxlen = req->oldptr != NULL ? req->oldlen : -1;
-	error = kern_proc_filedesc_out(p, &sb, maxlen);
+	error = kern_proc_filedesc_out(p, &sb, maxlen,
+	    KERN_FILEDESC_PACK_KINFO);
 	error2 = sbuf_finish(&sb);
 	sbuf_delete(&sb);
 	return (error != 0 ? error : error2);
@@ -3541,7 +3552,7 @@ export_vnode_for_osysctl(struct vnode *vp, int type, struct kinfo_file *kif,
 
 	vref(vp);
 	FILEDESC_SUNLOCK(fdp);
-	export_vnode_to_kinfo(vp, type, 0, kif);
+	export_vnode_to_kinfo(vp, type, 0, kif, KERN_FILEDESC_PACK_KINFO);
 	kinfo_to_okinfo(kif, okif);
 	error = SYSCTL_OUT(req, okif, sizeof(*okif));
 	FILEDESC_SLOCK(fdp);
@@ -3584,7 +3595,8 @@ sysctl_kern_proc_ofiledesc(SYSCTL_HANDLER_ARGS)
 	for (i = 0; fdp->fd_refcnt > 0 && i <= fdp->fd_lastfile; i++) {
 		if ((fp = fdp->fd_ofiles[i].fde_file) == NULL)
 			continue;
-		export_file_to_kinfo(fp, i, NULL, kif, fdp);
+		export_file_to_kinfo(fp, i, NULL, kif, fdp,
+		    KERN_FILEDESC_PACK_KINFO);
 		FILEDESC_SUNLOCK(fdp);
 		kinfo_to_okinfo(kif, okif);
 		error = SYSCTL_OUT(req, okif, sizeof(*okif));
