@@ -13,6 +13,7 @@ CFLAGS+=-I${KRB5DIR}/lib/krb5 -I${KRB5DIR}/lib/asn1 -I${KRB5DIR}/lib/roken \
 DPADD=	${LIBKDC} ${LIBHDB} ${LIBKRB5} ${LIBROKEN} ${LIBASN1} \
 	${LIBCRYPTO} ${LIBCRYPT} ${LIBVERS}
 LDADD=	-lkdc -lhdb -lkrb5 -lroken -lasn1 -lcrypto -lcrypt ${LIBVERS}
+LDFLAGS=${LDAPLDFLAGS}
 
 .include <bsd.prog.mk>
 
