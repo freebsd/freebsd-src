@@ -73,8 +73,10 @@ acl_init(int count)
 #ifndef __CHERI_SANDBOX__
 	error = posix_memalign((void *)&acl, 1 << _ACL_T_ALIGNMENT_BITS,
 	    sizeof(struct acl_t_struct));
-	if (error)
+	if (error) {
+		errno = error;
 		return (NULL);
+	}
 #else
 	acl = mmap(NULL, sizeof(struct acl_t_struct), PROT_READ|PROT_WRITE,
 	    MAP_ANON|MAP_ALIGNED(_ACL_T_ALIGNMENT_BITS), -1, 0);
