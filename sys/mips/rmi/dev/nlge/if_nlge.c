@@ -1154,7 +1154,7 @@ nlna_config_pde(struct nlna_softc *sc)
 	cpumask = 0x1;
 #ifdef SMP
 	/*
-         * rge may be called before SMP start in a BOOTP/NFSROOT
+         * nlna may be called before SMP start in a BOOTP/NFSROOT
          * setup. we will distribute packets to other cpus only when
          * the SMP is started.
 	 */
