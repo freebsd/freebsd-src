@@ -474,7 +474,7 @@ arpresolve(struct ifnet *ifp, int is_gw, struct mbuf *m,
 		if (m->m_flags & M_BCAST) {
 			/* broadcast */
 			(void)memcpy(desten,
-			    ifp->if_broadcastaddr, ifp->if_addrlen);
+			    ifp->if_broadcastaddr, if_addrlen(ifp));
 			return (0);
 		}
 		if (m->m_flags & M_MCAST) {
@@ -493,7 +493,7 @@ arpresolve(struct ifnet *ifp, int is_gw, struct mbuf *m,
 
 	if ((la->la_flags & LLE_VALID) &&
 	    ((la->la_flags & LLE_STATIC) || la->la_expire > time_uptime)) {
-		bcopy(&la->ll_addr, desten, ifp->if_addrlen);
+		bcopy(&la->ll_addr, desten, if_addrlen(ifp));
 		renew = 0;
 		/*
 		 * If entry has an expiry time and it is approaching,
@@ -761,11 +761,11 @@ match:
 		goto drop;
 	}
 
-	if (ifp->if_addrlen != ah->ar_hln) {
+	if (if_addrlen(ifp) != ah->ar_hln) {
 		ARP_LOG(LOG_WARNING, "from %*D: addr len: new %d, "
-		    "i/f %d (ignored)\n", ifp->if_addrlen,
+		    "i/f %d (ignored)\n", if_addrlen(ifp),
 		    (u_char *) ar_sha(ah), ":", ah->ar_hln,
-		    ifp->if_addrlen);
+		    if_addrlen(ifp));
 		goto drop;
 	}
 
@@ -973,20 +973,20 @@ arp_check_update_lle(struct arphdr *ah, struct in_addr isaddr, struct ifnet *ifp
 			    "but got reply from %*D on %s\n",
 			    inet_ntoa(isaddr),
 			    la->lle_tbl->llt_ifp->if_xname,
-			    ifp->if_addrlen, (u_char *)ar_sha(ah), ":",
+			    if_addrlen(ifp), (u_char *)ar_sha(ah), ":",
 			    ifp->if_xname);
 		LLE_WUNLOCK(la);
 		return;
 	}
 	if ((la->la_flags & LLE_VALID) &&
-	    bcmp(ar_sha(ah), &la->ll_addr, ifp->if_addrlen)) {
+	    bcmp(ar_sha(ah), &la->ll_addr, if_addrlen(ifp))) {
 		if (la->la_flags & LLE_STATIC) {
 			LLE_WUNLOCK(la);
 			if (log_arp_permanent_modify)
 				ARP_LOG(LOG_ERR,
 				    "%*D attempts to modify "
 				    "permanent entry for %s on %s\n",
-				    ifp->if_addrlen,
+				    if_addrlen(ifp),
 				    (u_char *)ar_sha(ah), ":",
 				    inet_ntoa(isaddr), ifp->if_xname);
 			return;
@@ -995,15 +995,15 @@ arp_check_update_lle(struct arphdr *ah, struct in_addr isaddr, struct ifnet *ifp
 			ARP_LOG(LOG_INFO, "%s moved from %*D "
 			    "to %*D on %s\n",
 			    inet_ntoa(isaddr),
-			    ifp->if_addrlen,
+			    if_addrlen(ifp),
 			    (u_char *)&la->ll_addr, ":",
-			    ifp->if_addrlen, (u_char *)ar_sha(ah), ":",
+			    if_addrlen(ifp), (u_char *)ar_sha(ah), ":",
 			    ifp->if_xname);
 		}
 	}
 
 	/* Check if something has changed */
-	if (memcmp(&la->ll_addr, ar_sha(ah), ifp->if_addrlen) != 0 ||
+	if (memcmp(&la->ll_addr, ar_sha(ah), if_addrlen(ifp)) != 0 ||
 	    (la->la_flags & LLE_VALID) == 0) {
 		/* Perform real LLE update */
 		/* use afdata WLOCK to update fields */
@@ -1049,7 +1049,7 @@ arp_check_update_lle(struct arphdr *ah, struct in_addr isaddr, struct ifnet *ifp
 			m_hold->m_nextpkt = NULL;
 			/* Avoid confusing lower layers. */
 			m_clrprotoflags(m_hold);
-			(*ifp->if_output)(ifp, m_hold, &sa, NULL);
+			if_output(ifp, m_hold, &sa, NULL);
 		}
 	} else
 		LLE_WUNLOCK(la);
@@ -1062,7 +1062,7 @@ static void
 arp_update_lle(struct arphdr *ah, struct ifnet *ifp, struct llentry *la)
 {
 
-	memcpy(&la->ll_addr, ar_sha(ah), ifp->if_addrlen);
+	memcpy(&la->ll_addr, ar_sha(ah), if_addrlen(ifp));
 	la->la_flags |= LLE_VALID;
 }
 
@@ -1105,8 +1105,8 @@ arp_ifinit(struct ifnet *ifp, struct ifaddr *ifa)
 	if (ntohl(IA_SIN(ifa)->sin_addr.s_addr) == INADDR_ANY)
 		return;
 
-	arprequest(ifp, &IA_SIN(ifa)->sin_addr,
-			&IA_SIN(ifa)->sin_addr, IF_LLADDR(ifp));
+	arprequest(ifp, &IA_SIN(ifa)->sin_addr, &IA_SIN(ifa)->sin_addr,
+	    if_lladdr(ifp));
 
 	/*
 	 * Interface address LLE record is considered static

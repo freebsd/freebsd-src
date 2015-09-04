@@ -182,11 +182,11 @@ nd6_lle_event(void *arg __unused, struct llentry *lle, int evt)
 	    in6_addrscope(&dst.sin6_addr));
 	gw.sdl_len = sizeof(struct sockaddr_dl);
 	gw.sdl_family = AF_LINK;
-	gw.sdl_alen = ifp->if_addrlen;
+	gw.sdl_alen = if_addrlen(ifp);
 	gw.sdl_index = ifp->if_index;
-	gw.sdl_type = ifp->if_type;
+	gw.sdl_type = if_type(ifp);
 	if (evt == LLENTRY_RESOLVED)
-		bcopy(&lle->ll_addr, gw.sdl_data, ifp->if_addrlen);
+		bcopy(&lle->ll_addr, gw.sdl_data, if_addrlen(ifp));
 	rtinfo.rti_info[RTAX_DST] = (struct sockaddr *)&dst;
 	rtinfo.rti_info[RTAX_GATEWAY] = (struct sockaddr *)&gw;
 	rtinfo.rti_addrs = RTA_DST | RTA_GATEWAY;

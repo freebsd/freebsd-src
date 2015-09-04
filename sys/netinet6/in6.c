@@ -2255,7 +2255,7 @@ in6_lltable_alloc(struct lltable *llt, u_int flags,
 	}
 	lle->la_flags = flags;
 	if ((flags & LLE_IFADDR) == LLE_IFADDR) {
-		bcopy(IF_LLADDR(ifp), &lle->ll_addr, ifp->if_addrlen);
+		bcopy(if_lladdr(ifp), &lle->ll_addr, if_addrlen(ifp));
 		lle->la_flags |= (LLE_VALID | LLE_STATIC);
 	}
 

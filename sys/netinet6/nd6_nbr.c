@@ -1308,7 +1308,6 @@ nd6_dad_start(struct ifaddr *ifa, int delay)
 		return;
 	}
 	if (!(ifa->ifa_ifp->if_flags & IFF_UP) ||
-	    !(ifa->ifa_ifp->if_drv_flags & IFF_DRV_RUNNING) ||
 	    (ND_IFINFO(ifa->ifa_ifp)->flags & ND6_IFF_IFDISABLED)) {
 		ia->ia6_flags |= IN6_IFF_TENTATIVE;
 		return;
