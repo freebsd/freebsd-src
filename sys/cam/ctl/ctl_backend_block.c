@@ -154,7 +154,6 @@ typedef uint64_t (*cbb_getattr_t)(struct ctl_be_block_lun *be_lun,
  */
 struct ctl_be_block_lun {
 	struct ctl_lun_create_params params;
-	struct ctl_block_disk *disk;
 	char lunname[32];
 	char *dev_path;
 	ctl_be_block_type dev_type;
@@ -196,8 +195,6 @@ struct ctl_be_block_lun {
  */
 struct ctl_be_block_softc {
 	struct mtx			 lock;
-	int				 num_disks;
-	STAILQ_HEAD(, ctl_block_disk)	 disk_list;
 	int				 num_luns;
 	STAILQ_HEAD(, ctl_be_block_lun)	 lun_list;
 };
@@ -2906,7 +2903,6 @@ ctl_be_block_init(void)
 	mtx_init(&softc->lock, "ctlblock", NULL, MTX_DEF);
 	beio_zone = uma_zcreate("beio", sizeof(struct ctl_be_block_io),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
-	STAILQ_INIT(&softc->disk_list);
 	STAILQ_INIT(&softc->lun_list);
 
 	return (retval);
