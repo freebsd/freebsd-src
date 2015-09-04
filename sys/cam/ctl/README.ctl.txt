@@ -318,7 +318,6 @@ These files define the basic CTL backend API.  The comments in the header
 explain the API.
 
 ctl_backend_block.c
-ctl_backend_block.h:
 -------------------
 
 The block and file backend.  This allows for using a disk or a file as the
