@@ -120,7 +120,7 @@
 #define CLOCK_PST 1
 
 /* DCF77 raw time code */
-/* #undef CLOCK_RAWDCF */
+#define CLOCK_RAWDCF 1
 
 /* RCC 8000 clock */
 /* #undef CLOCK_RCC8000 */
