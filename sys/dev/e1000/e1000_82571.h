@@ -50,9 +50,10 @@
 #define E1000_EIAC_82574	0x000DC /* Ext. Interrupt Auto Clear - RW */
 #define E1000_EIAC_MASK_82574	0x01F00000
 
-#define E1000_NVM_INIT_CTRL2_MNGM 0x6000 /* Manageability Operation Mode mask */
+#define E1000_IVAR_INT_ALLOC_VALID	0x8
 
-#define E1000_RXCFGL    0x0B634 /* TimeSync Rx EtherType & Msg Type Reg - RW */
+/* Manageability Operation Mode mask */
+#define E1000_NVM_INIT_CTRL2_MNGM	0x6000
 
 #define E1000_BASE1000T_STATUS		10
 #define E1000_IDLE_ERROR_COUNT_MASK	0xFF
