@@ -2667,6 +2667,9 @@ sctp_notify_assoc_change(uint16_t state, struct sctp_tcb *stcb,
 
 #endif
 
+	if (stcb == NULL) {
+		return;
+	}
 	if (sctp_stcb_is_feature_on(stcb->sctp_ep, stcb, SCTP_PCB_FLAGS_RECVASSOCEVNT)) {
 		notif_len = sizeof(struct sctp_assoc_change);
 		if (abort != NULL) {
