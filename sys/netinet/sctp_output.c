@@ -11235,6 +11235,11 @@ sctp_send_hb(struct sctp_tcb *stcb, struct sctp_nets *net, int so_locked
 		break;
 #endif
 	default:
+		if (chk->data) {
+			sctp_m_freem(chk->data);
+			chk->data = NULL;
+		}
+		sctp_free_a_chunk(stcb, chk, so_locked);
 		return;
 		break;
 	}
