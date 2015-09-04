@@ -363,7 +363,7 @@ add_cmd(__unused int argc, char *argv[], ximgact_binmisc_entry_t *xbe)
 		usage("Error: Missing magic argument");
 	}
 
-	if (!xbe->xbe_interpreter) {
+	if (!strnlen(xbe->xbe_interpreter, IBE_INTERP_LEN_MAX)) {
 		usage("Error: Missing 'interpreter' argument");
 	}
 
