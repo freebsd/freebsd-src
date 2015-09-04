@@ -17,7 +17,6 @@ LIBADD=	ssh
 CFLAGS+=	-DHAVE_LDNS=1
 #DPADD+=	${LIBLDNS}
 #LDADD+=	-lldns
-#USEPRIVATELIB+= ldns
 .endif
 
 LIBADD+=	crypto
