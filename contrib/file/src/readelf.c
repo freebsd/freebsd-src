@@ -1052,7 +1052,7 @@ doshn(struct magic_set *ms, int clazz, int swap, int fd, off_t off, int num,
 		/* Things we can determine when we seek */
 		switch (xsh_type) {
 		case SHT_NOTE:
-			if (xsh_size + xsh_offset > (uintmax_t)fsize)  {
+			if (xsh_size + (uintmax_t)xsh_offset > (uintmax_t)fsize)  {
 				if (file_printf(ms,
 				    ", note offset/size 0x%jx+0x%jx exceeds"
 				    " file size 0x%jx", (uintmax_t)xsh_offset,
