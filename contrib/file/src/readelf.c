@@ -27,7 +27,7 @@
 #include "file.h"
 
 #ifndef lint
-FILE_RCSID("@(#)$File: readelf.c,v 1.119 2015/04/09 20:01:41 christos Exp $")
+FILE_RCSID("@(#)$File: readelf.c,v 1.120 2015/06/16 14:18:07 christos Exp $")
 #endif
 
 #ifdef BUILTIN_ELF
@@ -1048,9 +1048,18 @@ doshn(struct magic_set *ms, int clazz, int swap, int fd, off_t off, int num,
 			break;
 		}
 
+
 		/* Things we can determine when we seek */
 		switch (xsh_type) {
 		case SHT_NOTE:
+			if (xsh_size + xsh_offset > (uintmax_t)fsize)  {
+				if (file_printf(ms,
+				    ", note offset/size 0x%jx+0x%jx exceeds"
+				    " file size 0x%jx", (uintmax_t)xsh_offset,
+				    (uintmax_t)xsh_size, (uintmax_t)fsize) == -1)
+					return -1;
+				return 0; 
+			}
 			if ((nbuf = malloc(xsh_size)) == NULL) {
 				file_error(ms, errno, "Cannot allocate memory"
 				    " for note");

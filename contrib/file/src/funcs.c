@@ -27,7 +27,7 @@
 #include "file.h"
 
 #ifndef	lint
-FILE_RCSID("@(#)$File: funcs.c,v 1.82 2015/06/03 18:01:20 christos Exp $")
+FILE_RCSID("@(#)$File: funcs.c,v 1.83 2015/06/16 14:17:37 christos Exp $")
 #endif	/* lint */
 
 #include "magic.h"
@@ -107,8 +107,10 @@ file_error_core(struct magic_set *ms, int error, const char *f, va_list va,
 	if (lineno != 0) {
 		free(ms->o.buf);
 		ms->o.buf = NULL;
-		file_printf(ms, "line %" SIZE_T_FORMAT "u: ", lineno);
+		file_printf(ms, "line %" SIZE_T_FORMAT "u:", lineno);
 	}
+	if (ms->o.buf && *ms->o.buf)
+		file_printf(ms, " ");
 	file_vprintf(ms, f, va);
 	if (error > 0)
 		file_printf(ms, " (%s)", strerror(error));
