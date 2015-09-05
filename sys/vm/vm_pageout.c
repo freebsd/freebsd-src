@@ -1186,13 +1186,9 @@ unlock_page:
 		}
 
 		/*
-		 * We bump the activation count if the page has been
-		 * referenced while in the inactive queue.  This makes
-		 * it less likely that the page will be added back to the
-		 * inactive queue prematurely again.  Here we check the 
-		 * page tables (or emulated bits, if any), given the upper 
-		 * level VM system not knowing anything about existing 
-		 * references.
+		 * If the page has been referenced and the object is not dead,
+		 * reactivate or requeue the page depending on whether the
+		 * object is mapped.
 		 */
 		if ((m->aflags & PGA_REFERENCED) != 0) {
 			vm_page_aflag_clear(m, PGA_REFERENCED);
@@ -1205,21 +1201,25 @@ unlock_page:
 			KASSERT(!pmap_page_is_mapped(m),
 			    ("vm_pageout_scan: page %p is mapped", m));
 		}
-
-		/*
-		 * If the upper level VM system knows about any page 
-		 * references, we reactivate the page or requeue it.
-		 */
 		if (act_delta != 0) {
 			if (object->ref_count != 0) {
 				vm_page_activate(m);
+
+				/*
+				 * Increase the activation count if the page
+				 * was referenced while in the inactive queue.
+				 * This makes it less likely that the page will
+				 * be returned prematurely to the inactive
+				 * queue.
+ 				 */
 				m->act_count += act_delta + ACT_ADVANCE;
-			} else {
+				goto drop_page;
+			} else if ((object->flags & OBJ_DEAD) == 0) {
 				vm_pagequeue_lock(pq);
 				queues_locked = TRUE;
 				vm_page_requeue_locked(m);
+				goto drop_page;
 			}
-			goto drop_page;
 		}
 
 		/*
@@ -1243,6 +1243,15 @@ unlock_page:
 			vm_page_free(m);
 			PCPU_INC(cnt.v_dfree);
 			--page_shortage;
+		} else if ((object->flags & OBJ_DEAD) != 0) {
+			/*
+			 * Leave dirty pages from dead objects at the front of
+			 * the queue.  They are being paged out and freed by
+			 * the thread that destroyed the object.  They will
+			 * leave the queue shortly after the scan finishes, so 
+			 * they should be discounted from the inactive count.
+			 */
+			addl_page_shortage++;
 		} else if ((m->flags & PG_WINATCFLS) == 0 && pass < 2) {
 			/*
 			 * Dirty pages need to be paged out, but flushing
@@ -1278,18 +1287,11 @@ unlock_page:
 				pageout_ok = vm_page_count_min();
 			else
 				pageout_ok = TRUE;
-
-			/*
-			 * We don't bother paging objects that are "dead".  
-			 * Those objects are in a "rundown" state.
-			 */
-			if (!pageout_ok || (object->flags & OBJ_DEAD) != 0) {
+			if (!pageout_ok) {
 				vm_pagequeue_lock(pq);
-				vm_page_unlock(m);
-				VM_OBJECT_WUNLOCK(object);
 				queues_locked = TRUE;
 				vm_page_requeue_locked(m);
-				goto relock_queues;
+				goto drop_page;
 			}
 			error = vm_pageout_clean(m);
 			/*
