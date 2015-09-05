@@ -1404,8 +1404,6 @@ swap_pager_putpages(vm_object_t object, vm_page_t *m, int count,
 			    blk + j
 			);
 			vm_page_dirty(mreq);
-			rtvals[i+j] = VM_PAGER_OK;
-
 			mreq->oflags |= VPO_SWAPINPROG;
 			bp->b_pages[j] = mreq;
 		}
@@ -1421,6 +1419,16 @@ swap_pager_putpages(vm_object_t object, vm_page_t *m, int count,
 		PCPU_ADD(cnt.v_swappgsout, bp->b_npages);
 
 		/*
+		 * We unconditionally set rtvals[] to VM_PAGER_PEND so that we
+		 * can call the async completion routine at the end of a
+		 * synchronous I/O operation.  Otherwise, our caller would
+		 * perform duplicate unbusy and wakeup operations on the page
+		 * and object, respectively.
+		 */
+		for (j = 0; j < n; j++)
+			rtvals[i + j] = VM_PAGER_PEND;
+
+		/*
 		 * asynchronous
 		 *
 		 * NOTE: b_blkno is destroyed by the call to swapdev_strategy
@@ -1429,10 +1437,6 @@ swap_pager_putpages(vm_object_t object, vm_page_t *m, int count,
 			bp->b_iodone = swp_pager_async_iodone;
 			BUF_KERNPROC(bp);
 			swp_pager_strategy(bp);
-
-			for (j = 0; j < n; ++j)
-				rtvals[i+j] = VM_PAGER_PEND;
-			/* restart outter loop */
 			continue;
 		}
 
@@ -1445,14 +1449,10 @@ swap_pager_putpages(vm_object_t object, vm_page_t *m, int count,
 		swp_pager_strategy(bp);
 
 		/*
-		 * Wait for the sync I/O to complete, then update rtvals.
-		 * We just set the rtvals[] to VM_PAGER_PEND so we can call
-		 * our async completion routine at the end, thus avoiding a
-		 * double-free.
+		 * Wait for the sync I/O to complete.
 		 */
 		bwait(bp, PVM, "swwrt");
-		for (j = 0; j < n; ++j)
-			rtvals[i+j] = VM_PAGER_PEND;
+
 		/*
 		 * Now that we are through with the bp, we can call the
 		 * normal async completion, which frees everything up.

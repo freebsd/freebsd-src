@@ -35,7 +35,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h> 
 #include <sys/kernel.h>
 #include <sys/malloc.h>
- 
 #include <sys/socket.h>
 
 #include <net/if.h>
@@ -487,7 +486,7 @@ ieee80211_setregdomain(struct ieee80211vap *vap,
 	memset(&ic->ic_channels[ic->ic_nchans], 0,
 	    (IEEE80211_CHAN_MAX - ic->ic_nchans) *
 	       sizeof(struct ieee80211_channel));
-	ieee80211_media_init(ic);
+	ieee80211_chan_init(ic);
 
 	/*
 	 * Invalidate channel-related state.

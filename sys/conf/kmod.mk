@@ -360,11 +360,10 @@ __MPATH!=find ${SYSDIR:tA}/ -name \*_if.m
 _MPATH=${__MPATH:H:O:u}
 .endif
 .PATH.m: ${_MPATH}
-.for _s in ${SRCS:M*_if.[ch]}
-.if eixsts(${_s:R}.m})
-CLEANFILES+=	${_s}
-.endif
-.endfor # _s
+.for _i in ${SRCS:M*_if.[ch]}
+#removes too much, comment out until it's more constrained.
+#CLEANFILES+=	${_i}
+.endfor # _i
 .m.c:	${SYSDIR}/tools/makeobjops.awk
 	${AWK} -f ${SYSDIR}/tools/makeobjops.awk ${.IMPSRC} -c
 

@@ -33,9 +33,27 @@
 #define	_MALLOC_NP_H_
 #include <sys/cdefs.h>
 #include <sys/types.h>
+#include <stdbool.h>
 #include <strings.h>
 
 __BEGIN_DECLS
+typedef void *(chunk_alloc_t)(void *, size_t, size_t, bool *, bool *, unsigned);
+typedef bool (chunk_dalloc_t)(void *, size_t, bool, unsigned);
+typedef bool (chunk_commit_t)(void *, size_t, size_t, size_t, unsigned);
+typedef bool (chunk_decommit_t)(void *, size_t, size_t, size_t, unsigned);
+typedef bool (chunk_purge_t)(void *, size_t, size_t, size_t, unsigned);
+typedef bool (chunk_split_t)(void *, size_t, size_t, size_t, bool, unsigned);
+typedef bool (chunk_merge_t)(void *, size_t, void *, size_t, bool, unsigned);
+typedef struct {
+	chunk_alloc_t		*alloc;
+	chunk_dalloc_t		*dalloc;
+	chunk_commit_t		*commit;
+	chunk_decommit_t	*decommit;
+	chunk_purge_t		*purge;
+	chunk_split_t		*split;
+	chunk_merge_t		*merge;
+} chunk_hooks_t;
+
 size_t	malloc_usable_size(const void *ptr);
 
 void	malloc_stats_print(void (*write_cb)(void *, const char *),
@@ -49,48 +67,32 @@ int	mallctlbymib(const size_t *mib, size_t miblen, void *oldp,
 #define	MALLOCX_LG_ALIGN(la)	(la)
 #define	MALLOCX_ALIGN(a)	(ffsl(a)-1)
 #define	MALLOCX_ZERO		((int)0x40)
-#define	MALLOCX_ARENA(a)	((int)(((a)+1) << 8))
+#define	MALLOCX_TCACHE(tc)	((int)(((tc)+2) << 8))
+#define	MALLOCX_TCACHE_NONE	MALLOCX_TCACHE(-1)
+#define	MALLOCX_ARENA(a)	((int)(((a)+1) << 20))
 
 void	*mallocx(size_t size, int flags);
 void	*rallocx(void *ptr, size_t size, int flags);
 size_t	xallocx(void *ptr, size_t size, size_t extra, int flags);
 size_t	sallocx(const void *ptr, int flags);
 void	dallocx(void *ptr, int flags);
+void	sdallocx(void *ptr, size_t size, int flags);
 size_t	nallocx(size_t size, int flags);
 
-#define	ALLOCM_LG_ALIGN(la)	(la)
-#define	ALLOCM_ALIGN(a)	(ffsl(a)-1)
-#define	ALLOCM_ZERO	((int)0x40)
-#define	ALLOCM_NO_MOVE	((int)0x80)
-
-#define	ALLOCM_SUCCESS		0
-#define	ALLOCM_ERR_OOM		1
-#define	ALLOCM_ERR_NOT_MOVED	2
-
-int	allocm(void **ptr, size_t *rsize, size_t size, int flags) __nonnull(1);
-int	rallocm(void **ptr, size_t *rsize, size_t size, size_t extra,
-    int flags) __nonnull(1);
-int	sallocm(const void *ptr, size_t *rsize, int flags) __nonnull(1);
-int	dallocm(void *ptr, int flags) __nonnull(1);
-int	nallocm(size_t *rsize, size_t size, int flags);
-
-void *	__calloc(size_t, size_t) __malloc_like;
-void *	__malloc(size_t) __malloc_like;
-void *	__realloc(void *, size_t);
-void	__free(void *);
-int	__posix_memalign(void **, size_t, size_t);
-size_t	__malloc_usable_size(const void *);
+void *	__calloc(size_t number, size_t size) __malloc_like;
+void *	__malloc(size_t size) __malloc_like;
+void *	__realloc(void *ptr, size_t size);
+void	__free(void *ptr);
+int	__posix_memalign(void **ptr, size_t alignment, size_t size);
+void	*__aligned_alloc(size_t alignment, size_t size);
+size_t	__malloc_usable_size(const void *ptr);
 void	*__mallocx(size_t size, int flags);
 void	*__rallocx(void *ptr, size_t size, int flags);
 size_t	__xallocx(void *ptr, size_t size, size_t extra, int flags);
 size_t	__sallocx(const void *ptr, int flags);
 void	__dallocx(void *ptr, int flags);
+void	__sdallocx(void *ptr, size_t size, int flags);
 size_t	__nallocx(size_t size, int flags);
-int	__allocm(void **, size_t *, size_t, int) __nonnull(1);
-int	__rallocm(void **, size_t *, size_t, size_t, int) __nonnull(1);
-int	__sallocm(const void *, size_t *, int) __nonnull(1);
-int	__dallocm(void *, int) __nonnull(1);
-int	__nallocm(size_t *, size_t, int);
 __END_DECLS
 
 #endif /* _MALLOC_NP_H_ */

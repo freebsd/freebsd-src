@@ -207,10 +207,13 @@ typedef	struct lpte lpte_t;
 
 /*
  * Page Table Entry definitions and macros.
+ *
+ * RPN need only be 32-bit because Book-E has 36-bit addresses, and the smallest
+ * page size is 4k (12-bit mask), so RPN can really fit into 24 bits.
  */
 #ifndef	LOCORE
 struct pte {
-	vm_paddr_t rpn;
+	vm_offset_t rpn;
 	uint32_t flags;
 };
 typedef struct pte pte_t;
@@ -266,7 +269,9 @@ typedef struct pte pte_t;
 #define PTE_REFERENCED	0x04000000	/* Referenced */
 
 /* Macro argument must of pte_t type. */
-#define PTE_PA(pte)		((pte)->rpn & ~PTE_PA_MASK)
+#define PTE_PA_SHIFT		12
+#define PTE_RPN_FROM_PA(pa)	((pa) >> PTE_PA_SHIFT)
+#define PTE_PA(pte)		((vm_paddr_t)((pte)->rpn) << PTE_PA_SHIFT)
 #define PTE_ISVALID(pte)	((pte)->flags & PTE_VALID)
 #define PTE_ISWIRED(pte)	((pte)->flags & PTE_WIRED)
 #define PTE_ISMANAGED(pte)	((pte)->flags & PTE_MANAGED)

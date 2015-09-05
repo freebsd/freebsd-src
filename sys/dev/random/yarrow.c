@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/random.h>
+#include <sys/sdt.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 
@@ -76,6 +77,11 @@ __FBSDID("$FreeBSD$");
 /* This algorithm (and code) presumes that RANDOM_KEYSIZE is twice as large as RANDOM_BLOCKSIZE */
 CTASSERT(RANDOM_BLOCKSIZE == sizeof(uint128_t));
 CTASSERT(RANDOM_KEYSIZE == 2*RANDOM_BLOCKSIZE);
+
+/* Probes for dtrace(1) */
+SDT_PROVIDER_DECLARE(random);
+SDT_PROVIDER_DEFINE(random);
+SDT_PROBE_DEFINE3(random, yarrow, event_processor, debug, "boolean", "u_int", "struct ys_pool *");
 
 /*
  * This is the beastie that needs protecting. It contains all of the
@@ -261,20 +267,7 @@ random_yarrow_reseed_internal(u_int fastslow)
 	KASSERT(yarrow_state.ys_pool[RANDOM_YARROW_FAST].ysp_thresh > 0, ("random: Yarrow fast threshold = 0"));
 	KASSERT(yarrow_state.ys_pool[RANDOM_YARROW_SLOW].ysp_thresh > 0, ("random: Yarrow slow threshold = 0"));
 	RANDOM_RESEED_ASSERT_LOCK_OWNED();
-#ifdef RANDOM_DEBUG
-	/* WARNING! This is dangerously tedious to do with mutexes held! */
-	printf("random: %s ", __func__);
-	printf("type/pool = %s ", fastslow == RANDOM_YARROW_FAST ? "RANDOM_YARROW_FAST" : "RANDOM_YARROW_SLOW");
-	printf("seeded = %s\n", yarrow_state.ys_seeded ? "true" : "false");
-	printf("random: fast - thresh %d,1 - ", yarrow_state.ys_pool[RANDOM_YARROW_FAST].ysp_thresh);
-	for (i = RANDOM_START; i < ENTROPYSOURCE; i++)
-		printf(" %d", yarrow_state.ys_pool[RANDOM_YARROW_FAST].ysp_source_bits[i]);
-	printf("\n");
-	printf("random: slow - thresh %d,%d - ", yarrow_state.ys_pool[RANDOM_YARROW_SLOW].ysp_thresh, yarrow_state.ys_slowoverthresh);
-	for (i = RANDOM_START; i < ENTROPYSOURCE; i++)
-		printf(" %d", yarrow_state.ys_pool[RANDOM_YARROW_SLOW].ysp_source_bits[i]);
-	printf("\n");
-#endif
+	SDT_PROBE3(random, yarrow, event_processor, debug, yarrow_state.ys_seeded, yarrow_state.ys_slowoverthresh, yarrow_state.ys_pool);
 	/* 1. Hash the accumulated entropy into v[0] */
 	randomdev_hash_init(&context);
 	/* Feed the slow pool hash in if slow */

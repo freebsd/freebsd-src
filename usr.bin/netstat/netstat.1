@@ -28,7 +28,7 @@
 .\"	@(#)netstat.1	8.8 (Berkeley) 4/18/94
 .\" $FreeBSD$
 .\"
-.Dd April 7, 2015
+.Dd August 27, 2015
 .Dt NETSTAT 1
 .Os
 .Sh NAME
@@ -217,6 +217,12 @@ queue.
 .It Li S-BCNT Ta Send buffer byte count.
 .It Li R-BMAX Ta Maximum bytes that can be used in the receive buffer.
 .It Li S-BMAX Ta Maximum bytes that can be used in the send buffer.
+.It Li rexmt Ta Time, in seconds, to fire Retransmit Timer, or 0 if not armed.
+.It Li persist Ta Time, in seconds, to fire Retransmit Persistence, or 0 if not armed.
+.It Li keep Ta Time, in seconds, to fire Keep Alive, or 0 if not armed.
+.It Li 2msl Ta Time, in seconds, to fire 2*msl TIME_WAIT Timer, or 0 if not armed.
+.It Li delack Ta Time, in seconds, to fire Delayed ACK Timer, or 0 if not armed.
+.It Li rcvtime Ta Time, in seconds, since last packet received.
 .El
 .It Fl f Ar protocol_family
 Filter by

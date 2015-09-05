@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 24, 2015
+.Dd August 24, 2015
 .Dt CTL.CONF 5
 .Os
 .Sh NAME
@@ -60,15 +60,9 @@ file is:
 .Dl ...
 }
 
-.No lun Ar name No {
-.Dl path Ar path
-}
-
 .No target Ar name {
 .Dl auth-group Ar name
-.Dl portal-group Ar name Op Ar agname
-.Dl port Ar name
-.Dl lun Ar number Ar name
+.Dl portal-group Ar name
 .Dl lun Ar number No {
 .Dl 	path Ar path
 .Dl }
@@ -104,11 +98,11 @@ which can then be assigned to any number of targets.
 .It Ic lun Ar name
 Create a
 .Sy lun
-configuration context, defining a LUN to be exported by some target(s).
+configuration context, defining a LUN to be exported by any number of targets.
 .It Ic target Ar name
 Create a
 .Sy target
-configuration context, which can contain one or more
+configuration context, which can optionally contain one or more
 .Sy lun
 contexts.
 .It Ic timeout Ar seconds
@@ -265,9 +259,10 @@ Another predefined
 .Qq Ar no-authentication ,
 may be used to permit access
 without authentication.
-Note that targets must only use one of
-.Sy auth-group , chap , No or Sy chap-mutual ;
-it is a configuration error to mix multiple types in one target.
+Note that this clause can be overridden using the second argument
+to a
+.Sy portal-group
+clause.
 .It Ic auth-type Ar type
 Sets the authentication type.
 Type can be either
@@ -314,20 +309,42 @@ This clause is mutually exclusive with
 .Sy auth-group ;
 one cannot use
 both in a single target.
-.It Ic portal-group Ar name Op Ar agname
+.Pp
+The
+.Sy auth-type ,
+.Sy chap ,
+.Sy chap-mutual ,
+.Sy initiator-name ,
+and
+.Sy initiator-portal
+clauses in the target context provide an alternative to assigning an
+.Sy auth-group
+defined separately, useful in the common case of authentication settings
+specific to a single target.
+.It Ic portal-group Ar name Op Ar ag-name
 Assign a previously defined portal group to the target.
 The default portal group is
 .Qq Ar default ,
 which makes the target available
 on TCP port 3260 on all configured IPv4 and IPv6 addresses.
-Optional second argument specifies auth group name for connections
-to this specific portal group.
-If second argument is not specified, target auth group is used.
+Optional second argument specifies
+.Sy auth-group
+for connections to this specific portal group.
+If second argument is not specified, target
+.Sy auth-group
+is used.
 .It Ic port Ar name
 .It Ic port Ar name/pp
 .It Ic port Ar name/pp/vp
 Assign specified CTL port (such as "isp0" or "isp2/1") to the target.
-On startup ctld configures LUN mapping and enables all assigned ports.
+This is used to export the target through a specific physical - eg Fibre
+Channel - port, in addition to portal-groups configured for the target.
+Use
+.Cm "ctladm portlist"
+command to retrieve the list of available ports.
+On startup
+.Xr ctld 8
+configures LUN mapping and enables all assigned ports.
 Each port can be assigned to only one target.
 .It Ic redirect Ar address
 IPv4 or IPv6 address to redirect initiators to.
@@ -342,6 +359,9 @@ by the parent target.
 Create a
 .Sy lun
 configuration context, defining a LUN exported by the parent target.
+.Pp
+This is an alternative to defining the LUN separately, useful in the common
+case of a LUN being exported by a single target.
 .El
 .Ss lun Context
 .Bl -tag -width indent
@@ -429,7 +449,7 @@ target iqn.2012-06.com.example:target1 {
 	lun 0 example_1
 	lun 1 {
 		path /dev/zvol/tank/example_2
-		option foo bar
+		option vendor "FreeBSD"
 	}
 }
 

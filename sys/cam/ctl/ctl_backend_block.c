@@ -154,7 +154,6 @@ typedef uint64_t (*cbb_getattr_t)(struct ctl_be_block_lun *be_lun,
  */
 struct ctl_be_block_lun {
 	struct ctl_lun_create_params params;
-	struct ctl_block_disk *disk;
 	char lunname[32];
 	char *dev_path;
 	ctl_be_block_type dev_type;
@@ -196,8 +195,6 @@ struct ctl_be_block_lun {
  */
 struct ctl_be_block_softc {
 	struct mtx			 lock;
-	int				 num_disks;
-	STAILQ_HEAD(, ctl_block_disk)	 disk_list;
 	int				 num_luns;
 	STAILQ_HEAD(, ctl_be_block_lun)	 lun_list;
 };
@@ -1861,8 +1858,8 @@ ctl_be_block_open_dev(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 	struct cdev		     *dev;
 	struct cdevsw		     *devsw;
 	char			     *value;
-	int			      error, atomic, maxio, unmap;
-	off_t			      ps, pss, po, pos, us, uss, uo, uos, tmp;
+	int			      error, atomic, maxio, unmap, tmp;
+	off_t			      ps, pss, po, pos, us, uss, uo, uos, otmp;
 
 	params = &be_lun->params;
 
@@ -1928,21 +1925,19 @@ ctl_be_block_open_dev(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 			snprintf(req->error_str, sizeof(req->error_str),
 				 "requested blocksize %u is not an even "
 				 "multiple of backing device blocksize %u",
-				 params->blocksize_bytes,
-				 be_lun->blocksize);
+				 params->blocksize_bytes, tmp);
 			return (EINVAL);
 			
 		}
 	} else if (params->blocksize_bytes != 0) {
 		snprintf(req->error_str, sizeof(req->error_str),
 			 "requested blocksize %u < backing device "
-			 "blocksize %u", params->blocksize_bytes,
-			 be_lun->blocksize);
+			 "blocksize %u", params->blocksize_bytes, tmp);
 		return (EINVAL);
 	} else
 		be_lun->blocksize = tmp;
 
-	error = devsw->d_ioctl(dev, DIOCGMEDIASIZE, (caddr_t)&tmp, FREAD,
+	error = devsw->d_ioctl(dev, DIOCGMEDIASIZE, (caddr_t)&otmp, FREAD,
 			       curthread);
 	if (error) {
 		snprintf(req->error_str, sizeof(req->error_str),
@@ -1953,18 +1948,18 @@ ctl_be_block_open_dev(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 	}
 
 	if (params->lun_size_bytes != 0) {
-		if (params->lun_size_bytes > tmp) {
+		if (params->lun_size_bytes > otmp) {
 			snprintf(req->error_str, sizeof(req->error_str),
 				 "requested LUN size %ju > backing device "
 				 "size %ju",
 				 (uintmax_t)params->lun_size_bytes,
-				 (uintmax_t)be_lun->size_bytes);
+				 (uintmax_t)otmp);
 			return (EINVAL);
 		}
 
 		be_lun->size_bytes = params->lun_size_bytes;
 	} else
-		be_lun->size_bytes = tmp;
+		be_lun->size_bytes = otmp;
 
 	error = devsw->d_ioctl(dev, DIOCGSTRIPESIZE,
 			       (caddr_t)&ps, FREAD, curthread);
@@ -2908,7 +2903,6 @@ ctl_be_block_init(void)
 	mtx_init(&softc->lock, "ctlblock", NULL, MTX_DEF);
 	beio_zone = uma_zcreate("beio", sizeof(struct ctl_be_block_io),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
-	STAILQ_INIT(&softc->disk_list);
 	STAILQ_INIT(&softc->lun_list);
 
 	return (retval);

@@ -314,6 +314,40 @@ pmap_l3(pmap_t pmap, vm_offset_t va)
 	return (pmap_l2_to_l3(l2, va));
 }
 
+bool
+pmap_get_tables(pmap_t pmap, vm_offset_t va, pd_entry_t **l1, pd_entry_t **l2,
+    pt_entry_t **l3)
+{
+	pd_entry_t *l1p, *l2p;
+
+	if (pmap->pm_l1 == NULL)
+		return (false);
+
+	l1p = pmap_l1(pmap, va);
+	*l1 = l1p;
+
+	if ((*l1p & ATTR_DESCR_MASK) == L1_BLOCK) {
+		*l2 = NULL;
+		*l3 = NULL;
+		return (true);
+	}
+
+	if ((*l1p & ATTR_DESCR_MASK) != L1_TABLE)
+		return (false);
+
+	l2p = pmap_l1_to_l2(l1p, va);
+	*l2 = l2p;
+
+	if ((*l2p & ATTR_DESCR_MASK) == L2_BLOCK) {
+		*l3 = NULL;
+		return (true);
+	}
+
+	*l3 = pmap_l2_to_l3(l2p, va);
+
+	return (true);
+}
+
 /*
  * These load the old table data and store the new value.
  * They need to be atomic as the System MMU may write to the table at
@@ -1482,9 +1516,7 @@ free_pv_chunk(struct pv_chunk *pc)
 	PV_STAT(atomic_add_int(&pc_chunk_frees, 1));
 	/* entire chunk is free, return it */
 	m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS((vm_offset_t)pc));
-#if 0 /* TODO: For minidump */
 	dump_drop_page(m->phys_addr);
-#endif
 	vm_page_unwire(m, PQ_INACTIVE);
 	vm_page_free(m);
 }
@@ -1546,9 +1578,7 @@ retry:
 	}
 	PV_STAT(atomic_add_int(&pc_chunk_count, 1));
 	PV_STAT(atomic_add_int(&pc_chunk_allocs, 1));
-#if 0 /* TODO: This is for minidump */
 	dump_add_page(m->phys_addr);
-#endif
 	pc = (void *)PHYS_TO_DMAP(m->phys_addr);
 	pc->pc_pmap = pmap;
 	pc->pc_map[0] = PC_FREE0 & ~1ul;	/* preallocated bit 0 */
@@ -3020,10 +3050,32 @@ pmap_activate(struct thread *td)
 }
 
 void
-pmap_sync_icache(pmap_t pm, vm_offset_t va, vm_size_t sz)
+pmap_sync_icache(pmap_t pmap, vm_offset_t va, vm_size_t sz)
 {
 
-	panic("ARM64TODO: pmap_sync_icache");
+	if (va >= VM_MIN_KERNEL_ADDRESS) {
+		cpu_icache_sync_range(va, sz);
+	} else {
+		u_int len, offset;
+		vm_paddr_t pa;
+
+		/* Find the length of data in this page to flush */
+		offset = va & PAGE_MASK;
+		len = imin(PAGE_SIZE - offset, sz);
+
+		while (sz != 0) {
+			/* Extract the physical address & find it in the DMAP */
+			pa = pmap_extract(pmap, va);
+			if (pa != 0)
+				cpu_icache_sync_range(PHYS_TO_DMAP(pa), len);
+
+			/* Move to the next page */
+			sz -= len;
+			va += len;
+			/* Set the length for the next iteration */
+			len = imin(PAGE_SIZE, sz);
+		}
+	}
 }
 
 /*
