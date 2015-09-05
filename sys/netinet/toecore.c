@@ -482,7 +482,7 @@ restart:
 			    (long)ND_IFINFO(ifp)->retrans * hz / 1000);
 			LLE_WUNLOCK(lle);
 
-			nd6_ns_output(ifp, NULL, &sin6->sin6_addr, NULL, 0);
+			nd6_ns_output(ifp, NULL, NULL, &sin6->sin6_addr, 0);
 
 			return (EWOULDBLOCK);
 		} else {
