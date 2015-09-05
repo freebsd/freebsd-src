@@ -13325,8 +13325,7 @@ softdep_ast_cleanup_proc(void)
 			if (softdep_excess_items(ump, D_NEWBLK) ||
 			    softdep_excess_items(ump, D_ALLOCDIRECT) ||
 			    softdep_excess_items(ump, D_ALLOCINDIR)) {
-				error = vn_start_write(NULL, &mp, V_MNTREF |
-				    V_WAIT);
+				error = vn_start_write(NULL, &mp, V_WAIT);
 				if (error == 0) {
 					req = true;
 					VFS_SYNC(mp, MNT_WAIT);
