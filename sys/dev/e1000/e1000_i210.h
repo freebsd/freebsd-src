@@ -43,8 +43,6 @@ s32 e1000_write_nvm_srwr_i210(struct e1000_hw *hw, u16 offset,
 			      u16 words, u16 *data);
 s32 e1000_read_nvm_srrd_i210(struct e1000_hw *hw, u16 offset,
 			     u16 words, u16 *data);
-s32 e1000_read_invm_version(struct e1000_hw *hw,
-			    struct e1000_fw_version *invm_ver);
 s32 e1000_acquire_swfw_sync_i210(struct e1000_hw *hw, u16 mask);
 void e1000_release_swfw_sync_i210(struct e1000_hw *hw, u16 mask);
 s32 e1000_read_xmdio_reg(struct e1000_hw *hw, u16 addr, u8 dev_addr,
