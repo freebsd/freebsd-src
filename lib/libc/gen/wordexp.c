@@ -38,6 +38,7 @@
 #include <unistd.h>
 #include <wordexp.h>
 #include "un-namespace.h"
+#include "libc_private.h"
 
 __FBSDID("$FreeBSD$");
 
@@ -127,12 +128,12 @@ we_askshell(const char *words, wordexp_t *we, int flags)
 		return (WRDE_NOSPACE);	/* XXX */
 	(void)sigemptyset(&newsigblock);
 	(void)sigaddset(&newsigblock, SIGCHLD);
-	(void)_sigprocmask(SIG_BLOCK, &newsigblock, &oldsigblock);
+	(void)__libc_sigprocmask(SIG_BLOCK, &newsigblock, &oldsigblock);
 	if ((pid = fork()) < 0) {
 		serrno = errno;
 		_close(pdes[0]);
 		_close(pdes[1]);
-		(void)_sigprocmask(SIG_SETMASK, &oldsigblock, NULL);
+		(void)__libc_sigprocmask(SIG_SETMASK, &oldsigblock, NULL);
 		errno = serrno;
 		return (WRDE_NOSPACE);	/* XXX */
 	}
@@ -141,7 +142,7 @@ we_askshell(const char *words, wordexp_t *we, int flags)
 		 * We are the child; just get /bin/sh to run the wordexp
 		 * builtin on `words'.
 		 */
-		(void)_sigprocmask(SIG_SETMASK, &oldsigblock, NULL);
+		(void)__libc_sigprocmask(SIG_SETMASK, &oldsigblock, NULL);
 		if ((pdes[1] != STDOUT_FILENO ?
 		    _dup2(pdes[1], STDOUT_FILENO) :
 		    _fcntl(pdes[1], F_SETFD, 0)) < 0)
@@ -210,7 +211,7 @@ cleanup:
 	do
 		wpid = _waitpid(pid, &status, 0);
 	while (wpid < 0 && errno == EINTR);
-	(void)_sigprocmask(SIG_SETMASK, &oldsigblock, NULL);
+	(void)__libc_sigprocmask(SIG_SETMASK, &oldsigblock, NULL);
 	if (error != 0) {
 		errno = serrno;
 		return (error);
