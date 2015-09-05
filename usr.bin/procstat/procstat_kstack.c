@@ -131,6 +131,7 @@ kstack_cleanup_encoded(const char *old, char *new, int kflag)
 				cp_new++;
 			}
 		}
+		*cp_new = '\0';
 		cp_tofree = cp_loop = strdup(new);
 	} else
 		cp_tofree = cp_loop = strdup(old);
@@ -138,7 +139,6 @@ kstack_cleanup_encoded(const char *old, char *new, int kflag)
 		if (strlen(cp_line) != 0 && *cp_line != 127)
 			xo_emit("{le:token/%s}", cp_line);
 	}
-	*cp_new = '\0';
 	free(cp_tofree);
 }
 
