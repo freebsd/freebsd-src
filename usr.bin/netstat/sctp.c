@@ -79,7 +79,7 @@ static void sctp_statesprint(uint32_t state);
 #define	NETSTAT_SCTP_STATES_SHUTDOWN_ACK_SENT	0x8
 #define	NETSTAT_SCTP_STATES_SHUTDOWN_PENDING	0x9
 
-const char *sctpstates[] = {
+static const char *sctpstates[] = {
 	"CLOSED",
 	"BOUND",
 	"LISTEN",
@@ -92,13 +92,13 @@ const char *sctpstates[] = {
 	"SHUTDOWN_PENDING"
 };
 
-LIST_HEAD(xladdr_list, xladdr_entry) xladdr_head;
+static LIST_HEAD(xladdr_list, xladdr_entry) xladdr_head;
 struct xladdr_entry {
 	struct xsctp_laddr *xladdr;
 	LIST_ENTRY(xladdr_entry) xladdr_entries;
 };
 
-LIST_HEAD(xraddr_list, xraddr_entry) xraddr_head;
+static LIST_HEAD(xraddr_list, xraddr_entry) xraddr_head;
 struct xraddr_entry {
 	struct xsctp_raddr *xraddr;
 	LIST_ENTRY(xraddr_entry) xraddr_entries;
@@ -614,25 +614,34 @@ sctp_statesprint(uint32_t state)
 	int idx;
 
 	switch (state) {
-	case SCTP_STATE_COOKIE_WAIT:
+	case SCTP_CLOSED:
+		idx = NETSTAT_SCTP_STATES_CLOSED;
+		break;
+	case SCTP_BOUND:
+		idx = NETSTAT_SCTP_STATES_BOUND;
+		break;
+	case SCTP_LISTEN:
+		idx = NETSTAT_SCTP_STATES_LISTEN;
+		break;
+	case SCTP_COOKIE_WAIT:
 		idx = NETSTAT_SCTP_STATES_COOKIE_WAIT;
 		break;
-	case SCTP_STATE_COOKIE_ECHOED:
+	case SCTP_COOKIE_ECHOED:
 		idx = NETSTAT_SCTP_STATES_COOKIE_ECHOED;
 		break;
-	case SCTP_STATE_OPEN:
+	case SCTP_ESTABLISHED:
 		idx = NETSTAT_SCTP_STATES_ESTABLISHED;
 		break;
-	case SCTP_STATE_SHUTDOWN_SENT:
+	case SCTP_SHUTDOWN_SENT:
 		idx = NETSTAT_SCTP_STATES_SHUTDOWN_SENT;
 		break;
-	case SCTP_STATE_SHUTDOWN_RECEIVED:
+	case SCTP_SHUTDOWN_RECEIVED:
 		idx = NETSTAT_SCTP_STATES_SHUTDOWN_RECEIVED;
 		break;
-	case SCTP_STATE_SHUTDOWN_ACK_SENT:
+	case SCTP_SHUTDOWN_ACK_SENT:
 		idx = NETSTAT_SCTP_STATES_SHUTDOWN_ACK_SENT;
 		break;
-	case SCTP_STATE_SHUTDOWN_PENDING:
+	case SCTP_SHUTDOWN_PENDING:
 		idx = NETSTAT_SCTP_STATES_SHUTDOWN_PENDING;
 		break;
 	default:

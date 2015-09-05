@@ -445,7 +445,10 @@ to properly
 recognize the disk:
 .Bd -literal -offset indent
 dd if=/dev/zero of=/dev/da0 bs=512 count=32
-fdisk -BI da0
+gpart create -s MBR da0
+gpart add -t freebsd da0
+gpart set -a active -i 1 da0
+gpart bootcode -b /boot/mbr da0
 dd if=/dev/zero of=/dev/da0s1 bs=512 count=32
 bsdlabel -w -B da0s1
 bsdlabel -e da0s1
@@ -495,6 +498,5 @@ are not generally compatible.
 .Xr md 4 ,
 .Xr disktab 5 ,
 .Xr boot0cfg 8 ,
-.Xr fdisk 8 ,
 .Xr gpart 8 ,
 .Xr newfs 8

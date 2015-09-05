@@ -39,11 +39,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/bus.h>
+#include <sys/conf.h>
 #include <sys/rman.h>
 #include <sys/endian.h>
 #include <sys/firmware.h>
 #include <sys/limits.h>
 #include <sys/module.h>
+#include <sys/priv.h>
 #include <sys/queue.h>
 #include <sys/taskqueue.h>
 
@@ -54,20 +56,13 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 
-#include <net/bpf.h>
 #include <net/if.h>
 #include <net/if_var.h>
-#include <net/if_arp.h>
-#include <net/ethernet.h>
 #include <net/if_dl.h>
 #include <net/if_media.h>
-#include <net/if_types.h>
 
 #include <netinet/in.h>
-#include <netinet/in_systm.h>
-#include <netinet/in_var.h>
 #include <netinet/if_ether.h>
-#include <netinet/ip.h>
 
 #include <net80211/ieee80211_var.h>
 #include <net80211/ieee80211_radiotap.h>
@@ -236,7 +231,6 @@ static void	iwn_xmit_task(void *arg0, int pending);
 static int	iwn_raw_xmit(struct ieee80211_node *, struct mbuf *,
 		    const struct ieee80211_bpf_params *);
 static int	iwn_transmit(struct ieee80211com *, struct mbuf *);
-static void	iwn_start_locked(struct iwn_softc *);
 static void	iwn_watchdog(void *);
 static int	iwn_ioctl(struct ieee80211com *, u_long , void *);
 static void	iwn_parent(struct ieee80211com *);
@@ -378,6 +372,19 @@ MODULE_DEPEND(iwn, firmware, 1, 1, 1);
 MODULE_DEPEND(iwn, pci, 1, 1, 1);
 MODULE_DEPEND(iwn, wlan, 1, 1, 1);
 
+static d_ioctl_t iwn_cdev_ioctl;
+static d_open_t iwn_cdev_open;
+static d_close_t iwn_cdev_close;
+
+static struct cdevsw iwn_cdevsw = {
+	.d_version = D_VERSION,
+	.d_flags = 0,
+	.d_open = iwn_cdev_open,
+	.d_close = iwn_cdev_close,
+	.d_ioctl = iwn_cdev_ioctl,
+	.d_name = "iwn",
+};
+
 static int
 iwn_probe(device_t dev)
 {
@@ -463,7 +470,6 @@ iwn_attach(device_t dev)
 	}
 
 	IWN_LOCK_INIT(sc);
-	mbufq_init(&sc->sc_snd, ifqmaxlen);
 
 	/* Read hardware revision and attach. */
 	sc->hw_type = (IWN_READ(sc, IWN_HW_REV) >> IWN_HW_REV_TYPE_SHIFT)
@@ -704,6 +710,15 @@ iwn_attach(device_t dev)
 	if (bootverbose)
 		ieee80211_announce(ic);
 	DPRINTF(sc, IWN_DEBUG_TRACE, "->%s: end\n",__func__);
+
+	/* Add debug ioctl right at the end */
+	sc->sc_cdev = make_dev(&iwn_cdevsw, device_get_unit(dev),
+	    UID_ROOT, GID_WHEEL, 0600, "%s", device_get_nameunit(dev));
+	if (sc->sc_cdev == NULL) {
+		device_printf(dev, "failed to create debug character device\n");
+	} else {
+		sc->sc_cdev->si_drv1 = sc;
+	}
 	return 0;
 fail:
 	iwn_detach(dev);
@@ -1392,8 +1407,6 @@ iwn_detach(device_t dev)
 		ieee80211_ifdetach(&sc->sc_ic);
 	}
 
-	mbufq_drain(&sc->sc_snd);
-
 	/* Uninstall interrupt handler. */
 	if (sc->irq != NULL) {
 		bus_teardown_intr(dev, sc->irq, sc->sc_ih);
@@ -1415,6 +1428,11 @@ iwn_detach(device_t dev)
 	if (sc->mem != NULL)
 		bus_release_resource(dev, SYS_RES_MEMORY,
 		    rman_get_rid(sc->mem), sc->mem);
+
+	if (sc->sc_cdev) {
+		destroy_dev(sc->sc_cdev);
+		sc->sc_cdev = NULL;
+	}
 
 	DPRINTF(sc, IWN_DEBUG_TRACE, "->%s: end\n", __func__);
 	IWN_LOCK_DESTROY(sc);
@@ -3575,14 +3593,10 @@ iwn_tx_done(struct iwn_softc *sc, struct iwn_rx_desc *desc, int ackfailcnt,
 		    (status & IWN_TX_FAIL) != 0);
 
 	sc->sc_tx_timer = 0;
-	if (--ring->queued < IWN_TX_RING_LOMARK) {
+	if (--ring->queued < IWN_TX_RING_LOMARK)
 		sc->qfullmsk &= ~(1 << ring->qid);
-		if (sc->qfullmsk == 0)
-			iwn_start_locked(sc);
-	}
 
 	DPRINTF(sc, IWN_DEBUG_TRACE, "->%s: end\n",__func__);
-
 }
 
 /*
@@ -3759,14 +3773,10 @@ iwn_ampdu_tx_done(struct iwn_softc *sc, int qid, int idx, int nframes,
 	}
 
 	sc->sc_tx_timer = 0;
-	if (ring->queued < IWN_TX_RING_LOMARK) {
+	if (ring->queued < IWN_TX_RING_LOMARK)
 		sc->qfullmsk &= ~(1 << ring->qid);
-		if (sc->qfullmsk == 0)
-			iwn_start_locked(sc);
-	}
 
 	DPRINTF(sc, IWN_DEBUG_TRACE, "->%s: end\n",__func__);
-
 }
 
 /*
@@ -4926,54 +4936,30 @@ iwn_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 static int
 iwn_transmit(struct ieee80211com *ic, struct mbuf *m)
 {
-	struct iwn_softc *sc;
+	struct iwn_softc *sc = ic->ic_softc;
+	struct ieee80211_node *ni;
 	int error;
 
-	sc = ic->ic_softc;
-
 	IWN_LOCK(sc);
-	if ((sc->sc_flags & IWN_FLAG_RUNNING) == 0) {
+	if ((sc->sc_flags & IWN_FLAG_RUNNING) == 0 || sc->sc_beacon_wait) {
 		IWN_UNLOCK(sc);
 		return (ENXIO);
 	}
-	error = mbufq_enqueue(&sc->sc_snd, m);
-	if (error) {
+
+	if (sc->qfullmsk) {
 		IWN_UNLOCK(sc);
-		return (error);
+		return (ENOBUFS);
 	}
-	iwn_start_locked(sc);
+
+	ni = (struct ieee80211_node *)m->m_pkthdr.rcvif;
+	error = iwn_tx_data(sc, m, ni);
+	if (error) {
+		if_inc_counter(ni->ni_vap->iv_ifp, IFCOUNTER_OERRORS, 1);
+		ieee80211_free_node(ni);
+	} else
+		sc->sc_tx_timer = 5;
 	IWN_UNLOCK(sc);
-	return (0);
-}
-
-static void
-iwn_start_locked(struct iwn_softc *sc)
-{
-	struct ieee80211_node *ni;
-	struct mbuf *m;
-
-	IWN_LOCK_ASSERT(sc);
-
-	/*
-	 * If we're waiting for a beacon, we can just exit out here
-	 * and wait for the taskqueue to be kicked.
-	 */
-	if (sc->sc_beacon_wait) {
-		return;
-	}
-
-	DPRINTF(sc, IWN_DEBUG_XMIT, "%s: called\n", __func__);
-	while (sc->qfullmsk == 0 && 
-	    (m = mbufq_dequeue(&sc->sc_snd)) != NULL) {
-		ni = (struct ieee80211_node *)m->m_pkthdr.rcvif;
-		if (iwn_tx_data(sc, m, ni) != 0) {
-			if_inc_counter(ni->ni_vap->iv_ifp,
-			    IFCOUNTER_OERRORS, 1);
-			ieee80211_free_node(ni);
-		} else
-			sc->sc_tx_timer = 5;
-	}
-	DPRINTF(sc, IWN_DEBUG_XMIT, "%s: done\n", __func__);
+	return (error);
 }
 
 static void
@@ -4999,18 +4985,37 @@ iwn_watchdog(void *arg)
 }
 
 static int
-iwn_ioctl(struct ieee80211com *ic, u_long cmd, void *data)
+iwn_cdev_open(struct cdev *dev, int flags, int type, struct thread *td)
 {
-	struct ifreq *ifr = data;
-	struct iwn_softc *sc = ic->ic_softc;
-	int error = 0;
- 
+
+	return (0);
+}
+
+static int
+iwn_cdev_close(struct cdev *dev, int flags, int type, struct thread *td)
+{
+
+	return (0);
+}
+
+static int
+iwn_cdev_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data, int fflag,
+    struct thread *td)
+{
+	int rc;
+	struct iwn_softc *sc = dev->si_drv1;
+	struct iwn_ioctl_data *d;
+
+	rc = priv_check(td, PRIV_DRIVER);
+	if (rc != 0)
+		return (0);
+
 	switch (cmd) {
 	case SIOCGIWNSTATS:
+		d = (struct iwn_ioctl_data *) data;
 		IWN_LOCK(sc);
 		/* XXX validate permissions/memory/etc? */
-		error = copyout(&sc->last_stat, ifr->ifr_data,
-		    sizeof(struct iwn_stats));
+		rc = copyout(&sc->last_stat, d->dst_addr, sizeof(struct iwn_stats));
 		IWN_UNLOCK(sc);
 		break;
 	case SIOCZIWNSTATS:
@@ -5019,10 +5024,17 @@ iwn_ioctl(struct ieee80211com *ic, u_long cmd, void *data)
 		IWN_UNLOCK(sc);
 		break;
 	default:
-		error = ENOTTY;
+		rc = EINVAL;
 		break;
 	}
-	return (error);
+	return (rc);
+}
+
+static int
+iwn_ioctl(struct ieee80211com *ic, u_long cmd, void *data)
+{
+
+	return (ENOTTY);
 }
 
 static void
@@ -8683,9 +8695,6 @@ iwn_panicked(void *arg0, int pending)
 		    "%s: could not move to run state\n", __func__);
 	}
 
-	/* Only run start once the NIC is in a useful state, like associated */
-	iwn_start_locked(sc);
-
 	IWN_UNLOCK(sc);
 }
 
@@ -8979,3 +8988,5 @@ iwn_debug_register(struct iwn_softc *sc)
 	DPRINTF(sc, IWN_DEBUG_REGISTER,"%s","\n");
 }
 #endif
+
+

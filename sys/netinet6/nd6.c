@@ -511,6 +511,34 @@ nd6_llinfo_settimer_locked(struct llentry *ln, long tick)
 		LLE_REMREF(ln);
 }
 
+/*
+* Gets source address of the first packet in hold queue
+* and stores it in @src.
+* Returns pointer to @src (if hold queue is not empty) or NULL.
+*
+*/
+static struct in6_addr *
+nd6_llinfo_get_holdsrc(struct llentry *ln, struct in6_addr *src)
+{
+	struct ip6_hdr hdr;
+	struct mbuf *m;
+
+	if (ln->la_hold == NULL)
+		return (NULL);
+
+	/*
+	 * assume every packet in la_hold has the same IP header
+	 */
+	m = ln->la_hold;
+	if (sizeof(hdr) < m->m_len)
+		return (NULL);
+
+	m_copydata(m, 0, sizeof(hdr), (caddr_t)&hdr);
+	*src = hdr.ip6_src;
+
+	return (src);
+}
+
 void
 nd6_llinfo_settimer(struct llentry *ln, long tick)
 {
@@ -524,9 +552,10 @@ static void
 nd6_llinfo_timer(void *arg)
 {
 	struct llentry *ln;
-	struct in6_addr *dst;
+	struct in6_addr *dst, *pdst, *psrc, src;
 	struct ifnet *ifp;
 	struct nd_ifinfo *ndi = NULL;
+	int send_ns;
 
 	KASSERT(arg != NULL, ("%s: arg NULL", __func__));
 	ln = (struct llentry *)arg;
@@ -553,6 +582,10 @@ nd6_llinfo_timer(void *arg)
 	}
 	ifp = ln->lle_tbl->llt_ifp;
 	CURVNET_SET(ifp->if_vnet);
+	ndi = ND_IFINFO(ifp);
+	send_ns = 0;
+	dst = &ln->r_l3addr.addr6;
+	pdst = dst;
 
 	if (ln->ln_ntick > 0) {
 		if (ln->ln_ntick > INT_MAX) {
@@ -565,8 +598,6 @@ nd6_llinfo_timer(void *arg)
 		goto done;
 	}
 
-	ndi = ND_IFINFO(ifp);
-	dst = &ln->r_l3addr.addr6;
 	if (ln->la_flags & LLE_STATIC) {
 		goto done;
 	}
@@ -581,10 +612,9 @@ nd6_llinfo_timer(void *arg)
 	case ND6_LLINFO_INCOMPLETE:
 		if (ln->la_asked < V_nd6_mmaxtries) {
 			ln->la_asked++;
-			nd6_llinfo_settimer_locked(ln, (long)ndi->retrans * hz / 1000);
-			LLE_WUNLOCK(ln);
-			nd6_ns_output(ifp, NULL, dst, ln, NULL);
-			LLE_WLOCK(ln);
+			send_ns = 1;
+			/* Send NS to multicast address */
+			pdst = NULL;
 		} else {
 			struct mbuf *m = ln->la_hold;
 			if (m) {
@@ -628,10 +658,7 @@ nd6_llinfo_timer(void *arg)
 			/* We need NUD */
 			ln->la_asked = 1;
 			ln->ln_state = ND6_LLINFO_PROBE;
-			nd6_llinfo_settimer_locked(ln, (long)ndi->retrans * hz / 1000);
-			LLE_WUNLOCK(ln);
-			nd6_ns_output(ifp, dst, dst, ln, NULL);
-			LLE_WLOCK(ln);
+			send_ns = 1;
 		} else {
 			ln->ln_state = ND6_LLINFO_STALE; /* XXX */
 			nd6_llinfo_settimer_locked(ln, (long)V_nd6_gctimer * hz);
@@ -640,10 +667,7 @@ nd6_llinfo_timer(void *arg)
 	case ND6_LLINFO_PROBE:
 		if (ln->la_asked < V_nd6_umaxtries) {
 			ln->la_asked++;
-			nd6_llinfo_settimer_locked(ln, (long)ndi->retrans * hz / 1000);
-			LLE_WUNLOCK(ln);
-			nd6_ns_output(ifp, dst, dst, ln, NULL);
-			LLE_WLOCK(ln);
+			send_ns = 1;
 		} else {
 			EVENTHANDLER_INVOKE(lle_event, ln, LLENTRY_EXPIRED);
 			(void)nd6_free(ln, 0);
@@ -655,6 +679,14 @@ nd6_llinfo_timer(void *arg)
 		    __func__, ln->ln_state);
 	}
 done:
+	if (send_ns != 0) {
+		nd6_llinfo_settimer_locked(ln, (long)ndi->retrans * hz / 1000);
+		psrc = nd6_llinfo_get_holdsrc(ln, &src);
+		LLE_FREE_LOCKED(ln);
+		ln = NULL;
+		nd6_ns_output(ifp, psrc, pdst, dst, NULL);
+	}
+
 	if (ln != NULL)
 		LLE_FREE_LOCKED(ln);
 	CURVNET_RESTORE();
@@ -2171,12 +2203,14 @@ nd6_output_lle(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *m,
 	 * INCOMPLETE state, send the first solicitation.
 	 */
 	if (!ND6_LLINFO_PERMANENT(lle) && lle->la_asked == 0) {
+		struct in6_addr src, *psrc;
 		lle->la_asked++;
 		
 		nd6_llinfo_settimer_locked(lle,
 		    (long)ND_IFINFO(ifp)->retrans * hz / 1000);
+		psrc = nd6_llinfo_get_holdsrc(lle, &src);
 		LLE_WUNLOCK(lle);
-		nd6_ns_output(ifp, NULL, &dst->sin6_addr, lle, NULL);
+		nd6_ns_output(ifp, psrc, NULL, &dst->sin6_addr, NULL);
 	} else {
 		/* We did the lookup so we need to do the unlock here. */
 		LLE_WUNLOCK(lle);
@@ -2275,9 +2309,6 @@ nd6_add_ifa_lle(struct in6_ifaddr *ia)
 	ln = lltable_alloc_entry(LLTABLE6(ifp), LLE_IFADDR, dst);
 	if (ln == NULL)
 		return (ENOBUFS);
-
-	ln->la_expire = 0;  /* for IPv6 this means permanent */
-	ln->ln_state = ND6_LLINFO_REACHABLE;
 
 	IF_AFDATA_WLOCK(ifp);
 	LLE_WLOCK(ln);

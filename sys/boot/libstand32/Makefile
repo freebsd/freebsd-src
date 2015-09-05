@@ -19,6 +19,9 @@ LIB=		stand
 INTERNALLIB=
 MK_PROFILE=	no
 NO_PIC=
+.if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "powerpc64"
+CFLAGS+=	-m32 -I.
+.endif
 
 WARNS?=		0
 

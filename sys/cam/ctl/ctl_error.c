@@ -446,16 +446,6 @@ ctl_build_ua(struct ctl_lun *lun, uint32_t initidx,
 		asc = 0x2A;
 		ascq = 0x02;
 		break;
-	case CTL_UA_LVD:
-		/* 29h/06h  TRANSCEIVER MODE CHANGED TO LVD */
-		asc = 0x29;
-		ascq = 0x06;
-		break;
-	case CTL_UA_SE:
-		/* 29h/05h  TRANSCEIVER MODE CHANGED TO SINGLE-ENDED */
-		asc = 0x29;
-		ascq = 0x05;
-		break;
 	case CTL_UA_RES_PREEMPT:
 		/* 2Ah/03h  RESERVATIONS PREEMPTED */
 		asc = 0x2A;

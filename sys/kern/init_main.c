@@ -117,14 +117,9 @@ int	bootverbose = BOOTVERBOSE;
 SYSCTL_INT(_debug, OID_AUTO, bootverbose, CTLFLAG_RW, &bootverbose, 0,
 	"Control the output of verbose kernel messages");
 
-/* Want to avoid defining INVARIANTS if not already defined */
 #ifdef INVARIANTS
-static int	invariants = 1;
-#else
-static int	invariants = 0;
+FEATURE(invariants, "Kernel compiled with INVARIANTS, may affect performance");
 #endif
-SYSCTL_INT(_debug, OID_AUTO, invariants, CTLFLAG_RD, &invariants, 0,
-	"Kernel compiled with invariants");
 
 /*
  * This ensures that there is at least one entry so that the sysinit_set

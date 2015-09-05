@@ -30,14 +30,18 @@
  * Little program to dump the crypto statistics block and, optionally,
  * zero all the stats or just the timing stuff.
  */
-#include <stdio.h>
-#include <stdlib.h>
-#include <strings.h>
 
 #include <sys/types.h>
 #include <sys/sysctl.h>
 #include <sys/time.h>
+
 #include <crypto/cryptodev.h>
+
+#include <err.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <strings.h>
 
 static void
 printt(const char* tag, struct cryptotstat *ts)

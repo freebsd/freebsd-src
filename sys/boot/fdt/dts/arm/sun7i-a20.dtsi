@@ -86,7 +86,7 @@
 			reg = <0x01c20c90 0x10>;
 		};
 
-		GPIO: gpio@01c20800 {
+		pio: gpio@01c20800 {
 			#gpio-cells = <3>;
 			compatible = "allwinner,sun4i-gpio";
 			gpio-controller;
