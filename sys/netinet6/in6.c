@@ -2313,8 +2313,8 @@ in6_lltable_dump_entry(struct lltable *llt, struct llentry *lle,
 	int error;
 
 	bzero(&ndpc, sizeof(ndpc));
-			/* skip invalid entries */
-			if ((lle->la_flags & (LLE_DELETED|LLE_VALID)) != LLE_VALID)
+			/* skip deleted entries */
+			if ((lle->la_flags & LLE_DELETED) == LLE_DELETED)
 				return (0);
 			/* Skip if jailed and not a valid IP of the prison. */
 			lltable_fill_sa_entry(lle,
