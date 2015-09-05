@@ -5,6 +5,17 @@
 #ifndef _INTEL_RINGBUFFER_H_
 #define _INTEL_RINGBUFFER_H_
 
+/*
+ * Gen2 BSpec "1. Programming Environment" / 1.4.4.6 "Ring Buffer Use"
+ * Gen3 BSpec "vol1c Memory Interface Functions" / 2.3.4.5 "Ring Buffer Use"
+ * Gen4+ BSpec "vol1c Memory Interface and Command Stream" / 5.3.4.5 "Ring Buffer Use"
+ *
+ * "If the Ring Buffer Head Pointer and the Tail Pointer are on the same
+ * cacheline, the Head Pointer must not be greater than the Tail
+ * Pointer."
+ */
+#define I915_RING_FREE_SPACE 64
+
 struct  intel_hw_status_page {
 	u32		*page_addr;
 	unsigned int	gfx_addr;
@@ -60,7 +71,7 @@ struct  intel_ring_buffer {
 	 */
 	u32		last_retired_head;
 
-	u32		irq_refcount;
+	u32		irq_refcount;		/* protected by dev_priv->irq_lock */
 	u32		irq_enable_mask;	/* bitmask to enable ring interrupt */
 	u32		trace_irq_seqno;
 	u32		sync_seqno[I915_NUM_RINGS-1];
@@ -79,14 +90,15 @@ struct  intel_ring_buffer {
 	uint32_t	(*get_seqno)(struct intel_ring_buffer *ring);
 	int		(*dispatch_execbuffer)(struct intel_ring_buffer *ring,
 					       uint32_t offset, uint32_t length);
+#define I915_DISPATCH_SECURE 0x1
+#define I915_DISPATCH_PINNED 0x2
 	void		(*cleanup)(struct intel_ring_buffer *ring);
 	int		(*sync_to)(struct intel_ring_buffer *ring,
 				   struct intel_ring_buffer *to,
 				   u32 seqno);
- 
+
 	u32		semaphore_register[3]; /*our mbox written by others */
 	u32		signal_mbox[2]; /* mboxes this ring signals to */
-
 	/**
 	 * List of objects currently involved in rendering from the
 	 * ringbuffer.
@@ -162,10 +174,10 @@ intel_ring_sync_index(struct intel_ring_buffer *ring,
 	return idx;
 }
 
-static inline uint32_t
-intel_read_status_page(struct intel_ring_buffer *ring, int reg)
+static inline u32
+intel_read_status_page(struct intel_ring_buffer *ring,
+		       int reg)
 {
-
 	/* Ensure that the compiler doesn't optimize away the load. */
 	__compiler_membar();
 	return (atomic_load_acq_32(ring->status_page.page_addr + reg));
@@ -183,7 +195,7 @@ static inline int intel_wait_ring_idle(struct intel_ring_buffer *ring)
 int intel_ring_begin(struct intel_ring_buffer *ring, int n);
 
 static inline void intel_ring_emit(struct intel_ring_buffer *ring,
-				   uint32_t data)
+				   u32 data)
 {
 	*(volatile uint32_t *)((char *)ring->virtual_start +
 	    ring->tail) = data;
