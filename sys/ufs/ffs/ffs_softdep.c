@@ -13325,8 +13325,13 @@ softdep_ast_cleanup_proc(void)
 			if (softdep_excess_items(ump, D_NEWBLK) ||
 			    softdep_excess_items(ump, D_ALLOCDIRECT) ||
 			    softdep_excess_items(ump, D_ALLOCINDIR)) {
-				req = true;
-				VFS_SYNC(mp, MNT_WAIT);
+				error = vn_start_write(NULL, &mp, V_MNTREF |
+				    V_WAIT);
+				if (error == 0) {
+					req = true;
+					VFS_SYNC(mp, MNT_WAIT);
+					vn_finished_write(mp);
+				}
 			}
 			if ((td->td_pflags & TDP_KTHREAD) != 0 || !req)
 				break;
