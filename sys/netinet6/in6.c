@@ -1518,7 +1518,7 @@ in6ifa_ifwithaddr(const struct in6_addr *addr, uint32_t zoneid)
  * ifaddr is returned referenced.
  */
 struct in6_ifaddr *
-in6ifa_ifpwithaddr(struct ifnet *ifp, struct in6_addr *addr)
+in6ifa_ifpwithaddr(struct ifnet *ifp, const struct in6_addr *addr)
 {
 	struct ifaddr *ifa;
 
@@ -2138,8 +2138,7 @@ in6_lltable_rtcheck(struct ifnet *ifp,
 		 * Create an ND6 cache for an IPv6 neighbor
 		 * that is not covered by our own prefix.
 		 */
-		/* XXX ifaof_ifpforaddr should take a const param */
-		ifa = ifaof_ifpforaddr(__DECONST(struct sockaddr *, l3addr), ifp);
+		ifa = ifaof_ifpforaddr(l3addr, ifp);
 		if (ifa != NULL) {
 			ifa_free(ifa);
 			if (rt != NULL)
