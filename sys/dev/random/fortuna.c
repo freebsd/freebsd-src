@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/random.h>
+#include <sys/sdt.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 
@@ -93,6 +94,11 @@ CTASSERT(RANDOM_FORTUNA_DEFPOOLSIZE <= RANDOM_FORTUNA_MAXPOOLSIZE);
 /* This algorithm (and code) presumes that RANDOM_KEYSIZE is twice as large as RANDOM_BLOCKSIZE */
 CTASSERT(RANDOM_BLOCKSIZE == sizeof(uint128_t));
 CTASSERT(RANDOM_KEYSIZE == 2*RANDOM_BLOCKSIZE);
+
+/* Probes for dtrace(1) */
+SDT_PROVIDER_DECLARE(random);
+SDT_PROVIDER_DEFINE(random);
+SDT_PROBE_DEFINE2(random, fortuna, event_processor, debug, "u_int", "struct fs_pool *");
 
 /*
  * This is the beastie that needs protecting. It contains all of the
@@ -379,16 +385,7 @@ random_fortuna_pre_read(void)
 			} else
 				break;
 		}
-#ifdef RANDOM_DEBUG
-		{
-			u_int j;
-
-			printf("random: reseedcount [%d]", fortuna_state.fs_reseedcount);
-			for (j = 0; j < RANDOM_FORTUNA_NPOOLS; j++)
-				printf(" %X", fortuna_state.fs_pool[j].fsp_length);
-			printf("\n");
-		}
-#endif
+		SDT_PROBE2(random, fortuna, event_processor, debug, fortuna_state.fs_reseedcount, fortuna_state.fs_pool);
 		/* FS&K */
 		random_fortuna_reseed_internal(s, i < RANDOM_FORTUNA_NPOOLS ? i + 1 : RANDOM_FORTUNA_NPOOLS);
 		/* Clean up and secure */

@@ -56,6 +56,9 @@ extern start_info_t *HYPERVISOR_start_info;
 /* XXX: we need to get rid of this and use HYPERVISOR_start_info directly */
 extern char *console_page;
 
+extern int xen_disable_pv_disks;
+extern int xen_disable_pv_nics;
+
 enum xen_domain_type {
 	XEN_NATIVE,             /* running on bare hardware    */
 	XEN_PV_DOMAIN,          /* running in a PV domain      */

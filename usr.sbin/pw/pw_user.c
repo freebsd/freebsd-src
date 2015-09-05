@@ -38,6 +38,7 @@ static const char rcsid[] =
 #include <ctype.h>
 #include <dirent.h>
 #include <err.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <grp.h>
 #include <pwd.h>
@@ -85,10 +86,75 @@ static void	rmat(uid_t uid);
 static void	rmopie(char const * name);
 
 static void
+mkdir_home_parents(int dfd, const char *dir)
+{
+	struct stat st;
+	char *dirs, *tmp;
+
+	if (*dir != '/')
+		errx(EX_DATAERR, "invalid base directory for home '%s'", dir);
+
+	dir++;
+
+	if (fstatat(dfd, dir, &st, 0) != -1) {
+		if (S_ISDIR(st.st_mode))
+			return;
+		errx(EX_OSFILE, "root home `/%s' is not a directory", dir);
+	}
+
+	dirs = strdup(dir);
+	if (dirs == NULL)
+		errx(EX_UNAVAILABLE, "out of memory");
+
+	tmp = strrchr(dirs, '/');
+	if (tmp == NULL)
+		return;
+	tmp[0] = '\0';
+
+	/*
+	 * This is a kludge especially for Joerg :)
+	 * If the home directory would be created in the root partition, then
+	 * we really create it under /usr which is likely to have more space.
+	 * But we create a symlink from cnf->home -> "/usr" -> cnf->home
+	 */
+	if (strchr(dirs, '/') == NULL) {
+		asprintf(&tmp, "usr/%s", dirs);
+		if (tmp == NULL)
+			errx(EX_UNAVAILABLE, "out of memory");
+		if (mkdirat(dfd, tmp, _DEF_DIRMODE) != -1 || errno == EEXIST) {
+			fchownat(dfd, tmp, 0, 0, 0);
+			symlinkat(tmp, dfd, dirs);
+		}
+		free(tmp);
+	}
+	tmp = dirs;
+	if (fstatat(dfd, dirs, &st, 0) == -1) {
+		while ((tmp = strchr(tmp + 1, '/')) != NULL) {
+			*tmp = '\0';
+			if (fstatat(dfd, dirs, &st, 0) == -1) {
+				if (mkdirat(dfd, dirs, _DEF_DIRMODE) == -1)
+					err(EX_OSFILE,  "'%s' (root home parent) is not a directory", dirs);
+			}
+			*tmp = '/';
+		}
+	}
+	if (fstatat(dfd, dirs, &st, 0) == -1) {
+		if (mkdirat(dfd, dirs, _DEF_DIRMODE) == -1)
+			err(EX_OSFILE,  "'%s' (root home parent) is not a directory", dirs);
+		fchownat(dfd, dirs, 0, 0, 0);
+	}
+
+	free(dirs);
+}
+
+static void
 create_and_populate_homedir(struct userconf *cnf, struct passwd *pwd,
     const char *skeldir, mode_t homemode, bool update)
 {
 	int skelfd = -1;
+
+	/* Create home parents directories */
+	mkdir_home_parents(conf.rootfd, pwd->pw_dir);
 
 	if (skeldir != NULL && *skeldir != '\0') {
 		if (*skeldir == '/')

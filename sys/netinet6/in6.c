@@ -1243,13 +1243,8 @@ in6_broadcast_ifa(struct ifnet *ifp, struct in6_aliasreq *ifra,
 		}
 	}
 
-	/*
-	 * Perform DAD, if needed.
-	 * XXX It may be of use, if we can administratively disable DAD.
-	 */
-	if (in6if_do_dad(ifp) && ((ifra->ifra_flags & IN6_IFF_NODAD) == 0) &&
-	    (ia->ia6_flags & IN6_IFF_TENTATIVE))
-	{
+	/* Perform DAD, if the address is TENTATIVE. */
+	if ((ia->ia6_flags & IN6_IFF_TENTATIVE)) {
 		int delay, mindelay, maxdelay;
 
 		delay = 0;
@@ -1379,8 +1374,8 @@ in6_unlink_ifa(struct in6_ifaddr *ia, struct ifnet *ifp)
 }
 
 /*
- * Notifies other other subsystems about address change/arrival:
- * 1) Notifies device handler on first IPv6 address assignment
+ * Notifies other subsystems about address change/arrival:
+ * 1) Notifies device handler on the first IPv6 address assignment
  * 2) Handle routing table changes for P2P links and route
  * 3) Handle routing table changes for address host route
  */
@@ -1523,7 +1518,7 @@ in6ifa_ifwithaddr(const struct in6_addr *addr, uint32_t zoneid)
  * ifaddr is returned referenced.
  */
 struct in6_ifaddr *
-in6ifa_ifpwithaddr(struct ifnet *ifp, struct in6_addr *addr)
+in6ifa_ifpwithaddr(struct ifnet *ifp, const struct in6_addr *addr)
 {
 	struct ifaddr *ifa;
 
@@ -1957,13 +1952,13 @@ in6if_do_dad(struct ifnet *ifp)
 	 * However, some interfaces can be up before the RUNNING
 	 * status.  Additionaly, users may try to assign addresses
 	 * before the interface becomes up (or running).
-	 * We simply skip DAD in such a case as a work around.
-	 * XXX: we should rather mark "tentative" on such addresses,
-	 * and do DAD after the interface becomes ready.
+	 * This function returns EAGAIN in that case.
+	 * The caller should mark "tentative" on the address instead of
+	 * performing DAD immediately.
 	 */
 	if (!((ifp->if_flags & IFF_UP) &&
 	    (ifp->if_drv_flags & IFF_DRV_RUNNING)))
-		return (0);
+		return (EAGAIN);
 
 	return (1);
 }
@@ -2143,8 +2138,7 @@ in6_lltable_rtcheck(struct ifnet *ifp,
 		 * Create an ND6 cache for an IPv6 neighbor
 		 * that is not covered by our own prefix.
 		 */
-		/* XXX ifaof_ifpforaddr should take a const param */
-		ifa = ifaof_ifpforaddr(__DECONST(struct sockaddr *, l3addr), ifp);
+		ifa = ifaof_ifpforaddr(l3addr, ifp);
 		if (ifa != NULL) {
 			ifa_free(ifa);
 			if (rt != NULL)
@@ -2239,23 +2233,15 @@ in6_lltable_delete(struct lltable *llt, u_int flags,
 }
 
 static struct llentry *
-in6_lltable_create(struct lltable *llt, u_int flags,
+in6_lltable_alloc(struct lltable *llt, u_int flags,
 	const struct sockaddr *l3addr)
 {
 	const struct sockaddr_in6 *sin6 = (const struct sockaddr_in6 *)l3addr;
 	struct ifnet *ifp = llt->llt_ifp;
 	struct llentry *lle;
 
-	IF_AFDATA_WLOCK_ASSERT(ifp);
 	KASSERT(l3addr->sa_family == AF_INET6,
 	    ("sin_family %d", l3addr->sa_family));
-
-	lle = in6_lltable_find_dst(llt, &sin6->sin6_addr);
-
-	if (lle != NULL) {
-		LLE_WLOCK(lle);
-		return (lle);
-	}
 
 	/*
 	 * A route that covers the given address must have
@@ -2277,8 +2263,8 @@ in6_lltable_create(struct lltable *llt, u_int flags,
 		lle->la_flags |= (LLE_VALID | LLE_STATIC);
 	}
 
-	lltable_link_entry(llt, lle);
-	LLE_WLOCK(lle);
+	if ((lle->la_flags & LLE_STATIC) != 0)
+		lle->ln_state = ND6_LLINFO_REACHABLE;
 
 	return (lle);
 }
@@ -2327,8 +2313,8 @@ in6_lltable_dump_entry(struct lltable *llt, struct llentry *lle,
 	int error;
 
 	bzero(&ndpc, sizeof(ndpc));
-			/* skip invalid entries */
-			if ((lle->la_flags & (LLE_DELETED|LLE_VALID)) != LLE_VALID)
+			/* skip deleted entries */
+			if ((lle->la_flags & LLE_DELETED) == LLE_DELETED)
 				return (0);
 			/* Skip if jailed and not a valid IP of the prison. */
 			lltable_fill_sa_entry(lle,
@@ -2382,7 +2368,7 @@ in6_lltattach(struct ifnet *ifp)
 	llt->llt_ifp = ifp;
 
 	llt->llt_lookup = in6_lltable_lookup;
-	llt->llt_create = in6_lltable_create;
+	llt->llt_alloc_entry = in6_lltable_alloc;
 	llt->llt_delete = in6_lltable_delete;
 	llt->llt_dump_entry = in6_lltable_dump_entry;
 	llt->llt_hash = in6_lltable_hash;

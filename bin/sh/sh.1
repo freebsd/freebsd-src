@@ -32,7 +32,7 @@
 .\"	from: @(#)sh.1	8.6 (Berkeley) 5/4/95
 .\" $FreeBSD$
 .\"
-.Dd July 11, 2015
+.Dd August 29, 2015
 .Dt SH 1
 .Os
 .Sh NAME
@@ -343,6 +343,11 @@ Write each command
 variable subjected to parameter expansion and arithmetic expansion)
 to standard error before it is executed.
 Useful for debugging.
+.It nolog
+Another do-nothing option for
+.Tn POSIX
+compliance.
+It only has a long name.
 .El
 .Pp
 The
@@ -1173,7 +1178,9 @@ The only special parameter that can be made local is
 .Ql - .
 Making
 .Ql -
-local causes any shell options that are
+local causes any shell options
+(including those that only have long names)
+that are
 changed via the
 .Ic set
 command inside the function to be

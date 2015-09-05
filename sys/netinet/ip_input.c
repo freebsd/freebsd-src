@@ -140,7 +140,7 @@ static struct netisr_handler ip_nh = {
 	.nh_handler = ip_input,
 	.nh_proto = NETISR_IP,
 #ifdef	RSS
-	.nh_m2cpuid = rss_soft_m2cpuid,
+	.nh_m2cpuid = rss_soft_m2cpuid_v4,
 	.nh_policy = NETISR_POLICY_CPU,
 	.nh_dispatch = NETISR_DISPATCH_HYBRID,
 #else

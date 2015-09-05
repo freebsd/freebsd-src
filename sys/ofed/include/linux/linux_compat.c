@@ -33,6 +33,7 @@
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
 #include <sys/proc.h>
+#include <sys/sglist.h>
 #include <sys/sleepqueue.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -416,16 +417,6 @@ linux_dev_poll(struct cdev *dev, int events, struct thread *td)
 }
 
 static int
-linux_dev_mmap(struct cdev *dev, vm_ooffset_t offset, vm_paddr_t *paddr,
-    int nprot, vm_memattr_t *memattr)
-{
-
-	/* XXX memattr not honored. */
-	*paddr = offset;
-	return (0);
-}
-
-static int
 linux_dev_mmap_single(struct cdev *dev, vm_ooffset_t *offset,
     vm_size_t size, struct vm_object **object, int nprot)
 {
@@ -433,36 +424,41 @@ linux_dev_mmap_single(struct cdev *dev, vm_ooffset_t *offset,
 	struct linux_file *filp;
 	struct file *file;
 	struct vm_area_struct vma;
-	vm_paddr_t paddr;
-	vm_page_t m;
 	int error;
 
 	file = curthread->td_fpop;
 	ldev = dev->si_drv1;
 	if (ldev == NULL)
 		return (ENODEV);
-	if (size != PAGE_SIZE)
-		return (EINVAL);
 	if ((error = devfs_get_cdevpriv((void **)&filp)) != 0)
 		return (error);
 	filp->f_flags = file->f_flag;
 	vma.vm_start = 0;
-	vma.vm_end = PAGE_SIZE;
+	vma.vm_end = size;
 	vma.vm_pgoff = *offset / PAGE_SIZE;
 	vma.vm_pfn = 0;
 	vma.vm_page_prot = 0;
 	if (filp->f_op->mmap) {
 		error = -filp->f_op->mmap(filp, &vma);
 		if (error == 0) {
-			paddr = (vm_paddr_t)vma.vm_pfn << PAGE_SHIFT;
-			*offset = paddr;
-			m = PHYS_TO_VM_PAGE(paddr);
-			*object = vm_pager_allocate(OBJT_DEVICE, dev,
-			    PAGE_SIZE, nprot, *offset, curthread->td_ucred);
-		        if (*object == NULL)
-               			 return (EINVAL);
-			if (vma.vm_page_prot != VM_MEMATTR_DEFAULT)
-				pmap_page_set_memattr(m, vma.vm_page_prot);
+			struct sglist *sg;
+
+			sg = sglist_alloc(1, M_WAITOK);
+			sglist_append_phys(sg,
+			    (vm_paddr_t)vma.vm_pfn << PAGE_SHIFT, vma.vm_len);
+			*object = vm_pager_allocate(OBJT_SG, sg, vma.vm_len,
+			    nprot, 0, curthread->td_ucred);
+		        if (*object == NULL) {
+				sglist_free(sg);
+				return (EINVAL);
+			}
+			*offset = 0;
+			if (vma.vm_page_prot != VM_MEMATTR_DEFAULT) {
+				VM_OBJECT_WLOCK(*object);
+				vm_object_set_memattr(*object,
+				    vma.vm_page_prot);
+				VM_OBJECT_WUNLOCK(*object);
+			}
 		}
 	} else
 		error = ENODEV;
@@ -479,7 +475,6 @@ struct cdevsw linuxcdevsw = {
 	.d_write = linux_dev_write,
 	.d_ioctl = linux_dev_ioctl,
 	.d_mmap_single = linux_dev_mmap_single,
-	.d_mmap = linux_dev_mmap,
 	.d_poll = linux_dev_poll,
 };
 

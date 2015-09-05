@@ -388,6 +388,7 @@ ACCEPT_FILTER_HTTP
 ALTQ			opt_global.h
 ALTQ_CBQ		opt_altq.h
 ALTQ_CDNR		opt_altq.h
+ALTQ_CODEL		opt_altq.h
 ALTQ_DEBUG		opt_altq.h
 ALTQ_HFSC		opt_altq.h
 ALTQ_FAIRQ		opt_altq.h
@@ -944,17 +945,16 @@ RACCT_DEFAULT_TO_DISABLED	opt_global.h
 RCTL		opt_global.h
 
 # Random number generator(s)
-# The DEBUG option is in global.h as the random harvesting
-# puts probes all over the place, and it makes little sense
-# to pollute these headers with an extra include.
-RANDOM_DEBUG	opt_random.h
-# Which CSPRNG hashes we get.
+# Which CSPRNG hash we get.
 # If Yarrow is not chosen, Fortuna is selected.
 RANDOM_YARROW	opt_random.h
 # With this, no entropy processor is loaded, but the entropy
 # harvesting infrastructure is present. This means an entropy
 # processor may be loaded as a module.
 RANDOM_LOADABLE	opt_random.h
+# This turns on high-rate and potentially expensive harvesting in
+# the uma slab allocator.
+RANDOM_ENABLE_UMA	opt_global.h
 
 # Intel em(4) driver
 EM_MULTIQUEUE	opt_em.h

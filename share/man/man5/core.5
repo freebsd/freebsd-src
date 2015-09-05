@@ -28,7 +28,7 @@
 .\"     @(#)core.5	8.3 (Berkeley) 12/11/93
 .\" $FreeBSD$
 .\"
-.Dd March 8, 2015
+.Dd September 2, 2015
 .Dt CORE 5
 .Os
 .Sh NAME
@@ -120,6 +120,16 @@ Compressed core files will have a suffix of
 .Ql .gz
 appended to them.
 .El
+.Sh NOTES
+Corefiles are written with open file descriptor information as an ELF note.
+By default, file paths are packed to only use as much space as needed.
+However, file paths can change at any time, including during core dump,
+and this can result in truncated file descriptor data.
+.Pp
+All file descriptor information can be preserved by disabling packing.
+This potentially wastes up to PATH_MAX bytes per open fd.
+Packing is disabled with
+.Dl sysctl kern.coredump_pack_fileinfo=0 .
 .Sh EXAMPLES
 In order to store all core images in per-user private areas under
 .Pa /var/coredumps ,

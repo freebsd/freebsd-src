@@ -146,8 +146,6 @@ int		cfiscsi_init(void);
 static void	cfiscsi_online(void *arg);
 static void	cfiscsi_offline(void *arg);
 static int	cfiscsi_info(void *arg, struct sbuf *sb);
-static int	cfiscsi_lun_enable(void *arg, int lun_id);
-static int	cfiscsi_lun_disable(void *arg, int lun_id);
 static int	cfiscsi_ioctl(struct cdev *dev,
 		    u_long cmd, caddr_t addr, int flag, struct thread *td);
 static void	cfiscsi_datamove(union ctl_io *io);
@@ -2100,9 +2098,6 @@ cfiscsi_ioctl_port_create(struct ctl_req *req)
 	port->port_offline = cfiscsi_offline;
 	port->port_info = cfiscsi_info;
 	port->onoff_arg = ct;
-	port->lun_enable = cfiscsi_lun_enable;
-	port->lun_disable = cfiscsi_lun_disable;
-	port->targ_lun_arg = ct;
 	port->fe_datamove = cfiscsi_datamove;
 	port->fe_done = cfiscsi_done;
 
@@ -2367,20 +2362,6 @@ cfiscsi_target_find_or_create(struct cfiscsi_softc *softc, const char *name,
 	mtx_unlock(&softc->lock);
 
 	return (newct);
-}
-
-static int
-cfiscsi_lun_enable(void *arg, int lun_id)
-{
-
-	return (0);
-}
-
-static int
-cfiscsi_lun_disable(void *arg, int lun_id)
-{
-
-	return (0);
 }
 
 static void

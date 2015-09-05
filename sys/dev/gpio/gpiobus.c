@@ -386,7 +386,10 @@ gpiobus_probe_nomatch(device_t dev, device_t child)
 	devi = GPIOBUS_IVAR(child);
 	memset(pins, 0, sizeof(pins));
 	gpiobus_print_pins(devi, pins, sizeof(pins));
-	device_printf(dev, "<unknown device> at pin(s) %s", pins);
+	if (devi->npins > 1)
+		device_printf(dev, "<unknown device> at pins %s", pins);
+	else
+		device_printf(dev, "<unknown device> at pin %s", pins);
 	resource_list_print_type(&devi->rl, "irq", SYS_RES_IRQ, "%ld");
 	printf("\n");
 }
@@ -422,7 +425,10 @@ gpiobus_child_location_str(device_t bus, device_t child, char *buf,
 	struct gpiobus_ivar *devi;
 
 	devi = GPIOBUS_IVAR(child);
-	strlcpy(buf, "pin(s)=", buflen);
+	if (devi->npins > 1)
+		strlcpy(buf, "pins=", buflen);
+	else
+		strlcpy(buf, "pin=", buflen);
 	gpiobus_print_pins(devi, buf, buflen);
 
 	return (0);

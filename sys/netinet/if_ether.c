@@ -218,8 +218,8 @@ arptimer(void *arg)
 
 	/* Guard against race with other llentry_free(). */
 	if (lle->la_flags & LLE_LINKED) {
-		size_t pkts_dropped;
 
+		size_t pkts_dropped;
 		LLE_REMREF(lle);
 		pkts_dropped = llentry_free(lle);
 		ARPSTAT_ADD(dropped, pkts_dropped);
@@ -323,7 +323,7 @@ static int
 arpresolve_full(struct ifnet *ifp, int is_gw, int create, struct mbuf *m,
 	const struct sockaddr *dst, u_char *desten, uint32_t *pflags)
 {
-	struct llentry *la = NULL;
+	struct llentry *la = NULL, *la_tmp;
 	struct mbuf *curr = NULL;
 	struct mbuf *next = NULL;
 	int error, renew;
@@ -337,16 +337,28 @@ arpresolve_full(struct ifnet *ifp, int is_gw, int create, struct mbuf *m,
 		IF_AFDATA_RUNLOCK(ifp);
 	}
 	if (la == NULL && (ifp->if_flags & (IFF_NOARP | IFF_STATICARP)) == 0) {
-		create = 1;
-		IF_AFDATA_WLOCK(ifp);
-		la = lla_create(LLTABLE(ifp), 0, dst);
-		IF_AFDATA_WUNLOCK(ifp);
-	}
-	if (la == NULL) {
-		if (create != 0)
+		la = lltable_alloc_entry(LLTABLE(ifp), 0, dst);
+		if (la == NULL) {
 			log(LOG_DEBUG,
 			    "arpresolve: can't allocate llinfo for %s on %s\n",
-			    inet_ntoa(SIN(dst)->sin_addr), ifp->if_xname);
+			    inet_ntoa(SIN(dst)->sin_addr), if_name(ifp));
+			m_freem(m);
+			return (EINVAL);
+		}
+
+		IF_AFDATA_WLOCK(ifp);
+		LLE_WLOCK(la);
+		la_tmp = lla_lookup(LLTABLE(ifp), LLE_EXCLUSIVE, dst);
+		/* Prefer ANY existing lle over newly-created one */
+		if (la_tmp == NULL)
+			lltable_link_entry(LLTABLE(ifp), la);
+		IF_AFDATA_WUNLOCK(ifp);
+		if (la_tmp != NULL) {
+			lltable_free_entry(LLTABLE(ifp), la);
+			la = la_tmp;
+		}
+	}
+	if (la == NULL) {
 		m_freem(m);
 		return (EINVAL);
 	}
@@ -608,7 +620,7 @@ in_arpinput(struct mbuf *m)
 	struct rm_priotracker in_ifa_tracker;
 	struct arphdr *ah;
 	struct ifnet *ifp = m->m_pkthdr.rcvif;
-	struct llentry *la = NULL;
+	struct llentry *la = NULL, *la_tmp;
 	struct rtentry *rt;
 	struct ifaddr *ifa;
 	struct in_ifaddr *ia;
@@ -620,6 +632,7 @@ in_arpinput(struct mbuf *m)
 	int bridged = 0, is_bridge = 0;
 	int carped;
 	struct sockaddr_in sin;
+	struct sockaddr *dst;
 	sin.sin_len = sizeof(struct sockaddr_in);
 	sin.sin_family = AF_INET;
 	sin.sin_addr.s_addr = 0;
@@ -749,7 +762,6 @@ match:
 	}
 
 	if (ifp->if_addrlen != ah->ar_hln) {
-		LLE_WUNLOCK(la);
 		ARP_LOG(LOG_WARNING, "from %*D: addr len: new %d, "
 		    "i/f %d (ignored)\n", ifp->if_addrlen,
 		    (u_char *) ar_sha(ah), ":", ah->ar_hln,
@@ -779,8 +791,9 @@ match:
 	sin.sin_len = sizeof(struct sockaddr_in);
 	sin.sin_family = AF_INET;
 	sin.sin_addr = isaddr;
+	dst = (struct sockaddr *)&sin;
 	IF_AFDATA_RLOCK(ifp);
-	la = lla_lookup(LLTABLE(ifp), LLE_EXCLUSIVE, (struct sockaddr *)&sin);
+	la = lla_lookup(LLTABLE(ifp), LLE_EXCLUSIVE, dst);
 	IF_AFDATA_RUNLOCK(ifp);
 	if (la != NULL)
 		arp_check_update_lle(ah, isaddr, ifp, bridged, la);
@@ -789,12 +802,47 @@ match:
 		 * Reply to our address, but no lle exists yet.
 		 * do we really have to create an entry?
 		 */
-		IF_AFDATA_WLOCK(ifp);
-		la = lla_create(LLTABLE(ifp), 0, (struct sockaddr *)&sin);
+		la = lltable_alloc_entry(LLTABLE(ifp), 0, dst);
+		if (la == NULL)
+			goto drop;
 		arp_update_lle(ah, ifp, la);
+
+		IF_AFDATA_WLOCK(ifp);
+		LLE_WLOCK(la);
+		la_tmp = lla_lookup(LLTABLE(ifp), LLE_EXCLUSIVE, dst);
+
+		/*
+		 * Check if lle still does not exists.
+		 * If it does, that means that we either
+		 * 1) have configured it explicitly, via
+		 * 1a) 'arp -s' static entry or
+		 * 1b) interface address static record
+		 * or
+		 * 2) it was the result of sending first packet to-host
+		 * or
+		 * 3) it was another arp reply packet we handled in
+		 * different thread.
+		 *
+		 * In all cases except 3) we definitely need to prefer
+		 * existing lle. For the sake of simplicity, prefer any
+		 * existing lle over newly-create one.
+		 */
+		if (la_tmp == NULL)
+			lltable_link_entry(LLTABLE(ifp), la);
 		IF_AFDATA_WUNLOCK(ifp);
-		arp_mark_lle_reachable(la);
-		LLE_WUNLOCK(la);
+
+		if (la_tmp == NULL) {
+			arp_mark_lle_reachable(la);
+			LLE_WUNLOCK(la);
+		} else {
+			/* Free newly-create entry and handle packet */
+			lltable_free_entry(LLTABLE(ifp), la);
+			la = la_tmp;
+			la_tmp = NULL;
+			arp_check_update_lle(ah, isaddr, ifp, bridged, la);
+			/* arp_check_update_lle() returns @la unlocked */
+		}
+		la = NULL;
 	}
 reply:
 	if (op != ARPOP_REQUEST)
@@ -1042,30 +1090,53 @@ arp_mark_lle_reachable(struct llentry *la)
 void
 arp_ifinit(struct ifnet *ifp, struct ifaddr *ifa)
 {
-	struct llentry *lle;
+	struct llentry *lle, *lle_tmp;
+	struct sockaddr_in *dst_in;
+	struct sockaddr *dst;
 
 	if (ifa->ifa_carp != NULL)
 		return;
 
-	if (ntohl(IA_SIN(ifa)->sin_addr.s_addr) != INADDR_ANY) {
-		arprequest(ifp, &IA_SIN(ifa)->sin_addr,
-				&IA_SIN(ifa)->sin_addr, IF_LLADDR(ifp));
-		/*
-		 * interface address is considered static entry
-		 * because the output of the arp utility shows
-		 * that L2 entry as permanent
-		 */
-		IF_AFDATA_LOCK(ifp);
-		lle = lla_create(LLTABLE(ifp), LLE_IFADDR | LLE_STATIC,
-				 (struct sockaddr *)IA_SIN(ifa));
-		IF_AFDATA_UNLOCK(ifp);
-		if (lle == NULL)
-			log(LOG_INFO, "arp_ifinit: cannot create arp "
-			    "entry for interface address\n");
-		else
-			LLE_WUNLOCK(lle);
-	}
 	ifa->ifa_rtrequest = NULL;
+
+	dst_in = IA_SIN(ifa);
+	dst = (struct sockaddr *)dst_in;
+
+	if (ntohl(IA_SIN(ifa)->sin_addr.s_addr) == INADDR_ANY)
+		return;
+
+	arprequest(ifp, &IA_SIN(ifa)->sin_addr,
+			&IA_SIN(ifa)->sin_addr, IF_LLADDR(ifp));
+
+	/*
+	 * Interface address LLE record is considered static
+	 * because kernel code relies on LLE_STATIC flag to check
+	 * if these entries can be rewriten by arp updates.
+	 */
+	lle = lltable_alloc_entry(LLTABLE(ifp), LLE_IFADDR | LLE_STATIC, dst);
+	if (lle == NULL) {
+		log(LOG_INFO, "arp_ifinit: cannot create arp "
+		    "entry for interface address\n");
+		return;
+	}
+
+	IF_AFDATA_WLOCK(ifp);
+	LLE_WLOCK(lle);
+	/* Unlink any entry if exists */
+	lle_tmp = lla_lookup(LLTABLE(ifp), LLE_EXCLUSIVE, dst);
+	if (lle_tmp != NULL)
+		lltable_unlink_entry(LLTABLE(ifp), lle_tmp);
+
+	lltable_link_entry(LLTABLE(ifp), lle);
+	IF_AFDATA_WUNLOCK(ifp);
+
+	if (lle_tmp != NULL)
+		EVENTHANDLER_INVOKE(lle_event, lle_tmp, LLENTRY_EXPIRED);
+
+	EVENTHANDLER_INVOKE(lle_event, lle, LLENTRY_RESOLVED);
+	LLE_WUNLOCK(lle);
+	if (lle_tmp != NULL)
+		lltable_free_entry(LLTABLE(ifp), lle_tmp);
 }
 
 void
