@@ -175,7 +175,7 @@ efifb_uga_find_pixel(EFI_UGA_DRAW_PROTOCOL *uga, u_int line,
 		ofs += count;
 		size -= count;
 	}
-	printf("Couldn't find the pixel");
+	printf("No change detected in frame buffer");
 
  fail:
 	printf(" -- error %lu\n", status & ~EFI_ERROR_MASK);
@@ -218,18 +218,20 @@ efifb_uga_get_pciio(void)
 }
 
 static EFI_STATUS
-efifb_uga_detect_framebuffer(EFI_UGA_DRAW_PROTOCOL *uga,
-    EFI_PCI_IO_PROTOCOL *pciio, uint64_t *addrp, uint64_t *sizep)
+efifb_uga_locate_framebuffer(EFI_PCI_IO_PROTOCOL *pciio, uint64_t *addrp,
+    uint64_t *sizep)
 {
 	uint8_t *resattr;
-	uint64_t a, addr, s, size;
-	ssize_t ofs;
+	uint64_t addr, size;
 	EFI_STATUS status;
 	u_int bar;
 
+	if (pciio == NULL)
+		return (EFI_DEVICE_ERROR);
+
 	/* Attempt to get the frame buffer address (imprecise). */
-	addr = 0;
-	size = 0;
+	*addrp = 0;
+	*sizep = 0;
 	for (bar = 0; bar < 6; bar++) {
 		status = pciio->GetBarAttributes(pciio, bar, NULL,
 		    (void **)&resattr);
@@ -238,43 +240,27 @@ efifb_uga_detect_framebuffer(EFI_UGA_DRAW_PROTOCOL *uga,
 		/* XXX magic offsets and constants. */
 		if (resattr[0] == 0x87 && resattr[3] == 0) {
 			/* 32-bit address space descriptor (MEMIO) */
-			a = le32dec(resattr + 10);
-			s = le32dec(resattr + 22);
+			addr = le32dec(resattr + 10);
+			size = le32dec(resattr + 22);
 		} else if (resattr[0] == 0x8a && resattr[3] == 0) {
 			/* 64-bit address space descriptor (MEMIO) */
-			a = le64dec(resattr + 14);
-			s = le64dec(resattr + 38);
+			addr = le64dec(resattr + 14);
+			size = le64dec(resattr + 38);
 		} else {
-			a = 0;
-			s = 0;
+			addr = 0;
+			size = 0;
 		}
 		BS->FreePool(resattr);
-		if (a == 0 || s == 0)
+		if (addr == 0 || size == 0)
 			continue;
 
 		/* We assume the largest BAR is the frame buffer. */
-		if (s > size) {
-			addr = a;
-			size = s;
+		if (size > *sizep) {
+			*addrp = addr;
+			*sizep = size;
 		}
 	}
-	if (addr == 0 || size == 0)
-		return (EFI_DEVICE_ERROR);
-
-	/*
-	 * The visible part of the frame buffer may not start at offset
-	 * 0, so try to detect it.
-	 */
-	ofs = efifb_uga_find_pixel(uga, 0, pciio, addr, size);
-	if (ofs == -1)
-		return (EFI_NO_RESPONSE);
-
-	addr += ofs;
-	size -= ofs;
-
-	*addrp = addr;
-	*sizep = size;
-	return (0);
+	return ((*addrp == 0 || *sizep == 0) ? EFI_DEVICE_ERROR : 0);
 }
 
 static int
@@ -284,29 +270,75 @@ efifb_from_uga(struct efi_fb *efifb, EFI_UGA_DRAW_PROTOCOL *uga)
 	char *ev, *p;
 	EFI_STATUS status;
 	ssize_t ofs;
-	uint32_t horiz, vert, depth, refresh;
+	uint32_t np, horiz, vert, depth, refresh;
 
 	status = uga->GetMode(uga, &horiz, &vert, &depth, &refresh);
 	if (EFI_ERROR(status))
 		return (1);
 	efifb->fb_height = vert;
 	efifb->fb_width = horiz;
+	/* Paranoia... */
+	if (efifb->fb_height == 0 || efifb->fb_width == 0)
+		return (1);
+
+	/* The color masks are fixed AFAICT. */
 	efifb_mask_from_pixfmt(efifb, PixelBlueGreenRedReserved8BitPerColor,
 	    NULL);
 
+	/*
+	 * The stride is equal or larger to the width. Often it's the
+	 * next larger power of two. We'll start with that...
+	 */
+	efifb->fb_stride = efifb->fb_width;
+	do {
+		np = efifb->fb_stride & (efifb->fb_stride - 1);
+		if (np) {
+			efifb->fb_stride |= (np - 1);
+			efifb->fb_stride++;
+		}
+	} while (np);
+
+	/* pciio can be NULL on return! */
 	pciio = efifb_uga_get_pciio();
-	if (pciio == NULL)
-		return (1);
 
 	ev = getenv("uga_framebuffer");
 	if (ev == NULL) {
 		/* Try to find the frame buffer. */
-		status = efifb_uga_detect_framebuffer(uga, pciio,
-		    &efifb->fb_addr, &efifb->fb_size);
-		if (EFI_ERROR(status))
+		status = efifb_uga_locate_framebuffer(pciio, &efifb->fb_addr,
+		    &efifb->fb_size);
+		if (EFI_ERROR(status)) {
+			printf("Please set uga_framebuffer!\n");
 			return (1);
+		}
+
+		/*
+		 * The visible part of the frame buffer may not start at
+		 * offset 0, so try to detect it. Note that we may not
+		 * always be able to read from the frame buffer, which
+		 * means that we may not be able to detect anything. In
+		 * that case, we would take a long time scanning for a
+		 * pixel change in the frame buffer, which would have it
+		 * appear that we're hanging, so we limit the scan to
+		 * 1/256th of the frame buffer. This number is mostly
+		 * based on PR 202730 and the fact that on a MacBoook,
+		 * where we can't read from the frame buffer the offset
+		 * of the visible region is 0. In short: we want to scan
+		 * enough to handle all adapters that have an offset
+		 * larger than 0 and we want to scan as little as we can
+		 * to not appear to hang when we can't read from the
+		 * frame buffer.
+		 */
+		ofs = efifb_uga_find_pixel(uga, 0, pciio, efifb->fb_addr,
+		    efifb->fb_size >> 8);
+		if (ofs == -1) {
+			printf("Unable to reliably detect frame buffer.\n");
+		} else if (ofs > 0) {
+			efifb->fb_addr += ofs;
+			efifb->fb_size -= ofs;
+		}
 	} else {
-		efifb->fb_size = horiz * vert * 4;
+		ofs = 0;
+		efifb->fb_size = efifb->fb_height * efifb->fb_stride * 4;
 		efifb->fb_addr = strtoul(ev, &p, 0);
 		if (*p != '\0')
 			return (1);
@@ -314,17 +346,26 @@ efifb_from_uga(struct efi_fb *efifb, EFI_UGA_DRAW_PROTOCOL *uga)
 
 	ev = getenv("uga_stride");
 	if (ev == NULL) {
-		/* Try to detect the stride. */
-		ofs = efifb_uga_find_pixel(uga, 1, pciio, efifb->fb_addr,
-		    efifb->fb_size);
-		if (ofs == -1)
-			return (1);
-		efifb->fb_stride = ofs >> 2;
+		if (pciio != NULL && ofs != -1) {
+			/* Determine the stride. */
+			ofs = efifb_uga_find_pixel(uga, 1, pciio,
+			    efifb->fb_addr, horiz * 8);
+			if (ofs != -1)
+				efifb->fb_stride = ofs >> 2;
+		} else {
+			printf("Unable to reliably detect the stride.\n");
+		}
 	} else {
 		efifb->fb_stride = strtoul(ev, &p, 0);
 		if (*p != '\0')
 			return (1);
 	}
+
+	/*
+	 * We finalized on the stride, so recalculate the size of the
+	 * frame buffer.
+	 */
+	efifb->fb_size = efifb->fb_height * efifb->fb_stride * 4;
 	return (0);
 }
 
