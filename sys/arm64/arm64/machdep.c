@@ -26,6 +26,7 @@
  */
 
 #include "opt_platform.h"
+#include "opt_ddb.h"
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -868,3 +869,89 @@ initarm(struct arm64_bootparams *abp)
 	early_boot = 0;
 }
 
+#ifdef DDB
+#include <ddb/ddb.h>
+
+DB_SHOW_COMMAND(specialregs, db_show_spregs)
+{
+#define	PRINT_REG(reg)	\
+    db_printf(__STRING(reg) " = %#016lx\n", READ_SPECIALREG(reg))
+
+	PRINT_REG(actlr_el1);
+	PRINT_REG(afsr0_el1);
+	PRINT_REG(afsr1_el1);
+	PRINT_REG(aidr_el1);
+	PRINT_REG(amair_el1);
+	PRINT_REG(ccsidr_el1);
+	PRINT_REG(clidr_el1);
+	PRINT_REG(contextidr_el1);
+	PRINT_REG(cpacr_el1);
+	PRINT_REG(csselr_el1);
+	PRINT_REG(ctr_el0);
+	PRINT_REG(currentel);
+	PRINT_REG(daif);
+	PRINT_REG(dczid_el0);
+	PRINT_REG(elr_el1);
+	PRINT_REG(esr_el1);
+	PRINT_REG(far_el1);
+	PRINT_REG(fpcr);
+	PRINT_REG(fpsr);
+	PRINT_REG(id_aa64afr0_el1);
+	PRINT_REG(id_aa64afr1_el1);
+	PRINT_REG(id_aa64dfr0_el1);
+	PRINT_REG(id_aa64dfr1_el1);
+	PRINT_REG(id_aa64isar0_el1);
+	PRINT_REG(id_aa64isar1_el1);
+	PRINT_REG(id_aa64pfr0_el1);
+	PRINT_REG(id_aa64pfr1_el1);
+	PRINT_REG(id_afr0_el1);
+	PRINT_REG(id_dfr0_el1);
+	PRINT_REG(id_isar0_el1);
+	PRINT_REG(id_isar1_el1);
+	PRINT_REG(id_isar2_el1);
+	PRINT_REG(id_isar3_el1);
+	PRINT_REG(id_isar4_el1);
+	PRINT_REG(id_isar5_el1);
+	PRINT_REG(id_mmfr0_el1);
+	PRINT_REG(id_mmfr1_el1);
+	PRINT_REG(id_mmfr2_el1);
+	PRINT_REG(id_mmfr3_el1);
+#if 0
+	/* Missing from llvm */
+	PRINT_REG(id_mmfr4_el1);
+#endif
+	PRINT_REG(id_pfr0_el1);
+	PRINT_REG(id_pfr1_el1);
+	PRINT_REG(isr_el1);
+	PRINT_REG(mair_el1);
+	PRINT_REG(midr_el1);
+	PRINT_REG(mpidr_el1);
+	PRINT_REG(mvfr0_el1);
+	PRINT_REG(mvfr1_el1);
+	PRINT_REG(mvfr2_el1);
+	PRINT_REG(revidr_el1);
+	PRINT_REG(sctlr_el1);
+	PRINT_REG(sp_el0);
+	PRINT_REG(spsel);
+	PRINT_REG(spsr_el1);
+	PRINT_REG(tcr_el1);
+	PRINT_REG(tpidr_el0);
+	PRINT_REG(tpidr_el1);
+	PRINT_REG(tpidrro_el0);
+	PRINT_REG(ttbr0_el1);
+	PRINT_REG(ttbr1_el1);
+	PRINT_REG(vbar_el1);
+#undef PRINT_REG
+}
+
+DB_SHOW_COMMAND(vtop, db_show_vtop)
+{
+	uint64_t phys;
+
+	if (have_addr) {
+		phys = arm64_address_translate_s1e1r(addr);
+		db_printf("Physical address reg: 0x%016lx\n", phys);
+	} else
+		db_printf("show vtop <virt_addr>\n");
+}
+#endif
