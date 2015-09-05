@@ -487,7 +487,7 @@ void	if_purgeaddrs(struct ifnet *);
 void	if_delallmulti(struct ifnet *);
 void	if_down(struct ifnet *);
 struct ifmultiaddr *
-	if_findmulti(struct ifnet *, struct sockaddr *);
+	if_findmulti(struct ifnet *, const struct sockaddr *);
 void	if_free(struct ifnet *);
 void	if_initname(struct ifnet *, const char *, int);
 void	if_link_state_change(struct ifnet *, int);
@@ -505,13 +505,14 @@ int	ifa_add_loopback_route(struct ifaddr *, struct sockaddr *);
 int	ifa_del_loopback_route(struct ifaddr *, struct sockaddr *);
 int	ifa_switch_loopback_route(struct ifaddr *, struct sockaddr *, int fib);
 
-struct	ifaddr *ifa_ifwithaddr(struct sockaddr *);
-int		ifa_ifwithaddr_check(struct sockaddr *);
-struct	ifaddr *ifa_ifwithbroadaddr(struct sockaddr *, int);
-struct	ifaddr *ifa_ifwithdstaddr(struct sockaddr *, int);
-struct	ifaddr *ifa_ifwithnet(struct sockaddr *, int, int);
-struct	ifaddr *ifa_ifwithroute(int, struct sockaddr *, struct sockaddr *, u_int);
-struct	ifaddr *ifaof_ifpforaddr(struct sockaddr *, struct ifnet *);
+struct	ifaddr *ifa_ifwithaddr(const struct sockaddr *);
+int		ifa_ifwithaddr_check(const struct sockaddr *);
+struct	ifaddr *ifa_ifwithbroadaddr(const struct sockaddr *, int);
+struct	ifaddr *ifa_ifwithdstaddr(const struct sockaddr *, int);
+struct	ifaddr *ifa_ifwithnet(const struct sockaddr *, int, int);
+struct	ifaddr *ifa_ifwithroute(int, const struct sockaddr *, struct sockaddr *,
+    u_int);
+struct	ifaddr *ifaof_ifpforaddr(const struct sockaddr *, struct ifnet *);
 int	ifa_preferred(struct ifaddr *, struct ifaddr *);
 
 int	if_simloop(struct ifnet *ifp, struct mbuf *m, int af, int hlen);

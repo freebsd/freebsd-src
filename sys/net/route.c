@@ -704,7 +704,7 @@ rtioctl_fib(u_long req, caddr_t data, u_int fibnum)
 }
 
 struct ifaddr *
-ifa_ifwithroute(int flags, struct sockaddr *dst, struct sockaddr *gateway,
+ifa_ifwithroute(int flags, const struct sockaddr *dst, struct sockaddr *gateway,
 				u_int fibnum)
 {
 	struct ifaddr *ifa;

@@ -1624,18 +1624,18 @@ ifa_switch_loopback_route(struct ifaddr *ifa, struct sockaddr *sa, int fib)
  */
 
 #define	sa_dl_equal(a1, a2)	\
-	((((struct sockaddr_dl *)(a1))->sdl_len ==			\
-	 ((struct sockaddr_dl *)(a2))->sdl_len) &&			\
-	 (bcmp(LLADDR((struct sockaddr_dl *)(a1)),			\
-	       LLADDR((struct sockaddr_dl *)(a2)),			\
-	       ((struct sockaddr_dl *)(a1))->sdl_alen) == 0))
+	((((const struct sockaddr_dl *)(a1))->sdl_len ==		\
+	 ((const struct sockaddr_dl *)(a2))->sdl_len) &&		\
+	 (bcmp(CLLADDR((const struct sockaddr_dl *)(a1)),		\
+	       CLLADDR((const struct sockaddr_dl *)(a2)),		\
+	       ((const struct sockaddr_dl *)(a1))->sdl_alen) == 0))
 
 /*
  * Locate an interface based on a complete address.
  */
 /*ARGSUSED*/
 static struct ifaddr *
-ifa_ifwithaddr_internal(struct sockaddr *addr, int getref)
+ifa_ifwithaddr_internal(const struct sockaddr *addr, int getref)
 {
 	struct ifnet *ifp;
 	struct ifaddr *ifa;
@@ -1672,14 +1672,14 @@ done:
 }
 
 struct ifaddr *
-ifa_ifwithaddr(struct sockaddr *addr)
+ifa_ifwithaddr(const struct sockaddr *addr)
 {
 
 	return (ifa_ifwithaddr_internal(addr, 1));
 }
 
 int
-ifa_ifwithaddr_check(struct sockaddr *addr)
+ifa_ifwithaddr_check(const struct sockaddr *addr)
 {
 
 	return (ifa_ifwithaddr_internal(addr, 0) != NULL);
@@ -1690,7 +1690,7 @@ ifa_ifwithaddr_check(struct sockaddr *addr)
  */
 /* ARGSUSED */
 struct ifaddr *
-ifa_ifwithbroadaddr(struct sockaddr *addr, int fibnum)
+ifa_ifwithbroadaddr(const struct sockaddr *addr, int fibnum)
 {
 	struct ifnet *ifp;
 	struct ifaddr *ifa;
@@ -1725,7 +1725,7 @@ done:
  */
 /*ARGSUSED*/
 struct ifaddr *
-ifa_ifwithdstaddr(struct sockaddr *addr, int fibnum)
+ifa_ifwithdstaddr(const struct sockaddr *addr, int fibnum)
 {
 	struct ifnet *ifp;
 	struct ifaddr *ifa;
@@ -1760,20 +1760,20 @@ done:
  * is most specific found.
  */
 struct ifaddr *
-ifa_ifwithnet(struct sockaddr *addr, int ignore_ptp, int fibnum)
+ifa_ifwithnet(const struct sockaddr *addr, int ignore_ptp, int fibnum)
 {
 	struct ifnet *ifp;
 	struct ifaddr *ifa;
 	struct ifaddr *ifa_maybe = NULL;
 	u_int af = addr->sa_family;
-	char *addr_data = addr->sa_data, *cplim;
+	const char *addr_data = addr->sa_data, *cplim;
 
 	/*
 	 * AF_LINK addresses can be looked up directly by their index number,
 	 * so do that if we can.
 	 */
 	if (af == AF_LINK) {
-	    struct sockaddr_dl *sdl = (struct sockaddr_dl *)addr;
+	    const struct sockaddr_dl *sdl = (const struct sockaddr_dl *)addr;
 	    if (sdl->sdl_index && sdl->sdl_index <= V_if_index)
 		return (ifaddr_byindex(sdl->sdl_index));
 	}
@@ -1790,7 +1790,7 @@ ifa_ifwithnet(struct sockaddr *addr, int ignore_ptp, int fibnum)
 			continue;
 		IF_ADDR_RLOCK(ifp);
 		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
-			char *cp, *cp2, *cp3;
+			const char *cp, *cp2, *cp3;
 
 			if (ifa->ifa_addr->sa_family != af)
 next:				continue;
@@ -1863,10 +1863,10 @@ done:
  * a given address.
  */
 struct ifaddr *
-ifaof_ifpforaddr(struct sockaddr *addr, struct ifnet *ifp)
+ifaof_ifpforaddr(const struct sockaddr *addr, struct ifnet *ifp)
 {
 	struct ifaddr *ifa;
-	char *cp, *cp2, *cp3;
+	const char *cp, *cp2, *cp3;
 	char *cplim;
 	struct ifaddr *ifa_maybe = NULL;
 	u_int af = addr->sa_family;
@@ -2924,7 +2924,7 @@ if_allmulti(struct ifnet *ifp, int onswitch)
 }
 
 struct ifmultiaddr *
-if_findmulti(struct ifnet *ifp, struct sockaddr *sa)
+if_findmulti(struct ifnet *ifp, const struct sockaddr *sa)
 {
 	struct ifmultiaddr *ifma;
 

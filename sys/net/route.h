@@ -282,8 +282,8 @@ struct rt_addrinfo {
 	1 + ( (((struct sockaddr *)(sa))->sa_len - 1) | (sizeof(long) - 1) ) )
 
 #define	sa_equal(a, b) (	\
-    (((struct sockaddr *)(a))->sa_len == ((struct sockaddr *)(b))->sa_len) && \
-    (bcmp((a), (b), ((struct sockaddr *)(b))->sa_len) == 0))
+    (((const struct sockaddr *)(a))->sa_len == ((const struct sockaddr *)(b))->sa_len) && \
+    (bcmp((a), (b), ((const struct sockaddr *)(b))->sa_len) == 0))
 
 #ifdef _KERNEL
 
