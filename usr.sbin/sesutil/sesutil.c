@@ -175,7 +175,6 @@ locate(int argc, char **argv)
 			}
 		}	
 		close(fd);
-		i++;
 	}
 	globfree(&g);
 
