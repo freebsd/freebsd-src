@@ -104,7 +104,7 @@ locate(int argc, char **argv)
 	size_t len, i;
 	int fd, nobj, j;
 	bool all = false;
-	bool locate;
+	bool onoff;
 
 	if (argc != 2) {
 		errx(EXIT_FAILURE, "usage: %s locate [disk] [on|off]",
@@ -114,9 +114,9 @@ locate(int argc, char **argv)
 	disk = argv[0];
 
 	if (strcmp(argv[1], "on") == 0) {
-		locate = true;
+		onoff = true;
 	} else if (strcmp(argv[1], "off") == 0) {
-		locate = false;
+		onoff = false;
 	} else {
 		errx(EXIT_FAILURE, "usage: %s locate [disk] [on|off]",
 		    getprogname());
@@ -165,11 +165,11 @@ locate(int argc, char **argv)
 				continue;
 			if (objdn.elm_names_len > 0) {
 				if (all) {
-					do_locate(fd, objdn.elm_idx, locate);
+					do_locate(fd, objdn.elm_idx, onoff);
 					continue;
 				}
 				if (disk_match(objdn.elm_devnames, disk, len)) {
-					do_locate(fd, objdn.elm_idx, locate);
+					do_locate(fd, objdn.elm_idx, onoff);
 					break;
 				}
 			}
