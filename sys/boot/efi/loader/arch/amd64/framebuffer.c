@@ -183,29 +183,24 @@ efifb_uga_find_pixel(EFI_UGA_DRAW_PROTOCOL *uga, u_int line,
 	return (-1);
 }
 
-static EFI_STATUS
-efifb_uga_detect_framebuffer(EFI_UGA_DRAW_PROTOCOL *uga,
-    EFI_PCI_IO_PROTOCOL **pciiop, uint64_t *addrp, uint64_t *sizep)
+static EFI_PCI_IO_PROTOCOL *
+efifb_uga_get_pciio(void)
 {
 	EFI_PCI_IO_PROTOCOL *pciio;
 	EFI_HANDLE *buf, *hp;
-	uint8_t *resattr;
-	uint64_t a, addr, s, size;
-	ssize_t ofs;
 	EFI_STATUS status;
 	UINTN bufsz;
-	u_int bar;
 
 	/* Get all handles that support the UGA protocol. */
 	bufsz = 0;
 	status = BS->LocateHandle(ByProtocol, &uga_guid, NULL, &bufsz, NULL);
 	if (status != EFI_BUFFER_TOO_SMALL)
-		return (status);
+		return (NULL);
 	buf = malloc(bufsz);
 	status = BS->LocateHandle(ByProtocol, &uga_guid, NULL, &bufsz, buf);
 	if (status != EFI_SUCCESS) {
 		free(buf);
-		return (status);
+		return (NULL);
 	}
 	bufsz /= sizeof(EFI_HANDLE);
 
@@ -213,12 +208,24 @@ efifb_uga_detect_framebuffer(EFI_UGA_DRAW_PROTOCOL *uga,
 	pciio = NULL;
 	for (hp = buf; hp < buf + bufsz; hp++) {
 		status = BS->HandleProtocol(*hp, &pciio_guid, (void **)&pciio);
-		if (status == EFI_SUCCESS)
-			break;
+		if (status == EFI_SUCCESS) {
+			free(buf);
+			return (pciio);
+		}
 	}
 	free(buf);
-	if (status != EFI_SUCCESS || pciio == NULL)
-		return (EFI_NOT_FOUND);
+	return (NULL);
+}
+
+static EFI_STATUS
+efifb_uga_detect_framebuffer(EFI_UGA_DRAW_PROTOCOL *uga,
+    EFI_PCI_IO_PROTOCOL *pciio, uint64_t *addrp, uint64_t *sizep)
+{
+	uint8_t *resattr;
+	uint64_t a, addr, s, size;
+	ssize_t ofs;
+	EFI_STATUS status;
+	u_int bar;
 
 	/* Attempt to get the frame buffer address (imprecise). */
 	addr = 0;
@@ -265,7 +272,6 @@ efifb_uga_detect_framebuffer(EFI_UGA_DRAW_PROTOCOL *uga,
 	addr += ofs;
 	size -= ofs;
 
-	*pciiop = pciio;
 	*addrp = addr;
 	*sizep = size;
 	return (0);
@@ -275,6 +281,7 @@ static int
 efifb_from_uga(struct efi_fb *efifb, EFI_UGA_DRAW_PROTOCOL *uga)
 {
 	EFI_PCI_IO_PROTOCOL *pciio;
+	char *ev, *p;
 	EFI_STATUS status;
 	ssize_t ofs;
 	uint32_t horiz, vert, depth, refresh;
@@ -287,18 +294,37 @@ efifb_from_uga(struct efi_fb *efifb, EFI_UGA_DRAW_PROTOCOL *uga)
 	efifb_mask_from_pixfmt(efifb, PixelBlueGreenRedReserved8BitPerColor,
 	    NULL);
 
-	/* Try and find the frame buffer. */
-	status = efifb_uga_detect_framebuffer(uga, &pciio, &efifb->fb_addr,
-	    &efifb->fb_size);
-	if (EFI_ERROR(status))
+	pciio = efifb_uga_get_pciio();
+	if (pciio == NULL)
 		return (1);
 
-	/* Try and detect the stride. */
-	ofs = efifb_uga_find_pixel(uga, 1, pciio, efifb->fb_addr,
-	    efifb->fb_size);
-	if (ofs == -1)
-		return (1);
-	efifb->fb_stride = ofs >> 2;
+	ev = getenv("uga_framebuffer");
+	if (ev == NULL) {
+		/* Try to find the frame buffer. */
+		status = efifb_uga_detect_framebuffer(uga, pciio,
+		    &efifb->fb_addr, &efifb->fb_size);
+		if (EFI_ERROR(status))
+			return (1);
+	} else {
+		efifb->fb_size = horiz * vert * 4;
+		efifb->fb_addr = strtoul(ev, &p, 0);
+		if (*p != '\0')
+			return (1);
+	}
+
+	ev = getenv("uga_stride");
+	if (ev == NULL) {
+		/* Try to detect the stride. */
+		ofs = efifb_uga_find_pixel(uga, 1, pciio, efifb->fb_addr,
+		    efifb->fb_size);
+		if (ofs == -1)
+			return (1);
+		efifb->fb_stride = ofs >> 2;
+	} else {
+		efifb->fb_stride = strtoul(ev, &p, 0);
+		if (*p != '\0')
+			return (1);
+	}
 	return (0);
 }
 
