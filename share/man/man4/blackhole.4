@@ -11,30 +11,36 @@
 .\"    documentation and/or other materials provided with the distribution.
 .\"
 .\"
-.\" $FreeBSD$
-.Dd September 5, 2015
+.\" $FreeBSD: head/share/man/man4/blackhole.4 210676 2010-07-31 12:14:28Z joel $
+.Dd September 6, 2015
 .Dt BLACKHOLE 4
 .Os
 .Sh NAME
 .Nm blackhole
 .Nd a
 .Xr sysctl 8
-MIB for manipulating behaviour in respect of refused TCP, UDP, or SCTP connection
+MIB for manipulating behaviour in respect of refused SCTP, TCP, or UDP connection
 attempts
 .Sh SYNOPSIS
-.Cd sysctl net.inet.sctp.blackhole Ns
-.Op =[ 0 | 1 ]
-.Cd sysctl net.inet.tcp.blackhole Ns
-.Op =[ 0 | 1 | 2 ] 
-.Cd sysctl net.inet.udp.blackhole Ns
-.Op =[ 0 | 1 ]
+.Cd sysctl net.inet.sctp.blackhole Ns Op = Ns Brq "0 | 1 | 2"
+.Cd sysctl net.inet.tcp.blackhole Ns Op = Ns Brq "0 | 1 | 2"
+.Cd sysctl net.inet.udp.blackhole Ns Op = Ns Brq "0 | 1"
 .Sh DESCRIPTION
 The
 .Nm
 .Xr sysctl 8
 MIB is used to control system behaviour when connection requests
-are received on TCP, UDP, or SCTP ports where there is no socket listening.
+are received on SCTP, TCP, or UDP ports where there is no socket listening.
 .Pp
+The blackhole behaviour is useful to slow down an attacker who is port-scanning
+a system in an attempt to detect vulnerable services.
+It might also slow down an attempted denial of service attack.
+.Ss SCTP
+Setting the SCTP blackhole MIB to a numeric value of one
+will prevent sending an ABORT packet in response to an incoming INIT.
+A MIB value of two will do the same, but will also prevent sending an ABORT packet
+when unexpected packets are received.
+.Ss TCP
 Normal behaviour, when a TCP SYN segment is received on a port where
 there is no socket accepting connections, is for the system to return
 a RST segment, and drop the connection.
@@ -48,25 +54,13 @@ as a blackhole.
 By setting the MIB value to two, any segment arriving
 on a closed port is dropped without returning a RST.
 This provides some degree of protection against stealth port scans.
-.Pp
-In the UDP instance, enabling blackhole behaviour turns off the sending
+.Ss UDP
+Enabling blackhole behaviour turns off the sending
 of an ICMP port unreachable message in response to a UDP datagram which
 arrives on a port where there is no socket listening.
 It must be noted that this behaviour will prevent remote systems from running
 .Xr traceroute 8
 to a system.
-.Pp
-For SCTP, enabling blackhole behaviour turns off the sending of ABORT packets
-as follows:
-A MIB value of one will prevent sending an ABORT packet
-in response to an incoming INIT.
-A MIB value of two will do the same, but also prevent sending an ABORT packet
-when unexpected packets are received.
-.Pp
-The blackhole behaviour is useful to slow down anyone who is port scanning
-a system, attempting to detect vulnerable services on a system.
-It could potentially also slow down someone who is attempting a denial
-of service attack.
 .Sh WARNING
 The SCTP, TCP, and UDP blackhole features should not be regarded as a replacement
 for firewall solutions.
