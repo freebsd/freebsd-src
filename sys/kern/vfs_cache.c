@@ -327,11 +327,17 @@ sysctl_debug_hashstat_rawnchash(SYSCTL_HANDLER_ARGS)
 	struct namecache *ncp;
 	int i, error, n_nchash, *cntbuf;
 
+retry:
 	n_nchash = nchash + 1;	/* nchash is max index, not count */
 	if (req->oldptr == NULL)
 		return SYSCTL_OUT(req, 0, n_nchash * sizeof(int));
 	cntbuf = malloc(n_nchash * sizeof(int), M_TEMP, M_ZERO | M_WAITOK);
 	CACHE_RLOCK();
+	if (n_nchash != nchash + 1) {
+		CACHE_RUNLOCK();
+		free(cntbuf, M_TEMP);
+		goto retry;
+	}
 	/* Scan hash tables counting entries */
 	for (ncpp = nchashtbl, i = 0; i < n_nchash; ncpp++, i++)
 		LIST_FOREACH(ncp, ncpp, nc_hash)
@@ -930,6 +936,44 @@ nchinit(void *dummy __unused)
 }
 SYSINIT(vfs, SI_SUB_VFS, SI_ORDER_SECOND, nchinit, NULL);
 
+void
+cache_changesize(int newmaxvnodes)
+{
+	struct nchashhead *new_nchashtbl, *old_nchashtbl;
+	u_long new_nchash, old_nchash;
+	struct namecache *ncp;
+	uint32_t hash;
+	int i;
+
+	new_nchashtbl = hashinit(newmaxvnodes * 2, M_VFSCACHE, &new_nchash);
+	/* If same hash table size, nothing to do */
+	if (nchash == new_nchash) {
+		free(new_nchashtbl, M_VFSCACHE);
+		return;
+	}
+	/*
+	 * Move everything from the old hash table to the new table.
+	 * None of the namecache entries in the table can be removed
+	 * because to do so, they have to be removed from the hash table.
+	 */
+	CACHE_WLOCK();
+	old_nchashtbl = nchashtbl;
+	old_nchash = nchash;
+	nchashtbl = new_nchashtbl;
+	nchash = new_nchash;
+	for (i = 0; i <= old_nchash; i++) {
+		while ((ncp = LIST_FIRST(&old_nchashtbl[i])) != NULL) {
+			hash = fnv_32_buf(nc_get_name(ncp), ncp->nc_nlen,
+			    FNV1_32_INIT);
+			hash = fnv_32_buf(&ncp->nc_dvp, sizeof(ncp->nc_dvp),
+			    hash);
+			LIST_REMOVE(ncp, nc_hash);
+			LIST_INSERT_HEAD(NCHHASH(hash), ncp, nc_hash);
+		}
+	}
+	CACHE_WUNLOCK();
+	free(old_nchashtbl, M_VFSCACHE);
+}
 
 /*
  * Invalidate all entries to a particular vnode.
