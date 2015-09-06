@@ -907,6 +907,7 @@ OLD_FILES+=usr/lib/clang/3.7.0/include/smmintrin.h
 OLD_FILES+=usr/lib/clang/3.7.0/include/tbmintrin.h
 OLD_FILES+=usr/lib/clang/3.7.0/include/tmmintrin.h
 OLD_FILES+=usr/lib/clang/3.7.0/include/vadefs.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/vecintrin.h
 OLD_FILES+=usr/lib/clang/3.7.0/include/wmmintrin.h
 OLD_FILES+=usr/lib/clang/3.7.0/include/x86intrin.h
 OLD_FILES+=usr/lib/clang/3.7.0/include/xmmintrin.h
