@@ -165,11 +165,11 @@ procstat_auxv(struct procstat *procstat, struct kinfo_proc *kipp)
 			if ((auxv[i].a_un.a_val & VM_PROT_EXECUTE) != 0)
 				xo_emit("{dw:/%s}{Lw:/%-16s/%s}"
 				    "{:AT_STACKPROT/%s}\n", prefix,
-				    "AT_STACKPROT", "NONEXECUTABLE");
+				    "AT_STACKPROT", "EXECUTABLE");
 			else
 				xo_emit("{dw:/%s}{Lw:/%-16s/%s}"
 				    "{:AT_STACKPROT/%s}\n", prefix,
-				    "AT_STACKPROT", "EXECUTABLE");
+				    "AT_STACKPROT", "NONEXECUTABLE");
 			break;
 #ifdef AT_TIMEKEEP
 		case AT_TIMEKEEP:
