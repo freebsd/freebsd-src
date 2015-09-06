@@ -15,7 +15,7 @@
 #include <string>
 // Other libraries and framework includes
 // Project includes
-#include "Utility/StringExtractor.h"
+#include "lldb/Utility/StringExtractor.h"
 
 class StringExtractorGDBRemote : public StringExtractor
 {
@@ -117,6 +117,8 @@ public:
         eServerPacketType_qWatchpointSupportInfo,
         eServerPacketType_qWatchpointSupportInfoSupported,
         eServerPacketType_qXfer_auxv_read,
+
+        eServerPacketType_jSignalsInfo,
 
         eServerPacketType_vAttach,
         eServerPacketType_vAttachWait,

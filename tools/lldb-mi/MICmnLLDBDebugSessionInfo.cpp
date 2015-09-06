@@ -231,7 +231,7 @@ CMICmnLLDBDebugSessionInfo::GetThreadFrames(const SMICmdData &vCmdData, const MI
     // MI print
     // "frame={level=\"%d\",addr=\"0x%016" PRIx64 "\",func=\"%s\",args=[%s],file=\"%s\",fullname=\"%s\",line=\"%d\"},frame={level=\"%d\",addr=\"0x%016" PRIx64 "\",func=\"%s\",args=[%s],file=\"%s\",fullname=\"%s\",line=\"%d\"},
     // ..."
-    CMIUtilString strListCommaSeperated;
+    CMIUtilString strListCommaSeparated;
     for (MIuint nLevel = 0; nLevel < nFrames; nLevel++)
     {
         CMICmnMIValueTuple miValueTuple;
@@ -240,11 +240,11 @@ CMICmnLLDBDebugSessionInfo::GetThreadFrames(const SMICmdData &vCmdData, const MI
 
         const CMICmnMIValueResult miValueResult2("frame", miValueTuple);
         if (nLevel != 0)
-            strListCommaSeperated += ",";
-        strListCommaSeperated += miValueResult2.GetString();
+            strListCommaSeparated += ",";
+        strListCommaSeparated += miValueResult2.GetString();
     }
 
-    vwrThreadFrames = strListCommaSeperated;
+    vwrThreadFrames = strListCommaSeparated;
 
     return MIstatus::success;
 }
@@ -383,7 +383,7 @@ CMICmnLLDBDebugSessionInfo::MIResponseFormThreadInfo(const SMICmdData &vCmdData,
     const char *pThreadName = rThread.GetName();
     const MIuint len = (pThreadName != nullptr) ? CMIUtilString(pThreadName).length() : 0;
     const bool bHaveName = ((pThreadName != nullptr) && (len > 0) && (len < 32) &&
-                            CMIUtilString::IsAllValidAlphaAndNumeric(pThreadName)); // 32 is arbitary number
+                            CMIUtilString::IsAllValidAlphaAndNumeric(pThreadName)); // 32 is arbitrary number
     const char *pThrdFmt = bHaveName ? "%s" : "Thread %d";
     CMIUtilString strThread;
     if (bHaveName)
@@ -523,7 +523,7 @@ CMICmnLLDBDebugSessionInfo::MIResponseForVariableInfoInternal(const VariableInfo
 // Args:    vrValue         - (R)  LLDB value object.
 //          vbInSimpleForm  - (R)  True = Get variable info in simple form (i.e. don't expand aggregates).
 //                          -      False = Get variable info (and expand aggregates if any).
-//          vwrStrValue  t  - (W)  The string representatin of this value.
+//          vwrStrValue  t  - (W)  The string representation of this value.
 // Return:  MIstatus::success - Functional succeeded.
 //          MIstatus::failure - Functional failed.
 // Throws:  None.

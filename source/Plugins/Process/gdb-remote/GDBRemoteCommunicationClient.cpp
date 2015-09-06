@@ -87,6 +87,7 @@ GDBRemoteCommunicationClient::GDBRemoteCommunicationClient() :
     m_supports_qXfer_features_read (eLazyBoolCalculate),
     m_supports_augmented_libraries_svr4_read (eLazyBoolCalculate),
     m_supports_jThreadExtendedInfo (eLazyBoolCalculate),
+    m_supports_jLoadedDynamicLibrariesInfos (eLazyBoolCalculate),
     m_supports_qProcessInfoPID (true),
     m_supports_qfProcessInfo (true),
     m_supports_qUserName (true),
@@ -654,6 +655,24 @@ GDBRemoteCommunicationClient::GetThreadExtendedInfoSupported ()
 }
 
 bool
+GDBRemoteCommunicationClient::GetLoadedDynamicLibrariesInfosSupported ()
+{
+    if (m_supports_jLoadedDynamicLibrariesInfos == eLazyBoolCalculate)
+    {
+        StringExtractorGDBRemote response;
+        m_supports_jLoadedDynamicLibrariesInfos = eLazyBoolNo;
+        if (SendPacketAndWaitForResponse("jGetLoadedDynamicLibrariesInfos:", response, false) == PacketResult::Success)
+        {
+            if (response.IsOKResponse())
+            {
+                m_supports_jLoadedDynamicLibrariesInfos = eLazyBoolYes;
+            }
+        }
+    }
+    return m_supports_jLoadedDynamicLibrariesInfos;
+}
+
+bool
 GDBRemoteCommunicationClient::GetxPacketSupported ()
 {
     if (m_supports_x == eLazyBoolCalculate)
@@ -1037,8 +1056,8 @@ GDBRemoteCommunicationClient::SendContinuePacketAndWaitForResponse
     // may change if we are interrupted and we continue after an async packet...
     std::string continue_packet(payload, packet_length);
 
-    const auto sigstop_signo = process->GetUnixSignals().GetSignalNumberFromName("SIGSTOP");
-    const auto sigint_signo = process->GetUnixSignals().GetSignalNumberFromName("SIGINT");
+    const auto sigstop_signo = process->GetUnixSignals()->GetSignalNumberFromName("SIGSTOP");
+    const auto sigint_signo = process->GetUnixSignals()->GetSignalNumberFromName("SIGINT");
 
     bool got_async_packet = false;
     

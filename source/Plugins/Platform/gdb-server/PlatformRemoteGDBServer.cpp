@@ -32,6 +32,8 @@
 
 #include "Utility/UriParser.h"
 
+#include "Plugins/Process/Utility/GDBRemoteSignals.h"
+
 using namespace lldb;
 using namespace lldb_private;
 using namespace lldb_private::platform_gdb_server;
@@ -139,13 +141,14 @@ PlatformRemoteGDBServer::ResolveExecutable (const ModuleSpec &module_spec,
     // Resolve any executable within an apk on Android?
     //Host::ResolveExecutableInBundle (resolved_module_spec.GetFileSpec());
 
-    if (resolved_module_spec.GetFileSpec().Exists())
+    if (resolved_module_spec.GetFileSpec().Exists() ||
+        module_spec.GetUUID().IsValid())
     {
         if (resolved_module_spec.GetArchitecture().IsValid() || resolved_module_spec.GetUUID().IsValid())
         {
             error = ModuleList::GetSharedModule (resolved_module_spec,
                                                  exe_module_sp,
-                                                 NULL,
+                                                 module_search_paths_ptr,
                                                  NULL,
                                                  NULL);
 
@@ -161,7 +164,7 @@ PlatformRemoteGDBServer::ResolveExecutable (const ModuleSpec &module_spec,
         {
             error = ModuleList::GetSharedModule (resolved_module_spec,
                                                  exe_module_sp,
-                                                 NULL,
+                                                 module_search_paths_ptr,
                                                  NULL,
                                                  NULL);
             // Did we find an executable using one of the
@@ -413,6 +416,7 @@ PlatformRemoteGDBServer::DisconnectRemote ()
 {
     Error error;
     m_gdb_client.Disconnect(&error);
+    m_remote_signals_sp.reset();
     return error;
 }
 
@@ -871,6 +875,97 @@ PlatformRemoteGDBServer::RunShellCommand(const char *command,           // Shoul
 
 void
 PlatformRemoteGDBServer::CalculateTrapHandlerSymbolNames ()
-{   
+{
     m_trap_handlers.push_back (ConstString ("_sigtramp"));
+}
+
+const UnixSignalsSP &
+PlatformRemoteGDBServer::GetRemoteUnixSignals()
+{
+    if (!IsConnected())
+        return Platform::GetRemoteUnixSignals();
+
+    if (m_remote_signals_sp)
+        return m_remote_signals_sp;
+
+    // If packet not implemented or JSON failed to parse,
+    // we'll guess the signal set based on the remote architecture.
+    m_remote_signals_sp = UnixSignals::Create(GetRemoteSystemArchitecture());
+
+    const char packet[] = "jSignalsInfo";
+    StringExtractorGDBRemote response;
+    auto result = m_gdb_client.SendPacketAndWaitForResponse(
+            packet, strlen(packet), response, false);
+
+    if (result != decltype(result)::Success ||
+            response.GetResponseType() != response.eResponse)
+        return m_remote_signals_sp;
+
+    auto object_sp = StructuredData::ParseJSON(response.GetStringRef());
+    if (!object_sp || !object_sp->IsValid())
+        return m_remote_signals_sp;
+
+    auto array_sp = object_sp->GetAsArray();
+    if (!array_sp || !array_sp->IsValid())
+        return m_remote_signals_sp;
+
+    auto remote_signals_sp = std::make_shared<lldb_private::GDBRemoteSignals>();
+
+    bool done = array_sp->ForEach(
+        [&remote_signals_sp](StructuredData::Object *object) -> bool
+        {
+            if (!object || !object->IsValid())
+                return false;
+
+            auto dict = object->GetAsDictionary();
+            if (!dict || !dict->IsValid())
+                return false;
+
+            // Signal number and signal name are required.
+            int signo;
+            if (!dict->GetValueForKeyAsInteger("signo", signo))
+                return false;
+
+            std::string name;
+            if (!dict->GetValueForKeyAsString("name", name))
+                return false;
+
+            // We can live without short_name, description, etc.
+            std::string short_name{""};
+            auto object_sp = dict->GetValueForKey("short_name");
+            if (object_sp && object_sp->IsValid())
+                short_name = object_sp->GetStringValue();
+
+            bool suppress{false};
+            object_sp = dict->GetValueForKey("suppress");
+            if (object_sp && object_sp->IsValid())
+                suppress = object_sp->GetBooleanValue();
+
+            bool stop{false};
+            object_sp = dict->GetValueForKey("stop");
+            if (object_sp && object_sp->IsValid())
+                stop = object_sp->GetBooleanValue();
+
+            bool notify{false};
+            object_sp = dict->GetValueForKey("notify");
+            if (object_sp && object_sp->IsValid())
+                notify = object_sp->GetBooleanValue();
+
+            std::string description{""};
+            object_sp = dict->GetValueForKey("description");
+            if (object_sp && object_sp->IsValid())
+                description = object_sp->GetStringValue();
+
+            remote_signals_sp->AddSignal(signo,
+                                         name.c_str(),
+                                         short_name.c_str(),
+                                         suppress, stop, notify,
+                                         description.c_str());
+            return true;
+        });
+
+    if (done)
+        m_remote_signals_sp = std::move(remote_signals_sp);
+
+    return m_remote_signals_sp;
 }
