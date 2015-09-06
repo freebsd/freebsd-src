@@ -161,12 +161,6 @@ typedef enum {
 } ctl_lun_flags;
 
 typedef enum {
-	CTL_LUN_SERSEQ_OFF,
-	CTL_LUN_SERSEQ_READ,
-	CTL_LUN_SERSEQ_ON
-} ctl_lun_serseq;
-
-typedef enum {
 	CTLBLOCK_FLAG_NONE	= 0x00,
 	CTLBLOCK_FLAG_INVALID	= 0x01
 } ctlblock_flags;
@@ -376,7 +370,6 @@ struct ctl_lun {
 	struct mtx			lun_lock;
 	uint64_t			lun;
 	ctl_lun_flags			flags;
-	ctl_lun_serseq			serseq;
 	STAILQ_HEAD(,ctl_error_desc)	error_list;
 	uint64_t			error_serial;
 	struct ctl_softc		*ctl_softc;
