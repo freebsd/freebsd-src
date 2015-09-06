@@ -73,6 +73,7 @@ typedef enum {
 } ctl_be_ramdisk_lun_flags;
 
 struct ctl_be_ramdisk_lun {
+	struct ctl_lun_create_params params;
 	char lunname[32];
 	uint64_t size_bytes;
 	uint64_t size_blocks;
@@ -535,6 +536,7 @@ ctl_backend_ramdisk_create(struct ctl_be_ramdisk_softc *softc,
 	be_lun = malloc(sizeof(*be_lun), M_RAMDISK, M_ZERO | M_WAITOK);
 	cbe_lun = &be_lun->cbe_lun;
 	cbe_lun->be_lun = be_lun;
+	be_lun->params = req->reqdata.create;
 	be_lun->softc = softc;
 	sprintf(be_lun->lunname, "cram%d", softc->num_luns);
 	ctl_init_opts(&cbe_lun->options, req->num_be_args, req->kern_be_args);
@@ -713,12 +715,11 @@ ctl_backend_ramdisk_modify(struct ctl_be_ramdisk_softc *softc,
 		       struct ctl_lun_req *req)
 {
 	struct ctl_be_ramdisk_lun *be_lun;
+	struct ctl_be_lun *cbe_lun;
 	struct ctl_lun_modify_params *params;
 	uint32_t blocksize;
 
 	params = &req->reqdata.modify;
-
-	be_lun = NULL;
 
 	mtx_lock(&softc->lock);
 	STAILQ_FOREACH(be_lun, &softc->lun_list, links) {
@@ -733,32 +734,22 @@ ctl_backend_ramdisk_modify(struct ctl_be_ramdisk_softc *softc,
 			 __func__, params->lun_id);
 		goto bailout_error;
 	}
+	cbe_lun = &be_lun->cbe_lun;
 
-	if (params->lun_size_bytes == 0) {
-		snprintf(req->error_str, sizeof(req->error_str),
-			"%s: LUN size \"auto\" not supported "
-			"by the ramdisk backend", __func__);
-		goto bailout_error;
-	}
-
+	if (params->lun_size_bytes != 0)
+		be_lun->params.lun_size_bytes = params->lun_size_bytes;
+	ctl_update_opts(&cbe_lun->options, req->num_be_args, req->kern_be_args);
 	blocksize = be_lun->cbe_lun.blocksize;
 
-	if (params->lun_size_bytes < blocksize) {
+	if (be_lun->params.lun_size_bytes < blocksize) {
 		snprintf(req->error_str, sizeof(req->error_str),
 			"%s: LUN size %ju < blocksize %u", __func__,
-			params->lun_size_bytes, blocksize);
+			be_lun->params.lun_size_bytes, blocksize);
 		goto bailout_error;
 	}
 
-	be_lun->size_blocks = params->lun_size_bytes / blocksize;
+	be_lun->size_blocks = be_lun->params.lun_size_bytes / blocksize;
 	be_lun->size_bytes = be_lun->size_blocks * blocksize;
-
-	/*
-	 * The maximum LBA is the size - 1.
-	 *
-	 * XXX: Note that this field is being updated without locking,
-	 * 	which might cause problems on 32-bit architectures.
-	 */
 	be_lun->cbe_lun.maxlba = be_lun->size_blocks - 1;
 	ctl_lun_capacity_changed(&be_lun->cbe_lun);
 
