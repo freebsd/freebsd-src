@@ -86,8 +86,14 @@ typedef enum {
 	CTL_LUN_FLAG_DEV_TYPE		= 0x40,
 	CTL_LUN_FLAG_UNMAP		= 0x80,
 	CTL_LUN_FLAG_OFFLINE		= 0x100,
-	CTL_LUN_FLAG_SERSEQ_READ	= 0x200
+	CTL_LUN_FLAG_READONLY		= 0x200
 } ctl_backend_lun_flags;
+
+typedef enum {
+	CTL_LUN_SERSEQ_OFF,
+	CTL_LUN_SERSEQ_READ,
+	CTL_LUN_SERSEQ_ON
+} ctl_lun_serseq;
 
 #ifdef _KERNEL
 
@@ -195,6 +201,7 @@ typedef void (*be_lun_config_t)(void *be_lun,
 struct ctl_be_lun {
 	uint8_t			lun_type;	/* passed to CTL */
 	ctl_backend_lun_flags	flags;		/* passed to CTL */
+	ctl_lun_serseq		serseq;		/* passed to CTL */
 	void			*be_lun;	/* passed to CTL */
 	uint64_t		maxlba;		/* passed to CTL */
 	uint32_t		blocksize;	/* passed to CTL */
