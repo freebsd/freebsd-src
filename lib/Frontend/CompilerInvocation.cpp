@@ -1112,6 +1112,8 @@ static void ParseHeaderSearchArgs(HeaderSearchOptions &Opts, ArgList &Args) {
       getLastArgUInt64Value(Args, OPT_fbuild_session_timestamp, 0);
   Opts.ModulesValidateSystemHeaders =
       Args.hasArg(OPT_fmodules_validate_system_headers);
+  if (const Arg *A = Args.getLastArg(OPT_fmodule_format_EQ))
+    Opts.ModuleFormat = A->getValue();
 
   for (const Arg *A : Args.filtered(OPT_fmodules_ignore_macro)) {
     StringRef MacroDef = A->getValue();
@@ -1258,6 +1260,7 @@ void CompilerInvocation::setLangDefaults(LangOptions &Opts, InputKind IK,
   // OpenCL has some additional defaults.
   if (Opts.OpenCL) {
     Opts.AltiVec = 0;
+    Opts.ZVector = 0;
     Opts.CXXOperatorNames = 1;
     Opts.LaxVectorConversions = 0;
     Opts.DefaultFPContract = 1;
@@ -1445,6 +1448,9 @@ static void ParseLangArgs(LangOptions &Opts, ArgList &Args, InputKind IK,
 
   if (Args.hasArg(OPT_faltivec))
     Opts.AltiVec = 1;
+
+  if (Args.hasArg(OPT_fzvector))
+    Opts.ZVector = 1;
 
   if (Args.hasArg(OPT_pthread))
     Opts.POSIXThreads = 1;
