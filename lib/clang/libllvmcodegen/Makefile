@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 LIB=	llvmcodegen
 
@@ -28,9 +28,7 @@ SRCS=	AggressiveAntiDepBreaker.cpp \
 	ExpandPostRAPseudos.cpp \
 	FaultMaps.cpp \
 	GCMetadata.cpp \
-	GCMetadataPrinter.cpp \
 	GCRootLowering.cpp \
-	GCStrategy.cpp \
 	GlobalMerge.cpp \
 	IfConversion.cpp \
 	ImplicitNullChecks.cpp \
@@ -130,6 +128,11 @@ SRCS=	AggressiveAntiDepBreaker.cpp \
 	UnreachableBlockElim.cpp \
 	VirtRegMap.cpp \
 	WinEHPrepare.cpp
+
+.if ${MK_CLANG_EXTRAS} != "no"
+SRCS+=	GCMetadataPrinter.cpp \
+	GCStrategy.cpp
+.endif
 
 TGHDRS=	Intrinsics
 

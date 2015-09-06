@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 LIB=	llvmobject
 
@@ -17,10 +17,13 @@ SRCS=	Archive.cpp \
 	IRObjectFile.cpp \
 	MachOObjectFile.cpp \
 	MachOUniversal.cpp \
-	Object.cpp \
 	ObjectFile.cpp \
 	RecordStreamer.cpp \
-	SymbolSize.cpp \
 	SymbolicFile.cpp
 
+.if ${MK_CLANG_EXTRAS} != "no"
+SRCS+=	Object.cpp \
+	SymbolSize.cpp
+.endif
+	
 .include "../clang.lib.mk"

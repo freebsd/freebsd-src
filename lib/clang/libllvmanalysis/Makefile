@@ -10,7 +10,6 @@ SRCS=	AliasAnalysis.cpp \
 	AliasAnalysisEvaluator.cpp \
 	AliasDebugger.cpp \
 	AliasSetTracker.cpp \
-	Analysis.cpp \
 	AssumptionCache.cpp \
 	BasicAliasAnalysis.cpp \
 	BlockFrequencyInfo.cpp \
@@ -19,7 +18,6 @@ SRCS=	AliasAnalysis.cpp \
 	CFG.cpp \
 	CFGPrinter.cpp \
 	CFLAliasAnalysis.cpp \
-	CGSCCPassManager.cpp \
 	CaptureTracking.cpp \
 	CodeMetrics.cpp \
 	ConstantFolding.cpp \
@@ -65,11 +63,16 @@ SRCS=	AliasAnalysis.cpp \
 	SparsePropagation.cpp \
 	TargetLibraryInfo.cpp \
 	TargetTransformInfo.cpp \
-	Trace.cpp \
 	TypeBasedAliasAnalysis.cpp \
 	ValueTracking.cpp \
 	VectorUtils.cpp
 
+.if ${MK_CLANG_EXTRAS} != "no"
+SRCS+=	Analysis.cpp \
+	CGSCCPassManager.cpp \
+	Trace.cpp
+.endif
+	
 TGHDRS=	Intrinsics
 
 .include "../clang.lib.mk"
