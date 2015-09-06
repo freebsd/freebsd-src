@@ -33,7 +33,7 @@
 #include "llvm/ADT/STLExtras.h"
 
 #include "Plugins/Process/Utility/InstructionUtils.h"
-#include "Plugins/Process/Utility/RegisterContext_mips64.h"
+#include "Plugins/Process/Utility/RegisterContext_mips.h"
 
 using namespace lldb;
 using namespace lldb_private;
@@ -124,6 +124,19 @@ EmulateInstructionMIPS64::EmulateInstructionMIPS64 (const lldb_private::ArchSpec
             cpu = "generic"; break;
     }
 
+    std::string features = "";
+    uint32_t arch_flags = arch.GetFlags ();
+    if (arch_flags & ArchSpec::eMIPSAse_msa)
+        features += "+msa,";
+    if (arch_flags & ArchSpec::eMIPSAse_dsp)
+        features += "+dsp,";
+    if (arch_flags & ArchSpec::eMIPSAse_dspr2)
+        features += "+dspr2,";
+    if (arch_flags & ArchSpec::eMIPSAse_mips16)
+        features += "+mips16,";
+    if (arch_flags & ArchSpec::eMIPSAse_micromips)
+        features += "+micromips,";
+
     m_reg_info.reset (target->createMCRegInfo (triple.getTriple()));
     assert (m_reg_info.get());
 
@@ -131,7 +144,7 @@ EmulateInstructionMIPS64::EmulateInstructionMIPS64 (const lldb_private::ArchSpec
     assert (m_insn_info.get());
 
     m_asm_info.reset (target->createMCAsmInfo (*m_reg_info, triple.getTriple()));
-    m_subtype_info.reset (target->createMCSubtargetInfo (triple.getTriple(), cpu, ""));
+    m_subtype_info.reset (target->createMCSubtargetInfo (triple.getTriple(), cpu, features));
     assert (m_asm_info.get() && m_subtype_info.get());
 
     m_context.reset (new llvm::MCContext (m_asm_info.get(), m_reg_info.get(), nullptr));
@@ -289,38 +302,38 @@ EmulateInstructionMIPS64::GetRegisterName (unsigned reg_num, bool alternate_name
         case gcc_dwarf_bad_mips64:      return "bad";
         case gcc_dwarf_cause_mips64:    return "cause";
         case gcc_dwarf_pc_mips64:       return "pc";
-        case gcc_dwarf_f0_mips64:       return "fp_reg[0]";
-        case gcc_dwarf_f1_mips64:       return "fp_reg[1]";
-        case gcc_dwarf_f2_mips64:       return "fp_reg[2]";
-        case gcc_dwarf_f3_mips64:       return "fp_reg[3]";
-        case gcc_dwarf_f4_mips64:       return "fp_reg[4]";
-        case gcc_dwarf_f5_mips64:       return "fp_reg[5]";
-        case gcc_dwarf_f6_mips64:       return "fp_reg[6]";
-        case gcc_dwarf_f7_mips64:       return "fp_reg[7]";
-        case gcc_dwarf_f8_mips64:       return "fp_reg[8]";
-        case gcc_dwarf_f9_mips64:       return "fp_reg[9]";
-        case gcc_dwarf_f10_mips64:      return "fp_reg[10]";
-        case gcc_dwarf_f11_mips64:      return "fp_reg[11]";
-        case gcc_dwarf_f12_mips64:      return "fp_reg[12]";
-        case gcc_dwarf_f13_mips64:      return "fp_reg[13]";
-        case gcc_dwarf_f14_mips64:      return "fp_reg[14]";
-        case gcc_dwarf_f15_mips64:      return "fp_reg[15]";
-        case gcc_dwarf_f16_mips64:      return "fp_reg[16]";
-        case gcc_dwarf_f17_mips64:      return "fp_reg[17]";
-        case gcc_dwarf_f18_mips64:      return "fp_reg[18]";
-        case gcc_dwarf_f19_mips64:      return "fp_reg[19]";
-        case gcc_dwarf_f20_mips64:      return "fp_reg[20]";
-        case gcc_dwarf_f21_mips64:      return "fp_reg[21]";
-        case gcc_dwarf_f22_mips64:      return "fp_reg[22]";
-        case gcc_dwarf_f23_mips64:      return "fp_reg[23]";
-        case gcc_dwarf_f24_mips64:      return "fp_reg[24]";
-        case gcc_dwarf_f25_mips64:      return "fp_reg[25]";
-        case gcc_dwarf_f26_mips64:      return "fp_reg[26]";
-        case gcc_dwarf_f27_mips64:      return "fp_reg[27]";
-        case gcc_dwarf_f28_mips64:      return "fp_reg[28]";
-        case gcc_dwarf_f29_mips64:      return "fp_reg[29]";
-        case gcc_dwarf_f30_mips64:      return "fp_reg[30]";
-        case gcc_dwarf_f31_mips64:      return "fp_reg[31]";
+        case gcc_dwarf_f0_mips64:       return "f0";
+        case gcc_dwarf_f1_mips64:       return "f1";
+        case gcc_dwarf_f2_mips64:       return "f2";
+        case gcc_dwarf_f3_mips64:       return "f3";
+        case gcc_dwarf_f4_mips64:       return "f4";
+        case gcc_dwarf_f5_mips64:       return "f5";
+        case gcc_dwarf_f6_mips64:       return "f6";
+        case gcc_dwarf_f7_mips64:       return "f7";
+        case gcc_dwarf_f8_mips64:       return "f8";
+        case gcc_dwarf_f9_mips64:       return "f9";
+        case gcc_dwarf_f10_mips64:      return "f10";
+        case gcc_dwarf_f11_mips64:      return "f11";
+        case gcc_dwarf_f12_mips64:      return "f12";
+        case gcc_dwarf_f13_mips64:      return "f13";
+        case gcc_dwarf_f14_mips64:      return "f14";
+        case gcc_dwarf_f15_mips64:      return "f15";
+        case gcc_dwarf_f16_mips64:      return "f16";
+        case gcc_dwarf_f17_mips64:      return "f17";
+        case gcc_dwarf_f18_mips64:      return "f18";
+        case gcc_dwarf_f19_mips64:      return "f19";
+        case gcc_dwarf_f20_mips64:      return "f20";
+        case gcc_dwarf_f21_mips64:      return "f21";
+        case gcc_dwarf_f22_mips64:      return "f22";
+        case gcc_dwarf_f23_mips64:      return "f23";
+        case gcc_dwarf_f24_mips64:      return "f24";
+        case gcc_dwarf_f25_mips64:      return "f25";
+        case gcc_dwarf_f26_mips64:      return "f26";
+        case gcc_dwarf_f27_mips64:      return "f27";
+        case gcc_dwarf_f28_mips64:      return "f28";
+        case gcc_dwarf_f29_mips64:      return "f29";
+        case gcc_dwarf_f30_mips64:      return "f30";
+        case gcc_dwarf_f31_mips64:      return "f31";
         case gcc_dwarf_fcsr_mips64:     return "fcsr";
         case gcc_dwarf_fir_mips64:      return "fir";
     }
@@ -396,6 +409,9 @@ EmulateInstructionMIPS64::GetOpcodeForInstruction (const char *op_name)
         { "DADDiu",     &EmulateInstructionMIPS64::Emulate_DADDiu,      "DADDIU rt,rs,immediate"    },
         { "SD",         &EmulateInstructionMIPS64::Emulate_SD,          "SD rt,offset(rs)"          },
         { "LD",         &EmulateInstructionMIPS64::Emulate_LD,          "LD rt,offset(base)"        },
+
+        { "SW",         &EmulateInstructionMIPS64::Emulate_SW,          "SW rt,offset(rs)"          },
+        { "LW",         &EmulateInstructionMIPS64::Emulate_LW,          "LW rt,offset(rs)"          },
 
         //----------------------------------------------------------------------
         // Branch instructions
@@ -644,35 +660,95 @@ EmulateInstructionMIPS64::Emulate_DADDiu (llvm::MCInst& insn)
 }
 
 bool
+EmulateInstructionMIPS64::Emulate_SW (llvm::MCInst& insn)
+{
+    bool success = false;
+    uint32_t base;
+    int64_t imm, address;
+    Context bad_vaddr_context;
+
+    base = m_reg_info->getEncodingValue (insn.getOperand(1).getReg());
+    imm = insn.getOperand(2).getImm();
+
+    RegisterInfo reg_info_base;
+    if (!GetRegisterInfo (eRegisterKindDWARF, gcc_dwarf_zero_mips64 + base, reg_info_base))
+        return false;
+
+    /* read base register */
+    address = ReadRegisterUnsigned (eRegisterKindDWARF, gcc_dwarf_zero_mips64 + base, 0, &success);
+    if (!success)
+        return false;
+
+    /* destination address */
+    address = address + imm;
+
+    /* Set the bad_vaddr register with base address used in the instruction */
+    bad_vaddr_context.type = eContextInvalid;
+    WriteRegisterUnsigned (bad_vaddr_context, eRegisterKindDWARF, gcc_dwarf_bad_mips64, address);
+
+    return true;
+}
+
+bool
+EmulateInstructionMIPS64::Emulate_LW (llvm::MCInst& insn)
+{
+    bool success = false;
+    uint32_t base;
+    int64_t imm, address;
+    Context bad_vaddr_context;
+
+    base = m_reg_info->getEncodingValue (insn.getOperand(1).getReg());
+    imm = insn.getOperand(2).getImm();
+
+    RegisterInfo reg_info_base;
+    if (!GetRegisterInfo (eRegisterKindDWARF, gcc_dwarf_zero_mips64 + base, reg_info_base))
+        return false;
+
+    /* read base register */
+    address = ReadRegisterUnsigned (eRegisterKindDWARF, gcc_dwarf_zero_mips64 + base, 0, &success);
+    if (!success)
+        return false;
+
+    /* destination address */
+    address = address + imm;
+
+    /* Set the bad_vaddr register with base address used in the instruction */
+    bad_vaddr_context.type = eContextInvalid;
+    WriteRegisterUnsigned (bad_vaddr_context, eRegisterKindDWARF, gcc_dwarf_bad_mips64, address);
+
+    return true;
+}
+
+bool
 EmulateInstructionMIPS64::Emulate_SD (llvm::MCInst& insn)
 {
+    uint64_t address;
+    RegisterInfo reg_info_base;
+    RegisterInfo reg_info_src;
     bool success = false;
     uint32_t imm16 = insn.getOperand(2).getImm();
     uint64_t imm = SignedBits(imm16, 15, 0);
     uint32_t src, base;
+    Context bad_vaddr_context;
 
     src = m_reg_info->getEncodingValue (insn.getOperand(0).getReg());
     base = m_reg_info->getEncodingValue (insn.getOperand(1).getReg());
 
+    if (!GetRegisterInfo (eRegisterKindDWARF, gcc_dwarf_zero_mips64 + base, reg_info_base)
+        || !GetRegisterInfo (eRegisterKindDWARF, gcc_dwarf_zero_mips64 + src, reg_info_src))
+        return false;
+
+    /* read SP */
+    address = ReadRegisterUnsigned (eRegisterKindDWARF, gcc_dwarf_zero_mips64 + base, 0, &success);
+    if (!success)
+        return false;
+
+    /* destination address */
+    address = address + imm;
+
     /* We look for sp based non-volatile register stores */
     if (base == gcc_dwarf_sp_mips64 && nonvolatile_reg_p (src))
     {
-        uint64_t address;
-        RegisterInfo reg_info_base;
-        RegisterInfo reg_info_src;
-
-        if (!GetRegisterInfo (eRegisterKindDWARF, gcc_dwarf_zero_mips64 + base, reg_info_base)
-            || !GetRegisterInfo (eRegisterKindDWARF, gcc_dwarf_zero_mips64 + src, reg_info_src))
-            return false;
-
-        /* read SP */
-        address = ReadRegisterUnsigned (eRegisterKindDWARF, gcc_dwarf_zero_mips64 + base, 0, &success);
-        if (!success)
-            return false;
-
-        /* destination address */
-        address = address + imm;
-
         Context context;
         RegisterValue data_src;
         context.type = eContextPushRegisterOnStack;
@@ -689,11 +765,13 @@ EmulateInstructionMIPS64::Emulate_SD (llvm::MCInst& insn)
 
         if (!WriteMemory (context, address, buffer, reg_info_src.byte_size))
             return false;
-
-        return true;
     }
 
-    return false;
+    /* Set the bad_vaddr register with base address used in the instruction */
+    bad_vaddr_context.type = eContextInvalid;
+    WriteRegisterUnsigned (bad_vaddr_context, eRegisterKindDWARF, gcc_dwarf_bad_mips64, address);
+
+    return true;
 }
 
 bool
