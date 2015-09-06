@@ -116,7 +116,6 @@ typedef enum {
 	CTL_BE_BLOCK_LUN_UNCONFIGURED	= 0x01,
 	CTL_BE_BLOCK_LUN_CONFIG_ERR	= 0x02,
 	CTL_BE_BLOCK_LUN_WAITING	= 0x04,
-	CTL_BE_BLOCK_LUN_MULTI_THREAD	= 0x08
 } ctl_be_block_lun_flags;
 
 typedef enum {
@@ -167,18 +166,11 @@ struct ctl_be_block_lun {
 	uma_zone_t lun_zone;
 	uint64_t size_blocks;
 	uint64_t size_bytes;
-	uint32_t blocksize;
-	uint16_t pblockexp;
-	uint16_t pblockoff;
-	uint16_t ublockexp;
-	uint16_t ublockoff;
-	uint32_t atomicblock;
-	uint32_t opttxferlen;
 	struct ctl_be_block_softc *softc;
 	struct devstat *disk_stats;
 	ctl_be_block_lun_flags flags;
 	STAILQ_ENTRY(ctl_be_block_lun) links;
-	struct ctl_be_lun ctl_be_lun;
+	struct ctl_be_lun cbe_lun;
 	struct taskqueue *io_taskqueue;
 	struct task io_task;
 	int num_threads;
@@ -768,7 +760,7 @@ ctl_be_block_gls_file(struct ctl_be_block_lun *be_lun,
 
 	DPRINTF("entered\n");
 
-	off = roff = ((off_t)lbalen->lba) * be_lun->blocksize;
+	off = roff = ((off_t)lbalen->lba) * be_lun->cbe_lun.blocksize;
 	vn_lock(be_lun->vn, LK_SHARED | LK_RETRY);
 	error = VOP_IOCTL(be_lun->vn, FIOSEEKHOLE, &off,
 	    0, curthread->td_ucred, curthread);
@@ -788,8 +780,8 @@ ctl_be_block_gls_file(struct ctl_be_block_lun *be_lun,
 
 	data = (struct scsi_get_lba_status_data *)io->scsiio.kern_data_ptr;
 	scsi_u64to8b(lbalen->lba, data->descr[0].addr);
-	scsi_ulto4b(MIN(UINT32_MAX, off / be_lun->blocksize - lbalen->lba),
-	    data->descr[0].length);
+	scsi_ulto4b(MIN(UINT32_MAX, off / be_lun->cbe_lun.blocksize -
+	    lbalen->lba), data->descr[0].length);
 	data->descr[0].status = status;
 
 	ctl_complete_beio(beio);
@@ -810,14 +802,14 @@ ctl_be_block_getattr_file(struct ctl_be_block_lun *be_lun, const char *attrname)
 	if (strcmp(attrname, "blocksused") == 0) {
 		error = VOP_GETATTR(be_lun->vn, &vattr, curthread->td_ucred);
 		if (error == 0)
-			val = vattr.va_bytes / be_lun->blocksize;
+			val = vattr.va_bytes / be_lun->cbe_lun.blocksize;
 	}
 	if (strcmp(attrname, "blocksavail") == 0 &&
 	    (be_lun->vn->v_iflag & VI_DOOMED) == 0) {
 		error = VFS_STATFS(be_lun->vn->v_mount, &statfs);
 		if (error == 0)
 			val = statfs.f_bavail * statfs.f_bsize /
-			    be_lun->blocksize;
+			    be_lun->cbe_lun.blocksize;
 	}
 	VOP_UNLOCK(be_lun->vn, 0);
 	return (val);
@@ -928,7 +920,7 @@ ctl_be_block_gls_zvol(struct ctl_be_block_lun *be_lun,
 
 	DPRINTF("entered\n");
 
-	off = roff = ((off_t)lbalen->lba) * be_lun->blocksize;
+	off = roff = ((off_t)lbalen->lba) * be_lun->cbe_lun.blocksize;
 	error = (*dev_data->csw->d_ioctl)(dev_data->cdev, FIOSEEKHOLE,
 	    (caddr_t)&off, FREAD, curthread);
 	if (error == 0 && off > roff)
@@ -946,8 +938,8 @@ ctl_be_block_gls_zvol(struct ctl_be_block_lun *be_lun,
 
 	data = (struct scsi_get_lba_status_data *)io->scsiio.kern_data_ptr;
 	scsi_u64to8b(lbalen->lba, data->descr[0].addr);
-	scsi_ulto4b(MIN(UINT32_MAX, off / be_lun->blocksize - lbalen->lba),
-	    data->descr[0].length);
+	scsi_ulto4b(MIN(UINT32_MAX, off / be_lun->cbe_lun.blocksize -
+	    lbalen->lba), data->descr[0].length);
 	data->descr[0].status = status;
 
 	ctl_complete_beio(beio);
@@ -1003,7 +995,7 @@ ctl_be_block_unmap_dev_range(struct ctl_be_block_lun *be_lun,
 	uint64_t maxlen;
 
 	dev_data = &be_lun->backend.dev;
-	maxlen = LONG_MAX - (LONG_MAX % be_lun->blocksize);
+	maxlen = LONG_MAX - (LONG_MAX % be_lun->cbe_lun.blocksize);
 	while (len > 0) {
 		bio = g_alloc_bio();
 		bio->bio_cmd	    = BIO_DELETE;
@@ -1013,7 +1005,7 @@ ctl_be_block_unmap_dev_range(struct ctl_be_block_lun *be_lun,
 		bio->bio_data	    = 0;
 		bio->bio_done	    = ctl_be_block_biodone;
 		bio->bio_caller1    = beio;
-		bio->bio_pblkno     = off / be_lun->blocksize;
+		bio->bio_pblkno     = off / be_lun->cbe_lun.blocksize;
 
 		off += bio->bio_length;
 		len -= bio->bio_length;
@@ -1055,11 +1047,11 @@ ctl_be_block_unmap_dev(struct ctl_be_block_lun *be_lun,
 		end = buf + ptrlen->len / sizeof(*buf);
 		for (; buf < end; buf++) {
 			len = (uint64_t)scsi_4btoul(buf->length) *
-			    be_lun->blocksize;
+			    be_lun->cbe_lun.blocksize;
 			beio->io_len += len;
 			ctl_be_block_unmap_dev_range(be_lun, beio,
-			    scsi_8btou64(buf->lba) * be_lun->blocksize, len,
-			    (end - buf < 2) ? TRUE : FALSE);
+			    scsi_8btou64(buf->lba) * be_lun->cbe_lun.blocksize,
+			    len, (end - buf < 2) ? TRUE : FALSE);
 		}
 	} else
 		ctl_be_block_unmap_dev_range(be_lun, beio,
@@ -1111,7 +1103,7 @@ ctl_be_block_dispatch_dev(struct ctl_be_block_lun *be_lun,
 			bio->bio_offset = cur_offset;
 			bio->bio_data = cur_ptr;
 			bio->bio_done = ctl_be_block_biodone;
-			bio->bio_pblkno = cur_offset / be_lun->blocksize;
+			bio->bio_pblkno = cur_offset / be_lun->cbe_lun.blocksize;
 
 			cur_offset += bio->bio_length;
 			cur_ptr += bio->bio_length;
@@ -1158,6 +1150,7 @@ static void
 ctl_be_block_cw_dispatch_sync(struct ctl_be_block_lun *be_lun,
 			    union ctl_io *io)
 {
+	struct ctl_be_lun *cbe_lun = &be_lun->cbe_lun;
 	struct ctl_be_block_io *beio;
 	struct ctl_lba_len_flags *lbalen;
 
@@ -1165,8 +1158,8 @@ ctl_be_block_cw_dispatch_sync(struct ctl_be_block_lun *be_lun,
 	beio = (struct ctl_be_block_io *)PRIV(io)->ptr;
 	lbalen = (struct ctl_lba_len_flags *)&io->io_hdr.ctl_private[CTL_PRIV_LBA_LEN];
 
-	beio->io_len = lbalen->len * be_lun->blocksize;
-	beio->io_offset = lbalen->lba * be_lun->blocksize;
+	beio->io_len = lbalen->len * cbe_lun->blocksize;
+	beio->io_offset = lbalen->lba * cbe_lun->blocksize;
 	beio->io_arg = (lbalen->flags & SSC_IMMED) != 0;
 	beio->bio_cmd = BIO_FLUSH;
 	beio->ds_trans_type = DEVSTAT_NO_DATA;
@@ -1195,6 +1188,7 @@ static void
 ctl_be_block_cw_dispatch_ws(struct ctl_be_block_lun *be_lun,
 			    union ctl_io *io)
 {
+	struct ctl_be_lun *cbe_lun = &be_lun->cbe_lun;
 	struct ctl_be_block_io *beio;
 	struct ctl_lba_len_flags *lbalen;
 	uint64_t len_left, lba;
@@ -1221,8 +1215,8 @@ ctl_be_block_cw_dispatch_ws(struct ctl_be_block_lun *be_lun,
 	}
 
 	if (lbalen->flags & (SWS_UNMAP | SWS_ANCHOR)) {
-		beio->io_offset = lbalen->lba * be_lun->blocksize;
-		beio->io_len = (uint64_t)lbalen->len * be_lun->blocksize;
+		beio->io_offset = lbalen->lba * cbe_lun->blocksize;
+		beio->io_len = (uint64_t)lbalen->len * cbe_lun->blocksize;
 		beio->bio_cmd = BIO_DELETE;
 		beio->ds_trans_type = DEVSTAT_FREE;
 
@@ -1236,27 +1230,27 @@ ctl_be_block_cw_dispatch_ws(struct ctl_be_block_lun *be_lun,
 	DPRINTF("WRITE SAME at LBA %jx len %u\n",
 	       (uintmax_t)lbalen->lba, lbalen->len);
 
-	pb = be_lun->blocksize << be_lun->pblockexp;
-	if (be_lun->pblockoff > 0)
-		pbo = pb - be_lun->blocksize * be_lun->pblockoff;
+	pb = cbe_lun->blocksize << be_lun->cbe_lun.pblockexp;
+	if (be_lun->cbe_lun.pblockoff > 0)
+		pbo = pb - cbe_lun->blocksize * be_lun->cbe_lun.pblockoff;
 	else
 		pbo = 0;
-	len_left = (uint64_t)lbalen->len * be_lun->blocksize;
+	len_left = (uint64_t)lbalen->len * cbe_lun->blocksize;
 	for (i = 0, lba = 0; i < CTLBLK_MAX_SEGS && len_left > 0; i++) {
 
 		/*
 		 * Setup the S/G entry for this chunk.
 		 */
 		seglen = MIN(CTLBLK_MAX_SEG, len_left);
-		if (pb > be_lun->blocksize) {
-			adj = ((lbalen->lba + lba) * be_lun->blocksize +
+		if (pb > cbe_lun->blocksize) {
+			adj = ((lbalen->lba + lba) * cbe_lun->blocksize +
 			    seglen - pbo) % pb;
 			if (seglen > adj)
 				seglen -= adj;
 			else
-				seglen -= seglen % be_lun->blocksize;
+				seglen -= seglen % cbe_lun->blocksize;
 		} else
-			seglen -= seglen % be_lun->blocksize;
+			seglen -= seglen % cbe_lun->blocksize;
 		beio->sg_segs[i].len = seglen;
 		beio->sg_segs[i].addr = uma_zalloc(be_lun->lun_zone, M_WAITOK);
 
@@ -1268,16 +1262,16 @@ ctl_be_block_cw_dispatch_ws(struct ctl_be_block_lun *be_lun,
 
 		buf = beio->sg_segs[i].addr;
 		end = buf + seglen;
-		for (; buf < end; buf += be_lun->blocksize) {
-			memcpy(buf, io->scsiio.kern_data_ptr, be_lun->blocksize);
+		for (; buf < end; buf += cbe_lun->blocksize) {
+			memcpy(buf, io->scsiio.kern_data_ptr, cbe_lun->blocksize);
 			if (lbalen->flags & SWS_LBDATA)
 				scsi_ulto4b(lbalen->lba + lba, buf);
 			lba++;
 		}
 	}
 
-	beio->io_offset = lbalen->lba * be_lun->blocksize;
-	beio->io_len = lba * be_lun->blocksize;
+	beio->io_offset = lbalen->lba * cbe_lun->blocksize;
+	beio->io_len = lba * cbe_lun->blocksize;
 
 	/* We can not do all in one run. Correct and schedule rerun. */
 	if (len_left > 0) {
@@ -1462,6 +1456,7 @@ static void
 ctl_be_block_dispatch(struct ctl_be_block_lun *be_lun,
 			   union ctl_io *io)
 {
+	struct ctl_be_lun *cbe_lun = &be_lun->cbe_lun;
 	struct ctl_be_block_io *beio;
 	struct ctl_be_block_softc *softc;
 	struct ctl_lba_len_flags *lbalen;
@@ -1516,9 +1511,9 @@ ctl_be_block_dispatch(struct ctl_be_block_lun *be_lun,
 		lbas = CTLBLK_HALF_IO_SIZE;
 	else
 		lbas = CTLBLK_MAX_IO_SIZE;
-	lbas = MIN(lbalen->len - bptrlen->len, lbas / be_lun->blocksize);
-	beio->io_offset = (lbalen->lba + bptrlen->len) * be_lun->blocksize;
-	beio->io_len = lbas * be_lun->blocksize;
+	lbas = MIN(lbalen->len - bptrlen->len, lbas / cbe_lun->blocksize);
+	beio->io_offset = (lbalen->lba + bptrlen->len) * cbe_lun->blocksize;
+	beio->io_len = lbas * cbe_lun->blocksize;
 	bptrlen->len += lbas;
 
 	for (i = 0, len_left = beio->io_len; len_left > 0; i++) {
@@ -1663,13 +1658,13 @@ static int
 ctl_be_block_submit(union ctl_io *io)
 {
 	struct ctl_be_block_lun *be_lun;
-	struct ctl_be_lun *ctl_be_lun;
+	struct ctl_be_lun *cbe_lun;
 
 	DPRINTF("entered\n");
 
-	ctl_be_lun = (struct ctl_be_lun *)io->io_hdr.ctl_private[
+	cbe_lun = (struct ctl_be_lun *)io->io_hdr.ctl_private[
 		CTL_PRIV_BACKEND_LUN].ptr;
-	be_lun = (struct ctl_be_block_lun *)ctl_be_lun->be_lun;
+	be_lun = (struct ctl_be_block_lun *)cbe_lun->be_lun;
 
 	/*
 	 * Make sure we only get SCSI I/O.
@@ -1739,6 +1734,7 @@ ctl_be_block_ioctl(struct cdev *dev, u_long cmd, caddr_t addr,
 static int
 ctl_be_block_open_file(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 {
+	struct ctl_be_lun *cbe_lun;
 	struct ctl_be_block_filedata *file_data;
 	struct ctl_lun_create_params *params;
 	char			     *value;
@@ -1747,6 +1743,7 @@ ctl_be_block_open_file(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 	int			      error;
 
 	error = 0;
+	cbe_lun = &be_lun->cbe_lun;
 	file_data = &be_lun->backend.file;
 	params = &be_lun->params;
 
@@ -1755,6 +1752,8 @@ ctl_be_block_open_file(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 	be_lun->lun_flush = ctl_be_block_flush_file;
 	be_lun->get_lba_status = ctl_be_block_gls_file;
 	be_lun->getattr = ctl_be_block_getattr_file;
+	be_lun->unmap = NULL;
+	cbe_lun->flags &= ~CTL_LUN_FLAG_UNMAP;
 
 	error = VOP_GETATTR(be_lun->vn, &vattr, curthread->td_ucred);
 	if (error != 0) {
@@ -1779,19 +1778,11 @@ ctl_be_block_open_file(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 		}
 	}
 
-
 	file_data->cred = crhold(curthread->td_ucred);
 	if (params->lun_size_bytes != 0)
 		be_lun->size_bytes = params->lun_size_bytes;
 	else
 		be_lun->size_bytes = vattr.va_size;
-	/*
-	 * We set the multi thread flag for file operations because all
-	 * filesystems (in theory) are capable of allowing multiple readers
-	 * of a file at once.  So we want to get the maximum possible
-	 * concurrency.
-	 */
-	be_lun->flags |= CTL_BE_BLOCK_LUN_MULTI_THREAD;
 
 	/*
 	 * For files we can use any logical block size.  Prefer 512 bytes
@@ -1800,59 +1791,63 @@ ctl_be_block_open_file(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 	 * logical block size -- report it as physical block size.
 	 */
 	if (params->blocksize_bytes != 0)
-		be_lun->blocksize = params->blocksize_bytes;
+		cbe_lun->blocksize = params->blocksize_bytes;
 	else
-		be_lun->blocksize = 512;
+		cbe_lun->blocksize = 512;
+	be_lun->size_blocks = be_lun->size_bytes / cbe_lun->blocksize;
+	cbe_lun->maxlba = (be_lun->size_blocks == 0) ?
+	    0 : (be_lun->size_blocks - 1);
 
 	us = ps = vattr.va_blocksize;
 	uo = po = 0;
 
-	value = ctl_get_opt(&be_lun->ctl_be_lun.options, "pblocksize");
+	value = ctl_get_opt(&cbe_lun->options, "pblocksize");
 	if (value != NULL)
 		ctl_expand_number(value, &ps);
-	value = ctl_get_opt(&be_lun->ctl_be_lun.options, "pblockoffset");
+	value = ctl_get_opt(&cbe_lun->options, "pblockoffset");
 	if (value != NULL)
 		ctl_expand_number(value, &po);
-	pss = ps / be_lun->blocksize;
-	pos = po / be_lun->blocksize;
-	if ((pss > 0) && (pss * be_lun->blocksize == ps) && (pss >= pos) &&
-	    ((pss & (pss - 1)) == 0) && (pos * be_lun->blocksize == po)) {
-		be_lun->pblockexp = fls(pss) - 1;
-		be_lun->pblockoff = (pss - pos) % pss;
+	pss = ps / cbe_lun->blocksize;
+	pos = po / cbe_lun->blocksize;
+	if ((pss > 0) && (pss * cbe_lun->blocksize == ps) && (pss >= pos) &&
+	    ((pss & (pss - 1)) == 0) && (pos * cbe_lun->blocksize == po)) {
+		cbe_lun->pblockexp = fls(pss) - 1;
+		cbe_lun->pblockoff = (pss - pos) % pss;
 	}
 
-	value = ctl_get_opt(&be_lun->ctl_be_lun.options, "ublocksize");
+	value = ctl_get_opt(&cbe_lun->options, "ublocksize");
 	if (value != NULL)
 		ctl_expand_number(value, &us);
-	value = ctl_get_opt(&be_lun->ctl_be_lun.options, "ublockoffset");
+	value = ctl_get_opt(&cbe_lun->options, "ublockoffset");
 	if (value != NULL)
 		ctl_expand_number(value, &uo);
-	uss = us / be_lun->blocksize;
-	uos = uo / be_lun->blocksize;
-	if ((uss > 0) && (uss * be_lun->blocksize == us) && (uss >= uos) &&
-	    ((uss & (uss - 1)) == 0) && (uos * be_lun->blocksize == uo)) {
-		be_lun->ublockexp = fls(uss) - 1;
-		be_lun->ublockoff = (uss - uos) % uss;
+	uss = us / cbe_lun->blocksize;
+	uos = uo / cbe_lun->blocksize;
+	if ((uss > 0) && (uss * cbe_lun->blocksize == us) && (uss >= uos) &&
+	    ((uss & (uss - 1)) == 0) && (uos * cbe_lun->blocksize == uo)) {
+		cbe_lun->ublockexp = fls(uss) - 1;
+		cbe_lun->ublockoff = (uss - uos) % uss;
 	}
 
 	/*
 	 * Sanity check.  The media size has to be at least one
 	 * sector long.
 	 */
-	if (be_lun->size_bytes < be_lun->blocksize) {
+	if (be_lun->size_bytes < cbe_lun->blocksize) {
 		error = EINVAL;
 		snprintf(req->error_str, sizeof(req->error_str),
 			 "file %s size %ju < block size %u", be_lun->dev_path,
-			 (uintmax_t)be_lun->size_bytes, be_lun->blocksize);
+			 (uintmax_t)be_lun->size_bytes, cbe_lun->blocksize);
 	}
 
-	be_lun->opttxferlen = CTLBLK_MAX_IO_SIZE / be_lun->blocksize;
+	cbe_lun->opttxferlen = CTLBLK_MAX_IO_SIZE / cbe_lun->blocksize;
 	return (error);
 }
 
 static int
 ctl_be_block_open_dev(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 {
+	struct ctl_be_lun *cbe_lun = &be_lun->cbe_lun;
 	struct ctl_lun_create_params *params;
 	struct vattr		      vattr;
 	struct cdev		     *dev;
@@ -1875,6 +1870,7 @@ ctl_be_block_open_dev(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 		atomic = maxio = CTLBLK_MAX_IO_SIZE;
 	} else {
 		be_lun->dispatch = ctl_be_block_dispatch_dev;
+		be_lun->get_lba_status = NULL;
 		atomic = 0;
 		maxio = be_lun->backend.dev.cdev->si_iosize_max;
 		if (maxio <= 0)
@@ -1884,6 +1880,7 @@ ctl_be_block_open_dev(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 	}
 	be_lun->lun_flush = ctl_be_block_flush_dev;
 	be_lun->getattr = ctl_be_block_getattr_dev;
+	be_lun->unmap = ctl_be_block_unmap_dev;
 
 	error = VOP_GETATTR(be_lun->vn, &vattr, NOCRED);
 	if (error) {
@@ -1920,7 +1917,7 @@ ctl_be_block_open_dev(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 	if ((params->blocksize_bytes != 0) &&
 	    (params->blocksize_bytes >= tmp)) {
 		if (params->blocksize_bytes % tmp == 0) {
-			be_lun->blocksize = params->blocksize_bytes;
+			cbe_lun->blocksize = params->blocksize_bytes;
 		} else {
 			snprintf(req->error_str, sizeof(req->error_str),
 				 "requested blocksize %u is not an even "
@@ -1935,7 +1932,7 @@ ctl_be_block_open_dev(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 			 "blocksize %u", params->blocksize_bytes, tmp);
 		return (EINVAL);
 	} else
-		be_lun->blocksize = tmp;
+		cbe_lun->blocksize = tmp;
 
 	error = devsw->d_ioctl(dev, DIOCGMEDIASIZE, (caddr_t)&otmp, FREAD,
 			       curthread);
@@ -1960,6 +1957,9 @@ ctl_be_block_open_dev(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 		be_lun->size_bytes = params->lun_size_bytes;
 	} else
 		be_lun->size_bytes = otmp;
+	be_lun->size_blocks = be_lun->size_bytes / cbe_lun->blocksize;
+	cbe_lun->maxlba = (be_lun->size_blocks == 0) ?
+	    0 : (be_lun->size_blocks - 1);
 
 	error = devsw->d_ioctl(dev, DIOCGSTRIPESIZE,
 			       (caddr_t)&ps, FREAD, curthread);
@@ -1974,36 +1974,36 @@ ctl_be_block_open_dev(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 	us = ps;
 	uo = po;
 
-	value = ctl_get_opt(&be_lun->ctl_be_lun.options, "pblocksize");
+	value = ctl_get_opt(&cbe_lun->options, "pblocksize");
 	if (value != NULL)
 		ctl_expand_number(value, &ps);
-	value = ctl_get_opt(&be_lun->ctl_be_lun.options, "pblockoffset");
+	value = ctl_get_opt(&cbe_lun->options, "pblockoffset");
 	if (value != NULL)
 		ctl_expand_number(value, &po);
-	pss = ps / be_lun->blocksize;
-	pos = po / be_lun->blocksize;
-	if ((pss > 0) && (pss * be_lun->blocksize == ps) && (pss >= pos) &&
-	    ((pss & (pss - 1)) == 0) && (pos * be_lun->blocksize == po)) {
-		be_lun->pblockexp = fls(pss) - 1;
-		be_lun->pblockoff = (pss - pos) % pss;
+	pss = ps / cbe_lun->blocksize;
+	pos = po / cbe_lun->blocksize;
+	if ((pss > 0) && (pss * cbe_lun->blocksize == ps) && (pss >= pos) &&
+	    ((pss & (pss - 1)) == 0) && (pos * cbe_lun->blocksize == po)) {
+		cbe_lun->pblockexp = fls(pss) - 1;
+		cbe_lun->pblockoff = (pss - pos) % pss;
 	}
 
-	value = ctl_get_opt(&be_lun->ctl_be_lun.options, "ublocksize");
+	value = ctl_get_opt(&cbe_lun->options, "ublocksize");
 	if (value != NULL)
 		ctl_expand_number(value, &us);
-	value = ctl_get_opt(&be_lun->ctl_be_lun.options, "ublockoffset");
+	value = ctl_get_opt(&cbe_lun->options, "ublockoffset");
 	if (value != NULL)
 		ctl_expand_number(value, &uo);
-	uss = us / be_lun->blocksize;
-	uos = uo / be_lun->blocksize;
-	if ((uss > 0) && (uss * be_lun->blocksize == us) && (uss >= uos) &&
-	    ((uss & (uss - 1)) == 0) && (uos * be_lun->blocksize == uo)) {
-		be_lun->ublockexp = fls(uss) - 1;
-		be_lun->ublockoff = (uss - uos) % uss;
+	uss = us / cbe_lun->blocksize;
+	uos = uo / cbe_lun->blocksize;
+	if ((uss > 0) && (uss * cbe_lun->blocksize == us) && (uss >= uos) &&
+	    ((uss & (uss - 1)) == 0) && (uos * cbe_lun->blocksize == uo)) {
+		cbe_lun->ublockexp = fls(uss) - 1;
+		cbe_lun->ublockoff = (uss - uos) % uss;
 	}
 
-	be_lun->atomicblock = atomic / be_lun->blocksize;
-	be_lun->opttxferlen = maxio / be_lun->blocksize;
+	cbe_lun->atomicblock = atomic / cbe_lun->blocksize;
+	cbe_lun->opttxferlen = maxio / cbe_lun->blocksize;
 
 	if (be_lun->dispatch == ctl_be_block_dispatch_zvol) {
 		unmap = 1;
@@ -2016,11 +2016,13 @@ ctl_be_block_open_dev(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 		    (caddr_t)&arg, FREAD, curthread);
 		unmap = (error == 0) ? arg.value.i : 0;
 	}
-	value = ctl_get_opt(&be_lun->ctl_be_lun.options, "unmap");
+	value = ctl_get_opt(&cbe_lun->options, "unmap");
 	if (value != NULL)
 		unmap = (strcmp(value, "on") == 0);
 	if (unmap)
-		be_lun->unmap = ctl_be_block_unmap_dev;
+		cbe_lun->flags |= CTL_LUN_FLAG_UNMAP;
+	else
+		cbe_lun->flags &= ~CTL_LUN_FLAG_UNMAP;
 
 	return (0);
 }
@@ -2028,10 +2030,10 @@ ctl_be_block_open_dev(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 static int
 ctl_be_block_close(struct ctl_be_block_lun *be_lun)
 {
-	DROP_GIANT();
-	if (be_lun->vn) {
-		int flags = FREAD | FWRITE;
+	struct ctl_be_lun *cbe_lun = &be_lun->cbe_lun;
+	int flags;
 
+	if (be_lun->vn) {
 		switch (be_lun->dev_type) {
 		case CTL_BE_BLOCK_DEV:
 			if (be_lun->backend.dev.csw) {
@@ -2050,6 +2052,9 @@ ctl_be_block_close(struct ctl_be_block_lun *be_lun)
 			break;
 		}
 
+		flags = FREAD;
+		if ((cbe_lun->flags & CTL_LUN_FLAG_READONLY) == 0)
+			flags |= FWRITE;
 		(void)vn_close(be_lun->vn, flags, NOCRED, curthread);
 		be_lun->vn = NULL;
 
@@ -2070,36 +2075,47 @@ ctl_be_block_close(struct ctl_be_block_lun *be_lun)
 		}
 		be_lun->dev_type = CTL_BE_BLOCK_NONE;
 	}
-	PICKUP_GIANT();
-
 	return (0);
 }
 
 static int
 ctl_be_block_open(struct ctl_be_block_softc *softc,
-		       struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
+		  struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 {
+	struct ctl_be_lun *cbe_lun = &be_lun->cbe_lun;
 	struct nameidata nd;
-	int		 flags;
-	int		 error;
+	char		*value;
+	int		 error, flags;
 
-	/*
-	 * XXX KDM allow a read-only option?
-	 */
-	flags = FREAD | FWRITE;
 	error = 0;
-
 	if (rootvnode == NULL) {
 		snprintf(req->error_str, sizeof(req->error_str),
 			 "Root filesystem is not mounted");
 		return (1);
 	}
-
 	pwd_ensure_dirs();
 
- again:
+	value = ctl_get_opt(&cbe_lun->options, "file");
+	if (value == NULL) {
+		snprintf(req->error_str, sizeof(req->error_str),
+			 "no file argument specified");
+		return (1);
+	}
+	free(be_lun->dev_path, M_CTLBLK);
+	be_lun->dev_path = strdup(value, M_CTLBLK);
+
+	flags = FREAD;
+	value = ctl_get_opt(&cbe_lun->options, "readonly");
+	if (value == NULL || strcmp(value, "on") != 0)
+		flags |= FWRITE;
+
+again:
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, be_lun->dev_path, curthread);
 	error = vn_open(&nd, &flags, 0, NULL);
+	if ((error == EROFS || error == EACCES) && (flags & FWRITE)) {
+		flags &= ~FWRITE;
+		goto again;
+	}
 	if (error) {
 		/*
 		 * This is the only reasonable guess we can make as far as
@@ -2108,28 +2124,24 @@ ctl_be_block_open(struct ctl_be_block_softc *softc,
 		 * full path.
 		 */
 		if (be_lun->dev_path[0] != '/') {
-			char *dev_path = "/dev/";
 			char *dev_name;
 
-			/* Try adding device path at beginning of name */
-			dev_name = malloc(strlen(be_lun->dev_path)
-					+ strlen(dev_path) + 1,
-					  M_CTLBLK, M_WAITOK);
-			if (dev_name) {
-				sprintf(dev_name, "%s%s", dev_path,
-					be_lun->dev_path);
-				free(be_lun->dev_path, M_CTLBLK);
-				be_lun->dev_path = dev_name;
-				goto again;
-			}
+			asprintf(&dev_name, M_CTLBLK, "/dev/%s",
+				be_lun->dev_path);
+			free(be_lun->dev_path, M_CTLBLK);
+			be_lun->dev_path = dev_name;
+			goto again;
 		}
 		snprintf(req->error_str, sizeof(req->error_str),
 		    "error opening %s: %d", be_lun->dev_path, error);
 		return (error);
 	}
+	if (flags & FWRITE)
+		cbe_lun->flags &= ~CTL_LUN_FLAG_READONLY;
+	else
+		cbe_lun->flags |= CTL_LUN_FLAG_READONLY;
 
 	NDFREE(&nd, NDF_ONLY_PNBUF);
-		
 	be_lun->vn = nd.ni_vp;
 
 	/* We only support disks and files. */
@@ -2146,12 +2158,23 @@ ctl_be_block_open(struct ctl_be_block_softc *softc,
 
 	if (error != 0)
 		ctl_be_block_close(be_lun);
+	cbe_lun->serseq = CTL_LUN_SERSEQ_OFF;
+	if (be_lun->dispatch != ctl_be_block_dispatch_dev)
+		cbe_lun->serseq = CTL_LUN_SERSEQ_READ;
+	value = ctl_get_opt(&cbe_lun->options, "serseq");
+	if (value != NULL && strcmp(value, "on") == 0)
+		cbe_lun->serseq = CTL_LUN_SERSEQ_ON;
+	else if (value != NULL && strcmp(value, "read") == 0)
+		cbe_lun->serseq = CTL_LUN_SERSEQ_READ;
+	else if (value != NULL && strcmp(value, "off") == 0)
+		cbe_lun->serseq = CTL_LUN_SERSEQ_OFF;
 	return (0);
 }
 
 static int
 ctl_be_block_create(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 {
+	struct ctl_be_lun *cbe_lun;
 	struct ctl_be_block_lun *be_lun;
 	struct ctl_lun_create_params *params;
 	char num_thread_str[16];
@@ -2164,10 +2187,9 @@ ctl_be_block_create(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 	retval = 0;
 	req->status = CTL_LUN_OK;
 
-	num_threads = cbb_num_threads;
-
 	be_lun = malloc(sizeof(*be_lun), M_CTLBLK, M_ZERO | M_WAITOK);
-
+	cbe_lun = &be_lun->cbe_lun;
+	cbe_lun->be_lun = be_lun;
 	be_lun->params = req->reqdata.create;
 	be_lun->softc = softc;
 	STAILQ_INIT(&be_lun->input_queue);
@@ -2177,12 +2199,10 @@ ctl_be_block_create(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 	sprintf(be_lun->lunname, "cblk%d", softc->num_luns);
 	mtx_init(&be_lun->io_lock, "cblk io lock", NULL, MTX_DEF);
 	mtx_init(&be_lun->queue_lock, "cblk queue lock", NULL, MTX_DEF);
-	ctl_init_opts(&be_lun->ctl_be_lun.options,
+	ctl_init_opts(&cbe_lun->options,
 	    req->num_be_args, req->kern_be_args);
-
 	be_lun->lun_zone = uma_zcreate(be_lun->lunname, CTLBLK_MAX_SEG,
 	    NULL, NULL, NULL, NULL, /*align*/ 0, /*flags*/0);
-
 	if (be_lun->lun_zone == NULL) {
 		snprintf(req->error_str, sizeof(req->error_str),
 			 "error allocating UMA zone");
@@ -2190,46 +2210,29 @@ ctl_be_block_create(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 	}
 
 	if (params->flags & CTL_LUN_FLAG_DEV_TYPE)
-		be_lun->ctl_be_lun.lun_type = params->device_type;
+		cbe_lun->lun_type = params->device_type;
 	else
-		be_lun->ctl_be_lun.lun_type = T_DIRECT;
+		cbe_lun->lun_type = T_DIRECT;
+	be_lun->flags = CTL_BE_BLOCK_LUN_UNCONFIGURED;
+	cbe_lun->flags = CTL_LUN_FLAG_PRIMARY;
 
-	if (be_lun->ctl_be_lun.lun_type == T_DIRECT) {
-		value = ctl_get_opt(&be_lun->ctl_be_lun.options, "file");
-		if (value == NULL) {
-			snprintf(req->error_str, sizeof(req->error_str),
-				 "no file argument specified");
-			goto bailout_error;
-		}
-		be_lun->dev_path = strdup(value, M_CTLBLK);
+	if (cbe_lun->lun_type == T_DIRECT) {
 		be_lun->size_bytes = params->lun_size_bytes;
 		if (params->blocksize_bytes != 0)
-			be_lun->blocksize = params->blocksize_bytes;
+			cbe_lun->blocksize = params->blocksize_bytes;
 		else
-			be_lun->blocksize = 512;
+			cbe_lun->blocksize = 512;
+		be_lun->size_blocks = be_lun->size_bytes / cbe_lun->blocksize;
+		cbe_lun->maxlba = (be_lun->size_blocks == 0) ?
+		    0 : (be_lun->size_blocks - 1);
 
 		retval = ctl_be_block_open(softc, be_lun, req);
-		be_lun->size_blocks = be_lun->size_bytes / be_lun->blocksize;
 		if (retval != 0) {
 			retval = 0;
 			req->status = CTL_LUN_WARNING;
 		}
+		num_threads = cbb_num_threads;
 	} else {
-		/*
-		 * For processor devices, we don't have any size.
-		 */
-		be_lun->blocksize = 0;
-		be_lun->pblockexp = 0;
-		be_lun->pblockoff = 0;
-		be_lun->ublockexp = 0;
-		be_lun->ublockoff = 0;
-		be_lun->size_blocks = 0;
-		be_lun->size_bytes = 0;
-		be_lun->ctl_be_lun.maxlba = 0;
-
-		/*
-		 * Default to just 1 thread for processor devices.
-		 */
 		num_threads = 1;
 	}
 
@@ -2237,7 +2240,7 @@ ctl_be_block_create(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 	 * XXX This searching loop might be refactored to be combined with
 	 * the loop above,
 	 */
-	value = ctl_get_opt(&be_lun->ctl_be_lun.options, "num_threads");
+	value = ctl_get_opt(&cbe_lun->options, "num_threads");
 	if (value != NULL) {
 		tmp_num_threads = strtol(value, NULL, 0);
 
@@ -2255,67 +2258,46 @@ ctl_be_block_create(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 		num_threads = tmp_num_threads;
 	}
 
-	be_lun->flags = CTL_BE_BLOCK_LUN_UNCONFIGURED;
-	be_lun->ctl_be_lun.flags = CTL_LUN_FLAG_PRIMARY;
 	if (be_lun->vn == NULL)
-		be_lun->ctl_be_lun.flags |= CTL_LUN_FLAG_OFFLINE;
-	if (be_lun->unmap != NULL)
-		be_lun->ctl_be_lun.flags |= CTL_LUN_FLAG_UNMAP;
-	if (be_lun->dispatch != ctl_be_block_dispatch_dev)
-		be_lun->ctl_be_lun.flags |= CTL_LUN_FLAG_SERSEQ_READ;
-	be_lun->ctl_be_lun.be_lun = be_lun;
-	be_lun->ctl_be_lun.maxlba = (be_lun->size_blocks == 0) ?
-	    0 : (be_lun->size_blocks - 1);
-	be_lun->ctl_be_lun.blocksize = be_lun->blocksize;
-	be_lun->ctl_be_lun.pblockexp = be_lun->pblockexp;
-	be_lun->ctl_be_lun.pblockoff = be_lun->pblockoff;
-	be_lun->ctl_be_lun.ublockexp = be_lun->ublockexp;
-	be_lun->ctl_be_lun.ublockoff = be_lun->ublockoff;
-	be_lun->ctl_be_lun.atomicblock = be_lun->atomicblock;
-	be_lun->ctl_be_lun.opttxferlen = be_lun->opttxferlen;
+		cbe_lun->flags |= CTL_LUN_FLAG_OFFLINE;
 	/* Tell the user the blocksize we ended up using */
 	params->lun_size_bytes = be_lun->size_bytes;
-	params->blocksize_bytes = be_lun->blocksize;
+	params->blocksize_bytes = cbe_lun->blocksize;
 	if (params->flags & CTL_LUN_FLAG_ID_REQ) {
-		be_lun->ctl_be_lun.req_lun_id = params->req_lun_id;
-		be_lun->ctl_be_lun.flags |= CTL_LUN_FLAG_ID_REQ;
+		cbe_lun->req_lun_id = params->req_lun_id;
+		cbe_lun->flags |= CTL_LUN_FLAG_ID_REQ;
 	} else
-		be_lun->ctl_be_lun.req_lun_id = 0;
+		cbe_lun->req_lun_id = 0;
 
-	be_lun->ctl_be_lun.lun_shutdown = ctl_be_block_lun_shutdown;
-	be_lun->ctl_be_lun.lun_config_status =
-		ctl_be_block_lun_config_status;
-	be_lun->ctl_be_lun.be = &ctl_be_block_driver;
+	cbe_lun->lun_shutdown = ctl_be_block_lun_shutdown;
+	cbe_lun->lun_config_status = ctl_be_block_lun_config_status;
+	cbe_lun->be = &ctl_be_block_driver;
 
 	if ((params->flags & CTL_LUN_FLAG_SERIAL_NUM) == 0) {
 		snprintf(tmpstr, sizeof(tmpstr), "MYSERIAL%4d",
 			 softc->num_luns);
-		strncpy((char *)be_lun->ctl_be_lun.serial_num, tmpstr,
-			MIN(sizeof(be_lun->ctl_be_lun.serial_num),
-			sizeof(tmpstr)));
+		strncpy((char *)cbe_lun->serial_num, tmpstr,
+			MIN(sizeof(cbe_lun->serial_num), sizeof(tmpstr)));
 
 		/* Tell the user what we used for a serial number */
 		strncpy((char *)params->serial_num, tmpstr,
 			MIN(sizeof(params->serial_num), sizeof(tmpstr)));
 	} else { 
-		strncpy((char *)be_lun->ctl_be_lun.serial_num,
-			params->serial_num,
-			MIN(sizeof(be_lun->ctl_be_lun.serial_num),
+		strncpy((char *)cbe_lun->serial_num, params->serial_num,
+			MIN(sizeof(cbe_lun->serial_num),
 			sizeof(params->serial_num)));
 	}
 	if ((params->flags & CTL_LUN_FLAG_DEVID) == 0) {
 		snprintf(tmpstr, sizeof(tmpstr), "MYDEVID%4d", softc->num_luns);
-		strncpy((char *)be_lun->ctl_be_lun.device_id, tmpstr,
-			MIN(sizeof(be_lun->ctl_be_lun.device_id),
-			sizeof(tmpstr)));
+		strncpy((char *)cbe_lun->device_id, tmpstr,
+			MIN(sizeof(cbe_lun->device_id), sizeof(tmpstr)));
 
 		/* Tell the user what we used for a device ID */
 		strncpy((char *)params->device_id, tmpstr,
 			MIN(sizeof(params->device_id), sizeof(tmpstr)));
 	} else {
-		strncpy((char *)be_lun->ctl_be_lun.device_id,
-			params->device_id,
-			MIN(sizeof(be_lun->ctl_be_lun.device_id),
+		strncpy((char *)cbe_lun->device_id, params->device_id,
+			MIN(sizeof(cbe_lun->device_id),
 			    sizeof(params->device_id)));
 	}
 
@@ -2361,7 +2343,7 @@ ctl_be_block_create(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 
 	mtx_unlock(&softc->lock);
 
-	retval = ctl_add_lun(&be_lun->ctl_be_lun);
+	retval = ctl_add_lun(&be_lun->cbe_lun);
 	if (retval != 0) {
 		mtx_lock(&softc->lock);
 		STAILQ_REMOVE(&softc->lun_list, be_lun, ctl_be_block_lun,
@@ -2399,15 +2381,15 @@ ctl_be_block_create(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 		mtx_unlock(&softc->lock);
 		goto bailout_error;
 	} else {
-		params->req_lun_id = be_lun->ctl_be_lun.lun_id;
+		params->req_lun_id = cbe_lun->lun_id;
 	}
 
 	mtx_unlock(&softc->lock);
 
 	be_lun->disk_stats = devstat_new_entry("cbb", params->req_lun_id,
-					       be_lun->blocksize,
+					       cbe_lun->blocksize,
 					       DEVSTAT_ALL_SUPPORTED,
-					       be_lun->ctl_be_lun.lun_type
+					       cbe_lun->lun_type
 					       | DEVSTAT_TYPE_IF_OTHER,
 					       DEVSTAT_PRIORITY_OTHER);
 
@@ -2423,7 +2405,7 @@ bailout_error:
 		free(be_lun->dev_path, M_CTLBLK);
 	if (be_lun->lun_zone != NULL)
 		uma_zdestroy(be_lun->lun_zone);
-	ctl_free_opts(&be_lun->ctl_be_lun.options);
+	ctl_free_opts(&cbe_lun->options);
 	mtx_destroy(&be_lun->queue_lock);
 	mtx_destroy(&be_lun->io_lock);
 	free(be_lun, M_CTLBLK);
@@ -2441,11 +2423,8 @@ ctl_be_block_rm(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 	params = &req->reqdata.rm;
 
 	mtx_lock(&softc->lock);
-
-	be_lun = NULL;
-
 	STAILQ_FOREACH(be_lun, &softc->lun_list, links) {
-		if (be_lun->ctl_be_lun.lun_id == params->lun_id)
+		if (be_lun->cbe_lun.lun_id == params->lun_id)
 			break;
 	}
 	mtx_unlock(&softc->lock);
@@ -2457,7 +2436,7 @@ ctl_be_block_rm(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 		goto bailout_error;
 	}
 
-	retval = ctl_disable_lun(&be_lun->ctl_be_lun);
+	retval = ctl_disable_lun(&be_lun->cbe_lun);
 
 	if (retval != 0) {
 		snprintf(req->error_str, sizeof(req->error_str),
@@ -2467,7 +2446,7 @@ ctl_be_block_rm(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 
 	}
 
-	retval = ctl_invalidate_lun(&be_lun->ctl_be_lun);
+	retval = ctl_invalidate_lun(&be_lun->cbe_lun);
 	if (retval != 0) {
 		snprintf(req->error_str, sizeof(req->error_str),
 			 "error %d returned from ctl_invalidate_lun() for "
@@ -2510,7 +2489,7 @@ ctl_be_block_rm(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 
 	uma_zdestroy(be_lun->lun_zone);
 
-	ctl_free_opts(&be_lun->ctl_be_lun.options);
+	ctl_free_opts(&be_lun->cbe_lun.options);
 	free(be_lun->dev_path, M_CTLBLK);
 	mtx_destroy(&be_lun->queue_lock);
 	mtx_destroy(&be_lun->io_lock);
@@ -2531,6 +2510,7 @@ static int
 ctl_be_block_modify_file(struct ctl_be_block_lun *be_lun,
 			 struct ctl_lun_req *req)
 {
+	struct ctl_be_lun *cbe_lun = &be_lun->cbe_lun;
 	struct vattr vattr;
 	int error;
 	struct ctl_lun_create_params *params = &be_lun->params;
@@ -2547,10 +2527,11 @@ ctl_be_block_modify_file(struct ctl_be_block_lun *be_lun,
 				 be_lun->dev_path);
 			return (error);
 		}
-
 		be_lun->size_bytes = vattr.va_size;
 	}
-
+	be_lun->size_blocks = be_lun->size_bytes / cbe_lun->blocksize;
+	cbe_lun->maxlba = (be_lun->size_blocks == 0) ?
+	    0 : (be_lun->size_blocks - 1);
 	return (0);
 }
 
@@ -2558,6 +2539,7 @@ static int
 ctl_be_block_modify_dev(struct ctl_be_block_lun *be_lun,
 			struct ctl_lun_req *req)
 {
+	struct ctl_be_lun *cbe_lun = &be_lun->cbe_lun;
 	struct ctl_be_block_devdata *dev_data;
 	int error;
 	struct ctl_lun_create_params *params = &be_lun->params;
@@ -2589,12 +2571,13 @@ ctl_be_block_modify_dev(struct ctl_be_block_lun *be_lun,
 				 (uintmax_t)size_bytes);
 			return (EINVAL);
 		}
-
 		be_lun->size_bytes = params->lun_size_bytes;
 	} else {
 		be_lun->size_bytes = size_bytes;
 	}
-
+	be_lun->size_blocks = be_lun->size_bytes / cbe_lun->blocksize;
+	cbe_lun->maxlba = (be_lun->size_blocks == 0) ?
+	    0 : (be_lun->size_blocks - 1);
 	return (0);
 }
 
@@ -2603,15 +2586,15 @@ ctl_be_block_modify(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 {
 	struct ctl_lun_modify_params *params;
 	struct ctl_be_block_lun *be_lun;
+	struct ctl_be_lun *cbe_lun;
 	uint64_t oldsize;
 	int error;
 
 	params = &req->reqdata.modify;
 
 	mtx_lock(&softc->lock);
-	be_lun = NULL;
 	STAILQ_FOREACH(be_lun, &softc->lun_list, links) {
-		if (be_lun->ctl_be_lun.lun_id == params->lun_id)
+		if (be_lun->cbe_lun.lun_id == params->lun_id)
 			break;
 	}
 	mtx_unlock(&softc->lock);
@@ -2622,10 +2605,13 @@ ctl_be_block_modify(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 			 params->lun_id);
 		goto bailout_error;
 	}
+	cbe_lun = &be_lun->cbe_lun;
 
-	be_lun->params.lun_size_bytes = params->lun_size_bytes;
+	if (params->lun_size_bytes != 0)
+		be_lun->params.lun_size_bytes = params->lun_size_bytes;
+	ctl_update_opts(&cbe_lun->options, req->num_be_args, req->kern_be_args);
 
-	oldsize = be_lun->size_bytes;
+	oldsize = be_lun->size_blocks;
 	if (be_lun->vn == NULL)
 		error = ctl_be_block_open(softc, be_lun, req);
 	else if (vn_isdisk(be_lun->vn, &error))
@@ -2634,42 +2620,23 @@ ctl_be_block_modify(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 		error = ctl_be_block_modify_file(be_lun, req);
 	else
 		error = EINVAL;
-	be_lun->size_blocks = be_lun->size_bytes / be_lun->blocksize;
 
-	if (error == 0 && be_lun->size_bytes != oldsize) {
-
-		/*
-		 * The maximum LBA is the size - 1.
-		 *
-		 * XXX: Note that this field is being updated without locking,
-		 * 	which might cause problems on 32-bit architectures.
-		 */
-		if (be_lun->unmap != NULL)
-			be_lun->ctl_be_lun.flags |= CTL_LUN_FLAG_UNMAP;
-		be_lun->ctl_be_lun.maxlba = (be_lun->size_blocks == 0) ?
-		    0 : (be_lun->size_blocks - 1);
-		be_lun->ctl_be_lun.blocksize = be_lun->blocksize;
-		be_lun->ctl_be_lun.pblockexp = be_lun->pblockexp;
-		be_lun->ctl_be_lun.pblockoff = be_lun->pblockoff;
-		be_lun->ctl_be_lun.ublockexp = be_lun->ublockexp;
-		be_lun->ctl_be_lun.ublockoff = be_lun->ublockoff;
-		be_lun->ctl_be_lun.atomicblock = be_lun->atomicblock;
-		be_lun->ctl_be_lun.opttxferlen = be_lun->opttxferlen;
-		ctl_lun_capacity_changed(&be_lun->ctl_be_lun);
-		if (oldsize == 0 && be_lun->size_blocks != 0)
-			ctl_lun_online(&be_lun->ctl_be_lun);
+	if (be_lun->size_blocks != oldsize)
+		ctl_lun_capacity_changed(cbe_lun);
+	if ((cbe_lun->flags & CTL_LUN_FLAG_OFFLINE) &&
+	    be_lun->vn != NULL) {
+		cbe_lun->flags &= ~CTL_LUN_FLAG_OFFLINE;
+		ctl_lun_online(cbe_lun);
 	}
 
 	/* Tell the user the exact size we ended up using */
 	params->lun_size_bytes = be_lun->size_bytes;
 
 	req->status = error ? CTL_LUN_WARNING : CTL_LUN_OK;
-
 	return (0);
 
 bailout_error:
 	req->status = CTL_LUN_ERROR;
-
 	return (0);
 }
 
@@ -2710,9 +2677,9 @@ ctl_be_block_lun_config_status(void *be_lun, ctl_lun_config_status status)
 		/*
 		 * We successfully added the LUN, attempt to enable it.
 		 */
-		if (ctl_enable_lun(&lun->ctl_be_lun) != 0) {
+		if (ctl_enable_lun(&lun->cbe_lun) != 0) {
 			printf("%s: ctl_enable_lun() failed!\n", __func__);
-			if (ctl_invalidate_lun(&lun->ctl_be_lun) != 0) {
+			if (ctl_invalidate_lun(&lun->cbe_lun) != 0) {
 				printf("%s: ctl_invalidate_lun() failed!\n",
 				       __func__);
 			}
@@ -2734,16 +2701,16 @@ static int
 ctl_be_block_config_write(union ctl_io *io)
 {
 	struct ctl_be_block_lun *be_lun;
-	struct ctl_be_lun *ctl_be_lun;
+	struct ctl_be_lun *cbe_lun;
 	int retval;
 
 	retval = 0;
 
 	DPRINTF("entered\n");
 
-	ctl_be_lun = (struct ctl_be_lun *)io->io_hdr.ctl_private[
+	cbe_lun = (struct ctl_be_lun *)io->io_hdr.ctl_private[
 		CTL_PRIV_BACKEND_LUN].ptr;
-	be_lun = (struct ctl_be_block_lun *)ctl_be_lun->be_lun;
+	be_lun = (struct ctl_be_block_lun *)cbe_lun->be_lun;
 
 	switch (io->scsiio.cdb[0]) {
 	case SYNCHRONIZE_CACHE:
@@ -2771,9 +2738,9 @@ ctl_be_block_config_write(union ctl_io *io)
 		cdb = (struct scsi_start_stop_unit *)io->scsiio.cdb;
 
 		if (cdb->how & SSS_START)
-			retval = ctl_start_lun(ctl_be_lun);
+			retval = ctl_start_lun(cbe_lun);
 		else {
-			retval = ctl_stop_lun(ctl_be_lun);
+			retval = ctl_stop_lun(cbe_lun);
 			/*
 			 * XXX KDM Copan-specific offline behavior.
 			 * Figure out a reasonable way to port this?
@@ -2781,7 +2748,7 @@ ctl_be_block_config_write(union ctl_io *io)
 #ifdef NEEDTOPORT
 			if ((retval == 0)
 			 && (cdb->byte2 & SSS_ONOFFLINE))
-				retval = ctl_lun_offline(ctl_be_lun);
+				retval = ctl_lun_offline(cbe_lun);
 #endif
 		}
 
@@ -2815,14 +2782,14 @@ static int
 ctl_be_block_config_read(union ctl_io *io)
 {
 	struct ctl_be_block_lun *be_lun;
-	struct ctl_be_lun *ctl_be_lun;
+	struct ctl_be_lun *cbe_lun;
 	int retval = 0;
 
 	DPRINTF("entered\n");
 
-	ctl_be_lun = (struct ctl_be_lun *)io->io_hdr.ctl_private[
+	cbe_lun = (struct ctl_be_lun *)io->io_hdr.ctl_private[
 		CTL_PRIV_BACKEND_LUN].ptr;
-	be_lun = (struct ctl_be_block_lun *)ctl_be_lun->be_lun;
+	be_lun = (struct ctl_be_block_lun *)cbe_lun->be_lun;
 
 	switch (io->scsiio.cdb[0]) {
 	case SERVICE_ACTION_IN:

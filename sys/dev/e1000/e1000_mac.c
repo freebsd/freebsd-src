@@ -70,6 +70,7 @@ void e1000_init_mac_ops_generic(struct e1000_hw *hw)
 	mac->ops.setup_link = e1000_null_ops_generic;
 	mac->ops.get_link_up_info = e1000_null_link_info;
 	mac->ops.check_for_link = e1000_null_ops_generic;
+	mac->ops.set_obff_timer = e1000_null_set_obff_timer;
 	/* Management */
 	mac->ops.check_mng_mode = e1000_null_mng_mode;
 	/* VLAN, MC, etc. */
@@ -151,6 +152,17 @@ int e1000_null_rar_set(struct e1000_hw E1000_UNUSEDARG *hw,
 			u8 E1000_UNUSEDARG *h, u32 E1000_UNUSEDARG a)
 {
 	DEBUGFUNC("e1000_null_rar_set");
+	return E1000_SUCCESS;
+}
+
+/**
+ *  e1000_null_set_obff_timer - No-op function, return 0
+ *  @hw: pointer to the HW structure
+ **/
+s32 e1000_null_set_obff_timer(struct e1000_hw E1000_UNUSEDARG *hw,
+			      u32 E1000_UNUSEDARG a)
+{
+	DEBUGFUNC("e1000_null_set_obff_timer");
 	return E1000_SUCCESS;
 }
 
