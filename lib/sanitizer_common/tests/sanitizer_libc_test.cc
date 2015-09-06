@@ -17,6 +17,7 @@
 #if SANITIZER_LINUX || SANITIZER_MAC
 # define SANITIZER_TEST_HAS_STAT_H 1
 # include <sys/stat.h>
+# include "sanitizer_common/sanitizer_posix.h"
 #else
 # define SANITIZER_TEST_HAS_STAT_H 0
 #endif
@@ -78,16 +79,14 @@ TEST(SanitizerCommon, FileOps) {
 
   char tmpfile[128];
   temp_file_name(tmpfile, sizeof(tmpfile), "sanitizer_common.fileops.tmp.");
-  uptr openrv = OpenFile(tmpfile, true);
-  EXPECT_FALSE(internal_iserror(openrv));
-  fd_t fd = openrv;
+  fd_t fd = OpenFile(tmpfile, WrOnly);
+  ASSERT_NE(fd, kInvalidFd);
   EXPECT_EQ(len1, internal_write(fd, str1, len1));
   EXPECT_EQ(len2, internal_write(fd, str2, len2));
-  internal_close(fd);
+  CloseFile(fd);
 
-  openrv = OpenFile(tmpfile, false);
-  EXPECT_FALSE(internal_iserror(openrv));
-  fd = openrv;
+  fd = OpenFile(tmpfile, RdOnly);
+  ASSERT_NE(fd, kInvalidFd);
   uptr fsize = internal_filesize(fd);
   EXPECT_EQ(len1 + len2, fsize);
 
@@ -115,7 +114,7 @@ TEST(SanitizerCommon, FileOps) {
   internal_memset(buf, 0, len1);
   EXPECT_EQ(len2, internal_read(fd, buf, len2));
   EXPECT_EQ(0, internal_memcmp(buf, str2, len2));
-  internal_close(fd);
+  CloseFile(fd);
   internal_unlink(tmpfile);
 }
 #endif
@@ -134,12 +133,11 @@ TEST(SanitizerCommon, InternalMmapWithOffset) {
   char tmpfile[128];
   temp_file_name(tmpfile, sizeof(tmpfile),
                  "sanitizer_common.internalmmapwithoffset.tmp.");
-  uptr res = OpenFile(tmpfile, true);
-  ASSERT_FALSE(internal_iserror(res));
-  fd_t fd = res;
+  fd_t fd = OpenFile(tmpfile, RdWr);
+  ASSERT_NE(fd, kInvalidFd);
 
   uptr page_size = GetPageSizeCached();
-  res = internal_ftruncate(fd, page_size * 2);
+  uptr res = internal_ftruncate(fd, page_size * 2);
   ASSERT_FALSE(internal_iserror(res));
 
   res = internal_lseek(fd, page_size, SEEK_SET);
@@ -154,8 +152,8 @@ TEST(SanitizerCommon, InternalMmapWithOffset) {
   ASSERT_EQ('A', p[0]);
   ASSERT_EQ('B', p[1]);
 
-  internal_close(fd);
-  internal_munmap(p, page_size);
+  CloseFile(fd);
+  UnmapOrDie(p, page_size);
   internal_unlink(tmpfile);
 }
 #endif

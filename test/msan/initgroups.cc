@@ -1,7 +1,8 @@
-// RUN: %clangxx_msan -m64 -O0 %s -o %t && %run %t
+// RUN: %clangxx_msan -O0 %s -o %t && %run %t
 
 #include <sys/types.h>
 #include <grp.h>
+#include <unistd.h>  // FreeBSD declares initgroups() here.
 
 int main(void) {
   initgroups("root", 0);

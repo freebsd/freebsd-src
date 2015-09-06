@@ -1,6 +1,6 @@
-// RUN: %clangxx_msan -m64 -O0 %s -o %t && %run %t %p 2>&1
-// RUN: %clangxx_msan -m64 -O0 -D_FILE_OFFSET_BITS=64 %s -o %t && %run %t %p 2>&1
-// RUN: %clangxx_msan -m64 -O3 %s -o %t && %run %t %p 2>&1
+// RUN: %clangxx_msan -O0 %s -o %t && %run %t %p 2>&1
+// RUN: %clangxx_msan -O0 -D_FILE_OFFSET_BITS=64 %s -o %t && %run %t %p 2>&1
+// RUN: %clangxx_msan -O3 %s -o %t && %run %t %p 2>&1
 
 #include <assert.h>
 #include <errno.h>
@@ -9,6 +9,10 @@
 #include <string.h>
 
 #include <vector>
+
+#if defined(__FreeBSD__)
+#include <sys/socket.h>  // To define 'struct sockaddr'.
+#endif
 
 #include <sanitizer/msan_interface.h>
 

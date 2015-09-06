@@ -1,7 +1,6 @@
-// FIXME: run this (and other) UBSan tests in both 32- and 64-bit modes (?).
-// RUN: %clangxx -fsanitize=float-cast-overflow %s -o %t
+// RUN: %clangxx -fsanitize=float-cast-overflow -g %s -o %t
 // RUN: %run %t _
-// RUN: %run %t 0 2>&1 | FileCheck %s --check-prefix=CHECK-0
+// RUN: env UBSAN_OPTIONS=print_summary=1 %run %t 0 2>&1 | FileCheck %s --check-prefix=CHECK-0
 // RUN: %run %t 1 2>&1 | FileCheck %s --check-prefix=CHECK-1
 // RUN: %run %t 2 2>&1 | FileCheck %s --check-prefix=CHECK-2
 // RUN: %run %t 3 2>&1 | FileCheck %s --check-prefix=CHECK-3
@@ -13,8 +12,6 @@
 // RUN: not %run %t 9 2>&1 | FileCheck %s --check-prefix=CHECK-9
 
 // This test assumes float and double are IEEE-754 single- and double-precision.
-// XFAIL: armv7l-unknown-linux-gnueabihf
-// XFAIL: aarch64
 
 #if defined(__APPLE__)
 # include <machine/endian.h>
@@ -26,6 +23,10 @@
 # define BYTE_ORDER _BYTE_ORDER
 # define BIG_ENDIAN _BIG_ENDIAN
 # define LITTLE_ENDIAN _LITTLE_ENDIAN
+#elif defined(_WIN32)
+# define BYTE_ORDER 0
+# define BIG_ENDIAN 1
+# define LITTLE_ENDIAN 0
 #else
 # include <endian.h>
 # define BYTE_ORDER __BYTE_ORDER
@@ -82,40 +83,53 @@ int main(int argc, char **argv) {
     // FIXME: Produce a source location for these checks and test for it here.
 
     // Floating point -> integer overflow.
-  case '0':
+  case '0': {
     // Note that values between 0x7ffffe00 and 0x80000000 may or may not
     // successfully round-trip, depending on the rounding mode.
     // CHECK-0: runtime error: value 2.14748{{.*}} is outside the range of representable values of type 'int'
-    return MaxFloatRepresentableAsInt + 0x80;
-  case '1':
+    static int test_int = MaxFloatRepresentableAsInt + 0x80;
+    // CHECK-0: SUMMARY: {{.*}}Sanitizer: undefined-behavior {{.*}}cast-overflow.cpp:[[@LINE-1]]
+    return 0;
+    }
+  case '1': {
     // CHECK-1: runtime error: value -2.14748{{.*}} is outside the range of representable values of type 'int'
-    return MinFloatRepresentableAsInt - 0x100;
+    static int test_int = MinFloatRepresentableAsInt - 0x100;
+    return 0;
+  }
   case '2': {
     // CHECK-2: runtime error: value -1 is outside the range of representable values of type 'unsigned int'
     volatile float f = -1.0;
     volatile unsigned u = (unsigned)f;
     return 0;
   }
-  case '3':
+  case '3': {
     // CHECK-3: runtime error: value 4.2949{{.*}} is outside the range of representable values of type 'unsigned int'
-    return (unsigned)(MaxFloatRepresentableAsUInt + 0x100);
+    static int test_int = (unsigned)(MaxFloatRepresentableAsUInt + 0x100);
+    return 0;
+  }
 
-  case '4':
+  case '4': {
     // CHECK-4: runtime error: value {{.*}} is outside the range of representable values of type 'int'
-    return Inf;
-  case '5':
+    static int test_int = Inf;
+    return 0;
+  }
+  case '5': {
     // CHECK-5: runtime error: value {{.*}} is outside the range of representable values of type 'int'
-    return NaN;
+    static int test_int = NaN;
+    return 0;
+  }
 
     // Integer -> floating point overflow.
-  case '6':
+  case '6': {
     // CHECK-6: {{runtime error: value 0xffffff00000000000000000000000001 is outside the range of representable values of type 'float'|__int128 not supported}}
-#ifdef __SIZEOF_INT128__
-    return (float)(FloatMaxAsUInt128 + 1);
+#if defined(__SIZEOF_INT128__) && !defined(_WIN32)
+    static int test_int = (float)(FloatMaxAsUInt128 + 1);
+    return 0;
 #else
     puts("__int128 not supported");
     return 0;
 #endif
+  }
   // FIXME: The backend cannot lower __fp16 operations on x86 yet.
   //case '7':
   //  (__fp16)65504; // ok

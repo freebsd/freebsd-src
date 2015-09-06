@@ -119,8 +119,11 @@ UniversalArchs.asan_osx_dynamic := $(call CheckArches,i386 x86_64 x86_64h,asan_o
 Configs += asan_iossim_dynamic
 UniversalArchs.asan_iossim_dynamic := $(call CheckArches,i386 x86_64,asan_iossim_dynamic,$(IOSSIM_SDK))
 
-Configs += ubsan_osx
-UniversalArchs.ubsan_osx := $(call CheckArches,i386 x86_64 x86_64h,ubsan_osx,$(OSX_SDK))
+Configs += ubsan_osx_dynamic
+UniversalArchs.ubsan_osx_dynamic := $(call CheckArches,i386 x86_64 x86_64h,ubsan_osx_dynamic,$(OSX_SDK))
+
+Configs += ubsan_iossim_dynamic
+UniversalArchs.ubsan_iossim_dynamic := $(call CheckArches,i386 x86_64,ubsan_iossim_dynamic,$(IOSSIM_SDK))
 
 # Darwin 10.6 has a bug in cctools that makes it unable to use ranlib on our ARM
 # object files. If we are on that platform, strip out all ARM archs. We still
@@ -172,26 +175,31 @@ IOSSIM_DEPLOYMENT_ARGS += -isysroot $(IOSSIM_SDK)
 CFLAGS.eprintf		:= $(CFLAGS) $(OSX_DEPLOYMENT_ARGS)
 CFLAGS.10.4		:= $(CFLAGS) $(OSX_DEPLOYMENT_ARGS)
 
+SANITIZER_MACOSX_DEPLOYMENT_ARGS := -mmacosx-version-min=10.7
+SANITIZER_IOSSIM_DEPLOYMENT_ARGS := -mios-simulator-version-min=7.0 \
+  -isysroot $(IOSSIM_SDK)
+SANITIZER_CFLAGS := -fno-builtin -gline-tables-only -stdlib=libc++
+
 CFLAGS.asan_osx_dynamic := \
-	$(CFLAGS) -mmacosx-version-min=10.7 \
-	-stdlib=libc++ \
-	-isysroot $(OSX_SDK) \
-	-fno-builtin \
-	-gline-tables-only \
+	$(CFLAGS) $(SANITIZER_MACOSX_DEPLOYMENT_ARGS) \
+	$(SANITIZER_CFLAGS) \
 	-DMAC_INTERPOSE_FUNCTIONS=1 \
 	-DASAN_DYNAMIC=1
 
 CFLAGS.asan_iossim_dynamic := \
-	$(CFLAGS) -mios-simulator-version-min=7.0 \
-        -isysroot $(IOSSIM_SDK) \
-        -fno-builtin \
-	-gline-tables-only \
+	$(CFLAGS) $(SANITIZER_IOSSIM_DEPLOYMENT_ARGS) \
+	$(SANITIZER_CFLAGS) \
 	-DMAC_INTERPOSE_FUNCTIONS=1 \
 	-DASAN_DYNAMIC=1
 
-CFLAGS.ubsan_osx := $(CFLAGS) -mmacosx-version-min=10.6 \
-	-isysroot $(OSX_SDK) \
-	-fno-builtin
+CFLAGS.ubsan_osx_dynamic := \
+	$(CFLAGS) $(SANITIZER_MACOSX_DEPLOYMENT_ARGS) \
+	$(SANITIZER_CFLAGS)
+
+CFLAGS.ubsan_iossim_dynamic := \
+	$(CFLAGS) $(SANITIZER_IOSSIM_DEPLOYMENT_ARGS) \
+	$(SANITIZER_CFLAGS)
+
 
 CFLAGS.ios.i386		:= $(CFLAGS) $(IOSSIM_DEPLOYMENT_ARGS)
 CFLAGS.ios.x86_64	:= $(CFLAGS) $(IOSSIM_DEPLOYMENT_ARGS)
@@ -222,49 +230,81 @@ CFLAGS.profile_ios.armv7k := $(CFLAGS) $(IOS_DEPLOYMENT_ARGS)
 CFLAGS.profile_ios.armv7s := $(CFLAGS) $(IOS_DEPLOYMENT_ARGS)
 CFLAGS.profile_ios.arm64  := $(CFLAGS) $(IOS6_DEPLOYMENT_ARGS)
 
-# Configure the asan_osx_dynamic library to be built shared.
-SHARED_LIBRARY.asan_osx_dynamic := 1
-LDFLAGS.asan_osx_dynamic := -lc++ -undefined dynamic_lookup -install_name @rpath/libclang_rt.asan_osx_dynamic.dylib \
-  -mmacosx-version-min=10.7 \
-  -isysroot $(OSX_SDK)
+SANITIZER_LDFLAGS := -stdlib=libc++ -lc++ -lc++abi
 
-# Configure the asan_iossim_dynamic library to be built shared.
+SHARED_LIBRARY.asan_osx_dynamic := 1
+LDFLAGS.asan_osx_dynamic := $(SANITIZER_LDFLAGS) -install_name @rpath/libclang_rt.asan_osx_dynamic.dylib \
+  $(SANITIZER_MACOSX_DEPLOYMENT_ARGS)
+
 SHARED_LIBRARY.asan_iossim_dynamic := 1
-# configure+make uses Clang, so we're using isysroot instead of --sysroot
-# or -Wl,-syslibroot.
-LDFLAGS.asan_iossim_dynamic := -undefined dynamic_lookup -install_name @rpath/libclang_rt.asan_iossim_dynamic.dylib \
-  -Wl,-ios_simulator_version_min,7.0.0 \
-  -mios-simulator-version-min=7.0 -isysroot $(IOSSIM_SDK)
+LDFLAGS.asan_iossim_dynamic := $(SANITIZER_LDFLAGS) -install_name @rpath/libclang_rt.asan_iossim_dynamic.dylib \
+  -Wl,-ios_simulator_version_min,7.0.0 $(SANITIZER_IOSSIM_DEPLOYMENT_ARGS)
+
+SHARED_LIBRARY.ubsan_osx_dynamic := 1
+LDFLAGS.ubsan_osx_dynamic := $(SANITIZER_LDFLAGS) -install_name @rpath/libclang_rt.ubsan_osx_dynamic.dylib \
+  $(SANITIZER_MACOSX_DEPLOYMENT_ARGS)
+
+SHARED_LIBRARY.ubsan_iossim_dynamic := 1
+LDFLAGS.ubsan_iossim_dynamic := $(SANITIZER_LDFLAGS) -install_name @rpath/libclang_rt.ubsan_iossim_dynamic.dylib \
+  -Wl,-ios_simulator_version_min,7.0.0 $(SANITIZER_IOSSIM_DEPLOYMENT_ARGS)
+
+ifneq ($(OSX_SDK),)
+CFLAGS.asan_osx_dynamic += -isysroot $(OSX_SDK)
+LDFLAGS.asan_osx_dynamic += -isysroot $(OSX_SDK)
+CFLAGS.ubsan_osx_dynamic += -isysroot $(OSX_SDK)
+LDFLAGS.ubsan_osx_dynamic += -isysroot $(OSX_SDK)
+endif
+
+ATOMIC_FUNCTIONS := \
+	atomic_flag_clear \
+	atomic_flag_clear_explicit \
+	atomic_flag_test_and_set \
+	atomic_flag_test_and_set_explicit \
+	atomic_signal_fence \
+	atomic_thread_fence
+
+FP16_FUNCTIONS := \
+	extendhfsf2 \
+	truncdfhf2 \
+	truncsfhf2
 
 FUNCTIONS.eprintf := eprintf
 FUNCTIONS.10.4 := eprintf floatundidf floatundisf floatundixf
 
-FUNCTIONS.ios	    := divmodsi4 udivmodsi4 mulosi4 mulodi4 muloti4
+FUNCTIONS.ios	    := divmodsi4 udivmodsi4 mulosi4 mulodi4 muloti4 \
+                       $(ATOMIC_FUNCTIONS) $(FP16_FUNCTIONS)
 # On x86, the divmod functions reference divsi.
 FUNCTIONS.ios.i386    := $(FUNCTIONS.ios) \
                          divsi3 udivsi3
 FUNCTIONS.ios.x86_64  := $(FUNCTIONS.ios.i386)
-FUNCTIONS.ios.arm64   := mulsc3 muldc3 divsc3 divdc3
+FUNCTIONS.ios.arm64   := mulsc3 muldc3 divsc3 divdc3 $(ATOMIC_FUNCTIONS)
 
-FUNCTIONS.osx	:= mulosi4 mulodi4 muloti4
+FUNCTIONS.osx	:= mulosi4 mulodi4 muloti4 $(ATOMIC_FUNCTIONS) $(FP16_FUNCTIONS)
 
 FUNCTIONS.profile_osx := GCDAProfiling InstrProfiling InstrProfilingBuffer \
                          InstrProfilingFile InstrProfilingPlatformDarwin \
-                         InstrProfilingRuntime
+                         InstrProfilingRuntime InstrProfilingUtil
 FUNCTIONS.profile_ios := $(FUNCTIONS.profile_osx)
 
 FUNCTIONS.asan_osx_dynamic := $(AsanFunctions) $(AsanCXXFunctions) \
                               $(InterceptionFunctions) \
                               $(SanitizerCommonFunctions) \
-	                      $(AsanDynamicFunctions)
+                              $(AsanDynamicFunctions) \
+                              $(UbsanFunctions) $(UbsanCXXFunctions)
 
 FUNCTIONS.asan_iossim_dynamic := $(AsanFunctions) $(AsanCXXFunctions) \
                                  $(InterceptionFunctions) \
                                  $(SanitizerCommonFunctions) \
-	                         $(AsanDynamicFunctions)
+                                 $(AsanDynamicFunctions) \
+                                 $(UbsanFunctions) $(UbsanCXXFunctions)
 
-FUNCTIONS.ubsan_osx := $(UbsanFunctions) $(UbsanCXXFunctions) \
-                       $(SanitizerCommonFunctions)
+FUNCTIONS.ubsan_osx_dynamic := $(UbsanFunctions) $(UbsanCXXFunctions) \
+                               $(SanitizerCommonFunctions) \
+                               $(UbsanStandaloneFunctions)
+
+FUNCTIONS.ubsan_iossim_dynamic := $(UbsanFunctions) $(UbsanCXXFunctions) \
+                                  $(SanitizerCommonFunctions) \
+                                  $(UbsanStandaloneFunctions)
 
 CCKEXT_PROFILE_FUNCTIONS := \
 	InstrProfiling \
@@ -293,6 +333,7 @@ CCKEXT_COMMON_FUNCTIONS := \
 	udivmodsi4 \
 	do_global_dtors \
 	eprintf \
+	extendhfsf2 \
 	ffsdi2 \
 	fixdfdi \
 	fixsfdi \
@@ -323,6 +364,8 @@ CCKEXT_COMMON_FUNCTIONS := \
 	powisf2 \
 	subvdi3 \
 	subvsi3 \
+	truncdfhf2 \
+	truncsfhf2 \
 	ucmpdi2 \
 	udiv_w_sdiv \
 	udivdi3 \
@@ -369,6 +412,7 @@ CCKEXT_ARM_FUNCTIONS := $(CCKEXT_COMMON_FUNCTIONS) \
 	modsi3 \
 	muldf3 \
 	mulsf3 \
+	mulodi4 \
 	negdf2 \
 	negsf2 \
 	subdf3 \

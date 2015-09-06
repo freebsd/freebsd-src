@@ -11,16 +11,17 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <stdio.h>
+
 #if _ARCH_PPC
 
 #include "int_lib.h"
 #include <math.h>
 #include <complex.h>
-#include <stdio.h>
 
 // Returns: the product of a + ib and c + id
 
-long double _Complex
+COMPILER_RT_ABI long double _Complex
 __multc3(long double __a, long double __b, long double __c, long double __d);
 
 enum {zero, non_zero, inf, NaN, non_zero_nan};

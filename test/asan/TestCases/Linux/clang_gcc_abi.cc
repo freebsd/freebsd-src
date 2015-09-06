@@ -8,9 +8,10 @@
 
 #include <stdlib.h>
 
+__attribute__((noinline))
 int boom() {
   volatile int three = 3;
-  char *s = (char *)malloc(three);
+  char * volatile s = (char *)malloc(three);
 // CHECK: #1 0x{{.*}} in boom {{.*}}clang_gcc_abi.cc:[[@LINE-1]]
   return s[three]; //BOOM
 }
