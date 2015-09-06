@@ -281,8 +281,25 @@ static enum { SYNCER_RUNNING, SYNCER_SHUTTING_DOWN, SYNCER_FINAL_DELAY }
  * XXX desiredvnodes is historical cruft and should not exist.
  */
 int desiredvnodes;
-SYSCTL_INT(_kern, KERN_MAXVNODES, maxvnodes, CTLFLAG_RW,
-    &desiredvnodes, 0, "Maximum number of vnodes");
+
+static int
+sysctl_update_desiredvnodes(SYSCTL_HANDLER_ARGS)
+{
+	int error, old_desiredvnodes;
+
+	old_desiredvnodes = desiredvnodes;
+	if ((error = sysctl_handle_int(oidp, arg1, arg2, req)) != 0)
+		return (error);
+	if (old_desiredvnodes != desiredvnodes) {
+		vfs_hash_changesize(desiredvnodes);
+		cache_changesize(desiredvnodes);
+	}
+	return (0);
+}
+
+SYSCTL_PROC(_kern, KERN_MAXVNODES, maxvnodes,
+    CTLTYPE_INT | CTLFLAG_MPSAFE | CTLFLAG_RW, &desiredvnodes, 0,
+    sysctl_update_desiredvnodes, "I", "Maximum number of vnodes");
 SYSCTL_ULONG(_kern, OID_AUTO, minvnodes, CTLFLAG_RW,
     &wantfreevnodes, 0, "Minimum number of vnodes (legacy)");
 static int vnlru_nowhere;
