@@ -27,7 +27,7 @@ class CMICmdBase;
 //++ ============================================================================
 // Details: MI command manager. Oversees command operations, controls command
 //          production and the running of commands.
-//          Command Invoker, Command Factory and Command Monitor while independant
+//          Command Invoker, Command Factory and Command Monitor while independent
 //          units are overseen/managed by *this manager.
 //          A singleton class.
 // Gotchas: None.
@@ -40,8 +40,8 @@ class CMICmdMgr : public CMICmnBase, public MI::ISingleton<CMICmdMgr>
 
     // Methods:
   public:
-    bool Initialize(void);
-    bool Shutdown(void);
+    bool Initialize(void) override;
+    bool Shutdown(void) override;
 
     bool CmdInterpret(const CMIUtilString &vTextLine, bool &vwbYesValid, bool &vwbCmdNotInCmdFactor, SMICmdData &rwCmdData);
     bool CmdExecute(const SMICmdData &vCmdData);
@@ -58,7 +58,7 @@ class CMICmdMgr : public CMICmnBase, public MI::ISingleton<CMICmdMgr>
     // Overridden:
   public:
     // From CMICmnBase
-    /* dtor */ virtual ~CMICmdMgr(void);
+    /* dtor */ ~CMICmdMgr(void) override;
 
     // Attributes:
   private:

@@ -168,6 +168,9 @@ DynamicLoaderHexagonDYLD::DidAttach()
     // Disable JIT for hexagon targets because its not supported
     m_process->SetCanJIT(false);
 
+    // Enable Interpreting of function call expressions
+    m_process->SetCanInterpretFunctionCalls(true);
+
     // Add the current executable to the module list
     ModuleList module_list;
     module_list.Append(executable);
@@ -500,7 +503,7 @@ DynamicLoaderHexagonDYLD::GetStepThroughTrampolinePlan(Thread &thread, bool stop
     if (sym == NULL || !sym->IsTrampoline())
         return thread_plan_sp;
 
-    const ConstString &sym_name = sym->GetMangled().GetName(Mangled::ePreferMangled);
+    const ConstString sym_name = sym->GetMangled().GetName(lldb::eLanguageTypeUnknown, Mangled::ePreferMangled);
     if (!sym_name)
         return thread_plan_sp;
 

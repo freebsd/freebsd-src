@@ -65,10 +65,8 @@
 
 // Project includes
 #include "lldb/Host/Host.h"
-#include "Plugins/Process/Utility/FreeBSDSignals.h"
+#include "Plugins/Process/Utility/GDBRemoteSignals.h"
 #include "Plugins/Process/Utility/InferiorCallPOSIX.h"
-#include "Plugins/Process/Utility/LinuxSignals.h"
-#include "Plugins/Process/Utility/MipsLinuxSignals.h"
 #include "Plugins/Process/Utility/StopInfoMachException.h"
 #include "Utility/StringExtractorGDBRemote.h"
 #include "GDBRemoteRegisterContext.h"
@@ -822,41 +820,8 @@ ProcessGDBRemote::DoConnectRemote (Stream *strm, const char *remote_url)
     if (log)
         log->Printf ("ProcessGDBRemote::%s pid %" PRIu64 ": normalized target architecture triple: %s", __FUNCTION__, GetID (), GetTarget ().GetArchitecture ().GetTriple ().getTriple ().c_str ());
 
-    // Set the Unix signals properly for the target.
-    // FIXME Add a gdb-remote packet to discover dynamically.
-    if (error.Success ())
-    {
-        const ArchSpec arch_spec = m_gdb_comm.GetHostArchitecture();
-        if (arch_spec.IsValid ())
-        {
-            if (log)
-                log->Printf ("ProcessGDBRemote::%s pid %" PRIu64 ": determining unix signals type based on architecture %s, triple %s", __FUNCTION__, GetID (), arch_spec.GetArchitectureName () ? arch_spec.GetArchitectureName () : "<null>", arch_spec.GetTriple ().getTriple ().c_str ());
-
-            switch (arch_spec.GetTriple ().getOS ())
-            {
-            case llvm::Triple::Linux:
-                if (arch_spec.GetTriple ().getArch () == llvm::Triple::mips64 || arch_spec.GetTriple ().getArch () == llvm::Triple::mips64el)
-                    SetUnixSignals (UnixSignalsSP (new process_linux::MipsLinuxSignals ()));
-                else
-                    SetUnixSignals (UnixSignalsSP (new process_linux::LinuxSignals ()));
-                if (log)
-                    log->Printf ("ProcessGDBRemote::%s using Linux unix signals type for pid %" PRIu64, __FUNCTION__, GetID ());
-                break;
-            case llvm::Triple::OpenBSD:
-            case llvm::Triple::FreeBSD:
-            case llvm::Triple::NetBSD:
-                SetUnixSignals (UnixSignalsSP (new FreeBSDSignals ()));
-                if (log)
-                    log->Printf ("ProcessGDBRemote::%s using *BSD unix signals type for pid %" PRIu64, __FUNCTION__, GetID ());
-                break;
-            default:
-                SetUnixSignals (UnixSignalsSP (new UnixSignals ()));
-                if (log)
-                    log->Printf ("ProcessGDBRemote::%s using generic unix signals type for pid %" PRIu64, __FUNCTION__, GetID ());
-                break;
-            }
-        }
-    }
+    if (error.Success())
+        SetUnixSignals(std::make_shared<GDBRemoteSignals>(GetTarget().GetPlatform()->GetUnixSignals()));
 
     return error;
 }
@@ -3525,7 +3490,7 @@ ProcessGDBRemote::MonitorDebugserverProcess
                 char error_str[1024];
                 if (signo)
                 {
-                    const char *signal_cstr = process->GetUnixSignals().GetSignalAsCString (signo);
+                    const char *signal_cstr = process->GetUnixSignals()->GetSignalAsCString(signo);
                     if (signal_cstr)
                         ::snprintf (error_str, sizeof (error_str), DEBUGSERVER_BASENAME " died with signal %s", signal_cstr);
                     else
@@ -3986,6 +3951,44 @@ ProcessGDBRemote::GetExtendedInfoForThread (lldb::tid_t tid)
             {
                 if (!response.Empty())
                 {
+                    object_sp = StructuredData::ParseJSON (response.GetStringRef());
+                }
+            }
+        }
+    }
+    return object_sp;
+}
+
+StructuredData::ObjectSP
+ProcessGDBRemote::GetLoadedDynamicLibrariesInfos (lldb::addr_t image_list_address, lldb::addr_t image_count)
+{
+    StructuredData::ObjectSP object_sp;
+
+    if (m_gdb_comm.GetLoadedDynamicLibrariesInfosSupported())
+    {
+        StructuredData::ObjectSP args_dict(new StructuredData::Dictionary());
+        args_dict->GetAsDictionary()->AddIntegerItem ("image_list_address", image_list_address);
+        args_dict->GetAsDictionary()->AddIntegerItem ("image_count", image_count);
+
+        StreamString packet;
+        packet << "jGetLoadedDynamicLibrariesInfos:";
+        args_dict->Dump (packet);
+
+        // FIXME the final character of a JSON dictionary, '}', is the escape
+        // character in gdb-remote binary mode.  lldb currently doesn't escape
+        // these characters in its packet output -- so we add the quoted version
+        // of the } character here manually in case we talk to a debugserver which
+        // un-escapes the characters at packet read time.
+        packet << (char) (0x7d ^ 0x20);
+
+        StringExtractorGDBRemote response;
+        if (m_gdb_comm.SendPacketAndWaitForResponse(packet.GetData(), packet.GetSize(), response, false) == GDBRemoteCommunication::PacketResult::Success)
+        {
+            StringExtractorGDBRemote::ResponseType response_type = response.GetResponseType();
+            if (response_type == StringExtractorGDBRemote::eResponse)
+            {
+                if (!response.Empty())
+                {
                     // The packet has already had the 0x7d xor quoting stripped out at the
                     // GDBRemoteCommunication packet receive level.
                     object_sp = StructuredData::ParseJSON (response.GetStringRef());
@@ -3995,6 +3998,7 @@ ProcessGDBRemote::GetExtendedInfoForThread (lldb::tid_t tid)
     }
     return object_sp;
 }
+
 
 // Establish the largest memory read/write payloads we should use.
 // If the remote stub has a max packet size, stay under that size.
@@ -4419,83 +4423,135 @@ ProcessGDBRemote::GetLoadedModuleList (GDBLoadedModuleInfoList & list)
     GDBRemoteCommunicationClient & comm = m_gdb_comm;
 
     // check that we have extended feature read support
-    if (!comm.GetQXferLibrariesSVR4ReadSupported ())
-        return Error (0, ErrorType::eErrorTypeGeneric);
+    if (comm.GetQXferLibrariesSVR4ReadSupported ()) {
+        list.clear ();
 
-    list.clear ();
+        // request the loaded library list
+        std::string raw;
+        lldb_private::Error lldberr;
 
-    // request the loaded library list
-    std::string raw;
-    lldb_private::Error lldberr;
-    if (!comm.ReadExtFeature (ConstString ("libraries-svr4"), ConstString (""), raw, lldberr))
-        return Error (0, ErrorType::eErrorTypeGeneric);
+        if (!comm.ReadExtFeature (ConstString ("libraries-svr4"), ConstString (""), raw, lldberr))
+          return Error (0, ErrorType::eErrorTypeGeneric);
 
-    // parse the xml file in memory
-    if (log)
-        log->Printf ("parsing: %s", raw.c_str());
-    XMLDocument doc;
-    
-    if (!doc.ParseMemory(raw.c_str(), raw.size(), "noname.xml"))
-        return Error (0, ErrorType::eErrorTypeGeneric);
+        // parse the xml file in memory
+        if (log)
+            log->Printf ("parsing: %s", raw.c_str());
+        XMLDocument doc;
+        
+        if (!doc.ParseMemory(raw.c_str(), raw.size(), "noname.xml"))
+            return Error (0, ErrorType::eErrorTypeGeneric);
 
-    XMLNode root_element = doc.GetRootElement("library-list-svr4");
-    if (!root_element)
-        return Error();
+        XMLNode root_element = doc.GetRootElement("library-list-svr4");
+        if (!root_element)
+            return Error();
 
-    // main link map structure
-    llvm::StringRef main_lm = root_element.GetAttributeValue("main-lm");
-    if (!main_lm.empty())
-    {
-        list.m_link_map = StringConvert::ToUInt64(main_lm.data(), LLDB_INVALID_ADDRESS, 0);
-    }
+        // main link map structure
+        llvm::StringRef main_lm = root_element.GetAttributeValue("main-lm");
+        if (!main_lm.empty())
+        {
+            list.m_link_map = StringConvert::ToUInt64(main_lm.data(), LLDB_INVALID_ADDRESS, 0);
+        }
 
-    root_element.ForEachChildElementWithName("library", [log, &list](const XMLNode &library) -> bool {
+        root_element.ForEachChildElementWithName("library", [log, &list](const XMLNode &library) -> bool {
 
-        GDBLoadedModuleInfoList::LoadedModuleInfo module;
+            GDBLoadedModuleInfoList::LoadedModuleInfo module;
 
-        library.ForEachAttribute([log, &module](const llvm::StringRef &name, const llvm::StringRef &value) -> bool {
-            
-            if (name == "name")
-                module.set_name (value.str());
-            else if (name == "lm")
-            {
-                // the address of the link_map struct.
-                module.set_link_map(StringConvert::ToUInt64(value.data(), LLDB_INVALID_ADDRESS, 0));
-            }
-            else if (name == "l_addr")
-            {
-                // the displacement as read from the field 'l_addr' of the link_map struct.
-                module.set_base(StringConvert::ToUInt64(value.data(), LLDB_INVALID_ADDRESS, 0));
+            library.ForEachAttribute([log, &module](const llvm::StringRef &name, const llvm::StringRef &value) -> bool {
                 
-            }
-            else if (name == "l_ld")
+                if (name == "name")
+                    module.set_name (value.str());
+                else if (name == "lm")
+                {
+                    // the address of the link_map struct.
+                    module.set_link_map(StringConvert::ToUInt64(value.data(), LLDB_INVALID_ADDRESS, 0));
+                }
+                else if (name == "l_addr")
+                {
+                    // the displacement as read from the field 'l_addr' of the link_map struct.
+                    module.set_base(StringConvert::ToUInt64(value.data(), LLDB_INVALID_ADDRESS, 0));
+                    
+                }
+                else if (name == "l_ld")
+                {
+                    // the memory address of the libraries PT_DYAMIC section.
+                    module.set_dynamic(StringConvert::ToUInt64(value.data(), LLDB_INVALID_ADDRESS, 0));
+                }
+                
+                return true; // Keep iterating over all properties of "library"
+            });
+
+            if (log)
             {
-                // the memory address of the libraries PT_DYAMIC section.
-                module.set_dynamic(StringConvert::ToUInt64(value.data(), LLDB_INVALID_ADDRESS, 0));
+                std::string name;
+                lldb::addr_t lm=0, base=0, ld=0;
+
+                module.get_name (name);
+                module.get_link_map (lm);
+                module.get_base (base);
+                module.get_dynamic (ld);
+
+                log->Printf ("found (link_map:0x08%" PRIx64 ", base:0x08%" PRIx64 ", ld:0x08%" PRIx64 ", name:'%s')", lm, base, ld, name.c_str());
             }
-            
-            return true; // Keep iterating over all properties of "library"
+
+            list.add (module);
+            return true; // Keep iterating over all "library" elements in the root node
         });
 
         if (log)
-        {
-            std::string name;
-            lldb::addr_t lm=0, base=0, ld=0;
+            log->Printf ("found %" PRId32 " modules in total", (int) list.m_list.size());
+    } else if (comm.GetQXferLibrariesReadSupported ()) {
+        list.clear ();
 
-            module.get_name (name);
-            module.get_link_map (lm);
-            module.get_base (base);
-            module.get_dynamic (ld);
+        // request the loaded library list
+        std::string raw;
+        lldb_private::Error lldberr;
 
-            log->Printf ("found (link_map:0x08%" PRIx64 ", base:0x08%" PRIx64 ", ld:0x08%" PRIx64 ", name:'%s')", lm, base, ld, name.c_str());
-        }
+        if (!comm.ReadExtFeature (ConstString ("libraries"), ConstString (""), raw, lldberr))
+          return Error (0, ErrorType::eErrorTypeGeneric);
 
-        list.add (module);
-        return true; // Keep iterating over all "library" elements in the root node
-    });
+        if (log)
+            log->Printf ("parsing: %s", raw.c_str());
+        XMLDocument doc;
 
-    if (log)
-        log->Printf ("found %" PRId32 " modules in total", (int) list.m_list.size());
+        if (!doc.ParseMemory(raw.c_str(), raw.size(), "noname.xml"))
+            return Error (0, ErrorType::eErrorTypeGeneric);
+
+        XMLNode root_element = doc.GetRootElement("library-list");
+        if (!root_element)
+            return Error();
+
+        root_element.ForEachChildElementWithName("library", [log, &list](const XMLNode &library) -> bool {
+            GDBLoadedModuleInfoList::LoadedModuleInfo module;
+
+            llvm::StringRef name = library.GetAttributeValue("name");
+            module.set_name(name.str());
+
+            // The base address of a given library will be the address of its
+            // first section. Most remotes send only one section for Windows
+            // targets for example.
+            const XMLNode &section = library.FindFirstChildElementWithName("section");
+            llvm::StringRef address = section.GetAttributeValue("address");
+            module.set_base(StringConvert::ToUInt64(address.data(), LLDB_INVALID_ADDRESS, 0));
+
+            if (log)
+            {
+                std::string name;
+                lldb::addr_t base = 0;
+                module.get_name (name);
+                module.get_base (base);
+
+                log->Printf ("found (base:0x%" PRIx64 ", name:'%s')", base, name.c_str());
+            }
+
+            list.add (module);
+            return true; // Keep iterating over all "library" elements in the root node
+        });
+
+        if (log)
+            log->Printf ("found %" PRId32 " modules in total", (int) list.m_list.size());
+    } else {
+        return Error (0, ErrorType::eErrorTypeGeneric);
+    }
 
     return Error();
 }

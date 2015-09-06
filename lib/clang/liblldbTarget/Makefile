@@ -44,6 +44,7 @@ SRCS=	ABI.cpp \
 	ThreadPlan.cpp \
 	ThreadPlanBase.cpp \
 	ThreadPlanCallFunction.cpp \
+	ThreadPlanCallFunctionUsingABI.cpp \
 	ThreadPlanCallUserExpression.cpp \
 	ThreadPlanPython.cpp \
 	ThreadPlanRunToAddress.cpp \

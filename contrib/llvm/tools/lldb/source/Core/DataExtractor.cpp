@@ -1830,26 +1830,14 @@ DataExtractor::Dump (Stream *s,
                             }
                             else if (item_bit_size == ast->getTypeSize(ast->LongDoubleTy))
                             {
+                                const auto &semantics = ast->getFloatTypeSemantics(ast->LongDoubleTy);
+                                const auto byte_size = (llvm::APFloat::getSizeInBits(semantics) + 7) / 8;
+
                                 llvm::APInt apint;
-                                switch (target_sp->GetArchitecture().GetMachine())
+                                if (GetAPInt(*this, &offset, byte_size, apint))
                                 {
-                                    case llvm::Triple::x86:
-                                    case llvm::Triple::x86_64:
-                                        // clang will assert when constructing the apfloat if we use a 16 byte integer value
-                                        if (GetAPInt (*this, &offset, 10, apint))
-                                        {
-                                            llvm::APFloat apfloat (ast->getFloatTypeSemantics(ast->LongDoubleTy), apint);
-                                            apfloat.toString(sv, format_precision, format_max_padding);
-                                        }
-                                        break;
-                                        
-                                    default:
-                                        if (GetAPInt (*this, &offset, item_byte_size, apint))
-                                        {
-                                            llvm::APFloat apfloat (ast->getFloatTypeSemantics(ast->LongDoubleTy), apint);
-                                            apfloat.toString(sv, format_precision, format_max_padding);
-                                        }
-                                        break;
+                                    llvm::APFloat apfloat(semantics, apint);
+                                    apfloat.toString(sv, format_precision, format_max_padding);
                                 }
                             }
                             else if (item_bit_size == ast->getTypeSize(ast->HalfTy))

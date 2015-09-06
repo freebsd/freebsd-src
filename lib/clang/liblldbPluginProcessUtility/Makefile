@@ -7,6 +7,7 @@ LIB=	lldbPluginProcessUtility
 SRCDIR=	tools/lldb/source/Plugins/Process/Utility
 SRCS=	DynamicRegisterInfo.cpp \
 	FreeBSDSignals.cpp \
+	GDBRemoteSignals.cpp \
 	HistoryThread.cpp \
 	HistoryUnwind.cpp \
 	InferiorCallPOSIX.cpp \
