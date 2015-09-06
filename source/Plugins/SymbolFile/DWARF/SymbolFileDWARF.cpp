@@ -988,24 +988,38 @@ SymbolFileDWARF::ParseCompileUnit (DWARFCompileUnit* dwarf_cu, uint32_t cu_idx)
                             std::string remapped_file;
                             if (module_sp->RemapSourceFile(cu_file_spec.GetCString(), remapped_file))
                                 cu_file_spec.SetFile(remapped_file, false);
+                        }
 
-                            LanguageType cu_language = DWARFCompileUnit::LanguageTypeFromDWARF(cu_die->GetAttributeValueAsUnsigned(this, dwarf_cu, DW_AT_language, 0));
+                        LanguageType cu_language = DWARFCompileUnit::LanguageTypeFromDWARF(cu_die->GetAttributeValueAsUnsigned(this, dwarf_cu, DW_AT_language, 0));
 
-                            cu_sp.reset(new CompileUnit (module_sp,
-                                                         dwarf_cu,
-                                                         cu_file_spec, 
-                                                         MakeUserID(dwarf_cu->GetOffset()),
-                                                         cu_language));
-                            if (cu_sp)
+                        cu_sp.reset(new CompileUnit (module_sp,
+                                                     dwarf_cu,
+                                                     cu_file_spec, 
+                                                     MakeUserID(dwarf_cu->GetOffset()),
+                                                     cu_language));
+                        if (cu_sp)
+                        {
+                            // If we just created a compile unit with an invalid file spec, try and get the
+                            // first entry in the supports files from the line table as that should be the
+                            // compile unit.
+                            if (!cu_file_spec)
                             {
-                                dwarf_cu->SetUserData(cu_sp.get());
-                                
-                                // Figure out the compile unit index if we weren't given one
-                                if (cu_idx == UINT32_MAX)
-                                    DebugInfo()->GetCompileUnit(dwarf_cu->GetOffset(), &cu_idx);
-                                
-                                m_obj_file->GetModule()->GetSymbolVendor()->SetCompileUnitAtIndex(cu_idx, cu_sp);
+                                cu_file_spec = cu_sp->GetSupportFiles().GetFileSpecAtIndex(1);
+                                if (cu_file_spec)
+                                {
+                                    (FileSpec &)(*cu_sp) = cu_file_spec;
+                                    // Also fix the invalid file spec which was copied from the compile unit.
+                                    cu_sp->GetSupportFiles().Replace(0, cu_file_spec);
+                                }
                             }
+
+                            dwarf_cu->SetUserData(cu_sp.get());
+                            
+                            // Figure out the compile unit index if we weren't given one
+                            if (cu_idx == UINT32_MAX)
+                                DebugInfo()->GetCompileUnit(dwarf_cu->GetOffset(), &cu_idx);
+                            
+                            m_obj_file->GetModule()->GetSymbolVendor()->SetCompileUnitAtIndex(cu_idx, cu_sp);
                         }
                     }
                 }
@@ -2196,7 +2210,7 @@ SymbolFileDWARF::ParseChildMembers
                             }
                         }
                         
-                        if (prop_name != NULL)
+                        if (prop_name != NULL && member_type)
                         {
                             clang::ObjCIvarDecl *ivar_decl = NULL;
                             
@@ -3761,9 +3775,10 @@ SymbolFileDWARF::FunctionDieMatchesPartialName (const DWARFDebugInfoEntry* die,
             }
         }
 
-        if (best_name.GetDemangledName())
+        const LanguageType cu_language = const_cast<DWARFCompileUnit *>(dwarf_cu)->GetLanguageType();
+        if (best_name.GetDemangledName(cu_language))
         {
-            const char *demangled = best_name.GetDemangledName().GetCString();
+            const char *demangled = best_name.GetDemangledName(cu_language).GetCString();
             if (demangled)
             {
                 std::string name_no_parens(partial_name, base_name_end - partial_name);

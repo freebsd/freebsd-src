@@ -20,13 +20,18 @@
 #include <sys/wait.h>
 
 // C++ Includes
+#include <fstream>
 
 // Other libraries and framework includes
 #include "lldb/Core/Error.h"
 #include "lldb/Host/ConnectionFileDescriptor.h"
+#include "lldb/Host/FileSpec.h"
+#include "lldb/Host/FileSystem.h"
 #include "lldb/Host/HostGetOpt.h"
 #include "lldb/Host/OptionParser.h"
 #include "lldb/Host/Socket.h"
+#include "llvm/Support/FileSystem.h"
+#include "llvm/Support/FileUtilities.h"
 #include "LLDBServerUtilities.h"
 #include "Plugins/Process/gdb-remote/GDBRemoteCommunicationServerPlatform.h"
 #include "Plugins/Process/gdb-remote/ProcessGDBRemoteLog.h"
@@ -56,6 +61,7 @@ static struct option g_long_options[] =
     { "gdbserver-port",     required_argument,  NULL,               'P' },
     { "min-gdbserver-port", required_argument,  NULL,               'm' },
     { "max-gdbserver-port", required_argument,  NULL,               'M' },
+    { "port-file",          required_argument,  NULL,               'f' },
     { "server",             no_argument,        &g_server,          1   },
     { NULL,                 0,                  NULL,               0   }
 };
@@ -89,8 +95,40 @@ signal_handler(int signo)
 static void
 display_usage (const char *progname, const char *subcommand)
 {
-    fprintf(stderr, "Usage:\n  %s %s [--log-file log-file-name] [--log-channels log-channel-list] --server --listen port\n", progname, subcommand);
+    fprintf(stderr, "Usage:\n  %s %s [--log-file log-file-name] [--log-channels log-channel-list] [--port-file port-file-path] --server --listen port\n", progname, subcommand);
     exit(0);
+}
+
+static Error
+save_port_to_file(const uint16_t port, const FileSpec &port_file_spec)
+{
+    FileSpec temp_file_spec(port_file_spec.GetDirectory().AsCString(), false);
+    auto error = FileSystem::MakeDirectory(temp_file_spec, eFilePermissionsDirectoryDefault);
+    if (error.Fail())
+       return Error("Failed to create directory %s: %s", temp_file_spec.GetCString(), error.AsCString());
+
+    llvm::SmallString<PATH_MAX> temp_file_path;
+    temp_file_spec.AppendPathComponent("port-file.%%%%%%");
+    auto err_code = llvm::sys::fs::createUniqueFile(temp_file_spec.GetCString(), temp_file_path);
+    if (err_code)
+        return Error("Failed to create temp file: %s", err_code.message().c_str());
+
+    llvm::FileRemover tmp_file_remover(temp_file_path.c_str());
+
+    {
+        std::ofstream temp_file(temp_file_path.c_str(), std::ios::out);
+        if (!temp_file.is_open())
+            return Error("Failed to open temp file %s", temp_file_path.c_str());
+        temp_file << port;
+    }
+
+    err_code = llvm::sys::fs::rename(temp_file_path.c_str(), port_file_spec.GetPath().c_str());
+    if (err_code)
+        return Error("Failed to rename file %s to %s: %s",
+                     temp_file_path.c_str(), port_file_spec.GetPath().c_str(), err_code.message().c_str());
+
+    tmp_file_remover.releaseFile();
+    return Error();
 }
 
 //----------------------------------------------------------------------
@@ -112,12 +150,13 @@ main_platform (int argc, char *argv[])
 
     std::string log_file;
     StringRef log_channels; // e.g. "lldb process threads:gdb-remote default:linux all"
-  
+
     GDBRemoteCommunicationServerPlatform::PortMap gdbserver_portmap;
     int min_gdbserver_port = 0;
     int max_gdbserver_port = 0;
     uint16_t port_offset = 0;
-    
+
+    FileSpec port_file;
     bool show_usage = false;
     int option_error = 0;
     int socket_error = -1;
@@ -150,6 +189,11 @@ main_platform (int argc, char *argv[])
         case 'c': // Log Channels
             if (optarg && optarg[0])
                 log_channels = StringRef(optarg);
+            break;
+
+        case 'f': // Port file
+            if (optarg && optarg[0])
+                port_file.SetFile(optarg, false);
             break;
 
         case 'p':
@@ -255,6 +299,15 @@ main_platform (int argc, char *argv[])
     }
     listening_socket_up.reset(socket);
     printf ("Listening for a connection from %u...\n", listening_socket_up->GetLocalPortNumber());
+    if (port_file)
+    {
+        error = save_port_to_file(listening_socket_up->GetLocalPortNumber(), port_file);
+        if (error.Fail())
+        {
+            fprintf(stderr, "failed to write port to %s: %s", port_file.GetPath().c_str(), error.AsCString());
+            return 1;
+        }
+    }
 
     do {
         GDBRemoteCommunicationServerPlatform platform;
@@ -308,7 +361,7 @@ main_platform (int argc, char *argv[])
         if (platform.IsConnected())
         {
             // After we connected, we need to get an initial ack from...
-            if (platform.HandshakeWithClient(&error))
+            if (platform.HandshakeWithClient())
             {
                 bool interrupt = false;
                 bool done = false;

@@ -152,16 +152,26 @@ public:
     lldb::addr_t
     ResolveCallableAddress(Target &target) const;
 
-    const ConstString &
-    GetName () const
-    {
-        return m_mangled.GetName();
-    }
+    ConstString
+    GetName () const;
 
+    ConstString
+    GetNameNoArguments () const;
+
+    ConstString
+    GetDisplayName () const;
+    
     uint32_t
     GetID() const
     {
         return m_uid;
+    }
+
+    lldb::LanguageType
+    GetLanguage() const
+    {
+        // TODO: See if there is a way to determine the language for a symbol somehow, for now just return our best guess
+        return m_mangled.GuessLanguage();
     }
 
     void

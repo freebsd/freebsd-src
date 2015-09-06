@@ -140,7 +140,7 @@ enum
     IDS_LLDBDEBUGGER_ERR_INVALIDCLIENTNAME,
     IDS_LLDBDEBUGGER_ERR_CLIENTNOTREGISTERED,
     IDS_LLDBDEBUGGER_ERR_STOPLISTENER,
-    IDS_LLDBDEBUGGER_ERR_BROARDCASTER_NAME,
+    IDS_LLDBDEBUGGER_ERR_BROADCASTER_NAME,
     IDS_LLDBDEBUGGER_WRN_UNKNOWN_EVENT,
 
     IDS_LLDBOUTOFBAND_ERR_UNKNOWN_EVENT,
@@ -289,8 +289,8 @@ class CMICmnResources : public CMICmnBase, public MI::ISingleton<CMICmnResources
 
     // Methods:
   public:
-    bool Initialize(void);
-    bool Shutdown(void);
+    bool Initialize(void) override;
+    bool Shutdown(void) override;
 
     CMIUtilString GetString(const MIuint vResourceId) const;
     bool HasString(const MIuint vResourceId) const;
@@ -327,7 +327,7 @@ class CMICmnResources : public CMICmnBase, public MI::ISingleton<CMICmnResources
     // Overridden:
   private:
     // From CMICmnBase
-    /* dtor */ virtual ~CMICmnResources(void);
+    /* dtor */ ~CMICmnResources(void) override;
 
     // Attributes:
   private:

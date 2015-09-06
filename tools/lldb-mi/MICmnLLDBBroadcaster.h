@@ -15,7 +15,7 @@
 #include "MIUtilSingletonBase.h"
 
 //++ ============================================================================
-// Details: MI derived class from LLDB SBBroardcaster API.
+// Details: MI derived class from LLDB SBBroadcaster API.
 //
 //          *** This class (files) is a place holder until we know we need it or
 //          *** not
@@ -31,8 +31,8 @@ class CMICmnLLDBBroadcaster : public CMICmnBase, public lldb::SBBroadcaster, pub
 
     // Methods:
   public:
-    bool Initialize(void);
-    bool Shutdown(void);
+    bool Initialize(void) override;
+    bool Shutdown(void) override;
     // Methods:
   private:
     /* ctor */ CMICmnLLDBBroadcaster(void);
@@ -42,5 +42,5 @@ class CMICmnLLDBBroadcaster : public CMICmnBase, public lldb::SBBroadcaster, pub
     // Overridden:
   private:
     // From CMICmnBase
-    /* dtor */ virtual ~CMICmnLLDBBroadcaster(void);
+    /* dtor */ ~CMICmnLLDBBroadcaster(void) override;
 };

@@ -17,21 +17,18 @@
 #include "lldb/Target/UnixSignals.h"
 
 namespace lldb_private {
-namespace process_linux {
 
-    /// Linux specific set of Unix signals.
-    class MipsLinuxSignals
-        : public lldb_private::UnixSignals
-    {
-    public:
-        MipsLinuxSignals();
+/// Linux specific set of Unix signals.
+class MipsLinuxSignals : public UnixSignals
+{
+public:
+    MipsLinuxSignals();
 
-    private:
-        void
-        Reset();
-    };
+private:
+    void
+    Reset() override;
+};
 
 } // namespace lldb_private
-} // namespace process_linux
 
-#endif
+#endif // liblldb_MipsLinuxSignals_H_
