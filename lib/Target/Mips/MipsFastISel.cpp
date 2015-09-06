@@ -267,6 +267,9 @@ unsigned MipsFastISel::emitLogicalOp(unsigned ISDOpc, MVT RetVT,
 }
 
 unsigned MipsFastISel::fastMaterializeAlloca(const AllocaInst *AI) {
+  if (!TargetSupported)
+    return 0;
+
   assert(TLI.getValueType(DL, AI->getType(), true) == MVT::i32 &&
          "Alloca should always return a pointer.");
 
@@ -290,12 +293,7 @@ unsigned MipsFastISel::materializeInt(const Constant *C, MVT VT) {
     return 0;
   const TargetRegisterClass *RC = &Mips::GPR32RegClass;
   const ConstantInt *CI = cast<ConstantInt>(C);
-  int64_t Imm;
-  if ((VT != MVT::i1) && CI->isNegative())
-    Imm = CI->getSExtValue();
-  else
-    Imm = CI->getZExtValue();
-  return materialize32BitInt(Imm, RC);
+  return materialize32BitInt(CI->getZExtValue(), RC);
 }
 
 unsigned MipsFastISel::materialize32BitInt(int64_t Imm,
@@ -382,6 +380,9 @@ unsigned MipsFastISel::materializeExternalCallSym(MCSymbol *Sym) {
 // Materialize a constant into a register, and return the register
 // number (or zero if we failed to handle it).
 unsigned MipsFastISel::fastMaterializeConstant(const Constant *C) {
+  if (!TargetSupported)
+    return 0;
+
   EVT CEVT = TLI.getValueType(DL, C->getType(), true);
 
   // Only handle simple types.
@@ -981,6 +982,13 @@ bool MipsFastISel::selectSelect(const Instruction *I) {
   if (!Src1Reg || !Src2Reg || !CondReg)
     return false;
 
+  unsigned ZExtCondReg = createResultReg(&Mips::GPR32RegClass);
+  if (!ZExtCondReg)
+    return false;
+
+  if (!emitIntExt(MVT::i1, CondReg, MVT::i32, ZExtCondReg, true))
+    return false;
+
   unsigned ResultReg = createResultReg(RC);
   unsigned TempReg = createResultReg(RC);
 
@@ -989,7 +997,7 @@ bool MipsFastISel::selectSelect(const Instruction *I) {
 
   emitInst(TargetOpcode::COPY, TempReg).addReg(Src2Reg);
   emitInst(CondMovOpc, ResultReg)
-    .addReg(Src1Reg).addReg(CondReg).addReg(TempReg);
+    .addReg(Src1Reg).addReg(ZExtCondReg).addReg(TempReg);
   updateValueMap(I, ResultReg);
   return true;
 }
@@ -1232,11 +1240,18 @@ bool MipsFastISel::finishCall(CallLoweringInfo &CLI, MVT RetVT,
 }
 
 bool MipsFastISel::fastLowerCall(CallLoweringInfo &CLI) {
+  if (!TargetSupported)
+    return false;
+
   CallingConv::ID CC = CLI.CallConv;
   bool IsTailCall = CLI.IsTailCall;
   bool IsVarArg = CLI.IsVarArg;
   const Value *Callee = CLI.Callee;
   MCSymbol *Symbol = CLI.Symbol;
+
+  // Do not handle FastCC.
+  if (CC == CallingConv::Fast)
+    return false;
 
   // Allow SelectionDAG isel to handle tail calls.
   if (IsTailCall)
@@ -1312,6 +1327,9 @@ bool MipsFastISel::fastLowerCall(CallLoweringInfo &CLI) {
 }
 
 bool MipsFastISel::fastLowerIntrinsicCall(const IntrinsicInst *II) {
+  if (!TargetSupported)
+    return false;
+
   switch (II->getIntrinsicID()) {
   default:
     return false;
@@ -1415,6 +1433,11 @@ bool MipsFastISel::selectRet(const Instruction *I) {
 
   if (Ret->getNumOperands() > 0) {
     CallingConv::ID CC = F.getCallingConv();
+
+    // Do not handle FastCC.
+    if (CC == CallingConv::Fast)
+      return false;
+
     SmallVector<ISD::OutputArg, 4> Outs;
     GetReturnInfo(F.getReturnType(), F.getAttributes(), Outs, TLI, DL);
 

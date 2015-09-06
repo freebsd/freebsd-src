@@ -18,8 +18,6 @@ else
     MAKE=make
 fi
 
-projects="llvm cfe compiler-rt libcxx libcxxabi test-suite clang-tools-extra"
-
 # Base SVN URL for the sources.
 Base_url="http://llvm.org/svn/llvm-project"
 
@@ -29,12 +27,17 @@ RC=""
 Triple=""
 use_gzip="no"
 do_checkout="yes"
-do_64bit="yes"
 do_debug="no"
 do_asserts="no"
 do_compare="yes"
+do_rt="yes"
+do_libs="yes"
+do_libunwind="yes"
+do_test_suite="yes"
+do_openmp="no"
 BuildDir="`pwd`"
-BuildTriple=""
+use_autoconf="no"
+ExtraConfigureFlags=""
 
 function usage() {
     echo "usage: `basename $0` -release X.Y.Z -rc NUM [OPTIONS]"
@@ -46,14 +49,23 @@ function usage() {
     echo " -j NUM               Number of compile jobs to run. [default: 3]"
     echo " -build-dir DIR       Directory to perform testing in. [default: pwd]"
     echo " -no-checkout         Don't checkout the sources from SVN."
-    echo " -no-64bit            Don't test the 64-bit version. [default: yes]"
     echo " -test-debug          Test the debug build. [default: no]"
     echo " -test-asserts        Test with asserts on. [default: no]"
     echo " -no-compare-files    Don't test that phase 2 and 3 files are identical."
     echo " -use-gzip            Use gzip instead of xz."
-    echo " -build-triple TRIPLE The build triple for this machine"
-    echo "                      [default: use config.guess]"
+    echo " -configure-flags FLAGS  Extra flags to pass to the configure step."
+    echo " -use-autoconf        Use autoconf instead of cmake"
+    echo " -no-rt               Disable check-out & build Compiler-RT"
+    echo " -no-libs             Disable check-out & build libcxx/libcxxabi/libunwind"
+    echo " -no-libunwind        Disable check-out & build libunwind"
+    echo " -no-test-suite       Disable check-out & build test-suite"
+    echo " -openmp              Check out and build the OpenMP run-time (experimental)"
 }
+
+if [ `uname -s` = "Darwin" ]; then
+  # compiler-rt doesn't yet build with CMake on Darwin.
+  use_autoconf="yes"
+fi
 
 while [ $# -gt 0 ]; do
     case $1 in
@@ -73,9 +85,9 @@ while [ $# -gt 0 ]; do
             shift
             Triple="$1"
             ;;
-        -build-triple | --build-triple )
+        -configure-flags | --configure-flags )
             shift
-            BuildTriple="$1"
+            ExtraConfigureFlags="$1"
             ;;
         -j* )
             NumJobs="`echo $1 | sed -e 's,-j\([0-9]*\),\1,g'`"
@@ -91,9 +103,6 @@ while [ $# -gt 0 ]; do
         -no-checkout | --no-checkout )
             do_checkout="no"
             ;;
-        -no-64bit | --no-64bit )
-            do_64bit="no"
-            ;;
         -test-debug | --test-debug )
             do_debug="yes"
             ;;
@@ -105,6 +114,24 @@ while [ $# -gt 0 ]; do
             ;;
         -use-gzip | --use-gzip )
             use_gzip="yes"
+            ;;
+        -use-autoconf | --use-autoconf )
+            use_autoconf="yes"
+            ;;
+        -no-rt )
+            do_rt="no"
+            ;;
+        -no-libs )
+            do_libs="no"
+            ;;
+        -no-libunwind )
+            do_libunwind="no"
+            ;;
+        -no-test-suite )
+            do_test_suite="no"
+            ;;
+        -openmp )
+            do_openmp="yes"
             ;;
         -help | --help | -h | --h | -\? )
             usage
@@ -147,6 +174,24 @@ if [ -z "$NumJobs" ]; then
     NumJobs=3
 fi
 
+# Projects list
+projects="llvm cfe clang-tools-extra"
+if [ $do_rt = "yes" ]; then
+  projects="$projects compiler-rt"
+fi
+if [ $do_libs = "yes" ]; then
+  projects="$projects libcxx libcxxabi"
+  if [ $do_libunwind = "yes" ]; then
+    projects="$projects libunwind"
+  fi
+fi
+if [ $do_test_suite = "yes" ]; then
+  projects="$projects test-suite"
+fi
+if [ $do_openmp = "yes" ]; then
+  projects="$projects openmp"
+fi
+
 # Go to the build directory (may be different from CWD)
 BuildDir=$BuildDir/$RC
 mkdir -p $BuildDir
@@ -162,6 +207,16 @@ if [ $RC != "final" ]; then
   Package=$Package-$RC
 fi
 Package=$Package-$Triple
+
+# Errors to be highlighted at the end are written to this file.
+echo -n > $LogDir/deferred_errors.log
+
+function deferred_error() {
+  Phase="$1"
+  Flavor="$2"
+  Msg="$3"
+  echo "[${Flavor} Phase${Phase}] ${Msg}" | tee -a $LogDir/deferred_errors.log
+}
 
 # Make sure that a required program is available
 function check_program_exists() {
@@ -195,6 +250,10 @@ function export_sources() {
     check_valid_urls
 
     for proj in $projects ; do
+        if [ -d $proj.src ]; then
+          echo "# Reusing $proj $Release-$RC sources"
+          continue
+        fi
         echo "# Exporting $proj $Release-$RC sources"
         if ! svn export -q $Base_url/$proj/tags/RELEASE_$Release_no_dot/$RC $proj.src ; then
             echo "error: failed to export $proj project"
@@ -208,22 +267,26 @@ function export_sources() {
         ln -s ../../cfe.src clang
     fi
     cd $BuildDir/llvm.src/tools/clang/tools
-    if [ ! -h clang-tools-extra ]; then
+    if [ ! -h extra ]; then
         ln -s ../../../../clang-tools-extra.src extra
     fi
     cd $BuildDir/llvm.src/projects
-    if [ ! -h test-suite ]; then
+    if [ -d $BuildDir/test-suite.src ] && [ ! -h test-suite ]; then
         ln -s ../../test-suite.src test-suite
     fi
-    if [ ! -h compiler-rt ]; then
+    if [ -d $BuildDir/compiler-rt.src ] && [ ! -h compiler-rt ]; then
         ln -s ../../compiler-rt.src compiler-rt
     fi
-    if [ ! -h libcxx ]; then
+    if [ -d $BuildDir/libcxx.src ] && [ ! -h libcxx ]; then
         ln -s ../../libcxx.src libcxx
     fi
-    if [ ! -h libcxxabi ]; then
+    if [ -d $BuildDir/libcxxabi.src ] && [ ! -h libcxxabi ]; then
         ln -s ../../libcxxabi.src libcxxabi
     fi
+    if [ -d $BuildDir/libunwind.src ] && [ ! -h libunwind ]; then
+        ln -s ../../libunwind.src libunwind
+    fi
+
     cd $BuildDir
 }
 
@@ -233,17 +296,20 @@ function configure_llvmCore() {
     ObjDir="$3"
 
     case $Flavor in
-        Release | Release-64 )
-            Optimized="yes"
-            Assertions="no"
+        Release )
+            BuildType="Release"
+            Assertions="OFF"
+            ConfigureFlags="--enable-optimized --disable-assertions"
             ;;
         Release+Asserts )
-            Optimized="yes"
-            Assertions="yes"
+            BuildType="Release"
+            Assertions="ON"
+            ConfigureFlags="--enable-optimized --enable-assertions"
             ;;
         Debug )
-            Optimized="no"
-            Assertions="yes"
+            BuildType="Debug"
+            Assertions="ON"
+            ConfigureFlags="--disable-optimized --enable-assertions"
             ;;
         * )
             echo "# Invalid flavor '$Flavor'"
@@ -255,22 +321,33 @@ function configure_llvmCore() {
     echo "# Using C compiler: $c_compiler"
     echo "# Using C++ compiler: $cxx_compiler"
 
-    build_triple_option="${BuildTriple:+--build=$BuildTriple}"
-
     cd $ObjDir
     echo "# Configuring llvm $Release-$RC $Flavor"
-    echo "# $BuildDir/llvm.src/configure \
-        --enable-optimized=$Optimized \
-        --enable-assertions=$Assertions \
-        --disable-timestamps \
-        $build_triple_option"
-    env CC="$c_compiler" CXX="$cxx_compiler" \
-        $BuildDir/llvm.src/configure \
-        --enable-optimized=$Optimized \
-        --enable-assertions=$Assertions \
-        --disable-timestamps \
-        $build_triple_option \
-        2>&1 | tee $LogDir/llvm.configure-Phase$Phase-$Flavor.log
+
+    if [ "$use_autoconf" = "yes" ]; then
+        echo "#" env CC="$c_compiler" CXX="$cxx_compiler" \
+            $BuildDir/llvm.src/configure \
+            $ConfigureFlags --disable-timestamps $ExtraConfigureFlags \
+            2>&1 | tee $LogDir/llvm.configure-Phase$Phase-$Flavor.log
+        env CC="$c_compiler" CXX="$cxx_compiler" \
+            $BuildDir/llvm.src/configure \
+            $ConfigureFlags --disable-timestamps $ExtraConfigureFlags \
+            2>&1 | tee $LogDir/llvm.configure-Phase$Phase-$Flavor.log
+    else
+        echo "#" env CC="$c_compiler" CXX="$cxx_compiler" \
+            cmake -G "Unix Makefiles" \
+            -DCMAKE_BUILD_TYPE=$BuildType -DLLVM_ENABLE_ASSERTIONS=$Assertions \
+            -DLLVM_ENABLE_TIMESTAMPS=OFF -DLLVM_CONFIGTIME="(timestamp not enabled)" \
+            $ExtraConfigureFlags $BuildDir/llvm.src \
+            2>&1 | tee $LogDir/llvm.configure-Phase$Phase-$Flavor.log
+        env CC="$c_compiler" CXX="$cxx_compiler" \
+            cmake -G "Unix Makefiles" \
+            -DCMAKE_BUILD_TYPE=$BuildType -DLLVM_ENABLE_ASSERTIONS=$Assertions \
+            -DLLVM_ENABLE_TIMESTAMPS=OFF -DLLVM_CONFIGTIME="(timestamp not enabled)" \
+            $ExtraConfigureFlags $BuildDir/llvm.src \
+            2>&1 | tee $LogDir/llvm.configure-Phase$Phase-$Flavor.log
+    fi
+
     cd $BuildDir
 }
 
@@ -279,16 +356,11 @@ function build_llvmCore() {
     Flavor="$2"
     ObjDir="$3"
     DestDir="$4"
-    ExtraOpts=""
-
-    if [ "$Flavor" = "Release-64" ]; then
-        ExtraOpts="EXTRA_OPTIONS=-m64"
-    fi
 
     cd $ObjDir
     echo "# Compiling llvm $Release-$RC $Flavor"
-    echo "# ${MAKE} -j $NumJobs VERBOSE=1 $ExtraOpts"
-    ${MAKE} -j $NumJobs VERBOSE=1 $ExtraOpts \
+    echo "# ${MAKE} -j $NumJobs VERBOSE=1"
+    ${MAKE} -j $NumJobs VERBOSE=1 \
         2>&1 | tee $LogDir/llvm.make-Phase$Phase-$Flavor.log
 
     echo "# Installing llvm $Release-$RC $Flavor"
@@ -305,10 +377,19 @@ function test_llvmCore() {
     ObjDir="$3"
 
     cd $ObjDir
-    ${MAKE} -k check-all \
-        2>&1 | tee $LogDir/llvm.check-Phase$Phase-$Flavor.log
-    ${MAKE} -k unittests \
-        2>&1 | tee $LogDir/llvm.unittests-Phase$Phase-$Flavor.log
+    if ! ( ${MAKE} -j $NumJobs -k check-all \
+        2>&1 | tee $LogDir/llvm.check-Phase$Phase-$Flavor.log ) ; then
+      deferred_error $Phase $Flavor "check-all failed"
+    fi
+
+    if [ "$use_autoconf" = "yes" ]; then
+        # In the cmake build, unit tests are run as part of check-all.
+        if ! ( ${MAKE} -k unittests 2>&1 | \
+            tee $LogDir/llvm.unittests-Phase$Phase-$Flavor.log ) ; then
+          deferred_error $Phase $Flavor "unittests failed"
+        fi
+    fi
+
     cd $BuildDir
 }
 
@@ -321,10 +402,12 @@ function clean_RPATH() {
   local InstallPath="$1"
   for Candidate in `find $InstallPath/{bin,lib} -type f`; do
     if file $Candidate | grep ELF | egrep 'executable|shared object' > /dev/null 2>&1 ; then
-      rpath=`objdump -x $Candidate | grep 'RPATH' | sed -e's/^ *RPATH *//'`
-      if [ -n "$rpath" ]; then
-        newrpath=`echo $rpath | sed -e's/.*\(\$ORIGIN[^:]*\).*/\1/'`
-        chrpath -r $newrpath $Candidate 2>&1 > /dev/null 2>&1
+      if rpath=`objdump -x $Candidate | grep 'RPATH'` ; then
+        rpath=`echo $rpath | sed -e's/^ *RPATH *//'`
+        if [ -n "$rpath" ]; then
+          newrpath=`echo $rpath | sed -e's/.*\(\$ORIGIN[^:]*\).*/\1/'`
+          chrpath -r $newrpath $Candidate 2>&1 > /dev/null 2>&1
+        fi
       fi
     fi
   done
@@ -334,13 +417,53 @@ function clean_RPATH() {
 function package_release() {
     cwd=`pwd`
     cd $BuildDir/Phase3/Release
-    mv llvmCore-$Release-$RC.install $Package
+    mv llvmCore-$Release-$RC.install/usr/local $Package
     if [ "$use_gzip" = "yes" ]; then
       tar cfz $BuildDir/$Package.tar.gz $Package
     else
       tar cfJ $BuildDir/$Package.tar.xz $Package
     fi
-    mv $Package llvmCore-$Release-$RC.install
+    mv $Package llvmCore-$Release-$RC.install/usr/local
+    cd $cwd
+}
+
+# Build and package the OpenMP run-time. This is still experimental and not
+# meant for official testing in the release, but as a way for providing
+# binaries as a convenience to those who want to try it out.
+function build_OpenMP() {
+    cwd=`pwd`
+
+    rm -rf $BuildDir/Phase3/openmp
+    rm -rf $BuildDir/Phase3/openmp.install
+    mkdir -p $BuildDir/Phase3/openmp
+    cd $BuildDir/Phase3/openmp
+    clang=$BuildDir/Phase3/Release/llvmCore-$Release-$RC.install/usr/local/bin/clang
+
+    echo "#" cmake -DCMAKE_C_COMPILER=${clang} -DCMAKE_CXX_COMPILER=${clang}++ \
+            -DCMAKE_BUILD_TYPE=Release -DLIBOMP_MICRO_TESTS=on \
+            $BuildDir/openmp.src/runtime
+    cmake -DCMAKE_C_COMPILER=${clang} -DCMAKE_CXX_COMPILER=${clang}++ \
+            -DCMAKE_BUILD_TYPE=Release -DLIBOMP_MICRO_TESTS=on \
+            $BuildDir/openmp.src/runtime
+
+    echo "# Building OpenMP run-time"
+    echo "# ${MAKE} -j $NumJobs VERBOSE=1"
+    ${MAKE} -j $NumJobs VERBOSE=1
+    echo "# ${MAKE} libomp-micro-tests VERBOSE=1"
+    ${MAKE} libomp-micro-tests VERBOSE=1
+    echo "# ${MAKE} install DESTDIR=$BuildDir/Phase3/openmp.install"
+    ${MAKE} install DESTDIR=$BuildDir/Phase3/openmp.install
+
+    OpenMPPackage=OpenMP-$Release
+    if [ $RC != "final" ]; then
+        OpenMPPackage=$OpenMPPackage-$RC
+    fi
+    OpenMPPackage=$OpenMPPackage-$Triple
+
+    mv $BuildDir/Phase3/openmp.install/usr/local $BuildDir/$OpenMPPackage
+    cd $BuildDir
+    tar cvfJ $BuildDir/$OpenMPPackage.tar.xz $OpenMPPackage
+    mv $OpenMPPackage $BuildDir/Phase3/openmp.install/usr/local
     cd $cwd
 }
 
@@ -362,9 +485,6 @@ fi
 if [ "$do_asserts" = "yes" ]; then
     Flavors="$Flavors Release+Asserts"
 fi
-if [ "$do_64bit" = "yes" ]; then
-    Flavors="$Flavors Release-64"
-fi
 
 for Flavor in $Flavors ; do
     echo ""
@@ -379,7 +499,6 @@ for Flavor in $Flavors ; do
 
     c_compiler="$CC"
     cxx_compiler="$CXX"
-
     llvmCore_phase1_objdir=$BuildDir/Phase1/$Flavor/llvmCore-$Release-$RC.obj
     llvmCore_phase1_destdir=$BuildDir/Phase1/$Flavor/llvmCore-$Release-$RC.install
 
@@ -446,14 +565,23 @@ for Flavor in $Flavors ; do
     if [ "$do_compare" = "yes" ]; then
         echo
         echo "# Comparing Phase 2 and Phase 3 files"
-        for o in `find $llvmCore_phase2_objdir -name '*.o'` ; do
-            p3=`echo $o | sed -e 's,Phase2,Phase3,'`
-            if ! cmp --ignore-initial=16 $o $p3 > /dev/null 2>&1 ; then
-                echo "file `basename $o` differs between phase 2 and phase 3"
+        for p2 in `find $llvmCore_phase2_objdir -name '*.o'` ; do
+            p3=`echo $p2 | sed -e 's,Phase2,Phase3,'`
+            # Substitute 'Phase2' for 'Phase3' in the Phase 2 object file in
+            # case there are build paths in the debug info. On some systems,
+            # sed adds a newline to the output, so pass $p3 through sed too.
+            if ! cmp -s <(sed -e 's,Phase2,Phase3,g' $p2) <(sed -e '' $p3) \
+                    16 16 ; then
+                echo "file `basename $p2` differs between phase 2 and phase 3"
             fi
         done
     fi
 done
+
+if [ $do_openmp = "yes" ]; then
+  build_OpenMP
+fi
+
 ) 2>&1 | tee $LogDir/testing.$Release-$RC.log
 
 package_release
@@ -468,4 +596,13 @@ else
   echo "### Package: $Package.tar.xz"
 fi
 echo "### Logs: $LogDir"
+
+echo "### Errors:"
+if [ -s "$LogDir/deferred_errors.log" ]; then
+  cat "$LogDir/deferred_errors.log"
+  exit 1
+else
+  echo "None."
+fi
+
 exit 0
