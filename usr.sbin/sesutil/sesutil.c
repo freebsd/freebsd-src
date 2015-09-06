@@ -83,13 +83,13 @@ do_locate(int fd, unsigned int idx, bool onoff)
 static bool
 disk_match(const char *devnames, const char *disk, size_t len)
 {
-	const char *devname;
+	const char *dname;
 
-	devname = devnames;
-	while ((devname = strstr(devname, disk)) != NULL) {
-		if (devname[len] == '\0' || devname[len] == ',')
+	dname = devnames;
+	while ((dname = strstr(dname, disk)) != NULL) {
+		if (dname[len] == '\0' || dname[len] == ',')
 			return (true);
-		devname++;
+		dname++;
 	}
 	return (false);
 }
@@ -175,7 +175,6 @@ locate(int argc, char **argv)
 			}
 		}	
 		close(fd);
-		i++;
 	}
 	globfree(&g);
 
