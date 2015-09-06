@@ -254,6 +254,12 @@ bool SITargetLowering::isShuffleMaskLegal(const SmallVectorImpl<int> &,
   return false;
 }
 
+bool SITargetLowering::isLegalFlatAddressingMode(const AddrMode &AM) const {
+  // Flat instructions do not have offsets, and only have the register
+  // address.
+  return AM.BaseOffs == 0 && (AM.Scale == 0 || AM.Scale == 1);
+}
+
 bool SITargetLowering::isLegalAddressingMode(const DataLayout &DL,
                                              const AddrMode &AM, Type *Ty,
                                              unsigned AS) const {
@@ -263,8 +269,21 @@ bool SITargetLowering::isLegalAddressingMode(const DataLayout &DL,
 
   switch (AS) {
   case AMDGPUAS::GLOBAL_ADDRESS:
-  case AMDGPUAS::CONSTANT_ADDRESS: // XXX - Should we assume SMRD instructions?
+    if (Subtarget->getGeneration() >= AMDGPUSubtarget::VOLCANIC_ISLANDS) {
+      // Assume the we will use FLAT for all global memory accesses
+      // on VI.
+      // FIXME: This assumption is currently wrong.  On VI we still use
+      // MUBUF instructions for the r + i addressing mode.  As currently
+      // implemented, the MUBUF instructions only work on buffer < 4GB.
+      // It may be possible to support > 4GB buffers with MUBUF instructions,
+      // by setting the stride value in the resource descriptor which would
+      // increase the size limit to (stride * 4GB).  However, this is risky,
+      // because it has never been validated.
+      return isLegalFlatAddressingMode(AM);
+    }
+    // fall-through
   case AMDGPUAS::PRIVATE_ADDRESS:
+  case AMDGPUAS::CONSTANT_ADDRESS: // XXX - Should we assume SMRD instructions?
   case AMDGPUAS::UNKNOWN_ADDRESS_SPACE: {
     // MUBUF / MTBUF instructions have a 12-bit unsigned byte offset, and
     // additionally can do r + r + i with addr64. 32-bit has more addressing
@@ -324,11 +343,9 @@ bool SITargetLowering::isLegalAddressingMode(const DataLayout &DL,
 
     return false;
   }
-  case AMDGPUAS::FLAT_ADDRESS: {
-    // Flat instructions do not have offsets, and only have the register
-    // address.
-    return AM.BaseOffs == 0 && (AM.Scale == 0 || AM.Scale == 1);
-  }
+  case AMDGPUAS::FLAT_ADDRESS:
+    return isLegalFlatAddressingMode(AM);
+
   default:
     llvm_unreachable("unhandled address space");
   }
@@ -812,10 +829,29 @@ static SDNode *findUser(SDValue Value, unsigned Opcode) {
 
 SDValue SITargetLowering::LowerFrameIndex(SDValue Op, SelectionDAG &DAG) const {
 
+  SDLoc SL(Op);
   FrameIndexSDNode *FINode = cast<FrameIndexSDNode>(Op);
   unsigned FrameIndex = FINode->getIndex();
 
-  return DAG.getTargetFrameIndex(FrameIndex, MVT::i32);
+  // A FrameIndex node represents a 32-bit offset into scratch memory.  If
+  // the high bit of a frame index offset were to be set, this would mean
+  // that it represented an offset of ~2GB * 64 = ~128GB from the start of the
+  // scratch buffer, with 64 being the number of threads per wave.
+  //
+  // If we know the machine uses less than 128GB of scratch, then we can
+  // amrk the high bit of the FrameIndex node as known zero,
+  // which is important, because it means in most situations we can
+  // prove that values derived from FrameIndex nodes are non-negative.
+  // This enables us to take advantage of more addressing modes when
+  // accessing scratch buffers, since for scratch reads/writes, the register
+  // offset must always be positive.
+
+  SDValue TFI = DAG.getTargetFrameIndex(FrameIndex, MVT::i32);
+  if (Subtarget->enableHugeScratchBuffer())
+    return TFI;
+
+  return DAG.getNode(ISD::AssertZext, SL, MVT::i32, TFI,
+                    DAG.getValueType(EVT::getIntegerVT(*DAG.getContext(), 31)));
 }
 
 /// This transforms the control flow intrinsics to get the branch destination as
@@ -2034,6 +2070,13 @@ void SITargetLowering::adjustWritemask(MachineSDNode *&Node,
   }
 }
 
+static bool isFrameIndexOp(SDValue Op) {
+  if (Op.getOpcode() == ISD::AssertZext)
+    Op = Op.getOperand(0);
+
+  return isa<FrameIndexSDNode>(Op);
+}
+
 /// \brief Legalize target independent instructions (e.g. INSERT_SUBREG)
 /// with frame index operands.
 /// LLVM assumes that inputs are to these instructions are registers.
@@ -2042,7 +2085,7 @@ void SITargetLowering::legalizeTargetIndependentNode(SDNode *Node,
 
   SmallVector<SDValue, 8> Ops;
   for (unsigned i = 0; i < Node->getNumOperands(); ++i) {
-    if (!isa<FrameIndexSDNode>(Node->getOperand(i))) {
+    if (!isFrameIndexOp(Node->getOperand(i))) {
       Ops.push_back(Node->getOperand(i));
       continue;
     }

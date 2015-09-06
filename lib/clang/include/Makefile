@@ -58,6 +58,7 @@ INCS=	Intrin.h \
 	tbmintrin.h \
 	tmmintrin.h \
 	vadefs.h \
+	vecintrin.h \
 	wmmintrin.h \
 	x86intrin.h \
 	xmmintrin.h \
