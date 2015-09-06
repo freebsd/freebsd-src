@@ -3,8 +3,8 @@
 // where asan consumed too much RAM due to transparent hugetables.
 //
 // RUN: %clangxx_asan -g %s -o %t
-// RUN: ASAN_OPTIONS=no_huge_pages_for_shadow=1 %run %t 2>&1 | FileCheck %s
-// RUN:                                         %run %t 2>&1 | FileCheck %s
+// RUN: env ASAN_OPTIONS=$ASAN_OPTIONS:no_huge_pages_for_shadow=1 %run %t 2>&1 | FileCheck %s
+// RUN:                                                                  %run %t 2>&1 | FileCheck %s
 //
 // Would be great to run the test with no_huge_pages_for_shadow=0, but
 // the result will depend on the OS version and settings...
@@ -22,15 +22,31 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <errno.h>
 #include <sanitizer/asan_interface.h>
 
-char FileContents[1 << 14];
+char FileContents[1 << 16];
 
 void FileToString(const char *path) {
   FileContents[0] = 0;
   int fd = open(path, 0);
   if (fd < 0) return;
-  ssize_t res = read(fd, FileContents, sizeof(FileContents) - 1);
+  char *p = FileContents;
+  ssize_t size = sizeof(FileContents) - 1;
+  ssize_t res = 0;
+  do {
+    ssize_t got = read (fd, p, size);
+    if (got == 0)
+      break;
+    else if (got > 0)
+      {
+        p += got;
+        res += got;
+        size -= got;
+      }
+    else if (errno != EINTR)
+      break;
+  } while (size > 0 && res < sizeof(FileContents));
   if (res >= 0)
     FileContents[res] = 0;
 }

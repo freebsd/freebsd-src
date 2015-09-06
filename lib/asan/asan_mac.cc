@@ -24,7 +24,14 @@
 #include "sanitizer_common/sanitizer_libc.h"
 #include "sanitizer_common/sanitizer_mac.h"
 
-#include <crt_externs.h>  // for _NSGetArgv
+#if !SANITIZER_IOS
+#include <crt_externs.h>  // for _NSGetArgv and _NSGetEnviron
+#else
+extern "C" {
+  extern char ***_NSGetArgv(void);
+}
+#endif
+
 #include <dlfcn.h>  // for dladdr()
 #include <mach-o/dyld.h>
 #include <mach-o/loader.h>
@@ -40,19 +47,7 @@
 
 namespace __asan {
 
-void GetPcSpBp(void *context, uptr *pc, uptr *sp, uptr *bp) {
-  ucontext_t *ucontext = (ucontext_t*)context;
-# if SANITIZER_WORDSIZE == 64
-  *pc = ucontext->uc_mcontext->__ss.__rip;
-  *bp = ucontext->uc_mcontext->__ss.__rbp;
-  *sp = ucontext->uc_mcontext->__ss.__rsp;
-# else
-  *pc = ucontext->uc_mcontext->__ss.__eip;
-  *bp = ucontext->uc_mcontext->__ss.__ebp;
-  *sp = ucontext->uc_mcontext->__ss.__esp;
-# endif  // SANITIZER_WORDSIZE
-}
-
+void InitializePlatformInterceptors() {}
 
 bool PlatformHasDifferentMemcpyAndMemmove() {
   // On OS X 10.7 memcpy() and memmove() are both resolved
@@ -74,30 +69,27 @@ LowLevelAllocator allocator_for_env;
 // otherwise the corresponding "NAME=value" string is replaced with
 // |name_value|.
 void LeakyResetEnv(const char *name, const char *name_value) {
-  char ***env_ptr = _NSGetEnviron();
-  CHECK(env_ptr);
-  char **environ = *env_ptr;
-  CHECK(environ);
+  char **env = GetEnviron();
   uptr name_len = internal_strlen(name);
-  while (*environ != 0) {
-    uptr len = internal_strlen(*environ);
+  while (*env != 0) {
+    uptr len = internal_strlen(*env);
     if (len > name_len) {
-      const char *p = *environ;
+      const char *p = *env;
       if (!internal_memcmp(p, name, name_len) && p[name_len] == '=') {
         // Match.
         if (name_value) {
           // Replace the old value with the new one.
-          *environ = const_cast<char*>(name_value);
+          *env = const_cast<char*>(name_value);
         } else {
           // Shift the subsequent pointers back.
-          char **del = environ;
+          char **del = env;
           do {
             del[0] = del[1];
           } while (*del++);
         }
       }
     }
-    environ++;
+    env++;
   }
 }
 
@@ -105,6 +97,23 @@ static bool reexec_disabled = false;
 
 void DisableReexec() {
   reexec_disabled = true;
+}
+
+bool DyldNeedsEnvVariable() {
+// If running on OS X 10.11+ or iOS 9.0+, dyld will interpose even if
+// DYLD_INSERT_LIBRARIES is not set.
+
+#if SANITIZER_IOSSIM
+  // GetMacosVersion will not work for the simulator, whose kernel version
+  // is tied to the host. Use a weak linking hack for the simulator.
+  // This API was introduced in the same version of the OS as the dyld
+  // optimization.
+
+  // Check for presence of a symbol that is available on OS X 10.11+, iOS 9.0+.
+  return (dlsym(RTLD_NEXT, "mach_memory_info") == nullptr);
+#else
+  return (GetMacosVersion() <= MACOS_VERSION_YOSEMITE);
+#endif
 }
 
 void MaybeReexec() {
@@ -122,8 +131,10 @@ void MaybeReexec() {
   uptr fname_len = internal_strlen(info.dli_fname);
   const char *dylib_name = StripModuleName(info.dli_fname);
   uptr dylib_name_len = internal_strlen(dylib_name);
-  if (!dyld_insert_libraries ||
-      !REAL(strstr)(dyld_insert_libraries, dylib_name)) {
+
+  bool lib_is_in_env =
+      dyld_insert_libraries && REAL(strstr)(dyld_insert_libraries, dylib_name);
+  if (DyldNeedsEnvVariable() && !lib_is_in_env) {
     // DYLD_INSERT_LIBRARIES is not set or does not contain the runtime
     // library.
     char program_name[1024];
@@ -159,6 +170,9 @@ void MaybeReexec() {
            "executable with:\n%s=%s\n", kDyldInsertLibraries, new_env);
     CHECK("execv failed" && 0);
   }
+
+  if (!lib_is_in_env)
+    return;
 
   // DYLD_INSERT_LIBRARIES is set and contains the runtime library. Let's remove
   // the dylib from the environment variable, because interceptors are installed

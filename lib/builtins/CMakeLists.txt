@@ -44,6 +44,7 @@ set(GENERIC_SOURCES
   enable_execute_stack.c
   eprintf.c
   extendsfdf2.c
+  extendhfsf2.c
   ffsdi2.c
   ffsti2.c
   fixdfdi.c
@@ -123,7 +124,9 @@ set(GENERIC_SOURCES
   subvti3.c
   subtf3.c
   trampoline_setup.c
+  truncdfhf2.c
   truncdfsf2.c
+  truncsfhf2.c
   ucmpdi2.c
   ucmpti2.c
   udivdi3.c
@@ -151,6 +154,12 @@ set(x86_64_SOURCES
   x86_64/floatundixf.S
   ${GENERIC_SOURCES})
 
+if(WIN32)
+  set(x86_64_SOURCES
+      ${x86_64_SOURCES}
+      x86_64/chkstk.S)
+endif()
+
 set(i386_SOURCES
   i386/ashldi3.S
   i386/ashrdi3.S
@@ -167,6 +176,12 @@ set(i386_SOURCES
   i386/udivdi3.S
   i386/umoddi3.S
   ${GENERIC_SOURCES})
+
+if(WIN32)
+  set(i386_SOURCES
+      ${i386_SOURCES}
+      i386/chkstk.S)
+endif()
 
 set(i686_SOURCES
   ${i386_SOURCES})
@@ -257,7 +272,7 @@ set(arm_SOURCES
 
 add_custom_target(builtins)
 
-if (NOT WIN32)
+if (NOT WIN32 OR MINGW)
   foreach (arch x86_64 i386 i686 arm)
     if (CAN_TARGET_${arch})
       # Filter out generic versions of routines that are re-implemented in

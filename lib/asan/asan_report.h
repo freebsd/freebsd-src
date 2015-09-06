@@ -33,22 +33,19 @@ struct AddressDescription {
   const char *region_kind;
 };
 
+// Returns the number of globals close to the provided address and copies
+// them to "globals" array.
+int GetGlobalsForAddress(uptr addr, __asan_global *globals, u32 *reg_sites,
+                         int max_globals);
+bool GetInfoForAddressIfGlobal(uptr addr, AddressDescription *descr);
 // The following functions prints address description depending
 // on the memory type (shadow/heap/stack/global).
 void DescribeHeapAddress(uptr addr, uptr access_size);
-bool DescribeAddressIfGlobal(uptr addr, uptr access_size);
-bool DescribeAddressRelativeToGlobal(uptr addr, uptr access_size,
-                                     const __asan_global &g);
-bool IsAddressNearGlobal(uptr addr, const __asan_global &g);
-bool GetInfoForAddressIfGlobal(uptr addr, AddressDescription *descr);
 bool DescribeAddressIfShadow(uptr addr, AddressDescription *descr = nullptr,
                              bool print = true);
 bool ParseFrameDescription(const char *frame_descr,
                            InternalMmapVector<StackVarDescr> *vars);
 bool DescribeAddressIfStack(uptr addr, uptr access_size);
-// Determines memory type on its own.
-void DescribeAddress(uptr addr, uptr access_size);
-
 void DescribeThread(AsanThreadContext *context);
 
 // Different kinds of error reports.

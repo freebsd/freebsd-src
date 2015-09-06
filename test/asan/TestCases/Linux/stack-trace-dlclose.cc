@@ -3,7 +3,7 @@
 //
 // RUN: %clangxx_asan -DSHARED %s -shared -o %T/stack_trace_dlclose.so -fPIC
 // RUN: %clangxx_asan -DSO_DIR=\"%T\" %s %libdl -o %t
-// RUN: ASAN_OPTIONS=exitcode=0 %run %t 2>&1 | FileCheck %s
+// RUN: env ASAN_OPTIONS=$ASAN_OPTIONS:exitcode=0 %run %t 2>&1 | FileCheck %s
 // XFAIL: arm-linux-gnueabi
 // XFAIL: armv7l-unknown-linux-gnueabihf
 
@@ -40,6 +40,6 @@ int main(int argc, char **argv) {
 }
 #endif
 
-// CHECK: {{    #0 0x.* in malloc}}
+// CHECK: {{    #0 0x.* in (__interceptor_)?malloc}}
 // CHECK: {{    #1 0x.* \(<unknown module>\)}}
 // CHECK: {{    #2 0x.* in main}}

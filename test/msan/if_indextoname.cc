@@ -1,6 +1,6 @@
-// RUN: %clangxx_msan -m64 -O0 %s -o %t && %run %t 2>&1
-// RUN: %clangxx_msan -m64 -O0 -D_FILE_OFFSET_BITS=64 %s -o %t && %run %t 2>&1
-// RUN: %clangxx_msan -m64 -O3 %s -o %t && %run %t 2>&1
+// RUN: %clangxx_msan -O0 %s -o %t && %run %t 2>&1
+// RUN: %clangxx_msan -O0 -D_FILE_OFFSET_BITS=64 %s -o %t && %run %t 2>&1
+// RUN: %clangxx_msan -O3 %s -o %t && %run %t 2>&1
 
 #include <assert.h>
 #include <errno.h>
@@ -18,6 +18,6 @@ int main(int argc, char *argv[]) {
     printf("No network interfaces found.\n");
     return 0;
   }
-  assert(strlen(ifname) + 1 == __msan_test_shadow(ifname, sizeof(ifname)));
+  assert(strlen(ifname) + 1 <= __msan_test_shadow(ifname, sizeof(ifname)));
   return 0;
 }

@@ -12,6 +12,7 @@ set(DD_SOURCES
 
 set(DD_LINKLIBS)
 append_list_if(COMPILER_RT_HAS_LIBDL dl DD_LINKLIBS)
+append_list_if(COMPILER_RT_HAS_LIBRT rt DD_LINKLIBS)
 append_list_if(COMPILER_RT_HAS_LIBPTHREAD pthread DD_LINKLIBS)
 
 add_custom_target(dd)
@@ -26,7 +27,8 @@ if(CAN_TARGET_x86_64 AND UNIX AND NOT APPLE AND NOT ANDROID)
     CFLAGS ${DD_CFLAGS})
   add_dependencies(dd clang_rt.dd-${arch})
 
-  add_compiler_rt_object_library(RTDD ${arch}
+  add_compiler_rt_object_libraries(RTDD
+    ARCHS ${arch}
     SOURCES ${DD_SOURCES} CFLAGS ${DD_CFLAGS})
 
   add_compiler_rt_runtime(clang_rt.dyndd-${arch} ${arch} SHARED

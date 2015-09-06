@@ -2,29 +2,40 @@
 // called.
 
 // RUN: %clangxx_asan %s %p/Helpers/init-order-pthread-create-extra.cc -pthread -o %t
-// RUN: env ASAN_OPTIONS=strict_init_order=true %run %t
+// RUN: env ASAN_OPTIONS=$ASAN_OPTIONS:strict_init_order=true %run %t
 
 #include <stdio.h>
 #include <pthread.h>
+#include <unistd.h>
 
-void *run(void *arg) {
-  return arg;
-}
-
-void *foo(void *input) {
-  pthread_t t;
-  pthread_create(&t, 0, run, input);
-  void *res;
-  pthread_join(t, &res);
-  return res;
-}
-
-void *bar(void *input) {
+void *bar(void *input, bool sleep_before_init) {
+  if (sleep_before_init)
+    usleep(500000);
   return input;
 }
 
-void *glob = foo((void*)0x1234);
+void *glob = bar((void*)0x1234, false);
 extern void *glob2;
+
+void *poll(void *arg) {
+  void **glob = (void**)arg;
+  while (true) {
+    usleep(100000);
+    printf("glob is now: %p\n", *glob);
+  }
+}
+
+struct GlobalPollerStarter {
+  GlobalPollerStarter() {
+    pthread_t p;
+    pthread_attr_t attr;
+    pthread_attr_init(&attr);
+    pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+    pthread_create(&p, 0, poll, &glob);
+    pthread_attr_destroy(&attr);
+    printf("glob poller is started");
+  }
+} global_poller;
 
 int main() {
   printf("%p %p\n", glob, glob2);
