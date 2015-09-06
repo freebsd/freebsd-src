@@ -1,12 +1,15 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 LIB=	llvmmirparser
 
 SRCDIR=	lib/CodeGen/MIRParser
-SRCS=	MILexer.cpp \
-	MIParser.cpp \
+SRCS=	MIParser.cpp \
 	MIRParser.cpp
 
+.if ${MK_CLANG_EXTRAS} != "no"
+SRCS+=	MILexer.cpp
+.endif
+	
 .include "../clang.lib.mk"

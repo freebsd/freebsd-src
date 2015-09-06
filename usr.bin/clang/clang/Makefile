@@ -68,7 +68,6 @@ LIBDEPS=clangfrontendtool \
 	llvmvectorize \
 	llvmbitwriter \
 	llvmasmparser \
-	llvmaarch64disassembler \
 	llvmaarch64codegen \
 	llvmaarch64asmparser \
 	llvmaarch64desc \
@@ -81,7 +80,6 @@ LIBDEPS=clangfrontendtool \
 	llvmarmdesc \
 	llvmarminfo \
 	llvmarminstprinter \
-	llvmmipsdisassembler \
 	llvmmipscodegen \
 	llvmmipsasmparser \
 	llvmmipsdesc \
@@ -93,13 +91,11 @@ LIBDEPS=clangfrontendtool \
 	llvmpowerpcdesc \
 	llvmpowerpcinfo \
 	llvmpowerpcinstprinter \
-	llvmsparcdisassembler \
 	llvmsparccodegen \
 	llvmsparcasmparser \
 	llvmsparcdesc \
 	llvmsparcinfo \
 	llvmsparcinstprinter \
-	llvmx86disassembler \
 	llvmx86asmparser \
 	llvmx86codegen \
 	llvmselectiondag \
