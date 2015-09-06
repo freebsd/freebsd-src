@@ -1400,6 +1400,10 @@ ip6_ctloutput(struct socket *so, struct sockopt *sopt)
 			case IPV6_RECVRTHDR:
 			case IPV6_RECVPATHMTU:
 			case IPV6_RECVTCLASS:
+			case IPV6_RECVFLOWID:
+#ifdef	RSS
+			case IPV6_RECVRSSBUCKETID:
+#endif
 			case IPV6_V6ONLY:
 			case IPV6_AUTOFLOWLABEL:
 			case IPV6_BINDANY:
@@ -1547,6 +1551,16 @@ do { \
 					if (uproto != IPPROTO_TCP)
 						OPTSET(IN6P_MTU);
 					break;
+
+				case IPV6_RECVFLOWID:
+					OPTSET2(INP_RECVFLOWID, optval);
+					break;
+
+#ifdef	RSS
+				case IPV6_RECVRSSBUCKETID:
+					OPTSET2(INP_RECVRSSBUCKETID, optval);
+					break;
+#endif
 
 				case IPV6_V6ONLY:
 					/*
@@ -1811,8 +1825,10 @@ do { \
 			case IPV6_BINDANY:
 			case IPV6_FLOWID:
 			case IPV6_FLOWTYPE:
+			case IPV6_RECVFLOWID:
 #ifdef	RSS
 			case IPV6_RSSBUCKETID:
+			case IPV6_RECVRSSBUCKETID:
 #endif
 				switch (optname) {
 
@@ -1883,6 +1899,10 @@ do { \
 				case IPV6_FLOWTYPE:
 					optval = in6p->inp_flowtype;
 					break;
+
+				case IPV6_RECVFLOWID:
+					optval = OPTBIT2(INP_RECVFLOWID);
+					break;
 #ifdef	RSS
 				case IPV6_RSSBUCKETID:
 					retval =
@@ -1893,6 +1913,10 @@ do { \
 						optval = rss_bucket;
 					else
 						error = EINVAL;
+					break;
+
+				case IPV6_RECVRSSBUCKETID:
+					optval = OPTBIT2(INP_RECVRSSBUCKETID);
 					break;
 #endif
 
