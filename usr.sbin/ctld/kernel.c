@@ -743,9 +743,11 @@ kernel_lun_add(struct lun *lun)
 }
 
 int
-kernel_lun_resize(struct lun *lun)
+kernel_lun_modify(struct lun *lun)
 {
+	struct lun_option *lo;
 	struct ctl_lun_req req;
+	int error, i, num_options;
 
 	bzero(&req, sizeof(req));
 
@@ -755,7 +757,30 @@ kernel_lun_resize(struct lun *lun)
 	req.reqdata.modify.lun_id = lun->l_ctl_lun;
 	req.reqdata.modify.lun_size_bytes = lun->l_size;
 
-	if (ioctl(ctl_fd, CTL_LUN_REQ, &req) == -1) {
+	num_options = 0;
+	TAILQ_FOREACH(lo, &lun->l_options, lo_next)
+		num_options++;
+
+	req.num_be_args = num_options;
+	if (num_options > 0) {
+		req.be_args = malloc(num_options * sizeof(*req.be_args));
+		if (req.be_args == NULL) {
+			log_warn("error allocating %zd bytes",
+			    num_options * sizeof(*req.be_args));
+			return (1);
+		}
+
+		i = 0;
+		TAILQ_FOREACH(lo, &lun->l_options, lo_next) {
+			str_arg(&req.be_args[i], lo->lo_name, lo->lo_value);
+			i++;
+		}
+		assert(i == num_options);
+	}
+
+	error = ioctl(ctl_fd, CTL_LUN_REQ, &req);
+	free(req.be_args);
+	if (error != 0) {
 		log_warn("error issuing CTL_LUN_REQ ioctl");
 		return (1);
 	}

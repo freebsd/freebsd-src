@@ -2423,9 +2423,6 @@ ctl_be_block_rm(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 	params = &req->reqdata.rm;
 
 	mtx_lock(&softc->lock);
-
-	be_lun = NULL;
-
 	STAILQ_FOREACH(be_lun, &softc->lun_list, links) {
 		if (be_lun->cbe_lun.lun_id == params->lun_id)
 			break;
@@ -2589,13 +2586,13 @@ ctl_be_block_modify(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 {
 	struct ctl_lun_modify_params *params;
 	struct ctl_be_block_lun *be_lun;
+	struct ctl_be_lun *cbe_lun;
 	uint64_t oldsize;
 	int error;
 
 	params = &req->reqdata.modify;
 
 	mtx_lock(&softc->lock);
-	be_lun = NULL;
 	STAILQ_FOREACH(be_lun, &softc->lun_list, links) {
 		if (be_lun->cbe_lun.lun_id == params->lun_id)
 			break;
@@ -2608,8 +2605,11 @@ ctl_be_block_modify(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 			 params->lun_id);
 		goto bailout_error;
 	}
+	cbe_lun = &be_lun->cbe_lun;
 
-	be_lun->params.lun_size_bytes = params->lun_size_bytes;
+	if (params->lun_size_bytes != 0)
+		be_lun->params.lun_size_bytes = params->lun_size_bytes;
+	ctl_update_opts(&cbe_lun->options, req->num_be_args, req->kern_be_args);
 
 	oldsize = be_lun->size_blocks;
 	if (be_lun->vn == NULL)
@@ -2622,11 +2622,11 @@ ctl_be_block_modify(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 		error = EINVAL;
 
 	if (be_lun->size_blocks != oldsize)
-		ctl_lun_capacity_changed(&be_lun->cbe_lun);
-	if ((be_lun->cbe_lun.flags & CTL_LUN_FLAG_OFFLINE) &&
+		ctl_lun_capacity_changed(cbe_lun);
+	if ((cbe_lun->flags & CTL_LUN_FLAG_OFFLINE) &&
 	    be_lun->vn != NULL) {
-		be_lun->cbe_lun.flags &= ~CTL_LUN_FLAG_OFFLINE;
-		ctl_lun_online(&be_lun->cbe_lun);
+		cbe_lun->flags &= ~CTL_LUN_FLAG_OFFLINE;
+		ctl_lun_online(cbe_lun);
 	}
 
 	/* Tell the user the exact size we ended up using */
