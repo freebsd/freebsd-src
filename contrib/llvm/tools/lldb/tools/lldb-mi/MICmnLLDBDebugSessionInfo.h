@@ -35,8 +35,8 @@ class CMICmnMIValueList;
 // Details: MI debug session object that holds debugging information between
 //          instances of MI commands executing their work and producing MI
 //          result records. Information/data is set by one or many commands then
-//          retrieved by the same or other sebsequent commands.
-//          It primarily to hold LLDB type objects.
+//          retrieved by the same or other subsequent commands.
+//          It primarily holds LLDB type objects.
 //          A singleton class.
 // Gotchas: None.
 // Authors: Illya Rudkin 04/03/2014.
@@ -140,8 +140,8 @@ class CMICmnLLDBDebugSessionInfo : public CMICmnBase, public MI::ISingleton<CMIC
 
     // Methods:
   public:
-    bool Initialize(void);
-    bool Shutdown(void);
+    bool Initialize(void) override;
+    bool Shutdown(void) override;
 
     // Variant type data which can be assigned and retrieved across all command instances
     template <typename T> bool SharedDataAdd(const CMIUtilString &vKey, const T &vData);
@@ -209,7 +209,7 @@ class CMICmnLLDBDebugSessionInfo : public CMICmnBase, public MI::ISingleton<CMIC
     // Overridden:
   private:
     // From CMICmnBase
-    /* dtor */ virtual ~CMICmnLLDBDebugSessionInfo(void);
+    /* dtor */ ~CMICmnLLDBDebugSessionInfo(void) override;
 
     // Attributes:
   private:

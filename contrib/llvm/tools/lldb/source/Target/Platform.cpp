@@ -36,6 +36,7 @@
 #include "lldb/Symbol/ObjectFile.h"
 #include "lldb/Target/Process.h"
 #include "lldb/Target/Target.h"
+#include "lldb/Target/UnixSignals.h"
 #include "lldb/Utility/Utils.h"
 #include "llvm/Support/FileSystem.h"
 
@@ -1536,27 +1537,6 @@ Platform::CalculateMD5 (const FileSpec& file_spec,
         return false;
 }
 
-Error
-Platform::LaunchNativeProcess (
-    ProcessLaunchInfo &launch_info,
-    lldb_private::NativeProcessProtocol::NativeDelegate &native_delegate,
-    NativeProcessProtocolSP &process_sp)
-{
-    // Platforms should override this implementation if they want to
-    // support lldb-gdbserver.
-    return Error("unimplemented");
-}
-
-Error
-Platform::AttachNativeProcess (lldb::pid_t pid,
-                               lldb_private::NativeProcessProtocol::NativeDelegate &native_delegate,
-                               NativeProcessProtocolSP &process_sp)
-{
-    // Platforms should override this implementation if they want to
-    // support lldb-gdbserver.
-    return Error("unimplemented");
-}
-
 void
 Platform::SetLocalCacheDirectory (const char* local)
 {
@@ -1950,4 +1930,19 @@ const char *
 Platform::GetCacheHostname ()
 {
     return GetHostname ();
+}
+
+const UnixSignalsSP &
+Platform::GetRemoteUnixSignals()
+{
+    static const auto s_default_unix_signals_sp = std::make_shared<UnixSignals>();
+    return s_default_unix_signals_sp;
+}
+
+const UnixSignalsSP &
+Platform::GetUnixSignals()
+{
+    if (IsHost())
+        return Host::GetUnixSignals();
+    return GetRemoteUnixSignals();
 }
