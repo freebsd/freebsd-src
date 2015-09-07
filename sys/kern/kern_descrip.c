@@ -2721,11 +2721,9 @@ fgetvp_rights(struct thread *td, int fd, cap_rights_t *needrightsp,
 		return (EBADF);
 
 #ifdef CAPABILITIES
-	if (needrightsp != NULL) {
-		error = cap_check(cap_rights(fdp, fd), needrightsp);
-		if (error != 0)
-			return (error);
-	}
+	error = cap_check(cap_rights(fdp, fd), needrightsp);
+	if (error != 0)
+		return (error);
 #endif
 
 	if (fp->f_vnode == NULL)
