@@ -35,6 +35,24 @@
 
 #include <sys/cdefs.h>
 
+/*
+ * Length of interface external name, including terminating '\0'.
+ * Note: this is the same size as a generic device's external name.
+ */
+#define		IF_NAMESIZE	16
+
+struct if_nameindex {
+	unsigned int	if_index;	/* 1, 2, ... */
+	char		*if_name;	/* null terminated name: "le0", ... */
+};
+
+__BEGIN_DECLS
+void			 if_freenameindex(struct if_nameindex *);
+char			*if_indextoname(unsigned int, char *);
+struct if_nameindex	*if_nameindex(void);
+unsigned int		 if_nametoindex(const char *);
+__END_DECLS
+
 #if __BSD_VISIBLE
 /*
  * <net/if.h> does not depend on <sys/time.h> on most other systems.  This
@@ -45,23 +63,13 @@
 #include <sys/time.h>
 #include <sys/socket.h>
 #endif
-#endif
 
-/*
- * Length of interface external name, including terminating '\0'.
- * Note: this is the same size as a generic device's external name.
- */
-#define		IF_NAMESIZE	16
-#if __BSD_VISIBLE
 #define		IFNAMSIZ	IF_NAMESIZE
 #define		IF_MAXUNIT	0x7fff	/* historical value */
-#endif
-#if __BSD_VISIBLE
 
 /*
  * Structure used to query names of interface cloners.
  */
-
 struct if_clonereq {
 	int	ifcr_total;		/* total cloners (out) */
 	int	ifcr_count;		/* room for this many in user buffer */
@@ -101,21 +109,19 @@ struct if_data {
 
 	/* Unions are here to make sizes MI. */
 	union {				/* uptime at attach or stat reset */
-		time_t		tt;
+		time_t		ifi_epoch;
 		uint64_t	ph;
-	} __ifi_epoch;
-#define	ifi_epoch	__ifi_epoch.tt
+	};
 	union {				/* time of last administrative change */
-		struct timeval	tv;
+		struct timeval	ifi_lastchange;
 		struct {
 			uint64_t ph1;
 			uint64_t ph2;
-		} ph;
-	} __ifi_lastchange;
-#define	ifi_lastchange	__ifi_lastchange.tv
+		};
+	};
 };
 
-/*-
+/*
  * Interface flags are of two types: network stack owned flags, and driver
  * owned flags.  Historically, these values were stored in the same ifnet
  * flags field, but with the advent of fine-grained locking, they have been
@@ -521,21 +527,21 @@ struct ifi2creq {
 	uint8_t data[8];	/* read buffer */
 }; 
 
-#endif /* __BSD_VISIBLE */
-
-#ifndef _KERNEL
-struct if_nameindex {
-	unsigned int	if_index;	/* 1, 2, ... */
-	char		*if_name;	/* null terminated name: "le0", ... */
-};
-
-__BEGIN_DECLS
-void			 if_freenameindex(struct if_nameindex *);
-char			*if_indextoname(unsigned int, char *);
-struct if_nameindex	*if_nameindex(void);
-unsigned int		 if_nametoindex(const char *);
-__END_DECLS
-#endif
+typedef enum {
+	IFCOUNTER_IPACKETS = 0,
+	IFCOUNTER_IERRORS,
+	IFCOUNTER_OPACKETS,
+	IFCOUNTER_OERRORS,
+	IFCOUNTER_COLLISIONS,
+	IFCOUNTER_IBYTES,
+	IFCOUNTER_OBYTES,
+	IFCOUNTER_IMCASTS,
+	IFCOUNTER_OMCASTS,
+	IFCOUNTER_IQDROPS,
+	IFCOUNTER_OQDROPS,
+	IFCOUNTER_NOPROTO,
+	IFCOUNTERS /* Array size (used internally). */
+} ift_counter;
 
 #ifdef _KERNEL
 #include <net/if_types.h>
@@ -555,22 +561,6 @@ struct vnet;	/* if_reassign */
 MALLOC_DECLARE(M_IFADDR);
 MALLOC_DECLARE(M_IFMADDR);
 #endif
-
-typedef enum {
-	IFCOUNTER_IPACKETS = 0,
-	IFCOUNTER_IERRORS,
-	IFCOUNTER_OPACKETS,
-	IFCOUNTER_OERRORS,
-	IFCOUNTER_COLLISIONS,
-	IFCOUNTER_IBYTES,
-	IFCOUNTER_OBYTES,
-	IFCOUNTER_IMCASTS,
-	IFCOUNTER_OMCASTS,
-	IFCOUNTER_IQDROPS,
-	IFCOUNTER_OQDROPS,
-	IFCOUNTER_NOPROTO,
-	IFCOUNTERS /* Array size (used internally). */
-} ift_counter;
 
 typedef enum {
 	IF_NO_SOFTC = 0,
@@ -799,4 +789,5 @@ if_name(if_t ifp)
 	return ((char *)(if_getsoftc(ifp, IF_NAME)));
 }
 #endif /* _KERNEL */
+#endif /* __BSD_VISIBLE_ */
 #endif /* !_NET_IF_H_ */
