@@ -911,7 +911,7 @@ kern_dup(struct thread *td, u_int mode, int flags, int old, int new)
 #endif
 	filecaps_free(&newfde->fde_caps);
 	memcpy(newfde, oldfde, fde_change_size);
-	filecaps_copy(&oldfde->fde_caps, &newfde->fde_caps);
+	filecaps_copy(&oldfde->fde_caps, &newfde->fde_caps, true);
 	if ((flags & FDDUP_FLAG_CLOEXEC) != 0)
 		newfde->fde_flags = oldfde->fde_flags | UF_EXCLOSE;
 	else
@@ -1433,21 +1433,31 @@ filecaps_init(struct filecaps *fcaps)
 
 /*
  * Copy filecaps structure allocating memory for ioctls array if needed.
+ *
+ * The last parameter indicates whether the fdtable is locked. If it is not and
+ * ioctls are encountered, copying fails and the caller must lock the table.
+ *
+ * Note that if the table was not locked, the caller has to check the relevant
+ * sequence counter to determine whether the operation was successful.
  */
-void
-filecaps_copy(const struct filecaps *src, struct filecaps *dst)
+int
+filecaps_copy(const struct filecaps *src, struct filecaps *dst, bool locked)
 {
 	size_t size;
 
 	*dst = *src;
-	if (src->fc_ioctls != NULL) {
-		KASSERT(src->fc_nioctls > 0,
-		    ("fc_ioctls != NULL, but fc_nioctls=%hd", src->fc_nioctls));
+	if (src->fc_ioctls == NULL)
+		return (0);
+	if (!locked)
+		return (1);
 
-		size = sizeof(src->fc_ioctls[0]) * src->fc_nioctls;
-		dst->fc_ioctls = malloc(size, M_FILECAPS, M_WAITOK);
-		bcopy(src->fc_ioctls, dst->fc_ioctls, size);
-	}
+	KASSERT(src->fc_nioctls > 0,
+	    ("fc_ioctls != NULL, but fc_nioctls=%hd", src->fc_nioctls));
+
+	size = sizeof(src->fc_ioctls[0]) * src->fc_nioctls;
+	dst->fc_ioctls = malloc(size, M_FILECAPS, M_WAITOK);
+	bcopy(src->fc_ioctls, dst->fc_ioctls, size);
+	return (0);
 }
 
 /*
@@ -1956,7 +1966,7 @@ fdcopy(struct filedesc *fdp)
 		}
 		nfde = &newfdp->fd_ofiles[i];
 		*nfde = *ofde;
-		filecaps_copy(&ofde->fde_caps, &nfde->fde_caps);
+		filecaps_copy(&ofde->fde_caps, &nfde->fde_caps, true);
 		fhold(nfde->fde_file);
 		fdused_init(newfdp, i);
 		newfdp->fd_lastfile = i;
@@ -2012,7 +2022,7 @@ fdcopy_remapped(struct filedesc *fdp, const int *fds, size_t nfds,
 		}
 		nfde = &newfdp->fd_ofiles[i];
 		*nfde = *ofde;
-		filecaps_copy(&ofde->fde_caps, &nfde->fde_caps);
+		filecaps_copy(&ofde->fde_caps, &nfde->fde_caps, true);
 		fhold(nfde->fde_file);
 		fdused_init(newfdp, i);
 		newfdp->fd_lastfile = i;
@@ -2723,7 +2733,7 @@ fgetvp_rights(struct thread *td, int fd, cap_rights_t *needrightsp,
 
 	*vpp = fp->f_vnode;
 	vref(*vpp);
-	filecaps_copy(&fdp->fd_ofiles[fd].fde_caps, havecaps);
+	filecaps_copy(&fdp->fd_ofiles[fd].fde_caps, havecaps, true);
 
 	return (0);
 }
@@ -2938,7 +2948,7 @@ dupfdopen(struct thread *td, struct filedesc *fdp, int dfd, int mode,
 		seq_write_begin(&newfde->fde_seq);
 #endif
 		memcpy(newfde, oldfde, fde_change_size);
-		filecaps_copy(&oldfde->fde_caps, &newfde->fde_caps);
+		filecaps_copy(&oldfde->fde_caps, &newfde->fde_caps, true);
 #ifdef CAPABILITIES
 		seq_write_end(&newfde->fde_seq);
 #endif
