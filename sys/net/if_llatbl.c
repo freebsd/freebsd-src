@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/rwlock.h>
+#include <sys/rmlock.h>
 
 #ifdef DDB
 #include <ddb/ddb.h>
@@ -85,6 +86,7 @@ static int
 lltable_dump_af(struct lltable *llt, struct sysctl_req *wr)
 {
 	int error;
+	struct rm_priotracker if_afdata_tracker;
 
 	LLTABLE_LOCK_ASSERT();
 
@@ -320,6 +322,7 @@ llentry_alloc(struct ifnet *ifp, struct lltable *lt,
     struct sockaddr_storage *dst)
 {
 	struct llentry *la, *la_tmp;
+	struct rm_priotracker if_afdata_tracker;
 
 	IF_AFDATA_RLOCK(ifp);
 	la = lla_lookup(lt, LLE_EXCLUSIVE, (struct sockaddr *)dst);

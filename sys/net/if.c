@@ -52,6 +52,7 @@
 #include <sys/refcount.h>
 #include <sys/module.h>
 #include <sys/rwlock.h>
+#include <sys/rmlock.h>
 #include <sys/sockio.h>
 #include <sys/syslog.h>
 #include <sys/sysctl.h>
@@ -790,8 +791,7 @@ if_attachdomain1(struct ifnet *ifp)
 	 * Since dp->dom_ifattach calls malloc() with M_WAITOK, we
 	 * cannot lock ifp->if_afdata initialization, entirely.
 	 */
-	if (IF_AFDATA_TRYLOCK(ifp) == 0)
-		return;
+	IF_AFDATA_LOCK(ifp);
 	if (ifp->if_afdata_initialized >= domain_init_status) {
 		IF_AFDATA_UNLOCK(ifp);
 		log(LOG_WARNING, "%s called more than once on %s\n",
@@ -1451,6 +1451,20 @@ if_data_copy(struct ifnet *ifp, struct if_data *ifd)
 	ifd->ifi_iqdrops = ifp->if_get_counter(ifp, IFCOUNTER_IQDROPS);
 	ifd->ifi_oqdrops = ifp->if_get_counter(ifp, IFCOUNTER_OQDROPS);
 	ifd->ifi_noproto = ifp->if_get_counter(ifp, IFCOUNTER_NOPROTO);
+}
+
+void
+if_afdata_wlock(struct ifnet *ifp)
+{
+
+	IF_AFDATA_WLOCK(ifp);
+}
+
+void
+if_afdata_wunlock(struct ifnet *ifp)
+{
+
+	IF_AFDATA_WUNLOCK(ifp);
 }
 
 /*
