@@ -12,25 +12,35 @@
 .\"
 .\"
 .\" $FreeBSD$
-.Dd January 1, 2007
+.Dd September 6, 2015
 .Dt BLACKHOLE 4
 .Os
 .Sh NAME
 .Nm blackhole
 .Nd a
 .Xr sysctl 8
-MIB for manipulating behaviour in respect of refused TCP or UDP connection
+MIB for manipulating behaviour in respect of refused SCTP, TCP, or UDP connection
 attempts
 .Sh SYNOPSIS
-.Cd sysctl net.inet.tcp.blackhole[=[0 | 1 | 2]]
-.Cd sysctl net.inet.udp.blackhole[=[0 | 1]]
+.Cd sysctl net.inet.sctp.blackhole Ns Op = Ns Brq "0 | 1 | 2"
+.Cd sysctl net.inet.tcp.blackhole Ns Op = Ns Brq "0 | 1 | 2"
+.Cd sysctl net.inet.udp.blackhole Ns Op = Ns Brq "0 | 1"
 .Sh DESCRIPTION
 The
 .Nm
 .Xr sysctl 8
 MIB is used to control system behaviour when connection requests
-are received on TCP or UDP ports where there is no socket listening.
+are received on SCTP, TCP, or UDP ports where there is no socket listening.
 .Pp
+The blackhole behaviour is useful to slow down an attacker who is port-scanning
+a system in an attempt to detect vulnerable services.
+It might also slow down an attempted denial of service attack.
+.Ss SCTP
+Setting the SCTP blackhole MIB to a numeric value of one
+will prevent sending an ABORT packet in response to an incoming INIT.
+A MIB value of two will do the same, but will also prevent sending an ABORT packet
+when unexpected packets are received.
+.Ss TCP
 Normal behaviour, when a TCP SYN segment is received on a port where
 there is no socket accepting connections, is for the system to return
 a RST segment, and drop the connection.
@@ -44,20 +54,15 @@ as a blackhole.
 By setting the MIB value to two, any segment arriving
 on a closed port is dropped without returning a RST.
 This provides some degree of protection against stealth port scans.
-.Pp
-In the UDP instance, enabling blackhole behaviour turns off the sending
+.Ss UDP
+Enabling blackhole behaviour turns off the sending
 of an ICMP port unreachable message in response to a UDP datagram which
 arrives on a port where there is no socket listening.
 It must be noted that this behaviour will prevent remote systems from running
 .Xr traceroute 8
 to a system.
-.Pp
-The blackhole behaviour is useful to slow down anyone who is port scanning
-a system, attempting to detect vulnerable services on a system.
-It could potentially also slow down someone who is attempting a denial
-of service attack.
 .Sh WARNING
-The TCP and UDP blackhole features should not be regarded as a replacement
+The SCTP, TCP, and UDP blackhole features should not be regarded as a replacement
 for firewall solutions.
 Better security would consist of the
 .Nm
@@ -68,6 +73,7 @@ This mechanism is not a substitute for securing a system.
 It should be used together with other security mechanisms.
 .Sh SEE ALSO
 .Xr ip 4 ,
+.Xr sctp 4 ,
 .Xr tcp 4 ,
 .Xr udp 4 ,
 .Xr ipf 8 ,
@@ -80,5 +86,10 @@ The TCP and UDP
 MIBs
 first appeared in
 .Fx 4.0 .
+.Pp
+The SCTP 
+.Nm 
+MIB first appeared in
+.Fx 9.1 .
 .Sh AUTHORS
 .An Geoffrey M. Rehmet
