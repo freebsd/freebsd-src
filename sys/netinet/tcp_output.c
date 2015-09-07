@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <netinet/in_pcb.h>
+#include <netinet/in_fib.h>
 #include <netinet/ip_var.h>
 #include <netinet/ip_options.h>
 #ifdef INET6
@@ -80,8 +81,6 @@ __FBSDID("$FreeBSD$");
 #ifdef TCP_OFFLOAD
 #include <netinet/tcp_offload.h>
 #endif
-
-#include <net/rt_nhops.h>
 
 #ifdef IPSEC
 #include <netipsec/ipsec.h>

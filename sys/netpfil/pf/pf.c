@@ -74,6 +74,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in_pcb.h>
 #include <netinet/in_var.h>
 #include <netinet/ip.h>
+#include <netinet/in_fib.h>
 #include <netinet/ip_fw.h>
 #include <netinet/ip_icmp.h>
 #include <netinet/icmp_var.h>
@@ -90,13 +91,12 @@ __FBSDID("$FreeBSD$");
 
 #ifdef INET6
 #include <netinet/ip6.h>
+#include <netinet6/in6_fib.h>
 #include <netinet/icmp6.h>
 #include <netinet6/nd6.h>
 #include <netinet6/ip6_var.h>
 #include <netinet6/in6_pcb.h>
 #endif /* INET6 */
-
-#include <net/rt_nhops.h>
 
 #include <machine/in_cksum.h>
 #include <security/mac/mac_framework.h>

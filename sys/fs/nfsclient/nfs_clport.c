@@ -47,10 +47,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <fs/nfs/nfsport.h>
 #include <netinet/if_ether.h>
+#include <netinet/in_fib.h>
 #include <netinet6/scope6_var.h>
 #include <netinet6/ip6_var.h>
 #include <net/if_types.h>
-#include <net/rt_nhops.h>
 
 #include <fs/nfsclient/nfs_kdtrace.h>
 

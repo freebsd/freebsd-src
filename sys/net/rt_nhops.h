@@ -200,6 +200,7 @@ struct rt6_extended {
 	uint8_t		rt_mask;	/*Hopefully, no more non-config masks */
 	uint8_t		spare[7];
 };
+#define	NHOP_LOOKUP_REF	0x01
 
 struct nhopu_extended {
 	union {
@@ -216,53 +217,54 @@ struct route_info {
 	uint32_t		scopeid;	/* Desired scope id to use */
 };
 
-int fib4_lookup_nh_ifp(uint32_t fibnum, struct in_addr dst, uint32_t flowid,
-    struct nhop4_basic *pnh4);
-int fib4_lookup_nh_basic(uint32_t fibnum, struct in_addr dst, uint32_t flowid,
-    struct nhop4_basic *pnh4);
-int fib4_lookup_nh_ext(uint32_t fibnum, struct in_addr dst,
-    uint32_t flowid, uint32_t flags, struct nhop4_extended *pnh4);
-void fib4_free_nh_ext(uint32_t fibnum, struct nhop4_extended *pnh4);
-#define	NHOP_LOOKUP_REF	0x01
-void fib4_source_to_sa_ext(const struct nhopu_extended *pnhu,
-    struct sockaddr_in *sin);
-int rib4_lookup_nh_ext(uint32_t fibnum, struct in_addr dst, uint32_t flowid,
-    uint32_t flags, struct rt4_extended *prt4);
-void rib4_free_nh_ext(uint32_t fibnum, struct rt4_extended *prt4);
+/*
+ * Copies proper nexthop data based on @nh_src nexthop.
+ *
+ * For non-ECMP nexthop function simply copies @nh_src.
+ * For ECMP nexthops flowid is used to select proper
+ * nexthop.
+ *
+ */
+static inline void
+fib_choose_prepend(uint32_t fibnum, struct nhop_prepend *nh_src,
+    uint32_t flowid, struct nhop_prepend *nh, int af)
+{
+	struct nhop_multi *nh_multi;
+	int idx;
 
+	if ((nh_src->nh_flags & NHF_RECURSE) != 0) {
 
-int fib6_lookup_nh_ifp(uint32_t fibnum, struct in6_addr *dst, uint32_t scopeid,
-    uint32_t flowid, struct nhop6_basic *pnh6);
-int fib6_lookup_nh_basic(uint32_t fibnum, const struct in6_addr *dst,
-    uint32_t scopeid, uint32_t flowid, struct nhop6_basic *pnh6);
-int fib6_lookup_nh_ext(uint32_t fibnum, struct in6_addr *dst,
-    uint32_t scopeid, uint32_t flowid, uint32_t flags,
-    struct nhop6_extended *pnh6);
-void fib6_free_nh_ext(uint32_t fibnum, struct nhop6_extended *pnh6);
-int rib6_lookup_nh_ext(uint32_t fibnum, struct in6_addr *dst, uint32_t scopeid,
-    uint32_t flowid, uint32_t flags, struct rt6_extended *prt6);
-void rib6_free_nh_ext(uint32_t fibnum, struct nhop6_extended *prt6);
+		/*
+		 * Recursive nexthop. Choose direct nexthop
+		 * based on flowid.
+		 */
+		nh_multi = (struct nhop_multi *)nh_src;
+		idx = nh_multi->nh_nhops[flowid % nh_multi->nh_count];
+#if 0
+		KASSERT((fibnum < rt_numfibs), ("fib4_lookup_prepend§: bad fibnum"));
+		rh = rt_tables_get_rnh(fibnum, AF_INET);
+		//nh_src = &rh->nhops[i];
+#endif
+	}
 
+	*nh = *nh_src; 
+	/* TODO: Do some light-weight refcounting on egress ifp's */
+}
+
+static inline uint16_t
+fib_rte_to_nh_flags(int rt_flags)
+{
+	uint16_t res;
+
+	res = (rt_flags & RTF_REJECT) ? NHF_REJECT : 0;
+	res |= (rt_flags & RTF_BLACKHOLE) ? NHF_BLACKHOLE : 0;
+	res |= (rt_flags & (RTF_DYNAMIC|RTF_MODIFIED)) ? NHF_REDIRECT : 0;
+	res |= (rt_flags & RTF_BROADCAST) ? NHF_BROADCAST : 0;
+	res |= (rt_flags & RTF_GATEWAY) ? NHF_GATEWAY : 0;
+
+	return (res);
+}
 void fib_free_nh_ext(uint32_t fibnum, struct nhopu_extended *pnhu);
-
-
-void fib4_free_nh_prepend(uint32_t fibnum, struct nhop_prepend *nh);
-void fib4_choose_prepend(uint32_t fibnum, struct nhop_prepend *nh_src,
-    uint32_t flowid, struct nhop_prepend *nh, struct nhop4_extended *nh_ext);
-int fib4_lookup_prepend(uint32_t fibnum, struct in_addr dst, struct mbuf *m,
-    struct nhop_prepend *nh, struct nhop4_extended *nh_ext);
-
-int fib4_sendmbuf(struct ifnet *ifp, struct mbuf *m, struct nhop_prepend *nh,
-    struct in_addr dst);
-
-void fib6_free_nh_prepend(uint32_t fibnum, struct nhop_prepend *nh);
-void fib6_choose_prepend(uint32_t fibnum, struct nhop_prepend *nh_src,
-    uint32_t flowid, struct nhop_prepend *nh, struct nhop6_extended *nh_ext);
-int fib6_lookup_prepend(uint32_t fibnum, struct in6_addr *dst, uint32_t scopeid,
-    struct mbuf *m, struct nhop_prepend *nh, struct nhop6_extended *nh_ext);
-
-int fib6_sendmbuf(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *m,
-    struct nhop_prepend *nh);
 
 #define	FWD_INET	0
 #define	FWD_INET6	1

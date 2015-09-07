@@ -104,6 +104,7 @@
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
+#include <netinet/in_fib.h>
 #include <netinet/ip_var.h>
 #include <netinet/in_var.h>
 
@@ -113,8 +114,6 @@
 #include <netinet/ip_ecn.h>
 
 #include <netinet/ip_encap.h>
-
-#include <net/rt_nhops.h>
 
 #include <machine/stdarg.h>
 

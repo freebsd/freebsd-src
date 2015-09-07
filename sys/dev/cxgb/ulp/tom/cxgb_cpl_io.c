@@ -62,6 +62,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in_var.h>
 
 #include <netinet/ip.h>
+#include <netinet/in_fib.h>
 #include <netinet/tcp_var.h>
 #define TCPSTATES
 #include <netinet/tcp_fsm.h>
@@ -69,7 +70,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp_seq.h>
 #include <netinet/tcp_timer.h>
 #include <net/route.h>
-#include <net/rt_nhops.h>
 
 #include "cxgb_include.h"
 #include "ulp/tom/cxgb_l2t.h"

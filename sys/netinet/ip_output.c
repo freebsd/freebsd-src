@@ -74,6 +74,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in_kdtrace.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
+#include <netinet/in_fib.h>
 #include <netinet/in_pcb.h>
 #include <netinet/in_rss.h>
 #include <netinet/in_var.h>
@@ -83,8 +84,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/sctp.h>
 #include <netinet/sctp_crc32.h>
 #endif
-
-#include <net/rt_nhops.h>
 
 #ifdef IPSEC
 #include <netinet/ip_ipsec.h>

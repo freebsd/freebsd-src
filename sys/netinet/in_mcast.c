@@ -61,10 +61,9 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in_systm.h>
 #include <netinet/in_pcb.h>
 #include <netinet/in_var.h>
+#include <netinet/in_fib.h>
 #include <netinet/ip_var.h>
 #include <netinet/igmp_var.h>
-
-#include <net/rt_nhops.h>
 
 #ifndef KTR_IGMPV3
 #define KTR_IGMPV3 KTR_INET

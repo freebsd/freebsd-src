@@ -60,10 +60,12 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in_systm.h>
 #ifdef INET
 #include <netinet/ip.h>
+#include <netinet/in_fib.h>
 #endif
 #include <netinet/ip_encap.h>
 #ifdef INET6
 #include <netinet/ip6.h>
+#include <netinet6/in6_fib.h>
 #include <netinet6/ip6_var.h>
 #include <netinet6/in6_var.h>
 #endif
@@ -71,8 +73,6 @@ __FBSDID("$FreeBSD$");
 #ifdef INET6
 #include <netinet6/ip6_ecn.h>
 #endif
-
-#include <net/rt_nhops.h>
 
 #include <net/if_gif.h>
 

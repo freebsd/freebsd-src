@@ -28,6 +28,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
+#include "opt_inet6.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -41,10 +42,11 @@ __FBSDID("$FreeBSD$");
 #include <net/route.h>
 #include <netinet/in.h>
 #include <netinet/in_pcb.h>
+#include <netinet/in_fib.h>
+#include <netinet6/in6_fib.h>
 #include <netinet/tcp.h>
 #include <netinet/tcp_var.h>
 #include <netinet/tcp_offload.h>
-#include <net/rt_nhops.h>
 #define	TCPOUTFLAGS
 #include <netinet/tcp_fsm.h>
 #include <netinet/toecore.h>

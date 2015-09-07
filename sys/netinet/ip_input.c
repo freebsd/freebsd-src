@@ -72,6 +72,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip.h>
 #include <netinet/in_pcb.h>
 #include <netinet/ip_var.h>
+#include <netinet/in_fib.h>
 #include <netinet/ip_fw.h>
 #include <netinet/ip_icmp.h>
 #include <netinet/ip_options.h>
@@ -81,8 +82,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip_ipsec.h>
 #endif /* IPSEC */
 #include <netinet/in_rss.h>
-
-#include <net/rt_nhops.h>
 
 #include <sys/socketvar.h>
 

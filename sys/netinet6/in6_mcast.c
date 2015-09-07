@@ -62,14 +62,13 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/in6_var.h>
 #include <netinet/ip6.h>
 #include <netinet/icmp6.h>
+#include <netinet6/in6_fib.h>
 #include <netinet6/ip6_var.h>
 #include <netinet/in_pcb.h>
 #include <netinet/tcp_var.h>
 #include <netinet6/nd6.h>
 #include <netinet6/mld6_var.h>
 #include <netinet6/scope6_var.h>
-
-#include <net/rt_nhops.h>
 
 #ifndef KTR_MLD
 #define KTR_MLD KTR_INET6

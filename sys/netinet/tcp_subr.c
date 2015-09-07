@@ -72,6 +72,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in_pcb.h>
 #include <netinet/in_systm.h>
 #include <netinet/in_var.h>
+#include <netinet/in_fib.h>
 #include <netinet/ip.h>
 #include <netinet/ip_icmp.h>
 #include <netinet/ip_var.h>
@@ -79,11 +80,10 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip6.h>
 #include <netinet6/in6_pcb.h>
 #include <netinet6/ip6_var.h>
+#include <netinet6/in6_fib.h>
 #include <netinet6/scope6_var.h>
 #include <netinet6/nd6.h>
 #endif
-
-#include <net/rt_nhops.h>
 
 #include <netinet/tcp_fsm.h>
 #include <netinet/tcp_seq.h>

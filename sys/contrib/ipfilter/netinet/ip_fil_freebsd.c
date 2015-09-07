@@ -53,6 +53,7 @@ static const char rcsid[] = "@(#)$Id$";
 #include <netinet/in_var.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
+#include <netinet/in_fib.h>
 #include <netinet/ip_var.h>
 #include <netinet/tcp.h>
 #if defined(__FreeBSD_version) && (__FreeBSD_version >= 800000)
@@ -71,7 +72,6 @@ static const char rcsid[] = "@(#)$Id$";
 #ifdef USE_INET6
 # include <netinet/icmp6.h>
 #endif
-#include <net/rt_nhops.h>
 #include "netinet/ip_fil.h"
 #include "netinet/ip_nat.h"
 #include "netinet/ip_frag.h"

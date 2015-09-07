@@ -64,13 +64,12 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in.h>
 #include <netinet/in_var.h>
 #include <netinet/in_pcb.h>
+#include <netinet/in_fib.h>
 #include <netinet/ip_var.h>
 #include <netinet/ip_carp.h>
 #include <netinet/igmp_var.h>
 #include <netinet/udp.h>
 #include <netinet/udp_var.h>
-
-#include <net/rt_nhops.h>
 
 static int in_aifaddr_ioctl(u_long, caddr_t, struct ifnet *, struct thread *);
 static int in_difaddr_ioctl(caddr_t, struct ifnet *, struct thread *);
