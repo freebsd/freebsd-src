@@ -68,13 +68,15 @@ _pthread_once(pthread_once_t *once_control, void (*init_routine) (void))
 
 	for (;;) {
 		state = once_control->state;
-		if (state == ONCE_DONE)
+		if (state == ONCE_DONE) {
+			atomic_thread_fence_acq();
 			return (0);
+		}
 		if (state == ONCE_NEVER_DONE) {
-			if (atomic_cmpset_acq_int(&once_control->state, state, ONCE_IN_PROGRESS))
+			if (atomic_cmpset_int(&once_control->state, state, ONCE_IN_PROGRESS))
 				break;
 		} else if (state == ONCE_IN_PROGRESS) {
-			if (atomic_cmpset_acq_int(&once_control->state, state, ONCE_WAIT))
+			if (atomic_cmpset_int(&once_control->state, state, ONCE_WAIT))
 				_thr_umtx_wait_uint(&once_control->state, ONCE_WAIT, NULL, 0);
 		} else if (state == ONCE_WAIT) {
 			_thr_umtx_wait_uint(&once_control->state, state, NULL, 0);
