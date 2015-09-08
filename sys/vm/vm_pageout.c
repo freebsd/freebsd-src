@@ -1178,12 +1178,8 @@ unlock_page:
 		 * Invalid pages can be easily freed. They cannot be
 		 * mapped, vm_page_free() asserts this.
 		 */
-		if (m->valid == 0) {
-			vm_page_free(m);
-			PCPU_INC(cnt.v_dfree);
-			--page_shortage;
-			goto drop_page;
-		}
+		if (m->valid == 0)
+			goto free_page;
 
 		/*
 		 * If the page has been referenced and the object is not dead,
@@ -1214,12 +1210,8 @@ unlock_page:
  				 */
 				m->act_count += act_delta + ACT_ADVANCE;
 				goto drop_page;
-			} else if ((object->flags & OBJ_DEAD) == 0) {
-				vm_pagequeue_lock(pq);
-				queues_locked = TRUE;
-				vm_page_requeue_locked(m);
-				goto drop_page;
-			}
+			} else if ((object->flags & OBJ_DEAD) == 0)
+				goto requeue_page;
 		}
 
 		/*
@@ -1240,6 +1232,7 @@ unlock_page:
 			/*
 			 * Clean pages can be freed.
 			 */
+free_page:
 			vm_page_free(m);
 			PCPU_INC(cnt.v_dfree);
 			--page_shortage;
@@ -1266,6 +1259,7 @@ unlock_page:
 			 * the thrash point for a heavily loaded machine.
 			 */
 			m->flags |= PG_WINATCFLS;
+requeue_page:
 			vm_pagequeue_lock(pq);
 			queues_locked = TRUE;
 			vm_page_requeue_locked(m);
@@ -1287,12 +1281,8 @@ unlock_page:
 				pageout_ok = vm_page_count_min();
 			else
 				pageout_ok = TRUE;
-			if (!pageout_ok) {
-				vm_pagequeue_lock(pq);
-				queues_locked = TRUE;
-				vm_page_requeue_locked(m);
-				goto drop_page;
-			}
+			if (!pageout_ok)
+				goto requeue_page;
 			error = vm_pageout_clean(m);
 			/*
 			 * Decrement page_shortage on success to account for
