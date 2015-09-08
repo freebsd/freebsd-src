@@ -555,16 +555,16 @@ rsa_verify_cert(int fd, const char *sigfile, const unsigned char *key,
 	}
 
 	if (EVP_DigestVerifyInit(mdctx, NULL, EVP_sha256(), NULL, pkey) != 1) {
-		warnx("la %s", ERR_error_string(ERR_get_error(), errbuf));
+		warnx("%s", ERR_error_string(ERR_get_error(), errbuf));
 		goto error;
 	}
 	if (EVP_DigestVerifyUpdate(mdctx, sha256, strlen(sha256)) != 1) {
-		warnx("ici: %s", ERR_error_string(ERR_get_error(), errbuf));
+		warnx("%s", ERR_error_string(ERR_get_error(), errbuf));
 		goto error;
 	}
 
 	if (EVP_DigestVerifyFinal(mdctx, sig, siglen) != 1) {
-		warnx("merde %s", ERR_error_string(ERR_get_error(), errbuf));
+		warnx("%s", ERR_error_string(ERR_get_error(), errbuf));
 		goto error;
 	}
 
