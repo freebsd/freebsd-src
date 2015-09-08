@@ -71,6 +71,7 @@ if [ -n "$RESTART" ]; then
 		if grep -q ^rcvar $file; then
 			eval `grep ^name= $file`
 			eval `grep ^rcvar $file`
+			load_rc_config_var ${name} ${rcvar}
 			checkyesno $rcvar 2>/dev/null && run_rc_script ${file} stop
 		fi
 	done
@@ -100,6 +101,7 @@ if [ -n "$ENABLED" ]; then
 		if grep -q ^rcvar $file; then
 			eval `grep ^name= $file`
 			eval `grep ^rcvar $file`
+			load_rc_config_var ${name} ${rcvar}
 			checkyesno $rcvar 2>/dev/null && echo $file
 		fi
 	done
