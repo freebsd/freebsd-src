@@ -2235,6 +2235,7 @@ run_key_set_cb(void *arg)
 	struct ieee80211com *ic = vap->iv_ic;
 	struct run_softc *sc = ic->ic_softc;
 	struct ieee80211_node *ni;
+	u_int cipher = k->wk_cipher->ic_cipher;
 	uint32_t attr;
 	uint16_t base, associd;
 	uint8_t mode, wcid, iv[8];
@@ -2248,7 +2249,7 @@ run_key_set_cb(void *arg)
 	associd = (ni != NULL) ? ni->ni_associd : 0;
 
 	/* map net80211 cipher to RT2860 security mode */
-	switch (k->wk_cipher->ic_cipher) {
+	switch (cipher) {
 	case IEEE80211_CIPHER_WEP:
 		if(k->wk_keylen < 8)
 			mode = RT2860_MODE_WEP40;
@@ -2281,7 +2282,7 @@ run_key_set_cb(void *arg)
 		base = RT2860_PKEY(wcid);
 	}
 
-	if (k->wk_cipher->ic_cipher == IEEE80211_CIPHER_TKIP) {
+	if (cipher == IEEE80211_CIPHER_TKIP) {
 		if(run_write_region_1(sc, base, k->wk_key, 16))
 			return;
 		if(run_write_region_1(sc, base + 16, &k->wk_key[16], 8))	/* wk_txmic */
@@ -2297,11 +2298,11 @@ run_key_set_cb(void *arg)
 	if (!(k->wk_flags & IEEE80211_KEY_GROUP) ||
 	    (k->wk_flags & (IEEE80211_KEY_XMIT | IEEE80211_KEY_RECV))) {
 		/* set initial packet number in IV+EIV */
-		if (k->wk_cipher == IEEE80211_CIPHER_WEP) {
+		if (cipher == IEEE80211_CIPHER_WEP) {
 			memset(iv, 0, sizeof iv);
 			iv[3] = vap->iv_def_txkey << 6;
 		} else {
-			if (k->wk_cipher->ic_cipher == IEEE80211_CIPHER_TKIP) {
+			if (cipher == IEEE80211_CIPHER_TKIP) {
 				iv[0] = k->wk_keytsc >> 8;
 				iv[1] = (iv[0] | 0x20) & 0x7f;
 				iv[2] = k->wk_keytsc;
