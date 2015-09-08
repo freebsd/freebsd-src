@@ -88,8 +88,7 @@ SYSCTL_INT(_hw_usb_run, OID_AUTO, debug, CTLFLAG_RWTUN, &run_debug, 0,
     "run debug level");
 #endif
 
-#define	IEEE80211_HAS_ADDR4(wh)	\
-	(((wh)->i_fc[1] & IEEE80211_FC1_DIR_MASK) == IEEE80211_FC1_DIR_DSTODS)
+#define	IEEE80211_HAS_ADDR4(wh)	IEEE80211_IS_DSTODS(wh)
 
 /*
  * Because of LOR in run_key_delete(), use atomic instead.
@@ -382,8 +381,6 @@ static int	run_media_change(struct ifnet *);
 static int	run_newstate(struct ieee80211vap *, enum ieee80211_state, int);
 static int	run_wme_update(struct ieee80211com *);
 static void	run_wme_update_cb(void *);
-static void	run_key_update_begin(struct ieee80211vap *);
-static void	run_key_update_end(struct ieee80211vap *);
 static void	run_key_set_cb(void *);
 static int	run_key_set(struct ieee80211vap *, struct ieee80211_key *,
 		    const uint8_t mac[IEEE80211_ADDR_LEN]);
@@ -926,8 +923,6 @@ run_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
 		return (NULL);
 	}
 
-	vap->iv_key_update_begin = run_key_update_begin;
-	vap->iv_key_update_end = run_key_update_end;
 	vap->iv_update_beacon = run_update_beacon;
 	vap->iv_max_aid = RT2870_WCID_MAX;
 	/*
@@ -2002,7 +1997,7 @@ run_media_change(struct ifnet *ifp)
 			if (rt2860_rates[ridx].rate == rate)
 				break;
 		ni = ieee80211_ref_node(vap->iv_bss);
-		rn = (struct run_node *)ni;
+		rn = RUN_NODE(ni);
 		rn->fix_ridx = ridx;
 		DPRINTF("rate=%d, fix_ridx=%d\n", rate, rn->fix_ridx);
 		ieee80211_free_node(ni);
@@ -2227,24 +2222,8 @@ run_wme_update(struct ieee80211com *ic)
 	run_wme_update_cb(ic);
 	RUN_UNLOCK(sc);
 
-	/* return whatever, upper layer desn't care anyway */
+	/* return whatever, upper layer doesn't care anyway */
 	return (0);
-}
-
-static void
-run_key_update_begin(struct ieee80211vap *vap)
-{
-	/*
-	 * To avoid out-of-order events, both run_key_set() and
-	 * _delete() are deferred and handled by run_cmdq_cb().
-	 * So, there is nothing we need to do here.
-	 */
-}
-
-static void
-run_key_update_end(struct ieee80211vap *vap)
-{
-	/* null */
 }
 
 static void
@@ -2576,7 +2555,7 @@ run_iter_func(void *arg, struct ieee80211_node *ni)
 {
 	struct run_softc *sc = arg;
 	struct ieee80211vap *vap = ni->ni_vap;
-	struct run_node *rn = (void *)ni;
+	struct run_node *rn = RUN_NODE(ni);
 	union run_stats sta[2];
 	uint16_t (*wstat)[3];
 	int txcnt, success, retrycnt, error;
@@ -2650,7 +2629,7 @@ run_newassoc_cb(void *arg)
 static void
 run_newassoc(struct ieee80211_node *ni, int isnew)
 {
-	struct run_node *rn = (void *)ni;
+	struct run_node *rn = RUN_NODE(ni);
 	struct ieee80211_rateset *rs = &ni->ni_rates;
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211com *ic = vap->iv_ic;
@@ -3243,7 +3222,7 @@ run_tx(struct run_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 	struct ieee80211_frame *wh;
 	struct ieee80211_channel *chan;
 	const struct ieee80211_txparam *tp;
-	struct run_node *rn = (void *)ni;
+	struct run_node *rn = RUN_NODE(ni);
 	struct run_tx_data *data;
 	struct rt2870_txd *txd;
 	struct rt2860_txwi *txwi;
@@ -3407,7 +3386,7 @@ static int
 run_tx_mgt(struct run_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 {
 	struct ieee80211com *ic = &sc->sc_ic;
-	struct run_node *rn = (void *)ni;
+	struct run_node *rn = RUN_NODE(ni);
 	struct run_tx_data *data;
 	struct ieee80211_frame *wh;
 	struct rt2870_txd *txd;

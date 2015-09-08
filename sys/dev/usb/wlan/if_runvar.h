@@ -101,6 +101,7 @@ struct run_node {
 	uint8_t			mgt_ridx;
 	uint8_t			fix_ridx;
 };
+#define RUN_NODE(ni)		((struct run_node *)(ni))
 
 struct run_cmdq {
 	void			*arg0;
