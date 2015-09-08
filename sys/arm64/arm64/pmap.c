@@ -3032,8 +3032,74 @@ pmap_page_set_memattr(vm_page_t m, vm_memattr_t ma)
 int
 pmap_mincore(pmap_t pmap, vm_offset_t addr, vm_paddr_t *locked_pa)
 {
+	pd_entry_t *l1p, l1;
+	pd_entry_t *l2p, l2;
+	pt_entry_t *l3p, l3;
+	vm_paddr_t pa;
+	bool managed;
+	int val;
 
-	panic("ARM64TODO: pmap_mincore");
+	PMAP_LOCK(pmap);
+retry:
+	pa = 0;
+	val = 0;
+	managed = false;
+
+	l1p = pmap_l1(pmap, addr);
+	if (l1p == NULL) /* No l1 */
+		goto done;
+	l1 = pmap_load(l1p);
+	if ((l1 & ATTR_DESCR_MASK) == L1_BLOCK) {
+		pa = (l1 & ~ATTR_MASK) | (addr & L1_OFFSET);
+		managed = (l1 & ATTR_SW_MANAGED) == ATTR_SW_MANAGED;
+		val = MINCORE_SUPER | MINCORE_INCORE;
+		if (pmap_page_dirty(l1))
+			val |= MINCORE_MODIFIED | MINCORE_MODIFIED_OTHER;
+		if ((l1 & ATTR_AF) == ATTR_AF)
+			val |= MINCORE_REFERENCED | MINCORE_REFERENCED_OTHER;
+		goto done;
+	}
+
+	l2p = pmap_l1_to_l2(l1p, addr);
+	if (l2p == NULL) /* No l2 */
+		goto done;
+	l2 = pmap_load(l2p);
+	if ((l2 & ATTR_DESCR_MASK) == L2_BLOCK) {
+		pa = (l2 & ~ATTR_MASK) | (addr & L2_OFFSET);
+		managed = (l2 & ATTR_SW_MANAGED) == ATTR_SW_MANAGED;
+		val = MINCORE_SUPER | MINCORE_INCORE;
+		if (pmap_page_dirty(l2))
+			val |= MINCORE_MODIFIED | MINCORE_MODIFIED_OTHER;
+		if ((l2 & ATTR_AF) == ATTR_AF)
+			val |= MINCORE_REFERENCED | MINCORE_REFERENCED_OTHER;
+		goto done;
+	}
+
+	l3p = pmap_l2_to_l3(l2p, addr);
+	if (l3p == NULL) /* No l3 */
+		goto done;
+	l3 = pmap_load(l2p);
+	if ((l3 & ATTR_DESCR_MASK) == L3_PAGE) {
+		pa = (l3 & ~ATTR_MASK) | (addr & L3_OFFSET);
+		managed = (l3 & ATTR_SW_MANAGED) == ATTR_SW_MANAGED;
+		val = MINCORE_INCORE;
+		if (pmap_page_dirty(l3))
+			val |= MINCORE_MODIFIED | MINCORE_MODIFIED_OTHER;
+		if ((l3 & ATTR_AF) == ATTR_AF)
+			val |= MINCORE_REFERENCED | MINCORE_REFERENCED_OTHER;
+	}
+
+done:
+	if ((val & (MINCORE_MODIFIED_OTHER | MINCORE_REFERENCED_OTHER)) !=
+	    (MINCORE_MODIFIED_OTHER | MINCORE_REFERENCED_OTHER) && managed) {
+		/* Ensure that "PHYS_TO_VM_PAGE(pa)->object" doesn't change. */
+		if (vm_page_pa_tryrelock(pmap, pa, locked_pa))
+			goto retry;
+	} else
+		PA_UNLOCK_COND(*locked_pa);
+	PMAP_UNLOCK(pmap);
+
+	return (val);
 }
 
 void
