@@ -431,6 +431,7 @@ static void	run_updateprot_cb(void *);
 static void	run_usb_timeout_cb(void *);
 static void	run_reset_livelock(struct run_softc *);
 static void	run_enable_tsf_sync(struct run_softc *);
+static void	run_get_tsf(struct run_softc *, uint64_t *);
 static void	run_enable_mrr(struct run_softc *);
 static void	run_set_txpreamble(struct run_softc *);
 static void	run_set_basicrates(struct run_softc *);
@@ -2811,6 +2812,7 @@ run_rx_frame(struct run_softc *sc, struct mbuf *m, uint32_t dmalen)
 		tap->wr_antenna = ant;
 		tap->wr_dbm_antsignal = run_rssi2dbm(sc, rssi, ant);
 		tap->wr_rate = 2;	/* in case it can't be found below */
+		run_get_tsf(sc, &tap->wr_tsf);
 		phy = le16toh(rxwi->phy);
 		switch (phy & RT2860_PHY_MODE) {
 		case RT2860_PHY_CCK:
@@ -3058,6 +3060,7 @@ tr_setup:
 			    (struct rt2860_txwi *)(&data->desc + sizeof(struct rt2870_txd));
 			tap->wt_flags = 0;
 			tap->wt_rate = rt2860_rates[data->ridx].rate;
+			run_get_tsf(sc, &tap->wt_tsf);
 			tap->wt_chan_freq = htole16(ic->ic_curchan->ic_freq);
 			tap->wt_chan_flags = htole16(ic->ic_curchan->ic_flags);
 			tap->wt_hwqueue = index;
@@ -5044,6 +5047,13 @@ run_enable_tsf_sync(struct run_softc *sc)
 	}
 
 	run_write(sc, RT2860_BCN_TIME_CFG, tmp);
+}
+
+static void
+run_get_tsf(struct run_softc *sc, uint64_t *buf)
+{
+	run_read_region_1(sc, RT2860_TSF_TIMER_DW0, (uint8_t *)buf,
+	    sizeof(*buf));
 }
 
 static void
