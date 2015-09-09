@@ -1677,7 +1677,8 @@ static void
 __elfN(putnote)(struct note_info *ninfo, struct sbuf *sb)
 {
 	Elf_Note note;
-	ssize_t old_len;
+	ssize_t old_len, sect_len;
+	size_t new_len, descsz, i;
 
 	if (ninfo->type == -1) {
 		ninfo->outfunc(ninfo->outarg, sb, &ninfo->outsize);
@@ -1696,7 +1697,33 @@ __elfN(putnote)(struct note_info *ninfo, struct sbuf *sb)
 		return;
 	sbuf_start_section(sb, &old_len);
 	ninfo->outfunc(ninfo->outarg, sb, &ninfo->outsize);
-	sbuf_end_section(sb, old_len, ELF_NOTE_ROUNDSIZE, 0);
+	sect_len = sbuf_end_section(sb, old_len, ELF_NOTE_ROUNDSIZE, 0);
+	if (sect_len < 0)
+		return;
+
+	new_len = (size_t)sect_len;
+	descsz = roundup(note.n_descsz, ELF_NOTE_ROUNDSIZE);
+	if (new_len < descsz) {
+		/*
+		 * It is expected that individual note emitters will correctly
+		 * predict their expected output size and fill up to that size
+		 * themselves, padding in a format-specific way if needed.
+		 * However, in case they don't, just do it here with zeros.
+		 */
+		for (i = 0; i < descsz - new_len; i++)
+			sbuf_putc(sb, 0);
+	} else if (new_len > descsz) {
+		/*
+		 * We can't always truncate sb -- we may have drained some
+		 * of it already.
+		 */
+		KASSERT(new_len == descsz, ("%s: Note type %u changed as we "
+		    "read it (%zu > %zu).  Since it is longer than "
+		    "expected, this coredump's notes are corrupt.  THIS "
+		    "IS A BUG in the note_procstat routine for type %u.\n",
+		    __func__, (unsigned)note.n_type, new_len, descsz,
+		    (unsigned)note.n_type));
+	}
 }
 
 /*
@@ -1879,25 +1906,47 @@ static void
 note_procstat_files(void *arg, struct sbuf *sb, size_t *sizep)
 {
 	struct proc *p;
-	size_t size;
-	int structsize;
+	size_t size, sect_sz, i;
+	ssize_t start_len, sect_len;
+	int structsize, filedesc_flags;
+
+	if (coredump_pack_fileinfo)
+		filedesc_flags = KERN_FILEDESC_PACK_KINFO;
+	else
+		filedesc_flags = 0;
 
 	p = (struct proc *)arg;
+	structsize = sizeof(struct kinfo_file);
 	if (sb == NULL) {
 		size = 0;
 		sb = sbuf_new(NULL, NULL, 128, SBUF_FIXEDLEN);
 		sbuf_set_drain(sb, sbuf_drain_count, &size);
 		sbuf_bcat(sb, &structsize, sizeof(structsize));
 		PROC_LOCK(p);
-		kern_proc_filedesc_out(p, sb, -1);
+		kern_proc_filedesc_out(p, sb, -1, filedesc_flags);
 		sbuf_finish(sb);
 		sbuf_delete(sb);
 		*sizep = size;
 	} else {
-		structsize = sizeof(struct kinfo_file);
+		sbuf_start_section(sb, &start_len);
+
 		sbuf_bcat(sb, &structsize, sizeof(structsize));
 		PROC_LOCK(p);
-		kern_proc_filedesc_out(p, sb, -1);
+		kern_proc_filedesc_out(p, sb, *sizep - sizeof(structsize),
+		    filedesc_flags);
+
+		sect_len = sbuf_end_section(sb, start_len, 0, 0);
+		if (sect_len < 0)
+			return;
+		sect_sz = sect_len;
+
+		KASSERT(sect_sz <= *sizep,
+		    ("kern_proc_filedesc_out did not respect maxlen; "
+		     "requested %zu, got %zu", *sizep - sizeof(structsize),
+		     sect_sz - sizeof(structsize)));
+
+		for (i = 0; i < *sizep - sect_sz && sb->s_error == 0; i++)
+			sbuf_putc(sb, 0);
 	}
 }
 

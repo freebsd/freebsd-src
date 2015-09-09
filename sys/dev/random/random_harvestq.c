@@ -47,12 +47,21 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/unistd.h>
 
+#if defined(RANDOM_LOADABLE)
+#include <sys/lock.h>
+#include <sys/sx.h>
+#endif
+
+#include <machine/atomic.h>
 #include <machine/cpu.h>
 
 #include <dev/random/randomdev.h>
 #include <dev/random/random_harvestq.h>
 
 static void random_kthread(void);
+static void random_sources_feed(void);
+
+static u_int read_rate;
 
 /* List for the dynamic sysctls */
 static struct sysctl_ctx_list random_clist;
@@ -66,7 +75,7 @@ static struct sysctl_ctx_list random_clist;
 #define	RANDOM_RING_MAX		1024
 #define	RANDOM_ACCUM_MAX	8
 
-/* 1 to let the kernel thread run, 0 to terminate */
+/* 1 to let the kernel thread run, 0 to terminate, -1 to mark completion */
 volatile int random_kthread_control;
 
 /*
@@ -123,13 +132,18 @@ static struct kproc_desc random_proc_kp = {
 	&harvest_context.hc_kthread_proc,
 };
 
-
 /* Pass the given event straight through to Fortuna/Yarrow/Whatever. */
 static __inline void
 random_harvestq_fast_process_event(struct harvest_event *event)
 {
-	if (random_alg_context.ra_event_processor)
-		random_alg_context.ra_event_processor(event);
+#if defined(RANDOM_LOADABLE)
+	RANDOM_CONFIG_S_LOCK();
+	if (p_random_alg_context)
+#endif
+	p_random_alg_context->ra_event_processor(event);
+#if defined(RANDOM_LOADABLE)
+	RANDOM_CONFIG_S_UNLOCK();
+#endif
 }
 
 static void
@@ -156,18 +170,64 @@ random_kthread(void)
 		/* XXX: FIX!! Increase the high-performance data rate? Need some measurements first. */
 		for (i = 0; i < RANDOM_ACCUM_MAX; i++) {
 			if (harvest_context.hc_entropy_fast_accumulator.buf[i]) {
-				random_harvest_direct(harvest_context.hc_entropy_fast_accumulator.buf + i, sizeof(harvest_context.hc_entropy_fast_accumulator.buf[0]), 4, RANDOM_FAST);
+				random_harvest_direct(harvest_context.hc_entropy_fast_accumulator.buf + i, sizeof(harvest_context.hc_entropy_fast_accumulator.buf[0]), 4, RANDOM_UMA);
 				harvest_context.hc_entropy_fast_accumulator.buf[i] = 0;
 			}
 		}
 		/* XXX: FIX!! This is a *great* place to pass hardware/live entropy to random(9) */
 		tsleep_sbt(&harvest_context.hc_kthread_proc, 0, "-", SBT_1S/10, 0, C_PREL(1));
 	}
+	random_kthread_control = -1;
 	wakeup(&harvest_context.hc_kthread_proc);
 	kproc_exit(0);
 	/* NOTREACHED */
 }
+/* This happens well after SI_SUB_RANDOM */
 SYSINIT(random_device_h_proc, SI_SUB_CREATE_INIT, SI_ORDER_ANY, kproc_start, &random_proc_kp);
+
+/*
+ * Run through all fast sources reading entropy for the given
+ * number of rounds, which should be a multiple of the number
+ * of entropy accumulation pools in use; 2 for Yarrow and 32
+ * for Fortuna.
+ */
+static void
+random_sources_feed(void)
+{
+	uint32_t entropy[HARVESTSIZE];
+	struct random_sources *rrs;
+	u_int i, n, local_read_rate;
+
+	/*
+	 * Step over all of live entropy sources, and feed their output
+	 * to the system-wide RNG.
+	 */
+#if defined(RANDOM_LOADABLE)
+	RANDOM_CONFIG_S_LOCK();
+	if (p_random_alg_context) {
+	/* It's an indenting error. Yeah, Yeah. */
+#endif
+	local_read_rate = atomic_readandclear_32(&read_rate);
+	LIST_FOREACH(rrs, &source_list, rrs_entries) {
+		for (i = 0; i < p_random_alg_context->ra_poolcount*(local_read_rate + 1); i++) {
+			n = rrs->rrs_source->rs_read(entropy, sizeof(entropy));
+			KASSERT((n > 0 && n <= sizeof(entropy)), ("very bad return from rs_read (= %d) in %s", n, __func__));
+			random_harvest_direct(entropy, n, (n*8)/2, rrs->rrs_source->rs_source);
+		}
+	}
+	explicit_bzero(entropy, sizeof(entropy));
+#if defined(RANDOM_LOADABLE)
+	}
+	RANDOM_CONFIG_S_UNLOCK();
+#endif
+}
+
+void
+read_rate_increment(u_int chunk)
+{
+
+	atomic_add_32(&read_rate, chunk);
+}
 
 /* ARGSUSED */
 RANDOM_CHECK_UINT(harvestmask, 0, RANDOM_HARVEST_EVERYTHING_MASK);
@@ -201,7 +261,7 @@ static const char *(random_source_descr[]) = {
 	"INTERRUPT",
 	"SWI",
 	"FS_ATIME",
-	"HIGH_PERFORMANCE", /* ENVIRONMENTAL_END */
+	"UMA", /* ENVIRONMENTAL_END */
 	"PURE_OCTEON",
 	"PURE_SAFE",
 	"PURE_GLXSB",
@@ -317,7 +377,8 @@ random_harvestq_deinit(void *unused __unused)
 
 	/* Command the hash/reseed thread to end and wait for it to finish */
 	random_kthread_control = 0;
-	tsleep(&harvest_context.hc_kthread_proc, 0, "harvqterm", 0);
+	while (random_kthread_control >= 0)
+		tsleep(&harvest_context.hc_kthread_proc, 0, "harvqterm", hz/5);
 	sysctl_ctx_free(&random_clist);
 }
 SYSUNINIT(random_device_h_init, SI_SUB_RANDOM, SI_ORDER_SECOND, random_harvestq_deinit, NULL);
@@ -412,3 +473,5 @@ random_harvest_direct(const void *entropy, u_int size, u_int bits, enum random_e
 	random_harvestq_fast_process_event(&event);
 	explicit_bzero(&event, sizeof(event));
 }
+
+MODULE_VERSION(random_harvestq, 1);

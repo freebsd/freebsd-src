@@ -10,24 +10,10 @@ BASE_SRCS=	dict.c ficl.c fileaccess.c float.c loader.c math64.c \
 
 SRCS=		${BASE_SRCS} sysdep.c softcore.c
 CLEANFILES=	softcore.c testmain testmain.o
-CFLAGS+=	-ffreestanding -fPIC
-.if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
-#CFLAGS+=	-march=i386
-CFLAGS+=	-mno-mmx -mno-3dnow -mno-sse -mno-sse2
-.endif
-.if ${MACHINE_CPUARCH} == "i386"
-CFLAGS.gcc+=	-mpreferred-stack-boundary=2
-CFLAGS+=	-mno-sse3
-.endif
-.if ${MACHINE_CPUARCH} == "powerpc" || ${MACHINE_CPUARCH} == "arm"
-CFLAGS+=	-msoft-float
-.endif
-.if ${MACHINE} == "pc98"
-CFLAGS+=	-Os -DPC98
-.endif
 .if HAVE_PNP
 CFLAGS+=	-DHAVE_PNP
 .endif
+.include <bsd.stand.mk>
 .ifmake testmain
 CFLAGS+=	-DTESTMAIN -D_TESTMAIN
 SRCS+=		testmain.c

@@ -45,7 +45,7 @@ NANO_SRC=/usr/src
 # Where nanobsd additional files live under the source tree
 NANO_TOOLS=tools/tools/nanobsd
 
-# Where cust_pkg() finds packages to install
+# Where cust_pkgng() finds packages to install
 NANO_PACKAGE_DIR=${NANO_SRC}/${NANO_TOOLS}/Pkg
 NANO_PACKAGE_LIST="*"
 
@@ -761,55 +761,6 @@ cust_install_files () (
 
 #######################################################################
 # Install packages from ${NANO_PACKAGE_DIR}
-
-cust_pkg () (
-
-	# If the package directory doesn't exist, we're done.
-	if [ ! -d ${NANO_PACKAGE_DIR} ]; then
-		echo "DONE 0 packages"
-		return 0
-	fi
-
-	# Copy packages into chroot
-	mkdir -p ${NANO_WORLDDIR}/Pkg ${NANO_WORLDDIR}/${NANO_PKG_META_BASE}/pkg
-	(
-		cd ${NANO_PACKAGE_DIR}
-		find ${NANO_PACKAGE_LIST} -print |
-		    cpio -Ldumpv ${NANO_WORLDDIR}/Pkg
-	)
-
-	# Count & report how many we have to install
-	todo=`ls ${NANO_WORLDDIR}/Pkg | wc -l`
-	echo "=== TODO: $todo"
-	ls ${NANO_WORLDDIR}/Pkg
-	echo "==="
-	while true
-	do
-		# Record how many we have now
-		have=`ls ${NANO_WORLDDIR}/${NANO_PKG_META_BASE}/pkg | wc -l`
-
-		# Attempt to install more packages
-		# ...but no more than 200 at a time due to pkg_add's internal
-		# limitations.
-		CR0 'ls Pkg/*tbz | xargs -n 200 env PKG_DBDIR='${NANO_PKG_META_BASE}'/pkg pkg_add -v -F'
-
-		# See what that got us
-		now=`ls ${NANO_WORLDDIR}/${NANO_PKG_META_BASE}/pkg | wc -l`
-		echo "=== NOW $now"
-		ls ${NANO_WORLDDIR}/${NANO_PKG_META_BASE}/pkg
-		echo "==="
-
-
-		if [ $now -eq $todo ] ; then
-			echo "DONE $now packages"
-			break
-		elif [ $now -eq $have ] ; then
-			echo "FAILED: Nothing happened on this pass"
-			exit 2
-		fi
-	done
-	nano_rm -rf ${NANO_WORLDDIR}/Pkg
-)
 
 cust_pkgng () (
 

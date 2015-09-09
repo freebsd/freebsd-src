@@ -33,16 +33,23 @@ __DEFAULT_DEPENDENT_OPTIONS= \
 
 # early include for customization
 # see local.sys.mk below
-.-include <local.sys.env.mk>
+# Not included when building in fmake compatibility mode (still needed
+# for older system support)
+.if defined(.PARSEDIR)
+.sinclude <local.sys.env.mk>
 
 .if ${MK_META_MODE} == "yes"
-.-include <meta.sys.mk>
-.elif ${MK_META_FILES} == "yes" && ${.MAKEFLAGS:U:M-B} == ""
+.sinclude <meta.sys.mk>
+.elif ${MK_META_FILES} == "yes" && defined(.MAKEFLAGS)
+.if ${.MAKEFLAGS:M-B} == ""
 .MAKE.MODE= meta verbose
+.endif
 .endif
 .if ${MK_AUTO_OBJ} == "yes"
 # This needs to be done early - before .PATH is computed
-.-include <auto.obj.mk>
+.sinclude <auto.obj.mk>
+.endif
+
 .endif
 
 # If the special target .POSIX appears (without prerequisites or
@@ -167,6 +174,7 @@ MAKE		?=	make
 
 .if !defined(%POSIX)
 NM		?=	nm
+NMFLAGS		?=
 
 OBJC		?=	cc
 OBJCFLAGS	?=	${OBJCINCLUDES} ${CFLAGS} -Wno-import
@@ -361,7 +369,7 @@ __MAKE_CONF?=/etc/make.conf
 .endif
 
 # late include for customization
-.-include <local.sys.mk>
+.sinclude <local.sys.mk>
 
 .if defined(__MAKE_SHELL) && !empty(__MAKE_SHELL)
 SHELL=	${__MAKE_SHELL}
@@ -378,11 +386,12 @@ SHELL=	${__MAKE_SHELL}
 # when running target scripts, this is a problem for many makefiles here.
 # So define a shell that will do what FreeBSD expects.
 .ifndef WITHOUT_SHELL_ERRCTL
+__MAKE_SHELL?=/bin/sh
 .SHELL: name=sh \
 	quiet="set -" echo="set -v" filter="set -" \
 	hasErrCtl=yes check="set -e" ignore="set +e" \
 	echoFlag=v errFlag=e \
-	path=${__MAKE_SHELL:U/bin/sh}
+	path=${__MAKE_SHELL}
 .endif
 
 .include <bsd.cpu.mk>

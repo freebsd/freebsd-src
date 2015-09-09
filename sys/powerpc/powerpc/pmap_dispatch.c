@@ -463,7 +463,7 @@ pmap_mapdev(vm_paddr_t pa, vm_size_t size)
 }
 
 void *
-pmap_mapdev_attr(vm_offset_t pa, vm_size_t size, vm_memattr_t attr)
+pmap_mapdev_attr(vm_paddr_t pa, vm_size_t size, vm_memattr_t attr)
 {
 
 	CTR4(KTR_PMAP, "%s(%#x, %#x, %#x)", __func__, pa, size, attr);

@@ -10,6 +10,9 @@ __<bsd.files.mk>__:
 FILESGROUPS?=	FILES
 
 .for group in ${FILESGROUPS}
+# Add in foo.yes and remove duplicates from all the groups
+${${group}}:= ${${group}} ${${group}.yes}
+${${group}}:= ${${group}:O:u}
 buildfiles: ${${group}}
 .endfor
 

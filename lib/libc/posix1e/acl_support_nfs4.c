@@ -48,6 +48,7 @@ struct flagnames_struct a_flags[] =
      { ACL_ENTRY_NO_PROPAGATE_INHERIT, "no_propagate", 'n'},
      { ACL_ENTRY_SUCCESSFUL_ACCESS, "successfull_access", 'S'},
      { ACL_ENTRY_FAILED_ACCESS, "failed_access", 'F'},
+     { ACL_ENTRY_INHERITED, "inherited", 'I' },
      /*
       * There is no ACE_IDENTIFIER_GROUP here - SunOS does not show it
       * in the "flags" field.  There is no ACE_OWNER, ACE_GROUP or

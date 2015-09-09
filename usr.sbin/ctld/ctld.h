@@ -116,6 +116,7 @@ struct portal_group {
 	char				*pg_name;
 	struct auth_group		*pg_discovery_auth_group;
 	int				pg_discovery_filter;
+	int				pg_foreign;
 	bool				pg_unassigned;
 	TAILQ_HEAD(, portal)		pg_portals;
 	TAILQ_HEAD(, port)		pg_ports;
@@ -145,6 +146,7 @@ struct port {
 	struct portal_group		*p_portal_group;
 	struct pport			*p_pport;
 	struct target			*p_target;
+	int				p_foreign;
 
 	uint32_t			p_ctl_port;
 };
@@ -391,7 +393,7 @@ void			lun_option_set(struct lun_option *clo,
 
 void			kernel_init(void);
 int			kernel_lun_add(struct lun *lun);
-int			kernel_lun_resize(struct lun *lun);
+int			kernel_lun_modify(struct lun *lun);
 int			kernel_lun_remove(struct lun *lun);
 void			kernel_handoff(struct connection *conn);
 void			kernel_limits(const char *offload,

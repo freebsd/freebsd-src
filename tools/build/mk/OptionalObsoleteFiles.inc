@@ -7506,7 +7506,7 @@ OLD_FILES+=usr/share/man/man1/colcrt.1.gz
 OLD_FILES+=usr/share/man/man1/ul.1.gz
 .endif
 
-#.if ${MK_TOOLCHAIN} == no
+.if ${MK_TOOLCHAIN} == no
 OLD_FILES+=usr/bin/addr2line
 OLD_FILES+=usr/bin/c++filt
 OLD_FILES+=usr/bin/nm
@@ -7521,7 +7521,7 @@ OLD_FILES+=usr/share/man/man1/readelf.1.gz
 OLD_FILES+=usr/share/man/man1/size.1.gz
 OLD_FILES+=usr/share/man/man1/strings.1.gz
 OLD_FILES+=usr/share/man/man1/strip.1.gz
-#.endif
+.endif
 .if ${MK_TOOLCHAIN} == no || ${MK_ELFCOPY_AS_OBJCOPY} != no
 OLD_FILES+=usr/bin/elfcopy
 OLD_FILES+=usr/share/man/man1/elfcopy.1.gz

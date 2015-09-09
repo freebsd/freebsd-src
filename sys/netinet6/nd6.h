@@ -407,7 +407,7 @@ void nd6_option_init(void *, int, union nd_opts *);
 struct nd_opt_hdr *nd6_option(union nd_opts *);
 int nd6_options(union nd_opts *);
 struct llentry *nd6_lookup(struct in6_addr *, int, struct ifnet *);
-struct llentry *nd6_create(struct in6_addr *, int, struct ifnet *);
+struct llentry *nd6_alloc(struct in6_addr *, int, struct ifnet *);
 void nd6_setmtu(struct ifnet *);
 void nd6_llinfo_settimer(struct llentry *, long);
 void nd6_llinfo_settimer_locked(struct llentry *, long);
@@ -437,7 +437,7 @@ void nd6_na_output(struct ifnet *, const struct in6_addr *,
 	const struct in6_addr *, u_long, int, struct sockaddr *);
 void nd6_ns_input(struct mbuf *, int, int);
 void nd6_ns_output(struct ifnet *, const struct in6_addr *,
-	const struct in6_addr *, struct llentry *, uint8_t *);
+	const struct in6_addr *, const struct in6_addr *, uint8_t *);
 caddr_t nd6_ifptomac(struct ifnet *);
 void nd6_dad_init(void);
 void nd6_dad_start(struct ifaddr *, int);

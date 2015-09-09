@@ -77,6 +77,7 @@ __FBSDID("$FreeBSD$");
 #include "usb_if.h"
 
 #define	PCI_UHCI_VENDORID_INTEL		0x8086
+#define	PCI_UHCI_VENDORID_HP		0x103c
 #define	PCI_UHCI_VENDORID_VIA		0x1106
 
 /* PIIX4E has no separate stepping */
@@ -222,6 +223,9 @@ uhci_pci_match(device_t self)
 	case 0x76028086:
 		return ("Intel 82372FB/82468GX USB controller");
 
+	case 0x3309103c:
+		return ("HP iLO Standard Virtual USB controller");
+
 	case 0x30381106:
 		return ("VIA 83C572 USB controller");
 
@@ -308,6 +312,9 @@ uhci_pci_attach(device_t self)
 	switch (pci_get_vendor(self)) {
 	case PCI_UHCI_VENDORID_INTEL:
 		sprintf(sc->sc_vendor, "Intel");
+		break;
+	case PCI_UHCI_VENDORID_HP:
+		sprintf(sc->sc_vendor, "HP");
 		break;
 	case PCI_UHCI_VENDORID_VIA:
 		sprintf(sc->sc_vendor, "VIA");

@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 11, 2011
+.Dd August 16, 2015
 .Dt EM 4
 .Os
 .Sh NAME
@@ -205,6 +205,11 @@ Tunables can be set at the
 prompt before booting the kernel or stored in
 .Xr loader.conf 5 .
 .Bl -tag -width indent
+.It Va hw.em.disable_crc_stripping
+Disable or enable hardware stripping of CRC field.
+This is mostly useful on BMC/IPMI shared interfaces where stripping the CRC
+causes remote access over IPMI to fail.
+Default 0 (enabled).
 .It Va hw.em.eee_setting
 Disable or enable Energy Efficient Ethernet.
 Default 1 (disabled).
