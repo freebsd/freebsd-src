@@ -88,7 +88,7 @@ le_set_scan_param(int s, int argc, char *argv[])
 	
 	if (strcmp(argv[3], "public") == 0)
 		adrtype = 0;
-	else if (strcmp(argv[0], "random") == 0)
+	else if (strcmp(argv[3], "random") == 0)
 		adrtype = 1;
 	else
 		return USAGE;
