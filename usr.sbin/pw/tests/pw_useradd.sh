@@ -245,14 +245,25 @@ user_add_R_body() {
 	populate_root_etc_skel
 
 	atf_check -s exit:0 ${RPW} useradd foo
-	mkdir -p ${HOME}/home
 	atf_check -s exit:0 ${RPW} useradd bar -m
+	test -d ${HOME}/home || atf_fail "Home parent directory not created"
 	test -d ${HOME}/home/bar || atf_fail "Directory not created"
 	atf_check -s exit:0 ${RPW} userdel bar
 	test -d ${HOME}/home/bar || atf_fail "Directory removed"
 	atf_check -s exit:0 ${RPW} useradd bar
 	atf_check -s exit:0 ${RPW} userdel bar -r
 	[ ! -d ${HOME}/home/bar ] || atf_fail "Directory not removed"
+}
+
+atf_test_case user_add_R_symlink
+user_add_R_symlink_body() {
+	populate_root_etc_skel
+
+	mkdir ${HOME}/usr
+	atf_check -s exit:0 ${RPW} useradd foo -m
+	test -d ${HOME}/usr/home || atf_fail "Home parent directory not created"
+	test -h ${HOME}/home || atf_fail "/home directory is not a symlink"
+	atf_check -s exit:0 -o inline:"usr/home\n" readlink ${HOME}/home
 }
 
 atf_test_case user_add_skel
@@ -314,6 +325,33 @@ user_add_already_exists_body() {
 		${PW} useradd foo
 }
 
+atf_test_case user_add_w_yes
+user_add_w_yes_body() {
+	populate_etc_skel
+	atf_check -s exit:0 ${PW} useradd foo -w yes
+	atf_check -s exit:0 \
+		-o match:'^foo:\$.*' \
+		grep "^foo" ${HOME}/master.passwd
+	atf_check -s exit:0 ${PW} usermod foo -w yes
+	atf_check -s exit:0 \
+		-o match:'^foo:\$.*' \
+		grep "^foo" ${HOME}/master.passwd
+}
+
+atf_test_case user_add_with_pw_conf
+user_add_with_pw_conf_body()
+{
+	populate_etc_skel
+	atf_check -s exit:0 \
+		${PW} useradd -D -C ${HOME}/pw.conf \
+		-u 2000,32767 -i 2000,32767
+	atf_check -s exit:0 \
+		-o inline:"minuid = 2000\nmaxuid = 32767\nmingid = 2000\nmaxgid = 32767\n" \
+		grep "^m.*id =" ${HOME}/pw.conf
+	atf_check -s exit:0 \
+		${PW} useradd foo -C ${HOME}/pw.conf
+}
+
 atf_init_test_cases() {
 	atf_add_test_case user_add
 	atf_add_test_case user_add_noupdate
@@ -336,9 +374,12 @@ atf_init_test_cases() {
 	atf_add_test_case user_add_invalid_group_entry
 	atf_add_test_case user_add_password_from_h
 	atf_add_test_case user_add_R
+	atf_add_test_case user_add_R_symlink
 	atf_add_test_case user_add_skel
 	atf_add_test_case user_add_uid0
 	atf_add_test_case user_add_uid_too_large
 	atf_add_test_case user_add_bad_shell
 	atf_add_test_case user_add_already_exists
+	atf_add_test_case user_add_w_yes
+	atf_add_test_case user_add_with_pw_conf
 }

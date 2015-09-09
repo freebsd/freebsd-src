@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/cpu.h>
 #include <machine/pcb.h>
+#include <machine/stack.h>
 #include <machine/vmparam.h>
 
 static int
@@ -100,26 +101,11 @@ struct db_variable db_regs[] = {
 	{ "sp", DB_OFFSET(tf_sp), db_frame },
 };
 
-struct db_variable *db_eregs = db_regs + sizeof(db_regs)/sizeof(db_regs[0]);
+struct db_variable *db_eregs = db_regs + nitems(db_regs);
 
 void
 db_show_mdpcpu(struct pcpu *pc)
 {
-}
-
-static int
-db_validate_address(vm_offset_t addr)
-{
-	struct proc *p = curproc;
-	struct pmap *pmap;
-
-	if (!p || !p->p_vmspace || !p->p_vmspace->vm_map.pmap ||
-	    addr >= VM_MAXUSER_ADDRESS)
-		pmap = pmap_kernel();
-	else
-		pmap = p->p_vmspace->vm_map.pmap;
-
-	return (pmap_extract(pmap, addr) != 0);
 }
 
 /*
@@ -128,16 +114,22 @@ db_validate_address(vm_offset_t addr)
 int
 db_read_bytes(vm_offset_t addr, size_t size, char *data)
 {
-	const char *src = (const char *)addr;
+	jmp_buf jb;
+	void *prev_jb;
+	const char *src;
+	int ret;
 
-	while (size-- > 0) {
-		if (db_validate_address((vm_offset_t)src)) {
-			db_printf("address %p is invalid\n", src);
-			return (-1);
-		}
-		*data++ = *src++;
+	prev_jb = kdb_jmpbuf(jb);
+	ret = setjmp(jb);
+
+	if (ret == 0) {
+		src = (const char *)addr;
+		while (size-- > 0)
+			*data++ = *src++;
 	}
-	return (0);
+	(void)kdb_jmpbuf(prev_jb);
+
+	return (ret);
 }
 
 /*
@@ -146,21 +138,25 @@ db_read_bytes(vm_offset_t addr, size_t size, char *data)
 int
 db_write_bytes(vm_offset_t addr, size_t size, char *data)
 {
+	jmp_buf jb;
+	void *prev_jb;
 	char *dst;
+	int ret;
 
-	dst = (char *)addr;
-	while (size-- > 0) {
-		if (db_validate_address((vm_offset_t)dst)) {
-			db_printf("address %p is invalid\n", dst);
-			return (-1);
-		}
-		*dst++ = *data++;
+	prev_jb = kdb_jmpbuf(jb);
+	ret = setjmp(jb);
+	if (ret == 0) {
+		dst = (char *)addr;
+		while (size-- > 0)
+			*dst++ = *data++;
+
+		dsb(ish);
+
+		/* Clean D-cache and invalidate I-cache */
+		cpu_dcache_wb_range(addr, (vm_size_t)size);
+		cpu_icache_sync_range(addr, (vm_size_t)size);
 	}
-	dsb(ish);
+	(void)kdb_jmpbuf(prev_jb);
 
-	/* Clean D-cache and invalidate I-cache */
-	cpu_dcache_wb_range(addr, (vm_size_t)size);
-	cpu_icache_sync_range(addr, (vm_size_t)size);
-
-	return (0);
+	return (ret);
 }

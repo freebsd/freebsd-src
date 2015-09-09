@@ -332,6 +332,10 @@ gather_sctp(void)
 		sock->socket = xinpcb->socket;
 		sock->proto = IPPROTO_SCTP;
 		sock->protoname = "sctp";
+		if (xinpcb->maxqlen == 0)
+			sock->state = SCTP_CLOSED;
+		else
+			sock->state = SCTP_LISTEN;
 		if (xinpcb->flags & SCTP_PCB_FLAGS_BOUND_V6) {
 			sock->family = AF_INET6;
 			sock->vflag = INP_IPV6;
@@ -421,6 +425,7 @@ gather_sctp(void)
 				sock->socket = xinpcb->socket;
 				sock->proto = IPPROTO_SCTP;
 				sock->protoname = "sctp";
+				sock->state = (int)xstcb->state;
 				if (xinpcb->flags & SCTP_PCB_FLAGS_BOUND_V6) {
 					sock->family = AF_INET6;
 					sock->vflag = INP_IPV6;
@@ -542,9 +547,9 @@ gather_inet(int proto)
 	const char *varname, *protoname;
 	size_t len, bufsize;
 	void *buf;
-	int hash, retry, state, vflag;
+	int hash, retry, vflag;
 
-	state = vflag = 0;
+	vflag = 0;
 	if (opt_4)
 		vflag |= INP_IPV4;
 	if (opt_6)
@@ -609,7 +614,6 @@ gather_inet(int proto)
 			inp = &xtp->xt_inp;
 			so = &xtp->xt_socket;
 			protoname = xtp->xt_tp.t_flags & TF_TOE ? "toe" : "tcp";
-			state = xtp->xt_tp.t_state;
 			break;
 		case IPPROTO_UDP:
 		case IPPROTO_DIVERT:
@@ -907,11 +911,51 @@ check_ports(struct sock *s)
 	return (0);
 }
 
+static const char *
+sctp_state(int state)
+{
+	switch (state) {
+	case SCTP_CLOSED:
+		return "CLOSED";
+		break;
+	case SCTP_BOUND:
+		return "BOUND";
+		break;
+	case SCTP_LISTEN:
+		return "LISTEN";
+		break;
+	case SCTP_COOKIE_WAIT:
+		return "COOKIE_WAIT";
+		break;
+	case SCTP_COOKIE_ECHOED:
+		return "COOKIE_ECHOED";
+		break;
+	case SCTP_ESTABLISHED:
+		return "ESTABLISHED";
+		break;
+	case SCTP_SHUTDOWN_SENT:
+		return "SHUTDOWN_SENT";
+		break;
+	case SCTP_SHUTDOWN_RECEIVED:
+		return "SHUTDOWN_RECEIVED";
+		break;
+	case SCTP_SHUTDOWN_ACK_SENT:
+		return "SHUTDOWN_ACK_SENT";
+		break;
+	case SCTP_SHUTDOWN_PENDING:
+		return "SHUTDOWN_PENDING";
+		break;
+	default:
+		return "UNKNOWN";
+		break;
+	}
+}
+
 static void
 displaysock(struct sock *s, int pos)
 {
 	void *p;
-	int hash;
+	int hash, first;
 	struct addr *laddr, *faddr;
 	struct sock *s_tmp;
 
@@ -924,6 +968,7 @@ displaysock(struct sock *s, int pos)
 		pos += xprintf("6 ");
 	laddr = s->laddr;
 	faddr = s->faddr;
+	first = 1;
 	while (laddr != NULL || faddr != NULL) {
 		while (pos < 36)
 			pos += xprintf(" ");
@@ -975,6 +1020,23 @@ displaysock(struct sock *s, int pos)
 		default:
 			abort();
 		}
+		if (first && opt_s &&
+		    (s->proto == IPPROTO_SCTP || s->proto == IPPROTO_TCP)) {
+			while (pos < 80)
+				pos += xprintf(" ");
+			switch (s->proto) {
+			case IPPROTO_SCTP:
+				pos += xprintf("%s", sctp_state(s->state));
+				break;
+			case IPPROTO_TCP:
+				if (s->state >= 0 && s->state < TCP_NSTATES)
+					pos +=
+					    xprintf("%s", tcpstates[s->state]);
+				else
+					pos += xprintf("?");
+				break;
+			}
+		}
 		if (laddr != NULL)
 			laddr = laddr->next;
 		if (faddr != NULL)
@@ -983,15 +1045,9 @@ displaysock(struct sock *s, int pos)
 			xprintf("\n");
 			pos = 0;
 		}
+		first = 0;
 	}
-	if (opt_s && s->proto == IPPROTO_TCP) {
-		while (pos < 80)
-			pos += xprintf(" ");
-		if (s->state >= 0 && s->state < TCP_NSTATES)
-			pos += xprintf("%s", tcpstates[s->state]);
-		else
-			pos += xprintf("?");
-	}
+	xprintf("\n");
 }
 
 static void
@@ -1036,7 +1092,6 @@ display(void)
 				pos += xprintf(" ");
 			pos += xprintf("%d ", xf->xf_fd);
 			displaysock(s, pos);
-			xprintf("\n");
 		}
 	}
 	if (opt_j >= 0)
@@ -1051,7 +1106,6 @@ display(void)
 			pos += xprintf("%-8s %-10s %-5s %-2s ",
 			    "?", "?", "?", "?");
 			displaysock(s, pos);
-			xprintf("\n");
 		}
 	}
 }

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2000-2013 Mark R. V. Murray
+ * Copyright (c) 2000-2015 Mark R. V. Murray
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -33,10 +33,29 @@
 
 #include <sys/types.h>
 
+#if !defined(KLD_MODULE)
+#if defined(RANDOM_LOADABLE) && defined(RANDOM_YARROW)
+#error "Cannot define both RANDOM_LOADABLE and RANDOM_YARROW"
+#endif
+#endif
+
 struct uio;
 
+#if defined(DEV_RANDOM)
 u_int read_random(void *, u_int);
 int read_random_uio(struct uio *, bool);
+#else
+static __inline int
+read_random_uio(void *a __unused, u_int b __unused)
+{
+	return (0);
+}
+static __inline u_int
+read_random(void *a __unused, u_int b __unused)
+{
+	return (0);
+}
+#endif
 
 /*
  * Note: if you add or remove members of random_entropy_source, remember to also update the
@@ -59,8 +78,8 @@ enum random_entropy_source {
 	RANDOM_INTERRUPT,
 	RANDOM_SWI,
 	RANDOM_FS_ATIME,
-	RANDOM_FAST,	/* Special!! Miscellaneous high performance stuff, like UMA/SLAB Allocator */
-	RANDOM_ENVIRONMENTAL_END = RANDOM_FAST,
+	RANDOM_UMA,	/* Special!! UMA/SLAB Allocator */
+	RANDOM_ENVIRONMENTAL_END = RANDOM_UMA,
 	/* Fast hardware random-number sources from here on. */
 	RANDOM_PURE_OCTEON,
 	RANDOM_PURE_SAFE,
@@ -76,15 +95,21 @@ enum random_entropy_source {
 
 #define RANDOM_HARVEST_EVERYTHING_MASK ((1 << (RANDOM_ENVIRONMENTAL_END + 1)) - 1)
 
-#if defined(RANDOM_DUMMY)
-#define random_harvest_queue(a, b, c, d) do {} while (0)
-#define random_harvest_fast(a, b, c, d) do {} while (0)
-#define random_harvest_direct(a, b, c, d) do {} while (0)
-#else /* !defined(RANDOM_DUMMY) */
+#if defined(DEV_RANDOM)
 void random_harvest_queue(const void *, u_int, u_int, enum random_entropy_source);
 void random_harvest_fast(const void *, u_int, u_int, enum random_entropy_source);
 void random_harvest_direct(const void *, u_int, u_int, enum random_entropy_source);
-#endif /* defined(RANDOM_DUMMY) */
+#else
+#define random_harvest_queue(a, b, c, d) do {} while (0)
+#define random_harvest_fast(a, b, c, d) do {} while (0)
+#define random_harvest_direct(a, b, c, d) do {} while (0)
+#endif
+
+#if defined(RANDOM_ENABLE_UMA)
+#define random_harvest_fast_uma(a, b, c, d)	random_harvest_fast(a, b, c, d)
+#else /* !defined(RANDOM_ENABLE_UMA) */
+#define random_harvest_fast_uma(a, b, c, d)	do {} while (0)
+#endif /* defined(RANDOM_ENABLE_UMA) */
 
 #endif /* _KERNEL */
 

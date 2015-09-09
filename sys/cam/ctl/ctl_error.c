@@ -57,7 +57,6 @@ __FBSDID("$FreeBSD$");
 #include <cam/ctl/ctl_io.h>
 #include <cam/ctl/ctl.h>
 #include <cam/ctl/ctl_frontend.h>
-#include <cam/ctl/ctl_frontend_internal.h>
 #include <cam/ctl/ctl_backend.h>
 #include <cam/ctl/ctl_ioctl.h>
 #include <cam/ctl/ctl_error.h>
@@ -446,16 +445,6 @@ ctl_build_ua(struct ctl_lun *lun, uint32_t initidx,
 		/* 2Ah/02h  LOG PARAMETERS CHANGED */
 		asc = 0x2A;
 		ascq = 0x02;
-		break;
-	case CTL_UA_LVD:
-		/* 29h/06h  TRANSCEIVER MODE CHANGED TO LVD */
-		asc = 0x29;
-		ascq = 0x06;
-		break;
-	case CTL_UA_SE:
-		/* 29h/05h  TRANSCEIVER MODE CHANGED TO SINGLE-ENDED */
-		asc = 0x29;
-		ascq = 0x05;
 		break;
 	case CTL_UA_RES_PREEMPT:
 		/* 2Ah/03h  RESERVATIONS PREEMPTED */

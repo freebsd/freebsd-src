@@ -1687,11 +1687,17 @@ ahci_handle_cmd(struct ahci_port *p, int slot, uint8_t *cfis)
 		ahci_write_fis_d2h(p, slot, cfis,
 		    (ATA_E_ABORT << 8) | ATA_S_READY | ATA_S_ERROR);
 		break;
+	case ATA_CHECK_POWER_MODE:
+		cfis[12] = 0xff;	/* always on */
+		ahci_write_fis_d2h(p, slot, cfis, ATA_S_READY | ATA_S_DSC);
+		break;
 	case ATA_STANDBY_CMD:
 	case ATA_STANDBY_IMMEDIATE:
 	case ATA_IDLE_CMD:
 	case ATA_IDLE_IMMEDIATE:
 	case ATA_SLEEP:
+	case ATA_READ_VERIFY:
+	case ATA_READ_VERIFY48:
 		ahci_write_fis_d2h(p, slot, cfis, ATA_S_READY | ATA_S_DSC);
 		break;
 	case ATA_ATAPI_IDENTIFY:

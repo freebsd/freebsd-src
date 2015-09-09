@@ -169,8 +169,8 @@ static device_detach_t	urtwn_detach;
 static usb_callback_t   urtwn_bulk_tx_callback;
 static usb_callback_t	urtwn_bulk_rx_callback;
 
-static usb_error_t	urtwn_do_request(struct urtwn_softc *sc,
-			    struct usb_device_request *req, void *data);
+static usb_error_t	urtwn_do_request(struct urtwn_softc *,
+			    struct usb_device_request *, void *);
 static struct ieee80211vap *urtwn_vap_create(struct ieee80211com *,
 		    const char [IFNAMSIZ], int, enum ieee80211_opmode, int,
                     const uint8_t [IEEE80211_ADDR_LEN],
@@ -228,10 +228,9 @@ static int8_t		urtwn_r88e_get_rssi(struct urtwn_softc *, int, void *);
 static int		urtwn_tx_start(struct urtwn_softc *,
 			    struct ieee80211_node *, struct mbuf *,
 			    struct urtwn_data *);
-static void		urtwn_start(struct ifnet *);
-static void		urtwn_start_locked(struct ifnet *,
-			    struct urtwn_softc *);
-static int		urtwn_ioctl(struct ifnet *, u_long, caddr_t);
+static int		urtwn_transmit(struct ieee80211com *, struct mbuf *);
+static void		urtwn_start(struct urtwn_softc *);
+static void		urtwn_parent(struct ieee80211com *);
 static int		urtwn_r92c_power_on(struct urtwn_softc *);
 static int		urtwn_r88e_power_on(struct urtwn_softc *);
 static int		urtwn_llt_init(struct urtwn_softc *);
@@ -269,10 +268,8 @@ static void		urtwn_set_chan(struct urtwn_softc *,
 static void		urtwn_update_mcast(struct ieee80211com *);
 static void		urtwn_iq_calib(struct urtwn_softc *);
 static void		urtwn_lc_calib(struct urtwn_softc *);
-static void		urtwn_init(void *);
-static void		urtwn_init_locked(void *);
-static void		urtwn_stop(struct ifnet *);
-static void		urtwn_stop_locked(struct ifnet *);
+static void		urtwn_init(struct urtwn_softc *);
+static void		urtwn_stop(struct urtwn_softc *);
 static void		urtwn_abort_xfers(struct urtwn_softc *);
 static int		urtwn_raw_xmit(struct ieee80211_node *, struct mbuf *,
 			    const struct ieee80211_bpf_params *);
@@ -368,8 +365,7 @@ urtwn_attach(device_t self)
 {
 	struct usb_attach_arg *uaa = device_get_ivars(self);
 	struct urtwn_softc *sc = device_get_softc(self);
-	struct ifnet *ifp;
-	struct ieee80211com *ic;
+	struct ieee80211com *ic = &sc->sc_ic;
 	uint8_t iface_index, bands;
 	int error;
 
@@ -382,6 +378,7 @@ urtwn_attach(device_t self)
 	mtx_init(&sc->sc_mtx, device_get_nameunit(self),
 	    MTX_NETWORK_LOCK, MTX_DEF);
 	callout_init(&sc->sc_watchdog_ch, 0);
+	mbufq_init(&sc->sc_snd, ifqmaxlen);
 
 	iface_index = URTWN_IFACE_INDEX;
 	error = usbd_transfer_setup(uaa->device, &iface_index, sc->sc_xfer,
@@ -424,24 +421,6 @@ urtwn_attach(device_t self)
 
 	URTWN_UNLOCK(sc);
 
-	ifp = sc->sc_ifp = if_alloc(IFT_IEEE80211);
-	if (ifp == NULL) {
-		device_printf(sc->sc_dev, "can not if_alloc()\n");
-		goto detach;
-	}
-	ic = ifp->if_l2com;
-
-	ifp->if_softc = sc;
-	if_initname(ifp, "urtwn", device_get_unit(sc->sc_dev));
-	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
-	ifp->if_init = urtwn_init;
-	ifp->if_ioctl = urtwn_ioctl;
-	ifp->if_start = urtwn_start;
-	IFQ_SET_MAXLEN(&ifp->if_snd, ifqmaxlen);
-	ifp->if_snd.ifq_drv_maxlen = ifqmaxlen;
-	IFQ_SET_READY(&ifp->if_snd);
-
-	ic->ic_ifp = ifp;
 	ic->ic_softc = sc;
 	ic->ic_name = device_get_nameunit(self);
 	ic->ic_phytype = IEEE80211_T_OFDM;	/* not only, but not used */
@@ -462,12 +441,13 @@ urtwn_attach(device_t self)
 	setbit(&bands, IEEE80211_MODE_11G);
 	ieee80211_init_channels(ic, NULL, &bands);
 
-	ieee80211_ifattach(ic, sc->sc_bssid);
+	ieee80211_ifattach(ic);
 	ic->ic_raw_xmit = urtwn_raw_xmit;
 	ic->ic_scan_start = urtwn_scan_start;
 	ic->ic_scan_end = urtwn_scan_end;
 	ic->ic_set_channel = urtwn_set_channel;
-
+	ic->ic_transmit = urtwn_transmit;
+	ic->ic_parent = urtwn_parent;
 	ic->ic_vap_create = urtwn_vap_create;
 	ic->ic_vap_delete = urtwn_vap_delete;
 	ic->ic_update_mcast = urtwn_update_mcast;
@@ -491,16 +471,14 @@ static int
 urtwn_detach(device_t self)
 {
 	struct urtwn_softc *sc = device_get_softc(self);
-	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
+	struct ieee80211com *ic = &sc->sc_ic;
 	unsigned int x;
 
 	/* Prevent further ioctls. */
 	URTWN_LOCK(sc);
 	sc->sc_flags |= URTWN_DETACHED;
+	urtwn_stop(sc);
 	URTWN_UNLOCK(sc);
-
-	urtwn_stop(ifp);
 
 	callout_drain(&sc->sc_watchdog_ch);
 
@@ -527,8 +505,7 @@ urtwn_detach(device_t self)
 	/* stop all USB transfers */
 	usbd_transfer_unsetup(sc->sc_xfer, URTWN_N_TRANSFER);
 	ieee80211_ifdetach(ic);
-
-	if_free(ifp);
+	mbufq_drain(&sc->sc_snd);
 	mtx_destroy(&sc->sc_mtx);
 
 	return (0);
@@ -599,15 +576,12 @@ urtwn_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
 	if (!TAILQ_EMPTY(&ic->ic_vaps))		/* only one at a time */
 		return (NULL);
 
-	uvp = (struct urtwn_vap *) malloc(sizeof(struct urtwn_vap),
-	    M_80211_VAP, M_NOWAIT | M_ZERO);
-	if (uvp == NULL)
-		return (NULL);
+	uvp = malloc(sizeof(struct urtwn_vap), M_80211_VAP, M_WAITOK | M_ZERO);
 	vap = &uvp->vap;
 	/* enable s/w bmiss handling for sta mode */
 
 	if (ieee80211_vap_setup(ic, vap, name, unit, opmode,
-	    flags | IEEE80211_CLONE_NOBEACONS, bssid, mac) != 0) {
+	    flags | IEEE80211_CLONE_NOBEACONS, bssid) != 0) {
 		/* out of memory */
 		free(uvp, M_80211_VAP);
 		return (NULL);
@@ -619,7 +593,7 @@ urtwn_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
 
 	/* complete setup */
 	ieee80211_vap_attach(vap, ieee80211_media_change,
-	    ieee80211_media_status);
+	    ieee80211_media_status, mac);
 	ic->ic_opmode = opmode;
 	return (vap);
 }
@@ -636,8 +610,7 @@ urtwn_vap_delete(struct ieee80211vap *vap)
 static struct mbuf *
 urtwn_rx_frame(struct urtwn_softc *sc, uint8_t *buf, int pktlen, int *rssi_p)
 {
-	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
+	struct ieee80211com *ic = &sc->sc_ic;
 	struct ieee80211_frame *wh;
 	struct mbuf *m;
 	struct r92c_rx_stat *stat;
@@ -650,7 +623,7 @@ urtwn_rx_frame(struct urtwn_softc *sc, uint8_t *buf, int pktlen, int *rssi_p)
 	 * don't pass packets to the ieee80211 framework if the driver isn't
 	 * RUNNING.
 	 */
-	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING))
+	if (!(sc->sc_flags & URTWN_RUNNING))
 		return (NULL);
 
 	stat = (struct r92c_rx_stat *)buf;
@@ -662,11 +635,11 @@ urtwn_rx_frame(struct urtwn_softc *sc, uint8_t *buf, int pktlen, int *rssi_p)
 		 * This should not happen since we setup our Rx filter
 		 * to not receive these frames.
 		 */
-		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
+		counter_u64_add(ic->ic_ierrors, 1);
 		return (NULL);
 	}
 	if (pktlen < sizeof(*wh) || pktlen > MCLBYTES) {
-		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
+		counter_u64_add(ic->ic_ierrors, 1);
 		return (NULL);
 	}
 
@@ -695,7 +668,6 @@ urtwn_rx_frame(struct urtwn_softc *sc, uint8_t *buf, int pktlen, int *rssi_p)
 	}
 
 	/* Finalize mbuf. */
-	m->m_pkthdr.rcvif = ifp;
 	wh = (struct ieee80211_frame *)((uint8_t *)&stat[1] + infosz);
 	memcpy(mtod(m, uint8_t *), wh, pktlen);
 	m->m_pkthdr.len = m->m_len = pktlen;
@@ -741,7 +713,7 @@ urtwn_rxeof(struct usb_xfer *xfer, struct urtwn_data *data, int *rssi,
     int8_t *nf)
 {
 	struct urtwn_softc *sc = data->sc;
-	struct ifnet *ifp = sc->sc_ifp;
+	struct ieee80211com *ic = &sc->sc_ic;
 	struct r92c_rx_stat *stat;
 	struct mbuf *m, *m0 = NULL, *prevm = NULL;
 	uint32_t rxdw0;
@@ -751,7 +723,7 @@ urtwn_rxeof(struct usb_xfer *xfer, struct urtwn_data *data, int *rssi,
 	usbd_xfer_status(xfer, &len, NULL, NULL, NULL);
 
 	if (len < sizeof(*stat)) {
-		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
+		counter_u64_add(ic->ic_ierrors, 1);
 		return (NULL);
 	}
 
@@ -802,8 +774,7 @@ static void
 urtwn_bulk_rx_callback(struct usb_xfer *xfer, usb_error_t error)
 {
 	struct urtwn_softc *sc = usbd_xfer_softc(xfer);
-	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
+	struct ieee80211com *ic = &sc->sc_ic;
 	struct ieee80211_frame *wh;
 	struct ieee80211_node *ni;
 	struct mbuf *m = NULL, *next;
@@ -866,7 +837,7 @@ tr_setup:
 		}
 		if (error != USB_ERR_CANCELLED) {
 			usbd_xfer_set_stall(xfer);
-			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
+			counter_u64_add(ic->ic_ierrors, 1);
 			goto tr_setup;
 		}
 		break;
@@ -877,38 +848,19 @@ static void
 urtwn_txeof(struct usb_xfer *xfer, struct urtwn_data *data)
 {
 	struct urtwn_softc *sc = usbd_xfer_softc(xfer);
-	struct ifnet *ifp = sc->sc_ifp;
-	struct mbuf *m;
 
 	URTWN_ASSERT_LOCKED(sc);
-
-	/*
-	 * Do any tx complete callback.  Note this must be done before releasing
-	 * the node reference.
-	 */
-	if (data->m) {
-		m = data->m;
-		if (m->m_flags & M_TXCB) {
-			/* XXX status? */
-			ieee80211_process_callback(data->ni, m, 0);
-		}
-		m_freem(m);
-		data->m = NULL;
-	}
-	if (data->ni) {
-		ieee80211_free_node(data->ni);
-		data->ni = NULL;
-	}
+	/* XXX status? */
+	ieee80211_tx_complete(data->ni, data->m, 0);
+	data->ni = NULL;
+	data->m = NULL;
 	sc->sc_txtimer = 0;
-	if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
-	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 }
 
 static void
 urtwn_bulk_tx_callback(struct usb_xfer *xfer, usb_error_t error)
 {
 	struct urtwn_softc *sc = usbd_xfer_softc(xfer);
-	struct ifnet *ifp = sc->sc_ifp;
 	struct urtwn_data *data;
 
 	URTWN_ASSERT_LOCKED(sc);
@@ -933,16 +885,17 @@ tr_setup:
 		STAILQ_INSERT_TAIL(&sc->sc_tx_active, data, next);
 		usbd_xfer_set_frame_data(xfer, 0, data->buf, data->buflen);
 		usbd_transfer_submit(xfer);
-		urtwn_start_locked(ifp, sc);
+		urtwn_start(sc);
 		break;
 	default:
 		data = STAILQ_FIRST(&sc->sc_tx_active);
 		if (data == NULL)
 			goto tr_setup;
 		if (data->ni != NULL) {
+			if_inc_counter(data->ni->ni_vap->iv_ifp,
+			    IFCOUNTER_OERRORS, 1);
 			ieee80211_free_node(data->ni);
 			data->ni = NULL;
-			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		}
 		if (error != USB_ERR_CANCELLED) {
 			usbd_xfer_set_stall(xfer);
@@ -975,11 +928,8 @@ urtwn_getbuf(struct urtwn_softc *sc)
 	URTWN_ASSERT_LOCKED(sc);
 
 	bf = _urtwn_getbuf(sc);
-	if (bf == NULL) {
-		struct ifnet *ifp = sc->sc_ifp;
+	if (bf == NULL)
 		DPRINTF("%s: stop queue\n", __func__);
-		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
-	}
 	return (bf);
 }
 
@@ -1302,7 +1252,7 @@ urtwn_read_rom(struct urtwn_softc *sc)
 
 	sc->regulatory = MS(rom->rf_opt1, R92C_ROM_RF1_REGULATORY);
 	DPRINTF("regulatory type=%d\n", sc->regulatory);
-	IEEE80211_ADDR_COPY(sc->sc_bssid, rom->macaddr);
+	IEEE80211_ADDR_COPY(sc->sc_ic.ic_macaddr, rom->macaddr);
 
 	sc->sc_rf_write = urtwn_r92c_rf_write;
 	sc->sc_power_on = urtwn_r92c_power_on;
@@ -1363,7 +1313,7 @@ urtwn_r88e_read_rom(struct urtwn_softc *sc)
 	if (sc->ofdm_tx_pwr_diff & 0x08)
 		sc->ofdm_tx_pwr_diff |= 0xf0;
 	sc->regulatory = MS(sc->r88e_rom[0xc1], R92C_ROM_RF1_REGULATORY);
-	IEEE80211_ADDR_COPY(sc->sc_bssid, &sc->r88e_rom[0xd7]);
+	IEEE80211_ADDR_COPY(sc->sc_ic.ic_macaddr, &sc->r88e_rom[0xd7]);
 
 	sc->sc_rf_write = urtwn_r88e_rf_write;
 	sc->sc_power_on = urtwn_r88e_power_on;
@@ -1378,7 +1328,7 @@ urtwn_ra_init(struct urtwn_softc *sc)
 {
 	static const uint8_t map[] =
 	    { 2, 4, 11, 22, 12, 18, 24, 36, 48, 72, 96, 108 };
-	struct ieee80211com *ic = sc->sc_ifp->if_l2com;
+	struct ieee80211com *ic = &sc->sc_ic;
 	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
 	struct ieee80211_node *ni;
 	struct ieee80211_rateset *rs;
@@ -1455,8 +1405,7 @@ urtwn_ra_init(struct urtwn_softc *sc)
 void
 urtwn_tsf_sync_enable(struct urtwn_softc *sc)
 {
-	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
+	struct ieee80211com *ic = &sc->sc_ic;
 	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
 	struct ieee80211_node *ni = vap->iv_bss;
 
@@ -1513,7 +1462,7 @@ urtwn_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 {
 	struct urtwn_vap *uvp = URTWN_VAP(vap);
 	struct ieee80211com *ic = vap->iv_ic;
-	struct urtwn_softc *sc = ic->ic_ifp->if_softc;
+	struct urtwn_softc *sc = ic->ic_softc;
 	struct ieee80211_node *ni;
 	enum ieee80211_state ostate;
 	uint32_t reg;
@@ -1669,12 +1618,11 @@ static void
 urtwn_watchdog(void *arg)
 {
 	struct urtwn_softc *sc = arg;
-	struct ifnet *ifp = sc->sc_ifp;
 
 	if (sc->sc_txtimer > 0) {
 		if (--sc->sc_txtimer == 0) {
 			device_printf(sc->sc_dev, "device timeout\n");
-			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
+			counter_u64_add(sc->sc_ic.ic_oerrors, 1);
 			return;
 		}
 		callout_reset(&sc->sc_watchdog_ch, hz, urtwn_watchdog, sc);
@@ -1800,10 +1748,9 @@ static int
 urtwn_tx_start(struct urtwn_softc *sc, struct ieee80211_node *ni,
     struct mbuf *m0, struct urtwn_data *data)
 {
-	struct ifnet *ifp = sc->sc_ifp;
 	struct ieee80211_frame *wh;
 	struct ieee80211_key *k;
-	struct ieee80211com *ic = ifp->if_l2com;
+	struct ieee80211com *ic = &sc->sc_ic;
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct usb_xfer *xfer;
 	struct r92c_tx_desc *txd;
@@ -1942,89 +1889,78 @@ urtwn_tx_start(struct urtwn_softc *sc, struct ieee80211_node *ni,
 	return (0);
 }
 
-static void
-urtwn_start(struct ifnet *ifp)
+static int
+urtwn_transmit(struct ieee80211com *ic, struct mbuf *m)
 {
-	struct urtwn_softc *sc = ifp->if_softc;
+	struct urtwn_softc *sc = ic->ic_softc;
+	int error;
 
-	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
-		return;
 	URTWN_LOCK(sc);
-	urtwn_start_locked(ifp, sc);
+	if ((sc->sc_flags & URTWN_RUNNING) == 0) {
+		URTWN_UNLOCK(sc);
+		return (ENXIO);
+	}
+	error = mbufq_enqueue(&sc->sc_snd, m);
+	if (error) {
+		URTWN_UNLOCK(sc);
+		return (error);
+	}
+	urtwn_start(sc);
 	URTWN_UNLOCK(sc);
+
+	return (0);
 }
 
 static void
-urtwn_start_locked(struct ifnet *ifp, struct urtwn_softc *sc)
+urtwn_start(struct urtwn_softc *sc)
 {
 	struct ieee80211_node *ni;
 	struct mbuf *m;
 	struct urtwn_data *bf;
 
 	URTWN_ASSERT_LOCKED(sc);
-	for (;;) {
-		IFQ_DRV_DEQUEUE(&ifp->if_snd, m);
-		if (m == NULL)
-			break;
+	while ((m = mbufq_dequeue(&sc->sc_snd)) != NULL) {
 		bf = urtwn_getbuf(sc);
 		if (bf == NULL) {
-			IFQ_DRV_PREPEND(&ifp->if_snd, m);
+			mbufq_prepend(&sc->sc_snd, m);
 			break;
 		}
 		ni = (struct ieee80211_node *)m->m_pkthdr.rcvif;
 		m->m_pkthdr.rcvif = NULL;
-
 		if (urtwn_tx_start(sc, ni, m, bf) != 0) {
-			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
+			if_inc_counter(ni->ni_vap->iv_ifp,
+			    IFCOUNTER_OERRORS, 1);
 			STAILQ_INSERT_HEAD(&sc->sc_tx_inactive, bf, next);
 			ieee80211_free_node(ni);
 			break;
 		}
-
 		sc->sc_txtimer = 5;
 		callout_reset(&sc->sc_watchdog_ch, hz, urtwn_watchdog, sc);
 	}
 }
 
-static int
-urtwn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
+static void
+urtwn_parent(struct ieee80211com *ic)
 {
-	struct urtwn_softc *sc = ifp->if_softc;
-	struct ieee80211com *ic = ifp->if_l2com;
-	struct ifreq *ifr = (struct ifreq *) data;
-	int error = 0, startall = 0;
+	struct urtwn_softc *sc = ic->ic_softc;
+	int startall = 0;
 
 	URTWN_LOCK(sc);
-	error = (sc->sc_flags & URTWN_DETACHED) ? ENXIO : 0;
-	URTWN_UNLOCK(sc);
-	if (error != 0)
-		return (error);
-
-	switch (cmd) {
-	case SIOCSIFFLAGS:
-		if (ifp->if_flags & IFF_UP) {
-			if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
-				urtwn_init(ifp->if_softc);
-				startall = 1;
-			}
-		} else {
-			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
-				urtwn_stop(ifp);
-		}
-		if (startall)
-			ieee80211_start_all(ic);
-		break;
-	case SIOCGIFMEDIA:
-		error = ifmedia_ioctl(ifp, ifr, &ic->ic_media, cmd);
-		break;
-	case SIOCGIFADDR:
-		error = ether_ioctl(ifp, cmd, data);
-		break;
-	default:
-		error = EINVAL;
-		break;
+	if (sc->sc_flags & URTWN_DETACHED) {
+		URTWN_UNLOCK(sc);
+		return;
 	}
-	return (error);
+	if (ic->ic_nrunning > 0) {
+		if ((sc->sc_flags & URTWN_RUNNING) == 0) {
+			urtwn_init(sc);
+			startall = 1;
+		}
+	} else if (sc->sc_flags & URTWN_RUNNING)
+		urtwn_stop(sc);
+	URTWN_UNLOCK(sc);
+
+	if (startall)
+		ieee80211_start_all(ic);
 }
 
 static int
@@ -2938,7 +2874,7 @@ urtwn_get_txpower(struct urtwn_softc *sc, int chain,
     struct ieee80211_channel *c, struct ieee80211_channel *extc,
     uint16_t power[URTWN_RIDX_COUNT])
 {
-	struct ieee80211com *ic = sc->sc_ifp->if_l2com;
+	struct ieee80211com *ic = &sc->sc_ic;
 	struct r92c_rom *rom = &sc->rom;
 	uint16_t cckpow, ofdmpow, htpow, diff, max;
 	const struct urtwn_txpwr *base;
@@ -3037,7 +2973,7 @@ urtwn_r88e_get_txpower(struct urtwn_softc *sc, int chain,
     struct ieee80211_channel *c, struct ieee80211_channel *extc,
     uint16_t power[URTWN_RIDX_COUNT])
 {
-	struct ieee80211com *ic = sc->sc_ifp->if_l2com;
+	struct ieee80211com *ic = &sc->sc_ic;
 	uint16_t cckpow, ofdmpow, bw20pow, htpow;
 	const struct urtwn_r88e_txpwr *base;
 	int ridx, chan, group;
@@ -3134,7 +3070,7 @@ urtwn_scan_end(struct ieee80211com *ic)
 static void
 urtwn_set_channel(struct ieee80211com *ic)
 {
-	struct urtwn_softc *sc = ic->ic_ifp->if_softc;
+	struct urtwn_softc *sc = ic->ic_softc;
 	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
 
 	URTWN_LOCK(sc);
@@ -3156,7 +3092,7 @@ static void
 urtwn_set_chan(struct urtwn_softc *sc, struct ieee80211_channel *c,
     struct ieee80211_channel *extc)
 {
-	struct ieee80211com *ic = sc->sc_ifp->if_l2com;
+	struct ieee80211com *ic = &sc->sc_ic;
 	uint32_t reg;
 	u_int chan;
 	int i;
@@ -3287,17 +3223,18 @@ urtwn_lc_calib(struct urtwn_softc *sc)
 }
 
 static void
-urtwn_init_locked(void *arg)
+urtwn_init(struct urtwn_softc *sc)
 {
-	struct urtwn_softc *sc = arg;
-	struct ifnet *ifp = sc->sc_ifp;
+	struct ieee80211com *ic = &sc->sc_ic;
+	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
+	uint8_t macaddr[IEEE80211_ADDR_LEN];
 	uint32_t reg;
 	int error;
 
 	URTWN_ASSERT_LOCKED(sc);
 
-	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
-		urtwn_stop_locked(ifp);
+	if (sc->sc_flags & URTWN_RUNNING)
+		urtwn_stop(sc);
 
 	/* Init firmware commands ring. */
 	sc->fwcur = 0;
@@ -3340,8 +3277,8 @@ urtwn_init_locked(void *arg)
 	}
 
 	/* Set MAC address. */
-	urtwn_write_region_1(sc, R92C_MACID, IF_LLADDR(ifp),
-	    IEEE80211_ADDR_LEN);
+	IEEE80211_ADDR_COPY(macaddr, vap ? vap->iv_myaddr : ic->ic_macaddr);
+	urtwn_write_region_1(sc, R92C_MACID, macaddr, IEEE80211_ADDR_LEN);
 
 	/* Set initial network type. */
 	reg = urtwn_read_4(sc, R92C_CR);
@@ -3465,8 +3402,7 @@ urtwn_init_locked(void *arg)
 
 	usbd_transfer_start(sc->sc_xfer[URTWN_BULK_RX]);
 
-	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-	ifp->if_drv_flags |= IFF_DRV_RUNNING;
+	sc->sc_flags |= URTWN_RUNNING;
 
 	callout_reset(&sc->sc_watchdog_ch, hz, urtwn_watchdog, sc);
 fail:
@@ -3474,36 +3410,13 @@ fail:
 }
 
 static void
-urtwn_init(void *arg)
+urtwn_stop(struct urtwn_softc *sc)
 {
-	struct urtwn_softc *sc = arg;
-
-	URTWN_LOCK(sc);
-	urtwn_init_locked(arg);
-	URTWN_UNLOCK(sc);
-}
-
-static void
-urtwn_stop_locked(struct ifnet *ifp)
-{
-	struct urtwn_softc *sc = ifp->if_softc;
 
 	URTWN_ASSERT_LOCKED(sc);
-
-	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
-
+	sc->sc_flags &= ~URTWN_RUNNING;
 	callout_stop(&sc->sc_watchdog_ch);
 	urtwn_abort_xfers(sc);
-}
-
-static void
-urtwn_stop(struct ifnet *ifp)
-{
-	struct urtwn_softc *sc = ifp->if_softc;
-
-	URTWN_LOCK(sc);
-	urtwn_stop_locked(ifp);
-	URTWN_UNLOCK(sc);
 }
 
 static void
@@ -3523,12 +3436,11 @@ urtwn_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
     const struct ieee80211_bpf_params *params)
 {
 	struct ieee80211com *ic = ni->ni_ic;
-	struct ifnet *ifp = ic->ic_ifp;
-	struct urtwn_softc *sc = ifp->if_softc;
+	struct urtwn_softc *sc = ic->ic_softc;
 	struct urtwn_data *bf;
 
 	/* prevent management frames from being sent if we're not ready */
-	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
+	if (!(sc->sc_flags & URTWN_RUNNING)) {
 		m_freem(m);
 		ieee80211_free_node(ni);
 		return (ENETDOWN);
@@ -3542,10 +3454,8 @@ urtwn_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 		return (ENOBUFS);
 	}
 
-	if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 	if (urtwn_tx_start(sc, ni, m, bf) != 0) {
 		ieee80211_free_node(ni);
-		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		STAILQ_INSERT_HEAD(&sc->sc_tx_inactive, bf, next);
 		URTWN_UNLOCK(sc);
 		return (EIO);

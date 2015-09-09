@@ -80,6 +80,8 @@ fi
 # serial console ?
 SERCONS=false
 
+PKG_DIR=/usr/ports/packages/All
+
 # Remotely mounted distfiles
 # REMOTEDISTFILES=fs:/rdonly/distfiles
 
@@ -174,6 +176,7 @@ log_it() (
 
 
 ports_recurse() (
+	cd /usr/ports
 	t=$1
 	shift
 	if [ "x$t" = "x." ] ; then
@@ -191,6 +194,7 @@ ports_recurse() (
 			echo "Missing port $d" 1>&2
 			continue
 		fi
+		d=`cd /usr/ports && cd $d && /bin/pwd`
 		if [ ! -f $d/Makefile ] ; then
 			echo "Missing port $d" 1>&2
 			continue
@@ -205,7 +209,16 @@ ports_recurse() (
 		else
 			(
 			cd $d
-			ports_recurse $d `make -V _DEPEND_DIRS ${PORTS_OPTS}`
+			l=""
+			for a in `make -V _UNIFIED_DEPENDS ${PORTS_OPTS}`
+			do
+				x=`expr "$a" : '.*:\(.*\)'`
+				l="${l} ${x}"
+			done
+			ports_recurse $d $l
+			# -> _UNIFIED_DEPENDS
+			#ports_recurse $d `make -V _DEPEND_DIRS ${PORTS_OPTS}`
+			#ports_recurse $d `make all-depends-list`
 			)
 			echo "$d" >> /tmp/_.plist
 		fi
@@ -223,11 +236,12 @@ ports_build() (
 		mkdir -p ${PKG_DIR}
 	fi
 
+	pd=`cd /usr/ports && /bin/pwd`
 	# Now build & install them
 	for p in `cat /tmp/_.plist`
 	do
 		b=`echo $p | tr / _`
-		t=`echo $p | sed 's,/usr/ports/,,'`
+		t=`echo $p | sed "s,${pd},,"`
 		pn=`cd $p && make package-name`
 
 		if [ "x`basename $p`" == "xpkg" ] ; then
@@ -471,10 +485,13 @@ fi
 
 for i in ${PORTS_WE_WANT}
 do
+	(
+	cd /usr/ports
 	if [ ! -d $i ]  ; then
 		echo "Port $i not found" 1>&2
 		exit 2
 	fi
+	)
 done
 
 export PORTS_WE_WANT

@@ -2668,12 +2668,7 @@ flags_out:
 				error = EINVAL;
 				break;
 			}
-			/*
-			 * I think passing the state is fine since
-			 * sctp_constants.h will be available to the user
-			 * land.
-			 */
-			sstat->sstat_state = stcb->asoc.state;
+			sstat->sstat_state = sctp_map_assoc_state(stcb->asoc.state);
 			sstat->sstat_assoc_id = sctp_get_associd(stcb);
 			sstat->sstat_rwnd = stcb->asoc.peers_rwnd;
 			sstat->sstat_unackdata = stcb->asoc.sent_queue_cnt;

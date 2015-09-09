@@ -187,8 +187,6 @@ reap_status(struct thread *td, struct proc *p,
 		}
 	} else {
 		rs->rs_pid = -1;
-		KASSERT(LIST_EMPTY(&reap->p_reaplist), ("reap children list"));
-		KASSERT(LIST_EMPTY(&reap->p_children), ("children list"));
 	}
 	return (0);
 }

@@ -64,7 +64,7 @@ static const char rcsid[] =
 
 #include "syscalls.h"
 
-static int nsyscalls = sizeof(syscallnames) / sizeof(syscallnames[0]);
+static int nsyscalls = nitems(syscallnames);
 
 /*
  * This is what this particular file uses to keep track of a system call.
@@ -227,28 +227,6 @@ i386_syscall_entry(struct trussinfo *trussinfo, int nargs)
 	fprintf(trussinfo->outfile, "\n");
 #endif
 
-	if (fsc->name != NULL && (strcmp(fsc->name, "execve") == 0 ||
-	    strcmp(fsc->name, "exit") == 0)) {
-		/*
-		 * XXX
-		 * This could be done in a more general
-		 * manner but it still wouldn't be very pretty.
-		 */
-		if (strcmp(fsc->name, "execve") == 0) {
-			if ((trussinfo->flags & EXECVEARGS) == 0) {
-				if (fsc->s_args[1]) {
-					free(fsc->s_args[1]);
-					fsc->s_args[1] = NULL;
-				}
-			}
-			if ((trussinfo->flags & EXECVEENVS) == 0) {
-				if (fsc->s_args[2]) {
-					free(fsc->s_args[2]);
-					fsc->s_args[2] = NULL;
-				}
-			}
-		}
-	}
 	trussinfo->curthread->fsc = fsc;
 }
 
@@ -299,6 +277,7 @@ i386_syscall_exit(struct trussinfo *trussinfo, int syscall_num __unused)
 		 */
 		for (i = 0; i < sc->nargs; i++) {
 			char *temp;
+
 			if (sc->args[i].type & OUT) {
 				/*
 				 * If an error occurred, then don't bother

@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 9, 2015
+.Dd August 14, 2015
 .Dt ATOMIC 9
 .Os
 .Sh NAME
@@ -68,7 +68,7 @@
 .Fn atomic_testandset_<type> "volatile <type> *p" "u_int v"
 .Sh DESCRIPTION
 Each of the atomic operations is guaranteed to be atomic across multiple
-processors and in the presence of interrupts.
+threads and in the presence of interrupts.
 They can be used to implement reference counts or as building blocks for more
 advanced synchronization primitives such as mutexes.
 .Ss Types
@@ -108,59 +108,78 @@ unsigned 16-bit integer
 .El
 .Pp
 These must not be used in MI code because the instructions to implement them
-efficiently may not be available.
-.Ss Memory Barriers
-Memory barriers are used to guarantee the order of data accesses in
-two ways.
-First, they specify hints to the compiler to not re-order or optimize the
-operations.
-Second, on architectures that do not guarantee ordered data accesses,
-special instructions or special variants of instructions are used to indicate
-to the processor that data accesses need to occur in a certain order.
-As a result, most of the atomic operations have three variants in order to
-include optional memory barriers.
-The first form just performs the operation without any explicit barriers.
-The second form uses a read memory barrier, and the third variant uses a write
-memory barrier.
-.Pp
-The second variant of each operation includes an
+efficiently might not be available.
+.Ss Acquire and Release Operations
+By default, a thread's accesses to different memory locations might not be
+performed in
+.Em program order ,
+that is, the order in which the accesses appear in the source code.
+To optimize the program's execution, both the compiler and processor might
+reorder the thread's accesses.
+However, both ensure that their reordering of the accesses is not visible to
+the thread.
+Otherwise, the traditional memory model that is expected by single-threaded
+programs would be violated.
+Nonetheless, other threads in a multithreaded program, such as the
+.Fx
+kernel, might observe the reordering.
+Moreover, in some cases, such as the implementation of synchronization between
+threads, arbitrary reordering might result in the incorrect execution of the
+program.
+To constrain the reordering that both the compiler and processor might perform
+on a thread's accesses, the thread should use atomic operations with
 .Em acquire
-memory barrier.
-This barrier ensures that the effects of this operation are completed before the
-effects of any later data accesses.
-As a result, the operation is said to have acquire semantics as it acquires a
-pseudo-lock requiring further operations to wait until it has completed.
-To denote this, the suffix
+and
+.Em release
+semantics.
+.Pp
+Most of the atomic operations on memory have three variants.
+The first variant performs the operation without imposing any ordering
+constraints on memory accesses to other locations.
+The second variant has acquire semantics, and the third variant has release
+semantics.
+In effect, operations with acquire and release semantics establish one-way
+barriers to reordering.
+.Pp
+When an atomic operation has acquire semantics, the effects of the operation
+must have completed before any subsequent load or store (by program order) is
+performed.
+Conversely, acquire semantics do not require that prior loads or stores have
+completed before the atomic operation is performed.
+To denote acquire semantics, the suffix
 .Dq Li _acq
 is inserted into the function name immediately prior to the
 .Dq Li _ Ns Aq Fa type
 suffix.
-For example, to subtract two integers ensuring that any later writes will
-happen after the subtraction is performed, use
+For example, to subtract two integers ensuring that subsequent loads and
+stores happen after the subtraction is performed, use
 .Fn atomic_subtract_acq_int .
 .Pp
-The third variant of each operation includes a
-.Em release
-memory barrier.
-This ensures that all effects of all previous data accesses are completed
-before this operation takes place.
-As a result, the operation is said to have release semantics as it releases
-any pending data accesses to be completed before its operation is performed.
-To denote this, the suffix
+When an atomic operation has release semantics, the effects of all prior
+loads or stores (by program order) must have completed before the operation
+is performed.
+Conversely, release semantics do not require that the effects of the
+atomic operation must have completed before any subsequent load or store is
+performed.
+To denote release semantics, the suffix
 .Dq Li _rel
 is inserted into the function name immediately prior to the
 .Dq Li _ Ns Aq Fa type
 suffix.
-For example, to add two long integers ensuring that all previous
-writes will happen first, use
+For example, to add two long integers ensuring that all prior loads and
+stores happen before the addition, use
 .Fn atomic_add_rel_long .
 .Pp
-A practical example of using memory barriers is to ensure that data accesses
-that are protected by a lock are all performed while the lock is held.
-To achieve this, one would use a read barrier when acquiring the lock to
-guarantee that the lock is held before any protected operations are performed.
-Finally, one would use a write barrier when releasing the lock to ensure that
-all of the protected operations are completed before the lock is released.
+The one-way barriers provided by acquire and release operations allow the
+implementations of common synchronization primitives to express their
+ordering requirements without also imposing unnecessary ordering.
+For example, for a critical section guarded by a mutex, an acquire operation
+when the mutex is locked and a release operation when the mutex is unlocked
+will prevent any loads or stores from moving outside of the critical
+section.
+However, they will not prevent the compiler or processor from moving loads
+or stores into the critical section, which does not violate the semantics of
+a mutex.
 .Ss Multiple Processors
 In multiprocessor systems, the atomicity of the atomic operations on memory
 depends on support for cache coherence in the underlying architecture.
@@ -173,7 +192,7 @@ For example, cache coherence is guaranteed on write-back memory by the
 and
 .Tn i386
 architectures.
-However, on some architectures, cache coherence may not be enabled on all
+However, on some architectures, cache coherence might not be enabled on all
 memory types.
 To determine if cache coherence is enabled for a non-default memory type,
 consult the architecture's documentation.

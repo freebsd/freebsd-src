@@ -28,7 +28,7 @@
  */
 
 #ifndef lint
-char const copyright[] =
+static char const copyright[] =
 "@(#) Copyright (c) 1983, 1988, 1993\n\
 	Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
@@ -69,95 +69,10 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 #include "netstat.h"
+#include "nl_defs.h"
 #include <libxo/xo.h>
 
-static struct nlist nl[] = {
-#define	N_RTSTAT	0
-	{ .n_name = "_rtstat" },
-#define	N_RTREE		1
-	{ .n_name = "_rt_tables"},
-#define	N_MRTSTAT	2
-	{ .n_name = "_mrtstat" },
-#define	N_MFCHASHTBL	3
-	{ .n_name = "_mfchashtbl" },
-#define	N_VIFTABLE	4
-	{ .n_name = "_viftable" },
-#define	N_NGSOCKS	5
-	{ .n_name = "_ngsocklist"},
-#define	N_IP6STAT	6
-	{ .n_name = "_ip6stat" },
-#define	N_ICMP6STAT	7
-	{ .n_name = "_icmp6stat" },
-#define	N_IPSECSTAT	8
-	{ .n_name = "_ipsec4stat" },
-#define	N_IPSEC6STAT	9
-	{ .n_name = "_ipsec6stat" },
-#define	N_PIM6STAT	10
-	{ .n_name = "_pim6stat" },
-#define	N_MRT6STAT	11
-	{ .n_name = "_mrt6stat" },
-#define	N_MF6CTABLE	12
-	{ .n_name = "_mf6ctable" },
-#define	N_MIF6TABLE	13
-	{ .n_name = "_mif6table" },
-#define	N_PFKEYSTAT	14
-	{ .n_name = "_pfkeystat" },
-#define	N_RTTRASH	15
-	{ .n_name = "_rttrash" },
-#define	N_CARPSTAT	16
-	{ .n_name = "_carpstats" },
-#define	N_PFSYNCSTAT	17
-	{ .n_name = "_pfsyncstats" },
-#define	N_AHSTAT	18
-	{ .n_name = "_ahstat" },
-#define	N_ESPSTAT	19
-	{ .n_name = "_espstat" },
-#define	N_IPCOMPSTAT	20
-	{ .n_name = "_ipcompstat" },
-#define	N_TCPSTAT	21
-	{ .n_name = "_tcpstat" },
-#define	N_UDPSTAT	22
-	{ .n_name = "_udpstat" },
-#define	N_IPSTAT	23
-	{ .n_name = "_ipstat" },
-#define	N_ICMPSTAT	24
-	{ .n_name = "_icmpstat" },
-#define	N_IGMPSTAT	25
-	{ .n_name = "_igmpstat" },
-#define	N_PIMSTAT	26
-	{ .n_name = "_pimstat" },
-#define	N_TCBINFO	27
-	{ .n_name = "_tcbinfo" },
-#define	N_UDBINFO	28
-	{ .n_name = "_udbinfo" },
-#define	N_DIVCBINFO	29
-	{ .n_name = "_divcbinfo" },
-#define	N_RIPCBINFO	30
-	{ .n_name = "_ripcbinfo" },
-#define	N_UNP_COUNT	31
-	{ .n_name = "_unp_count" },
-#define	N_UNP_GENCNT	32
-	{ .n_name = "_unp_gencnt" },
-#define	N_UNP_DHEAD	33
-	{ .n_name = "_unp_dhead" },
-#define	N_UNP_SHEAD	34
-	{ .n_name = "_unp_shead" },
-#define	N_RIP6STAT	36
-	{ .n_name = "_rip6stat" },
-#define	N_SCTPSTAT	36
-	{ .n_name = "_sctpstat" },
-#define	N_MFCTABLESIZE	37
-	{ .n_name = "_mfctablesize" },
-#define	N_ARPSTAT	38
-	{ .n_name = "_arpstat" },
-#define	N_UNP_SPHEAD	39
-	{ .n_name = "unp_sphead" },
-#define	N_SFSTAT	40
-	{ .n_name = "_sfstat"},
-	{ .n_name = NULL },
-};
-
-struct protox {
+static struct protox {
 	int	pr_index;		/* index into nlist of cb head */
 	int	pr_sindex;		/* index into nlist of stat block */
 	u_char	pr_wanted;		/* 1 if wanted, 0 otherwise */
@@ -191,7 +106,7 @@ struct protox {
 	{ N_RIPCBINFO,	N_IGMPSTAT,	1,	protopr,
 	  igmp_stats,	NULL,		"igmp",	1,	IPPROTO_IGMP },
 #ifdef IPSEC
-	{ -1,		N_IPSECSTAT,	1,	NULL,	/* keep as compat */
+	{ -1,		N_IPSEC4STAT,	1,	NULL,	/* keep as compat */
 	  ipsec_stats,	NULL,		"ipsec", 0,	0},
 	{ -1,		N_AHSTAT,	1,	NULL,
 	  ah_stats,	NULL,		"ah",	0,	0},
@@ -202,10 +117,10 @@ struct protox {
 #endif
 	{ N_RIPCBINFO,	N_PIMSTAT,	1,	protopr,
 	  pim_stats,	NULL,		"pim",	1,	IPPROTO_PIM },
-	{ -1,		N_CARPSTAT,	1,	NULL,
+	{ -1,		N_CARPSTATS,	1,	NULL,
 	  carp_stats,	NULL,		"carp",	1,	0 },
 #ifdef PF
-	{ -1,		N_PFSYNCSTAT,	1,	NULL,
+	{ -1,		N_PFSYNCSTATS,	1,	NULL,
 	  pfsync_stats,	NULL,		"pfsync", 1,	0 },
 #endif
 	{ -1,		N_ARPSTAT,	1,	NULL,
@@ -215,7 +130,7 @@ struct protox {
 };
 
 #ifdef INET6
-struct protox ip6protox[] = {
+static struct protox ip6protox[] = {
 	{ N_TCBINFO,	N_TCPSTAT,	1,	protopr,
 	  tcp_stats,	NULL,		"tcp",	1,	IPPROTO_TCP },
 	{ N_UDBINFO,	N_UDPSTAT,	1,	protopr,
@@ -244,7 +159,7 @@ struct protox ip6protox[] = {
 #endif /*INET6*/
 
 #ifdef IPSEC
-struct protox pfkeyprotox[] = {
+static struct protox pfkeyprotox[] = {
 	{ -1,		N_PFKEYSTAT,	1,	NULL,
 	  pfkey_stats,	NULL,		"pfkey", 0,	0 },
 	{ -1,		-1,		0,	NULL,
@@ -253,17 +168,17 @@ struct protox pfkeyprotox[] = {
 #endif
 
 #ifdef NETGRAPH
-struct protox netgraphprotox[] = {
-	{ N_NGSOCKS,	-1,		1,	netgraphprotopr,
+static struct protox netgraphprotox[] = {
+	{ N_NGSOCKLIST,	-1,		1,	netgraphprotopr,
 	  NULL,		NULL,		"ctrl",	0,	0 },
-	{ N_NGSOCKS,	-1,		1,	netgraphprotopr,
+	{ N_NGSOCKLIST,	-1,		1,	netgraphprotopr,
 	  NULL,		NULL,		"data",	0,	0 },
 	{ -1,		-1,		0,	NULL,
 	  NULL,		NULL,		NULL,	0,	0 }
 };
 #endif
 
-struct protox *protoprotox[] = {
+static struct protox *protoprotox[] = {
 					 protox,
 #ifdef INET6
 					 ip6protox,
@@ -278,12 +193,14 @@ static void usage(void);
 static struct protox *name2protox(const char *);
 static struct protox *knownname(const char *);
 
+static int kresolve_list(struct nlist *_nl);
+
 static kvm_t *kvmd;
 static char *nlistf = NULL, *memf = NULL;
 
 int	Aflag;		/* show addresses of protocol control block */
 int	aflag;		/* show all sockets (including servers) */
-int	Bflag;		/* show information about bpf consumers */
+static int	Bflag;		/* show information about bpf consumers */
 int	bflag;		/* show i/f total bytes in/out */
 int	dflag;		/* show i/f dropped packets */
 int	gflag;		/* show group (multicast) routing or stats */
@@ -295,7 +212,7 @@ int	noutputs = 0;	/* how much outputs before we exit */
 int	numeric_addr;	/* show addresses numerically */
 int	numeric_port;	/* show ports numerically */
 static int pflag;	/* show given protocol */
-int	Qflag;		/* show netisr information */
+static int	Qflag;		/* show netisr information */
 int	rflag;		/* show routing tables (or routing stats) */
 int	Rflag;		/* show flow / RSS statistics */
 int	sflag;		/* show protocol statistics */
@@ -309,7 +226,7 @@ int	interval;	/* repeat interval for i/f stats */
 char	*interface;	/* desired i/f for stats, or NULL for all i/fs */
 int	unit;		/* unit number for above */
 
-int	af;		/* address family */
+static int	af;		/* address family */
 int	live;		/* true if we are examining a live system */
 
 int
@@ -374,7 +291,8 @@ main(int argc, char *argv[])
 			else if (strcmp(optarg, "pfkey") == 0)
 				af = PF_KEY;
 #endif
-			else if (strcmp(optarg, "unix") == 0)
+			else if (strcmp(optarg, "unix") == 0 ||
+				 strcmp(optarg, "local") == 0)
 				af = AF_UNIX;
 #ifdef NETGRAPH
 			else if (strcmp(optarg, "ng") == 0
@@ -498,8 +416,10 @@ main(int argc, char *argv[])
 	 * guys can't print interesting stuff from kernel memory.
 	 */
 	live = (nlistf == NULL && memf == NULL);
-	if (!live)
-		setgid(getgid());
+	if (!live) {
+		if (setgid(getgid()) != 0)
+			xo_err(-1, "setgid");
+	}
 
 	if (xflag && Tflag)
 		xo_errx(1, "-x and -T are incompatible, pick one.");
@@ -523,9 +443,9 @@ main(int argc, char *argv[])
 	if (Qflag) {
 		if (!live) {
 			if (kread(0, NULL, 0) == 0)
-				netisr_stats(kvmd);
+				netisr_stats();
 		} else
-			netisr_stats(NULL);
+			netisr_stats();
 		xo_finish();
 		exit(0);
 	}
@@ -545,7 +465,7 @@ main(int argc, char *argv[])
 #endif
 	if (iflag && !sflag) {
 		xo_open_container("statistics");
-		intpr(interval, NULL, af);
+		intpr(NULL, af);
 		xo_close_container("statistics");
 		xo_finish();
 		exit(0);
@@ -643,7 +563,7 @@ printproto(struct protox *tp, const char *name, bool *first)
 	if (sflag) {
 		if (iflag) {
 			if (tp->pr_istats)
-				intpr(interval, tp->pr_istats, af);
+				intpr(tp->pr_istats, af);
 			else if (pflag)
 				xo_message("%s: no per-interface stats routine",
 				    tp->pr_name);
@@ -704,7 +624,8 @@ kvmd_init(void)
 		return (0);
 
 	kvmd = kvm_openfiles(nlistf, memf, NULL, O_RDONLY, errbuf);
-	setgid(getgid());
+	if (setgid(getgid()) != 0)
+		xo_err(-1, "setgid");
 
 	if (kvmd == NULL) {
 		xo_warnx("kvm not available: %s", errbuf);
@@ -717,7 +638,7 @@ kvmd_init(void)
 /*
  * Resolve symbol list, return 0 on success.
  */
-int
+static int
 kresolve_list(struct nlist *_nl)
 {
 
@@ -736,6 +657,22 @@ kresolve_list(struct nlist *_nl)
 	}
 
 	return (0);
+}
+
+/*
+ * Wrapper of kvm_dpcpu_setcpu().
+ */
+void
+kset_dpcpu(u_int cpuid)
+{
+
+	if ((kvmd == NULL) && (kvmd_init() != 0))
+		xo_errx(-1, "%s: kvm is not available", __func__);
+
+	if (kvm_dpcpu_setcpu(kvmd, cpuid) < 0)
+		xo_errx(-1, "%s: kvm_dpcpu_setcpu(%u): %s", __func__,
+		    cpuid, kvm_geterr(kvmd)); 
+	return;
 }
 
 /*

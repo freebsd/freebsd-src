@@ -120,8 +120,6 @@ typedef enum {
 	CTL_UA_LUN_CHANGE	= 0x0020,
 	CTL_UA_MODE_CHANGE	= 0x0040,
 	CTL_UA_LOG_CHANGE	= 0x0080,
-	CTL_UA_LVD		= 0x0100,
-	CTL_UA_SE		= 0x0200,
 	CTL_UA_RES_PREEMPT	= 0x0400,
 	CTL_UA_RES_RELEASE	= 0x0800,
 	CTL_UA_REG_PREEMPT  	= 0x1000,
@@ -194,6 +192,8 @@ void ctl_portDB_changed(int portnum);
 #ifdef notyet
 void ctl_init_isc_msg(void);
 #endif
+int ctl_ioctl_io(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
+		 struct thread *td);
 
 /*
  * KPI to manipulate LUN/port options
@@ -208,6 +208,8 @@ typedef STAILQ_HEAD(ctl_options, ctl_option) ctl_options_t;
 
 struct ctl_be_arg;
 void ctl_init_opts(ctl_options_t *opts, int num_args, struct ctl_be_arg *args);
+void ctl_update_opts(ctl_options_t *opts, int num_args,
+    struct ctl_be_arg *args);
 void ctl_free_opts(ctl_options_t *opts);
 char * ctl_get_opt(ctl_options_t *opts, const char *name);
 int ctl_expand_number(const char *buf, uint64_t *num);
