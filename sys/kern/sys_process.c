@@ -951,19 +951,11 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		case PT_DETACH:
 			/* reset process parent */
 			if (p->p_oppid != p->p_pptr->p_pid) {
-				struct proc *pp;
-
 				PROC_LOCK(p->p_pptr);
 				sigqueue_take(p->p_ksi);
 				PROC_UNLOCK(p->p_pptr);
 
-				PROC_UNLOCK(p);
-				pp = pfind(p->p_oppid);
-				if (pp == NULL)
-					pp = initproc;
-				else
-					PROC_UNLOCK(pp);
-				PROC_LOCK(p);
+				pp = proc_realparent(p);
 				proc_reparent(p, pp);
 				if (pp == initproc)
 					p->p_sigparent = SIGCHLD;
