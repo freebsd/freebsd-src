@@ -493,7 +493,7 @@ handle_fork_events(pid_t parent)
 ATF_TC_WITHOUT_HEAD(ptrace__follow_fork_both_attached);
 ATF_TC_BODY(ptrace__follow_fork_both_attached, tc)
 {
-	pid_t children[0], fpid, wpid;
+	pid_t children[2], fpid, wpid;
 	int status;
 
 	ATF_REQUIRE((fpid = fork()) != -1);
@@ -549,7 +549,7 @@ ATF_TC_BODY(ptrace__follow_fork_both_attached, tc)
 ATF_TC_WITHOUT_HEAD(ptrace__follow_fork_child_detached);
 ATF_TC_BODY(ptrace__follow_fork_child_detached, tc)
 {
-	pid_t children[0], fpid, wpid;
+	pid_t children[2], fpid, wpid;
 	int status;
 
 	ATF_REQUIRE((fpid = fork()) != -1);
@@ -600,7 +600,7 @@ ATF_TC_BODY(ptrace__follow_fork_child_detached, tc)
 ATF_TC_WITHOUT_HEAD(ptrace__follow_fork_parent_detached);
 ATF_TC_BODY(ptrace__follow_fork_parent_detached, tc)
 {
-	pid_t children[0], fpid, wpid;
+	pid_t children[2], fpid, wpid;
 	int status;
 
 	ATF_REQUIRE((fpid = fork()) != -1);
@@ -681,7 +681,7 @@ attach_fork_parent(int cpipe[2])
 ATF_TC_WITHOUT_HEAD(ptrace__follow_fork_both_attached_unrelated_debugger);
 ATF_TC_BODY(ptrace__follow_fork_both_attached_unrelated_debugger, tc)
 {
-	pid_t children[0], fpid, wpid;
+	pid_t children[2], fpid, wpid;
 	int cpipe[2], status;
 
 	ATF_REQUIRE(pipe(cpipe) == 0);
@@ -749,7 +749,7 @@ ATF_TC_BODY(ptrace__follow_fork_both_attached_unrelated_debugger, tc)
 ATF_TC_WITHOUT_HEAD(ptrace__follow_fork_child_detached_unrelated_debugger);
 ATF_TC_BODY(ptrace__follow_fork_child_detached_unrelated_debugger, tc)
 {
-	pid_t children[0], fpid, wpid;
+	pid_t children[2], fpid, wpid;
 	int cpipe[2], status;
 
 	ATF_REQUIRE(pipe(cpipe) == 0);
@@ -812,7 +812,7 @@ ATF_TC_BODY(ptrace__follow_fork_child_detached_unrelated_debugger, tc)
 ATF_TC_WITHOUT_HEAD(ptrace__follow_fork_parent_detached_unrelated_debugger);
 ATF_TC_BODY(ptrace__follow_fork_parent_detached_unrelated_debugger, tc)
 {
-	pid_t children[0], fpid, wpid;
+	pid_t children[2], fpid, wpid;
 	int cpipe[2], status;
 
 	ATF_REQUIRE(pipe(cpipe) == 0);
