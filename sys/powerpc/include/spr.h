@@ -190,6 +190,7 @@
 #define	  FSL_E500v2		  0x8021
 #define	  FSL_E500mc		  0x8023
 #define	  FSL_E5500		  0x8024
+#define	  FSL_E6500		  0x8040
 
 #define	SPR_IBAT0U		0x210	/* .68 Instruction BAT Reg 0 Upper */
 #define	SPR_IBAT0U		0x210	/* .6. Instruction BAT Reg 0 Upper */
