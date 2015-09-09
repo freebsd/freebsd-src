@@ -127,7 +127,7 @@ ATF_TC_BODY(ptrace__parent_wait_after_trace_me, tc)
 		/* Child process. */
 		trace_me();
 
-		exit(1);
+		_exit(1);
 	}
 
 	/* Parent process. */
@@ -173,7 +173,7 @@ ATF_TC_BODY(ptrace__parent_wait_after_attach, tc)
 		/* Wait for the parent to attach. */
 		CHILD_REQUIRE(read(cpipe[1], &c, sizeof(c)) == 0);
 
-		exit(1);
+		_exit(1);
 	}
 	close(cpipe[1]);
 
@@ -221,7 +221,7 @@ ATF_TC_BODY(ptrace__parent_sees_exit_after_child_debugger, tc)
 		/* Wait for parent to be ready. */
 		CHILD_REQUIRE(read(cpipe[1], &c, sizeof(c)) == sizeof(c));
 
-		exit(1);
+		_exit(1);
 	}
 	close(cpipe[1]);
 
@@ -252,7 +252,7 @@ ATF_TC_BODY(ptrace__parent_sees_exit_after_child_debugger, tc)
 		CHILD_REQUIRE(WIFEXITED(status));
 		CHILD_REQUIRE(WEXITSTATUS(status) == 1);
 
-		exit(0);
+		_exit(0);
 	}
 	close(dpipe[1]);
 
@@ -315,7 +315,7 @@ ATF_TC_BODY(ptrace__parent_sees_exit_after_unrelated_debugger, tc)
 		/* Wait for parent to be ready. */
 		CHILD_REQUIRE(read(cpipe[1], &c, sizeof(c)) == sizeof(c));
 
-		exit(1);
+		_exit(1);
 	}
 	close(cpipe[1]);
 
@@ -331,7 +331,7 @@ ATF_TC_BODY(ptrace__parent_sees_exit_after_unrelated_debugger, tc)
 		 */
 		CHILD_REQUIRE((fpid = fork()) != -1);
 		if (fpid != 0)
-			exit(2);
+			_exit(2);
 
 		/* Debugger process. */
 		close(dpipe[0]);
@@ -356,7 +356,7 @@ ATF_TC_BODY(ptrace__parent_sees_exit_after_unrelated_debugger, tc)
 		CHILD_REQUIRE(WIFEXITED(status));
 		CHILD_REQUIRE(WEXITSTATUS(status) == 1);
 
-		exit(0);
+		_exit(0);
 	}
 	close(dpipe[1]);
 
@@ -418,14 +418,14 @@ follow_fork_parent(void)
 
 	if (fpid == 0)
 		/* Child */
-		exit(2);
+		_exit(2);
 
 	wpid = waitpid(fpid, &status, 0);
 	CHILD_REQUIRE(wpid == fpid);
 	CHILD_REQUIRE(WIFEXITED(status));
 	CHILD_REQUIRE(WEXITSTATUS(status) == 2);
 
-	exit(1);
+	_exit(1);
 }
 
 /*
@@ -662,7 +662,7 @@ attach_fork_parent(int cpipe[2])
 	/* Double-fork to disassociate from the debugger. */
 	CHILD_REQUIRE((fpid = fork()) != -1);
 	if (fpid != 0)
-		exit(3);
+		_exit(3);
 	
 	/* Send the pid of the disassociated child to the debugger. */
 	fpid = getpid();
