@@ -78,6 +78,8 @@ getnameinfo(const struct sockaddr *sa, socklen_t salen,
     char *host, size_t hostlen, char *serv, size_t servlen,
     int flags)
 {
+	if (sa == NULL)
+		return (EAI_FAIL);
 
 	switch (sa->sa_family) {
 	case AF_INET:
@@ -124,25 +126,19 @@ getnameinfo_inet(const struct sockaddr *sa, socklen_t salen,
 	struct servent *sp;
 	struct hostent *hp;
 	u_short port;
-	int family, i;
 	const char *addr;
 	u_int32_t v4a;
 	int h_error;
 	char numserv[512];
 	char numaddr[512];
 
-	if (sa == NULL)
-		return EAI_FAIL;
+	for (afd = &afdl[0]; afd->a_af > 0; afd++) {
+		if (afd->a_af == sa->sa_family)
+			break;
+	}
+	if (afd->a_af == 0)
+		return (EAI_FAMILY);
 
-	family = sa->sa_family;
-	for (i = 0; afdl[i].a_af; i++)
-		if (afdl[i].a_af == family) {
-			afd = &afdl[i];
-			goto found;
-		}
-	return EAI_FAMILY;
-
- found:
 	if (salen != afd->a_socklen)
 		return EAI_FAIL;
 
