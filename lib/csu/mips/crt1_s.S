@@ -43,7 +43,7 @@ __start:
 	 * on it. Do this before allocating the first stack frame. This is
 	 * only necessary on CHERI. */
 	li	t0, 0xffffff20 # rely on sign extension to set all MS bits to 1
-	#and	sp, sp, t0 # conceptually here but actually in delay slot below
+	and	sp, sp, t0
 #endif
 
 	/* Set up $gp as if this was a proper function. This is needed so we
@@ -74,11 +74,7 @@ __start:
 	/* Jump to the second part of __start(), implemented in C. */
 	dla	$25, _start1
 	jalr	$25
-#if defined(CHERI)
-	and	sp, sp, t0 # delay slot
-#else
 	nop # delay slot
-#endif
 
 	.set pop # restore assembler options
 	.cfi_endproc
