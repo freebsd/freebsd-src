@@ -77,6 +77,7 @@
  * ii) Do interprocedure jumps indirectly via t9, with the side-effect of
  *     preserving the callee's entry address in t9.
  */
+#ifndef __CHERI_SANDBOX__
 #ifdef __ABICALLS__
 	.abicalls
 # if defined(__mips_o32) || defined(__mips_o64)
@@ -93,6 +94,11 @@
 # define PIC_TAILCALL(l)	j  _C_LABEL(l)
 # define PIC_RETURN()		j ra
 #endif /* __ABICALLS__ */
+#else /* !defined(__CHERI_SANDBOX__ */
+# define PIC_PROLOGUE(x)
+# define PIC_TAILCALL(l)	j  _C_LABEL(l)
+# define PIC_RETURN()		cjr $c17
+#endif /* !defined(__CHERI_SANDBOX__ */
 
 # define SYSTRAP(x)	li v0,SYS_ ## x; syscall;
 
