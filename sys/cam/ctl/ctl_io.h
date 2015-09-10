@@ -58,13 +58,12 @@ EXTERN(int ctl_time_io_secs, CTL_TIME_IO_DEFAULT_SECS);
 #endif
 
 /*
- * Uncomment these next two lines to enable the CTL I/O delay feature.  You
+ * Uncomment this next line to enable the CTL I/O delay feature.  You
  * can delay I/O at two different points -- datamove and done.  This is
  * useful for diagnosing abort conditions (for hosts that send an abort on a
  * timeout), and for determining how long a host's timeout is.
  */
-#define	CTL_IO_DELAY
-#define	CTL_TIMER_BYTES		sizeof(struct callout)
+//#define	CTL_IO_DELAY
 
 typedef enum {
 	CTL_STATUS_NONE,	/* No status */
@@ -231,7 +230,7 @@ struct ctl_io_hdr {
 	uint32_t	  timeout;	/* timeout in ms */
 	uint32_t	  retries;	/* retry count */
 #ifdef CTL_IO_DELAY
-	uint8_t		  timer_bytes[CTL_TIMER_BYTES]; /* timer kludge */
+	struct callout	  delay_callout;
 #endif /* CTL_IO_DELAY */
 #ifdef CTL_TIME_IO
 	time_t		  start_time;	/* I/O start time */
