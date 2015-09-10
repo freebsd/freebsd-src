@@ -365,19 +365,8 @@ abort_handler(struct trapframe *tf, int type)
 
 	onfault = pcb->pcb_onfault;
 	pcb->pcb_onfault = NULL;
-	if (map != kernel_map) {
-		PROC_LOCK(p);
-		p->p_lock++;
-		PROC_UNLOCK(p);
-	}
 	error = vm_fault(map, va, ftype, VM_FAULT_NORMAL);
 	pcb->pcb_onfault = onfault;
-
-	if (map != kernel_map) {
-		PROC_LOCK(p);
-		p->p_lock--;
-		PROC_UNLOCK(p);
-	}
 	if (__predict_true(error == 0))
 		goto out;
 fatal_pagefault:
@@ -682,20 +671,8 @@ prefetch_abort_handler(struct trapframe *tf)
 	if (pmap_fault_fixup(map->pmap, va, VM_PROT_READ, 1))
 		goto out;
 
-	if (map != kernel_map) {
-		PROC_LOCK(p);
-		p->p_lock++;
-		PROC_UNLOCK(p);
-	}
-
 	error = vm_fault(map, va, VM_PROT_READ | VM_PROT_EXECUTE,
 	    VM_FAULT_NORMAL);
-	if (map != kernel_map) {
-		PROC_LOCK(p);
-		p->p_lock--;
-		PROC_UNLOCK(p);
-	}
-
 	if (__predict_true(error == 0))
 		goto out;
 

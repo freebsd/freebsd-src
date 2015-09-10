@@ -500,28 +500,9 @@ abort_handler(struct trapframe *tf, int prefetch)
 	onfault = pcb->pcb_onfault;
 	pcb->pcb_onfault = NULL;
 #endif
-	if (map != kernel_map) {
-		/*
-		 * Keep swapout from messing with us during this
-		 *	critical time.
-		 */
-		PROC_LOCK(p);
-		++p->p_lock;
-		PROC_UNLOCK(p);
 
-		/* Fault in the user page: */
-		rv = vm_fault(map, va, ftype, VM_FAULT_NORMAL);
-
-		PROC_LOCK(p);
-		--p->p_lock;
-		PROC_UNLOCK(p);
-	} else {
-		/*
-		 * Don't have to worry about process locking or stacks in the
-		 * kernel.
-		 */
-		rv = vm_fault(map, va, ftype, VM_FAULT_NORMAL);
-	}
+	/* Fault in the page. */
+	rv = vm_fault(map, va, ftype, VM_FAULT_NORMAL);
 
 #ifdef INVARIANTS
 	pcb->pcb_onfault = onfault;

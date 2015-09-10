@@ -190,29 +190,8 @@ data_abort(struct trapframe *frame, uint64_t esr, int lower)
 	va = trunc_page(far);
 	ftype = ((esr >> 6) & 1) ? VM_PROT_READ | VM_PROT_WRITE : VM_PROT_READ;
 
-	if (map != kernel_map) {
-		/*
-		 * Keep swapout from messing with us during this
-		 *	critical time.
-		 */
-		PROC_LOCK(p);
-		++p->p_lock;
-		PROC_UNLOCK(p);
-
-		/* Fault in the user page: */
-		error = vm_fault(map, va, ftype, VM_FAULT_NORMAL);
-
-		PROC_LOCK(p);
-		--p->p_lock;
-		PROC_UNLOCK(p);
-	} else {
-		/*
-		 * Don't have to worry about process locking or stacks in the
-		 * kernel.
-		 */
-		error = vm_fault(map, va, ftype, VM_FAULT_NORMAL);
-	}
-
+	/* Fault in the page. */
+	error = vm_fault(map, va, ftype, VM_FAULT_NORMAL);
 	if (error != KERN_SUCCESS) {
 		if (lower) {
 			sig = SIGSEGV;

@@ -704,9 +704,6 @@ trap_pfault(struct trapframe *frame, int user)
 #else
 		if ((eva >> ADDR_SR_SHFT) == (USER_ADDR >> ADDR_SR_SHFT)) {
 #endif
-			if (p->p_vmspace == NULL)
-				return (SIGSEGV);
-
 			map = &p->p_vmspace->vm_map;
 
 #ifdef AIM
@@ -720,31 +717,11 @@ trap_pfault(struct trapframe *frame, int user)
 	}
 	va = trunc_page(eva);
 
-	if (map != kernel_map) {
-		/*
-		 * Keep swapout from messing with us during this
-		 *	critical time.
-		 */
-		PROC_LOCK(p);
-		++p->p_lock;
-		PROC_UNLOCK(p);
-
-		/* Fault in the user page: */
-		rv = vm_fault(map, va, ftype, VM_FAULT_NORMAL);
-
-		PROC_LOCK(p);
-		--p->p_lock;
-		PROC_UNLOCK(p);
-		/*
-		 * XXXDTRACE: add dtrace_doubletrap_func here?
-		 */
-	} else {
-		/*
-		 * Don't have to worry about process locking or stacks in the
-		 * kernel.
-		 */
-		rv = vm_fault(map, va, ftype, VM_FAULT_NORMAL);
-	}
+	/* Fault in the page. */
+	rv = vm_fault(map, va, ftype, VM_FAULT_NORMAL);
+	/*
+	 * XXXDTRACE: add dtrace_doubletrap_func here?
+	 */
 
 	if (rv == KERN_SUCCESS)
 		return (0);
