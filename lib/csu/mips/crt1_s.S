@@ -71,10 +71,22 @@ __start:
 #endif
 #endif
 
+#ifdef __CHERI_SANDBOX__
+	cgetdefault	$c11		# Excessively large stack capability
+	cfromptr	$c3, $c11, a0
+	cfromptr	$c4, $c11, a1
+	cfromptr	$c5, $c11, a2
+
+	dla		$25, _start1
+	cgetdefault	$c19
+	csetoffset	$c12, $c19, $25
+	cjalr		$c17, $c12
+#else
 	/* Jump to the second part of __start(), implemented in C. */
 	dla	$25, _start1
 	jalr	$25
 	nop # delay slot
+#endif
 
 	.set pop # restore assembler options
 	.cfi_endproc
