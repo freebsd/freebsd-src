@@ -714,19 +714,7 @@ dofault:
 				goto nogo;
 			}
 
-			/*
-			 * Keep swapout from messing with us during this
-			 * critical time.
-			 */
-			PROC_LOCK(p);
-			++p->p_lock;
-			PROC_UNLOCK(p);
-
 			rv = vm_fault(map, va, ftype, VM_FAULT_NORMAL);
-
-			PROC_LOCK(p);
-			--p->p_lock;
-			PROC_UNLOCK(p);
 			/*
 			 * XXXDTRACE: add dtrace_doubletrap_func here?
 			 */
