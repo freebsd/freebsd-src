@@ -723,6 +723,18 @@ ctl_set_illegal_pr_release(struct ctl_scsiio *ctsio)
 }
 
 void
+ctl_set_lun_transit(struct ctl_scsiio *ctsio)
+{
+	/* "Logical unit not ready, asymmetric access state transition" */
+	ctl_set_sense(ctsio,
+		      /*current_error*/ 1,
+		      /*sense_key*/ SSD_KEY_NOT_READY,
+		      /*asc*/ 0x04,
+		      /*ascq*/ 0x0a,
+		      SSD_ELEM_NONE);
+}
+
+void
 ctl_set_lun_standby(struct ctl_scsiio *ctsio)
 {
 	/* "Logical unit not ready, target port in standby state" */
@@ -731,6 +743,18 @@ ctl_set_lun_standby(struct ctl_scsiio *ctsio)
 		      /*sense_key*/ SSD_KEY_NOT_READY,
 		      /*asc*/ 0x04,
 		      /*ascq*/ 0x0b,
+		      SSD_ELEM_NONE);
+}
+
+void
+ctl_set_lun_unavail(struct ctl_scsiio *ctsio)
+{
+	/* "Logical unit not ready, target port in unavailable state" */
+	ctl_set_sense(ctsio,
+		      /*current_error*/ 1,
+		      /*sense_key*/ SSD_KEY_NOT_READY,
+		      /*asc*/ 0x04,
+		      /*ascq*/ 0x0c,
 		      SSD_ELEM_NONE);
 }
 

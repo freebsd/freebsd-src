@@ -67,7 +67,9 @@ void ctl_set_invalid_opcode(struct ctl_scsiio *ctsio);
 void ctl_set_param_len_error(struct ctl_scsiio *ctsio);
 void ctl_set_already_locked(struct ctl_scsiio *ctsio);
 void ctl_set_unsupported_lun(struct ctl_scsiio *ctsio);
+void ctl_set_lun_transit(struct ctl_scsiio *ctsio);
 void ctl_set_lun_standby(struct ctl_scsiio *ctsio);
+void ctl_set_lun_unavail(struct ctl_scsiio *ctsio);
 void ctl_set_internal_failure(struct ctl_scsiio *ctsio, int sks_valid,
 			      uint16_t retry_count);
 void ctl_set_medium_error(struct ctl_scsiio *ctsio);

@@ -93,6 +93,7 @@ cfi_init(void)
 	port->fe_done = cfi_done;
 	port->max_targets = 1;
 	port->max_target_id = 0;
+	port->targ_port = -1;
 	port->max_initiators = 1;
 
 	if (ctl_port_register(port) != 0) {
