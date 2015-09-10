@@ -679,7 +679,7 @@ ctl_scsi_maintenance_in(union ctl_io *io, uint8_t *data_ptr, uint32_t data_len,
 
 #ifndef _KERNEL
 union ctl_io *
-ctl_scsi_alloc_io(struct ctl_id initid)
+ctl_scsi_alloc_io(uint32_t initid)
 {
 	union ctl_io *io;
 

@@ -328,9 +328,8 @@ tpcl_queue(union ctl_io *io, uint64_t lun)
 {
 	struct tpcl_softc *tsoftc = &tpcl_softc;
 
-	io->io_hdr.nexus.initid.id = 0;
+	io->io_hdr.nexus.initid = 0;
 	io->io_hdr.nexus.targ_port = tsoftc->port.targ_port;
-	io->io_hdr.nexus.targ_target.id = 0;
 	io->io_hdr.nexus.targ_lun = lun;
 	io->scsiio.tag_num = atomic_fetchadd_int(&tsoftc->cur_tag_num, 1);
 	io->scsiio.ext_data_filled = 0;
