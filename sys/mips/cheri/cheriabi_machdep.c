@@ -251,6 +251,7 @@ cheriabi_set_syscall_retval(struct thread *td, int error)
 	struct cheri_frame *capreg = &td->td_pcb->pcb_cheriframe;
 	register_t a0;
 	unsigned int code;
+	struct sysentvec *se;
 
 	code = locr0->v0;
 	a0 = locr0->a0;
@@ -258,6 +259,15 @@ cheriabi_set_syscall_retval(struct thread *td, int error)
 		code = locr0->a0;
 		a0 = locr0->a1;
 	}
+
+	se = td->td_proc->p_sysent;
+	/*
+	 * When programs start up, they pass through the return path
+	 * (maybe via execve?).  When this happens, code is an absurd
+	 * and out of range value.
+	 */
+	if (code > se->sv_size)
+		code = 0;
 
 	switch (error) {
 	case 0:
