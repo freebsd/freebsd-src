@@ -181,21 +181,21 @@ cheriabi_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
 	 * XXXBD: we should idealy use a user capability rather than KDC
 	 * to generate the pointers, but then we have to answer: which one?
 	 */
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &capreg->cf_c1, 0);
-	CHERI_CTOPTR(ptrargs[0], CHERI_CR_CTEMP0, CHERI_CR_KDC);
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &capreg->cf_c2, 0);
-	CHERI_CTOPTR(ptrargs[1], CHERI_CR_CTEMP0, CHERI_CR_KDC);
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &capreg->cf_c3, 0);
-	CHERI_CTOPTR(ptrargs[2], CHERI_CR_CTEMP0, CHERI_CR_KDC);
+	CHERI_CTOPTR(ptrargs[0], CHERI_CR_CTEMP0, CHERI_CR_KDC);
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &capreg->cf_c4, 0);
-	CHERI_CTOPTR(ptrargs[3], CHERI_CR_CTEMP0, CHERI_CR_KDC);
+	CHERI_CTOPTR(ptrargs[1], CHERI_CR_CTEMP0, CHERI_CR_KDC);
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &capreg->cf_c5, 0);
-	CHERI_CTOPTR(ptrargs[4], CHERI_CR_CTEMP0, CHERI_CR_KDC);
+	CHERI_CTOPTR(ptrargs[2], CHERI_CR_CTEMP0, CHERI_CR_KDC);
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &capreg->cf_c6, 0);
-	CHERI_CTOPTR(ptrargs[5], CHERI_CR_CTEMP0, CHERI_CR_KDC);
+	CHERI_CTOPTR(ptrargs[3], CHERI_CR_CTEMP0, CHERI_CR_KDC);
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &capreg->cf_c7, 0);
-	CHERI_CTOPTR(ptrargs[6], CHERI_CR_CTEMP0, CHERI_CR_KDC);
+	CHERI_CTOPTR(ptrargs[4], CHERI_CR_CTEMP0, CHERI_CR_KDC);
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &capreg->cf_c8, 0);
+	CHERI_CTOPTR(ptrargs[5], CHERI_CR_CTEMP0, CHERI_CR_KDC);
+	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &capreg->cf_c9, 0);
+	CHERI_CTOPTR(ptrargs[6], CHERI_CR_CTEMP0, CHERI_CR_KDC);
+	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &capreg->cf_c10, 0);
 	CHERI_CTOPTR(ptrargs[7], CHERI_CR_CTEMP0, CHERI_CR_KDC);
 	psaved = 8;
 
