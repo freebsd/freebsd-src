@@ -125,12 +125,12 @@ struct ctl_wwpn_iid {
  * port_online():	  This function is called, with onoff_arg as its
  *			  argument, by the CTL layer when it wants the FETD
  *			  to start responding to selections on the specified
- * 			  target ID.  (targ_target)
+ * 			  target ID.
  *
  * port_offline():	  This function is called, with onoff_arg as its
  *			  argument, by the CTL layer when it wants the FETD
  * 			  to stop responding to selection on the specified
- * 			  target ID.  (targ_target)
+ * 			  target ID.
  *
  * onoff_arg:		  This is supplied as an argument to port_online()
  *			  and port_offline().  This is specified by the

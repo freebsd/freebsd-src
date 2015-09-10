@@ -546,12 +546,8 @@ cfcs_action(struct cam_sim *sim, union ccb *ccb)
 		 * down via the XPT_RESET_BUS/LUN CCBs below.
 		 */
 		io->io_hdr.io_type = CTL_IO_SCSI;
-		io->io_hdr.nexus.initid.id = 1;
+		io->io_hdr.nexus.initid = 1;
 		io->io_hdr.nexus.targ_port = softc->port.targ_port;
-		/*
-		 * XXX KDM how do we handle target IDs?
-		 */
-		io->io_hdr.nexus.targ_target.id = ccb->ccb_h.target_id;
 		io->io_hdr.nexus.targ_lun = ccb->ccb_h.target_lun;
 		/*
 		 * This tag scheme isn't the best, since we could in theory
@@ -639,9 +635,8 @@ cfcs_action(struct cam_sim *sim, union ccb *ccb)
 		ccb->ccb_h.io_ptr = io;
 
 		io->io_hdr.io_type = CTL_IO_TASK;
-		io->io_hdr.nexus.initid.id = 1;
+		io->io_hdr.nexus.initid = 1;
 		io->io_hdr.nexus.targ_port = softc->port.targ_port;
-		io->io_hdr.nexus.targ_target.id = ccb->ccb_h.target_id;
 		io->io_hdr.nexus.targ_lun = ccb->ccb_h.target_lun;
 		io->taskio.task_action = CTL_TASK_ABORT_TASK;
 		io->taskio.tag_num = abort_ccb->csio.tag_id;
@@ -735,9 +730,8 @@ cfcs_action(struct cam_sim *sim, union ccb *ccb)
 		ccb->ccb_h.io_ptr = io;
 
 		io->io_hdr.io_type = CTL_IO_TASK;
-		io->io_hdr.nexus.initid.id = 0;
+		io->io_hdr.nexus.initid = 1;
 		io->io_hdr.nexus.targ_port = softc->port.targ_port;
-		io->io_hdr.nexus.targ_target.id = ccb->ccb_h.target_id;
 		io->io_hdr.nexus.targ_lun = ccb->ccb_h.target_lun;
 		if (ccb->ccb_h.func_code == XPT_RESET_BUS)
 			io->taskio.task_action = CTL_TASK_BUS_RESET;
