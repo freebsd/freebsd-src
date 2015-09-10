@@ -139,24 +139,12 @@ SYSCTL_DECL(_kern_cam_ctl);
 #endif
 
 /*
- * Call these routines to enable or disable front end ports.
- */
-int ctl_port_enable(ctl_port_type port_type);
-int ctl_port_disable(ctl_port_type port_type);
-/*
- * This routine grabs a list of frontend ports.
- */
-int ctl_port_list(struct ctl_port_entry *entries, int num_entries_alloced,
-		  int *num_entries_filled, int *num_entries_dropped,
-		  ctl_port_type port_type, int no_virtual);
-
-/*
  * Put a string into an sbuf, escaping characters that are illegal or not
  * recommended in XML.  Note this doesn't escape everything, just > < and &.
  */
 int ctl_sbuf_printf_esc(struct sbuf *sb, char *str, int size);
 
-int ctl_ffz(uint32_t *mask, uint32_t size);
+int ctl_ffz(uint32_t *mask, uint32_t first, uint32_t last);
 int ctl_set_mask(uint32_t *mask, uint32_t bit);
 int ctl_clear_mask(uint32_t *mask, uint32_t bit);
 int ctl_is_set(uint32_t *mask, uint32_t bit);
@@ -165,11 +153,6 @@ int ctl_caching_sp_handler(struct ctl_scsiio *ctsio,
 int ctl_control_page_handler(struct ctl_scsiio *ctsio,
 			     struct ctl_page_index *page_index,
 			     uint8_t *page_ptr);
-/**
-int ctl_failover_sp_handler(struct ctl_scsiio *ctsio,
-			    struct ctl_page_index *page_index,
-			    uint8_t *page_ptr);
-**/
 int ctl_debugconf_sp_sense_handler(struct ctl_scsiio *ctsio,
 				   struct ctl_page_index *page_index,
 				   int pc);
@@ -189,11 +172,12 @@ void ctl_data_submit_done(union ctl_io *io);
 void ctl_config_read_done(union ctl_io *io);
 void ctl_config_write_done(union ctl_io *io);
 void ctl_portDB_changed(int portnum);
-#ifdef notyet
-void ctl_init_isc_msg(void);
-#endif
 int ctl_ioctl_io(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 		 struct thread *td);
+struct ctl_lun;
+void ctl_isc_announce_lun(struct ctl_lun *lun);
+struct ctl_port;
+void ctl_isc_announce_port(struct ctl_port *port);
 
 /*
  * KPI to manipulate LUN/port options
