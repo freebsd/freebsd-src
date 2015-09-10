@@ -140,6 +140,7 @@ int
 ctl_port_register(struct ctl_port *port)
 {
 	struct ctl_softc *softc = control_softc;
+	struct ctl_port *tport, *nport;
 	void *pool;
 	int port_num;
 	int retval;
@@ -149,10 +150,13 @@ ctl_port_register(struct ctl_port *port)
 	KASSERT(softc != NULL, ("CTL is not initialized"));
 
 	mtx_lock(&softc->ctl_lock);
-	port_num = ctl_ffz(softc->ctl_port_mask, CTL_MAX_PORTS);
-	if ((port_num == -1)
-	 || (ctl_set_mask(softc->ctl_port_mask, port_num) == -1)) {
-		port->targ_port = -1;
+	if (port->targ_port >= 0)
+		port_num = port->targ_port;
+	else
+		port_num = ctl_ffz(softc->ctl_port_mask,
+		    softc->port_min, softc->port_max);
+	if ((port_num < 0) ||
+	    (ctl_set_mask(softc->ctl_port_mask, port_num) < 0)) {
 		mtx_unlock(&softc->ctl_lock);
 		return (1);
 	}
@@ -195,10 +199,17 @@ error:
 		STAILQ_INIT(&port->options);
 
 	mtx_lock(&softc->ctl_lock);
-	port->targ_port = port_num + softc->port_offset;
+	port->targ_port = port_num;
 	STAILQ_INSERT_TAIL(&port->frontend->port_list, port, fe_links);
-	STAILQ_INSERT_TAIL(&softc->port_list, port, links);
-	softc->ctl_ports[port_num] = port;
+	for (tport = NULL, nport = STAILQ_FIRST(&softc->port_list);
+	    nport != NULL && nport->targ_port < port_num;
+	    tport = nport, nport = STAILQ_NEXT(tport, links)) {
+	}
+	if (tport)
+		STAILQ_INSERT_AFTER(&softc->port_list, tport, port, links);
+	else
+		STAILQ_INSERT_HEAD(&softc->port_list, port, links);
+	softc->ctl_ports[port->targ_port] = port;
 	mtx_unlock(&softc->ctl_lock);
 
 	return (retval);
@@ -209,7 +220,7 @@ ctl_port_deregister(struct ctl_port *port)
 {
 	struct ctl_softc *softc = control_softc;
 	struct ctl_io_pool *pool;
-	int port_num, retval, i;
+	int retval, i;
 
 	retval = 0;
 
@@ -224,10 +235,8 @@ ctl_port_deregister(struct ctl_port *port)
 	STAILQ_REMOVE(&softc->port_list, port, ctl_port, links);
 	STAILQ_REMOVE(&port->frontend->port_list, port, ctl_port, fe_links);
 	softc->num_ports--;
-	port_num = (port->targ_port < CTL_MAX_PORTS) ? port->targ_port :
-	    port->targ_port - CTL_MAX_PORTS;
-	ctl_clear_mask(softc->ctl_port_mask, port_num);
-	softc->ctl_ports[port_num] = NULL;
+	ctl_clear_mask(softc->ctl_port_mask, port->targ_port);
+	softc->ctl_ports[port->targ_port] = NULL;
 	mtx_unlock(&softc->ctl_lock);
 
 	ctl_pool_free(pool);
@@ -321,6 +330,7 @@ ctl_port_online(struct ctl_port *port)
 		port->port_online(port->onoff_arg);
 	/* XXX KDM need a lock here? */
 	port->status |= CTL_PORT_STATUS_ONLINE;
+	ctl_isc_announce_port(port);
 }
 
 void
@@ -347,6 +357,7 @@ ctl_port_offline(struct ctl_port *port)
 	}
 	/* XXX KDM need a lock here? */
 	port->status &= ~CTL_PORT_STATUS_ONLINE;
+	ctl_isc_announce_port(port);
 }
 
 /*

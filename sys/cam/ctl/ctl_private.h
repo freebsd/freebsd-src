@@ -106,8 +106,8 @@ typedef enum {
 	CTL_CMD_FLAG_OK_ON_BOTH		= 0x0300,
 	CTL_CMD_FLAG_OK_ON_STOPPED	= 0x0400,
 	CTL_CMD_FLAG_OK_ON_INOPERABLE	= 0x0800,
-	CTL_CMD_FLAG_OK_ON_OFFLINE	= 0x1000,
-	CTL_CMD_FLAG_OK_ON_SECONDARY	= 0x2000,
+	CTL_CMD_FLAG_OK_ON_STANDBY	= 0x1000,
+	CTL_CMD_FLAG_OK_ON_UNAVAIL	= 0x2000,
 	CTL_CMD_FLAG_ALLOW_ON_PR_RESV	= 0x4000,
 	CTL_CMD_FLAG_SA5		= 0x8000
 } ctl_cmd_flags;
@@ -157,7 +157,8 @@ typedef enum {
 	CTL_LUN_PR_RESERVED	= 0x100,
 	CTL_LUN_PRIMARY_SC	= 0x200,
 	CTL_LUN_SENSE_DESC	= 0x400,
-	CTL_LUN_READONLY	= 0x800
+	CTL_LUN_READONLY	= 0x800,
+	CTL_LUN_PEER_SC_PRIMARY	= 0x1000
 } ctl_lun_flags;
 
 typedef enum {
@@ -398,7 +399,7 @@ struct ctl_lun {
 	struct ctl_lun_io_stats		stats;
 	uint32_t			res_idx;
 	unsigned int			PRGeneration;
-	uint64_t			*pr_keys[2 * CTL_MAX_PORTS];
+	uint64_t			*pr_keys[CTL_MAX_PORTS];
 	int				pr_key_count;
 	uint32_t			pr_res_idx;
 	uint8_t				res_type;
@@ -434,11 +435,13 @@ struct ctl_softc {
 	ctl_gen_flags flags;
 	ctl_ha_mode ha_mode;
 	int ha_id;
-	int ha_state;
 	int is_single;
-	int port_offset;
-	int persis_offset;
-	int inquiry_pq_no_lun;
+	ctl_ha_link_state ha_link;
+	int port_min;
+	int port_max;
+	int port_cnt;
+	int init_min;
+	int init_max;
 	struct sysctl_ctx_list sysctl_ctx;
 	struct sysctl_oid *sysctl_tree;
 	void *othersc_pool;
@@ -469,8 +472,6 @@ struct ctl_softc {
 extern const struct ctl_cmd_entry ctl_cmd_table[256];
 
 uint32_t ctl_get_initindex(struct ctl_nexus *nexus);
-uint32_t ctl_get_resindex(struct ctl_nexus *nexus);
-uint32_t ctl_port_idx(int port_num);
 int ctl_lun_map_init(struct ctl_port *port);
 int ctl_lun_map_deinit(struct ctl_port *port);
 int ctl_lun_map_set(struct ctl_port *port, uint32_t plun, uint32_t glun);
@@ -508,7 +509,6 @@ int ctl_report_tagret_port_groups(struct ctl_scsiio *ctsio);
 int ctl_report_supported_opcodes(struct ctl_scsiio *ctsio);
 int ctl_report_supported_tmf(struct ctl_scsiio *ctsio);
 int ctl_report_timestamp(struct ctl_scsiio *ctsio);
-int ctl_isc(struct ctl_scsiio *ctsio);
 int ctl_get_lba_status(struct ctl_scsiio *ctsio);
 
 void ctl_tpc_init(struct ctl_softc *softc);
