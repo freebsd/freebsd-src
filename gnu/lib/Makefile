@@ -28,7 +28,7 @@ SUBDIR+= libstdc++ libsupc++
 
 .if defined(LIBCHERI)
 .if ${MK_LIBCHERI_ALL} == "no"
-SUBDIR:=	csu
+SUBDIR:=
 .else
 # No C++ support
 SUBDIR:=	${SUBDIR:Nlibstdc++:Nlibsupc++}

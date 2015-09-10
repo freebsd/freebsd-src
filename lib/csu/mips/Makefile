@@ -15,6 +15,8 @@ CLEANFILES=	${FILES} crt1_c.o crt1_s.o gcrt1_c.o Scrt1_c.o
 CLEANFILES+=	crt1_c.s gcrt1_c.s Scrt1_c.s
 
 .if defined(LIBCHERI)
+# We don't support .init and .fini on CheriABI so don't build the files.
+FILES:=	${FILES:Ncrti.o:Ncrtn.o}
 STRIP_EXCEPTIONS=	objcopy -R .eh_frame ${.TARGET}
 .endif
 
