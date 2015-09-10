@@ -19,4 +19,7 @@ LDADD+= -lpthread
 .if ${MK_CHERI} != "no"
 LIBADD+=  cheri
 LDADD+=  -static -lcheri
+.ifdef CLANG_CLEARREGS
+CFLAGS+= -mllvm -cheri-use-clearregs
+.endif
 .endif
