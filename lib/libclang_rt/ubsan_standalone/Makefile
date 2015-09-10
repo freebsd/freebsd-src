@@ -2,9 +2,10 @@
 
 .include <bsd.init.mk>
 
-LIB=	clang_rt.san-${CRTARCH}
+LIB=	clang_rt.ubsan_standalone-${CRTARCH}
 
 .PATH:	${CRTSRC}/lib/sanitizer_common\
+	${CRTSRC}/lib/ubsan
 
 SRCS=	sanitizer_allocator.cc\
 	sanitizer_common.cc\
@@ -31,6 +32,7 @@ SRCS=	sanitizer_allocator.cc\
 	sanitizer_suppressions.cc\
 	sanitizer_symbolizer.cc\
 	sanitizer_symbolizer_libbacktrace.cc\
+	sanitizer_symbolizer_mac.cc\
 	sanitizer_symbolizer_win.cc\
 	sanitizer_tls_get_addr.cc\
 	sanitizer_thread_registry.cc\
@@ -44,6 +46,13 @@ SRCS=	sanitizer_allocator.cc\
 	sanitizer_stoptheworld_linux_libcdep.cc\
 	sanitizer_symbolizer_libcdep.cc\
 	sanitizer_symbolizer_posix_libcdep.cc\
-	sanitizer_unwind_posix_libcdep.cc
+	sanitizer_symbolizer_process_libcdep.cc\
+	sanitizer_unwind_linux_libcdep.cc\
+	ubsan_diag.cc\
+	ubsan_init.cc\
+	ubsan_flags.cc\
+	ubsan_handlers.cc\
+	ubsan_value.cc\
+	ubsan_init_standalone.cc
 
 .include <bsd.lib.mk>

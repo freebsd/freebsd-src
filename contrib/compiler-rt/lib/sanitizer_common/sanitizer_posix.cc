@@ -9,7 +9,7 @@
 //
 // This file is shared between AddressSanitizer and ThreadSanitizer
 // run-time libraries and implements POSIX-specific functions from
-// sanitizer_libc.h.
+// sanitizer_posix.h.
 //===----------------------------------------------------------------------===//
 
 #include "sanitizer_platform.h"
@@ -17,9 +17,12 @@
 
 #include "sanitizer_common.h"
 #include "sanitizer_libc.h"
+#include "sanitizer_posix.h"
 #include "sanitizer_procmaps.h"
 #include "sanitizer_stacktrace.h"
 
+#include <fcntl.h>
+#include <signal.h>
 #include <sys/mman.h>
 
 #if SANITIZER_LINUX
@@ -47,7 +50,7 @@ uptr GetMmapGranularity() {
 #if SANITIZER_WORDSIZE == 32
 // Take care of unusable kernel area in top gigabyte.
 static uptr GetKernelAreaSize() {
-#if SANITIZER_LINUX
+#if SANITIZER_LINUX && !SANITIZER_X32
   const uptr gbyte = 1UL << 30;
 
   // Firstly check if there are writable segments
@@ -79,7 +82,7 @@ static uptr GetKernelAreaSize() {
   return gbyte;
 #else
   return 0;
-#endif  // SANITIZER_LINUX
+#endif  // SANITIZER_LINUX && !SANITIZER_X32
 }
 #endif  // SANITIZER_WORDSIZE == 32
 
@@ -162,22 +165,6 @@ void *MmapNoReserveOrDie(uptr size, const char *mem_type) {
   return (void *)p;
 }
 
-void *MmapFixedNoReserve(uptr fixed_addr, uptr size) {
-  uptr PageSize = GetPageSizeCached();
-  uptr p = internal_mmap((void*)(fixed_addr & ~(PageSize - 1)),
-      RoundUpTo(size, PageSize),
-      PROT_READ | PROT_WRITE,
-      MAP_PRIVATE | MAP_ANON | MAP_FIXED | MAP_NORESERVE,
-      -1, 0);
-  int reserrno;
-  if (internal_iserror(p, &reserrno))
-    Report("ERROR: %s failed to "
-           "allocate 0x%zx (%zd) bytes at address %zx (errno: %d)\n",
-           SanitizerToolName, size, size, fixed_addr, reserrno);
-  IncreaseTotalMmap(size);
-  return (void *)p;
-}
-
 void *MmapFixedOrDie(uptr fixed_addr, uptr size) {
   uptr PageSize = GetPageSizeCached();
   uptr p = internal_mmap((void*)(fixed_addr & ~(PageSize - 1)),
@@ -196,17 +183,55 @@ void *MmapFixedOrDie(uptr fixed_addr, uptr size) {
   return (void *)p;
 }
 
-void *Mprotect(uptr fixed_addr, uptr size) {
-  return (void *)internal_mmap((void*)fixed_addr, size,
-                               PROT_NONE,
-                               MAP_PRIVATE | MAP_ANON | MAP_FIXED |
-                               MAP_NORESERVE, -1, 0);
+bool MprotectNoAccess(uptr addr, uptr size) {
+  return 0 == internal_mprotect((void*)addr, size, PROT_NONE);
+}
+
+fd_t OpenFile(const char *filename, FileAccessMode mode, error_t *errno_p) {
+  int flags;
+  switch (mode) {
+    case RdOnly: flags = O_RDONLY; break;
+    case WrOnly: flags = O_WRONLY | O_CREAT; break;
+    case RdWr: flags = O_RDWR | O_CREAT; break;
+  }
+  fd_t res = internal_open(filename, flags, 0660);
+  if (internal_iserror(res, errno_p))
+    return kInvalidFd;
+  return res;
+}
+
+void CloseFile(fd_t fd) {
+  internal_close(fd);
+}
+
+bool ReadFromFile(fd_t fd, void *buff, uptr buff_size, uptr *bytes_read,
+                  error_t *error_p) {
+  uptr res = internal_read(fd, buff, buff_size);
+  if (internal_iserror(res, error_p))
+    return false;
+  if (bytes_read)
+    *bytes_read = res;
+  return true;
+}
+
+bool WriteToFile(fd_t fd, const void *buff, uptr buff_size, uptr *bytes_written,
+                 error_t *error_p) {
+  uptr res = internal_write(fd, buff, buff_size);
+  if (internal_iserror(res, error_p))
+    return false;
+  if (bytes_written)
+    *bytes_written = res;
+  return true;
+}
+
+bool RenameFile(const char *oldpath, const char *newpath, error_t *error_p) {
+  uptr res = internal_rename(oldpath, newpath);
+  return !internal_iserror(res, error_p);
 }
 
 void *MapFileToMemory(const char *file_name, uptr *buff_size) {
-  uptr openrv = OpenFile(file_name, false);
-  CHECK(!internal_iserror(openrv));
-  fd_t fd = openrv;
+  fd_t fd = OpenFile(file_name, RdOnly);
+  CHECK(fd != kInvalidFd);
   uptr fsize = internal_filesize(fd);
   CHECK_NE(fsize, (uptr)-1);
   CHECK_GT(fsize, 0);
@@ -215,13 +240,14 @@ void *MapFileToMemory(const char *file_name, uptr *buff_size) {
   return internal_iserror(map) ? 0 : (void *)map;
 }
 
-void *MapWritableFileToMemory(void *addr, uptr size, uptr fd, uptr offset) {
+void *MapWritableFileToMemory(void *addr, uptr size, fd_t fd, OFF_T offset) {
   uptr flags = MAP_SHARED;
   if (addr) flags |= MAP_FIXED;
   uptr p = internal_mmap(addr, size, PROT_READ | PROT_WRITE, flags, fd, offset);
-  if (internal_iserror(p)) {
-    Printf("could not map writable file (%zd, %zu, %zu): %zd\n", fd, offset,
-           size, p);
+  int mmap_errno = 0;
+  if (internal_iserror(p, &mmap_errno)) {
+    Printf("could not map writable file (%d, %lld, %zu): %zd, errno: %d\n",
+           fd, (long long)offset, size, p, mmap_errno);
     return 0;
   }
   return (void *)p;
@@ -244,6 +270,7 @@ bool MemoryRangeIsAvailable(uptr range_start, uptr range_end) {
   while (proc_maps.Next(&start, &end,
                         /*offset*/0, /*filename*/0, /*filename_size*/0,
                         /*protection*/0)) {
+    if (start == end) continue;  // Empty range.
     CHECK_NE(0, end);
     if (!IntervalsAreSeparate(start, end - 1, range_start, range_end))
       return false;
@@ -293,6 +320,14 @@ char *FindPathToBinary(const char *name) {
   return 0;
 }
 
+bool IsPathSeparator(const char c) {
+  return c == '/';
+}
+
+bool IsAbsolutePath(const char *path) {
+  return path != nullptr && IsPathSeparator(path[0]);
+}
+
 void ReportFile::Write(const char *buffer, uptr length) {
   SpinMutexLock l(mu);
   static const char *kWriteError =
@@ -317,6 +352,13 @@ bool GetCodeRangeForFile(const char *module, uptr *start, uptr *end) {
     }
   }
   return false;
+}
+
+SignalContext SignalContext::Create(void *siginfo, void *context) {
+  uptr addr = (uptr)((siginfo_t*)siginfo)->si_addr;
+  uptr pc, sp, bp;
+  GetPcSpBp(context, &pc, &sp, &bp);
+  return SignalContext(context, addr, pc, sp, bp);
 }
 
 }  // namespace __sanitizer

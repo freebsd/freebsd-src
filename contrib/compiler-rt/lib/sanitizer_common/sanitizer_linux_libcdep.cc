@@ -15,6 +15,7 @@
 #include "sanitizer_platform.h"
 #if SANITIZER_FREEBSD || SANITIZER_LINUX
 
+#include "sanitizer_atomic.h"
 #include "sanitizer_common.h"
 #include "sanitizer_flags.h"
 #include "sanitizer_freebsd.h"
@@ -22,13 +23,12 @@
 #include "sanitizer_placement_new.h"
 #include "sanitizer_procmaps.h"
 #include "sanitizer_stacktrace.h"
-#include "sanitizer_atomic.h"
-#include "sanitizer_symbolizer.h"
 
 #if SANITIZER_ANDROID || SANITIZER_FREEBSD
 #include <dlfcn.h>  // for dlsym()
 #endif
 
+#include <link.h>
 #include <pthread.h>
 #include <signal.h>
 #include <sys/resource.h>
@@ -43,9 +43,12 @@
 #include <sys/prctl.h>
 #endif
 
+#if SANITIZER_ANDROID
+#include <android/api-level.h>
+#endif
+
 #if !SANITIZER_ANDROID
 #include <elf.h>
-#include <link.h>
 #include <unistd.h>
 #endif
 
@@ -398,13 +401,6 @@ void AdjustStackSize(void *attr_) {
   }
 }
 
-#if SANITIZER_ANDROID
-uptr GetListOfModules(LoadedModule *modules, uptr max_modules,
-                      string_predicate_t filter) {
-  MemoryMappingLayout memory_mapping(false);
-  return memory_mapping.DumpListOfModules(modules, max_modules, filter);
-}
-#else  // SANITIZER_ANDROID
 # if !SANITIZER_FREEBSD
 typedef ElfW(Phdr) Elf_Phdr;
 # elif SANITIZER_WORDSIZE == 32 && __FreeBSD_version <= 902001  // v9.2
@@ -429,7 +425,7 @@ static int dl_iterate_phdr_cb(dl_phdr_info *info, size_t size, void *arg) {
   if (data->first) {
     data->first = false;
     // First module is the binary itself.
-    ReadBinaryName(module_name.data(), module_name.size());
+    ReadBinaryNameCached(module_name.data(), module_name.size());
   } else if (info->dlpi_name) {
     module_name.append("%s", info->dlpi_name);
   }
@@ -437,9 +433,8 @@ static int dl_iterate_phdr_cb(dl_phdr_info *info, size_t size, void *arg) {
     return 0;
   if (data->filter && !data->filter(module_name.data()))
     return 0;
-  void *mem = &data->modules[data->current_n];
-  LoadedModule *cur_module = new(mem) LoadedModule(module_name.data(),
-                                                   info->dlpi_addr);
+  LoadedModule *cur_module = &data->modules[data->current_n];
+  cur_module->set(module_name.data(), info->dlpi_addr);
   data->current_n++;
   for (int i = 0; i < info->dlpi_phnum; i++) {
     const Elf_Phdr *phdr = &info->dlpi_phdr[i];
@@ -453,26 +448,27 @@ static int dl_iterate_phdr_cb(dl_phdr_info *info, size_t size, void *arg) {
   return 0;
 }
 
+#if SANITIZER_ANDROID && __ANDROID_API__ < 21
+extern "C" __attribute__((weak)) int dl_iterate_phdr(
+    int (*)(struct dl_phdr_info *, size_t, void *), void *);
+#endif
+
 uptr GetListOfModules(LoadedModule *modules, uptr max_modules,
                       string_predicate_t filter) {
+#if SANITIZER_ANDROID && __ANDROID_API__ < 21
+  u32 api_level = AndroidGetApiLevel();
+  // Fall back to /proc/maps if dl_iterate_phdr is unavailable or broken.
+  // The runtime check allows the same library to work with
+  // both K and L (and future) Android releases.
+  if (api_level <= ANDROID_LOLLIPOP_MR1) { // L or earlier
+    MemoryMappingLayout memory_mapping(false);
+    return memory_mapping.DumpListOfModules(modules, max_modules, filter);
+  }
+#endif
   CHECK(modules);
   DlIteratePhdrData data = {modules, 0, true, max_modules, filter};
   dl_iterate_phdr(dl_iterate_phdr_cb, &data);
   return data.current_n;
-}
-#endif  // SANITIZER_ANDROID
-
-void PrepareForSandboxing(__sanitizer_sandbox_arguments *args) {
-  // Some kinds of sandboxes may forbid filesystem access, so we won't be able
-  // to read the file mappings from /proc/self/maps. Luckily, neither the
-  // process will be able to load additional libraries, so it's fine to use the
-  // cached mappings.
-  MemoryMappingLayout::CacheMemoryMappings();
-  // Same for /proc/self/exe in the symbolizer.
-#if !SANITIZER_GO
-  Symbolizer::GetOrInit()->PrepareForSandboxing();
-  CovPrepareForSandboxing(args);
-#endif
 }
 
 // getrusage does not give us the current RSS, only the max RSS.
@@ -488,8 +484,8 @@ static uptr GetRSSFromGetrusage() {
 uptr GetRSS() {
   if (!common_flags()->can_use_proc_maps_statm)
     return GetRSSFromGetrusage();
-  uptr fd = OpenFile("/proc/self/statm", false);
-  if ((sptr)fd < 0)
+  fd_t fd = OpenFile("/proc/self/statm", RdOnly);
+  if (fd == kInvalidFd)
     return GetRSSFromGetrusage();
   char buf[64];
   uptr len = internal_read(fd, buf, sizeof(buf) - 1);
