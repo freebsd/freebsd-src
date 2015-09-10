@@ -564,9 +564,8 @@ cfiscsi_pdu_handle_scsi_command(struct icl_pdu *request)
 	ctl_zero_io(io);
 	io->io_hdr.ctl_private[CTL_PRIV_FRONTEND].ptr = request;
 	io->io_hdr.io_type = CTL_IO_SCSI;
-	io->io_hdr.nexus.initid.id = cs->cs_ctl_initid;
+	io->io_hdr.nexus.initid = cs->cs_ctl_initid;
 	io->io_hdr.nexus.targ_port = cs->cs_target->ct_port.targ_port;
-	io->io_hdr.nexus.targ_target.id = 0;
 	io->io_hdr.nexus.targ_lun = cfiscsi_decode_lun(bhssc->bhssc_lun);
 	io->scsiio.tag_num = bhssc->bhssc_initiator_task_tag;
 	switch ((bhssc->bhssc_flags & BHSSC_FLAGS_ATTR)) {
@@ -621,9 +620,8 @@ cfiscsi_pdu_handle_task_request(struct icl_pdu *request)
 	ctl_zero_io(io);
 	io->io_hdr.ctl_private[CTL_PRIV_FRONTEND].ptr = request;
 	io->io_hdr.io_type = CTL_IO_TASK;
-	io->io_hdr.nexus.initid.id = cs->cs_ctl_initid;
+	io->io_hdr.nexus.initid = cs->cs_ctl_initid;
 	io->io_hdr.nexus.targ_port = cs->cs_target->ct_port.targ_port;
-	io->io_hdr.nexus.targ_target.id = 0;
 	io->io_hdr.nexus.targ_lun = cfiscsi_decode_lun(bhstmr->bhstmr_lun);
 	io->taskio.tag_type = CTL_TAG_SIMPLE; /* XXX */
 
@@ -1120,9 +1118,8 @@ cfiscsi_session_terminate_tasks(struct cfiscsi_session *cs)
 	ctl_zero_io(io);
 	io->io_hdr.ctl_private[CTL_PRIV_FRONTEND].ptr = cs;
 	io->io_hdr.io_type = CTL_IO_TASK;
-	io->io_hdr.nexus.initid.id = cs->cs_ctl_initid;
+	io->io_hdr.nexus.initid = cs->cs_ctl_initid;
 	io->io_hdr.nexus.targ_port = cs->cs_target->ct_port.targ_port;
-	io->io_hdr.nexus.targ_target.id = 0;
 	io->io_hdr.nexus.targ_lun = 0;
 	io->taskio.tag_type = CTL_TAG_SIMPLE; /* XXX */
 	io->taskio.task_action = CTL_TASK_I_T_NEXUS_RESET;
