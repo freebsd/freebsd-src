@@ -129,6 +129,9 @@ ${PROG_FULL}: ${OBJS}
 .if ${MK_CTF} != "no"
 	${CTFMERGE} ${CTFFLAGS} -o ${.TARGET} ${OBJS}
 .endif
+.if defined(NEED_CHERI) && ${NEED_CHERI} == "pure"
+	${CHERIFY} ${.TARGET}
+.endif
 .endif # !target(${PROG})
 
 .endif # !defined(SRCS)
