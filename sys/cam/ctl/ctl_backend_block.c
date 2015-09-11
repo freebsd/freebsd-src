@@ -1615,33 +1615,32 @@ ctl_be_block_dispatch(struct ctl_be_block_lun *be_lun,
 static void
 ctl_be_block_worker(void *context, int pending)
 {
-	struct ctl_be_block_lun *be_lun;
-	struct ctl_be_block_softc *softc;
+	struct ctl_be_block_lun *be_lun = (struct ctl_be_block_lun *)context;
+	struct ctl_be_lun *cbe_lun = &be_lun->cbe_lun;
 	union ctl_io *io;
-
-	be_lun = (struct ctl_be_block_lun *)context;
-	softc = be_lun->softc;
+	struct ctl_be_block_io *beio;
 
 	DPRINTF("entered\n");
-
-	mtx_lock(&be_lun->queue_lock);
+	/*
+	 * Fetch and process I/Os from all queues.  If we detect LUN
+	 * CTL_LUN_FLAG_OFFLINE status here -- it is result of a race,
+	 * so make response maximally opaque to not confuse initiator.
+	 */
 	for (;;) {
+		mtx_lock(&be_lun->queue_lock);
 		io = (union ctl_io *)STAILQ_FIRST(&be_lun->datamove_queue);
 		if (io != NULL) {
-			struct ctl_be_block_io *beio;
-
 			DPRINTF("datamove queue\n");
-
 			STAILQ_REMOVE(&be_lun->datamove_queue, &io->io_hdr,
 				      ctl_io_hdr, links);
-
 			mtx_unlock(&be_lun->queue_lock);
-
 			beio = (struct ctl_be_block_io *)PRIV(io)->ptr;
-
+			if (cbe_lun->flags & CTL_LUN_FLAG_OFFLINE) {
+				ctl_set_busy(&io->scsiio);
+				ctl_complete_beio(beio);
+				return;
+			}
 			be_lun->dispatch(be_lun, beio);
-
-			mtx_lock(&be_lun->queue_lock);
 			continue;
 		}
 		io = (union ctl_io *)STAILQ_FIRST(&be_lun->config_write_queue);
@@ -1650,8 +1649,12 @@ ctl_be_block_worker(void *context, int pending)
 			STAILQ_REMOVE(&be_lun->config_write_queue, &io->io_hdr,
 				      ctl_io_hdr, links);
 			mtx_unlock(&be_lun->queue_lock);
+			if (cbe_lun->flags & CTL_LUN_FLAG_OFFLINE) {
+				ctl_set_busy(&io->scsiio);
+				ctl_config_write_done(io);
+				return;
+			}
 			ctl_be_block_cw_dispatch(be_lun, io);
-			mtx_lock(&be_lun->queue_lock);
 			continue;
 		}
 		io = (union ctl_io *)STAILQ_FIRST(&be_lun->config_read_queue);
@@ -1660,25 +1663,26 @@ ctl_be_block_worker(void *context, int pending)
 			STAILQ_REMOVE(&be_lun->config_read_queue, &io->io_hdr,
 				      ctl_io_hdr, links);
 			mtx_unlock(&be_lun->queue_lock);
+			if (cbe_lun->flags & CTL_LUN_FLAG_OFFLINE) {
+				ctl_set_busy(&io->scsiio);
+				ctl_config_read_done(io);
+				return;
+			}
 			ctl_be_block_cr_dispatch(be_lun, io);
-			mtx_lock(&be_lun->queue_lock);
 			continue;
 		}
 		io = (union ctl_io *)STAILQ_FIRST(&be_lun->input_queue);
 		if (io != NULL) {
 			DPRINTF("input queue\n");
-
 			STAILQ_REMOVE(&be_lun->input_queue, &io->io_hdr,
 				      ctl_io_hdr, links);
 			mtx_unlock(&be_lun->queue_lock);
-
-			/*
-			 * We must drop the lock, since this routine and
-			 * its children may sleep.
-			 */
+			if (cbe_lun->flags & CTL_LUN_FLAG_OFFLINE) {
+				ctl_set_busy(&io->scsiio);
+				ctl_data_submit_done(io);
+				return;
+			}
 			ctl_be_block_dispatch(be_lun, io);
-
-			mtx_lock(&be_lun->queue_lock);
 			continue;
 		}
 
@@ -1686,9 +1690,9 @@ ctl_be_block_worker(void *context, int pending)
 		 * If we get here, there is no work left in the queues, so
 		 * just break out and let the task queue go to sleep.
 		 */
+		mtx_unlock(&be_lun->queue_lock);
 		break;
 	}
-	mtx_unlock(&be_lun->queue_lock);
 }
 
 /*
@@ -2443,6 +2447,7 @@ ctl_be_block_rm(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 {
 	struct ctl_lun_rm_params *params;
 	struct ctl_be_block_lun *be_lun;
+	struct ctl_be_lun *cbe_lun;
 	int retval;
 
 	params = &req->reqdata.rm;
@@ -2460,18 +2465,24 @@ ctl_be_block_rm(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 			 params->lun_id);
 		goto bailout_error;
 	}
+	cbe_lun = &be_lun->cbe_lun;
 
-	retval = ctl_disable_lun(&be_lun->cbe_lun);
-
+	retval = ctl_disable_lun(cbe_lun);
 	if (retval != 0) {
 		snprintf(req->error_str, sizeof(req->error_str),
 			 "error %d returned from ctl_disable_lun() for "
 			 "LUN %d", retval, params->lun_id);
 		goto bailout_error;
-
 	}
 
-	retval = ctl_invalidate_lun(&be_lun->cbe_lun);
+	if (be_lun->vn != NULL) {
+		cbe_lun->flags |= CTL_LUN_FLAG_OFFLINE;
+		ctl_lun_offline(cbe_lun);
+		taskqueue_drain_all(be_lun->io_taskqueue);
+		ctl_be_block_close(be_lun);
+	}
+
+	retval = ctl_invalidate_lun(cbe_lun);
 	if (retval != 0) {
 		snprintf(req->error_str, sizeof(req->error_str),
 			 "error %d returned from ctl_invalidate_lun() for "
@@ -2480,15 +2491,12 @@ ctl_be_block_rm(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 	}
 
 	mtx_lock(&softc->lock);
-
 	be_lun->flags |= CTL_BE_BLOCK_LUN_WAITING;
-
 	while ((be_lun->flags & CTL_BE_BLOCK_LUN_UNCONFIGURED) == 0) {
                 retval = msleep(be_lun, &softc->lock, PCATCH, "ctlblk", 0);
                 if (retval == EINTR)
                         break;
         }
-
 	be_lun->flags &= ~CTL_BE_BLOCK_LUN_WAITING;
 
 	if ((be_lun->flags & CTL_BE_BLOCK_LUN_UNCONFIGURED) == 0) {
@@ -2503,18 +2511,15 @@ ctl_be_block_rm(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 	softc->num_luns--;
 	mtx_unlock(&softc->lock);
 
-	taskqueue_drain(be_lun->io_taskqueue, &be_lun->io_task);
-
+	taskqueue_drain_all(be_lun->io_taskqueue);
 	taskqueue_free(be_lun->io_taskqueue);
-
-	ctl_be_block_close(be_lun);
 
 	if (be_lun->disk_stats != NULL)
 		devstat_remove_entry(be_lun->disk_stats);
 
 	uma_zdestroy(be_lun->lun_zone);
 
-	ctl_free_opts(&be_lun->cbe_lun.options);
+	ctl_free_opts(&cbe_lun->options);
 	free(be_lun->dev_path, M_CTLBLK);
 	mtx_destroy(&be_lun->queue_lock);
 	mtx_destroy(&be_lun->io_lock);
@@ -2679,7 +2684,7 @@ ctl_be_block_modify(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 		if (be_lun->vn != NULL) {
 			cbe_lun->flags |= CTL_LUN_FLAG_OFFLINE;
 			ctl_lun_offline(cbe_lun);
-			pause("CTL LUN offline", hz / 8);	// XXX
+			taskqueue_drain_all(be_lun->io_taskqueue);
 			error = ctl_be_block_close(be_lun);
 		} else
 			error = 0;
