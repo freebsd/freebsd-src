@@ -1823,7 +1823,7 @@ arc_hdr_destroy(arc_buf_hdr_t *hdr)
 
 		if (l2hdr != NULL) {
 			trim_map_free(l2hdr->b_dev->l2ad_vdev, l2hdr->b_daddr,
-			    hdr->b_size, 0);
+			    l2hdr->b_asize, 0);
 			list_remove(l2hdr->b_dev->l2ad_buflist, hdr);
 			arc_buf_l2_cdata_free(hdr);
 			ARCSTAT_INCR(arcstat_l2_size, -hdr->b_size);
@@ -3822,7 +3822,7 @@ arc_release(arc_buf_t *buf, void *tag)
 		vdev_space_update(l2hdr->b_dev->l2ad_vdev,
 		    -l2hdr->b_asize, 0, 0);
 		trim_map_free(l2hdr->b_dev->l2ad_vdev, l2hdr->b_daddr,
-		    hdr->b_size, 0);
+		    l2hdr->b_asize, 0);
 		kmem_free(l2hdr, sizeof (l2arc_buf_hdr_t));
 		ARCSTAT_INCR(arcstat_l2_size, -buf_size);
 		mutex_exit(&l2arc_buflist_mtx);
@@ -4761,7 +4761,7 @@ l2arc_write_done(zio_t *zio)
 			bytes_dropped += abl2->b_asize;
 			hdr->b_l2hdr = NULL;
 			trim_map_free(abl2->b_dev->l2ad_vdev, abl2->b_daddr,
-			    hdr->b_size, 0);
+			    abl2->b_asize, 0);
 			kmem_free(abl2, sizeof (l2arc_buf_hdr_t));
 			ARCSTAT_INCR(arcstat_l2_size, -hdr->b_size);
 		}
