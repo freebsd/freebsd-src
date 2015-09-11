@@ -163,6 +163,7 @@ isci_attach(device_t device)
 
 	g_isci = isci;
 	isci->device = device;
+	pci_enable_busmaster(device);
 
 	isci_allocate_pci_memory(isci);
 
@@ -272,6 +273,7 @@ isci_detach(device_t device)
 
 		pci_release_msi(device);
 	}
+	pci_disable_busmaster(device);
 
 	return (0);
 }

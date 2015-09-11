@@ -1,4 +1,5 @@
 /*-
+ * Copyright (c) 2015 EMC Corporation
  * Copyright (c) 2005 Antoine Brodin
  * All rights reserved.
  *
@@ -29,24 +30,51 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/stack.h>
 
 #include <machine/pcb.h>
-#include <machine/stack.h>
+#include <machine/smp.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
 
+#include <x86/stack.h>
+
+#ifdef __i386__
+#define	PCB_FP(pcb)	((pcb)->pcb_ebp)
+#define	TF_FP(tf)	((tf)->tf_ebp)
+#define	TF_PC(tf)	((tf)->tf_eip)
+
+typedef struct i386_frame *x86_frame_t;
+#else
+#define	PCB_FP(pcb)	((pcb)->pcb_rbp)
+#define	TF_FP(tf)	((tf)->tf_rbp)
+#define	TF_PC(tf)	((tf)->tf_rip)
+
+typedef struct amd64_frame *x86_frame_t;
+#endif
+
+static struct stack *nmi_stack;
+static volatile struct thread *nmi_pending;
+
+#ifdef SMP
+static struct mtx nmi_lock;
+MTX_SYSINIT(nmi_lock, &nmi_lock, "stack_nmi", MTX_SPIN);
+#endif
+
 static void
-stack_capture(struct thread *td, struct stack *st, register_t rbp)
+stack_capture(struct thread *td, struct stack *st, register_t fp)
 {
-	struct amd64_frame *frame;
+	x86_frame_t frame;
 	vm_offset_t callpc;
 
 	stack_zero(st);
-	frame = (struct amd64_frame *)rbp;
+	frame = (x86_frame_t)fp;
 	while (1) {
 		if (!INKERNEL((long)frame))
 			break;
@@ -63,25 +91,78 @@ stack_capture(struct thread *td, struct stack *st, register_t rbp)
 	}
 }
 
+int
+stack_nmi_handler(struct trapframe *tf)
+{
+
+	/* Don't consume an NMI that wasn't meant for us. */
+	if (nmi_stack == NULL || curthread != nmi_pending)
+		return (0);
+
+	if (INKERNEL(TF_PC(tf)))
+		stack_capture(curthread, nmi_stack, TF_FP(tf));
+	else
+		/* We interrupted a thread in user mode. */
+		nmi_stack->depth = 0;
+
+	atomic_store_rel_ptr((long *)&nmi_pending, (long)NULL);
+	return (1);
+}
+
 void
 stack_save_td(struct stack *st, struct thread *td)
 {
-	register_t rbp;
 
 	if (TD_IS_SWAPPED(td))
 		panic("stack_save_td: swapped");
 	if (TD_IS_RUNNING(td))
 		panic("stack_save_td: running");
 
-	rbp = td->td_pcb->pcb_rbp;
-	stack_capture(td, st, rbp);
+	stack_capture(td, st, PCB_FP(td->td_pcb));
+}
+
+int
+stack_save_td_running(struct stack *st, struct thread *td)
+{
+
+	THREAD_LOCK_ASSERT(td, MA_OWNED);
+	MPASS(TD_IS_RUNNING(td));
+
+	if (td == curthread) {
+		stack_save(st);
+		return (0);
+	}
+
+#ifdef SMP
+	mtx_lock_spin(&nmi_lock);
+
+	nmi_stack = st;
+	nmi_pending = td;
+	ipi_cpu(td->td_oncpu, IPI_TRACE);
+	while ((void *)atomic_load_acq_ptr((long *)&nmi_pending) != NULL)
+		cpu_spinwait();
+	nmi_stack = NULL;
+
+	mtx_unlock_spin(&nmi_lock);
+
+	if (st->depth == 0)
+		/* We interrupted a thread in user mode. */
+		return (EAGAIN);
+#else
+	KASSERT(0, ("curthread isn't running"));
+#endif
+	return (0);
 }
 
 void
 stack_save(struct stack *st)
 {
-	register_t rbp;
+	register_t fp;
 
-	__asm __volatile("movq %%rbp,%0" : "=r" (rbp));
-	stack_capture(curthread, st, rbp);
+#ifdef __i386__
+	__asm __volatile("movl %%ebp,%0" : "=g" (fp));
+#else
+	__asm __volatile("movq %%rbp,%0" : "=g" (fp));
+#endif
+	stack_capture(curthread, st, fp);
 }

@@ -58,13 +58,12 @@ EXTERN(int ctl_time_io_secs, CTL_TIME_IO_DEFAULT_SECS);
 #endif
 
 /*
- * Uncomment these next two lines to enable the CTL I/O delay feature.  You
+ * Uncomment this next line to enable the CTL I/O delay feature.  You
  * can delay I/O at two different points -- datamove and done.  This is
  * useful for diagnosing abort conditions (for hosts that send an abort on a
  * timeout), and for determining how long a host's timeout is.
  */
-#define	CTL_IO_DELAY
-#define	CTL_TIMER_BYTES		sizeof(struct callout)
+//#define	CTL_IO_DELAY
 
 typedef enum {
 	CTL_STATUS_NONE,	/* No status */
@@ -93,13 +92,11 @@ typedef enum {
 	CTL_FLAG_EDPTR_SGLIST	= 0x00000010,	/* ext_data_ptr is S/G list */
 	CTL_FLAG_DO_AUTOSENSE	= 0x00000020,	/* grab sense info */
 	CTL_FLAG_USER_REQ	= 0x00000040,	/* request came from userland */
-	CTL_FLAG_CONTROL_DEV	= 0x00000080,	/* processor device */
 	CTL_FLAG_ALLOCATED	= 0x00000100,	/* data space allocated */
 	CTL_FLAG_BLOCKED	= 0x00000200,	/* on the blocked queue */
 	CTL_FLAG_ABORT_STATUS	= 0x00000400,	/* return TASK ABORTED status */
 	CTL_FLAG_ABORT		= 0x00000800,	/* this I/O should be aborted */
 	CTL_FLAG_DMA_INPROG	= 0x00001000,	/* DMA in progress */
-	CTL_FLAG_NO_DATASYNC	= 0x00002000,	/* don't cache flush data */
 	CTL_FLAG_DELAY_DONE	= 0x00004000,	/* delay injection done */
 	CTL_FLAG_INT_COPY	= 0x00008000,	/* internal copy, no done call*/
 	CTL_FLAG_SENT_2OTHER_SC	= 0x00010000,
@@ -109,9 +106,6 @@ typedef enum {
 						   addresses, not virtual ones*/
 	CTL_FLAG_IO_CONT	= 0x00100000,	/* Continue I/O instead of
 						   completing */
-	CTL_FLAG_AUTO_MIRROR	= 0x00200000,	/* Automatically use memory
-						   from the RC cache mirrored
-						   address area. */
 #if 0
 	CTL_FLAG_ALREADY_DONE	= 0x00200000	/* I/O already completed */
 #endif
@@ -119,14 +113,8 @@ typedef enum {
 	CTL_FLAG_DMA_QUEUED	= 0x00800000,	/* DMA queued but not started*/
 	CTL_FLAG_STATUS_QUEUED	= 0x01000000,	/* Status queued but not sent*/
 
-	CTL_FLAG_REDIR_DONE	= 0x02000000,	/* Redirection has already
-						   been done. */
 	CTL_FLAG_FAILOVER	= 0x04000000,	/* Killed by a failover */
 	CTL_FLAG_IO_ACTIVE	= 0x08000000,	/* I/O active on this SC */
-	CTL_FLAG_RDMA_MASK	= CTL_FLAG_NO_DATASYNC | CTL_FLAG_BUS_ADDR |
-				  CTL_FLAG_AUTO_MIRROR | CTL_FLAG_REDIR_DONE,
-						/* Flags we care about for
-						   remote DMA */
 	CTL_FLAG_STATUS_SENT	= 0x10000000	/* Status sent by datamove */
 } ctl_io_flags;
 
@@ -184,11 +172,6 @@ struct ctl_sg_entry {
 	size_t	len;
 };
 
-struct ctl_id {
-	uint32_t		id;
-	uint64_t		wwid[2];
-};
-
 typedef enum {
 	CTL_IO_NONE,
 	CTL_IO_SCSI,
@@ -196,9 +179,8 @@ typedef enum {
 } ctl_io_type;
 
 struct ctl_nexus {
-	struct ctl_id initid;		/* Initiator ID */
+	uint32_t initid;		/* Initiator ID */
 	uint32_t targ_port;		/* Target port, filled in by PORT */
-	struct ctl_id targ_target;	/* Destination target */
 	uint32_t targ_lun;		/* Destination lun */
 	uint32_t targ_mapped_lun;	/* Destination lun CTL-wide */
 };
@@ -210,14 +192,15 @@ typedef enum {
 	CTL_MSG_BAD_JUJU,
 	CTL_MSG_MANAGE_TASKS,
 	CTL_MSG_PERS_ACTION,
-	CTL_MSG_SYNC_FE,
 	CTL_MSG_DATAMOVE,
-	CTL_MSG_DATAMOVE_DONE
+	CTL_MSG_DATAMOVE_DONE,
+	CTL_MSG_UA,			/* Set/clear UA on secondary. */
+	CTL_MSG_PORT_SYNC,		/* Information about port. */
+	CTL_MSG_LUN_SYNC,		/* Information about LUN. */
+	CTL_MSG_FAILOVER		/* Fake, never sent though the wire */
 } ctl_msg_type;
 
 struct ctl_scsiio;
-
-#define	CTL_NUM_SG_ENTRIES	9
 
 struct ctl_io_hdr {
 	uint32_t	  version;	/* interface version XXX */
@@ -231,7 +214,7 @@ struct ctl_io_hdr {
 	uint32_t	  timeout;	/* timeout in ms */
 	uint32_t	  retries;	/* retry count */
 #ifdef CTL_IO_DELAY
-	uint8_t		  timer_bytes[CTL_TIMER_BYTES]; /* timer kludge */
+	struct callout	  delay_callout;
 #endif /* CTL_IO_DELAY */
 #ifdef CTL_TIME_IO
 	time_t		  start_time;	/* I/O start time */
@@ -244,10 +227,8 @@ struct ctl_io_hdr {
 	union ctl_io	  *serializing_sc;
 	void		  *pool;	/* I/O pool */
 	union ctl_priv	  ctl_private[CTL_NUM_PRIV];/* CTL private area */
-	struct ctl_sg_entry remote_sglist[CTL_NUM_SG_ENTRIES];
-	struct ctl_sg_entry remote_dma_sglist[CTL_NUM_SG_ENTRIES];
-	struct ctl_sg_entry local_sglist[CTL_NUM_SG_ENTRIES];
-	struct ctl_sg_entry local_dma_sglist[CTL_NUM_SG_ENTRIES];
+	struct ctl_sg_entry *remote_sglist;
+	struct ctl_sg_entry *local_sglist;
 	STAILQ_ENTRY(ctl_io_hdr) links;	/* linked list pointer */
 	TAILQ_ENTRY(ctl_io_hdr) ooa_links;
 	TAILQ_ENTRY(ctl_io_hdr) blocked_links;
@@ -393,10 +374,10 @@ struct ctl_ha_msg_hdr {
 	union ctl_io		*serializing_sc;
 	struct ctl_nexus	nexus;	     /* Initiator, port, target, lun */
 	uint32_t		status;	     /* transaction status */
-	TAILQ_ENTRY(ctl_ha_msg_hdr) links;
 };
 
 #define	CTL_HA_MAX_SG_ENTRIES	16
+#define	CTL_HA_DATAMOVE_SEGMENT	131072
 
 /*
  * Used for CTL_MSG_PERS_ACTION.
@@ -404,6 +385,16 @@ struct ctl_ha_msg_hdr {
 struct ctl_ha_msg_pr {
 	struct ctl_ha_msg_hdr	hdr;
 	struct ctl_pr_info	pr_info;
+};
+
+/*
+ * Used for CTL_MSG_UA.
+ */
+struct ctl_ha_msg_ua {
+	struct ctl_ha_msg_hdr	hdr;
+	int			ua_all;
+	int			ua_set;
+	int			ua_type;
 };
 
 /*
@@ -438,17 +429,18 @@ struct ctl_ha_msg_dt {
  */
 struct ctl_ha_msg_scsi {
 	struct ctl_ha_msg_hdr	hdr;
-	uint8_t			cdb[CTL_MAX_CDBLEN];	/* CDB */
 	uint32_t		tag_num;     /* tag number */
 	ctl_tag_type		tag_type;    /* simple, ordered, etc. */
+	uint8_t			cdb[CTL_MAX_CDBLEN];	/* CDB */
+	uint8_t			cdb_len;	/* CDB length */
 	uint8_t			scsi_status; /* SCSI status byte */
-	struct scsi_sense_data	sense_data;  /* sense data */
 	uint8_t			sense_len;   /* Returned sense length */
 	uint8_t			sense_residual;	/* sense residual length */
 	uint32_t		residual;    /* data residual length */
 	uint32_t		fetd_status; /* trans status, set by FETD,
 						0 = good*/
 	struct ctl_lba_len	lbalen;      /* used for stats */
+	struct scsi_sense_data	sense_data;  /* sense data */
 };
 
 /* 
@@ -461,12 +453,50 @@ struct ctl_ha_msg_task {
 	ctl_tag_type		tag_type;    /* simple, ordered, etc. */
 };
 
+/*
+ * Used for CTL_MSG_PORT_SYNC.
+ */
+struct ctl_ha_msg_port {
+	struct ctl_ha_msg_hdr	hdr;
+	int			port_type;
+	int			physical_port;
+	int			virtual_port;
+	int			status;
+	int			name_len;
+	int			lun_map_len;
+	int			port_devid_len;
+	int			target_devid_len;
+	uint8_t			data[];
+};
+
+/*
+ * Used for CTL_MSG_LUN_SYNC.
+ */
+struct ctl_ha_msg_lun {
+	struct ctl_ha_msg_hdr	hdr;
+	int			flags;
+	unsigned int		pr_generation;
+	uint32_t		pr_res_idx;
+	uint8_t			pr_res_type;
+	int			lun_devid_len;
+	int			pr_key_count;
+	uint8_t			data[];
+};
+
+struct ctl_ha_msg_lun_pr_key {
+	uint32_t		pr_iid;
+	uint64_t		pr_key;
+};
+
 union ctl_ha_msg {
 	struct ctl_ha_msg_hdr	hdr;
 	struct ctl_ha_msg_task	task;
 	struct ctl_ha_msg_scsi	scsi;
 	struct ctl_ha_msg_dt	dt;
 	struct ctl_ha_msg_pr	pr;
+	struct ctl_ha_msg_ua	ua;
+	struct ctl_ha_msg_port	port;
+	struct ctl_ha_msg_lun	lun;
 };
 
 

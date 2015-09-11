@@ -440,7 +440,7 @@ dtrace_getarg(int arg, int aframes)
 	}
 
 	arg -= (inreg + 1);
-	stack = (uintptr_t *)fp + 2;
+	stack = (uintptr_t *)&fp[1];
 
 load:
 	DTRACE_CPUFLAG_SET(CPU_DTRACE_NOFAULT);
