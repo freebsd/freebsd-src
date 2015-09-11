@@ -3646,7 +3646,8 @@ ipf_state_del(softc, is, why)
 		is->is_me = NULL;
 		is->is_ref--;
 	}
-	if (is->is_ref > 1) {
+	is->is_ref--;
+	if (is->is_ref > 0) {
 		int refs;
 
 		is->is_ref--;
