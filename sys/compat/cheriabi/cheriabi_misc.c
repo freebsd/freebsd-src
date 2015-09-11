@@ -1078,7 +1078,7 @@ syscallcheri_helper_unregister(struct syscall_helper_data *sd)
 		struct chericap	_tmpcap;				\
 		cheri_capability_set(&_tmpcap, CHERI_CAP_USER_PERMS,	\
 		    NULL, (base), (length), 0);				\
-		copyoutcap(&tmpcap, vectp++, sizeof(tmpcap));		\
+		copyoutcap(&_tmpcap, uaddr, sizeof(_tmpcap));		\
 	} while(0)
 
 register_t *
@@ -1093,7 +1093,6 @@ cheriabi_copyout_strings(struct image_params *imgp)
 	char canary[sizeof(long) * 8];
 	size_t execpath_len;
 	int szsigcode, szps;
-	struct chericap tmpcap;
 
 	szps = sizeof(pagesizes[0]) * MAXPAGESIZES;
 	/*
