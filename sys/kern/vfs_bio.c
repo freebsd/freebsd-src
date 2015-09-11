@@ -3768,24 +3768,6 @@ bufwait(struct buf *bp)
 	}
 }
 
- /*
-  * Call back function from struct bio back up to struct buf.
-  */
-static void
-bufdonebio(struct bio *bip)
-{
-	struct buf *bp;
-
-	bp = bip->bio_caller2;
-	bp->b_resid = bip->bio_resid;
-	bp->b_ioflags = bip->bio_flags;
-	bp->b_error = bip->bio_error;
-	if (bp->b_error)
-		bp->b_ioflags |= BIO_ERROR;
-	bufdone(bp);
-	g_destroy_bio(bip);
-}
-
 /*
  *	bufdone:
  *
