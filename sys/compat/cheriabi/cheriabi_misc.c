@@ -36,8 +36,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet.h"
 #include "opt_inet6.h"
 
-#define __ELF_WORD_SIZE 32
-
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/capsicum.h>
@@ -46,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/fcntl.h>
 #include <sys/filedesc.h>
 #include <sys/imgact.h>
+#include <sys/imgact_elf.h>
 #include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/limits.h>
@@ -1262,5 +1261,22 @@ convert_sigevent_c(struct sigevent_c *sig_c, struct sigevent *sig)
 	default:
 		return (EINVAL);
 	}
+	return (0);
+}
+
+int
+cheriabi_elf_fixup(register_t **stack_base, struct image_params *imgp)
+{
+	struct chericap *base;
+	Elf_Addr *pos;
+
+	base = (struct chericap *)*stack_base;
+	pos = (Elf_Addr *)(base + (imgp->args->argc + imgp->args->envc + 2));
+
+	__elfN(set_auxargs)(pos, imgp);
+
+	base--;
+	suword(base, (long)imgp->args->argc);
+	*stack_base = (register_t *)base;
 	return (0);
 }

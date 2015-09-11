@@ -1002,7 +1002,7 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 
 #define	suword __CONCAT(suword, __ELF_WORD_SIZE)
 
-static void
+void
 __elfN(set_auxargs)(Elf_Addr *pos, struct image_params *imgp)
 {
 	Elf_Auxargs *args = (Elf_Auxargs *)imgp->auxargs;

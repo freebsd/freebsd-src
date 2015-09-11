@@ -117,4 +117,7 @@ struct image_args;
 int	cheriabi_exec_copyin_args(struct image_args *args, char *fname,
 	    enum uio_seg segflg, struct chericap *argv, struct chericap *envv);
 
+int
+cheriabi_elf_fixup(register_t **stack_base, struct image_params *imgp);
+
 #endif /* !_COMPAT_CHERIABI_CHERIABI_UTIL_H_ */

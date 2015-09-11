@@ -89,6 +89,7 @@ __ElfType(Brandinfo);
 int	__elfN(brand_inuse)(Elf_Brandinfo *entry);
 int	__elfN(insert_brand_entry)(Elf_Brandinfo *entry);
 int	__elfN(remove_brand_entry)(Elf_Brandinfo *entry);
+void	__elfN(set_auxargs)(Elf_Addr *pos, struct image_params *imgp);
 int	__elfN(freebsd_fixup)(register_t **, struct image_params *);
 int	__elfN(coredump)(struct thread *, struct vnode *, off_t, int);
 size_t	__elfN(populate_note)(int, void *, void *, size_t, void **);
