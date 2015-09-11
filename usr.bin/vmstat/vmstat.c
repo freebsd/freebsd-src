@@ -556,8 +556,6 @@ fill_vmmeter(struct vmmeter *vmmp)
 		GET_VM_STATS(vm, v_inactive_target);
 		GET_VM_STATS(vm, v_inactive_count);
 		GET_VM_STATS(vm, v_cache_count);
-		GET_VM_STATS(vm, v_cache_min);
-		GET_VM_STATS(vm, v_cache_max);
 		GET_VM_STATS(vm, v_pageout_free_min);
 		GET_VM_STATS(vm, v_interrupt_free_min);
 		/*GET_VM_STATS(vm, v_free_severe);*/

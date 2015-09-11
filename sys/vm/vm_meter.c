@@ -63,10 +63,6 @@ SYSCTL_UINT(_vm, VM_V_FREE_RESERVED, v_free_reserved,
 	CTLFLAG_RW, &vm_cnt.v_free_reserved, 0, "Pages reserved for deadlock");
 SYSCTL_UINT(_vm, VM_V_INACTIVE_TARGET, v_inactive_target,
 	CTLFLAG_RW, &vm_cnt.v_inactive_target, 0, "Pages desired inactive");
-SYSCTL_UINT(_vm, VM_V_CACHE_MIN, v_cache_min,
-	CTLFLAG_RW, &vm_cnt.v_cache_min, 0, "Min pages on cache queue");
-SYSCTL_UINT(_vm, VM_V_CACHE_MAX, v_cache_max,
-	CTLFLAG_RW, &vm_cnt.v_cache_max, 0, "Max pages on cache queue");
 SYSCTL_UINT(_vm, VM_V_PAGEOUT_FREE_MIN, v_pageout_free_min,
 	CTLFLAG_RW, &vm_cnt.v_pageout_free_min, 0, "Min pages reserved for kernel");
 SYSCTL_UINT(_vm, OID_AUTO, v_free_severe,
@@ -308,8 +304,6 @@ VM_STATS_VM(v_active_count, "Active pages");
 VM_STATS_VM(v_inactive_target, "Desired inactive pages");
 VM_STATS_VM(v_inactive_count, "Inactive pages");
 VM_STATS_VM(v_cache_count, "Pages on cache queue");
-VM_STATS_VM(v_cache_min, "Min pages on cache queue");
-VM_STATS_VM(v_cache_max, "Max pages on cached queue");
 VM_STATS_VM(v_pageout_free_min, "Min pages reserved for kernel");
 VM_STATS_VM(v_interrupt_free_min, "Reserved pages for interrupt code");
 VM_STATS_VM(v_forks, "Number of fork() calls");
