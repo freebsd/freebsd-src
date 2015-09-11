@@ -1,4 +1,4 @@
-/*	$NetBSD: ip_state.c,v 1.4 2012/12/20 21:42:28 christos Exp $	*/
+/*	$FreeBSD$ */
 
 /*
  * Copyright (C) 2012 by Darren Reed.
