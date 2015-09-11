@@ -45,7 +45,6 @@ struct i386_frame {
 struct amd64_frame {
 	struct amd64_frame	*f_frame;
 	u_long			f_retaddr;
-	u_long			f_arg0;
 };
 
 struct i386_frame {
