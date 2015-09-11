@@ -3786,56 +3786,6 @@ bufdonebio(struct bio *bip)
 	g_destroy_bio(bip);
 }
 
-void
-dev_strategy(struct cdev *dev, struct buf *bp)
-{
-	struct cdevsw *csw;
-	int ref;
-
-	KASSERT(dev->si_refcount > 0,
-	    ("dev_strategy on un-referenced struct cdev *(%s) %p",
-	    devtoname(dev), dev));
-
-	csw = dev_refthread(dev, &ref);
-	dev_strategy_csw(dev, csw, bp);
-	dev_relthread(dev, ref);
-}
-
-void
-dev_strategy_csw(struct cdev *dev, struct cdevsw *csw, struct buf *bp)
-{
-	struct bio *bip;
-
-	KASSERT(bp->b_iocmd == BIO_READ || bp->b_iocmd == BIO_WRITE,
-	    ("b_iocmd botch"));
-	KASSERT(((dev->si_flags & SI_ETERNAL) != 0 && csw != NULL) ||
-	    dev->si_threadcount > 0,
-	    ("dev_strategy_csw threadcount cdev *(%s) %p", devtoname(dev),
-	    dev));
-	if (csw == NULL) {
-		bp->b_error = ENXIO;
-		bp->b_ioflags = BIO_ERROR;
-		bufdone(bp);
-		return;
-	}
-	for (;;) {
-		bip = g_new_bio();
-		if (bip != NULL)
-			break;
-		/* Try again later */
-		tsleep(&bp, PRIBIO, "dev_strat", hz/10);
-	}
-	bip->bio_cmd = bp->b_iocmd;
-	bip->bio_offset = bp->b_iooffset;
-	bip->bio_length = bp->b_bcount;
-	bip->bio_bcount = bp->b_bcount;	/* XXX: remove */
-	bdata2bio(bp, bip);
-	bip->bio_done = bufdonebio;
-	bip->bio_caller2 = bp;
-	bip->bio_dev = dev;
-	(*csw->d_strategy)(bip);
-}
-
 /*
  *	bufdone:
  *
