@@ -6082,7 +6082,17 @@ pf_test6(int dir, struct ifnet *ifp, struct mbuf **m0, struct inpcb *inp)
 
 	M_ASSERTPKTHDR(m);
 
-	if (dir == PF_OUT && m->m_pkthdr.rcvif && ifp != m->m_pkthdr.rcvif)
+	/* Detect packet forwarding.
+	 * If the input interface is different from the output interface we're
+	 * forwarding.
+	 * We do need to be careful about bridges. If the
+	 * net.link.bridge.pfil_bridge sysctl is set we can be filtering on a
+	 * bridge, so if the input interface is a bridge member and the output
+	 * interface is its bridge we're not actually forwarding but bridging.
+	 */
+	if (dir == PF_OUT && m->m_pkthdr.rcvif && ifp != m->m_pkthdr.rcvif
+	    && (m->m_pkthdr.rcvif->if_bridge == NULL
+	        || m->m_pkthdr.rcvif->if_bridge != ifp->if_softc))
 		fwdir = PF_FWD;
 
 	if (!V_pf_status.running)
