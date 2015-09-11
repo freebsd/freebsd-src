@@ -13,11 +13,14 @@ MK_INSTALL_AS_USER= yes
 .warning MAKEOBJDIRPREFIX not supported; setting MAKEOBJDIR...
 # put things approximately where they want
 OBJROOT:=${MAKEOBJDIRPREFIX}${SRCTOP:S,/src,,}/
+MAKEOBJDIRPREFIX=
+.export MAKEOBJDIRPREFIX
+.endif
+.if empty(MAKEOBJDIR) || ${MAKEOBJDIR:M*/*} == ""
 # OBJTOP set below
 MAKEOBJDIR=$${.CURDIR:S,$${SRCTOP},$${OBJTOP},}
-MAKEOBJDIRPREFIX=
 # export but do not track
-.export-env MAKEOBJDIRPREFIX MAKEOBJDIR
+.export-env MAKEOBJDIR
 # now for our own use
 MAKEOBJDIR= ${.CURDIR:S,${SRCTOP},${OBJTOP},}
 .endif
