@@ -400,7 +400,6 @@ mrt_stats()
 {
 	struct mrtstat mrtstat;
 	u_long mstaddr;
-	size_t len = sizeof(mrtstat);
 
 	mstaddr = nl[N_MRTSTAT].n_value;
 
@@ -409,14 +408,9 @@ mrt_stats()
 		return;
 	}
 
-	if (live) {
-		if (sysctlbyname("net.inet.ip.mrtstat", &mrtstat, &len, NULL,
-		    0) < 0) {
-			xo_warn("sysctl: net.inet.ip.mrtstat failed.");
-			return;
-		}
-	} else
-		kread_counters(mstaddr, &mrtstat, len);
+	if (fetch_stats("net.inet.ip.mrtstat", mstaddr, &mrtstat,
+	    sizeof(mrtstat), kread_counters) != 0)
+		return;
 
 	xo_emit("{T:IPv4 multicast forwarding}:\n");
 
