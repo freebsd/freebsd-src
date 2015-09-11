@@ -45,6 +45,8 @@ cp $BSDINSTALL_TMPBOOT/* $BSDINSTALL_CHROOT/boot
 # Set up other things from installed config
 chroot $BSDINSTALL_CHROOT /usr/bin/newaliases > /dev/null 2>&1
 
+exit $SUCCESS
+
 ################################################################################
 # END
 ################################################################################
