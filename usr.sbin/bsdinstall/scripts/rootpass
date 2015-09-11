@@ -34,4 +34,3 @@ echo
 echo "Please select a password for the system management account (root):"
 
 chroot $BSDINSTALL_CHROOT passwd root 2>&1
-
