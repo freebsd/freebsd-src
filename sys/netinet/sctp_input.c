@@ -4819,13 +4819,11 @@ process_control_chunks:
 			/* The INIT chunk must be the only chunk. */
 			if ((num_chunks > 1) ||
 			    (length - *offset > (int)SCTP_SIZE32(chk_length))) {
-				op_err = sctp_generate_cause(SCTP_BASE_SYSCTL(sctp_diag_info_code),
-				    "INIT not the only chunk");
-				sctp_abort_association(inp, stcb, m, iphlen,
-				    src, dst, sh, op_err,
-				    mflowtype, mflowid,
-				    vrf_id, port);
+				/* RFC 4960 requires that no ABORT is sent */
 				*offset = length;
+				if (locked_tcb) {
+					SCTP_TCB_UNLOCK(locked_tcb);
+				}
 				return (NULL);
 			}
 			/* Honor our resource limit. */
@@ -5604,16 +5602,12 @@ process_control_chunks:
 					SCTP_BUF_LEN(mm) = sizeof(*phd);
 					SCTP_BUF_NEXT(mm) = SCTP_M_COPYM(m, *offset, len, M_NOWAIT);
 					if (SCTP_BUF_NEXT(mm)) {
-						if (sctp_pad_lastmbuf(SCTP_BUF_NEXT(mm), SCTP_SIZE32(len) - len, NULL) == NULL) {
-							sctp_m_freem(mm);
-						} else {
 #ifdef SCTP_MBUF_LOGGING
-							if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_MBUF_LOGGING_ENABLE) {
-								sctp_log_mbc(SCTP_BUF_NEXT(mm), SCTP_MBUF_ICOPY);
-							}
-#endif
-							sctp_queue_op_err(stcb, mm);
+						if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_MBUF_LOGGING_ENABLE) {
+							sctp_log_mbc(SCTP_BUF_NEXT(mm), SCTP_MBUF_ICOPY);
 						}
+#endif
+						sctp_queue_op_err(stcb, mm);
 					} else {
 						sctp_m_freem(mm);
 					}

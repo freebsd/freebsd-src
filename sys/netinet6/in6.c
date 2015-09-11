@@ -281,8 +281,6 @@ in6_control(struct socket *so, u_long cmd, caddr_t data,
 		/* FALLTHROUGH */
 	case OSIOCGIFINFO_IN6:
 	case SIOCGIFINFO_IN6:
-	case SIOCGDRLST_IN6:
-	case SIOCGPRLST_IN6:
 	case SIOCGNBRINFO_IN6:
 	case SIOCGDEFIFACE_IN6:
 		return (nd6_ioctl(cmd, data, ifp));
@@ -1198,11 +1196,13 @@ in6_update_ifa_internal(struct ifnet *ifp, struct in6_aliasreq *ifra,
 	 * source address.
 	 */
 	ia->ia6_flags &= ~IN6_IFF_DUPLICATED;	/* safety */
-	if (hostIsNew && in6if_do_dad(ifp))
-		ia->ia6_flags |= IN6_IFF_TENTATIVE;
 
-	/* DAD should be performed after ND6_IFF_IFDISABLED is cleared. */
-	if (ND_IFINFO(ifp)->flags & ND6_IFF_IFDISABLED)
+	/*
+	 * DAD should be performed for an new address or addresses on
+	 * an interface with ND6_IFF_IFDISABLED.
+	 */
+	if (in6if_do_dad(ifp) &&
+	    (hostIsNew || (ND_IFINFO(ifp)->flags & ND6_IFF_IFDISABLED)))
 		ia->ia6_flags |= IN6_IFF_TENTATIVE;
 
 	/* notify other subsystems */

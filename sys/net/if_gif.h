@@ -126,10 +126,7 @@ int in6_gif_attach(struct gif_softc *);
 #define GIFGOPTS	_IOWR('i', 150, struct ifreq)
 #define GIFSOPTS	_IOW('i', 151, struct ifreq)
 
-#define	GIF_ACCEPT_REVETHIP	0x0001
 #define	GIF_IGNORE_SOURCE	0x0002
-#define	GIF_SEND_REVETHIP	0x0010
-#define	GIF_OPTMASK		(GIF_ACCEPT_REVETHIP|GIF_SEND_REVETHIP| \
-    GIF_IGNORE_SOURCE)
+#define	GIF_OPTMASK		(GIF_IGNORE_SOURCE)
 
 #endif /* _NET_IF_GIF_H_ */

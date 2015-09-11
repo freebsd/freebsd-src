@@ -100,6 +100,11 @@ SDT_PROBE_DEFINE1(proc, kernel, , exec__success, "char *");
 
 MALLOC_DEFINE(M_PARGS, "proc-args", "Process arguments");
 
+int coredump_pack_fileinfo = 1;
+SYSCTL_INT(_kern, OID_AUTO, coredump_pack_fileinfo, CTLFLAG_RWTUN,
+    &coredump_pack_fileinfo, 0,
+    "Enable file path packing in 'procstat -f' coredump notes");
+
 static int sysctl_kern_ps_strings(SYSCTL_HANDLER_ARGS);
 static int sysctl_kern_usrstack(SYSCTL_HANDLER_ARGS);
 static int sysctl_kern_stackprot(SYSCTL_HANDLER_ARGS);

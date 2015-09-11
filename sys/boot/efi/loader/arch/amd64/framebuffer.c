@@ -269,8 +269,10 @@ efifb_from_uga(struct efi_fb *efifb, EFI_UGA_DRAW_PROTOCOL *uga)
 	EFI_PCI_IO_PROTOCOL *pciio;
 	char *ev, *p;
 	EFI_STATUS status;
-	ssize_t ofs;
-	uint32_t np, horiz, vert, depth, refresh;
+	ssize_t offset;
+	uint64_t fbaddr, fbsize;
+	uint32_t horiz, vert, stride;
+	uint32_t np, depth, refresh;
 
 	status = uga->GetMode(uga, &horiz, &vert, &depth, &refresh);
 	if (EFI_ERROR(status))
@@ -285,6 +287,63 @@ efifb_from_uga(struct efi_fb *efifb, EFI_UGA_DRAW_PROTOCOL *uga)
 	efifb_mask_from_pixfmt(efifb, PixelBlueGreenRedReserved8BitPerColor,
 	    NULL);
 
+	/* pciio can be NULL on return! */
+	pciio = efifb_uga_get_pciio();
+
+	/* Try to find the frame buffer. */
+	status = efifb_uga_locate_framebuffer(pciio, &efifb->fb_addr,
+	    &efifb->fb_size);
+	if (EFI_ERROR(status)) {
+		efifb->fb_addr = 0;
+		efifb->fb_size = 0;
+	}
+
+	/*
+	 * There's no reliable way to detect the frame buffer or the
+	 * offset within the frame buffer of the visible region, nor
+	 * the stride. Our only option is to look at the system and
+	 * fill in the blanks based on that. Luckily, UGA was mostly
+	 * only used on Apple hardware. 
+	 */
+	offset = -1;
+	ev = getenv("smbios.system.maker");
+	if (ev != NULL && !strcmp(ev, "Apple Inc.")) {
+		ev = getenv("smbios.system.product");
+		if (ev != NULL && !strcmp(ev, "iMac7,1")) {
+			/* These are the expected values we should have. */
+			horiz = 1680;
+			vert = 1050;
+			fbaddr = 0xc0000000;
+			/* These are the missing bits. */
+			offset = 0x10000;
+			stride = 1728;
+		} else if (ev != NULL && !strcmp(ev, "MacBook3,1")) {
+			/* These are the expected values we should have. */
+			horiz = 1280;
+			vert = 800;
+			fbaddr = 0xc0000000;
+			/* These are the missing bits. */
+			offset = 0x0;
+			stride = 2048;
+		}
+	}
+
+	/*
+	 * If this is hardware we know, make sure that it looks familiar
+	 * before we accept our hardcoded values.
+	 */
+	if (offset >= 0 && efifb->fb_width == horiz &&
+	    efifb->fb_height == vert && efifb->fb_addr == fbaddr) {
+		efifb->fb_addr += offset;
+		efifb->fb_size -= offset;
+		efifb->fb_stride = stride;
+		return (0);
+	} else if (offset >= 0) {
+		printf("Hardware make/model known, but graphics not "
+		    "as expected.\n");
+		printf("Console may not work!\n");
+	}
+
 	/*
 	 * The stride is equal or larger to the width. Often it's the
 	 * next larger power of two. We'll start with that...
@@ -298,16 +357,11 @@ efifb_from_uga(struct efi_fb *efifb, EFI_UGA_DRAW_PROTOCOL *uga)
 		}
 	} while (np);
 
-	/* pciio can be NULL on return! */
-	pciio = efifb_uga_get_pciio();
-
-	ev = getenv("uga_framebuffer");
+	ev = getenv("hw.efifb.address");
 	if (ev == NULL) {
-		/* Try to find the frame buffer. */
-		status = efifb_uga_locate_framebuffer(pciio, &efifb->fb_addr,
-		    &efifb->fb_size);
-		if (EFI_ERROR(status)) {
-			printf("Please set uga_framebuffer!\n");
+		if (efifb->fb_addr == 0) {
+			printf("Please set hw.efifb.address and "
+			    "hw.efifb.stride.\n");
 			return (1);
 		}
 
@@ -328,30 +382,30 @@ efifb_from_uga(struct efi_fb *efifb, EFI_UGA_DRAW_PROTOCOL *uga)
 		 * to not appear to hang when we can't read from the
 		 * frame buffer.
 		 */
-		ofs = efifb_uga_find_pixel(uga, 0, pciio, efifb->fb_addr,
+		offset = efifb_uga_find_pixel(uga, 0, pciio, efifb->fb_addr,
 		    efifb->fb_size >> 8);
-		if (ofs == -1) {
+		if (offset == -1) {
 			printf("Unable to reliably detect frame buffer.\n");
-		} else if (ofs > 0) {
-			efifb->fb_addr += ofs;
-			efifb->fb_size -= ofs;
+		} else if (offset > 0) {
+			efifb->fb_addr += offset;
+			efifb->fb_size -= offset;
 		}
 	} else {
-		ofs = 0;
+		offset = 0;
 		efifb->fb_size = efifb->fb_height * efifb->fb_stride * 4;
 		efifb->fb_addr = strtoul(ev, &p, 0);
 		if (*p != '\0')
 			return (1);
 	}
 
-	ev = getenv("uga_stride");
+	ev = getenv("hw.efifb.stride");
 	if (ev == NULL) {
-		if (pciio != NULL && ofs != -1) {
+		if (pciio != NULL && offset != -1) {
 			/* Determine the stride. */
-			ofs = efifb_uga_find_pixel(uga, 1, pciio,
+			offset = efifb_uga_find_pixel(uga, 1, pciio,
 			    efifb->fb_addr, horiz * 8);
-			if (ofs != -1)
-				efifb->fb_stride = ofs >> 2;
+			if (offset != -1)
+				efifb->fb_stride = offset >> 2;
 		} else {
 			printf("Unable to reliably detect the stride.\n");
 		}

@@ -127,7 +127,7 @@ ATF_TC_BODY(ptrace__parent_wait_after_trace_me, tc)
 		/* Child process. */
 		trace_me();
 
-		exit(1);
+		_exit(1);
 	}
 
 	/* Parent process. */
@@ -173,7 +173,7 @@ ATF_TC_BODY(ptrace__parent_wait_after_attach, tc)
 		/* Wait for the parent to attach. */
 		CHILD_REQUIRE(read(cpipe[1], &c, sizeof(c)) == 0);
 
-		exit(1);
+		_exit(1);
 	}
 	close(cpipe[1]);
 
@@ -221,7 +221,7 @@ ATF_TC_BODY(ptrace__parent_sees_exit_after_child_debugger, tc)
 		/* Wait for parent to be ready. */
 		CHILD_REQUIRE(read(cpipe[1], &c, sizeof(c)) == sizeof(c));
 
-		exit(1);
+		_exit(1);
 	}
 	close(cpipe[1]);
 
@@ -252,7 +252,7 @@ ATF_TC_BODY(ptrace__parent_sees_exit_after_child_debugger, tc)
 		CHILD_REQUIRE(WIFEXITED(status));
 		CHILD_REQUIRE(WEXITSTATUS(status) == 1);
 
-		exit(0);
+		_exit(0);
 	}
 	close(dpipe[1]);
 
@@ -315,7 +315,7 @@ ATF_TC_BODY(ptrace__parent_sees_exit_after_unrelated_debugger, tc)
 		/* Wait for parent to be ready. */
 		CHILD_REQUIRE(read(cpipe[1], &c, sizeof(c)) == sizeof(c));
 
-		exit(1);
+		_exit(1);
 	}
 	close(cpipe[1]);
 
@@ -331,7 +331,7 @@ ATF_TC_BODY(ptrace__parent_sees_exit_after_unrelated_debugger, tc)
 		 */
 		CHILD_REQUIRE((fpid = fork()) != -1);
 		if (fpid != 0)
-			exit(2);
+			_exit(2);
 
 		/* Debugger process. */
 		close(dpipe[0]);
@@ -356,7 +356,7 @@ ATF_TC_BODY(ptrace__parent_sees_exit_after_unrelated_debugger, tc)
 		CHILD_REQUIRE(WIFEXITED(status));
 		CHILD_REQUIRE(WEXITSTATUS(status) == 1);
 
-		exit(0);
+		_exit(0);
 	}
 	close(dpipe[1]);
 
@@ -418,14 +418,14 @@ follow_fork_parent(void)
 
 	if (fpid == 0)
 		/* Child */
-		exit(2);
+		_exit(2);
 
 	wpid = waitpid(fpid, &status, 0);
 	CHILD_REQUIRE(wpid == fpid);
 	CHILD_REQUIRE(WIFEXITED(status));
 	CHILD_REQUIRE(WEXITSTATUS(status) == 2);
 
-	exit(1);
+	_exit(1);
 }
 
 /*
@@ -493,7 +493,7 @@ handle_fork_events(pid_t parent)
 ATF_TC_WITHOUT_HEAD(ptrace__follow_fork_both_attached);
 ATF_TC_BODY(ptrace__follow_fork_both_attached, tc)
 {
-	pid_t children[0], fpid, wpid;
+	pid_t children[2], fpid, wpid;
 	int status;
 
 	ATF_REQUIRE((fpid = fork()) != -1);
@@ -549,7 +549,7 @@ ATF_TC_BODY(ptrace__follow_fork_both_attached, tc)
 ATF_TC_WITHOUT_HEAD(ptrace__follow_fork_child_detached);
 ATF_TC_BODY(ptrace__follow_fork_child_detached, tc)
 {
-	pid_t children[0], fpid, wpid;
+	pid_t children[2], fpid, wpid;
 	int status;
 
 	ATF_REQUIRE((fpid = fork()) != -1);
@@ -600,7 +600,7 @@ ATF_TC_BODY(ptrace__follow_fork_child_detached, tc)
 ATF_TC_WITHOUT_HEAD(ptrace__follow_fork_parent_detached);
 ATF_TC_BODY(ptrace__follow_fork_parent_detached, tc)
 {
-	pid_t children[0], fpid, wpid;
+	pid_t children[2], fpid, wpid;
 	int status;
 
 	ATF_REQUIRE((fpid = fork()) != -1);
@@ -662,7 +662,7 @@ attach_fork_parent(int cpipe[2])
 	/* Double-fork to disassociate from the debugger. */
 	CHILD_REQUIRE((fpid = fork()) != -1);
 	if (fpid != 0)
-		exit(3);
+		_exit(3);
 	
 	/* Send the pid of the disassociated child to the debugger. */
 	fpid = getpid();
@@ -681,7 +681,7 @@ attach_fork_parent(int cpipe[2])
 ATF_TC_WITHOUT_HEAD(ptrace__follow_fork_both_attached_unrelated_debugger);
 ATF_TC_BODY(ptrace__follow_fork_both_attached_unrelated_debugger, tc)
 {
-	pid_t children[0], fpid, wpid;
+	pid_t children[2], fpid, wpid;
 	int cpipe[2], status;
 
 	ATF_REQUIRE(pipe(cpipe) == 0);
@@ -749,7 +749,7 @@ ATF_TC_BODY(ptrace__follow_fork_both_attached_unrelated_debugger, tc)
 ATF_TC_WITHOUT_HEAD(ptrace__follow_fork_child_detached_unrelated_debugger);
 ATF_TC_BODY(ptrace__follow_fork_child_detached_unrelated_debugger, tc)
 {
-	pid_t children[0], fpid, wpid;
+	pid_t children[2], fpid, wpid;
 	int cpipe[2], status;
 
 	ATF_REQUIRE(pipe(cpipe) == 0);
@@ -812,7 +812,7 @@ ATF_TC_BODY(ptrace__follow_fork_child_detached_unrelated_debugger, tc)
 ATF_TC_WITHOUT_HEAD(ptrace__follow_fork_parent_detached_unrelated_debugger);
 ATF_TC_BODY(ptrace__follow_fork_parent_detached_unrelated_debugger, tc)
 {
-	pid_t children[0], fpid, wpid;
+	pid_t children[2], fpid, wpid;
 	int cpipe[2], status;
 
 	ATF_REQUIRE(pipe(cpipe) == 0);
@@ -866,6 +866,92 @@ ATF_TC_BODY(ptrace__follow_fork_parent_detached_unrelated_debugger, tc)
 	ATF_REQUIRE(errno == ECHILD);
 }
 
+/*
+ * Verify that a child process does not see an unrelated debugger as its
+ * parent but sees its original parent process.
+ */
+ATF_TC_WITHOUT_HEAD(ptrace__getppid);
+ATF_TC_BODY(ptrace__getppid, tc)
+{
+	pid_t child, debugger, ppid, wpid;
+	int cpipe[2], dpipe[2], status;
+	char c;
+
+	ATF_REQUIRE(pipe(cpipe) == 0);
+	ATF_REQUIRE((child = fork()) != -1);
+
+	if (child == 0) {
+		/* Child process. */
+		close(cpipe[0]);
+
+		/* Wait for parent to be ready. */
+		CHILD_REQUIRE(read(cpipe[1], &c, sizeof(c)) == sizeof(c));
+
+		/* Report the parent PID to the parent. */
+		ppid = getppid();
+		CHILD_REQUIRE(write(cpipe[1], &ppid, sizeof(ppid)) ==
+		    sizeof(ppid));
+
+		_exit(1);
+	}
+	close(cpipe[1]);
+
+	ATF_REQUIRE(pipe(dpipe) == 0);
+	ATF_REQUIRE((debugger = fork()) != -1);
+
+	if (debugger == 0) {
+		/* Debugger process. */
+		close(dpipe[0]);
+
+		CHILD_REQUIRE(ptrace(PT_ATTACH, child, NULL, 0) != -1);
+
+		wpid = waitpid(child, &status, 0);
+		CHILD_REQUIRE(wpid == child);
+		CHILD_REQUIRE(WIFSTOPPED(status));
+		CHILD_REQUIRE(WSTOPSIG(status) == SIGSTOP);
+
+		CHILD_REQUIRE(ptrace(PT_CONTINUE, child, (caddr_t)1, 0) != -1);
+
+		/* Signal parent that debugger is attached. */
+		CHILD_REQUIRE(write(dpipe[1], &c, sizeof(c)) == sizeof(c));
+
+		/* Wait for traced child to exit. */
+		wpid = waitpid(child, &status, 0);
+		CHILD_REQUIRE(wpid == child);
+		CHILD_REQUIRE(WIFEXITED(status));
+		CHILD_REQUIRE(WEXITSTATUS(status) == 1);
+
+		_exit(0);
+	}
+	close(dpipe[1]);
+
+	/* Parent process. */
+
+	/* Wait for the debugger to attach to the child. */
+	ATF_REQUIRE(read(dpipe[0], &c, sizeof(c)) == sizeof(c));
+
+	/* Release the child. */
+	ATF_REQUIRE(write(cpipe[0], &c, sizeof(c)) == sizeof(c));
+
+	/* Read the parent PID from the child. */
+	ATF_REQUIRE(read(cpipe[0], &ppid, sizeof(ppid)) == sizeof(ppid));
+	close(cpipe[0]);
+
+	ATF_REQUIRE(ppid == getpid());
+
+	/* Wait for the debugger. */
+	wpid = waitpid(debugger, &status, 0);
+	ATF_REQUIRE(wpid == debugger);
+	ATF_REQUIRE(WIFEXITED(status));
+	ATF_REQUIRE(WEXITSTATUS(status) == 0);
+
+	/* The child process should now be ready. */
+	wpid = waitpid(child, &status, WNOHANG);
+	ATF_REQUIRE(wpid == child);
+	ATF_REQUIRE(WIFEXITED(status));
+	ATF_REQUIRE(WEXITSTATUS(status) == 1);
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 
@@ -881,6 +967,7 @@ ATF_TP_ADD_TCS(tp)
 	    ptrace__follow_fork_child_detached_unrelated_debugger);
 	ATF_TP_ADD_TC(tp,
 	    ptrace__follow_fork_parent_detached_unrelated_debugger);
+	ATF_TP_ADD_TC(tp, ptrace__getppid);
 
 	return (atf_no_error());
 }

@@ -130,7 +130,6 @@ amd64/amd64/pmap.c		standard
 amd64/amd64/prof_machdep.c	optional	profiling-routine
 amd64/amd64/ptrace_machdep.c	standard
 amd64/amd64/sigtramp.S		standard
-amd64/amd64/stack_machdep.c	optional	ddb | stack
 amd64/amd64/support.S		standard
 amd64/amd64/sys_machdep.c	standard
 amd64/amd64/trap.c		standard
@@ -612,6 +611,7 @@ x86/x86/mp_x86.c		optional	smp
 x86/x86/msi.c			optional	pci
 x86/x86/nexus.c			standard
 x86/x86/pvclock.c		standard
+x86/x86/stack_machdep.c		optional	ddb | stack
 x86/x86/tsc.c			standard
 x86/x86/delay.c			standard
 x86/xen/hvm.c			optional	xenhvm
