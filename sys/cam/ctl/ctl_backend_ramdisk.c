@@ -507,7 +507,7 @@ ctl_backend_ramdisk_rm(struct ctl_be_ramdisk_softc *softc,
 	mtx_unlock(&softc->lock);
 
 	if (retval == 0) {
-		taskqueue_drain(be_lun->io_taskqueue, &be_lun->io_task);
+		taskqueue_drain_all(be_lun->io_taskqueue);
 		taskqueue_free(be_lun->io_taskqueue);
 		ctl_free_opts(&be_lun->cbe_lun.options);
 		mtx_destroy(&be_lun->queue_lock);
