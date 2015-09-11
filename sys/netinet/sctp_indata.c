@@ -2513,11 +2513,7 @@ sctp_process_data(struct mbuf **mm, int iphlen, int *offset, int length,
 						SCTP_BUF_LEN(merr) = sizeof(*phd);
 						SCTP_BUF_NEXT(merr) = SCTP_M_COPYM(m, *offset, chk_length, M_NOWAIT);
 						if (SCTP_BUF_NEXT(merr)) {
-							if (sctp_pad_lastmbuf(SCTP_BUF_NEXT(merr), SCTP_SIZE32(chk_length) - chk_length, NULL) == NULL) {
-								sctp_m_freem(merr);
-							} else {
-								sctp_queue_op_err(stcb, merr);
-							}
+							sctp_queue_op_err(stcb, merr);
 						} else {
 							sctp_m_freem(merr);
 						}
