@@ -129,7 +129,8 @@ bsdinstall umount
 
 f_dprintf "Installation Completed at %s" "$( date )"
 
-trap true EXIT
+trap - EXIT
+exit $SUCCESS
 
 ################################################################################
 # END
