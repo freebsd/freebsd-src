@@ -658,20 +658,11 @@ sctp_statesprint(uint32_t state)
 void
 sctp_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 {
-	struct sctpstat sctpstat, zerostat;
-	size_t len = sizeof(sctpstat);
+	struct sctpstat sctpstat;
 
-	if (live) {
-		if (zflag)
-			memset(&zerostat, 0, len);
-		if (sysctlbyname("net.inet.sctp.stats", &sctpstat, &len,
-		    zflag ? &zerostat : NULL, zflag ? len : 0) < 0) {
-			if (errno != ENOENT)
-				xo_warn("sysctl: net.inet.sctp.stats");
-			return;
-		}
-	} else
-		kread(off, &sctpstat, len);
+	if (fetch_stats("net.inet.sctp.stats", off, &sctpstat,
+	    sizeof(sctpstat), kread) != 0)
+		return;
 
 	xo_open_container(name);
 	xo_emit("{T:/%s}:\n", name);
