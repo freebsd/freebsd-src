@@ -5602,16 +5602,12 @@ process_control_chunks:
 					SCTP_BUF_LEN(mm) = sizeof(*phd);
 					SCTP_BUF_NEXT(mm) = SCTP_M_COPYM(m, *offset, len, M_NOWAIT);
 					if (SCTP_BUF_NEXT(mm)) {
-						if (sctp_pad_lastmbuf(SCTP_BUF_NEXT(mm), SCTP_SIZE32(len) - len, NULL) == NULL) {
-							sctp_m_freem(mm);
-						} else {
 #ifdef SCTP_MBUF_LOGGING
-							if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_MBUF_LOGGING_ENABLE) {
-								sctp_log_mbc(SCTP_BUF_NEXT(mm), SCTP_MBUF_ICOPY);
-							}
-#endif
-							sctp_queue_op_err(stcb, mm);
+						if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_MBUF_LOGGING_ENABLE) {
+							sctp_log_mbc(SCTP_BUF_NEXT(mm), SCTP_MBUF_ICOPY);
 						}
+#endif
+						sctp_queue_op_err(stcb, mm);
 					} else {
 						sctp_m_freem(mm);
 					}
