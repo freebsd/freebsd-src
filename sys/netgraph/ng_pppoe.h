@@ -51,6 +51,7 @@
 #define NG_PPPOE_NODE_TYPE	"pppoe"
 
 #define NGM_PPPOE_COOKIE		1089893072
+#define NGM_PPPOE_SETMAXP_COOKIE	1441624322
 
 #define	PPPOE_SERVICE_NAME_SIZE		64 /* for now */
 
@@ -83,6 +84,7 @@ enum cmd {
 	NGM_PPPOE_SETMODE  = 12, /* set to standard or compat modes */
 	NGM_PPPOE_GETMODE  = 13, /* see current mode */
 	NGM_PPPOE_SETENADDR = 14, /* set Ethernet address */
+	NGM_PPPOE_SETMAXP  = 15 /* Set PPP-Max-Payload value */
 };
 
 /***********************
@@ -147,6 +149,13 @@ struct ngpppoe_sts {
 	  { NULL }					\
 }
 
+/*
+ * This structure is used to send PPP-Max-Payload value from server to client.
+ */
+struct ngpppoe_maxp {
+	char	hook[NG_HOOKSIZ];	/* hook associated with event session */
+	uint16_t	data;
+};
 
 /********************************************************************
  * Constants and definitions specific to pppoe
@@ -229,6 +238,10 @@ struct datatag {
 	u_int8_t        data[PPPOE_SERVICE_NAME_SIZE];
 };     
 
+struct maxptag {
+	struct pppoe_tag hdr;
+	uint16_t	data;
+};
 
 /*
  * Define the order in which we will place tags in packets
