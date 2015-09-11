@@ -32,21 +32,36 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/stack.h>
 
+#include <x86/stack.h>
+
 #include <machine/pcb.h>
-#include <machine/stack.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
 
+#ifdef __i386__
+#define	PCB_FP(pcb)	((pcb)->pcb_ebp)
+#define	TF_FP(tf)	((tf)->tf_ebp)
+#define	TF_PC(tf)	((tf)->tf_eip)
+
+typedef struct i386_frame *x86_frame_t;
+#else
+#define	PCB_FP(pcb)	((pcb)->pcb_rbp)
+#define	TF_FP(tf)	((tf)->tf_rbp)
+#define	TF_PC(tf)	((tf)->tf_rip)
+
+typedef struct amd64_frame *x86_frame_t;
+#endif
+
 static void
-stack_capture(struct thread *td, struct stack *st, register_t rbp)
+stack_capture(struct thread *td, struct stack *st, register_t fp)
 {
-	struct amd64_frame *frame;
+	x86_frame_t frame;
 	vm_offset_t callpc;
 
 	stack_zero(st);
-	frame = (struct amd64_frame *)rbp;
+	frame = (x86_frame_t)fp;
 	while (1) {
 		if (!INKERNEL((long)frame))
 			break;
@@ -66,22 +81,24 @@ stack_capture(struct thread *td, struct stack *st, register_t rbp)
 void
 stack_save_td(struct stack *st, struct thread *td)
 {
-	register_t rbp;
 
 	if (TD_IS_SWAPPED(td))
 		panic("stack_save_td: swapped");
 	if (TD_IS_RUNNING(td))
 		panic("stack_save_td: running");
 
-	rbp = td->td_pcb->pcb_rbp;
-	stack_capture(td, st, rbp);
+	stack_capture(td, st, PCB_FP(td->td_pcb));
 }
 
 void
 stack_save(struct stack *st)
 {
-	register_t rbp;
+	register_t fp;
 
-	__asm __volatile("movq %%rbp,%0" : "=r" (rbp));
-	stack_capture(curthread, st, rbp);
+#ifdef __i386__
+	__asm __volatile("movl %%ebp,%0" : "=g" (fp));
+#else
+	__asm __volatile("movq %%rbp,%0" : "=g" (fp));
+#endif
+	stack_capture(curthread, st, fp);
 }

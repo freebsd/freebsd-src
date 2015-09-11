@@ -476,7 +476,6 @@ i386/i386/mpboot.s		optional smp
 i386/i386/perfmon.c		optional perfmon
 i386/i386/pmap.c		standard
 i386/i386/ptrace_machdep.c	standard
-i386/i386/stack_machdep.c	optional ddb | stack
 i386/i386/support.s		standard
 i386/i386/swtch.s		standard
 i386/i386/sys_machdep.c		standard
@@ -603,6 +602,7 @@ x86/x86/mptable_pci.c		optional apic pci
 x86/x86/mp_x86.c		optional smp
 x86/x86/msi.c			optional apic pci
 x86/x86/nexus.c			standard
+x86/x86/stack_machdep.c		optional ddb | stack
 x86/x86/tsc.c			standard
 x86/x86/pvclock.c		standard
 x86/x86/delay.c			standard
