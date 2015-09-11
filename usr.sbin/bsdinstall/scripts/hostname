@@ -43,6 +43,9 @@ if [ $? -eq $DIALOG_CANCEL ]; then exit 1; fi
 exec 3>&-
 
 echo "hostname=\"$HOSTNAME\"" > $BSDINSTALL_TMPETC/rc.conf.hostname
-if [ ! -z $BSDINSTALL_CONFIGCURRENT ]; then
+retval=$?
+if [ "$BSDINSTALL_CONFIGCURRENT" ]; then
 	hostname -s "$HOSTNAME"
+	retval=$?
 fi
+exit $retval
