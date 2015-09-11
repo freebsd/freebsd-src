@@ -1022,6 +1022,7 @@ uint32_t find_hash_out(struct reiserfs_mount *rmp)
 		}
 	} while (0);
 
+	free(ip, M_REISERFSNODE);
 	pathrelse(&path);
 	return (hash);
 }
