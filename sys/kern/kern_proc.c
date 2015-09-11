@@ -2517,11 +2517,14 @@ repeat:
 		    sizeof(kkstp->kkst_trace), SBUF_FIXEDLEN);
 		thread_lock(td);
 		kkstp->kkst_tid = td->td_tid;
-		if (TD_IS_SWAPPED(td))
+		if (TD_IS_SWAPPED(td)) {
 			kkstp->kkst_state = KKST_STATE_SWAPPED;
-		else if (TD_IS_RUNNING(td))
-			kkstp->kkst_state = KKST_STATE_RUNNING;
-		else {
+		} else if (TD_IS_RUNNING(td)) {
+			if (stack_save_td_running(st, td) == 0)
+				kkstp->kkst_state = KKST_STATE_STACKOK;
+			else
+				kkstp->kkst_state = KKST_STATE_RUNNING;
+		} else {
 			kkstp->kkst_state = KKST_STATE_STACKOK;
 			stack_save_td(st, td);
 		}
