@@ -72,10 +72,12 @@ __start:
 #endif
 
 #ifdef __CHERI_SANDBOX__
+	# XXX-BD: we should do this in the kernel
 	cgetdefault	$c11		# Excessively large stack capability
-	cfromptr	$c3, $c11, a0
-	cfromptr	$c4, $c11, a1
-	cfromptr	$c5, $c11, a2
+	cfromptr	$c3, $c11, a0	# Argument vector
+	cfromptr	$c4, $c11, a1	# rtld cleanup (from rtld)
+	cfromptr	$c5, $c11, a2	# rtld object (from rtld)
+	cfromptr	$c6, $c11, a3	# ps_strings
 
 	dla		$25, _start1
 	cgetdefault	$c19
