@@ -1252,9 +1252,9 @@ packages:
 		${MAKE} DESTDIR=${DESTDIR:U${STAGEDIR}} -DNO_ROOT stageworld ; \
 		${MAKE} DESTDIR=${DESTDIR:U${STAGEDIR}} create-world-packages
 
-kernel-pkgs:
+create-kernel-packages:
 .if !defined(NO_ROOT)
-	@echo "ERROR: kernel-pkgs can only be done with -DNO_ROOT"; \
+	@echo "ERROR: create-kernel-packages can only be done with -DNO_ROOT"; \
 	false
 .endif
 	@cd ${DESTDIR}/${DISTDIR} ; \
