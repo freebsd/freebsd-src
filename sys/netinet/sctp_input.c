@@ -530,9 +530,9 @@ sctp_process_init_ack(struct mbuf *m, int iphlen, int offset,
 		 * abandon the peer, its broke.
 		 */
 		if (retval == -3) {
-			size_t len;
+			uint16_t len;
 
-			len = sizeof(struct sctp_error_missing_param) + sizeof(uint16_t);
+			len = (uint16_t) (sizeof(struct sctp_error_missing_param) + sizeof(uint16_t));
 			/* We abort with an error of missing mandatory param */
 			op_err = sctp_get_mbuf_for_msg(len, 0, M_NOWAIT, 1, MT_DATA);
 			if (op_err != NULL) {
