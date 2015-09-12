@@ -821,10 +821,8 @@ dwc_intr(void *arg)
 	DWC_LOCK(sc);
 
 	reg = READ4(sc, INTERRUPT_STATUS);
-	if (reg) {
-		mii_mediachg(sc->mii_softc);
+	if (reg)
 		READ4(sc, SGMII_RGMII_SMII_CTRL_STATUS);
-	}
 
 	reg = READ4(sc, DMA_STATUS);
 	if (reg & DMA_STATUS_NIS) {
