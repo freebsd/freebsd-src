@@ -394,9 +394,14 @@ gpiobus_print_child(device_t dev, device_t child)
 	devi = GPIOBUS_IVAR(child);
 	memset(pins, 0, sizeof(pins));
 	retval += bus_print_child_header(dev, child);
-	retval += printf(" at pin(s) ");
-	gpiobus_print_pins(devi, pins, sizeof(pins));
-	retval += printf("%s", pins);
+	if (devi->npins > 0) {
+		if (devi->npins > 1)
+			retval += printf(" at pins ");
+		else
+			retval += printf(" at pin ");
+		gpiobus_print_pins(devi, pins, sizeof(pins));
+		retval += printf("%s", pins);
+	}
 	resource_list_print_type(&devi->rl, "irq", SYS_RES_IRQ, "%ld");
 	retval += bus_print_child_footer(dev, child);
 
@@ -559,6 +564,10 @@ gpiobus_acquire_bus(device_t busdev, device_t child, int how)
 	GPIOBUS_ASSERT_UNLOCKED(sc);
 	GPIOBUS_LOCK(sc);
 	if (sc->sc_owner != NULL) {
+		if (sc->sc_owner == child)
+			panic("%s: %s still owns the bus.",
+			    device_get_nameunit(busdev),
+			    device_get_nameunit(child));
 		if (how == GPIOBUS_DONTWAIT) {
 			GPIOBUS_UNLOCK(sc);
 			return (EWOULDBLOCK);
@@ -581,9 +590,14 @@ gpiobus_release_bus(device_t busdev, device_t child)
 	GPIOBUS_ASSERT_UNLOCKED(sc);
 	GPIOBUS_LOCK(sc);
 	if (sc->sc_owner == NULL)
-		panic("gpiobus: releasing unowned bus.");
+		panic("%s: %s releasing unowned bus.",
+		    device_get_nameunit(busdev),
+		    device_get_nameunit(child));
 	if (sc->sc_owner != child)
-		panic("gpiobus: you don't own the bus. game over.");
+		panic("%s: %s trying to release bus owned by %s",
+		    device_get_nameunit(busdev),
+		    device_get_nameunit(child),
+		    device_get_nameunit(sc->sc_owner));
 	sc->sc_owner = NULL;
 	wakeup(sc);
 	GPIOBUS_UNLOCK(sc);

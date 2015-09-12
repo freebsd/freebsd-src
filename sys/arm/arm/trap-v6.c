@@ -542,8 +542,8 @@ nogo:
 		return;
 	}
 
-	ksig.sig = (rv == KERN_PROTECTION_FAILURE) ? SIGBUS : SIGSEGV;
-	ksig.code = 0;
+	ksig.sig = SIGSEGV;
+	ksig.code = (rv == KERN_PROTECTION_FAILURE) ? SEGV_ACCERR : SEGV_MAPERR;
 	ksig.addr = far;
 
 do_trapsignal:

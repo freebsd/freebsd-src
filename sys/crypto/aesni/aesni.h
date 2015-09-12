@@ -56,7 +56,6 @@ struct aesni_session {
 	uint8_t enc_schedule[AES_SCHED_LEN] __aligned(16);
 	uint8_t dec_schedule[AES_SCHED_LEN] __aligned(16);
 	uint8_t xts_schedule[AES_SCHED_LEN] __aligned(16);
-	uint8_t iv[AES_BLOCK_LEN];
 	int algo;
 	int rounds;
 	/* uint8_t *ses_ictx; */
@@ -65,7 +64,6 @@ struct aesni_session {
 	int used;
 	uint32_t id;
 	TAILQ_ENTRY(aesni_session) next;
-	struct fpu_kern_ctx *fpu_ctx;
 };
 
 /*

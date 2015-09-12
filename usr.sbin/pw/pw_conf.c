@@ -104,8 +104,7 @@ static struct userconf config =
 	1000, 32000,		/* Allowed range of uids */
 	1000, 32000,		/* Allowed range of gids */
 	0,			/* Days until account expires */
-	0,			/* Days until password expires */
-	0			/* size of default_group array */
+	0			/* Days until password expires */
 };
 
 static char const *comments[_UC_FIELDS] =
@@ -234,10 +233,9 @@ read_userconfig(char const * file)
 	buf = NULL;
 	linecap = 0;
 
-	config.numgroups = 200;
-	config.groups = calloc(config.numgroups, sizeof(char *));
+	config.groups = sl_init();
 	if (config.groups == NULL)
-		err(1, "calloc()");
+		err(1, "sl_init()");
 	if (file == NULL)
 		file = _PATH_PW_CONF;
 
@@ -316,13 +314,8 @@ read_userconfig(char const * file)
 					? NULL : newstr(q);
 				break;
 			case _UC_EXTRAGROUPS:
-				for (i = 0; q != NULL; q = strtok(NULL, toks)) {
-					if (extendarray(&config.groups, &config.numgroups, i + 2) != -1)
-						config.groups[i++] = newstr(q);
-				}
-				if (i > 0)
-					while (i < config.numgroups)
-						config.groups[i++] = NULL;
+				for (i = 0; q != NULL; q = strtok(NULL, toks))
+					sl_add(config.groups, newstr(q));
 				break;
 			case _UC_DEFAULTCLASS:
 				config.default_class = (q == NULL || !boolean_val(q, 1))
@@ -442,10 +435,10 @@ write_userconfig(char const * file)
 			    config.default_group : "");
 			break;
 		case _UC_EXTRAGROUPS:
-			for (j = 0; j < config.numgroups &&
-			    config.groups[j] != NULL; j++)
+			for (j = 0; config.groups != NULL &&
+			    j < (int)config.groups->sl_cur; j++)
 				sbuf_printf(buf, "%s\"%s\"", j ?
-				    "," : "", config.groups[j]);
+				    "," : "", config.groups->sl_str[j]);
 			quote = 0;
 			break;
 		case _UC_DEFAULTCLASS:

@@ -412,4 +412,6 @@ MIASM =  \
 	procctl.o \
 	ppoll.o \
 	futimens.o \
-	utimensat.o
+	utimensat.o \
+	numa_getaffinity.o \
+	numa_setaffinity.o

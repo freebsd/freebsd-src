@@ -42,18 +42,24 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include "_libproc.h"
 
-#if defined(__i386__) || defined(__amd64__)
-#define BREAKPOINT_INSTR	0xcc	/* int 0x3 */
+#if defined(__aarch64__)
+#define	AARCH64_BRK		0xd4200000
+#define	AARCH64_BRK_IMM16_SHIFT	5
+#define	AARCH64_BRK_IMM16_VAL	(0xd << AARCH64_BRK_IMM16_SHIFT)
+#define	BREAKPOINT_INSTR	(AARCH64_BRK | AARCH64_BRK_IMM16_VAL)
+#define	BREAKPOINT_INSTR_SZ	4
+#elif defined(__amd64__) || defined(__i386__)
+#define	BREAKPOINT_INSTR	0xcc	/* int 0x3 */
 #define	BREAKPOINT_INSTR_SZ	1
+#elif defined(__arm__)
+#define	BREAKPOINT_INSTR	0xe7ffffff	/* bkpt */
+#define	BREAKPOINT_INSTR_SZ	4
 #elif defined(__mips__)
-#define BREAKPOINT_INSTR	0xd	/* break */
+#define	BREAKPOINT_INSTR	0xd	/* break */
 #define	BREAKPOINT_INSTR_SZ	4
 #elif defined(__powerpc__)
-#define BREAKPOINT_INSTR	0x7fe00008	/* trap */
-#define BREAKPOINT_INSTR_SZ 4
-#elif defined(__arm__)
-#define BREAKPOINT_INSTR	0xe7ffffff	/* bkpt */
-#define BREAKPOINT_INSTR_SZ	4
+#define	BREAKPOINT_INSTR	0x7fe00008	/* trap */
+#define	BREAKPOINT_INSTR_SZ	4
 #else
 #error "Add support for your architecture"
 #endif

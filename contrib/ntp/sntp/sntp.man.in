@@ -10,11 +10,11 @@
 .ds B-Font B
 .ds I-Font I
 .ds R-Font R
-.TH sntp @SNTP_MS@ "07 Apr 2015" "4.2.8p2" "User Commands"
+.TH sntp @SNTP_MS@ "29 Jun 2015" "4.2.8p3" "User Commands"
 .\"
-.\" EDIT THIS FILE WITH CAUTION (/tmp/.ag-E6aqmA/ag-76ailA)
+.\" EDIT THIS FILE WITH CAUTION (/tmp/.ag-JTaaO5/ag-VTa4M5)
 .\"
-.\" It has been AutoGen-ed April 7, 2015 at 04:18:00 AM by AutoGen 5.18.5pre4
+.\" It has been AutoGen-ed June 29, 2015 at 04:23:26 PM by AutoGen 5.18.5
 .\" From the definitions sntp-opts.def
 .\" and the template file agman-cmd.tpl
 .SH NAME
@@ -296,7 +296,7 @@ to check the current time and error in the local clock.
 With suitable privilege,
 run as a command
 or from a
-\fCcron\fR(8)\f[]
+\fCcron\f[]\fR(8)\f[]
 job,
 \f\*[B-Font]sntp \-Ss \-M 128 ntpserver.somewhere\f[]
 will request the time from the server,
@@ -310,14 +310,14 @@ the correction  will be stepped.
 With suitable privilege,
 run as a command
 or from a
-\fCcron\fR(8)\f[]
+\fCcron\f[]\fR(8)\f[]
 job,
 \f\*[B-Font]sntp \-S ntpserver.somewhere\f[]
 will set (step) the local clock from a synchronized specified server,
 like the (deprecated)
-\fCntpdate\fR(@NTPDATE_MS@)\f[],
+\fCntpdate\f[]\fR(@NTPDATE_MS@)\f[],
 or
-\fCrdate\fR(8)\f[]
+\fCrdate\f[]\fR(8)\f[]
 commands.
 .PP
 .SH "ENVIRONMENT"

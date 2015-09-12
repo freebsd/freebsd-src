@@ -89,21 +89,21 @@ __FBSDID("$FreeBSD$");
 
 #define	DWC_LOCK(sc)			mtx_lock(&(sc)->mtx)
 #define	DWC_UNLOCK(sc)			mtx_unlock(&(sc)->mtx)
-#define	DWC_ASSERT_LOCKED(sc)		mtx_assert(&(sc)->mtx, MA_OWNED);
-#define	DWC_ASSERT_UNLOCKED(sc)		mtx_assert(&(sc)->mtx, MA_NOTOWNED);
+#define	DWC_ASSERT_LOCKED(sc)		mtx_assert(&(sc)->mtx, MA_OWNED)
+#define	DWC_ASSERT_UNLOCKED(sc)		mtx_assert(&(sc)->mtx, MA_NOTOWNED)
 
-#define	DDESC_TDES0_OWN			(1 << 31)
-#define	DDESC_TDES0_TXINT		(1 << 30)
-#define	DDESC_TDES0_TXLAST		(1 << 29)
-#define	DDESC_TDES0_TXFIRST		(1 << 28)
-#define	DDESC_TDES0_TXCRCDIS		(1 << 27)
-#define	DDESC_TDES0_TXRINGEND		(1 << 21)
-#define	DDESC_TDES0_TXCHAIN		(1 << 20)
+#define	DDESC_TDES0_OWN			(1U << 31)
+#define	DDESC_TDES0_TXINT		(1U << 30)
+#define	DDESC_TDES0_TXLAST		(1U << 29)
+#define	DDESC_TDES0_TXFIRST		(1U << 28)
+#define	DDESC_TDES0_TXCRCDIS		(1U << 27)
+#define	DDESC_TDES0_TXRINGEND		(1U << 21)
+#define	DDESC_TDES0_TXCHAIN		(1U << 20)
 
-#define	DDESC_RDES0_OWN			(1 << 31)
+#define	DDESC_RDES0_OWN			(1U << 31)
 #define	DDESC_RDES0_FL_MASK		0x3fff
 #define	DDESC_RDES0_FL_SHIFT		16	/* Frame Length */
-#define	DDESC_RDES1_CHAINED		(1 << 14)
+#define	DDESC_RDES1_CHAINED		(1U << 14)
 
 struct dwc_bufmap {
 	bus_dmamap_t	map;
@@ -149,8 +149,6 @@ struct dwc_softc {
 	struct mtx		mtx;
 	void *			intr_cookie;
 	struct callout		dwc_callout;
-	uint8_t			phy_conn_type;
-	uint8_t			mactype;
 	boolean_t		link_is_up;
 	boolean_t		is_attached;
 	boolean_t		is_detaching;
@@ -331,7 +329,7 @@ static void
 dwc_stop_locked(struct dwc_softc *sc)
 {
 	struct ifnet *ifp;
-	int reg;
+	uint32_t reg;
 
 	DWC_ASSERT_LOCKED(sc);
 
@@ -365,7 +363,7 @@ dwc_stop_locked(struct dwc_softc *sc)
 
 static void dwc_clear_stats(struct dwc_softc *sc)
 {
-	int reg;
+	uint32_t reg;
 
 	reg = READ4(sc, MMC_CONTROL);
 	reg |= (MMC_CONTROL_CNTRST);
@@ -448,7 +446,7 @@ static void
 dwc_init_locked(struct dwc_softc *sc)
 {
 	struct ifnet *ifp = sc->ifp;
-	int reg;
+	uint32_t reg;
 
 	DWC_ASSERT_LOCKED(sc);
 
@@ -618,15 +616,8 @@ dwc_setup_rxfilter(struct dwc_softc *sc)
 {
 	struct ifmultiaddr *ifma;
 	struct ifnet *ifp;
-	uint8_t *eaddr;
-	uint32_t crc;
-	uint8_t val;
-	int hashbit;
-	int hashreg;
-	int ffval;
-	int reg;
-	int lo;
-	int hi;
+	uint8_t *eaddr, val;
+	uint32_t crc, ffval, hashbit, hashreg, hi, lo, reg;
 
 	DWC_ASSERT_LOCKED(sc);
 
@@ -759,6 +750,7 @@ dwc_txfinish_locked(struct dwc_softc *sc)
 		dwc_setup_txdesc(sc, sc->tx_idx_tail, 0, 0);
 		sc->tx_idx_tail = next_txidx(sc, sc->tx_idx_tail);
 		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 	}
 
 	/* If there are no buffers outstanding, muzzle the watchdog. */
@@ -773,10 +765,8 @@ dwc_rxfinish_locked(struct dwc_softc *sc)
 	struct ifnet *ifp;
 	struct mbuf *m0;
 	struct mbuf *m;
-	int error;
-	int rdes0;
-	int idx;
-	int len;
+	int error, idx, len;
+	uint32_t rdes0;
 
 	ifp = sc->ifp;
 
@@ -908,10 +898,8 @@ setup_dma(struct dwc_softc *sc)
 	}
 
 	for (idx = 0; idx < TX_DESC_COUNT; idx++) {
-		sc->txdesc_ring[idx].tdes0 = DDESC_TDES0_TXCHAIN;
-		sc->txdesc_ring[idx].tdes1 = 0;
 		nidx = next_txidx(sc, idx);
-		sc->txdesc_ring[idx].addr_next = sc->txdesc_ring_paddr + \
+		sc->txdesc_ring[idx].addr_next = sc->txdesc_ring_paddr +
 		    (nidx * sizeof(struct dwc_hwdesc));
 	}
 
@@ -1028,9 +1016,7 @@ out:
 static int
 dwc_get_hwaddr(struct dwc_softc *sc, uint8_t *hwaddr)
 {
-	int rnd;
-	int lo;
-	int hi;
+	uint32_t hi, lo, rnd;
 
 	/*
 	 * Try to recover a MAC address from the running hardware. If there's
@@ -1083,9 +1069,8 @@ dwc_attach(device_t dev)
 	uint8_t macaddr[ETHER_ADDR_LEN];
 	struct dwc_softc *sc;
 	struct ifnet *ifp;
-	int error;
-	int reg;
-	int i;
+	int error, i;
+	uint32_t reg;
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
@@ -1250,7 +1235,7 @@ dwc_miibus_statchg(device_t dev)
 {
 	struct dwc_softc *sc;
 	struct mii_data *mii;
-	int reg;
+	uint32_t reg;
 
 	/*
 	 * Called by the MII bus driver when the PHY establishes

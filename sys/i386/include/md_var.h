@@ -94,6 +94,7 @@ struct	reg;
 struct	fpreg;
 struct  dbreg;
 struct	dumperinfo;
+struct	segment_descriptor;
 
 void	*alloc_fpusave(int flags);
 void	bcopyb(const void *from, void *to, size_t len);
@@ -114,6 +115,7 @@ void	dump_add_page(vm_paddr_t);
 void	dump_drop_page(vm_paddr_t);
 void	finishidentcpu(void);
 void	fillw(int /*u_short*/ pat, void *base, size_t cnt);
+void	fill_based_sd(struct segment_descriptor *sdp, uint32_t base);
 void	initializecpu(void);
 void	initializecpucache(void);
 void	i686_pagezero(void *addr);

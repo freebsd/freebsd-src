@@ -48,16 +48,10 @@ __FBSDID("$FreeBSD$");
 #include <ddb/db_sym.h>
 #include <ddb/db_variables.h>
 
-static db_varfcn_t db_dr0;
-static db_varfcn_t db_dr1;
-static db_varfcn_t db_dr2;
-static db_varfcn_t db_dr3;
-static db_varfcn_t db_dr4;
-static db_varfcn_t db_dr5;
-static db_varfcn_t db_dr6;
-static db_varfcn_t db_dr7;
 static db_varfcn_t db_esp;
 static db_varfcn_t db_frame;
+static db_varfcn_t db_frame_seg;
+static db_varfcn_t db_gs;
 static db_varfcn_t db_ss;
 
 /*
@@ -65,10 +59,11 @@ static db_varfcn_t db_ss;
  */
 #define	DB_OFFSET(x)	(db_expr_t *)offsetof(struct trapframe, x)
 struct db_variable db_regs[] = {
-	{ "cs",		DB_OFFSET(tf_cs),	db_frame },
-	{ "ds",		DB_OFFSET(tf_ds),	db_frame },
-	{ "es",		DB_OFFSET(tf_es),	db_frame },
-	{ "fs",		DB_OFFSET(tf_fs),	db_frame },
+	{ "cs",		DB_OFFSET(tf_cs),	db_frame_seg },
+	{ "ds",		DB_OFFSET(tf_ds),	db_frame_seg },
+	{ "es",		DB_OFFSET(tf_es),	db_frame_seg },
+	{ "fs",		DB_OFFSET(tf_fs),	db_frame_seg },
+	{ "gs",		NULL,			db_gs },
 	{ "ss",		NULL,			db_ss },
 	{ "eax",	DB_OFFSET(tf_eax),	db_frame },
 	{ "ecx",	DB_OFFSET(tf_ecx),	db_frame },
@@ -80,40 +75,8 @@ struct db_variable db_regs[] = {
 	{ "edi",	DB_OFFSET(tf_edi),	db_frame },
 	{ "eip",	DB_OFFSET(tf_eip),	db_frame },
 	{ "efl",	DB_OFFSET(tf_eflags),	db_frame },
-#define	DB_N_SHOW_REGS	15	/* Don't show registers after here. */
-	{ "dr0",	NULL,			db_dr0 },
-	{ "dr1",	NULL,			db_dr1 },
-	{ "dr2",	NULL,			db_dr2 },
-	{ "dr3",	NULL,			db_dr3 },
-	{ "dr4",	NULL,			db_dr4 },
-	{ "dr5",	NULL,			db_dr5 },
-	{ "dr6",	NULL,			db_dr6 },
-	{ "dr7",	NULL,			db_dr7 },
 };
-struct db_variable *db_eregs = db_regs + DB_N_SHOW_REGS;
-
-#define DB_DRX_FUNC(reg)		\
-static int				\
-db_ ## reg (vp, valuep, op)		\
-	struct db_variable *vp;		\
-	db_expr_t * valuep;		\
-	int op;				\
-{					\
-	if (op == DB_VAR_GET)		\
-		*valuep = r ## reg ();	\
-	else				\
-		load_ ## reg (*valuep); \
-	return (1);			\
-}
-
-DB_DRX_FUNC(dr0)
-DB_DRX_FUNC(dr1)
-DB_DRX_FUNC(dr2)
-DB_DRX_FUNC(dr3)
-DB_DRX_FUNC(dr4)
-DB_DRX_FUNC(dr5)
-DB_DRX_FUNC(dr6)
-DB_DRX_FUNC(dr7)
+struct db_variable *db_eregs = db_regs + nitems(db_regs);
 
 static __inline int
 get_esp(struct trapframe *tf)
@@ -139,6 +102,22 @@ db_frame(struct db_variable *vp, db_expr_t *valuep, int op)
 }
 
 static int
+db_frame_seg(struct db_variable *vp, db_expr_t *valuep, int op)
+{
+	uint16_t *reg;
+
+	if (kdb_frame == NULL)
+		return (0);
+
+	reg = (uint16_t *)((uintptr_t)kdb_frame + (db_expr_t)vp->valuep);
+	if (op == DB_VAR_GET)
+		*valuep = *reg;
+	else
+		*reg = *valuep;
+	return (1);
+}
+
+static int
 db_esp(struct db_variable *vp, db_expr_t *valuep, int op)
 {
 
@@ -149,6 +128,17 @@ db_esp(struct db_variable *vp, db_expr_t *valuep, int op)
 		*valuep = get_esp(kdb_frame);
 	else if (ISPL(kdb_frame->tf_cs))
 		kdb_frame->tf_esp = *valuep;
+	return (1);
+}
+
+static int
+db_gs(struct db_variable *vp, db_expr_t *valuep, int op)
+{
+
+	if (op == DB_VAR_GET)
+		*valuep = rgs();
+	else
+		load_gs(*valuep);
 	return (1);
 }
 
@@ -389,7 +379,7 @@ db_nextframe(struct i386_frame **fp, db_addr_t *ip, struct thread *td)
 
 static int
 db_backtrace(struct thread *td, struct trapframe *tf, struct i386_frame *frame,
-    db_addr_t pc, int count)
+    db_addr_t pc, register_t sp, int count)
 {
 	struct i386_frame *actframe;
 #define MAXNARG	16
@@ -446,7 +436,21 @@ db_backtrace(struct thread *td, struct trapframe *tf, struct i386_frame *frame,
 		 */
 		actframe = frame;
 		if (first) {
-			if (tf != NULL) {
+			first = FALSE;
+			if (sym == C_DB_SYM_NULL && sp != 0) {
+				/*
+				 * If a symbol couldn't be found, we've probably
+				 * jumped to a bogus location, so try and use
+				 * the return address to find our caller.
+				 */
+				db_print_stack_entry(name, 0, 0, 0, pc,
+				    NULL);
+				pc = db_get_value(sp, 4, FALSE);
+				if (db_search_symbol(pc, DB_STGY_PROC,
+				    &offset) == C_DB_SYM_NULL)
+					break;
+				continue;
+			} else if (tf != NULL) {
 				instr = db_get_value(pc, 4, FALSE);
 				if ((instr & 0xffffff) == 0x00e58955) {
 					/* pushl %ebp; movl %esp, %ebp */
@@ -474,7 +478,6 @@ db_backtrace(struct thread *td, struct trapframe *tf, struct i386_frame *frame,
 				    actframe);
 				break;
 			}
-			first = FALSE;
 		}
 
 		argp = &actframe->f_arg0;
@@ -521,17 +524,19 @@ db_trace_self(void)
 	frame = (struct i386_frame *)ebp;
 	callpc = (db_addr_t)db_get_value((int)&frame->f_retaddr, 4, FALSE);
 	frame = frame->f_frame;
-	db_backtrace(curthread, NULL, frame, callpc, -1);
+	db_backtrace(curthread, NULL, frame, callpc, 0, -1);
 }
 
 int
 db_trace_thread(struct thread *thr, int count)
 {
 	struct pcb *ctx;
+	struct trapframe *tf;
 
 	ctx = kdb_thr_ctx(thr);
-	return (db_backtrace(thr, NULL, (struct i386_frame *)ctx->pcb_ebp,
-		    ctx->pcb_eip, count));
+	tf = thr == kdb_thread ? kdb_frame : NULL;
+	return (db_backtrace(thr, tf, (struct i386_frame *)ctx->pcb_ebp,
+	    ctx->pcb_eip, ctx->pcb_esp, count));
 }
 
 int

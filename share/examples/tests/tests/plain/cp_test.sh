@@ -1,3 +1,4 @@
+#! /bin/sh
 # $FreeBSD$
 #
 # Copyright 2013 Google Inc.

@@ -159,6 +159,7 @@ _lockmgr_args_rw(struct lock *lk, u_int flags, struct rwlock *ilk,
 #define	LK_SLEEPFAIL	0x000800
 #define	LK_TIMELOCK	0x001000
 #define	LK_NODDLKTREAT	0x002000
+#define	LK_VNHELD	0x004000
 
 /*
  * Operations for lockmgr().

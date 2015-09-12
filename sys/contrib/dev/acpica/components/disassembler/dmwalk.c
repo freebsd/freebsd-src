@@ -313,6 +313,8 @@ AcpiDmBlockType (
             return (BLOCK_NONE);
         }
 
+        /*lint -fallthrough */
+
     default:
 
         OpInfo = AcpiPsGetOpcodeInfo (Op->Common.AmlOpcode);
@@ -410,7 +412,23 @@ AcpiDmDescendingOp (
     const ACPI_OPCODE_INFO  *OpInfo;
     UINT32                  Name;
     ACPI_PARSE_OBJECT       *NextOp;
+    UINT32                  AmlOffset;
 
+
+    if (AcpiGbl_DbOpt_Verbose && AcpiGbl_PreviousOp)
+    {
+        /* Dump the entire statement in AML byte code */
+
+        if (Op->Common.Aml > AcpiGbl_PreviousOp->Common.Aml)
+        {
+            AcpiOsPrintf ("\n");
+            AcpiUtDumpBuffer (AcpiGbl_PreviousOp->Common.Aml,
+                (Op->Common.Aml - AcpiGbl_PreviousOp->Common.Aml),
+                DB_BYTE_DISPLAY, 0);
+            AcpiDmIndent (Level);
+        }
+    }
+    AcpiGbl_PreviousOp = Op;
 
     if (Op->Common.DisasmFlags & ACPI_PARSEOP_IGNORE)
     {
@@ -427,10 +445,12 @@ AcpiDmDescendingOp (
 
         if (Info->WalkState)
         {
+            AmlOffset = (UINT32) ACPI_PTR_DIFF (Op->Common.Aml,
+                            Info->WalkState->ParserState.AmlStart);
             VERBOSE_PRINT ((DB_FULL_OP_INFO,
                 (Info->WalkState->MethodNode ?
                     Info->WalkState->MethodNode->Name.Ascii : "   "),
-                Op->Common.AmlOffset, (UINT32) Op->Common.AmlOpcode));
+                AmlOffset, (UINT32) Op->Common.AmlOpcode));
         }
 
         if (Op->Common.AmlOpcode == AML_SCOPE_OP)

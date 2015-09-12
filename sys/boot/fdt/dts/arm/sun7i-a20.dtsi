@@ -122,6 +122,7 @@
 			reg = <0x01c18000 0x1000>;
 			interrupts = <56>;
 			interrupt-parent = <&GIC>;
+			status = "disabled";
 		};
 
 		UART0: serial@01c28000 {
@@ -140,6 +141,20 @@
 			reg = <0x01c0b000 0x1000>;
 			interrupts = <55>;
 			interrupt-parent = <&GIC>;
+			status = "disabled";
+		};
+
+		gmac@01c50000 {
+			compatible = "allwinner,sun7i-a20-gmac";
+			reg = <0x01c50000 0x10000>;
+			interrupts = <85>;
+			interrupt-parent = <&GIC>;
+			snps,pbl = <2>;
+			snps,fixed-burst;
+			snps,force_sf_dma_mode;
+			status = "disabled";
+			#address-cells = <1>;
+			#size-cells = <0>;
 		};
 	};
 };

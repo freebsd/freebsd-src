@@ -39,7 +39,6 @@
 #include <sys/socket.h>
 #include <stdbool.h>
 #include <libutil.h>
-#include <openssl/md5.h>
 
 #define	DEFAULT_CONFIG_PATH		"/etc/ctl.conf"
 #define	DEFAULT_PIDFILE			"/var/run/ctld.pid"
@@ -263,11 +262,12 @@ struct keys {
 };
 
 #define	CHAP_CHALLENGE_LEN	1024
+#define	CHAP_DIGEST_LEN		16 /* Equal to MD5 digest size. */
 
 struct chap {
 	unsigned char	chap_id;
 	char		chap_challenge[CHAP_CHALLENGE_LEN];
-	char		chap_response[MD5_DIGEST_LENGTH];
+	char		chap_response[CHAP_DIGEST_LEN];
 };
 
 struct rchap {

@@ -3640,7 +3640,8 @@ Retry:
 		return (KERN_NO_SPACE);
 	}
 
-	is_procstack = (addr >= (vm_offset_t)vm->vm_maxsaddr) ? 1 : 0;
+	is_procstack = (addr >= (vm_offset_t)vm->vm_maxsaddr &&
+	    addr < (vm_offset_t)p->p_sysent->sv_usrstack) ? 1 : 0;
 
 	/*
 	 * If this is the main process stack, see if we're over the stack

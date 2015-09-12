@@ -149,10 +149,9 @@ CLEANFILES+=	ldscript.abs ldscript.pie ubldr ubldr.pie ubldr.bin
 .PATH: ${.CURDIR}/../../forth
 .include	"${.CURDIR}/../../forth/Makefile.inc"
 
-# Put sample loader.rc and menu.rc on disk but don't enable them
-# by default.
+# Install loader.rc.
 FILES+=	loader.rc
-FILESNAME_loader.rc=	loader.rc.sample
+# Put sample menu.rc on disk but don't enable it by default.
 FILES+=	menu.rc
 FILESNAME_menu.rc=	menu.rc.sample
 .endif

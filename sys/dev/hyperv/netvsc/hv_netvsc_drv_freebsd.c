@@ -55,6 +55,9 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_inet6.h"
+#include "opt_inet.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sockio.h>
@@ -83,6 +86,9 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in.h>
 #include <netinet/ip.h>
 #include <netinet/if_ether.h>
+#include <netinet/tcp.h>
+#include <netinet/udp.h>
+#include <netinet/ip6.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -102,6 +108,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/atomic.h>
 
 #include <machine/intr_machdep.h>
+
+#include <machine/in_cksum.h>
 
 #include <dev/hyperv/include/hyperv.h>
 #include "hv_net_vsc.h"
@@ -165,6 +173,61 @@ static int  hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data);
 static int  hn_start_locked(struct ifnet *ifp);
 static void hn_start(struct ifnet *ifp);
 
+/*
+ * NetVsc get message transport protocol type 
+ */
+static uint32_t get_transport_proto_type(struct mbuf *m_head)
+{
+	uint32_t ret_val = TRANSPORT_TYPE_NOT_IP;
+	uint16_t ether_type = 0;
+	int ether_len = 0;
+	struct ether_vlan_header *eh;
+#ifdef INET
+	struct ip *iph;
+#endif
+#ifdef INET6
+	struct ip6_hdr *ip6;
+#endif
+
+	eh = mtod(m_head, struct ether_vlan_header*);
+	if (eh->evl_encap_proto == htons(ETHERTYPE_VLAN)) {
+		ether_len = ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN;
+		ether_type = eh->evl_proto;
+	} else {
+		ether_len = ETHER_HDR_LEN;
+		ether_type = eh->evl_encap_proto;
+	}
+
+	switch (ntohs(ether_type)) {
+#ifdef INET6
+	case ETHERTYPE_IPV6:
+		ip6 = (struct ip6_hdr *)(m_head->m_data + ether_len);
+
+		if (IPPROTO_TCP == ip6->ip6_nxt) {
+			ret_val = TRANSPORT_TYPE_IPV6_TCP;
+		} else if (IPPROTO_UDP == ip6->ip6_nxt) {
+			ret_val = TRANSPORT_TYPE_IPV6_UDP;
+		}
+		break;
+#endif
+#ifdef INET
+	case ETHERTYPE_IP:
+		iph = (struct ip *)(m_head->m_data + ether_len);
+
+		if (IPPROTO_TCP == iph->ip_p) {
+			ret_val = TRANSPORT_TYPE_IPV4_TCP;
+		} else if (IPPROTO_UDP == iph->ip_p) {
+			ret_val = TRANSPORT_TYPE_IPV4_UDP;
+		}
+		break;
+#endif
+	default:
+		ret_val = TRANSPORT_TYPE_NOT_IP;
+		break;
+	}
+
+	return (ret_val);
+}
 
 /*
  * NetVsc driver initialization
@@ -276,8 +339,19 @@ netvsc_attach(device_t dev)
 	 * Tell upper layers that we support full VLAN capability.
 	 */
 	ifp->if_hdrlen = sizeof(struct ether_vlan_header);
-	ifp->if_capabilities |= IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_MTU;
-	ifp->if_capenable |= IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_MTU;
+	ifp->if_capabilities |=
+	    IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_MTU | IFCAP_HWCSUM | IFCAP_TSO;
+	ifp->if_capenable |=
+	    IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_MTU | IFCAP_HWCSUM | IFCAP_TSO;
+	/*
+	 * Only enable UDP checksum offloading when it is on 2012R2 or
+	 * later. UDP checksum offloading doesn't work on earlier
+	 * Windows releases.
+	 */
+	if (hv_vmbus_protocal_version >= HV_VMBUS_VERSION_WIN8_1)
+		ifp->if_hwassist = CSUM_TCP | CSUM_UDP | CSUM_TSO;
+	else
+		ifp->if_hwassist = CSUM_TCP | CSUM_TSO;
 
 	ret = hv_rf_on_device_add(device_ctx, &device_info);
 	if (ret != 0) {
@@ -347,7 +421,7 @@ netvsc_xmit_completion(void *context)
 	mb = (struct mbuf *)(uintptr_t)packet->compl.send.send_completion_tid;
 	buf = ((uint8_t *)packet) - HV_NV_PACKET_OFFSET_IN_BUF;
 
-	free(buf, M_DEVBUF);
+	free(buf, M_NETVSC);
 
 	if (mb != NULL) {
 		m_freem(mb);
@@ -362,17 +436,29 @@ hn_start_locked(struct ifnet *ifp)
 {
 	hn_softc_t *sc = ifp->if_softc;
 	struct hv_device *device_ctx = vmbus_get_devctx(sc->hn_dev);
+	netvsc_dev *net_dev = sc->net_dev;
+	device_t dev = device_ctx->device;
 	uint8_t *buf;
 	netvsc_packet *packet;
 	struct mbuf *m_head, *m;
 	struct mbuf *mc_head = NULL;
+	struct ether_vlan_header *eh;
+	rndis_msg *rndis_mesg;
+	rndis_packet *rndis_pkt;
+	rndis_per_packet_info *rppi;
+	ndis_8021q_info *rppi_vlan_info;
+	rndis_tcp_ip_csum_info *csum_info;
+	rndis_tcp_tso_info *tso_info;	
+	int ether_len;
 	int i;
 	int num_frags;
 	int len;
-	int xlen;
-	int rppi_size;
 	int retries = 0;
-	int ret = 0;
+	int ret = 0;	
+	uint32_t rndis_msg_size = 0;
+	uint32_t trans_proto_type;
+	uint32_t send_buf_section_idx =
+	    NVSP_1_CHIMNEY_SEND_INVALID_SECTION_INDEX;
 
 	while (!IFQ_DRV_IS_EMPTY(&sc->hn_ifp->if_snd)) {
 		IFQ_DRV_DEQUEUE(&sc->hn_ifp->if_snd, m_head);
@@ -382,7 +468,6 @@ hn_start_locked(struct ifnet *ifp)
 
 		len = 0;
 		num_frags = 0;
-		xlen = 0;
 
 		/* Walk the mbuf list computing total length and num frags */
 		for (m = m_head; m != NULL; m = m->m_next) {
@@ -401,50 +486,42 @@ hn_start_locked(struct ifnet *ifp)
 
 		/* If exceeds # page_buffers in netvsc_packet */
 		if (num_frags > NETVSC_PACKET_MAXPAGE) {
-			m_freem(m);
-
+			device_printf(dev, "exceed max page buffers,%d,%d\n",
+			    num_frags, NETVSC_PACKET_MAXPAGE);
+			m_freem(m_head);
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			return (EINVAL);
-		}
-
-		rppi_size = 0;
-		if (m_head->m_flags & M_VLANTAG) {
-			rppi_size = sizeof(rndis_per_packet_info) + 
-			    sizeof(ndis_8021q_info);
 		}
 
 		/*
 		 * Allocate a buffer with space for a netvsc packet plus a
 		 * number of reserved areas.  First comes a (currently 16
 		 * bytes, currently unused) reserved data area.  Second is
-		 * the netvsc_packet, which includes (currently 4) page
-		 * buffers.  Third (optional) is a rndis_per_packet_info
-		 * struct, but only if a VLAN tag should be inserted into the
-		 * Ethernet frame by the Hyper-V infrastructure.  Fourth is
-		 * an area reserved for an rndis_filter_packet struct.
+		 * the netvsc_packet. Third is an area reserved for an 
+		 * rndis_filter_packet struct. Fourth (optional) is a 
+		 * rndis_per_packet_info struct.
 		 * Changed malloc to M_NOWAIT to avoid sleep under spin lock.
 		 * No longer reserving extra space for page buffers, as they
 		 * are already part of the netvsc_packet.
 		 */
 		buf = malloc(HV_NV_PACKET_OFFSET_IN_BUF +
-		    sizeof(netvsc_packet) + rppi_size +
-		    sizeof(rndis_filter_packet),
-		    M_DEVBUF, M_ZERO | M_NOWAIT);
+			sizeof(netvsc_packet) + 
+			sizeof(rndis_msg) +
+			RNDIS_VLAN_PPI_SIZE +
+			RNDIS_TSO_PPI_SIZE +
+			RNDIS_CSUM_PPI_SIZE,
+			M_NETVSC, M_ZERO | M_NOWAIT);
 		if (buf == NULL) {
-			m_freem(m);
-
+			device_printf(dev, "hn:malloc packet failed\n");
+			m_freem(m_head);
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			return (ENOMEM);
 		}
 
 		packet = (netvsc_packet *)(buf + HV_NV_PACKET_OFFSET_IN_BUF);
 		*(vm_offset_t *)buf = HV_NV_SC_PTR_OFFSET_IN_BUF;
 
-		/*
-		 * extension points to the area reserved for the
-		 * rndis_filter_packet, which is placed just after
-		 * the netvsc_packet (and rppi struct, if present;
-		 * length is updated later).
-		 */
-		packet->extension = packet + 1;
+		packet->is_data_pkt = TRUE;
 
 		/* Set up the rndis header */
 		packet->page_buf_count = num_frags;
@@ -453,13 +530,179 @@ hn_start_locked(struct ifnet *ifp)
 		packet->tot_data_buf_len = len;
 
 		/*
+		 * extension points to the area reserved for the
+		 * rndis_filter_packet, which is placed just after
+		 * the netvsc_packet (and rppi struct, if present;
+		 * length is updated later).
+		 */
+		packet->rndis_mesg = packet + 1;
+		rndis_mesg = (rndis_msg *)packet->rndis_mesg;
+		rndis_mesg->ndis_msg_type = REMOTE_NDIS_PACKET_MSG;
+
+		rndis_pkt = &rndis_mesg->msg.packet;
+		rndis_pkt->data_offset = sizeof(rndis_packet);
+		rndis_pkt->data_length = packet->tot_data_buf_len;
+		rndis_pkt->per_pkt_info_offset = sizeof(rndis_packet);
+
+		rndis_msg_size = RNDIS_MESSAGE_SIZE(rndis_packet);
+
+		/*
 		 * If the Hyper-V infrastructure needs to embed a VLAN tag,
 		 * initialize netvsc_packet and rppi struct values as needed.
 		 */
-		if (rppi_size) {
-			/* Lower layers need the VLAN TCI */
+		if (m_head->m_flags & M_VLANTAG) {
+			/*
+			 * set up some additional fields so the Hyper-V infrastructure will stuff the VLAN tag
+			 * into the frame.
+			 */
 			packet->vlan_tci = m_head->m_pkthdr.ether_vtag;
+
+			rndis_msg_size += RNDIS_VLAN_PPI_SIZE;
+
+			rppi = hv_set_rppi_data(rndis_mesg, RNDIS_VLAN_PPI_SIZE,
+			    ieee_8021q_info);
+		
+			/* VLAN info immediately follows rppi struct */
+			rppi_vlan_info = (ndis_8021q_info *)((char*)rppi + 
+			    rppi->per_packet_info_offset);
+			/* FreeBSD does not support CFI or priority */
+			rppi_vlan_info->u1.s1.vlan_id =
+			    packet->vlan_tci & 0xfff;
 		}
+
+		if (0 == m_head->m_pkthdr.csum_flags) {
+			goto pre_send;
+		}
+
+		eh = mtod(m_head, struct ether_vlan_header*);
+		if (eh->evl_encap_proto == htons(ETHERTYPE_VLAN)) {
+			ether_len = ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN;
+		} else {
+			ether_len = ETHER_HDR_LEN;
+		}
+
+		trans_proto_type = get_transport_proto_type(m_head);
+		if (TRANSPORT_TYPE_NOT_IP == trans_proto_type) {
+			goto pre_send;
+		}
+
+		/*
+		 * TSO packet needless to setup the send side checksum
+		 * offload.
+		 */
+		if (m_head->m_pkthdr.csum_flags & CSUM_TSO) {
+			goto do_tso;
+		}
+
+		/* setup checksum offload */
+		rndis_msg_size += RNDIS_CSUM_PPI_SIZE;
+		rppi = hv_set_rppi_data(rndis_mesg, RNDIS_CSUM_PPI_SIZE,
+		    tcpip_chksum_info);
+		csum_info = (rndis_tcp_ip_csum_info *)((char*)rppi +
+		    rppi->per_packet_info_offset);
+
+		if (trans_proto_type & (TYPE_IPV4 << 16)) {
+			csum_info->xmit.is_ipv4 = 1;
+		} else {
+			csum_info->xmit.is_ipv6 = 1;
+		}
+
+		if (trans_proto_type & TYPE_TCP) {
+			csum_info->xmit.tcp_csum = 1;
+			csum_info->xmit.tcp_header_offset = 0;
+		} else if (trans_proto_type & TYPE_UDP) {
+			csum_info->xmit.udp_csum = 1;
+		}
+
+		goto pre_send;
+
+do_tso:
+		/* setup TCP segmentation offload */
+		rndis_msg_size += RNDIS_TSO_PPI_SIZE;
+		rppi = hv_set_rppi_data(rndis_mesg, RNDIS_TSO_PPI_SIZE,
+		    tcp_large_send_info);
+		
+		tso_info = (rndis_tcp_tso_info *)((char *)rppi +
+		    rppi->per_packet_info_offset);
+		tso_info->lso_v2_xmit.type =
+		    RNDIS_TCP_LARGE_SEND_OFFLOAD_V2_TYPE;
+		
+#ifdef INET
+		if (trans_proto_type & (TYPE_IPV4 << 16)) {
+			struct ip *ip =
+			    (struct ip *)(m_head->m_data + ether_len);
+			unsigned long iph_len = ip->ip_hl << 2;
+			struct tcphdr *th =
+			    (struct tcphdr *)((caddr_t)ip + iph_len);
+		
+			tso_info->lso_v2_xmit.ip_version =
+			    RNDIS_TCP_LARGE_SEND_OFFLOAD_IPV4;
+			ip->ip_len = 0;
+			ip->ip_sum = 0;
+		
+			th->th_sum = in_pseudo(ip->ip_src.s_addr,
+			    ip->ip_dst.s_addr,
+			    htons(IPPROTO_TCP));
+		}
+#endif
+#if defined(INET6) && defined(INET)
+		else
+#endif
+#ifdef INET6
+		{
+			struct ip6_hdr *ip6 =
+			    (struct ip6_hdr *)(m_head->m_data + ether_len);
+			struct tcphdr *th = (struct tcphdr *)(ip6 + 1);
+
+			tso_info->lso_v2_xmit.ip_version =
+			    RNDIS_TCP_LARGE_SEND_OFFLOAD_IPV6;
+			ip6->ip6_plen = 0;
+			th->th_sum = in6_cksum_pseudo(ip6, 0, IPPROTO_TCP, 0);
+		}
+#endif
+		tso_info->lso_v2_xmit.tcp_header_offset = 0;
+		tso_info->lso_v2_xmit.mss = m_head->m_pkthdr.tso_segsz;
+
+pre_send:
+		rndis_mesg->msg_len = packet->tot_data_buf_len + rndis_msg_size;
+		packet->tot_data_buf_len = rndis_mesg->msg_len;
+
+		/* send packet with send buffer */
+		if (packet->tot_data_buf_len < net_dev->send_section_size) {
+			send_buf_section_idx =
+			    hv_nv_get_next_send_section(net_dev);
+			if (send_buf_section_idx !=
+			    NVSP_1_CHIMNEY_SEND_INVALID_SECTION_INDEX) {
+				char *dest = ((char *)net_dev->send_buf +
+				    send_buf_section_idx *
+				    net_dev->send_section_size);
+
+				memcpy(dest, rndis_mesg, rndis_msg_size);
+				dest += rndis_msg_size;
+				for (m = m_head; m != NULL; m = m->m_next) {
+					if (m->m_len) {
+						memcpy(dest,
+						    (void *)mtod(m, vm_offset_t),
+						    m->m_len);
+						dest += m->m_len;
+					}
+				}
+
+				packet->send_buf_section_idx =
+				    send_buf_section_idx;
+				packet->send_buf_section_size =
+				    packet->tot_data_buf_len;
+				packet->page_buf_count = 0;
+				goto do_send;
+			}
+		}
+
+		/* send packet with page buffer */
+		packet->page_buffers[0].pfn =
+		    atop(hv_get_phys_addr(rndis_mesg));
+		packet->page_buffers[0].offset =
+		    (unsigned long)rndis_mesg & PAGE_MASK;
+		packet->page_buffers[0].length = rndis_msg_size;
 
 		/*
 		 * Fill the page buffers with mbuf info starting at index
@@ -479,6 +722,12 @@ hn_start_locked(struct ifnet *ifp)
 			}
 		}
 
+		packet->send_buf_section_idx = 
+		    NVSP_1_CHIMNEY_SEND_INVALID_SECTION_INDEX;
+		packet->send_buf_section_size = 0;
+
+do_send:
+
 		/*
 		 * If bpf, copy the mbuf chain.  This is less expensive than
 		 * it appears; the mbuf clusters are not copied, only their
@@ -497,8 +746,7 @@ retry_send:
 		packet->compl.send.send_completion_tid = (uint64_t)(uintptr_t)m_head;
 
 		/* Removed critical_enter(), does not appear necessary */
-		ret = hv_rf_on_send(device_ctx, packet);
-
+		ret = hv_nv_on_send(device_ctx, packet);
 		if (ret == 0) {
 			if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 			/* if bpf && mc_head, call bpf_mtap code */
@@ -526,6 +774,7 @@ retry_send:
 			 * send completion
 			 */
 			netvsc_xmit_completion(packet);
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		}
 
 		/* if bpf && mc_head, free the mbuf chain copy */
@@ -621,13 +870,14 @@ hv_m_append(struct mbuf *m0, int len, c_caddr_t cp)
  * Note:  This is no longer used as a callback
  */
 int
-netvsc_recv(struct hv_device *device_ctx, netvsc_packet *packet)
+netvsc_recv(struct hv_device *device_ctx, netvsc_packet *packet,
+    rndis_tcp_ip_csum_info *csum_info)
 {
 	hn_softc_t *sc = (hn_softc_t *)device_get_softc(device_ctx->device);
 	struct mbuf *m_new;
 	struct ifnet *ifp;
+	device_t dev = device_ctx->device;
 	int size;
-	int i;
 
 	if (sc == NULL) {
 		return (0); /* TODO: KYS how can this be! */
@@ -661,36 +911,35 @@ netvsc_recv(struct hv_device *device_ctx, netvsc_packet *packet)
 
 	m_new = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR, size);
 
-	if (m_new == NULL)
+	if (m_new == NULL) {
+		device_printf(dev, "alloc mbuf failed.\n");
 		return (0);
-
-	/*
-	 * Remove trailing junk from RX data buffer.
-	 * Fixme:  This will not work for multiple Hyper-V RX buffers.
-	 * Fortunately, the channel gathers all RX data into one buffer.
-	 *
-	 * L2 frame length, with L2 header, not including CRC
-	 */
-	packet->page_buffers[0].length = packet->tot_data_buf_len;
-
-	/*
-	 * Copy the received packet to one or more mbufs. 
-	 * The copy is required since the memory pointed to by netvsc_packet
-	 * cannot be deallocated
-	 */
-	for (i=0; i < packet->page_buf_count; i++) {
-		/* Shift virtual page number to form virtual page address */
-		uint8_t *vaddr = (uint8_t *)(uintptr_t)
-		    (packet->page_buffers[i].pfn << PAGE_SHIFT);
-
-		hv_m_append(m_new, packet->page_buffers[i].length,
-		    vaddr + packet->page_buffers[i].offset);
 	}
+
+	hv_m_append(m_new, packet->tot_data_buf_len,
+			packet->data);
 
 	m_new->m_pkthdr.rcvif = ifp;
 
+	/* receive side checksum offload */
+	m_new->m_pkthdr.csum_flags = 0;
+	if (NULL != csum_info) {
+		/* IP csum offload */
+		if (csum_info->receive.ip_csum_succeeded) {
+			m_new->m_pkthdr.csum_flags |=
+			    (CSUM_IP_CHECKED | CSUM_IP_VALID);
+		}
+
+		/* TCP csum offload */
+		if (csum_info->receive.tcp_csum_succeeded) {
+			m_new->m_pkthdr.csum_flags |=
+			    (CSUM_DATA_VALID | CSUM_PSEUDO_HDR);
+			m_new->m_pkthdr.csum_data = 0xffff;
+		}
+	}
+
 	if ((packet->vlan_tci != 0) &&
-			    (ifp->if_capenable & IFCAP_VLAN_HWTAGGING) != 0) {
+	    (ifp->if_capenable & IFCAP_VLAN_HWTAGGING) != 0) {
 		m_new->m_pkthdr.ether_vtag = packet->vlan_tci;
 		m_new->m_flags |= M_VLANTAG;
 	}
@@ -728,6 +977,9 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
 	hn_softc_t *sc = ifp->if_softc;
 	struct ifreq *ifr = (struct ifreq *)data;
+#ifdef INET
+	struct ifaddr *ifa = (struct ifaddr *)data;
+#endif
 	netvsc_device_info device_info;
 	struct hv_device *hn_dev;
 	int mask, error = 0;
@@ -858,13 +1110,44 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		break;
 	case SIOCSIFCAP:
 		mask = ifr->ifr_reqcap ^ ifp->if_capenable;
-		if (mask & IFCAP_HWCSUM) {
-			if (IFCAP_HWCSUM & ifp->if_capenable) {
-				ifp->if_capenable &= ~IFCAP_HWCSUM;
+		if (mask & IFCAP_TXCSUM) {
+			if (IFCAP_TXCSUM & ifp->if_capenable) {
+				ifp->if_capenable &= ~IFCAP_TXCSUM;
+				ifp->if_hwassist &= ~(CSUM_TCP | CSUM_UDP);
 			} else {
-				ifp->if_capenable |= IFCAP_HWCSUM;
+				ifp->if_capenable |= IFCAP_TXCSUM;
+				/*
+				 * Only enable UDP checksum offloading on
+				 * Windows Server 2012R2 or later releases.
+				 */
+				if (hv_vmbus_protocal_version >=
+				    HV_VMBUS_VERSION_WIN8_1) {
+					ifp->if_hwassist |=
+					    (CSUM_TCP | CSUM_UDP);
+				} else {
+					ifp->if_hwassist |= CSUM_TCP;
+				}
 			}
 		}
+
+		if (mask & IFCAP_RXCSUM) {
+			if (IFCAP_RXCSUM & ifp->if_capenable) {
+				ifp->if_capenable &= ~IFCAP_RXCSUM;
+			} else {
+				ifp->if_capenable |= IFCAP_RXCSUM;
+			}
+		}
+
+		if (mask & IFCAP_TSO4) {
+			ifp->if_capenable ^= IFCAP_TSO4;
+			ifp->if_hwassist ^= CSUM_IP_TSO;
+		}
+
+		if (mask & IFCAP_TSO6) {
+			ifp->if_capenable ^= IFCAP_TSO6;
+			ifp->if_hwassist ^= CSUM_IP6_TSO;
+		}
+
 		error = 0;
 		break;
 	case SIOCADDMULTI:

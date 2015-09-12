@@ -286,6 +286,11 @@ AslDoOptions (
             AcpiGbl_CstyleDisassembly = FALSE;
             break;
 
+        case 'v':
+
+            AcpiGbl_DbOpt_Verbose = TRUE;
+            break;
+
         default:
 
             printf ("Unknown option: -d%s\n", AcpiGbl_Optarg);

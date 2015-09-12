@@ -19,6 +19,11 @@
 # include <stdint.h>
 #endif
 
+/* Bug 2813 */
+#ifdef HAVE_LIMITS_H
+# include <limits.h>
+#endif
+
 #include "ntp_machine.h"
 
 

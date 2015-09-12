@@ -60,6 +60,8 @@ static	int	doprintpeers	(struct varlist *, int, int, int, const char *, FILE *, 
 static	int	dogetpeers	(struct varlist *, associd_t, FILE *, int);
 static	void	dopeers 	(int, FILE *, int);
 static	void	peers		(struct parse *, FILE *);
+static	void	doapeers 	(int, FILE *, int);
+static	void	apeers		(struct parse *, FILE *);
 static	void	lpeers		(struct parse *, FILE *);
 static	void	doopeers	(int, FILE *, int);
 static	void	opeers		(struct parse *, FILE *);
@@ -156,6 +158,9 @@ struct xcmd opcmds[] = {
 	{ "peers",  peers,      { OPT|IP_VERSION, NO, NO, NO },
 	  { "-4|-6", "", "", "" },
 	  "obtain and print a list of the server's peers [IP version]" },
+	{ "apeers",  apeers,      { OPT|IP_VERSION, NO, NO, NO },
+	  { "-4|-6", "", "", "" },
+	  "obtain and print a list of the server's peers and their assocIDs [IP version]" },
 	{ "lpeers", lpeers,     { OPT|IP_VERSION, NO, NO, NO },
 	  { "-4|-6", "", "", "" },
 	  "obtain and print a list of all peers and clients [IP version]" },
@@ -1559,6 +1564,26 @@ struct varlist peervarlist[] = {
 	{ 0,		0 }
 };
 
+struct varlist apeervarlist[] = {
+	{ "srcadr",	0 },	/* 0 */
+	{ "refid",	0 },	/* 1 */
+	{ "assid",	0 },	/* 2 */
+	{ "stratum",	0 },	/* 3 */
+	{ "hpoll",	0 },	/* 4 */
+	{ "ppoll",	0 },	/* 5 */
+	{ "reach",	0 },	/* 6 */
+	{ "delay",	0 },	/* 7 */
+	{ "offset",	0 },	/* 8 */
+	{ "jitter",	0 },	/* 9 */
+	{ "dispersion", 0 },	/* 10 */
+	{ "rec",	0 },	/* 11 */
+	{ "reftime",	0 },	/* 12 */
+	{ "srcport",	0 },	/* 13 */
+	{ "hmode",	0 },	/* 14 */
+	{ "srchost",	0 },	/* 15 */
+	{ 0,		0 }
+};
+
 
 /*
  * Decode an incoming data buffer and print a line in the peer list
@@ -1629,7 +1654,7 @@ doprintpeers(
 				fprintf(stderr, "malformed %s=%s\n",
 					name, value);
 		} else if (!strcmp("srchost", name)) {
-			if (pvl == peervarlist) {
+			if (pvl == peervarlist || pvl == apeervarlist) {
 				len = strlen(value);
 				if (2 < len &&
 				    (size_t)len < sizeof(clock_name)) {
@@ -1675,6 +1700,35 @@ doprintpeers(
 				} else {
 					have_da_rid = FALSE;
 				}
+			} else if (pvl == apeervarlist) {
+				have_da_rid = TRUE;
+				drlen = strlen(value);
+				if (0 == drlen) {
+					dstadr_refid = "";
+				} else if (drlen <= 4) {
+					ZERO(u32);
+					memcpy(&u32, value, drlen);
+					dstadr_refid = refid_str(u32, 1);
+					//fprintf(stderr, "apeervarlist S1 refid: value=<%s>\n", value);
+				} else if (decodenetnum(value, &refidadr)) {
+					if (SOCK_UNSPEC(&refidadr))
+						dstadr_refid = "0.0.0.0";
+					else if (ISREFCLOCKADR(&refidadr))
+						dstadr_refid =
+						    refnumtoa(&refidadr);
+					else {
+						char *buf = emalloc(10);
+						int i = ntohl(refidadr.sa4.sin_addr.s_addr);
+
+						snprintf(buf, 10,
+							"%0x", i);
+						dstadr_refid = buf;
+					//fprintf(stderr, "apeervarlist refid: value=<%x>\n", i);
+					}
+					//fprintf(stderr, "apeervarlist refid: value=<%s>\n", value);
+				} else {
+					have_da_rid = FALSE;
+				}
 			}
 		} else if (!strcmp("stratum", name)) {
 			decodeuint(value, &stratum);
@@ -1691,8 +1745,8 @@ doprintpeers(
 		} else if (!strcmp("offset", name)) {
 			decodetime(value, &estoffset);
 		} else if (!strcmp("jitter", name)) {
-			if (pvl == peervarlist &&
-			    decodetime(value, &estjitter))
+			if ((pvl == peervarlist || pvl == apeervarlist)
+			    && decodetime(value, &estjitter))
 				have_jitter = 1;
 		} else if (!strcmp("rootdisp", name) ||
 			   !strcmp("dispersion", name)) {
@@ -1705,6 +1759,8 @@ doprintpeers(
 		} else if (!strcmp("reftime", name)) {
 			if (!decodets(value, &reftime))
 				L_CLR(&reftime);
+		} else {
+			// fprintf(stderr, "UNRECOGNIZED name=%s ", name);
 		}
 	}
 
@@ -1756,7 +1812,8 @@ doprintpeers(
 	else
 		c = flash2[CTL_PEER_STATVAL(rstatus) & 0x3];
 	if (numhosts > 1) {
-		if (peervarlist == pvl && have_dstadr) {
+		if ((pvl == peervarlist || pvl == apeervarlist)
+		    && have_dstadr) {
 			serverlocal = nntohost_col(&dstadr,
 			    (size_t)min(LIB_BUFLENGTH - 1, maxhostlen),
 			    TRUE);
@@ -1783,8 +1840,14 @@ doprintpeers(
 			drlen = strlen(dstadr_refid);
 			makeascii(drlen, dstadr_refid, fp);
 		}
-		while (drlen++ < 15)
-			fputc(' ', fp);
+		if (pvl == apeervarlist) {
+			while (drlen++ < 9)
+				fputc(' ', fp);
+			fprintf(fp, "%-6d", associd);
+		} else {
+			while (drlen++ < 15)
+				fputc(' ', fp);
+		}
 		fprintf(fp,
 			" %2ld %c %4.4s %4.4s  %3lo  %7.7s %8.7s %7.7s\n",
 			stratum, type,
@@ -1904,6 +1967,60 @@ dopeers(
 
 
 /*
+ * doapeers - print a peer spreadsheet with assocIDs
+ */
+static void
+doapeers(
+	int showall,
+	FILE *fp,
+	int af
+	)
+{
+	u_int		u;
+	char		fullname[LENHOSTNAME];
+	sockaddr_u	netnum;
+	const char *	name_or_num;
+	size_t		sl;
+
+	if (!dogetassoc(fp))
+		return;
+
+	for (u = 0; u < numhosts; u++) {
+		if (getnetnum(chosts[u].name, &netnum, fullname, af)) {
+			name_or_num = nntohost(&netnum);
+			sl = strlen(name_or_num);
+			maxhostlen = max(maxhostlen, sl);
+		}
+	}
+	if (numhosts > 1)
+		fprintf(fp, "%-*.*s ", (int)maxhostlen, (int)maxhostlen,
+			"server (local)");
+	fprintf(fp,
+		"     remote       refid   assid  st t when poll reach   delay   offset  jitter\n");
+	if (numhosts > 1)
+		for (u = 0; u <= maxhostlen; u++)
+			fprintf(fp, "=");
+	fprintf(fp,
+		"==============================================================================\n");
+
+	for (u = 0; u < numassoc; u++) {
+		if (!showall &&
+		    !(CTL_PEER_STATVAL(assoc_cache[u].status)
+		      & (CTL_PST_CONFIG|CTL_PST_REACH))) {
+			if (debug)
+				fprintf(stderr, "eliding [%d]\n",
+					(int)assoc_cache[u].assid);
+			continue;
+		}
+		if (!dogetpeers(apeervarlist, (int)assoc_cache[u].assid,
+				fp, af))
+			return;
+	}
+	return;
+}
+
+
+/*
  * peers - print a peer spreadsheet
  */
 /*ARGSUSED*/
@@ -1922,6 +2039,28 @@ peers(
 			af = AF_INET;
 	}
 	dopeers(0, fp, af);
+}
+
+
+/*
+ * apeers - print a peer spreadsheet, with assocIDs
+ */
+/*ARGSUSED*/
+static void
+apeers(
+	struct parse *pcmd,
+	FILE *fp
+	)
+{
+	int af = 0;
+
+	if (pcmd->nargs == 1) {
+		if (pcmd->argval->ival == 6)
+			af = AF_INET6;
+		else
+			af = AF_INET;
+	}
+	doapeers(0, fp, af);
 }
 
 
@@ -3002,7 +3141,7 @@ mrulist(
 		goto cleanup_return;
 
 	/* construct an array of entry pointers in default order */
-	sorted = emalloc(mru_count * sizeof(*sorted));
+	sorted = eallocarray(mru_count, sizeof(*sorted));
 	ppentry = sorted;
 	if (MRUSORT_R_DEF != order) {
 		ITER_DLIST_BEGIN(mru_list, recent, mlink, mru)
@@ -3099,7 +3238,7 @@ validate_ifnum(
 {
 	if (prow->ifnum == ifnum)
 		return;
-	if (prow->ifnum + 1 == ifnum) {
+	if (prow->ifnum + 1 <= ifnum) {
 		if (*pfields < IFSTATS_FIELDS)
 			fprintf(fp, "Warning: incomplete row with %d (of %d) fields",
 				*pfields, IFSTATS_FIELDS);
@@ -3245,6 +3384,7 @@ ifstats(
 		case 'n':
 			if (1 == sscanf(tag, name_fmt, &ui)) {
 				/* strip quotes */
+				INSIST(val);
 				len = strlen(val);
 				if (len >= 2 &&
 				    len - 2 < sizeof(row.name)) {

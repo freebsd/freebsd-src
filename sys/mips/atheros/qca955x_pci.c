@@ -525,11 +525,12 @@ qca955x_pci_intr(void *arg)
 	struct intr_event *event;
 	uint32_t reg, irq, mask;
 
-	/* XXX TODO - may need to flush a different handler? */
-	ar71xx_device_ddr_flush_ip2();
+	/* There's only one PCIe DDR flush for both PCIe EPs */
+	ar71xx_device_flush_ddr(AR71XX_CPU_DDR_FLUSH_PCIE);
 
 	reg = ATH_READ_REG(sc->sc_pci_ctrl_base + QCA955X_PCI_INTR_STATUS);
 	mask = ATH_READ_REG(sc->sc_pci_ctrl_base + QCA955X_PCI_INTR_MASK);
+
 	/*
 	 * Handle only unmasked interrupts
 	 */

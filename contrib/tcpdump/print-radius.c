@@ -37,6 +37,12 @@
  * RFC 2869:
  *      "RADIUS Extensions"
  *
+ * RFC 4675:
+ *      "RADIUS Attributes for Virtual LAN and Priority Support"
+ *
+ * RFC 5176:
+ *      "Dynamic Authorization Extensions to RADIUS"
+ *
  * Alfredo Andres Omella (aandres@s21sec.com) v0.1 2000/09/15
  *
  * TODO: Among other things to print ok MacIntosh and Vendor values
@@ -78,17 +84,29 @@ static const char tstr[] = " [|radius]";
 #define RADCMD_ACCESS_CHA  11 /* Access-Challenge    */
 #define RADCMD_STATUS_SER  12 /* Status-Server       */
 #define RADCMD_STATUS_CLI  13 /* Status-Client       */
+#define RADCMD_DISCON_REQ  40 /* Disconnect-Request  */
+#define RADCMD_DISCON_ACK  41 /* Disconnect-ACK      */
+#define RADCMD_DISCON_NAK  42 /* Disconnect-NAK      */
+#define RADCMD_COA_REQ     43 /* CoA-Request         */
+#define RADCMD_COA_ACK     44 /* CoA-ACK             */
+#define RADCMD_COA_NAK     45 /* CoA-NAK             */
 #define RADCMD_RESERVED   255 /* Reserved            */
 
 static const struct tok radius_command_values[] = {
-    { RADCMD_ACCESS_REQ, "Access Request" },
-    { RADCMD_ACCESS_ACC, "Access Accept" },
-    { RADCMD_ACCESS_REJ, "Access Reject" },
-    { RADCMD_ACCOUN_REQ, "Accounting Request" },
-    { RADCMD_ACCOUN_RES, "Accounting Response" },
-    { RADCMD_ACCESS_CHA, "Access Challenge" },
-    { RADCMD_STATUS_SER, "Status Server" },
-    { RADCMD_STATUS_CLI, "Status Client" },
+    { RADCMD_ACCESS_REQ, "Access-Request" },
+    { RADCMD_ACCESS_ACC, "Access-Accept" },
+    { RADCMD_ACCESS_REJ, "Access-Reject" },
+    { RADCMD_ACCOUN_REQ, "Accounting-Request" },
+    { RADCMD_ACCOUN_RES, "Accounting-Response" },
+    { RADCMD_ACCESS_CHA, "Access-Challenge" },
+    { RADCMD_STATUS_SER, "Status-Server" },
+    { RADCMD_STATUS_CLI, "Status-Client" },
+    { RADCMD_DISCON_REQ, "Disconnect-Request" },
+    { RADCMD_DISCON_ACK, "Disconnect-ACK" },
+    { RADCMD_DISCON_NAK, "Disconnect-NAK" },
+    { RADCMD_COA_REQ,    "CoA-Request" },
+    { RADCMD_COA_ACK,    "CoA-ACK" },
+    { RADCMD_COA_NAK,    "CoA-NAK" },
     { RADCMD_RESERVED,   "Reserved" },
     { 0, NULL}
 };
@@ -108,6 +126,9 @@ static const struct tok radius_command_values[] = {
 
 #define ACCT_DELAY        41
 #define ACCT_SESSION_TIME 46
+
+#define EGRESS_VLAN_ID   56
+#define EGRESS_VLAN_NAME 58
 
 #define TUNNEL_TYPE        64
 #define TUNNEL_MEDIUM      65
@@ -130,6 +151,15 @@ static const struct tok radius_command_values[] = {
 /********************************/
 /* End Radius Attribute types */
 /********************************/
+
+#define RFC4675_TAGGED   0x31
+#define RFC4675_UNTAGGED 0x32
+
+static const struct tok rfc4675_tagged[] = {
+    { RFC4675_TAGGED,   "Tagged" },
+    { RFC4675_UNTAGGED, "Untagged" },
+    { 0, NULL}
+};
 
 
 static void print_attr_string(netdissect_options *, register u_char *, u_int, u_short );
@@ -209,6 +239,12 @@ static const char *login_serv[]={ "Telnet",
 static const char *term_action[]={ "Default",
                                    "RADIUS-Request",
                                  };
+
+/* Ingress-Filters Attribute standard values */
+static const char *ingress_filters[]={ NULL,
+                                       "Enabled",
+                                       "Disabled",
+                                     };
 
 /* NAS-Port-Type Attribute standard values */
 static const char *nas_port_type[]={ "Async",
@@ -337,97 +373,97 @@ struct attrtype { const char *name;      /* Attribute name                 */
                 } attr_type[]=
   {
      { NULL,                              NULL, 0, 0, NULL               },
-     { "Username",                        NULL, 0, 0, print_attr_string  },
-     { "Password",                        NULL, 0, 0, NULL               },
-     { "CHAP Password",                   NULL, 0, 0, NULL               },
-     { "NAS IP Address",                  NULL, 0, 0, print_attr_address },
-     { "NAS Port",                        NULL, 0, 0, print_attr_num     },
-     { "Service Type",                    serv_type, TAM_SIZE(serv_type)-1, 1, print_attr_num },
-     { "Framed Protocol",                 frm_proto, TAM_SIZE(frm_proto)-1, 1, print_attr_num },
-     { "Framed IP Address",               NULL, 0, 0, print_attr_address },
-     { "Framed IP Network",               NULL, 0, 0, print_attr_address },
-     { "Framed Routing",                  frm_routing, TAM_SIZE(frm_routing), 0, print_attr_num },
-     { "Filter ID",                       NULL, 0, 0, print_attr_string  },
-     { "Framed MTU",                      NULL, 0, 0, print_attr_num     },
-     { "Framed Compression",              frm_comp, TAM_SIZE(frm_comp),   0, print_attr_num },
-     { "Login IP Host",                   NULL, 0, 0, print_attr_address },
-     { "Login Service",                   login_serv, TAM_SIZE(login_serv), 0, print_attr_num },
-     { "Login TCP Port",                  NULL, 0, 0, print_attr_num     },
+     { "User-Name",                       NULL, 0, 0, print_attr_string  },
+     { "User-Password",                   NULL, 0, 0, NULL               },
+     { "CHAP-Password",                   NULL, 0, 0, NULL               },
+     { "NAS-IP-Address",                  NULL, 0, 0, print_attr_address },
+     { "NAS-Port",                        NULL, 0, 0, print_attr_num     },
+     { "Service-Type",                    serv_type, TAM_SIZE(serv_type)-1, 1, print_attr_num },
+     { "Framed-Protocol",                 frm_proto, TAM_SIZE(frm_proto)-1, 1, print_attr_num },
+     { "Framed-IP-Address",               NULL, 0, 0, print_attr_address },
+     { "Framed-IP-Netmask",               NULL, 0, 0, print_attr_address },
+     { "Framed-Routing",                  frm_routing, TAM_SIZE(frm_routing), 0, print_attr_num },
+     { "Filter-Id",                       NULL, 0, 0, print_attr_string  },
+     { "Framed-MTU",                      NULL, 0, 0, print_attr_num     },
+     { "Framed-Compression",              frm_comp, TAM_SIZE(frm_comp),   0, print_attr_num },
+     { "Login-IP-Host",                   NULL, 0, 0, print_attr_address },
+     { "Login-Service",                   login_serv, TAM_SIZE(login_serv), 0, print_attr_num },
+     { "Login-TCP-Port",                  NULL, 0, 0, print_attr_num     },
      { "Unassigned",                      NULL, 0, 0, NULL }, /*17*/
-     { "Reply",                           NULL, 0, 0, print_attr_string },
-     { "Callback-number",                 NULL, 0, 0, print_attr_string },
-     { "Callback-ID",                     NULL, 0, 0, print_attr_string },
+     { "Reply-Message",                   NULL, 0, 0, print_attr_string },
+     { "Callback-Number",                 NULL, 0, 0, print_attr_string },
+     { "Callback-Id",                     NULL, 0, 0, print_attr_string },
      { "Unassigned",                      NULL, 0, 0, NULL }, /*21*/
-     { "Framed Route",                    NULL, 0, 0, print_attr_string },
-     { "Framed IPX Network",              NULL, 0, 0, print_attr_num    },
+     { "Framed-Route",                    NULL, 0, 0, print_attr_string },
+     { "Framed-IPX-Network",              NULL, 0, 0, print_attr_num    },
      { "State",                           NULL, 0, 0, print_attr_string },
      { "Class",                           NULL, 0, 0, print_attr_string },
-     { "Vendor Specific",                 NULL, 0, 0, print_vendor_attr },
-     { "Session Timeout",                 NULL, 0, 0, print_attr_num    },
-     { "Idle Timeout",                    NULL, 0, 0, print_attr_num    },
-     { "Termination Action",              term_action, TAM_SIZE(term_action), 0, print_attr_num },
-     { "Called Station",                  NULL, 0, 0, print_attr_string },
-     { "Calling Station",                 NULL, 0, 0, print_attr_string },
-     { "NAS ID",                          NULL, 0, 0, print_attr_string },
-     { "Proxy State",                     NULL, 0, 0, print_attr_string },
-     { "Login LAT Service",               NULL, 0, 0, print_attr_string },
-     { "Login LAT Node",                  NULL, 0, 0, print_attr_string },
-     { "Login LAT Group",                 NULL, 0, 0, print_attr_string },
-     { "Framed Appletalk Link",           NULL, 0, 0, print_attr_num    },
-     { "Framed Appltalk Net",             NULL, 0, 0, print_attr_num    },
-     { "Framed Appletalk Zone",           NULL, 0, 0, print_attr_string },
-     { "Accounting Status",               acct_status, TAM_SIZE(acct_status)-1, 1, print_attr_num },
-     { "Accounting Delay",                NULL, 0, 0, print_attr_num    },
-     { "Accounting Input Octets",         NULL, 0, 0, print_attr_num    },
-     { "Accounting Output Octets",        NULL, 0, 0, print_attr_num    },
-     { "Accounting Session ID",           NULL, 0, 0, print_attr_string },
-     { "Accounting Authentication",       acct_auth, TAM_SIZE(acct_auth)-1, 1, print_attr_num },
-     { "Accounting Session Time",         NULL, 0, 0, print_attr_num },
-     { "Accounting Input Packets",        NULL, 0, 0, print_attr_num },
-     { "Accounting Output Packets",       NULL, 0, 0, print_attr_num },
-     { "Accounting Termination Cause",    acct_term, TAM_SIZE(acct_term)-1, 1, print_attr_num },
-     { "Accounting Multilink Session ID", NULL, 0, 0, print_attr_string },
-     { "Accounting Link Count",           NULL, 0, 0, print_attr_num },
-     { "Accounting Input Giga",           NULL, 0, 0, print_attr_num },
-     { "Accounting Output Giga",          NULL, 0, 0, print_attr_num },
+     { "Vendor-Specific",                 NULL, 0, 0, print_vendor_attr },
+     { "Session-Timeout",                 NULL, 0, 0, print_attr_num    },
+     { "Idle-Timeout",                    NULL, 0, 0, print_attr_num    },
+     { "Termination-Action",              term_action, TAM_SIZE(term_action), 0, print_attr_num },
+     { "Called-Station-Id",               NULL, 0, 0, print_attr_string },
+     { "Calling-Station-Id",              NULL, 0, 0, print_attr_string },
+     { "NAS-Identifier",                  NULL, 0, 0, print_attr_string },
+     { "Proxy-State",                     NULL, 0, 0, print_attr_string },
+     { "Login-LAT-Service",               NULL, 0, 0, print_attr_string },
+     { "Login-LAT-Node",                  NULL, 0, 0, print_attr_string },
+     { "Login-LAT-Group",                 NULL, 0, 0, print_attr_string },
+     { "Framed-AppleTalk-Link",           NULL, 0, 0, print_attr_num    },
+     { "Framed-AppleTalk-Network",        NULL, 0, 0, print_attr_num    },
+     { "Framed-AppleTalk-Zone",           NULL, 0, 0, print_attr_string },
+     { "Acct-Status-Type",                acct_status, TAM_SIZE(acct_status)-1, 1, print_attr_num },
+     { "Acct-Delay-Time",                 NULL, 0, 0, print_attr_num    },
+     { "Acct-Input-Octets",               NULL, 0, 0, print_attr_num    },
+     { "Acct-Output-Octets",              NULL, 0, 0, print_attr_num    },
+     { "Acct-Session-Id",                 NULL, 0, 0, print_attr_string },
+     { "Acct-Authentic",                  acct_auth, TAM_SIZE(acct_auth)-1, 1, print_attr_num },
+     { "Acct-Session-Time",               NULL, 0, 0, print_attr_num },
+     { "Acct-Input-Packets",              NULL, 0, 0, print_attr_num },
+     { "Acct-Output-Packets",             NULL, 0, 0, print_attr_num },
+     { "Acct-Terminate-Cause",            acct_term, TAM_SIZE(acct_term)-1, 1, print_attr_num },
+     { "Acct-Multi-Session-Id",           NULL, 0, 0, print_attr_string },
+     { "Acct-Link-Count",                 NULL, 0, 0, print_attr_num },
+     { "Acct-Input-Gigawords",            NULL, 0, 0, print_attr_num },
+     { "Acct-Output-Gigawords",           NULL, 0, 0, print_attr_num },
      { "Unassigned",                      NULL, 0, 0, NULL }, /*54*/
-     { "Event Timestamp",                 NULL, 0, 0, print_attr_time },
-     { "Unassigned",                      NULL, 0, 0, NULL }, /*56*/
-     { "Unassigned",                      NULL, 0, 0, NULL }, /*57*/
-     { "Unassigned",                      NULL, 0, 0, NULL }, /*58*/
-     { "Unassigned",                      NULL, 0, 0, NULL }, /*59*/
-     { "CHAP challenge",                  NULL, 0, 0, print_attr_string },
-     { "NAS Port Type",                   nas_port_type, TAM_SIZE(nas_port_type), 0, print_attr_num },
-     { "Port Limit",                      NULL, 0, 0, print_attr_num },
-     { "Login LAT Port",                  NULL, 0, 0, print_attr_string }, /*63*/
-     { "Tunnel Type",                     tunnel_type, TAM_SIZE(tunnel_type)-1, 1, print_attr_num },
-     { "Tunnel Medium",                   tunnel_medium, TAM_SIZE(tunnel_medium)-1, 1, print_attr_num },
-     { "Tunnel Client End",               NULL, 0, 0, print_attr_string },
-     { "Tunnel Server End",               NULL, 0, 0, print_attr_string },
-     { "Accounting Tunnel connect",       NULL, 0, 0, print_attr_string },
-     { "Tunnel Password",                 NULL, 0, 0, print_attr_string  },
-     { "ARAP Password",                   NULL, 0, 0, print_attr_strange },
-     { "ARAP Feature",                    NULL, 0, 0, print_attr_strange },
-     { "ARAP Zone Acces",                 arap_zone, TAM_SIZE(arap_zone)-1, 1, print_attr_num }, /*72*/
-     { "ARAP Security",                   NULL, 0, 0, print_attr_string },
-     { "ARAP Security Data",              NULL, 0, 0, print_attr_string },
-     { "Password Retry",                  NULL, 0, 0, print_attr_num    },
+     { "Event-Timestamp",                 NULL, 0, 0, print_attr_time },
+     { "Egress-VLANID",                   NULL, 0, 0, print_attr_num },
+     { "Ingress-Filters",                 ingress_filters, TAM_SIZE(ingress_filters)-1, 1, print_attr_num },
+     { "Egress-VLAN-Name",                NULL, 0, 0, print_attr_string },
+     { "User-Priority-Table",             NULL, 0, 0, NULL },
+     { "CHAP-Challenge",                  NULL, 0, 0, print_attr_string },
+     { "NAS-Port-Type",                   nas_port_type, TAM_SIZE(nas_port_type), 0, print_attr_num },
+     { "Port-Limit",                      NULL, 0, 0, print_attr_num },
+     { "Login-LAT-Port",                  NULL, 0, 0, print_attr_string }, /*63*/
+     { "Tunnel-Type",                     tunnel_type, TAM_SIZE(tunnel_type)-1, 1, print_attr_num },
+     { "Tunnel-Medium-Type",              tunnel_medium, TAM_SIZE(tunnel_medium)-1, 1, print_attr_num },
+     { "Tunnel-Client-Endpoint",          NULL, 0, 0, print_attr_string },
+     { "Tunnel-Server-Endpoint",          NULL, 0, 0, print_attr_string },
+     { "Acct-Tunnel-Connection",          NULL, 0, 0, print_attr_string },
+     { "Tunnel-Password",                 NULL, 0, 0, print_attr_string  },
+     { "ARAP-Password",                   NULL, 0, 0, print_attr_strange },
+     { "ARAP-Features",                   NULL, 0, 0, print_attr_strange },
+     { "ARAP-Zone-Access",                arap_zone, TAM_SIZE(arap_zone)-1, 1, print_attr_num }, /*72*/
+     { "ARAP-Security",                   NULL, 0, 0, print_attr_string },
+     { "ARAP-Security-Data",              NULL, 0, 0, print_attr_string },
+     { "Password-Retry",                  NULL, 0, 0, print_attr_num    },
      { "Prompt",                          prompt, TAM_SIZE(prompt), 0, print_attr_num },
-     { "Connect Info",                    NULL, 0, 0, print_attr_string   },
-     { "Config Token",                    NULL, 0, 0, print_attr_string   },
-     { "EAP Message",                     NULL, 0, 0, print_attr_string   },
-     { "Message Authentication",          NULL, 0, 0, print_attr_string }, /*80*/
-     { "Tunnel Private Group",            NULL, 0, 0, print_attr_string },
-     { "Tunnel Assigned ID",              NULL, 0, 0, print_attr_string },
-     { "Tunnel Preference",               NULL, 0, 0, print_attr_num    },
-     { "ARAP Challenge Response",         NULL, 0, 0, print_attr_strange },
-     { "Accounting Interim Interval",     NULL, 0, 0, print_attr_num     },
-     { "Accounting Tunnel packets lost",  NULL, 0, 0, print_attr_num }, /*86*/
-     { "NAS Port ID",                     NULL, 0, 0, print_attr_string },
-     { "Framed Pool",                     NULL, 0, 0, print_attr_string },
-     { "Chargeable User Identity",        NULL, 0, 0, print_attr_string },
-     { "Tunnel Client Authentication ID", NULL, 0, 0, print_attr_string },
-     { "Tunnel Server Authentication ID", NULL, 0, 0, print_attr_string },
+     { "Connect-Info",                    NULL, 0, 0, print_attr_string   },
+     { "Configuration-Token",             NULL, 0, 0, print_attr_string   },
+     { "EAP-Message",                     NULL, 0, 0, print_attr_string   },
+     { "Message-Authenticator",           NULL, 0, 0, print_attr_string }, /*80*/
+     { "Tunnel-Private-Group-ID",         NULL, 0, 0, print_attr_string },
+     { "Tunnel-Assignment-ID",            NULL, 0, 0, print_attr_string },
+     { "Tunnel-Preference",               NULL, 0, 0, print_attr_num    },
+     { "ARAP-Challenge-Response",         NULL, 0, 0, print_attr_strange },
+     { "Acct-Interim-Interval",           NULL, 0, 0, print_attr_num     },
+     { "Acct-Tunnel-Packets-Lost",        NULL, 0, 0, print_attr_num }, /*86*/
+     { "NAS-Port-Id",                     NULL, 0, 0, print_attr_string },
+     { "Framed-Pool",                     NULL, 0, 0, print_attr_string },
+     { "CUI",                             NULL, 0, 0, print_attr_string },
+     { "Tunnel-Client-Auth-ID",           NULL, 0, 0, print_attr_string },
+     { "Tunnel-Server-Auth-ID",           NULL, 0, 0, print_attr_string },
      { "Unassigned",                      NULL, 0, 0, NULL }, /*92*/
      { "Unassigned",                      NULL, 0, 0, NULL }  /*93*/
   };
@@ -457,7 +493,9 @@ print_attr_string(netdissect_options *ndo,
               return;
            }
            if (*data && (*data <=0x1F) )
-              ND_PRINT((ndo, "Tag %u, ",*data));
+              ND_PRINT((ndo, "Tag[%u] ", *data));
+           else
+              ND_PRINT((ndo, "Tag[Unused] "));
            data++;
            length--;
            ND_PRINT((ndo, "Salt %u ", EXTRACT_16BITS(data)));
@@ -477,10 +515,20 @@ print_attr_string(netdissect_options *ndo,
                  ND_PRINT((ndo, "%s", tstr));
                  return;
               }
-              ND_PRINT((ndo, "Tag %u", *data));
+              if (*data)
+                ND_PRINT((ndo, "Tag[%u] ", *data));
+              else
+                ND_PRINT((ndo, "Tag[Unused] "));
               data++;
               length--;
            }
+        break;
+      case EGRESS_VLAN_NAME:
+           ND_PRINT((ndo, "%s (0x%02x) ",
+                  tok2str(rfc4675_tagged,"Unknown tag",*data),
+                  *data));
+           data++;
+           length--;
         break;
    }
 
@@ -565,7 +613,6 @@ static void
 print_attr_num(netdissect_options *ndo,
                register u_char *data, u_int length, u_short attr_code)
 {
-   uint8_t tag;
    uint32_t timeout;
 
    if (length != 4)
@@ -585,9 +632,9 @@ print_attr_num(netdissect_options *ndo,
       if ( (attr_code == TUNNEL_TYPE) || (attr_code == TUNNEL_MEDIUM) )
       {
          if (!*data)
-            ND_PRINT((ndo, "Tag[Unused]"));
+            ND_PRINT((ndo, "Tag[Unused] "));
          else
-            ND_PRINT((ndo, "Tag[%d]", *data));
+            ND_PRINT((ndo, "Tag[%d] ", *data));
          data++;
          data_value = EXTRACT_24BITS(data);
       }
@@ -648,12 +695,20 @@ print_attr_num(netdissect_options *ndo,
           break;
 
         case TUNNEL_PREFERENCE:
-            tag = *data;
-            data++;
-            if (tag == 0)
-               ND_PRINT((ndo, "Tag (Unused) %d", EXTRACT_24BITS(data)));
+            if (*data)
+               ND_PRINT((ndo, "Tag[%d] ", *data));
             else
-               ND_PRINT((ndo, "Tag (%d) %d", tag, EXTRACT_24BITS(data)));
+               ND_PRINT((ndo, "Tag[Unused] "));
+            data++;
+            ND_PRINT((ndo, "%d", EXTRACT_24BITS(data)));
+          break;
+
+        case EGRESS_VLAN_ID:
+            ND_PRINT((ndo, "%s (0x%02x) ",
+                   tok2str(rfc4675_tagged,"Unknown tag",*data),
+                   *data));
+            data++;
+            ND_PRINT((ndo, "%d", EXTRACT_24BITS(data)));
           break;
 
         default:

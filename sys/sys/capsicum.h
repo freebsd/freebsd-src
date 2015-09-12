@@ -315,16 +315,16 @@ __BEGIN_DECLS
 	__cap_rights_init(CAP_RIGHTS_VERSION, __VA_ARGS__, 0ULL)
 cap_rights_t *__cap_rights_init(int version, cap_rights_t *rights, ...);
 
-#define	cap_rights_set(rights, ...)					\
-	__cap_rights_set((rights), __VA_ARGS__, 0ULL)
+#define	cap_rights_set(...)						\
+	__cap_rights_set(__VA_ARGS__, 0ULL)
 cap_rights_t *__cap_rights_set(cap_rights_t *rights, ...);
 
-#define	cap_rights_clear(rights, ...)					\
-	__cap_rights_clear((rights), __VA_ARGS__, 0ULL)
+#define	cap_rights_clear(...)						\
+	__cap_rights_clear(__VA_ARGS__, 0ULL)
 cap_rights_t *__cap_rights_clear(cap_rights_t *rights, ...);
 
-#define	cap_rights_is_set(rights, ...)					\
-	__cap_rights_is_set((rights), __VA_ARGS__, 0ULL)
+#define	cap_rights_is_set(...)						\
+	__cap_rights_is_set(__VA_ARGS__, 0ULL)
 bool __cap_rights_is_set(const cap_rights_t *rights, ...);
 
 bool cap_rights_is_valid(const cap_rights_t *rights);

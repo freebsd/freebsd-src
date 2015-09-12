@@ -27,8 +27,9 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/nv.h>
+
 #include <atf-c++.hpp>
-#include <nv.h>
 
 #include <errno.h>
 #include <limits>

@@ -555,6 +555,10 @@ struct adapter {
 #ifdef PCI_IOV
 	struct ixgbe_vf		*vfs;
 #endif
+#ifdef DEV_NETMAP
+	void 			(*init_locked)(struct adapter *);
+	void 			(*stop_locked)(void *);
+#endif
 
 	/* Misc stats maintained by the driver */
 	unsigned long   	dropped_pkts;

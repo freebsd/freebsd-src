@@ -184,14 +184,14 @@ static const struct {
 	{0x2365197b, 0x00, "JMicron JMB365",	AHCI_Q_NOFORCE},
 	{0x2366197b, 0x00, "JMicron JMB366",	AHCI_Q_NOFORCE},
 	{0x2368197b, 0x00, "JMicron JMB368",	AHCI_Q_NOFORCE},
-	{0x611111ab, 0x00, "Marvell 88SE6111",	AHCI_Q_NOFORCE | AHCI_Q_1CH |
-	    AHCI_Q_EDGEIS},
-	{0x612111ab, 0x00, "Marvell 88SE6121",	AHCI_Q_NOFORCE | AHCI_Q_2CH |
-	    AHCI_Q_EDGEIS | AHCI_Q_NONCQ | AHCI_Q_NOCOUNT},
-	{0x614111ab, 0x00, "Marvell 88SE6141",	AHCI_Q_NOFORCE | AHCI_Q_4CH |
-	    AHCI_Q_EDGEIS | AHCI_Q_NONCQ | AHCI_Q_NOCOUNT},
-	{0x614511ab, 0x00, "Marvell 88SE6145",	AHCI_Q_NOFORCE | AHCI_Q_4CH |
-	    AHCI_Q_EDGEIS | AHCI_Q_NONCQ | AHCI_Q_NOCOUNT},
+	{0x611111ab, 0x00, "Marvell 88SE6111",	AHCI_Q_NOFORCE | AHCI_Q_NOPMP |
+	    AHCI_Q_1CH | AHCI_Q_EDGEIS},
+	{0x612111ab, 0x00, "Marvell 88SE6121",	AHCI_Q_NOFORCE | AHCI_Q_NOPMP |
+	    AHCI_Q_2CH | AHCI_Q_EDGEIS | AHCI_Q_NONCQ | AHCI_Q_NOCOUNT},
+	{0x614111ab, 0x00, "Marvell 88SE6141",	AHCI_Q_NOFORCE | AHCI_Q_NOPMP |
+	    AHCI_Q_4CH | AHCI_Q_EDGEIS | AHCI_Q_NONCQ | AHCI_Q_NOCOUNT},
+	{0x614511ab, 0x00, "Marvell 88SE6145",	AHCI_Q_NOFORCE | AHCI_Q_NOPMP |
+	    AHCI_Q_4CH | AHCI_Q_EDGEIS | AHCI_Q_NONCQ | AHCI_Q_NOCOUNT},
 	{0x91201b4b, 0x00, "Marvell 88SE912x",	AHCI_Q_EDGEIS},
 	{0x91231b4b, 0x11, "Marvell 88SE912x",	AHCI_Q_ALTSIG},
 	{0x91231b4b, 0x00, "Marvell 88SE912x",	AHCI_Q_EDGEIS|AHCI_Q_SATA2},
@@ -374,12 +374,39 @@ ahci_ata_probe(device_t dev)
 }
 
 static int
+ahci_pci_read_msix_bars(device_t dev, uint8_t *table_bar, uint8_t *pba_bar)
+{
+	int cap_offset = 0, ret;
+	uint32_t val;
+
+	if ((table_bar == NULL) || (pba_bar == NULL))
+		return (EINVAL);
+
+	ret = pci_find_cap(dev, PCIY_MSIX, &cap_offset);
+	if (ret != 0)
+		return (EINVAL);
+
+	val = pci_read_config(dev, cap_offset + PCIR_MSIX_TABLE, 4);
+	*table_bar = PCIR_BAR(val & PCIM_MSIX_BIR_MASK);
+
+	val = pci_read_config(dev, cap_offset + PCIR_MSIX_PBA, 4);
+	*pba_bar = PCIR_BAR(val & PCIM_MSIX_BIR_MASK);
+
+	return (0);
+}
+
+static int
 ahci_pci_attach(device_t dev)
 {
 	struct ahci_controller *ctlr = device_get_softc(dev);
 	int	error, i;
 	uint32_t devid = pci_get_devid(dev);
 	uint8_t revid = pci_get_revid(dev);
+	int msi_count, msix_count;
+	uint8_t table_bar = 0, pba_bar = 0;
+
+	msi_count = pci_msi_count(dev);
+	msix_count = pci_msix_count(dev);
 
 	i = 0;
 	while (ahci_ids[i].id != 0 &&
@@ -406,10 +433,57 @@ ahci_pci_attach(device_t dev)
 	if (!(ctlr->r_mem = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
 	    &ctlr->r_rid, RF_ACTIVE)))
 		return ENXIO;
+
+	/* Read MSI-x BAR IDs if supported */
+	if (msix_count > 0) {
+		error = ahci_pci_read_msix_bars(dev, &table_bar, &pba_bar);
+		if (error == 0) {
+			ctlr->r_msix_tab_rid = table_bar;
+			ctlr->r_msix_pba_rid = pba_bar;
+		} else {
+			/* Failed to read BARs, disable MSI-x */
+			msix_count = 0;
+		}
+	}
+
+	/* Allocate resources for MSI-x table and PBA */
+	if (msix_count > 0) {
+		/*
+		 * Allocate new MSI-x table only if not
+		 * allocated before.
+		 */
+		ctlr->r_msix_table = NULL;
+		if (ctlr->r_msix_tab_rid != ctlr->r_rid) {
+			/* Separate BAR for MSI-x */
+			ctlr->r_msix_table = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
+			    &ctlr->r_msix_tab_rid, RF_ACTIVE);
+			if (ctlr->r_msix_table == NULL) {
+				ahci_free_mem(dev);
+				return (ENXIO);
+			}
+		}
+
+		/*
+		 * Allocate new PBA table only if not
+		 * allocated before.
+		 */
+		ctlr->r_msix_pba = NULL;
+		if ((ctlr->r_msix_pba_rid != ctlr->r_msix_tab_rid) &&
+		    (ctlr->r_msix_pba_rid != ctlr->r_rid)) {
+			/* Separate BAR for PBA */
+			ctlr->r_msix_pba = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
+			    &ctlr->r_msix_pba_rid, RF_ACTIVE);
+			if (ctlr->r_msix_pba == NULL) {
+				ahci_free_mem(dev);
+				return (ENXIO);
+			}
+		}
+	}
+
 	pci_enable_busmaster(dev);
 	/* Reset controller */
 	if ((error = ahci_pci_ctlr_reset(dev)) != 0) {
-		bus_release_resource(dev, SYS_RES_MEMORY, ctlr->r_rid, ctlr->r_mem);
+		ahci_free_mem(dev);
 		return (error);
 	};
 
@@ -426,24 +500,51 @@ ahci_pci_attach(device_t dev)
 	resource_int_value(device_get_name(dev),
 	    device_get_unit(dev), "msi", &ctlr->msi);
 	ctlr->numirqs = 1;
+	if (msi_count == 0 && msix_count == 0)
+		ctlr->msi = 0;
 	if (ctlr->msi < 0)
 		ctlr->msi = 0;
-	else if (ctlr->msi == 1)
-		ctlr->msi = min(1, pci_msi_count(dev));
-	else if (ctlr->msi > 1) {
+	else if (ctlr->msi == 1) {
+		msi_count = min(1, msi_count);
+		msix_count = min(1, msix_count);
+	} else if (ctlr->msi > 1)
 		ctlr->msi = 2;
-		ctlr->numirqs = pci_msi_count(dev);
-	}
-	/* Allocate MSI if needed/present. */
-	if (ctlr->msi && pci_alloc_msi(dev, &ctlr->numirqs) != 0) {
-		ctlr->msi = 0;
-		ctlr->numirqs = 1;
+
+	/* Allocate MSI/MSI-x if needed/present. */
+	if (ctlr->msi > 0) {
+		error = ENXIO;
+
+		/* Try to allocate MSI-x first */
+		if (msix_count > 0) {
+			error = pci_alloc_msix(dev, &msix_count);
+			if (error == 0)
+				ctlr->numirqs = msix_count;
+		}
+
+		/*
+		 * Try to allocate MSI if msi_count is greater than 0
+		 * and if MSI-x allocation failed.
+		 */
+		if ((error != 0) && (msi_count > 0)) {
+			error = pci_alloc_msi(dev, &msi_count);
+			if (error == 0)
+				ctlr->numirqs = msi_count;
+		}
+
+		/* Both MSI and MSI-x allocations failed */
+		if (error != 0) {
+			ctlr->msi = 0;
+			device_printf(dev, "Failed to allocate MSI/MSI-x, "
+			    "falling back to INTx\n");
+		}
 	}
 
 	error = ahci_attach(dev);
-	if (error != 0)
-		if (ctlr->msi)
+	if (error != 0) {
+		if (ctlr->msi > 0)
 			pci_release_msi(dev);
+		ahci_free_mem(dev);
+	}
 	return error;
 }
 

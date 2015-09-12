@@ -83,7 +83,7 @@
 #define	ISSIGVALID(sig)	((sig) > 0 && (sig) < NSIG)
 
 #define	VT_SYSCTL_INT(_name, _default, _descr)				\
-static int vt_##_name = (_default);					\
+int vt_##_name = (_default);						\
 SYSCTL_INT(_kern_vt, OID_AUTO, _name, CTLFLAG_RWTUN, &vt_##_name, 0, _descr)
 
 struct vt_driver;
@@ -164,7 +164,12 @@ struct vt_device {
 #define	VD_PASTEBUFSZ(vd)	((vd)->vd_pastebuf.vpb_bufsz)
 #define	VD_PASTEBUFLEN(vd)	((vd)->vd_pastebuf.vpb_len)
 
+#define	VT_LOCK(vd)	mtx_lock(&(vd)->vd_lock)
+#define	VT_UNLOCK(vd)	mtx_unlock(&(vd)->vd_lock)
+#define	VT_LOCK_ASSERT(vd, what)	mtx_assert(&(vd)->vd_lock, what)
+
 void vt_resume(struct vt_device *vd);
+void vt_resume_flush_timer(struct vt_device *vd, int ms);
 void vt_suspend(struct vt_device *vd);
 
 /*
@@ -363,6 +368,7 @@ struct vt_driver {
  * Utility macro to make early vt(4) instances work.
  */
 
+extern struct terminal vt_consterm;
 extern const struct terminal_class vt_termclass;
 void vt_upgrade(struct vt_device *vd);
 
@@ -427,10 +433,29 @@ void vt_mouse_state(int show);
 #define	VT_MOUSE_HIDE 0
 
 /* Utilities. */
+void	vt_compute_drawable_area(struct vt_window *);
 void	vt_determine_colors(term_char_t c, int cursor,
 	    term_color_t *fg, term_color_t *bg);
 int	vt_is_cursor_in_area(const struct vt_device *vd,
 	    const term_rect_t *area);
+void	vt_termsize(struct vt_device *, struct vt_font *, term_pos_t *);
+void	vt_winsize(struct vt_device *, struct vt_font *, struct winsize *);
+
+/* Logos-on-boot. */
+#define	VT_LOGOS_DRAW_BEASTIE		0
+#define	VT_LOGOS_DRAW_ALT_BEASTIE	1
+#define	VT_LOGOS_DRAW_ORB		2
+
+extern int vt_draw_logo_cpus;
+extern int vt_splash_cpu;
+extern int vt_splash_ncpu;
+extern int vt_splash_cpu_style;
+extern int vt_splash_cpu_duration;
+
+extern const unsigned int vt_logo_sprite_height;
+extern const unsigned int vt_logo_sprite_width;
+
+void vtterm_draw_cpu_logos(struct vt_device *);
 
 #endif /* !_DEV_VT_VT_H_ */
 

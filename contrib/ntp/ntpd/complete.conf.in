@@ -2,8 +2,10 @@ saveconfigdir "/etc/ntp/conf"
 driftfile "/etc/ntp.drift" 1e-7
 logfile "/var/log/ntp.log"
 leapfile "/etc/ntp.leapseconds"
+@HAVE_LEAPSMEARINTERVAL@
 nonvolatile 1e-7
 ident "udent"
+dscp 46
 logconfig =allall -allinfo -allevents -allstatistics -allstatus +allall -clockinfo -clockevents -clockstatistics -clockstatus +clockall -syncinfo -syncevents -syncstatistics -syncstatus +syncall -sysinfo -sysevents -sysstatistics -sysstatus +sysall
 statsdir "/etc/ntp/stats"
 statistics clockstats cryptostats loopstats peerstats protostats rawstats sysstats timingstats

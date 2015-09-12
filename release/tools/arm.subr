@@ -112,10 +112,6 @@ arm_install_base() {
 		>> ${CHROOTDIR}/${DESTDIR}/etc/fstab
 	echo "md /tmp mfs rw,noatime,-s30m 0 0" \
 		>> ${CHROOTDIR}/${DESTDIR}/etc/fstab
-	echo "md /var/log mfs rw,noatime,-s15m 0 0" \
-		>> ${CHROOTDIR}/${DESTDIR}/etc/fstab
-	echo "md /var/tmp mfs rw,noatime,-s12m 0 0" \
-		>> ${CHROOTDIR}/${DESTDIR}/etc/fstab
 
 	local hostname
 	hostname="$(echo ${KERNEL} | tr '[:upper:]' '[:lower:]')"

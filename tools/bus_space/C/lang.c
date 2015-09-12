@@ -80,10 +80,10 @@ bus_write_4(int rid, long ofs, uint32_t val)
 }
 
 int
-bus_map(const char *dev)
+bus_map(const char *dev, const char *resource)
 {
 
-	return (bs_map(dev));
+	return (bs_map(dev, resource));
 }
 
 int
@@ -156,6 +156,39 @@ busdma_mem_free(busdma_md_t md)
 	return (bd_mem_free(md));
 }
 
+int
+busdma_md_create(busdma_tag_t tag, u_int flags, busdma_md_t *out_p)
+{
+	int res;
+
+	res = bd_md_create(tag, flags);
+	if (res == -1)
+		return (errno);
+	*out_p = res;
+	return (0);
+}
+
+int
+busdma_md_destroy(busdma_md_t md)
+{
+
+	return (bd_md_destroy(md));
+}
+
+int
+busdma_md_load(busdma_md_t md, void *buf, size_t len, u_int flags)
+{
+
+	return (bd_md_load(md, buf, len, flags));
+}
+
+int
+busdma_md_unload(busdma_md_t md)
+{
+
+	return (bd_md_unload(md));
+}
+
 busdma_seg_t
 busdma_md_first_seg(busdma_md_t md, int space)
 {
@@ -191,4 +224,18 @@ busdma_seg_get_size(busdma_seg_t seg)
 
 	error = bd_seg_get_size(seg, &size);
 	return ((error) ? ~0UL : size);
+}
+
+int
+busdma_sync(busdma_md_t md, int op)
+{
+
+	return (bd_sync(md, op, 0UL, ~0UL));
+}
+
+int
+busdma_sync_range(busdma_md_t md, int op, bus_size_t ofs, bus_size_t len)
+{
+
+	return (bd_sync(md, op, ofs, len));
 }

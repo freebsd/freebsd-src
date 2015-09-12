@@ -99,7 +99,6 @@ libkern/qdivrem.c		optional	powerpc
 libkern/ucmpdi2.c		optional	powerpc
 libkern/udivdi3.c		optional	powerpc
 libkern/umoddi3.c		optional	powerpc
-powerpc/aim/interrupt.c		optional	aim
 powerpc/aim/locore.S		optional	aim no-obj
 powerpc/aim/aim_machdep.c	optional	aim
 powerpc/aim/mmu_oea.c		optional	aim powerpc
@@ -108,7 +107,6 @@ powerpc/aim/moea64_if.m		optional	aim
 powerpc/aim/moea64_native.c	optional	aim
 powerpc/aim/mp_cpudep.c		optional	aim
 powerpc/aim/slb.c		optional	aim powerpc64
-powerpc/booke/interrupt.c	optional	booke
 powerpc/booke/locore.S		optional	booke no-obj
 powerpc/booke/booke_machdep.c	optional	booke
 powerpc/booke/machdep_e500.c	optional	booke_e500
@@ -197,6 +195,7 @@ powerpc/powerpc/fpu.c		standard
 powerpc/powerpc/fuswintr.c	standard
 powerpc/powerpc/gdb_machdep.c	optional	gdb
 powerpc/powerpc/in_cksum.c	optional	inet | inet6
+powerpc/powerpc/interrupt.c	standard
 powerpc/powerpc/intr_machdep.c	standard
 powerpc/powerpc/iommu_if.m	standard
 powerpc/powerpc/machdep.c	standard

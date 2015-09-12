@@ -1160,6 +1160,109 @@ fpusave(addr)
 }
 
 #ifdef CPU_ENABLE_SSE
+static void
+npx_fill_fpregs_xmm1(struct savexmm *sv_xmm, struct save87 *sv_87)
+{
+	struct env87 *penv_87;
+	struct envxmm *penv_xmm;
+	int i;
+
+	penv_87 = &sv_87->sv_env;
+	penv_xmm = &sv_xmm->sv_env;
+
+	/* FPU control/status */
+	penv_87->en_cw = penv_xmm->en_cw;
+	penv_87->en_sw = penv_xmm->en_sw;
+	penv_87->en_fip = penv_xmm->en_fip;
+	penv_87->en_fcs = penv_xmm->en_fcs;
+	penv_87->en_opcode = penv_xmm->en_opcode;
+	penv_87->en_foo = penv_xmm->en_foo;
+	penv_87->en_fos = penv_xmm->en_fos;
+
+	/* FPU registers and tags */
+	penv_87->en_tw = 0xffff;
+	for (i = 0; i < 8; ++i) {
+		sv_87->sv_ac[i] = sv_xmm->sv_fp[i].fp_acc;
+		if ((penv_xmm->en_tw & (1 << i)) != 0)
+			/* zero and special are set as valid */
+			penv_87->en_tw &= ~(3 << i);
+	}
+}
+
+void
+npx_fill_fpregs_xmm(struct savexmm *sv_xmm, struct save87 *sv_87)
+{
+
+	bzero(sv_87, sizeof(*sv_87));
+	npx_fill_fpregs_xmm1(sv_xmm, sv_87);
+}
+
+void
+npx_set_fpregs_xmm(struct save87 *sv_87, struct savexmm *sv_xmm)
+{
+	struct env87 *penv_87;
+	struct envxmm *penv_xmm;
+	int i;
+
+	penv_87 = &sv_87->sv_env;
+	penv_xmm = &sv_xmm->sv_env;
+
+	/* FPU control/status */
+	penv_xmm->en_cw = penv_87->en_cw;
+	penv_xmm->en_sw = penv_87->en_sw;
+	penv_xmm->en_fip = penv_87->en_fip;
+	penv_xmm->en_fcs = penv_87->en_fcs;
+	penv_xmm->en_opcode = penv_87->en_opcode;
+	penv_xmm->en_foo = penv_87->en_foo;
+	penv_xmm->en_fos = penv_87->en_fos;
+
+	/* FPU registers and tags */
+	penv_xmm->en_tw = 0;
+	for (i = 0; i < 8; ++i) {
+		sv_xmm->sv_fp[i].fp_acc = sv_87->sv_ac[i];
+		if ((penv_87->en_tw && (3 << i)) != (3 << i))
+		    penv_xmm->en_tw |= 1 << i;
+	}
+}
+#endif /* CPU_ENABLE_SSE */
+
+void
+npx_get_fsave(void *addr)
+{
+	struct thread *td;
+	union savefpu *sv;
+
+	td = curthread;
+	npxgetregs(td);
+	sv = get_pcb_user_save_td(td);
+#ifdef CPU_ENABLE_SSE
+	if (cpu_fxsr)
+		npx_fill_fpregs_xmm1(&sv->sv_xmm, addr);
+	else
+#endif
+		bcopy(sv, addr, sizeof(struct env87) +
+		    sizeof(struct fpacc87[8]));
+}
+
+int
+npx_set_fsave(void *addr)
+{
+	union savefpu sv;
+	int error;
+
+	bzero(&sv, sizeof(sv));
+#ifdef CPU_ENABLE_SSE
+	if (cpu_fxsr)
+		npx_set_fpregs_xmm(addr, &sv.sv_xmm);
+	else
+#endif
+		bcopy(addr, &sv, sizeof(struct env87) +
+		    sizeof(struct fpacc87[8]));
+	error = npxsetregs(curthread, &sv, NULL, 0);
+	return (error);
+}
+
+#ifdef CPU_ENABLE_SSE
 /*
  * On AuthenticAMD processors, the fxrstor instruction does not restore
  * the x87's stored last instruction pointer, last data pointer, and last
@@ -1263,6 +1366,7 @@ static MALLOC_DEFINE(M_FPUKERN_CTX, "fpukern_ctx",
 
 #define	FPU_KERN_CTX_NPXINITDONE 0x01
 #define	FPU_KERN_CTX_DUMMY	 0x02
+#define	FPU_KERN_CTX_INUSE	 0x04
 
 struct fpu_kern_ctx {
 	union savefpu *prev;
@@ -1287,6 +1391,7 @@ void
 fpu_kern_free_ctx(struct fpu_kern_ctx *ctx)
 {
 
+	KASSERT((ctx->flags & FPU_KERN_CTX_INUSE) == 0, ("free'ing inuse ctx"));
 	/* XXXKIB clear the memory ? */
 	free(ctx, M_FPUKERN_CTX);
 }
@@ -1306,14 +1411,16 @@ fpu_kern_enter(struct thread *td, struct fpu_kern_ctx *ctx, u_int flags)
 {
 	struct pcb *pcb;
 
+	KASSERT((ctx->flags & FPU_KERN_CTX_INUSE) == 0, ("using inuse ctx"));
+
 	if ((flags & FPU_KERN_KTHR) != 0 && is_fpu_kern_thread(0)) {
-		ctx->flags = FPU_KERN_CTX_DUMMY;
+		ctx->flags = FPU_KERN_CTX_DUMMY | FPU_KERN_CTX_INUSE;
 		return (0);
 	}
 	pcb = td->td_pcb;
 	KASSERT(!PCB_USER_FPU(pcb) || pcb->pcb_save ==
 	    get_pcb_user_save_pcb(pcb), ("mangled pcb_save"));
-	ctx->flags = 0;
+	ctx->flags = FPU_KERN_CTX_INUSE;
 	if ((pcb->pcb_flags & PCB_NPXINITDONE) != 0)
 		ctx->flags |= FPU_KERN_CTX_NPXINITDONE;
 	npxexit(td);
@@ -1328,6 +1435,10 @@ int
 fpu_kern_leave(struct thread *td, struct fpu_kern_ctx *ctx)
 {
 	struct pcb *pcb;
+
+	KASSERT((ctx->flags & FPU_KERN_CTX_INUSE) != 0,
+	    ("leaving not inuse ctx"));
+	ctx->flags &= ~FPU_KERN_CTX_INUSE;
 
 	if (is_fpu_kern_thread(0) && (ctx->flags & FPU_KERN_CTX_DUMMY) != 0)
 		return (0);

@@ -120,7 +120,7 @@ static const struct tok rpki_rtr_error_codes[] = {
 };
 
 /*
- * Build a identation string for a given identation level.
+ * Build a indentation string for a given indentation level.
  * XXX this should be really in util.c
  */
 static char *
@@ -178,6 +178,7 @@ rpki_rtr_pdu_print (netdissect_options *ndo, const u_char *tptr, u_int indent)
     pdu_header = (rpki_rtr_pdu *)tptr;
     pdu_type = pdu_header->pdu_type;
     pdu_len = EXTRACT_32BITS(pdu_header->length);
+    ND_TCHECK2(*tptr, pdu_len);
     hexdump = FALSE;
 
     ND_PRINT((ndo, "%sRPKI-RTRv%u, %s PDU (%u), length: %u",
@@ -250,10 +251,10 @@ rpki_rtr_pdu_print (netdissect_options *ndo, const u_char *tptr, u_int indent)
 	{
 	    rpki_rtr_pdu_error_report *pdu;
 	    u_int encapsulated_pdu_length, text_length, tlen, error_code;
-	    u_char buf[80];
 
 	    pdu = (rpki_rtr_pdu_error_report *)tptr;
 	    encapsulated_pdu_length = EXTRACT_32BITS(pdu->encapsulated_pdu_length);
+	    ND_TCHECK2(*tptr, encapsulated_pdu_length);
 	    tlen = pdu_len;
 
 	    error_code = EXTRACT_16BITS(pdu->pdu_header.u.error_code);
@@ -286,10 +287,10 @@ rpki_rtr_pdu_print (netdissect_options *ndo, const u_char *tptr, u_int indent)
 		tptr += 4;
 		tlen -= 4;
 	    }
+	    ND_TCHECK2(*tptr, text_length);
 	    if (text_length && (text_length <= tlen )) {
-		memcpy(buf, tptr, min(sizeof(buf)-1, text_length));
-		buf[text_length] = '\0';
-		ND_PRINT((ndo, "%sError text: %s", indent_string(indent+2), buf));
+		ND_PRINT((ndo, "%sError text: ", indent_string(indent+2)));
+		fn_printn(ndo, tptr, text_length, ndo->ndo_snapend);
 	    }
 	}
 	break;
@@ -306,11 +307,16 @@ rpki_rtr_pdu_print (netdissect_options *ndo, const u_char *tptr, u_int indent)
     if (ndo->ndo_vflag > 1 || (ndo->ndo_vflag && hexdump)) {
 	print_unknown_data(ndo,tptr,"\n\t  ", pdu_len);
     }
+    return;
+
+ trunc:
+    ND_PRINT((ndo, "|trunc"));
+    return;
 }
 
 void
-rpki_rtr_print(netdissect_options *ndo, register const u_char *pptr, register u_int len) {
-
+rpki_rtr_print(netdissect_options *ndo, register const u_char *pptr, register u_int len)
+{
     u_int tlen, pdu_type, pdu_len;
     const u_char *tptr;
     const rpki_rtr_pdu *pdu_header;
@@ -330,13 +336,13 @@ rpki_rtr_print(netdissect_options *ndo, register const u_char *pptr, register u_
 	pdu_header = (rpki_rtr_pdu *)tptr;
         pdu_type = pdu_header->pdu_type;
         pdu_len = EXTRACT_32BITS(pdu_header->length);
+        ND_TCHECK2(*tptr, pdu_len);
 
         /* infinite loop check */
         if (!pdu_type || !pdu_len) {
             break;
         }
 
-        ND_TCHECK2(*tptr, pdu_len);
         if (tlen < pdu_len) {
             goto trunc;
         }

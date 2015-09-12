@@ -281,7 +281,7 @@ enum {
 	IPFW_IS_MASK	= 0x30000000,	/* which source ? */
 	IPFW_IS_DIVERT	= 0x20000000,
 	IPFW_IS_DUMMYNET =0x10000000,
-	IPFW_IS_PIPE	= 0x08000000,	/* pip1=1, queue = 0 */
+	IPFW_IS_PIPE	= 0x08000000,	/* pipe=1, queue = 0 */
 };
 #define MTAG_IPFW	1148380143	/* IPFW-tagged cookie */
 #define MTAG_IPFW_RULE	1262273568	/* rule reference */

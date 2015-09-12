@@ -352,6 +352,7 @@ mci_get(host, m)
 #if PIPELINING
 	mci->mci_okrcpts = 0;
 #endif /* PIPELINING */
+	mci->mci_flags &= ~MCIF_NOTSTICKY;
 
 	if (mci->mci_rpool == NULL)
 		mci->mci_rpool = sm_rpool_new_x(NULL);

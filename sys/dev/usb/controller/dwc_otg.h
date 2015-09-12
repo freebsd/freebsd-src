@@ -37,7 +37,7 @@
 #define	DWC_OTG_TT_SLOT_MAX 8
 #define	DWC_OTG_SLOT_IDLE_MAX 3
 #define	DWC_OTG_SLOT_IDLE_MIN 2
-#define	DWC_OTG_NAK_MAX 8	/* 1 ms */
+#define	DWC_OTG_NAK_MAX 16	/* 16 NAKs = 2 ms */
 #ifndef DWC_OTG_TX_MAX_FIFO_SIZE
 #define	DWC_OTG_TX_MAX_FIFO_SIZE DWC_OTG_MAX_TXN
 #endif
@@ -156,10 +156,8 @@ struct dwc_otg_profile {
 
 struct dwc_otg_chan_state {
 	uint16_t allocated;
-	uint16_t wait_sof;
+	uint16_t wait_halted;
 	uint32_t hcint;
-	uint16_t tx_p_size;	/* periodic */
-	uint16_t tx_np_size;	/* non-periodic */
 };
 
 struct dwc_otg_softc {
@@ -181,9 +179,6 @@ struct dwc_otg_softc {
 	uint32_t sc_tx_bounce_buffer[MAX(512 * DWC_OTG_MAX_TXP, 1024) / 4];
 
 	uint32_t sc_fifo_size;
-	uint32_t sc_tx_max_size;
-	uint32_t sc_tx_cur_p_level;	/* periodic */
-	uint32_t sc_tx_cur_np_level;	/* non-periodic */
 	uint32_t sc_irq_mask;
 	uint32_t sc_last_rx_status;
 	uint32_t sc_out_ctl[DWC_OTG_MAX_ENDPOINTS];

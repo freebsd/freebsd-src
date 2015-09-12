@@ -581,7 +581,7 @@ ffs_read(ap)
 			xfersize = size;
 		}
 
-		if ((bp->b_flags & B_UNMAPPED) == 0) {
+		if (buf_mapped(bp)) {
 			error = vn_io_fault_uiomove((char *)bp->b_data +
 			    blkoffset, (int)xfersize, uio);
 		} else {
@@ -758,7 +758,7 @@ ffs_write(ap)
 		if (size < xfersize)
 			xfersize = size;
 
-		if ((bp->b_flags & B_UNMAPPED) == 0) {
+		if (buf_mapped(bp)) {
 			error = vn_io_fault_uiomove((char *)bp->b_data +
 			    blkoffset, (int)xfersize, uio);
 		} else {

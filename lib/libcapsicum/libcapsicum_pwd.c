@@ -31,6 +31,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
+#include <sys/nv.h>
 
 #include <assert.h>
 #include <errno.h>
@@ -38,8 +39,6 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-
-#include <nv.h>
 
 #include "libcapsicum.h"
 #include "libcapsicum_pwd.h"

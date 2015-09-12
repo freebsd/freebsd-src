@@ -111,6 +111,37 @@ static struct cdev		*fbt_cdev;
 static int			fbt_probetab_size;
 static int			fbt_verbose = 0;
 
+int
+fbt_excluded(const char *name)
+{
+
+	if (strncmp(name, "dtrace_", 7) == 0 &&
+	    strncmp(name, "dtrace_safe_", 12) != 0) {
+		/*
+		 * Anything beginning with "dtrace_" may be called
+		 * from probe context unless it explicitly indicates
+		 * that it won't be called from probe context by
+		 * using the prefix "dtrace_safe_".
+		 */
+		return (1);
+	}
+
+	/* Exclude some internal functions */
+	if (name[0] == '_' && name[1] == '_')
+		return (1);
+
+	/*
+	 * When DTrace is built into the kernel we need to exclude
+	 * the FBT functions from instrumentation.
+	 */
+#ifndef _KLD_MODULE
+	if (strncmp(name, "fbt_", 4) == 0)
+		return (1);
+#endif
+
+	return (0);
+}
+
 static void
 fbt_doubletrap(void)
 {
@@ -303,9 +334,7 @@ fbt_ctfoff_init(modctl_t *lf, linker_ctf_t *lc)
 		return (EINVAL);
 	}
 
-	if ((ctfoff = malloc(sizeof(uint32_t) * lc->nsym, M_LINKER, M_WAITOK)) == NULL)
-		return (ENOMEM);
-
+	ctfoff = malloc(sizeof(uint32_t) * lc->nsym, M_LINKER, M_WAITOK);
 	*lc->ctfoffp = ctfoff;
 
 	for (i = 0; i < lc->nsym; i++, ctfoff++, symp++) {
@@ -484,8 +513,8 @@ fbt_typoff_init(linker_ctf_t *lc)
 	ctf_typemax++;
 	*lc->typlenp = ctf_typemax;
 
-	if ((xp = malloc(sizeof(uint32_t) * ctf_typemax, M_LINKER, M_ZERO | M_WAITOK)) == NULL)
-		return (ENOMEM);
+	xp = malloc(sizeof(uint32_t) * ctf_typemax, M_LINKER,
+	    M_ZERO | M_WAITOK);
 
 	*lc->typoffp = xp;
 
@@ -807,11 +836,7 @@ ctf_decl_push(ctf_decl_t *cd, linker_ctf_t *lc, ctf_id_t type)
 		prec = CTF_PREC_BASE;
 	}
 
-	if ((cdp = malloc(sizeof (ctf_decl_node_t), M_FBT, M_WAITOK)) == NULL) {
-		cd->cd_err = EAGAIN;
-		return;
-	}
-
+	cdp = malloc(sizeof(*cdp), M_FBT, M_WAITOK);
 	cdp->cd_type = type;
 	cdp->cd_kind = kind;
 	cdp->cd_n = n;

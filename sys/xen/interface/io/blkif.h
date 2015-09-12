@@ -145,32 +145,6 @@
  *      The maximum supported size of the request ring buffer in units of
  *      machine pages.  The value must be a power of 2.
  *
- * max-requests         <uint32_t>
- *      Default Value:  BLKIF_MAX_RING_REQUESTS(PAGE_SIZE)
- *      Maximum Value:  BLKIF_MAX_RING_REQUESTS(PAGE_SIZE * max-ring-pages)
- *
- *      The maximum number of concurrent, logical requests supported by
- *      the backend.
- *
- *      Note: A logical request may span multiple ring entries.
- *
- * max-request-segments
- *      Values:         <uint8_t>
- *      Default Value:  BLKIF_MAX_SEGMENTS_PER_HEADER_BLOCK
- *      Maximum Value:  BLKIF_MAX_SEGMENTS_PER_REQUEST
- *
- *      The maximum value of blkif_request.nr_segments supported by
- *      the backend.
- *
- * max-request-size
- *      Values:         <uint32_t>
- *      Default Value:  BLKIF_MAX_SEGMENTS_PER_HEADER_BLOCK * PAGE_SIZE
- *      Maximum Value:  BLKIF_MAX_SEGMENTS_PER_REQUEST * PAGE_SIZE
- *
- *      The maximum amount of data, in bytes, that can be referenced by a
- *      request type that accesses frontend memory (currently BLKIF_OP_READ,
- *      BLKIF_OP_WRITE, or BLKIF_OP_WRITE_BARRIER).
- *
  *------------------------- Backend Device Properties -------------------------
  *
  * discard-alignment
@@ -268,33 +242,6 @@
  *
  *      The size of the frontend allocated request ring buffer in units of
  *      machine pages.  The value must be a power of 2.
- *
- * max-requests
- *      Values:         <uint32_t>
- *      Default Value:  BLKIF_MAX_RING_REQUESTS(PAGE_SIZE)
- *      Maximum Value:  BLKIF_MAX_RING_REQUESTS(PAGE_SIZE * max-ring-pages)
- *
- *      The maximum number of concurrent, logical requests that will be
- *      issued by the frontend.
- *
- *      Note: A logical request may span multiple ring entries.
- *
- * max-request-segments
- *      Values:         <uint8_t>
- *      Default Value:  BLKIF_MAX_SEGMENTS_PER_HEADER_BLOCK
- *      Maximum Value:  MIN(255, backend/max-request-segments)
- *
- *      The maximum value the frontend will set in the
- *      blkif_request.nr_segments field.
- *
- * max-request-size
- *      Values:         <uint32_t>
- *      Default Value:  BLKIF_MAX_SEGMENTS_PER_HEADER_BLOCK * PAGE_SIZE
- *      Maximum Value:  max-request-segments * PAGE_SIZE
- *
- *      The maximum amount of data, in bytes, that can be referenced by
- *      a request type that accesses frontend memory (currently BLKIF_OP_READ,
- *      BLKIF_OP_WRITE, or BLKIF_OP_WRITE_BARRIER).
  *
  *------------------------- Virtual Device Properties -------------------------
  *
@@ -457,7 +404,9 @@
 #define BLKIF_OP_DISCARD           5
 
 /*
- * Maximum scatter/gather segments per request (header + segment blocks).
+ * Maximum scatter/gather segments per request.
+ * This is carefully chosen so that sizeof(blkif_ring_t) <= PAGE_SIZE.
+ * NB. This could be 12 if the ring indexes weren't stored in the same page.
  */
 #define BLKIF_MAX_SEGMENTS_PER_REQUEST 11
 
@@ -478,21 +427,6 @@ typedef struct blkif_request_segment blkif_request_segment_t;
 
 /*
  * Starting ring element for any I/O request.
- *
- * One or more segment blocks can be inserted into the request ring
- * just after a blkif_request_t, allowing requests to operate on
- * up to BLKIF_MAX_SEGMENTS_PER_REQUEST.
- *
- * BLKIF_SEGS_TO_BLOCKS() can be used on blkif_requst.nr_segments
- * to determine the number of contiguous ring entries associated
- * with this request.
- *
- * Note:  Due to the way Xen request rings operate, the producer and
- *        consumer indices of the ring must be incremented by the
- *        BLKIF_SEGS_TO_BLOCKS() value of the associated request.
- *        (e.g. a response to a 3 ring entry request must also consume
- *        3 entries in the ring, even though only the first ring entry
- *        in the response has any data.)
  */
 struct blkif_request {
     uint8_t        operation;    /* BLKIF_OP_???                         */

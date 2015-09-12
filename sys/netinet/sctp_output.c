@@ -7162,6 +7162,10 @@ one_more_time:
 			}
 			atomic_subtract_int(&asoc->stream_queue_cnt, 1);
 			TAILQ_REMOVE(&strq->outqueue, sp, next);
+			if (strq->state == SCTP_STREAM_RESET_PENDING &&
+			    TAILQ_EMPTY(&strq->outqueue)) {
+				stcb->asoc.trigger_reset = 1;
+			}
 			stcb->asoc.ss_functions.sctp_ss_remove_from_stream(stcb, asoc, strq, sp, send_lock_up);
 			if (sp->net) {
 				sctp_free_remote_addr(sp->net);
@@ -7560,6 +7564,10 @@ dont_do_it:
 			send_lock_up = 1;
 		}
 		TAILQ_REMOVE(&strq->outqueue, sp, next);
+		if (strq->state == SCTP_STREAM_RESET_PENDING &&
+		    TAILQ_EMPTY(&strq->outqueue)) {
+			stcb->asoc.trigger_reset = 1;
+		}
 		stcb->asoc.ss_functions.sctp_ss_remove_from_stream(stcb, asoc, strq, sp, send_lock_up);
 		if (sp->net) {
 			sctp_free_remote_addr(sp->net);
@@ -7787,7 +7795,7 @@ sctp_med_chunk_output(struct sctp_inpcb *inp,
 #endif
 	SCTP_TCB_LOCK_ASSERT(stcb);
 	hbflag = 0;
-	if ((control_only) || (asoc->stream_reset_outstanding))
+	if (control_only)
 		no_data_chunks = 1;
 	else
 		no_data_chunks = 0;
@@ -9856,7 +9864,9 @@ sctp_chunk_output(struct sctp_inpcb *inp,
 	unsigned int tot_frs = 0;
 
 	asoc = &stcb->asoc;
+do_it_again:
 	/* The Nagle algorithm is only applied when handling a send call. */
+	stcb->asoc.trigger_reset = 0;
 	if (from_where == SCTP_OUTPUT_FROM_USR_SEND) {
 		if (sctp_is_feature_on(inp, SCTP_PCB_FLAGS_NODELAY)) {
 			nagle_on = 0;
@@ -10092,6 +10102,12 @@ sctp_chunk_output(struct sctp_inpcb *inp,
 	 */
 	if (stcb->asoc.ecn_echo_cnt_onq)
 		sctp_fix_ecn_echo(asoc);
+
+	if (stcb->asoc.trigger_reset) {
+		if (sctp_send_stream_reset_out_if_possible(stcb, so_locked) == 0) {
+			goto do_it_again;
+		}
+	}
 	return;
 }
 
@@ -11494,30 +11510,58 @@ sctp_send_cwr(struct sctp_tcb *stcb, struct sctp_nets *net, uint32_t high_tsn, u
 	asoc->ctrl_queue_cnt++;
 }
 
-void
-sctp_add_stream_reset_out(struct sctp_tmit_chunk *chk,
-    int number_entries, uint16_t * list,
+static int
+sctp_add_stream_reset_out(struct sctp_tcb *stcb, struct sctp_tmit_chunk *chk,
     uint32_t seq, uint32_t resp_seq, uint32_t last_sent)
 {
 	uint16_t len, old_len, i;
 	struct sctp_stream_reset_out_request *req_out;
 	struct sctp_chunkhdr *ch;
+	int at;
+	int number_entries = 0;
 
 	ch = mtod(chk->data, struct sctp_chunkhdr *);
 	old_len = len = SCTP_SIZE32(ntohs(ch->chunk_length));
-
 	/* get to new offset for the param. */
 	req_out = (struct sctp_stream_reset_out_request *)((caddr_t)ch + len);
 	/* now how long will this param be? */
+	for (i = 0; i < stcb->asoc.streamoutcnt; i++) {
+		if ((stcb->asoc.strmout[i].state == SCTP_STREAM_RESET_PENDING) &&
+		    (TAILQ_EMPTY(&stcb->asoc.strmout[i].outqueue))) {
+			number_entries++;
+		}
+	}
+	if (number_entries == 0) {
+		return (0);
+	}
+	if (number_entries == stcb->asoc.streamoutcnt) {
+		number_entries = 0;
+	}
+	if (number_entries > SCTP_MAX_STREAMS_AT_ONCE_RESET) {
+		number_entries = SCTP_MAX_STREAMS_AT_ONCE_RESET;
+	}
 	len = (sizeof(struct sctp_stream_reset_out_request) + (sizeof(uint16_t) * number_entries));
 	req_out->ph.param_type = htons(SCTP_STR_RESET_OUT_REQUEST);
 	req_out->ph.param_length = htons(len);
 	req_out->request_seq = htonl(seq);
 	req_out->response_seq = htonl(resp_seq);
 	req_out->send_reset_at_tsn = htonl(last_sent);
+	at = 0;
 	if (number_entries) {
-		for (i = 0; i < number_entries; i++) {
-			req_out->list_of_streams[i] = htons(list[i]);
+		for (i = 0; i < stcb->asoc.streamoutcnt; i++) {
+			if ((stcb->asoc.strmout[i].state == SCTP_STREAM_RESET_PENDING) &&
+			    (TAILQ_EMPTY(&stcb->asoc.strmout[i].outqueue))) {
+				req_out->list_of_streams[at] = htons(i);
+				at++;
+				stcb->asoc.strmout[i].state = SCTP_STREAM_RESET_IN_FLIGHT;
+				if (at >= number_entries) {
+					break;
+				}
+			}
+		}
+	} else {
+		for (i = 0; i < stcb->asoc.streamoutcnt; i++) {
+			stcb->asoc.strmout[i].state = SCTP_STREAM_RESET_IN_FLIGHT;
 		}
 	}
 	if (SCTP_SIZE32(len) > len) {
@@ -11534,7 +11578,7 @@ sctp_add_stream_reset_out(struct sctp_tmit_chunk *chk,
 	chk->book_size_scale = 0;
 	chk->send_size = SCTP_SIZE32(chk->book_size);
 	SCTP_BUF_LEN(chk->data) = chk->send_size;
-	return;
+	return (1);
 }
 
 static void
@@ -11636,6 +11680,68 @@ sctp_add_stream_reset_result(struct sctp_tmit_chunk *chk,
 }
 
 void
+sctp_send_deferred_reset_response(struct sctp_tcb *stcb,
+    struct sctp_stream_reset_list *ent,
+    int response)
+{
+	struct sctp_association *asoc;
+	struct sctp_tmit_chunk *chk;
+	struct sctp_chunkhdr *ch;
+
+	asoc = &stcb->asoc;
+
+	/*
+	 * Reset our last reset action to the new one IP -> response
+	 * (PERFORMED probably). This assures that if we fail to send, a
+	 * retran from the peer will get the new response.
+	 */
+	asoc->last_reset_action[0] = response;
+	if (asoc->stream_reset_outstanding) {
+		return;
+	}
+	sctp_alloc_a_chunk(stcb, chk);
+	if (chk == NULL) {
+		SCTP_LTRACE_ERR_RET(NULL, stcb, NULL, SCTP_FROM_SCTP_OUTPUT, ENOMEM);
+		return;
+	}
+	chk->copy_by_ref = 0;
+	chk->rec.chunk_id.id = SCTP_STREAM_RESET;
+	chk->rec.chunk_id.can_take_data = 0;
+	chk->flags = 0;
+	chk->asoc = &stcb->asoc;
+	chk->book_size = sizeof(struct sctp_chunkhdr);
+	chk->send_size = SCTP_SIZE32(chk->book_size);
+	chk->book_size_scale = 0;
+	chk->data = sctp_get_mbuf_for_msg(MCLBYTES, 0, M_NOWAIT, 1, MT_DATA);
+	if (chk->data == NULL) {
+		sctp_free_a_chunk(stcb, chk, SCTP_SO_LOCKED);
+		SCTP_LTRACE_ERR_RET(NULL, stcb, NULL, SCTP_FROM_SCTP_OUTPUT, ENOMEM);
+		return;
+	}
+	SCTP_BUF_RESV_UF(chk->data, SCTP_MIN_OVERHEAD);
+	sctp_add_stream_reset_result(chk, ent->seq, response);
+	/* setup chunk parameters */
+	chk->sent = SCTP_DATAGRAM_UNSENT;
+	chk->snd_count = 0;
+	if (stcb->asoc.alternate) {
+		chk->whoTo = stcb->asoc.alternate;
+	} else {
+		chk->whoTo = stcb->asoc.primary_destination;
+	}
+	ch = mtod(chk->data, struct sctp_chunkhdr *);
+	ch->chunk_type = SCTP_STREAM_RESET;
+	ch->chunk_flags = 0;
+	ch->chunk_length = htons(chk->book_size);
+	atomic_add_int(&chk->whoTo->ref_count, 1);
+	SCTP_BUF_LEN(chk->data) = chk->send_size;
+	/* insert the chunk for sending */
+	TAILQ_INSERT_TAIL(&asoc->control_send_queue,
+	    chk,
+	    sctp_next);
+	asoc->ctrl_queue_cnt++;
+}
+
+void
 sctp_add_stream_reset_result_tsn(struct sctp_tmit_chunk *chk,
     uint32_t resp_seq, uint32_t result,
     uint32_t send_una, uint32_t recv_next)
@@ -11733,19 +11839,89 @@ sctp_add_an_in_stream(struct sctp_tmit_chunk *chk,
 }
 
 int
+sctp_send_stream_reset_out_if_possible(struct sctp_tcb *stcb, int so_locked)
+{
+	struct sctp_association *asoc;
+	struct sctp_tmit_chunk *chk;
+	struct sctp_chunkhdr *ch;
+	uint32_t seq;
+
+	asoc = &stcb->asoc;
+	if (asoc->stream_reset_outstanding) {
+		return (EALREADY);
+	}
+	sctp_alloc_a_chunk(stcb, chk);
+	if (chk == NULL) {
+		SCTP_LTRACE_ERR_RET(NULL, stcb, NULL, SCTP_FROM_SCTP_OUTPUT, ENOMEM);
+		return (ENOMEM);
+	}
+	chk->copy_by_ref = 0;
+	chk->rec.chunk_id.id = SCTP_STREAM_RESET;
+	chk->rec.chunk_id.can_take_data = 0;
+	chk->flags = 0;
+	chk->asoc = &stcb->asoc;
+	chk->book_size = sizeof(struct sctp_chunkhdr);
+	chk->send_size = SCTP_SIZE32(chk->book_size);
+	chk->book_size_scale = 0;
+	chk->data = sctp_get_mbuf_for_msg(MCLBYTES, 0, M_NOWAIT, 1, MT_DATA);
+	if (chk->data == NULL) {
+		sctp_free_a_chunk(stcb, chk, so_locked);
+		SCTP_LTRACE_ERR_RET(NULL, stcb, NULL, SCTP_FROM_SCTP_OUTPUT, ENOMEM);
+		return (ENOMEM);
+	}
+	SCTP_BUF_RESV_UF(chk->data, SCTP_MIN_OVERHEAD);
+
+	/* setup chunk parameters */
+	chk->sent = SCTP_DATAGRAM_UNSENT;
+	chk->snd_count = 0;
+	if (stcb->asoc.alternate) {
+		chk->whoTo = stcb->asoc.alternate;
+	} else {
+		chk->whoTo = stcb->asoc.primary_destination;
+	}
+	ch = mtod(chk->data, struct sctp_chunkhdr *);
+	ch->chunk_type = SCTP_STREAM_RESET;
+	ch->chunk_flags = 0;
+	ch->chunk_length = htons(chk->book_size);
+	atomic_add_int(&chk->whoTo->ref_count, 1);
+	SCTP_BUF_LEN(chk->data) = chk->send_size;
+	seq = stcb->asoc.str_reset_seq_out;
+	if (sctp_add_stream_reset_out(stcb, chk, seq, (stcb->asoc.str_reset_seq_in - 1), (stcb->asoc.sending_seq - 1))) {
+		seq++;
+		asoc->stream_reset_outstanding++;
+	} else {
+		m_freem(chk->data);
+		chk->data = NULL;
+		sctp_free_a_chunk(stcb, chk, so_locked);
+		return (ENOENT);
+	}
+	asoc->str_reset = chk;
+	/* insert the chunk for sending */
+	TAILQ_INSERT_TAIL(&asoc->control_send_queue,
+	    chk,
+	    sctp_next);
+	asoc->ctrl_queue_cnt++;
+
+	if (stcb->asoc.send_sack) {
+		sctp_send_sack(stcb, so_locked);
+	}
+	sctp_timer_start(SCTP_TIMER_TYPE_STRRESET, stcb->sctp_ep, stcb, chk->whoTo);
+	return (0);
+}
+
+int
 sctp_send_str_reset_req(struct sctp_tcb *stcb,
     uint16_t number_entries, uint16_t * list,
-    uint8_t send_out_req,
     uint8_t send_in_req,
     uint8_t send_tsn_req,
     uint8_t add_stream,
     uint16_t adding_o,
     uint16_t adding_i, uint8_t peer_asked)
 {
-
 	struct sctp_association *asoc;
 	struct sctp_tmit_chunk *chk;
 	struct sctp_chunkhdr *ch;
+	int can_send_out_req = 0;
 	uint32_t seq;
 
 	asoc = &stcb->asoc;
@@ -11756,16 +11932,18 @@ sctp_send_str_reset_req(struct sctp_tcb *stcb,
 		SCTP_LTRACE_ERR_RET(NULL, stcb, NULL, SCTP_FROM_SCTP_OUTPUT, EBUSY);
 		return (EBUSY);
 	}
-	if ((send_out_req == 0) && (send_in_req == 0) && (send_tsn_req == 0) &&
+	if ((send_in_req == 0) && (send_tsn_req == 0) &&
 	    (add_stream == 0)) {
 		/* nothing to do */
 		SCTP_LTRACE_ERR_RET(NULL, stcb, NULL, SCTP_FROM_SCTP_OUTPUT, EINVAL);
 		return (EINVAL);
 	}
-	if (send_tsn_req && (send_out_req || send_in_req)) {
+	if (send_tsn_req && send_in_req) {
 		/* error, can't do that */
 		SCTP_LTRACE_ERR_RET(NULL, stcb, NULL, SCTP_FROM_SCTP_OUTPUT, EINVAL);
 		return (EINVAL);
+	} else if (send_in_req) {
+		can_send_out_req = 1;
 	}
 	if (number_entries > (MCLBYTES -
 	    SCTP_MIN_OVERHEAD -
@@ -11813,12 +11991,14 @@ sctp_send_str_reset_req(struct sctp_tcb *stcb,
 	SCTP_BUF_LEN(chk->data) = chk->send_size;
 
 	seq = stcb->asoc.str_reset_seq_out;
-	if (send_out_req) {
-		sctp_add_stream_reset_out(chk, number_entries, list,
-		    seq, (stcb->asoc.str_reset_seq_in - 1), (stcb->asoc.sending_seq - 1));
-		asoc->stream_reset_out_is_outstanding = 1;
-		seq++;
-		asoc->stream_reset_outstanding++;
+	if (can_send_out_req) {
+		int ret;
+
+		ret = sctp_add_stream_reset_out(stcb, chk, seq, (stcb->asoc.str_reset_seq_in - 1), (stcb->asoc.sending_seq - 1));
+		if (ret) {
+			seq++;
+			asoc->stream_reset_outstanding++;
+		}
 	}
 	if ((add_stream & 1) &&
 	    ((stcb->asoc.strm_realoutsize - stcb->asoc.streamoutcnt) < adding_o)) {
@@ -11858,6 +12038,7 @@ sctp_send_str_reset_req(struct sctp_tcb *stcb,
 			stcb->asoc.strmout[i].next_sequence_send = oldstream[i].next_sequence_send;
 			stcb->asoc.strmout[i].last_msg_incomplete = oldstream[i].last_msg_incomplete;
 			stcb->asoc.strmout[i].stream_no = i;
+			stcb->asoc.strmout[i].state = oldstream[i].state;
 			stcb->asoc.ss_functions.sctp_ss_init_stream(&stcb->asoc.strmout[i], &oldstream[i]);
 			/* now anything on those queues? */
 			TAILQ_FOREACH_SAFE(sp, &oldstream[i].outqueue, next, nsp) {
@@ -11890,6 +12071,7 @@ sctp_send_str_reset_req(struct sctp_tcb *stcb,
 			stcb->asoc.strmout[i].stream_no = i;
 			stcb->asoc.strmout[i].last_msg_incomplete = 0;
 			stcb->asoc.ss_functions.sctp_ss_init_stream(&stcb->asoc.strmout[i], NULL);
+			stcb->asoc.strmout[i].state = SCTP_STREAM_CLOSED;
 		}
 		stcb->asoc.strm_realoutsize = stcb->asoc.streamoutcnt + adding_o;
 		SCTP_FREE(oldstream, SCTP_M_STRMO);
@@ -11923,6 +12105,9 @@ skip_stuff:
 	    chk,
 	    sctp_next);
 	asoc->ctrl_queue_cnt++;
+	if (stcb->asoc.send_sack) {
+		sctp_send_sack(stcb, SCTP_SO_LOCKED);
+	}
 	sctp_timer_start(SCTP_TIMER_TYPE_STRRESET, stcb->sctp_ep, stcb, chk->whoTo);
 	return (0);
 }
@@ -12499,12 +12684,24 @@ sctp_lower_sosend(struct socket *so,
 		SCTP_ASOC_CREATE_UNLOCK(inp);
 		create_lock_applied = 0;
 	}
-	if (asoc->stream_reset_outstanding) {
+	/* Is the stream no. valid? */
+	if (srcv->sinfo_stream >= asoc->streamoutcnt) {
+		/* Invalid stream number */
+		SCTP_LTRACE_ERR_RET(inp, stcb, net, SCTP_FROM_SCTP_OUTPUT, EINVAL);
+		error = EINVAL;
+		goto out_unlocked;
+	}
+	if ((asoc->strmout[srcv->sinfo_stream].state != SCTP_STREAM_OPEN) &&
+	    (asoc->strmout[srcv->sinfo_stream].state != SCTP_STREAM_OPENING)) {
 		/*
 		 * Can't queue any data while stream reset is underway.
 		 */
-		SCTP_LTRACE_ERR_RET(inp, stcb, net, SCTP_FROM_SCTP_OUTPUT, EAGAIN);
-		error = EAGAIN;
+		if (asoc->strmout[srcv->sinfo_stream].state > SCTP_STREAM_OPEN) {
+			error = EAGAIN;
+		} else {
+			error = EINVAL;
+		}
+		SCTP_LTRACE_ERR_RET(inp, stcb, net, SCTP_FROM_SCTP_OUTPUT, error);
 		goto out_unlocked;
 	}
 	if ((SCTP_GET_STATE(asoc) == SCTP_STATE_COOKIE_WAIT) ||
@@ -12642,13 +12839,6 @@ sctp_lower_sosend(struct socket *so,
 	if (hold_tcblock) {
 		SCTP_TCB_UNLOCK(stcb);
 		hold_tcblock = 0;
-	}
-	/* Is the stream no. valid? */
-	if (srcv->sinfo_stream >= asoc->streamoutcnt) {
-		/* Invalid stream number */
-		SCTP_LTRACE_ERR_RET(inp, stcb, net, SCTP_FROM_SCTP_OUTPUT, EINVAL);
-		error = EINVAL;
-		goto out_unlocked;
 	}
 	if (asoc->strmout == NULL) {
 		/* huh? software error */
@@ -12945,7 +13135,7 @@ skip_preblock:
 				/*-
 				 * Ok, Nagle is set on and we have data outstanding.
 				 * Don't send anything and let SACKs drive out the
-				 * data unless wen have a "full" segment to send.
+				 * data unless we have a "full" segment to send.
 				 */
 				if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_NAGLE_LOGGING_ENABLE) {
 					sctp_log_nagle_event(stcb, SCTP_NAGLE_APPLIED);

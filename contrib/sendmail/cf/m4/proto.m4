@@ -149,7 +149,7 @@ DL`'LUSER_RELAY',
 `dnl')
 
 # operators that cannot be in local usernames (i.e., network indicators)
-CO @ % ifdef(`_NO_UUCP_', `', `!')
+CO @ ifdef(`_NO_PERCENTHACK_', `', `%') ifdef(`_NO_UUCP_', `', `!')
 
 # a class with just dot (for identifying canonical names)
 C..
@@ -326,6 +326,9 @@ _OPTION(SingleThreadDelivery, `confSINGLE_THREAD_DELIVERY', `False')
 # use Errors-To: header?
 _OPTION(UseErrorsTo, `confUSE_ERRORS_TO', `False')
 
+# use compressed IPv6 address format?
+_OPTION(UseCompressedIPv6Addresses, `confUSE_COMPRESSED_IPV6_ADDRESSES', `')
+
 # log level
 _OPTION(LogLevel, `confLOG_LEVEL', `10')
 
@@ -386,6 +389,9 @@ _OPTION(QueueSortOrder, `confQUEUE_SORT_ORDER', `priority')
 
 # minimum time in queue before retry
 _OPTION(MinQueueAge, `confMIN_QUEUE_AGE', `30m')
+
+# maximum time in queue before retry (if > 0; only for exponential delay)
+_OPTION(MaxQueueAge, `confMAX_QUEUE_AGE', `')
 
 # how many jobs can you process in the queue?
 _OPTION(MaxQueueRunSize, `confMAX_QUEUE_RUN_SIZE', `0')
@@ -641,6 +647,12 @@ _OPTION(AuthMaxBits, `confAUTH_MAX_BITS', `')
 # SMTP STARTTLS server options
 _OPTION(TLSSrvOptions, `confTLS_SRV_OPTIONS', `')
 
+# SSL cipherlist
+_OPTION(CipherList, `confCIPHER_LIST', `')
+# server side SSL options
+_OPTION(ServerSSLOptions, `confSERVER_SSL_OPTIONS', `')
+# client side SSL options
+_OPTION(ClientSSLOptions, `confCLIENT_SSL_OPTIONS', `')
 
 # Input mail filters
 _OPTION(InputMailFilters, `confINPUT_MAIL_FILTERS', `')
@@ -674,12 +686,18 @@ _OPTION(CRLFile, `confCRL', `')
 _OPTION(DHParameters, `confDH_PARAMETERS', `')
 # Random data source (required for systems without /dev/urandom under OpenSSL)
 _OPTION(RandFile, `confRAND_FILE', `')
+# fingerprint algorithm (digest) to use for the presented cert
+_OPTION(CertFingerprintAlgorithm, `confCERT_FINGERPRINT_ALGORITHM', `')
 
 # Maximum number of "useless" commands before slowing down
 _OPTION(MaxNOOPCommands, `confMAX_NOOP_COMMANDS', `20')
 
 # Name to use for EHLO (defaults to $j)
 _OPTION(HeloName, `confHELO_NAME')
+
+ifdef(`_NEED_SMTPOPMODES_', `dnl
+# SMTP operation modes
+C{SMTPOpModes} s d D')
 
 ############################
 `# QUEUE GROUP DEFINITIONS  #'
@@ -808,9 +826,11 @@ R$- :: $+		$@ $>Canonify2 $2 < @ $1 .DECNET >	resolve DECnet names
 R$- . $- :: $+		$@ $>Canonify2 $3 < @ $1.$2 .DECNET >	numeric DECnet addr
 ',
 	`dnl')
-# if we have % signs, take the rightmost one
+ifdef(`_NO_PERCENTHACK_', `dnl',
+`# if we have % signs, take the rightmost one
 R$* % $*		$1 @ $2				First make them all @s.
 R$* @ $* @ $*		$1 % $2 @ $3			Undo all but the last.
+')
 R$* @ $*		$@ $>Canonify2 $1 < @ $2 >	Insert < > and finish
 
 # else we must be a local name
@@ -1036,6 +1056,13 @@ R$* $=O $* < @ *LOCAL* >
 			$@ $>Parse0 $>canonify $1 $2 $3	...@*LOCAL* -> ...
 R$* < @ *LOCAL* >	$: $1
 
+ifdef(`_ADD_BCC_', `dnl
+R$+			$: $>ParseBcc $1', `dnl')
+ifdef(`_PREFIX_MOD_', `dnl
+dnl do this only for addr_type=e r?
+R _PREFIX_MOD_ $+	$: $1 $(macro {rcpt_flags} $@ _PREFIX_FLAGS_ $)
+')dnl
+
 #
 #  Parse1 -- the bottom half of ruleset 0.
 #
@@ -1197,6 +1224,13 @@ ifdef(`_MAILER_smtp_',
 # handle locally delivered names
 R$=L			$#_LOCAL_ $: @ $1		special local names
 R$+			$#_LOCAL_ $: $1			regular local names
+
+ifdef(`_ADD_BCC_', `dnl
+SParseBcc
+R$+			$: $&{addr_type} $| $&A $| $1
+Re b $| $+ $| $+	$>MailerToTriple < $1 > $2	copy?
+R$* $| $* $| $+		$@ $3				no copy
+')
 
 ###########################################################################
 ###   Ruleset 5 -- special rewriting after aliases have been expanded   ###
@@ -1456,9 +1490,6 @@ ifdef(`_LDAP_ROUTING_', `dnl
 ###		Mailer triplet ($#mailer $@ host $: address)
 ###		Parsed address (user < @ domain . >)
 ######################################################################
-
-# SMTP operation modes
-C{SMTPOpModes} s d D
 
 SLDAPExpand
 # do the LDAP lookups
@@ -1861,6 +1892,10 @@ R$* $| $*		$: $2
 R<@> < $* @ localhost >	$: < ? $&{client_name} > < $1 @ localhost >
 R<@> < $* @ [127.0.0.1] >
 			$: < ? $&{client_name} > < $1 @ [127.0.0.1] >
+R<@> < $* @ [IPv6:0:0:0:0:0:0:0:1] >
+			$: < ? $&{client_name} > < $1 @ [IPv6:0:0:0:0:0:0:0:1] >
+R<@> < $* @ [IPv6:::1] >
+			$: < ? $&{client_name} > < $1 @ [IPv6:::1] >
 R<@> < $* @ localhost.$m >
 			$: < ? $&{client_name} > < $1 @ localhost.$m >
 ifdef(`_NO_UUCP_', `dnl',
@@ -2137,6 +2172,9 @@ dnl workspace: localpart<@domain> | localpart
 ifelse(defn(`_NO_UUCP_'), `r',
 `R$* ! $* < @ $* >	$: <REMOTE> $2 < @ BANG_PATH >
 R$* ! $* 		$: <REMOTE> $2 < @ BANG_PATH >', `dnl')
+ifelse(defn(`_NO_PERCENTHACK_'), `r',
+`R$* % $* < @ $* >	$: <REMOTE> $1 < @ PERCENT_HACK >
+R$* % $* 		$: <REMOTE> $1 < @ PERCENT_HACK >', `dnl')
 # anything terminating locally is ok
 ifdef(`_RELAY_ENTIRE_DOMAIN_', `dnl
 R$+ < @ $* $=m >	$@ RELAY', `dnl')
@@ -2217,6 +2255,8 @@ R$*			$: $&{client_addr}
 R$@			$@ RELAY		originated locally
 R0			$@ RELAY		originated locally
 R127.0.0.1		$@ RELAY		originated locally
+RIPv6:0:0:0:0:0:0:0:1	$@ RELAY		originated locally
+dnl if compiled with IPV6_FULL=0
 RIPv6:::1		$@ RELAY		originated locally
 R$=R $*			$@ RELAY		relayable IP address
 ifdef(`_ACCESS_TABLE_', `dnl
@@ -2888,6 +2928,26 @@ RTRUE:$-:$-	$: $2
 R$-:$-:$-	$: $2
 dnl endif _ACCESS_TABLE_
 divert(0)
+
+ifdef(`_TLS_SESSION_FEATURES_', `dnl
+Stls_srv_features
+ifdef(`_ACCESS_TABLE_', `dnl
+R$* $| $*		$: $>D <$1> <?> <! TLS_Srv_Features> <$2>
+R<?> <$*> 		$: $>A <$1> <?> <! TLS_Srv_Features> <$1>
+R<?> <$*> 		$@ ""
+R<$+> <$*> 		$@ $1
+', `dnl
+R$* 		$@ ""')
+
+Stls_clt_features
+ifdef(`_ACCESS_TABLE_', `dnl
+R$* $| $*		$: $>D <$1> <?> <! TLS_Clt_Features> <$2>
+R<?> <$*> 		$: $>A <$1> <?> <! TLS_Clt_Features> <$1>
+R<?> <$*> 		$@ ""
+R<$+> <$*> 		$@ $1
+', `dnl
+R$* 		$@ ""')
+')
 
 ######################################################################
 ###  RelayTLS: allow relaying based on TLS authentication

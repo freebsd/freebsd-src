@@ -41,6 +41,13 @@ feed_dev_random()
 
 random_start()
 {
+
+	if [ ${harvest_mask} -gt 0 ]; then
+		echo -n 'Setting up harvesting:'
+		${SYSCTL} kern.random.harvest.mask=${harvest_mask} > /dev/null
+		${SYSCTL_N} kern.random.harvest.mask_symbolic
+	fi
+
 	echo -n 'Feeding entropy:'
 
 	if [ ! -w /dev/random ] ; then
@@ -60,11 +67,19 @@ random_start()
 	esac
 
 	case ${entropy_file:=/entropy} in
-	[Nn][Oo] | '')
+	[Nn][Oo])
 		;;
 	*)
 		feed_dev_random "${entropy_file}" /var/db/entropy-file
 		save_dev_random "${entropy_file}"
+		;;
+	esac
+
+	case ${entropy_boot_file:=/boot/entropy} in
+	[Nn][Oo])
+		;;
+	*)
+		save_dev_random "${entropy_boot_file}"
 		;;
 	esac
 
@@ -77,7 +92,7 @@ random_stop()
 	# can be reseeded
 	#
 	case ${entropy_file:=/entropy} in
-	[Nn][Oo] | '')
+	[Nn][Oo])
 		;;
 	*)
 		echo -n 'Writing entropy file:'
@@ -100,7 +115,33 @@ random_stop()
 			;;
 		*)
 			dd if=/dev/random of=${entropy_file_confirmed} \
-			   bs=4096 count=1 2> /dev/null
+			    bs=4096 count=1 2> /dev/null ||
+			    warn 'write failed (unwriteable file or full fs?)'
+			echo '.'
+			;;
+		esac
+		umask ${oumask}
+		;;
+	esac
+	case ${entropy_boot_file:=/boot/entropy} in
+	[Nn][Oo])
+		;;
+	*)
+		echo -n 'Writing early boot entropy file:'
+		rm -f ${entropy_boot_file} 2> /dev/null
+		oumask=`umask`
+		umask 077
+		if touch ${entropy_boot_file} 2> /dev/null; then
+			entropy_boot_file_confirmed="${entropy_boot_file}"
+		fi
+		case ${entropy_boot_file_confirmed} in
+		'')
+			warn 'write failed (read-only fs?)'
+			;;
+		*)
+			dd if=/dev/random of=${entropy_boot_file_confirmed} \
+			    bs=4096 count=1 2> /dev/null ||
+			    warn 'write failed (unwriteable file or full fs?)'
 			echo '.'
 			;;
 		esac

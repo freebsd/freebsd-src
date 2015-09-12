@@ -12,7 +12,7 @@
 /*
  *  This file is part of AutoOpts, a companion to AutoGen.
  *  AutoOpts is free software.
- *  AutoOpts is Copyright (C) 1992-2014 by Bruce Korb - all rights reserved
+ *  AutoOpts is Copyright (C) 1992-2015 by Bruce Korb - all rights reserved
  *
  *  AutoOpts is available under any one of two licenses.  The license
  *  in use must be one of these two and the choice is under the control
@@ -94,10 +94,10 @@ get_realpath(char * buf, size_t b_sz)
  * private:
  *
  * what:  translate and construct a path
- * arg:   + char*       + p_buf     + The result buffer +
- * arg:   + int         + b_sz      + The size of this buffer +
- * arg:   + char const* + fname     + The input name +
- * arg:   + char const* + prg_path  + The full path of the current program +
+ * arg:   + char *       + p_buf     + The result buffer +
+ * arg:   + int          + b_sz      + The size of this buffer +
+ * arg:   + char const * + fname     + The input name +
+ * arg:   + char const * + prg_path  + The full path of the current program +
  *
  * ret-type: bool
  * ret-desc: true if the name was handled, otherwise false.
@@ -225,7 +225,7 @@ add_prog_path(char * buf, int b_sz, char const * fname, char const * prg_path)
     if (strchr(prg_path, DIRCH) != NULL)
         path = prg_path;
     else {
-        path = pathfind(getenv("PATH"), (char*)(intptr_t)prg_path, "rx");
+        path = pathfind(getenv("PATH"), (char *)prg_path, "rx");
 
         if (path == NULL)
             return false;
@@ -544,8 +544,8 @@ load_opt_line(tOptions * opts, tOptState * opt_state, char * line,
  *
  * what:  process a string for an option name and value
  *
- * arg:   tOptions*,   opts,  program options descriptor
- * arg:   char const*, line,  NUL-terminated text
+ * arg:   tOptions *,   opts,  program options descriptor
+ * arg:   char const *, line,  NUL-terminated text
  *
  * doc:
  *

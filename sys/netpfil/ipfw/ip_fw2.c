@@ -2487,12 +2487,13 @@ do {								\
 				code = TARG(cmd->arg1, dscp) & 0x3F;
 				l = 0;		/* exit inner loop */
 				if (is_ipv4) {
-					uint16_t a;
+					uint16_t old;
 
-					a = ip->ip_tos;
-					ip->ip_tos = (code << 2) | (ip->ip_tos & 0x03);
-					a += ntohs(ip->ip_sum) - ip->ip_tos;
-					ip->ip_sum = htons(a);
+					old = *(uint16_t *)ip;
+					ip->ip_tos = (code << 2) |
+					    (ip->ip_tos & 0x03);
+					ip->ip_sum = cksum_adjust(ip->ip_sum,
+					    old, *(uint16_t *)ip);
 				} else if (is_ipv6) {
 					uint8_t *v;
 

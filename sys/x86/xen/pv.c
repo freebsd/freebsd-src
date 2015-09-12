@@ -31,6 +31,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_ddb.h"
+#include "opt_kstack_pages.h"
 
 #include <sys/param.h>
 #include <sys/bus.h>

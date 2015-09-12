@@ -85,6 +85,7 @@ int	kern_clock_settime(struct thread *td, clockid_t clock_id,
 int	kern_close(struct thread *td, int fd);
 int	kern_connectat(struct thread *td, int dirfd, int fd,
 	    struct sockaddr *sa);
+int	kern_dup(struct thread *td, u_int mode, int flags, int old, int new);
 int	kern_execve(struct thread *td, struct image_args *args,
 	    struct mac *mac_p);
 int	kern_fchmodat(struct thread *td, int fd, char *path,
@@ -206,7 +207,7 @@ int	kern_shmat(struct thread *td, int shmid, const void *shmaddr,
 	    int shmflg);
 int	kern_shmctl(struct thread *td, int shmid, int cmd, void *buf,
 	    size_t *bufsz);
-int	kern_sigaction(struct thread *td, int sig, struct sigaction *act,
+int	kern_sigaction(struct thread *td, int sig, const struct sigaction *act,
 	    struct sigaction *oact, int flags);
 int	kern_sigaltstack(struct thread *td, stack_t *ss, stack_t *oss);
 int	kern_sigprocmask(struct thread *td, int how,

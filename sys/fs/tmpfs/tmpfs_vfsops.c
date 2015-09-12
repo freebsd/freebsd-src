@@ -75,6 +75,7 @@ static int	tmpfs_root(struct mount *, int flags, struct vnode **);
 static int	tmpfs_fhtovp(struct mount *, struct fid *, int,
 		    struct vnode **);
 static int	tmpfs_statfs(struct mount *, struct statfs *);
+static void	tmpfs_susp_clean(struct mount *);
 
 static const char *tmpfs_opts[] = {
 	"from", "size", "maxfilesize", "inodes", "uid", "gid", "mode", "export",
@@ -256,7 +257,7 @@ tmpfs_mount(struct mount *mp)
 
 	MNT_ILOCK(mp);
 	mp->mnt_flag |= MNT_LOCAL;
-	mp->mnt_kern_flag |= MNTK_LOOKUP_SHARED | MNTK_SUSPENDABLE;
+	mp->mnt_kern_flag |= MNTK_LOOKUP_SHARED;
 	MNT_IUNLOCK(mp);
 
 	mp->mnt_data = tmp;
@@ -463,6 +464,14 @@ tmpfs_sync(struct mount *mp, int waitfor)
 }
 
 /*
+ * The presence of a susp_clean method tells the VFS to track writes.
+ */
+static void
+tmpfs_susp_clean(struct mount *mp __unused)
+{
+}
+
+/*
  * tmpfs vfs operations.
  */
 
@@ -473,5 +482,6 @@ struct vfsops tmpfs_vfsops = {
 	.vfs_statfs =			tmpfs_statfs,
 	.vfs_fhtovp =			tmpfs_fhtovp,
 	.vfs_sync =			tmpfs_sync,
+	.vfs_susp_clean =		tmpfs_susp_clean,
 };
 VFS_SET(tmpfs_vfsops, tmpfs, VFCF_JAIL);

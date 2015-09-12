@@ -15,8 +15,11 @@
 <!ENTITY citrix		"Citrix Systems">
 <!ENTITY citrix.rd	"Citrix Systems R&amp;D">
 
+<!ENTITY clusterhq	"ClusterHQ">
+
 <!ENTITY darpa		"DARPA">
 <!ENTITY darpa_afrl	"DARPA, AFRL">
+<!ENTITY dell		"Dell, Inc.">
 
 <!ENTITY ff		"The&nbsp;&os;&nbsp;Foundation">
 <!ENTITY ff.url		"https://www.FreeBSDFoundation.org/">
@@ -25,6 +28,7 @@
 
 <!ENTITY juniper	"Juniper Networks, Inc.">
 
+<!ENTITY intelcorp	"Intel Corporation">
 <!ENTITY ix		"iXsystems">
 
 <!ENTITY limelight	"Limelight Networks">
@@ -40,6 +44,7 @@
 
 <!ENTITY sandvine	"Sandvine, Inc.">
 <!ENTITY scaleengine	"ScaleEngine, Inc.">
+<!ENTITY solarflare	"Solarflare Communications, Inc.">
 <!ENTITY spectralogic	"Spectra Logic">
 
 <!ENTITY yandex		"Yandex LLC">

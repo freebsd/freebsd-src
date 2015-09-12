@@ -149,7 +149,9 @@
 #define os_stallexec hpt27xx_os_stallexec
 #define os_unmap_pci_bar hpt27xx_os_unmap_pci_bar
 #define osm_max_targets hpt27xx_osm_max_targets
+#define pcicfg_read_byte hpt27xx_pcicfg_read_byte
 #define pcicfg_read_dword hpt27xx_pcicfg_read_dword
 #define vbus_list hpt27xx_vbus_list
 #define vdev_queue_cmd hpt27xx_vdev_queue_cmd
+#define get_dmapool_phy_addr hpt27xx_get_dmapool_phy_addr
 #endif

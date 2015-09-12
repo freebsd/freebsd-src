@@ -356,26 +356,6 @@ SDT_PROBE_DEFINE(sched, , , remain__cpu);
 SDT_PROBE_DEFINE2(sched, , , surrender, "struct thread *", 
     "struct proc *");
 
-#ifdef SMP
-/*
- * We need some randomness. Implement the classic Linear Congruential
- * generator X_{n+1}=(aX_n+c) mod m. These values are optimized for
- * m = 2^32, a = 69069 and c = 5. We only return the upper 16 bits
- * of the random state (in the low bits of our answer) to return
- * the maximum randomness.
- */
-static uint32_t
-sched_random(void) 
-{
-	uint32_t *rndptr;
-
-	rndptr = DPCPU_PTR(randomval);
-	*rndptr = *rndptr * 69069 + 5;
-
-	return (*rndptr >> 16);
-} 
-#endif
-
 /*
  * Print the threads waiting on a run-queue.
  */
@@ -625,6 +605,24 @@ tdq_setlowpri(struct tdq *tdq, struct thread *ctd)
 }
 
 #ifdef SMP
+/*
+ * We need some randomness. Implement a classic Linear Congruential
+ * Generator X_{n+1}=(aX_n+c) mod m. These values are optimized for
+ * m = 2^32, a = 69069 and c = 5. We only return the upper 16 bits
+ * of the random state (in the low bits of our answer) to keep
+ * the maximum randomness.
+ */
+static uint32_t
+sched_random(void)
+{
+	uint32_t *rndptr;
+
+	rndptr = DPCPU_PTR(randomval);
+	*rndptr = *rndptr * 69069 + 5;
+
+	return (*rndptr >> 16);
+}
+
 struct cpu_search {
 	cpuset_t cs_mask;
 	u_int	cs_prefer;
@@ -1059,7 +1057,7 @@ tdq_notify(struct tdq *tdq, struct thread *td)
 	 * globally visible before we read tdq_cpu_idle.  Idle thread
 	 * accesses both of them without locks, and the order is important.
 	 */
-	mb();
+	atomic_thread_fence_seq_cst();
 
 	if (TD_IS_IDLETHREAD(ctd)) {
 		/*
@@ -2669,7 +2667,7 @@ sched_idletd(void *dummy)
 		 * before cpu_idle() read tdq_load.  The order is important
 		 * to avoid race with tdq_notify.
 		 */
-		mb();
+		atomic_thread_fence_seq_cst();
 		cpu_idle(switchcnt * 4 > sched_idlespinthresh);
 		tdq->tdq_cpu_idle = 0;
 

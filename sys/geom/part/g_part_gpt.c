@@ -1007,6 +1007,7 @@ g_part_gpt_setunset(struct g_part_table *basetable,
 {
 	struct g_part_gpt_entry *entry;
 	struct g_part_gpt_table *table;
+	struct g_provider *pp;
 	uint8_t *p;
 	uint64_t attr;
 	int i;
@@ -1035,6 +1036,21 @@ g_part_gpt_setunset(struct g_part_table *basetable,
 				p[0] = (p[4] == 0xee) ? ((set) ? 0x80 : 0) : 0;
 			}
 		}
+		return (0);
+	} else if (strcasecmp(attrib, "lenovofix") == 0) {
+		/*
+		 * Write the 0xee GPT entry to slot #1 (2nd slot) in the pMBR.
+		 * This workaround allows Lenovo X220, T420, T520, etc to boot
+		 * from GPT Partitions in BIOS mode.
+		 */
+
+		if (entry != NULL)
+			return (ENXIO);
+
+		pp = LIST_FIRST(&basetable->gpt_gp->consumer)->provider;
+		bzero(table->mbr + DOSPARTOFF, DOSPARTSIZE * NDOSPART);
+		gpt_write_mbr_entry(table->mbr, ((set) ? 1 : 0), 0xee, 1,
+		    MIN(pp->mediasize / pp->sectorsize - 1, UINT32_MAX));
 		return (0);
 	}
 

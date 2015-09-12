@@ -43,6 +43,7 @@
 
 #include <machine/atomic.h>
 #include <machine/frame.h>
+#include <machine/armreg.h>
 
 #define	TRAPF_PC(tfp)		((tfp)->tf_lr)
 #define	TRAPF_USERMODE(tfp)	(((tfp)->tf_elr & (1ul << 63)) == 0)
@@ -60,6 +61,50 @@
 
 #ifdef _KERNEL
 
+#define	CPU_IMPL_ARM		0x41
+#define	CPU_IMPL_BROADCOM	0x42
+#define	CPU_IMPL_CAVIUM		0x43
+#define	CPU_IMPL_DEC		0x44
+#define	CPU_IMPL_INFINEON	0x49
+#define	CPU_IMPL_FREESCALE	0x4D
+#define	CPU_IMPL_NVIDIA		0x4E
+#define	CPU_IMPL_APM		0x50
+#define	CPU_IMPL_QUALCOMM	0x51
+#define	CPU_IMPL_MARVELL	0x56
+#define	CPU_IMPL_INTEL		0x69
+
+#define	CPU_PART_THUNDER	0x0A1
+#define	CPU_PART_FOUNDATION	0xD00
+#define	CPU_PART_CORTEX_A53	0xD03
+#define	CPU_PART_CORTEX_A57	0xD07
+
+#define	CPU_IMPL(midr)	(((midr) >> 24) & 0xff)
+#define	CPU_PART(midr)	(((midr) >> 4) & 0xfff)
+#define	CPU_VAR(midr)	(((midr) >> 20) & 0xf)
+#define	CPU_REV(midr)	(((midr) >> 0) & 0xf)
+
+#define	CPU_IMPL_TO_MIDR(val)	(((val) & 0xff) << 24)
+#define	CPU_PART_TO_MIDR(val)	(((val) & 0xfff) << 4)
+#define	CPU_VAR_TO_MIDR(val)	(((val) & 0xf) << 20)
+#define	CPU_REV_TO_MIDR(val)	(((val) & 0xf) << 0)
+
+#define	CPU_IMPL_MASK	(0xff << 24)
+#define	CPU_PART_MASK	(0xfff << 4)
+#define	CPU_VAR_MASK	(0xf << 20)
+#define	CPU_REV_MASK	(0xf << 0)
+
+#define	CPU_ID_RAW(impl, part, var, rev)		\
+    (CPU_IMPL_TO_MIDR((impl)) |				\
+    CPU_PART_TO_MIDR((part)) | CPU_VAR_TO_MIDR((var)) |	\
+    CPU_REV_TO_MIDR((rev)))
+
+#define	CPU_MATCH(mask, impl, part, var, rev)		\
+    (((mask) & PCPU_GET(midr)) ==			\
+    ((mask) & CPU_ID_RAW((impl), (part), (var), (rev))))
+
+#define	CPU_MATCH_RAW(mask, devid)			\
+    (((mask) & PCPU_GET(midr)) == ((mask) & (devid)))
+
 extern char btext[];
 extern char etext[];
 
@@ -76,9 +121,11 @@ void	swi_vm(void *v);
 static __inline uint64_t
 get_cyclecount(void)
 {
+	uint64_t ret;
 
-	/* TODO: This is bogus */
-	return (1);
+	ret = READ_SPECIALREG(cntvct_el0);
+
+	return (ret);
 }
 
 #define	ADDRESS_TRANSLATE_FUNC(stage)				\

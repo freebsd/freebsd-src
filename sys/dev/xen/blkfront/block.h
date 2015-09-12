@@ -68,9 +68,8 @@
 #define XBD_MAX_RING_PAGES		32
 
 /**
- * The maximum number of outstanding requests blocks (request headers plus
- * additional segment blocks) we will allow in a negotiated block-front/back
- * communication channel.
+ * The maximum number of outstanding requests we will allow in a negotiated
+ * block-front/back communication channel.
  */
 #define XBD_MAX_REQUESTS						\
 	__CONST_RING_SIZE(blkif, PAGE_SIZE * XBD_MAX_RING_PAGES)
@@ -81,15 +80,6 @@
  */
 #define	XBD_MAX_REQUEST_SIZE						\
 	MIN(MAXPHYS, XBD_SEGS_TO_SIZE(BLKIF_MAX_SEGMENTS_PER_REQUEST))
-
-/**
- * The maximum number of segments (within a request header and accompanying
- * segment blocks) per request we will allow in a negotiated block-front/back
- * communication channel.
- */
-#define	XBD_MAX_SEGMENTS_PER_REQUEST					\
-	(MIN(BLKIF_MAX_SEGMENTS_PER_REQUEST,				\
-	     XBD_SIZE_TO_SEGS(XBD_MAX_REQUEST_SIZE)))
 
 typedef enum {
 	XBDCF_Q_MASK		= 0xFF,

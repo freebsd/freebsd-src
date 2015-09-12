@@ -33,6 +33,51 @@ static void	toomany __P((int, int));
 static char	*extrquotstr __P((char *, char **, char *, bool *));
 static void	parse_class_words __P((int, char *));
 
+
+#if _FFR_BOUNCE_QUEUE
+static char *bouncequeue = NULL;
+static void initbouncequeue __P((void));
+
+/*
+**  INITBOUNCEQUEUE -- determine BounceQueue if option is set.
+**
+**	Parameters:
+**		none.
+**
+**	Returns:
+**		none.
+**
+**	Side Effects:
+**		sets BounceQueue
+*/
+
+static void
+initbouncequeue()
+{
+	STAB *s;
+
+	BounceQueue = NOQGRP;
+	if (bouncequeue == NULL || bouncequeue[0] == '\0')
+		return;
+
+	s = stab(bouncequeue, ST_QUEUE, ST_FIND);
+	if (s == NULL)
+	{
+		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+			"Warning: option BounceQueue: unknown queue group %s\n",
+			bouncequeue);
+	}
+	else
+		BounceQueue = s->s_quegrp->qg_index;
+}
+#endif /* _FFR_BOUNCE_QUEUE */
+
+#if _FFR_RCPTFLAGS
+void setupdynmailers __P((void));
+#else
+#define setupdynmailers()
+#endif
+
 /*
 **  READCF -- read configuration file.
 **
@@ -117,12 +162,12 @@ readcf(cfname, safe, e)
 #if STARTTLS
 	Srv_SSL_Options = SSL_OP_ALL;
 	Clt_SSL_Options = SSL_OP_ALL
-#ifdef SSL_OP_NO_SSLv2
+# ifdef SSL_OP_NO_SSLv2
 		| SSL_OP_NO_SSLv2
-#endif
-#ifdef SSL_OP_NO_TICKET
+# endif
+# ifdef SSL_OP_NO_TICKET
 		| SSL_OP_NO_TICKET
-#endif
+# endif
 		;
 # ifdef SSL_OP_TLSEXT_PADDING
 	/* SSL_OP_TLSEXT_PADDING breaks compatibility with some sites */
@@ -730,6 +775,10 @@ readcf(cfname, safe, e)
 	(void) sm_io_close(cf, SM_TIME_DEFAULT);
 	FileName = NULL;
 
+#if _FFR_BOUNCE_QUEUE
+	initbouncequeue();
+#endif
+
 	/* initialize host maps from local service tables */
 	inithostmaps();
 
@@ -756,6 +805,7 @@ readcf(cfname, safe, e)
 			}
 		}
 	}
+	setupdynmailers();
 }
 
 /*
@@ -1175,6 +1225,125 @@ fileclass(class, filename, fmt, ismap, safe, optional)
 	if (pid > 0)
 		(void) waitfor(pid);
 }
+
+#if _FFR_RCPTFLAGS
+/* first character for dynamically created mailers */
+static char dynmailerp = ' ';
+
+/* list of first characters for cf defined mailers */
+static char frst[MAXMAILERS + 1];
+
+/*
+**  SETUPDYNMAILERS -- find a char that isn't used as first element of any
+**		mailer name.
+**
+**	Parameters:
+**		none
+**
+**	Returns:
+**		none
+**	
+**	Note: space is not valid in cf defined mailers hence the function
+**		will always find a char. It's not nice, but this is for
+**		internal names only.
+*/
+
+void
+setupdynmailers()
+{
+	int i;
+	char pp[] = "YXZ0123456789ABCDEFGHIJKLMNOPQRSTUVWyxzabcfghijkmnoqtuvw ";
+
+	frst[MAXMAILERS] = '\0';
+	for (i = 0; i < strlen(pp); i++)
+	{
+		if (strchr(frst, pp[i]) == NULL)
+		{
+			dynmailerp = pp[i];
+			if (tTd(25, 8))
+				sm_dprintf("dynmailerp=%c\n", dynmailerp);
+			return;
+		}
+	}
+
+	/* NOTREACHED */
+	SM_ASSERT(0);
+}
+
+/*
+**  NEWMODMAILER -- Create a new mailer with modifications
+**
+**	Parameters:
+**		rcpt -- current RCPT
+**		fl -- flag to set
+**
+**	Returns:
+**		true iff successful.
+**
+**	Note: this creates a copy of the mailer for the rcpt and
+**		modifies exactly one flag.  It does not work
+**		for multiple flags!
+*/
+
+bool
+newmodmailer(rcpt, fl)
+	ADDRESS *rcpt;
+	int fl;
+{
+	int idx;
+	struct mailer *m;
+	STAB *s;
+	char mname[256];
+
+	SM_REQUIRE(rcpt != NULL);
+	if (rcpt->q_mailer == NULL)
+		return false;
+	if (tTd(25, 8))
+		sm_dprintf("newmodmailer: rcpt=%s\n", rcpt->q_paddr);
+	SM_REQUIRE(rcpt->q_mailer->m_name != NULL);
+	SM_REQUIRE(rcpt->q_mailer->m_name[0] != '\0');
+	sm_strlcpy(mname, rcpt->q_mailer->m_name, sizeof(mname));
+	mname[0] = dynmailerp;
+	if (tTd(25, 8))
+		sm_dprintf("newmodmailer: name=%s\n", mname);
+	s = stab(mname, ST_MAILER, ST_ENTER);
+	if (s->s_mailer != NULL)
+	{
+		idx = s->s_mailer->m_mno;
+		if (tTd(25, 6))
+			sm_dprintf("newmodmailer: found idx=%d\n", idx);
+	}
+	else
+	{
+		idx = rcpt->q_mailer->m_mno;
+		idx += MAXMAILERS;
+		if (tTd(25, 6))
+			sm_dprintf("newmodmailer: idx=%d\n", idx);
+		if (idx > SM_ARRAY_SIZE(Mailer))
+			return false;
+	}
+
+	m = Mailer[idx];
+	if (m == NULL)
+		m = (struct mailer *) xalloc(sizeof(*m));
+	memset((char *) m, '\0', sizeof(*m));
+	STRUCTCOPY(*rcpt->q_mailer, *m);
+	Mailer[idx] = m;
+
+	/* "modify" the mailer */
+	setbitn(bitidx(fl), m->m_flags);
+	rcpt->q_mailer = m;
+	m->m_mno = idx;
+	m->m_name = newstr(mname);
+	if (tTd(25, 1))
+		sm_dprintf("newmodmailer: mailer[%d]=%s %p\n",
+			idx, Mailer[idx]->m_name, Mailer[idx]);
+
+	return true;
+}
+
+#endif /* _FFR_RCPTFLAGS */
+
 /*
 **  MAKEMAILER -- define a new mailer.
 **
@@ -1208,6 +1377,7 @@ fileclass(class, filename, fmt, ismap, safe, optional)
 **		enters the mailer into the mailer table.
 */
 
+
 void
 makemailer(line)
 	char *line;
@@ -1238,6 +1408,9 @@ makemailer(line)
 		return;
 	}
 	m->m_name = newstr(line);
+#if _FFR_RCPTFLAGS
+	frst[nextmailer] = line[0];
+#endif
 	m->m_qgrp = NOQGRP;
 	m->m_uid = NO_UID;
 	m->m_gid = NO_GID;
@@ -1279,12 +1452,10 @@ makemailer(line)
 			{
 				if (!(isascii(*p) && isspace(*p)))
 				{
-#if _FFR_DEPRECATE_MAILER_FLAG_I
 					if (*p == M_INTERNAL)
 						sm_syslog(LOG_WARNING, NOQID,
 							  "WARNING: mailer=%s, flag=%c deprecated",
 							  m->m_name, *p);
-#endif /* _FFR_DEPRECATE_MAILER_FLAG_I */
 					setbitn(bitidx(*p), m->m_flags);
 				}
 			}
@@ -1416,7 +1587,11 @@ makemailer(line)
 				struct passwd *pw;
 
 				while (*p != '\0' && isascii(*p) &&
+# if _FFR_DOTTED_USERNAMES
+				       (isalnum(*p) || strchr(SM_PWN_CHARS, *p) != NULL))
+# else /* _FFR_DOTTED_USERNAMES */
 				       (isalnum(*p) || strchr("-_", *p) != NULL))
+# endif /* _FFR_DOTTED_USERNAMES */
 					p++;
 				while (isascii(*p) && isspace(*p))
 					*p++ = '\0';
@@ -1460,7 +1635,8 @@ makemailer(line)
 				char *q = p;
 				struct group *gr;
 
-				while (isascii(*p) && isalnum(*p))
+				while (isascii(*p) &&
+				       (isalnum(*p) || strchr(SM_PWN_CHARS, *p) != NULL))
 					p++;
 				*p++ = '\0';
 				if (*q == '\0')
@@ -1939,6 +2115,439 @@ printmailer(fp, m)
 	}
 	(void) sm_io_fprintf(fp, SM_TIME_DEFAULT, "\n");
 }
+
+#if STARTTLS
+static struct ssl_options
+{
+	const char	*sslopt_name;	/* name of the flag */
+	long		sslopt_bits;	/* bits to set/clear */
+} SSL_Option[] =
+{
+/* Workaround for bugs are turned on by default (as well as some others) */
+#ifdef SSL_OP_MICROSOFT_SESS_ID_BUG
+	{ "SSL_OP_MICROSOFT_SESS_ID_BUG",	SSL_OP_MICROSOFT_SESS_ID_BUG	},
+#endif
+#ifdef SSL_OP_NETSCAPE_CHALLENGE_BUG
+	{ "SSL_OP_NETSCAPE_CHALLENGE_BUG",	SSL_OP_NETSCAPE_CHALLENGE_BUG	},
+#endif
+#ifdef SSL_OP_LEGACY_SERVER_CONNECT
+	{ "SSL_OP_LEGACY_SERVER_CONNECT",	SSL_OP_LEGACY_SERVER_CONNECT	},
+#endif
+#ifdef SSL_OP_NETSCAPE_REUSE_CIPHER_CHANGE_BUG
+	{ "SSL_OP_NETSCAPE_REUSE_CIPHER_CHANGE_BUG",	SSL_OP_NETSCAPE_REUSE_CIPHER_CHANGE_BUG	},
+#endif
+#ifdef SSL_OP_SSLREF2_REUSE_CERT_TYPE_BUG
+	{ "SSL_OP_SSLREF2_REUSE_CERT_TYPE_BUG",	SSL_OP_SSLREF2_REUSE_CERT_TYPE_BUG	},
+#endif
+#ifdef SSL_OP_MICROSOFT_BIG_SSLV3_BUFFER
+	{ "SSL_OP_MICROSOFT_BIG_SSLV3_BUFFER",	SSL_OP_MICROSOFT_BIG_SSLV3_BUFFER	},
+#endif
+#ifdef SSL_OP_MSIE_SSLV2_RSA_PADDING
+	{ "SSL_OP_MSIE_SSLV2_RSA_PADDING",	SSL_OP_MSIE_SSLV2_RSA_PADDING	},
+#endif
+#ifdef SSL_OP_SSLEAY_080_CLIENT_DH_BUG
+	{ "SSL_OP_SSLEAY_080_CLIENT_DH_BUG",	SSL_OP_SSLEAY_080_CLIENT_DH_BUG	},
+#endif
+#ifdef SSL_OP_TLS_D5_BUG
+	{ "SSL_OP_TLS_D5_BUG",	SSL_OP_TLS_D5_BUG	},
+#endif
+#ifdef SSL_OP_TLS_BLOCK_PADDING_BUG
+	{ "SSL_OP_TLS_BLOCK_PADDING_BUG",	SSL_OP_TLS_BLOCK_PADDING_BUG	},
+#endif
+#ifdef SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS
+	{ "SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS",	SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS	},
+#endif
+#ifdef SSL_OP_ALL
+	{ "SSL_OP_ALL",	SSL_OP_ALL	},
+#endif
+#ifdef SSL_OP_NO_QUERY_MTU
+	{ "SSL_OP_NO_QUERY_MTU",	SSL_OP_NO_QUERY_MTU	},
+#endif
+#ifdef SSL_OP_COOKIE_EXCHANGE
+	{ "SSL_OP_COOKIE_EXCHANGE",	SSL_OP_COOKIE_EXCHANGE	},
+#endif
+#ifdef SSL_OP_NO_TICKET
+	{ "SSL_OP_NO_TICKET",	SSL_OP_NO_TICKET	},
+#endif
+#ifdef SSL_OP_CISCO_ANYCONNECT
+	{ "SSL_OP_CISCO_ANYCONNECT",	SSL_OP_CISCO_ANYCONNECT	},
+#endif
+#ifdef SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION
+	{ "SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION",	SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION	},
+#endif
+#ifdef SSL_OP_NO_COMPRESSION
+	{ "SSL_OP_NO_COMPRESSION",	SSL_OP_NO_COMPRESSION	},
+#endif
+#ifdef SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION
+	{ "SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION",	SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION	},
+#endif
+#ifdef SSL_OP_SINGLE_ECDH_USE
+	{ "SSL_OP_SINGLE_ECDH_USE",	SSL_OP_SINGLE_ECDH_USE	},
+#endif
+#ifdef SSL_OP_SINGLE_DH_USE
+	{ "SSL_OP_SINGLE_DH_USE",	SSL_OP_SINGLE_DH_USE	},
+#endif
+#ifdef SSL_OP_EPHEMERAL_RSA
+	{ "SSL_OP_EPHEMERAL_RSA",	SSL_OP_EPHEMERAL_RSA	},
+#endif
+#ifdef SSL_OP_CIPHER_SERVER_PREFERENCE
+	{ "SSL_OP_CIPHER_SERVER_PREFERENCE",	SSL_OP_CIPHER_SERVER_PREFERENCE	},
+#endif
+#ifdef SSL_OP_TLS_ROLLBACK_BUG
+	{ "SSL_OP_TLS_ROLLBACK_BUG",	SSL_OP_TLS_ROLLBACK_BUG	},
+#endif
+#ifdef SSL_OP_NO_SSLv2
+	{ "SSL_OP_NO_SSLv2",	SSL_OP_NO_SSLv2	},
+#endif
+#ifdef SSL_OP_NO_SSLv3
+	{ "SSL_OP_NO_SSLv3",	SSL_OP_NO_SSLv3	},
+#endif
+#ifdef SSL_OP_NO_TLSv1
+	{ "SSL_OP_NO_TLSv1",	SSL_OP_NO_TLSv1	},
+#endif
+#ifdef SSL_OP_NO_TLSv1_2
+	{ "SSL_OP_NO_TLSv1_2",	SSL_OP_NO_TLSv1_2	},
+#endif
+#ifdef SSL_OP_NO_TLSv1_1
+	{ "SSL_OP_NO_TLSv1_1",	SSL_OP_NO_TLSv1_1	},
+#endif
+#ifdef SSL_OP_PKCS1_CHECK_1
+	{ "SSL_OP_PKCS1_CHECK_1",	SSL_OP_PKCS1_CHECK_1	},
+#endif
+#ifdef SSL_OP_PKCS1_CHECK_2
+	{ "SSL_OP_PKCS1_CHECK_2",	SSL_OP_PKCS1_CHECK_2	},
+#endif
+#ifdef SSL_OP_NETSCAPE_CA_DN_BUG
+	{ "SSL_OP_NETSCAPE_CA_DN_BUG",	SSL_OP_NETSCAPE_CA_DN_BUG	},
+#endif
+#ifdef SSL_OP_NETSCAPE_DEMO_CIPHER_CHANGE_BUG
+	{ "SSL_OP_NETSCAPE_DEMO_CIPHER_CHANGE_BUG",	SSL_OP_NETSCAPE_DEMO_CIPHER_CHANGE_BUG	},
+#endif
+#ifdef SSL_OP_CRYPTOPRO_TLSEXT_BUG
+	{ "SSL_OP_CRYPTOPRO_TLSEXT_BUG",	SSL_OP_CRYPTOPRO_TLSEXT_BUG	},
+#endif
+#ifdef SSL_OP_TLSEXT_PADDING
+	{ "SSL_OP_TLSEXT_PADDING",	SSL_OP_TLSEXT_PADDING	},
+#endif
+	{ NULL,		0		}
+};
+
+/*
+** READSSLOPTIONS  -- read SSL_OP_* values
+**
+**	Parameters:
+**		opt -- name of option (can be NULL)
+**		val -- string with SSL_OP_* values or hex value
+**		delim -- end of string (e.g., '\0' or ';')
+**		pssloptions -- return value (output)
+**
+**	Returns:
+**		0 on success.
+*/
+
+#define SSLOPERR_NAN	1
+#define SSLOPERR_NOTFOUND	2
+#define SM_ISSPACE(c)	(isascii(c) && isspace(c))
+
+static int
+readssloptions(opt, val, pssloptions, delim)
+	char *opt;
+	char *val;
+	unsigned long *pssloptions;
+	int delim;
+{
+	char *p;
+	int ret;
+
+	ret = 0;
+	for (p = val; *p != '\0' && *p != delim; )
+	{
+		bool clearmode;
+		char *q;
+		unsigned long sslopt_val;
+		struct ssl_options *sslopts;
+
+		while (*p == ' ')
+			p++;
+		if (*p == '\0')
+			break;
+		clearmode = false;
+		if (*p == '-' || *p == '+')
+			clearmode = *p++ == '-';
+		q = p;
+		while (*p != '\0' && !(SM_ISSPACE(*p)) && *p != ',')
+			p++;
+		if (*p != '\0')
+			*p++ = '\0';
+		sslopt_val = 0;
+		if (isdigit(*q))
+		{
+			char *end;
+
+			sslopt_val = strtoul(q, &end, 0);
+
+			/* not a complete "syntax" check but good enough */
+			if (end == q)
+			{
+				errno = 0;
+				ret = SSLOPERR_NAN;
+				if (opt != NULL)
+					syserr("readcf: %s option value %s not a number",
+						opt, q);
+				sslopt_val = 0;
+			}
+		}
+		else
+		{
+			for (sslopts = SSL_Option;
+			     sslopts->sslopt_name != NULL; sslopts++)
+			{
+				if (sm_strcasecmp(q, sslopts->sslopt_name) == 0)
+				{
+					sslopt_val = sslopts->sslopt_bits;
+					break;
+				}
+			}
+			if (sslopts->sslopt_name == NULL)
+			{
+				errno = 0;
+				ret = SSLOPERR_NOTFOUND;
+				if (opt != NULL)
+					syserr("readcf: %s option value %s unrecognized",
+						opt, q);
+			}
+		}
+		if (sslopt_val != 0)
+		{
+			if (clearmode)
+				*pssloptions &= ~sslopt_val;
+			else
+				*pssloptions |= sslopt_val;
+		}
+	}
+	return ret;
+}
+
+# if _FFR_TLS_SE_OPTS
+/*
+** GET_TLS_SE_OPTIONS -- get TLS session options (from ruleset)
+**
+**	Parameters:
+**		e -- envelope
+**		ssl -- TLS session context
+**		srv -- server?
+**
+**	Returns:
+**		0 on success.
+*/
+
+int
+get_tls_se_options(e, ssl, srv)
+	ENVELOPE *e;
+	SSL *ssl;
+	bool srv;
+{
+	bool saveQuickAbort, saveSuprErrs, ok;
+	char *optionlist, *opt, *val;
+	char *keyfile, *certfile;
+	size_t len, i;
+	int ret;
+
+#  define who (srv ? "server" : "client")
+#  define NAME_C_S macvalue(macid(srv ? "{client_name}" : "{server_name}"), e)
+#  define ADDR_C_S macvalue(macid(srv ? "{client_addr}" : "{server_addr}"), e)
+#  define WHICH srv ? "srv" : "clt"
+
+	ret = 0;
+	keyfile = certfile = opt = val = NULL;
+	saveQuickAbort = QuickAbort;
+	saveSuprErrs = SuprErrs;
+	SuprErrs = true;
+	QuickAbort = false;
+
+	optionlist = NULL;
+	ok = rscheck(srv ? "tls_srv_features" : "tls_clt_features",
+		     NAME_C_S, ADDR_C_S, e,
+		     RSF_RMCOMM|RSF_ADDR|RSF_STRING,
+		     5, NULL, NOQID, NULL, &optionlist) == EX_OK;
+	if (!ok && LogLevel > 8)
+	{
+		sm_syslog(LOG_NOTICE, NOQID,
+			  "rscheck(tls_%s_features)=failed, relay=%s [%s], errors=%d",
+			  WHICH, NAME_C_S, ADDR_C_S,
+			  Errors);
+	}
+	QuickAbort = saveQuickAbort;
+	SuprErrs = saveSuprErrs;
+	if (ok && LogLevel > 9)
+	{
+		sm_syslog(LOG_INFO, NOQID,
+			  "tls_%s_features=%s, relay=%s [%s]",
+			  WHICH, optionlist, NAME_C_S, ADDR_C_S);
+	}
+	if (!ok || optionlist == NULL || (len = strlen(optionlist)) < 2)
+	{
+		if (LogLevel > 9)
+			sm_syslog(LOG_INFO, NOQID,
+				  "tls_%s_features=empty, relay=%s [%s]",
+			  	  WHICH, NAME_C_S, ADDR_C_S);
+
+		return ok ? 0 : 1;
+	}
+
+	i = 0;
+	if (optionlist[0] == '"' && optionlist[len - 1] == '"')
+	{
+		optionlist[0] = ' ';
+		optionlist[--len] = '\0';
+		if (len <= 2)
+		{
+			if (LogLevel > 9 && len > 1)
+				sm_syslog(LOG_INFO, NOQID,
+				  "tls_%s_features=too_short, relay=%s [%s]",
+			  	  WHICH, NAME_C_S, ADDR_C_S);
+
+			/* this is not treated as error! */
+			return 0;
+		}
+		i = 1;
+	}
+
+#  define INVALIDSYNTAX	\
+	do {	\
+		if (LogLevel > 7)	\
+			sm_syslog(LOG_INFO, NOQID,	\
+				  "tls_%s_features=invalid_syntax, opt=%s, relay=%s [%s]",	\
+		  		  WHICH, opt, NAME_C_S, ADDR_C_S);	\
+		return -1;	\
+	} while (0)
+
+#  define CHECKLEN	\
+	do {	\
+		if (i >= len)	\
+			INVALIDSYNTAX;	\
+	} while (0)
+
+#  define SKIPWS	\
+	do {	\
+		while (i < len && SM_ISSPACE(optionlist[i]))	\
+			++i;	\
+		CHECKLEN;	\
+	} while (0)
+
+	/* parse and handle opt=val; */
+	do {
+		char sep;
+
+		SKIPWS;
+		opt = optionlist + i;
+		sep = '=';
+		while (i < len && optionlist[i] != sep
+			&& optionlist[i] != '\0' && !SM_ISSPACE(optionlist[i]))
+			++i;
+		CHECKLEN;
+		while (i < len && SM_ISSPACE(optionlist[i]))
+			optionlist[i++] = '\0';
+		CHECKLEN;
+		if (optionlist[i] != sep)
+			INVALIDSYNTAX;
+		optionlist[i++] = '\0';
+
+		SKIPWS;
+		val = optionlist + i;
+		sep = ';';
+		while (i < len && optionlist[i] != sep && optionlist[i] != '\0')
+			++i;
+		if (optionlist[i] != '\0')
+		{
+			CHECKLEN;
+			optionlist[i++] = '\0';
+		}
+
+		if (LogLevel > 13)
+			sm_syslog(LOG_DEBUG, NOQID,
+				  "tls_%s_features=parsed, %s=%s, relay=%s [%s]",
+				  WHICH, opt, val, NAME_C_S, ADDR_C_S);
+
+		if (sm_strcasecmp(opt, "options") == 0)
+		{
+			unsigned long ssloptions;
+
+			ssloptions = 0;
+			ret = readssloptions(NULL, val, &ssloptions, ';');
+			if (ret == 0)
+				(void) SSL_set_options(ssl, (long) ssloptions);
+			else if (LogLevel > 8)
+			{
+				sm_syslog(LOG_WARNING, NOQID,
+					  "tls_%s_features=%s, error=%s, relay=%s [%s]",
+					  WHICH, val,
+					  (ret == SSLOPERR_NAN) ? "not a number" :
+					  ((ret == SSLOPERR_NOTFOUND) ? "SSL_OP not found" :
+					  "unknown"),
+					  NAME_C_S, ADDR_C_S);
+			}
+		}
+		else if (sm_strcasecmp(opt, "cipherlist") == 0)
+		{
+			if (SSL_set_cipher_list(ssl, val) <= 0)
+			{
+				ret = 1;
+				if (LogLevel > 7)
+				{
+					sm_syslog(LOG_WARNING, NOQID,
+						  "STARTTLS=%s, error: SSL_set_cipher_list(%s) failed",
+						  who, val);
+
+					if (LogLevel > 9)
+						tlslogerr(LOG_WARNING, who);
+				}
+			}
+		}
+		else if (sm_strcasecmp(opt, "keyfile") == 0)
+			keyfile = val;
+		else if (sm_strcasecmp(opt, "certfile") == 0)
+			certfile = val;
+		else
+		{
+			ret = 1;
+			if (LogLevel > 7)
+			{
+				sm_syslog(LOG_INFO, NOQID,
+					  "tls_%s_features=unknown_option, opt=%s, relay=%s [%s]",
+				  	  WHICH, opt, NAME_C_S, ADDR_C_S);
+			}
+		}
+
+	} while (optionlist[i] != '\0' && i < len);
+
+	/* need cert and key before we can use the options */
+	/* does not implement the "," hack for 2nd cert/key pair */
+	if (keyfile != NULL && certfile != NULL)
+	{
+		load_certkey(ssl, srv, certfile, keyfile);
+		keyfile = certfile = NULL;
+	}
+	else if (keyfile != NULL || certfile != NULL)
+	{
+		ret = 1;
+		if (LogLevel > 7)
+		{
+			sm_syslog(LOG_INFO, NOQID,
+				  "tls_%s_features=only_one_of_CertFile/KeyFile_specified, relay=%s [%s]",
+			  	  WHICH, NAME_C_S, ADDR_C_S);
+		}
+	}
+
+	return ret;
+#  undef who
+#  undef NAME_C_S
+#  undef ADDR_C_S
+#  undef WHICH
+}
+# endif /* _FFR_TLS_SE_OPTS */
+#endif /* STARTTLS */
+
 /*
 **  SETOPTION -- set global processing option
 **
@@ -2180,12 +2789,10 @@ static struct optioninfo
 	{ "AuthOptions",		O_SASLOPTS,	OI_NONE	},
 #define O_QUEUE_FILE_MODE	0xbe
 	{ "QueueFileMode",		O_QUEUE_FILE_MODE, OI_NONE	},
-#if _FFR_TLS_1
-# define O_DHPARAMS5	0xbf
-	{ "DHParameters512",		O_DHPARAMS5,	OI_NONE	},
-# define O_CIPHERLIST	0xc0
+#define O_DIG_ALG	0xbf
+	{ "CertFingerprintAlgorithm",		O_DIG_ALG,	OI_NONE	},
+#define O_CIPHERLIST	0xc0
 	{ "CipherList",			O_CIPHERLIST,	OI_NONE	},
-#endif /* _FFR_TLS_1 */
 #define O_RANDFILE	0xc1
 	{ "RandFile",			O_RANDFILE,	OI_NONE	},
 #define O_TLS_SRV_OPTS	0xc2
@@ -2271,16 +2878,12 @@ static struct optioninfo
 # define O_RCPTSHUTDG	0xe2
 	{ "BadRcptShutdownGood",	O_RCPTSHUTDG,	OI_SAFE	},
 #endif /* _FFR_BADRCPT_SHUTDOWN */
-#if STARTTLS && _FFR_TLS_1
-# define O_SRV_SSL_OPTIONS	0xe3
+#define O_SRV_SSL_OPTIONS	0xe3
 	{ "ServerSSLOptions",		O_SRV_SSL_OPTIONS,	OI_NONE	},
-# define O_CLT_SSL_OPTIONS	0xe4
+#define O_CLT_SSL_OPTIONS	0xe4
 	{ "ClientSSLOptions",		O_CLT_SSL_OPTIONS,	OI_NONE	},
-#endif /* STARTTLS && _FFR_TLS_1 */
-#if _FFR_EXPDELAY
-# define O_MAX_QUEUE_AGE	0xe5
+#define O_MAX_QUEUE_AGE	0xe5
 	{ "MaxQueueAge",	O_MAX_QUEUE_AGE,	OI_NONE },
-#endif /* _FFR_EXPDELAY */
 #if _FFR_RCPTTHROTDELAY
 # define O_RCPTTHROTDELAY	0xe6
 	{ "BadRcptThrottleDelay",	O_RCPTTHROTDELAY,	OI_SAFE	},
@@ -2297,127 +2900,19 @@ static struct optioninfo
 # define O_REJECTNUL	0xe9
 	{ "RejectNUL",	O_REJECTNUL,	OI_SAFE	},
 #endif /* _FFR_REJECT_NUL_BYTE */
+#if _FFR_BOUNCE_QUEUE
+# define O_BOUNCEQUEUE 0xea
+	{ "BounceQueue",		O_BOUNCEQUEUE,	OI_NONE },
+#endif /* _FFR_BOUNCE_QUEUE */
+#if _FFR_ADD_BCC
+# define O_ADDBCC 0xeb
+	{ "AddBcc",			O_ADDBCC,	OI_NONE },
+#endif
+#define O_USECOMPRESSEDIPV6ADDRESSES 0xec
+	{ "UseCompressedIPv6Addresses",	O_USECOMPRESSEDIPV6ADDRESSES, OI_NONE },
 
 	{ NULL,				'\0',		OI_NONE	}
 };
-
-#if STARTTLS && _FFR_TLS_1
-static struct ssl_options
-{
-	const char	*sslopt_name;	/* name of the flag */
-	long		sslopt_bits;	/* bits to set/clear */
-} SSL_Option[] =
-{
-/* Workaround for bugs are turned on by default (as well as some others) */
-#ifdef SSL_OP_MICROSOFT_SESS_ID_BUG
-	{ "SSL_OP_MICROSOFT_SESS_ID_BUG",	SSL_OP_MICROSOFT_SESS_ID_BUG	},
-#endif
-#ifdef SSL_OP_NETSCAPE_CHALLENGE_BUG
-	{ "SSL_OP_NETSCAPE_CHALLENGE_BUG",	SSL_OP_NETSCAPE_CHALLENGE_BUG	},
-#endif
-#ifdef SSL_OP_LEGACY_SERVER_CONNECT
-	{ "SSL_OP_LEGACY_SERVER_CONNECT",	SSL_OP_LEGACY_SERVER_CONNECT	},
-#endif
-#ifdef SSL_OP_NETSCAPE_REUSE_CIPHER_CHANGE_BUG
-	{ "SSL_OP_NETSCAPE_REUSE_CIPHER_CHANGE_BUG",	SSL_OP_NETSCAPE_REUSE_CIPHER_CHANGE_BUG	},
-#endif
-#ifdef SSL_OP_SSLREF2_REUSE_CERT_TYPE_BUG
-	{ "SSL_OP_SSLREF2_REUSE_CERT_TYPE_BUG",	SSL_OP_SSLREF2_REUSE_CERT_TYPE_BUG	},
-#endif
-#ifdef SSL_OP_MICROSOFT_BIG_SSLV3_BUFFER
-	{ "SSL_OP_MICROSOFT_BIG_SSLV3_BUFFER",	SSL_OP_MICROSOFT_BIG_SSLV3_BUFFER	},
-#endif
-#ifdef SSL_OP_MSIE_SSLV2_RSA_PADDING
-	{ "SSL_OP_MSIE_SSLV2_RSA_PADDING",	SSL_OP_MSIE_SSLV2_RSA_PADDING	},
-#endif
-#ifdef SSL_OP_SSLEAY_080_CLIENT_DH_BUG
-	{ "SSL_OP_SSLEAY_080_CLIENT_DH_BUG",	SSL_OP_SSLEAY_080_CLIENT_DH_BUG	},
-#endif
-#ifdef SSL_OP_TLS_D5_BUG
-	{ "SSL_OP_TLS_D5_BUG",	SSL_OP_TLS_D5_BUG	},
-#endif
-#ifdef SSL_OP_TLS_BLOCK_PADDING_BUG
-	{ "SSL_OP_TLS_BLOCK_PADDING_BUG",	SSL_OP_TLS_BLOCK_PADDING_BUG	},
-#endif
-#ifdef SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS
-	{ "SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS",	SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS	},
-#endif
-#ifdef SSL_OP_ALL
-	{ "SSL_OP_ALL",	SSL_OP_ALL	},
-#endif
-#ifdef SSL_OP_NO_QUERY_MTU
-	{ "SSL_OP_NO_QUERY_MTU",	SSL_OP_NO_QUERY_MTU	},
-#endif
-#ifdef SSL_OP_COOKIE_EXCHANGE
-	{ "SSL_OP_COOKIE_EXCHANGE",	SSL_OP_COOKIE_EXCHANGE	},
-#endif
-#ifdef SSL_OP_NO_TICKET
-	{ "SSL_OP_NO_TICKET",	SSL_OP_NO_TICKET	},
-#endif
-#ifdef SSL_OP_CISCO_ANYCONNECT
-	{ "SSL_OP_CISCO_ANYCONNECT",	SSL_OP_CISCO_ANYCONNECT	},
-#endif
-#ifdef SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION
-	{ "SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION",	SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION	},
-#endif
-#ifdef SSL_OP_NO_COMPRESSION
-	{ "SSL_OP_NO_COMPRESSION",	SSL_OP_NO_COMPRESSION	},
-#endif
-#ifdef SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION
-	{ "SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION",	SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION	},
-#endif
-#ifdef SSL_OP_SINGLE_ECDH_USE
-	{ "SSL_OP_SINGLE_ECDH_USE",	SSL_OP_SINGLE_ECDH_USE	},
-#endif
-#ifdef SSL_OP_SINGLE_DH_USE
-	{ "SSL_OP_SINGLE_DH_USE",	SSL_OP_SINGLE_DH_USE	},
-#endif
-#ifdef SSL_OP_EPHEMERAL_RSA
-	{ "SSL_OP_EPHEMERAL_RSA",	SSL_OP_EPHEMERAL_RSA	},
-#endif
-#ifdef SSL_OP_CIPHER_SERVER_PREFERENCE
-	{ "SSL_OP_CIPHER_SERVER_PREFERENCE",	SSL_OP_CIPHER_SERVER_PREFERENCE	},
-#endif
-#ifdef SSL_OP_TLS_ROLLBACK_BUG
-	{ "SSL_OP_TLS_ROLLBACK_BUG",	SSL_OP_TLS_ROLLBACK_BUG	},
-#endif
-#ifdef SSL_OP_NO_SSLv2
-	{ "SSL_OP_NO_SSLv2",	SSL_OP_NO_SSLv2	},
-#endif
-#ifdef SSL_OP_NO_SSLv3
-	{ "SSL_OP_NO_SSLv3",	SSL_OP_NO_SSLv3	},
-#endif
-#ifdef SSL_OP_NO_TLSv1
-	{ "SSL_OP_NO_TLSv1",	SSL_OP_NO_TLSv1	},
-#endif
-#ifdef SSL_OP_NO_TLSv1_2
-	{ "SSL_OP_NO_TLSv1_2",	SSL_OP_NO_TLSv1_2	},
-#endif
-#ifdef SSL_OP_NO_TLSv1_1
-	{ "SSL_OP_NO_TLSv1_1",	SSL_OP_NO_TLSv1_1	},
-#endif
-#ifdef SSL_OP_PKCS1_CHECK_1
-	{ "SSL_OP_PKCS1_CHECK_1",	SSL_OP_PKCS1_CHECK_1	},
-#endif
-#ifdef SSL_OP_PKCS1_CHECK_2
-	{ "SSL_OP_PKCS1_CHECK_2",	SSL_OP_PKCS1_CHECK_2	},
-#endif
-#ifdef SSL_OP_NETSCAPE_CA_DN_BUG
-	{ "SSL_OP_NETSCAPE_CA_DN_BUG",	SSL_OP_NETSCAPE_CA_DN_BUG	},
-#endif
-#ifdef SSL_OP_NETSCAPE_DEMO_CIPHER_CHANGE_BUG
-	{ "SSL_OP_NETSCAPE_DEMO_CIPHER_CHANGE_BUG",	SSL_OP_NETSCAPE_DEMO_CIPHER_CHANGE_BUG	},
-#endif
-#ifdef SSL_OP_CRYPTOPRO_TLSEXT_BUG
-	{ "SSL_OP_CRYPTOPRO_TLSEXT_BUG",	SSL_OP_CRYPTOPRO_TLSEXT_BUG	},
-#endif
-#ifdef SSL_OP_TLSEXT_PADDING
-	{ "SSL_OP_TLSEXT_PADDING",	SSL_OP_TLSEXT_PADDING	},
-#endif
-	{ NULL,		0		}
-};
-#endif /* STARTTLS && _FFR_TLS_1 */
-
 
 # define CANONIFY(val)
 
@@ -2459,9 +2954,9 @@ setoption(opt, val, safe, sticky, e)
 	char *newval;
 	char exbuf[MAXLINE];
 #endif /* STARTTLS || SM_CONF_SHM */
-#if STARTTLS && _FFR_TLS_1
-	long *pssloptions = NULL;
-#endif /* STARTTLS && _FFR_TLS_1 */
+#if STARTTLS
+	unsigned long *pssloptions = NULL;
+#endif
 
 	errno = 0;
 	if (opt == ' ')
@@ -2706,6 +3201,11 @@ setoption(opt, val, safe, sticky, e)
 			set_delivery_mode(*val, e);
 			break;
 
+#if _FFR_PROXY
+		  case SM_PROXY_REQ:
+			set_delivery_mode(*val, e);
+			break;
+#endif /* _FFR_PROXY */
 
 		  default:
 			syserr("Unknown delivery mode %c", *val);
@@ -3159,11 +3659,9 @@ setoption(opt, val, safe, sticky, e)
 		MinQueueAge = convtime(val, 'm');
 		break;
 
-#if _FFR_EXPDELAY
 	  case O_MAX_QUEUE_AGE:
 		MaxQueueAge = convtime(val, 'm');
 		break;
-#endif /* _FFR_EXPDELAY */
 
 	  case O_DEFCHARSET:	/* default character set for mimefying */
 		DefaultCharSet = newstr(denlstring(val, true, true));
@@ -3378,9 +3876,9 @@ setoption(opt, val, safe, sticky, e)
 				RunAsGid = pw->pw_gid;
 			else if (UseMSP && *p == '\0')
 				(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
-						     "WARNING: RunAsUser for MSP ignored, check group ids (egid=%d, want=%d)\n",
-						     (int) EffGid,
-						     (int) pw->pw_gid);
+						     "WARNING: RunAsUser for MSP ignored, check group ids (egid=%ld, want=%ld)\n",
+						     (long) EffGid,
+						     (long) pw->pw_gid);
 		}
 # ifdef UID_MAX
 		if (RunAsUid > UID_MAX)
@@ -3402,9 +3900,9 @@ setoption(opt, val, safe, sticky, e)
 				else if (UseMSP)
 					(void) sm_io_fprintf(smioout,
 							     SM_TIME_DEFAULT,
-							     "WARNING: RunAsUser for MSP ignored, check group ids (egid=%d, want=%d)\n",
-							     (int) EffGid,
-							     (int) runasgid);
+							     "WARNING: RunAsUser for MSP ignored, check group ids (egid=%ld, want=%ld)\n",
+							     (long) EffGid,
+							     (long) runasgid);
 			}
 			else
 			{
@@ -3419,9 +3917,9 @@ setoption(opt, val, safe, sticky, e)
 				else if (UseMSP)
 					(void) sm_io_fprintf(smioout,
 							     SM_TIME_DEFAULT,
-							     "WARNING: RunAsUser for MSP ignored, check group ids (egid=%d, want=%d)\n",
-							     (int) EffGid,
-							     (int) gr->gr_gid);
+							     "WARNING: RunAsUser for MSP ignored, check group ids (egid=%ld, want=%ld)\n",
+							     (long) EffGid,
+							     (long) gr->gr_gid);
 			}
 		}
 		if (tTd(47, 5))
@@ -3749,55 +4247,21 @@ setoption(opt, val, safe, sticky, e)
 		SET_STRING_EXP(CACertPath);
 	  case O_DHPARAMS:
 		SET_STRING_EXP(DHParams);
-# if _FFR_TLS_1
-	  case O_DHPARAMS5:
-		SET_STRING_EXP(DHParams5);
 	  case O_CIPHERLIST:
 		SET_STRING_EXP(CipherList);
+	  case O_DIG_ALG:
+		SET_STRING_EXP(CertFingerprintAlgorithm);
 	  case O_SRV_SSL_OPTIONS:
 		pssloptions = &Srv_SSL_Options;
 	  case O_CLT_SSL_OPTIONS:
 		if (pssloptions == NULL)
 			pssloptions = &Clt_SSL_Options;
-		for (p = val; *p != 0; )
-		{
-			bool clearmode;
-			char *q;
-			struct ssl_options *sslopts;
+		(void) readssloptions(o->o_name, val, pssloptions, '\0');
+		if (tTd(37, 8))
+			sm_dprintf("ssloptions=%#lx\n", *pssloptions);
 
-			while (*p == ' ')
-				p++;
-			if (*p == '\0')
-				break;
-			clearmode = false;
-			if (*p == '-' || *p == '+')
-				clearmode = *p++ == '-';
-			q = p;
-			while (*p != '\0' && !(isascii(*p) && isspace(*p)))
-				p++;
-			if (*p != '\0')
-				*p++ = '\0';
-			for (sslopts = SSL_Option;
-			     sslopts->sslopt_name != NULL; sslopts++)
-			{
-				if (sm_strcasecmp(q, sslopts->sslopt_name) == 0)
-					break;
-			}
-			if (sslopts->sslopt_name == NULL)
-			{
-				errno = 0;
-				syserr("readcf: %s option value %s unrecognized",
-					o->o_name, q);
-			}
-			else if (clearmode)
-				*pssloptions &= ~sslopts->sslopt_bits;
-			else
-				*pssloptions |= sslopts->sslopt_bits;
-		}
 		pssloptions = NULL;
 		break;
-
-# endif /* _FFR_TLS_1 */
 
 	  case O_CRLFILE:
 # if OPENSSL_VERSION_NUMBER > 0x00907000L
@@ -3839,7 +4303,6 @@ setoption(opt, val, safe, sticky, e)
 			  case 'V':
 				TLS_Srv_Opts |= TLS_I_NO_VRFY;
 				break;
-# if _FFR_TLS_1
 			/*
 			**  Server without a cert? That works only if
 			**  AnonDH is enabled as cipher, which is not in the
@@ -3851,7 +4314,6 @@ setoption(opt, val, safe, sticky, e)
 			  case 'C':
 				TLS_Srv_Opts &= ~TLS_I_SRV_CERT;
 				break;
-# endif /* _FFR_TLS_1 */
 			  case ' ':	/* ignore */
 			  case '\t':	/* ignore */
 			  case ',':	/* ignore */
@@ -3884,10 +4346,9 @@ setoption(opt, val, safe, sticky, e)
 	  case O_CACERTFILE:
 	  case O_CACERTPATH:
 	  case O_DHPARAMS:
-# if _FFR_TLS_1
-	  case O_DHPARAMS5:
+	  case O_SRV_SSL_OPTIONS:
+	  case O_CLT_SSL_OPTIONS:
 	  case O_CIPHERLIST:
-# endif /* _FFR_TLS_1 */
 	  case O_CRLFILE:
 # if _FFR_CRLPATH
 	  case O_CRLPATH:
@@ -4063,6 +4524,21 @@ setoption(opt, val, safe, sticky, e)
 		RejectNUL = atobool(val);
 		break;
 #endif /* _FFR_REJECT_NUL_BYTE */
+
+#if _FFR_BOUNCE_QUEUE
+	  case O_BOUNCEQUEUE:
+		bouncequeue = newstr(val);
+		break;
+#endif /* _FFR_BOUNCE_QUEUE */
+
+#if _FFR_ADD_BCC
+	  case O_ADDBCC:
+		AddBcc = atobool(val);
+		break;
+#endif
+	  case O_USECOMPRESSEDIPV6ADDRESSES:
+		UseCompressedIPv6Addresses = atobool(val);
+		break;
 
 	  default:
 		if (tTd(37, 1))

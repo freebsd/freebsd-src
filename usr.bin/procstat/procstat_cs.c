@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2007 Robert N. M. Watson
+ * Copyright (c) 2015 Allan Jude <allanjude@freebsd.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,6 +29,7 @@
 
 #include <sys/param.h>
 #include <sys/cpuset.h>
+#include <sys/sbuf.h>
 #include <sys/sysctl.h>
 #include <sys/user.h>
 
@@ -46,11 +48,12 @@ procstat_cs(struct procstat *procstat, struct kinfo_proc *kipp)
 	cpusetid_t cs;
 	cpuset_t mask;
 	struct kinfo_proc *kip;
+	struct sbuf *cpusetbuf;
 	unsigned int count, i;
 	int once, twice, lastcpu, cpu;
 
 	if (!hflag)
-		printf("%5s %6s %-16s %-16s %2s %4s %-7s\n", "PID",
+		xo_emit("{T:/%5s %6s %-16s %-16s %2s %4s %-7s}\n", "PID",
 		    "TID", "COMM", "TDNAME", "CPU", "CSID", "CPU MASK");
 
 	kip = procstat_getprocs(procstat, KERN_PROC_PID | KERN_PROC_INC_THREAD,
@@ -60,49 +63,57 @@ procstat_cs(struct procstat *procstat, struct kinfo_proc *kipp)
 	kinfo_proc_sort(kip, count);
 	for (i = 0; i < count; i++) {
 		kipp = &kip[i];
-		printf("%5d ", kipp->ki_pid);
-		printf("%6d ", kipp->ki_tid);
-		printf("%-16s ", strlen(kipp->ki_comm) ?
+		xo_emit("{k:process_id/%5d/%d} ", kipp->ki_pid);
+		xo_emit("{:thread_id/%6d/%d} ", kipp->ki_tid);
+		xo_emit("{:command/%-16s/%s} ", strlen(kipp->ki_comm) ?
 		    kipp->ki_comm : "-");
-		printf("%-16s ", (strlen(kipp->ki_tdname) &&
+		xo_emit("{:thread_name/%-16s/%s} ", (strlen(kipp->ki_tdname) &&
 		    (strcmp(kipp->ki_comm, kipp->ki_tdname) != 0)) ?
 		    kipp->ki_tdname : "-");
 		if (kipp->ki_oncpu != 255)
-			printf("%3d ", kipp->ki_oncpu);
+			xo_emit("{:cpu/%3d/%d} ", kipp->ki_oncpu);
 		else if (kipp->ki_lastcpu != 255)
-			printf("%3d ", kipp->ki_lastcpu);
+			xo_emit("{:cpu/%3d/%d} ", kipp->ki_lastcpu);
 		else
-			printf("%3s ", "-");
+			xo_emit("{:cpu/%3s/%s} ", "-");
 		if (cpuset_getid(CPU_LEVEL_CPUSET, CPU_WHICH_TID,
 		    kipp->ki_tid, &cs) != 0) {
 			cs = CPUSET_INVALID;
 		}
-		printf("%4d ", cs);
+		xo_emit("{:cpu_set_id/%4d/%d} ", cs);
 		if ((cs != CPUSET_INVALID) && 
 		    (cpuset_getaffinity(CPU_LEVEL_WHICH, CPU_WHICH_TID,
 		    kipp->ki_tid, sizeof(mask), &mask) == 0)) {
 			lastcpu = -1;
 			once = 0;
 			twice = 0;
+			cpusetbuf = sbuf_new_auto();
 			for (cpu = 0; cpu < CPU_SETSIZE; cpu++) {
 				if (CPU_ISSET(cpu, &mask)) {
 					if (once == 0) {
-						printf("%d", cpu);
+						sbuf_printf(cpusetbuf, "%d",
+						    cpu);
 						once = 1;
 					} else if (cpu == lastcpu + 1) {
 						twice = 1;
 					} else if (twice == 1) {
-						printf("-%d,%d", lastcpu, cpu);
+						sbuf_printf(cpusetbuf, "-%d,%d",
+						    lastcpu, cpu);
 						twice = 0;
 					} else
-						printf(",%d", cpu);
+						sbuf_printf(cpusetbuf, ",%d",
+						    cpu);
 					lastcpu = cpu;
 				}
 			}
 			if (once && twice)
-				printf("-%d", lastcpu);
+				sbuf_printf(cpusetbuf, "-%d", lastcpu);
+			if (sbuf_finish(cpusetbuf) != 0)
+				xo_err(1, "Could not generate output");
+			xo_emit("{:cpu_set/%s}", sbuf_data(cpusetbuf));
+			sbuf_delete(cpusetbuf);
 		}
-		printf("\n");
+		xo_emit("\n");
 	}
 	procstat_freeprocs(procstat, kip);
 }

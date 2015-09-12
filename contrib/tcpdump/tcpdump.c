@@ -45,6 +45,17 @@ The Regents of the University of California.  All rights reserved.\n";
 #include "config.h"
 #endif
 
+/*
+ * Mac OS X may ship pcap.h from libpcap 0.6 with a libpcap based on
+ * 0.8.  That means it has pcap_findalldevs() but the header doesn't
+ * define pcap_if_t, meaning that we can't actually *use* pcap_findalldevs().
+ */
+#ifdef HAVE_PCAP_FINDALLDEVS
+#ifndef HAVE_PCAP_IF_T
+#undef HAVE_PCAP_FINDALLDEVS
+#endif
+#endif
+
 #include <tcpdump-stdinc.h>
 
 #ifdef WIN32
@@ -68,12 +79,10 @@ extern int SIZE_BUF;
 #else
 #include "getopt_long.h"
 #endif
-#include <pcap.h>
-#include <signal.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <limits.h>
+/* Capsicum-specific code requires macros from <net/bpf.h>, which will fail
+ * to compile if <pcap.h> has already been included; including the headers
+ * in the opposite order works fine.
+ */
 #ifdef __FreeBSD__
 #include <sys/capsicum.h>
 #include <sys/sysctl.h>
@@ -82,13 +91,19 @@ extern int SIZE_BUF;
 #include <libcapsicum.h>
 #include <libcapsicum_dns.h>
 #include <libcapsicum_service.h>
-#include <nv.h>
+#include <sys/nv.h>
 #include <sys/capability.h>
 #include <sys/ioccom.h>
 #include <net/bpf.h>
 #include <fcntl.h>
 #include <libgen.h>
 #endif	/* HAVE_CAPSICUM */
+#include <pcap.h>
+#include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <limits.h>
 #ifndef WIN32
 #include <sys/wait.h>
 #include <sys/resource.h>
@@ -96,10 +111,18 @@ extern int SIZE_BUF;
 #include <grp.h>
 #endif /* WIN32 */
 
-/* capabilities convinience library */
+/* capabilities convenience library */
+/* If a code depends on HAVE_LIBCAP_NG, it depends also on HAVE_CAP_NG_H.
+ * If HAVE_CAP_NG_H is not defined, undefine HAVE_LIBCAP_NG.
+ * Thus, the later tests are done only on HAVE_LIBCAP_NG.
+ */
+#ifdef HAVE_LIBCAP_NG
 #ifdef HAVE_CAP_NG_H
 #include <cap-ng.h>
+#else
+#undef HAVE_LIBCAP_NG
 #endif /* HAVE_CAP_NG_H */
+#endif /* HAVE_LIBCAP_NG */
 
 #include "netdissect.h"
 #include "interface.h"
@@ -598,6 +621,15 @@ show_devices_and_exit (void)
  *
  * OS X tcpdump uses -P to indicate that -w should write pcap-ng rather
  * than pcap files.
+ *
+ * OS X tcpdump also uses -Q to specify expressions that match packet
+ * metadata, including but not limited to the packet direction.
+ * The expression syntax is different from a simple "in|out|inout",
+ * and those expressions aren't accepted by OS X tcpdump, but the
+ * equivalents would be "in" = "dir=in", "out" = "dir=out", and
+ * "inout" = "dir=in or dir=out", and the parser could conceivably
+ * special-case "in", "out", and "inout" as expressions for backwards
+ * compatibility, so all is not (yet) lost.
  */
 
 /*
@@ -629,12 +661,6 @@ show_devices_and_exit (void)
 #endif /* PCAP_ERROR_TSTAMP_TYPE_NOTSUP */
 
 #ifdef HAVE_PCAP_FINDALLDEVS
-#ifndef HAVE_PCAP_IF_T
-#undef HAVE_PCAP_FINDALLDEVS
-#endif
-#endif
-
-#ifdef HAVE_PCAP_FINDALLDEVS
 #define D_FLAG	"D"
 #else
 #define D_FLAG
@@ -651,6 +677,8 @@ show_devices_and_exit (void)
 #else
 #define Q_FLAG
 #endif
+
+#define SHORTOPTS "aAb" B_FLAG "c:C:d" D_FLAG "eE:fF:G:hHi:" I_FLAG j_FLAG J_FLAG "KlLm:M:nNOpq" Q_FLAG "r:Rs:StT:u" U_FLAG "vV:w:W:xXy:Yz:Z:#"
 
 /*
  * Long options.
@@ -674,6 +702,7 @@ show_devices_and_exit (void)
  */
 #define OPTION_VERSION		128
 #define OPTION_TSTAMP_PRECISION	129
+#define OPTION_IMMEDIATE_MODE	130
 
 static const struct option longopts[] = {
 #if defined(HAVE_PCAP_CREATE) || defined(WIN32)
@@ -705,6 +734,9 @@ static const struct option longopts[] = {
 	{ "packet-buffered", no_argument, NULL, 'U' },
 #endif
 	{ "linktype", required_argument, NULL, 'y' },
+#ifdef HAVE_PCAP_SET_IMMEDIATE_MODE
+	{ "immediate-mode", no_argument, NULL, OPTION_IMMEDIATE_MODE },
+#endif
 #if defined(HAVE_PCAP_DEBUG) || defined(HAVE_YYDEBUG)
 	{ "debug-filter-parser", no_argument, NULL, 'Y' },
 #endif
@@ -735,21 +767,14 @@ droproot(const char *username, const char *chroot_dir)
 				exit(1);
 			}
 		}
-#ifdef HAVE_CAP_NG_H
+#ifdef HAVE_LIBCAP_NG
 		int ret = capng_change_id(pw->pw_uid, pw->pw_gid, CAPNG_NO_FLAG);
 		if (ret < 0) {
 			fprintf(stderr, "error : ret %d\n", ret);
 		}
 		else {
-			printf("dropped privs to %s\n", username);
+			fprintf(stderr, "dropped privs to %s\n", username);
 		}
-		/* We don't need CAP_SETUID and CAP_SETGID */
-		capng_update(CAPNG_DROP, CAPNG_EFFECTIVE, CAP_SETUID);
-		capng_update(CAPNG_DROP, CAPNG_EFFECTIVE, CAP_SETUID);
-		capng_update(CAPNG_DROP, CAPNG_PERMITTED, CAP_SETUID);
-		capng_update(CAPNG_DROP, CAPNG_PERMITTED, CAP_SETUID);
-		capng_apply(CAPNG_SELECT_BOTH);
-
 #else
 		if (initgroups(pw->pw_name, pw->pw_gid) != 0 ||
 		    setgid(pw->pw_gid) != 0 || setuid(pw->pw_uid) != 0) {
@@ -761,15 +786,26 @@ droproot(const char *username, const char *chroot_dir)
 			exit(1);
 		}
 		else {
-			printf("dropped privs to %s\n", username);
+			fprintf(stderr, "dropped privs to %s\n", username);
 		}
-#endif /* HAVE_CAP_NG_H */
+#endif /* HAVE_LIBCAP_NG */
 	}
 	else {
 		fprintf(stderr, "tcpdump: Couldn't find user '%.32s'\n",
 		    username);
 		exit(1);
 	}
+#ifdef HAVE_LIBCAP_NG
+	/* We don't need CAP_SETUID and CAP_SETGID any more. */
+	capng_updatev(
+		CAPNG_DROP,
+		CAPNG_EFFECTIVE | CAPNG_PERMITTED,
+		CAP_SETUID,
+		CAP_SETGID,
+		-1);
+	capng_apply(CAPNG_SELECT_BOTH);
+#endif /* HAVE_LIBCAP_NG */
+
 }
 #endif /* WIN32 */
 
@@ -934,6 +970,76 @@ tstamp_precision_to_string(int precision)
 }
 #endif
 
+#ifdef HAVE_CAPSICUM
+/*
+ * Ensure that, on a dump file's descriptor, we have all the rights
+ * necessary to make the standard I/O library work with an fdopen()ed
+ * FILE * from that descriptor.
+ *
+ * A long time ago, in a galaxy far far away, AT&T decided that, instead
+ * of providing separate APIs for getting and setting the FD_ flags on a
+ * descriptor, getting and setting the O_ flags on a descriptor, and
+ * locking files, they'd throw them all into a kitchen-sink fcntl() call
+ * along the lines of ioctl(), the fact that ioctl() operations are
+ * largely specific to particular character devices but fcntl() operations
+ * are either generic to all descriptors or generic to all descriptors for
+ * regular files nonwithstanding.
+ *
+ * The Capsicum people decided that fine-grained control of descriptor
+ * operations was required, so that you need to grant permission for
+ * reading, writing, seeking, and fcntl-ing.  The latter, courtesy of
+ * AT&T's decision, means that "fcntl-ing" isn't a thing, but a motley
+ * collection of things, so there are *individual* fcntls for which
+ * permission needs to be granted.
+ *
+ * The FreeBSD standard I/O people implemented some optimizations that
+ * requires that the standard I/O routines be able to determine whether
+ * the descriptor for the FILE * is open append-only or not; as that
+ * descriptor could have come from an open() rather than an fopen(),
+ * that requires that it be able to do an F_GETFL fcntl() to read
+ * the O_ flags.
+ *
+ * Tcpdump uses ftell() to determine how much data has been written
+ * to a file in order to, when used with -C, determine when it's time
+ * to rotate capture files.  ftell() therefore needs to do an lseek()
+ * to find out the file offset and must, thanks to the aforementioned
+ * optimization, also know whether the descriptor is open append-only
+ * or not.
+ *
+ * The net result of all the above is that we need to grant CAP_SEEK,
+ * CAP_WRITE, and CAP_FCNTL with the CAP_FCNTL_GETFL subcapability.
+ *
+ * Perhaps this is the universe's way of saying that either
+ *
+ *	1) there needs to be an fopenat() call and a pcap_dump_openat() call
+ *	   using it, so that Capsicum-capable tcpdump wouldn't need to do
+ *	   an fdopen()
+ *
+ * or
+ *
+ *	2) there needs to be a cap_fdopen() call in the FreeBSD standard
+ *	   I/O library that knows what rights are needed by the standard
+ *	   I/O library, based on the open mode, and assigns them, perhaps
+ *	   with an additional argument indicating, for example, whether
+ *	   seeking should be allowed, so that tcpdump doesn't need to know
+ *	   what the standard I/O library happens to require this week.
+ */
+static void
+set_dumper_capsicum_rights(pcap_dumper_t *p)
+{
+	int fd = fileno(pcap_dump_file(p));
+	cap_rights_t rights;
+
+	cap_rights_init(&rights, CAP_SEEK, CAP_WRITE, CAP_FCNTL);
+	if (cap_rights_limit(fd, &rights) < 0 && errno != ENOSYS) {
+		error("unable to limit dump descriptor");
+	}
+	if (cap_fcntls_limit(fd, CAP_FCNTL_GETFL) < 0 && errno != ENOSYS) {
+		error("unable to limit dump descriptor fcntls");
+	}
+}
+#endif
+
 int
 main(int argc, char **argv)
 {
@@ -982,6 +1088,7 @@ main(int argc, char **argv)
 	gndo->ndo_error=ndo_error;
 	gndo->ndo_warning=ndo_warning;
 	gndo->ndo_snaplen = DEFAULT_SNAPLEN;
+	gndo->ndo_immediate = 0;
 
 	cnt = -1;
 	device = NULL;
@@ -996,6 +1103,13 @@ main(int argc, char **argv)
 	else
 		program_name = argv[0];
 
+	/*
+	 * On platforms where the CPU doesn't support unaligned loads,
+	 * force unaligned accesses to abort with SIGBUS, rather than
+	 * being fixed up (slowly) by the OS kernel; on those platforms,
+	 * misaligned accesses are bugs, and we want tcpdump to crash so
+	 * that the bugs are reported.
+	 */
 	if (abort_on_misalignment(ebuf, sizeof(ebuf)) < 0)
 		error("%s", ebuf);
 
@@ -1004,7 +1118,7 @@ main(int argc, char **argv)
 #endif
 
 	while (
-	    (op = getopt_long(argc, argv, "aAb" B_FLAG "c:C:d" D_FLAG "eE:fF:G:hHi:" I_FLAG j_FLAG J_FLAG "KlLm:M:nNOpq" Q_FLAG "r:Rs:StT:u" U_FLAG "vV:w:W:xXy:Yz:Z:#", longopts, NULL)) != -1)
+	    (op = getopt_long(argc, argv, SHORTOPTS, longopts, NULL)) != -1)
 		switch (op) {
 
 		case 'a':
@@ -1382,6 +1496,12 @@ main(int argc, char **argv)
 			break;
 #endif
 
+#ifdef HAVE_PCAP_SET_IMMEDIATE_MODE
+		case OPTION_IMMEDIATE_MODE:
+			gndo->ndo_immediate = 1;
+			break;
+#endif
+
 		default:
 			print_usage();
 			exit(1);
@@ -1416,6 +1536,17 @@ main(int argc, char **argv)
 
 	if (VFileName != NULL && RFileName != NULL)
 		error("-V and -r are mutually exclusive.");
+
+#ifdef HAVE_PCAP_SET_IMMEDIATE_MODE
+	/*
+	 * If we're printing dissected packets to the standard output
+	 * rather than saving raw packets to a file, and the standard
+	 * output is a terminal, use immediate mode, as the user's
+	 * probably expecting to see packets pop up immediately.
+	 */
+	if (WFileName == NULL && isatty(1))
+		gndo->ndo_immediate = 1;
+#endif
 
 #ifdef WITH_CHROOT
 	/* if run as root, prepare for chrooting */
@@ -1542,6 +1673,15 @@ main(int argc, char **argv)
 				pcap_statustostr(status));
 #endif
 
+#ifdef HAVE_PCAP_SET_IMMEDIATE_MODE
+		if (gndo->ndo_immediate) {
+			status = pcap_set_immediate_mode(pd, 1);
+			if (status != 0)
+				error("%s: Can't set immediate mode: %s",
+				device,
+				pcap_statustostr(status));
+		}
+#endif
 		/*
 		 * Is this an interface that supports monitor mode?
 		 */
@@ -1578,7 +1718,7 @@ main(int argc, char **argv)
 			status = pcap_set_tstamp_type(pd, jflag);
 			if (status < 0)
 				error("%s: Can't set time stamp type: %s",
-			    	    device, pcap_statustostr(status));
+			              device, pcap_statustostr(status));
 		}
 #endif
 		status = pcap_activate(pd);
@@ -1751,27 +1891,28 @@ main(int argc, char **argv)
 	 * savefile doesn't handle the general case.
 	 */
 
-#ifdef HAVE_CAP_NG_H
-	/* We are running as root and we will be writing to savefile */
-	if ((getuid() == 0 || geteuid() == 0) && WFileName) {
-		if (username) {
-			/* Drop all capabilities from effective set */
-			capng_clear(CAPNG_EFFECTIVE);
-			/* Add capabilities we will need*/
-			capng_update(CAPNG_ADD, CAPNG_PERMITTED, CAP_SETUID);
-			capng_update(CAPNG_ADD, CAPNG_PERMITTED, CAP_SETGID);
-			capng_update(CAPNG_ADD, CAPNG_PERMITTED, CAP_DAC_OVERRIDE);
-
-			capng_update(CAPNG_ADD, CAPNG_EFFECTIVE, CAP_SETUID);
-			capng_update(CAPNG_ADD, CAPNG_EFFECTIVE, CAP_SETGID);
-			capng_update(CAPNG_ADD, CAPNG_EFFECTIVE, CAP_DAC_OVERRIDE);
-
-			capng_apply(CAPNG_SELECT_BOTH);
-		}
-	}
-#endif /* HAVE_CAP_NG_H */
-
 	if (getuid() == 0 || geteuid() == 0) {
+#ifdef HAVE_LIBCAP_NG
+		/* Initialize capng */
+		capng_clear(CAPNG_SELECT_BOTH);
+		if (username) {
+			capng_updatev(
+				CAPNG_ADD,
+				CAPNG_PERMITTED | CAPNG_EFFECTIVE,
+				CAP_SETUID,
+				CAP_SETGID,
+				-1);
+		}
+
+		if (WFileName) {
+			capng_update(
+				CAPNG_ADD,
+				CAPNG_PERMITTED | CAPNG_EFFECTIVE,
+				CAP_DAC_OVERRIDE
+				);
+		}
+		capng_apply(CAPNG_SELECT_BOTH);
+#endif /* HAVE_LIBCAP_NG */
 		if (username || chroot_dir)
 			droproot(username, chroot_dir);
 
@@ -1784,7 +1925,12 @@ main(int argc, char **argv)
 	if (RFileName == NULL && VFileName == NULL) {
 		static const unsigned long cmds[] = { BIOCGSTATS };
 
-		cap_rights_init(&rights, CAP_IOCTL, CAP_READ);
+		/*
+		 * The various libpcap devices use a combination of
+		 * read (bpf), ioctl (bpf, netmap), poll (netmap).
+		 * Grant the relevant access rights, sorted by name.
+		 */
+		cap_rights_init(&rights, CAP_EVENT, CAP_IOCTL, CAP_READ);
 		if (cap_rights_limit(pcap_fileno(pd), &rights) < 0 &&
 		    errno != ENOSYS) {
 			error("unable to limit pcap descriptor");
@@ -1810,18 +1956,23 @@ main(int argc, char **argv)
 		  MakeFilename(dumpinfo.CurrentFileName, WFileName, 0, 0);
 
 		p = pcap_dump_open(pd, dumpinfo.CurrentFileName);
-#ifdef HAVE_CAP_NG_H
-        /* Give up capabilities, clear Effective set */
-        capng_clear(CAPNG_EFFECTIVE);
-#endif
+#ifdef HAVE_LIBCAP_NG
+		/* Give up CAP_DAC_OVERRIDE capability.
+		 * Only allow it to be restored if the -C or -G flag have been
+		 * set since we may need to create more files later on.
+		 */
+		capng_update(
+			CAPNG_DROP,
+			(Cflag || Gflag ? 0 : CAPNG_PERMITTED)
+				| CAPNG_EFFECTIVE,
+			CAP_DAC_OVERRIDE
+			);
+		capng_apply(CAPNG_SELECT_BOTH);
+#endif /* HAVE_LIBCAP_NG */
 		if (p == NULL)
 			error("%s", pcap_geterr(pd));
 #ifdef HAVE_CAPSICUM
-		cap_rights_init(&rights, CAP_SEEK, CAP_WRITE);
-		if (cap_rights_limit(fileno(pcap_dump_file(p)), &rights) < 0 &&
-		    errno != ENOSYS) {
-			error("unable to limit dump descriptor");
-		}
+		set_dumper_capsicum_rights(p);
 #endif
 		if (Cflag != 0 || Gflag != 0) {
 #ifdef HAVE_CAPSICUM
@@ -1837,6 +1988,10 @@ main(int argc, char **argv)
 			if (cap_rights_limit(dumpinfo.dirfd, &rights) < 0 &&
 			    errno != ENOSYS) {
 				error("unable to limit directory rights");
+			}
+			if (cap_fcntls_limit(dumpinfo.dirfd, CAP_FCNTL_GETFL) < 0 &&
+			    errno != ENOSYS) {
+				error("unable to limit dump descriptor fcntls");
 			}
 #else	/* !HAVE_CAPSICUM */
 			dumpinfo.WFileName = WFileName;
@@ -2145,9 +2300,6 @@ static void
 dump_packet_and_trunc(u_char *user, const struct pcap_pkthdr *h, const u_char *sp)
 {
 	struct dump_info *dump_info;
-#ifdef HAVE_CAPSICUM
-	cap_rights_t rights;
-#endif
 
 	++packets_captured;
 
@@ -2230,10 +2382,10 @@ dump_packet_and_trunc(u_char *user, const struct pcap_pkthdr *h, const u_char *s
 			else
 				MakeFilename(dump_info->CurrentFileName, dump_info->WFileName, 0, 0);
 
-#ifdef HAVE_CAP_NG_H
+#ifdef HAVE_LIBCAP_NG
 			capng_update(CAPNG_ADD, CAPNG_EFFECTIVE, CAP_DAC_OVERRIDE);
-			capng_apply(CAPNG_EFFECTIVE);
-#endif /* HAVE_CAP_NG_H */
+			capng_apply(CAPNG_SELECT_BOTH);
+#endif /* HAVE_LIBCAP_NG */
 #ifdef HAVE_CAPSICUM
 			fd = openat(dump_info->dirfd,
 			    dump_info->CurrentFileName,
@@ -2251,18 +2403,14 @@ dump_packet_and_trunc(u_char *user, const struct pcap_pkthdr *h, const u_char *s
 #else	/* !HAVE_CAPSICUM */
 			dump_info->p = pcap_dump_open(dump_info->pd, dump_info->CurrentFileName);
 #endif
-#ifdef HAVE_CAP_NG_H
+#ifdef HAVE_LIBCAP_NG
 			capng_update(CAPNG_DROP, CAPNG_EFFECTIVE, CAP_DAC_OVERRIDE);
-			capng_apply(CAPNG_EFFECTIVE);
-#endif /* HAVE_CAP_NG_H */
+			capng_apply(CAPNG_SELECT_BOTH);
+#endif /* HAVE_LIBCAP_NG */
 			if (dump_info->p == NULL)
 				error("%s", pcap_geterr(pd));
 #ifdef HAVE_CAPSICUM
-			cap_rights_init(&rights, CAP_SEEK, CAP_WRITE);
-			if (cap_rights_limit(fileno(pcap_dump_file(dump_info->p)),
-			    &rights) < 0 && errno != ENOSYS) {
-				error("unable to limit dump descriptor");
-			}
+			set_dumper_capsicum_rights(dump_info->p);
 #endif
 		}
 	}
@@ -2272,59 +2420,70 @@ dump_packet_and_trunc(u_char *user, const struct pcap_pkthdr *h, const u_char *s
 	 * larger than Cflag - the last packet written to the
 	 * file could put it over Cflag.
 	 */
-	if (Cflag != 0 && pcap_dump_ftell(dump_info->p) > Cflag) {
+	if (Cflag != 0) {
+		long size = pcap_dump_ftell(dump_info->p);
+
+		if (size == -1)
+			error("ftell fails on output file");
+		if (size > Cflag) {
 #ifdef HAVE_CAPSICUM
-		FILE *fp;
-		int fd;
+			FILE *fp;
+			int fd;
 #endif
 
-		/*
-		 * Close the current file and open a new one.
-		 */
-		pcap_dump_close(dump_info->p);
+			/*
+			 * Close the current file and open a new one.
+			 */
+			pcap_dump_close(dump_info->p);
 
-		/*
-		 * Compress the file we just closed, if the user asked for it
-		 */
-		if (zflag != NULL)
-			compress_savefile(dump_info->CurrentFileName);
+			/*
+			 * Compress the file we just closed, if the user
+			 * asked for it.
+			 */
+			if (zflag != NULL)
+				compress_savefile(dump_info->CurrentFileName);
 
-		Cflag_count++;
-		if (Wflag > 0) {
-			if (Cflag_count >= Wflag)
-				Cflag_count = 0;
-		}
-		if (dump_info->CurrentFileName != NULL)
-			free(dump_info->CurrentFileName);
-		dump_info->CurrentFileName = (char *)malloc(PATH_MAX + 1);
-		if (dump_info->CurrentFileName == NULL)
-			error("dump_packet_and_trunc: malloc");
-		MakeFilename(dump_info->CurrentFileName, dump_info->WFileName, Cflag_count, WflagChars);
+			Cflag_count++;
+			if (Wflag > 0) {
+				if (Cflag_count >= Wflag)
+					Cflag_count = 0;
+			}
+			if (dump_info->CurrentFileName != NULL)
+				free(dump_info->CurrentFileName);
+			dump_info->CurrentFileName = (char *)malloc(PATH_MAX + 1);
+			if (dump_info->CurrentFileName == NULL)
+				error("dump_packet_and_trunc: malloc");
+			MakeFilename(dump_info->CurrentFileName, dump_info->WFileName, Cflag_count, WflagChars);
+#ifdef HAVE_LIBCAP_NG
+			capng_update(CAPNG_ADD, CAPNG_EFFECTIVE, CAP_DAC_OVERRIDE);
+			capng_apply(CAPNG_SELECT_BOTH);
+#endif /* HAVE_LIBCAP_NG */
 #ifdef HAVE_CAPSICUM
-		fd = openat(dump_info->dirfd, dump_info->CurrentFileName,
-		    O_CREAT | O_WRONLY | O_TRUNC, 0644);
-		if (fd < 0) {
-			error("unable to open file %s",
-			    dump_info->CurrentFileName);
-		}
-		fp = fdopen(fd, "w");
-		if (fp == NULL) {
-			error("unable to fdopen file %s",
-			    dump_info->CurrentFileName);
-		}
-		dump_info->p = pcap_dump_fopen(dump_info->pd, fp);
+			fd = openat(dump_info->dirfd, dump_info->CurrentFileName,
+			    O_CREAT | O_WRONLY | O_TRUNC, 0644);
+			if (fd < 0) {
+				error("unable to open file %s",
+				    dump_info->CurrentFileName);
+			}
+			fp = fdopen(fd, "w");
+			if (fp == NULL) {
+				error("unable to fdopen file %s",
+				    dump_info->CurrentFileName);
+			}
+			dump_info->p = pcap_dump_fopen(dump_info->pd, fp);
 #else	/* !HAVE_CAPSICUM */
-		dump_info->p = pcap_dump_open(dump_info->pd, dump_info->CurrentFileName);
+			dump_info->p = pcap_dump_open(dump_info->pd, dump_info->CurrentFileName);
 #endif
-		if (dump_info->p == NULL)
-			error("%s", pcap_geterr(pd));
+#ifdef HAVE_LIBCAP_NG
+			capng_update(CAPNG_DROP, CAPNG_EFFECTIVE, CAP_DAC_OVERRIDE);
+			capng_apply(CAPNG_SELECT_BOTH);
+#endif /* HAVE_LIBCAP_NG */
+			if (dump_info->p == NULL)
+				error("%s", pcap_geterr(pd));
 #ifdef HAVE_CAPSICUM
-		cap_rights_init(&rights, CAP_SEEK, CAP_WRITE);
-		if (cap_rights_limit(fileno(pcap_dump_file(dump_info->p)),
-		    &rights) < 0 && errno != ENOSYS) {
-			error("unable to limit dump descriptor");
-		}
+			set_dumper_capsicum_rights(dump_info->p);
 #endif
+		}
 	}
 
 	pcap_dump((u_char *)dump_info->p, h, sp);
@@ -2378,7 +2537,8 @@ print_packet(u_char *user, const struct pcap_pkthdr *h, const u_char *sp)
 	/*
 	 * Some printers want to check that they're not walking off the
 	 * end of the packet.
-	 * Rather than pass it all the way down, we set this global.
+	 * Rather than pass it all the way down, we set this member
+	 * of the netdissect_options structure.
 	 */
 	ndo->ndo_snapend = sp + h->caplen;
 
@@ -2388,6 +2548,11 @@ print_packet(u_char *user, const struct pcap_pkthdr *h, const u_char *sp)
                 hdrlen = (*print_info->p.printer)(h, sp);
         }
 
+	/*
+	 * Restore the original snapend, as a printer might have
+	 * changed it.
+	 */
+	ndo->ndo_snapend = sp + h->caplen;
 	if (ndo->ndo_Xflag) {
 		/*
 		 * Print the raw packet data in hex and ASCII.
@@ -2486,7 +2651,7 @@ print_packet(u_char *user, const struct pcap_pkthdr *h, const u_char *sp)
 static void
 ndo_default_print(netdissect_options *ndo, const u_char *bp, u_int length)
 {
-	hex_and_ascii_print(ndo, "\n\t", bp, length); /* pass on lf and identation string */
+	hex_and_ascii_print(ndo, "\n\t", bp, length); /* pass on lf and indentation string */
 }
 
 void
@@ -2588,6 +2753,9 @@ print_usage(void)
 	(void)fprintf(stderr, "[ --time-stamp-precision precision ]\n");
 	(void)fprintf(stderr,
 "\t\t");
+#endif
+#ifdef HAVE_PCAP_SET_IMMEDIATE_MODE
+	(void)fprintf(stderr, "[ --immediate-mode ] ");
 #endif
 	(void)fprintf(stderr, "[ -T type ] [ --version ] [ -V file ]\n");
 	(void)fprintf(stderr,

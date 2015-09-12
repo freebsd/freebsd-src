@@ -10,11 +10,11 @@
 .ds B-Font B
 .ds I-Font I
 .ds R-Font R
-.TH ntpq 1ntpqman "07 Apr 2015" "4.2.8p2" "User Commands"
+.TH ntpq 1ntpqman "29 Jun 2015" "4.2.8p3" "User Commands"
 .\"
-.\" EDIT THIS FILE WITH CAUTION (/tmp/.ag-SOays6/ag-4Oaqr6)
+.\" EDIT THIS FILE WITH CAUTION (/tmp/.ag-6GaipG/ag-fHaaoG)
 .\"
-.\" It has been AutoGen-ed April 7, 2015 at 04:27:03 AM by AutoGen 5.18.5pre4
+.\" It has been AutoGen-ed June 29, 2015 at 04:31:32 PM by AutoGen 5.18.5
 .\" From the definitions ntpq-opts.def
 .\" and the template file agman-cmd.tpl
 .SH NAME
@@ -267,7 +267,9 @@ switch.
 This command allows the specification of a key number to be
 used to authenticate configuration requests.
 This must correspond
-to a key number the server has been configured to use for this
+to the
+\f\*[B-Font]controlkey\f[]
+key number the server has been configured to use for this
 purpose.
 .br
 .ns
@@ -665,6 +667,17 @@ jitter
 .br
 .ns
 .TP 10
+.NOP \f\*[B-Font]apeers\f[]
+Display a list of peers in the form:
+.Dl [tally]remote refid assid st t when pool reach delay offset jitter
+where the output is just like the
+\f\*[B-Font]peers\f[]
+command except that the
+\f\*[B-Font]refid\f[]
+is displayed in hex format and the association number is also displayed.
+.br
+.ns
+.TP 10
 .NOP \f\*[B-Font]pstats\f[] \f\*[I-Font]assocID\f[]
 Show the statistics for the peer with the given
 \f\*[I-Font]assocID\f[].
@@ -735,7 +748,7 @@ appears in the
 configuration file.
 \f\*[I-Font]filename\f[]
 can use
-\fCstrftime\fR()\f[]
+\fCstrftime\f[]\fR()\f[]
 format specifies to substitute the current date and time, for example,
 \f\*[B-Font]q]saveconfig\f[] \f\*[B-Font]ntp-%Y%m%d-%H%M%S.confq]\f[].
 The filename used is stored in system variable

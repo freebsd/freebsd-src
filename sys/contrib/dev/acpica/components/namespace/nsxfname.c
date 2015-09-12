@@ -193,11 +193,13 @@ AcpiGetName (
         return (Status);
     }
 
-    if (NameType == ACPI_FULL_PATHNAME)
+    if (NameType == ACPI_FULL_PATHNAME ||
+        NameType == ACPI_FULL_PATHNAME_NO_TRAILING)
     {
         /* Get the full pathname (From the namespace root) */
 
-        Status = AcpiNsHandleToPathname (Handle, Buffer);
+        Status = AcpiNsHandleToPathname (Handle, Buffer,
+                    NameType == ACPI_FULL_PATHNAME ? FALSE : TRUE);
         return (Status);
     }
 

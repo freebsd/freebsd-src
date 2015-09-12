@@ -555,4 +555,6 @@ const char *syscallnames[] = {
 	"ppoll",			/* 545 = ppoll */
 	"futimens",			/* 546 = futimens */
 	"utimensat",			/* 547 = utimensat */
+	"numa_getaffinity",			/* 548 = numa_getaffinity */
+	"numa_setaffinity",			/* 549 = numa_setaffinity */
 };

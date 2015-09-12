@@ -119,6 +119,13 @@ cpu_startup(void *dummy)
 
 SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL);
 
+int
+cpu_idle_wakeup(int cpu)
+{
+
+	return (0);
+}
+
 void
 bzero(void *buf, size_t len)
 {
@@ -259,10 +266,13 @@ get_mcontext(struct thread *td, mcontext_t *mcp, int clear_ret)
 {
 	struct trapframe *tf = td->td_frame;
 
-	if (clear_ret & GET_MC_CLEAR_RET)
+	if (clear_ret & GET_MC_CLEAR_RET) {
 		mcp->mc_gpregs.gp_x[0] = 0;
-	else
+		mcp->mc_gpregs.gp_spsr = tf->tf_spsr & ~PSR_C;
+	} else {
 		mcp->mc_gpregs.gp_x[0] = tf->tf_x[0];
+		mcp->mc_gpregs.gp_spsr = tf->tf_spsr;
+	}
 
 	memcpy(&mcp->mc_gpregs.gp_x[1], &tf->tf_x[1],
 	    sizeof(mcp->mc_gpregs.gp_x[1]) * (nitems(mcp->mc_gpregs.gp_x) - 1));
@@ -270,7 +280,6 @@ get_mcontext(struct thread *td, mcontext_t *mcp, int clear_ret)
 	mcp->mc_gpregs.gp_sp = tf->tf_sp;
 	mcp->mc_gpregs.gp_lr = tf->tf_lr;
 	mcp->mc_gpregs.gp_elr = tf->tf_elr;
-	mcp->mc_gpregs.gp_spsr = tf->tf_spsr;
 
 	return (0);
 }
@@ -536,10 +545,6 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 		PROC_LOCK(p);
 		sigexit(td, SIGILL);
 	}
-
-	/* Translate the signal if appropriate. */
-	if (p->p_sysent->sv_sigtbl && sig <= p->p_sysent->sv_sigsize)
-		sig = p->p_sysent->sv_sigtbl[_SIG_IDX(sig)];
 
 	tf->tf_x[0]= sig;
 	tf->tf_x[1] = (register_t)&fp->sf_si;

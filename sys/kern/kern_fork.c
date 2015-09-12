@@ -80,6 +80,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_map.h>
 #include <vm/vm_extern.h>
 #include <vm/uma.h>
+#include <vm/vm_domain.h>
 
 #ifdef KDTRACE_HOOKS
 #include <sys/dtrace_bsd.h>
@@ -405,6 +406,7 @@ do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
 	bcopy(&p1->p_startcopy, &p2->p_startcopy,
 	    __rangeof(struct proc, p_startcopy, p_endcopy));
 	pargs_hold(p2->p_args);
+
 	PROC_UNLOCK(p1);
 
 	bzero(&p2->p_startzero,
@@ -496,6 +498,14 @@ do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
 	p2->p_swtick = ticks;
 	if (p1->p_flag & P_PROFIL)
 		startprofclock(p2);
+
+	/*
+	 * Whilst the proc lock is held, copy the VM domain data out
+	 * using the VM domain method.
+	 */
+	vm_domain_policy_init(&p2->p_vm_dom_policy);
+	vm_domain_policy_localcopy(&p2->p_vm_dom_policy,
+	    &p1->p_vm_dom_policy);
 
 	if (flags & RFSIGSHARE) {
 		p2->p_sigacts = sigacts_hold(p1->p_sigacts);

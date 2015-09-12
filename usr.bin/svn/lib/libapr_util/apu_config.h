@@ -13,7 +13,7 @@
 /* #undef APU_DSO_LIBDIR */
 
 /* Define if the inbuf parm to iconv() is const char ** */
-#define APU_ICONV_INBUF_CONST 1
+/* #undef APU_ICONV_INBUF_CONST */
 
 /* Define that OpenSSL uses const buffers */
 #define CRYPTO_OPENSSL_CONST_BUFFERS 1

@@ -416,21 +416,7 @@ static inline int dev_to_node(struct device *dev)
                 return -1;
 }
 
-static inline char *kvasprintf(gfp_t gfp, const char *fmt, va_list ap)
-{
-	unsigned int len;
-	char *p = NULL;
-	va_list aq;
-
-	va_copy(aq, ap);
-	len = vsnprintf(NULL, 0, fmt, aq);
-	va_end(aq);
-
-	vsnprintf(p, len+1, fmt, ap);
-
-	return p;
-}
-
+char *kvasprintf(gfp_t, const char *, va_list);
 char *kasprintf(gfp_t, const char *, ...);
 
 #endif	/* _LINUX_DEVICE_H_ */

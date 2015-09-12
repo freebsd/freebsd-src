@@ -89,6 +89,7 @@ libntp_a_SRCS =						\
 	numtohost.c					\
 	octtoint.c					\
 	prettydate.c					\
+	refidsmear.c					\
 	recvbuff.c					\
 	refnumtoa.c					\
 	snprintf.c					\

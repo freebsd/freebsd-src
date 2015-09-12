@@ -370,7 +370,8 @@ AcpiRsCreatePciRoutingTable (
                                     (UINT8 *) OutputBuffer->Pointer);
                 PathBuffer.Pointer = UserPrt->Source;
 
-                Status = AcpiNsHandleToPathname ((ACPI_HANDLE) Node, &PathBuffer);
+                Status = AcpiNsHandleToPathname ((ACPI_HANDLE) Node,
+                            &PathBuffer, FALSE);
 
                 /* +1 to include null terminator */
 

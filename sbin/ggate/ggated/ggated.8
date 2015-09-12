@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 29, 2004
+.Dd July 14, 2015
 .Dt GGATED 8
 .Os
 .Sh NAME
@@ -43,14 +43,14 @@
 .Sh DESCRIPTION
 The
 .Nm
-utility is a network server for GEOM Gate class.
+utility is a network server for the GEOM Gate class.
 It runs on a server machine to service GEOM Gate requests from workers
 placed on a client machine.
-Keep in mind, that connection between
+Keep in mind, that connections between
 .Xr ggatec 8
 and
 .Nm
-is not encrypted.
+are not encrypted.
 .Pp
 Available options:
 .Bl -tag -width ".Ar exports\ file"
@@ -65,7 +65,7 @@ option on TCP sockets.
 .It Fl p Ar port
 Port on which
 .Nm
-listens for connection.
+listens for connections.
 Default is 3080.
 .It Fl R Ar rcvbuf
 Size of receive buffer to use.
@@ -74,7 +74,7 @@ Default is 131072 (128kB).
 Size of send buffer to use.
 Default is 131072 (128kB).
 .It Fl v
-Do not fork, run in foreground and print debug informations on standard
+Do not fork, run in foreground and print debug information on standard
 output.
 .It Ar "exports file"
 An alternate location for the exports file.

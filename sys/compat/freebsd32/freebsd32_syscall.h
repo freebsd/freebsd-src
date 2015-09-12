@@ -455,4 +455,6 @@
 #define	FREEBSD32_SYS_freebsd32_ppoll	545
 #define	FREEBSD32_SYS_freebsd32_futimens	546
 #define	FREEBSD32_SYS_freebsd32_utimensat	547
-#define	FREEBSD32_SYS_MAXSYSCALL	548
+#define	FREEBSD32_SYS_numa_getaffinity	548
+#define	FREEBSD32_SYS_numa_setaffinity	549
+#define	FREEBSD32_SYS_MAXSYSCALL	550

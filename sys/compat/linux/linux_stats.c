@@ -139,13 +139,14 @@ translate_fd_major_minor(struct thread *td, int fd, struct stat *buf)
 {
 	struct file *fp;
 	struct vnode *vp;
+	cap_rights_t rights;
 	int major, minor;
 
 	/*
 	 * No capability rights required here.
 	 */
 	if ((!S_ISCHR(buf->st_mode) && !S_ISBLK(buf->st_mode)) ||
-	    fget(td, fd, 0, &fp) != 0)
+	    fget(td, fd, cap_rights_init(&rights), &fp) != 0)
 		return;
 	vp = fp->f_vnode;
 	if (vp != NULL && vp->v_rdev != NULL &&

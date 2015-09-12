@@ -11,7 +11,7 @@
 /*
  *  This file is part of AutoOpts, a companion to AutoGen.
  *  AutoOpts is free software.
- *  AutoOpts is Copyright (C) 1992-2014 by Bruce Korb - all rights reserved
+ *  AutoOpts is Copyright (C) 1992-2015 by Bruce Korb - all rights reserved
  *
  *  AutoOpts is available under any one of two licenses.  The license
  *  in use must be one of these two and the choice is under the control
@@ -107,7 +107,7 @@
  *  Coercive cast.  Compel an address to be interpreted as the type
  *  of the first argument.  No complaints, just do it.
  */
-#define C(_t,_p)  ((_t)(void *)(_p))
+#define C(_t,_p)  ((_t)VOIDP(_p))
 #endif
 
 /* The __attribute__((__warn_unused_result__)) feature
@@ -256,10 +256,10 @@ typedef struct {
     char const * pzTime;
 } arg_types_t;
 
-#define AGALOC(c, w)          ao_malloc((size_t)c)
-#define AGREALOC(p, c, w)     ao_realloc((void*)p, (size_t)c)
-#define AGFREE(p)            free((void *)(intptr_t)p)
-#define AGDUPSTR(p, s, w)     (p = ao_strdup(s))
+#define AGALOC(_c, _w)        ao_malloc((size_t)_c)
+#define AGREALOC(_p, _c, _w)  ao_realloc(VOIDP(_p), (size_t)_c)
+#define AGFREE(_p)            free(VOIDP(_p))
+#define AGDUPSTR(_p, _s, _w)  (_p = ao_strdup(_s))
 
 static void *
 ao_malloc(size_t sz);
@@ -267,10 +267,10 @@ ao_malloc(size_t sz);
 static void *
 ao_realloc(void *p, size_t sz);
 
-#define ao_free(_p) free((void *)_p)
+#define ao_free(_p) free(VOIDP(_p))
 
 static char *
-ao_strdup(char const *str);
+ao_strdup(char const * str);
 
 /**
  *  DO option handling?
@@ -369,7 +369,7 @@ ao_strdup(char const *str);
 #endif
 
 #ifndef MAP_FAILED
-#  define  MAP_FAILED           ((void*)-1)
+#  define  MAP_FAILED           VOIDP(-1)
 #endif
 
 #ifndef  _SC_PAGESIZE
@@ -379,8 +379,8 @@ ao_strdup(char const *str);
 #endif
 
 #ifndef HAVE_STRCHR
-extern char* strchr(char const *s, int c);
-extern char* strrchr(char const *s, int c);
+extern char * strchr(char const * s, int c);
+extern char * strrchr(char const * s, int c);
 #endif
 
 /**
@@ -452,7 +452,7 @@ typedef enum { AOFLAG_TABLE } ao_flags_t;
 #undef  _aof_
 
 static char const   zNil[] = "";
-static arg_types_t  argTypes             = { 0 };
+static arg_types_t  argTypes             = { NULL };
 static char         line_fmt_buf[32];
 static bool         displayEnum          = false;
 static char const   pkgdatadir_default[] = PKGDATADIR;

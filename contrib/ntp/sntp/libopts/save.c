@@ -12,7 +12,7 @@
 /*
  *  This file is part of AutoOpts, a companion to AutoGen.
  *  AutoOpts is free software.
- *  AutoOpts is Copyright (C) 1992-2014 by Bruce Korb - all rights reserved
+ *  AutoOpts is Copyright (C) 1992-2015 by Bruce Korb - all rights reserved
  *
  *  AutoOpts is available under any one of two licenses.  The license
  *  in use must be one of these two and the choice is under the control
@@ -92,7 +92,7 @@ find_dir_name(tOptions * opts, int * p_free)
      *  we can stash the RC (INI) file.
      */
     {
-        char const * const* papz = opts->papzHomeList;
+        char const * const * papz = opts->papzHomeList;
         if (papz == NULL)
             return NULL;
 
@@ -216,7 +216,7 @@ find_file_name(tOptions * opts, int * p_free_name)
         size_t sz = strlen(pzDir) + strlen(opts->pzRcName) + 2;
 
         {
-            char * pzPath = (char*)AGALOC(sz, "file name");
+            char * pzPath = (char *)AGALOC(sz, "file name");
 #ifdef HAVE_SNPRINTF
             snprintf(pzPath, sz, "%s/%s", pzDir, opts->pzRcName);
 #else
@@ -306,7 +306,7 @@ prt_entry(FILE * fp, tOptDesc * od, char const * l_arg)
      *  THEN the char pointer is really the number
      */
     if (OPTST_GET_ARGTYPE(od->fOptState) == OPARG_TYPE_NUMERIC)
-        fprintf(fp, "%d", (int)(t_word)l_arg);
+        fprintf(fp, "%d", (int)(intptr_t)l_arg);
 
     else {
         for (;;) {
@@ -453,7 +453,7 @@ prt_val_list(FILE * fp, char const * name, tArgList * al)
     if (al == NULL)
         return;
     opt_ct   = al->useCt;
-    opt_list = (void **)(intptr_t)al->apzArgs;
+    opt_list = (void **)al->apzArgs;
 
     if (opt_ct <= 0) {
         fprintf(fp, OPEN_CLOSE_FMT, name);
@@ -488,7 +488,7 @@ prt_nested(FILE * fp, tOptDesc * p)
         return;
 
     opt_ct   = al->useCt;
-    opt_list = (void **)(intptr_t)al->apzArgs;
+    opt_list = (void **)al->apzArgs;
 
     if (opt_ct <= 0)
         return;
@@ -560,7 +560,7 @@ open_sv_file(tOptions * opts)
          *  normally point to static data that is overwritten by each call.
          *  The test to detect allocated ctime, so we leak the memory.
          */
-        AGFREE((void*)time_str);
+        AGFREE(time_str);
 #endif
     }
 
@@ -596,7 +596,7 @@ static void
 prt_str_arg(FILE * fp, tOptDesc * pOD)
 {
     if (pOD->fOptState & OPTST_STACKED) {
-        tArgList * pAL = (tArgList*)pOD->optCookie;
+        tArgList * pAL = (tArgList *)pOD->optCookie;
         int        uct = pAL->useCt;
         char const ** ppz = pAL->apzArgs;
 
@@ -629,7 +629,7 @@ prt_enum_arg(FILE * fp, tOptDesc * od)
      *  bit flag values back into a string suitable for printing.
      */
     (*(od->pOptProc))(OPTPROC_RETURN_VALNAME, od);
-    prt_entry(fp, od, (void*)(intptr_t)(od->optArg.argString));
+    prt_entry(fp, od, VOIDP(od->optArg.argString));
 
     od->optArg.argEnum = val;
 }
@@ -689,7 +689,7 @@ prt_file_arg(FILE * fp, tOptDesc * od, tOptions * opts)
  *
  * what:  saves the option state to a file
  *
- * arg:   tOptions*,   opts,  program options descriptor
+ * arg:   tOptions *,   opts,  program options descriptor
  *
  * doc:
  *
@@ -765,7 +765,7 @@ optionSaveFile(tOptions * opts)
             break;
 
         case OPARG_TYPE_NUMERIC:
-            prt_entry(fp, p, (void*)(p->optArg.argInt));
+            prt_entry(fp, p, VOIDP(p->optArg.argInt));
             break;
 
         case OPARG_TYPE_STRING:

@@ -100,6 +100,10 @@ CmDoCompile (
     Event = UtBeginEvent ("Preprocess input file");
     if (Gbl_PreprocessFlag)
     {
+        /* Enter compiler name as a #define */
+
+        PrAddDefine (ASL_DEFINE, "", FALSE);
+
         /* Preprocessor */
 
         PrDoPreprocess ();

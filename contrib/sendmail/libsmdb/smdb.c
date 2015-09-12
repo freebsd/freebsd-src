@@ -198,12 +198,16 @@ smdb_open_database(database, db_name, mode, mode_mask, sff, type, user_info,
 	SMDB_USER_INFO *user_info;
 	SMDB_DBPARAMS *params;
 {
+#if defined(NEWDB) && defined(NDBM)
 	bool type_was_default = false;
+#endif
 
 	if (type == SMDB_TYPE_DEFAULT)
 	{
-		type_was_default = true;
 #ifdef NEWDB
+# ifdef NDBM
+		type_was_default = true;
+# endif
 		type = SMDB_TYPE_HASH;
 #else /* NEWDB */
 # ifdef NDBM

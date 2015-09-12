@@ -134,7 +134,9 @@ ASSYM(ARM_RAS_END, ARM_RAS_END);
 
 #ifdef VFP
 ASSYM(PCB_VFPSTATE, offsetof(struct pcb, pcb_vfpstate));
+#endif
 
+#if __ARM_ARCH >= 6
 ASSYM(PC_CURPMAP, offsetof(struct pcpu, pc_curpmap));
 #endif
 

@@ -20,6 +20,8 @@ SRCS=	file.c grep.c queue.c util.c
 SRCS+=	fastmatch.c hashtable.c tre-compile.c tre-fastmatch.c xmalloc.c
 CFLAGS+=-I${.CURDIR}/regex
 
+CFLAGS.gcc+= --param max-inline-insns-single=500
+
 .if ${MK_BSD_GREP} == "yes"
 LINKS=	${BINDIR}/grep ${BINDIR}/egrep \
 	${BINDIR}/grep ${BINDIR}/fgrep \
