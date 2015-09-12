@@ -198,6 +198,12 @@ SYSTEM_LD_TAIL= @${OBJCOPY} --strip-symbol gcc2_compiled. ${.TARGET} ; \
 	${SIZE} ${.TARGET} ; chmod 755 ${.TARGET}
 SYSTEM_DEP+= ${LDSCRIPT}
 
+# Calculate path for .m files early, if needed.
+.if !defined(_MPATH)
+__MPATH!=find ${S:tA}/ -name \*_if.m
+_MPATH=${__MPATH:H:O:u}
+.endif
+
 # MKMODULESENV is set here so that port makefiles can augment
 # them.
 
@@ -214,6 +220,7 @@ MKMODULESENV+=	MODULES_OVERRIDE="${MODULES_OVERRIDE}"
 .if defined(DEBUG)
 MKMODULESENV+=	DEBUG_FLAGS="${DEBUG}"
 .endif
+MKMODULESENV+=	_MPATH="${_MPATH}"
 
 # Detect kernel config options that force stack frames to be turned on.
 DDB_ENABLED!=	grep DDB opt_ddb.h || true ; echo

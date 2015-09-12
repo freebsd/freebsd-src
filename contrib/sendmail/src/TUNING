@@ -1,4 +1,4 @@
-# Copyright (c) 2001-2003 Proofpoint, Inc. and its suppliers.
+# Copyright (c) 2001-2003, 2014 Proofpoint, Inc. and its suppliers.
 #	All rights reserved.
 #
 # By using this file, you agree to the terms and conditions set
@@ -134,6 +134,17 @@ to send e-mail then either the -G option should be used or
 	define(`confDIRECT_SUBMISSION_MODIFIERS', `C')
 
 should be added to the .mc file.
+
+Note: starting with 8.15, sendmail will not ignore temporary map
+lookup failures during header rewriting, which means that DNS lookup
+problems even for headers will cause messages to stay in the queue.
+Hence it is strongly suggested to use the nocanonify feature;
+at least turning it on for the MTA, but maybe disabling it for the
+MSA, i.e., use Modifiers for DaemonPortOptions accordingly.
+As a last resort, it is possible to override the host map to ignore
+temporary failures, e.g.,
+Khost host -t
+However, this can cause inconsistent header rewriting.
 
 
 * Mailing Lists and Large Aliases (1-n Mailing)

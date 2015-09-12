@@ -8,18 +8,18 @@ SRCS+=	acgetline.c ahids.c ahuuids.c cmfsize.c
 
 # components/debugger
 SRCS+=	dbcmds.c dbconvert.c dbdisply.c dbexec.c dbfileio.c	\
-	dbhistry.c dbinput.c dbmethod.c dbnames.c dbstats.c	\
-	dbtest.c dbutils.c dbxface.c
+	dbhistry.c dbinput.c dbmethod.c dbnames.c dbobject.c	\
+	dbstats.c dbtest.c dbutils.c dbxface.c
 
 # components/disassembler
-SRCS+=	dmbuffer.c dmcstyle.c dmdeferred.c dmnames.c dmobject.c	\
-	dmopcode.c dmresrc.c dmresrcl.c dmresrcl2.c dmresrcs.c	\
-	dmutils.c dmwalk.c
+SRCS+=	dmbuffer.c dmcstyle.c dmdeferred.c dmnames.c dmopcode.c	\
+	dmresrc.c dmresrcl.c dmresrcl2.c dmresrcs.c dmutils.c	\
+	dmwalk.c
 
 # components/dispatcher
-SRCS+=	dsargs.c dscontrol.c dsfield.c dsinit.c dsmethod.c	\
-	dsmthdat.c dsobject.c dsopcode.c dsutils.c dswexec.c	\
-	dswload.c dswload2.c dswscope.c dswstate.c
+SRCS+=	dsargs.c dscontrol.c dsdebug.c dsfield.c dsinit.c	\
+	dsmethod.c dsmthdat.c dsobject.c dsopcode.c dsutils.c	\
+	dswexec.c dswload.c dswload2.c dswscope.c dswstate.c
 
 # components/events
 SRCS+=	evevent.c evglock.c evgpe.c evgpeblk.c evgpeinit.c	\
@@ -63,9 +63,9 @@ SRCS+=	utaddress.c utalloc.c utbuffer.c utcache.c utcopy.c	\
 	utdebug.c utdecode.c utdelete.c uterror.c uteval.c	\
 	utexcep.c utfileio.c utglobal.c uthex.c utids.c		\
 	utinit.c utlock.c utmath.c utmisc.c utmutex.c		\
-	utobject.c utosi.c utownerid.c utpredef.c utprint.c	\
-	utresrc.c utstate.c utstring.c uttrack.c utuuid.c	\
-	utxface.c utxferror.c utxfinit.c
+	utnonansi.c utobject.c utosi.c utownerid.c utpredef.c	\
+	utprint.c utresrc.c utstate.c utstring.c uttrack.c	\
+	utuuid.c utxface.c utxferror.c utxfinit.c
 
 # os_specific/service_layers
 SRCS+=	oslibcfs.c osunixxf.c

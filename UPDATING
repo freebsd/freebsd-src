@@ -31,27 +31,63 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
-20150616:
-	/etc/make.conf now included earlier.
-	sys.mk now includes /etc/make.conf and {local,src}.sys.mk earlier
-	than previously.
-	This makes it simple to interpose external toolchains etc.
-	However it may cause problems for users who have things like::
+20150706:
+	sendmail has been updated to 8.15.2.  Starting with FreeBSD 11.0
+	and sendmail 8.15, sendmail uses uncompressed IPv6 addresses by
+	default, i.e., they will not contain "::".  For example, instead
+	of ::1, it will be 0:0:0:0:0:0:0:1.  This permits a zero subnet
+	to have a more specific match, such as different map entries for
+	IPv6:0:0 vs IPv6:0.  This change requires that configuration
+	data (including maps, files, classes, custom ruleset, etc.) must
+	use the same format, so make certain such configuration data is
+	upgrading.  As a very simple check search for patterns like
+	'IPv6:[0-9a-fA-F:]*::' and 'IPv6::'.  To return to the old
+	behavior, set the m4 option confUSE_COMPRESSED_IPV6_ADDRESSES or
+	the cf option UseCompressedIPv6Addresses.
 
-		INSTALL+= something
+20150630:
+	The default kernel entropy-processing algorithm is now
+	Fortuna, replacing Yarrow.
 
-	in /etc/make.conf, since INSTALL is not yet defined.
-	A safe fix for that is to have::
+	Assuming you have 'device random' in your kernel config
+	file, the configurations allow a kernel option to override
+	this default. You may choose *ONE* of:
 
-		INSTALL?= install
-		INSTALL+= something
+	options	RANDOM_YARROW	# Legacy /dev/random algorithm.
+	options	RANDOM_DUMMY	# Blocking-only driver.
 
-	which is equivalent to previous behavior.
-	
+	If you have neither, you get Fortuna.  For most people,
+	read no further, Fortuna will give a /dev/random that works
+	like it always used to, and the difference will be irrelevant.
+
+	If you remove 'device random', you get *NO* kernel-processed
+	entopy at all. This may be acceptable to folks building
+	embedded systems, but has complications. Carry on reading,
+	and it is assumed you know what you need.
+
+	*PLEASE* read random(4) and random(9) if you are in the
+	habit of tweeking kernel configs, and/or if you are a member
+	of the embedded community, wanting specific and not-usual
+	behaviour from your security subsystems.
+
+	NOTE!! If you use RANDOM_DUMMY and/or have no 'device
+	random', you will NOT have a functioning /dev/random, and
+	many cryptographic features will not work, including SSH.
+	You may also find strange behaviour from the random(3) set
+	of library functions, in particular sranddev(3), srandomdev(3)
+	and arc4random(3). The reason for this is that the KERN_ARND
+	sysctl only returns entropy if it thinks it has some to
+	share, and with RANDOM_DUMMY or no 'device random' this
+	will never happen.
+
+20150623:
+	An additional fix for the issue described in the 20150614 sendmail
+	entry below has been been committed in revision 284717.
+
 20150616:
 	FreeBSD's old make (fmake) has been removed from the system. It is
 	available as the devel/fmake port or via pkg install fmake.
-	
+
 20150615:
 	The fix for the issue described in the 20150614 sendmail entry
 	below has been been committed in revision 284436.  The work
@@ -74,7 +110,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	this interoperability, sendmail can be configured to use a
 	2048 bit DH parameter by:
 
-	1. Edit /etc/mail/`hostname`.mc 
+	1. Edit /etc/mail/`hostname`.mc
 	2. If a setting for confDH_PARAMETERS does not exist or
 	   exists and is set to a string beginning with '5',
 	   replace it with '2'.
@@ -187,7 +223,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	using a local socket.  Users who have already enabled the
 	local_unbound service should regenerate their configuration
 	by running "service local_unbound setup" as root.
-	
+
 20150102:
 	The GNU texinfo and GNU info pages have been removed.
 	To be able to view GNU info pages please install texinfo from ports.
@@ -578,7 +614,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	The GNU Compiler Collection and C++ standard library (libstdc++)
 	are no longer built by default on platforms where clang is the system
 	compiler.  You can enable them with the WITH_GCC and WITH_GNUCXX
-	options in src.conf.  
+	options in src.conf.
 
 20130905:
 	The PROCDESC kernel option is now part of the GENERIC kernel
@@ -932,7 +968,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 20120727:
 	The sparc64 ZFS loader has been changed to no longer try to auto-
 	detect ZFS providers based on diskN aliases but now requires these
-	to be explicitly listed in the OFW boot-device environment variable. 
+	to be explicitly listed in the OFW boot-device environment variable.
 
 20120712:
 	The OpenSSL has been upgraded to 1.0.1c.  Any binaries requiring

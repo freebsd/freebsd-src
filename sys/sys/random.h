@@ -31,7 +31,12 @@
 
 #ifdef _KERNEL
 
-int read_random(void *, int);
+#include <sys/types.h>
+
+struct uio;
+
+u_int read_random(void *, u_int);
+int read_random_uio(struct uio *, bool);
 
 /*
  * Note: if you add or remove members of random_entropy_source, remember to also update the
@@ -53,9 +58,10 @@ enum random_entropy_source {
 	RANDOM_NET_NG,
 	RANDOM_INTERRUPT,
 	RANDOM_SWI,
-	RANDOM_UMA_ALLOC,
-	RANDOM_ENVIRONMENTAL_END, /* This one is wasted */
-	/* High-quality HW RNGs from here on. */
+	RANDOM_FS_ATIME,
+	RANDOM_FAST,	/* Special!! Miscellaneous high performance stuff, like UMA/SLAB Allocator */
+	RANDOM_ENVIRONMENTAL_END = RANDOM_FAST,
+	/* Fast hardware random-number sources from here on. */
 	RANDOM_PURE_OCTEON,
 	RANDOM_PURE_SAFE,
 	RANDOM_PURE_GLXSB,
@@ -67,7 +73,18 @@ enum random_entropy_source {
 	RANDOM_PURE_VIRTIO,
 	ENTROPYSOURCE
 };
-void random_harvest(const void *, u_int, u_int, enum random_entropy_source);
+
+#define RANDOM_HARVEST_EVERYTHING_MASK ((1 << (RANDOM_ENVIRONMENTAL_END + 1)) - 1)
+
+#if defined(RANDOM_DUMMY)
+#define random_harvest_queue(a, b, c, d) do {} while (0)
+#define random_harvest_fast(a, b, c, d) do {} while (0)
+#define random_harvest_direct(a, b, c, d) do {} while (0)
+#else /* !defined(RANDOM_DUMMY) */
+void random_harvest_queue(const void *, u_int, u_int, enum random_entropy_source);
+void random_harvest_fast(const void *, u_int, u_int, enum random_entropy_source);
+void random_harvest_direct(const void *, u_int, u_int, enum random_entropy_source);
+#endif /* defined(RANDOM_DUMMY) */
 
 #endif /* _KERNEL */
 

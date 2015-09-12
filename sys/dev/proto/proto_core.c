@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2014 Marcel Moolenaar
+ * Copyright (c) 2014, 2015 Marcel Moolenaar
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -54,12 +54,15 @@ __FBSDID("$FreeBSD$");
 #include <dev/proto/proto_busdma.h>
 
 CTASSERT(SYS_RES_IRQ != PROTO_RES_UNUSED &&
+    SYS_RES_DRQ != PROTO_RES_UNUSED &&
     SYS_RES_MEMORY != PROTO_RES_UNUSED &&
     SYS_RES_IOPORT != PROTO_RES_UNUSED);
 CTASSERT(SYS_RES_IRQ != PROTO_RES_PCICFG &&
+    SYS_RES_DRQ != PROTO_RES_PCICFG &&
     SYS_RES_MEMORY != PROTO_RES_PCICFG &&
     SYS_RES_IOPORT != PROTO_RES_PCICFG);
 CTASSERT(SYS_RES_IRQ != PROTO_RES_BUSDMA &&
+    SYS_RES_DRQ != PROTO_RES_BUSDMA &&
     SYS_RES_MEMORY != PROTO_RES_BUSDMA &&
     SYS_RES_IOPORT != PROTO_RES_BUSDMA);
 
@@ -117,6 +120,62 @@ proto_intr(void *arg)
 #endif
 
 int
+proto_probe(device_t dev, const char *prefix, char ***devnamesp)
+{
+	char **devnames = *devnamesp;
+	const char *dn, *ep, *ev;
+	size_t pfxlen;
+	int idx, names;
+
+	if (devnames == NULL) {
+		pfxlen = strlen(prefix);
+		names = 1;	/* NULL pointer */
+		ev = kern_getenv("hw.proto.attach");
+		if (ev != NULL) {
+			dn = ev;
+			while (*dn != '\0') {
+				ep = dn;
+				while (*ep != ',' && *ep != '\0')
+					ep++;
+				if ((ep - dn) > pfxlen &&
+				    strncmp(dn, prefix, pfxlen) == 0)
+					names++;
+				dn = (*ep == ',') ? ep + 1 : ep;
+			}
+		}
+		devnames = malloc(names * sizeof(caddr_t), M_DEVBUF,
+		    M_WAITOK | M_ZERO);
+		*devnamesp = devnames;
+		if (ev != NULL) {
+			dn = ev;
+			idx = 0;
+			while (*dn != '\0') {
+				ep = dn;
+				while (*ep != ',' && *ep != '\0')
+					ep++;
+				if ((ep - dn) > pfxlen &&
+				    strncmp(dn, prefix, pfxlen) == 0) {
+					devnames[idx] = malloc(ep - dn + 1,
+					    M_DEVBUF, M_WAITOK | M_ZERO);
+					memcpy(devnames[idx], dn, ep - dn);
+					idx++;
+				}
+				dn = (*ep == ',') ? ep + 1 : ep;
+			}
+			freeenv(__DECONST(char *, ev));
+		}
+	}
+
+	dn = device_get_desc(dev);
+	while (*devnames != NULL) {
+		if (strcmp(dn, *devnames) == 0)
+			return (BUS_PROBE_SPECIFIC);
+		devnames++;
+	}
+	return (BUS_PROBE_HOOVER);
+}
+
+int
 proto_attach(device_t dev)
 {
 	struct proto_softc *sc;
@@ -131,6 +190,8 @@ proto_attach(device_t dev)
 		switch (r->r_type) {
 		case SYS_RES_IRQ:
 			/* XXX TODO */
+			break;
+		case SYS_RES_DRQ:
 			break;
 		case SYS_RES_MEMORY:
 		case SYS_RES_IOPORT:
@@ -182,6 +243,10 @@ proto_detach(device_t dev)
 		switch (r->r_type) {
 		case SYS_RES_IRQ:
 			/* XXX TODO */
+			bus_release_resource(dev, r->r_type, r->r_rid,
+			    r->r_d.res);
+			break;
+		case SYS_RES_DRQ:
 			bus_release_resource(dev, r->r_type, r->r_rid,
 			    r->r_d.res);
 			break;
@@ -387,7 +452,7 @@ proto_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 			break;
 		}
 		busdma = (struct proto_ioc_busdma *)data;
-		error = proto_busdma_ioctl(sc, r->r_d.busdma, busdma);
+		error = proto_busdma_ioctl(sc, r->r_d.busdma, busdma, td);
 		break;
 	default:
 		error = ENOIOCTL;

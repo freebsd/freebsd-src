@@ -344,12 +344,7 @@ typedef struct {
  * devices) or by the driver (e.g., for fabric devices).
  *
  * It has a state. If the state if VALID, that means that we've logged into
- * the device. We also *may* have a initiator map index entry. This is a value
- * from 0..MAX_FC_TARG that is used to index into the isp_dev_map array. If
- * the value therein is non-zero, then that value minus one is used to index
- * into the Port Database to find the handle for forming commands. There is
- * back-index minus one value within to Port Database entry that tells us
- * which entry in isp_dev_map points to us (to avoid searching).
+ * the device.
  *
  * Local loop devices the firmware automatically performs PLOGI on for us
  * (which is why that handle is imposed upon us). Fabric devices we assign
@@ -381,9 +376,6 @@ typedef struct {
  *    duples.
  *
  *  + There can never be two non-NIL entries with the same handle.
- *
- *  + There can never be two non-NIL entries which have the same dev_map_idx
- *    value.
  */
 typedef struct {
 	/*
@@ -394,9 +386,6 @@ typedef struct {
 	uint16_t	handle;
 
 	/*
-	 * The dev_map_idx, if nonzero, is the system virtual target ID (+1)
-	 * as a cross-reference with the isp_dev_map.
-	 *
 	 * A device is 'autologin' if the firmware automatically logs into
 	 * it (re-logins as needed). Basically, local private loop devices.
 	 *
@@ -404,27 +393,24 @@ typedef struct {
 	 *
 	 * The state is the current state of this entry.
 	 *
+	 * The is_target is the current state of target on this port.
+	 *
+	 * The is_initiator is the current state of initiator on this port.
+	 *
 	 * Portid is obvious, as are node && port WWNs. The new_role and
 	 * new_portid is for when we are pending a change.
-	 *
-	 * The 'target_mode' tag means that this entry arrived via a
-	 * target mode command and is immune from normal flushing rules.
-	 * You should also never see anything with an initiator role
-	 * with this set.
 	 */
 	uint16_t	prli_word3;		/* PRLI parameters */
 	uint16_t	new_prli_word3;		/* Incoming new PRLI parameters */
-	uint16_t	dev_map_idx	: 12,
+	uint16_t			: 12,
 			autologin	: 1,	/* F/W does PLOGI/PLOGO */
 			state		: 3;
-	uint32_t			: 7,
-			target_mode	: 1,
+	uint32_t			: 6,
+			is_target	: 1,
+			is_initiator	: 1,
 			portid		: 24;
 	uint32_t
-					: 5,
-			reported_gone	: 1,
-			announced	: 1,
-			dirty		: 1,	/* commands have been run */
+					: 8,
 			new_portid	: 24;
 	uint64_t	node_wwn;
 	uint64_t	port_wwn;
@@ -439,6 +425,8 @@ typedef struct {
 #define	FC_PORTDB_STATE_PENDING_VALID	5
 #define	FC_PORTDB_STATE_ZOMBIE		6
 #define	FC_PORTDB_STATE_VALID		7
+
+#define	FC_PORTDB_TGT(isp, bus, pdb)		(int)(lp - FCPARAM(isp, bus)->portdb)
 
 /*
  * FC card specific information
@@ -490,27 +478,6 @@ typedef struct {
 	 * Our Port Data Base
 	 */
 	fcportdb_t		portdb[MAX_FC_TARG];
-
-	/*
-	 * This maps system virtual 'target' id to a portdb entry.
-	 *
-	 * The mapping function is to take any non-zero entry and
-	 * subtract one to get the portdb index. This means that
-	 * entries which are zero are unmapped (i.e., don't exist).
-	 */
-	uint16_t		isp_dev_map[MAX_FC_TARG];
-
-#ifdef	ISP_TARGET_MODE
-	/*
-	 * This maps N-Port Handle to portdb entry so we
-	 * don't have to search for every incoming command.
-	 *
-	 * The mapping function is to take any non-zero entry and
-	 * subtract one to get the portdb index. This means that
-	 * entries which are zero are unmapped (i.e., don't exist).
-	 */
-	uint16_t		isp_tgt_map[MAX_NPORT_HANDLE];
-#endif
 
 	/*
 	 * Scratch DMA mapped in area to fetch Port Database stuff, etc.
@@ -855,7 +822,7 @@ void isp_init(ispsoftc_t *);
 /*
  * Reset the ISP and call completion for any orphaned commands.
  */
-void isp_reinit(ispsoftc_t *, int);
+int isp_reinit(ispsoftc_t *, int);
 
 /*
  * Internal Interrupt Service Routine
@@ -915,6 +882,8 @@ void isp_done(XS_T *);
  *        Get PDB on this channel for this N-port handle
  * ... ISPCTL_PLOGX, isp_plcmd_t *)
  *        Performa a port login/logout
+ * ... ISPCTL_CHANGE_ROLE, int channel, int role);
+ *        Change role of specified channel
  *
  * ISPCTL_PDB_SYNC is somewhat misnamed. It actually is the final step, in
  * order, of ISPCTL_FCLINK_TEST, ISPCTL_SCAN_FABRIC, and ISPCTL_SCAN_LOOP.
@@ -937,7 +906,8 @@ typedef enum {
 	ISPCTL_GET_NAMES,
 	ISPCTL_RUN_MBOXCMD,
 	ISPCTL_GET_PDB,
-	ISPCTL_PLOGX
+	ISPCTL_PLOGX,
+	ISPCTL_CHANGE_ROLE
 } ispctl_t;
 int isp_control(ispsoftc_t *, ispctl_t, ...);
 

@@ -4,6 +4,7 @@
 
 SENDMAIL_DIR=${.CURDIR}/../../contrib/sendmail
 CFDIR=	cf
+CFPACKAGE=	sendmail
 CFDIRS!=	(cd ${SENDMAIL_DIR}; find -L ${CFDIR} \( \( -name CVS -o -name .svn \) -prune \) -o -type d -print)
 CFFILES!=	(cd ${SENDMAIL_DIR}; find -L ${CFDIR} \( \( -name CVS -o -name .svn \) -prune \) -o -type f -print)
 

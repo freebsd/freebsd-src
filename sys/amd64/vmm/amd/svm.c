@@ -1916,7 +1916,6 @@ svm_vmrun(void *arg, int vcpu, register_t rip, pmap_t pmap,
 	struct vlapic *vlapic;
 	struct vm *vm;
 	uint64_t vmcb_pa;
-	u_int thiscpu;
 	int handled;
 
 	svm_sc = arg;
@@ -1928,19 +1927,10 @@ svm_vmrun(void *arg, int vcpu, register_t rip, pmap_t pmap,
 	vmexit = vm_exitinfo(vm, vcpu);
 	vlapic = vm_lapic(vm, vcpu);
 
-	/*
-	 * Stash 'curcpu' on the stack as 'thiscpu'.
-	 *
-	 * The per-cpu data area is not accessible until MSR_GSBASE is restored
-	 * after the #VMEXIT. Since VMRUN is executed inside a critical section
-	 * 'curcpu' and 'thiscpu' are guaranteed to identical.
-	 */
-	thiscpu = curcpu;
-
 	gctx = svm_get_guest_regctx(svm_sc, vcpu);
 	vmcb_pa = svm_sc->vcpu[vcpu].vmcb_pa;
 
-	if (vcpustate->lastcpu != thiscpu) {
+	if (vcpustate->lastcpu != curcpu) {
 		/*
 		 * Force new ASID allocation by invalidating the generation.
 		 */
@@ -1961,7 +1951,7 @@ svm_vmrun(void *arg, int vcpu, register_t rip, pmap_t pmap,
 		 * This works for now but any new side-effects of vcpu
 		 * migration should take this case into account.
 		 */
-		vcpustate->lastcpu = thiscpu;
+		vcpustate->lastcpu = curcpu;
 		vmm_stat_incr(vm, vcpu, VCPU_MIGRATIONS, 1);
 	}
 
@@ -2007,14 +1997,14 @@ svm_vmrun(void *arg, int vcpu, register_t rip, pmap_t pmap,
 
 		svm_inj_interrupts(svm_sc, vcpu, vlapic);
 
-		/* Activate the nested pmap on 'thiscpu' */
-		CPU_SET_ATOMIC_ACQ(thiscpu, &pmap->pm_active);
+		/* Activate the nested pmap on 'curcpu' */
+		CPU_SET_ATOMIC_ACQ(curcpu, &pmap->pm_active);
 
 		/*
 		 * Check the pmap generation and the ASID generation to
 		 * ensure that the vcpu does not use stale TLB mappings.
 		 */
-		check_asid(svm_sc, vcpu, pmap, thiscpu);
+		check_asid(svm_sc, vcpu, pmap, curcpu);
 
 		ctrl->vmcb_clean = vmcb_clean & ~vcpustate->dirty;
 		vcpustate->dirty = 0;
@@ -2022,23 +2012,9 @@ svm_vmrun(void *arg, int vcpu, register_t rip, pmap_t pmap,
 
 		/* Launch Virtual Machine. */
 		VCPU_CTR1(vm, vcpu, "Resume execution at %#lx", state->rip);
-		svm_launch(vmcb_pa, gctx);
+		svm_launch(vmcb_pa, gctx, &__pcpu[curcpu]);
 
-		CPU_CLR_ATOMIC(thiscpu, &pmap->pm_active);
-
-		/*
-		 * Restore MSR_GSBASE to point to the pcpu data area.
-		 *
-		 * Note that accesses done via PCPU_GET/PCPU_SET will work
-		 * only after MSR_GSBASE is restored.
-		 *
-		 * Also note that we don't bother restoring MSR_KGSBASE
-		 * since it is not used in the kernel and will be restored
-		 * when the VMRUN ioctl returns to userspace.
-		 */
-		wrmsr(MSR_GSBASE, (uint64_t)&__pcpu[thiscpu]);
-		KASSERT(curcpu == thiscpu, ("thiscpu/curcpu (%u/%u) mismatch",
-		    thiscpu, curcpu));
+		CPU_CLR_ATOMIC(curcpu, &pmap->pm_active);
 
 		/*
 		 * The host GDTR and IDTR is saved by VMRUN and restored

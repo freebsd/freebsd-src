@@ -44,7 +44,7 @@ int	fstyp_geli(FILE *fp, char *label, size_t size);
 int	fstyp_msdosfs(FILE *fp, char *label, size_t size);
 int	fstyp_ntfs(FILE *fp, char *label, size_t size);
 int	fstyp_ufs(FILE *fp, char *label, size_t size);
-#ifdef HAVE_CDDL
+#ifdef HAVE_ZFS
 int	fstyp_zfs(FILE *fp, char *label, size_t size);
 #endif
 

@@ -731,6 +731,8 @@
 
       &hwlist.nsp;
 
+      &hwlist.pms;
+
       &hwlist.pst;
 
       &hwlist.siis;
@@ -994,6 +996,10 @@
       <para>[&arch.i386;, &arch.amd64;] Intel PRO/Wireless
 	2200BG/2915ABG MiniPCI and 2225BG PCI network adapters
 	(&man.iwi.4; driver)</para>
+
+      <para>[&arch.i386;, &arch.amd64;] Intel Dual Band Wireless AC
+	3160/7260/7265 IEEE 802.11ac network adapters (&man.iwm.4;
+	driver)</para>
 
       <para>[&arch.i386;, &arch.amd64;] Intel Wireless WiFi Link
 	4965AGN IEEE 802.11n PCI network adapters

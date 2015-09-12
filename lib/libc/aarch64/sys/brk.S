@@ -32,6 +32,8 @@ __FBSDID("$FreeBSD$");
 
 #include "SYS.h"
 
+	.globl	_C_LABEL(_end)
+
 	.data
 	.align	3
 	.globl	_C_LABEL(minbrk)
@@ -47,15 +49,8 @@ ENTRY(_brk)
 	WEAK_REFERENCE(_brk, brk)
 
 	/* Load the address of minbrk */
-#ifdef __PIC__
-	adrp	x2, :got:minbrk
-	ldr	x3, [x2, #:got_lo12:minbrk]
-#else
-	ldr	x3, .Lminbrk
-#endif
-
-	/* Get the minimum allowable brk address */
-	ldr	x2, [x3]
+	adrp	x3, minbrk
+	ldr	x2, [x3, :lo12:minbrk]
 
 	/* Validate the address */
 	cmp	x0, x2
@@ -70,24 +65,12 @@ ENTRY(_brk)
 	_SYSCALL(break)
 	b.cs	cerror
 
-#ifdef __PIC__
-	adrp	x2, :got:curbrk
-	ldr	x3, [x2, #:got_lo12:curbrk]
-#else
-	ldr	x3, .Lcurbrk
-#endif
-
 	/* Store the new curbrk value */
-	str	x4, [x3]
+	adrp	x2, curbrk
+	str	x4, [x2, :lo12:curbrk]
 
 	/* Return success */
 	mov	x0, #0
 	ret
 
-#ifndef __PIC__
-.Lcurbrk:
-	.quad	_C_LABEL(curbrk)
-.Lminbrk:
-	.quad	_C_LABEL(minbrk)
-#endif
 END(_brk)

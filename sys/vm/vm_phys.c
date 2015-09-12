@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/tree.h>
 #include <sys/vmmeter.h>
+#include <sys/seq.h>
 
 #include <ddb/ddb.h>
 
@@ -66,6 +67,8 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_phys.h>
+
+#include <vm/vm_domain.h>
 
 _Static_assert(sizeof(long) * NBBY >= VM_PHYSSEG_MAX,
     "Too many physsegs.");
@@ -141,12 +144,29 @@ static int sysctl_vm_phys_segs(SYSCTL_HANDLER_ARGS);
 SYSCTL_OID(_vm, OID_AUTO, phys_segs, CTLTYPE_STRING | CTLFLAG_RD,
     NULL, 0, sysctl_vm_phys_segs, "A", "Phys Seg Info");
 
+#if MAXMEMDOM > 1
 static int sysctl_vm_phys_locality(SYSCTL_HANDLER_ARGS);
 SYSCTL_OID(_vm, OID_AUTO, phys_locality, CTLTYPE_STRING | CTLFLAG_RD,
     NULL, 0, sysctl_vm_phys_locality, "A", "Phys Locality Info");
+#endif
 
 SYSCTL_INT(_vm, OID_AUTO, ndomains, CTLFLAG_RD,
     &vm_ndomains, 0, "Number of physical memory domains available.");
+
+/*
+ * Default to first-touch + round-robin.
+ */
+static struct mtx vm_default_policy_mtx;
+MTX_SYSINIT(vm_default_policy, &vm_default_policy_mtx, "default policy mutex",
+    MTX_DEF);
+#if MAXMEMDOM > 1
+static struct vm_domain_policy vm_default_policy =
+    VM_DOMAIN_POLICY_STATIC_INITIALISER(VM_POLICY_FIRST_TOUCH_ROUND_ROBIN, 0);
+#else
+/* Use round-robin so the domain policy code will only try once per allocation */
+static struct vm_domain_policy vm_default_policy =
+    VM_DOMAIN_POLICY_STATIC_INITIALISER(VM_POLICY_ROUND_ROBIN, 0);
+#endif
 
 static vm_page_t vm_phys_alloc_domain_pages(int domain, int flind, int pool,
     int order);
@@ -155,6 +175,60 @@ static void vm_phys_create_seg(vm_paddr_t start, vm_paddr_t end);
 static int vm_phys_paddr_to_segind(vm_paddr_t pa);
 static void vm_phys_split_pages(vm_page_t m, int oind, struct vm_freelist *fl,
     int order);
+
+static int
+sysctl_vm_default_policy(SYSCTL_HANDLER_ARGS)
+{
+	char policy_name[32];
+	int error;
+
+	mtx_lock(&vm_default_policy_mtx);
+
+	/* Map policy to output string */
+	switch (vm_default_policy.p.policy) {
+	case VM_POLICY_FIRST_TOUCH:
+		strcpy(policy_name, "first-touch");
+		break;
+	case VM_POLICY_FIRST_TOUCH_ROUND_ROBIN:
+		strcpy(policy_name, "first-touch-rr");
+		break;
+	case VM_POLICY_ROUND_ROBIN:
+	default:
+		strcpy(policy_name, "rr");
+		break;
+	}
+	mtx_unlock(&vm_default_policy_mtx);
+
+	error = sysctl_handle_string(oidp, &policy_name[0],
+	    sizeof(policy_name), req);
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+
+	mtx_lock(&vm_default_policy_mtx);
+	/* Set: match on the subset of policies that make sense as a default */
+	if (strcmp("first-touch-rr", policy_name) == 0) {
+		vm_domain_policy_set(&vm_default_policy,
+		    VM_POLICY_FIRST_TOUCH_ROUND_ROBIN, 0);
+	} else if (strcmp("first-touch", policy_name) == 0) {
+		vm_domain_policy_set(&vm_default_policy,
+		    VM_POLICY_FIRST_TOUCH, 0);
+	} else if (strcmp("rr", policy_name) == 0) {
+		vm_domain_policy_set(&vm_default_policy,
+		    VM_POLICY_ROUND_ROBIN, 0);
+	} else {
+		error = EINVAL;
+		goto finish;
+	}
+
+	error = 0;
+finish:
+	mtx_unlock(&vm_default_policy_mtx);
+	return (error);
+}
+
+SYSCTL_PROC(_vm, OID_AUTO, default_policy, CTLTYPE_STRING | CTLFLAG_RW,
+    0, 0, sysctl_vm_default_policy, "A",
+    "Default policy (rr, first-touch, first-touch-rr");
 
 /*
  * Red-black tree helpers for vm fictitious range management.
@@ -211,6 +285,53 @@ vm_rr_selectdomain(void)
 #else
 	return (0);
 #endif
+}
+
+/*
+ * Initialise a VM domain iterator.
+ *
+ * Check the thread policy, then the proc policy,
+ * then default to the system policy.
+ *
+ * Later on the various layers will have this logic
+ * plumbed into them and the phys code will be explicitly
+ * handed a VM domain policy to use.
+ */
+static void
+vm_policy_iterator_init(struct vm_domain_iterator *vi)
+{
+#if MAXMEMDOM > 1
+	struct vm_domain_policy lcl;
+#endif
+
+	vm_domain_iterator_init(vi);
+
+#if MAXMEMDOM > 1
+	/* Copy out the thread policy */
+	vm_domain_policy_localcopy(&lcl, &curthread->td_vm_dom_policy);
+	if (lcl.p.policy != VM_POLICY_NONE) {
+		/* Thread policy is present; use it */
+		vm_domain_iterator_set_policy(vi, &lcl);
+		return;
+	}
+
+	vm_domain_policy_localcopy(&lcl,
+	    &curthread->td_proc->p_vm_dom_policy);
+	if (lcl.p.policy != VM_POLICY_NONE) {
+		/* Process policy is present; use it */
+		vm_domain_iterator_set_policy(vi, &lcl);
+		return;
+	}
+#endif
+	/* Use system default policy */
+	vm_domain_iterator_set_policy(vi, &vm_default_policy);
+}
+
+static void
+vm_policy_iterator_finish(struct vm_domain_iterator *vi)
+{
+
+	vm_domain_iterator_cleanup(vi);
 }
 
 boolean_t
@@ -305,17 +426,22 @@ sysctl_vm_phys_segs(SYSCTL_HANDLER_ARGS)
 /*
  * Return affinity, or -1 if there's no affinity information.
  */
-static int
+int
 vm_phys_mem_affinity(int f, int t)
 {
 
+#if MAXMEMDOM > 1
 	if (mem_locality == NULL)
 		return (-1);
 	if (f >= vm_ndomains || t >= vm_ndomains)
 		return (-1);
 	return (mem_locality[f * vm_ndomains + t]);
+#else
+	return (-1);
+#endif
 }
 
+#if MAXMEMDOM > 1
 /*
  * Outputs the VM locality table.
  */
@@ -343,6 +469,7 @@ sysctl_vm_phys_locality(SYSCTL_HANDLER_ARGS)
 	sbuf_delete(&sbuf);
 	return (error);
 }
+#endif
 
 static void
 vm_freelist_add(struct vm_freelist *fl, vm_page_t m, int order, int tail)
@@ -634,15 +761,17 @@ vm_page_t
 vm_phys_alloc_pages(int pool, int order)
 {
 	vm_page_t m;
-	int dom, domain, flind;
+	int domain, flind;
+	struct vm_domain_iterator vi;
 
 	KASSERT(pool < VM_NFREEPOOL,
 	    ("vm_phys_alloc_pages: pool %d is out of range", pool));
 	KASSERT(order < VM_NFREEORDER,
 	    ("vm_phys_alloc_pages: order %d is out of range", order));
 
-	for (dom = 0; dom < vm_ndomains; dom++) {
-		domain = vm_rr_selectdomain();
+	vm_policy_iterator_init(&vi);
+
+	while ((vm_domain_iterator_run(&vi, &domain)) == 0) {
 		for (flind = 0; flind < vm_nfreelists; flind++) {
 			m = vm_phys_alloc_domain_pages(domain, flind, pool,
 			    order);
@@ -650,6 +779,8 @@ vm_phys_alloc_pages(int pool, int order)
 				return (m);
 		}
 	}
+
+	vm_policy_iterator_finish(&vi);
 	return (NULL);
 }
 
@@ -664,7 +795,8 @@ vm_page_t
 vm_phys_alloc_freelist_pages(int freelist, int pool, int order)
 {
 	vm_page_t m;
-	int dom, domain;
+	struct vm_domain_iterator vi;
+	int domain;
 
 	KASSERT(freelist < VM_NFREELIST,
 	    ("vm_phys_alloc_freelist_pages: freelist %d is out of range",
@@ -673,13 +805,17 @@ vm_phys_alloc_freelist_pages(int freelist, int pool, int order)
 	    ("vm_phys_alloc_freelist_pages: pool %d is out of range", pool));
 	KASSERT(order < VM_NFREEORDER,
 	    ("vm_phys_alloc_freelist_pages: order %d is out of range", order));
-	for (dom = 0; dom < vm_ndomains; dom++) {
-		domain = vm_rr_selectdomain();
+
+	vm_policy_iterator_init(&vi);
+
+	while ((vm_domain_iterator_run(&vi, &domain)) == 0) {
 		m = vm_phys_alloc_domain_pages(domain,
 		    vm_freelist_to_flind[freelist], pool, order);
 		if (m != NULL)
 			return (m);
 	}
+
+	vm_policy_iterator_finish(&vi);
 	return (NULL);
 }
 
@@ -1169,7 +1305,8 @@ vm_phys_alloc_contig(u_long npages, vm_paddr_t low, vm_paddr_t high,
 	vm_paddr_t pa, pa_last, size;
 	vm_page_t m, m_ret;
 	u_long npages_end;
-	int dom, domain, flind, oind, order, pind;
+	int domain, flind, oind, order, pind;
+	struct vm_domain_iterator vi;
 
 	mtx_assert(&vm_page_queue_free_mtx, MA_OWNED);
 	size = npages << PAGE_SHIFT;
@@ -1181,9 +1318,15 @@ vm_phys_alloc_contig(u_long npages, vm_paddr_t low, vm_paddr_t high,
 	    ("vm_phys_alloc_contig: boundary must be a power of 2"));
 	/* Compute the queue that is the best fit for npages. */
 	for (order = 0; (1 << order) < npages; order++);
-	dom = 0;
+
+	vm_policy_iterator_init(&vi);
+
 restartdom:
-	domain = vm_rr_selectdomain();
+	if (vm_domain_iterator_run(&vi, &domain) != 0) {
+		vm_policy_iterator_finish(&vi);
+		return (NULL);
+	}
+
 	for (flind = 0; flind < vm_nfreelists; flind++) {
 		for (oind = min(order, VM_NFREEORDER - 1); oind < VM_NFREEORDER; oind++) {
 			for (pind = 0; pind < VM_NFREEPOOL; pind++) {
@@ -1241,8 +1384,9 @@ restartdom:
 			}
 		}
 	}
-	if (++dom < vm_ndomains)
+	if (!vm_domain_iterator_isdone(&vi))
 		goto restartdom;
+	vm_policy_iterator_finish(&vi);
 	return (NULL);
 done:
 	for (m = m_ret; m < &m_ret[npages]; m = &m[1 << oind]) {

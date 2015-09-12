@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/capsicum.h>
 #include <sys/procdesc.h>
 #include <sys/socket.h>
+#include <sys/nv.h>
 
 #include <assert.h>
 #include <err.h>
@@ -46,7 +47,6 @@ __FBSDID("$FreeBSD$");
 
 #include <libcapsicum.h>
 #include <libcapsicum_impl.h>
-#include <nv.h>
 #include <pjdlog.h>
 
 #include "zygote.h"
@@ -77,7 +77,7 @@ stdnull(void)
 }
 
 int
-zygote_clone(zygote_func_t *func, int flags, int *chanfdp, int *procfdp)
+zygote_clone(zygote_func_t *func, int *chanfdp, int *procfdp)
 {
 	nvlist_t *nvl;
 	int error;
@@ -90,7 +90,6 @@ zygote_clone(zygote_func_t *func, int flags, int *chanfdp, int *procfdp)
 
 	nvl = nvlist_create(0);
 	nvlist_add_number(nvl, "func", (uint64_t)(uintptr_t)func);
-	nvlist_add_number(nvl, "flags", (uint64_t)flags);
 	nvl = nvlist_xfer(zygote_sock, nvl, 0);
 	if (nvl == NULL)
 		return (-1);
@@ -117,7 +116,7 @@ zygote_clone(zygote_func_t *func, int flags, int *chanfdp, int *procfdp)
 static void
 zygote_main(int sock)
 {
-	int error, fd, flags, procfd;
+	int error, fd, procfd;
 	int chanfd[2];
 	nvlist_t *nvlin, *nvlout;
 	zygote_func_t *func;
@@ -144,7 +143,6 @@ zygote_main(int sock)
 		}
 		func = (zygote_func_t *)(uintptr_t)nvlist_get_number(nvlin,
 		    "func");
-		flags = (int)nvlist_get_number(nvlin, "flags");
 		nvlist_destroy(nvlin);
 
 		/*

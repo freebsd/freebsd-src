@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2014 Qlogic Corporation
+ * Copyright (c) 2013-2016 Qlogic Corporation
  * All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -257,6 +257,8 @@
 #define Q8_MBX_CONFIG_FW_LRO			0x004A
 #define Q8_MBX_INIT_NIC_FUNC			0x0060
 #define Q8_MBX_STOP_NIC_FUNC			0x0061
+#define Q8_MBX_IDC_REQ				0x0062
+#define Q8_MBX_IDC_ACK				0x0063
 #define Q8_MBX_SET_PORT_CONFIG			0x0066
 #define Q8_MBX_GET_PORT_CONFIG			0x0067
 #define Q8_MBX_GET_LINK_STATUS			0x0068
@@ -426,7 +428,11 @@ typedef struct _q80_config_rss {
 	uint16_t	rsrvd;
 
 	uint8_t		hash_type;
+#define Q8_MBX_RSS_HASH_TYPE_IPV4_IP		(0x1 << 4)
+#define Q8_MBX_RSS_HASH_TYPE_IPV4_TCP		(0x2 << 4)
 #define Q8_MBX_RSS_HASH_TYPE_IPV4_TCP_IP	(0x3 << 4)
+#define Q8_MBX_RSS_HASH_TYPE_IPV6_IP		(0x1 << 6)
+#define Q8_MBX_RSS_HASH_TYPE_IPV6_TCP		(0x2 << 6)
 #define Q8_MBX_RSS_HASH_TYPE_IPV6_TCP_IP	(0x3 << 6)
 
 	uint8_t		flags;
@@ -463,7 +469,7 @@ typedef struct _q80_config_rss_ind_table {
 	uint8_t		start_idx;
 	uint8_t		end_idx;
 	uint16_t 	cntxt_id;
-	uint8_t		ind_table[40];
+	uint8_t		ind_table[Q8_RSS_IND_TBL_SIZE];
 } __packed q80_config_rss_ind_table_t;
 
 typedef struct _q80_config_rss_ind_table_rsp {
@@ -706,6 +712,13 @@ typedef struct _q80_mac_stats {
 	uint64_t	rcv_dropped;
 	uint64_t	fcs_error;
 	uint64_t	align_error;
+	uint64_t	eswitched_frames;
+	uint64_t	eswitched_bytes;
+	uint64_t	eswitched_mcast_frames;
+	uint64_t	eswitched_bcast_frames;
+	uint64_t	eswitched_ucast_frames;
+	uint64_t	eswitched_err_free_frames;
+	uint64_t	eswitched_err_free_bytes;
 } __packed q80_mac_stats_t;
 
 typedef struct _q80_get_stats {
@@ -720,6 +733,7 @@ typedef struct _q80_get_stats {
 #define Q8_GET_STATS_CMD_TYPE_MAC	0x04
 #define Q8_GET_STATS_CMD_TYPE_FUNC	0x08
 #define Q8_GET_STATS_CMD_TYPE_VPORT	0x0C
+#define Q8_GET_STATS_CMD_TYPE_ALL      (0x7 << 2)
 
 } __packed q80_get_stats_t;
 
@@ -734,6 +748,15 @@ typedef struct _q80_get_stats_rsp {
 	} u;
 } __packed q80_get_stats_rsp_t;
 
+typedef struct _q80_get_mac_rcv_xmt_stats_rsp {
+	uint16_t	opcode;
+	uint16_t	regcnt_status;
+	uint32_t	cmd;
+	q80_mac_stats_t mac;
+	q80_rcv_stats_t rcv;
+	q80_xmt_stats_t xmt;
+} __packed q80_get_mac_rcv_xmt_stats_rsp_t;
+
 /*
  * Init NIC Function
  * Used to Register DCBX Configuration Change AEN
@@ -743,6 +766,7 @@ typedef struct _q80_init_nic_func {
         uint16_t        count_version;
 
         uint32_t        options;
+#define Q8_INIT_NIC_REG_IDC_AEN		0x01
 #define Q8_INIT_NIC_REG_DCBX_CHNG_AEN	0x02
 #define Q8_INIT_NIC_REG_SFP_CHNG_AEN	0x04
 
@@ -794,6 +818,27 @@ typedef struct _q80_query_fw_dcbx_caps_rsp {
 #define Q8_QUERY_FW_DCBX_MAX_PFC_TC_MASK        0xF0000000
 
 } __packed q80_query_fw_dcbx_caps_rsp_t;
+
+/*
+ * IDC Ack Cmd
+ */
+
+typedef struct _q80_idc_ack {
+	uint16_t	opcode;
+	uint16_t	count_version;
+
+	uint32_t	aen_mb1;
+	uint32_t	aen_mb2;
+	uint32_t	aen_mb3;
+	uint32_t	aen_mb4;
+
+} __packed q80_idc_ack_t;
+
+typedef struct _q80_idc_ack_rsp {
+	uint16_t	opcode;
+	uint16_t	regcnt_status;
+} __packed q80_idc_ack_rsp_t;
+
 
 /*
  * Set Port Configuration command
@@ -1083,7 +1128,16 @@ typedef struct _q80_tx_cmd {
  * Receive Related Definitions
  */
 #define MAX_RDS_RING_SETS	8 /* Max# of Receive Descriptor Rings */
+
+#ifdef QL_ENABLE_ISCSI_TLV
+#define MAX_SDS_RINGS           32 /* Max# of Status Descriptor Rings */
+#define NUM_TX_RINGS		(MAX_SDS_RINGS * 2)
+#else
 #define MAX_SDS_RINGS           4 /* Max# of Status Descriptor Rings */
+#define NUM_TX_RINGS		MAX_SDS_RINGS
+#endif /* #ifdef QL_ENABLE_ISCSI_TLV */
+#define MAX_RDS_RINGS           MAX_SDS_RINGS /* Max# of Rcv Descriptor Rings */
+
 
 typedef struct _q80_rq_sds_ring {
 	uint64_t paddr; /* physical addr of status ring in system memory */
@@ -1122,6 +1176,7 @@ typedef struct _q80_rq_rcv_cntxt {
 #define Q8_RCV_CNTXT_CAP0_MSFT_RSS	(1 << 16)
 #define Q8_RCV_CNTXT_CAP0_SGL_JUMBO	(1 << 18)
 #define Q8_RCV_CNTXT_CAP0_SGL_LRO	(1 << 19)
+#define Q8_RCV_CNTXT_CAP0_SINGLE_JUMBO	(1 << 26)
 
 	uint32_t		cap1;
 	uint32_t		cap2;
@@ -1324,7 +1379,6 @@ typedef struct _q80_stat_desc {
 
 
 #define NUM_RX_DESCRIPTORS	2048
-#define MAX_RDS_RINGS           MAX_SDS_RINGS /* Max# of Rcv Descriptor Rings */
 
 /*
  * structure describing various dma buffers
@@ -1452,8 +1506,6 @@ typedef struct _qla_flash_desc_table {
 	uint8_t		resvd[65];
 } __packed qla_flash_desc_table_t;
 
-#define NUM_TX_RINGS		4
-
 /*
  * struct for storing hardware specific information for a given interface
  */
@@ -1511,6 +1563,17 @@ typedef struct _qla_hw {
 	uint32_t	rds_pidx_thres;
 	uint32_t	sds_cidx_thres;
 
+	uint32_t	rcv_intr_coalesce;
+	uint32_t	xmt_intr_coalesce;
+
+	/* Immediate Completion */
+	volatile uint32_t imd_compl;
+	volatile uint32_t aen_mb0;
+	volatile uint32_t aen_mb1;
+	volatile uint32_t aen_mb2;
+	volatile uint32_t aen_mb3;
+	volatile uint32_t aen_mb4;
+
 	/* multicast address list */
 	uint32_t	nmcast;
 	qla_mcast_t	mcast[Q8_MAX_NUM_MULTICAST_ADDRS];
@@ -1527,6 +1590,12 @@ typedef struct _qla_hw {
 	uint32_t	max_tx_segs;
 	uint32_t	min_lro_pkt_size;
 	
+	uint32_t        enable_9kb;
+
+	uint32_t	user_pri_nic;
+	uint32_t	user_pri_iscsi;
+	uint64_t	iscsi_pkt_count;
+
 	/* Flash Descriptor Table */
 	qla_flash_desc_table_t fdt;
 

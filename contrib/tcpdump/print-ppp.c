@@ -807,8 +807,8 @@ static const struct tok ppp_ml_flag_values[] = {
 
 static void
 handle_mlppp(netdissect_options *ndo,
-             const u_char *p, int length) {
-
+             const u_char *p, int length)
+{
     if (!ndo->ndo_eflag)
         ND_PRINT((ndo, "MLPPP, "));
 
@@ -1353,14 +1353,15 @@ static void
 ppp_hdlc(netdissect_options *ndo,
          const u_char *p, int length)
 {
-	u_char *b, *s, *t, c;
+	u_char *b, *t, c;
+	const u_char *s;
 	int i, proto;
 	const void *se;
 
         if (length <= 0)
                 return;
 
-	b = (uint8_t *)malloc(length);
+	b = (u_char *)malloc(length);
 	if (b == NULL)
 		return;
 
@@ -1369,14 +1370,13 @@ ppp_hdlc(netdissect_options *ndo,
 	 * Do this so that we dont overwrite the original packet
 	 * contents.
 	 */
-	for (s = (u_char *)p, t = b, i = length; i > 0; i--) {
+	for (s = p, t = b, i = length; i > 0 && ND_TTEST(*s); i--) {
 		c = *s++;
 		if (c == 0x7d) {
-			if (i > 1) {
-				i--;
-				c = *s++ ^ 0x20;
-			} else
-				continue;
+			if (i <= 1 || !ND_TTEST(*s))
+				break;
+			i--;
+			c = *s++ ^ 0x20;
 		}
 		*t++ = c;
 	}
@@ -1394,11 +1394,9 @@ ppp_hdlc(netdissect_options *ndo,
         case PPP_IP:
 		ip_print(ndo, b + 1, length - 1);
 		goto cleanup;
-#ifdef INET6
         case PPP_IPV6:
 		ip6_print(ndo, b + 1, length - 1);
 		goto cleanup;
-#endif
         default: /* no luck - try next guess */
 		break;
         }
@@ -1468,12 +1466,10 @@ handle_ppp(netdissect_options *ndo,
 	case PPP_IP:
 		ip_print(ndo, p, length);
 		break;
-#ifdef INET6
 	case ETHERTYPE_IPV6:	/*XXX*/
 	case PPP_IPV6:
 		ip6_print(ndo, p, length);
 		break;
-#endif
 	case ETHERTYPE_IPX:	/*XXX*/
 	case PPP_IPX:
 		ipx_print(ndo, p, length);
@@ -1783,11 +1779,9 @@ ppp_bsdos_if_print(netdissect_options *ndo _U_,
 			case PPP_IP:
 				ip_print(ndo, p, length);
 				break;
-#ifdef INET6
 			case PPP_IPV6:
 				ip6_print(ndo, p, length);
 				break;
-#endif
 			case PPP_MPLS_UCAST:
 			case PPP_MPLS_MCAST:
 				mpls_print(ndo, p, length);
@@ -1802,11 +1796,9 @@ ppp_bsdos_if_print(netdissect_options *ndo _U_,
 			case PPP_IP:
 				ip_print(ndo, p, length);
 				break;
-#ifdef INET6
 			case PPP_IPV6:
 				ip6_print(ndo, p, length);
 				break;
-#endif
 			case PPP_MPLS_UCAST:
 			case PPP_MPLS_MCAST:
 				mpls_print(ndo, p, length);
@@ -1834,11 +1826,9 @@ ppp_bsdos_if_print(netdissect_options *ndo _U_,
 	case PPP_IP:
 		ip_print(p, length);
 		break;
-#ifdef INET6
 	case PPP_IPV6:
 		ip6_print(ndo, p, length);
 		break;
-#endif
 	case PPP_MPLS_UCAST:
 	case PPP_MPLS_MCAST:
 		mpls_print(ndo, p, length);

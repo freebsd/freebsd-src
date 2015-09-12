@@ -31,6 +31,7 @@
 
 BSDCFG_SHARE="/usr/share/bsdconfig"
 . $BSDCFG_SHARE/common.subr || exit 1
+f_include $BSDCFG_SHARE/dialog.subr
 
 ############################################################ FUNCTIONS
 
@@ -49,6 +50,54 @@ error() {
 	else
 		exec $0
 	fi
+}
+
+hline_arrows_tab_enter="Press arrows, TAB or ENTER"
+msg_gpt_active_fix="Your hardware is known to have issues booting in CSM/Legacy/BIOS mode from GPT partitions that are not set active. Would you like the installer to apply this workaround for you?"
+msg_lenovo_fix="Your model of Lenovo is known to have a BIOS bug that prevents it booting from GPT partitions without UEFI. Would you like the installer to apply a workaround for you?"
+msg_no="NO"
+msg_yes="YES"
+
+# dialog_workaround
+#
+# Ask the user if they wish to apply a workaround
+#
+dialog_workaround()
+{
+	local passed_msg="$1"
+	local title="$DIALOG_TITLE"
+	local btitle="$DIALOG_BACKTITLE"
+	local prompt # Calculated below
+	local hline="$hline_arrows_tab_enter"
+
+	local height=8 width=50 prefix="   "
+	local plen=${#prefix} list= line=
+	local max_width=$(( $width - 3 - $plen ))
+
+	local yes no defaultno extra_args format
+	if [ "$USE_XDIALOG" ]; then
+		yes=ok no=cancel defaultno=default-no
+		extra_args="--wrap --left"
+		format="$passed_msg"
+	else
+		yes=yes no=no defaultno=defaultno
+		extra_args="--cr-wrap"
+		format="$passed_msg"
+	fi
+
+	# Add height for Xdialog(1)
+	[ "$USE_XDIALOG" ] && height=$(( $height + $height / 5 + 3 ))
+
+	prompt=$( printf "$format" )
+	f_dprintf "%s: Workaround prompt" "$0"
+	$DIALOG \
+		--title "$title"        \
+		--backtitle "$btitle"   \
+		--hline "$hline"        \
+		--$yes-label "$msg_yes" \
+		--$no-label "$msg_no"   \
+		$extra_args             \
+		--yesno "$prompt" $height $width
 }
 
 ############################################################ MAIN
@@ -105,6 +154,73 @@ fi
 
 rm -f $PATH_FSTAB
 touch $PATH_FSTAB
+
+#
+# Try to detect known broken platforms and apply their workarounds
+#
+
+if f_interactive; then
+	sys_maker=$( kenv -q smbios.system.maker )
+	f_dprintf "smbios.system.maker=[%s]" "$sys_maker"
+	sys_model=$( kenv -q smbios.system.product )
+	f_dprintf "smbios.system.product=[%s]" "$sys_model"
+	sys_version=$( kenv -q smbios.system.version )
+	f_dprintf "smbios.system.version=[%s]" "$sys_version"
+	sys_mb_maker=$( kenv -q smbios.planar.maker )
+	f_dprintf "smbios.planar.maker=[%s]" "$sys_mb_maker"
+	sys_mb_product=$( kenv -q smbios.planar.product )
+	f_dprintf "smbios.planar.product=[%s]" "$sys_mb_product"
+
+	#
+	# Laptop Models
+	#
+	case "$sys_maker" in
+	"LENOVO")
+		case "$sys_version" in
+		"ThinkPad X220"|"ThinkPad T420"|"ThinkPad T520")
+			dialog_workaround "$msg_lenovo_fix"
+			retval=$?
+			f_dprintf "lenovofix_prompt=[%s]" "$retval"
+			if [ $retval -eq $DIALOG_OK ]; then
+				export ZFSBOOT_PARTITION_SCHEME="GPT + Lenovo Fix"
+				export WORKAROUND_LENOVO=1
+			fi
+			;;
+		esac
+		;;
+	"Dell Inc.")
+		case "$sys_model" in
+		"Latitude E7440"|"Latitude E7240")
+			dialog_workaround "$msg_gpt_active_fix"
+			retval=$?
+			f_dprintf "gpt_active_fix_prompt=[%s]" "$retval"
+			if [ $retval -eq $DIALOG_OK ]; then
+				export ZFSBOOT_PARTITION_SCHEME="GPT + Active"
+				export WORKAROUND_GPTACTIVE=1
+			fi
+			;;
+		esac
+		;;
+	esac
+	#
+	# Motherboard Models
+	#
+	case "$sys_mb_maker" in
+	"Intel Corporation")
+		case "$sys_mb_product" in
+		"DP965LT")
+			dialog_workaround "$msg_gpt_active_fix"
+			retval=$?
+			f_dprintf "gpt_active_fix_prompt=[%s]" "$retval"
+			if [ $retval -eq $DIALOG_OK ]; then
+				export ZFSBOOT_PARTITION_SCHEME="GPT + Active"
+				export WORKAROUND_GPTACTIVE=1
+			fi
+			;;
+		esac
+		;;
+	esac
+fi
 
 PMODES="\
 \"Auto (UFS)\" \"Guided Disk Setup\" \

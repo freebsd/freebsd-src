@@ -587,7 +587,6 @@ ar724x_pci_intr(void *arg)
 	struct intr_event *event;
 	uint32_t reg, irq, mask;
 
-	ar71xx_device_ddr_flush_ip2();
 
 	reg = ATH_READ_REG(AR724X_PCI_INTR_STATUS);
 	mask = ATH_READ_REG(AR724X_PCI_INTR_MASK);
@@ -603,6 +602,9 @@ ar724x_pci_intr(void *arg)
 			printf("Stray IRQ %d\n", irq);
 			return (FILTER_STRAY);
 		}
+
+		/* Flush pending memory transactions */
+		ar71xx_device_flush_ddr(AR71XX_CPU_DDR_FLUSH_PCIE);
 
 		/* TODO: frame instead of NULL? */
 		intr_event_handle(event, NULL);

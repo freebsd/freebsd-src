@@ -68,7 +68,7 @@ int proto_busdma_detach(struct proto_softc *, struct proto_busdma *);
 int proto_busdma_cleanup(struct proto_softc *, struct proto_busdma *);
 
 int proto_busdma_ioctl(struct proto_softc *, struct proto_busdma *,
-    struct proto_ioc_busdma *);
+    struct proto_ioc_busdma *, struct thread *);
 
 int proto_busdma_mmap_allowed(struct proto_busdma *, vm_paddr_t);
 

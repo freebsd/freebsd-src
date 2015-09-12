@@ -13,8 +13,8 @@ SRCDIR=	tools/lldb/tools/driver
 SRCS=	Driver.cpp \
 	Platform.cpp
 
-lldb.1:
-	ln -fs ${LLDB_SRCS}/docs/lldb.1 ${.TARGET}
+# Man page directory
+.PATH: ${LLDB_SRCS}/docs
 
 LIBADD=	edit panel ncursesw execinfo z
 

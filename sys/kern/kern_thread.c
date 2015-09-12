@@ -60,6 +60,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 #include <vm/uma.h>
+#include <vm/vm_domain.h>
 #include <sys/eventhandler.h>
 
 SDT_PROVIDER_DECLARE(proc);
@@ -351,6 +352,7 @@ thread_alloc(int pages)
 		return (NULL);
 	}
 	cpu_thread_alloc(td);
+	vm_domain_policy_init(&td->td_vm_dom_policy);
 	return (td);
 }
 
@@ -380,6 +382,7 @@ thread_free(struct thread *td)
 	cpu_thread_free(td);
 	if (td->td_kstack != 0)
 		vm_thread_dispose(td);
+	vm_domain_policy_cleanup(&td->td_vm_dom_policy);
 	uma_zfree(thread_zone, td);
 }
 
@@ -406,9 +409,9 @@ void
 thread_cow_free(struct thread *td)
 {
 
-	if (td->td_ucred)
+	if (td->td_ucred != NULL)
 		crfree(td->td_ucred);
-	if (td->td_limit)
+	if (td->td_limit != NULL)
 		lim_free(td->td_limit);
 }
 
@@ -416,15 +419,27 @@ void
 thread_cow_update(struct thread *td)
 {
 	struct proc *p;
+	struct ucred *oldcred;
+	struct plimit *oldlimit;
 
 	p = td->td_proc;
+	oldcred = NULL;
+	oldlimit = NULL;
 	PROC_LOCK(p);
-	if (td->td_ucred != p->p_ucred)
-		cred_update_thread(td);
-	if (td->td_limit != p->p_limit)
-		lim_update_thread(td);
+	if (td->td_ucred != p->p_ucred) {
+		oldcred = td->td_ucred;
+		td->td_ucred = crhold(p->p_ucred);
+	}
+	if (td->td_limit != p->p_limit) {
+		oldlimit = td->td_limit;
+		td->td_limit = lim_hold(p->p_limit);
+	}
 	td->td_cowgen = p->p_cowgen;
 	PROC_UNLOCK(p);
+	if (oldcred != NULL)
+		crfree(oldcred);
+	if (oldlimit != NULL)
+		lim_free(oldlimit);
 }
 
 /*

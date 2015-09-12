@@ -128,6 +128,7 @@ johans [label="Johan Selst\njohans@FreeBSD.org\n2006/04/01"]
 josef [label="Josef El-Rayes\njosef@FreeBSD.org\n2004/12/20"]
 jpaetzel [label="Josh Paetzel\njpaetzel@FreeBSD.org\n2008/09/05"]
 jsa [label="Joseph S. Atkinson\njsa@FreeBSD.org\n2010/07/15"]
+junovitch [label="Jason Unovitch\njunovitch@FreeBSD.org\n2015/07/27"]
 jylefort [label="Jean-Yves Lefort\njylefort@FreeBSD.org\n2005/04/12"]
 kami [label="Dominic Fandrey\nkami@FreeBSD.org\n2014/09/09"]
 kevlo [label="Kevin Lo\nkevlo@FreeBSD.org\n2003/02/21"]
@@ -315,6 +316,7 @@ db -> tj
 
 decke -> sperber
 
+delphij -> junovitch
 delphij -> nemoliu
 delphij -> rafan
 
@@ -346,6 +348,8 @@ erwin -> gabor
 erwin -> lbr
 erwin -> lth
 erwin -> simon
+
+feld -> junovitch
 
 fjoe -> danfe
 fjoe -> flo
@@ -508,6 +512,7 @@ pawel -> nemysis
 pgj -> ashish
 pgj -> jacula
 
+pgollucci -> junovitch
 pgollucci -> sunpoet
 pgollucci -> swills
 

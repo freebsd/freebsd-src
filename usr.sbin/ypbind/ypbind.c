@@ -106,16 +106,16 @@ void	terminate(int);
 void	yp_restricted_mode(char *);
 int	verify(struct in_addr);
 
-char *domain_name;
-struct _dom_binding *ypbindlist;
+static char *domain_name;
+static struct _dom_binding *ypbindlist;
 static struct _dom_binding *broad_domain;
 
 #define YPSET_NO	0
 #define YPSET_LOCAL	1
 #define YPSET_ALL	2
-int ypsetmode = YPSET_NO;
-int ypsecuremode = 0;
-int ppid;
+static int ypsetmode = YPSET_NO;
+static int ypsecuremode = 0;
+static int ppid;
 
 #define NOT_RESPONDING_HYSTERESIS 10
 static int not_responding_count = 0;
@@ -126,9 +126,9 @@ static int not_responding_count = 0;
  * in restricted_addrs will be used for binding.
  */
 #define RESTRICTED_SERVERS 10
-int yp_restricted = 0;
-int yp_manycast = 0;
-struct in_addr restricted_addrs[RESTRICTED_SERVERS];
+static int yp_restricted = 0;
+static int yp_manycast = 0;
+static struct in_addr restricted_addrs[RESTRICTED_SERVERS];
 
 /* No more than MAX_CHILDREN child broadcasters at a time. */
 #ifndef MAX_CHILDREN
@@ -148,13 +148,13 @@ struct in_addr restricted_addrs[RESTRICTED_SERVERS];
 #define MAX_RETRIES 30
 #endif
 
-int retries = 0;
-int children = 0;
-int domains = 0;
-int yplockfd;
-fd_set fdsr;
+static int retries = 0;
+static int children = 0;
+static int domains = 0;
+static int yplockfd;
+static fd_set fdsr;
 
-SVCXPRT *udptransp, *tcptransp;
+static SVCXPRT *udptransp, *tcptransp;
 
 void *
 ypbindproc_null_2_yp(SVCXPRT *transp, void *argp, CLIENT *clnt)
@@ -165,7 +165,7 @@ ypbindproc_null_2_yp(SVCXPRT *transp, void *argp, CLIENT *clnt)
 	return &res;
 }
 
-struct ypbind_resp *
+static struct ypbind_resp *
 ypbindproc_domain_2_yp(SVCXPRT *transp, domainname *argp, CLIENT *clnt)
 {
 	static struct ypbind_resp res;
@@ -225,10 +225,10 @@ rejecting.", *argp);
 
 	res.ypbind_status = YPBIND_SUCC_VAL;
 	res.ypbind_resp_u.ypbind_error = 0; /* Success */
-	*(u_int32_t *)&res.ypbind_resp_u.ypbind_bindinfo.ypbind_binding_addr =
-		ypdb->dom_server_addr.sin_addr.s_addr;
-	*(u_short *)&res.ypbind_resp_u.ypbind_bindinfo.ypbind_binding_port =
-		ypdb->dom_server_addr.sin_port;
+	memcpy(&res.ypbind_resp_u.ypbind_bindinfo.ypbind_binding_addr,
+	    &ypdb->dom_server_addr.sin_addr.s_addr, sizeof(u_int32_t));
+	memcpy(&res.ypbind_resp_u.ypbind_bindinfo.ypbind_binding_port,
+	    &ypdb->dom_server_addr.sin_port, sizeof(u_short));
 	/*printf("domain %s at %s/%d\n", ypdb->dom_domain,
 		inet_ntoa(ypdb->dom_server_addr.sin_addr),
 		ntohs(ypdb->dom_server_addr.sin_port));*/
@@ -275,8 +275,12 @@ rejecting.", argp->ypsetdom_domain);
 
 	bzero(&bindsin, sizeof bindsin);
 	bindsin.sin_family = AF_INET;
-	bindsin.sin_addr.s_addr = *(u_int32_t *)argp->ypsetdom_binding.ypbind_binding_addr;
-	bindsin.sin_port = *(u_short *)argp->ypsetdom_binding.ypbind_binding_port;
+	memcpy(&bindsin.sin_addr.s_addr,
+	    &argp->ypsetdom_binding.ypbind_binding_addr,
+	    sizeof(u_int32_t));
+	memcpy(&bindsin.sin_port,
+	    &argp->ypsetdom_binding.ypbind_binding_port,
+	    sizeof(u_short));
 	rpc_received(argp->ypsetdom_domain, &bindsin, 1);
 
 	return((void *) &result);
@@ -615,9 +619,8 @@ tell_parent(char *dom, struct sockaddr_in *addr)
 	return (0);
 }
 
-bool_t broadcast_result(out, addr)
-bool_t *out;
-struct sockaddr_in *addr;
+static bool_t
+broadcast_result(bool_t *out, struct sockaddr_in *addr)
 {
 	if (retries >= MAX_RETRIES) {
 		bzero(addr, sizeof(struct sockaddr_in));
@@ -945,8 +948,10 @@ rpc_received(char *dom, struct sockaddr_in *raddrp, int force)
 
 	bzero(&ybr, sizeof ybr);
 	ybr.ypbind_status = YPBIND_SUCC_VAL;
-	*(u_int32_t *)&ybr.ypbind_resp_u.ypbind_bindinfo.ypbind_binding_addr = raddrp->sin_addr.s_addr;
-	*(u_short *)&ybr.ypbind_resp_u.ypbind_bindinfo.ypbind_binding_port = raddrp->sin_port;
+	memcpy(&ybr.ypbind_resp_u.ypbind_bindinfo.ypbind_binding_addr,
+	    &raddrp->sin_addr.s_addr, sizeof(u_int32_t));
+	memcpy(&ybr.ypbind_resp_u.ypbind_bindinfo.ypbind_binding_port,
+	    &raddrp->sin_port, sizeof(u_short));
 
 	if (writev(ypdb->dom_lockfd, iov, 2) != iov[0].iov_len + iov[1].iov_len) {
 		syslog(LOG_WARNING, "write: %m");

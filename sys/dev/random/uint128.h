@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2014 Mark R V Murray
+ * Copyright (c) 2015 Mark R V Murray
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,7 +27,7 @@
  */
 
 #ifndef SYS_DEV_RANDOM_UINT128_H_INCLUDED
-#define SYS_DEV_RANDOM_UINT128_H_INCLUDED
+#define	SYS_DEV_RANDOM_UINT128_H_INCLUDED
 
 /* This whole thing is a crock :-(
  *
@@ -35,40 +35,41 @@
  */
 
 #ifdef __SIZEOF_INT128__
+#define	USE_REAL_UINT128_T
+#endif
+
+#ifdef USE_REAL_UINT128_T
 typedef __uint128_t uint128_t;
+#define	UINT128_ZERO 0ULL
 #else
-typedef uint64_t uint128_t[2];
+typedef struct {
+	/* Ignore endianness */
+	uint64_t u128t_word0;
+	uint64_t u128t_word1;
+} uint128_t;
+static const uint128_t very_long_zero = {0UL,0UL};
+#define	UINT128_ZERO very_long_zero
 #endif
 
 static __inline void
-uint128_clear(uint128_t *big_uint)
+uint128_increment(uint128_t *big_uintp)
 {
-#ifdef __SIZEOF_INT128__
-	(*big_uint) = 0ULL;
+#ifdef USE_REAL_UINT128_T
+	(*big_uintp)++;
 #else
-	(*big_uint)[0] = (*big_uint)[1] = 0UL;
-#endif
-}
-
-static __inline void
-uint128_increment(uint128_t *big_uint)
-{
-#ifdef __SIZEOF_INT128__
-	(*big_uint)++;
-#else
-	(*big_uint)[0]++;
-	if ((*big_uint)[0] == 0UL)
-		(*big_uint)[1]++;
+	big_uintp->u128t_word0++;
+	if (big_uintp->u128t_word0 == 0UL)
+		big_uintp->u128t_word1++;
 #endif
 }
 
 static __inline int
 uint128_is_zero(uint128_t big_uint)
 {
-#ifdef __SIZEOF_INT128__
-	return (big_uint == 0ULL);
+#ifdef USE_REAL_UINT128_T
+	return (big_uint == UINT128_ZERO);
 #else
-	return (big_uint[0] == 0UL && big_uint[1] == 0UL);
+	return (big_uint.u128t_word0 == 0UL && big_uint.u128t_word1 == 0UL);
 #endif
 }
 

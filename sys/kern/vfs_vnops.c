@@ -1589,22 +1589,10 @@ vn_closefile(fp, td)
 }
 
 static bool
-vn_suspendable_mp(struct mount *mp)
+vn_suspendable(struct mount *mp)
 {
 
-	return ((mp->mnt_kern_flag & MNTK_SUSPENDABLE) != 0);
-}
-
-static bool
-vn_suspendable(struct vnode *vp, struct mount **mpp)
-{
-
-	if (vp != NULL)
-		*mpp = vp->v_mount;
-	if (*mpp == NULL)
-		return (false);
-
-	return (vn_suspendable_mp(*mpp));
+	return (mp->mnt_op->vfs_susp_clean != NULL);
 }
 
 /*
@@ -1657,11 +1645,6 @@ vn_start_write(struct vnode *vp, struct mount **mpp, int flags)
 
 	KASSERT((flags & V_MNTREF) == 0 || (*mpp != NULL && vp == NULL),
 	    ("V_MNTREF requires mp"));
-	if (!vn_suspendable(vp, mpp)) {
-		if ((flags & V_MNTREF) != 0)
-			vfs_rel(*mpp);
-		return (0);
-	}
 
 	error = 0;
 	/*
@@ -1678,6 +1661,12 @@ vn_start_write(struct vnode *vp, struct mount **mpp, int flags)
 	}
 	if ((mp = *mpp) == NULL)
 		return (0);
+
+	if (!vn_suspendable(mp)) {
+		if (vp != NULL || (flags & V_MNTREF) != 0)
+			vfs_rel(mp);
+		return (0);
+	}
 
 	/*
 	 * VOP_GETWRITEMOUNT() returns with the mp refcount held through
@@ -1708,11 +1697,6 @@ vn_start_secondary_write(struct vnode *vp, struct mount **mpp, int flags)
 
 	KASSERT((flags & V_MNTREF) == 0 || (*mpp != NULL && vp == NULL),
 	    ("V_MNTREF requires mp"));
-	if (!vn_suspendable(vp, mpp)) {
-		if ((flags & V_MNTREF) != 0)
-			vfs_rel(*mpp);
-		return (0);
-	}
 
  retry:
 	if (vp != NULL) {
@@ -1729,6 +1713,12 @@ vn_start_secondary_write(struct vnode *vp, struct mount **mpp, int flags)
 	 */
 	if ((mp = *mpp) == NULL)
 		return (0);
+
+	if (!vn_suspendable(mp)) {
+		if (vp != NULL || (flags & V_MNTREF) != 0)
+			vfs_rel(mp);
+		return (0);
+	}
 
 	/*
 	 * VOP_GETWRITEMOUNT() returns with the mp refcount held through
@@ -1772,7 +1762,7 @@ void
 vn_finished_write(mp)
 	struct mount *mp;
 {
-	if (mp == NULL || !vn_suspendable_mp(mp))
+	if (mp == NULL || !vn_suspendable(mp))
 		return;
 	MNT_ILOCK(mp);
 	MNT_REL(mp);
@@ -1795,7 +1785,7 @@ void
 vn_finished_secondary_write(mp)
 	struct mount *mp;
 {
-	if (mp == NULL || !vn_suspendable_mp(mp))
+	if (mp == NULL || !vn_suspendable(mp))
 		return;
 	MNT_ILOCK(mp);
 	MNT_REL(mp);
@@ -1818,7 +1808,7 @@ vfs_write_suspend(struct mount *mp, int flags)
 {
 	int error;
 
-	MPASS(vn_suspendable_mp(mp));
+	MPASS(vn_suspendable(mp));
 
 	MNT_ILOCK(mp);
 	if (mp->mnt_susp_owner == curthread) {
@@ -1861,7 +1851,7 @@ void
 vfs_write_resume(struct mount *mp, int flags)
 {
 
-	MPASS(vn_suspendable_mp(mp));
+	MPASS(vn_suspendable(mp));
 
 	MNT_ILOCK(mp);
 	if ((mp->mnt_kern_flag & MNTK_SUSPEND) != 0) {
@@ -1896,7 +1886,7 @@ vfs_write_suspend_umnt(struct mount *mp)
 {
 	int error;
 
-	MPASS(vn_suspendable_mp(mp));
+	MPASS(vn_suspendable(mp));
 	KASSERT((curthread->td_pflags & TDP_IGNSUSP) == 0,
 	    ("vfs_write_suspend_umnt: recursed"));
 

@@ -10,11 +10,11 @@
 .ds B-Font B
 .ds I-Font I
 .ds R-Font R
-.TH ntp-keygen 1ntp-keygenman "07 Apr 2015" "ntp (4.2.8p2)" "User Commands"
+.TH ntp-keygen 1ntp-keygenman "29 Jun 2015" "ntp (4.2.8p3)" "User Commands"
 .\"
-.\" EDIT THIS FILE WITH CAUTION (/tmp/.ag-Kfaqzc/ag-Wfaiyc)
+.\" EDIT THIS FILE WITH CAUTION (/tmp/.ag-M4aiZI/ag-Y4aaYI)
 .\"
-.\" It has been AutoGen-ed April 7, 2015 at 04:27:42 AM by AutoGen 5.18.5pre4
+.\" It has been AutoGen-ed June 29, 2015 at 04:32:11 PM by AutoGen 5.18.5
 .\" From the definitions ntp-keygen-opts.def
 .\" and the template file agman-cmd.tpl
 .SH NAME
@@ -63,9 +63,9 @@ The message digest keys file must be distributed and stored
 using secure means beyond the scope of NTP itself.
 Besides the keys used for ordinary NTP associations, additional keys
 can be defined as passwords for the
-\fCntpq\fR(1ntpqmdoc)\f[]
+\fCntpq\f[]\fR(1ntpqmdoc)\f[]
 and
-\fCntpdc\fR(1ntpdcmdoc)\f[]
+\fCntpdc\f[]\fR(1ntpdcmdoc)\f[]
 utility programs.
 .sp \n(Ppu
 .ne 2
@@ -87,7 +87,7 @@ option specifies the password for local encrypted files and the
 \f\*[B-Font]\-q\f[]
 option the password for encrypted files sent to remote sites.
 If no password is specified, the host name returned by the Unix
-\fBgethostname\fR()\f[]
+\fBgethostname\f[]\fR()\f[]
 function, normally the DNS name of the host is used.
 .sp \n(Ppu
 .ne 2
@@ -204,7 +204,7 @@ page.
 .ne 2
 
 The
-\fCntpd\fR(1ntpdmdoc)\f[]
+\fCntpd\f[]\fR(1ntpdmdoc)\f[]
 configuration command
 \f\*[B-Font]crypto\f[] \f\*[B-Font]pw\f[] \f\*[I-Font]password\f[]
 specifies the read password for previously encrypted files.
@@ -278,7 +278,7 @@ by changing the link.
 If a link is present, ntpd follows it to the file name
 to extract the filestamp.
 If a link is not present,
-\fCntpd\fR(1ntpdmdoc)\f[]
+\fCntpd\f[]\fR(1ntpdmdoc)\f[]
 extracts the filestamp from the file itself.
 This allows clients to verify that the file and generation times
 are always current.
@@ -412,7 +412,7 @@ by changing the link.
 If a link is present, ntpd follows it to the file name
 to extract the filestamp.
 If a link is not present,
-\fCntpd\fR(1ntpdmdoc)\f[]
+\fCntpd\f[]\fR(1ntpdmdoc)\f[]
 extracts the filestamp from the file itself.
 This allows clients to verify that the file and generation times
 are always current.
@@ -516,7 +516,7 @@ and identification scheme, called a cryptotype,
 as explained in the
 \fIAuthentication\f[] \fIOptions\f[]
 section of
-\fCntp.conf\fR(5)\f[].
+\fCntp.conf\f[]\fR(5)\f[].
 The default cryptotype uses RSA encryption, MD5 message digest
 and TC identification.
 First, configure a NTP subnet including one or more low-stratum
@@ -532,7 +532,7 @@ The trail is defined by static configuration file entries
 or dynamic means described on the
 \fIAutomatic\f[] \fINTP\f[] \fIConfiguration\f[] \fIOptions\f[]
 section of
-\fCntp.conf\fR(5)\f[].
+\fCntp.conf\f[]\fR(5)\f[].
 .sp \n(Ppu
 .ne 2
 
@@ -588,10 +588,10 @@ Simply run
 with the same flags as before to generate new certificates
 using existing keys.
 However, if the host or sign key is changed,
-\fCntpd\fR(1ntpdmdoc)\f[]
+\fCntpd\f[]\fR(1ntpdmdoc)\f[]
 should be restarted.
 When
-\fCntpd\fR(1ntpdmdoc)\f[]
+\fCntpd\f[]\fR(1ntpdmdoc)\f[]
 is restarted, it loads any new files and restarts the protocol.
 Other dependent hosts will continue as usual until signatures are refreshed,
 at which time the protocol is restarted.
@@ -888,7 +888,7 @@ The second contains the datestamp in conventional Unix date format.
 Lines beginning with # are considered comments and ignored by the
 \f\*[B-Font]ntp-keygen\fP
 program and
-\fCntpd\fR(1ntpdmdoc)\f[]
+\fCntpd\f[]\fR(1ntpdmdoc)\f[]
 daemon.
 Cryptographic values are encoded first using ASN.1 rules,
 then encrypted if necessary, and finally written PEM-encoded
@@ -921,9 +921,9 @@ character.
 .ne 2
 
 Note that the keys used by the
-\fCntpq\fR(1ntpqmdoc)\f[]
+\fCntpq\f[]\fR(1ntpqmdoc)\f[]
 and
-\fCntpdc\fR(1ntpdcmdoc)\f[]
+\fCntpdc\f[]\fR(1ntpdcmdoc)\f[]
 programs
 are checked against passwords requested by the programs
 and entered by hand, so it is generally appropriate to specify these keys
@@ -948,9 +948,9 @@ or automated means on the other subnet hosts.
 While this file is not used with the Autokey Version 2 protocol,
 it is needed to authenticate some remote configuration commands
 used by the
-\fCntpq\fR(1ntpqmdoc)\f[]
+\fCntpq\f[]\fR(1ntpqmdoc)\f[]
 and
-\fCntpdc\fR(1ntpdcmdoc)\f[]
+\fCntpdc\f[]\fR(1ntpdcmdoc)\f[]
 utilities.
 .SH "OPTIONS"
 .TP

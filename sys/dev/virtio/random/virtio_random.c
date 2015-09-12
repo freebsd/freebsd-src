@@ -215,7 +215,7 @@ vtrnd_harvest(struct vtrnd_softc *sc)
 	virtqueue_notify(vq);
 	virtqueue_poll(vq, NULL);
 
-	random_harvest(&value, sizeof(value), sizeof(value) * NBBY / 2,
+	random_harvest_queue(&value, sizeof(value), sizeof(value) * NBBY / 2,
 	    RANDOM_PURE_VIRTIO);
 }
 

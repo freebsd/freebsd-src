@@ -39,6 +39,8 @@
 
 #include <string.h>
 
+#include "interface.h"
+
 /*
  * Get next token from string *stringp, where tokens are possibly-empty
  * strings separated by characters from delim.

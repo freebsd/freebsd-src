@@ -86,6 +86,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_map.h>
 #include <vm/vm_page.h>
 #include <vm/uma.h>
+#include <vm/vm_domain.h>
 
 #ifdef KDTRACE_HOOKS
 #include <sys/dtrace_bsd.h>
@@ -174,7 +175,7 @@ void
 sys_sys_exit(struct thread *td, struct sys_exit_args *uap)
 {
 
-	exit1(td, W_EXITCODE(uap->rval, 0));
+	exit1(td, uap->rval, 0);
 	/* NOTREACHED */
 }
 
@@ -184,13 +185,14 @@ sys_sys_exit(struct thread *td, struct sys_exit_args *uap)
  * and rusage for wait().  Check for child processes and orphan them.
  */
 void
-exit1(struct thread *td, int rv)
+exit1(struct thread *td, int rval, int signo)
 {
 	struct proc *p, *nq, *q, *t;
 	struct thread *tdt;
 	struct vnode *ttyvp = NULL;
 
 	mtx_assert(&Giant, MA_NOTOWNED);
+	KASSERT(rval == 0 || signo == 0, ("exit1 rv %d sig %d", rval, signo));
 
 	p = td->td_proc;
 	/*
@@ -199,8 +201,7 @@ exit1(struct thread *td, int rv)
 	 * shutdown on sparc64 when the gmirror worker process exists.
 	 */
 	if (p == initproc && rebooting == 0) {
-		printf("init died (signal %d, exit %d)\n",
-		    WTERMSIG(rv), WEXITSTATUS(rv));
+		printf("init died (signal %d, exit %d)\n", signo, rval);
 		panic("Going nowhere without my init!");
 	}
 
@@ -256,6 +257,11 @@ exit1(struct thread *td, int rv)
 	KASSERT(p->p_numthreads == 1,
 	    ("exit1: proc %p exiting with %d threads", p, p->p_numthreads));
 	racct_sub(p, RACCT_NTHR, 1);
+
+	/* Let event handler change exit status */
+	p->p_xexit = rval;
+	p->p_xsig = signo;
+
 	/*
 	 * Wakeup anyone in procfs' PIOCWAIT.  They should have a hold
 	 * on our vmspace, so we should block below until they have
@@ -263,7 +269,7 @@ exit1(struct thread *td, int rv)
 	 * requested S_EXIT stops we will block here until they ack
 	 * via PIOCCONT.
 	 */
-	_STOPEVENT(p, S_EXIT, rv);
+	_STOPEVENT(p, S_EXIT, 0);
 
 	/*
 	 * Ignore any pending request to stop due to a stop signal.
@@ -288,7 +294,6 @@ exit1(struct thread *td, int rv)
 	while (p->p_lock > 0)
 		msleep(&p->p_lock, &p->p_mtx, PWAIT, "exithold", 0);
 
-	p->p_xstat = rv;	/* Let event handler change exit status */
 	PROC_UNLOCK(p);
 	/* Drain the limit callout while we don't have the proc locked */
 	callout_drain(&p->p_limco);
@@ -300,7 +305,7 @@ exit1(struct thread *td, int rv)
 	 * it was.  The exit status is WEXITSTATUS(rv), but it's not clear
 	 * what the return value is.
 	 */
-	AUDIT_ARG_EXIT(WEXITSTATUS(rv), 0);
+	AUDIT_ARG_EXIT(rval, 0);
 	AUDIT_SYSCALL_EXIT(0, td);
 #endif
 
@@ -321,7 +326,8 @@ exit1(struct thread *td, int rv)
 
 	/*
 	 * Check if any loadable modules need anything done at process exit.
-	 * E.g. SYSV IPC stuff
+	 * E.g. SYSV IPC stuff.
+	 * Event handler could change exit status.
 	 * XXX what if one of these generates an error?
 	 */
 	EVENTHANDLER_INVOKE(process_exit, p);
@@ -331,7 +337,6 @@ exit1(struct thread *td, int rv)
 	 * P_PPWAIT is set; we will wakeup the parent below.
 	 */
 	PROC_LOCK(p);
-	rv = p->p_xstat;	/* Event handler could change exit status */
 	stopprofclock(p);
 	p->p_flag &= ~(P_TRACED | P_PPWAIT | P_PPTRACE);
 
@@ -560,9 +565,9 @@ exit1(struct thread *td, int rv)
 
 #ifdef KDTRACE_HOOKS
 	int reason = CLD_EXITED;
-	if (WCOREDUMP(rv))
+	if (WCOREDUMP(signo))
 		reason = CLD_DUMPED;
-	else if (WIFSIGNALED(rv))
+	else if (WIFSIGNALED(signo))
 		reason = CLD_KILLED;
 	SDT_PROBE(proc, kernel, , exit, reason, 0, 0, 0, 0);
 #endif
@@ -741,7 +746,7 @@ out:
 	sbuf_finish(sb);
 	log(LOG_INFO, "%s", sbuf_data(sb));
 	sbuf_delete(sb);
-	exit1(td, W_EXITCODE(0, sig));
+	exit1(td, 0, sig);
 	return (0);
 }
 
@@ -839,9 +844,8 @@ proc_reap(struct thread *td, struct proc *p, int *status, int options)
 	q = td->td_proc;
 
 	PROC_SUNLOCK(p);
-	td->td_retval[0] = p->p_pid;
 	if (status)
-		*status = p->p_xstat;	/* convert to int */
+		*status = KW_EXITCODE(p->p_xexit, p->p_xsig);
 	if (options & WNOWAIT) {
 		/*
 		 *  Only poll, returning the status.  Caller does not wish to
@@ -905,7 +909,7 @@ proc_reap(struct thread *td, struct proc *p, int *status, int options)
 	 * nothing can reach this process anymore. As such further locking
 	 * is unnecessary.
 	 */
-	p->p_xstat = 0;		/* XXX: why? */
+	p->p_xexit = p->p_xsig = 0;		/* XXX: why? */
 
 	PROC_LOCK(q);
 	ruadd(&q->p_stats->p_cru, &q->p_crux, &p->p_ru, &p->p_rux);
@@ -951,6 +955,11 @@ proc_reap(struct thread *td, struct proc *p, int *status, int options)
 #ifdef MAC
 	mac_proc_destroy(p);
 #endif
+	/*
+	 * Free any domain policy that's still hiding around.
+	 */
+	vm_domain_policy_cleanup(&p->p_vm_dom_policy);
+
 	KASSERT(FIRST_THREAD_IN_PROC(p),
 	    ("proc_reap: no residual thread!"));
 	uma_zfree(proc_zone, p);
@@ -1059,15 +1068,15 @@ proc_to_reap(struct thread *td, struct proc *p, idtype_t idtype, id_t id,
 		 *  This is still a rough estimate.  We will fix the
 		 *  cases TRAPPED, STOPPED, and CONTINUED later.
 		 */
-		if (WCOREDUMP(p->p_xstat)) {
+		if (WCOREDUMP(p->p_xsig)) {
 			siginfo->si_code = CLD_DUMPED;
-			siginfo->si_status = WTERMSIG(p->p_xstat);
-		} else if (WIFSIGNALED(p->p_xstat)) {
+			siginfo->si_status = WTERMSIG(p->p_xsig);
+		} else if (WIFSIGNALED(p->p_xsig)) {
 			siginfo->si_code = CLD_KILLED;
-			siginfo->si_status = WTERMSIG(p->p_xstat);
+			siginfo->si_status = WTERMSIG(p->p_xsig);
 		} else {
 			siginfo->si_code = CLD_EXITED;
-			siginfo->si_status = WEXITSTATUS(p->p_xstat);
+			siginfo->si_status = p->p_xexit;
 		}
 
 		siginfo->si_pid = p->p_pid;
@@ -1153,6 +1162,7 @@ kern_wait6(struct thread *td, idtype_t idtype, id_t id, int *status,
     int options, struct __wrusage *wrusage, siginfo_t *siginfo)
 {
 	struct proc *p, *q;
+	pid_t pid;
 	int error, nfound, ret;
 
 	AUDIT_ARG_VALUE((int)idtype);	/* XXX - This is likely wrong! */
@@ -1191,14 +1201,17 @@ loop:
 	nfound = 0;
 	sx_xlock(&proctree_lock);
 	LIST_FOREACH(p, &q->p_children, p_sibling) {
+		pid = p->p_pid;
 		ret = proc_to_reap(td, p, idtype, id, status, options,
 		    wrusage, siginfo, 0);
 		if (ret == 0)
 			continue;
 		else if (ret == 1)
 			nfound++;
-		else
+		else {
+			td->td_retval[0] = pid;
 			return (0);
+		}
 
 		PROC_LOCK(p);
 		PROC_SLOCK(p);
@@ -1212,12 +1225,11 @@ loop:
 			if ((options & WNOWAIT) == 0)
 				p->p_flag |= P_WAITED;
 			sx_xunlock(&proctree_lock);
-			td->td_retval[0] = p->p_pid;
 
 			if (status != NULL)
-				*status = W_STOPCODE(p->p_xstat);
+				*status = W_STOPCODE(p->p_xsig);
 			if (siginfo != NULL) {
-				siginfo->si_status = p->p_xstat;
+				siginfo->si_status = p->p_xsig;
 				siginfo->si_code = CLD_TRAPPED;
 			}
 			if ((options & WNOWAIT) == 0) {
@@ -1228,9 +1240,10 @@ loop:
 
 			CTR4(KTR_PTRACE,
 	    "wait: returning trapped pid %d status %#x (xstat %d) xthread %d",
-			    p->p_pid, W_STOPCODE(p->p_xstat), p->p_xstat,
+			    p->p_pid, W_STOPCODE(p->p_xsig), p->p_xsig,
 			    p->p_xthread != NULL ? p->p_xthread->td_tid : -1);
 			PROC_UNLOCK(p);
+			td->td_retval[0] = pid;
 			return (0);
 		}
 		if ((options & WUNTRACED) != 0 &&
@@ -1241,12 +1254,11 @@ loop:
 			if ((options & WNOWAIT) == 0)
 				p->p_flag |= P_WAITED;
 			sx_xunlock(&proctree_lock);
-			td->td_retval[0] = p->p_pid;
 
 			if (status != NULL)
-				*status = W_STOPCODE(p->p_xstat);
+				*status = W_STOPCODE(p->p_xsig);
 			if (siginfo != NULL) {
-				siginfo->si_status = p->p_xstat;
+				siginfo->si_status = p->p_xsig;
 				siginfo->si_code = CLD_STOPPED;
 			}
 			if ((options & WNOWAIT) == 0) {
@@ -1256,13 +1268,13 @@ loop:
 			}
 
 			PROC_UNLOCK(p);
+			td->td_retval[0] = pid;
 			return (0);
 		}
 		PROC_SUNLOCK(p);
 		if ((options & WCONTINUED) != 0 &&
 		    (p->p_flag & P_CONTINUED) != 0) {
 			sx_xunlock(&proctree_lock);
-			td->td_retval[0] = p->p_pid;
 			if ((options & WNOWAIT) == 0) {
 				p->p_flag &= ~P_CONTINUED;
 				PROC_LOCK(q);
@@ -1277,6 +1289,7 @@ loop:
 				siginfo->si_status = SIGCONT;
 				siginfo->si_code = CLD_CONTINUED;
 			}
+			td->td_retval[0] = pid;
 			return (0);
 		}
 		PROC_UNLOCK(p);

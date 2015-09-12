@@ -5,12 +5,12 @@
 
 PROG=	ls
 SRCS=	cmp.c ls.c print.c util.c
-LIBADD=	util
+LIBADD=	util xo
 
 .if !defined(RELEASE_CRUNCH) && \
 	${MK_LS_COLORS} != no
 CFLAGS+= -DCOLORLS
-LIBADD+=	termcapw xo
+LIBADD+=	termcapw
 .endif
 
 .include <bsd.prog.mk>

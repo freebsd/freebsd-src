@@ -248,12 +248,25 @@ MTX_SYSINIT(miibus_mtx, &miibus_mtx, "arge mii lock", MTX_DEF);
 
 /*
  * Flushes all
+ *
+ * XXX this needs to be done at interrupt time! Grr!
  */
 static void
 arge_flush_ddr(struct arge_softc *sc)
 {
-
-	ar71xx_device_flush_ddr_ge(sc->arge_mac_unit);
+	switch (sc->arge_mac_unit) {
+	case 0:
+		ar71xx_device_flush_ddr(AR71XX_CPU_DDR_FLUSH_GE0);
+		break;
+	case 1:
+		ar71xx_device_flush_ddr(AR71XX_CPU_DDR_FLUSH_GE1);
+		break;
+	default:
+		device_printf(sc->arge_dev, "%s: unknown unit (%d)\n",
+		    __func__,
+		    sc->arge_mac_unit);
+		break;
+	}
 }
 
 static int
@@ -2358,6 +2371,7 @@ arge_intr(void *arg)
 	}
 
 	ARGE_LOCK(sc);
+	arge_flush_ddr(sc);
 
 	if (status & DMA_INTR_RX_PKT_RCVD)
 		arge_rx_locked(sc);

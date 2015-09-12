@@ -544,7 +544,7 @@ mkinit(tnode_t *tn)
 		goto end;
 
 	/*
-	 * Store the tree memory. This is nessesary because otherwise
+	 * Store the tree memory. This is necessary because otherwise
 	 * expr() would free it.
 	 */
 	tmem = tsave();

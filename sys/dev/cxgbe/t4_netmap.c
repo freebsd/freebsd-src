@@ -77,6 +77,15 @@ int holdoff_tmr_idx = 2;
 SYSCTL_INT(_hw_cxgbe, OID_AUTO, nm_holdoff_tmr_idx, CTLFLAG_RWTUN,
     &holdoff_tmr_idx, 0, "Holdoff timer index for netmap rx queues.");
 
+/*
+ * Congestion drops.
+ * -1: no congestion feedback (not recommended).
+ *  0: backpressure the channel instead of dropping packets right away.
+ *  1: no backpressure, drop packets for the congested queue immediately.
+ */
+static int nm_cong_drop = 1;
+TUNABLE_INT("hw.cxgbe.nm_cong_drop", &nm_cong_drop);
+
 /* netmap ifnet routines */
 static void cxgbe_nm_init(void *);
 static int cxgbe_nm_ioctl(struct ifnet *, unsigned long, caddr_t);
@@ -405,8 +414,8 @@ alloc_nm_txq_hwq(struct port_info *pi, struct sge_nm_txq *nm_txq)
 	    V_FW_EQ_ETH_CMD_VFN(0));
 	c.alloc_to_len16 = htobe32(F_FW_EQ_ETH_CMD_ALLOC |
 	    F_FW_EQ_ETH_CMD_EQSTART | FW_LEN16(c));
-	c.autoequiqe_to_viid = htobe32(F_FW_EQ_ETH_CMD_AUTOEQUEQE |
-	    V_FW_EQ_ETH_CMD_VIID(pi->nm_viid));
+	c.autoequiqe_to_viid = htobe32(F_FW_EQ_ETH_CMD_AUTOEQUIQE |
+	    F_FW_EQ_ETH_CMD_AUTOEQUEQE | V_FW_EQ_ETH_CMD_VIID(pi->nm_viid));
 	c.fetchszm_to_iqid =
 	    htobe32(V_FW_EQ_ETH_CMD_HOSTFCMODE(X_HOSTFCMODE_NONE) |
 		V_FW_EQ_ETH_CMD_PCIECHN(pi->tx_chan) | F_FW_EQ_ETH_CMD_FETCHRO |
@@ -503,7 +512,7 @@ cxgbe_netmap_on(struct adapter *sc, struct port_info *pi, struct ifnet *ifp,
 	nm_set_native_flags(na);
 
 	for_each_nm_rxq(pi, i, nm_rxq) {
-		alloc_nm_rxq_hwq(pi, nm_rxq, tnl_cong(pi));
+		alloc_nm_rxq_hwq(pi, nm_rxq, tnl_cong(pi, nm_cong_drop));
 		nm_rxq->fl_hwidx = hwidx;
 		slot = netmap_reset(na, NR_RX, i, 0);
 		MPASS(slot != NULL);	/* XXXNM: error check, not assert */
@@ -908,8 +917,6 @@ cxgbe_netmap_txsync(struct netmap_kring *kring, int flags)
 			kring->nr_hwtail -= kring->nkr_num_slots;
 	}
 
-	nm_txsync_finalize(kring);
-
 	return (0);
 }
 
@@ -922,7 +929,7 @@ cxgbe_netmap_rxsync(struct netmap_kring *kring, int flags)
 	struct port_info *pi = ifp->if_softc;
 	struct adapter *sc = pi->adapter;
 	struct sge_nm_rxq *nm_rxq = &sc->sge.nm_rxq[pi->first_nm_rxq + kring->ring_id];
-	u_int const head = nm_rxsync_prologue(kring);
+	u_int const head = kring->rhead;
 	u_int n;
 	int force_update = (flags & NAF_FORCE_READ) || kring->nr_kflags & NKR_PENDINTR;
 
@@ -983,8 +990,6 @@ cxgbe_netmap_rxsync(struct netmap_kring *kring, int flags)
 			    nm_rxq->fl_db_val | V_PIDX(dbinc));
 		}
 	}
-
-	nm_rxsync_finalize(kring);
 
 	return (0);
 }

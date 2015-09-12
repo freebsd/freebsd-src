@@ -144,7 +144,6 @@ typedef enum {
 } cfi_lun_state;
 
 struct cfi_lun {
-	struct ctl_id target_id;
 	int lun_id;
 	struct scsi_inquiry_data inq_data;
 	uint64_t num_blocks;
@@ -192,8 +191,8 @@ int cfi_init(void);
 void cfi_shutdown(void) __unused;
 static void cfi_online(void *arg);
 static void cfi_offline(void *arg);
-static int cfi_lun_enable(void *arg, struct ctl_id target_id, int lun_id);
-static int cfi_lun_disable(void *arg, struct ctl_id target_id, int lun_id);
+static int cfi_lun_enable(void *arg, int lun_id);
+static int cfi_lun_disable(void *arg, int lun_id);
 static void cfi_datamove(union ctl_io *io);
 static cfi_error_action cfi_checkcond_parse(union ctl_io *io,
 					    struct cfi_lun_io *lun_io);
@@ -324,7 +323,7 @@ cfi_offline(void *arg)
 }
 
 static int
-cfi_lun_enable(void *arg, struct ctl_id target_id, int lun_id)
+cfi_lun_enable(void *arg, int lun_id)
 {
 	struct cfi_softc *softc;
 	struct cfi_lun *lun;
@@ -335,8 +334,7 @@ cfi_lun_enable(void *arg, struct ctl_id target_id, int lun_id)
 	found = 0;
 	mtx_lock(&softc->lock);
 	STAILQ_FOREACH(lun, &softc->lun_list, links) {
-		if ((lun->target_id.id == target_id.id)
-		 && (lun->lun_id == lun_id)) {
+		if (lun->lun_id == lun_id) {
 			found = 1;
 			break;
 		}
@@ -356,7 +354,6 @@ cfi_lun_enable(void *arg, struct ctl_id target_id, int lun_id)
 		return (1);
 	}
 
-	lun->target_id = target_id;
 	lun->lun_id = lun_id;
 	lun->cur_tag_num = 0;
 	lun->state = CFI_LUN_INQUIRY;
@@ -373,7 +370,7 @@ cfi_lun_enable(void *arg, struct ctl_id target_id, int lun_id)
 }
 
 static int
-cfi_lun_disable(void *arg, struct ctl_id target_id, int lun_id)
+cfi_lun_disable(void *arg, int lun_id)
 {
 	struct cfi_softc *softc;
 	struct cfi_lun *lun;
@@ -391,8 +388,7 @@ cfi_lun_disable(void *arg, struct ctl_id target_id, int lun_id)
 	 */
 	mtx_lock(&softc->lock);
 	STAILQ_FOREACH(lun, &softc->lun_list, links) {
-		if ((lun->target_id.id == target_id.id)
-		 && (lun->lun_id == lun_id)) {
+		if (lun->lun_id == lun_id) {
 			found = 1;
 			break;
 		}
@@ -403,8 +399,7 @@ cfi_lun_disable(void *arg, struct ctl_id target_id, int lun_id)
 	mtx_unlock(&softc->lock);
 
 	if (found == 0) {
-		printf("%s: can't find target %ju lun %d\n", __func__,
-		       (uintmax_t)target_id.id, lun_id);
+		printf("%s: can't find lun %d\n", __func__, lun_id);
 		return (1);
 	}
 
@@ -700,7 +695,7 @@ cfi_init_io(union ctl_io *io, struct cfi_lun *lun,
 
 	io->io_hdr.nexus.initid.id = 7;
 	io->io_hdr.nexus.targ_port = lun->softc->port.targ_port;
-	io->io_hdr.nexus.targ_target.id = lun->target_id.id;
+	io->io_hdr.nexus.targ_target.id = 0;
 	io->io_hdr.nexus.targ_lun = lun->lun_id;
 	io->io_hdr.retries = retries;
 	lun_io = (struct cfi_lun_io *)io->io_hdr.port_priv;
@@ -1008,8 +1003,7 @@ cfi_lun_probe(struct cfi_lun *lun, int have_lock)
 				 M_CTL_CFI, M_NOWAIT);
 		if (dataptr == NULL) {
 			printf("%s: unable to allocate SCSI read capacity "
-			       "buffer for target %ju lun %d\n", __func__,
-			       (uintmax_t)lun->target_id.id, lun->lun_id);
+			       "buffer for lun %d\n", __func__, lun->lun_id);
 			return;
 		}
 		if (lun->state == CFI_LUN_READCAPACITY) {

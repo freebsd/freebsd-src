@@ -280,10 +280,7 @@ recurse:
 	        if (ndo->ndo_eflag) {
 	        	uint16_t tag = EXTRACT_16BITS(p);
 
-			ND_PRINT((ndo, "vlan %u, p %u%s, ",
-			    tag & 0xfff,
-			    tag >> 13,
-			    (tag & 0x1000) ? ", CFI" : ""));
+			ND_PRINT((ndo, "%s, ", ieee8021q_tci_string(tag)));
 		}
 
 		ether_type = EXTRACT_16BITS(p + 2);

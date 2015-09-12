@@ -61,6 +61,9 @@ extern int errno;
 #include <sys/un.h>
 #include <sys/queue.h>
 #include <sys/wait.h>
+#ifdef HAVE_LIBCAPSICUM
+#include <sys/nv.h>
+#endif
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <ctype.h>
@@ -77,9 +80,6 @@ extern int errno;
 #include <locale.h>
 #include <netdb.h>
 #include <nl_types.h>
-#ifdef HAVE_LIBCAPSICUM
-#include <nv.h>
-#endif
 #include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>

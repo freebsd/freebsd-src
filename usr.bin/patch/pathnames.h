@@ -9,4 +9,4 @@
 
 #include <paths.h>
 
-#define	_PATH_ED		"/bin/ed"
+#define	_PATH_RED		"/bin/red"

@@ -772,11 +772,8 @@ swp_pager_strategy(struct buf *bp)
 			mtx_unlock(&sw_dev_mtx);
 			if ((sp->sw_flags & SW_UNMAPPED) != 0 &&
 			    unmapped_buf_allowed) {
-				bp->b_kvaalloc = bp->b_data;
 				bp->b_data = unmapped_buf;
-				bp->b_kvabase = unmapped_buf;
 				bp->b_offset = 0;
-				bp->b_flags |= B_UNMAPPED;
 			} else {
 				pmap_qenter((vm_offset_t)bp->b_data,
 				    &bp->b_pages[0], bp->b_bcount / PAGE_SIZE);
@@ -1496,12 +1493,10 @@ swp_pager_async_iodone(struct buf *bp)
 	/*
 	 * remove the mapping for kernel virtual
 	 */
-	if ((bp->b_flags & B_UNMAPPED) != 0) {
-		bp->b_data = bp->b_kvaalloc;
-		bp->b_kvabase = bp->b_kvaalloc;
-		bp->b_flags &= ~B_UNMAPPED;
-	} else
+	if (buf_mapped(bp))
 		pmap_qremove((vm_offset_t)bp->b_data, bp->b_npages);
+	else
+		bp->b_data = bp->b_kvabase;
 
 	if (bp->b_npages) {
 		object = bp->b_pages[0]->object;
@@ -2597,7 +2592,7 @@ swapgeom_strategy(struct buf *bp, struct swdevt *sp)
 	bio->bio_offset = (bp->b_blkno - sp->sw_first) * PAGE_SIZE;
 	bio->bio_length = bp->b_bcount;
 	bio->bio_done = swapgeom_done;
-	if ((bp->b_flags & B_UNMAPPED) != 0) {
+	if (!buf_mapped(bp)) {
 		bio->bio_ma = bp->b_pages;
 		bio->bio_data = unmapped_buf;
 		bio->bio_ma_offset = (vm_offset_t)bp->b_offset & PAGE_MASK;

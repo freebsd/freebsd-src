@@ -137,6 +137,7 @@ amd64/amd64/trap.c		standard
 amd64/amd64/uio_machdep.c	standard
 amd64/amd64/uma_machdep.c	standard
 amd64/amd64/vm_machdep.c	standard
+amd64/cloudabi64/cloudabi64_sysvec.c		optional compat_cloudabi64
 amd64/pci/pci_cfgreg.c		optional	pci
 cddl/contrib/opensolaris/common/atomic/amd64/opensolaris_atomic.S	optional zfs | dtrace compile-with "${ZFS_S}"
 cddl/dev/dtrace/amd64/dtrace_asm.S			optional dtrace compile-with "${DTRACE_S}"

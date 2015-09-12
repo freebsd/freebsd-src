@@ -213,6 +213,7 @@ typedef struct acpi_object_method
     UINT8                           ParamCount;
     UINT8                           SyncLevel;
     union acpi_operand_object       *Mutex;
+    union acpi_operand_object       *Node;
     UINT8                           *AmlStart;
     union
     {

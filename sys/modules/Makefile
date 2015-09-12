@@ -72,6 +72,8 @@ SUBDIR=	\
 	${_ce} \
 	${_cfi} \
 	${_ciss} \
+	cloudabi \
+	${_cloudabi64} \
 	${_cm} \
 	${_cmx} \
 	${_coff} \
@@ -174,9 +176,9 @@ SUBDIR=	\
 	${_iwifw} \
 	${_iwn} \
 	${_iwnfw} \
-	${_ixgb} \
 	${_ix} \
 	${_ixv} \
+	${_ixgb} \
 	${_ixl} \
 	${_ixlv} \
 	jme \
@@ -276,6 +278,7 @@ SUBDIR=	\
 	${_pfsync} \
 	plip \
 	${_pmc} \
+	${_pms} \
 	ppbus \
 	ppc \
 	ppi \
@@ -291,7 +294,6 @@ SUBDIR=	\
 	${_qlxgbe} \
 	ral \
 	${_ralfw} \
-	${_random} \
 	rc4 \
 	${_rdma} \
 	${_rdrand_rng} \
@@ -394,9 +396,6 @@ _autofs=	autofs
 .if exists(${.CURDIR}/../opencrypto)
 _crypto=	crypto
 _cryptodev=	cryptodev
-.endif
-.if exists(${.CURDIR}/../crypto)
-_random=	random
 .endif
 .endif
 
@@ -512,6 +511,7 @@ _io=		io
 .if ${MK_OFED} != "no" || defined(ALL_MODULES)
 _ipoib=         ipoib
 .endif
+_ix=		ix
 _ixv=		ixv
 _linprocfs=	linprocfs
 _linsysfs=	linsysfs
@@ -618,11 +618,13 @@ _x86bios=	x86bios
 .endif
 
 .if ${MACHINE_CPUARCH} == "amd64"
+_cloudabi64=	cloudabi64
 _ixl=		ixl
 _ixlv=		ixlv
 _linux64=	linux64
 _linux_common=	linux_common
 _ntb=		ntb
+_pms=		pms
 _qlxge=		qlxge
 _qlxgb=		qlxgb
 _qlxgbe=	qlxgbe

@@ -45,7 +45,9 @@
 #include <contrib/dev/acpica/include/accommon.h>
 #include <contrib/dev/acpica/include/amlcode.h>
 #include <contrib/dev/acpica/include/acdebug.h>
+#ifdef ACPI_DISASSEMBLER
 #include <contrib/dev/acpica/include/acdisasm.h>
+#endif
 
 
 #ifdef ACPI_DEBUGGER
@@ -179,6 +181,7 @@ AcpiDbSingleStep (
     UINT32                  OriginalDebugLevel;
     ACPI_PARSE_OBJECT       *DisplayOp;
     ACPI_PARSE_OBJECT       *ParentOp;
+    UINT32                  AmlOffset;
 
 
     ACPI_FUNCTION_ENTRY ();
@@ -192,15 +195,18 @@ AcpiDbSingleStep (
         return (AE_ABORT_METHOD);
     }
 
+    AmlOffset = (UINT32) ACPI_PTR_DIFF (Op->Common.Aml,
+                    WalkState->ParserState.AmlStart);
+
     /* Check for single-step breakpoint */
 
     if (WalkState->MethodBreakpoint &&
-       (WalkState->MethodBreakpoint <= Op->Common.AmlOffset))
+       (WalkState->MethodBreakpoint <= AmlOffset))
     {
         /* Check if the breakpoint has been reached or passed */
         /* Hit the breakpoint, resume single step, reset breakpoint */
 
-        AcpiOsPrintf ("***Break*** at AML offset %X\n", Op->Common.AmlOffset);
+        AcpiOsPrintf ("***Break*** at AML offset %X\n", AmlOffset);
         AcpiGbl_CmSingleStep = TRUE;
         AcpiGbl_StepToNextCall = FALSE;
         WalkState->MethodBreakpoint = 0;
@@ -209,10 +215,10 @@ AcpiDbSingleStep (
     /* Check for user breakpoint (Must be on exact Aml offset) */
 
     else if (WalkState->UserBreakpoint &&
-            (WalkState->UserBreakpoint == Op->Common.AmlOffset))
+            (WalkState->UserBreakpoint == AmlOffset))
     {
         AcpiOsPrintf ("***UserBreakpoint*** at AML offset %X\n",
-            Op->Common.AmlOffset);
+            AmlOffset);
         AcpiGbl_CmSingleStep = TRUE;
         AcpiGbl_StepToNextCall = FALSE;
         WalkState->MethodBreakpoint = 0;
@@ -425,7 +431,7 @@ AcpiDbInitialize (
     AcpiGbl_DbOutputFlags       = ACPI_DB_CONSOLE_OUTPUT;
 
     AcpiGbl_DbOpt_Disasm        = FALSE;
-#ifdef ACPI_DISASSEMBLER
+#ifndef _KERNEL
     AcpiGbl_DbOpt_Verbose       = TRUE;
 #endif
     AcpiGbl_DbOpt_NoIniMethods  = FALSE;
@@ -476,7 +482,7 @@ AcpiDbInitialize (
         }
     }
 
-#ifdef ACPI_DISASSEMBLER
+#ifndef _KERNEL
     if (!AcpiGbl_DbOpt_Verbose)
     {
         AcpiGbl_DbOpt_Disasm = TRUE;

@@ -93,7 +93,7 @@ Version \\$2
 .Ve $Revision: 8.759 $
 .rm Ve
 .sp
-For Sendmail Version 8.14
+For Sendmail Version 8.15
 .)l
 .(f
 Sendmail is a trademark of Proofpoint, Inc.
@@ -3262,6 +3262,8 @@ to program and files.
 Accept a group-readable key file for STARTTLS.
 .ip GroupReadableSASLDBFile
 Accept a group-readable Cyrus SASL password file.
+.ip GroupReadableDefaultAuthInfoFile
+Accept a group-readable DefaultAuthInfo file for SASL.
 .ip GroupWritableAliasFile
 Allow group-writable alias files.
 .ip GroupWritableDirPathSafe
@@ -4481,8 +4483,76 @@ ruleset is called when sendmail connects to another MTA.
 If the ruleset does resolve to the
 .q error
 mailer, sendmail does not try STARTTLS even if it is offered.
-This is useful to interact with MTAs that have broken
-STARTTLS implementations by simply not using it.
+This is useful to deal with STARTTLS interoperability issues
+by simply not using it.
+.sh 4 "tls_srv_features and tls_clt_features"
+.pp
+The
+.i tls_clt_features
+ruleset is called when sendmail connects to another MTA
+and the
+.i tls_srv_features
+ruleset is called when a client connects to
+.i sendmail .
+The arguments for the rulesets are the host name and IP address
+of the other side separated by
+.b $|
+(which is a metacharacter).
+They should return a list of
+.i key=value
+pairs separated by semicolons;
+the list can be empty if no options should be applied to the connection.
+Available keys are and their allowed values are:
+.nr ii 0.2i
+.ip Options
+A comma separated list of SSL related options.
+See
+.i ServerSSLOptions
+and
+.i ClientSSLOptions
+for details, as well as
+.i SSL_set_options (3)
+and note this warning:
+Options already set before are not cleared!
+.ip CipherList
+Specify cipher list for STARTTLS,
+see
+.i ciphers (1)
+for possible values.
+This overrides the global
+.i CipherList
+for the session.
+.ip CertFile
+File containing a certificate.
+.ip KeyFile
+File containing the private key for the certificate.
+.lp
+.lp
+Example:
+.(b
+.ta 1.5i
+Stls_srv_features
+R$* $| 10.$+		$: cipherlist=HIGH
+.)b
+.lp
+Notes:
+.pp
+Errors in these features (e.g., unknown keys or invalid values)
+are logged
+and the current session is aborted to avoid using STARTTLS
+with features that should have been changed.
+.pp
+The keys are case-insensitive.
+.pp
+Both
+.i CertFile
+and
+.i KeyFile
+must be specified together;
+specifying only one is an error.
+.pp
+These rulesets require the sendmail binary to be built with _FFR_TLS_SE_OPTS
+enabled (see the "For Future Release" section).
 .sh 4 "authinfo"
 .pp
 The
@@ -4870,12 +4940,28 @@ used for the security layer of a SASL mechanism.
 The message body type
 (7BIT or 8BITMIME),
 as determined from the envelope.
+.ip ${cert_fp}
+The fingerprint of the presented certificate (STARTTLS only).
+Note: this macro is only defined if the option
+.b CertFingerprintAlgorithm
+is set,
+in which case the specified fingerprint algorithm is used.
+The valid algorithms depend on the OpenSSL version,
+but usually md5, sha1, and sha256 are available.
+See
+.(b
+openssl dgst -h
+.)b
+for a list.
 .ip ${cert_issuer}
 The DN (distinguished name) of the CA (certificate authority)
 that signed the presented certificate (the cert issuer)
 (STARTTLS only).
 .ip ${cert_md5}
 The MD5 hash of the presented certificate (STARTTLS only).
+Note: this macro is only defined if the option
+.b CertFingerprintAlgorithm
+is not set.
 .ip ${cert_subject}
 The DN of the presented certificate (called the cert subject)
 (STARTTLS only).
@@ -5756,6 +5842,8 @@ for this mailer.
 .ip i
 Do User Database rewriting on envelope sender address.
 .ip I
+This flag is deprecated
+and will be removed from a future version.
 This mailer will be speaking SMTP
 to another
 .i sendmail
@@ -6534,6 +6622,7 @@ The authentication realm that is passed to the Cyrus SASL library.
 If no realm is specified,
 .b $j
 is used.
+See also KNOWNBUGS.
 .ip BadRcptThrottle=\fIN\fP
 [no short name]
 If set and the specified number of recipients in a single SMTP
@@ -6554,6 +6643,22 @@ as filenames (or as links to them).
 [no short name]
 File containing one or more CA certificates;
 see section about STARTTLS for more information.
+.ip CertFingerprintAlgorithm
+Specify the fingerprint algorithm (digest) to use for the presented cert.
+If the option is not set,
+md5 is used and the macro
+.p ${cert_md5}
+contains the cert fingerprint.
+If the option is explicitly set,
+the specified algorithm (e.g., sha1) is used
+and the macro
+.b ${cert_fp}
+contains the cert fingerprint.
+.ip CipherList
+Specify cipher list for STARTTLS.
+See
+.i ciphers (1)
+for possible values.
 .ip CheckAliases
 [n]
 Validate the RHS of aliases when rebuilding the alias database.
@@ -6636,6 +6741,24 @@ in order to give settings for each protocol family
 (e.g., one for Family=inet and one for Family=inet6).
 A restriction placed on one family only affects
 outgoing connections on that particular family.
+.ip ClientSSLOptions
+A space or comma separated list of SSL related options for the client side.
+See
+.i SSL_CTX_set_options (3)
+for a list;
+the available values depend on the OpenSSL version against which
+.i sendmail
+is compiled.
+By default,
+.i SSL_OP_ALL
+.i SSL_OP_NO_SSLv2
+.i SSL_OP_NO_TICKET
+.i -SSL_OP_TLSEXT_PADDING
+are used
+(if those options are available).
+Options can be cleared by preceeding them with a minus sign.
+It is also possible to specify numerical values, e.g.,
+.b -0x0010 .
 .ip ColonOkInAddr
 [no short name]
 If set, colons are acceptable in e-mail addresses
@@ -6732,26 +6855,35 @@ CRL checking requires at least OpenSSL version 0.9.7.
 Note: if a CRLFile is specified but the file is unusable,
 STARTTLS is disabled.
 .ip DHParameters
+This option applies to the server side only.
 Possible values are:
 .(b
-.ta 1i
-5	use precomputed 512 bit prime
+.ta 2i
+5	use precomputed 512 bit prime.
 1	generate 1024 bit prime
-2	generate 2048 bit prime
-none	do not use Diffie-Hellman
-NAME	load prime from file
+2	generate 2048 bit prime.
+i	use included precomputed 2048 bit prime (default).
+none	do not use Diffie-Hellman.
+/path/to/file	load prime from file.
 .)b
 This is only required if a ciphersuite containing DSA/DH is used.
+The default is ``i'' which selects a precomputed, fixed 2048 bit prime.
 If ``5'' is selected, then precomputed, fixed primes are used.
-This is the default for the client side.
+Note: this option should not be used
+(unless necessary for compatibility with old implementations).
 If ``1'' or ``2'' is selected, then prime values are computed during startup.
-The server side default is ``1''.
 Note: this operation can take a significant amount of time on a
 slow machine (several seconds), but it is only done once at startup.
 If ``none'' is selected, then TLS ciphersuites containing DSA/DH
 cannot be used.
 If a file name is specified (which must be an absolute path),
 then the primes are read from it.
+It is recommended to generate such a file using a command like this:
+.(b
+	openssl dhparam -out /etc/mail/dhparams.pem 2048
+.)b
+If the file is not readable or contains unusable data,
+the default ``i'' is used instead.
 .ip DaemonPortOptions=\fIoptions\fP
 [O]
 Set server SMTP options.
@@ -6784,8 +6916,10 @@ The
 key is used for error messages and logging.
 The
 .i Addr ess
-mask may be a numeric address in IPv4 dot notation or IPv6 colon notation
-or a network name.
+mask may be
+a numeric address in IPv4 dot notation or IPv6 colon notation,
+or a network name,
+or a path to a local socket.
 Note that if a network name is specified,
 only the first IP address returned for it will be used.
 This may cause indeterminate behavior for network names
@@ -6798,6 +6932,10 @@ IPv6 users who wish to also accept IPv6 connections
 should add additional Family=inet6
 .b DaemonPortOptions
 lines.
+For a local socket, use
+Family=local
+or
+Family=unix.
 The
 .i InputMailFilters
 key overrides the default list of input mail filters listed in the
@@ -7543,6 +7681,13 @@ If there is insufficient space
 gives a 452 response
 to the MAIL command.
 This invites the sender to try again later.
+.ip MaxQueueAge=\fIage\fP
+[no short name]
+If this is set to a value greater than zero,
+entries in the queue will be retried during a queue run
+only if the individual retry time has been reached
+which is doubled for each attempt.
+The maximum retry time is limited by the specified value.
 .ip MinQueueAge=\fIage\fP
 [no short name]
 Don't process any queued jobs
@@ -8031,6 +8176,22 @@ is used when sendmail acts as server
 [no short name]
 File containing the private key belonging to the server certificate
 (used for STARTTLS).
+.ip ServerSSLOptions
+A space or comma separated list of SSL related options for the server side.
+See
+.i SSL_CTX_set_options (3)
+for a list;
+the available values depend on the OpenSSL version against which
+.i sendmail
+is compiled.
+By default,
+.i SSL_OP_ALL
+.i -SSL_OP_TLSEXT_PADDING
+are used
+(if those options are available).
+Options can be cleared by preceeding them with a minus sign.
+It is also possible to specify numerical values, e.g.,
+.b -0x0010 .
 .ip ServiceSwitchFile=\fIfilename\fP
 [no short name]
 If your host operating system has a service switch abstraction
@@ -8186,7 +8347,11 @@ consisting of single characters
 with intervening white space or commas.
 The flag ``V'' disables client verification, and hence
 it is not possible to use a client certificate for relaying.
-Currently there are no other flags available.
+The flag ``C'' removes the requirement for the TLS server
+to have a cert.
+This only works under very specific circumstances
+and should only be used if the consequences are understood,
+e.g., clients may not work with a server using this.
 .ip TempFileMode=\fImode\fP
 [F]
 The file mode for transcript files, files to which
@@ -8272,6 +8437,12 @@ are always unsafe.
 Note: use
 .b DontBlameSendmail
 instead; this option is deprecated.
+.ip UseCompressedIPv6Addresses
+[no short name]
+If set, the compressed format of IPv6 addresses,
+such as IPV6:::1, will be used,
+instead of the uncompressed format,
+such as IPv6:0:0:0:0:0:0:0:1.
 .ip UseErrorsTo
 [l]
 If there is an
@@ -8786,6 +8957,31 @@ A, AAAA, AFSDB, CNAME, MX, NS, PTR, SRV, and TXT.
 A map lookup will return only one record.
 Hence for some types, e.g., MX records, the return value might be a random
 element of the list due to randomizing in the DNS resolver.
+.ip arpa
+Returns the ``reverse'' for the given IP (IPv4 or IPv6) address,
+i.e., the string for the PTR lookup,
+but without trailing
+.b ip6.arpa
+or
+.b in-addr.arpa .
+For example, the following configuration lines:
+.(b
+Karpa arpa
+SArpa
+R$+	$: $(arpa $1 $)
+.)b 
+work like this in test mode:
+.(b
+sendmail -bt
+ADDRESS TEST MODE (ruleset 3 NOT automatically invoked)
+Enter <ruleset> <address>
+> Arpa IPv6:1:2:dead:beef:9876:0:0:1
+Arpa               input: IPv6 : 1 : 2 : dead : beef : 9876 : 0 : 0 : 1
+Arpa             returns: 1 . 0 . 0 . 0 . 0 . 0 . 0 . 0 . 0 . 0 . 0 . 0 . 6 . 7 . 8 . 9 . f . e . e . b . d . a . e . d . 2 . 0 . 0 . 0 . 1 . 0 . 0 . 0
+> Arpa 1.2.3.4
+Arpa               input: 1 . 2 . 3 . 4
+Arpa             returns: 4 . 3 . 2 . 1
+.)b
 .ip sequence
 The arguments on the `K' line are a list of maps;
 the resulting map searches the argument maps in order
@@ -9210,6 +9406,11 @@ retry: specify the number of times to retransmit a resolver query.
 The dns map has another flag:
 .ip "\-B"
 basedomain: specify a domain that is always appended to queries.
+.pp
+Socket maps have an optional flag:
+.ip "\-d"
+timeout: specify the timeout (in seconds) for communication
+with the socket map server.
 .pp
 The following additional flags are present in the ldap map only:
 .ip "\-R"
@@ -9851,6 +10052,26 @@ and
 .q _SCO_unix_ .
 See the sendmail/README
 file for the latest scoop on these flags.
+.sh 3 "For Future Releases"
+.pp
+.i sendmail
+often contains compile time options
+.i "For Future Releases"
+(prefix _FFR_)
+which might be enabled in a subsequent version
+or might simply be removed as they turned out not to be really useful.
+These features are usually not documented but if they are,
+then the required (FFR) compile
+time options are listed here for rulesets and macros,
+and in
+.i cf/README
+for mc/cf options.
+FFR compile times options must be enabled when the sendmail binary
+is built from source.
+Enabled FFRs in a binary can be listed with
+.(b
+sendmail -d0.13 < /dev/null | grep FFR
+.)b
 .sh 2 "Parameters in sendmail/conf.h"
 .pp
 Parameters and compilation options
@@ -10653,7 +10874,7 @@ one as certificate for the server (ServerCertFile and corresponding
 private ServerKeyFile)
 at least one root CA (CACertFile),
 i.e., a certificate that is used to sign other certificates,
-and a path to a directory which contains other CAs (CACertPath).
+and a path to a directory which contains (zero or more) other CAs (CACertPath).
 The file specified via
 CACertFile
 can contain several certificates of CAs.
@@ -10699,6 +10920,19 @@ To allow for automatic startup of sendmail, private keys
 must be stored unencrypted.
 The keys are only protected by the permissions of the file system.
 Never make a private key available to a third party.
+.pp
+The options
+.i ClientCertFile ,
+.i ClientKeyFile ,
+.i ServerCertFile ,
+and
+.i ServerKeyFile
+can take a second file name,
+which must be separated from the first with a comma
+(note: do not use any spaces)
+to set up a second cert/key pair.
+This can be used to have certs of different types,
+e.g., RSA and DSA.
 .sh 3 "PRNG for STARTTLS"
 .pp
 STARTTLS requires a strong pseudo random number generator (PRNG)
@@ -10883,6 +11117,7 @@ Operation modes are:
 m	Deliver mail (default)
 s	Speak SMTP on input side
 a\(dg	``Arpanet'' mode (get envelope sender information from header)
+C	Check the configuration file
 d	Run as a daemon in background
 D	Run as a daemon in foreground
 t	Run in test mode

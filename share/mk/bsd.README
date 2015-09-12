@@ -16,12 +16,15 @@ can not/should not be used directly but are used by the other make include
 files.  In most cases it is only interesting to include bsd.prog.mk or
 bsd.lib.mk.
 
-bsd.cpu.mk		- sets CPU/arch-related variables
+bsd.arch.inc.mk		- includes arch-specific Makefile.$arch
+bsd.compiler.mk		- defined based on current compiler
+bsd.cpu.mk		- sets CPU/arch-related variables (included from sys.mk)
 bsd.dep.mk		- handle Makefile dependencies
 bsd.doc.mk		- building troff system documents
+bsd.endian.mk		- TARGET_ENDIAN=1234(little) or 4321 (big) for target
 bsd.files.mk		- install of general purpose files
 bsd.incs.mk		- install of include files
-bsd.info.mk		- building GNU Info hypertext system
+bsd.info.mk		- building GNU Info hypertext system (deprecated)
 bsd.init.mk		- initialization for the make include files
 bsd.kmod.mk		- building loadable kernel modules
 bsd.lib.mk		- support for building libraries
@@ -36,6 +39,7 @@ bsd.port.post.mk	- building ports
 bsd.port.pre.mk		- building ports
 bsd.port.subdir.mk	- targets for building subdirectories for ports
 bsd.prog.mk		- building programs from source files
+bsd.progs.mk		- build multiple programs from sources (deprecated)
 bsd.snmpmod.mk		- building modules for the SNMP daemon bsnmpd
 bsd.subdir.mk		- targets for building subdirectories
 bsd.sys.mk		- common settings used for building FreeBSD sources
@@ -112,8 +116,43 @@ object.
 
 =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
+The following variables are common:
+
+CFLAGS.${COMPILER_TYPE}
+		Flags dependent on compiler added to CXXFLAGS.
+CFLAGS.${MACHINE_ARCH}
+		Architectural flags added to CFLAGS.
+CFLAGS_NO_SIMD	Add this to CFLAGS for programs that don't want any SIMD
+		instructions generated. It is setup in bsd.cpu.mk to an
+		appropriate value for the compiler and target.
+CXXFLAGS.${COMPILER_TYPE}
+		Flags dependent on compiler added to CXXFLAGS.
+CXXFLAGS.${MACHINE_ARCH}
+		Architectural flags added to CXXFLAGS.
+COMPILER_FEATURES
+		A list of features that the compiler supports. Zero or
+		more of:
+			c++11	Supports full C++ 11 standard.
+
+COMPILER_TYPE	Type of compiler, either clang or gcc, though other
+		values are possible. Don't assume != clang == gcc.
+
+COMPILER_VERSION
+		A numeric constant equal to:
+		     major * 10000 + minor * 100 + tiny
+		for the compiler's self-reported version.
+
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
 The include file <sys.mk> has the default rules for all makes, in the BSD
 environment or otherwise.  You probably don't want to touch this file.
+
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+The include file <bsd.arch.inc.mk> includes other Makefiles for specific
+architectures, if they exist. It will include the first of the following
+files that it finds: Makefile.${MACHINE}, Makefile.${MACHINE_ARCH},
+Makefile.${MACHINE_CPUARCH}
 
 =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 

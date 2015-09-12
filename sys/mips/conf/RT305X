@@ -24,7 +24,7 @@ makeoptions	MIPS_LITTLE_ENDIAN=defined
 makeoptions	KERNLOADADDR=0x80001000
 
 # Don't build any modules yet.
-makeoptions	MODULES_OVERRIDE="wlan_xauth wlan_wep wlan_tkip wlan_acl wlan_amrr wlan_ccmp wlan_rssadapt random if_bridge bridgestp msdosfs md ipfw dummynet libalias geom/geom_label ufs usb/uplcom usb/u3g usb/umodem usb/umass usb/ucom cam zlib"
+makeoptions	MODULES_OVERRIDE="wlan_xauth wlan_wep wlan_tkip wlan_acl wlan_amrr wlan_ccmp wlan_rssadapt if_bridge bridgestp msdosfs md ipfw dummynet libalias geom/geom_label ufs usb/uplcom usb/u3g usb/umodem usb/umass usb/ucom cam zlib"
 makeoptions	RT3052F
 
 include		"../rt305x/std.rt305x"

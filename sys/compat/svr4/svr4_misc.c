@@ -643,7 +643,7 @@ svr4_sys_fchroot(td, uap)
 		goto fail;
 #endif
 	VOP_UNLOCK(vp, 0);
-	error = change_root(vp, td);
+	error = pwd_chroot(td, vp);
 	vrele(vp);
 	return (error);
 fail:
@@ -1277,7 +1277,7 @@ loop:
 
 			/* Found a zombie, so cache info in local variables. */
 			pid = p->p_pid;
-			status = p->p_xstat;
+			status = KW_EXITCODE(p->p_xexit, p->p_xsig);
 			ru = p->p_ru;
 			PROC_STATLOCK(p);
 			calcru(p, &ru.ru_utime, &ru.ru_stime);
@@ -1304,7 +1304,7 @@ loop:
 				p->p_flag |= P_WAITED;
 			sx_sunlock(&proctree_lock);
 			pid = p->p_pid;
-			status = W_STOPCODE(p->p_xstat);
+			status = W_STOPCODE(p->p_xsig);
 			ru = p->p_ru;
 			PROC_STATLOCK(p);
 			calcru(p, &ru.ru_utime, &ru.ru_stime);

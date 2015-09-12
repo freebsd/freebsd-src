@@ -150,8 +150,19 @@ hunt_mac_addr_set(
 {
 	int rc;
 
-	if ((rc = efx_mcdi_vadapter_set_mac(enp)) != 0)
-		goto fail1;
+	if ((rc = efx_mcdi_vadapter_set_mac(enp)) != 0) {
+		if (rc != ENOTSUP)
+			goto fail1;
+
+		/* Fallback for older firmware without Vadapter support */
+		if ((rc = hunt_mac_reconfigure(enp)) != 0)
+			goto fail2;
+	}
+
+	return (0);
+
+fail2:
+	EFSYS_PROBE(fail2);
 
 fail1:
 	EFSYS_PROBE1(fail1, int, rc);

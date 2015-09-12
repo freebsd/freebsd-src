@@ -24,7 +24,9 @@
 #include "extract.h"
 
 /*
- * VXLAN header, draft-mahalingam-dutt-dcops-vxlan-03
+ * VXLAN header, RFC7348
+ *               Virtual eXtensible Local Area Network (VXLAN): A Framework
+ *               for Overlaying Virtualized Layer 2 Networks over Layer 3 Networks
  *
  *     0                   1                   2                   3
  *     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1

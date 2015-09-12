@@ -45,7 +45,6 @@
 #include <contrib/dev/acpica/include/accommon.h>
 #include <contrib/dev/acpica/include/acnamesp.h>
 #include <contrib/dev/acpica/include/acdebug.h>
-#include <contrib/dev/acpica/include/acdisasm.h>
 
 
 #ifdef ACPI_DEBUGGER
@@ -223,7 +222,7 @@ AcpiDbDumpExternalObject (
     case ACPI_TYPE_LOCAL_REFERENCE:
 
         AcpiOsPrintf ("[Object Reference] = ");
-        AcpiDmDisplayInternalObject (ObjDesc->Reference.Handle, NULL);
+        AcpiDbDisplayInternalObject (ObjDesc->Reference.Handle, NULL);
         break;
 
     case ACPI_TYPE_PROCESSOR:

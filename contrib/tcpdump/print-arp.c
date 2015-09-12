@@ -391,8 +391,8 @@ arp_print(netdissect_options *ndo,
 
 	case ARPOP_INVREPLY:
 		ND_PRINT((ndo,"%s at %s",
-			  linkaddr_string(ndo, THA(ap), linkaddr, HRD_LEN(ap)),
-			  ipaddr_string(ndo, TPA(ap))));
+			  linkaddr_string(ndo, SHA(ap), linkaddr, HRD_LEN(ap)),
+			  ipaddr_string(ndo, SPA(ap))));
 		break;
 
 	default:

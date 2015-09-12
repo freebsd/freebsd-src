@@ -751,35 +751,79 @@ ATF_TC_BODY(send_recv_with_connect, tc)
 ATF_TC_WITHOUT_HEAD(shutdown_send);
 ATF_TC_BODY(shutdown_send, tc)
 {
-	int s;
-	const char data[] = "data";
+	struct sockaddr_un sun;
+	/* ATF's isolation mechanisms will guarantee uniqueness of this file */
+	const char *path = "sock";
+	const char *data = "data";
 	ssize_t ssize;
+	int s, err, s2;
 
 	s = socket(PF_LOCAL, SOCK_SEQPACKET, 0);
 	ATF_REQUIRE(s >= 0);
-	ATF_CHECK_EQ(0, shutdown(s, SHUT_RDWR));
+
+	bzero(&sun, sizeof(sun));
+	sun.sun_family = AF_LOCAL;
+	sun.sun_len = sizeof(sun);
+	strlcpy(sun.sun_path, path, sizeof(sun.sun_path));
+	err = bind(s, (struct sockaddr *)&sun, sizeof(sun));
+	err = listen(s, -1);
+	ATF_CHECK_EQ(0, err);
+
+	/* Create the other socket */
+	s2 = socket(PF_LOCAL, SOCK_SEQPACKET, 0);
+	ATF_REQUIRE(s2 >= 0);
+	err = connect(s2, (struct sockaddr*)&sun, sizeof(sun));
+	if (err != 0) {
+		perror("connect");
+		atf_tc_fail("connect(2) failed");
+	}
+
+	ATF_CHECK_EQ(0, shutdown(s2, SHUT_RDWR));
 	/* USE MSG_NOSIGNAL so we don't get SIGPIPE */
-	ssize = send(s, data, sizeof(data), MSG_EOR | MSG_NOSIGNAL);
+	ssize = send(s2, data, sizeof(data), MSG_EOR | MSG_NOSIGNAL);
 	ATF_CHECK_EQ(EPIPE, errno);
 	ATF_CHECK_EQ(-1, ssize);
 	close(s);
+	close(s2);
 }
 
 /* send(2) should cause SIGPIPE on a shutdown socket */
 ATF_TC_WITHOUT_HEAD(shutdown_send_sigpipe);
 ATF_TC_BODY(shutdown_send_sigpipe, tc)
 {
-	int s;
-	const char data[] = "data";
+	struct sockaddr_un sun;
+	/* ATF's isolation mechanisms will guarantee uniqueness of this file */
+	const char *path = "sock";
+	const char *data = "data";
 	ssize_t ssize;
+	int s, err, s2;
 
 	s = socket(PF_LOCAL, SOCK_SEQPACKET, 0);
 	ATF_REQUIRE(s >= 0);
-	ATF_CHECK_EQ(0, shutdown(s, SHUT_RDWR));
+
+	bzero(&sun, sizeof(sun));
+	sun.sun_family = AF_LOCAL;
+	sun.sun_len = sizeof(sun);
+	strlcpy(sun.sun_path, path, sizeof(sun.sun_path));
+	err = bind(s, (struct sockaddr *)&sun, sizeof(sun));
+	err = listen(s, -1);
+	ATF_CHECK_EQ(0, err);
+
+	/* Create the other socket */
+	s2 = socket(PF_LOCAL, SOCK_SEQPACKET, 0);
+	ATF_REQUIRE(s2 >= 0);
+	err = connect(s2, (struct sockaddr*)&sun, sizeof(sun));
+	if (err != 0) {
+		perror("connect");
+		atf_tc_fail("connect(2) failed");
+	}
+
+	ATF_CHECK_EQ(0, shutdown(s2, SHUT_RDWR));
 	ATF_REQUIRE(SIG_ERR != signal(SIGPIPE, shutdown_send_sigpipe_handler));
-	ssize = send(s, data, sizeof(data), MSG_EOR);
+	ssize = send(s2, data, sizeof(data), MSG_EOR);
 	ATF_CHECK_EQ(1, got_sigpipe);
 	close(s);
+	close(s2);
 }
 
 /* nonblocking send(2) and recv(2) a single short record */

@@ -160,6 +160,12 @@ input(struct sockaddr_in *from,		/* received from this IP address */
 
 	trace_rip("Recv", "from", from, sifp, rip, cc);
 
+	if (sifp == 0) {
+		trace_pkt("    discard a request from an indirect router"
+		    " (possibly an attack)");
+		return;
+	}
+
 	if (rip->rip_vers == 0) {
 		msglim(&bad_router, FROM_NADDR,
 		       "RIP version 0, cmd %d, packet received from %s",

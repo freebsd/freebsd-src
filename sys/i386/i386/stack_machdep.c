@@ -40,7 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 
 static void
-stack_capture(struct stack *st, register_t ebp)
+stack_capture(struct thread *td, struct stack *st, register_t ebp)
 {
 	struct i386_frame *frame;
 	vm_offset_t callpc;
@@ -56,8 +56,8 @@ stack_capture(struct stack *st, register_t ebp)
 		if (stack_put(st, callpc) == -1)
 			break;
 		if (frame->f_frame <= frame ||
-		    (vm_offset_t)frame->f_frame >=
-		    (vm_offset_t)ebp + KSTACK_PAGES * PAGE_SIZE)
+		    (vm_offset_t)frame->f_frame >= td->td_kstack +
+		    td->td_kstack_pages * PAGE_SIZE)
 			break;
 		frame = frame->f_frame;
 	}
@@ -74,7 +74,7 @@ stack_save_td(struct stack *st, struct thread *td)
 		panic("stack_save_td: running");
 
 	ebp = td->td_pcb->pcb_ebp;
-	stack_capture(st, ebp);
+	stack_capture(td, st, ebp);
 }
 
 void
@@ -83,5 +83,5 @@ stack_save(struct stack *st)
 	register_t ebp;
 
 	__asm __volatile("movl %%ebp,%0" : "=r" (ebp));
-	stack_capture(st, ebp);
+	stack_capture(curthread, st, ebp);
 }

@@ -57,7 +57,7 @@ device		mmc			# mmc/sd bus
 device		mmcsd			# mmc/sd flash cards
 
 # ATA controllers
-#device		ahci			# AHCI-compatible SATA controllers
+device		ahci			# AHCI-compatible SATA controllers
 #device		ata			# Legacy ATA/SATA controllers
 #options 	ATA_STATIC_ID		# Static device numbering
 
@@ -78,7 +78,7 @@ device		gpio
 
 device		scbus			# SCSI bus (required for ATA/SCSI)
 device		da			# Direct Access (disks)
-device		pass
+device		pass			# Passthrough device (direct ATA/SCSI access)
 
 # USB support
 options 	USB_HOST_ALIGN=64	# Align usb buffers to cache line size.

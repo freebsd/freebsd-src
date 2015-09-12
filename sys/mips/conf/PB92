@@ -22,7 +22,7 @@ options 	AR71XX_ENV_UBOOT
 # who already are using it without modifying the default flash layout)
 # we need to cut down on a lot of things.
 
-makeoptions	MODULES_OVERRIDE="ath ath_pci ath_ahb bridgestp if_bridge if_gif if_gre random wlan wlan_acl wlan_amrr wlan_ccmp wlan_rssadapt wlan_tkip wlan_wep wlan_xauth usb ar71xx"
+makeoptions	MODULES_OVERRIDE="ath ath_pci ath_ahb bridgestp if_bridge if_gif if_gre wlan wlan_acl wlan_amrr wlan_ccmp wlan_rssadapt wlan_tkip wlan_wep wlan_xauth usb ar71xx"
 
 hints		"PB92.hints"
 include		"../atheros/std.ar71xx"

@@ -11884,7 +11884,8 @@ err:
 	int i;
 
 	*factor = 1;
-#if defined(__amd64__) || defined(__arm__) || defined(__mips__) || defined(__powerpc__)
+#if defined(__aarch64__) || defined(__amd64__) || defined(__arm__) || \
+    defined(__mips__) || defined(__powerpc__)
 	/*
 	 * FreeBSD isn't good at limiting the amount of memory we
 	 * ask to malloc, so let's place a limit here before trying

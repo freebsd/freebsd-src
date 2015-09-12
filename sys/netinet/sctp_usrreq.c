@@ -4620,17 +4620,23 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 				SCTP_TCB_UNLOCK(stcb);
 				break;
 			}
-			if (stcb->asoc.stream_reset_outstanding) {
-				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EALREADY);
-				error = EALREADY;
-				SCTP_TCB_UNLOCK(stcb);
-				break;
-			}
 			if (strrst->srs_flags & SCTP_STREAM_RESET_INCOMING) {
 				send_in = 1;
+				if (stcb->asoc.stream_reset_outstanding) {
+					SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EALREADY);
+					error = EALREADY;
+					SCTP_TCB_UNLOCK(stcb);
+					break;
+				}
 			}
 			if (strrst->srs_flags & SCTP_STREAM_RESET_OUTGOING) {
 				send_out = 1;
+			}
+			if ((strrst->srs_number_streams > SCTP_MAX_STREAMS_AT_ONCE_RESET) && send_in) {
+				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, ENOMEM);
+				error = ENOMEM;
+				SCTP_TCB_UNLOCK(stcb);
+				break;
 			}
 			if ((send_in == 0) && (send_out == 0)) {
 				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EINVAL);
@@ -4656,11 +4662,37 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 				SCTP_TCB_UNLOCK(stcb);
 				break;
 			}
-			error = sctp_send_str_reset_req(stcb, strrst->srs_number_streams,
-			    strrst->srs_stream_list,
-			    send_out, send_in, 0, 0, 0, 0, 0);
+			if (send_out) {
+				int cnt;
+				uint16_t strm;
 
-			sctp_chunk_output(inp, stcb, SCTP_OUTPUT_FROM_STRRST_REQ, SCTP_SO_LOCKED);
+				if (strrst->srs_number_streams) {
+					for (i = 0, cnt = 0; i < strrst->srs_number_streams; i++) {
+						strm = strrst->srs_stream_list[i];
+						if (stcb->asoc.strmout[strm].state == SCTP_STREAM_OPEN) {
+							stcb->asoc.strmout[strm].state = SCTP_STREAM_RESET_PENDING;
+							cnt++;
+						}
+					}
+				} else {
+					/* Its all */
+					for (i = 0, cnt = 0; i < stcb->asoc.streamoutcnt; i++) {
+						if (stcb->asoc.strmout[i].state == SCTP_STREAM_OPEN) {
+							stcb->asoc.strmout[i].state = SCTP_STREAM_RESET_PENDING;
+							cnt++;
+						}
+					}
+				}
+			}
+			if (send_in) {
+				error = sctp_send_str_reset_req(stcb, strrst->srs_number_streams,
+				    strrst->srs_stream_list,
+				    send_in, 0, 0, 0, 0, 0);
+			} else
+				error = sctp_send_stream_reset_out_if_possible(stcb, SCTP_SO_LOCKED);
+			if (!error)
+				sctp_chunk_output(inp, stcb, SCTP_OUTPUT_FROM_STRRST_REQ, SCTP_SO_LOCKED);
+
 			SCTP_TCB_UNLOCK(stcb);
 			break;
 		}
@@ -4730,7 +4762,7 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 					goto skip_stuff;
 				}
 			}
-			error = sctp_send_str_reset_req(stcb, 0, NULL, 0, 0, 0, addstream, add_o_strmcnt, add_i_strmcnt, 0);
+			error = sctp_send_str_reset_req(stcb, 0, NULL, 0, 0, addstream, add_o_strmcnt, add_i_strmcnt, 0);
 			sctp_chunk_output(inp, stcb, SCTP_OUTPUT_FROM_STRRST_REQ, SCTP_SO_LOCKED);
 	skip_stuff:
 			SCTP_TCB_UNLOCK(stcb);
@@ -4738,6 +4770,7 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 		}
 	case SCTP_RESET_ASSOC:
 		{
+			int i;
 			uint32_t *value;
 
 			SCTP_CHECK_AND_CAST(value, optval, uint32_t, optsize);
@@ -4762,7 +4795,25 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 				SCTP_TCB_UNLOCK(stcb);
 				break;
 			}
-			error = sctp_send_str_reset_req(stcb, 0, NULL, 0, 0, 1, 0, 0, 0, 0);
+			/*
+			 * Is there any data pending in the send or sent
+			 * queues?
+			 */
+			if (!TAILQ_EMPTY(&stcb->asoc.send_queue) ||
+			    !TAILQ_EMPTY(&stcb->asoc.sent_queue)) {
+		busy_out:
+				error = EBUSY;
+				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, error);
+				SCTP_TCB_UNLOCK(stcb);
+				break;
+			}
+			/* Do any streams have data queued? */
+			for (i = 0; i < stcb->asoc.streamoutcnt; i++) {
+				if (!TAILQ_EMPTY(&stcb->asoc.strmout[i].outqueue)) {
+					goto busy_out;
+				}
+			}
+			error = sctp_send_str_reset_req(stcb, 0, NULL, 0, 1, 0, 0, 0, 0);
 			sctp_chunk_output(inp, stcb, SCTP_OUTPUT_FROM_STRRST_REQ, SCTP_SO_LOCKED);
 			SCTP_TCB_UNLOCK(stcb);
 			break;

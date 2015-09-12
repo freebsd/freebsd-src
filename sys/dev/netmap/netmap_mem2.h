@@ -117,9 +117,7 @@
 
 extern struct netmap_mem_d nm_mem;
 
-struct lut_entry* netmap_mem_get_lut(struct netmap_mem_d *);
-u_int      netmap_mem_get_buftotal(struct netmap_mem_d *);
-size_t     netmap_mem_get_bufsize(struct netmap_mem_d *);
+void	   netmap_mem_get_lut(struct netmap_mem_d *, struct netmap_lut *);
 vm_paddr_t netmap_mem_ofstophys(struct netmap_mem_d *, vm_ooffset_t);
 int	   netmap_mem_finalize(struct netmap_mem_d *, struct netmap_adapter *);
 int 	   netmap_mem_init(void);
@@ -134,12 +132,34 @@ ssize_t    netmap_mem_if_offset(struct netmap_mem_d *, const void *vaddr);
 struct netmap_mem_d* netmap_mem_private_new(const char *name,
 	u_int txr, u_int txd, u_int rxr, u_int rxd, u_int extra_bufs, u_int npipes,
 	int* error);
-void	   netmap_mem_private_delete(struct netmap_mem_d *);
+void	   netmap_mem_delete(struct netmap_mem_d *);
+
+//#define NM_DEBUG_MEM_PUTGET 1
+
+#ifdef NM_DEBUG_MEM_PUTGET
+
+#define netmap_mem_get(nmd) 				\
+	do {						\
+		__netmap_mem_get(nmd, __FUNCTION__, __LINE__);	\
+	} while (0)
+
+#define netmap_mem_put(nmd)				\
+	do {						\
+		__netmap_mem_put(nmd, __FUNCTION__, __LINE__);	\
+	} while (0)
+
+void __netmap_mem_get(struct netmap_mem_d *, const char *, int);
+void __netmap_mem_put(struct netmap_mem_d *, const char *, int);
+#else /* !NM_DEBUG_MEM_PUTGET */
+
+void netmap_mem_get(struct netmap_mem_d *);
+void netmap_mem_put(struct netmap_mem_d *);
+
+#endif /* !NM_DEBUG_PUTGET */
 
 #define NETMAP_MEM_PRIVATE	0x2	/* allocator uses private address space */
 #define NETMAP_MEM_IO		0x4	/* the underlying memory is mmapped I/O */
 
 uint32_t netmap_extra_alloc(struct netmap_adapter *, uint32_t *, uint32_t n);
-
 
 #endif

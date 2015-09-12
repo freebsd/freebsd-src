@@ -184,9 +184,10 @@ OLD_DIRS+=usr/share/examples/bhyve
 .if ${MK_BINUTILS} == no
 OLD_FILES+=usr/bin/as
 OLD_FILES+=usr/bin/ld
+.if ${MK_ELFCOPY_AS_OBJCOPY} == no
 OLD_FILES+=usr/bin/objcopy
+.endif
 OLD_FILES+=usr/bin/objdump
-OLD_FILES+=usr/bin/readelf
 OLD_FILES+=usr/libdata/ldscripts/elf_x86_64_fbsd.x
 OLD_FILES+=usr/libdata/ldscripts/elf_x86_64_fbsd.xbn
 OLD_FILES+=usr/libdata/ldscripts/elf_x86_64_fbsd.xc
@@ -202,9 +203,10 @@ OLD_FILES+=usr/libdata/ldscripts/elf_x86_64_fbsd.xu
 OLD_FILES+=usr/libdata/ldscripts/elf_x86_64_fbsd.xw
 OLD_FILES+=usr/share/man/man1/as.1.gz
 OLD_FILES+=usr/share/man/man1/ld.1.gz
+.if ${MK_ELFCOPY_AS_OBJCOPY} == no
 OLD_FILES+=usr/share/man/man1/objcopy.1.gz
+.endif
 OLD_FILES+=usr/share/man/man1/objdump.1.gz
-OLD_FILES+=usr/share/man/man1/readelf.1.gz
 OLD_FILES+=usr/share/man/man7/as.7.gz
 OLD_FILES+=usr/share/man/man7/ld.7.gz
 OLD_FILES+=usr/share/man/man7/ldint.7.gz
@@ -408,6 +410,21 @@ OLD_FILES+=usr/bin/bsdcpio
 OLD_FILES+=usr/bin/cpio
 OLD_FILES+=usr/share/man/man1/bsdcpio.1.gz
 OLD_FILES+=usr/share/man/man1/cpio.1.gz
+.endif
+
+.if ${MK_BSD_GREP} == no
+OLD_FILES+=usr/bin/lzegrep
+OLD_FILES+=usr/bin/lzfgrep
+OLD_FILES+=usr/bin/lzgrep
+OLD_FILES+=usr/bin/xzegrep
+OLD_FILES+=usr/bin/xzfgrep
+OLD_FILES+=usr/bin/xzgrep
+OLD_FILES+=usr/share/man/man1/lzegrep.1.gz
+OLD_FILES+=usr/share/man/man1/lzfgrep.1.gz
+OLD_FILES+=usr/share/man/man1/lzgrep.1.gz
+OLD_FILES+=usr/share/man/man1/xzegrep.1.gz
+OLD_FILES+=usr/share/man/man1/xzfgrep.1.gz
+OLD_FILES+=usr/share/man/man1/xzgrep.1.gz
 .endif
 
 .if ${MK_BSDINSTALL} == no
@@ -1008,9 +1025,6 @@ OLD_DIRS+=usr/include/fs/cuse
 .if ${MK_CXX} == no
 OLD_FILES+=usr/bin/CC
 OLD_FILES+=usr/bin/c++
-.if ${MK_ELFTOOLCHAIN_TOOLS} == no
-OLD_FILES+=usr/bin/c++filt
-.endif
 OLD_FILES+=usr/bin/g++
 OLD_FILES+=usr/libexec/cc1plus
 .endif
@@ -1633,11 +1647,6 @@ OLD_FILES+=usr/share/nls/ru_RU.KOI8-R/ee.cat
 OLD_FILES+=usr/share/nls/uk_UA.KOI8-U/ee.cat
 .endif
 
-.if ${MK_ELFTOOLCHAIN_TOOLS} == no
-OLD_FILES+=usr/bin/elfcopy
-OLD_FILES+=usr/share/man/man1/elfcopy.1.gz
-.endif
-
 #.if ${MK_EXAMPLES} == no
 # to be filled in
 #.endif
@@ -1720,9 +1729,6 @@ OLD_FILES+=usr/share/man/man8/unstr.8.gz
 .endif
 
 .if ${MK_GCC} == no
-.if ${MK_ELFTOOLCHAIN_TOOLS} == no
-OLD_FILES+=usr/bin/c++filt
-.endif
 OLD_FILES+=usr/bin/g++
 OLD_FILES+=usr/bin/gcc
 OLD_FILES+=usr/bin/gcov
@@ -1753,6 +1759,11 @@ OLD_FILES+=usr/lib/libgomp.a
 OLD_FILES+=usr/lib/libgomp.so
 OLD_LIBS+=usr/lib/libgomp.so.1
 OLD_FILES+=usr/lib/libgomp_p.a
+OLD_FILES+=usr/lib32/libgcov.a
+OLD_FILES+=usr/lib32/libgomp.a
+OLD_FILES+=usr/lib32/libgomp.so
+OLD_LIBS+=usr/lib32/libgomp.so.1
+OLD_FILES+=usr/lib32/libgomp_p.a
 OLD_FILES+=usr/libexec/cc1
 OLD_FILES+=usr/libexec/cc1plus
 OLD_FILES+=usr/share/info/cpp.info.gz
@@ -3983,6 +3994,7 @@ OLD_FILES+=usr/lib32/libcxxrt.a
 OLD_FILES+=usr/lib32/libcxxrt.so
 OLD_LIBS+=usr/lib32/libcxxrt.so.1
 OLD_FILES+=usr/lib32/libcxxrt_p.a
+OLD_DIRS+=usr/include/c++/v1/tr1
 OLD_DIRS+=usr/include/c++/v1/experimental
 OLD_DIRS+=usr/include/c++/v1/ext
 OLD_DIRS+=usr/include/c++/v1
@@ -5102,7 +5114,10 @@ OLD_FILES+=usr/share/misc/mail.tildehelp
 
 .if ${MK_MAILWRAPPER} == no
 OLD_FILES+=etc/mail/mailer.conf
-OLD_FILES+=usr/sbin/mailwrapper
+# Don't remove, for no mailwrapper case:
+# /usr/sbin/sendmail -> /usr/sbin/mailwrapper
+# /usr/sbin/mailwrapper -> /usr/libexec/sendmail/sendmail
+#OLD_FILES+=usr/sbin/mailwrapper
 OLD_FILES+=usr/share/man/man8/mailwrapper.8.gz
 .endif
 
@@ -6293,7 +6308,6 @@ OLD_FILES+=usr/share/man/man8/rwhod.8.gz
 .if ${MK_RCS} == no
 OLD_FILES+=usr/bin/ci
 OLD_FILES+=usr/bin/co
-OLD_FILES+=usr/bin/ident
 OLD_FILES+=usr/bin/merge
 OLD_FILES+=usr/bin/rcs
 OLD_FILES+=usr/bin/rcsclean
@@ -6304,7 +6318,6 @@ OLD_FILES+=usr/bin/rlog
 OLD_FILES+=usr/sbin/etcupdate
 OLD_FILES+=usr/share/man/man1/ci.1.gz
 OLD_FILES+=usr/share/man/man1/co.1.gz
-OLD_FILES+=usr/share/man/man1/ident.1.gz
 OLD_FILES+=usr/share/man/man1/merge.1.gz
 OLD_FILES+=usr/share/man/man1/rcs.1.gz
 OLD_FILES+=usr/share/man/man1/rcsclean.1.gz
@@ -6423,6 +6436,7 @@ OLD_FILES+=usr/share/sendmail/cf/feature/allmasquerade.m4
 OLD_FILES+=usr/share/sendmail/cf/feature/always_add_domain.m4
 OLD_FILES+=usr/share/sendmail/cf/feature/authinfo.m4
 OLD_FILES+=usr/share/sendmail/cf/feature/badmx.m4
+OLD_FILES+=usr/share/sendmail/cf/feature/bcc.m4
 OLD_FILES+=usr/share/sendmail/cf/feature/bestmx_is_local.m4
 OLD_FILES+=usr/share/sendmail/cf/feature/bitdomain.m4
 OLD_FILES+=usr/share/sendmail/cf/feature/blacklist_recipients.m4
@@ -6450,9 +6464,11 @@ OLD_FILES+=usr/share/sendmail/cf/feature/msp.m4
 OLD_FILES+=usr/share/sendmail/cf/feature/mtamark.m4
 OLD_FILES+=usr/share/sendmail/cf/feature/no_default_msa.m4
 OLD_FILES+=usr/share/sendmail/cf/feature/nocanonify.m4
+OLD_FILES+=usr/share/sendmail/cf/feature/nopercenthack.m4
 OLD_FILES+=usr/share/sendmail/cf/feature/notsticky.m4
 OLD_FILES+=usr/share/sendmail/cf/feature/nouucp.m4
 OLD_FILES+=usr/share/sendmail/cf/feature/nullclient.m4
+OLD_FILES+=usr/share/sendmail/cf/feature/prefixmod.m4
 OLD_FILES+=usr/share/sendmail/cf/feature/preserve_local_plus_detail.m4
 OLD_FILES+=usr/share/sendmail/cf/feature/preserve_luser_host.m4
 OLD_FILES+=usr/share/sendmail/cf/feature/promiscuous_relay.m4
@@ -6467,6 +6483,7 @@ OLD_FILES+=usr/share/sendmail/cf/feature/relay_mail_from.m4
 OLD_FILES+=usr/share/sendmail/cf/feature/require_rdns.m4
 OLD_FILES+=usr/share/sendmail/cf/feature/smrsh.m4
 OLD_FILES+=usr/share/sendmail/cf/feature/stickyhost.m4
+OLD_FILES+=usr/share/sendmail/cf/feature/tls_session_features.m4
 OLD_FILES+=usr/share/sendmail/cf/feature/use_client_ptr.m4
 OLD_FILES+=usr/share/sendmail/cf/feature/use_ct_file.m4
 OLD_FILES+=usr/share/sendmail/cf/feature/use_cw_file.m4
@@ -6475,6 +6492,7 @@ OLD_FILES+=usr/share/sendmail/cf/feature/virtuser_entire_domain.m4
 OLD_FILES+=usr/share/sendmail/cf/feature/virtusertable.m4
 OLD_DIRS+=usr/share/sendmail/cf/feature
 OLD_FILES+=usr/share/sendmail/cf/hack/cssubdomain.m4
+OLD_FILES+=usr/share/sendmail/cf/hack/xconnect.m4
 OLD_DIRS+=usr/share/sendmail/cf/hack
 OLD_FILES+=usr/share/sendmail/cf/m4/cf.m4
 OLD_FILES+=usr/share/sendmail/cf/m4/cfhead.m4
@@ -7488,9 +7506,26 @@ OLD_FILES+=usr/share/man/man1/colcrt.1.gz
 OLD_FILES+=usr/share/man/man1/ul.1.gz
 .endif
 
-#.if ${MK_TOOLCHAIN} == no
-# to be filled in
-#.endif
+.if ${MK_TOOLCHAIN} == no
+OLD_FILES+=usr/bin/addr2line
+OLD_FILES+=usr/bin/c++filt
+OLD_FILES+=usr/bin/nm
+OLD_FILES+=usr/bin/readelf
+OLD_FILES+=usr/bin/size
+OLD_FILES+=usr/bin/strings
+OLD_FILES+=usr/bin/strip
+OLD_FILES+=usr/share/man/man1/addr2line.1.gz
+OLD_FILES+=usr/share/man/man1/c++filt.1.gz
+OLD_FILES+=usr/share/man/man1/nm.1.gz
+OLD_FILES+=usr/share/man/man1/readelf.1.gz
+OLD_FILES+=usr/share/man/man1/size.1.gz
+OLD_FILES+=usr/share/man/man1/strings.1.gz
+OLD_FILES+=usr/share/man/man1/strip.1.gz
+.endif
+.if ${MK_TOOLCHAIN} == no || ${MK_ELFCOPY_AS_OBJCOPY} != no
+OLD_FILES+=usr/bin/elfcopy
+OLD_FILES+=usr/share/man/man1/elfcopy.1.gz
+.endif
 
 .if ${MK_UNBOUND} == no
 OLD_FILES+=etc/rc.d/local_unbound

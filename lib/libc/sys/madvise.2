@@ -28,7 +28,7 @@
 .\"	@(#)madvise.2	8.1 (Berkeley) 6/9/93
 .\" $FreeBSD$
 .\"
-.Dd January 30, 2014
+.Dd July 12, 2015
 .Dt MADVISE 2
 .Os
 .Sh NAME
@@ -79,9 +79,9 @@ pages in from backing store, but quickly map the pages already in memory
 into the calling process.
 .It Dv MADV_DONTNEED
 Allows the VM system to decrease the in-memory priority
-of pages in the specified range.
-Additionally future references to
-this address range will incur a page fault.
+of pages in the specified address range.
+Consequently, future references to this address range are more likely
+to incur a page fault.
 .It Dv MADV_FREE
 Gives the VM system the freedom to free pages,
 and tells the system that information in the specified page range

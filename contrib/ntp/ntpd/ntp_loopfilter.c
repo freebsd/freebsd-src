@@ -246,6 +246,8 @@ ntp_adjtime_error_handler(
 	int line		/* line number of ntp_adjtime call */
 	)
 {
+	char des[1024] = "";	/* Decoded Error Status */
+
 	switch (ret) {
 	    case -1:
 		switch (saved_errno) {
@@ -317,14 +319,88 @@ ntp_adjtime_error_handler(
 # warning TIME_WAIT is not defined
 #endif
 #ifdef TIME_ERROR
+#if 0
+
+from the reference implementation of ntp_gettime():
+
+		// Hardware or software error
+        if ((time_status & (STA_UNSYNC | STA_CLOCKERR))
+
+	/*
+         * PPS signal lost when either time or frequency synchronization
+         * requested
+         */
+	|| (time_status & (STA_PPSFREQ | STA_PPSTIME)
+	    && !(time_status & STA_PPSSIGNAL))
+
+        /*
+         * PPS jitter exceeded when time synchronization requested
+         */
+	|| (time_status & STA_PPSTIME &&
+            time_status & STA_PPSJITTER)
+
+        /*
+         * PPS wander exceeded or calibration error when frequency
+         * synchronization requested
+         */
+	|| (time_status & STA_PPSFREQ &&
+            time_status & (STA_PPSWANDER | STA_PPSERROR)))
+                return (TIME_ERROR);
+
+or, from ntp_adjtime():
+
+	if (  (time_status & (STA_UNSYNC | STA_CLOCKERR))
+	    || (time_status & (STA_PPSFREQ | STA_PPSTIME)
+		&& !(time_status & STA_PPSSIGNAL)) 
+	    || (time_status & STA_PPSTIME
+		&& time_status & STA_PPSJITTER)
+	    || (time_status & STA_PPSFREQ
+		&& time_status & (STA_PPSWANDER | STA_PPSERROR))
+	   )
+		return (TIME_ERROR);
+#endif
+
 	    case TIME_ERROR: /* 5: unsynchronized, or loss of synchronization */
 				/* error (see status word) */
+
+		if (ptimex->status & STA_UNSYNC)
+			snprintf(des, sizeof(des), "%s%sClock Unsynchronized",
+				des, (*des) ? "; " : "");
+
+		if (ptimex->status & STA_CLOCKERR)
+			snprintf(des, sizeof(des), "%s%sClock Error",
+				des, (*des) ? "; " : "");
+
+		if (!(ptimex->status & STA_PPSSIGNAL)
+		    && ptimex->status & STA_PPSFREQ)
+			snprintf(des, sizeof(des), "%s%sPPS Frequency Sync wanted but no PPS",
+				des, (*des) ? "; " : "");
+
+		if (!(ptimex->status & STA_PPSSIGNAL)
+		    && ptimex->status & STA_PPSTIME)
+			snprintf(des, sizeof(des), "%s%sPPS Time Sync wanted but no PPS signal",
+				des, (*des) ? "; " : "");
+
+		if (   ptimex->status & STA_PPSTIME
+		    && ptimex->status & STA_PPSJITTER)
+			snprintf(des, sizeof(des), "%s%sPPS Time Sync wanted but PPS Jitter exceeded",
+				des, (*des) ? "; " : "");
+
+		if (   ptimex->status & STA_PPSFREQ
+		    && ptimex->status & STA_PPSWANDER)
+			snprintf(des, sizeof(des), "%s%sPPS Frequency Sync wanted but PPS Wander exceeded",
+				des, (*des) ? "; " : "");
+
+		if (   ptimex->status & STA_PPSFREQ
+		    && ptimex->status & STA_PPSERROR)
+			snprintf(des, sizeof(des), "%s%sPPS Frequency Sync wanted but Calibration error detected",
+				des, (*des) ? "; " : "");
+
 		if (pps_call && !(ptimex->status & STA_PPSSIGNAL))
 			report_event(EVNT_KERN, NULL,
-			    "PPS no signal");
-		errno = saved_errno;
-		DPRINTF(1, ("kernel loop status (%s) %d %m\n",
-			k_st_flags(ptimex->status), errno));
+			    "no PPS signal");
+		DPRINTF(1, ("kernel loop status %#x (%s)\n",
+			ptimex->status, des));
 		/*
 		 * This code may be returned when ntp_adjtime() has just
 		 * been called for the first time, quite a while after
@@ -339,15 +415,14 @@ ntp_adjtime_error_handler(
 		 * or ???
 		 * msyslog(LOG_INFO, "kernel reports time synchronization lost");
 		 */
-		errno = saved_errno;	/* may not be needed */
-		msyslog(LOG_INFO, "kernel reports TIME_ERROR: %#x: %s %m",
-			ptimex->status, k_st_flags(ptimex->status));
+		msyslog(LOG_INFO, "kernel reports TIME_ERROR: %#x: %s",
+			ptimex->status, des);
 	    break;
 #else
 # warning TIME_ERROR is not defined
 #endif
 	    default:
-		msyslog(LOG_NOTICE, "%s: %s line %d: unhandled return value %d from ntp_adjtime in %s at line %d",
+		msyslog(LOG_NOTICE, "%s: %s line %d: unhandled return value %d from ntp_adjtime() in %s at line %d",
 		    caller, file_name(), line,
 		    ret,
 		    __func__, __LINE__

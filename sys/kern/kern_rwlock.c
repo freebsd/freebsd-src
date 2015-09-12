@@ -301,8 +301,8 @@ __rw_try_wlock(volatile uintptr_t *c, const char *file, int line)
 		WITNESS_LOCK(&rw->lock_object, LOP_EXCLUSIVE | LOP_TRYLOCK,
 		    file, line);
 		if (!rw_recursed(rw))
-			LOCKSTAT_PROFILE_OBTAIN_LOCK_SUCCESS(LS_RW_WLOCK_ACQUIRE,
-			    rw, 0, 0, file, line);
+			LOCKSTAT_PROFILE_OBTAIN_RWLOCK_SUCCESS(rw__acquire,
+			    rw, 0, 0, file, line, LOCKSTAT_WRITER);
 		curthread->td_locks++;
 	}
 	return (rval);
@@ -378,13 +378,10 @@ __rw_rlock(volatile uintptr_t *c, const char *file, int line)
 	WITNESS_CHECKORDER(&rw->lock_object, LOP_NEWORDER, file, line, NULL);
 
 #ifdef KDTRACE_HOOKS
-	all_time -= lockstat_nsecs();
+	all_time -= lockstat_nsecs(&rw->lock_object);
 	state = rw->rw_lock;
 #endif
 	for (;;) {
-#ifdef KDTRACE_HOOKS
-		spin_cnt++;
-#endif
 		/*
 		 * Handle the easy case.  If no other thread has a write
 		 * lock, then try to bump up the count of read locks.  Note
@@ -413,6 +410,9 @@ __rw_rlock(volatile uintptr_t *c, const char *file, int line)
 			}
 			continue;
 		}
+#ifdef KDTRACE_HOOKS
+		spin_cnt++;
+#endif
 #ifdef HWPMC_HOOKS
 		PMC_SOFT_CALL( , , lock, failed);
 #endif
@@ -532,11 +532,11 @@ __rw_rlock(volatile uintptr_t *c, const char *file, int line)
 			CTR2(KTR_LOCK, "%s: %p blocking on turnstile", __func__,
 			    rw);
 #ifdef KDTRACE_HOOKS
-		sleep_time -= lockstat_nsecs();
+		sleep_time -= lockstat_nsecs(&rw->lock_object);
 #endif
 		turnstile_wait(ts, rw_owner(rw), TS_SHARED_QUEUE);
 #ifdef KDTRACE_HOOKS
-		sleep_time += lockstat_nsecs();
+		sleep_time += lockstat_nsecs(&rw->lock_object);
 		sleep_cnt++;
 #endif
 		if (LOCK_LOG_TEST(&rw->lock_object, 0))
@@ -544,15 +544,15 @@ __rw_rlock(volatile uintptr_t *c, const char *file, int line)
 			    __func__, rw);
 	}
 #ifdef KDTRACE_HOOKS
-	all_time += lockstat_nsecs();
+	all_time += lockstat_nsecs(&rw->lock_object);
 	if (sleep_time)
-		LOCKSTAT_RECORD4(LS_RW_RLOCK_BLOCK, rw, sleep_time,
+		LOCKSTAT_RECORD4(rw__block, rw, sleep_time,
 		    LOCKSTAT_READER, (state & RW_LOCK_READ) == 0,
 		    (state & RW_LOCK_READ) == 0 ? 0 : RW_READERS(state));
 
 	/* Record only the loops spinning and not sleeping. */
 	if (spin_cnt > sleep_cnt)
-		LOCKSTAT_RECORD4(LS_RW_RLOCK_SPIN, rw, all_time - sleep_time,
+		LOCKSTAT_RECORD4(rw__spin, rw, all_time - sleep_time,
 		    LOCKSTAT_READER, (state & RW_LOCK_READ) == 0,
 		    (state & RW_LOCK_READ) == 0 ? 0 : RW_READERS(state));
 #endif
@@ -561,8 +561,8 @@ __rw_rlock(volatile uintptr_t *c, const char *file, int line)
 	 * however.  turnstiles don't like owners changing between calls to
 	 * turnstile_wait() currently.
 	 */
-	LOCKSTAT_PROFILE_OBTAIN_LOCK_SUCCESS(LS_RW_RLOCK_ACQUIRE, rw, contested,
-	    waittime, file, line);
+	LOCKSTAT_PROFILE_OBTAIN_RWLOCK_SUCCESS(rw__acquire, rw, contested,
+	    waittime, file, line, LOCKSTAT_READER);
 	LOCK_LOG_LOCK("RLOCK", &rw->lock_object, 0, 0, file, line);
 	WITNESS_LOCK(&rw->lock_object, 0, file, line);
 	curthread->td_locks++;
@@ -594,8 +594,8 @@ __rw_try_rlock(volatile uintptr_t *c, const char *file, int line)
 			LOCK_LOG_TRY("RLOCK", &rw->lock_object, 0, 1, file,
 			    line);
 			WITNESS_LOCK(&rw->lock_object, LOP_TRYLOCK, file, line);
-			LOCKSTAT_PROFILE_OBTAIN_LOCK_SUCCESS(LS_RW_RLOCK_ACQUIRE,
-			    rw, 0, 0, file, line);
+			LOCKSTAT_PROFILE_OBTAIN_RWLOCK_SUCCESS(rw__acquire,
+			    rw, 0, 0, file, line, LOCKSTAT_READER);
 			curthread->td_locks++;
 			curthread->td_rw_rlocks++;
 			return (1);
@@ -713,7 +713,7 @@ _rw_runlock_cookie(volatile uintptr_t *c, const char *file, int line)
 		turnstile_chain_unlock(&rw->lock_object);
 		break;
 	}
-	LOCKSTAT_PROFILE_RELEASE_LOCK(LS_RW_RUNLOCK_RELEASE, rw);
+	LOCKSTAT_PROFILE_RELEASE_RWLOCK(rw__release, rw, LOCKSTAT_READER);
 	curthread->td_locks--;
 	curthread->td_rw_rlocks--;
 }
@@ -767,7 +767,7 @@ __rw_wlock_hard(volatile uintptr_t *c, uintptr_t tid, const char *file,
 		    rw->lock_object.lo_name, (void *)rw->rw_lock, file, line);
 
 #ifdef KDTRACE_HOOKS
-	all_time -= lockstat_nsecs();
+	all_time -= lockstat_nsecs(&rw->lock_object);
 	state = rw->rw_lock;
 #endif
 	while (!_rw_write_lock(rw, tid)) {
@@ -893,11 +893,11 @@ __rw_wlock_hard(volatile uintptr_t *c, uintptr_t tid, const char *file,
 			CTR2(KTR_LOCK, "%s: %p blocking on turnstile", __func__,
 			    rw);
 #ifdef KDTRACE_HOOKS
-		sleep_time -= lockstat_nsecs();
+		sleep_time -= lockstat_nsecs(&rw->lock_object);
 #endif
 		turnstile_wait(ts, rw_owner(rw), TS_EXCLUSIVE_QUEUE);
 #ifdef KDTRACE_HOOKS
-		sleep_time += lockstat_nsecs();
+		sleep_time += lockstat_nsecs(&rw->lock_object);
 		sleep_cnt++;
 #endif
 		if (LOCK_LOG_TEST(&rw->lock_object, 0))
@@ -908,20 +908,20 @@ __rw_wlock_hard(volatile uintptr_t *c, uintptr_t tid, const char *file,
 #endif
 	}
 #ifdef KDTRACE_HOOKS
-	all_time += lockstat_nsecs();
+	all_time += lockstat_nsecs(&rw->lock_object);
 	if (sleep_time)
-		LOCKSTAT_RECORD4(LS_RW_WLOCK_BLOCK, rw, sleep_time,
+		LOCKSTAT_RECORD4(rw__block, rw, sleep_time,
 		    LOCKSTAT_WRITER, (state & RW_LOCK_READ) == 0,
 		    (state & RW_LOCK_READ) == 0 ? 0 : RW_READERS(state));
 
 	/* Record only the loops spinning and not sleeping. */
 	if (spin_cnt > sleep_cnt)
-		LOCKSTAT_RECORD4(LS_RW_WLOCK_SPIN, rw, all_time - sleep_time,
+		LOCKSTAT_RECORD4(rw__spin, rw, all_time - sleep_time,
 		    LOCKSTAT_READER, (state & RW_LOCK_READ) == 0,
 		    (state & RW_LOCK_READ) == 0 ? 0 : RW_READERS(state));
 #endif
-	LOCKSTAT_PROFILE_OBTAIN_LOCK_SUCCESS(LS_RW_WLOCK_ACQUIRE, rw, contested,
-	    waittime, file, line);
+	LOCKSTAT_PROFILE_OBTAIN_RWLOCK_SUCCESS(rw__acquire, rw, contested,
+	    waittime, file, line, LOCKSTAT_WRITER);
 }
 
 /*
@@ -1066,7 +1066,7 @@ __rw_try_upgrade(volatile uintptr_t *c, const char *file, int line)
 		curthread->td_rw_rlocks--;
 		WITNESS_UPGRADE(&rw->lock_object, LOP_EXCLUSIVE | LOP_TRYLOCK,
 		    file, line);
-		LOCKSTAT_RECORD0(LS_RW_TRYUPGRADE_UPGRADE, rw);
+		LOCKSTAT_RECORD0(rw__upgrade, rw);
 	}
 	return (success);
 }
@@ -1138,7 +1138,7 @@ __rw_downgrade(volatile uintptr_t *c, const char *file, int line)
 out:
 	curthread->td_rw_rlocks++;
 	LOCK_LOG_LOCK("WDOWNGRADE", &rw->lock_object, 0, 0, file, line);
-	LOCKSTAT_RECORD0(LS_RW_DOWNGRADE_DOWNGRADE, rw);
+	LOCKSTAT_RECORD0(rw__downgrade, rw);
 }
 
 #ifdef INVARIANT_SUPPORT

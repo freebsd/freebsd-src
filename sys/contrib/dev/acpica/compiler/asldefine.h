@@ -52,6 +52,7 @@
 #define AML_DISASSEMBLER_NAME       "AML/ASL+ Disassembler"
 #define ASL_INVOCATION_NAME         "iasl"
 #define ASL_CREATOR_ID              "INTL"
+#define ASL_DEFINE                  "__IASL__"
 
 #define ASL_COMPLIANCE              "Supports ACPI Specification Revision 6.0"
 
@@ -153,12 +154,6 @@
 #define ACPI_PREDEFINED_NAME            (ACPI_UINT32_MAX - 1)
 #define ACPI_EVENT_RESERVED_NAME        (ACPI_UINT32_MAX - 2)
 #define ACPI_COMPILER_RESERVED_NAME     (ACPI_UINT32_MAX - 3)
-
-
-/* String to Integer conversion */
-
-#define NEGATIVE                    1
-#define POSITIVE                    0
 
 
 /* Helper macros for resource tag creation */

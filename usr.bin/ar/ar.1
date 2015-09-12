@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 22, 2011
+.Dd July 24, 2015
 .Dt AR 1
 .Os
 .Sh NAME
@@ -66,6 +66,7 @@
 .Op Fl D
 .Op Fl f
 .Op Fl s | Fl S
+.Op Fl U
 .Op Fl v
 .Op Fl z
 .Ar archive
@@ -82,6 +83,7 @@
 .Op Fl j
 .Op Fl s | Fl S
 .Op Fl u
+.Op Fl U
 .Op Fl v
 .Op Fl z
 .Ar archive
@@ -112,6 +114,7 @@
 .Fl M
 .Nm ranlib
 .Op Fl D
+.Op Fl U
 .Ar archive ...
 .Sh DESCRIPTION
 The
@@ -207,6 +210,12 @@ and 0644 instead of file mode from the members named by arguments
 .Ar .
 This ensures that checksums on the resulting archives are reproducible
 when member contents are identical.
+This option is enabled by default.
+If multiple
+.Fl D
+and
+.Fl U
+options are specified on the command line, the final one takes precedence.
 .It Fl f
 Synonymous with option
 .Fl T .
@@ -316,6 +325,19 @@ option, the members specified by arguments
 .Ar
 will be extracted only if they are newer than the corresponding
 files in the file system.
+.It Fl U
+When used in combination with the
+.Fl r
+or
+.Fl q
+option, insert the real mtime, uid and gid, and file mode values
+from the members named by arguments
+.Ar .
+If multiple
+.Fl D
+and
+.Fl U
+options are specified on the command line, the final one takes precedence.
 .It Fl v
 Provide verbose output.
 When used with the

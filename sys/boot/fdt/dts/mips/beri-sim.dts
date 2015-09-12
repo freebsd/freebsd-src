@@ -128,6 +128,18 @@
 			reg = <0x7f002000 0x40>;
 		};
 
+		virtio_mmio_platform0: virtio_mmio_platform@0 {
+			compatible = "beri,virtio_mmio_platform";
+			interrupts = <1>;
+			interrupt-parent = <&beripic0>;
+		};
+
+		virtio_block@7f020000 {
+			compatible = "virtio,mmio";
+			reg = <0x7f020000 0x1000>;
+			platform = <&virtio_mmio_platform0>;
+		};
+
 		sdcard@7f008000 {
 			compatible = "altera,sdcard_11_2011";
 			reg = <0x7f008000 0x400>;

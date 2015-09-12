@@ -81,5 +81,6 @@ MK_${vv:H}?= no
 .else
 MK_${vv:H}?= ${MK_${vv:T}}
 .endif
+MK_${vv:H}:= ${MK_${vv:H}}
 .endfor
 .undef __DEFAULT_DEPENDENT_OPTIONS

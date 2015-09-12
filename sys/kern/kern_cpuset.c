@@ -400,7 +400,7 @@ out:
  * -1 may be supplied for any argument to mean the current proc/thread or
  * the base set of the current thread.  May fail with ESRCH/EPERM.
  */
-static int
+int
 cpuset_which(cpuwhich_t which, id_t id, struct proc **pp, struct thread **tdp,
     struct cpuset **setp)
 {

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2000-2013 Mark R V Murray
+ * Copyright (c) 2000-2015 Mark R V Murray
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,41 +27,95 @@
  */
 
 #ifndef SYS_DEV_RANDOM_RANDOMDEV_H_INCLUDED
-#define SYS_DEV_RANDOM_RANDOMDEV_H_INCLUDED
+#define	SYS_DEV_RANDOM_RANDOMDEV_H_INCLUDED
+
+#ifdef _KERNEL
 
 /* This header contains only those definitions that are global
  * and non algorithm-specific for the entropy processor
  */
 
-typedef void random_init_func_t(void);
-typedef void random_deinit_func_t(void);
-
-void randomdev_init_harvester(void (*)(const void *, u_int, u_int, enum random_entropy_source));
-void randomdev_init_reader(void (*)(uint8_t *, u_int));
-void randomdev_deinit_harvester(void);
-void randomdev_deinit_reader(void);
-
-/* Stub/fake routines for when no entropy processor is loaded */
-extern void dummy_random_read_phony(uint8_t *, u_int);
-
-/* kern.random sysctls */
 #ifdef SYSCTL_DECL	/* from sysctl.h */
 SYSCTL_DECL(_kern_random);
 
-/* If this was C++, the macro below would be a template */
-#define RANDOM_CHECK_UINT(name, min, max)				\
+#define	RANDOM_CHECK_UINT(name, min, max)				\
 static int								\
 random_check_uint_##name(SYSCTL_HANDLER_ARGS)				\
 {									\
 	if (oidp->oid_arg1 != NULL) {					\
-		 if (*(u_int *)(oidp->oid_arg1) <= (min))		\
+		if (*(u_int *)(oidp->oid_arg1) <= (min))		\
 			*(u_int *)(oidp->oid_arg1) = (min);		\
-		 else if (*(u_int *)(oidp->oid_arg1) > (max))		\
+		else if (*(u_int *)(oidp->oid_arg1) > (max))		\
 			*(u_int *)(oidp->oid_arg1) = (max);		\
 	}								\
-        return (sysctl_handle_int(oidp, oidp->oid_arg1, oidp->oid_arg2,	\
+	return (sysctl_handle_int(oidp, oidp->oid_arg1, oidp->oid_arg2,	\
 		req));							\
 }
 #endif /* SYSCTL_DECL */
 
-#endif
+MALLOC_DECLARE(M_ENTROPY);
+
+#define	RANDOM_ALG_READ_RATE_MINIMUM	32
+
+#endif /* _KERNEL */
+
+struct harvest_event;
+
+typedef void random_alg_pre_read_t(void);
+typedef void random_alg_read_t(uint8_t *, u_int);
+typedef void random_alg_write_t(uint8_t *, u_int);
+typedef int random_alg_seeded_t(void);
+typedef void random_alg_reseed_t(void);
+typedef void random_alg_eventprocessor_t(struct harvest_event *);
+
+typedef u_int random_source_read_t(void *, u_int);
+
+/*
+ * Random Algorithm is a processor of randomness for the kernel
+ * and for userland.
+ */
+struct random_algorithm {
+	const char			*ra_ident;
+	u_int				 ra_poolcount;
+	void				(*ra_init_alg)(void *);
+	void				(*ra_deinit_alg)(void *);
+	random_alg_pre_read_t		*ra_pre_read;
+	random_alg_read_t		*ra_read;
+	random_alg_write_t		*ra_write;
+	random_alg_reseed_t		*ra_reseed;
+	random_alg_seeded_t		*ra_seeded;
+	random_alg_eventprocessor_t	*ra_event_processor;
+};
+
+extern struct random_algorithm random_alg_context;
+
+#ifdef _KERNEL
+
+/*
+ * Random Source is a source of entropy that can provide
+ * specified or approximate amount of entropy immediately
+ * upon request.
+ */
+struct random_source {
+	const char				*rs_ident;
+	enum random_entropy_source		 rs_source;
+	random_source_read_t			*rs_read;
+};
+
+#if !defined(RANDOM_DUMMY)
+struct random_sources {
+	LIST_ENTRY(random_sources)		 rrs_entries;
+	struct random_source			*rrs_source;
+};
+#endif /* !defined(RANDOM_DUMMY) */
+
+void random_source_register(struct random_source *);
+void random_source_deregister(struct random_source *);
+
+void random_sources_feed(void);
+
+#endif /* _KERNEL */
+
+void randomdev_unblock(void);
+
+#endif /* SYS_DEV_RANDOM_RANDOMDEV_H_INCLUDED */

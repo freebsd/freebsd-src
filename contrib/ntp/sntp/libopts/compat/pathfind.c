@@ -23,9 +23,9 @@ pathfind( char const * path,
 }
 #else
 
-static char* make_absolute( char const *string, char const *dot_path );
-static char* canonicalize_pathname( char *path );
-static char* extract_colon_unit( char* dir, char const *string, int *p_index );
+static char * make_absolute(char const * string, char const * dot_path);
+static char * canonicalize_pathname(char * path);
+static char * extract_colon_unit(char * dir, char const * string, int * p_index);
 
 /**
  * local implementation of pathfind.
@@ -52,8 +52,8 @@ pathfind( char const * path,
      *  FOR each non-null entry in the colon-separated path, DO ...
      */
     for (;;) {
-        DIR*  dirP;
-        char* colon_unit = extract_colon_unit( zPath, path, &p_index );
+        DIR  * dirP;
+        char * colon_unit = extract_colon_unit( zPath, path, &p_index );
 
         if (colon_unit == NULL)
             break;
@@ -69,7 +69,7 @@ pathfind( char const * path,
         for (;;) {
             struct dirent *entP = readdir( dirP );
 
-            if (entP == (struct dirent*)NULL)
+            if (entP == (struct dirent *)NULL)
                 break;
 
             /*
@@ -107,10 +107,10 @@ pathfind( char const * path,
  * DOT_PATH contains the symbolic location of  `.'.  This always returns
  * a new string, even if STRING was an absolute pathname to begin with.
  */
-static char*
-make_absolute( char const *string, char const *dot_path )
+static char *
+make_absolute( char const * string, char const * dot_path )
 {
-    char *result;
+    char * result;
     int result_len;
 
     if (!dot_path || *string == '/') {
@@ -147,7 +147,7 @@ make_absolute( char const *string, char const *dot_path )
  *    Non-leading `../'s and trailing `..'s are handled by removing
  *                    portions of the path.
  */
-static char*
+static char *
 canonicalize_pathname( char *path )
 {
     int i, start;
@@ -231,8 +231,8 @@ canonicalize_pathname( char *path )
  * return the next one  pointed to by (P_INDEX), or NULL if there are no
  * more.  Advance (P_INDEX) to the character after the colon.
  */
-static char*
-extract_colon_unit( char* pzDir, char const *string, int *p_index )
+static char *
+extract_colon_unit(char * pzDir, char const * string, int * p_index)
 {
     char * pzDest = pzDir;
     int    ix     = *p_index;

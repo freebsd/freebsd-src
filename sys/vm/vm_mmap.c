@@ -312,14 +312,12 @@ sys_mmap(td, uap)
 		 * There should really be a pmap call to determine a reasonable
 		 * location.
 		 */
-		PROC_LOCK(td->td_proc);
 		if (addr == 0 ||
 		    (addr >= round_page((vm_offset_t)vms->vm_taddr) &&
 		    addr < round_page((vm_offset_t)vms->vm_daddr +
-		    lim_max_proc(td->td_proc, RLIMIT_DATA))))
+		    lim_max(td, RLIMIT_DATA))))
 			addr = round_page((vm_offset_t)vms->vm_daddr +
-			    lim_max_proc(td->td_proc, RLIMIT_DATA));
-		PROC_UNLOCK(td->td_proc);
+			    lim_max(td, RLIMIT_DATA));
 	}
 	if (size == 0) {
 		/*
@@ -1416,6 +1414,7 @@ vm_mmap(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 		return (EINVAL);
 
 	size = round_page(size);
+	object = NULL;
 	writecounted = FALSE;
 
 	/*

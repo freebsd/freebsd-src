@@ -32,7 +32,6 @@
 
 # Testcase # 11 is racy; uses an undocumented kernel interface for testing
 #            locking
-# Testcase # 16 is racy/doesn't handle EINTR properly
 last_testcase=16
 
 echo "1..$last_testcase"
@@ -42,10 +41,6 @@ for n in `seq 1 $last_testcase`; do
 
 	if [ $n -eq 11 ]; then
 		todomsg=" # TODO: racy testcase"
-	# Test 16 fails:
-	# F_SETLKW on locked region by two threads: FAIL ((uintptr_t)res != 0)
-	elif [ $n -eq 16 ]; then
-		todomsg=" # TODO: racy testcase (doesn't handle EINTR properly)"
 	fi
 
 	$(dirname $0)/flock_helper . $n | grep -q SUCCEED

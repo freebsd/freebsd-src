@@ -95,6 +95,9 @@ vfp_save_state(struct thread *td)
 	 */
 	cpacr = READ_SPECIALREG(cpacr_el1);
 	if ((cpacr & CPACR_FPEN_MASK) == CPACR_FPEN_TRAP_NONE) {
+		KASSERT(PCPU_GET(fpcurthread) == td,
+		    ("Storing an invalid VFP state"));
+
 		vfp_state = td->td_pcb->pcb_vfp;
 		__asm __volatile(
 		    "mrs	%0, fpcr		\n"
@@ -142,7 +145,12 @@ vfp_restore_state(void)
 
 	vfp_enable();
 
-	if (PCPU_GET(fpcurthread) != curthread && cpu != curpcb->pcb_vfpcpu) {
+	/*
+	 * If the previous thread on this cpu to use the VFP was not the
+	 * current threas, or the current thread last used it on a different
+	 * cpu we need to restore the old state.
+	 */
+	if (PCPU_GET(fpcurthread) != curthread || cpu != curpcb->pcb_vfpcpu) {
 
 		vfp_state = curthread->td_pcb->pcb_vfp;
 		fpcr = curthread->td_pcb->pcb_fpcr;

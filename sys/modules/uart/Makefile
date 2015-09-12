@@ -36,8 +36,4 @@ SRCS+=	bus_if.h card_if.h device_if.h isa_if.h ${ofw_bus_if} pci_if.h \
 	power_if.h pccarddevs.h serdev_if.h
 SRCS+=	opt_platform.h
 
-MFILES= dev/pccard/card_if.m dev/pccard/power_if.m dev/pci/pci_if.m \
-	dev/ofw/ofw_bus_if.m dev/uart/uart_if.m isa/isa_if.m kern/bus_if.m \
-	kern/device_if.m kern/serdev_if.m
-
 .include <bsd.kmod.mk>

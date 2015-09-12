@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -137,7 +138,7 @@ obj_lookup(int oid, u_int type)
 	return (obj);
 }
 
-struct obj *
+static struct obj *
 bd_tag_new(struct obj *ptag, int fd, u_long align, u_long bndry,
     u_long maxaddr, u_long maxsz, u_int nsegs, u_long maxsegsz,
     u_int datarate, u_int flags)
@@ -183,10 +184,16 @@ int
 bd_tag_create(const char *dev, u_long align, u_long bndry, u_long maxaddr,
     u_long maxsz, u_int nsegs, u_long maxsegsz, u_int datarate, u_int flags)
 {
+	char path[PATH_MAX];
 	struct obj *tag;
-	int fd;
+	int fd, len;
 
-	fd = open(dev, O_RDWR);
+	len = snprintf(path, PATH_MAX, "/dev/proto/%s/busdma", dev);
+	if (len >= PATH_MAX) {
+		errno = EINVAL;
+		return (-1);
+	}
+	fd = open(path, O_RDWR);
 	if (fd == -1)
 		return (-1);
 
@@ -243,12 +250,146 @@ bd_tag_destroy(int tid)
 	return (0);
 }
 
+static int
+bd_md_add_seg(struct obj *md, int type, u_long addr, u_long size)
+{
+	struct obj *seg;
+
+	seg = obj_alloc(OBJ_TYPE_SEG);
+	if (seg == NULL)
+		return (errno);
+	seg->refcnt = 1;
+	seg->parent = md;
+	seg->u.seg.address = addr;
+	seg->u.seg.size = size;
+
+	md->u.md.seg[type] = seg;
+	md->u.md.nsegs[type] = 1;
+	return (0);
+}
+
+static int
+bd_md_del_segs(struct obj *md, int type, int unmap)
+{
+	struct obj *seg, *seg0;
+
+	for (seg = md->u.md.seg[type]; seg != NULL; seg = seg0) {
+		if (unmap)
+			munmap((void *)seg->u.seg.address, seg->u.seg.size);
+		seg0 = seg->u.seg.next;
+		obj_free(seg);
+	}
+	return (0);
+}
+
+int
+bd_md_create(int tid, u_int flags)
+{
+	struct proto_ioc_busdma ioc;
+	struct obj *md, *tag;
+
+	tag = obj_lookup(tid, OBJ_TYPE_TAG);
+	if (tag == NULL)
+		return (-1);
+
+	md = obj_alloc(OBJ_TYPE_MD);
+	if (md == NULL)
+		return (-1);
+
+	memset(&ioc, 0, sizeof(ioc));
+	ioc.request = PROTO_IOC_BUSDMA_MD_CREATE;
+	ioc.u.md.tag = tag->key;
+	ioc.u.md.flags = flags;
+	if (ioctl(tag->fd, PROTO_IOC_BUSDMA, &ioc) == -1) {
+		obj_free(md);
+		return (-1);
+	}
+
+	md->refcnt = 1;
+	md->fd = tag->fd;
+	md->parent = tag;
+	tag->refcnt++;
+	md->key = ioc.result;
+	return (md->oid);
+}
+
+int
+bd_md_destroy(int mdid)
+{
+	struct proto_ioc_busdma ioc;
+	struct obj *md;
+
+	md = obj_lookup(mdid, OBJ_TYPE_MD);
+	if (md == NULL)
+		return (errno);
+
+	memset(&ioc, 0, sizeof(ioc));
+	ioc.request = PROTO_IOC_BUSDMA_MD_DESTROY;
+	ioc.key = md->key;
+	if (ioctl(md->fd, PROTO_IOC_BUSDMA, &ioc) == -1)
+		return (errno);
+
+	md->parent->refcnt--;
+	obj_free(md);
+	return (0);
+}
+
+int
+bd_md_load(int mdid, void *buf, u_long len, u_int flags)
+{
+	struct proto_ioc_busdma ioc;
+	struct obj *md;
+	int error;
+
+	md = obj_lookup(mdid, OBJ_TYPE_MD);
+	if (md == NULL)
+		return (errno);
+
+	memset(&ioc, 0, sizeof(ioc));
+	ioc.request = PROTO_IOC_BUSDMA_MD_LOAD;
+	ioc.key = md->key;
+	ioc.u.md.flags = flags;
+	ioc.u.md.virt_addr = (uintptr_t)buf;
+	ioc.u.md.virt_size = len;
+	if (ioctl(md->fd, PROTO_IOC_BUSDMA, &ioc) == -1)
+		return (errno);
+
+	error = bd_md_add_seg(md, BUSDMA_MD_VIRT, ioc.u.md.virt_addr, len);
+	error = bd_md_add_seg(md, BUSDMA_MD_PHYS, ioc.u.md.phys_addr, len);
+	error = bd_md_add_seg(md, BUSDMA_MD_BUS, ioc.u.md.bus_addr, len);
+	return (error);
+}
+
+int
+bd_md_unload(int mdid)
+{
+	struct proto_ioc_busdma ioc;
+	struct obj *md;
+	int error;
+
+	md = obj_lookup(mdid, OBJ_TYPE_MD);
+	if (md == NULL)
+		return (errno);
+
+	memset(&ioc, 0, sizeof(ioc));
+	ioc.request = PROTO_IOC_BUSDMA_MD_UNLOAD;
+	ioc.key = md->key;
+	if (ioctl(md->fd, PROTO_IOC_BUSDMA, &ioc) == -1)
+		return (errno);
+
+	bd_md_del_segs(md, BUSDMA_MD_VIRT, 0);
+	bd_md_del_segs(md, BUSDMA_MD_PHYS, 0);
+	bd_md_del_segs(md, BUSDMA_MD_BUS, 0);
+	return (0);
+}
+
 int
 bd_mem_alloc(int tid, u_int flags)
 {
 	struct proto_ioc_busdma ioc;
 	struct obj *md, *tag;
-	struct obj *bseg, *pseg, *vseg;
+	uintptr_t addr;
+	int error;
 
 	tag = obj_lookup(tid, OBJ_TYPE_TAG);
 	if (tag == NULL)
@@ -260,8 +401,8 @@ bd_mem_alloc(int tid, u_int flags)
 
 	memset(&ioc, 0, sizeof(ioc));
 	ioc.request = PROTO_IOC_BUSDMA_MEM_ALLOC;
-	ioc.u.mem.tag = tag->key;
-	ioc.u.mem.flags = flags;
+	ioc.u.md.tag = tag->key;
+	ioc.u.md.flags = flags;
 	if (ioctl(tag->fd, PROTO_IOC_BUSDMA, &ioc) == -1) {
 		obj_free(md);
 		return (-1);
@@ -274,54 +415,22 @@ bd_mem_alloc(int tid, u_int flags)
 	md->key = ioc.result;
 
 	/* XXX we need to support multiple segments */
-	assert(ioc.u.mem.phys_nsegs == 1);
-	assert(ioc.u.mem.bus_nsegs == 1);
+	assert(ioc.u.md.phys_nsegs == 1);
+	assert(ioc.u.md.bus_nsegs == 1);
+	error = bd_md_add_seg(md, BUSDMA_MD_PHYS, ioc.u.md.phys_addr,
+	    tag->u.tag.maxsz);
+	error = bd_md_add_seg(md, BUSDMA_MD_BUS, ioc.u.md.bus_addr,
+	    tag->u.tag.maxsz);
 
-	bseg = pseg = vseg = NULL;
-
-	bseg = obj_alloc(OBJ_TYPE_SEG);
-	if (bseg == NULL)
+	addr = (uintptr_t)mmap(NULL, tag->u.tag.maxsz, PROT_READ | PROT_WRITE,
+	    MAP_NOCORE | MAP_SHARED, md->fd, ioc.u.md.phys_addr);
+	if (addr == (uintptr_t)MAP_FAILED)
 		goto fail;
-	bseg->refcnt = 1;
-	bseg->parent = md;
-	bseg->u.seg.address = ioc.u.mem.bus_addr;
-	bseg->u.seg.size = tag->u.tag.maxsz;
-	md->u.md.seg[BUSDMA_MD_BUS] = bseg;
-	md->u.md.nsegs[BUSDMA_MD_BUS] = ioc.u.mem.bus_nsegs;
-
-	pseg = obj_alloc(OBJ_TYPE_SEG);
-	if (pseg == NULL)
-		goto fail;
-	pseg->refcnt = 1;
-	pseg->parent = md;
-	pseg->u.seg.address = ioc.u.mem.phys_addr;
-	pseg->u.seg.size = tag->u.tag.maxsz;
-	md->u.md.seg[BUSDMA_MD_PHYS] = pseg;
-	md->u.md.nsegs[BUSDMA_MD_PHYS] = ioc.u.mem.phys_nsegs;
-
-	vseg = obj_alloc(OBJ_TYPE_SEG);
-	if (vseg == NULL)
-		goto fail;
-	vseg->refcnt = 1;
-	vseg->parent = md;
-	vseg->u.seg.address = (uintptr_t)mmap(NULL, pseg->u.seg.size,
-	    PROT_READ | PROT_WRITE, MAP_NOCORE | MAP_SHARED, md->fd,
-	    pseg->u.seg.address);
-	if (vseg->u.seg.address == (uintptr_t)MAP_FAILED)
-		goto fail;
-	vseg->u.seg.size = pseg->u.seg.size;
-	md->u.md.seg[BUSDMA_MD_VIRT] = vseg;
-	md->u.md.nsegs[BUSDMA_MD_VIRT] = 1;
+	error = bd_md_add_seg(md, BUSDMA_MD_VIRT, addr, tag->u.tag.maxsz);
 
 	return (md->oid);
 
  fail:
-	if (vseg != NULL)
-		obj_free(vseg);
-	if (pseg != NULL)
-		obj_free(pseg);
-	if (bseg != NULL)
-		obj_free(bseg);
 	memset(&ioc, 0, sizeof(ioc));
 	ioc.request = PROTO_IOC_BUSDMA_MEM_FREE;
 	ioc.key = md->key;
@@ -335,31 +444,21 @@ int
 bd_mem_free(int mdid)
 {
 	struct proto_ioc_busdma ioc;
-	struct obj *md, *seg, *seg0;
+	struct obj *md;
 
 	md = obj_lookup(mdid, OBJ_TYPE_MD);
 	if (md == NULL)
 		return (errno);
 
-	for (seg = md->u.md.seg[BUSDMA_MD_VIRT]; seg != NULL; seg = seg0) {
-		munmap((void *)seg->u.seg.address, seg->u.seg.size);
-		seg0 = seg->u.seg.next;
-		obj_free(seg);
-	}
-	for (seg = md->u.md.seg[BUSDMA_MD_PHYS]; seg != NULL; seg = seg0) {
-		seg0 = seg->u.seg.next;
-		obj_free(seg);
-	}
-	for (seg = md->u.md.seg[BUSDMA_MD_BUS]; seg != NULL; seg = seg0) {
-		seg0 = seg->u.seg.next;
-		obj_free(seg);
-	}
 	memset(&ioc, 0, sizeof(ioc));
 	ioc.request = PROTO_IOC_BUSDMA_MEM_FREE;
 	ioc.key = md->key;
 	if (ioctl(md->fd, PROTO_IOC_BUSDMA, &ioc) == -1)
 		return (errno);
 
+	bd_md_del_segs(md, BUSDMA_MD_VIRT, 1);
+	bd_md_del_segs(md, BUSDMA_MD_PHYS, 0);
+	bd_md_del_segs(md, BUSDMA_MD_BUS, 0);
 	md->parent->refcnt--;
 	obj_free(md);
 	return (0);
@@ -433,5 +532,27 @@ bd_seg_get_size(int sid, u_long *size_p)
 		return (errno);
 
 	*size_p = seg->u.seg.size;
+	return (0);
+}
+
+int
+bd_sync(int mdid, u_int op, u_long ofs, u_long len)
+{
+	struct proto_ioc_busdma ioc;
+	struct obj *md;
+
+	md = obj_lookup(mdid, OBJ_TYPE_MD);
+	if (md == NULL)
+		return (errno);
+
+	memset(&ioc, 0, sizeof(ioc));
+	ioc.request = PROTO_IOC_BUSDMA_SYNC;
+	ioc.key = md->key;
+	ioc.u.sync.op = op;
+	ioc.u.sync.base = ofs;
+	ioc.u.sync.size = len;
+	if (ioctl(md->fd, PROTO_IOC_BUSDMA, &ioc) == -1)
+		return (errno);
+
 	return (0);
 }

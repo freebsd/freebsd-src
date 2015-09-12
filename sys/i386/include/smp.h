@@ -39,7 +39,6 @@ extern int			cpu_apic_ids[];
 extern int bootAP;
 extern void *dpcpu;
 extern char *bootSTK;
-extern int bootAP;
 extern void *bootstacks[];
 extern volatile u_int cpu_ipi_pending[];
 extern volatile int aps_ready;

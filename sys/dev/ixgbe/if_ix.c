@@ -246,6 +246,9 @@ DRIVER_MODULE(ix, pci, ix_driver, ix_devclass, 0, 0);
 
 MODULE_DEPEND(ix, pci, 1, 1, 1);
 MODULE_DEPEND(ix, ether, 1, 1, 1);
+#ifdef DEV_NETMAP
+MODULE_DEPEND(ix, netmap, 1, 1, 1);
+#endif /* DEV_NETMAP */
 
 /*
 ** TUNEABLE PARAMETERS:
@@ -270,7 +273,6 @@ SYSCTL_INT(_hw_ix, OID_AUTO, max_interrupt_rate, CTLFLAG_RDTUN,
 
 /* How many packets rxeof tries to clean at a time */
 static int ixgbe_rx_process_limit = 256;
-TUNABLE_INT("hw.ixgbe.rx_process_limit", &ixgbe_rx_process_limit);
 SYSCTL_INT(_hw_ix, OID_AUTO, rx_process_limit, CTLFLAG_RDTUN,
     &ixgbe_rx_process_limit, 0,
     "Maximum number of received packets to process at a time,"
@@ -278,7 +280,6 @@ SYSCTL_INT(_hw_ix, OID_AUTO, rx_process_limit, CTLFLAG_RDTUN,
 
 /* How many packets txeof tries to clean at a time */
 static int ixgbe_tx_process_limit = 256;
-TUNABLE_INT("hw.ixgbe.tx_process_limit", &ixgbe_tx_process_limit);
 SYSCTL_INT(_hw_ix, OID_AUTO, tx_process_limit, CTLFLAG_RDTUN,
     &ixgbe_tx_process_limit, 0,
     "Maximum number of sent packets to process at a time,"
@@ -438,6 +439,11 @@ ixgbe_attach(device_t dev)
 	adapter = device_get_softc(dev);
 	adapter->dev = adapter->osdep.dev = dev;
 	hw = &adapter->hw;
+
+#ifdef DEV_NETMAP
+	adapter->init_locked = ixgbe_init_locked;
+	adapter->stop_locked = ixgbe_stop;
+#endif
 
 	/* Core Lock Init*/
 	IXGBE_CORE_LOCK_INIT(adapter, device_get_nameunit(dev));
@@ -5270,10 +5276,10 @@ ixgbe_vf_api_negotiate(struct adapter *adapter, struct ixgbe_vf *vf,
     uint32_t *msg)
 {
 
-	switch (msg[0]) {
+	switch (msg[1]) {
 	case IXGBE_API_VER_1_0:
 	case IXGBE_API_VER_1_1:
-		vf->api_ver = msg[0];
+		vf->api_ver = msg[1];
 		ixgbe_send_vf_ack(adapter, vf, msg[0]);
 		break;
 	default:

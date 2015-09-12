@@ -110,7 +110,7 @@ X_db_search_symbol(db_symtab_t *symtab, db_addr_t off, db_strategy_t strat,
 	diff = ~0UL;
 	match = NULL;
 	for (sym = (Elf_Sym*)symtab->start; (char*)sym < symtab->end; sym++) {
-		if (sym->st_name == 0)
+		if (sym->st_name == 0 || sym->st_shndx == SHN_UNDEF)
 			continue;
 		if (off < sym->st_value)
 			continue;

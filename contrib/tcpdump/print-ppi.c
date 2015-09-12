@@ -26,8 +26,8 @@ static inline void
 ppi_header_print(netdissect_options *ndo, const u_char *bp, u_int length)
 {
 	const ppi_header_t *hdr;
-	uint32_t dlt;
 	uint16_t len;
+	uint32_t dlt;
 
 	hdr = (const ppi_header_t *)bp;
 
@@ -35,11 +35,11 @@ ppi_header_print(netdissect_options *ndo, const u_char *bp, u_int length)
 	dlt = EXTRACT_LE_32BITS(&hdr->ppi_dlt);
 
 	if (!ndo->ndo_qflag) {
-		ND_PRINT((ndo,", V.%d DLT %s (%d) len %d", hdr->ppi_ver,
+		ND_PRINT((ndo, "V.%d DLT %s (%d) len %d", hdr->ppi_ver,
 			  pcap_datalink_val_to_name(dlt), dlt,
                           len));
         } else {
-		ND_PRINT((ndo,", %s", pcap_datalink_val_to_name(dlt)));
+		ND_PRINT((ndo, "%s", pcap_datalink_val_to_name(dlt)));
         }
 
 	ND_PRINT((ndo, ", length %u: ", length));
@@ -54,21 +54,32 @@ ppi_print(netdissect_options *ndo,
 	ppi_header_t *hdr;
 	u_int caplen = h->caplen;
 	u_int length = h->len;
+	uint16_t len;
 	uint32_t dlt;
 
 	if (caplen < sizeof(ppi_header_t)) {
 		ND_PRINT((ndo, "[|ppi]"));
 		return;
 	}
+
 	hdr = (ppi_header_t *)p;
+	len = EXTRACT_LE_16BITS(&hdr->ppi_len);
+	if (len < sizeof(ppi_header_t)) {
+		ND_PRINT((ndo, "[|ppi]"));
+		return;
+	}
+	if (caplen < len) {
+		ND_PRINT((ndo, "[|ppi]"));
+		return;
+	}
 	dlt = EXTRACT_LE_32BITS(&hdr->ppi_dlt);
 
 	if (ndo->ndo_eflag)
 		ppi_header_print(ndo, p, length);
 
-	length -= sizeof(ppi_header_t);
-	caplen -= sizeof(ppi_header_t);
-	p += sizeof(ppi_header_t);
+	length -= len;
+	caplen -= len;
+	p += len;
 
 	if ((printer = lookup_printer(dlt)) != NULL) {
 		printer(h, p);
@@ -76,8 +87,7 @@ ppi_print(netdissect_options *ndo,
 		ndo_printer(ndo, h, p);
 	} else {
 		if (!ndo->ndo_eflag)
-			ppi_header_print(ndo, (u_char *)hdr,
-					length + sizeof(ppi_header_t));
+			ppi_header_print(ndo, (u_char *)hdr, length + len);
 
 		if (!ndo->ndo_suppress_default_print)
 			ND_DEFAULTPRINT(p, caplen);

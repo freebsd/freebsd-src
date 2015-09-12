@@ -383,8 +383,8 @@ static int ctl_open(struct cdev *dev, int flags, int fmt, struct thread *td);
 static int ctl_close(struct cdev *dev, int flags, int fmt, struct thread *td);
 static void ctl_ioctl_online(void *arg);
 static void ctl_ioctl_offline(void *arg);
-static int ctl_ioctl_lun_enable(void *arg, struct ctl_id targ_id, int lun_id);
-static int ctl_ioctl_lun_disable(void *arg, struct ctl_id targ_id, int lun_id);
+static int ctl_ioctl_lun_enable(void *arg, int lun_id);
+static int ctl_ioctl_lun_disable(void *arg, int lun_id);
 static int ctl_ioctl_do_datamove(struct ctl_scsiio *ctsio);
 static int ctl_serialize_other_sc_cmd(struct ctl_scsiio *ctsio);
 static int ctl_ioctl_submit_wait(union ctl_io *io);
@@ -399,7 +399,7 @@ static int ctl_ioctl_fill_ooa(struct ctl_lun *lun, uint32_t *cur_fill_num,
 static int ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 		     struct thread *td);
 static int ctl_alloc_lun(struct ctl_softc *ctl_softc, struct ctl_lun *lun,
-			 struct ctl_be_lun *be_lun, struct ctl_id target_id);
+			 struct ctl_be_lun *be_lun);
 static int ctl_free_lun(struct ctl_lun *lun);
 static void ctl_create_lun(struct ctl_be_lun *be_lun);
 static struct ctl_port * ctl_io_port(struct ctl_io_hdr *io_hdr);
@@ -1128,13 +1128,6 @@ ctl_init(void)
 		softc->port_offset = (softc->ha_id - 1) * CTL_MAX_PORTS;
 	softc->persis_offset = softc->port_offset * CTL_MAX_INIT_PER_PORT;
 
-	/*
-	 * XXX KDM need to figure out where we want to get our target ID
-	 * and WWID.  Is it different on each port?
-	 */
-	softc->target.id = 0;
-	softc->target.wwid[0] = 0x12345678;
-	softc->target.wwid[1] = 0x87654321;
 	STAILQ_INIT(&softc->lun_list);
 	STAILQ_INIT(&softc->pending_lun_queue);
 	STAILQ_INIT(&softc->fe_list);
@@ -1647,13 +1640,13 @@ ctl_create_iid(struct ctl_port *port, int iid, uint8_t *buf)
 }
 
 static int
-ctl_ioctl_lun_enable(void *arg, struct ctl_id targ_id, int lun_id)
+ctl_ioctl_lun_enable(void *arg, int lun_id)
 {
 	return (0);
 }
 
 static int
-ctl_ioctl_lun_disable(void *arg, struct ctl_id targ_id, int lun_id)
+ctl_ioctl_lun_disable(void *arg, int lun_id)
 {
 	return (0);
 }
@@ -2478,28 +2471,9 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 				mtx_unlock(&softc->ctl_lock);
 
 				if (cmd == CTL_ENABLE_PORT) {
-					struct ctl_lun *lun;
-
-					STAILQ_FOREACH(lun, &softc->lun_list,
-						       links) {
-						port->lun_enable(port->targ_lun_arg,
-						    lun->target,
-						    lun->lun);
-					}
-
 					ctl_port_online(port);
 				} else if (cmd == CTL_DISABLE_PORT) {
-					struct ctl_lun *lun;
-
 					ctl_port_offline(port);
-
-					STAILQ_FOREACH(lun, &softc->lun_list,
-						       links) {
-						port->lun_disable(
-						    port->targ_lun_arg,
-						    lun->target,
-						    lun->lun);
-					}
 				}
 
 				mtx_lock(&softc->ctl_lock);
@@ -3560,26 +3534,22 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 			mtx_unlock(&softc->ctl_lock);
 			return (ENXIO);
 		}
+		mtx_unlock(&softc->ctl_lock); // XXX: port_enable sleeps
 		if (lm->plun < CTL_MAX_LUNS) {
 			if (lm->lun == UINT32_MAX)
 				retval = ctl_lun_map_unset(port, lm->plun);
 			else if (lm->lun < CTL_MAX_LUNS &&
 			    softc->ctl_luns[lm->lun] != NULL)
 				retval = ctl_lun_map_set(port, lm->plun, lm->lun);
-			else {
-				mtx_unlock(&softc->ctl_lock);
+			else
 				return (ENXIO);
-			}
 		} else if (lm->plun == UINT32_MAX) {
 			if (lm->lun == UINT32_MAX)
 				retval = ctl_lun_map_deinit(port);
 			else
 				retval = ctl_lun_map_init(port);
-		} else {
-			mtx_unlock(&softc->ctl_lock);
+		} else
 			return (ENXIO);
-		}
-		mtx_unlock(&softc->ctl_lock);
 		break;
 	}
 	default: {
@@ -3649,6 +3619,8 @@ ctl_port_idx(int port_num)
 int
 ctl_lun_map_init(struct ctl_port *port)
 {
+	struct ctl_softc *softc = control_softc;
+	struct ctl_lun *lun;
 	uint32_t i;
 
 	if (port->lun_map == NULL)
@@ -3658,17 +3630,27 @@ ctl_lun_map_init(struct ctl_port *port)
 		return (ENOMEM);
 	for (i = 0; i < CTL_MAX_LUNS; i++)
 		port->lun_map[i] = UINT32_MAX;
+	if (port->status & CTL_PORT_STATUS_ONLINE) {
+		STAILQ_FOREACH(lun, &softc->lun_list, links)
+			port->lun_disable(port->targ_lun_arg, lun->lun);
+	}
 	return (0);
 }
 
 int
 ctl_lun_map_deinit(struct ctl_port *port)
 {
+	struct ctl_softc *softc = control_softc;
+	struct ctl_lun *lun;
 
 	if (port->lun_map == NULL)
 		return (0);
 	free(port->lun_map, M_CTL);
 	port->lun_map = NULL;
+	if (port->status & CTL_PORT_STATUS_ONLINE) {
+		STAILQ_FOREACH(lun, &softc->lun_list, links)
+			port->lun_enable(port->targ_lun_arg, lun->lun);
+	}
 	return (0);
 }
 
@@ -3676,37 +3658,31 @@ int
 ctl_lun_map_set(struct ctl_port *port, uint32_t plun, uint32_t glun)
 {
 	int status;
+	uint32_t old;
 
 	if (port->lun_map == NULL) {
 		status = ctl_lun_map_init(port);
 		if (status != 0)
 			return (status);
 	}
+	old = port->lun_map[plun];
 	port->lun_map[plun] = glun;
+	if ((port->status & CTL_PORT_STATUS_ONLINE) && old >= CTL_MAX_LUNS)
+		port->lun_enable(port->targ_lun_arg, plun);
 	return (0);
 }
 
 int
 ctl_lun_map_unset(struct ctl_port *port, uint32_t plun)
 {
+	uint32_t old;
 
 	if (port->lun_map == NULL)
 		return (0);
+	old = port->lun_map[plun];
 	port->lun_map[plun] = UINT32_MAX;
-	return (0);
-}
-
-int
-ctl_lun_map_unsetg(struct ctl_port *port, uint32_t glun)
-{
-	int i;
-
-	if (port->lun_map == NULL)
-		return (0);
-	for (i = 0; i < CTL_MAX_LUNS; i++) {
-		if (port->lun_map[i] == glun)
-			port->lun_map[i] = UINT32_MAX;
-	}
+	if ((port->status & CTL_PORT_STATUS_ONLINE) && old < CTL_MAX_LUNS)
+		port->lun_disable(port->targ_lun_arg, plun);
 	return (0);
 }
 
@@ -4532,10 +4508,9 @@ hex2bin(const char *str, uint8_t *buf, int buf_size)
  */
 static int
 ctl_alloc_lun(struct ctl_softc *ctl_softc, struct ctl_lun *ctl_lun,
-	      struct ctl_be_lun *const be_lun, struct ctl_id target_id)
+	      struct ctl_be_lun *const be_lun)
 {
 	struct ctl_lun *nlun, *lun;
-	struct ctl_port *port;
 	struct scsi_vpd_id_descriptor *desc;
 	struct scsi_vpd_id_t10 *t10id;
 	const char *eui, *naa, *scsiname, *vendor, *value;
@@ -4670,8 +4645,7 @@ ctl_alloc_lun(struct ctl_softc *ctl_softc, struct ctl_lun *ctl_lun,
 		lun_number = ctl_ffz(ctl_softc->ctl_lun_mask, CTL_MAX_LUNS);
 		if (lun_number == -1) {
 			mtx_unlock(&ctl_softc->ctl_lock);
-			printf("ctl: can't allocate LUN on target %ju, out of "
-			       "LUNs\n", (uintmax_t)target_id.id);
+			printf("ctl: can't allocate LUN, out of LUNs\n");
 			if (lun->flags & CTL_LUN_MALLOCED)
 				free(lun, M_CTL);
 			be_lun->lun_config_status(be_lun->be_lun,
@@ -4682,7 +4656,6 @@ ctl_alloc_lun(struct ctl_softc *ctl_softc, struct ctl_lun *ctl_lun,
 	ctl_set_mask(ctl_softc->ctl_lun_mask, lun_number);
 
 	mtx_init(&lun->lun_lock, "CTL LUN", NULL, MTX_DEF);
-	lun->target = target_id;
 	lun->lun = lun_number;
 	lun->be_lun = be_lun;
 	/*
@@ -4765,24 +4738,6 @@ ctl_alloc_lun(struct ctl_softc *ctl_softc, struct ctl_lun *ctl_lun,
 	mtx_unlock(&ctl_softc->ctl_lock);
 
 	lun->be_lun->lun_config_status(lun->be_lun->be_lun, CTL_LUN_CONFIG_OK);
-
-	/*
-	 * Run through each registered FETD and bring it online if it isn't
-	 * already.  Enable the target ID if it hasn't been enabled, and
-	 * enable this particular LUN.
-	 */
-	STAILQ_FOREACH(port, &ctl_softc->port_list, links) {
-		int retval;
-
-		retval = port->lun_enable(port->targ_lun_arg, target_id,lun_number);
-		if (retval != 0) {
-			printf("ctl_alloc_lun: FETD %s port %d returned error "
-			       "%d for lun_enable on target %ju lun %d\n",
-			       port->port_name, port->targ_port, retval,
-			       (uintmax_t)target_id.id, lun_number);
-		} else
-			port->status |= CTL_PORT_STATUS_LUN_ONLINE;
-	}
 	return (0);
 }
 
@@ -4796,16 +4751,12 @@ static int
 ctl_free_lun(struct ctl_lun *lun)
 {
 	struct ctl_softc *softc;
-	struct ctl_port *port;
 	struct ctl_lun *nlun;
 	int i;
 
 	softc = lun->ctl_softc;
 
 	mtx_assert(&softc->ctl_lock, MA_OWNED);
-
-	STAILQ_FOREACH(port, &softc->port_list, links)
-		ctl_lun_map_unsetg(port, lun->lun);
 
 	STAILQ_REMOVE(&softc->lun_list, lun, ctl_lun, links);
 
@@ -4817,58 +4768,6 @@ ctl_free_lun(struct ctl_lun *lun)
 		panic("Freeing a LUN %p with outstanding I/O!!\n", lun);
 
 	softc->num_luns--;
-
-	/*
-	 * XXX KDM this scheme only works for a single target/multiple LUN
-	 * setup.  It needs to be revamped for a multiple target scheme.
-	 *
-	 * XXX KDM this results in port->lun_disable() getting called twice,
-	 * once when ctl_disable_lun() is called, and a second time here.
-	 * We really need to re-think the LUN disable semantics.  There
-	 * should probably be several steps/levels to LUN removal:
-	 *  - disable
-	 *  - invalidate
-	 *  - free
- 	 *
-	 * Right now we only have a disable method when communicating to
-	 * the front end ports, at least for individual LUNs.
-	 */
-#if 0
-	STAILQ_FOREACH(port, &softc->port_list, links) {
-		int retval;
-
-		retval = port->lun_disable(port->targ_lun_arg, lun->target,
-					 lun->lun);
-		if (retval != 0) {
-			printf("ctl_free_lun: FETD %s port %d returned error "
-			       "%d for lun_disable on target %ju lun %jd\n",
-			       port->port_name, port->targ_port, retval,
-			       (uintmax_t)lun->target.id, (intmax_t)lun->lun);
-		}
-
-		if (STAILQ_FIRST(&softc->lun_list) == NULL) {
-			port->status &= ~CTL_PORT_STATUS_LUN_ONLINE;
-
-			retval = port->targ_disable(port->targ_lun_arg,lun->target);
-			if (retval != 0) {
-				printf("ctl_free_lun: FETD %s port %d "
-				       "returned error %d for targ_disable on "
-				       "target %ju\n", port->port_name,
-				       port->targ_port, retval,
-				       (uintmax_t)lun->target.id);
-			} else
-				port->status &= ~CTL_PORT_STATUS_TARG_ONLINE;
-
-			if ((port->status & CTL_PORT_STATUS_TARG_ONLINE) != 0)
-				continue;
-
-#if 0
-			port->port_offline(port->onoff_arg);
-			port->status &= ~CTL_PORT_STATUS_ONLINE;
-#endif
-		}
-	}
-#endif
 
 	/*
 	 * Tell the backend to free resources, if this LUN has a backend.
@@ -4906,7 +4805,7 @@ ctl_create_lun(struct ctl_be_lun *be_lun)
 	/*
 	 * ctl_alloc_lun() should handle all potential failure cases.
 	 */
-	ctl_alloc_lun(softc, NULL, be_lun, softc->target);
+	ctl_alloc_lun(softc, NULL, be_lun);
 }
 
 int
@@ -4949,6 +4848,9 @@ ctl_enable_lun(struct ctl_be_lun *be_lun)
 
 	for (port = STAILQ_FIRST(&softc->port_list); port != NULL; port = nport) {
 		nport = STAILQ_NEXT(port, links);
+		if ((port->status & CTL_PORT_STATUS_ONLINE) == 0 ||
+		    port->lun_map != NULL)
+			continue;
 
 		/*
 		 * Drop the lock while we call the FETD's enable routine.
@@ -4956,20 +4858,14 @@ ctl_enable_lun(struct ctl_be_lun *be_lun)
 		 * case of the internal initiator frontend.
 		 */
 		mtx_unlock(&softc->ctl_lock);
-		retval = port->lun_enable(port->targ_lun_arg, lun->target,lun->lun);
+		retval = port->lun_enable(port->targ_lun_arg, lun->lun);
 		mtx_lock(&softc->ctl_lock);
 		if (retval != 0) {
 			printf("%s: FETD %s port %d returned error "
-			       "%d for lun_enable on target %ju lun %jd\n",
-			       __func__, port->port_name, port->targ_port, retval,
-			       (uintmax_t)lun->target.id, (intmax_t)lun->lun);
+			       "%d for lun_enable on lun %jd\n",
+			       __func__, port->port_name, port->targ_port,
+			       retval, (intmax_t)lun->lun);
 		}
-#if 0
-		 else {
-            /* NOTE:  TODO:  why does lun enable affect port status? */
-			port->status |= CTL_PORT_STATUS_LUN_ONLINE;
-		}
-#endif
 	}
 
 	mtx_unlock(&softc->ctl_lock);
@@ -4999,6 +4895,9 @@ ctl_disable_lun(struct ctl_be_lun *be_lun)
 	mtx_unlock(&lun->lun_lock);
 
 	STAILQ_FOREACH(port, &softc->port_list, links) {
+		if ((port->status & CTL_PORT_STATUS_ONLINE) == 0 ||
+		    port->lun_map != NULL)
+			continue;
 		mtx_unlock(&softc->ctl_lock);
 		/*
 		 * Drop the lock before we call the frontend's disable
@@ -5007,14 +4906,13 @@ ctl_disable_lun(struct ctl_be_lun *be_lun)
 		 * XXX KDM what happens if the frontend list changes while
 		 * we're traversing it?  It's unlikely, but should be handled.
 		 */
-		retval = port->lun_disable(port->targ_lun_arg, lun->target,
-					 lun->lun);
+		retval = port->lun_disable(port->targ_lun_arg, lun->lun);
 		mtx_lock(&softc->ctl_lock);
 		if (retval != 0) {
 			printf("%s: FETD %s port %d returned error "
-			       "%d for lun_disable on target %ju lun %jd\n",
-			       __func__, port->port_name, port->targ_port, retval,
-			       (uintmax_t)lun->target.id, (intmax_t)lun->lun);
+			       "%d for lun_disable on lun %jd\n",
+			       __func__, port->port_name, port->targ_port,
+			       retval, (intmax_t)lun->lun);
 		}
 	}
 
@@ -9450,11 +9348,16 @@ ctl_report_luns(struct ctl_scsiio *ctsio)
 	well_known = 0;
 
 	cdb = (struct scsi_report_luns *)ctsio->cdb;
+	port = ctl_io_port(&ctsio->io_hdr);
 
 	CTL_DEBUG_PRINT(("ctl_report_luns\n"));
 
 	mtx_lock(&softc->ctl_lock);
-	num_luns = softc->num_luns;
+	num_luns = 0;
+	for (targ_lun_id = 0; targ_lun_id < CTL_MAX_LUNS; targ_lun_id++) {
+		if (ctl_lun_map_from_port(port, targ_lun_id) < CTL_MAX_LUNS)
+			num_luns++;
+	}
 	mtx_unlock(&softc->ctl_lock);
 
 	switch (cdb->select_report) {
@@ -9497,7 +9400,6 @@ ctl_report_luns(struct ctl_scsiio *ctsio)
 
 	request_lun = (struct ctl_lun *)
 		ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
-	port = ctl_io_port(&ctsio->io_hdr);
 
 	lun_datalen = sizeof(*lun_data) +
 		(num_luns * sizeof(struct scsi_report_luns_lundata));

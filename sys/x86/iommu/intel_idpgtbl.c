@@ -66,8 +66,8 @@ __FBSDID("$FreeBSD$");
 #include <x86/iommu/busdma_dmar.h>
 #include <x86/iommu/intel_dmar.h>
 
-static int ctx_unmap_buf_locked(struct dmar_ctx *ctx, dmar_gaddr_t base,
-    dmar_gaddr_t size, int flags);
+static int domain_unmap_buf_locked(struct dmar_domain *domain,
+    dmar_gaddr_t base, dmar_gaddr_t size, int flags);
 
 /*
  * The cache of the identity mapping page tables for the DMARs.  Using
@@ -105,7 +105,7 @@ static MALLOC_DEFINE(M_DMAR_IDPGTBL, "dmar_idpgtbl",
  *   mapped by the page table page.
  */
 static void
-ctx_idmap_nextlvl(struct idpgtbl *tbl, int lvl, vm_pindex_t idx,
+domain_idmap_nextlvl(struct idpgtbl *tbl, int lvl, vm_pindex_t idx,
     dmar_gaddr_t addr)
 {
 	vm_page_t m1;
@@ -124,7 +124,7 @@ ctx_idmap_nextlvl(struct idpgtbl *tbl, int lvl, vm_pindex_t idx,
 	pg_sz = pglvl_page_size(tbl->pglvl, lvl);
 	if (lvl != tbl->leaf) {
 		for (i = 0, f = addr; i < DMAR_NPTEPG; i++, f += pg_sz)
-			ctx_idmap_nextlvl(tbl, lvl + 1, base + i, f);
+			domain_idmap_nextlvl(tbl, lvl + 1, base + i, f);
 	}
 	VM_OBJECT_WUNLOCK(tbl->pgtbl_obj);
 	pte = dmar_map_pgtbl(tbl->pgtbl_obj, idx, DMAR_PGF_WAITOK, &sf);
@@ -146,7 +146,7 @@ ctx_idmap_nextlvl(struct idpgtbl *tbl, int lvl, vm_pindex_t idx,
 			    VM_PAGE_TO_PHYS(m1)) | DMAR_PTE_R | DMAR_PTE_W;
 		}
 	}
-	/* ctx_get_idmap_pgtbl flushes CPU cache if needed. */
+	/* domain_get_idmap_pgtbl flushes CPU cache if needed. */
 	dmar_unmap_pgtbl(sf);
 	VM_OBJECT_WLOCK(tbl->pgtbl_obj);
 }
@@ -160,7 +160,7 @@ ctx_idmap_nextlvl(struct idpgtbl *tbl, int lvl, vm_pindex_t idx,
  * maxaddr is typically mapped.
  */
 vm_object_t
-ctx_get_idmap_pgtbl(struct dmar_ctx *ctx, dmar_gaddr_t maxaddr)
+domain_get_idmap_pgtbl(struct dmar_domain *domain, dmar_gaddr_t maxaddr)
 {
 	struct dmar_unit *unit;
 	struct idpgtbl *tbl;
@@ -173,8 +173,8 @@ ctx_get_idmap_pgtbl(struct dmar_ctx *ctx, dmar_gaddr_t maxaddr)
 	/*
 	 * First, determine where to stop the paging structures.
 	 */
-	for (i = 0; i < ctx->pglvl; i++) {
-		if (i == ctx->pglvl - 1 || ctx_is_sp_lvl(ctx, i)) {
+	for (i = 0; i < domain->pglvl; i++) {
+		if (i == domain->pglvl - 1 || domain_is_sp_lvl(domain, i)) {
 			leaf = i;
 			break;
 		}
@@ -191,12 +191,12 @@ ctx_get_idmap_pgtbl(struct dmar_ctx *ctx, dmar_gaddr_t maxaddr)
 	sx_slock(&idpgtbl_lock);
 	LIST_FOREACH(tbl, &idpgtbls, link) {
 		if (tbl->maxaddr >= maxaddr &&
-		    dmar_pglvl_supported(ctx->dmar, tbl->pglvl) &&
+		    dmar_pglvl_supported(domain->dmar, tbl->pglvl) &&
 		    tbl->leaf == leaf) {
 			res = tbl->pgtbl_obj;
 			vm_object_reference(res);
 			sx_sunlock(&idpgtbl_lock);
-			ctx->pglvl = tbl->pglvl; /* XXXKIB ? */
+			domain->pglvl = tbl->pglvl; /* XXXKIB ? */
 			goto end;
 		}
 	}
@@ -210,12 +210,12 @@ ctx_get_idmap_pgtbl(struct dmar_ctx *ctx, dmar_gaddr_t maxaddr)
 	sx_xlock(&idpgtbl_lock);
 	LIST_FOREACH(tbl, &idpgtbls, link) {
 		if (tbl->maxaddr >= maxaddr &&
-		    dmar_pglvl_supported(ctx->dmar, tbl->pglvl) &&
+		    dmar_pglvl_supported(domain->dmar, tbl->pglvl) &&
 		    tbl->leaf == leaf) {
 			res = tbl->pgtbl_obj;
 			vm_object_reference(res);
 			sx_xunlock(&idpgtbl_lock);
-			ctx->pglvl = tbl->pglvl; /* XXXKIB ? */
+			domain->pglvl = tbl->pglvl; /* XXXKIB ? */
 			return (res);
 		}
 	}
@@ -224,13 +224,13 @@ ctx_get_idmap_pgtbl(struct dmar_ctx *ctx, dmar_gaddr_t maxaddr)
 	 * Still not found, create new page table.
 	 */
 	tbl = malloc(sizeof(*tbl), M_DMAR_IDPGTBL, M_WAITOK);
-	tbl->pglvl = ctx->pglvl;
+	tbl->pglvl = domain->pglvl;
 	tbl->leaf = leaf;
 	tbl->maxaddr = maxaddr;
 	tbl->pgtbl_obj = vm_pager_allocate(OBJT_PHYS, NULL,
 	    IDX_TO_OFF(pglvl_max_pages(tbl->pglvl)), 0, 0, NULL);
 	VM_OBJECT_WLOCK(tbl->pgtbl_obj);
-	ctx_idmap_nextlvl(tbl, 0, 0, 0);
+	domain_idmap_nextlvl(tbl, 0, 0, 0);
 	VM_OBJECT_WUNLOCK(tbl->pgtbl_obj);
 	LIST_INSERT_HEAD(&idpgtbls, tbl, link);
 	res = tbl->pgtbl_obj;
@@ -251,7 +251,7 @@ end:
 	 * If DMAR cannot look into the chipset write buffer, flush it
 	 * as well.
 	 */
-	unit = ctx->dmar;
+	unit = domain->dmar;
 	if (!DMAR_IS_COHERENT(unit)) {
 		VM_OBJECT_WLOCK(res);
 		for (m = vm_page_lookup(res, 0); m != NULL;
@@ -320,10 +320,11 @@ put_idmap_pgtbl(vm_object_t obj)
  * the level lvl.
  */
 static int
-ctx_pgtbl_pte_off(struct dmar_ctx *ctx, dmar_gaddr_t base, int lvl)
+domain_pgtbl_pte_off(struct dmar_domain *domain, dmar_gaddr_t base, int lvl)
 {
 
-	base >>= DMAR_PAGE_SHIFT + (ctx->pglvl - lvl - 1) * DMAR_NPTEPGSHIFT;
+	base >>= DMAR_PAGE_SHIFT + (domain->pglvl - lvl - 1) *
+	    DMAR_NPTEPGSHIFT;
 	return (base & DMAR_PTEMASK);
 }
 
@@ -333,31 +334,34 @@ ctx_pgtbl_pte_off(struct dmar_ctx *ctx, dmar_gaddr_t base, int lvl)
  * lvl.
  */
 static vm_pindex_t
-ctx_pgtbl_get_pindex(struct dmar_ctx *ctx, dmar_gaddr_t base, int lvl)
+domain_pgtbl_get_pindex(struct dmar_domain *domain, dmar_gaddr_t base, int lvl)
 {
 	vm_pindex_t idx, pidx;
 	int i;
 
-	KASSERT(lvl >= 0 && lvl < ctx->pglvl, ("wrong lvl %p %d", ctx, lvl));
+	KASSERT(lvl >= 0 && lvl < domain->pglvl,
+	    ("wrong lvl %p %d", domain, lvl));
 
-	for (pidx = idx = 0, i = 0; i < lvl; i++, pidx = idx)
-		idx = ctx_pgtbl_pte_off(ctx, base, i) + pidx * DMAR_NPTEPG + 1;
+	for (pidx = idx = 0, i = 0; i < lvl; i++, pidx = idx) {
+		idx = domain_pgtbl_pte_off(domain, base, i) +
+		    pidx * DMAR_NPTEPG + 1;
+	}
 	return (idx);
 }
 
 static dmar_pte_t *
-ctx_pgtbl_map_pte(struct dmar_ctx *ctx, dmar_gaddr_t base, int lvl, int flags,
-    vm_pindex_t *idxp, struct sf_buf **sf)
+domain_pgtbl_map_pte(struct dmar_domain *domain, dmar_gaddr_t base, int lvl,
+    int flags, vm_pindex_t *idxp, struct sf_buf **sf)
 {
 	vm_page_t m;
 	struct sf_buf *sfp;
 	dmar_pte_t *pte, *ptep;
 	vm_pindex_t idx, idx1;
 
-	DMAR_CTX_ASSERT_PGLOCKED(ctx);
+	DMAR_DOMAIN_ASSERT_PGLOCKED(domain);
 	KASSERT((flags & DMAR_PGF_OBJL) != 0, ("lost PGF_OBJL"));
 
-	idx = ctx_pgtbl_get_pindex(ctx, base, lvl);
+	idx = domain_pgtbl_get_pindex(domain, base, lvl);
 	if (*sf != NULL && idx == *idxp) {
 		pte = (dmar_pte_t *)sf_buf_kva(*sf);
 	} else {
@@ -365,14 +369,15 @@ ctx_pgtbl_map_pte(struct dmar_ctx *ctx, dmar_gaddr_t base, int lvl, int flags,
 			dmar_unmap_pgtbl(*sf);
 		*idxp = idx;
 retry:
-		pte = dmar_map_pgtbl(ctx->pgtbl_obj, idx, flags, sf);
+		pte = dmar_map_pgtbl(domain->pgtbl_obj, idx, flags, sf);
 		if (pte == NULL) {
-			KASSERT(lvl > 0, ("lost root page table page %p", ctx));
+			KASSERT(lvl > 0,
+			    ("lost root page table page %p", domain));
 			/*
 			 * Page table page does not exists, allocate
 			 * it and create pte in the up level.
 			 */
-			m = dmar_pgalloc(ctx->pgtbl_obj, idx, flags |
+			m = dmar_pgalloc(domain->pgtbl_obj, idx, flags |
 			    DMAR_PGF_ZERO);
 			if (m == NULL)
 				return (NULL);
@@ -380,25 +385,26 @@ retry:
 			/*
 			 * Prevent potential free while pgtbl_obj is
 			 * unlocked in the recursive call to
-			 * ctx_pgtbl_map_pte(), if other thread did
-			 * pte write and clean while the lock if
+			 * domain_pgtbl_map_pte(), if other thread did
+			 * pte write and clean while the lock is
 			 * dropped.
 			 */
 			m->wire_count++;
 
 			sfp = NULL;
-			ptep = ctx_pgtbl_map_pte(ctx, base, lvl - 1, flags,
-			    &idx1, &sfp);
+			ptep = domain_pgtbl_map_pte(domain, base, lvl - 1,
+			    flags, &idx1, &sfp);
 			if (ptep == NULL) {
 				KASSERT(m->pindex != 0,
-				    ("loosing root page %p", ctx));
+				    ("loosing root page %p", domain));
 				m->wire_count--;
-				dmar_pgfree(ctx->pgtbl_obj, m->pindex, flags);
+				dmar_pgfree(domain->pgtbl_obj, m->pindex,
+				    flags);
 				return (NULL);
 			}
 			dmar_pte_store(&ptep->pte, DMAR_PTE_R | DMAR_PTE_W |
 			    VM_PAGE_TO_PHYS(m));
-			dmar_flush_pte_to_ram(ctx->dmar, ptep);
+			dmar_flush_pte_to_ram(domain->dmar, ptep);
 			sf_buf_page(sfp)->wire_count += 1;
 			m->wire_count--;
 			dmar_unmap_pgtbl(sfp);
@@ -406,13 +412,13 @@ retry:
 			goto retry;
 		}
 	}
-	pte += ctx_pgtbl_pte_off(ctx, base, lvl);
+	pte += domain_pgtbl_pte_off(domain, base, lvl);
 	return (pte);
 }
 
 static int
-ctx_map_buf_locked(struct dmar_ctx *ctx, dmar_gaddr_t base, dmar_gaddr_t size,
-    vm_page_t *ma, uint64_t pflags, int flags)
+domain_map_buf_locked(struct dmar_domain *domain, dmar_gaddr_t base,
+    dmar_gaddr_t size, vm_page_t *ma, uint64_t pflags, int flags)
 {
 	dmar_pte_t *pte;
 	struct sf_buf *sf;
@@ -421,7 +427,7 @@ ctx_map_buf_locked(struct dmar_ctx *ctx, dmar_gaddr_t base, dmar_gaddr_t size,
 	int lvl;
 	bool superpage;
 
-	DMAR_CTX_ASSERT_PGLOCKED(ctx);
+	DMAR_DOMAIN_ASSERT_PGLOCKED(domain);
 
 	base1 = base;
 	size1 = size;
@@ -431,15 +437,15 @@ ctx_map_buf_locked(struct dmar_ctx *ctx, dmar_gaddr_t base, dmar_gaddr_t size,
 	for (sf = NULL, pi = 0; size > 0; base += pg_sz, size -= pg_sz,
 	    pi += run_sz) {
 		for (lvl = 0, c = 0, superpage = false;; lvl++) {
-			pg_sz = ctx_page_size(ctx, lvl);
+			pg_sz = domain_page_size(domain, lvl);
 			run_sz = pg_sz >> DMAR_PAGE_SHIFT;
-			if (lvl == ctx->pglvl - 1)
+			if (lvl == domain->pglvl - 1)
 				break;
 			/*
 			 * Check if the current base suitable for the
 			 * superpage mapping.  First, verify the level.
 			 */
-			if (!ctx_is_sp_lvl(ctx, lvl))
+			if (!domain_is_sp_lvl(domain, lvl))
 				continue;
 			/*
 			 * Next, look at the size of the mapping and
@@ -463,22 +469,23 @@ ctx_map_buf_locked(struct dmar_ctx *ctx, dmar_gaddr_t base, dmar_gaddr_t size,
 			}
 		}
 		KASSERT(size >= pg_sz,
-		    ("mapping loop overflow %p %jx %jx %jx", ctx,
+		    ("mapping loop overflow %p %jx %jx %jx", domain,
 		    (uintmax_t)base, (uintmax_t)size, (uintmax_t)pg_sz));
 		KASSERT(pg_sz > 0, ("pg_sz 0 lvl %d", lvl));
-		pte = ctx_pgtbl_map_pte(ctx, base, lvl, flags, &idx, &sf);
+		pte = domain_pgtbl_map_pte(domain, base, lvl, flags, &idx, &sf);
 		if (pte == NULL) {
 			KASSERT((flags & DMAR_PGF_WAITOK) == 0,
-			    ("failed waitable pte alloc %p", ctx));
+			    ("failed waitable pte alloc %p", domain));
 			if (sf != NULL)
 				dmar_unmap_pgtbl(sf);
-			ctx_unmap_buf_locked(ctx, base1, base - base1, flags);
+			domain_unmap_buf_locked(domain, base1, base - base1,
+			    flags);
 			TD_PINNED_ASSERT;
 			return (ENOMEM);
 		}
 		dmar_pte_store(&pte->pte, VM_PAGE_TO_PHYS(ma[pi]) | pflags |
 		    (superpage ? DMAR_PTE_SP : 0));
-		dmar_flush_pte_to_ram(ctx->dmar, pte);
+		dmar_flush_pte_to_ram(domain->dmar, pte);
 		sf_buf_page(sf)->wire_count += 1;
 	}
 	if (sf != NULL)
@@ -488,32 +495,32 @@ ctx_map_buf_locked(struct dmar_ctx *ctx, dmar_gaddr_t base, dmar_gaddr_t size,
 }
 
 int
-ctx_map_buf(struct dmar_ctx *ctx, dmar_gaddr_t base, dmar_gaddr_t size,
+domain_map_buf(struct dmar_domain *domain, dmar_gaddr_t base, dmar_gaddr_t size,
     vm_page_t *ma, uint64_t pflags, int flags)
 {
 	struct dmar_unit *unit;
 	int error;
 
-	unit = ctx->dmar;
+	unit = domain->dmar;
 
-	KASSERT((ctx->flags & DMAR_CTX_IDMAP) == 0,
-	    ("modifying idmap pagetable ctx %p", ctx));
+	KASSERT((domain->flags & DMAR_DOMAIN_IDMAP) == 0,
+	    ("modifying idmap pagetable domain %p", domain));
 	KASSERT((base & DMAR_PAGE_MASK) == 0,
-	    ("non-aligned base %p %jx %jx", ctx, (uintmax_t)base,
+	    ("non-aligned base %p %jx %jx", domain, (uintmax_t)base,
 	    (uintmax_t)size));
 	KASSERT((size & DMAR_PAGE_MASK) == 0,
-	    ("non-aligned size %p %jx %jx", ctx, (uintmax_t)base,
+	    ("non-aligned size %p %jx %jx", domain, (uintmax_t)base,
 	    (uintmax_t)size));
-	KASSERT(size > 0, ("zero size %p %jx %jx", ctx, (uintmax_t)base,
+	KASSERT(size > 0, ("zero size %p %jx %jx", domain, (uintmax_t)base,
 	    (uintmax_t)size));
-	KASSERT(base < (1ULL << ctx->agaw),
-	    ("base too high %p %jx %jx agaw %d", ctx, (uintmax_t)base,
-	    (uintmax_t)size, ctx->agaw));
-	KASSERT(base + size < (1ULL << ctx->agaw),
-	    ("end too high %p %jx %jx agaw %d", ctx, (uintmax_t)base,
-	    (uintmax_t)size, ctx->agaw));
+	KASSERT(base < (1ULL << domain->agaw),
+	    ("base too high %p %jx %jx agaw %d", domain, (uintmax_t)base,
+	    (uintmax_t)size, domain->agaw));
+	KASSERT(base + size < (1ULL << domain->agaw),
+	    ("end too high %p %jx %jx agaw %d", domain, (uintmax_t)base,
+	    (uintmax_t)size, domain->agaw));
 	KASSERT(base + size > base,
-	    ("size overflow %p %jx %jx", ctx, (uintmax_t)base,
+	    ("size overflow %p %jx %jx", domain, (uintmax_t)base,
 	    (uintmax_t)size));
 	KASSERT((pflags & (DMAR_PTE_R | DMAR_PTE_W)) != 0,
 	    ("neither read nor write %jx", (uintmax_t)pflags));
@@ -523,21 +530,21 @@ ctx_map_buf(struct dmar_ctx *ctx, dmar_gaddr_t base, dmar_gaddr_t size,
 	KASSERT((pflags & DMAR_PTE_SNP) == 0 ||
 	    (unit->hw_ecap & DMAR_ECAP_SC) != 0,
 	    ("PTE_SNP for dmar without snoop control %p %jx",
-	    ctx, (uintmax_t)pflags));
+	    domain, (uintmax_t)pflags));
 	KASSERT((pflags & DMAR_PTE_TM) == 0 ||
 	    (unit->hw_ecap & DMAR_ECAP_DI) != 0,
 	    ("PTE_TM for dmar without DIOTLB %p %jx",
-	    ctx, (uintmax_t)pflags));
+	    domain, (uintmax_t)pflags));
 	KASSERT((flags & ~DMAR_PGF_WAITOK) == 0, ("invalid flags %x", flags));
 
-	DMAR_CTX_PGLOCK(ctx);
-	error = ctx_map_buf_locked(ctx, base, size, ma, pflags, flags);
-	DMAR_CTX_PGUNLOCK(ctx);
+	DMAR_DOMAIN_PGLOCK(domain);
+	error = domain_map_buf_locked(domain, base, size, ma, pflags, flags);
+	DMAR_DOMAIN_PGUNLOCK(domain);
 	if (error != 0)
 		return (error);
 
 	if ((unit->hw_cap & DMAR_CAP_CM) != 0)
-		ctx_flush_iotlb_sync(ctx, base, size);
+		domain_flush_iotlb_sync(domain, base, size);
 	else if ((unit->hw_cap & DMAR_CAP_RWBF) != 0) {
 		/* See 11.1 Write Buffer Flushing. */
 		DMAR_LOCK(unit);
@@ -547,29 +554,31 @@ ctx_map_buf(struct dmar_ctx *ctx, dmar_gaddr_t base, dmar_gaddr_t size,
 	return (0);
 }
 
-static void ctx_unmap_clear_pte(struct dmar_ctx *ctx, dmar_gaddr_t base,
-    int lvl, int flags, dmar_pte_t *pte, struct sf_buf **sf, bool free_fs);
+static void domain_unmap_clear_pte(struct dmar_domain *domain,
+    dmar_gaddr_t base, int lvl, int flags, dmar_pte_t *pte,
+    struct sf_buf **sf, bool free_fs);
 
 static void
-ctx_free_pgtbl_pde(struct dmar_ctx *ctx, dmar_gaddr_t base, int lvl, int flags)
+domain_free_pgtbl_pde(struct dmar_domain *domain, dmar_gaddr_t base,
+    int lvl, int flags)
 {
 	struct sf_buf *sf;
 	dmar_pte_t *pde;
 	vm_pindex_t idx;
 
 	sf = NULL;
-	pde = ctx_pgtbl_map_pte(ctx, base, lvl, flags, &idx, &sf);
-	ctx_unmap_clear_pte(ctx, base, lvl, flags, pde, &sf, true);
+	pde = domain_pgtbl_map_pte(domain, base, lvl, flags, &idx, &sf);
+	domain_unmap_clear_pte(domain, base, lvl, flags, pde, &sf, true);
 }
 
 static void
-ctx_unmap_clear_pte(struct dmar_ctx *ctx, dmar_gaddr_t base, int lvl,
+domain_unmap_clear_pte(struct dmar_domain *domain, dmar_gaddr_t base, int lvl,
     int flags, dmar_pte_t *pte, struct sf_buf **sf, bool free_sf)
 {
 	vm_page_t m;
 
 	dmar_pte_clear(&pte->pte);
-	dmar_flush_pte_to_ram(ctx->dmar, pte);
+	dmar_flush_pte_to_ram(domain->dmar, pte);
 	m = sf_buf_page(*sf);
 	if (free_sf) {
 		dmar_unmap_pgtbl(*sf);
@@ -579,20 +588,20 @@ ctx_unmap_clear_pte(struct dmar_ctx *ctx, dmar_gaddr_t base, int lvl,
 	if (m->wire_count != 0)
 		return;
 	KASSERT(lvl != 0,
-	    ("lost reference (lvl) on root pg ctx %p base %jx lvl %d",
-	    ctx, (uintmax_t)base, lvl));
+	    ("lost reference (lvl) on root pg domain %p base %jx lvl %d",
+	    domain, (uintmax_t)base, lvl));
 	KASSERT(m->pindex != 0,
-	    ("lost reference (idx) on root pg ctx %p base %jx lvl %d",
-	    ctx, (uintmax_t)base, lvl));
-	dmar_pgfree(ctx->pgtbl_obj, m->pindex, flags);
-	ctx_free_pgtbl_pde(ctx, base, lvl - 1, flags);
+	    ("lost reference (idx) on root pg domain %p base %jx lvl %d",
+	    domain, (uintmax_t)base, lvl));
+	dmar_pgfree(domain->pgtbl_obj, m->pindex, flags);
+	domain_free_pgtbl_pde(domain, base, lvl - 1, flags);
 }
 
 /*
  * Assumes that the unmap is never partial.
  */
 static int
-ctx_unmap_buf_locked(struct dmar_ctx *ctx, dmar_gaddr_t base,
+domain_unmap_buf_locked(struct dmar_domain *domain, dmar_gaddr_t base,
     dmar_gaddr_t size, int flags)
 {
 	dmar_pte_t *pte;
@@ -601,26 +610,26 @@ ctx_unmap_buf_locked(struct dmar_ctx *ctx, dmar_gaddr_t base,
 	dmar_gaddr_t pg_sz;
 	int lvl;
 
-	DMAR_CTX_ASSERT_PGLOCKED(ctx);
+	DMAR_DOMAIN_ASSERT_PGLOCKED(domain);
 	if (size == 0)
 		return (0);
 
-	KASSERT((ctx->flags & DMAR_CTX_IDMAP) == 0,
-	    ("modifying idmap pagetable ctx %p", ctx));
+	KASSERT((domain->flags & DMAR_DOMAIN_IDMAP) == 0,
+	    ("modifying idmap pagetable domain %p", domain));
 	KASSERT((base & DMAR_PAGE_MASK) == 0,
-	    ("non-aligned base %p %jx %jx", ctx, (uintmax_t)base,
+	    ("non-aligned base %p %jx %jx", domain, (uintmax_t)base,
 	    (uintmax_t)size));
 	KASSERT((size & DMAR_PAGE_MASK) == 0,
-	    ("non-aligned size %p %jx %jx", ctx, (uintmax_t)base,
+	    ("non-aligned size %p %jx %jx", domain, (uintmax_t)base,
 	    (uintmax_t)size));
-	KASSERT(base < (1ULL << ctx->agaw),
-	    ("base too high %p %jx %jx agaw %d", ctx, (uintmax_t)base,
-	    (uintmax_t)size, ctx->agaw));
-	KASSERT(base + size < (1ULL << ctx->agaw),
-	    ("end too high %p %jx %jx agaw %d", ctx, (uintmax_t)base,
-	    (uintmax_t)size, ctx->agaw));
+	KASSERT(base < (1ULL << domain->agaw),
+	    ("base too high %p %jx %jx agaw %d", domain, (uintmax_t)base,
+	    (uintmax_t)size, domain->agaw));
+	KASSERT(base + size < (1ULL << domain->agaw),
+	    ("end too high %p %jx %jx agaw %d", domain, (uintmax_t)base,
+	    (uintmax_t)size, domain->agaw));
 	KASSERT(base + size > base,
-	    ("size overflow %p %jx %jx", ctx, (uintmax_t)base,
+	    ("size overflow %p %jx %jx", domain, (uintmax_t)base,
 	    (uintmax_t)size));
 	KASSERT((flags & ~DMAR_PGF_WAITOK) == 0, ("invalid flags %x", flags));
 
@@ -629,26 +638,27 @@ ctx_unmap_buf_locked(struct dmar_ctx *ctx, dmar_gaddr_t base,
 	TD_PREP_PINNED_ASSERT;
 
 	for (sf = NULL; size > 0; base += pg_sz, size -= pg_sz) {
-		for (lvl = 0; lvl < ctx->pglvl; lvl++) {
-			if (lvl != ctx->pglvl - 1 && !ctx_is_sp_lvl(ctx, lvl))
+		for (lvl = 0; lvl < domain->pglvl; lvl++) {
+			if (lvl != domain->pglvl - 1 &&
+			    !domain_is_sp_lvl(domain, lvl))
 				continue;
-			pg_sz = ctx_page_size(ctx, lvl);
+			pg_sz = domain_page_size(domain, lvl);
 			if (pg_sz > size)
 				continue;
-			pte = ctx_pgtbl_map_pte(ctx, base, lvl, flags,
+			pte = domain_pgtbl_map_pte(domain, base, lvl, flags,
 			    &idx, &sf);
 			KASSERT(pte != NULL,
 			    ("sleeping or page missed %p %jx %d 0x%x",
-			    ctx, (uintmax_t)base, lvl, flags));
+			    domain, (uintmax_t)base, lvl, flags));
 			if ((pte->pte & DMAR_PTE_SP) != 0 ||
-			    lvl == ctx->pglvl - 1) {
-				ctx_unmap_clear_pte(ctx, base, lvl, flags,
-				    pte, &sf, false);
+			    lvl == domain->pglvl - 1) {
+				domain_unmap_clear_pte(domain, base, lvl,
+				    flags, pte, &sf, false);
 				break;
 			}
 		}
 		KASSERT(size >= pg_sz,
-		    ("unmapping loop overflow %p %jx %jx %jx", ctx,
+		    ("unmapping loop overflow %p %jx %jx %jx", domain,
 		    (uintmax_t)base, (uintmax_t)size, (uintmax_t)pg_sz));
 	}
 	if (sf != NULL)
@@ -663,54 +673,58 @@ ctx_unmap_buf_locked(struct dmar_ctx *ctx, dmar_gaddr_t base,
 }
 
 int
-ctx_unmap_buf(struct dmar_ctx *ctx, dmar_gaddr_t base, dmar_gaddr_t size,
-    int flags)
+domain_unmap_buf(struct dmar_domain *domain, dmar_gaddr_t base,
+    dmar_gaddr_t size, int flags)
 {
 	int error;
 
-	DMAR_CTX_PGLOCK(ctx);
-	error = ctx_unmap_buf_locked(ctx, base, size, flags);
-	DMAR_CTX_PGUNLOCK(ctx);
+	DMAR_DOMAIN_PGLOCK(domain);
+	error = domain_unmap_buf_locked(domain, base, size, flags);
+	DMAR_DOMAIN_PGUNLOCK(domain);
 	return (error);
 }
 
 int
-ctx_alloc_pgtbl(struct dmar_ctx *ctx)
+domain_alloc_pgtbl(struct dmar_domain *domain)
 {
 	vm_page_t m;
 
-	KASSERT(ctx->pgtbl_obj == NULL, ("already initialized %p", ctx));
+	KASSERT(domain->pgtbl_obj == NULL,
+	    ("already initialized %p", domain));
 
-	ctx->pgtbl_obj = vm_pager_allocate(OBJT_PHYS, NULL,
-	    IDX_TO_OFF(pglvl_max_pages(ctx->pglvl)), 0, 0, NULL);
-	DMAR_CTX_PGLOCK(ctx);
-	m = dmar_pgalloc(ctx->pgtbl_obj, 0, DMAR_PGF_WAITOK |
+	domain->pgtbl_obj = vm_pager_allocate(OBJT_PHYS, NULL,
+	    IDX_TO_OFF(pglvl_max_pages(domain->pglvl)), 0, 0, NULL);
+	DMAR_DOMAIN_PGLOCK(domain);
+	m = dmar_pgalloc(domain->pgtbl_obj, 0, DMAR_PGF_WAITOK |
 	    DMAR_PGF_ZERO | DMAR_PGF_OBJL);
 	/* No implicit free of the top level page table page. */
 	m->wire_count = 1;
-	DMAR_CTX_PGUNLOCK(ctx);
+	DMAR_DOMAIN_PGUNLOCK(domain);
+	DMAR_LOCK(domain->dmar);
+	domain->flags |= DMAR_DOMAIN_PGTBL_INITED;
+	DMAR_UNLOCK(domain->dmar);
 	return (0);
 }
 
 void
-ctx_free_pgtbl(struct dmar_ctx *ctx)
+domain_free_pgtbl(struct dmar_domain *domain)
 {
 	vm_object_t obj;
 	vm_page_t m;
 
-	obj = ctx->pgtbl_obj;
+	obj = domain->pgtbl_obj;
 	if (obj == NULL) {
-		KASSERT((ctx->dmar->hw_ecap & DMAR_ECAP_PT) != 0 &&
-		    (ctx->flags & DMAR_CTX_IDMAP) != 0,
-		    ("lost pagetable object ctx %p", ctx));
+		KASSERT((domain->dmar->hw_ecap & DMAR_ECAP_PT) != 0 &&
+		    (domain->flags & DMAR_DOMAIN_IDMAP) != 0,
+		    ("lost pagetable object domain %p", domain));
 		return;
 	}
-	DMAR_CTX_ASSERT_PGLOCKED(ctx);
-	ctx->pgtbl_obj = NULL;
+	DMAR_DOMAIN_ASSERT_PGLOCKED(domain);
+	domain->pgtbl_obj = NULL;
 
-	if ((ctx->flags & DMAR_CTX_IDMAP) != 0) {
+	if ((domain->flags & DMAR_DOMAIN_IDMAP) != 0) {
 		put_idmap_pgtbl(obj);
-		ctx->flags &= ~DMAR_CTX_IDMAP;
+		domain->flags &= ~DMAR_DOMAIN_IDMAP;
 		return;
 	}
 
@@ -723,7 +737,7 @@ ctx_free_pgtbl(struct dmar_ctx *ctx)
 }
 
 static inline uint64_t
-ctx_wait_iotlb_flush(struct dmar_unit *unit, uint64_t wt, int iro)
+domain_wait_iotlb_flush(struct dmar_unit *unit, uint64_t wt, int iro)
 {
 	uint64_t iotlbr;
 
@@ -739,21 +753,22 @@ ctx_wait_iotlb_flush(struct dmar_unit *unit, uint64_t wt, int iro)
 }
 
 void
-ctx_flush_iotlb_sync(struct dmar_ctx *ctx, dmar_gaddr_t base, dmar_gaddr_t size)
+domain_flush_iotlb_sync(struct dmar_domain *domain, dmar_gaddr_t base,
+    dmar_gaddr_t size)
 {
 	struct dmar_unit *unit;
 	dmar_gaddr_t isize;
 	uint64_t iotlbr;
 	int am, iro;
 
-	unit = ctx->dmar;
+	unit = domain->dmar;
 	KASSERT(!unit->qi_enabled, ("dmar%d: sync iotlb flush call",
 	    unit->unit));
 	iro = DMAR_ECAP_IRO(unit->hw_ecap) * 16;
 	DMAR_LOCK(unit);
 	if ((unit->hw_cap & DMAR_CAP_PSI) == 0 || size > 2 * 1024 * 1024) {
-		iotlbr = ctx_wait_iotlb_flush(unit, DMAR_IOTLB_IIRG_DOM |
-		    DMAR_IOTLB_DID(ctx->domain), iro);
+		iotlbr = domain_wait_iotlb_flush(unit, DMAR_IOTLB_IIRG_DOM |
+		    DMAR_IOTLB_DID(domain->domain), iro);
 		KASSERT((iotlbr & DMAR_IOTLB_IAIG_MASK) !=
 		    DMAR_IOTLB_IAIG_INVLD,
 		    ("dmar%d: invalidation failed %jx", unit->unit,
@@ -762,9 +777,9 @@ ctx_flush_iotlb_sync(struct dmar_ctx *ctx, dmar_gaddr_t base, dmar_gaddr_t size)
 		for (; size > 0; base += isize, size -= isize) {
 			am = calc_am(unit, base, size, &isize);
 			dmar_write8(unit, iro, base | am);
-			iotlbr = ctx_wait_iotlb_flush(unit,
-			    DMAR_IOTLB_IIRG_PAGE | DMAR_IOTLB_DID(ctx->domain),
-			    iro);
+			iotlbr = domain_wait_iotlb_flush(unit,
+			    DMAR_IOTLB_IIRG_PAGE |
+			    DMAR_IOTLB_DID(domain->domain), iro);
 			KASSERT((iotlbr & DMAR_IOTLB_IAIG_MASK) !=
 			    DMAR_IOTLB_IAIG_INVLD,
 			    ("dmar%d: PSI invalidation failed "
