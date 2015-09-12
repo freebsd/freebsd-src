@@ -5592,7 +5592,7 @@ process_control_chunks:
 					if (SCTP_BUF_NEXT(op_err) != NULL) {
 #ifdef SCTP_MBUF_LOGGING
 						if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_MBUF_LOGGING_ENABLE) {
-							sctp_log_mbc(SCTP_BUF_NEXT(mm), SCTP_MBUF_ICOPY);
+							sctp_log_mbc(SCTP_BUF_NEXT(op_err), SCTP_MBUF_ICOPY);
 						}
 #endif
 						sctp_queue_op_err(stcb, op_err);
