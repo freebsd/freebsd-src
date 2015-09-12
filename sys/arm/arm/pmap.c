@@ -227,8 +227,8 @@ vm_offset_t vm_max_kernel_address;
 struct pmap kernel_pmap_store;
 
 static pt_entry_t *csrc_pte, *cdst_pte;
-static vm_offset_t csrcp, cdstp;
-static struct mtx cmtx;
+static vm_offset_t csrcp, cdstp, qmap_addr;
+static struct mtx cmtx, qmap_mtx;
 
 static void		pmap_init_l1(struct l1_ttable *, pd_entry_t *);
 /*
@@ -2155,6 +2155,7 @@ pmap_bootstrap(vm_offset_t firstaddr, struct pv_addr *l1pt)
 	pd_entry_t pde;
 	pd_entry_t *kernel_l1pt = (pd_entry_t *)l1pt->pv_va;
 	pt_entry_t *ptep;
+	pt_entry_t *qmap_pte;
 	vm_paddr_t pa;
 	vm_offset_t va;
 	vm_size_t size;
@@ -2276,6 +2277,8 @@ pmap_bootstrap(vm_offset_t firstaddr, struct pv_addr *l1pt)
 	pmap_set_pt_cache_mode(kernel_l1pt, (vm_offset_t)csrc_pte);
 	pmap_alloc_specials(&virtual_avail, 1, &cdstp, &cdst_pte);
 	pmap_set_pt_cache_mode(kernel_l1pt, (vm_offset_t)cdst_pte);
+	pmap_alloc_specials(&virtual_avail, 1, &qmap_addr, &qmap_pte);
+	pmap_set_pt_cache_mode(kernel_l1pt, (vm_offset_t)qmap_pte);
 	size = ((vm_max_kernel_address - pmap_curmaxkvaddr) + L1_S_OFFSET) /
 	    L1_S_SIZE;
 	pmap_alloc_specials(&virtual_avail,
@@ -2302,6 +2305,7 @@ pmap_bootstrap(vm_offset_t firstaddr, struct pv_addr *l1pt)
 	virtual_end = vm_max_kernel_address;
 	kernel_vm_end = pmap_curmaxkvaddr;
 	mtx_init(&cmtx, "TMP mappings mtx", NULL, MTX_DEF);
+	mtx_init(&qmap_mtx, "quick mapping mtx", NULL, MTX_DEF);
 
 	pmap_set_pcb_pagedir(kernel_pmap, thread0.td_pcb);
 }
@@ -4341,6 +4345,34 @@ pmap_copy_pages(vm_page_t ma[], vm_offset_t a_offset, vm_page_t mb[],
 		a_offset += cnt;
 		b_offset += cnt;
 	}
+}
+
+vm_offset_t
+pmap_quick_enter_page(vm_page_t m)
+{
+	/*
+	 * Don't bother with a PCPU pageframe, since we don't support
+	 * SMP for anything pre-armv7.  Use pmap_kenter() to ensure
+	 * caching is handled correctly for multiple mappings of the
+	 * same physical page.
+	 */
+
+	mtx_assert(&qmap_mtx, MA_NOTOWNED);
+	mtx_lock(&qmap_mtx);
+
+	pmap_kenter(qmap_addr, VM_PAGE_TO_PHYS(m));
+
+	return (qmap_addr);
+}
+
+void
+pmap_quick_remove_page(vm_offset_t addr)
+{
+	KASSERT(addr == qmap_addr,
+	    ("pmap_quick_remove_page: invalid address"));
+	mtx_assert(&qmap_mtx, MA_OWNED);
+	pmap_kremove(addr);
+	mtx_unlock(&qmap_mtx);
 }
 
 /*

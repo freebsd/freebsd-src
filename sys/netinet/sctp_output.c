@@ -5524,7 +5524,7 @@ do_a_abort:
 		if (op_err == NULL) {
 			char msg[SCTP_DIAG_INFO_LEN];
 
-			snprintf(msg, sizeof(msg), "%s:%d at %s\n", __FILE__, __LINE__, __FUNCTION__);
+			snprintf(msg, sizeof(msg), "%s:%d at %s", __FILE__, __LINE__, __FUNCTION__);
 			op_err = sctp_generate_cause(SCTP_BASE_SYSCTL(sctp_diag_info_code),
 			    msg);
 		}
@@ -6682,10 +6682,17 @@ sctp_sendall_iterator(struct sctp_inpcb *inp, struct sctp_tcb *stcb, void *ptr,
 					if (TAILQ_EMPTY(&asoc->send_queue) &&
 					    TAILQ_EMPTY(&asoc->sent_queue) &&
 					    (asoc->state & SCTP_STATE_PARTIAL_MSG_LEFT)) {
+						struct mbuf *op_err;
+						char msg[SCTP_DIAG_INFO_LEN];
+
 				abort_anyway:
+						snprintf(msg, sizeof(msg),
+						    "%s:%d at %s", __FILE__, __LINE__, __FUNCTION__);
+						op_err = sctp_generate_cause(SCTP_BASE_SYSCTL(sctp_diag_info_code),
+						    msg);
 						atomic_add_int(&stcb->asoc.refcnt, 1);
 						sctp_abort_an_association(stcb->sctp_ep, stcb,
-						    NULL, SCTP_SO_NOT_LOCKED);
+						    op_err, SCTP_SO_NOT_LOCKED);
 						atomic_add_int(&stcb->asoc.refcnt, -1);
 						goto no_chunk_output;
 					}
@@ -8843,9 +8850,37 @@ sctp_queue_op_err(struct sctp_tcb *stcb, struct mbuf *op_err)
 	 */
 	struct sctp_chunkhdr *hdr;
 	struct sctp_tmit_chunk *chk;
-	struct mbuf *mat;
+	struct mbuf *mat, *last_mbuf;
+	uint32_t chunk_length;
+	uint16_t padding_length;
 
 	SCTP_TCB_LOCK_ASSERT(stcb);
+	SCTP_BUF_PREPEND(op_err, sizeof(struct sctp_chunkhdr), M_NOWAIT);
+	if (op_err == NULL) {
+		return;
+	}
+	last_mbuf = NULL;
+	chunk_length = 0;
+	for (mat = op_err; mat != NULL; mat = SCTP_BUF_NEXT(mat)) {
+		chunk_length += SCTP_BUF_LEN(mat);
+		if (SCTP_BUF_NEXT(mat) == NULL) {
+			last_mbuf = mat;
+		}
+	}
+	if (chunk_length > SCTP_MAX_CHUNK_LENGTH) {
+		sctp_m_freem(op_err);
+		return;
+	}
+	padding_length = chunk_length % 4;
+	if (padding_length != 0) {
+		padding_length = 4 - padding_length;
+	}
+	if (padding_length != 0) {
+		if (sctp_add_pad_tombuf(last_mbuf, padding_length) == NULL) {
+			sctp_m_freem(op_err);
+			return;
+		}
+	}
 	sctp_alloc_a_chunk(stcb, chk);
 	if (chk == NULL) {
 		/* no memory */
@@ -8853,15 +8888,7 @@ sctp_queue_op_err(struct sctp_tcb *stcb, struct mbuf *op_err)
 		return;
 	}
 	chk->copy_by_ref = 0;
-	SCTP_BUF_PREPEND(op_err, sizeof(struct sctp_chunkhdr), M_NOWAIT);
-	if (op_err == NULL) {
-		sctp_free_a_chunk(stcb, chk, SCTP_SO_NOT_LOCKED);
-		return;
-	}
-	chk->send_size = 0;
-	for (mat = op_err; mat != NULL; mat = SCTP_BUF_NEXT(mat)) {
-		chk->send_size += SCTP_BUF_LEN(mat);
-	}
+	chk->send_size = (uint16_t) chunk_length;
 	chk->sent = SCTP_DATAGRAM_UNSENT;
 	chk->snd_count = 0;
 	chk->asoc = &stcb->asoc;
@@ -8871,9 +8898,7 @@ sctp_queue_op_err(struct sctp_tcb *stcb, struct mbuf *op_err)
 	hdr->chunk_type = SCTP_OPERATION_ERROR;
 	hdr->chunk_flags = 0;
 	hdr->chunk_length = htons(chk->send_size);
-	TAILQ_INSERT_TAIL(&chk->asoc->control_send_queue,
-	    chk,
-	    sctp_next);
+	TAILQ_INSERT_TAIL(&chk->asoc->control_send_queue, chk, sctp_next);
 	chk->asoc->ctrl_queue_cnt++;
 }
 
@@ -9454,12 +9479,16 @@ sctp_chunk_retransmission(struct sctp_inpcb *inp,
 		}
 		if ((SCTP_BASE_SYSCTL(sctp_max_retran_chunk)) &&
 		    (chk->snd_count >= SCTP_BASE_SYSCTL(sctp_max_retran_chunk))) {
-			/* Gak, we have exceeded max unlucky retran, abort! */
-			SCTP_PRINTF("Gak, chk->snd_count:%d >= max:%d - send abort\n",
-			    chk->snd_count,
-			    SCTP_BASE_SYSCTL(sctp_max_retran_chunk));
+			struct mbuf *op_err;
+			char msg[SCTP_DIAG_INFO_LEN];
+
+			snprintf(msg, sizeof(msg), "TSN %8.8x retransmitted %d times, giving up",
+			    chk->rec.data.TSN_seq, chk->snd_count);
+			op_err = sctp_generate_cause(SCTP_BASE_SYSCTL(sctp_diag_info_code),
+			    msg);
 			atomic_add_int(&stcb->asoc.refcnt, 1);
-			sctp_abort_an_association(stcb->sctp_ep, stcb, NULL, so_locked);
+			sctp_abort_an_association(stcb->sctp_ep, stcb, op_err,
+			    so_locked);
 			SCTP_TCB_LOCK(stcb);
 			atomic_subtract_int(&stcb->asoc.refcnt, 1);
 			return (SCTP_RETRAN_EXIT);
@@ -11224,6 +11253,11 @@ sctp_send_hb(struct sctp_tcb *stcb, struct sctp_nets *net, int so_locked
 		break;
 #endif
 	default:
+		if (chk->data) {
+			sctp_m_freem(chk->data);
+			chk->data = NULL;
+		}
+		sctp_free_a_chunk(stcb, chk, so_locked);
 		return;
 		break;
 	}
@@ -13344,13 +13378,20 @@ dataless_eof:
 				if (TAILQ_EMPTY(&asoc->send_queue) &&
 				    TAILQ_EMPTY(&asoc->sent_queue) &&
 				    (asoc->state & SCTP_STATE_PARTIAL_MSG_LEFT)) {
+					struct mbuf *op_err;
+					char msg[SCTP_DIAG_INFO_LEN];
+
 			abort_anyway:
 					if (free_cnt_applied) {
 						atomic_add_int(&stcb->asoc.refcnt, -1);
 						free_cnt_applied = 0;
 					}
+					snprintf(msg, sizeof(msg),
+					    "%s:%d at %s", __FILE__, __LINE__, __FUNCTION__);
+					op_err = sctp_generate_cause(SCTP_BASE_SYSCTL(sctp_diag_info_code),
+					    msg);
 					sctp_abort_an_association(stcb->sctp_ep, stcb,
-					    NULL, SCTP_SO_LOCKED);
+					    op_err, SCTP_SO_LOCKED);
 					/*
 					 * now relock the stcb so everything
 					 * is sane

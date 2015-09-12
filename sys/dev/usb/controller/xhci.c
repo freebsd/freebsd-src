@@ -375,53 +375,11 @@ xhci_start_controller(struct xhci_softc *sc)
 		return (USB_ERR_IOERROR);
 	}
 
-	if (!(XREAD4(sc, oper, XHCI_PAGESIZE) & XHCI_PAGESIZE_4K)) {
-		device_printf(sc->sc_bus.parent, "Controller does "
-		    "not support 4K page size.\n");
-		return (USB_ERR_IOERROR);
-	}
-
-	temp = XREAD4(sc, capa, XHCI_HCSPARAMS1);
-
-	i = XHCI_HCS1_N_PORTS(temp);
-
-	if (i == 0) {
-		device_printf(sc->sc_bus.parent, "Invalid number "
-		    "of ports: %u\n", i);
-		return (USB_ERR_IOERROR);
-	}
-
-	sc->sc_noport = i;
-	sc->sc_noslot = XHCI_HCS1_DEVSLOT_MAX(temp);
-
-	if (sc->sc_noslot > XHCI_MAX_DEVICES)
-		sc->sc_noslot = XHCI_MAX_DEVICES;
-
 	/* set up number of device slots */
-
 	DPRINTF("CONFIG=0x%08x -> 0x%08x\n",
 	    XREAD4(sc, oper, XHCI_CONFIG), sc->sc_noslot);
 
 	XWRITE4(sc, oper, XHCI_CONFIG, sc->sc_noslot);
-
-	DPRINTF("Max slots: %u\n", sc->sc_noslot);
-
-	temp = XREAD4(sc, capa, XHCI_HCSPARAMS2);
-
-	sc->sc_noscratch = XHCI_HCS2_SPB_MAX(temp);
-
-	if (sc->sc_noscratch > XHCI_MAX_SCRATCHPADS) {
-		device_printf(sc->sc_bus.parent, "XHCI request "
-		    "too many scratchpads\n");
-		return (USB_ERR_NOMEM);
-	}
-
-	DPRINTF("Max scratch: %u\n", sc->sc_noscratch);
-
-	temp = XREAD4(sc, capa, XHCI_HCSPARAMS3);
-
-	sc->sc_exit_lat_max = XHCI_HCS3_U1_DEL(temp) +
-	    XHCI_HCS3_U2_DEL(temp) + 250 /* us */;
 
 	temp = XREAD4(sc, oper, XHCI_USBSTS);
 
@@ -454,29 +412,13 @@ xhci_start_controller(struct xhci_softc *sc)
 	XWRITE4(sc, oper, XHCI_DCBAAP_LO, (uint32_t)addr);
 	XWRITE4(sc, oper, XHCI_DCBAAP_HI, (uint32_t)(addr >> 32));
 
-	/* Setup event table size */
-
-	temp = XREAD4(sc, capa, XHCI_HCSPARAMS2);
-
-	DPRINTF("HCS2=0x%08x\n", temp);
-
-	temp = XHCI_HCS2_ERST_MAX(temp);
-	temp = 1U << temp;
-	if (temp > XHCI_MAX_RSEG)
-		temp = XHCI_MAX_RSEG;
-
-	sc->sc_erst_max = temp;
-
+	/* set up event table size */
 	DPRINTF("ERSTSZ=0x%08x -> 0x%08x\n",
-	    XREAD4(sc, runt, XHCI_ERSTSZ(0)), temp);
+	    XREAD4(sc, runt, XHCI_ERSTSZ(0)), sc->sc_erst_max);
 
-	XWRITE4(sc, runt, XHCI_ERSTSZ(0), XHCI_ERSTS_SET(temp));
+	XWRITE4(sc, runt, XHCI_ERSTSZ(0), XHCI_ERSTS_SET(sc->sc_erst_max));
 
-	/* Check if we should use the default IMOD value */
-	if (sc->sc_imod_default == 0)
-		sc->sc_imod_default = XHCI_IMOD_DEFAULT;
-
-	/* Setup interrupt rate */
+	/* set up interrupt rate */
 	XWRITE4(sc, runt, XHCI_IMOD(0), sc->sc_imod_default);
 
 	usbd_get_page(&sc->sc_hw.root_pc, 0, &buf_res);
@@ -503,8 +445,7 @@ xhci_start_controller(struct xhci_softc *sc)
 	XWRITE4(sc, runt, XHCI_ERSTBA_LO(0), (uint32_t)addr);
 	XWRITE4(sc, runt, XHCI_ERSTBA_HI(0), (uint32_t)(addr >> 32));
 
-	/* Setup interrupter registers */
-
+	/* set up interrupter registers */
 	temp = XREAD4(sc, runt, XHCI_IMAN(0));
 	temp |= XHCI_IMAN_INTR_ENA;
 	XWRITE4(sc, runt, XHCI_IMAN(0), temp);
@@ -615,6 +556,12 @@ xhci_init(struct xhci_softc *sc, device_t self, uint8_t dma32)
 
 	DPRINTF("xHCI version = 0x%04x\n", XREAD2(sc, capa, XHCI_HCIVERSION));
 
+	if (!(XREAD4(sc, oper, XHCI_PAGESIZE) & XHCI_PAGESIZE_4K)) {
+		device_printf(sc->sc_bus.parent, "Controller does "
+		    "not support 4K page size.\n");
+		return (ENXIO);
+	}
+
 	temp = XREAD4(sc, capa, XHCI_HCSPARAMS0);
 
 	DPRINTF("HCS0 = 0x%08x\n", temp);
@@ -632,6 +579,55 @@ xhci_init(struct xhci_softc *sc, device_t self, uint8_t dma32)
 
 	device_printf(self, "%d bytes context size, %d-bit DMA\n",
 	    sc->sc_ctx_is_64_byte ? 64 : 32, (int)sc->sc_bus.dma_bits);
+
+	temp = XREAD4(sc, capa, XHCI_HCSPARAMS1);
+
+	/* get number of device slots */
+	sc->sc_noport = XHCI_HCS1_N_PORTS(temp);
+
+	if (sc->sc_noport == 0) {
+		device_printf(sc->sc_bus.parent, "Invalid number "
+		    "of ports: %u\n", sc->sc_noport);
+		return (ENXIO);
+	}
+
+	sc->sc_noport = sc->sc_noport;
+	sc->sc_noslot = XHCI_HCS1_DEVSLOT_MAX(temp);
+
+	DPRINTF("Max slots: %u\n", sc->sc_noslot);
+
+	if (sc->sc_noslot > XHCI_MAX_DEVICES)
+		sc->sc_noslot = XHCI_MAX_DEVICES;
+
+	temp = XREAD4(sc, capa, XHCI_HCSPARAMS2);
+
+	DPRINTF("HCS2=0x%08x\n", temp);
+
+	/* get number of scratchpads */
+	sc->sc_noscratch = XHCI_HCS2_SPB_MAX(temp);
+
+	if (sc->sc_noscratch > XHCI_MAX_SCRATCHPADS) {
+		device_printf(sc->sc_bus.parent, "XHCI request "
+		    "too many scratchpads\n");
+		return (ENOMEM);
+	}
+
+	DPRINTF("Max scratch: %u\n", sc->sc_noscratch);
+
+	/* get event table size */
+	sc->sc_erst_max = 1U << XHCI_HCS2_ERST_MAX(temp);
+	if (sc->sc_erst_max > XHCI_MAX_RSEG)
+		sc->sc_erst_max = XHCI_MAX_RSEG;
+
+	temp = XREAD4(sc, capa, XHCI_HCSPARAMS3);
+
+	/* get maximum exit latency */
+	sc->sc_exit_lat_max = XHCI_HCS3_U1_DEL(temp) +
+	    XHCI_HCS3_U2_DEL(temp) + 250 /* us */;
+
+	/* Check if we should use the default IMOD value. */
+	if (sc->sc_imod_default == 0)
+		sc->sc_imod_default = XHCI_IMOD_DEFAULT;
 
 	/* get all DMA memory */
 	if (usb_bus_mem_alloc_all(&sc->sc_bus,

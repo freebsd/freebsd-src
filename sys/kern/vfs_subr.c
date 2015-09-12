@@ -281,8 +281,25 @@ static enum { SYNCER_RUNNING, SYNCER_SHUTTING_DOWN, SYNCER_FINAL_DELAY }
  * XXX desiredvnodes is historical cruft and should not exist.
  */
 int desiredvnodes;
-SYSCTL_INT(_kern, KERN_MAXVNODES, maxvnodes, CTLFLAG_RW,
-    &desiredvnodes, 0, "Maximum number of vnodes");
+
+static int
+sysctl_update_desiredvnodes(SYSCTL_HANDLER_ARGS)
+{
+	int error, old_desiredvnodes;
+
+	old_desiredvnodes = desiredvnodes;
+	if ((error = sysctl_handle_int(oidp, arg1, arg2, req)) != 0)
+		return (error);
+	if (old_desiredvnodes != desiredvnodes) {
+		vfs_hash_changesize(desiredvnodes);
+		cache_changesize(desiredvnodes);
+	}
+	return (0);
+}
+
+SYSCTL_PROC(_kern, KERN_MAXVNODES, maxvnodes,
+    CTLTYPE_INT | CTLFLAG_MPSAFE | CTLFLAG_RW, &desiredvnodes, 0,
+    sysctl_update_desiredvnodes, "I", "Maximum number of vnodes");
 SYSCTL_ULONG(_kern, OID_AUTO, minvnodes, CTLFLAG_RW,
     &wantfreevnodes, 0, "Minimum number of vnodes (legacy)");
 static int vnlru_nowhere;
@@ -2709,10 +2726,6 @@ loop:
 		 * If FORCECLOSE is set, forcibly close the vnode.
 		 */
 		if (vp->v_usecount == 0 || (flags & FORCECLOSE)) {
-			VNASSERT(vp->v_usecount == 0 ||
-			    vp->v_op != &devfs_specops ||
-			    (vp->v_type != VCHR && vp->v_type != VBLK), vp,
-			    ("device VNODE %p is FORCECLOSED", vp));
 			vgonel(vp);
 		} else {
 			busy++;
@@ -2850,7 +2863,7 @@ unlock:
 /*
  * vgone, with the vp interlock held.
  */
-void
+static void
 vgonel(struct vnode *vp)
 {
 	struct thread *td;
@@ -3547,6 +3560,21 @@ SYSCTL_PROC(_kern, KERN_VNODE, vnode, CTLTYPE_OPAQUE | CTLFLAG_RD |
     "");
 #endif
 
+static void
+unmount_or_warn(struct mount *mp)
+{
+	int error;
+
+	error = dounmount(mp, MNT_FORCE, curthread);
+	if (error != 0) {
+		printf("unmount of %s failed (", mp->mnt_stat.f_mntonname);
+		if (error == EBUSY)
+			printf("BUSY)\n");
+		else
+			printf("%d)\n", error);
+	}
+}
+
 /*
  * Unmount all filesystems. The list is traversed in reverse order
  * of mounting to avoid dependencies.
@@ -3554,42 +3582,28 @@ SYSCTL_PROC(_kern, KERN_VNODE, vnode, CTLTYPE_OPAQUE | CTLFLAG_RD |
 void
 vfs_unmountall(void)
 {
-	struct mount *mp;
-	struct thread *td;
-	int error;
+	struct mount *mp, *tmp;
 
 	CTR1(KTR_VFS, "%s: unmounting all filesystems", __func__);
-	td = curthread;
 
 	/*
 	 * Since this only runs when rebooting, it is not interlocked.
 	 */
-	while(!TAILQ_EMPTY(&mountlist)) {
-		mp = TAILQ_LAST(&mountlist, mntlist);
+	TAILQ_FOREACH_REVERSE_SAFE(mp, &mountlist, mntlist, mnt_list, tmp) {
 		vfs_ref(mp);
-		error = dounmount(mp, MNT_FORCE, td);
-		if (error != 0) {
-			TAILQ_REMOVE(&mountlist, mp, mnt_list);
-			/*
-			 * XXX: Due to the way in which we mount the root
-			 * file system off of devfs, devfs will generate a
-			 * "busy" warning when we try to unmount it before
-			 * the root.  Don't print a warning as a result in
-			 * order to avoid false positive errors that may
-			 * cause needless upset.
-			 */
-			if (strcmp(mp->mnt_vfc->vfc_name, "devfs") != 0) {
-				printf("unmount of %s failed (",
-				    mp->mnt_stat.f_mntonname);
-				if (error == EBUSY)
-					printf("BUSY)\n");
-				else
-					printf("%d)\n", error);
-			}
-		} else {
-			/* The unmount has removed mp from the mountlist */
-		}
+
+		/*
+		 * Forcibly unmounting "/dev" before "/" would prevent clean
+		 * unmount of the latter.
+		 */
+		if (mp == rootdevmp)
+			continue;
+
+		unmount_or_warn(mp);
 	}
+
+	if (rootdevmp != NULL)
+		unmount_or_warn(rootdevmp);
 }
 
 /*
@@ -4622,7 +4636,7 @@ filt_vfsread(struct knote *kn, long hint)
 
 	VI_LOCK(vp);
 	kn->kn_data = va.va_size - kn->kn_fp->f_offset;
-	res = (kn->kn_data != 0);
+	res = (kn->kn_sfflags & NOTE_FILE_POLL) != 0 || kn->kn_data != 0;
 	VI_UNLOCK(vp);
 	return (res);
 }

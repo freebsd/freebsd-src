@@ -80,6 +80,24 @@ cloudabi_convert_timespec(const struct timespec *in, cloudabi_timestamp_t *out)
 	return (0);
 }
 
+/* Fetches the time value of a clock. */
+int
+cloudabi_clock_time_get(struct thread *td, cloudabi_clockid_t clock_id,
+    cloudabi_timestamp_t *ret)
+{
+	struct timespec ts;
+	int error;
+	clockid_t clockid;
+
+	error = cloudabi_convert_clockid(clock_id, &clockid);
+	if (error != 0)
+		return (error);
+	error = kern_clock_gettime(td, clockid, &ts);
+	if (error != 0)
+		return (error);
+	return (cloudabi_convert_timespec(&ts, ret));
+}
+
 int
 cloudabi_sys_clock_res_get(struct thread *td,
     struct cloudabi_sys_clock_res_get_args *uap)
@@ -106,20 +124,10 @@ int
 cloudabi_sys_clock_time_get(struct thread *td,
     struct cloudabi_sys_clock_time_get_args *uap)
 {
-	struct timespec ts;
-	cloudabi_timestamp_t cts;
+	cloudabi_timestamp_t ts;
 	int error;
-	clockid_t clockid;
 
-	error = cloudabi_convert_clockid(uap->clock_id, &clockid);
-	if (error != 0)
-		return (error);
-	error = kern_clock_gettime(td, clockid, &ts);
-	if (error != 0)
-		return (error);
-	error = cloudabi_convert_timespec(&ts, &cts);
-	if (error != 0)
-		return (error);
-	td->td_retval[0] = cts;
-	return (0);
+	error = cloudabi_clock_time_get(td, uap->clock_id, &ts);
+	td->td_retval[0] = ts;
+	return (error);
 }

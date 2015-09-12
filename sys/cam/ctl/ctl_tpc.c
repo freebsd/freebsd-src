@@ -47,7 +47,6 @@ __FBSDID("$FreeBSD$");
 #include <cam/ctl/ctl_io.h>
 #include <cam/ctl/ctl.h>
 #include <cam/ctl/ctl_frontend.h>
-#include <cam/ctl/ctl_frontend_internal.h>
 #include <cam/ctl/ctl_util.h>
 #include <cam/ctl/ctl_backend.h>
 #include <cam/ctl/ctl_ioctl.h>
@@ -535,7 +534,7 @@ ctl_receive_copy_status_lid1(struct ctl_scsiio *ctsio)
 	list_id = cdb->list_identifier;
 	mtx_lock(&lun->lun_lock);
 	list = tpc_find_list(lun, list_id,
-	    ctl_get_resindex(&ctsio->io_hdr.nexus));
+	    ctl_get_initindex(&ctsio->io_hdr.nexus));
 	if (list == NULL) {
 		mtx_unlock(&lun->lun_lock);
 		ctl_set_invalid_field(ctsio, /*sks_valid*/ 1,
@@ -617,7 +616,7 @@ ctl_receive_copy_failure_details(struct ctl_scsiio *ctsio)
 	list_id = cdb->list_identifier;
 	mtx_lock(&lun->lun_lock);
 	list = tpc_find_list(lun, list_id,
-	    ctl_get_resindex(&ctsio->io_hdr.nexus));
+	    ctl_get_initindex(&ctsio->io_hdr.nexus));
 	if (list == NULL || !list->completed) {
 		mtx_unlock(&lun->lun_lock);
 		ctl_set_invalid_field(ctsio, /*sks_valid*/ 1,
@@ -689,7 +688,7 @@ ctl_receive_copy_status_lid4(struct ctl_scsiio *ctsio)
 	list_id = scsi_4btoul(cdb->list_identifier);
 	mtx_lock(&lun->lun_lock);
 	list = tpc_find_list(lun, list_id,
-	    ctl_get_resindex(&ctsio->io_hdr.nexus));
+	    ctl_get_initindex(&ctsio->io_hdr.nexus));
 	if (list == NULL) {
 		mtx_unlock(&lun->lun_lock);
 		ctl_set_invalid_field(ctsio, /*sks_valid*/ 1,
@@ -772,7 +771,7 @@ ctl_copy_operation_abort(struct ctl_scsiio *ctsio)
 	list_id = scsi_4btoul(cdb->list_identifier);
 	mtx_lock(&lun->lun_lock);
 	list = tpc_find_list(lun, list_id,
-	    ctl_get_resindex(&ctsio->io_hdr.nexus));
+	    ctl_get_initindex(&ctsio->io_hdr.nexus));
 	if (list == NULL) {
 		mtx_unlock(&lun->lun_lock);
 		ctl_set_invalid_field(ctsio, /*sks_valid*/ 1,
@@ -817,7 +816,7 @@ tpc_process_b2b(struct tpc_list *list)
 	struct scsi_ec_segment_b2b *seg;
 	struct scsi_ec_cscd_dtsp *sdstp, *ddstp;
 	struct tpc_io *tior, *tiow;
-	struct runl run, *prun;
+	struct runl run;
 	uint64_t sl, dl;
 	off_t srclba, dstlba, numbytes, donebytes, roundbytes;
 	int numlba;
@@ -889,8 +888,7 @@ tpc_process_b2b(struct tpc_list *list)
 	list->segsectors = numbytes / dstblock;
 	donebytes = 0;
 	TAILQ_INIT(&run);
-	prun = &run;
-	list->tbdio = 1;
+	list->tbdio = 0;
 	while (donebytes < numbytes) {
 		roundbytes = numbytes - donebytes;
 		if (roundbytes > TPC_MAX_IO_SIZE) {
@@ -942,8 +940,8 @@ tpc_process_b2b(struct tpc_list *list)
 		tiow->io->io_hdr.ctl_private[CTL_PRIV_FRONTEND].ptr = tiow;
 
 		TAILQ_INSERT_TAIL(&tior->run, tiow, rlinks);
-		TAILQ_INSERT_TAIL(prun, tior, rlinks);
-		prun = &tior->run;
+		TAILQ_INSERT_TAIL(&run, tior, rlinks);
+		list->tbdio++;
 		donebytes += roundbytes;
 		srclba += roundbytes / srcblock;
 		dstlba += roundbytes / dstblock;
@@ -1647,7 +1645,7 @@ ctl_extended_copy_lid1(struct ctl_scsiio *ctsio)
 		list->init_port = -1;
 	else
 		list->init_port = ctsio->io_hdr.nexus.targ_port;
-	list->init_idx = ctl_get_resindex(&ctsio->io_hdr.nexus);
+	list->init_idx = ctl_get_initindex(&ctsio->io_hdr.nexus);
 	list->list_id = data->list_identifier;
 	list->flags = data->flags;
 	list->params = ctsio->kern_data_ptr;
@@ -1774,7 +1772,7 @@ ctl_extended_copy_lid4(struct ctl_scsiio *ctsio)
 		list->init_port = -1;
 	else
 		list->init_port = ctsio->io_hdr.nexus.targ_port;
-	list->init_idx = ctl_get_resindex(&ctsio->io_hdr.nexus);
+	list->init_idx = ctl_get_initindex(&ctsio->io_hdr.nexus);
 	list->list_id = scsi_4btoul(data->list_identifier);
 	list->flags = data->flags;
 	list->params = ctsio->kern_data_ptr;
@@ -1892,7 +1890,7 @@ ctl_populate_token(struct ctl_scsiio *ctsio)
 
 	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
 	softc = lun->ctl_softc;
-	port = softc->ctl_ports[ctl_port_idx(ctsio->io_hdr.nexus.targ_port)];
+	port = softc->ctl_ports[ctsio->io_hdr.nexus.targ_port];
 	cdb = (struct scsi_populate_token *)ctsio->cdb;
 	len = scsi_4btoul(cdb->length);
 
@@ -1946,7 +1944,7 @@ ctl_populate_token(struct ctl_scsiio *ctsio)
 	list = malloc(sizeof(struct tpc_list), M_CTL, M_WAITOK | M_ZERO);
 	list->service_action = cdb->service_action;
 	list->init_port = ctsio->io_hdr.nexus.targ_port;
-	list->init_idx = ctl_get_resindex(&ctsio->io_hdr.nexus);
+	list->init_idx = ctl_get_initindex(&ctsio->io_hdr.nexus);
 	list->list_id = scsi_4btoul(cdb->list_identifier);
 	list->flags = data->flags;
 	list->ctsio = ctsio;
@@ -2072,7 +2070,7 @@ ctl_write_using_token(struct ctl_scsiio *ctsio)
 	list = malloc(sizeof(struct tpc_list), M_CTL, M_WAITOK | M_ZERO);
 	list->service_action = cdb->service_action;
 	list->init_port = ctsio->io_hdr.nexus.targ_port;
-	list->init_idx = ctl_get_resindex(&ctsio->io_hdr.nexus);
+	list->init_idx = ctl_get_initindex(&ctsio->io_hdr.nexus);
 	list->list_id = scsi_4btoul(cdb->list_identifier);
 	list->flags = data->flags;
 	list->params = ctsio->kern_data_ptr;
@@ -2164,7 +2162,7 @@ ctl_receive_rod_token_information(struct ctl_scsiio *ctsio)
 	list_id = scsi_4btoul(cdb->list_identifier);
 	mtx_lock(&lun->lun_lock);
 	list = tpc_find_list(lun, list_id,
-	    ctl_get_resindex(&ctsio->io_hdr.nexus));
+	    ctl_get_initindex(&ctsio->io_hdr.nexus));
 	if (list == NULL) {
 		mtx_unlock(&lun->lun_lock);
 		ctl_set_invalid_field(ctsio, /*sks_valid*/ 1,

@@ -220,7 +220,8 @@ nfsrv_setclient(struct nfsrv_descript *nd, struct nfsclient **new_clpp,
 			break;
 		}
 	    }
-	    i++;
+	    if (gotit == 0)
+		i++;
 	}
 	if (!gotit ||
 	    (clp->lc_flags & (LCL_NEEDSCONFIRM | LCL_ADMINREVOKED))) {
@@ -400,9 +401,12 @@ nfsrv_setclient(struct nfsrv_descript *nd, struct nfsclient **new_clpp,
 	}
 
 	/* For NFSv4.1, mark that we found a confirmed clientid. */
-	if ((nd->nd_flag & ND_NFSV41) != 0)
+	if ((nd->nd_flag & ND_NFSV41) != 0) {
+		clientidp->lval[0] = clp->lc_clientid.lval[0];
+		clientidp->lval[1] = clp->lc_clientid.lval[1];
+		confirmp->lval[0] = 0;	/* Ignored by client */
 		confirmp->lval[1] = 1;
-	else {
+	} else {
 		/*
 		 * id and verifier match, so update the net address info
 		 * and get rid of any existing callback authentication

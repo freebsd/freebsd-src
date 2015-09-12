@@ -620,7 +620,7 @@ bpf_attachd(struct bpf_d *d, struct bpf_if *bp)
 		bpf_detachd_locked(d);
 	/*
 	 * Point d at bp, and add d to the interface's list.
-	 * Since there are many applicaiotns using BPF for
+	 * Since there are many applications using BPF for
 	 * sending raw packets only (dhcpd, cdpd are good examples)
 	 * we can delay adding d to the list of active listeners until
 	 * some filter is configured.
@@ -718,7 +718,7 @@ bpf_check_upgrade(u_long cmd, struct bpf_d *d, struct bpf_insn *fcode, int flen)
 
 /*
  * Add d to the list of active bp filters.
- * Reuqires bpf_attachd() to be called before
+ * Requires bpf_attachd() to be called before.
  */
 static void
 bpf_upgraded(struct bpf_d *d)
@@ -862,7 +862,7 @@ static	int
 bpfopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
 	struct bpf_d *d;
-	int error, size;
+	int error;
 
 	d = malloc(sizeof(*d), M_BPF, M_WAITOK | M_ZERO);
 	error = devfs_set_cdevpriv(d, bpf_dtor);
@@ -891,10 +891,6 @@ bpfopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 	mtx_init(&d->bd_lock, devtoname(dev), "bpf cdev lock", MTX_DEF);
 	callout_init_mtx(&d->bd_callout, &d->bd_lock, 0);
 	knlist_init_mtx(&d->bd_sel.si_note, &d->bd_lock);
-
-	/* Allocate default buffers */
-	size = d->bd_bufsize;
-	bpf_buffer_ioctl_sblen(d, &size);
 
 	return (0);
 }
@@ -1472,10 +1468,33 @@ bpfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
 	 * Set interface.
 	 */
 	case BIOCSETIF:
-		BPF_LOCK();
-		error = bpf_setif(d, (struct ifreq *)addr);
-		BPF_UNLOCK();
-		break;
+		{
+			int alloc_buf, size;
+
+			/*
+			 * Behavior here depends on the buffering model.  If
+			 * we're using kernel memory buffers, then we can
+			 * allocate them here.  If we're using zero-copy,
+			 * then the user process must have registered buffers
+			 * by the time we get here.
+			 */
+			alloc_buf = 0;
+			BPFD_LOCK(d);
+			if (d->bd_bufmode == BPF_BUFMODE_BUFFER &&
+			    d->bd_sbuf == NULL)
+				alloc_buf = 1;
+			BPFD_UNLOCK(d);
+			if (alloc_buf) {
+				size = d->bd_bufsize;
+				error = bpf_buffer_ioctl_sblen(d, &size);
+				if (error != 0)
+					break;
+			}
+			BPF_LOCK();
+			error = bpf_setif(d, (struct ifreq *)addr);
+			BPF_UNLOCK();
+			break;
+		}
 
 	/*
 	 * Set read timeout.
@@ -1912,10 +1931,8 @@ bpf_setif(struct bpf_d *d, struct ifreq *ifr)
 	BPFIF_RUNLOCK(bp);
 
 	/*
-	 * Behavior here depends on the buffering model.  If we're using
-	 * kernel memory buffers, then we can allocate them here.  If we're
-	 * using zero-copy, then the user process must have registered
-	 * buffers by the time we get here.  If not, return an error.
+	 * At this point, we expect the buffer is already allocated.  If not,
+	 * return an error.
 	 */
 	switch (d->bd_bufmode) {
 	case BPF_BUFMODE_BUFFER:
@@ -2018,10 +2035,10 @@ filt_bpfread(struct knote *kn, long hint)
 	ready = bpf_ready(d);
 	if (ready) {
 		kn->kn_data = d->bd_slen;
-		while (d->bd_hbuf_in_use)
-			mtx_sleep(&d->bd_hbuf_in_use, &d->bd_lock,
-			    PRINET, "bd_hbuf", 0);
-		if (d->bd_hbuf)
+		/*
+		 * Ignore the hold buffer if it is being copied to user space.
+		 */
+		if (!d->bd_hbuf_in_use && d->bd_hbuf)
 			kn->kn_data += d->bd_hlen;
 	} else if (d->bd_rtout > 0 && d->bd_state == BPF_IDLE) {
 		callout_reset(&d->bd_callout, d->bd_rtout,
@@ -2353,9 +2370,6 @@ catchpacket(struct bpf_d *d, u_char *pkt, u_int pktlen, u_int snaplen,
 	 * spot to do it.
 	 */
 	if (d->bd_fbuf == NULL && bpf_canfreebuf(d)) {
-		while (d->bd_hbuf_in_use)
-			mtx_sleep(&d->bd_hbuf_in_use, &d->bd_lock,
-			    PRINET, "bd_hbuf", 0);
 		d->bd_fbuf = d->bd_hbuf;
 		d->bd_hbuf = NULL;
 		d->bd_hlen = 0;
@@ -2398,9 +2412,7 @@ catchpacket(struct bpf_d *d, u_char *pkt, u_int pktlen, u_int snaplen,
 			++d->bd_dcount;
 			return;
 		}
-		while (d->bd_hbuf_in_use)
-			mtx_sleep(&d->bd_hbuf_in_use, &d->bd_lock,
-			    PRINET, "bd_hbuf", 0);
+		KASSERT(!d->bd_hbuf_in_use, ("hold buffer is in use"));
 		ROTATE_BUFFERS(d);
 		do_wakeup = 1;
 		curlen = 0;

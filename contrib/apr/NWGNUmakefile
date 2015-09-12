@@ -50,6 +50,7 @@ include $(APR_WORK)/build/NWGNUhead.inc
 #
 XINCDIRS	+= \
 			$(APR)/include \
+			$(APR)/include/private \
 			$(APR)/include/arch/NetWare \
 			$(APR)/include/arch/unix \
 			$(APR)/memory/unix \
@@ -293,11 +294,13 @@ FILES_nlm_exports = \
 FILES_lib_objs = \
 	$(OBJDIR)/apr_atomic.o \
 	$(OBJDIR)/apr_cpystrn.o \
+	$(OBJDIR)/apr_escape.o \
 	$(OBJDIR)/apr_fnmatch.o \
 	$(OBJDIR)/apr_getpass.o \
 	$(OBJDIR)/apr_hash.o \
 	$(OBJDIR)/apr_pools.o \
 	$(OBJDIR)/apr_random.o \
+	$(OBJDIR)/apr_skiplist.o \
 	$(OBJDIR)/apr_snprintf.o \
 	$(OBJDIR)/apr_strings.o \
 	$(OBJDIR)/apr_strnatcmp.o \
@@ -407,7 +410,7 @@ endif
 vpath %.c atomic/netware:strings:tables:passwd:lib:time/unix
 vpath %.c file_io/unix:locks/netware:misc/netware:misc/unix:threadproc/netware
 vpath %.c poll/unix:shmem/unix:support/unix:random/unix
-vpath %.c dso/netware:memory/unix:mmap/unix:user/netware
+vpath %.c dso/netware:memory/unix:mmap/unix:user/netware:encoding
 
 # Use the win32 network_io if Winsock is being used
 ifndef USE_STDSOCKETS

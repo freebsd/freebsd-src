@@ -10,7 +10,7 @@
 
 ACLOCAL_AMFLAGS = -I m4
 
-SUBDIRS = libxo xo xolint xohtml tests doc
+SUBDIRS = libxo xo xopo xolint xohtml tests doc encoder
 bin_SCRIPTS=libxo-config
 dist_doc_DATA = Copyright
 
@@ -94,3 +94,9 @@ packages:
 			&& git commit -m 'new packaging data' \
                                ${GH_PACKAGING_DIR} \
 			&& git push origin gh-pages ) ; true
+
+ANALYZE_DIR = ~/trash/libxo
+ANALYZE_CMD = scan-build-mp-3.6
+
+analyze:
+	${ANALYZE_CMD} -o ${ANALYZE_DIR} ${MAKE}

@@ -31,6 +31,79 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20150827:
+	The wireless drivers had undergone changes that remove the 'parent
+	interface' from the ifconfig -l output. The rc.d network scripts
+	used to check presence of a parent interface in the list, so old
+	scripts would fail to start wireless networking. Thus, etcupdate(3)
+	or mergemaster(8) run is required after kernel update, to update your
+	rc.d scripts in /etc.
+
+20150827:
+	pf no longer supports 'scrub fragment crop' or 'scrub fragment drop-ovl'
+	These configurations are now automatically interpreted as
+	'scrub fragment reassemble'.
+
+20150817:
+	Kernel-loadable modules for the random(4) device are back. To use
+	them, the kernel must have
+
+	device	random
+	options	RANDOM_LOADABLE
+
+	kldload(8) can then be used to load random_fortuna.ko
+	or random_yarrow.ko. Please note that due to the indirect
+	function calls that the loadable modules need to provide,
+	the build-in variants will be slightly more efficient.
+
+	The random(4) kernel option RANDOM_DUMMY has been retired due to
+	unpopularity. It was not all that useful anyway.
+
+20150813:
+	The WITHOUT_ELFTOOLCHAIN_TOOLS src.conf(5) knob has been retired.
+	Control over building the ELF Tool Chain tools is now provided by
+	the WITHOUT_TOOLCHAIN knob.
+
+20150810:
+	The polarity of Pulse Per Second (PPS) capture events with the
+	uart(4) driver has been corrected.  Prior to this change the PPS
+	"assert" event corresponded to the trailing edge of a positive PPS
+	pulse and the "clear" event was the leading edge of the next pulse.
+
+	As the width of a PPS pulse in a typical GPS receiver is on the
+	order of 1 millisecond, most users will not notice any significant
+	difference with this change.
+
+	Anyone who has compensated for the historical polarity reversal by
+	configuring a negative offset equal to the pulse width will need to
+	remove that workaround.
+
+20150809:
+	The default group assigned to /dev/dri entries has been changed
+	from 'wheel' to 'video' with the id of '44'. If you want to have
+	access to the dri devices please add yourself to the video group
+	with:
+
+	# pw groupmod video -m $USER
+
+20150806:
+	The menu.rc and loader.rc files will now be replaced during 
+	upgrades. Please migrate local changes to menu.rc.local and
+	loader.rc.local instead.
+
+20150805:
+	GNU Binutils versions of addr2line, c++filt, nm, readelf, size,
+	strings and strip have been removed. The src.conf(5) knob
+	WITHOUT_ELFTOOLCHAIN_TOOLS no longer provides the binutils tools.
+
+20150728:
+	As ZFS requires more kernel stack pages than is the default on some
+	architectures e.g. i386, it now warns if KSTACK_PAGES is less than
+	ZFS_MIN_KSTACK_PAGES (which is 4 at the time of writing).
+
+	Please consider using 'options KSTACK_PAGES=X' where X is greater
+	than or equal to ZFS_MIN_KSTACK_PAGES i.e. 4 in such configurations.
+
 20150706:
 	sendmail has been updated to 8.15.2.  Starting with FreeBSD 11.0
 	and sendmail 8.15, sendmail uses uncompressed IPv6 addresses by
@@ -216,7 +289,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	taken from the ELF Tool Chain project rather than GNU binutils. They
 	should be drop-in replacements, with the addition of arm64 support.
 	The WITHOUT_ELFTOOLCHAIN_TOOLS= knob may be used to obtain the
-	binutils tools, if necessary.
+	binutils tools, if necessary. See 20150805 for updated information.
 
 20150105:
 	The default Unbound configuration now enables remote control
@@ -568,6 +641,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	  # make -C /usr/ports/ports-mgmt/pkg build deinstall install clean
 	  or
 	  # pkg install pkg; ldd /usr/local/sbin/pkg | grep bsdyml
+
+20131010:
+	The stable/10 branch has been created in subversion from head
+	revision r256279.
 
 20131010:
 	The rc.d/jail script has been updated to support jail(8)
@@ -1112,6 +1189,13 @@ COMMON ITEMS:
 	around can lead to problems if pam has changed too much from your
 	starting point to allow continued authentication after the upgrade.
 
+	This file should be read as a log of events. When a later event changes
+	information of a prior event, the prior event should not be deleted.
+	Instead, a pointer to the entry with the new information should be
+	placed in the old entry. Readers of this file should also sanity check
+	older entries before relying on them blindly. Authors of new entries
+	should write them with this in mind.
+
 	ZFS notes
 	---------
 	When upgrading the boot ZFS pool to a new version, always follow
@@ -1282,7 +1366,7 @@ FORMAT:
 
 This file contains a list, in reverse chronological order, of major
 breakages in tracking -current.  It is not guaranteed to be a complete
-list of such breakages, and only contains entries since October 10, 2007.
+list of such breakages, and only contains entries since September 23, 2011.
 If you need to see UPDATING entries from before that date, you will need
 to fetch an UPDATING file from an older FreeBSD release.
 

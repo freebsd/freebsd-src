@@ -582,6 +582,7 @@ struct bxe_fastpath {
 #define BXE_FP_TX_LOCK(fp)        mtx_lock(&fp->tx_mtx)
 #define BXE_FP_TX_UNLOCK(fp)      mtx_unlock(&fp->tx_mtx)
 #define BXE_FP_TX_LOCK_ASSERT(fp) mtx_assert(&fp->tx_mtx, MA_OWNED)
+#define BXE_FP_TX_TRYLOCK(fp)     mtx_trylock(&fp->tx_mtx)
 
 #define BXE_FP_RX_LOCK(fp)        mtx_lock(&fp->rx_mtx)
 #define BXE_FP_RX_UNLOCK(fp)      mtx_unlock(&fp->rx_mtx)

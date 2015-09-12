@@ -144,8 +144,9 @@ struct vmspace;
 
 void	shmexit(struct vmspace *);
 void	shmfork(struct proc *, struct proc *);
-#else /* !_KERNEL */
+#endif /* _KERNEL */
 
+#if !defined(_KERNEL) || defined(_WANT_SHM_PROTOTYPES)
 #include <sys/cdefs.h>
 
 #ifndef _SIZE_T_DECLARED
@@ -163,6 +164,6 @@ int shmctl(int, int, struct shmid_ds *);
 int shmdt(const void *);
 __END_DECLS
 
-#endif /* !_KERNEL */
+#endif /* _KERNEL || _WANT_SHM_PROTOTYPES */
 
 #endif /* !_SYS_SHM_H_ */

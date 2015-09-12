@@ -46,14 +46,9 @@
 #include <contrib/dev/acpica/include/acdispat.h>
 #include <contrib/dev/acpica/include/acnamesp.h>
 #include <contrib/dev/acpica/include/acdebug.h>
-#ifdef ACPI_DISASSEMBLER
-#include <contrib/dev/acpica/include/acdisasm.h>
-#endif
 #include <contrib/dev/acpica/include/acparser.h>
 #include <contrib/dev/acpica/include/acpredef.h>
 
-
-#ifdef ACPI_DEBUGGER
 
 #define _COMPONENT          ACPI_CA_DEBUGGER
         ACPI_MODULE_NAME    ("dbmethod")
@@ -229,12 +224,13 @@ AcpiDbSetMethodData (
 
         if (Index > ACPI_METHOD_MAX_ARG)
         {
-            AcpiOsPrintf ("Arg%u - Invalid argument name\n", Index);
+            AcpiOsPrintf ("Arg%u - Invalid argument name\n",
+                Index);
             goto Cleanup;
         }
 
-        Status = AcpiDsStoreObjectToLocal (ACPI_REFCLASS_ARG, Index, ObjDesc,
-                    WalkState);
+        Status = AcpiDsStoreObjectToLocal (ACPI_REFCLASS_ARG,
+            Index, ObjDesc, WalkState);
         if (ACPI_FAILURE (Status))
         {
             goto Cleanup;
@@ -252,12 +248,13 @@ AcpiDbSetMethodData (
 
         if (Index > ACPI_METHOD_MAX_LOCAL)
         {
-            AcpiOsPrintf ("Local%u - Invalid local variable name\n", Index);
+            AcpiOsPrintf ("Local%u - Invalid local variable name\n",
+                Index);
             goto Cleanup;
         }
 
-        Status = AcpiDsStoreObjectToLocal (ACPI_REFCLASS_LOCAL, Index, ObjDesc,
-                    WalkState);
+        Status = AcpiDsStoreObjectToLocal (ACPI_REFCLASS_LOCAL,
+            Index, ObjDesc, WalkState);
         if (ACPI_FAILURE (Status))
         {
             goto Cleanup;
@@ -398,14 +395,14 @@ AcpiDbDisassembleMethod (
 
     Status = AcpiPsParseAml (WalkState);
 
-#ifdef ACPI_DISASSEMBER
+#ifdef ACPI_DISASSEMBLER
     (void) AcpiDmParseDeferredOps (Op);
 
     /* Now we can disassemble the method */
 
-    AcpiGbl_DbOpt_Verbose = FALSE;
+    AcpiGbl_DmOpt_Verbose = FALSE;
     AcpiDmDisassemble (NULL, Op, 0);
-    AcpiGbl_DbOpt_Verbose = TRUE;
+    AcpiGbl_DmOpt_Verbose = TRUE;
 #endif
 
     AcpiPsDeleteParseTree (Op);
@@ -417,5 +414,3 @@ AcpiDbDisassembleMethod (
     AcpiUtReleaseOwnerId (&ObjDesc->Method.OwnerId);
     return (AE_OK);
 }
-
-#endif /* ACPI_DEBUGGER */

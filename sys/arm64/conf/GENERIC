@@ -84,14 +84,42 @@ options 	WITNESS			# Enable checks to detect deadlocks and cycles
 options 	WITNESS_SKIPSPIN	# Don't run witness on spinlocks for speed
 options 	MALLOC_DEBUG_MAXZONES=8	# Separate malloc(9) zones
 
+# SoC support
+options 	SOC_CAVM_THUNDERX
+options 	SOC_HISI_HI6220
+
+# VirtIO support
 device		virtio
 device		virtio_mmio
 device		virtio_blk
 device		vtnet
 
+# Bus drivers
+device		pci
+
+# Ethernet NICs
+device		em		# Intel PRO/1000 Gigabit Ethernet Family
+device		mii
+device		miibus		# MII bus support
+
+# Block devices
+device		ahci
+device		scbus
+device		da
+
+# MMC/SD/SDIO Card slot support
+device		mmc			# mmc/sd bus
+device		mmcsd			# mmc/sd flash cards
+device		dwmmc
+
 # Serial (COM) ports
 device		uart		# Generic UART driver
 device		pl011
+
+# USB support
+options 	USB_DEBUG		# enable debug msgs
+device		dwcotg			# DWC OTG controller
+device		usb			# USB Bus (required)
 
 # Pseudo devices.
 device		loop		# Network loopback
@@ -108,6 +136,9 @@ device		psci		# Support for ARM PSCI
 # Be aware of the administrative consequences of enabling this!
 # Note that 'bpf' is required for DHCP.
 device		bpf		# Berkeley packet filter
+
+# Chip-specific errata
+options 	THUNDERX_PASS_1_1_ERRATA
 
 options 	FDT
 device		acpi

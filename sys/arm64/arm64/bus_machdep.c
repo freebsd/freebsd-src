@@ -49,6 +49,15 @@ void generic_bs_rm_4(void *, bus_space_handle_t, bus_size_t, uint32_t *,
 void generic_bs_rm_8(void *, bus_space_handle_t, bus_size_t, uint64_t *,
     bus_size_t);
 
+void generic_bs_rr_1(void *, bus_space_handle_t, bus_size_t, uint8_t *,
+    bus_size_t);
+void generic_bs_rr_2(void *, bus_space_handle_t, bus_size_t, uint16_t *,
+    bus_size_t);
+void generic_bs_rr_4(void *, bus_space_handle_t, bus_size_t, uint32_t *,
+    bus_size_t);
+void generic_bs_rr_8(void *, bus_space_handle_t, bus_size_t, uint64_t *,
+    bus_size_t);
+
 void generic_bs_w_1(void *, bus_space_handle_t, bus_size_t, uint8_t);
 void generic_bs_w_2(void *, bus_space_handle_t, bus_size_t, uint16_t);
 void generic_bs_w_4(void *, bus_space_handle_t, bus_size_t, uint32_t);
@@ -61,6 +70,15 @@ void generic_bs_wm_2(void *, bus_space_handle_t, bus_size_t, const uint16_t *,
 void generic_bs_wm_4(void *, bus_space_handle_t, bus_size_t, const uint32_t *,
     bus_size_t);
 void generic_bs_wm_8(void *, bus_space_handle_t, bus_size_t, const uint64_t *,
+    bus_size_t);
+
+void generic_bs_wr_1(void *, bus_space_handle_t, bus_size_t, const uint8_t *,
+    bus_size_t);
+void generic_bs_wr_2(void *, bus_space_handle_t, bus_size_t, const uint16_t *,
+    bus_size_t);
+void generic_bs_wr_4(void *, bus_space_handle_t, bus_size_t, const uint32_t *,
+    bus_size_t);
+void generic_bs_wr_8(void *, bus_space_handle_t, bus_size_t, const uint64_t *,
     bus_size_t);
 
 static int
@@ -126,6 +144,12 @@ struct bus_space memmap_bus = {
 	.bs_rm_4 = generic_bs_rm_4,
 	.bs_rm_8 = generic_bs_rm_8,
 
+	/* read region */
+	.bs_rr_1 = generic_bs_rr_1,
+	.bs_rr_2 = generic_bs_rr_2,
+	.bs_rr_4 = generic_bs_rr_4,
+	.bs_rr_8 = generic_bs_rr_8,
+
 	/* write single */
 	.bs_w_1 = generic_bs_w_1,
 	.bs_w_2 = generic_bs_w_2,
@@ -139,10 +163,10 @@ struct bus_space memmap_bus = {
 	.bs_wm_8 = generic_bs_wm_8,
 
 	/* write region */
-	.bs_wr_1 = NULL,
-	.bs_wr_2 = NULL,
-	.bs_wr_4 = NULL,
-	.bs_wr_8 = NULL,
+	.bs_wr_1 = generic_bs_wr_1,
+	.bs_wr_2 = generic_bs_wr_2,
+	.bs_wr_4 = generic_bs_wr_4,
+	.bs_wr_8 = generic_bs_wr_8,
 
 	/* set multiple */
 	.bs_sm_1 = NULL,

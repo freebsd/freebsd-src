@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/hash.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
 #include <sys/limits.h>
@@ -185,27 +186,6 @@ SYSCTL_INT(_net_inet_tcp_syncache, OID_AUTO, rst_on_sock_fail,
     "Send reset on socket allocation failure");
 
 static MALLOC_DEFINE(M_SYNCACHE, "syncache", "TCP syncache");
-
-#define SYNCACHE_HASH(inc, mask)					\
-	((V_tcp_syncache.hash_secret ^					\
-	  (inc)->inc_faddr.s_addr ^					\
-	  ((inc)->inc_faddr.s_addr >> 16) ^				\
-	  (inc)->inc_fport ^ (inc)->inc_lport) & mask)
-
-#define SYNCACHE_HASH6(inc, mask)					\
-	((V_tcp_syncache.hash_secret ^					\
-	  (inc)->inc6_faddr.s6_addr32[0] ^				\
-	  (inc)->inc6_faddr.s6_addr32[3] ^				\
-	  (inc)->inc_fport ^ (inc)->inc_lport) & mask)
-
-#define ENDPTS_EQ(a, b) (						\
-	(a)->ie_fport == (b)->ie_fport &&				\
-	(a)->ie_lport == (b)->ie_lport &&				\
-	(a)->ie_faddr.s_addr == (b)->ie_faddr.s_addr &&			\
-	(a)->ie_laddr.s_addr == (b)->ie_laddr.s_addr			\
-)
-
-#define ENDPTS6_EQ(a, b) (memcmp(a, b, sizeof(*a)) == 0)
 
 #define	SCH_LOCK(sch)		mtx_lock(&(sch)->sch_mtx)
 #define	SCH_UNLOCK(sch)		mtx_unlock(&(sch)->sch_mtx)
@@ -486,41 +466,29 @@ syncache_lookup(struct in_conninfo *inc, struct syncache_head **schp)
 {
 	struct syncache *sc;
 	struct syncache_head *sch;
+	uint32_t hash;
 
-#ifdef INET6
-	if (inc->inc_flags & INC_ISIPV6) {
-		sch = &V_tcp_syncache.hashbase[
-		    SYNCACHE_HASH6(inc, V_tcp_syncache.hashmask)];
-		*schp = sch;
+	/*
+	 * The hash is built on foreign port + local port + foreign address.
+	 * We rely on the fact that struct in_conninfo starts with 16 bits
+	 * of foreign port, then 16 bits of local port then followed by 128
+	 * bits of foreign address.  In case of IPv4 address, the first 3
+	 * 32-bit words of the address always are zeroes.
+	 */
+	hash = jenkins_hash32((uint32_t *)&inc->inc_ie, 5,
+	    V_tcp_syncache.hash_secret) & V_tcp_syncache.hashmask;
 
-		SCH_LOCK(sch);
+	sch = &V_tcp_syncache.hashbase[hash];
+	*schp = sch;
+	SCH_LOCK(sch);
 
-		/* Circle through bucket row to find matching entry. */
-		TAILQ_FOREACH(sc, &sch->sch_bucket, sc_hash) {
-			if (ENDPTS6_EQ(&inc->inc_ie, &sc->sc_inc.inc_ie))
-				return (sc);
-		}
-	} else
-#endif
-	{
-		sch = &V_tcp_syncache.hashbase[
-		    SYNCACHE_HASH(inc, V_tcp_syncache.hashmask)];
-		*schp = sch;
+	/* Circle through bucket row to find matching entry. */
+	TAILQ_FOREACH(sc, &sch->sch_bucket, sc_hash)
+		if (bcmp(&inc->inc_ie, &sc->sc_inc.inc_ie,
+		    sizeof(struct in_endpoints)) == 0)
+			break;
 
-		SCH_LOCK(sch);
-
-		/* Circle through bucket row to find matching entry. */
-		TAILQ_FOREACH(sc, &sch->sch_bucket, sc_hash) {
-#ifdef INET6
-			if (sc->sc_inc.inc_flags & INC_ISIPV6)
-				continue;
-#endif
-			if (ENDPTS_EQ(&inc->inc_ie, &sc->sc_inc.inc_ie))
-				return (sc);
-		}
-	}
-	SCH_LOCK_ASSERT(*schp);
-	return (NULL);			/* always returns with locked sch */
+	return (sc);	/* Always returns with locked sch. */
 }
 
 /*
@@ -652,6 +620,8 @@ done:
 
 /*
  * Build a new TCP socket structure from a syncache entry.
+ *
+ * On success return the newly created socket with its underlying inp locked.
  */
 static struct socket *
 syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
@@ -662,7 +632,7 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 	int error;
 	char *s;
 
-	INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
+	INP_INFO_RLOCK_ASSERT(&V_tcbinfo);
 
 	/*
 	 * Ok, create the full blown connection, and set things up
@@ -693,6 +663,15 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 	inp = sotoinpcb(so);
 	inp->inp_inc.inc_fibnum = so->so_fibnum;
 	INP_WLOCK(inp);
+	/*
+	 * Exclusive pcbinfo lock is not required in syncache socket case even
+	 * if two inpcb locks can be acquired simultaneously:
+	 *  - the inpcb in LISTEN state,
+	 *  - the newly created inp.
+	 *
+	 * In this case, an inp cannot be at same time in LISTEN state and
+	 * just created by an accept() call.
+	 */
 	INP_HASH_WLOCK(&V_tcbinfo);
 
 	/* Insert new socket into PCB hash list. */
@@ -907,8 +886,6 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 	tp->t_keepcnt = sototcpcb(lso)->t_keepcnt;
 	tcp_timer_activate(tp, TT_KEEP, TP_KEEPINIT(tp));
 
-	INP_WUNLOCK(inp);
-
 	soisconnected(so);
 
 	TCPSTAT_INC(tcps_accepts);
@@ -928,6 +905,9 @@ abort2:
  * in the syncache, and if its there, we pull it out of
  * the cache and turn it into a full-blown connection in
  * the SYN-RECEIVED state.
+ *
+ * On syncache_socket() success the newly created socket
+ * has its underlying inp locked.
  */
 int
 syncache_expand(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
@@ -942,7 +922,7 @@ syncache_expand(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 	 * Global TCP locks are held because we manipulate the PCB lists
 	 * and create a new socket.
 	 */
-	INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
+	INP_INFO_RLOCK_ASSERT(&V_tcbinfo);
 	KASSERT((th->th_flags & (TH_RST|TH_ACK|TH_SYN)) == TH_ACK,
 	    ("%s: can handle only ACK", __func__));
 

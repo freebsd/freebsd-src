@@ -61,7 +61,6 @@ __FBSDID("$FreeBSD$");
 #include <cam/ctl/ctl_backend.h>
 #include <cam/ctl/ctl_error.h>
 #include <cam/ctl/ctl_frontend.h>
-#include <cam/ctl/ctl_frontend_internal.h>
 #include <cam/ctl/ctl_debug.h>
 #include <cam/ctl/ctl_ha.h>
 #include <cam/ctl/ctl_ioctl.h>
@@ -147,8 +146,6 @@ int		cfiscsi_init(void);
 static void	cfiscsi_online(void *arg);
 static void	cfiscsi_offline(void *arg);
 static int	cfiscsi_info(void *arg, struct sbuf *sb);
-static int	cfiscsi_lun_enable(void *arg, int lun_id);
-static int	cfiscsi_lun_disable(void *arg, int lun_id);
 static int	cfiscsi_ioctl(struct cdev *dev,
 		    u_long cmd, caddr_t addr, int flag, struct thread *td);
 static void	cfiscsi_datamove(union ctl_io *io);
@@ -567,9 +564,8 @@ cfiscsi_pdu_handle_scsi_command(struct icl_pdu *request)
 	ctl_zero_io(io);
 	io->io_hdr.ctl_private[CTL_PRIV_FRONTEND].ptr = request;
 	io->io_hdr.io_type = CTL_IO_SCSI;
-	io->io_hdr.nexus.initid.id = cs->cs_ctl_initid;
+	io->io_hdr.nexus.initid = cs->cs_ctl_initid;
 	io->io_hdr.nexus.targ_port = cs->cs_target->ct_port.targ_port;
-	io->io_hdr.nexus.targ_target.id = 0;
 	io->io_hdr.nexus.targ_lun = cfiscsi_decode_lun(bhssc->bhssc_lun);
 	io->scsiio.tag_num = bhssc->bhssc_initiator_task_tag;
 	switch ((bhssc->bhssc_flags & BHSSC_FLAGS_ATTR)) {
@@ -624,9 +620,8 @@ cfiscsi_pdu_handle_task_request(struct icl_pdu *request)
 	ctl_zero_io(io);
 	io->io_hdr.ctl_private[CTL_PRIV_FRONTEND].ptr = request;
 	io->io_hdr.io_type = CTL_IO_TASK;
-	io->io_hdr.nexus.initid.id = cs->cs_ctl_initid;
+	io->io_hdr.nexus.initid = cs->cs_ctl_initid;
 	io->io_hdr.nexus.targ_port = cs->cs_target->ct_port.targ_port;
-	io->io_hdr.nexus.targ_target.id = 0;
 	io->io_hdr.nexus.targ_lun = cfiscsi_decode_lun(bhstmr->bhstmr_lun);
 	io->taskio.tag_type = CTL_TAG_SIMPLE; /* XXX */
 
@@ -1123,9 +1118,8 @@ cfiscsi_session_terminate_tasks(struct cfiscsi_session *cs)
 	ctl_zero_io(io);
 	io->io_hdr.ctl_private[CTL_PRIV_FRONTEND].ptr = cs;
 	io->io_hdr.io_type = CTL_IO_TASK;
-	io->io_hdr.nexus.initid.id = cs->cs_ctl_initid;
+	io->io_hdr.nexus.initid = cs->cs_ctl_initid;
 	io->io_hdr.nexus.targ_port = cs->cs_target->ct_port.targ_port;
-	io->io_hdr.nexus.targ_target.id = 0;
 	io->io_hdr.nexus.targ_lun = 0;
 	io->taskio.tag_type = CTL_TAG_SIMPLE; /* XXX */
 	io->taskio.task_action = CTL_TASK_I_T_NEXUS_RESET;
@@ -2101,9 +2095,6 @@ cfiscsi_ioctl_port_create(struct ctl_req *req)
 	port->port_offline = cfiscsi_offline;
 	port->port_info = cfiscsi_info;
 	port->onoff_arg = ct;
-	port->lun_enable = cfiscsi_lun_enable;
-	port->lun_disable = cfiscsi_lun_disable;
-	port->targ_lun_arg = ct;
 	port->fe_datamove = cfiscsi_datamove;
 	port->fe_done = cfiscsi_done;
 
@@ -2111,6 +2102,7 @@ cfiscsi_ioctl_port_create(struct ctl_req *req)
 	/* XXX These should probably be fetched from CTL. */
 	port->max_targets = 1;
 	port->max_target_id = 15;
+	port->targ_port = -1;
 
 	port->options = opts;
 	STAILQ_INIT(&opts);
@@ -2368,20 +2360,6 @@ cfiscsi_target_find_or_create(struct cfiscsi_softc *softc, const char *name,
 	mtx_unlock(&softc->lock);
 
 	return (newct);
-}
-
-static int
-cfiscsi_lun_enable(void *arg, int lun_id)
-{
-
-	return (0);
-}
-
-static int
-cfiscsi_lun_disable(void *arg, int lun_id)
-{
-
-	return (0);
 }
 
 static void

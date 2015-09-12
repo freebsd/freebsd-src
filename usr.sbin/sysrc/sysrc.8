@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 4, 2015
+.Dd September 2, 2015
 .Dt SYSRC 8
 .Os
 .Sh NAME
@@ -199,8 +199,8 @@ syntax to add items to existing values,
 the first character of the value is taken as the delimiter separating items
 .Pq usually Qo \  Qc or Qo , Qc .
 For example, in the following statement:
-.Bl -tag -width indent+
-.It \ 
+.Bl -item -offset indent
+.It
 .Nm
 cloned_interfaces+=" gif0"
 .El
@@ -223,26 +223,25 @@ For example, the above and below statements are equivalent since
 .Dq gif0
 starts with an alpha-numeric character
 .Pq the letter Li g :
-.Pp
-.Bl -tag -width indent+
-.It \ 
+.Bl -item -offset indent
+.It
 .Nm
 cloned_interfaces+=gif0
 .El
 .Pp
 Take the following sequence for example:
-.Bl -tag -width indent+
-.It \ 
+.Bl -item -offset indent
+.It
 .Nm
 cloned_interfaces= # start with NULL
-.It \ 
+.It
 .Nm
 cloned_interfaces+=gif0
 .Dl # NULL -> `gif0' Pq NB: no preceding delimiter
-.It \ 
+.It
 .Nm
 cloned_interfaces+=gif0 # no change
-.It \ 
+.It
 .Nm
 cloned_interfaces+="tun0 gif0"
 .Dl # `gif0' -> `gif0 tun0' Pq NB: no duplication
@@ -278,22 +277,21 @@ For example, the above and below statements are equivalent since
 .Dq gif0
 starts with an alpha-numeric character
 .Pq the letter Li g :
-.Pp
-.Bl -tag -width indent+
-.It \ 
+.Bl -item -offset indent
+.It
 .Nm
 cloned_interfaces-=gif0
 .El
 .Pp
 Take the following sequence for example:
-.Bl -tag -width indent+
-.It \ 
+.Bl -item -offset indent
+.It
 .Nm
 foo="bar baz" # start
-.It \ 
+.It
 .Nm
 foo-=bar # `bar baz' -> `baz'
-.It \ 
+.It
 .Nm
 foo-=baz # `baz' -> NULL
 .El
@@ -396,27 +394,6 @@ usbd_flags-"default"
 .Nm
 cloned_interfaces+"alternate"
 .Dl returns "alternate" if $cloned_interfaces is set .
-.Pp
-.Nm
-\&'#kern_securelevel'
-.Dl returns length in characters of $kern_securelevel .
-.Pp
-.Nm
-\&'hostname?'
-.Dl returns NULL and error status 2 if $hostname is unset Pq or if set, returns the value of $hostname with no error status .
-.Pp
-.Nm
-\&'hostname:?'
-.Dl returns NULL and error status 2 if $hostname is unset or NULL Pq or if set and non-NULL, returns value without error status .
-.Sh LIMITATIONS
-The
-.Nm
-utility presently does not support the
-.Ql rc.conf.d
-collection of system configuration files
-.Pq which requires a service name to be known during execution .
-.Pp
-This will be corrected by a future enhancement.
 .Sh SEE ALSO
 .Xr jls 1 ,
 .Xr rc.conf 5 ,

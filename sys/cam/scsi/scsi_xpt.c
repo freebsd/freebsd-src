@@ -1123,6 +1123,7 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 {
 	probe_softc *softc;
 	struct cam_path *path;
+	struct scsi_inquiry_data *inq_buf;
 	u_int32_t  priority;
 
 	CAM_DEBUG(done_ccb->ccb_h.path, CAM_DEBUG_TRACE, ("probedone\n"));
@@ -1162,7 +1163,6 @@ out:
 	case PROBE_FULL_INQUIRY:
 	{
 		if (cam_ccb_status(done_ccb) == CAM_REQ_CMP) {
-			struct scsi_inquiry_data *inq_buf;
 			u_int8_t periph_qual;
 
 			path->device->flags |= CAM_DEV_INQUIRY_DATA_VALID;
@@ -1171,7 +1171,8 @@ out:
 
 			periph_qual = SID_QUAL(inq_buf);
 
-			if (periph_qual == SID_QUAL_LU_CONNECTED) {
+			if (periph_qual == SID_QUAL_LU_CONNECTED ||
+			    periph_qual == SID_QUAL_LU_OFFLINE) {
 				u_int8_t len;
 
 				/*
@@ -1347,10 +1348,10 @@ out:
 			probe_purge_old(path, lp, softc->flags);
 			lp = NULL;
 		}
+		inq_buf = &path->device->inq_data;
 		if (path->device->flags & CAM_DEV_INQUIRY_DATA_VALID &&
-		    SID_QUAL(&path->device->inq_data) == SID_QUAL_LU_CONNECTED) {
-			struct scsi_inquiry_data *inq_buf;
-			inq_buf = &path->device->inq_data;
+		    (SID_QUAL(inq_buf) == SID_QUAL_LU_CONNECTED ||
+		    SID_QUAL(inq_buf) == SID_QUAL_LU_OFFLINE)) {
 			if (INQ_DATA_TQ_ENABLED(inq_buf))
 				PROBE_SET_ACTION(softc, PROBE_MODE_SENSE);
 			else

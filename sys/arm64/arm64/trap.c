@@ -119,7 +119,7 @@ cpu_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
 	sa->narg = sa->callp->sy_narg;
 	memcpy(sa->args, ap, nap * sizeof(register_t));
 	if (sa->narg > nap)
-		panic("TODO: Could we have more then 8 args?");
+		panic("ARM64TODO: Could we have more than 8 args?");
 
 	td->td_retval[0] = 0;
 	td->td_retval[1] = 0;
@@ -155,6 +155,13 @@ data_abort(struct trapframe *frame, uint64_t esr, int lower)
 	uint64_t far;
 	int error, sig, ucode;
 
+#ifdef KDB
+	if (kdb_active) {
+		kdb_reenter();
+		return;
+	}
+#endif
+
 	td = curthread;
 	pcb = td->td_pcb;
 
@@ -183,29 +190,8 @@ data_abort(struct trapframe *frame, uint64_t esr, int lower)
 	va = trunc_page(far);
 	ftype = ((esr >> 6) & 1) ? VM_PROT_READ | VM_PROT_WRITE : VM_PROT_READ;
 
-	if (map != kernel_map) {
-		/*
-		 * Keep swapout from messing with us during this
-		 *	critical time.
-		 */
-		PROC_LOCK(p);
-		++p->p_lock;
-		PROC_UNLOCK(p);
-
-		/* Fault in the user page: */
-		error = vm_fault(map, va, ftype, VM_FAULT_NORMAL);
-
-		PROC_LOCK(p);
-		--p->p_lock;
-		PROC_UNLOCK(p);
-	} else {
-		/*
-		 * Don't have to worry about process locking or stacks in the
-		 * kernel.
-		 */
-		error = vm_fault(map, va, ftype, VM_FAULT_NORMAL);
-	}
-
+	/* Fault in the page. */
+	error = vm_fault(map, va, ftype, VM_FAULT_NORMAL);
 	if (error != KERN_SUCCESS) {
 		if (lower) {
 			sig = SIGSEGV;
@@ -221,12 +207,32 @@ data_abort(struct trapframe *frame, uint64_t esr, int lower)
 				frame->tf_elr = pcb->pcb_onfault;
 				return;
 			}
+#ifdef KDB
+			if (debugger_on_panic || kdb_active)
+				if (kdb_trap(ESR_ELx_EXCEPTION(esr), 0, frame))
+					return;
+#endif
 			panic("vm_fault failed: %lx", frame->tf_elr);
 		}
 	}
 
 	if (lower)
 		userret(td, frame);
+}
+
+static void
+print_registers(struct trapframe *frame)
+{
+	u_int reg;
+
+	for (reg = 0; reg < 31; reg++) {
+		printf(" %sx%d: %16lx\n", (reg < 10) ? " " : "", reg,
+		    frame->tf_x[reg]);
+	}
+	printf("  sp: %16lx\n", frame->tf_sp);
+	printf("  lr: %16lx\n", frame->tf_lr);
+	printf(" elr: %16lx\n", frame->tf_elr);
+	printf("spsr: %16lx\n", frame->tf_spsr);
 }
 
 void
@@ -265,6 +271,7 @@ do_el1h_sync(struct trapframe *frame)
 	switch(exception) {
 	case EXCP_FP_SIMD:
 	case EXCP_TRAP_FP:
+		print_registers(frame);
 		panic("VFP exception in the kernel");
 	case EXCP_DATA_ABORT:
 		data_abort(frame, esr, 0);
@@ -277,6 +284,7 @@ do_el1h_sync(struct trapframe *frame)
 			break;
 		}
 #endif
+		/* FALLTHROUGH */
 	case EXCP_WATCHPT_EL1:
 	case EXCP_SOFTSTP_EL1:
 #ifdef KDB
@@ -286,14 +294,32 @@ do_el1h_sync(struct trapframe *frame)
 #endif
 		break;
 	default:
+		print_registers(frame);
 		panic("Unknown kernel exception %x esr_el1 %lx\n", exception,
 		    esr);
 	}
 }
 
+/*
+ * The attempted execution of an instruction bit pattern that has no allocated
+ * instruction results in an exception with an unknown reason.
+ */
+static void
+el0_excp_unknown(struct trapframe *frame)
+{
+	struct thread *td;
+	uint64_t far;
+
+	td = curthread;
+	far = READ_SPECIALREG(far_el1);
+	call_trapsignal(td, SIGILL, ILL_ILLTRP, (void *)far);
+	userret(td, frame);
+}
+
 void
 do_el0_sync(struct trapframe *frame)
 {
+	struct thread *td;
 	uint32_t exception;
 	uint64_t esr;
 
@@ -319,13 +345,29 @@ do_el0_sync(struct trapframe *frame)
 #endif
 		break;
 	case EXCP_SVC:
+		/*
+		 * Ensure the svc_handler is being run with interrupts enabled.
+		 * They will be automatically restored when returning from
+		 * exception handler.
+		 */
+		intr_enable();
 		svc_handler(frame);
 		break;
 	case EXCP_INSN_ABORT_L:
 	case EXCP_DATA_ABORT_L:
+	case EXCP_DATA_ABORT:
 		data_abort(frame, esr, 1);
 		break;
+	case EXCP_UNKNOWN:
+		el0_excp_unknown(frame);
+		break;
+	case EXCP_BRK:
+		td = curthread;
+		call_trapsignal(td, SIGTRAP, TRAP_BRKPT, (void *)frame->tf_elr);
+		userret(td, frame);
+		break;
 	default:
+		print_registers(frame);
 		panic("Unknown userland exception %x esr_el1 %lx\n", exception,
 		    esr);
 	}
@@ -335,6 +377,6 @@ void
 do_el0_error(struct trapframe *frame)
 {
 
-	panic("do_el0_error");
+	panic("ARM64TODO: do_el0_error");
 }
 

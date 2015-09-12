@@ -161,6 +161,7 @@ struct pargs {
  * for write access.
  */
 struct cpuset;
+struct filecaps;
 struct kaioinfo;
 struct kaudit_record;
 struct kdtrace_proc;
@@ -173,6 +174,7 @@ struct procdesc;
 struct racct;
 struct sbuf;
 struct sleepqueue;
+struct syscall_args;
 struct td_sched;
 struct thread;
 struct trapframe;
@@ -237,7 +239,7 @@ struct thread {
 	int		td_oncpu;	/* (t) Which cpu we are on. */
 	volatile u_char td_owepreempt;  /* (k*) Preempt on last critical_exit */
 	u_char		td_tsqueue;	/* (t) Turnstile queue blocked on. */
-	short		td_locks;	/* (k) Count of non-spin locks. */
+	short		td_locks;	/* (k) Debug: count of non-spin locks */
 	short		td_rw_rlocks;	/* (k) Count of rwlock read locks. */
 	short		td_lk_slocks;	/* (k) Count of lockmgr shared locks. */
 	short		td_stopsched;	/* (k) Scheduler stopped. */
@@ -281,6 +283,8 @@ struct thread {
 	int		td_no_sleeping;	/* (k) Sleeping disabled count. */
 	int		td_dom_rr_idx;	/* (k) RR Numa domain selection. */
 	void		*td_su;		/* (k) FFS SU private */
+	u_int		td_dbg_sc_code;	/* (c) Syscall code to debugger. */
+	u_int		td_dbg_sc_narg;	/* (c) Syscall arg count to debugger.*/
 #define	td_endzero td_sigmask
 
 /* Copied during fork1() or create_thread(). */
@@ -350,8 +354,14 @@ do {									\
 	KASSERT((__m == &blocked_lock || __m == (lock)),		\
 	    ("Thread %p lock %p does not match %p", td, __m, (lock)));	\
 } while (0)
+
+#define	TD_LOCKS_INC(td)	((td)->td_locks++)
+#define	TD_LOCKS_DEC(td)	((td)->td_locks--)
 #else
 #define	THREAD_LOCKPTR_ASSERT(td, lock)
+
+#define	TD_LOCKS_INC(td)
+#define	TD_LOCKS_DEC(td)
 #endif
 
 /*
@@ -916,7 +926,8 @@ int	enterpgrp(struct proc *p, pid_t pgid, struct pgrp *pgrp,
 int	enterthispgrp(struct proc *p, struct pgrp *pgrp);
 void	faultin(struct proc *p);
 void	fixjobc(struct proc *p, struct pgrp *pgrp, int entering);
-int	fork1(struct thread *, int, int, struct proc **, int *, int);
+int	fork1(struct thread *, int, int, struct proc **, int *, int,
+	    struct filecaps *);
 void	fork_exit(void (*)(void *, struct trapframe *), void *,
 	    struct trapframe *);
 void	fork_return(struct thread *, struct trapframe *);
@@ -971,7 +982,6 @@ void	userret(struct thread *, struct trapframe *);
 
 void	cpu_exit(struct thread *);
 void	exit1(struct thread *, int, int) __dead2;
-struct syscall_args;
 int	cpu_fetch_syscall_args(struct thread *td, struct syscall_args *sa);
 void	cpu_fork(struct thread *, struct proc *, struct thread *, int);
 void	cpu_set_fork_handler(struct thread *, void (*)(void *), void *);

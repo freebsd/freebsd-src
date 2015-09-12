@@ -3681,7 +3681,7 @@ csfailed:
 
 		sh = &V_pf_srchash[pf_hashsrc(&nsn->addr, nsn->af)];
 		PF_HASHROW_LOCK(sh);
-		if (--nsn->states == 1 && nsn->expire == 0) {
+		if (--nsn->states == 0 && nsn->expire == 0) {
 			pf_unlink_src_node(nsn);
 			uma_zfree(V_pf_sources_z, nsn);
 			counter_u64_add(
@@ -5895,7 +5895,7 @@ done:
 	    !((s && s->state_flags & PFSTATE_ALLOWOPTS) || r->allow_opts)) {
 		action = PF_DROP;
 		REASON_SET(&reason, PFRES_IPOPTIONS);
-		log = 1;
+		log = r->log;
 		DPFPRINTF(PF_DEBUG_MISC,
 		    ("pf: dropping packet with ip options\n"));
 	}
@@ -6085,7 +6085,17 @@ pf_test6(int dir, struct ifnet *ifp, struct mbuf **m0, struct inpcb *inp)
 
 	M_ASSERTPKTHDR(m);
 
-	if (dir == PF_OUT && m->m_pkthdr.rcvif && ifp != m->m_pkthdr.rcvif)
+	/* Detect packet forwarding.
+	 * If the input interface is different from the output interface we're
+	 * forwarding.
+	 * We do need to be careful about bridges. If the
+	 * net.link.bridge.pfil_bridge sysctl is set we can be filtering on a
+	 * bridge, so if the input interface is a bridge member and the output
+	 * interface is its bridge we're not actually forwarding but bridging.
+	 */
+	if (dir == PF_OUT && m->m_pkthdr.rcvif && ifp != m->m_pkthdr.rcvif
+	    && (m->m_pkthdr.rcvif->if_bridge == NULL
+	        || m->m_pkthdr.rcvif->if_bridge != ifp->if_softc))
 		fwdir = PF_FWD;
 
 	if (!V_pf_status.running)
@@ -6329,7 +6339,7 @@ done:
 	    !((s && s->state_flags & PFSTATE_ALLOWOPTS) || r->allow_opts)) {
 		action = PF_DROP;
 		REASON_SET(&reason, PFRES_IPOPTIONS);
-		log = 1;
+		log = r->log;
 		DPFPRINTF(PF_DEBUG_MISC,
 		    ("pf: dropping packet with dangerous v6 headers\n"));
 	}

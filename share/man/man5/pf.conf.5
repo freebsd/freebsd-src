@@ -28,7 +28,7 @@
 .\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd June 29, 2012
+.Dd July 25, 2015
 .Dt PF.CONF 5
 .Os
 .Sh NAME
@@ -666,33 +666,6 @@ packet, and only the completed packet is passed on to the filter.
 The advantage is that filter rules have to deal only with complete
 packets, and can ignore fragments.
 The drawback of caching fragments is the additional memory cost.
-But the full reassembly method is the only method that currently works
-with NAT.
-This is the default behavior of a
-.Ar scrub
-rule if no fragmentation modifier is supplied.
-.It Ar fragment crop
-The default fragment reassembly method is expensive, hence the option
-to crop is provided.
-In this case,
-.Xr pf 4
-will track the fragments and cache a small range descriptor.
-Duplicate fragments are dropped and overlaps are cropped.
-Thus data will only occur once on the wire with ambiguities resolving to
-the first occurrence.
-Unlike the
-.Ar fragment reassemble
-modifier, fragments are not buffered, they are passed as soon as they
-are received.
-The
-.Ar fragment crop
-reassembly mechanism does not yet work with NAT.
-.It Ar fragment drop-ovl
-This option is similar to the
-.Ar fragment crop
-modifier except that all overlapping or duplicate fragments will be
-dropped, and all further corresponding fragments will be
-dropped as well.
 .It Ar reassemble tcp
 Statefully normalizes TCP connections.
 .Ar scrub reassemble tcp
@@ -2381,8 +2354,10 @@ Once this limit is reached, fragments that would have to be cached
 are dropped until other entries time out.
 The timeout value can also be adjusted.
 .Pp
-Currently, only IPv4 fragments are supported and IPv6 fragments
-are blocked unconditionally.
+When forwarding reassembled IPv6 packets, pf refragments them with
+the original maximum fragment size.
+This allows the sender to determine the optimal fragment size by
+path MTU discovery.
 .Sh ANCHORS
 Besides the main ruleset,
 .Xr pfctl 8
@@ -2985,8 +2960,7 @@ state-opt      = ( "max" number | "no-sync" | timeout | "sloppy" | "pflow" |
                  "overload" "\*(Lt" string "\*(Gt" [ "flush" ] |
                  "if-bound" | "floating" )
 
-fragmentation  = [ "fragment reassemble" | "fragment crop" |
-                 "fragment drop-ovl" ]
+fragmentation  = [ "fragment reassemble" ]
 
 timeout-list   = timeout [ [ "," ] timeout-list ]
 timeout        = ( "tcp.first" | "tcp.opening" | "tcp.established" |

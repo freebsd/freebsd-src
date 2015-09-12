@@ -316,6 +316,8 @@ boolean_t moea_dev_direct_mapped(mmu_t, vm_paddr_t, vm_size_t);
 static void moea_sync_icache(mmu_t, pmap_t, vm_offset_t, vm_size_t);
 void moea_dumpsys_map(mmu_t mmu, vm_paddr_t pa, size_t sz, void **va);
 void moea_scan_init(mmu_t mmu);
+vm_offset_t moea_quick_enter_page(mmu_t mmu, vm_page_t m);
+void moea_quick_remove_page(mmu_t mmu, vm_offset_t addr);
 
 static mmu_method_t moea_methods[] = {
 	MMUMETHOD(mmu_clear_modify,	moea_clear_modify),
@@ -351,6 +353,8 @@ static mmu_method_t moea_methods[] = {
 	MMUMETHOD(mmu_activate,		moea_activate),
 	MMUMETHOD(mmu_deactivate,      	moea_deactivate),
 	MMUMETHOD(mmu_page_set_memattr,	moea_page_set_memattr),
+	MMUMETHOD(mmu_quick_enter_page, moea_quick_enter_page),
+	MMUMETHOD(mmu_quick_remove_page, moea_quick_remove_page),
 
 	/* Internal interfaces */
 	MMUMETHOD(mmu_bootstrap,       	moea_bootstrap),
@@ -928,13 +932,13 @@ moea_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend)
 	 * Allocate a kernel stack with a guard page for thread0 and map it
 	 * into the kernel page map.
 	 */
-	pa = moea_bootstrap_alloc(KSTACK_PAGES * PAGE_SIZE, PAGE_SIZE);
+	pa = moea_bootstrap_alloc(kstack_pages * PAGE_SIZE, PAGE_SIZE);
 	va = virtual_avail + KSTACK_GUARD_PAGES * PAGE_SIZE;
-	virtual_avail = va + KSTACK_PAGES * PAGE_SIZE;
+	virtual_avail = va + kstack_pages * PAGE_SIZE;
 	CTR2(KTR_PMAP, "moea_bootstrap: kstack0 at %#x (%#x)", pa, va);
 	thread0.td_kstack = va;
-	thread0.td_kstack_pages = KSTACK_PAGES;
-	for (i = 0; i < KSTACK_PAGES; i++) {
+	thread0.td_kstack_pages = kstack_pages;
+	for (i = 0; i < kstack_pages; i++) {
 		moea_kenter(mmup, va, pa);
 		pa += PAGE_SIZE;
 		va += PAGE_SIZE;
@@ -1080,6 +1084,18 @@ moea_zero_page_idle(mmu_t mmu, vm_page_t m)
 {
 
 	moea_zero_page(mmu, m);
+}
+
+vm_offset_t
+moea_quick_enter_page(mmu_t mmu, vm_page_t m)
+{
+
+	return (VM_PAGE_TO_PHYS(m));
+}
+
+void
+moea_quick_remove_page(mmu_t mmu, vm_offset_t addr)
+{
 }
 
 /*

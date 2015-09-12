@@ -578,10 +578,10 @@ sctp_queue_data_to_stream(struct sctp_tcb *stcb, struct sctp_association *asoc,
 		sctp_log_strm_del(control, NULL, SCTP_STR_LOG_FROM_INTO_STRD);
 	}
 	SCTPDBG(SCTP_DEBUG_INDATA1,
-	    "queue to stream called for ssn:%u lastdel:%u nxt:%u\n",
-	    (uint32_t) control->sinfo_stream,
-	    (uint32_t) strm->last_sequence_delivered,
-	    (uint32_t) nxt_todel);
+	    "queue to stream called for sid:%u ssn:%u tsn:%u lastdel:%u nxt:%u\n",
+	    (uint32_t) control->sinfo_stream, (uint32_t) control->sinfo_ssn,
+	    (uint32_t) control->sinfo_tsn,
+	    (uint32_t) strm->last_sequence_delivered, (uint32_t) nxt_todel);
 	if (SCTP_SSN_GE(strm->last_sequence_delivered, control->sinfo_ssn)) {
 		/* The incoming sseq is behind where we last delivered? */
 		SCTPDBG(SCTP_DEBUG_INDATA1, "Duplicate S-SEQ:%d delivered:%d from peer, Abort association\n",
@@ -602,6 +602,20 @@ protocol_error:
 		return;
 
 	}
+#if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
+	struct socket *so;
+
+	so = SCTP_INP_SO(stcb->sctp_ep);
+	atomic_add_int(&stcb->asoc.refcnt, 1);
+	SCTP_TCB_UNLOCK(stcb);
+	SCTP_SOCKET_LOCK(so, 1);
+	SCTP_TCB_LOCK(stcb);
+	atomic_subtract_int(&stcb->asoc.refcnt, 1);
+	if (stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_SOCKET_GONE) {
+		SCTP_SOCKET_UNLOCK(so, 1);
+		return;
+	}
+#endif
 	if (nxt_todel == control->sinfo_ssn) {
 		/* can be delivered right away? */
 		if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_STR_LOGGING_ENABLE) {
@@ -617,7 +631,7 @@ protocol_error:
 		sctp_add_to_readq(stcb->sctp_ep, stcb,
 		    control,
 		    &stcb->sctp_socket->so_rcv, 1,
-		    SCTP_READ_LOCK_NOT_HELD, SCTP_SO_NOT_LOCKED);
+		    SCTP_READ_LOCK_NOT_HELD, SCTP_SO_LOCKED);
 		TAILQ_FOREACH_SAFE(control, &strm->inqueue, next, at) {
 			/* all delivered */
 			nxt_todel = strm->last_sequence_delivered + 1;
@@ -641,7 +655,7 @@ protocol_error:
 				    control,
 				    &stcb->sctp_socket->so_rcv, 1,
 				    SCTP_READ_LOCK_NOT_HELD,
-				    SCTP_SO_NOT_LOCKED);
+				    SCTP_SO_LOCKED);
 				continue;
 			}
 			break;
@@ -653,6 +667,9 @@ protocol_error:
 		 * to put it on the queue.
 		 */
 		if (SCTP_TSN_GE(asoc->cumulative_tsn, control->sinfo_tsn)) {
+#if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
+			SCTP_SOCKET_UNLOCK(so, 1);
+#endif
 			goto protocol_error;
 		}
 		if (TAILQ_EMPTY(&strm->inqueue)) {
@@ -699,6 +716,9 @@ protocol_error:
 						control->whoFrom = NULL;
 					}
 					sctp_free_a_readq(stcb, control);
+#if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
+					SCTP_SOCKET_UNLOCK(so, 1);
+#endif
 					return;
 				} else {
 					if (TAILQ_NEXT(at, next) == NULL) {
@@ -718,6 +738,9 @@ protocol_error:
 			}
 		}
 	}
+#if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
+	SCTP_SOCKET_UNLOCK(so, 1);
+#endif
 }
 
 /*
@@ -2289,11 +2312,8 @@ doit_again:
 
 int
 sctp_process_data(struct mbuf **mm, int iphlen, int *offset, int length,
-    struct sockaddr *src, struct sockaddr *dst,
-    struct sctphdr *sh, struct sctp_inpcb *inp,
-    struct sctp_tcb *stcb, struct sctp_nets *net, uint32_t * high_tsn,
-    uint8_t mflowtype, uint32_t mflowid,
-    uint32_t vrf_id, uint16_t port)
+    struct sctp_inpcb *inp, struct sctp_tcb *stcb,
+    struct sctp_nets *net, uint32_t * high_tsn)
 {
 	struct sctp_data_chunk *ch, chunk_buf;
 	struct sctp_association *asoc;
@@ -2385,10 +2405,7 @@ sctp_process_data(struct mbuf **mm, int iphlen, int *offset, int length,
 				    chk_length);
 				op_err = sctp_generate_cause(SCTP_CAUSE_PROTOCOL_VIOLATION, msg);
 				stcb->sctp_ep->last_abort_code = SCTP_FROM_SCTP_INDATA + SCTP_LOC_21;
-				sctp_abort_association(inp, stcb, m, iphlen,
-				    src, dst, sh, op_err,
-				    mflowtype, mflowid,
-				    vrf_id, port);
+				sctp_abort_an_association(inp, stcb, op_err, SCTP_SO_NOT_LOCKED);
 				return (2);
 			}
 			if ((size_t)chk_length == sizeof(struct sctp_data_chunk)) {
@@ -2400,10 +2417,7 @@ sctp_process_data(struct mbuf **mm, int iphlen, int *offset, int length,
 
 				op_err = sctp_generate_no_user_data_cause(ch->dp.tsn);
 				stcb->sctp_ep->last_abort_code = SCTP_FROM_SCTP_INDATA + SCTP_LOC_22;
-				sctp_abort_association(inp, stcb, m, iphlen,
-				    src, dst, sh, op_err,
-				    mflowtype, mflowid,
-				    vrf_id, port);
+				sctp_abort_an_association(inp, stcb, op_err, SCTP_SO_NOT_LOCKED);
 				return (2);
 			}
 #ifdef SCTP_AUDITING_ENABLED
@@ -2465,14 +2479,12 @@ sctp_process_data(struct mbuf **mm, int iphlen, int *offset, int length,
 				 */
 				if (SCTP_BASE_SYSCTL(sctp_strict_data_order)) {
 					struct mbuf *op_err;
+					char msg[SCTP_DIAG_INFO_LEN];
 
-					op_err = sctp_generate_cause(SCTP_CAUSE_PROTOCOL_VIOLATION, "");
-					sctp_abort_association(inp, stcb,
-					    m, iphlen,
-					    src, dst,
-					    sh, op_err,
-					    mflowtype, mflowid,
-					    vrf_id, port);
+					snprintf(msg, sizeof(msg), "DATA chunk followed by chunk of type %2.2x",
+					    ch->ch.chunk_type);
+					op_err = sctp_generate_cause(SCTP_CAUSE_PROTOCOL_VIOLATION, msg);
+					sctp_abort_an_association(inp, stcb, op_err, SCTP_SO_NOT_LOCKED);
 					return (2);
 				}
 				break;
@@ -2501,11 +2513,7 @@ sctp_process_data(struct mbuf **mm, int iphlen, int *offset, int length,
 						SCTP_BUF_LEN(merr) = sizeof(*phd);
 						SCTP_BUF_NEXT(merr) = SCTP_M_COPYM(m, *offset, chk_length, M_NOWAIT);
 						if (SCTP_BUF_NEXT(merr)) {
-							if (sctp_pad_lastmbuf(SCTP_BUF_NEXT(merr), SCTP_SIZE32(chk_length) - chk_length, NULL) == NULL) {
-								sctp_m_freem(merr);
-							} else {
-								sctp_queue_op_err(stcb, merr);
-							}
+							sctp_queue_op_err(stcb, merr);
 						} else {
 							sctp_m_freem(merr);
 						}

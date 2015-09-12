@@ -585,9 +585,7 @@ t4_attach(device_t dev)
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
-#ifdef INVARIANTS
-	sc->debug_flags = DF_DUMP_MBOX;
-#endif
+	TUNABLE_INT_FETCH("hw.cxgbe.debug_flags", &sc->debug_flags);
 
 	pci_enable_busmaster(dev);
 	if (pci_find_cap(dev, PCIY_EXPRESS, &i) == 0) {
@@ -1151,6 +1149,7 @@ cxgbe_detach(device_t dev)
 #ifdef INVARIANTS
 	sc->last_op = "t4detach";
 	sc->last_op_thr = curthread;
+	sc->last_op_flags = 0;
 #endif
 	ADAPTER_UNLOCK(sc);
 
@@ -3167,6 +3166,7 @@ begin_synchronized_op(struct adapter *sc, struct port_info *pi, int flags,
 #ifdef INVARIANTS
 	sc->last_op = wmesg;
 	sc->last_op_thr = curthread;
+	sc->last_op_flags = flags;
 #endif
 
 done:

@@ -1295,6 +1295,33 @@ identify_hypervisor(void)
 }
 
 /*
+ * Clear "Limit CPUID Maxval" bit and return true if the caller should
+ * get the largest standard CPUID function number again if it is set
+ * from BIOS.  It is necessary for probing correct CPU topology later
+ * and for the correct operation of the AVX-aware userspace.
+ */
+bool
+intel_fix_cpuid(void)
+{
+	uint64_t msr;
+
+	if (cpu_vendor_id != CPU_VENDOR_INTEL)
+		return (false);
+	if ((CPUID_TO_FAMILY(cpu_id) == 0xf &&
+	    CPUID_TO_MODEL(cpu_id) >= 0x3) ||
+	    (CPUID_TO_FAMILY(cpu_id) == 0x6 &&
+	    CPUID_TO_MODEL(cpu_id) >= 0xe)) {
+		msr = rdmsr(MSR_IA32_MISC_ENABLE);
+		if ((msr & IA32_MISC_EN_LIMCPUID) != 0) {
+			msr &= ~IA32_MISC_EN_LIMCPUID;
+			wrmsr(MSR_IA32_MISC_ENABLE, msr);
+			return (true);
+		}
+	}
+	return (false);
+}
+
+/*
  * Final stage of CPU identification.
  */
 #ifdef __i386__
@@ -1328,22 +1355,9 @@ identify_cpu(void)
 	identify_hypervisor();
 	cpu_vendor_id = find_cpu_vendor_id();
 
-	/*
-	 * Clear "Limit CPUID Maxval" bit and get the largest standard CPUID
-	 * function number again if it is set from BIOS.  It is necessary
-	 * for probing correct CPU topology later.
-	 * XXX This is only done on the BSP package.
-	 */
-	if (cpu_vendor_id == CPU_VENDOR_INTEL && cpu_high > 0 && cpu_high < 4 &&
-	    ((CPUID_TO_FAMILY(cpu_id) == 0xf && CPUID_TO_MODEL(cpu_id) >= 0x3) ||
-	    (CPUID_TO_FAMILY(cpu_id) == 0x6 && CPUID_TO_MODEL(cpu_id) >= 0xe))) {
-		uint64_t msr;
-		msr = rdmsr(MSR_IA32_MISC_ENABLE);
-		if ((msr & 0x400000ULL) != 0) {
-			wrmsr(MSR_IA32_MISC_ENABLE, msr & ~0x400000ULL);
-			do_cpuid(0, regs);
-			cpu_high = regs[0];
-		}
+	if (intel_fix_cpuid()) {
+		do_cpuid(0, regs);
+		cpu_high = regs[0];
 	}
 
 	if (cpu_high >= 5 && (cpu_feature2 & CPUID2_MON) != 0) {

@@ -19,6 +19,7 @@
 *SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE
 
 ******************************************************************************/
+/* $FreeBSD$ */
 /******************************************************************************
 This program is part of PMC-Sierra initiator/target device driver. 
 The functions here are commonly used by different type of drivers that support
@@ -756,37 +757,30 @@ STATIC int agtiapi_ProbeCard( device_t dev,
 			      int thisCard )
 {
   int idx;
-  static U32 cardMap[4] = { 0, 0, 0, 0 };
+  u_int16_t agtiapi_vendor; // PCI vendor ID
   u_int16_t agtiapi_dev; // PCI device ID
   AGTIAPI_PRINTK("agtiapi_ProbeCard: start\n");
 
-  if ( ! atomic_cmpset_32( &cardMap[thisCard], 0, 5 ) ) { // card already ran
-    AGTIAPI_PRINTK( "We'll only ID this card once -- %d\n", thisCard );
-    return 2; // error return value; card already ran this function
-  }
-  else {
-    agtiapi_dev = pci_get_device( dev ); // get PCI device ID
-    for( idx = 0; idx < COUNT(ag_card_type); idx++ ) 
-    {
-      if( ag_card_type[idx].deviceId == agtiapi_dev ) 
-      { // device ID match
-        memset( (void *)&agCardInfoList[ thisCard ], 0,
-                sizeof(ag_card_info_t) );
-        thisCardInst->cardIdIndex = idx;
-        thisCardInst->pPCIDev = dev;
-        thisCardInst->cardNameIndex = ag_card_type[idx].cardNameIndex;
-        thisCardInst->cardID =
-          pci_read_config( dev, ag_card_type[idx].membar, 4 ); // memAddr
-        AGTIAPI_PRINTK("agtiapi_ProbeCard: We've got PMC SAS, probe successful %p / %p\n",
-                thisCardInst->pPCIDev, thisCardInst );
-        device_printf( dev,
-                       "agtiapi PCI Probe Vendor ID : 0x%x Device ID : 0x%x\n",
-                       pci_get_vendor(dev), agtiapi_dev );
-        device_set_desc( dev, ag_card_names[ag_card_type[idx].cardNameIndex] );
-        return 0;
-      }
+  agtiapi_vendor = pci_get_vendor( dev ); // get PCI vendor ID
+  agtiapi_dev = pci_get_device( dev ); // get PCI device ID
+  for( idx = 0; idx < COUNT(ag_card_type); idx++ ) 
+  {
+    if ( ag_card_type[idx].deviceId == agtiapi_dev &&
+	  ag_card_type[idx].vendorId == agtiapi_vendor) 
+    { // device ID match
+      memset( (void *)&agCardInfoList[ thisCard ], 0,
+              sizeof(ag_card_info_t) );
+      thisCardInst->cardIdIndex = idx;
+      thisCardInst->pPCIDev = dev;
+      thisCardInst->cardNameIndex = ag_card_type[idx].cardNameIndex;
+      thisCardInst->cardID =
+        pci_read_config( dev, ag_card_type[idx].membar, 4 ); // memAddr
+      AGTIAPI_PRINTK("agtiapi_ProbeCard: We've got PMC SAS, probe successful %p / %p\n",
+              thisCardInst->pPCIDev, thisCardInst );
+      device_set_desc( dev, ag_card_names[ag_card_type[idx].cardNameIndex] );
+      return 0;
     }
   }
-  return 7;
+  return 1;
 }
 

@@ -29,16 +29,30 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/proc.h>
 #include <sys/sched.h>
+#include <sys/syscallsubr.h>
 
 #include <compat/cloudabi/cloudabi_proto.h>
+#include <compat/cloudabi/cloudabi_syscalldefs.h>
 
 int
 cloudabi_sys_thread_exit(struct thread *td,
     struct cloudabi_sys_thread_exit_args *uap)
 {
+	struct cloudabi_sys_lock_unlock_args cloudabi_sys_lock_unlock_args = {
+		.lock = uap->lock,
+		.scope = uap->scope,
+	};
 
-	/* Not implemented. */
-	return (ENOSYS);
+        /* Wake up joining thread. */
+	cloudabi_sys_lock_unlock(td, &cloudabi_sys_lock_unlock_args);
+
+        /*
+	 * Attempt to terminate the thread. Terminate the process if
+	 * it's the last thread.
+	 */
+	kern_thr_exit(td);
+	exit1(td, 0, 0);
+	/* NOTREACHED */
 }
 
 int

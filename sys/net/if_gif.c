@@ -280,9 +280,9 @@ int
 gif_encapcheck(const struct mbuf *m, int off, int proto, void *arg)
 {
 	GIF_RLOCK_TRACKER;
+	const struct ip *ip;
 	struct gif_softc *sc;
 	int ret;
-	uint8_t ver;
 
 	sc = (struct gif_softc *)arg;
 	if (sc == NULL || (GIF2IFP(sc)->if_flags & IFF_UP) == 0)
@@ -309,11 +309,12 @@ gif_encapcheck(const struct mbuf *m, int off, int proto, void *arg)
 	}
 
 	/* Bail on short packets */
+	M_ASSERTPKTHDR(m);
 	if (m->m_pkthdr.len < sizeof(struct ip))
 		goto done;
 
-	m_copydata(m, 0, 1, &ver);
-	switch (ver >> 4) {
+	ip = mtod(m, const struct ip *);
+	switch (ip->ip_v) {
 #ifdef INET
 	case 4:
 		if (sc->gif_family != AF_INET)
@@ -420,13 +421,8 @@ gif_transmit(struct ifnet *ifp, struct mbuf *m)
 		}
 		eth = mtod(m, struct etherip_header *);
 		eth->eip_resvh = 0;
-		if ((sc->gif_options & GIF_SEND_REVETHIP) != 0) {
-			eth->eip_ver = 0;
-			eth->eip_resvl = ETHERIP_VERSION;
-		} else {
-			eth->eip_ver = ETHERIP_VERSION;
-			eth->eip_resvl = 0;
-		}
+		eth->eip_ver = ETHERIP_VERSION;
+		eth->eip_resvl = 0;
 		break;
 	default:
 		error = EAFNOSUPPORT;
@@ -634,19 +630,10 @@ gif_input(struct mbuf *m, struct ifnet *ifp, int proto, uint8_t ecn)
 		if (m == NULL)
 			goto drop;
 		eip = mtod(m, struct etherip_header *);
-		/*
-		 * GIF_ACCEPT_REVETHIP (enabled by default) intentionally
-		 * accepts an EtherIP packet with revered version field in
-		 * the header.  This is a knob for backward compatibility
-		 * with FreeBSD 7.2R or prior.
-		 */
 		if (eip->eip_ver != ETHERIP_VERSION) {
-			if ((gif_options & GIF_ACCEPT_REVETHIP) == 0 ||
-			    eip->eip_resvl != ETHERIP_VERSION) {
-				/* discard unknown versions */
-				m_freem(m);
-				goto drop;
-			}
+			/* discard unknown versions */
+			m_freem(m);
+			goto drop;
 		}
 		m_adj(m, sizeof(struct etherip_header));
 
@@ -767,50 +754,32 @@ gif_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			goto bad;
 
 		/* validate sa_len */
+		/* check sa_family looks sane for the cmd */
 		switch (src->sa_family) {
 #ifdef INET
 		case AF_INET:
 			if (src->sa_len != sizeof(struct sockaddr_in))
 				goto bad;
+			if (cmd != SIOCSIFPHYADDR) {
+				error = EAFNOSUPPORT;
+				goto bad;
+			}
+			if (satosin(src)->sin_addr.s_addr == INADDR_ANY ||
+			    satosin(dst)->sin_addr.s_addr == INADDR_ANY) {
+				error = EADDRNOTAVAIL;
+				goto bad;
+			}
 			break;
 #endif
 #ifdef INET6
 		case AF_INET6:
 			if (src->sa_len != sizeof(struct sockaddr_in6))
 				goto bad;
-			break;
-#endif
-		default:
-			error = EAFNOSUPPORT;
-			goto bad;
-		}
-		/* check sa_family looks sane for the cmd */
-		error = EAFNOSUPPORT;
-		switch (cmd) {
-#ifdef INET
-		case SIOCSIFPHYADDR:
-			if (src->sa_family == AF_INET)
-				break;
-			goto bad;
-#endif
-#ifdef INET6
-		case SIOCSIFPHYADDR_IN6:
-			if (src->sa_family == AF_INET6)
-				break;
-			goto bad;
-#endif
-		}
-		error = EADDRNOTAVAIL;
-		switch (src->sa_family) {
-#ifdef INET
-		case AF_INET:
-			if (satosin(src)->sin_addr.s_addr == INADDR_ANY ||
-			    satosin(dst)->sin_addr.s_addr == INADDR_ANY)
+			if (cmd != SIOCSIFPHYADDR_IN6) {
+				error = EAFNOSUPPORT;
 				goto bad;
-			break;
-#endif
-#ifdef INET6
-		case AF_INET6:
+			}
+			error = EADDRNOTAVAIL;
 			if (IN6_IS_ADDR_UNSPECIFIED(&satosin6(src)->sin6_addr)
 			    ||
 			    IN6_IS_ADDR_UNSPECIFIED(&satosin6(dst)->sin6_addr))
@@ -826,8 +795,12 @@ gif_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			error = sa6_embedscope(satosin6(dst), 0);
 			if (error != 0)
 				goto bad;
+			break;
 #endif
-		};
+		default:
+			error = EAFNOSUPPORT;
+			goto bad;
+		}
 		error = gif_set_tunnel(ifp, src, dst);
 		break;
 	case SIOCDIFPHYADDR:

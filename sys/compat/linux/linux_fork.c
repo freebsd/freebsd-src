@@ -73,8 +73,8 @@ linux_fork(struct thread *td, struct linux_fork_args *args)
 		printf(ARGS(fork, ""));
 #endif
 
-	if ((error = fork1(td, RFFDG | RFPROC | RFSTOPPED, 0, &p2, NULL, 0))
-	    != 0)
+	if ((error = fork1(td, RFFDG | RFPROC | RFSTOPPED, 0, &p2, NULL, 0,
+	    NULL)) != 0)
 		return (error);
 
 	td2 = FIRST_THREAD_IN_PROC(p2);
@@ -108,7 +108,7 @@ linux_vfork(struct thread *td, struct linux_vfork_args *args)
 
 	/* Exclude RFPPWAIT */
 	if ((error = fork1(td, RFFDG | RFPROC | RFMEM | RFSTOPPED, 0, &p2,
-	    NULL, 0)) != 0)
+	    NULL, 0, NULL)) != 0)
 		return (error);
 
 
@@ -179,7 +179,7 @@ linux_clone_proc(struct thread *td, struct linux_clone_args *args)
 		if (args->parent_tidptr == NULL)
 			return (EINVAL);
 
-	error = fork1(td, ff, 0, &p2, NULL, 0);
+	error = fork1(td, ff, 0, &p2, NULL, 0, NULL);
 	if (error)
 		return (error);
 
@@ -285,10 +285,20 @@ linux_clone_thread(struct thread *td, struct linux_clone_args *args)
 
 	p = td->td_proc;
 
+#ifdef RACCT
+	if (racct_enable) {
+		PROC_LOCK(p);
+		error = racct_add(p, RACCT_NTHR, 1);
+		PROC_UNLOCK(p);
+		if (error != 0)
+			return (EPROCLIM);
+	}
+#endif
+
 	/* Initialize our td */
 	error = kern_thr_alloc(p, 0, &newtd);
 	if (error)
-		return (error);
+		goto fail;
 														
 	cpu_set_upcall(newtd, td);
 
@@ -369,6 +379,16 @@ linux_clone_thread(struct thread *td, struct linux_clone_args *args)
 	td->td_retval[0] = newtd->td_tid;
 
 	return (0);
+
+fail:
+#ifdef RACCT
+	if (racct_enable) {
+		PROC_LOCK(p);
+		racct_sub(p, RACCT_NTHR, 1);
+		PROC_UNLOCK(p);
+	}
+#endif
+	return (error);
 }
 
 int

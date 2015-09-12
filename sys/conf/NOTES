@@ -2981,11 +2981,14 @@ options 	MAXFILES=999
 
 # Random number generator
 # Only ONE of the below two may be used; they are mutually exclusive.
-# If neither is present, then the Fortuna algorithm is used.
-options 	RANDOM_YARROW	# Yarrow CSPRNG (old default)
-#options 	RANDOM_DUMMY	# Dummy CSPRNG that always blocks
-# For developers.
-options 	RANDOM_DEBUG	# Extra debugging messages
+# If neither is present, then the Fortuna algorithm is selected.
+#options 	RANDOM_YARROW	# Yarrow CSPRNG (old default)
+#options 	RANDOM_LOADABLE	# Allow the algorithm to be loaded as
+				# a module.
+# Select this to allow high-rate but potentially expensive
+# harvesting of Slab-Allocator entropy. In very high-rate
+# situations the value of doing this is dubious at best.
+options 	RANDOM_ENABLE_UMA	# slab allocator
 
 # Module to enable execution of application via emulators like QEMU
 options         IMAGACT_BINMISC

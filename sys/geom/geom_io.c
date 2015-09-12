@@ -71,7 +71,17 @@ static struct g_bioq g_bio_run_down;
 static struct g_bioq g_bio_run_up;
 static struct g_bioq g_bio_run_task;
 
-static u_int pace;
+/*
+ * Pace is a hint that we've had some trouble recently allocating
+ * bios, so we should back off trying to send I/O down the stack
+ * a bit to let the problem resolve. When pacing, we also turn
+ * off direct dispatch to also reduce memory pressure from I/Os
+ * there, at the expxense of some added latency while the memory
+ * pressures exist. See g_io_schedule_down() for more details
+ * and limitations.
+ */
+static volatile u_int pace;
+
 static uma_zone_t	biozone;
 
 /*
@@ -517,11 +527,12 @@ g_io_request(struct bio *bp, struct g_consumer *cp)
 		getbinuptime(&bp->bio_t0);
 
 #ifdef GET_STACK_USAGE
-	direct = (cp->flags & G_CF_DIRECT_SEND) &&
-		 (pp->flags & G_PF_DIRECT_RECEIVE) &&
-		 !g_is_geom_thread(curthread) &&
-		 (((pp->flags & G_PF_ACCEPT_UNMAPPED) == 0 &&
-		   (bp->bio_flags & BIO_UNMAPPED) != 0) || THREAD_CAN_SLEEP());
+	direct = (cp->flags & G_CF_DIRECT_SEND) != 0 &&
+	    (pp->flags & G_PF_DIRECT_RECEIVE) != 0 &&
+	    !g_is_geom_thread(curthread) &&
+	    ((pp->flags & G_PF_ACCEPT_UNMAPPED) != 0 ||
+	    (bp->bio_flags & BIO_UNMAPPED) == 0 || THREAD_CAN_SLEEP()) &&
+	    pace == 0;
 	if (direct) {
 		/* Block direct execution if less then half of stack left. */
 		size_t	st, su;
@@ -688,7 +699,7 @@ g_io_deliver(struct bio *bp, int error)
 	bp->bio_driver2 = NULL;
 	bp->bio_pflags = 0;
 	g_io_request(bp, cp);
-	pace++;
+	pace = 1;
 	return;
 }
 
@@ -777,10 +788,33 @@ g_io_schedule_down(struct thread *tp __unused)
 		}
 		CTR0(KTR_GEOM, "g_down has work to do");
 		g_bioq_unlock(&g_bio_run_down);
-		if (pace > 0) {
-			CTR1(KTR_GEOM, "g_down pacing self (pace %d)", pace);
-			pause("g_down", hz/10);
-			pace--;
+		if (pace != 0) {
+			/*
+			 * There has been at least one memory allocation
+			 * failure since the last I/O completed. Pause 1ms to
+			 * give the system a chance to free up memory. We only
+			 * do this once because a large number of allocations
+			 * can fail in the direct dispatch case and there's no
+			 * relationship between the number of these failures and
+			 * the length of the outage. If there's still an outage,
+			 * we'll pause again and again until it's
+			 * resolved. Older versions paused longer and once per
+			 * allocation failure. This was OK for a single threaded
+			 * g_down, but with direct dispatch would lead to max of
+			 * 10 IOPs for minutes at a time when transient memory
+			 * issues prevented allocation for a batch of requests
+			 * from the upper layers.
+			 *
+			 * XXX This pacing is really lame. It needs to be solved
+			 * by other methods. This is OK only because the worst
+			 * case scenario is so rare. In the worst case scenario
+			 * all memory is tied up waiting for I/O to complete
+			 * which can never happen since we can't allocate bios
+			 * for that I/O.
+			 */
+			CTR0(KTR_GEOM, "g_down pacing self");
+			pause("g_down", min(hz/1000, 1));
+			pace = 0;
 		}
 		CTR2(KTR_GEOM, "g_down processing bp %p provider %s", bp,
 		    bp->bio_to->name);

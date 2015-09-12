@@ -11,8 +11,8 @@ mips/rmi/fmn.c					standard
 mips/rmi/intr_machdep.c			        standard
 mips/rmi/mpwait.S			        optional smp
 mips/rmi/xlr_i2c.c              		optional iic
-mips/rmi/uart_bus_xlr_iodi.c			optional uart 
-mips/rmi/uart_cpu_mips_xlr.c			optional uart 
+mips/rmi/uart_bus_xlr_iodi.c			optional uart
+mips/rmi/uart_cpu_mips_xlr.c			optional uart
 mips/rmi/xlr_pci.c				optional pci
 mips/rmi/xlr_pcmcia.c				optional ata
 mips/rmi/xls_ehci.c				optional usb ehci
@@ -20,8 +20,6 @@ mips/rmi/bus_space_rmi.c			standard
 mips/rmi/bus_space_rmi_pci.c			standard
 mips/rmi/dev/sec/rmisec.c			optional rmisec
 mips/rmi/dev/sec/rmilib.c			optional rmisec
-mips/rmi/dev/xlr/rge.c				optional rge
 mips/rmi/dev/nlge/if_nlge.c			optional nlge
-mips/rmi/dev/iic/ds1374u.c			optional ds1374u 
-mips/rmi/dev/iic/max6657.c			optional max6657 
-mips/rmi/dev/iic/at24co2n.c			optional at24co2n 
+mips/rmi/dev/iic/max6657.c			optional max6657
+mips/rmi/dev/iic/at24co2n.c			optional at24co2n

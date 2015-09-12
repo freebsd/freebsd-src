@@ -26,22 +26,13 @@
  * $FreeBSD$
  */
 
+#include <sys/stat.h>
+
 #define _WITH_GETLINE
+#include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-#include <stdarg.h>
-#include <errno.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/param.h>
-#include <pwd.h>
-#include <grp.h>
-#include <sys/queue.h>
-#include <sysexits.h>
 
-#include "psdate.h"
 #include "pwupd.h"
 
 enum _mode
@@ -63,34 +54,43 @@ enum _which
         W_NUM
 };
 
-struct carg
-{
-	int		  ch;
-	char		  *val;
-	LIST_ENTRY(carg)  list;
-};
-
-LIST_HEAD(cargs, carg);
-
 #define	_DEF_DIRMODE	(S_IRWXU | S_IRWXG | S_IRWXO)
 #define _PATH_PW_CONF	"/etc/pw.conf"
 #define _UC_MAXLINE	1024
 #define _UC_MAXSHELLS	32
 
+struct userconf *get_userconfig(const char *cfg);
 struct userconf *read_userconfig(char const * file);
-int write_userconfig(char const * file);
-struct carg *addarg(struct cargs * _args, int ch, char *argstr);
-struct carg *getarg(struct cargs * _args, int ch);
+int write_userconfig(struct userconf *cnf, char const * file);
 
-int pw_user(int mode, char *name, long id, struct cargs * _args);
-int pw_usernext(struct userconf *cnf, bool quiet);
-int pw_group(int mode, char *name, long id,  struct cargs * _args);
+int pw_group_add(int argc, char **argv, char *name);
+int pw_group_del(int argc, char **argv, char *name);
+int pw_group_mod(int argc, char **argv, char *name);
+int pw_group_next(int argc, char **argv, char *name);
+int pw_group_show(int argc, char **argv, char *name);
+int pw_user_add(int argc, char **argv, char *name);
+int pw_user_add(int argc, char **argv, char *name);
+int pw_user_add(int argc, char **argv, char *name);
+int pw_user_add(int argc, char **argv, char *name);
+int pw_user_del(int argc, char **argv, char *name);
+int pw_user_lock(int argc, char **argv, char *name);
+int pw_user_mod(int argc, char **argv, char *name);
+int pw_user_next(int argc, char **argv, char *name);
+int pw_user_show(int argc, char **argv, char *name);
+int pw_user_unlock(int argc, char **argv, char *name);
 int pw_groupnext(struct userconf *cnf, bool quiet);
 char *pw_checkname(char *name, int gecos);
+uintmax_t pw_checkid(char *nptr, uintmax_t maxval);
+int pw_checkfd(char *nptr);
 
 int addnispwent(const char *path, struct passwd *pwd);
 int delnispwent(const char *path, const char *login);
 int chgnispwent(const char *path, const char *login, struct passwd *pwd);
+
+int groupadd(struct userconf *, char *name, gid_t id, char *members, int fd,
+    bool dryrun, bool pretty, bool precrypted);
+
+int nis_update(void);
 
 int boolean_val(char const * str, int dflt);
 char const *boolean_str(int val);
@@ -101,3 +101,6 @@ char *pw_pwcrypt(char *password);
 
 extern const char *Modes[];
 extern const char *Which[];
+
+uintmax_t strtounum(const char * __restrict, uintmax_t, uintmax_t,
+    const char ** __restrict);

@@ -255,3 +255,4 @@ static driver_t gpioled_driver = {
 };
 
 DRIVER_MODULE(gpioled, gpiobus, gpioled_driver, gpioled_devclass, 0, 0);
+MODULE_DEPEND(gpioled, gpiobus, 1, 1, 1);

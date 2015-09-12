@@ -131,6 +131,8 @@ ENTRY(cpu_switch)
 	mov	x19, x0
 	mov	x20, x1
 	mov	x21, x2
+	/* Load the pcb address */
+	mov	x1, x4
 	bl	vfp_save_state
 	mov	x2, x21
 	mov	x1, x20
@@ -158,17 +160,18 @@ ENTRY(cpu_switch)
 	dsb	sy
 	isb
 
-	/* Release the old thread */
+	/*
+	 * Release the old thread. This doesn't need to be a store-release
+	 * as the above dsb instruction will provide release semantics.
+	 */
 	str	x2, [x0, #TD_LOCK]
 #if defined(SCHED_ULE) && defined(SMP)
 	/* Read the value in blocked_lock */
 	ldr	x0, =_C_LABEL(blocked_lock)
-	ldr	x1, [x0]
-	/* Load curthread */
-	ldr	x2, [x18, #PC_CURTHREAD]
+	ldr	x2, [x0]
 1:
-	ldr	x3, [x2, #TD_LOCK]
-	cmp	x3, x1
+	ldar	x3, [x1, #TD_LOCK]
+	cmp	x3, x2
 	b.eq	1b
 #endif
 
@@ -268,9 +271,11 @@ ENTRY(savectx)
 
 	/* Store the VFP registers */
 #ifdef VFP
-	mov	x29, lr
+	mov	x28, lr
+	mov	x1, x0			/* move pcb to the correct register */
+	mov	x0, xzr			/* td = NULL */
 	bl	vfp_save_state
-	mov	lr, x29
+	mov	lr, x28
 #endif
 
 	ret
