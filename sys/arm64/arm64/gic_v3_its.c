@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/pcpu.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/smp.h>
 
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
@@ -88,7 +89,6 @@ MALLOC_DEFINE(M_GIC_V3_ITS, "GICv3 ITS", GIC_V3_ITS_DEVSTR);
 static int its_alloc_tables(struct gic_v3_its_softc *);
 static void its_free_tables(struct gic_v3_its_softc *);
 static void its_init_commandq(struct gic_v3_its_softc *);
-static int its_init_cpu(struct gic_v3_its_softc *);
 static void its_init_cpu_collection(struct gic_v3_its_softc *);
 static uint32_t its_get_devid(device_t);
 
@@ -101,10 +101,12 @@ static void its_cmd_mapi(struct gic_v3_its_softc *, struct its_dev *, uint32_t);
 static void its_cmd_inv(struct gic_v3_its_softc *, struct its_dev *, uint32_t);
 static void its_cmd_invall(struct gic_v3_its_softc *, struct its_col *);
 
+static uint32_t its_get_devbits(device_t);
+
 static void lpi_init_conftable(struct gic_v3_its_softc *);
 static void lpi_bitmap_init(struct gic_v3_its_softc *);
-static void lpi_init_cpu(struct gic_v3_its_softc *);
 static int lpi_config_cpu(struct gic_v3_its_softc *);
+static void lpi_alloc_cpu_pendtables(struct gic_v3_its_softc *);
 
 const char *its_ptab_cache[] = {
 	[GITS_BASER_CACHE_NCNB] = "(NC,NB)",
@@ -142,13 +144,19 @@ const char *its_ptab_type[] = {
  */
 
 /* Cavium ThunderX PCI devid acquire function */
+static uint32_t its_get_devbits_thunder(device_t);
 static uint32_t its_get_devid_thunder(device_t);
 
 static const struct its_quirks its_quirks[] = {
 	{
+		/*
+		 * Hardware:		Cavium ThunderX
+		 * Chip revision:	Pass 1.0, Pass 1.1
+		 */
 		.cpuid =	CPU_ID_RAW(CPU_IMPL_CAVIUM, CPU_PART_THUNDER, 0, 0),
 		.cpuid_mask =	CPU_IMPL_MASK | CPU_PART_MASK,
 		.devid_func =	its_get_devid_thunder,
+		.devbits_func =	its_get_devbits_thunder,
 	},
 };
 
@@ -215,8 +223,12 @@ gic_v3_its_attach(device_t dev)
 	}
 
 	/* 3. Allocate collections. One per-CPU */
-	sc->its_cols = malloc(sizeof(*sc->its_cols) * MAXCPU,
-	    M_GIC_V3_ITS, (M_WAITOK | M_ZERO));
+	for (int cpu = 0; cpu < mp_ncpus; cpu++)
+		if (CPU_ISSET(cpu, &all_cpus) != 0)
+			sc->its_cols[cpu] = malloc(sizeof(*sc->its_cols[0]),
+				M_GIC_V3_ITS, (M_WAITOK | M_ZERO));
+		else
+			sc->its_cols[cpu] = NULL;
 
 	/* 4. Enable ITS in GITS_CTLR */
 	gits_tmp = gic_its_read(sc, 4, GITS_CTLR);
@@ -228,10 +240,13 @@ gic_v3_its_attach(device_t dev)
 	/* 6. LPIs bitmap init */
 	lpi_bitmap_init(sc);
 
-	/* 7. CPU init */
+	/* 7. Allocate pending tables for all CPUs */
+	lpi_alloc_cpu_pendtables(sc);
+
+	/* 8. CPU init */
 	(void)its_init_cpu(sc);
 
-	/* 8. Init ITS devices list */
+	/* 9. Init ITS devices list */
 	TAILQ_INIT(&sc->its_dev_list);
 
 	arm_register_msi_pic(dev);
@@ -272,7 +287,8 @@ gic_v3_its_detach(device_t dev)
 	/* ITTs */
 	its_free_tables(sc);
 	/* Collections */
-	free(sc->its_cols, M_GIC_V3_ITS);
+	for (cpuid = 0; cpuid < mp_ncpus; cpuid++)
+		free(sc->its_cols[cpuid], M_GIC_V3_ITS);
 	/* LPI config table */
 	parent = device_get_parent(sc->dev);
 	gic_sc = device_get_softc(parent);
@@ -280,10 +296,13 @@ gic_v3_its_detach(device_t dev)
 		contigfree((void *)gic_sc->gic_redists.lpis.conf_base,
 		    LPI_CONFTAB_SIZE, M_GIC_V3_ITS);
 	}
-	if ((void *)gic_sc->gic_redists.lpis.pend_base[cpuid] != NULL) {
-		contigfree((void *)gic_sc->gic_redists.lpis.pend_base[cpuid],
-		    roundup2(LPI_PENDTAB_SIZE, PAGE_SIZE_64K), M_GIC_V3_ITS);
-	}
+	for (cpuid = 0; cpuid < mp_ncpus; cpuid++)
+		if ((void *)gic_sc->gic_redists.lpis.pend_base[cpuid] != NULL) {
+			contigfree(
+			    (void *)gic_sc->gic_redists.lpis.pend_base[cpuid],
+			    roundup2(LPI_PENDTAB_SIZE, PAGE_SIZE_64K),
+			    M_GIC_V3_ITS);
+		}
 
 	/* Resource... */
 	bus_release_resource(dev, SYS_RES_MEMORY, rid, sc->its_res);
@@ -299,7 +318,6 @@ its_alloc_tables(struct gic_v3_its_softc *sc)
 {
 	uint64_t gits_baser, gits_tmp;
 	uint64_t type, esize, cache, share, psz;
-	uint64_t gits_typer;
 	size_t page_size, npages, nitspages, nidents, tn;
 	size_t its_tbl_size;
 	vm_offset_t ptab_vaddr;
@@ -307,9 +325,6 @@ its_alloc_tables(struct gic_v3_its_softc *sc)
 	boolean_t first = TRUE;
 
 	page_size = PAGE_SIZE_64K;
-
-	/* Read features first */
-	gits_typer = gic_its_read(sc, 8, GITS_TYPER);
 
 	for (tn = 0; tn < GITS_BASER_NUM; tn++) {
 		gits_baser = gic_its_read(sc, 8, GITS_BASER(tn));
@@ -324,7 +339,7 @@ its_alloc_tables(struct gic_v3_its_softc *sc)
 		case GITS_BASER_TYPE_RES7:
 			continue;
 		case GITS_BASER_TYPE_DEV:
-			nidents = (1 << GITS_TYPER_DEVB(gits_typer));
+			nidents = (1 << its_get_devbits(sc->dev));
 			its_tbl_size = esize * nidents;
 			its_tbl_size = roundup2(its_tbl_size, page_size);
 			npages = howmany(its_tbl_size, PAGE_SIZE);
@@ -521,11 +536,29 @@ its_init_commandq(struct gic_v3_its_softc *sc)
 	gic_its_write(sc, 8, GITS_CWRITER, 0x0);
 }
 
-static int
+int
 its_init_cpu(struct gic_v3_its_softc *sc)
 {
 	device_t parent;
 	struct gic_v3_softc *gic_sc;
+
+	/*
+	 * NULL in place of the softc pointer means that
+	 * this function was called during GICv3 secondary initialization.
+	 */
+	if (sc == NULL) {
+		if (device_is_attached(its_sc->dev)) {
+			/*
+			 * XXX ARM64TODO: This is part of the workaround that
+			 * saves ITS software context for further use in
+			 * mask/unmask and here. This should be removed as soon
+			 * as the upper layer is capable of passing the ITS
+			 * context to this function.
+			 */
+			sc = its_sc;
+		} else
+			return (ENXIO);
+	}
 
 	/*
 	 * Check for LPIs support on this Re-Distributor.
@@ -540,8 +573,8 @@ its_init_cpu(struct gic_v3_its_softc *sc)
 		return (ENXIO);
 	}
 
-	/* Initialize LPIs for this CPU */
-	lpi_init_cpu(sc);
+	/* Configure LPIs for this CPU */
+	lpi_config_cpu(sc);
 
 	/* Initialize collections */
 	its_init_cpu_collection(sc);
@@ -578,11 +611,12 @@ its_init_cpu_collection(struct gic_v3_its_softc *sc)
 		target = GICR_TYPER_CPUNUM(typer);
 	}
 
-	sc->its_cols[cpuid].col_target = target;
-	sc->its_cols[cpuid].col_id = cpuid;
+	sc->its_cols[cpuid]->col_target = target;
+	sc->its_cols[cpuid]->col_id = cpuid;
 
-	its_cmd_mapc(sc, &sc->its_cols[cpuid], 1);
-	its_cmd_invall(sc, &sc->its_cols[cpuid]);
+	its_cmd_mapc(sc, sc->its_cols[cpuid], 1);
+	its_cmd_invall(sc, sc->its_cols[cpuid]);
+
 }
 
 static void
@@ -629,7 +663,7 @@ lpi_init_conftable(struct gic_v3_its_softc *sc)
 }
 
 static void
-lpi_init_cpu(struct gic_v3_its_softc *sc)
+lpi_alloc_cpu_pendtables(struct gic_v3_its_softc *sc)
 {
 	device_t parent;
 	struct gic_v3_softc *gic_sc;
@@ -643,25 +677,31 @@ lpi_init_cpu(struct gic_v3_its_softc *sc)
 	 * LPI Pending Table settings.
 	 * This has to be done for each Re-Distributor, hence for each CPU.
 	 */
-	cpuid = PCPU_GET(cpuid);
+	for (cpuid = 0; cpuid < mp_ncpus; cpuid++) {
 
-	pend_base = (vm_offset_t)contigmalloc(
-	    roundup2(LPI_PENDTAB_SIZE, PAGE_SIZE_64K), M_GIC_V3_ITS,
-	    (M_WAITOK | M_ZERO), 0, ~0UL, PAGE_SIZE_64K, 0);
+		/* Limit allocation to active CPUs only */
+		if (CPU_ISSET(cpuid, &all_cpus) == 0)
+			continue;
 
-	/* Clean D-cache so that ITS can see zeroed pages */
-	cpu_dcache_wb_range((vm_offset_t)pend_base,
-	    roundup2(LPI_PENDTAB_SIZE, PAGE_SIZE_64K));
+		pend_base = (vm_offset_t)contigmalloc(
+		    roundup2(LPI_PENDTAB_SIZE, PAGE_SIZE_64K), M_GIC_V3_ITS,
+		    (M_WAITOK | M_ZERO), 0, ~0UL, PAGE_SIZE_64K, 0);
 
-	if (bootverbose) {
-		device_printf(sc->dev,
-		    "LPI Pending Table for CPU%u at PA: 0x%lx\n",
-		    cpuid, vtophys(pend_base));
+		/* Clean D-cache so that ITS can see zeroed pages */
+		cpu_dcache_wb_range((vm_offset_t)pend_base,
+		    roundup2(LPI_PENDTAB_SIZE, PAGE_SIZE_64K));
+
+		if (bootverbose) {
+			device_printf(sc->dev,
+			    "LPI Pending Table for CPU%u at PA: 0x%lx\n",
+			    cpuid, vtophys(pend_base));
+		}
+
+		gic_sc->gic_redists.lpis.pend_base[cpuid] = pend_base;
 	}
 
-	gic_sc->gic_redists.lpis.pend_base[cpuid] = pend_base;
-
-	lpi_config_cpu(sc);
+	/* Ensure visibility of pend_base addresses on other CPUs */
+	wmb();
 }
 
 static int
@@ -678,6 +718,9 @@ lpi_config_cpu(struct gic_v3_its_softc *sc)
 	parent = device_get_parent(sc->dev);
 	gic_sc = device_get_softc(parent);
 	cpuid = PCPU_GET(cpuid);
+
+	/* Ensure data observability on a current CPU */
+	rmb();
 
 	conf_base = gic_sc->gic_redists.lpis.conf_base;
 	pend_base = gic_sc->gic_redists.lpis.pend_base[cpuid];
@@ -1268,16 +1311,16 @@ its_cmd_wait_completion(struct gic_v3_its_softc *sc, struct its_cmd *cmd_first,
 static int
 its_cmd_send(struct gic_v3_its_softc *sc, struct its_cmd_desc *desc)
 {
-	struct its_cmd *cmd, *cmd_sync;
+	struct its_cmd *cmd, *cmd_sync, *cmd_write;
 	struct its_col col_sync;
 	struct its_cmd_desc desc_sync;
 	uint64_t target, cwriter;
 
 	mtx_lock_spin(&sc->its_spin_mtx);
 	cmd = its_cmd_alloc_locked(sc);
-	mtx_unlock_spin(&sc->its_spin_mtx);
 	if (cmd == NULL) {
 		device_printf(sc->dev, "could not allocate ITS command\n");
+		mtx_unlock_spin(&sc->its_spin_mtx);
 		return (EBUSY);
 	}
 
@@ -1285,9 +1328,7 @@ its_cmd_send(struct gic_v3_its_softc *sc, struct its_cmd_desc *desc)
 	its_cmd_sync(sc, cmd);
 
 	if (target != ITS_TARGET_NONE) {
-		mtx_lock_spin(&sc->its_spin_mtx);
 		cmd_sync = its_cmd_alloc_locked(sc);
-		mtx_unlock_spin(&sc->its_spin_mtx);
 		if (cmd_sync == NULL)
 			goto end;
 		desc_sync.cmd_type = ITS_CMD_SYNC;
@@ -1298,12 +1339,12 @@ its_cmd_send(struct gic_v3_its_softc *sc, struct its_cmd_desc *desc)
 	}
 end:
 	/* Update GITS_CWRITER */
-	mtx_lock_spin(&sc->its_spin_mtx);
 	cwriter = its_cmd_cwriter_offset(sc, sc->its_cmdq_write);
 	gic_its_write(sc, 8, GITS_CWRITER, cwriter);
+	cmd_write = sc->its_cmdq_write;
 	mtx_unlock_spin(&sc->its_spin_mtx);
 
-	its_cmd_wait_completion(sc, cmd, sc->its_cmdq_write);
+	its_cmd_wait_completion(sc, cmd, cmd_write);
 
 	return (0);
 }
@@ -1375,7 +1416,7 @@ its_device_alloc_locked(struct gic_v3_its_softc *sc, device_t pci_dev,
 	 * to be bound to the CPU that performs the configuration.
 	 */
 	cpuid = PCPU_GET(cpuid);
-	newdev->col = &sc->its_cols[cpuid];
+	newdev->col = sc->its_cols[cpuid];
 
 	TAILQ_INSERT_TAIL(&sc->its_dev_list, newdev, entry);
 
@@ -1445,6 +1486,68 @@ its_get_devid_thunder(device_t pci_dev)
 	}
 
 	return (0);
+}
+
+static uint32_t
+its_get_devbits_thunder(device_t dev)
+{
+	uint32_t devid_bits;
+
+	/*
+	 * GITS_TYPER[17:13] of ThunderX reports that device IDs
+	 * are to be 21 bits in length.
+	 * The entry size of the ITS table can be read from GITS_BASERn[52:48]
+	 * and on ThunderX is supposed to be 8 bytes in length (for device
+	 * table). Finally the page size that is to be used by ITS to access
+	 * this table will be set to 64KB.
+	 *
+	 * This gives 0x200000 entries of size 0x8 bytes covered by 256 pages
+	 * each of which 64KB in size. The number of pages (minus 1) should
+	 * then be written to GITS_BASERn[7:0]. In that case this value would
+	 * be 0xFF but on ThunderX the maximum value that HW accepts is 0xFD.
+	 *
+	 * Set arbitrary number of device ID bits to 20 in order to limit
+	 * the number of entries in ITS device table to 0x100000 and hence
+	 * the table size to 8MB.
+	 */
+	devid_bits = 20;
+	if (bootverbose) {
+		device_printf(dev,
+		    "Limiting number of Device ID bits implemented to %d\n",
+		    devid_bits);
+	}
+
+	return (devid_bits);
+}
+
+static __inline uint32_t
+its_get_devbits_default(device_t dev)
+{
+	uint64_t gits_typer;
+	struct gic_v3_its_softc *sc;
+
+	sc = device_get_softc(dev);
+
+	gits_typer = gic_its_read(sc, 8, GITS_TYPER);
+
+	return (GITS_TYPER_DEVB(gits_typer));
+}
+
+static uint32_t
+its_get_devbits(device_t dev)
+{
+	const struct its_quirks *quirk;
+	size_t i;
+
+	for (i = 0; i < nitems(its_quirks); i++) {
+		quirk = &its_quirks[i];
+		if (CPU_MATCH_RAW(quirk->cpuid_mask, quirk->cpuid)) {
+			if (quirk->devbits_func != NULL)
+				return ((*quirk->devbits_func)(dev));
+		}
+	}
+
+	return (its_get_devbits_default(dev));
 }
 
 static __inline uint32_t

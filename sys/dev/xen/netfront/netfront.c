@@ -86,8 +86,6 @@ __FBSDID("$FreeBSD$");
 #include <xen/interface/io/netif.h>
 #include <xen/xenbus/xenbusvar.h>
 
-#include <machine/xen/xenvar.h>
-
 #include "xenbus_if.h"
 
 /* Features supported by all backends.  TSO and LRO can be negotiated */
@@ -190,7 +188,7 @@ static int xennet_get_responses(struct netfront_info *np,
 	struct netfront_rx_info *rinfo, RING_IDX rp, RING_IDX *cons,
 	struct mbuf **list, int *pages_flipped_p);
 
-#define virt_to_mfn(x) (vtomach(x) >> PAGE_SHIFT)
+#define virt_to_mfn(x) (vtophys(x) >> PAGE_SHIFT)
 
 #define INVALID_P2M_ENTRY (~0UL)
 
@@ -282,8 +280,6 @@ struct netfront_info {
 	struct callout	        xn_stat_ch;
 
 	u_long			rx_pfn_array[NET_RX_RING_SIZE];
-	multicall_entry_t	rx_mcl[NET_RX_RING_SIZE+1];
-	mmu_update_t		rx_mmu[NET_RX_RING_SIZE];
 	struct ifmedia		sc_media;
 
 	bool			xn_resume;
@@ -449,6 +445,9 @@ static int
 netfront_probe(device_t dev)
 {
 
+	if (xen_hvm_domain() && xen_disable_pv_nics != 0)
+		return (ENXIO);
+
 	if (!strcmp(xenbus_get_type(dev), "vif")) {
 		device_set_desc(dev, "Virtual Network Interface");
 		return (0);
@@ -601,9 +600,6 @@ setup_device(device_t dev, struct netfront_info *info)
 	netif_tx_sring_t *txs;
 	netif_rx_sring_t *rxs;
 	int error;
-	struct ifnet *ifp;
-	
-	ifp = info->xn_ifp;
 
 	info->tx_ring_ref = GRANT_REF_INVALID;
 	info->rx_ring_ref = GRANT_REF_INVALID;
@@ -884,13 +880,6 @@ refill:
 			gnttab_grant_foreign_transfer_ref(ref,
 			    otherend_id, pfn);
 			sc->rx_pfn_array[nr_flips] = pfn;
-			if (!xen_feature(XENFEAT_auto_translated_physmap)) {
-				/* Remove this page before passing
-				 * back to Xen.
-				 */
-				MULTI_update_va_mapping(&sc->rx_mcl[i],
-				    vaddr, 0, 0);
-			}
 			nr_flips++;
 		} else {
 			gnttab_grant_foreign_access_ref(ref,
@@ -901,7 +890,7 @@ refill:
 		req->gref = ref;
 		
 		sc->rx_pfn_array[i] =
-		    vtomach(mtod(m_new,vm_offset_t)) >> PAGE_SHIFT;
+		    vtophys(mtod(m_new,vm_offset_t)) >> PAGE_SHIFT;
 	} 
 	
 	KASSERT(i, ("no mbufs processed")); /* should have returned earlier */
@@ -920,25 +909,6 @@ refill:
 		reservation.extent_order = 0;
 		reservation.address_bits = 0;
 		reservation.domid        = DOMID_SELF;
-
-		if (!xen_feature(XENFEAT_auto_translated_physmap)) {
-			/* After all PTEs have been zapped, flush the TLB. */
-			sc->rx_mcl[i-1].args[MULTI_UVMFLAGS_INDEX] =
-			    UVMF_TLB_FLUSH|UVMF_ALL;
-	
-			/* Give away a batch of pages. */
-			sc->rx_mcl[i].op = __HYPERVISOR_memory_op;
-			sc->rx_mcl[i].args[0] = XENMEM_decrease_reservation;
-			sc->rx_mcl[i].args[1] =  (u_long)&reservation;
-			/* Zap PTEs and give away pages in one big multicall. */
-			(void)HYPERVISOR_multicall(sc->rx_mcl, i+1);
-
-			if (__predict_false(sc->rx_mcl[i].result != i ||
-			    HYPERVISOR_memory_op(XENMEM_decrease_reservation,
-			    &reservation) != i))
-				panic("%s: unable to reduce memory "
-				    "reservation\n", __func__);
-		}
 	} else {
 		wmb();
 	}
@@ -963,7 +933,6 @@ xn_rxeof(struct netfront_info *np)
 	struct netif_rx_response *rx = &rinfo.rx;
 	struct netif_extra_info *extras = rinfo.extras;
 	RING_IDX i, rp;
-	multicall_entry_t *mcl;
 	struct mbuf *m;
 	struct mbufq rxq, errq;
 	int err, pages_flipped = 0, work_to_do;
@@ -1024,19 +993,6 @@ xn_rxeof(struct netfront_info *np)
 #ifdef notyet
 			balloon_update_driver_allowance(-pages_flipped);
 #endif
-			/* Do all the remapping work, and M->P updates, in one big
-			 * hypercall.
-			 */
-			if (!!xen_feature(XENFEAT_auto_translated_physmap)) {
-				mcl = np->rx_mcl + pages_flipped;
-				mcl->op = __HYPERVISOR_mmu_update;
-				mcl->args[0] = (u_long)np->rx_mmu;
-				mcl->args[1] = pages_flipped;
-				mcl->args[2] = 0;
-				mcl->args[3] = DOMID_SELF;
-				(void)HYPERVISOR_multicall(np->rx_mcl,
-				    pages_flipped + 1);
-			}
 		}
 	
 		mbufq_drain(&errq);
@@ -1275,8 +1231,6 @@ xennet_get_responses(struct netfront_info *np,
 	int *pages_flipped_p)
 {
 	int pages_flipped = *pages_flipped_p;
-	struct mmu_update *mmu;
-	struct multicall_entry *mcl;
 	struct netif_rx_response *rx = &rinfo->rx;
 	struct netif_extra_info *extras = rinfo->extras;
 	struct mbuf *m, *m0, *m_prev;
@@ -1348,22 +1302,6 @@ xennet_get_responses(struct netfront_info *np,
 				goto next;
 			}
 
-			if (!xen_feature( XENFEAT_auto_translated_physmap)) {
-				/* Remap the page. */
-				void *vaddr = mtod(m, void *);
-				uint32_t pfn;
-
-				mcl = np->rx_mcl + pages_flipped;
-				mmu = np->rx_mmu + pages_flipped;
-
-				MULTI_update_va_mapping(mcl, (u_long)vaddr,
-				    (((vm_paddr_t)mfn) << PAGE_SHIFT) | PG_RW |
-				    PG_V | PG_M | PG_A, 0);
-				pfn = (uintptr_t)m->m_ext.ext_arg1;
-				mmu->ptr = ((vm_paddr_t)mfn << PAGE_SHIFT) |
-				    MMU_MACHPHYS_UPDATE;
-				mmu->val = pfn;
-			}
 			pages_flipped++;
 		} else {
 			ret = gnttab_end_foreign_access_ref(ref);

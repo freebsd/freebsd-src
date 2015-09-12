@@ -39,13 +39,12 @@
 #include <sys/callb.h>
 #include <sys/zfeature.h>
 
-int zfs_pd_blks_max = 100;
+int32_t zfs_pd_bytes_max = 50 * 1024 * 1024;	/* 50MB */
 
 typedef struct prefetch_data {
 	kmutex_t pd_mtx;
 	kcondvar_t pd_cv;
-	int pd_blks_max;
-	int pd_blks_fetched;
+	int32_t pd_bytes_fetched;
 	int pd_flags;
 	boolean_t pd_cancel;
 	boolean_t pd_exited;
@@ -159,7 +158,7 @@ resume_skip_check(traverse_data_t *td, const dnode_phys_t *dnp,
 		 * If we already visited this bp & everything below,
 		 * don't bother doing it again.
 		 */
-		if (zbookmark_is_before(dnp, zb, td->td_resume))
+		if (zbookmark_subtree_completed(dnp, zb, td->td_resume))
 			return (RESUME_SKIP_ALL);
 
 		/*
@@ -250,11 +249,12 @@ traverse_visitbp(traverse_data_t *td, const dnode_phys_t *dnp,
 	}
 
 	if (pd != NULL && !pd->pd_exited && prefetch_needed(pd, bp)) {
+		uint64_t size = BP_GET_LSIZE(bp);
 		mutex_enter(&pd->pd_mtx);
-		ASSERT(pd->pd_blks_fetched >= 0);
-		while (pd->pd_blks_fetched == 0 && !pd->pd_exited)
+		ASSERT(pd->pd_bytes_fetched >= 0);
+		while (pd->pd_bytes_fetched < size && !pd->pd_exited)
 			cv_wait(&pd->pd_cv, &pd->pd_mtx);
-		pd->pd_blks_fetched--;
+		pd->pd_bytes_fetched -= size;
 		cv_broadcast(&pd->pd_cv);
 		mutex_exit(&pd->pd_mtx);
 	}
@@ -425,6 +425,17 @@ traverse_dnode(traverse_data_t *td, const dnode_phys_t *dnp,
 	int j, err = 0;
 	zbookmark_phys_t czb;
 
+	if (td->td_flags & TRAVERSE_PRE) {
+		SET_BOOKMARK(&czb, objset, object, ZB_DNODE_LEVEL,
+		    ZB_DNODE_BLKID);
+		err = td->td_func(td->td_spa, NULL, NULL, &czb, dnp,
+		    td->td_arg);
+		if (err == TRAVERSE_VISIT_NO_CHILDREN)
+			return (0);
+		if (err != 0)
+			return (err);
+	}
+
 	for (j = 0; j < dnp->dn_nblkptr; j++) {
 		SET_BOOKMARK(&czb, objset, object, dnp->dn_nlevels - 1, j);
 		err = traverse_visitbp(td, dnp, &dnp->dn_blkptr[j], &czb);
@@ -432,9 +443,20 @@ traverse_dnode(traverse_data_t *td, const dnode_phys_t *dnp,
 			break;
 	}
 
-	if (err == 0 && dnp->dn_flags & DNODE_FLAG_SPILL_BLKPTR) {
+	if (err == 0 && (dnp->dn_flags & DNODE_FLAG_SPILL_BLKPTR)) {
 		SET_BOOKMARK(&czb, objset, object, 0, DMU_SPILL_BLKID);
 		err = traverse_visitbp(td, dnp, &dnp->dn_spill, &czb);
+	}
+
+	if (err == 0 && (td->td_flags & TRAVERSE_POST)) {
+		SET_BOOKMARK(&czb, objset, object, ZB_DNODE_LEVEL,
+		    ZB_DNODE_BLKID);
+		err = td->td_func(td->td_spa, NULL, NULL, &czb, dnp,
+		    td->td_arg);
+		if (err == TRAVERSE_VISIT_NO_CHILDREN)
+			return (0);
+		if (err != 0)
+			return (err);
 	}
 	return (err);
 }
@@ -447,7 +469,9 @@ traverse_prefetcher(spa_t *spa, zilog_t *zilog, const blkptr_t *bp,
 	prefetch_data_t *pfd = arg;
 	arc_flags_t aflags = ARC_FLAG_NOWAIT | ARC_FLAG_PREFETCH;
 
-	ASSERT(pfd->pd_blks_fetched >= 0);
+	ASSERT(pfd->pd_bytes_fetched >= 0);
+	if (bp == NULL)
+		return (0);
 	if (pfd->pd_cancel)
 		return (SET_ERROR(EINTR));
 
@@ -455,9 +479,9 @@ traverse_prefetcher(spa_t *spa, zilog_t *zilog, const blkptr_t *bp,
 		return (0);
 
 	mutex_enter(&pfd->pd_mtx);
-	while (!pfd->pd_cancel && pfd->pd_blks_fetched >= pfd->pd_blks_max)
+	while (!pfd->pd_cancel && pfd->pd_bytes_fetched >= zfs_pd_bytes_max)
 		cv_wait(&pfd->pd_cv, &pfd->pd_mtx);
-	pfd->pd_blks_fetched++;
+	pfd->pd_bytes_fetched += BP_GET_LSIZE(bp);
 	cv_broadcast(&pfd->pd_cv);
 	mutex_exit(&pfd->pd_mtx);
 
@@ -529,13 +553,12 @@ traverse_impl(spa_t *spa, dsl_dataset_t *ds, uint64_t objset, blkptr_t *rootbp,
 		td.td_hole_birth_enabled_txg = 0;
 	}
 
-	pd.pd_blks_max = zfs_pd_blks_max;
 	pd.pd_flags = flags;
 	mutex_init(&pd.pd_mtx, NULL, MUTEX_DEFAULT, NULL);
 	cv_init(&pd.pd_cv, NULL, CV_DEFAULT, NULL);
 
 	/* See comment on ZIL traversal in dsl_scan_visitds. */
-	if (ds != NULL && !dsl_dataset_is_snapshot(ds) && !BP_IS_HOLE(rootbp)) {
+	if (ds != NULL && !ds->ds_is_snapshot && !BP_IS_HOLE(rootbp)) {
 		arc_flags_t flags = ARC_FLAG_WAIT;
 		objset_phys_t *osp;
 		arc_buf_t *buf;

@@ -221,7 +221,7 @@ struct gic_v3_its_softc {
 	struct its_cmd *	its_cmdq_base;	/* ITS command queue base */
 	struct its_cmd *	its_cmdq_write;	/* ITS command queue write ptr */
 	struct its_ptab		its_ptabs[GITS_BASER_NUM];/* ITS private tables */
-	struct its_col *	its_cols;	/* Per-CPU collections */
+	struct its_col *	its_cols[MAXCPU];/* Per-CPU collections */
 
 	uint64_t		its_flags;
 
@@ -235,12 +235,14 @@ struct gic_v3_its_softc {
 };
 
 /* Stuff that is specific to the vendor's implementation */
+typedef uint32_t (*its_devbits_func_t)(device_t);
 typedef uint32_t (*its_devid_func_t)(device_t);
 
 struct its_quirks {
 	uint64_t		cpuid;
 	uint64_t		cpuid_mask;
 	its_devid_func_t	devid_func;
+	its_devbits_func_t	devbits_func;
 };
 
 extern devclass_t gic_v3_its_devclass;
@@ -250,6 +252,8 @@ int gic_v3_its_detach(device_t);
 int gic_v3_its_alloc_msix(device_t, device_t, int *);
 int gic_v3_its_alloc_msi(device_t, device_t, int, int *);
 int gic_v3_its_map_msix(device_t, device_t, int, uint64_t *, uint32_t *);
+
+int its_init_cpu(struct gic_v3_its_softc *);
 
 void lpi_unmask_irq(device_t, uint32_t);
 void lpi_mask_irq(device_t, uint32_t);

@@ -298,9 +298,6 @@ DPADD_gssapi_krb5+=	${DPADD_pthread}
 LDADD_gssapi_krb5+=	${LDADD_pthread}
 
 .for _l in ${LIBADD}
-.if ${_PRIVATELIBS:M${_l}}
-USEPRIVATELIB+=	${_l}
-.endif
 DPADD+=		${DPADD_${_l}:Umissing-dpadd_${_l}}
 LDADD+=		${LDADD_${_l}}
 .endfor

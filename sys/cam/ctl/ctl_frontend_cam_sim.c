@@ -64,7 +64,6 @@ __FBSDID("$FreeBSD$");
 #include <cam/ctl/ctl_io.h>
 #include <cam/ctl/ctl.h>
 #include <cam/ctl/ctl_frontend.h>
-#include <cam/ctl/ctl_frontend_internal.h>
 #include <cam/ctl/ctl_debug.h>
 
 #define	io_ptr		spriv_ptr1
@@ -99,8 +98,6 @@ int cfcs_init(void);
 static void cfcs_poll(struct cam_sim *sim);
 static void cfcs_online(void *arg);
 static void cfcs_offline(void *arg);
-static int cfcs_lun_enable(void *arg, int lun_id);
-static int cfcs_lun_disable(void *arg, int lun_id);
 static void cfcs_datamove(union ctl_io *io);
 static void cfcs_done(union ctl_io *io);
 void cfcs_action(struct cam_sim *sim, union ccb *ccb);
@@ -153,9 +150,6 @@ cfcs_init(void)
 	port->port_online = cfcs_online;
 	port->port_offline = cfcs_offline;
 	port->onoff_arg = softc;
-	port->lun_enable = cfcs_lun_enable;
-	port->lun_disable = cfcs_lun_disable;
-	port->targ_lun_arg = softc;
 	port->fe_datamove = cfcs_datamove;
 	port->fe_done = cfcs_done;
 
@@ -163,6 +157,7 @@ cfcs_init(void)
 	/* XXX These should probably be fetched from CTL. */
 	port->max_targets = 1;
 	port->max_target_id = 15;
+	port->targ_port = -1;
 
 	retval = ctl_port_register(port);
 	if (retval != 0) {
@@ -300,17 +295,6 @@ static void
 cfcs_offline(void *arg)
 {
 	cfcs_onoffline(arg, /*online*/ 0);
-}
-
-static int
-cfcs_lun_enable(void *arg, int lun_id)
-{
-	return (0);
-}
-static int
-cfcs_lun_disable(void *arg, int lun_id)
-{
-	return (0);
 }
 
 /*
@@ -563,12 +547,8 @@ cfcs_action(struct cam_sim *sim, union ccb *ccb)
 		 * down via the XPT_RESET_BUS/LUN CCBs below.
 		 */
 		io->io_hdr.io_type = CTL_IO_SCSI;
-		io->io_hdr.nexus.initid.id = 1;
+		io->io_hdr.nexus.initid = 1;
 		io->io_hdr.nexus.targ_port = softc->port.targ_port;
-		/*
-		 * XXX KDM how do we handle target IDs?
-		 */
-		io->io_hdr.nexus.targ_target.id = ccb->ccb_h.target_id;
 		io->io_hdr.nexus.targ_lun = ccb->ccb_h.target_lun;
 		/*
 		 * This tag scheme isn't the best, since we could in theory
@@ -656,9 +636,8 @@ cfcs_action(struct cam_sim *sim, union ccb *ccb)
 		ccb->ccb_h.io_ptr = io;
 
 		io->io_hdr.io_type = CTL_IO_TASK;
-		io->io_hdr.nexus.initid.id = 1;
+		io->io_hdr.nexus.initid = 1;
 		io->io_hdr.nexus.targ_port = softc->port.targ_port;
-		io->io_hdr.nexus.targ_target.id = ccb->ccb_h.target_id;
 		io->io_hdr.nexus.targ_lun = ccb->ccb_h.target_lun;
 		io->taskio.task_action = CTL_TASK_ABORT_TASK;
 		io->taskio.tag_num = abort_ccb->csio.tag_id;
@@ -752,9 +731,8 @@ cfcs_action(struct cam_sim *sim, union ccb *ccb)
 		ccb->ccb_h.io_ptr = io;
 
 		io->io_hdr.io_type = CTL_IO_TASK;
-		io->io_hdr.nexus.initid.id = 0;
+		io->io_hdr.nexus.initid = 1;
 		io->io_hdr.nexus.targ_port = softc->port.targ_port;
-		io->io_hdr.nexus.targ_target.id = ccb->ccb_h.target_id;
 		io->io_hdr.nexus.targ_lun = ccb->ccb_h.target_lun;
 		if (ccb->ccb_h.func_code == XPT_RESET_BUS)
 			io->taskio.task_action = CTL_TASK_BUS_RESET;

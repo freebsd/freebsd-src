@@ -51,6 +51,9 @@ __FBSDID("$FreeBSD$");
 
 MALLOC_DEFINE(M_PROTO_BUSDMA, "proto_busdma", "DMA management data");
 
+#define	BNDRY_MIN(a, b)		\
+	(((a) == 0) ? (b) : (((b) == 0) ? (a) : MIN((a), (b))))
+
 struct proto_callback_bundle {
 	struct proto_busdma *busdma;
 	struct proto_md *md;
@@ -63,6 +66,11 @@ proto_busdma_tag_create(struct proto_busdma *busdma, struct proto_tag *parent,
 {
 	struct proto_tag *tag;
 
+	/* Make sure that when a boundary is specified, it's a power of 2 */
+	if (ioc->u.tag.bndry != 0 &&
+	    (ioc->u.tag.bndry & (ioc->u.tag.bndry - 1)) != 0)
+		return (EINVAL);
+
 	/*
 	 * If nsegs is 1, ignore maxsegsz. What this means is that if we have
 	 * just 1 segment, then maxsz should be equal to maxsegsz. To keep it
@@ -71,16 +79,12 @@ proto_busdma_tag_create(struct proto_busdma *busdma, struct proto_tag *parent,
 	if (ioc->u.tag.maxsegsz > ioc->u.tag.maxsz || ioc->u.tag.nsegs == 1)
 		ioc->u.tag.maxsegsz = ioc->u.tag.maxsz;
 
-	/* A bndry of 0 really means ~0, or no boundary. */
-	if (ioc->u.tag.bndry == 0)
-		ioc->u.tag.bndry = ~0U;
-
 	tag = malloc(sizeof(*tag), M_PROTO_BUSDMA, M_WAITOK | M_ZERO);
 	if (parent != NULL) {
 		tag->parent = parent;
 		LIST_INSERT_HEAD(&parent->children, tag, peers);
 		tag->align = MAX(ioc->u.tag.align, parent->align);
-		tag->bndry = MIN(ioc->u.tag.bndry, parent->bndry);
+		tag->bndry = BNDRY_MIN(ioc->u.tag.bndry, parent->bndry);
 		tag->maxaddr = MIN(ioc->u.tag.maxaddr, parent->maxaddr);
 		tag->maxsz = MIN(ioc->u.tag.maxsz, parent->maxsz);
 		tag->maxsegsz = MIN(ioc->u.tag.maxsegsz, parent->maxsegsz);
@@ -321,7 +325,12 @@ static int
 proto_busdma_sync(struct proto_busdma *busdma, struct proto_md *md,
     struct proto_ioc_busdma *ioc)
 {
- 
+	u_int ops;
+
+	ops = BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE |
+	    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE;
+	if (ioc->u.sync.op & ~ops)
+		return (EINVAL);
 	if (!md->physaddr)
 		return (ENXIO);
 	bus_dmamap_sync(md->bd_tag, md->bd_map, ioc->u.sync.op);

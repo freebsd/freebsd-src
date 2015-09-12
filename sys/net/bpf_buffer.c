@@ -79,8 +79,6 @@ __FBSDID("$FreeBSD$");
 #include <net/bpf_buffer.h>
 #include <net/bpfdesc.h>
 
-#define PRINET  26			/* interruptible */
-
 /*
  * Implement historical kernel memory buffering model for BPF: two malloc(9)
  * kernel buffers are hung off of the descriptor.  The size is fixed prior to
@@ -191,9 +189,6 @@ bpf_buffer_ioctl_sblen(struct bpf_d *d, u_int *i)
 		return (EINVAL);
 	}
 
-	while (d->bd_hbuf_in_use)
-		mtx_sleep(&d->bd_hbuf_in_use, &d->bd_lock,
-		    PRINET, "bd_hbuf", 0);
 	/* Free old buffers if set */
 	if (d->bd_fbuf != NULL)
 		free(d->bd_fbuf, M_BPF);

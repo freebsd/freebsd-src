@@ -124,7 +124,7 @@ uiomove_fromphys(vm_page_t ma[], vm_offset_t offset, int n, struct uio *uio)
 	}
 out:
 	if (__predict_false(mapped)) {
-		panic("TODO 3");
+		panic("ARM64TODO: uiomove_fromphys");
 		pmap_unmap_io_transient(&ma[offset >> PAGE_SHIFT], &vaddr, 1,
 		    TRUE);
 	}

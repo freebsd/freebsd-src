@@ -22,26 +22,6 @@ NO_PIC=
 
 WARNS?=		0
 
-CFLAGS+= -ffreestanding -Wformat -fPIC
-CFLAGS+= -I${LIBSTAND_SRC}
-
-.if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
-CFLAGS+=	-mno-mmx -mno-3dnow -mno-sse -mno-sse2
-.endif
-.if ${MACHINE_CPUARCH} == "i386"
-CFLAGS.gcc+=	-mpreferred-stack-boundary=2
-CFLAGS+=	-mno-sse3
-.endif
-.if ${MACHINE} == "pc98"
-CFLAGS+=	-Os
-.endif
-.if ${MACHINE_CPUARCH} == "powerpc"
-CFLAGS+=	-msoft-float -D_STANDALONE -DNETIF_DEBUG
-.endif
-.if ${MACHINE_CPUARCH} == "arm"
-CFLAGS+=	-msoft-float -D_STANDALONE
-.endif
-
 # standalone components and stuff we have modified locally
 SRCS+=	gzguts.h zutil.h __main.c assert.c bcd.c bswap.c environment.c getopt.c gets.c \
 	globals.c pager.c printf.c strdup.c strerror.c strtol.c strtoul.c random.c \
@@ -152,4 +132,5 @@ SRCS+=	ufs.c nfs.c cd9660.c tftp.c gzipfs.c bzipfs.c
 SRCS+=	dosfs.c ext2fs.c
 SRCS+=	splitfs.c
 
+.include <bsd.stand.mk>
 .include <bsd.lib.mk>

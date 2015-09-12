@@ -1383,6 +1383,15 @@ sys_shutdown(td, uap)
 	if (error == 0) {
 		so = fp->f_data;
 		error = soshutdown(so, uap->how);
+		/*
+		 * Previous versions did not return ENOTCONN, but 0 in
+		 * case the socket was not connected. Some important
+		 * programs like syslogd up to r279016, 2015-02-19,
+		 * still depend on this behavior.
+		 */
+		if (error == ENOTCONN &&
+		    td->td_proc->p_osrel < P_OSREL_SHUTDOWN_ENOTCONN)
+			error = 0;
 		fdrop(fp, td);
 	}
 	return (error);

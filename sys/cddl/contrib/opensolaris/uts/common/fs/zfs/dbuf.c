@@ -24,6 +24,7 @@
  * Copyright (c) 2012, 2015 by Delphix. All rights reserved.
  * Copyright (c) 2013 by Saso Kiselkov. All rights reserved.
  * Copyright (c) 2013, Joyent, Inc. All rights reserved.
+ * Copyright (c) 2014 Spectra Logic Corporation, All rights reserved.
  */
 
 #include <sys/zfs_context.h>
@@ -54,10 +55,16 @@ static void dbuf_destroy(dmu_buf_impl_t *db);
 static boolean_t dbuf_undirty(dmu_buf_impl_t *db, dmu_tx_t *tx);
 static void dbuf_write(dbuf_dirty_record_t *dr, arc_buf_t *data, dmu_tx_t *tx);
 
+#ifndef __lint
+extern inline void dmu_buf_init_user(dmu_buf_user_t *dbu,
+    dmu_buf_evict_func_t *evict_func, dmu_buf_t **clear_on_evict_dbufp);
+#endif /* ! __lint */
+
 /*
  * Global data structures and functions for the dbuf cache.
  */
 static kmem_cache_t *dbuf_cache;
+static taskq_t *dbu_evict_taskq;
 
 /* ARGSUSED */
 static int
@@ -118,11 +125,9 @@ dbuf_hash(void *os, uint64_t obj, uint8_t lvl, uint64_t blkid)
 	(dbuf)->db_blkid == (blkid))
 
 dmu_buf_impl_t *
-dbuf_find(dnode_t *dn, uint8_t level, uint64_t blkid)
+dbuf_find(objset_t *os, uint64_t obj, uint8_t level, uint64_t blkid)
 {
 	dbuf_hash_table_t *h = &dbuf_hash_table;
-	objset_t *os = dn->dn_objset;
-	uint64_t obj = dn->dn_object;
 	uint64_t hv = DBUF_HASH(os, obj, level, blkid);
 	uint64_t idx = hv & h->hash_table_mask;
 	dmu_buf_impl_t *db;
@@ -140,6 +145,24 @@ dbuf_find(dnode_t *dn, uint8_t level, uint64_t blkid)
 	}
 	mutex_exit(DBUF_HASH_MUTEX(h, idx));
 	return (NULL);
+}
+
+static dmu_buf_impl_t *
+dbuf_find_bonus(objset_t *os, uint64_t object)
+{
+	dnode_t *dn;
+	dmu_buf_impl_t *db = NULL;
+
+	if (dnode_hold(os, object, FTAG, &dn) == 0) {
+		rw_enter(&dn->dn_struct_rwlock, RW_READER);
+		if (dn->dn_bonus != NULL) {
+			db = dn->dn_bonus;
+			mutex_enter(&db->db_mtx);
+		}
+		rw_exit(&dn->dn_struct_rwlock);
+		dnode_rele(dn, FTAG);
+	}
+	return (db);
 }
 
 /*
@@ -215,17 +238,72 @@ dbuf_hash_remove(dmu_buf_impl_t *db)
 
 static arc_evict_func_t dbuf_do_evict;
 
+typedef enum {
+	DBVU_EVICTING,
+	DBVU_NOT_EVICTING
+} dbvu_verify_type_t;
+
+static void
+dbuf_verify_user(dmu_buf_impl_t *db, dbvu_verify_type_t verify_type)
+{
+#ifdef ZFS_DEBUG
+	int64_t holds;
+
+	if (db->db_user == NULL)
+		return;
+
+	/* Only data blocks support the attachment of user data. */
+	ASSERT(db->db_level == 0);
+
+	/* Clients must resolve a dbuf before attaching user data. */
+	ASSERT(db->db.db_data != NULL);
+	ASSERT3U(db->db_state, ==, DB_CACHED);
+
+	holds = refcount_count(&db->db_holds);
+	if (verify_type == DBVU_EVICTING) {
+		/*
+		 * Immediate eviction occurs when holds == dirtycnt.
+		 * For normal eviction buffers, holds is zero on
+		 * eviction, except when dbuf_fix_old_data() calls
+		 * dbuf_clear_data().  However, the hold count can grow
+		 * during eviction even though db_mtx is held (see
+		 * dmu_bonus_hold() for an example), so we can only
+		 * test the generic invariant that holds >= dirtycnt.
+		 */
+		ASSERT3U(holds, >=, db->db_dirtycnt);
+	} else {
+		if (db->db_immediate_evict == TRUE)
+			ASSERT3U(holds, >=, db->db_dirtycnt);
+		else
+			ASSERT3U(holds, >, 0);
+	}
+#endif
+}
+
 static void
 dbuf_evict_user(dmu_buf_impl_t *db)
 {
+	dmu_buf_user_t *dbu = db->db_user;
+
 	ASSERT(MUTEX_HELD(&db->db_mtx));
 
-	if (db->db_level != 0 || db->db_evict_func == NULL)
+	if (dbu == NULL)
 		return;
 
-	db->db_evict_func(&db->db, db->db_user_ptr);
-	db->db_user_ptr = NULL;
-	db->db_evict_func = NULL;
+	dbuf_verify_user(db, DBVU_EVICTING);
+	db->db_user = NULL;
+
+#ifdef ZFS_DEBUG
+	if (dbu->dbu_clear_on_evict_dbufp != NULL)
+		*dbu->dbu_clear_on_evict_dbufp = NULL;
+#endif
+
+	/*
+	 * Invoke the callback from a taskq to avoid lock order reversals
+	 * and limit stack depth.
+	 */
+	taskq_dispatch_ent(dbu_evict_taskq, dbu->dbu_evict_func, dbu, 0,
+	    &dbu->dbu_tqent);
 }
 
 boolean_t
@@ -286,6 +364,12 @@ retry:
 
 	for (i = 0; i < DBUF_MUTEXES; i++)
 		mutex_init(&h->hash_mutexes[i], NULL, MUTEX_DEFAULT, NULL);
+
+	/*
+	 * All entries are queued via taskq_dispatch_ent(), so min/maxalloc
+	 * configuration is not required.
+	 */
+	dbu_evict_taskq = taskq_create("dbu_evict", 1, minclsyspri, 0, 0, 0);
 }
 
 void
@@ -298,6 +382,7 @@ dbuf_fini(void)
 		mutex_destroy(&h->hash_mutexes[i]);
 	kmem_free(h->hash_table, (h->hash_table_mask + 1) * sizeof (void *));
 	kmem_cache_destroy(dbuf_cache);
+	taskq_destroy(dbu_evict_taskq);
 }
 
 /*
@@ -415,21 +500,27 @@ dbuf_verify(dmu_buf_impl_t *db)
 #endif
 
 static void
+dbuf_clear_data(dmu_buf_impl_t *db)
+{
+	ASSERT(MUTEX_HELD(&db->db_mtx));
+	dbuf_evict_user(db);
+	db->db_buf = NULL;
+	db->db.db_data = NULL;
+	if (db->db_state != DB_NOFILL)
+		db->db_state = DB_UNCACHED;
+}
+
+static void
 dbuf_set_data(dmu_buf_impl_t *db, arc_buf_t *buf)
 {
 	ASSERT(MUTEX_HELD(&db->db_mtx));
+	ASSERT(buf != NULL);
+
 	db->db_buf = buf;
-	if (buf != NULL) {
-		ASSERT(buf->b_data != NULL);
-		db->db.db_data = buf->b_data;
-		if (!arc_released(buf))
-			arc_set_callback(buf, dbuf_do_evict, db);
-	} else {
-		dbuf_evict_user(db);
-		db->db.db_data = NULL;
-		if (db->db_state != DB_NOFILL)
-			db->db_state = DB_UNCACHED;
-	}
+	ASSERT(buf->b_data != NULL);
+	db->db.db_data = buf->b_data;
+	if (!arc_released(buf))
+		arc_set_callback(buf, dbuf_do_evict, db);
 }
 
 /*
@@ -451,17 +542,41 @@ dbuf_loan_arcbuf(dmu_buf_impl_t *db)
 	} else {
 		abuf = db->db_buf;
 		arc_loan_inuse_buf(abuf, db);
-		dbuf_set_data(db, NULL);
+		dbuf_clear_data(db);
 		mutex_exit(&db->db_mtx);
 	}
 	return (abuf);
 }
 
+/*
+ * Calculate which level n block references the data at the level 0 offset
+ * provided.
+ */
 uint64_t
-dbuf_whichblock(dnode_t *dn, uint64_t offset)
+dbuf_whichblock(dnode_t *dn, int64_t level, uint64_t offset)
 {
-	if (dn->dn_datablkshift) {
-		return (offset >> dn->dn_datablkshift);
+	if (dn->dn_datablkshift != 0 && dn->dn_indblkshift != 0) {
+		/*
+		 * The level n blkid is equal to the level 0 blkid divided by
+		 * the number of level 0s in a level n block.
+		 *
+		 * The level 0 blkid is offset >> datablkshift =
+		 * offset / 2^datablkshift.
+		 *
+		 * The number of level 0s in a level n is the number of block
+		 * pointers in an indirect block, raised to the power of level.
+		 * This is 2^(indblkshift - SPA_BLKPTRSHIFT)^level =
+		 * 2^(level*(indblkshift - SPA_BLKPTRSHIFT)).
+		 *
+		 * Thus, the level n blkid is: offset /
+		 * ((2^datablkshift)*(2^(level*(indblkshift - SPA_BLKPTRSHIFT)))
+		 * = offset / 2^(datablkshift + level *
+		 *   (indblkshift - SPA_BLKPTRSHIFT))
+		 * = offset >> (datablkshift + level *
+		 *   (indblkshift - SPA_BLKPTRSHIFT))
+		 */
+		return (offset >> (dn->dn_datablkshift + level *
+		    (dn->dn_indblkshift - SPA_BLKPTRSHIFT)));
 	} else {
 		ASSERT3U(offset, <, dn->dn_datablksz);
 		return (0);
@@ -503,7 +618,7 @@ dbuf_read_done(zio_t *zio, arc_buf_t *buf, void *vdb)
 }
 
 static void
-dbuf_read_impl(dmu_buf_impl_t *db, zio_t *zio, uint32_t *flags)
+dbuf_read_impl(dmu_buf_impl_t *db, zio_t *zio, uint32_t flags)
 {
 	dnode_t *dn;
 	zbookmark_phys_t zb;
@@ -549,7 +664,6 @@ dbuf_read_impl(dmu_buf_impl_t *db, zio_t *zio, uint32_t *flags)
 		    db->db.db_size, db, type));
 		bzero(db->db.db_data, db->db.db_size);
 		db->db_state = DB_CACHED;
-		*flags |= DB_RF_CACHED;
 		mutex_exit(&db->db_mtx);
 		return;
 	}
@@ -572,10 +686,8 @@ dbuf_read_impl(dmu_buf_impl_t *db, zio_t *zio, uint32_t *flags)
 
 	(void) arc_read(zio, db->db_objset->os_spa, db->db_blkptr,
 	    dbuf_read_done, db, ZIO_PRIORITY_SYNC_READ,
-	    (*flags & DB_RF_CANFAIL) ? ZIO_FLAG_CANFAIL : ZIO_FLAG_MUSTSUCCEED,
+	    (flags & DB_RF_CANFAIL) ? ZIO_FLAG_CANFAIL : ZIO_FLAG_MUSTSUCCEED,
 	    &aflags, &zb);
-	if (aflags & ARC_FLAG_CACHED)
-		*flags |= DB_RF_CACHED;
 }
 
 int
@@ -608,8 +720,7 @@ dbuf_read(dmu_buf_impl_t *db, zio_t *zio, uint32_t flags)
 	if (db->db_state == DB_CACHED) {
 		mutex_exit(&db->db_mtx);
 		if (prefetch)
-			dmu_zfetch(&dn->dn_zfetch, db->db.db_offset,
-			    db->db.db_size, TRUE);
+			dmu_zfetch(&dn->dn_zfetch, db->db_blkid, 1);
 		if ((flags & DB_RF_HAVESTRUCT) == 0)
 			rw_exit(&dn->dn_struct_rwlock);
 		DB_DNODE_EXIT(db);
@@ -618,13 +729,12 @@ dbuf_read(dmu_buf_impl_t *db, zio_t *zio, uint32_t flags)
 
 		if (zio == NULL)
 			zio = zio_root(spa, NULL, NULL, ZIO_FLAG_CANFAIL);
-		dbuf_read_impl(db, zio, &flags);
+		dbuf_read_impl(db, zio, flags);
 
 		/* dbuf_read_impl has dropped db_mtx for us */
 
 		if (prefetch)
-			dmu_zfetch(&dn->dn_zfetch, db->db.db_offset,
-			    db->db.db_size, flags & DB_RF_CACHED);
+			dmu_zfetch(&dn->dn_zfetch, db->db_blkid, 1);
 
 		if ((flags & DB_RF_HAVESTRUCT) == 0)
 			rw_exit(&dn->dn_struct_rwlock);
@@ -643,8 +753,7 @@ dbuf_read(dmu_buf_impl_t *db, zio_t *zio, uint32_t flags)
 		 */
 		mutex_exit(&db->db_mtx);
 		if (prefetch)
-			dmu_zfetch(&dn->dn_zfetch, db->db.db_offset,
-			    db->db.db_size, TRUE);
+			dmu_zfetch(&dn->dn_zfetch, db->db_blkid, 1);
 		if ((flags & DB_RF_HAVESTRUCT) == 0)
 			rw_exit(&dn->dn_struct_rwlock);
 		DB_DNODE_EXIT(db);
@@ -687,7 +796,7 @@ dbuf_noread(dmu_buf_impl_t *db)
 		dbuf_set_data(db, arc_buf_alloc(spa, db->db.db_size, db, type));
 		db->db_state = DB_FILL;
 	} else if (db->db_state == DB_NOFILL) {
-		dbuf_set_data(db, NULL);
+		dbuf_clear_data(db);
 	} else {
 		ASSERT3U(db->db_state, ==, DB_CACHED);
 	}
@@ -743,7 +852,7 @@ dbuf_fix_old_data(dmu_buf_impl_t *db, uint64_t txg)
 		dr->dt.dl.dr_data = arc_buf_alloc(spa, size, db, type);
 		bcopy(db->db.db_data, dr->dt.dl.dr_data->b_data, size);
 	} else {
-		dbuf_set_data(db, NULL);
+		dbuf_clear_data(db);
 	}
 }
 
@@ -794,7 +903,8 @@ void
 dbuf_free_range(dnode_t *dn, uint64_t start_blkid, uint64_t end_blkid,
     dmu_tx_t *tx)
 {
-	dmu_buf_impl_t *db, *db_next, db_search;
+	dmu_buf_impl_t db_search;
+	dmu_buf_impl_t *db, *db_next;
 	uint64_t txg = tx->tx_txg;
 	avl_index_t where;
 
@@ -1372,7 +1482,7 @@ dbuf_undirty(dmu_buf_impl_t *db, dmu_tx_t *tx)
 		arc_buf_t *buf = db->db_buf;
 
 		ASSERT(db->db_state == DB_NOFILL || arc_released(buf));
-		dbuf_set_data(db, NULL);
+		dbuf_clear_data(db);
 		VERIFY(arc_buf_remove_ref(buf, db));
 		dbuf_evict(db);
 		return (B_TRUE);
@@ -1456,6 +1566,11 @@ dmu_buf_write_embedded(dmu_buf_t *dbuf, void *data,
 	dmu_buf_impl_t *db = (dmu_buf_impl_t *)dbuf;
 	struct dirty_leaf *dl;
 	dmu_object_type_t type;
+
+	if (etype == BP_EMBEDDED_TYPE_DATA) {
+		ASSERT(spa_feature_is_active(dmu_objset_spa(db->db_objset),
+		    SPA_FEATURE_EMBEDDED_DATA));
+	}
 
 	DB_DNODE_ENTER(db);
 	type = DB_DNODE(db)->dn_type;
@@ -1623,6 +1738,12 @@ dbuf_clear(dmu_buf_impl_t *db)
 		dbuf_rele(parent, db);
 }
 
+/*
+ * Note: While bpp will always be updated if the function returns success,
+ * parentp will not be updated if the dnode does not have dn_dbuf filled in;
+ * this happens when the dnode is the meta-dnode, or a userused or groupused
+ * object.
+ */
 static int
 dbuf_findbp(dnode_t *dn, int level, uint64_t blkid, int fail_sparse,
     dmu_buf_impl_t **parentp, blkptr_t **bpp)
@@ -1663,7 +1784,7 @@ dbuf_findbp(dnode_t *dn, int level, uint64_t blkid, int fail_sparse,
 	} else if (level < nlevels-1) {
 		/* this block is referenced from an indirect block */
 		int err = dbuf_hold_impl(dn, level+1,
-		    blkid >> epbs, fail_sparse, NULL, parentp);
+		    blkid >> epbs, fail_sparse, FALSE, NULL, parentp);
 		if (err)
 			return (err);
 		err = dbuf_read(*parentp, NULL,
@@ -1712,8 +1833,7 @@ dbuf_create(dnode_t *dn, uint8_t level, uint64_t blkid,
 	db->db_parent = parent;
 	db->db_blkptr = blkptr;
 
-	db->db_user_ptr = NULL;
-	db->db_evict_func = NULL;
+	db->db_user = NULL;
 	db->db_immediate_evict = 0;
 	db->db_freed_in_flight = 0;
 
@@ -1839,47 +1959,204 @@ dbuf_destroy(dmu_buf_impl_t *db)
 	arc_space_return(sizeof (dmu_buf_impl_t), ARC_SPACE_OTHER);
 }
 
-void
-dbuf_prefetch(dnode_t *dn, uint64_t blkid, zio_priority_t prio)
+typedef struct dbuf_prefetch_arg {
+	spa_t *dpa_spa;	/* The spa to issue the prefetch in. */
+	zbookmark_phys_t dpa_zb; /* The target block to prefetch. */
+	int dpa_epbs; /* Entries (blkptr_t's) Per Block Shift. */
+	int dpa_curlevel; /* The current level that we're reading */
+	zio_priority_t dpa_prio; /* The priority I/Os should be issued at. */
+	zio_t *dpa_zio; /* The parent zio_t for all prefetches. */
+	arc_flags_t dpa_aflags; /* Flags to pass to the final prefetch. */
+} dbuf_prefetch_arg_t;
+
+/*
+ * Actually issue the prefetch read for the block given.
+ */
+static void
+dbuf_issue_final_prefetch(dbuf_prefetch_arg_t *dpa, blkptr_t *bp)
 {
-	dmu_buf_impl_t *db = NULL;
-	blkptr_t *bp = NULL;
+	if (BP_IS_HOLE(bp) || BP_IS_EMBEDDED(bp))
+		return;
+
+	arc_flags_t aflags =
+	    dpa->dpa_aflags | ARC_FLAG_NOWAIT | ARC_FLAG_PREFETCH;
+
+	ASSERT3U(dpa->dpa_curlevel, ==, BP_GET_LEVEL(bp));
+	ASSERT3U(dpa->dpa_curlevel, ==, dpa->dpa_zb.zb_level);
+	ASSERT(dpa->dpa_zio != NULL);
+	(void) arc_read(dpa->dpa_zio, dpa->dpa_spa, bp, NULL, NULL,
+	    dpa->dpa_prio, ZIO_FLAG_CANFAIL | ZIO_FLAG_SPECULATIVE,
+	    &aflags, &dpa->dpa_zb);
+}
+
+/*
+ * Called when an indirect block above our prefetch target is read in.  This
+ * will either read in the next indirect block down the tree or issue the actual
+ * prefetch if the next block down is our target.
+ */
+static void
+dbuf_prefetch_indirect_done(zio_t *zio, arc_buf_t *abuf, void *private)
+{
+	dbuf_prefetch_arg_t *dpa = private;
+
+	ASSERT3S(dpa->dpa_zb.zb_level, <, dpa->dpa_curlevel);
+	ASSERT3S(dpa->dpa_curlevel, >, 0);
+	if (zio != NULL) {
+		ASSERT3S(BP_GET_LEVEL(zio->io_bp), ==, dpa->dpa_curlevel);
+		ASSERT3U(BP_GET_LSIZE(zio->io_bp), ==, zio->io_size);
+		ASSERT3P(zio->io_spa, ==, dpa->dpa_spa);
+	}
+
+	dpa->dpa_curlevel--;
+
+	uint64_t nextblkid = dpa->dpa_zb.zb_blkid >>
+	    (dpa->dpa_epbs * (dpa->dpa_curlevel - dpa->dpa_zb.zb_level));
+	blkptr_t *bp = ((blkptr_t *)abuf->b_data) +
+	    P2PHASE(nextblkid, 1ULL << dpa->dpa_epbs);
+	if (BP_IS_HOLE(bp) || (zio != NULL && zio->io_error != 0)) {
+		kmem_free(dpa, sizeof (*dpa));
+	} else if (dpa->dpa_curlevel == dpa->dpa_zb.zb_level) {
+		ASSERT3U(nextblkid, ==, dpa->dpa_zb.zb_blkid);
+		dbuf_issue_final_prefetch(dpa, bp);
+		kmem_free(dpa, sizeof (*dpa));
+	} else {
+		arc_flags_t iter_aflags = ARC_FLAG_NOWAIT;
+		zbookmark_phys_t zb;
+
+		ASSERT3U(dpa->dpa_curlevel, ==, BP_GET_LEVEL(bp));
+
+		SET_BOOKMARK(&zb, dpa->dpa_zb.zb_objset,
+		    dpa->dpa_zb.zb_object, dpa->dpa_curlevel, nextblkid);
+
+		(void) arc_read(dpa->dpa_zio, dpa->dpa_spa,
+		    bp, dbuf_prefetch_indirect_done, dpa, dpa->dpa_prio,
+		    ZIO_FLAG_CANFAIL | ZIO_FLAG_SPECULATIVE,
+		    &iter_aflags, &zb);
+	}
+	(void) arc_buf_remove_ref(abuf, private);
+}
+
+/*
+ * Issue prefetch reads for the given block on the given level.  If the indirect
+ * blocks above that block are not in memory, we will read them in
+ * asynchronously.  As a result, this call never blocks waiting for a read to
+ * complete.
+ */
+void
+dbuf_prefetch(dnode_t *dn, int64_t level, uint64_t blkid, zio_priority_t prio,
+    arc_flags_t aflags)
+{
+	blkptr_t bp;
+	int epbs, nlevels, curlevel;
+	uint64_t curblkid;
 
 	ASSERT(blkid != DMU_BONUS_BLKID);
 	ASSERT(RW_LOCK_HELD(&dn->dn_struct_rwlock));
 
+	if (blkid > dn->dn_maxblkid)
+		return;
+
 	if (dnode_block_freed(dn, blkid))
 		return;
 
-	/* dbuf_find() returns with db_mtx held */
-	if (db = dbuf_find(dn, 0, blkid)) {
-		/*
-		 * This dbuf is already in the cache.  We assume that
-		 * it is already CACHED, or else about to be either
-		 * read or filled.
-		 */
+	/*
+	 * This dnode hasn't been written to disk yet, so there's nothing to
+	 * prefetch.
+	 */
+	nlevels = dn->dn_phys->dn_nlevels;
+	if (level >= nlevels || dn->dn_phys->dn_nblkptr == 0)
+		return;
+
+	epbs = dn->dn_phys->dn_indblkshift - SPA_BLKPTRSHIFT;
+	if (dn->dn_phys->dn_maxblkid < blkid << (epbs * level))
+		return;
+
+	dmu_buf_impl_t *db = dbuf_find(dn->dn_objset, dn->dn_object,
+	    level, blkid);
+	if (db != NULL) {
 		mutex_exit(&db->db_mtx);
+		/*
+		 * This dbuf already exists.  It is either CACHED, or
+		 * (we assume) about to be read or filled.
+		 */
 		return;
 	}
 
-	if (dbuf_findbp(dn, 0, blkid, TRUE, &db, &bp) == 0) {
-		if (bp && !BP_IS_HOLE(bp) && !BP_IS_EMBEDDED(bp)) {
-			dsl_dataset_t *ds = dn->dn_objset->os_dsl_dataset;
-			arc_flags_t aflags =
-			    ARC_FLAG_NOWAIT | ARC_FLAG_PREFETCH;
-			zbookmark_phys_t zb;
+	/*
+	 * Find the closest ancestor (indirect block) of the target block
+	 * that is present in the cache.  In this indirect block, we will
+	 * find the bp that is at curlevel, curblkid.
+	 */
+	curlevel = level;
+	curblkid = blkid;
+	while (curlevel < nlevels - 1) {
+		int parent_level = curlevel + 1;
+		uint64_t parent_blkid = curblkid >> epbs;
+		dmu_buf_impl_t *db;
 
-			SET_BOOKMARK(&zb, ds ? ds->ds_object : DMU_META_OBJSET,
-			    dn->dn_object, 0, blkid);
-
-			(void) arc_read(NULL, dn->dn_objset->os_spa,
-			    bp, NULL, NULL, prio,
-			    ZIO_FLAG_CANFAIL | ZIO_FLAG_SPECULATIVE,
-			    &aflags, &zb);
+		if (dbuf_hold_impl(dn, parent_level, parent_blkid,
+		    FALSE, TRUE, FTAG, &db) == 0) {
+			blkptr_t *bpp = db->db_buf->b_data;
+			bp = bpp[P2PHASE(curblkid, 1 << epbs)];
+			dbuf_rele(db, FTAG);
+			break;
 		}
-		if (db)
-			dbuf_rele(db, NULL);
+
+		curlevel = parent_level;
+		curblkid = parent_blkid;
 	}
+
+	if (curlevel == nlevels - 1) {
+		/* No cached indirect blocks found. */
+		ASSERT3U(curblkid, <, dn->dn_phys->dn_nblkptr);
+		bp = dn->dn_phys->dn_blkptr[curblkid];
+	}
+	if (BP_IS_HOLE(&bp))
+		return;
+
+	ASSERT3U(curlevel, ==, BP_GET_LEVEL(&bp));
+
+	zio_t *pio = zio_root(dmu_objset_spa(dn->dn_objset), NULL, NULL,
+	    ZIO_FLAG_CANFAIL);
+
+	dbuf_prefetch_arg_t *dpa = kmem_zalloc(sizeof (*dpa), KM_SLEEP);
+	dsl_dataset_t *ds = dn->dn_objset->os_dsl_dataset;
+	SET_BOOKMARK(&dpa->dpa_zb, ds != NULL ? ds->ds_object : DMU_META_OBJSET,
+	    dn->dn_object, level, blkid);
+	dpa->dpa_curlevel = curlevel;
+	dpa->dpa_prio = prio;
+	dpa->dpa_aflags = aflags;
+	dpa->dpa_spa = dn->dn_objset->os_spa;
+	dpa->dpa_epbs = epbs;
+	dpa->dpa_zio = pio;
+
+	/*
+	 * If we have the indirect just above us, no need to do the asynchronous
+	 * prefetch chain; we'll just run the last step ourselves.  If we're at
+	 * a higher level, though, we want to issue the prefetches for all the
+	 * indirect blocks asynchronously, so we can go on with whatever we were
+	 * doing.
+	 */
+	if (curlevel == level) {
+		ASSERT3U(curblkid, ==, blkid);
+		dbuf_issue_final_prefetch(dpa, &bp);
+		kmem_free(dpa, sizeof (*dpa));
+	} else {
+		arc_flags_t iter_aflags = ARC_FLAG_NOWAIT;
+		zbookmark_phys_t zb;
+
+		SET_BOOKMARK(&zb, ds != NULL ? ds->ds_object : DMU_META_OBJSET,
+		    dn->dn_object, curlevel, curblkid);
+		(void) arc_read(dpa->dpa_zio, dpa->dpa_spa,
+		    &bp, dbuf_prefetch_indirect_done, dpa, prio,
+		    ZIO_FLAG_CANFAIL | ZIO_FLAG_SPECULATIVE,
+		    &iter_aflags, &zb);
+	}
+	/*
+	 * We use pio here instead of dpa_zio since it's possible that
+	 * dpa may have already been freed.
+	 */
+	zio_nowait(pio);
 }
 
 /*
@@ -1887,7 +2164,8 @@ dbuf_prefetch(dnode_t *dn, uint64_t blkid, zio_priority_t prio)
  * Note: dn_struct_rwlock must be held.
  */
 int
-dbuf_hold_impl(dnode_t *dn, uint8_t level, uint64_t blkid, int fail_sparse,
+dbuf_hold_impl(dnode_t *dn, uint8_t level, uint64_t blkid,
+    boolean_t fail_sparse, boolean_t fail_uncached,
     void *tag, dmu_buf_impl_t **dbp)
 {
 	dmu_buf_impl_t *db, *parent = NULL;
@@ -1899,11 +2177,14 @@ dbuf_hold_impl(dnode_t *dn, uint8_t level, uint64_t blkid, int fail_sparse,
 	*dbp = NULL;
 top:
 	/* dbuf_find() returns with db_mtx held */
-	db = dbuf_find(dn, level, blkid);
+	db = dbuf_find(dn->dn_objset, dn->dn_object, level, blkid);
 
 	if (db == NULL) {
 		blkptr_t *bp = NULL;
 		int err;
+
+		if (fail_uncached)
+			return (SET_ERROR(ENOENT));
 
 		ASSERT3P(parent, ==, NULL);
 		err = dbuf_findbp(dn, level, blkid, fail_sparse, &parent, &bp);
@@ -1919,6 +2200,11 @@ top:
 		if (err && err != ENOENT)
 			return (err);
 		db = dbuf_create(dn, level, blkid, parent, bp);
+	}
+
+	if (fail_uncached && db->db_state != DB_CACHED) {
+		mutex_exit(&db->db_mtx);
+		return (SET_ERROR(ENOENT));
 	}
 
 	if (db->db_buf && refcount_is_zero(&db->db_holds)) {
@@ -1976,16 +2262,14 @@ top:
 dmu_buf_impl_t *
 dbuf_hold(dnode_t *dn, uint64_t blkid, void *tag)
 {
-	dmu_buf_impl_t *db;
-	int err = dbuf_hold_impl(dn, 0, blkid, FALSE, tag, &db);
-	return (err ? NULL : db);
+	return (dbuf_hold_level(dn, 0, blkid, tag));
 }
 
 dmu_buf_impl_t *
 dbuf_hold_level(dnode_t *dn, int level, uint64_t blkid, void *tag)
 {
 	dmu_buf_impl_t *db;
-	int err = dbuf_hold_impl(dn, level, blkid, FALSE, tag, &db);
+	int err = dbuf_hold_impl(dn, level, blkid, FALSE, FALSE, tag, &db);
 	return (err ? NULL : db);
 }
 
@@ -2033,6 +2317,30 @@ dbuf_add_ref(dmu_buf_impl_t *db, void *tag)
 {
 	int64_t holds = refcount_add(&db->db_holds, tag);
 	ASSERT(holds > 1);
+}
+
+#pragma weak dmu_buf_try_add_ref = dbuf_try_add_ref
+boolean_t
+dbuf_try_add_ref(dmu_buf_t *db_fake, objset_t *os, uint64_t obj, uint64_t blkid,
+    void *tag)
+{
+	dmu_buf_impl_t *db = (dmu_buf_impl_t *)db_fake;
+	dmu_buf_impl_t *found_db;
+	boolean_t result = B_FALSE;
+
+	if (db->db_blkid == DMU_BONUS_BLKID)
+		found_db = dbuf_find_bonus(os, obj);
+	else
+		found_db = dbuf_find(os, obj, 0, blkid);
+
+	if (found_db != NULL) {
+		if (db == found_db && dbuf_refcount(db) > db->db_dirtycnt) {
+			(void) refcount_add(&db->db_holds, tag);
+			result = B_TRUE;
+		}
+		mutex_exit(&db->db_mtx);
+	}
+	return (result);
 }
 
 /*
@@ -2088,21 +2396,60 @@ dbuf_rele_and_unlock(dmu_buf_impl_t *db, void *tag)
 
 	if (holds == 0) {
 		if (db->db_blkid == DMU_BONUS_BLKID) {
+			dnode_t *dn;
+
+			/*
+			 * If the dnode moves here, we cannot cross this
+			 * barrier until the move completes.
+			 */
+			DB_DNODE_ENTER(db);
+
+			dn = DB_DNODE(db);
+			atomic_dec_32(&dn->dn_dbufs_count);
+
+			/*
+			 * Decrementing the dbuf count means that the bonus
+			 * buffer's dnode hold is no longer discounted in
+			 * dnode_move(). The dnode cannot move until after
+			 * the dnode_rele_and_unlock() below.
+			 */
+			DB_DNODE_EXIT(db);
+
+			/*
+			 * Do not reference db after its lock is dropped.
+			 * Another thread may evict it.
+			 */
 			mutex_exit(&db->db_mtx);
 
 			/*
-			 * If the dnode moves here, we cannot cross this barrier
-			 * until the move completes.
+			 * If the dnode has been freed, evict the bonus
+			 * buffer immediately.	The data in the bonus
+			 * buffer is no longer relevant and this prevents
+			 * a stale bonus buffer from being associated
+			 * with this dnode_t should the dnode_t be reused
+			 * prior to being destroyed.
 			 */
-			DB_DNODE_ENTER(db);
-			atomic_dec_32(&DB_DNODE(db)->dn_dbufs_count);
-			DB_DNODE_EXIT(db);
-			/*
-			 * The bonus buffer's dnode hold is no longer discounted
-			 * in dnode_move(). The dnode cannot move until after
-			 * the dnode_rele().
-			 */
-			dnode_rele(DB_DNODE(db), db);
+			mutex_enter(&dn->dn_mtx);
+			if (dn->dn_type == DMU_OT_NONE ||
+			    dn->dn_free_txg != 0) {
+				/*
+				 * Drop dn_mtx.  It is a leaf lock and
+				 * cannot be held when dnode_evict_bonus()
+				 * acquires other locks in order to
+				 * perform the eviction.
+				 *
+				 * Freed dnodes cannot be reused until the
+				 * last hold is released.  Since this bonus
+				 * buffer has a hold, the dnode will remain
+				 * in the free state, even without dn_mtx
+				 * held, until the dnode_rele_and_unlock()
+				 * below.
+				 */
+				mutex_exit(&dn->dn_mtx);
+				dnode_evict_bonus(dn);
+				mutex_enter(&dn->dn_mtx);
+			}
+			dnode_rele_and_unlock(dn, db);
 		} else if (db->db_buf == NULL) {
 			/*
 			 * This is a special case: we never associated this
@@ -2116,7 +2463,7 @@ dbuf_rele_and_unlock(dmu_buf_impl_t *db, void *tag)
 			/*
 			 * This dbuf has anonymous data associated with it.
 			 */
-			dbuf_set_data(db, NULL);
+			dbuf_clear_data(db);
 			VERIFY(arc_buf_remove_ref(buf, db));
 			dbuf_evict(db);
 		} else {
@@ -2149,7 +2496,8 @@ dbuf_rele_and_unlock(dmu_buf_impl_t *db, void *tag)
 				} else {
 					dbuf_clear(db);
 				}
-			} else if (arc_buf_eviction_needed(db->db_buf)) {
+			} else if (db->db_objset->os_evicting ||
+			    arc_buf_eviction_needed(db->db_buf)) {
 				dbuf_clear(db);
 			} else {
 				mutex_exit(&db->db_mtx);
@@ -2168,51 +2516,57 @@ dbuf_refcount(dmu_buf_impl_t *db)
 }
 
 void *
-dmu_buf_set_user(dmu_buf_t *db_fake, void *user_ptr,
-    dmu_buf_evict_func_t *evict_func)
+dmu_buf_replace_user(dmu_buf_t *db_fake, dmu_buf_user_t *old_user,
+    dmu_buf_user_t *new_user)
 {
-	return (dmu_buf_update_user(db_fake, NULL, user_ptr, evict_func));
+	dmu_buf_impl_t *db = (dmu_buf_impl_t *)db_fake;
+
+	mutex_enter(&db->db_mtx);
+	dbuf_verify_user(db, DBVU_NOT_EVICTING);
+	if (db->db_user == old_user)
+		db->db_user = new_user;
+	else
+		old_user = db->db_user;
+	dbuf_verify_user(db, DBVU_NOT_EVICTING);
+	mutex_exit(&db->db_mtx);
+
+	return (old_user);
 }
 
 void *
-dmu_buf_set_user_ie(dmu_buf_t *db_fake, void *user_ptr,
-    dmu_buf_evict_func_t *evict_func)
+dmu_buf_set_user(dmu_buf_t *db_fake, dmu_buf_user_t *user)
+{
+	return (dmu_buf_replace_user(db_fake, NULL, user));
+}
+
+void *
+dmu_buf_set_user_ie(dmu_buf_t *db_fake, dmu_buf_user_t *user)
 {
 	dmu_buf_impl_t *db = (dmu_buf_impl_t *)db_fake;
 
 	db->db_immediate_evict = TRUE;
-	return (dmu_buf_update_user(db_fake, NULL, user_ptr, evict_func));
+	return (dmu_buf_set_user(db_fake, user));
 }
 
 void *
-dmu_buf_update_user(dmu_buf_t *db_fake, void *old_user_ptr, void *user_ptr,
-    dmu_buf_evict_func_t *evict_func)
+dmu_buf_remove_user(dmu_buf_t *db_fake, dmu_buf_user_t *user)
 {
-	dmu_buf_impl_t *db = (dmu_buf_impl_t *)db_fake;
-	ASSERT(db->db_level == 0);
-
-	ASSERT((user_ptr == NULL) == (evict_func == NULL));
-
-	mutex_enter(&db->db_mtx);
-
-	if (db->db_user_ptr == old_user_ptr) {
-		db->db_user_ptr = user_ptr;
-		db->db_evict_func = evict_func;
-	} else {
-		old_user_ptr = db->db_user_ptr;
-	}
-
-	mutex_exit(&db->db_mtx);
-	return (old_user_ptr);
+	return (dmu_buf_replace_user(db_fake, user, NULL));
 }
 
 void *
 dmu_buf_get_user(dmu_buf_t *db_fake)
 {
 	dmu_buf_impl_t *db = (dmu_buf_impl_t *)db_fake;
-	ASSERT(!refcount_is_zero(&db->db_holds));
 
-	return (db->db_user_ptr);
+	dbuf_verify_user(db, DBVU_NOT_EVICTING);
+	return (db->db_user);
+}
+
+void
+dmu_buf_user_evict_wait()
+{
+	taskq_wait(dbu_evict_taskq);
 }
 
 boolean_t
@@ -2268,8 +2622,8 @@ dbuf_check_blkptr(dnode_t *dn, dmu_buf_impl_t *db)
 		if (parent == NULL) {
 			mutex_exit(&db->db_mtx);
 			rw_enter(&dn->dn_struct_rwlock, RW_READER);
-			(void) dbuf_hold_impl(dn, db->db_level+1,
-			    db->db_blkid >> epbs, FALSE, db, &parent);
+			parent = dbuf_hold_level(dn, db->db_level + 1,
+			    db->db_blkid >> epbs, db);
 			rw_exit(&dn->dn_struct_rwlock);
 			mutex_enter(&db->db_mtx);
 			db->db_parent = parent;

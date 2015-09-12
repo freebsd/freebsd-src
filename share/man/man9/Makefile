@@ -190,6 +190,8 @@ MAN=	accept_filter.9 \
 	netisr.9 \
 	nv.9 \
 	osd.9 \
+	owll.9 \
+	own.9 \
 	panic.9 \
 	pbuf.9 \
 	PCBGROUP.9 \
@@ -223,6 +225,7 @@ MAN=	accept_filter.9 \
 	pmap_pinit.9 \
 	pmap_protect.9 \
 	pmap_qenter.9 \
+	pmap_quick_enter_page.9 \
 	pmap_release.9 \
 	pmap_remove.9 \
 	pmap_resident_count.9 \
@@ -1265,6 +1268,7 @@ MLINKS+=pmap_is_modified.9 pmap_ts_referenced.9
 MLINKS+=pmap_pinit.9 pmap_pinit0.9 \
 	pmap_pinit.9 pmap_pinit2.9
 MLINKS+=pmap_qenter.9 pmap_qremove.9
+MLINKS+=pmap_quick_enter_page.9 pmap_quick_remove_page.9
 MLINKS+=pmap_remove.9 pmap_remove_all.9 \
 	pmap_remove.9 pmap_remove_pages.9
 MLINKS+=pmap_resident_count.9 pmap_wired_count.9
@@ -1353,6 +1357,7 @@ MLINKS+=rwlock.9 rw_assert.9 \
 	rwlock.9 rw_initialized.9 \
 	rwlock.9 rw_rlock.9 \
 	rwlock.9 rw_runlock.9 \
+	rwlock.9 rw_unlock.9 \
 	rwlock.9 rw_sleep.9 \
 	rwlock.9 RW_SYSINIT.9 \
 	rwlock.9 rw_try_rlock.9 \

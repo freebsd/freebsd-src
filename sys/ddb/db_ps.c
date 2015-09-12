@@ -462,7 +462,7 @@ db_findstack_cmd(db_expr_t addr, bool have_addr, db_expr_t dummy3 __unused,
 	for (ks_ce = kstack_cache; ks_ce != NULL;
 	     ks_ce = ks_ce->next_ks_entry) {
 		if ((vm_offset_t)ks_ce <= saddr && saddr < (vm_offset_t)ks_ce +
-		    PAGE_SIZE * KSTACK_PAGES) {
+		    PAGE_SIZE * kstack_pages) {
 			db_printf("Cached stack %p\n", ks_ce);
 			return;
 		}

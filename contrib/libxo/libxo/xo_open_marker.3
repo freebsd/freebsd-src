@@ -11,21 +11,12 @@
 .Dt LIBXO 3
 .Os
 .Sh NAME
-.Nm xo_open_marker
+.Nm xo_open_marker , xo_open_marker_h , xo_close_marker , xo_close_marker_h
 .Nd prevent and allow closing of open constructs
 .Sh LIBRARY
 .Lb libxo
 .Sh SYNOPSIS
 .In libxo/xo.h
-.Sh NAME
-.Nm xo_open_marker
-.Nm xo_open_marker_h
-.Nm xo_close_marker
-.Nm xo_close_marker_h
-.Nd open and close markers
-.Sh LIBRARY
-.Lb libxo
-.Sh SYNOPSIS
 .Ft int
 .Fn xo_open_marker "const char *name"
 .Ft int
@@ -109,30 +100,6 @@ properly.
         xo_close_marker("fish-guts");
     }
 .Ed
-.Sh ADDITIONAL DOCUMENTATION
-Complete documentation can be found on github:
-.Bd -literal -offset indent
-http://juniper.github.io/libxo/libxo-manual.html
-.Ed
-.Pp
-.Nm libxo
-lives on github as:
-.Bd -literal -offset indent
-https://github.com/Juniper/libxo
-.Ed
-.Pp
-The latest release of
-.Nm libxo
-is available at:
-.Bd -literal -offset indent
-https://github.com/Juniper/libxo/releases
-.Ed
 .Sh SEE ALSO
-.Xr xo_emit 3
-.Sh HISTORY
-The
-.Nm libxo
-library was added in
-.Fx 11.0 .
-.Sh AUTHOR
-Phil Shafer
+.Xr xo_emit 3 ,
+.Xr libxo 3

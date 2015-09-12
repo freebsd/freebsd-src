@@ -189,10 +189,6 @@
 #define CLOUDABI_FILETYPE_SOCKET_STREAM 0x82
 #define CLOUDABI_FILETYPE_SYMBOLIC_LINK 0x90
 
-// Futex object scopes.
-#define CLOUDABI_FUTEXSCOPE_GLOBAL 1
-#define CLOUDABI_FUTEXSCOPE_PROCESS_LOCAL 2
-
 // Read-write lock related constants.
 #define CLOUDABI_LOCK_UNLOCKED 0                 // Lock is unlocked.
 #define CLOUDABI_LOCK_WRLOCKED 0x40000000        // Lock is write locked.
@@ -207,9 +203,6 @@
 #define CLOUDABI_O_DIRECTORY 0x2
 #define CLOUDABI_O_EXCL 0x4
 #define CLOUDABI_O_TRUNC 0x8
-
-// File descriptor passed to poll() to poll just once.
-#define CLOUDABI_POLL_ONCE 0xffffffff
 
 // File descriptor returned to pdfork()'s child process.
 #define CLOUDABI_PROCESS_CHILD 0xffffffff
@@ -330,6 +323,12 @@
 #define CLOUDABI_SUBSCRIPTION_ENABLE 0x10
 #define CLOUDABI_SUBSCRIPTION_ONESHOT 0x20
 
+// cloudabi_subscription_t::clock.flags.
+#define CLOUDABI_SUBSCRIPTION_CLOCK_ABSTIME 0x1
+
+// cloudabi_subscription_t::fd_readwrite.flags.
+#define CLOUDABI_SUBSCRIPTION_FD_READWRITE_POLL 0x1
+
 // unlinkat().
 #define CLOUDABI_UNLINK_REMOVEDIR 0x1
 
@@ -354,7 +353,6 @@ typedef int64_t cloudabi_filedelta_t;   // lseek().
 typedef uint64_t cloudabi_filesize_t;   // ftruncate(), struct stat::st_size.
 typedef uint8_t cloudabi_filetype_t;    // struct stat::st_mode.
 typedef uint16_t cloudabi_fsflags_t;    // file_stat_put().
-typedef uint8_t cloudabi_futexscope_t;  // Scope of lock or condition variable.
 typedef uint64_t cloudabi_inode_t;      // struct stat::st_ino.
 typedef uint32_t cloudabi_linkcount_t;  // struct stat::st_nlink.
 typedef uint32_t cloudabi_lock_t;       // pthread_{mutex,rwlock}_*().

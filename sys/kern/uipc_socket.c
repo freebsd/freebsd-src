@@ -2334,6 +2334,9 @@ soshutdown(struct socket *so, int how)
 
 	if (!(how == SHUT_RD || how == SHUT_WR || how == SHUT_RDWR))
 		return (EINVAL);
+	if ((so->so_state &
+	    (SS_ISCONNECTED | SS_ISCONNECTING | SS_ISDISCONNECTING)) == 0)
+		return (ENOTCONN);
 
 	CURVNET_SET(so->so_vnet);
 	if (pr->pr_usrreqs->pru_flush != NULL)

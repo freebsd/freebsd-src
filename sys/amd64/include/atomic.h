@@ -269,13 +269,13 @@ atomic_testandset_long(volatile u_long *p, u_int v)
  * IA32 memory model, a simple store guarantees release semantics.
  *
  * However, a load may pass a store if they are performed on distinct
- * addresses, so for atomic_load_acq we introduce a Store/Load barrier
- * before the load in SMP kernels.  We use "lock addl $0,mem", as
- * recommended by the AMD Software Optimization Guide, and not mfence.
- * In the kernel, we use a private per-cpu cache line as the target
- * for the locked addition, to avoid introducing false data
- * dependencies.  In userspace, a word in the red zone on the stack
- * (-8(%rsp)) is utilized.
+ * addresses, so we need a Store/Load barrier for sequentially
+ * consistent fences in SMP kernels.  We use "lock addl $0,mem" for a
+ * Store/Load barrier, as recommended by the AMD Software Optimization
+ * Guide, and not mfence.  To avoid false data dependencies, we use a
+ * special address for "mem".  In the kernel, we use a private per-cpu
+ * cache line.  In user space, we use a word in the stack's red zone
+ * (-8(%rsp)).
  *
  * For UP kernels, however, the memory of the single processor is
  * always consistent, so we only need to stop the compiler from
@@ -319,22 +319,12 @@ __storeload_barrier(void)
 }
 #endif /* _KERNEL*/
 
-/*
- * C11-standard acq/rel semantics only apply when the variable in the
- * call is the same for acq as it is for rel.  However, our previous
- * (x86) implementations provided much stronger ordering than required
- * (essentially what is called seq_cst order in C11).  This
- * implementation provides the historical strong ordering since some
- * callers depend on it.
- */
-
 #define	ATOMIC_LOAD(TYPE)					\
 static __inline u_##TYPE					\
 atomic_load_acq_##TYPE(volatile u_##TYPE *p)			\
 {								\
 	u_##TYPE res;						\
 								\
-	__storeload_barrier();					\
 	res = *p;						\
 	__compiler_membar();					\
 	return (res);						\

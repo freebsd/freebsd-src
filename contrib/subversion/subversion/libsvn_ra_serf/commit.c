@@ -2234,6 +2234,7 @@ close_edit(void *edit_baton,
     ctx->activity_url ? ctx->activity_url : ctx->txn_url;
   const svn_commit_info_t *commit_info;
   int response_code;
+  svn_error_t *err = NULL;
 
   /* MERGE our activity */
   SVN_ERR(svn_ra_serf__run_merge(&commit_info, &response_code,
@@ -2252,9 +2253,11 @@ close_edit(void *edit_baton,
                                response_code);
     }
 
+  ctx->txn_url = NULL; /* If HTTPv2, the txn is now done */
+
   /* Inform the WC that we did a commit.  */
   if (ctx->callback)
-    SVN_ERR(ctx->callback(commit_info, ctx->callback_baton, pool));
+    err = ctx->callback(commit_info, ctx->callback_baton, pool);
 
   /* If we're using activities, DELETE our completed activity.  */
   if (ctx->activity_url)
@@ -2271,10 +2274,16 @@ close_edit(void *edit_baton,
       handler->response_handler = svn_ra_serf__expect_empty_body;
       handler->response_baton = handler;
 
-      SVN_ERR(svn_ra_serf__context_run_one(handler, pool));
+      ctx->activity_url = NULL; /* Don't try again in abort_edit() on fail */
+
+      SVN_ERR(svn_error_compose_create(
+                  err,
+                  svn_ra_serf__context_run_one(handler, pool)));
 
       SVN_ERR_ASSERT(handler->sline.code == 204);
     }
+
+  SVN_ERR(err);
 
   return SVN_NO_ERROR;
 }

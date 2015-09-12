@@ -1,3 +1,138 @@
+Version 1.8.14
+(5 Aug 2015, from /branches/1.8.x)
+http://svn.apache.org/repos/asf/subversion/tags/1.8.14
+
+ User-visible changes:
+  - Client-side bugfixes:
+    * document svn:autoprops (r1678494 et al.)
+    * cp: fix 'svn cp ^/A/D/H@1 ^/A' to properly create A (r1674455, r1674456)
+    * resolve: improve conflict prompts for binary files (r1667228 et al.)
+    * ls: improve performance of '-v' on tag directories (r1673153)
+    * improved Sqlite 3.8.9 query performance regression on externals (r1672295 et al.)
+    * fixed issue #4580: 'svn -v st' on file externals reports "?" instead
+      of user and revision after 'svn up' (r1680242)
+
+  - Server-side bugfixes:
+    * mod_dav_svn: do not ignore skel parsing errors (r1658168)
+    * detect invalid svndiff data earlier (r1684077)
+    * prevent possible repository corruption on power/disk failures (r1680819)
+    * fixed issue #4577: Read error with nodes whose DELTA chain starts with
+      a PLAIN rep (r1676667, r1677267)
+    * fixed issue #4531: server-side copy (over dav) is slow and uses
+      too much memory (r1674627)
+
+ Developer-visible changes:
+  - General:
+    * support building on Windows with Visual Studio 2015 (r1692785)
+    * avoid failing some tests on versions of Python with a very old sqlite (r1674522)
+    * fix Ruby tests so they don't use the users real configuration (r1597884)
+
+  - Bindings:
+    * swig-pl: fix some stack memory problems (r1668618, 1671388)
+
+Version 1.8.13
+(31 Mar 2015, from /branches/1.8.x)
+http://svn.apache.org/repos/asf/subversion/tags/1.8.13
+
+ User-visible changes:
+  - Client-side bugfixes:
+    * ra_serf: prevent abort of commits that have already succeeded (r1659867)
+    * ra_serf: support case-insensitivity in HTTP headers (r1650481, r1650489)
+    * better error message if an external is shadowed (r1655712, r1655738)
+    * ra_svn: fix reporting of directory read errors (r1656713)
+    * fix a redirect handling bug in 'svn log' over HTTP (r1650531)
+    * properly copy tree conflict information (r1658115, r1659553, r1659554)
+    * fix 'svn patch' output for reordered hunks (issue #4533)
+    * svnrdump load: don't load wrong props with no-deltas dump (issue #4551)
+    * fix working copy corruption with relative file external (issue #4411)
+    * don't crash if config file is unreadable (r1590751, r1660350)
+    * svn resolve: don't ask a question with only one answer (r1658417)
+    * fix assertion failure in svn move (r1651963 et al)
+    * working copy performance improvements (r1664531, r1664476, et al)
+    * handle existing working copies which become externals (r1660071)
+    * fix recording of WC meta-data for foreign repos copies (r1660593)
+    * fix calculating repository path of replaced directories (r1660646)
+    * fix calculating repository path after commit of switched nodes (r1663991)
+    * svnrdump: don't provide HEAD+1 as base revision for deletes (r1664684)
+    * don't leave conflict markers on files that are moved (r1660220, r1665874)
+    * avoid unnecessary subtree mergeinfo recording (r1666690)
+    * fix diff of a locally copied directory with props (r1619380 et al)
+
+  - Server-side bugfixes:
+    * fsfs: fix a problem verifying pre-1.4 repos used with 1.8 (r1561419)
+    * svnadmin freeze: fix memory allocation error (r1653039)
+    * svnadmin load: tolerate invalid mergeinfo at r0 (r1643074, issue #4476)  
+    * svnadmin load: strip references to r1 from mergeinfo (issue #4538)
+    * svnsync: strip any r0 references from mergeinfo (issue #4476)
+    * fsfs: reduce memory consumption when operating on dag nodes (r1655651)
+    * reject invalid get-location-segments requests in mod_dav_svn and
+      svnserve (r1667233)
+    * mod_dav_svn: reject invalid txnprop change requests (r1667235)
+
+  - Client-side and server-side bugfixes:
+    * fix undefined behaviour in string buffer routines (r1650834)
+    * fix consistency issues with APR r/w locks on Windows (r1611380 et al)
+    * fix occasional SEGV if threads load DSOs in parallel (r1659013, r1659315)
+    * properly duplicate svn error objects (r1651759)
+    * fix use-after-free in config parser (1646785, r1646786, r1646797)
+
+ Developer-visible changes:
+  * add lock file config for testing against HTTPD 2.4+ (r1544302, r1544303)
+  * make sqlite amalgamated build work with sqlite 3.8.x+ (r1659399)
+  * fix build with Ruby 2 (r1596882)
+  * process 'svnadmin dump' output as binary in the test suite (r1592987)
+  * simplify Windows resource compilation to avoid warnings (r1532287)
+
+
+Version 1.8.12
+(Not released, see changes for 1.8.13.)
+
+
+Version 1.8.11
+(15 Dec 2014, from /branches/1.8.x)
+http://svn.apache.org/repos/asf/subversion/tags/1.8.11
+
+ User-visible changes:
+  - Client-side bugfixes:
+    * checkout/update: fix file externals failing to follow history and
+      subsequently silently failing (issue #4185)
+    * patch: don't skip targets in valid --git difs (r1592014, r1592034)
+    * diff: make property output in diffs stable (r1589360)
+    * diff: fix diff of local copied directory with props (r1619380, r1619393)
+    * diff: fix changelist filter for repos-WC and WC-WC (r1621978, r1621981)
+    * remove broken conflict resolver menu options that always error out
+      (r1620332)
+    * improve gpg-agent support (r1600331, r1600348, 1600368, r1600563,
+      r1600781)
+    * fix crash in eclipse IDE with GNOME Keyring (issue #3498)
+    * fix externals shadowing a versioned directory (issue #4085)
+    * fix problems working on unix file systems that don't support
+      permissions (r1612225)
+    * upgrade: keep external registrations (issue #4519)
+    * cleanup: iprove performance of recorded timestamp fixups (r1633126)
+    * translation updates for German
+
+  - Server-side bugfixes:
+    * disable revprop caching feature due to cache invalidation problems
+      (r1543594, r1619774, r1619105, r1619118, r1619153, r1619802)
+    * skip generating uniquifiers if rep-sharing is not supported (r1561426)
+    * mod_dav_svn: reject requests with missing repository paths (r1643409)
+    * mod_dav_svn: reject requests with invalid virtual transaction names
+      (r1643437)
+    * mod_dav_svn: avoid unneeded memory growth in resource walking
+      (issue #4531)
+
+ Developer-visible changes:
+  - General:
+    * make sure all members of the repos layer notify struct are valid,
+      fixes crashes in API users using all members (r1616131)
+    * properly generate a version resource when building on Windows (r1542610,
+      r1564576, r1568180)
+    * fix LIBTOOL_M4 and LIBTOOL_CONFIG variable not be evaluated properly
+      during a unix build (r1637826)
+    * allow the use of libtool 2.4.3 (r1640862, r1640873, r1643793)
+
+
 Version 1.8.10
 (11 Aug 2014, from /branches/1.8.x)
 http://svn.apache.org/repos/asf/subversion/tags/1.8.10
@@ -316,7 +451,7 @@ http://svn.apache.org/repos/asf/subversion/tags/1.8.1
     * merge: rename 'automatic merge' to 'complete merge' (r1491432)
     * mergeinfo: reduce network usage for '--show-revs' (r1492005)
     * ra_serf: improve http status handling (r1495104)
-    * merge: avoid unneeded ra session (r1493475)
+    * merge: avoid unneeded RA session (r1493475)
     * merge: reduce network usage (r1478987)
     * merge: remove duplicated ancestry check (r1493424, r1495597)
     * ra_serf: fix 'Accept-Encoding' header for IIS interoperability (r1497551)
@@ -727,6 +862,81 @@ http://svn.apache.org/repos/asf/subversion/tags/1.8.0
     * add missing API functions to Python bindings (r1392038 et al)
     * add missing API functions to JavaHL bindings (issue #4326)
     * fix some reference counting bugs in swig-py bindings (r1464899, r1466524)
+
+
+Version 1.7.21
+(5 Aug 2015, from /branches/1.7.x)
+http://svn.apache.org/repos/asf/subversion/tags/1.8.21
+
+ User-visible changes:
+  - Client-side bugfixes:
+    * cp: fix 'svn cp ^/A/D/H@1 ^/A' to properly create A (r1674455, r1674456)
+    * fix issue #4551: svnrdump load commits wrong properties, or fails, on a
+      non-deltas dumpfile (r1652182 et al.)
+
+  - Server-side bugfixes:
+    * fix 'svnadmin recover' for pre-1.4 FSFS repositories (r1561419)
+
+ Developer-visible changes:
+  - General:
+    * support building on Windows with Visual Studio 2012, 2013 and 2015 (r1687158, r1692783)
+
+  - Bindings:
+    * swig-pl: fix some stack memory problems (r1668618, 1671388)
+
+Version 1.7.20
+(31 Mar 2015, from /branches/1.7.x)
+http://svn.apache.org/repos/asf/subversion/tags/1.7.20
+
+ User-visible changes:
+  - Client-side bugfixes:
+    * fix 'svn patch' output for reordered hunks (issue #4533)
+
+  - Server-side bugfixes:
+    * reject invalid get-location-segments requests in mod_dav_svn and
+      svnserve (r1667233)
+    * mod_dav_svn: reject invalid txnprop change requests (r1667235)
+
+  - Client-side and server-side bugfixes:
+    * properly duplicate svn error objects (r1651759)
+    * fix use-after-free in config parser (1646785, r1646786, r1646797)
+
+ Developer-visible changes:
+  * add lock file config for testing against HTTPD 2.4+ (r1544302, r1544303)
+  * fix build with absolute path to neon install (r1664789)
+
+
+Version 1.7.19
+(15 Dec 2014, from /branches/1.7.x)
+http://svn.apache.org/repos/asf/subversion/tags/1.7.19
+
+ User-visible changes:
+  - Client-side bugfixes:
+    * rm: display the proper URL in commit log editor (r1591123)
+    * diff: fix invalid read during suffix scanning (issue #4339)
+    * fix crash in eclipse IDE with GNOME Keyring (issue #3498)
+    * checkout/update: fix file externals failing to follow history and
+      subsequently silently failing (issue #4185)
+
+  - Server-side bugfixes:
+    * svnadmin dump: don't let invalid mergeinfo prevent a dump (issue #4476)
+    * mod_dav_svn: reject requests with missing repository paths (r1643409)
+    * mod_dav_svn: reject requests with invalid virtual transaction names
+      (r1643437)
+    * mod_dav_svn: avoid unneeded memory growth in resource walking
+      (issue #4531)
+
+ Developer-visible changes:
+  - General:
+    * properly generate a version resource when building on Windows (r1542610,
+      r1564576, r1568180)
+    * fix a problem with the unix build that could result in linking to the
+      wrong Subversion libraries at build or at run time (r1594157)
+    * use a proper intermediate directory when building with Visual Studio
+      2003-2008 (r1595431)
+    * fix LIBTOOL_M4 and LIBTOOL_CONFIG variable not be evaluated properly
+      during a unix build (r1637826)
+    * allow the use of libtool 2.4.3 (r1640862, r1640873, r1643793)
 
 
 Version 1.7.18

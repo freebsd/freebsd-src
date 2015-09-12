@@ -137,7 +137,7 @@ elf_reloc_local(linker_file_t lf, Elf_Addr relocbase, const void *data,
     int type, elf_lookup_fn lookup __unused)
 {
 
-	panic("elf_reloc_local");
+	panic("ARM64TODO: elf_reloc_local");
 }
 
 /* Process one elf relocation with addend. */
@@ -146,7 +146,7 @@ elf_reloc(linker_file_t lf, Elf_Addr relocbase, const void *data, int type,
     elf_lookup_fn lookup)
 {
 
-	panic("elf_reloc");
+	panic("ARM64TODO: elf_reloc");
 }
 
 int

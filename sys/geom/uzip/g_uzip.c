@@ -94,8 +94,8 @@ g_uzip_softc_free(struct g_uzip_softc *sc, struct g_geom *gp)
 {
 
 	if (gp != NULL) {
-		printf("%s: %d requests, %d cached\n",
-		    gp->name, sc->req_total, sc->req_cached);
+		DPRINTF(("%s: %d requests, %d cached\n",
+		    gp->name, sc->req_total, sc->req_cached));
 	}
 	if (sc->offsets != NULL) {
 		free(sc->offsets, M_GEOM_UZIP);
@@ -519,7 +519,7 @@ g_uzip_taste(struct g_class *mp, struct g_provider *pp, int flags)
 	    gp->name,
 	    pp2->sectorsize, (intmax_t)pp2->mediasize,
 	    pp2->stripeoffset, pp2->stripesize, pp2->flags));
-	printf("%s: %u x %u blocks\n", gp->name, sc->nblocks, sc->blksz);
+	DPRINTF(("%s: %u x %u blocks\n", gp->name, sc->nblocks, sc->blksz));
 	return (gp);
 
 err:
@@ -547,7 +547,7 @@ g_uzip_destroy_geom(struct gctl_req *req, struct g_class *mp, struct g_geom *gp)
 	g_topology_assert();
 
 	if (gp->softc == NULL) {
-		printf("%s(%s): gp->softc == NULL\n", __func__, gp->name);
+		DPRINTF(("%s(%s): gp->softc == NULL\n", __func__, gp->name));
 		return (ENXIO);
 	}
 

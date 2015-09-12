@@ -57,7 +57,12 @@
 #define	CPU_AFF1(mpidr)	(u_int)(((mpidr) >> 8) & 0xff)
 #define	CPU_AFF2(mpidr)	(u_int)(((mpidr) >> 16) & 0xff)
 #define	CPU_AFF3(mpidr)	(u_int)(((mpidr) >> 32) & 0xff)
-#define	CPU_AFF_MASK	0xff00ffffffUL	/* Mask affinity fields in MPIDR_EL1 */
+#define	CPU_AFF0_MASK	0xffUL
+#define	CPU_AFF1_MASK	0xff00UL
+#define	CPU_AFF2_MASK	0xff0000UL
+#define	CPU_AFF3_MASK	0xff00000000UL
+#define	CPU_AFF_MASK	(CPU_AFF0_MASK | CPU_AFF1_MASK | \
+    CPU_AFF2_MASK| CPU_AFF3_MASK)	/* Mask affinity fields in MPIDR_EL1 */
 
 #ifdef _KERNEL
 
@@ -77,6 +82,9 @@
 #define	CPU_PART_FOUNDATION	0xD00
 #define	CPU_PART_CORTEX_A53	0xD03
 #define	CPU_PART_CORTEX_A57	0xD07
+
+#define	CPU_REV_THUNDER_1_0	0x00
+#define	CPU_REV_THUNDER_1_1	0x01
 
 #define	CPU_IMPL(midr)	(((midr) >> 24) & 0xff)
 #define	CPU_PART(midr)	(((midr) >> 4) & 0xfff)
@@ -104,6 +112,29 @@
 
 #define	CPU_MATCH_RAW(mask, devid)			\
     (((mask) & PCPU_GET(midr)) == ((mask) & (devid)))
+
+/*
+ * Chip-specific errata. This defines are intended to be
+ * booleans used within if statements. When an appropriate
+ * kernel option is disabled, these defines must be defined
+ * as 0 to allow the compiler to remove a dead code thus
+ * produce better optimized kernel image.
+ */
+/*
+ * Vendor:	Cavium
+ * Chip:	ThunderX
+ * Revision(s):	Pass 1.0, Pass 1.1
+ */
+#ifdef THUNDERX_PASS_1_1_ERRATA
+#define	CPU_MATCH_ERRATA_CAVIUM_THUNDER_1_1				\
+    (CPU_MATCH(CPU_IMPL_MASK | CPU_PART_MASK | CPU_REV_MASK,		\
+    CPU_IMPL_CAVIUM, CPU_PART_THUNDER, 0, CPU_REV_THUNDER_1_0) ||	\
+    CPU_MATCH(CPU_IMPL_MASK | CPU_PART_MASK | CPU_REV_MASK,		\
+    CPU_IMPL_CAVIUM, CPU_PART_THUNDER, 0, CPU_REV_THUNDER_1_1))
+#else
+#define	CPU_MATCH_ERRATA_CAVIUM_THUNDER_1_1	0
+#endif
+
 
 extern char btext[];
 extern char etext[];

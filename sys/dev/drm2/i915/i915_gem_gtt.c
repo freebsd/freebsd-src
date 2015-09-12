@@ -34,9 +34,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/sf_buf.h>
 
 /* PPGTT support for Sandybdrige/Gen6 and later */
-static void
-i915_ppgtt_clear_range(struct i915_hw_ppgtt *ppgtt,
-    unsigned first_entry, unsigned num_entries)
+static void i915_ppgtt_clear_range(struct i915_hw_ppgtt *ppgtt,
+				   unsigned first_entry,
+				   unsigned num_entries)
 {
 	uint32_t *pt_vaddr;
 	uint32_t scratch_pte;
@@ -71,20 +71,17 @@ i915_ppgtt_clear_range(struct i915_hw_ppgtt *ppgtt,
 
 }
 
-int
-i915_gem_init_aliasing_ppgtt(struct drm_device *dev)
+int i915_gem_init_aliasing_ppgtt(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct i915_hw_ppgtt *ppgtt;
-	u_int first_pd_entry_in_global_pt, i;
+	unsigned first_pd_entry_in_global_pt;
+	int i;
 
-	dev_priv = dev->dev_private;
 
-	/*
-	 * ppgtt PDEs reside in the global gtt pagetable, which has 512*1024
+	/* ppgtt PDEs reside in the global gtt pagetable, which has 512*1024
 	 * entries. For aliasing ppgtt support we just steal them at the end for
-	 * now.
-	 */
+	 * now.  */
 	first_pd_entry_in_global_pt = 512 * 1024 - I915_PPGTT_PD_ENTRIES;
 
 	ppgtt = malloc(sizeof(*ppgtt), DRM_I915_GEM, M_WAITOK | M_ZERO);
@@ -152,9 +149,9 @@ i915_ppgtt_insert_pages(struct i915_hw_ppgtt *ppgtt, unsigned first_entry,
 	}
 }
 
-void
-i915_ppgtt_bind_object(struct i915_hw_ppgtt *ppgtt,
-    struct drm_i915_gem_object *obj, enum i915_cache_level cache_level)
+void i915_ppgtt_bind_object(struct i915_hw_ppgtt *ppgtt,
+			    struct drm_i915_gem_object *obj,
+			    enum i915_cache_level cache_level)
 {
 	struct drm_device *dev;
 	struct drm_i915_private *dev_priv;
@@ -185,8 +182,86 @@ i915_ppgtt_bind_object(struct i915_hw_ppgtt *ppgtt,
 void i915_ppgtt_unbind_object(struct i915_hw_ppgtt *ppgtt,
 			      struct drm_i915_gem_object *obj)
 {
-	i915_ppgtt_clear_range(ppgtt, obj->gtt_space->start >> PAGE_SHIFT,
-	    obj->base.size >> PAGE_SHIFT);
+	i915_ppgtt_clear_range(ppgtt,
+			       obj->gtt_space->start >> PAGE_SHIFT,
+			       obj->base.size >> PAGE_SHIFT);
+}
+
+void i915_gem_init_ppgtt(struct drm_device *dev)
+{
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	uint32_t pd_offset;
+	struct intel_ring_buffer *ring;
+	struct i915_hw_ppgtt *ppgtt = dev_priv->mm.aliasing_ppgtt;
+	u_int first_pd_entry_in_global_pt;
+	vm_paddr_t pt_addr;
+	uint32_t pd_entry;
+	int i;
+
+	if (!dev_priv->mm.aliasing_ppgtt)
+		return;
+
+	first_pd_entry_in_global_pt = 512 * 1024 - I915_PPGTT_PD_ENTRIES;
+	for (i = 0; i < ppgtt->num_pd_entries; i++) {
+		pt_addr = VM_PAGE_TO_PHYS(ppgtt->pt_pages[i]);
+		pd_entry = GEN6_PDE_ADDR_ENCODE(pt_addr);
+		pd_entry |= GEN6_PDE_VALID;
+		intel_gtt_write(first_pd_entry_in_global_pt + i, pd_entry);
+	}
+	intel_gtt_read_pte(first_pd_entry_in_global_pt);
+
+	pd_offset = ppgtt->pd_offset;
+	pd_offset /= 64; /* in cachelines, */
+	pd_offset <<= 16;
+
+	if (INTEL_INFO(dev)->gen == 6) {
+		uint32_t ecochk, gab_ctl, ecobits;
+
+		ecobits = I915_READ(GAC_ECO_BITS); 
+		I915_WRITE(GAC_ECO_BITS, ecobits | ECOBITS_PPGTT_CACHE64B);
+
+		gab_ctl = I915_READ(GAB_CTL);
+		I915_WRITE(GAB_CTL, gab_ctl | GAB_CTL_CONT_AFTER_PAGEFAULT);
+
+		ecochk = I915_READ(GAM_ECOCHK);
+		I915_WRITE(GAM_ECOCHK, ecochk | ECOCHK_SNB_BIT |
+				       ECOCHK_PPGTT_CACHE64B);
+		I915_WRITE(GFX_MODE, _MASKED_BIT_ENABLE(GFX_PPGTT_ENABLE));
+	} else if (INTEL_INFO(dev)->gen >= 7) {
+		I915_WRITE(GAM_ECOCHK, ECOCHK_PPGTT_CACHE64B);
+		/* GFX_MODE is per-ring on gen7+ */
+	}
+
+	for_each_ring(ring, dev_priv, i) {
+		if (INTEL_INFO(dev)->gen >= 7)
+			I915_WRITE(RING_MODE_GEN7(ring),
+				   _MASKED_BIT_ENABLE(GFX_PPGTT_ENABLE));
+
+		I915_WRITE(RING_PP_DIR_DCLV(ring), PP_DIR_DCLV_2G);
+		I915_WRITE(RING_PP_DIR_BASE(ring), pd_offset);
+	}
+}
+
+static bool do_idling(struct drm_i915_private *dev_priv)
+{
+	bool ret = dev_priv->mm.interruptible;
+
+	if (dev_priv->mm.gtt.do_idle_maps) {
+		dev_priv->mm.interruptible = false;
+		if (i915_gpu_idle(dev_priv->dev)) {
+			DRM_ERROR("Couldn't idle GPU\n");
+			/* Wait a bit, in hopes it avoids the hang */
+			DELAY(10);
+		}
+	}
+
+	return ret;
+}
+
+static void undo_idling(struct drm_i915_private *dev_priv, bool interruptible)
+{
+	if (dev_priv->mm.gtt.do_idle_maps)
+		dev_priv->mm.interruptible = interruptible;
 }
 
 void
@@ -238,42 +313,14 @@ cache_level_to_agp_type(struct drm_device *dev, enum i915_cache_level
 	}
 }
 
-static bool
-do_idling(struct drm_i915_private *dev_priv)
+void i915_gem_restore_gtt_mappings(struct drm_device *dev)
 {
-	bool ret = dev_priv->mm.interruptible;
-
-	if (dev_priv->mm.gtt.do_idle_maps) {
-		dev_priv->mm.interruptible = false;
-		if (i915_gpu_idle(dev_priv->dev)) {
-			DRM_ERROR("Couldn't idle GPU\n");
-			/* Wait a bit, in hopes it avoids the hang */
-			DELAY(10);
-		}
-	}
-
-	return ret;
-}
-
-static void
-undo_idling(struct drm_i915_private *dev_priv, bool interruptible)
-{
-
-	if (dev_priv->mm.gtt.do_idle_maps)
-		dev_priv->mm.interruptible = interruptible;
-}
-
-void
-i915_gem_restore_gtt_mappings(struct drm_device *dev)
-{
-	struct drm_i915_private *dev_priv;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_gem_object *obj;
-
-	dev_priv = dev->dev_private;
 
 	/* First fill our portion of the GTT with scratch pages */
 	intel_gtt_clear_range(dev_priv->mm.gtt_start / PAGE_SIZE,
-	    (dev_priv->mm.gtt_end - dev_priv->mm.gtt_start) / PAGE_SIZE);
+			      (dev_priv->mm.gtt_end - dev_priv->mm.gtt_start) / PAGE_SIZE);
 
 	list_for_each_entry(obj, &dev_priv->mm.gtt_list, gtt_list) {
 		i915_gem_clflush_object(obj);
@@ -283,11 +330,10 @@ i915_gem_restore_gtt_mappings(struct drm_device *dev)
 	intel_gtt_chipset_flush();
 }
 
-int
-i915_gem_gtt_prepare_object(struct drm_i915_gem_object *obj)
+int i915_gem_gtt_prepare_object(struct drm_i915_gem_object *obj)
 {
 
-	return (0);
+	return 0;
 }
 
 void
@@ -308,8 +354,7 @@ i915_gem_gtt_bind_object(struct drm_i915_gem_object *obj,
 	obj->has_global_gtt_mapping = 1;
 }
 
-void
-i915_gem_gtt_unbind_object(struct drm_i915_gem_object *obj)
+void i915_gem_gtt_unbind_object(struct drm_i915_gem_object *obj)
 {
 
 	intel_gtt_clear_range(obj->gtt_space->start >> PAGE_SHIFT,
@@ -318,24 +363,21 @@ i915_gem_gtt_unbind_object(struct drm_i915_gem_object *obj)
 	obj->has_global_gtt_mapping = 0;
 }
 
-void
-i915_gem_gtt_finish_object(struct drm_i915_gem_object *obj)
+void i915_gem_gtt_finish_object(struct drm_i915_gem_object *obj)
 {
 	struct drm_device *dev = obj->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	bool interruptible;
-
-	dev = obj->base.dev;
-	dev_priv = dev->dev_private;
 
 	interruptible = do_idling(dev_priv);
 
 	undo_idling(dev_priv, interruptible);
 }
 
-int
-i915_gem_init_global_gtt(struct drm_device *dev, unsigned long start,
-    unsigned long mappable_end, unsigned long end)
+int i915_gem_init_global_gtt(struct drm_device *dev,
+			     unsigned long start,
+			     unsigned long mappable_end,
+			     unsigned long end)
 {
 	drm_i915_private_t *dev_priv;
 	unsigned long mappable;

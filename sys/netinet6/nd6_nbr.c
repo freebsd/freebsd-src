@@ -68,7 +68,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in.h>
 #include <netinet/in_var.h>
 #include <net/if_llatbl.h>
-#define	L3_ADDR_SIN6(le)	((struct sockaddr_in6 *) L3_ADDR(le))
 #include <netinet6/in6_var.h>
 #include <netinet6/in6_ifattach.h>
 #include <netinet/ip6.h>
@@ -96,7 +95,7 @@ static void nd6_dad_na_input(struct ifaddr *);
 static void nd6_na_output_fib(struct ifnet *, const struct in6_addr *,
     const struct in6_addr *, u_long, int, struct sockaddr *, u_int);
 static void nd6_ns_output_fib(struct ifnet *, const struct in6_addr *,
-    const struct in6_addr *, struct llentry *, uint8_t *, u_int);
+    const struct in6_addr *, const struct in6_addr *, uint8_t *, u_int);
 
 static VNET_DEFINE(int, dad_enhanced) = 1;
 #define	V_dad_enhanced			VNET(dad_enhanced)
@@ -397,9 +396,9 @@ nd6_ns_input(struct mbuf *m, int off, int icmp6len)
  *         the value (length is ND_OPT_NONCE_LEN) is used as a random nonce.
  */
 static void
-nd6_ns_output_fib(struct ifnet *ifp, const struct in6_addr *daddr6,
-    const struct in6_addr *taddr6, struct llentry *ln, uint8_t *nonce,
-    u_int fibnum)
+nd6_ns_output_fib(struct ifnet *ifp, const struct in6_addr *saddr6,
+    const struct in6_addr *daddr6, const struct in6_addr *taddr6,
+    uint8_t *nonce, u_int fibnum)
 {
 	struct mbuf *m;
 	struct m_tag *mtag;
@@ -463,7 +462,7 @@ nd6_ns_output_fib(struct ifnet *ifp, const struct in6_addr *daddr6,
 			goto bad;
 	}
 	if (nonce == NULL) {
-		struct ifaddr *ifa;
+		struct ifaddr *ifa = NULL;
 
 		/*
 		 * RFC2461 7.2.2:
@@ -475,35 +474,15 @@ nd6_ns_output_fib(struct ifnet *ifp, const struct in6_addr *daddr6,
 		 * interface should be used."
 		 *
 		 * We use the source address for the prompting packet
-		 * (saddr6), if:
-		 * - saddr6 is given from the caller (by giving "ln"), and
-		 * - saddr6 belongs to the outgoing interface.
+		 * (saddr6), if saddr6 belongs to the outgoing interface.
 		 * Otherwise, we perform the source address selection as usual.
 		 */
-		struct in6_addr *hsrc;
 
-		hsrc = NULL;
-		if (ln != NULL) {
-			LLE_RLOCK(ln);
-			if (ln->la_hold != NULL) {
-				struct ip6_hdr *hip6;		/* hold ip6 */
-
-				/*
-				 * assuming every packet in la_hold has the same IP
-				 * header
-				 */
-				hip6 = mtod(ln->la_hold, struct ip6_hdr *);
-				/* XXX pullup? */
-				if (sizeof(*hip6) < ln->la_hold->m_len) {
-					ip6->ip6_src = hip6->ip6_src;
-					hsrc = &hip6->ip6_src;
-				}
-			}
-			LLE_RUNLOCK(ln);
-		}
-		if (hsrc && (ifa = (struct ifaddr *)in6ifa_ifpwithaddr(ifp,
-		    hsrc)) != NULL) {
+		if (saddr6 != NULL)
+			ifa = (struct ifaddr *)in6ifa_ifpwithaddr(ifp, saddr6);
+		if (ifa != NULL) {
 			/* ip6_src set already. */
+			ip6->ip6_src = *saddr6;
 			ifa_free(ifa);
 		} else {
 			int error;
@@ -575,7 +554,7 @@ nd6_ns_output_fib(struct ifnet *ifp, const struct in6_addr *daddr6,
 	/*
 	 * Add a Nonce option (RFC 3971) to detect looped back NS messages.
 	 * This behavior is documented as Enhanced Duplicate Address
-	 * Detection in draft-ietf-6man-enhanced-dad-13.
+	 * Detection in RFC 7527.
 	 * net.inet6.ip6.dad_enhanced=0 disables this.
 	 */
 	if (V_dad_enhanced != 0 && nonce != NULL) {
@@ -627,11 +606,11 @@ nd6_ns_output_fib(struct ifnet *ifp, const struct in6_addr *daddr6,
 
 #ifndef BURN_BRIDGES
 void
-nd6_ns_output(struct ifnet *ifp, const struct in6_addr *daddr6,
-    const struct in6_addr *taddr6, struct llentry *ln, uint8_t *nonce)
+nd6_ns_output(struct ifnet *ifp, const struct in6_addr *saddr6,
+    const struct in6_addr *daddr6, const struct in6_addr *taddr6,uint8_t *nonce)
 {
 
-	nd6_ns_output_fib(ifp, daddr6, taddr6, ln, nonce, RT_DEFAULT_FIB);
+	nd6_ns_output_fib(ifp, saddr6, daddr6, taddr6, nonce, RT_DEFAULT_FIB);
 }
 #endif
 /*
@@ -898,7 +877,7 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 			struct nd_defrouter *dr;
 			struct in6_addr *in6;
 
-			in6 = &L3_ADDR_SIN6(ln)->sin6_addr;
+			in6 = &ln->r_l3addr.addr6;
 
 			/*
 			 * Lock to protect the default router list.
@@ -1303,11 +1282,16 @@ nd6_dad_start(struct ifaddr *ifa, int delay)
 	}
 	if (ifa->ifa_ifp == NULL)
 		panic("nd6_dad_start: ifa->ifa_ifp == NULL");
-	if (!(ifa->ifa_ifp->if_flags & IFF_UP)) {
+	if (ND_IFINFO(ifa->ifa_ifp)->flags & ND6_IFF_NO_DAD) {
+		ia->ia6_flags &= ~IN6_IFF_TENTATIVE;
 		return;
 	}
-	if (ND_IFINFO(ifa->ifa_ifp)->flags & ND6_IFF_IFDISABLED)
+	if (!(ifa->ifa_ifp->if_flags & IFF_UP) ||
+	    !(ifa->ifa_ifp->if_drv_flags & IFF_DRV_RUNNING) ||
+	    (ND_IFINFO(ifa->ifa_ifp)->flags & ND6_IFF_IFDISABLED)) {
+		ia->ia6_flags |= IN6_IFF_TENTATIVE;
 		return;
+	}
 	if ((dp = nd6_dad_find(ifa, NULL)) != NULL) {
 		/* DAD already in progress */
 		nd6_dad_rele(dp);
@@ -1577,7 +1561,7 @@ nd6_dad_ns_output(struct dadq *dp, struct ifaddr *ifa)
 		 * should work well in almost all cases.
 		 */
 	}
-	nd6_ns_output(ifp, NULL, &ia->ia_addr.sin6_addr, NULL,
+	nd6_ns_output(ifp, NULL, NULL, &ia->ia_addr.sin6_addr,
 	    (uint8_t *)&dp->dad_nonce[0]);
 }
 

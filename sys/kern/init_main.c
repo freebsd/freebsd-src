@@ -117,6 +117,10 @@ int	bootverbose = BOOTVERBOSE;
 SYSCTL_INT(_debug, OID_AUTO, bootverbose, CTLFLAG_RW, &bootverbose, 0,
 	"Control the output of verbose kernel messages");
 
+#ifdef INVARIANTS
+FEATURE(invariants, "Kernel compiled with INVARIANTS, may affect performance");
+#endif
+
 /*
  * This ensures that there is at least one entry so that the sysinit_set
  * symbol is not undefined.  A sybsystem ID of SI_SUB_DUMMY is never
@@ -831,7 +835,7 @@ create_init(const void *udata __unused)
 	int error;
 
 	error = fork1(&thread0, RFFDG | RFPROC | RFSTOPPED, 0, &initproc,
-	    NULL, 0);
+	    NULL, 0, NULL);
 	if (error)
 		panic("cannot fork init: %d\n", error);
 	KASSERT(initproc->p_pid == 1, ("create_init: initproc->p_pid != 1"));

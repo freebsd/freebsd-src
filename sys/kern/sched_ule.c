@@ -1450,6 +1450,21 @@ sched_initticks(void *dummy)
  * a [0, 100] integer.  This is the voluntary sleep time of a process, which
  * differs from the cpu usage because it does not account for time spent
  * waiting on a run-queue.  Would be prettier if we had floating point.
+ *
+ * When a thread's sleep time is greater than its run time the
+ * calculation is:
+ *
+ *                           scaling factor 
+ * interactivity score =  ---------------------
+ *                        sleep time / run time
+ *
+ *
+ * When a thread's run time is greater than its sleep time the
+ * calculation is:
+ *
+ *                           scaling factor 
+ * interactivity score =  ---------------------    + scaling factor
+ *                        run time / sleep time
  */
 static int
 sched_interact_score(struct thread *td)
@@ -2080,6 +2095,8 @@ sched_fork_thread(struct thread *td, struct thread *child)
 	 */
 	ts = td->td_sched;
 	ts2 = child->td_sched;
+	child->td_oncpu = NOCPU;
+	child->td_lastcpu = NOCPU;
 	child->td_lock = TDQ_LOCKPTR(tdq);
 	child->td_cpuset = cpuset_ref(td->td_cpuset);
 	ts2->ts_cpu = ts->ts_cpu;
@@ -2703,6 +2720,8 @@ sched_throw(struct thread *td)
 		MPASS(td->td_lock == TDQ_LOCKPTR(tdq));
 		tdq_load_rem(tdq, td);
 		lock_profile_release_lock(&TDQ_LOCKPTR(tdq)->lock_object);
+		td->td_lastcpu = td->td_oncpu;
+		td->td_oncpu = NOCPU;
 	}
 	KASSERT(curthread->td_md.md_spinlock_count == 1, ("invalid count"));
 	newtd = choosethread();

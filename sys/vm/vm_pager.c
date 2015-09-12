@@ -86,6 +86,8 @@ __FBSDID("$FreeBSD$");
 
 int cluster_pbuf_freecnt = -1;	/* unlimited to begin with */
 
+struct buf *swbuf;
+
 static int dead_pager_getpages(vm_object_t, vm_page_t *, int, int);
 static vm_object_t dead_pager_alloc(void *, vm_ooffset_t, vm_prot_t,
     vm_ooffset_t, struct ucred *);

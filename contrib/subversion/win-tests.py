@@ -25,7 +25,7 @@ For a list of options, run this script with the --help option.
 """
 
 # $HeadURL: http://svn.apache.org/repos/asf/subversion/branches/1.8.x/win-tests.py $
-# $LastChangedRevision: 1492044 $
+# $LastChangedRevision: 1692801 $
 
 import os, sys, subprocess
 import filecmp
@@ -481,6 +481,7 @@ class Httpd:
     self.httpd_config = os.path.join(self.root, 'httpd.conf')
     self.httpd_users = os.path.join(self.root, 'users')
     self.httpd_mime_types = os.path.join(self.root, 'mime.types')
+    self.httpd_groups = os.path.join(self.root, 'groups')
     self.abs_builddir = abs_builddir
     self.abs_objdir = abs_objdir
     self.service_name = 'svn-test-httpd-' + str(httpd_port)
@@ -494,6 +495,7 @@ class Httpd:
     create_target_dir(self.root_dir)
 
     self._create_users_file()
+    self._create_groups_file()
     self._create_mime_types_file()
     self._create_dontdothat_file()
 
@@ -540,6 +542,8 @@ class Httpd:
     if self.httpd_ver >= 2.2:
       fp.write(self._sys_module('auth_basic_module', 'mod_auth_basic.so'))
       fp.write(self._sys_module('authn_file_module', 'mod_authn_file.so'))
+      fp.write(self._sys_module('authz_groupfile_module', 'mod_authz_groupfile.so'))
+      fp.write(self._sys_module('authz_host_module', 'mod_authz_host.so'))
     else:
       fp.write(self._sys_module('auth_module', 'mod_auth.so'))
     fp.write(self._sys_module('alias_module', 'mod_alias.so'))
@@ -562,6 +566,7 @@ class Httpd:
     # Define two locations for repositories
     fp.write(self._svn_repo('repositories'))
     fp.write(self._svn_repo('local_tmp'))
+    fp.write(self._svn_authz_repo())
 
     # And two redirects for the redirect tests
     fp.write('RedirectMatch permanent ^/svn-test-work/repositories/'
@@ -592,6 +597,17 @@ class Httpd:
                                     'jrandom', 'rayjandom'])
     os.spawnv(os.P_WAIT, htpasswd, ['htpasswd.exe', '-bp',  self.httpd_users,
                                     'jconstant', 'rayjandom'])
+    os.spawnv(os.P_WAIT, htpasswd, ['htpasswd.exe', '-bp',  self.httpd_users,
+                                    'JRANDOM', 'rayjandom'])
+    os.spawnv(os.P_WAIT, htpasswd, ['htpasswd.exe', '-bp',  self.httpd_users,
+                                    'JCONSTANT', 'rayjandom'])
+
+  def _create_groups_file(self):
+    "Create groups for mod_authz_svn tests"
+    fp = open(self.httpd_groups, 'w')
+    fp.write('random: jrandom\n')
+    fp.write('constant: jconstant\n')
+    fp.close()
 
   def _create_mime_types_file(self):
     "Create empty mime.types file"
@@ -651,6 +667,153 @@ class Httpd:
       '  Require         valid-user\n' \
       '  DontDoThatConfigFile ' + self._quote(self.dontdothat_file) + '\n' \
       '</Location>\n'
+
+  def _svn_authz_repo(self):
+    local_tmp = os.path.join(self.abs_builddir,
+                             CMDLINE_TEST_SCRIPT_NATIVE_PATH,
+                             'svn-test-work', 'local_tmp')
+    return \
+      '<Location /authz-test-work/anon>' + '\n' \
+      '  DAV               svn' + '\n' \
+      '  SVNParentPath     ' + local_tmp + '\n' \
+      '  AuthzSVNAccessFile ' + self._quote(self.authz_file) + '\n' \
+      '  SVNAdvertiseV2Protocol ' + self.httpv2_option + '\n' \
+      '  SVNListParentPath On' + '\n' \
+      '  <IfModule mod_authz_core.c>' + '\n' \
+      '    Require all granted' + '\n' \
+      '  </IfModule>' + '\n' \
+      '  <IfModule !mod_authz_core.c>' + '\n' \
+      '    Allow from all' + '\n' \
+      '  </IfModule>' + '\n' \
+      '  SVNPathAuthz ' + self.path_authz_option + '\n' \
+      '</Location>' + '\n' \
+      '<Location /authz-test-work/mixed>' + '\n' \
+      '  DAV               svn' + '\n' \
+      '  SVNParentPath     ' + local_tmp + '\n' \
+      '  AuthzSVNAccessFile ' + self._quote(self.authz_file) + '\n' \
+      '  SVNAdvertiseV2Protocol ' + self.httpv2_option + '\n' \
+      '  SVNListParentPath On' + '\n' \
+      '  AuthType          Basic' + '\n' \
+      '  AuthName          "Subversion Repository"' + '\n' \
+      '  AuthUserFile    ' + self._quote(self.httpd_users) + '\n' \
+      '  Require           valid-user' + '\n' \
+      '  Satisfy Any' + '\n' \
+      '  SVNPathAuthz ' + self.path_authz_option + '\n' \
+      '</Location>' + '\n' \
+      '<Location /authz-test-work/mixed-noauthwhenanon>' + '\n' \
+      '  DAV               svn' + '\n' \
+      '  SVNParentPath     ' + local_tmp + '\n' \
+      '  AuthzSVNAccessFile ' + self._quote(self.authz_file) + '\n' \
+      '  SVNAdvertiseV2Protocol ' + self.httpv2_option + '\n' \
+      '  SVNListParentPath On' + '\n' \
+      '  AuthType          Basic' + '\n' \
+      '  AuthName          "Subversion Repository"' + '\n' \
+      '  AuthUserFile    ' + self._quote(self.httpd_users) + '\n' \
+      '  Require           valid-user' + '\n' \
+      '  AuthzSVNNoAuthWhenAnonymousAllowed On' + '\n' \
+      '  SVNPathAuthz On' + '\n' \
+      '</Location>' + '\n' \
+      '<Location /authz-test-work/authn>' + '\n' \
+      '  DAV               svn' + '\n' \
+      '  SVNParentPath     ' + local_tmp + '\n' \
+      '  AuthzSVNAccessFile ' + self._quote(self.authz_file) + '\n' \
+      '  SVNAdvertiseV2Protocol ' + self.httpv2_option + '\n' \
+      '  SVNListParentPath On' + '\n' \
+      '  AuthType          Basic' + '\n' \
+      '  AuthName          "Subversion Repository"' + '\n' \
+      '  AuthUserFile    ' + self._quote(self.httpd_users) + '\n' \
+      '  Require           valid-user' + '\n' \
+      '  SVNPathAuthz ' + self.path_authz_option + '\n' \
+      '</Location>' + '\n' \
+      '<Location /authz-test-work/authn-anonoff>' + '\n' \
+      '  DAV               svn' + '\n' \
+      '  SVNParentPath     ' + local_tmp + '\n' \
+      '  AuthzSVNAccessFile ' + self._quote(self.authz_file) + '\n' \
+      '  SVNAdvertiseV2Protocol ' + self.httpv2_option + '\n' \
+      '  SVNListParentPath On' + '\n' \
+      '  AuthType          Basic' + '\n' \
+      '  AuthName          "Subversion Repository"' + '\n' \
+      '  AuthUserFile    ' + self._quote(self.httpd_users) + '\n' \
+      '  Require           valid-user' + '\n' \
+      '  AuthzSVNAnonymous Off' + '\n' \
+      '  SVNPathAuthz On' + '\n' \
+      '</Location>' + '\n' \
+      '<Location /authz-test-work/authn-lcuser>' + '\n' \
+      '  DAV               svn' + '\n' \
+      '  SVNParentPath     ' + local_tmp + '\n' \
+      '  AuthzSVNAccessFile ' + self._quote(self.authz_file) + '\n' \
+      '  SVNAdvertiseV2Protocol ' + self.httpv2_option + '\n' \
+      '  SVNListParentPath On' + '\n' \
+      '  AuthType          Basic' + '\n' \
+      '  AuthName          "Subversion Repository"' + '\n' \
+      '  AuthUserFile    ' + self._quote(self.httpd_users) + '\n' \
+      '  Require           valid-user' + '\n' \
+      '  AuthzForceUsernameCase Lower' + '\n' \
+      '  SVNPathAuthz ' + self.path_authz_option + '\n' \
+      '</Location>' + '\n' \
+      '<Location /authz-test-work/authn-lcuser>' + '\n' \
+      '  DAV               svn' + '\n' \
+      '  SVNParentPath     ' + local_tmp + '\n' \
+      '  AuthzSVNAccessFile ' + self._quote(self.authz_file) + '\n' \
+      '  SVNAdvertiseV2Protocol ' + self.httpv2_option + '\n' \
+      '  SVNListParentPath On' + '\n' \
+      '  AuthType          Basic' + '\n' \
+      '  AuthName          "Subversion Repository"' + '\n' \
+      '  AuthUserFile    ' + self._quote(self.httpd_users) + '\n' \
+      '  Require           valid-user' + '\n' \
+      '  AuthzForceUsernameCase Lower' + '\n' \
+      '  SVNPathAuthz ' + self.path_authz_option + '\n' \
+      '</Location>' + '\n' \
+      '<Location /authz-test-work/authn-group>' + '\n' \
+      '  DAV               svn' + '\n' \
+      '  SVNParentPath     ' + local_tmp + '\n' \
+      '  AuthzSVNAccessFile ' + self._quote(self.authz_file) + '\n' \
+      '  SVNAdvertiseV2Protocol ' + self.httpv2_option + '\n' \
+      '  SVNListParentPath On' + '\n' \
+      '  AuthType          Basic' + '\n' \
+      '  AuthName          "Subversion Repository"' + '\n' \
+      '  AuthUserFile    ' + self._quote(self.httpd_users) + '\n' \
+      '  AuthGroupFile    ' + self._quote(self.httpd_groups) + '\n' \
+      '  Require           group random' + '\n' \
+      '  AuthzSVNAuthoritative Off' + '\n' \
+      '  SVNPathAuthz On' + '\n' \
+      '</Location>' + '\n' \
+      '<IfModule mod_authz_core.c>' + '\n' \
+      '<Location /authz-test-work/sallrany>' + '\n' \
+      '  DAV               svn' + '\n' \
+      '  SVNParentPath     ' + local_tmp + '\n' \
+      '  AuthzSVNAccessFile ' + self._quote(self.authz_file) + '\n' \
+      '  SVNAdvertiseV2Protocol ' + self.httpv2_option + '\n' \
+      '  SVNListParentPath On' + '\n' \
+      '  AuthType          Basic' + '\n' \
+      '  AuthName          "Subversion Repository"' + '\n' \
+      '  AuthUserFile    ' + self._quote(self.httpd_users) + '\n' \
+      '  AuthzSendForbiddenOnFailure On' + '\n' \
+      '  Satisfy All' + '\n' \
+      '  <RequireAny>' + '\n' \
+      '    Require valid-user' + '\n' \
+      '    Require expr req(\'ALLOW\') == \'1\'' + '\n' \
+      '  </RequireAny>' + '\n' \
+      '  SVNPathAuthz ' + self.path_authz_option + '\n' \
+      '</Location>' + '\n' \
+      '<Location /authz-test-work/sallrall>'+ '\n' \
+      '  DAV               svn' + '\n' \
+      '  SVNParentPath     ' + local_tmp + '\n' \
+      '  AuthzSVNAccessFile ' + self._quote(self.authz_file) + '\n' \
+      '  SVNAdvertiseV2Protocol ' + self.httpv2_option + '\n' \
+      '  SVNListParentPath On' + '\n' \
+      '  AuthType          Basic' + '\n' \
+      '  AuthName          "Subversion Repository"' + '\n' \
+      '  AuthUserFile    ' + self._quote(self.httpd_users) + '\n' \
+      '  AuthzSendForbiddenOnFailure On' + '\n' \
+      '  Satisfy All' + '\n' \
+      '  <RequireAll>' + '\n' \
+      '    Require valid-user' + '\n' \
+      '    Require expr req(\'ALLOW\') == \'1\'' + '\n' \
+      '  </RequireAll>' + '\n' \
+      '  SVNPathAuthz ' + self.path_authz_option + '\n' \
+      '</Location>' + '\n' \
+      '</IfModule>' + '\n' \
 
   def start(self):
     if self.service:
@@ -786,6 +949,10 @@ if not test_javahl:
     log_file = os.path.join(abs_builddir, log)
     fail_log_file = os.path.join(abs_builddir, faillog)
 
+  if run_httpd:
+    httpd_version = "%.1f" % daemon.httpd_ver
+  else:
+    httpd_version = None
   th = run_tests.TestHarness(abs_srcdir, abs_builddir,
                              log_file,
                              fail_log_file,
@@ -795,6 +962,7 @@ if not test_javahl:
                              fsfs_sharding, fsfs_packing,
                              list_tests, svn_bin, mode_filter,
                              milestone_filter,
+                             httpd_version=httpd_version,
                              set_log_level=log_level, ssl_cert=ssl_cert)
   old_cwd = os.getcwd()
   try:

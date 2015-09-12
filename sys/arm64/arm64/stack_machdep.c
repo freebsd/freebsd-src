@@ -40,21 +40,56 @@ __FBSDID("$FreeBSD$");
 #include <machine/pcb.h>
 #include <machine/stack.h>
 
+static void
+stack_capture(struct stack *st, struct unwind_state *frame)
+{
+
+	stack_zero(st);
+	while (1) {
+		unwind_frame(frame);
+		if (!INKERNEL((vm_offset_t)frame->fp) ||
+		     !INKERNEL((vm_offset_t)frame->pc))
+			break;
+		if (stack_put(st, frame->pc) == -1)
+			break;
+	}
+}
+
 void
 stack_save_td(struct stack *st, struct thread *td)
 {
+	struct unwind_state frame;
 
 	if (TD_IS_SWAPPED(td))
 		panic("stack_save_td: swapped");
 	if (TD_IS_RUNNING(td))
 		panic("stack_save_td: running");
 
-	stack_zero(st);
+	frame.sp = td->td_pcb->pcb_sp;
+	frame.fp = td->td_pcb->pcb_x[29];
+	frame.pc = td->td_pcb->pcb_x[30];
+
+	stack_capture(st, &frame);
+}
+
+int
+stack_save_td_running(struct stack *st, struct thread *td)
+{
+
+	return (EOPNOTSUPP);
 }
 
 void
 stack_save(struct stack *st)
 {
+	struct unwind_state frame;
+	uint64_t sp;
 
-	stack_zero(st);
+	__asm __volatile("mov %0, sp" : "=&r" (sp));
+
+	frame.sp = sp;
+	frame.fp = (uint64_t)__builtin_frame_address(0);
+	frame.pc = (uint64_t)stack_save;
+
+	stack_capture(st, &frame);
 }

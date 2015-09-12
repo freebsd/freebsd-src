@@ -5999,9 +5999,18 @@ bxe_tx_mq_start_locked(struct bxe_softc    *sc,
 
     rc = tx_count = 0;
 
+    BXE_FP_TX_LOCK_ASSERT(fp);
+
     if (!tx_br) {
         BLOGE(sc, "Multiqueue TX and no buf_ring!\n");
         return (EINVAL);
+    }
+
+    if (!sc->link_vars.link_up ||
+        (ifp->if_drv_flags &
+        (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) != IFF_DRV_RUNNING) {
+        rc = drbr_enqueue_drv(ifp, tx_br, m);
+        goto bxe_tx_mq_start_locked_exit;
     }
 
     /* fetch the depth of the driver queue */
@@ -6009,8 +6018,6 @@ bxe_tx_mq_start_locked(struct bxe_softc    *sc,
     if (depth > fp->eth_q_stats.tx_max_drbr_queue_depth) {
         fp->eth_q_stats.tx_max_drbr_queue_depth = depth;
     }
-
-    BXE_FP_TX_LOCK_ASSERT(fp);
 
     if (m == NULL) {
         /* no new work, check for pending frames */
@@ -6103,26 +6110,11 @@ bxe_tx_mq_start(struct ifnet *ifp,
 
     fp = &sc->fp[fp_index];
 
-    if (!(if_getdrvflags(ifp) & IFF_DRV_RUNNING)) {
-        BLOGW(sc, "Interface not running, ignoring transmit request\n");
-        return (ENETDOWN);
-    }
-
-    if (if_getdrvflags(ifp) & IFF_DRV_OACTIVE) {
-        BLOGW(sc, "Interface TX queue is full, ignoring transmit request\n");
-        return (EBUSY);
-    }
-
-    if (!sc->link_vars.link_up) {
-        BLOGW(sc, "Interface link is down, ignoring transmit request\n");
-        return (ENETDOWN);
-    }
-
-    /* XXX change to TRYLOCK here and if failed then schedule taskqueue */
-
-    BXE_FP_TX_LOCK(fp);
-    rc = bxe_tx_mq_start_locked(sc, ifp, fp, m);
-    BXE_FP_TX_UNLOCK(fp);
+    if (BXE_FP_TX_TRYLOCK(fp)) {
+        rc = bxe_tx_mq_start_locked(sc, ifp, fp, m);
+        BXE_FP_TX_UNLOCK(fp);
+    } else
+        rc = drbr_enqueue_drv(ifp, fp->tx_br, m);
 
     return (rc);
 }

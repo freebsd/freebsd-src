@@ -58,10 +58,11 @@ extern void	yyrestart(FILE *);
 
 %token ALIAS AUTH_GROUP AUTH_TYPE BACKEND BLOCKSIZE CHAP CHAP_MUTUAL
 %token CLOSING_BRACKET DEBUG DEVICE_ID DISCOVERY_AUTH_GROUP DISCOVERY_FILTER
+%token FOREIGN
 %token INITIATOR_NAME INITIATOR_PORTAL ISNS_SERVER ISNS_PERIOD ISNS_TIMEOUT
 %token LISTEN LISTEN_ISER LUN MAXPROC OFFLOAD OPENING_BRACKET OPTION
 %token PATH PIDFILE PORT PORTAL_GROUP REDIRECT SEMICOLON SERIAL SIZE STR
-%token TARGET TIMEOUT 
+%token TAG TARGET TIMEOUT
 
 %union
 {
@@ -337,6 +338,8 @@ portal_group_entry:
 	|
 	portal_group_discovery_filter
 	|
+	portal_group_foreign
+	|
 	portal_group_listen
 	|
 	portal_group_listen_iser
@@ -344,6 +347,8 @@ portal_group_entry:
 	portal_group_offload
 	|
 	portal_group_redirect
+	|
+	portal_group_tag
 	;
 
 portal_group_discovery_auth_group:	DISCOVERY_AUTH_GROUP STR
@@ -374,6 +379,13 @@ portal_group_discovery_filter:	DISCOVERY_FILTER STR
 		free($2);
 		if (error != 0)
 			return (1);
+	}
+	;
+
+portal_group_foreign:	FOREIGN
+	{
+
+		portal_group->pg_foreign = 1;
 	}
 	;
 
@@ -418,6 +430,20 @@ portal_group_redirect:	REDIRECT STR
 		free($2);
 		if (error != 0)
 			return (1);
+	}
+	;
+
+portal_group_tag:	TAG STR
+	{
+		uint64_t tmp;
+
+		if (expand_number($2, &tmp) != 0) {
+			yyerror("invalid numeric value");
+			free($2);
+			return (1);
+		}
+
+		portal_group->pg_tag = tmp;
 	}
 	;
 

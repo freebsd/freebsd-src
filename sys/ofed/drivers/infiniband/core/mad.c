@@ -292,6 +292,7 @@ static struct tf_entry *tf_dequeue(struct to_fifo *tf, u32 *time_left_ms)
 	unsigned long flags;
 	unsigned long time_left;
 	struct tf_entry *tmp, *tmp1;
+	bool found = false;
 
 	spin_lock_irqsave(&tf->lists_lock, flags);
 	if (list_empty(&tf->fifo_head)) {
@@ -300,11 +301,13 @@ static struct tf_entry *tf_dequeue(struct to_fifo *tf, u32 *time_left_ms)
 	}
 
 	list_for_each_entry(tmp, &tf->fifo_head, fifo_list) {
-		if (!tmp->canceled)
+		if (!tmp->canceled) {
+			found = true;
 			break;
+		}
 	}
 
-	if (tmp->canceled) {
+	if (!found) {
 		spin_unlock_irqrestore(&tf->lists_lock, flags);
 		return NULL;
 	}

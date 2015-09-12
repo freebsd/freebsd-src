@@ -64,9 +64,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/resourcevar.h>
 #include <sys/rwlock.h>
 #include <sys/sysctl.h>
+#include <sys/sysproto.h>
 #include <sys/vmem.h>
 #include <sys/vmmeter.h>
 #include <sys/vnode.h>
+#include <sys/watchdog.h>
 #include <geom/geom.h>
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -76,6 +78,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_object.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_map.h>
+#include <vm/swap_pager.h>
 #include "opt_compat.h"
 #include "opt_swap.h"
 
@@ -91,11 +94,8 @@ struct	buf_ops buf_ops_bio = {
 	.bop_bdflush	=	bufbdflush,
 };
 
-/*
- * XXX buf is global because kern_shutdown.c and ffs_checkoverlap has
- * carnal knowledge of buffers.  This knowledge should be moved to vfs_bio.c.
- */
-struct buf *buf;		/* buffer header pool */
+static struct buf *buf;		/* buffer header pool */
+extern struct buf *swbuf;	/* Swap buffer header pool. */
 caddr_t unmapped_buf;
 
 /* Used below and for softdep flushing threads in ufs/ffs/ffs_softdep.c */
@@ -309,13 +309,12 @@ static int bdirtywait;
 /*
  * Definitions for the buffer free lists.
  */
-#define BUFFER_QUEUES	5	/* number of free buffer queues */
+#define BUFFER_QUEUES	4	/* number of free buffer queues */
 
 #define QUEUE_NONE	0	/* on no queue */
 #define QUEUE_CLEAN	1	/* non-B_DELWRI buffers */
 #define QUEUE_DIRTY	2	/* B_DELWRI buffers */
-#define QUEUE_EMPTYKVA	3	/* empty buffer headers w/KVA assignment */
-#define QUEUE_EMPTY	4	/* empty buffer headers */
+#define QUEUE_EMPTY	3	/* empty buffer headers */
 #define QUEUE_SENTINEL	1024	/* not an queue index, but mark for sentinel */
 
 /* Queues for free buffers with various properties */
@@ -956,6 +955,8 @@ vfs_buf_check_mapped(struct buf *bp)
 	    ("mapped buf: b_kvabase was not updated %p", bp));
 	KASSERT(bp->b_data != unmapped_buf,
 	    ("mapped buf: b_data was not updated %p", bp));
+	KASSERT(bp->b_data < unmapped_buf || bp->b_data >= unmapped_buf +
+	    MAXPHYS, ("b_data + b_offset unmapped %p", bp));
 }
 
 static inline void
@@ -972,6 +973,135 @@ vfs_buf_check_unmapped(struct buf *bp)
 #define	BUF_CHECK_MAPPED(bp) do {} while (0)
 #define	BUF_CHECK_UNMAPPED(bp) do {} while (0)
 #endif
+
+static int
+isbufbusy(struct buf *bp)
+{
+	if (((bp->b_flags & (B_INVAL | B_PERSISTENT)) == 0 &&
+	    BUF_ISLOCKED(bp)) ||
+	    ((bp->b_flags & (B_DELWRI | B_INVAL)) == B_DELWRI))
+		return (1);
+	return (0);
+}
+
+/*
+ * Shutdown the system cleanly to prepare for reboot, halt, or power off.
+ */
+void
+bufshutdown(int show_busybufs)
+{
+	static int first_buf_printf = 1;
+	struct buf *bp;
+	int iter, nbusy, pbusy;
+#ifndef PREEMPTION
+	int subiter;
+#endif
+
+	/* 
+	 * Sync filesystems for shutdown
+	 */
+	wdog_kern_pat(WD_LASTVAL);
+	sys_sync(curthread, NULL);
+
+	/*
+	 * With soft updates, some buffers that are
+	 * written will be remarked as dirty until other
+	 * buffers are written.
+	 */
+	for (iter = pbusy = 0; iter < 20; iter++) {
+		nbusy = 0;
+		for (bp = &buf[nbuf]; --bp >= buf; )
+			if (isbufbusy(bp))
+				nbusy++;
+		if (nbusy == 0) {
+			if (first_buf_printf)
+				printf("All buffers synced.");
+			break;
+		}
+		if (first_buf_printf) {
+			printf("Syncing disks, buffers remaining... ");
+			first_buf_printf = 0;
+		}
+		printf("%d ", nbusy);
+		if (nbusy < pbusy)
+			iter = 0;
+		pbusy = nbusy;
+
+		wdog_kern_pat(WD_LASTVAL);
+		sys_sync(curthread, NULL);
+
+#ifdef PREEMPTION
+		/*
+		 * Drop Giant and spin for a while to allow
+		 * interrupt threads to run.
+		 */
+		DROP_GIANT();
+		DELAY(50000 * iter);
+		PICKUP_GIANT();
+#else
+		/*
+		 * Drop Giant and context switch several times to
+		 * allow interrupt threads to run.
+		 */
+		DROP_GIANT();
+		for (subiter = 0; subiter < 50 * iter; subiter++) {
+			thread_lock(curthread);
+			mi_switch(SW_VOL, NULL);
+			thread_unlock(curthread);
+			DELAY(1000);
+		}
+		PICKUP_GIANT();
+#endif
+	}
+	printf("\n");
+	/*
+	 * Count only busy local buffers to prevent forcing 
+	 * a fsck if we're just a client of a wedged NFS server
+	 */
+	nbusy = 0;
+	for (bp = &buf[nbuf]; --bp >= buf; ) {
+		if (isbufbusy(bp)) {
+#if 0
+/* XXX: This is bogus.  We should probably have a BO_REMOTE flag instead */
+			if (bp->b_dev == NULL) {
+				TAILQ_REMOVE(&mountlist,
+				    bp->b_vp->v_mount, mnt_list);
+				continue;
+			}
+#endif
+			nbusy++;
+			if (show_busybufs > 0) {
+				printf(
+	    "%d: buf:%p, vnode:%p, flags:%0x, blkno:%jd, lblkno:%jd, buflock:",
+				    nbusy, bp, bp->b_vp, bp->b_flags,
+				    (intmax_t)bp->b_blkno,
+				    (intmax_t)bp->b_lblkno);
+				BUF_LOCKPRINTINFO(bp);
+				if (show_busybufs > 1)
+					vn_printf(bp->b_vp,
+					    "vnode content: ");
+			}
+		}
+	}
+	if (nbusy) {
+		/*
+		 * Failed to sync all blocks. Indicate this and don't
+		 * unmount filesystems (thus forcing an fsck on reboot).
+		 */
+		printf("Giving up on %d buffers\n", nbusy);
+		DELAY(5000000);	/* 5 seconds */
+	} else {
+		if (!first_buf_printf)
+			printf("Final sync complete\n");
+		/*
+		 * Unmount filesystems
+		 */
+		if (panicstr == 0)
+			vfs_unmountall();
+	}
+	swapoff_all();
+	DELAY(100000);		/* wait for console output to finish */
+}
 
 static void
 bpmap_qenter(struct buf *bp)
@@ -1860,10 +1990,8 @@ brelse(struct buf *bp)
 		bp->b_xflags &= ~(BX_BKGRDWRITE | BX_ALTDATA);
 		if (bp->b_vflags & BV_BKGRDINPROG)
 			panic("losing buffer 1");
-		if (bp->b_kvasize)
-			qindex = QUEUE_EMPTYKVA;
-		else
-			qindex = QUEUE_EMPTY;
+		bufkvafree(bp);
+		qindex = QUEUE_EMPTY;
 		bp->b_flags |= B_AGE;
 	/* buffers with junk contents */
 	} else if (bp->b_flags & (B_INVAL | B_NOCACHE | B_RELBUF) ||
@@ -2241,14 +2369,13 @@ getnewbuf_reuse_bp(struct buf *bp, int qindex)
 	bp->b_dirtyoff = bp->b_dirtyend = 0;
 	bp->b_bufobj = NULL;
 	bp->b_pin_count = 0;
+	bp->b_data = bp->b_kvabase;
 	bp->b_fsprivate1 = NULL;
 	bp->b_fsprivate2 = NULL;
 	bp->b_fsprivate3 = NULL;
 
 	LIST_INIT(&bp->b_dep);
 }
-
-static int flushingbufs;
 
 static struct buf *
 getnewbuf_scan(int maxsize, int defrag, int unmapped, int metadata)
@@ -2258,64 +2385,25 @@ getnewbuf_scan(int maxsize, int defrag, int unmapped, int metadata)
 
 	KASSERT(!unmapped || !defrag, ("both unmapped and defrag"));
 
-	pass = 1;
+	pass = 0;
 restart:
-	atomic_add_int(&getnewbufrestarts, 1);
+	if (pass != 0)
+		atomic_add_int(&getnewbufrestarts, 1);
 
-	/*
-	 * Setup for scan.  If we do not have enough free buffers,
-	 * we setup a degenerate case that immediately fails.  Note
-	 * that if we are specially marked process, we are allowed to
-	 * dip into our reserves.
-	 *
-	 * The scanning sequence is nominally: EMPTY->EMPTYKVA->CLEAN
-	 * for the allocation of the mapped buffer.  For unmapped, the
-	 * easiest is to start with EMPTY outright.
-	 *
-	 * We start with EMPTYKVA.  If the list is empty we backup to EMPTY.
-	 * However, there are a number of cases (defragging, reusing, ...)
-	 * where we cannot backup.
-	 */
 	nbp = NULL;
 	mtx_lock(&bqclean);
-	if (!defrag && unmapped) {
+	/*
+	 * If we're not defragging or low on bufspace attempt to make a new
+	 * buf from a header.
+	 */
+	if (defrag == 0 && bufspace + maxsize < hibufspace) {
 		nqindex = QUEUE_EMPTY;
-		nbp = TAILQ_FIRST(&bufqueues[QUEUE_EMPTY]);
+		nbp = TAILQ_FIRST(&bufqueues[nqindex]);
 	}
+	/*
+	 * All available buffers might be clean or we need to start recycling.
+	 */
 	if (nbp == NULL) {
-		nqindex = QUEUE_EMPTYKVA;
-		nbp = TAILQ_FIRST(&bufqueues[QUEUE_EMPTYKVA]);
-	}
-
-	/*
-	 * If no EMPTYKVA buffers and we are either defragging or
-	 * reusing, locate a CLEAN buffer to free or reuse.  If
-	 * bufspace useage is low skip this step so we can allocate a
-	 * new buffer.
-	 */
-	if (nbp == NULL && (defrag || bufspace >= lobufspace)) {
-		nqindex = QUEUE_CLEAN;
-		nbp = TAILQ_FIRST(&bufqueues[QUEUE_CLEAN]);
-	}
-
-	/*
-	 * If we could not find or were not allowed to reuse a CLEAN
-	 * buffer, check to see if it is ok to use an EMPTY buffer.
-	 * We can only use an EMPTY buffer if allocating its KVA would
-	 * not otherwise run us out of buffer space.  No KVA is needed
-	 * for the unmapped allocation.
-	 */
-	if (nbp == NULL && defrag == 0 && (bufspace + maxsize < hibufspace ||
-	    metadata)) {
-		nqindex = QUEUE_EMPTY;
-		nbp = TAILQ_FIRST(&bufqueues[QUEUE_EMPTY]);
-	}
-
-	/*
-	 * All available buffers might be clean, retry ignoring the
-	 * lobufspace as the last resort.
-	 */
-	if (nbp == NULL && !TAILQ_EMPTY(&bufqueues[QUEUE_CLEAN])) {
 		nqindex = QUEUE_CLEAN;
 		nbp = TAILQ_FIRST(&bufqueues[QUEUE_CLEAN]);
 	}
@@ -2329,28 +2417,21 @@ restart:
 
 		/*
 		 * Calculate next bp (we can only use it if we do not
-		 * block or do other fancy things).
+		 * release the bqlock)
 		 */
 		if ((nbp = TAILQ_NEXT(bp, b_freelist)) == NULL) {
 			switch (qindex) {
 			case QUEUE_EMPTY:
-				nqindex = QUEUE_EMPTYKVA;
-				nbp = TAILQ_FIRST(&bufqueues[QUEUE_EMPTYKVA]);
-				if (nbp != NULL)
-					break;
-				/* FALLTHROUGH */
-			case QUEUE_EMPTYKVA:
 				nqindex = QUEUE_CLEAN;
-				nbp = TAILQ_FIRST(&bufqueues[QUEUE_CLEAN]);
+				nbp = TAILQ_FIRST(&bufqueues[nqindex]);
 				if (nbp != NULL)
 					break;
 				/* FALLTHROUGH */
 			case QUEUE_CLEAN:
-				if (metadata && pass == 1) {
-					pass = 2;
+				if (metadata && pass == 0) {
+					pass = 1;
 					nqindex = QUEUE_EMPTY;
-					nbp = TAILQ_FIRST(
-					    &bufqueues[QUEUE_EMPTY]);
+					nbp = TAILQ_FIRST(&bufqueues[nqindex]);
 				}
 				/*
 				 * nbp is NULL. 
@@ -2396,11 +2477,11 @@ restart:
 
 		bremfreel(bp);
 		mtx_unlock(&bqclean);
+
 		/*
 		 * NOTE:  nbp is now entirely invalid.  We can only restart
 		 * the scan from this point on.
 		 */
-
 		getnewbuf_reuse_bp(bp, qindex);
 		mtx_assert(&bqclean, MA_NOTOWNED);
 
@@ -2409,7 +2490,6 @@ restart:
 		 */
 		if (defrag) {
 			bp->b_flags |= B_INVAL;
-			bufkvafree(bp);
 			brelse(bp);
 			defrag = 0;
 			goto restart;
@@ -2421,7 +2501,6 @@ restart:
 		 */
 		if (qindex == QUEUE_CLEAN && BUF_LOCKWAITERS(bp)) {
 			bp->b_flags |= B_INVAL;
-			bufkvafree(bp);
 			brelse(bp);
 			goto restart;
 		}
@@ -2434,16 +2513,11 @@ restart:
 		 * KVM space.  This occurs in rare situations when multiple
 		 * processes are blocked in getnewbuf() or allocbuf().
 		 */
-		if (bufspace >= hibufspace)
-			flushingbufs = 1;
-		if (flushingbufs && bp->b_kvasize != 0) {
+		if (bufspace >= hibufspace && bp->b_kvasize != 0) {
 			bp->b_flags |= B_INVAL;
-			bufkvafree(bp);
 			brelse(bp);
 			goto restart;
 		}
-		if (bufspace < lobufspace)
-			flushingbufs = 0;
 		break;
 	}
 	return (bp);
@@ -2489,7 +2563,6 @@ getnewbuf(struct vnode *vp, int slpflag, int slptimeo, int size, int maxsize,
 	 * async I/O rather then sync I/O.
 	 */
 	atomic_add_int(&getnewbufcalls, 1);
-	atomic_subtract_int(&getnewbufrestarts, 1);
 restart:
 	bp = getnewbuf_scan(maxsize, defrag, (gbflags & (GB_UNMAPPED |
 	    GB_KVAALLOC)) == GB_UNMAPPED, metadata);
@@ -2528,6 +2601,10 @@ restart:
 			bp->b_flags |= B_INVAL;
 			brelse(bp);
 			goto restart;
+		} else if ((gbflags & (GB_UNMAPPED | GB_KVAALLOC)) ==
+		    (GB_UNMAPPED | GB_KVAALLOC)) {
+			bp->b_data = unmapped_buf;
+			BUF_CHECK_UNMAPPED(bp);
 		}
 		atomic_add_int(&bufreusecnt, 1);
 	}
@@ -3689,74 +3766,6 @@ bufwait(struct buf *bp)
 	} else {
 		return (0);
 	}
-}
-
- /*
-  * Call back function from struct bio back up to struct buf.
-  */
-static void
-bufdonebio(struct bio *bip)
-{
-	struct buf *bp;
-
-	bp = bip->bio_caller2;
-	bp->b_resid = bip->bio_resid;
-	bp->b_ioflags = bip->bio_flags;
-	bp->b_error = bip->bio_error;
-	if (bp->b_error)
-		bp->b_ioflags |= BIO_ERROR;
-	bufdone(bp);
-	g_destroy_bio(bip);
-}
-
-void
-dev_strategy(struct cdev *dev, struct buf *bp)
-{
-	struct cdevsw *csw;
-	int ref;
-
-	KASSERT(dev->si_refcount > 0,
-	    ("dev_strategy on un-referenced struct cdev *(%s) %p",
-	    devtoname(dev), dev));
-
-	csw = dev_refthread(dev, &ref);
-	dev_strategy_csw(dev, csw, bp);
-	dev_relthread(dev, ref);
-}
-
-void
-dev_strategy_csw(struct cdev *dev, struct cdevsw *csw, struct buf *bp)
-{
-	struct bio *bip;
-
-	KASSERT(bp->b_iocmd == BIO_READ || bp->b_iocmd == BIO_WRITE,
-	    ("b_iocmd botch"));
-	KASSERT(((dev->si_flags & SI_ETERNAL) != 0 && csw != NULL) ||
-	    dev->si_threadcount > 0,
-	    ("dev_strategy_csw threadcount cdev *(%s) %p", devtoname(dev),
-	    dev));
-	if (csw == NULL) {
-		bp->b_error = ENXIO;
-		bp->b_ioflags = BIO_ERROR;
-		bufdone(bp);
-		return;
-	}
-	for (;;) {
-		bip = g_new_bio();
-		if (bip != NULL)
-			break;
-		/* Try again later */
-		tsleep(&bp, PRIBIO, "dev_strat", hz/10);
-	}
-	bip->bio_cmd = bp->b_iocmd;
-	bip->bio_offset = bp->b_iooffset;
-	bip->bio_length = bp->b_bcount;
-	bip->bio_bcount = bp->b_bcount;	/* XXX: remove */
-	bdata2bio(bp, bip);
-	bip->bio_done = bufdonebio;
-	bip->bio_caller2 = bp;
-	bip->bio_dev = dev;
-	(*csw->d_strategy)(bip);
 }
 
 /*

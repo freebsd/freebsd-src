@@ -55,7 +55,6 @@ __FBSDID("$FreeBSD$");
 #include <cam/ctl/ctl.h>
 #include <cam/ctl/ctl_frontend.h>
 #include <cam/ctl/ctl_backend.h>
-#include <cam/ctl/ctl_frontend_internal.h>
 #include <cam/ctl/ctl_ioctl.h>
 #include <cam/ctl/ctl_ha.h>
 #include <cam/ctl/ctl_private.h>
@@ -186,11 +185,44 @@ ctl_init_opts(ctl_options_t *opts, int num_args, struct ctl_be_arg *args)
 		if ((args[i].flags & CTL_BEARG_ASCII) == 0)
 			continue;
 		opt = malloc(sizeof(*opt), M_CTL, M_WAITOK);
-		opt->name = malloc(strlen(args[i].kname) + 1, M_CTL, M_WAITOK);
-		strcpy(opt->name, args[i].kname);
-		opt->value = malloc(strlen(args[i].kvalue) + 1, M_CTL, M_WAITOK);
-		strcpy(opt->value, args[i].kvalue);
+		opt->name = strdup(args[i].kname, M_CTL);
+		opt->value = strdup(args[i].kvalue, M_CTL);
 		STAILQ_INSERT_TAIL(opts, opt, links);
+	}
+}
+
+void
+ctl_update_opts(ctl_options_t *opts, int num_args, struct ctl_be_arg *args)
+{
+	struct ctl_option *opt;
+	int i;
+
+	for (i = 0; i < num_args; i++) {
+		if ((args[i].flags & CTL_BEARG_RD) == 0)
+			continue;
+		if ((args[i].flags & CTL_BEARG_ASCII) == 0)
+			continue;
+		STAILQ_FOREACH(opt, opts, links) {
+			if (strcmp(opt->name, args[i].kname) == 0)
+				break;
+		}
+		if (args[i].kvalue != NULL &&
+		    ((char *)args[i].kvalue)[0] != 0) {
+			if (opt) {
+				free(opt->value, M_CTL);
+				opt->value = strdup(args[i].kvalue, M_CTL);
+			} else {
+				opt = malloc(sizeof(*opt), M_CTL, M_WAITOK);
+				opt->name = strdup(args[i].kname, M_CTL);
+				opt->value = strdup(args[i].kvalue, M_CTL);
+				STAILQ_INSERT_TAIL(opts, opt, links);
+			}
+		} else if (opt) {
+			STAILQ_REMOVE(opts, opt, ctl_option, links);
+			free(opt->name, M_CTL);
+			free(opt->value, M_CTL);
+			free(opt, M_CTL);
+		}
 	}
 }
 

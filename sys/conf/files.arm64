@@ -40,27 +40,34 @@ arm64/arm64/mp_machdep.c	optional	smp
 arm64/arm64/nexus.c		standard
 arm64/arm64/pic_if.m		standard
 arm64/arm64/pmap.c		standard
-arm64/arm64/stack_machdep.c	standard
+arm64/arm64/stack_machdep.c	optional	ddb | stack
 arm64/arm64/support.S		standard
 arm64/arm64/swtch.S		standard
 arm64/arm64/sys_machdep.c	standard
 arm64/arm64/trap.c		standard
 arm64/arm64/uio_machdep.c	standard
-arm64/arm64/unwind.c		optional	ddb | kdtrace_hooks
+arm64/arm64/uma_machdep.c	standard
+arm64/arm64/unwind.c		optional	ddb | kdtrace_hooks | stack
 arm64/arm64/vfp.c		standard
 arm64/arm64/vm_machdep.c	standard
+arm64/cavium/thunder_pcie.c	optional	soc_cavm_thunderx pci fdt
+arm64/cavium/thunder_pcie_pem.c	optional	soc_cavm_thunderx pci
+arm64/cavium/thunder_pcie_common.c	optional soc_cavm_thunderx pci
 crypto/blowfish/bf_enc.c	optional	crypto | ipsec
 crypto/des/des_enc.c		optional	crypto | ipsec | netsmb
 dev/acpica/acpi_if.m		optional	acpi
 dev/fdt/fdt_arm64.c		optional	fdt
 dev/hwpmc/hwpmc_arm64.c		optional	hwpmc
 dev/hwpmc/hwpmc_arm64_md.c	optional	hwpmc
+dev/mmc/host/dwmmc.c		optional	dwmmc
+dev/mmc/host/dwmmc_hisi.c	optional	dwmmc soc_hisi_hi6220
 dev/ofw/ofw_cpu.c		optional	fdt
 dev/pci/pci_host_generic.c	optional	pci fdt
 dev/psci/psci.c			optional	psci
 dev/psci/psci_arm64.S		optional	psci
 dev/uart/uart_cpu_fdt.c		optional	uart fdt
 dev/uart/uart_dev_pl011.c	optional	uart pl011
+dev/usb/controller/dwc_otg_hisi.c optional	dwcotg soc_hisi_hi6220
 kern/kern_clocksource.c		standard
 kern/subr_dummy_vdso_tc.c	standard
 libkern/bcmp.c			standard

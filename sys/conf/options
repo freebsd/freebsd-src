@@ -388,6 +388,7 @@ ACCEPT_FILTER_HTTP
 ALTQ			opt_global.h
 ALTQ_CBQ		opt_altq.h
 ALTQ_CDNR		opt_altq.h
+ALTQ_CODEL		opt_altq.h
 ALTQ_DEBUG		opt_altq.h
 ALTQ_HFSC		opt_altq.h
 ALTQ_FAIRQ		opt_altq.h
@@ -711,6 +712,7 @@ DEV_PCI			opt_pci.h
 DEV_PF			opt_pf.h
 DEV_PFLOG		opt_pf.h
 DEV_PFSYNC		opt_pf.h
+DEV_RANDOM		opt_global.h
 DEV_SPLASH		opt_splash.h
 DEV_VLAN		opt_vlan.h
 
@@ -851,6 +853,9 @@ MWL_DIAGAPI		opt_mwl.h
 MWL_AGGR_SIZE		opt_mwl.h
 MWL_TX_NODROP		opt_mwl.h
 
+# Options for the Intel 802.11ac wireless driver
+IWM_DEBUG		opt_iwm.h
+
 # Options for the Intel 802.11n wireless driver
 IWN_DEBUG		opt_iwn.h
 
@@ -940,16 +945,16 @@ RACCT_DEFAULT_TO_DISABLED	opt_global.h
 RCTL		opt_global.h
 
 # Random number generator(s)
-# The DEBUG option is in global.h as the random harvesting
-# puts probes all over the place, and it makes little sense
-# to pollute these headers with an extra include.
-# the DUMMY option is in global.h because it is used to
-# turn off harvesting all over the kernel.
-RANDOM_DEBUG	opt_global.h
-# Which CSPRNG hashes we get.
-# These are mutually exclusive. With neither, Fortuna is selected.
-RANDOM_DUMMY	opt_global.h
-RANDOM_YARROW	opt_random.h
+# Which CSPRNG hash we get.
+# If Yarrow is not chosen, Fortuna is selected.
+RANDOM_YARROW	opt_global.h
+# With this, no entropy processor is loaded, but the entropy
+# harvesting infrastructure is present. This means an entropy
+# processor may be loaded as a module.
+RANDOM_LOADABLE	opt_global.h
+# This turns on high-rate and potentially expensive harvesting in
+# the uma slab allocator.
+RANDOM_ENABLE_UMA	opt_global.h
 
 # Intel em(4) driver
 EM_MULTIQUEUE	opt_em.h

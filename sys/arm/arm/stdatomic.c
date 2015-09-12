@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 
 #include <machine/acle-compat.h>
+#include <machine/atomic.h>
 #include <machine/cpufunc.h>
 #include <machine/sysarch.h>
 
@@ -67,19 +68,12 @@ do_sync(void)
 
 	__asm volatile ("" : : : "memory");
 }
-#elif __ARM_ARCH >= 7
-static inline void
-do_sync(void)
-{
-
-	__asm volatile ("dmb" : : : "memory");
-}
 #elif __ARM_ARCH >= 6
 static inline void
 do_sync(void)
 {
 
-	__asm volatile ("mcr p15, 0, %0, c7, c10, 5" : : "r" (0) : "memory");
+	dmb();
 }
 #endif
 

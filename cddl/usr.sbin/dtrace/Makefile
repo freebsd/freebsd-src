@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <src.opts.mk>
+
 .PATH: ${.CURDIR}/../../../cddl/contrib/opensolaris/cmd/dtrace
 
 PROG=		dtrace
@@ -21,5 +23,9 @@ CFLAGS+=	-I${.CURDIR}/../../../sys/cddl/compat/opensolaris \
 #YFLAGS+=	-d
 
 LIBADD=	dtrace
+
+.if ${MK_DTRACE_TESTS} != "no"
+SUBDIR+=	tests
+.endif
 
 .include <bsd.prog.mk>

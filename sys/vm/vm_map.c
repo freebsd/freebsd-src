@@ -2591,7 +2591,7 @@ vm_map_wire(vm_map_t map, vm_offset_t start, vm_offset_t end,
 				 * it into the physical map.
 				 */
 				if ((rv = vm_fault(map, faddr, VM_PROT_NONE,
-				    VM_FAULT_CHANGE_WIRING)) != KERN_SUCCESS)
+				    VM_FAULT_WIRE)) != KERN_SUCCESS)
 					break;
 			} while ((faddr += PAGE_SIZE) < saved_end);
 			vm_map_lock(map);
@@ -3969,12 +3969,10 @@ RetryLookup:;
 		vm_map_unlock_read(map);
 		return (KERN_PROTECTION_FAILURE);
 	}
-	if ((entry->eflags & MAP_ENTRY_USER_WIRED) &&
-	    (entry->eflags & MAP_ENTRY_COW) &&
-	    (fault_type & VM_PROT_WRITE)) {
-		vm_map_unlock_read(map);
-		return (KERN_PROTECTION_FAILURE);
-	}
+	KASSERT((prot & VM_PROT_WRITE) == 0 || (entry->eflags &
+	    (MAP_ENTRY_USER_WIRED | MAP_ENTRY_NEEDS_COPY)) !=
+	    (MAP_ENTRY_USER_WIRED | MAP_ENTRY_NEEDS_COPY),
+	    ("entry %p flags %x", entry, entry->eflags));
 	if ((fault_typea & VM_PROT_COPY) != 0 &&
 	    (entry->max_protection & VM_PROT_WRITE) == 0 &&
 	    (entry->eflags & MAP_ENTRY_COW) == 0) {
@@ -4127,10 +4125,6 @@ vm_map_lookup_locked(vm_map_t *var_map,		/* IN/OUT */
 	prot = entry->protection;
 	fault_type &= VM_PROT_READ | VM_PROT_WRITE | VM_PROT_EXECUTE;
 	if ((fault_type & prot) != fault_type)
-		return (KERN_PROTECTION_FAILURE);
-	if ((entry->eflags & MAP_ENTRY_USER_WIRED) &&
-	    (entry->eflags & MAP_ENTRY_COW) &&
-	    (fault_type & VM_PROT_WRITE))
 		return (KERN_PROTECTION_FAILURE);
 
 	/*
