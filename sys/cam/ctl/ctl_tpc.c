@@ -394,8 +394,7 @@ ctl_inquiry_evpd_tpc(struct ctl_scsiio *ctsio, int alloc_len)
 	scsi_ulto2b(0, rtfb_ptr->optimal_length_granularity);
 	scsi_u64to8b(0, rtfb_ptr->maximum_bytes);
 	scsi_u64to8b(0, rtfb_ptr->optimal_bytes);
-	scsi_u64to8b(TPC_MAX_IOCHUNK_SIZE,
-	    rtfb_ptr->optimal_bytes_to_token_per_segment);
+	scsi_u64to8b(UINT64_MAX, rtfb_ptr->optimal_bytes_to_token_per_segment);
 	scsi_u64to8b(TPC_MAX_IOCHUNK_SIZE,
 	    rtfb_ptr->optimal_bytes_from_token_per_segment);
 
