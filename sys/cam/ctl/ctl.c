@@ -673,7 +673,10 @@ ctl_isc_ha_link_down(struct ctl_softc *softc)
 	mtx_lock(&softc->ctl_lock);
 	STAILQ_FOREACH(lun, &softc->lun_list, links) {
 		mtx_lock(&lun->lun_lock);
-		lun->flags &= ~CTL_LUN_PEER_SC_PRIMARY;
+		if (lun->flags & CTL_LUN_PEER_SC_PRIMARY) {
+			lun->flags &= ~CTL_LUN_PEER_SC_PRIMARY;
+			ctl_est_ua_all(lun, -1, CTL_UA_ASYM_ACC_CHANGE);
+		}
 		mtx_unlock(&lun->lun_lock);
 
 		mtx_unlock(&softc->ctl_lock);
@@ -700,8 +703,11 @@ ctl_isc_ua(struct ctl_softc *softc, union ctl_ha_msg *msg, int len)
 	struct ctl_lun *lun;
 	uint32_t iid = ctl_get_initindex(&msg->hdr.nexus);
 
+	mtx_lock(&softc->ctl_lock);
 	if (msg->hdr.nexus.targ_lun < CTL_MAX_LUNS &&
-	    (lun = softc->ctl_luns[msg->hdr.nexus.targ_lun]) != NULL) {
+	    (lun = softc->ctl_luns[msg->hdr.nexus.targ_mapped_lun]) != NULL) {
+		mtx_lock(&lun->lun_lock);
+		mtx_unlock(&softc->ctl_lock);
 		if (msg->ua.ua_all) {
 			if (msg->ua.ua_set)
 				ctl_est_ua_all(lun, iid, msg->ua.ua_type);
@@ -713,7 +719,9 @@ ctl_isc_ua(struct ctl_softc *softc, union ctl_ha_msg *msg, int len)
 			else
 				ctl_clr_ua(lun, iid, msg->ua.ua_type);
 		}
-	}
+		mtx_unlock(&lun->lun_lock);
+	} else
+		mtx_unlock(&softc->ctl_lock);
 }
 
 static void
@@ -722,58 +730,69 @@ ctl_isc_lun_sync(struct ctl_softc *softc, union ctl_ha_msg *msg, int len)
 	struct ctl_lun *lun;
 	struct ctl_ha_msg_lun_pr_key pr_key;
 	int i, k;
+	ctl_lun_flags oflags;
+	uint32_t targ_lun;
 
-	lun = softc->ctl_luns[msg->hdr.nexus.targ_lun];
-	if (lun == NULL) {
-		CTL_DEBUG_PRINT(("%s: Unknown LUN %d\n", __func__,
-		    msg->hdr.nexus.targ_lun));
+	targ_lun = msg->hdr.nexus.targ_mapped_lun;
+	mtx_lock(&softc->ctl_lock);
+	if ((targ_lun >= CTL_MAX_LUNS) ||
+	    ((lun = softc->ctl_luns[targ_lun]) == NULL)) {
+		mtx_unlock(&softc->ctl_lock);
+		return;
+	}
+	mtx_lock(&lun->lun_lock);
+	mtx_unlock(&softc->ctl_lock);
+	if (lun->flags & CTL_LUN_DISABLED) {
+		mtx_unlock(&lun->lun_lock);
+		return;
+	}
+	i = (lun->lun_devid != NULL) ? lun->lun_devid->len : 0;
+	if (msg->lun.lun_devid_len != i || (i > 0 &&
+	    memcmp(&msg->lun.data[0], lun->lun_devid->data, i) != 0)) {
+		mtx_unlock(&lun->lun_lock);
+		printf("%s: Received conflicting HA LUN %d\n",
+		    __func__, msg->hdr.nexus.targ_lun);
+		return;
 	} else {
-		mtx_lock(&lun->lun_lock);
-		i = (lun->lun_devid != NULL) ? lun->lun_devid->len : 0;
-		if (msg->lun.lun_devid_len != i || (i > 0 &&
-		    memcmp(&msg->lun.data[0], lun->lun_devid->data, i) != 0)) {
-			mtx_unlock(&lun->lun_lock);
-			printf("%s: Received conflicting HA LUN %d\n",
-			    __func__, msg->hdr.nexus.targ_lun);
-			return;
-		} else {
-			/* Record whether peer is primary. */
-			if ((msg->lun.flags & CTL_LUN_PRIMARY_SC) &&
-			    (msg->lun.flags & CTL_LUN_DISABLED) == 0)
-				lun->flags |= CTL_LUN_PEER_SC_PRIMARY;
-			else
-				lun->flags &= ~CTL_LUN_PEER_SC_PRIMARY;
+		/* Record whether peer is primary. */
+		oflags = lun->flags;
+		if ((msg->lun.flags & CTL_LUN_PRIMARY_SC) &&
+		    (msg->lun.flags & CTL_LUN_DISABLED) == 0)
+			lun->flags |= CTL_LUN_PEER_SC_PRIMARY;
+		else
+			lun->flags &= ~CTL_LUN_PEER_SC_PRIMARY;
+		if (oflags != lun->flags)
+			ctl_est_ua_all(lun, -1, CTL_UA_ASYM_ACC_CHANGE);
 
-			/* If peer is primary and we are not -- use data */
-			if ((lun->flags & CTL_LUN_PRIMARY_SC) == 0 &&
-			    (lun->flags & CTL_LUN_PEER_SC_PRIMARY)) {
-				lun->PRGeneration = msg->lun.pr_generation;
-				lun->pr_res_idx = msg->lun.pr_res_idx;
-				lun->res_type = msg->lun.pr_res_type;
-				lun->pr_key_count = msg->lun.pr_key_count;
-				for (k = 0; k < CTL_MAX_INITIATORS; k++)
-					ctl_clr_prkey(lun, k);
-				for (k = 0; k < msg->lun.pr_key_count; k++) {
-					memcpy(&pr_key, &msg->lun.data[i],
-					    sizeof(pr_key));
-					ctl_alloc_prkey(lun, pr_key.pr_iid);
-					ctl_set_prkey(lun, pr_key.pr_iid,
-					    pr_key.pr_key);
-					i += sizeof(pr_key);
-				}
+		/* If peer is primary and we are not -- use data */
+		if ((lun->flags & CTL_LUN_PRIMARY_SC) == 0 &&
+		    (lun->flags & CTL_LUN_PEER_SC_PRIMARY)) {
+			lun->PRGeneration = msg->lun.pr_generation;
+			lun->pr_res_idx = msg->lun.pr_res_idx;
+			lun->res_type = msg->lun.pr_res_type;
+			lun->pr_key_count = msg->lun.pr_key_count;
+			for (k = 0; k < CTL_MAX_INITIATORS; k++)
+				ctl_clr_prkey(lun, k);
+			for (k = 0; k < msg->lun.pr_key_count; k++) {
+				memcpy(&pr_key, &msg->lun.data[i],
+				    sizeof(pr_key));
+				ctl_alloc_prkey(lun, pr_key.pr_iid);
+				ctl_set_prkey(lun, pr_key.pr_iid,
+				    pr_key.pr_key);
+				i += sizeof(pr_key);
 			}
-
-			mtx_unlock(&lun->lun_lock);
-			CTL_DEBUG_PRINT(("%s: Known LUN %d, peer is %s\n",
-			    __func__, msg->hdr.nexus.targ_lun,
-			    (msg->lun.flags & CTL_LUN_PRIMARY_SC) ?
-			    "primary" : "secondary"));
-
-			/* If we are primary but peer doesn't know -- notify */
-			if ((lun->flags & CTL_LUN_PRIMARY_SC) &&
-			    (msg->lun.flags & CTL_LUN_PEER_SC_PRIMARY) == 0)
-				ctl_isc_announce_lun(lun);
 		}
+
+		mtx_unlock(&lun->lun_lock);
+		CTL_DEBUG_PRINT(("%s: Known LUN %d, peer is %s\n",
+		    __func__, msg->hdr.nexus.targ_lun,
+		    (msg->lun.flags & CTL_LUN_PRIMARY_SC) ?
+		    "primary" : "secondary"));
+
+		/* If we are primary but peer doesn't know -- notify */
+		if ((lun->flags & CTL_LUN_PRIMARY_SC) &&
+		    (msg->lun.flags & CTL_LUN_PEER_SC_PRIMARY) == 0)
+			ctl_isc_announce_lun(lun);
 	}
 }
 
@@ -1730,20 +1749,24 @@ ctl_serialize_other_sc_cmd(struct ctl_scsiio *ctsio)
 	softc = control_softc;
 
 	targ_lun = ctsio->io_hdr.nexus.targ_mapped_lun;
+	mtx_lock(&softc->ctl_lock);
 	if ((targ_lun < CTL_MAX_LUNS) &&
 	    ((lun = softc->ctl_luns[targ_lun]) != NULL)) {
+		mtx_lock(&lun->lun_lock);
+		mtx_unlock(&softc->ctl_lock);
 		/*
 		 * If the LUN is invalid, pretend that it doesn't exist.
 		 * It will go away as soon as all pending I/O has been
 		 * completed.
 		 */
-		mtx_lock(&lun->lun_lock);
 		if (lun->flags & CTL_LUN_DISABLED) {
 			mtx_unlock(&lun->lun_lock);
 			lun = NULL;
 		}
-	} else
+	} else {
+		mtx_unlock(&softc->ctl_lock);
 		lun = NULL;
+	}
 	if (lun == NULL) {
 		/*
 		 * The other node would not send this request to us unless
@@ -2514,6 +2537,7 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 		if (lun == NULL) {
 			mtx_unlock(&softc->ctl_lock);
 			sync_info->status = CTL_GS_SYNC_NO_LUN;
+			break;
 		}
 		/*
 		 * Get or set the sync interval.  We're not bounds checking
@@ -4531,8 +4555,8 @@ ctl_lun_primary(struct ctl_be_lun *be_lun)
 
 	mtx_lock(&lun->lun_lock);
 	lun->flags |= CTL_LUN_PRIMARY_SC;
-	mtx_unlock(&lun->lun_lock);
 	ctl_est_ua_all(lun, -1, CTL_UA_ASYM_ACC_CHANGE);
+	mtx_unlock(&lun->lun_lock);
 	ctl_isc_announce_lun(lun);
 	return (0);
 }
@@ -4544,8 +4568,8 @@ ctl_lun_secondary(struct ctl_be_lun *be_lun)
 
 	mtx_lock(&lun->lun_lock);
 	lun->flags &= ~CTL_LUN_PRIMARY_SC;
-	mtx_unlock(&lun->lun_lock);
 	ctl_est_ua_all(lun, -1, CTL_UA_ASYM_ACC_CHANGE);
+	mtx_unlock(&lun->lun_lock);
 	ctl_isc_announce_lun(lun);
 	return (0);
 }
@@ -8383,10 +8407,19 @@ ctl_hndl_per_res_out_on_other_sc(union ctl_ha_msg *msg)
 	uint32_t targ_lun;
 
 	softc = control_softc;
-
 	targ_lun = msg->hdr.nexus.targ_mapped_lun;
-	lun = softc->ctl_luns[targ_lun];
+	mtx_lock(&softc->ctl_lock);
+	if ((targ_lun >= CTL_MAX_LUNS) ||
+	    ((lun = softc->ctl_luns[targ_lun]) == NULL)) {
+		mtx_unlock(&softc->ctl_lock);
+		return;
+	}
 	mtx_lock(&lun->lun_lock);
+	mtx_unlock(&softc->ctl_lock);
+	if (lun->flags & CTL_LUN_DISABLED) {
+		mtx_unlock(&lun->lun_lock);
+		return;
+	}
 	switch(msg->pr.pr_info.action) {
 	case CTL_PR_REG_KEY:
 		ctl_alloc_prkey(lun, msg->pr.pr_info.residx);
