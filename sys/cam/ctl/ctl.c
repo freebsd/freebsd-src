@@ -11516,13 +11516,24 @@ ctl_i_t_nexus_reset(union ctl_io *io)
 	struct ctl_lun *lun;
 	uint32_t initidx;
 
+	if (!(io->io_hdr.flags & CTL_FLAG_FROM_OTHER_SC)) {
+		union ctl_ha_msg msg_info;
+
+		msg_info.hdr.nexus = io->io_hdr.nexus;
+		msg_info.task.task_action = CTL_TASK_I_T_NEXUS_RESET;
+		msg_info.hdr.msg_type = CTL_MSG_MANAGE_TASKS;
+		msg_info.hdr.original_sc = NULL;
+		msg_info.hdr.serializing_sc = NULL;
+		ctl_ha_msg_send(CTL_HA_CHAN_CTL, &msg_info,
+		    sizeof(msg_info.task), M_WAITOK);
+	}
+
 	initidx = ctl_get_initindex(&io->io_hdr.nexus);
 	mtx_lock(&softc->ctl_lock);
 	STAILQ_FOREACH(lun, &softc->lun_list, links) {
 		mtx_lock(&lun->lun_lock);
 		ctl_abort_tasks_lun(lun, io->io_hdr.nexus.targ_port,
-		    io->io_hdr.nexus.initid,
-		    (io->io_hdr.flags & CTL_FLAG_FROM_OTHER_SC) != 0);
+		    io->io_hdr.nexus.initid, 1);
 #ifdef CTL_WITH_CA
 		ctl_clear_mask(lun->have_ca, initidx);
 #endif
