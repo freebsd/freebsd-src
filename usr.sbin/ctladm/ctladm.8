@@ -1,5 +1,6 @@
 .\"
 .\" Copyright (c) 2003 Silicon Graphics International Corp.
+.\" Copyright (c) 2015 Alexander Motin <mav@FreeBSD.org>
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -34,7 +35,7 @@
 .\" $Id: //depot/users/kenm/FreeBSD-test2/usr.sbin/ctladm/ctladm.8#3 $
 .\" $FreeBSD$
 .\"
-.Dd September 10, 2015
+.Dd September 12, 2015
 .Dt CTLADM 8
 .Os
 .Sh NAME
@@ -964,6 +965,9 @@ Specifies LUN NAA identifier.
 Either EUI or NAA identifier should be set to UNIQUE value to allow
 EXTENDED COPY command access the LUN.
 Non-unique LUN identifiers may lead to data corruption.
+.It Va ha_role
+Setting to "primary" or "secondary" overrides default role of the node
+in HA cluster, set by kern.cam.ctl.ha_role sysctl.
 .It Va insecure_tpc
 Setting to "on" allows EXTENDED COPY command sent to this LUN access
 other LUNs on this host, not accessible otherwise.
@@ -994,7 +998,6 @@ Specify physical block size and offset of the device.
 .It Va ublocksize
 .It Va ublockoffset
 Specify UNMAP block size and offset of the device.
-.It Va rpm
 .It Va rpm
 Specifies medium rotation rate of the device: 0 -- not reported,
 1 -- non-rotating (SSD), >1024 -- value in revolutions per minute.

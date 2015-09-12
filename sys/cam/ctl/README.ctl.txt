@@ -40,25 +40,24 @@ Features:
  - Support for multiple ports
  - Support for multiple simultaneous initiators
  - Support for multiple simultaneous backing stores
+ - Support for VMWare VAAI: COMPARE AND WRITE, XCOPY, WRITE SAME and
+   UNMAP commands
+ - Support for Microsoft ODX: POPULATE TOKEN/WRITE USING TOKEN, WRITE SAME
+   and UNMAP commands
  - Persistent reservation support
  - Mode sense/select support
  - Error injection support
- - High Availability support
+ - High Availability clustering support with ALUA
  - All I/O handled in-kernel, no userland context switch overhead.
 
 Configuring and Running CTL:
 ===========================
 
- - After applying the CTL patchset to your tree, build world and install it
-   on your target system.
-
- - Add 'device ctl' to your kernel configuration file.
+ - Add 'device ctl' to your kernel configuration file or load the module.
 
  - If you're running with a 8Gb or 4Gb Qlogic FC board, add
-   'options ISP_TARGET_MODE' to your kernel config file.  Keep in mind that
-   the isp(4) driver can run in target or initiator mode, but not both on
-   the same machine.  'device ispfw' or loading the ispfw module is also
-   recommended.
+   'options ISP_TARGET_MODE' to your kernel config file. 'device ispfw' or
+   loading the ispfw module is also recommended.
 
  - Rebuild and install a new kernel.
 
