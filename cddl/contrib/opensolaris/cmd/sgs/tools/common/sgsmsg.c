@@ -132,6 +132,8 @@ typedef struct msg_string {
 static msg_string	*msg_head;
 static msg_string	*msg_tail;
 
+int	aok;
+
 /*
  * message_append() is responsible for both inserting strings into
  * the master Str_tbl as well as maintaining a list of the
