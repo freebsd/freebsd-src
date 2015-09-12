@@ -47,17 +47,19 @@
 				  "\05DISTRIBUTING\06DISABLED"
 
 /* Supported lagg PROTOs */
-#define	LAGG_PROTO_NONE		0	/* no lagg protocol defined */
-#define	LAGG_PROTO_ROUNDROBIN	1	/* simple round robin */
-#define	LAGG_PROTO_FAILOVER	2	/* active failover */
-#define	LAGG_PROTO_LOADBALANCE	3	/* loadbalance */
-#define	LAGG_PROTO_LACP		4	/* 802.3ad lacp */
-#define	LAGG_PROTO_ETHERCHANNEL	5	/* Cisco FEC */
-#define	LAGG_PROTO_MAX		6
+typedef enum {
+	LAGG_PROTO_NONE = 0,	/* no lagg protocol defined */
+	LAGG_PROTO_ROUNDROBIN,	/* simple round robin */
+	LAGG_PROTO_FAILOVER,	/* active failover */
+	LAGG_PROTO_LOADBALANCE,	/* loadbalance */
+	LAGG_PROTO_LACP,	/* 802.3ad lacp */
+	LAGG_PROTO_ETHERCHANNEL,/* Cisco FEC */
+	LAGG_PROTO_MAX,
+} lagg_proto;
 
 struct lagg_protos {
 	const char		*lpr_name;
-	int			lpr_proto;
+	lagg_proto		lpr_proto;
 };
 
 #define	LAGG_PROTO_DEFAULT	LAGG_PROTO_FAILOVER
@@ -134,6 +136,30 @@ struct lagg_reqflags {
 #define	SIOCGLAGGFLAGS		_IOWR('i', 145, struct lagg_reqflags)
 #define	SIOCSLAGGHASH		 _IOW('i', 146, struct lagg_reqflags)
 
+struct lagg_reqopts {
+	char			ro_ifname[IFNAMSIZ];	/* name of the lagg */
+
+	int			ro_opts;		/* Option bitmap */
+#define	LAGG_OPT_NONE			0x00
+#define	LAGG_OPT_USE_FLOWID		0x01		/* use M_FLOWID */
+/* Pseudo flags which are used in ro_opts but not stored into sc_opts. */
+#define	LAGG_OPT_FLOWIDSHIFT		0x02		/* Set flowid */
+#define	LAGG_OPT_FLOWIDSHIFT_MASK	0x1f		/* flowid is uint32_t */
+#define	LAGG_OPT_LACP_STRICT		0x10		/* LACP strict mode */
+#define	LAGG_OPT_LACP_TXTEST		0x20		/* LACP debug: txtest */
+#define	LAGG_OPT_LACP_RXTEST		0x40		/* LACP debug: rxtest */
+	u_int			ro_count;		/* number of ports */
+	u_int			ro_active;		/* active port count */
+	u_int			ro_flapping;		/* number of flapping */
+	int			ro_flowid_shift;	/* shift the flowid */
+};
+
+#define	SIOCGLAGGOPTS		_IOWR('i', 152, struct lagg_reqopts)
+#define	SIOCSLAGGOPTS		 _IOW('i', 153, struct lagg_reqopts)
+
+#define	LAGG_OPT_BITS		"\020\001USE_FLOWID\005LACP_STRICT" \
+				"\006LACP_TXTEST\007LACP_RXTEST"
+
 #ifdef _KERNEL
 
 #include <sys/counter.h>
@@ -183,6 +209,7 @@ struct lagg_mc {
 struct lagg_llq {
 	struct ifnet		*llq_ifp;
 	uint8_t			llq_lladdr[ETHER_ADDR_LEN];
+	uint8_t			llq_primary;
 	SLIST_ENTRY(lagg_llq)	llq_entries;
 };
 
@@ -229,9 +256,7 @@ struct lagg_softc {
 	eventhandler_tag vlan_attach;
 	eventhandler_tag vlan_detach;
 	struct callout			sc_callout;
-	struct sysctl_ctx_list		ctx;		/* sysctl variables */
-	struct sysctl_oid		*sc_oid;	/* sysctl tree oid */
-	int				use_flowid;	/* enable use of flowid */
+	u_int				sc_opts;
 	int				flowid_shift;	/* set flowid shift*/
 };
 
