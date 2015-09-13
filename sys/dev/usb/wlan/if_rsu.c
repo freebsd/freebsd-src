@@ -2401,7 +2401,7 @@ rsu_init(struct rsu_softc *sc)
 	rsu_write_1(sc, R92S_USB_HRPWM,
 	    R92S_USB_HRPWM_PS_ST_ACTIVE | R92S_USB_HRPWM_PS_ALL_ON);
 
-	/* XXX non-configurable psmode? */
+	/* Set PS mode fully active */
 	memset(&cmd, 0, sizeof(cmd));
 	cmd.mode = R92S_PS_MODE_ACTIVE;
 	RSU_DPRINTF(sc, RSU_DEBUG_RESET, "%s: setting ps mode to %d\n",
