@@ -406,6 +406,8 @@ static int ctl_scsiio_lun_check(struct ctl_lun *lun,
 				struct ctl_scsiio *ctsio);
 static void ctl_failover_lun(struct ctl_lun *lun);
 static void ctl_est_ua(struct ctl_lun *lun, uint32_t initidx, ctl_ua_type ua);
+static void ctl_est_ua_port(struct ctl_lun *lun, int port, uint32_t except,
+    ctl_ua_type ua);
 static void ctl_est_ua_all(struct ctl_lun *lun, uint32_t except, ctl_ua_type ua);
 static void ctl_clr_ua(struct ctl_lun *lun, uint32_t initidx, ctl_ua_type ua);
 static void ctl_clr_ua_all(struct ctl_lun *lun, uint32_t except, ctl_ua_type ua);
@@ -1213,21 +1215,29 @@ ctl_est_ua(struct ctl_lun *lun, uint32_t initidx, ctl_ua_type ua)
 }
 
 static void
+ctl_est_ua_port(struct ctl_lun *lun, int port, uint32_t except, ctl_ua_type ua)
+{
+	int i;
+
+	mtx_assert(&lun->lun_lock, MA_OWNED);
+	if (lun->pending_ua[port] == NULL)
+		return;
+	for (i = 0; i < CTL_MAX_INIT_PER_PORT; i++) {
+		if (port * CTL_MAX_INIT_PER_PORT + i == except)
+			continue;
+		lun->pending_ua[port][i] |= ua;
+	}
+}
+
+static void
 ctl_est_ua_all(struct ctl_lun *lun, uint32_t except, ctl_ua_type ua)
 {
 	struct ctl_softc *softc = lun->ctl_softc;
-	int i, j;
+	int i;
 
 	mtx_assert(&lun->lun_lock, MA_OWNED);
-	for (i = softc->port_min; i < softc->port_max; i++) {
-		if (lun->pending_ua[i] == NULL)
-			continue;
-		for (j = 0; j < CTL_MAX_INIT_PER_PORT; j++) {
-			if (i * CTL_MAX_INIT_PER_PORT + j == except)
-				continue;
-			lun->pending_ua[i][j] |= ua;
-		}
-	}
+	for (i = softc->port_min; i < softc->port_max; i++)
+		ctl_est_ua_port(lun, i, except, ua);
 }
 
 static void
@@ -2115,6 +2125,7 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 	  struct thread *td)
 {
 	struct ctl_softc *softc;
+	struct ctl_lun *lun;
 	int retval;
 
 	softc = control_softc;
@@ -2273,7 +2284,6 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 		break;
 	}
 	case CTL_DUMP_OOA: {
-		struct ctl_lun *lun;
 		union ctl_io *io;
 		char printbuf[128];
 		struct sbuf sb;
@@ -2310,7 +2320,6 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 		break;
 	}
 	case CTL_GET_OOA: {
-		struct ctl_lun *lun;
 		struct ctl_ooa *ooa_hdr;
 		struct ctl_ooa_entry *entries;
 		uint32_t cur_fill_num;
@@ -2402,7 +2411,6 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 	}
 	case CTL_CHECK_OOA: {
 		union ctl_io *io;
-		struct ctl_lun *lun;
 		struct ctl_ooa_info *ooa_info;
 
 
@@ -2435,9 +2443,6 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 	}
 	case CTL_DELAY_IO: {
 		struct ctl_io_delay_info *delay_info;
-#ifdef CTL_IO_DELAY
-		struct ctl_lun *lun;
-#endif /* CTL_IO_DELAY */
 
 		delay_info = (struct ctl_io_delay_info *)addr;
 
@@ -2528,7 +2533,6 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 	case CTL_SETSYNC:
 	case CTL_GETSYNC: {
 		struct ctl_sync_info *sync_info;
-		struct ctl_lun *lun;
 
 		sync_info = (struct ctl_sync_info *)addr;
 
@@ -2558,7 +2562,6 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 	}
 	case CTL_GETSTATS: {
 		struct ctl_stats *stats;
-		struct ctl_lun *lun;
 		int i;
 
 		stats = (struct ctl_stats *)addr;
@@ -2594,7 +2597,6 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 	}
 	case CTL_ERROR_INJECT: {
 		struct ctl_error_desc *err_desc, *new_err_desc;
-		struct ctl_lun *lun;
 
 		err_desc = (struct ctl_error_desc *)addr;
 
@@ -2641,7 +2643,6 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 	}
 	case CTL_ERROR_INJECT_DELETE: {
 		struct ctl_error_desc *delete_desc, *desc, *desc2;
-		struct ctl_lun *lun;
 		int delete_done;
 
 		delete_desc = (struct ctl_error_desc *)addr;
@@ -2685,8 +2686,6 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 		mtx_lock(&softc->ctl_lock);
 		printf("CTL Persistent Reservation information start:\n");
 		for (i = 0; i < CTL_MAX_LUNS; i++) {
-			struct ctl_lun *lun;
-
 			lun = softc->ctl_luns[i];
 
 			if ((lun == NULL)
@@ -2780,7 +2779,6 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 	}
 	case CTL_LUN_LIST: {
 		struct sbuf *sb;
-		struct ctl_lun *lun;
 		struct ctl_lun_list *list;
 		struct ctl_option *opt;
 
@@ -3152,6 +3150,13 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 		    (port = softc->ctl_ports[lm->port]) == NULL) {
 			mtx_unlock(&softc->ctl_lock);
 			return (ENXIO);
+		}
+		STAILQ_FOREACH(lun, &softc->lun_list, links) {
+			if (ctl_lun_map_to_port(port, lun->lun) >= CTL_MAX_LUNS)
+				continue;
+			mtx_lock(&lun->lun_lock);
+			ctl_est_ua_port(lun, lm->port, -1, CTL_UA_LUN_CHANGE);
+			mtx_unlock(&lun->lun_lock);
 		}
 		mtx_unlock(&softc->ctl_lock); // XXX: port_enable sleeps
 		if (lm->plun < CTL_MAX_LUNS) {
