@@ -598,9 +598,6 @@ in6_ifattach_loopback(struct ifnet *ifp)
 	/* we don't need to perform DAD on loopback interfaces. */
 	ifra.ifra_flags |= IN6_IFF_NODAD;
 
-	/* skip registration to the prefix list. XXX should be temporary. */
-	ifra.ifra_flags |= IN6_IFF_NOPFX;
-
 	/*
 	 * We are sure that this is a newly assigned address, so we can set
 	 * NULL to the 3rd arg.
