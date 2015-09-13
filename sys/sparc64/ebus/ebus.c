@@ -69,7 +69,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
-
 #include <sys/rman.h>
 
 #include <dev/ofw/ofw_bus.h>
@@ -294,7 +293,7 @@ ebus_nexus_attach(device_t dev)
 	sc->sc_nrange = OF_getprop_alloc(node, "ranges",
 	    sizeof(struct ebus_nexus_ranges), &sc->sc_range);
 	if (sc->sc_nrange == -1) {
-		printf("%s: could not get ranges property\n", __func__);
+		device_printf(dev, "could not get ranges property\n");
 		return (ENXIO);
 	}
 	return (ebus_attach(dev, sc, node));
@@ -306,6 +305,7 @@ ebus_pci_attach(device_t dev)
 	struct ebus_softc *sc;
 	struct ebus_rinfo *eri;
 	struct resource *res;
+	struct isa_ranges *range;
 	phandle_t node;
 	int i, rnum, rid;
 
@@ -322,7 +322,7 @@ ebus_pci_attach(device_t dev)
 	sc->sc_nrange = OF_getprop_alloc(node, "ranges",
 	    sizeof(struct isa_ranges), &sc->sc_range);
 	if (sc->sc_nrange == -1) {
-		printf("%s: could not get ranges property\n", __func__);
+		device_printf(dev, "could not get ranges property\n");
 		return (ENXIO);
 	}
 
@@ -332,21 +332,34 @@ ebus_pci_attach(device_t dev)
 	/* For every range, there must be a matching resource. */
 	for (rnum = 0; rnum < sc->sc_nrange; rnum++) {
 		eri = &sc->sc_rinfo[rnum];
-		eri->eri_rtype = ofw_isa_range_restype(
-		    &((struct isa_ranges *)sc->sc_range)[rnum]);
+		range = &((struct isa_ranges *)sc->sc_range)[rnum];
+		eri->eri_rtype = ofw_isa_range_restype(range);
 		rid = PCIR_BAR(rnum);
 		res = bus_alloc_resource_any(dev, eri->eri_rtype, &rid,
 		    RF_ACTIVE);
 		if (res == NULL) {
-			printf("%s: failed to allocate range resource!\n",
-			    __func__);
+			device_printf(dev,
+			    "could not allocate range resource %d\n", rnum);
+			goto fail;
+		}
+		if (rman_get_start(res) != ISA_RANGE_PHYS(range)) {
+			device_printf(dev,
+			    "mismatch in start of range %d (0x%lx/0x%lx)\n",
+			    rnum, rman_get_start(res), ISA_RANGE_PHYS(range));
+			goto fail;
+		}
+		if (rman_get_size(res) != range->size) {
+			device_printf(dev,
+			    "mismatch in size of range %d (0x%lx/0x%x)\n",
+			    rnum, rman_get_size(res), range->size);
 			goto fail;
 		}
 		eri->eri_res = res;
 		eri->eri_rman.rm_type = RMAN_ARRAY;
 		eri->eri_rman.rm_descr = "EBus range";
 		if (rman_init_from_resource(&eri->eri_rman, res) != 0) {
-			printf("%s: failed to initialize rman!", __func__);
+			device_printf(dev,
+			    "could not initialize rman for range %d", rnum);
 			goto fail;
 		}
 	}
@@ -452,7 +465,7 @@ ebus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 			 * Map EBus ranges to PCI ranges.  This may include
 			 * changing the allocation type.
 			 */
-			(void)ofw_isa_range_map(sc->sc_range, sc->sc_nrange,
+			type = ofw_isa_range_map(sc->sc_range, sc->sc_nrange,
 			    &start, &end, &ridx);
 			eri = &sc->sc_rinfo[ridx];
 			res = rman_reserve_resource(&eri->eri_rman, start,
@@ -507,7 +520,7 @@ ebus_activate_resource(device_t bus, device_t child, int type, int rid,
 	int i, rv;
 
 	sc = device_get_softc(bus);
-	if ((sc->sc_flags & EBUS_PCI) != 0 && type == SYS_RES_MEMORY) {
+	if ((sc->sc_flags & EBUS_PCI) != 0 && type != SYS_RES_IRQ) {
 		for (i = 0; i < sc->sc_nrange; i++) {
 			eri = &sc->sc_rinfo[i];
 			if (rman_is_region_manager(res, &eri->eri_rman) != 0) {
@@ -550,7 +563,7 @@ ebus_release_resource(device_t bus, device_t child, int type, int rid,
 	passthrough = (device_get_parent(child) != bus);
 	rl = BUS_GET_RESOURCE_LIST(bus, child);
 	sc = device_get_softc(bus);
-	if ((sc->sc_flags & EBUS_PCI) != 0 && type == SYS_RES_MEMORY) {
+	if ((sc->sc_flags & EBUS_PCI) != 0 && type != SYS_RES_IRQ) {
 		if ((rman_get_flags(res) & RF_ACTIVE) != 0 ){
 			rv = bus_deactivate_resource(child, type, rid, res);
 			if (rv != 0)
