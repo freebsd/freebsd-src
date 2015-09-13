@@ -3153,12 +3153,16 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 			mtx_unlock(&softc->ctl_lock);
 			return (ENXIO);
 		}
-		STAILQ_FOREACH(lun, &softc->lun_list, links) {
-			if (ctl_lun_map_to_port(port, lun->lun) >= CTL_MAX_LUNS)
-				continue;
-			mtx_lock(&lun->lun_lock);
-			ctl_est_ua_port(lun, lm->port, -1, CTL_UA_LUN_CHANGE);
-			mtx_unlock(&lun->lun_lock);
+		if (port->status & CTL_PORT_STATUS_ONLINE) {
+			STAILQ_FOREACH(lun, &softc->lun_list, links) {
+				if (ctl_lun_map_to_port(port, lun->lun) >=
+				    CTL_MAX_LUNS)
+					continue;
+				mtx_lock(&lun->lun_lock);
+				ctl_est_ua_port(lun, lm->port, -1,
+				    CTL_UA_LUN_CHANGE);
+				mtx_unlock(&lun->lun_lock);
+			}
 		}
 		mtx_unlock(&softc->ctl_lock); // XXX: port_enable sleeps
 		if (lm->plun < CTL_MAX_LUNS) {
@@ -3176,6 +3180,8 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 				retval = ctl_lun_map_init(port);
 		} else
 			return (ENXIO);
+		if (port->status & CTL_PORT_STATUS_ONLINE)
+			ctl_isc_announce_port(port);
 		break;
 	}
 	default: {
