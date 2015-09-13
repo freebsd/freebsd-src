@@ -1156,11 +1156,12 @@ rsu_event_survey(struct rsu_softc *sc, uint8_t *buf, int len)
 
 	RSU_DPRINTF(sc, RSU_DEBUG_SCAN,
 	    "%s: found BSS %s: len=%d chan=%d inframode=%d "
-	    "networktype=%d privacy=%d\n",
+	    "networktype=%d privacy=%d, RSSI=%d\n",
 	    __func__,
 	    ether_sprintf(bss->macaddr), le32toh(bss->len),
 	    le32toh(bss->config.dsconfig), le32toh(bss->inframode),
-	    le32toh(bss->networktype), le32toh(bss->privacy));
+	    le32toh(bss->networktype), le32toh(bss->privacy),
+	    le32toh(bss->rssi));
 
 	/* Build a fake beacon frame to let net80211 do all the parsing. */
 	/* XXX TODO: just call the new scan API methods! */
