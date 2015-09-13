@@ -328,8 +328,16 @@ ctl_port_online(struct ctl_port *port)
 	}
 	if (port->port_online != NULL)
 		port->port_online(port->onoff_arg);
-	/* XXX KDM need a lock here? */
+	mtx_lock(&softc->ctl_lock);
 	port->status |= CTL_PORT_STATUS_ONLINE;
+	STAILQ_FOREACH(lun, &softc->lun_list, links) {
+		if (ctl_lun_map_to_port(port, lun->lun) >= CTL_MAX_LUNS)
+			continue;
+		mtx_lock(&lun->lun_lock);
+		ctl_est_ua_all(lun, -1, CTL_UA_INQ_CHANGE);
+		mtx_unlock(&lun->lun_lock);
+	}
+	mtx_unlock(&softc->ctl_lock);
 	ctl_isc_announce_port(port);
 }
 
@@ -355,8 +363,16 @@ ctl_port_offline(struct ctl_port *port)
 				port->lun_disable(port->targ_lun_arg, lun->lun);
 		}
 	}
-	/* XXX KDM need a lock here? */
+	mtx_lock(&softc->ctl_lock);
 	port->status &= ~CTL_PORT_STATUS_ONLINE;
+	STAILQ_FOREACH(lun, &softc->lun_list, links) {
+		if (ctl_lun_map_to_port(port, lun->lun) >= CTL_MAX_LUNS)
+			continue;
+		mtx_lock(&lun->lun_lock);
+		ctl_est_ua_all(lun, -1, CTL_UA_INQ_CHANGE);
+		mtx_unlock(&lun->lun_lock);
+	}
+	mtx_unlock(&softc->ctl_lock);
 	ctl_isc_announce_port(port);
 }
 
