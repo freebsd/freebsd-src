@@ -447,11 +447,6 @@ struct	in6_rrenumreq {
 
 #define SIOCGIFAFLAG_IN6	_IOWR('i', 73, struct in6_ifreq)
 
-#define SIOCGDRLST_IN6		_IOWR('i', 74, struct in6_drlist)
-#ifdef _KERNEL
-/* XXX: SIOCGPRLST_IN6 is exposed in KAME but in6_oprlist is not. */
-#define SIOCGPRLST_IN6		_IOWR('i', 75, struct in6_oprlist)
-#endif
 #ifdef _KERNEL
 #define OSIOCGIFINFO_IN6	_IOWR('i', 76, struct in6_ondireq)
 #endif

@@ -1246,99 +1246,14 @@ nd6_rtrequest(int req, struct rtentry *rt, struct rt_addrinfo *info)
 int
 nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 {
-	struct in6_drlist *drl = (struct in6_drlist *)data;
-	struct in6_oprlist *oprl = (struct in6_oprlist *)data;
 	struct in6_ndireq *ndi = (struct in6_ndireq *)data;
 	struct in6_nbrinfo *nbi = (struct in6_nbrinfo *)data;
 	struct in6_ndifreq *ndif = (struct in6_ndifreq *)data;
-	struct nd_defrouter *dr;
-	struct nd_prefix *pr;
-	int i = 0, error = 0;
+	int error = 0;
 
 	if (ifp->if_afdata[AF_INET6] == NULL)
 		return (EPFNOSUPPORT);
 	switch (cmd) {
-	case SIOCGDRLST_IN6:
-		/*
-		 * obsolete API, use sysctl under net.inet6.icmp6
-		 */
-		bzero(drl, sizeof(*drl));
-		TAILQ_FOREACH(dr, &V_nd_defrouter, dr_entry) {
-			if (i >= DRLSTSIZ)
-				break;
-			drl->defrouter[i].rtaddr = dr->rtaddr;
-			in6_clearscope(&drl->defrouter[i].rtaddr);
-
-			drl->defrouter[i].flags = dr->flags;
-			drl->defrouter[i].rtlifetime = dr->rtlifetime;
-			drl->defrouter[i].expire = dr->expire +
-			    (time_second - time_uptime);
-			drl->defrouter[i].if_index = dr->ifp->if_index;
-			i++;
-		}
-		break;
-	case SIOCGPRLST_IN6:
-		/*
-		 * obsolete API, use sysctl under net.inet6.icmp6
-		 *
-		 * XXX the structure in6_prlist was changed in backward-
-		 * incompatible manner.  in6_oprlist is used for SIOCGPRLST_IN6,
-		 * in6_prlist is used for nd6_sysctl() - fill_prlist().
-		 */
-		/*
-		 * XXX meaning of fields, especialy "raflags", is very
-		 * differnet between RA prefix list and RR/static prefix list.
-		 * how about separating ioctls into two?
-		 */
-		bzero(oprl, sizeof(*oprl));
-		LIST_FOREACH(pr, &V_nd_prefix, ndpr_entry) {
-			struct nd_pfxrouter *pfr;
-			int j;
-
-			if (i >= PRLSTSIZ)
-				break;
-			oprl->prefix[i].prefix = pr->ndpr_prefix.sin6_addr;
-			oprl->prefix[i].raflags = pr->ndpr_raf;
-			oprl->prefix[i].prefixlen = pr->ndpr_plen;
-			oprl->prefix[i].vltime = pr->ndpr_vltime;
-			oprl->prefix[i].pltime = pr->ndpr_pltime;
-			oprl->prefix[i].if_index = pr->ndpr_ifp->if_index;
-			if (pr->ndpr_vltime == ND6_INFINITE_LIFETIME)
-				oprl->prefix[i].expire = 0;
-			else {
-				time_t maxexpire;
-
-				/* XXX: we assume time_t is signed. */
-				maxexpire = (-1) &
-				    ~((time_t)1 <<
-				    ((sizeof(maxexpire) * 8) - 1));
-				if (pr->ndpr_vltime <
-				    maxexpire - pr->ndpr_lastupdate) {
-					oprl->prefix[i].expire =
-					    pr->ndpr_lastupdate +
-					    pr->ndpr_vltime +
-					    (time_second - time_uptime);
-				} else
-					oprl->prefix[i].expire = maxexpire;
-			}
-
-			j = 0;
-			LIST_FOREACH(pfr, &pr->ndpr_advrtrs, pfr_entry) {
-				if (j < DRLSTSIZ) {
-#define RTRADDR oprl->prefix[i].advrtr[j]
-					RTRADDR = pfr->router->rtaddr;
-					in6_clearscope(&RTRADDR);
-#undef RTRADDR
-				}
-				j++;
-			}
-			oprl->prefix[i].advrtrs = j;
-			oprl->prefix[i].origin = PR_ORIG_RA;
-
-			i++;
-		}
-
-		break;
 	case OSIOCGIFINFO_IN6:
 #define ND	ndi->ndi
 		/* XXX: old ndp(8) assumes a positive value for linkmtu. */
@@ -1398,22 +1313,19 @@ nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 			 * do not clear ND6_IFF_IFDISABLED.
 			 * See RFC 4862, Section 5.4.5.
 			 */
-			int duplicated_linklocal = 0;
-
 			IF_ADDR_RLOCK(ifp);
 			TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 				if (ifa->ifa_addr->sa_family != AF_INET6)
 					continue;
 				ia = (struct in6_ifaddr *)ifa;
 				if ((ia->ia6_flags & IN6_IFF_DUPLICATED) &&
-				    IN6_IS_ADDR_LINKLOCAL(IA6_IN6(ia))) {
-					duplicated_linklocal = 1;
+				    IN6_IS_ADDR_LINKLOCAL(IA6_IN6(ia)))
 					break;
-				}
 			}
 			IF_ADDR_RUNLOCK(ifp);
 
-			if (duplicated_linklocal) {
+			if (ifa != NULL) {
+				/* LLA is duplicated. */
 				ND.flags |= ND6_IFF_IFDISABLED;
 				log(LOG_ERR, "Cannot enable an interface"
 				    " with a link-local address marked"
@@ -1429,14 +1341,18 @@ nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 			/* Mark all IPv6 address as tentative. */
 
 			ND_IFINFO(ifp)->flags |= ND6_IFF_IFDISABLED;
-			IF_ADDR_RLOCK(ifp);
-			TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
-				if (ifa->ifa_addr->sa_family != AF_INET6)
-					continue;
-				ia = (struct in6_ifaddr *)ifa;
-				ia->ia6_flags |= IN6_IFF_TENTATIVE;
+			if ((ND_IFINFO(ifp)->flags & ND6_IFF_NO_DAD) == 0) {
+				IF_ADDR_RLOCK(ifp);
+				TAILQ_FOREACH(ifa, &ifp->if_addrhead,
+				    ifa_link) {
+					if (ifa->ifa_addr->sa_family !=
+					    AF_INET6)
+						continue;
+					ia = (struct in6_ifaddr *)ifa;
+					ia->ia6_flags |= IN6_IFF_TENTATIVE;
+				}
+				IF_ADDR_RUNLOCK(ifp);
 			}
-			IF_ADDR_RUNLOCK(ifp);
 		}
 
 		if (ND.flags & ND6_IFF_AUTO_LINKLOCAL) {
@@ -1454,20 +1370,19 @@ nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 				 * address is assigned, and IFF_UP, try to
 				 * assign one.
 				 */
-				int haslinklocal = 0;
-			
 				IF_ADDR_RLOCK(ifp);
-				TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
-					if (ifa->ifa_addr->sa_family != AF_INET6)
+				TAILQ_FOREACH(ifa, &ifp->if_addrhead,
+				    ifa_link) {
+					if (ifa->ifa_addr->sa_family !=
+					    AF_INET6)
 						continue;
 					ia = (struct in6_ifaddr *)ifa;
-					if (IN6_IS_ADDR_LINKLOCAL(IA6_IN6(ia))) {
-						haslinklocal = 1;
+					if (IN6_IS_ADDR_LINKLOCAL(IA6_IN6(ia)))
 						break;
-					}
 				}
 				IF_ADDR_RUNLOCK(ifp);
-				if (!haslinklocal)
+				if (ifa != NULL)
+					/* No LLA is configured. */
 					in6_ifattach(ifp, NULL);
 			}
 		}
