@@ -595,9 +595,6 @@ in6_ifattach_loopback(struct ifnet *ifp)
 	ifra.ifra_lifetime.ia6t_vltime = ND6_INFINITE_LIFETIME;
 	ifra.ifra_lifetime.ia6t_pltime = ND6_INFINITE_LIFETIME;
 
-	/* we don't need to perform DAD on loopback interfaces. */
-	ifra.ifra_flags |= IN6_IFF_NODAD;
-
 	/*
 	 * We are sure that this is a newly assigned address, so we can set
 	 * NULL to the 3rd arg.

@@ -1280,13 +1280,8 @@ in6_update_ifa(struct ifnet *ifp, struct in6_aliasreq *ifra,
 			goto cleanup;
 	}
 
-	/*
-	 * Perform DAD, if needed.
-	 * XXX It may be of use, if we can administratively disable DAD.
-	 */
-	if (in6if_do_dad(ifp) && ((ifra->ifra_flags & IN6_IFF_NODAD) == 0) &&
-	    (ia->ia6_flags & IN6_IFF_TENTATIVE))
-	{
+	/* Perform DAD, if the address is TENTATIVE. */
+	if ((ia->ia6_flags & IN6_IFF_TENTATIVE)) {
 		int mindelay, maxdelay;
 
 		delay = 0;
@@ -1619,6 +1614,10 @@ in6_purgeif(struct ifnet *ifp)
  * in the future.
  * RFC2373 defines interface id to be 64bit, but it allows non-RFC2374
  * address encoding scheme. (see figure on page 8)
+ * Notifies other subsystems about address change/arrival:
+ * 1) Notifies device handler on the first IPv6 address assignment
+ * 2) Handle routing table changes for P2P links and route
+ * 3) Handle routing table changes for address host route
  */
 static int
 in6_lifaddr_ioctl(struct socket *so, u_long cmd, caddr_t data,
@@ -2389,13 +2388,13 @@ in6if_do_dad(struct ifnet *ifp)
 		 * However, some interfaces can be up before the RUNNING
 		 * status.  Additionaly, users may try to assign addresses
 		 * before the interface becomes up (or running).
-		 * We simply skip DAD in such a case as a work around.
-		 * XXX: we should rather mark "tentative" on such addresses,
-		 * and do DAD after the interface becomes ready.
+	 	 * This function returns EAGAIN in that case.
+		 * The caller should mark "tentative" on the address instead of
+		 * performing DAD immediately.
 		 */
 		if (!((ifp->if_flags & IFF_UP) &&
 		    (ifp->if_drv_flags & IFF_DRV_RUNNING)))
-			return (0);
+			return (EAGAIN);
 
 		return (1);
 	}
