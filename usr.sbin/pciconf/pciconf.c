@@ -542,9 +542,12 @@ load_vendors(void)
 	 */
 	TAILQ_INIT(&pci_vendors);
 	if ((dbf = getenv("PCICONF_VENDOR_DATABASE")) == NULL)
+		dbf = _PATH_LPCIVDB;
+	if ((db = fopen(dbf, "r")) == NULL) {
 		dbf = _PATH_PCIVDB;
-	if ((db = fopen(dbf, "r")) == NULL)
-		return(1);
+		if ((db = fopen(dbf, "r")) == NULL)
+			return(1);
+	}
 	cv = NULL;
 	cd = NULL;
 	error = 0;
