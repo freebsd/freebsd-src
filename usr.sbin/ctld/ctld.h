@@ -399,7 +399,7 @@ void			kernel_handoff(struct connection *conn);
 void			kernel_limits(const char *offload,
 			    size_t *max_data_segment_length);
 int			kernel_port_add(struct port *port);
-int			kernel_port_update(struct port *port);
+int			kernel_port_update(struct port *port, struct port *old);
 int			kernel_port_remove(struct port *port);
 void			kernel_capsicate(void);
 
