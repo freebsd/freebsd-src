@@ -651,6 +651,12 @@ cfiscsi_pdu_handle_task_request(struct icl_pdu *request)
 #endif
 		io->taskio.task_action = CTL_TASK_TARGET_RESET;
 		break;
+	case BHSTMR_FUNCTION_TARGET_COLD_RESET:
+#if 0
+		CFISCSI_SESSION_DEBUG(cs, "BHSTMR_FUNCTION_TARGET_COLD_RESET");
+#endif
+		io->taskio.task_action = CTL_TASK_TARGET_RESET;
+		break;
 	default:
 		CFISCSI_SESSION_DEBUG(cs, "unsupported function 0x%x",
 		    bhstmr->bhstmr_function & ~0x80);
@@ -2842,7 +2848,9 @@ cfiscsi_task_management_done(union ctl_io *io)
 	struct iscsi_bhs_task_management_request *bhstmr;
 	struct iscsi_bhs_task_management_response *bhstmr2;
 	struct cfiscsi_data_wait *cdw, *tmpcdw;
-	struct cfiscsi_session *cs;
+	struct cfiscsi_session *cs, *tcs;
+	struct cfiscsi_softc *softc;
+	int cold_reset = 0;
 
 	request = io->io_hdr.ctl_private[CTL_PRIV_FRONTEND].ptr;
 	cs = PDU_SESSION(request);
@@ -2880,6 +2888,10 @@ cfiscsi_task_management_done(union ctl_io *io)
 		}
 		CFISCSI_SESSION_UNLOCK(cs);
 	}
+	if ((bhstmr->bhstmr_function & ~0x80) ==
+	    BHSTMR_FUNCTION_TARGET_COLD_RESET &&
+	    io->io_hdr.status == CTL_SUCCESS)
+		cold_reset = 1;
 
 	response = cfiscsi_pdu_new_response(request, M_WAITOK);
 	bhstmr2 = (struct iscsi_bhs_task_management_response *)
@@ -2903,6 +2915,16 @@ cfiscsi_task_management_done(union ctl_io *io)
 	ctl_free_io(io);
 	icl_pdu_free(request);
 	cfiscsi_pdu_queue(response);
+
+	if (cold_reset) {
+		softc = cs->cs_target->ct_softc;
+		mtx_lock(&softc->lock);
+		TAILQ_FOREACH(tcs, &softc->sessions, cs_next) {
+			if (tcs->cs_target == cs->cs_target)
+				cfiscsi_session_terminate(tcs);
+		}
+		mtx_unlock(&softc->lock);
+	}
 }
 
 static void
