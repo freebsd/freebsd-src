@@ -347,13 +347,13 @@ showjob(struct job *jp, int mode)
 			strcat(statestr, " (core dumped)");
 	}
 
-	for (ps = jp->ps ; ; ps++) {	/* for each process */
+	for (ps = jp->ps ; procno > 0 ; ps++, procno--) { /* for each process */
 		if (mode == SHOWJOBS_PIDS || mode == SHOWJOBS_PGIDS) {
 			out1fmt("%d\n", (int)ps->pid);
-			goto skip;
+			continue;
 		}
 		if (mode != SHOWJOBS_VERBOSE && ps != jp->ps)
-			goto skip;
+			continue;
 		if (jobno == curr && ps == jp->ps)
 			c = '+';
 		else if (jobno == prev && ps == jp->ps)
@@ -384,8 +384,6 @@ showjob(struct job *jp, int mode)
 			out1c('\n');
 		} else
 			printjobcmd(jp);
-skip:		if (--procno <= 0)
-			break;
 	}
 }
 

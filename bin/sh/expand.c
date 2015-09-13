@@ -323,24 +323,19 @@ exptilde(char *p, int flag)
 done:
 	*p = '\0';
 	if (*(startp+1) == '\0') {
-		if ((home = lookupvar("HOME")) == NULL)
-			goto lose;
+		home = lookupvar("HOME");
 	} else {
-		if ((pw = getpwnam(startp+1)) == NULL)
-			goto lose;
-		home = pw->pw_dir;
+		pw = getpwnam(startp+1);
+		home = pw != NULL ? pw->pw_dir : NULL;
 	}
-	if (*home == '\0')
-		goto lose;
 	*p = c;
+	if (home == NULL || *home == '\0')
+		return (startp);
 	if (quotes)
 		STPUTS_QUOTES(home, DQSYNTAX, expdest);
 	else
 		STPUTS(home, expdest);
 	return (p);
-lose:
-	*p = c;
-	return (startp);
 }
 
 
