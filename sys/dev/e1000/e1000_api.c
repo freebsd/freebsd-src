@@ -299,6 +299,12 @@ s32 e1000_set_mac_type(struct e1000_hw *hw)
 	case E1000_DEV_ID_PCH_I218_V3:
 		mac->type = e1000_pch_lpt;
 		break;
+	case E1000_DEV_ID_PCH_SPT_I219_LM:
+	case E1000_DEV_ID_PCH_SPT_I219_V:
+	case E1000_DEV_ID_PCH_SPT_I219_LM2:
+	case E1000_DEV_ID_PCH_SPT_I219_V2:
+		mac->type = e1000_pch_spt;
+		break;
 	case E1000_DEV_ID_82575EB_COPPER:
 	case E1000_DEV_ID_82575EB_FIBER_SERDES:
 	case E1000_DEV_ID_82575GB_QUAD_COPPER:
@@ -449,6 +455,7 @@ s32 e1000_setup_init_funcs(struct e1000_hw *hw, bool init_device)
 	case e1000_pchlan:
 	case e1000_pch2lan:
 	case e1000_pch_lpt:
+	case e1000_pch_spt:
 		e1000_init_function_pointers_ich8lan(hw);
 		break;
 	case e1000_82575:
@@ -929,21 +936,6 @@ s32 e1000_mng_enable_host_if(struct e1000_hw *hw)
 }
 
 /**
- *  e1000_set_obff_timer - Set Optimized Buffer Flush/Fill timer
- *  @hw: pointer to the HW structure
- *  @itr: u32 indicating itr value
- *
- *  Set the OBFF timer based on the given interrupt rate.
- **/
-s32 e1000_set_obff_timer(struct e1000_hw *hw, u32 itr)
-{
-	if (hw->mac.ops.set_obff_timer)
-		return hw->mac.ops.set_obff_timer(hw, itr);
-
-	return E1000_SUCCESS;
-}
-
-/**
  *  e1000_check_reset_block - Verifies PHY can be reset
  *  @hw: pointer to the HW structure
  *
@@ -1213,6 +1205,21 @@ s32 e1000_read_pba_string(struct e1000_hw *hw, u8 *pba_num, u32 pba_num_size)
 s32 e1000_read_pba_length(struct e1000_hw *hw, u32 *pba_num_size)
 {
 	return e1000_read_pba_length_generic(hw, pba_num_size);
+}
+
+/**
+ *  e1000_read_pba_num - Read device part number
+ *  @hw: pointer to the HW structure
+ *  @pba_num: pointer to device part number
+ *
+ *  Reads the product board assembly (PBA) number from the EEPROM and stores
+ *  the value in pba_num.
+ *  Currently no func pointer exists and all implementations are handled in the
+ *  generic version of this function.
+ **/
+s32 e1000_read_pba_num(struct e1000_hw *hw, u32 *pba_num)
+{
+	return e1000_read_pba_num_generic(hw, pba_num);
 }
 
 /**
