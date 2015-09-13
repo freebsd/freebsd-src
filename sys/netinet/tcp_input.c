@@ -1377,6 +1377,7 @@ relocked:
 			tcp_trace(TA_INPUT, ostate, tp,
 			    (void *)tcp_saveipgen, &tcp_savetcp, 0);
 #endif
+		TCP_PROBE3(debug__input, tp, th, mtod(m, const char *));
 		tcp_dooptions(&to, optp, optlen, TO_SYN);
 		syncache_add(&inc, &to, th, inp, &so, m, NULL, NULL);
 		/*
@@ -1779,6 +1780,8 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 					    (void *)tcp_saveipgen,
 					    &tcp_savetcp, 0);
 #endif
+				TCP_PROBE3(debug__input, tp, th,
+					mtod(m, const char *));
 				if (tp->snd_una == tp->snd_max)
 					tcp_timer_activate(tp, TT_REXMT, 0);
 				else if (!tcp_timer_active(tp, TT_PERSIST))
@@ -1825,6 +1828,8 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 				tcp_trace(TA_INPUT, ostate, tp,
 				    (void *)tcp_saveipgen, &tcp_savetcp, 0);
 #endif
+			TCP_PROBE3(debug__input, tp, th, mtod(m, const char *));
+
 		/*
 		 * Automatic sizing of receive socket buffer.  Often the send
 		 * buffer size is not optimally adjusted to the actual network
@@ -3022,6 +3027,7 @@ dodata:							/* XXX */
 		tcp_trace(TA_INPUT, ostate, tp, (void *)tcp_saveipgen,
 			  &tcp_savetcp, 0);
 #endif
+	TCP_PROBE3(debug__input, tp, th, mtod(m, const char *));
 
 	/*
 	 * Return any desired output.
@@ -3069,6 +3075,7 @@ dropafterack:
 		tcp_trace(TA_DROP, ostate, tp, (void *)tcp_saveipgen,
 			  &tcp_savetcp, 0);
 #endif
+	TCP_PROBE3(debug__input, tp, th, mtod(m, const char *));
 	if (ti_locked == TI_RLOCKED)
 		INP_INFO_RUNLOCK(&V_tcbinfo);
 	ti_locked = TI_UNLOCKED;
@@ -3109,6 +3116,7 @@ drop:
 		tcp_trace(TA_DROP, ostate, tp, (void *)tcp_saveipgen,
 			  &tcp_savetcp, 0);
 #endif
+	TCP_PROBE3(debug__input, tp, th, mtod(m, const char *));
 	if (tp != NULL)
 		INP_WUNLOCK(tp->t_inpcb);
 	m_freem(m);
