@@ -299,6 +299,13 @@ rsu_match(device_t self)
 }
 
 static int
+rsu_send_mgmt(struct ieee80211_node *ni, int type, int arg)
+{
+
+	return (ENOTSUP);
+}
+
+static int
 rsu_attach(device_t self)
 {
 	struct usb_attach_arg *uaa = device_get_ivars(self);
@@ -398,6 +405,7 @@ rsu_attach(device_t self)
 	ic->ic_update_mcast = rsu_update_mcast;
 	ic->ic_parent = rsu_parent;
 	ic->ic_transmit = rsu_transmit;
+	ic->ic_send_mgmt = rsu_send_mgmt;
 
 	ieee80211_radiotap_attach(ic, &sc->sc_txtap.wt_ihdr,
 	    sizeof(sc->sc_txtap), RSU_TX_RADIOTAP_PRESENT, 
