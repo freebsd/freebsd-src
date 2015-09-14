@@ -811,7 +811,8 @@ send:
 			 */
 			if (if_hw_tsomax != 0) {
 				/* compute maximum TSO length */
-				max_len = (if_hw_tsomax - hdrlen);
+				max_len = (if_hw_tsomax - hdrlen -
+				    max_linkhdr);
 				if (max_len <= 0) {
 					len = 0;
 				} else if (len > max_len) {
@@ -826,6 +827,15 @@ send:
 			 */
 			if (if_hw_tsomaxsegcount != 0 &&
 			    if_hw_tsomaxsegsize != 0) {
+				/*
+				 * Subtract one segment for the LINK
+				 * and TCP/IP headers mbuf that will
+				 * be prepended to this mbuf chain
+				 * after the code in this section
+				 * limits the number of mbufs in the
+				 * chain to if_hw_tsomaxsegcount.
+				 */
+				if_hw_tsomaxsegcount -= 1;
 				max_len = 0;
 				mb = sbsndmbuf(&so->so_snd, off, &moff);
 
