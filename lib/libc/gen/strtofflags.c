@@ -94,8 +94,7 @@ static struct {
  *	are set, return the empty string.
  */
 char *
-fflagstostr(flags)
-	u_long flags;
+fflagstostr(u_long flags)
 {
 	char *string;
 	const char *sp;
@@ -128,9 +127,7 @@ fflagstostr(flags)
  *	to the offending token.
  */
 int
-strtofflags(stringp, setp, clrp)
-	char **stringp;
-	u_long *setp, *clrp;
+strtofflags(char **stringp, u_long *setp, u_long *clrp)
 {
 	char *string, *p;
 	int i;

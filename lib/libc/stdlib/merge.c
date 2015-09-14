@@ -104,14 +104,10 @@ static void insertionsort(u_char *, size_t, size_t, cmp_t);
  */
 int
 #ifdef I_AM_MERGESORT_B
-mergesort_b(base, nmemb, size, cmp)
+mergesort_b(void *base, size_t nmemb, size_t size, cmp_t cmp)
 #else
-mergesort(base, nmemb, size, cmp)
+mergesort(void *base, size_t nmemb, size_t size, cmp_t cmp)
 #endif
-	void *base;
-	size_t nmemb;
-	size_t size;
-	cmp_t cmp;
 {
 	size_t i;
 	int sense;
@@ -271,10 +267,7 @@ COPY:	    			b = t;
  * is defined.  Otherwise simple pairwise merging is used.)
  */
 void
-setup(list1, list2, n, size, cmp)
-	size_t n, size;
-	u_char *list1, *list2;
-	cmp_t cmp;
+setup(u_char *list1, u_char *list2, size_t n, size_t size, cmp_t cmp)
 {
 	int i, length, size2, tmp, sense;
 	u_char *f1, *f2, *s, *l2, *last, *p2;
@@ -345,10 +338,7 @@ setup(list1, list2, n, size, cmp)
  * last 4 elements.
  */
 static void
-insertionsort(a, n, size, cmp)
-	u_char *a;
-	size_t n, size;
-	cmp_t cmp;
+insertionsort(u_char *a, size_t n, size_t size, cmp_t cmp)
 {
 	u_char *ai, *s, *t, *u, tmp;
 	int i;
