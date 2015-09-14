@@ -140,26 +140,6 @@ static const struct netisr_handler arp_nh = {
 	.nh_policy = NETISR_POLICY_SOURCE,
 };
 
-#ifdef AF_INET
-/*
- * called by in_scrubprefix() to remove entry from the table when
- * the interface goes away
- */
-void
-arp_ifscrub(struct ifnet *ifp, uint32_t addr)
-{
-	struct sockaddr_in addr4;
-
-	bzero((void *)&addr4, sizeof(addr4));
-	addr4.sin_len    = sizeof(addr4);
-	addr4.sin_family = AF_INET;
-	addr4.sin_addr.s_addr = addr;
-	IF_AFDATA_WLOCK(ifp);
-	lla_delete(LLTABLE(ifp), LLE_IFADDR, (struct sockaddr *)&addr4);
-	IF_AFDATA_WUNLOCK(ifp);
-}
-#endif
-
 /*
  * Timeout routine.  Age arp_tab entries periodically.
  */
