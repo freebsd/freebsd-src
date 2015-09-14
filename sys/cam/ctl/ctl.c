@@ -516,8 +516,6 @@ ctl_isc_handler_finish_xfer(struct ctl_softc *ctl_softc,
 	ctsio->residual = msg_info->scsi.residual;
 	memcpy(&ctsio->sense_data, &msg_info->scsi.sense_data,
 	       msg_info->scsi.sense_len);
-	memcpy(&ctsio->io_hdr.ctl_private[CTL_PRIV_LBA_LEN].bytes,
-	       &msg_info->scsi.lbalen, sizeof(msg_info->scsi.lbalen));
 	ctl_enqueue_isc((union ctl_io *)ctsio);
 }
 
@@ -12976,15 +12974,6 @@ bailout:
 		msg.scsi.residual = io->scsiio.residual;
 		memcpy(&msg.scsi.sense_data, &io->scsiio.sense_data,
 		       io->scsiio.sense_len);
-		/*
-		 * We copy this whether or not this is an I/O-related
-		 * command.  Otherwise, we'd have to go and check to see
-		 * whether it's a read/write command, and it really isn't
-		 * worth it.
-		 */
-		memcpy(&msg.scsi.lbalen,
-		       &io->io_hdr.ctl_private[CTL_PRIV_LBA_LEN].bytes,
-		       sizeof(msg.scsi.lbalen));
 
 		ctl_ha_msg_send(CTL_HA_CHAN_CTL, &msg,
 		    sizeof(msg.scsi) - sizeof(msg.scsi.sense_data) +

@@ -452,7 +452,6 @@ struct ctl_ha_msg_scsi {
 	uint32_t		residual;    /* data residual length */
 	uint32_t		fetd_status; /* trans status, set by FETD,
 						0 = good*/
-	struct ctl_lba_len	lbalen;      /* used for stats */
 	struct scsi_sense_data	sense_data;  /* sense data */
 };
 
