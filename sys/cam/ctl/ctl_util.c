@@ -89,7 +89,10 @@ static struct ctl_task_desc ctl_task_table[] = {
 	{CTL_TASK_TARGET_RESET, "Target Reset"},
 	{CTL_TASK_BUS_RESET, "Bus Reset"},
 	{CTL_TASK_PORT_LOGIN, "Port Login"},
-	{CTL_TASK_PORT_LOGOUT, "Port Logout"}
+	{CTL_TASK_PORT_LOGOUT, "Port Logout"},
+	{CTL_TASK_QUERY_TASK, "Query Task"},
+	{CTL_TASK_QUERY_TASK_SET, "Query Task Set"},
+	{CTL_TASK_QUERY_ASYNC_EVENT, "Query Async Event"}
 };
 
 void
