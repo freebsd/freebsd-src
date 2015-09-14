@@ -46,6 +46,8 @@ LIST_HEAD(callout_list, callout);
 SLIST_HEAD(callout_slist, callout);
 TAILQ_HEAD(callout_tailq, callout);
 
+typedef void callout_func_t(void *);
+
 struct callout {
 	union {
 		LIST_ENTRY(callout) le;
