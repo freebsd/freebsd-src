@@ -724,6 +724,38 @@ in_addprefix(struct in_ifaddr *target, int flags)
 }
 
 /*
+ * Removes either all lle entries for given @ia, or lle
+ * corresponding to @ia address.
+ */
+static void
+in_scrubprefixlle(struct in_ifaddr *ia, int all, u_int flags)
+{
+	struct sockaddr_in addr, mask;
+	struct sockaddr *saddr, *smask;
+	struct ifnet *ifp;
+
+	/*
+	 * remove all L2 entries on the given prefix
+	 */
+	saddr = (struct sockaddr *)&addr;
+	bzero(&addr, sizeof(addr));
+	addr.sin_len = sizeof(addr);
+	addr.sin_family = AF_INET;
+	addr.sin_addr.s_addr = ntohl(ia->ia_addr.sin_addr.s_addr);
+	smask = (struct sockaddr *)&mask;
+	bzero(&mask, sizeof(mask));
+	mask.sin_len = sizeof(mask);
+	mask.sin_family = AF_INET;
+	mask.sin_addr.s_addr = ia->ia_subnetmask;
+	ifp = ia->ia_ifp;
+
+	if (all)
+		lltable_prefix_free(AF_INET, saddr, smask, flags);
+	else
+		lltable_delete_addr(LLTABLE(ifp), LLE_IFADDR, saddr);
+}
+
+/*
  * If there is no other address in the system that can serve a route to the
  * same prefix, remove the route.  Hand over the route to the new address
  * otherwise.
@@ -735,7 +767,6 @@ in_scrubprefix(struct in_ifaddr *target, u_int flags)
 	struct in_ifaddr *ia;
 	struct in_addr prefix, mask, p, m;
 	int error = 0;
-	struct sockaddr_in prefix0, mask0;
 
 	/*
 	 * Remove the loopback route to the interface address.
@@ -757,11 +788,6 @@ in_scrubprefix(struct in_ifaddr *target, u_int flags)
 			error = ifa_del_loopback_route((struct ifaddr *)target,
 			    (struct sockaddr *)&target->ia_addr);
 		}
-
-		if (!(target->ia_ifp->if_flags & IFF_NOARP))
-			/* remove arp cache */
-			arp_ifscrub(target->ia_ifp,
-			    IA_SIN(target)->sin_addr.s_addr);
 	}
 
 	if (rtinitflags(target)) {
@@ -817,6 +843,9 @@ in_scrubprefix(struct in_ifaddr *target, u_int flags)
 			else
 				log(LOG_INFO, "in_scrubprefix: err=%d, old prefix delete failed\n",
 					error);
+			/* Scrub all entries IFF interface is different */
+			in_scrubprefixlle(target, target->ia_ifp != ia->ia_ifp,
+			    flags);
 			error = rtinit(&ia->ia_ifa, (int)RTM_ADD,
 			    rtinitflags(ia) | RTF_UP);
 			if (error == 0)
@@ -833,16 +862,7 @@ in_scrubprefix(struct in_ifaddr *target, u_int flags)
 	/*
 	 * remove all L2 entries on the given prefix
 	 */
-	bzero(&prefix0, sizeof(prefix0));
-	prefix0.sin_len = sizeof(prefix0);
-	prefix0.sin_family = AF_INET;
-	prefix0.sin_addr.s_addr = target->ia_subnet;
-	bzero(&mask0, sizeof(mask0));
-	mask0.sin_len = sizeof(mask0);
-	mask0.sin_family = AF_INET;
-	mask0.sin_addr.s_addr = target->ia_subnetmask;
-	lltable_prefix_free(AF_INET, (struct sockaddr *)&prefix0,
-	    (struct sockaddr *)&mask0, flags);
+	in_scrubprefixlle(target, 1, flags);
 
 	/*
 	 * As no-one seem to have this prefix, we can remove the route.
@@ -1001,22 +1021,38 @@ in_lltable_new(struct in_addr addr4, u_int flags)
 	return (&lle->base);
 }
 
-#define IN_ARE_MASKED_ADDR_EQUAL(d, a, m)	(			\
-	    (((ntohl((d).s_addr) ^ (a)->sin_addr.s_addr) & (m)->sin_addr.s_addr)) == 0 )
+#define IN_ARE_MASKED_ADDR_EQUAL(d, a, m)	(		\
+	((((d).s_addr ^ (a).s_addr) & (m).s_addr)) == 0 )
 
 static int
-in_lltable_match_prefix(const struct sockaddr *prefix,
-    const struct sockaddr *mask, u_int flags, struct llentry *lle)
+in_lltable_match_prefix(const struct sockaddr *saddr,
+    const struct sockaddr *smask, u_int flags, struct llentry *lle)
 {
-	const struct sockaddr_in *pfx = (const struct sockaddr_in *)prefix;
-	const struct sockaddr_in *msk = (const struct sockaddr_in *)mask;
+	struct in_addr addr, mask, lle_addr;
 
-	/*
-	 * (flags & LLE_STATIC) means deleting all entries
-	 * including static ARP entries.
-	 */
-	if (IN_ARE_MASKED_ADDR_EQUAL(lle->r_l3addr.addr4, pfx, msk) &&
-	    ((flags & LLE_STATIC) || !(lle->la_flags & LLE_STATIC)))
+	addr = ((const struct sockaddr_in *)saddr)->sin_addr;
+	mask = ((const struct sockaddr_in *)smask)->sin_addr;
+	lle_addr.s_addr = ntohl(lle->r_l3addr.addr4.s_addr);
+
+	if (IN_ARE_MASKED_ADDR_EQUAL(lle_addr, addr, mask) == 0)
+		return (0);
+
+	if (lle->la_flags & LLE_IFADDR) {
+
+		/*
+		 * Delete LLE_IFADDR records IFF address & flag matches.
+		 * Note that addr is the interface address within prefix
+		 * being matched.
+		 * Note also we should handle 'ifdown' cases without removing
+		 * ifaddr macs.
+		 */
+		if (addr.s_addr == lle_addr.s_addr && (flags & LLE_STATIC) != 0)
+			return (1);
+		return (0);
+	}
+
+	/* flags & LLE_STATIC means deleting both dynamic and static entries */
+	if ((flags & LLE_STATIC) || !(lle->la_flags & LLE_STATIC))
 		return (1);
 
 	return (0);
@@ -1166,39 +1202,16 @@ in_lltable_find_dst(struct lltable *llt, struct in_addr dst)
 	return (lle);
 }
 
-static int
-in_lltable_delete(struct lltable *llt, u_int flags,
-    const struct sockaddr *l3addr)
+static void
+in_lltable_delete_entry(struct lltable *llt, struct llentry *lle)
 {
-	const struct sockaddr_in *sin = (const struct sockaddr_in *)l3addr;
-	struct llentry *lle;
 
-	IF_AFDATA_WLOCK_ASSERT(llt->llt_ifp);
-	KASSERT(l3addr->sa_family == AF_INET,
-	    ("sin_family %d", l3addr->sa_family));
-
-	lle = in_lltable_find_dst(llt, sin->sin_addr);
-	if (lle == NULL) {
+	lle->la_flags |= LLE_DELETED;
+	EVENTHANDLER_INVOKE(lle_event, lle, LLENTRY_DELETED);
 #ifdef DIAGNOSTIC
-		log(LOG_INFO, "interface address is missing from cache = %p  in delete\n", lle);
+	log(LOG_INFO, "ifaddr cache = %p is deleted\n", lle);
 #endif
-		return (ENOENT);
-	}
-
-	if (!(lle->la_flags & LLE_IFADDR) || (flags & LLE_IFADDR)) {
-		LLE_WLOCK(lle);
-		lle->la_flags |= LLE_DELETED;
-		EVENTHANDLER_INVOKE(lle_event, lle, LLENTRY_DELETED);
-#ifdef DIAGNOSTIC
-		log(LOG_INFO, "ifaddr cache = %p is deleted\n", lle);
-#endif
-		if ((lle->la_flags & (LLE_STATIC | LLE_IFADDR)) == LLE_STATIC)
-			llentry_free(lle);
-		else
-			LLE_WUNLOCK(lle);
-	}
-
-	return (0);
+	llentry_free(lle);
 }
 
 static struct llentry *
@@ -1334,7 +1347,7 @@ in_lltattach(struct ifnet *ifp)
 
 	llt->llt_lookup = in_lltable_lookup;
 	llt->llt_alloc_entry = in_lltable_alloc;
-	llt->llt_delete = in_lltable_delete;
+	llt->llt_delete_entry = in_lltable_delete_entry;
 	llt->llt_dump_entry = in_lltable_dump_entry;
 	llt->llt_hash = in_lltable_hash;
 	llt->llt_fill_sa_entry = in_lltable_fill_sa_entry;
