@@ -435,6 +435,13 @@ cfcs_datamove(union ctl_io *io)
 
 	io->scsiio.ext_data_filled += len_copied;
 
+	if ((io->io_hdr.status & CTL_STATUS_MASK) == CTL_SUCCESS) {
+		io->io_hdr.ctl_private[CTL_PRIV_FRONTEND].ptr = NULL;
+		io->io_hdr.flags |= CTL_FLAG_STATUS_SENT;
+		ccb->ccb_h.status = CAM_REQ_CMP;
+		xpt_done(ccb);
+	}
+
 	io->scsiio.be_move_done(io);
 }
 
