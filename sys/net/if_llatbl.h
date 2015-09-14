@@ -183,6 +183,7 @@ MALLOC_DECLARE(M_LLTABLE);
 #define	LLE_STATIC	0x0002	/* entry is static */
 #define	LLE_IFADDR	0x0004	/* entry is interface addr */
 #define	LLE_VALID	0x0008	/* ll_addr is valid */
+#define	LLE_REDIRECT	0x0010	/* installed by redirect; has host rtentry */
 #define	LLE_PUB		0x0020	/* publish entry ??? */
 #define	LLE_LINKED	0x0040	/* linked to lookup structure */
 /* LLE request flags */
