@@ -132,6 +132,7 @@ static void nd6_setmtu0(struct ifnet *, struct nd_ifinfo *);
 static void nd6_slowtimo(void *);
 static int regen_tmpaddr(struct in6_ifaddr *);
 static struct llentry *nd6_free(struct llentry *, int);
+static void nd6_free_redirect(const struct llentry *);
 static void nd6_llinfo_timer(void *);
 static void clear_llinfo_pqueue(struct llentry *);
 static void nd6_rtrequest(int, struct rtentry *, struct rt_addrinfo *);
@@ -1223,6 +1224,13 @@ nd6_free(struct llentry *ln, int gc)
 			defrouter_select();
 		}
 
+		/*
+		 * If this entry was added by an on-link redirect, remove the
+		 * corresponding host route.
+		 */
+		if (ln->la_flags & LLE_REDIRECT)
+			nd6_free_redirect(ln);
+
 		if (ln->ln_router || dr)
 			LLE_WLOCK(ln);
 	}
@@ -1253,6 +1261,36 @@ nd6_free(struct llentry *ln, int gc)
 	IF_AFDATA_UNLOCK(ifp);
 
 	return (next);
+}
+
+/*
+ * Remove the rtentry for the given llentry,
+ * both of which were installed by a redirect.
+ */
+static void
+nd6_free_redirect(const struct llentry *ln)
+{
+	int fibnum;
+	struct rtentry *rt;
+	struct radix_node_head *rnh;
+	struct sockaddr_in6 sin6;
+
+	lltable_fill_sa_entry(ln, (struct sockaddr *)&sin6);
+	for (fibnum = 0; fibnum < rt_numfibs; fibnum++) {
+		rnh = rt_tables_get_rnh(fibnum, AF_INET6);
+		if (rnh == NULL)
+			continue;
+
+		RADIX_NODE_HEAD_LOCK(rnh);
+		rt = in6_rtalloc1((struct sockaddr *)&sin6, 0,
+		    RTF_RNH_LOCKED, fibnum);
+		if (rt) {
+			if (rt->rt_flags == (RTF_UP | RTF_HOST | RTF_DYNAMIC))
+				rt_expunge(rnh, rt);
+			RTFREE_LOCKED(rt);
+		}
+		RADIX_NODE_HEAD_UNLOCK(rnh);
+	}
 }
 
 /*
@@ -1746,8 +1784,11 @@ nd6_cache_lladdr(struct ifnet *ifp, struct in6_addr *from, char *lladdr,
 		 */
 		if (code == ND_REDIRECT_ROUTER)
 			ln->ln_router = 1;
-		else if (is_newentry) /* (6-7) */
-			ln->ln_router = 0;
+		else {
+			if (is_newentry) /* (6-7) */
+				ln->ln_router = 0;
+			ln->la_flags |= LLE_REDIRECT;
+		}
 		break;
 	case ND_ROUTER_SOLICIT:
 		/*
