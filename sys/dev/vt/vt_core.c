@@ -121,6 +121,7 @@ const struct terminal_class vt_termclass = {
 
 static SYSCTL_NODE(_kern, OID_AUTO, vt, CTLFLAG_RD, 0, "vt(9) parameters");
 VT_SYSCTL_INT(enable_altgr, 1, "Enable AltGr key (Do not assume R.Alt as Alt)");
+VT_SYSCTL_INT(enable_bell, 1, "Enable bell");
 VT_SYSCTL_INT(debug, 0, "vt(9) debug level");
 VT_SYSCTL_INT(deadtimer, 15, "Time to wait busy process in VT_PROCESS mode");
 VT_SYSCTL_INT(suspendswitch, 1, "Switch to VT0 before suspend");
@@ -935,6 +936,9 @@ vtterm_bell(struct terminal *tm)
 	struct vt_window *vw = tm->tm_softc;
 	struct vt_device *vd = vw->vw_device;
 
+	if (!vt_enable_bell)
+		return;
+
 	if (vd->vd_flags & VDF_QUIET_BELL)
 		return;
 
@@ -945,6 +949,9 @@ static void
 vtterm_beep(struct terminal *tm, u_int param)
 {
 	u_int freq, period;
+
+	if (!vt_enable_bell)
+		return;
 
 	if ((param == 0) || ((param & 0xffff) == 0)) {
 		vtterm_bell(tm);
