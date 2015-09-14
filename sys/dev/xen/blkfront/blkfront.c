@@ -168,7 +168,6 @@ xbd_queue_cb(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 	uint64_t fsect, lsect;
 	int ref;
 	int op;
-	int block_segs;
 
 	cm = arg;
 	sc = cm->cm_sc;
@@ -180,6 +179,9 @@ xbd_queue_cb(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 		return;
 	}
 
+	KASSERT(nsegs <= BLKIF_MAX_SEGMENTS_PER_REQUEST,
+	    ("Too many segments in a blkfront I/O"));
+
 	/* Fill out a communications ring structure. */
 	ring_req = RING_GET_REQUEST(&sc->xbd_ring, sc->xbd_ring.req_prod_pvt);
 	sc->xbd_ring.req_prod_pvt++;
@@ -190,9 +192,8 @@ xbd_queue_cb(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 	ring_req->nr_segments = nsegs;
 	cm->cm_nseg = nsegs;
 
-	block_segs    = MIN(nsegs, BLKIF_MAX_SEGMENTS_PER_REQUEST);
 	sg            = ring_req->seg;
-	last_block_sg = sg + block_segs;
+	last_block_sg = sg + nsegs;
 	sg_ref        = cm->cm_sg_refs;
 
 	while (sg < last_block_sg) {
@@ -227,7 +228,6 @@ xbd_queue_cb(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 		sg++;
 		sg_ref++;
 		segs++;
-		nsegs--;
 	}
 
 	if (cm->cm_operation == BLKIF_OP_READ)
@@ -1130,7 +1130,7 @@ xbd_initialize(struct xbd_softc *sc)
 	    M_XENBLOCKFRONT, M_NOWAIT|M_ZERO);
 	if (sc->xbd_shadow == NULL) {
 		bus_dma_tag_destroy(sc->xbd_io_dmat);
-		xenbus_dev_fatal(sc->xbd_dev, error,
+		xenbus_dev_fatal(sc->xbd_dev, ENOMEM,
 		    "Cannot allocate request structures\n");
 		return;
 	}
