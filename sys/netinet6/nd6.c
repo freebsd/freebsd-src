@@ -2245,23 +2245,26 @@ nd6_add_ifa_lle(struct in6_ifaddr *ia)
 }
 
 /*
- * Removes ALL lle records for interface address prefix.
- * XXXME: That's probably not we really want to do, we need
- * to remove address record only and keep other records
- * until we determine if given prefix is really going 
- * to be removed.
+ * Removes either all lle entries for given @ia, or lle
+ * corresponding to @ia address.
  */
 void
-nd6_rem_ifa_lle(struct in6_ifaddr *ia)
+nd6_rem_ifa_lle(struct in6_ifaddr *ia, int all)
 {
 	struct sockaddr_in6 mask, addr;
+	struct sockaddr *saddr, *smask;
 	struct ifnet *ifp;
 
 	ifp = ia->ia_ifa.ifa_ifp;
 	memcpy(&addr, &ia->ia_addr, sizeof(ia->ia_addr));
 	memcpy(&mask, &ia->ia_prefixmask, sizeof(ia->ia_prefixmask));
-	lltable_prefix_free(AF_INET6, (struct sockaddr *)&addr,
-	            (struct sockaddr *)&mask, LLE_STATIC);
+	saddr = (struct sockaddr *)&addr;
+	smask = (struct sockaddr *)&mask;
+
+	if (all != 0)
+		lltable_prefix_free(AF_INET6, saddr, smask, LLE_STATIC);
+	else
+		lltable_delete_addr(LLTABLE6(ifp), LLE_IFADDR, saddr);
 }
 
 /*
