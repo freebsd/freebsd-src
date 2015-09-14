@@ -1002,15 +1002,10 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 
 #define	suword __CONCAT(suword, __ELF_WORD_SIZE)
 
-int
-__elfN(freebsd_fixup)(register_t **stack_base, struct image_params *imgp)
+static void
+__elfN(set_auxargs)(Elf_Addr *pos, struct image_params *imgp)
 {
 	Elf_Auxargs *args = (Elf_Auxargs *)imgp->auxargs;
-	Elf_Addr *base;
-	Elf_Addr *pos;
-
-	base = (Elf_Addr *)*stack_base;
-	pos = base + (imgp->args->argc + imgp->args->envc + 2);
 
 	if (args->execfd != -1)
 		AUXARGS_ENTRY(pos, AT_EXECFD, args->execfd);
@@ -1048,6 +1043,18 @@ __elfN(freebsd_fixup)(register_t **stack_base, struct image_params *imgp)
 
 	free(imgp->auxargs, M_TEMP);
 	imgp->auxargs = NULL;
+}
+
+int
+__elfN(freebsd_fixup)(register_t **stack_base, struct image_params *imgp)
+{
+	Elf_Addr *base;
+	Elf_Addr *pos;
+
+	base = (Elf_Addr *)*stack_base;
+	pos = base + (imgp->args->argc + imgp->args->envc + 2);
+
+	__elfN(set_auxargs)(pos, imgp);
 
 	base--;
 	suword(base, (long)imgp->args->argc);
