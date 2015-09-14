@@ -100,7 +100,7 @@ fflagstostr(u_long flags)
 	const char *sp;
 	char *dp;
 	u_long setflags;
-	int i;
+	u_int i;
 
 	if ((string = (char *)malloc(nmappings * (longestflaglen + 1))) == NULL)
 		return (NULL);

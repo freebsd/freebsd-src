@@ -1238,7 +1238,7 @@ compat_setgrent(void *retval, void *mdata, va_list ap)
 	int		 rv, stayopen;
 
 #define set_setent(x, y) do {	 				\
-	int i;							\
+	unsigned int i;						\
 								\
 	for (i = 0; i < (sizeof(x)/sizeof(x[0])) - 1; i++)	\
 		x[i].mdata = (void *)y;				\
@@ -1308,7 +1308,7 @@ compat_group(void *retval, void *mdata, va_list ap)
 	int			 rv, stayopen, *errnop;
 
 #define set_lookup_type(x, y) do { 				\
-	int i;							\
+	unsigned int i;						\
 								\
 	for (i = 0; i < (sizeof(x)/sizeof(x[0])) - 1; i++)	\
 		x[i].mdata = (void *)y;				\
