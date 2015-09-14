@@ -58,7 +58,6 @@ __FBSDID("$FreeBSD$");
 #include <net/if_dl.h>
 #include <net/if_types.h>
 #include <net/netisr.h>
-#include <net/if_llc.h>
 #include <net/ethernet.h>
 #include <net/route.h>
 #include <net/vnet.h>
@@ -70,9 +69,6 @@ __FBSDID("$FreeBSD$");
 #ifdef INET
 #include <netinet/ip_carp.h>
 #endif
-
-#include <net/if_arc.h>
-#include <net/iso88025.h>
 
 #include <security/mac/mac_framework.h>
 
@@ -529,6 +525,8 @@ static void
 arpintr(struct mbuf *m)
 {
 	struct arphdr *ar;
+	char *layer;
+	int hlen;
 
 	if (m->m_len < sizeof(struct arphdr) &&
 	    ((m = m_pullup(m, sizeof(struct arphdr))) == NULL)) {
@@ -537,26 +535,56 @@ arpintr(struct mbuf *m)
 	}
 	ar = mtod(m, struct arphdr *);
 
-	if (ntohs(ar->ar_hrd) != ARPHRD_ETHER &&
-	    ntohs(ar->ar_hrd) != ARPHRD_IEEE802 &&
-	    ntohs(ar->ar_hrd) != ARPHRD_ARCNET &&
-	    ntohs(ar->ar_hrd) != ARPHRD_IEEE1394 &&
-	    ntohs(ar->ar_hrd) != ARPHRD_INFINIBAND) {
-		log(LOG_NOTICE, "arp: unknown hardware address format (0x%2D)"
-		    " (from %*D to %*D)\n", (unsigned char *)&ar->ar_hrd, "",
-		    ETHER_ADDR_LEN, (u_char *)ar_sha(ar), ":",
-		    ETHER_ADDR_LEN, (u_char *)ar_tha(ar), ":");
+	/* Check if length is sufficient */
+	if ((m = m_pullup(m, arphdr_len(ar))) == NULL) {
+		log(LOG_NOTICE, "arp: short header received\n");
+		return;
+	}
+	ar = mtod(m, struct arphdr *);
+
+	hlen = 0;
+	layer = "";
+	switch (ntohs(ar->ar_hrd)) {
+	case ARPHRD_ETHER:
+		hlen = ETHER_ADDR_LEN; /* RFC 826 */
+		layer = "ethernet";
+		break;
+	case ARPHRD_IEEE802:
+		hlen = 6; /* RFC 1390, FDDI_ADDR_LEN */
+		layer = "fddi";
+		break;
+	case ARPHRD_ARCNET:
+		hlen = 1; /* RFC 1201, ARC_ADDR_LEN */
+		layer = "arcnet";
+		break;
+	case ARPHRD_INFINIBAND:
+		hlen = 20;	/* RFC 4391, INFINIBAND_ALEN */ 
+		layer = "infiniband";
+		break;
+	case ARPHRD_IEEE1394:
+		hlen = 0; /* SHALL be 16 */ /* RFC 2734 */
+		layer = "firewire";
+
+		/*
+		 * Restrict too long harware addresses.
+		 * Currently we are capable of handling 20-byte
+		 * addresses ( sizeof(lle->ll_addr) )
+		 */
+		if (ar->ar_hln >= 20)
+			hlen = 16;
+		break;
+	default:
+		log(LOG_NOTICE, "arp: unknown hardware address format (0x%2d)\n",
+		    htons(ar->ar_hrd));
 		m_freem(m);
 		return;
 	}
 
-	if (m->m_len < arphdr_len(ar)) {
-		if ((m = m_pullup(m, arphdr_len(ar))) == NULL) {
-			log(LOG_NOTICE, "arp: runt packet\n");
-			m_freem(m);
-			return;
-		}
-		ar = mtod(m, struct arphdr *);
+	if (hlen != 0 && hlen != ar->ar_hln) {
+		log(LOG_NOTICE, "arp: bad %s header length: %d\n", layer,
+		    ar->ar_hln);
+		m_freem(m);
+		return;
 	}
 
 	ARPSTAT_INC(received);
