@@ -156,17 +156,56 @@ xbd_free_command(struct xbd_command *cm)
 }
 
 static void
+xbd_mksegarray(bus_dma_segment_t *segs, int nsegs,
+    grant_ref_t * gref_head, int otherend_id, int readonly,
+    grant_ref_t * sg_ref, blkif_request_segment_t * sg)
+{
+	struct blkif_request_segment *last_block_sg = sg + nsegs;
+	vm_paddr_t buffer_ma;
+	uint64_t fsect, lsect;
+	int ref;
+
+	while (sg < last_block_sg) {
+		buffer_ma = segs->ds_addr;
+		fsect = (buffer_ma & PAGE_MASK) >> XBD_SECTOR_SHFT;
+		lsect = fsect + (segs->ds_len  >> XBD_SECTOR_SHFT) - 1;
+
+		KASSERT(lsect <= 7, ("XEN disk driver data cannot "
+		    "cross a page boundary"));
+
+		/* install a grant reference. */
+		ref = gnttab_claim_grant_reference(gref_head);
+
+		/*
+		 * GNTTAB_LIST_END == 0xffffffff, but it is private
+		 * to gnttab.c.
+		 */
+		KASSERT(ref != ~0, ("grant_reference failed"));
+
+		gnttab_grant_foreign_access_ref(
+		    ref,
+		    otherend_id,
+		    buffer_ma >> PAGE_SHIFT,
+		    readonly);
+
+		*sg_ref = ref;
+		*sg = (struct blkif_request_segment) {
+			.gref       = ref,
+			.first_sect = fsect, 
+			.last_sect  = lsect
+		};
+		sg++;
+		sg_ref++;
+		segs++;
+	}
+}
+
+static void
 xbd_queue_cb(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 {
 	struct xbd_softc *sc;
 	struct xbd_command *cm;
 	blkif_request_t	*ring_req;
-	struct blkif_request_segment *sg;
-	struct blkif_request_segment *last_block_sg;
-	grant_ref_t *sg_ref;
-	vm_paddr_t buffer_ma;
-	uint64_t fsect, lsect;
-	int ref;
 	int op;
 
 	cm = arg;
@@ -191,44 +230,10 @@ xbd_queue_cb(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 	ring_req->handle = (blkif_vdev_t)(uintptr_t)sc->xbd_disk;
 	ring_req->nr_segments = nsegs;
 	cm->cm_nseg = nsegs;
-
-	sg            = ring_req->seg;
-	last_block_sg = sg + nsegs;
-	sg_ref        = cm->cm_sg_refs;
-
-	while (sg < last_block_sg) {
-		buffer_ma = segs->ds_addr;
-		fsect = (buffer_ma & PAGE_MASK) >> XBD_SECTOR_SHFT;
-		lsect = fsect + (segs->ds_len  >> XBD_SECTOR_SHFT) - 1;
-
-		KASSERT(lsect <= 7, ("XEN disk driver data cannot "
-		    "cross a page boundary"));
-
-		/* install a grant reference. */
-		ref = gnttab_claim_grant_reference(&cm->cm_gref_head);
-
-		/*
-		 * GNTTAB_LIST_END == 0xffffffff, but it is private
-		 * to gnttab.c.
-		 */
-		KASSERT(ref != ~0, ("grant_reference failed"));
-
-		gnttab_grant_foreign_access_ref(
-		    ref,
-		    xenbus_get_otherend_id(sc->xbd_dev),
-		    buffer_ma >> PAGE_SHIFT,
-		    ring_req->operation == BLKIF_OP_WRITE);
-
-		*sg_ref = ref;
-		*sg = (struct blkif_request_segment) {
-			.gref       = ref,
-			.first_sect = fsect, 
-			.last_sect  = lsect
-		};
-		sg++;
-		sg_ref++;
-		segs++;
-	}
+	xbd_mksegarray(segs, nsegs, &cm->cm_gref_head,
+	    xenbus_get_otherend_id(sc->xbd_dev),
+	    cm->cm_operation == BLKIF_OP_WRITE,
+	    cm->cm_sg_refs, ring_req->seg);
 
 	if (cm->cm_operation == BLKIF_OP_READ)
 		op = BUS_DMASYNC_PREREAD;
@@ -1034,7 +1039,6 @@ xbd_initialize(struct xbd_softc *sc)
 	const char *node_path;
 	uint32_t max_ring_page_order;
 	int error;
-	int i;
 
 	if (xenbus_get_state(sc->xbd_dev) != XenbusStateInitialising) {
 		/* Initialization has already been performed. */
@@ -1105,53 +1109,6 @@ xbd_initialize(struct xbd_softc *sc)
 		sc->xbd_max_requests = XBD_MAX_REQUESTS;
 	}
 
-	/* Allocate datastructures based on negotiated values. */
-	error = bus_dma_tag_create(
-	    bus_get_dma_tag(sc->xbd_dev),	/* parent */
-	    512, PAGE_SIZE,			/* algnmnt, boundary */
-	    BUS_SPACE_MAXADDR,			/* lowaddr */
-	    BUS_SPACE_MAXADDR,			/* highaddr */
-	    NULL, NULL,				/* filter, filterarg */
-	    sc->xbd_max_request_size,
-	    sc->xbd_max_request_segments,
-	    PAGE_SIZE,				/* maxsegsize */
-	    BUS_DMA_ALLOCNOW,			/* flags */
-	    busdma_lock_mutex,			/* lockfunc */
-	    &sc->xbd_io_lock,			/* lockarg */
-	    &sc->xbd_io_dmat);
-	if (error != 0) {
-		xenbus_dev_fatal(sc->xbd_dev, error,
-		    "Cannot allocate parent DMA tag\n");
-		return;
-	}
-
-	/* Per-transaction data allocation. */
-	sc->xbd_shadow = malloc(sizeof(*sc->xbd_shadow) * sc->xbd_max_requests,
-	    M_XENBLOCKFRONT, M_NOWAIT|M_ZERO);
-	if (sc->xbd_shadow == NULL) {
-		bus_dma_tag_destroy(sc->xbd_io_dmat);
-		xenbus_dev_fatal(sc->xbd_dev, ENOMEM,
-		    "Cannot allocate request structures\n");
-		return;
-	}
-
-	for (i = 0; i < sc->xbd_max_requests; i++) {
-		struct xbd_command *cm;
-
-		cm = &sc->xbd_shadow[i];
-		cm->cm_sg_refs = malloc(
-		    sizeof(grant_ref_t) * sc->xbd_max_request_segments,
-		    M_XENBLOCKFRONT, M_NOWAIT);
-		if (cm->cm_sg_refs == NULL)
-			break;
-		cm->cm_id = i;
-		cm->cm_flags = XBDCF_INITIALIZER;
-		cm->cm_sc = sc;
-		if (bus_dmamap_create(sc->xbd_io_dmat, 0, &cm->cm_map) != 0)
-			break;
-		xbd_free_command(cm);
-	}
-
 	if (xbd_alloc_ring(sc) != 0)
 		return;
 
@@ -1210,6 +1167,7 @@ xbd_connect(struct xbd_softc *sc)
 	unsigned long sectors, sector_size;
 	unsigned int binfo;
 	int err, feature_barrier, feature_flush;
+	int i;
 
 	if (sc->xbd_state == XBD_STATE_CONNECTED || 
 	    sc->xbd_state == XBD_STATE_SUSPENDED)
@@ -1239,6 +1197,53 @@ xbd_connect(struct xbd_softc *sc)
 	     NULL);
 	if (err == 0 && feature_flush != 0)
 		sc->xbd_flags |= XBDF_FLUSH;
+
+	/* Allocate datastructures based on negotiated values. */
+	err = bus_dma_tag_create(
+	    bus_get_dma_tag(sc->xbd_dev),	/* parent */
+	    512, PAGE_SIZE,			/* algnmnt, boundary */
+	    BUS_SPACE_MAXADDR,			/* lowaddr */
+	    BUS_SPACE_MAXADDR,			/* highaddr */
+	    NULL, NULL,				/* filter, filterarg */
+	    sc->xbd_max_request_size,
+	    sc->xbd_max_request_segments,
+	    PAGE_SIZE,				/* maxsegsize */
+	    BUS_DMA_ALLOCNOW,			/* flags */
+	    busdma_lock_mutex,			/* lockfunc */
+	    &sc->xbd_io_lock,			/* lockarg */
+	    &sc->xbd_io_dmat);
+	if (err != 0) {
+		xenbus_dev_fatal(sc->xbd_dev, err,
+		    "Cannot allocate parent DMA tag\n");
+		return;
+	}
+
+	/* Per-transaction data allocation. */
+	sc->xbd_shadow = malloc(sizeof(*sc->xbd_shadow) * sc->xbd_max_requests,
+	    M_XENBLOCKFRONT, M_NOWAIT|M_ZERO);
+	if (sc->xbd_shadow == NULL) {
+		bus_dma_tag_destroy(sc->xbd_io_dmat);
+		xenbus_dev_fatal(sc->xbd_dev, ENOMEM,
+		    "Cannot allocate request structures\n");
+		return;
+	}
+
+	for (i = 0; i < sc->xbd_max_requests; i++) {
+		struct xbd_command *cm;
+
+		cm = &sc->xbd_shadow[i];
+		cm->cm_sg_refs = malloc(
+		    sizeof(grant_ref_t) * sc->xbd_max_request_segments,
+		    M_XENBLOCKFRONT, M_NOWAIT);
+		if (cm->cm_sg_refs == NULL)
+			break;
+		cm->cm_id = i;
+		cm->cm_flags = XBDCF_INITIALIZER;
+		cm->cm_sc = sc;
+		if (bus_dmamap_create(sc->xbd_io_dmat, 0, &cm->cm_map) != 0)
+			break;
+		xbd_free_command(cm);
+	}
 
 	if (sc->xbd_disk == NULL) {
 		device_printf(dev, "%juMB <%s> at %s",
