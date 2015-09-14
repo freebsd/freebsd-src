@@ -296,7 +296,7 @@ main(int argc, char *argv[])
 			prtstat(&mntbuf[i], &maxwidths);
 	if (cflag)
 		prtstat(&totalbuf, &maxwidths);
-	return (rv);
+	exit(rv);
 }
 
 static char *
