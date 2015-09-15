@@ -1305,6 +1305,13 @@ arc_hdr_realloc(arc_buf_hdr_t *hdr, kmem_cache_t *old, kmem_cache_t *new)
 		VERIFY(!HDR_L2_WRITING(hdr));
 		VERIFY3P(hdr->b_l1hdr.b_tmp_cdata, ==, NULL);
 
+#ifdef ZFS_DEBUG
+		if (hdr->b_l1hdr.b_thawed != NULL) {
+			kmem_free(hdr->b_l1hdr.b_thawed, 1);
+			hdr->b_l1hdr.b_thawed = NULL;
+		}
+#endif
+
 		nhdr->b_flags &= ~ARC_FLAG_HAS_L1HDR;
 	}
 	/*
