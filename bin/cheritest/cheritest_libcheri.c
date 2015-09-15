@@ -288,7 +288,7 @@ test_2sandbox_newdestroy(const struct cheri_test *ctp __unused)
 }
 
 void
-test_sandbox_ptrdiff(void)
+test_sandbox_ptrdiff(const struct cheri_test *ctp __unused)
 {
 	intmax_t ret;
 

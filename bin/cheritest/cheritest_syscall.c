@@ -62,7 +62,7 @@
 #include "cheritest.h"
 
 void
-test_sandbox_syscall(const struct cheri_test *ctp)
+test_sandbox_syscall(const struct cheri_test *ctp __unused)
 {
 	size_t len;
 	int old, new;
