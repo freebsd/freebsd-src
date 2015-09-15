@@ -502,7 +502,7 @@ load_rsa_public_key_file(const char *file)
 }
 
 static RSA *
-load_rsa_public_key_buf(const unsigned char *cert, int certlen)
+load_rsa_public_key_buf(unsigned char *cert, int certlen)
 {
 	RSA *rsa = NULL;
 	BIO *bp;
@@ -521,7 +521,7 @@ load_rsa_public_key_buf(const unsigned char *cert, int certlen)
 
 
 static bool
-rsa_verify_cert(int fd, const char *sigfile, const unsigned char *key,
+rsa_verify_cert(int fd, const char *sigfile, unsigned char *key,
     int keylen, unsigned char *sig, int siglen)
 {
 	char sha256[SHA256_DIGEST_LENGTH *2 +1];
