@@ -73,7 +73,10 @@ __FBSDID("$FreeBSD$");
 #include <security/mac/mac_framework.h>
 
 #define SIN(s) ((const struct sockaddr_in *)(s))
-#define SDL(s) ((struct sockaddr_dl *)s)
+
+static struct timeval arp_lastlog;
+static int arp_curpps;
+static int arp_maxpps = 1;
 
 SYSCTL_DECL(_net_link_ether);
 static SYSCTL_NODE(_net_link_ether, PF_INET, inet, CTLFLAG_RW, 0, "");
@@ -118,6 +121,16 @@ SYSCTL_VNET_PCPUSTAT(_net_link_ether_arp, OID_AUTO, stats, struct arpstat,
 SYSCTL_INT(_net_link_ether_inet, OID_AUTO, maxhold, CTLFLAG_VNET | CTLFLAG_RW,
 	&VNET_NAME(arp_maxhold), 0,
 	"Number of packets to hold per ARP entry");
+SYSCTL_INT(_net_link_ether_inet, OID_AUTO, max_log_per_second,
+	CTLFLAG_RW, &arp_maxpps, 0,
+	"Maximum number of remotely triggered ARP messages that can be "
+	"logged per second");
+
+#define	ARP_LOG(pri, ...)	do {					\
+	if (ppsratecheck(&arp_lastlog, &arp_curpps, arp_maxpps))	\
+		log((pri), "arp: " __VA_ARGS__);			\
+} while (0)
+
 
 static void	arp_init(void);
 static void	arpintr(struct mbuf *);
@@ -503,19 +516,24 @@ static void
 arpintr(struct mbuf *m)
 {
 	struct arphdr *ar;
+	struct ifnet *ifp;
 	char *layer;
 	int hlen;
 
+	ifp = m->m_pkthdr.rcvif;
+
 	if (m->m_len < sizeof(struct arphdr) &&
 	    ((m = m_pullup(m, sizeof(struct arphdr))) == NULL)) {
-		log(LOG_NOTICE, "arp: runt packet -- m_pullup failed\n");
+		ARP_LOG(LOG_NOTICE, "packet with short header received on %s\n",
+		    if_name(ifp));
 		return;
 	}
 	ar = mtod(m, struct arphdr *);
 
 	/* Check if length is sufficient */
 	if ((m = m_pullup(m, arphdr_len(ar))) == NULL) {
-		log(LOG_NOTICE, "arp: short header received\n");
+		ARP_LOG(LOG_NOTICE, "short packet received on %s\n",
+		    if_name(ifp));
 		return;
 	}
 	ar = mtod(m, struct arphdr *);
@@ -552,15 +570,17 @@ arpintr(struct mbuf *m)
 			hlen = 16;
 		break;
 	default:
-		log(LOG_NOTICE, "arp: unknown hardware address format (0x%2d)\n",
-		    htons(ar->ar_hrd));
+		ARP_LOG(LOG_NOTICE,
+		    "packet with unknown harware format 0x%02d received on %s\n",
+		    ntohs(ar->ar_hrd), if_name(ifp));
 		m_freem(m);
 		return;
 	}
 
 	if (hlen != 0 && hlen != ar->ar_hln) {
-		log(LOG_NOTICE, "arp: bad %s header length: %d\n", layer,
-		    ar->ar_hln);
+		ARP_LOG(LOG_NOTICE,
+		    "packet with invalid %s address length %d received on %s\n",
+		    layer, ar->ar_hln, if_name(ifp));
 		m_freem(m);
 		return;
 	}
@@ -595,9 +615,6 @@ static int log_arp_wrong_iface = 1;
 static int log_arp_movements = 1;
 static int log_arp_permanent_modify = 1;
 static int allow_multicast = 0;
-static struct timeval arp_lastlog;
-static int arp_curpps;
-static int arp_maxpps = 1;
 
 SYSCTL_INT(_net_link_ether_inet, OID_AUTO, log_arp_wrong_iface, CTLFLAG_RW,
 	&log_arp_wrong_iface, 0,
@@ -610,15 +627,6 @@ SYSCTL_INT(_net_link_ether_inet, OID_AUTO, log_arp_permanent_modify, CTLFLAG_RW,
 	"log arp replies from MACs different than the one in the permanent arp entry");
 SYSCTL_INT(_net_link_ether_inet, OID_AUTO, allow_multicast, CTLFLAG_RW,
 	&allow_multicast, 0, "accept multicast addresses");
-SYSCTL_INT(_net_link_ether_inet, OID_AUTO, max_log_per_second,
-	CTLFLAG_RW, &arp_maxpps, 0,
-	"Maximum number of remotely triggered ARP messages that can be "
-	"logged per second");
-
-#define	ARP_LOG(pri, ...)	do {					\
-	if (ppsratecheck(&arp_lastlog, &arp_curpps, arp_maxpps))	\
-		log((pri), "arp: " __VA_ARGS__);			\
-} while (0)
 
 static void
 in_arpinput(struct mbuf *m)
@@ -634,7 +642,6 @@ in_arpinput(struct mbuf *m)
 	struct in_addr isaddr, itaddr, myaddr;
 	u_int8_t *enaddr = NULL;
 	int op;
-	int req_len;
 	int bridged = 0, is_bridge = 0;
 	int carped;
 	struct sockaddr_in sin;
@@ -648,13 +655,12 @@ in_arpinput(struct mbuf *m)
 	if (ifp->if_type == IFT_BRIDGE)
 		is_bridge = 1;
 
-	req_len = arphdr_len2(ifp->if_addrlen, sizeof(struct in_addr));
-	if (m->m_len < req_len && (m = m_pullup(m, req_len)) == NULL) {
-		ARP_LOG(LOG_NOTICE, "runt packet -- m_pullup failed\n");
-		return;
-	}
-
+	/*
+	 * We already have checked that mbuf contains enough contiguous data
+	 * to hold entire arp message according to the arp header.
+	 */
 	ah = mtod(m, struct arphdr *);
+
 	/*
 	 * ARP is only for IPv4 so we can reject packets with
 	 * a protocol length not equal to an IPv4 address.
