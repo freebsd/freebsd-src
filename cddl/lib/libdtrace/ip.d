@@ -110,7 +110,6 @@ typedef struct ipv4info {
  * These values are NULL if the packet is not IPv6.
  */
 typedef struct in6_addr in6_addr_t;
-typedef struct ip6_hdr ip6_t;
 typedef struct ipv6info {
 	uint8_t ipv6_ver;		/* IP version (6) */
 	uint8_t ipv6_tclass;		/* traffic class */
@@ -123,7 +122,7 @@ typedef struct ipv6info {
 	in6_addr_t *ipv6_dst;		/* destination address */
 	string ipv6_saddr;		/* source address, string */
 	string ipv6_daddr;		/* destination address, string */
-	ip6_t *ipv6_hdr;		/* pointer to raw header */
+	struct ip6_hdr *ipv6_hdr;	/* pointer to raw header */
 } ipv6info_t;
 
 #pragma D binding "1.5" IPPROTO_IP
@@ -282,5 +281,5 @@ translator ipv6info_t < struct ip6_hdr *p > {
 	ipv6_dst =	p == NULL ? 0 : (in6_addr_t *)&p->ip6_dst;
 	ipv6_saddr =	p == NULL ? 0 : inet_ntoa6(&p->ip6_src);
 	ipv6_daddr =	p == NULL ? 0 : inet_ntoa6(&p->ip6_dst);
-	ipv6_hdr =	(ip6_t *)p;
+	ipv6_hdr =	p;
 };
