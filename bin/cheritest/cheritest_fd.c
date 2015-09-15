@@ -65,28 +65,29 @@
 int zero_fd = -1;
 struct cheri_object stdin_fd_object, stdout_fd_object, zero_fd_object;
 
+static char read_string[128];
+
 void
-test_sandbox_fd_method(const struct cheri_test *ctp __unused, int methodnum)
+test_sandbox_fd_fstat(const struct cheri_test *ctp __unused)
 {
 	register_t v;
 
-	v = sandbox_object_cinvoke(cheritest_objectp,
-	    methodnum,
-	    0, 0, 0, 0, 0, 0, 0,
-	    cheri_zerocap(), cheri_zerocap(),
-	    zero_fd_object.co_codecap, zero_fd_object.co_datacap,
-	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
-	    cheri_zerocap());
-
-	/*
-	 * XXXRW: Pretty soon we'll want to break this one function out into
-	 * test-specific functions that have more rich definitions of
-	 * 'success'.
-	 */
+	v = invoke_fd_fstat_c(zero_fd_object);
+	if (v != 0)
+		cheritest_failure_errx("invoke returned %ld (expected 0)", v);
 	cheritest_success();
 }
 
-static char read_string[128];
+void
+test_sandbox_fd_lseek(const struct cheri_test *ctp __unused)
+{
+	register_t v;
+
+	v = invoke_fd_lseek_c(zero_fd_object);
+	if (v != 0)
+		cheritest_failure_errx("invoke returned %ld (expected 0)", v);
+	cheritest_success();
+}
 
 void
 test_sandbox_fd_read(const struct cheri_test *ctp)
@@ -97,13 +98,7 @@ test_sandbox_fd_read(const struct cheri_test *ctp)
 
 	len = sizeof(read_string);
 	stringc = cheri_ptrperm(read_string, len, CHERI_PERM_STORE);
-	v = sandbox_object_cinvoke(cheritest_objectp,
-	    CHERITEST_HELPER_OP_FD_READ_C,
-	    /* arg */ 0, /* len */ len, 0, 0, 0, 0, 0,
-	    /* data_input */ cheri_zerocap(), /* data_output */ stringc,
-	    stdin_fd_object.co_codecap, stdin_fd_object.co_datacap,
-	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
-	    cheri_zerocap());
+	v = invoke_fd_read_c(stdin_fd_object, stringc, len);
 	if (v != (register_t)strlen(ctp->ct_stdin_string))
 		cheritest_failure_errx("invoke returned %ld (expected %ld)",
 		    v, strlen(ctp->ct_stdin_string));
@@ -128,13 +123,7 @@ test_sandbox_fd_read_revoke(const struct cheri_test *ctp __unused)
 	cheri_fd_revoke(stdin_fd_object);
 	len = sizeof(read_string);
 	stringc = cheri_ptrperm(read_string, len, CHERI_PERM_STORE);
-	v = sandbox_object_cinvoke(cheritest_objectp,
-	    CHERITEST_HELPER_OP_FD_READ_C,
-	    /* arg */ 0, /* len */ len, 0, 0, 0, 0, 0,
-	    /* data_input */ cheri_zerocap(), /* data_output */ stringc,
-	    stdin_fd_object.co_codecap, stdin_fd_object.co_datacap,
-	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
-	    cheri_zerocap());
+	v = invoke_fd_read_c(stdin_fd_object, stringc, len);
 	if (v != -1)
 		cheritest_failure_errx("invoke returned %lu; expected %d\n",
 		    v, -1);
@@ -150,13 +139,7 @@ test_sandbox_fd_write(const struct cheri_test *ctp __unused)
 
 	len = strlen(ctp->ct_stdout_string);
 	stringc = cheri_ptrperm(ctp->ct_stdout_string, len, CHERI_PERM_LOAD);
-	v = sandbox_object_cinvoke(cheritest_objectp,
-	    CHERITEST_HELPER_OP_FD_WRITE_C,
-	    /* arg */ 0, /* len */ len, 0, 0, 0, 0, 0,
-	    /* data_input */ stringc, /* data_output */ cheri_zerocap(),
-	    stdout_fd_object.co_codecap, stdout_fd_object.co_datacap,
-	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
-	    cheri_zerocap());
+	v = invoke_fd_write_c(stdout_fd_object, stringc, len);
 	if (v != (ssize_t)len)
 		cheritest_failure_errx("invoke returned %lu; expected %d\n",
 		    v, strlen(ctp->ct_stdout_string));
@@ -177,13 +160,7 @@ test_sandbox_fd_write_revoke(const struct cheri_test *ctp __unused)
 	cheri_fd_revoke(stdout_fd_object);
 	len = strlen(ctp->ct_stdout_string);
 	stringc = cheri_ptrperm(ctp->ct_stdout_string, len, CHERI_PERM_LOAD);
-	v = sandbox_object_cinvoke(cheritest_objectp,
-	    CHERITEST_HELPER_OP_FD_WRITE_C,
-	    /* arg */ 0, /* len */ len, 0, 0, 0, 0, 0,
-	    /* data_input */ stringc, /* data_output */ cheri_zerocap(),
-	    stdout_fd_object.co_codecap, stdout_fd_object.co_datacap,
-	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
-	    cheri_zerocap());
+	v = invoke_fd_write_c(stdout_fd_object, stringc, len);
 	if (v != -1)
 		cheritest_failure_errx("invoke returned %lu; expected %d\n",
 		    v, -1);

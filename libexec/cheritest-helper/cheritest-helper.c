@@ -53,14 +53,22 @@
 #include "cheritest-helper.h"
 #include "cheritest-helper-internal.h"
 
-int	invoke(struct cheri_object co __unused, register_t v0 __unused,
-	    register_t methodnum,
-	    register_t arg, size_t len,
-	    char *data_input, char *data_output,
-	    struct cheri_object fd_object, struct zstream_proxy *zspp)
-	    __attribute__((cheri_ccall)); /* XXXRW: Will be ccheri_ccallee. */
+int	invoke(void) __attribute__((cheri_ccall));
+int
+invoke(void)
+{
 
-static int
+	return (-1);
+}
+
+int
+invoke_abort(void)
+{
+
+	abort();
+}
+
+int
 invoke_md5(size_t len, char *data_input, char *data_output)
 {
 	MD5_CTX md5context;
@@ -81,34 +89,34 @@ invoke_md5(size_t len, char *data_input, char *data_output)
 }
 
 #define	N	10
-static int
+int
 invoke_cap_fault(register_t op)
 {
 	char buffer[N], ch, *cap;
 
 	switch (op) {
-	case CHERITEST_HELPER_OP_CP2_BOUND:
+	case CHERITEST_HELPER_CAP_FAULT_CP2_BOUND:
 		cap = cheri_ptrperm(buffer, sizeof(buffer), CHERI_PERM_LOAD);
 		ch = cap[N];
 		return (ch);
 
-	case CHERITEST_HELPER_OP_CP2_PERM_LOAD:
+	case CHERITEST_HELPER_CAP_FAULT_CP2_PERM_LOAD:
 		cap = cheri_ptrperm(buffer, sizeof(buffer), CHERI_PERM_STORE);
 		ch = cap[0];
 		return (ch);
 
-	case CHERITEST_HELPER_OP_CP2_PERM_STORE:
+	case CHERITEST_HELPER_CAP_FAULT_CP2_PERM_STORE:
 		cap = cheri_ptrperm(buffer, sizeof(buffer), CHERI_PERM_LOAD);
 		cap[0] = 0;
 		return (0);
 
-	case CHERITEST_HELPER_OP_CP2_TAG:
+	case CHERITEST_HELPER_CAP_FAULT_CP2_TAG:
 		cap = cheri_ptrperm(buffer, sizeof(buffer), CHERI_PERM_LOAD);
 		cap = cheri_cleartag(cap);
 		ch = cap[0];
 		return (ch);
 
-	case CHERITEST_HELPER_OP_CP2_SEAL:
+	case CHERITEST_HELPER_CAP_FAULT_CP2_SEAL:
 		cap = cheri_ptrperm(buffer, sizeof(buffer), CHERI_PERM_LOAD);
 		cap = cheri_seal(cap, cheri_maketype(&buffer,
 		    CHERI_PERM_GLOBAL | CHERI_PERM_SEAL));
@@ -123,7 +131,7 @@ invoke_cap_fault(register_t op)
  * capabilities, as NULL generates an untagged capability.  Instead, use
  * near-NULL values.
  */
-static int
+int
 invoke_vm_fault(register_t op)
 {
 	volatile char *chp;
@@ -131,15 +139,15 @@ invoke_vm_fault(register_t op)
 
 	chp = (void *)4;
 	switch (op) {
-	case CHERITEST_HELPER_OP_VM_RFAULT:
+	case CHERITEST_HELPER_VM_FAULT_RFAULT:
 		ch = chp[0];
 		break;
 
-	case CHERITEST_HELPER_OP_VM_WFAULT:
+	case CHERITEST_HELPER_VM_FAULT_WFAULT:
 		chp[0] = 0;
 		break;
 
-	case CHERITEST_HELPER_OP_VM_XFAULT:
+	case CHERITEST_HELPER_VM_FAULT_XFAULT:
 		// It's no longer easy to trigger a TLB execute fault from C code,
 		// because all function pointers are derived from PCC and so will
 		// either be executable or generate capability faults that have a
@@ -152,7 +160,7 @@ invoke_vm_fault(register_t op)
 	return (0);
 }
 
-static int
+int
 invoke_syscall(void)
 {
 
@@ -165,7 +173,7 @@ invoke_syscall(void)
 	return (123456);
 }
 
-static int
+int
 invoke_fd_fstat_c(struct cheri_object fd_object)
 {
 	struct cheri_fd_ret ret;
@@ -177,7 +185,7 @@ invoke_fd_fstat_c(struct cheri_object fd_object)
 	return (ret.cfr_retval0);
 }
 
-static int
+int
 invoke_fd_lseek_c(struct cheri_object fd_object)
 {
 	struct cheri_fd_ret ret;
@@ -186,7 +194,7 @@ invoke_fd_lseek_c(struct cheri_object fd_object)
 	return (ret.cfr_retval0);
 }
 
-static int
+int
 invoke_fd_read_c(struct cheri_object fd_object, void *buf, size_t nbytes)
 {
 	struct cheri_fd_ret ret;
@@ -195,14 +203,14 @@ invoke_fd_read_c(struct cheri_object fd_object, void *buf, size_t nbytes)
 	return (ret.cfr_retval0);
 }
 
-static int
+int
 invoke_fd_write_c(struct cheri_object fd_object, char *arg, size_t nbytes)
 {
 
 	return (cheri_fd_write_c(fd_object, arg, nbytes).cfr_retval0);
 }
 
-static int
+int
 invoke_malloc(void)
 {
 	size_t i;
@@ -218,7 +226,16 @@ invoke_malloc(void)
 	return (0);
 }
 
-static int
+register_t
+invoke_spin()
+{
+
+	while(1);
+
+	abort();
+}
+
+int
 invoke_system_calloc(void)
 {
 	size_t i;
@@ -238,7 +255,7 @@ invoke_system_calloc(void)
 	return (0);
 }
 
-static int
+int
 invoke_clock_gettime(void)
 {
 	struct timespec t;
@@ -248,7 +265,7 @@ invoke_clock_gettime(void)
 	return (0);
 }
 
-static int
+int
 invoke_libcheri_userfn(register_t arg, size_t len)
 {
 
@@ -261,7 +278,7 @@ invoke_libcheri_userfn(register_t arg, size_t len)
 	    NULL, NULL, NULL, NULL, NULL));
 }
 
-static int
+int
 invoke_libcheri_userfn_setstack(register_t arg)
 {
 	int v;
@@ -277,8 +294,8 @@ invoke_libcheri_userfn_setstack(register_t arg)
 	return (v);
 }
 
-static void *saved_capability;
-static int
+void *saved_capability;
+int
 invoke_libcheri_save_capability_in_heap(void *data_input)
 {
 
@@ -307,7 +324,7 @@ cheritest_helper_var_constructor_init(void)
 	*cheritest_var_constructorp = CHERITEST_VALUE_CONSTRUCTOR;
 }
 
-static register_t
+register_t
 invoke_get_var_bss(void)
 {
 	volatile register_t *cheritest_var_bssp = &cheritest_var_bss;
@@ -315,7 +332,7 @@ invoke_get_var_bss(void)
 	return (*cheritest_var_bssp);
 }
 
-static register_t
+register_t
 invoke_get_var_data(void)
 {
 	volatile register_t *cheritest_var_datap = &cheritest_var_data;
@@ -323,7 +340,7 @@ invoke_get_var_data(void)
 	return (*cheritest_var_datap);
 }
 
-static register_t
+register_t
 invoke_set_var_data(register_t v)
 {
 
@@ -333,7 +350,7 @@ invoke_set_var_data(register_t v)
 	return (0);
 }
 
-static register_t
+register_t
 invoke_get_var_constructor(void)
 {
 	volatile register_t *cheritest_var_constructorp =
@@ -342,7 +359,7 @@ invoke_get_var_constructor(void)
 	return (*cheritest_var_constructorp);
 }
 
-static register_t
+register_t
 invoke_inflate(struct zstream_proxy *zspp)
 {
 	z_stream zs;
@@ -374,115 +391,44 @@ invoke_inflate(struct zstream_proxy *zspp)
 	return (0);
 }
 
-/*
- * Demux of various cheritest test cases to run within a sandbox.
- */
 static volatile int zero = 0;
 int
-invoke(struct cheri_object co __unused, register_t v0 __unused,
-    register_t methodnum,
-    register_t arg, size_t len,
-    char *data_input, char *data_output,
-    struct cheri_object fd_object, struct zstream_proxy* zspp)
+invoke_divzero(void)
 {
 
-	switch (methodnum) {
-	case CHERITEST_HELPER_OP_MD5:
-		return (invoke_md5(len, data_input, data_output));
+	return (1/(zero));
+}
 
-	case CHERITEST_HELPER_OP_ABORT:
-		abort();
+int
+invoke_cheri_system_helloworld(void)
+{
 
-	case CHERITEST_HELPER_OP_SPIN:
-		while (1);
+	return (cheri_system_helloworld());
+}
 
-	case CHERITEST_HELPER_OP_CP2_BOUND:
-	case CHERITEST_HELPER_OP_CP2_PERM_LOAD:
-	case CHERITEST_HELPER_OP_CP2_PERM_STORE:
-	case CHERITEST_HELPER_OP_CP2_TAG:
-	case CHERITEST_HELPER_OP_CP2_SEAL:
-		return (invoke_cap_fault(methodnum));
+int
+invoke_cheri_system_puts(void)
+{
 
-	case CHERITEST_HELPER_OP_VM_RFAULT:
-	case CHERITEST_HELPER_OP_VM_WFAULT:
-	case CHERITEST_HELPER_OP_VM_XFAULT:
-		return (invoke_vm_fault(methodnum));
+	return (cheri_system_puts("sandbox cs_puts"));
+}
 
-	case CHERITEST_HELPER_OP_SYSCALL:
-		return (invoke_syscall());
+int
+invoke_cheri_system_putchar(void)
+{
 
-	case CHERITEST_HELPER_OP_DIVZERO:
-		return (1/(zero));
+	return (cheri_system_putchar('C'));	/* Is for cookie. */
+}
 
-	case CHERITEST_HELPER_OP_CS_HELLOWORLD:
-		return (cheri_system_helloworld());
+int
+invoke_cheri_system_printf(void)
+{
 
-	case CHERITEST_HELPER_OP_CS_PUTS:
-		return (cheri_system_puts("sandbox cs_puts"));
-
-	case CHERITEST_HELPER_OP_CS_PUTCHAR:
-		return (cheri_system_putchar('C'));	/* Is for cookie. */
-
-	case CHERITEST_HELPER_OP_PRINTF:
-		return (printf("%s: printf in sandbox test\n", __func__));
-
-	case CHERITEST_HELPER_OP_MALLOC:
-		return (invoke_malloc());
-
-	case CHERITEST_HELPER_OP_SYSTEM_CALLOC:
-		return (invoke_system_calloc());
-
-	case CHERITEST_HELPER_OP_FD_FSTAT_C:
-		return (invoke_fd_fstat_c(fd_object));
-
-	case CHERITEST_HELPER_OP_FD_LSEEK_C:
-		return (invoke_fd_lseek_c(fd_object));
-
-	case CHERITEST_HELPER_OP_FD_READ_C:
-		return (invoke_fd_read_c(fd_object, data_output, len));
-
-	case CHERITEST_HELPER_OP_FD_WRITE_C:
-		return (invoke_fd_write_c(fd_object, data_input, len));
-
-	case CHERITEST_HELPER_OP_CS_CLOCK_GETTIME:
-		return (invoke_clock_gettime());
-
-	case CHERITEST_HELPER_LIBCHERI_USERFN:
-		return (invoke_libcheri_userfn(arg, len));
-
-	case CHERITEST_HELPER_LIBCHERI_USERFN_SETSTACK:
-		return (invoke_libcheri_userfn_setstack(arg));
-
-	case CHERITEST_HELPER_SAVE_CAPABILITY_IN_HEAP:
-		return (invoke_libcheri_save_capability_in_heap(data_input));
-
-	case CHERITEST_HELPER_GET_VAR_BSS:
-		return (invoke_get_var_bss());
-
-	case CHERITEST_HELPER_GET_VAR_DATA:
-		return (invoke_get_var_data());
-
-	case CHERITEST_HELPER_SET_VAR_DATA:
-		return (invoke_set_var_data(arg));
-
-	case CHERITEST_HELPER_GET_VAR_CONSTRUCTOR:
-		return (invoke_get_var_constructor());
-
-	case CHERITEST_HELPER_OP_INFLATE:
-		return (invoke_inflate(zspp));
-	}
-	return (-1);
+	return (printf("%s: printf in sandbox test\n", __func__));
 }
 
 int
 call_invoke_md5(size_t len, char *data_input, char *data_output)
-{
-
-	return (invoke_md5(len, data_input, data_output));
-}
-
-int
-call_invoke_md5_2(size_t len, char *data_input, char *data_output)
 {
 
 	return (invoke_md5(len, data_input, data_output));

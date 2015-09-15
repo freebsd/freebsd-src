@@ -80,7 +80,7 @@ test_sandbox_syscall(const struct cheri_test *ctp)
 		cheritest_failure_errx(
 		    "security.cheri.syscall_violations sysctl read (%d)",
 		    errno);
-	test_sandbox_simple_method(ctp, CHERITEST_HELPER_OP_SYSCALL);
+	invoke_syscall();
 	len = sizeof(new);
 	if (sysctlbyname("security.cheri.syscall_violations", &new, &len,
 	    NULL, 0) < 0)

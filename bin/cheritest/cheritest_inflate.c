@@ -124,13 +124,7 @@ test_sandbox_inflate_zeros(const struct cheri_test *ctp __unused)
 	zsp.avail_in = zs.avail_in;
 	zsp.next_out = cheri_ptr(zs.next_out, zs.avail_out);
 	zsp.avail_out = zs.avail_out;
-	v = sandbox_object_cinvoke(cheritest_objectp,
-	    CHERITEST_HELPER_OP_INFLATE,
-	    0, 0, 0, 0, 0, 0, 0,
-	    cheri_zerocap(), cheri_zerocap(),
-	    cheri_zerocap(), cheri_zerocap(),
-	    cheri_ptr(&zsp, sizeof(struct zstream_proxy)), cheri_zerocap(),
-	    cheri_zerocap(), cheri_zerocap());
+	v = invoke_inflate(cheri_ptr(&zsp, sizeof(struct zstream_proxy)));
 	if (v == -1)
 		cheritest_failure_errx("sandbox error");
 	zs.total_in = zsp.total_in;

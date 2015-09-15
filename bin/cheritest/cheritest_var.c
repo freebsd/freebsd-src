@@ -64,15 +64,11 @@
 void
 test_sandbox_save_global(const struct cheri_test *ctp __unused)
 {
-	__capability void *carg, *cclear;
+	__capability void *carg;
 	register_t v;
 
 	carg = (__capability void *)&v;
-	cclear = cheri_zerocap();
-	v = sandbox_object_cinvoke(cheritest_objectp,
-	    CHERITEST_HELPER_SAVE_CAPABILITY_IN_HEAP,
-	    0, 0, 0, 0, 0, 0, 0,
-	    carg, cclear, cclear, cclear, cclear, cclear, cclear, cclear);
+	v = invoke_libcheri_save_capability_in_heap(carg);
 	if (v != 0)
 		cheritest_failure_errx("Incorrect return value 0x%lx "
 		    "(expected 0)\n", v);
@@ -82,30 +78,21 @@ test_sandbox_save_global(const struct cheri_test *ctp __unused)
 void
 test_sandbox_save_local(const struct cheri_test *ctp __unused)
 {
-	__capability void *carg, *cclear;
+	__capability void *carg;
 	register_t v;
 
 	carg = (__capability void *)&v;
 	carg = cheri_local(carg);
-	cclear = cheri_zerocap();
-	(void)sandbox_object_cinvoke(cheritest_objectp,
-	    CHERITEST_HELPER_SAVE_CAPABILITY_IN_HEAP,
-	    0, 0, 0, 0, 0, 0, 0,
-	    carg, cclear, cclear, cclear, cclear, cclear, cclear, cclear);
+	v = invoke_libcheri_save_capability_in_heap(carg);
 	cheritest_failure_errx("Method failed to properly fail\n");
 }
 
 void
 test_sandbox_var_bss(const struct cheri_test *ctp __unused)
 {
-	__capability void *cclear;
 	register_t v;
 
-	cclear = cheri_zerocap();
-	v = sandbox_object_cinvoke(cheritest_objectp,
-	    CHERITEST_HELPER_GET_VAR_BSS,
-	    0, 0, 0, 0, 0, 0, 0,
-	    cclear, cclear, cclear, cclear, cclear, cclear, cclear, cclear);
+	v = invoke_get_var_bss();
 	if (v != CHERITEST_VALUE_BSS)
 		cheritest_failure_errx(".bss returned 0x%lx (expected 0x%lx)",
 		    v, CHERITEST_VALUE_BSS);
@@ -115,14 +102,9 @@ test_sandbox_var_bss(const struct cheri_test *ctp __unused)
 void
 test_sandbox_var_data(const struct cheri_test *ctp __unused)
 {
-	__capability void *cclear;
 	register_t v;
 
-	cclear = cheri_zerocap();
-	v = sandbox_object_cinvoke(cheritest_objectp,
-	    CHERITEST_HELPER_GET_VAR_DATA,
-	    0, 0, 0, 0, 0, 0, 0,
-	    cclear, cclear, cclear, cclear, cclear, cclear, cclear, cclear);
+	v = invoke_get_var_data();
 	if (v != CHERITEST_VALUE_DATA)
 		cheritest_failure_errx(".data returned 0x%lx (expected 0x%lx)",
 		    v, CHERITEST_VALUE_DATA);
@@ -134,36 +116,22 @@ test_sandbox_var_data(const struct cheri_test *ctp __unused)
 void
 test_sandbox_var_data_getset(const struct cheri_test *ctp __unused)
 {
-	__capability void *cclear;
 	register_t v;
 
-	cclear = cheri_zerocap();
 
 	/* Set data to zero. */
-	(void)sandbox_object_cinvoke(cheritest_objectp,
-	    CHERITEST_HELPER_SET_VAR_DATA,
-	    0, 0, 0, 0, 0, 0, 0,
-	    cclear, cclear, cclear, cclear, cclear, cclear, cclear, cclear);
+	invoke_set_var_data(0);
 
 	/* Read back data and ensure zero. */
-	v = sandbox_object_cinvoke(cheritest_objectp,
-	    CHERITEST_HELPER_GET_VAR_DATA,
-	    0, 0, 0, 0, 0, 0, 0,
-	    cclear, cclear, cclear, cclear, cclear, cclear, cclear, cclear);
+	v = invoke_get_var_data();
 	if (v != 0)
 		cheritest_failure_errx(".data set to 0 but returned %u\n", v);
 
 	/* Set data to one. */
-	(void)sandbox_object_cinvoke(cheritest_objectp,
-	    CHERITEST_HELPER_SET_VAR_DATA,
-	    1, 0, 0, 0, 0, 0, 0,
-	    cclear, cclear, cclear, cclear, cclear, cclear, cclear, cclear);
+	invoke_set_var_data(1);
 
 	/* Read back data and ensure one. */
-	v = sandbox_object_cinvoke(cheritest_objectp,
-	    CHERITEST_HELPER_GET_VAR_DATA,
-	    0, 0, 0, 0, 0, 0, 0,
-	    cclear, cclear, cclear, cclear, cclear, cclear, cclear, cclear);
+	v = invoke_get_var_data();
 	if (v != 1)
 		cheritest_failure_errx(".data set to 1 but returned %u\n", v);
 	cheritest_success();
@@ -173,7 +141,6 @@ void
 test_2sandbox_var_data_getset(const struct cheri_test *ctp __unused)
 {
 	struct sandbox_object *sbop;
-	__capability void *cclear;
 	register_t v;
 
 	if (sandbox_object_new(cheritest_classp, 2*1024*1024, &sbop) < 0)
@@ -184,26 +151,13 @@ test_2sandbox_var_data_getset(const struct cheri_test *ctp __unused)
 	 * object to '2'.  Read both back and ensure there has been no
 	 * confusion on this topic.
 	 */
-	cclear = cheri_zerocap();
-	(void)sandbox_object_cinvoke(cheritest_objectp,
-	    CHERITEST_HELPER_SET_VAR_DATA,
-	    1, 0, 0, 0, 0, 0, 0,
-	    cclear, cclear, cclear, cclear, cclear, cclear, cclear, cclear);
-	(void)sandbox_object_cinvoke(sbop,
-	    CHERITEST_HELPER_SET_VAR_DATA,
-	    2, 0, 0, 0, 0, 0, 0,
-	    cclear, cclear, cclear, cclear, cclear, cclear, cclear, cclear);
-	v = sandbox_object_cinvoke(cheritest_objectp,
-	    CHERITEST_HELPER_GET_VAR_DATA,
-	    0, 0, 0, 0, 0, 0, 0,
-	    cclear, cclear, cclear, cclear, cclear, cclear, cclear, cclear);
+	invoke_set_var_data(1);
+	invoke_set_var_data_cap(sandbox_object_getobject(sbop), 2);
+	v = invoke_get_var_data();
 	if (v != 1)
 		cheritest_failure_errx(
 		    "default sandbox object: set 1, got back %u", 1);
-	v = sandbox_object_cinvoke(sbop,
-	    CHERITEST_HELPER_GET_VAR_DATA,
-	    0, 0, 0, 0, 0, 0, 0,
-	    cclear, cclear, cclear, cclear, cclear, cclear, cclear, cclear);
+	v = invoke_get_var_data_cap(sandbox_object_getobject(sbop));
 	if (v != 2)
 		cheritest_failure_errx(
 		    "additional sandbox object: set 2, got back %u", 2);
@@ -214,14 +168,9 @@ test_2sandbox_var_data_getset(const struct cheri_test *ctp __unused)
 void
 test_sandbox_var_constructor(const struct cheri_test *ctp __unused)
 {
-	__capability void *cclear;
 	register_t v;
 
-	cclear = cheri_zerocap();
-	v = sandbox_object_cinvoke(cheritest_objectp,
-	    CHERITEST_HELPER_GET_VAR_CONSTRUCTOR,
-	    0, 0, 0, 0, 0, 0, 0,
-	    cclear, cclear, cclear, cclear, cclear, cclear, cclear, cclear);
+	v = invoke_get_var_constructor();
 	if (v != CHERITEST_VALUE_CONSTRUCTOR)
 		cheritest_failure_errx(
 		    "Constructor returned 0x%lx (expected 0x%lx)",

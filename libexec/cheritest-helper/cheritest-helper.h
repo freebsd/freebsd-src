@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2013-2015 Robert N. M. Watson
- * Copyright (c) 2014 SRI International
+ * Copyright (c) 2014-2015 SRI International
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -32,39 +32,15 @@
 #ifndef _LIBEXEC_CHERITEST_CHERITEST_HELPER_H_
 #define	_LIBEXEC_CHERITEST_CHERITEST_HELPER_H_
 
-#define	CHERITEST_HELPER_OP_MD5		1
-#define	CHERITEST_HELPER_OP_ABORT	2
-#define	CHERITEST_HELPER_OP_SPIN	3
-#define	CHERITEST_HELPER_OP_CP2_BOUND	4
-#define	CHERITEST_HELPER_OP_CP2_PERM_STORE	5
-#define	CHERITEST_HELPER_OP_CP2_TAG	6
-#define	CHERITEST_HELPER_OP_CP2_SEAL	7
-#define	CHERITEST_HELPER_OP_VM_RFAULT	8
-#define	CHERITEST_HELPER_OP_VM_WFAULT	9
-#define	CHERITEST_HELPER_OP_VM_XFAULT	10
-#define	CHERITEST_HELPER_OP_SYSCALL	11
-#define	CHERITEST_HELPER_OP_DIVZERO	12
-/* 13 available.  Formerly CHERITEST_HELPER_OP_SYSCAP */
-#define	CHERITEST_HELPER_OP_CS_HELLOWORLD	14
-#define	CHERITEST_HELPER_OP_CS_PUTS	15
-#define	CHERITEST_HELPER_OP_CS_PUTCHAR	16
-#define	CHERITEST_HELPER_OP_PRINTF	17
-#define CHERITEST_HELPER_OP_MALLOC	18
-#define	CHERITEST_HELPER_OP_FD_FSTAT_C	19
-#define	CHERITEST_HELPER_OP_FD_LSEEK_C	20
-#define	CHERITEST_HELPER_OP_FD_READ_C	21
-#define	CHERITEST_HELPER_OP_FD_WRITE_C	22
-#define	CHERITEST_HELPER_OP_CS_CLOCK_GETTIME	23
-#define	CHERITEST_HELPER_LIBCHERI_USERFN	24
-#define	CHERITEST_HELPER_LIBCHERI_USERFN_SETSTACK	25
-#define	CHERITEST_HELPER_SAVE_CAPABILITY_IN_HEAP	26
-#define	CHERITEST_HELPER_OP_CP2_PERM_LOAD	27
-#define	CHERITEST_HELPER_GET_VAR_BSS	28
-#define	CHERITEST_HELPER_GET_VAR_DATA	29
-#define	CHERITEST_HELPER_GET_VAR_CONSTRUCTOR	30
-#define	CHERITEST_HELPER_OP_INFLATE	31
-#define CHERITEST_HELPER_OP_SYSTEM_CALLOC	32
-#define	CHERITEST_HELPER_SET_VAR_DATA	33
+#define	CHERITEST_HELPER_CAP_FAULT_CP2_BOUND		1
+#define	CHERITEST_HELPER_CAP_FAULT_CP2_PERM_LOAD	2
+#define	CHERITEST_HELPER_CAP_FAULT_CP2_PERM_STORE	3
+#define	CHERITEST_HELPER_CAP_FAULT_CP2_TAG		4
+#define	CHERITEST_HELPER_CAP_FAULT_CP2_SEAL		5
+
+#define	CHERITEST_HELPER_VM_FAULT_RFAULT		1
+#define	CHERITEST_HELPER_VM_FAULT_WFAULT		2
+#define	CHERITEST_HELPER_VM_FAULT_XFAULT		3
 
 /*
  * We use system-class extensions to allow cheritest-helper code to call back
@@ -84,11 +60,22 @@
 #define	CHERITEST_VALUE_INVALID		0xbb
 #define	CHERITEST_VALUE_CONSTRUCTOR	0xcc
 
+
 #ifdef LIST_ONLY
 #define CHERITEST_CCALL
 #define CHERITEST_CCALL2
-#define	__capability
+#define BEGIN_CAPABILITIES
+#define END_CAPABILITIES
 #else
+#if __has_feature(pointer_interpretation)
+#define BEGIN_CAPABILITIES \
+    _Pragma("pointer_interpretation push") \
+    _Pragma("pointer_interpretation capability")
+#define END_CAPABILITIES \
+    _Pragma("pointer_interpretation pop")
+#else
+#error Compiler does not support capabilities.
+#endif
 extern struct cheri_object cheritest;
 #ifdef CHERITEST_INTERNAL
 #define	CHERITEST_CCALL					\
@@ -113,13 +100,48 @@ extern struct cheri_object cheritest2;
 #endif
 #endif
 
-CHERITEST_CCALL
-int	call_invoke_md5(size_t len, __capability char *data_input,
-	    __capability char *data_output);
-CHERITEST_CCALL2
-int	call_invoke_md5_2(size_t len, __capability char *data_input,
-	    __capability char *data_output);
+struct cheri_object;
+
+BEGIN_CAPABILITIES
+CHERITEST_CCALL int	invoke_divzero(void);
+CHERITEST_CCALL int	invoke_cheri_system_helloworld(void);
+CHERITEST_CCALL int	invoke_cheri_system_puts(void);
+CHERITEST_CCALL int	invoke_cheri_system_putchar(void);
+CHERITEST_CCALL int	invoke_cheri_system_printf(void);
+
+CHERITEST_CCALL int	invoke_abort(void);
+CHERITEST_CCALL int	invoke_md5(size_t len, char *data_input,
+			    char *data_output);
+CHERITEST_CCALL int	invoke_cap_fault(register_t op);
+CHERITEST_CCALL int	invoke_vm_fault(register_t op);
+CHERITEST_CCALL int	invoke_syscall(void);
+CHERITEST_CCALL int	invoke_fd_fstat_c(struct cheri_object fd_object);
+CHERITEST_CCALL int	invoke_fd_lseek_c(struct cheri_object fd_object);
+CHERITEST_CCALL int	invoke_fd_read_c(struct cheri_object fd_object,
+			    void *buf, size_t nbytes);
+CHERITEST_CCALL int	invoke_fd_write_c(struct cheri_object fd_object,
+			    char *arg, size_t nbytes);
+CHERITEST_CCALL int	invoke_malloc(void);
+CHERITEST_CCALL int	invoke_system_calloc(void);
+CHERITEST_CCALL int	invoke_clock_gettime(void);
+CHERITEST_CCALL int	invoke_libcheri_userfn(register_t arg, size_t len);
+CHERITEST_CCALL int	invoke_libcheri_userfn_setstack(register_t arg);
+CHERITEST_CCALL int	invoke_libcheri_save_capability_in_heap(
+			    void *data_input);
+
+CHERITEST_CCALL register_t	invoke_get_var_bss(void);
+CHERITEST_CCALL register_t	invoke_get_var_data(void);
+CHERITEST_CCALL register_t	invoke_set_var_data(register_t v);
+CHERITEST_CCALL register_t	invoke_get_var_constructor(void);
+struct zstream_proxy;
+CHERITEST_CCALL register_t	invoke_inflate(struct zstream_proxy *zspp);
+CHERITEST_CCALL register_t	invoke_spin(void);
+
+/* Test calling with a different default object */
+CHERITEST_CCALL2 int	call_invoke_md5(size_t len, char *data_input,
+			    char *data_output);
 
 CHERITEST_CCALL	int	sandbox_test_ptrdiff(void);
+END_CAPABILITIES
 
 #endif /* !_LIBEXEC_CHERITEST_CHERITEST_HELPER_H_ */

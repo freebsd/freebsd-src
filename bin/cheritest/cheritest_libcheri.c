@@ -68,103 +68,103 @@ struct sandbox_object	*cheritest_objectp;
 struct cheri_object cheritest, cheritest2;
 
 void
-test_sandbox_simple_method(const struct cheri_test *ctp __unused,
-    int methodnum)
+test_sandbox_abort(const struct cheri_test *ctp __unused)
 {
 	register_t v;
 
-	/*
-	 * Test must be done in 10 seconds or less: not the ideal way to do
-	 * this, as we'd rather time it out in the parent, I think, but works
-	 * fine in practice.
-	 */
-	alarm(10);
+	v = invoke_abort();
+	if (v == -2)
+		cheritest_success();
+	else
+		cheritest_failure_errx("Sandbox did not abort()");
+}
 
-	v = sandbox_object_cinvoke(cheritest_objectp,
-	    methodnum,
-	    0, 0, 0, 0, 0, 0, 0,
-	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
-	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
-	    cheri_zerocap(), cheri_zerocap());
+void
+test_sandbox_cs_calloc(const struct cheri_test *ctp __unused)
+{
+	register_t v;
 
-	alarm(0);
-
-	/*
-	 * XXXRW: Pretty soon we'll want to break this one function out into
-	 * test-specific functions that have more rich definitions of
-	 * 'success'.
-	 */
-	if (methodnum == CHERITEST_HELPER_OP_ABORT) {
-		if (v == -2)
-			cheritest_success();
-		else
-			cheritest_failure_errx("Sandbox did not abort()");
-	} else if (v < 0)
+	v = invoke_system_calloc();
+	if (v < 0)
 		cheritest_failure_errx("Sandbox returned %jd", (intmax_t)v);
 	else
 		cheritest_success();
 }
 
 void
-test_sandbox_simple_method_unwind(const struct cheri_test *ctp __unused,
-    int methodnum)
+test_sandbox_cs_clock_gettime(const struct cheri_test *ctp __unused)
 {
 	register_t v;
 
-	/*
-	 * Test must be done in 10 seconds or less: not the ideal way to do
-	 * this, as we'd rather time it out in the parent, I think, but works
-	 * fine in practice.
-	 */
-	alarm(10);
+	v = invoke_clock_gettime();
+	if (v < 0)
+		cheritest_failure_errx("Sandbox returned %jd", (intmax_t)v);
+	else
+		cheritest_success();
+}
 
-	v = sandbox_object_cinvoke(cheritest_objectp,
-	    methodnum,
-	    0, 0, 0, 0, 0, 0, 0,
-	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
-	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
-	    cheri_zerocap(), cheri_zerocap());
+void
+test_sandbox_cs_helloworld(const struct cheri_test *ctp __unused)
+{
+	register_t v;
 
-	alarm(0);
+	v = invoke_cheri_system_helloworld();
+	if (v < 0)
+		cheritest_failure_errx("Sandbox returned %jd", (intmax_t)v);
+	else
+		cheritest_success();
+}
 
-	if (v != CHERITEST_SANDBOX_UNWOUND)
-		cheritest_failure_errx("Sandbox not unwound");
+void
+test_sandbox_cs_putchar(const struct cheri_test *ctp __unused)
+{
+	register_t v;
 
-	/*
-	 * XXXRW: Pretty soon we'll want to break this one function out into
-	 * test-specific functions that have more rich definitions of
-	 * 'success'.
-	 */
-	cheritest_success();
+	v = invoke_cheri_system_putchar();
+	if (v < 0)
+		cheritest_failure_errx("Sandbox returned %jd", (intmax_t)v);
+	else
+		cheritest_success();
+}
+
+void
+test_sandbox_cs_puts(const struct cheri_test *ctp __unused)
+{
+	register_t v;
+
+	v = invoke_cheri_system_puts();
+	if (v < 0)
+		cheritest_failure_errx("Sandbox returned %jd", (intmax_t)v);
+	else
+		cheritest_success();
+}
+
+void
+test_sandbox_printf(const struct cheri_test *ctp __unused)
+{
+	register_t v;
+
+	v = invoke_cheri_system_printf();
+	if (v < 0)
+		cheritest_failure_errx("Sandbox returned %jd", (intmax_t)v);
+	else
+		cheritest_success();
+}
+
+void
+test_sandbox_malloc(const struct cheri_test *ctp __unused)
+{
+	register_t v;
+
+	v = invoke_malloc();
+	if (v < 0)
+		cheritest_failure_errx("Sandbox returned %jd", (intmax_t)v);
+	else
+		cheritest_success();
 }
 
 static char string_to_md5[] = "hello world";
 static char string_md5[] = "5eb63bbbe01eeed093cb22bb8f5acdc3";
-
-void
-test_sandbox_md5(const struct cheri_test *ctp __unused)
-{
-	__capability void *md5cap, *bufcap, *cclear;
-	char buf[33];
-	register_t v;
-
-	cclear = cheri_zerocap();
-	md5cap = cheri_ptrperm(string_to_md5, sizeof(string_to_md5),
-	    CHERI_PERM_LOAD);
-	bufcap = cheri_ptrperm(buf, sizeof(buf), CHERI_PERM_STORE);
-
-	v = sandbox_object_cinvoke(cheritest_objectp,
-	    CHERITEST_HELPER_OP_MD5,
-	    0, strlen(string_to_md5), 0, 0, 0, 0, 0,
-	    md5cap, bufcap, cclear, cclear, cclear, cclear, cclear, cclear);
-
-	buf[32] = '\0';
-	if (strcmp(buf, string_md5) != 0)
-		cheritest_failure_errx(
-		    "Incorrect MD5 checksum returned from sandbox ('%s')",
-		    buf);
-	cheritest_success();
-}
 
 void
 test_sandbox_md5_ccall(const struct cheri_test *ctp __unused, int class)
@@ -178,10 +178,10 @@ test_sandbox_md5_ccall(const struct cheri_test *ctp __unused, int class)
 
 	switch (class) {
 	case 1:
-		call_invoke_md5(strlen(string_to_md5), md5cap, bufcap);
+		invoke_md5(strlen(string_to_md5), md5cap, bufcap);
 		break;
 	case 2:
-		call_invoke_md5_2(strlen(string_to_md5), md5cap, bufcap);
+		call_invoke_md5(strlen(string_to_md5), md5cap, bufcap);
 		break;
 	default:
 		cheritest_failure_errx("invalid class", class);
@@ -204,6 +204,29 @@ static register_t cheritest_libcheri_userfn_handler(
     __capability void *c3, __capability void *c4, __capability void *c5,
     __capability void *c6, __capability void *c7)
     __attribute__((cheri_ccall)); /* XXXRW: Will be ccheri_ccallee. */
+
+void
+test_sandbox_spin(const struct cheri_test *ctp __unused)
+{
+	register_t v;
+
+	/*
+	 * Test will never terminate on it's own.  We set an alarm to
+	 * trigger a signal.
+	 */
+	alarm(10);
+
+	v = invoke_spin();
+
+	alarm(0);
+
+	if (v != CHERITEST_SANDBOX_UNWOUND)
+		cheritest_failure_errx(
+		    "Sandbox not unwound (returned 0x%jx instead of 0x%jx)",
+		    (uintmax_t)v, (uintmax_t)CHERITEST_SANDBOX_UNWOUND);
+	else
+		cheritest_success();
+}
 
 static register_t
 cheritest_libcheri_userfn_handler(struct cheri_object system_object __unused,
@@ -236,16 +259,10 @@ cheritest_libcheri_userfn_handler(struct cheri_object system_object __unused,
 void
 test_sandbox_userfn(const struct cheri_test *ctp __unused)
 {
-	__capability void *cclear;
 	register_t i, v;
 
-	cclear = cheri_zerocap();
 	for (i = 0; i < 10; i++) {
-		v = sandbox_object_cinvoke(cheritest_objectp,
-		    CHERITEST_HELPER_LIBCHERI_USERFN,
-		    CHERITEST_USERFN_RETURNARG, i, 0, 0, 0, 0, 0,
-		    cclear, cclear, cclear, cclear, cclear, cclear, cclear,
-		    cclear);
+		v = invoke_libcheri_userfn(CHERITEST_USERFN_RETURNARG, i);
 		if (v != i)
 			cheritest_failure_errx("Incorrect return value "
 			    "0x%lx (expected 0x%lx)\n", v, i);
@@ -266,45 +283,6 @@ test_2sandbox_newdestroy(const struct cheri_test *ctp __unused)
 
 	if (sandbox_object_new(cheritest_classp, 2*1024*1024, &sbop) < 0)
 		cheritest_failure_errx("sandbox_object_new() failed");
-	sandbox_object_destroy(sbop);
-	cheritest_success();
-}
-
-void
-test_2sandbox_md5(const struct cheri_test *ctp __unused)
-{
-	struct sandbox_object *sbop;
-	__capability void *md5cap, *bufcap, *cclear;
-	char buf[33];
-	register_t v;
-
-	/*
-	 * Create a second instance of the cheritest class.
-	 */
-	if (sandbox_object_new(cheritest_classp, 2*1024*1024, &sbop) < 0)
-		cheritest_failure_errx("sandbox_object_new() failed");
-
-	/*
-	 * The actual MD5 method call.  This should work as epected for the
-	 * test to pass.
-	 */
-	cclear = cheri_zerocap();
-	md5cap = cheri_ptrperm(string_to_md5, sizeof(string_to_md5),
-	    CHERI_PERM_LOAD);
-	bufcap = cheri_ptrperm(buf, sizeof(buf), CHERI_PERM_STORE);
-	v = sandbox_object_cinvoke(sbop,
-	    CHERITEST_HELPER_OP_MD5,
-	    0, strlen(string_to_md5), 0, 0, 0, 0, 0,
-	    md5cap, bufcap, cclear, cclear, cclear, cclear, cclear, cclear);
-	buf[32] = '\0';
-	if (strcmp(buf, string_md5) != 0)
-		cheritest_failure_errx(
-		    "Incorrect MD5 checksum returned from sandbox ('%s')",
-		    buf);
-
-	/*
-	 * Destroy the second object and declare success.
-	 */
 	sandbox_object_destroy(sbop);
 	cheritest_success();
 }
@@ -345,60 +323,6 @@ cheritest_libcheri_setup(void)
 		return (-1);
 	cheritest = sandbox_object_getobject(cheritest_objectp);
 	cheritest2 = sandbox_object_getobject(cheritest_objectp);
-	(void)sandbox_class_method_declare(cheritest_classp,
-	    CHERITEST_HELPER_OP_MD5, "md5");
-	(void)sandbox_class_method_declare(cheritest_classp,
-	    CHERITEST_HELPER_OP_ABORT, "abort");
-	(void)sandbox_class_method_declare(cheritest_classp,
-	    CHERITEST_HELPER_OP_SPIN, "spin");
-	(void)sandbox_class_method_declare(cheritest_classp,
-	    CHERITEST_HELPER_OP_CP2_BOUND, "cp2_bound");
-	(void)sandbox_class_method_declare(cheritest_classp,
-	    CHERITEST_HELPER_OP_CP2_PERM_LOAD, "cp2_perm_load");
-	(void)sandbox_class_method_declare(cheritest_classp,
-	    CHERITEST_HELPER_OP_CP2_PERM_STORE, "cp2_perm_store");
-	(void)sandbox_class_method_declare(cheritest_classp,
-	    CHERITEST_HELPER_OP_CP2_TAG, "cp2_tag");
-	(void)sandbox_class_method_declare(cheritest_classp,
-	    CHERITEST_HELPER_OP_CP2_SEAL, "cp2_seal");
-	(void)sandbox_class_method_declare(cheritest_classp,
-	    CHERITEST_HELPER_OP_CS_HELLOWORLD, "helloworld");
-	(void)sandbox_class_method_declare(cheritest_classp,
-	    CHERITEST_HELPER_OP_CS_PUTS, "puts");
-	(void)sandbox_class_method_declare(cheritest_classp,
-	    CHERITEST_HELPER_OP_PRINTF, "printf");
-	(void)sandbox_class_method_declare(cheritest_classp,
-	    CHERITEST_HELPER_OP_VM_RFAULT, "vm_rfault");
-	(void)sandbox_class_method_declare(cheritest_classp,
-	    CHERITEST_HELPER_OP_VM_WFAULT, "vm_wfault");
-	(void)sandbox_class_method_declare(cheritest_classp,
-	    CHERITEST_HELPER_OP_VM_XFAULT, "vm_xfault");
-	(void)sandbox_class_method_declare(cheritest_classp,
-	    CHERITEST_HELPER_OP_SYSCALL, "syscall");
-	(void)sandbox_class_method_declare(cheritest_classp,
-	    CHERITEST_HELPER_OP_DIVZERO, "divzero");
-	(void)sandbox_class_method_declare(cheritest_classp,
-	    CHERITEST_HELPER_OP_MALLOC, "malloc");
-	(void)sandbox_class_method_declare(cheritest_classp,
-	    CHERITEST_HELPER_OP_CS_CLOCK_GETTIME, "clock_gettime");
-	(void)sandbox_class_method_declare(cheritest_classp,
-	    CHERITEST_HELPER_LIBCHERI_USERFN, "libcheri_fn");
-	(void)sandbox_class_method_declare(cheritest_classp,
-	    CHERITEST_HELPER_LIBCHERI_USERFN_SETSTACK,
-	    "libcheri_userfn_setstack");
-	(void)sandbox_class_method_declare(cheritest_classp,
-	    CHERITEST_HELPER_SAVE_CAPABILITY_IN_HEAP,
-	    "save_capability_in_heap");
-	(void)sandbox_class_method_declare(cheritest_classp,
-	    CHERITEST_HELPER_OP_CP2_PERM_LOAD, "cp2_perm_load");
-	(void)sandbox_class_method_declare(cheritest_classp,
-	    CHERITEST_HELPER_GET_VAR_BSS, "get_var_bss");
-	(void)sandbox_class_method_declare(cheritest_classp,
-	    CHERITEST_HELPER_GET_VAR_DATA, "get_var_data");
-	(void)sandbox_class_method_declare(cheritest_classp,
-	    CHERITEST_HELPER_GET_VAR_CONSTRUCTOR, "get_var_constructor");
-	(void)sandbox_class_method_declare(cheritest_classp,
-	    CHERITEST_HELPER_SET_VAR_DATA, "set_var_data");
 
 	cheri_system_user_register_fn(&cheritest_libcheri_userfn_handler);
 
