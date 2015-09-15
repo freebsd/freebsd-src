@@ -47,7 +47,6 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <time.h>
 #include <unistd.h>
 #include <ucl.h>
 
@@ -182,14 +181,11 @@ fetch_to_fd(const char *url, char *path)
 	/* To store _https._tcp. + hostname + \0 */
 	int fd;
 	int retry, max_retry;
-	off_t done, r;
-	time_t now, last;
+	ssize_t r;
 	char buf[10240];
 	char zone[MAXHOSTNAMELEN + 13];
 	static const char *mirror_type = NULL;
 
-	done = 0;
-	last = 0;
 	max_retry = 3;
 	current = mirrors = NULL;
 	remote = NULL;
@@ -239,19 +235,16 @@ fetch_to_fd(const char *url, char *path)
 		}
 	}
 
-	while (done < st.size) {
-		if ((r = fread(buf, 1, sizeof(buf), remote)) < 1)
-			break;
-
+	while ((r = fread(buf, 1, sizeof(buf), remote)) > 0) {
 		if (write(fd, buf, r) != r) {
 			warn("write()");
 			goto fetchfail;
 		}
+	}
 
-		done += r;
-		now = time(NULL);
-		if (now > last || done == st.size)
-			last = now;
+	if (r != 0) {
+		warn("An error occurred while fetching pkg(8)");
+		goto fetchfail;
 	}
 
 	if (ferror(remote))
