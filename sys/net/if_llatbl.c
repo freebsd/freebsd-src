@@ -291,17 +291,11 @@ lltable_drop_entry_queue(struct llentry *lle)
 size_t
 llentry_free(struct llentry *lle)
 {
-	struct lltable *llt;
 	size_t pkts_dropped;
 
 	LLE_WLOCK_ASSERT(lle);
 
-	if ((lle->la_flags & LLE_LINKED) != 0) {
-		llt = lle->lle_tbl;
-
-		IF_AFDATA_WLOCK_ASSERT(llt->llt_ifp);
-		llt->llt_unlink_entry(lle);
-	}
+	KASSERT((lle->la_flags & LLE_LINKED) == 0, ("freeing linked lle"));
 
 	pkts_dropped = lltable_drop_entry_queue(lle);
 

@@ -131,7 +131,7 @@ static int nd6_is_new_addr_neighbor(struct sockaddr_in6 *,
 static void nd6_setmtu0(struct ifnet *, struct nd_ifinfo *);
 static void nd6_slowtimo(void *);
 static int regen_tmpaddr(struct in6_ifaddr *);
-static struct llentry *nd6_free(struct llentry *, int);
+static void nd6_free(struct llentry *, int);
 static void nd6_free_redirect(const struct llentry *);
 static void nd6_llinfo_timer(void *);
 static void clear_llinfo_pqueue(struct llentry *);
@@ -603,7 +603,7 @@ nd6_llinfo_timer(void *arg)
 	}
 
 	if (ln->la_flags & LLE_DELETED) {
-		(void)nd6_free(ln, 0);
+		nd6_free(ln, 0);
 		ln = NULL;
 		goto done;
 	}
@@ -630,7 +630,7 @@ nd6_llinfo_timer(void *arg)
 				clear_llinfo_pqueue(ln);
 			}
 			EVENTHANDLER_INVOKE(lle_event, ln, LLENTRY_TIMEDOUT);
-			(void)nd6_free(ln, 0);
+			nd6_free(ln, 0);
 			ln = NULL;
 			if (m != NULL)
 				icmp6_error2(m, ICMP6_DST_UNREACH,
@@ -648,7 +648,7 @@ nd6_llinfo_timer(void *arg)
 		/* Garbage Collection(RFC 2461 5.3) */
 		if (!ND6_LLINFO_PERMANENT(ln)) {
 			EVENTHANDLER_INVOKE(lle_event, ln, LLENTRY_EXPIRED);
-			(void)nd6_free(ln, 1);
+			nd6_free(ln, 1);
 			ln = NULL;
 		}
 		break;
@@ -670,7 +670,7 @@ nd6_llinfo_timer(void *arg)
 			send_ns = 1;
 		} else {
 			EVENTHANDLER_INVOKE(lle_event, ln, LLENTRY_EXPIRED);
-			(void)nd6_free(ln, 0);
+			nd6_free(ln, 0);
 			ln = NULL;
 		}
 		break;
@@ -1125,10 +1125,9 @@ nd6_is_addr_neighbor(struct sockaddr_in6 *addr, struct ifnet *ifp)
  * make it global, unless you have a strong reason for the change, and are sure
  * that the change is safe.
  */
-static struct llentry *
+static void
 nd6_free(struct llentry *ln, int gc)
 {
-        struct llentry *next;
 	struct nd_defrouter *dr;
 	struct ifnet *ifp;
 
@@ -1168,10 +1167,9 @@ nd6_free(struct llentry *ln, int gc)
 				nd6_llinfo_settimer_locked(ln,
 				    (long)V_nd6_gctimer * hz);
 
-			next = LIST_NEXT(ln, lle_next);
 			LLE_REMREF(ln);
 			LLE_WUNLOCK(ln);
-			return (next);
+			return;
 		}
 
 		if (dr) {
@@ -1236,31 +1234,21 @@ nd6_free(struct llentry *ln, int gc)
 	}
 
 	/*
-	 * Before deleting the entry, remember the next entry as the
-	 * return value.  We need this because pfxlist_onlink_check() above
-	 * might have freed other entries (particularly the old next entry) as
-	 * a side effect (XXX).
-	 */
-	next = LIST_NEXT(ln, lle_next);
-
-	/*
 	 * Save to unlock. We still hold an extra reference and will not
 	 * free(9) in llentry_free() if someone else holds one as well.
 	 */
 	LLE_WUNLOCK(ln);
 	IF_AFDATA_LOCK(ifp);
 	LLE_WLOCK(ln);
-
 	/* Guard against race with other llentry_free(). */
 	if (ln->la_flags & LLE_LINKED) {
+		/* Remove callout reference */
 		LLE_REMREF(ln);
-		llentry_free(ln);
-	} else
-		LLE_FREE_LOCKED(ln);
-
+		lltable_unlink_entry(ln->lle_tbl, ln);
+	}
 	IF_AFDATA_UNLOCK(ifp);
 
-	return (next);
+	llentry_free(ln);
 }
 
 /*

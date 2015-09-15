@@ -194,16 +194,14 @@ arptimer(void *arg)
 
 	/* Guard against race with other llentry_free(). */
 	if (lle->la_flags & LLE_LINKED) {
-
-		size_t pkts_dropped;
 		LLE_REMREF(lle);
-		pkts_dropped = llentry_free(lle);
-		ARPSTAT_ADD(dropped, pkts_dropped);
-	} else
-		LLE_FREE_LOCKED(lle);
-
+		lltable_unlink_entry(lle->lle_tbl, lle);
+	}
 	IF_AFDATA_UNLOCK(ifp);
 
+	size_t pkts_dropped = llentry_free(lle);
+
+	ARPSTAT_ADD(dropped, pkts_dropped);
 	ARPSTAT_INC(timeouts);
 
 	CURVNET_RESTORE();
