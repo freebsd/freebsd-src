@@ -656,6 +656,11 @@ kernel_lun_add(struct lun *lun)
 	if (lun->l_size != 0)
 		req.reqdata.create.lun_size_bytes = lun->l_size;
 
+	if (lun->l_ctl_lun >= 0) {
+		req.reqdata.create.req_lun_id = lun->l_ctl_lun;
+		req.reqdata.create.flags |= CTL_LUN_FLAG_ID_REQ;
+	}
+
 	req.reqdata.create.flags |= CTL_LUN_FLAG_DEV_TYPE;
 	req.reqdata.create.device_type = T_DIRECT;
 
