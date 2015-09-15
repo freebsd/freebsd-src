@@ -1151,8 +1151,8 @@ rsu_event_survey(struct rsu_softc *sc, uint8_t *buf, int len)
 {
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ieee80211_frame *wh;
-	struct ieee80211_channel *c;
 	struct ndis_wlan_bssid_ex *bss;
+	struct ieee80211_rx_stats rxs;
 	struct mbuf *m;
 	int pktlen;
 
@@ -1192,17 +1192,19 @@ rsu_event_survey(struct rsu_softc *sc, uint8_t *buf, int len)
 
 	/* Finalize mbuf. */
 	m->m_pkthdr.len = m->m_len = pktlen;
-	/* Fix the channel. */
-	c = ieee80211_find_channel_byieee(ic, 
-	    le32toh(bss->config.dsconfig), 
-	    IEEE80211_CHAN_G);
-	if (c) {
-		ic->ic_curchan = c;
-		ieee80211_radiotap_chan_change(ic);
-	}
+
+	/* Set channel flags for input path */
+	bzero(&rxs, sizeof(rxs));
+	rxs.r_flags |= IEEE80211_R_IEEE | IEEE80211_R_FREQ;
+	rxs.r_flags |= IEEE80211_R_NF | IEEE80211_R_RSSI;
+	rxs.c_ieee = le32toh(bss->config.dsconfig);
+	rxs.c_freq = ieee80211_ieee2mhz(rxs.c_ieee, IEEE80211_CHAN_2GHZ);
+	rxs.rssi = le32toh(bss->rssi);
+	rxs.nf = 0; /* XXX */
+
 	/* XXX avoid a LOR */
 	RSU_UNLOCK(sc);
-	ieee80211_input_all(ic, m, le32toh(bss->rssi), 0);
+	ieee80211_input_mimo_all(ic, m, &rxs);
 	RSU_LOCK(sc);
 }
 
