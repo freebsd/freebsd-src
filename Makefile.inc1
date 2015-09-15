@@ -1258,7 +1258,7 @@ _elftoolchain_libs= lib/libelf lib/libdwarf
 
 legacy:
 .if ${BOOTSTRAPPING} < 800107 && ${BOOTSTRAPPING} != 0
-	@echo "ERROR: Source upgrades from versions prior to 8.0 not supported."; \
+	@echo "ERROR: Source upgrades from versions prior to 8.0 are not supported."; \
 	false
 .endif
 .for _tool in tools/build ${_elftoolchain_libs}
