@@ -102,7 +102,7 @@ extern struct cheritest_child_state *ccsp;
 					       trusted stack; checks signum
 					       and result. */
 
-#define	CHERITEST_SANDBOX_UNWOUND	0x123456789
+#define	CHERITEST_SANDBOX_UNWOUND	0x123456789ULL
 
 struct cheri_test {
 	const char	*ct_name;
@@ -236,7 +236,8 @@ extern struct cheri_object	 stdin_fd_object;
 extern struct cheri_object	 stdout_fd_object;
 extern struct cheri_object	 zero_fd_object;
 
-void	test_sandbox_fd_method(const struct cheri_test *ctp, int methodnum);
+void	test_sandbox_fd_fstat(const struct cheri_test *ctp);
+void	test_sandbox_fd_lseek(const struct cheri_test *ctp);
 void	test_sandbox_fd_read(const struct cheri_test *ctp);
 void	test_sandbox_fd_read_revoke(const struct cheri_test *ctp);
 void	test_sandbox_fd_write(const struct cheri_test *ctp);
@@ -249,16 +250,19 @@ void 	test_sandbox_inflate_zeros(const struct cheri_test *ctp);
 extern struct sandbox_class	*cheritest_classp;
 extern struct sandbox_object	*cheritest_objectp;
 
-void	test_sandbox_simple_method(const struct cheri_test *ctp,
-	    int methodnum);
-void	test_sandbox_simple_method_unwind(const struct cheri_test *ctp,
-	    int methodnum);
-void	test_sandbox_md5(const struct cheri_test *ctp);
+void	test_sandbox_abort(const struct cheri_test *ctp);
+void	test_sandbox_cs_calloc(const struct cheri_test *ctp);
+void	test_sandbox_cs_clock_gettime(const struct cheri_test *ctp);
+void	test_sandbox_cs_helloworld(const struct cheri_test *ctp);
+void	test_sandbox_cs_putchar(const struct cheri_test *ctp);
+void	test_sandbox_cs_puts(const struct cheri_test *ctp);
+void	test_sandbox_malloc(const struct cheri_test *ctp);
 void	test_sandbox_md5_ccall(const struct cheri_test *ctp, int class2);
+void	test_sandbox_printf(const struct cheri_test *ctp);
 void	test_sandbox_ptrdiff(void);
+void	test_sandbox_spin(const struct cheri_test *ctp);
 void	test_sandbox_userfn(const struct cheri_test *ctp);
 void	test_2sandbox_newdestroy(const struct cheri_test *ctp);
-void	test_2sandbox_md5(const struct cheri_test *ctp);
 int	cheritest_libcheri_setup(void);
 void	cheritest_libcheri_destroy(void);
 
