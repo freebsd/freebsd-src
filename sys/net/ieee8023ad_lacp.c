@@ -519,7 +519,7 @@ lacp_port_create(struct lagg_port *lgp)
 	int error;
 
 	boolean_t active = TRUE; /* XXX should be configurable */
-	boolean_t fast = FALSE; /* XXX should be configurable */
+	boolean_t fast = FALSE; /* Configurable via ioctl */ 
 
 	bzero((char *)&sdl, sizeof(sdl));
 	sdl.sdl_len = sizeof(sdl);
