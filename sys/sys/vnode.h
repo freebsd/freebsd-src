@@ -781,6 +781,7 @@ void	vop_lookup_post(void *a, int rc);
 void	vop_lookup_pre(void *a);
 void	vop_mkdir_post(void *a, int rc);
 void	vop_mknod_post(void *a, int rc);
+void	vop_reclaim_post(void *a, int rc);
 void	vop_remove_post(void *a, int rc);
 void	vop_rename_post(void *a, int rc);
 void	vop_rename_pre(void *a);
