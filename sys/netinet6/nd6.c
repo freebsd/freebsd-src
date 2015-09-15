@@ -1593,17 +1593,93 @@ nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 }
 
 /*
+ * Calculates new isRouter value based on provided parameters and
+ * returns it.
+ */
+static int
+nd6_is_router(int type, int code, int is_new, int old_addr, int new_addr,
+    int ln_router)
+{
+
+	/*
+	 * ICMP6 type dependent behavior.
+	 *
+	 * NS: clear IsRouter if new entry
+	 * RS: clear IsRouter
+	 * RA: set IsRouter if there's lladdr
+	 * redir: clear IsRouter if new entry
+	 *
+	 * RA case, (1):
+	 * The spec says that we must set IsRouter in the following cases:
+	 * - If lladdr exist, set IsRouter.  This means (1-5).
+	 * - If it is old entry (!newentry), set IsRouter.  This means (7).
+	 * So, based on the spec, in (1-5) and (7) cases we must set IsRouter.
+	 * A quetion arises for (1) case.  (1) case has no lladdr in the
+	 * neighbor cache, this is similar to (6).
+	 * This case is rare but we figured that we MUST NOT set IsRouter.
+	 *
+	 * newentry olladdr  lladdr  llchange	    NS  RS  RA	redir
+	 *							D R
+	 *	0	n	n	--	(1)	c   ?     s
+	 *	0	y	n	--	(2)	c   s     s
+	 *	0	n	y	--	(3)	c   s     s
+	 *	0	y	y	n	(4)	c   s     s
+	 *	0	y	y	y	(5)	c   s     s
+	 *	1	--	n	--	(6) c	c	c s
+	 *	1	--	y	--	(7) c	c   s	c s
+	 *
+	 *					(c=clear s=set)
+	 */
+	switch (type & 0xff) {
+	case ND_NEIGHBOR_SOLICIT:
+		/*
+		 * New entry must have is_router flag cleared.
+		 */
+		if (is_new)					/* (6-7) */
+			ln_router = 0;
+		break;
+	case ND_REDIRECT:
+		/*
+		 * If the icmp is a redirect to a better router, always set the
+		 * is_router flag.  Otherwise, if the entry is newly created,
+		 * clear the flag.  [RFC 2461, sec 8.3]
+		 */
+		if (code == ND_REDIRECT_ROUTER)
+			ln_router = 1;
+		else {
+			if (is_new)				/* (6-7) */
+				ln_router = 0;
+		}
+		break;
+	case ND_ROUTER_SOLICIT:
+		/*
+		 * is_router flag must always be cleared.
+		 */
+		ln_router = 0;
+		break;
+	case ND_ROUTER_ADVERT:
+		/*
+		 * Mark an entry with lladdr as a router.
+		 */
+		if ((!is_new && (old_addr || new_addr)) ||	/* (2-5) */
+		    (is_new && new_addr)) {			/* (7) */
+			ln_router = 1;
+		}
+		break;
+	}
+
+	return (ln_router);
+}
+
+/*
  * Create neighbor cache entry and cache link-layer address,
  * on reception of inbound ND6 packets.  (RS/RA/NS/redirect)
  *
  * type - ICMP6 type
  * code - type dependent information
  *
- * XXXXX
- *  The caller of this function already acquired the ndp 
- *  cache table lock because the cache entry is returned.
  */
-struct llentry *
+void
 nd6_cache_lladdr(struct ifnet *ifp, struct in6_addr *from, char *lladdr,
     int lladdrlen, int type, int code)
 {
@@ -1617,7 +1693,6 @@ nd6_cache_lladdr(struct ifnet *ifp, struct in6_addr *from, char *lladdr,
 	uint16_t router = 0;
 	struct sockaddr_in6 sin6;
 	struct mbuf *chain = NULL;
-	int static_route = 0;
 
 	IF_AFDATA_UNLOCK_ASSERT(ifp);
 
@@ -1626,7 +1701,7 @@ nd6_cache_lladdr(struct ifnet *ifp, struct in6_addr *from, char *lladdr,
 
 	/* nothing must be updated for unspecified address */
 	if (IN6_IS_ADDR_UNSPECIFIED(from))
-		return NULL;
+		return;
 
 	/*
 	 * Validation about ifp->if_addrlen and lladdrlen must be done in
@@ -1646,7 +1721,7 @@ nd6_cache_lladdr(struct ifnet *ifp, struct in6_addr *from, char *lladdr,
 		flags |= ND6_EXCLUSIVE;
 		ln = nd6_alloc(from, 0, ifp);
 		if (ln == NULL)
-			return (NULL);
+			return;
 		IF_AFDATA_WLOCK(ifp);
 		LLE_WLOCK(ln);
 		/* Prefer any existing lle over newly-created one */
@@ -1665,8 +1740,11 @@ nd6_cache_lladdr(struct ifnet *ifp, struct in6_addr *from, char *lladdr,
 	} 
 	/* do nothing if static ndp is set */
 	if ((ln->la_flags & LLE_STATIC)) {
-			static_route = 1;
-			goto done;
+		if (flags & ND6_EXCLUSIVE)
+			LLE_WUNLOCK(ln);
+		else
+			LLE_RUNLOCK(ln);
+		return;
 	}
 
 	olladdr = (ln->la_flags & LLE_VALID) ? 1 : 0;
@@ -1727,85 +1805,20 @@ nd6_cache_lladdr(struct ifnet *ifp, struct in6_addr *from, char *lladdr,
 		}
 	}
 
-	/*
-	 * ICMP6 type dependent behavior.
-	 *
-	 * NS: clear IsRouter if new entry
-	 * RS: clear IsRouter
-	 * RA: set IsRouter if there's lladdr
-	 * redir: clear IsRouter if new entry
-	 *
-	 * RA case, (1):
-	 * The spec says that we must set IsRouter in the following cases:
-	 * - If lladdr exist, set IsRouter.  This means (1-5).
-	 * - If it is old entry (!newentry), set IsRouter.  This means (7).
-	 * So, based on the spec, in (1-5) and (7) cases we must set IsRouter.
-	 * A quetion arises for (1) case.  (1) case has no lladdr in the
-	 * neighbor cache, this is similar to (6).
-	 * This case is rare but we figured that we MUST NOT set IsRouter.
-	 *
-	 * newentry olladdr  lladdr  llchange	    NS  RS  RA	redir
-	 *							D R
-	 *	0	n	n	--	(1)	c   ?     s
-	 *	0	y	n	--	(2)	c   s     s
-	 *	0	n	y	--	(3)	c   s     s
-	 *	0	y	y	n	(4)	c   s     s
-	 *	0	y	y	y	(5)	c   s     s
-	 *	1	--	n	--	(6) c	c	c s
-	 *	1	--	y	--	(7) c	c   s	c s
-	 *
-	 *					(c=clear s=set)
-	 */
-	switch (type & 0xff) {
-	case ND_NEIGHBOR_SOLICIT:
-		/*
-		 * New entry must have is_router flag cleared.
-		 */
-		if (is_newentry)	/* (6-7) */
-			ln->ln_router = 0;
-		break;
-	case ND_REDIRECT:
-		/*
-		 * If the icmp is a redirect to a better router, always set the
-		 * is_router flag.  Otherwise, if the entry is newly created,
-		 * clear the flag.  [RFC 2461, sec 8.3]
-		 */
-		if (code == ND_REDIRECT_ROUTER)
-			ln->ln_router = 1;
-		else {
-			if (is_newentry) /* (6-7) */
-				ln->ln_router = 0;
-			ln->la_flags |= LLE_REDIRECT;
-		}
-		break;
-	case ND_ROUTER_SOLICIT:
-		/*
-		 * is_router flag must always be cleared.
-		 */
-		ln->ln_router = 0;
-		break;
-	case ND_ROUTER_ADVERT:
-		/*
-		 * Mark an entry with lladdr as a router.
-		 */
-		if ((!is_newentry && (olladdr || lladdr)) ||	/* (2-5) */
-		    (is_newentry && lladdr)) {			/* (7) */
-			ln->ln_router = 1;
-		}
-		break;
-	}
+	/* Calculates new router status */
+	router = nd6_is_router(type, code, is_newentry, olladdr,
+	    lladdr != NULL ? 1 : 0, ln->ln_router);
 
-	if (ln != NULL) {
-		static_route = (ln->la_flags & LLE_STATIC);
-		router = ln->ln_router;
+	ln->ln_router = router;
+	/* Mark non-router redirects with special flag */
+	if ((type & 0xFF) == ND_REDIRECT && code != ND_REDIRECT_ROUTER)
+		ln->la_flags |= LLE_REDIRECT;
 
-		if (flags & ND6_EXCLUSIVE)
-			LLE_WUNLOCK(ln);
-		else
-			LLE_RUNLOCK(ln);
-		if (static_route)
-			ln = NULL;
-	}
+	if (flags & ND6_EXCLUSIVE)
+		LLE_WUNLOCK(ln);
+	else
+		LLE_RUNLOCK(ln);
+
 	if (chain != NULL)
 		nd6_flush_holdchain(ifp, ifp, chain, &sin6);
 	
@@ -1831,18 +1844,6 @@ nd6_cache_lladdr(struct ifnet *ifp, struct in6_addr *from, char *lladdr,
 		 */
 		defrouter_select();
 	}
-	
-	return (ln);
-done:	
-	if (ln != NULL) {
-		if (flags & ND6_EXCLUSIVE)
-			LLE_WUNLOCK(ln);
-		else
-			LLE_RUNLOCK(ln);
-		if (static_route)
-			ln = NULL;
-	}
-	return (ln);
 }
 
 static void
