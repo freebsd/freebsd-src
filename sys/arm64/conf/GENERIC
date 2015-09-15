@@ -119,7 +119,10 @@ device		pl011
 # USB support
 options 	USB_DEBUG		# enable debug msgs
 device		dwcotg			# DWC OTG controller
+device		xhci			# XHCI PCI->USB interface (USB 3.0)
 device		usb			# USB Bus (required)
+device		ukbd			# Keyboard
+device		umass			# Disks/Mass storage - Requires scbus and da
 
 # Pseudo devices.
 device		loop		# Network loopback
