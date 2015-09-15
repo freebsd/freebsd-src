@@ -54,6 +54,7 @@ backend			{ return BACKEND; }
 blocksize		{ return BLOCKSIZE; }
 chap			{ return CHAP; }
 chap-mutual		{ return CHAP_MUTUAL; }
+ctl-lun			{ return CTL_LUN; }
 debug			{ return DEBUG; }
 device-id		{ return DEVICE_ID; }
 discovery-auth-group	{ return DISCOVERY_AUTH_GROUP; }
