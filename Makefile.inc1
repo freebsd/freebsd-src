@@ -1355,18 +1355,14 @@ ${_bt}-usr.bin/clang/clang-tblgen: ${_bt}-lib/clang/libllvmtablegen ${_bt}-lib/c
 ${_bt}-usr.bin/clang/tblgen: ${_bt}-lib/clang/libllvmtablegen ${_bt}-lib/clang/libllvmsupport
 .endif
 
-# ELF Tool Chain libraries are needed for ELF tools and dtrace tools.
-# dtrace tools are required for older bootstrap env and cross-build
-# pre libdwarf
-.if ${BOOTSTRAPPING} < 1100006 || (${MACHINE} != ${TARGET} || \
-    ${MACHINE_ARCH} != ${TARGET_ARCH})
+# Rebuild ctfconvert and ctfmerge to avoid difficult-to-diagnose failures
+# resulting from missing bug fixes or ELF Toolchain updates.
 .if ${MK_CDDL} != "no"
 _dtrace_tools= cddl/usr.bin/sgsmsg cddl/lib/libctf cddl/usr.bin/ctfconvert \
     cddl/usr.bin/ctfmerge
 
 ${_bt}-cddl/usr.bin/ctfconvert: ${_bt}-cddl/lib/libctf
 ${_bt}-cddl/usr.bin/ctfmerge: ${_bt}-cddl/lib/libctf
-.endif
 .endif
 
 # Default to building the GPL DTC, but build the BSDL one if users explicitly
