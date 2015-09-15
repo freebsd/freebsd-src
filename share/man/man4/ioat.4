@@ -1,0 +1,153 @@
+.\" Copyright (c) 2015 EMC / Isilon Storage Division
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 24, 2015
+.Dt IOAT 4
+.Os
+.Sh NAME
+.Nm I/OAT
+.Nd Intel I/O Acceleration Technology
+.Sh SYNOPSIS
+.Cd "device ioat"
+In
+.Xr loader.conf 5 :
+.Pp
+.Cd hw.ioat.force_legacy_interrupts=0
+.Pp
+In
+.Xr loader.conf 5 or
+.Xr sysctl.conf 5 :
+.Pp
+.Cd hw.ioat.enable_ioat_test=0
+.Cd hw.ioat.debug_level=0
+(only critical errors; maximum of 3)
+.Pp
+.Ft typedef void
+.Fn (*bus_dmaengine_callback_t) "void *arg"
+.Pp
+.Ft bus_dmaengine_t
+.Fn ioat_get_dmaengine "uint32_t channel_index"
+.Ft void
+.Fn ioat_acquire "bus_dmaengine_t dmaengine"
+.Ft void
+.Fn ioat_release "bus_dmaengine_t dmaengine"
+.Ft struct bus_dmadesc *
+.Fo ioat_copy
+.Fa "bus_dmaengine_t dmaengine"
+.Fa "bus_addr_t dst"
+.Fa "bus_addr_t src"
+.Fa "bus_size_t len"
+.Fa "bus_dmaengine_callback_t callback_fn"
+.Fa "void *callback_arg"
+.Fa "uint32_t flags"
+.Fc
+.Ft struct bus_dmadesc *
+.Fo ioat_null
+.Fa "bus_dmaengine_t dmaengine"
+.Fa "bus_dmaengine_callback_t callback_fn"
+.Fa "void *callback_arg"
+.Fa "uint32_t flags"
+.Fc
+.Sh DESCRIPTION
+The
+.Nm
+driver provides a kernel API to a variety of DMA engines on some Intel server
+platforms.
+.Pp
+There is a number of DMA channels per CPU package.
+(Typically 4 or 8.)
+Each may be used independently.
+Operations on a single channel proceed sequentially.
+.Pp
+Copy operations may be used to offload memory copies to the DMA engines.
+.Pp
+Null operations do nothing, but may be used to test the interrupt and callback
+mechanism.
+.Pp
+All operations can optionally trigger an interrupt at completion with the
+.Ar DMA_EN_INT
+flag.
+For example, a user might submit multiple operations to the same channel and
+only enable an interrupt and callback for the last operation.
+.Sh USAGE
+A typical user will lookup the DMA engine object for a given channel with
+.Fn ioat_get_dmaengine .
+When the user wants to offload a copy, they will first
+.Fn ioat_acquire
+the
+.Ar bus_dmaengine_t
+object for exclusive access to enqueue operations on that channel.
+Then, they will submit one or more operations using
+.Fn ioat_copy
+or
+.Fn ioat_null .
+Finally, they will
+.Fn ioat_release
+the
+.Ar bus_dmaengine_t
+to drop their exclusive access to the channel.
+The routine they provided for the
+.Fa callback_fn
+argument will be invoked with the provided
+.Fa callback_arg
+when the operation is complete.
+.Pp
+For an example of usage, see
+.Pa src/sys/dev/ioat/ioat_test.c .
+.Sh FILES
+.Bl -tag -compat
+.It Pa /dev/ioat_test
+test device for
+.Xr ioatcontrol 8
+.El
+.Sh SEE ALSO
+.Xr ioatcontrol 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 11.0 .
+.Sh AUTHORS
+The
+.Nm
+driver was developed by
+.An \&Jim Harris Aq Mt jimharris@FreeBSD.org ,
+and
+.An \&Carl Delsey Aq Mt carl.r.delsey@intel.com .
+This manual page was written by
+.An \&Conrad Meyer Aq Mt cem@FreeBSD.org .
+.Sh CAVEATS
+Copy operation takes bus addresses as parameters, not virtual addresses.
+.Pp
+Copies larger than max transfer size (1MB) are not supported.
+Future versions will likely support this by breaking up the transfer into
+smaller sizes.
+.Sh BUGS
+The
+.Nm
+driver only supports copy and null operations at this time.
+The driver does not yet support advanced DMA modes, such as XOR, that some
+I/OAT devices support.

@@ -324,7 +324,7 @@ static const char *cvthname(struct sockaddr *);
 static void	deadq_enter(pid_t, const char *);
 static int	deadq_remove(pid_t);
 static int	decode(const char *, const CODE *);
-static void	die(int);
+static void	die(int) __dead2;
 static void	dodie(int);
 static void	dofsync(void);
 static void	domark(int);

@@ -228,6 +228,7 @@ VNET_DEFINE(struct hhook_head *, tcp_hhh[HHOOK_TCP_LAST+1]);
 
 static struct inpcb *tcp_notify(struct inpcb *, int);
 static struct inpcb *tcp_mtudisc_notify(struct inpcb *, int);
+static void tcp_mtudisc(struct inpcb *, int);
 static char *	tcp_log_addr(struct in_conninfo *inc, struct tcphdr *th,
 		    void *ip4hdr, const void *ip6hdr);
 static void	tcp_timer_discard(struct tcpcb *, uint32_t);
@@ -719,6 +720,7 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 	if (tp == NULL || (inp->inp_socket->so_options & SO_DEBUG))
 		tcp_trace(TA_OUTPUT, 0, tp, mtod(m, void *), th, 0);
 #endif
+	TCP_PROBE3(debug__input, tp, th, mtod(m, const char *));
 	if (flags & TH_RST)
 		TCP_PROBE5(accept__refused, NULL, NULL, mtod(m, const char *),
 		    tp, nth);
@@ -1811,10 +1813,11 @@ static struct inpcb *
 tcp_mtudisc_notify(struct inpcb *inp, int error)
 {
 
-	return (tcp_mtudisc(inp, -1));
+	tcp_mtudisc(inp, -1);
+	return (inp);
 }
 
-struct inpcb *
+static void
 tcp_mtudisc(struct inpcb *inp, int mtuoffer)
 {
 	struct tcpcb *tp;
@@ -1823,7 +1826,7 @@ tcp_mtudisc(struct inpcb *inp, int mtuoffer)
 	INP_WLOCK_ASSERT(inp);
 	if ((inp->inp_flags & INP_TIMEWAIT) ||
 	    (inp->inp_flags & INP_DROPPED))
-		return (inp);
+		return;
 
 	tp = intotcpcb(inp);
 	KASSERT(tp != NULL, ("tcp_mtudisc: tp == NULL"));
@@ -1845,7 +1848,6 @@ tcp_mtudisc(struct inpcb *inp, int mtuoffer)
 	if (tp->t_flags & TF_SACK_PERMIT)
 		EXIT_FASTRECOVERY(tp->t_flags);
 	tcp_output(tp);
-	return (inp);
 }
 
 #ifdef INET

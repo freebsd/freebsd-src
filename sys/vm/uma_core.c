@@ -1946,8 +1946,8 @@ uma_zcreate(const char *name, size_t size, uma_ctor ctor, uma_dtor dtor,
 	 * destructor, pass UMA constructor/destructor which checks for
 	 * memory use after free.
 	 */
-	if ((!(flags & UMA_ZONE_ZINIT)) && ctor == NULL && dtor == NULL &&
-	    uminit == NULL && fini == NULL) {
+	if ((!(flags & (UMA_ZONE_ZINIT | UMA_ZONE_NOFREE))) &&
+	    ctor == NULL && dtor == NULL && uminit == NULL && fini == NULL) {
 		args.ctor = trash_ctor;
 		args.dtor = trash_dtor;
 		args.uminit = trash_init;
@@ -2135,8 +2135,8 @@ uma_zalloc_arg(uma_zone_t zone, void *udata, int flags)
 	int lockfail;
 	int cpu;
 
-	/* XXX: FIX? The entropy here is desirable, but the harvesting may be expensive */
-	random_harvest_fast(&zone, sizeof(zone), 1, RANDOM_FAST);
+	/* Enable entropy collection for RANDOM_ENABLE_UMA kernel option */
+	random_harvest_fast_uma(&zone, sizeof(zone), 1, RANDOM_UMA);
 
 	/* This is the fast path allocation */
 #ifdef UMA_DEBUG_ALLOC_1
@@ -2677,8 +2677,8 @@ uma_zfree_arg(uma_zone_t zone, void *item, void *udata)
 	int lockfail;
 	int cpu;
 
-	/* XXX: FIX? The entropy here is desirable, but the harvesting may be expensive */
-	random_harvest_fast(&zone, sizeof(zone), 1, RANDOM_FAST);
+	/* Enable entropy collection for RANDOM_ENABLE_UMA kernel option */
+	random_harvest_fast_uma(&zone, sizeof(zone), 1, RANDOM_UMA);
 
 #ifdef UMA_DEBUG_ALLOC_1
 	printf("Freeing item %p to %s(%p)\n", item, zone->uz_name, zone);

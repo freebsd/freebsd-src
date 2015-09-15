@@ -190,6 +190,8 @@ MAN=	accept_filter.9 \
 	netisr.9 \
 	nv.9 \
 	osd.9 \
+	owll.9 \
+	own.9 \
 	panic.9 \
 	pbuf.9 \
 	PCBGROUP.9 \
@@ -1355,6 +1357,7 @@ MLINKS+=rwlock.9 rw_assert.9 \
 	rwlock.9 rw_initialized.9 \
 	rwlock.9 rw_rlock.9 \
 	rwlock.9 rw_runlock.9 \
+	rwlock.9 rw_unlock.9 \
 	rwlock.9 rw_sleep.9 \
 	rwlock.9 RW_SYSINIT.9 \
 	rwlock.9 rw_try_rlock.9 \
@@ -1638,6 +1641,7 @@ MLINKS+=timeout.9 callout.9 \
 	timeout.9 callout_active.9 \
 	timeout.9 callout_deactivate.9 \
 	timeout.9 callout_drain.9 \
+	timeout.9 callout_drain_async.9 \
 	timeout.9 callout_handle_init.9 \
 	timeout.9 callout_init.9 \
 	timeout.9 callout_init_mtx.9 \

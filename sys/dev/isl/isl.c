@@ -71,12 +71,9 @@ __FBSDID("$FreeBSD$");
 
 struct isl_softc {
 	device_t	dev;
-	int		unit;
 	int		addr;
 
 	struct sx	isl_sx;
-	struct sysctl_ctx_list *sysctl_ctx;
-	struct sysctl_oid *sysctl_tree;
 };
 
 /* Returns < 0 on problem. */
@@ -85,8 +82,7 @@ static int isl_read_sensor(device_t dev, int addr, uint8_t cmd_mask);
 /*
  * Initialize the device
  */
-static
-int
+static int
 init_device(device_t dev, int addr, int probe)
 {
 	static char bl_init[] = { 0x00 };
@@ -145,7 +141,6 @@ static driver_t isl_driver = {
 static int
 isl_probe(device_t dev)
 {
-	int unit;
 	int addr;
 	int error;
 
@@ -157,8 +152,6 @@ isl_probe(device_t dev)
 	 */
 	if (addr != 0x44)
 		return (ENXIO);
-
-	unit = device_get_unit(dev);
 
 	error = init_device(dev, addr, 1);
 	if (error)
@@ -173,7 +166,8 @@ static int
 isl_attach(device_t dev)
 {
 	struct isl_softc *sc;
-	int unit;
+	struct sysctl_ctx_list *sysctl_ctx;
+	struct sysctl_oid *sysctl_tree;
 	int addr;
 	int use_als;
 	int use_ir;
@@ -184,8 +178,7 @@ isl_attach(device_t dev)
 	if (!sc)
 		return (ENOMEM);
 
-	unit = device_get_unit(dev);
-	addr = *((unsigned char*) device_get_ivars(dev));
+	addr = smbus_get_addr(dev);
 
 	if (init_device(dev, addr, 0))
 		return (ENXIO);
@@ -193,48 +186,47 @@ isl_attach(device_t dev)
 	sx_init(&sc->isl_sx, "ISL read lock");
 
 	sc->dev = dev;
-	sc->unit = unit;
 	sc->addr = addr;
 
-	sc->sysctl_ctx = device_get_sysctl_ctx(dev);
-	sc->sysctl_tree = device_get_sysctl_tree(dev);
+	sysctl_ctx = device_get_sysctl_ctx(dev);
+	sysctl_tree = device_get_sysctl_tree(dev);
 
 	use_als = isl_read_sensor(dev, addr, CMD1_MASK_ALS_ONCE) >= 0;
 	use_ir = isl_read_sensor(dev, addr, CMD1_MASK_IR_ONCE) >= 0;
 	use_prox = isl_read_sensor(dev, addr, CMD1_MASK_PROX_ONCE) >= 0;
 
 	if (use_als) {
-		SYSCTL_ADD_PROC(sc->sysctl_ctx,
-	 		SYSCTL_CHILDREN(sc->sysctl_tree), OID_AUTO,
+		SYSCTL_ADD_PROC(sysctl_ctx,
+	 		SYSCTL_CHILDREN(sysctl_tree), OID_AUTO,
 			    "als", CTLTYPE_INT | CTLFLAG_RD,
 			    sc, ISL_METHOD_ALS, isl_sysctl, "I",
 			    "Current ALS sensor read-out");
 	}
 
 	if (use_ir) {
-		SYSCTL_ADD_PROC(sc->sysctl_ctx,
-			SYSCTL_CHILDREN(sc->sysctl_tree), OID_AUTO,
+		SYSCTL_ADD_PROC(sysctl_ctx,
+			SYSCTL_CHILDREN(sysctl_tree), OID_AUTO,
 			    "ir", CTLTYPE_INT | CTLFLAG_RD,
 			    sc, ISL_METHOD_IR, isl_sysctl, "I",
 			    "Current IR sensor read-out");
 	}
 
 	if (use_prox) {
-		SYSCTL_ADD_PROC(sc->sysctl_ctx,
-			SYSCTL_CHILDREN(sc->sysctl_tree), OID_AUTO,
+		SYSCTL_ADD_PROC(sysctl_ctx,
+			SYSCTL_CHILDREN(sysctl_tree), OID_AUTO,
 			    "prox", CTLTYPE_INT | CTLFLAG_RD,
 			    sc, ISL_METHOD_PROX, isl_sysctl, "I",
 			    "Current proximity sensor read-out");
 	}
 
-	SYSCTL_ADD_PROC(sc->sysctl_ctx,
-		SYSCTL_CHILDREN(sc->sysctl_tree), OID_AUTO,
+	SYSCTL_ADD_PROC(sysctl_ctx,
+		SYSCTL_CHILDREN(sysctl_tree), OID_AUTO,
 		    "resolution", CTLTYPE_INT | CTLFLAG_RD,
 		    sc, ISL_METHOD_RESOLUTION, isl_sysctl, "I",
 		    "Current proximity sensor resolution");
 
-	SYSCTL_ADD_PROC(sc->sysctl_ctx,
-	SYSCTL_CHILDREN(sc->sysctl_tree), OID_AUTO,
+	SYSCTL_ADD_PROC(sysctl_ctx,
+	SYSCTL_CHILDREN(sysctl_tree), OID_AUTO,
 	    "range", CTLTYPE_INT | CTLFLAG_RD,
 	    sc, ISL_METHOD_RANGE, isl_sysctl, "I",
 	    "Current proximity sensor range");
@@ -307,7 +299,8 @@ isl_sysctl(SYSCTL_HANDLER_ARGS)
 	return (0);
 }
 
-static int isl_read_sensor(device_t dev, int addr, uint8_t cmd_mask)
+static int
+isl_read_sensor(device_t dev, int addr, uint8_t cmd_mask)
 {
 	device_t bus;
 	uint8_t rbyte;

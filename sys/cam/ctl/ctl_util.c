@@ -89,7 +89,10 @@ static struct ctl_task_desc ctl_task_table[] = {
 	{CTL_TASK_TARGET_RESET, "Target Reset"},
 	{CTL_TASK_BUS_RESET, "Bus Reset"},
 	{CTL_TASK_PORT_LOGIN, "Port Login"},
-	{CTL_TASK_PORT_LOGOUT, "Port Logout"}
+	{CTL_TASK_PORT_LOGOUT, "Port Logout"},
+	{CTL_TASK_QUERY_TASK, "Query Task"},
+	{CTL_TASK_QUERY_TASK_SET, "Query Task Set"},
+	{CTL_TASK_QUERY_ASYNC_EVENT, "Query Async Event"}
 };
 
 void
@@ -679,7 +682,7 @@ ctl_scsi_maintenance_in(union ctl_io *io, uint8_t *data_ptr, uint32_t data_len,
 
 #ifndef _KERNEL
 union ctl_io *
-ctl_scsi_alloc_io(struct ctl_id initid)
+ctl_scsi_alloc_io(uint32_t initid)
 {
 	union ctl_io *io;
 

@@ -11,8 +11,8 @@
 .Dt LIBXO 3
 .Os
 .Sh NAME
-.Nm xo_emit
-.Nd emit formatted output based on format string and arguments
+.Nm xo_set_flags , xo_clear_flags
+.Nd set operational flags for a libxo handle
 .Sh LIBRARY
 .Lb libxo
 .Sh SYNOPSIS
@@ -42,12 +42,21 @@ This flag will trigger the call of the
 (provided via
 .Xr xo_set_writer 3 )
 when the handle is destroyed.
-.It Dv XOF_DTRT
-Enable "do the right thing" mode
+.It Dv XOF_COLOR
+Enable color and effects in output regardless of output device.
+.It Dv XOF_COLOR_ALLOWED
+Allow color and effects if the output device is a terminal.
 .It Dv XOF_INFO
 Display info data attributes (HTML)
 .It Dv XOF_KEYS
 Emit the key attribute (XML)
+.It Dv XOF_LOG_GETTEXT
+Log (via stderr) each
+.Xr gettext 3
+string lookup
+.It Dv XOF_LOG_SYSLOG
+Log (via stderr) each syslog message (via
+.Xr xo_syslog 3 )
 .It Dv XOF_NO_ENV
 Do not use the
 .Ev LIBXO_OPTIONS
@@ -125,30 +134,6 @@ The
 .Fn xo_clear_flags
 function turns off the given flags in a specific
 handle. 
-.Sh ADDITIONAL DOCUMENTATION
-Complete documentation can be found on github:
-.Bd -literal -offset indent
-http://juniper.github.io/libxo/libxo-manual.html
-.Ed
-.Pp
-.Nm libxo
-lives on github as:
-.Bd -literal -offset indent
-https://github.com/Juniper/libxo
-.Ed
-.Pp
-The latest release of
-.Nm libxo
-is available at:
-.Bd -literal -offset indent
-https://github.com/Juniper/libxo/releases
-.Ed
 .Sh SEE ALSO
-.Xr xo_emit 3
-.Sh HISTORY
-The
-.Nm libxo
-library was added in
-.Fx 11.0 .
-.Sh AUTHOR
-Phil Shafer
+.Xr xo_emit 3 ,
+.Xr libxo 3

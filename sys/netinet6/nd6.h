@@ -407,7 +407,7 @@ void nd6_option_init(void *, int, union nd_opts *);
 struct nd_opt_hdr *nd6_option(union nd_opts *);
 int nd6_options(union nd_opts *);
 struct llentry *nd6_lookup(struct in6_addr *, int, struct ifnet *);
-struct llentry *nd6_create(struct in6_addr *, int, struct ifnet *);
+struct llentry *nd6_alloc(struct in6_addr *, int, struct ifnet *);
 void nd6_setmtu(struct ifnet *);
 void nd6_llinfo_settimer(struct llentry *, long);
 void nd6_llinfo_settimer_locked(struct llentry *, long);
@@ -417,7 +417,7 @@ void nd6_nud_hint(struct rtentry *, struct in6_addr *, int);
 int nd6_resolve(struct ifnet *, struct rtentry *, struct mbuf *,
 	struct sockaddr *, u_char *);
 int nd6_ioctl(u_long, caddr_t, struct ifnet *);
-struct llentry *nd6_cache_lladdr(struct ifnet *, struct in6_addr *,
+void nd6_cache_lladdr(struct ifnet *, struct in6_addr *,
 	char *, int, int, int);
 int nd6_output(struct ifnet *, struct ifnet *, struct mbuf *,
 	struct sockaddr_in6 *, struct rtentry *);
@@ -427,7 +427,7 @@ int nd6_flush_holdchain(struct ifnet *, struct ifnet *, struct mbuf *,
     struct sockaddr_in6 *);
 int nd6_need_cache(struct ifnet *);
 int nd6_add_ifa_lle(struct in6_ifaddr *);
-void nd6_rem_ifa_lle(struct in6_ifaddr *);
+void nd6_rem_ifa_lle(struct in6_ifaddr *, int);
 int nd6_storelladdr(struct ifnet *, struct mbuf *,
 	const struct sockaddr *, u_char *, uint32_t *); 
 
@@ -437,7 +437,7 @@ void nd6_na_output(struct ifnet *, const struct in6_addr *,
 	const struct in6_addr *, u_long, int, struct sockaddr *);
 void nd6_ns_input(struct mbuf *, int, int);
 void nd6_ns_output(struct ifnet *, const struct in6_addr *,
-	const struct in6_addr *, struct llentry *, uint8_t *);
+	const struct in6_addr *, const struct in6_addr *, uint8_t *);
 caddr_t nd6_ifptomac(struct ifnet *);
 void nd6_dad_init(void);
 void nd6_dad_start(struct ifaddr *, int);

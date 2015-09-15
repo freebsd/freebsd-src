@@ -2,12 +2,12 @@
 .\"     Title: JEMALLOC
 .\"    Author: Jason Evans
 .\" Generator: DocBook XSL Stylesheets v1.76.1 <http://docbook.sf.net/>
-.\"      Date: 08/17/2015
+.\"      Date: 08/18/2015
 .\"    Manual: User Manual
 .\"    Source: jemalloc 4.0.0-0-g6e98caf8f064482b9ab292ef3638dea67420bbc2
 .\"  Language: English
 .\"
-.TH "JEMALLOC" "3" "08/17/2015" "jemalloc 4.0.0-0-g6e98caf8f064" "User Manual"
+.TH "JEMALLOC" "3" "08/18/2015" "jemalloc 4.0.0-0-g6e98caf8f064" "User Manual"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -51,7 +51,8 @@ make variable)\&.
 .sp
 .ft B
 .nf
-#include <jemalloc/jemalloc\&.h>
+#include <stdlib\&.h>
+#include <malloc_np\&.h>
 .fi
 .ft
 .SS "Standard API"

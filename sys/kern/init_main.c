@@ -117,6 +117,10 @@ int	bootverbose = BOOTVERBOSE;
 SYSCTL_INT(_debug, OID_AUTO, bootverbose, CTLFLAG_RW, &bootverbose, 0,
 	"Control the output of verbose kernel messages");
 
+#ifdef INVARIANTS
+FEATURE(invariants, "Kernel compiled with INVARIANTS, may affect performance");
+#endif
+
 /*
  * This ensures that there is at least one entry so that the sysinit_set
  * symbol is not undefined.  A sybsystem ID of SI_SUB_DUMMY is never

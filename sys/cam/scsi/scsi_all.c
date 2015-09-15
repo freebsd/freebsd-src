@@ -509,7 +509,8 @@ static struct op_table_entry scsi_op_codes[] = {
 	/* 99 */
 	/* 9A */
 	/* 9B */
-	/* 9C */
+	/* 9C  O              WRITE ATOMIC(16) */
+	{ 0x9C, D, "WRITE ATOMIC(16)" },
 	/* 9D */
 	/* XXX KDM ALL for this?  op-num.txt defines it for none.. */
 	/* 9E                  SERVICE ACTION IN(16) */
@@ -1079,7 +1080,7 @@ static struct asc_table_entry asc_table[] = {
 	{ SST(0x04, 0x00, SS_RDEF,
 	    "Logical unit not ready, cause not reportable") },
 	/* DTLPWROMAEBKVF */
-	{ SST(0x04, 0x01, SS_TUR | SSQ_MANY | SSQ_DECREMENT_COUNT | EBUSY,
+	{ SST(0x04, 0x01, SS_WAIT | EBUSY,
 	    "Logical unit is in process of becoming ready") },
 	/* DTLPWROMAEBKVF */
 	{ SST(0x04, 0x02, SS_START | SSQ_DECREMENT_COUNT | ENXIO,
@@ -1106,7 +1107,7 @@ static struct asc_table_entry asc_table[] = {
 	{ SST(0x04, 0x09, SS_RDEF,	/* XXX TBD */
 	    "Logical unit not ready, self-test in progress") },
 	/* DTLPWROMAEBKVF */
-	{ SST(0x04, 0x0A, SS_TUR | SSQ_MANY | SSQ_DECREMENT_COUNT | ENXIO,
+	{ SST(0x04, 0x0A, SS_WAIT | ENXIO,
 	    "Logical unit not accessible, asymmetric access state transition")},
 	/* DTLPWROMAEBKVF */
 	{ SST(0x04, 0x0B, SS_FATAL | ENXIO,
@@ -1121,7 +1122,7 @@ static struct asc_table_entry asc_table[] = {
 	{ SST(0x04, 0x10, SS_RDEF,	/* XXX TBD */
 	    "Logical unit not ready, auxiliary memory not accessible") },
 	/* DT  WRO AEB VF */
-	{ SST(0x04, 0x11, SS_TUR | SSQ_MANY | SSQ_DECREMENT_COUNT | EBUSY,
+	{ SST(0x04, 0x11, SS_WAIT | EBUSY,
 	    "Logical unit not ready, notify (enable spinup) required") },
 	/*        M    V  */
 	{ SST(0x04, 0x12, SS_RDEF,	/* XXX TBD */
@@ -8410,6 +8411,38 @@ scsi_security_protocol_out(struct ccb_scsiio *csio, uint32_t retries,
 		      retries,
 		      cbfcnp,
 		      /*flags*/CAM_DIR_OUT,
+		      tag_action,
+		      data_ptr,
+		      dxfer_len,
+		      sense_len,
+		      sizeof(*scsi_cmd),
+		      timeout);
+}
+
+void
+scsi_report_supported_opcodes(struct ccb_scsiio *csio, uint32_t retries, 
+			      void (*cbfcnp)(struct cam_periph *, union ccb *),
+			      uint8_t tag_action, int options, int req_opcode,
+			      int req_service_action, uint8_t *data_ptr,
+			      uint32_t dxfer_len, int sense_len, int timeout)
+{
+	struct scsi_report_supported_opcodes *scsi_cmd;
+
+	scsi_cmd = (struct scsi_report_supported_opcodes *)
+	    &csio->cdb_io.cdb_bytes;
+	bzero(scsi_cmd, sizeof(*scsi_cmd));
+
+	scsi_cmd->opcode = MAINTENANCE_IN;
+	scsi_cmd->service_action = REPORT_SUPPORTED_OPERATION_CODES;
+	scsi_cmd->options = options;
+	scsi_cmd->requested_opcode = req_opcode;
+	scsi_ulto2b(req_service_action, scsi_cmd->requested_service_action);
+	scsi_ulto4b(dxfer_len, scsi_cmd->length);
+
+	cam_fill_csio(csio,
+		      retries,
+		      cbfcnp,
+		      /*flags*/CAM_DIR_IN,
 		      tag_action,
 		      data_ptr,
 		      dxfer_len,

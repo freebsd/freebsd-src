@@ -62,7 +62,6 @@ __FBSDID("$FreeBSD$");
 #include <cam/ctl/ctl_io.h>
 #include <cam/ctl/ctl_backend.h>
 #include <cam/ctl/ctl_ioctl.h>
-#include <cam/ctl/ctl_backend_block.h>
 #include <cam/ctl/ctl_util.h>
 #include <cam/ctl/ctl_scsi_all.h>
 
@@ -657,6 +656,11 @@ kernel_lun_add(struct lun *lun)
 	if (lun->l_size != 0)
 		req.reqdata.create.lun_size_bytes = lun->l_size;
 
+	if (lun->l_ctl_lun >= 0) {
+		req.reqdata.create.req_lun_id = lun->l_ctl_lun;
+		req.reqdata.create.flags |= CTL_LUN_FLAG_ID_REQ;
+	}
+
 	req.reqdata.create.flags |= CTL_LUN_FLAG_DEV_TYPE;
 	req.reqdata.create.device_type = T_DIRECT;
 
@@ -744,9 +748,11 @@ kernel_lun_add(struct lun *lun)
 }
 
 int
-kernel_lun_resize(struct lun *lun)
+kernel_lun_modify(struct lun *lun)
 {
+	struct lun_option *lo;
 	struct ctl_lun_req req;
+	int error, i, num_options;
 
 	bzero(&req, sizeof(req));
 
@@ -756,7 +762,30 @@ kernel_lun_resize(struct lun *lun)
 	req.reqdata.modify.lun_id = lun->l_ctl_lun;
 	req.reqdata.modify.lun_size_bytes = lun->l_size;
 
-	if (ioctl(ctl_fd, CTL_LUN_REQ, &req) == -1) {
+	num_options = 0;
+	TAILQ_FOREACH(lo, &lun->l_options, lo_next)
+		num_options++;
+
+	req.num_be_args = num_options;
+	if (num_options > 0) {
+		req.be_args = malloc(num_options * sizeof(*req.be_args));
+		if (req.be_args == NULL) {
+			log_warn("error allocating %zd bytes",
+			    num_options * sizeof(*req.be_args));
+			return (1);
+		}
+
+		i = 0;
+		TAILQ_FOREACH(lo, &lun->l_options, lo_next) {
+			str_arg(&req.be_args[i], lo->lo_name, lo->lo_value);
+			i++;
+		}
+		assert(i == num_options);
+	}
+
+	error = ioctl(ctl_fd, CTL_LUN_REQ, &req);
+	free(req.be_args);
+	if (error != 0) {
 		log_warn("error issuing CTL_LUN_REQ ioctl");
 		return (1);
 	}
@@ -1000,11 +1029,13 @@ kernel_port_add(struct port *port)
 }
 
 int
-kernel_port_update(struct port *port)
+kernel_port_update(struct port *port, struct port *oport)
 {
 	struct ctl_lun_map lm;
 	struct target *targ = port->p_target;
+	struct target *otarg = oport->p_target;
 	int error, i;
+	uint32_t olun;
 
 	/* Map configured LUNs and unmap others */
 	for (i = 0; i < MAX_LUNS; i++) {
@@ -1014,6 +1045,12 @@ kernel_port_update(struct port *port)
 			lm.lun = UINT32_MAX;
 		else
 			lm.lun = targ->t_luns[i]->l_ctl_lun;
+		if (otarg->t_luns[i] == NULL)
+			olun = UINT32_MAX;
+		else
+			olun = otarg->t_luns[i]->l_ctl_lun;
+		if (lm.lun == olun)
+			continue;
 		error = ioctl(ctl_fd, CTL_LUN_MAP, &lm);
 		if (error != 0)
 			log_warn("CTL_LUN_MAP ioctl failed");

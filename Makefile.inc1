@@ -449,7 +449,6 @@ LIB32WMAKEENV+=	MAKEOBJDIRPREFIX=${LIB32_OBJTREE} \
 		PATH=${TMPPATH} \
 		LIBDIR=/usr/lib32 \
 		SHLIBDIR=/usr/lib32 \
-		LIBPRIVATEDIR=/usr/lib32/private \
 		DTRACE="${DTRACE} -32"
 LIB32WMAKEFLAGS+= CC="${XCC} ${LIB32FLAGS}" \
 		CXX="${XCXX} ${LIB32FLAGS}" \
@@ -1128,6 +1127,16 @@ reinstallkernel reinstallkernel.debug: _installcheck_kernel
 	cd ${KRNLOBJDIR}/${INSTALLKERNEL}; \
 	    ${CROSSENV} PATH=${TMPPATH} \
 	    ${MAKE} ${IMAKE_INSTALL} KERNEL=${INSTKERNNAME} ${.TARGET:S/kernel//}
+.if ${BUILDKERNELS:[#]} > 1
+.for _kernel in ${BUILDKERNELS:[2..-1]}
+	@echo "--------------------------------------------------------------"
+	@echo ">>> Installing kernel ${_kernel}"
+	@echo "--------------------------------------------------------------"
+	cd ${KRNLOBJDIR}/${_kernel}; \
+	    ${CROSSENV} PATH=${TMPPATH} \
+	    ${MAKE} ${IMAKE_INSTALL} KERNEL=${INSTKERNNAME}.${_kernel} ${.TARGET:S/kernel//}
+.endfor
+.endif
 
 distributekernel distributekernel.debug:
 .if empty(INSTALLKERNEL)
@@ -1147,7 +1156,8 @@ distributekernel distributekernel.debug:
 	sed -e 's|^./kernel|.|' ${DESTDIR}/${DISTDIR}/kernel.premeta > \
 	    ${DESTDIR}/${DISTDIR}/kernel.meta
 .endif
-.for _kernel in ${BUILDKERNELS:S/${INSTALLKERNEL}//}
+.if ${BUILDKERNELS:[#]} > 1
+.for _kernel in ${BUILDKERNELS:[2..-1]}
 .if defined(NO_ROOT)
 	echo "#${MTREE_MAGIC}" > ${DESTDIR}/${DISTDIR}/kernel.${_kernel}.premeta
 .endif
@@ -1163,26 +1173,31 @@ distributekernel distributekernel.debug:
 	    ${DESTDIR}/${DISTDIR}/kernel.${_kernel}.meta
 .endif
 .endfor
+.endif
 
 packagekernel:
 .if defined(NO_ROOT)
 	cd ${DESTDIR}/${DISTDIR}/kernel; \
 	    tar cvf - @${DESTDIR}/${DISTDIR}/kernel.meta | \
 	    ${XZ_CMD} > ${DESTDIR}/${DISTDIR}/kernel.txz
-.for _kernel in ${BUILDKERNELS:S/${INSTALLKERNEL}//}
+.if ${BUILDKERNELS:[#]} > 1
+.for _kernel in ${BUILDKERNELS:[2..-1]}
 	cd ${DESTDIR}/${DISTDIR}/kernel.${_kernel}; \
 	    tar cvf - @${DESTDIR}/${DISTDIR}/kernel.${_kernel}.meta | \
 	    ${XZ_CMD} > ${DESTDIR}/${DISTDIR}/kernel.${_kernel}.txz
 .endfor
+.endif
 .else
 	cd ${DESTDIR}/${DISTDIR}/kernel; \
 	    tar cvf - . | \
 	    ${XZ_CMD} > ${DESTDIR}/${DISTDIR}/kernel.txz
-.for _kernel in ${BUILDKERNELS:S/${INSTALLKERNEL}//}
+.if ${BUILDKERNELS:[#]} > 1
+.for _kernel in ${BUILDKERNELS:[2..-1]}
 	cd ${DESTDIR}/${DISTDIR}/kernel.${_kernel}; \
 	    tar cvf - . | \
 	    ${XZ_CMD} > ${DESTDIR}/${DISTDIR}/kernel.${_kernel}.txz
 .endfor
+.endif
 .endif
 
 #
@@ -1243,7 +1258,7 @@ _elftoolchain_libs= lib/libelf lib/libdwarf
 
 legacy:
 .if ${BOOTSTRAPPING} < 800107 && ${BOOTSTRAPPING} != 0
-	@echo "ERROR: Source upgrades from versions prior to 8.0 not supported."; \
+	@echo "ERROR: Source upgrades from versions prior to 8.0 are not supported."; \
 	false
 .endif
 .for _tool in tools/build ${_elftoolchain_libs}
@@ -1340,18 +1355,14 @@ ${_bt}-usr.bin/clang/clang-tblgen: ${_bt}-lib/clang/libllvmtablegen ${_bt}-lib/c
 ${_bt}-usr.bin/clang/tblgen: ${_bt}-lib/clang/libllvmtablegen ${_bt}-lib/clang/libllvmsupport
 .endif
 
-# ELF Tool Chain libraries are needed for ELF tools and dtrace tools.
-# dtrace tools are required for older bootstrap env and cross-build
-# pre libdwarf
-.if ${BOOTSTRAPPING} < 1100006 || (${MACHINE} != ${TARGET} || \
-    ${MACHINE_ARCH} != ${TARGET_ARCH})
+# Rebuild ctfconvert and ctfmerge to avoid difficult-to-diagnose failures
+# resulting from missing bug fixes or ELF Toolchain updates.
 .if ${MK_CDDL} != "no"
 _dtrace_tools= cddl/usr.bin/sgsmsg cddl/lib/libctf cddl/usr.bin/ctfconvert \
     cddl/usr.bin/ctfmerge
 
 ${_bt}-cddl/usr.bin/ctfconvert: ${_bt}-cddl/lib/libctf
 ${_bt}-cddl/usr.bin/ctfmerge: ${_bt}-cddl/lib/libctf
-.endif
 .endif
 
 # Default to building the GPL DTC, but build the BSDL one if users explicitly
@@ -1778,9 +1789,7 @@ cddl/lib/libctf__L: lib/libz__L
 .endif
 # cddl/lib/libdtrace requires lib/libproc and lib/librtld_db; it's only built
 # on select architectures though (see cddl/lib/Makefile)
-.if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_ARCH} == "amd64" || \
-	${MACHINE_CPUARCH} == "arm" || ${MACHINE_ARCH} == "i386" || \
-	${MACHINE_CPUARCH} == "mips" || ${MACHINE_CPUARCH} == "powerpc"
+.if ${MACHINE_CPUARCH} != "sparc64"
 _prebuild_libs+=	lib/libproc lib/librtld_db
 .endif
 

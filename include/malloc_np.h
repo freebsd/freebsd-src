@@ -33,6 +33,7 @@
 #define	_MALLOC_NP_H_
 #include <sys/cdefs.h>
 #include <sys/types.h>
+#include <stdbool.h>
 #include <strings.h>
 
 __BEGIN_DECLS

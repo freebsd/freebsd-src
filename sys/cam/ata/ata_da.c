@@ -1542,9 +1542,7 @@ adastart(struct cam_periph *periph, union ccb *start_ccb)
 			} else {
 				/* This can happen if DMA was disabled. */
 				bioq_remove(&softc->trim_queue, bp);
-				bp->bio_error = EOPNOTSUPP;
-				bp->bio_flags |= BIO_ERROR;
-				biodone(bp);
+				biofinish(bp, NULL, EOPNOTSUPP);
 				xpt_release_ccb(start_ccb);
 				adaschedule(periph);
 				return;
@@ -1609,9 +1607,7 @@ adastart(struct cam_periph *periph, union ccb *start_ccb)
 				}
 			}
 			if (fail) {
-				bp->bio_error = EIO;
-				bp->bio_flags |= BIO_ERROR;
-				biodone(bp);
+				biofinish(bp, NULL, EIO);
 				xpt_release_ccb(start_ccb);
 				adaschedule(periph);
 				return;
