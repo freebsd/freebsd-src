@@ -1765,9 +1765,9 @@ tcp_usrclosed(struct tcpcb *tp)
 #ifdef TCP_OFFLOAD
 		tcp_offload_listen_stop(tp);
 #endif
+		tcp_state_change(tp, TCPS_CLOSED);
 		/* FALLTHROUGH */
 	case TCPS_CLOSED:
-		tcp_state_change(tp, TCPS_CLOSED);
 		tp = tcp_close(tp);
 		/*
 		 * tcp_close() should never return NULL here as the socket is
