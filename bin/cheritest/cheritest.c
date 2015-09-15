@@ -751,6 +751,14 @@ static const struct cheri_test cheri_tests[] = {
 	  .ct_desc = "Invoke a system call in a libcheri sandbox",
 	  .ct_func = test_sandbox_syscall },
 
+	{ .ct_name = "test_sandbox_varargs",
+	  .ct_desc = "Verify that varargs work in a sandbox",
+	  .ct_func = test_sandbox_varargs },
+
+	{ .ct_name = "test_sandbox_va_copy",
+	  .ct_desc = "Verify that va_copy works in a sandbox",
+	  .ct_func = test_sandbox_va_copy },
+
 	/*
 	 * libcheri + cheri_fd tests.
 	 */

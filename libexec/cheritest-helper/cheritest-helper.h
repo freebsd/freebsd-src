@@ -142,6 +142,8 @@ CHERITEST_CCALL2 int	call_invoke_md5(size_t len, char *data_input,
 			    char *data_output);
 
 CHERITEST_CCALL	int	sandbox_test_ptrdiff(void);
+CHERITEST_CCALL int	sandbox_test_varargs(void);
+CHERITEST_CCALL int	sandbox_test_va_copy(void);
 END_CAPABILITIES
 
 #endif /* !_LIBEXEC_CHERITEST_CHERITEST_HELPER_H_ */

@@ -260,6 +260,8 @@ void	test_sandbox_malloc(const struct cheri_test *ctp);
 void	test_sandbox_md5_ccall(const struct cheri_test *ctp, int class2);
 void	test_sandbox_printf(const struct cheri_test *ctp);
 void	test_sandbox_ptrdiff(const struct cheri_test *ctp);
+void	test_sandbox_varargs(const struct cheri_test *ctp);
+void	test_sandbox_va_copy(const struct cheri_test *ctp);
 void	test_sandbox_spin(const struct cheri_test *ctp);
 void	test_sandbox_userfn(const struct cheri_test *ctp);
 void	test_2sandbox_newdestroy(const struct cheri_test *ctp);

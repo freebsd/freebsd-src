@@ -299,6 +299,30 @@ test_sandbox_ptrdiff(const struct cheri_test *ctp __unused)
 		cheritest_success();
 }
 
+void
+test_sandbox_varargs(const struct cheri_test *ctp __unused)
+{
+	intmax_t ret;
+
+	if ((ret = sandbox_test_varargs()) != 0)
+		cheritest_failure_errx("sandbox_test_varargs returned %jd\n",
+		    ret);
+	else
+		cheritest_success();
+}
+
+void
+test_sandbox_va_copy(const struct cheri_test *ctp __unused)
+{
+	intmax_t ret;
+
+	if ((ret = sandbox_test_va_copy()) != 0)
+		cheritest_failure_errx("sandbox_test_va_copy returned %jd\n",
+		    ret);
+	else
+		cheritest_success();
+}
+
 int
 cheritest_libcheri_setup(void)
 {

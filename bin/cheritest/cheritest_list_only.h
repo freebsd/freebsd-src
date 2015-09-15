@@ -179,6 +179,8 @@
 #define	test_sandbox_vm_xfault_nocatch			NULL
 #define	test_sandbox_md5_ccall				NULL
 #define	test_sandbox_ptrdiff				NULL
+#define	test_sandbox_varargs				NULL
+#define	test_sandbox_va_copy				NULL
 #define	test_2sandbox_newdestroy			NULL
 #define	test_sandbox_fd_fstat				NULL
 #define	test_sandbox_fd_lseek				NULL

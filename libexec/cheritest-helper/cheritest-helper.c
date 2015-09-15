@@ -460,3 +460,85 @@ sandbox_test_ptrdiff(void)
 
 	return (0);
 }
+
+static const int	vd_int = 0x1234;
+static const long	vd_long = 0x123456789LL;
+static const char	vd_string[] = "a test string";
+
+struct var_data {
+	int	 vd_int;
+	long	 vd_long;
+	char	*vd_string;
+/*
+	int	(*vd_func)(void);
+*/
+};
+
+/*
+ * Expects to find arguments in the following order:
+ *   int, long, char*, function pointer
+ */
+static void
+vfill_var_data(struct var_data *vdp, va_list ap)
+{
+
+	vdp->vd_int = va_arg(ap, int);
+	vdp->vd_long = va_arg(ap, long);
+	vdp->vd_string = va_arg(ap, char *);
+}
+
+static void
+fill_var_data(struct var_data *vdp, ...)
+{
+	va_list ap;
+	
+	va_start(ap, vdp);
+	vfill_var_data(vdp, ap);
+	va_end(ap);
+}
+
+static int
+check_var_data(struct var_data *vdp)
+{
+
+	if (vdp->vd_int != vd_int)
+		return (-2);
+	if (vdp->vd_long != vd_long)
+		return (-3);
+	if (strcmp(vdp->vd_string, vd_string) != 0)
+		return (-4);
+
+	return (0);
+}
+
+int
+sandbox_test_varargs(void)
+{
+	struct var_data vd;
+
+	fill_var_data(&vd, vd_int, vd_long, vd_string);
+
+	return (check_var_data(&vd));
+}
+
+static void
+fill_var_data_from_copy(struct var_data *vdp, ...)
+{
+	va_list ap, ap_copy;
+
+	va_start(ap, vdp);
+	va_copy(ap_copy, ap);
+	va_end(ap);
+	vfill_var_data(vdp, ap_copy);
+	va_end(ap_copy);
+}
+
+int
+sandbox_test_va_copy(void)
+{
+	struct var_data vd;
+
+	fill_var_data_from_copy(&vd, vd_int, vd_long, vd_string);
+
+	return (check_var_data(&vd));
+}
