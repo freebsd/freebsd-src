@@ -225,10 +225,10 @@ ether_output(struct ifnet *ifp, struct mbuf *m,
 		if (lle != NULL && (pflags & LLE_VALID))
 			memcpy(edst, &lle->ll_addr.mac16, sizeof(edst));
 		else
-			error = nd6_storelladdr(ifp, m, dst, (u_char *)edst,
+			error = nd6_resolve(ifp, is_gw, m, dst, (u_char *)edst,
 			    &pflags);
 		if (error)
-			return error;
+			return (error == EWOULDBLOCK ? 0 : error);
 		type = htons(ETHERTYPE_IPV6);
 		break;
 #endif

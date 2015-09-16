@@ -101,8 +101,8 @@ fddi_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 	int loop_copy = 0, error = 0, hdrcmplt = 0;
  	u_char esrc[FDDI_ADDR_LEN], edst[FDDI_ADDR_LEN];
 	struct fddi_header *fh;
-#ifdef INET
-	int is_gw;
+#if defined(INET) || defined(INET6)
+	int is_gw = 0;
 #endif
 
 #ifdef MAC
@@ -118,13 +118,15 @@ fddi_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 		senderr(ENETDOWN);
 	getmicrotime(&ifp->if_lastchange);
 
+#if defined(INET) || defined(INET6)
+	if (ro != NULL && ro->ro_rt != NULL &&
+	    (ro->ro_rt->rt_flags & RTF_GATEWAY) != 0)
+		is_gw = 1;
+#endif
+
 	switch (dst->sa_family) {
 #ifdef INET
 	case AF_INET: {
-		is_gw = 0;
-		if (ro != NULL && ro->ro_rt != NULL &&
-		    (ro->ro_rt->rt_flags & RTF_GATEWAY) != 0)
-			is_gw = 1;
 		error = arpresolve(ifp, is_gw, m, dst, edst, NULL);
 		if (error)
 			return (error == EWOULDBLOCK ? 0 : error);
@@ -161,9 +163,9 @@ fddi_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 #endif /* INET */
 #ifdef INET6
 	case AF_INET6:
-		error = nd6_storelladdr(ifp, m, dst, (u_char *)edst, NULL);
+		error = nd6_resolve(ifp, is_gw, m, dst, edst, NULL);
 		if (error)
-			return (error); /* Something bad happened */
+			return (error == EWOULDBLOCK ? 0 : error);
 		type = htons(ETHERTYPE_IPV6);
 		break;
 #endif /* INET6 */

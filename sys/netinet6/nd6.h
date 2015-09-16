@@ -414,22 +414,19 @@ void nd6_llinfo_settimer_locked(struct llentry *, long);
 void nd6_timer(void *);
 void nd6_purge(struct ifnet *);
 void nd6_nud_hint(struct rtentry *, struct in6_addr *, int);
-int nd6_resolve(struct ifnet *, struct rtentry *, struct mbuf *,
-	struct sockaddr *, u_char *);
+int nd6_resolve(struct ifnet *, int, struct mbuf *,
+    const struct sockaddr *, u_char *, uint32_t *);
 int nd6_ioctl(u_long, caddr_t, struct ifnet *);
 void nd6_cache_lladdr(struct ifnet *, struct in6_addr *,
 	char *, int, int, int);
-int nd6_output(struct ifnet *, struct ifnet *, struct mbuf *,
-	struct sockaddr_in6 *, struct rtentry *);
 void nd6_grab_holdchain(struct llentry *, struct mbuf **,
     struct sockaddr_in6 *);
 int nd6_flush_holdchain(struct ifnet *, struct ifnet *, struct mbuf *,
     struct sockaddr_in6 *);
-int nd6_need_cache(struct ifnet *);
 int nd6_add_ifa_lle(struct in6_ifaddr *);
 void nd6_rem_ifa_lle(struct in6_ifaddr *, int);
-int nd6_storelladdr(struct ifnet *, struct mbuf *,
-	const struct sockaddr *, u_char *, uint32_t *); 
+int nd6_output_ifp(struct ifnet *, struct ifnet *, struct mbuf *,
+    struct sockaddr_in6 *);
 
 /* nd6_nbr.c */
 void nd6_na_input(struct mbuf *, int, int);
