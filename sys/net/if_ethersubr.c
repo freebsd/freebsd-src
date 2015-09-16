@@ -392,16 +392,6 @@ ether_input_internal(struct ifnet *ifp, struct mbuf *m)
 		return;
 	}
 #endif
-	/*
-	 * Do consistency checks to verify assumptions
-	 * made by code past this point.
-	 */
-	if ((m->m_flags & M_PKTHDR) == 0) {
-		if_printf(ifp, "discard frame w/o packet header\n");
-		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
-		m_freem(m);
-		return;
-	}
 	if (m->m_len < ETHER_HDR_LEN) {
 		/* XXX maybe should pullup? */
 		if_printf(ifp, "discard frame w/o leading ethernet "
@@ -413,19 +403,6 @@ ether_input_internal(struct ifnet *ifp, struct mbuf *m)
 	}
 	eh = mtod(m, struct ether_header *);
 	etype = ntohs(eh->ether_type);
-	if (m->m_pkthdr.rcvif == NULL) {
-		if_printf(ifp, "discard frame w/o interface pointer\n");
-		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
-		m_freem(m);
-		return;
-	}
-#ifdef DIAGNOSTIC
-	if (m->m_pkthdr.rcvif != ifp) {
-		if_printf(ifp, "Warning, frame marked as received on %s\n",
-			m->m_pkthdr.rcvif->if_xname);
-	}
-#endif
-
 	random_harvest_queue(m, sizeof(*m), 2, RANDOM_NET_ETHER);
 
 	CURVNET_SET_QUIET(ifp->if_vnet);
@@ -598,6 +575,9 @@ static void
 ether_nh_input(struct mbuf *m)
 {
 
+	M_ASSERTPKTHDR(m);
+	KASSERT(m->m_pkthdr.rcvif != NULL,
+	    ("%s: NULL interface pointer", __func__));
 	ether_input_internal(m->m_pkthdr.rcvif, m);
 }
 
