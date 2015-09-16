@@ -61,7 +61,7 @@ abort()
 	 * any errors -- ISO C doesn't allow abort to return anyway.
 	 */
 	sigdelset(&act.sa_mask, SIGABRT);
-	(void)_sigprocmask(SIG_SETMASK, &act.sa_mask, NULL);
+	(void)__libc_sigprocmask(SIG_SETMASK, &act.sa_mask, NULL);
 	(void)raise(SIGABRT);
 
 	/*
@@ -71,9 +71,9 @@ abort()
 	act.sa_handler = SIG_DFL;
 	act.sa_flags = 0;
 	sigfillset(&act.sa_mask);
-	(void)_sigaction(SIGABRT, &act, NULL);
+	(void)__libc_sigaction(SIGABRT, &act, NULL);
 	sigdelset(&act.sa_mask, SIGABRT);
-	(void)_sigprocmask(SIG_SETMASK, &act.sa_mask, NULL);
+	(void)__libc_sigprocmask(SIG_SETMASK, &act.sa_mask, NULL);
 	(void)raise(SIGABRT);
 	exit(1);
 }
