@@ -136,10 +136,10 @@ static void nd6_free_redirect(const struct llentry *);
 static void nd6_llinfo_timer(void *);
 static void clear_llinfo_pqueue(struct llentry *);
 static void nd6_rtrequest(int, struct rtentry *, struct rt_addrinfo *);
-static int nd6_output_lle(struct ifnet *, struct ifnet *, struct mbuf *,
-	struct sockaddr_in6 *);
-static int nd6_output_ifp(struct ifnet *, struct ifnet *, struct mbuf *,
-    struct sockaddr_in6 *);
+static int nd6_resolve_slow(struct ifnet *, struct mbuf *,
+    const struct sockaddr_in6 *, u_char *, uint32_t *);
+static int nd6_need_cache(struct ifnet *);
+ 
 
 static VNET_DEFINE(struct callout, nd6_slowtimo_ch);
 #define	V_nd6_slowtimo_ch		VNET(nd6_slowtimo_ch)
@@ -1904,7 +1904,7 @@ nd6_grab_holdchain(struct llentry *ln, struct mbuf **chain,
 	}
 }
 
-static int
+int
 nd6_output_ifp(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *m,
     struct sockaddr_in6 *dst)
 {
@@ -1950,16 +1950,29 @@ nd6_output_ifp(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *m,
 }
 
 /*
- * IPv6 packet output - light version.
- * Checks if destination LLE exists and is in proper state
- * (e.g no modification required). If not true, fall back to
- * "heavy" version.
+ * Do L2 address resolution for @sa_dst address. Stores found
+ * address in @desten buffer. Copy of lle ln_flags can be also
+ * saved in @pflags if @pflags is non-NULL.
+ *
+ * If destination LLE does not exists or lle state modification
+ * is required, call "slow" version.
+ *
+ * Return values:
+ * - 0 on success (address copied to buffer).
+ * - EWOULDBLOCK (no local error, but address is still unresolved)
+ * - other errors (alloc failure, etc)
  */
 int
-nd6_output(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *m,
-    struct sockaddr_in6 *dst, struct rtentry *rt0)
+nd6_resolve(struct ifnet *ifp, int is_gw, struct mbuf *m,
+    const struct sockaddr *sa_dst, u_char *desten, uint32_t *pflags)
 {
 	struct llentry *ln = NULL;
+	const struct sockaddr_in6 *dst6;
+
+	if (pflags != NULL)
+		*pflags = 0;
+
+	dst6 = (const struct sockaddr_in6 *)sa_dst;
 
 	/* discard the packet if IPv6 operation is disabled on the interface */
 	if ((ND_IFINFO(ifp)->flags & ND6_IFF_IFDISABLED)) {
@@ -1967,14 +1980,25 @@ nd6_output(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *m,
 		return (ENETDOWN); /* better error? */
 	}
 
-	if (IN6_IS_ADDR_MULTICAST(&dst->sin6_addr))
-		goto sendpkt;
-
-	if (nd6_need_cache(ifp) == 0)
-		goto sendpkt;
+	if (m != NULL && m->m_flags & M_MCAST) {
+		switch (ifp->if_type) {
+		case IFT_ETHER:
+		case IFT_FDDI:
+		case IFT_L2VLAN:
+		case IFT_IEEE80211:
+		case IFT_BRIDGE:
+		case IFT_ISO88025:
+			ETHER_MAP_IPV6_MULTICAST(&dst6->sin6_addr,
+						 desten);
+			return (0);
+		default:
+			m_freem(m);
+			return (EAFNOSUPPORT);
+		}
+	}
 
 	IF_AFDATA_RLOCK(ifp);
-	ln = nd6_lookup(&dst->sin6_addr, 0, ifp);
+	ln = nd6_lookup(&dst6->sin6_addr, 0, ifp);
 	IF_AFDATA_RUNLOCK(ifp);
 
 	/*
@@ -1990,44 +2014,32 @@ nd6_output(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *m,
 		/* Fall back to slow processing path */
 		if (ln != NULL)
 			LLE_RUNLOCK(ln);
-		return (nd6_output_lle(ifp, origifp, m, dst));
+		return (nd6_resolve_slow(ifp, m, dst6, desten, pflags));
 	}
 
-sendpkt:
-	if (ln != NULL)
-		LLE_RUNLOCK(ln);
 
-	return (nd6_output_ifp(ifp, origifp, m, dst));
+	bcopy(&ln->ll_addr, desten, ifp->if_addrlen);
+	if (pflags != NULL)
+		*pflags = ln->la_flags;
+	LLE_RUNLOCK(ln);
+	return (0);
 }
 
 
 /*
- * Output IPv6 packet - heavy version.
- * Function assume that either
- * 1) destination LLE does not exist, is invalid or stale, so
- *   ND6_EXCLUSIVE lock needs to be acquired
- * 2) destination lle is provided (with ND6_EXCLUSIVE lock),
- *   in that case packets are queued in &chain.
+ * Do L2 address resolution for @sa_dst address. Stores found
+ * address in @desten buffer. Copy of lle ln_flags can be also
+ * saved in @pflags if @pflags is non-NULL.
  *
+ * Heavy version.
+ * Function assume that destination LLE does not exist,
+ * is invalid or stale, so ND6_EXCLUSIVE lock needs to be acquired.
  */
 static int
-nd6_output_lle(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *m,
-    struct sockaddr_in6 *dst)
+nd6_resolve_slow(struct ifnet *ifp, struct mbuf *m,
+    const struct sockaddr_in6 *dst, u_char *desten, uint32_t *pflags)
 {
 	struct llentry *lle = NULL, *lle_tmp;
-
-	KASSERT(m != NULL, ("NULL mbuf, nothing to send"));
-	/* discard the packet if IPv6 operation is disabled on the interface */
-	if ((ND_IFINFO(ifp)->flags & ND6_IFF_IFDISABLED)) {
-		m_freem(m);
-		return (ENETDOWN); /* better error? */
-	}
-
-	if (IN6_IS_ADDR_MULTICAST(&dst->sin6_addr))
-		goto sendpkt;
-
-	if (nd6_need_cache(ifp) == 0)
-		goto sendpkt;
 
 	/*
 	 * Address resolution or Neighbor Unreachability Detection
@@ -2072,22 +2084,17 @@ nd6_output_lle(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *m,
 		}
 	} 
 	if (lle == NULL) {
-		if ((ifp->if_flags & IFF_POINTOPOINT) == 0 &&
-		    !(ND_IFINFO(ifp)->flags & ND6_IFF_PERFORMNUD)) {
+		if (!(ND_IFINFO(ifp)->flags & ND6_IFF_PERFORMNUD)) {
 			m_freem(m);
 			return (ENOBUFS);
 		}
-		goto sendpkt;	/* send anyway */
+
+		if (m != NULL)
+			m_freem(m);
+		return (ENOBUFS);
 	}
 
 	LLE_WLOCK_ASSERT(lle);
-
-	/* We don't have to do link-layer address resolution on a p2p link. */
-	if ((ifp->if_flags & IFF_POINTOPOINT) != 0 &&
-	    lle->ln_state < ND6_LLINFO_REACHABLE) {
-		lle->ln_state = ND6_LLINFO_STALE;
-		nd6_llinfo_settimer_locked(lle, (long)V_nd6_gctimer * hz);
-	}
 
 	/*
 	 * The first time we send a packet to a neighbor whose entry is
@@ -2107,8 +2114,13 @@ nd6_output_lle(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *m,
 	 * (i.e. its link-layer address is already resolved), just
 	 * send the packet.
 	 */
-	if (lle->ln_state > ND6_LLINFO_INCOMPLETE)
-		goto sendpkt;
+	if (lle->ln_state > ND6_LLINFO_INCOMPLETE) {
+		bcopy(&lle->ll_addr, desten, ifp->if_addrlen);
+		if (pflags != NULL)
+			*pflags = lle->la_flags;
+		LLE_WUNLOCK(lle);
+		return (0);
+	}
 
 	/*
 	 * There is a neighbor cache entry, but no ethernet address
@@ -2160,13 +2172,7 @@ nd6_output_lle(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *m,
 		LLE_WUNLOCK(lle);
 	}
 
-	return (0);
-
-  sendpkt:
-	if (lle != NULL)
-		LLE_WUNLOCK(lle);
-
-	return (nd6_output_ifp(ifp, origifp, m, dst));
+	return (EWOULDBLOCK);
 }
 
 
@@ -2192,15 +2198,12 @@ nd6_flush_holdchain(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *chain
 
 	/*
 	 * XXX
-	 * note that intermediate errors are blindly ignored - but this is 
-	 * the same convention as used with nd6_output when called by
-	 * nd6_cache_lladdr
+	 * note that intermediate errors are blindly ignored
 	 */
 	return (error);
 }	
 
-
-int
+static int
 nd6_need_cache(struct ifnet *ifp)
 {
 	/*
@@ -2295,61 +2298,6 @@ nd6_rem_ifa_lle(struct in6_ifaddr *ia, int all)
 		lltable_prefix_free(AF_INET6, saddr, smask, LLE_STATIC);
 	else
 		lltable_delete_addr(LLTABLE6(ifp), LLE_IFADDR, saddr);
-}
-
-/*
- * the callers of this function need to be re-worked to drop
- * the lle lock, drop here for now
- */
-int
-nd6_storelladdr(struct ifnet *ifp, struct mbuf *m,
-    const struct sockaddr *dst, u_char *desten, uint32_t *pflags)
-{
-	struct llentry *ln;
-
-	if (pflags != NULL)
-		*pflags = 0;
-	IF_AFDATA_UNLOCK_ASSERT(ifp);
-	if (m != NULL && m->m_flags & M_MCAST) {
-		switch (ifp->if_type) {
-		case IFT_ETHER:
-		case IFT_FDDI:
-		case IFT_L2VLAN:
-		case IFT_IEEE80211:
-		case IFT_BRIDGE:
-		case IFT_ISO88025:
-			ETHER_MAP_IPV6_MULTICAST(&SIN6(dst)->sin6_addr,
-						 desten);
-			return (0);
-		default:
-			m_freem(m);
-			return (EAFNOSUPPORT);
-		}
-	}
-
-
-	/*
-	 * the entry should have been created in nd6_store_lladdr
-	 */
-	IF_AFDATA_RLOCK(ifp);
-	ln = lla_lookup(LLTABLE6(ifp), 0, dst);
-	IF_AFDATA_RUNLOCK(ifp);
-	if ((ln == NULL) || !(ln->la_flags & LLE_VALID)) {
-		if (ln != NULL)
-			LLE_RUNLOCK(ln);
-		/* this could happen, if we could not allocate memory */
-		m_freem(m);
-		return (1);
-	}
-
-	bcopy(&ln->ll_addr, desten, ifp->if_addrlen);
-	if (pflags != NULL)
-		*pflags = ln->la_flags;
-	LLE_RUNLOCK(ln);
-	/*
-	 * A *small* use after free race exists here
-	 */
-	return (0);
 }
 
 static void 
