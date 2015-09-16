@@ -16,6 +16,18 @@ from older versions of FreeBSD, try WITHOUT_CLANG to bootstrap to the tip of
 stable/10, and then rebuild without this option. The bootstrap process from
 older version of current is a bit fragile.
 
+20150916:	p3	FreeBSD-EN-15:16.pw
+			FreeBSD-EN-15:17.libc
+			FreeBSD-EN-15:18.pkg
+
+	Fix regression in pw(8) when creating numeric users or groups.
+	[EN-15:16]
+
+	Fix libc handling of signals for multi-threaded processes.
+	[EN-15:17]
+
+	Implement pubkey support for pkg(7) bootstrap. [EN-15:18]
+
 20150825:	p2	FreeBSD-SA-15:22.openssh
 			FreeBSD-EN-15:15.pkg
 	Fix OpenSSH multiple vulnerabilities. [SA-15:22]

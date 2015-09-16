@@ -272,14 +272,7 @@ main(int argc, char *argv[])
 				    errstr);
 			break;
 		case 'n':
-			if (strspn(optarg, "0123456789") != strlen(optarg)) {
-				name = optarg;
-				break;
-			}
-			id = strtonum(optarg, 0, LONG_MAX, &errstr);
-			if (errstr != NULL)
-				errx(EX_USAGE, "Bad id '%s': %s", optarg,
-				    errstr);
+			name = optarg;
 			break;
 		case 'o':
 			conf.checkduplicate = false;
