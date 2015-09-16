@@ -126,7 +126,7 @@ VNET_DEFINE(int, nd6_recalc_reachtm_interval) = ND6_RECALC_REACHTM_INTERVAL;
 
 int	(*send_sendso_input_hook)(struct mbuf *, struct ifnet *, int, int);
 
-static int nd6_is_new_addr_neighbor(struct sockaddr_in6 *,
+static int nd6_is_new_addr_neighbor(const struct sockaddr_in6 *,
 	struct ifnet *);
 static void nd6_setmtu0(struct ifnet *, struct nd_ifinfo *);
 static void nd6_slowtimo(void *);
@@ -953,7 +953,7 @@ nd6_purge(struct ifnet *ifp)
  * Returns the llentry locked
  */
 struct llentry *
-nd6_lookup(struct in6_addr *addr6, int flags, struct ifnet *ifp)
+nd6_lookup(const struct in6_addr *addr6, int flags, struct ifnet *ifp)
 {
 	struct sockaddr_in6 sin6;
 	struct llentry *ln;
@@ -973,7 +973,7 @@ nd6_lookup(struct in6_addr *addr6, int flags, struct ifnet *ifp)
 }
 
 struct llentry *
-nd6_alloc(struct in6_addr *addr6, int flags, struct ifnet *ifp)
+nd6_alloc(const struct in6_addr *addr6, int flags, struct ifnet *ifp)
 {
 	struct sockaddr_in6 sin6;
 	struct llentry *ln;
@@ -996,7 +996,7 @@ nd6_alloc(struct in6_addr *addr6, int flags, struct ifnet *ifp)
  * to not reenter the routing code from within itself.
  */
 static int
-nd6_is_new_addr_neighbor(struct sockaddr_in6 *addr, struct ifnet *ifp)
+nd6_is_new_addr_neighbor(const struct sockaddr_in6 *addr, struct ifnet *ifp)
 {
 	struct nd_prefix *pr;
 	struct ifaddr *dstaddr;
@@ -1069,7 +1069,7 @@ nd6_is_new_addr_neighbor(struct sockaddr_in6 *addr, struct ifnet *ifp)
 	 * If the address is assigned on the node of the other side of
 	 * a p2p interface, the address should be a neighbor.
 	 */
-	dstaddr = ifa_ifwithdstaddr((struct sockaddr *)addr, RT_ALL_FIBS);
+	dstaddr = ifa_ifwithdstaddr((const struct sockaddr *)addr, RT_ALL_FIBS);
 	if (dstaddr != NULL) {
 		if (dstaddr->ifa_ifp == ifp) {
 			ifa_free(dstaddr);
@@ -1097,7 +1097,7 @@ nd6_is_new_addr_neighbor(struct sockaddr_in6 *addr, struct ifnet *ifp)
  * XXX: should take care of the destination of a p2p link?
  */
 int
-nd6_is_addr_neighbor(struct sockaddr_in6 *addr, struct ifnet *ifp)
+nd6_is_addr_neighbor(const struct sockaddr_in6 *addr, struct ifnet *ifp)
 {
 	struct llentry *lle;
 	int rc = 0;
