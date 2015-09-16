@@ -7,6 +7,8 @@
 # we need this until there is an alternative
 MK_INSTALL_AS_USER= yes
 
+_default_makeobjdir=$${.CURDIR:S,$${SRCTOP},$${OBJTOP},}
+
 .if empty(OBJROOT) || ${.MAKE.LEVEL} == 0
 .if !make(showconfig)
 .if defined(MAKEOBJDIRPREFIX) && exists(${MAKEOBJDIRPREFIX})
@@ -16,7 +18,6 @@ OBJROOT:=${MAKEOBJDIRPREFIX}${SRCTOP:S,/src,,}/
 MAKEOBJDIRPREFIX=
 .export MAKEOBJDIRPREFIX
 .endif
-_default_makeobjdir=$${.CURDIR:S,$${SRCTOP},$${OBJTOP},}
 .if empty(MAKEOBJDIR)
 # OBJTOP set below
 MAKEOBJDIR=${_default_makeobjdir}
@@ -24,9 +25,6 @@ MAKEOBJDIR=${_default_makeobjdir}
 .export-env MAKEOBJDIR
 # now for our own use
 MAKEOBJDIR= ${.CURDIR:S,${SRCTOP},${OBJTOP},}
-.endif
-.if ${MAKEOBJDIR:M*/*} == ""
-.error Cannot use MAKEOBJDIR=${MAKEOBJDIR}${.newline}Unset MAKEOBJDIR to get default:  MAKEOBJDIR='${_default_makeobjdir}'
 .endif
 .endif
 .if !empty(SB)
@@ -109,6 +107,12 @@ TARGET_SPEC = ${TARGET_SPEC_VARS:@v@${$v:U}@:ts,}
 # to be consistent with src/Makefile just concatenate with '.'s
 TARGET_OBJ_SPEC:= ${TARGET_SPEC:S;,;.;g}
 OBJTOP:= ${OBJROOT}${TARGET_OBJ_SPEC}
+
+.if defined(MAKEOBJDIR)
+.if ${MAKEOBJDIR:M*/*} == ""
+.error Cannot use MAKEOBJDIR=${MAKEOBJDIR}${.newline}Unset MAKEOBJDIR to get default:  MAKEOBJDIR='${_default_makeobjdir}'
+.endif
+.endif
 
 .if ${.CURDIR} == ${SRCTOP}
 RELDIR = .
