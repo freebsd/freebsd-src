@@ -11,6 +11,10 @@ handbook:
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
+20150916:	p26	FreeBSD-EN-15:18.pkg
+
+	Implement pubkey support for pkg(7) bootstrap. [EN-15:18]
+
 20150902:	p25	FreeBSD-SA-15:23.bind
 
 	Fix BIND remote denial of service vulnerability. [SA-15:23]
