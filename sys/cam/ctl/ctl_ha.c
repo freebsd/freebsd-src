@@ -622,28 +622,33 @@ ctl_ha_peer_sysctl(SYSCTL_HANDLER_ARGS)
 	struct ha_softc *softc = (struct ha_softc *)arg1;
 	struct sockaddr_in *sa;
 	int error, b1, b2, b3, b4, p, num;
+	char buf[128];
 
-	error = sysctl_handle_string(oidp, softc->ha_peer,
-	    sizeof(softc->ha_peer), req);
-	if ((error != 0) || (req->newptr == NULL))
+	strlcpy(buf, softc->ha_peer, sizeof(buf));
+	error = sysctl_handle_string(oidp, buf, sizeof(buf), req);
+	if ((error != 0) || (req->newptr == NULL) ||
+	    strncmp(buf, softc->ha_peer, sizeof(buf)) == 0)
 		return (error);
 
 	sa = &softc->ha_peer_in;
 	mtx_lock(&softc->ha_lock);
-	if ((num = sscanf(softc->ha_peer, "connect %d.%d.%d.%d:%d",
+	if ((num = sscanf(buf, "connect %d.%d.%d.%d:%d",
 	    &b1, &b2, &b3, &b4, &p)) >= 4) {
 		softc->ha_connect = 1;
 		softc->ha_listen = 0;
-	} else if ((num = sscanf(softc->ha_peer, "listen %d.%d.%d.%d:%d",
+	} else if ((num = sscanf(buf, "listen %d.%d.%d.%d:%d",
 	    &b1, &b2, &b3, &b4, &p)) >= 4) {
 		softc->ha_connect = 0;
 		softc->ha_listen = 1;
 	} else {
 		softc->ha_connect = 0;
 		softc->ha_listen = 0;
-		if (softc->ha_peer[0] != 0)
+		if (buf[0] != 0) {
+			buf[0] = 0;
 			error = EINVAL;
+		}
 	}
+	strlcpy(softc->ha_peer, buf, sizeof(softc->ha_peer));
 	if (softc->ha_connect || softc->ha_listen) {
 		memset(sa, 0, sizeof(*sa));
 		sa->sin_len = sizeof(struct sockaddr_in);
