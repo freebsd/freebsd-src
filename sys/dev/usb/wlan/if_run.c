@@ -1730,7 +1730,7 @@ run_read_eeprom(struct run_softc *sc)
 
 	/* read ROM version */
 	run_srom_read(sc, RT2860_EEPROM_VERSION, &val);
-	DPRINTF("EEPROM rev=%d, FAE=%d\n", val & 0xff, val >> 8);
+	DPRINTF("EEPROM rev=%d, FAE=%d\n", val >> 8, val & 0xff);
 
 	/* read MAC address */
 	run_srom_read(sc, RT2860_EEPROM_MAC01, &val);
