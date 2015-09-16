@@ -351,6 +351,48 @@ ctl_complete_beio(struct ctl_be_block_io *beio)
 	}
 }
 
+static size_t
+cmp(uint8_t *a, uint8_t *b, size_t size)
+{
+	size_t i;
+
+	for (i = 0; i < size; i++) {
+		if (a[i] != b[i])
+			break;
+	}
+	return (i);
+}
+
+static void
+ctl_be_block_compare(union ctl_io *io)
+{
+	struct ctl_be_block_io *beio;
+	uint64_t off, res;
+	int i;
+	uint8_t info[8];
+
+	beio = (struct ctl_be_block_io *)PRIV(io)->ptr;
+	off = 0;
+	for (i = 0; i < beio->num_segs; i++) {
+		res = cmp(beio->sg_segs[i].addr,
+		    beio->sg_segs[i + CTLBLK_HALF_SEGS].addr,
+		    beio->sg_segs[i].len);
+		off += res;
+		if (res < beio->sg_segs[i].len)
+			break;
+	}
+	if (i < beio->num_segs) {
+		scsi_u64to8b(off, info);
+		ctl_set_sense(&io->scsiio, /*current_error*/ 1,
+		    /*sense_key*/ SSD_KEY_MISCOMPARE,
+		    /*asc*/ 0x1D, /*ascq*/ 0x00,
+		    /*type*/ SSD_ELEM_INFO,
+		    /*size*/ sizeof(info), /*data*/ &info,
+		    /*type*/ SSD_ELEM_NONE);
+	} else
+		ctl_set_success(&io->scsiio);
+}
+
 static int
 ctl_be_block_move_done(union ctl_io *io)
 {
@@ -360,7 +402,6 @@ ctl_be_block_move_done(union ctl_io *io)
 #ifdef CTL_TIME_IO
 	struct bintime cur_bt;
 #endif
-	int i;
 
 	beio = (struct ctl_be_block_io *)PRIV(io)->ptr;
 	be_lun = beio->lun;
@@ -388,21 +429,7 @@ ctl_be_block_move_done(union ctl_io *io)
 			ctl_set_success(&io->scsiio);
 		} else if (lbalen->flags & CTL_LLF_COMPARE) {
 			/* We have two data blocks ready for comparison. */
-			for (i = 0; i < beio->num_segs; i++) {
-				if (memcmp(beio->sg_segs[i].addr,
-				    beio->sg_segs[i + CTLBLK_HALF_SEGS].addr,
-				    beio->sg_segs[i].len) != 0)
-					break;
-			}
-			if (i < beio->num_segs)
-				ctl_set_sense(&io->scsiio,
-				    /*current_error*/ 1,
-				    /*sense_key*/ SSD_KEY_MISCOMPARE,
-				    /*asc*/ 0x1D,
-				    /*ascq*/ 0x00,
-				    SSD_ELEM_NONE);
-			else
-				ctl_set_success(&io->scsiio);
+			ctl_be_block_compare(io);
 		}
 	} else if ((io->io_hdr.port_status != 0) &&
 	    ((io->io_hdr.status & CTL_STATUS_MASK) == CTL_STATUS_NONE ||
