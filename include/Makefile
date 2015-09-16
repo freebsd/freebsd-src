@@ -373,6 +373,7 @@ symlinks:
 		    ${DESTDIR}${INCLUDEDIR}/rpc; \
 	done
 .if ${MK_META_MODE} == "yes"
+	cd ${.OBJDIR}
 	touch ${.TARGET}
 .endif
 
