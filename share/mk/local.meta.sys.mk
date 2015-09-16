@@ -186,6 +186,10 @@ UPDATE_DEPENDFILE= NO
 # define the list of places that contain files we are responsible for
 .MAKE.META.BAILIWICK = ${SB} ${OBJROOT} ${STAGE_ROOT}
 
+.if defined(CCACHE_DIR)
+.MAKE.META.IGNORE_PATHS += ${CCACHE_DIR}
+.endif
+
 CSU_DIR.${MACHINE_ARCH} ?= csu/${MACHINE_ARCH}
 CSU_DIR := ${CSU_DIR.${MACHINE_ARCH}}
 
