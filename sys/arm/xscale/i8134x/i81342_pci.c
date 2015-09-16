@@ -209,7 +209,7 @@ i81342_pci_attach(device_t dev)
 	}
 	bus_space_write_4(sc->sc_st, sc->sc_atu_sh, ATU_ISR,
 	    bus_space_read_4(sc->sc_st, sc->sc_atu_sh, ATU_ISR) & ATUX_ISR_ERRMSK);
-	device_add_child(dev, "pci", busno);
+	device_add_child(dev, "pci", -1);
 	return (bus_generic_attach(dev));
 }
 
