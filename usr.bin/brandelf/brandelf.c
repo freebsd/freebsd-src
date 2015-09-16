@@ -139,7 +139,7 @@ main(int argc, char **argv)
 	}
 
 	while (argc) {
-		int e_data, e_machine, fd;
+		int e_data, e_machine, fd, target_e_machine;
 		union {
 			unsigned char	ident[EI_NIDENT];
 			Elf32_Ehdr	ehdr32;
@@ -209,17 +209,15 @@ main(int argc, char **argv)
 				e_machine = e_data == 1 ?
 				    le16toh(buffer.ehdr64.e_machine) :
 				    be16toh(buffer.ehdr64.e_machine);
-				if (e_machine == EM_MIPS) {
-					if (cheri == 128)
-						buffer.ehdr64.e_machine =
-						    e_data == 1 ?
-						    htole16(EM_MIPS_CHERI128) :
-						    htobe16(EM_MIPS_CHERI128);
-					else /* (cheri == 256) */
-						buffer.ehdr64.e_machine =
-						    e_data == 1 ?
-						    htole16(EM_MIPS_CHERI256) :
-						    htobe16(EM_MIPS_CHERI256);
+				target_e_machine = cheri == 128 ?
+				    EM_MIPS_CHERI128 : EM_MIPS_CHERI256;
+				if (e_machine == target_e_machine) {
+					break;
+				} else if (e_machine == EM_MIPS) {
+					buffer.ehdr64.e_machine =
+					    e_data == 1 ?
+					    htole16(target_e_machine) :
+					    htobe16(target_e_machine);
 				} else {
 					warnx("file '%s' not a CHERI platform",
 					    argv[0]);
