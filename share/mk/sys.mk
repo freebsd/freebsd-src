@@ -47,7 +47,10 @@ __DEFAULT_DEPENDENT_OPTIONS= \
 .endif
 .if ${MK_AUTO_OBJ} == "yes"
 # This needs to be done early - before .PATH is computed
+# Don't do this if just running make -V
+.if ${.MAKEFLAGS:M-V} == ""
 .sinclude <auto.obj.mk>
+.endif
 .endif
 
 .endif
