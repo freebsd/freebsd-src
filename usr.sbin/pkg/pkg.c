@@ -66,6 +66,11 @@ struct sig_cert {
 	bool trusted;
 };
 
+struct pubkey {
+	unsigned char *sig;
+	int siglen;
+};
+
 typedef enum {
        HASH_UNKNOWN,
        HASH_SHA256,
@@ -474,6 +479,25 @@ cleanup:
 }
 
 static EVP_PKEY *
+load_public_key_file(const char *file)
+{
+	EVP_PKEY *pkey;
+	BIO *bp;
+	char errbuf[1024];
+
+	bp = BIO_new_file(file, "r");
+	if (!bp)
+		errx(EXIT_FAILURE, "Unable to read %s", file);
+
+	if ((pkey = PEM_read_bio_PUBKEY(bp, NULL, NULL, NULL)) == NULL)
+		warnx("ici: %s", ERR_error_string(ERR_get_error(), errbuf));
+
+	BIO_free(bp);
+
+	return (pkey);
+}
+
+static EVP_PKEY *
 load_public_key_buf(const unsigned char *cert, int certlen)
 {
 	EVP_PKEY *pkey;
@@ -491,8 +515,8 @@ load_public_key_buf(const unsigned char *cert, int certlen)
 }
 
 static bool
-rsa_verify_cert(int fd, const unsigned char *key, int keylen,
-    unsigned char *sig, int siglen)
+rsa_verify_cert(int fd, const char *sigfile, const unsigned char *key,
+    int keylen, unsigned char *sig, int siglen)
 {
 	EVP_MD_CTX *mdctx;
 	EVP_PKEY *pkey;
@@ -504,6 +528,8 @@ rsa_verify_cert(int fd, const unsigned char *key, int keylen,
 	mdctx = NULL;
 	ret = false;
 
+	SSL_load_error_strings();
+
 	/* Compute SHA256 of the package. */
 	if (lseek(fd, 0, 0) == -1) {
 		warn("lseek");
@@ -514,9 +540,16 @@ rsa_verify_cert(int fd, const unsigned char *key, int keylen,
 		goto cleanup;
 	}
 
-	if ((pkey = load_public_key_buf(key, keylen)) == NULL) {
-		warnx("Error reading public key");
-		goto cleanup;
+	if (sigfile != NULL) {
+		if ((pkey = load_public_key_file(sigfile)) == NULL) {
+			warnx("Error reading public key");
+			goto cleanup;
+		}
+	} else {
+		if ((pkey = load_public_key_buf(key, keylen)) == NULL) {
+			warnx("Error reading public key");
+			goto cleanup;
+		}
 	}
 
 	/* Verify signature of the SHA256(pkg) is valid. */
@@ -554,6 +587,35 @@ cleanup:
 	ERR_free_strings();
 
 	return (ret);
+}
+
+static struct pubkey *
+read_pubkey(int fd)
+{
+	struct pubkey *pk;
+	struct sbuf *sig;
+	char buf[4096];
+	int r;
+
+	if (lseek(fd, 0, 0) == -1) {
+		warn("lseek");
+		return (NULL);
+	}
+
+	sig = sbuf_new_auto();
+
+	while ((r = read(fd, buf, sizeof(buf))) >0) {
+		sbuf_bcat(sig, buf, r);
+	}
+
+	sbuf_finish(sig);
+	pk = calloc(1, sizeof(struct pubkey));
+	pk->siglen = sbuf_len(sig);
+	pk->sig = calloc(1, pk->siglen);
+	memcpy(pk->sig, sbuf_data(sig), pk->siglen);
+	sbuf_delete(sig);
+
+	return (pk);
 }
 
 static struct sig_cert *
@@ -626,6 +688,45 @@ parse_cert(int fd) {
 	sbuf_delete(cert);
 
 	return (sc);
+}
+
+static bool
+verify_pubsignature(int fd_pkg, int fd_sig)
+{
+	struct pubkey *pk;
+	const char *pubkey;
+	bool ret;
+
+	pk = NULL;
+	pubkey = NULL;
+	ret = false;
+	if (config_string(PUBKEY, &pubkey) != 0) {
+		warnx("No CONFIG_PUBKEY defined");
+		goto cleanup;
+	}
+
+	if ((pk = read_pubkey(fd_sig)) == NULL) {
+		warnx("Error reading signature");
+		goto cleanup;
+	}
+
+	/* Verify the signature. */
+	printf("Verifying signature with public key %s... ", pubkey);
+	if (rsa_verify_cert(fd_pkg, pubkey, NULL, 0, pk->sig,
+	    pk->siglen) == false) {
+		fprintf(stderr, "Signature is not valid\n");
+		goto cleanup;
+	}
+
+	ret = true;
+
+cleanup:
+	if (pk) {
+		free(pk->sig);
+		free(pk);
+	}
+
+	return (ret);
 }
 
 static bool
@@ -706,7 +807,7 @@ verify_signature(int fd_pkg, int fd_sig)
 
 	/* Verify the signature. */
 	printf("Verifying signature with trusted certificate %s... ", sc->name);
-	if (rsa_verify_cert(fd_pkg, sc->cert, sc->certlen, sc->sig,
+	if (rsa_verify_cert(fd_pkg, NULL, sc->cert, sc->certlen, sc->sig,
 	    sc->siglen) == false) {
 		fprintf(stderr, "Signature is not valid\n");
 		goto cleanup;
@@ -775,24 +876,42 @@ bootstrap_pkg(bool force)
 
 	if (signature_type != NULL &&
 	    strcasecmp(signature_type, "NONE") != 0) {
-		if (strcasecmp(signature_type, "FINGERPRINTS") != 0) {
+		if (strcasecmp(signature_type, "FINGERPRINTS") == 0) {
+
+			snprintf(tmpsig, MAXPATHLEN, "%s/pkg.txz.sig.XXXXXX",
+			    getenv("TMPDIR") ? getenv("TMPDIR") : _PATH_TMP);
+			snprintf(url, MAXPATHLEN, "%s/Latest/pkg.txz.sig",
+			    packagesite);
+
+			if ((fd_sig = fetch_to_fd(url, tmpsig)) == -1) {
+				fprintf(stderr, "Signature for pkg not "
+				    "available.\n");
+				goto fetchfail;
+			}
+
+			if (verify_signature(fd_pkg, fd_sig) == false)
+				goto cleanup;
+		} else if (strcasecmp(signature_type, "PUBKEY") == 0) {
+
+			snprintf(tmpsig, MAXPATHLEN,
+			    "%s/pkg.txz.pubkeysig.XXXXXX",
+			    getenv("TMPDIR") ? getenv("TMPDIR") : _PATH_TMP);
+			snprintf(url, MAXPATHLEN, "%s/Latest/pkg.txz.pubkeysig",
+			    packagesite);
+
+			if ((fd_sig = fetch_to_fd(url, tmpsig)) == -1) {
+				fprintf(stderr, "Signature for pkg not "
+				    "available.\n");
+				goto fetchfail;
+			}
+
+			if (verify_pubsignature(fd_pkg, fd_sig) == false)
+				goto cleanup;
+		} else {
 			warnx("Signature type %s is not supported for "
 			    "bootstrapping.", signature_type);
 			goto cleanup;
 		}
-
-		snprintf(tmpsig, MAXPATHLEN, "%s/pkg.txz.sig.XXXXXX",
-		    getenv("TMPDIR") ? getenv("TMPDIR") : _PATH_TMP);
-		snprintf(url, MAXPATHLEN, "%s/Latest/pkg.txz.sig",
-		    packagesite);
-
-		if ((fd_sig = fetch_to_fd(url, tmpsig)) == -1) {
-			fprintf(stderr, "Signature for pkg not available.\n");
-			goto fetchfail;
-		}
-
-		if (verify_signature(fd_pkg, fd_sig) == false)
-			goto cleanup;
 	}
 
 	if ((ret = extract_pkg_static(fd_pkg, pkgstatic, MAXPATHLEN)) == 0)
@@ -861,21 +980,37 @@ bootstrap_pkg_local(const char *pkgpath, bool force)
 	}
 	if (signature_type != NULL &&
 	    strcasecmp(signature_type, "NONE") != 0) {
-		if (strcasecmp(signature_type, "FINGERPRINTS") != 0) {
+		if (strcasecmp(signature_type, "FINGERPRINTS") == 0) {
+
+			snprintf(path, sizeof(path), "%s.sig", pkgpath);
+
+			if ((fd_sig = open(path, O_RDONLY)) == -1) {
+				fprintf(stderr, "Signature for pkg not "
+				    "available.\n");
+				goto cleanup;
+			}
+
+			if (verify_signature(fd_pkg, fd_sig) == false)
+				goto cleanup;
+
+		} else if (strcasecmp(signature_type, "PUBKEY") == 0) {
+
+			snprintf(path, sizeof(path), "%s.pubkeysig", pkgpath);
+
+			if ((fd_sig = open(path, O_RDONLY)) == -1) {
+				fprintf(stderr, "Signature for pkg not "
+				    "available.\n");
+				goto cleanup;
+			}
+
+			if (verify_pubsignature(fd_pkg, fd_sig) == false)
+				goto cleanup;
+
+		} else {
 			warnx("Signature type %s is not supported for "
 			    "bootstrapping.", signature_type);
 			goto cleanup;
 		}
-
-		snprintf(path, sizeof(path), "%s.sig", pkgpath);
-
-		if ((fd_sig = open(path, O_RDONLY)) == -1) {
-			fprintf(stderr, "Signature for pkg not available.\n");
-			goto cleanup;
-		}
-
-		if (verify_signature(fd_pkg, fd_sig) == false)
-			goto cleanup;
 	}
 
 	if ((ret = extract_pkg_static(fd_pkg, pkgstatic, MAXPATHLEN)) == 0)
