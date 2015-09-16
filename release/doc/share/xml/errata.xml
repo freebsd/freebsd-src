@@ -108,6 +108,14 @@
 	<entry><para>Insufficient check of supported &man.pkg.7;
 	  signature methods.</para></entry>
       </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-EN-15:18.pkg.asc">FreeBSD-EN-15:18.pkg</link></entry>
+	<entry>16&nbsp;September&nbsp;2015</entry>
+	<entry><para>Implement <literal>pubkey</literal> support for
+	    &man.pkg.7; bootstrap.</para></entry>
+      </row>
     </tbody>
   </tgroup>
 </informaltable>
