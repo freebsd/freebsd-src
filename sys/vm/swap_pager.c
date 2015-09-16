@@ -2354,8 +2354,8 @@ swapoff_one(struct swdevt *sp, struct ucred *cred)
 	swap_pager_swapoff(sp);
 
 	sp->sw_close(curthread, sp);
-	sp->sw_id = NULL;
 	mtx_lock(&sw_dev_mtx);
+	sp->sw_id = NULL;
 	TAILQ_REMOVE(&swtailq, sp, sw_list);
 	nswapdev--;
 	if (nswapdev == 0) {
@@ -2541,13 +2541,39 @@ swapgeom_close_ev(void *arg, int flags)
 	g_destroy_consumer(cp);
 }
 
+/*
+ * Add a reference to the g_consumer for an inflight transaction.
+ */
+static void
+swapgeom_acquire(struct g_consumer *cp)
+{
+
+	mtx_assert(&sw_dev_mtx, MA_OWNED);
+	cp->index++;
+}
+
+/*
+ * Remove a reference from the g_consumer. Post a close event if
+ * all referneces go away.
+ */
+static void
+swapgeom_release(struct g_consumer *cp, struct swdevt *sp)
+{
+
+	mtx_assert(&sw_dev_mtx, MA_OWNED);
+	cp->index--;
+	if (cp->index == 0) {
+		if (g_post_event(swapgeom_close_ev, cp, M_NOWAIT, NULL) == 0)
+			sp->sw_id = NULL;
+	}
+}
+
 static void
 swapgeom_done(struct bio *bp2)
 {
 	struct swdevt *sp;
 	struct buf *bp;
 	struct g_consumer *cp;
-	int destroy;
 
 	bp = bp2->bio_caller2;
 	cp = bp2->bio_from;
@@ -2557,16 +2583,11 @@ swapgeom_done(struct bio *bp2)
 	bp->b_resid = bp->b_bcount - bp2->bio_completed;
 	bp->b_error = bp2->bio_error;
 	bufdone(bp);
+	sp = bp2->bio_caller1;
 	mtx_lock(&sw_dev_mtx);
-	destroy = ((--cp->index) == 0 && cp->private);
-	if (destroy) {
-		sp = bp2->bio_caller1;
-		sp->sw_id = NULL;
-	}
+	swapgeom_release(cp, sp);
 	mtx_unlock(&sw_dev_mtx);
 	g_destroy_bio(bp2);
-	if (destroy)
-		g_waitfor_event(swapgeom_close_ev, cp, M_WAITOK, NULL);
 }
 
 static void
@@ -2584,13 +2605,16 @@ swapgeom_strategy(struct buf *bp, struct swdevt *sp)
 		bufdone(bp);
 		return;
 	}
-	cp->index++;
+	swapgeom_acquire(cp);
 	mtx_unlock(&sw_dev_mtx);
 	if (bp->b_iocmd == BIO_WRITE)
 		bio = g_new_bio();
 	else
 		bio = g_alloc_bio();
 	if (bio == NULL) {
+		mtx_lock(&sw_dev_mtx);
+		swapgeom_release(cp, sp);
+		mtx_unlock(&sw_dev_mtx);
 		bp->b_error = ENOMEM;
 		bp->b_ioflags |= BIO_ERROR;
 		bufdone(bp);
@@ -2630,7 +2654,12 @@ swapgeom_orphan(struct g_consumer *cp)
 			break;
 		}
 	}
-	cp->private = (void *)(uintptr_t)1;
+	/*
+	 * Drop reference we were created with. Do directly since we're in a
+	 * special context where we don't have to queue the call to
+	 * swapgeom_close_ev().
+	 */
+	cp->index--;
 	destroy = ((sp != NULL) && (cp->index == 0));
 	if (destroy)
 		sp->sw_id = NULL;
@@ -2691,8 +2720,8 @@ swapongeom_ev(void *arg, int flags)
 	if (gp == NULL)
 		gp = g_new_geomf(&g_swap_class, "swap");
 	cp = g_new_consumer(gp);
-	cp->index = 0;		/* Number of active I/Os. */
-	cp->private = NULL;	/* Orphanization flag */
+	cp->index = 1;		/* Number of active I/Os, plus one for being active. */
+	cp->flags |=  G_CF_DIRECT_SEND | G_CF_DIRECT_RECEIVE;
 	g_attach(cp, pp);
 	/*
 	 * XXX: Everytime you think you can improve the margin for
