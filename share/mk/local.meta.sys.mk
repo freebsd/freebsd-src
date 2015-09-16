@@ -16,13 +16,17 @@ OBJROOT:=${MAKEOBJDIRPREFIX}${SRCTOP:S,/src,,}/
 MAKEOBJDIRPREFIX=
 .export MAKEOBJDIRPREFIX
 .endif
-.if empty(MAKEOBJDIR) || ${MAKEOBJDIR:M*/*} == ""
+_default_makeobjdir=$${.CURDIR:S,$${SRCTOP},$${OBJTOP},}
+.if empty(MAKEOBJDIR)
 # OBJTOP set below
-MAKEOBJDIR=$${.CURDIR:S,$${SRCTOP},$${OBJTOP},}
+MAKEOBJDIR=${_default_makeobjdir}
 # export but do not track
 .export-env MAKEOBJDIR
 # now for our own use
 MAKEOBJDIR= ${.CURDIR:S,${SRCTOP},${OBJTOP},}
+.endif
+.if ${MAKEOBJDIR:M*/*} == ""
+.error Cannot use MAKEOBJDIR=${MAKEOBJDIR}${.newline}Unset MAKEOBJDIR to get default:  MAKEOBJDIR='${_default_makeobjdir}'
 .endif
 .endif
 .if !empty(SB)
