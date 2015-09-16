@@ -17,14 +17,11 @@
 
 #ifdef __GNUC__
 #define _GNUC_VER (__GNUC__ * 100 + __GNUC_MINOR__)
+#else
+#define _GNUC_VER 0
 #endif
 
-#if !_WIN32
-#include <unistd.h>
-#include <errno.h>  // for ELAST on FreeBSD
-#endif
-
-#define _LIBCPP_VERSION 1101
+#define _LIBCPP_VERSION 3700
 
 #define _LIBCPP_ABI_VERSION 1
 
@@ -32,6 +29,23 @@
 #define _LIBCPP_CONCAT(_LIBCPP_X,_LIBCPP_Y) _LIBCPP_CONCAT1(_LIBCPP_X,_LIBCPP_Y)
 
 #define _LIBCPP_NAMESPACE _LIBCPP_CONCAT(__,_LIBCPP_ABI_VERSION)
+
+
+#ifndef __has_attribute
+#define __has_attribute(__x) 0
+#endif
+#ifndef __has_builtin
+#define __has_builtin(__x) 0
+#endif
+#ifndef __has_feature
+#define __has_feature(__x) 0
+#endif
+// '__is_identifier' returns '0' if '__x' is a reserved identifier provided by
+// the compiler and '1' otherwise.
+#ifndef __is_identifier
+#define __is_identifier(__x) 1
+#endif
+
 
 #ifdef __LITTLE_ENDIAN__
 #if __LITTLE_ENDIAN__
@@ -76,10 +90,8 @@
 #ifdef _WIN32
 #  define _LIBCPP_LITTLE_ENDIAN 1
 #  define _LIBCPP_BIG_ENDIAN    0
-// Compiler intrinsics (GCC or MSVC)
-#  if defined(__clang__) \
-   || (defined(_MSC_VER) && _MSC_VER >= 1400) \
-   || (defined(__GNUC__) && _GNUC_VER > 403)
+// Compiler intrinsics (MSVC)
+#if defined(_MSC_VER) && _MSC_VER >= 1400
 #    define _LIBCPP_HAS_IS_BASE_OF
 #  endif
 #  if defined(_MSC_VER) && !defined(__clang__)
@@ -94,12 +106,6 @@
 #  endif
 #endif  // _WIN32
 
-#ifdef __linux__
-#  if defined(__GNUC__) && _GNUC_VER >= 403
-#    define _LIBCPP_HAS_IS_BASE_OF
-#  endif
-#endif
-
 #ifdef __sun__
 # include <sys/isa_defs.h>
 # ifdef _LITTLE_ENDIAN
@@ -111,12 +117,22 @@
 # endif
 #endif // __sun__
 
-#if defined(__native_client__)
+#if defined(__CloudABI__)
+  // Certain architectures provide arc4random(). Prefer using
+  // arc4random() over /dev/{u,}random to make it possible to obtain
+  // random data even when using sandboxing mechanisms such as chroots,
+  // Capsicum, etc.
+# define _LIBCPP_USING_ARC4_RANDOM
+#elif defined(__native_client__)
   // NaCl's sandbox (which PNaCl also runs in) doesn't allow filesystem access,
   // including accesses to the special files under /dev. C++11's
   // std::random_device is instead exposed through a NaCl syscall.
 # define _LIBCPP_USING_NACL_RANDOM
-#endif // defined(__native_client__)
+#elif defined(_WIN32)
+# define _LIBCPP_USING_WIN32_RANDOM
+#else
+# define _LIBCPP_USING_DEV_RANDOM
+#endif
 
 #if !defined(_LIBCPP_LITTLE_ENDIAN) || !defined(_LIBCPP_BIG_ENDIAN)
 # include <endian.h>
@@ -172,10 +188,6 @@
 #endif
 
 #endif // _WIN32
-
-#ifndef __has_attribute
-#define __has_attribute(__x) 0
-#endif
 
 #ifndef _LIBCPP_HIDDEN
 #define _LIBCPP_HIDDEN __attribute__ ((__visibility__("hidden")))
@@ -309,6 +321,10 @@ typedef __char32_t char32_t;
 #  define _LIBCPP_HAS_IS_BASE_OF
 #endif
 
+#if __has_feature(is_final)
+#  define _LIBCPP_HAS_IS_FINAL
+#endif
+
 // Objective-C++ features (opt-in)
 #if __has_feature(objc_arc)
 #define _LIBCPP_HAS_OBJC_ARC
@@ -325,6 +341,10 @@ typedef __char32_t char32_t;
 
 #if !(__has_feature(cxx_relaxed_constexpr))
 #define _LIBCPP_HAS_NO_CXX14_CONSTEXPR
+#endif
+
+#if !(__has_feature(cxx_variable_templates))
+#define _LIBCPP_HAS_NO_VARIABLE_TEMPLATES
 #endif
 
 #if __ISO_C_VISIBLE >= 2011 || __cplusplus >= 201103L
@@ -388,6 +408,11 @@ namespace std {
 #if _GNUC_VER >= 407
 #define _LIBCPP_UNDERLYING_TYPE(T) __underlying_type(T)
 #define _LIBCPP_IS_LITERAL(T) __is_literal_type(T)
+#define _LIBCPP_HAS_IS_FINAL
+#endif
+
+#if defined(__GNUC__) && _GNUC_VER >= 403
+#  define _LIBCPP_HAS_IS_BASE_OF
 #endif
 
 #if !__EXCEPTIONS
@@ -406,6 +431,8 @@ namespace std {
 
 // No version of GCC supports relaxed constexpr rules
 #define _LIBCPP_HAS_NO_CXX14_CONSTEXPR
+// GCC 5 will support variable templates
+#define _LIBCPP_HAS_NO_VARIABLE_TEMPLATES
 
 #define _NOEXCEPT throw()
 #define _NOEXCEPT_(x)
@@ -477,6 +504,7 @@ using namespace _LIBCPP_NAMESPACE __attribute__((__strong__));
 #define _LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER
 #define _LIBCPP_HAS_NO_CONSTEXPR
 #define _LIBCPP_HAS_NO_CXX14_CONSTEXPR
+#define _LIBCPP_HAS_NO_VARIABLE_TEMPLATES
 #define _LIBCPP_HAS_NO_UNICODE_CHARS
 #define _LIBCPP_HAS_NO_DELETED_FUNCTIONS
 #define _LIBCPP_HAS_NO_DEFAULTED_FUNCTIONS
@@ -519,6 +547,8 @@ namespace std {
 #define _LIBCPP_HAS_NO_NULLPTR
 #define _LIBCPP_HAS_NO_UNICODE_CHARS
 #define _LIBCPP_HAS_IS_BASE_OF
+#define _LIBCPP_HAS_IS_FINAL
+#define _LIBCPP_HAS_NO_VARIABLE_TEMPLATES
 
 #if defined(_AIX)
 #define __MULTILOCALE_API
@@ -558,7 +588,12 @@ template <unsigned> struct __static_assert_check {};
 #endif  // _LIBCPP_HAS_NO_STATIC_ASSERT
 
 #ifdef _LIBCPP_HAS_NO_DECLTYPE
-#define decltype(x) __typeof__(x)
+// GCC 4.6 provides __decltype in all standard modes.
+#if !__is_identifier(__decltype) || _GNUC_VER >= 406
+#  define decltype(__x) __decltype(__x)
+#else
+#  define decltype(__x) __typeof__(__x)
+#endif
 #endif
 
 #ifdef _LIBCPP_HAS_NO_CONSTEXPR
@@ -577,14 +612,6 @@ template <unsigned> struct __static_assert_check {};
 #define _NOALIAS __attribute__((__malloc__))
 #else
 #define _NOALIAS
-#endif
-
-#ifndef __has_feature
-#define __has_feature(__x) 0
-#endif
-
-#ifndef __has_builtin
-#define __has_builtin(__x) 0
 #endif
 
 #if __has_feature(cxx_explicit_conversions) || defined(__IBMCPP__)
@@ -633,8 +660,14 @@ template <unsigned> struct __static_assert_check {};
 #define _LIBCPP_NONUNIQUE_RTTI_BIT (1ULL << 63)
 #endif
 
-#if defined(__APPLE__) || defined(__FreeBSD__) || defined(_WIN32) || defined(__sun__) || defined(__NetBSD__)
+#if defined(__APPLE__) || defined(__FreeBSD__) || defined(_WIN32) || \
+    defined(__sun__) || defined(__NetBSD__) || defined(__CloudABI__)
 #define _LIBCPP_LOCALE__L_EXTENSIONS 1
+#endif
+
+#if !defined(_WIN32) && !defined(__ANDROID__) && !defined(_NEWLIB_VERSION) && \
+    !defined(__CloudABI__)
+#define _LIBCPP_HAS_CATOPEN 1
 #endif
 
 #ifdef __FreeBSD__
@@ -647,21 +680,6 @@ template <unsigned> struct __static_assert_check {};
 
 #if defined(__APPLE__) || defined(__FreeBSD__) || defined(__sun__)
 #define _LIBCPP_WCTYPE_IS_MASK
-#endif
-
-#if defined(ELAST)
-#define _LIBCPP_ELAST ELAST
-#elif defined(__linux__)
-#define _LIBCPP_ELAST 4095
-#elif defined(_NEWLIB_VERSION)
-#define _LIBCPP_ELAST __ELASTERROR
-#elif defined(__APPLE__)
-// Not _LIBCPP_ELAST needed on Apple
-#elif defined(__sun__)
-#define _LIBCPP_ELAST ESTALE
-#else
-// Warn here so that the person doing the libcxx port has an easier time:
-#warning This platform's ELAST hasn't been ported yet
 #endif
 
 #ifndef _LIBCPP_TRIVIAL_PAIR_COPY_CTOR
@@ -729,6 +747,31 @@ extern "C" void __sanitizer_annotate_contiguous_container(
 #if defined(_LIBCPP_HAS_NO_MONOTONIC_CLOCK) && !defined(_LIBCPP_HAS_NO_THREADS)
 #  error _LIBCPP_HAS_NO_MONOTONIC_CLOCK may only be defined when \
          _LIBCPP_HAS_NO_THREADS is defined.
+#endif
+
+// Systems that use capability-based security (FreeBSD with Capsicum,
+// Nuxi CloudABI) may only provide local filesystem access (using *at()).
+// Functions like open(), rename(), unlink() and stat() should not be
+// used, as they attempt to access the global filesystem namespace.
+#ifdef __CloudABI__
+#define _LIBCPP_HAS_NO_GLOBAL_FILESYSTEM_NAMESPACE
+#endif
+
+// CloudABI is intended for running networked services. Processes do not
+// have standard input and output channels.
+#ifdef __CloudABI__
+#define _LIBCPP_HAS_NO_STDIN
+#define _LIBCPP_HAS_NO_STDOUT
+#endif
+
+#if defined(__ANDROID__) || defined(__CloudABI__)
+#define _LIBCPP_PROVIDES_DEFAULT_RUNE_TABLE
+#endif
+
+// Thread-unsafe functions such as strtok(), mbtowc() and localtime()
+// are not available.
+#ifdef __CloudABI__
+#define _LIBCPP_HAS_NO_THREAD_UNSAFE_C_FUNCTIONS
 #endif
 
 #endif  // _LIBCPP_CONFIG
