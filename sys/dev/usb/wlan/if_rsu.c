@@ -26,6 +26,7 @@ __FBSDID("$FreeBSD$");
  *   o h/w crypto
  *   o hostap / ibss / mesh
  */
+
 #include <sys/param.h>
 #include <sys/endian.h>
 #include <sys/sockio.h>
@@ -74,7 +75,26 @@ static int rsu_debug = 0;
 SYSCTL_NODE(_hw_usb, OID_AUTO, rsu, CTLFLAG_RW, 0, "USB rsu");
 SYSCTL_INT(_hw_usb_rsu, OID_AUTO, debug, CTLFLAG_RWTUN, &rsu_debug, 0,
     "Debug level");
+#define	RSU_DPRINTF(_sc, _flg, ...)					\
+	do								\
+		if (((_flg) == (RSU_DEBUG_ANY)) || (rsu_debug & (_flg))) \
+			device_printf((_sc)->sc_dev, __VA_ARGS__);	\
+	while (0)
+#else
+#define	RSU_DPRINTF(_sc, _flg, ...)
 #endif
+
+#define	RSU_DEBUG_ANY		0xffffffff
+#define	RSU_DEBUG_TX		0x00000001
+#define	RSU_DEBUG_RX		0x00000002
+#define	RSU_DEBUG_RESET		0x00000004
+#define	RSU_DEBUG_CALIB		0x00000008
+#define	RSU_DEBUG_STATE		0x00000010
+#define	RSU_DEBUG_SCAN		0x00000020
+#define	RSU_DEBUG_FWCMD		0x00000040
+#define	RSU_DEBUG_TXDONE	0x00000080
+#define	RSU_DEBUG_FW		0x00000100
+#define	RSU_DEBUG_FWDBG		0x00000200
 
 static const STRUCT_USB_HOST_ID rsu_devs[] = {
 #define	RSU_HT_NOT_SUPPORTED 0
@@ -279,6 +299,13 @@ rsu_match(device_t self)
 }
 
 static int
+rsu_send_mgmt(struct ieee80211_node *ni, int type, int arg)
+{
+
+	return (ENOTSUP);
+}
+
+static int
 rsu_attach(device_t self)
 {
 	struct usb_attach_arg *uaa = device_get_ivars(self);
@@ -342,7 +369,9 @@ rsu_attach(device_t self)
 	/* Set device capabilities. */
 	ic->ic_caps =
 	    IEEE80211_C_STA |		/* station mode */
+#if 0
 	    IEEE80211_C_BGSCAN |	/* Background scan. */
+#endif
 	    IEEE80211_C_SHPREAMBLE |	/* Short preamble supported. */
 	    IEEE80211_C_SHSLOT |	/* Short slot time supported. */
 	    IEEE80211_C_WPA;		/* WPA/RSN. */
@@ -376,6 +405,7 @@ rsu_attach(device_t self)
 	ic->ic_update_mcast = rsu_update_mcast;
 	ic->ic_parent = rsu_parent;
 	ic->ic_transmit = rsu_transmit;
+	ic->ic_send_mgmt = rsu_send_mgmt;
 
 	ieee80211_radiotap_attach(ic, &sc->sc_txtap.wt_ihdr,
 	    sizeof(sc->sc_txtap), RSU_TX_RADIOTAP_PRESENT, 
@@ -866,7 +896,9 @@ rsu_fw_cmd(struct rsu_softc *sc, uint8_t code, void *buf, int len)
 	/* Copy command payload. */
 	memcpy(&cmd[1], buf, len);
 
-	DPRINTFN(2, "Tx cmd code=0x%x len=0x%x\n", code, cmdsz);
+	RSU_DPRINTF(sc, RSU_DEBUG_TX | RSU_DEBUG_FWCMD,
+	    "%s: Tx cmd code=0x%x len=0x%x\n",
+	    __func__, code, cmdsz);
 	data->buflen = xferlen;
 	STAILQ_INSERT_TAIL(&sc->sc_tx_pending[which], data, next);
 	usbd_transfer_start(sc->sc_xfer[which]);
@@ -881,7 +913,8 @@ rsu_calib_task(void *arg, int pending __unused)
 	struct rsu_softc *sc = arg;
 	uint32_t reg;
 
-	DPRINTFN(6, "running calibration task\n");
+	RSU_DPRINTF(sc, RSU_DEBUG_CALIB, "%s: running calibration task\n",
+	    __func__);
 
 	RSU_LOCK(sc);
 #ifdef notyet
@@ -897,7 +930,8 @@ rsu_calib_task(void *arg, int pending __unused)
 	/* Read current signal level. */
 	if (rsu_fw_iocmd(sc, 0xf4000001) == 0) {
 		reg = rsu_read_4(sc, R92S_IOCMD_DATA);
-		DPRINTFN(8, "RSSI=%d%%\n", reg >> 4);
+		RSU_DPRINTF(sc, RSU_DEBUG_CALIB, "%s: RSSI=%d%%\n",
+		    __func__, reg >> 4);
 	}
 	if (sc->sc_calibrating)
 		taskqueue_enqueue_timeout(taskqueue_thread, &sc->calib_task, hz);
@@ -916,7 +950,9 @@ rsu_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 	int error, startcal = 0;
 
 	ostate = vap->iv_state;
-	DPRINTF("%s -> %s\n", ieee80211_state_name[ostate],
+	RSU_DPRINTF(sc, RSU_DEBUG_STATE, "%s: %s -> %s\n",
+	    __func__,
+	    ieee80211_state_name[ostate],
 	    ieee80211_state_name[nstate]);
 
 	IEEE80211_UNLOCK(ic);
@@ -1039,7 +1075,9 @@ rsu_join_bss(struct rsu_softc *sc, struct ieee80211_node *ni)
 
 	/* Let the FW decide the opmode based on the capinfo field. */
 	opmode = NDIS802_11AUTOUNKNOWN;
-	DPRINTF("setting operating mode to %d\n", opmode);
+	RSU_DPRINTF(sc, RSU_DEBUG_RESET,
+	    "%s: setting operating mode to %d\n",
+	    __func__, opmode);
 	error = rsu_fw_cmd(sc, R92S_CMD_SET_OPMODE, &opmode, sizeof(opmode));
 	if (error != 0)
 		return (error);
@@ -1050,7 +1088,9 @@ rsu_join_bss(struct rsu_softc *sc, struct ieee80211_node *ni)
 		auth.dot1x = (ni->ni_authmode == IEEE80211_AUTH_8021X);
 	} else
 		auth.mode = R92S_AUTHMODE_OPEN;
-	DPRINTF("setting auth mode to %d\n", auth.mode);
+	RSU_DPRINTF(sc, RSU_DEBUG_RESET,
+	    "%s: setting auth mode to %d\n",
+	    __func__, auth.mode);
 	error = rsu_fw_cmd(sc, R92S_CMD_SET_AUTH, &auth, sizeof(auth));
 	if (error != 0)
 		return (error);
@@ -1071,6 +1111,7 @@ rsu_join_bss(struct rsu_softc *sc, struct ieee80211_node *ni)
 	bss->config.bintval = htole32(ni->ni_intval);
 	bss->config.dsconfig = htole32(ieee80211_chan2ieee(ic, ni->ni_chan));
 	bss->inframode = htole32(NDIS802_11INFRASTRUCTURE);
+	/* XXX verify how this is supposed to look! */
 	memcpy(bss->supprates, ni->ni_rates.rs_rates,
 	    ni->ni_rates.rs_nrates);
 	/* Write the fixed fields of the beacon frame. */
@@ -1087,7 +1128,9 @@ rsu_join_bss(struct rsu_softc *sc, struct ieee80211_node *ni)
 		frm = ieee80211_add_htcap(frm, ni);
 	bss->ieslen = htole32(frm - (uint8_t *)fixed);
 	bss->len = htole32(((frm - buf) + 3) & ~3);
-	DPRINTF("sending join bss command to %s chan %d\n",
+	RSU_DPRINTF(sc, RSU_DEBUG_RESET | RSU_DEBUG_FWCMD,
+	    "%s: sending join bss command to %s chan %d\n",
+	    __func__,
 	    ether_sprintf(bss->macaddr), le32toh(bss->config.dsconfig));
 	return (rsu_fw_cmd(sc, R92S_CMD_JOIN_BSS, buf, sizeof(buf)));
 }
@@ -1098,7 +1141,8 @@ rsu_disconnect(struct rsu_softc *sc)
 	uint32_t zero = 0;	/* :-) */
 
 	/* Disassociate from our current BSS. */
-	DPRINTF("sending disconnect command\n");
+	RSU_DPRINTF(sc, RSU_DEBUG_STATE | RSU_DEBUG_FWCMD,
+	    "%s: sending disconnect command\n", __func__);
 	return (rsu_fw_cmd(sc, R92S_CMD_DISCONNECT, &zero, sizeof(zero)));
 }
 
@@ -1107,8 +1151,8 @@ rsu_event_survey(struct rsu_softc *sc, uint8_t *buf, int len)
 {
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ieee80211_frame *wh;
-	struct ieee80211_channel *c;
 	struct ndis_wlan_bssid_ex *bss;
+	struct ieee80211_rx_stats rxs;
 	struct mbuf *m;
 	int pktlen;
 
@@ -1118,13 +1162,17 @@ rsu_event_survey(struct rsu_softc *sc, uint8_t *buf, int len)
 	if (__predict_false(len < sizeof(*bss) + le32toh(bss->ieslen)))
 		return;
 
-	DPRINTFN(2, "found BSS %s: len=%d chan=%d inframode=%d "
-	    "networktype=%d privacy=%d\n",
+	RSU_DPRINTF(sc, RSU_DEBUG_SCAN,
+	    "%s: found BSS %s: len=%d chan=%d inframode=%d "
+	    "networktype=%d privacy=%d, RSSI=%d\n",
+	    __func__,
 	    ether_sprintf(bss->macaddr), le32toh(bss->len),
 	    le32toh(bss->config.dsconfig), le32toh(bss->inframode),
-	    le32toh(bss->networktype), le32toh(bss->privacy));
+	    le32toh(bss->networktype), le32toh(bss->privacy),
+	    le32toh(bss->rssi));
 
 	/* Build a fake beacon frame to let net80211 do all the parsing. */
+	/* XXX TODO: just call the new scan API methods! */
 	pktlen = sizeof(*wh) + le32toh(bss->ieslen);
 	if (__predict_false(pktlen > MCLBYTES))
 		return;
@@ -1144,17 +1192,19 @@ rsu_event_survey(struct rsu_softc *sc, uint8_t *buf, int len)
 
 	/* Finalize mbuf. */
 	m->m_pkthdr.len = m->m_len = pktlen;
-	/* Fix the channel. */
-	c = ieee80211_find_channel_byieee(ic, 
-	    le32toh(bss->config.dsconfig), 
-	    IEEE80211_CHAN_G);
-	if (c) {
-		ic->ic_curchan = c;
-		ieee80211_radiotap_chan_change(ic);
-	}
+
+	/* Set channel flags for input path */
+	bzero(&rxs, sizeof(rxs));
+	rxs.r_flags |= IEEE80211_R_IEEE | IEEE80211_R_FREQ;
+	rxs.r_flags |= IEEE80211_R_NF | IEEE80211_R_RSSI;
+	rxs.c_ieee = le32toh(bss->config.dsconfig);
+	rxs.c_freq = ieee80211_ieee2mhz(rxs.c_ieee, IEEE80211_CHAN_2GHZ);
+	rxs.rssi = le32toh(bss->rssi);
+	rxs.nf = 0; /* XXX */
+
 	/* XXX avoid a LOR */
 	RSU_UNLOCK(sc);
-	ieee80211_input_all(ic, m, le32toh(bss->rssi), 0);
+	ieee80211_input_mimo_all(ic, m, &rxs);
 	RSU_LOCK(sc);
 }
 
@@ -1173,7 +1223,9 @@ rsu_event_join_bss(struct rsu_softc *sc, uint8_t *buf, int len)
 	rsp = (struct r92s_event_join_bss *)buf;
 	res = (int)le32toh(rsp->join_res);
 
-	DPRINTF("Rx join BSS event len=%d res=%d\n", len, res);
+	RSU_DPRINTF(sc, RSU_DEBUG_STATE | RSU_DEBUG_FWCMD,
+	    "%s: Rx join BSS event len=%d res=%d\n",
+	    __func__, len, res);
 	if (res <= 0) {
 		RSU_UNLOCK(sc);
 		ieee80211_new_state(vap, IEEE80211_S_SCAN, -1);
@@ -1185,8 +1237,10 @@ rsu_event_join_bss(struct rsu_softc *sc, uint8_t *buf, int len)
 		DPRINTF("Assoc ID overflow\n");
 		tmp = 1;
 	}
-	DPRINTF("associated with %s associd=%d\n",
-	    ether_sprintf(rsp->bss.macaddr), tmp);
+	RSU_DPRINTF(sc, RSU_DEBUG_STATE | RSU_DEBUG_FWCMD,
+	    "%s: associated with %s associd=%d\n",
+	    __func__, ether_sprintf(rsp->bss.macaddr), tmp);
+	/* XXX is this required? What's the top two bits for again? */
 	ni->ni_associd = tmp | 0xc000;
 	RSU_UNLOCK(sc);
 	ieee80211_new_state(vap, IEEE80211_S_RUN,
@@ -1200,15 +1254,17 @@ rsu_rx_event(struct rsu_softc *sc, uint8_t code, uint8_t *buf, int len)
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
 
-	DPRINTFN(4, "Rx event code=%d len=%d\n", code, len);
+	RSU_DPRINTF(sc, RSU_DEBUG_RX | RSU_DEBUG_FWCMD,
+	    "%s: Rx event code=%d len=%d\n", __func__, code, len);
 	switch (code) {
 	case R92S_EVT_SURVEY:
 		if (vap->iv_state == IEEE80211_S_SCAN)
 			rsu_event_survey(sc, buf, len);
 		break;
 	case R92S_EVT_SURVEY_DONE:
-		DPRINTF("site survey pass %d done, found %d BSS\n",
-		    sc->sc_scan_pass, le32toh(*(uint32_t *)buf));
+		RSU_DPRINTF(sc, RSU_DEBUG_SCAN,
+		    "%s: site survey pass %d done, found %d BSS\n",
+		    __func__, sc->sc_scan_pass, le32toh(*(uint32_t *)buf));
 		if (vap->iv_state != IEEE80211_S_SCAN)
 			break;	/* Ignore if not scanning. */
 		if (sc->sc_scan_pass == 0 && vap->iv_des_nssid != 0) {
@@ -1225,11 +1281,10 @@ rsu_rx_event(struct rsu_softc *sc, uint8_t code, uint8_t *buf, int len)
 		if (vap->iv_state == IEEE80211_S_AUTH)
 			rsu_event_join_bss(sc, buf, len);
 		break;
-#if 0
-XXX This event is occurring regularly, possibly due to some power saving event
-XXX and disrupts the WLAN traffic. Disable for now.
 	case R92S_EVT_DEL_STA:
-		DPRINTF("disassociated from %s\n", ether_sprintf(buf));
+		RSU_DPRINTF(sc, RSU_DEBUG_FWCMD | RSU_DEBUG_STATE,
+		    "%s: disassociated from %s\n", __func__,
+		    ether_sprintf(buf));
 		if (vap->iv_state == IEEE80211_S_RUN &&
 		    IEEE80211_ADDR_EQ(vap->iv_bss->ni_bssid, buf)) {
 			RSU_UNLOCK(sc);
@@ -1237,17 +1292,17 @@ XXX and disrupts the WLAN traffic. Disable for now.
 			RSU_LOCK(sc);
 		}
 		break;
-#endif
 	case R92S_EVT_WPS_PBC:
-		DPRINTF("WPS PBC pushed.\n");
+		RSU_DPRINTF(sc, RSU_DEBUG_RX | RSU_DEBUG_FWCMD,
+		    "%s: WPS PBC pushed.\n", __func__);
 		break;
 	case R92S_EVT_FWDBG:
-		if (vap->iv_ifp->if_flags & IFF_DEBUG) {
-			buf[60] = '\0';
-			printf("FWDBG: %s\n", (char *)buf);
-		}
+		buf[60] = '\0';
+		RSU_DPRINTF(sc, RSU_DEBUG_FWDBG, "FWDBG: %s\n", (char *)buf);
 		break;
 	default:
+		RSU_DPRINTF(sc, RSU_DEBUG_ANY, "%s: unhandled code (%d)\n",
+		    __func__, code);
 		break;
 	}
 }
@@ -1258,7 +1313,7 @@ rsu_rx_multi_event(struct rsu_softc *sc, uint8_t *buf, int len)
 	struct r92s_fw_cmd_hdr *cmd;
 	int cmdsz;
 
-	DPRINTFN(6, "Rx events len=%d\n", len);
+	RSU_DPRINTF(sc, RSU_DEBUG_RX, "%s: Rx events len=%d\n", __func__, len);
 
 	/* Skip Rx status. */
 	buf += sizeof(struct r92s_rx_stat);
@@ -1339,7 +1394,9 @@ rsu_rx_frame(struct rsu_softc *sc, uint8_t *buf, int pktlen, int *rssi)
 	else
 		*rssi = 0;
 
-	DPRINTFN(5, "Rx frame len=%d rate=%d infosz=%d rssi=%d\n",
+	RSU_DPRINTF(sc, RSU_DEBUG_RX,
+	    "%s: Rx frame len=%d rate=%d infosz=%d rssi=%d\n",
+	    __func__,
 	    pktlen, rate, infosz, *rssi);
 
 	m = m_get2(pktlen, M_NOWAIT, MT_DATA, M_PKTHDR);
@@ -1401,7 +1458,8 @@ rsu_rx_multi_frame(struct rsu_softc *sc, uint8_t *buf, int len, int *rssi)
 	/* Get the number of encapsulated frames. */
 	stat = (struct r92s_rx_stat *)buf;
 	npkts = MS(le32toh(stat->rxdw2), R92S_RXDW2_PKTCNT);
-	DPRINTFN(6, "Rx %d frames in one chunk\n", npkts);
+	RSU_DPRINTF(sc, RSU_DEBUG_RX,
+	    "%s: Rx %d frames in one chunk\n", __func__, npkts);
 
 	/* Process all of them. */
 	while (npkts-- > 0) {
@@ -1540,6 +1598,13 @@ tr_setup:
 static void
 rsu_txeof(struct usb_xfer *xfer, struct rsu_data *data)
 {
+#ifdef	USB_DEBUG
+	struct rsu_softc *sc = usbd_xfer_softc(xfer);
+#endif
+
+	RSU_DPRINTF(sc, RSU_DEBUG_TXDONE, "%s: called; data=%p\n",
+	    __func__,
+	    data);
 
 	if (data->m) {
 		/* XXX status? */
@@ -1564,7 +1629,8 @@ rsu_bulk_tx_callback_sub(struct usb_xfer *xfer, usb_error_t error,
 		data = STAILQ_FIRST(&sc->sc_tx_active[which]);
 		if (data == NULL)
 			goto tr_setup;
-		DPRINTF("transfer done %p\n", data);
+		RSU_DPRINTF(sc, RSU_DEBUG_TXDONE, "%s: transfer done %p\n",
+		    __func__, data);
 		STAILQ_REMOVE_HEAD(&sc->sc_tx_active[which], next);
 		rsu_txeof(xfer, data);
 		STAILQ_INSERT_TAIL(&sc->sc_tx_inactive, data, next);
@@ -1573,13 +1639,17 @@ rsu_bulk_tx_callback_sub(struct usb_xfer *xfer, usb_error_t error,
 tr_setup:
 		data = STAILQ_FIRST(&sc->sc_tx_pending[which]);
 		if (data == NULL) {
-			DPRINTF("empty pending queue sc %p\n", sc);
+			RSU_DPRINTF(sc, RSU_DEBUG_TXDONE,
+			    "%s: empty pending queue sc %p\n", __func__, sc);
 			return;
 		}
 		STAILQ_REMOVE_HEAD(&sc->sc_tx_pending[which], next);
 		STAILQ_INSERT_TAIL(&sc->sc_tx_active[which], data, next);
 		usbd_xfer_set_frame_data(xfer, 0, data->buf, data->buflen);
-		DPRINTF("submitting transfer %p\n", data);
+		RSU_DPRINTF(sc, RSU_DEBUG_TXDONE,
+		    "%s: submitting transfer %p\n",
+		    __func__,
+		    data);
 		usbd_transfer_submit(xfer);
 		break;
 	default:
@@ -1630,6 +1700,9 @@ rsu_tx_start(struct rsu_softc *sc, struct ieee80211_node *ni,
 
 	wh = mtod(m0, struct ieee80211_frame *);
 	type = wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK;
+
+	RSU_DPRINTF(sc, RSU_DEBUG_TX, "%s: data=%p, m=%p\n",
+	    __func__, data, m0);
 
 	if (wh->i_fc[1] & IEEE80211_FC1_PROTECTED) {
 		k = ieee80211_crypto_encap(ni, m0);
@@ -1704,6 +1777,7 @@ rsu_tx_start(struct rsu_softc *sc, struct ieee80211_node *ni,
 		tap->wt_chan_flags = htole16(ic->ic_curchan->ic_flags);
 		ieee80211_radiotap_tx(vap, m0);
 	}
+
 	xferlen = sizeof(*txd) + m0->m_pkthdr.len;
 	m_copydata(m0, 0, m0->m_pkthdr.len, (caddr_t)&txd[1]);
 
@@ -1979,7 +2053,9 @@ rsu_power_on_bcut(struct rsu_softc *sc)
 		rsu_ms_delay(sc);
 	}
 	if (ntries == 20) {
-		DPRINTF("TxDMA is not ready\n");
+		RSU_DPRINTF(sc, RSU_DEBUG_RESET | RSU_DEBUG_TX,
+		    "%s: TxDMA is not ready\n",
+		    __func__);
 		/* Reset TxDMA. */
 		reg = rsu_read_1(sc, R92S_CR);
 		rsu_write_1(sc, R92S_CR, reg & ~R92S_CR_TXDMA_EN);
@@ -2041,7 +2117,9 @@ rsu_fw_loadsection(struct rsu_softc *sc, const uint8_t *buf, int len)
 		txd->txdw0 |= htole32(SM(R92S_TXDW0_PKTLEN, mlen));
 		memcpy(&txd[1], buf, mlen);
 		data->buflen = sizeof(*txd) + mlen;
-		DPRINTF("starting transfer %p\n", data);
+		RSU_DPRINTF(sc, RSU_DEBUG_TX | RSU_DEBUG_FW | RSU_DEBUG_RESET,
+		    "%s: starting transfer %p\n",
+		    __func__, data);
 		STAILQ_INSERT_TAIL(&sc->sc_tx_pending[which], data, next);
 		buf += mlen;
 		len -= mlen;
@@ -2063,7 +2141,9 @@ rsu_load_firmware(struct rsu_softc *sc)
 	int ntries, error;
 
 	if (rsu_read_1(sc, R92S_TCR) & R92S_TCR_FWRDY) {
-		DPRINTF("Firmware already loaded\n");
+		RSU_DPRINTF(sc, RSU_DEBUG_FW | RSU_DEBUG_RESET,
+		    "%s: Firmware already loaded\n",
+		    __func__);
 		return (0);
 	}
 
@@ -2319,7 +2399,9 @@ rsu_init(struct rsu_softc *sc)
 	/* It really takes 1.5 seconds for the firmware to boot: */
 	usb_pause_mtx(&sc->sc_mtx, (3 * hz) / 2);
 
-	DPRINTF("setting MAC address to %s\n", ether_sprintf(macaddr));
+	RSU_DPRINTF(sc, RSU_DEBUG_RESET, "%s: setting MAC address to %s\n",
+	    __func__,
+	    ether_sprintf(macaddr));
 	error = rsu_fw_cmd(sc, R92S_CMD_SET_MAC_ADDRESS, macaddr,
 	    IEEE80211_ADDR_LEN);
 	if (error != 0) {
@@ -2330,9 +2412,11 @@ rsu_init(struct rsu_softc *sc)
 	rsu_write_1(sc, R92S_USB_HRPWM,
 	    R92S_USB_HRPWM_PS_ST_ACTIVE | R92S_USB_HRPWM_PS_ALL_ON);
 
+	/* Set PS mode fully active */
 	memset(&cmd, 0, sizeof(cmd));
 	cmd.mode = R92S_PS_MODE_ACTIVE;
-	DPRINTF("setting ps mode to %d\n", cmd.mode);
+	RSU_DPRINTF(sc, RSU_DEBUG_RESET, "%s: setting ps mode to %d\n",
+	    __func__, cmd.mode);
 	error = rsu_fw_cmd(sc, R92S_CMD_SET_PWR_MODE, &cmd, sizeof(cmd));
 	if (error != 0) {
 		device_printf(sc->sc_dev, "could not set PS mode\n");

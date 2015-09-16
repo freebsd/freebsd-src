@@ -328,8 +328,19 @@ typedef enum {
 	CTL_TASK_TARGET_RESET,
 	CTL_TASK_BUS_RESET,
 	CTL_TASK_PORT_LOGIN,
-	CTL_TASK_PORT_LOGOUT
+	CTL_TASK_PORT_LOGOUT,
+	CTL_TASK_QUERY_TASK,
+	CTL_TASK_QUERY_TASK_SET,
+	CTL_TASK_QUERY_ASYNC_EVENT
 } ctl_task_type;
+
+typedef enum {
+	CTL_TASK_FUNCTION_COMPLETE,
+	CTL_TASK_FUNCTION_SUCCEEDED,
+	CTL_TASK_FUNCTION_REJECTED,
+	CTL_TASK_LUN_DOES_NOT_EXIST,
+	CTL_TASK_FUNCTION_NOT_SUPPORTED
+} ctl_task_status;
 
 /*
  * Task management I/O structure.  Aborts, bus resets, etc., are sent using
@@ -343,6 +354,8 @@ struct ctl_taskio {
 	ctl_task_type		task_action; /* Target Reset, Abort, etc.  */
 	uint32_t		tag_num;     /* tag number */
 	ctl_tag_type		tag_type;    /* simple, ordered, etc. */
+	uint8_t			task_status; /* Complete, Succeeded, etc. */
+	uint8_t			task_resp[3];/* Response information */
 };
 
 typedef enum {
@@ -439,7 +452,6 @@ struct ctl_ha_msg_scsi {
 	uint32_t		residual;    /* data residual length */
 	uint32_t		fetd_status; /* trans status, set by FETD,
 						0 = good*/
-	struct ctl_lba_len	lbalen;      /* used for stats */
 	struct scsi_sense_data	sense_data;  /* sense data */
 };
 

@@ -182,7 +182,19 @@ madt_setup_local(void)
 			    CPUID_TO_FAMILY(cpu_id) == 0x6 &&
 			    CPUID_TO_MODEL(cpu_id) == 0x2a) {
 				x2apic_mode = 0;
-		reason = "for a suspected Lenovo SandyBridge BIOS bug";
+				reason =
+				    "for a suspected Lenovo SandyBridge BIOS bug";
+			}
+			/*
+			 * Same reason, ASUS SandyBridge.
+			 */
+			if (hw_vendor != NULL &&
+			    !strcmp(hw_vendor, "ASUSTeK Computer Inc.") &&
+			    CPUID_TO_FAMILY(cpu_id) == 0x6 &&
+			    CPUID_TO_MODEL(cpu_id) == 0x2a) {
+				x2apic_mode = 0;
+				reason =
+				    "for a suspected ASUS SandyBridge BIOS bug";
 			}
 			freeenv(hw_vendor);
 		}

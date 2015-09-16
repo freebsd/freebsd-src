@@ -103,6 +103,9 @@ typedef enum {
 /* The retyable, error action, with table specified error code */
 #define	SS_RET		SS_RETRY|SSQ_DECREMENT_COUNT|SSQ_PRINT_SENSE
 
+/* Wait for transient error status to change */
+#define	SS_WAIT		SS_TUR|SSQ_MANY|SSQ_DECREMENT_COUNT|SSQ_PRINT_SENSE
+
 /* Fatal error action, with table specified error code */
 #define	SS_FATAL	SS_FAIL|SSQ_PRINT_SENSE
 
@@ -1666,6 +1669,7 @@ struct scsi_ec_cscd
 	uint8_t  type_code;
 #define EC_CSCD_EXT		0xff
 	uint8_t  luidt_pdt;
+#define EC_NUL			0x20
 #define EC_LUIDT_MASK		0xc0
 #define EC_LUIDT_LUN		0x00
 #define EC_LUIDT_PROXY_TOKEN	0x40

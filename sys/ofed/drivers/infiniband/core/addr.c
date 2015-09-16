@@ -332,7 +332,7 @@ mcast:
 #endif
 #ifdef INET6
 	case AF_INET6:
-		error = nd6_storelladdr(ifp, NULL, dst_in, (u_char *)edst, NULL);
+		error = nd6_resolve(ifp, is_gw, NULL, dst_in, edst, NULL);
 		break;
 #endif
 	default:

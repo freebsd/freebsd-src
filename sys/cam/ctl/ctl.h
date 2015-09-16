@@ -120,6 +120,7 @@ typedef enum {
 	CTL_UA_LUN_CHANGE	= 0x0020,
 	CTL_UA_MODE_CHANGE	= 0x0040,
 	CTL_UA_LOG_CHANGE	= 0x0080,
+	CTL_UA_INQ_CHANGE	= 0x0100,
 	CTL_UA_RES_PREEMPT	= 0x0400,
 	CTL_UA_RES_RELEASE	= 0x0800,
 	CTL_UA_REG_PREEMPT  	= 0x1000,
@@ -137,6 +138,10 @@ struct ctl_page_index;
 #ifdef SYSCTL_DECL	/* from sysctl.h */
 SYSCTL_DECL(_kern_cam_ctl);
 #endif
+
+struct ctl_lun;
+struct ctl_port;
+struct ctl_softc;
 
 /*
  * Put a string into an sbuf, escaping characters that are illegal or not
@@ -174,9 +179,17 @@ void ctl_config_write_done(union ctl_io *io);
 void ctl_portDB_changed(int portnum);
 int ctl_ioctl_io(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 		 struct thread *td);
-struct ctl_lun;
+
+void ctl_est_ua(struct ctl_lun *lun, uint32_t initidx, ctl_ua_type ua);
+void ctl_est_ua_port(struct ctl_lun *lun, int port, uint32_t except,
+    ctl_ua_type ua);
+void ctl_est_ua_all(struct ctl_lun *lun, uint32_t except, ctl_ua_type ua);
+void ctl_clr_ua(struct ctl_lun *lun, uint32_t initidx, ctl_ua_type ua);
+void ctl_clr_ua_all(struct ctl_lun *lun, uint32_t except, ctl_ua_type ua);
+void ctl_clr_ua_allluns(struct ctl_softc *ctl_softc, uint32_t initidx,
+    ctl_ua_type ua_type);
+
 void ctl_isc_announce_lun(struct ctl_lun *lun);
-struct ctl_port;
 void ctl_isc_announce_port(struct ctl_port *port);
 
 /*

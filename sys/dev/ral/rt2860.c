@@ -3351,7 +3351,7 @@ rt2860_read_eeprom(struct rt2860_softc *sc, uint8_t macaddr[IEEE80211_ADDR_LEN])
 
 	/* read EEPROM version */
 	val = rt2860_srom_read(sc, RT2860_EEPROM_VERSION);
-	DPRINTF(("EEPROM rev=%d, FAE=%d\n", val & 0xff, val >> 8));
+	DPRINTF(("EEPROM rev=%d, FAE=%d\n", val >> 8, val & 0xff));
 
 	/* read MAC address */
 	val = rt2860_srom_read(sc, RT2860_EEPROM_MAC01);
