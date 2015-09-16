@@ -34,7 +34,7 @@ OBJROOT ?= ${SB_OBJROOT}
 .endif
 OBJROOT ?= ${SRCTOP:H}/obj/
 .if ${OBJROOT:M*/} != ""
-OBJROOT:= ${OBJROOT:tA}/
+OBJROOT:= ${OBJROOT:H:tA}/
 .else
 OBJROOT:= ${OBJROOT:H:tA}/${OBJROOT:T}
 .endif
