@@ -63,9 +63,7 @@ int __aout_fdnlist(int, struct nlist *);
 int __elf_fdnlist(int, struct nlist *);
 
 int
-nlist(name, list)
-	const char *name;
-	struct nlist *list;
+nlist(const char *name, struct nlist *list)
 {
 	int fd, n;
 
@@ -89,11 +87,10 @@ static struct nlist_handlers {
 };
 
 int
-__fdnlist(fd, list)
-	int fd;
-	struct nlist *list;
+__fdnlist(int fd, struct nlist *list)
 {
-	int n = -1, i;
+	int n = -1;
+	unsigned int i;
 
 	for (i = 0; i < sizeof(nlist_fn) / sizeof(nlist_fn[0]); i++) {
 		n = (nlist_fn[i].fn)(fd, list);
@@ -107,9 +104,7 @@ __fdnlist(fd, list)
 
 #ifdef _NLIST_DO_AOUT
 int
-__aout_fdnlist(fd, list)
-	int fd;
-	struct nlist *list;
+__aout_fdnlist(int fd, struct nlist *list)
 {
 	struct nlist *p, *symtab;
 	caddr_t strtab, a_out_mmap;
@@ -235,9 +230,7 @@ __elf_is_okay__(Elf_Ehdr *ehdr)
 }
 
 int
-__elf_fdnlist(fd, list)
-	int fd;
-	struct nlist *list;
+__elf_fdnlist(int fd, struct nlist *list)
 {
 	struct nlist *p;
 	Elf_Off symoff = 0, symstroff = 0;
@@ -377,11 +370,7 @@ __elf_fdnlist(fd, list)
  * n_value and n_type members.
  */
 static void
-elf_sym_to_nlist(nl, s, shdr, shnum)
-	struct nlist *nl;
-	Elf_Sym *s;
-	Elf_Shdr *shdr;
-	int shnum;
+elf_sym_to_nlist(struct nlist *nl, Elf_Sym *s, Elf_Shdr *shdr, int shnum)
 {
 	nl->n_value = s->st_value;
 

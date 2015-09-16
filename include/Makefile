@@ -255,6 +255,7 @@ copies:
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 teken.h \
 	    ${DESTDIR}${INCLUDEDIR}/teken
 .if ${MK_META_MODE} == "yes"
+	cd ${.OBJDIR}
 	touch ${.TARGET}
 .endif
 
@@ -372,6 +373,7 @@ symlinks:
 		    ${DESTDIR}${INCLUDEDIR}/rpc; \
 	done
 .if ${MK_META_MODE} == "yes"
+	cd ${.OBJDIR}
 	touch ${.TARGET}
 .endif
 

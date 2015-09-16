@@ -281,7 +281,9 @@ tpcl_resolve(struct ctl_softc *softc, int init_port,
 	struct ctl_lun *lun;
 	uint64_t lunid = UINT64_MAX;
 
-	if (cscd->type_code != EC_CSCD_ID)
+	if (cscd->type_code != EC_CSCD_ID ||
+	    (cscd->luidt_pdt & EC_LUIDT_MASK) != EC_LUIDT_LUN ||
+	    (cscd->luidt_pdt & EC_NUL) != 0)
 		return (lunid);
 
 	cscdid = (struct scsi_ec_cscd_id *)cscd;

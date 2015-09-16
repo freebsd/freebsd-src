@@ -186,7 +186,7 @@ htable_unlink_entry(struct llentry *lle)
 }
 
 struct prefix_match_data {
-	const struct sockaddr *prefix;
+	const struct sockaddr *addr;
 	const struct sockaddr *mask;
 	struct llentries dchain;
 	u_int flags;
@@ -199,7 +199,7 @@ htable_prefix_free_cb(struct lltable *llt, struct llentry *lle, void *farg)
 
 	pmd = (struct prefix_match_data *)farg;
 
-	if (llt->llt_match_prefix(pmd->prefix, pmd->mask, pmd->flags, lle)) {
+	if (llt->llt_match_prefix(pmd->addr, pmd->mask, pmd->flags, lle)) {
 		LLE_WLOCK(lle);
 		LIST_INSERT_HEAD(&pmd->dchain, lle, lle_chain);
 	}
@@ -208,14 +208,14 @@ htable_prefix_free_cb(struct lltable *llt, struct llentry *lle, void *farg)
 }
 
 static void
-htable_prefix_free(struct lltable *llt, const struct sockaddr *prefix,
+htable_prefix_free(struct lltable *llt, const struct sockaddr *addr,
     const struct sockaddr *mask, u_int flags)
 {
 	struct llentry *lle, *next;
 	struct prefix_match_data pmd;
 
 	bzero(&pmd, sizeof(pmd));
-	pmd.prefix = prefix;
+	pmd.addr = addr;
 	pmd.mask = mask;
 	pmd.flags = flags;
 	LIST_INIT(&pmd.dchain);
@@ -291,17 +291,11 @@ lltable_drop_entry_queue(struct llentry *lle)
 size_t
 llentry_free(struct llentry *lle)
 {
-	struct lltable *llt;
 	size_t pkts_dropped;
 
 	LLE_WLOCK_ASSERT(lle);
 
-	if ((lle->la_flags & LLE_LINKED) != 0) {
-		llt = lle->lle_tbl;
-
-		IF_AFDATA_WLOCK_ASSERT(llt->llt_ifp);
-		llt->llt_unlink_entry(lle);
-	}
+	KASSERT((lle->la_flags & LLE_LINKED) == 0, ("freeing linked lle"));
 
 	pkts_dropped = lltable_drop_entry_queue(lle);
 
@@ -427,8 +421,42 @@ lltable_drain(int af)
 }
 #endif
 
+/*
+ * Deletes an address from given lltable.
+ * Used for userland interaction to remove
+ * individual entries. Skips entries added by OS.
+ */
+int
+lltable_delete_addr(struct lltable *llt, u_int flags,
+    const struct sockaddr *l3addr)
+{
+	struct llentry *lle;
+	struct ifnet *ifp;
+
+	ifp = llt->llt_ifp;
+	IF_AFDATA_WLOCK(ifp);
+	lle = lla_lookup(llt, LLE_EXCLUSIVE, l3addr);
+
+	if (lle == NULL) {
+		IF_AFDATA_WUNLOCK(ifp);
+		return (ENOENT);
+	}
+	if ((lle->la_flags & LLE_IFADDR) != 0 && (flags & LLE_IFADDR) == 0) {
+		IF_AFDATA_WUNLOCK(ifp);
+		LLE_WUNLOCK(lle);
+		return (EPERM);
+	}
+
+	lltable_unlink_entry(llt, lle);
+	IF_AFDATA_WUNLOCK(ifp);
+
+	llt->llt_delete_entry(llt, lle);
+
+	return (0);
+}
+
 void
-lltable_prefix_free(int af, struct sockaddr *prefix, struct sockaddr *mask,
+lltable_prefix_free(int af, struct sockaddr *addr, struct sockaddr *mask,
     u_int flags)
 {
 	struct lltable *llt;
@@ -438,7 +466,7 @@ lltable_prefix_free(int af, struct sockaddr *prefix, struct sockaddr *mask,
 		if (llt->llt_af != af)
 			continue;
 
-		llt->llt_prefix_free(llt, prefix, mask, flags);
+		llt->llt_prefix_free(llt, addr, mask, flags);
 	}
 	LLTABLE_RUNLOCK();
 }
@@ -651,10 +679,7 @@ lla_rt_output(struct rt_msghdr *rtm, struct rt_addrinfo *info)
 		break;
 
 	case RTM_DELETE:
-		IF_AFDATA_WLOCK(ifp);
-		error = lla_delete(llt, 0, dst);
-		IF_AFDATA_WUNLOCK(ifp);
-		return (error == 0 ? 0 : ENOENT);
+		return (lltable_delete_addr(llt, 0, dst));
 
 	default:
 		error = EINVAL;

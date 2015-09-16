@@ -509,7 +509,8 @@ static struct op_table_entry scsi_op_codes[] = {
 	/* 99 */
 	/* 9A */
 	/* 9B */
-	/* 9C */
+	/* 9C  O              WRITE ATOMIC(16) */
+	{ 0x9C, D, "WRITE ATOMIC(16)" },
 	/* 9D */
 	/* XXX KDM ALL for this?  op-num.txt defines it for none.. */
 	/* 9E                  SERVICE ACTION IN(16) */
@@ -1079,7 +1080,7 @@ static struct asc_table_entry asc_table[] = {
 	{ SST(0x04, 0x00, SS_RDEF,
 	    "Logical unit not ready, cause not reportable") },
 	/* DTLPWROMAEBKVF */
-	{ SST(0x04, 0x01, SS_TUR | SSQ_MANY | SSQ_DECREMENT_COUNT | EBUSY,
+	{ SST(0x04, 0x01, SS_WAIT | EBUSY,
 	    "Logical unit is in process of becoming ready") },
 	/* DTLPWROMAEBKVF */
 	{ SST(0x04, 0x02, SS_START | SSQ_DECREMENT_COUNT | ENXIO,
@@ -1106,7 +1107,7 @@ static struct asc_table_entry asc_table[] = {
 	{ SST(0x04, 0x09, SS_RDEF,	/* XXX TBD */
 	    "Logical unit not ready, self-test in progress") },
 	/* DTLPWROMAEBKVF */
-	{ SST(0x04, 0x0A, SS_TUR | SSQ_MANY | SSQ_DECREMENT_COUNT | ENXIO,
+	{ SST(0x04, 0x0A, SS_WAIT | ENXIO,
 	    "Logical unit not accessible, asymmetric access state transition")},
 	/* DTLPWROMAEBKVF */
 	{ SST(0x04, 0x0B, SS_FATAL | ENXIO,
@@ -1121,7 +1122,7 @@ static struct asc_table_entry asc_table[] = {
 	{ SST(0x04, 0x10, SS_RDEF,	/* XXX TBD */
 	    "Logical unit not ready, auxiliary memory not accessible") },
 	/* DT  WRO AEB VF */
-	{ SST(0x04, 0x11, SS_TUR | SSQ_MANY | SSQ_DECREMENT_COUNT | EBUSY,
+	{ SST(0x04, 0x11, SS_WAIT | EBUSY,
 	    "Logical unit not ready, notify (enable spinup) required") },
 	/*        M    V  */
 	{ SST(0x04, 0x12, SS_RDEF,	/* XXX TBD */
@@ -3803,8 +3804,6 @@ scsi_set_sense_data_va(struct scsi_sense_data *sense_data,
 			 */
 			sense->extra_len = 10;
 			sense_len = (int)va_arg(ap, int);
-			len_to_copy = MIN(sense_len, SSD_EXTRA_MAX -
-					  sense->extra_len);
 			data = (uint8_t *)va_arg(ap, uint8_t *);
 
 			switch (elem_type) {
@@ -3822,10 +3821,14 @@ scsi_set_sense_data_va(struct scsi_sense_data *sense_data,
 				uint8_t *data_dest;
 				int i;
 
-				if (elem_type == SSD_ELEM_COMMAND)
+				if (elem_type == SSD_ELEM_COMMAND) {
 					data_dest = &sense->cmd_spec_info[0];
-				else {
+					len_to_copy = MIN(sense_len,
+					    sizeof(sense->cmd_spec_info));
+				} else {
 					data_dest = &sense->info[0];
+					len_to_copy = MIN(sense_len,
+					    sizeof(sense->info));
 					/*
 					 * We're setting the info field, so
 					 * set the valid bit.
