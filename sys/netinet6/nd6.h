@@ -402,12 +402,12 @@ void nd6_destroy(void);
 #endif
 struct nd_ifinfo *nd6_ifattach(struct ifnet *);
 void nd6_ifdetach(struct nd_ifinfo *);
-int nd6_is_addr_neighbor(struct sockaddr_in6 *, struct ifnet *);
+int nd6_is_addr_neighbor(const struct sockaddr_in6 *, struct ifnet *);
 void nd6_option_init(void *, int, union nd_opts *);
 struct nd_opt_hdr *nd6_option(union nd_opts *);
 int nd6_options(union nd_opts *);
-struct llentry *nd6_lookup(struct in6_addr *, int, struct ifnet *);
-struct llentry *nd6_alloc(struct in6_addr *, int, struct ifnet *);
+struct llentry *nd6_lookup(const struct in6_addr *, int, struct ifnet *);
+struct llentry *nd6_alloc(const struct in6_addr *, int, struct ifnet *);
 void nd6_setmtu(struct ifnet *);
 void nd6_llinfo_settimer(struct llentry *, long);
 void nd6_llinfo_settimer_locked(struct llentry *, long);
