@@ -499,7 +499,6 @@ ether_input_internal(struct ifnet *ifp, struct mbuf *m)
 			if_printf(ifp, "cannot pullup VLAN header\n");
 #endif
 			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
-			m_freem(m);
 			CURVNET_RESTORE();
 			return;
 		}
