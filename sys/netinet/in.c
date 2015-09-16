@@ -776,13 +776,16 @@ in_scrubprefix(struct in_ifaddr *target, u_int flags)
 	    (flags & LLE_STATIC)) {
 		struct in_ifaddr *eia;
 
+		/*
+		 * XXXME: add fib-aware in_localip.
+		 * We definitely don't want to switch between
+		 * prefixes in different fibs.
+		 */
 		eia = in_localip_more(target);
 
 		if (eia != NULL) {
-			int fibnum = target->ia_ifp->if_fib;
-
 			error = ifa_switch_loopback_route((struct ifaddr *)eia,
-			    (struct sockaddr *)&target->ia_addr, fibnum);
+			    (struct sockaddr *)&target->ia_addr);
 			ifa_free(&eia->ia_ifa);
 		} else {
 			error = ifa_del_loopback_route((struct ifaddr *)target,
