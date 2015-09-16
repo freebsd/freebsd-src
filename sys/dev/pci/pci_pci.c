@@ -1082,7 +1082,7 @@ pcib_attach(device_t dev)
     pcib_attach_common(dev);
     sc = device_get_softc(dev);
     if (sc->bus.sec != 0) {
-	child = device_add_child(dev, "pci", sc->bus.sec);
+	child = device_add_child(dev, "pci", -1);
 	if (child != NULL)
 	    return(bus_generic_attach(dev));
     }

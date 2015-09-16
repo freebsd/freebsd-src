@@ -462,7 +462,7 @@ ar71xx_pci_attach(device_t dev)
 	ar71xx_pci_slot_fixup(dev, 0, 18, 0);
 #endif	/* AR71XX_ATH_EEPROM */
 
-	device_add_child(dev, "pci", busno);
+	device_add_child(dev, "pci", -1);
 	return (bus_generic_attach(dev));
 }
 
