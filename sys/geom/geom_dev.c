@@ -570,7 +570,7 @@ g_dev_done(struct bio *bp2)
 	}
 	mtx_unlock(&sc->sc_mtx);
 	if (destroy)
-		g_post_event(g_dev_destroy, cp, M_WAITOK, NULL);
+		g_post_event(g_dev_destroy, cp, M_NOWAIT, NULL);
 	biodone(bp);
 }
 
