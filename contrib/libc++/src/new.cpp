@@ -133,14 +133,28 @@ operator delete(void* ptr, const std::nothrow_t&) _NOEXCEPT
 
 _LIBCPP_WEAK _LIBCPP_NEW_DELETE_VIS
 void
+operator delete(void* ptr, size_t) _NOEXCEPT
+{
+    ::operator delete(ptr);
+}
+
+_LIBCPP_WEAK _LIBCPP_NEW_DELETE_VIS
+void
 operator delete[] (void* ptr) _NOEXCEPT
 {
-    ::operator delete (ptr);
+    ::operator delete(ptr);
 }
 
 _LIBCPP_WEAK _LIBCPP_NEW_DELETE_VIS
 void
 operator delete[] (void* ptr, const std::nothrow_t&) _NOEXCEPT
+{
+    ::operator delete[](ptr);
+}
+
+_LIBCPP_WEAK _LIBCPP_NEW_DELETE_VIS
+void
+operator delete[] (void* ptr, size_t) _NOEXCEPT
 {
     ::operator delete[](ptr);
 }
