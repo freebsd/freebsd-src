@@ -327,6 +327,8 @@ When set, it also enforces the following options:
 .It
 .Va WITHOUT_CLANG_BOOTSTRAP
 .It
+.Va WITHOUT_ELFTOOLCHAIN_BOOTSTRAP
+.It
 .Va WITHOUT_GCC_BOOTSTRAP
 .El
 .It Va WITHOUT_CRYPT
@@ -880,7 +882,7 @@ and related support files.
 Create meta files during non META_MODE build.
 The meta files can be useful for debugging.
 .It Va WITH_META_MODE
-.\" from FreeBSD: head/tools/build/options/WITH_META_MODE 284708 2015-06-22 20:21:57Z sjg
+.\" from FreeBSD: head/tools/build/options/WITH_META_MODE 287904 2015-09-17 05:01:04Z bdrewery
 Enable building in meta mode.
 .Pp
 The build is driven by dirdeps.mk using
