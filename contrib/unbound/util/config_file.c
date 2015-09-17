@@ -56,8 +56,9 @@
 #include "util/fptr_wlist.h"
 #include "util/data/dname.h"
 #include "util/rtt.h"
-#include "ldns/wire2str.h"
-#include "ldns/parseutil.h"
+#include "services/cache/infra.h"
+#include "sldns/wire2str.h"
+#include "sldns/parseutil.h"
 #ifdef HAVE_GLOB_H
 # include <glob.h>
 #endif
@@ -131,6 +132,7 @@ config_create(void)
 	cfg->bogus_ttl = 60;
 	cfg->min_ttl = 0;
 	cfg->max_ttl = 3600 * 24;
+	cfg->max_negative_ttl = 3600;
 	cfg->prefetch = 0;
 	cfg->prefetch_key = 0;
 	cfg->infra_cache_slabs = 4;
@@ -156,6 +158,7 @@ config_create(void)
 	cfg->so_rcvbuf = 0;
 	cfg->so_sndbuf = 0;
 	cfg->so_reuseport = 0;
+	cfg->ip_transparent = 0;
 	cfg->num_ifs = 0;
 	cfg->ifs = NULL;
 	cfg->num_out_ifs = 0;
@@ -169,7 +172,9 @@ config_create(void)
 	cfg->harden_dnssec_stripped = 1;
 	cfg->harden_below_nxdomain = 0;
 	cfg->harden_referral_path = 0;
+	cfg->harden_algo_downgrade = 1;
 	cfg->use_caps_bits_for_id = 0;
+	cfg->caps_whitelist = NULL;
 	cfg->private_address = NULL;
 	cfg->private_domain = NULL;
 	cfg->unwanted_threshold = 0;
@@ -226,6 +231,12 @@ config_create(void)
 	if(!(cfg->dnstap_socket_path = strdup(DNSTAP_SOCKET_PATH)))
 		goto error_exit;
 #endif
+	cfg->ratelimit = 0;
+	cfg->ratelimit_slabs = 4;
+	cfg->ratelimit_size = 4*1024*1024;
+	cfg->ratelimit_for_domain = NULL;
+	cfg->ratelimit_below_domain = NULL;
+	cfg->ratelimit_factor = 10;
 	return cfg;
 error_exit:
 	config_delete(cfg); 
@@ -372,12 +383,15 @@ int config_set_option(struct config_file* cfg, const char* opt,
 	else S_MEMSIZE("so-rcvbuf:", so_rcvbuf)
 	else S_MEMSIZE("so-sndbuf:", so_sndbuf)
 	else S_YNO("so-reuseport:", so_reuseport)
+	else S_YNO("ip-transparent:", ip_transparent)
 	else S_MEMSIZE("rrset-cache-size:", rrset_cache_size)
 	else S_POW2("rrset-cache-slabs:", rrset_cache_slabs)
 	else S_YNO("prefetch:", prefetch)
 	else S_YNO("prefetch-key:", prefetch_key)
 	else if(strcmp(opt, "cache-max-ttl:") == 0)
 	{ IS_NUMBER_OR_ZERO; cfg->max_ttl = atoi(val); MAX_TTL=(time_t)cfg->max_ttl;}
+	else if(strcmp(opt, "cache-max-negative-ttl:") == 0)
+	{ IS_NUMBER_OR_ZERO; cfg->max_negative_ttl = atoi(val); MAX_NEG_TTL=(time_t)cfg->max_negative_ttl;}
 	else if(strcmp(opt, "cache-min-ttl:") == 0)
 	{ IS_NUMBER_OR_ZERO; cfg->min_ttl = atoi(val); MIN_TTL=(time_t)cfg->min_ttl;}
 	else if(strcmp(opt, "infra-cache-min-rtt:") == 0) {
@@ -404,7 +418,9 @@ int config_set_option(struct config_file* cfg, const char* opt,
 	else S_YNO("harden-dnssec-stripped:", harden_dnssec_stripped)
 	else S_YNO("harden-below-nxdomain:", harden_below_nxdomain)
 	else S_YNO("harden-referral-path:", harden_referral_path)
+	else S_YNO("harden-algo-downgrade:", harden_algo_downgrade)
 	else S_YNO("use-caps-for-id", use_caps_bits_for_id)
+	else S_STRLIST("caps-whitelist:", caps_whitelist)
 	else S_SIZET_OR_ZERO("unwanted-reply-threshold:", unwanted_threshold)
 	else S_STRLIST("private-address:", private_address)
 	else S_STRLIST("private-domain:", private_domain)
@@ -444,6 +460,13 @@ int config_set_option(struct config_file* cfg, const char* opt,
 	else S_STR("control-cert-file:", control_cert_file)
 	else S_STR("module-config:", module_conf)
 	else S_STR("python-script:", python_script)
+	else if(strcmp(opt, "ratelimit:") == 0) {
+	    IS_NUMBER_OR_ZERO; cfg->ratelimit = atoi(val);
+	    infra_dp_ratelimit=cfg->ratelimit;
+	}
+	else S_MEMSIZE("ratelimit-size:", ratelimit_size)
+	else S_POW2("ratelimit-slabs:", ratelimit_slabs)
+	else S_NUMBER_OR_ZERO("ratelimit-factor:", ratelimit_factor)
 	/* val_sig_skew_min and max are copied into val_env during init,
 	 * so this does not update val_env with set_option */
 	else if(strcmp(opt, "val-sig-skew-min:") == 0)
@@ -452,7 +475,8 @@ int config_set_option(struct config_file* cfg, const char* opt,
 	{ IS_NUMBER_OR_ZERO; cfg->val_sig_skew_max = (int32_t)atoi(val); }
 	else if (strcmp(opt, "outgoing-interface:") == 0) {
 		char* d = strdup(val);
-		char** oi = (char**)malloc((cfg->num_out_ifs+1)*sizeof(char*));
+		char** oi = 
+		(char**)reallocarray(NULL, (size_t)cfg->num_out_ifs+1, sizeof(char*));
 		if(!d || !oi) { free(d); free(oi); return -1; }
 		if(cfg->out_ifs && cfg->num_out_ifs) {
 			memmove(oi, cfg->out_ifs, cfg->num_out_ifs*sizeof(char*));
@@ -465,7 +489,8 @@ int config_set_option(struct config_file* cfg, const char* opt,
 		 * interface, outgoing-interface, access-control, 
 		 * stub-zone, name, stub-addr, stub-host, stub-prime
 		 * forward-first, stub-first,
-		 * forward-zone, name, forward-addr, forward-host */
+		 * forward-zone, name, forward-addr, forward-host,
+		 * ratelimit-for-domain, ratelimit-below-domain */
 		return 0;
 	}
 	return 1;
@@ -577,8 +602,8 @@ config_collate_cat(struct config_strlist* list)
 #define O_MEM(opt, str, var) if(strcmp(opt, str)==0) { \
 	if(cfg->var > 1024*1024*1024) {	\
 	  size_t f=cfg->var/(size_t)1000000, b=cfg->var%(size_t)1000000; \
-	  snprintf(buf, len, "%u%6.6u\n", (unsigned)f, (unsigned)b); \
-	} else snprintf(buf, len, "%u\n", (unsigned)cfg->var); \
+	  snprintf(buf, len, "%u%6.6u", (unsigned)f, (unsigned)b); \
+	} else snprintf(buf, len, "%u", (unsigned)cfg->var); \
 	func(buf, arg);}
 /** compare and print list option */
 #define O_LST(opt, name, lst) if(strcmp(opt, name)==0) { \
@@ -624,11 +649,13 @@ config_get_option(struct config_file* cfg, const char* opt,
 	else O_MEM(opt, "so-rcvbuf", so_rcvbuf)
 	else O_MEM(opt, "so-sndbuf", so_sndbuf)
 	else O_YNO(opt, "so-reuseport", so_reuseport)
+	else O_YNO(opt, "ip-transparent", ip_transparent)
 	else O_MEM(opt, "rrset-cache-size", rrset_cache_size)
 	else O_DEC(opt, "rrset-cache-slabs", rrset_cache_slabs)
 	else O_YNO(opt, "prefetch-key", prefetch_key)
 	else O_YNO(opt, "prefetch", prefetch)
 	else O_DEC(opt, "cache-max-ttl", max_ttl)
+	else O_DEC(opt, "cache-max-negative-ttl", max_negative_ttl)
 	else O_DEC(opt, "cache-min-ttl", min_ttl)
 	else O_DEC(opt, "infra-host-ttl", host_ttl)
 	else O_DEC(opt, "infra-cache-slabs", infra_cache_slabs)
@@ -662,7 +689,9 @@ config_get_option(struct config_file* cfg, const char* opt,
 	else O_YNO(opt, "harden-dnssec-stripped", harden_dnssec_stripped)
 	else O_YNO(opt, "harden-below-nxdomain", harden_below_nxdomain)
 	else O_YNO(opt, "harden-referral-path", harden_referral_path)
+	else O_YNO(opt, "harden-algo-downgrade", harden_algo_downgrade)
 	else O_YNO(opt, "use-caps-for-id", use_caps_bits_for_id)
+	else O_LST(opt, "caps-whitelist", caps_whitelist)
 	else O_DEC(opt, "unwanted-reply-threshold", unwanted_threshold)
 	else O_YNO(opt, "do-not-query-localhost", donotquery_localhost)
 	else O_STR(opt, "module-config", module_conf)
@@ -703,6 +732,12 @@ config_get_option(struct config_file* cfg, const char* opt,
 	else O_YNO(opt, "unblock-lan-zones", unblock_lan_zones)
 	else O_DEC(opt, "max-udp-size", max_udp_size)
 	else O_STR(opt, "python-script", python_script)
+	else O_DEC(opt, "ratelimit", ratelimit)
+	else O_MEM(opt, "ratelimit-size", ratelimit_size)
+	else O_DEC(opt, "ratelimit-slabs", ratelimit_slabs)
+	else O_LS2(opt, "ratelimit-for-domain", ratelimit_for_domain)
+	else O_LS2(opt, "ratelimit-below-domain", ratelimit_below_domain)
+	else O_DEC(opt, "ratelimit-factor", ratelimit_factor)
 	else O_DEC(opt, "val-sig-skew-min", val_sig_skew_min)
 	else O_DEC(opt, "val-sig-skew-max", val_sig_skew_max)
 	/* not here:
@@ -890,6 +925,7 @@ config_delete(struct config_file* cfg)
 	free(cfg->version);
 	free(cfg->module_conf);
 	free(cfg->outgoing_avail_ports);
+	config_delstrlist(cfg->caps_whitelist);
 	config_delstrlist(cfg->private_address);
 	config_delstrlist(cfg->private_domain);
 	config_delstrlist(cfg->auto_trust_anchor_file_list);
@@ -909,9 +945,12 @@ config_delete(struct config_file* cfg)
 	free(cfg->server_cert_file);
 	free(cfg->control_key_file);
 	free(cfg->control_cert_file);
+	free(cfg->dns64_prefix);
 	free(cfg->dnstap_socket_path);
 	free(cfg->dnstap_identity);
 	free(cfg->dnstap_version);
+	config_deldblstrlist(cfg->ratelimit_for_domain);
+	config_deldblstrlist(cfg->ratelimit_below_domain);
 	free(cfg);
 }
 
@@ -998,7 +1037,7 @@ int cfg_condense_ports(struct config_file* cfg, int** avail)
 	*avail = NULL;
 	if(num == 0)
 		return 0;
-	*avail = (int*)malloc(sizeof(int)*num);
+	*avail = (int*)reallocarray(NULL, (size_t)num, sizeof(int));
 	if(!*avail)
 		return 0;
 	for(i=0; i<65536; i++) {
@@ -1198,6 +1237,7 @@ config_apply(struct config_file* config)
 {
 	MAX_TTL = (time_t)config->max_ttl;
 	MIN_TTL = (time_t)config->min_ttl;
+	MAX_NEG_TTL = (time_t)config->max_negative_ttl;
 	RTT_MIN_TIMEOUT = config->infra_cache_min_rtt;
 	EDNS_ADVERTISED_SIZE = (uint16_t)config->edns_buffer_size;
 	MINIMAL_RESPONSES = config->minimal_responses;
