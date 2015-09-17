@@ -22,7 +22,7 @@ _srcconf_included_:	.NOTMAIN
 .for var in ${__ENV_ONLY_OPTIONS}
 __postrcconf_${var}:=	${MK_${var}:U-}${WITHOUT_${var}:Uno:Dyes}${WITH_${var}:Uno:Dyes}
 .if ${__presrcconf_${var}} != ${__postrcconf_${var}}
-.error Option ${var} may only be defined in ${SRC_ENV_CONF},  environment, or make argument, not ${SRCCONF}.
+.error Option ${var} may only be defined in ${SRC_ENV_CONF}, environment, or make argument, not ${SRCCONF}.
 .endif
 .undef __presrcconf_${var}
 .undef __postrcconf_${var}
