@@ -34,6 +34,7 @@ _CHERI_CFLAGS+=	-Qunused-arguments
 .endif
 
 .if ${WANT_CHERI} != "variables"
+NO_SHARED=	yes
 CC:=	${_CHERI_CC}
 CFLAGS+=	${_CHERI_CFLAGS}
 # Don't remove CHERI symbols from the symbol table
