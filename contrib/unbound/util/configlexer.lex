@@ -128,6 +128,10 @@ static void config_start_include_glob(const char* filename)
 #endif
 		;
 		memset(&g, 0, sizeof(g));
+		if(cfg_parser->chroot && strncmp(filename, cfg_parser->chroot,
+			strlen(cfg_parser->chroot)) == 0) {
+			filename += strlen(cfg_parser->chroot);
+		}
 		r = glob(filename, flags, NULL, &g);
 		if(r) {
 			/* some error */
