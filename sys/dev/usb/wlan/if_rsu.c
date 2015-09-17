@@ -214,7 +214,7 @@ static int	rsu_transmit(struct ieee80211com *, struct mbuf *);
 static void	rsu_start(struct rsu_softc *);
 static void	rsu_parent(struct ieee80211com *);
 static void	rsu_stop(struct rsu_softc *);
-static void	rsu_ms_delay(struct rsu_softc *);
+static void	rsu_ms_delay(struct rsu_softc *, int);
 
 static device_method_t rsu_methods[] = {
 	DEVMETHOD(device_probe,		rsu_match),
@@ -464,7 +464,7 @@ rsu_do_request(struct rsu_softc *sc, struct usb_device_request *req,
 			break;
 		DPRINTFN(1, "Control request failed, %s (retrying)\n",
 		    usbd_errstr(err));
-		usb_pause_mtx(&sc->sc_mtx, hz / 100);
+		rsu_ms_delay(sc, 10);
         }
 
         return (err);
@@ -774,11 +774,11 @@ rsu_fw_iocmd(struct rsu_softc *sc, uint32_t iocmd)
 	int ntries;
 
 	rsu_write_4(sc, R92S_IOCMD_CTRL, iocmd);
-	rsu_ms_delay(sc);
+	rsu_ms_delay(sc, 1);
 	for (ntries = 0; ntries < 50; ntries++) {
 		if (rsu_read_4(sc, R92S_IOCMD_CTRL) == 0)
 			return (0);
-		rsu_ms_delay(sc);
+		rsu_ms_delay(sc, 1);
 	}
 	return (ETIMEDOUT);
 }
@@ -798,7 +798,7 @@ rsu_efuse_read_1(struct rsu_softc *sc, uint16_t addr)
 		reg = rsu_read_4(sc, R92S_EFUSE_CTRL);
 		if (reg & R92S_EFUSE_CTRL_VALID)
 			return (MS(reg, R92S_EFUSE_CTRL_DATA));
-		rsu_ms_delay(sc);
+		rsu_ms_delay(sc, 1);
 	}
 	device_printf(sc->sc_dev,
 	    "could not read efuse byte at address 0x%x\n", addr);
@@ -822,7 +822,7 @@ rsu_read_rom(struct rsu_softc *sc)
 	/* Turn on 2.5V to prevent eFuse leakage. */
 	reg = rsu_read_1(sc, R92S_EFUSE_TEST + 3);
 	rsu_write_1(sc, R92S_EFUSE_TEST + 3, reg | 0x80);
-	rsu_ms_delay(sc);
+	rsu_ms_delay(sc, 1);
 	rsu_write_1(sc, R92S_EFUSE_TEST + 3, reg & ~0x80);
 
 	/* Read full ROM image. */
@@ -1883,7 +1883,7 @@ rsu_power_on_acut(struct rsu_softc *sc)
 
 	rsu_write_1(sc, R92S_SPS1_CTRL,
 	    rsu_read_1(sc, R92S_SPS1_CTRL) | R92S_SPS1_LDEN);
-	usb_pause_mtx(&sc->sc_mtx, 2 * hz);
+	rsu_ms_delay(sc, 2000);
 	/* Enable switch regulator block. */
 	rsu_write_1(sc, R92S_SPS1_CTRL,
 	    rsu_read_1(sc, R92S_SPS1_CTRL) | R92S_SPS1_SWEN);
@@ -1955,7 +1955,7 @@ rsu_power_on_bcut(struct rsu_softc *sc)
 
 	/* Prevent eFuse leakage. */
 	rsu_write_1(sc, 0x37, 0xb0);
-	usb_pause_mtx(&sc->sc_mtx, hz / 100);
+	rsu_ms_delay(sc, 10);
 	rsu_write_1(sc, 0x37, 0x30);
 
 	/* Switch the control path to hardware. */
@@ -1966,7 +1966,7 @@ rsu_power_on_bcut(struct rsu_softc *sc)
 	}
 	rsu_write_1(sc, R92S_SYS_FUNC_EN + 1,
 	    rsu_read_1(sc, R92S_SYS_FUNC_EN + 1) & ~0x8c);
-	rsu_ms_delay(sc);
+	rsu_ms_delay(sc, 1);
 
 	rsu_write_1(sc, R92S_SPS0_CTRL + 1, 0x53);
 	rsu_write_1(sc, R92S_SPS0_CTRL + 0, 0x57);
@@ -1999,11 +1999,11 @@ rsu_power_on_bcut(struct rsu_softc *sc)
 	/* Enable AFE PLL macro block. */
 	reg = rsu_read_1(sc, R92S_AFE_PLL_CTRL);
 	rsu_write_1(sc, R92S_AFE_PLL_CTRL, reg | 0x11);
-	rsu_ms_delay(sc);
+	rsu_ms_delay(sc, 1);
 	rsu_write_1(sc, R92S_AFE_PLL_CTRL, reg | 0x51);
-	rsu_ms_delay(sc);
+	rsu_ms_delay(sc, 1);
 	rsu_write_1(sc, R92S_AFE_PLL_CTRL, reg | 0x11);
-	rsu_ms_delay(sc);
+	rsu_ms_delay(sc, 1);
 
 	/* Attach AFE PLL to MACTOP/BB. */
 	rsu_write_1(sc, R92S_SYS_ISO_CTRL,
@@ -2050,7 +2050,7 @@ rsu_power_on_bcut(struct rsu_softc *sc)
 		if ((reg & (R92S_TCR_IMEM_CHK_RPT | R92S_TCR_EMEM_CHK_RPT)) ==
 		    (R92S_TCR_IMEM_CHK_RPT | R92S_TCR_EMEM_CHK_RPT))
 			break;
-		rsu_ms_delay(sc);
+		rsu_ms_delay(sc, 1);
 	}
 	if (ntries == 20) {
 		RSU_DPRINTF(sc, RSU_DEBUG_RESET | RSU_DEBUG_TX,
@@ -2059,7 +2059,7 @@ rsu_power_on_bcut(struct rsu_softc *sc)
 		/* Reset TxDMA. */
 		reg = rsu_read_1(sc, R92S_CR);
 		rsu_write_1(sc, R92S_CR, reg & ~R92S_CR_TXDMA_EN);
-		rsu_ms_delay(sc);
+		rsu_ms_delay(sc, 1);
 		rsu_write_1(sc, R92S_CR, reg | R92S_CR_TXDMA_EN);
 	}
 }
@@ -2069,7 +2069,7 @@ rsu_power_off(struct rsu_softc *sc)
 {
 	/* Turn RF off. */
 	rsu_write_1(sc, R92S_RF_CTRL, 0x00);
-	usb_pause_mtx(&sc->sc_mtx, hz / 200);
+	rsu_ms_delay(sc, 5);
 
 	/* Turn MAC off. */
 	/* Switch control path. */
@@ -2202,7 +2202,7 @@ rsu_load_firmware(struct rsu_softc *sc)
 	}
 	/* Wait for load to complete. */
 	for (ntries = 0; ntries != 50; ntries++) {
-		usb_pause_mtx(&sc->sc_mtx, hz / 100);
+		rsu_ms_delay(sc, 10);
 		reg = rsu_read_1(sc, R92S_TCR);
 		if (reg & R92S_TCR_IMEM_CODE_DONE)
 			break;
@@ -2221,7 +2221,7 @@ rsu_load_firmware(struct rsu_softc *sc)
 	}
 	/* Wait for load to complete. */
 	for (ntries = 0; ntries != 50; ntries++) {
-		usb_pause_mtx(&sc->sc_mtx, hz / 100);
+		rsu_ms_delay(sc, 10);
 		reg = rsu_read_2(sc, R92S_TCR);
 		if (reg & R92S_TCR_EMEM_CODE_DONE)
 			break;
@@ -2251,7 +2251,7 @@ rsu_load_firmware(struct rsu_softc *sc)
 	for (ntries = 0; ntries < 100; ntries++) {
 		if (rsu_read_1(sc, R92S_TCR) & R92S_TCR_IMEM_RDY)
 			break;
-		rsu_ms_delay(sc);
+		rsu_ms_delay(sc, 1);
 	}
 	if (ntries == 100) {
 		device_printf(sc->sc_dev,
@@ -2283,7 +2283,7 @@ rsu_load_firmware(struct rsu_softc *sc)
 	for (ntries = 0; ntries < 100; ntries++) {
 		if (rsu_read_1(sc, R92S_TCR) & R92S_TCR_DMEM_CODE_DONE)
 			break;
-		rsu_ms_delay(sc);
+		rsu_ms_delay(sc, 1);
 	}
 	if (ntries == 100) {
 		device_printf(sc->sc_dev, "timeout waiting for %s transfer\n",
@@ -2295,7 +2295,7 @@ rsu_load_firmware(struct rsu_softc *sc)
 	for (ntries = 0; ntries < 60; ntries++) {
 		if (!(rsu_read_1(sc, R92S_TCR) & R92S_TCR_FWRDY))
 			break;
-		rsu_ms_delay(sc);
+		rsu_ms_delay(sc, 1);
 	}
 	if (ntries == 60) {
 		device_printf(sc->sc_dev, 
@@ -2397,7 +2397,7 @@ rsu_init(struct rsu_softc *sc)
 	rsu_write_region_1(sc, R92S_MACID, macaddr, IEEE80211_ADDR_LEN);
 
 	/* It really takes 1.5 seconds for the firmware to boot: */
-	usb_pause_mtx(&sc->sc_mtx, (3 * hz) / 2);
+	rsu_ms_delay(sc, 2000);
 
 	RSU_DPRINTF(sc, RSU_DEBUG_RESET, "%s: setting MAC address to %s\n",
 	    __func__,
@@ -2468,8 +2468,14 @@ rsu_stop(struct rsu_softc *sc)
 		usbd_transfer_stop(sc->sc_xfer[i]);
 }
 
+/*
+ * Note: usb_pause_mtx() actually releases the mutex before calling pause(),
+ * which breaks any kind of driver serialisation.
+ */
 static void
-rsu_ms_delay(struct rsu_softc *sc)
+rsu_ms_delay(struct rsu_softc *sc, int ms)
 {
-	usb_pause_mtx(&sc->sc_mtx, hz / 1000);
+
+	//usb_pause_mtx(&sc->sc_mtx, hz / 1000);
+	DELAY(ms * 1000);
 }
