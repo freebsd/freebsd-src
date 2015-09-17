@@ -736,6 +736,8 @@ struct rsu_softc {
 	struct timeout_task		calib_task;
 	const uint8_t			*qid2idx;
 	struct mtx			sc_mtx;
+	int				sc_ht;
+	int				sc_nendpoints;
 
 	u_int				sc_running:1,
 					sc_calibrating:1,

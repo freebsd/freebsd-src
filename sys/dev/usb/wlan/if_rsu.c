@@ -313,10 +313,16 @@ rsu_attach(device_t self)
 	struct ieee80211com *ic = &sc->sc_ic;
 	int error;
 	uint8_t iface_index, bands;
+	struct usb_interface *iface;
 
 	device_set_usb_desc(self);
 	sc->sc_udev = uaa->device;
 	sc->sc_dev = self;
+	sc->sc_ht = !! (USB_GET_DRIVER_INFO(uaa) & RSU_HT_SUPPORTED);
+
+	/* Get number of endpoints */
+	iface = usbd_get_iface(sc->sc_udev, 0);
+	sc->sc_nendpoints = iface->idesc->bNumEndpoints;
 
 	mtx_init(&sc->sc_mtx, device_get_nameunit(self), MTX_NETWORK_LOCK,
 	    MTX_DEF);
