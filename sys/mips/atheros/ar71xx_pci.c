@@ -377,7 +377,6 @@ ar71xx_pci_probe(device_t dev)
 static int
 ar71xx_pci_attach(device_t dev)
 {
-	int busno = 0;
 	int rid = 0;
 	struct ar71xx_pci_softc *sc = device_get_softc(dev);
 
