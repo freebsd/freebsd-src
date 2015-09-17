@@ -69,7 +69,6 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	libkvm \
 	${_libldns} \
 	liblzma \
-	libmalloc_simple \
 	${_libmagic} \
 	libmemstat \
 	libmd \

@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 1983 Regents of the University of California.
+ * Copyright (c) 2015 SRI International
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -43,17 +44,17 @@ static char *rcsid = "$FreeBSD$";
  * This is designed for use in a virtual memory environment.
  */
 
+#include <sys/param.h>
 #include <sys/types.h>
-#include <sys/sysctl.h>
-#include <paths.h>
-#include <stdarg.h>
-#include <stddef.h>
+#include <sys/mman.h>
+
+#include <machine/cheri.h>
+#include <machine/cheric.h>
+
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <sys/param.h>
-#include <sys/mman.h>
 
 union overhead;
 static void morecore(int);
@@ -171,19 +172,20 @@ malloc(size_t nbytes)
 	 * stored in hash buckets which satisfies request.
 	 * Account for space used per block for accounting.
 	 */
-	if (nbytes <= (unsigned long)(n = pagesz - sizeof (*op) - RSLOP)) {
+	n = pagesz - sizeof (*op) - RSLOP;
+	if (nbytes <= (unsigned long)n) {
 #ifndef RCHECK
-		amt = 8;	/* size of first bucket */
-		bucket = 0;
+		amt = 32;	/* size of first bucket */
+		bucket = 2;
 #else
 		amt = 16;	/* size of first bucket */
 		bucket = 1;
 #endif
-		n = -(sizeof (*op) + RSLOP);
 	} else {
 		amt = pagesz;
 		bucket = pagebucket;
 	}
+	n = -(sizeof (*op) + RSLOP);
 	while (nbytes > (size_t)amt + n) {
 		amt <<= 1;
 		if (amt == 0)
@@ -267,18 +269,22 @@ morecore(int bucket)
 	if (amt > pagepool_end - pagepool_start)
 		if (morepages(amt/pagesz + NPOOLPAGES) == 0)
 			return;
-	op = (union overhead *)(void *)pagepool_start;
+
+	/* non-zero offsets cause trouble */
+	ASSERT(cheri_getoffset(pagepool_start) == 0);
+	buf = cheri_csetbounds(pagepool_start, amt);
 	pagepool_start += amt;
 
 	/*
 	 * Add new memory allocated to that on
 	 * free list for this hash bucket.
 	 */
-  	nextf[bucket] = op;
-  	while (--nblks > 0) {
-		op->ov_next = (union overhead *)(void *)((caddr_t)op + sz);
-		op = (union overhead *)(void *)((caddr_t)op + sz);
-  	}
+	nextf[bucket] = op = cheri_csetbounds(buf, sz);;
+	while (--nblks > 0) {
+		op->ov_next = (union overhead *)cheri_csetbounds(buf + sz, sz);
+		buf += sz;
+		op = op->ov_next;
+	}
 }
 
 void
@@ -290,6 +296,8 @@ free(void *cp)
 	if (cp == NULL)
 		return;
 	op = (union overhead *)(void *)((caddr_t)cp - sizeof (union overhead));
+	ASSERT(cheri_gettag(op) == 1);		/* is a capabiltiy */
+	ASSERT(cheri_getoffset(op) == 0);	/* at the beginning */
 #ifdef MALLOC_DEBUG
 	ASSERT(op->ov_magic == MAGIC);		/* make sure it was in use */
 #else
