@@ -285,7 +285,8 @@ SECTION QUESTION
 nx1.example.com. IN A
 SECTION ANSWER
 SECTION AUTHORITY
-example.com.	3600 IN SOA	a. b. 1 2 3 4 5
+; at TTL 5 because TTL capped at ttl of minttl in rdata of SOA.
+example.com.	5 IN SOA	a. b. 1 2 3 4 5
 example.com.	3600 IN NS	nsb.example.com.
 SECTION ADDITIONAL
 nsb.example.com.	3600 	IN 	A	1.2.3.4
@@ -306,7 +307,8 @@ SECTION QUESTION
 nx1.example.com. IN A
 SECTION ANSWER
 SECTION AUTHORITY
-example.com.	3600 IN SOA	a. b. 1 2 3 4 5
+; at TTL 5 because TTL capped at ttl of minttl in rdata of SOA.
+example.com.	5 IN SOA	a. b. 1 2 3 4 5
 example.com.	1800 IN NS	nsb.example.com.
 SECTION ADDITIONAL
 nsb.example.com.	3600 	IN 	A	1.2.3.4

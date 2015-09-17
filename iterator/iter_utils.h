@@ -232,6 +232,14 @@ int reply_equal(struct reply_info* p, struct reply_info* q, struct regional* reg
 void caps_strip_reply(struct reply_info* rep);
 
 /**
+ * see if reply has a 'useful' rcode for capsforid comparison, so
+ * not SERVFAIL or REFUSED, and thus NOERROR or NXDOMAIN.
+ * @param rep: reply to check.
+ * @return true if the rcode is a bad type of message.
+ */
+int caps_failed_rcode(struct reply_info* rep);
+
+/**
  * Store parent-side rrset in seperate rrset cache entries for later 
  * last-resort * lookups in case the child-side versions of this information 
  * fails.
