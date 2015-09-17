@@ -151,6 +151,7 @@ static device_attach_t  rsu_attach;
 static device_detach_t  rsu_detach;
 static usb_callback_t   rsu_bulk_tx_callback_be_bk;
 static usb_callback_t   rsu_bulk_tx_callback_vi_vo;
+static usb_callback_t   rsu_bulk_tx_callback_h2c;
 static usb_callback_t   rsu_bulk_rx_callback;
 static usb_error_t	rsu_do_request(struct rsu_softc *,
 			    struct usb_device_request *, void *);
@@ -245,6 +246,9 @@ static uint8_t rsu_wme_ac_xfer_map[4] = {
 	[WME_AC_VO] = RSU_BULK_TX_VI_VO,
 };
 
+/* XXX hard-coded */
+#define	RSU_H2C_ENDPOINT	3
+
 static const struct usb_config rsu_config[RSU_N_TRANSFER] = {
 	[RSU_BULK_RX] = {
 		.type = UE_BULK,
@@ -281,6 +285,19 @@ static const struct usb_config rsu_config[RSU_N_TRANSFER] = {
 			.force_short_xfer = 1
 		},
 		.callback = rsu_bulk_tx_callback_vi_vo,
+		.timeout = RSU_TX_TIMEOUT
+	},
+	[RSU_BULK_TX_H2C] = {
+		.type = UE_BULK,
+		.endpoint = 0x0d,
+		.direction = UE_DIR_OUT,
+		.bufsize = RSU_TXBUFSZ,
+		.flags = {
+			.ext_buffer = 1,
+			.pipe_bof = 1,
+			.short_xfer_ok = 1
+		},
+		.callback = rsu_bulk_tx_callback_h2c,
 		.timeout = RSU_TX_TIMEOUT
 	},
 };
@@ -891,7 +908,7 @@ rsu_read_rom(struct rsu_softc *sc)
 static int
 rsu_fw_cmd(struct rsu_softc *sc, uint8_t code, void *buf, int len)
 {
-	const uint8_t which = rsu_wme_ac_xfer_map[WME_AC_VO];
+	const uint8_t which = RSU_H2C_ENDPOINT;
 	struct rsu_data *data;
 	struct r92s_tx_desc *txd;
 	struct r92s_fw_cmd_hdr *cmd;
@@ -1710,6 +1727,12 @@ static void
 rsu_bulk_tx_callback_vi_vo(struct usb_xfer *xfer, usb_error_t error)
 {
 	rsu_bulk_tx_callback_sub(xfer, error, RSU_BULK_TX_VI_VO);
+}
+
+static void
+rsu_bulk_tx_callback_h2c(struct usb_xfer *xfer, usb_error_t error)
+{
+	rsu_bulk_tx_callback_sub(xfer, error, RSU_BULK_TX_H2C);
 }
 
 static int
