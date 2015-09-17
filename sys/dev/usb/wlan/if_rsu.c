@@ -305,6 +305,28 @@ rsu_send_mgmt(struct ieee80211_node *ni, int type, int arg)
 	return (ENOTSUP);
 }
 
+static void
+rsu_update_chw(struct ieee80211com *ic)
+{
+
+}
+
+static int
+rsu_ampdu_enable(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap)
+{
+
+	/* Firmware handles this; not our problem */
+	return (0);
+}
+
+static int
+rsu_wme_update(struct ieee80211com *ic)
+{
+
+	/* Firmware handles this; not our problem */
+	return (0);
+}
+
 static int
 rsu_attach(device_t self)
 {
@@ -412,6 +434,9 @@ rsu_attach(device_t self)
 	ic->ic_parent = rsu_parent;
 	ic->ic_transmit = rsu_transmit;
 	ic->ic_send_mgmt = rsu_send_mgmt;
+	ic->ic_update_chw = rsu_update_chw;
+	ic->ic_ampdu_enable = rsu_ampdu_enable;
+	ic->ic_wme.wme_update = rsu_wme_update;
 
 	ieee80211_radiotap_attach(ic, &sc->sc_txtap.wt_ihdr,
 	    sizeof(sc->sc_txtap), RSU_TX_RADIOTAP_PRESENT, 
