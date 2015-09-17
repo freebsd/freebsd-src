@@ -29,14 +29,14 @@ __DEFAULT_DEPENDENT_OPTIONS= \
 	STAGING/META_MODE \
 	SYSROOT/META_MODE
 
-.include <bsd.mkopt.mk>
-
 # early include for customization
 # see local.sys.mk below
 # Not included when building in fmake compatibility mode (still needed
 # for older system support)
 .if defined(.PARSEDIR)
 .sinclude <local.sys.env.mk>
+
+.include <bsd.mkopt.mk>
 
 .if ${MK_META_MODE} == "yes"
 .sinclude <meta.sys.mk>
@@ -52,7 +52,8 @@ __DEFAULT_DEPENDENT_OPTIONS= \
 .sinclude <auto.obj.mk>
 .endif
 .endif
-
+.else # bmake
+.include <bsd.mkopt.mk>
 .endif
 
 # If the special target .POSIX appears (without prerequisites or
