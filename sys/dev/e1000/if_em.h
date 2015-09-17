@@ -218,6 +218,9 @@
 #define EM_TX_HUNG			0x80000000
 #define EM_TX_MAXTRIES			10
 
+#define PCICFG_DESC_RING_STATUS		0xe4
+#define FLUSH_DESC_REQUIRED		0x100
+
 /*
  * TDBA/RDBA should be aligned on 16 byte boundary. But TDLEN/RDLEN should be
  * multiple of 128 bytes. So we align TDBA/RDBA on 128 byte boundary. This will
