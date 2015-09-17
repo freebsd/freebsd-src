@@ -2114,6 +2114,7 @@ sendfile_getobj(struct thread *td, struct file *fp, vm_object_t *obj_res,
 			goto out;
 		}
 	} else if (fp->f_type == DTYPE_SHM) {
+		error = 0;
 		shmfd = fp->f_data;
 		obj = shmfd->shm_object;
 		*obj_size = shmfd->shm_size;
