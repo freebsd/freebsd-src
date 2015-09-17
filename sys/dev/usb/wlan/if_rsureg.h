@@ -700,6 +700,7 @@ enum {
 	RSU_BULK_RX,
 	RSU_BULK_TX_BE_BK,	/* = WME_AC_BE/BK */
 	RSU_BULK_TX_VI_VO,	/* = WME_AC_VI/VO */
+	RSU_BULK_TX_H2C,	/* H2C */
 	RSU_N_TRANSFER,
 };
 
