@@ -820,7 +820,9 @@ tpc_process_b2b(struct tpc_list *list)
 	off_t srclba, dstlba, numbytes, donebytes, roundbytes;
 	int numlba;
 	uint32_t srcblock, dstblock, pb, pbo, adj;
+	uint8_t csi[4];
 
+	scsi_ulto4b(list->curseg, csi);
 	if (list->stage == 1) {
 		while ((tior = TAILQ_FIRST(&list->allio)) != NULL) {
 			TAILQ_REMOVE(&list->allio, tior, links);
@@ -834,7 +836,9 @@ tpc_process_b2b(struct tpc_list *list)
 		} else if (list->error) {
 			ctl_set_sense(list->ctsio, /*current_error*/ 1,
 			    /*sense_key*/ SSD_KEY_COPY_ABORTED,
-			    /*asc*/ 0x0d, /*ascq*/ 0x01, SSD_ELEM_NONE);
+			    /*asc*/ 0x0d, /*ascq*/ 0x01,
+			    SSD_ELEM_COMMAND, csi, sizeof(csi),
+			    SSD_ELEM_NONE);
 			return (CTL_RETVAL_ERROR);
 		}
 		list->cursectors += list->segsectors;
@@ -849,7 +853,9 @@ tpc_process_b2b(struct tpc_list *list)
 	if (sl >= CTL_MAX_LUNS || dl >= CTL_MAX_LUNS) {
 		ctl_set_sense(list->ctsio, /*current_error*/ 1,
 		    /*sense_key*/ SSD_KEY_COPY_ABORTED,
-		    /*asc*/ 0x08, /*ascq*/ 0x04, SSD_ELEM_NONE);
+		    /*asc*/ 0x08, /*ascq*/ 0x04,
+		    SSD_ELEM_COMMAND, csi, sizeof(csi),
+		    SSD_ELEM_NONE);
 		return (CTL_RETVAL_ERROR);
 	}
 	if (pbo > 0)
@@ -878,7 +884,9 @@ tpc_process_b2b(struct tpc_list *list)
 	if (numbytes % srcblock != 0 || numbytes % dstblock != 0) {
 		ctl_set_sense(list->ctsio, /*current_error*/ 1,
 		    /*sense_key*/ SSD_KEY_COPY_ABORTED,
-		    /*asc*/ 0x26, /*ascq*/ 0x0A, SSD_ELEM_NONE);
+		    /*asc*/ 0x26, /*ascq*/ 0x0A,
+		    SSD_ELEM_COMMAND, csi, sizeof(csi),
+		    SSD_ELEM_NONE);
 		return (CTL_RETVAL_ERROR);
 	}
 
@@ -962,7 +970,9 @@ tpc_process_verify(struct tpc_list *list)
 	struct scsi_ec_segment_verify *seg;
 	struct tpc_io *tio;
 	uint64_t sl;
+	uint8_t csi[4];
 
+	scsi_ulto4b(list->curseg, csi);
 	if (list->stage == 1) {
 		while ((tio = TAILQ_FIRST(&list->allio)) != NULL) {
 			TAILQ_REMOVE(&list->allio, tio, links);
@@ -975,7 +985,9 @@ tpc_process_verify(struct tpc_list *list)
 		} else if (list->error) {
 			ctl_set_sense(list->ctsio, /*current_error*/ 1,
 			    /*sense_key*/ SSD_KEY_COPY_ABORTED,
-			    /*asc*/ 0x0d, /*ascq*/ 0x01, SSD_ELEM_NONE);
+			    /*asc*/ 0x0d, /*ascq*/ 0x01,
+			    SSD_ELEM_COMMAND, csi, sizeof(csi),
+			    SSD_ELEM_NONE);
 			return (CTL_RETVAL_ERROR);
 		} else
 			return (CTL_RETVAL_COMPLETE);
@@ -987,7 +999,9 @@ tpc_process_verify(struct tpc_list *list)
 	if (sl >= CTL_MAX_LUNS) {
 		ctl_set_sense(list->ctsio, /*current_error*/ 1,
 		    /*sense_key*/ SSD_KEY_COPY_ABORTED,
-		    /*asc*/ 0x08, /*ascq*/ 0x04, SSD_ELEM_NONE);
+		    /*asc*/ 0x08, /*ascq*/ 0x04,
+		    SSD_ELEM_COMMAND, csi, sizeof(csi),
+		    SSD_ELEM_NONE);
 		return (CTL_RETVAL_ERROR);
 	}
 
@@ -1019,7 +1033,9 @@ tpc_process_register_key(struct tpc_list *list)
 	struct tpc_io *tio;
 	uint64_t dl;
 	int datalen;
+	uint8_t csi[4];
 
+	scsi_ulto4b(list->curseg, csi);
 	if (list->stage == 1) {
 		while ((tio = TAILQ_FIRST(&list->allio)) != NULL) {
 			TAILQ_REMOVE(&list->allio, tio, links);
@@ -1033,7 +1049,9 @@ tpc_process_register_key(struct tpc_list *list)
 		} else if (list->error) {
 			ctl_set_sense(list->ctsio, /*current_error*/ 1,
 			    /*sense_key*/ SSD_KEY_COPY_ABORTED,
-			    /*asc*/ 0x0d, /*ascq*/ 0x01, SSD_ELEM_NONE);
+			    /*asc*/ 0x0d, /*ascq*/ 0x01,
+			    SSD_ELEM_COMMAND, csi, sizeof(csi),
+			    SSD_ELEM_NONE);
 			return (CTL_RETVAL_ERROR);
 		} else
 			return (CTL_RETVAL_COMPLETE);
@@ -1045,7 +1063,9 @@ tpc_process_register_key(struct tpc_list *list)
 	if (dl >= CTL_MAX_LUNS) {
 		ctl_set_sense(list->ctsio, /*current_error*/ 1,
 		    /*sense_key*/ SSD_KEY_COPY_ABORTED,
-		    /*asc*/ 0x08, /*ascq*/ 0x04, SSD_ELEM_NONE);
+		    /*asc*/ 0x08, /*ascq*/ 0x04,
+		    SSD_ELEM_COMMAND, csi, sizeof(csi),
+		    SSD_ELEM_NONE);
 		return (CTL_RETVAL_ERROR);
 	}
 
@@ -1346,6 +1366,7 @@ tpc_process(struct tpc_list *list)
 	struct scsi_ec_segment *seg;
 	struct ctl_scsiio *ctsio = list->ctsio;
 	int retval = CTL_RETVAL_COMPLETE;
+	uint8_t csi[4];
 
 	if (list->service_action == EC_WUT) {
 		if (list->token != NULL)
@@ -1373,9 +1394,12 @@ tpc_process(struct tpc_list *list)
 				retval = tpc_process_register_key(list);
 				break;
 			default:
+				scsi_ulto4b(list->curseg, csi);
 				ctl_set_sense(ctsio, /*current_error*/ 1,
 				    /*sense_key*/ SSD_KEY_COPY_ABORTED,
-				    /*asc*/ 0x26, /*ascq*/ 0x09, SSD_ELEM_NONE);
+				    /*asc*/ 0x26, /*ascq*/ 0x09,
+				    SSD_ELEM_COMMAND, csi, sizeof(csi),
+				    SSD_ELEM_NONE);
 				goto done;
 			}
 			if (retval == CTL_RETVAL_QUEUED)
