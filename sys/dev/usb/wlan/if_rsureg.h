@@ -597,7 +597,7 @@ struct r92s_tx_desc {
 /*
  * Driver definitions.
  */
-#define RSU_RX_LIST_COUNT	1
+#define RSU_RX_LIST_COUNT	100
 #define RSU_TX_LIST_COUNT	32
 
 #define RSU_HOST_CMD_RING_COUNT	32
