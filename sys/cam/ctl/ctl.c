@@ -654,14 +654,56 @@ ctl_isc_announce_port(struct ctl_port *port)
 	free(msg, M_CTL);
 }
 
+void
+ctl_isc_announce_iid(struct ctl_port *port, int iid)
+{
+	struct ctl_softc *softc = control_softc;
+	union ctl_ha_msg *msg;
+	int i, l;
+
+	if (port->targ_port < softc->port_min ||
+	    port->targ_port >= softc->port_max ||
+	    softc->ha_link != CTL_HA_LINK_ONLINE)
+		return;
+	mtx_lock(&softc->ctl_lock);
+	i = sizeof(msg->iid);
+	l = 0;
+	if (port->wwpn_iid[iid].name)
+		l = strlen(port->wwpn_iid[iid].name) + 1;
+	i += l;
+	msg = malloc(i, M_CTL, M_NOWAIT);
+	if (msg == NULL) {
+		mtx_unlock(&softc->ctl_lock);
+		return;
+	}
+	bzero(&msg->iid, sizeof(msg->iid));
+	msg->hdr.msg_type = CTL_MSG_IID_SYNC;
+	msg->hdr.nexus.targ_port = port->targ_port;
+	msg->hdr.nexus.initid = iid;
+	msg->iid.in_use = port->wwpn_iid[iid].in_use;
+	msg->iid.name_len = l;
+	msg->iid.wwpn = port->wwpn_iid[iid].wwpn;
+	if (port->wwpn_iid[iid].name)
+		strlcpy(msg->iid.data, port->wwpn_iid[iid].name, l);
+	mtx_unlock(&softc->ctl_lock);
+	ctl_ha_msg_send(CTL_HA_CHAN_CTL, &msg->iid, i, M_NOWAIT);
+	free(msg, M_CTL);
+}
+
 static void
 ctl_isc_ha_link_up(struct ctl_softc *softc)
 {
 	struct ctl_port *port;
 	struct ctl_lun *lun;
+	int i;
 
-	STAILQ_FOREACH(port, &softc->port_list, links)
+	STAILQ_FOREACH(port, &softc->port_list, links) {
 		ctl_isc_announce_port(port);
+		for (i = 0; i < CTL_MAX_INIT_PER_PORT; i++) {
+			if (port->wwpn_iid[i].in_use)
+				ctl_isc_announce_iid(port, i);
+		}
+	}
 	STAILQ_FOREACH(lun, &softc->lun_list, links)
 		ctl_isc_announce_lun(lun);
 }
@@ -672,6 +714,7 @@ ctl_isc_ha_link_down(struct ctl_softc *softc)
 	struct ctl_port *port;
 	struct ctl_lun *lun;
 	union ctl_io *io;
+	int i;
 
 	mtx_lock(&softc->ctl_lock);
 	STAILQ_FOREACH(lun, &softc->lun_list, links) {
@@ -696,6 +739,11 @@ ctl_isc_ha_link_down(struct ctl_softc *softc)
 		    port->targ_port < softc->port_max)
 			continue;
 		port->status &= ~CTL_PORT_STATUS_ONLINE;
+		for (i = 0; i < CTL_MAX_INIT_PER_PORT; i++) {
+			port->wwpn_iid[i].in_use = 0;
+			free(port->wwpn_iid[i].name, M_CTL);
+			port->wwpn_iid[i].name = NULL;
+		}
 	}
 	mtx_unlock(&softc->ctl_lock);
 }
@@ -906,6 +954,29 @@ ctl_isc_port_sync(struct ctl_softc *softc, union ctl_ha_msg *msg, int len)
 		mtx_unlock(&lun->lun_lock);
 	}
 	mtx_unlock(&softc->ctl_lock);
+}
+
+static void
+ctl_isc_iid_sync(struct ctl_softc *softc, union ctl_ha_msg *msg, int len)
+{
+	struct ctl_port *port;
+	int iid;
+
+	port = softc->ctl_ports[msg->hdr.nexus.targ_port];
+	if (port == NULL) {
+		printf("%s: Received IID for unknown port %d\n",
+		    __func__, msg->hdr.nexus.targ_port);
+		return;
+	}
+	iid = msg->hdr.nexus.initid;
+	port->wwpn_iid[iid].in_use = msg->iid.in_use;
+	port->wwpn_iid[iid].wwpn = msg->iid.wwpn;
+	free(port->wwpn_iid[iid].name, M_CTL);
+	if (msg->iid.name_len) {
+		port->wwpn_iid[iid].name = strndup(&msg->iid.data[0],
+		    msg->iid.name_len, M_CTL);
+	} else
+		port->wwpn_iid[iid].name = NULL;
 }
 
 /*
@@ -1182,6 +1253,9 @@ ctl_isc_event_handler(ctl_ha_channel channel, ctl_ha_event event, int param)
 			break;
 		case CTL_MSG_LUN_SYNC:
 			ctl_isc_lun_sync(softc, msg, param);
+			break;
+		case CTL_MSG_IID_SYNC:
+			ctl_isc_iid_sync(softc, msg, param);
 			break;
 		default:
 			printf("Received HA message of unknown type %d\n",
@@ -1597,6 +1671,7 @@ ctl_remove_initiator(struct ctl_port *port, int iid)
 	port->wwpn_iid[iid].in_use--;
 	port->wwpn_iid[iid].last_use = time_uptime;
 	mtx_unlock(&softc->ctl_lock);
+	ctl_isc_announce_iid(port, iid);
 
 	return (0);
 }
@@ -1712,6 +1787,7 @@ take:
 	port->wwpn_iid[iid].wwpn = wwpn;
 	port->wwpn_iid[iid].in_use++;
 	mtx_unlock(&softc->ctl_lock);
+	ctl_isc_announce_iid(port, iid);
 
 	return (iid);
 }
