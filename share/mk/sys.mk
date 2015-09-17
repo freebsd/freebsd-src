@@ -29,6 +29,11 @@ __DEFAULT_DEPENDENT_OPTIONS= \
 	STAGING/META_MODE \
 	SYSROOT/META_MODE
 
+__ENV_ONLY_OPTIONS:= \
+	${__DEFAULT_NO_OPTIONS} \
+	${__DEFAULT_YES_OPTIONS} \
+	${__DEFAULT_DEPENDENT_OPTIONS:H}
+
 # early include for customization
 # see local.sys.mk below
 # Not included when building in fmake compatibility mode (still needed

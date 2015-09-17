@@ -221,6 +221,7 @@ EOF
 	show with SRCCONF=/dev/null | sort | sed 's/$/=/' > $t/src.conf
 	show settings SRCCONF=$t/src.conf | sort > $t/config_WITH_ALL
 	show without SRCCONF=/dev/null | sort > $t/config_WITHOUT_ALL
+	env_only_options="$(${make} -V __ENV_ONLY_OPTIONS)"
 
 	show_options |
 	while read opt targets ; do
@@ -289,6 +290,17 @@ EOF
 			done
 			echo '.El'
 		fi
+
+		case " ${env_only_options} " in
+			*\ ${opt#*_}\ *)
+				echo ".Pp"
+				echo "This must be set in the environment or"
+				echo ".Pa /etc/src-env.conf ,"
+				echo "not"
+				echo ".Pa /etc/src.conf ."
+				;;
+		esac
+
 		twiddle >&2
 	done
 	cat <<EOF
