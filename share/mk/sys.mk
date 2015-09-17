@@ -47,8 +47,8 @@ __DEFAULT_DEPENDENT_OPTIONS= \
 .endif
 .if ${MK_AUTO_OBJ} == "yes"
 # This needs to be done early - before .PATH is computed
-# Don't do this if just running make -V
-.if ${.MAKEFLAGS:M-V} == ""
+# Don't do this if just running 'make -V' or 'make showconfig'
+.if ${.MAKEFLAGS:M-V} == "" && !make(showconfig)
 .sinclude <auto.obj.mk>
 .endif
 .endif

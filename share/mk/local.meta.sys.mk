@@ -10,7 +10,6 @@ MK_INSTALL_AS_USER= yes
 _default_makeobjdir=$${.CURDIR:S,^$${SRCTOP},$${OBJTOP},}
 
 .if empty(OBJROOT) || ${.MAKE.LEVEL} == 0
-.if !make(showconfig)
 .if defined(MAKEOBJDIRPREFIX)
 # put things approximately where they want
 OBJROOT:=${MAKEOBJDIRPREFIX}${SRCTOP}/
@@ -24,7 +23,6 @@ MAKEOBJDIR=${_default_makeobjdir}
 .export-env MAKEOBJDIR
 # Expand for our own use
 MAKEOBJDIR:= ${MAKEOBJDIR}
-.endif
 .endif
 .if !empty(SB)
 SB_OBJROOT ?= ${SB}/obj/
