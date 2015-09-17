@@ -408,6 +408,7 @@ struct ctl_ha_msg_ua {
 	int			ua_all;
 	int			ua_set;
 	int			ua_type;
+	uint8_t			ua_info[8];
 };
 
 /*
