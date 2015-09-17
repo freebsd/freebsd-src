@@ -369,7 +369,6 @@ static int
 ar724x_pci_attach(device_t dev)
 {
 	struct ar71xx_pci_softc *sc = device_get_softc(dev);
-	int busno = 0;
 	int rid = 0;
 
 	sc->sc_mem_rman.rm_type = RMAN_ARRAY;

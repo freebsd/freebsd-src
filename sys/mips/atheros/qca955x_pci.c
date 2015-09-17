@@ -272,7 +272,6 @@ qca955x_pci_attach(device_t dev)
 {
 	struct ar71xx_pci_softc *sc = device_get_softc(dev);
 	int unit = device_get_unit(dev);
-	int busno = 0;
 	int rid = 0;
 
 	/* Dirty; maybe these could all just be hints */
