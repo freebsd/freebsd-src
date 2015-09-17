@@ -2352,6 +2352,7 @@ rsu_load_firmware(struct rsu_softc *sc)
 	dmem->bw40_en = (ic->ic_htcaps & IEEE80211_HTCAP_CBW20_40) != 0;
 #endif
 	dmem->turbo_mode = 0;
+	dmem->qos_en = 1;
 	/* Load DMEM section. */
 	error = rsu_fw_loadsection(sc, (uint8_t *)dmem, sizeof(*dmem));
 	if (error != 0) {
