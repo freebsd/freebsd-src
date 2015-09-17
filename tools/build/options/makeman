@@ -34,7 +34,8 @@ show_options()
 	rm -f $t/settings
 	for target in ${ALL_TARGETS} ; do
 		${make} showconfig \
-		    SRCCONF=/dev/null __MAKE_CONF=/dev/null \
+		    SRC_ENV_CONF=/dev/null SRCCONF=/dev/null \
+		    __MAKE_CONF=/dev/null \
 		    TARGET_ARCH=${target#*/} TARGET=${target%/*} |
 		while read var _ val ; do
 			opt=${var#MK_}
@@ -96,7 +97,8 @@ show()
 		exit 1
 		;;
 	esac
-	${make} .MAKE.MODE=normal "$@" showconfig __MAKE_CONF=/dev/null |
+	${make} .MAKE.MODE=normal "$@" showconfig __MAKE_CONF=/dev/null \
+	    SRCCONF=/dev/null |
 	while read var _ val ; do
 		opt=${var#MK_}
 		case ${val} in
@@ -213,14 +215,14 @@ The following list provides a name and short description for variables
 that can be used for source builds.
 .Bl -tag -width indent
 EOF
-	show settings SRCCONF=/dev/null | sort > $t/config_default
+	show settings SRC_ENV_CONF=/dev/null | sort > $t/config_default
 	# Work around WITH_LDNS_UTILS forcing BIND_UTILS off by parsing the
 	# actual config that results from enabling every WITH_ option.  This
 	# can be reverted if/when we no longer have options that disable
 	# others.
-	show with SRCCONF=/dev/null | sort | sed 's/$/=/' > $t/src.conf
-	show settings SRCCONF=$t/src.conf | sort > $t/config_WITH_ALL
-	show without SRCCONF=/dev/null | sort > $t/config_WITHOUT_ALL
+	show with SRC_ENV_CONF=/dev/null | sort | sed 's/$/=/' > $t/src.conf
+	show settings SRC_ENV_CONF=$t/src.conf | sort > $t/config_WITH_ALL
+	show without SRC_ENV_CONF=/dev/null | sort > $t/config_WITHOUT_ALL
 	env_only_options="$(${make} -V __ENV_ONLY_OPTIONS)"
 
 	show_options |
@@ -240,18 +242,18 @@ EOF
 
 		if [ "${opt%%_*}" = 'WITHOUT' ] ; then
 			sed -n "/^WITH_${opt#WITHOUT_}$/!s/$/=/p" $t/config_WITH_ALL > $t/src.conf
-			show settings SRCCONF=$t/src.conf -D${opt} | sort > $t/config_WITH_ALL_${opt}
+			show settings SRC_ENV_CONF=$t/src.conf -D${opt} | sort > $t/config_WITH_ALL_${opt}
 			comm -13 $t/config_WITH_ALL $t/config_WITH_ALL_${opt} | sed -n "/^${opt}$/!p" > $t/deps
 		elif [ "${opt%%_*}" = 'WITH' ] ; then
 			sed -n "/^WITHOUT${opt#WITH}$/!s/$/=/p" $t/config_WITHOUT_ALL > $t/src.conf
-			show settings SRCCONF=$t/src.conf -D${opt} | sort > $t/config_WITHOUT_ALL_${opt}
+			show settings SRC_ENV_CONF=$t/src.conf -D${opt} | sort > $t/config_WITHOUT_ALL_${opt}
 			comm -13 $t/config_WITHOUT_ALL $t/config_WITHOUT_ALL_${opt} | sed -n "/^${opt}$/!p" > $t/deps
 		else
 			echo 'internal error' >&2
 			exit 1
 		fi
 
-		show settings SRCCONF=/dev/null -D${opt} | sort > $t/config_${opt}
+		show settings SRC_ENV_CONF=/dev/null -D${opt} | sort > $t/config_${opt}
 		comm -13 $t/config_default $t/config_${opt} | sed -n "/^${opt}$/!p" |
 		comm -13 $t/deps - > $t/deps2
 
@@ -296,7 +298,7 @@ EOF
 		case " ${env_only_options} " in
 			*\ ${opt#*_}\ *)
 				echo ".Pp"
-				echo "This must be set in the environment or"
+				echo "This must be set in the environment, make command line, or"
 				echo ".Pa /etc/src-env.conf ,"
 				echo "not"
 				echo ".Pa /etc/src.conf ."
