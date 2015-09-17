@@ -425,6 +425,7 @@ rsu_attach(device_t self)
 	    IEEE80211_C_BGSCAN |	/* Background scan. */
 #endif
 	    IEEE80211_C_SHPREAMBLE |	/* Short preamble supported. */
+	    IEEE80211_C_WME |		/* WME/QoS */
 	    IEEE80211_C_SHSLOT |	/* Short slot time supported. */
 	    IEEE80211_C_WPA;		/* WPA/RSN. */
 
@@ -1752,10 +1753,11 @@ rsu_tx_start(struct rsu_softc *sc, struct ieee80211_node *ni,
 	struct ieee80211_key *k = NULL;
 	struct r92s_tx_desc *txd;
 	uint8_t type;
-	uint8_t tid = 0;
+	int prio = 0;
 	uint8_t which;
 	int hasqos;
 	int xferlen;
+	int qid;
 
 	RSU_ASSERT_LOCKED(sc);
 
@@ -1776,6 +1778,23 @@ rsu_tx_start(struct rsu_softc *sc, struct ieee80211_node *ni,
 		}
 		wh = mtod(m0, struct ieee80211_frame *);
 	}
+	/* If we have QoS then use it */
+	/* XXX TODO: mbuf WME/PRI versus TID? */
+	if (IEEE80211_QOS_HAS_SEQ(wh)) {
+		/* Has QoS */
+		prio = M_WME_GETAC(m0);
+		which = rsu_wme_ac_xfer_map[prio];
+		hasqos = 1;
+	} else {
+		/* Non-QoS TID */
+		/* XXX TODO: tid=0 for non-qos TID? */
+		which = rsu_wme_ac_xfer_map[WME_AC_BE];
+		hasqos = 0;
+		prio = 0;
+	}
+
+	qid = rsu_ac2qid[prio];
+#if 0
 	switch (type) {
 	case IEEE80211_FC0_TYPE_CTL:
 	case IEEE80211_FC0_TYPE_MGT:
@@ -1786,7 +1805,7 @@ rsu_tx_start(struct rsu_softc *sc, struct ieee80211_node *ni,
 		break;
 	}
 	hasqos = 0;
-
+#endif
 	/* Fill Tx descriptor. */
 	txd = (struct r92s_tx_desc *)data->buf;
 	memset(txd, 0, sizeof(*txd));
@@ -1797,8 +1816,7 @@ rsu_tx_start(struct rsu_softc *sc, struct ieee80211_node *ni,
 	    R92S_TXDW0_OWN | R92S_TXDW0_FSG | R92S_TXDW0_LSG);
 
 	txd->txdw1 |= htole32(
-	    SM(R92S_TXDW1_MACID, R92S_MACID_BSS) |
-	    SM(R92S_TXDW1_QSEL, R92S_TXDW1_QSEL_BE));
+	    SM(R92S_TXDW1_MACID, R92S_MACID_BSS) | SM(R92S_TXDW1_QSEL, qid));
 	if (!hasqos)
 		txd->txdw1 |= htole32(R92S_TXDW1_NONQOS);
 #ifdef notyet
@@ -1826,9 +1844,9 @@ rsu_tx_start(struct rsu_softc *sc, struct ieee80211_node *ni,
 		txd->txdw2 |= htole32(R92S_TXDW2_BMCAST);
 	/*
 	 * Firmware will use and increment the sequence number for the
-	 * specified TID.
+	 * specified priority.
 	 */
-	txd->txdw3 |= htole32(SM(R92S_TXDW3_SEQ, tid));
+	txd->txdw3 |= htole32(SM(R92S_TXDW3_SEQ, prio));
 
 	if (ieee80211_radiotap_active_vap(vap)) {
 		struct rsu_tx_radiotap_header *tap = &sc->sc_txtap;
