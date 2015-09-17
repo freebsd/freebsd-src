@@ -31,7 +31,7 @@ SB_OBJROOT ?= ${SB}/obj/
 # this is what we use below
 OBJROOT ?= ${SB_OBJROOT}
 .endif
-OBJROOT ?= ${SRCTOP:H}/obj/
+OBJROOT ?= /usr/obj/${SRCTOP}/
 .if ${OBJROOT:M*/} != ""
 OBJROOT:= ${OBJROOT:H:tA}/
 .else
