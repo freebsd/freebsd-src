@@ -382,7 +382,7 @@ kernel-toolchains:
 #
 .if make(universe) || make(universe_kernels) || make(tinderbox) || make(targets)
 # XXX Add arm64 to universe only if we have an external binutils installed.
-# It does not build with the in-tree linker.
+# It does not build with the in-tree linker.  Added to lower .for loops too.
 .if exists(/usr/local/aarch64-freebsd/bin/ld)
 UNIVERSE_arm64=arm64
 .elif empty(${TARGETS})
@@ -397,7 +397,7 @@ TARGET_ARCHES_arm64?=	aarch64
 TARGET_ARCHES_mips?=	mipsel mips mips64el mips64 mipsn32
 TARGET_ARCHES_powerpc?=	powerpc powerpc64
 TARGET_ARCHES_pc98?=	i386
-.for target in ${TARGETS}
+.for target in ${TARGETS} arm64
 TARGET_ARCHES_${target}?= ${target}
 .endfor
 
@@ -410,7 +410,7 @@ KERNSRCDIR?=		${.CURDIR}/sys
 
 targets:	.PHONY
 	@echo "Supported TARGET/TARGET_ARCH pairs for world and kernel targets"
-.for target in ${TARGETS}
+.for target in ${TARGETS} arm64
 .for target_arch in ${TARGET_ARCHES_${target}}
 	@echo "    ${target}/${target_arch}"
 .endfor
