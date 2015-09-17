@@ -479,6 +479,7 @@ struct ctl_ha_msg_port {
 	int			lun_map_len;
 	int			port_devid_len;
 	int			target_devid_len;
+	int			init_devid_len;
 	uint8_t			data[];
 };
 
