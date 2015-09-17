@@ -229,10 +229,10 @@ enum zfreeskip { SKIP_NONE = 0, SKIP_DTOR, SKIP_FINI };
 
 /* Prototypes.. */
 
-static void *noobj_alloc(uma_zone_t, int, uint8_t *, int);
-static void *page_alloc(uma_zone_t, int, uint8_t *, int);
-static void *startup_alloc(uma_zone_t, int, uint8_t *, int);
-static void page_free(void *, int, uint8_t);
+static void *noobj_alloc(uma_zone_t, vm_size_t, uint8_t *, int);
+static void *page_alloc(uma_zone_t, vm_size_t, uint8_t *, int);
+static void *startup_alloc(uma_zone_t, vm_size_t, uint8_t *, int);
+static void page_free(void *, vm_size_t, uint8_t);
 static uma_slab_t keg_alloc_slab(uma_keg_t, uma_zone_t, int);
 static void cache_drain(uma_zone_t);
 static void bucket_drain(uma_zone_t, uma_bucket_t);
@@ -1038,7 +1038,7 @@ out:
  * the VM is ready.
  */
 static void *
-startup_alloc(uma_zone_t zone, int bytes, uint8_t *pflag, int wait)
+startup_alloc(uma_zone_t zone, vm_size_t bytes, uint8_t *pflag, int wait)
 {
 	uma_keg_t keg;
 	uma_slab_t tmps;
@@ -1098,7 +1098,7 @@ startup_alloc(uma_zone_t zone, int bytes, uint8_t *pflag, int wait)
  *	NULL if M_NOWAIT is set.
  */
 static void *
-page_alloc(uma_zone_t zone, int bytes, uint8_t *pflag, int wait)
+page_alloc(uma_zone_t zone, vm_size_t bytes, uint8_t *pflag, int wait)
 {
 	void *p;	/* Returned page */
 
@@ -1120,7 +1120,7 @@ page_alloc(uma_zone_t zone, int bytes, uint8_t *pflag, int wait)
  *	NULL if M_NOWAIT is set.
  */
 static void *
-noobj_alloc(uma_zone_t zone, int bytes, uint8_t *flags, int wait)
+noobj_alloc(uma_zone_t zone, vm_size_t bytes, uint8_t *flags, int wait)
 {
 	TAILQ_HEAD(, vm_page) alloctail;
 	u_long npages;
@@ -1183,7 +1183,7 @@ noobj_alloc(uma_zone_t zone, int bytes, uint8_t *flags, int wait)
  *	Nothing
  */
 static void
-page_free(void *mem, int size, uint8_t flags)
+page_free(void *mem, vm_size_t size, uint8_t flags)
 {
 	struct vmem *vmem;
 
@@ -3269,7 +3269,7 @@ uma_zone_exhausted_nolock(uma_zone_t zone)
 }
 
 void *
-uma_large_malloc(int size, int wait)
+uma_large_malloc(vm_size_t size, int wait)
 {
 	void *mem;
 	uma_slab_t slab;

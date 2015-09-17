@@ -502,7 +502,7 @@ swi_vm(void *v)
 }
 
 void *
-uma_small_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
+uma_small_alloc(uma_zone_t zone, vm_size_t bytes, u_int8_t *flags, int wait)
 {
 	vm_paddr_t pa;
 	vm_page_t m;
@@ -540,7 +540,7 @@ uma_small_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 }
 
 void
-uma_small_free(void *mem, int size, u_int8_t flags)
+uma_small_free(void *mem, vm_size_t size, u_int8_t flags)
 {
 	vm_page_t m;
 
