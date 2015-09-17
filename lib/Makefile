@@ -361,7 +361,8 @@ SUBDIR:=	csu \
 		libmd	\
 		libpng	\
 		libstand \
-		libz
+		libz \
+		msun
 .else
 # No C++ support in cheri clang
 SUBDIR:=	${SUBDIR:Nlibc++:Nlibcxxrt}
