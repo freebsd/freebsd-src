@@ -23,8 +23,8 @@ MAKEOBJDIRPREFIX=
 MAKEOBJDIR=${_default_makeobjdir}
 # export but do not track
 .export-env MAKEOBJDIR
-# now for our own use
-MAKEOBJDIR= ${.CURDIR:S,${SRCTOP},${OBJTOP},}
+# Expand for our own use
+MAKEOBJDIR:= ${MAKEOBJDIR}
 .endif
 .endif
 .if !empty(SB)
