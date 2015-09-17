@@ -11,11 +11,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -55,23 +51,13 @@ static char *rcsid = "$FreeBSD$";
 #include <machine/cheric.h>
 
 #include <assert.h>
-#if 0
-#include <paths.h>
-#include <stdarg.h>
-#include <stddef.h>
 #include <stdio.h>
-#endif
-#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-#if 0
-#include <unistd.h>
-#include <sys/mman.h>
-#include "rtld_printf.h"
-#endif
 
-static void morecore();
-static int findbucket();
+union overhead;
+static void morecore(int);
+static int findbucket(union overhead *, int);
 
 /*
  * Location and size of the static sandbox heap.
@@ -143,8 +129,7 @@ static	u_int nmalloc[NBUCKETS];
 #define	ASSERT(p)   if (!(p)) botch("p")
 #include <stdio.h>
 static void
-botch(s)
-	char *s;
+botch(char *s)
 {
 	fprintf(stderr, "\r\nassertion botched: %s\r\n", s);
 	(void) fflush(stderr);		/* just in case user buffered it */
@@ -154,17 +139,13 @@ botch(s)
 #define	ASSERT(p)
 #endif
 
-/* Debugging stuff */
-#define TRACE()	rtld_printf("TRACE %s:%d\n", __FILE__, __LINE__)
-
 void *
-malloc(nbytes)
-	size_t nbytes;
+malloc(size_t nbytes)
 {
-	register union overhead *op;
-	register int bucket;
-	register long n;
-	register unsigned amt;
+	union overhead *op;
+	int bucket;
+	long n;
+	unsigned amt;
 
 	/*
 	 * First time malloc is called, setup page size and
@@ -197,7 +178,7 @@ malloc(nbytes)
 	n = pagesz - sizeof (*op) - RSLOP;
 	if (nbytes <= (unsigned long)n) {
 #ifndef RCHECK
-		amt = 32;	/* size of smallest bucket */
+		amt = 32;	/* size of first bucket */
 		bucket = 2;
 #else
 		amt = 16;	/* size of first bucket */
@@ -262,12 +243,11 @@ calloc(size_t num, size_t size)
  * Allocate more memory to the indicated bucket.
  */
 static void
-morecore(bucket)
-	int bucket;
+morecore(int bucket)
 {
 	char *buf;
 	union overhead *op;
-	int sz;			/* size of desired block */
+	int sz;				/* size of desired block */
 	int amt;			/* amount to allocate */
 	int nblks;			/* how many blocks we get */
 
@@ -319,11 +299,10 @@ morecore(bucket)
 }
 
 void
-free(cp)
-	void *cp;
+free(void *cp)
 {
-	register int size;
-	register union overhead *op;
+	int size;
+	union overhead *op;
 
 	if (cp == NULL)
 		return;
@@ -363,12 +342,10 @@ free(cp)
 int realloc_srchlen = 4;	/* 4 should be plenty, -1 =>'s whole list */
 
 void *
-realloc(cp, nbytes)
-	void *cp;
-	size_t nbytes;
+realloc(void *cp, size_t nbytes)
 {
-	register u_int onb;
-	register int i;
+	u_int onb;
+	int i;
 	union overhead *op;
 	char *res;
 	int was_alloced = 0;
@@ -445,12 +422,10 @@ reallocf(void *ptr, size_t size)
  * Return bucket number, or -1 if not found.
  */
 static int
-findbucket(freep, srchlen)
-	union overhead *freep;
-	int srchlen;
+findbucket(union overhead *freep, int srchlen)
 {
-	register union overhead *p;
-	register int i, j;
+	union overhead *p;
+	int i, j;
 
 	for (i = 0; i < NBUCKETS; i++) {
 		j = 0;
@@ -471,11 +446,11 @@ findbucket(freep, srchlen)
  * for each size category, the second showing the number of mallocs -
  * frees for each size category.
  */
-mstats(s)
-	char *s;
+void
+mstats(char *s)
 {
-	register int i, j;
-	register union overhead *p;
+	int i, j;
+	union overhead *p;
 	int totfree = 0,
 	totused = 0;
 
