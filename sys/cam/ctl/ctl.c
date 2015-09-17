@@ -611,6 +611,8 @@ ctl_isc_announce_port(struct ctl_port *port)
 		i += port->port_devid->len;
 	if (port->target_devid)
 		i += port->target_devid->len;
+	if (port->init_devid)
+		i += port->init_devid->len;
 	msg = malloc(i, M_CTL, M_WAITOK);
 	bzero(&msg->port, sizeof(msg->port));
 	msg->hdr.msg_type = CTL_MSG_PORT_SYNC;
@@ -640,6 +642,12 @@ ctl_isc_announce_port(struct ctl_port *port)
 		memcpy(&msg->port.data[i], port->target_devid->data,
 		    msg->port.target_devid_len);
 		i += msg->port.target_devid_len;
+	}
+	if (port->init_devid) {
+		msg->port.init_devid_len = port->init_devid->len;
+		memcpy(&msg->port.data[i], port->init_devid->data,
+		    msg->port.init_devid_len);
+		i += msg->port.init_devid_len;
 	}
 	ctl_ha_msg_send(CTL_HA_CHAN_CTL, &msg->port, sizeof(msg->port) + i,
 	    M_WAITOK);
@@ -865,8 +873,23 @@ ctl_isc_port_sync(struct ctl_softc *softc, union ctl_ha_msg *msg, int len)
 		port->target_devid->len = msg->port.target_devid_len;
 		i += msg->port.target_devid_len;
 	} else {
-		free(port->port_devid, M_CTL);
-		port->port_devid = NULL;
+		free(port->target_devid, M_CTL);
+		port->target_devid = NULL;
+	}
+	if (msg->port.init_devid_len != 0) {
+		if (port->init_devid == NULL ||
+		    port->init_devid->len != msg->port.init_devid_len) {
+			free(port->init_devid, M_CTL);
+			port->init_devid = malloc(sizeof(struct ctl_devid) +
+			    msg->port.init_devid_len, M_CTL, M_WAITOK);
+		}
+		memcpy(port->init_devid->data, &msg->port.data[i],
+		    msg->port.init_devid_len);
+		port->init_devid->len = msg->port.init_devid_len;
+		i += msg->port.init_devid_len;
+	} else {
+		free(port->init_devid, M_CTL);
+		port->init_devid = NULL;
 	}
 	if (new) {
 		if (ctl_port_register(port) != 0) {
