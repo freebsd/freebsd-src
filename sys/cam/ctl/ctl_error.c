@@ -686,9 +686,9 @@ ctl_set_internal_failure(struct ctl_scsiio *ctsio, int sks_valid,
 }
 
 void
-ctl_set_medium_error(struct ctl_scsiio *ctsio)
+ctl_set_medium_error(struct ctl_scsiio *ctsio, int read)
 {
-	if ((ctsio->io_hdr.flags & CTL_FLAG_DATA_MASK) == CTL_FLAG_DATA_IN) {
+	if (read) {
 		/* "Unrecovered read error" */
 		ctl_set_sense(ctsio,
 			      /*current_error*/ 1,
