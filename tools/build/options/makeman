@@ -188,6 +188,18 @@ option of
 or in its environment; see
 .Xr environ 7 .
 .Pp
+The environment of
+.Xr make 1
+for the build can be controlled via the
+.Va SRC_ENV_CONF
+variable, which defaults to
+.Pa /etc/src-env.conf .
+Some examples that may only be set in this file are
+.Va MAKEOBJDIRPREFIX ,
+and
+.Va WITH_META_MODE
+as they are environment-only variables.
+.Pp
 The values of variables are ignored regardless of their setting;
 even if they would be set to
 .Dq Li FALSE
@@ -284,6 +296,7 @@ EOF
 .Sh FILES
 .Bl -tag -compact -width Pa
 .It Pa /etc/src.conf
+.It Pa /etc/src-env.conf
 .It Pa /usr/share/mk/bsd.own.mk
 .El
 .Sh SEE ALSO

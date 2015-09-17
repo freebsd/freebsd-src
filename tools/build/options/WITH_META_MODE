@@ -25,6 +25,11 @@ If
 is available the meta file will also capture a record of files
 used to produce the target by tracking syscalls.
 .Pp
+This must be set in the environment or
+.Pa /etc/src-env.conf ,
+not
+.Pa /etc/src.conf .
+.Pp
 The build will hide commands ran unless
 .Va NO_SILENT
 is defined.
