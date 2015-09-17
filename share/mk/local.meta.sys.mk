@@ -7,14 +7,13 @@
 # we need this until there is an alternative
 MK_INSTALL_AS_USER= yes
 
-_default_makeobjdir=$${.CURDIR:S,$${SRCTOP},$${OBJTOP},}
+_default_makeobjdir=$${.CURDIR:S,^$${SRCTOP},$${OBJTOP},}
 
 .if empty(OBJROOT) || ${.MAKE.LEVEL} == 0
 .if !make(showconfig)
-.if defined(MAKEOBJDIRPREFIX) && exists(${MAKEOBJDIRPREFIX})
-.warning MAKEOBJDIRPREFIX not supported; setting MAKEOBJDIR...
+.if defined(MAKEOBJDIRPREFIX)
 # put things approximately where they want
-OBJROOT:=${MAKEOBJDIRPREFIX}${SRCTOP:S,/src,,}/
+OBJROOT:=${MAKEOBJDIRPREFIX}${SRCTOP}/
 MAKEOBJDIRPREFIX=
 .export MAKEOBJDIRPREFIX
 .endif
