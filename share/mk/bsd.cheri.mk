@@ -8,11 +8,6 @@
 WANT_CHERI:= yes
 .if ${NEED_CHERI} == "pure"
 LIBDIR:=	/usr/libcheri
-.if ${MK_CHERI128} == "yes"
-CHERIFY?=	brandelf -c 128
-.elif ${MK_CHERI256}
-CHERIFY?=	brandelf -c 256
-.endif
 .endif
 .endif
 
