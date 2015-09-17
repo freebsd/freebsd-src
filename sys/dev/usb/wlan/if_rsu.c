@@ -363,6 +363,13 @@ rsu_attach(device_t self)
 	iface = usbd_get_iface(sc->sc_udev, 0);
 	sc->sc_nendpoints = iface->idesc->bNumEndpoints;
 
+	/* Endpoints are hard-coded for now, so enforce 4-endpoint only */
+	if (sc->sc_nendpoints != 4) {
+		device_printf(sc->sc_dev,
+		    "the driver currently only supports 4-endpoint devices\n");
+		return (ENXIO);
+	}
+
 	mtx_init(&sc->sc_mtx, device_get_nameunit(self), MTX_NETWORK_LOCK,
 	    MTX_DEF);
 	TIMEOUT_TASK_INIT(taskqueue_thread, &sc->calib_task, 0, 
@@ -2318,14 +2325,15 @@ rsu_load_firmware(struct rsu_softc *sc)
 	dmem = __DECONST(struct r92s_fw_priv *, &hdr->priv);
 	memset(dmem, 0, sizeof(*dmem));
 	dmem->hci_sel = R92S_HCI_SEL_USB | R92S_HCI_SEL_8172;
-	dmem->nendpoints = 0;
-	dmem->rf_config = 0x12;	/* 1T2R */
+	dmem->nendpoints = sc->sc_nendpoints;
+	/* XXX TODO: rf_config should come from ROM */
+	dmem->rf_config = 0x11;	/* 1T1R */
 	dmem->vcs_type = R92S_VCS_TYPE_AUTO;
 	dmem->vcs_mode = R92S_VCS_MODE_RTS_CTS;
 #ifdef notyet
 	dmem->bw40_en = (ic->ic_htcaps & IEEE80211_HTCAP_CBW20_40) != 0;
 #endif
-	dmem->turbo_mode = 1;
+	dmem->turbo_mode = 0;
 	/* Load DMEM section. */
 	error = rsu_fw_loadsection(sc, (uint8_t *)dmem, sizeof(*dmem));
 	if (error != 0) {
