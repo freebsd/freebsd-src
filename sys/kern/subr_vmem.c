@@ -608,7 +608,7 @@ static struct mtx_padalign vmem_bt_lock;
  * we are really out of KVA.
  */
 static void *
-vmem_bt_alloc(uma_zone_t zone, int bytes, uint8_t *pflag, int wait)
+vmem_bt_alloc(uma_zone_t zone, vm_size_t bytes, uint8_t *pflag, int wait)
 {
 	vmem_addr_t addr;
 
