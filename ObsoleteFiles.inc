@@ -483,8 +483,6 @@ OLD_FILES+=usr/share/man/man9/splstatclock.9.gz
 OLD_FILES+=usr/share/man/man9/spltty.9.gz
 OLD_FILES+=usr/share/man/man9/splvm.9.gz
 OLD_FILES+=usr/share/man/man9/splx.9.gz
-# 20150122: callout changes reverted
-OLD_FILES+=usr/share/man/man9/callout_drain_async.9.gz
 # 20150118: toeplitz.c moved from netinet to net
 OLD_FILES+=usr/include/netinet/toeplitz.h
 # 20150118: new clang import which bumps version from 3.5.0 to 3.5.1.
