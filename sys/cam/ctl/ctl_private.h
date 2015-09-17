@@ -393,6 +393,7 @@ struct ctl_lun {
 	struct scsi_sense_data		pending_sense[CTL_MAX_INITIATORS];
 #endif
 	ctl_ua_type			*pending_ua[CTL_MAX_PORTS];
+	uint8_t				ua_tpt_info[8];
 	time_t				lasttpt;
 	struct ctl_mode_pages		mode_pages;
 	struct ctl_log_pages		log_pages;

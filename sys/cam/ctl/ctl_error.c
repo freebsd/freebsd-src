@@ -366,8 +366,8 @@ ctl_set_ua(struct ctl_scsiio *ctsio, int asc, int ascq)
 }
 
 static void
-ctl_ua_to_acsq(ctl_ua_type ua_to_build, int *asc, int *ascq,
-    ctl_ua_type *ua_to_clear)
+ctl_ua_to_acsq(struct ctl_lun *lun, ctl_ua_type ua_to_build, int *asc,
+    int *ascq, ctl_ua_type *ua_to_clear, uint8_t **info)
 {
 
 	switch (ua_to_build) {
@@ -453,6 +453,7 @@ ctl_ua_to_acsq(ctl_ua_type ua_to_build, int *asc, int *ascq,
 		/* 38h/07h  THIN PROVISIONING SOFT THRESHOLD REACHED */
 		*asc = 0x38;
 		*ascq = 0x07;
+		*info = lun->ua_tpt_info;
 		break;
 	default:
 		panic("%s: Unknown UA %x", __func__, ua_to_build);
@@ -464,6 +465,7 @@ ctl_build_qae(struct ctl_lun *lun, uint32_t initidx, uint8_t *resp)
 {
 	ctl_ua_type ua;
 	ctl_ua_type ua_to_build, ua_to_clear;
+	uint8_t *info;
 	int asc, ascq;
 	uint32_t p, i;
 
@@ -479,7 +481,8 @@ ctl_build_qae(struct ctl_lun *lun, uint32_t initidx, uint8_t *resp)
 
 	ua_to_build = (1 << (ffs(ua) - 1));
 	ua_to_clear = ua_to_build;
-	ctl_ua_to_acsq(ua_to_build, &asc, &ascq, &ua_to_clear);
+	info = NULL;
+	ctl_ua_to_acsq(lun, ua_to_build, &asc, &ascq, &ua_to_clear, &info);
 
 	resp[0] = SSD_KEY_UNIT_ATTENTION;
 	if (ua_to_build == ua)
@@ -497,6 +500,7 @@ ctl_build_ua(struct ctl_lun *lun, uint32_t initidx,
 {
 	ctl_ua_type *ua;
 	ctl_ua_type ua_to_build, ua_to_clear;
+	uint8_t *info;
 	int asc, ascq;
 	uint32_t p, i;
 
@@ -522,16 +526,13 @@ ctl_build_ua(struct ctl_lun *lun, uint32_t initidx,
 
 	ua_to_build = (1 << (ffs(ua[i]) - 1));
 	ua_to_clear = ua_to_build;
-	ctl_ua_to_acsq(ua_to_build, &asc, &ascq, &ua_to_clear);
+	info = NULL;
+	ctl_ua_to_acsq(lun, ua_to_build, &asc, &ascq, &ua_to_clear, &info);
 
-	ctl_set_sense_data(sense,
-			   /*lun*/ NULL,
-			   sense_format,
-			   /*current_error*/ 1,
-			   /*sense_key*/ SSD_KEY_UNIT_ATTENTION,
-			   asc,
-			   ascq,
-			   SSD_ELEM_NONE);
+	ctl_set_sense_data(sense, lun, sense_format, /*current_error*/ 1,
+	    /*sense_key*/ SSD_KEY_UNIT_ATTENTION, asc, ascq,
+	    ((info != NULL) ? SSD_ELEM_INFO : SSD_ELEM_SKIP), 8, info,
+	    SSD_ELEM_NONE);
 
 	/* We're reporting this UA, so clear it */
 	ua[i] &= ~ua_to_clear;
