@@ -102,11 +102,7 @@ INIT_SYSENTVEC(cheriabi_sysent, &elf_freebsd_cheriabi_sysvec);
 
 static Elf64_Brandinfo freebsd_cheriabi_brand_info = {
 	.brand		= ELFOSABI_FREEBSD,
-#ifndef CPU_CHERI128
-	.machine	= EM_MIPS_CHERI256,
-#else
-	.machine	= EM_MIPS_CHERI128,
-#endif
+	.machine	= EM_MIPS_CHERI,
 	.compat_3_brand	= "FreeBSD",
 	.emul_path	= NULL,
 	.interp_path	= "/libexec/ld-elf.so.1",

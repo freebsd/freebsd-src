@@ -59,11 +59,8 @@ static struct ELFtypes elftypes[] = {
 	{ "SVR4",	ELFOSABI_SYSV }
 };
 
-#ifndef EM_MIPS_CHERI128
-#define	EM_MIPS_CHERI128	0xC128
-#endif
-#ifndef EM_MIPS_CHERI256
-#define	EM_MIPS_CHERI256	0xC256
+#ifndef EM_MIPS_CHERI
+#define	EM_MIPS_CHERI	0xC256
 #endif
 
 int
@@ -209,8 +206,7 @@ main(int argc, char **argv)
 				e_machine = e_data == 1 ?
 				    le16toh(buffer.ehdr64.e_machine) :
 				    be16toh(buffer.ehdr64.e_machine);
-				target_e_machine = cheri == 128 ?
-				    EM_MIPS_CHERI128 : EM_MIPS_CHERI256;
+				target_e_machine = EM_MIPS_CHERI;
 				if (e_machine == target_e_machine) {
 					break;
 				} else if (e_machine == EM_MIPS) {
