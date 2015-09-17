@@ -238,7 +238,8 @@ SECTION QUESTION
 nx1.example.com. IN A
 SECTION ANSWER
 SECTION AUTHORITY
-example.com.	3600 IN SOA	a. b. 1 2 3 4 5
+; at TTL 5 because TTL is capped at min-ttl of 5 in rdata of SOA
+example.com.	5 IN SOA	a. b. 1 2 3 4 5
 example.com.	1800 IN NS	ns.example.com.
 SECTION ADDITIONAL
 ns.example.com.	1800 	IN 	A	1.2.3.4

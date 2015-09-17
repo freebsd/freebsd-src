@@ -49,7 +49,7 @@
 #include "util/storage/slabhash.h"
 #include "util/regional.h"
 #include "iterator/iter_delegpt.h"
-#include "ldns/sbuffer.h"
+#include "sldns/sbuffer.h"
 
 #undef _POSIX_C_SOURCE
 #undef _XOPEN_SOURCE
