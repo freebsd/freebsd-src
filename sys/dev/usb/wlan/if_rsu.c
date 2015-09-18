@@ -1319,6 +1319,35 @@ rsu_event_join_bss(struct rsu_softc *sc, uint8_t *buf, int len)
 }
 
 static void
+rsu_event_addba_req_report(struct rsu_softc *sc, uint8_t *buf, int len)
+{
+	struct ieee80211com *ic = &sc->sc_ic;
+	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
+	struct r92s_add_ba_event *ba = (void *) buf;
+	struct ieee80211_node *ni;
+
+	if (len < sizeof(*ba)) {
+		device_printf(sc->sc_dev, "%s: short read (%d)\n", __func__, len);
+		return;
+	}
+
+	if (vap == NULL)
+		return;
+
+	device_printf(sc->sc_dev, "%s: mac=%s, tid=%d, ssn=%d\n",
+	    __func__,
+	    ether_sprintf(ba->mac_addr),
+	    (int) ba->tid,
+	    (int) le16toh(ba->ssn));
+
+	/* XXX do node lookup; this is STA specific */
+
+	ni = ieee80211_ref_node(vap->iv_bss);
+	ieee80211_ampdu_rx_start_ext(ni, ba->tid, le16toh(ba->ssn) >> 4, 32);
+	ieee80211_free_node(ni);
+}
+
+static void
 rsu_rx_event(struct rsu_softc *sc, uint8_t code, uint8_t *buf, int len)
 {
 	struct ieee80211com *ic = &sc->sc_ic;
@@ -1369,6 +1398,10 @@ rsu_rx_event(struct rsu_softc *sc, uint8_t code, uint8_t *buf, int len)
 	case R92S_EVT_FWDBG:
 		buf[60] = '\0';
 		RSU_DPRINTF(sc, RSU_DEBUG_FWDBG, "FWDBG: %s\n", (char *)buf);
+		break;
+
+	case R92S_EVT_ADDBA_REQ_REPORT:
+		rsu_event_addba_req_report(sc, buf, len);
 		break;
 	default:
 		RSU_DPRINTF(sc, RSU_DEBUG_ANY, "%s: unhandled code (%d)\n",
@@ -1640,6 +1673,8 @@ tr_setup:
 			ni = ieee80211_find_rxnode(ic,
 			    (struct ieee80211_frame_min *)wh);
 			if (ni != NULL) {
+				if (ni->ni_flags & IEEE80211_NODE_HT)
+					m->m_flags |= M_AMPDU;
 				(void)ieee80211_input(ni, m, rssi, 0);
 				ieee80211_free_node(ni);
 			} else
