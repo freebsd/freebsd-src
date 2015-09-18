@@ -156,6 +156,8 @@ uint8_t *ieee80211_add_rsn(uint8_t *, const struct ieee80211vap *);
 uint8_t *ieee80211_add_qos(uint8_t *, const struct ieee80211_node *);
 uint16_t ieee80211_getcapinfo(struct ieee80211vap *,
 		struct ieee80211_channel *);
+struct ieee80211_wme_state;
+uint8_t * ieee80211_add_wme_info(uint8_t *frm, struct ieee80211_wme_state *wme);
 
 void	ieee80211_reset_erp(struct ieee80211com *);
 void	ieee80211_set_shortslottime(struct ieee80211com *, int onoff);
