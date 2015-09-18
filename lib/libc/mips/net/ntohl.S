@@ -47,5 +47,9 @@ LEAF(ntohl)                            # a0 = 0x11223344, return 0x44332211
         and     v1, v1, 0xff00          # v1 = 0x00002200
         or      v0, v0, v1
 #endif
+#ifndef __CHERI_SANDBOX__
         j       ra
+#else
+	cjr	$c17
+#endif
 END(ntohl)

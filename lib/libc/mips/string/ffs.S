@@ -55,5 +55,9 @@ LEAF(ffs)
 	srl	a0, a0, 1
 	beq	v1, zero, 1b		# no, continue
 done:
+#ifndef __CHERI_SANDBOX__
 	j	ra
+#else
+	cjr	$c17
+#endif
 END(ffs)
