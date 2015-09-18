@@ -1,10 +1,24 @@
 #	$NetBSD: Makefile.inc,v 1.2 2000/10/10 21:51:54 jeffs Exp $
 # $FreeBSD$
 
-SRCS+=	bcmp.S bzero.S ffs.S memchr.c memcmp.c memset.c \
-	strcat.c strchr.S strcmp.S strcpy.c strcspn.c strlen.S \
-	strncat.c strncmp.c strncpy.c strrchr.S strpbrk.c strsep.c \
+SRCS+=	ffs.S memchr.c memcmp.c memset.c \
+	strcat.c strcpy.c strcspn.c strlen.S \
+	strncat.c strncmp.c strncpy.c strpbrk.c strsep.c \
 	strspn.c strstr.c swab.c
+
+.if !defined(LIBCHERI)
+SRCS+=	bcmp.S \
+	bzero.S \
+	strchr.S \
+	strcmp.S \
+	strrchr.S
+.else
+SRCS+=	bcmp.c \
+	bzero.c \
+	strchr.c \
+	strcmp.c \
+	strrchr.c
+.endif
 
 .if ${MK_CHERI} == "no"
 SRCS+=	bcopy.S memcpy.S memmove.S
