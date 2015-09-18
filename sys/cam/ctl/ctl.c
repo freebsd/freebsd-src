@@ -1148,6 +1148,7 @@ ctl_isc_event_handler(ctl_ha_channel channel, ctl_ha_event event, int param)
 			 */
 			io = msg->hdr.serializing_sc;
 			io->io_hdr.msg_type = CTL_MSG_DATAMOVE_DONE;
+			io->io_hdr.flags &= ~CTL_FLAG_DMA_INPROG;
 			io->io_hdr.flags |= CTL_FLAG_IO_ACTIVE;
 			io->io_hdr.port_status = msg->scsi.fetd_status;
 			io->scsiio.residual = msg->scsi.residual;
@@ -11058,6 +11059,7 @@ ctl_failover_lun(struct ctl_lun *lun)
 					io->flags |= CTL_FLAG_FAILOVER;
 				} else { /* This can be only due to DATAMOVE */
 					io->msg_type = CTL_MSG_DATAMOVE_DONE;
+					io->flags &= ~CTL_FLAG_DMA_INPROG;
 					io->flags |= CTL_FLAG_IO_ACTIVE;
 					io->port_status = 31340;
 					ctl_enqueue_isc((union ctl_io *)io);
@@ -12443,6 +12445,7 @@ ctl_datamove(union ctl_io *io)
 			return;
 		}
 		io->io_hdr.flags &= ~CTL_FLAG_IO_ACTIVE;
+		io->io_hdr.flags |= CTL_FLAG_DMA_INPROG;
 		if (lun)
 			mtx_unlock(&lun->lun_lock);
 	} else {
