@@ -175,7 +175,7 @@ static struct op_table_entry scsi_op_codes[] = {
 	 *
 	 * SCSI Operation Codes
 	 * Numeric Sorted Listing
-	 * as of  3/11/08
+	 * as of  5/26/15
 	 *
 	 *     D - DIRECT ACCESS DEVICE (SBC-2)                device column key
 	 *     .T - SEQUENTIAL ACCESS DEVICE (SSC-2)           -----------------
@@ -501,17 +501,22 @@ static struct op_table_entry scsi_op_codes[] = {
 	{ 0x93,	D, "WRITE SAME(16)" },
 	/* 93   M              ERASE(16) */
 	{ 0x93,	T, "ERASE(16)" },
-	/* 94 [usage proposed by SCSI Socket Services project] */
-	/* 95 [usage proposed by SCSI Socket Services project] */
-	/* 96 [usage proposed by SCSI Socket Services project] */
-	/* 97 [usage proposed by SCSI Socket Services project] */
+	/* 94  O               ZBC OUT */
+	{ 0x94,	D, "ZBC OUT" },
+	/* 95  O               ZBC OUT */
+	{ 0x95,	D, "ZBC OUT" },
+	/* 96 */
+	/* 97 */
 	/* 98 */
 	/* 99 */
-	/* 9A */
-	/* 9B */
+	/* 9A  O               WRITE STREAM(16) */
+	{ 0x9A,	D, "WRITE STREAM(16)" },
+	/* 9B  OOOOOOOOOO OOO  READ BUFFER(16) */
+	{ 0x9B,	ALL & ~(B) , "READ BUFFER(16)" },
 	/* 9C  O              WRITE ATOMIC(16) */
 	{ 0x9C, D, "WRITE ATOMIC(16)" },
-	/* 9D */
+	/* 9D                  SERVICE ACTION BIDIRECTIONAL */
+	{ 0x9D, ALL, "SERVICE ACTION BIDIRECTIONAL" },
 	/* XXX KDM ALL for this?  op-num.txt defines it for none.. */
 	/* 9E                  SERVICE ACTION IN(16) */
 	{ 0x9E, ALL, "SERVICE ACTION IN(16)" },
