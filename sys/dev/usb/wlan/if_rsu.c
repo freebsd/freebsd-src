@@ -84,6 +84,9 @@ SYSCTL_INT(_hw_usb_rsu, OID_AUTO, debug, CTLFLAG_RWTUN, &rsu_debug, 0,
 #define	RSU_DPRINTF(_sc, _flg, ...)
 #endif
 
+static int rsu_enable_11n = 0;
+TUNABLE_INT("hw.usb.rsu.enable_11n", &rsu_enable_11n);
+
 #define	RSU_DEBUG_ANY		0xffffffff
 #define	RSU_DEBUG_TX		0x00000001
 #define	RSU_DEBUG_RX		0x00000002
@@ -357,7 +360,8 @@ rsu_attach(device_t self)
 	device_set_usb_desc(self);
 	sc->sc_udev = uaa->device;
 	sc->sc_dev = self;
-	sc->sc_ht = !! (USB_GET_DRIVER_INFO(uaa) & RSU_HT_SUPPORTED);
+	if (rsu_enable_11n)
+		sc->sc_ht = !! (USB_GET_DRIVER_INFO(uaa) & RSU_HT_SUPPORTED);
 
 	/* Get number of endpoints */
 	iface = usbd_get_iface(sc->sc_udev, 0);
@@ -429,23 +433,30 @@ rsu_attach(device_t self)
 	    IEEE80211_C_SHSLOT |	/* Short slot time supported. */
 	    IEEE80211_C_WPA;		/* WPA/RSN. */
 
-#if 0
 	/* Check if HT support is present. */
-	if (usb_lookup(rsu_devs_noht, uaa->vendor, uaa->product) == NULL) {
-		/* Set HT capabilities. */
-		ic->ic_htcaps =
-		    IEEE80211_HTCAP_CBW20_40 |
-		    IEEE80211_HTCAP_DSSSCCK40;
-		/* Set supported HT rates. */
-		for (i = 0; i < 2; i++)
-			ic->ic_sup_mcs[i] = 0xff;
+	if (sc->sc_ht) {
+		device_printf(sc->sc_dev, "%s: enabling 11n\n", __func__);
+
+		/* Enable basic HT */
+		ic->ic_htcaps = IEEE80211_HTC_HT |
+		    IEEE80211_HTC_AMPDU |
+		    IEEE80211_HTC_AMSDU |
+		    IEEE80211_HTCAP_MAXAMSDU_3839 |
+		    IEEE80211_HTCAP_SMPS_OFF;
+
+		ic->ic_htcaps |= IEEE80211_HTCAP_CHWIDTH40;
+
+		/* set number of spatial streams */
+		ic->ic_txstream = 1;
+		ic->ic_rxstream = 1;
 	}
-#endif
 
 	/* Set supported .11b and .11g rates. */
 	bands = 0;
 	setbit(&bands, IEEE80211_MODE_11B);
 	setbit(&bands, IEEE80211_MODE_11G);
+	if (sc->sc_ht)
+		setbit(&bands, IEEE80211_MODE_11NG);
 	ieee80211_init_channels(ic, NULL, &bands);
 
 	ieee80211_ifattach(ic);
@@ -1180,6 +1191,9 @@ rsu_join_bss(struct rsu_softc *sc, struct ieee80211_node *ni)
 	frm = ieee80211_add_rsn(frm, vap);
 	frm = ieee80211_add_wpa(frm, vap);
 	frm = ieee80211_add_qos(frm, ni);
+	if ((ic->ic_flags & IEEE80211_F_WME) &&
+	    (ni->ni_ies.wme_ie != NULL))
+		frm = ieee80211_add_wme_info(frm, &ic->ic_wme);
 	if (ni->ni_flags & IEEE80211_NODE_HT)
 		frm = ieee80211_add_htcap(frm, ni);
 	bss->ieslen = htole32(frm - (uint8_t *)fixed);
@@ -1314,8 +1328,7 @@ rsu_rx_event(struct rsu_softc *sc, uint8_t code, uint8_t *buf, int len)
 	    "%s: Rx event code=%d len=%d\n", __func__, code, len);
 	switch (code) {
 	case R92S_EVT_SURVEY:
-		if (vap->iv_state == IEEE80211_S_SCAN)
-			rsu_event_survey(sc, buf, len);
+		rsu_event_survey(sc, buf, len);
 		break;
 	case R92S_EVT_SURVEY_DONE:
 		RSU_DPRINTF(sc, RSU_DEBUG_SCAN,
@@ -1325,6 +1338,7 @@ rsu_rx_event(struct rsu_softc *sc, uint8_t code, uint8_t *buf, int len)
 			break;	/* Ignore if not scanning. */
 		if (sc->sc_scan_pass == 0 && vap->iv_des_nssid != 0) {
 			/* Schedule a directed scan for hidden APs. */
+			/* XXX bad! */
 			sc->sc_scan_pass = 1;
 			RSU_UNLOCK(sc);
 			ieee80211_new_state(vap, IEEE80211_S_SCAN, -1);
@@ -1806,6 +1820,13 @@ rsu_tx_start(struct rsu_softc *sc, struct ieee80211_node *ni,
 	}
 	hasqos = 0;
 #endif
+
+	RSU_DPRINTF(sc, RSU_DEBUG_TX, "%s: pri=%d, which=%d, hasqos=%d\n",
+	    __func__,
+	    prio,
+	    which,
+	    hasqos);
+
 	/* Fill Tx descriptor. */
 	txd = (struct r92s_tx_desc *)data->buf;
 	memset(txd, 0, sizeof(*txd));
@@ -1839,6 +1860,7 @@ rsu_tx_start(struct rsu_softc *sc, struct ieee80211_node *ni,
 		    SM(R92S_TXDW1_KEYIDX, k->k_id));
 	}
 #endif
+	/* XXX todo: set AGGEN bit if appropriate? */
 	txd->txdw2 |= htole32(R92S_TXDW2_BK);
 	if (IEEE80211_IS_MULTICAST(wh->i_addr1))
 		txd->txdw2 |= htole32(R92S_TXDW2_BMCAST);
@@ -2212,6 +2234,7 @@ rsu_load_firmware(struct rsu_softc *sc)
 {
 	const struct r92s_fw_hdr *hdr;
 	struct r92s_fw_priv *dmem;
+	struct ieee80211com *ic = &sc->sc_ic;
 	const uint8_t *imem, *emem;
 	int imemsz, ememsz;
 	const struct firmware *fw;
@@ -2348,10 +2371,11 @@ rsu_load_firmware(struct rsu_softc *sc)
 	dmem->rf_config = 0x11;	/* 1T1R */
 	dmem->vcs_type = R92S_VCS_TYPE_AUTO;
 	dmem->vcs_mode = R92S_VCS_MODE_RTS_CTS;
-#ifdef notyet
-	dmem->bw40_en = (ic->ic_htcaps & IEEE80211_HTCAP_CBW20_40) != 0;
-#endif
 	dmem->turbo_mode = 0;
+	dmem->bw40_en = !! (ic->ic_htcaps & IEEE80211_HTCAP_CHWIDTH40);
+	dmem->amsdu2ampdu_en = !! (sc->sc_ht);
+	dmem->ampdu_en = !! (sc->sc_ht);
+	dmem->agg_offload = !! (sc->sc_ht);
 	dmem->qos_en = 1;
 	/* Load DMEM section. */
 	error = rsu_fw_loadsection(sc, (uint8_t *)dmem, sizeof(*dmem));
@@ -2504,8 +2528,7 @@ rsu_init(struct rsu_softc *sc)
 		goto fail;
 	}
 
-#if 0
-	if (ic->ic_htcaps & IEEE80211_HTCAP_CBW20_40) {
+	if (ic->ic_htcaps & IEEE80211_HTCAP_CHWIDTH40) {
 		/* Enable 40MHz mode. */
 		error = rsu_fw_iocmd(sc,
 		    SM(R92S_IOCMD_CLASS, 0xf4) |
@@ -2518,9 +2541,6 @@ rsu_init(struct rsu_softc *sc)
 		}
 	}
 
-	/* Set default channel. */
-	ic->ic_bss->ni_chan = ic->ic_ibss_chan;
-#endif
 	sc->sc_scan_pass = 0;
 	usbd_transfer_start(sc->sc_xfer[RSU_BULK_RX]);
 
