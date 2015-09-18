@@ -159,15 +159,7 @@ cheri_sandbox_pretty_print_packet(const struct pcap_pkthdr *h,
 	    cheri_getoffset((void *)sp));
 #endif
 
-	/*
-	 * XXXBD: Hack around the need to not store the packet except
-	 * on the stack.  Should really avoid this somehow...
-	 */
-	gndo->ndo_packetp = malloc(h->caplen);
-	if (gndo->ndo_packetp == NULL)
-		error("failed to malloc packet space\n");
-	/* XXXBD: void* cast works around type bug */
-	memcpy(__DECONST(void *, gndo->ndo_packetp), sp, h->caplen);
+	gndo->ndo_packetp = sp;
 	gndo->ndo_snapend = gndo->ndo_packetp + h->caplen;
 
 	if (printinfo.ndo_type)
@@ -177,7 +169,6 @@ cheri_sandbox_pretty_print_packet(const struct pcap_pkthdr *h,
 		ret = (*printinfo.p.printer)(h, gndo->ndo_packetp);
 
 	/* XXX: what else to reset? */
-	free(__DECONST(void*, gndo->ndo_packetp));
 	gndo->ndo_packetp = NULL;
 	snapend = NULL;
 
