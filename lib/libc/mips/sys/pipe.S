@@ -48,8 +48,13 @@ LEAF(__sys_pipe)
 	li	v0, SYS_pipe	# pipe(fildes) int fildes[2];
 	syscall
 	bne	a3, zero, 1f
+#ifndef __CHERI_SANDBOX__
 	sw	v0, 0(a0)	# store the two file descriptors
 	sw	v1, 4(a0)
+#else
+	csw	v0, zero, 0($c3)	# store the two file descriptors
+	csw	v1, zero, 4($c3)
+#endif
 	move	v0, zero
 	PIC_RETURN()
 1:
