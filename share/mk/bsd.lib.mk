@@ -294,7 +294,7 @@ all:
 .else
 all: ${_LIBS}
 
-.if ${MK_MAN} != "no"
+.if ${MK_MAN} != "no" && !defined(LIBRARIES_ONLY)
 all: _manpages
 .endif
 .endif
