@@ -174,6 +174,7 @@ static void	rsu_free_tx_list(struct rsu_softc *);
 static void	rsu_free_list(struct rsu_softc *, struct rsu_data [], int);
 static struct rsu_data *_rsu_getbuf(struct rsu_softc *);
 static struct rsu_data *rsu_getbuf(struct rsu_softc *);
+static void	rsu_freebuf(struct rsu_softc *, struct rsu_data *);
 static int	rsu_write_region_1(struct rsu_softc *, uint16_t, uint8_t *,
 		    int);
 static void	rsu_write_1(struct rsu_softc *, uint16_t, uint8_t);
@@ -757,6 +758,14 @@ rsu_getbuf(struct rsu_softc *sc)
 	if (bf == NULL)
 		DPRINTF("stop queue\n");
 	return (bf);
+}
+
+static void
+rsu_freebuf(struct rsu_softc *sc, struct rsu_data *bf)
+{
+
+	RSU_ASSERT_LOCKED(sc);
+	STAILQ_INSERT_TAIL(&sc->sc_tx_inactive, bf, next);
 }
 
 static int
@@ -1742,7 +1751,7 @@ rsu_bulk_tx_callback_sub(struct usb_xfer *xfer, usb_error_t error,
 		    __func__, data);
 		STAILQ_REMOVE_HEAD(&sc->sc_tx_active[which], next);
 		rsu_txeof(xfer, data);
-		STAILQ_INSERT_TAIL(&sc->sc_tx_inactive, data, next);
+		rsu_freebuf(sc, data);
 		/* FALLTHROUGH */
 	case USB_ST_SETUP:
 tr_setup:
@@ -1766,7 +1775,7 @@ tr_setup:
 		if (data != NULL) {
 			STAILQ_REMOVE_HEAD(&sc->sc_tx_active[which], next);
 			rsu_txeof(xfer, data);
-			STAILQ_INSERT_TAIL(&sc->sc_tx_inactive, data, next);
+			rsu_freebuf(sc, data);
 		}
 		counter_u64_add(ic->ic_oerrors, 1);
 
@@ -1975,7 +1984,7 @@ rsu_start(struct rsu_softc *sc)
 		if (rsu_tx_start(sc, ni, m, bf) != 0) {
 			if_inc_counter(ni->ni_vap->iv_ifp,
 			    IFCOUNTER_OERRORS, 1);
-			STAILQ_INSERT_HEAD(&sc->sc_tx_inactive, bf, next);
+			rsu_freebuf(sc, bf);
 			ieee80211_free_node(ni);
 			break;
 		}
@@ -2477,7 +2486,7 @@ rsu_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	}
 	if (rsu_tx_start(sc, ni, m, bf) != 0) {
 		ieee80211_free_node(ni);
-		STAILQ_INSERT_HEAD(&sc->sc_tx_inactive, bf, next);
+		rsu_freebuf(sc, bf);
 		RSU_UNLOCK(sc);
 		return (EIO);
 	}
