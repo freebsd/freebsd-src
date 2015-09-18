@@ -1618,15 +1618,15 @@ nd6_is_router(int type, int code, int is_new, int old_addr, int new_addr,
 	 * neighbor cache, this is similar to (6).
 	 * This case is rare but we figured that we MUST NOT set IsRouter.
 	 *
-	 * newentry olladdr  lladdr  llchange	    NS  RS  RA	redir
+	 *   is_new  old_addr new_addr 	    NS  RS  RA	redir
 	 *							D R
-	 *	0	n	n	--	(1)	c   ?     s
-	 *	0	y	n	--	(2)	c   s     s
-	 *	0	n	y	--	(3)	c   s     s
-	 *	0	y	y	n	(4)	c   s     s
-	 *	0	y	y	y	(5)	c   s     s
-	 *	1	--	n	--	(6) c	c	c s
-	 *	1	--	y	--	(7) c	c   s	c s
+	 *	0	n	n	(1)	c   ?     s
+	 *	0	y	n	(2)	c   s     s
+	 *	0	n	y	(3)	c   s     s
+	 *	0	y	y	(4)	c   s     s
+	 *	0	y	y	(5)	c   s     s
+	 *	1	--	n	(6) c	c	c s
+	 *	1	--	y	(7) c	c   s	c s
 	 *
 	 *					(c=clear s=set)
 	 */
@@ -1751,14 +1751,16 @@ nd6_cache_lladdr(struct ifnet *ifp, struct in6_addr *from, char *lladdr,
 	if (olladdr && lladdr) {
 		llchange = bcmp(lladdr, &ln->ll_addr,
 		    ifp->if_addrlen);
-	} else
+	} else if (!olladdr && lladdr)
+		llchange = 1;
+	else
 		llchange = 0;
 
 	/*
 	 * newentry olladdr  lladdr  llchange	(*=record)
 	 *	0	n	n	--	(1)
 	 *	0	y	n	--	(2)
-	 *	0	n	y	--	(3) * STALE
+	 *	0	n	y	y	(3) * STALE
 	 *	0	y	y	n	(4) *
 	 *	0	y	y	y	(5) * STALE
 	 *	1	--	n	--	(6)   NOSTATE(= PASSIVE)
@@ -1776,8 +1778,7 @@ nd6_cache_lladdr(struct ifnet *ifp, struct in6_addr *from, char *lladdr,
 	}
 
 	if (!is_newentry) {
-		if ((!olladdr && lladdr != NULL) ||	/* (3) */
-		    (olladdr && lladdr != NULL && llchange)) {	/* (5) */
+		if (llchange != 0) {			/* (3,5) */
 			do_update = 1;
 			newstate = ND6_LLINFO_STALE;
 		} else					/* (1-2,4) */
