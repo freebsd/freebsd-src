@@ -155,6 +155,13 @@ data_abort(struct trapframe *frame, uint64_t esr, int lower)
 	uint64_t far;
 	int error, sig, ucode;
 
+	/*
+	 * According to the ARMv8-A rev. A.g, B2.10.5 "Load-Exclusive
+	 * and Store-Exclusive instruction usage restrictions", state
+	 * of the exclusive monitors after data abort exception is unknown.
+	 */
+	clrex();
+
 #ifdef KDB
 	if (kdb_active) {
 		kdb_reenter();
