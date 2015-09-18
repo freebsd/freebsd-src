@@ -1787,7 +1787,7 @@ add_ie(uint8_t *frm, const uint8_t *ie)
 /*
  * Add a WME information element to a frame.
  */
-static uint8_t *
+uint8_t *
 ieee80211_add_wme_info(uint8_t *frm, struct ieee80211_wme_state *wme)
 {
 	static const struct ieee80211_wme_info info = {
