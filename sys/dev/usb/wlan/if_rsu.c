@@ -742,9 +742,7 @@ _rsu_getbuf(struct rsu_softc *sc)
 		STAILQ_REMOVE_HEAD(&sc->sc_tx_inactive, next);
 	else
 		bf = NULL;
-	if (bf == NULL)
-		DPRINTF("out of xmit buffers\n");
-        return (bf);
+	return (bf);
 }
 
 static struct rsu_data *
@@ -755,8 +753,6 @@ rsu_getbuf(struct rsu_softc *sc)
 	RSU_ASSERT_LOCKED(sc);
 
 	bf = _rsu_getbuf(sc);
-	if (bf == NULL)
-		DPRINTF("stop queue\n");
 	return (bf);
 }
 
@@ -947,6 +943,8 @@ rsu_fw_cmd(struct rsu_softc *sc, uint8_t code, void *buf, int len)
 	int cmdsz;
 	int xferlen;
 
+	RSU_ASSERT_LOCKED(sc);
+
 	data = rsu_getbuf(sc);
 	if (data == NULL)
 		return (ENOMEM);
@@ -1124,6 +1122,9 @@ rsu_site_survey(struct rsu_softc *sc, struct ieee80211vap *vap)
 {
 	struct r92s_fw_cmd_sitesurvey cmd;
 	struct ieee80211com *ic = &sc->sc_ic;
+	int r;
+
+	RSU_ASSERT_LOCKED(sc);
 
 	memset(&cmd, 0, sizeof(cmd));
 	if ((ic->ic_flags & IEEE80211_F_ASCAN) || sc->sc_scan_pass == 1)
@@ -1137,7 +1138,11 @@ rsu_site_survey(struct rsu_softc *sc, struct ieee80211vap *vap)
 
 	}
 	DPRINTF("sending site survey command, pass=%d\n", sc->sc_scan_pass);
-	return (rsu_fw_cmd(sc, R92S_CMD_SITE_SURVEY, &cmd, sizeof(cmd)));
+	r = rsu_fw_cmd(sc, R92S_CMD_SITE_SURVEY, &cmd, sizeof(cmd));
+	if (r == 0) {
+		sc->sc_scanning = 1;
+	}
+	return (r);
 }
 
 static int
@@ -1152,6 +1157,27 @@ rsu_join_bss(struct rsu_softc *sc, struct ieee80211_node *ni)
 	uint8_t *frm;
 	uint8_t opmode;
 	int error;
+	int cnt;
+	char *msg = "rsujoin";
+
+	RSU_ASSERT_LOCKED(sc);
+
+	/*
+	 * Until net80211 scanning doesn't automatically finish
+	 * before we tell it to, let's just wait until any pending
+	 * scan is done.
+	 *
+	 * XXX TODO: yes, this releases and re-acquires the lock.
+	 * We should re-verify the state whenever we re-attempt this!
+	 */
+	cnt = 0;
+	while (sc->sc_scanning && cnt < 10) {
+		device_printf(sc->sc_dev,
+		    "%s: still scanning! (attempt %d)\n",
+		    __func__, cnt);
+		msleep(msg, &sc->sc_mtx, 0, msg, hz / 2);
+		cnt++;
+	}
 
 	/* Let the FW decide the opmode based on the capinfo field. */
 	opmode = NDIS802_11AUTOUNKNOWN;
@@ -1309,12 +1335,18 @@ rsu_event_join_bss(struct rsu_softc *sc, uint8_t *buf, int len)
 	RSU_DPRINTF(sc, RSU_DEBUG_STATE | RSU_DEBUG_FWCMD,
 	    "%s: Rx join BSS event len=%d res=%d\n",
 	    __func__, len, res);
+
+	/*
+	 * XXX Don't do this; there's likely a better way to tell
+	 * the caller we failed.
+	 */
 	if (res <= 0) {
 		RSU_UNLOCK(sc);
 		ieee80211_new_state(vap, IEEE80211_S_SCAN, -1);
 		RSU_LOCK(sc);
 		return;
 	}
+
 	tmp = le32toh(rsp->associd);
 	if (tmp >= vap->iv_max_aid) {
 		DPRINTF("Assoc ID overflow\n");
@@ -1376,8 +1408,14 @@ rsu_rx_event(struct rsu_softc *sc, uint8_t code, uint8_t *buf, int len)
 		RSU_DPRINTF(sc, RSU_DEBUG_SCAN,
 		    "%s: site survey pass %d done, found %d BSS\n",
 		    __func__, sc->sc_scan_pass, le32toh(*(uint32_t *)buf));
+		sc->sc_scanning = 0;
 		if (vap->iv_state != IEEE80211_S_SCAN)
 			break;	/* Ignore if not scanning. */
+
+		/*
+		 * XXX TODO: This needs to be done without a transition to
+		 * the SCAN state again.  Grr.
+		 */
 		if (sc->sc_scan_pass == 0 && vap->iv_des_nssid != 0) {
 			/* Schedule a directed scan for hidden APs. */
 			/* XXX bad! */
@@ -2594,6 +2632,7 @@ rsu_init(struct rsu_softc *sc)
 
 	/* We're ready to go. */
 	sc->sc_running = 1;
+	sc->sc_scanning = 0;
 	return;
 fail:
 	/* Need to stop all failed transfers, if any */

@@ -747,6 +747,7 @@ struct rsu_softc {
 
 	u_int				sc_running:1,
 					sc_calibrating:1,
+					sc_scanning:1,
 					sc_scan_pass:1;
 	u_int				cut;
 	struct rsu_host_cmd_ring	cmdq;
