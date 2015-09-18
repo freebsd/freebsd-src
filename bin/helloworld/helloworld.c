@@ -33,8 +33,9 @@
 int
 main(void)
 {
+	const char hello[] = "Hello World!";
 
-	printf("Hello World!\n");
+	printf("%s\n", hello);
 
 	return (0);
 }
