@@ -562,8 +562,10 @@ ctl_be_block_biodone(struct bio *bio)
 		ctl_complete_beio(beio);
 	} else {
 		if ((ARGS(io)->flags & CTL_LLF_READ) &&
-		    beio->beio_cont == NULL)
+		    beio->beio_cont == NULL) {
 			ctl_set_success(&io->scsiio);
+			ctl_serseq_done(io);
+		}
 #ifdef CTL_TIME_IO
         	getbintime(&io->io_hdr.dma_start_bt);
 #endif  
@@ -782,8 +784,10 @@ ctl_be_block_dispatch_file(struct ctl_be_block_lun *be_lun,
 		ctl_complete_beio(beio);
 	} else {
 		if ((ARGS(io)->flags & CTL_LLF_READ) &&
-		    beio->beio_cont == NULL)
+		    beio->beio_cont == NULL) {
 			ctl_set_success(&io->scsiio);
+			ctl_serseq_done(io);
+		}
 #ifdef CTL_TIME_IO
         	getbintime(&io->io_hdr.dma_start_bt);
 #endif  
@@ -951,8 +955,10 @@ ctl_be_block_dispatch_zvol(struct ctl_be_block_lun *be_lun,
 		ctl_complete_beio(beio);
 	} else {
 		if ((ARGS(io)->flags & CTL_LLF_READ) &&
-		    beio->beio_cont == NULL)
+		    beio->beio_cont == NULL) {
 			ctl_set_success(&io->scsiio);
+			ctl_serseq_done(io);
+		}
 #ifdef CTL_TIME_IO
         	getbintime(&io->io_hdr.dma_start_bt);
 #endif  

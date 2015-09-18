@@ -115,7 +115,8 @@ typedef enum {
 
 	CTL_FLAG_FAILOVER	= 0x04000000,	/* Killed by a failover */
 	CTL_FLAG_IO_ACTIVE	= 0x08000000,	/* I/O active on this SC */
-	CTL_FLAG_STATUS_SENT	= 0x10000000	/* Status sent by datamove */
+	CTL_FLAG_STATUS_SENT	= 0x10000000,	/* Status sent by datamove */
+	CTL_FLAG_SERSEQ_DONE	= 0x20000000	/* All storage I/O started */
 } ctl_io_flags;
 
 
