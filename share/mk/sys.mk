@@ -156,6 +156,7 @@ LFLAGS		?=
 
 LD		?=	ld
 LDFLAGS		?=				# LDFLAGS is for CC, 
+LDFLAGS		+=	-Wl,--no-warn-mismatch
 _LDFLAGS	=	${LDFLAGS:S/-Wl,//g}	# strip -Wl, for LD
 
 LINT		?=	lint
