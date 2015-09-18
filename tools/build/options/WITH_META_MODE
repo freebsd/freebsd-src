@@ -1,5 +1,8 @@
 .\" $FreeBSD$
 Enable building in meta mode.
+This is an experimental build feature.
+For details see
+http://www.crufty.net/sjg/docs/freebsd-meta-mode.htm.
 .Pp
 The build is driven by dirdeps.mk using
 .Va DIRDEPS
@@ -13,7 +16,10 @@ recursively reads
 .Va DIRDEPS
 from Makefile.depend
 computing a graph of tree dependencies from the current origin.
-See http://www.crufty.net/help/sjg/dirdeps.htm
+Setting
+.Va NO_DIRDEPS
+will skip checking dirdep dependencies and will only build in the current
+directory.
 .Pp
 As each target is made
 .Xr make 1
