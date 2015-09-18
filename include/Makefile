@@ -172,12 +172,12 @@ compat:
 copies:
 .for i in ${LDIRS} ${LSUBDIRS} ${LSUBSUBDIRS} crypto machine machine/pc \
 	${_MARCHS}
-.if exists(${DESTDIR}${INCLUDEDIR}/$i)
-	cd ${DESTDIR}${INCLUDEDIR}/$i; \
-	for h in *.h; do \
-		if [ -L $$h ]; then rm -f $$h; fi; \
-	done
-.endif
+	if [ -d ${DESTDIR}${INCLUDEDIR}/$i ]; then \
+		cd ${DESTDIR}${INCLUDEDIR}/$i; \
+		for h in *.h; do \
+			if [ -L $$h ]; then rm -f $$h; fi; \
+		done; \
+	fi
 .endfor
 .for i in ${LDIRS} ${LSUBDIRS:Ndev/agp:Ndev/acpica:Ndev/bktr:Ndev/nand:Ndev/pci} ${LSUBSUBDIRS}
 	cd ${.CURDIR}/../sys; \
