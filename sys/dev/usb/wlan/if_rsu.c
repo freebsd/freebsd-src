@@ -563,6 +563,10 @@ rsu_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
 	uvp->newstate = vap->iv_newstate;
 	vap->iv_newstate = rsu_newstate;
 
+	/* Limits from the r92su driver */
+	vap->iv_ampdu_density = IEEE80211_HTCAP_MPDUDENSITY_16;
+	vap->iv_ampdu_rxmax = IEEE80211_HTCAP_MAXRXAMPDU_32K;
+
 	/* complete setup */
 	ieee80211_vap_attach(vap, ieee80211_media_change,
 	    ieee80211_media_status, mac);
