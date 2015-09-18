@@ -60,6 +60,7 @@ LEAF(strlen)
 	LONG_ADDU	v0, v0, 1	# increment offset
 	bnez		v1, 1b		# continue if not end
 	nop				# delay slot
+	LONG_ADDU	v0, v0, -1	# Subtract 1 for '\0'
 	cjr		$c17
 #endif	/* defined(__CHERI_SANDBOX__) */
 END(strlen)
