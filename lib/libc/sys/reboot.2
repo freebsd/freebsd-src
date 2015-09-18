@@ -113,6 +113,13 @@ Normally, the disks are sync'd (see
 before the processor is halted or rebooted.
 This option may be useful if file system changes have been made manually
 or if the processor is on fire.
+.It Dv RB_REROOT
+Instead of rebooting, unmount all filesystems except the one containing
+currently-running executable, and mount root filesystem using the same
+mechanism which is used during normal boot, based on
+vfs.root.mountfrom
+.Xr kenv 8
+variable.
 .It Dv RB_RDONLY
 Initially mount the root file system read-only.
 This is currently the default, and this option has been deprecated.
