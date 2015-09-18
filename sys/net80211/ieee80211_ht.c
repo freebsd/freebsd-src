@@ -558,6 +558,43 @@ ampdu_rx_start(struct ieee80211_node *ni, struct ieee80211_rx_ampdu *rap,
 }
 
 /*
+ * Public function; manually setup the RX ampdu state.
+ */
+int
+ieee80211_ampdu_rx_start_ext(struct ieee80211_node *ni, int tid, int seq, int baw)
+{
+	struct ieee80211_rx_ampdu *rap;
+
+	/* XXX TODO: sanity check tid, seq, baw */
+
+	rap = &ni->ni_rx_ampdu[tid];
+
+	if (rap->rxa_flags & IEEE80211_AGGR_RUNNING) {
+		/*
+		 * AMPDU previously setup and not terminated with a DELBA,
+		 * flush the reorder q's in case anything remains.
+		 */
+		ampdu_rx_purge(rap);
+	}
+
+	memset(rap, 0, sizeof(*rap));
+	rap->rxa_wnd = (baw== 0) ?
+	    IEEE80211_AGGR_BAWMAX : min(baw, IEEE80211_AGGR_BAWMAX);
+	rap->rxa_start = seq;
+	rap->rxa_flags |=  IEEE80211_AGGR_RUNNING | IEEE80211_AGGR_XCHGPEND;
+
+	IEEE80211_NOTE(ni->ni_vap, IEEE80211_MSG_11N, ni,
+	    "%s: tid=%d, start=%d, wnd=%d, flags=0x%08x\n",
+	    __func__,
+	    tid,
+	    seq,
+	    rap->rxa_wnd,
+	    rap->rxa_flags);
+
+	return 0;
+}
+
+/*
  * Stop A-MPDU rx processing for the specified TID.
  */
 static void
