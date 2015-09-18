@@ -593,6 +593,11 @@ struct r92s_tx_desc {
 	uint16_t	reserved1;
 } __packed __aligned(4);
 
+struct r92s_add_ba_event {
+	uint8_t mac_addr[IEEE80211_ADDR_LEN];
+	uint16_t ssn;
+	uint8_t tid;
+};
 
 /*
  * Driver definitions.
