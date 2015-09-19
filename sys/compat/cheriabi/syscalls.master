@@ -692,20 +692,20 @@
 				    const char *attrname); }
 415	AUE_NULL	UNIMPL	__mac_execve
 416	AUE_SIGACTION	NOPROTO	{ int sigaction(int sig, \
-				    struct sigaction *act, \
-				    struct sigaction *oact); }
-417	AUE_SIGRETURN	NOPROTO	{ int sigreturn( \
-		    const struct ucontext *sigcntxp); }
+				    struct sigaction_c *act, \
+				    struct sigaction_c *oact); }
+417	AUE_SIGRETURN	STD	{ int cheriabi_sigreturn( \
+		    const struct ucontext_c *sigcntxp); }
 418	AUE_NULL	UNIMPL	__xstat
 419	AUE_NULL	UNIMPL	__xfstat
 420	AUE_NULL	UNIMPL	__xlstat
-421	AUE_NULL	NOPROTO	{ int getcontext( \
-				    struct ucontext *ucp); }
-422	AUE_NULL	NOPROTO	{ int setcontext( \
-				    const struct ucontext *ucp); }
-423	AUE_NULL	NOPROTO	{ int swapcontext( \
-				    struct ucontext *oucp, \
-				    const struct ucontext *ucp); }
+421	AUE_NULL	STD	{ int cheriabi_getcontext( \
+				    struct ucontext_c *ucp); }
+422	AUE_NULL	STD	{ int cheriabi_setcontext( \
+				    const struct ucontext_c *ucp); }
+423	AUE_NULL	STD	{ int cheriabi_swapcontext( \
+				    struct ucontext_c *oucp, \
+				    const struct ucontext_c *ucp); }
 424	AUE_SWAPOFF	UNIMPL	swapoff
 425	AUE_NULL	NOPROTO	{ int __acl_get_link(const char *path, \
 				    acl_type_t type, struct acl *aclp); }
@@ -917,7 +917,7 @@
 532	AUE_WAIT6	STD	{ int cheriabi_wait6(int idtype, id_t id, \
 				    int *status, int options, \
 				    struct __wrusage *wrusage, \
-				    siginfo_t *info); }
+				    struct __siginfo_c *info); }
 533	AUE_CAP_RIGHTS_LIMIT	NOPROTO	{ \
 				    int cap_rights_limit(int fd, \
 				    cap_rights_t *rightsp); }
