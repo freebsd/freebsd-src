@@ -385,10 +385,10 @@ struct ctl_pr_info {
 
 struct ctl_ha_msg_hdr {
 	ctl_msg_type		msg_type;
+	uint32_t		status;	     /* transaction status */
 	union ctl_io		*original_sc;
 	union ctl_io		*serializing_sc;
 	struct ctl_nexus	nexus;	     /* Initiator, port, target, lun */
-	uint32_t		status;	     /* transaction status */
 };
 
 #define	CTL_HA_MAX_SG_ENTRIES	16
