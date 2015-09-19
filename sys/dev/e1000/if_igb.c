@@ -541,9 +541,9 @@ igb_attach(device_t dev)
 		    "Disable Energy Efficient Ethernet");
 		if (adapter->hw.phy.media_type == e1000_media_type_copper) {
 			if (adapter->hw.mac.type == e1000_i354)
-				e1000_set_eee_i354(&adapter->hw, TRUE, TRUE);
+				e1000_set_eee_i354(&adapter->hw);
 			else
-				e1000_set_eee_i350(&adapter->hw, TRUE, TRUE);
+				e1000_set_eee_i350(&adapter->hw);
 		}
 	}
 
@@ -1330,9 +1330,9 @@ igb_init_locked(struct adapter *adapter)
 	/* Set Energy Efficient Ethernet */
 	if (adapter->hw.phy.media_type == e1000_media_type_copper) {
 		if (adapter->hw.mac.type == e1000_i354)
-			e1000_set_eee_i354(&adapter->hw, TRUE, TRUE);
+			e1000_set_eee_i354(&adapter->hw);
 		else
-			e1000_set_eee_i350(&adapter->hw, TRUE, TRUE);
+			e1000_set_eee_i350(&adapter->hw);
 	}
 }
 
