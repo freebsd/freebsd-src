@@ -667,7 +667,6 @@
 401	AUE_NULL	NOSTD|NOPROTO	{ int ksem_post(semid_t id); }
 402	AUE_NULL	NOSTD|NOPROTO	{ int ksem_wait(semid_t id); }
 403	AUE_NULL	NOSTD|NOPROTO	{ int ksem_trywait(semid_t id); }
-; XXXBD: semid_t is intptr_t...
 404	AUE_NULL	NOSTD|NOPROTO	{ int ksem_init(semid_t *idp, \
 				    unsigned int value); }
 405	AUE_NULL	NOSTD|NOPROTO	{ int ksem_open(semid_t *idp, \
