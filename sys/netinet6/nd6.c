@@ -1689,7 +1689,6 @@ nd6_cache_lladdr(struct ifnet *ifp, struct in6_addr *from, char *lladdr,
 	int olladdr;
 	int llchange;
 	int flags;
-	int newstate = 0;
 	uint16_t router = 0;
 	struct sockaddr_in6 sin6;
 	struct mbuf *chain = NULL;
@@ -1722,6 +1721,16 @@ nd6_cache_lladdr(struct ifnet *ifp, struct in6_addr *from, char *lladdr,
 		ln = nd6_alloc(from, 0, ifp);
 		if (ln == NULL)
 			return;
+
+		/*
+		 * Since we already know all the data for the new entry,
+		 * fill it before insertion.
+		 */
+		if (lladdr != NULL) {
+			bcopy(lladdr, &ln->ll_addr, ifp->if_addrlen);
+			ln->la_flags |= LLE_VALID;
+			ln->ln_state = ND6_LLINFO_STALE;
+		}
 		IF_AFDATA_WLOCK(ifp);
 		LLE_WLOCK(ln);
 		/* Prefer any existing lle over newly-created one */
@@ -1767,6 +1776,10 @@ nd6_cache_lladdr(struct ifnet *ifp, struct in6_addr *from, char *lladdr,
 	 *	1	--	y	--	(7) * STALE
 	 */
 
+	do_update = 0;
+	if (!is_newentry && llchange != 0)
+		do_update = 1;	/* (3,5) */
+
 	if (lladdr) {		/* (3-5) and (7) */
 		/*
 		 * Record source link-layer address
@@ -1774,35 +1787,13 @@ nd6_cache_lladdr(struct ifnet *ifp, struct in6_addr *from, char *lladdr,
 		 */
 		bcopy(lladdr, &ln->ll_addr, ifp->if_addrlen);
 		ln->la_flags |= LLE_VALID;
+		ln->ln_state = ND6_LLINFO_STALE;
+
 		EVENTHANDLER_INVOKE(lle_event, ln, LLENTRY_RESOLVED);
-	}
 
-	if (!is_newentry) {
-		if (llchange != 0) {			/* (3,5) */
-			do_update = 1;
-			newstate = ND6_LLINFO_STALE;
-		} else					/* (1-2,4) */
-			do_update = 0;
-	} else {
-		do_update = 1;
-		if (lladdr == NULL)			/* (6) */
-			newstate = ND6_LLINFO_NOSTATE;
-		else					/* (7) */
-			newstate = ND6_LLINFO_STALE;
-	}
-
-	if (do_update) {
-		/*
-		 * Update the state of the neighbor cache.
-		 */
-		ln->ln_state = newstate;
-
-		if (ln->ln_state == ND6_LLINFO_STALE) {
+		if (do_update) {
 			if (ln->la_hold != NULL)
 				nd6_grab_holdchain(ln, &chain, &sin6);
-		} else if (ln->ln_state == ND6_LLINFO_INCOMPLETE) {
-			/* probe right away */
-			nd6_llinfo_settimer_locked((void *)ln, 0);
 		}
 	}
 
@@ -1838,7 +1829,7 @@ nd6_cache_lladdr(struct ifnet *ifp, struct in6_addr *from, char *lladdr,
 	 * for those are not autoconfigured hosts, we explicitly avoid such
 	 * cases for safety.
 	 */
-	if (do_update && router &&
+	if ((do_update || is_newentry) && router &&
 	    ND_IFINFO(ifp)->flags & ND6_IFF_ACCEPT_RTADV) {
 		/*
 		 * guaranteed recursion
@@ -2005,7 +1996,7 @@ nd6_resolve(struct ifnet *ifp, int is_gw, struct mbuf *m,
 	/*
 	 * Perform fast path for the following cases:
 	 * 1) lle state is REACHABLE
-	 * 2) lle state is DELAY (NS message sentNS message sent)
+	 * 2) lle state is DELAY (NS message sent)
 	 *
 	 * Every other case involves lle modification, so we handle
 	 * them separately.
