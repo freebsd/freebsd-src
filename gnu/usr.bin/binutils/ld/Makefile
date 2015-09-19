@@ -45,6 +45,12 @@ LDADD=	${DPADD}
 CLEANDIRS+=	ldscripts
 CLEANFILES+=	ldemul-list.h stringify.sed
 
+FILES=		${LDSCRIPTS:S|^|ldscripts/|}
+FILESOWN=	${LIBOWN}
+FILESGRP=	${LIBGRP}
+FILESMODE=	${LIBMODE}
+FILESDIR=	${SCRIPTDIR}
+
 HOST=		${TARGET_TUPLE}
 LIBSEARCHPATH=	\"${TOOLS_PREFIX}/lib\":\"${TOOLS_PREFIX}/usr/lib\"
 ELF_SCR_EXT=	x xbn xc xd xdc xdw xn xr xs xsc xsw xu xw
@@ -65,10 +71,6 @@ ldemul-list.h:
 
 stringify.sed:
 	ln -sf ${SRCDIR}/ld/emultempl/astring.sed ${.TARGET}
-
-afterinstall:
-	${INSTALL} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
-	    ${LDSCRIPTS:S|^|ldscripts/|} ${DESTDIR}${SCRIPTDIR}
 
 GENDIRDEPS_FILTER.host+= Nusr.bin/yacc
 
