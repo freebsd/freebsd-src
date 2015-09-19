@@ -24,13 +24,15 @@
  *
  * $FreeBSD$
  */
+#include "namespace.h"
 #include <sys/ioctl.h>
+#include "un-namespace.h"
 
 int sockatmark(int s)
 {
 	int atmark;
 
-	if (ioctl(s, SIOCATMARK, &atmark) == -1)
+	if (_ioctl(s, SIOCATMARK, &atmark) == -1)
 		return -1;
 	return atmark;
 }
