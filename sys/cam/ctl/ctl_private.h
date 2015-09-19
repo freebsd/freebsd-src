@@ -91,14 +91,14 @@ typedef enum {
  * WARNING:  Keep the bottom nibble here free, we OR in the data direction
  * flags for each command.
  *
- * Note:  "OK_ON_ALL_LUNS" == we don't have to have a lun configured
+ * Note:  "OK_ON_NO_LUN"   == we don't have to have a lun configured
  *        "OK_ON_BOTH"     == we have to have a lun configured
  *        "SA5"            == command has 5-bit service action at byte 1
  */
 typedef enum {
 	CTL_CMD_FLAG_NONE		= 0x0000,
 	CTL_CMD_FLAG_NO_SENSE		= 0x0010,
-	CTL_CMD_FLAG_OK_ON_ALL_LUNS	= 0x0020,
+	CTL_CMD_FLAG_OK_ON_NO_LUN	= 0x0020,
 	CTL_CMD_FLAG_ALLOW_ON_RESV	= 0x0040,
 	CTL_CMD_FLAG_ALLOW_ON_PR_WRESV	= 0x0080,
 	CTL_CMD_FLAG_OK_ON_PROC		= 0x0100,
@@ -109,7 +109,8 @@ typedef enum {
 	CTL_CMD_FLAG_OK_ON_STANDBY	= 0x1000,
 	CTL_CMD_FLAG_OK_ON_UNAVAIL	= 0x2000,
 	CTL_CMD_FLAG_ALLOW_ON_PR_RESV	= 0x4000,
-	CTL_CMD_FLAG_SA5		= 0x8000
+	CTL_CMD_FLAG_SA5		= 0x8000,
+	CTL_CMD_FLAG_RUN_HERE		= 0x10000
 } ctl_cmd_flags;
 
 typedef enum {
