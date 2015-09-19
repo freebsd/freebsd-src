@@ -107,7 +107,7 @@ usage(FILE *out, const char *subcmd)
 }
 
 static void
-do_led(int fd, unsigned int idx, bool onoff, bool fault)
+do_led(int fd, unsigned int idx, bool onoff, bool setfault)
 {
 	encioc_elm_status_t o;
 
@@ -118,9 +118,9 @@ do_led(int fd, unsigned int idx, bool onoff, bool fault)
 	}
 	o.cstat[0] |= 0x80;
 	if (onoff) {
-		o.cstat[2] |= (fault ? 0x20 : 0x02);
+		o.cstat[2] |= (setfault ? 0x20 : 0x02);
 	} else {
-		o.cstat[2] &= (fault ? 0xdf : 0xfd);
+		o.cstat[2] &= (setfault ? 0xdf : 0xfd);
 	}
 
 	if (ioctl(fd, ENCIOC_SETELMSTAT, (caddr_t) &o) < 0) {
@@ -146,7 +146,7 @@ disk_match(const char *devnames, const char *disk, size_t len)
 }
 
 static int
-sesled(int argc, char **argv, bool fault)
+sesled(int argc, char **argv, bool setfault)
 {
 	encioc_elm_devnames_t objdn;
 	encioc_element_t *objp;
@@ -162,7 +162,7 @@ sesled(int argc, char **argv, bool fault)
 	onoff = false;
 
 	if (argc != 3) {
-		usage(stderr, (fault ? "fault" : "locate"));
+		usage(stderr, (setfault ? "fault" : "locate"));
 	}
 
 	disk = argv[1];
@@ -173,7 +173,7 @@ sesled(int argc, char **argv, bool fault)
 		if (*endptr == '*') {
 			warnx("Must specifying a SES device (-u) to use a SES "
 			    "id# to identify a disk");
-			usage(stderr, (fault ? "fault" : "locate"));
+			usage(stderr, (setfault ? "fault" : "locate"));
 		}
 		isses = true;
 	}
@@ -183,7 +183,7 @@ sesled(int argc, char **argv, bool fault)
 	} else if (strcmp(argv[2], "off") == 0) {
 		onoff = false;
 	} else {
-		usage(stderr, (fault ? "fault" : "locate"));
+		usage(stderr, (setfault ? "fault" : "locate"));
 	}
 
 	if (strcmp(disk, "all") == 0) {
@@ -239,7 +239,7 @@ sesled(int argc, char **argv, bool fault)
 				errx(EXIT_FAILURE,
 				     "Requested SES ID does not exist");
 			}
-			do_led(fd, sesid, onoff, fault);
+			do_led(fd, sesid, onoff, setfault);
 			ndisks++;
 			close(fd);
 			break;
@@ -260,12 +260,12 @@ sesled(int argc, char **argv, bool fault)
 			if (objdn.elm_names_len > 0) {
 				if (all) {
 					do_led(fd, objdn.elm_idx,
-					    onoff, fault);
+					    onoff, setfault);
 					continue;
 				}
 				if (disk_match(objdn.elm_devnames, disk, len)) {
 					do_led(fd, objdn.elm_idx,
-					    onoff, fault);
+					    onoff, setfault);
 					ndisks++;
 					break;
 				}
