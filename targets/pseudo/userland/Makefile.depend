@@ -304,6 +304,7 @@ DIRDEPS+= \
 	usr.bin/nohup \
 	usr.bin/nslookup \
 	usr.bin/nsupdate \
+	usr.bin/numactl \
 	usr.bin/opieinfo \
 	usr.bin/opiekey \
 	usr.bin/opiepasswd \
@@ -653,6 +654,7 @@ DIRDEPS+= \
 	usr.sbin/sendmail \
 	usr.sbin/service \
 	usr.sbin/services_mkdb \
+	usr.sbin/sesutil \
 	usr.sbin/setfib \
 	usr.sbin/setfmac \
 	usr.sbin/setpmac \
