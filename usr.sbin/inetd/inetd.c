@@ -1752,8 +1752,6 @@ more:
                 memmove(sep->se_proto, sep->se_proto + 4,
                     strlen(sep->se_proto) + 1 - 4);
                 sep->se_rpc = 1;
-		memcpy(&sep->se_ctrladdr4, bind_sa4,
-			sizeof(sep->se_ctrladdr4));
                 sep->se_rpc_prog = sep->se_rpc_lowvers =
 			sep->se_rpc_highvers = 0;
                 if ((versp = strrchr(sep->se_service, '/'))) {
@@ -2130,8 +2128,8 @@ check_loop(const struct sockaddr *sa, const struct servtab *sep)
 			continue;
 #ifdef INET6
 		case AF_INET6:
-			if (((const struct sockaddr_in *)sa)->sin_port ==
-			    se2->se_ctrladdr4.sin_port)
+			if (((const struct sockaddr_in6 *)sa)->sin6_port ==
+			    se2->se_ctrladdr6.sin6_port)
 				goto isloop;
 			continue;
 #endif
