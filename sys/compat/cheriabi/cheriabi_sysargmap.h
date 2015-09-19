@@ -49,9 +49,6 @@ struct {
 	[CHERIABI_SYS_chown] = {
 		.sam_ptrmask = 0x1
 	},
-	[CHERIABI_SYS_break] = {
-		.sam_ptrmask = 0x1
-	},
 	[CHERIABI_SYS_mount] = {
 		.sam_ptrmask = 0x1 | 0x2 | 0x8
 	},
@@ -135,10 +132,6 @@ struct {
 	},
 	[CHERIABI_SYS_msync] = {
 		.sam_ptrmask = 0x1
-	},
-	[CHERIABI_SYS_sbrk] = {
-	},
-	[CHERIABI_SYS_sstk] = {
 	},
 	[CHERIABI_SYS_vadvise] = {
 	},
@@ -647,16 +640,16 @@ struct {
 	[CHERIABI_SYS_sigaction] = {
 		.sam_ptrmask = 0x2 | 0x4
 	},
-	[CHERIABI_SYS_sigreturn] = {
+	[CHERIABI_SYS_cheriabi_sigreturn] = {
 		.sam_ptrmask = 0x1
 	},
-	[CHERIABI_SYS_getcontext] = {
+	[CHERIABI_SYS_cheriabi_getcontext] = {
 		.sam_ptrmask = 0x1
 	},
-	[CHERIABI_SYS_setcontext] = {
+	[CHERIABI_SYS_cheriabi_setcontext] = {
 		.sam_ptrmask = 0x1
 	},
-	[CHERIABI_SYS_swapcontext] = {
+	[CHERIABI_SYS_cheriabi_swapcontext] = {
 		.sam_ptrmask = 0x1 | 0x2
 	},
 	[CHERIABI_SYS___acl_get_link] = {
@@ -774,10 +767,10 @@ struct {
 	[CHERIABI_SYS_sctp_generic_sendmsg] = {
 		.sam_ptrmask = 0x2 | 0x8 | 0x20
 	},
-	[CHERIABI_SYS_sctp_generic_sendmsg_iov] = {
+	[CHERIABI_SYS_cheriabi_sctp_generic_sendmsg_iov] = {
 		.sam_ptrmask = 0x2 | 0x8 | 0x20
 	},
-	[CHERIABI_SYS_sctp_generic_recvmsg] = {
+	[CHERIABI_SYS_cheriabi_sctp_generic_recvmsg] = {
 		.sam_ptrmask = 0x2 | 0x8 | 0x10 | 0x20 | 0x40
 	},
 	[CHERIABI_SYS_pread] = {

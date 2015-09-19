@@ -97,12 +97,12 @@ struct cheriabi_pwritev_args {
 	char offset_l_[PADL_(off_t)]; off_t offset; char offset_r_[PADR_(off_t)];
 };
 struct cheriabi_aio_return_args {
-	char aiocbp_l_[PADL_(struct aiocb32 *)]; struct aiocb32 * aiocbp; char aiocbp_r_[PADR_(struct aiocb32 *)];
+	char aiocbp_l_[PADL_(struct aiocb_c *)]; struct aiocb_c * aiocbp; char aiocbp_r_[PADR_(struct aiocb_c *)];
 };
 struct cheriabi_aio_suspend_args {
 	char aiocbp_l_[PADL_(struct aiocb_c *const *)]; struct aiocb_c *const * aiocbp; char aiocbp_r_[PADR_(struct aiocb_c *const *)];
 	char nent_l_[PADL_(int)]; int nent; char nent_r_[PADR_(int)];
-	char timeout_l_[PADL_(const struct timespec32 *)]; const struct timespec32 * timeout; char timeout_r_[PADR_(const struct timespec32 *)];
+	char timeout_l_[PADL_(const struct timespec *)]; const struct timespec * timeout; char timeout_r_[PADR_(const struct timespec *)];
 };
 struct cheriabi_aio_cancel_args {
 	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
@@ -149,8 +149,21 @@ struct cheriabi_sendfile_args {
 	char sbytes_l_[PADL_(off_t *)]; off_t * sbytes; char sbytes_r_[PADR_(off_t *)];
 	char flags_l_[PADL_(int)]; int flags; char flags_r_[PADR_(int)];
 };
+struct cheriabi_sigreturn_args {
+	char sigcntxp_l_[PADL_(const struct ucontext_c *)]; const struct ucontext_c * sigcntxp; char sigcntxp_r_[PADR_(const struct ucontext_c *)];
+};
+struct cheriabi_getcontext_args {
+	char ucp_l_[PADL_(struct ucontext_c *)]; struct ucontext_c * ucp; char ucp_r_[PADR_(struct ucontext_c *)];
+};
+struct cheriabi_setcontext_args {
+	char ucp_l_[PADL_(const struct ucontext_c *)]; const struct ucontext_c * ucp; char ucp_r_[PADR_(const struct ucontext_c *)];
+};
+struct cheriabi_swapcontext_args {
+	char oucp_l_[PADL_(struct ucontext_c *)]; struct ucontext_c * oucp; char oucp_r_[PADR_(struct ucontext_c *)];
+	char ucp_l_[PADL_(const struct ucontext_c *)]; const struct ucontext_c * ucp; char ucp_r_[PADR_(const struct ucontext_c *)];
+};
 struct cheriabi_thr_new_args {
-	char param_l_[PADL_(struct thr_param32 *)]; struct thr_param32 * param; char param_r_[PADR_(struct thr_param32 *)];
+	char param_l_[PADL_(struct thr_param_c *)]; struct thr_param_c * param; char param_r_[PADR_(struct thr_param_c *)];
 	char param_size_l_[PADL_(int)]; int param_size; char param_size_r_[PADR_(int)];
 };
 struct cheriabi_kmq_notify_args {
@@ -160,6 +173,24 @@ struct cheriabi_kmq_notify_args {
 struct cheriabi_aio_fsync_args {
 	char op_l_[PADL_(int)]; int op; char op_r_[PADR_(int)];
 	char aiocbp_l_[PADL_(struct aiocb_c *)]; struct aiocb_c * aiocbp; char aiocbp_r_[PADR_(struct aiocb_c *)];
+};
+struct cheriabi_sctp_generic_sendmsg_iov_args {
+	char sd_l_[PADL_(int)]; int sd; char sd_r_[PADR_(int)];
+	char iov_l_[PADL_(struct iovec_c *)]; struct iovec_c * iov; char iov_r_[PADR_(struct iovec_c *)];
+	char iovlen_l_[PADL_(int)]; int iovlen; char iovlen_r_[PADR_(int)];
+	char to_l_[PADL_(caddr_t)]; caddr_t to; char to_r_[PADR_(caddr_t)];
+	char tolen_l_[PADL_(__socklen_t)]; __socklen_t tolen; char tolen_r_[PADR_(__socklen_t)];
+	char sinfo_l_[PADL_(struct sctp_sndrcvinfo *)]; struct sctp_sndrcvinfo * sinfo; char sinfo_r_[PADR_(struct sctp_sndrcvinfo *)];
+	char flags_l_[PADL_(int)]; int flags; char flags_r_[PADR_(int)];
+};
+struct cheriabi_sctp_generic_recvmsg_args {
+	char sd_l_[PADL_(int)]; int sd; char sd_r_[PADR_(int)];
+	char iov_l_[PADL_(struct iovec_c *)]; struct iovec_c * iov; char iov_r_[PADR_(struct iovec_c *)];
+	char iovlen_l_[PADL_(int)]; int iovlen; char iovlen_r_[PADR_(int)];
+	char from_l_[PADL_(struct sockaddr *)]; struct sockaddr * from; char from_r_[PADR_(struct sockaddr *)];
+	char fromlenaddr_l_[PADL_(__socklen_t *)]; __socklen_t * fromlenaddr; char fromlenaddr_r_[PADR_(__socklen_t *)];
+	char sinfo_l_[PADL_(struct sctp_sndrcvinfo *)]; struct sctp_sndrcvinfo * sinfo; char sinfo_r_[PADR_(struct sctp_sndrcvinfo *)];
+	char msg_flags_l_[PADL_(int *)]; int * msg_flags; char msg_flags_r_[PADR_(int *)];
 };
 struct cheriabi_fexecve_args {
 	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
@@ -185,7 +216,7 @@ struct cheriabi_semctl_args {
 struct cheriabi_msgctl_args {
 	char msqid_l_[PADL_(int)]; int msqid; char msqid_r_[PADR_(int)];
 	char cmd_l_[PADL_(int)]; int cmd; char cmd_r_[PADR_(int)];
-	char buf_l_[PADL_(struct msqid_ds_C *)]; struct msqid_ds_C * buf; char buf_r_[PADR_(struct msqid_ds_C *)];
+	char buf_l_[PADL_(struct msqid_ds_c *)]; struct msqid_ds_c * buf; char buf_r_[PADR_(struct msqid_ds_c *)];
 };
 struct cheriabi_cap_enter_args {
 	register_t dummy;
@@ -195,8 +226,8 @@ struct cheriabi_wait6_args {
 	char id_l_[PADL_(id_t)]; id_t id; char id_r_[PADR_(id_t)];
 	char status_l_[PADL_(int *)]; int * status; char status_r_[PADR_(int *)];
 	char options_l_[PADL_(int)]; int options; char options_r_[PADR_(int)];
-	char wrusage_l_[PADL_(struct wrusage32 *)]; struct wrusage32 * wrusage; char wrusage_r_[PADR_(struct wrusage32 *)];
-	char info_l_[PADL_(siginfo_t *)]; siginfo_t * info; char info_r_[PADR_(siginfo_t *)];
+	char wrusage_l_[PADL_(struct __wrusage *)]; struct __wrusage * wrusage; char wrusage_r_[PADR_(struct __wrusage *)];
+	char info_l_[PADL_(struct __siginfo_c *)]; struct __siginfo_c * info; char info_r_[PADR_(struct __siginfo_c *)];
 };
 struct cheriabi_cap_ioctls_limit_args {
 	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
@@ -237,9 +268,15 @@ int	cheriabi_aio_waitcomplete(struct thread *, struct cheriabi_aio_waitcomplete_
 int	cheriabi_kevent(struct thread *, struct cheriabi_kevent_args *);
 int	cheriabi_nmount(struct thread *, struct cheriabi_nmount_args *);
 int	cheriabi_sendfile(struct thread *, struct cheriabi_sendfile_args *);
+int	cheriabi_sigreturn(struct thread *, struct cheriabi_sigreturn_args *);
+int	cheriabi_getcontext(struct thread *, struct cheriabi_getcontext_args *);
+int	cheriabi_setcontext(struct thread *, struct cheriabi_setcontext_args *);
+int	cheriabi_swapcontext(struct thread *, struct cheriabi_swapcontext_args *);
 int	cheriabi_thr_new(struct thread *, struct cheriabi_thr_new_args *);
 int	cheriabi_kmq_notify(struct thread *, struct cheriabi_kmq_notify_args *);
 int	cheriabi_aio_fsync(struct thread *, struct cheriabi_aio_fsync_args *);
+int	cheriabi_sctp_generic_sendmsg_iov(struct thread *, struct cheriabi_sctp_generic_sendmsg_iov_args *);
+int	cheriabi_sctp_generic_recvmsg(struct thread *, struct cheriabi_sctp_generic_recvmsg_args *);
 int	cheriabi_fexecve(struct thread *, struct cheriabi_fexecve_args *);
 int	cheriabi_jail_get(struct thread *, struct cheriabi_jail_get_args *);
 int	cheriabi_jail_set(struct thread *, struct cheriabi_jail_set_args *);
@@ -309,9 +346,15 @@ int	cheriabi_aio_mlock(struct thread *, struct cheriabi_aio_mlock_args *);
 #define	CHERIABI_SYS_AUE_cheriabi_kevent	AUE_NULL
 #define	CHERIABI_SYS_AUE_cheriabi_nmount	AUE_NMOUNT
 #define	CHERIABI_SYS_AUE_cheriabi_sendfile	AUE_SENDFILE
+#define	CHERIABI_SYS_AUE_cheriabi_sigreturn	AUE_SIGRETURN
+#define	CHERIABI_SYS_AUE_cheriabi_getcontext	AUE_NULL
+#define	CHERIABI_SYS_AUE_cheriabi_setcontext	AUE_NULL
+#define	CHERIABI_SYS_AUE_cheriabi_swapcontext	AUE_NULL
 #define	CHERIABI_SYS_AUE_cheriabi_thr_new	AUE_NULL
 #define	CHERIABI_SYS_AUE_cheriabi_kmq_notify	AUE_NULL
 #define	CHERIABI_SYS_AUE_cheriabi_aio_fsync	AUE_NULL
+#define	CHERIABI_SYS_AUE_cheriabi_sctp_generic_sendmsg_iov	AUE_NULL
+#define	CHERIABI_SYS_AUE_cheriabi_sctp_generic_recvmsg	AUE_NULL
 #define	CHERIABI_SYS_AUE_cheriabi_fexecve	AUE_FEXECVE
 #define	CHERIABI_SYS_AUE_cheriabi_jail_get	AUE_NULL
 #define	CHERIABI_SYS_AUE_cheriabi_jail_set	AUE_NULL

@@ -130,13 +130,6 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 3;
 		break;
 	}
-	/* obreak */
-	case 17: {
-		struct obreak_args *p = params;
-		uarg[0] = (intptr_t) p->nsize; /* char * */
-		*n_args = 1;
-		break;
-	}
 	/* getpid */
 	case 20: {
 		*n_args = 0;
@@ -433,20 +426,6 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	/* vfork */
 	case 66: {
 		*n_args = 0;
-		break;
-	}
-	/* sbrk */
-	case 69: {
-		struct sbrk_args *p = params;
-		iarg[0] = p->incr; /* int */
-		*n_args = 1;
-		break;
-	}
-	/* sstk */
-	case 70: {
-		struct sstk_args *p = params;
-		iarg[0] = p->incr; /* int */
-		*n_args = 1;
 		break;
 	}
 	/* ovadvise */
@@ -1540,7 +1519,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	/* cheriabi_aio_return */
 	case 314: {
 		struct cheriabi_aio_return_args *p = params;
-		uarg[0] = (intptr_t) p->aiocbp; /* struct aiocb32 * */
+		uarg[0] = (intptr_t) p->aiocbp; /* struct aiocb_c * */
 		*n_args = 1;
 		break;
 	}
@@ -1549,7 +1528,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		struct cheriabi_aio_suspend_args *p = params;
 		uarg[0] = (intptr_t) p->aiocbp; /* struct aiocb_c *const * */
 		iarg[1] = p->nent; /* int */
-		uarg[2] = (intptr_t) p->timeout; /* const struct timespec32 * */
+		uarg[2] = (intptr_t) p->timeout; /* const struct timespec * */
 		*n_args = 3;
 		break;
 	}
@@ -2102,37 +2081,37 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 416: {
 		struct sigaction_args *p = params;
 		iarg[0] = p->sig; /* int */
-		uarg[1] = (intptr_t) p->act; /* struct sigaction * */
-		uarg[2] = (intptr_t) p->oact; /* struct sigaction * */
+		uarg[1] = (intptr_t) p->act; /* struct sigaction_c * */
+		uarg[2] = (intptr_t) p->oact; /* struct sigaction_c * */
 		*n_args = 3;
 		break;
 	}
-	/* sigreturn */
+	/* cheriabi_sigreturn */
 	case 417: {
-		struct sigreturn_args *p = params;
-		uarg[0] = (intptr_t) p->sigcntxp; /* const struct ucontext * */
+		struct cheriabi_sigreturn_args *p = params;
+		uarg[0] = (intptr_t) p->sigcntxp; /* const struct ucontext_c * */
 		*n_args = 1;
 		break;
 	}
-	/* getcontext */
+	/* cheriabi_getcontext */
 	case 421: {
-		struct getcontext_args *p = params;
-		uarg[0] = (intptr_t) p->ucp; /* struct ucontext * */
+		struct cheriabi_getcontext_args *p = params;
+		uarg[0] = (intptr_t) p->ucp; /* struct ucontext_c * */
 		*n_args = 1;
 		break;
 	}
-	/* setcontext */
+	/* cheriabi_setcontext */
 	case 422: {
-		struct setcontext_args *p = params;
-		uarg[0] = (intptr_t) p->ucp; /* const struct ucontext * */
+		struct cheriabi_setcontext_args *p = params;
+		uarg[0] = (intptr_t) p->ucp; /* const struct ucontext_c * */
 		*n_args = 1;
 		break;
 	}
-	/* swapcontext */
+	/* cheriabi_swapcontext */
 	case 423: {
-		struct swapcontext_args *p = params;
-		uarg[0] = (intptr_t) p->oucp; /* struct ucontext * */
-		uarg[1] = (intptr_t) p->ucp; /* const struct ucontext * */
+		struct cheriabi_swapcontext_args *p = params;
+		uarg[0] = (intptr_t) p->oucp; /* struct ucontext_c * */
+		uarg[1] = (intptr_t) p->ucp; /* const struct ucontext_c * */
 		*n_args = 2;
 		break;
 	}
@@ -2350,7 +2329,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	/* cheriabi_thr_new */
 	case 455: {
 		struct cheriabi_thr_new_args *p = params;
-		uarg[0] = (intptr_t) p->param; /* struct thr_param32 * */
+		uarg[0] = (intptr_t) p->param; /* struct thr_param_c * */
 		iarg[1] = p->param_size; /* int */
 		*n_args = 2;
 		break;
@@ -2475,11 +2454,11 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 7;
 		break;
 	}
-	/* sctp_generic_sendmsg_iov */
+	/* cheriabi_sctp_generic_sendmsg_iov */
 	case 473: {
-		struct sctp_generic_sendmsg_iov_args *p = params;
+		struct cheriabi_sctp_generic_sendmsg_iov_args *p = params;
 		iarg[0] = p->sd; /* int */
-		uarg[1] = (intptr_t) p->iov; /* struct iovec * */
+		uarg[1] = (intptr_t) p->iov; /* struct iovec_c * */
 		iarg[2] = p->iovlen; /* int */
 		uarg[3] = (intptr_t) p->to; /* caddr_t */
 		iarg[4] = p->tolen; /* __socklen_t */
@@ -2488,11 +2467,11 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 7;
 		break;
 	}
-	/* sctp_generic_recvmsg */
+	/* cheriabi_sctp_generic_recvmsg */
 	case 474: {
-		struct sctp_generic_recvmsg_args *p = params;
+		struct cheriabi_sctp_generic_recvmsg_args *p = params;
 		iarg[0] = p->sd; /* int */
-		uarg[1] = (intptr_t) p->iov; /* struct iovec * */
+		uarg[1] = (intptr_t) p->iov; /* struct iovec_c * */
 		iarg[2] = p->iovlen; /* int */
 		uarg[3] = (intptr_t) p->from; /* struct sockaddr * */
 		uarg[4] = (intptr_t) p->fromlenaddr; /* __socklen_t * */
@@ -2832,7 +2811,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		struct cheriabi_msgctl_args *p = params;
 		iarg[0] = p->msqid; /* int */
 		iarg[1] = p->cmd; /* int */
-		uarg[2] = (intptr_t) p->buf; /* struct msqid_ds_C * */
+		uarg[2] = (intptr_t) p->buf; /* struct msqid_ds_c * */
 		*n_args = 3;
 		break;
 	}
@@ -3001,8 +2980,8 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		iarg[1] = p->id; /* id_t */
 		uarg[2] = (intptr_t) p->status; /* int * */
 		iarg[3] = p->options; /* int */
-		uarg[4] = (intptr_t) p->wrusage; /* struct wrusage32 * */
-		uarg[5] = (intptr_t) p->info; /* siginfo_t * */
+		uarg[4] = (intptr_t) p->wrusage; /* struct __wrusage * */
+		uarg[5] = (intptr_t) p->info; /* struct __siginfo_c * */
 		*n_args = 6;
 		break;
 	}
@@ -3330,16 +3309,6 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		case 2:
 			p = "int";
-			break;
-		default:
-			break;
-		};
-		break;
-	/* obreak */
-	case 17:
-		switch(ndx) {
-		case 0:
-			p = "char *";
 			break;
 		default:
 			break;
@@ -3800,26 +3769,6 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* vfork */
 	case 66:
-		break;
-	/* sbrk */
-	case 69:
-		switch(ndx) {
-		case 0:
-			p = "int";
-			break;
-		default:
-			break;
-		};
-		break;
-	/* sstk */
-	case 70:
-		switch(ndx) {
-		case 0:
-			p = "int";
-			break;
-		default:
-			break;
-		};
 		break;
 	/* ovadvise */
 	case 72:
@@ -5578,7 +5527,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 314:
 		switch(ndx) {
 		case 0:
-			p = "struct aiocb32 *";
+			p = "struct aiocb_c *";
 			break;
 		default:
 			break;
@@ -5594,7 +5543,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 2:
-			p = "const struct timespec32 *";
+			p = "const struct timespec *";
 			break;
 		default:
 			break;
@@ -6523,53 +6472,53 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 1:
-			p = "struct sigaction *";
+			p = "struct sigaction_c *";
 			break;
 		case 2:
-			p = "struct sigaction *";
+			p = "struct sigaction_c *";
 			break;
 		default:
 			break;
 		};
 		break;
-	/* sigreturn */
+	/* cheriabi_sigreturn */
 	case 417:
 		switch(ndx) {
 		case 0:
-			p = "const struct ucontext *";
+			p = "const struct ucontext_c *";
 			break;
 		default:
 			break;
 		};
 		break;
-	/* getcontext */
+	/* cheriabi_getcontext */
 	case 421:
 		switch(ndx) {
 		case 0:
-			p = "struct ucontext *";
+			p = "struct ucontext_c *";
 			break;
 		default:
 			break;
 		};
 		break;
-	/* setcontext */
+	/* cheriabi_setcontext */
 	case 422:
 		switch(ndx) {
 		case 0:
-			p = "const struct ucontext *";
+			p = "const struct ucontext_c *";
 			break;
 		default:
 			break;
 		};
 		break;
-	/* swapcontext */
+	/* cheriabi_swapcontext */
 	case 423:
 		switch(ndx) {
 		case 0:
-			p = "struct ucontext *";
+			p = "struct ucontext_c *";
 			break;
 		case 1:
-			p = "const struct ucontext *";
+			p = "const struct ucontext_c *";
 			break;
 		default:
 			break;
@@ -6926,7 +6875,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 455:
 		switch(ndx) {
 		case 0:
-			p = "struct thr_param32 *";
+			p = "struct thr_param_c *";
 			break;
 		case 1:
 			p = "int";
@@ -7152,14 +7101,14 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* sctp_generic_sendmsg_iov */
+	/* cheriabi_sctp_generic_sendmsg_iov */
 	case 473:
 		switch(ndx) {
 		case 0:
 			p = "int";
 			break;
 		case 1:
-			p = "struct iovec *";
+			p = "struct iovec_c *";
 			break;
 		case 2:
 			p = "int";
@@ -7180,14 +7129,14 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* sctp_generic_recvmsg */
+	/* cheriabi_sctp_generic_recvmsg */
 	case 474:
 		switch(ndx) {
 		case 0:
 			p = "int";
 			break;
 		case 1:
-			p = "struct iovec *";
+			p = "struct iovec_c *";
 			break;
 		case 2:
 			p = "int";
@@ -7811,7 +7760,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 2:
-			p = "struct msqid_ds_C *";
+			p = "struct msqid_ds_c *";
 			break;
 		default:
 			break;
@@ -8108,10 +8057,10 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 4:
-			p = "struct wrusage32 *";
+			p = "struct __wrusage *";
 			break;
 		case 5:
-			p = "siginfo_t *";
+			p = "struct __siginfo_c *";
 			break;
 		default:
 			break;
@@ -8440,11 +8389,6 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* obreak */
-	case 17:
-		if (ndx == 0 || ndx == 1)
-			p = "int";
-		break;
 	/* getpid */
 	case 20:
 	/* mount */
@@ -8613,16 +8557,6 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* vfork */
 	case 66:
-	/* sbrk */
-	case 69:
-		if (ndx == 0 || ndx == 1)
-			p = "int";
-		break;
-	/* sstk */
-	case 70:
-		if (ndx == 0 || ndx == 1)
-			p = "int";
-		break;
 	/* ovadvise */
 	case 72:
 		if (ndx == 0 || ndx == 1)
@@ -9586,22 +9520,22 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* sigreturn */
+	/* cheriabi_sigreturn */
 	case 417:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* getcontext */
+	/* cheriabi_getcontext */
 	case 421:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* setcontext */
+	/* cheriabi_setcontext */
 	case 422:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* swapcontext */
+	/* cheriabi_swapcontext */
 	case 423:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
@@ -9806,12 +9740,12 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* sctp_generic_sendmsg_iov */
+	/* cheriabi_sctp_generic_sendmsg_iov */
 	case 473:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* sctp_generic_recvmsg */
+	/* cheriabi_sctp_generic_recvmsg */
 	case 474:
 		if (ndx == 0 || ndx == 1)
 			p = "int";

@@ -23,7 +23,7 @@
 #define	CHERIABI_SYS_mknod	14
 #define	CHERIABI_SYS_chmod	15
 #define	CHERIABI_SYS_chown	16
-#define	CHERIABI_SYS_break	17
+				/* 17 is obsolete obreak */
 				/* 18 is obsolete getstatfs */
 				/* 19 is obsolete lseek */
 #define	CHERIABI_SYS_getpid	20
@@ -75,8 +75,8 @@
 #define	CHERIABI_SYS_vfork	66
 				/* 67 is obsolete vread */
 				/* 68 is obsolete vwrite */
-#define	CHERIABI_SYS_sbrk	69
-#define	CHERIABI_SYS_sstk	70
+				/* 69 is obsolete sbrk */
+				/* 70 is obsolete sstk */
 				/* 71 is obsolete mmap */
 #define	CHERIABI_SYS_vadvise	72
 #define	CHERIABI_SYS_munmap	73
@@ -327,10 +327,10 @@
 #define	CHERIABI_SYS_extattr_get_link	413
 #define	CHERIABI_SYS_extattr_delete_link	414
 #define	CHERIABI_SYS_sigaction	416
-#define	CHERIABI_SYS_sigreturn	417
-#define	CHERIABI_SYS_getcontext	421
-#define	CHERIABI_SYS_setcontext	422
-#define	CHERIABI_SYS_swapcontext	423
+#define	CHERIABI_SYS_cheriabi_sigreturn	417
+#define	CHERIABI_SYS_cheriabi_getcontext	421
+#define	CHERIABI_SYS_cheriabi_setcontext	422
+#define	CHERIABI_SYS_cheriabi_swapcontext	423
 #define	CHERIABI_SYS___acl_get_link	425
 #define	CHERIABI_SYS___acl_set_link	426
 #define	CHERIABI_SYS___acl_delete_link	427
@@ -371,8 +371,8 @@
 #define	CHERIABI_SYS_rtprio_thread	466
 #define	CHERIABI_SYS_sctp_peeloff	471
 #define	CHERIABI_SYS_sctp_generic_sendmsg	472
-#define	CHERIABI_SYS_sctp_generic_sendmsg_iov	473
-#define	CHERIABI_SYS_sctp_generic_recvmsg	474
+#define	CHERIABI_SYS_cheriabi_sctp_generic_sendmsg_iov	473
+#define	CHERIABI_SYS_cheriabi_sctp_generic_recvmsg	474
 #define	CHERIABI_SYS_pread	475
 #define	CHERIABI_SYS_pwrite	476
 #define	CHERIABI_SYS_mmap	477
