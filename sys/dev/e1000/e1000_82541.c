@@ -85,7 +85,7 @@ static const u16 e1000_igp_cable_length_table[] = {
 static s32 e1000_init_phy_params_82541(struct e1000_hw *hw)
 {
 	struct e1000_phy_info *phy = &hw->phy;
-	s32 ret_val;
+	s32 ret_val = E1000_SUCCESS;
 
 	DEBUGFUNC("e1000_init_phy_params_82541");
 
@@ -295,7 +295,7 @@ void e1000_init_function_pointers_82541(struct e1000_hw *hw)
  **/
 static s32 e1000_reset_hw_82541(struct e1000_hw *hw)
 {
-	u32 ledctl, ctrl, manc;
+	u32 ledctl, ctrl, icr, manc;
 
 	DEBUGFUNC("e1000_reset_hw_82541");
 
@@ -317,7 +317,6 @@ static s32 e1000_reset_hw_82541(struct e1000_hw *hw)
 	/* Must reset the Phy before resetting the MAC */
 	if ((hw->mac.type == e1000_82541) || (hw->mac.type == e1000_82547)) {
 		E1000_WRITE_REG(hw, E1000_CTRL, (ctrl | E1000_CTRL_PHY_RST));
-		E1000_WRITE_FLUSH(hw);
 		msec_delay(5);
 	}
 
@@ -360,7 +359,7 @@ static s32 e1000_reset_hw_82541(struct e1000_hw *hw)
 	E1000_WRITE_REG(hw, E1000_IMC, 0xFFFFFFFF);
 
 	/* Clear any pending interrupt events. */
-	E1000_READ_REG(hw, E1000_ICR);
+	icr = E1000_READ_REG(hw, E1000_ICR);
 
 	return E1000_SUCCESS;
 }
