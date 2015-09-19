@@ -7298,6 +7298,8 @@ OLD_LIBS+=usr/lib/libtermcap.so.2
 OLD_LIBS+=usr/lib/libutil.so.2
 OLD_LIBS+=usr/lib/libvgl.so.1
 OLD_LIBS+=usr/lib/libwrap.so.2
+# 19991216
+OLD_FILES+=usr/sbin/xntpdc
 # 199909XX
 OLD_LIBS+=usr/lib/libc_r.so.3
 # ???
