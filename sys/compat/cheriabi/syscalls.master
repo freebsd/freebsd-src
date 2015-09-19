@@ -516,10 +516,10 @@
 				    gid_t sgid); }
 313	AUE_NULL	OBSOL	signanosleep
 314	AUE_NULL	NOSTD	{ int cheriabi_aio_return( \
-				    struct aiocb32 *aiocbp); }
+				    struct aiocb_c *aiocbp); }
 315	AUE_NULL	NOSTD	{ int cheriabi_aio_suspend( \
 				    struct aiocb_c * const * aiocbp, int nent, \
-				    const struct timespec32 *timeout); }
+				    const struct timespec *timeout); }
 316	AUE_NULL	NOSTD	{ int cheriabi_aio_cancel(int fd, \
 				    struct aiocb_c *aiocbp); }
 317	AUE_NULL	NOSTD	{ int cheriabi_aio_error( \
@@ -760,7 +760,7 @@
 				    u_long val, void *uaddr, \
 				    void *uaddr2); }
 455	AUE_NULL	STD	{ int cheriabi_thr_new(	\
-				    struct thr_param32 *param,	\
+				    struct thr_param_c *param,	\
 				    int param_size); }
 456	AUE_NULL	NOPROTO	{ int sigqueue(pid_t pid, int signum, \
 				    void *value); }
@@ -875,7 +875,7 @@
 510	AUE_SEMCTL	NOSTD { int cheriabi_semctl(int semid, int semnum, \
 				    int cmd, union semun_c *arg); }
 511	AUE_MSGCTL	NOSTD	{ int cheriabi_msgctl(int msqid, int cmd, \
-				    struct msqid_ds_C *buf); }
+				    struct msqid_ds_c *buf); }
 512	AUE_SHMCTL	NOSTD|NOPROTO	{ int shmctl(int shmid, int cmd, \
 				    struct shmid_ds *buf); }
 513	AUE_LPATHCONF	NOPROTO	{ int lpathconf(char *path, int name); }
@@ -916,7 +916,7 @@
 				    off_t len, int advice); }
 532	AUE_WAIT6	STD	{ int cheriabi_wait6(int idtype, id_t id, \
 				    int *status, int options, \
-				    struct wrusage32 *wrusage, \
+				    struct __wrusage *wrusage, \
 				    siginfo_t *info); }
 533	AUE_CAP_RIGHTS_LIMIT	NOPROTO	{ \
 				    int cap_rights_limit(int fd, \
