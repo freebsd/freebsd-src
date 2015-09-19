@@ -11174,7 +11174,7 @@ ctl_scsiio_precheck(struct ctl_softc *softc, struct ctl_scsiio *ctsio)
 	 * it on the rtr queue.
 	 */
 	if (lun == NULL) {
-		if (entry->flags & CTL_CMD_FLAG_OK_ON_ALL_LUNS) {
+		if (entry->flags & CTL_CMD_FLAG_OK_ON_NO_LUN) {
 			ctsio->io_hdr.flags |= CTL_FLAG_IS_WAS_ON_RTR;
 			ctl_enqueue_rtr((union ctl_io *)ctsio);
 			return (retval);
@@ -11392,13 +11392,11 @@ ctl_cmd_applicable(uint8_t lun_type, const struct ctl_cmd_entry *entry)
 
 	switch (lun_type) {
 	case T_PROCESSOR:
-		if (((entry->flags & CTL_CMD_FLAG_OK_ON_PROC) == 0) &&
-		    ((entry->flags & CTL_CMD_FLAG_OK_ON_ALL_LUNS) == 0))
+		if ((entry->flags & CTL_CMD_FLAG_OK_ON_PROC) == 0)
 			return (0);
 		break;
 	case T_DIRECT:
-		if (((entry->flags & CTL_CMD_FLAG_OK_ON_SLUN) == 0) &&
-		    ((entry->flags & CTL_CMD_FLAG_OK_ON_ALL_LUNS) == 0))
+		if ((entry->flags & CTL_CMD_FLAG_OK_ON_SLUN) == 0)
 			return (0);
 		break;
 	default:
