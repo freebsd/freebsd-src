@@ -103,6 +103,7 @@ typedef	__int32_t	f_register_t;
 #ifdef __mips_n64
 typedef	__int64_t	__ptrdiff_t;
 typedef	__int64_t	__segsz_t;
+typedef	__int64_t	__semid_t;		/* historically intptr_t */
 typedef	__uint64_t	__size_t;
 typedef	__int64_t	__ssize_t;
 typedef	__uint64_t	__uintfptr_t;
@@ -110,6 +111,7 @@ typedef	__uint64_t	__uintptr_t;
 #else
 typedef	__int32_t	__ptrdiff_t;		/* ptr1 - ptr2 */
 typedef	__int32_t	__segsz_t;		/* segment size (in pages) */
+typedef	__int32_t	__semid_t;		/* historically intptr_t */
 typedef	__uint32_t	__size_t;		/* sizeof() */
 typedef	__int32_t	__ssize_t;		/* byte count or error */
 typedef	__uint32_t	__uintfptr_t;

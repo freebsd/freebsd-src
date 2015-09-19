@@ -72,6 +72,7 @@ typedef	__int64_t	__int_least64_t;
 typedef	__int64_t	__ptrdiff_t;		/* ptr1 - ptr2 */
 typedef	__int64_t	__register_t;
 typedef	__int64_t	__segsz_t;		/* segment size (in pages) */
+typedef	__int64_t	__semid_t;		/* historically intptr_t */
 typedef	__uint64_t	__size_t;		/* sizeof() */
 typedef	__int64_t	__ssize_t;		/* byte count or error */
 typedef	__int64_t	__time_t;		/* time()... */

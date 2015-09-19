@@ -28,7 +28,7 @@
 #ifndef __SEMAPHORE_H_
 #define __SEMAPHORE_H_
 
-typedef intptr_t semid_t;
+typedef __semid_t semid_t;
 struct timespec;
 
 #define SEM_VALUE_MAX  __INT_MAX
