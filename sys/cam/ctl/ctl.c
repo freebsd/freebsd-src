@@ -1080,7 +1080,7 @@ ctl_isc_event_handler(ctl_ha_channel channel, ctl_ha_event event, int param)
 
 			if (msg->dt.sg_sequence == 0) {
 				i = msg->dt.kern_sg_entries +
-				    io->scsiio.kern_data_len /
+				    msg->dt.kern_data_len /
 				    CTL_HA_DATAMOVE_SEGMENT + 1;
 				sgl = malloc(sizeof(*sgl) * i, M_CTL,
 				    M_WAITOK | M_ZERO);
@@ -1116,11 +1116,8 @@ ctl_isc_event_handler(ctl_ha_channel channel, ctl_ha_event event, int param)
 				sgl[i].len = msg->dt.sg_list[j].len;
 
 #if 0
-				printf("%s: L: %p,%d -> %p,%d j=%d, i=%d\n",
-				       __func__,
-				       msg->dt.sg_list[j].addr,
-				       msg->dt.sg_list[j].len,
-				       sgl[i].addr, sgl[i].len, j, i);
+				printf("%s: DATAMOVE: %p,%lu j=%d, i=%d\n",
+				    __func__, sgl[i].addr, sgl[i].len, j, i);
 #endif
 			}
 
@@ -12537,11 +12534,8 @@ ctl_datamove_remote_dm_write_cb(union ctl_io *io)
 {
 	int retval;
 
-	retval = 0;
-
 	retval = ctl_datamove_remote_xfer(io, CTL_HA_DT_CMD_WRITE,
 					  ctl_datamove_remote_write_cb);
-
 	return (retval);
 }
 
@@ -12571,11 +12565,7 @@ ctl_datamove_remote_write(union ctl_io *io)
 	io->scsiio.be_move_done = ctl_datamove_remote_dm_write_cb;
 
 	fe_datamove = ctl_io_port(&io->io_hdr)->fe_datamove;
-
 	fe_datamove(io);
-
-	return;
-
 }
 
 static int
@@ -12650,14 +12640,13 @@ ctl_datamove_remote_read_cb(struct ctl_ha_dt_req *rq)
 	/* XXX KDM add checks like the ones in ctl_datamove? */
 
 	fe_datamove = ctl_io_port(&io->io_hdr)->fe_datamove;
-
 	fe_datamove(io);
 }
 
 static int
 ctl_datamove_remote_sgl_setup(union ctl_io *io)
 {
-	struct ctl_sg_entry *local_sglist, *remote_sglist;
+	struct ctl_sg_entry *local_sglist;
 	struct ctl_softc *softc;
 	uint32_t len_to_go;
 	int retval;
@@ -12666,7 +12655,6 @@ ctl_datamove_remote_sgl_setup(union ctl_io *io)
 	retval = 0;
 	softc = control_softc;
 	local_sglist = io->io_hdr.local_sglist;
-	remote_sglist = io->io_hdr.remote_sglist;
 	len_to_go = io->scsiio.kern_data_len;
 
 	/*
@@ -12692,7 +12680,7 @@ ctl_datamove_remote_sgl_setup(union ctl_io *io)
 	printf("%s: kern_sg_entries = %d\n", __func__,
 	       io->scsiio.kern_sg_entries);
 	for (i = 0; i < io->scsiio.kern_sg_entries; i++)
-		printf("%s: sg[%d] = %p, %d\n", __func__, i,
+		printf("%s: sg[%d] = %p, %lu\n", __func__, i,
 		       local_sglist[i].addr, local_sglist[i].len);
 #endif
 
@@ -12810,7 +12798,7 @@ ctl_datamove_remote_xfer(union ctl_io *io, unsigned command,
 			rq->callback = callback;
 
 #if 0
-		printf("%s: %s: local %#x remote %#x size %d\n", __func__,
+		printf("%s: %s: local %p remote %p size %d\n", __func__,
 		       (command == CTL_HA_DT_CMD_WRITE) ? "WRITE" : "READ",
 		       rq->local, rq->remote, rq->size);
 #endif
@@ -12856,8 +12844,6 @@ ctl_datamove_remote_read(union ctl_io *io)
 		io->io_hdr.remote_sglist = NULL;
 		io->io_hdr.local_sglist = NULL;
 	}
-
-	return;
 }
 
 /*
