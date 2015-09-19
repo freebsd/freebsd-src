@@ -36,7 +36,9 @@
 #define _E1000_MAC_H_
 
 void e1000_init_mac_ops_generic(struct e1000_hw *hw);
+#ifndef E1000_REMOVED
 #define E1000_REMOVED(a) (0)
+#endif /* E1000_REMOVED */
 void e1000_null_mac_generic(struct e1000_hw *hw);
 s32  e1000_null_ops_generic(struct e1000_hw *hw);
 s32  e1000_null_link_info(struct e1000_hw *hw, u16 *s, u16 *d);
@@ -44,6 +46,7 @@ bool e1000_null_mng_mode(struct e1000_hw *hw);
 void e1000_null_update_mc(struct e1000_hw *hw, u8 *h, u32 a);
 void e1000_null_write_vfta(struct e1000_hw *hw, u32 a, u32 b);
 int  e1000_null_rar_set(struct e1000_hw *hw, u8 *h, u32 a);
+s32  e1000_null_set_obff_timer(struct e1000_hw *hw, u32 a);
 s32  e1000_blink_led_generic(struct e1000_hw *hw);
 s32  e1000_check_for_copper_link_generic(struct e1000_hw *hw);
 s32  e1000_check_for_fiber_link_generic(struct e1000_hw *hw);

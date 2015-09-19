@@ -107,25 +107,9 @@
 
 #define E1000_FEXTNVM6_REQ_PLL_CLK	0x00000100
 #define E1000_FEXTNVM6_ENABLE_K1_ENTRY_CONDITION	0x00000200
-#define E1000_FEXTNVM6_K1_OFF_ENABLE	0x80000000
-/* bit for disabling packet buffer read */
-#define E1000_FEXTNVM7_DISABLE_PB_READ	0x00040000
-#define E1000_FEXTNVM7_SIDE_CLK_UNGATE	0x00000004
+
 #define E1000_FEXTNVM7_DISABLE_SMB_PERST	0x00000020
-#define E1000_FEXTNVM9_IOSFSB_CLKGATE_DIS	0x00000800
-#define E1000_FEXTNVM9_IOSFSB_CLKREQ_DIS	0x00001000
-#define E1000_FEXTNVM11_DISABLE_PB_READ		0x00000200
-#define E1000_FEXTNVM11_DISABLE_MULR_FIX	0x00002000
 
-/* bit24: RXDCTL thresholds granularity: 0 - cache lines, 1 - descriptors */
-#define E1000_RXDCTL_THRESH_UNIT_DESC	0x01000000
-
-#define NVM_SIZE_MULTIPLIER 4096  /*multiplier for NVMS field*/
-#define E1000_FLASH_BASE_ADDR 0xE000 /*offset of NVM access regs*/
-#define E1000_CTRL_EXT_NVMVS 0x3 /*NVM valid sector */
-#define E1000_SPT_B_STEP_REV	0x10 /*SPT B step Rev ID*/
-#define E1000_TARC0_CB_MULTIQ_2_REQ	(1 << 29)
-#define E1000_TARC0_CB_MULTIQ_3_REQ	(1 << 28 | 1 << 29)
 #define PCIE_ICH8_SNOOP_ALL	PCIE_NO_SNOOP_ALL
 
 #define E1000_ICH_RAR_ENTRIES	7
@@ -187,8 +171,6 @@
 
 #define E1000_NVM_K1_CONFIG	0x1B /* NVM K1 Config Word */
 #define E1000_NVM_K1_ENABLE	0x1  /* NVM Enable K1 bit */
-#define K1_ENTRY_LATENCY	0
-#define K1_MIN_TIME		1
 
 /* SMBus Control Phy Register */
 #define CV_SMB_CTRL		PHY_REG(769, 23)
@@ -299,13 +281,36 @@
 /* Receive Address Initial CRC Calculation */
 #define E1000_PCH_RAICC(_n)	(0x05F50 + ((_n) * 4))
 
+/* Latency Tolerance Reporting */
+#define E1000_LTRV			0x000F8
+#define E1000_LTRV_VALUE_MASK		0x000003FF
+#define E1000_LTRV_SCALE_MAX		5
+#define E1000_LTRV_SCALE_FACTOR		5
+#define E1000_LTRV_SCALE_SHIFT		10
+#define E1000_LTRV_SCALE_MASK		0x00001C00
+#define E1000_LTRV_REQ_SHIFT		15
+#define E1000_LTRV_NOSNOOP_SHIFT	16
+#define E1000_LTRV_SEND			(1 << 30)
+
+/* Proprietary Latency Tolerance Reporting PCI Capability */
+#define E1000_PCI_LTR_CAP_LPT		0xA8
+
+/* OBFF Control & Threshold Defines */
+#define E1000_SVCR_OFF_EN		0x00000001
+#define E1000_SVCR_OFF_MASKINT		0x00001000
+#define E1000_SVCR_OFF_TIMER_MASK	0xFFFF0000
+#define E1000_SVCR_OFF_TIMER_SHIFT	16
+#define E1000_SVT_OFF_HWM_MASK		0x0000001F
+
+#if defined(QV_RELEASE) || !defined(NO_PCH_LPT_B0_SUPPORT)
 #define E1000_PCI_REVISION_ID_REG	0x08
+#endif /* defined(QV_RELEASE) || !defined(NO_PCH_LPT_B0_SUPPORT) */
 void e1000_set_kmrn_lock_loss_workaround_ich8lan(struct e1000_hw *hw,
 						 bool state);
 void e1000_igp3_phy_powerdown_workaround_ich8lan(struct e1000_hw *hw);
 void e1000_gig_downshift_workaround_ich8lan(struct e1000_hw *hw);
 void e1000_suspend_workarounds_ich8lan(struct e1000_hw *hw);
-u32 e1000_resume_workarounds_pchlan(struct e1000_hw *hw);
+void e1000_resume_workarounds_pchlan(struct e1000_hw *hw);
 s32 e1000_configure_k1_ich8lan(struct e1000_hw *hw, bool k1_enable);
 void e1000_copy_rx_addrs_to_phy_ich8lan(struct e1000_hw *hw);
 s32 e1000_lv_jumbo_workaround_ich8lan(struct e1000_hw *hw, bool enable);
