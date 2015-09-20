@@ -33,7 +33,7 @@
 #include <link.h>
 #include <stddef.h>
 
-int __elf_phdr_match_addr(struct dl_phdr_info *phdr_info, void *addr);
+int __elf_phdr_match_addr(struct dl_phdr_info *, void *);
 void __pthread_map_stacks_exec(void);
 
 int
