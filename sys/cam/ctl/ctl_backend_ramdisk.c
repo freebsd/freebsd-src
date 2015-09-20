@@ -321,7 +321,6 @@ ctl_backend_ramdisk_continue(union ctl_io *io)
 			sg_entries[i].len = MIN(PAGE_SIZE, len - len_filled);
 			len_filled += sg_entries[i].len;
 		}
-		io->io_hdr.flags |= CTL_FLAG_KDPTR_SGLIST;
 	} else {
 		sg_filled = 0;
 		len_filled = len;
