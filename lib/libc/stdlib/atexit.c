@@ -82,8 +82,8 @@ struct atexit {
 static struct atexit *__atexit;		/* points to head of LIFO stack */
 typedef DECLARE_BLOCK(void, atexit_block, void);
 
-int atexit_b(atexit_block func);
-int __cxa_atexit(void (*func)(void *), void *arg, void *dso);
+int atexit_b(atexit_block);
+int __cxa_atexit(void (*)(void *), void *, void *);
 
 /*
  * Register the function described by 'fptr' to be called at application
