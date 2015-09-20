@@ -40,6 +40,8 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #undef uname
 
+int uname(struct utsname *name);
+
 int
 uname(struct utsname *name)
 {
