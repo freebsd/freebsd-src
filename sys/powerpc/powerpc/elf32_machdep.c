@@ -203,17 +203,17 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 
 	switch (rtype) {
 
-       	case R_PPC_NONE:
-	       	break;
+	case R_PPC_NONE:
+		break;
 
 	case R_PPC_ADDR32: /* word32 S + A */
 		error = lookup(lf, symidx, 1, &addr);
 		if (error != 0)
 			return -1;
 		*where = elf_relocaddr(lf, addr + addend);
-	       	break;
+			break;
 
-       	case R_PPC_ADDR16_LO: /* #lo(S) */
+	case R_PPC_ADDR16_LO: /* #lo(S) */
 		error = lookup(lf, symidx, 1, &addr);
 		if (error != 0)
 			return -1;
@@ -240,17 +240,17 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 		if (addr > relocbase && addr <= (relocbase + addend))
 			addr = relocbase;
 		addr = elf_relocaddr(lf, addr + addend);
-	       	*hwhere = ((addr >> 16) + ((addr & 0x8000) ? 1 : 0))
+		*hwhere = ((addr >> 16) + ((addr & 0x8000) ? 1 : 0))
 		    & 0xffff;
 		break;
 
 	case R_PPC_RELATIVE: /* word32 B + A */
-       		*where = elf_relocaddr(lf, relocbase + addend);
-	       	break;
+		*where = elf_relocaddr(lf, relocbase + addend);
+		break;
 
 	default:
-       		printf("kldload: unexpected relocation type %d\n",
-	       	    (int) rtype);
+		printf("kldload: unexpected relocation type %d\n",
+		    (int) rtype);
 		return -1;
 	}
 	return(0);
