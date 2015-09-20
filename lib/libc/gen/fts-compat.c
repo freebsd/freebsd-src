@@ -120,10 +120,8 @@ static const char *ufslike_filesystems[] = {
 };
 
 FTS *
-__fts_open_44bsd(argv, options, compar)
-	char * const *argv;
-	int options;
-	int (*compar)(const FTSENT * const *, const FTSENT * const *);
+__fts_open_44bsd(char * const *argv, int options,
+    int (*compar)(const FTSENT * const *, const FTSENT * const *))
 {
 	struct _fts_private *priv;
 	FTS *sp;
@@ -234,9 +232,7 @@ mem1:	free(sp);
 }
 
 static void
-fts_load(sp, p)
-	FTS *sp;
-	FTSENT *p;
+fts_load(FTS *sp, FTSENT *p)
 {
 	int len;
 	char *cp;
@@ -260,8 +256,7 @@ fts_load(sp, p)
 }
 
 int
-__fts_close_44bsd(sp)
-	FTS *sp;
+__fts_close_44bsd(FTS *sp)
 {
 	FTSENT *freep, *p;
 	int saved_errno;
@@ -315,8 +310,7 @@ __fts_close_44bsd(sp)
 	    ? p->fts_pathlen - 1 : p->fts_pathlen)
 
 FTSENT *
-__fts_read_44bsd(sp)
-	FTS *sp;
+__fts_read_44bsd(FTS *sp)
 {
 	FTSENT *p, *tmp;
 	int instr;
@@ -510,10 +504,7 @@ name:		t = sp->fts_path + NAPPEND(p->fts_parent);
  */
 /* ARGSUSED */
 int
-__fts_set_44bsd(sp, p, instr)
-	FTS *sp;
-	FTSENT *p;
-	int instr;
+__fts_set_44bsd(FTS *sp, FTSENT *p, int instr)
 {
 	if (instr != 0 && instr != FTS_AGAIN && instr != FTS_FOLLOW &&
 	    instr != FTS_NOINSTR && instr != FTS_SKIP) {
@@ -525,9 +516,7 @@ __fts_set_44bsd(sp, p, instr)
 }
 
 FTSENT *
-__fts_children_44bsd(sp, instr)
-	FTS *sp;
-	int instr;
+__fts_children_44bsd(FTS *sp, int instr)
 {
 	FTSENT *p;
 	int fd;

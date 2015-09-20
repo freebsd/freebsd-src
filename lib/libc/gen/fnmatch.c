@@ -76,9 +76,7 @@ static int fnmatch1(const char *, const char *, const char *, int, mbstate_t,
 		mbstate_t);
 
 int
-fnmatch(pattern, string, flags)
-	const char *pattern, *string;
-	int flags;
+fnmatch(const char *pattern, const char *string, int flags)
 {
 	static const mbstate_t initial;
 
@@ -86,10 +84,8 @@ fnmatch(pattern, string, flags)
 }
 
 static int
-fnmatch1(pattern, string, stringstart, flags, patmbs, strmbs)
-	const char *pattern, *string, *stringstart;
-	int flags;
-	mbstate_t patmbs, strmbs;
+fnmatch1(const char *pattern, const char *string, const char *stringstart,
+    int flags, mbstate_t patmbs, mbstate_t strmbs)
 {
 	char *newp;
 	char c;
@@ -214,12 +210,8 @@ fnmatch1(pattern, string, stringstart, flags, patmbs, strmbs)
 }
 
 static int
-rangematch(pattern, test, flags, newp, patmbs)
-	const char *pattern;
-	wchar_t test;
-	int flags;
-	char **newp;
-	mbstate_t *patmbs;
+rangematch(const char *pattern, wchar_t test, int flags, char **newp,
+    mbstate_t *patmbs)
 {
 	int negate, ok;
 	wchar_t c, c2;
