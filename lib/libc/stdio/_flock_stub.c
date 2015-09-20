@@ -55,6 +55,9 @@ __weak_reference(_flockfile_debug_stub, _flockfile_debug);
 __weak_reference(_ftrylockfile, ftrylockfile);
 __weak_reference(_funlockfile, funlockfile);
 
+void _flockfile_debug_stub(FILE *fp, char *fname, int lineno);
+int _ftrylockfile(FILE *fp);
+
 void
 _flockfile(FILE *fp)
 {

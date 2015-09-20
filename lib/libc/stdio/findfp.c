@@ -164,6 +164,7 @@ found:
  */
 __warn_references(f_prealloc, 
 	"warning: this program uses f_prealloc(), which is not recommended.");
+void f_prealloc_void();
 
 void
 f_prealloc(void)
