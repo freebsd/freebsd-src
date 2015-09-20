@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 int __fdnlist(int, struct nlist *);
 int __aout_fdnlist(int, struct nlist *);
 int __elf_fdnlist(int, struct nlist *);
+int __elf_is_okay__(Elf_Ehdr *ehdr);
 
 int
 nlist(const char *name, struct nlist *list)

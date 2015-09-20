@@ -39,6 +39,8 @@ __FBSDID("$FreeBSD$");
 #include "un-namespace.h"
 #include "libc_private.h"
 
+int __waitid(idtype_t idtype, id_t id, siginfo_t *info, int flags);
+
 int
 __waitid(idtype_t idtype, id_t id, siginfo_t *info, int flags)
 {

@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 
 __weak_reference(__raise, raise);
 __weak_reference(__raise, _raise);
+int __raise(int s);
 
 int
 __raise(int s)

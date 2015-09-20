@@ -41,6 +41,10 @@ __FBSDID("$FreeBSD$");
 
 static char sorry[] = "Service unavailable";
 
+void _rtld_thread_init(void * li);
+void _rtld_atfork_pre(int *locks);
+void _rtld_atfork_post(int *locks);
+
 /*
  * For ELF, the dynamic linker directly resolves references to its
  * services to functions inside the dynamic linker itself.  These
