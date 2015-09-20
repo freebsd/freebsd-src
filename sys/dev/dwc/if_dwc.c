@@ -43,21 +43,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
-#include <sys/module.h>
-#include <sys/malloc.h>
-#include <sys/rman.h>
-#include <sys/endian.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/mbuf.h>
+#include <sys/module.h>
 #include <sys/mutex.h>
+#include <sys/rman.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
-#include <sys/sysctl.h>
-
-#include <dev/fdt/fdt_common.h>
-#include <dev/ofw/openfirm.h>
-#include <dev/ofw/ofw_bus.h>
-#include <dev/ofw/ofw_bus_subr.h>
 
 #include <net/bpf.h>
 #include <net/if.h>
@@ -66,13 +59,15 @@ __FBSDID("$FreeBSD$");
 #include <net/if_media.h>
 #include <net/if_types.h>
 #include <net/if_var.h>
-#include <net/if_vlan_var.h>
 
 #include <machine/bus.h>
-#include <machine/fdt.h>
 
+#include <dev/dwc/if_dwc.h>
 #include <dev/mii/mii.h>
 #include <dev/mii/miivar.h>
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+
 #include "miibus_if.h"
 
 #define	READ4(_sc, _reg) \
@@ -84,8 +79,6 @@ __FBSDID("$FreeBSD$");
 #define	WATCHDOG_TIMEOUT_SECS	5
 #define	STATS_HARVEST_INTERVAL	2
 #define	MII_CLK_VAL		2
-
-#include <dev/dwc/if_dwc.h>
 
 #define	DWC_LOCK(sc)			mtx_lock(&(sc)->mtx)
 #define	DWC_UNLOCK(sc)			mtx_unlock(&(sc)->mtx)
