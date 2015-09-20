@@ -162,7 +162,7 @@ tpcl_datamove(union ctl_io *io)
 	 * To simplify things here, if we have a single buffer, stick it in
 	 * a S/G entry and just make it a single entry S/G list.
 	 */
-	if (ctsio->io_hdr.flags & CTL_FLAG_EDPTR_SGLIST) {
+	if (ctsio->ext_sg_entries > 0) {
 		int len_seen;
 
 		ext_sglist = (struct ctl_sg_entry *)ctsio->ext_data_ptr;

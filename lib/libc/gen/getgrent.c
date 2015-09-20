@@ -75,6 +75,7 @@ static const ns_src defaultsrc[] = {
 	{ NULL, 0 }
 };
 
+int	 __getgroupmembership(const char *, gid_t, gid_t *, int, int *);
 int	 __gr_match_entry(const char *, size_t, enum nss_lookup_type,
 	    const char *, gid_t);
 int	 __gr_parse_entry(char *, size_t, struct group *, char *, size_t,

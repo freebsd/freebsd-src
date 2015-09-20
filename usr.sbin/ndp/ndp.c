@@ -728,9 +728,9 @@ again:;
 			    isrouter ? "R" : "",
 			    (rtm->rtm_flags & RTF_ANNOUNCE) ? "p" : "");
 		} else {
+#if 0	/* W and P are mystery even for us */
 			sin = (struct sockaddr_in6 *)
 			    (sdl->sdl_len + (char *)sdl);
-#if 0	/* W and P are mystery even for us */
 			snprintf(flgbuf, sizeof(flgbuf), "%s%s%s%s",
 			    isrouter ? "R" : "",
 			    !IN6_IS_ADDR_UNSPECIFIED(&sin->sin6_addr) ? "P" : "",

@@ -7,14 +7,12 @@
 # we need this until there is an alternative
 MK_INSTALL_AS_USER= yes
 
-_default_makeobjdir=$${.CURDIR:S,$${SRCTOP},$${OBJTOP},}
+_default_makeobjdir=$${.CURDIR:S,^$${SRCTOP},$${OBJTOP},}
 
 .if empty(OBJROOT) || ${.MAKE.LEVEL} == 0
-.if !make(showconfig)
-.if defined(MAKEOBJDIRPREFIX) && exists(${MAKEOBJDIRPREFIX})
-.warning MAKEOBJDIRPREFIX not supported; setting MAKEOBJDIR...
+.if defined(MAKEOBJDIRPREFIX)
 # put things approximately where they want
-OBJROOT:=${MAKEOBJDIRPREFIX}${SRCTOP:S,/src,,}/
+OBJROOT:=${MAKEOBJDIRPREFIX}${SRCTOP}/
 MAKEOBJDIRPREFIX=
 .export MAKEOBJDIRPREFIX
 .endif
@@ -23,16 +21,15 @@ MAKEOBJDIRPREFIX=
 MAKEOBJDIR=${_default_makeobjdir}
 # export but do not track
 .export-env MAKEOBJDIR
-# now for our own use
-MAKEOBJDIR= ${.CURDIR:S,${SRCTOP},${OBJTOP},}
-.endif
+# Expand for our own use
+MAKEOBJDIR:= ${MAKEOBJDIR}
 .endif
 .if !empty(SB)
 SB_OBJROOT ?= ${SB}/obj/
 # this is what we use below
 OBJROOT ?= ${SB_OBJROOT}
 .endif
-OBJROOT ?= ${SRCTOP:H}/obj/
+OBJROOT ?= /usr/obj${SRCTOP}/
 .if ${OBJROOT:M*/} != ""
 OBJROOT:= ${OBJROOT:H:tA}/
 .else
@@ -46,8 +43,9 @@ OBJROOT:= ${OBJROOT:H:tA}/${OBJROOT:T}
 .endif
 
 # from src/Makefile (for universe)
-TARGET_ARCHES_arm?=     arm armeb armv6 armv6eb
-TARGET_ARCHES_mips?=    mipsel mips mips64el mips64 mipsn32
+TARGET_ARCHES_arm?=     arm armeb armv6 armv6hf
+TARGET_ARCHES_arm64?=   aarch64
+TARGET_ARCHES_mips?=    mipsel mips mips64el mips64 mipsn32 mipsn32el
 TARGET_ARCHES_powerpc?= powerpc powerpc64
 TARGET_ARCHES_pc98?=    i386
 
@@ -56,7 +54,7 @@ BOOT_MACHINE_DIR.amd64 = boot/i386
 MACHINE_ARCH.host = ${_HOST_ARCH}
 
 # the list of machines we support
-ALL_MACHINE_LIST?= amd64 arm i386 ia64 mips pc98 powerpc sparc64
+ALL_MACHINE_LIST?= amd64 arm arm64 i386 ia64 mips pc98 powerpc sparc64
 .for m in ${ALL_MACHINE_LIST:O:u}
 MACHINE_ARCH_LIST.$m?= ${TARGET_ARCHES_${m}:U$m}
 MACHINE_ARCH.$m?= ${MACHINE_ARCH_LIST.$m:[1]}

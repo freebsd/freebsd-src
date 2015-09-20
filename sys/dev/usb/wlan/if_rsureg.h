@@ -593,11 +593,16 @@ struct r92s_tx_desc {
 	uint16_t	reserved1;
 } __packed __aligned(4);
 
+struct r92s_add_ba_event {
+	uint8_t mac_addr[IEEE80211_ADDR_LEN];
+	uint16_t ssn;
+	uint8_t tid;
+};
 
 /*
  * Driver definitions.
  */
-#define RSU_RX_LIST_COUNT	1
+#define RSU_RX_LIST_COUNT	100
 #define RSU_TX_LIST_COUNT	32
 
 #define RSU_HOST_CMD_RING_COUNT	32
@@ -700,6 +705,7 @@ enum {
 	RSU_BULK_RX,
 	RSU_BULK_TX_BE_BK,	/* = WME_AC_BE/BK */
 	RSU_BULK_TX_VI_VO,	/* = WME_AC_VI/VO */
+	RSU_BULK_TX_H2C,	/* H2C */
 	RSU_N_TRANSFER,
 };
 
@@ -736,9 +742,12 @@ struct rsu_softc {
 	struct timeout_task		calib_task;
 	const uint8_t			*qid2idx;
 	struct mtx			sc_mtx;
+	int				sc_ht;
+	int				sc_nendpoints;
 
 	u_int				sc_running:1,
 					sc_calibrating:1,
+					sc_scanning:1,
 					sc_scan_pass:1;
 	u_int				cut;
 	struct rsu_host_cmd_ring	cmdq;

@@ -1530,7 +1530,7 @@ tcp_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 		if (!(inp->inp_flags & INP_TIMEWAIT) &&
 		    !(inp->inp_flags & INP_DROPPED) &&
 		    !(inp->inp_socket == NULL)) {
-			icmp_tcp_seq = htonl(th->th_seq);
+			icmp_tcp_seq = ntohl(th->th_seq);
 			tp = intotcpcb(inp);
 			if (SEQ_GEQ(icmp_tcp_seq, tp->snd_una) &&
 			    SEQ_LT(icmp_tcp_seq, tp->snd_max)) {
