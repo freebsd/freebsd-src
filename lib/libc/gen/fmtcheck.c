@@ -36,7 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <ctype.h>
 
 __weak_reference(__fmtcheck, fmtcheck);
-const char * __fmtcheck(const char *f1, const char *f2);
+const char * __fmtcheck(const char *, const char *);
 
 enum __e_fmtcheck_types {
 	FMTCHECK_START,

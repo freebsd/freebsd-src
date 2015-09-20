@@ -35,7 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include "un-namespace.h"
 
-int __dup3(int oldfd, int newfd, int flags);
+int __dup3(int, int, int);
 
 int
 __dup3(int oldfd, int newfd, int flags)
