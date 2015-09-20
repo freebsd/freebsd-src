@@ -175,7 +175,7 @@ static struct op_table_entry scsi_op_codes[] = {
 	 *
 	 * SCSI Operation Codes
 	 * Numeric Sorted Listing
-	 * as of  3/11/08
+	 * as of  5/26/15
 	 *
 	 *     D - DIRECT ACCESS DEVICE (SBC-2)                device column key
 	 *     .T - SEQUENTIAL ACCESS DEVICE (SSC-2)           -----------------
@@ -501,17 +501,22 @@ static struct op_table_entry scsi_op_codes[] = {
 	{ 0x93,	D, "WRITE SAME(16)" },
 	/* 93   M              ERASE(16) */
 	{ 0x93,	T, "ERASE(16)" },
-	/* 94 [usage proposed by SCSI Socket Services project] */
-	/* 95 [usage proposed by SCSI Socket Services project] */
-	/* 96 [usage proposed by SCSI Socket Services project] */
-	/* 97 [usage proposed by SCSI Socket Services project] */
+	/* 94  O               ZBC OUT */
+	{ 0x94,	D, "ZBC OUT" },
+	/* 95  O               ZBC OUT */
+	{ 0x95,	D, "ZBC OUT" },
+	/* 96 */
+	/* 97 */
 	/* 98 */
 	/* 99 */
-	/* 9A */
-	/* 9B */
+	/* 9A  O               WRITE STREAM(16) */
+	{ 0x9A,	D, "WRITE STREAM(16)" },
+	/* 9B  OOOOOOOOOO OOO  READ BUFFER(16) */
+	{ 0x9B,	ALL & ~(B) , "READ BUFFER(16)" },
 	/* 9C  O              WRITE ATOMIC(16) */
 	{ 0x9C, D, "WRITE ATOMIC(16)" },
-	/* 9D */
+	/* 9D                  SERVICE ACTION BIDIRECTIONAL */
+	{ 0x9D, ALL, "SERVICE ACTION BIDIRECTIONAL" },
 	/* XXX KDM ALL for this?  op-num.txt defines it for none.. */
 	/* 9E                  SERVICE ACTION IN(16) */
 	{ 0x9E, ALL, "SERVICE ACTION IN(16)" },
@@ -969,7 +974,7 @@ static struct asc_table_entry asc_table[] = {
 	 *
 	 * SCSI ASC/ASCQ Assignments
 	 * Numeric Sorted Listing
-	 * as of  5/20/12
+	 * as of  8/12/15
 	 *
 	 * D - DIRECT ACCESS DEVICE (SBC-2)                   device column key
 	 * .T - SEQUENTIAL ACCESS DEVICE (SSC)               -------------------
@@ -1061,6 +1066,9 @@ static struct asc_table_entry asc_table[] = {
 	/* DT P      B    */
 	{ SST(0x00, 0x20, SS_RDEF,	/* XXX TBD */
 	    "Extended copy information available") },
+	/* D              */
+	{ SST(0x00, 0x21, SS_RDEF,	/* XXX TBD */
+	    "Atomic command aborted due to ACA") },
 	/* D   W O   BK   */
 	{ SST(0x01, 0x00, SS_RDEF,
 	    "No index/sector signal") },
@@ -1118,6 +1126,9 @@ static struct asc_table_entry asc_table[] = {
 	/*              F */
 	{ SST(0x04, 0x0D, SS_RDEF,	/* XXX TBD */
 	    "Logical unit not ready, structure check required") },
+	/* DTL WR MAEBKVF */
+	{ SST(0x04, 0x0E, SS_RDEF,	/* XXX TBD */
+	    "Logical unit not ready, security session in progress") },
 	/* DT  WROM  B    */
 	{ SST(0x04, 0x10, SS_RDEF,	/* XXX TBD */
 	    "Logical unit not ready, auxiliary memory not accessible") },
@@ -1157,6 +1168,24 @@ static struct asc_table_entry asc_table[] = {
 	/* DT     MAEB    */
 	{ SST(0x04, 0x1C, SS_RDEF,	/* XXX TBD */
 	    "Logical unit not ready, additional power use not yet granted") },
+	/* D              */
+	{ SST(0x04, 0x1D, SS_RDEF,	/* XXX TBD */
+	    "Logical unit not ready, configuration in progress") },
+	/* D              */
+	{ SST(0x04, 0x1E, SS_FATAL | ENXIO,
+	    "Logical unit not ready, microcode activation required") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x04, 0x1F, SS_FATAL | ENXIO,
+	    "Logical unit not ready, microcode download required") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x04, 0x20, SS_RDEF,	/* XXX TBD */
+	    "Logical unit not ready, logical unit reset required") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x04, 0x21, SS_RDEF,	/* XXX TBD */
+	    "Logical unit not ready, hard reset required") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x04, 0x22, SS_RDEF,	/* XXX TBD */
+	    "Logical unit not ready, power cycle required") },
 	/* DTL WROMAEBKVF */
 	{ SST(0x05, 0x00, SS_RDEF,
 	    "Logical unit does not respond to selection") },
@@ -1196,6 +1225,9 @@ static struct asc_table_entry asc_table[] = {
 	/* DT  WRO   B    */
 	{ SST(0x09, 0x04, SS_RDEF,
 	    "Head select fault") },
+	/* DT   RO   B    */
+	{ SST(0x09, 0x05, SS_RDEF,
+	    "Vibration induced tracking error") },
 	/* DTLPWROMAEBKVF */
 	{ SST(0x0A, 0x00, SS_FATAL | ENOSPC,
 	    "Error log overflow") },
@@ -1229,6 +1261,30 @@ static struct asc_table_entry asc_table[] = {
 	/* D              */
 	{ SST(0x0B, 0x09, SS_RDEF,	/* XXX TBD */
 	    "Warning - device statistics notification available") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x0B, 0x0A, SS_RDEF,	/* XXX TBD */
+	    "Warning - High critical temperature limit exceeded") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x0B, 0x0B, SS_RDEF,	/* XXX TBD */
+	    "Warning - Low critical temperature limit exceeded") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x0B, 0x0C, SS_RDEF,	/* XXX TBD */
+	    "Warning - High operating temperature limit exceeded") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x0B, 0x0D, SS_RDEF,	/* XXX TBD */
+	    "Warning - Low operating temperature limit exceeded") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x0B, 0x0E, SS_RDEF,	/* XXX TBD */
+	    "Warning - High citical humidity limit exceeded") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x0B, 0x0F, SS_RDEF,	/* XXX TBD */
+	    "Warning - Low citical humidity limit exceeded") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x0B, 0x10, SS_RDEF,	/* XXX TBD */
+	    "Warning - High operating humidity limit exceeded") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x0B, 0x11, SS_RDEF,	/* XXX TBD */
+	    "Warning - Low operating humidity limit exceeded") },
 	/*  T   R         */
 	{ SST(0x0C, 0x00, SS_RDEF,
 	    "Write error") },
@@ -1277,6 +1333,15 @@ static struct asc_table_entry asc_table[] = {
 	/*      R         */
 	{ SST(0x0C, 0x0F, SS_RDEF,	/* XXX TBD */
 	    "Defects in error window") },
+	/* D              */
+	{ SST(0x0C, 0x10, SS_RDEF,	/* XXX TBD */
+	    "Incomplete multiple atomic write operations") },
+	/* D              */
+	{ SST(0x0C, 0x11, SS_RDEF,	/* XXX TBD */
+	    "Write error - recovery scan needed") },
+	/* D              */
+	{ SST(0x0C, 0x12, SS_RDEF,	/* XXX TBD */
+	    "Write error - insufficient zone resources") },
 	/* DTLPWRO A  K   */
 	{ SST(0x0D, 0x00, SS_RDEF,	/* XXX TBD */
 	    "Error detected by third party temporary initiator") },
@@ -1388,6 +1453,9 @@ static struct asc_table_entry asc_table[] = {
 	/* D              */
 	{ SST(0x11, 0x14, SS_RDEF,	/* XXX TBD */
 	    "Read error - LBA marked bad by application client") },
+	/* D              */
+	{ SST(0x11, 0x15, SS_RDEF,	/* XXX TBD */
+	    "Write after sanitize required") },
 	/* D   W O   BK   */
 	{ SST(0x12, 0x00, SS_RDEF,
 	    "Address mark not found for ID field") },
@@ -1590,6 +1658,18 @@ static struct asc_table_entry asc_table[] = {
 	{ SST(0x21, 0x03, SS_RDEF,	/* XXX TBD */
 	    "Invalid write crossing layer jump") },
 	/* D              */
+	{ SST(0x21, 0x04, SS_RDEF,	/* XXX TBD */
+	    "Unaligned write command") },
+	/* D              */
+	{ SST(0x21, 0x05, SS_RDEF,	/* XXX TBD */
+	    "Write boundary violation") },
+	/* D              */
+	{ SST(0x21, 0x06, SS_RDEF,	/* XXX TBD */
+	    "Attempt to read invalid data") },
+	/* D              */
+	{ SST(0x21, 0x07, SS_RDEF,	/* XXX TBD */
+	    "Read boundary violation") },
+	/* D              */
 	{ SST(0x22, 0x00, SS_FATAL | EINVAL,
 	    "Illegal function (use 20 00, 24 00, or 26 00)") },
 	/* DT P      B    */
@@ -1712,6 +1792,9 @@ static struct asc_table_entry asc_table[] = {
 	/*  T             */
 	{ SST(0x26, 0x12, SS_RDEF,	/* XXX TBD */
 	    "Vendor specific key reference not found") },
+	/* D              */
+	{ SST(0x26, 0x13, SS_RDEF,	/* XXX TBD */
+	    "Application tag mode page is invalid") },
 	/* DT  WRO   BK   */
 	{ SST(0x27, 0x00, SS_FATAL | EACCES,
 	    "Write protected") },
@@ -1736,6 +1819,9 @@ static struct asc_table_entry asc_table[] = {
 	/* D         B    */
 	{ SST(0x27, 0x07, SS_FATAL | ENOSPC,
 	    "Space allocation failed write protect") },
+	/* D              */
+	{ SST(0x27, 0x08, SS_FATAL | EACCES,
+	    "Zone is read only") },
 	/* DTLPWROMAEBKVF */
 	{ SST(0x28, 0x00, SS_FATAL | ENXIO,
 	    "Not ready to ready change, medium may have changed") },
@@ -1879,12 +1965,33 @@ static struct asc_table_entry asc_table[] = {
 	/* D              */
 	{ SST(0x2C, 0x0C, SS_RDEF,	/* XXX TBD */
 	    "ORWRITE generation does not match") },
+	/* D              */
+	{ SST(0x2C, 0x0D, SS_RDEF,	/* XXX TBD */
+	    "Reset write pointer not allowed") },
+	/* D              */
+	{ SST(0x2C, 0x0E, SS_RDEF,	/* XXX TBD */
+	    "Zone is offline") },
+	/* D              */
+	{ SST(0x2C, 0x0F, SS_RDEF,	/* XXX TBD */
+	    "Stream not open") },
+	/* D              */
+	{ SST(0x2C, 0x10, SS_RDEF,	/* XXX TBD */
+	    "Unwritten data in zone") },
 	/*  T             */
 	{ SST(0x2D, 0x00, SS_RDEF,
 	    "Overwrite error on update in place") },
 	/*      R         */
 	{ SST(0x2E, 0x00, SS_RDEF,	/* XXX TBD */
 	    "Insufficient time for operation") },
+	/* D              */
+	{ SST(0x2E, 0x01, SS_RDEF,	/* XXX TBD */
+	    "Command timeout before processing") },
+	/* D              */
+	{ SST(0x2E, 0x02, SS_RDEF,	/* XXX TBD */
+	    "Command timeout during processing") },
+	/* D              */
+	{ SST(0x2E, 0x03, SS_RDEF,	/* XXX TBD */
+	    "Command timeout during processing due to error recovery") },
 	/* DTLPWROMAEBKVF */
 	{ SST(0x2F, 0x00, SS_RDEF,
 	    "Commands cleared by another initiator") },
@@ -1894,6 +2001,9 @@ static struct asc_table_entry asc_table[] = {
 	/* DTLPWROMAEBKVF */
 	{ SST(0x2F, 0x02, SS_RDEF,	/* XXX TBD */
 	    "Commands cleared by device server") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x2F, 0x03, SS_RDEF,	/* XXX TBD */
+	    "Some commands cleared by queuing layer event") },
 	/* DT  WROM  BK   */
 	{ SST(0x30, 0x00, SS_RDEF,
 	    "Incompatible medium installed") },
@@ -2191,6 +2301,15 @@ static struct asc_table_entry asc_table[] = {
 	/* DTLPWR MAEBK F */
 	{ SST(0x3F, 0x14, SS_RDEF,	/* XXX TBD */
 	    "iSCSI IP address changed") },
+	/* DTLPWR MAEBK   */
+	{ SST(0x3F, 0x15, SS_RDEF,	/* XXX TBD */
+	    "Inspect referrals sense descriptors") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x3F, 0x16, SS_RDEF,	/* XXX TBD */
+	    "Microcode has been changed without reset") },
+	/* D              */
+	{ SST(0x3F, 0x17, SS_RDEF,	/* XXX TBD */
+	    "Zone transition to full") },
 	/* D              */
 	{ SST(0x40, 0x00, SS_RDEF,
 	    "RAM failure") },		/* deprecated - use 40 NN instead */
@@ -2300,6 +2419,30 @@ static struct asc_table_entry asc_table[] = {
 	/* DT PWROMAEBK F */
 	{ SST(0x4B, 0x0D, SS_RDEF,	/* XXX TBD */
 	    "Data-out buffer error") },
+	/* DT PWROMAEBK F */
+	{ SST(0x4B, 0x0E, SS_RDEF,	/* XXX TBD */
+	    "PCIe fabric error") },
+	/* DT PWROMAEBK F */
+	{ SST(0x4B, 0x0F, SS_RDEF,	/* XXX TBD */
+	    "PCIe completion timeout") },
+	/* DT PWROMAEBK F */
+	{ SST(0x4B, 0x10, SS_RDEF,	/* XXX TBD */
+	    "PCIe completer abort") },
+	/* DT PWROMAEBK F */
+	{ SST(0x4B, 0x11, SS_RDEF,	/* XXX TBD */
+	    "PCIe poisoned TLP received") },
+	/* DT PWROMAEBK F */
+	{ SST(0x4B, 0x12, SS_RDEF,	/* XXX TBD */
+	    "PCIe ECRC check failed") },
+	/* DT PWROMAEBK F */
+	{ SST(0x4B, 0x13, SS_RDEF,	/* XXX TBD */
+	    "PCIe unsupported request") },
+	/* DT PWROMAEBK F */
+	{ SST(0x4B, 0x14, SS_RDEF,	/* XXX TBD */
+	    "PCIe ACS violation") },
+	/* DT PWROMAEBK F */
+	{ SST(0x4B, 0x15, SS_RDEF,	/* XXX TBD */
+	    "PCIe TLP prefix blocket") },
 	/* DTLPWROMAEBKVF */
 	{ SST(0x4C, 0x00, SS_RDEF,
 	    "Logical unit failed self-configuration") },
@@ -2357,6 +2500,21 @@ static struct asc_table_entry asc_table[] = {
 	/*        M       */
 	{ SST(0x53, 0x08, SS_RDEF,	/* XXX TBD */
 	    "Element status unknown") },
+	/*        M       */
+	{ SST(0x53, 0x09, SS_RDEF,	/* XXX TBD */
+	    "Data transfer device error - load failed") },
+	/*        M       */
+	{ SST(0x53, 0x0A, SS_RDEF,	/* XXX TBD */
+	    "Data transfer device error - unload failed") },
+	/*        M       */
+	{ SST(0x53, 0x0B, SS_RDEF,	/* XXX TBD */
+	    "Data transfer device error - unload missing") },
+	/*        M       */
+	{ SST(0x53, 0x0C, SS_RDEF,	/* XXX TBD */
+	    "Data transfer device error - eject failed") },
+	/*        M       */
+	{ SST(0x53, 0x0D, SS_RDEF,	/* XXX TBD */
+	    "Data transfer device error - library communication failed") },
 	/*    P           */
 	{ SST(0x54, 0x00, SS_RDEF,
 	    "SCSI to host system interface failure") },
@@ -2402,6 +2560,15 @@ static struct asc_table_entry asc_table[] = {
 	/* DT P      B    */
 	{ SST(0x55, 0x0D, SS_RDEF,	/* XXX TBD */
 	    "Insufficient resources to create ROD token") },
+	/* D              */
+	{ SST(0x55, 0x0E, SS_RDEF,	/* XXX TBD */
+	    "Insufficient zone resources") },
+	/* D              */
+	{ SST(0x55, 0x0F, SS_RDEF,	/* XXX TBD */
+	    "Insufficient zone resources to complete write") },
+	/* D              */
+	{ SST(0x55, 0x10, SS_RDEF,	/* XXX TBD */
+	    "Maximum number of streams open") },
 	/*      R         */
 	{ SST(0x57, 0x00, SS_RDEF,
 	    "Unable to recover table-of-contents") },
@@ -2822,6 +2989,9 @@ static struct asc_table_entry asc_table[] = {
 	/*         A      */
 	{ SST(0x68, 0x00, SS_RDEF,
 	    "Logical unit not configured") },
+	/* D              */
+	{ SST(0x68, 0x01, SS_RDEF,
+	    "Subsidiary logical unit not configured") },
 	/*         A      */
 	{ SST(0x69, 0x00, SS_RDEF,
 	    "Data loss on logical unit") },

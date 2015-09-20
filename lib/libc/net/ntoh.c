@@ -28,6 +28,8 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/endian.h>
+#define _BYTEORDER_FUNC_DEFINED
+#include <arpa/inet.h>
 
 uint32_t
 htonl(uint32_t hl)

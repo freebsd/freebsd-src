@@ -10,14 +10,14 @@ sinclude(dnstap/dnstap.m4)
 # must be numbers. ac_defun because of later processing
 m4_define([VERSION_MAJOR],[1])
 m4_define([VERSION_MINOR],[5])
-m4_define([VERSION_MICRO],[3])
+m4_define([VERSION_MICRO],[4])
 AC_INIT(unbound, m4_defn([VERSION_MAJOR]).m4_defn([VERSION_MINOR]).m4_defn([VERSION_MICRO]), unbound-bugs@nlnetlabs.nl, unbound)
 AC_SUBST(UNBOUND_VERSION_MAJOR, [VERSION_MAJOR])
 AC_SUBST(UNBOUND_VERSION_MINOR, [VERSION_MINOR])
 AC_SUBST(UNBOUND_VERSION_MICRO, [VERSION_MICRO])
 
 LIBUNBOUND_CURRENT=5
-LIBUNBOUND_REVISION=6
+LIBUNBOUND_REVISION=7
 LIBUNBOUND_AGE=3
 # 1.0.0 had 0:12:0
 # 1.0.1 had 0:13:0
@@ -60,6 +60,7 @@ LIBUNBOUND_AGE=3
 # 1.5.1 had 5:3:3
 # 1.5.2 had 5:5:3
 # 1.5.3 had 5:6:3
+# 1.5.4 had 5:7:3
 
 #   Current  -- the number of the binary API that we're implementing
 #   Revision -- which iteration of the implementation of the binary
@@ -474,6 +475,8 @@ if test x_$ub_test_python != x_no; then
 		AC_ERROR([Python version >= 2.4.0 is required])
 	fi
 
+      PY_MAJOR_VERSION="`$PYTHON -c "import sys; print(sys.version_info.major)"`"
+      AC_SUBST(PY_MAJOR_VERSION)
       # Have Python
       AC_DEFINE(HAVE_PYTHON,1,[Define if you have Python libraries and header files.])
       LIBS="$PYTHON_LDFLAGS $LIBS"
@@ -568,7 +571,7 @@ if grep OPENSSL_VERSION_TEXT $ssldir/include/openssl/opensslv.h | grep "LibreSSL
 	AC_DEFINE([HAVE_LIBRESSL], [1], [Define if we have LibreSSL])
 	# libressl provides these compat functions, but they may also be
 	# declared by the OS in libc.  See if they have been declared.
-	AC_CHECK_DECLS([strlcpy,strlcat,arc4random,arc4random_uniform])
+	AC_CHECK_DECLS([strlcpy,strlcat,arc4random,arc4random_uniform,reallocarray])
 else
 	AC_MSG_RESULT([no])
 fi
@@ -995,8 +998,10 @@ AC_REPLACE_FUNCS(strlcat)
 AC_REPLACE_FUNCS(strlcpy)
 AC_REPLACE_FUNCS(memmove)
 AC_REPLACE_FUNCS(gmtime_r)
+dnl without CTIME, ARC4-functions and without reallocarray.
 LIBOBJ_WITHOUT_CTIMEARC4="$LIBOBJS"
 AC_SUBST(LIBOBJ_WITHOUT_CTIMEARC4)
+AC_REPLACE_FUNCS(reallocarray)
 if test "$USE_NSS" = "no"; then
 	AC_REPLACE_FUNCS(arc4random)
 	AC_REPLACE_FUNCS(arc4random_uniform)
@@ -1235,6 +1240,7 @@ AHX_CONFIG_MEMMOVE(unbound)
 AHX_CONFIG_STRLCAT(unbound)
 AHX_CONFIG_STRLCPY(unbound)
 AHX_CONFIG_GMTIME_R(unbound)
+AHX_CONFIG_REALLOCARRAY(unbound)
 AHX_CONFIG_W32_SLEEP
 AHX_CONFIG_W32_USLEEP
 AHX_CONFIG_W32_RANDOM
@@ -1267,6 +1273,9 @@ uint32_t arc4random(void);
 #  endif
 #  if !HAVE_DECL_ARC4RANDOM_UNIFORM && defined(HAVE_ARC4RANDOM_UNIFORM)
 uint32_t arc4random_uniform(uint32_t upper_bound);
+#  endif
+#  if !HAVE_DECL_REALLOCARRAY
+void *reallocarray(void *ptr, size_t nmemb, size_t size);
 #  endif
 #endif /* HAVE_LIBRESSL */
 #ifndef HAVE_ARC4RANDOM

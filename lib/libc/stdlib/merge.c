@@ -99,6 +99,12 @@ static void insertionsort(u_char *, size_t, size_t, cmp_t);
 	((u_char *)0 +							\
 	    (((u_char *)p + PSIZE - 1 - (u_char *) 0) & ~(PSIZE - 1)))
 
+#ifdef I_AM_MERGESORT_B
+int mergesort_b(void *, size_t, size_t, cmp_t);
+#else
+int mergesort(void *, size_t, size_t, cmp_t);
+#endif
+
 /*
  * Arguments are as for qsort.
  */

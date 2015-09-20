@@ -306,7 +306,7 @@ xlr_pcib_attach(device_t dev)
 		    0xff, 0x7fffffff, 0, NULL, NULL, &sc->sc_pci_dmat) != 0)
 			panic("%s: bus_dma_tag_create failed", __func__);
 	}
-	device_add_child(dev, "pci", 0);
+	device_add_child(dev, "pci", -1);
 	bus_generic_attach(dev);
 	return (0);
 }

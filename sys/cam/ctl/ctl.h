@@ -172,6 +172,7 @@ int ctl_sap_log_sense_handler(struct ctl_scsiio *ctsio,
 				   int pc);
 int ctl_config_move_done(union ctl_io *io);
 void ctl_datamove(union ctl_io *io);
+void ctl_serseq_done(union ctl_io *io);
 void ctl_done(union ctl_io *io);
 void ctl_data_submit_done(union ctl_io *io);
 void ctl_config_read_done(union ctl_io *io);
@@ -191,6 +192,7 @@ void ctl_clr_ua_allluns(struct ctl_softc *ctl_softc, uint32_t initidx,
 
 void ctl_isc_announce_lun(struct ctl_lun *lun);
 void ctl_isc_announce_port(struct ctl_port *port);
+void ctl_isc_announce_iid(struct ctl_port *port, int iid);
 
 /*
  * KPI to manipulate LUN/port options

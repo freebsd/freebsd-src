@@ -214,9 +214,8 @@ ${SHLIB_NAME_FULL}: beforelinking
 .endif
 
 .if defined(SHLIB_LINK)
-# ${_SHLIBDIRPREFIX} and ${_LDSCRIPTROOT} are both needed when cross-building
-# and when building 32 bits library shims.  ${_SHLIBDIRPREFIX} is the directory
-# prefix where shared objects will be installed by the install target.
+# ${_LDSCRIPTROOT} is needed when cross-building
+# and when building 32 bits library shims.
 #
 # ${_LDSCRIPTROOT} is the directory prefix that will be used when generating
 # ld(1) scripts.  The crosstools' ld is configured to lookup libraries in an
@@ -295,7 +294,7 @@ all:
 .else
 all: ${_LIBS}
 
-.if ${MK_MAN} != "no"
+.if ${MK_MAN} != "no" && !defined(LIBRARIES_ONLY)
 all: _manpages
 .endif
 .endif

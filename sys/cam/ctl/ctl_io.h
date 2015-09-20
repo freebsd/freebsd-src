@@ -88,8 +88,6 @@ typedef enum {
 	CTL_FLAG_DATA_OUT	= 0x00000002,	/* DATA OUT */
 	CTL_FLAG_DATA_NONE	= 0x00000003,	/* no data */
 	CTL_FLAG_DATA_MASK	= 0x00000003,
-	CTL_FLAG_KDPTR_SGLIST	= 0x00000008, 	/* kern_data_ptr is S/G list*/
-	CTL_FLAG_EDPTR_SGLIST	= 0x00000010,	/* ext_data_ptr is S/G list */
 	CTL_FLAG_DO_AUTOSENSE	= 0x00000020,	/* grab sense info */
 	CTL_FLAG_USER_REQ	= 0x00000040,	/* request came from userland */
 	CTL_FLAG_ALLOCATED	= 0x00000100,	/* data space allocated */
@@ -115,7 +113,8 @@ typedef enum {
 
 	CTL_FLAG_FAILOVER	= 0x04000000,	/* Killed by a failover */
 	CTL_FLAG_IO_ACTIVE	= 0x08000000,	/* I/O active on this SC */
-	CTL_FLAG_STATUS_SENT	= 0x10000000	/* Status sent by datamove */
+	CTL_FLAG_STATUS_SENT	= 0x10000000,	/* Status sent by datamove */
+	CTL_FLAG_SERSEQ_DONE	= 0x20000000	/* All storage I/O started */
 } ctl_io_flags;
 
 
@@ -197,6 +196,7 @@ typedef enum {
 	CTL_MSG_UA,			/* Set/clear UA on secondary. */
 	CTL_MSG_PORT_SYNC,		/* Information about port. */
 	CTL_MSG_LUN_SYNC,		/* Information about LUN. */
+	CTL_MSG_IID_SYNC,		/* Information about initiator. */
 	CTL_MSG_FAILOVER		/* Fake, never sent though the wire */
 } ctl_msg_type;
 
@@ -383,10 +383,10 @@ struct ctl_pr_info {
 
 struct ctl_ha_msg_hdr {
 	ctl_msg_type		msg_type;
+	uint32_t		status;	     /* transaction status */
 	union ctl_io		*original_sc;
 	union ctl_io		*serializing_sc;
 	struct ctl_nexus	nexus;	     /* Initiator, port, target, lun */
-	uint32_t		status;	     /* transaction status */
 };
 
 #define	CTL_HA_MAX_SG_ENTRIES	16
@@ -408,6 +408,7 @@ struct ctl_ha_msg_ua {
 	int			ua_all;
 	int			ua_set;
 	int			ua_type;
+	uint8_t			ua_info[8];
 };
 
 /*
@@ -478,6 +479,7 @@ struct ctl_ha_msg_port {
 	int			lun_map_len;
 	int			port_devid_len;
 	int			target_devid_len;
+	int			init_devid_len;
 	uint8_t			data[];
 };
 
@@ -500,6 +502,17 @@ struct ctl_ha_msg_lun_pr_key {
 	uint64_t		pr_key;
 };
 
+/*
+ * Used for CTL_MSG_IID_SYNC.
+ */
+struct ctl_ha_msg_iid {
+	struct ctl_ha_msg_hdr	hdr;
+	int			in_use;
+	int			name_len;
+	uint64_t		wwpn;
+	uint8_t			data[];
+};
+
 union ctl_ha_msg {
 	struct ctl_ha_msg_hdr	hdr;
 	struct ctl_ha_msg_task	task;
@@ -509,6 +522,7 @@ union ctl_ha_msg {
 	struct ctl_ha_msg_ua	ua;
 	struct ctl_ha_msg_port	port;
 	struct ctl_ha_msg_lun	lun;
+	struct ctl_ha_msg_iid	iid;
 };
 
 

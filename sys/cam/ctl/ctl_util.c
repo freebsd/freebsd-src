@@ -882,7 +882,7 @@ ctl_data_print(union ctl_io *io)
 		return;
 	if (io->io_hdr.flags & CTL_FLAG_BUS_ADDR)
 		return;
-	if (io->io_hdr.flags & CTL_FLAG_EDPTR_SGLIST)	/* XXX: Implement */
+	if (io->scsiio.ext_sg_entries > 0)	/* XXX: Implement */
 		return;
 	ctl_scsi_path_string(io, path_str, sizeof(path_str));
 	len = min(io->scsiio.kern_data_len, 4096);
