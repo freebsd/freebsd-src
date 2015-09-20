@@ -445,7 +445,13 @@ rsu_attach(device_t self)
 		    IEEE80211_HTCAP_MAXAMSDU_3839 |
 		    IEEE80211_HTCAP_SMPS_OFF;
 
+		/*
+		 * XXX HT40 isn't working in this driver yet - there's
+		 * something missing.  Disable it for now.
+		 */
+#if 0
 		ic->ic_htcaps |= IEEE80211_HTCAP_CHWIDTH40;
+#endif
 
 		/* set number of spatial streams */
 		ic->ic_txstream = 1;
