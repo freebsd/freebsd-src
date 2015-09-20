@@ -82,6 +82,9 @@ struct atexit {
 static struct atexit *__atexit;		/* points to head of LIFO stack */
 typedef DECLARE_BLOCK(void, atexit_block, void);
 
+int atexit_b(atexit_block func);
+int __cxa_atexit(void (*func)(void *), void *arg, void *dso);
+
 /*
  * Register the function described by 'fptr' to be called at application
  * exit or owning shared object unload time. This is a helper function
