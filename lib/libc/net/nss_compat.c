@@ -79,6 +79,16 @@ do {									\
 
 DECLARE_TERMINATOR(group);
 
+int __nss_compat_getgrnam_r(void *retval, void *mdata, va_list ap);
+int __nss_compat_getgrgid_r(void *retval, void *mdata, va_list ap);
+int __nss_compat_getgrent_r(void *retval, void *mdata, va_list ap);
+int __nss_compat_setgrent(void *retval, void *mdata, va_list ap);
+int __nss_compat_endgrent(void *retval, void *mdata, va_list ap);
+int __nss_compat_getpwnam_r(void *retval, void *mdata, va_list ap);
+int __nss_compat_getpwuid_r(void *retval, void *mdata, va_list ap);
+int __nss_compat_getpwent_r(void *retval, void *mdata, va_list ap);
+int __nss_compat_setpwent(void *retval, void *mdata, va_list ap);
+int __nss_compat_endpwent(void *retval, void *mdata, va_list ap);
 
 int
 __nss_compat_getgrnam_r(void *retval, void *mdata, va_list ap)
