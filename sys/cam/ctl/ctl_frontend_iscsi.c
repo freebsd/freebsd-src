@@ -966,6 +966,7 @@ cfiscsi_pdu_handle_data_out(struct icl_pdu *request)
 		done = (io->scsiio.ext_data_filled != cdw->cdw_r2t_end ||
 		    io->scsiio.ext_data_filled == io->scsiio.kern_data_len);
 		cfiscsi_data_wait_free(cs, cdw);
+		io->io_hdr.flags &= ~CTL_FLAG_DMA_INPROG;
 		if (done)
 			io->scsiio.be_move_done(io);
 		else
@@ -1178,6 +1179,7 @@ cfiscsi_session_terminate_tasks(struct cfiscsi_session *cs)
 		 * assuming that the data transfer actually succeeded
 		 * and writing uninitialized data to disk.
 		 */
+		cdw->cdw_ctl_io->io_hdr.flags &= ~CTL_FLAG_DMA_INPROG;
 		cdw->cdw_ctl_io->scsiio.io_hdr.port_status = 42;
 		cdw->cdw_ctl_io->scsiio.be_move_done(cdw->cdw_ctl_io);
 		cfiscsi_data_wait_free(cs, cdw);
@@ -2738,6 +2740,7 @@ cfiscsi_datamove_out(union ctl_io *io)
 		cfiscsi_session_terminate(cs);
 		return;
 	}
+	io->io_hdr.flags |= CTL_FLAG_DMA_INPROG;
 	bhsr2t = (struct iscsi_bhs_r2t *)response->ip_bhs;
 	bhsr2t->bhsr2t_opcode = ISCSI_BHS_OPCODE_R2T;
 	bhsr2t->bhsr2t_flags = 0x80;
@@ -2914,6 +2917,8 @@ cfiscsi_task_management_done(union ctl_io *io)
 #endif
 			TAILQ_REMOVE(&cs->cs_waiting_for_data_out,
 			    cdw, cdw_next);
+			io->io_hdr.flags &= ~CTL_FLAG_DMA_INPROG;
+			cdw->cdw_ctl_io->scsiio.io_hdr.port_status = 43;
 			cdw->cdw_ctl_io->scsiio.be_move_done(cdw->cdw_ctl_io);
 			cfiscsi_data_wait_free(cs, cdw);
 		}
