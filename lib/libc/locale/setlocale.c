@@ -98,9 +98,7 @@ static char	*loadlocale(int);
 const char *__get_locale_env(int);
 
 char *
-setlocale(category, locale)
-	int category;
-	const char *locale;
+setlocale(int category, const char *locale)
 {
 #ifndef FORCE_C_LOCALE
 	int i, j, len, saverr;
@@ -211,7 +209,7 @@ setlocale(category, locale)
 }
 
 static char *
-currentlocale()
+currentlocale(void)
 {
 	int i;
 
@@ -230,8 +228,7 @@ currentlocale()
 }
 
 static char *
-loadlocale(category)
-	int category;
+loadlocale(int category)
 {
 	char *new = new_categories[category];
 	char *old = current_categories[category];
@@ -288,8 +285,7 @@ loadlocale(category)
 }
 
 const char *
-__get_locale_env(category)
-        int category;
+__get_locale_env(int category)
 {
         const char *env;
 

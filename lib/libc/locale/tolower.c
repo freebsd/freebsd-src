@@ -45,9 +45,7 @@ __FBSDID("$FreeBSD$");
 #include "mblocal.h"
 
 __ct_rune_t
-___tolower_l(c, l)
-	__ct_rune_t c;
-	locale_t l;
+___tolower_l(__ct_rune_t c, locale_t l)
 {
 	size_t lim;
 	FIX_LOCALE(l);
@@ -72,8 +70,7 @@ ___tolower_l(c, l)
 	return(c);
 }
 __ct_rune_t
-___tolower(c)
-	__ct_rune_t c;
+___tolower(__ct_rune_t c)
 {
 	return ___tolower_l(c, __get_locale());
 }
