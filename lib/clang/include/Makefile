@@ -10,8 +10,7 @@ LLVM_SRCS= ${.CURDIR}/../../../contrib/llvm
 
 INCSDIR=${LIBDIR}/clang/3.7.0/include
 
-INCS=	Intrin.h \
-	__stddef_max_align_t.h \
+INCS=	__stddef_max_align_t.h \
 	__wmmintrin_aes.h \
 	__wmmintrin_pclmul.h \
 	adxintrin.h \
