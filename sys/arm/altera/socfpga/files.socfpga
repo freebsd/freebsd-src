@@ -15,7 +15,6 @@ arm/altera/socfpga/socfpga_rstmgr.c		standard
 arm/altera/socfpga/socfpga_mp.c			optional smp
 arm/altera/socfpga/socfpga_gpio.c		optional gpio
 
-dev/dwc/if_dwc.c				optional dwc
 dev/mii/micphy.c				optional micphy
 dev/mmc/host/dwmmc.c				optional dwmmc
 
