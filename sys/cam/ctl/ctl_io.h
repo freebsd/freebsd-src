@@ -88,8 +88,6 @@ typedef enum {
 	CTL_FLAG_DATA_OUT	= 0x00000002,	/* DATA OUT */
 	CTL_FLAG_DATA_NONE	= 0x00000003,	/* no data */
 	CTL_FLAG_DATA_MASK	= 0x00000003,
-	CTL_FLAG_KDPTR_SGLIST	= 0x00000008, 	/* kern_data_ptr is S/G list*/
-	CTL_FLAG_EDPTR_SGLIST	= 0x00000010,	/* ext_data_ptr is S/G list */
 	CTL_FLAG_DO_AUTOSENSE	= 0x00000020,	/* grab sense info */
 	CTL_FLAG_USER_REQ	= 0x00000040,	/* request came from userland */
 	CTL_FLAG_ALLOCATED	= 0x00000100,	/* data space allocated */

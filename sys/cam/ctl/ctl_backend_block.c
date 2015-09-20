@@ -1649,7 +1649,7 @@ ctl_be_block_dispatch(struct ctl_be_block_lun *be_lun,
 	io->scsiio.kern_data_len = beio->io_len;
 	io->scsiio.kern_data_resid = 0;
 	io->scsiio.kern_sg_entries = beio->num_segs;
-	io->io_hdr.flags |= CTL_FLAG_ALLOCATED | CTL_FLAG_KDPTR_SGLIST;
+	io->io_hdr.flags |= CTL_FLAG_ALLOCATED;
 
 	/*
 	 * For the read case, we need to read the data into our buffers and
