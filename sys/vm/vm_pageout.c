@@ -1638,9 +1638,15 @@ vm_pageout_worker(void *arg)
 		}
 		if (vm_pages_needed) {
 			/*
-			 * Still not done, take a second pass without waiting
-			 * (unlimited dirty cleaning), otherwise sleep a bit
-			 * and try again.
+			 * We're still not done.  Either vm_pages_needed was
+			 * set by another thread during the previous scan
+			 * (typically, this happens during a level 0 scan) or
+			 * vm_pages_needed was already set and the scan failed
+			 * to free enough pages.  If we haven't yet performed
+			 * a level >= 2 scan (unlimited dirty cleaning), then
+			 * upgrade the level and scan again now.  Otherwise,
+			 * sleep a bit and try again later.  While sleeping,
+			 * vm_pages_needed can be cleared.
 			 */
 			if (domain->vmd_pass > 1)
 				msleep(&vm_pages_needed,
@@ -1651,15 +1657,14 @@ vm_pageout_worker(void *arg)
 			 * Good enough, sleep until required to refresh
 			 * stats.
 			 */
-			domain->vmd_pass = 0;
 			msleep(&vm_pages_needed, &vm_page_queue_free_mtx,
 			    PVM, "psleep", hz);
-
 		}
 		if (vm_pages_needed) {
 			vm_cnt.v_pdwakeups++;
 			domain->vmd_pass++;
-		}
+		} else
+			domain->vmd_pass = 0;
 		mtx_unlock(&vm_page_queue_free_mtx);
 		vm_pageout_scan(domain, domain->vmd_pass);
 	}
