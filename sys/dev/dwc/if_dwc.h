@@ -34,6 +34,9 @@
  * Register names were taken almost as is from the documentation.
  */
 
+#ifndef __IF_DWC_H__
+#define __IF_DWC_H__
+
 #define	MAC_CONFIGURATION	0x0
 #define	 CONF_JD		(1 << 22)	/* jabber timer disable */
 #define	 CONF_BE		(1 << 21)	/* Frame Burst Enable */
@@ -207,6 +210,12 @@
 /* DMA */
 #define	BUS_MODE		0x1000
 #define	 BUS_MODE_EIGHTXPBL	(1 << 24) /* Multiplies PBL by 8 */
+#define	 BUS_MODE_FIXEDBURST	(1 << 16)
+#define	 BUS_MODE_PRIORXTX_SHIFT	14
+#define	 BUS_MODE_PRIORXTX_41	3
+#define	 BUS_MODE_PRIORXTX_31	2
+#define	 BUS_MODE_PRIORXTX_21	1
+#define	 BUS_MODE_PRIORXTX_11	0
 #define	 BUS_MODE_PBL_SHIFT	8 /* Single block transfer size */
 #define	 BUS_MODE_PBL_BEATS_8	8
 #define	 BUS_MODE_SWR		(1 << 0) /* Reset */
@@ -260,3 +269,22 @@
 #define	CURRENT_HOST_TRANSMIT_BUF_ADDR	0x1050
 #define	CURRENT_HOST_RECEIVE_BUF_ADDR	0x1054
 #define	HW_FEATURE			0x1058
+
+#define	DWC_GMAC			0x1
+#define	DWC_GMAC_ALT_DESC		0x2
+#define	GMAC_MII_CLK_60_100M_DIV42	0x0
+#define	GMAC_MII_CLK_100_150M_DIV62	0x1
+#define	GMAC_MII_CLK_25_35M_DIV16	0x2
+#define	GMAC_MII_CLK_35_60M_DIV26	0x3
+#define	GMAC_MII_CLK_150_250M_DIV102	0x4
+#define	GMAC_MII_CLK_250_300M_DIV124	0x5
+#define	GMAC_MII_CLK_DIV4		0x8
+#define	GMAC_MII_CLK_DIV6		0x9
+#define	GMAC_MII_CLK_DIV8		0xa
+#define	GMAC_MII_CLK_DIV10		0xb
+#define	GMAC_MII_CLK_DIV12		0xc
+#define	GMAC_MII_CLK_DIV14		0xd
+#define	GMAC_MII_CLK_DIV16		0xe
+#define	GMAC_MII_CLK_DIV18		0xf
+
+#endif	/* __IF_DWC_H__ */
