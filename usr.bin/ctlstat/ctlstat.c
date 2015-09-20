@@ -326,8 +326,8 @@ compute_stats(struct ctl_lun_io_stats *cur_stats,
  */
 
 #define	PRINT_BINTIME(prefix, bt) \
-	printf("%s %jd s %ju frac\n", prefix, (intmax_t)(bt).sec, \
-	       (uintmax_t)(bt).frac)
+	printf("%s %jd.%06ju\n", prefix, (intmax_t)(bt).sec, \
+	       (uintmax_t)(((bt).frac >> 32) * 1000000 >> 32))
 static const char *iotypes[] = {"NO IO", "READ", "WRITE"};
 
 static void
@@ -360,9 +360,8 @@ ctlstat_dump(struct ctlstat_context *ctx) {
 }
 
 #define	JSON_BINTIME(prefix, bt) \
-	printf("\"%s\":{\"sec\":%jd,\"frac\":%ju},", \
-	    prefix, (intmax_t)(bt).sec, (uintmax_t)(bt).frac)
-
+	printf("\"%s\":%jd.%06ju,", prefix, (intmax_t)(bt).sec, \
+	    (uintmax_t)(((bt).frac >> 32) * 1000000 >> 32))
 static void
 ctlstat_json(struct ctlstat_context *ctx) {
 	int iotype, lun, port;
