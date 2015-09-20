@@ -858,7 +858,6 @@ OLD_FILES+=usr/bin/clang++
 OLD_FILES+=usr/bin/clang-cpp
 OLD_FILES+=usr/bin/clang-tblgen
 OLD_FILES+=usr/bin/tblgen
-OLD_FILES+=usr/lib/clang/3.7.0/include/Intrin.h
 OLD_FILES+=usr/lib/clang/3.7.0/include/__stddef_max_align_t.h
 OLD_FILES+=usr/lib/clang/3.7.0/include/__wmmintrin_aes.h
 OLD_FILES+=usr/lib/clang/3.7.0/include/__wmmintrin_pclmul.h
