@@ -42,7 +42,7 @@ __FBSDID("$FreeBSD$");
 
 #include "libc_private.h"
 
-pid_t __waitpid(pid_t pid, int *istat, int options);
+pid_t __waitpid(pid_t, int *, int);
 
 pid_t
 __waitpid(pid_t pid, int *istat, int options)
