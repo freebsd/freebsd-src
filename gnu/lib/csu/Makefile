@@ -44,6 +44,8 @@ FILESMODE=	${LIBMODE}
 FILESOWN=	${LIBOWN}
 FILESGRP=	${LIBGRP}
 FILESDIR=	${LIBDIR}
+# These FILES qualify as libraries for the purpose of LIBRARIES_ONLY.
+.undef LIBRARIES_ONLY
 
 ${OBJS} ${SOBJS}: ${SRCS:M*.h}
 
