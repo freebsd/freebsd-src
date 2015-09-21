@@ -90,7 +90,6 @@ dev/fb/fb.c			optional	sc
 dev/fdt/fdt_arm_platform.c	optional	platform fdt
 dev/hwpmc/hwpmc_arm.c		optional	hwpmc
 dev/hwpmc/hwpmc_armv7.c		optional	hwpmc armv6
-dev/kbd/kbd.c			optional	sc | vt
 dev/psci/psci.c			optional	psci
 dev/psci/psci_arm.S		optional	psci
 dev/syscons/scgfbrndr.c		optional	sc
