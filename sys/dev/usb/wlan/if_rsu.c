@@ -508,6 +508,8 @@ rsu_detach(device_t self)
 	rsu_stop(sc);
 	RSU_UNLOCK(sc);
 	usbd_transfer_unsetup(sc->sc_xfer, RSU_N_TRANSFER);
+
+	/* Frames are freed; detach from net80211 */
 	ieee80211_ifdetach(ic);
 
 	taskqueue_drain_timeout(taskqueue_thread, &sc->calib_task);
@@ -516,7 +518,6 @@ rsu_detach(device_t self)
 	rsu_free_tx_list(sc);
 	rsu_free_rx_list(sc);
 
-	mbufq_drain(&sc->sc_snd);
 	mtx_destroy(&sc->sc_mtx);
 
 	return (0);
@@ -759,6 +760,9 @@ rsu_getbuf(struct rsu_softc *sc)
 	RSU_ASSERT_LOCKED(sc);
 
 	bf = _rsu_getbuf(sc);
+	if (bf == NULL) {
+		RSU_DPRINTF(sc, RSU_DEBUG_TX, "%s: no buffers\n", __func__);
+	}
 	return (bf);
 }
 
@@ -1997,6 +2001,10 @@ rsu_transmit(struct ieee80211com *ic, struct mbuf *m)
 	}
 	error = mbufq_enqueue(&sc->sc_snd, m);
 	if (error) {
+		RSU_DPRINTF(sc, RSU_DEBUG_TX,
+		    "%s: mbufq_enable: failed (%d)\n",
+		    __func__,
+		    error);
 		RSU_UNLOCK(sc);
 		return (error);
 	}
@@ -2004,6 +2012,21 @@ rsu_transmit(struct ieee80211com *ic, struct mbuf *m)
 	RSU_UNLOCK(sc);
 
 	return (0);
+}
+
+static void
+rsu_drain_mbufq(struct rsu_softc *sc)
+{
+	struct mbuf *m;
+	struct ieee80211_node *ni;
+
+	RSU_ASSERT_LOCKED(sc);
+	while ((m = mbufq_dequeue(&sc->sc_snd)) != NULL) {
+		ni = (struct ieee80211_node *)m->m_pkthdr.rcvif;
+		m->m_pkthdr.rcvif = NULL;
+		ieee80211_free_node(ni);
+		m_freem(m);
+	}
 }
 
 static void
@@ -2018,6 +2041,8 @@ rsu_start(struct rsu_softc *sc)
 	while ((m = mbufq_dequeue(&sc->sc_snd)) != NULL) {
 		bf = rsu_getbuf(sc);
 		if (bf == NULL) {
+			RSU_DPRINTF(sc, RSU_DEBUG_TX,
+			    "%s: failed to get buffer\n", __func__);
 			mbufq_prepend(&sc->sc_snd, m);
 			break;
 		}
@@ -2026,6 +2051,8 @@ rsu_start(struct rsu_softc *sc)
 		m->m_pkthdr.rcvif = NULL;
 
 		if (rsu_tx_start(sc, ni, m, bf) != 0) {
+			RSU_DPRINTF(sc, RSU_DEBUG_TX,
+			    "%s: failed to transmit\n", __func__);
 			if_inc_counter(ni->ni_vap->iv_ifp,
 			    IFCOUNTER_OERRORS, 1);
 			rsu_freebuf(sc, bf);
@@ -2551,6 +2578,9 @@ rsu_init(struct rsu_softc *sc)
 
 	RSU_ASSERT_LOCKED(sc);
 
+	/* Ensure the mbuf queue is drained */
+	rsu_drain_mbufq(sc);
+
 	/* Init host async commands ring. */
 	sc->cmdq.cur = sc->cmdq.next = sc->cmdq.queued = 0;
 
@@ -2660,6 +2690,9 @@ rsu_stop(struct rsu_softc *sc)
 
 	for (i = 0; i < RSU_N_TRANSFER; i++)
 		usbd_transfer_stop(sc->sc_xfer[i]);
+
+	/* Ensure the mbuf queue is drained */
+	rsu_drain_mbufq(sc);
 }
 
 /*
