@@ -1729,7 +1729,6 @@ nd6_cache_lladdr(struct ifnet *ifp, struct in6_addr *from, char *lladdr,
 		if (lladdr != NULL) {
 			bcopy(lladdr, &ln->ll_addr, ifp->if_addrlen);
 			ln->la_flags |= LLE_VALID;
-			ln->ln_state = ND6_LLINFO_STALE;
 		}
 		IF_AFDATA_WLOCK(ifp);
 		LLE_WLOCK(ln);
@@ -1738,10 +1737,12 @@ nd6_cache_lladdr(struct ifnet *ifp, struct in6_addr *from, char *lladdr,
 		if (ln_tmp == NULL)
 			lltable_link_entry(LLTABLE6(ifp), ln);
 		IF_AFDATA_WUNLOCK(ifp);
-		if (ln_tmp == NULL)
+		if (ln_tmp == NULL) {
 			/* No existing lle, mark as new entry */
 			is_newentry = 1;
-		else {
+			ln->ln_state = ND6_LLINFO_STALE;
+			nd6_llinfo_settimer_locked(ln, (long)V_nd6_gctimer * hz);
+		} else {
 			lltable_free_entry(LLTABLE6(ifp), ln);
 			ln = ln_tmp;
 			ln_tmp = NULL;
@@ -1788,6 +1789,7 @@ nd6_cache_lladdr(struct ifnet *ifp, struct in6_addr *from, char *lladdr,
 		bcopy(lladdr, &ln->ll_addr, ifp->if_addrlen);
 		ln->la_flags |= LLE_VALID;
 		ln->ln_state = ND6_LLINFO_STALE;
+		nd6_llinfo_settimer_locked(ln, (long)V_nd6_gctimer * hz);
 
 		EVENTHANDLER_INVOKE(lle_event, ln, LLENTRY_RESOLVED);
 
