@@ -14,6 +14,8 @@ FILESMODE=	${LIBMODE}
 FILESOWN=	${LIBOWN}
 FILESGRP=	${LIBGRP}
 FILESDIR=	${LIBDIR}
+# These FILES qualify as libraries for the purpose of LIBRARIES_ONLY.
+.undef LIBRARIES_ONLY
 
 CLEANFILES=	${OBJS}
 CLEANFILES+=	crt1.s gcrt1.s Scrt1.s
