@@ -155,6 +155,7 @@ OLD_FILES+=usr/share/man/man8/authpf-noip.8.gz
 OLD_FILES+=etc/autofs/include_ldap
 OLD_FILES+=etc/autofs/special_hosts
 OLD_FILES+=etc/autofs/special_media
+OLD_FILES+=etc/autofs/special_noauto
 OLD_FILES+=etc/autofs/special_null
 OLD_FILES+=etc/auto_master
 OLD_FILES+=etc/rc.d/automount
