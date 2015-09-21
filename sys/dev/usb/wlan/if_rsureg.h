@@ -740,6 +740,7 @@ struct rsu_softc {
 					    enum ieee80211_state, int);
 	struct usbd_interface		*sc_iface;
 	struct timeout_task		calib_task;
+	struct task			tx_task;
 	const uint8_t			*qid2idx;
 	struct mtx			sc_mtx;
 	int				sc_ht;
