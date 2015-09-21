@@ -119,6 +119,7 @@ struct cctl_lun {
 
 struct cctl_port {
 	uint32_t port_id;
+	char *port_frontend;
 	char *port_name;
 	int pp;
 	int vp;
@@ -331,7 +332,10 @@ cctl_end_pelement(void *user_data, const char *name)
 	devlist->cur_sb[devlist->level] = NULL;
 	devlist->level--;
 
-	if (strcmp(name, "port_name") == 0) {
+	if (strcmp(name, "frontend_type") == 0) {
+		cur_port->port_frontend = str;
+		str = NULL;
+	} else if (strcmp(name, "port_name") == 0) {
 		cur_port->port_name = str;
 		str = NULL;
 	} else if (strcmp(name, "physical_port") == 0) {
@@ -506,6 +510,8 @@ retry_port:
 
 	name = NULL;
 	STAILQ_FOREACH(port, &devlist.port_list, links) {
+		if (strcmp(port->port_frontend, "ha") == 0)
+			continue;
 		if (name)
 			free(name);
 		if (port->pp == 0 && port->vp == 0)
