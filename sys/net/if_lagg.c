@@ -1063,7 +1063,8 @@ lagg_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 				sc->sc_detach(sc);
 			else
 				LAGG_WUNLOCK(sc);
-		}
+		} else
+			LAGG_WUNLOCK(sc);
 		proto->ti_attach(sc);
 		LAGG_WLOCK(sc);
 		sc->sc_proto = proto->ti_proto;
@@ -1187,9 +1188,6 @@ lagg_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 				break;
 			}
 		}
-		proto->ti_attach(sc);
-		LAGG_WLOCK(sc);
-		sc->sc_proto = proto->ti_proto;
 		LAGG_WUNLOCK(sc);
 		break;
 	case SIOCGLAGGFLAGS:
