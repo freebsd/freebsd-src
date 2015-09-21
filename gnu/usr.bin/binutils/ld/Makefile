@@ -46,9 +46,6 @@ CLEANDIRS+=	ldscripts
 CLEANFILES+=	ldemul-list.h stringify.sed
 
 FILES=		${LDSCRIPTS:S|^|ldscripts/|}
-FILESOWN=	${LIBOWN}
-FILESGRP=	${LIBGRP}
-FILESMODE=	${LIBMODE}
 FILESDIR=	${SCRIPTDIR}
 
 HOST=		${TARGET_TUPLE}
