@@ -190,6 +190,7 @@ static uint8_t	rsu_efuse_read_1(struct rsu_softc *, uint16_t);
 static int	rsu_read_rom(struct rsu_softc *);
 static int	rsu_fw_cmd(struct rsu_softc *, uint8_t, void *, int);
 static void	rsu_calib_task(void *, int);
+static void	rsu_tx_task(void *, int);
 static int	rsu_newstate(struct ieee80211vap *, enum ieee80211_state, int);
 #ifdef notyet
 static void	rsu_set_key(struct rsu_softc *, const struct ieee80211_key *);
@@ -217,6 +218,7 @@ static int	rsu_tx_start(struct rsu_softc *, struct ieee80211_node *,
 		    struct mbuf *, struct rsu_data *);
 static int	rsu_transmit(struct ieee80211com *, struct mbuf *);
 static void	rsu_start(struct rsu_softc *);
+static void	_rsu_start(struct rsu_softc *);
 static void	rsu_parent(struct ieee80211com *);
 static void	rsu_stop(struct rsu_softc *);
 static void	rsu_ms_delay(struct rsu_softc *, int);
@@ -379,6 +381,7 @@ rsu_attach(device_t self)
 	    MTX_DEF);
 	TIMEOUT_TASK_INIT(taskqueue_thread, &sc->calib_task, 0, 
 	    rsu_calib_task, sc);
+	TASK_INIT(&sc->tx_task, 0, rsu_tx_task, sc);
 	mbufq_init(&sc->sc_snd, ifqmaxlen);
 
 	/* Allocate Tx/Rx buffers. */
@@ -513,6 +516,7 @@ rsu_detach(device_t self)
 	ieee80211_ifdetach(ic);
 
 	taskqueue_drain_timeout(taskqueue_thread, &sc->calib_task);
+	taskqueue_drain(taskqueue_thread, &sc->tx_task);
 
 	/* Free Tx/Rx buffers. */
 	rsu_free_tx_list(sc);
@@ -1026,6 +1030,16 @@ rsu_calib_task(void *arg, int pending __unused)
 	RSU_UNLOCK(sc);
 }
 
+static void
+rsu_tx_task(void *arg, int pending __unused)
+{
+	struct rsu_softc *sc = arg;
+
+	RSU_LOCK(sc);
+	_rsu_start(sc);
+	RSU_UNLOCK(sc);
+}
+
 static int
 rsu_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 {
@@ -1050,6 +1064,7 @@ rsu_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		sc->sc_calibrating = 0;
 		RSU_UNLOCK(sc);
 		taskqueue_drain_timeout(taskqueue_thread, &sc->calib_task);
+		taskqueue_drain(taskqueue_thread, &sc->tx_task);
 		/* Disassociate from our current BSS. */
 		RSU_LOCK(sc);
 		rsu_disconnect(sc);
@@ -1838,19 +1853,34 @@ tr_setup:
 static void
 rsu_bulk_tx_callback_be_bk(struct usb_xfer *xfer, usb_error_t error)
 {
+	struct rsu_softc *sc = usbd_xfer_softc(xfer);
+
 	rsu_bulk_tx_callback_sub(xfer, error, RSU_BULK_TX_BE_BK);
+
+	/* This kicks the TX taskqueue */
+	rsu_start(sc);
 }
 
 static void
 rsu_bulk_tx_callback_vi_vo(struct usb_xfer *xfer, usb_error_t error)
 {
+	struct rsu_softc *sc = usbd_xfer_softc(xfer);
+
 	rsu_bulk_tx_callback_sub(xfer, error, RSU_BULK_TX_VI_VO);
+
+	/* This kicks the TX taskqueue */
+	rsu_start(sc);
 }
 
 static void
 rsu_bulk_tx_callback_h2c(struct usb_xfer *xfer, usb_error_t error)
 {
+	struct rsu_softc *sc = usbd_xfer_softc(xfer);
+
 	rsu_bulk_tx_callback_sub(xfer, error, RSU_BULK_TX_H2C);
+
+	/* This kicks the TX taskqueue */
+	rsu_start(sc);
 }
 
 static int
@@ -2008,8 +2038,10 @@ rsu_transmit(struct ieee80211com *ic, struct mbuf *m)
 		RSU_UNLOCK(sc);
 		return (error);
 	}
-	rsu_start(sc);
 	RSU_UNLOCK(sc);
+
+	/* This kicks the TX taskqueue */
+	rsu_start(sc);
 
 	return (0);
 }
@@ -2030,7 +2062,7 @@ rsu_drain_mbufq(struct rsu_softc *sc)
 }
 
 static void
-rsu_start(struct rsu_softc *sc)
+_rsu_start(struct rsu_softc *sc)
 {
 	struct ieee80211_node *ni;
 	struct rsu_data *bf;
@@ -2060,6 +2092,13 @@ rsu_start(struct rsu_softc *sc)
 			break;
 		}
 	}
+}
+
+static void
+rsu_start(struct rsu_softc *sc)
+{
+
+	taskqueue_enqueue(taskqueue_thread, &sc->tx_task);
 }
 
 static void
@@ -2684,6 +2723,7 @@ rsu_stop(struct rsu_softc *sc)
 	sc->sc_running = 0;
 	sc->sc_calibrating = 0;
 	taskqueue_cancel_timeout(taskqueue_thread, &sc->calib_task, NULL);
+	taskqueue_cancel(taskqueue_thread, &sc->tx_task, NULL);
 
 	/* Power off adapter. */
 	rsu_power_off(sc);
