@@ -22,9 +22,11 @@ __FBSDID("$FreeBSD$");
  * Driver for Realtek RTL8188SU/RTL8191SU/RTL8192SU.
  *
  * TODO:
- *   o 11n support
+ *   o 11n HT40 support
  *   o h/w crypto
  *   o hostap / ibss / mesh
+ *   o sensible RSSI levels
+ *   o power-save operation
  */
 
 #include <sys/param.h>
@@ -84,7 +86,7 @@ SYSCTL_INT(_hw_usb_rsu, OID_AUTO, debug, CTLFLAG_RWTUN, &rsu_debug, 0,
 #define	RSU_DPRINTF(_sc, _flg, ...)
 #endif
 
-static int rsu_enable_11n = 0;
+static int rsu_enable_11n = 1;
 TUNABLE_INT("hw.usb.rsu.enable_11n", &rsu_enable_11n);
 
 #define	RSU_DEBUG_ANY		0xffffffff
