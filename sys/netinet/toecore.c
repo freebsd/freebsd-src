@@ -468,7 +468,6 @@ restart:
 		lle = nd6_alloc(&sin6->sin6_addr, 0, ifp);
 		if (lle == NULL)
 			return (ENOMEM); /* Couldn't create entry in cache. */
-		lle->ln_state = ND6_LLINFO_INCOMPLETE;
 		IF_AFDATA_WLOCK(ifp);
 		LLE_WLOCK(lle);
 		lle_tmp = nd6_lookup(&sin6->sin6_addr, ND6_EXCLUSIVE, ifp);
@@ -478,8 +477,7 @@ restart:
 		IF_AFDATA_WUNLOCK(ifp);
 		if (lle_tmp == NULL) {
 			/* Arm timer for newly-created entry and send NS */
-			nd6_llinfo_settimer_locked(lle,
-			    (long)ND_IFINFO(ifp)->retrans * hz / 1000);
+			nd6_llinfo_setstate(lle, ND6_LLINFO_INCOMPLETE);
 			LLE_WUNLOCK(lle);
 
 			nd6_ns_output(ifp, NULL, NULL, &sin6->sin6_addr, 0);
@@ -503,8 +501,7 @@ restart:
 		LLE_WLOCK_ASSERT(lle);
 
 		lle->la_asked = 0;
-		lle->ln_state = ND6_LLINFO_DELAY;
-		nd6_llinfo_settimer_locked(lle, (long)V_nd6_delay * hz);
+		nd6_llinfo_setstate(lle, ND6_LLINFO_DELAY);
 	}
 
 	if (lle->la_flags & LLE_VALID) {
