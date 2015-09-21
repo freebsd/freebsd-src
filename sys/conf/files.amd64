@@ -275,7 +275,6 @@ dev/hyperv/vmbus/hv_connection.c			optional	hyperv
 dev/hyperv/vmbus/hv_hv.c				optional	hyperv
 dev/hyperv/vmbus/hv_ring_buffer.c			optional	hyperv
 dev/hyperv/vmbus/hv_vmbus_drv_freebsd.c			optional	hyperv
-dev/kbd/kbd.c			optional	atkbd | sc | ukbd | vt
 dev/nfe/if_nfe.c		optional	nfe pci
 dev/ntb/if_ntb/if_ntb.c		optional	if_ntb
 dev/ntb/ntb_hw/ntb_hw.c		optional	if_ntb | ntb_hw
