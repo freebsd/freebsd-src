@@ -74,6 +74,8 @@ setgifopts(const char *val, int d, int s, const struct afswtch *afp)
 {
 	int opts;
 
+	if (d == 0)
+		return;
 	ifr.ifr_data = (caddr_t)&opts;
 	if (ioctl(s, GIFGOPTS, &ifr) == -1) {
 		warn("ioctl(GIFGOPTS)");
@@ -92,8 +94,12 @@ setgifopts(const char *val, int d, int s, const struct afswtch *afp)
 }
 
 static struct cmd gif_cmds[] = {
+	DEF_CMD("accept_rev_ethip_ver",	0,			setgifopts),
+	DEF_CMD("-accept_rev_ethip_ver",0,			setgifopts),
 	DEF_CMD("ignore_source",	GIF_IGNORE_SOURCE,	setgifopts),
 	DEF_CMD("-ignore_source",	-GIF_IGNORE_SOURCE,	setgifopts),
+	DEF_CMD("send_rev_ethip_ver",	0,			setgifopts),
+	DEF_CMD("-send_rev_ethip_ver",	0,			setgifopts),
 };
 
 static struct afswtch af_gif = {
