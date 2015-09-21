@@ -127,7 +127,6 @@ dev/hwpmc/hwpmc_ppro.c		optional hwpmc
 dev/hwpmc/hwpmc_tsc.c		optional hwpmc
 dev/hwpmc/hwpmc_x86.c		optional hwpmc
 dev/io/iodev.c			optional io
-dev/kbd/kbd.c			optional pckbd | sc | ukbd
 dev/le/if_le_cbus.c		optional le isa
 dev/mse/mse.c			optional mse
 dev/mse/mse_cbus.c		optional mse isa
