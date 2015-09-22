@@ -265,9 +265,7 @@ accepted(enum accept_stat acpt_stat, struct rpc_err *error)
 }
 
 static void 
-rejected(rjct_stat, error)
-	enum reject_stat rjct_stat;
-	struct rpc_err *error;
+rejected(enum reject_stat rjct_stat, struct rpc_err *error)
 {
 
 	assert(error != NULL);
@@ -292,9 +290,7 @@ rejected(rjct_stat, error)
  * given a reply message, fills in the error
  */
 void
-_seterr_reply(msg, error)
-	struct rpc_msg *msg;
-	struct rpc_err *error;
+_seterr_reply(struct rpc_msg *msg, struct rpc_err *error)
 {
 
 	assert(msg != NULL);
