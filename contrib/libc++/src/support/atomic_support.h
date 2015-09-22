@@ -13,7 +13,8 @@
                        && defined(__ATOMIC_ACQUIRE)                  \
                        && defined(__ATOMIC_RELEASE)                  \
                        && defined(__ATOMIC_ACQ_REL)                  \
-                       && defined(__ATOMIC_SEQ_CST)
+                       && defined(__ATOMIC_SEQ_CST)                  \
+                       && defined(__ARM_ARCH) && __ARM_ARCH >= 6
 #   define _LIBCPP_HAS_ATOMIC_BUILTINS
 #elif !defined(__clang__) && defined(_GNUC_VER) && _GNUC_VER >= 407
 #   define _LIBCPP_HAS_ATOMIC_BUILTINS
@@ -99,6 +100,13 @@ template <class _ValueType, class _FromType>
 inline _LIBCPP_INLINE_VISIBILITY
 void __libcpp_atomic_store(_ValueType* __dest, _FromType __val,
                            int = 0)
+{
+    *__dest = __val;
+}
+
+template <class _ValueType, class _FromType>
+inline _LIBCPP_INLINE_VISIBILITY
+void __libcpp_relaxed_store(_ValueType* __dest, _FromType __val)
 {
     *__dest = __val;
 }
