@@ -78,7 +78,7 @@ __FBSDID("$FreeBSD$");
  */
 #define	CTL_STAT_LUN_BITS	1024L
 
-static const char *ctlstat_opts = "Cc:Ddhjl:n:tw:";
+static const char *ctlstat_opts = "Cc:Ddhjl:n:p:tw:";
 static const char *ctlstat_usage = "Usage:  ctlstat [-CDdjht] [-l lunnum]"
 				   "[-c count] [-n numdevs] [-w wait]\n";
 
@@ -102,12 +102,16 @@ typedef enum {
 #define	CTLSTAT_FLAG_TOTALS		(1 << 3)
 #define	CTLSTAT_FLAG_DMA_TIME		(1 << 4)
 #define	CTLSTAT_FLAG_LUN_TIME_VALID	(1 << 5)
+#define	CTLSTAT_FLAG_LUN_MASK		(1 << 6)
+#define	CTLSTAT_FLAG_PORT_MASK		(1 << 7)
 #define	F_CPU(ctx) ((ctx)->flags & CTLSTAT_FLAG_CPU)
 #define	F_HDR(ctx) ((ctx)->flags & CTLSTAT_FLAG_HEADER)
 #define	F_FIRST(ctx) ((ctx)->flags & CTLSTAT_FLAG_FIRST_RUN)
 #define	F_TOTALS(ctx) ((ctx)->flags & CTLSTAT_FLAG_TOTALS)
 #define	F_DMA(ctx) ((ctx)->flags & CTLSTAT_FLAG_DMA_TIME)
 #define	F_LUNVAL(ctx) ((ctx)->flags & CTLSTAT_FLAG_LUN_TIME_VALID)
+#define	F_LUNMASK(ctx) ((ctx)->flags & CTLSTAT_FLAG_LUN_MASK)
+#define	F_PORTMASK(ctx) ((ctx)->flags & CTLSTAT_FLAG_PORT_MASK)
 
 struct ctlstat_context {
 	ctlstat_mode_types mode;
@@ -120,6 +124,7 @@ struct ctlstat_context {
 	uint64_t cur_total_jiffies, prev_total_jiffies;
 	uint64_t cur_idle, prev_idle;
 	bitstr_t bit_decl(lun_mask, CTL_STAT_LUN_BITS);
+	bitstr_t bit_decl(port_mask, CTL_MAX_PORTS);
 	int num_luns;
 	int numdevs;
 	int header_interval;
@@ -133,7 +138,8 @@ static void usage(int error);
 static int getstats(int fd, int *num_luns, struct ctl_lun_io_stats **xlun_stats,
 		    struct timespec *cur_time, int *lun_time_valid);
 static int getcpu(struct ctl_cpu_stats *cpu_stats);
-static void compute_stats(struct ctl_lun_io_stats *cur_stats,
+static void compute_stats(struct ctlstat_context *ctx,
+			  struct ctl_lun_io_stats *cur_stats,
 			  struct ctl_lun_io_stats *prev_stats,
 			  long double etime, long double *mbsec,
 			  long double *kb_per_transfer,
@@ -234,7 +240,7 @@ getcpu(struct ctl_cpu_stats *cpu_stats)
 }
 
 static void
-compute_stats(struct ctl_lun_io_stats *cur_stats,
+compute_stats(struct ctlstat_context *ctx, struct ctl_lun_io_stats *cur_stats,
 	      struct ctl_lun_io_stats *prev_stats, long double etime,
 	      long double *mbsec, long double *kb_per_transfer,
 	      long double *transfers_per_second, long double *ms_per_transfer,
@@ -251,6 +257,9 @@ compute_stats(struct ctl_lun_io_stats *cur_stats,
 	bzero(&total_time_ts, sizeof(total_time_ts));
 	bzero(&total_dma_ts, sizeof(total_dma_ts));
 	for (port = 0; port < CTL_MAX_PORTS; port++) {
+		if (F_PORTMASK(ctx) &&
+		    bit_test(ctx->port_mask, port) == 0)
+			continue;
 		for (i = 0; i < CTL_STATS_NUM_TYPES; i++) {
 			total_bytes += cur_stats->ports[port].bytes[i];
 			total_operations +=
@@ -326,8 +335,8 @@ compute_stats(struct ctl_lun_io_stats *cur_stats,
  */
 
 #define	PRINT_BINTIME(prefix, bt) \
-	printf("%s %jd s %ju frac\n", prefix, (intmax_t)(bt).sec, \
-	       (uintmax_t)(bt).frac)
+	printf("%s %jd.%06ju\n", prefix, (intmax_t)(bt).sec, \
+	       (uintmax_t)(((bt).frac >> 32) * 1000000 >> 32))
 static const char *iotypes[] = {"NO IO", "READ", "WRITE"};
 
 static void
@@ -336,8 +345,13 @@ ctlstat_dump(struct ctlstat_context *ctx) {
 	struct ctl_lun_io_stats *stats = ctx->cur_lun_stats;
 
 	for (lun = 0; lun < ctx->num_luns;lun++) {
+		if (F_LUNMASK(ctx) && bit_test(ctx->lun_mask, lun) == 0)
+			continue;
 		printf("lun %d\n", lun);
 		for (port = 0; port < CTL_MAX_PORTS; port++) {
+			if (F_PORTMASK(ctx) &&
+			    bit_test(ctx->port_mask, port) == 0)
+				continue;
 			printf(" port %d\n",
 			    stats[lun].ports[port].targ_port);
 			for (iotype = 0; iotype < CTL_STATS_NUM_TYPES;
@@ -360,9 +374,8 @@ ctlstat_dump(struct ctlstat_context *ctx) {
 }
 
 #define	JSON_BINTIME(prefix, bt) \
-	printf("\"%s\":{\"sec\":%jd,\"frac\":%ju},", \
-	    prefix, (intmax_t)(bt).sec, (uintmax_t)(bt).frac)
-
+	printf("\"%s\":%jd.%06ju,", prefix, (intmax_t)(bt).sec, \
+	    (uintmax_t)(((bt).frac >> 32) * 1000000 >> 32))
 static void
 ctlstat_json(struct ctlstat_context *ctx) {
 	int iotype, lun, port;
@@ -370,8 +383,13 @@ ctlstat_json(struct ctlstat_context *ctx) {
 
 	printf("{\"luns\":[");
 	for (lun = 0; lun < ctx->num_luns; lun++) {
+		if (F_LUNMASK(ctx) && bit_test(ctx->lun_mask, lun) == 0)
+			continue;
 		printf("{\"ports\":[");
 		for (port = 0; port < CTL_MAX_PORTS;port++) {
+			if (F_PORTMASK(ctx) &&
+			    bit_test(ctx->port_mask, port) == 0)
+				continue;
 			printf("{\"num\":%d,\"io\":[",
 			    stats[lun].ports[port].targ_port);
 			for (iotype = 0; iotype < CTL_STATS_NUM_TYPES;
@@ -442,17 +460,16 @@ ctlstat_standard(struct ctlstat_context *ctx) {
 
 			hdr_devs = 0;
 
+			if (F_CPU(ctx))
+				fprintf(stdout, " CPU");
 			if (F_TOTALS(ctx)) {
-				fprintf(stdout, "%s     System Read     %s"
-					"System Write     %sSystem Total%s\n",
-					(F_LUNVAL(ctx) != 0) ? "     " : "",
-					(F_LUNVAL(ctx) != 0) ? "     " : "",
-					(F_LUNVAL(ctx) != 0) ? "     " : "",
-					(F_CPU(ctx))   ? "    CPU" : "");
+				fprintf(stdout, "%s     Read       %s"
+					"    Write       %s    Total\n",
+					(F_LUNVAL(ctx) != 0) ? "      " : "",
+					(F_LUNVAL(ctx) != 0) ? "      " : "",
+					(F_LUNVAL(ctx) != 0) ? "      " : "");
 				hdr_devs = 3;
 			} else {
-				if (F_CPU(ctx))
-					fprintf(stdout, "  CPU  ");
 				for (i = 0; i < min(CTL_STAT_LUN_BITS,
 				     ctx->num_luns); i++) {
 					int lun;
@@ -465,7 +482,8 @@ ctlstat_standard(struct ctlstat_context *ctx) {
 					lun = (int)ctx->cur_lun_stats[i
 						].lun_number;
 
-					if (bit_test(ctx->lun_mask, lun) == 0)
+					if (F_LUNMASK(ctx) &&
+					    bit_test(ctx->lun_mask, lun) == 0)
 						continue;
 					fprintf(stdout, "%15.6s%d %s",
 					    "lun", lun,
@@ -474,17 +492,19 @@ ctlstat_standard(struct ctlstat_context *ctx) {
 				}
 				fprintf(stdout, "\n");
 			}
+			if (F_CPU(ctx))
+				fprintf(stdout, "    ");
 			for (i = 0; i < hdr_devs; i++)
-				fprintf(stdout, "%s  %sKB/t %s  MB/s ",
-					((F_CPU(ctx) != 0) && (i == 0) &&
-					(F_TOTALS(ctx) == 0)) ?  "       " : "",
-					(F_LUNVAL(ctx) != 0) ? " ms  " : "",
+				fprintf(stdout, "%s KB/t   %s MB/s",
+					(F_LUNVAL(ctx) != 0) ? "    ms" : "",
 					(F_DMA(ctx) == 0) ? "tps" : "dps");
 			fprintf(stdout, "\n");
 			ctx->header_interval = 20;
 		}
 	}
 
+	if (F_CPU(ctx))
+		fprintf(stdout, "%3.0Lf%%", cpu_percentage);
 	if (F_TOTALS(ctx) != 0) {
 		long double mbsec[3];
 		long double kb_per_transfer[3];
@@ -516,7 +536,13 @@ ctlstat_standard(struct ctlstat_context *ctx) {
 	    &ctx->cur_lun_stats[i].ports[p].dma_time[j])
 
 		for (i = 0; i < ctx->num_luns; i++) {
+			if (F_LUNMASK(ctx) && bit_test(ctx->lun_mask,
+			    (int)ctx->cur_lun_stats[i].lun_number) == 0)
+				continue;
 			for (port = 0; port < CTL_MAX_PORTS; port++) {
+				if (F_PORTMASK(ctx) &&
+				    bit_test(ctx->port_mask, port) == 0)
+					continue;
 				for (j = 0; j < CTL_STATS_NUM_TYPES; j++) {
 					ADD_STATS_BYTES(2, port, i, j);
 					ADD_STATS_OPERATIONS(2, port, i, j);
@@ -541,29 +567,24 @@ ctlstat_standard(struct ctlstat_context *ctx) {
 		}
 
 		for (i = 0; i < 3; i++) {
-			compute_stats(&ctx->cur_total_stats[i],
+			compute_stats(ctx, &ctx->cur_total_stats[i],
 				F_FIRST(ctx) ? NULL : &ctx->prev_total_stats[i],
 				etime, &mbsec[i], &kb_per_transfer[i],
 				&transfers_per_sec[i],
 				&ms_per_transfer[i], &ms_per_dma[i],
 				&dmas_per_sec[i]);
 			if (F_DMA(ctx) != 0)
-				fprintf(stdout, " %2.2Lf",
+				fprintf(stdout, " %5.1Lf",
 					ms_per_dma[i]);
 			else if (F_LUNVAL(ctx) != 0)
-				fprintf(stdout, " %2.2Lf",
+				fprintf(stdout, " %5.1Lf",
 					ms_per_transfer[i]);
-			fprintf(stdout, " %5.2Lf %3.0Lf %5.2Lf ",
+			fprintf(stdout, " %4.0Lf %5.0Lf %4.0Lf",
 				kb_per_transfer[i],
 				(F_DMA(ctx) == 0) ? transfers_per_sec[i] :
 				dmas_per_sec[i], mbsec[i]);
 		}
-		if (F_CPU(ctx))
-			fprintf(stdout, " %5.1Lf%%", cpu_percentage);
 	} else {
-		if (F_CPU(ctx))
-			fprintf(stdout, "%5.1Lf%% ", cpu_percentage);
-
 		for (i = 0; i < min(CTL_STAT_LUN_BITS, ctx->num_luns); i++) {
 			long double mbsec, kb_per_transfer;
 			long double transfers_per_sec;
@@ -571,21 +592,21 @@ ctlstat_standard(struct ctlstat_context *ctx) {
 			long double ms_per_dma;
 			long double dmas_per_sec;
 
-			if (bit_test(ctx->lun_mask,
+			if (F_LUNMASK(ctx) && bit_test(ctx->lun_mask,
 			    (int)ctx->cur_lun_stats[i].lun_number) == 0)
 				continue;
-			compute_stats(&ctx->cur_lun_stats[i], F_FIRST(ctx) ?
-				NULL : &ctx->prev_lun_stats[i], etime,
-				&mbsec, &kb_per_transfer,
-				&transfers_per_sec, &ms_per_transfer,
-				&ms_per_dma, &dmas_per_sec);
+			compute_stats(ctx, &ctx->cur_lun_stats[i],
+			    F_FIRST(ctx) ? NULL : &ctx->prev_lun_stats[i],
+			    etime, &mbsec, &kb_per_transfer,
+			    &transfers_per_sec, &ms_per_transfer,
+			    &ms_per_dma, &dmas_per_sec);
 			if (F_DMA(ctx))
-				fprintf(stdout, " %2.2Lf",
+				fprintf(stdout, " %5.1Lf",
 					ms_per_dma);
 			else if (F_LUNVAL(ctx) != 0)
-				fprintf(stdout, " %2.2Lf",
+				fprintf(stdout, " %5.1Lf",
 					ms_per_transfer);
-			fprintf(stdout, " %5.2Lf %3.0Lf %5.2Lf ",
+			fprintf(stdout, " %4.0Lf %5.0Lf %4.0Lf",
 				kb_per_transfer, (F_DMA(ctx) == 0) ?
 				transfers_per_sec : dmas_per_sec, mbsec);
 		}
@@ -597,7 +618,6 @@ main(int argc, char **argv)
 {
 	int c;
 	int count, waittime;
-	int set_lun;
 	int fd, retval;
 	struct ctlstat_context ctx;
 
@@ -641,20 +661,30 @@ main(int argc, char **argv)
 			if (cur_lun > CTL_STAT_LUN_BITS)
 				errx(1, "Invalid LUN number %d", cur_lun);
 
-			bit_ffs(ctx.lun_mask, CTL_STAT_LUN_BITS, &set_lun);
-			if (set_lun == -1)
+			if (!F_LUNMASK(&ctx))
 				ctx.numdevs = 1;
 			else
 				ctx.numdevs++;
 			bit_set(ctx.lun_mask, cur_lun);
+			ctx.flags |= CTLSTAT_FLAG_LUN_MASK;
 			break;
 		}
 		case 'n':
 			ctx.numdevs = atoi(optarg);
 			break;
+		case 'p': {
+			int cur_port;
+
+			cur_port = atoi(optarg);
+			if (cur_port > CTL_MAX_PORTS)
+				errx(1, "Invalid LUN number %d", cur_port);
+
+			bit_set(ctx.port_mask, cur_port);
+			ctx.flags |= CTLSTAT_FLAG_PORT_MASK;
+			break;
+		}
 		case 't':
 			ctx.flags |= CTLSTAT_FLAG_TOTALS;
-			ctx.numdevs = 3;
 			break;
 		case 'w':
 			waittime = atoi(optarg);
@@ -667,13 +697,7 @@ main(int argc, char **argv)
 		}
 	}
 
-	bit_ffs(ctx.lun_mask, CTL_STAT_LUN_BITS, &set_lun);
-
-	if ((F_TOTALS(&ctx))
-	 && (set_lun != -1)) {
-		errx(1, "Total Mode (-t) is incompatible with individual "
-		     "LUN mode (-l)");
-	} else if (set_lun == -1) {
+	if (!F_TOTALS(&ctx) && !F_LUNMASK(&ctx)) {
 		/*
 		 * Note that this just selects the first N LUNs to display,
 		 * but at this point we have no knoweledge of which LUN
@@ -682,6 +706,7 @@ main(int argc, char **argv)
 		 */
 		bit_nset(ctx.lun_mask, 0, min(ctx.numdevs - 1,
 			 CTL_STAT_LUN_BITS - 1));
+		ctx.flags |= CTLSTAT_FLAG_LUN_MASK;
 	}
 
 	if ((fd = open(CTL_DEFAULT_DEV, O_RDWR)) == -1)

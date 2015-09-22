@@ -22,9 +22,11 @@ __FBSDID("$FreeBSD$");
  * Driver for Realtek RTL8188SU/RTL8191SU/RTL8192SU.
  *
  * TODO:
- *   o 11n support
+ *   o 11n HT40 support
  *   o h/w crypto
  *   o hostap / ibss / mesh
+ *   o sensible RSSI levels
+ *   o power-save operation
  */
 
 #include <sys/param.h>
@@ -84,7 +86,7 @@ SYSCTL_INT(_hw_usb_rsu, OID_AUTO, debug, CTLFLAG_RWTUN, &rsu_debug, 0,
 #define	RSU_DPRINTF(_sc, _flg, ...)
 #endif
 
-static int rsu_enable_11n = 0;
+static int rsu_enable_11n = 1;
 TUNABLE_INT("hw.usb.rsu.enable_11n", &rsu_enable_11n);
 
 #define	RSU_DEBUG_ANY		0xffffffff
@@ -98,6 +100,7 @@ TUNABLE_INT("hw.usb.rsu.enable_11n", &rsu_enable_11n);
 #define	RSU_DEBUG_TXDONE	0x00000080
 #define	RSU_DEBUG_FW		0x00000100
 #define	RSU_DEBUG_FWDBG		0x00000200
+#define	RSU_DEBUG_AMPDU		0x00000400
 
 static const STRUCT_USB_HOST_ID rsu_devs[] = {
 #define	RSU_HT_NOT_SUPPORTED 0
@@ -190,6 +193,7 @@ static uint8_t	rsu_efuse_read_1(struct rsu_softc *, uint16_t);
 static int	rsu_read_rom(struct rsu_softc *);
 static int	rsu_fw_cmd(struct rsu_softc *, uint8_t, void *, int);
 static void	rsu_calib_task(void *, int);
+static void	rsu_tx_task(void *, int);
 static int	rsu_newstate(struct ieee80211vap *, enum ieee80211_state, int);
 #ifdef notyet
 static void	rsu_set_key(struct rsu_softc *, const struct ieee80211_key *);
@@ -217,6 +221,7 @@ static int	rsu_tx_start(struct rsu_softc *, struct ieee80211_node *,
 		    struct mbuf *, struct rsu_data *);
 static int	rsu_transmit(struct ieee80211com *, struct mbuf *);
 static void	rsu_start(struct rsu_softc *);
+static void	_rsu_start(struct rsu_softc *);
 static void	rsu_parent(struct ieee80211com *);
 static void	rsu_stop(struct rsu_softc *);
 static void	rsu_ms_delay(struct rsu_softc *, int);
@@ -332,11 +337,51 @@ rsu_update_chw(struct ieee80211com *ic)
 
 }
 
+/*
+ * notification from net80211 that it'd like to do A-MPDU on the given TID.
+ *
+ * Note: this actually hangs traffic at the present moment, so don't use it.
+ * The firmware debug does indiciate it's sending and establishing a TX AMPDU
+ * session, but then no traffic flows.
+ */
 static int
 rsu_ampdu_enable(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap)
 {
+#if 0
+	struct rsu_softc *sc = ni->ni_ic->ic_softc;
+	struct r92s_add_ba_req req;
 
-	/* Firmware handles this; not our problem */
+	/* Don't enable if it's requested or running */
+	if (IEEE80211_AMPDU_REQUESTED(tap))
+		return (0);
+	if (IEEE80211_AMPDU_RUNNING(tap))
+		return (0);
+
+	/* We've decided to send addba; so send it */
+	req.tid = htole32(tap->txa_tid);
+
+	/* Attempt net80211 state */
+	if (ieee80211_ampdu_tx_request_ext(ni, tap->txa_tid) != 1)
+		return (0);
+
+	/* Send the firmware command */
+	RSU_DPRINTF(sc, RSU_DEBUG_AMPDU, "%s: establishing AMPDU TX for TID %d\n",
+	    __func__,
+	    tap->txa_tid);
+
+	RSU_LOCK(sc);
+	if (rsu_fw_cmd(sc, R92S_CMD_ADDBA_REQ, &req, sizeof(req)) != 1) {
+		RSU_UNLOCK(sc);
+		/* Mark failure */
+		(void) ieee80211_ampdu_tx_request_active_ext(ni, tap->txa_tid, 0);
+		return (0);
+	}
+	RSU_UNLOCK(sc);
+
+	/* Mark success; we don't get any further notifications */
+	(void) ieee80211_ampdu_tx_request_active_ext(ni, tap->txa_tid, 1);
+#endif
+	/* Return 0, we're driving this ourselves */
 	return (0);
 }
 
@@ -379,6 +424,7 @@ rsu_attach(device_t self)
 	    MTX_DEF);
 	TIMEOUT_TASK_INIT(taskqueue_thread, &sc->calib_task, 0, 
 	    rsu_calib_task, sc);
+	TASK_INIT(&sc->tx_task, 0, rsu_tx_task, sc);
 	mbufq_init(&sc->sc_snd, ifqmaxlen);
 
 	/* Allocate Tx/Rx buffers. */
@@ -445,7 +491,13 @@ rsu_attach(device_t self)
 		    IEEE80211_HTCAP_MAXAMSDU_3839 |
 		    IEEE80211_HTCAP_SMPS_OFF;
 
+		/*
+		 * XXX HT40 isn't working in this driver yet - there's
+		 * something missing.  Disable it for now.
+		 */
+#if 0
 		ic->ic_htcaps |= IEEE80211_HTCAP_CHWIDTH40;
+#endif
 
 		/* set number of spatial streams */
 		ic->ic_txstream = 1;
@@ -502,15 +554,17 @@ rsu_detach(device_t self)
 	rsu_stop(sc);
 	RSU_UNLOCK(sc);
 	usbd_transfer_unsetup(sc->sc_xfer, RSU_N_TRANSFER);
+
+	/* Frames are freed; detach from net80211 */
 	ieee80211_ifdetach(ic);
 
 	taskqueue_drain_timeout(taskqueue_thread, &sc->calib_task);
+	taskqueue_drain(taskqueue_thread, &sc->tx_task);
 
 	/* Free Tx/Rx buffers. */
 	rsu_free_tx_list(sc);
 	rsu_free_rx_list(sc);
 
-	mbufq_drain(&sc->sc_snd);
 	mtx_destroy(&sc->sc_mtx);
 
 	return (0);
@@ -593,6 +647,7 @@ rsu_scan_start(struct ieee80211com *ic)
 
 	/* Scanning is done by the firmware. */
 	RSU_LOCK(sc);
+	/* XXX TODO: force awake if in in network-sleep? */
 	error = rsu_site_survey(sc, TAILQ_FIRST(&ic->ic_vaps));
 	RSU_UNLOCK(sc);
 	if (error != 0)
@@ -753,6 +808,9 @@ rsu_getbuf(struct rsu_softc *sc)
 	RSU_ASSERT_LOCKED(sc);
 
 	bf = _rsu_getbuf(sc);
+	if (bf == NULL) {
+		RSU_DPRINTF(sc, RSU_DEBUG_TX, "%s: no buffers\n", __func__);
+	}
 	return (bf);
 }
 
@@ -949,7 +1007,11 @@ rsu_fw_cmd(struct rsu_softc *sc, uint8_t code, void *buf, int len)
 	if (data == NULL)
 		return (ENOMEM);
 
+	/* Blank the entire payload, just to be safe */
+	memset(data->buf, '\0', RSU_TXBUFSZ);
+
 	/* Round-up command length to a multiple of 8 bytes. */
+	/* XXX TODO: is this required? */
 	cmdsz = (len + 7) & ~7;
 
 	xferlen = sizeof(*txd) + sizeof(*cmd) + cmdsz;
@@ -1016,6 +1078,85 @@ rsu_calib_task(void *arg, int pending __unused)
 	RSU_UNLOCK(sc);
 }
 
+static void
+rsu_tx_task(void *arg, int pending __unused)
+{
+	struct rsu_softc *sc = arg;
+
+	RSU_LOCK(sc);
+	_rsu_start(sc);
+	RSU_UNLOCK(sc);
+}
+
+#define	RSU_PWR_UNKNOWN		0x0
+#define	RSU_PWR_ACTIVE		0x1
+#define	RSU_PWR_OFF		0x2
+#define	RSU_PWR_SLEEP		0x3
+
+/*
+ * Set the current power state.
+ *
+ * The rtlwifi code doesn't do this so aggressively; it
+ * waits for an idle period after association with
+ * no traffic before doing this.
+ *
+ * For now - it's on in all states except RUN, and
+ * in RUN it'll transition to allow sleep.
+ */
+
+struct r92s_pwr_cmd {
+	uint8_t mode;
+	uint8_t smart_ps;
+	uint8_t bcn_pass_time;
+};
+
+static int
+rsu_set_fw_power_state(struct rsu_softc *sc, int state)
+{
+	struct r92s_set_pwr_mode cmd;
+	//struct r92s_pwr_cmd cmd;
+	int error;
+
+	RSU_ASSERT_LOCKED(sc);
+
+	/* only change state if required */
+	if (sc->sc_curpwrstate == state)
+		return (0);
+
+	memset(&cmd, 0, sizeof(cmd));
+
+	switch (state) {
+	case RSU_PWR_ACTIVE:
+		/* Force the hardware awake */
+		rsu_write_1(sc, R92S_USB_HRPWM,
+		    R92S_USB_HRPWM_PS_ST_ACTIVE | R92S_USB_HRPWM_PS_ALL_ON);
+		cmd.mode = R92S_PS_MODE_ACTIVE;
+		break;
+	case RSU_PWR_SLEEP:
+		cmd.mode = R92S_PS_MODE_DTIM;	/* XXX configurable? */
+		cmd.smart_ps = 1; /* XXX 2 if doing p2p */
+		cmd.bcn_pass_time = 5; /* in 100mS usb.c, linux/rtlwifi */
+		break;
+	case RSU_PWR_OFF:
+		cmd.mode = R92S_PS_MODE_RADIOOFF;
+		break;
+	default:
+		device_printf(sc->sc_dev, "%s: unknown ps mode (%d)\n",
+		    __func__,
+		    state);
+		return (ENXIO);
+	}
+
+	RSU_DPRINTF(sc, RSU_DEBUG_RESET,
+	    "%s: setting ps mode to %d (mode %d)\n",
+	    __func__, state, cmd.mode);
+	error = rsu_fw_cmd(sc, R92S_CMD_SET_PWR_MODE, &cmd, sizeof(cmd));
+	if (error == 0)
+		sc->sc_curpwrstate = state;
+
+	return (error);
+}
+
 static int
 rsu_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 {
@@ -1040,6 +1181,7 @@ rsu_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		sc->sc_calibrating = 0;
 		RSU_UNLOCK(sc);
 		taskqueue_drain_timeout(taskqueue_thread, &sc->calib_task);
+		taskqueue_drain(taskqueue_thread, &sc->tx_task);
 		/* Disassociate from our current BSS. */
 		RSU_LOCK(sc);
 		rsu_disconnect(sc);
@@ -1047,9 +1189,11 @@ rsu_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		RSU_LOCK(sc);
 	switch (nstate) {
 	case IEEE80211_S_INIT:
+		(void) rsu_set_fw_power_state(sc, RSU_PWR_ACTIVE);
 		break;
 	case IEEE80211_S_AUTH:
 		ni = ieee80211_ref_node(vap->iv_bss);
+		(void) rsu_set_fw_power_state(sc, RSU_PWR_ACTIVE);
 		error = rsu_join_bss(sc, ni);
 		ieee80211_free_node(ni);
 		if (error != 0) {
@@ -1062,6 +1206,7 @@ rsu_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		rs = &ni->ni_rates;
 		/* Indicate highest supported rate. */
 		ni->ni_txrate = rs->rs_rates[rs->rs_nrates - 1];
+		(void) rsu_set_fw_power_state(sc, RSU_PWR_SLEEP);
 		ieee80211_free_node(ni);
 		startcal = 1;
 		break;
@@ -1450,13 +1595,11 @@ rsu_rx_event(struct rsu_softc *sc, uint8_t code, uint8_t *buf, int len)
 		buf[60] = '\0';
 		RSU_DPRINTF(sc, RSU_DEBUG_FWDBG, "FWDBG: %s\n", (char *)buf);
 		break;
-
 	case R92S_EVT_ADDBA_REQ_REPORT:
 		rsu_event_addba_req_report(sc, buf, len);
 		break;
 	default:
-		RSU_DPRINTF(sc, RSU_DEBUG_ANY, "%s: unhandled code (%d)\n",
-		    __func__, code);
+		device_printf(sc->sc_dev, "%s: unhandled code (%d)\n", __func__, code);
 		break;
 	}
 }
@@ -1828,19 +1971,34 @@ tr_setup:
 static void
 rsu_bulk_tx_callback_be_bk(struct usb_xfer *xfer, usb_error_t error)
 {
+	struct rsu_softc *sc = usbd_xfer_softc(xfer);
+
 	rsu_bulk_tx_callback_sub(xfer, error, RSU_BULK_TX_BE_BK);
+
+	/* This kicks the TX taskqueue */
+	rsu_start(sc);
 }
 
 static void
 rsu_bulk_tx_callback_vi_vo(struct usb_xfer *xfer, usb_error_t error)
 {
+	struct rsu_softc *sc = usbd_xfer_softc(xfer);
+
 	rsu_bulk_tx_callback_sub(xfer, error, RSU_BULK_TX_VI_VO);
+
+	/* This kicks the TX taskqueue */
+	rsu_start(sc);
 }
 
 static void
 rsu_bulk_tx_callback_h2c(struct usb_xfer *xfer, usb_error_t error)
 {
+	struct rsu_softc *sc = usbd_xfer_softc(xfer);
+
 	rsu_bulk_tx_callback_sub(xfer, error, RSU_BULK_TX_H2C);
+
+	/* This kicks the TX taskqueue */
+	rsu_start(sc);
 }
 
 static int
@@ -1991,17 +2149,38 @@ rsu_transmit(struct ieee80211com *ic, struct mbuf *m)
 	}
 	error = mbufq_enqueue(&sc->sc_snd, m);
 	if (error) {
+		RSU_DPRINTF(sc, RSU_DEBUG_TX,
+		    "%s: mbufq_enable: failed (%d)\n",
+		    __func__,
+		    error);
 		RSU_UNLOCK(sc);
 		return (error);
 	}
-	rsu_start(sc);
 	RSU_UNLOCK(sc);
+
+	/* This kicks the TX taskqueue */
+	rsu_start(sc);
 
 	return (0);
 }
 
 static void
-rsu_start(struct rsu_softc *sc)
+rsu_drain_mbufq(struct rsu_softc *sc)
+{
+	struct mbuf *m;
+	struct ieee80211_node *ni;
+
+	RSU_ASSERT_LOCKED(sc);
+	while ((m = mbufq_dequeue(&sc->sc_snd)) != NULL) {
+		ni = (struct ieee80211_node *)m->m_pkthdr.rcvif;
+		m->m_pkthdr.rcvif = NULL;
+		ieee80211_free_node(ni);
+		m_freem(m);
+	}
+}
+
+static void
+_rsu_start(struct rsu_softc *sc)
 {
 	struct ieee80211_node *ni;
 	struct rsu_data *bf;
@@ -2012,6 +2191,8 @@ rsu_start(struct rsu_softc *sc)
 	while ((m = mbufq_dequeue(&sc->sc_snd)) != NULL) {
 		bf = rsu_getbuf(sc);
 		if (bf == NULL) {
+			RSU_DPRINTF(sc, RSU_DEBUG_TX,
+			    "%s: failed to get buffer\n", __func__);
 			mbufq_prepend(&sc->sc_snd, m);
 			break;
 		}
@@ -2020,6 +2201,8 @@ rsu_start(struct rsu_softc *sc)
 		m->m_pkthdr.rcvif = NULL;
 
 		if (rsu_tx_start(sc, ni, m, bf) != 0) {
+			RSU_DPRINTF(sc, RSU_DEBUG_TX,
+			    "%s: failed to transmit\n", __func__);
 			if_inc_counter(ni->ni_vap->iv_ifp,
 			    IFCOUNTER_OERRORS, 1);
 			rsu_freebuf(sc, bf);
@@ -2027,6 +2210,13 @@ rsu_start(struct rsu_softc *sc)
 			break;
 		}
 	}
+}
+
+static void
+rsu_start(struct rsu_softc *sc)
+{
+
+	taskqueue_enqueue(taskqueue_thread, &sc->tx_task);
 }
 
 static void
@@ -2279,6 +2469,9 @@ rsu_power_off(struct rsu_softc *sc)
 	/* Disable 1.6V LDO. */
 	rsu_write_1(sc, R92S_SPS0_CTRL + 0, 0x56);
 	rsu_write_1(sc, R92S_SPS0_CTRL + 1, 0x43);
+
+	/* Firmware - tell it to switch things off */
+	(void) rsu_set_fw_power_state(sc, RSU_PWR_OFF);
 }
 
 static int
@@ -2329,7 +2522,7 @@ rsu_load_firmware(struct rsu_softc *sc)
 	int ntries, error;
 
 	if (rsu_read_1(sc, R92S_TCR) & R92S_TCR_FWRDY) {
-		RSU_DPRINTF(sc, RSU_DEBUG_FW | RSU_DEBUG_RESET,
+		RSU_DPRINTF(sc, RSU_DEBUG_ANY,
 		    "%s: Firmware already loaded\n",
 		    __func__);
 		return (0);
@@ -2453,6 +2646,7 @@ rsu_load_firmware(struct rsu_softc *sc)
 	memset(dmem, 0, sizeof(*dmem));
 	dmem->hci_sel = R92S_HCI_SEL_USB | R92S_HCI_SEL_8172;
 	dmem->nendpoints = sc->sc_nendpoints;
+	dmem->chip_version = sc->cut;
 	/* XXX TODO: rf_config should come from ROM */
 	dmem->rf_config = 0x11;	/* 1T1R */
 	dmem->vcs_type = R92S_VCS_TYPE_AUTO;
@@ -2463,6 +2657,8 @@ rsu_load_firmware(struct rsu_softc *sc)
 	dmem->ampdu_en = !! (sc->sc_ht);
 	dmem->agg_offload = !! (sc->sc_ht);
 	dmem->qos_en = 1;
+	dmem->ps_offload = 1;
+	dmem->lowpower_mode = 1;	/* XXX TODO: configurable? */
 	/* Load DMEM section. */
 	error = rsu_fw_loadsection(sc, (uint8_t *)dmem, sizeof(*dmem));
 	if (error != 0) {
@@ -2539,14 +2735,19 @@ rsu_init(struct rsu_softc *sc)
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
 	uint8_t macaddr[IEEE80211_ADDR_LEN];
-	struct r92s_set_pwr_mode cmd;
 	int error;
 	int i;
 
 	RSU_ASSERT_LOCKED(sc);
 
+	/* Ensure the mbuf queue is drained */
+	rsu_drain_mbufq(sc);
+
 	/* Init host async commands ring. */
 	sc->cmdq.cur = sc->cmdq.next = sc->cmdq.queued = 0;
+
+	/* Reset power management state. */
+	rsu_write_1(sc, R92S_USB_HRPWM, 0);
 
 	/* Power on adapter. */
 	if (sc->cut == 1)
@@ -2600,15 +2801,9 @@ rsu_init(struct rsu_softc *sc)
 		goto fail;
 	}
 
-	rsu_write_1(sc, R92S_USB_HRPWM,
-	    R92S_USB_HRPWM_PS_ST_ACTIVE | R92S_USB_HRPWM_PS_ALL_ON);
-
 	/* Set PS mode fully active */
-	memset(&cmd, 0, sizeof(cmd));
-	cmd.mode = R92S_PS_MODE_ACTIVE;
-	RSU_DPRINTF(sc, RSU_DEBUG_RESET, "%s: setting ps mode to %d\n",
-	    __func__, cmd.mode);
-	error = rsu_fw_cmd(sc, R92S_CMD_SET_PWR_MODE, &cmd, sizeof(cmd));
+	error = rsu_set_fw_power_state(sc, RSU_PWR_ACTIVE);
+
 	if (error != 0) {
 		device_printf(sc->sc_dev, "could not set PS mode\n");
 		goto fail;
@@ -2645,15 +2840,21 @@ rsu_stop(struct rsu_softc *sc)
 {
 	int i;
 
+	RSU_ASSERT_LOCKED(sc);
+
 	sc->sc_running = 0;
 	sc->sc_calibrating = 0;
 	taskqueue_cancel_timeout(taskqueue_thread, &sc->calib_task, NULL);
+	taskqueue_cancel(taskqueue_thread, &sc->tx_task, NULL);
 
 	/* Power off adapter. */
 	rsu_power_off(sc);
 
 	for (i = 0; i < RSU_N_TRANSFER; i++)
 		usbd_transfer_stop(sc->sc_xfer[i]);
+
+	/* Ensure the mbuf queue is drained */
+	rsu_drain_mbufq(sc);
 }
 
 /*

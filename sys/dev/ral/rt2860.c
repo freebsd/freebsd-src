@@ -2260,7 +2260,6 @@ void
 rt2860_set_basicrates(struct rt2860_softc *sc,
     const struct ieee80211_rateset *rs)
 {
-#define RV(r)	((r) & IEEE80211_RATE_VAL)
 	struct ieee80211com *ic = &sc->sc_ic;
 	uint32_t mask = 0;
 	uint8_t rate;
@@ -2272,11 +2271,11 @@ rt2860_set_basicrates(struct rt2860_softc *sc,
 		if (!(rate & IEEE80211_RATE_BASIC))
 			continue;
 
-		mask |= 1 << ieee80211_legacy_rate_lookup(ic->ic_rt, RV(rate));
+		mask |= 1 << ieee80211_legacy_rate_lookup(ic->ic_rt,
+		    IEEE80211_RV(rate));
 	}
 
 	RAL_WRITE(sc, RT2860_LEGACY_BASIC_RATE, mask);
-#undef RV
 }
 
 static void
@@ -4269,12 +4268,12 @@ static int
 rt2860_setup_beacon(struct rt2860_softc *sc, struct ieee80211vap *vap)
 {
 	struct ieee80211com *ic = vap->iv_ic;
-	struct ieee80211_beacon_offsets bo;
+	struct ieee80211_beacon_offsets *bo = &vap->iv_bcn_off;
 	struct rt2860_txwi txwi;
 	struct mbuf *m;
 	int ridx;
 
-	if ((m = ieee80211_beacon_alloc(vap->iv_bss, &bo)) == NULL)
+	if ((m = ieee80211_beacon_alloc(vap->iv_bss, bo)) == NULL)
 		return ENOBUFS;
 
 	memset(&txwi, 0, sizeof txwi);
