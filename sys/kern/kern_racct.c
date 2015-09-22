@@ -502,7 +502,7 @@ racct_destroy(struct racct **racct)
  * may be less than zero.
  */
 static void
-racct_alloc_resource(struct racct *racct, int resource,
+racct_adjust_resource(struct racct *racct, int resource,
     uint64_t amount)
 {
 
@@ -555,7 +555,7 @@ racct_add_locked(struct proc *p, int resource, uint64_t amount)
 		return (error);
 	}
 #endif
-	racct_alloc_resource(p->p_racct, resource, amount);
+	racct_adjust_resource(p->p_racct, resource, amount);
 	racct_add_cred_locked(p->p_ucred, resource, amount);
 
 	return (0);
@@ -589,11 +589,11 @@ racct_add_cred_locked(struct ucred *cred, int resource, uint64_t amount)
 	SDT_PROBE(racct, kernel, rusage, add__cred, cred, resource, amount,
 	    0, 0);
 
-	racct_alloc_resource(cred->cr_ruidinfo->ui_racct, resource, amount);
+	racct_adjust_resource(cred->cr_ruidinfo->ui_racct, resource, amount);
 	for (pr = cred->cr_prison; pr != NULL; pr = pr->pr_parent)
-		racct_alloc_resource(pr->pr_prison_racct->prr_racct, resource,
+		racct_adjust_resource(pr->pr_prison_racct->prr_racct, resource,
 		    amount);
-	racct_alloc_resource(cred->cr_loginclass->lc_racct, resource, amount);
+	racct_adjust_resource(cred->cr_loginclass->lc_racct, resource, amount);
 }
 
 /*
@@ -633,7 +633,7 @@ racct_add_force(struct proc *p, int resource, uint64_t amount)
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 
 	mtx_lock(&racct_lock);
-	racct_alloc_resource(p->p_racct, resource, amount);
+	racct_adjust_resource(p->p_racct, resource, amount);
 	mtx_unlock(&racct_lock);
 	racct_add_cred(p->p_ucred, resource, amount);
 }
@@ -687,7 +687,7 @@ racct_set_locked(struct proc *p, int resource, uint64_t amount)
 		}
 	}
 #endif
-	racct_alloc_resource(p->p_racct, resource, diff_proc);
+	racct_adjust_resource(p->p_racct, resource, diff_proc);
 	if (diff_cred > 0)
 		racct_add_cred_locked(p->p_ucred, resource, diff_cred);
 	else if (diff_cred < 0)
@@ -749,7 +749,7 @@ racct_set_force_locked(struct proc *p, int resource, uint64_t amount)
 	} else
 		diff_cred = diff_proc;
 
-	racct_alloc_resource(p->p_racct, resource, diff_proc);
+	racct_adjust_resource(p->p_racct, resource, diff_proc);
 	if (diff_cred > 0)
 		racct_add_cred_locked(p->p_ucred, resource, diff_cred);
 	else if (diff_cred < 0)
@@ -851,7 +851,7 @@ racct_sub(struct proc *p, int resource, uint64_t amount)
 	     "than allocated %jd for %s (pid %d)", __func__, amount, resource,
 	    (intmax_t)p->p_racct->r_resources[resource], p->p_comm, p->p_pid));
 
-	racct_alloc_resource(p->p_racct, resource, -amount);
+	racct_adjust_resource(p->p_racct, resource, -amount);
 	racct_sub_cred_locked(p->p_ucred, resource, amount);
 	mtx_unlock(&racct_lock);
 }
@@ -872,11 +872,11 @@ racct_sub_cred_locked(struct ucred *cred, int resource, uint64_t amount)
 	     resource));
 #endif
 
-	racct_alloc_resource(cred->cr_ruidinfo->ui_racct, resource, -amount);
+	racct_adjust_resource(cred->cr_ruidinfo->ui_racct, resource, -amount);
 	for (pr = cred->cr_prison; pr != NULL; pr = pr->pr_parent)
-		racct_alloc_resource(pr->pr_prison_racct->prr_racct, resource,
+		racct_adjust_resource(pr->pr_prison_racct->prr_racct, resource,
 		    -amount);
-	racct_alloc_resource(cred->cr_loginclass->lc_racct, resource, -amount);
+	racct_adjust_resource(cred->cr_loginclass->lc_racct, resource, -amount);
 }
 
 /*
