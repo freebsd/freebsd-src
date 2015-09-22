@@ -2076,6 +2076,7 @@ vfs_vmio_release(struct buf *bp)
 	vm_object_t obj;
 	vm_page_t m;
 	int i;
+	bool freed;
 
 	if (buf_mapped(bp)) {
 		BUF_CHECK_MAPPED(bp);
@@ -2088,23 +2089,28 @@ vfs_vmio_release(struct buf *bp)
 	for (i = 0; i < bp->b_npages; i++) {
 		m = bp->b_pages[i];
 		bp->b_pages[i] = NULL;
-		/*
-		 * In order to keep page LRU ordering consistent, put
-		 * everything on the inactive queue.
-		 */
 		vm_page_lock(m);
-		vm_page_unwire(m, PQ_INACTIVE);
-
-		/*
-		 * Might as well free the page if we can and it has
-		 * no valid data.  We also free the page if the
-		 * buffer was used for direct I/O
-		 */
-		if ((bp->b_flags & B_ASYNC) == 0 && !m->valid) {
-			if (m->wire_count == 0 && !vm_page_busied(m))
-				vm_page_free(m);
-		} else if (bp->b_flags & B_DIRECT)
-			vm_page_try_to_free(m);
+		if (vm_page_unwire(m, PQ_NONE)) {
+			/*
+			 * Determine if the page should be freed before adding
+			 * it to the inactive queue.
+			 */
+			if ((bp->b_flags & B_ASYNC) == 0 && m->valid == 0) {
+				freed = !vm_page_busied(m);
+				if (freed)
+					vm_page_free(m);
+			} else if ((bp->b_flags & B_DIRECT) != 0)
+				freed = vm_page_try_to_free(m);
+			else
+				freed = false;
+			if (!freed) {
+				/*
+				 * In order to maintain LRU page ordering, put
+				 * the page at the tail of the inactive queue.
+				 */
+				vm_page_deactivate(m);
+			}
+		}
 		vm_page_unlock(m);
 	}
 	if (obj != NULL)
