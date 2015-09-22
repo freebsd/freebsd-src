@@ -63,8 +63,13 @@ __FBSDID("$FreeBSD$");
 .endm
 
 .macro	restore_registers el
-	msr	daifset, #2		/* Disable interrupts, x18 may change
-					 * in the interrupt exception handler */
+.if \el == 1
+	msr	daifset, #2
+	/*
+	 * Disable interrupts, x18 may change in the interrupt exception
+	 * handler.  For EL0 exceptions, do_ast already did this.
+	 */
+.endif
 	ldp	x18, lr, [sp], #16
 	ldp	x10, x11, [sp], #16
 .if \el == 0
@@ -155,6 +160,7 @@ handle_el0_irq:
 	save_registers 0
 	mov	x0, sp
 	bl	arm_cpu_intr
+	do_ast
 	restore_registers 0
 	eret
 
