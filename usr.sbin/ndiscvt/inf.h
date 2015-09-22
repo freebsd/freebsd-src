@@ -4,7 +4,7 @@
  * $FreeBSD$
  */
 
-#define W_MAX	16
+#define W_MAX	32
 
 struct section {
 	const char *	name;
