@@ -102,6 +102,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #include <net80211/ieee80211_var.h>
+#include <net80211/ieee80211_input.h>
 #include <net80211/ieee80211_regdomain.h>
 #include <net80211/ieee80211_radiotap.h>
 
@@ -155,15 +156,6 @@ enum {
 	(void) sc;						\
 } while (0)
 #endif
-
-/* unaligned little endian access */
-#define LE_READ_2(p)							\
-	((u_int16_t)							\
-	 ((((u_int8_t *)(p))[0]      ) | (((u_int8_t *)(p))[1] <<  8)))
-#define LE_READ_4(p)							\
-	((u_int32_t)							\
-	 ((((u_int8_t *)(p))[0]      ) | (((u_int8_t *)(p))[1] <<  8) |	\
-	  (((u_int8_t *)(p))[2] << 16) | (((u_int8_t *)(p))[3] << 24)))
 
 /* recognized device vendors/products */
 static const STRUCT_USB_HOST_ID uath_devs[] = {
@@ -599,7 +591,6 @@ uath_dump_cmd(const uint8_t *buf, int len, char prefix)
 static const char *
 uath_codename(int code)
 {
-#define	N(a)	(sizeof(a)/sizeof(a[0]))
 	static const char *names[] = {
 	    "0x00",
 	    "HOST_AVAILABLE",
@@ -662,13 +653,12 @@ uath_codename(int code)
 	};
 	static char buf[8];
 
-	if (code < N(names))
+	if (code < nitems(names))
 		return names[code];
 	if (code == WDCMSG_SET_DEFAULT_KEY)
 		return "SET_DEFAULT_KEY";
 	snprintf(buf, sizeof(buf), "0x%02x", code);
 	return buf;
-#undef N
 }
 #endif
 
@@ -1486,7 +1476,7 @@ uath_wme_init(struct uath_softc *sc)
 		qinfo.attr.aifs		= htobe32(uath_wme_11g[ac].aifsn);
 		qinfo.attr.logcwmin	= htobe32(uath_wme_11g[ac].logcwmin);
 		qinfo.attr.logcwmax	= htobe32(uath_wme_11g[ac].logcwmax);
-		qinfo.attr.bursttime	= htobe32(UATH_TXOP_TO_US(
+		qinfo.attr.bursttime	= htobe32(IEEE80211_TXOP_TO_US(
 					    uath_wme_11g[ac].txop));
 		qinfo.attr.mode		= htobe32(uath_wme_11g[ac].acm);/*XXX? */
 		qinfo.attr.qflags	= htobe32(1);	/* XXX? */
