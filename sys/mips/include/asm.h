@@ -281,6 +281,7 @@ _C_LABEL(x):
 #define	FP_S	sdc1
 #endif
 
+#ifndef __CHERI_SANDBOX__
 /*
  *  standard callframe {
  *	register_t cf_pad[N];		o32/64 (N=0), n32 (N=1) n64 (N=1)
@@ -302,6 +303,26 @@ _C_LABEL(x):
 #endif
 #define	CALLFRAME_SP	(CALLFRAME_SIZ - 2 * SZREG)
 #define	CALLFRAME_RA	(CALLFRAME_SIZ - 1 * SZREG)
+#else /* defined(__CHERI_SANDBOX__) */
+/*
+ *  cheriabi callframe {
+ *	uint64_t	cf_ra;
+ *	uint64_t	cf_fp;
+ *	uint64_t	cf_gp;
+ *	uint64_t	cf_s0;
+ *	intcap_t	cf_c17;
+ *	intcap_t	cf_something;	XXX-BD: What should go here?
+ *  };
+ *
+ * XXX-BD: This is unstable and will certainly change.
+ */
+#define CALLFRAME_SIZ	(SZREG * 4 + (_MIPS_SZCAP / 8) * 2)
+#define CALLFRAME_RA	(CALLFRAME_SIZ - 1 * SZREG)
+#define CALLFRAME_FP	(CALLFRAME_SIZ - 2 * SZREG)
+#define CALLFRAME_GP	(CALLFRAME_SIZ - 3 * SZREG)
+#define	CALLFRAME_S0	(CALLFRAME_SIZ - 4 * SZREG)
+#define	CALLFRAME_C17	(CALLFRAME_SIZ - 2 * _MIPS_SZCAP / 8)
+#endif /* defined(__CHERI_SANDBOX__) */
 
 /*
  *   Endian-independent assembly-code aliases for unaligned memory accesses.
