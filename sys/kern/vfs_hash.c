@@ -181,7 +181,7 @@ vfs_hash_changesize(int newmaxvnodes)
 	 * None of the vnodes in the table can be recycled because to
 	 * do so, they have to be removed from the hash table.
 	 */
-	rw_wlock(&vfs_hash_lock);
+	mtx_lock(&vfs_hash_mtx);
 	vfs_hash_oldtbl = vfs_hash_tbl;
 	vfs_hash_oldmask = vfs_hash_mask;
 	vfs_hash_tbl = vfs_hash_newtbl;
@@ -194,6 +194,6 @@ vfs_hash_changesize(int newmaxvnodes)
 			    vp, v_hashlist);
 		}
 	}
-	rw_wunlock(&vfs_hash_lock);
+	mtx_unlock(&vfs_hash_mtx);
 	free(vfs_hash_oldtbl, M_VFS_HASH);
 }
