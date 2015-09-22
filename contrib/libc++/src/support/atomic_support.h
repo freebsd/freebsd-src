@@ -13,8 +13,7 @@
                        && defined(__ATOMIC_ACQUIRE)                  \
                        && defined(__ATOMIC_RELEASE)                  \
                        && defined(__ATOMIC_ACQ_REL)                  \
-                       && defined(__ATOMIC_SEQ_CST)                  \
-                       && defined(__ARM_ARCH) && __ARM_ARCH >= 6
+                       && defined(__ATOMIC_SEQ_CST)
 #   define _LIBCPP_HAS_ATOMIC_BUILTINS
 #elif !defined(__clang__) && defined(_GNUC_VER) && _GNUC_VER >= 407
 #   define _LIBCPP_HAS_ATOMIC_BUILTINS
