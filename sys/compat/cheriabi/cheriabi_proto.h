@@ -149,6 +149,11 @@ struct cheriabi_sendfile_args {
 	char sbytes_l_[PADL_(off_t *)]; off_t * sbytes; char sbytes_r_[PADR_(off_t *)];
 	char flags_l_[PADL_(int)]; int flags; char flags_r_[PADR_(int)];
 };
+struct cheriabi_sigaction_args {
+	char sig_l_[PADL_(int)]; int sig; char sig_r_[PADR_(int)];
+	char act_l_[PADL_(struct sigaction_c *)]; struct sigaction_c * act; char act_r_[PADR_(struct sigaction_c *)];
+	char oact_l_[PADL_(struct sigaction_c *)]; struct sigaction_c * oact; char oact_r_[PADR_(struct sigaction_c *)];
+};
 struct cheriabi_sigreturn_args {
 	char sigcntxp_l_[PADL_(const struct ucontext_c *)]; const struct ucontext_c * sigcntxp; char sigcntxp_r_[PADR_(const struct ucontext_c *)];
 };
@@ -268,6 +273,7 @@ int	cheriabi_aio_waitcomplete(struct thread *, struct cheriabi_aio_waitcomplete_
 int	cheriabi_kevent(struct thread *, struct cheriabi_kevent_args *);
 int	cheriabi_nmount(struct thread *, struct cheriabi_nmount_args *);
 int	cheriabi_sendfile(struct thread *, struct cheriabi_sendfile_args *);
+int	cheriabi_sigaction(struct thread *, struct cheriabi_sigaction_args *);
 int	cheriabi_sigreturn(struct thread *, struct cheriabi_sigreturn_args *);
 int	cheriabi_getcontext(struct thread *, struct cheriabi_getcontext_args *);
 int	cheriabi_setcontext(struct thread *, struct cheriabi_setcontext_args *);
@@ -346,6 +352,7 @@ int	cheriabi_aio_mlock(struct thread *, struct cheriabi_aio_mlock_args *);
 #define	CHERIABI_SYS_AUE_cheriabi_kevent	AUE_NULL
 #define	CHERIABI_SYS_AUE_cheriabi_nmount	AUE_NMOUNT
 #define	CHERIABI_SYS_AUE_cheriabi_sendfile	AUE_SENDFILE
+#define	CHERIABI_SYS_AUE_cheriabi_sigaction	AUE_SIGACTION
 #define	CHERIABI_SYS_AUE_cheriabi_sigreturn	AUE_SIGRETURN
 #define	CHERIABI_SYS_AUE_cheriabi_getcontext	AUE_NULL
 #define	CHERIABI_SYS_AUE_cheriabi_setcontext	AUE_NULL

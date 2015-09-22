@@ -637,7 +637,7 @@ struct {
 	[CHERIABI_SYS_extattr_delete_link] = {
 		.sam_ptrmask = 0x1 | 0x4
 	},
-	[CHERIABI_SYS_sigaction] = {
+	[CHERIABI_SYS_cheriabi_sigaction] = {
 		.sam_ptrmask = 0x2 | 0x4
 	},
 	[CHERIABI_SYS_cheriabi_sigreturn] = {

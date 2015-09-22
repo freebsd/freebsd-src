@@ -2077,9 +2077,9 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 3;
 		break;
 	}
-	/* sigaction */
+	/* cheriabi_sigaction */
 	case 416: {
-		struct sigaction_args *p = params;
+		struct cheriabi_sigaction_args *p = params;
 		iarg[0] = p->sig; /* int */
 		uarg[1] = (intptr_t) p->act; /* struct sigaction_c * */
 		uarg[2] = (intptr_t) p->oact; /* struct sigaction_c * */
@@ -6465,7 +6465,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* sigaction */
+	/* cheriabi_sigaction */
 	case 416:
 		switch(ndx) {
 		case 0:
@@ -9515,7 +9515,7 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* sigaction */
+	/* cheriabi_sigaction */
 	case 416:
 		if (ndx == 0 || ndx == 1)
 			p = "int";

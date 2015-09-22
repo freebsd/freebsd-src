@@ -326,7 +326,7 @@
 #define	CHERIABI_SYS_extattr_set_link	412
 #define	CHERIABI_SYS_extattr_get_link	413
 #define	CHERIABI_SYS_extattr_delete_link	414
-#define	CHERIABI_SYS_sigaction	416
+#define	CHERIABI_SYS_cheriabi_sigaction	416
 #define	CHERIABI_SYS_cheriabi_sigreturn	417
 #define	CHERIABI_SYS_cheriabi_getcontext	421
 #define	CHERIABI_SYS_cheriabi_setcontext	422
