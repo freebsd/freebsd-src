@@ -2260,7 +2260,6 @@ void
 rt2860_set_basicrates(struct rt2860_softc *sc,
     const struct ieee80211_rateset *rs)
 {
-#define RV(r)	((r) & IEEE80211_RATE_VAL)
 	struct ieee80211com *ic = &sc->sc_ic;
 	uint32_t mask = 0;
 	uint8_t rate;
@@ -2272,11 +2271,11 @@ rt2860_set_basicrates(struct rt2860_softc *sc,
 		if (!(rate & IEEE80211_RATE_BASIC))
 			continue;
 
-		mask |= 1 << ieee80211_legacy_rate_lookup(ic->ic_rt, RV(rate));
+		mask |= 1 << ieee80211_legacy_rate_lookup(ic->ic_rt,
+		    IEEE80211_RV(rate));
 	}
 
 	RAL_WRITE(sc, RT2860_LEGACY_BASIC_RATE, mask);
-#undef RV
 }
 
 static void

@@ -2716,7 +2716,6 @@ static uint32_t
 iwn_rate_to_plcp(struct iwn_softc *sc, struct ieee80211_node *ni,
     uint8_t rate)
 {
-#define	RV(v)	((v) & IEEE80211_RATE_VAL)
 	struct ieee80211com *ic = ni->ni_ic;
 	uint32_t plcp = 0;
 	int ridx;
@@ -2731,7 +2730,7 @@ iwn_rate_to_plcp(struct iwn_softc *sc, struct ieee80211_node *ni,
 		 * MCS 0 -> MCS 31, then set the "I'm an MCS rate!"
 		 * flag.
 		 */
-		plcp = RV(rate) | IWN_RFLAG_MCS;
+		plcp = IEEE80211_RV(rate) | IWN_RFLAG_MCS;
 
 		/*
 		 * XXX the following should only occur if both
@@ -2792,7 +2791,6 @@ iwn_rate_to_plcp(struct iwn_softc *sc, struct ieee80211_node *ni,
 	    plcp);
 
 	return (htole32(plcp));
-#undef	RV
 }
 
 static void
@@ -5179,7 +5177,6 @@ iwn5000_add_node(struct iwn_softc *sc, struct iwn_node_info *node, int async)
 static int
 iwn_set_link_quality(struct iwn_softc *sc, struct ieee80211_node *ni)
 {
-#define	RV(v)	((v) & IEEE80211_RATE_VAL)
 	struct iwn_node *wn = (void *)ni;
 	struct ieee80211_rateset *rs;
 	struct iwn_cmd_link_quality linkq;
@@ -5238,7 +5235,7 @@ iwn_set_link_quality(struct iwn_softc *sc, struct ieee80211_node *ni)
 		if (is_11n)
 			rate = IEEE80211_RATE_MCS | rs->rs_rates[txrate];
 		else
-			rate = RV(rs->rs_rates[txrate]);
+			rate = IEEE80211_RV(rs->rs_rates[txrate]);
 
 		/* Do rate -> PLCP config mapping */
 		plcp = iwn_rate_to_plcp(sc, ni, rate);
@@ -5263,7 +5260,7 @@ iwn_set_link_quality(struct iwn_softc *sc, struct ieee80211_node *ni)
 		 * entry, we're already pointing at it.
 		 */
 		if ((le32toh(plcp) & IWN_RFLAG_MCS) &&
-		    RV(le32toh(plcp)) > 7)
+		    IEEE80211_RV(le32toh(plcp)) > 7)
 			linkq.mimo = i + 1;
 
 		/* Next retry at immediate lower bit-rate. */
@@ -5283,7 +5280,6 @@ iwn_set_link_quality(struct iwn_softc *sc, struct ieee80211_node *ni)
 	DPRINTF(sc, IWN_DEBUG_TRACE, "->%s: end\n",__func__);
 
 	return iwn_cmd(sc, IWN_CMD_LINK_QUALITY, &linkq, sizeof linkq, 1);
-#undef	RV
 }
 
 /*

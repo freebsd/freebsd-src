@@ -1859,7 +1859,6 @@ static void
 rt2661_set_basicrates(struct rt2661_softc *sc,
     const struct ieee80211_rateset *rs)
 {
-#define RV(r)	((r) & IEEE80211_RATE_VAL)
 	struct ieee80211com *ic = &sc->sc_ic;
 	uint32_t mask = 0;
 	uint8_t rate;
@@ -1871,13 +1870,13 @@ rt2661_set_basicrates(struct rt2661_softc *sc,
 		if (!(rate & IEEE80211_RATE_BASIC))
 			continue;
 
-		mask |= 1 << ieee80211_legacy_rate_lookup(ic->ic_rt, RV(rate));
+		mask |= 1 << ieee80211_legacy_rate_lookup(ic->ic_rt,
+		    IEEE80211_RV(rate));
 	}
 
 	RAL_WRITE(sc, RT2661_TXRX_CSR5, mask);
 
 	DPRINTF(sc, "Setting basic rate mask to 0x%x\n", mask);
-#undef RV
 }
 
 /*
@@ -2208,7 +2207,6 @@ rt2661_read_eeprom(struct rt2661_softc *sc, uint8_t macaddr[IEEE80211_ADDR_LEN])
 static int
 rt2661_bbp_init(struct rt2661_softc *sc)
 {
-#define N(a)	(sizeof (a) / sizeof ((a)[0]))
 	int i, ntries;
 	uint8_t val;
 
@@ -2225,7 +2223,7 @@ rt2661_bbp_init(struct rt2661_softc *sc)
 	}
 
 	/* initialize BBP registers to default values */
-	for (i = 0; i < N(rt2661_def_bbp); i++) {
+	for (i = 0; i < nitems(rt2661_def_bbp); i++) {
 		rt2661_bbp_write(sc, rt2661_def_bbp[i].reg,
 		    rt2661_def_bbp[i].val);
 	}
@@ -2238,13 +2236,11 @@ rt2661_bbp_init(struct rt2661_softc *sc)
 	}
 
 	return 0;
-#undef N
 }
 
 static void
 rt2661_init_locked(struct rt2661_softc *sc)
 {
-#define N(a)	(sizeof (a) / sizeof ((a)[0]))
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
 	uint32_t tmp, sta[3];
@@ -2305,7 +2301,7 @@ rt2661_init_locked(struct rt2661_softc *sc)
 	RAL_WRITE(sc, RT2661_RX_CNTL_CSR, 2);
 
 	/* initialize MAC registers to default values */
-	for (i = 0; i < N(rt2661_def_mac); i++)
+	for (i = 0; i < nitems(rt2661_def_mac); i++)
 		RAL_WRITE(sc, rt2661_def_mac[i].reg, rt2661_def_mac[i].val);
 
 	rt2661_set_macaddr(sc, vap ? vap->iv_myaddr : ic->ic_macaddr);
@@ -2354,7 +2350,7 @@ rt2661_init_locked(struct rt2661_softc *sc)
 	RAL_WRITE(sc, RT2661_TXRX_CSR0, tmp);
 
 	/* clear STA registers */
-	RAL_READ_REGION_4(sc, RT2661_STA_CSR0, sta, N(sta));
+	RAL_READ_REGION_4(sc, RT2661_STA_CSR0, sta, nitems(sta));
 
 	/* initialize ASIC */
 	RAL_WRITE(sc, RT2661_MAC_CSR1, 4);
@@ -2372,7 +2368,6 @@ rt2661_init_locked(struct rt2661_softc *sc)
 	sc->sc_flags |= RAL_RUNNING;
 
 	callout_reset(&sc->watchdog_ch, hz, rt2661_watchdog, sc);
-#undef N
 }
 
 static void

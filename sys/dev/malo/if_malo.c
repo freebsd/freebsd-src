@@ -901,22 +901,18 @@ malo_printtxbuf(const struct malo_txbuf *bf, u_int qnum, u_int ix)
 static __inline void
 malo_updatetxrate(struct ieee80211_node *ni, int rix)
 {
-#define	N(x)	(sizeof(x)/sizeof(x[0]))
 	static const int ieeerates[] =
 	    { 2, 4, 11, 22, 44, 12, 18, 24, 36, 48, 96, 108 };
-	if (rix < N(ieeerates))
+	if (rix < nitems(ieeerates))
 		ni->ni_txrate = ieeerates[rix];
-#undef N
 }
 
 static int
 malo_fix2rate(int fix_rate)
 {
-#define	N(x)	(sizeof(x)/sizeof(x[0]))
 	static const int rates[] =
 	    { 2, 4, 11, 22, 12, 18, 24, 36, 48, 96, 108 };
-	return (fix_rate < N(rates) ? rates[fix_rate] : 0);
-#undef N
+	return (fix_rate < nitems(rates) ? rates[fix_rate] : 0);
 }
 
 /* idiomatic shorthands: MS = mask+shift, SM = shift+mask */
@@ -1034,8 +1030,6 @@ static int
 malo_tx_start(struct malo_softc *sc, struct ieee80211_node *ni,
     struct malo_txbuf *bf, struct mbuf *m0)
 {
-#define	IEEE80211_DIR_DSTODS(wh) \
-	((wh->i_fc[1] & IEEE80211_FC1_DIR_MASK) == IEEE80211_FC1_DIR_DSTODS)
 #define	IS_DATA_FRAME(wh)						\
 	((wh->i_fc[0] & (IEEE80211_FC0_TYPE_MASK)) == IEEE80211_FC0_TYPE_DATA)
 	int error, ismcast, iswep;
@@ -1054,7 +1048,7 @@ malo_tx_start(struct malo_softc *sc, struct ieee80211_node *ni,
 	copyhdrlen = hdrlen = ieee80211_anyhdrsize(wh);
 	pktlen = m0->m_pkthdr.len;
 	if (IEEE80211_QOS_HAS_SEQ(wh)) {
-		if (IEEE80211_DIR_DSTODS(wh)) {
+		if (IEEE80211_IS_DSTODS(wh)) {
 			qos = *(uint16_t *)
 			    (((struct ieee80211_qosframe_addr4 *) wh)->i_qos);
 			copyhdrlen -= sizeof(qos);
@@ -1210,7 +1204,6 @@ malo_tx_start(struct malo_softc *sc, struct ieee80211_node *ni,
 	sc->malo_timer = 5;
 	MALO_TXQ_UNLOCK(txq);
 	return 0;
-#undef IEEE80211_DIR_DSTODS
 }
 
 static int
@@ -1960,9 +1953,6 @@ malo_set_channel(struct ieee80211com *ic)
 static void
 malo_rx_proc(void *arg, int npending)
 {
-#define	IEEE80211_DIR_DSTODS(wh)					\
-	((((const struct ieee80211_frame *)wh)->i_fc[1] &		\
-	    IEEE80211_FC1_DIR_MASK) == IEEE80211_FC1_DIR_DSTODS)
 	struct malo_softc *sc = arg;
 	struct ieee80211com *ic = &sc->malo_ic;
 	struct malo_rxbuf *bf;
@@ -2080,7 +2070,7 @@ malo_rx_proc(void *arg, int npending)
 		/* XXX special case so we can memcpy after m_devget? */
 		ovbcopy(data + sizeof(uint16_t), wh, hdrlen);
 		if (IEEE80211_QOS_HAS_SEQ(wh)) {
-			if (IEEE80211_DIR_DSTODS(wh)) {
+			if (IEEE80211_IS_DSTODS(wh)) {
 				wh4 = mtod(m,
 				    struct ieee80211_qosframe_addr4*);
 				*(uint16_t *)wh4->i_qos = ds->qosctrl;
@@ -2119,7 +2109,6 @@ rx_next:
 
 	if (mbufq_first(&sc->malo_snd) != NULL)
 		malo_start(sc);
-#undef IEEE80211_DIR_DSTODS
 }
 
 /*
