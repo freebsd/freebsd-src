@@ -47,7 +47,7 @@ index 8fc774b..fdbef95 100644
 +  </refsect1>
  </refentry>
 diff --git a/include/jemalloc/internal/jemalloc_internal.h.in b/include/jemalloc/internal/jemalloc_internal.h.in
-index 7a137b6..b0001e9 100644
+index 8536a3e..0c2a81f 100644
 --- a/include/jemalloc/internal/jemalloc_internal.h.in
 +++ b/include/jemalloc/internal/jemalloc_internal.h.in
 @@ -8,6 +8,9 @@
@@ -111,10 +111,10 @@ index f051f29..561378f 100644
  
  #endif /* JEMALLOC_H_EXTERNS */
 diff --git a/include/jemalloc/internal/private_symbols.txt b/include/jemalloc/internal/private_symbols.txt
-index dbf6aa7..f87dba8 100644
+index a90021a..34904bf 100644
 --- a/include/jemalloc/internal/private_symbols.txt
 +++ b/include/jemalloc/internal/private_symbols.txt
-@@ -277,7 +277,6 @@ iralloct_realign
+@@ -280,7 +280,6 @@ iralloct_realign
  isalloc
  isdalloct
  isqalloc
@@ -282,7 +282,7 @@ index f943891..47d032c 100755
 +#include "jemalloc_FreeBSD.h"
  EOF
 diff --git a/src/jemalloc.c b/src/jemalloc.c
-index ed7863b..d078a1f 100644
+index 5a2d324..b6cbb79 100644
 --- a/src/jemalloc.c
 +++ b/src/jemalloc.c
 @@ -4,6 +4,10 @@
@@ -296,7 +296,7 @@ index ed7863b..d078a1f 100644
  /* Runtime configuration options. */
  const char	*je_malloc_conf JEMALLOC_ATTR(weak);
  bool	opt_abort =
-@@ -2475,6 +2479,107 @@ je_malloc_usable_size(JEMALLOC_USABLE_SIZE_CONST void *ptr)
+@@ -2490,6 +2494,107 @@ je_malloc_usable_size(JEMALLOC_USABLE_SIZE_CONST void *ptr)
   */
  /******************************************************************************/
  /*
@@ -404,7 +404,7 @@ index ed7863b..d078a1f 100644
   * The following functions are used by threading libraries for protection of
   * malloc during fork().
   */
-@@ -2575,4 +2680,11 @@ jemalloc_postfork_child(void)
+@@ -2590,4 +2695,11 @@ jemalloc_postfork_child(void)
  	ctl_postfork_child();
  }
  
