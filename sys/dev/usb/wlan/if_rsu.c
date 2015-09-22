@@ -1088,6 +1088,7 @@ rsu_tx_task(void *arg, int pending __unused)
 	RSU_UNLOCK(sc);
 }
 
+#define	RSU_PWR_UNKNOWN		0x0
 #define	RSU_PWR_ACTIVE		0x1
 #define	RSU_PWR_OFF		0x2
 #define	RSU_PWR_SLEEP		0x3
@@ -1116,10 +1117,13 @@ rsu_set_fw_power_state(struct rsu_softc *sc, int state)
 	//struct r92s_pwr_cmd cmd;
 	int error;
 
-	memset(&cmd, 0, sizeof(cmd));
-
-	/* XXX TODO: only change state if required */
 	RSU_ASSERT_LOCKED(sc);
+
+	/* only change state if required */
+	if (sc->sc_curpwrstate == state)
+		return (0);
+
+	memset(&cmd, 0, sizeof(cmd));
 
 	switch (state) {
 	case RSU_PWR_ACTIVE:
@@ -1133,6 +1137,9 @@ rsu_set_fw_power_state(struct rsu_softc *sc, int state)
 		cmd.smart_ps = 1; /* XXX 2 if doing p2p */
 		cmd.bcn_pass_time = 5; /* in 100mS usb.c, linux/rtlwifi */
 		break;
+	case RSU_PWR_OFF:
+		cmd.mode = R92S_PS_MODE_RADIOOFF;
+		break;
 	default:
 		device_printf(sc->sc_dev, "%s: unknown ps mode (%d)\n",
 		    __func__,
@@ -1144,6 +1151,8 @@ rsu_set_fw_power_state(struct rsu_softc *sc, int state)
 	    "%s: setting ps mode to %d (mode %d)\n",
 	    __func__, state, cmd.mode);
 	error = rsu_fw_cmd(sc, R92S_CMD_SET_PWR_MODE, &cmd, sizeof(cmd));
+	if (error == 0)
+		sc->sc_curpwrstate = state;
 
 	return (error);
 }
@@ -2460,6 +2469,9 @@ rsu_power_off(struct rsu_softc *sc)
 	/* Disable 1.6V LDO. */
 	rsu_write_1(sc, R92S_SPS0_CTRL + 0, 0x56);
 	rsu_write_1(sc, R92S_SPS0_CTRL + 1, 0x43);
+
+	/* Firmware - tell it to switch things off */
+	(void) rsu_set_fw_power_state(sc, RSU_PWR_OFF);
 }
 
 static int
@@ -2827,6 +2839,8 @@ static void
 rsu_stop(struct rsu_softc *sc)
 {
 	int i;
+
+	RSU_ASSERT_LOCKED(sc);
 
 	sc->sc_running = 0;
 	sc->sc_calibrating = 0;
