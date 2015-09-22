@@ -100,10 +100,11 @@ __FBSDID("$FreeBSD$");
 .macro	do_ast
 	/* Disable interrupts */
 	mrs	x19, daif
+1:
 	msr	daifset, #2
 
 	/* Read the current thread flags */
-1:	ldr	x1, [x18, #PC_CURTHREAD]	/* Load curthread */
+	ldr	x1, [x18, #PC_CURTHREAD]	/* Load curthread */
 	ldr	x2, [x1, #TD_FLAGS]
 
 	/* Check if we have either bits set */
@@ -120,9 +121,8 @@ __FBSDID("$FreeBSD$");
 	mov	x0, sp
 	bl	_C_LABEL(ast)
 
-	/* Disable interrupts */
-	mrs	x19, daif
-	msr	daifset, #2
+	/* Re-check for new ast scheduled */
+	b	1b
 
 2:
 	/* Restore interrupts */
