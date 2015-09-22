@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 
 	.globl	_C_LABEL(__error)
 NESTED_NOPROFILE(__cerror, CALLFRAME_SIZ, ra)
+#ifndef __CHERI_SANDBOX__
 	.mask	0x80000000, (CALLFRAME_RA - CALLFRAME_SIZ)
 	SETUP_GP
 	PTR_SUBU	sp, sp, CALLFRAME_SIZ
@@ -69,4 +70,35 @@ NESTED_NOPROFILE(__cerror, CALLFRAME_SIZ, ra)
 	li		v1, -1
 
 	j		ra
+#else
+	/* CheriABI saves ra (for now) and fp */
+	.mask	0xc0000000, (CALLFRAME_RA - CALLFRAME_SIZ)
+	PTR_SUBU	sp, sp, CALLFRAME_SIZ
+
+	csd		ra, sp, CALLFRAME_RA($c11)
+	csd		s8, sp, CALLFRAME_FP($c11)
+	csd		v0, sp, CALLFRAME_S0($c11)	# save errno value
+	csc		$c17, sp, CALLFRAME_C17($c11)
+	move		s8, sp
+
+	PTR_LA		t9, _C_LABEL(__error)	# locate address of errno
+	cgetpcc		$c12
+	csetoffset	$c12, $c12, t9
+	cjalr		$c17, $c12
+	nop
+
+	move		sp, s8
+	cld		t0, sp, CALLFRAME_S0($c11)
+	csd		t0, zero, 0($c3)
+
+	clc		$c17, sp, CALLFRAME_C17($c11)
+	cld		s8, sp, CALLFRAME_FP($c11)
+	cld		ra, sp, CALLFRAME_RA($c11)
+	PTR_ADDU	sp, sp, CALLFRAME_SIZ
+
+	li		v0, -1
+	li		v1, -1
+
+	cjr		$c17
+#endif
 END(__cerror)
