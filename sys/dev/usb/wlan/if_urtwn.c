@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip.h>
 
 #include <net80211/ieee80211_var.h>
+#include <net80211/ieee80211_input.h>
 #include <net80211/ieee80211_regdomain.h>
 #include <net80211/ieee80211_radiotap.h>
 #include <net80211/ieee80211_ratectl.h>
@@ -83,8 +84,7 @@ SYSCTL_INT(_hw_usb_urtwn, OID_AUTO, debug, CTLFLAG_RWTUN, &urtwn_debug, 0,
 #endif
 
 #define	URTWN_RSSI(r)  (r) - 110
-#define	IEEE80211_HAS_ADDR4(wh)	\
-	(((wh)->i_fc[1] & IEEE80211_FC1_DIR_MASK) == IEEE80211_FC1_DIR_DSTODS)
+#define	IEEE80211_HAS_ADDR4(wh)	IEEE80211_IS_DSTODS(wh)
 
 /* various supported device vendors/products */
 static const STRUCT_USB_HOST_ID urtwn_devs[] = {
