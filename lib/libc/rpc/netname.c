@@ -79,8 +79,7 @@ static char *OPSYS = "unix";
  * Figure out my fully qualified network name
  */
 int
-getnetname(name)
-	char name[MAXNETNAMELEN+1];
+getnetname(char name[MAXNETNAMELEN+1])
 {
 	uid_t uid;
 
@@ -97,10 +96,7 @@ getnetname(name)
  * Convert unix cred to network-name
  */
 int
-user2netname(netname, uid, domain)
-	char netname[MAXNETNAMELEN + 1];
-	const uid_t uid;
-	const char *domain;
+user2netname(char netname[MAXNETNAMELEN + 1], const uid_t uid, const char *domain)
 {
 	char *dfltdom;
 
@@ -122,10 +118,7 @@ user2netname(netname, uid, domain)
  * Convert host to network-name
  */
 int
-host2netname(netname, host, domain)
-	char netname[MAXNETNAMELEN + 1];
-	const char *host;
-	const char *domain;
+host2netname(char netname[MAXNETNAMELEN + 1], const char *host, const char *domain)
 {
 	char *dfltdom;
 	char hostname[MAXHOSTNAMELEN+1];
