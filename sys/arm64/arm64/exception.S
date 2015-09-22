@@ -123,10 +123,7 @@ __FBSDID("$FreeBSD$");
 
 	/* Re-check for new ast scheduled */
 	b	1b
-
 2:
-	/* Restore interrupts */
-	msr	daif, x19
 .endm
 
 handle_el1h_sync:
