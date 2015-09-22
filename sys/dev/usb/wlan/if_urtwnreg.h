@@ -1134,7 +1134,6 @@ struct urtwn_fw_info {
 
 struct urtwn_vap {
 	struct ieee80211vap		vap;
-	struct ieee80211_beacon_offsets	bo;
 
 	int				(*newstate)(struct ieee80211vap *,
 					    enum ieee80211_state, int);

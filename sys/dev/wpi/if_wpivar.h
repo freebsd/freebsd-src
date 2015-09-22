@@ -125,7 +125,6 @@ struct wpi_vap {
 	struct ieee80211vap	wv_vap;
 
 	struct wpi_buf		wv_bcbuf;
-	struct ieee80211_beacon_offsets wv_boff;
 	struct mtx		wv_mtx;
 
 	uint32_t		wv_gtk;

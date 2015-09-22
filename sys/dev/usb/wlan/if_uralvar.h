@@ -73,7 +73,7 @@ typedef STAILQ_HEAD(, ural_tx_data) ural_txdhead;
 
 struct ural_vap {
 	struct ieee80211vap		vap;
-	struct ieee80211_beacon_offsets	bo;
+
 	struct usb_callout		ratectl_ch;
 	struct task			ratectl_task;
 
