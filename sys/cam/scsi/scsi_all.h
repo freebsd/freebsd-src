@@ -700,6 +700,19 @@ struct scsi_control_page {
 	u_int8_t extended_selftest_completion_time[2];
 };
 
+struct scsi_control_ext_page {
+	uint8_t page_code;
+	uint8_t subpage_code;
+	uint8_t page_length[2];
+	uint8_t flags;
+#define	SCEP_TCMOS			0x04	/* Timestamp Changeable by */
+#define	SCEP_SCSIP			0x02	/* SCSI Precedence (clock) */
+#define	SCEP_IALUAE			0x01	/* Implicit ALUA Enabled */
+	uint8_t prio;
+	uint8_t max_sense;
+	uint8_t reserve[25];
+};
+
 struct scsi_cache_page {
 	u_int8_t page_code;
 #define	SCHP_PAGE_SAVABLE		0x80	/* Page is savable */

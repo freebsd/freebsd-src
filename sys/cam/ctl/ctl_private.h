@@ -283,6 +283,9 @@ static const struct ctl_page_index page_index_template[] = {
 	 CTL_PAGE_FLAG_DISK_ONLY, NULL, ctl_caching_sp_handler},
 	{SMS_CONTROL_MODE_PAGE, 0, sizeof(struct scsi_control_page), NULL,
 	 CTL_PAGE_FLAG_NONE, NULL, ctl_control_page_handler},
+	{SMS_CONTROL_MODE_PAGE | SMPH_SPF, 0x01,
+	 sizeof(struct scsi_control_ext_page), NULL,
+	 CTL_PAGE_FLAG_NONE, NULL, NULL},
 	{SMS_INFO_EXCEPTIONS_PAGE, 0, sizeof(struct scsi_info_exceptions_page), NULL,
 	 CTL_PAGE_FLAG_NONE, NULL, NULL},
 	{SMS_INFO_EXCEPTIONS_PAGE | SMPH_SPF, 0x02,
@@ -302,6 +305,7 @@ struct ctl_mode_pages {
 	struct scsi_rigid_disk_page	rigid_disk_page[4];
 	struct scsi_caching_page	caching_page[4];
 	struct scsi_control_page	control_page[4];
+	struct scsi_control_ext_page	control_ext_page[4];
 	struct scsi_info_exceptions_page ie_page[4];
 	struct ctl_logical_block_provisioning_page lbp_page[4];
 	struct copan_debugconf_subpage	debugconf_subpage[4];
