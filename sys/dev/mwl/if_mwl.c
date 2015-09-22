@@ -70,6 +70,7 @@ __FBSDID("$FreeBSD$");
 #include <net/bpf.h>
 
 #include <net80211/ieee80211_var.h>
+#include <net80211/ieee80211_input.h>
 #include <net80211/ieee80211_regdomain.h>
 
 #ifdef INET
@@ -1707,18 +1708,6 @@ mwl_key_set(struct ieee80211vap *vap, const struct ieee80211_key *k,
 #undef GRPXMIT
 }
 
-/* unaligned little endian access */
-#define LE_READ_2(p)				\
-	((uint16_t)				\
-	 ((((const uint8_t *)(p))[0]      ) |	\
-	  (((const uint8_t *)(p))[1] <<  8)))
-#define LE_READ_4(p)				\
-	((uint32_t)				\
-	 ((((const uint8_t *)(p))[0]      ) |	\
-	  (((const uint8_t *)(p))[1] <<  8) |	\
-	  (((const uint8_t *)(p))[2] << 16) |	\
-	  (((const uint8_t *)(p))[3] << 24)))
-
 /*
  * Set the multicast filter contents into the hardware.
  * XXX f/w has no support; just defer to the os.
@@ -2619,8 +2608,6 @@ cvtrssi(uint8_t ssi)
 static void
 mwl_rx_proc(void *arg, int npending)
 {
-#define	IEEE80211_DIR_DSTODS(wh) \
-	((((const struct ieee80211_frame *)wh)->i_fc[1] & IEEE80211_FC1_DIR_MASK) == IEEE80211_FC1_DIR_DSTODS)
 	struct mwl_softc *sc = arg;
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct mwl_rxbuf *bf;
@@ -2775,7 +2762,7 @@ mwl_rx_proc(void *arg, int npending)
 		/* XXX special case so we can memcpy after m_devget? */
 		ovbcopy(data + sizeof(uint16_t), wh, hdrlen);
 		if (IEEE80211_QOS_HAS_SEQ(wh)) {
-			if (IEEE80211_DIR_DSTODS(wh)) {
+			if (IEEE80211_IS_DSTODS(wh)) {
 				wh4 = mtod(m,
 				    struct ieee80211_qosframe_addr4*);
 				*(uint16_t *)wh4->i_qos = ds->QosCtrl;
@@ -2845,7 +2832,6 @@ rx_stop:
 		mwl_hal_txstart(sc->sc_mh, 0);
 		mwl_start(sc);
 	}
-#undef IEEE80211_DIR_DSTODS
 }
 
 static void
@@ -2881,12 +2867,11 @@ mwl_txq_init(struct mwl_softc *sc, struct mwl_txq *txq, int qnum)
 static int
 mwl_tx_setup(struct mwl_softc *sc, int ac, int mvtype)
 {
-#define	N(a)	(sizeof(a)/sizeof(a[0]))
 	struct mwl_txq *txq;
 
-	if (ac >= N(sc->sc_ac2q)) {
+	if (ac >= nitems(sc->sc_ac2q)) {
 		device_printf(sc->sc_dev, "AC %u out of range, max %zu!\n",
-			ac, N(sc->sc_ac2q));
+			ac, nitems(sc->sc_ac2q));
 		return 0;
 	}
 	if (mvtype >= MWL_NUM_TX_QUEUES) {
@@ -2898,7 +2883,6 @@ mwl_tx_setup(struct mwl_softc *sc, int ac, int mvtype)
 	mwl_txq_init(sc, txq, mvtype);
 	sc->sc_ac2q[ac] = txq;
 	return 1;
-#undef N
 }
 
 /*
@@ -3091,8 +3075,6 @@ static int
 mwl_tx_start(struct mwl_softc *sc, struct ieee80211_node *ni, struct mwl_txbuf *bf,
     struct mbuf *m0)
 {
-#define	IEEE80211_DIR_DSTODS(wh) \
-	((wh->i_fc[1] & IEEE80211_FC1_DIR_MASK) == IEEE80211_FC1_DIR_DSTODS)
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ieee80211vap *vap = ni->ni_vap;
 	int error, iswep, ismcast;
@@ -3114,7 +3096,7 @@ mwl_tx_start(struct mwl_softc *sc, struct ieee80211_node *ni, struct mwl_txbuf *
 	copyhdrlen = hdrlen;
 	pktlen = m0->m_pkthdr.len;
 	if (IEEE80211_QOS_HAS_SEQ(wh)) {
-		if (IEEE80211_DIR_DSTODS(wh)) {
+		if (IEEE80211_IS_DSTODS(wh)) {
 			qos = *(uint16_t *)
 			    (((struct ieee80211_qosframe_addr4 *) wh)->i_qos);
 			copyhdrlen -= sizeof(qos);
@@ -3331,17 +3313,14 @@ mwl_tx_start(struct mwl_softc *sc, struct ieee80211_node *ni, struct mwl_txbuf *
 	MWL_TXQ_UNLOCK(txq);
 
 	return 0;
-#undef	IEEE80211_DIR_DSTODS
 }
 
 static __inline int
 mwl_cvtlegacyrix(int rix)
 {
-#define	N(x)	(sizeof(x)/sizeof(x[0]))
 	static const int ieeerates[] =
 	    { 2, 4, 11, 22, 44, 12, 18, 24, 36, 48, 72, 96, 108 };
-	return (rix < N(ieeerates) ? ieeerates[rix] : 0);
-#undef N
+	return (rix < nitems(ieeerates) ? ieeerates[rix] : 0);
 }
 
 /*
