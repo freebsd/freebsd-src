@@ -491,7 +491,6 @@ int
 ieee80211_fix_rate(struct ieee80211_node *ni,
 	struct ieee80211_rateset *nrs, int flags)
 {
-#define	RV(v)	((v) & IEEE80211_RATE_VAL)
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211com *ic = ni->ni_ic;
 	int i, j, rix, error;
@@ -545,7 +544,8 @@ ieee80211_fix_rate(struct ieee80211_node *ni,
 			 * Sort rates.
 			 */
 			for (j = i + 1; j < nrs->rs_nrates; j++) {
-				if (RV(nrs->rs_rates[i]) > RV(nrs->rs_rates[j])) {
+				if (IEEE80211_RV(nrs->rs_rates[i]) >
+				    IEEE80211_RV(nrs->rs_rates[j])) {
 					r = nrs->rs_rates[i];
 					nrs->rs_rates[i] = nrs->rs_rates[j];
 					nrs->rs_rates[j] = r;
@@ -604,8 +604,7 @@ ieee80211_fix_rate(struct ieee80211_node *ni,
 		    "ucastrate %x\n", __func__, fixedrate, ucastrate, flags);
 		return badrate | IEEE80211_RATE_BASIC;
 	} else
-		return RV(okrate);
-#undef RV
+		return IEEE80211_RV(okrate);
 }
 
 /*
