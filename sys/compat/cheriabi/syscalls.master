@@ -691,7 +691,7 @@
 				    const char *path, int attrnamespace, \
 				    const char *attrname); }
 415	AUE_NULL	UNIMPL	__mac_execve
-416	AUE_SIGACTION	NOPROTO	{ int sigaction(int sig, \
+416	AUE_SIGACTION	STD	{ int cheriabi_sigaction(int sig, \
 				    struct sigaction_c *act, \
 				    struct sigaction_c *oact); }
 417	AUE_SIGRETURN	STD	{ int cheriabi_sigreturn( \
