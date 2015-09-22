@@ -4811,12 +4811,12 @@ static void
 run_update_beacon(struct ieee80211vap *vap, int item)
 {
 	struct ieee80211com *ic = vap->iv_ic;
+	struct ieee80211_beacon_offsets *bo = &vap->iv_bcn_off;
+	struct ieee80211_node *ni = vap->iv_bss;
 	struct run_softc *sc = ic->ic_softc;
 	struct run_vap *rvp = RUN_VAP(vap);
 	int mcast = 0;
 	uint32_t i;
-
-	KASSERT(vap != NULL, ("no beacon"));
 
 	switch (item) {
 	case IEEE80211_BEACON_ERP:
@@ -4832,14 +4832,13 @@ run_update_beacon(struct ieee80211vap *vap, int item)
 		break;
 	}
 
-	setbit(rvp->bo.bo_flags, item);
+	setbit(bo->bo_flags, item);
 	if (rvp->beacon_mbuf == NULL) {
-		rvp->beacon_mbuf = ieee80211_beacon_alloc(vap->iv_bss,
-		    &rvp->bo);
+		rvp->beacon_mbuf = ieee80211_beacon_alloc(ni, bo);
 		if (rvp->beacon_mbuf == NULL)
 			return;
 	}
-	ieee80211_beacon_update(vap->iv_bss, &rvp->bo, rvp->beacon_mbuf, mcast);
+	ieee80211_beacon_update(ni, bo, rvp->beacon_mbuf, mcast);
 
 	i = RUN_CMDQ_GET(&sc->cmdq_store);
 	DPRINTF("cmdq_store=%d\n", i);
@@ -4854,6 +4853,7 @@ static void
 run_update_beacon_cb(void *arg)
 {
 	struct ieee80211vap *vap = arg;
+	struct ieee80211_node *ni = vap->iv_bss;
 	struct run_vap *rvp = RUN_VAP(vap);
 	struct ieee80211com *ic = vap->iv_ic;
 	struct run_softc *sc = ic->ic_softc;
@@ -4862,7 +4862,7 @@ run_update_beacon_cb(void *arg)
 	uint16_t txwisize;
 	uint8_t ridx;
 
-	if (vap->iv_bss->ni_chan == IEEE80211_CHAN_ANYC)
+	if (ni->ni_chan == IEEE80211_CHAN_ANYC)
 		return;
 	if (ic->ic_bsschan == IEEE80211_CHAN_ANYC)
 		return;
@@ -4872,8 +4872,8 @@ run_update_beacon_cb(void *arg)
 	 * is taking care of apropriate calls.
 	 */
 	if (rvp->beacon_mbuf == NULL) {
-		rvp->beacon_mbuf = ieee80211_beacon_alloc(vap->iv_bss,
-		    &rvp->bo);
+		rvp->beacon_mbuf = ieee80211_beacon_alloc(ni,
+		    &vap->iv_bcn_off);
 		if (rvp->beacon_mbuf == NULL)
 			return;
 	}

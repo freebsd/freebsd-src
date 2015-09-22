@@ -768,7 +768,7 @@ rt2560_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		if (vap->iv_opmode == IEEE80211_M_HOSTAP ||
 		    vap->iv_opmode == IEEE80211_M_IBSS ||
 		    vap->iv_opmode == IEEE80211_M_MBSS) {
-			m = ieee80211_beacon_alloc(ni, &rvp->ral_bo);
+			m = ieee80211_beacon_alloc(ni, &vap->iv_bcn_off);
 			if (m == NULL) {
 				device_printf(sc->sc_dev,
 				    "could not allocate beacon\n");
@@ -1273,8 +1273,7 @@ rt2560_rx_intr(struct rt2560_softc *sc)
 static void
 rt2560_beacon_update(struct ieee80211vap *vap, int item)
 {
-	struct rt2560_vap *rvp = RT2560_VAP(vap);
-	struct ieee80211_beacon_offsets *bo = &rvp->ral_bo;
+	struct ieee80211_beacon_offsets *bo = &vap->iv_bcn_off;
 
 	setbit(bo->bo_flags, item);
 }
@@ -1288,7 +1287,6 @@ rt2560_beacon_expire(struct rt2560_softc *sc)
 {
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
-	struct rt2560_vap *rvp = RT2560_VAP(vap);
 	struct rt2560_tx_data *data;
 
 	if (ic->ic_opmode != IEEE80211_M_IBSS &&
@@ -1307,7 +1305,7 @@ rt2560_beacon_expire(struct rt2560_softc *sc)
 	bus_dmamap_unload(sc->bcnq.data_dmat, data->map);
 
 	/* XXX 1 =>'s mcast frames which means all PS sta's will wakeup! */
-	ieee80211_beacon_update(data->ni, &rvp->ral_bo, data->m, 1);
+	ieee80211_beacon_update(data->ni, &vap->iv_bcn_off, data->m, 1);
 
 	rt2560_tx_bcn(sc, data->m, data->ni);
 

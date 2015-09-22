@@ -199,7 +199,7 @@ ath_beacon_alloc(struct ath_softc *sc, struct ieee80211_node *ni)
 	 * we assume the mbuf routines will return us something
 	 * with this alignment (perhaps should assert).
 	 */
-	m = ieee80211_beacon_alloc(ni, &avp->av_boff);
+	m = ieee80211_beacon_alloc(ni, &vap->iv_bcn_off);
 	if (m == NULL) {
 		device_printf(sc->sc_dev, "%s: cannot get mbuf\n", __func__);
 		sc->sc_stats.ast_be_nombuf++;
@@ -374,7 +374,7 @@ ath_beacon_setup(struct ath_softc *sc, struct ath_buf *bf)
 void
 ath_beacon_update(struct ieee80211vap *vap, int item)
 {
-	struct ieee80211_beacon_offsets *bo = &ATH_VAP(vap)->av_boff;
+	struct ieee80211_beacon_offsets *bo = &vap->iv_bcn_off;
 
 	setbit(bo->bo_flags, item);
 }
@@ -713,7 +713,7 @@ ath_beacon_generate(struct ath_softc *sc, struct ieee80211vap *vap)
 	/* XXX lock mcastq? */
 	nmcastq = avp->av_mcastq.axq_depth;
 
-	if (ieee80211_beacon_update(bf->bf_node, &avp->av_boff, m, nmcastq)) {
+	if (ieee80211_beacon_update(bf->bf_node, &vap->iv_bcn_off, m, nmcastq)) {
 		/* XXX too conservative? */
 		bus_dmamap_unload(sc->sc_dmat, bf->bf_dmamap);
 		error = bus_dmamap_load_mbuf_sg(sc->sc_dmat, bf->bf_dmamap, m,
@@ -726,7 +726,7 @@ ath_beacon_generate(struct ath_softc *sc, struct ieee80211vap *vap)
 			return NULL;
 		}
 	}
-	if ((avp->av_boff.bo_tim[4] & 1) && cabq->axq_depth) {
+	if ((vap->iv_bcn_off.bo_tim[4] & 1) && cabq->axq_depth) {
 		DPRINTF(sc, ATH_DEBUG_BEACON,
 		    "%s: cabq did not drain, mcastq %u cabq %u\n",
 		    __func__, nmcastq, cabq->axq_depth);
@@ -764,7 +764,7 @@ ath_beacon_generate(struct ath_softc *sc, struct ieee80211vap *vap)
 	 * Enable the CAB queue before the beacon queue to
 	 * insure cab frames are triggered by this beacon.
 	 */
-	if (avp->av_boff.bo_tim[4] & 1) {
+	if (vap->iv_bcn_off.bo_tim[4] & 1) {
 
 		/* NB: only at DTIM */
 		ATH_TXQ_LOCK(&avp->av_mcastq);
@@ -829,7 +829,7 @@ ath_beacon_start_adhoc(struct ath_softc *sc, struct ieee80211vap *vap)
 	 */
 	bf = avp->av_bcbuf;
 	m = bf->bf_m;
-	if (ieee80211_beacon_update(bf->bf_node, &avp->av_boff, m, 0)) {
+	if (ieee80211_beacon_update(bf->bf_node, &vap->iv_bcn_off, m, 0)) {
 		/* XXX too conservative? */
 		bus_dmamap_unload(sc->sc_dmat, bf->bf_dmamap);
 		error = bus_dmamap_load_mbuf_sg(sc->sc_dmat, bf->bf_dmamap, m,

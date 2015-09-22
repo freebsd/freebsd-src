@@ -4268,12 +4268,12 @@ static int
 rt2860_setup_beacon(struct rt2860_softc *sc, struct ieee80211vap *vap)
 {
 	struct ieee80211com *ic = vap->iv_ic;
-	struct ieee80211_beacon_offsets bo;
+	struct ieee80211_beacon_offsets *bo = &vap->iv_bcn_off;
 	struct rt2860_txwi txwi;
 	struct mbuf *m;
 	int ridx;
 
-	if ((m = ieee80211_beacon_alloc(vap->iv_bss, &bo)) == NULL)
+	if ((m = ieee80211_beacon_alloc(vap->iv_bss, bo)) == NULL)
 		return ENOBUFS;
 
 	memset(&txwi, 0, sizeof txwi);
