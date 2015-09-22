@@ -110,7 +110,10 @@ static void vfs_page_set_validclean(struct buf *bp, vm_ooffset_t off,
 		vm_page_t m);
 static void vfs_clean_pages_dirty_buf(struct buf *bp);
 static void vfs_setdirty_locked_object(struct buf *bp);
+static void vfs_vmio_invalidate(struct buf *bp);
 static void vfs_vmio_release(struct buf *bp);
+static void vfs_vmio_truncate(struct buf *bp, int npages);
+static void vfs_vmio_extend(struct buf *bp, int npages, int size);
 static int vfs_bio_clcheck(struct vnode *vp, int size,
 		daddr_t lblkno, daddr_t blkno);
 static int buf_flush(struct vnode *vp, int);
@@ -661,11 +664,9 @@ waitrunningbufspace(void)
  *	bit if the newly extended portion of the buffer does not contain
  *	valid data.
  */
-static __inline
-void
-vfs_buf_test_cache(struct buf *bp,
-		  vm_ooffset_t foff, vm_offset_t off, vm_offset_t size,
-		  vm_page_t m)
+static __inline void
+vfs_buf_test_cache(struct buf *bp, vm_ooffset_t foff, vm_offset_t off,
+    vm_offset_t size, vm_page_t m)
 {
 
 	VM_OBJECT_ASSERT_LOCKED(m->object);
@@ -1865,105 +1866,16 @@ brelse(struct buf *bp)
 	 * around to prevent it from being reconstituted and starting a second
 	 * background write.
 	 */
-	if ((bp->b_flags & B_VMIO)
-	    && !(bp->b_vp->v_mount != NULL &&
-		 (bp->b_vp->v_mount->mnt_vfc->vfc_flags & VFCF_NETWORK) != 0 &&
-		 !vn_isdisk(bp->b_vp, NULL) &&
-		 (bp->b_flags & B_DELWRI))
-	    ) {
+	if ((bp->b_flags & B_VMIO) && (bp->b_flags & B_NOCACHE ||
+	    (bp->b_ioflags & BIO_ERROR && bp->b_iocmd == BIO_READ)) &&
+	    !(bp->b_vp->v_mount != NULL &&
+	    (bp->b_vp->v_mount->mnt_vfc->vfc_flags & VFCF_NETWORK) != 0 &&
+	    !vn_isdisk(bp->b_vp, NULL) && (bp->b_flags & B_DELWRI)))
+		vfs_vmio_invalidate(bp);
 
-		int i, j, resid;
-		vm_page_t m;
-		off_t foff;
-		vm_pindex_t poff;
-		vm_object_t obj;
-
-		obj = bp->b_bufobj->bo_object;
-
-		/*
-		 * Get the base offset and length of the buffer.  Note that 
-		 * in the VMIO case if the buffer block size is not
-		 * page-aligned then b_data pointer may not be page-aligned.
-		 * But our b_pages[] array *IS* page aligned.
-		 *
-		 * block sizes less then DEV_BSIZE (usually 512) are not 
-		 * supported due to the page granularity bits (m->valid,
-		 * m->dirty, etc...). 
-		 *
-		 * See man buf(9) for more information
-		 */
-		resid = bp->b_bufsize;
-		foff = bp->b_offset;
-		for (i = 0; i < bp->b_npages; i++) {
-			int had_bogus = 0;
-
-			m = bp->b_pages[i];
-
-			/*
-			 * If we hit a bogus page, fixup *all* the bogus pages
-			 * now.
-			 */
-			if (m == bogus_page) {
-				poff = OFF_TO_IDX(bp->b_offset);
-				had_bogus = 1;
-
-				VM_OBJECT_RLOCK(obj);
-				for (j = i; j < bp->b_npages; j++) {
-					vm_page_t mtmp;
-					mtmp = bp->b_pages[j];
-					if (mtmp == bogus_page) {
-						mtmp = vm_page_lookup(obj, poff + j);
-						if (!mtmp) {
-							panic("brelse: page missing\n");
-						}
-						bp->b_pages[j] = mtmp;
-					}
-				}
-				VM_OBJECT_RUNLOCK(obj);
-
-				if ((bp->b_flags & B_INVAL) == 0 &&
-				    buf_mapped(bp)) {
-					BUF_CHECK_MAPPED(bp);
-					pmap_qenter(
-					    trunc_page((vm_offset_t)bp->b_data),
-					    bp->b_pages, bp->b_npages);
-				}
-				m = bp->b_pages[i];
-			}
-			if ((bp->b_flags & B_NOCACHE) ||
-			    (bp->b_ioflags & BIO_ERROR &&
-			     bp->b_iocmd == BIO_READ)) {
-				int poffset = foff & PAGE_MASK;
-				int presid = resid > (PAGE_SIZE - poffset) ?
-					(PAGE_SIZE - poffset) : resid;
-
-				KASSERT(presid >= 0, ("brelse: extra page"));
-				VM_OBJECT_WLOCK(obj);
-				while (vm_page_xbusied(m)) {
-					vm_page_lock(m);
-					VM_OBJECT_WUNLOCK(obj);
-					vm_page_busy_sleep(m, "mbncsh");
-					VM_OBJECT_WLOCK(obj);
-				}
-				if (pmap_page_wired_mappings(m) == 0)
-					vm_page_set_invalid(m, poffset, presid);
-				VM_OBJECT_WUNLOCK(obj);
-				if (had_bogus)
-					printf("avoided corruption bug in bogus_page/brelse code\n");
-			}
-			resid -= PAGE_SIZE - (foff & PAGE_MASK);
-			foff = (foff + PAGE_SIZE) & ~(off_t)PAGE_MASK;
-		}
-		if (bp->b_flags & (B_INVAL | B_RELBUF))
+	if ((bp->b_flags & (B_INVAL | B_RELBUF)) != 0) {
+		if (bp->b_flags & B_VMIO)
 			vfs_vmio_release(bp);
-
-	} else if (bp->b_flags & B_VMIO) {
-
-		if (bp->b_flags & (B_INVAL | B_RELBUF)) {
-			vfs_vmio_release(bp);
-		}
-
-	} else if ((bp->b_flags & (B_INVAL | B_RELBUF)) != 0) {
 		if (bp->b_bufsize != 0)
 			allocbuf(bp, 0);
 		if (bp->b_vp != NULL)
@@ -2069,6 +1981,132 @@ out:
 	BUF_UNLOCK(bp);
 }
 
+/*
+ * Complete I/O to a VMIO backed page.  Validate the pages as appropriate,
+ * restore bogus pages.
+ */
+static void
+vfs_vmio_iodone(struct buf *bp)
+{
+	vm_ooffset_t foff;
+	vm_page_t m;
+	vm_object_t obj;
+	struct vnode *vp;
+	int bogus, i, iosize;
+
+	obj = bp->b_bufobj->bo_object;
+	KASSERT(obj->paging_in_progress >= bp->b_npages,
+	    ("vfs_vmio_iodone: paging in progress(%d) < b_npages(%d)",
+	    obj->paging_in_progress, bp->b_npages));
+
+	vp = bp->b_vp;
+	KASSERT(vp->v_holdcnt > 0,
+	    ("vfs_vmio_iodone: vnode %p has zero hold count", vp));
+	KASSERT(vp->v_object != NULL,
+	    ("vfs_vmio_iodone: vnode %p has no vm_object", vp));
+
+	foff = bp->b_offset;
+	KASSERT(bp->b_offset != NOOFFSET,
+	    ("vfs_vmio_iodone: bp %p has no buffer offset", bp));
+
+	bogus = 0;
+	iosize = bp->b_bcount - bp->b_resid;
+	VM_OBJECT_WLOCK(obj);
+	for (i = 0; i < bp->b_npages; i++) {
+		int resid;
+
+		resid = ((foff + PAGE_SIZE) & ~(off_t)PAGE_MASK) - foff;
+		if (resid > iosize)
+			resid = iosize;
+
+		/*
+		 * cleanup bogus pages, restoring the originals
+		 */
+		m = bp->b_pages[i];
+		if (m == bogus_page) {
+			bogus = 1;
+			m = vm_page_lookup(obj, OFF_TO_IDX(foff));
+			if (m == NULL)
+				panic("biodone: page disappeared!");
+			bp->b_pages[i] = m;
+		} else if ((bp->b_iocmd == BIO_READ) && resid > 0) {
+			/*
+			 * In the write case, the valid and clean bits are
+			 * already changed correctly ( see bdwrite() ), so we 
+			 * only need to do this here in the read case.
+			 */
+			KASSERT((m->dirty & vm_page_bits(foff & PAGE_MASK,
+			    resid)) == 0, ("vfs_vmio_iodone: page %p "
+			    "has unexpected dirty bits", m));
+			vfs_page_set_valid(bp, foff, m);
+		}
+		KASSERT(OFF_TO_IDX(foff) == m->pindex,
+		    ("vfs_vmio_iodone: foff(%jd)/pindex(%ju) mismatch",
+		    (intmax_t)foff, (uintmax_t)m->pindex));
+
+		vm_page_sunbusy(m);
+		vm_object_pip_subtract(obj, 1);
+		foff = (foff + PAGE_SIZE) & ~(off_t)PAGE_MASK;
+		iosize -= resid;
+	}
+	vm_object_pip_wakeupn(obj, 0);
+	VM_OBJECT_WUNLOCK(obj);
+	if (bogus && buf_mapped(bp)) {
+		BUF_CHECK_MAPPED(bp);
+		pmap_qenter(trunc_page((vm_offset_t)bp->b_data),
+		    bp->b_pages, bp->b_npages);
+	}
+}
+
+/*
+ * Perform page invalidation when a buffer is released.  The fully invalid
+ * pages will be reclaimed later in vfs_vmio_release().
+ */
+static void
+vfs_vmio_invalidate(struct buf *bp)
+{
+	vm_object_t obj;
+	vm_page_t m;
+	int i, resid, poffset, presid;
+
+	/*
+	 * Get the base offset and length of the buffer.  Note that 
+	 * in the VMIO case if the buffer block size is not
+	 * page-aligned then b_data pointer may not be page-aligned.
+	 * But our b_pages[] array *IS* page aligned.
+	 *
+	 * block sizes less then DEV_BSIZE (usually 512) are not 
+	 * supported due to the page granularity bits (m->valid,
+	 * m->dirty, etc...). 
+	 *
+	 * See man buf(9) for more information
+	 */
+	obj = bp->b_bufobj->bo_object;
+	resid = bp->b_bufsize;
+	poffset = bp->b_offset & PAGE_MASK;
+	VM_OBJECT_WLOCK(obj);
+	for (i = 0; i < bp->b_npages; i++) {
+		m = bp->b_pages[i];
+		if (m == bogus_page)
+			panic("vfs_vmio_invalidate: Unexpected bogus page.");
+
+		KASSERT(presid >= 0, ("brelse: extra page"));
+		while (vm_page_xbusied(m)) {
+			vm_page_lock(m);
+			VM_OBJECT_WUNLOCK(obj);
+			vm_page_busy_sleep(m, "mbncsh");
+			VM_OBJECT_WLOCK(obj);
+		}
+		presid = resid > (PAGE_SIZE - poffset) ?
+		    (PAGE_SIZE - poffset) : resid;
+		if (pmap_page_wired_mappings(m) == 0)
+			vm_page_set_invalid(m, poffset, presid);
+		resid -= presid;
+		poffset = 0;
+	}
+	VM_OBJECT_WUNLOCK(obj);
+}
+
 /* Give pages used by the bp back to the VM system (where possible) */
 static void
 vfs_vmio_release(struct buf *bp)
@@ -2120,8 +2158,124 @@ vfs_vmio_release(struct buf *bp)
 		bufspaceadjust(bp, 0);
 	bp->b_npages = 0;
 	bp->b_flags &= ~B_VMIO;
-	if (bp->b_vp)
-		brelvp(bp);
+}
+
+/*
+ * Page-granular truncation of an existing VMIO buffer.
+ */
+static void
+vfs_vmio_truncate(struct buf *bp, int desiredpages)
+{
+	vm_page_t m;
+	int i;
+
+	if (bp->b_npages == desiredpages)
+		return;
+
+	if (buf_mapped(bp)) {
+		BUF_CHECK_MAPPED(bp);
+		pmap_qremove((vm_offset_t)trunc_page((vm_offset_t)bp->b_data) +
+		    (desiredpages << PAGE_SHIFT), bp->b_npages - desiredpages);
+	} else
+		BUF_CHECK_UNMAPPED(bp);
+	VM_OBJECT_WLOCK(bp->b_bufobj->bo_object);
+	for (i = desiredpages; i < bp->b_npages; i++) {
+		/*
+		 * The page is not freed here -- it is the responsibility of 
+		 * vnode_pager_setsize.
+		 */
+		m = bp->b_pages[i];
+		KASSERT(m != bogus_page, ("allocbuf: bogus page found"));
+		while (vm_page_sleep_if_busy(m, "biodep"))
+			continue;
+		bp->b_pages[i] = NULL;
+		vm_page_lock(m);
+		vm_page_unwire(m, PQ_INACTIVE);
+		vm_page_unlock(m);
+	}
+	VM_OBJECT_WUNLOCK(bp->b_bufobj->bo_object);
+	bp->b_npages = desiredpages;
+}
+
+/*
+ * Byte granular extension of VMIO buffers.
+ */
+static void
+vfs_vmio_extend(struct buf *bp, int desiredpages, int size)
+{
+	/*
+	 * We are growing the buffer, possibly in a 
+	 * byte-granular fashion.
+	 */
+	vm_object_t obj;
+	vm_offset_t toff;
+	vm_offset_t tinc;
+	vm_page_t m;
+
+	/*
+	 * Step 1, bring in the VM pages from the object, allocating
+	 * them if necessary.  We must clear B_CACHE if these pages
+	 * are not valid for the range covered by the buffer.
+	 */
+	obj = bp->b_bufobj->bo_object;
+	VM_OBJECT_WLOCK(obj);
+	while (bp->b_npages < desiredpages) {
+		/*
+		 * We must allocate system pages since blocking
+		 * here could interfere with paging I/O, no
+		 * matter which process we are.
+		 *
+		 * Only exclusive busy can be tested here.
+		 * Blocking on shared busy might lead to
+		 * deadlocks once allocbuf() is called after
+		 * pages are vfs_busy_pages().
+		 */
+		m = vm_page_grab(obj, OFF_TO_IDX(bp->b_offset) + bp->b_npages,
+		    VM_ALLOC_NOBUSY | VM_ALLOC_SYSTEM |
+		    VM_ALLOC_WIRED | VM_ALLOC_IGN_SBUSY |
+		    VM_ALLOC_COUNT(desiredpages - bp->b_npages));
+		if (m->valid == 0)
+			bp->b_flags &= ~B_CACHE;
+		bp->b_pages[bp->b_npages] = m;
+		++bp->b_npages;
+	}
+
+	/*
+	 * Step 2.  We've loaded the pages into the buffer,
+	 * we have to figure out if we can still have B_CACHE
+	 * set.  Note that B_CACHE is set according to the
+	 * byte-granular range ( bcount and size ), not the
+	 * aligned range ( newbsize ).
+	 *
+	 * The VM test is against m->valid, which is DEV_BSIZE
+	 * aligned.  Needless to say, the validity of the data
+	 * needs to also be DEV_BSIZE aligned.  Note that this
+	 * fails with NFS if the server or some other client
+	 * extends the file's EOF.  If our buffer is resized, 
+	 * B_CACHE may remain set! XXX
+	 */
+	toff = bp->b_bcount;
+	tinc = PAGE_SIZE - ((bp->b_offset + toff) & PAGE_MASK);
+	while ((bp->b_flags & B_CACHE) && toff < size) {
+		vm_pindex_t pi;
+
+		if (tinc > (size - toff))
+			tinc = size - toff;
+		pi = ((bp->b_offset & PAGE_MASK) + toff) >> PAGE_SHIFT;
+		m = bp->b_pages[pi];
+		vfs_buf_test_cache(bp, bp->b_offset, toff, tinc, m);
+		toff += tinc;
+		tinc = PAGE_SIZE;
+	}
+	VM_OBJECT_WUNLOCK(obj);
+
+	/*
+	 * Step 3, fixup the KVA pmap.
+	 */
+	if (buf_mapped(bp))
+		bpmap_qenter(bp);
+	else
+		BUF_CHECK_UNMAPPED(bp);
 }
 
 /*
@@ -3430,6 +3584,80 @@ geteblk(int size, int flags)
 }
 
 /*
+ * Truncate the backing store for a non-vmio buffer.
+ */
+static void
+vfs_nonvmio_truncate(struct buf *bp, int newbsize)
+{
+
+	if (bp->b_flags & B_MALLOC) {
+		/*
+		 * malloced buffers are not shrunk
+		 */
+		if (newbsize == 0) {
+			bufmallocadjust(bp, 0);
+			free(bp->b_data, M_BIOBUF);
+			bp->b_data = bp->b_kvabase;
+			bp->b_flags &= ~B_MALLOC;
+		}
+		return;
+	}
+	vm_hold_free_pages(bp, newbsize);
+	bufspaceadjust(bp, newbsize);
+}
+
+/*
+ * Extend the backing for a non-VMIO buffer.
+ */
+static void
+vfs_nonvmio_extend(struct buf *bp, int newbsize)
+{
+	caddr_t origbuf;
+	int origbufsize;
+
+	/*
+	 * We only use malloced memory on the first allocation.
+	 * and revert to page-allocated memory when the buffer
+	 * grows.
+	 *
+	 * There is a potential smp race here that could lead
+	 * to bufmallocspace slightly passing the max.  It
+	 * is probably extremely rare and not worth worrying
+	 * over.
+	 */
+	if (bp->b_bufsize == 0 && newbsize <= PAGE_SIZE/2 &&
+	    bufmallocspace < maxbufmallocspace) {
+		bp->b_data = malloc(newbsize, M_BIOBUF, M_WAITOK);
+		bp->b_flags |= B_MALLOC;
+		bufmallocadjust(bp, newbsize);
+		return;
+	}
+
+	/*
+	 * If the buffer is growing on its other-than-first
+	 * allocation then we revert to the page-allocation
+	 * scheme.
+	 */
+	origbuf = NULL;
+	origbufsize = 0;
+	if (bp->b_flags & B_MALLOC) {
+		origbuf = bp->b_data;
+		origbufsize = bp->b_bufsize;
+		bp->b_data = bp->b_kvabase;
+		bufmallocadjust(bp, 0);
+		bp->b_flags &= ~B_MALLOC;
+		newbsize = round_page(newbsize);
+	}
+	vm_hold_load_pages(bp, (vm_offset_t) bp->b_data + bp->b_bufsize,
+	    (vm_offset_t) bp->b_data + newbsize);
+	if (origbuf != NULL) {
+		bcopy(origbuf, bp->b_data, origbufsize);
+		free(origbuf, M_BIOBUF);
+	}
+	bufspaceadjust(bp, newbsize);
+}
+
+/*
  * This code constitutes the buffer memory from either anonymous system
  * memory (in the case of non-VMIO operations) or from an associated
  * VM object (in the case of VMIO operations).  This code is able to
@@ -3443,100 +3671,33 @@ geteblk(int size, int flags)
  * allocbuf() only adjusts B_CACHE for VMIO buffers.  getblk() deals with
  * B_CACHE for the non-VMIO case.
  */
-
 int
 allocbuf(struct buf *bp, int size)
 {
-	int newbsize, mbsize;
-	int i;
+	int newbsize;
 
 	BUF_ASSERT_HELD(bp);
 
 	if (bp->b_kvasize != 0 && bp->b_kvasize < size)
 		panic("allocbuf: buffer too small");
 
+	newbsize = (size + DEV_BSIZE - 1) & ~(DEV_BSIZE - 1);
 	if ((bp->b_flags & B_VMIO) == 0) {
-		caddr_t origbuf;
-		int origbufsize;
+		if ((bp->b_flags & B_MALLOC) == 0)
+			newbsize = round_page(newbsize);
 		/*
 		 * Just get anonymous memory from the kernel.  Don't
 		 * mess with B_CACHE.
 		 */
-		mbsize = (size + DEV_BSIZE - 1) & ~(DEV_BSIZE - 1);
-		if (bp->b_flags & B_MALLOC)
-			newbsize = mbsize;
-		else
-			newbsize = round_page(size);
-
-		if (newbsize < bp->b_bufsize) {
-			/*
-			 * malloced buffers are not shrunk
-			 */
-			if (bp->b_flags & B_MALLOC) {
-				if (newbsize) {
-					bp->b_bcount = size;
-				} else {
-					free(bp->b_data, M_BIOBUF);
-					bufmallocadjust(bp, 0);
-					bp->b_data = bp->b_kvabase;
-					bp->b_bcount = 0;
-					bp->b_flags &= ~B_MALLOC;
-				}
-				return 1;
-			}		
-			vm_hold_free_pages(bp, newbsize);
-		} else if (newbsize > bp->b_bufsize) {
-			/*
-			 * We only use malloced memory on the first allocation.
-			 * and revert to page-allocated memory when the buffer
-			 * grows.
-			 */
-			/*
-			 * There is a potential smp race here that could lead
-			 * to bufmallocspace slightly passing the max.  It
-			 * is probably extremely rare and not worth worrying
-			 * over.
-			 */
-			if ((bufmallocspace < maxbufmallocspace) &&
-				(bp->b_bufsize == 0) &&
-				(mbsize <= PAGE_SIZE/2)) {
-
-				bp->b_data = malloc(mbsize, M_BIOBUF, M_WAITOK);
-				bp->b_bcount = size;
-				bp->b_flags |= B_MALLOC;
-				bufmallocadjust(bp, mbsize);
-				return 1;
-			}
-			origbuf = NULL;
-			origbufsize = 0;
-			/*
-			 * If the buffer is growing on its other-than-first
-			 * allocation then we revert to the page-allocation
-			 * scheme.
-			 */
-			if (bp->b_flags & B_MALLOC) {
-				origbuf = bp->b_data;
-				origbufsize = bp->b_bufsize;
-				bp->b_data = bp->b_kvabase;
-				bufmallocadjust(bp, 0);
-				bp->b_flags &= ~B_MALLOC;
-				newbsize = round_page(newbsize);
-			}
-			vm_hold_load_pages(
-			    bp,
-			    (vm_offset_t) bp->b_data + bp->b_bufsize,
-			    (vm_offset_t) bp->b_data + newbsize);
-			if (origbuf) {
-				bcopy(origbuf, bp->b_data, origbufsize);
-				free(origbuf, M_BIOBUF);
-			}
-		}
+		if (newbsize < bp->b_bufsize)
+			vfs_nonvmio_truncate(bp, newbsize);
+		else if (newbsize > bp->b_bufsize)
+			vfs_nonvmio_extend(bp, newbsize);
 	} else {
 		int desiredpages;
 
-		newbsize = (size + DEV_BSIZE - 1) & ~(DEV_BSIZE - 1);
 		desiredpages = (size == 0) ? 0 :
-			num_pages((bp->b_offset & PAGE_MASK) + newbsize);
+		    num_pages((bp->b_offset & PAGE_MASK) + newbsize);
 
 		if (bp->b_flags & B_MALLOC)
 			panic("allocbuf: VMIO buffer can't be malloced");
@@ -3547,139 +3708,13 @@ allocbuf(struct buf *bp, int size)
 		if (size == 0 || bp->b_bufsize == 0)
 			bp->b_flags |= B_CACHE;
 
-		if (newbsize < bp->b_bufsize) {
-			/*
-			 * DEV_BSIZE aligned new buffer size is less then the
-			 * DEV_BSIZE aligned existing buffer size.  Figure out
-			 * if we have to remove any pages.
-			 */
-			if (desiredpages < bp->b_npages) {
-				vm_page_t m;
-
-				if (buf_mapped(bp)) {
-					BUF_CHECK_MAPPED(bp);
-					pmap_qremove((vm_offset_t)trunc_page(
-					    (vm_offset_t)bp->b_data) +
-					    (desiredpages << PAGE_SHIFT),
-					    (bp->b_npages - desiredpages));
-				} else
-					BUF_CHECK_UNMAPPED(bp);
-				VM_OBJECT_WLOCK(bp->b_bufobj->bo_object);
-				for (i = desiredpages; i < bp->b_npages; i++) {
-					/*
-					 * the page is not freed here -- it
-					 * is the responsibility of 
-					 * vnode_pager_setsize
-					 */
-					m = bp->b_pages[i];
-					KASSERT(m != bogus_page,
-					    ("allocbuf: bogus page found"));
-					while (vm_page_sleep_if_busy(m,
-					    "biodep"))
-						continue;
-
-					bp->b_pages[i] = NULL;
-					vm_page_lock(m);
-					vm_page_unwire(m, PQ_INACTIVE);
-					vm_page_unlock(m);
-				}
-				VM_OBJECT_WUNLOCK(bp->b_bufobj->bo_object);
-				bp->b_npages = desiredpages;
-			}
-		} else if (size > bp->b_bcount) {
-			/*
-			 * We are growing the buffer, possibly in a 
-			 * byte-granular fashion.
-			 */
-			vm_object_t obj;
-			vm_offset_t toff;
-			vm_offset_t tinc;
-
-			/*
-			 * Step 1, bring in the VM pages from the object, 
-			 * allocating them if necessary.  We must clear
-			 * B_CACHE if these pages are not valid for the 
-			 * range covered by the buffer.
-			 */
-
-			obj = bp->b_bufobj->bo_object;
-
-			VM_OBJECT_WLOCK(obj);
-			while (bp->b_npages < desiredpages) {
-				vm_page_t m;
-
-				/*
-				 * We must allocate system pages since blocking
-				 * here could interfere with paging I/O, no
-				 * matter which process we are.
-				 *
-				 * Only exclusive busy can be tested here.
-				 * Blocking on shared busy might lead to
-				 * deadlocks once allocbuf() is called after
-				 * pages are vfs_busy_pages().
-				 */
-				m = vm_page_grab(obj, OFF_TO_IDX(bp->b_offset) +
-				    bp->b_npages, VM_ALLOC_NOBUSY |
-				    VM_ALLOC_SYSTEM | VM_ALLOC_WIRED |
-				    VM_ALLOC_IGN_SBUSY |
-				    VM_ALLOC_COUNT(desiredpages - bp->b_npages));
-				if (m->valid == 0)
-					bp->b_flags &= ~B_CACHE;
-				bp->b_pages[bp->b_npages] = m;
-				++bp->b_npages;
-			}
-
-			/*
-			 * Step 2.  We've loaded the pages into the buffer,
-			 * we have to figure out if we can still have B_CACHE
-			 * set.  Note that B_CACHE is set according to the
-			 * byte-granular range ( bcount and size ), new the
-			 * aligned range ( newbsize ).
-			 *
-			 * The VM test is against m->valid, which is DEV_BSIZE
-			 * aligned.  Needless to say, the validity of the data
-			 * needs to also be DEV_BSIZE aligned.  Note that this
-			 * fails with NFS if the server or some other client
-			 * extends the file's EOF.  If our buffer is resized, 
-			 * B_CACHE may remain set! XXX
-			 */
-
-			toff = bp->b_bcount;
-			tinc = PAGE_SIZE - ((bp->b_offset + toff) & PAGE_MASK);
-
-			while ((bp->b_flags & B_CACHE) && toff < size) {
-				vm_pindex_t pi;
-
-				if (tinc > (size - toff))
-					tinc = size - toff;
-
-				pi = ((bp->b_offset & PAGE_MASK) + toff) >> 
-				    PAGE_SHIFT;
-
-				vfs_buf_test_cache(
-				    bp, 
-				    bp->b_offset,
-				    toff, 
-				    tinc, 
-				    bp->b_pages[pi]
-				);
-				toff += tinc;
-				tinc = PAGE_SIZE;
-			}
-			VM_OBJECT_WUNLOCK(obj);
-
-			/*
-			 * Step 3, fixup the KVA pmap.
-			 */
-			if (buf_mapped(bp))
-				bpmap_qenter(bp);
-			else
-				BUF_CHECK_UNMAPPED(bp);
-		}
-	}
-	/* Record changes in allocation size. */
-	if (bp->b_bufsize != newbsize)
+		if (newbsize < bp->b_bufsize)
+			vfs_vmio_truncate(bp, desiredpages);
+		/* XXX This looks as if it should be newbsize > b_bufsize */
+		else if (size > bp->b_bcount)
+			vfs_vmio_extend(bp, desiredpages, size);
 		bufspaceadjust(bp, newbsize);
+	}
 	bp->b_bcount = size;		/* requested buffer size. */
 	return 1;
 }
@@ -3833,87 +3868,16 @@ bufdone_finish(struct buf *bp)
 		buf_complete(bp);
 
 	if (bp->b_flags & B_VMIO) {
-		vm_ooffset_t foff;
-		vm_page_t m;
-		vm_object_t obj;
-		struct vnode *vp;
-		int bogus, i, iosize;
-
-		obj = bp->b_bufobj->bo_object;
-		KASSERT(obj->paging_in_progress >= bp->b_npages,
-		    ("biodone_finish: paging in progress(%d) < b_npages(%d)",
-		    obj->paging_in_progress, bp->b_npages));
-
-		vp = bp->b_vp;
-		KASSERT(vp->v_holdcnt > 0,
-		    ("biodone_finish: vnode %p has zero hold count", vp));
-		KASSERT(vp->v_object != NULL,
-		    ("biodone_finish: vnode %p has no vm_object", vp));
-
-		foff = bp->b_offset;
-		KASSERT(bp->b_offset != NOOFFSET,
-		    ("biodone_finish: bp %p has no buffer offset", bp));
-
 		/*
 		 * Set B_CACHE if the op was a normal read and no error
 		 * occured.  B_CACHE is set for writes in the b*write()
 		 * routines.
 		 */
-		iosize = bp->b_bcount - bp->b_resid;
 		if (bp->b_iocmd == BIO_READ &&
 		    !(bp->b_flags & (B_INVAL|B_NOCACHE)) &&
-		    !(bp->b_ioflags & BIO_ERROR)) {
+		    !(bp->b_ioflags & BIO_ERROR))
 			bp->b_flags |= B_CACHE;
-		}
-		bogus = 0;
-		VM_OBJECT_WLOCK(obj);
-		for (i = 0; i < bp->b_npages; i++) {
-			int bogusflag = 0;
-			int resid;
-
-			resid = ((foff + PAGE_SIZE) & ~(off_t)PAGE_MASK) - foff;
-			if (resid > iosize)
-				resid = iosize;
-
-			/*
-			 * cleanup bogus pages, restoring the originals
-			 */
-			m = bp->b_pages[i];
-			if (m == bogus_page) {
-				bogus = bogusflag = 1;
-				m = vm_page_lookup(obj, OFF_TO_IDX(foff));
-				if (m == NULL)
-					panic("biodone: page disappeared!");
-				bp->b_pages[i] = m;
-			}
-			KASSERT(OFF_TO_IDX(foff) == m->pindex,
-			    ("biodone_finish: foff(%jd)/pindex(%ju) mismatch",
-			    (intmax_t)foff, (uintmax_t)m->pindex));
-
-			/*
-			 * In the write case, the valid and clean bits are
-			 * already changed correctly ( see bdwrite() ), so we 
-			 * only need to do this here in the read case.
-			 */
-			if ((bp->b_iocmd == BIO_READ) && !bogusflag && resid > 0) {
-				KASSERT((m->dirty & vm_page_bits(foff &
-				    PAGE_MASK, resid)) == 0, ("bufdone_finish:"
-				    " page %p has unexpected dirty bits", m));
-				vfs_page_set_valid(bp, foff, m);
-			}
-
-			vm_page_sunbusy(m);
-			vm_object_pip_subtract(obj, 1);
-			foff = (foff + PAGE_SIZE) & ~(off_t)PAGE_MASK;
-			iosize -= resid;
-		}
-		vm_object_pip_wakeupn(obj, 0);
-		VM_OBJECT_WUNLOCK(obj);
-		if (bogus && buf_mapped(bp)) {
-			BUF_CHECK_MAPPED(bp);
-			pmap_qenter(trunc_page((vm_offset_t)bp->b_data),
-			    bp->b_pages, bp->b_npages);
-		}
+		vfs_vmio_iodone(bp);
 	}
 
 	/*
@@ -3921,9 +3885,9 @@ bufdone_finish(struct buf *bp)
 	 * will do a wakeup there if necessary - so no need to do a wakeup
 	 * here in the async case. The sync case always needs to do a wakeup.
 	 */
-
 	if (bp->b_flags & B_ASYNC) {
-		if ((bp->b_flags & (B_NOCACHE | B_INVAL | B_RELBUF)) || (bp->b_ioflags & BIO_ERROR))
+		if ((bp->b_flags & (B_NOCACHE | B_INVAL | B_RELBUF)) ||
+		    (bp->b_ioflags & BIO_ERROR))
 			brelse(bp);
 		else
 			bqrelse(bp);
