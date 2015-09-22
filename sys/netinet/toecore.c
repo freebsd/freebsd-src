@@ -448,77 +448,6 @@ toe_route_redirect_event(void *arg __unused, struct rtentry *rt0,
 	return;
 }
 
-#ifdef INET6
-/*
- * XXX: no checks to verify that sa is really a neighbor because we assume it is
- * the result of a route lookup and is on-link on the given ifp.
- */
-static int
-toe_nd6_resolve(struct ifnet *ifp, struct sockaddr *sa, uint8_t *lladdr)
-{
-	struct llentry *lle, *lle_tmp;
-	struct sockaddr_in6 *sin6 = (void *)sa;
-	int rc, flags = 0;
-
-restart:
-	IF_AFDATA_RLOCK(ifp);
-	lle = lla_lookup(LLTABLE6(ifp), flags, sa);
-	IF_AFDATA_RUNLOCK(ifp);
-	if (lle == NULL) {
-		lle = nd6_alloc(&sin6->sin6_addr, 0, ifp);
-		if (lle == NULL)
-			return (ENOMEM); /* Couldn't create entry in cache. */
-		IF_AFDATA_WLOCK(ifp);
-		LLE_WLOCK(lle);
-		lle_tmp = nd6_lookup(&sin6->sin6_addr, ND6_EXCLUSIVE, ifp);
-		/* Prefer any existing lle over newly-created one */
-		if (lle_tmp == NULL)
-			lltable_link_entry(LLTABLE6(ifp), lle); 
-		IF_AFDATA_WUNLOCK(ifp);
-		if (lle_tmp == NULL) {
-			/* Arm timer for newly-created entry and send NS */
-			nd6_llinfo_setstate(lle, ND6_LLINFO_INCOMPLETE);
-			LLE_WUNLOCK(lle);
-
-			nd6_ns_output(ifp, NULL, NULL, &sin6->sin6_addr, 0);
-
-			return (EWOULDBLOCK);
-		} else {
-			/* Drop newly-created lle and switch to existing one */
-			lltable_free_entry(LLTABLE6(ifp), lle);
-			lle = lle_tmp;
-			lle_tmp = NULL;
-		}
-	}
-
-	if (lle->ln_state == ND6_LLINFO_STALE) {
-		if ((flags & LLE_EXCLUSIVE) == 0) {
-			LLE_RUNLOCK(lle);
-			flags |= LLE_EXCLUSIVE;
-			goto restart;
-		}
-
-		LLE_WLOCK_ASSERT(lle);
-
-		lle->la_asked = 0;
-		nd6_llinfo_setstate(lle, ND6_LLINFO_DELAY);
-	}
-
-	if (lle->la_flags & LLE_VALID) {
-		memcpy(lladdr, &lle->ll_addr, ifp->if_addrlen);
-		rc = 0;
-	} else
-		rc = EWOULDBLOCK;
-
-	if (flags & LLE_EXCLUSIVE)
-		LLE_WUNLOCK(lle);
-	else
-		LLE_RUNLOCK(lle);
-
-	return (rc);
-}
-#endif
-
 /*
  * Returns 0 or EWOULDBLOCK on success (any other value is an error).  0 means
  * lladdr and vtag are valid on return, EWOULDBLOCK means the TOE driver's
@@ -538,7 +467,7 @@ toe_l2_resolve(struct toedev *tod, struct ifnet *ifp, struct sockaddr *sa,
 #endif
 #ifdef INET6
 	case AF_INET6:
-		rc = toe_nd6_resolve(ifp, sa, lladdr);
+		rc = nd6_resolve(ifp, 0, NULL, sa, lladdr, NULL);
 		break;
 #endif
 	default:
