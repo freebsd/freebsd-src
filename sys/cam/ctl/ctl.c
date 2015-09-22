@@ -261,6 +261,26 @@ const static struct scsi_control_page control_page_changeable = {
 	/*extended_selftest_completion_time*/{0, 0}
 };
 
+#define CTL_CEM_LEN	(sizeof(struct scsi_control_ext_page) - 4)
+
+const static struct scsi_control_ext_page control_ext_page_default = {
+	/*page_code*/SMS_CONTROL_MODE_PAGE | SMPH_SPF,
+	/*subpage_code*/0x01,
+	/*page_length*/{CTL_CEM_LEN >> 8, CTL_CEM_LEN},
+	/*flags*/0,
+	/*prio*/0,
+	/*max_sense*/0
+};
+
+const static struct scsi_control_ext_page control_ext_page_changeable = {
+	/*page_code*/SMS_CONTROL_MODE_PAGE | SMPH_SPF,
+	/*subpage_code*/0x01,
+	/*page_length*/{CTL_CEM_LEN >> 8, CTL_CEM_LEN},
+	/*flags*/0,
+	/*prio*/0,
+	/*max_sense*/0
+};
+
 const static struct scsi_info_exceptions_page ie_page_default = {
 	/*page_code*/SMS_INFO_EXCEPTIONS_PAGE,
 	/*page_length*/sizeof(struct scsi_info_exceptions_page) - 2,
@@ -3956,35 +3976,65 @@ ctl_init_page_index(struct ctl_lun *lun)
 			break;
 		}
 		case SMS_CONTROL_MODE_PAGE: {
-			struct scsi_control_page *control_page;
+			switch (page_index->subpage) {
+			case SMS_SUBPAGE_PAGE_0: {
+				struct scsi_control_page *control_page;
 
-			if (page_index->subpage != SMS_SUBPAGE_PAGE_0)
-				panic("invalid subpage value %d",
-				      page_index->subpage);
-
-			memcpy(&lun->mode_pages.control_page[CTL_PAGE_DEFAULT],
-			       &control_page_default,
-			       sizeof(control_page_default));
-			memcpy(&lun->mode_pages.control_page[
-			       CTL_PAGE_CHANGEABLE], &control_page_changeable,
-			       sizeof(control_page_changeable));
-			memcpy(&lun->mode_pages.control_page[CTL_PAGE_SAVED],
-			       &control_page_default,
-			       sizeof(control_page_default));
-			control_page = &lun->mode_pages.control_page[
-			    CTL_PAGE_SAVED];
-			value = ctl_get_opt(&lun->be_lun->options, "reordering");
-			if (value != NULL && strcmp(value, "unrestricted") == 0) {
-				control_page->queue_flags &= ~SCP_QUEUE_ALG_MASK;
-				control_page->queue_flags |= SCP_QUEUE_ALG_UNRESTRICTED;
+				memcpy(&lun->mode_pages.control_page[
+				    CTL_PAGE_DEFAULT],
+				       &control_page_default,
+				       sizeof(control_page_default));
+				memcpy(&lun->mode_pages.control_page[
+				    CTL_PAGE_CHANGEABLE],
+				       &control_page_changeable,
+				       sizeof(control_page_changeable));
+				memcpy(&lun->mode_pages.control_page[
+				    CTL_PAGE_SAVED],
+				       &control_page_default,
+				       sizeof(control_page_default));
+				control_page = &lun->mode_pages.control_page[
+				    CTL_PAGE_SAVED];
+				value = ctl_get_opt(&lun->be_lun->options,
+				    "reordering");
+				if (value != NULL &&
+				    strcmp(value, "unrestricted") == 0) {
+					control_page->queue_flags &=
+					    ~SCP_QUEUE_ALG_MASK;
+					control_page->queue_flags |=
+					    SCP_QUEUE_ALG_UNRESTRICTED;
+				}
+				memcpy(&lun->mode_pages.control_page[
+				    CTL_PAGE_CURRENT],
+				       &lun->mode_pages.control_page[
+				    CTL_PAGE_SAVED],
+				       sizeof(control_page_default));
+				page_index->page_data =
+				    (uint8_t *)lun->mode_pages.control_page;
+				break;
 			}
-			memcpy(&lun->mode_pages.control_page[CTL_PAGE_CURRENT],
-			       &lun->mode_pages.control_page[CTL_PAGE_SAVED],
-			       sizeof(control_page_default));
-			page_index->page_data =
-				(uint8_t *)lun->mode_pages.control_page;
+			case 0x01:
+				memcpy(&lun->mode_pages.control_ext_page[
+				    CTL_PAGE_DEFAULT],
+				       &control_ext_page_default,
+				       sizeof(control_ext_page_default));
+				memcpy(&lun->mode_pages.control_ext_page[
+				    CTL_PAGE_CHANGEABLE],
+				       &control_ext_page_changeable,
+				       sizeof(control_ext_page_changeable));
+				memcpy(&lun->mode_pages.control_ext_page[
+				    CTL_PAGE_SAVED],
+				       &control_ext_page_default,
+				       sizeof(control_ext_page_default));
+				memcpy(&lun->mode_pages.control_ext_page[
+				    CTL_PAGE_CURRENT],
+				       &lun->mode_pages.control_ext_page[
+				    CTL_PAGE_SAVED],
+				       sizeof(control_ext_page_default));
+				page_index->page_data =
+				    (uint8_t *)lun->mode_pages.control_ext_page;
+				break;
+			}
 			break;
-
 		}
 		case SMS_INFO_EXCEPTIONS_PAGE: {
 			switch (page_index->subpage) {
