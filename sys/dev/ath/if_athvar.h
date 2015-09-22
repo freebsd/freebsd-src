@@ -477,7 +477,6 @@ struct ath_vap {
 	struct ieee80211vap av_vap;	/* base class */
 	int		av_bslot;	/* beacon slot index */
 	struct ath_buf	*av_bcbuf;	/* beacon buffer */
-	struct ieee80211_beacon_offsets av_boff;/* dynamic update state */
 	struct ath_txq	av_mcastq;	/* buffered mcast s/w queue */
 
 	void		(*av_recv_mgmt)(struct ieee80211_node *,
