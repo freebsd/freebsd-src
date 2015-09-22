@@ -270,7 +270,7 @@ svcudp_create(int fd)
 }
 
 SVCXPRT *
-svcraw_create()
+svcraw_create(void)
 {
 
 	return svc_raw_create();

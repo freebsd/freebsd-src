@@ -93,7 +93,7 @@ rce_key_init(void)
 }
 
 struct rpc_createerr *
-__rpc_createerr()
+__rpc_createerr(void)
 {
 	struct rpc_createerr *rce_addr = 0;
 
