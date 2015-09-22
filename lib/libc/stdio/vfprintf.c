@@ -50,6 +50,11 @@ __FBSDID("$FreeBSD$");
 #include "namespace.h"
 #include <sys/types.h>
 
+#ifdef __CHERI_SANDBOX__
+#include <machine/cheri.h>
+#include <machine/cheric.h>
+#endif
+
 #include <ctype.h>
 #include <errno.h>
 #include <limits.h>
@@ -364,6 +369,9 @@ __vfprintf(FILE *fp, locale_t locale, const char *fmt0, va_list ap)
 	int nextarg;            /* 1-based argument index */
 	va_list orgap;          /* original argument pointer */
 	char *convbuf;		/* wide to multibyte conversion result */
+#ifdef __CHERI_SANDBOX__
+	void *pointer;
+#endif
 
 	static const char xdigs_lower[16] = "0123456789abcdef";
 	static const char xdigs_upper[16] = "0123456789ABCDEF";
@@ -811,7 +819,13 @@ fp_common:
 			 * defined manner.''
 			 *	-- ANSI X3J11
 			 */
+#ifndef __CHERI_SANDBOX__
 			ujval = (uintmax_t)(uintptr_t)GETARG(void *);
+#else
+			pointer = GETARG(void *);
+			ujval = cheri_getbase(pointer) +
+			    cheri_getoffset(pointer);
+#endif
 			base = 16;
 			xdigs = xdigs_lower;
 			flags = flags | INTMAXT;
