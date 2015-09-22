@@ -89,8 +89,6 @@ struct nd_ifinfo {
 #define ND6_IFF_NO_PREFER_IFACE	0x80 /* XXX: not related to ND. */
 #define ND6_IFF_NO_DAD		0x100
 
-#define	ND6_EXCLUSIVE		LLE_EXCLUSIVE
-
 #ifdef _KERNEL
 #define ND_IFINFO(ifp) \
 	(((struct in6_ifextra *)(ifp)->if_afdata[AF_INET6])->nd_ifinfo)
