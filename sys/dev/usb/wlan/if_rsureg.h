@@ -599,6 +599,10 @@ struct r92s_add_ba_event {
 	uint8_t tid;
 };
 
+struct r92s_add_ba_req {
+	uint32_t tid;
+};
+
 /*
  * Driver definitions.
  */
