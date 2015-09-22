@@ -1357,16 +1357,6 @@ ${_bt}-usr.bin/clang/clang-tblgen: ${_bt}-lib/clang/libllvmtablegen ${_bt}-lib/c
 ${_bt}-usr.bin/clang/tblgen: ${_bt}-lib/clang/libllvmtablegen ${_bt}-lib/clang/libllvmsupport
 .endif
 
-# Rebuild ctfconvert and ctfmerge to avoid difficult-to-diagnose failures
-# resulting from missing bug fixes or ELF Toolchain updates.
-.if ${MK_CDDL} != "no"
-_dtrace_tools= cddl/usr.bin/sgsmsg cddl/lib/libctf cddl/usr.bin/ctfconvert \
-    cddl/usr.bin/ctfmerge
-
-${_bt}-cddl/usr.bin/ctfconvert: ${_bt}-cddl/lib/libctf
-${_bt}-cddl/usr.bin/ctfmerge: ${_bt}-cddl/lib/libctf
-.endif
-
 # Default to building the GPL DTC, but build the BSDL one if users explicitly
 # request it.
 _dtc= usr.bin/dtc
@@ -1406,7 +1396,6 @@ bootstrap-tools: .PHONY
 .for _tool in \
     ${_clang_tblgen} \
     ${_kerberos5_bootstrap_tools} \
-    ${_dtrace_tools} \
     ${_strfile} \
     ${_gperf} \
     ${_groff} \
@@ -1502,6 +1491,13 @@ _btxld=		usr.sbin/btxld
 .endif
 .endif
 
+# Rebuild ctfconvert and ctfmerge to avoid difficult-to-diagnose failures
+# resulting from missing bug fixes or ELF Toolchain updates.
+.if ${MK_CDDL} != "no"
+_dtrace_tools= cddl/usr.bin/sgsmsg cddl/lib/libctf cddl/usr.bin/ctfconvert \
+    cddl/usr.bin/ctfmerge
+.endif
+
 # If we're given an XAS, don't build binutils.
 .if ${XAS:M/*} == ""
 .if ${MK_BINUTILS_BOOTSTRAP} != "no"
@@ -1545,6 +1541,7 @@ cross-tools: .MAKE
     ${_clang} \
     ${_binutils} \
     ${_elftctools} \
+    ${_dtrace_tools} \
     ${_cc} \
     ${_btxld} \
     ${_crunchide} \

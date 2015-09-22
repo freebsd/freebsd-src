@@ -762,7 +762,6 @@ bwi_regwin_info(struct bwi_softc *sc, uint16_t *type, uint8_t *rev)
 static int
 bwi_bbp_attach(struct bwi_softc *sc)
 {
-#define N(arr)	(int)(sizeof(arr) / sizeof(arr[0]))
 	uint16_t bbp_id, rw_type;
 	uint8_t rw_rev;
 	uint32_t info;
@@ -792,7 +791,7 @@ bwi_bbp_attach(struct bwi_softc *sc)
 
 		sc->sc_cap = CSR_READ_4(sc, BWI_CAPABILITY);
 	} else {
-		for (i = 0; i < N(bwi_bbpid_map); ++i) {
+		for (i = 0; i < nitems(bwi_bbpid_map); ++i) {
 			if (sc->sc_pci_did >= bwi_bbpid_map[i].did_min &&
 			    sc->sc_pci_did <= bwi_bbpid_map[i].did_max) {
 				bbp_id = bwi_bbpid_map[i].bbp_id;
@@ -816,7 +815,7 @@ bwi_bbp_attach(struct bwi_softc *sc)
 	if (rw_type == BWI_REGWIN_T_COM && rw_rev >= 4) {
 		nregwin = __SHIFTOUT(info, BWI_INFO_NREGWIN_MASK);
 	} else {
-		for (i = 0; i < N(bwi_regwin_count); ++i) {
+		for (i = 0; i < nitems(bwi_regwin_count); ++i) {
 			if (bwi_regwin_count[i].bbp_id == bbp_id) {
 				nregwin = bwi_regwin_count[i].nregwin;
 				break;
@@ -898,7 +897,6 @@ bwi_bbp_attach(struct bwi_softc *sc)
 		return error;
 
 	return 0;
-#undef N
 }
 
 int
@@ -3765,9 +3763,7 @@ bwi_led_attach(struct bwi_softc *sc)
 	uint16_t gpio, val[BWI_LED_MAX];
 	int i;
 
-#define N(arr)	(int)(sizeof(arr) / sizeof(arr[0]))
-
-	for (i = 0; i < N(bwi_vendor_led_act); ++i) {
+	for (i = 0; i < nitems(bwi_vendor_led_act); ++i) {
 		if (sc->sc_pci_subvid == bwi_vendor_led_act[i].vid) {
 			led_act = bwi_vendor_led_act[i].led_act;
 			break;
@@ -3775,8 +3771,6 @@ bwi_led_attach(struct bwi_softc *sc)
 	}
 	if (led_act == NULL)
 		led_act = bwi_default_led_act;
-
-#undef N
 
 	gpio = bwi_read_sprom(sc, BWI_SPROM_GPIO01);
 	val[0] = __SHIFTOUT(gpio, BWI_SPROM_GPIO_0);

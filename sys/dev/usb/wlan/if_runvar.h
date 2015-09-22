@@ -119,7 +119,6 @@ struct run_cmdq {
 
 struct run_vap {
 	struct ieee80211vap             vap;
-	struct ieee80211_beacon_offsets bo;
 	struct mbuf			*beacon_mbuf;
 
 	int                             (*newstate)(struct ieee80211vap *,
