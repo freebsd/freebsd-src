@@ -1145,45 +1145,6 @@ callout_schedule(struct callout *c, int to_ticks)
 }
 
 int
-callout_drain_async(struct callout *c, callout_func_t *func, void *arg)
-{
-	struct callout_cpu *cc;
-	struct lock_class *class;
-	int retval;
-	int direct;
-
-	/* stop callout */
-	callout_stop(c);
-
-	/* check if callback is being called */
-	cc = callout_lock(c);
-	if (c->c_iflags & CALLOUT_DIRECT) {
-		direct = 1;
-	} else {
-		direct = 0;
-	}
-	retval = (cc_exec_curr(cc, direct) == c);
-
-	/* drop locks, if any */
-	if (retval && c->c_lock != NULL &&
-	    c->c_lock != &Giant.lock_object) {
-		/* ensure we are properly locked */
-		class = LOCK_CLASS(c->c_lock);
-		class->lc_assert(c->c_lock, LA_XLOCKED);
-		/* the final callback should not be called locked */
-		c->c_lock = NULL;
-		c->c_iflags |= CALLOUT_RETURNUNLOCKED;
-	}
-	CC_UNLOCK(cc);
-
-	/* check if we should queue final callback */
-	if (retval)
-		callout_reset(c, 1, func, arg);
-
-	return (retval);
-}
-
-int
 _callout_stop_safe(struct callout *c, int safe)
 {
 	struct callout_cpu *cc, *old_cc;

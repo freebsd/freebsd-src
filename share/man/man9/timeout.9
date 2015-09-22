@@ -36,7 +36,6 @@
 .Nm callout_active ,
 .Nm callout_deactivate ,
 .Nm callout_drain ,
-.Nm callout_drain_async ,
 .Nm callout_handle_init ,
 .Nm callout_init ,
 .Nm callout_init_mtx ,
@@ -71,8 +70,6 @@ typedef void timeout_t (void *);
 .Fn callout_deactivate "struct callout *c"
 .Ft int
 .Fn callout_drain "struct callout *c"
-.Ft int
-.Fn callout_drain_async "struct callout *c" "callout_func_t *fn" "void *arg"
 .Ft void
 .Fn callout_handle_init "struct callout_handle *handle"
 .Bd -literal
@@ -266,24 +263,6 @@ However, the callout subsystem does guarantee that the callout will be
 fully stopped before
 .Fn callout_drain
 returns.
-.Pp
-The function
-.Fn callout_drain_async
-is non-blocking and works the same as the
-.Fn callout_stop
-function.
-When this function returns non-zero, do not call it again until the callback function given by
-.Fa fn
-has been called with argument
-.Fa arg .
-Only one of
-.Fn callout_drain
-or
-.Fn callout_drain_async
-should be called at a time to drain a callout.
-If this function returns zero, it is safe to free the callout structure pointed to by the
-.Fa c
-argument immediately.
 .Pp
 The
 .Fn callout_reset
