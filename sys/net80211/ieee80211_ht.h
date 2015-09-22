@@ -202,5 +202,8 @@ void	ieee80211_ht_update_beacon(struct ieee80211vap *,
 		struct ieee80211_beacon_offsets *);
 int	ieee80211_ampdu_rx_start_ext(struct ieee80211_node *ni, int tid,
 	    int seq, int baw);
+int	ieee80211_ampdu_tx_request_ext(struct ieee80211_node *ni, int tid);
+int	ieee80211_ampdu_tx_request_active_ext(struct ieee80211_node *ni,
+	    int tid, int status);
 
 #endif /* _NET80211_IEEE80211_HT_H_ */
