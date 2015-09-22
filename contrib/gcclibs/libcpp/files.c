@@ -567,7 +567,7 @@ read_file_guts (cpp_reader *pfile, _cpp_file *file)
 	 SSIZE_MAX to be much smaller than the actual range of the
 	 type.  Use INTTYPE_MAXIMUM unconditionally to ensure this
 	 does not bite us.  */
-      if (file->st.st_size > INTTYPE_MAXIMUM (ssize_t))
+      if (file->st.st_size > SSIZE_MAX)
 	{
 	  cpp_error (pfile, CPP_DL_ERROR, "%s is too large", file->path);
 	  return false;
@@ -581,7 +581,7 @@ read_file_guts (cpp_reader *pfile, _cpp_file *file)
 	    file->path);
 	  return false;
 	}
-      else if (offset > INTTYPE_MAXIMUM (ssize_t) || (ssize_t)offset > size)
+      else if (offset > SSIZE_MAX || (ssize_t)offset > size)
 	{
 	  cpp_error (pfile, CPP_DL_ERROR, "current position of %s is too large",
 	    file->path);
