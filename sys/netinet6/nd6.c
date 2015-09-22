@@ -991,7 +991,6 @@ nd6_lookup(const struct in6_addr *addr6, int flags, struct ifnet *ifp)
 {
 	struct sockaddr_in6 sin6;
 	struct llentry *ln;
-	int llflags;
 	
 	bzero(&sin6, sizeof(sin6));
 	sin6.sin6_len = sizeof(struct sockaddr_in6);
@@ -1000,8 +999,7 @@ nd6_lookup(const struct in6_addr *addr6, int flags, struct ifnet *ifp)
 
 	IF_AFDATA_LOCK_ASSERT(ifp);
 
-	llflags = (flags & ND6_EXCLUSIVE) ? LLE_EXCLUSIVE : 0;
-	ln = lla_lookup(LLTABLE6(ifp), llflags, (struct sockaddr *)&sin6);
+	ln = lla_lookup(LLTABLE6(ifp), flags, (struct sockaddr *)&sin6);
 
 	return (ln);
 }
@@ -1331,7 +1329,7 @@ nd6_nud_hint(struct rtentry *rt, struct in6_addr *dst6, int force)
 
 	ifp = rt->rt_ifp;
 	IF_AFDATA_RLOCK(ifp);
-	ln = nd6_lookup(dst6, ND6_EXCLUSIVE, NULL);
+	ln = nd6_lookup(dst6, LLE_EXCLUSIVE, NULL);
 	IF_AFDATA_RUNLOCK(ifp);
 	if (ln == NULL)
 		return;
@@ -1741,13 +1739,13 @@ nd6_cache_lladdr(struct ifnet *ifp, struct in6_addr *from, char *lladdr,
 	 * Spec says nothing in sections for RA, RS and NA.  There's small
 	 * description on it in NS section (RFC 2461 7.2.3).
 	 */
-	flags = lladdr ? ND6_EXCLUSIVE : 0;
+	flags = lladdr ? LLE_EXCLUSIVE : 0;
 	IF_AFDATA_RLOCK(ifp);
 	ln = nd6_lookup(from, flags, ifp);
 	IF_AFDATA_RUNLOCK(ifp);
 	is_newentry = 0;
 	if (ln == NULL) {
-		flags |= ND6_EXCLUSIVE;
+		flags |= LLE_EXCLUSIVE;
 		ln = nd6_alloc(from, 0, ifp);
 		if (ln == NULL)
 			return;
@@ -1763,7 +1761,7 @@ nd6_cache_lladdr(struct ifnet *ifp, struct in6_addr *from, char *lladdr,
 		IF_AFDATA_WLOCK(ifp);
 		LLE_WLOCK(ln);
 		/* Prefer any existing lle over newly-created one */
-		ln_tmp = nd6_lookup(from, ND6_EXCLUSIVE, ifp);
+		ln_tmp = nd6_lookup(from, LLE_EXCLUSIVE, ifp);
 		if (ln_tmp == NULL)
 			lltable_link_entry(LLTABLE6(ifp), ln);
 		IF_AFDATA_WUNLOCK(ifp);
@@ -1779,7 +1777,7 @@ nd6_cache_lladdr(struct ifnet *ifp, struct in6_addr *from, char *lladdr,
 	} 
 	/* do nothing if static ndp is set */
 	if ((ln->la_flags & LLE_STATIC)) {
-		if (flags & ND6_EXCLUSIVE)
+		if (flags & LLE_EXCLUSIVE)
 			LLE_WUNLOCK(ln);
 		else
 			LLE_RUNLOCK(ln);
@@ -1836,7 +1834,7 @@ nd6_cache_lladdr(struct ifnet *ifp, struct in6_addr *from, char *lladdr,
 	if ((type & 0xFF) == ND_REDIRECT && code != ND_REDIRECT_ROUTER)
 		ln->la_flags |= LLE_REDIRECT;
 
-	if (flags & ND6_EXCLUSIVE)
+	if (flags & LLE_EXCLUSIVE)
 		LLE_WUNLOCK(ln);
 	else
 		LLE_RUNLOCK(ln);
@@ -2053,7 +2051,7 @@ nd6_resolve(struct ifnet *ifp, int is_gw, struct mbuf *m,
  *
  * Heavy version.
  * Function assume that destination LLE does not exist,
- * is invalid or stale, so ND6_EXCLUSIVE lock needs to be acquired.
+ * is invalid or stale, so LLE_EXCLUSIVE lock needs to be acquired.
  */
 static int
 nd6_resolve_slow(struct ifnet *ifp, struct mbuf *m,
@@ -2071,7 +2069,7 @@ nd6_resolve_slow(struct ifnet *ifp, struct mbuf *m,
 	 */
 	if (lle == NULL) {
 		IF_AFDATA_RLOCK(ifp);
-		lle = nd6_lookup(&dst->sin6_addr, ND6_EXCLUSIVE, ifp);
+		lle = nd6_lookup(&dst->sin6_addr, LLE_EXCLUSIVE, ifp);
 		IF_AFDATA_RUNLOCK(ifp);
 		if ((lle == NULL) && nd6_is_addr_neighbor(dst, ifp))  {
 			/*
@@ -2093,7 +2091,7 @@ nd6_resolve_slow(struct ifnet *ifp, struct mbuf *m,
 			IF_AFDATA_WLOCK(ifp);
 			LLE_WLOCK(lle);
 			/* Prefer any existing entry over newly-created one */
-			lle_tmp = nd6_lookup(&dst->sin6_addr, ND6_EXCLUSIVE, ifp);
+			lle_tmp = nd6_lookup(&dst->sin6_addr, LLE_EXCLUSIVE, ifp);
 			if (lle_tmp == NULL)
 				lltable_link_entry(LLTABLE6(ifp), lle);
 			IF_AFDATA_WUNLOCK(ifp);
