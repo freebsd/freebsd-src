@@ -90,6 +90,12 @@ struct jail_c {
 	struct chericap ip6;
 };
 
+struct sigaction_c {
+	struct chericap	sa_u;
+	int		sa_flags;
+	sigset_t	sa_mask;
+};
+
 struct thr_param_c {
 	uintptr_t	start_func;
 	struct chericap	arg;
