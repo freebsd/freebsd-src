@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: frame,v 1.12 2009/09/19 16:28:09 christos Exp $
+# $File: frame,v 1.13 2015/08/29 07:10:35 christos Exp $
 # frame:  file(1) magic for FrameMaker files
 #
 # This stuff came on a FrameMaker demo tape, most of which is
@@ -41,10 +41,10 @@
 >10	string		1.0		 (1.0
 >13	byte		x		  %c)
 # XXX - this book entry should be verified, if you find one, uncomment this
-#0	string		\<Book\ 	FrameMaker Book (ASCII) file
+#0	string		\<Book\040 	FrameMaker Book (ASCII) file
 #!:mime	application/x-mif
 #>6	string		3.0		 (3.0)
 #>6	string		2.0		 (2.0)
 #>6	string		1.0		 (1.0)
-0	string		\<Maker	Intermediate Print File	FrameMaker IPL file
+0	string		\<Maker\040Intermediate\040Print\040File	FrameMaker IPL file
 !:mime	application/x-mif
