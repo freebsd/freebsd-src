@@ -112,12 +112,6 @@ OBJTOP:= ${OBJROOT}${TARGET_OBJ_SPEC}
 .endif
 .endif
 
-.if ${.CURDIR} == ${SRCTOP}
-RELDIR = .
-.elif ${.CURDIR:M${SRCTOP}/*}
-RELDIR := ${.CURDIR:S,${SRCTOP}/,,}
-.endif
-
 HOST_OBJTOP ?= ${OBJROOT}${HOST_TARGET}
 
 .if ${OBJTOP} == ${HOST_OBJTOP} || ${REQUESTED_MACHINE:U${MACHINE}} == "host"
