@@ -1,3 +1,19 @@
+2015-09-16   9:50  Christos Zoulas <christos@zoulas.com>
+	
+	* release 5.25
+
+2015-09-11  13:25  Christos Zoulas <christos@zoulas.com>
+
+	* add a limit to the length of regex searches
+
+2015-09-08   9:50  Christos Zoulas <christos@zoulas.com>
+
+	* fix problems with --parameter (Christoph Biedl)
+
+2015-07-11  10:35  Christos Zoulas <christos@zoulas.com>
+
+	* Windows fixes PR/466 (Jason Hood)
+
 2015-07-09  10:35  Christos Zoulas <christos@zoulas.com>
 
 	* release 5.24

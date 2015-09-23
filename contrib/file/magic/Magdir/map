@@ -1,7 +1,7 @@
 
 
 #------------------------------------------------------------------------------
-# $File: map,v 1.3 2015/07/09 15:16:41 christos Exp $
+# $File: map,v 1.4 2015/08/10 05:18:27 christos Exp $
 # map:  file(1) magic for Map data
 #
 
@@ -25,3 +25,17 @@
 >>53	byte	4		\b (Activity)
 >>53	byte	8		\b (Elevations)
 >>53	byte	10		\b (Totals)
+
+# TOM TOM GPS watches ttbin files:
+# http://github.com/ryanbinns/ttwatch/tree/master/ttbin
+# From: Daniel Lenski
+0	byte	0x20
+>1	leshort	0x0007
+>>0x76	byte	0x20
+>>>0x77	leshort	0x0075		TomTom activity file, v7
+>>>>8	leldate	x		(%s,
+>>>>3	byte    x		device firmware %d.
+>>>>4	byte	x		\b%d.
+>>>>5	byte	x		\b%d,
+>>>>6	leshort	x		product ID %04d)
+

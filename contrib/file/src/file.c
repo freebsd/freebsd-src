@@ -32,7 +32,7 @@
 #include "file.h"
 
 #ifndef	lint
-FILE_RCSID("@(#)$File: file.c,v 1.165 2015/06/11 12:52:32 christos Exp $")
+FILE_RCSID("@(#)$File: file.c,v 1.167 2015/09/11 17:24:09 christos Exp $")
 #endif	/* lint */
 
 #include "magic.h"
@@ -131,6 +131,7 @@ private struct {
 	{ "elf_phnum",	MAGIC_PARAM_ELF_PHNUM_MAX, 0 },
 	{ "elf_shnum",	MAGIC_PARAM_ELF_SHNUM_MAX, 0 },
 	{ "elf_notes",	MAGIC_PARAM_ELF_NOTES_MAX, 0 },
+	{ "regex",	MAGIC_PARAM_REGEX_MAX, 0 },
 };
 
 private char *progname;		/* used throughout 		*/
@@ -237,6 +238,7 @@ main(int argc, char *argv[])
 			if (magic == NULL)
 				if ((magic = load(magicfile, flags)) == NULL)
 					return 1;
+			applyparam(magic);
 			e |= unwrap(magic, optarg);
 			++didsomefiles;
 			break;
