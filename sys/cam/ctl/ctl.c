@@ -611,6 +611,14 @@ alloc:
 	ctl_ha_msg_send(CTL_HA_CHAN_CTL, &msg->port, sizeof(msg->port) + i,
 	    M_WAITOK);
 	free(msg, M_CTL);
+
+	if (lun->flags & CTL_LUN_PRIMARY_SC) {
+		for (i = 0; i < CTL_NUM_MODE_PAGES; i++) {
+			ctl_isc_announce_mode(lun, -1,
+			    lun->mode_pages.index[i].page_code & SMPH_PC_MASK,
+			    lun->mode_pages.index[i].subpage);
+		}
+	}
 }
 
 void
@@ -708,6 +716,38 @@ ctl_isc_announce_iid(struct ctl_port *port, int iid)
 	mtx_unlock(&softc->ctl_lock);
 	ctl_ha_msg_send(CTL_HA_CHAN_CTL, &msg->iid, i, M_NOWAIT);
 	free(msg, M_CTL);
+}
+
+void
+ctl_isc_announce_mode(struct ctl_lun *lun, uint32_t initidx,
+    uint8_t page, uint8_t subpage)
+{
+	struct ctl_softc *softc = lun->ctl_softc;
+	union ctl_ha_msg msg;
+	int i;
+
+	if (softc->ha_link != CTL_HA_LINK_ONLINE)
+		return;
+	for (i = 0; i < CTL_NUM_MODE_PAGES; i++) {
+		if ((lun->mode_pages.index[i].page_code & SMPH_PC_MASK) ==
+		    page && lun->mode_pages.index[i].subpage == subpage)
+			break;
+	}
+	if (i == CTL_NUM_MODE_PAGES)
+		return;
+	bzero(&msg.mode, sizeof(msg.mode));
+	msg.hdr.msg_type = CTL_MSG_MODE_SYNC;
+	msg.hdr.nexus.targ_port = initidx / CTL_MAX_INIT_PER_PORT;
+	msg.hdr.nexus.initid = initidx % CTL_MAX_INIT_PER_PORT;
+	msg.hdr.nexus.targ_lun = lun->lun;
+	msg.hdr.nexus.targ_mapped_lun = lun->lun;
+	msg.mode.page_code = page;
+	msg.mode.subpage = subpage;
+	msg.mode.page_len = lun->mode_pages.index[i].page_len;
+	memcpy(msg.mode.data, lun->mode_pages.index[i].page_data,
+	    msg.mode.page_len);
+	ctl_ha_msg_send(CTL_HA_CHAN_CTL, &msg.mode, sizeof(msg.mode),
+	    M_WAITOK);
 }
 
 static void
@@ -1041,6 +1081,44 @@ ctl_isc_login(struct ctl_softc *softc, union ctl_ha_msg *msg, int len)
 	}
 }
 
+static void
+ctl_isc_mode_sync(struct ctl_softc *softc, union ctl_ha_msg *msg, int len)
+{
+	struct ctl_lun *lun;
+	int i;
+	uint32_t initidx, targ_lun;
+
+	targ_lun = msg->hdr.nexus.targ_mapped_lun;
+	mtx_lock(&softc->ctl_lock);
+	if ((targ_lun >= CTL_MAX_LUNS) ||
+	    ((lun = softc->ctl_luns[targ_lun]) == NULL)) {
+		mtx_unlock(&softc->ctl_lock);
+		return;
+	}
+	mtx_lock(&lun->lun_lock);
+	mtx_unlock(&softc->ctl_lock);
+	if (lun->flags & CTL_LUN_DISABLED) {
+		mtx_unlock(&lun->lun_lock);
+		return;
+	}
+	for (i = 0; i < CTL_NUM_MODE_PAGES; i++) {
+		if ((lun->mode_pages.index[i].page_code & SMPH_PC_MASK) ==
+		    msg->mode.page_code &&
+		    lun->mode_pages.index[i].subpage == msg->mode.subpage)
+			break;
+	}
+	if (i == CTL_NUM_MODE_PAGES) {
+		mtx_unlock(&lun->lun_lock);
+		return;
+	}
+	memcpy(lun->mode_pages.index[i].page_data, msg->mode.data,
+	    lun->mode_pages.index[i].page_len);
+	initidx = ctl_get_initindex(&msg->hdr.nexus);
+	if (initidx != -1)
+		ctl_est_ua_all(lun, initidx, CTL_UA_MODE_CHANGE);
+	mtx_unlock(&lun->lun_lock);
+}
+
 /*
  * ISC (Inter Shelf Communication) event handler.  Events from the HA
  * subsystem come in here.
@@ -1319,6 +1397,9 @@ ctl_isc_event_handler(ctl_ha_channel channel, ctl_ha_event event, int param)
 			break;
 		case CTL_MSG_LOGIN:
 			ctl_isc_login(softc, msg, param);
+			break;
+		case CTL_MSG_MODE_SYNC:
+			ctl_isc_mode_sync(softc, msg, param);
 			break;
 		default:
 			printf("Received HA message of unknown type %d\n",
@@ -5952,7 +6033,11 @@ ctl_control_page_handler(struct ctl_scsiio *ctsio,
 	if (set_ua != 0)
 		ctl_est_ua_all(lun, initidx, CTL_UA_MODE_CHANGE);
 	mtx_unlock(&lun->lun_lock);
-
+	if (set_ua) {
+		ctl_isc_announce_mode(lun,
+		    ctl_get_initindex(&ctsio->io_hdr.nexus),
+		    page_index->page_code, page_index->subpage);
+	}
 	return (0);
 }
 
@@ -5989,7 +6074,11 @@ ctl_caching_sp_handler(struct ctl_scsiio *ctsio,
 	if (set_ua != 0)
 		ctl_est_ua_all(lun, initidx, CTL_UA_MODE_CHANGE);
 	mtx_unlock(&lun->lun_lock);
-
+	if (set_ua) {
+		ctl_isc_announce_mode(lun,
+		    ctl_get_initindex(&ctsio->io_hdr.nexus),
+		    page_index->page_code, page_index->subpage);
+	}
 	return (0);
 }
 
