@@ -214,6 +214,7 @@ TOOLSDIR?= ${HOST_OBJTOP}/tools
 .elif defined(STAGE_HOST_OBJTOP) && exists(${STAGE_HOST_OBJTOP}/usr/bin)
 TOOLSDIR?= ${STAGE_HOST_OBJTOP}
 .endif
+.if !empty(TOOLSDIR)
 .if ${.MAKE.LEVEL} == 0 && exists(${TOOLSDIR}/usr/bin)
 PATH:= ${PATH:S,:, ,g:@d@${exists(${TOOLSDIR}$d):?${TOOLSDIR}$d:}@:ts:}:${PATH}
 .export PATH
@@ -222,6 +223,7 @@ HOST_CC?= ${TOOLSDIR}/usr/bin/cc
 CC?= ${TOOLSDIR}/usr/bin/cc
 CXX?= ${TOOLSDIR}/usr/bin/c++
 .export HOST_CC CC CXX
+.endif
 .endif
 .endif
 
