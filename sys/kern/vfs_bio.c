@@ -2090,6 +2090,8 @@ vfs_vmio_invalidate(struct buf *bp)
 		if (m == bogus_page)
 			panic("vfs_vmio_invalidate: Unexpected bogus page.");
 
+		presid = resid > (PAGE_SIZE - poffset) ?
+		    (PAGE_SIZE - poffset) : resid;
 		KASSERT(presid >= 0, ("brelse: extra page"));
 		while (vm_page_xbusied(m)) {
 			vm_page_lock(m);
@@ -2097,8 +2099,6 @@ vfs_vmio_invalidate(struct buf *bp)
 			vm_page_busy_sleep(m, "mbncsh");
 			VM_OBJECT_WLOCK(obj);
 		}
-		presid = resid > (PAGE_SIZE - poffset) ?
-		    (PAGE_SIZE - poffset) : resid;
 		if (pmap_page_wired_mappings(m) == 0)
 			vm_page_set_invalid(m, poffset, presid);
 		resid -= presid;
