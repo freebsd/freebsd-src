@@ -658,8 +658,19 @@ int
 kern_sigaction(struct thread *td, int sig, const struct sigaction *act,
     struct sigaction *oact, int flags)
 {
+
+	return (kern_sigaction_cap(td, sig, act, oact, flags, NULL));
+}
+
+int
+kern_sigaction_cap(struct thread *td, int sig, const struct sigaction *act,
+    struct sigaction *oact, int flags, void *cap)
+{
 	struct sigacts *ps;
 	struct proc *p = td->td_proc;
+#ifdef COMPAT_CHERIABI
+	struct chericap newhandler;
+#endif
 
 	if (!_SIG_VALID(sig))
 		return (EINVAL);
@@ -668,6 +679,12 @@ kern_sigaction(struct thread *td, int sig, const struct sigaction *act,
 	    SA_RESTART | SA_RESETHAND | SA_NOCLDSTOP | SA_NODEFER |
 	    SA_NOCLDWAIT | SA_SIGINFO)) != 0)
 		return (EINVAL);
+
+#ifdef COMPAT_CHERIABI
+	/* Save handler capability so we copy the old one out first. */
+	if (act != NULL && cap != NULL)
+		cheri_memcpy(&newhandler, cap, sizeof(newhandler));
+#endif
 
 	PROC_LOCK(p);
 	ps = p->p_sigacts;
@@ -687,8 +704,14 @@ kern_sigaction(struct thread *td, int sig, const struct sigaction *act,
 			oact->sa_flags |= SA_SIGINFO;
 			oact->sa_sigaction =
 			    (__siginfohandler_t *)ps->ps_sigact[_SIG_IDX(sig)];
-		} else
+		} else {
 			oact->sa_handler = ps->ps_sigact[_SIG_IDX(sig)];
+#ifdef COMPAT_CHERIABI
+			if (cap != NULL)
+				cheri_memcpy(cap, &ps->ps_sigcap[_SIG_IDX(sig)],
+				    sizeof(struct chericap));
+#endif
+		}
 		if (sig == SIGCHLD && ps->ps_flag & PS_NOCLDSTOP)
 			oact->sa_flags |= SA_NOCLDSTOP;
 		if (sig == SIGCHLD && ps->ps_flag & PS_NOCLDWAIT)
@@ -716,6 +739,11 @@ kern_sigaction(struct thread *td, int sig, const struct sigaction *act,
 			ps->ps_sigact[_SIG_IDX(sig)] = act->sa_handler;
 			SIGDELSET(ps->ps_siginfo, sig);
 		}
+#ifdef COMPAT_CHERIABI
+		if (cap != NULL)
+			cheri_memcpy(&ps->ps_sigcap[_SIG_IDX(sig)],
+			    &newhandler, sizeof(newhandler));
+#endif
 		if (!sigact_flag_test(act, SA_RESTART))
 			SIGADDSET(ps->ps_sigintr, sig);
 		else
@@ -3570,6 +3598,10 @@ sigacts_copy(struct sigacts *dest, struct sigacts *src)
 	KASSERT(dest->ps_refcnt == 1, ("sigacts_copy to shared dest"));
 	mtx_lock(&src->ps_mtx);
 	bcopy(src, dest, offsetof(struct sigacts, ps_refcnt));
+#ifdef COMPAT_CHERIABI
+	/* XXX-BD: make conditional? */
+	cheri_memcpy(&dest->ps_sigcap, &src->ps_sigcap, sizeof(dest->ps_sigcap));
+#endif
 	mtx_unlock(&src->ps_mtx);
 }
 

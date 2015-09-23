@@ -851,6 +851,7 @@ cheriabi_sigaction(struct thread *td, struct cheriabi_sigaction_args *uap)
 {
 	struct sigaction_c sa_c;
 	struct sigaction sa, osa, *sap;
+	struct chericap cap;
 
 	int error, perms, tagged;
 
@@ -873,22 +874,12 @@ cheriabi_sigaction(struct thread *td, struct cheriabi_sigaction_args *uap)
 		CP(sa_c, sa, sa_flags);
 		CP(sa_c, sa, sa_mask);
 		sap = &sa;
+		cheri_memcpy(&cap, &sa_c.sa_u, sizeof(cap));
 	} else
 		sap = NULL;
-	error = kern_sigaction(td, uap->sig, sap, &osa, 0);
+	error = kern_sigaction_cap(td, uap->sig, sap, &osa, 0, &cap);
 	if (error == 0 && uap->oact != NULL) {
-		/*
-		 * XXX-SECURITY: this expands the permissions on the signal
-		 * handler PCC back to the default and will allow
-		 * control flow attacks.  We should either store a copy
-		 * of the original capability to pass back out (requiring
-		 * substantial kernel changes) or clear the tag and
-		 * require the user to rederive a capability if they wish
-		 * to restore the previous handler.
-		 */
-		cheri_capability_set(&sa_c.sa_u, CHERI_CAP_USER_PERMS,
-		    CHERI_CAP_USER_OTYPE, CHERI_CAP_USER_BASE,
-		    CHERI_CAP_USER_LENGTH, (uintptr_t)osa.sa_handler);
+		cheri_memcpy(&sa_c.sa_u, &cap, sizeof(cap));
 		CP(osa, sa_c, sa_flags);
 		CP(osa, sa_c, sa_mask);
 		error = copyoutcap(&sa_c, uap->oact, sizeof(sa_c));

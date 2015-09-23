@@ -38,6 +38,10 @@
 #include <sys/_mutex.h>
 #include <sys/signal.h>
 
+#ifdef COMPAT_CHERIABI
+#include <machine/cheri.h>
+#endif
+
 /*
  * Kernel signal definitions and data structures.
  */
@@ -65,6 +69,9 @@ struct sigacts {
 	int	ps_flag;
 	u_int	ps_refcnt;
 	struct mtx ps_mtx;
+#ifdef COMPAT_CHERIABI
+	struct chericap	ps_sigcap[_SIG_MAXSIG];	/* CheriABI handlers */
+#endif
 };
 
 #define	PS_NOCLDWAIT	0x0001	/* No zombies if child dies */
