@@ -198,6 +198,7 @@ typedef enum {
 	CTL_MSG_LUN_SYNC,		/* Information about LUN. */
 	CTL_MSG_IID_SYNC,		/* Information about initiator. */
 	CTL_MSG_LOGIN,			/* Information about HA peer. */
+	CTL_MSG_MODE_SYNC,		/* Mode page current content. */
 	CTL_MSG_FAILOVER		/* Fake, never sent though the wire */
 } ctl_msg_type;
 
@@ -533,6 +534,17 @@ struct ctl_ha_msg_iid {
 	uint8_t			data[];
 };
 
+/*
+ * Used for CTL_MSG_MODE_SYNC.
+ */
+struct ctl_ha_msg_mode {
+	struct ctl_ha_msg_hdr	hdr;
+	uint8_t			page_code;
+	uint8_t			subpage;
+	uint16_t		page_len;
+	uint8_t			data[];
+};
+
 union ctl_ha_msg {
 	struct ctl_ha_msg_hdr	hdr;
 	struct ctl_ha_msg_task	task;
@@ -544,6 +556,7 @@ union ctl_ha_msg {
 	struct ctl_ha_msg_lun	lun;
 	struct ctl_ha_msg_iid	iid;
 	struct ctl_ha_msg_login	login;
+	struct ctl_ha_msg_mode	mode;
 };
 
 struct ctl_prio {
