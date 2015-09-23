@@ -7,7 +7,9 @@
 .export SRCTOP
 .endif
 
+.if exists(${.CURDIR}/tests)
 PROG= make
+.endif
 
 .if !defined(MK_SHARED_TOOLCHAIN) || ${MK_SHARED_TOOLCHAIN} == "no"
 NO_SHARED?=     YES
