@@ -3803,8 +3803,6 @@ scsi_set_sense_data_va(struct scsi_sense_data *sense_data,
 			 */
 			sense->extra_len = 10;
 			sense_len = (int)va_arg(ap, int);
-			len_to_copy = MIN(sense_len, SSD_EXTRA_MAX -
-					  sense->extra_len);
 			data = (uint8_t *)va_arg(ap, uint8_t *);
 
 			switch (elem_type) {
@@ -3822,10 +3820,14 @@ scsi_set_sense_data_va(struct scsi_sense_data *sense_data,
 				uint8_t *data_dest;
 				int i;
 
-				if (elem_type == SSD_ELEM_COMMAND)
+				if (elem_type == SSD_ELEM_COMMAND) {
 					data_dest = &sense->cmd_spec_info[0];
-				else {
+					len_to_copy = MIN(sense_len,
+					    sizeof(sense->cmd_spec_info));
+				} else {
 					data_dest = &sense->info[0];
+					len_to_copy = MIN(sense_len,
+					    sizeof(sense->info));
 					/*
 					 * We're setting the info field, so
 					 * set the valid bit.
