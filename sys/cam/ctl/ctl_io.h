@@ -197,6 +197,7 @@ typedef enum {
 	CTL_MSG_PORT_SYNC,		/* Information about port. */
 	CTL_MSG_LUN_SYNC,		/* Information about LUN. */
 	CTL_MSG_IID_SYNC,		/* Information about initiator. */
+	CTL_MSG_LOGIN,			/* Information about HA peer. */
 	CTL_MSG_FAILOVER		/* Fake, never sent though the wire */
 } ctl_msg_type;
 
@@ -356,6 +357,25 @@ struct ctl_taskio {
 	ctl_tag_type		tag_type;    /* simple, ordered, etc. */
 	uint8_t			task_status; /* Complete, Succeeded, etc. */
 	uint8_t			task_resp[3];/* Response information */
+};
+
+
+/*
+ * HA link messages.
+ */
+#define	CTL_HA_VERSION		1
+
+/*
+ * Used for CTL_MSG_LOGIN.
+ */
+struct ctl_ha_msg_login {
+	ctl_msg_type		msg_type;
+	int			version;
+	int			ha_mode;
+	int			ha_id;
+	int			max_luns;
+	int			max_ports;
+	int			max_init_per_port;
 };
 
 typedef enum {
@@ -523,15 +543,13 @@ union ctl_ha_msg {
 	struct ctl_ha_msg_port	port;
 	struct ctl_ha_msg_lun	lun;
 	struct ctl_ha_msg_iid	iid;
+	struct ctl_ha_msg_login	login;
 };
-
 
 struct ctl_prio {
 	struct ctl_io_hdr  io_hdr;
 	struct ctl_ha_msg_pr pr_msg;
 };
-
-
 
 union ctl_io {
 	struct ctl_io_hdr io_hdr;	/* common to all I/O types */

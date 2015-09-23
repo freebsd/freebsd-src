@@ -715,7 +715,19 @@ ctl_isc_ha_link_up(struct ctl_softc *softc)
 {
 	struct ctl_port *port;
 	struct ctl_lun *lun;
+	union ctl_ha_msg msg;
 	int i;
+
+	/* Announce this node parameters to peer for validation. */
+	msg.login.msg_type = CTL_MSG_LOGIN;
+	msg.login.version = CTL_HA_VERSION;
+	msg.login.ha_mode = softc->ha_mode;
+	msg.login.ha_id = softc->ha_id;
+	msg.login.max_luns = CTL_MAX_LUNS;
+	msg.login.max_ports = CTL_MAX_PORTS;
+	msg.login.max_init_per_port = CTL_MAX_INIT_PER_PORT;
+	ctl_ha_msg_send(CTL_HA_CHAN_CTL, &msg.login, sizeof(msg.login),
+	    M_WAITOK);
 
 	STAILQ_FOREACH(port, &softc->port_list, links) {
 		ctl_isc_announce_port(port);
@@ -999,6 +1011,36 @@ ctl_isc_iid_sync(struct ctl_softc *softc, union ctl_ha_msg *msg, int len)
 		port->wwpn_iid[iid].name = NULL;
 }
 
+static void
+ctl_isc_login(struct ctl_softc *softc, union ctl_ha_msg *msg, int len)
+{
+
+	if (msg->login.version != CTL_HA_VERSION) {
+		printf("CTL HA peers have different versions %d != %d\n",
+		    msg->login.version, CTL_HA_VERSION);
+		ctl_ha_msg_abort(CTL_HA_CHAN_CTL);
+		return;
+	}
+	if (msg->login.ha_mode != softc->ha_mode) {
+		printf("CTL HA peers have different ha_mode %d != %d\n",
+		    msg->login.ha_mode, softc->ha_mode);
+		ctl_ha_msg_abort(CTL_HA_CHAN_CTL);
+		return;
+	}
+	if (msg->login.ha_id == softc->ha_id) {
+		printf("CTL HA peers have same ha_id %d\n", msg->login.ha_id);
+		ctl_ha_msg_abort(CTL_HA_CHAN_CTL);
+		return;
+	}
+	if (msg->login.max_luns != CTL_MAX_LUNS ||
+	    msg->login.max_ports != CTL_MAX_PORTS ||
+	    msg->login.max_init_per_port != CTL_MAX_INIT_PER_PORT) {
+		printf("CTL HA peers have different limits\n");
+		ctl_ha_msg_abort(CTL_HA_CHAN_CTL);
+		return;
+	}
+}
+
 /*
  * ISC (Inter Shelf Communication) event handler.  Events from the HA
  * subsystem come in here.
@@ -1275,9 +1317,13 @@ ctl_isc_event_handler(ctl_ha_channel channel, ctl_ha_event event, int param)
 		case CTL_MSG_IID_SYNC:
 			ctl_isc_iid_sync(softc, msg, param);
 			break;
+		case CTL_MSG_LOGIN:
+			ctl_isc_login(softc, msg, param);
+			break;
 		default:
 			printf("Received HA message of unknown type %d\n",
 			    msg->hdr.msg_type);
+			ctl_ha_msg_abort(CTL_HA_CHAN_CTL);
 			break;
 		}
 		if (msg != &msgbuf)

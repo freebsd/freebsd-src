@@ -283,8 +283,9 @@ ctl_ha_rx_thread(void *arg)
 		else
 			next = sizeof(wire_hdr);
 		SOCKBUF_LOCK(&so->so_rcv);
-		while (sbavail(&so->so_rcv) < next) {
-			if (softc->ha_connected == 0 || so->so_error ||
+		while (sbavail(&so->so_rcv) < next || softc->ha_disconnect) {
+			if (softc->ha_connected == 0 || softc->ha_disconnect ||
+			    so->so_error ||
 			    (so->so_rcv.sb_state & SBS_CANTRCVMORE)) {
 				goto errout;
 			}
@@ -541,6 +542,18 @@ ctl_ha_listen(struct ha_softc *softc)
 			printf("%s: REUSEADDR setting failed %d\n",
 			    __func__, error);
 		}
+		bzero(&opt, sizeof(struct sockopt));
+		opt.sopt_dir = SOPT_SET;
+		opt.sopt_level = SOL_SOCKET;
+		opt.sopt_name = SO_REUSEPORT;
+		opt.sopt_val = &val;
+		opt.sopt_valsize = sizeof(val);
+		val = 1;
+		error = sosetopt(softc->ha_lso, &opt);
+		if (error) {
+			printf("%s: REUSEPORT setting failed %d\n",
+			    __func__, error);
+		}
 		SOCKBUF_LOCK(&softc->ha_lso->so_rcv);
 		soupcall_set(softc->ha_lso, SO_RCV, ctl_ha_lupcall, softc);
 		SOCKBUF_UNLOCK(&softc->ha_lso->so_rcv);
@@ -572,7 +585,8 @@ ctl_ha_conn_thread(void *arg)
 	while (1) {
 		if (softc->ha_disconnect || softc->ha_shutdown) {
 			ctl_ha_close(softc);
-			ctl_ha_lclose(softc);
+			if (softc->ha_disconnect == 2 || softc->ha_shutdown)
+				ctl_ha_lclose(softc);
 			softc->ha_disconnect = 0;
 			if (softc->ha_shutdown)
 				break;
@@ -666,7 +680,7 @@ ctl_ha_peer_sysctl(SYSCTL_HANDLER_ARGS)
 		sa->sin_addr.s_addr =
 		    htonl((b1 << 24) + (b2 << 16) + (b3 << 8) + b4);
 	}
-	softc->ha_disconnect = 1;
+	softc->ha_disconnect = 2;
 	softc->ha_wakeup = 1;
 	mtx_unlock(&softc->ha_lock);
 	wakeup(&softc->ha_wakeup);
@@ -809,6 +823,19 @@ ctl_ha_msg_send(ctl_ha_channel channel, const void *addr, size_t len,
 {
 
 	return (ctl_ha_msg_send2(channel, addr, len, NULL, 0, wait));
+}
+
+ctl_ha_status
+ctl_ha_msg_abort(ctl_ha_channel channel)
+{
+	struct ha_softc *softc = &ha_softc;
+
+	mtx_lock(&softc->ha_lock);
+	softc->ha_disconnect = 1;
+	softc->ha_wakeup = 1;
+	mtx_unlock(&softc->ha_lock);
+	wakeup(&softc->ha_wakeup);
+	return (CTL_HA_STATUS_SUCCESS);
 }
 
 /*
