@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: apple,v 1.30 2015/04/13 13:09:06 christos Exp $
+# $File: apple,v 1.31 2015/08/29 07:10:35 christos Exp $
 # apple:  file(1) magic for Apple file formats
 #
 0	search/1/t	FiLeStArTfIlEsTaRt	binscii (apple ][) text
@@ -265,14 +265,14 @@
 >>20	beshort x			\b, descriptors %d
 # Assume 	8 partitions each at a multiple of the sector size.
 # We could glean this from the partition descriptors, but they are empty!?!?
->>(2.S*1)	indirect		\b, contains[@0x%x]: 
->>(2.S*2)	indirect		\b, contains[@0x%x]: 
->>(2.S*3)	indirect		\b, contains[@0x%x]: 
->>(2.S*4)	indirect		\b, contains[@0x%x]: 
->>(2.S*5)	indirect		\b, contains[@0x%x]: 
->>(2.S*6)	indirect		\b, contains[@0x%x]: 
->>(2.S*7)	indirect		\b, contains[@0x%x]: 
->>(2.S*8)	indirect		\b, contains[@0x%x]: 
+>>(2.S*1)	indirect	x	\b, contains[@0x%x]: 
+>>(2.S*2)	indirect	x	\b, contains[@0x%x]: 
+>>(2.S*3)	indirect	x	\b, contains[@0x%x]: 
+>>(2.S*4)	indirect	x	\b, contains[@0x%x]: 
+>>(2.S*5)	indirect	x	\b, contains[@0x%x]: 
+>>(2.S*6)	indirect	x	\b, contains[@0x%x]: 
+>>(2.S*7)	indirect	x	\b, contains[@0x%x]: 
+>>(2.S*8)	indirect	x	\b, contains[@0x%x]: 
 
 # Yes, the 3rd and 4th bytes are reserved, but we use them to make the
 # magic stronger.
