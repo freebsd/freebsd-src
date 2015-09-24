@@ -114,6 +114,8 @@ typedef struct {
 #define	ELFOSABI_OPENVMS	13	/* Open VMS */
 #define	ELFOSABI_NSK		14	/* HP Non-Stop Kernel */
 #define	ELFOSABI_AROS		15	/* Amiga Research OS */
+#define	ELFOSABI_FENIXOS	16	/* FenixOS */
+#define	ELFOSABI_CLOUDABI	17	/* Nuxi CloudABI */
 #define	ELFOSABI_ARM		97	/* ARM */
 #define	ELFOSABI_STANDALONE	255	/* Standalone (embedded) application */
 
