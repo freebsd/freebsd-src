@@ -270,6 +270,9 @@ LDADD		Additional loader objects.  Usually used for libraries.
 
 			LDADD=-lutil -lcompat
 
+LIBADD		Additional libraries.  This is for base system libraries.
+		Rather than use LDADD=-lname use LIBADD=name.
+
 LDFLAGS		Additional loader flags. Passed to the loader via CC,
 		since that's used to link programs as well, so loader
 		specific flags need to be prefixed with -Wl, to work.
@@ -407,6 +410,9 @@ LIBOWN		Library owner.
 LIBMODE		Library mode.
 
 LDADD		Additional loader objects.
+
+LIBADD		Additional libraries.  This is for base system libraries.
+		Rather than use LDADD=-lname use LIBADD=name.
 
 MAN		The manual pages to be installed (use a .1 - .9 suffix).
 
