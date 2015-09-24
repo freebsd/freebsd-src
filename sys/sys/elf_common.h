@@ -649,6 +649,7 @@ typedef struct {
 #define	R_386_TLS_TPOFF32	37	/* GOT entry of -ve static TLS offset */
 #define	R_386_IRELATIVE		42	/* PLT entry resolved indirectly at runtime */
 
+#define	R_AARCH64_NONE		0	/* No relocation */
 #define	R_AARCH64_ABS64		257	/* Absolute offset */
 #define	R_AARCH64_ABS32		258	/* Absolute, 32-bit overflow check */
 #define	R_AARCH64_ABS16		259	/* Absolute, 16-bit overflow check */
