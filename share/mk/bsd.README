@@ -270,7 +270,8 @@ LDADD		Additional loader objects.  Usually used for libraries.
 
 			LDADD=-lutil -lcompat
 
-LIBADD		Additional libraries.  This is for base system libraries.
+LIBADD		Additional libraries.  This is for base system libraries
+		and is only valid inside of the /usr/src tree.
 		Rather than use LDADD=-lname use LIBADD=name.
 
 LDFLAGS		Additional loader flags. Passed to the loader via CC,
@@ -302,7 +303,7 @@ PROGS_CXX	PROG and PROGS_CXX in one Makefile.  To define
 
 		PROGS=		foo bar
 		SRCS.foo=	foo_src.c
-		LIBADD.foo=	util
+		LDADD.foo=	-lutil
 		SRCS.bar=	bar_src.c
 
 		The supported variables are BINDIR BINGRP BINMODE BINOWN
@@ -411,7 +412,8 @@ LIBMODE		Library mode.
 
 LDADD		Additional loader objects.
 
-LIBADD		Additional libraries.  This is for base system libraries.
+LIBADD		Additional libraries.  This is for base system libraries
+		and is only valid inside of the /usr/src tree.
 		Rather than use LDADD=-lname use LIBADD=name.
 
 MAN		The manual pages to be installed (use a .1 - .9 suffix).
