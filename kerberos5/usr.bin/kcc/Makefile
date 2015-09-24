@@ -16,6 +16,8 @@ SRCS=	kcc.c \
 	kswitch.c \
 	copy_cred_cache.c
 
+CLEANFILES=	kcc-commands.h kcc-commands.c
+
 kcc-commands.h: kcc-commands.in
 	${SLC} ${.ALLSRC:M*.in}
 
