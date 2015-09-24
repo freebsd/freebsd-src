@@ -24,8 +24,6 @@ LIBADD=	kadm5clnt krb5 roken crypto edit sl vers
 ktutil-commands.h: ${KRB5DIR}/admin/ktutil-commands.in
 	${SLC} ${.ALLSRC:M*.in}
 
-.for ext in c o
-ktutil-commands.${ext}: ktutil-commands.h
-.endfor
+ktutil-commands.c: ktutil-commands.h
 
 .PATH: ${KRB5DIR}/admin
