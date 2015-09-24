@@ -154,15 +154,12 @@ BIN1+= regdomain.xml
 # -rwxr-xr-x root:wheel, for the new cron root:wheel
 BIN2=	netstart pccard_ether rc.suspend rc.resume
 
-MTREE=	BSD.include.dist BSD.root.dist BSD.usr.dist BSD.var.dist
+MTREE=	BSD.debug.dist BSD.include.dist BSD.root.dist BSD.usr.dist BSD.var.dist
 .if ${MK_TESTS} != "no"
 MTREE+=	BSD.tests.dist
 .endif
 .if ${MK_SENDMAIL} != "no"
 MTREE+=	BSD.sendmail.dist
-.endif
-.if ${MK_DEBUG_FILES} != "no"
-MTREE+=	BSD.debug.dist
 .endif
 
 PPPCNF=	ppp.conf
@@ -336,10 +333,8 @@ MTREE_CMD?=	mtree
 MTREES=		mtree/BSD.root.dist		/		\
 		mtree/BSD.var.dist		/var		\
 		mtree/BSD.usr.dist		/usr		\
-		mtree/BSD.include.dist		/usr/include
-.if ${MK_DEBUG_FILES} != "no"
-MTREES+=	mtree/BSD.debug.dist		/usr/lib
-.endif
+		mtree/BSD.include.dist		/usr/include	\
+		mtree/BSD.debug.dist		/usr/lib
 .if ${MK_GROFF} != "no"
 MTREES+=	mtree/BSD.groff.dist		/usr
 .endif
