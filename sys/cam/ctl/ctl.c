@@ -5610,20 +5610,43 @@ bailout:
 int
 ctl_read_buffer(struct ctl_scsiio *ctsio)
 {
-	struct scsi_read_buffer *cdb;
 	struct ctl_lun *lun;
-	int buffer_offset, len;
+	uint64_t buffer_offset;
+	uint32_t len;
+	uint8_t byte2;
 	static uint8_t descr[4];
 	static uint8_t echo_descr[4] = { 0 };
 
 	CTL_DEBUG_PRINT(("ctl_read_buffer\n"));
-
 	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
-	cdb = (struct scsi_read_buffer *)ctsio->cdb;
+	switch (ctsio->cdb[0]) {
+	case READ_BUFFER: {
+		struct scsi_read_buffer *cdb;
 
-	if ((cdb->byte2 & RWB_MODE) != RWB_MODE_DATA &&
-	    (cdb->byte2 & RWB_MODE) != RWB_MODE_ECHO_DESCR &&
-	    (cdb->byte2 & RWB_MODE) != RWB_MODE_DESCR) {
+		cdb = (struct scsi_read_buffer *)ctsio->cdb;
+		buffer_offset = scsi_3btoul(cdb->offset);
+		len = scsi_3btoul(cdb->length);
+		byte2 = cdb->byte2;
+		break;
+	}
+	case READ_BUFFER_16: {
+		struct scsi_read_buffer_16 *cdb;
+
+		cdb = (struct scsi_read_buffer_16 *)ctsio->cdb;
+		buffer_offset = scsi_8btou64(cdb->offset);
+		len = scsi_4btoul(cdb->length);
+		byte2 = cdb->byte2;
+		break;
+	}
+	default: /* This shouldn't happen. */
+		ctl_set_invalid_opcode(ctsio);
+		ctl_done((union ctl_io *)ctsio);
+		return (CTL_RETVAL_COMPLETE);
+	}
+
+	if ((byte2 & RWB_MODE) != RWB_MODE_DATA &&
+	    (byte2 & RWB_MODE) != RWB_MODE_ECHO_DESCR &&
+	    (byte2 & RWB_MODE) != RWB_MODE_DESCR) {
 		ctl_set_invalid_field(ctsio,
 				      /*sks_valid*/ 1,
 				      /*command*/ 1,
@@ -5634,10 +5657,8 @@ ctl_read_buffer(struct ctl_scsiio *ctsio)
 		return (CTL_RETVAL_COMPLETE);
 	}
 
-	len = scsi_3btoul(cdb->length);
-	buffer_offset = scsi_3btoul(cdb->offset);
-
-	if (buffer_offset + len > CTL_WRITE_BUFFER_SIZE) {
+	if (buffer_offset > CTL_WRITE_BUFFER_SIZE ||
+	    buffer_offset + len > CTL_WRITE_BUFFER_SIZE) {
 		ctl_set_invalid_field(ctsio,
 				      /*sks_valid*/ 1,
 				      /*command*/ 1,
@@ -5648,12 +5669,12 @@ ctl_read_buffer(struct ctl_scsiio *ctsio)
 		return (CTL_RETVAL_COMPLETE);
 	}
 
-	if ((cdb->byte2 & RWB_MODE) == RWB_MODE_DESCR) {
+	if ((byte2 & RWB_MODE) == RWB_MODE_DESCR) {
 		descr[0] = 0;
 		scsi_ulto3b(CTL_WRITE_BUFFER_SIZE, &descr[1]);
 		ctsio->kern_data_ptr = descr;
 		len = min(len, sizeof(descr));
-	} else if ((cdb->byte2 & RWB_MODE) == RWB_MODE_ECHO_DESCR) {
+	} else if ((byte2 & RWB_MODE) == RWB_MODE_ECHO_DESCR) {
 		ctsio->kern_data_ptr = echo_descr;
 		len = min(len, sizeof(echo_descr));
 	} else {
