@@ -14,9 +14,7 @@ CLEANFILES=	hxtool-commands.h hxtool-commands.c
 hxtool-commands.h: hxtool-commands.in
 	${SLC} ${.ALLSRC:M*.in}
 
-.for ext in c o
-hxtool-commands.${ext}: hxtool-commands.h
-.endfor
+hxtool-commands.c: hxtool-commands.h
 
 .include <bsd.prog.mk>
 
