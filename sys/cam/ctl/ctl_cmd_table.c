@@ -1155,8 +1155,16 @@ const struct ctl_cmd_entry ctl_cmd_table[256] =
 /* 9A */
 {NULL, CTL_SERIDX_INVLD, CTL_CMD_FLAG_NONE, CTL_LUN_PAT_NONE},
 
-/* 9B */
-{NULL, CTL_SERIDX_INVLD, CTL_CMD_FLAG_NONE, CTL_LUN_PAT_NONE},
+/* 9B READ BUFFER(16) */
+{ctl_read_buffer, CTL_SERIDX_MD_SNS, CTL_CMD_FLAG_OK_ON_BOTH |
+				     CTL_CMD_FLAG_OK_ON_STOPPED |
+				     CTL_CMD_FLAG_OK_ON_INOPERABLE |
+				     CTL_CMD_FLAG_OK_ON_STANDBY |
+				     CTL_FLAG_DATA_IN |
+				     CTL_CMD_FLAG_ALLOW_ON_PR_WRESV,
+ CTL_LUN_PAT_NONE,
+ 10, {0x1f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+      0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0, 0x07}},
 
 /* 9C WRITE ATOMIC (16) */
 {ctl_read_write, CTL_SERIDX_WRITE, CTL_CMD_FLAG_OK_ON_SLUN| CTL_FLAG_DATA_OUT,
