@@ -4368,7 +4368,6 @@ iwn_tx_data(struct iwn_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 		struct ieee80211_tx_ampdu *tap = &ni->ni_tx_ampdu[ac];
 
 		if (!IEEE80211_AMPDU_RUNNING(tap)) {
-			m_freem(m);
 			return EINVAL;
 		}
 
@@ -4420,7 +4419,6 @@ iwn_tx_data(struct iwn_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 		/* Retrieve key for TX. */
 		k = ieee80211_crypto_encap(ni, m);
 		if (k == NULL) {
-			m_freem(m);
 			return ENOBUFS;
 		}
 		/* 802.11 header may have moved. */
@@ -4551,7 +4549,6 @@ iwn_tx_data(struct iwn_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 		if (error != EFBIG) {
 			device_printf(sc->sc_dev,
 			    "%s: can't map mbuf (error %d)\n", __func__, error);
-			m_freem(m);
 			return error;
 		}
 		/* Too many DMA segments, linearize mbuf. */
@@ -4559,7 +4556,6 @@ iwn_tx_data(struct iwn_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 		if (m1 == NULL) {
 			device_printf(sc->sc_dev,
 			    "%s: could not defrag mbuf\n", __func__);
-			m_freem(m);
 			return ENOBUFS;
 		}
 		m = m1;
@@ -4569,7 +4565,6 @@ iwn_tx_data(struct iwn_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 		if (error != 0) {
 			device_printf(sc->sc_dev,
 			    "%s: can't map mbuf (error %d)\n", __func__, error);
-			m_freem(m);
 			return error;
 		}
 	}
@@ -4755,7 +4750,6 @@ iwn_tx_data_raw(struct iwn_softc *sc, struct mbuf *m,
 		if (error != EFBIG) {
 			device_printf(sc->sc_dev,
 			    "%s: can't map mbuf (error %d)\n", __func__, error);
-			m_freem(m);
 			return error;
 		}
 		/* Too many DMA segments, linearize mbuf. */
@@ -4763,7 +4757,6 @@ iwn_tx_data_raw(struct iwn_softc *sc, struct mbuf *m,
 		if (m1 == NULL) {
 			device_printf(sc->sc_dev,
 			    "%s: could not defrag mbuf\n", __func__);
-			m_freem(m);
 			return ENOBUFS;
 		}
 		m = m1;
@@ -4773,7 +4766,6 @@ iwn_tx_data_raw(struct iwn_softc *sc, struct mbuf *m,
 		if (error != 0) {
 			device_printf(sc->sc_dev,
 			    "%s: can't map mbuf (error %d)\n", __func__, error);
-			m_freem(m);
 			return error;
 		}
 	}
@@ -4869,6 +4861,9 @@ iwn_xmit_task(void *arg0, int pending)
 	IWN_UNLOCK(sc);
 }
 
+/*
+ * raw frame xmit - free node/reference if failed.
+ */
 static int
 iwn_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
     const struct ieee80211_bpf_params *params)
@@ -4931,12 +4926,17 @@ iwn_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	return error;
 }
 
+/*
+ * transmit - don't free mbuf if failed; don't free node ref if failed.
+ */
 static int
 iwn_transmit(struct ieee80211com *ic, struct mbuf *m)
 {
 	struct iwn_softc *sc = ic->ic_softc;
 	struct ieee80211_node *ni;
 	int error;
+
+	ni = (struct ieee80211_node *)m->m_pkthdr.rcvif;
 
 	IWN_LOCK(sc);
 	if ((sc->sc_flags & IWN_FLAG_RUNNING) == 0 || sc->sc_beacon_wait) {
@@ -4949,11 +4949,9 @@ iwn_transmit(struct ieee80211com *ic, struct mbuf *m)
 		return (ENOBUFS);
 	}
 
-	ni = (struct ieee80211_node *)m->m_pkthdr.rcvif;
 	error = iwn_tx_data(sc, m, ni);
 	if (error) {
 		if_inc_counter(ni->ni_vap->iv_ifp, IFCOUNTER_OERRORS, 1);
-		ieee80211_free_node(ni);
 	} else
 		sc->sc_tx_timer = 5;
 	IWN_UNLOCK(sc);

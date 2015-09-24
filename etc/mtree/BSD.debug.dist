@@ -9,6 +9,8 @@
         bin
         ..
         boot
+            kernel
+            ..
         ..
         lib
             geom

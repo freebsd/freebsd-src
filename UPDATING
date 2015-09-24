@@ -36,6 +36,19 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	20141231 entry below for information about prerequisites and upgrading,
 	if you are not already using 3.5.0 or higher.
 
+20150924:
+	Kernel debug files have been moved to /usr/lib/debug/boot/kernel/,
+	and renamed from .symbols to .debug. This reduces the size requirements
+	on the boot partition or file system and provides consistency with
+	userland debug files.
+
+	When using the supported kernel installation method the
+	/usr/lib/debug/boot/kernel directory will be renamed (to kernel.old)
+	as is done with /boot/kernel.
+
+	Developers wishing to maintain the historical behavior of installing
+	debug files in /boot/kernel/ can set KERN_DEBUGDIR="" in src.conf(5).
+
 20150827:
 	The wireless drivers had undergone changes that remove the 'parent
 	interface' from the ifconfig -l output. The rc.d network scripts
