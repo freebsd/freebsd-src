@@ -63,6 +63,41 @@ extern int eprol;
 extern int etext;
 #endif
 
+#ifdef __CHERI_SANDBOX__
+struct capreloc
+{
+	uint64_t capability_location;
+	uint64_t object;
+	uint64_t offset;
+	uint64_t size;
+	uint64_t permissions;
+};
+__attribute__((weak))
+extern struct capreloc __start___cap_relocs;
+__attribute__((weak))
+extern struct capreloc __stop___cap_relocs;
+
+static void
+crt_init_globals()
+{
+	struct capreloc *start = &__start___cap_relocs;
+	struct capreloc *end = &__stop___cap_relocs;
+	void *gdc = __builtin_memcap_global_data_get();
+	for (struct capreloc *reloc = &__start___cap_relocs ;
+	     reloc < &__stop___cap_relocs ; reloc++)
+	{
+		void **dest = __builtin_memcap_offset_set(gdc, reloc->capability_location);
+		void *src = __builtin_memcap_offset_set(gdc, reloc->object);
+		if (reloc->size != 0)
+		{
+			src = __builtin_memcap_bounds_set(src, reloc->size);
+		}
+		src = __builtin_memcap_offset_increment(src, reloc->offset);
+		*dest = src;
+	}
+};
+#endif
+
 /* The entry function, C part. This performs the bulk of program initialisation
  * before handing off to main(). It is called by __start, which is defined in
  * crt1_s.s, and necessarily written in raw assembly so that it can re-align
@@ -109,6 +144,7 @@ __asm__("eprol:");
 
 	handle_static_init(argc, argv, env);
 #ifdef __CHERI_SANDBOX__
+	crt_init_globals();
 	crt_sb_constructors();
 #endif
 
