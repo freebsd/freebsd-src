@@ -111,6 +111,13 @@ cheri_log_exception_registers(struct trapframe *frame)
 	/* XXXRW: awkward and unmaintainable pointer construction. */
 	cheriframe = &(((struct pcb *)frame)->pcb_cheriframe);
 
+	cheri_log_cheri_frame(cheriframe);
+}
+
+void
+cheri_log_cheri_frame(struct cheri_frame *cheriframe)
+{
+
 	/* C0 */
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &cheriframe->cf_c0, 0);
 	CHERI_REG_PRINT(CHERI_CR_CTEMP0, 0);

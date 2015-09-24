@@ -620,6 +620,7 @@ void	*cheri_memcpy(void *dst, void *src, size_t len);
  * CHERI context management functions.
  */
 void	cheri_exec_setregs(struct thread *td);
+void	cheri_log_cheri_frame(struct cheri_frame *cheriframe);
 void	cheri_log_exception(struct trapframe *frame, int trap_type);
 void	cheri_log_exception_registers(struct trapframe *frame);
 int	cheri_syscall_authorize(struct thread *td, u_int code,
