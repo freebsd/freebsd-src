@@ -415,7 +415,7 @@ elf_osabi(unsigned int abi)
 
 	switch(abi) {
 	case ELFOSABI_SYSV: return "SYSV";
-	case ELFOSABI_HPUX: return "HPUS";
+	case ELFOSABI_HPUX: return "HPUX";
 	case ELFOSABI_NETBSD: return "NetBSD";
 	case ELFOSABI_GNU: return "GNU";
 	case ELFOSABI_HURD: return "HURD";
