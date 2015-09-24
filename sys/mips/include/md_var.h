@@ -46,6 +46,10 @@ extern	int	szsigcode;
 extern	char	sigcode32[];
 extern	int	szsigcode32;
 #endif
+#ifdef COMPAT_CHERIABI
+extern	char	cheri_sigcode[];
+extern	int	szcheri_sigcode;
+#endif
 extern	uint32_t *vm_page_dump;
 extern	int vm_page_dump_size;
 

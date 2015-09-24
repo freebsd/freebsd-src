@@ -53,6 +53,12 @@ struct sigevent_c {
 	} _sigev_un;
 };
 
+typedef struct {
+	struct chericap ss_sp;
+	size_t		ss_size;
+	int		ss_flag;
+} cheriabi_stack_t;
+
 struct sigevent;
 int convert_sigevent_c(struct sigevent_c *sig_c, struct sigevent *sig);
 void siginfo_to_siginfo_c(const siginfo_t *src, struct siginfo_c *dst);

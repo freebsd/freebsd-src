@@ -712,3 +712,22 @@ szsigcode32:
 	.long	esigcode32-sigcode32
 	.text
 #endif
+
+#ifdef COMPAT_CHERIABI
+	.globl	_C_LABEL(cheri_sigcode)
+_C_LABEL(cheri_sigcode):
+	PTR_ADDU	a0, sp, SIGF_C_UC	# address of ucontext
+	csetoffset	$c3, $c11, a0
+	li		v0, SYS_sigreturn
+# sigreturn (ucp)
+	syscall
+	break	0				# just in case sigreturn fails
+	.globl	_C_LABEL(echeri_sigcode)
+_C_LABEL(echeri_sigcode):
+
+	.data
+	.globl	szcheri_sigcode
+szcheri_sigcode:
+	.long	echeri_sigcode-cheri_sigcode
+	.text
+#endif
