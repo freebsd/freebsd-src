@@ -1283,6 +1283,17 @@ struct scsi_rw_16
 	u_int8_t control;
 };
 
+struct scsi_write_atomic_16
+{
+	uint8_t	opcode;
+	uint8_t	byte2;
+	uint8_t	addr[8];
+	uint8_t	boundary[2];
+	uint8_t	length[2];
+	uint8_t	group;
+	uint8_t	control;
+};
+
 struct scsi_write_same_10
 {
 	uint8_t	opcode;
@@ -2757,7 +2768,8 @@ struct scsi_vpd_block_limits
 	u_int8_t max_atomic_transfer_length[4];
 	u_int8_t atomic_alignment[4];
 	u_int8_t atomic_transfer_length_granularity[4];
-	u_int8_t reserved2[8];
+	u_int8_t max_atomic_transfer_length_with_atomic_boundary[4];
+	u_int8_t max_atomic_boundary_size[4];
 };
 
 struct scsi_read_capacity
