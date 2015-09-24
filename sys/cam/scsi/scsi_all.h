@@ -2864,6 +2864,9 @@ struct scsi_report_luns
 #define	RPL_REPORT_DEFAULT	0x00
 #define	RPL_REPORT_WELLKNOWN	0x01
 #define	RPL_REPORT_ALL		0x02
+#define	RPL_REPORT_ADMIN	0x10
+#define	RPL_REPORT_NONSUBSID	0x11
+#define	RPL_REPORT_CONGLOM	0x12
 	uint8_t select_report;
 	uint8_t reserved2[3];
 	uint8_t length[4];
