@@ -141,7 +141,7 @@ main(int argc, char **argv)
 			ranlib_usage();
 
 		bsdar->options |= AR_S;
-		for (;(bsdar->filename = *argv++) != NULL;)
+		while ((bsdar->filename = *argv++) != NULL)
 			ar_mode_s(bsdar);
 
 		exit(EX_OK);
