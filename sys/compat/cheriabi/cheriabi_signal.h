@@ -15,8 +15,7 @@ struct siginfo_c {
 	__pid_t		si_pid;
 	__uid_t		si_uid;
 	int		si_status;
-	uintptr_t	si_addr;	/* PCC relative offset of faulting */
-					/* instruction */
+	struct chericap	si_addr;	/* faulting instruction */
 	union sigval_c	si_value;
 	union   {
 		struct {

@@ -968,8 +968,11 @@ siginfo_to_siginfo_c(const siginfo_t *src, struct siginfo_c *dst)
 	dst->si_pid = src->si_pid;
 	dst->si_uid = src->si_uid;
 	dst->si_status = src->si_status;
-	/* XXX: Should be pcc relative.  Code assumes pcc is default ddc */
-	dst->si_addr = (uintptr_t)src->si_addr;
+	/*
+	 * XXX: should copy out something related to src->si_addr, but
+	 * what?  Presumably not a valid pointer to a faulting address.
+	 */
+	cheri_capability_set_null(&dst->si_addr);
 	dst->si_value.sival_int = src->si_value.sival_int;
 	dst->si_timerid = src->si_timerid;
 	dst->si_overrun = src->si_overrun;
