@@ -1002,6 +1002,16 @@ struct scsi_read_buffer
         u_int8_t control;
 };
 
+struct scsi_read_buffer_16
+{
+	uint8_t opcode;
+	uint8_t byte2;
+	uint8_t offset[8];
+	uint8_t length[4];
+	uint8_t buffer_id;
+	uint8_t control;
+};
+
 struct scsi_write_buffer
 {
 	u_int8_t opcode;
@@ -1271,6 +1281,17 @@ struct scsi_rw_16
 	u_int8_t length[4];
 	u_int8_t reserved;
 	u_int8_t control;
+};
+
+struct scsi_write_atomic_16
+{
+	uint8_t	opcode;
+	uint8_t	byte2;
+	uint8_t	addr[8];
+	uint8_t	boundary[2];
+	uint8_t	length[2];
+	uint8_t	group;
+	uint8_t	control;
 };
 
 struct scsi_write_same_10
@@ -1988,6 +2009,7 @@ struct ata_pass_16 {
 #define	VERIFY_16		0x8F
 #define	SYNCHRONIZE_CACHE_16	0x91
 #define	WRITE_SAME_16		0x93
+#define	READ_BUFFER_16		0x9B
 #define	WRITE_ATOMIC_16		0x9C
 #define	SERVICE_ACTION_IN	0x9E
 #define	REPORT_LUNS		0xA0
@@ -2746,7 +2768,8 @@ struct scsi_vpd_block_limits
 	u_int8_t max_atomic_transfer_length[4];
 	u_int8_t atomic_alignment[4];
 	u_int8_t atomic_transfer_length_granularity[4];
-	u_int8_t reserved2[8];
+	u_int8_t max_atomic_transfer_length_with_atomic_boundary[4];
+	u_int8_t max_atomic_boundary_size[4];
 };
 
 struct scsi_read_capacity
@@ -2841,6 +2864,9 @@ struct scsi_report_luns
 #define	RPL_REPORT_DEFAULT	0x00
 #define	RPL_REPORT_WELLKNOWN	0x01
 #define	RPL_REPORT_ALL		0x02
+#define	RPL_REPORT_ADMIN	0x10
+#define	RPL_REPORT_NONSUBSID	0x11
+#define	RPL_REPORT_CONGLOM	0x12
 	uint8_t select_report;
 	uint8_t reserved2[3];
 	uint8_t length[4];

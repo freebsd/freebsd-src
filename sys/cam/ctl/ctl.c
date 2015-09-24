@@ -611,6 +611,14 @@ alloc:
 	ctl_ha_msg_send(CTL_HA_CHAN_CTL, &msg->port, sizeof(msg->port) + i,
 	    M_WAITOK);
 	free(msg, M_CTL);
+
+	if (lun->flags & CTL_LUN_PRIMARY_SC) {
+		for (i = 0; i < CTL_NUM_MODE_PAGES; i++) {
+			ctl_isc_announce_mode(lun, -1,
+			    lun->mode_pages.index[i].page_code & SMPH_PC_MASK,
+			    lun->mode_pages.index[i].subpage);
+		}
+	}
 }
 
 void
@@ -710,12 +718,56 @@ ctl_isc_announce_iid(struct ctl_port *port, int iid)
 	free(msg, M_CTL);
 }
 
+void
+ctl_isc_announce_mode(struct ctl_lun *lun, uint32_t initidx,
+    uint8_t page, uint8_t subpage)
+{
+	struct ctl_softc *softc = lun->ctl_softc;
+	union ctl_ha_msg msg;
+	int i;
+
+	if (softc->ha_link != CTL_HA_LINK_ONLINE)
+		return;
+	for (i = 0; i < CTL_NUM_MODE_PAGES; i++) {
+		if ((lun->mode_pages.index[i].page_code & SMPH_PC_MASK) ==
+		    page && lun->mode_pages.index[i].subpage == subpage)
+			break;
+	}
+	if (i == CTL_NUM_MODE_PAGES)
+		return;
+	bzero(&msg.mode, sizeof(msg.mode));
+	msg.hdr.msg_type = CTL_MSG_MODE_SYNC;
+	msg.hdr.nexus.targ_port = initidx / CTL_MAX_INIT_PER_PORT;
+	msg.hdr.nexus.initid = initidx % CTL_MAX_INIT_PER_PORT;
+	msg.hdr.nexus.targ_lun = lun->lun;
+	msg.hdr.nexus.targ_mapped_lun = lun->lun;
+	msg.mode.page_code = page;
+	msg.mode.subpage = subpage;
+	msg.mode.page_len = lun->mode_pages.index[i].page_len;
+	memcpy(msg.mode.data, lun->mode_pages.index[i].page_data,
+	    msg.mode.page_len);
+	ctl_ha_msg_send(CTL_HA_CHAN_CTL, &msg.mode, sizeof(msg.mode),
+	    M_WAITOK);
+}
+
 static void
 ctl_isc_ha_link_up(struct ctl_softc *softc)
 {
 	struct ctl_port *port;
 	struct ctl_lun *lun;
+	union ctl_ha_msg msg;
 	int i;
+
+	/* Announce this node parameters to peer for validation. */
+	msg.login.msg_type = CTL_MSG_LOGIN;
+	msg.login.version = CTL_HA_VERSION;
+	msg.login.ha_mode = softc->ha_mode;
+	msg.login.ha_id = softc->ha_id;
+	msg.login.max_luns = CTL_MAX_LUNS;
+	msg.login.max_ports = CTL_MAX_PORTS;
+	msg.login.max_init_per_port = CTL_MAX_INIT_PER_PORT;
+	ctl_ha_msg_send(CTL_HA_CHAN_CTL, &msg.login, sizeof(msg.login),
+	    M_WAITOK);
 
 	STAILQ_FOREACH(port, &softc->port_list, links) {
 		ctl_isc_announce_port(port);
@@ -999,6 +1051,74 @@ ctl_isc_iid_sync(struct ctl_softc *softc, union ctl_ha_msg *msg, int len)
 		port->wwpn_iid[iid].name = NULL;
 }
 
+static void
+ctl_isc_login(struct ctl_softc *softc, union ctl_ha_msg *msg, int len)
+{
+
+	if (msg->login.version != CTL_HA_VERSION) {
+		printf("CTL HA peers have different versions %d != %d\n",
+		    msg->login.version, CTL_HA_VERSION);
+		ctl_ha_msg_abort(CTL_HA_CHAN_CTL);
+		return;
+	}
+	if (msg->login.ha_mode != softc->ha_mode) {
+		printf("CTL HA peers have different ha_mode %d != %d\n",
+		    msg->login.ha_mode, softc->ha_mode);
+		ctl_ha_msg_abort(CTL_HA_CHAN_CTL);
+		return;
+	}
+	if (msg->login.ha_id == softc->ha_id) {
+		printf("CTL HA peers have same ha_id %d\n", msg->login.ha_id);
+		ctl_ha_msg_abort(CTL_HA_CHAN_CTL);
+		return;
+	}
+	if (msg->login.max_luns != CTL_MAX_LUNS ||
+	    msg->login.max_ports != CTL_MAX_PORTS ||
+	    msg->login.max_init_per_port != CTL_MAX_INIT_PER_PORT) {
+		printf("CTL HA peers have different limits\n");
+		ctl_ha_msg_abort(CTL_HA_CHAN_CTL);
+		return;
+	}
+}
+
+static void
+ctl_isc_mode_sync(struct ctl_softc *softc, union ctl_ha_msg *msg, int len)
+{
+	struct ctl_lun *lun;
+	int i;
+	uint32_t initidx, targ_lun;
+
+	targ_lun = msg->hdr.nexus.targ_mapped_lun;
+	mtx_lock(&softc->ctl_lock);
+	if ((targ_lun >= CTL_MAX_LUNS) ||
+	    ((lun = softc->ctl_luns[targ_lun]) == NULL)) {
+		mtx_unlock(&softc->ctl_lock);
+		return;
+	}
+	mtx_lock(&lun->lun_lock);
+	mtx_unlock(&softc->ctl_lock);
+	if (lun->flags & CTL_LUN_DISABLED) {
+		mtx_unlock(&lun->lun_lock);
+		return;
+	}
+	for (i = 0; i < CTL_NUM_MODE_PAGES; i++) {
+		if ((lun->mode_pages.index[i].page_code & SMPH_PC_MASK) ==
+		    msg->mode.page_code &&
+		    lun->mode_pages.index[i].subpage == msg->mode.subpage)
+			break;
+	}
+	if (i == CTL_NUM_MODE_PAGES) {
+		mtx_unlock(&lun->lun_lock);
+		return;
+	}
+	memcpy(lun->mode_pages.index[i].page_data, msg->mode.data,
+	    lun->mode_pages.index[i].page_len);
+	initidx = ctl_get_initindex(&msg->hdr.nexus);
+	if (initidx != -1)
+		ctl_est_ua_all(lun, initidx, CTL_UA_MODE_CHANGE);
+	mtx_unlock(&lun->lun_lock);
+}
+
 /*
  * ISC (Inter Shelf Communication) event handler.  Events from the HA
  * subsystem come in here.
@@ -1275,9 +1395,16 @@ ctl_isc_event_handler(ctl_ha_channel channel, ctl_ha_event event, int param)
 		case CTL_MSG_IID_SYNC:
 			ctl_isc_iid_sync(softc, msg, param);
 			break;
+		case CTL_MSG_LOGIN:
+			ctl_isc_login(softc, msg, param);
+			break;
+		case CTL_MSG_MODE_SYNC:
+			ctl_isc_mode_sync(softc, msg, param);
+			break;
 		default:
 			printf("Received HA message of unknown type %d\n",
 			    msg->hdr.msg_type);
+			ctl_ha_msg_abort(CTL_HA_CHAN_CTL);
 			break;
 		}
 		if (msg != &msgbuf)
@@ -5483,20 +5610,43 @@ bailout:
 int
 ctl_read_buffer(struct ctl_scsiio *ctsio)
 {
-	struct scsi_read_buffer *cdb;
 	struct ctl_lun *lun;
-	int buffer_offset, len;
+	uint64_t buffer_offset;
+	uint32_t len;
+	uint8_t byte2;
 	static uint8_t descr[4];
 	static uint8_t echo_descr[4] = { 0 };
 
 	CTL_DEBUG_PRINT(("ctl_read_buffer\n"));
-
 	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
-	cdb = (struct scsi_read_buffer *)ctsio->cdb;
+	switch (ctsio->cdb[0]) {
+	case READ_BUFFER: {
+		struct scsi_read_buffer *cdb;
 
-	if ((cdb->byte2 & RWB_MODE) != RWB_MODE_DATA &&
-	    (cdb->byte2 & RWB_MODE) != RWB_MODE_ECHO_DESCR &&
-	    (cdb->byte2 & RWB_MODE) != RWB_MODE_DESCR) {
+		cdb = (struct scsi_read_buffer *)ctsio->cdb;
+		buffer_offset = scsi_3btoul(cdb->offset);
+		len = scsi_3btoul(cdb->length);
+		byte2 = cdb->byte2;
+		break;
+	}
+	case READ_BUFFER_16: {
+		struct scsi_read_buffer_16 *cdb;
+
+		cdb = (struct scsi_read_buffer_16 *)ctsio->cdb;
+		buffer_offset = scsi_8btou64(cdb->offset);
+		len = scsi_4btoul(cdb->length);
+		byte2 = cdb->byte2;
+		break;
+	}
+	default: /* This shouldn't happen. */
+		ctl_set_invalid_opcode(ctsio);
+		ctl_done((union ctl_io *)ctsio);
+		return (CTL_RETVAL_COMPLETE);
+	}
+
+	if ((byte2 & RWB_MODE) != RWB_MODE_DATA &&
+	    (byte2 & RWB_MODE) != RWB_MODE_ECHO_DESCR &&
+	    (byte2 & RWB_MODE) != RWB_MODE_DESCR) {
 		ctl_set_invalid_field(ctsio,
 				      /*sks_valid*/ 1,
 				      /*command*/ 1,
@@ -5507,10 +5657,8 @@ ctl_read_buffer(struct ctl_scsiio *ctsio)
 		return (CTL_RETVAL_COMPLETE);
 	}
 
-	len = scsi_3btoul(cdb->length);
-	buffer_offset = scsi_3btoul(cdb->offset);
-
-	if (buffer_offset + len > CTL_WRITE_BUFFER_SIZE) {
+	if (buffer_offset > CTL_WRITE_BUFFER_SIZE ||
+	    buffer_offset + len > CTL_WRITE_BUFFER_SIZE) {
 		ctl_set_invalid_field(ctsio,
 				      /*sks_valid*/ 1,
 				      /*command*/ 1,
@@ -5521,12 +5669,12 @@ ctl_read_buffer(struct ctl_scsiio *ctsio)
 		return (CTL_RETVAL_COMPLETE);
 	}
 
-	if ((cdb->byte2 & RWB_MODE) == RWB_MODE_DESCR) {
+	if ((byte2 & RWB_MODE) == RWB_MODE_DESCR) {
 		descr[0] = 0;
 		scsi_ulto3b(CTL_WRITE_BUFFER_SIZE, &descr[1]);
 		ctsio->kern_data_ptr = descr;
 		len = min(len, sizeof(descr));
-	} else if ((cdb->byte2 & RWB_MODE) == RWB_MODE_ECHO_DESCR) {
+	} else if ((byte2 & RWB_MODE) == RWB_MODE_ECHO_DESCR) {
 		ctsio->kern_data_ptr = echo_descr;
 		len = min(len, sizeof(echo_descr));
 	} else {
@@ -5660,9 +5808,8 @@ ctl_write_same(struct ctl_scsiio *ctsio)
 		break; /* NOTREACHED */
 	}
 
-	/* NDOB and ANCHOR flags can be used only together with UNMAP */
-	if ((byte2 & SWS_UNMAP) == 0 &&
-	    (byte2 & (SWS_NDOB | SWS_ANCHOR)) != 0) {
+	/* ANCHOR flag can be used only together with UNMAP */
+	if ((byte2 & SWS_UNMAP) == 0 && (byte2 & SWS_ANCHOR) != 0) {
 		ctl_set_invalid_field(ctsio, /*sks_valid*/ 1,
 		    /*command*/ 1, /*field*/ 1, /*bit_valid*/ 1, /*bit*/ 0);
 		ctl_done((union ctl_io *)ctsio);
@@ -5906,7 +6053,11 @@ ctl_control_page_handler(struct ctl_scsiio *ctsio,
 	if (set_ua != 0)
 		ctl_est_ua_all(lun, initidx, CTL_UA_MODE_CHANGE);
 	mtx_unlock(&lun->lun_lock);
-
+	if (set_ua) {
+		ctl_isc_announce_mode(lun,
+		    ctl_get_initindex(&ctsio->io_hdr.nexus),
+		    page_index->page_code, page_index->subpage);
+	}
 	return (0);
 }
 
@@ -5943,7 +6094,11 @@ ctl_caching_sp_handler(struct ctl_scsiio *ctsio,
 	if (set_ua != 0)
 		ctl_est_ua_all(lun, initidx, CTL_UA_MODE_CHANGE);
 	mtx_unlock(&lun->lun_lock);
-
+	if (set_ua) {
+		ctl_isc_announce_mode(lun,
+		    ctl_get_initindex(&ctsio->io_hdr.nexus),
+		    page_index->page_code, page_index->subpage);
+	}
 	return (0);
 }
 
@@ -8784,7 +8939,7 @@ ctl_read_write(struct ctl_scsiio *ctsio)
 		break;
 	}
 	case WRITE_ATOMIC_16: {
-		struct scsi_rw_16 *cdb;
+		struct scsi_write_atomic_16 *cdb;
 
 		if (lun->be_lun->atomicblock == 0) {
 			ctl_set_invalid_opcode(ctsio);
@@ -8792,13 +8947,13 @@ ctl_read_write(struct ctl_scsiio *ctsio)
 			return (CTL_RETVAL_COMPLETE);
 		}
 
-		cdb = (struct scsi_rw_16 *)ctsio->cdb;
+		cdb = (struct scsi_write_atomic_16 *)ctsio->cdb;
 		if (cdb->byte2 & SRW12_FUA)
 			flags |= CTL_LLF_FUA;
 		if (cdb->byte2 & SRW12_DPO)
 			flags |= CTL_LLF_DPO;
 		lba = scsi_8btou64(cdb->addr);
-		num_blocks = scsi_4btoul(cdb->length);
+		num_blocks = scsi_2btoul(cdb->length);
 		if (num_blocks > lun->be_lun->atomicblock) {
 			ctl_set_invalid_field(ctsio, /*sks_valid*/ 1,
 			    /*command*/ 1, /*field*/ 12, /*bit_valid*/ 0,
@@ -9109,12 +9264,10 @@ ctl_report_luns(struct ctl_scsiio *ctsio)
 	struct ctl_port *port;
 	int num_luns, retval;
 	uint32_t alloc_len, lun_datalen;
-	int num_filled, well_known;
+	int num_filled;
 	uint32_t initidx, targ_lun_id, lun_id;
 
 	retval = CTL_RETVAL_COMPLETE;
-	well_known = 0;
-
 	cdb = (struct scsi_report_luns *)ctsio->cdb;
 	port = ctl_io_port(&ctsio->io_hdr);
 
@@ -9131,9 +9284,11 @@ ctl_report_luns(struct ctl_scsiio *ctsio)
 	switch (cdb->select_report) {
 	case RPL_REPORT_DEFAULT:
 	case RPL_REPORT_ALL:
+	case RPL_REPORT_NONSUBSID:
 		break;
 	case RPL_REPORT_WELLKNOWN:
-		well_known = 1;
+	case RPL_REPORT_ADMIN:
+	case RPL_REPORT_CONGLOM:
 		num_luns = 0;
 		break;
 	default:
@@ -9992,6 +10147,8 @@ ctl_inquiry_evpd_block_limits(struct ctl_scsiio *ctsio, int alloc_len)
 		    bl_ptr->max_atomic_transfer_length);
 		scsi_ulto4b(0, bl_ptr->atomic_alignment);
 		scsi_ulto4b(0, bl_ptr->atomic_transfer_length_granularity);
+		scsi_ulto4b(0, bl_ptr->max_atomic_transfer_length_with_atomic_boundary);
+		scsi_ulto4b(0, bl_ptr->max_atomic_boundary_size);
 	}
 	scsi_u64to8b(UINT64_MAX, bl_ptr->max_write_same_length);
 
@@ -10491,14 +10648,22 @@ ctl_get_lba_len(union ctl_io *io, uint64_t *lba, uint64_t *len)
 		break;
 	}
 	case READ_16:
-	case WRITE_16:
-	case WRITE_ATOMIC_16: {
+	case WRITE_16: {
 		struct scsi_rw_16 *cdb;
 
 		cdb = (struct scsi_rw_16 *)io->scsiio.cdb;
 
 		*lba = scsi_8btou64(cdb->addr);
 		*len = scsi_4btoul(cdb->length);
+		break;
+	}
+	case WRITE_ATOMIC_16: {
+		struct scsi_write_atomic_16 *cdb;
+
+		cdb = (struct scsi_write_atomic_16 *)io->scsiio.cdb;
+
+		*lba = scsi_8btou64(cdb->addr);
+		*len = scsi_2btoul(cdb->length);
 		break;
 	}
 	case WRITE_VERIFY_16: {
