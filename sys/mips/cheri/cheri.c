@@ -35,6 +35,7 @@
 #include <sys/cheri_serial.h>
 #include <sys/proc.h>
 #include <sys/sysctl.h>
+#include <sys/sysent.h>
 
 #include <ddb/ddb.h>
 #include <sys/kdb.h>
@@ -102,6 +103,8 @@ SYSCTL_UINT(_security_cheri, OID_AUTO, debugger_on_sigprot, CTLFLAG_RW,
 static void	cheri_capability_set_user_c0(struct chericap *);
 static void	cheri_capability_set_user_stack(struct chericap *);
 static void	cheri_capability_set_user_pcc(struct chericap *);
+static void	cheri_capability_set_user_sigcode(struct chericap *,
+		   struct sysentvec *);
 
 /*
  * For now, all we do is declare what we support, as most initialisation took
@@ -261,6 +264,20 @@ cheri_capability_set_user_pcc(struct chericap *cp)
 	    CHERI_CAP_USER_OFFSET);
 }
 
+static void
+cheri_capability_set_user_sigcode(struct chericap *cp, struct sysentvec *se)
+{
+	uintptr_t base;
+	int szsigcode = *se->sv_szsigcode;
+
+	/* XXX: true for mips64 and mip64-cheriabi... */
+	base = (uintptr_t)se->sv_psstrings - szsigcode;
+	base = rounddown2(base, sizeof(struct chericap));
+
+	cheri_capability_set(cp, CHERI_CAP_USER_PERMS, CHERI_CAP_USER_OTYPE,
+	    (void *)base, szsigcode, 0);
+}
+
 void
 cheri_capability_set_null(struct chericap *cp)
 {
@@ -326,6 +343,8 @@ cheri_exec_setregs(struct thread *td)
 	cheri_capability_set_user_stack(&csigp->csig_c11);
 	cheri_capability_set_user_idc(&csigp->csig_idc);
 	cheri_capability_set_user_pcc(&csigp->csig_pcc);
+	cheri_capability_set_user_sigcode(&csigp->csig_sigcode,
+	    td->td_proc->p_sysent);
 }
 
 void

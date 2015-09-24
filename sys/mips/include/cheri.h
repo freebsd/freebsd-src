@@ -165,11 +165,13 @@ struct cheri_signal {
 	__capability void	*csig_c0;
 	__capability void	*csig_c11;
 	__capability void	*csig_idc;
+	__capability void	*csig_sigcode;
 #else
 	struct chericap		 csig_pcc;
 	struct chericap		 csig_c0;
 	struct chericap		 csig_c11;
 	struct chericap		 csig_idc;
+	struct chericap		 csig_sigcode;
 #endif
 };
 
