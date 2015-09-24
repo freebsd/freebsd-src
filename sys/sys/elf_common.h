@@ -238,6 +238,7 @@ typedef struct {
 #define	EM_UNICORE	110	/* Microprocessor series from PKU-Unity Ltd.
 				   and MPRC of Peking University */
 #define	EM_AARCH64	183	/* AArch64 (64-bit ARM) */
+#define	EM_RISCV	243	/* RISC-V */
 
 /* Non-standard or deprecated. */
 #define	EM_486		6	/* Intel i486. */
