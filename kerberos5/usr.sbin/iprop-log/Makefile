@@ -16,9 +16,7 @@ CLEANFILES=	iprop-commands.h iprop-commands.c
 iprop-commands.h: iprop-commands.in
 	${SLC} ${.ALLSRC:M*.in}
 
-.for ext in c o
-iprop-commands.${ext}: iprop-commands.h
-.endfor
+iprop-commands.c: iprop-commands.h
 
 .include <bsd.prog.mk>
 
