@@ -21,6 +21,8 @@ PROGS+=		h_spawnattr
 SCRIPTS=	h_nonexec
 SCRIPTS+=	h_zero
 
+CLEANFILES+=	h_nonexec
+
 .include "../../Makefile.netbsd-tests"
 
 h_zero:

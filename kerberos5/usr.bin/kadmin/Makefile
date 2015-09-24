@@ -31,6 +31,8 @@ DPADD=	${LDAPDPADD}
 LDADD=	${LDAPLDADD}
 LDFLAGS=${LDAPLDFLAGS}
 
+CLEANFILES=	kadmin-commands.h kadmin-commands.c
+
 .include <bsd.prog.mk>
 
 kadmin-commands.h: ${KRB5DIR}/kadmin/kadmin-commands.in
