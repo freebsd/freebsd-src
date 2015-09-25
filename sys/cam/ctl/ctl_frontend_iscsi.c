@@ -174,7 +174,6 @@ static void	cfiscsi_target_release(struct cfiscsi_target *ct);
 static void	cfiscsi_session_delete(struct cfiscsi_session *cs);
 
 static struct cfiscsi_softc cfiscsi_softc;
-extern struct ctl_softc *control_softc;
 
 static struct ctl_frontend cfiscsi_frontend =
 {

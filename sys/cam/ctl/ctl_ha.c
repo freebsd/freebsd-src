@@ -160,8 +160,6 @@ struct ha_softc {
 	TAILQ_HEAD(, ctl_ha_dt_req) ha_dts;
 } ha_softc;
 
-extern struct ctl_softc *control_softc;
-
 static void
 ctl_ha_conn_wake(struct ha_softc *softc)
 {
