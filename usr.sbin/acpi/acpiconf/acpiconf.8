@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 16, 2004
+.Dd June 10, 2014
 .Dt ACPICONF 8
 .Os
 .Sh NAME
@@ -37,6 +37,7 @@
 .Nm
 .Op Fl h
 .Op Fl i Ar batt
+.Op Fl k Ar ack
 .Op Fl s Ar type
 .Sh DESCRIPTION
 The
@@ -49,6 +50,9 @@ The following command-line options are recognized:
 Displays a summary of available options.
 .It Fl i Ar batt
 Get design information about the specified battery.
+.It Fl k Ar ack
+Ack or abort a pending suspend request using the argument provided.
+.Sy Most users should not use this option directly.
 .It Fl s Ar type
 Enters the specified sleep mode.
 Recognized types are
