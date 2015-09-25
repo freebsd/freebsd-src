@@ -160,6 +160,14 @@ cheriabi_wait6(struct thread *td, struct cheriabi_wait6_args *uap)
 	return (error);
 }
 
+int
+cheriabi_sigaltstack(struct thread *td,
+    struct cheriabi_sigaltstack_args *uap)
+{
+
+	return (ENOSYS);
+}
+
 /*
  * Custom version of exec_copyin_args() so that we can translate
  * the pointers.
