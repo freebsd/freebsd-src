@@ -235,11 +235,11 @@ ctl_backend_ramdisk_move_done(union ctl_io *io)
 		CTL_PRIV_BACKEND_LUN].ptr;
 	be_lun = (struct ctl_be_ramdisk_lun *)cbe_lun->be_lun;
 #ifdef CTL_TIME_IO
-	getbintime(&cur_bt);
+	getbinuptime(&cur_bt);
 	bintime_sub(&cur_bt, &io->io_hdr.dma_start_bt);
 	bintime_add(&io->io_hdr.dma_bt, &cur_bt);
-	io->io_hdr.num_dmas++;
 #endif
+	io->io_hdr.num_dmas++;
 	if (io->scsiio.kern_sg_entries > 0)
 		free(io->scsiio.kern_data_ptr, M_RAMDISK);
 	io->scsiio.kern_rel_offset += io->scsiio.kern_data_len;
@@ -339,7 +339,7 @@ ctl_backend_ramdisk_continue(union ctl_io *io)
 	io->io_hdr.flags |= CTL_FLAG_ALLOCATED;
 	io->io_hdr.ctl_private[CTL_PRIV_BACKEND].integer -= len_filled;
 #ifdef CTL_TIME_IO
-	getbintime(&io->io_hdr.dma_start_bt);
+	getbinuptime(&io->io_hdr.dma_start_bt);
 #endif
 	ctl_datamove(io);
 }

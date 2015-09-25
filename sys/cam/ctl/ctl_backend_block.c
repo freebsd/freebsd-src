@@ -405,11 +405,11 @@ ctl_be_block_move_done(union ctl_io *io)
 	DPRINTF("entered\n");
 
 #ifdef CTL_TIME_IO
-	getbintime(&cur_bt);
+	getbinuptime(&cur_bt);
 	bintime_sub(&cur_bt, &io->io_hdr.dma_start_bt);
 	bintime_add(&io->io_hdr.dma_bt, &cur_bt);
+#endif
 	io->io_hdr.num_dmas++;
-#endif  
 	io->scsiio.kern_rel_offset += io->scsiio.kern_data_len;
 
 	/*
@@ -563,8 +563,8 @@ ctl_be_block_biodone(struct bio *bio)
 			ctl_serseq_done(io);
 		}
 #ifdef CTL_TIME_IO
-        	getbintime(&io->io_hdr.dma_start_bt);
-#endif  
+		getbinuptime(&io->io_hdr.dma_start_bt);
+#endif
 		ctl_datamove(io);
 	}
 }
@@ -785,8 +785,8 @@ ctl_be_block_dispatch_file(struct ctl_be_block_lun *be_lun,
 			ctl_serseq_done(io);
 		}
 #ifdef CTL_TIME_IO
-        	getbintime(&io->io_hdr.dma_start_bt);
-#endif  
+		getbinuptime(&io->io_hdr.dma_start_bt);
+#endif
 		ctl_datamove(io);
 	}
 }
@@ -956,8 +956,8 @@ ctl_be_block_dispatch_zvol(struct ctl_be_block_lun *be_lun,
 			ctl_serseq_done(io);
 		}
 #ifdef CTL_TIME_IO
-        	getbintime(&io->io_hdr.dma_start_bt);
-#endif  
+		getbinuptime(&io->io_hdr.dma_start_bt);
+#endif
 		ctl_datamove(io);
 	}
 }
@@ -1663,8 +1663,8 @@ ctl_be_block_dispatch(struct ctl_be_block_lun *be_lun,
 	} else {
 		SDT_PROBE(cbb, kernel, write, alloc_done, 0, 0, 0, 0, 0);
 #ifdef CTL_TIME_IO
-        	getbintime(&io->io_hdr.dma_start_bt);
-#endif  
+		getbinuptime(&io->io_hdr.dma_start_bt);
+#endif
 		ctl_datamove(io);
 	}
 }
