@@ -340,12 +340,10 @@ ctl_backend_ramdisk_continue(union ctl_io *io)
 static void
 ctl_backend_ramdisk_worker(void *context, int pending)
 {
-	struct ctl_be_ramdisk_softc *softc;
 	struct ctl_be_ramdisk_lun *be_lun;
 	union ctl_io *io;
 
 	be_lun = (struct ctl_be_ramdisk_lun *)context;
-	softc = be_lun->softc;
 
 	mtx_lock(&be_lun->queue_lock);
 	for (;;) {
@@ -414,7 +412,6 @@ ctl_backend_ramdisk_rm(struct ctl_be_ramdisk_softc *softc,
 	struct ctl_lun_rm_params *params;
 	int retval;
 
-	retval = 0;
 	params = &req->reqdata.rm;
 	mtx_lock(&softc->lock);
 	STAILQ_FOREACH(be_lun, &softc->lun_list, links) {
@@ -845,12 +842,9 @@ ctl_backend_ramdisk_lun_config_status(void *be_lun,
 static int
 ctl_backend_ramdisk_config_write(union ctl_io *io)
 {
-	struct ctl_be_ramdisk_softc *softc;
 	int retval;
 
 	retval = 0;
-	softc = &rd_softc;
-
 	switch (io->scsiio.cdb[0]) {
 	case SYNCHRONIZE_CACHE:
 	case SYNCHRONIZE_CACHE_16:
@@ -875,13 +869,11 @@ ctl_backend_ramdisk_config_write(union ctl_io *io)
 	case START_STOP_UNIT: {
 		struct scsi_start_stop_unit *cdb;
 		struct ctl_be_lun *cbe_lun;
-		struct ctl_be_ramdisk_lun *be_lun;
 
 		cdb = (struct scsi_start_stop_unit *)io->scsiio.cdb;
 
 		cbe_lun = (struct ctl_be_lun *)io->io_hdr.ctl_private[
 			CTL_PRIV_BACKEND_LUN].ptr;
-		be_lun = (struct ctl_be_ramdisk_lun *)cbe_lun->be_lun;
 
 		if (cdb->how & SSS_START)
 			retval = ctl_start_lun(cbe_lun);

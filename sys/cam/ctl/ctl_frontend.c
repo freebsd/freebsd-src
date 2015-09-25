@@ -145,8 +145,6 @@ ctl_port_register(struct ctl_port *port)
 	int port_num;
 	int retval;
 
-	retval = 0;
-
 	KASSERT(softc != NULL, ("CTL is not initialized"));
 	port->ctl_softc = softc;
 

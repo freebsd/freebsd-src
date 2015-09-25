@@ -142,10 +142,6 @@ tpcl_datamove(union ctl_io *io)
 	struct ctl_scsiio *ctsio;
 	int i, j;
 
-	ext_sg_start = 0;
-	ext_offset = 0;
-	ext_sglist = NULL;
-
 	CTL_DEBUG_PRINT(("%s\n", __func__));
 
 	ctsio = &io->scsiio;

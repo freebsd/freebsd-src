@@ -606,10 +606,7 @@ ctl_set_invalid_field(struct ctl_scsiio *ctsio, int sks_valid, int command,
 void
 ctl_set_invalid_opcode(struct ctl_scsiio *ctsio)
 {
-	struct scsi_sense_data *sense;
 	uint8_t sks[3];
-
-	sense = &ctsio->sense_data;
 
 	sks[0] = SSD_SCS_VALID | SSD_FIELDPTR_CMD;
 	scsi_ulto2b(0, &sks[1]);
