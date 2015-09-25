@@ -136,7 +136,6 @@ cfcs_init(void)
 	int retval;
 
 	softc = &cfcs_softc;
-	retval = 0;
 	bzero(softc, sizeof(*softc));
 	mtx_init(&softc->lock, "ctl2cam", NULL, MTX_DEF);
 	port = &softc->port;
