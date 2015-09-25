@@ -1,3 +1,4 @@
+.if !${.TARGETS:Mbuild-tools}
 .if defined(NEED_CHERI)
 .if ${MK_CHERI} == "no"
 .error NEED_CHERI defined, but CHERI is not enabled
@@ -40,5 +41,6 @@ CFLAGS+=	${_CHERI_CFLAGS}
 # Don't remove CHERI symbols from the symbol table
 STRIP_FLAGS+=	-w --keep-symbol=__cheri_callee_method.\* \
 		--keep-symbol=__cheri_method.\*
+.endif
 .endif
 .endif
