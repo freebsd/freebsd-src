@@ -2,7 +2,7 @@
 # $FreeBSD$
 #
 
-NEED_CHERI=	pure
+NEED_CHERI=	sandbox
 
 .include <src.opts.mk>
 

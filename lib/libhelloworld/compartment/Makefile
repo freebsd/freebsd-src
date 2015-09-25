@@ -9,7 +9,7 @@ LDFLAGS+=	-Wl,--script=${.CURDIR}/../../libc_cheri/sandbox.ld \
 
 LIBADD=	c_cheri
 
-NEED_CHERI=pure
+NEED_CHERI=sandbox
 WANT_DUMP=yes
 PROG=	${COMPARTMENT_NAME}.co.0
 SRCS=	${COMPARTMENT_NAME}.c

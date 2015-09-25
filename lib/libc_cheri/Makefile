@@ -248,7 +248,7 @@ INCS=
 NO_MAN=		yes
 .undef SHLIB_MAJOR
 MK_PROFILE=	no
-NEED_CHERI=	pure
+NEED_CHERI=	sandbox
 WARNS?= 2
 
 NO_WERROR=	yes

@@ -3,8 +3,8 @@
 .if ${MK_CHERI} == "no"
 .error NEED_CHERI defined, but CHERI is not enabled
 .endif
-.if ${NEED_CHERI} != "hybrid" && ${NEED_CHERI} != "pure"
-.error NEED_CHERI must be 'hybrid' or 'pure'
+.if ${NEED_CHERI} != "hybrid" && ${NEED_CHERI} != "pure" && ${NEED_CHERI} != "sandbox"
+.error NEED_CHERI must be 'hybrid', 'pure', or 'sandbox'
 .endif
 .if defined(WHAT_CHERI)
 .error WANT_CHERI should not be defined in NEED_CHERI is
@@ -26,7 +26,7 @@ _CHERI_CC=	${CHERI_CC} -integrated-as --target=cheri-unknown-freebsd \
 _CHERI_CC+=	--sysroot=${SYSROOT}
 .endif
 
-.if ${WANT_CHERI} == "pure"
+.if ${WANT_CHERI} == "pure" || ${WANT_CHERI} == "sandbox"
 _CHERI_CC+=    -mabi=sandbox
 LIBDIR:=	/usr/libcheri
 .endif

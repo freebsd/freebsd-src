@@ -5,7 +5,7 @@ SRCS=	readpng-cheri.c				\
 	execve.S				\
 	sysarch.S
 
-NEED_CHERI=	pure
+NEED_CHERI=	sandbox
 WANT_DUMP=	yes
 
 .PATH: ${.CURDIR}/../../lib/libimagebox
