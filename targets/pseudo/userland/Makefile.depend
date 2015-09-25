@@ -6,8 +6,6 @@
 .include <src.opts.mk>
 .endif
 
-DEP_RELDIR := ${_PARSEDIR:S,${SRCTOP}/,,}
-
 DIRDEPS=
 .if ${MK_MANDOCDB} == "no"
 DIRDEPS+= usr.bin/makewhatis
