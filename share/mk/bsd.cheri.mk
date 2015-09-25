@@ -30,6 +30,11 @@ _CHERI_CC+=	--sysroot=${SYSROOT}
 _CHERI_CC+=    -mabi=sandbox
 LIBDIR:=	/usr/libcheri
 .endif
+
+.if ${WANT_CHERI} == "pure" && defined(__BSD_PROG_MK)
+LIBADD+=	c malloc_simple
+.endif
+
 .if ${MK_CHERI128} == "yes"
 _CHERI_CC+=	-mllvm -cheri128
 # XXX: Needed as Clang rejects -mllvm -cheri128 when using $CC to link.
