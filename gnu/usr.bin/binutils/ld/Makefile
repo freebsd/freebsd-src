@@ -1,5 +1,6 @@
 # $FreeBSD$
 
+ELF_SCR_EXT=	x xbn xc xd xdc xdw xn xr xs xsc xsw xu xw
 .include "../Makefile.inc0"
 .include <src.opts.mk>
 
@@ -50,7 +51,6 @@ FILESDIR=	${SCRIPTDIR}
 
 HOST=		${TARGET_TUPLE}
 LIBSEARCHPATH=	\"${TOOLS_PREFIX}/lib\":\"${TOOLS_PREFIX}/usr/lib\"
-ELF_SCR_EXT=	x xbn xc xd xdc xdw xn xr xs xsc xsw xu xw
 .for ext in ${ELF_SCR_EXT}
 LDSCRIPTS+=	${NATIVE_EMULATION}.${ext}
 .endfor
