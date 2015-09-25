@@ -66,7 +66,7 @@ struct kevent_c {
 
 struct iovec_c {
 	struct chericap	iov_base;
-	int		iov_len;
+	size_t		iov_len;
 };
 
 struct msghdr_c {
