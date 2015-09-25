@@ -424,7 +424,7 @@ static int ctl_check_blocked(struct ctl_lun *lun);
 static int ctl_scsiio_lun_check(struct ctl_lun *lun,
 				const struct ctl_cmd_entry *entry,
 				struct ctl_scsiio *ctsio);
-static void ctl_failover_lun(struct ctl_lun *lun);
+static void ctl_failover_lun(union ctl_io *io);
 static int ctl_scsiio_precheck(struct ctl_softc *ctl_softc,
 			       struct ctl_scsiio *ctsio);
 static int ctl_scsiio(struct ctl_scsiio *ctsio);
@@ -11199,12 +11199,31 @@ ctl_failover_io(union ctl_io *io, int have_lock)
 }
 
 static void
-ctl_failover_lun(struct ctl_lun *lun)
+ctl_failover_lun(union ctl_io *rio)
 {
-	struct ctl_softc *softc = lun->ctl_softc;
+	struct ctl_softc *softc = control_softc;
+	struct ctl_lun *lun;
 	struct ctl_io_hdr *io, *next_io;
+	uint32_t targ_lun;
 
-	CTL_DEBUG_PRINT(("FAILOVER for lun %ju\n", lun->lun));
+	targ_lun = rio->io_hdr.nexus.targ_mapped_lun;
+	CTL_DEBUG_PRINT(("FAILOVER for lun %ju\n", targ_lun));
+
+	/* Find and lock the LUN. */
+	mtx_lock(&softc->ctl_lock);
+	if ((targ_lun < CTL_MAX_LUNS) &&
+	    ((lun = softc->ctl_luns[targ_lun]) != NULL)) {
+		mtx_lock(&lun->lun_lock);
+		mtx_unlock(&softc->ctl_lock);
+		if (lun->flags & CTL_LUN_DISABLED) {
+			mtx_unlock(&lun->lun_lock);
+			return;
+		}
+	} else {
+		mtx_unlock(&softc->ctl_lock);
+		return;
+	}
+
 	if (softc->ha_mode == CTL_HA_MODE_XFER) {
 		TAILQ_FOREACH_SAFE(io, &lun->ooa_queue, ooa_links, next_io) {
 			/* We are master */
@@ -11262,6 +11281,7 @@ ctl_failover_lun(struct ctl_lun *lun)
 		}
 		ctl_check_blocked(lun);
 	}
+	mtx_unlock(&lun->lun_lock);
 }
 
 static int
@@ -12194,9 +12214,7 @@ ctl_handle_isc(union ctl_io *io)
 		io->scsiio.be_move_done(io);
 		break;
 	case CTL_MSG_FAILOVER:
-		mtx_lock(&lun->lun_lock);
-		ctl_failover_lun(lun);
-		mtx_unlock(&lun->lun_lock);
+		ctl_failover_lun(io);
 		free_io = 1;
 		break;
 	default:
