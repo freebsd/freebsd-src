@@ -223,8 +223,8 @@ struct ctl_io_hdr {
 	struct bintime	  start_bt;	/* Timer start ticks */
 	struct bintime	  dma_start_bt;	/* DMA start ticks */
 	struct bintime	  dma_bt;	/* DMA total ticks */
-	uint32_t	  num_dmas;	/* Number of DMAs */
 #endif /* CTL_TIME_IO */
+	uint32_t	  num_dmas;	/* Number of DMAs */
 	union ctl_io	  *original_sc;
 	union ctl_io	  *serializing_sc;
 	void		  *pool;	/* I/O pool */
