@@ -16,6 +16,7 @@ _ppc32_path=	\"${TOOLS_PREFIX}/usr/lib32\"
 EMS+=		${PPC32_EMULATION}
 .for ext in ${ELF_SCR_EXT}
 LDSCRIPTS+=	${PPC32_EMULATION}.${ext}
+ldscripts/${PPC32_EMULATION}.${ext}: e${PPC32_EMULATION}.c
 .endfor
 
 SRCS+=		e${PPC32_EMULATION}.c
