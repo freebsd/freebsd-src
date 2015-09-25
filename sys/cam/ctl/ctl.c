@@ -10776,7 +10776,7 @@ ctl_check_for_blockage(struct ctl_lun *lun, union ctl_io *pending_io,
     union ctl_io *ooa_io)
 {
 	const struct ctl_cmd_entry *pending_entry, *ooa_entry;
-	ctl_serialize_action *serialize_row;
+	const ctl_serialize_action *serialize_row;
 
 	/*
 	 * The initiator attempted multiple untagged commands at the same
