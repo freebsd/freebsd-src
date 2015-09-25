@@ -343,11 +343,11 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 1;
 		break;
 	}
-	/* sigaltstack */
+	/* cheriabi_sigaltstack */
 	case 53: {
-		struct sigaltstack_args *p = params;
-		uarg[0] = (intptr_t) p->ss; /* stack_t * */
-		uarg[1] = (intptr_t) p->oss; /* stack_t * */
+		struct cheriabi_sigaltstack_args *p = params;
+		uarg[0] = (intptr_t) p->ss; /* cheriabi_stack_t * */
+		uarg[1] = (intptr_t) p->oss; /* cheriabi_stack_t * */
 		*n_args = 2;
 		break;
 	}
@@ -3637,14 +3637,14 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* sigaltstack */
+	/* cheriabi_sigaltstack */
 	case 53:
 		switch(ndx) {
 		case 0:
-			p = "stack_t *";
+			p = "cheriabi_stack_t *";
 			break;
 		case 1:
-			p = "stack_t *";
+			p = "cheriabi_stack_t *";
 			break;
 		default:
 			break;
@@ -8505,7 +8505,7 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* sigaltstack */
+	/* cheriabi_sigaltstack */
 	case 53:
 		if (ndx == 0 || ndx == 1)
 			p = "int";

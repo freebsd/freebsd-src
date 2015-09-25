@@ -59,7 +59,7 @@
 #define	CHERIABI_SYS_setlogin	50
 #define	CHERIABI_SYS_acct	51
 				/* 52 is obsolete sigpending */
-#define	CHERIABI_SYS_sigaltstack	53
+#define	CHERIABI_SYS_cheriabi_sigaltstack	53
 #define	CHERIABI_SYS_cheriabi_ioctl	54
 #define	CHERIABI_SYS_reboot	55
 #define	CHERIABI_SYS_revoke	56

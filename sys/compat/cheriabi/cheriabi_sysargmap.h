@@ -105,7 +105,7 @@ struct {
 	[CHERIABI_SYS_acct] = {
 		.sam_ptrmask = 0x1
 	},
-	[CHERIABI_SYS_sigaltstack] = {
+	[CHERIABI_SYS_cheriabi_sigaltstack] = {
 		.sam_ptrmask = 0x1 | 0x2
 	},
 	[CHERIABI_SYS_cheriabi_ioctl] = {

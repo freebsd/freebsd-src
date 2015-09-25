@@ -47,6 +47,10 @@ struct cheriabi_sendmsg_args {
 	char msg_l_[PADL_(struct msghdr_c *)]; struct msghdr_c * msg; char msg_r_[PADR_(struct msghdr_c *)];
 	char flags_l_[PADL_(int)]; int flags; char flags_r_[PADR_(int)];
 };
+struct cheriabi_sigaltstack_args {
+	char ss_l_[PADL_(cheriabi_stack_t *)]; cheriabi_stack_t * ss; char ss_r_[PADR_(cheriabi_stack_t *)];
+	char oss_l_[PADL_(cheriabi_stack_t *)]; cheriabi_stack_t * oss; char oss_r_[PADR_(cheriabi_stack_t *)];
+};
 struct cheriabi_ioctl_args {
 	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
 	char com_l_[PADL_(u_long)]; u_long com; char com_r_[PADR_(u_long)];
@@ -252,6 +256,7 @@ struct cheriabi_aio_mlock_args {
 #endif
 int	cheriabi_recvmsg(struct thread *, struct cheriabi_recvmsg_args *);
 int	cheriabi_sendmsg(struct thread *, struct cheriabi_sendmsg_args *);
+int	cheriabi_sigaltstack(struct thread *, struct cheriabi_sigaltstack_args *);
 int	cheriabi_ioctl(struct thread *, struct cheriabi_ioctl_args *);
 int	cheriabi_execve(struct thread *, struct cheriabi_execve_args *);
 int	cheriabi_readv(struct thread *, struct cheriabi_readv_args *);
@@ -331,6 +336,7 @@ int	cheriabi_aio_mlock(struct thread *, struct cheriabi_aio_mlock_args *);
 
 #define	CHERIABI_SYS_AUE_cheriabi_recvmsg	AUE_RECVMSG
 #define	CHERIABI_SYS_AUE_cheriabi_sendmsg	AUE_SENDMSG
+#define	CHERIABI_SYS_AUE_cheriabi_sigaltstack	AUE_SIGALTSTACK
 #define	CHERIABI_SYS_AUE_cheriabi_ioctl	AUE_NULL
 #define	CHERIABI_SYS_AUE_cheriabi_execve	AUE_EXECVE
 #define	CHERIABI_SYS_AUE_cheriabi_readv	AUE_READV
