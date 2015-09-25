@@ -1132,7 +1132,7 @@ valid_iscsi_name(const char *name)
 		}
 	} else {
 		log_warnx("invalid target name \"%s\"; should start with "
-		    "either \".iqn\", \"eui.\", or \"naa.\"",
+		    "either \"iqn.\", \"eui.\", or \"naa.\"",
 		    name);
 	}
 	return (true);
