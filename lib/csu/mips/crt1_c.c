@@ -80,9 +80,8 @@ extern struct capreloc __stop___cap_relocs;
 static void
 crt_init_globals()
 {
-	struct capreloc *start = &__start___cap_relocs;
-	struct capreloc *end = &__stop___cap_relocs;
 	void *gdc = __builtin_memcap_global_data_get();
+
 	for (struct capreloc *reloc = &__start___cap_relocs ;
 	     reloc < &__stop___cap_relocs ; reloc++)
 	{
