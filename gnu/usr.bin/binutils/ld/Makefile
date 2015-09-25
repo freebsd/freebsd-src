@@ -53,6 +53,7 @@ HOST=		${TARGET_TUPLE}
 LIBSEARCHPATH=	\"${TOOLS_PREFIX}/lib\":\"${TOOLS_PREFIX}/usr/lib\"
 .for ext in ${ELF_SCR_EXT}
 LDSCRIPTS+=	${NATIVE_EMULATION}.${ext}
+ldscripts/${NATIVE_EMULATION}.${ext}: e${NATIVE_EMULATION}.c
 .endfor
 
 EMXFR=
