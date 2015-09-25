@@ -267,7 +267,7 @@ BMAKE=		MAKEOBJDIRPREFIX=${WORLDTMP} \
 		-DNO_CPU_CFLAGS MK_WARNS=no MK_CTF=no \
 		MK_CLANG_EXTRAS=no MK_CLANG_FULL=no \
 		MK_LLDB=no MK_TESTS=no \
-		MK_INCLUDES=yes 
+		MK_INCLUDES=yes
 
 # build-tools stage
 TMAKE=		MAKEOBJDIRPREFIX=${OBJTREE} \
@@ -1255,7 +1255,7 @@ update:
 
 # ELF Tool Chain libraries are needed for ELF tools and dtrace tools.
 .if ${BOOTSTRAPPING} < 1100006
-_elftoolchain_libs= lib/libelf lib/libdwarf 
+_elftoolchain_libs= lib/libelf lib/libdwarf
 .endif
 
 legacy:
@@ -1279,7 +1279,7 @@ legacy:
 # binaries is usually quite narrow. Bootstrap tools use the host's compiler and
 # libraries, augmented by -legacy.
 #
-_bt=		_bootstrap-tools	
+_bt=		_bootstrap-tools
 
 .if ${MK_GAMES} != "no"
 _strfile=	games/fortune/strfile
