@@ -66,8 +66,6 @@ all: ${PROGS}
 
 # We cannot capture dependencies for meta mode here
 UPDATE_DEPENDFILE = NO
-# nor can we safely run in parallel.
-.NOTPARALLEL:
 .endif
 .endif	# PROGS || PROGS_CXX
 
