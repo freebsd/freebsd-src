@@ -32,6 +32,9 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
+#ifdef __CHERI_SANDBOX__
+#include <sys/mman.h>
+#endif
 #include "namespace.h"
 #include <sys/acl.h>
 #include "un-namespace.h"
@@ -53,7 +56,9 @@ CTASSERT(1 << _ACL_T_ALIGNMENT_BITS > sizeof(struct acl_t_struct));
 acl_t
 acl_init(int count)
 {
+#ifndef __CHERI_SANDBOX__
 	int error;
+#endif
 	acl_t acl;
 
 	if (count > ACL_MAX_ENTRIES) {
@@ -65,10 +70,17 @@ acl_init(int count)
 		return (NULL);
 	}
 
+#ifndef __CHERI_SANDBOX__
 	error = posix_memalign((void *)&acl, 1 << _ACL_T_ALIGNMENT_BITS,
 	    sizeof(struct acl_t_struct));
 	if (error)
 		return (NULL);
+#else
+	acl = mmap(NULL, sizeof(struct acl_t_struct), PROT_READ|PROT_WRITE,
+	    MAP_ANON|MAP_ALIGNED(_ACL_T_ALIGNMENT_BITS), -1, 0);
+	if (acl == NULL)
+		return (NULL);
+#endif
 
 	bzero(acl, sizeof(struct acl_t_struct));
 	acl->ats_brand = ACL_BRAND_UNKNOWN;
