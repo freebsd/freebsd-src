@@ -133,8 +133,9 @@
 50	AUE_SETLOGIN	NOPROTO	{ int setlogin(char *namebuf); }
 51	AUE_ACCT	NOPROTO	{ int acct(char *path); }
 52	AUE_SIGPENDING	OBSOL	sigpending
-53	AUE_SIGALTSTACK	NOPROTO	{ int sigaltstack(stack_t *ss, \
-				    stack_t *oss); }
+53	AUE_SIGALTSTACK	STD	{ int cheriabi_sigaltstack( \
+				    cheriabi_stack_t *ss, \
+				    cheriabi_stack_t *oss); }
 54	AUE_NULL	STD	{ int cheriabi_ioctl(int fd, u_long com, \
 				    caddr_t data); }
 55	AUE_REBOOT	NOPROTO	{ int reboot(int opt); }
