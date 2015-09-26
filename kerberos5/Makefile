@@ -1,6 +1,8 @@
 # $FreeBSD$
 
-SUBDIR=	lib libexec tools usr.bin usr.sbin
+SUBDIR=	lib .WAIT \
+	libexec tools usr.bin usr.sbin
+SUBDIR_PARALLEL=
 
 # These are the programs which depend on Kerberos.
 KPROGS=	lib/libpam \
