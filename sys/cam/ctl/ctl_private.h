@@ -306,7 +306,7 @@ static const struct ctl_page_index log_page_index_template[] = {
 	{SLS_SUPPORTED_PAGES_PAGE, SLS_SUPPORTED_SUBPAGES_SUBPAGE, 0, NULL,
 	 CTL_PAGE_FLAG_NONE, NULL, NULL},
 	{SLS_LOGICAL_BLOCK_PROVISIONING, 0, 0, NULL,
-	 CTL_PAGE_FLAG_NONE, ctl_lbp_log_sense_handler, NULL},
+	 CTL_PAGE_FLAG_DISK_ONLY, ctl_lbp_log_sense_handler, NULL},
 	{SLS_STAT_AND_PERF, 0, 0, NULL,
 	 CTL_PAGE_FLAG_NONE, ctl_sap_log_sense_handler, NULL},
 };
