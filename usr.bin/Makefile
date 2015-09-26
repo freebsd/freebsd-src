@@ -401,6 +401,13 @@ SUBDIR+=	who
 SUBDIR+=	svn
 .endif
 
+# These are normally only handled for build-tools.  Connect them for
+# all but installing to keep them reasonably connected.
+.if !make(install)
+SUBDIR+=	mkcsmapper_static
+SUBDIR+=	mkesdb_static
+.endif
+
 .include <bsd.arch.inc.mk>
 
 SUBDIR:=	${SUBDIR:O}
