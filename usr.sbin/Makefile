@@ -161,7 +161,7 @@ SUBDIR+=	fdwrite
 SUBDIR+=	mtree
 .endif
 
-.if ${MK_FREEBSD_UPDATE} != "no"
+.if ${MK_FREEBSD_UPDATE} != "no" && ${MK_RCS} != "no"
 SUBDIR+=	freebsd-update
 .endif
 
