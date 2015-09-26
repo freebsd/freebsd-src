@@ -16,7 +16,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 24, 2015
+.Dd September 26, 2015
 .Dt USB_QUIRK 4
 .Os
 .Sh NAME
@@ -193,9 +193,10 @@ The value is a string whose format is:
 Installs the quirks
 .Ic UQ_QUIRK,...
 for all USB devices matching
-.Ic VendorId ,
+.Ic VendorId
+and
 .Ic ProductId
-and has a hardware revision between and including
+which have a hardware revision between and including
 .Ic LowRevision
 and
 .Ic HighRevision .
