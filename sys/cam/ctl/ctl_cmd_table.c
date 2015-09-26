@@ -866,7 +866,10 @@ const struct ctl_cmd_entry ctl_cmd_table[256] =
 {NULL, CTL_SERIDX_INVLD, CTL_CMD_FLAG_NONE, CTL_LUN_PAT_NONE},
 
 /* 4D LOG SENSE */
-{ctl_log_sense, CTL_SERIDX_LOG_SNS, CTL_CMD_FLAG_OK_ON_SLUN |
+{ctl_log_sense, CTL_SERIDX_LOG_SNS, CTL_CMD_FLAG_OK_ON_BOTH |
+				    CTL_CMD_FLAG_OK_ON_STOPPED |
+				    CTL_CMD_FLAG_OK_ON_INOPERABLE |
+				    CTL_CMD_FLAG_OK_ON_STANDBY |
 				    CTL_FLAG_DATA_IN |
 				    CTL_CMD_FLAG_ALLOW_ON_PR_RESV,
  CTL_LUN_PAT_NONE, 10, {0, 0xff, 0xff, 0, 0xff, 0xff, 0xff, 0xff, 0x07} },
