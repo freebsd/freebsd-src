@@ -75,6 +75,4 @@ CLEANFILES+=	tm.h tconfig.h options.h optionlist cs-tconfig.h cs-tm.h
 tm.h tconfig.h options.h: ${CCDIR}/cc_tools/Makefile
 	(cd ${.CURDIR}; ${MAKE} -f ${.ALLSRC} MFILE=${.ALLSRC} GCCDIR=${GCCDIR} ${.TARGET})
 
-.NOPATH: ${CLEANFILES}
-
 .include <bsd.lib.mk>
