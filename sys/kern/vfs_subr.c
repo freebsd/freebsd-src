@@ -1429,11 +1429,6 @@ flushbuflist(struct bufv *bufv, int flags, struct bufobj *bo, int slpflag,
 		KASSERT(bp->b_bufobj == bo,
 		    ("bp %p wrong b_bufobj %p should be %p",
 		    bp, bp->b_bufobj, bo));
-		if (bp->b_bufobj != bo) {	/* XXX: necessary ? */
-			BUF_UNLOCK(bp);
-			BO_LOCK(bo);
-			return (EAGAIN);
-		}
 		/*
 		 * XXX Since there are no node locks for NFS, I
 		 * believe there is a slight chance that a delayed
