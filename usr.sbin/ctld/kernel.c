@@ -475,7 +475,7 @@ retry_port:
 		return (NULL);
 	}
 
-	if (list.status == CTL_PORT_LIST_ERROR) {
+	if (list.status == CTL_LUN_LIST_ERROR) {
 		log_warnx("error returned from CTL_PORT_LIST ioctl: %s",
 		    list.error_str);
 		free(str);

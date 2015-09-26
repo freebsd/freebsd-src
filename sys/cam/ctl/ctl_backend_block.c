@@ -2742,18 +2742,8 @@ ctl_be_block_config_write(union ctl_io *io)
 
 		if (cdb->how & SSS_START)
 			retval = ctl_start_lun(cbe_lun);
-		else {
+		else
 			retval = ctl_stop_lun(cbe_lun);
-			/*
-			 * XXX KDM Copan-specific offline behavior.
-			 * Figure out a reasonable way to port this?
-			 */
-#ifdef NEEDTOPORT
-			if ((retval == 0)
-			 && (cdb->byte2 & SSS_ONOFFLINE))
-				retval = ctl_lun_offline(cbe_lun);
-#endif
-		}
 
 		/*
 		 * In general, the above routines should not fail.  They
