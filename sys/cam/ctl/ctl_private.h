@@ -419,8 +419,6 @@ struct tpc_token;
 struct ctl_softc {
 	struct mtx ctl_lock;
 	struct cdev *dev;
-	int open_count;
-	int num_disks;
 	int num_luns;
 	ctl_gen_flags flags;
 	ctl_ha_mode ha_mode;
@@ -436,7 +434,6 @@ struct ctl_softc {
 	struct sysctl_oid *sysctl_tree;
 	void *othersc_pool;
 	struct proc *ctl_proc;
-	int targ_online;
 	uint32_t ctl_lun_mask[(CTL_MAX_LUNS + 31) / 32];
 	struct ctl_lun *ctl_luns[CTL_MAX_LUNS];
 	uint32_t ctl_port_mask[(CTL_MAX_PORTS + 31) / 32];
