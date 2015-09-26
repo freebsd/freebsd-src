@@ -545,17 +545,24 @@ rsu_detach(device_t self)
 	RSU_LOCK(sc);
 	rsu_stop(sc);
 	RSU_UNLOCK(sc);
+
 	usbd_transfer_unsetup(sc->sc_xfer, RSU_N_TRANSFER);
+
+	/*
+	 * Free buffers /before/ we detach from net80211, else node
+	 * references to destroyed vaps will lead to a panic.
+	 */
+	/* Free Tx/Rx buffers. */
+	RSU_LOCK(sc);
+	rsu_free_tx_list(sc);
+	rsu_free_rx_list(sc);
+	RSU_UNLOCK(sc);
 
 	/* Frames are freed; detach from net80211 */
 	ieee80211_ifdetach(ic);
 
 	taskqueue_drain_timeout(taskqueue_thread, &sc->calib_task);
 	taskqueue_drain(taskqueue_thread, &sc->tx_task);
-
-	/* Free Tx/Rx buffers. */
-	rsu_free_tx_list(sc);
-	rsu_free_rx_list(sc);
 
 	mtx_destroy(&sc->sc_mtx);
 
