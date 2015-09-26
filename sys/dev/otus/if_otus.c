@@ -1292,6 +1292,14 @@ otus_cmd(struct otus_softc *sc, uint8_t code, const void *idata, int ilen,
 
 	/* Always bulk-out a multiple of 4 bytes. */
 	xferlen = (sizeof (*hdr) + ilen + 3) & ~3;
+	if (xferlen > OTUS_MAX_TXCMDSZ) {
+		device_printf(sc->sc_dev, "%s: command (0x%02x) size (%d) > %d\n",
+		    __func__,
+		    code,
+		    xferlen,
+		    OTUS_MAX_TXCMDSZ);
+		return (EIO);
+	}
 
 	cmd = otus_get_txcmd(sc);
 	if (cmd == NULL) {
@@ -1346,7 +1354,7 @@ otus_write(struct otus_softc *sc, uint32_t reg, uint32_t val)
 	sc->write_buf[sc->write_idx].reg = htole32(reg);
 	sc->write_buf[sc->write_idx].val = htole32(val);
 
-	if (++sc->write_idx > AR_MAX_WRITE_IDX)
+	if (++sc->write_idx > (AR_MAX_WRITE_IDX-1))
 		(void)otus_write_barrier(sc);
 }
 
