@@ -86,10 +86,21 @@ int
 ieee80211_input_mimo(struct ieee80211_node *ni, struct mbuf *m,
     struct ieee80211_rx_stats *rx)
 {
+	struct ieee80211_rx_stats rxs;
+
+	if (rx) {
+		memcpy(&rxs, rx, sizeof(*rx));
+	} else {
+		/* try to read from mbuf */
+		bzero(&rxs, sizeof(rxs));
+		ieee80211_get_rx_params(m, &rxs);
+	}
+
 	/* XXX should assert IEEE80211_R_NF and IEEE80211_R_RSSI are set */
-	ieee80211_process_mimo(ni, rx);
+	ieee80211_process_mimo(ni, &rxs);
+
 	//return ieee80211_input(ni, m, rx->rssi, rx->nf);
-	return ni->ni_vap->iv_input(ni, m, rx, rx->rssi, rx->nf);
+	return ni->ni_vap->iv_input(ni, m, &rxs, rxs.rssi, rxs.nf);
 }
 
 int
@@ -107,10 +118,19 @@ int
 ieee80211_input_mimo_all(struct ieee80211com *ic, struct mbuf *m,
     struct ieee80211_rx_stats *rx)
 {
+	struct ieee80211_rx_stats rxs;
 	struct ieee80211vap *vap;
 	int type = -1;
 
 	m->m_flags |= M_BCAST;		/* NB: mark for bpf tap'ing */
+
+	if (rx) {
+		memcpy(&rxs, rx, sizeof(*rx));
+	} else {
+		/* try to read from mbuf */
+		bzero(&rxs, sizeof(rxs));
+		ieee80211_get_rx_params(m, &rxs);
+	}
 
 	/* XXX locking */
 	TAILQ_FOREACH(vap, &ic->ic_vaps, iv_next) {
@@ -143,7 +163,7 @@ ieee80211_input_mimo_all(struct ieee80211com *ic, struct mbuf *m,
 			m = NULL;
 		}
 		ni = ieee80211_ref_node(vap->iv_bss);
-		type = ieee80211_input_mimo(ni, mcopy, rx);
+		type = ieee80211_input_mimo(ni, mcopy, &rxs);
 		ieee80211_free_node(ni);
 	}
 	if (m != NULL)			/* no vaps, reclaim mbuf */

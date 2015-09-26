@@ -491,6 +491,43 @@ ieee80211_process_callback(struct ieee80211_node *ni,
 }
 
 /*
+ * Add RX parameters to the given mbuf.
+ *
+ * Returns 1 if OK, 0 on error.
+ */
+int
+ieee80211_add_rx_params(struct mbuf *m, const struct ieee80211_rx_stats *rxs)
+{
+	struct m_tag *mtag;
+	struct ieee80211_rx_params *rx;
+
+	mtag = m_tag_alloc(MTAG_ABI_NET80211, NET80211_TAG_RECV_PARAMS,
+	    sizeof(struct ieee80211_rx_stats), M_NOWAIT);
+	if (mtag == NULL)
+		return (0);
+
+	rx = (struct ieee80211_rx_params *)(mtag + 1);
+	memcpy(&rx->params, rxs, sizeof(*rxs));
+	m_tag_prepend(m, mtag);
+	return (1);
+}
+
+int
+ieee80211_get_rx_params(struct mbuf *m, struct ieee80211_rx_stats *rxs)
+{
+	struct m_tag *mtag;
+	struct ieee80211_rx_params *rx;
+
+	mtag = m_tag_locate(m, MTAG_ABI_NET80211, NET80211_TAG_RECV_PARAMS,
+	    NULL);
+	if (mtag == NULL)
+		return (-1);
+	rx = (struct ieee80211_rx_params *)(mtag + 1);
+	memcpy(rxs, &rx->params, sizeof(*rxs));
+	return (0);
+}
+
+/*
  * Transmit a frame to the parent interface.
  *
  * TODO: if the transmission fails, make sure the parent node is freed
