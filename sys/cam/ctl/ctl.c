@@ -1753,7 +1753,6 @@ ctl_init(void)
 	mtx_init(&softc->ctl_lock, "CTL mutex", NULL, MTX_DEF);
 	softc->io_zone = uma_zcreate("CTL IO", sizeof(union ctl_io),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
-	softc->open_count = 0;
 	softc->flags = 0;
 
 	SYSCTL_ADD_INT(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
