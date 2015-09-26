@@ -16,8 +16,6 @@ INSTALLED_HEADERS= readline.h chardefs.h keymaps.h history.h tilde.h \
 CFLAGS+=	-I${.OBJDIR}/..
 SRCDIR=	${.CURDIR}/../../../../contrib/libreadline
 
-.NOPATH: ${INSTALLED_HEADERS}
-
 beforebuild: ${INSTALLED_HEADERS}
 CLEANFILES+= ${INSTALLED_HEADERS}
 DPSRCS+= ${INSTALLED_HEADERS}
