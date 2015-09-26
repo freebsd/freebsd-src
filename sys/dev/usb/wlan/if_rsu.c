@@ -22,7 +22,6 @@ __FBSDID("$FreeBSD$");
  * Driver for Realtek RTL8188SU/RTL8191SU/RTL8192SU.
  *
  * TODO:
- *   o 11n HT40 support
  *   o h/w crypto
  *   o hostap / ibss / mesh
  *   o sensible RSSI levels
@@ -490,14 +489,7 @@ rsu_attach(device_t self)
 		    IEEE80211_HTC_AMSDU |
 		    IEEE80211_HTCAP_MAXAMSDU_3839 |
 		    IEEE80211_HTCAP_SMPS_OFF;
-
-		/*
-		 * XXX HT40 isn't working in this driver yet - there's
-		 * something missing.  Disable it for now.
-		 */
-#if 0
 		ic->ic_htcaps |= IEEE80211_HTCAP_CHWIDTH40;
-#endif
 
 		/* set number of spatial streams */
 		ic->ic_txstream = 1;
@@ -1378,8 +1370,10 @@ rsu_join_bss(struct rsu_softc *sc, struct ieee80211_node *ni)
 	if ((ic->ic_flags & IEEE80211_F_WME) &&
 	    (ni->ni_ies.wme_ie != NULL))
 		frm = ieee80211_add_wme_info(frm, &ic->ic_wme);
-	if (ni->ni_flags & IEEE80211_NODE_HT)
+	if (ni->ni_flags & IEEE80211_NODE_HT) {
 		frm = ieee80211_add_htcap(frm, ni);
+		frm = ieee80211_add_htinfo(frm, ni);
+	}
 	bss->ieslen = htole32(frm - (uint8_t *)fixed);
 	bss->len = htole32(((frm - buf) + 3) & ~3);
 	RSU_DPRINTF(sc, RSU_DEBUG_RESET | RSU_DEBUG_FWCMD,
@@ -1844,6 +1838,10 @@ rsu_bulk_rx_callback(struct usb_xfer *xfer, usb_error_t error)
 		/* FALLTHROUGH */
 	case USB_ST_SETUP:
 tr_setup:
+		/*
+		 * XXX TODO: if we have an mbuf list, but then
+		 * we hit data == NULL, what now?
+		 */
 		data = STAILQ_FIRST(&sc->sc_rx_inactive);
 		if (data == NULL) {
 			KASSERT(m == NULL, ("mbuf isn't NULL"));
@@ -2001,6 +1999,11 @@ rsu_bulk_tx_callback_h2c(struct usb_xfer *xfer, usb_error_t error)
 	rsu_start(sc);
 }
 
+/*
+ * Transmit the given frame.
+ *
+ * This doesn't free the node or mbuf upon failure.
+ */
 static int
 rsu_tx_start(struct rsu_softc *sc, struct ieee80211_node *ni, 
     struct mbuf *m0, struct rsu_data *data)
@@ -2031,7 +2034,6 @@ rsu_tx_start(struct rsu_softc *sc, struct ieee80211_node *ni,
 			device_printf(sc->sc_dev,
 			    "ieee80211_crypto_encap returns NULL.\n");
 			/* XXX we don't expect the fragmented frames */
-			m_freem(m0);
 			return (ENOBUFS);
 		}
 		wh = mtod(m0, struct ieee80211_frame *);
@@ -2147,6 +2149,11 @@ rsu_transmit(struct ieee80211com *ic, struct mbuf *m)
 		RSU_UNLOCK(sc);
 		return (ENXIO);
 	}
+
+	/*
+	 * XXX TODO: ensure that we treat 'm' as a list of frames
+	 * to transmit!
+	 */
 	error = mbufq_enqueue(&sc->sc_snd, m);
 	if (error) {
 		RSU_DPRINTF(sc, RSU_DEBUG_TX,
@@ -2207,6 +2214,7 @@ _rsu_start(struct rsu_softc *sc)
 			    IFCOUNTER_OERRORS, 1);
 			rsu_freebuf(sc, bf);
 			ieee80211_free_node(ni);
+			m_freem(m);
 			break;
 		}
 	}
@@ -2720,6 +2728,7 @@ rsu_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	}
 	if (rsu_tx_start(sc, ni, m, bf) != 0) {
 		ieee80211_free_node(ni);
+		m_freem(m);
 		rsu_freebuf(sc, bf);
 		RSU_UNLOCK(sc);
 		return (EIO);
@@ -2807,19 +2816,6 @@ rsu_init(struct rsu_softc *sc)
 	if (error != 0) {
 		device_printf(sc->sc_dev, "could not set PS mode\n");
 		goto fail;
-	}
-
-	if (ic->ic_htcaps & IEEE80211_HTCAP_CHWIDTH40) {
-		/* Enable 40MHz mode. */
-		error = rsu_fw_iocmd(sc,
-		    SM(R92S_IOCMD_CLASS, 0xf4) |
-		    SM(R92S_IOCMD_INDEX, 0x00) |
-		    SM(R92S_IOCMD_VALUE, 0x0007));
-		if (error != 0) {
-			device_printf(sc->sc_dev,
-			    "could not enable 40MHz mode\n");
-			goto fail;
-		}
 	}
 
 	sc->sc_scan_pass = 0;
