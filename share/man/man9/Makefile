@@ -1013,7 +1013,6 @@ MLINKS+=\
 	mbuf.9 MEXT_IS_REF.9 \
 	mbuf.9 MEXT_REM_REF.9 \
 	mbuf.9 m_fixhdr.9 \
-	mbuf.9 MFREE.9 \
 	mbuf.9 m_free.9 \
 	mbuf.9 m_freem.9 \
 	mbuf.9 MGET.9 \
