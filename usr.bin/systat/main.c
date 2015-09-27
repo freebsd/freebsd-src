@@ -243,6 +243,11 @@ labels(void)
 		    "/0   /1   /2   /3   /4   /5   /6   /7   /8   /9   /10");
 		mvaddstr(1, 5, "Load Average");
 	}
+	if (curcmd->c_flags & CF_ZFSARC) {
+		mvaddstr(0, 20,
+		    "   Total     MFU     MRU    Anon     Hdr   L2Hdr   Other");
+		mvaddstr(1, 5, "ZFS ARC     ");
+	}
 	(*curcmd->c_label)();
 #ifdef notdef
 	mvprintw(21, 25, "CPU usage on %s", hostname);
@@ -276,8 +281,33 @@ display(void)
 		if (j > 50)
 			wprintw(wload, " %4.1f", avenrun[0]);
 	}
+	if (curcmd->c_flags & CF_ZFSARC) {
+	    uint64_t arc[7] = {};
+	    size_t size = sizeof(arc[0]);
+	    if (sysctlbyname("kstat.zfs.misc.arcstats.size",
+		&arc[0], &size, NULL, 0) == 0 ) {
+		    GETSYSCTL("vfs.zfs.mfu_size", arc[1]);
+		    GETSYSCTL("vfs.zfs.mru_size", arc[2]);
+		    GETSYSCTL("vfs.zfs.anon_size", arc[3]);
+		    GETSYSCTL("kstat.zfs.misc.arcstats.hdr_size", arc[4]);
+		    GETSYSCTL("kstat.zfs.misc.arcstats.l2_hdr_size", arc[5]);
+		    GETSYSCTL("kstat.zfs.misc.arcstats.other_size", arc[6]);
+		    wmove(wload, 0, 0); wclrtoeol(wload);
+		    for (i = 0 ; i < sizeof(arc) / sizeof(arc[0]) ; i++) {
+			if (arc[i] > 10llu * 1024 * 1024 * 1024 ) {
+				wprintw(wload, "%7lluG", arc[i] >> 30);
+			}
+			else if (arc[i] > 10 * 1024 * 1024 ) {
+				wprintw(wload, "%7lluM", arc[i] >> 20);
+			}
+			else {
+				wprintw(wload, "%7lluK", arc[i] >> 10);
+			}
+		    }
+	    }
+	}
 	(*curcmd->c_refresh)();
-	if (curcmd->c_flags & CF_LOADAV)
+	if (curcmd->c_flags & (CF_LOADAV |CF_ZFSARC))
 		wrefresh(wload);
 	wrefresh(wnd);
 	move(CMDLINE, col);
