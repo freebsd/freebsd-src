@@ -2,7 +2,8 @@
 
 =head1 NAME
 
-EVP_PKEY_copy_parameters, EVP_PKEY_missing_parameters, EVP_PKEY_cmp_parameters, EVP_PKEY_cmp - public key parameter and comparison functions
+EVP_PKEY_copy_parameters, EVP_PKEY_missing_parameters, EVP_PKEY_cmp_parameters,
+EVP_PKEY_cmp - public key parameter and comparison functions
 
 =head1 SYNOPSIS
 
@@ -56,6 +57,6 @@ keys match, 0 if they don't match, -1 if the key types are different and
 =head1 SEE ALSO
 
 L<EVP_PKEY_CTX_new(3)|EVP_PKEY_CTX_new(3)>,
-L<EVP_PKEY_keygen(3)|EVP_PKEY_keygen(3)> 
+L<EVP_PKEY_keygen(3)|EVP_PKEY_keygen(3)>
 
 =cut

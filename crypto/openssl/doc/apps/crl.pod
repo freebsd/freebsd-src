@@ -12,7 +12,6 @@ B<openssl> B<crl>
 [B<-text>]
 [B<-in filename>]
 [B<-out filename>]
-[B<-nameopt option>]
 [B<-noout>]
 [B<-hash>]
 [B<-issuer>]
@@ -37,7 +36,7 @@ the DER form with header and footer lines.
 
 =item B<-outform DER|PEM>
 
-This specifies the output format, the options have the same meaning as the 
+This specifies the output format, the options have the same meaning as the
 B<-inform> option.
 
 =item B<-in filename>
@@ -53,11 +52,6 @@ default.
 =item B<-text>
 
 print out the CRL in text form.
-
-=item B<-nameopt option>
-
-option which determines how the subject or issuer names are displayed. See
-the description of B<-nameopt> in L<x509(1)|x509(1)>.
 
 =item B<-noout>
 

@@ -13,7 +13,7 @@
  */
 
 /*
- * This is my modest contributon to OpenSSL project (see
+ * This is my modest contribution to OpenSSL project (see
  * http://www.openssl.org/ for more information about it) and is
  * a drop-in UltraSPARC ISA replacement for crypto/bn/bn_asm.c
  * module. For updates see http://fy.chalmers.se/~appro/hpe/.
@@ -52,7 +52,7 @@
  *	# cd ../..
  *	# make; make test
  *
- * Q. V8plus achitecture? What kind of beast is that?
+ * Q. V8plus architecture? What kind of beast is that?
  * A. Well, it's rather a programming model than an architecture...
  *    It's actually v9-compliant, i.e. *any* UltraSPARC, CPU under
  *    special conditions, namely when kernel doesn't preserve upper

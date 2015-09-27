@@ -1,7 +1,6 @@
-/* v3_int.c */
-/*
- * Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL project
- * 1999.
+/* $OpenBSD: v3_int.c,v 1.9 2014/07/11 08:44:49 jsing Exp $ */
+/* Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL
+ * project 1999.
  */
 /* ====================================================================
  * Copyright (c) 1999-2004 The OpenSSL Project.  All rights reserved.
@@ -58,35 +57,54 @@
  */
 
 #include <stdio.h>
-#include "cryptlib.h"
+
 #include <openssl/x509v3.h>
 
 const X509V3_EXT_METHOD v3_crl_num = {
-    NID_crl_number, 0, ASN1_ITEM_ref(ASN1_INTEGER),
-    0, 0, 0, 0,
-    (X509V3_EXT_I2S)i2s_ASN1_INTEGER,
-    0,
-    0, 0, 0, 0, NULL
+	.ext_nid = NID_crl_number,
+	.ext_flags = 0,
+	.it = ASN1_ITEM_ref(ASN1_INTEGER),
+	.ext_new = NULL,
+	.ext_free = NULL,
+	.d2i = NULL,
+	.i2d = NULL,
+	.i2s = (X509V3_EXT_I2S)i2s_ASN1_INTEGER,
+	.s2i = NULL,
+	.i2v = NULL,
+	.v2i = NULL,
+	.i2r = NULL,
+	.r2i = NULL,
+	.usr_data = NULL,
 };
 
 const X509V3_EXT_METHOD v3_delta_crl = {
-    NID_delta_crl, 0, ASN1_ITEM_ref(ASN1_INTEGER),
-    0, 0, 0, 0,
-    (X509V3_EXT_I2S)i2s_ASN1_INTEGER,
-    0,
-    0, 0, 0, 0, NULL
+	.ext_nid = NID_delta_crl,
+	.ext_flags = 0,
+	.it = ASN1_ITEM_ref(ASN1_INTEGER),
+	.ext_new = NULL,
+	.ext_free = NULL,
+	.d2i = NULL,
+	.i2d = NULL,
+	.i2s = (X509V3_EXT_I2S)i2s_ASN1_INTEGER,
+	.s2i = NULL,
+	.i2v = NULL,
+	.v2i = NULL,
+	.i2r = NULL,
+	.r2i = NULL,
+	.usr_data = NULL,
 };
 
-static void *s2i_asn1_int(X509V3_EXT_METHOD *meth, X509V3_CTX *ctx,
-                          char *value)
+static void *
+s2i_asn1_int(X509V3_EXT_METHOD *meth, X509V3_CTX *ctx, char *value)
 {
-    return s2i_ASN1_INTEGER(meth, value);
+	return s2i_ASN1_INTEGER(meth, value);
 }
 
 const X509V3_EXT_METHOD v3_inhibit_anyp = {
-    NID_inhibit_any_policy, 0, ASN1_ITEM_ref(ASN1_INTEGER),
-    0, 0, 0, 0,
-    (X509V3_EXT_I2S)i2s_ASN1_INTEGER,
-    (X509V3_EXT_S2I)s2i_asn1_int,
-    0, 0, 0, 0, NULL
+	NID_inhibit_any_policy, 0, ASN1_ITEM_ref(ASN1_INTEGER),
+	0, 0, 0, 0,
+	(X509V3_EXT_I2S)i2s_ASN1_INTEGER,
+	(X509V3_EXT_S2I)s2i_asn1_int,
+	0, 0, 0, 0,
+	NULL
 };

@@ -1,4 +1,4 @@
-/* crypto/evp/m_sha.c */
+/* $OpenBSD: m_sha.c,v 1.15 2014/07/11 08:44:48 jsing Exp $ */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
@@ -57,50 +57,61 @@
  */
 
 #include <stdio.h>
-#include "cryptlib.h"
+
+#include <openssl/opensslconf.h>
 
 #if !defined(OPENSSL_NO_SHA) && !defined(OPENSSL_NO_SHA0)
 
-# include <openssl/evp.h>
-# include <openssl/objects.h>
-# include <openssl/x509.h>
-# ifndef OPENSSL_NO_RSA
-#  include <openssl/rsa.h>
-# endif
-# include "evp_locl.h"
+#include <openssl/evp.h>
+#include <openssl/objects.h>
+#include <openssl/x509.h>
 
-static int init(EVP_MD_CTX *ctx)
+#ifndef OPENSSL_NO_RSA
+#include <openssl/rsa.h>
+#endif
+
+static int
+init(EVP_MD_CTX *ctx)
 {
-    return SHA_Init(ctx->md_data);
+	return SHA_Init(ctx->md_data);
 }
 
-static int update(EVP_MD_CTX *ctx, const void *data, size_t count)
+static int
+update(EVP_MD_CTX *ctx, const void *data, size_t count)
 {
-    return SHA_Update(ctx->md_data, data, count);
+	return SHA_Update(ctx->md_data, data, count);
 }
 
-static int final(EVP_MD_CTX *ctx, unsigned char *md)
+static int
+final(EVP_MD_CTX *ctx, unsigned char *md)
 {
-    return SHA_Final(md, ctx->md_data);
+	return SHA_Final(md, ctx->md_data);
 }
 
 static const EVP_MD sha_md = {
-    NID_sha,
-    NID_shaWithRSAEncryption,
-    SHA_DIGEST_LENGTH,
-    0,
-    init,
-    update,
-    final,
-    NULL,
-    NULL,
-    EVP_PKEY_RSA_method,
-    SHA_CBLOCK,
-    sizeof(EVP_MD *) + sizeof(SHA_CTX),
+	.type = NID_sha,
+	.pkey_type = NID_shaWithRSAEncryption,
+	.md_size = SHA_DIGEST_LENGTH,
+	.flags = 0,
+	.init = init,
+	.update = update,
+	.final = final,
+	.copy = NULL,
+	.cleanup = NULL,
+#ifndef OPENSSL_NO_RSA
+	.sign = (evp_sign_method *)RSA_sign,
+	.verify = (evp_verify_method *)RSA_verify,
+	.required_pkey_type = {
+		EVP_PKEY_RSA, EVP_PKEY_RSA2, 0, 0,
+	},
+#endif
+	.block_size = SHA_CBLOCK,
+	.ctx_size = sizeof(EVP_MD *) + sizeof(SHA_CTX),
 };
 
-const EVP_MD *EVP_sha(void)
+const EVP_MD *
+EVP_sha(void)
 {
-    return (&sha_md);
+	return (&sha_md);
 }
 #endif

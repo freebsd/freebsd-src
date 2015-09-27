@@ -19,7 +19,6 @@ B<openssl> B<x509>
 [B<-hash>]
 [B<-subject_hash>]
 [B<-issuer_hash>]
-[B<-ocspid>]
 [B<-subject>]
 [B<-issuer>]
 [B<-nameopt option>]
@@ -29,7 +28,6 @@ B<openssl> B<x509>
 [B<-enddate>]
 [B<-purpose>]
 [B<-dates>]
-[B<-checkend num>]
 [B<-modulus>]
 [B<-pubkey>]
 [B<-fingerprint>]
@@ -44,7 +42,6 @@ B<openssl> B<x509>
 [B<-days arg>]
 [B<-set_serial n>]
 [B<-signkey filename>]
-[B<-passin arg>]
 [B<-x509toreq>]
 [B<-req>]
 [B<-CA filename>]
@@ -52,9 +49,8 @@ B<openssl> B<x509>
 [B<-CAcreateserial>]
 [B<-CAserial filename>]
 [B<-text>]
-[B<-certopt option>]
 [B<-C>]
-[B<-md2|-md5|-sha1|-mdc2>]
+[B<-md2|-md5|-sha1>]
 [B<-clrext>]
 [B<-extfile filename>]
 [B<-extensions section>]
@@ -87,7 +83,7 @@ obsolete.
 
 =item B<-outform DER|PEM|NET>
 
-This specifies the output format, the options have the same meaning as the 
+This specifies the output format, the options have the same meaning as the
 B<-inform> option.
 
 =item B<-in filename>
@@ -100,7 +96,7 @@ if this option is not specified.
 This specifies the output filename to write to or standard output by
 default.
 
-=item B<-md2|-md5|-sha1|-mdc2>
+=item B<-md2|-md5|-sha1>
 
 the digest to use. This affects any signing or display option that uses a message
 digest, such as the B<-fingerprint>, B<-signkey> and B<-CA> options. If not
@@ -142,7 +138,7 @@ this option prevents output of the encoded version of the request.
 
 =item B<-pubkey>
 
-outputs the certificate's SubjectPublicKeyInfo block in PEM format.
+outputs the the certificate's SubjectPublicKeyInfo block in PEM format.
 
 =item B<-modulus>
 
@@ -162,10 +158,6 @@ name.
 =item B<-issuer_hash>
 
 outputs the "hash" of the certificate issuer name.
-
-=item B<-ocspid>
-
-outputs the OCSP hash values for the subject name and public key.
 
 =item B<-hash>
 
@@ -215,11 +207,6 @@ prints out the expiry date of the certificate, that is the notAfter date.
 =item B<-dates>
 
 prints out the start and expiry dates of a certificate.
-
-=item B<-checkend arg>
-
-checks if the certificate expires within the next B<arg> seconds and exits
-non-zero if yes it will expire or zero if not.
 
 =item B<-fingerprint>
 
@@ -313,7 +300,7 @@ can thus behave like a "mini CA".
 =item B<-signkey filename>
 
 this option causes the input file to be self signed using the supplied
-private key. 
+private key.
 
 If the input file is a certificate it sets the issuer name to the
 subject name (i.e.  makes it self signed) changes the public key to the
@@ -325,11 +312,6 @@ the B<-clrext> option is supplied.
 If the input is a certificate request then a self signed certificate
 is created using the supplied private key using the subject name in
 the request.
-
-=item B<-passin arg>
-
-the key password source. For more information about the format of B<arg>
-see the B<PASS PHRASE ARGUMENTS> section in L<openssl(1)|openssl(1)>.
 
 =item B<-clrext>
 
@@ -394,7 +376,7 @@ an even number of hex digits with the serial number to use. After each
 use the serial number is incremented and written out to the file again.
 
 The default filename consists of the CA certificate file base name with
-".srl" appended. For example if the CA certificate file is called 
+".srl" appended. For example if the CA certificate file is called
 "mycacert.pem" it expects to find a serial number file called "mycacert.srl".
 
 =item B<-CAcreateserial>
@@ -486,7 +468,7 @@ using the format \UXXXX for 16 bits and \WXXXXXXXX for 32 bits.
 Also if this option is off any UTF8Strings will be converted to their
 character form first.
 
-=item B<ignore_type>
+=item B<no_type>
 
 this option does not attempt to interpret multibyte characters in any
 way. That is their content octets are merely dumped as though one octet
@@ -829,7 +811,7 @@ if the keyUsage extension is present.
 The extended key usage extension must be absent or include the "email
 protection" OID. Netscape certificate type must be absent or must have the
 S/MIME CA bit set: this is used as a work around if the basicConstraints
-extension is absent. 
+extension is absent.
 
 =item B<CRL Signing>
 
@@ -864,7 +846,7 @@ OpenSSL 0.9.5 and later.
 
 L<req(1)|req(1)>, L<ca(1)|ca(1)>, L<genrsa(1)|genrsa(1)>,
 L<gendsa(1)|gendsa(1)>, L<verify(1)|verify(1)>,
-L<x509v3_config(5)|x509v3_config(5)> 
+L<x509v3_config(5)|x509v3_config(5)>
 
 =head1 HISTORY
 
@@ -874,6 +856,6 @@ The hash algorithm used in the B<-subject_hash> and B<-issuer_hash> options
 before OpenSSL 1.0.0 was based on the deprecated MD5 algorithm and the encoding
 of the distinguished name. In OpenSSL 1.0.0 and later it is based on a
 canonical version of the DN using SHA1. This means that any directories using
-the old form must have their links rebuilt using B<c_rehash> or similar. 
+the old form must have their links rebuilt.
 
 =cut

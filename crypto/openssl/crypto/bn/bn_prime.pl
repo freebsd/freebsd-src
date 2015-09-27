@@ -90,30 +90,14 @@ print <<\EOF;
 
 EOF
 
-for ($i=0; $i <= $#primes; $i++)
-	{
-	if ($primes[$i] > 256)
-		{
-		$eight=$i;
-		last;
-		}
-	}
-
-printf "#ifndef EIGHT_BIT\n";
 printf "#define NUMPRIMES %d\n",$num;
 printf "typedef unsigned short prime_t;\n";
-printf "#else\n";
-printf "#define NUMPRIMES %d\n",$eight;
-printf "typedef unsigned char prime_t;\n";
-printf "#endif\n";
-print "static const prime_t primes[NUMPRIMES]=\n\t{\n\t";
-$init=0;
+print "static const prime_t primes[NUMPRIMES]=\n{\n\t";
 for ($i=0; $i <= $#primes; $i++)
 	{
-	printf "\n#ifndef EIGHT_BIT\n\t" if ($primes[$i] > 256) && !($init++);
 	printf("\n\t") if (($i%8) == 0) && ($i != 0);
 	printf("%4d,",$primes[$i]);
 	}
-print "\n#endif\n\t};\n";
+print "\n};\n";
 
 

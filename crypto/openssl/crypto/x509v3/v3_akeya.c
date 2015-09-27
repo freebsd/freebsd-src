@@ -1,7 +1,6 @@
-/* v3_akey_asn1.c */
-/*
- * Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL project
- * 1999.
+/* $OpenBSD: v3_akeya.c,v 1.6 2015/02/09 16:03:11 jsing Exp $ */
+/* Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL
+ * project 1999.
  */
 /* ====================================================================
  * Copyright (c) 1999 The OpenSSL Project.  All rights reserved.
@@ -58,16 +57,68 @@
  */
 
 #include <stdio.h>
-#include "cryptlib.h"
-#include <openssl/conf.h>
+
 #include <openssl/asn1.h>
 #include <openssl/asn1t.h>
+#include <openssl/conf.h>
 #include <openssl/x509v3.h>
 
-ASN1_SEQUENCE(AUTHORITY_KEYID) = {
-        ASN1_IMP_OPT(AUTHORITY_KEYID, keyid, ASN1_OCTET_STRING, 0),
-        ASN1_IMP_SEQUENCE_OF_OPT(AUTHORITY_KEYID, issuer, GENERAL_NAME, 1),
-        ASN1_IMP_OPT(AUTHORITY_KEYID, serial, ASN1_INTEGER, 2)
-} ASN1_SEQUENCE_END(AUTHORITY_KEYID)
+static const ASN1_TEMPLATE AUTHORITY_KEYID_seq_tt[] = {
+	{
+		.flags = ASN1_TFLG_IMPLICIT | ASN1_TFLG_OPTIONAL,
+		.tag = 0,
+		.offset = offsetof(AUTHORITY_KEYID, keyid),
+		.field_name = "keyid",
+		.item = &ASN1_OCTET_STRING_it,
+	},
+	{
+		.flags = ASN1_TFLG_IMPLICIT | ASN1_TFLG_SEQUENCE_OF | ASN1_TFLG_OPTIONAL,
+		.tag = 1,
+		.offset = offsetof(AUTHORITY_KEYID, issuer),
+		.field_name = "issuer",
+		.item = &GENERAL_NAME_it,
+	},
+	{
+		.flags = ASN1_TFLG_IMPLICIT | ASN1_TFLG_OPTIONAL,
+		.tag = 2,
+		.offset = offsetof(AUTHORITY_KEYID, serial),
+		.field_name = "serial",
+		.item = &ASN1_INTEGER_it,
+	},
+};
 
-IMPLEMENT_ASN1_FUNCTIONS(AUTHORITY_KEYID)
+const ASN1_ITEM AUTHORITY_KEYID_it = {
+	.itype = ASN1_ITYPE_SEQUENCE,
+	.utype = V_ASN1_SEQUENCE,
+	.templates = AUTHORITY_KEYID_seq_tt,
+	.tcount = sizeof(AUTHORITY_KEYID_seq_tt) / sizeof(ASN1_TEMPLATE),
+	.funcs = NULL,
+	.size = sizeof(AUTHORITY_KEYID),
+	.sname = "AUTHORITY_KEYID",
+};
+
+
+AUTHORITY_KEYID *
+d2i_AUTHORITY_KEYID(AUTHORITY_KEYID **a, const unsigned char **in, long len)
+{
+	return (AUTHORITY_KEYID *)ASN1_item_d2i((ASN1_VALUE **)a, in, len,
+	    &AUTHORITY_KEYID_it);
+}
+
+int
+i2d_AUTHORITY_KEYID(AUTHORITY_KEYID *a, unsigned char **out)
+{
+	return ASN1_item_i2d((ASN1_VALUE *)a, out, &AUTHORITY_KEYID_it);
+}
+
+AUTHORITY_KEYID *
+AUTHORITY_KEYID_new(void)
+{
+	return (AUTHORITY_KEYID *)ASN1_item_new(&AUTHORITY_KEYID_it);
+}
+
+void
+AUTHORITY_KEYID_free(AUTHORITY_KEYID *a)
+{
+	ASN1_item_free((ASN1_VALUE *)a, &AUTHORITY_KEYID_it);
+}

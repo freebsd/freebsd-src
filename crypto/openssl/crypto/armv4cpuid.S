@@ -4,19 +4,14 @@
 .code	32
 
 .align	5
+#if __ARM_ARCH__>=7
 .global	_armv7_neon_probe
 .type	_armv7_neon_probe,%function
 _armv7_neon_probe:
 	.word	0xf26ee1fe	@ vorr	q15,q15,q15
 	.word	0xe12fff1e	@ bx	lr
 .size	_armv7_neon_probe,.-_armv7_neon_probe
-
-.global	_armv7_tick
-.type	_armv7_tick,%function
-_armv7_tick:
-	mrc	p15,0,r0,c9,c13,0
-	.word	0xe12fff1e	@ bx	lr
-.size	_armv7_tick,.-_armv7_tick
+#endif
 
 .global	OPENSSL_atomic_add
 .type	OPENSSL_atomic_add,%function
@@ -54,38 +49,6 @@ OPENSSL_atomic_add:
 #endif
 .size	OPENSSL_atomic_add,.-OPENSSL_atomic_add
 
-.global	OPENSSL_cleanse
-.type	OPENSSL_cleanse,%function
-OPENSSL_cleanse:
-	eor	ip,ip,ip
-	cmp	r1,#7
-	subhs	r1,r1,#4
-	bhs	.Lot
-	cmp	r1,#0
-	beq	.Lcleanse_done
-.Little:
-	strb	ip,[r0],#1
-	subs	r1,r1,#1
-	bhi	.Little
-	b	.Lcleanse_done
-
-.Lot:	tst	r0,#3
-	beq	.Laligned
-	strb	ip,[r0],#1
-	sub	r1,r1,#1
-	b	.Lot
-.Laligned:
-	str	ip,[r0],#4
-	subs	r1,r1,#4
-	bhs	.Laligned
-	adds	r1,r1,#4
-	bne	.Little
-.Lcleanse_done:
-	tst	lr,#1
-	moveq	pc,lr
-	.word	0xe12fff1e	@ bx	lr
-.size	OPENSSL_cleanse,.-OPENSSL_cleanse
-
 .global	OPENSSL_wipe_cpu
 .type	OPENSSL_wipe_cpu,%function
 OPENSSL_wipe_cpu:
@@ -115,24 +78,6 @@ OPENSSL_wipe_cpu:
 	moveq	pc,lr
 	.word	0xe12fff1e	@ bx	lr
 .size	OPENSSL_wipe_cpu,.-OPENSSL_wipe_cpu
-
-.global	OPENSSL_instrument_bus
-.type	OPENSSL_instrument_bus,%function
-OPENSSL_instrument_bus:
-	eor	r0,r0,r0
-	tst	lr,#1
-	moveq	pc,lr
-	.word	0xe12fff1e	@ bx	lr
-.size	OPENSSL_instrument_bus,.-OPENSSL_instrument_bus
-
-.global	OPENSSL_instrument_bus2
-.type	OPENSSL_instrument_bus2,%function
-OPENSSL_instrument_bus2:
-	eor	r0,r0,r0
-	tst	lr,#1
-	moveq	pc,lr
-	.word	0xe12fff1e	@ bx	lr
-.size	OPENSSL_instrument_bus2,.-OPENSSL_instrument_bus2
 
 .align	5
 .LOPENSSL_armcap:

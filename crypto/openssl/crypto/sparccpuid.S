@@ -215,23 +215,6 @@ OPENSSL_atomic_add:
 	sra	%o0,%g0,%o0	! we return signed int, remember?
 .size	OPENSSL_atomic_add,.-OPENSSL_atomic_add
 
-.global	_sparcv9_rdtick
-.align	32
-_sparcv9_rdtick:
-	subcc	%g0,1,%o0
-	.word	0x91408000	!rd	%ccr,%o0
-	cmp	%o0,0x99
-	bne	.notick
-	xor	%o0,%o0,%o0
-	.word	0x91410000	!rd	%tick,%o0
-	retl
-	.word	0x93323020	!srlx	%o0,32,%o1
-.notick:
-	retl
-	xor	%o1,%o1,%o1
-.type	_sparcv9_rdtick,#function
-.size	_sparcv9_rdtick,.-_sparcv9_rdtick
-
 .global	_sparcv9_vis1_probe
 .align	8
 _sparcv9_vis1_probe:
@@ -313,89 +296,6 @@ _sparcv9_fmadd_probe:
 	.word	0x81b80440	!fmaddd	%f0,%f0,%f2,%f0
 .type	_sparcv9_fmadd_probe,#function
 .size	_sparcv9_fmadd_probe,.-_sparcv9_fmadd_probe
-
-.global	OPENSSL_cleanse
-.align	32
-OPENSSL_cleanse:
-	cmp	%o1,14
-	nop
-#ifdef ABI64
-	bgu	%xcc,.Lot
-#else
-	bgu	.Lot
-#endif
-	cmp	%o1,0
-	bne	.Little
-	nop
-	retl
-	nop
-
-.Little:
-	stb	%g0,[%o0]
-	subcc	%o1,1,%o1
-	bnz	.Little
-	add	%o0,1,%o0
-	retl
-	nop
-.align	32
-.Lot:
-#ifndef ABI64
-	subcc	%g0,1,%g1
-	! see above for explanation
-	.word	0x83408000	!rd	%ccr,%g1
-	cmp	%g1,0x99
-	bne	.v8lot
-	nop
-#endif
-
-.v9lot:	andcc	%o0,7,%g0
-	bz	.v9aligned
-	nop
-	stb	%g0,[%o0]
-	sub	%o1,1,%o1
-	ba	.v9lot
-	add	%o0,1,%o0
-.align	16,0x01000000
-.v9aligned:
-	.word	0xc0720000	!stx	%g0,[%o0]
-	sub	%o1,8,%o1
-	andcc	%o1,-8,%g0
-#ifdef ABI64
-	.word	0x126ffffd	!bnz	%xcc,.v9aligned
-#else
-	.word	0x124ffffd	!bnz	%icc,.v9aligned
-#endif
-	add	%o0,8,%o0
-
-	cmp	%o1,0
-	bne	.Little
-	nop
-	retl
-	nop
-#ifndef ABI64
-.v8lot:	andcc	%o0,3,%g0
-	bz	.v8aligned
-	nop
-	stb	%g0,[%o0]
-	sub	%o1,1,%o1
-	ba	.v8lot
-	add	%o0,1,%o0
-	nop
-.v8aligned:
-	st	%g0,[%o0]
-	sub	%o1,4,%o1
-	andcc	%o1,-4,%g0
-	bnz	.v8aligned
-	add	%o0,4,%o0
-
-	cmp	%o1,0
-	bne	.Little
-	nop
-	retl
-	nop
-#endif
-.type	OPENSSL_cleanse,#function
-.size	OPENSSL_cleanse,.-OPENSSL_cleanse
 
 .section	".init",#alloc,#execinstr
 	call	OPENSSL_cpuid_setup

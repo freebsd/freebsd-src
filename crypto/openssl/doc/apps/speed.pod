@@ -9,7 +9,6 @@ speed - test library performance
 B<openssl speed>
 [B<-engine id>]
 [B<md2>]
-[B<mdc2>]
 [B<md5>]
 [B<hmac>]
 [B<sha1>]

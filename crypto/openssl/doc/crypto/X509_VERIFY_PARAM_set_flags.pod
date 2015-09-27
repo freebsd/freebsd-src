@@ -2,7 +2,12 @@
 
 =head1 NAME
 
-X509_VERIFY_PARAM_set_flags, X509_VERIFY_PARAM_clear_flags, X509_VERIFY_PARAM_get_flags, X509_VERIFY_PARAM_set_purpose, X509_VERIFY_PARAM_set_trust, X509_VERIFY_PARAM_set_depth, X509_VERIFY_PARAM_get_depth, X509_VERIFY_PARAM_set_time, X509_VERIFY_PARAM_add0_policy, X509_VERIFY_PARAM_set1_policies - X509 verification parameters 
+X509_VERIFY_PARAM_set_flags, X509_VERIFY_PARAM_clear_flags,
+X509_VERIFY_PARAM_get_flags, X509_VERIFY_PARAM_set_purpose,
+X509_VERIFY_PARAM_set_trust, X509_VERIFY_PARAM_set_depth,
+X509_VERIFY_PARAM_get_depth, X509_VERIFY_PARAM_set_time,
+X509_VERIFY_PARAM_add0_policy, X509_VERIFY_PARAM_set1_policies - X509
+verification parameters
 
 =head1 SYNOPSIS
 
@@ -20,7 +25,7 @@ X509_VERIFY_PARAM_set_flags, X509_VERIFY_PARAM_clear_flags, X509_VERIFY_PARAM_ge
 
  int X509_VERIFY_PARAM_add0_policy(X509_VERIFY_PARAM *param,
 						ASN1_OBJECT *policy);
- int X509_VERIFY_PARAM_set1_policies(X509_VERIFY_PARAM *param, 
+ int X509_VERIFY_PARAM_set1_policies(X509_VERIFY_PARAM *param,
 					STACK_OF(ASN1_OBJECT) *policies);
 
  void X509_VERIFY_PARAM_set_depth(X509_VERIFY_PARAM *param, int depth);
@@ -29,7 +34,7 @@ X509_VERIFY_PARAM_set_flags, X509_VERIFY_PARAM_clear_flags, X509_VERIFY_PARAM_ge
 =head1 DESCRIPTION
 
 These functions manipulate the B<X509_VERIFY_PARAM> structure associated with
-a certificate verification operation. 
+a certificate verification operation.
 
 The X509_VERIFY_PARAM_set_flags() function sets the flags in B<param> by oring
 it with B<flags>. See the B<VERIFICATION FLAGS> section for a complete
@@ -43,7 +48,7 @@ X509_VERIFY_PARAM_set_purpose() sets the verification purpose in B<param>
 to B<purpose>. This determines the acceptable purpose of the certificate
 chain, for example SSL client or SSL server.
 
-X509_VERIFY_PARAM_set_trust() sets the trust setting in B<param> to 
+X509_VERIFY_PARAM_set_trust() sets the trust setting in B<param> to
 B<trust>.
 
 X509_VERIFY_PARAM_set_time() sets the verification time in B<param> to
@@ -63,10 +68,10 @@ chain.
 
 =head1 RETURN VALUES
 
-X509_VERIFY_PARAM_set_flags(), X509_VERIFY_PARAM_clear_flags(), 
+X509_VERIFY_PARAM_set_flags(), X509_VERIFY_PARAM_clear_flags(),
 X509_VERIFY_PARAM_set_purpose(), X509_VERIFY_PARAM_set_trust(),
 X509_VERIFY_PARAM_add0_policy() and X509_VERIFY_PARAM_set1_policies() return 1
-for success and 0 for failure. 
+for success and 0 for failure.
 
 X509_VERIFY_PARAM_get_flags() returns the current verification flags.
 
@@ -81,7 +86,7 @@ The verification flags consists of zero or more of the following flags
 ored together.
 
 B<X509_V_FLAG_CRL_CHECK> enables CRL checking for the certificate chain leaf
-certificate. An error occurs if a suitable CRL cannot be found. 
+certificate. An error occurs if a suitable CRL cannot be found.
 
 B<X509_V_FLAG_CRL_CHECK_ALL> enables CRL checking for the entire certificate
 chain.
@@ -99,7 +104,7 @@ certificates and makes the verification strictly apply B<X509> rules.
 B<X509_V_FLAG_ALLOW_PROXY_CERTS> enables proxy certificate verification.
 
 B<X509_V_FLAG_POLICY_CHECK> enables certificate policy checking, by default
-no policy checking is peformed. Additional information is sent to the 
+no policy checking is peformed. Additional information is sent to the
 verification callback relating to policy checking.
 
 B<X509_V_FLAG_EXPLICIT_POLICY>, B<X509_V_FLAG_INHIBIT_ANY> and
@@ -133,12 +138,6 @@ verification. If this flag is set then additional status codes will be sent
 to the verification callback and it B<must> be prepared to handle such cases
 without assuming they are hard errors.
 
-The B<X509_V_FLAG_NO_ALT_CHAINS> flag suppresses checking for alternative
-chains. By default, when building a certificate chain, if the first certificate
-chain found is not trusted, then OpenSSL will continue to check to see if an
-alternative chain can be found that is trusted. With this flag set the behaviour
-will match that of OpenSSL versions prior to 1.0.1n and 1.0.2b.
-
 =head1 NOTES
 
 The above functions should be used to manipulate verification parameters
@@ -148,7 +147,7 @@ X509_STORE_CTX_set_flags().
 =head1 BUGS
 
 Delta CRL checking is currently primitive. Only a single delta can be used and
-(partly due to limitations of B<X509_STORE>) constructed CRLs are not 
+(partly due to limitations of B<X509_STORE>) constructed CRLs are not
 maintained.
 
 If CRLs checking is enable CRLs are expected to be available in the
@@ -157,7 +156,7 @@ CRLs from the CRL distribution points extension.
 
 =head1 EXAMPLE
 
-Enable CRL checking when performing certificate verification during SSL 
+Enable CRL checking when performing certificate verification during SSL
 connections associated with an B<SSL_CTX> structure B<ctx>:
 
   X509_VERIFY_PARAM *param;
@@ -169,9 +168,5 @@ connections associated with an B<SSL_CTX> structure B<ctx>:
 =head1 SEE ALSO
 
 L<X509_verify_cert(3)|X509_verify_cert(3)>
-
-=head1 HISTORY
-
-The B<X509_V_FLAG_NO_ALT_CHAINS> flag was added in OpenSSL 1.0.1n and 1.0.2b
 
 =cut

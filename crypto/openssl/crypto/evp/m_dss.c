@@ -1,4 +1,4 @@
-/* crypto/evp/m_dss.c */
+/* $OpenBSD: m_dss.c,v 1.15 2014/07/10 22:45:57 jsing Exp $ */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
@@ -57,50 +57,61 @@
  */
 
 #include <stdio.h>
-#include "cryptlib.h"
+
+#include <openssl/opensslconf.h>
+
 #include <openssl/evp.h>
 #include <openssl/objects.h>
 #include <openssl/sha.h>
+
 #ifndef OPENSSL_NO_DSA
-# include <openssl/dsa.h>
+#include <openssl/dsa.h>
 #endif
 
 #ifndef OPENSSL_NO_SHA
-# ifndef OPENSSL_FIPS
 
-static int init(EVP_MD_CTX *ctx)
+static int
+init(EVP_MD_CTX *ctx)
 {
-    return SHA1_Init(ctx->md_data);
+	return SHA1_Init(ctx->md_data);
 }
 
-static int update(EVP_MD_CTX *ctx, const void *data, size_t count)
+static int
+update(EVP_MD_CTX *ctx, const void *data, size_t count)
 {
-    return SHA1_Update(ctx->md_data, data, count);
+	return SHA1_Update(ctx->md_data, data, count);
 }
 
-static int final(EVP_MD_CTX *ctx, unsigned char *md)
+static int
+final(EVP_MD_CTX *ctx, unsigned char *md)
 {
-    return SHA1_Final(md, ctx->md_data);
+	return SHA1_Final(md, ctx->md_data);
 }
 
 static const EVP_MD dsa_md = {
-    NID_dsaWithSHA,
-    NID_dsaWithSHA,
-    SHA_DIGEST_LENGTH,
-    EVP_MD_FLAG_PKEY_DIGEST,
-    init,
-    update,
-    final,
-    NULL,
-    NULL,
-    EVP_PKEY_DSA_method,
-    SHA_CBLOCK,
-    sizeof(EVP_MD *) + sizeof(SHA_CTX),
+	.type = NID_dsaWithSHA,
+	.pkey_type = NID_dsaWithSHA,
+	.md_size = SHA_DIGEST_LENGTH,
+	.flags = EVP_MD_FLAG_PKEY_DIGEST,
+	.init = init,
+	.update = update,
+	.final = final,
+	.copy = NULL,
+	.cleanup = NULL,
+#ifndef OPENSSL_NO_DSA
+	.sign = (evp_sign_method *)DSA_sign,
+	.verify = (evp_verify_method *)DSA_verify,
+	.required_pkey_type = {
+		EVP_PKEY_DSA, EVP_PKEY_DSA2, EVP_PKEY_DSA3, EVP_PKEY_DSA4, 0,
+	},
+#endif
+	.block_size = SHA_CBLOCK,
+	.ctx_size = sizeof(EVP_MD *) + sizeof(SHA_CTX),
 };
 
-const EVP_MD *EVP_dss(void)
+const EVP_MD *
+EVP_dss(void)
 {
-    return (&dsa_md);
+	return (&dsa_md);
 }
-# endif
 #endif

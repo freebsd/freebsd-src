@@ -33,8 +33,6 @@ $flavour = shift;
 $output  = shift;
 if ($flavour =~ /\./) { $output = $flavour; undef $flavour; }
 
-$win64=0; $win64=1 if ($flavour =~ /[nm]asm|mingw64/ || $output =~ /\.asm$/);
-
 $0 =~ m/(.*[\/\\])[^\/\\]+$/; $dir=$1;
 ( $xlate="${dir}x86_64-xlate.pl" and -f $xlate ) or
 ( $xlate="${dir}../../perlasm/x86_64-xlate.pl" and -f $xlate) or
@@ -140,7 +138,7 @@ $code.=<<___;
 
 	mulq	$m1			# np[j]*m1
 	cmp	$num,$j
-	jne	.L1st
+	jl	.L1st
 
 	add	%rax,$hi1
 	mov	($ap),%rax		# ap[0]
@@ -206,7 +204,7 @@ $code.=<<___;
 
 	mulq	$m1			# np[j]*m1
 	cmp	$num,$j
-	jne	.Linner
+	jl	.Linner
 
 	add	%rax,$hi1
 	mov	($ap),%rax		# ap[0]
@@ -1501,181 +1499,6 @@ $code.=<<___;
 .asciz	"Montgomery Multiplication for x86_64, CRYPTOGAMS by <appro\@openssl.org>"
 .align	16
 ___
-
-# EXCEPTION_DISPOSITION handler (EXCEPTION_RECORD *rec,ULONG64 frame,
-#		CONTEXT *context,DISPATCHER_CONTEXT *disp)
-if ($win64) {
-$rec="%rcx";
-$frame="%rdx";
-$context="%r8";
-$disp="%r9";
-
-$code.=<<___;
-.extern	__imp_RtlVirtualUnwind
-.type	mul_handler,\@abi-omnipotent
-.align	16
-mul_handler:
-	push	%rsi
-	push	%rdi
-	push	%rbx
-	push	%rbp
-	push	%r12
-	push	%r13
-	push	%r14
-	push	%r15
-	pushfq
-	sub	\$64,%rsp
-
-	mov	120($context),%rax	# pull context->Rax
-	mov	248($context),%rbx	# pull context->Rip
-
-	mov	8($disp),%rsi		# disp->ImageBase
-	mov	56($disp),%r11		# disp->HandlerData
-
-	mov	0(%r11),%r10d		# HandlerData[0]
-	lea	(%rsi,%r10),%r10	# end of prologue label
-	cmp	%r10,%rbx		# context->Rip<end of prologue label
-	jb	.Lcommon_seh_tail
-
-	mov	152($context),%rax	# pull context->Rsp
-
-	mov	4(%r11),%r10d		# HandlerData[1]
-	lea	(%rsi,%r10),%r10	# epilogue label
-	cmp	%r10,%rbx		# context->Rip>=epilogue label
-	jae	.Lcommon_seh_tail
-
-	mov	192($context),%r10	# pull $num
-	mov	8(%rax,%r10,8),%rax	# pull saved stack pointer
-	lea	48(%rax),%rax
-
-	mov	-8(%rax),%rbx
-	mov	-16(%rax),%rbp
-	mov	-24(%rax),%r12
-	mov	-32(%rax),%r13
-	mov	-40(%rax),%r14
-	mov	-48(%rax),%r15
-	mov	%rbx,144($context)	# restore context->Rbx
-	mov	%rbp,160($context)	# restore context->Rbp
-	mov	%r12,216($context)	# restore context->R12
-	mov	%r13,224($context)	# restore context->R13
-	mov	%r14,232($context)	# restore context->R14
-	mov	%r15,240($context)	# restore context->R15
-
-	jmp	.Lcommon_seh_tail
-.size	mul_handler,.-mul_handler
-
-.type	sqr_handler,\@abi-omnipotent
-.align	16
-sqr_handler:
-	push	%rsi
-	push	%rdi
-	push	%rbx
-	push	%rbp
-	push	%r12
-	push	%r13
-	push	%r14
-	push	%r15
-	pushfq
-	sub	\$64,%rsp
-
-	mov	120($context),%rax	# pull context->Rax
-	mov	248($context),%rbx	# pull context->Rip
-
-	lea	.Lsqr4x_body(%rip),%r10
-	cmp	%r10,%rbx		# context->Rip<.Lsqr_body
-	jb	.Lcommon_seh_tail
-
-	mov	152($context),%rax	# pull context->Rsp
-
-	lea	.Lsqr4x_epilogue(%rip),%r10
-	cmp	%r10,%rbx		# context->Rip>=.Lsqr_epilogue
-	jae	.Lcommon_seh_tail
-
-	mov	56(%rax),%rax		# pull saved stack pointer
-	lea	48(%rax),%rax
-
-	mov	-8(%rax),%rbx
-	mov	-16(%rax),%rbp
-	mov	-24(%rax),%r12
-	mov	-32(%rax),%r13
-	mov	-40(%rax),%r14
-	mov	-48(%rax),%r15
-	mov	%rbx,144($context)	# restore context->Rbx
-	mov	%rbp,160($context)	# restore context->Rbp
-	mov	%r12,216($context)	# restore context->R12
-	mov	%r13,224($context)	# restore context->R13
-	mov	%r14,232($context)	# restore context->R14
-	mov	%r15,240($context)	# restore context->R15
-
-.Lcommon_seh_tail:
-	mov	8(%rax),%rdi
-	mov	16(%rax),%rsi
-	mov	%rax,152($context)	# restore context->Rsp
-	mov	%rsi,168($context)	# restore context->Rsi
-	mov	%rdi,176($context)	# restore context->Rdi
-
-	mov	40($disp),%rdi		# disp->ContextRecord
-	mov	$context,%rsi		# context
-	mov	\$154,%ecx		# sizeof(CONTEXT)
-	.long	0xa548f3fc		# cld; rep movsq
-
-	mov	$disp,%rsi
-	xor	%rcx,%rcx		# arg1, UNW_FLAG_NHANDLER
-	mov	8(%rsi),%rdx		# arg2, disp->ImageBase
-	mov	0(%rsi),%r8		# arg3, disp->ControlPc
-	mov	16(%rsi),%r9		# arg4, disp->FunctionEntry
-	mov	40(%rsi),%r10		# disp->ContextRecord
-	lea	56(%rsi),%r11		# &disp->HandlerData
-	lea	24(%rsi),%r12		# &disp->EstablisherFrame
-	mov	%r10,32(%rsp)		# arg5
-	mov	%r11,40(%rsp)		# arg6
-	mov	%r12,48(%rsp)		# arg7
-	mov	%rcx,56(%rsp)		# arg8, (NULL)
-	call	*__imp_RtlVirtualUnwind(%rip)
-
-	mov	\$1,%eax		# ExceptionContinueSearch
-	add	\$64,%rsp
-	popfq
-	pop	%r15
-	pop	%r14
-	pop	%r13
-	pop	%r12
-	pop	%rbp
-	pop	%rbx
-	pop	%rdi
-	pop	%rsi
-	ret
-.size	sqr_handler,.-sqr_handler
-
-.section	.pdata
-.align	4
-	.rva	.LSEH_begin_bn_mul_mont
-	.rva	.LSEH_end_bn_mul_mont
-	.rva	.LSEH_info_bn_mul_mont
-
-	.rva	.LSEH_begin_bn_mul4x_mont
-	.rva	.LSEH_end_bn_mul4x_mont
-	.rva	.LSEH_info_bn_mul4x_mont
-
-	.rva	.LSEH_begin_bn_sqr4x_mont
-	.rva	.LSEH_end_bn_sqr4x_mont
-	.rva	.LSEH_info_bn_sqr4x_mont
-
-.section	.xdata
-.align	8
-.LSEH_info_bn_mul_mont:
-	.byte	9,0,0,0
-	.rva	mul_handler
-	.rva	.Lmul_body,.Lmul_epilogue	# HandlerData[]
-.LSEH_info_bn_mul4x_mont:
-	.byte	9,0,0,0
-	.rva	mul_handler
-	.rva	.Lmul4x_body,.Lmul4x_epilogue	# HandlerData[]
-.LSEH_info_bn_sqr4x_mont:
-	.byte	9,0,0,0
-	.rva	sqr_handler
-___
-}
 
 print $code;
 close STDOUT;

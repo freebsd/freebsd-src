@@ -166,10 +166,10 @@ of B<BIGNUM>s to external formats is described in L<BN_bn2bin(3)|BN_bn2bin(3)>.
 
 =head1 SEE ALSO
 
-L<bn_internal(3)|bn_internal(3)>,
-L<dh(3)|dh(3)>, L<err(3)|err(3)>, L<rand(3)|rand(3)>, L<rsa(3)|rsa(3)>,
-L<BN_new(3)|BN_new(3)>, L<BN_CTX_new(3)|BN_CTX_new(3)>,
-L<BN_copy(3)|BN_copy(3)>, L<BN_swap(3)|BN_swap(3)>, L<BN_num_bytes(3)|BN_num_bytes(3)>,
+L<bn_internal(3)|bn_internal(3)>, L<dh(3)|dh(3)>, L<err(3)|err(3)>,
+L<rand(3)|rand(3)>, L<rsa(3)|rsa(3)>, L<BN_new(3)|BN_new(3)>,
+L<BN_CTX_new(3)|BN_CTX_new(3)>, L<BN_copy(3)|BN_copy(3)>,
+L<BN_swap(3)|BN_swap(3)>, L<BN_num_bytes(3)|BN_num_bytes(3)>,
 L<BN_add(3)|BN_add(3)>, L<BN_add_word(3)|BN_add_word(3)>,
 L<BN_cmp(3)|BN_cmp(3)>, L<BN_zero(3)|BN_zero(3)>, L<BN_rand(3)|BN_rand(3)>,
 L<BN_generate_prime(3)|BN_generate_prime(3)>, L<BN_set_bit(3)|BN_set_bit(3)>,

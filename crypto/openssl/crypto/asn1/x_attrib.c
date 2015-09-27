@@ -1,4 +1,4 @@
-/* crypto/asn1/x_attrib.c */
+/* $OpenBSD: x_attrib.c,v 1.12 2015/02/10 05:25:45 jsing Exp $ */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
@@ -57,24 +57,23 @@
  */
 
 #include <stdio.h>
-#include "cryptlib.h"
-#include <openssl/objects.h>
+
 #include <openssl/asn1t.h>
+#include <openssl/objects.h>
 #include <openssl/x509.h>
 
-/*-
- * X509_ATTRIBUTE: this has the following form:
+/* X509_ATTRIBUTE: this has the following form:
  *
  * typedef struct x509_attributes_st
- *      {
- *      ASN1_OBJECT *object;
- *      int single;
- *      union   {
- *              char            *ptr;
- *              STACK_OF(ASN1_TYPE) *set;
- *              ASN1_TYPE       *single;
- *              } value;
- *      } X509_ATTRIBUTE;
+ *	{
+ *	ASN1_OBJECT *object;
+ *	int single;
+ *	union	{
+ *		char		*ptr;
+ * 		STACK_OF(ASN1_TYPE) *set;
+ * 		ASN1_TYPE	*single;
+ *		} value;
+ *	} X509_ATTRIBUTE;
  *
  * this needs some extra thought because the CHOICE type is
  * merged with the main structure and because the value can
@@ -83,42 +82,117 @@
  * SET OF structure.
  */
 
-ASN1_CHOICE(X509_ATTRIBUTE_SET) = {
-        ASN1_SET_OF(X509_ATTRIBUTE, value.set, ASN1_ANY),
-        ASN1_SIMPLE(X509_ATTRIBUTE, value.single, ASN1_ANY)
-} ASN1_CHOICE_END_selector(X509_ATTRIBUTE, X509_ATTRIBUTE_SET, single)
+static const ASN1_TEMPLATE X509_ATTRIBUTE_SET_ch_tt[] = {
+	{
+		.flags = ASN1_TFLG_SET_OF,
+		.tag = 0,
+		.offset = offsetof(X509_ATTRIBUTE, value.set),
+		.field_name = "value.set",
+		.item = &ASN1_ANY_it,
+	},
+	{
+		.flags = 0,
+		.tag = 0,
+		.offset = offsetof(X509_ATTRIBUTE, value.single),
+		.field_name = "value.single",
+		.item = &ASN1_ANY_it,
+	},
+};
 
-ASN1_SEQUENCE(X509_ATTRIBUTE) = {
-        ASN1_SIMPLE(X509_ATTRIBUTE, object, ASN1_OBJECT),
-        /* CHOICE type merged with parent */
-        ASN1_EX_COMBINE(0, 0, X509_ATTRIBUTE_SET)
-} ASN1_SEQUENCE_END(X509_ATTRIBUTE)
+const ASN1_ITEM X509_ATTRIBUTE_SET_it = {
+	.itype = ASN1_ITYPE_CHOICE,
+	.utype = offsetof(X509_ATTRIBUTE, single),
+	.templates = X509_ATTRIBUTE_SET_ch_tt,
+	.tcount = sizeof(X509_ATTRIBUTE_SET_ch_tt) / sizeof(ASN1_TEMPLATE),
+	.funcs = NULL,
+	.size = sizeof(X509_ATTRIBUTE),
+	.sname = "X509_ATTRIBUTE",
+};
 
-IMPLEMENT_ASN1_FUNCTIONS(X509_ATTRIBUTE)
-IMPLEMENT_ASN1_DUP_FUNCTION(X509_ATTRIBUTE)
+static const ASN1_TEMPLATE X509_ATTRIBUTE_seq_tt[] = {
+	{
+		.flags = 0,
+		.tag = 0,
+		.offset = offsetof(X509_ATTRIBUTE, object),
+		.field_name = "object",
+		.item = &ASN1_OBJECT_it,
+	},
+	/* CHOICE type merged with parent */
+	{
+		.flags = 0 | ASN1_TFLG_COMBINE,
+		.tag = 0,
+		.offset = 0,
+		.field_name = NULL,
+		.item = &X509_ATTRIBUTE_SET_it,
+	},
+};
 
-X509_ATTRIBUTE *X509_ATTRIBUTE_create(int nid, int atrtype, void *value)
+const ASN1_ITEM X509_ATTRIBUTE_it = {
+	.itype = ASN1_ITYPE_SEQUENCE,
+	.utype = V_ASN1_SEQUENCE,
+	.templates = X509_ATTRIBUTE_seq_tt,
+	.tcount = sizeof(X509_ATTRIBUTE_seq_tt) / sizeof(ASN1_TEMPLATE),
+	.funcs = NULL,
+	.size = sizeof(X509_ATTRIBUTE),
+	.sname = "X509_ATTRIBUTE",
+};
+
+
+X509_ATTRIBUTE *
+d2i_X509_ATTRIBUTE(X509_ATTRIBUTE **a, const unsigned char **in, long len)
 {
-    X509_ATTRIBUTE *ret = NULL;
-    ASN1_TYPE *val = NULL;
+	return (X509_ATTRIBUTE *)ASN1_item_d2i((ASN1_VALUE **)a, in, len,
+	    &X509_ATTRIBUTE_it);
+}
 
-    if ((ret = X509_ATTRIBUTE_new()) == NULL)
-        return (NULL);
-    ret->object = OBJ_nid2obj(nid);
-    ret->single = 0;
-    if ((ret->value.set = sk_ASN1_TYPE_new_null()) == NULL)
-        goto err;
-    if ((val = ASN1_TYPE_new()) == NULL)
-        goto err;
-    if (!sk_ASN1_TYPE_push(ret->value.set, val))
-        goto err;
+int
+i2d_X509_ATTRIBUTE(X509_ATTRIBUTE *a, unsigned char **out)
+{
+	return ASN1_item_i2d((ASN1_VALUE *)a, out, &X509_ATTRIBUTE_it);
+}
 
-    ASN1_TYPE_set(val, atrtype, value);
-    return (ret);
- err:
-    if (ret != NULL)
-        X509_ATTRIBUTE_free(ret);
-    if (val != NULL)
-        ASN1_TYPE_free(val);
-    return (NULL);
+X509_ATTRIBUTE *
+X509_ATTRIBUTE_new(void)
+{
+	return (X509_ATTRIBUTE *)ASN1_item_new(&X509_ATTRIBUTE_it);
+}
+
+void
+X509_ATTRIBUTE_free(X509_ATTRIBUTE *a)
+{
+	ASN1_item_free((ASN1_VALUE *)a, &X509_ATTRIBUTE_it);
+}
+
+X509_ATTRIBUTE *
+X509_ATTRIBUTE_dup(X509_ATTRIBUTE *x)
+{
+	return ASN1_item_dup(&X509_ATTRIBUTE_it, x);
+}
+
+X509_ATTRIBUTE *
+X509_ATTRIBUTE_create(int nid, int atrtype, void *value)
+{
+	X509_ATTRIBUTE *ret = NULL;
+	ASN1_TYPE *val = NULL;
+
+	if ((ret = X509_ATTRIBUTE_new()) == NULL)
+		return (NULL);
+	ret->object = OBJ_nid2obj(nid);
+	ret->single = 0;
+	if ((ret->value.set = sk_ASN1_TYPE_new_null()) == NULL)
+		goto err;
+	if ((val = ASN1_TYPE_new()) == NULL)
+		goto err;
+	if (!sk_ASN1_TYPE_push(ret->value.set, val))
+		goto err;
+
+	ASN1_TYPE_set(val, atrtype, value);
+	return (ret);
+
+err:
+	if (ret != NULL)
+		X509_ATTRIBUTE_free(ret);
+	if (val != NULL)
+		ASN1_TYPE_free(val);
+	return (NULL);
 }

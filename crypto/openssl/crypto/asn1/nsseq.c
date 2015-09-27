@@ -1,7 +1,6 @@
-/* nsseq.c */
-/*
- * Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL project
- * 1999.
+/* $OpenBSD: nsseq.c,v 1.9 2015/02/11 03:39:51 jsing Exp $ */
+/* Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL
+ * project 1999.
  */
 /* ====================================================================
  * Copyright (c) 1999-2005 The OpenSSL Project.  All rights reserved.
@@ -63,22 +62,68 @@
 #include <openssl/x509.h>
 #include <openssl/objects.h>
 
-static int nsseq_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it,
-                    void *exarg)
+static int
+nsseq_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it, void *exarg)
 {
-    if (operation == ASN1_OP_NEW_POST) {
-        NETSCAPE_CERT_SEQUENCE *nsseq;
-        nsseq = (NETSCAPE_CERT_SEQUENCE *)*pval;
-        nsseq->type = OBJ_nid2obj(NID_netscape_cert_sequence);
-    }
-    return 1;
+	if (operation == ASN1_OP_NEW_POST) {
+		NETSCAPE_CERT_SEQUENCE *nsseq;
+		nsseq = (NETSCAPE_CERT_SEQUENCE *)*pval;
+		nsseq->type = OBJ_nid2obj(NID_netscape_cert_sequence);
+	}
+	return 1;
 }
 
 /* Netscape certificate sequence structure */
 
-ASN1_SEQUENCE_cb(NETSCAPE_CERT_SEQUENCE, nsseq_cb) = {
-        ASN1_SIMPLE(NETSCAPE_CERT_SEQUENCE, type, ASN1_OBJECT),
-        ASN1_EXP_SEQUENCE_OF_OPT(NETSCAPE_CERT_SEQUENCE, certs, X509, 0)
-} ASN1_SEQUENCE_END_cb(NETSCAPE_CERT_SEQUENCE, NETSCAPE_CERT_SEQUENCE)
+static const ASN1_AUX NETSCAPE_CERT_SEQUENCE_aux = {
+	.asn1_cb = nsseq_cb,
+};
+static const ASN1_TEMPLATE NETSCAPE_CERT_SEQUENCE_seq_tt[] = {
+	{
+		.offset = offsetof(NETSCAPE_CERT_SEQUENCE, type),
+		.field_name = "type",
+		.item = &ASN1_OBJECT_it,
+	},
+	{
+		.flags = ASN1_TFLG_EXPLICIT | ASN1_TFLG_SEQUENCE_OF | ASN1_TFLG_OPTIONAL,
+		.offset = offsetof(NETSCAPE_CERT_SEQUENCE, certs),
+		.field_name = "certs",
+		.item = &X509_it,
+	},
+};
 
-IMPLEMENT_ASN1_FUNCTIONS(NETSCAPE_CERT_SEQUENCE)
+const ASN1_ITEM NETSCAPE_CERT_SEQUENCE_it = {
+	.itype = ASN1_ITYPE_SEQUENCE,
+	.utype = V_ASN1_SEQUENCE,
+	.templates = NETSCAPE_CERT_SEQUENCE_seq_tt,
+	.tcount = sizeof(NETSCAPE_CERT_SEQUENCE_seq_tt) / sizeof(ASN1_TEMPLATE),
+	.funcs = &NETSCAPE_CERT_SEQUENCE_aux,
+	.size = sizeof(NETSCAPE_CERT_SEQUENCE),
+	.sname = "NETSCAPE_CERT_SEQUENCE",
+};
+
+
+NETSCAPE_CERT_SEQUENCE *
+d2i_NETSCAPE_CERT_SEQUENCE(NETSCAPE_CERT_SEQUENCE **a, const unsigned char **in, long len)
+{
+	return (NETSCAPE_CERT_SEQUENCE *)ASN1_item_d2i((ASN1_VALUE **)a, in, len,
+	    &NETSCAPE_CERT_SEQUENCE_it);
+}
+
+int
+i2d_NETSCAPE_CERT_SEQUENCE(NETSCAPE_CERT_SEQUENCE *a, unsigned char **out)
+{
+	return ASN1_item_i2d((ASN1_VALUE *)a, out, &NETSCAPE_CERT_SEQUENCE_it);
+}
+
+NETSCAPE_CERT_SEQUENCE *
+NETSCAPE_CERT_SEQUENCE_new(void)
+{
+	return (NETSCAPE_CERT_SEQUENCE *)ASN1_item_new(&NETSCAPE_CERT_SEQUENCE_it);
+}
+
+void
+NETSCAPE_CERT_SEQUENCE_free(NETSCAPE_CERT_SEQUENCE *a)
+{
+	ASN1_item_free((ASN1_VALUE *)a, &NETSCAPE_CERT_SEQUENCE_it);
+}

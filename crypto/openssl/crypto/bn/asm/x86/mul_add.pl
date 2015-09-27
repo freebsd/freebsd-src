@@ -1,5 +1,5 @@
 #!/usr/local/bin/perl
-# x86 assember
+# x86 assembler
 
 sub bn_mul_add_words
 	{

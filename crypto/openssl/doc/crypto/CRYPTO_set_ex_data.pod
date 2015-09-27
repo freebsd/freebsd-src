@@ -2,7 +2,8 @@
 
 =head1 NAME
 
-CRYPTO_set_ex_data, CRYPTO_get_ex_data - internal application specific data functions
+CRYPTO_set_ex_data, CRYPTO_get_ex_data - internal application specific data
+functions
 
 =head1 SYNOPSIS
 
@@ -34,11 +35,12 @@ a previous B<CRYPTO_set_ex_data()> call.
 
 B<CRYPTO_set_ex_data()> returns 1 on success or 0 on failure.
 
-B<CRYPTO_get_ex_data()> returns the application data or 0 on failure. 0 may also
-be valid application data but currently it can only fail if given an invalid B<idx>
-parameter.
+B<CRYPTO_get_ex_data()> returns the application data or 0 on failure. 0 may
+also be valid application data but currently it can only fail if given an
+invalid B<idx> parameter.
 
-On failure an error code can be obtained from L<ERR_get_error(3)|ERR_get_error(3)>.
+On failure an error code can be obtained from
+L<ERR_get_error(3)|ERR_get_error(3)>.
 
 =head1 SEE ALSO
 
@@ -48,6 +50,7 @@ L<DH_get_ex_new_index(3)|DH_get_ex_new_index(3)>
 
 =head1 HISTORY
 
-CRYPTO_set_ex_data() and CRYPTO_get_ex_data() have been available since SSLeay 0.9.0.
+CRYPTO_set_ex_data() and CRYPTO_get_ex_data() have been available since SSLeay
+0.9.0.
 
 =cut

@@ -1,7 +1,6 @@
-/* x_exten.c */
-/*
- * Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL project
- * 2000.
+/* $OpenBSD: x_exten.c,v 1.15 2015/02/11 04:00:39 jsing Exp $ */
+/* Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL
+ * project 2000.
  */
 /* ====================================================================
  * Copyright (c) 2000 The OpenSSL Project.  All rights reserved.
@@ -62,16 +61,93 @@
 #include <openssl/asn1.h>
 #include <openssl/asn1t.h>
 
-ASN1_SEQUENCE(X509_EXTENSION) = {
-        ASN1_SIMPLE(X509_EXTENSION, object, ASN1_OBJECT),
-        ASN1_OPT(X509_EXTENSION, critical, ASN1_BOOLEAN),
-        ASN1_SIMPLE(X509_EXTENSION, value, ASN1_OCTET_STRING)
-} ASN1_SEQUENCE_END(X509_EXTENSION)
+static const ASN1_TEMPLATE X509_EXTENSION_seq_tt[] = {
+	{
+		.offset = offsetof(X509_EXTENSION, object),
+		.field_name = "object",
+		.item = &ASN1_OBJECT_it,
+	},
+	{
+		.flags = ASN1_TFLG_OPTIONAL,
+		.offset = offsetof(X509_EXTENSION, critical),
+		.field_name = "critical",
+		.item = &ASN1_BOOLEAN_it,
+	},
+	{
+		.offset = offsetof(X509_EXTENSION, value),
+		.field_name = "value",
+		.item = &ASN1_OCTET_STRING_it,
+	},
+};
 
-ASN1_ITEM_TEMPLATE(X509_EXTENSIONS) =
-        ASN1_EX_TEMPLATE_TYPE(ASN1_TFLG_SEQUENCE_OF, 0, Extension, X509_EXTENSION)
-ASN1_ITEM_TEMPLATE_END(X509_EXTENSIONS)
+const ASN1_ITEM X509_EXTENSION_it = {
+	.itype = ASN1_ITYPE_SEQUENCE,
+	.utype = V_ASN1_SEQUENCE,
+	.templates = X509_EXTENSION_seq_tt,
+	.tcount = sizeof(X509_EXTENSION_seq_tt) / sizeof(ASN1_TEMPLATE),
+	.size = sizeof(X509_EXTENSION),
+	.sname = "X509_EXTENSION",
+};
 
-IMPLEMENT_ASN1_FUNCTIONS(X509_EXTENSION)
-IMPLEMENT_ASN1_ENCODE_FUNCTIONS_fname(X509_EXTENSIONS, X509_EXTENSIONS, X509_EXTENSIONS)
-IMPLEMENT_ASN1_DUP_FUNCTION(X509_EXTENSION)
+static const ASN1_TEMPLATE X509_EXTENSIONS_item_tt = {
+	.flags = ASN1_TFLG_SEQUENCE_OF,
+	.tag = 0,
+	.offset = 0,
+	.field_name = "Extension",
+	.item = &X509_EXTENSION_it,
+};
+
+const ASN1_ITEM X509_EXTENSIONS_it = {
+	.itype = ASN1_ITYPE_PRIMITIVE,
+	.utype = -1,
+	.templates = &X509_EXTENSIONS_item_tt,
+	.tcount = 0,
+	.funcs = NULL,
+	.size = 0,
+	.sname = "X509_EXTENSIONS",
+};
+
+
+X509_EXTENSION *
+d2i_X509_EXTENSION(X509_EXTENSION **a, const unsigned char **in, long len)
+{
+	return (X509_EXTENSION *)ASN1_item_d2i((ASN1_VALUE **)a, in, len,
+	    &X509_EXTENSION_it);
+}
+
+int
+i2d_X509_EXTENSION(X509_EXTENSION *a, unsigned char **out)
+{
+	return ASN1_item_i2d((ASN1_VALUE *)a, out, &X509_EXTENSION_it);
+}
+
+X509_EXTENSION *
+X509_EXTENSION_new(void)
+{
+	return (X509_EXTENSION *)ASN1_item_new(&X509_EXTENSION_it);
+}
+
+void
+X509_EXTENSION_free(X509_EXTENSION *a)
+{
+	ASN1_item_free((ASN1_VALUE *)a, &X509_EXTENSION_it);
+}
+
+X509_EXTENSIONS *
+d2i_X509_EXTENSIONS(X509_EXTENSIONS **a, const unsigned char **in, long len)
+{
+	return (X509_EXTENSIONS *)ASN1_item_d2i((ASN1_VALUE **)a, in, len,
+	    &X509_EXTENSIONS_it);
+}
+
+int
+i2d_X509_EXTENSIONS(X509_EXTENSIONS *a, unsigned char **out)
+{
+	return ASN1_item_i2d((ASN1_VALUE *)a, out, &X509_EXTENSIONS_it);
+}
+
+X509_EXTENSION *
+X509_EXTENSION_dup(X509_EXTENSION *x)
+{
+	return ASN1_item_dup(&X509_EXTENSION_it, x);
+}

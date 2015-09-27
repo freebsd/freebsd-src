@@ -47,6 +47,12 @@
 #
 $flavour = shift; # supported flavours are o32,n32,64,nubi32,nubi64
 
+if ($flavour =~ /64/i) {
+	$LA="dla";
+} else {
+	$LA="la";
+}
+
 if ($flavour =~ /64|n32/i) {
 	$PTR_ADD="dadd";	# incidentally works even on n32
 	$PTR_SUB="dsub";	# incidentally works even on n32
@@ -68,7 +74,7 @@ $pf = ($flavour =~ /nubi/i) ? $t0 : $t2;
 #
 ######################################################################
 
-$big_endian=(`echo MIPSEL | $ENV{CC} -E -`=~/MIPSEL/)?1:0 if ($ENV{CC});
+$big_endian=(`echo MIPSEL | $ENV{CC} -E -P -`=~/MIPSEL/)?1:0;
 
 for (@ARGV) {	$output=$_ if (/^\w[\w\-]*\.\w+$/);	}
 open STDOUT,">$output";
@@ -238,10 +244,6 @@ $FRAMESIZE=16*$SZ+16*$SZREG;
 $SAVED_REGS_MASK = ($flavour =~ /nubi/i) ? 0xc0fff008 : 0xc0ff0000;
 
 $code.=<<___;
-#ifdef OPENSSL_FIPSCANISTER
-# include <openssl/fipssyms.h>
-#endif
-
 .text
 .set	noat
 #if !defined(__vxworks) || defined(__pic__)
@@ -288,7 +290,7 @@ $code.=<<___ if ($flavour !~ /o32/i);	# non-o32 PIC-ification
 ___
 $code.=<<___;
 	.set	reorder
-	la	$Ktbl,K${label}		# PIC-ified 'load address'
+	$LA	$Ktbl,K${label}		# PIC-ified 'load address'
 
 	$LD	$A,0*$SZ($ctx)		# load context
 	$LD	$B,1*$SZ($ctx)

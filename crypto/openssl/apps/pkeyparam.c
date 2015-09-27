@@ -1,7 +1,6 @@
-/* apps/pkeyparam.c */
-/*
- * Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL project
- * 2006
+/* $OpenBSD: pkeyparam.c,v 1.4 2015/04/11 15:21:42 jsing Exp $ */
+/* Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL
+ * project 2006
  */
 /* ====================================================================
  * Copyright (c) 2006 The OpenSSL Project.  All rights reserved.
@@ -56,130 +55,131 @@
  * Hudson (tjh@cryptsoft.com).
  *
  */
+
 #include <stdio.h>
 #include <string.h>
+
 #include "apps.h"
-#include <openssl/pem.h>
+
 #include <openssl/err.h>
 #include <openssl/evp.h>
+#include <openssl/pem.h>
 
-#define PROG pkeyparam_main
+struct {
+#ifndef OPENSSL_NO_ENGINE
+	char *engine;
+#endif
+	char *infile;
+	int noout;
+	char *outfile;
+	int text;
+} pkeyparam_config;
 
-int MAIN(int, char **);
+struct option pkeyparam_options[] = {
+#ifndef OPENSSL_NO_ENGINE
+	{
+		.name = "engine",
+		.argname = "id",
+		.desc = "Use the engine specified by the given identifier",
+		.type = OPTION_ARG,
+		.opt.arg = &pkeyparam_config.engine,
+	},
+#endif
+	{
+		.name = "in",
+		.argname = "file",
+		.desc = "Input file (default stdin)",
+		.type = OPTION_ARG,
+		.opt.arg = &pkeyparam_config.infile,
+	},
+	{
+		.name = "noout",
+		.desc = "Do not print encoded version of the parameters",
+		.type = OPTION_FLAG,
+		.opt.flag = &pkeyparam_config.noout,
+	},
+	{
+		.name = "out",
+		.argname = "file",
+		.desc = "Output file (default stdout)",
+		.type = OPTION_ARG,
+		.opt.arg = &pkeyparam_config.outfile,
+	},
+	{
+		.name = "text",
+		.desc = "Print out the parameters in plain text",
+		.type = OPTION_FLAG,
+		.opt.flag = &pkeyparam_config.text,
+	},
+	{ NULL },
+};
 
-int MAIN(int argc, char **argv)
+static void
+pkeyparam_usage()
 {
-    char **args, *infile = NULL, *outfile = NULL;
-    BIO *in = NULL, *out = NULL;
-    int text = 0, noout = 0;
-    EVP_PKEY *pkey = NULL;
-    int badarg = 0;
+	fprintf(stderr,
+	    "usage: pkeyparam [-engine id] [-in file] [-noout] [-out file] "
+	    "[-text]\n");
+	options_usage(pkeyparam_options);
+}
+
+int pkeyparam_main(int, char **);
+
+int
+pkeyparam_main(int argc, char **argv)
+{
+	BIO *in = NULL, *out = NULL;
+	EVP_PKEY *pkey = NULL;
+	int ret = 1;
+
+	memset(&pkeyparam_config, 0, sizeof(pkeyparam_config));
+
+	if (options_parse(argc, argv, pkeyparam_options, NULL, NULL) != 0) {
+		pkeyparam_usage();
+		return (1);
+	}
+
 #ifndef OPENSSL_NO_ENGINE
-    char *engine = NULL;
-#endif
-    int ret = 1;
-
-    if (bio_err == NULL)
-        bio_err = BIO_new_fp(stderr, BIO_NOCLOSE);
-
-    if (!load_config(bio_err, NULL))
-        goto end;
-
-    ERR_load_crypto_strings();
-    OpenSSL_add_all_algorithms();
-    args = argv + 1;
-    while (!badarg && *args && *args[0] == '-') {
-        if (!strcmp(*args, "-in")) {
-            if (args[1]) {
-                args++;
-                infile = *args;
-            } else
-                badarg = 1;
-        } else if (!strcmp(*args, "-out")) {
-            if (args[1]) {
-                args++;
-                outfile = *args;
-            } else
-                badarg = 1;
-        }
-#ifndef OPENSSL_NO_ENGINE
-        else if (strcmp(*args, "-engine") == 0) {
-            if (!args[1])
-                goto bad;
-            engine = *(++args);
-        }
+	setup_engine(bio_err, pkeyparam_config.engine, 0);
 #endif
 
-        else if (strcmp(*args, "-text") == 0)
-            text = 1;
-        else if (strcmp(*args, "-noout") == 0)
-            noout = 1;
-        args++;
-    }
+	if (pkeyparam_config.infile) {
+		if (!(in = BIO_new_file(pkeyparam_config.infile, "r"))) {
+			BIO_printf(bio_err, "Can't open input file %s\n",
+			    pkeyparam_config.infile);
+			goto end;
+		}
+	} else
+		in = BIO_new_fp(stdin, BIO_NOCLOSE);
 
-    if (badarg) {
-#ifndef OPENSSL_NO_ENGINE
- bad:
-#endif
-        BIO_printf(bio_err, "Usage pkeyparam [options]\n");
-        BIO_printf(bio_err, "where options are\n");
-        BIO_printf(bio_err, "-in file        input file\n");
-        BIO_printf(bio_err, "-out file       output file\n");
-        BIO_printf(bio_err, "-text           print parameters as text\n");
-        BIO_printf(bio_err,
-                   "-noout          don't output encoded parameters\n");
-#ifndef OPENSSL_NO_ENGINE
-        BIO_printf(bio_err,
-                   "-engine e       use engine e, possibly a hardware device.\n");
-#endif
-        return 1;
-    }
-#ifndef OPENSSL_NO_ENGINE
-    setup_engine(bio_err, engine, 0);
-#endif
+	if (pkeyparam_config.outfile) {
+		if (!(out = BIO_new_file(pkeyparam_config.outfile, "w"))) {
+			BIO_printf(bio_err, "Can't open output file %s\n",
+			    pkeyparam_config.outfile);
+			goto end;
+		}
+	} else {
+		out = BIO_new_fp(stdout, BIO_NOCLOSE);
+	}
 
-    if (infile) {
-        if (!(in = BIO_new_file(infile, "r"))) {
-            BIO_printf(bio_err, "Can't open input file %s\n", infile);
-            goto end;
-        }
-    } else
-        in = BIO_new_fp(stdin, BIO_NOCLOSE);
+	pkey = PEM_read_bio_Parameters(in, NULL);
+	if (!pkey) {
+		BIO_printf(bio_err, "Error reading parameters\n");
+		ERR_print_errors(bio_err);
+		goto end;
+	}
+	if (!pkeyparam_config.noout)
+		PEM_write_bio_Parameters(out, pkey);
 
-    if (outfile) {
-        if (!(out = BIO_new_file(outfile, "w"))) {
-            BIO_printf(bio_err, "Can't open output file %s\n", outfile);
-            goto end;
-        }
-    } else {
-        out = BIO_new_fp(stdout, BIO_NOCLOSE);
-#ifdef OPENSSL_SYS_VMS
-        {
-            BIO *tmpbio = BIO_new(BIO_f_linebuffer());
-            out = BIO_push(tmpbio, out);
-        }
-#endif
-    }
+	if (pkeyparam_config.text)
+		EVP_PKEY_print_params(out, pkey, 0, NULL);
 
-    pkey = PEM_read_bio_Parameters(in, NULL);
-    if (!pkey) {
-        BIO_printf(bio_err, "Error reading parameters\n");
-        ERR_print_errors(bio_err);
-        goto end;
-    }
+	ret = 0;
 
-    if (!noout)
-        PEM_write_bio_Parameters(out, pkey);
+end:
+	EVP_PKEY_free(pkey);
+	BIO_free_all(out);
+	BIO_free(in);
 
-    if (text)
-        EVP_PKEY_print_params(out, pkey, 0, NULL);
-
-    ret = 0;
-
- end:
-    EVP_PKEY_free(pkey);
-    BIO_free_all(out);
-    BIO_free(in);
-
-    return ret;
+	return ret;
 }

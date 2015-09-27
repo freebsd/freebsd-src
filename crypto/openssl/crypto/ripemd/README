@@ -1,7 +1,7 @@
 RIPEMD-160
 http://www.esat.kuleuven.ac.be/~bosselae/ripemd160.html
 
-This is my implementation of RIPEMD-160.  The pentium assember is a little
+This is my implementation of RIPEMD-160.  The pentium assembler is a little
 off the pace since I only get 1050 cycles, while the best is 1013.
 I have a few ideas for how to get another 20 or so cycles, but at
 this point I will not bother right now.  I believe the trick will be

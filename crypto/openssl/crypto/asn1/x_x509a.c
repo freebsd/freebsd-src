@@ -1,7 +1,6 @@
-/* a_x509a.c */
-/*
- * Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL project
- * 1999.
+/* $OpenBSD: x_x509a.c,v 1.13 2015/02/11 04:00:39 jsing Exp $ */
+/* Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL
+ * project 1999.
  */
 /* ====================================================================
  * Copyright (c) 1999 The OpenSSL Project.  All rights reserved.
@@ -58,136 +57,269 @@
  */
 
 #include <stdio.h>
-#include "cryptlib.h"
-#include <openssl/evp.h>
+
 #include <openssl/asn1t.h>
+#include <openssl/evp.h>
 #include <openssl/x509.h>
 
-/*
- * X509_CERT_AUX routines. These are used to encode additional user
- * modifiable data about a certificate. This data is appended to the X509
- * encoding when the *_X509_AUX routines are used. This means that the
- * "traditional" X509 routines will simply ignore the extra data.
+/* X509_CERT_AUX routines. These are used to encode additional
+ * user modifiable data about a certificate. This data is
+ * appended to the X509 encoding when the *_X509_AUX routines
+ * are used. This means that the "traditional" X509 routines
+ * will simply ignore the extra data.
  */
 
 static X509_CERT_AUX *aux_get(X509 *x);
 
-ASN1_SEQUENCE(X509_CERT_AUX) = {
-        ASN1_SEQUENCE_OF_OPT(X509_CERT_AUX, trust, ASN1_OBJECT),
-        ASN1_IMP_SEQUENCE_OF_OPT(X509_CERT_AUX, reject, ASN1_OBJECT, 0),
-        ASN1_OPT(X509_CERT_AUX, alias, ASN1_UTF8STRING),
-        ASN1_OPT(X509_CERT_AUX, keyid, ASN1_OCTET_STRING),
-        ASN1_IMP_SEQUENCE_OF_OPT(X509_CERT_AUX, other, X509_ALGOR, 1)
-} ASN1_SEQUENCE_END(X509_CERT_AUX)
+static const ASN1_TEMPLATE X509_CERT_AUX_seq_tt[] = {
+	{
+		.flags = ASN1_TFLG_SEQUENCE_OF | ASN1_TFLG_OPTIONAL,
+		.offset = offsetof(X509_CERT_AUX, trust),
+		.field_name = "trust",
+		.item = &ASN1_OBJECT_it,
+	},
+	{
+		.flags = ASN1_TFLG_IMPLICIT | ASN1_TFLG_SEQUENCE_OF |
+		    ASN1_TFLG_OPTIONAL,
+		.tag = 0,
+		.offset = offsetof(X509_CERT_AUX, reject),
+		.field_name = "reject",
+		.item = &ASN1_OBJECT_it,
+	},
+	{
+		.flags = ASN1_TFLG_OPTIONAL,
+		.offset = offsetof(X509_CERT_AUX, alias),
+		.field_name = "alias",
+		.item = &ASN1_UTF8STRING_it,
+	},
+	{
+		.flags = ASN1_TFLG_OPTIONAL,
+		.offset = offsetof(X509_CERT_AUX, keyid),
+		.field_name = "keyid",
+		.item = &ASN1_OCTET_STRING_it,
+	},
+	{
+		.flags = ASN1_TFLG_IMPLICIT | ASN1_TFLG_SEQUENCE_OF |
+		    ASN1_TFLG_OPTIONAL,
+		.tag = 1,
+		.offset = offsetof(X509_CERT_AUX, other),
+		.field_name = "other",
+		.item = &X509_ALGOR_it,
+	},
+};
 
-IMPLEMENT_ASN1_FUNCTIONS(X509_CERT_AUX)
+const ASN1_ITEM X509_CERT_AUX_it = {
+	.itype = ASN1_ITYPE_SEQUENCE,
+	.utype = V_ASN1_SEQUENCE,
+	.templates = X509_CERT_AUX_seq_tt,
+	.tcount = sizeof(X509_CERT_AUX_seq_tt) / sizeof(ASN1_TEMPLATE),
+	.size = sizeof(X509_CERT_AUX),
+	.sname = "X509_CERT_AUX",
+};
 
-static X509_CERT_AUX *aux_get(X509 *x)
+
+X509_CERT_AUX *
+d2i_X509_CERT_AUX(X509_CERT_AUX **a, const unsigned char **in, long len)
 {
-    if (!x)
-        return NULL;
-    if (!x->aux && !(x->aux = X509_CERT_AUX_new()))
-        return NULL;
-    return x->aux;
+	return (X509_CERT_AUX *)ASN1_item_d2i((ASN1_VALUE **)a, in, len,
+	    &X509_CERT_AUX_it);
 }
 
-int X509_alias_set1(X509 *x, unsigned char *name, int len)
+int
+i2d_X509_CERT_AUX(X509_CERT_AUX *a, unsigned char **out)
 {
-    X509_CERT_AUX *aux;
-    if (!name) {
-        if (!x || !x->aux || !x->aux->alias)
-            return 1;
-        ASN1_UTF8STRING_free(x->aux->alias);
-        x->aux->alias = NULL;
-        return 1;
-    }
-    if (!(aux = aux_get(x)))
-        return 0;
-    if (!aux->alias && !(aux->alias = ASN1_UTF8STRING_new()))
-        return 0;
-    return ASN1_STRING_set(aux->alias, name, len);
+	return ASN1_item_i2d((ASN1_VALUE *)a, out, &X509_CERT_AUX_it);
 }
 
-int X509_keyid_set1(X509 *x, unsigned char *id, int len)
+X509_CERT_AUX *
+X509_CERT_AUX_new(void)
 {
-    X509_CERT_AUX *aux;
-    if (!id) {
-        if (!x || !x->aux || !x->aux->keyid)
-            return 1;
-        ASN1_OCTET_STRING_free(x->aux->keyid);
-        x->aux->keyid = NULL;
-        return 1;
-    }
-    if (!(aux = aux_get(x)))
-        return 0;
-    if (!aux->keyid && !(aux->keyid = ASN1_OCTET_STRING_new()))
-        return 0;
-    return ASN1_STRING_set(aux->keyid, id, len);
+	return (X509_CERT_AUX *)ASN1_item_new(&X509_CERT_AUX_it);
 }
 
-unsigned char *X509_alias_get0(X509 *x, int *len)
+void
+X509_CERT_AUX_free(X509_CERT_AUX *a)
 {
-    if (!x->aux || !x->aux->alias)
-        return NULL;
-    if (len)
-        *len = x->aux->alias->length;
-    return x->aux->alias->data;
+	ASN1_item_free((ASN1_VALUE *)a, &X509_CERT_AUX_it);
 }
 
-unsigned char *X509_keyid_get0(X509 *x, int *len)
+static X509_CERT_AUX *
+aux_get(X509 *x)
 {
-    if (!x->aux || !x->aux->keyid)
-        return NULL;
-    if (len)
-        *len = x->aux->keyid->length;
-    return x->aux->keyid->data;
+	if (!x)
+		return NULL;
+	if (!x->aux && !(x->aux = X509_CERT_AUX_new()))
+		return NULL;
+	return x->aux;
 }
 
-int X509_add1_trust_object(X509 *x, ASN1_OBJECT *obj)
+int
+X509_alias_set1(X509 *x, unsigned char *name, int len)
 {
-    X509_CERT_AUX *aux;
-    ASN1_OBJECT *objtmp;
-    if (!(objtmp = OBJ_dup(obj)))
-        return 0;
-    if (!(aux = aux_get(x)))
-        return 0;
-    if (!aux->trust && !(aux->trust = sk_ASN1_OBJECT_new_null()))
-        return 0;
-    return sk_ASN1_OBJECT_push(aux->trust, objtmp);
+	X509_CERT_AUX *aux;
+	if (!name) {
+		if (!x || !x->aux || !x->aux->alias)
+			return 1;
+		ASN1_UTF8STRING_free(x->aux->alias);
+		x->aux->alias = NULL;
+		return 1;
+	}
+	if (!(aux = aux_get(x)))
+		return 0;
+	if (!aux->alias && !(aux->alias = ASN1_UTF8STRING_new()))
+		return 0;
+	return ASN1_STRING_set(aux->alias, name, len);
 }
 
-int X509_add1_reject_object(X509 *x, ASN1_OBJECT *obj)
+int
+X509_keyid_set1(X509 *x, unsigned char *id, int len)
 {
-    X509_CERT_AUX *aux;
-    ASN1_OBJECT *objtmp;
-    if (!(objtmp = OBJ_dup(obj)))
-        return 0;
-    if (!(aux = aux_get(x)))
-        return 0;
-    if (!aux->reject && !(aux->reject = sk_ASN1_OBJECT_new_null()))
-        return 0;
-    return sk_ASN1_OBJECT_push(aux->reject, objtmp);
+	X509_CERT_AUX *aux;
+	if (!id) {
+		if (!x || !x->aux || !x->aux->keyid)
+			return 1;
+		ASN1_OCTET_STRING_free(x->aux->keyid);
+		x->aux->keyid = NULL;
+		return 1;
+	}
+	if (!(aux = aux_get(x)))
+		return 0;
+	if (!aux->keyid && !(aux->keyid = ASN1_OCTET_STRING_new()))
+		return 0;
+	return ASN1_STRING_set(aux->keyid, id, len);
 }
 
-void X509_trust_clear(X509 *x)
+unsigned char *
+X509_alias_get0(X509 *x, int *len)
 {
-    if (x->aux && x->aux->trust) {
-        sk_ASN1_OBJECT_pop_free(x->aux->trust, ASN1_OBJECT_free);
-        x->aux->trust = NULL;
-    }
+	if (!x->aux || !x->aux->alias)
+		return NULL;
+	if (len)
+		*len = x->aux->alias->length;
+	return x->aux->alias->data;
 }
 
-void X509_reject_clear(X509 *x)
+unsigned char *
+X509_keyid_get0(X509 *x, int *len)
 {
-    if (x->aux && x->aux->reject) {
-        sk_ASN1_OBJECT_pop_free(x->aux->reject, ASN1_OBJECT_free);
-        x->aux->reject = NULL;
-    }
+	if (!x->aux || !x->aux->keyid)
+		return NULL;
+	if (len)
+		*len = x->aux->keyid->length;
+	return x->aux->keyid->data;
 }
 
-ASN1_SEQUENCE(X509_CERT_PAIR) = {
-        ASN1_EXP_OPT(X509_CERT_PAIR, forward, X509, 0),
-        ASN1_EXP_OPT(X509_CERT_PAIR, reverse, X509, 1)
-} ASN1_SEQUENCE_END(X509_CERT_PAIR)
+int
+X509_add1_trust_object(X509 *x, ASN1_OBJECT *obj)
+{
+	X509_CERT_AUX *aux;
+	ASN1_OBJECT *objtmp;
+	int rc;
 
-IMPLEMENT_ASN1_FUNCTIONS(X509_CERT_PAIR)
+	if (!(objtmp = OBJ_dup(obj)))
+		return 0;
+	if (!(aux = aux_get(x)))
+		goto err;
+	if (!aux->trust && !(aux->trust = sk_ASN1_OBJECT_new_null()))
+		goto err;
+	rc = sk_ASN1_OBJECT_push(aux->trust, objtmp);
+	if (rc != 0)
+		return rc;
+
+err:
+	ASN1_OBJECT_free(objtmp);
+	return 0;
+}
+
+int
+X509_add1_reject_object(X509 *x, ASN1_OBJECT *obj)
+{
+	X509_CERT_AUX *aux;
+	ASN1_OBJECT *objtmp;
+	int rc;
+
+	if (!(objtmp = OBJ_dup(obj)))
+		return 0;
+	if (!(aux = aux_get(x)))
+		goto err;
+	if (!aux->reject && !(aux->reject = sk_ASN1_OBJECT_new_null()))
+		goto err;
+	rc = sk_ASN1_OBJECT_push(aux->reject, objtmp);
+	if (rc != 0)
+		return rc;
+
+err:
+	ASN1_OBJECT_free(objtmp);
+	return 0;
+}
+
+void
+X509_trust_clear(X509 *x)
+{
+	if (x->aux && x->aux->trust) {
+		sk_ASN1_OBJECT_pop_free(x->aux->trust, ASN1_OBJECT_free);
+		x->aux->trust = NULL;
+	}
+}
+
+void
+X509_reject_clear(X509 *x)
+{
+	if (x->aux && x->aux->reject) {
+		sk_ASN1_OBJECT_pop_free(x->aux->reject, ASN1_OBJECT_free);
+		x->aux->reject = NULL;
+	}
+}
+
+static const ASN1_TEMPLATE X509_CERT_PAIR_seq_tt[] = {
+	{
+		.flags = ASN1_TFLG_EXPLICIT | ASN1_TFLG_OPTIONAL,
+		.tag = 0,
+		.offset = offsetof(X509_CERT_PAIR, forward),
+		.field_name = "forward",
+		.item = &X509_it,
+	},
+	{
+		.flags = ASN1_TFLG_EXPLICIT | ASN1_TFLG_OPTIONAL,
+		.tag = 1,
+		.offset = offsetof(X509_CERT_PAIR, reverse),
+		.field_name = "reverse",
+		.item = &X509_it,
+	},
+};
+
+const ASN1_ITEM X509_CERT_PAIR_it = {
+	.itype = ASN1_ITYPE_SEQUENCE,
+	.utype = V_ASN1_SEQUENCE,
+	.templates = X509_CERT_PAIR_seq_tt,
+	.tcount = sizeof(X509_CERT_PAIR_seq_tt) / sizeof(ASN1_TEMPLATE),
+	.funcs = NULL,
+	.size = sizeof(X509_CERT_PAIR),
+	.sname = "X509_CERT_PAIR",
+};
+
+
+X509_CERT_PAIR *
+d2i_X509_CERT_PAIR(X509_CERT_PAIR **a, const unsigned char **in, long len)
+{
+	return (X509_CERT_PAIR *)ASN1_item_d2i((ASN1_VALUE **)a, in, len,
+	    &X509_CERT_PAIR_it);
+}
+
+int
+i2d_X509_CERT_PAIR(X509_CERT_PAIR *a, unsigned char **out)
+{
+	return ASN1_item_i2d((ASN1_VALUE *)a, out, &X509_CERT_PAIR_it);
+}
+
+X509_CERT_PAIR *
+X509_CERT_PAIR_new(void)
+{
+	return (X509_CERT_PAIR *)ASN1_item_new(&X509_CERT_PAIR_it);
+}
+
+void
+X509_CERT_PAIR_free(X509_CERT_PAIR *a)
+{
+	ASN1_item_free((ASN1_VALUE *)a, &X509_CERT_PAIR_it);
+}

@@ -1,7 +1,6 @@
-/* crypto/o_time.h -*- mode:C; c-file-style: "eay" -*- */
-/*
- * Written by Richard Levitte (richard@levitte.org) for the OpenSSL project
- * 2001.
+/* $OpenBSD$ */
+/* Written by Richard Levitte (richard@levitte.org) for the OpenSSL
+ * project 2001.
  */
 /* ====================================================================
  * Copyright (c) 2001 The OpenSSL Project.  All rights reserved.
@@ -58,11 +57,10 @@
  */
 
 #ifndef HEADER_O_TIME_H
-# define HEADER_O_TIME_H
+#define HEADER_O_TIME_H
 
-# include <time.h>
+#include <time.h>
 
-struct tm *OPENSSL_gmtime(const time_t *timer, struct tm *result);
 int OPENSSL_gmtime_adj(struct tm *tm, int offset_day, long offset_sec);
 
 #endif

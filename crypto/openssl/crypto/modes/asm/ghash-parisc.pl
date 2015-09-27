@@ -81,8 +81,12 @@ $rem2="%r6";	# used in PA-RISC 2.0 code
 
 $code.=<<___;
 	.LEVEL	$LEVEL
+#if 0
 	.SPACE	\$TEXT\$
 	.SUBSPA	\$CODE\$,QUAD=0,ALIGN=8,ACCESS=0x2C,CODE_ONLY
+#else
+	.text
+#endif
 
 	.EXPORT	gcm_gmult_4bit,ENTRY,ARGW0=GR,ARGW1=GR
 	.ALIGN	64
@@ -113,6 +117,7 @@ L\$pic_gmult
 	ldi	0xf0,$mask0xf0
 ___
 $code.=<<___ if ($SIZE_T==4);
+#ifndef __OpenBSD__
 	ldi	31,$rem
 	mtctl	$rem,%cr11
 	extrd,u,*= $rem,%sar,1,$rem	; executes on PA-RISC 1.0
@@ -211,6 +216,7 @@ $code.=<<___ if ($SIZE_T==4);
 	nop
 
 L\$parisc1_gmult
+#endif
 	ldb	15($Xi),$nlo
 	ldo	12($Htbl),$Hll
 	ldo	8($Htbl),$Hlh
@@ -366,6 +372,7 @@ L\$pic_ghash
 	ldi	0xf0,$mask0xf0
 ___
 $code.=<<___ if ($SIZE_T==4);
+#ifndef __OpenBSD__
 	ldi	31,$rem
 	mtctl	$rem,%cr11
 	extrd,u,*= $rem,%sar,1,$rem	; executes on PA-RISC 1.0
@@ -475,6 +482,7 @@ $code.=<<___ if ($SIZE_T==4);
 	nop
 
 L\$parisc1_ghash
+#endif
 	ldb	15($Xi),$nlo
 	ldo	12($Htbl),$Hll
 	ldo	8($Htbl),$Hlh
@@ -617,6 +625,8 @@ L\$rem_4bit
 	.WORD	`0x7080<<16`,0,`0x6CA0<<16`,0,`0x48C0<<16`,0,`0x54E0<<16`,0
 	.WORD	`0xE100<<16`,0,`0xFD20<<16`,0,`0xD940<<16`,0,`0xC560<<16`,0
 	.WORD	`0x9180<<16`,0,`0x8DA0<<16`,0,`0xA9C0<<16`,0,`0xB5E0<<16`,0
+
+	.data
 	.STRINGZ "GHASH for PA-RISC, GRYPTOGAMS by <appro\@openssl.org>"
 	.ALIGN	64
 ___
@@ -698,7 +708,7 @@ my $depd = sub {
   my ($mod,$args) = @_;
   my $orig = "depd$mod\t$args";
 
-    # I only have ",z" completer, it's impicitly encoded...
+    # I only have ",z" completer, it's implicitly encoded...
     if ($args =~ /%r([0-9]+),([0-9]+),([0-9]+),%r([0-9]+)/)	# format 16
     {	my $opcode=(0x3c<<26)|($4<<21)|($1<<16);
     	my $cpos=63-$2;

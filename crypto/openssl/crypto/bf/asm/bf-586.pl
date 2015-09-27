@@ -19,7 +19,7 @@ $tmp4="edx";
 
 &BF_encrypt("BF_encrypt",1);
 &BF_encrypt("BF_decrypt",0);
-&cbc("BF_cbc_encrypt","BF_encrypt","BF_decrypt",1,4,5,3,-1,-1);
+&cbc("BF_cbc_encrypt","BF_encrypt","BF_decrypt",1,4,5,3,-1,-1) unless $main'openbsd;
 &asm_finish();
 
 sub BF_encrypt

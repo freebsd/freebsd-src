@@ -112,10 +112,6 @@ $ymm=1 if ($xmm &&
 			=~ /GNU assembler version ([2-9]\.[0-9]+)/ &&
 		$1>=2.19);	# first version supporting AVX
 
-$ymm=1 if ($xmm && !$ymm && $ARGV[0] eq "win32n" && 
-		`nasm -v 2>&1` =~ /NASM version ([2-9]\.[0-9]+)/ &&
-		$1>=2.03);	# first version supporting AVX
-
 &external_label("OPENSSL_ia32cap_P") if ($xmm);
 
 
@@ -506,7 +502,7 @@ my $_ror=sub { &ror(@_) };
 	&jmp	(&label("loop"));
 
 ######################################################################
-# SSE instruction sequence is first broken to groups of indepentent
+# SSE instruction sequence is first broken to groups of independent
 # instructions, independent in respect to their inputs and shifter
 # (not all architectures have more than one). Then IALU instructions
 # are "knitted in" between the SSE groups. Distance is maintained for

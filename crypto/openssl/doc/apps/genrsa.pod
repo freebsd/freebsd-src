@@ -9,18 +9,6 @@ genrsa - generate an RSA private key
 B<openssl> B<genrsa>
 [B<-out filename>]
 [B<-passout arg>]
-[B<-aes128>]
-[B<-aes128>]
-[B<-aes192>]
-[B<-aes256>]
-[B<-camellia128>]
-[B<-camellia192>]
-[B<-camellia256>]
-[B<-aes192>]
-[B<-aes256>]
-[B<-camellia128>]
-[B<-camellia192>]
-[B<-camellia256>]
 [B<-des>]
 [B<-des3>]
 [B<-idea>]
@@ -41,17 +29,17 @@ The B<genrsa> command generates an RSA private key.
 =item B<-out filename>
 
 the output filename. If this argument is not specified then standard output is
-used.  
+used.
 
 =item B<-passout arg>
 
 the output file password source. For more information about the format of B<arg>
 see the B<PASS PHRASE ARGUMENTS> section in L<openssl(1)|openssl(1)>.
 
-=item B<-aes128|-aes192|-aes256|-camellia128|-camellia192|-camellia256|-des|-des3|-idea>
+=item B<-des|-des3|-idea>
 
-These options encrypt the private key with specified
-cipher before outputting it. If none of these options is
+These options encrypt the private key with the DES, triple DES, or the
+IDEA ciphers respectively before outputting it. If none of these options is
 specified no encryption is used. If encryption is used a pass phrase is prompted
 for if it is not supplied via the B<-passout> argument.
 
@@ -77,7 +65,7 @@ for all available algorithms.
 =item B<numbits>
 
 the size of the private key to generate in bits. This must be the last option
-specified. The default is 512.
+specified. The default is 2048.
 
 =back
 

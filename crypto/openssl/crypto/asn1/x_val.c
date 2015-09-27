@@ -1,4 +1,4 @@
-/* crypto/asn1/x_val.c */
+/* $OpenBSD: x_val.c,v 1.10 2015/02/11 03:39:51 jsing Exp $ */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
@@ -57,13 +57,54 @@
  */
 
 #include <stdio.h>
-#include "cryptlib.h"
+
 #include <openssl/asn1t.h>
 #include <openssl/x509.h>
 
-ASN1_SEQUENCE(X509_VAL) = {
-        ASN1_SIMPLE(X509_VAL, notBefore, ASN1_TIME),
-        ASN1_SIMPLE(X509_VAL, notAfter, ASN1_TIME)
-} ASN1_SEQUENCE_END(X509_VAL)
+static const ASN1_TEMPLATE X509_VAL_seq_tt[] = {
+	{
+		.offset = offsetof(X509_VAL, notBefore),
+		.field_name = "notBefore",
+		.item = &ASN1_TIME_it,
+	},
+	{
+		.offset = offsetof(X509_VAL, notAfter),
+		.field_name = "notAfter",
+		.item = &ASN1_TIME_it,
+	},
+};
 
-IMPLEMENT_ASN1_FUNCTIONS(X509_VAL)
+const ASN1_ITEM X509_VAL_it = {
+	.itype = ASN1_ITYPE_SEQUENCE,
+	.utype = V_ASN1_SEQUENCE,
+	.templates = X509_VAL_seq_tt,
+	.tcount = sizeof(X509_VAL_seq_tt) / sizeof(ASN1_TEMPLATE),
+	.size = sizeof(X509_VAL),
+	.sname = "X509_VAL",
+};
+
+
+X509_VAL *
+d2i_X509_VAL(X509_VAL **a, const unsigned char **in, long len)
+{
+	return (X509_VAL *)ASN1_item_d2i((ASN1_VALUE **)a, in, len,
+	    &X509_VAL_it);
+}
+
+int
+i2d_X509_VAL(X509_VAL *a, unsigned char **out)
+{
+	return ASN1_item_i2d((ASN1_VALUE *)a, out, &X509_VAL_it);
+}
+
+X509_VAL *
+X509_VAL_new(void)
+{
+	return (X509_VAL *)ASN1_item_new(&X509_VAL_it);
+}
+
+void
+X509_VAL_free(X509_VAL *a)
+{
+	ASN1_item_free((ASN1_VALUE *)a, &X509_VAL_it);
+}

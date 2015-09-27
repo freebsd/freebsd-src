@@ -1,4 +1,4 @@
-/* ssl/s23_pkt.c */
+/* $OpenBSD: s23_pkt.c,v 1.8 2014/06/12 15:49:31 deraadt Exp $ */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
@@ -56,58 +56,61 @@
  * [including the GNU Public Licence.]
  */
 
-#include <stdio.h>
 #include <errno.h>
-#define USE_SOCKETS
+#include <stdio.h>
+
 #include "ssl_locl.h"
-#include <openssl/evp.h>
+
 #include <openssl/buffer.h>
+#include <openssl/evp.h>
 
-int ssl23_write_bytes(SSL *s)
+int
+ssl23_write_bytes(SSL *s)
 {
-    int i, num, tot;
-    char *buf;
+	int i, num, tot;
+	char *buf;
 
-    buf = s->init_buf->data;
-    tot = s->init_off;
-    num = s->init_num;
-    for (;;) {
-        s->rwstate = SSL_WRITING;
-        i = BIO_write(s->wbio, &(buf[tot]), num);
-        if (i <= 0) {
-            s->init_off = tot;
-            s->init_num = num;
-            return (i);
-        }
-        s->rwstate = SSL_NOTHING;
-        if (i == num)
-            return (tot + i);
+	buf = s->init_buf->data;
+	tot = s->init_off;
+	num = s->init_num;
+	for (;;) {
+		s->rwstate = SSL_WRITING;
+		i = BIO_write(s->wbio, &(buf[tot]), num);
+		if (i <= 0) {
+			s->init_off = tot;
+			s->init_num = num;
+			return (i);
+		}
+		s->rwstate = SSL_NOTHING;
+		if (i == num)
+			return (tot + i);
 
-        num -= i;
-        tot += i;
-    }
+		num -= i;
+		tot += i;
+	}
 }
 
 /* return regularly only when we have read (at least) 'n' bytes */
-int ssl23_read_bytes(SSL *s, int n)
+int
+ssl23_read_bytes(SSL *s, int n)
 {
-    unsigned char *p;
-    int j;
+	unsigned char *p;
+	int j;
 
-    if (s->packet_length < (unsigned int)n) {
-        p = s->packet;
+	if (s->packet_length < (unsigned int)n) {
+		p = s->packet;
 
-        for (;;) {
-            s->rwstate = SSL_READING;
-            j = BIO_read(s->rbio, (char *)&(p[s->packet_length]),
-                         n - s->packet_length);
-            if (j <= 0)
-                return (j);
-            s->rwstate = SSL_NOTHING;
-            s->packet_length += j;
-            if (s->packet_length >= (unsigned int)n)
-                return (s->packet_length);
-        }
-    }
-    return (n);
+		for (;;) {
+			s->rwstate = SSL_READING;
+			j = BIO_read(s->rbio, (char *)&(p[s->packet_length]),
+			    n - s->packet_length);
+			if (j <= 0)
+				return (j);
+			s->rwstate = SSL_NOTHING;
+			s->packet_length += j;
+			if (s->packet_length >= (unsigned int)n)
+				return (s->packet_length);
+		}
+	}
+	return (n);
 }

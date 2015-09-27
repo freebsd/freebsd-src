@@ -94,8 +94,8 @@ L<crypto(3)|crypto(3)>
 
 =head1 HISTORY
 
-SSLeay() and SSLEAY_VERSION_NUMBER are available in all versions of SSLeay and OpenSSL.
-OPENSSL_VERSION_NUMBER is available in all versions of OpenSSL.
+SSLeay() and SSLEAY_VERSION_NUMBER are available in all versions of SSLeay and
+OpenSSL.  OPENSSL_VERSION_NUMBER is available in all versions of OpenSSL.
 B<SSLEAY_DIR> was added in OpenSSL 0.9.7.
 
 =cut

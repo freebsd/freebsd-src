@@ -1,4 +1,4 @@
-/* crypto/x509/x509_d2.c */
+/* $OpenBSD: x509_d2.c,v 1.9 2014/07/11 08:44:49 jsing Exp $ */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
@@ -57,53 +57,72 @@
  */
 
 #include <stdio.h>
-#include "cryptlib.h"
+#include <sys/uio.h>
+
 #include <openssl/crypto.h>
+#include <openssl/err.h>
 #include <openssl/x509.h>
 
-#ifndef OPENSSL_NO_STDIO
-int X509_STORE_set_default_paths(X509_STORE *ctx)
+int
+X509_STORE_set_default_paths(X509_STORE *ctx)
 {
-    X509_LOOKUP *lookup;
+	X509_LOOKUP *lookup;
 
-    lookup = X509_STORE_add_lookup(ctx, X509_LOOKUP_file());
-    if (lookup == NULL)
-        return (0);
-    X509_LOOKUP_load_file(lookup, NULL, X509_FILETYPE_DEFAULT);
+	lookup = X509_STORE_add_lookup(ctx, X509_LOOKUP_file());
+	if (lookup == NULL)
+		return (0);
+	X509_LOOKUP_load_file(lookup, NULL, X509_FILETYPE_DEFAULT);
 
-    lookup = X509_STORE_add_lookup(ctx, X509_LOOKUP_hash_dir());
-    if (lookup == NULL)
-        return (0);
-    X509_LOOKUP_add_dir(lookup, NULL, X509_FILETYPE_DEFAULT);
+	lookup = X509_STORE_add_lookup(ctx, X509_LOOKUP_hash_dir());
+	if (lookup == NULL)
+		return (0);
+	X509_LOOKUP_add_dir(lookup, NULL, X509_FILETYPE_DEFAULT);
 
-    /* clear any errors */
-    ERR_clear_error();
+	/* clear any errors */
+	ERR_clear_error();
 
-    return (1);
+	return (1);
 }
 
-int X509_STORE_load_locations(X509_STORE *ctx, const char *file,
-                              const char *path)
+int
+X509_STORE_load_locations(X509_STORE *ctx, const char *file, const char *path)
 {
-    X509_LOOKUP *lookup;
+	X509_LOOKUP *lookup;
 
-    if (file != NULL) {
-        lookup = X509_STORE_add_lookup(ctx, X509_LOOKUP_file());
-        if (lookup == NULL)
-            return (0);
-        if (X509_LOOKUP_load_file(lookup, file, X509_FILETYPE_PEM) != 1)
-            return (0);
-    }
-    if (path != NULL) {
-        lookup = X509_STORE_add_lookup(ctx, X509_LOOKUP_hash_dir());
-        if (lookup == NULL)
-            return (0);
-        if (X509_LOOKUP_add_dir(lookup, path, X509_FILETYPE_PEM) != 1)
-            return (0);
-    }
-    if ((path == NULL) && (file == NULL))
-        return (0);
-    return (1);
+	if (file != NULL) {
+		lookup = X509_STORE_add_lookup(ctx, X509_LOOKUP_file());
+		if (lookup == NULL)
+			return (0);
+		if (X509_LOOKUP_load_file(lookup, file, X509_FILETYPE_PEM) != 1)
+			return (0);
+	}
+	if (path != NULL) {
+		lookup = X509_STORE_add_lookup(ctx, X509_LOOKUP_hash_dir());
+		if (lookup == NULL)
+			return (0);
+		if (X509_LOOKUP_add_dir(lookup, path, X509_FILETYPE_PEM) != 1)
+			return (0);
+	}
+	if ((path == NULL) && (file == NULL))
+		return (0);
+	return (1);
 }
 
-#endif
+int
+X509_STORE_load_mem(X509_STORE *ctx, void *buf, int len)
+{
+	X509_LOOKUP		*lookup;
+	struct iovec		 iov;
+
+	lookup = X509_STORE_add_lookup(ctx, X509_LOOKUP_mem());
+	if (lookup == NULL)
+		return (0);
+
+	iov.iov_base = buf;
+	iov.iov_len = len;
+
+	if (X509_LOOKUP_add_mem(lookup, &iov, X509_FILETYPE_PEM) != 1)
+		return (0);
+
+	return (1);
+}

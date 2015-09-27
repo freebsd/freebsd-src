@@ -7,7 +7,7 @@ and then include it.
 push(@INC,"perlasm","../../perlasm");
 require "x86asm.pl";
 
-The first thing we do is setup the file and type of assember
+The first thing we do is setup the file and type of assembler
 
 &asm_init($ARGV[0],$0);
 

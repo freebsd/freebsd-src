@@ -1,0 +1,34 @@
+=pod
+
+=head1 NAME
+
+RAND - pseudo-random number generator
+
+=head1 SYNOPSIS
+
+ #include <openssl/rand.h>
+
+ int  RAND_bytes(unsigned char *buf, int num);
+ int  RAND_pseudo_bytes(unsigned char *buf, int num);
+
+=head1 DESCRIPTION
+
+These functions give access to the systems cryptographically secure
+pseudo-random number generator (PRNG). It is used by other library functions
+for example to generate random keys, and applications can use it when they
+need randomness.
+
+L<RAND_bytes(3)|RAND_bytes(3)> describes how to obtain random data from the
+PRNG.
+
+=head1 INTERNALS
+
+The RAND_SSLeay() method implements a PRNG based on the systems'
+L<arc4random_buf(3)> random number generator.
+
+=head1 SEE ALSO
+
+L<BN_rand(3)|BN_rand(3)>,
+L<RAND_bytes(3)|RAND_bytes(3)>
+
+=cut

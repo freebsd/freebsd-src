@@ -525,16 +525,6 @@ $code.=<<___;
 .type	aesni_ecb_encrypt,\@function,5
 .align	16
 aesni_ecb_encrypt:
-___
-$code.=<<___ if ($win64);
-	lea	-0x58(%rsp),%rsp
-	movaps	%xmm6,(%rsp)
-	movaps	%xmm7,0x10(%rsp)
-	movaps	%xmm8,0x20(%rsp)
-	movaps	%xmm9,0x30(%rsp)
-.Lecb_enc_body:
-___
-$code.=<<___;
 	and	\$-16,$len
 	jz	.Lecb_ret
 
@@ -815,16 +805,6 @@ $code.=<<___;
 	movups	$inout5,0x50($out)
 
 .Lecb_ret:
-___
-$code.=<<___ if ($win64);
-	movaps	(%rsp),%xmm6
-	movaps	0x10(%rsp),%xmm7
-	movaps	0x20(%rsp),%xmm8
-	movaps	0x30(%rsp),%xmm9
-	lea	0x58(%rsp),%rsp
-.Lecb_enc_ret:
-___
-$code.=<<___;
 	ret
 .size	aesni_ecb_encrypt,.-aesni_ecb_encrypt
 ___
@@ -2482,7 +2462,7 @@ $code.=<<___;
 .type	${PREFIX}_set_decrypt_key,\@abi-omnipotent
 .align	16
 ${PREFIX}_set_decrypt_key:
-	.byte	0x48,0x83,0xEC,0x08	# sub rsp,8
+	sub	\$8,%rsp
 	call	__aesni_set_encrypt_key
 	shl	\$4,$bits		# rounds-1 after _aesni_set_encrypt_key
 	test	%eax,%eax
@@ -2533,7 +2513,7 @@ $code.=<<___;
 .align	16
 ${PREFIX}_set_encrypt_key:
 __aesni_set_encrypt_key:
-	.byte	0x48,0x83,0xEC,0x08	# sub rsp,8
+	sub	\$8,%rsp
 	mov	\$-1,%rax
 	test	$inp,$inp
 	jz	.Lenc_key_ret
@@ -2750,9 +2730,28 @@ $code.=<<___;
 .extern	__imp_RtlVirtualUnwind
 ___
 $code.=<<___ if ($PREFIX eq "aesni");
-.type	ecb_ccm64_se_handler,\@abi-omnipotent
+.type	ecb_se_handler,\@abi-omnipotent
 .align	16
-ecb_ccm64_se_handler:
+ecb_se_handler:
+	push	%rsi
+	push	%rdi
+	push	%rbx
+	push	%rbp
+	push	%r12
+	push	%r13
+	push	%r14
+	push	%r15
+	pushfq
+	sub	\$64,%rsp
+
+	mov	152($context),%rax	# pull context->Rsp
+
+	jmp	.Lcommon_seh_tail
+.size	ecb_se_handler,.-ecb_se_handler
+
+.type	ccm64_se_handler,\@abi-omnipotent
+.align	16
+ccm64_se_handler:
 	push	%rsi
 	push	%rdi
 	push	%rbx
@@ -2789,7 +2788,7 @@ ecb_ccm64_se_handler:
 	lea	0x58(%rax),%rax		# adjust stack pointer
 
 	jmp	.Lcommon_seh_tail
-.size	ecb_ccm64_se_handler,.-ecb_ccm64_se_handler
+.size	ccm64_se_handler,.-ccm64_se_handler
 
 .type	ctr32_se_handler,\@abi-omnipotent
 .align	16
@@ -2994,15 +2993,14 @@ ___
 $code.=<<___ if ($PREFIX eq "aesni");
 .LSEH_info_ecb:
 	.byte	9,0,0,0
-	.rva	ecb_ccm64_se_handler
-	.rva	.Lecb_enc_body,.Lecb_enc_ret		# HandlerData[]
+	.rva	ecb_se_handler
 .LSEH_info_ccm64_enc:
 	.byte	9,0,0,0
-	.rva	ecb_ccm64_se_handler
+	.rva	ccm64_se_handler
 	.rva	.Lccm64_enc_body,.Lccm64_enc_ret	# HandlerData[]
 .LSEH_info_ccm64_dec:
 	.byte	9,0,0,0
-	.rva	ecb_ccm64_se_handler
+	.rva	ccm64_se_handler
 	.rva	.Lccm64_dec_body,.Lccm64_dec_ret	# HandlerData[]
 .LSEH_info_ctr32:
 	.byte	9,0,0,0
@@ -3036,35 +3034,7 @@ sub rex {
     push @opcode,$rex|0x40	if($rex);
 }
 
-sub aesni {
-  my $line=shift;
-  my @opcode=(0x66);
-
-    if ($line=~/(aeskeygenassist)\s+\$([x0-9a-f]+),\s*%xmm([0-9]+),\s*%xmm([0-9]+)/) {
-	rex(\@opcode,$4,$3);
-	push @opcode,0x0f,0x3a,0xdf;
-	push @opcode,0xc0|($3&7)|(($4&7)<<3);	# ModR/M
-	my $c=$2;
-	push @opcode,$c=~/^0/?oct($c):$c;
-	return ".byte\t".join(',',@opcode);
-    }
-    elsif ($line=~/(aes[a-z]+)\s+%xmm([0-9]+),\s*%xmm([0-9]+)/) {
-	my %opcodelet = (
-		"aesimc" => 0xdb,
-		"aesenc" => 0xdc,	"aesenclast" => 0xdd,
-		"aesdec" => 0xde,	"aesdeclast" => 0xdf
-	);
-	return undef if (!defined($opcodelet{$1}));
-	rex(\@opcode,$3,$2);
-	push @opcode,0x0f,0x38,$opcodelet{$1};
-	push @opcode,0xc0|($2&7)|(($3&7)<<3);	# ModR/M
-	return ".byte\t".join(',',@opcode);
-    }
-    return $line;
-}
-
 $code =~ s/\`([^\`]*)\`/eval($1)/gem;
-$code =~ s/\b(aes.*%xmm[0-9]+).*$/aesni($1)/gem;
 
 print $code;
 

@@ -2,7 +2,8 @@
 
 =head1 NAME
 
-DSA_get_ex_new_index, DSA_set_ex_data, DSA_get_ex_data - add application specific data to DSA structures
+DSA_get_ex_new_index, DSA_set_ex_data, DSA_get_ex_data - add application
+specific data to DSA structures
 
 =head1 SYNOPSIS
 

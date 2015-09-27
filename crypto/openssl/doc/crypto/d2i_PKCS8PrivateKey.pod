@@ -2,9 +2,9 @@
 
 =head1 NAME
 
-d2i_PKCS8PrivateKey_bio, d2i_PKCS8PrivateKey_fp,
-i2d_PKCS8PrivateKey_bio, i2d_PKCS8PrivateKey_fp,
-i2d_PKCS8PrivateKey_nid_bio, i2d_PKCS8PrivateKey_nid_fp - PKCS#8 format private key functions
+d2i_PKCS8PrivateKey_bio, d2i_PKCS8PrivateKey_fp, i2d_PKCS8PrivateKey_bio,
+i2d_PKCS8PrivateKey_fp, i2d_PKCS8PrivateKey_nid_bio, i2d_PKCS8PrivateKey_nid_fp
+- PKCS#8 format private key functions
 
 =head1 SYNOPSIS
 
@@ -39,15 +39,17 @@ corresponding B<PEM> function as described in the L<pem(3)|pem(3)> manual page.
 
 =head1 NOTES
 
-Before using these functions L<OpenSSL_add_all_algorithms(3)|OpenSSL_add_all_algorithms(3)>
-should be called to initialize the internal algorithm lookup tables otherwise errors about
-unknown algorithms will occur if an attempt is made to decrypt a private key. 
+Before using these functions
+L<OpenSSL_add_all_algorithms(3)|OpenSSL_add_all_algorithms(3)> should be called
+to initialize the internal algorithm lookup tables otherwise errors about
+unknown algorithms will occur if an attempt is made to decrypt a private key.
 
-These functions are currently the only way to store encrypted private keys using DER format.
+These functions are currently the only way to store encrypted private keys
+using DER format.
 
-Currently all the functions use BIOs or FILE pointers, there are no functions which
-work directly on memory: this can be readily worked around by converting the buffers
-to memory BIOs, see L<BIO_s_mem(3)|BIO_s_mem(3)> for details.
+Currently all the functions use BIOs or FILE pointers, there are no functions
+which work directly on memory: this can be readily worked around by converting
+the buffers to memory BIOs, see L<BIO_s_mem(3)|BIO_s_mem(3)> for details.
 
 =head1 SEE ALSO
 
