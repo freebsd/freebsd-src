@@ -308,11 +308,9 @@ static struct afswtch af_lagg = {
 static __constructor void
 lagg_ctor(void)
 {
-#define	N(a)	(sizeof(a) / sizeof(a[0]))
 	int i;
 
-	for (i = 0; i < N(lagg_cmds);  i++)
+	for (i = 0; i < nitems(lagg_cmds);  i++)
 		cmd_register(&lagg_cmds[i]);
 	af_register(&af_lagg);
-#undef N
 }
