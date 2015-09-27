@@ -38,7 +38,11 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
-# 20150926: posthumously (r90227) remove MFREE(9) from mbuf(9)
+# 20150926: remove links to removed/unimplemented mbuf(9) macros
+OLD_FILES+=usr/share/man/man9/MEXT_ADD_REF.9.gz
+OLD_FILES+=usr/share/man/man9/MEXTFREE.9.gz
+OLD_FILES+=usr/share/man/man9/MEXT_IS_REF.9.gz
+OLD_FILES+=usr/share/man/man9/MEXT_REM_REF.9.gz
 OLD_FILES+=usr/share/man/man9/MFREE.9.gz
 # 20150818: *allocm() are gone in jemalloc 4.0.0
 OLD_FILES+=usr/share/man/man3/allocm.3.gz
