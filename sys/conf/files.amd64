@@ -40,7 +40,7 @@ ia32_genassym.o			standard				\
 #
 ia32_assym.h			standard				\
 	dependency 	"$S/kern/genassym.sh ia32_genassym.o"		\
-	compile-with	"env NM='${NM}' sh $S/kern/genassym.sh ia32_genassym.o > ${.TARGET}" \
+	compile-with	"env NM='${NM}' NMFLAGS='${NMFLAGS}' sh $S/kern/genassym.sh ia32_genassym.o > ${.TARGET}" \
 	no-obj no-implicit-rule before-depend				\
 	clean		"ia32_assym.h"
 #
@@ -130,7 +130,6 @@ amd64/amd64/pmap.c		standard
 amd64/amd64/prof_machdep.c	optional	profiling-routine
 amd64/amd64/ptrace_machdep.c	standard
 amd64/amd64/sigtramp.S		standard
-amd64/amd64/stack_machdep.c	optional	ddb | stack
 amd64/amd64/support.S		standard
 amd64/amd64/sys_machdep.c	standard
 amd64/amd64/trap.c		standard
@@ -205,6 +204,8 @@ dev/if_ndis/if_ndis_pccard.c	optional	ndis pccard
 dev/if_ndis/if_ndis_pci.c	optional	ndis cardbus | ndis pci
 dev/if_ndis/if_ndis_usb.c	optional	ndis usb
 dev/io/iodev.c			optional	io
+dev/ioat/ioat.c			optional	ioat pci
+dev/ioat/ioat_test.c		optional	ioat pci
 dev/ipmi/ipmi.c			optional	ipmi
 dev/ipmi/ipmi_acpi.c		optional	ipmi acpi
 dev/ipmi/ipmi_isa.c		optional	ipmi isa
@@ -274,7 +275,6 @@ dev/hyperv/vmbus/hv_connection.c			optional	hyperv
 dev/hyperv/vmbus/hv_hv.c				optional	hyperv
 dev/hyperv/vmbus/hv_ring_buffer.c			optional	hyperv
 dev/hyperv/vmbus/hv_vmbus_drv_freebsd.c			optional	hyperv
-dev/kbd/kbd.c			optional	atkbd | sc | ukbd | vt
 dev/nfe/if_nfe.c		optional	nfe pci
 dev/ntb/if_ntb/if_ntb.c		optional	if_ntb
 dev/ntb/ntb_hw/ntb_hw.c		optional	if_ntb | ntb_hw
@@ -592,6 +592,7 @@ x86/isa/nmi.c			standard
 x86/isa/orm.c			optional	isa
 x86/pci/pci_bus.c		optional	pci
 x86/pci/qpi.c			optional	pci
+x86/x86/bus_machdep.c		standard
 x86/x86/busdma_bounce.c		standard
 x86/x86/busdma_machdep.c	standard
 x86/x86/cpu_machdep.c		standard
@@ -609,6 +610,7 @@ x86/x86/mp_x86.c		optional	smp
 x86/x86/msi.c			optional	pci
 x86/x86/nexus.c			standard
 x86/x86/pvclock.c		standard
+x86/x86/stack_machdep.c		optional	ddb | stack
 x86/x86/tsc.c			standard
 x86/x86/delay.c			standard
 x86/xen/hvm.c			optional	xenhvm

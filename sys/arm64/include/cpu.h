@@ -57,7 +57,12 @@
 #define	CPU_AFF1(mpidr)	(u_int)(((mpidr) >> 8) & 0xff)
 #define	CPU_AFF2(mpidr)	(u_int)(((mpidr) >> 16) & 0xff)
 #define	CPU_AFF3(mpidr)	(u_int)(((mpidr) >> 32) & 0xff)
-#define	CPU_AFF_MASK	0xff00ffffffUL	/* Mask affinity fields in MPIDR_EL1 */
+#define	CPU_AFF0_MASK	0xffUL
+#define	CPU_AFF1_MASK	0xff00UL
+#define	CPU_AFF2_MASK	0xff0000UL
+#define	CPU_AFF3_MASK	0xff00000000UL
+#define	CPU_AFF_MASK	(CPU_AFF0_MASK | CPU_AFF1_MASK | \
+    CPU_AFF2_MASK| CPU_AFF3_MASK)	/* Mask affinity fields in MPIDR_EL1 */
 
 #ifdef _KERNEL
 
@@ -143,6 +148,8 @@ void	identify_cpu(void);
 void	swi_vm(void *v);
 
 #define	CPU_AFFINITY(cpu)	__cpu_affinity[(cpu)]
+#define	CPU_CURRENT_SOCKET				\
+    (CPU_AFF2(CPU_AFFINITY(PCPU_GET(cpuid))))
 
 static __inline uint64_t
 get_cyclecount(void)

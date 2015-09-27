@@ -174,8 +174,8 @@ SYSCTL_DECL(_hw_drm);
 #define __OS_HAS_AGP	1
 
 #define DRM_DEV_MODE	(S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP)
-#define DRM_DEV_UID	0
-#define DRM_DEV_GID	44	/* "video" group */
+#define DRM_DEV_UID	UID_ROOT
+#define DRM_DEV_GID	GID_VIDEO
 
 #define wait_queue_head_t	atomic_t
 #define DRM_WAKEUP(w)		wakeup((void *)w)

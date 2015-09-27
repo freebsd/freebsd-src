@@ -64,7 +64,6 @@ __FBSDID("$FreeBSD$");
 #include <cam/ctl/ctl_io.h>
 #include <cam/ctl/ctl.h>
 #include <cam/ctl/ctl_frontend.h>
-#include <cam/ctl/ctl_frontend_internal.h>
 #include <cam/ctl/ctl_debug.h>
 
 #define	io_ptr		spriv_ptr1
@@ -99,8 +98,6 @@ int cfcs_init(void);
 static void cfcs_poll(struct cam_sim *sim);
 static void cfcs_online(void *arg);
 static void cfcs_offline(void *arg);
-static int cfcs_lun_enable(void *arg, int lun_id);
-static int cfcs_lun_disable(void *arg, int lun_id);
 static void cfcs_datamove(union ctl_io *io);
 static void cfcs_done(union ctl_io *io);
 void cfcs_action(struct cam_sim *sim, union ccb *ccb);
@@ -133,13 +130,9 @@ cfcs_init(void)
 	struct cfcs_softc *softc;
 	struct ccb_setasync csa;
 	struct ctl_port *port;
-#ifdef NEEDTOPORT
-	char wwnn[8];
-#endif
 	int retval;
 
 	softc = &cfcs_softc;
-	retval = 0;
 	bzero(softc, sizeof(*softc));
 	mtx_init(&softc->lock, "ctl2cam", NULL, MTX_DEF);
 	port = &softc->port;
@@ -153,9 +146,6 @@ cfcs_init(void)
 	port->port_online = cfcs_online;
 	port->port_offline = cfcs_offline;
 	port->onoff_arg = softc;
-	port->lun_enable = cfcs_lun_enable;
-	port->lun_disable = cfcs_lun_disable;
-	port->targ_lun_arg = softc;
 	port->fe_datamove = cfcs_datamove;
 	port->fe_done = cfcs_done;
 
@@ -163,6 +153,7 @@ cfcs_init(void)
 	/* XXX These should probably be fetched from CTL. */
 	port->max_targets = 1;
 	port->max_target_id = 15;
+	port->targ_port = -1;
 
 	retval = ctl_port_register(port);
 	if (retval != 0) {
@@ -171,15 +162,6 @@ cfcs_init(void)
 		mtx_destroy(&softc->lock);
 		return (retval);
 	}
-
-	/*
-	 * Get the WWNN out of the database, and create a WWPN as well.
-	 */
-#ifdef NEEDTOPORT
-	ddb_GetWWNN((char *)wwnn);
-	softc->wwnn = be64dec(wwnn);
-	softc->wwpn = softc->wwnn + (softc->port.targ_port & 0xff);
-#endif
 
 	/*
 	 * If the CTL frontend didn't tell us what our WWNN/WWPN is, go
@@ -300,17 +282,6 @@ static void
 cfcs_offline(void *arg)
 {
 	cfcs_onoffline(arg, /*online*/ 0);
-}
-
-static int
-cfcs_lun_enable(void *arg, int lun_id)
-{
-	return (0);
-}
-static int
-cfcs_lun_disable(void *arg, int lun_id)
-{
-	return (0);
 }
 
 /*
@@ -451,6 +422,14 @@ cfcs_datamove(union ctl_io *io)
 
 	io->scsiio.ext_data_filled += len_copied;
 
+	if ((io->io_hdr.status & CTL_STATUS_MASK) == CTL_SUCCESS) {
+		io->io_hdr.ctl_private[CTL_PRIV_FRONTEND].ptr = NULL;
+		io->io_hdr.flags |= CTL_FLAG_STATUS_SENT;
+		ccb->ccb_h.status &= ~CAM_STATUS_MASK;
+		ccb->ccb_h.status |= CAM_REQ_CMP;
+		xpt_done(ccb);
+	}
+
 	io->scsiio.be_move_done(io);
 }
 
@@ -474,12 +453,13 @@ cfcs_done(union ctl_io *io)
 	/*
 	 * Translate CTL status to CAM status.
 	 */
+	ccb->ccb_h.status &= ~CAM_STATUS_MASK;
 	switch (io->io_hdr.status & CTL_STATUS_MASK) {
 	case CTL_SUCCESS:
-		ccb->ccb_h.status = CAM_REQ_CMP;
+		ccb->ccb_h.status |= CAM_REQ_CMP;
 		break;
 	case CTL_SCSI_ERROR:
-		ccb->ccb_h.status = CAM_SCSI_STATUS_ERROR | CAM_AUTOSNS_VALID;
+		ccb->ccb_h.status |= CAM_SCSI_STATUS_ERROR | CAM_AUTOSNS_VALID;
 		ccb->csio.scsi_status = io->scsiio.scsi_status;
 		bcopy(&io->scsiio.sense_data, &ccb->csio.sense_data,
 		      min(io->scsiio.sense_len, ccb->csio.sense_len));
@@ -495,14 +475,18 @@ cfcs_done(union ctl_io *io)
 		}
 		break;
 	case CTL_CMD_ABORTED:
-		ccb->ccb_h.status = CAM_REQ_ABORTED;
+		ccb->ccb_h.status |= CAM_REQ_ABORTED;
 		break;
 	case CTL_ERROR:
 	default:
-		ccb->ccb_h.status = CAM_REQ_CMP_ERR;
+		ccb->ccb_h.status |= CAM_REQ_CMP_ERR;
 		break;
 	}
-
+	if ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP &&
+	    (ccb->ccb_h.status & CAM_DEV_QFRZN) == 0) {
+		xpt_freeze_devq(ccb->ccb_h.path, 1);
+		ccb->ccb_h.status |= CAM_DEV_QFRZN;
+	}
 	xpt_done(ccb);
 	ctl_free_io(io);
 }
@@ -563,12 +547,8 @@ cfcs_action(struct cam_sim *sim, union ccb *ccb)
 		 * down via the XPT_RESET_BUS/LUN CCBs below.
 		 */
 		io->io_hdr.io_type = CTL_IO_SCSI;
-		io->io_hdr.nexus.initid.id = 1;
+		io->io_hdr.nexus.initid = 1;
 		io->io_hdr.nexus.targ_port = softc->port.targ_port;
-		/*
-		 * XXX KDM how do we handle target IDs?
-		 */
-		io->io_hdr.nexus.targ_target.id = ccb->ccb_h.target_id;
 		io->io_hdr.nexus.targ_lun = ccb->ccb_h.target_lun;
 		/*
 		 * This tag scheme isn't the best, since we could in theory
@@ -656,9 +636,8 @@ cfcs_action(struct cam_sim *sim, union ccb *ccb)
 		ccb->ccb_h.io_ptr = io;
 
 		io->io_hdr.io_type = CTL_IO_TASK;
-		io->io_hdr.nexus.initid.id = 1;
+		io->io_hdr.nexus.initid = 1;
 		io->io_hdr.nexus.targ_port = softc->port.targ_port;
-		io->io_hdr.nexus.targ_target.id = ccb->ccb_h.target_id;
 		io->io_hdr.nexus.targ_lun = ccb->ccb_h.target_lun;
 		io->taskio.task_action = CTL_TASK_ABORT_TASK;
 		io->taskio.tag_num = abort_ccb->csio.tag_id;
@@ -752,9 +731,8 @@ cfcs_action(struct cam_sim *sim, union ccb *ccb)
 		ccb->ccb_h.io_ptr = io;
 
 		io->io_hdr.io_type = CTL_IO_TASK;
-		io->io_hdr.nexus.initid.id = 0;
+		io->io_hdr.nexus.initid = 1;
 		io->io_hdr.nexus.targ_port = softc->port.targ_port;
-		io->io_hdr.nexus.targ_target.id = ccb->ccb_h.target_id;
 		io->io_hdr.nexus.targ_lun = ccb->ccb_h.target_lun;
 		if (ccb->ccb_h.func_code == XPT_RESET_BUS)
 			io->taskio.task_action = CTL_TASK_BUS_RESET;

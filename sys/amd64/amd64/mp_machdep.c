@@ -282,7 +282,7 @@ init_secondary(void)
 	mp_naps++;
 
 	/* Spin until the BSP releases the AP's. */
-	while (!aps_ready)
+	while (atomic_load_acq_int(&aps_ready) == 0)
 		ia32_pause();
 
 	init_secondary_tail();
@@ -440,7 +440,7 @@ smp_targeted_tlb_shootdown(cpuset_t mask, u_int vector, pmap_t pmap,
 	smp_tlb_addr1 = addr1;
 	smp_tlb_addr2 = addr2;
 	smp_tlb_pmap = pmap;
-	atomic_store_rel_int(&smp_tlb_wait, 0);
+	smp_tlb_wait =  0;
 	if (CPU_ISFULLSET(&mask)) {
 		ncpu = othercpus;
 		ipi_all_but_self(vector);

@@ -5534,7 +5534,7 @@ pf_route6(struct mbuf **m, struct pf_rule *r, int dir, struct ifnet *oifp,
 	if (IN6_IS_SCOPE_EMBED(&dst.sin6_addr))
 		dst.sin6_addr.s6_addr16[1] = htons(ifp->if_index);
 	if ((u_long)m0->m_pkthdr.len <= ifp->if_mtu)
-		nd6_output(ifp, ifp, m0, &dst, NULL);
+		nd6_output_ifp(ifp, ifp, m0, &dst);
 	else {
 		in6_ifstat_inc(ifp, ifs6_in_toobig);
 		if (r->rt != PF_DUPTO)
@@ -6085,7 +6085,17 @@ pf_test6(int dir, struct ifnet *ifp, struct mbuf **m0, struct inpcb *inp)
 
 	M_ASSERTPKTHDR(m);
 
-	if (dir == PF_OUT && m->m_pkthdr.rcvif && ifp != m->m_pkthdr.rcvif)
+	/* Detect packet forwarding.
+	 * If the input interface is different from the output interface we're
+	 * forwarding.
+	 * We do need to be careful about bridges. If the
+	 * net.link.bridge.pfil_bridge sysctl is set we can be filtering on a
+	 * bridge, so if the input interface is a bridge member and the output
+	 * interface is its bridge we're not actually forwarding but bridging.
+	 */
+	if (dir == PF_OUT && m->m_pkthdr.rcvif && ifp != m->m_pkthdr.rcvif
+	    && (m->m_pkthdr.rcvif->if_bridge == NULL
+	        || m->m_pkthdr.rcvif->if_bridge != ifp->if_softc))
 		fwdir = PF_FWD;
 
 	if (!V_pf_status.running)

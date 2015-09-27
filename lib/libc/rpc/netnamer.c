@@ -68,12 +68,8 @@ static int _getgroups( char *, gid_t * );
  * Convert network-name into unix credential
  */
 int
-netname2user(netname, uidp, gidp, gidlenp, gidlist)
-	char            netname[MAXNETNAMELEN + 1];
-	uid_t            *uidp;
-	gid_t            *gidp;
-	int            *gidlenp;
-	gid_t	       *gidlist;
+netname2user(char netname[MAXNETNAMELEN + 1], uid_t *uidp, gid_t *gidp,
+    int *gidlenp, gid_t *gidlist)
 {
 	char           *p;
 	int             gidlen;
@@ -149,9 +145,7 @@ netname2user(netname, uidp, gidp, gidlenp, gidlist)
  */
 
 static int
-_getgroups(uname, groups)
-	char           *uname;
-	gid_t          groups[NGRPS];
+_getgroups(char *uname, gid_t groups[NGRPS])
 {
 	gid_t           ngroups = 0;
 	struct group *grp;
@@ -190,10 +184,7 @@ toomany:
  * Convert network-name to hostname
  */
 int
-netname2host(netname, hostname, hostlen)
-	char            netname[MAXNETNAMELEN + 1];
-	char           *hostname;
-	int             hostlen;
+netname2host(char netname[MAXNETNAMELEN + 1], char *hostname, int hostlen)
 {
 	int             err;
 	char            valbuf[1024];
@@ -239,8 +230,7 @@ netname2host(netname, hostname, hostlen)
  * network information service.
  */
 int
-getnetid(key, ret)
-	char           *key, *ret;
+getnetid(char *key, char *ret)
 {
 	char            buf[1024];	/* big enough */
 	char           *res;

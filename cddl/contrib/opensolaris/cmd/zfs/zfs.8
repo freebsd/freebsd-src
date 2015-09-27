@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 30, 2015
+.Dd September 14, 2015
 .Dt ZFS 8
 .Os
 .Sh NAME
@@ -191,11 +191,13 @@
 .Nm
 .Cm receive Ns | Ns Cm recv
 .Op Fl vnFu
+.Op Fl o Sy origin Ns = Ns Ar snapshot
 .Ar filesystem Ns | Ns Ar volume Ns | Ns Ar snapshot
 .Nm
 .Cm receive Ns | Ns Cm recv
 .Op Fl vnFu
 .Op Fl d | e
+.Op Fl o Sy origin Ns = Ns Ar snapshot
 .Ar filesystem
 .Nm
 .Cm allow
@@ -2142,7 +2144,8 @@ Property name
 .It value
 Property value
 .It source
-Property source. Can either be local, default, temporary, inherited, or none
+Property source. Can either be local, default, temporary, inherited, received,
+or none
 (\&-).
 .El
 .Pp
@@ -2208,8 +2211,11 @@ The default value is all sources.
 .Ar filesystem Ns | Ns Ar volume Ns | Ns Ar snapshot Ns ...
 .Xc
 .Pp
-Clears the specified property, causing it to be inherited from an ancestor. If
-no ancestor has the property set, then the default value is used. See the
+Clears the specified property, causing it to be inherited from an ancestor,
+restored to default if no ancestor has the property set, or with the
+.Fl S
+option reverted to the received value if one exists.
+See the
 .Qq Sx Properties
 section for a listing of default values, and details on which properties can be
 inherited.
@@ -2217,8 +2223,10 @@ inherited.
 .It Fl r
 Recursively inherit the given property for all children.
 .It Fl S
-For properties with a received value, revert to this value. This flag has no
-effect on properties that do not have a received value.
+Revert the property to the received value if one exists; otherwise operate as
+if the
+.Fl S
+option was not specified.
 .El
 .It Xo
 .Nm
@@ -2705,6 +2713,7 @@ feature.
 .Nm
 .Cm receive Ns | Ns Cm recv
 .Op Fl vnFu
+.Op Fl o Sy origin Ns = Ns Ar snapshot
 .Ar filesystem Ns | Ns Ar volume Ns | Ns Ar snapshot
 .Xc
 .It Xo
@@ -2712,6 +2721,7 @@ feature.
 .Cm receive Ns | Ns Cm recv
 .Op Fl vnFu
 .Op Fl d | e
+.Op Fl o Sy origin Ns = Ns Ar snapshot
 .Ar filesystem
 .Xc
 .Pp
@@ -2796,6 +2806,10 @@ receive operation.
 Do not actually receive the stream. This can be useful in conjunction with the
 .Fl v
 option to verify the name the receive operation would use.
+.It Fl o Sy origin Ns = Ns Ar snapshot
+Forces the stream to be received as a clone of the given snapshot.
+This is only valid if the stream is an incremental stream whose source
+is the same as the provided origin.
 .It Fl F
 Force a rollback of the file system to the most recent snapshot before
 performing the receive operation. If receiving an incremental replication

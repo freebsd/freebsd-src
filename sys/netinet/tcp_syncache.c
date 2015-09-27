@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/hash.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
 #include <sys/limits.h>
@@ -185,27 +186,6 @@ SYSCTL_INT(_net_inet_tcp_syncache, OID_AUTO, rst_on_sock_fail,
     "Send reset on socket allocation failure");
 
 static MALLOC_DEFINE(M_SYNCACHE, "syncache", "TCP syncache");
-
-#define SYNCACHE_HASH(inc, mask)					\
-	((V_tcp_syncache.hash_secret ^					\
-	  (inc)->inc_faddr.s_addr ^					\
-	  ((inc)->inc_faddr.s_addr >> 16) ^				\
-	  (inc)->inc_fport ^ (inc)->inc_lport) & mask)
-
-#define SYNCACHE_HASH6(inc, mask)					\
-	((V_tcp_syncache.hash_secret ^					\
-	  (inc)->inc6_faddr.s6_addr32[0] ^				\
-	  (inc)->inc6_faddr.s6_addr32[3] ^				\
-	  (inc)->inc_fport ^ (inc)->inc_lport) & mask)
-
-#define ENDPTS_EQ(a, b) (						\
-	(a)->ie_fport == (b)->ie_fport &&				\
-	(a)->ie_lport == (b)->ie_lport &&				\
-	(a)->ie_faddr.s_addr == (b)->ie_faddr.s_addr &&			\
-	(a)->ie_laddr.s_addr == (b)->ie_laddr.s_addr			\
-)
-
-#define ENDPTS6_EQ(a, b) (memcmp(a, b, sizeof(*a)) == 0)
 
 #define	SCH_LOCK(sch)		mtx_lock(&(sch)->sch_mtx)
 #define	SCH_UNLOCK(sch)		mtx_unlock(&(sch)->sch_mtx)
@@ -486,41 +466,29 @@ syncache_lookup(struct in_conninfo *inc, struct syncache_head **schp)
 {
 	struct syncache *sc;
 	struct syncache_head *sch;
+	uint32_t hash;
 
-#ifdef INET6
-	if (inc->inc_flags & INC_ISIPV6) {
-		sch = &V_tcp_syncache.hashbase[
-		    SYNCACHE_HASH6(inc, V_tcp_syncache.hashmask)];
-		*schp = sch;
+	/*
+	 * The hash is built on foreign port + local port + foreign address.
+	 * We rely on the fact that struct in_conninfo starts with 16 bits
+	 * of foreign port, then 16 bits of local port then followed by 128
+	 * bits of foreign address.  In case of IPv4 address, the first 3
+	 * 32-bit words of the address always are zeroes.
+	 */
+	hash = jenkins_hash32((uint32_t *)&inc->inc_ie, 5,
+	    V_tcp_syncache.hash_secret) & V_tcp_syncache.hashmask;
 
-		SCH_LOCK(sch);
+	sch = &V_tcp_syncache.hashbase[hash];
+	*schp = sch;
+	SCH_LOCK(sch);
 
-		/* Circle through bucket row to find matching entry. */
-		TAILQ_FOREACH(sc, &sch->sch_bucket, sc_hash) {
-			if (ENDPTS6_EQ(&inc->inc_ie, &sc->sc_inc.inc_ie))
-				return (sc);
-		}
-	} else
-#endif
-	{
-		sch = &V_tcp_syncache.hashbase[
-		    SYNCACHE_HASH(inc, V_tcp_syncache.hashmask)];
-		*schp = sch;
+	/* Circle through bucket row to find matching entry. */
+	TAILQ_FOREACH(sc, &sch->sch_bucket, sc_hash)
+		if (bcmp(&inc->inc_ie, &sc->sc_inc.inc_ie,
+		    sizeof(struct in_endpoints)) == 0)
+			break;
 
-		SCH_LOCK(sch);
-
-		/* Circle through bucket row to find matching entry. */
-		TAILQ_FOREACH(sc, &sch->sch_bucket, sc_hash) {
-#ifdef INET6
-			if (sc->sc_inc.inc_flags & INC_ISIPV6)
-				continue;
-#endif
-			if (ENDPTS_EQ(&inc->inc_ie, &sc->sc_inc.inc_ie))
-				return (sc);
-		}
-	}
-	SCH_LOCK_ASSERT(*schp);
-	return (NULL);			/* always returns with locked sch */
+	return (sc);	/* Always returns with locked sch. */
 }
 
 /*

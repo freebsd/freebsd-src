@@ -451,7 +451,7 @@
 #define R92C_RQPN_LD		0x80000000
 
 /* Bits for R92C_TDECTRL. */
-#define R92C_TDECTRL_BLK_DESC_NUM_M	0x0000000f
+#define R92C_TDECTRL_BLK_DESC_NUM_M	0x000000f0
 #define R92C_TDECTRL_BLK_DESC_NUM_S	4
 
 /* Bits for R92C_FWHW_TXQ_CTRL. */
@@ -801,10 +801,6 @@
 #define R92C_RAID_11B	6
 
 
-/* Macros to access unaligned little-endian memory. */
-#define LE_READ_2(x)	((x)[0] | (x)[1] << 8)
-#define LE_READ_4(x)	((x)[0] | (x)[1] << 8 | (x)[2] << 16 | (x)[3] << 24)
-
 /*
  * Macros to access subfields in registers.
  */
@@ -1138,7 +1134,6 @@ struct urtwn_fw_info {
 
 struct urtwn_vap {
 	struct ieee80211vap		vap;
-	struct ieee80211_beacon_offsets	bo;
 
 	int				(*newstate)(struct ieee80211vap *,
 					    enum ieee80211_state, int);
@@ -1172,7 +1167,8 @@ enum {
 #define	URTWN_EP_QUEUES	URTWN_BULK_RX
 
 struct urtwn_softc {
-	struct ifnet			*sc_ifp;
+	struct ieee80211com		sc_ic;
+	struct mbufq			sc_snd;
 	device_t			sc_dev;
 	struct usb_device		*sc_udev;
 
@@ -1180,6 +1176,7 @@ struct urtwn_softc {
 	u_int				sc_flags;
 #define URTWN_FLAG_CCK_HIPWR	0x01
 #define URTWN_DETACHED		0x02
+#define	URTWN_RUNNING		0x04
 
 	u_int				chip;
 #define	URTWN_CHIP_92C		0x01
@@ -1224,7 +1221,6 @@ struct urtwn_softc {
 	uint8_t				ht40_tx_pwr[5];
 	int8_t				bw20_tx_pwr_diff;
 	int8_t				ofdm_tx_pwr_diff;
-	uint8_t				sc_bssid[IEEE80211_ADDR_LEN];
 		
 	struct callout			sc_watchdog_ch;
 	struct mtx			sc_mtx;

@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 18, 2015
+.Dd September 14, 2015
 .Dt DTRACE_IP 4
 .Os
 .Sh NAME
@@ -212,7 +212,7 @@ IPv6 destination address.
 A string representation of the source address.
 .It Vt string ipv6_daddr
 A string representation of the destination address.
-.It Vt ip6_t *ipv6_hdr
+.It Vt struct ip6_hdr *ipv6_hdr
 A pointer to the raw IPv6 header.
 .El
 .Sh FILES

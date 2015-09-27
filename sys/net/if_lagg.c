@@ -1257,6 +1257,8 @@ lagg_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 				ro->ro_opts |= LAGG_OPT_LACP_RXTEST;
 			if (lsc->lsc_strict_mode != 0)
 				ro->ro_opts |= LAGG_OPT_LACP_STRICT;
+			if (lsc->lsc_fast_timeout != 0)
+				ro->ro_opts |= LAGG_OPT_LACP_TIMEOUT;
 
 			ro->ro_active = sc->sc_active;
 		} else {
@@ -1292,6 +1294,8 @@ lagg_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		case -LAGG_OPT_LACP_RXTEST:
 		case LAGG_OPT_LACP_STRICT:
 		case -LAGG_OPT_LACP_STRICT:
+		case LAGG_OPT_LACP_TIMEOUT:
+		case -LAGG_OPT_LACP_TIMEOUT:
 			valid = lacp = 1;
 			break;
 		default:
@@ -1320,6 +1324,7 @@ lagg_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 				sc->sc_opts &= ~ro->ro_opts;
 		} else {
 			struct lacp_softc *lsc;
+			struct lacp_port *lp;
 
 			lsc = (struct lacp_softc *)sc->sc_psc;
 
@@ -1341,6 +1346,20 @@ lagg_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 				break;
 			case -LAGG_OPT_LACP_STRICT:
 				lsc->lsc_strict_mode = 0;
+				break;
+			case LAGG_OPT_LACP_TIMEOUT:
+				LACP_LOCK(lsc);
+        			LIST_FOREACH(lp, &lsc->lsc_ports, lp_next)
+                        		lp->lp_state |= LACP_STATE_TIMEOUT;
+				LACP_UNLOCK(lsc);
+				lsc->lsc_fast_timeout = 1;
+				break;
+			case -LAGG_OPT_LACP_TIMEOUT:
+				LACP_LOCK(lsc);
+        			LIST_FOREACH(lp, &lsc->lsc_ports, lp_next)
+                        		lp->lp_state &= ~LACP_STATE_TIMEOUT;
+				LACP_UNLOCK(lsc);
+				lsc->lsc_fast_timeout = 0;
 				break;
 			}
 		}

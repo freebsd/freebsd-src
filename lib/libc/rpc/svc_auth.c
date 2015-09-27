@@ -95,9 +95,7 @@ struct svc_auth_ops svc_auth_null_ops;
  * invalid.
  */
 enum auth_stat
-_authenticate(rqst, msg)
-	struct svc_req *rqst;
-	struct rpc_msg *msg;
+_authenticate(struct svc_req *rqst, struct rpc_msg *msg)
 {
 	int cred_flavor;
 	struct authsvc *asp;
@@ -151,11 +149,7 @@ _authenticate(rqst, msg)
  * that don't need to inspect or modify the message body.
  */
 static bool_t
-svcauth_null_wrap(auth, xdrs, xdr_func, xdr_ptr)
-	SVCAUTH *auth;
-	XDR *xdrs;
-	xdrproc_t xdr_func;
-	caddr_t xdr_ptr;
+svcauth_null_wrap(SVCAUTH *auth, XDR *xdrs, xdrproc_t xdr_func, caddr_t xdr_ptr)
 {
 
 	return (xdr_func(xdrs, xdr_ptr));
@@ -168,9 +162,7 @@ struct svc_auth_ops svc_auth_null_ops = {
 
 /*ARGSUSED*/
 enum auth_stat
-_svcauth_null(rqst, msg)
-	struct svc_req *rqst;
-	struct rpc_msg *msg;
+_svcauth_null(struct svc_req *rqst, struct rpc_msg *msg)
 {
 	return (AUTH_OK);
 }
@@ -190,9 +182,8 @@ _svcauth_null(rqst, msg)
  */
 
 int
-svc_auth_reg(cred_flavor, handler)
-	int cred_flavor;
-	enum auth_stat (*handler)(struct svc_req *, struct rpc_msg *);
+svc_auth_reg(int cred_flavor,
+    enum auth_stat (*handler)(struct svc_req *, struct rpc_msg *))
 {
 	struct authsvc *asp;
 

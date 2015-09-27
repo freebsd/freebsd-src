@@ -459,6 +459,19 @@ _NOTE(CONSTCOND) } while (0)
 	((zc1).zc_word[2] - (zc2).zc_word[2]) | \
 	((zc1).zc_word[3] - (zc2).zc_word[3])))
 
+#define	ZIO_CHECKSUM_IS_ZERO(zc) \
+	(0 == ((zc)->zc_word[0] | (zc)->zc_word[1] | \
+	(zc)->zc_word[2] | (zc)->zc_word[3]))
+
+#define	ZIO_CHECKSUM_BSWAP(zcp)					\
+{								\
+	(zcp)->zc_word[0] = BSWAP_64((zcp)->zc_word[0]);	\
+	(zcp)->zc_word[1] = BSWAP_64((zcp)->zc_word[1]);	\
+	(zcp)->zc_word[2] = BSWAP_64((zcp)->zc_word[2]);	\
+	(zcp)->zc_word[3] = BSWAP_64((zcp)->zc_word[3]);	\
+}
+
+
 #define	DVA_IS_VALID(dva)	(DVA_GET_ASIZE(dva) != 0)
 
 #define	ZIO_SET_CHECKSUM(zcp, w0, w1, w2, w3)	\
@@ -523,12 +536,13 @@ _NOTE(CONSTCOND) } while (0)
 	if (bp == NULL) {						\
 		len += func(buf + len, size - len, "<NULL>");		\
 	} else if (BP_IS_HOLE(bp)) {					\
-		len += func(buf + len, size - len, "<hole>");		\
-		if (bp->blk_birth > 0) {				\
-			len += func(buf + len, size - len,		\
-			    " birth=%lluL",				\
-			    (u_longlong_t)bp->blk_birth);		\
-		}							\
+		len += func(buf + len, size - len,			\
+		    "HOLE [L%llu %s] "					\
+		    "size=%llxL birth=%lluL",				\
+		    (u_longlong_t)BP_GET_LEVEL(bp),			\
+		    type,						\
+		    (u_longlong_t)BP_GET_LSIZE(bp),			\
+		    (u_longlong_t)bp->blk_birth);			\
 	} else if (BP_IS_EMBEDDED(bp)) {				\
 		len = func(buf + len, size - len,			\
 		    "EMBEDDED [L%llu %s] et=%u %s "			\

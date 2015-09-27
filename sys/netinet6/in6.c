@@ -281,8 +281,6 @@ in6_control(struct socket *so, u_long cmd, caddr_t data,
 		/* FALLTHROUGH */
 	case OSIOCGIFINFO_IN6:
 	case SIOCGIFINFO_IN6:
-	case SIOCGDRLST_IN6:
-	case SIOCGPRLST_IN6:
 	case SIOCGNBRINFO_IN6:
 	case SIOCGDEFIFACE_IN6:
 		return (nd6_ioctl(cmd, data, ifp));
@@ -1198,11 +1196,13 @@ in6_update_ifa_internal(struct ifnet *ifp, struct in6_aliasreq *ifra,
 	 * source address.
 	 */
 	ia->ia6_flags &= ~IN6_IFF_DUPLICATED;	/* safety */
-	if (hostIsNew && in6if_do_dad(ifp))
-		ia->ia6_flags |= IN6_IFF_TENTATIVE;
 
-	/* DAD should be performed after ND6_IFF_IFDISABLED is cleared. */
-	if (ND_IFINFO(ifp)->flags & ND6_IFF_IFDISABLED)
+	/*
+	 * DAD should be performed for an new address or addresses on
+	 * an interface with ND6_IFF_IFDISABLED.
+	 */
+	if (in6if_do_dad(ifp) &&
+	    (hostIsNew || (ND_IFINFO(ifp)->flags & ND6_IFF_IFDISABLED)))
 		ia->ia6_flags |= IN6_IFF_TENTATIVE;
 
 	/* notify other subsystems */
@@ -1243,13 +1243,8 @@ in6_broadcast_ifa(struct ifnet *ifp, struct in6_aliasreq *ifra,
 		}
 	}
 
-	/*
-	 * Perform DAD, if needed.
-	 * XXX It may be of use, if we can administratively disable DAD.
-	 */
-	if (in6if_do_dad(ifp) && ((ifra->ifra_flags & IN6_IFF_NODAD) == 0) &&
-	    (ia->ia6_flags & IN6_IFF_TENTATIVE))
-	{
+	/* Perform DAD, if the address is TENTATIVE. */
+	if ((ia->ia6_flags & IN6_IFF_TENTATIVE)) {
 		int delay, mindelay, maxdelay;
 
 		delay = 0;
@@ -1312,9 +1307,6 @@ in6_purgeaddr(struct ifaddr *ifa)
 	/* stop DAD processing */
 	nd6_dad_stop(ifa);
 
-	/* Remove local address entry from lltable. */
-	nd6_rem_ifa_lle(ia);
-
 	/* Leave multicast groups. */
 	while ((imm = LIST_FIRST(&ia->ia6_memberships)) != NULL) {
 		LIST_REMOVE(imm, i6mm_chain);
@@ -1338,6 +1330,7 @@ static void
 in6_unlink_ifa(struct in6_ifaddr *ia, struct ifnet *ifp)
 {
 	char ip6buf[INET6_ADDRSTRLEN];
+	int remove_lle;
 
 	IF_ADDR_WLOCK(ifp);
 	TAILQ_REMOVE(&ifp->if_addrhead, &ia->ia_ifa, ifa_link);
@@ -1358,14 +1351,20 @@ in6_unlink_ifa(struct in6_ifaddr *ia, struct ifnet *ifp)
 	 * Release the reference to the base prefix.  There should be a
 	 * positive reference.
 	 */
+	remove_lle = 0;
 	if (ia->ia6_ndpr == NULL) {
 		nd6log((LOG_NOTICE,
 		    "in6_unlink_ifa: autoconf'ed address "
 		    "%s has no prefix\n", ip6_sprintf(ip6buf, IA6_IN6(ia))));
 	} else {
 		ia->ia6_ndpr->ndpr_refcnt--;
+		/* Do not delete lles within prefix if refcont != 0 */
+		if (ia->ia6_ndpr->ndpr_refcnt == 0)
+			remove_lle = 1;
 		ia->ia6_ndpr = NULL;
 	}
+
+	nd6_rem_ifa_lle(ia, remove_lle);
 
 	/*
 	 * Also, if the address being removed is autoconf'ed, call
@@ -1379,8 +1378,8 @@ in6_unlink_ifa(struct in6_ifaddr *ia, struct ifnet *ifp)
 }
 
 /*
- * Notifies other other subsystems about address change/arrival:
- * 1) Notifies device handler on first IPv6 address assignment
+ * Notifies other subsystems about address change/arrival:
+ * 1) Notifies device handler on the first IPv6 address assignment
  * 2) Handle routing table changes for P2P links and route
  * 3) Handle routing table changes for address host route
  */
@@ -1523,7 +1522,7 @@ in6ifa_ifwithaddr(const struct in6_addr *addr, uint32_t zoneid)
  * ifaddr is returned referenced.
  */
 struct in6_ifaddr *
-in6ifa_ifpwithaddr(struct ifnet *ifp, struct in6_addr *addr)
+in6ifa_ifpwithaddr(struct ifnet *ifp, const struct in6_addr *addr)
 {
 	struct ifaddr *ifa;
 
@@ -1957,13 +1956,13 @@ in6if_do_dad(struct ifnet *ifp)
 	 * However, some interfaces can be up before the RUNNING
 	 * status.  Additionaly, users may try to assign addresses
 	 * before the interface becomes up (or running).
-	 * We simply skip DAD in such a case as a work around.
-	 * XXX: we should rather mark "tentative" on such addresses,
-	 * and do DAD after the interface becomes ready.
+	 * This function returns EAGAIN in that case.
+	 * The caller should mark "tentative" on the address instead of
+	 * performing DAD immediately.
 	 */
 	if (!((ifp->if_flags & IFF_UP) &&
 	    (ifp->if_drv_flags & IFF_DRV_RUNNING)))
-		return (0);
+		return (EAGAIN);
 
 	return (1);
 }
@@ -2047,7 +2046,6 @@ in6_if2idlen(struct ifnet *ifp)
 
 struct in6_llentry {
 	struct llentry		base;
-	struct sockaddr_in6	l3_addr6;
 };
 
 #define	IN6_LLTBL_DEFAULT_HSIZE	32
@@ -2069,7 +2067,7 @@ in6_lltable_destroy_lle(struct llentry *lle)
 }
 
 static struct llentry *
-in6_lltable_new(const struct sockaddr *l3addr, u_int flags)
+in6_lltable_new(const struct in6_addr *addr6, u_int flags)
 {
 	struct in6_llentry *lle;
 
@@ -2077,25 +2075,43 @@ in6_lltable_new(const struct sockaddr *l3addr, u_int flags)
 	if (lle == NULL)		/* NB: caller generates msg */
 		return NULL;
 
-	lle->l3_addr6 = *(const struct sockaddr_in6 *)l3addr;
+	lle->base.r_l3addr.addr6 = *addr6;
 	lle->base.lle_refcnt = 1;
 	lle->base.lle_free = in6_lltable_destroy_lle;
 	LLE_LOCK_INIT(&lle->base);
-	callout_init(&lle->base.ln_timer_ch, 1);
+	callout_init(&lle->base.lle_timer, 1);
 
 	return (&lle->base);
 }
 
 static int
-in6_lltable_match_prefix(const struct sockaddr *prefix,
-    const struct sockaddr *mask, u_int flags, struct llentry *lle)
+in6_lltable_match_prefix(const struct sockaddr *saddr,
+    const struct sockaddr *smask, u_int flags, struct llentry *lle)
 {
-	const struct sockaddr_in6 *pfx = (const struct sockaddr_in6 *)prefix;
-	const struct sockaddr_in6 *msk = (const struct sockaddr_in6 *)mask;
+	const struct in6_addr *addr, *mask, *lle_addr;
 
-	if (IN6_ARE_MASKED_ADDR_EQUAL(&satosin6(L3_ADDR(lle))->sin6_addr,
-	    &pfx->sin6_addr, &msk->sin6_addr) &&
-	    ((flags & LLE_STATIC) || !(lle->la_flags & LLE_STATIC)))
+	addr = &((const struct sockaddr_in6 *)saddr)->sin6_addr;
+	mask = &((const struct sockaddr_in6 *)smask)->sin6_addr;
+	lle_addr = &lle->r_l3addr.addr6;
+
+	if (IN6_ARE_MASKED_ADDR_EQUAL(lle_addr, addr, mask) == 0)
+		return (0);
+
+	if (lle->la_flags & LLE_IFADDR) {
+
+		/*
+		 * Delete LLE_IFADDR records IFF address & flag matches.
+		 * Note that addr is the interface address within prefix
+		 * being matched.
+		 */
+		if (IN6_ARE_ADDR_EQUAL(addr, lle_addr) &&
+		    (flags & LLE_STATIC) != 0)
+			return (1);
+		return (0);
+	}
+
+	/* flags & LLE_STATIC means deleting both dynamic and static entries */
+	if ((flags & LLE_STATIC) || !(lle->la_flags & LLE_STATIC))
 		return (1);
 
 	return (0);
@@ -2117,7 +2133,7 @@ in6_lltable_free_entry(struct lltable *llt, struct llentry *lle)
 		lltable_unlink_entry(llt, lle);
 	}
 
-	if (callout_stop(&lle->la_timer))
+	if (callout_stop(&lle->lle_timer))
 		LLE_REMREF(lle);
 
 	llentry_free(lle);
@@ -2144,8 +2160,7 @@ in6_lltable_rtcheck(struct ifnet *ifp,
 		 * Create an ND6 cache for an IPv6 neighbor
 		 * that is not covered by our own prefix.
 		 */
-		/* XXX ifaof_ifpforaddr should take a const param */
-		ifa = ifaof_ifpforaddr(__DECONST(struct sockaddr *, l3addr), ifp);
+		ifa = ifaof_ifpforaddr(l3addr, ifp);
 		if (ifa != NULL) {
 			ifa_free(ifa);
 			if (rt != NULL)
@@ -2172,11 +2187,8 @@ in6_lltable_hash_dst(const struct in6_addr *dst, uint32_t hsize)
 static uint32_t
 in6_lltable_hash(const struct llentry *lle, uint32_t hsize)
 {
-	const struct sockaddr_in6 *sin6;
 
-	sin6 = (const struct sockaddr_in6 *)L3_CADDR(lle);
-
-	return (in6_lltable_hash_dst(&sin6->sin6_addr, hsize));
+	return (in6_lltable_hash_dst(&lle->r_l3addr.addr6, hsize));
 }
 
 static void
@@ -2188,7 +2200,7 @@ in6_lltable_fill_sa_entry(const struct llentry *lle, struct sockaddr *sa)
 	bzero(sin6, sizeof(*sin6));
 	sin6->sin6_family = AF_INET6;
 	sin6->sin6_len = sizeof(*sin6);
-	sin6->sin6_addr =((const struct sockaddr_in6*)L3_CADDR(lle))->sin6_addr;
+	sin6->sin6_addr = lle->r_l3addr.addr6;
 }
 
 static inline struct llentry *
@@ -2196,72 +2208,42 @@ in6_lltable_find_dst(struct lltable *llt, const struct in6_addr *dst)
 {
 	struct llentry *lle;
 	struct llentries *lleh;
-	const struct sockaddr_in6 *sin6;
 	u_int hashidx;
 
-	hashidx = in6_lltable_hash_dst(dst, LLTBL_HASHTBL_SIZE);
+	hashidx = in6_lltable_hash_dst(dst, llt->llt_hsize);
 	lleh = &llt->lle_head[hashidx];
 	LIST_FOREACH(lle, lleh, lle_next) {
-		sin6 = (const struct sockaddr_in6 *)L3_CADDR(lle);
 		if (lle->la_flags & LLE_DELETED)
 			continue;
-		if (IN6_ARE_ADDR_EQUAL(&sin6->sin6_addr, dst))
+		if (IN6_ARE_ADDR_EQUAL(&lle->r_l3addr.addr6, dst))
 			break;
 	}
 
 	return (lle);
 }
 
-static int
-in6_lltable_delete(struct lltable *llt, u_int flags,
-	const struct sockaddr *l3addr)
+static void
+in6_lltable_delete_entry(struct lltable *llt, struct llentry *lle)
 {
-	const struct sockaddr_in6 *sin6 = (const struct sockaddr_in6 *)l3addr;
-	struct llentry *lle;
 
-	IF_AFDATA_LOCK_ASSERT(llt->llt_ifp);
-	KASSERT(l3addr->sa_family == AF_INET6,
-	    ("sin_family %d", l3addr->sa_family));
-
-	lle = in6_lltable_find_dst(llt, &sin6->sin6_addr);
-
-	if (lle == NULL)
-		return (ENOENT);
-
-	if (!(lle->la_flags & LLE_IFADDR) || (flags & LLE_IFADDR)) {
-		LLE_WLOCK(lle);
-		lle->la_flags |= LLE_DELETED;
-		EVENTHANDLER_INVOKE(lle_event, lle, LLENTRY_DELETED);
+	lle->la_flags |= LLE_DELETED;
+	EVENTHANDLER_INVOKE(lle_event, lle, LLENTRY_DELETED);
 #ifdef DIAGNOSTIC
-		log(LOG_INFO, "ifaddr cache = %p is deleted\n", lle);
+	log(LOG_INFO, "ifaddr cache = %p is deleted\n", lle);
 #endif
-		if ((lle->la_flags & (LLE_STATIC | LLE_IFADDR)) == LLE_STATIC)
-			llentry_free(lle);
-		else
-			LLE_WUNLOCK(lle);
-	}
-
-	return (0);
+	llentry_free(lle);
 }
 
 static struct llentry *
-in6_lltable_create(struct lltable *llt, u_int flags,
+in6_lltable_alloc(struct lltable *llt, u_int flags,
 	const struct sockaddr *l3addr)
 {
 	const struct sockaddr_in6 *sin6 = (const struct sockaddr_in6 *)l3addr;
 	struct ifnet *ifp = llt->llt_ifp;
 	struct llentry *lle;
 
-	IF_AFDATA_WLOCK_ASSERT(ifp);
 	KASSERT(l3addr->sa_family == AF_INET6,
 	    ("sin_family %d", l3addr->sa_family));
-
-	lle = in6_lltable_find_dst(llt, &sin6->sin6_addr);
-
-	if (lle != NULL) {
-		LLE_WLOCK(lle);
-		return (lle);
-	}
 
 	/*
 	 * A route that covers the given address must have
@@ -2272,7 +2254,7 @@ in6_lltable_create(struct lltable *llt, u_int flags,
 	    in6_lltable_rtcheck(ifp, flags, l3addr) != 0)
 		return (NULL);
 
-	lle = in6_lltable_new(l3addr, flags);
+	lle = in6_lltable_new(&sin6->sin6_addr, flags);
 	if (lle == NULL) {
 		log(LOG_INFO, "lla_lookup: new lle malloc failed\n");
 		return (NULL);
@@ -2283,8 +2265,8 @@ in6_lltable_create(struct lltable *llt, u_int flags,
 		lle->la_flags |= (LLE_VALID | LLE_STATIC);
 	}
 
-	lltable_link_entry(llt, lle);
-	LLE_WLOCK(lle);
+	if ((lle->la_flags & LLE_STATIC) != 0)
+		lle->ln_state = ND6_LLINFO_REACHABLE;
 
 	return (lle);
 }
@@ -2333,8 +2315,8 @@ in6_lltable_dump_entry(struct lltable *llt, struct llentry *lle,
 	int error;
 
 	bzero(&ndpc, sizeof(ndpc));
-			/* skip invalid entries */
-			if ((lle->la_flags & (LLE_DELETED|LLE_VALID)) != LLE_VALID)
+			/* skip deleted entries */
+			if ((lle->la_flags & LLE_DELETED) == LLE_DELETED)
 				return (0);
 			/* Skip if jailed and not a valid IP of the prison. */
 			lltable_fill_sa_entry(lle,
@@ -2372,10 +2354,34 @@ in6_lltable_dump_entry(struct lltable *llt, struct llentry *lle,
 			ndpc.rtm.rtm_flags |= (RTF_HOST | RTF_LLDATA);
 			if (lle->la_flags & LLE_STATIC)
 				ndpc.rtm.rtm_flags |= RTF_STATIC;
+			if (lle->la_flags & LLE_IFADDR)
+				ndpc.rtm.rtm_flags |= RTF_PINNED;
 			ndpc.rtm.rtm_index = ifp->if_index;
 			error = SYSCTL_OUT(wr, &ndpc, sizeof(ndpc));
 
 	return (error);
+}
+
+static struct lltable *
+in6_lltattach(struct ifnet *ifp)
+{
+	struct lltable *llt;
+
+	llt = lltable_allocate_htbl(IN6_LLTBL_DEFAULT_HSIZE);
+	llt->llt_af = AF_INET6;
+	llt->llt_ifp = ifp;
+
+	llt->llt_lookup = in6_lltable_lookup;
+	llt->llt_alloc_entry = in6_lltable_alloc;
+	llt->llt_delete_entry = in6_lltable_delete_entry;
+	llt->llt_dump_entry = in6_lltable_dump_entry;
+	llt->llt_hash = in6_lltable_hash;
+	llt->llt_fill_sa_entry = in6_lltable_fill_sa_entry;
+	llt->llt_free_entry = in6_lltable_free_entry;
+	llt->llt_match_prefix = in6_lltable_match_prefix;
+ 	lltable_link(llt);
+
+	return (llt);
 }
 
 void *
@@ -2406,17 +2412,7 @@ in6_domifattach(struct ifnet *ifp)
 
 	ext->nd_ifinfo = nd6_ifattach(ifp);
 	ext->scope6_id = scope6_ifattach(ifp);
-	ext->lltable = lltable_init(ifp, AF_INET6);
-	if (ext->lltable != NULL) {
-		ext->lltable->llt_lookup = in6_lltable_lookup;
-		ext->lltable->llt_create = in6_lltable_create;
-		ext->lltable->llt_delete = in6_lltable_delete;
-		ext->lltable->llt_dump_entry = in6_lltable_dump_entry;
-		ext->lltable->llt_hash = in6_lltable_hash;
-		ext->lltable->llt_fill_sa_entry = in6_lltable_fill_sa_entry;
-		ext->lltable->llt_free_entry = in6_lltable_free_entry;
-		ext->lltable->llt_match_prefix = in6_lltable_match_prefix;
-	}
+	ext->lltable = in6_lltattach(ifp);
 
 	ext->mld_ifinfo = mld_domifattach(ifp);
 

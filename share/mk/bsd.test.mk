@@ -86,10 +86,6 @@ beforeregress realregress afterregress regress: .PHONY
 .ORDER: beforeregress realregress afterregress
 regress: beforeregress realregress afterregress
 
-.if !empty(SUBDIR)
-.include <bsd.subdir.mk>
-.endif
-
 .ifdef PROG
 # we came here via bsd.progs.mk below
 # parent will do staging.

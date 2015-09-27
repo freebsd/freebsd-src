@@ -54,7 +54,18 @@ extern struct rwlock lltable_rwlock;
  */
 struct llentry {
 	LIST_ENTRY(llentry)	 lle_next;
-	struct rwlock		 lle_lock;
+	union {
+		struct in_addr	addr4;
+		struct in6_addr	addr6;
+	} r_l3addr;
+	union {
+		uint64_t	mac_aligned;
+		uint16_t	mac16[3];
+		uint8_t		mac8[20];	/* IB needs 20 bytes. */
+	} ll_addr;
+	uint32_t		spare0;
+	uint64_t		spare1;
+
 	struct lltable		 *lle_tbl;
 	struct llentries	 *lle_head;
 	void			(*lle_free)(struct llentry *);
@@ -64,25 +75,14 @@ struct llentry {
 	uint16_t		 la_flags;
 	uint16_t		 la_asked;
 	uint16_t		 la_preempt;
-	uint16_t		 ln_byhint;
 	int16_t			 ln_state;	/* IPv6 has ND6_LLINFO_NOSTATE == -2 */
 	uint16_t		 ln_router;
 	time_t			 ln_ntick;
 	int			 lle_refcnt;
 
-	union {
-		uint64_t	mac_aligned;
-		uint16_t	mac16[3];
-		uint8_t		mac8[20];	/* IB needs 20 bytes. */
-	} ll_addr;
-
 	LIST_ENTRY(llentry)	lle_chain;	/* chain of deleted items */
-	/* XXX af-private? */
-	union {
-		struct callout	ln_timer_ch;
-		struct callout  la_timer;
-	} lle_timer;
-	/* NB: struct sockaddr must immediately follow */
+	struct callout		lle_timer;
+	struct rwlock		 lle_lock;
 };
 
 #define	LLE_WLOCK(lle)		rw_wlock(&(lle)->lle_lock)
@@ -130,30 +130,13 @@ struct llentry {
 } while (0)
 
 
-#define	ln_timer_ch	lle_timer.ln_timer_ch
-#define	la_timer	lle_timer.la_timer
-
-/* XXX bad name */
-#define	L3_CADDR(lle)	((const struct sockaddr *)(&lle[1]))
-#define	L3_ADDR(lle)	((struct sockaddr *)(&lle[1]))
-#define	L3_ADDR_LEN(lle)	(((struct sockaddr *)(&lle[1]))->sa_len)
-
-#ifndef LLTBL_HASHTBL_SIZE
-#define	LLTBL_HASHTBL_SIZE	32	/* default 32 ? */
-#endif
-
-#ifndef LLTBL_HASHMASK
-#define	LLTBL_HASHMASK	(LLTBL_HASHTBL_SIZE - 1)
-#endif
-
 typedef	struct llentry *(llt_lookup_t)(struct lltable *, u_int flags,
     const struct sockaddr *l3addr);
-typedef	struct llentry *(llt_create_t)(struct lltable *, u_int flags,
+typedef	struct llentry *(llt_alloc_t)(struct lltable *, u_int flags,
     const struct sockaddr *l3addr);
-typedef	int (llt_delete_t)(struct lltable *, u_int flags,
-    const struct sockaddr *l3addr);
+typedef	void (llt_delete_t)(struct lltable *, struct llentry *);
 typedef void (llt_prefix_free_t)(struct lltable *,
-    const struct sockaddr *prefix, const struct sockaddr *mask, u_int flags);
+    const struct sockaddr *addr, const struct sockaddr *mask, u_int flags);
 typedef int (llt_dump_entry_t)(struct lltable *, struct llentry *,
     struct sysctl_req *);
 typedef uint32_t (llt_hash_t)(const struct llentry *, uint32_t);
@@ -161,6 +144,7 @@ typedef int (llt_match_prefix_t)(const struct sockaddr *,
     const struct sockaddr *, u_int, struct llentry *);
 typedef void (llt_free_entry_t)(struct lltable *, struct llentry *);
 typedef void (llt_fill_sa_entry_t)(const struct llentry *, struct sockaddr *);
+typedef void (llt_free_tbl_t)(struct lltable *);
 typedef void (llt_link_entry_t)(struct lltable *, struct llentry *);
 typedef void (llt_unlink_entry_t)(struct llentry *);
 
@@ -169,13 +153,14 @@ typedef int (llt_foreach_entry_t)(struct lltable *, llt_foreach_cb_t *, void *);
 
 struct lltable {
 	SLIST_ENTRY(lltable)	llt_link;
-	struct llentries	lle_head[LLTBL_HASHTBL_SIZE];
 	int			llt_af;
+	int			llt_hsize;
+	struct llentries	*lle_head;
 	struct ifnet		*llt_ifp;
 
 	llt_lookup_t		*llt_lookup;
-	llt_create_t		*llt_create;
-	llt_delete_t		*llt_delete;
+	llt_alloc_t		*llt_alloc_entry;
+	llt_delete_t		*llt_delete_entry;
 	llt_prefix_free_t	*llt_prefix_free;
 	llt_dump_entry_t	*llt_dump_entry;
 	llt_hash_t		*llt_hash;
@@ -185,6 +170,7 @@ struct lltable {
 	llt_link_entry_t	*llt_link_entry;
 	llt_unlink_entry_t	*llt_unlink_entry;
 	llt_fill_sa_entry_t	*llt_fill_sa_entry;
+	llt_free_tbl_t		*llt_free_tbl;
 };
 
 MALLOC_DECLARE(M_LLTABLE);
@@ -196,6 +182,7 @@ MALLOC_DECLARE(M_LLTABLE);
 #define	LLE_STATIC	0x0002	/* entry is static */
 #define	LLE_IFADDR	0x0004	/* entry is interface addr */
 #define	LLE_VALID	0x0008	/* ll_addr is valid */
+#define	LLE_REDIRECT	0x0010	/* installed by redirect; has host rtentry */
 #define	LLE_PUB		0x0020	/* publish entry ??? */
 #define	LLE_LINKED	0x0040	/* linked to lookup structure */
 /* LLE request flags */
@@ -204,8 +191,9 @@ MALLOC_DECLARE(M_LLTABLE);
 #define LLATBL_HASH(key, mask) \
 	(((((((key >> 8) ^ key) >> 8) ^ key) >> 8) ^ key) & mask)
 
-struct lltable *lltable_init(struct ifnet *, int);
+struct lltable *lltable_allocate_htbl(uint32_t hsize);
 void		lltable_free(struct lltable *);
+void		lltable_link(struct lltable *llt);
 void		lltable_prefix_free(int, struct sockaddr *,
 		    struct sockaddr *, u_int);
 #if 0
@@ -220,8 +208,11 @@ struct llentry  *llentry_alloc(struct ifnet *, struct lltable *,
 /* helper functions */
 size_t lltable_drop_entry_queue(struct llentry *);
 
-struct llentry *lltable_create_lle(struct lltable *llt, u_int flags,
-    const void *paddr);
+struct llentry *lltable_alloc_entry(struct lltable *llt, u_int flags,
+    const struct sockaddr *l4addr);
+void lltable_free_entry(struct lltable *llt, struct llentry *lle);
+int lltable_delete_addr(struct lltable *llt, u_int flags,
+    const struct sockaddr *l3addr);
 void lltable_link_entry(struct lltable *llt, struct llentry *lle);
 void lltable_unlink_entry(struct lltable *llt, struct llentry *lle);
 void lltable_fill_sa_entry(const struct llentry *lle, struct sockaddr *sa);
@@ -239,21 +230,6 @@ lla_lookup(struct lltable *llt, u_int flags, const struct sockaddr *l3addr)
 
 	return (llt->llt_lookup(llt, flags, l3addr));
 }
-
-static __inline struct llentry *
-lla_create(struct lltable *llt, u_int flags, const struct sockaddr *l3addr)
-{
-
-	return (llt->llt_create(llt, flags, l3addr));
-}
-
-static __inline int
-lla_delete(struct lltable *llt, u_int flags, const struct sockaddr *l3addr)
-{
-
-	return (llt->llt_delete(llt, flags, l3addr));
-}
-
 
 int		lla_rt_output(struct rt_msghdr *, struct rt_addrinfo *);
 

@@ -584,13 +584,20 @@ rtredirect_fib(struct sockaddr *dst,
 	 * we have a routing loop, perhaps as a result of an interface
 	 * going down recently.
 	 */
-	if (!(flags & RTF_DONE) && rt &&
-	     (!sa_equal(src, rt->rt_gateway) || rt->rt_ifa != ifa))
-		error = EINVAL;
-	else if (ifa_ifwithaddr_check(gateway))
+	if (!(flags & RTF_DONE) && rt) {
+		if (!sa_equal(src, rt->rt_gateway)) {
+			error = EINVAL;
+			goto done;
+		}
+		if (rt->rt_ifa != ifa && ifa->ifa_addr->sa_family != AF_LINK) {
+			error = EINVAL;
+			goto done;
+		}
+	}
+	if ((flags & RTF_GATEWAY) && ifa_ifwithaddr_check(gateway)) {
 		error = EHOSTUNREACH;
-	if (error)
 		goto done;
+	}
 	/*
 	 * Create a new entry if we just got back a wildcard entry
 	 * or the lookup failed.  This is necessary for hosts
@@ -613,7 +620,7 @@ rtredirect_fib(struct sockaddr *dst,
 			rt0 = rt;
 			rt = NULL;
 		
-			flags |=  RTF_GATEWAY | RTF_DYNAMIC;
+			flags |= RTF_DYNAMIC;
 			bzero((caddr_t)&info, sizeof(info));
 			info.rti_info[RTAX_DST] = dst;
 			info.rti_info[RTAX_GATEWAY] = gateway;
@@ -640,6 +647,8 @@ rtredirect_fib(struct sockaddr *dst,
 			 * Smash the current notion of the gateway to
 			 * this destination.  Should check about netmask!!!
 			 */
+			if ((flags & RTF_GATEWAY) == 0)
+				rt->rt_flags &= ~RTF_GATEWAY;
 			rt->rt_flags |= RTF_MODIFIED;
 			flags |= RTF_MODIFIED;
 			stat = &V_rtstat.rts_newgateway;
@@ -653,7 +662,8 @@ rtredirect_fib(struct sockaddr *dst,
 			gwrt = rtalloc1(gateway, 1, RTF_RNH_LOCKED);
 			RADIX_NODE_HEAD_UNLOCK(rnh);
 			EVENTHANDLER_INVOKE(route_redirect_event, rt, gwrt, dst);
-			RTFREE_LOCKED(gwrt);
+			if (gwrt)
+				RTFREE_LOCKED(gwrt);
 		}
 	} else
 		error = EHOSTUNREACH;
@@ -704,7 +714,7 @@ rtioctl_fib(u_long req, caddr_t data, u_int fibnum)
 }
 
 struct ifaddr *
-ifa_ifwithroute(int flags, struct sockaddr *dst, struct sockaddr *gateway,
+ifa_ifwithroute(int flags, const struct sockaddr *dst, struct sockaddr *gateway,
 				u_int fibnum)
 {
 	struct ifaddr *ifa;
@@ -813,8 +823,16 @@ rtrequest_fib(int req,
 }
 
 
+/*
+ * Iterates over all existing fibs in system calling
+ *  @setwa_f function prior to traversing each fib.
+ *  Calls @wa_f function for each element in current fib.
+ * If af is not AF_UNSPEC, iterates over fibs in particular
+ * address family.
+ */
 void
-rt_foreach_fib(int af, rt_setwarg_t *setwa_f, rt_walktree_f_t *wa_f, void *arg)
+rt_foreach_fib_walk(int af, rt_setwarg_t *setwa_f, rt_walktree_f_t *wa_f,
+    void *arg)
 {
 	struct radix_node_head *rnh;
 	uint32_t fibnum;
@@ -899,7 +917,7 @@ void
 rt_flushifroutes(struct ifnet *ifp)
 {
 
-	rt_foreach_fib(AF_UNSPEC, NULL, rt_ifdelroute, ifp);
+	rt_foreach_fib_walk(AF_UNSPEC, NULL, rt_ifdelroute, ifp);
 }
 
 /*

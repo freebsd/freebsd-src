@@ -282,8 +282,8 @@ struct rt_addrinfo {
 	1 + ( (((struct sockaddr *)(sa))->sa_len - 1) | (sizeof(long) - 1) ) )
 
 #define	sa_equal(a, b) (	\
-    (((struct sockaddr *)(a))->sa_len == ((struct sockaddr *)(b))->sa_len) && \
-    (bcmp((a), (b), ((struct sockaddr *)(b))->sa_len) == 0))
+    (((const struct sockaddr *)(a))->sa_len == ((const struct sockaddr *)(b))->sa_len) && \
+    (bcmp((a), (b), ((const struct sockaddr *)(b))->sa_len) == 0))
 
 #ifdef _KERNEL
 
@@ -382,7 +382,7 @@ void	rt_updatemtu(struct ifnet *);
 
 typedef int rt_walktree_f_t(struct rtentry *, void *);
 typedef void rt_setwarg_t(struct radix_node_head *, uint32_t, int, void *);
-void	rt_foreach_fib(int af, rt_setwarg_t *, rt_walktree_f_t *, void *);
+void	rt_foreach_fib_walk(int af, rt_setwarg_t *, rt_walktree_f_t *, void *);
 void	rt_flushifroutes(struct ifnet *ifp);
 
 /* XXX MRT COMPAT VERSIONS THAT SET UNIVERSE to 0 */

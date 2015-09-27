@@ -204,17 +204,42 @@ struct drm_device;
 			__func__ , ##__VA_ARGS__);			\
 } while (0)
 
+#define DRM_DEBUG_DRIVER(fmt, ...) do {					\
+	if ((drm_debug & DRM_DEBUGBITS_KMS) != 0)			\
+		printf("[" DRM_NAME ":KMS:pid%d:%s] " fmt, DRM_CURRENTPID,\
+			__func__ , ##__VA_ARGS__);			\
+} while (0)
+
 #define DRM_DEBUG_KMS(fmt, ...) do {					\
 	if ((drm_debug & DRM_DEBUGBITS_KMS) != 0)			\
 		printf("[" DRM_NAME ":KMS:pid%d:%s] " fmt, DRM_CURRENTPID,\
 			__func__ , ##__VA_ARGS__);			\
 } while (0)
 
-#define DRM_DEBUG_DRIVER(fmt, ...) do {					\
+#define DRM_LOG(fmt, ...) do {						\
 	if ((drm_debug & DRM_DEBUGBITS_KMS) != 0)			\
-		printf("[" DRM_NAME ":KMS:pid%d:%s] " fmt, DRM_CURRENTPID,\
+		printf("[" DRM_NAME "]:pid%d:%s]" fmt, DRM_CURRENTPID,	\
 			__func__ , ##__VA_ARGS__);			\
 } while (0)
+
+#define DRM_LOG_KMS(fmt, ...) do {					\
+	if ((drm_debug & DRM_DEBUGBITS_KMS) != 0)			\
+		printf("[" DRM_NAME "]:KMS:pid%d:%s]" fmt, DRM_CURRENTPID,\
+			__func__ , ##__VA_ARGS__);			\
+} while (0)
+
+#define DRM_LOG_MODE(fmt, ...) do {					\
+	if ((drm_debug & DRM_DEBUGBITS_KMS) != 0)			\
+		printf("[" DRM_NAME "]:pid%d:%s]" fmt, DRM_CURRENTPID,	\
+			__func__ , ##__VA_ARGS__);			\
+} while (0)
+
+#define DRM_LOG_DRIVER(fmt, ...) do {					\
+	if ((drm_debug & DRM_DEBUGBITS_KMS) != 0)			\
+		printf("[" DRM_NAME "]:KMS:pid%d:%s]" fmt, DRM_CURRENTPID,\
+			__func__ , ##__VA_ARGS__);			\
+} while (0)
+
 
 /*@}*/
 
@@ -1592,8 +1617,8 @@ extern int drm_pcie_get_speed_cap_mask(struct drm_device *dev, u32 *speed_mask);
 SYSCTL_DECL(_hw_drm);
 
 #define DRM_DEV_MODE	(S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP)
-#define DRM_DEV_UID	0
-#define DRM_DEV_GID	44	/* "video" group */
+#define DRM_DEV_UID	UID_ROOT
+#define DRM_DEV_GID	GID_VIDEO
 
 #define DRM_WAKEUP(w)		wakeup((void *)w)
 #define DRM_WAKEUP_INT(w)	wakeup(w)

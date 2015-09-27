@@ -133,6 +133,8 @@ SYSCTL_PROC(_kern_timecounter, OID_AUTO, alloweddeviation,
     sysctl_kern_timecounter_adjprecision, "I",
     "Allowed time interval deviation in percents");
 
+static int tc_chosen;	/* Non-zero if a specific tc was chosen via sysctl. */
+
 static void tc_windup(void);
 static void cpu_tick_calibrate(int);
 
@@ -1197,10 +1199,13 @@ tc_init(struct timecounter *tc)
 	    "quality", CTLFLAG_RD, &(tc->tc_quality), 0,
 	    "goodness of time counter");
 	/*
-	 * Never automatically use a timecounter with negative quality.
+	 * Do not automatically switch if the current tc was specifically
+	 * chosen.  Never automatically use a timecounter with negative quality.
 	 * Even though we run on the dummy counter, switching here may be
-	 * worse since this timecounter may not be monotonous.
+	 * worse since this timecounter may not be monotonic.
 	 */
+	if (tc_chosen)
+		return;
 	if (tc->tc_quality < 0)
 		return;
 	if (tc->tc_quality < timecounter->tc_quality)
@@ -1433,9 +1438,12 @@ sysctl_kern_timecounter_hardware(SYSCTL_HANDLER_ARGS)
 	strlcpy(newname, tc->tc_name, sizeof(newname));
 
 	error = sysctl_handle_string(oidp, &newname[0], sizeof(newname), req);
-	if (error != 0 || req->newptr == NULL ||
-	    strcmp(newname, tc->tc_name) == 0)
+	if (error != 0 || req->newptr == NULL)
 		return (error);
+	/* Record that the tc in use now was specifically chosen. */
+	tc_chosen = 1;
+	if (strcmp(newname, tc->tc_name) == 0)
+		return (0);
 	for (newtc = timecounters; newtc != NULL; newtc = newtc->tc_next) {
 		if (strcmp(newname, newtc->tc_name) != 0)
 			continue;
@@ -1464,7 +1472,7 @@ SYSCTL_PROC(_kern_timecounter, OID_AUTO, hardware, CTLTYPE_STRING | CTLFLAG_RW,
     "Timecounter hardware selected");
 
 
-/* Report or change the active timecounter hardware. */
+/* Report the available timecounter hardware. */
 static int
 sysctl_kern_timecounter_choice(SYSCTL_HANDLER_ARGS)
 {
@@ -1916,20 +1924,27 @@ SYSINIT(timecounter, SI_SUB_CLOCKS, SI_ORDER_SECOND, inittimecounter, NULL);
 static int cpu_tick_variable;
 static uint64_t	cpu_tick_frequency;
 
+static DPCPU_DEFINE(uint64_t, tc_cpu_ticks_base);
+static DPCPU_DEFINE(unsigned, tc_cpu_ticks_last);
+
 static uint64_t
 tc_cpu_ticks(void)
 {
-	static uint64_t base;
-	static unsigned last;
-	unsigned u;
 	struct timecounter *tc;
+	uint64_t res, *base;
+	unsigned u, *last;
 
+	critical_enter();
+	base = DPCPU_PTR(tc_cpu_ticks_base);
+	last = DPCPU_PTR(tc_cpu_ticks_last);
 	tc = timehands->th_counter;
 	u = tc->tc_get_timecount(tc) & tc->tc_counter_mask;
-	if (u < last)
-		base += (uint64_t)tc->tc_counter_mask + 1;
-	last = u;
-	return (u + base);
+	if (u < *last)
+		*base += (uint64_t)tc->tc_counter_mask + 1;
+	*last = u;
+	res = u + *base;
+	critical_exit();
+	return (res);
 }
 
 void

@@ -83,8 +83,9 @@ cam/ctl/ctl_backend_ramdisk.c	optional ctl
 cam/ctl/ctl_cmd_table.c		optional ctl
 cam/ctl/ctl_frontend.c		optional ctl
 cam/ctl/ctl_frontend_cam_sim.c	optional ctl
-cam/ctl/ctl_frontend_internal.c	optional ctl
+cam/ctl/ctl_frontend_ioctl.c	optional ctl
 cam/ctl/ctl_frontend_iscsi.c	optional ctl
+cam/ctl/ctl_ha.c		optional ctl
 cam/ctl/ctl_scsi_all.c		optional ctl
 cam/ctl/ctl_tpc.c		optional ctl
 cam/ctl/ctl_tpc_local.c		optional ctl
@@ -145,6 +146,7 @@ cddl/contrib/opensolaris/uts/common/fs/zfs/blkptr.c			optional zfs compile-with 
 cddl/contrib/opensolaris/uts/common/fs/zfs/bplist.c			optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/bpobj.c			optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/bptree.c			optional zfs compile-with "${ZFS_C}"
+cddl/contrib/opensolaris/uts/common/fs/zfs/bqueue.c			optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/dbuf.c			optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/ddt.c			optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/ddt_zap.c			optional zfs compile-with "${ZFS_C}"
@@ -174,6 +176,7 @@ cddl/contrib/opensolaris/uts/common/fs/zfs/gzip.c			optional zfs compile-with "$
 cddl/contrib/opensolaris/uts/common/fs/zfs/lz4.c			optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/lzjb.c			optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/metaslab.c			optional zfs compile-with "${ZFS_C}"
+cddl/contrib/opensolaris/uts/common/fs/zfs/multilist.c			optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/range_tree.c			optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/refcount.c			optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/rrwlock.c			optional zfs compile-with "${ZFS_C}"
@@ -399,7 +402,7 @@ contrib/dev/acpica/components/parser/psxface.c		optional acpi
 contrib/dev/acpica/components/resources/rsaddr.c	optional acpi
 contrib/dev/acpica/components/resources/rscalc.c	optional acpi
 contrib/dev/acpica/components/resources/rscreate.c	optional acpi
-contrib/dev/acpica/components/resources/rsdump.c	optional acpi
+contrib/dev/acpica/components/resources/rsdump.c	optional acpi acpi_debug
 contrib/dev/acpica/components/resources/rsdumpinfo.c	optional acpi
 contrib/dev/acpica/components/resources/rsinfo.c	optional acpi
 contrib/dev/acpica/components/resources/rsio.c		optional acpi
@@ -548,14 +551,14 @@ crypto/des/des_ecb.c		optional crypto | ipsec | netsmb
 crypto/des/des_setkey.c		optional crypto | ipsec | netsmb
 crypto/rc4/rc4.c		optional netgraph_mppc_encryption | kgssapi
 crypto/rijndael/rijndael-alg-fst.c optional crypto | geom_bde | \
-					 ipsec | random random_yarrow | random !random_yarrow !random_dummy | wlan_ccmp
-crypto/rijndael/rijndael-api-fst.c optional geom_bde | random random_yarrow | random !random_yarrow !random_dummy
+					 ipsec | random !random_loadable | wlan_ccmp
+crypto/rijndael/rijndael-api-fst.c optional geom_bde | random !random_loadable
 crypto/rijndael/rijndael-api.c	optional crypto | ipsec | wlan_ccmp
 crypto/sha1.c			optional carp | crypto | ipsec | \
 					 netgraph_mppc_encryption | sctp
-crypto/sha2/sha2.c		optional crypto | geom_bde | ipsec | random random_yarrow | random !random_yarrow !random_dummy | \
+crypto/sha2/sha2.c		optional crypto | geom_bde | ipsec | random !random_loadable | \
 					 sctp | zfs
-crypto/sha2/sha256c.c		optional crypto | geom_bde | ipsec | random random_yarrow | random !random_yarrow !random_dummy | \
+crypto/sha2/sha256c.c		optional crypto | geom_bde | ipsec | random !random_loadable | \
 					 sctp | zfs
 crypto/siphash/siphash.c	optional inet | inet6
 crypto/siphash/siphash_test.c	optional inet | inet6
@@ -1234,6 +1237,7 @@ t5fw.fw			optional cxgbe					\
 dev/cy/cy.c			optional cy
 dev/cy/cy_isa.c			optional cy isa
 dev/cy/cy_pci.c			optional cy pci
+dev/cyapa/cyapa.c		optional cyapa smbus
 dev/dc/if_dc.c			optional dc pci
 dev/dc/dcphy.c			optional dc pci
 dev/dc/pnphy.c			optional dc pci
@@ -1459,8 +1463,8 @@ dev/hptiop/hptiop.c		optional hptiop scbus
 dev/hwpmc/hwpmc_logging.c	optional hwpmc
 dev/hwpmc/hwpmc_mod.c		optional hwpmc
 dev/hwpmc/hwpmc_soft.c		optional hwpmc
-dev/ichiic/ig4_iic.c		optional ichiic
-dev/ichiic/ig4_pci.c		optional ichiic pci
+dev/ichiic/ig4_iic.c		optional ig4 smbus
+dev/ichiic/ig4_pci.c		optional ig4 pci smbus
 dev/ichsmb/ichsmb.c		optional ichsmb
 dev/ichsmb/ichsmb_pci.c		optional ichsmb pci
 dev/ida/ida.c			optional ida
@@ -1555,6 +1559,7 @@ dev/iscsi_initiator/isc_soc.c	optional iscsi_initiator scbus
 dev/iscsi_initiator/isc_sm.c	optional iscsi_initiator scbus
 dev/iscsi_initiator/isc_subr.c	optional iscsi_initiator scbus
 dev/ismt/ismt.c			optional ismt
+dev/isl/isl.c			optional isl smbus
 dev/isp/isp.c			optional isp
 dev/isp/isp_freebsd.c		optional isp
 dev/isp/isp_library.c		optional isp
@@ -1876,6 +1881,7 @@ dev/ixgbe/ixgbe_dcb_82599.c	optional ix inet | ixv inet \
 dev/jme/if_jme.c		optional jme pci
 dev/joy/joy.c			optional joy
 dev/joy/joy_isa.c		optional joy isa
+dev/kbd/kbd.c			optional atkbd | pckbd | sc | ukbd | vt
 dev/kbdmux/kbdmux.c		optional kbdmux
 dev/ksyms/ksyms.c		optional ksyms
 dev/le/am7990.c			optional le
@@ -2084,6 +2090,13 @@ dev/ofw/ofw_iicbus.c		optional fdt iicbus
 dev/ofw/ofwbus.c		optional fdt
 dev/ofw/openfirm.c		optional fdt
 dev/ofw/openfirmio.c		optional fdt
+dev/ow/ow.c			optional ow				\
+	dependency	"owll_if.h"					\
+	dependency	"own_if.h"
+dev/ow/owll_if.m		optional ow
+dev/ow/own_if.m			optional ow
+dev/ow/ow_temp.c		optional ow_temp
+dev/ow/owc_gpiobus.c		optional owc gpio
 dev/patm/if_patm.c		optional patm pci
 dev/patm/if_patm_attach.c	optional patm pci
 dev/patm/if_patm_intr.c		optional patm pci
@@ -2312,13 +2325,16 @@ rt2860.fw			optional rt2860fw | ralfw		\
 	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"rt2860.fw"
-dev/random/randomdev_none.c	optional !random
-dev/random/randomdev.c		optional random
-dev/random/random_harvestq.c	optional random random_yarrow | random !random_dummy
+dev/random/random_infra.c	optional random
+dev/random/random_harvestq.c	optional random
+dev/random/randomdev.c		optional random random_yarrow | \
+					 random !random_yarrow !random_loadable
 dev/random/yarrow.c		optional random random_yarrow
-dev/random/fortuna.c		optional random !random_yarrow !random_dummy
-dev/random/hash.c		optional random random_yarrow | random !random_dummy
+dev/random/fortuna.c		optional random !random_yarrow !random_loadable
+dev/random/hash.c		optional random random_yarrow | \
+					 random !random_yarrow !random_loadable
 dev/rc/rc.c			optional rc
+dev/rccgpio/rccgpio.c		optional rccgpio gpio
 dev/re/if_re.c			optional re
 dev/rl/if_rl.c			optional rl pci
 dev/rndtest/rndtest.c		optional rndtest
@@ -3422,6 +3438,7 @@ libkern/zlib.c			optional crypto | geom_uzip | ipsec | \
 					 ddb_ctf | gzio | geom_uncompress
 net/altq/altq_cbq.c		optional altq
 net/altq/altq_cdnr.c		optional altq
+net/altq/altq_codel.c		optional altq
 net/altq/altq_hfsc.c		optional altq
 net/altq/altq_fairq.c		optional altq
 net/altq/altq_priq.c		optional altq

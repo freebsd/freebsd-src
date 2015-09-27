@@ -207,6 +207,7 @@ MAN=	aac.4 \
 	intpm.4 \
 	intro.4 \
 	${_io.4} \
+	${_ioat.4} \
 	ip.4 \
 	ip6.4 \
 	ipfirewall.4 \
@@ -378,6 +379,11 @@ MAN=	aac.4 \
 	oce.4 \
 	ohci.4 \
 	orm.4 \
+	otus.4 \
+	otusfw.4 \
+	ow.4 \
+	ow_temp.4 \
+	owc.4 \
 	${_padlock.4} \
 	pass.4 \
 	patm.4 \
@@ -666,6 +672,7 @@ MLINKS+=nge.4 if_nge.4
 MLINKS+=${_ntb.4} ${_if_ntb.4} \
 	${_ntb.4} ${_ntb_hw.4}
 MLINKS+=${_nxge.4} ${_if_nxge.4}
+MLINKS+=ow.4 onewire.4
 MLINKS+=patm.4 if_patm.4
 MLINKS+=pccbb.4 cbb.4
 MLINKS+=pcm.4 snd.4 \
@@ -800,6 +807,7 @@ _xnb.4=		xnb.4
 
 .if ${MACHINE_CPUARCH} == "amd64"
 _if_ntb.4=	if_ntb.4
+_ioat.4=	ioat.4
 _ntb.4=		ntb.4
 _ntb_hw.4=	ntb_hw.4
 _qlxge.4=	qlxge.4

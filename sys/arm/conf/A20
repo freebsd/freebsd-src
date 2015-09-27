@@ -1,0 +1,113 @@
+#
+# A20 -- Custom configuration for the Allwinner A20 ARM SoC
+#
+# For more information on this file, please read the config(5) manual page,
+# and/or the handbook section on Kernel Configuration Files:
+#
+#    http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/kernelconfig-config.html
+#
+# The handbook is also available locally in /usr/share/doc/handbook
+# if you've installed the doc distribution, otherwise always see the
+# FreeBSD World Wide Web server (http://www.FreeBSD.org/) for the
+# latest information.
+#
+# An exhaustive list of options and more detailed explanations of the
+# device lines is also present in the ../../conf/NOTES and NOTES files.
+# If you are in doubt as to the purpose or necessity of a line, check first
+# in NOTES.
+#
+# $FreeBSD$
+
+ident		A20
+
+include 	"std.armv6"
+include 	"../allwinner/a20/std.a20"
+
+options 	HZ=100
+options 	SCHED_ULE		# ULE scheduler
+options 	SMP			# Enable multiple cores
+
+# Debugging for use in -current
+makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
+options 	ALT_BREAK_TO_DEBUGGER
+#options 	VERBOSE_SYSINIT		# Enable verbose sysinit messages
+options 	KDB			# Enable kernel debugger support
+# For minimum debugger support (stable branch) use:
+#options 	KDB_TRACE		# Print a stack trace for a panic
+# For full debugger support use this instead:
+options 	DDB			# Enable the kernel debugger
+options 	INVARIANTS		# Enable calls of extra sanity checking
+options 	INVARIANT_SUPPORT	# Extra sanity checks of internal structures, required by INVARIANTS
+options 	WITNESS			# Enable checks to detect deadlocks and cycles
+options 	WITNESS_SKIPSPIN	# Don't run witness on spinlocks for speed
+#options 	DIAGNOSTIC
+
+# NFS root from boopt/dhcp
+#options 	BOOTP
+#options 	BOOTP_NFSROOT
+#options 	BOOTP_COMPAT
+#options 	BOOTP_NFSV3
+#options 	BOOTP_WIRED_TO=dwc0
+
+# Boot device is 2nd slice on MMC/SD card
+options 	ROOTDEVNAME=\"ufs:/dev/da0s2\"
+
+# Interrupt controller
+device		gic
+
+# MMC/SD/SDIO Card slot support
+device		mmc			# mmc/sd bus
+device		mmcsd			# mmc/sd flash cards
+
+# ATA controllers
+device		ahci			# AHCI-compatible SATA controllers
+#device		ata			# Legacy ATA/SATA controllers
+#options 	ATA_STATIC_ID		# Static device numbering
+
+# Console and misc
+device		uart
+device		uart_ns8250
+device		pty
+device		snp
+device		md
+device		random			# Entropy device
+
+# I2C support
+#device		iicbus
+#device		iic
+
+# GPIO
+device		gpio
+device		gpioled
+
+device		scbus			# SCSI bus (required for ATA/SCSI)
+device		da			# Direct Access (disks)
+device		pass			# Passthrough device (direct ATA/SCSI access)
+
+# USB support
+options 	USB_HOST_ALIGN=64	# Align usb buffers to cache line size.
+device		usb
+options 	USB_DEBUG
+#options 	USB_REQ_DEBUG
+#options 	USB_VERBOSE
+#device		uhci
+#device		ohci
+device		ehci
+
+device		umass
+
+# Ethernet
+device		loop
+device		ether
+device		mii
+device		bpf
+
+#device		emac			# 10/100 integrated EMAC controller
+device		dwc			# 10/100/1000 integrated GMAC controller
+
+# USB ethernet support, requires miibus
+device		miibus
+
+# Flattened Device Tree
+options 	FDT			# Configure using FDT/DTB data
+makeoptions	MODULES_EXTRA=dtb/allwinner

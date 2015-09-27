@@ -96,7 +96,7 @@ main(int argc, char *argv[])
 	while ((c = getopt(argc, argv, "xd:kt")) != -1)
 		switch (c) {
 		case 'x':
-			for (i=0; i<sizeof ypaliases/sizeof ypaliases[0]; i++)
+			for (i = 0; i < nitems(ypaliases); i++)
 				printf("Use \"%s\" for \"%s\"\n",
 				    ypaliases[i].alias, ypaliases[i].name);
 			exit(0);
@@ -120,8 +120,8 @@ main(int argc, char *argv[])
 		yp_get_default_domain(&domain);
 
 	inmap = argv[optind];
-	if (!notrans) {
-		for (i=0; i<sizeof ypaliases/sizeof ypaliases[0]; i++)
+	if (notrans == 0) {
+		for (i = 0; i < nitems(ypaliases); i++)
 			if (strcmp(inmap, ypaliases[i].alias) == 0)
 				inmap = ypaliases[i].name;
 	}

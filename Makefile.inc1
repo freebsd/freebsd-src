@@ -219,11 +219,16 @@ INSTALLTMP!=	/usr/bin/mktemp -d -u -t install
 # 2. build-tools stage [TMAKE]
 #	This stage is responsible for creating the object
 #	tree and building any tools that are needed during
-#	the build process.
+#	the build process. Some programs are listed during
+#	this phase because they build binaries to generate
+#	files needed to build these programs. This stage also
+#	builds the 'build-tools' target rather than 'all'.
 # 3. cross-tools stage [XMAKE]
 #	This stage is responsible for creating any tools that
 #	are needed for building the system. A cross-compiler is one
-#	of them.
+#	of them. This differs from build tools in two ways:
+#	1. the 'all' target is built rather than 'build-tools'
+#	2. these tools are installed into TMPPATH for stage 4.
 # 4. world stage [WMAKE]
 #	This stage actually builds the world.
 # 5. install stage (optional) [IMAKE]
@@ -252,9 +257,8 @@ BMAKEENV=	INSTALL="sh ${.CURDIR}/tools/install.sh" \
 		WORLDTMP=${WORLDTMP} \
 		VERSION="${VERSION}" \
 		MAKEFLAGS="-m ${.CURDIR}/tools/build/mk ${.MAKEFLAGS}"
-BMAKE=		MAKEOBJDIRPREFIX=${WORLDTMP} \
-		${BMAKEENV} ${MAKE} ${WORLD_FLAGS} -f Makefile.inc1 \
-		DESTDIR= \
+# need to keep this in sync with targets/pseudo/bootstrap-tools/Makefile
+BSARGS= 	DESTDIR= \
 		BOOTSTRAPPING=${OSRELDATE} \
 		SSP_CFLAGS= \
 		MK_HTML=no NO_LINT=yes MK_MAN=no \
@@ -262,7 +266,11 @@ BMAKE=		MAKEOBJDIRPREFIX=${WORLDTMP} \
 		-DNO_CPU_CFLAGS MK_WARNS=no MK_CTF=no \
 		MK_CLANG_EXTRAS=no MK_CLANG_FULL=no \
 		MK_LLDB=no MK_TESTS=no \
-		MK_INCLUDES=yes 
+		MK_INCLUDES=yes
+
+BMAKE=		MAKEOBJDIRPREFIX=${WORLDTMP} \
+		${BMAKEENV} ${MAKE} ${WORLD_FLAGS} -f Makefile.inc1 \
+		${BSARGS}
 
 # build-tools stage
 TMAKE=		MAKEOBJDIRPREFIX=${OBJTREE} \
@@ -325,11 +333,13 @@ CROSS_BINUTILS_PREFIX?=${CROSS_TOOLCHAIN_PREFIX}
 # support the target architecture), provide a default cross-binutils prefix.
 # This allows aarch64 builds, for example, to automatically use the
 # aarch64-binutils port or package.
+.if !make(showconfig)
 .if !empty(BROKEN_OPTIONS:MBINUTILS_BOOTSTRAP) && \
     !defined(CROSS_BINUTILS_PREFIX)
 CROSS_BINUTILS_PREFIX=/usr/local/${TARGET_ARCH}-freebsd/bin/
 .if !exists(${CROSS_BINUTILS_PREFIX})
 .error In-tree binutils does not support the ${TARGET_ARCH} architecture. Install the ${TARGET_ARCH}-binutils port or package or set CROSS_BINUTILS_PREFIX.
+.endif
 .endif
 .endif
 
@@ -444,7 +454,6 @@ LIB32WMAKEENV+=	MAKEOBJDIRPREFIX=${LIB32_OBJTREE} \
 		PATH=${TMPPATH} \
 		LIBDIR=/usr/lib32 \
 		SHLIBDIR=/usr/lib32 \
-		LIBPRIVATEDIR=/usr/lib32/private \
 		DTRACE="${DTRACE} -32"
 LIB32WMAKEFLAGS+= CC="${XCC} ${LIB32FLAGS}" \
 		CXX="${XCXX} ${LIB32FLAGS}" \
@@ -1123,6 +1132,16 @@ reinstallkernel reinstallkernel.debug: _installcheck_kernel
 	cd ${KRNLOBJDIR}/${INSTALLKERNEL}; \
 	    ${CROSSENV} PATH=${TMPPATH} \
 	    ${MAKE} ${IMAKE_INSTALL} KERNEL=${INSTKERNNAME} ${.TARGET:S/kernel//}
+.if ${BUILDKERNELS:[#]} > 1
+.for _kernel in ${BUILDKERNELS:[2..-1]}
+	@echo "--------------------------------------------------------------"
+	@echo ">>> Installing kernel ${_kernel}"
+	@echo "--------------------------------------------------------------"
+	cd ${KRNLOBJDIR}/${_kernel}; \
+	    ${CROSSENV} PATH=${TMPPATH} \
+	    ${MAKE} ${IMAKE_INSTALL} KERNEL=${INSTKERNNAME}.${_kernel} ${.TARGET:S/kernel//}
+.endfor
+.endif
 
 distributekernel distributekernel.debug:
 .if empty(INSTALLKERNEL)
@@ -1142,7 +1161,8 @@ distributekernel distributekernel.debug:
 	sed -e 's|^./kernel|.|' ${DESTDIR}/${DISTDIR}/kernel.premeta > \
 	    ${DESTDIR}/${DISTDIR}/kernel.meta
 .endif
-.for _kernel in ${BUILDKERNELS:S/${INSTALLKERNEL}//}
+.if ${BUILDKERNELS:[#]} > 1
+.for _kernel in ${BUILDKERNELS:[2..-1]}
 .if defined(NO_ROOT)
 	echo "#${MTREE_MAGIC}" > ${DESTDIR}/${DISTDIR}/kernel.${_kernel}.premeta
 .endif
@@ -1158,26 +1178,31 @@ distributekernel distributekernel.debug:
 	    ${DESTDIR}/${DISTDIR}/kernel.${_kernel}.meta
 .endif
 .endfor
+.endif
 
 packagekernel:
 .if defined(NO_ROOT)
 	cd ${DESTDIR}/${DISTDIR}/kernel; \
 	    tar cvf - @${DESTDIR}/${DISTDIR}/kernel.meta | \
 	    ${XZ_CMD} > ${DESTDIR}/${DISTDIR}/kernel.txz
-.for _kernel in ${BUILDKERNELS:S/${INSTALLKERNEL}//}
+.if ${BUILDKERNELS:[#]} > 1
+.for _kernel in ${BUILDKERNELS:[2..-1]}
 	cd ${DESTDIR}/${DISTDIR}/kernel.${_kernel}; \
 	    tar cvf - @${DESTDIR}/${DISTDIR}/kernel.${_kernel}.meta | \
 	    ${XZ_CMD} > ${DESTDIR}/${DISTDIR}/kernel.${_kernel}.txz
 .endfor
+.endif
 .else
 	cd ${DESTDIR}/${DISTDIR}/kernel; \
 	    tar cvf - . | \
 	    ${XZ_CMD} > ${DESTDIR}/${DISTDIR}/kernel.txz
-.for _kernel in ${BUILDKERNELS:S/${INSTALLKERNEL}//}
+.if ${BUILDKERNELS:[#]} > 1
+.for _kernel in ${BUILDKERNELS:[2..-1]}
 	cd ${DESTDIR}/${DISTDIR}/kernel.${_kernel}; \
 	    tar cvf - . | \
 	    ${XZ_CMD} > ${DESTDIR}/${DISTDIR}/kernel.${_kernel}.txz
 .endfor
+.endif
 .endif
 
 #
@@ -1225,16 +1250,23 @@ update:
 #
 
 #
-# legacy: Build compatibility shims for the next three targets. This is a minimal
-# set of tools and shims necessary to compensate for older systems which don't have
-# the APIs that the targets built in bootstrap-tools, build-tools or cross-tools.
+# legacy: Build compatibility shims for the next three targets. This is a
+# minimal set of tools and shims necessary to compensate for older systems
+# which don't have the APIs required by the targets built in bootstrap-tools,
+# build-tools or cross-tools.
 #
+
+# ELF Tool Chain libraries are needed for ELF tools and dtrace tools.
+.if ${BOOTSTRAPPING} < 1100006
+_elftoolchain_libs= lib/libelf lib/libdwarf
+.endif
+
 legacy:
 .if ${BOOTSTRAPPING} < 800107 && ${BOOTSTRAPPING} != 0
-	@echo "ERROR: Source upgrades from versions prior to 8.0 not supported."; \
+	@echo "ERROR: Source upgrades from versions prior to 8.0 are not supported."; \
 	false
 .endif
-.for _tool in tools/build
+.for _tool in tools/build ${_elftoolchain_libs}
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,includes,depend,all,install)"; \
 	    cd ${.CURDIR}/${_tool} && \
 	    ${MAKE} DIRPRFX=${_tool}/ obj && \
@@ -1250,7 +1282,7 @@ legacy:
 # binaries is usually quite narrow. Bootstrap tools use the host's compiler and
 # libraries, augmented by -legacy.
 #
-_bt=		_bootstrap-tools	
+_bt=		_bootstrap-tools
 
 .if ${MK_GAMES} != "no"
 _strfile=	games/fortune/strfile
@@ -1297,7 +1329,8 @@ _lex=		usr.bin/lex
 
 # r277259 crunchide: Correct 64-bit section header offset
 # r281674 crunchide: always include both 32- and 64-bit ELF support
-.if ${BOOTSTRAPPING} < 1100071
+# r285986 crunchen: use STRIPBIN rather than STRIP
+.if ${BOOTSTRAPPING} < 1100078
 _crunch=	usr.sbin/crunch
 .endif
 
@@ -1325,21 +1358,6 @@ _clang_tblgen= \
 
 ${_bt}-usr.bin/clang/clang-tblgen: ${_bt}-lib/clang/libllvmtablegen ${_bt}-lib/clang/libllvmsupport
 ${_bt}-usr.bin/clang/tblgen: ${_bt}-lib/clang/libllvmtablegen ${_bt}-lib/clang/libllvmsupport
-.endif
-
-# ELF Tool Chain libraries are needed for ELF tools and dtrace tools.
-# dtrace tools are required for older bootstrap env and cross-build
-# pre libdwarf
-.if ${BOOTSTRAPPING} < 1100006 || (${MACHINE} != ${TARGET} || \
-    ${MACHINE_ARCH} != ${TARGET_ARCH})
-_elftoolchain_libs= lib/libelf lib/libdwarf 
-.if ${MK_CDDL} != "no"
-_dtrace_tools= cddl/usr.bin/sgsmsg cddl/lib/libctf cddl/usr.bin/ctfconvert \
-    cddl/usr.bin/ctfmerge
-
-${_bt}-cddl/usr.bin/ctfconvert: ${_bt}-lib/libelf ${_bt}-lib/libdwarf ${_bt}-cddl/lib/libctf
-${_bt}-cddl/usr.bin/ctfmerge: ${_bt}-lib/libelf ${_bt}-lib/libdwarf ${_bt}-cddl/lib/libctf
-.endif
 .endif
 
 # Default to building the GPL DTC, but build the BSDL one if users explicitly
@@ -1381,8 +1399,6 @@ bootstrap-tools: .PHONY
 .for _tool in \
     ${_clang_tblgen} \
     ${_kerberos5_bootstrap_tools} \
-    ${_elftoolchain_libs} \
-    ${_dtrace_tools} \
     ${_strfile} \
     ${_gperf} \
     ${_groff} \
@@ -1427,17 +1443,18 @@ _gcc_tools= gnu/usr.bin/cc/cc_tools
 .endif
 
 .if ${MK_RESCUE} != "no"
-_rescue= rescue/rescue
+# rescue includes programs that have build-tools targets
+_rescue=rescue/rescue
 .endif
 
 build-tools: .MAKE
 .for _tool in \
     bin/csh \
     bin/sh \
-    ${_rescue} \
     ${LOCAL_TOOL_DIRS} \
     lib/ncurses/ncurses \
     lib/ncurses/ncursesw \
+    ${_rescue} \
     ${_share} \
     usr.bin/awk \
     lib/libmagic \
@@ -1477,12 +1494,19 @@ _btxld=		usr.sbin/btxld
 .endif
 .endif
 
+# Rebuild ctfconvert and ctfmerge to avoid difficult-to-diagnose failures
+# resulting from missing bug fixes or ELF Toolchain updates.
+.if ${MK_CDDL} != "no"
+_dtrace_tools= cddl/usr.bin/sgsmsg cddl/lib/libctf cddl/usr.bin/ctfconvert \
+    cddl/usr.bin/ctfmerge
+.endif
+
 # If we're given an XAS, don't build binutils.
 .if ${XAS:M/*} == ""
 .if ${MK_BINUTILS_BOOTSTRAP} != "no"
 _binutils=	gnu/usr.bin/binutils
 .endif
-.if ${MK_ELFTOOLCHAIN_TOOLS} != "no"
+.if ${MK_ELFTOOLCHAIN_BOOTSTRAP} != "no"
 _elftctools=	lib/libelftc \
 		usr.bin/elfcopy \
 		usr.bin/nm \
@@ -1492,7 +1516,7 @@ _elftctools=	lib/libelftc \
 # cross-build on a FreeBSD 10 host:
 _elftctools+=	usr.bin/addr2line
 .endif
-.elif ${TARGET_ARCH} != ${MACHINE_ARCH} && ${MK_ELFTOOLCHAIN_TOOLS} != "no"
+.elif ${TARGET_ARCH} != ${MACHINE_ARCH} && ${MK_ELFTOOLCHAIN_BOOTSTRAP} != "no"
 # If cross-building with an external binutils we still need to build strip for
 # the target (for at least crunchide).
 _elftctools=	lib/libelftc \
@@ -1520,6 +1544,7 @@ cross-tools: .MAKE
     ${_clang} \
     ${_binutils} \
     ${_elftctools} \
+    ${_dtrace_tools} \
     ${_cc} \
     ${_btxld} \
     ${_crunchide} \
@@ -1766,9 +1791,7 @@ cddl/lib/libctf__L: lib/libz__L
 .endif
 # cddl/lib/libdtrace requires lib/libproc and lib/librtld_db; it's only built
 # on select architectures though (see cddl/lib/Makefile)
-.if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_ARCH} == "amd64" || \
-	${MACHINE_CPUARCH} == "arm" || ${MACHINE_ARCH} == "i386" || \
-	${MACHINE_CPUARCH} == "mips" || ${MACHINE_CPUARCH} == "powerpc"
+.if ${MACHINE_CPUARCH} != "sparc64"
 _prebuild_libs+=	lib/libproc lib/librtld_db
 .endif
 

@@ -694,7 +694,7 @@ orphanpg(pg)
 
 	LIST_FOREACH(p, &pg->pg_members, p_pglist) {
 		PROC_LOCK(p);
-		if (P_SHOULDSTOP(p)) {
+		if (P_SHOULDSTOP(p) == P_STOPPED_SIG) {
 			PROC_UNLOCK(p);
 			LIST_FOREACH(p, &pg->pg_members, p_pglist) {
 				PROC_LOCK(p);
@@ -2517,11 +2517,14 @@ repeat:
 		    sizeof(kkstp->kkst_trace), SBUF_FIXEDLEN);
 		thread_lock(td);
 		kkstp->kkst_tid = td->td_tid;
-		if (TD_IS_SWAPPED(td))
+		if (TD_IS_SWAPPED(td)) {
 			kkstp->kkst_state = KKST_STATE_SWAPPED;
-		else if (TD_IS_RUNNING(td))
-			kkstp->kkst_state = KKST_STATE_RUNNING;
-		else {
+		} else if (TD_IS_RUNNING(td)) {
+			if (stack_save_td_running(st, td) == 0)
+				kkstp->kkst_state = KKST_STATE_STACKOK;
+			else
+				kkstp->kkst_state = KKST_STATE_RUNNING;
+		} else {
 			kkstp->kkst_state = KKST_STATE_STACKOK;
 			stack_save_td(st, td);
 		}

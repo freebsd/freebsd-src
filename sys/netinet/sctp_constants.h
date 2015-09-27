@@ -66,6 +66,8 @@ __FBSDID("$FreeBSD$");
  */
 #define SCTP_LARGEST_INIT_ACCEPTED (65535 - 2048)
 
+/* Largest length of a chunk */
+#define SCTP_MAX_CHUNK_LENGTH 0xffff
 /* Number of addresses where we just skip the counting */
 #define SCTP_COUNT_LIMIT 40
 
@@ -458,7 +460,7 @@ __FBSDID("$FreeBSD$");
 
 
 /*
- * SCTP states for internal state machine XXX (should match "user" values)
+ * SCTP states for internal state machine
  */
 #define SCTP_STATE_EMPTY		0x0000
 #define SCTP_STATE_INUSE		0x0001
@@ -611,10 +613,6 @@ __FBSDID("$FreeBSD$");
 
 /* 30 seconds + RTO (in ms) */
 #define SCTP_HB_DEFAULT_MSEC	30000
-
-/* Max time I will wait for Shutdown to complete */
-#define SCTP_DEF_MAX_SHUTDOWN_SEC 180
-
 
 /*
  * This is how long a secret lives, NOT how long a cookie lives how many

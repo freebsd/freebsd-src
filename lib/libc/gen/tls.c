@@ -40,9 +40,9 @@
 #include "libc_private.h"
 
 /* Provided by jemalloc to avoid bootstrapping issues. */
-void	*__je_a0malloc(size_t size);
-void	*__je_a0calloc(size_t num, size_t size);
-void	__je_a0free(void *ptr);
+void	*__je_bootstrap_malloc(size_t size);
+void	*__je_bootstrap_calloc(size_t num, size_t size);
+void	__je_bootstrap_free(void *ptr);
 
 __weak_reference(__libc_allocate_tls, _rtld_allocate_tls);
 __weak_reference(__libc_free_tls, _rtld_free_tls);
@@ -125,8 +125,8 @@ __libc_free_tls(void *tcb, size_t tcbsize, size_t tcbalign __unused)
 
 	tls = (Elf_Addr **)((Elf_Addr)tcb + tcbsize - TLS_TCB_SIZE);
 	dtv = tls[0];
-	__je_a0free(dtv);
-	__je_a0free(tcb);
+	__je_bootstrap_free(dtv);
+	__je_bootstrap_free(tcb);
 }
 
 /*
@@ -142,18 +142,18 @@ __libc_allocate_tls(void *oldtcb, size_t tcbsize, size_t tcbalign __unused)
 	if (oldtcb != NULL && tcbsize == TLS_TCB_SIZE)
 		return (oldtcb);
 
-	tcb = __je_a0calloc(1, tls_static_space + tcbsize - TLS_TCB_SIZE);
+	tcb = __je_bootstrap_calloc(1, tls_static_space + tcbsize - TLS_TCB_SIZE);
 	tls = (Elf_Addr **)(tcb + tcbsize - TLS_TCB_SIZE);
 
 	if (oldtcb != NULL) {
 		memcpy(tls, oldtcb, tls_static_space);
-		__je_a0free(oldtcb);
+		__je_bootstrap_free(oldtcb);
 
 		/* Adjust the DTV. */
 		dtv = tls[0];
 		dtv[2] = (Elf_Addr)tls + TLS_TCB_SIZE;
 	} else {
-		dtv = __je_a0malloc(3 * sizeof(Elf_Addr));
+		dtv = __je_bootstrap_malloc(3 * sizeof(Elf_Addr));
 		tls[0] = dtv;
 		dtv[0] = 1;
 		dtv[1] = 1;
@@ -194,8 +194,8 @@ __libc_free_tls(void *tcb, size_t tcbsize __unused, size_t tcbalign)
 	dtv = ((Elf_Addr**)tcb)[1];
 	tlsend = (Elf_Addr) tcb;
 	tlsstart = tlsend - size;
-	__je_a0free((void*) tlsstart);
-	__je_a0free(dtv);
+	__je_bootstrap_free((void*) tlsstart);
+	__je_bootstrap_free(dtv);
 }
 
 /*
@@ -213,8 +213,8 @@ __libc_allocate_tls(void *oldtls, size_t tcbsize, size_t tcbalign)
 
 	if (tcbsize < 2 * sizeof(Elf_Addr))
 		tcbsize = 2 * sizeof(Elf_Addr);
-	tls = __je_a0calloc(1, size + tcbsize);
-	dtv = __je_a0malloc(3 * sizeof(Elf_Addr));
+	tls = __je_bootstrap_calloc(1, size + tcbsize);
+	dtv = __je_bootstrap_malloc(3 * sizeof(Elf_Addr));
 
 	segbase = (Elf_Addr)(tls + size);
 	((Elf_Addr*)segbase)[0] = segbase;
@@ -270,7 +270,7 @@ __libc_free_tls(void *tcb __unused, size_t tcbsize __unused,
 extern char **environ;
 
 void
-_init_tls()
+_init_tls(void)
 {
 #ifndef PIC
 	Elf_Addr *sp;

@@ -1404,8 +1404,6 @@ swap_pager_putpages(vm_object_t object, vm_page_t *m, int count,
 			    blk + j
 			);
 			vm_page_dirty(mreq);
-			rtvals[i+j] = VM_PAGER_OK;
-
 			mreq->oflags |= VPO_SWAPINPROG;
 			bp->b_pages[j] = mreq;
 		}
@@ -1421,6 +1419,16 @@ swap_pager_putpages(vm_object_t object, vm_page_t *m, int count,
 		PCPU_ADD(cnt.v_swappgsout, bp->b_npages);
 
 		/*
+		 * We unconditionally set rtvals[] to VM_PAGER_PEND so that we
+		 * can call the async completion routine at the end of a
+		 * synchronous I/O operation.  Otherwise, our caller would
+		 * perform duplicate unbusy and wakeup operations on the page
+		 * and object, respectively.
+		 */
+		for (j = 0; j < n; j++)
+			rtvals[i + j] = VM_PAGER_PEND;
+
+		/*
 		 * asynchronous
 		 *
 		 * NOTE: b_blkno is destroyed by the call to swapdev_strategy
@@ -1429,10 +1437,6 @@ swap_pager_putpages(vm_object_t object, vm_page_t *m, int count,
 			bp->b_iodone = swp_pager_async_iodone;
 			BUF_KERNPROC(bp);
 			swp_pager_strategy(bp);
-
-			for (j = 0; j < n; ++j)
-				rtvals[i+j] = VM_PAGER_PEND;
-			/* restart outter loop */
 			continue;
 		}
 
@@ -1445,14 +1449,10 @@ swap_pager_putpages(vm_object_t object, vm_page_t *m, int count,
 		swp_pager_strategy(bp);
 
 		/*
-		 * Wait for the sync I/O to complete, then update rtvals.
-		 * We just set the rtvals[] to VM_PAGER_PEND so we can call
-		 * our async completion routine at the end, thus avoiding a
-		 * double-free.
+		 * Wait for the sync I/O to complete.
 		 */
 		bwait(bp, PVM, "swwrt");
-		for (j = 0; j < n; ++j)
-			rtvals[i+j] = VM_PAGER_PEND;
+
 		/*
 		 * Now that we are through with the bp, we can call the
 		 * normal async completion, which frees everything up.
@@ -2345,8 +2345,8 @@ swapoff_one(struct swdevt *sp, struct ucred *cred)
 	swap_pager_swapoff(sp);
 
 	sp->sw_close(curthread, sp);
-	sp->sw_id = NULL;
 	mtx_lock(&sw_dev_mtx);
+	sp->sw_id = NULL;
 	TAILQ_REMOVE(&swtailq, sp, sw_list);
 	nswapdev--;
 	if (nswapdev == 0) {
@@ -2532,6 +2532,33 @@ swapgeom_close_ev(void *arg, int flags)
 	g_destroy_consumer(cp);
 }
 
+/*
+ * Add a reference to the g_consumer for an inflight transaction.
+ */
+static void
+swapgeom_acquire(struct g_consumer *cp)
+{
+
+	mtx_assert(&sw_dev_mtx, MA_OWNED);
+	cp->index++;
+}
+
+/*
+ * Remove a reference from the g_consumer. Post a close event if
+ * all referneces go away.
+ */
+static void
+swapgeom_release(struct g_consumer *cp, struct swdevt *sp)
+{
+
+	mtx_assert(&sw_dev_mtx, MA_OWNED);
+	cp->index--;
+	if (cp->index == 0) {
+		if (g_post_event(swapgeom_close_ev, cp, M_NOWAIT, NULL) == 0)
+			sp->sw_id = NULL;
+	}
+}
+
 static void
 swapgeom_done(struct bio *bp2)
 {
@@ -2547,13 +2574,9 @@ swapgeom_done(struct bio *bp2)
 	bp->b_resid = bp->b_bcount - bp2->bio_completed;
 	bp->b_error = bp2->bio_error;
 	bufdone(bp);
+	sp = bp2->bio_caller1;
 	mtx_lock(&sw_dev_mtx);
-	if ((--cp->index) == 0 && cp->private) {
-		if (g_post_event(swapgeom_close_ev, cp, M_NOWAIT, NULL) == 0) {
-			sp = bp2->bio_caller1;
-			sp->sw_id = NULL;
-		}
-	}
+	swapgeom_release(cp, sp);
 	mtx_unlock(&sw_dev_mtx);
 	g_destroy_bio(bp2);
 }
@@ -2573,13 +2596,16 @@ swapgeom_strategy(struct buf *bp, struct swdevt *sp)
 		bufdone(bp);
 		return;
 	}
-	cp->index++;
+	swapgeom_acquire(cp);
 	mtx_unlock(&sw_dev_mtx);
 	if (bp->b_iocmd == BIO_WRITE)
 		bio = g_new_bio();
 	else
 		bio = g_alloc_bio();
 	if (bio == NULL) {
+		mtx_lock(&sw_dev_mtx);
+		swapgeom_release(cp, sp);
+		mtx_unlock(&sw_dev_mtx);
 		bp->b_error = ENOMEM;
 		bp->b_ioflags |= BIO_ERROR;
 		bufdone(bp);
@@ -2619,7 +2645,12 @@ swapgeom_orphan(struct g_consumer *cp)
 			break;
 		}
 	}
-	cp->private = (void *)(uintptr_t)1;
+	/*
+	 * Drop reference we were created with. Do directly since we're in a
+	 * special context where we don't have to queue the call to
+	 * swapgeom_close_ev().
+	 */
+	cp->index--;
 	destroy = ((sp != NULL) && (cp->index == 0));
 	if (destroy)
 		sp->sw_id = NULL;
@@ -2680,8 +2711,8 @@ swapongeom_ev(void *arg, int flags)
 	if (gp == NULL)
 		gp = g_new_geomf(&g_swap_class, "swap");
 	cp = g_new_consumer(gp);
-	cp->index = 0;		/* Number of active I/Os. */
-	cp->private = NULL;	/* Orphanization flag */
+	cp->index = 1;		/* Number of active I/Os, plus one for being active. */
+	cp->flags |=  G_CF_DIRECT_SEND | G_CF_DIRECT_RECEIVE;
 	g_attach(cp, pp);
 	/*
 	 * XXX: Everytime you think you can improve the margin for

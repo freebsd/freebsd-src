@@ -31,7 +31,6 @@
 #ifndef	__IWN_IOCTL_H__
 #define	__IWN_IOCTL_H__
 
-extern	void iwn_setifname(struct iwnstats *is, const char *ifname);
 extern	void iwn_zerostats(struct iwnstats *is);
 extern	int iwn_collect(struct iwnstats *is);
 

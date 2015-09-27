@@ -98,8 +98,9 @@ to be one of:
 .Ic pigs ,
 .Ic swap ,
 .Ic tcp ,
+.Ic vmstat ,
 or
-.Ic vmstat .
+.Ic zarc ,
 These displays can also be requested interactively (without the
 .Dq Fl )
 and are described in
@@ -441,6 +442,8 @@ Display statistics averaged over the refresh interval (the default).
 .It Cm zero
 Reset running statistics to zero.
 .El
+.It Ic zarc
+display arc cache usage and hit/miss statistics.
 .It Ic netstat
 Display, in the lower window, network connections.
 By default,

@@ -191,7 +191,7 @@ _UTF8_mbrtowc(wchar_t * __restrict pwc, const char * __restrict s, size_t n,
 		errno = EILSEQ;
 		return ((size_t)-1);
 	}
-	if (wch >= 0xd800 && wch <= 0xdfff) {
+	if ((wch >= 0xd800 && wch <= 0xdfff) || wch > 0x10ffff) {
 		/*
 		 * Malformed input; invalid code points.
 		 */
@@ -318,6 +318,10 @@ _UTF8_wcrtomb(char * __restrict s, wchar_t wc, mbstate_t * __restrict ps)
 		lead = 0xc0;
 		len = 2;
 	} else if ((wc & ~0xffff) == 0) {
+		if (wc >= 0xd800 && wc <= 0xdfff) {
+			errno = EILSEQ;
+			return ((size_t)-1);
+		}
 		lead = 0xe0;
 		len = 3;
 	} else if (wc >= 0 && wc <= 0x10ffff) {

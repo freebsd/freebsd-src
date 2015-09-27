@@ -390,26 +390,29 @@ toe_lle_event(void *arg __unused, struct llentry *lle, int evt)
 	struct sockaddr *sa;
 	uint8_t *lladdr;
 	uint16_t vtag;
+	int family;
+	struct sockaddr_in6 sin6;
 
 	LLE_WLOCK_ASSERT(lle);
 
-	ifp = lle->lle_tbl->llt_ifp;
-	sa = L3_ADDR(lle);
+	ifp = lltable_get_ifp(lle->lle_tbl);
+	family = lltable_get_af(lle->lle_tbl);
 
-	KASSERT(sa->sa_family == AF_INET || sa->sa_family == AF_INET6,
-	    ("%s: lle_event %d for lle %p but sa %p !INET && !INET6",
-	    __func__, evt, lle, sa));
-
+	if (family != AF_INET && family != AF_INET6)
+		return;
 	/*
 	 * Not interested if the interface's TOE capability is not enabled.
 	 */
-	if ((sa->sa_family == AF_INET && !(ifp->if_capenable & IFCAP_TOE4)) ||
-	    (sa->sa_family == AF_INET6 && !(ifp->if_capenable & IFCAP_TOE6)))
+	if ((family == AF_INET && !(ifp->if_capenable & IFCAP_TOE4)) ||
+	    (family == AF_INET6 && !(ifp->if_capenable & IFCAP_TOE6)))
 		return;
 
 	tod = TOEDEV(ifp);
 	if (tod == NULL)
 		return;
+
+	sa = (struct sockaddr *)&sin6;
+	lltable_fill_sa_entry(lle, sa);
 
 	vtag = 0xfff;
 	if (evt != LLENTRY_RESOLVED) {
@@ -445,67 +448,6 @@ toe_route_redirect_event(void *arg __unused, struct rtentry *rt0,
 	return;
 }
 
-#ifdef INET6
-/*
- * XXX: no checks to verify that sa is really a neighbor because we assume it is
- * the result of a route lookup and is on-link on the given ifp.
- */
-static int
-toe_nd6_resolve(struct ifnet *ifp, struct sockaddr *sa, uint8_t *lladdr)
-{
-	struct llentry *lle;
-	struct sockaddr_in6 *sin6 = (void *)sa;
-	int rc, flags = 0;
-
-restart:
-	IF_AFDATA_RLOCK(ifp);
-	lle = lla_lookup(LLTABLE6(ifp), flags, sa);
-	IF_AFDATA_RUNLOCK(ifp);
-	if (lle == NULL) {
-		IF_AFDATA_LOCK(ifp);
-		lle = nd6_create(&sin6->sin6_addr, 0, ifp);
-		IF_AFDATA_UNLOCK(ifp);
-		if (lle == NULL)
-			return (ENOMEM); /* Couldn't create entry in cache. */
-		lle->ln_state = ND6_LLINFO_INCOMPLETE;
-		nd6_llinfo_settimer_locked(lle,
-		    (long)ND_IFINFO(ifp)->retrans * hz / 1000);
-		LLE_WUNLOCK(lle);
-
-		nd6_ns_output(ifp, NULL, &sin6->sin6_addr, NULL, 0);
-
-		return (EWOULDBLOCK);
-	}
-
-	if (lle->ln_state == ND6_LLINFO_STALE) {
-		if ((flags & LLE_EXCLUSIVE) == 0) {
-			LLE_RUNLOCK(lle);
-			flags |= LLE_EXCLUSIVE;
-			goto restart;
-		}
-
-		LLE_WLOCK_ASSERT(lle);
-
-		lle->la_asked = 0;
-		lle->ln_state = ND6_LLINFO_DELAY;
-		nd6_llinfo_settimer_locked(lle, (long)V_nd6_delay * hz);
-	}
-
-	if (lle->la_flags & LLE_VALID) {
-		memcpy(lladdr, &lle->ll_addr, ifp->if_addrlen);
-		rc = 0;
-	} else
-		rc = EWOULDBLOCK;
-
-	if (flags & LLE_EXCLUSIVE)
-		LLE_WUNLOCK(lle);
-	else
-		LLE_RUNLOCK(lle);
-
-	return (rc);
-}
-#endif
-
 /*
  * Returns 0 or EWOULDBLOCK on success (any other value is an error).  0 means
  * lladdr and vtag are valid on return, EWOULDBLOCK means the TOE driver's
@@ -525,7 +467,7 @@ toe_l2_resolve(struct toedev *tod, struct ifnet *ifp, struct sockaddr *sa,
 #endif
 #ifdef INET6
 	case AF_INET6:
-		rc = toe_nd6_resolve(ifp, sa, lladdr);
+		rc = nd6_resolve(ifp, 0, NULL, sa, lladdr, NULL);
 		break;
 #endif
 	default:

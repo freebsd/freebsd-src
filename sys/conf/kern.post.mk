@@ -23,6 +23,11 @@ MKMODULESENV+=	CONF_CFLAGS="${CONF_CFLAGS}"
 MKMODULESENV+=	WITH_CTF="${WITH_CTF}"
 .endif
 
+# Allow overriding the kernel debug directory, so kernel and user debug may be
+# installed in different directories. Setting it to "" restores the historical
+# behavior of installing debug files in the kernel directory.
+KERN_DEBUGDIR?=	${DEBUGDIR}
+
 .MAIN: all
 
 .for target in all clean cleandepend cleandir clobber depend install \
@@ -101,11 +106,11 @@ modules-all modules-depend: modules-obj
 .if !defined(DEBUG)
 FULLKERNEL=	${KERNEL_KO}
 .else
-FULLKERNEL=	${KERNEL_KO}.debug
-${KERNEL_KO}: ${FULLKERNEL} ${KERNEL_KO}.symbols
-	${OBJCOPY} --strip-debug --add-gnu-debuglink=${KERNEL_KO}.symbols\
+FULLKERNEL=	${KERNEL_KO}.full
+${KERNEL_KO}: ${FULLKERNEL} ${KERNEL_KO}.debug
+	${OBJCOPY} --strip-debug --add-gnu-debuglink=${KERNEL_KO}.debug \
 	    ${FULLKERNEL} ${.TARGET}
-${KERNEL_KO}.symbols: ${FULLKERNEL}
+${KERNEL_KO}.debug: ${FULLKERNEL}
 	${OBJCOPY} --only-keep-debug ${FULLKERNEL} ${.TARGET}
 install.debug reinstall.debug: gdbinit
 	cd ${.CURDIR}; ${MAKE} ${.TARGET:R}
@@ -121,7 +126,7 @@ gdbinit:
 .endif
 .endif
 
-${FULLKERNEL}: ${SYSTEM_DEP} vers.o ${MFS_IMAGE}
+${FULLKERNEL}: ${SYSTEM_DEP} vers.o
 	@rm -f ${.TARGET}
 	@echo linking ${.TARGET}
 	${SYSTEM_LD}
@@ -133,9 +138,6 @@ ${FULLKERNEL}: ${SYSTEM_DEP} vers.o ${MFS_IMAGE}
 	${OBJCOPY} --strip-debug ${.TARGET}
 .endif
 	${SYSTEM_LD_TAIL}
-.if defined(MFS_IMAGE)
-	sh ${S}/tools/embed_mfs.sh ${FULLKERNEL} ${MFS_IMAGE}
-.endif
 
 .if !exists(${.OBJDIR}/.depend)
 ${SYSTEM_OBJS}: assym.s vnode_if.h ${BEFORE_DEPEND:M*.h} ${MFILES:T:S/.m$/.h/}
@@ -154,7 +156,7 @@ ${mfile:T:S/.m$/.h/}: ${mfile}
 
 kernel-clean:
 	rm -f *.o *.so *.So *.ko *.s eddep errs \
-	    ${FULLKERNEL} ${KERNEL_KO} ${KERNEL_KO}.symbols \
+	    ${FULLKERNEL} ${KERNEL_KO} ${KERNEL_KO}.debug \
 	    linterrs tags vers.c \
 	    vnode_if.c vnode_if.h vnode_if_newproto.h vnode_if_typedef.h \
 	    ${MFILES:T:S/.m$/.c/} ${MFILES:T:S/.m$/.h/} \
@@ -177,7 +179,7 @@ hack.So: Makefile
 ./assym.s: assym.s
 
 assym.s: $S/kern/genassym.sh genassym.o
-	NM='${NM}' sh $S/kern/genassym.sh genassym.o > ${.TARGET}
+	NM='${NM}' NMFLAGS='${NMFLAGS}' sh $S/kern/genassym.sh genassym.o > ${.TARGET}
 
 genassym.o: $S/$M/$M/genassym.c
 	${CC} -c ${CFLAGS:N-fno-common} $S/$M/$M/genassym.c
@@ -252,19 +254,26 @@ kernel-install:
 	if [ ! "`dirname "$$thiskernel"`" -ef ${DESTDIR}${KODIR} ] ; then \
 		chflags -R noschg ${DESTDIR}${KODIR} ; \
 		rm -rf ${DESTDIR}${KODIR} ; \
+		rm -rf ${DESTDIR}${KERN_DEBUGDIR}${KODIR} ; \
 	else \
 		if [ -d ${DESTDIR}${KODIR}.old ] ; then \
 			chflags -R noschg ${DESTDIR}${KODIR}.old ; \
 			rm -rf ${DESTDIR}${KODIR}.old ; \
 		fi ; \
 		mv ${DESTDIR}${KODIR} ${DESTDIR}${KODIR}.old ; \
+		if [ -n "${KERN_DEBUGDIR}" -a \
+		     -d ${DESTDIR}${KERN_DEBUGDIR}${KODIR} ]; then \
+			rm -rf ${DESTDIR}${KERN_DEBUGDIR}${KODIR}.old ; \
+			mv ${DESTDIR}${KERN_DEBUGDIR}${KODIR} ${DESTDIR}${KERN_DEBUGDIR}${KODIR}.old ; \
+		fi ; \
 		sysctl kern.bootfile=${DESTDIR}${KODIR}.old/"`basename "$$thiskernel"`" ; \
 	fi
 .endif
 	mkdir -p ${DESTDIR}${KODIR}
 	${INSTALL} -p -m 555 -o ${KMODOWN} -g ${KMODGRP} ${KERNEL_KO} ${DESTDIR}${KODIR}
 .if defined(DEBUG) && !defined(INSTALL_NODEBUG) && ${MK_KERNEL_SYMBOLS} != "no"
-	${INSTALL} -p -m 555 -o ${KMODOWN} -g ${KMODGRP} ${KERNEL_KO}.symbols ${DESTDIR}${KODIR}
+	mkdir -p ${DESTDIR}${KERN_DEBUGDIR}${KODIR}
+	${INSTALL} -p -m 555 -o ${KMODOWN} -g ${KMODGRP} ${KERNEL_KO}.debug ${DESTDIR}${KERN_DEBUGDIR}${KODIR}
 .endif
 .if defined(KERNEL_EXTRA_INSTALL)
 	${INSTALL} -p -m 555 -o ${KMODOWN} -g ${KMODGRP} ${KERNEL_EXTRA_INSTALL} ${DESTDIR}${KODIR}
@@ -276,7 +285,7 @@ kernel-reinstall:
 	@-chflags -R noschg ${DESTDIR}${KODIR}
 	${INSTALL} -p -m 555 -o ${KMODOWN} -g ${KMODGRP} ${KERNEL_KO} ${DESTDIR}${KODIR}
 .if defined(DEBUG) && !defined(INSTALL_NODEBUG) && ${MK_KERNEL_SYMBOLS} != "no"
-	${INSTALL} -p -m 555 -o ${KMODOWN} -g ${KMODGRP} ${KERNEL_KO}.symbols ${DESTDIR}${KODIR}
+	${INSTALL} -p -m 555 -o ${KMODOWN} -g ${KMODGRP} ${KERNEL_KO}.debug ${DESTDIR}${KERN_DEBUGDIR}${KODIR}
 .endif
 
 config.o env.o hints.o vers.o vnode_if.o:
@@ -300,6 +309,27 @@ vnode_if_newproto.h:
 	${AWK} -f $S/tools/vnode_if.awk $S/kern/vnode_if.src -p
 vnode_if_typedef.h:
 	${AWK} -f $S/tools/vnode_if.awk $S/kern/vnode_if.src -q
+
+.if ${MFS_IMAGE:Uno} != "no"
+# Generate an object file from the file system image to embed in the kernel
+# via linking. Make sure the contents are in the mfs section and rename the
+# start/end/size variables to __start_mfs, __stop_mfs, and mfs_size,
+# respectively.
+embedfs_${MFS_IMAGE:T:R}.o: ${MFS_IMAGE}
+	${OBJCOPY} --input-target binary \
+	    --output-target ${EMBEDFS_FORMAT.${MACHINE_ARCH}} \
+	    --binary-architecture ${EMBEDFS_ARCH.${MACHINE_ARCH}} \
+	    ${MFS_IMAGE} ${.TARGET}
+	${OBJCOPY} \
+	    --rename-section .data=mfs,contents,alloc,load,readonly,data \
+	    --redefine-sym \
+		_binary_${MFS_IMAGE:C,[^[:alnum:]],_,g}_size=__mfs_root_size \
+	    --redefine-sym \
+		_binary_${MFS_IMAGE:C,[^[:alnum:]],_,g}_start=mfs_root \
+	    --redefine-sym \
+		_binary_${MFS_IMAGE:C,[^[:alnum:]],_,g}_end=mfs_root_end \
+	    ${.TARGET}
+.endif
 
 # XXX strictly, everything depends on Makefile because changes to ${PROF}
 # only appear there, but we don't handle that.

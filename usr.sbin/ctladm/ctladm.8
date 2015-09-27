@@ -1,5 +1,6 @@
 .\"
 .\" Copyright (c) 2003 Silicon Graphics International Corp.
+.\" Copyright (c) 2015 Alexander Motin <mav@FreeBSD.org>
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -34,7 +35,7 @@
 .\" $Id: //depot/users/kenm/FreeBSD-test2/usr.sbin/ctladm/ctladm.8#3 $
 .\" $FreeBSD$
 .\"
-.Dd June 3, 2015
+.Dd September 26, 2015
 .Dt CTLADM 8
 .Os
 .Sh NAME
@@ -43,28 +44,28 @@
 .Sh SYNOPSIS
 .Nm
 .Aq Ar command
-.Op target:lun
+.Op lun
 .Op generic args
 .Op command args
 .Nm
 .Ic tur
-.Aq target:lun
+.Aq lun
 .Op general options
 .Nm
 .Ic inquiry
-.Aq target:lun
+.Aq lun
 .Op general options
 .Nm
 .Ic reqsense
-.Aq target:lun
+.Aq lun
 .Op general options
 .Nm
 .Ic reportluns
-.Aq target:lun
+.Aq lun
 .Op general options
 .Nm
 .Ic read
-.Aq target:lun
+.Aq lun
 .Op general options
 .Aq Fl l Ar lba
 .Aq Fl d Ar datalen
@@ -74,7 +75,7 @@
 .Op Fl N
 .Nm
 .Ic write
-.Aq target:lun
+.Aq lun
 .Op general options
 .Aq Fl l Ar lba
 .Aq Fl d Ar datalen
@@ -83,19 +84,13 @@
 .Op Fl c Ar cdbsize
 .Op Fl N
 .Nm
-.Ic bbrread
-.Aq target:lun
-.Op general options
-.Aq Fl -l Ar lba
-.Aq Fl -d Ar datalen
-.Nm
 .Ic readcap
-.Aq target:lun
+.Aq lun
 .Op general options
 .Op Fl c Ar cdbsize
 .Nm
 .Ic modesense
-.Aq target:lun
+.Aq lun
 .Aq Fl m Ar page | Fl l
 .Op Fl P Ar pc
 .Op Fl d
@@ -103,19 +98,19 @@
 .Op Fl c Ar size
 .Nm
 .Ic start
-.Aq target:lun
+.Aq lun
 .Op general options
 .Op Fl i
 .Op Fl o
 .Nm
 .Ic stop
-.Aq target:lun
+.Aq lun
 .Op general options
 .Op Fl i
 .Op Fl o
 .Nm
 .Ic synccache
-.Aq target:lun
+.Aq lun
 .Op general options
 .Op Fl l Ar lba
 .Op Fl b Ar blockcount
@@ -123,32 +118,13 @@
 .Op Fl i
 .Op Fl c Ar cdbsize
 .Nm
-.Ic shutdown
-.Op general options
-.Nm
-.Ic startup
-.Op general options
-.Nm
-.Ic hardstop
-.Nm
-.Ic hardstart
-.Nm
 .Ic lunlist
 .Nm
 .Ic delay
-.Aq target:lun
+.Aq lun
 .Aq Fl l Ar datamove|done
 .Aq Fl t Ar secs
 .Op Fl T Ar oneshot|cont
-.Nm
-.Ic realsync Aq on|off|query
-.Nm
-.Ic setsync interval
-.Aq target:lun
-.Aq Fl i Ar interval
-.Nm
-.Ic getsync
-.Aq target:lun
 .Nm
 .Ic inject
 .Aq Fl i Ar action
@@ -176,6 +152,7 @@
 .Ic modify
 .Aq Fl b Ar backend
 .Aq Fl l Ar lun_id
+.Op Fl o Ar name=value
 .Aq Fl s Ar size_bytes
 .Nm
 .Ic devlist
@@ -184,14 +161,11 @@
 .Op Fl x
 .Nm
 .Ic port
-.Op Fl l
 .Op Fl o Ar on|off
 .Op Fl w Ar wwpn
 .Op Fl W Ar wwnn
 .Op Fl p Ar targ_port
 .Op Fl t Ar fe_type
-.Op Fl q
-.Op Fl x
 .Nm
 .Ic portlist
 .Op Fl f Ar frontend
@@ -245,8 +219,8 @@ utility has a number of primary functions, many of which require a device
 identifier.
 The device identifier takes the following form:
 .Bl -tag -width 14n
-.It target:lun
-Specify the target (almost always 0) and LUN number to operate on.
+.It lun
+Specify the LUN number to operate on.
 .El
 Many of the primary functions of the
 .Nm
@@ -364,34 +338,6 @@ to the kernel when doing a write, just execute the command without copying
 data.
 This is to be used for performance testing.
 .El
-.It Ic bbrread
-Issue a SCSI READ command to the logical device to potentially force a bad
-block on a disk in the RAID set to be reconstructed from the other disks in
-the array.  This command should only be used on an array that is in the
-normal state.  If used on a critical array, it could cause the array to go
-offline if the bad block to be remapped is on one of the disks that is
-still active in the array.
-.Pp
-The data for this particular command will be discarded, and not returned to
-the user.
-.Pp
-In order to determine which LUN to read from, the user should first
-determine which LUN the disk with a bad block belongs to.  Then he should
-map the bad disk block back to the logical block address for the array in
-order to determine which LBA to pass in to the
-.Ic bbrread
-command.
-.Pp
-This command is primarily intended for testing.  In practice, bad block
-remapping will generally be triggered by the in-kernel Disk Aerobics and
-Disk Scrubbing code.
-.Bl -tag -width 10n
-.It Fl l Ar lba
-Specify the starting Logical Block Address.
-.It Fl d Ar datalen
-Specify the amount of data in bytes to read from the LUN.  This must be a
-multiple of the LUN blocksize.
-.El
 .It Ic readcap
 Send the
 .Tn SCSI
@@ -454,17 +400,6 @@ bit set.
 Set the immediate bit in the CDB.  Note that CTL does not support the
 immediate bit, so this is primarily useful for making sure that CTL returns
 the proper error.
-.It Fl o
-Set the Copan proprietary on/offline bit in the CDB.  When this flag is
-used, the LUN will be marked online again (see the description of the
-.Ic shutdown
-and
-.Ic startup
-commands).  When this flag is used with a
-start command, the LUN will NOT be spun up.  You need to use a start
-command without the
-.Fl o
-flag to spin up the disks in the LUN.
 .El
 .It Ic stop
 Send the
@@ -480,14 +415,6 @@ sends an ordered tag for completeness.)
 Set the immediate bit in the CDB.  Note that CTL does not support the
 immediate bit, so this is primarily useful for making sure that CTL returns
 the proper error.
-.It Fl o
-Set the Copan proprietary on/offline bit in the CDB.  When this flag is
-used, the LUN will be spun down and taken offline ("Logical unit not ready,
-manual intervention required").  See the description of the
-.Ic shutdown
-and
-.Ic startup
-options.
 .El
 .It Ic synccache
 Send the
@@ -519,48 +446,6 @@ support this bit.
 .It Fl c Ar cdbsize
 Specify the minimum CDB size.  Valid values are 10 and 16 bytes.
 .El
-.It Ic shutdown
-Issue a
-.Tn SCSI
-START STOP UNIT command with the start bit cleared and the on/offline bit
-set to all direct access LUNs.  This will spin down all direct access LUNs,
-and mark them offline ("Logical unit not ready, manual intervention
-required").  Once marked offline, the state can only be cleared by sending
-a START STOP UNIT command with the start bit set and the on/offline bit
-set.  The
-.Nm
-commands
-.Ic startup
-and
-.Ic start
-will accomplish this.  Note that the
-on/offline bit is a non-standard Copan extension to the
-.Tn SCSI
-START STOP UNIT command, so merely sending a normal start command from an
-initiator will not clear the condition.  (This is by design.)
-.It Ic startup
-Issue a
-.Tn SCSI
-START STOP UNIT command with the start bit set and the on/offline bit set
-to all direct access LUNs.  This will mark all direct access LUNs "online"
-again.  It will not cause any LUNs to start up.  A separate start command
-without the on/offline bit set is necessary for that.
-.It Ic hardstop
-Use the kernel facility for stopping all direct access LUNs and setting the
-offline bit.  Unlike the
-.Ic shutdown
-command above, this command allows shutting down LUNs with I/O active.  It
-will also issue a LUN reset to any reserved LUNs to break the reservation
-so that the LUN can be stopped.
-.Ic shutdown
-command instead.
-.It Ic hardstart
-This command is functionally identical to the
-.Ic startup
-command described above.  The primary difference is that the LUNs are
-enumerated and commands sent by the in-kernel Front End Target Driver
-instead of by
-.Nm .
 .It Ic lunlist
 List all LUNs registered with CTL.
 Because this command uses the ioctl port, it will only work when the FETDs
@@ -601,39 +486,6 @@ the next command sent to the given LUN will be delayed and all subsequent
 commands will be completed normally.
 This is the default.
 .El
-.It Ic realsync
-Query and control CTL's SYNCHRONIZE CACHE behavior.  The
-.Sq query
-argument
-will show whether SYNCHRONIZE CACHE commands are being sent to the backend
-or not.
-The default is to send SYNCHRONIZE CACHE commands to the backend.
-The
-.Sq on
-argument will cause all SYNCHRONIZE CACHE commands sent to all LUNs to be
-sent to the backend.
-The
-.Sq off
-argument will cause all SYNCHRONIZE CACHE commands sent to all LUNs to be
-immediately returned to the initiator with successful status.
-.It Ic setsync
-For a given lun, only actually service every Nth SYNCHRONIZE CACHE command
-that is sent.  This can be used for debugging the optimal time period for
-sending SYNCHRONIZE cache commands.  An interval of 0 means that the cache
-will be flushed for this LUN every time a SYNCHRONIZE CACHE command is
-received.
-.Pp
-You must specify the target and LUN you want to modify.
-.It Ic getsync
-Get the interval at which we actually service the SYNCHRONIZE CACHE
-command, as set by the
-.Ic setsync
-command above.
-The reported number means that we will actually flush the cache on every
-Nth SYNCHRONIZE CACHE command.  A value of 0 means that we will flush the
-cache every time.
-.Pp
-You must specify the target and LUN you want to query.
 .It Ic inject
 Inject the specified type of error for the LUN specified, when a command
 that matches the given pattern is seen.
@@ -741,8 +593,6 @@ must be specified.
 The WWNN and WWPN may both be specified at the same time, but cannot be
 combined with enabling/disabling or listing ports.
 .Bl -tag -width 12n
-.It Fl l
-List all CTL frontend ports or a specific port type or number.
 .It Fl o Ar on|off
 Turn the specified CTL frontend ports off or on.
 If no port number or port type is specified, all ports are turned on or
@@ -750,8 +600,6 @@ off.
 .It Fl p Ar targ_port
 Specify the frontend port number.
 The port numbers can be found in the frontend port list.
-.It Fl q
-Omit the header in the port list output.
 .It Fl t Ar fe_type
 Specify the frontend type.
 Currently defined port types are
@@ -779,8 +627,6 @@ The
 argument must be specified, since this is only possible to implement on a
 single port.
 As a general rule, the WWPN must be different for every port in the system.
-.It Fl x
-Output the port list in XML format.
 .El
 .It Ic portlist
 List CTL frontend ports.
@@ -871,11 +717,10 @@ Specify the serial number to be used in the
 INQUIRY VPD page 0x80 data.
 .It Fl t Ar device_type
 Specify the numeric SCSI device type to use when creating the LUN.
-For example, the Direct Access type is 0.
 If this flag is not used, the type of LUN created is backend-specific.
 Not all LUN types are supported.
-Currently CTL only supports Direct Access (type 0) and Processor (type 3)
-LUNs.
+Currently CTL supports Direct Access (type 0), Processor (type 3)
+and CD/DVD (type 5) LUNs.
 The backend requested may or may not support all of the LUN types that CTL
 supports.
 .El
@@ -913,6 +758,12 @@ and
 .Dq block .
 .It Fl l Ar lun_id
 Specify the LUN number to remove.
+.It Fl o Ar name=value
+Specify a backend-specific name/value pair.
+Multiple
+.Fl o
+arguments may be specified.
+Refer to the backend documentation for arguments that may be used.
 .It Fl s Ar size_bytes
 Specify the size of the LUN in bytes.
 For the
@@ -1011,6 +862,9 @@ Specifies LUN NAA identifier.
 Either EUI or NAA identifier should be set to UNIQUE value to allow
 EXTENDED COPY command access the LUN.
 Non-unique LUN identifiers may lead to data corruption.
+.It Va ha_role
+Setting to "primary" or "secondary" overrides default role of the node
+in HA cluster, set by kern.cam.ctl.ha_role sysctl.
 .It Va insecure_tpc
 Setting to "on" allows EXTENDED COPY command sent to this LUN access
 other LUNs on this host, not accessible otherwise.
@@ -1021,6 +875,8 @@ Set to "off", disables read caching for the LUN, if supported by the backend.
 .It Va readonly
 Set to "on", blocks all media write operations to the LUN, reporting it
 as write protected.
+.It Va removable
+Set to "on", makes LUN removable.
 .It Va reordering
 Set to "unrestricted", allows target to process commands with SIMPLE task
 attribute in arbitrary order.  Any data integrity exposures related to
@@ -1041,7 +897,6 @@ Specify physical block size and offset of the device.
 .It Va ublocksize
 .It Va ublockoffset
 Specify UNMAP block size and offset of the device.
-.It Va rpm
 .It Va rpm
 Specifies medium rotation rate of the device: 0 -- not reported,
 1 -- non-rotating (SSD), >1024 -- value in revolutions per minute.
@@ -1071,34 +926,34 @@ Specifies file or device name to use for backing store.
 Specifies number of backend threads to use for this LUN.
 .El
 .Sh EXAMPLES
-.Dl ctladm tur 0:1
+.Dl ctladm tur 1
 .Pp
 Send a
 .Tn SCSI
 TEST UNIT READY command to LUN 1.
 .Pp
-.Dl ctladm modesense 0:1 -l
+.Dl ctladm modesense 1 -l
 .Pp
 Display the list of mode pages supported by LUN 1.
 .Pp
-.Dl ctladm modesense 0:0 -m 10 -P 3 -d -c 10
+.Dl ctladm modesense 0 -m 10 -P 3 -d -c 10
 .Pp
 Display the saved version of the Control mode page (page 10) on LUN 0.
 Disable fetching block descriptors, and use a 10 byte MODE SENSE command
 instead of the default 6 byte command.
 .Bd -literal
-ctladm read 0:2 -l 0 -d 1 -b 512 -f - > foo
+ctladm read 2 -l 0 -d 1 -b 512 -f - > foo
 .Ed
 .Pp
 Read the first 512 byte block from LUN 2 and dump it to the file
 .Pa foo .
 .Bd -literal
-ctladm write 0:3 -l 0xff432140 -d 20 -b 512 -f /tmp/bar
+ctladm write 3 -l 0xff432140 -d 20 -b 512 -f /tmp/bar
 .Ed
 .Pp
 Read 10240 bytes from the file
 .Pa /tmp/bar
-and write it to target 0, LUN 3.
+and write it to LUN 3.
 starting at LBA 0xff432140.
 .Pp
 .Dl ctladm create -b ramdisk -s 10485760000000000
@@ -1142,12 +997,12 @@ List all LUNs in the system, along with their inquiry data and device type.
 This only works when the FETDs are enabled, since the commands go through the
 ioctl port.
 .Pp
-.Dl ctladm inject 0:6 -i mediumerr -p read -r 0,512 -c
+.Dl ctladm inject 6 -i mediumerr -p read -r 0,512 -c
 .Pp
 Inject a medium error on LUN 6 for every read that covers the first 512
 blocks of the LUN.
 .Bd -literal -offset indent
-ctladm inject 0:6 -i custom -p tur -s 18 "f0 0 02 s12 04 02"
+ctladm inject 6 -i custom -p tur -s 18 "f0 0 02 s12 04 02"
 .Ed
 .Pp
 Inject a custom error on LUN 6 for the next TEST UNIT READY command only.

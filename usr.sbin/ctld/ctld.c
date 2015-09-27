@@ -59,7 +59,7 @@ static volatile bool sigterm_received = false;
 static volatile bool sigalrm_received = false;
 
 static int nchildren = 0;
-static uint16_t last_portal_group_tag = 0;
+static uint16_t last_portal_group_tag = 0xff;
 
 static void
 usage(void)
@@ -1149,7 +1149,7 @@ valid_iscsi_name(const char *name)
 		}
 	} else {
 		log_warnx("invalid target name \"%s\"; should start with "
-		    "either \".iqn\", \"eui.\", or \"naa.\"",
+		    "either \"iqn.\", \"eui.\", or \"naa.\"",
 		    name);
 	}
 	return (true);
@@ -1229,6 +1229,7 @@ port_new(struct conf *conf, struct target *target, struct portal_group *pg)
 	port->p_target = target;
 	TAILQ_INSERT_TAIL(&pg->pg_ports, port, p_pgs);
 	port->p_portal_group = pg;
+	port->p_foreign = pg->pg_foreign;
 	return (port);
 }
 
@@ -1396,6 +1397,7 @@ lun_new(struct conf *conf, const char *name)
 	lun->l_name = checked_strdup(name);
 	TAILQ_INIT(&lun->l_options);
 	TAILQ_INSERT_TAIL(&conf->conf_luns, lun, l_next);
+	lun->l_ctl_lun = -1;
 
 	return (lun);
 }
@@ -1451,6 +1453,13 @@ lun_set_blocksize(struct lun *lun, size_t value)
 {
 
 	lun->l_blocksize = value;
+}
+
+void
+lun_set_device_type(struct lun *lun, uint8_t value)
+{
+
+	lun->l_device_type = value;
 }
 
 void
@@ -1734,13 +1743,15 @@ conf_verify(struct conf *conf)
 		if (pg->pg_discovery_filter == PG_FILTER_UNKNOWN)
 			pg->pg_discovery_filter = PG_FILTER_NONE;
 
-		if (!TAILQ_EMPTY(&pg->pg_ports)) {
-			if (pg->pg_redirection != NULL) {
+		if (pg->pg_redirection != NULL) {
+			if (!TAILQ_EMPTY(&pg->pg_ports)) {
 				log_debugx("portal-group \"%s\" assigned "
 				    "to target, but configured "
 				    "for redirection",
 				    pg->pg_name);
 			}
+			pg->pg_unassigned = false;
+		} else if (!TAILQ_EMPTY(&pg->pg_ports)) {
 			pg->pg_unassigned = false;
 		} else {
 			if (strcmp(pg->pg_name, "default") != 0)
@@ -1835,6 +1846,8 @@ conf_apply(struct conf *oldconf, struct conf *newconf)
 	 * Go through the new portal groups, assigning tags or preserving old.
 	 */
 	TAILQ_FOREACH(newpg, &newconf->conf_portal_groups, pg_next) {
+		if (newpg->pg_tag != 0)
+			continue;
 		oldpg = portal_group_find(oldconf, newpg->pg_name);
 		if (oldpg != NULL)
 			newpg->pg_tag = oldpg->pg_tag;
@@ -1864,8 +1877,10 @@ conf_apply(struct conf *oldconf, struct conf *newconf)
 	 * and missing in the new one.
 	 */
 	TAILQ_FOREACH_SAFE(oldport, &oldconf->conf_ports, p_next, tmpport) {
+		if (oldport->p_foreign)
+			continue;
 		newport = port_find(newconf, oldport->p_name);
-		if (newport != NULL)
+		if (newport != NULL && !newport->p_foreign)
 			continue;
 		log_debugx("removing port \"%s\"", oldport->p_name);
 		error = kernel_port_remove(oldport);
@@ -1961,18 +1976,14 @@ conf_apply(struct conf *oldconf, struct conf *newconf)
 	TAILQ_FOREACH_SAFE(newlun, &newconf->conf_luns, l_next, tmplun) {
 		oldlun = lun_find(oldconf, newlun->l_name);
 		if (oldlun != NULL) {
-			if (newlun->l_size != oldlun->l_size ||
-			    newlun->l_size == 0) {
-				log_debugx("resizing lun \"%s\", CTL lun %d",
+			log_debugx("modifying lun \"%s\", CTL lun %d",
+			    newlun->l_name, newlun->l_ctl_lun);
+			error = kernel_lun_modify(newlun);
+			if (error != 0) {
+				log_warnx("failed to "
+				    "modify lun \"%s\", CTL lun %d",
 				    newlun->l_name, newlun->l_ctl_lun);
-				error = kernel_lun_resize(newlun);
-				if (error != 0) {
-					log_warnx("failed to "
-					    "resize lun \"%s\", CTL lun %d",
-					    newlun->l_name,
-					    newlun->l_ctl_lun);
-					cumulated_error++;
-				}
+				cumulated_error++;
 			}
 			continue;
 		}
@@ -1989,15 +2000,17 @@ conf_apply(struct conf *oldconf, struct conf *newconf)
 	 * Now add new ports or modify existing ones.
 	 */
 	TAILQ_FOREACH(newport, &newconf->conf_ports, p_next) {
+		if (newport->p_foreign)
+			continue;
 		oldport = port_find(oldconf, newport->p_name);
 
-		if (oldport == NULL) {
+		if (oldport == NULL || oldport->p_foreign) {
 			log_debugx("adding port \"%s\"", newport->p_name);
 			error = kernel_port_add(newport);
 		} else {
 			log_debugx("updating port \"%s\"", newport->p_name);
 			newport->p_ctl_port = oldport->p_ctl_port;
-			error = kernel_port_update(newport);
+			error = kernel_port_update(newport, oldport);
 		}
 		if (error != 0) {
 			log_warnx("failed to %s port %s",
@@ -2015,6 +2028,8 @@ conf_apply(struct conf *oldconf, struct conf *newconf)
 	 * Go through the new portals, opening the sockets as neccessary.
 	 */
 	TAILQ_FOREACH(newpg, &newconf->conf_portal_groups, pg_next) {
+		if (newpg->pg_foreign)
+			continue;
 		if (newpg->pg_unassigned) {
 			log_debugx("not listening on portal-group \"%s\", "
 			    "not assigned to any target",

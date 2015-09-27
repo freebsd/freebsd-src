@@ -1,4 +1,5 @@
 .\" Copyright (c) 2013 Edward Tomasz Napierala
+.\" Copyright (c) 2015 Alexander Motin <mav@FreeBSD.org>
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -23,7 +24,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.Dd August 9, 2015
+.Dd September 27, 2015
 .Dt CTL 4
 .Os
 .Sh NAME
@@ -52,7 +53,7 @@ It supports features such as:
 .Pp
 .Bl -bullet -compact
 .It
-Disk and processor device emulation
+Disk, processor and cdrom device emulation
 .It
 Tagged queueing
 .It
@@ -80,6 +81,8 @@ Mode sense/select support
 .It
 Error injection support
 .It
+High Availability clustering support with ALUA
+.It
 All I/O handled in-kernel, no userland context switch overhead
 .El
 .Pp
@@ -99,9 +102,57 @@ log commands with errors;
 .It 2
 log all commands;
 .It 4
-log received data for commands except READ/WRITE.
+log data for commands other then READ/WRITE.
 .El
 Defaults to 0.
+.It Va kern.cam.ctl.ha_id
+Specifies unique position of this node within High Availability cluster.
+Default is 0 -- no HA, 1 and 2 -- HA enabled at specified position.
+.It Va kern.cam.ctl.ha_mode
+Specifies High Availability cluster operation mode:
+.Bl -tag -offset indent -compact
+.It 0
+Active/Standby -- primary node has backend access and processes requests,
+while secondary can only do basic LUN discovery and reservation;
+.It 1
+Active/Active -- both nodes have backend access and process requests,
+while secondary node synchronizes processing with primary one;
+.It 2
+Active/Active -- primary node has backend access and processes requests,
+while secondary node forwards all requests and data to primary one;
+.El
+All above modes require established connection between HA cluster nodes.
+If connection is not configured, secondary node will report Unavailable
+state; if configured but not established -- Transitioning state.
+Defaults to 0.
+.It Va kern.cam.ctl.ha_peer
+String value, specifying method to establish connection to peer HA node.
+Can be "listen IP:port", "connect IP:port" or empty.
+.It Va kern.cam.ctl.ha_link
+Reports present state of connection between HA cluster nodes:
+.Bl -tag -offset indent -compact
+.It 0
+not configured;
+.It 1
+configured but not established;
+.It 2
+established.
+.El
+.It Va kern.cam.ctl.ha_role
+Specifies default role of this node:
+.Bl -tag -offset indent -compact
+.It 0
+primary;
+.It 1
+secondary.
+.El
+This role can be overriden on per-LUN basis using "ha_role" LUN option,
+so that for one LUN one node is primary, while for another -- another.
+Role change from primary to secondary for HA modes 0 and 2 closes backends,
+the opposite change -- opens.
+If there is no primary node (both nodes are secondary, or secondary node has
+no connection to primary one), secondary node(s) report Transitioning state.
+State with two primary nodes is illegal (split brain condition).
 .It Va kern.cam.ctl.iscsi.debug
 Verbosity level for log messages from the kernel part of iSCSI target.
 Set to 0 to disable logging or 1 to warn about potential problems.
@@ -119,6 +170,7 @@ In the event that there is no response within that time the session gets
 forcibly terminated.
 Set to 0 to disable sending NOP-In PDUs.
 Defaults to 5.
+.El
 .Sh SEE ALSO
 .Xr ctladm 8 ,
 .Xr ctld 8 ,
@@ -131,5 +183,7 @@ subsystem first appeared in
 .Sh AUTHORS
 The
 .Nm
-subsystem was written by
+subsystem was originally written by
 .An Kenneth Merry Aq Mt ken@FreeBSD.org .
+Later work was done by
+.An Alexander Motin Aq Mt mav@FreeBSD.org .

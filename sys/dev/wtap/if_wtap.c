@@ -183,7 +183,7 @@ wtap_reset_vap(struct ieee80211vap *vap, u_long cmd)
 static void
 wtap_beacon_update(struct ieee80211vap *vap, int item)
 {
-	struct ieee80211_beacon_offsets *bo = &WTAP_VAP(vap)->av_boff;
+	struct ieee80211_beacon_offsets *bo = &vap->iv_bcn_off;
 
 	DWTAP_PRINTF("%s\n", __func__);
 	setbit(bo->bo_flags, item);
@@ -205,7 +205,7 @@ wtap_beacon_alloc(struct wtap_softc *sc, struct ieee80211_node *ni)
 	 * we assume the mbuf routines will return us something
 	 * with this alignment (perhaps should assert).
 	 */
-	avp->beacon = ieee80211_beacon_alloc(ni, &avp->av_boff);
+	avp->beacon = ieee80211_beacon_alloc(ni, &vap->iv_bcn_off);
 	if (avp->beacon == NULL) {
 		printf("%s: cannot get mbuf\n", __func__);
 		return ENOMEM;
@@ -242,7 +242,7 @@ wtap_beacon_intrp(void *arg)
 	 * of the TIM bitmap).
 	 */
 	m = m_dup(avp->beacon, M_NOWAIT);
-	if (ieee80211_beacon_update(avp->bf_node, &avp->av_boff, m, 0)) {
+	if (ieee80211_beacon_update(avp->bf_node, &vap->iv_bcn_off, m, 0)) {
 		printf("%s, need to remap the memory because the beacon frame"
 		    " changed size.\n",__func__);
 	}
@@ -261,7 +261,7 @@ static int
 wtap_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 {
 	struct ieee80211com *ic = vap->iv_ic;
-	struct wtap_softc *sc = ic->ic_ifp->if_softc;
+	struct wtap_softc *sc = ic->ic_softc;
 	struct wtap_vap *avp = WTAP_VAP(vap);
 	struct ieee80211_node *ni = NULL;
 	int error;
@@ -318,7 +318,7 @@ wtap_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ],
     const uint8_t bssid[IEEE80211_ADDR_LEN],
     const uint8_t mac[IEEE80211_ADDR_LEN])
 {
-	 struct wtap_softc *sc = ic->ic_ifp->if_softc;
+	 struct wtap_softc *sc = ic->ic_softc;
 	 struct ieee80211vap *vap;
 	 struct wtap_vap *avp;
 	 int error;
@@ -326,15 +326,13 @@ wtap_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ],
 
 	 DWTAP_PRINTF("%s\n", __func__);
 
-	avp = malloc(sizeof(struct wtap_vap), M_80211_VAP, M_NOWAIT | M_ZERO);
-	if (avp == NULL)
-		return (NULL);
+	avp = malloc(sizeof(struct wtap_vap), M_80211_VAP, M_WAITOK | M_ZERO);
 	avp->id = sc->id;
 	avp->av_md = sc->sc_md;
 	avp->av_bcinterval = msecs_to_ticks(BEACON_INTRERVAL + 100*sc->id);
 	vap = (struct ieee80211vap *) avp;
 	error = ieee80211_vap_setup(ic, vap, name, unit, IEEE80211_M_MBSS,
-	    flags | IEEE80211_CLONE_NOBEACONS, bssid, mac);
+	    flags | IEEE80211_CLONE_NOBEACONS, bssid);
 	if (error) {
 		free(avp, M_80211_VAP);
 		return (NULL);
@@ -351,9 +349,10 @@ wtap_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ],
 	vap->iv_bmiss = wtap_bmiss;
 
 	/* complete setup */
-	ieee80211_vap_attach(vap, wtap_media_change, ieee80211_media_status);
+	ieee80211_vap_attach(vap, wtap_media_change, ieee80211_media_status,
+	    mac);
 	avp->av_dev = make_dev(&wtap_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600,
-	    "%s", (const char *)ic->ic_ifp->if_xname);
+	    "%s", (const char *)sc->name);
 
 	/* TODO this is a hack to force it to choose the rate we want */
 	ni = ieee80211_ref_node(vap->iv_bss);
@@ -374,148 +373,16 @@ wtap_vap_delete(struct ieee80211vap *vap)
 	free((struct wtap_vap*) vap, M_80211_VAP);
 }
 
-/* NB: This function is not used.
- * I had the problem of the queue
- * being empty all the time.
- * Maybe I am setting the queue wrong?
- */
 static void
-wtap_start(struct ifnet *ifp)
+wtap_parent(struct ieee80211com *ic)
 {
-	struct ieee80211com *ic = ifp->if_l2com;
-	struct ifnet *icifp = ic->ic_ifp;
-	struct wtap_softc *sc = icifp->if_softc;
-	struct ieee80211_node *ni;
-	struct mbuf *m;
+	struct wtap_softc *sc = ic->ic_softc;
 
-	DWTAP_PRINTF("my_start, with id=%u\n", sc->id);
-
-	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0 || sc->up == 0)
-		return;
-	for (;;) {
-		if(IFQ_IS_EMPTY(&ifp->if_snd)){
-		    printf("queue empty, just trying to see "
-		        "if the other queue is empty\n");
-#if 0
-		    printf("queue for id=1, %u\n",
-		        IFQ_IS_EMPTY(&global_mscs[1]->ifp->if_snd));
-		    printf("queue for id=0, %u\n",
-		        IFQ_IS_EMPTY(&global_mscs[0]->ifp->if_snd));
-#endif
-		    break;
-		}
-		IFQ_DEQUEUE(&ifp->if_snd, m);
-		if (m == NULL) {
-			printf("error dequeueing from ifp->snd\n");
-			break;
-		}
-		ni = (struct ieee80211_node *) m->m_pkthdr.rcvif;
-		/*
-		 * Check for fragmentation.  If this frame
-		 * has been broken up verify we have enough
-		 * buffers to send all the fragments so all
-		 * go out or none...
-		 */
-#if 0
-		STAILQ_INIT(&frags);
-#endif
-		if ((m->m_flags & M_FRAG)){
-			printf("dont support frags\n");
-			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
-			return;
-		}
-		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
-		if(wtap_raw_xmit(ni, m, NULL) < 0){
-			printf("error raw_xmiting\n");
-			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
-			return;
-		}
-	}
-}
-
-static int
-wtap_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
-{
-#if 0
-	DWTAP_PRINTF("%s\n", __func__);
-	uprintf("%s, command %lu\n", __func__, cmd);
-#endif
-#define	IS_RUNNING(ifp) \
-	((ifp->if_flags & IFF_UP) && (ifp->if_drv_flags & IFF_DRV_RUNNING))
-	struct ieee80211com *ic = ifp->if_l2com;
-	struct wtap_softc *sc = ifp->if_softc;
-	struct ifreq *ifr = (struct ifreq *)data;
-	int error = 0;
-
-	switch (cmd) {
-	case SIOCSIFFLAGS:
-		//printf("%s: %s\n", __func__, "SIOCSIFFLAGS");
-		if (IS_RUNNING(ifp)) {
-			DWTAP_PRINTF("running\n");
-#if 0
-			/*
-			 * To avoid rescanning another access point,
-			 * do not call ath_init() here.  Instead,
-			 * only reflect promisc mode settings.
-			 */
-			//ath_mode_init(sc);
-#endif
-			} else if (ifp->if_flags & IFF_UP) {
-			DWTAP_PRINTF("up\n");
-			sc->up = 1;
-#if 0
-			/*
-			 * Beware of being called during attach/detach
-			 * to reset promiscuous mode.  In that case we
-			 * will still be marked UP but not RUNNING.
-			 * However trying to re-init the interface
-			 * is the wrong thing to do as we've already
-			 * torn down much of our state.  There's
-			 * probably a better way to deal with this.
-			 */
-			//if (!sc->sc_invalid)
-			//	ath_init(sc);	/* XXX lose error */
-#endif
-			ifp->if_drv_flags |= IFF_DRV_RUNNING;
-			ieee80211_start_all(ic);
-		} else {
-			DWTAP_PRINTF("stoping\n");
-#if 0
-			ath_stop_locked(ifp);
-#ifdef notyet
-			/* XXX must wakeup in places like ath_vap_delete */
-			if (!sc->sc_invalid)
-				ath_hal_setpower(sc->sc_ah, HAL_PM_FULL_SLEEP);
-#endif
-#endif
-		}
-		break;
-	case SIOCGIFMEDIA:
-	case SIOCSIFMEDIA:
-#if 0
-		DWTAP_PRINTF("%s: %s\n", __func__, "SIOCGIFMEDIA|SIOCSIFMEDIA");
-#endif
-		error = ifmedia_ioctl(ifp, ifr, &ic->ic_media, cmd);
-		break;
-	case SIOCGIFADDR:
-#if 0
-		DWTAP_PRINTF("%s: %s\n", __func__, "SIOCGIFADDR");
-#endif
-		error = ether_ioctl(ifp, cmd, data);
-		break;
-	default:
-		DWTAP_PRINTF("%s: %s [%lu]\n", __func__, "EINVAL", cmd);
-		error = EINVAL;
-		break;
-	}
-	return error;
-#undef IS_RUNNING
-}
-
-static void
-wtap_init(void *arg){
-
-	DWTAP_PRINTF("%s\n", __func__);
+	if (ic->ic_nrunning > 0) {
+		sc->up = 1;
+		ieee80211_start_all(ic);
+	} else
+		sc->up = 0;
 }
 
 static void
@@ -581,8 +448,7 @@ wtap_inject(struct wtap_softc *sc, struct mbuf *m)
 void
 wtap_rx_deliver(struct wtap_softc *sc, struct mbuf *m)
 {
-	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
+	struct ieee80211com *ic = &sc->sc_ic;
 	struct ieee80211_node *ni;
 	int type;
 #if 0
@@ -591,10 +457,8 @@ wtap_rx_deliver(struct wtap_softc *sc, struct mbuf *m)
 
 	DWTAP_PRINTF("[%d] receiving m=%p\n", sc->id, m);
 	if (m == NULL) {		/* NB: shouldn't happen */
-		if_printf(ifp, "%s: no mbuf!\n", __func__);
+		ic_printf(ic, "%s: no mbuf!\n", __func__);
 	}
-
-	if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 
 	ieee80211_dump_pkt(ic, mtod(m, caddr_t), 0,0,0);
 
@@ -620,8 +484,7 @@ static void
 wtap_rx_proc(void *arg, int npending)
 {
 	struct wtap_softc *sc = (struct wtap_softc *)arg;
-	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
+	struct ieee80211com *ic = &sc->sc_ic;
 	struct mbuf *m;
 	struct ieee80211_node *ni;
 	int type;
@@ -644,12 +507,10 @@ wtap_rx_proc(void *arg, int npending)
 		m = bf->m;
 		DWTAP_PRINTF("[%d] receiving m=%p\n", sc->id, bf->m);
 		if (m == NULL) {		/* NB: shouldn't happen */
-			if_printf(ifp, "%s: no mbuf!\n", __func__);
+			ic_printf(ic, "%s: no mbuf!\n", __func__);
 			free(bf, M_WTAP_RXBUF);
 			return;
 		}
-
-		if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 #if 0
 		ieee80211_dump_pkt(ic, mtod(m, caddr_t), 0,0,0);
 #endif
@@ -716,7 +577,7 @@ wtap_update_promisc(struct ieee80211com *ic)
 }
 
 static int
-wtap_if_transmit(struct ifnet *ifp, struct mbuf *m)
+wtap_transmit(struct ieee80211com *ic, struct mbuf *m)
 {
 	struct ieee80211_node *ni =
 	    (struct ieee80211_node *) m->m_pkthdr.rcvif;
@@ -753,7 +614,7 @@ static void
 wtap_node_free(struct ieee80211_node *ni)
 {
 	struct ieee80211com *ic = ni->ni_ic;
-	struct wtap_softc *sc = ic->ic_ifp->if_softc;
+	struct wtap_softc *sc = ic->ic_softc;
 
 	DWTAP_PRINTF("%s\n", __func__);
 	sc->sc_node_free(ni);
@@ -762,41 +623,17 @@ wtap_node_free(struct ieee80211_node *ni)
 int32_t
 wtap_attach(struct wtap_softc *sc, const uint8_t *macaddr)
 {
-	struct ifnet *ifp;
-	struct ieee80211com *ic;
-	char wtap_name[] = {'w','T','a','p',sc->id,
-	    '_','t','a','s','k','q','\0'};
+	struct ieee80211com *ic = &sc->sc_ic;
 
 	DWTAP_PRINTF("%s\n", __func__);
 
-	ifp = if_alloc(IFT_IEEE80211);
-	if (ifp == NULL) {
-		printf("can not if_alloc()\n");
-		return -1;
-	}
-	ic = ifp->if_l2com;
-	if_initname(ifp, "wtap", sc->id);
-
-	sc->sc_ifp = ifp;
 	sc->up = 0;
-
 	STAILQ_INIT(&sc->sc_rxbuf);
-	sc->sc_tq = taskqueue_create(wtap_name, M_NOWAIT | M_ZERO,
+	sc->sc_tq = taskqueue_create("wtap_taskq", M_NOWAIT | M_ZERO,
 	    taskqueue_thread_enqueue, &sc->sc_tq);
-	taskqueue_start_threads(&sc->sc_tq, 1, PI_SOFT, "%s taskQ",
-	    ifp->if_xname);
+	taskqueue_start_threads(&sc->sc_tq, 1, PI_SOFT, "%s taskQ", sc->name);
 	TASK_INIT(&sc->sc_rxtask, 0, wtap_rx_proc, sc);
 
-	ifp->if_softc = sc;
-	ifp->if_flags = IFF_SIMPLEX | IFF_BROADCAST | IFF_MULTICAST;
-	ifp->if_start = wtap_start;
-	ifp->if_ioctl = wtap_ioctl;
-	ifp->if_init = wtap_init;
-	IFQ_SET_MAXLEN(&ifp->if_snd, ifqmaxlen);
-	ifp->if_snd.ifq_drv_maxlen = ifqmaxlen;
-	IFQ_SET_READY(&ifp->if_snd);
-
-	ic->ic_ifp = ifp;
 	ic->ic_softc = sc;
 	ic->ic_name = sc->name;
 	ic->ic_phytype = IEEE80211_T_DS;
@@ -815,17 +652,8 @@ wtap_attach(struct wtap_softc *sc, const uint8_t *macaddr)
 	ic->ic_channels[0].ic_flags = IEEE80211_CHAN_B;
 	ic->ic_channels[0].ic_freq = 2412;
 
-	ieee80211_ifattach(ic, macaddr);
-
-#if 0
-	/* new prototype hook-ups */
-	msc->if_input = ifp->if_input;
-	ifp->if_input = myath_if_input;
-	msc->if_output = ifp->if_output;
-	ifp->if_output = myath_if_output;
-#endif
-	sc->if_transmit = ifp->if_transmit;
-	ifp->if_transmit = wtap_if_transmit;
+	IEEE80211_ADDR_COPY(ic->ic_macaddr, macaddr);
+	ieee80211_ifattach(ic);
 
 	/* override default methods */
 	ic->ic_newassoc = wtap_newassoc;
@@ -835,15 +663,14 @@ wtap_attach(struct wtap_softc *sc, const uint8_t *macaddr)
 	ic->ic_raw_xmit = wtap_raw_xmit;
 	ic->ic_update_mcast = wtap_update_mcast;
 	ic->ic_update_promisc = wtap_update_promisc;
+	ic->ic_transmit = wtap_transmit;
+	ic->ic_parent = wtap_parent;
 
 	sc->sc_node_alloc = ic->ic_node_alloc;
 	ic->ic_node_alloc = wtap_node_alloc;
 	sc->sc_node_free = ic->ic_node_free;
 	ic->ic_node_free = wtap_node_free;
 
-#if 0
-	ic->ic_node_getsignal = myath_node_getsignal;
-#endif
 	ic->ic_scan_start = wtap_scan_start;
 	ic->ic_scan_end = wtap_scan_end;
 	ic->ic_set_channel = wtap_set_channel;
@@ -882,13 +709,11 @@ wtap_attach(struct wtap_softc *sc, const uint8_t *macaddr)
 int32_t
 wtap_detach(struct wtap_softc *sc)
 {
-	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
+	struct ieee80211com *ic = &sc->sc_ic;
 
 	DWTAP_PRINTF("%s\n", __func__);
 	ieee80211_ageq_drain(&ic->ic_stageq);
 	ieee80211_ifdetach(ic);
-	if_free(ifp);
 	return 0;
 }
 

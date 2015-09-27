@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 30, 2015
+.Dd August 17, 2015
 .Dt RANDOM 4
 .Os
 .Sh NAME
@@ -31,6 +31,8 @@
 .Nd the entropy device
 .Sh SYNOPSIS
 .Cd "device random"
+.Cd "options RANDOM_LOADABLE"
+.Cd "options RANDOM_ENABLE_UMA"
 .Sh DESCRIPTION
 The
 .Nm
@@ -133,15 +135,67 @@ The
 .Va kern.random.harvest.mask_bin
 and
 .Va kern.random.harvest.mask_symbolic
-sysctl
-can be used confirm
-that your choices are correct.
+sysctls
+can be used to confirm
+that the choices are correct.
 Note that disabled items
 in the latter item
 are listed in square brackets.
 See
 .Xr random_harvest 9
 for more on the harvesting of entropy.
+.Pp
+When
+.Cd "options RANDOM_LOADABLE"
+is used,
+the
+.Pa /dev/random
+device is not created
+until an "algorithm module"
+is loaded.
+Two of these modules
+are built by default,
+.Em random_fortuna
+and
+.Em random_yarrow .
+The
+.Em random_yarrow
+module is deprecated,
+and will be removed in
+.Fx 12.
+Use of the Yarrow algorithm
+is not encouraged,
+but while still present
+in the kernel source,
+it can be selected with the
+.Cd "options RANDOM_YARROW"
+kernel option.
+Note that these loadable modules
+are slightly less efficient
+than their compiled-in equivalents.
+This is because some functions
+must be locked against
+load and unload events,
+and also must be indirect calls
+to allow for removal.
+.Pp
+When
+.Cd "options RANDOM_ENABLE_UMA"
+is used,
+the
+.Pa /dev/random
+device will obtain entropy
+from the zone allocator.
+This is potentially very high rate,
+and if so will be of questionable use.
+If this is the case,
+use of this option
+is not recommended.
+Determining this is not trivial,
+so experimenting and measurement
+using tools such as
+.Xr dtrace 1
+will be required.
 .Sh RANDOMNESS
 The use of randomness in the field of computing
 is a rather subtle issue because randomness means
@@ -294,7 +348,7 @@ It replaces the previous
 implementation,
 introduced in
 .Fx 5.0 .
-The older
-.Em Yarrow
-algorithm remains available
-as a compile-time fallback.
+The Yarrow algorithm
+is no longer supported
+by its authors,
+and is therefore deprecated.

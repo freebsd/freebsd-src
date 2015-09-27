@@ -132,20 +132,27 @@ madt_setup_local(void)
 {
 	ACPI_TABLE_DMAR *dmartbl;
 	vm_paddr_t dmartbl_physaddr;
+	const char *reason;
+	char *hw_vendor;
 	u_int p[4];
 
 	madt = pmap_mapbios(madt_physaddr, madt_length);
 	if ((cpu_feature2 & CPUID2_X2APIC) != 0) {
 		x2apic_mode = 1;
+		reason = NULL;
+
+		/*
+		 * Automatically detect several configurations where
+		 * x2APIC mode is known to cause troubles.  User can
+		 * override the setting with hw.x2apic_enable tunable.
+		 */
 		dmartbl_physaddr = acpi_find_table(ACPI_SIG_DMAR);
 		if (dmartbl_physaddr != 0) {
 			dmartbl = acpi_map_table(dmartbl_physaddr,
 			    ACPI_SIG_DMAR);
 			if ((dmartbl->Flags & ACPI_DMAR_X2APIC_OPT_OUT) != 0) {
 				x2apic_mode = 0;
-				if (bootverbose)
-					printf(
-		"x2APIC available but disabled by DMAR table\n");
+				reason = "by DMAR table";
 			}
 			acpi_unmap_table(dmartbl);
 		}
@@ -154,14 +161,46 @@ madt_setup_local(void)
 			if ((p[0] & VMW_VCPUINFO_VCPU_RESERVED) != 0 ||
 			    (p[0] & VMW_VCPUINFO_LEGACY_X2APIC) == 0) {
 				x2apic_mode = 0;
-				if (bootverbose)
-					printf(
-       "x2APIC available but disabled inside VMWare without intr redirection\n");
+		reason = "inside VMWare without intr redirection";
 			}
 		} else if (vm_guest == VM_GUEST_XEN) {
 			x2apic_mode = 0;
+			reason = "due to running under XEN";
+		} else if (vm_guest == VM_GUEST_NO) {
+			hw_vendor = kern_getenv("smbios.planar.maker");
+			/*
+			 * It seems that some Lenovo SandyBridge-based
+			 * notebook BIOSes have a bug which prevents
+			 * booting AP in x2APIC mode.  Since the only
+			 * way to detect mobile CPU is to check
+			 * northbridge pci id, which cannot be done
+			 * that early, disable x2APIC for all Lenovo
+			 * SandyBridge machines.
+			 */
+			if (hw_vendor != NULL &&
+			    !strcmp(hw_vendor, "LENOVO") &&
+			    CPUID_TO_FAMILY(cpu_id) == 0x6 &&
+			    CPUID_TO_MODEL(cpu_id) == 0x2a) {
+				x2apic_mode = 0;
+				reason =
+				    "for a suspected Lenovo SandyBridge BIOS bug";
+			}
+			/*
+			 * Same reason, ASUS SandyBridge.
+			 */
+			if (hw_vendor != NULL &&
+			    !strcmp(hw_vendor, "ASUSTeK Computer Inc.") &&
+			    CPUID_TO_FAMILY(cpu_id) == 0x6 &&
+			    CPUID_TO_MODEL(cpu_id) == 0x2a) {
+				x2apic_mode = 0;
+				reason =
+				    "for a suspected ASUS SandyBridge BIOS bug";
+			}
+			freeenv(hw_vendor);
 		}
 		TUNABLE_INT_FETCH("hw.x2apic_enable", &x2apic_mode);
+		if (!x2apic_mode && reason != NULL && bootverbose)
+			printf("x2APIC available but disabled %s\n", reason);
 	}
 
 	lapic_init(madt->Address);

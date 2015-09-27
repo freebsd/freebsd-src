@@ -374,8 +374,9 @@ retry:
 			KASSERT(lvl > 0,
 			    ("lost root page table page %p", domain));
 			/*
-			 * Page table page does not exists, allocate
-			 * it and create pte in the up level.
+			 * Page table page does not exist, allocate
+			 * it and create a pte in the preceeding page level
+			 * to reference the allocated page table page.
 			 */
 			m = dmar_pgalloc(domain->pgtbl_obj, idx, flags |
 			    DMAR_PGF_ZERO);

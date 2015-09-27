@@ -479,8 +479,8 @@ vm_page_startup(vm_offset_t vaddr)
 	bzero((void *)mapped, end - new_end);
 	uma_startup((void *)mapped, boot_pages);
 
-#if defined(__amd64__) || defined(__i386__) || defined(__arm__) || \
-    defined(__mips__)
+#if defined(__aarch64__) || defined(__amd64__) || defined(__arm__) || \
+    defined(__i386__) || defined(__mips__)
 	/*
 	 * Allocate a bitmap to indicate that a random physical page
 	 * needs to be included in a minidump.
@@ -557,12 +557,12 @@ vm_page_startup(vm_offset_t vaddr)
 	 */
 	new_end = vm_reserv_startup(&vaddr, new_end, high_water);
 #endif
-#if defined(__amd64__) || defined(__mips__)
+#if defined(__aarch64__) || defined(__amd64__) || defined(__mips__)
 	/*
-	 * pmap_map on amd64 and mips can come out of the direct-map, not kvm
-	 * like i386, so the pages must be tracked for a crashdump to include
-	 * this data.  This includes the vm_page_array and the early UMA
-	 * bootstrap pages.
+	 * pmap_map on arm64, amd64, and mips can come out of the direct-map,
+	 * not kvm like i386, so the pages must be tracked for a crashdump to
+	 * include this data.  This includes the vm_page_array and the early
+	 * UMA bootstrap pages.
 	 */
 	for (pa = new_end; pa < phys_avail[biggestone + 1]; pa += PAGE_SIZE)
 		dump_add_page(pa);
@@ -2476,42 +2476,46 @@ vm_page_wire(vm_page_t m)
 /*
  * vm_page_unwire:
  *
- * Release one wiring of the specified page, potentially enabling it to be
- * paged again.  If paging is enabled, then the value of the parameter
- * "queue" determines the queue to which the page is added.
+ * Release one wiring of the specified page, potentially allowing it to be
+ * paged out.  Returns TRUE if the number of wirings transitions to zero and
+ * FALSE otherwise.
  *
- * However, unless the page belongs to an object, it is not enqueued because
- * it cannot be paged out.
+ * Only managed pages belonging to an object can be paged out.  If the number
+ * of wirings transitions to zero and the page is eligible for page out, then
+ * the page is added to the specified paging queue (unless PQ_NONE is
+ * specified).
  *
  * If a page is fictitious, then its wire count must always be one.
  *
  * A managed page must be locked.
  */
-void
+boolean_t
 vm_page_unwire(vm_page_t m, uint8_t queue)
 {
 
-	KASSERT(queue < PQ_COUNT,
+	KASSERT(queue < PQ_COUNT || queue == PQ_NONE,
 	    ("vm_page_unwire: invalid queue %u request for page %p",
 	    queue, m));
 	if ((m->oflags & VPO_UNMANAGED) == 0)
-		vm_page_lock_assert(m, MA_OWNED);
+		vm_page_assert_locked(m);
 	if ((m->flags & PG_FICTITIOUS) != 0) {
 		KASSERT(m->wire_count == 1,
 	    ("vm_page_unwire: fictitious page %p's wire count isn't one", m));
-		return;
+		return (FALSE);
 	}
 	if (m->wire_count > 0) {
 		m->wire_count--;
 		if (m->wire_count == 0) {
 			atomic_subtract_int(&vm_cnt.v_wire_count, 1);
-			if ((m->oflags & VPO_UNMANAGED) != 0 ||
-			    m->object == NULL)
-				return;
-			if (queue == PQ_INACTIVE)
-				m->flags &= ~PG_WINATCFLS;
-			vm_page_enqueue(queue, m);
-		}
+			if ((m->oflags & VPO_UNMANAGED) == 0 &&
+			    m->object != NULL && queue != PQ_NONE) {
+				if (queue == PQ_INACTIVE)
+					m->flags &= ~PG_WINATCFLS;
+				vm_page_enqueue(queue, m);
+			}
+			return (TRUE);
+		} else
+			return (FALSE);
 	} else
 		panic("vm_page_unwire: page %p's wire count is zero", m);
 }
@@ -2542,19 +2546,26 @@ _vm_page_deactivate(vm_page_t m, int athead)
 	struct vm_pagequeue *pq;
 	int queue;
 
-	vm_page_lock_assert(m, MA_OWNED);
+	vm_page_assert_locked(m);
 
 	/*
-	 * Ignore if already inactive.
+	 * Ignore if the page is already inactive, unless it is unlikely to be
+	 * reactivated.
 	 */
-	if ((queue = m->queue) == PQ_INACTIVE)
+	if ((queue = m->queue) == PQ_INACTIVE && !athead)
 		return;
 	if (m->wire_count == 0 && (m->oflags & VPO_UNMANAGED) == 0) {
-		if (queue != PQ_NONE)
-			vm_page_dequeue(m);
-		m->flags &= ~PG_WINATCFLS;
 		pq = &vm_phys_domain(m)->vmd_pagequeues[PQ_INACTIVE];
-		vm_pagequeue_lock(pq);
+		/* Avoid multiple acquisitions of the inactive queue lock. */
+		if (queue == PQ_INACTIVE) {
+			vm_pagequeue_lock(pq);
+			vm_page_dequeue_locked(m);
+		} else {
+			if (queue != PQ_NONE)
+				vm_page_dequeue(m);
+			m->flags &= ~PG_WINATCFLS;
+			vm_pagequeue_lock(pq);
+		}
 		m->queue = PQ_INACTIVE;
 		if (athead)
 			TAILQ_INSERT_HEAD(&pq->pq_pl, m, plinks.q);
@@ -2729,34 +2740,18 @@ vm_page_cache(vm_page_t m)
 /*
  * vm_page_advise
  *
- *	Cache, deactivate, or do nothing as appropriate.  This routine
- *	is used by madvise().
- *
- *	Generally speaking we want to move the page into the cache so
- *	it gets reused quickly.  However, this can result in a silly syndrome
- *	due to the page recycling too quickly.  Small objects will not be
- *	fully cached.  On the other hand, if we move the page to the inactive
- *	queue we wind up with a problem whereby very large objects
- *	unnecessarily blow away our inactive and cache queues.
- *
- *	The solution is to move the pages based on a fixed weighting.  We
- *	either leave them alone, deactivate them, or move them to the cache,
- *	where moving them to the cache has the highest weighting.
- *	By forcing some pages into other queues we eventually force the
- *	system to balance the queues, potentially recovering other unrelated
- *	space from active.  The idea is to not force this to happen too
- *	often.
+ * 	Deactivate or do nothing, as appropriate.  This routine is used
+ * 	by madvise() and vop_stdadvise().
  *
  *	The object and page must be locked.
  */
 void
 vm_page_advise(vm_page_t m, int advice)
 {
-	int dnw, head;
 
 	vm_page_assert_locked(m);
 	VM_OBJECT_ASSERT_WLOCKED(m->object);
-	if (advice == MADV_FREE) {
+	if (advice == MADV_FREE)
 		/*
 		 * Mark the page clean.  This will allow the page to be freed
 		 * up by the system.  However, such pages are often reused
@@ -2767,24 +2762,12 @@ vm_page_advise(vm_page_t m, int advice)
 		 * nor do we try to put it in the cache (which would cause a
 		 * page fault on reuse).
 		 *
-		 * But we do make the page is freeable as we can without
+		 * But we do make the page as freeable as we can without
 		 * actually taking the step of unmapping it.
 		 */
 		m->dirty = 0;
-		m->act_count = 0;
-	} else if (advice != MADV_DONTNEED)
+	else if (advice != MADV_DONTNEED)
 		return;
-	dnw = PCPU_GET(dnweight);
-	PCPU_INC(dnweight);
-
-	/*
-	 * Occasionally leave the page alone.
-	 */
-	if ((dnw & 0x01F0) == 0 || m->queue == PQ_INACTIVE) {
-		if (m->act_count >= ACT_INIT)
-			--m->act_count;
-		return;
-	}
 
 	/*
 	 * Clear any references to the page.  Otherwise, the page daemon will
@@ -2795,20 +2778,12 @@ vm_page_advise(vm_page_t m, int advice)
 	if (advice != MADV_FREE && m->dirty == 0 && pmap_is_modified(m))
 		vm_page_dirty(m);
 
-	if (m->dirty || (dnw & 0x0070) == 0) {
-		/*
-		 * Deactivate the page 3 times out of 32.
-		 */
-		head = 0;
-	} else {
-		/*
-		 * Cache the page 28 times out of every 32.  Note that
-		 * the page is deactivated instead of cached, but placed
-		 * at the head of the queue instead of the tail.
-		 */
-		head = 1;
-	}
-	_vm_page_deactivate(m, head);
+	/*
+	 * Place clean pages at the head of the inactive queue rather than the
+	 * tail, thus defeating the queue's LRU operation and ensuring that the
+	 * page will be reused quickly.
+	 */
+	_vm_page_deactivate(m, m->dirty == 0);
 }
 
 /*
@@ -3125,7 +3100,8 @@ vm_page_set_invalid(vm_page_t m, int base, int size)
 		bits = VM_PAGE_BITS_ALL;
 	else
 		bits = vm_page_bits(base, size);
-	if (m->valid == VM_PAGE_BITS_ALL && bits != 0)
+	if (object->ref_count != 0 && m->valid == VM_PAGE_BITS_ALL &&
+	    bits != 0)
 		pmap_remove_all(m);
 	KASSERT((bits == 0 && m->valid == VM_PAGE_BITS_ALL) ||
 	    !pmap_page_is_mapped(m),
@@ -3319,7 +3295,6 @@ DB_SHOW_COMMAND(page, vm_page_print_page_info)
 	db_printf("vm_cnt.v_free_reserved: %d\n", vm_cnt.v_free_reserved);
 	db_printf("vm_cnt.v_free_min: %d\n", vm_cnt.v_free_min);
 	db_printf("vm_cnt.v_free_target: %d\n", vm_cnt.v_free_target);
-	db_printf("vm_cnt.v_cache_min: %d\n", vm_cnt.v_cache_min);
 	db_printf("vm_cnt.v_inactive_target: %d\n", vm_cnt.v_inactive_target);
 }
 

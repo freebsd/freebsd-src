@@ -116,6 +116,7 @@ struct portal_group {
 	char				*pg_name;
 	struct auth_group		*pg_discovery_auth_group;
 	int				pg_discovery_filter;
+	int				pg_foreign;
 	bool				pg_unassigned;
 	TAILQ_HEAD(, portal)		pg_portals;
 	TAILQ_HEAD(, port)		pg_ports;
@@ -145,6 +146,7 @@ struct port {
 	struct portal_group		*p_portal_group;
 	struct pport			*p_pport;
 	struct target			*p_target;
+	int				p_foreign;
 
 	uint32_t			p_ctl_port;
 };
@@ -162,6 +164,7 @@ struct lun {
 	TAILQ_HEAD(, lun_option)	l_options;
 	char				*l_name;
 	char				*l_backend;
+	uint8_t				l_device_type;
 	int				l_blocksize;
 	char				*l_device_id;
 	char				*l_path;
@@ -373,6 +376,7 @@ struct lun		*lun_new(struct conf *conf, const char *name);
 void			lun_delete(struct lun *lun);
 struct lun		*lun_find(const struct conf *conf, const char *name);
 void			lun_set_backend(struct lun *lun, const char *value);
+void			lun_set_device_type(struct lun *lun, uint8_t value);
 void			lun_set_blocksize(struct lun *lun, size_t value);
 void			lun_set_device_id(struct lun *lun, const char *value);
 void			lun_set_path(struct lun *lun, const char *value);
@@ -391,13 +395,13 @@ void			lun_option_set(struct lun_option *clo,
 
 void			kernel_init(void);
 int			kernel_lun_add(struct lun *lun);
-int			kernel_lun_resize(struct lun *lun);
+int			kernel_lun_modify(struct lun *lun);
 int			kernel_lun_remove(struct lun *lun);
 void			kernel_handoff(struct connection *conn);
 void			kernel_limits(const char *offload,
 			    size_t *max_data_segment_length);
 int			kernel_port_add(struct port *port);
-int			kernel_port_update(struct port *port);
+int			kernel_port_update(struct port *port, struct port *old);
 int			kernel_port_remove(struct port *port);
 void			kernel_capsicate(void);
 

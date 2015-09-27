@@ -265,7 +265,6 @@ dev/ipmi/ipmi_smbios.c		optional ipmi
 dev/ipmi/ipmi_ssif.c		optional ipmi smbus
 dev/ipmi/ipmi_pci.c		optional ipmi pci
 dev/ipmi/ipmi_linux.c		optional ipmi compat_linux
-dev/kbd/kbd.c			optional atkbd | sc | ukbd | vt
 dev/le/if_le_isa.c		optional le isa
 dev/mse/mse.c			optional mse
 dev/mse/mse_isa.c		optional mse isa
@@ -476,7 +475,6 @@ i386/i386/mpboot.s		optional smp
 i386/i386/perfmon.c		optional perfmon
 i386/i386/pmap.c		standard
 i386/i386/ptrace_machdep.c	standard
-i386/i386/stack_machdep.c	optional ddb | stack
 i386/i386/support.s		standard
 i386/i386/swtch.s		standard
 i386/i386/sys_machdep.c		standard
@@ -586,6 +584,7 @@ x86/isa/nmi.c			standard
 x86/isa/orm.c			optional isa
 x86/pci/pci_bus.c		optional pci
 x86/pci/qpi.c			optional pci
+x86/x86/bus_machdep.c		standard
 x86/x86/busdma_bounce.c		standard
 x86/x86/busdma_machdep.c	standard
 x86/x86/cpu_machdep.c		standard
@@ -602,6 +601,7 @@ x86/x86/mptable_pci.c		optional apic pci
 x86/x86/mp_x86.c		optional smp
 x86/x86/msi.c			optional apic pci
 x86/x86/nexus.c			standard
+x86/x86/stack_machdep.c		optional ddb | stack
 x86/x86/tsc.c			standard
 x86/x86/pvclock.c		standard
 x86/x86/delay.c			standard

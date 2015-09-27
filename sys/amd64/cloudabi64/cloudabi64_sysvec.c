@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/proc.h>
 #include <sys/smp.h>
+#include <sys/sysctl.h>
 #include <sys/sysent.h>
 #include <sys/systm.h>
 
@@ -272,3 +273,4 @@ static moduledata_t cloudabi64_module = {
 
 DECLARE_MODULE_TIED(cloudabi64, cloudabi64_module, SI_SUB_EXEC, SI_ORDER_ANY);
 MODULE_DEPEND(cloudabi64, cloudabi, 1, 1, 1);
+FEATURE(cloudabi64, "CloudABI 64bit support");

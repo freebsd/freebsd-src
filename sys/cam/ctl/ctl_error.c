@@ -57,7 +57,6 @@ __FBSDID("$FreeBSD$");
 #include <cam/ctl/ctl_io.h>
 #include <cam/ctl/ctl.h>
 #include <cam/ctl/ctl_frontend.h>
-#include <cam/ctl/ctl_frontend_internal.h>
 #include <cam/ctl/ctl_backend.h>
 #include <cam/ctl/ctl_ioctl.h>
 #include <cam/ctl/ctl_error.h>
@@ -366,12 +365,142 @@ ctl_set_ua(struct ctl_scsiio *ctsio, int asc, int ascq)
 		      SSD_ELEM_NONE);
 }
 
+static void
+ctl_ua_to_acsq(struct ctl_lun *lun, ctl_ua_type ua_to_build, int *asc,
+    int *ascq, ctl_ua_type *ua_to_clear, uint8_t **info)
+{
+
+	switch (ua_to_build) {
+	case CTL_UA_POWERON:
+		/* 29h/01h  POWER ON OCCURRED */
+		*asc = 0x29;
+		*ascq = 0x01;
+		*ua_to_clear = ~0;
+		break;
+	case CTL_UA_BUS_RESET:
+		/* 29h/02h  SCSI BUS RESET OCCURRED */
+		*asc = 0x29;
+		*ascq = 0x02;
+		*ua_to_clear = ~0;
+		break;
+	case CTL_UA_TARG_RESET:
+		/* 29h/03h  BUS DEVICE RESET FUNCTION OCCURRED*/
+		*asc = 0x29;
+		*ascq = 0x03;
+		*ua_to_clear = ~0;
+		break;
+	case CTL_UA_I_T_NEXUS_LOSS:
+		/* 29h/07h  I_T NEXUS LOSS OCCURRED */
+		*asc = 0x29;
+		*ascq = 0x07;
+		*ua_to_clear = ~0;
+		break;
+	case CTL_UA_LUN_RESET:
+		/* 29h/00h  POWER ON, RESET, OR BUS DEVICE RESET OCCURRED */
+		/*
+		 * Since we don't have a specific ASC/ASCQ pair for a LUN
+		 * reset, just return the generic reset code.
+		 */
+		*asc = 0x29;
+		*ascq = 0x00;
+		break;
+	case CTL_UA_LUN_CHANGE:
+		/* 3Fh/0Eh  REPORTED LUNS DATA HAS CHANGED */
+		*asc = 0x3F;
+		*ascq = 0x0E;
+		break;
+	case CTL_UA_MODE_CHANGE:
+		/* 2Ah/01h  MODE PARAMETERS CHANGED */
+		*asc = 0x2A;
+		*ascq = 0x01;
+		break;
+	case CTL_UA_LOG_CHANGE:
+		/* 2Ah/02h  LOG PARAMETERS CHANGED */
+		*asc = 0x2A;
+		*ascq = 0x02;
+		break;
+	case CTL_UA_INQ_CHANGE:
+		/* 3Fh/03h  INQUIRY DATA HAS CHANGED */
+		*asc = 0x3F;
+		*ascq = 0x03;
+		break;
+	case CTL_UA_RES_PREEMPT:
+		/* 2Ah/03h  RESERVATIONS PREEMPTED */
+		*asc = 0x2A;
+		*ascq = 0x03;
+		break;
+	case CTL_UA_RES_RELEASE:
+		/* 2Ah/04h  RESERVATIONS RELEASED */
+		*asc = 0x2A;
+		*ascq = 0x04;
+		break;
+	case CTL_UA_REG_PREEMPT:
+		/* 2Ah/05h  REGISTRATIONS PREEMPTED */
+		*asc = 0x2A;
+		*ascq = 0x05;
+		break;
+	case CTL_UA_ASYM_ACC_CHANGE:
+		/* 2Ah/06h  ASYMMETRIC ACCESS STATE CHANGED */
+		*asc = 0x2A;
+		*ascq = 0x06;
+		break;
+	case CTL_UA_CAPACITY_CHANGED:
+		/* 2Ah/09h  CAPACITY DATA HAS CHANGED */
+		*asc = 0x2A;
+		*ascq = 0x09;
+		break;
+	case CTL_UA_THIN_PROV_THRES:
+		/* 38h/07h  THIN PROVISIONING SOFT THRESHOLD REACHED */
+		*asc = 0x38;
+		*ascq = 0x07;
+		*info = lun->ua_tpt_info;
+		break;
+	default:
+		panic("%s: Unknown UA %x", __func__, ua_to_build);
+	}
+}
+
+ctl_ua_type
+ctl_build_qae(struct ctl_lun *lun, uint32_t initidx, uint8_t *resp)
+{
+	ctl_ua_type ua;
+	ctl_ua_type ua_to_build, ua_to_clear;
+	uint8_t *info;
+	int asc, ascq;
+	uint32_t p, i;
+
+	mtx_assert(&lun->lun_lock, MA_OWNED);
+	p = initidx / CTL_MAX_INIT_PER_PORT;
+	i = initidx % CTL_MAX_INIT_PER_PORT;
+	if (lun->pending_ua[p] == NULL)
+		ua = CTL_UA_POWERON;
+	else
+		ua = lun->pending_ua[p][i];
+	if (ua == CTL_UA_NONE)
+		return (CTL_UA_NONE);
+
+	ua_to_build = (1 << (ffs(ua) - 1));
+	ua_to_clear = ua_to_build;
+	info = NULL;
+	ctl_ua_to_acsq(lun, ua_to_build, &asc, &ascq, &ua_to_clear, &info);
+
+	resp[0] = SSD_KEY_UNIT_ATTENTION;
+	if (ua_to_build == ua)
+		resp[0] |= 0x10;
+	else
+		resp[0] |= 0x20;
+	resp[1] = asc;
+	resp[2] = ascq;
+	return (ua);
+}
+
 ctl_ua_type
 ctl_build_ua(struct ctl_lun *lun, uint32_t initidx,
     struct scsi_sense_data *sense, scsi_sense_data_type sense_format)
 {
 	ctl_ua_type *ua;
 	ctl_ua_type ua_to_build, ua_to_clear;
+	uint8_t *info;
 	int asc, ascq;
 	uint32_t p, i;
 
@@ -397,108 +526,13 @@ ctl_build_ua(struct ctl_lun *lun, uint32_t initidx,
 
 	ua_to_build = (1 << (ffs(ua[i]) - 1));
 	ua_to_clear = ua_to_build;
+	info = NULL;
+	ctl_ua_to_acsq(lun, ua_to_build, &asc, &ascq, &ua_to_clear, &info);
 
-	switch (ua_to_build) {
-	case CTL_UA_POWERON:
-		/* 29h/01h  POWER ON OCCURRED */
-		asc = 0x29;
-		ascq = 0x01;
-		ua_to_clear = ~0;
-		break;
-	case CTL_UA_BUS_RESET:
-		/* 29h/02h  SCSI BUS RESET OCCURRED */
-		asc = 0x29;
-		ascq = 0x02;
-		ua_to_clear = ~0;
-		break;
-	case CTL_UA_TARG_RESET:
-		/* 29h/03h  BUS DEVICE RESET FUNCTION OCCURRED*/
-		asc = 0x29;
-		ascq = 0x03;
-		ua_to_clear = ~0;
-		break;
-	case CTL_UA_I_T_NEXUS_LOSS:
-		/* 29h/07h  I_T NEXUS LOSS OCCURRED */
-		asc = 0x29;
-		ascq = 0x07;
-		ua_to_clear = ~0;
-		break;
-	case CTL_UA_LUN_RESET:
-		/* 29h/00h  POWER ON, RESET, OR BUS DEVICE RESET OCCURRED */
-		/*
-		 * Since we don't have a specific ASC/ASCQ pair for a LUN
-		 * reset, just return the generic reset code.
-		 */
-		asc = 0x29;
-		ascq = 0x00;
-		break;
-	case CTL_UA_LUN_CHANGE:
-		/* 3Fh/0Eh  REPORTED LUNS DATA HAS CHANGED */
-		asc = 0x3F;
-		ascq = 0x0E;
-		break;
-	case CTL_UA_MODE_CHANGE:
-		/* 2Ah/01h  MODE PARAMETERS CHANGED */
-		asc = 0x2A;
-		ascq = 0x01;
-		break;
-	case CTL_UA_LOG_CHANGE:
-		/* 2Ah/02h  LOG PARAMETERS CHANGED */
-		asc = 0x2A;
-		ascq = 0x02;
-		break;
-	case CTL_UA_LVD:
-		/* 29h/06h  TRANSCEIVER MODE CHANGED TO LVD */
-		asc = 0x29;
-		ascq = 0x06;
-		break;
-	case CTL_UA_SE:
-		/* 29h/05h  TRANSCEIVER MODE CHANGED TO SINGLE-ENDED */
-		asc = 0x29;
-		ascq = 0x05;
-		break;
-	case CTL_UA_RES_PREEMPT:
-		/* 2Ah/03h  RESERVATIONS PREEMPTED */
-		asc = 0x2A;
-		ascq = 0x03;
-		break;
-	case CTL_UA_RES_RELEASE:
-		/* 2Ah/04h  RESERVATIONS RELEASED */
-		asc = 0x2A;
-		ascq = 0x04;
-		break;
-	case CTL_UA_REG_PREEMPT:
-		/* 2Ah/05h  REGISTRATIONS PREEMPTED */
-		asc = 0x2A;
-		ascq = 0x05;
-		break;
-	case CTL_UA_ASYM_ACC_CHANGE:
-	        /* 2Ah/06n  ASYMMETRIC ACCESS STATE CHANGED */
-		asc = 0x2A;
-		ascq = 0x06;
-		break;
-	case CTL_UA_CAPACITY_CHANGED:
-	        /* 2Ah/09n  CAPACITY DATA HAS CHANGED */
-		asc = 0x2A;
-		ascq = 0x09;
-		break;
-	case CTL_UA_THIN_PROV_THRES:
-		/* 38h/07n  THIN PROVISIONING SOFT THRESHOLD REACHED */
-		asc = 0x38;
-		ascq = 0x07;
-		break;
-	default:
-		panic("ctl_build_ua: Unknown UA %x", ua_to_build);
-	}
-
-	ctl_set_sense_data(sense,
-			   /*lun*/ NULL,
-			   sense_format,
-			   /*current_error*/ 1,
-			   /*sense_key*/ SSD_KEY_UNIT_ATTENTION,
-			   asc,
-			   ascq,
-			   SSD_ELEM_NONE);
+	ctl_set_sense_data(sense, lun, sense_format, /*current_error*/ 1,
+	    /*sense_key*/ SSD_KEY_UNIT_ATTENTION, asc, ascq,
+	    ((info != NULL) ? SSD_ELEM_INFO : SSD_ELEM_SKIP), 8, info,
+	    SSD_ELEM_NONE);
 
 	/* We're reporting this UA, so clear it */
 	ua[i] &= ~ua_to_clear;
@@ -572,10 +606,7 @@ ctl_set_invalid_field(struct ctl_scsiio *ctsio, int sks_valid, int command,
 void
 ctl_set_invalid_opcode(struct ctl_scsiio *ctsio)
 {
-	struct scsi_sense_data *sense;
 	uint8_t sks[3];
-
-	sense = &ctsio->sense_data;
 
 	sks[0] = SSD_SCS_VALID | SSD_FIELDPTR_CMD;
 	scsi_ulto2b(0, &sks[1]);
@@ -653,9 +684,9 @@ ctl_set_internal_failure(struct ctl_scsiio *ctsio, int sks_valid,
 }
 
 void
-ctl_set_medium_error(struct ctl_scsiio *ctsio)
+ctl_set_medium_error(struct ctl_scsiio *ctsio, int read)
 {
-	if ((ctsio->io_hdr.flags & CTL_FLAG_DATA_MASK) == CTL_FLAG_DATA_IN) {
+	if (read) {
 		/* "Unrecovered read error" */
 		ctl_set_sense(ctsio,
 			      /*current_error*/ 1,
@@ -734,6 +765,18 @@ ctl_set_illegal_pr_release(struct ctl_scsiio *ctsio)
 }
 
 void
+ctl_set_lun_transit(struct ctl_scsiio *ctsio)
+{
+	/* "Logical unit not ready, asymmetric access state transition" */
+	ctl_set_sense(ctsio,
+		      /*current_error*/ 1,
+		      /*sense_key*/ SSD_KEY_NOT_READY,
+		      /*asc*/ 0x04,
+		      /*ascq*/ 0x0a,
+		      SSD_ELEM_NONE);
+}
+
+void
 ctl_set_lun_standby(struct ctl_scsiio *ctsio)
 {
 	/* "Logical unit not ready, target port in standby state" */
@@ -742,6 +785,18 @@ ctl_set_lun_standby(struct ctl_scsiio *ctsio)
 		      /*sense_key*/ SSD_KEY_NOT_READY,
 		      /*asc*/ 0x04,
 		      /*ascq*/ 0x0b,
+		      SSD_ELEM_NONE);
+}
+
+void
+ctl_set_lun_unavail(struct ctl_scsiio *ctsio)
+{
+	/* "Logical unit not ready, target port in unavailable state" */
+	ctl_set_sense(ctsio,
+		      /*current_error*/ 1,
+		      /*sense_key*/ SSD_KEY_NOT_READY,
+		      /*asc*/ 0x04,
+		      /*ascq*/ 0x0c,
 		      SSD_ELEM_NONE);
 }
 
@@ -827,6 +882,18 @@ ctl_set_task_aborted(struct ctl_scsiio *ctsio)
 	ctsio->scsi_status = SCSI_STATUS_TASK_ABORTED;
 	ctsio->sense_len = 0;
 	ctsio->io_hdr.status = CTL_CMD_ABORTED;
+}
+
+void
+ctl_set_hw_write_protected(struct ctl_scsiio *ctsio)
+{
+	/* "Hardware write protected" */
+	ctl_set_sense(ctsio,
+		      /*current_error*/ 1,
+		      /*sense_key*/ SSD_KEY_DATA_PROTECT,
+		      /*asc*/ 0x27,
+		      /*ascq*/ 0x01,
+		      SSD_ELEM_NONE);
 }
 
 void
