@@ -926,9 +926,10 @@ vm_pageout_scan(struct vm_domain *vmd, int pass)
 	vm_page_t m, next;
 	struct vm_pagequeue *pq;
 	vm_object_t object;
+	long min_scan;
 	int act_delta, addl_page_shortage, deficit, maxscan, page_shortage;
 	int vnodes_skipped = 0;
-	int maxlaunder;
+	int maxlaunder, scan_tick, scanned;
 	int lockmode;
 	boolean_t queues_locked;
 
@@ -1359,34 +1360,37 @@ relock_queues:
 	 * If we're just idle polling attempt to visit every
 	 * active page within 'update_period' seconds.
 	 */
-	if (pass == 0 && vm_pageout_update_period != 0) {
-		maxscan /= vm_pageout_update_period;
-		page_shortage = maxscan;
-	}
+	scan_tick = ticks;
+	if (vm_pageout_update_period != 0) {
+		min_scan = pq->pq_cnt;
+		min_scan *= scan_tick - vmd->vmd_last_active_scan;
+		min_scan /= hz * vm_pageout_update_period;
+	} else
+		min_scan = 0;
+	if (min_scan > 0 || (page_shortage > 0 && maxscan > 0))
+		vmd->vmd_last_active_scan = scan_tick;
 
 	/*
-	 * Scan the active queue for things we can deactivate. We nominally
-	 * track the per-page activity counter and use it to locate
-	 * deactivation candidates.
+	 * Scan the active queue for pages that can be deactivated.  Update
+	 * the per-page activity counter and use it to identify deactivation
+	 * candidates.
 	 */
-	m = TAILQ_FIRST(&pq->pq_pl);
-	while (m != NULL && maxscan-- > 0 && page_shortage > 0) {
+	for (m = TAILQ_FIRST(&pq->pq_pl), scanned = 0; m != NULL && (scanned <
+	    min_scan || (page_shortage > 0 && scanned < maxscan)); m = next,
+	    scanned++) {
 
 		KASSERT(m->queue == PQ_ACTIVE,
 		    ("vm_pageout_scan: page %p isn't active", m));
 
 		next = TAILQ_NEXT(m, plinks.q);
-		if ((m->flags & PG_MARKER) != 0) {
-			m = next;
+		if ((m->flags & PG_MARKER) != 0)
 			continue;
-		}
 		KASSERT((m->flags & PG_FICTITIOUS) == 0,
 		    ("Fictitious page %p cannot be in active queue", m));
 		KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 		    ("Unmanaged page %p cannot be in active queue", m));
 		if (!vm_pageout_page_lock(m, &next)) {
 			vm_page_unlock(m);
-			m = next;
 			continue;
 		}
 
@@ -1439,7 +1443,6 @@ relock_queues:
 		} else
 			vm_page_requeue_locked(m);
 		vm_page_unlock(m);
-		m = next;
 	}
 	vm_pagequeue_unlock(pq);
 #if !defined(NO_SWAPPING)
@@ -1627,6 +1630,7 @@ vm_pageout_worker(void *arg)
 	 */
 
 	KASSERT(domain->vmd_segs != 0, ("domain without segments"));
+	domain->vmd_last_active_scan = ticks;
 	vm_pageout_init_marker(&domain->vmd_marker, PQ_INACTIVE);
 
 	/*

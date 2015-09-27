@@ -227,6 +227,7 @@ struct vm_domain {
 	long vmd_segs;	/* bitmask of the segments */
 	boolean_t vmd_oom;
 	int vmd_pass;	/* local pagedaemon pass */
+	int vmd_last_active_scan;
 	struct vm_page vmd_marker; /* marker for pagedaemon private use */
 };
 
