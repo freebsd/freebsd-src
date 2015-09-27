@@ -396,9 +396,9 @@ kmem_unback(vm_object_t object, vm_offset_t addr, vm_size_t size)
 	KASSERT(object == kmem_object || object == kernel_object,
 	    ("kmem_unback: only supports kernel objects."));
 
+	pmap_remove(kernel_pmap, addr, addr + size);
 	offset = addr - VM_MIN_KERNEL_ADDRESS;
 	VM_OBJECT_WLOCK(object);
-	pmap_remove(kernel_pmap, addr, addr + size);
 	for (i = 0; i < size; i += PAGE_SIZE) {
 		m = vm_page_lookup(object, OFF_TO_IDX(offset + i));
 		vm_page_unwire(m, 0);
