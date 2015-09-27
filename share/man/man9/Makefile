@@ -1008,10 +1008,6 @@ MLINKS+=\
 	mbuf.9 m_dup.9 \
 	mbuf.9 m_dup_pkthdr.9 \
 	mbuf.9 MEXTADD.9 \
-	mbuf.9 MEXT_ADD_REF.9 \
-	mbuf.9 MEXTFREE.9 \
-	mbuf.9 MEXT_IS_REF.9 \
-	mbuf.9 MEXT_REM_REF.9 \
 	mbuf.9 m_fixhdr.9 \
 	mbuf.9 m_free.9 \
 	mbuf.9 m_freem.9 \
