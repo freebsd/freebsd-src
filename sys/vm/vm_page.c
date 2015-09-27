@@ -3009,7 +3009,8 @@ vm_page_set_invalid(vm_page_t m, int base, int size)
 		bits = VM_PAGE_BITS_ALL;
 	else
 		bits = vm_page_bits(base, size);
-	if (m->valid == VM_PAGE_BITS_ALL && bits != 0)
+	if (object->ref_count != 0 && m->valid == VM_PAGE_BITS_ALL &&
+	    bits != 0)
 		pmap_remove_all(m);
 	KASSERT((bits == 0 && m->valid == VM_PAGE_BITS_ALL) ||
 	    !pmap_page_is_mapped(m),
