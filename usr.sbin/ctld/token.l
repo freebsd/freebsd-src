@@ -57,6 +57,7 @@ chap-mutual		{ return CHAP_MUTUAL; }
 ctl-lun			{ return CTL_LUN; }
 debug			{ return DEBUG; }
 device-id		{ return DEVICE_ID; }
+device-type		{ return DEVICE_TYPE; }
 discovery-auth-group	{ return DISCOVERY_AUTH_GROUP; }
 discovery-filter	{ return DISCOVERY_FILTER; }
 foreign			{ return FOREIGN; }

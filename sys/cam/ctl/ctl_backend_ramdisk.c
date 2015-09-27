@@ -530,9 +530,12 @@ ctl_backend_ramdisk_create(struct ctl_be_ramdisk_softc *softc,
 	} else if (control_softc->flags & CTL_FLAG_ACTIVE_SHELF)
 		cbe_lun->flags |= CTL_LUN_FLAG_PRIMARY;
 
-	if (cbe_lun->lun_type == T_DIRECT) {
+	if (cbe_lun->lun_type == T_DIRECT ||
+	    cbe_lun->lun_type == T_CDROM) {
 		if (params->blocksize_bytes != 0)
 			cbe_lun->blocksize = params->blocksize_bytes;
+		else if (cbe_lun->lun_type == T_CDROM)
+			cbe_lun->blocksize = 2048;
 		else
 			cbe_lun->blocksize = 512;
 		if (params->lun_size_bytes < cbe_lun->blocksize) {
@@ -556,7 +559,10 @@ ctl_backend_ramdisk_create(struct ctl_be_ramdisk_softc *softc,
 	if (value != NULL && strcmp(value, "on") == 0)
 		cbe_lun->flags |= CTL_LUN_FLAG_UNMAP;
 	value = ctl_get_opt(&cbe_lun->options, "readonly");
-	if (value != NULL && strcmp(value, "on") == 0)
+	if (value != NULL) {
+		if (strcmp(value, "on") == 0)
+			cbe_lun->flags |= CTL_LUN_FLAG_READONLY;
+	} else if (cbe_lun->lun_type != T_DIRECT)
 		cbe_lun->flags |= CTL_LUN_FLAG_READONLY;
 	cbe_lun->serseq = CTL_LUN_SERSEQ_OFF;
 	value = ctl_get_opt(&cbe_lun->options, "serseq");
@@ -896,6 +902,7 @@ ctl_backend_ramdisk_config_write(union ctl_io *io)
 		ctl_config_write_done(io);
 		break;
 	}
+	case PREVENT_ALLOW:
 	case WRITE_SAME_10:
 	case WRITE_SAME_16:
 	case UNMAP:

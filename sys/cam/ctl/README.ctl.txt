@@ -19,9 +19,9 @@ Userland Commands
 Introduction:
 ============
 
-CTL is a disk and processor device emulation subsystem originally written
-for Copan Systems under Linux starting in 2003.  It has been shipping in
-Copan (now SGI) products since 2005.
+CTL is a disk, processor and cdrom device emulation subsystem originally
+written for Copan Systems under Linux starting in 2003.  It has been
+shipping in Copan (now SGI) products since 2005.
 
 It was ported to FreeBSD in 2008, and thanks to an agreement between SGI
 (who acquired Copan's assets in 2010) and Spectra Logic in 2010, CTL is
@@ -31,7 +31,7 @@ that Spectra would work to get CTL into the FreeBSD tree.
 Features:
 ========
 
- - Disk and processor device emulation.
+ - Disk, processor and cdrom device emulation.
  - Tagged queueing
  - SCSI task attribute support (ordered, head of queue, simple tags)
  - SCSI implicit command ordering support.  (e.g. if a read follows a mode
