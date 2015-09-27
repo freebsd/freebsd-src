@@ -111,7 +111,6 @@ static void vfs_page_set_validclean(struct buf *bp, vm_ooffset_t off,
 static void vfs_clean_pages_dirty_buf(struct buf *bp);
 static void vfs_setdirty_locked_object(struct buf *bp);
 static void vfs_vmio_invalidate(struct buf *bp);
-static void vfs_vmio_release(struct buf *bp);
 static void vfs_vmio_truncate(struct buf *bp, int npages);
 static void vfs_vmio_extend(struct buf *bp, int npages, int size);
 static int vfs_bio_clcheck(struct vnode *vp, int size,
@@ -1830,20 +1829,19 @@ brelse(struct buf *bp)
 			bdirtysub();
 		bp->b_flags &= ~(B_DELWRI | B_CACHE);
 		if ((bp->b_flags & B_VMIO) == 0) {
-			if (bp->b_bufsize)
-				allocbuf(bp, 0);
+			allocbuf(bp, 0);
 			if (bp->b_vp)
 				brelvp(bp);
 		}
 	}
 
 	/*
-	 * We must clear B_RELBUF if B_DELWRI is set.  If vfs_vmio_release() 
+	 * We must clear B_RELBUF if B_DELWRI is set.  If vfs_vmio_truncate() 
 	 * is called with B_DELWRI set, the underlying pages may wind up
 	 * getting freed causing a previous write (bdwrite()) to get 'lost'
 	 * because pages associated with a B_DELWRI bp are marked clean.
 	 * 
-	 * We still allow the B_INVAL case to call vfs_vmio_release(), even
+	 * We still allow the B_INVAL case to call vfs_vmio_truncate(), even
 	 * if B_DELWRI is set.
 	 */
 	if (bp->b_flags & B_DELWRI)
@@ -1870,14 +1868,13 @@ brelse(struct buf *bp)
 	    (bp->b_ioflags & BIO_ERROR && bp->b_iocmd == BIO_READ)) &&
 	    !(bp->b_vp->v_mount != NULL &&
 	    (bp->b_vp->v_mount->mnt_vfc->vfc_flags & VFCF_NETWORK) != 0 &&
-	    !vn_isdisk(bp->b_vp, NULL) && (bp->b_flags & B_DELWRI)))
+	    !vn_isdisk(bp->b_vp, NULL) && (bp->b_flags & B_DELWRI))) {
 		vfs_vmio_invalidate(bp);
+		allocbuf(bp, 0);
+	}
 
 	if ((bp->b_flags & (B_INVAL | B_RELBUF)) != 0) {
-		if (bp->b_flags & B_VMIO)
-			vfs_vmio_release(bp);
-		if (bp->b_bufsize != 0)
-			allocbuf(bp, 0);
+		allocbuf(bp, 0);
 		if (bp->b_vp != NULL)
 			brelvp(bp);
 	}
@@ -2059,8 +2056,41 @@ vfs_vmio_iodone(struct buf *bp)
 }
 
 /*
+ * Unwire a page held by a buf and place it on the appropriate vm queue.
+ */
+static void
+vfs_vmio_unwire(struct buf *bp, vm_page_t m)
+{
+	bool freed;
+
+	vm_page_lock(m);
+	if (vm_page_unwire(m, PQ_NONE)) {
+		/*
+		 * Determine if the page should be freed before adding
+		 * it to the inactive queue.
+		 */
+		if (m->valid == 0) {
+			freed = !vm_page_busied(m);
+			if (freed)
+				vm_page_free(m);
+		} else if ((bp->b_flags & B_DIRECT) != 0)
+			freed = vm_page_try_to_free(m);
+		else
+			freed = false;
+		if (!freed) {
+			/*
+			 * In order to maintain LRU page ordering, put
+			 * the page at the tail of the inactive queue.
+			 */
+			vm_page_deactivate(m);
+		}
+	}
+	vm_page_unlock(m);
+}
+
+/*
  * Perform page invalidation when a buffer is released.  The fully invalid
- * pages will be reclaimed later in vfs_vmio_release().
+ * pages will be reclaimed later in vfs_vmio_truncate().
  */
 static void
 vfs_vmio_invalidate(struct buf *bp)
@@ -2069,6 +2099,11 @@ vfs_vmio_invalidate(struct buf *bp)
 	vm_page_t m;
 	int i, resid, poffset, presid;
 
+	if (buf_mapped(bp)) {
+		BUF_CHECK_MAPPED(bp);
+		pmap_qremove(trunc_page((vm_offset_t)bp->b_data), bp->b_npages);
+	} else
+		BUF_CHECK_UNMAPPED(bp);
 	/*
 	 * Get the base offset and length of the buffer.  Note that 
 	 * in the VMIO case if the buffer block size is not
@@ -2089,6 +2124,7 @@ vfs_vmio_invalidate(struct buf *bp)
 		m = bp->b_pages[i];
 		if (m == bogus_page)
 			panic("vfs_vmio_invalidate: Unexpected bogus page.");
+		bp->b_pages[i] = NULL;
 
 		presid = resid > (PAGE_SIZE - poffset) ?
 		    (PAGE_SIZE - poffset) : resid;
@@ -2101,63 +2137,12 @@ vfs_vmio_invalidate(struct buf *bp)
 		}
 		if (pmap_page_wired_mappings(m) == 0)
 			vm_page_set_invalid(m, poffset, presid);
+		vfs_vmio_unwire(bp, m);
 		resid -= presid;
 		poffset = 0;
 	}
 	VM_OBJECT_WUNLOCK(obj);
-}
-
-/* Give pages used by the bp back to the VM system (where possible) */
-static void
-vfs_vmio_release(struct buf *bp)
-{
-	vm_object_t obj;
-	vm_page_t m;
-	int i;
-	bool freed;
-
-	if (buf_mapped(bp)) {
-		BUF_CHECK_MAPPED(bp);
-		pmap_qremove(trunc_page((vm_offset_t)bp->b_data), bp->b_npages);
-	} else
-		BUF_CHECK_UNMAPPED(bp);
-	obj = bp->b_bufobj->bo_object;
-	if (obj != NULL)
-		VM_OBJECT_WLOCK(obj);
-	for (i = 0; i < bp->b_npages; i++) {
-		m = bp->b_pages[i];
-		bp->b_pages[i] = NULL;
-		vm_page_lock(m);
-		if (vm_page_unwire(m, PQ_NONE)) {
-			/*
-			 * Determine if the page should be freed before adding
-			 * it to the inactive queue.
-			 */
-			if ((bp->b_flags & B_ASYNC) == 0 && m->valid == 0) {
-				freed = !vm_page_busied(m);
-				if (freed)
-					vm_page_free(m);
-			} else if ((bp->b_flags & B_DIRECT) != 0)
-				freed = vm_page_try_to_free(m);
-			else
-				freed = false;
-			if (!freed) {
-				/*
-				 * In order to maintain LRU page ordering, put
-				 * the page at the tail of the inactive queue.
-				 */
-				vm_page_deactivate(m);
-			}
-		}
-		vm_page_unlock(m);
-	}
-	if (obj != NULL)
-		VM_OBJECT_WUNLOCK(obj);
-	
-	if (bp->b_bufsize)
-		bufspaceadjust(bp, 0);
 	bp->b_npages = 0;
-	bp->b_flags &= ~B_VMIO;
 }
 
 /*
@@ -2166,6 +2151,7 @@ vfs_vmio_release(struct buf *bp)
 static void
 vfs_vmio_truncate(struct buf *bp, int desiredpages)
 {
+	vm_object_t obj;
 	vm_page_t m;
 	int i;
 
@@ -2178,22 +2164,17 @@ vfs_vmio_truncate(struct buf *bp, int desiredpages)
 		    (desiredpages << PAGE_SHIFT), bp->b_npages - desiredpages);
 	} else
 		BUF_CHECK_UNMAPPED(bp);
-	VM_OBJECT_WLOCK(bp->b_bufobj->bo_object);
+	obj = bp->b_bufobj->bo_object;
+	if (obj != NULL)
+		VM_OBJECT_WLOCK(obj);
 	for (i = desiredpages; i < bp->b_npages; i++) {
-		/*
-		 * The page is not freed here -- it is the responsibility of 
-		 * vnode_pager_setsize.
-		 */
 		m = bp->b_pages[i];
 		KASSERT(m != bogus_page, ("allocbuf: bogus page found"));
-		while (vm_page_sleep_if_busy(m, "biodep"))
-			continue;
 		bp->b_pages[i] = NULL;
-		vm_page_lock(m);
-		vm_page_unwire(m, PQ_INACTIVE);
-		vm_page_unlock(m);
+		vfs_vmio_unwire(bp, m);
 	}
-	VM_OBJECT_WUNLOCK(bp->b_bufobj->bo_object);
+	if (obj != NULL)
+		VM_OBJECT_WUNLOCK(obj);
 	bp->b_npages = desiredpages;
 }
 
@@ -2478,11 +2459,12 @@ getnewbuf_reuse_bp(struct buf *bp, int qindex)
 	KASSERT((bp->b_flags & B_DELWRI) == 0,
 	    ("delwri buffer %p found in queue %d", bp, qindex));
 
+	/*
+	 * When recycling a clean buffer we have to truncate it and
+	 * release the vnode.
+	 */
 	if (qindex == QUEUE_CLEAN) {
-		if (bp->b_flags & B_VMIO) {
-			bp->b_flags &= ~B_ASYNC;
-			vfs_vmio_release(bp);
-		}
+		allocbuf(bp, 0);
 		if (bp->b_vp != NULL)
 			brelvp(bp);
 	}
@@ -2491,7 +2473,6 @@ getnewbuf_reuse_bp(struct buf *bp, int qindex)
 	 * Get the rest of the buffer freed up.  b_kva* is still valid
 	 * after this operation.
 	 */
-
 	if (bp->b_rcred != NOCRED) {
 		crfree(bp->b_rcred);
 		bp->b_rcred = NOCRED;
@@ -2508,9 +2489,8 @@ getnewbuf_reuse_bp(struct buf *bp, int qindex)
 	    bp, bp->b_vp, qindex));
 	KASSERT((bp->b_xflags & (BX_VNCLEAN|BX_VNDIRTY)) == 0,
 	    ("bp: %p still on a buffer list. xflags %X", bp, bp->b_xflags));
-
-	if (bp->b_bufsize)
-		allocbuf(bp, 0);
+	KASSERT(bp->b_npages == 0,
+	    ("bp: %p still has %d vm pages\n", bp, bp->b_npages));
 
 	bp->b_flags = 0;
 	bp->b_ioflags = 0;
@@ -3426,8 +3406,7 @@ loop:
 		 * cleared.  If the size has not changed, B_CACHE remains
 		 * unchanged from its previous state.
 		 */
-		if (bp->b_bcount != size)
-			allocbuf(bp, size);
+		allocbuf(bp, size);
 
 		KASSERT(bp->b_offset != NOOFFSET, 
 		    ("getblk: no buffer offset"));
@@ -3678,6 +3657,9 @@ allocbuf(struct buf *bp, int size)
 
 	BUF_ASSERT_HELD(bp);
 
+	if (bp->b_bcount == size)
+		return (1);
+
 	if (bp->b_kvasize != 0 && bp->b_kvasize < size)
 		panic("allocbuf: buffer too small");
 
@@ -3716,7 +3698,7 @@ allocbuf(struct buf *bp, int size)
 		bufspaceadjust(bp, newbsize);
 	}
 	bp->b_bcount = size;		/* requested buffer size. */
-	return 1;
+	return (1);
 }
 
 extern int inflight_transient_maps;
