@@ -127,17 +127,18 @@ elf64_dump_thread(struct thread *td, void *dst, size_t *off __unused)
 }
 
 
-static Elf_Addr
-lookup_fdesc(linker_file_t lf, Elf_Size symidx, elf_lookup_fn lookup)
+static int
+lookup_fdesc(linker_file_t lf, Elf_Size symidx, elf_lookup_fn lookup,
+    Elf_Addr *addr1)
 {
 	linker_file_t top;
 	Elf_Addr addr;
 	const char *symname;
-	int i;
+	int i, error;
 	static int eot = 0;
 
-	addr = lookup(lf, symidx, 0);
-	if (addr == 0) {
+	error = lookup(lf, symidx, 0, &addr);
+	if (error != 0) {
 		top = lf;
 		symname = elf_get_symname(top, symidx);
 		for (i = 0; i < top->ndeps; i++) {
@@ -148,30 +149,33 @@ lookup_fdesc(linker_file_t lf, Elf_Size symidx, elf_lookup_fn lookup)
 				break;
 		}
 		if (addr == 0)
-			return (0);
+			return (EINVAL);
 	}
 
 	if (eot)
-		return (0);
+		return (EINVAL);
 
 	/*
 	 * Lookup and/or construct OPD
 	 */
 	for (i = 0; i < 8192; i += 2) {
-		if (fptr_storage[i] == addr)
-			return (Elf_Addr)(fptr_storage + i);
+		if (fptr_storage[i] == addr) {
+			*addr1 = (Elf_Addr)(fptr_storage + i);
+			return (0);
+		}
 
 		if (fptr_storage[i] == 0) {
 			fptr_storage[i] = addr;
 			fptr_storage[i+1] = link_elf_get_gp(lf);
-			return (Elf_Addr)(fptr_storage + i);
+			*addr1 = (Elf_Addr)(fptr_storage + i);
+			return (0);
 		}
 	}
 
 	printf("%s: fptr table full\n", __func__);
 	eot = 1;
 
-	return (0);
+	return (EINVAL);
 }
 
 /* Process one elf relocation with addend. */
@@ -184,6 +188,7 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 	Elf_Size rtype, symidx;
 	const Elf_Rel *rel;
 	const Elf_Rela *rela;
+	int error;
 
 	switch (type) {
 	case ELF_RELOC_REL:
@@ -223,8 +228,8 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 	case R_IA_64_NONE:
 		break;
 	case R_IA_64_DIR64LSB:	/* word64 LSB	S + A */
-		addr = lookup(lf, symidx, 1);
-		if (addr == 0)
+		error = lookup(lf, symidx, 1, &addr);
+		if (error != 0)
 			return (-1);
 		*where = addr + addend;
 		break;
@@ -233,16 +238,16 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 			printf("%s: addend ignored for OPD relocation\n",
 			    __func__);
 		}
-		addr = lookup_fdesc(lf, symidx, lookup);
-		if (addr == 0)
+		error = lookup_fdesc(lf, symidx, lookup, &addr);
+		if (error != 0)
 			return (-1);
 		*where = addr;
 		break;
 	case R_IA_64_REL64LSB:	/* word64 LSB	BD + A */
 		break;
 	case R_IA_64_IPLTLSB:
-		addr = lookup_fdesc(lf, symidx, lookup);
-		if (addr == 0)
+		error = lookup_fdesc(lf, symidx, lookup, &addr);
+		if (error != 0)
 			return (-1);
 		where[0] = *((Elf_Addr*)addr) + addend;
 		where[1] = *((Elf_Addr*)addr + 1);

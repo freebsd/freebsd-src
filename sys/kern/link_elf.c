@@ -158,7 +158,7 @@ static int	link_elf_each_function_nameval(linker_file_t,
 static void	link_elf_reloc_local(linker_file_t);
 static long	link_elf_symtab_get(linker_file_t, const Elf_Sym **);
 static long	link_elf_strtab_get(linker_file_t, caddr_t *);
-static Elf_Addr	elf_lookup(linker_file_t, Elf_Size, int);
+static int	elf_lookup(linker_file_t, Elf_Size, int, Elf_Addr *);
 
 static kobj_method_t link_elf_methods[] = {
 	KOBJMETHOD(linker_lookup_symbol,	link_elf_lookup_symbol),
@@ -1498,8 +1498,8 @@ elf_get_symname(linker_file_t lf, Elf_Size symidx)
  * This is not only more efficient, it's also more correct. It's not always
  * the case that the symbol can be found through the hash table.
  */
-static Elf_Addr
-elf_lookup(linker_file_t lf, Elf_Size symidx, int deps)
+static int
+elf_lookup(linker_file_t lf, Elf_Size symidx, int deps, Elf_Addr *res)
 {
 	elf_file_t ef = (elf_file_t)lf;
 	const Elf_Sym *sym;
@@ -1507,8 +1507,10 @@ elf_lookup(linker_file_t lf, Elf_Size symidx, int deps)
 	Elf_Addr addr, start, base;
 
 	/* Don't even try to lookup the symbol if the index is bogus. */
-	if (symidx >= ef->nchains)
-		return (0);
+	if (symidx >= ef->nchains) {
+		*res = 0;
+		return (EINVAL);
+	}
 
 	sym = ef->symtab + symidx;
 
@@ -1518,9 +1520,12 @@ elf_lookup(linker_file_t lf, Elf_Size symidx, int deps)
 	 */
 	if (ELF_ST_BIND(sym->st_info) == STB_LOCAL) {
 		/* Force lookup failure when we have an insanity. */
-		if (sym->st_shndx == SHN_UNDEF || sym->st_value == 0)
-			return (0);
-		return ((Elf_Addr)ef->address + sym->st_value);
+		if (sym->st_shndx == SHN_UNDEF || sym->st_value == 0) {
+			*res = 0;
+			return (EINVAL);
+		}
+		*res = ((Elf_Addr)ef->address + sym->st_value);
+		return (0);
 	}
 
 	/*
@@ -1533,8 +1538,10 @@ elf_lookup(linker_file_t lf, Elf_Size symidx, int deps)
 	symbol = ef->strtab + sym->st_name;
 
 	/* Force a lookup failure if the symbol name is bogus. */
-	if (*symbol == 0)
-		return (0);
+	if (*symbol == 0) {
+		*res = 0;
+		return (EINVAL);
+	}
 
 	addr = ((Elf_Addr)linker_file_lookup_symbol(lf, symbol, deps));
 
@@ -1544,7 +1551,8 @@ elf_lookup(linker_file_t lf, Elf_Size symidx, int deps)
 	else if (elf_set_find(&set_vnet_list, addr, &start, &base))
 		addr = addr - start + base;
 #endif
-	return addr;
+	*res = addr;
+	return (0);
 }
 
 static void
