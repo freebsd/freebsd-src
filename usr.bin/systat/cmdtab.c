@@ -75,6 +75,9 @@ struct	cmdtab cmdtab[] = {
 	{ "ifstat",	showifstat,	fetchifstat,	labelifstat,
 	  initifstat,	openifstat,	closeifstat,	cmdifstat,
 	  0,		CF_LOADAV },
+	{ "zarc",	showzarc,	fetchzarc,	labelzarc,
+	  initzarc,	openzarc,	closezarc,	0,
+	  resetzarc,	CF_ZFSARC },
 	{ NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0, 0, 0 }
 };
 struct  cmdtab *curcmd = &cmdtab[0];
