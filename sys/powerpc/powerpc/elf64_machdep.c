@@ -135,6 +135,7 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 	Elf_Addr addend;
 	Elf_Word rtype, symidx;
 	const Elf_Rela *rela;
+	int error;
 
 	switch (type) {
 	case ELF_RELOC_REL:
@@ -157,9 +158,9 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 	       	break;
 
 	case R_PPC64_ADDR64:	/* doubleword64 S + A */
-       		addr = lookup(lf, symidx, 1);
-	       	if (addr == 0)
-	       		return -1;
+		error = lookup(lf, symidx, 1, &addr);
+		if (error != 0)
+			return -1;
 		addr += addend;
 	       	*where = addr;
 	       	break;
@@ -169,7 +170,7 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 	       	break;
 
 	case R_PPC_JMP_SLOT:	/* function descriptor copy */
-		addr = lookup(lf, symidx, 1);
+		lookup(lf, symidx, 1, &addr);
 		memcpy(where, (Elf_Addr *)addr, 3*sizeof(Elf_Addr));
 		__asm __volatile("dcbst 0,%0; sync" :: "r"(where) : "memory");
 		break;
