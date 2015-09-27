@@ -1314,47 +1314,6 @@ nd6_free_redirect(const struct llentry *ln)
 }
 
 /*
- * Upper-layer reachability hint for Neighbor Unreachability Detection.
- *
- * XXX cost-effective methods?
- */
-void
-nd6_nud_hint(struct rtentry *rt, struct in6_addr *dst6, int force)
-{
-	struct llentry *ln;
-	struct ifnet *ifp;
-
-	if ((dst6 == NULL) || (rt == NULL))
-		return;
-
-	ifp = rt->rt_ifp;
-	IF_AFDATA_RLOCK(ifp);
-	ln = nd6_lookup(dst6, LLE_EXCLUSIVE, NULL);
-	IF_AFDATA_RUNLOCK(ifp);
-	if (ln == NULL)
-		return;
-
-	if (ln->ln_state < ND6_LLINFO_REACHABLE)
-		goto done;
-
-	/*
-	 * if we get upper-layer reachability confirmation many times,
-	 * it is possible we have false information.
-	 */
-	if (!force) {
-		ln->ln_byhint++;
-		if (ln->ln_byhint > V_nd6_maxnudhint) {
-			goto done;
-		}
-	}
-
- 	nd6_llinfo_setstate(ln, ND6_LLINFO_REACHABLE);
-done:
-	LLE_WUNLOCK(ln);
-}
-
-
-/*
  * Rejuvenate this function for routing operations related
  * processing.
  */
