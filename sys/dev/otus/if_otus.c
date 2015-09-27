@@ -156,7 +156,7 @@ void		otus_do_async(struct otus_softc *,
 int		otus_newstate(struct ieee80211vap *, enum ieee80211_state,
 		    int);
 int		otus_cmd(struct otus_softc *, uint8_t, const void *, int,
-		    void *);
+		    void *, int);
 void		otus_write(struct otus_softc *, uint32_t, uint32_t);
 int		otus_write_barrier(struct otus_softc *);
 struct		ieee80211_node *otus_node_alloc(struct ieee80211com *);
@@ -702,7 +702,7 @@ otus_attachhook(struct otus_softc *sc)
 
 	/* Send an ECHO command to check that everything is settled. */
 	in = 0xbadc0ffe;
-	if (otus_cmd(sc, AR_CMD_ECHO, &in, sizeof in, &out) != 0) {
+	if (otus_cmd(sc, AR_CMD_ECHO, &in, sizeof in, &out, sizeof(out)) != 0) {
 		OTUS_UNLOCK(sc);
 		device_printf(sc->sc_dev,
 		    "%s: echo command failed\n", __func__);
@@ -1282,7 +1282,7 @@ otus_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 
 int
 otus_cmd(struct otus_softc *sc, uint8_t code, const void *idata, int ilen,
-    void *odata)
+    void *odata, int odatalen)
 {
 	struct otus_tx_cmd *cmd;
 	struct ar_cmd_hdr *hdr;
@@ -1321,6 +1321,7 @@ otus_cmd(struct otus_softc *sc, uint8_t code, const void *idata, int ilen,
 	    __func__, code, ilen, hdr->token);
 
 	cmd->odata = odata;
+	cmd->odatalen = odatalen;
 	cmd->buflen = xferlen;
 
 	/* Queue the command to the endpoint */
@@ -1373,7 +1374,7 @@ otus_write_barrier(struct otus_softc *sc)
 	    sc->write_idx);
 
 	error = otus_cmd(sc, AR_CMD_WREG, sc->write_buf,
-	    sizeof (sc->write_buf[0]) * sc->write_idx, NULL);
+	    sizeof (sc->write_buf[0]) * sc->write_idx, NULL, 0);
 	sc->write_idx = 0;
 	return error;
 }
@@ -1428,7 +1429,7 @@ otus_read_eeprom(struct otus_softc *sc)
 	for (i = 0; i < sizeof (sc->eeprom) / 32; i++) {
 		for (j = 0; j < 8; j++, reg += 4)
 			regs[j] = htole32(reg);
-		error = otus_cmd(sc, AR_CMD_RREG, regs, sizeof regs, eep);
+		error = otus_cmd(sc, AR_CMD_RREG, regs, sizeof regs, eep, 32);
 		if (error != 0)
 			break;
 		eep += 32;
@@ -1477,8 +1478,18 @@ otus_cmd_handle_response(struct otus_softc *sc, struct ar_cmd_hdr *hdr)
 		    (int) cmd->token);
 		if (hdr->token == cmd->token) {
 			/* Copy answer into caller's supplied buffer. */
-			if (cmd->odata != NULL)
-				memcpy(cmd->odata, &hdr[1], hdr->len);
+			if (cmd->odata != NULL) {
+				if (hdr->len != cmd->odatalen) {
+					device_printf(sc->sc_dev,
+					    "%s: code 0x%02x, len=%d, olen=%d\n",
+					    __func__,
+					    (int) hdr->code,
+					    (int) hdr->len,
+					    (int) cmd->odatalen);
+				}
+				memcpy(cmd->odata, &hdr[1],
+				    MIN(cmd->odatalen, hdr->len));
+			}
 			wakeup(cmd);
 		}
 
@@ -1513,8 +1524,9 @@ otus_cmd_rxeof(struct otus_softc *sc, uint8_t *buf, int len)
 	    hdr->code);
 
 	/*
-	 * XXX TODO: has to reach into the cmd queue "waiting for
+	 * This has to reach into the cmd queue "waiting for
 	 * an RX response" list, grab the head entry and check
+	 * if we need to wake anyone up.
 	 */
 	if ((hdr->code & 0xc0) != 0xc0) {
 		otus_cmd_handle_response(sc, hdr);
@@ -2686,7 +2698,7 @@ otus_set_chan(struct otus_softc *sc, struct ieee80211_channel *c, int assoc)
 		goto finish;
 
 	/* XXX Is that FREQ_START ? */
-	error = otus_cmd(sc, AR_CMD_FREQ_STRAT, NULL, 0, NULL);
+	error = otus_cmd(sc, AR_CMD_FREQ_STRAT, NULL, 0, NULL, 0);
 	if (error != 0)
 		goto finish;
 
@@ -2758,7 +2770,7 @@ otus_set_chan(struct otus_softc *sc, struct ieee80211_channel *c, int assoc)
 	cmd.check_loop_count = assoc ? htole32(2000) : htole32(1000);
 	OTUS_DPRINTF(sc, OTUS_DEBUG_RESET,
 	    "%s\n", (code == AR_CMD_RF_INIT) ? "RF_INIT" : "FREQUENCY");
-	error = otus_cmd(sc, code, &cmd, sizeof cmd, &rsp);
+	error = otus_cmd(sc, code, &cmd, sizeof cmd, &rsp, sizeof(rsp));
 	if (error != 0)
 		goto finish;
 	if ((rsp.status & htole32(AR_CAL_ERR_AGC | AR_CAL_ERR_NF_VAL)) != 0) {
@@ -2848,14 +2860,14 @@ otus_set_key_cb(struct otus_softc *sc, void *arg)
 	}
 	key.cipher = htole16(cipher);
 	memcpy(key.key, k->k_key, MIN(k->k_len, 16));
-	error = otus_cmd(sc, AR_CMD_EKEY, &key, sizeof key, NULL);
+	error = otus_cmd(sc, AR_CMD_EKEY, &key, sizeof key, NULL, 0);
 	if (error != 0 || k->k_cipher != IEEE80211_CIPHER_TKIP)
 		return;
 
 	/* TKIP: set Tx/Rx MIC Key. */
 	key.kix = htole16(1);
 	memcpy(key.key, k->k_key + 16, 16);
-	(void)otus_cmd(sc, AR_CMD_EKEY, &key, sizeof key, NULL);
+	(void)otus_cmd(sc, AR_CMD_EKEY, &key, sizeof key, NULL, 0);
 }
 
 void
@@ -2886,7 +2898,7 @@ otus_delete_key_cb(struct otus_softc *sc, void *arg)
 		uid = htole32(k->k_id);
 	else
 		uid = htole32(OTUS_UID(cmd->associd));
-	(void)otus_cmd(sc, AR_CMD_DKEY, &uid, sizeof uid, NULL);
+	(void)otus_cmd(sc, AR_CMD_DKEY, &uid, sizeof uid, NULL, 0);
 }
 #endif
 
