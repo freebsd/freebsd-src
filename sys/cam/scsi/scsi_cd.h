@@ -56,6 +56,83 @@
  * SCSI command format
  */
 
+struct scsi_get_config
+{
+	uint8_t opcode;
+	uint8_t rt;
+#define	SGC_RT_ALL		0x00
+#define	SGC_RT_CURRENT		0x01
+#define	SGC_RT_SPECIFIC		0x02
+#define	SGC_RT_MASK		0x03
+	uint8_t starting_feature[2];
+	uint8_t reserved[3];
+	uint8_t length[2];
+	uint8_t control;
+};
+
+struct scsi_get_config_header
+{
+	uint8_t data_length[4];
+	uint8_t reserved[2];
+	uint8_t current_profile[2];
+};
+
+struct scsi_get_config_feature
+{
+	uint8_t feature_code[2];
+	uint8_t flags;
+#define	SGC_F_CURRENT		0x01
+#define	SGC_F_PERSISTENT	0x02
+#define	SGC_F_VERSION_MASK	0x2C
+#define	SGC_F_VERSION_SHIFT	2
+	uint8_t add_length;
+	uint8_t feature_data[];
+};
+
+struct scsi_get_event_status
+{
+	uint8_t opcode;
+	uint8_t byte2;
+#define	SGESN_POLLED		1
+	uint8_t reserved[2];
+	uint8_t notif_class;
+	uint8_t reserved2[2];
+	uint8_t length[2];
+	uint8_t control;
+};
+
+struct scsi_get_event_status_header
+{
+	uint8_t descr_length[4];
+	uint8_t nea_class;
+#define	SGESN_NEA		0x80
+	uint8_t supported_class;
+};
+
+struct scsi_get_event_status_descr
+{
+	uint8_t event_code;
+	uint8_t event_info[];
+};
+
+struct scsi_mechanism_status
+{
+	uint8_t opcode;
+	uint8_t reserved[7];
+	uint8_t length[2];
+	uint8_t reserved2;
+	uint8_t control;
+};
+
+struct scsi_mechanism_status_header
+{
+	uint8_t state1;
+	uint8_t state2;
+	uint8_t lba[3];
+	uint8_t slots_num;
+	uint8_t slots_length[2];
+};
+
 struct scsi_pause
 {
 	u_int8_t op_code;
@@ -151,10 +228,27 @@ struct scsi_read_toc
 {
 	u_int8_t op_code;
 	u_int8_t byte2;
-	u_int8_t unused[4];
+	u_int8_t format;
+	u_int8_t unused[3];
 	u_int8_t from_track;
 	u_int8_t data_len[2];
 	u_int8_t control;
+};
+
+struct scsi_read_toc_hdr
+{
+	uint8_t data_length[2];
+	uint8_t first;
+	uint8_t last;
+};
+
+struct scsi_read_toc_type01_descr
+{
+	uint8_t reserved;
+	uint8_t addr_ctl;
+	uint8_t track_number;
+	uint8_t reserved2;
+	uint8_t track_start[4];
 };
 
 struct scsi_read_cd_capacity
@@ -252,9 +346,11 @@ struct scsi_read_dvd_structure
 #define READ_TOC		0x43	/* cdrom read TOC */
 #define READ_HEADER		0x44	/* cdrom read header */
 #define PLAY_10			0x45	/* cdrom play  'play audio' mode */
+#define GET_CONFIGURATION	0x46	/* Get device configuration */
 #define PLAY_MSF		0x47	/* cdrom play Min,Sec,Frames mode */
 #define PLAY_TRACK		0x48	/* cdrom play track/index mode */
 #define PLAY_TRACK_REL		0x49	/* cdrom play track/index mode */
+#define GET_EVENT_STATUS	0x4a	/* Get event status notification */
 #define PAUSE			0x4b	/* cdrom pause in 'play audio' mode */
 #define SEND_KEY		0xa3	/* dvd send key command */
 #define REPORT_KEY		0xa4	/* dvd report key command */
@@ -262,6 +358,7 @@ struct scsi_read_dvd_structure
 #define PLAY_TRACK_REL_BIG	0xa9	/* cdrom play track/index mode */
 #define READ_DVD_STRUCTURE	0xad	/* read dvd structure */
 #define SET_CD_SPEED		0xbb	/* set c/dvd speed */
+#define MECHANISM_STATUS	0xbd	/* get status of c/dvd mechanics */
 
 struct scsi_report_key_data_header
 {
