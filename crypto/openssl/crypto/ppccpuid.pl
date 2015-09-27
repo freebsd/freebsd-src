@@ -23,6 +23,7 @@ $code=<<___;
 .machine	"any"
 .text
 
+#if 0
 .globl	.OPENSSL_ppc64_probe
 .align	4
 .OPENSSL_ppc64_probe:
@@ -31,14 +32,7 @@ $code=<<___;
 	blr
 	.long	0
 	.byte	0,12,0x14,0,0,0,0,0
-
-.globl	.OPENSSL_altivec_probe
-.align	4
-.OPENSSL_altivec_probe:
-	.long	0x10000484	# vor	v0,v0,v0
-	blr
-	.long	0
-	.byte	0,12,0x14,0,0,0,0,0
+#endif
 
 .globl	.OPENSSL_wipe_cpu
 .align	4
@@ -80,47 +74,6 @@ Ladd:	lwarx	r5,0,r3
 	stwcx.	r0,0,r3
 	bne-	Ladd
 	$SIGNX	r3,r0
-	blr
-	.long	0
-	.byte	0,12,0x14,0,0,0,2,0
-	.long	0
-
-.globl	.OPENSSL_rdtsc
-.align	4
-.OPENSSL_rdtsc:
-	mftb	r3
-	mftbu	r4
-	blr
-	.long	0
-	.byte	0,12,0x14,0,0,0,0,0
-
-.globl	.OPENSSL_cleanse
-.align	4
-.OPENSSL_cleanse:
-	$CMPLI	r4,7
-	li	r0,0
-	bge	Lot
-	$CMPLI	r4,0
-	beqlr-
-Little:	mtctr	r4
-	stb	r0,0(r3)
-	addi	r3,r3,1
-	bdnz	\$-8
-	blr
-Lot:	andi.	r5,r3,3
-	beq	Laligned
-	stb	r0,0(r3)
-	subi	r4,r4,1
-	addi	r3,r3,1
-	b	Lot
-Laligned:
-	$SHRLI	r5,r4,2
-	mtctr	r5
-	stw	r0,0(r3)
-	addi	r3,r3,4
-	bdnz	\$-8
-	andi.	r4,r4,3
-	bne	Little
 	blr
 	.long	0
 	.byte	0,12,0x14,0,0,0,2,0

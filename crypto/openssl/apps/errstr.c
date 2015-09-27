@@ -1,4 +1,4 @@
-/* apps/errstr.c */
+/* $OpenBSD: errstr.c,v 1.2 2015/04/13 15:02:23 jsing Exp $ */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
@@ -56,66 +56,88 @@
  * [including the GNU Public Licence.]
  */
 
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
 #include "apps.h"
+
 #include <openssl/bio.h>
-#include <openssl/lhash.h>
 #include <openssl/err.h>
+#include <openssl/lhash.h>
 #include <openssl/ssl.h>
 
-#undef PROG
-#define PROG    errstr_main
+struct {
+	int stats;
+} errstr_config;
 
-int MAIN(int, char **);
+struct option errstr_options[] = {
+	{
+		.name = "stats",
+		.desc = "Print debugging statistics for the hash table",
+		.type = OPTION_FLAG,
+		.opt.flag = &errstr_config.stats,
+	},
+	{ NULL },
+};
 
-int MAIN(int argc, char **argv)
+static void
+errstr_usage()
 {
-    int i, ret = 0;
-    char buf[256];
-    unsigned long l;
+	fprintf(stderr, "usage: errstr [-stats] errno ...\n");
+	options_usage(errstr_options);
+}
 
-    apps_startup();
+int errstr_main(int, char **);
 
-    if (bio_err == NULL)
-        if ((bio_err = BIO_new(BIO_s_file())) != NULL)
-            BIO_set_fp(bio_err, stderr, BIO_NOCLOSE | BIO_FP_TEXT);
+int
+errstr_main(int argc, char **argv)
+{
+	unsigned long ulval;
+	char *ularg, *ep;
+	int argsused, i;
+	char buf[256];
+	int ret = 0;
 
-    SSL_load_error_strings();
+	memset(&errstr_config, 0, sizeof(errstr_config));
 
-    if ((argc > 1) && (strcmp(argv[1], "-stats") == 0)) {
-        BIO *out = NULL;
+	if (options_parse(argc, argv, errstr_options, NULL, &argsused) != 0) {
+		errstr_usage();
+		return (1);
+	}
 
-        out = BIO_new(BIO_s_file());
-        if ((out != NULL) && BIO_set_fp(out, stdout, BIO_NOCLOSE)) {
-#ifdef OPENSSL_SYS_VMS
-            {
-                BIO *tmpbio = BIO_new(BIO_f_linebuffer());
-                out = BIO_push(tmpbio, out);
-            }
-#endif
-            lh_ERR_STRING_DATA_node_stats_bio(ERR_get_string_table(), out);
-            lh_ERR_STRING_DATA_stats_bio(ERR_get_string_table(), out);
-            lh_ERR_STRING_DATA_node_usage_stats_bio(ERR_get_string_table(),
-                                                    out);
-        }
-        if (out != NULL)
-            BIO_free_all(out);
-        argc--;
-        argv++;
-    }
+	if (errstr_config.stats) {
+		BIO *out;
 
-    for (i = 1; i < argc; i++) {
-        if (sscanf(argv[i], "%lx", &l)) {
-            ERR_error_string_n(l, buf, sizeof buf);
-            printf("%s\n", buf);
-        } else {
-            printf("%s: bad error code\n", argv[i]);
-            printf("usage: errstr [-stats] <errno> ...\n");
-            ret++;
-        }
-    }
-    apps_shutdown();
-    OPENSSL_EXIT(ret);
+		if ((out = BIO_new_fp(stdout, BIO_NOCLOSE)) == NULL) {
+			fprintf(stderr, "Out of memory");
+			return (1);
+		}
+
+		lh_ERR_STRING_DATA_node_stats_bio(ERR_get_string_table(), out);
+		lh_ERR_STRING_DATA_stats_bio(ERR_get_string_table(), out);
+		lh_ERR_STRING_DATA_node_usage_stats_bio(
+			    ERR_get_string_table(), out);
+
+		BIO_free_all(out);
+	}
+
+	for (i = argsused; i < argc; i++) {
+		errno = 0;
+		ularg = argv[i];
+		ulval = strtoul(ularg, &ep, 16);
+		if (strchr(ularg, '-') != NULL ||
+		    (ularg[0] == '\0' || *ep != '\0') ||
+		    (errno == ERANGE && ulval == ULONG_MAX)) {
+			printf("%s: bad error code\n", ularg);
+			ret++;
+			continue;
+		}
+
+		ERR_error_string_n(ulval, buf, sizeof(buf));
+		printf("%s\n", buf);
+	}
+
+	return (ret);
 }

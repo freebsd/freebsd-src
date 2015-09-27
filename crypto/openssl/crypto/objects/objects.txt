@@ -1290,3 +1290,41 @@ kisa 1 6                : SEED-OFB      : seed-ofb
 			: AES-128-CBC-HMAC-SHA1		: aes-128-cbc-hmac-sha1
 			: AES-192-CBC-HMAC-SHA1		: aes-192-cbc-hmac-sha1
 			: AES-256-CBC-HMAC-SHA1		: aes-256-cbc-hmac-sha1
+
+identified-organization 36		: teletrust
+teletrust 3 3 2 8 1 : brainpool
+brainpool 1 1 : brainpoolP160r1
+brainpool 1 2 : brainpoolP160t1
+brainpool 1 3 : brainpoolP192r1
+brainpool 1 4 : brainpoolP192t1
+brainpool 1 5 : brainpoolP224r1
+brainpool 1 6 : brainpoolP224t1
+brainpool 1 7 : brainpoolP256r1
+brainpool 1 8 : brainpoolP256t1
+brainpool 1 9 : brainpoolP320r1
+brainpool 1 10 : brainpoolP320t1
+brainpool 1 11 : brainpoolP384r1
+brainpool 1 12 : brainpoolP384t1
+brainpool 1 13 : brainpoolP512r1
+brainpool 1 14 : brainpoolP512t1
+
+1 2 250 1 223 101 256 1 : FRP256v1
+
+# ChaCha Stream Cipher
+!Cname chacha20
+			: ChaCha		: chacha
+			: gost89-ecb
+			: gost89-cbc
+
+member-body 643 7 1	: tc26
+!Cname id-tc26-gost3411-2012-256
+tc26 1 2 2		: streebog256 : GOST R 34.11-2012 (256 bit)
+!Cname id-tc26-gost3411-2012-512
+tc26 1 2 3		: streebog512 : GOST R 34-11-2012 (512 bit)
+tc26 2 1 2 1		: id-tc26-gost-3410-2012-512-paramSetA
+tc26 2 1 2 2		: id-tc26-gost-3410-2012-512-paramSetB
+tc26 2 5 1 1		: id-tc26-gost-28147-param-Z
+tc26 1 1 1		: id-tc26-gost3410-2012-256 : GOST R 34.10-2012 (256 bit)
+tc26 1 1 2		: id-tc26-gost3410-2012-512 : GOST R 34.10-2012 (512 bit)
+tc26 1 3 2		: id-tc26-signwithdigest-gost3410-2012-256 : GOST R 34.11-2012 with GOST R 34.10-2012 (256 bit)
+tc26 1 3 3		: id-tc26-signwithdigest-gost3410-2012-512 : GOST R 34.11-2012 with GOST R 34.10-2012 (512 bit)

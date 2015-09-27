@@ -2,7 +2,7 @@
 
 =head1 NAME
 
-ecdsa - Elliptic Curve Digital Signature Algorithm
+ECDSA_SIG_new, ECDSA_SIG_free, i2d_ECDSA_SIG, d2i_ECDSA_SIG, ECDSA_size, ECDSA_sign_setup, ECDSA_sign, ECDSA_sign_ex, ECDSA_verify, ECDSA_do_sign, ECDSA_do_sign_ex, ECDSA_do_verify - Elliptic Curve Digital Signature Algorithm
 
 =head1 SYNOPSIS
 
@@ -11,12 +11,12 @@ ecdsa - Elliptic Curve Digital Signature Algorithm
  ECDSA_SIG*	ECDSA_SIG_new(void);
  void		ECDSA_SIG_free(ECDSA_SIG *sig);
  int		i2d_ECDSA_SIG(const ECDSA_SIG *sig, unsigned char **pp);
- ECDSA_SIG*	d2i_ECDSA_SIG(ECDSA_SIG **sig, const unsigned char **pp, 
+ ECDSA_SIG*	d2i_ECDSA_SIG(ECDSA_SIG **sig, const unsigned char **pp,
 		long len);
 
  ECDSA_SIG*	ECDSA_do_sign(const unsigned char *dgst, int dgst_len,
 			EC_KEY *eckey);
- ECDSA_SIG*	ECDSA_do_sign_ex(const unsigned char *dgst, int dgstlen, 
+ ECDSA_SIG*	ECDSA_do_sign_ex(const unsigned char *dgst, int dgstlen,
 			const BIGNUM *kinv, const BIGNUM *rp,
 			EC_KEY *eckey);
  int		ECDSA_do_verify(const unsigned char *dgst, int dgst_len,
@@ -28,7 +28,7 @@ ecdsa - Elliptic Curve Digital Signature Algorithm
 			unsigned int *siglen, EC_KEY *eckey);
  int		ECDSA_sign_ex(int type, const unsigned char *dgst,
 			int dgstlen, unsigned char *sig,
-			unsigned int *siglen, const BIGNUM *kinv, 
+			unsigned int *siglen, const BIGNUM *kinv,
 			const BIGNUM *rp, EC_KEY *eckey);
  int		ECDSA_verify(int type, const unsigned char *dgst,
 			int dgstlen, const unsigned char *sig,
@@ -65,7 +65,7 @@ ECDSA_SIG_free() frees the B<ECDSA_SIG> structure B<sig>.
 
 i2d_ECDSA_SIG() creates the DER encoding of the ECDSA signature
 B<sig> and writes the encoded signature to B<*pp> (note: if B<pp>
-is NULL B<i2d_ECDSA_SIG> returns the expected length in bytes of 
+is NULL B<i2d_ECDSA_SIG> returns the expected length in bytes of
 the DER encoded signature). B<i2d_ECDSA_SIG> returns the length
 of the DER encoded signature (or 0 on error).
 
@@ -129,39 +129,37 @@ named curve secp192k1.
 First step: create a EC_KEY object (note: this part is B<not> ECDSA
 specific)
 
- int        ret;
+ int ret;
  ECDSA_SIG *sig;
- EC_KEY    *eckey;
- eckey = EC_KEY_new_by_curve_name(NID_secp192k1);
- if (eckey == NULL)
-	{
-	/* error */
-	}
- if (!EC_KEY_generate_key(eckey))
-	{
-	/* error */
-	}
+ EC_KEY *eckey;
 
-Second step: compute the ECDSA signature of a SHA-1 hash value 
-using B<ECDSA_do_sign> 
+ eckey = EC_KEY_new_by_curve_name(NID_secp192k1);
+ if (eckey == NULL) {
+	/* error */
+ }
+ if (!EC_KEY_generate_key(eckey)) {
+	/* error */
+ }
+
+Second step: compute the ECDSA signature of a SHA-1 hash value
+using B<ECDSA_do_sign>
 
  sig = ECDSA_do_sign(digest, 20, eckey);
- if (sig == NULL)
-	{
+ if (sig == NULL) {
 	/* error */
-	}
+ }
 
 or using B<ECDSA_sign>
 
  unsigned char *buffer, *pp;
- int            buf_len;
+ int buf_len;
+
  buf_len = ECDSA_size(eckey);
- buffer  = OPENSSL_malloc(buf_len);
+ buffer  = malloc(buf_len);
  pp = buffer;
- if (!ECDSA_sign(0, dgst, dgstlen, pp, &buf_len, eckey);
-	{
+ if (!ECDSA_sign(0, dgst, dgstlen, pp, &buf_len, eckey) {
 	/* error */
-	}
+ }
 
 Third step: verify the created ECDSA signature using B<ECDSA_do_verify>
 
@@ -173,18 +171,14 @@ or using B<ECDSA_verify>
 
 and finally evaluate the return value:
 
- if (ret == -1)
-	{
+ if (ret == -1) {
 	/* error */
-	}
- else if (ret == 0)
-	{
+ } else if (ret == 0) {
 	/* incorrect signature */
-	}
- else	/* ret == 1 */
-	{
+ } else	{
+	/* ret == 1 */
 	/* signature ok */
-	}
+ }
 
 =head1 CONFORMING TO
 

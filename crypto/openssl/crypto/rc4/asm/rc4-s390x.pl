@@ -171,10 +171,10 @@ $ikey="%r7";
 $iinp="%r8";
 
 $code.=<<___;
-.globl	private_RC4_set_key
-.type	private_RC4_set_key,\@function
+.globl	RC4_set_key
+.type	RC4_set_key,\@function
 .align	64
-private_RC4_set_key:
+RC4_set_key:
 	stm${g}	%r6,%r8,6*$SIZE_T($sp)
 	lhi	$cnt,256
 	la	$idx,0(%r0)
@@ -210,7 +210,7 @@ private_RC4_set_key:
 .Ldone:
 	lm${g}	%r6,%r8,6*$SIZE_T($sp)
 	br	$rp
-.size	private_RC4_set_key,.-private_RC4_set_key
+.size	RC4_set_key,.-RC4_set_key
 
 ___
 }

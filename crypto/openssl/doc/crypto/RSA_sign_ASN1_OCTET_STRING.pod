@@ -26,8 +26,6 @@ memory.
 
 B<dummy> is ignored.
 
-The random number generator must be seeded prior to calling RSA_sign_ASN1_OCTET_STRING().
-
 RSA_verify_ASN1_OCTET_STRING() verifies that the signature B<sigbuf>
 of size B<siglen> is the DER representation of a given octet string
 B<m> of size B<m_len>. B<dummy> is ignored. B<rsa> is the signer's

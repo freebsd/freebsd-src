@@ -31,7 +31,7 @@ same B<ctx> to include additional data.
 
 EVP_SignFinal() signs the data in B<ctx> using the private key B<pkey> and
 places the signature in B<sig>. B<sig> must be at least EVP_PKEY_size(pkey)
-bytes in size. B<s> is an OUT paramter, and not used as an IN parameter.
+bytes in size. B<s> is an OUT parameter, and not used as an IN parameter.
 The number of bytes of data written (i.e. the length of the signature)
 will be written to the integer at B<s>, at most EVP_PKEY_size(pkey) bytes
 will be written.
@@ -59,12 +59,8 @@ transparent to the algorithm used and much more flexible.
 
 Due to the link between message digests and public key algorithms the correct
 digest algorithm must be used with the correct public key type. A list of
-algorithms and associated public key algorithms appears in 
+algorithms and associated public key algorithms appears in
 L<EVP_DigestInit(3)|EVP_DigestInit(3)>.
-
-When signing with DSA private keys the random number generator must be seeded
-or the operation will fail. The random number generator does not need to be
-seeded for RSA signatures.
 
 The call to EVP_SignFinal() internally finalizes a copy of the digest context.
 This means that calls to EVP_SignUpdate() and EVP_SignFinal() can be called
@@ -76,7 +72,7 @@ will occur.
 
 =head1 BUGS
 
-Older versions of this documentation wrongly stated that calls to 
+Older versions of this documentation wrongly stated that calls to
 EVP_SignUpdate() could not be made after calling EVP_SignFinal().
 
 Since the private key is passed in the call to EVP_SignFinal() any error
@@ -93,7 +89,7 @@ The previous two bugs are fixed in the newer EVP_SignDigest*() function.
 L<EVP_VerifyInit(3)|EVP_VerifyInit(3)>,
 L<EVP_DigestInit(3)|EVP_DigestInit(3)>, L<err(3)|err(3)>,
 L<evp(3)|evp(3)>, L<hmac(3)|hmac(3)>, L<md2(3)|md2(3)>,
-L<md5(3)|md5(3)>, L<mdc2(3)|mdc2(3)>, L<ripemd(3)|ripemd(3)>,
+L<md5(3)|md5(3)>, L<ripemd(3)|ripemd(3)>,
 L<sha(3)|sha(3)>, L<dgst(1)|dgst(1)>
 
 =head1 HISTORY

@@ -1,6 +1,5 @@
-/* crypto/cms/cms_asn1.c */
-/*
- * Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL
+/* $OpenBSD: cms_asn1.c,v 1.5 2014/07/12 16:03:37 miod Exp $ */
+/* Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL
  * project.
  */
 /* ====================================================================
@@ -58,324 +57,1449 @@
 #include "cms.h"
 #include "cms_lcl.h"
 
+static const ASN1_TEMPLATE CMS_IssuerAndSerialNumber_seq_tt[] = {
+	{
+		.flags = 0,
+		.tag = 0,
+		.offset = offsetof(CMS_IssuerAndSerialNumber, issuer),
+		.field_name = "issuer",
+		.item = &X509_NAME_it,
+	},
+	{
+		.flags = 0,
+		.tag = 0,
+		.offset = offsetof(CMS_IssuerAndSerialNumber, serialNumber),
+		.field_name = "serialNumber",
+		.item = &ASN1_INTEGER_it,
+	},
+};
 
-ASN1_SEQUENCE(CMS_IssuerAndSerialNumber) = {
-        ASN1_SIMPLE(CMS_IssuerAndSerialNumber, issuer, X509_NAME),
-        ASN1_SIMPLE(CMS_IssuerAndSerialNumber, serialNumber, ASN1_INTEGER)
-} ASN1_SEQUENCE_END(CMS_IssuerAndSerialNumber)
+const ASN1_ITEM CMS_IssuerAndSerialNumber_it = {
+	.itype = ASN1_ITYPE_SEQUENCE,
+	.utype = V_ASN1_SEQUENCE,
+	.templates = CMS_IssuerAndSerialNumber_seq_tt,
+	.tcount = sizeof(CMS_IssuerAndSerialNumber_seq_tt) / sizeof(ASN1_TEMPLATE),
+	.funcs = NULL,
+	.size = sizeof(CMS_IssuerAndSerialNumber),
+	.sname = "CMS_IssuerAndSerialNumber",
+};
 
-ASN1_SEQUENCE(CMS_OtherCertificateFormat) = {
-        ASN1_SIMPLE(CMS_OtherCertificateFormat, otherCertFormat, ASN1_OBJECT),
-        ASN1_OPT(CMS_OtherCertificateFormat, otherCert, ASN1_ANY)
-} ASN1_SEQUENCE_END(CMS_OtherCertificateFormat)
+static const ASN1_TEMPLATE CMS_OtherCertificateFormat_seq_tt[] = {
+	{
+		.flags = 0,
+		.tag = 0,
+		.offset = offsetof(CMS_OtherCertificateFormat, otherCertFormat),
+		.field_name = "otherCertFormat",
+		.item = &ASN1_OBJECT_it,
+	},
+	{
+		.flags = ASN1_TFLG_OPTIONAL,
+		.tag = 0,
+		.offset = offsetof(CMS_OtherCertificateFormat, otherCert),
+		.field_name = "otherCert",
+		.item = &ASN1_ANY_it,
+	},
+};
 
-ASN1_CHOICE(CMS_CertificateChoices) = {
-        ASN1_SIMPLE(CMS_CertificateChoices, d.certificate, X509),
-        ASN1_IMP(CMS_CertificateChoices, d.extendedCertificate, ASN1_SEQUENCE, 0),
-        ASN1_IMP(CMS_CertificateChoices, d.v1AttrCert, ASN1_SEQUENCE, 1),
-        ASN1_IMP(CMS_CertificateChoices, d.v2AttrCert, ASN1_SEQUENCE, 2),
-        ASN1_IMP(CMS_CertificateChoices, d.other, CMS_OtherCertificateFormat, 3)
-} ASN1_CHOICE_END(CMS_CertificateChoices)
+const ASN1_ITEM CMS_OtherCertificateFormat_it = {
+	.itype = ASN1_ITYPE_SEQUENCE,
+	.utype = V_ASN1_SEQUENCE,
+	.templates = CMS_OtherCertificateFormat_seq_tt,
+	.tcount = sizeof(CMS_OtherCertificateFormat_seq_tt) / sizeof(ASN1_TEMPLATE),
+	.funcs = NULL,
+	.size = sizeof(CMS_OtherCertificateFormat),
+	.sname = "CMS_OtherCertificateFormat",
+};
 
-ASN1_CHOICE(CMS_SignerIdentifier) = {
-        ASN1_SIMPLE(CMS_SignerIdentifier, d.issuerAndSerialNumber, CMS_IssuerAndSerialNumber),
-        ASN1_IMP(CMS_SignerIdentifier, d.subjectKeyIdentifier, ASN1_OCTET_STRING, 0)
-} ASN1_CHOICE_END(CMS_SignerIdentifier)
+static const ASN1_TEMPLATE CMS_CertificateChoices_ch_tt[] = {
+	{
+		.flags = 0,
+		.tag = 0,
+		.offset = offsetof(CMS_CertificateChoices, d.certificate),
+		.field_name = "d.certificate",
+		.item = &X509_it,
+	},
+	{
+		.flags = ASN1_TFLG_IMPLICIT,
+		.tag = 0,
+		.offset = offsetof(CMS_CertificateChoices, d.extendedCertificate),
+		.field_name = "d.extendedCertificate",
+		.item = &ASN1_SEQUENCE_it,
+	},
+	{
+		.flags = ASN1_TFLG_IMPLICIT,
+		.tag = 1,
+		.offset = offsetof(CMS_CertificateChoices, d.v1AttrCert),
+		.field_name = "d.v1AttrCert",
+		.item = &ASN1_SEQUENCE_it,
+	},
+	{
+		.flags = ASN1_TFLG_IMPLICIT,
+		.tag = 2,
+		.offset = offsetof(CMS_CertificateChoices, d.v2AttrCert),
+		.field_name = "d.v2AttrCert",
+		.item = &ASN1_SEQUENCE_it,
+	},
+	{
+		.flags = ASN1_TFLG_IMPLICIT,
+		.tag = 3,
+		.offset = offsetof(CMS_CertificateChoices, d.other),
+		.field_name = "d.other",
+		.item = &CMS_OtherCertificateFormat_it,
+	},
+};
 
-ASN1_NDEF_SEQUENCE(CMS_EncapsulatedContentInfo) = {
-        ASN1_SIMPLE(CMS_EncapsulatedContentInfo, eContentType, ASN1_OBJECT),
-        ASN1_NDEF_EXP_OPT(CMS_EncapsulatedContentInfo, eContent, ASN1_OCTET_STRING_NDEF, 0)
-} ASN1_NDEF_SEQUENCE_END(CMS_EncapsulatedContentInfo)
+const ASN1_ITEM CMS_CertificateChoices_it = {
+	.itype = ASN1_ITYPE_CHOICE,
+	.utype = offsetof(CMS_CertificateChoices, type),
+	.templates = CMS_CertificateChoices_ch_tt,
+	.tcount = sizeof(CMS_CertificateChoices_ch_tt) / sizeof(ASN1_TEMPLATE),
+	.funcs = NULL,
+	.size = sizeof(CMS_CertificateChoices),
+	.sname = "CMS_CertificateChoices",
+};
+
+static const ASN1_TEMPLATE CMS_SignerIdentifier_ch_tt[] = {
+	{
+		.flags = 0,
+		.tag = 0,
+		.offset = offsetof(CMS_SignerIdentifier, d.issuerAndSerialNumber),
+		.field_name = "d.issuerAndSerialNumber",
+		.item = &CMS_IssuerAndSerialNumber_it,
+	},
+	{
+		.flags = ASN1_TFLG_IMPLICIT,
+		.tag = 0,
+		.offset = offsetof(CMS_SignerIdentifier, d.subjectKeyIdentifier),
+		.field_name = "d.subjectKeyIdentifier",
+		.item = &ASN1_OCTET_STRING_it,
+	},
+};
+
+const ASN1_ITEM CMS_SignerIdentifier_it = {
+	.itype = ASN1_ITYPE_CHOICE,
+	.utype = offsetof(CMS_SignerIdentifier, type),
+	.templates = CMS_SignerIdentifier_ch_tt,
+	.tcount = sizeof(CMS_SignerIdentifier_ch_tt) / sizeof(ASN1_TEMPLATE),
+	.funcs = NULL,
+	.size = sizeof(CMS_SignerIdentifier),
+	.sname = "CMS_SignerIdentifier",
+};
+
+static const ASN1_TEMPLATE CMS_EncapsulatedContentInfo_seq_tt[] = {
+	{
+		.flags = 0,
+		.tag = 0,
+		.offset = offsetof(CMS_EncapsulatedContentInfo, eContentType),
+		.field_name = "eContentType",
+		.item = &ASN1_OBJECT_it,
+	},
+	{
+		.flags = ASN1_TFLG_EXPLICIT | ASN1_TFLG_OPTIONAL | ASN1_TFLG_NDEF,
+		.tag = 0,
+		.offset = offsetof(CMS_EncapsulatedContentInfo, eContent),
+		.field_name = "eContent",
+		.item = &ASN1_OCTET_STRING_NDEF_it,
+	},
+};
+
+const ASN1_ITEM CMS_EncapsulatedContentInfo_it = {
+	.itype = ASN1_ITYPE_NDEF_SEQUENCE,
+	.utype = V_ASN1_SEQUENCE,
+	.templates = CMS_EncapsulatedContentInfo_seq_tt,
+	.tcount = sizeof(CMS_EncapsulatedContentInfo_seq_tt) / sizeof(ASN1_TEMPLATE),
+	.funcs = NULL,
+	.size = sizeof(CMS_EncapsulatedContentInfo),
+	.sname = "CMS_EncapsulatedContentInfo",
+};
 
 /* Minor tweak to operation: free up signer key, cert */
-static int cms_si_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it,
-                     void *exarg)
+static int
+cms_si_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it, void *exarg)
 {
-    if (operation == ASN1_OP_FREE_POST) {
-        CMS_SignerInfo *si = (CMS_SignerInfo *)*pval;
-        if (si->pkey)
-            EVP_PKEY_free(si->pkey);
-        if (si->signer)
-            X509_free(si->signer);
-    }
-    return 1;
+	if (operation == ASN1_OP_FREE_POST) {
+		CMS_SignerInfo *si = (CMS_SignerInfo *)*pval;
+		EVP_PKEY_free(si->pkey);
+		if (si->signer)
+			X509_free(si->signer);
+	}
+	return 1;
 }
 
-ASN1_SEQUENCE_cb(CMS_SignerInfo, cms_si_cb) = {
-        ASN1_SIMPLE(CMS_SignerInfo, version, LONG),
-        ASN1_SIMPLE(CMS_SignerInfo, sid, CMS_SignerIdentifier),
-        ASN1_SIMPLE(CMS_SignerInfo, digestAlgorithm, X509_ALGOR),
-        ASN1_IMP_SET_OF_OPT(CMS_SignerInfo, signedAttrs, X509_ATTRIBUTE, 0),
-        ASN1_SIMPLE(CMS_SignerInfo, signatureAlgorithm, X509_ALGOR),
-        ASN1_SIMPLE(CMS_SignerInfo, signature, ASN1_OCTET_STRING),
-        ASN1_IMP_SET_OF_OPT(CMS_SignerInfo, unsignedAttrs, X509_ATTRIBUTE, 1)
-} ASN1_SEQUENCE_END_cb(CMS_SignerInfo, CMS_SignerInfo)
+static const ASN1_AUX CMS_SignerInfo_aux = {
+	.app_data = NULL,
+	.flags = 0,
+	.ref_offset = 0,
+	.ref_lock = 0,
+	.asn1_cb = cms_si_cb,
+	.enc_offset = 0,
+};
+static const ASN1_TEMPLATE CMS_SignerInfo_seq_tt[] = {
+	{
+		.flags = 0,
+		.tag = 0,
+		.offset = offsetof(CMS_SignerInfo, version),
+		.field_name = "version",
+		.item = &LONG_it,
+	},
+	{
+		.flags = 0,
+		.tag = 0,
+		.offset = offsetof(CMS_SignerInfo, sid),
+		.field_name = "sid",
+		.item = &CMS_SignerIdentifier_it,
+	},
+	{
+		.flags = 0,
+		.tag = 0,
+		.offset = offsetof(CMS_SignerInfo, digestAlgorithm),
+		.field_name = "digestAlgorithm",
+		.item = &X509_ALGOR_it,
+	},
+	{
+		.flags = ASN1_TFLG_IMPLICIT | ASN1_TFLG_SET_OF | ASN1_TFLG_OPTIONAL,
+		.tag = 0,
+		.offset = offsetof(CMS_SignerInfo, signedAttrs),
+		.field_name = "signedAttrs",
+		.item = &X509_ATTRIBUTE_it,
+	},
+	{
+		.flags = 0,
+		.tag = 0,
+		.offset = offsetof(CMS_SignerInfo, signatureAlgorithm),
+		.field_name = "signatureAlgorithm",
+		.item = &X509_ALGOR_it,
+	},
+	{
+		.flags = 0,
+		.tag = 0,
+		.offset = offsetof(CMS_SignerInfo, signature),
+		.field_name = "signature",
+		.item = &ASN1_OCTET_STRING_it,
+	},
+	{
+		.flags = ASN1_TFLG_IMPLICIT | ASN1_TFLG_SET_OF | ASN1_TFLG_OPTIONAL,
+		.tag = 1,
+		.offset = offsetof(CMS_SignerInfo, unsignedAttrs),
+		.field_name = "unsignedAttrs",
+		.item = &X509_ATTRIBUTE_it,
+	},
+};
 
-ASN1_SEQUENCE(CMS_OtherRevocationInfoFormat) = {
-        ASN1_SIMPLE(CMS_OtherRevocationInfoFormat, otherRevInfoFormat, ASN1_OBJECT),
-        ASN1_OPT(CMS_OtherRevocationInfoFormat, otherRevInfo, ASN1_ANY)
-} ASN1_SEQUENCE_END(CMS_OtherRevocationInfoFormat)
+const ASN1_ITEM CMS_SignerInfo_it = {
+	.itype = ASN1_ITYPE_SEQUENCE,
+	.utype = V_ASN1_SEQUENCE,
+	.templates = CMS_SignerInfo_seq_tt,
+	.tcount = sizeof(CMS_SignerInfo_seq_tt) / sizeof(ASN1_TEMPLATE),
+	.funcs = &CMS_SignerInfo_aux,
+	.size = sizeof(CMS_SignerInfo),
+	.sname = "CMS_SignerInfo",
+};
 
-ASN1_CHOICE(CMS_RevocationInfoChoice) = {
-        ASN1_SIMPLE(CMS_RevocationInfoChoice, d.crl, X509_CRL),
-        ASN1_IMP(CMS_RevocationInfoChoice, d.other, CMS_OtherRevocationInfoFormat, 1)
-} ASN1_CHOICE_END(CMS_RevocationInfoChoice)
+static const ASN1_TEMPLATE CMS_OtherRevocationInfoFormat_seq_tt[] = {
+	{
+		.flags = 0,
+		.tag = 0,
+		.offset = offsetof(CMS_OtherRevocationInfoFormat, otherRevInfoFormat),
+		.field_name = "otherRevInfoFormat",
+		.item = &ASN1_OBJECT_it,
+	},
+	{
+		.flags = ASN1_TFLG_OPTIONAL,
+		.tag = 0,
+		.offset = offsetof(CMS_OtherRevocationInfoFormat, otherRevInfo),
+		.field_name = "otherRevInfo",
+		.item = &ASN1_ANY_it,
+	},
+};
 
-ASN1_NDEF_SEQUENCE(CMS_SignedData) = {
-        ASN1_SIMPLE(CMS_SignedData, version, LONG),
-        ASN1_SET_OF(CMS_SignedData, digestAlgorithms, X509_ALGOR),
-        ASN1_SIMPLE(CMS_SignedData, encapContentInfo, CMS_EncapsulatedContentInfo),
-        ASN1_IMP_SET_OF_OPT(CMS_SignedData, certificates, CMS_CertificateChoices, 0),
-        ASN1_IMP_SET_OF_OPT(CMS_SignedData, crls, CMS_RevocationInfoChoice, 1),
-        ASN1_SET_OF(CMS_SignedData, signerInfos, CMS_SignerInfo)
-} ASN1_NDEF_SEQUENCE_END(CMS_SignedData)
+const ASN1_ITEM CMS_OtherRevocationInfoFormat_it = {
+	.itype = ASN1_ITYPE_SEQUENCE,
+	.utype = V_ASN1_SEQUENCE,
+	.templates = CMS_OtherRevocationInfoFormat_seq_tt,
+	.tcount = sizeof(CMS_OtherRevocationInfoFormat_seq_tt) / sizeof(ASN1_TEMPLATE),
+	.funcs = NULL,
+	.size = sizeof(CMS_OtherRevocationInfoFormat),
+	.sname = "CMS_OtherRevocationInfoFormat",
+};
 
-ASN1_SEQUENCE(CMS_OriginatorInfo) = {
-        ASN1_IMP_SET_OF_OPT(CMS_OriginatorInfo, certificates, CMS_CertificateChoices, 0),
-        ASN1_IMP_SET_OF_OPT(CMS_OriginatorInfo, crls, CMS_RevocationInfoChoice, 1)
-} ASN1_SEQUENCE_END(CMS_OriginatorInfo)
+static const ASN1_TEMPLATE CMS_RevocationInfoChoice_ch_tt[] = {
+	{
+		.flags = 0,
+		.tag = 0,
+		.offset = offsetof(CMS_RevocationInfoChoice, d.crl),
+		.field_name = "d.crl",
+		.item = &X509_CRL_it,
+	},
+	{
+		.flags = ASN1_TFLG_IMPLICIT,
+		.tag = 1,
+		.offset = offsetof(CMS_RevocationInfoChoice, d.other),
+		.field_name = "d.other",
+		.item = &CMS_OtherRevocationInfoFormat_it,
+	},
+};
 
-ASN1_NDEF_SEQUENCE(CMS_EncryptedContentInfo) = {
-        ASN1_SIMPLE(CMS_EncryptedContentInfo, contentType, ASN1_OBJECT),
-        ASN1_SIMPLE(CMS_EncryptedContentInfo, contentEncryptionAlgorithm, X509_ALGOR),
-        ASN1_IMP_OPT(CMS_EncryptedContentInfo, encryptedContent, ASN1_OCTET_STRING_NDEF, 0)
-} ASN1_NDEF_SEQUENCE_END(CMS_EncryptedContentInfo)
+const ASN1_ITEM CMS_RevocationInfoChoice_it = {
+	.itype = ASN1_ITYPE_CHOICE,
+	.utype = offsetof(CMS_RevocationInfoChoice, type),
+	.templates = CMS_RevocationInfoChoice_ch_tt,
+	.tcount = sizeof(CMS_RevocationInfoChoice_ch_tt) / sizeof(ASN1_TEMPLATE),
+	.funcs = NULL,
+	.size = sizeof(CMS_RevocationInfoChoice),
+	.sname = "CMS_RevocationInfoChoice",
+};
 
-ASN1_SEQUENCE(CMS_KeyTransRecipientInfo) = {
-        ASN1_SIMPLE(CMS_KeyTransRecipientInfo, version, LONG),
-        ASN1_SIMPLE(CMS_KeyTransRecipientInfo, rid, CMS_SignerIdentifier),
-        ASN1_SIMPLE(CMS_KeyTransRecipientInfo, keyEncryptionAlgorithm, X509_ALGOR),
-        ASN1_SIMPLE(CMS_KeyTransRecipientInfo, encryptedKey, ASN1_OCTET_STRING)
-} ASN1_SEQUENCE_END(CMS_KeyTransRecipientInfo)
+static const ASN1_TEMPLATE CMS_SignedData_seq_tt[] = {
+	{
+		.flags = 0,
+		.tag = 0,
+		.offset = offsetof(CMS_SignedData, version),
+		.field_name = "version",
+		.item = &LONG_it,
+	},
+	{
+		.flags = ASN1_TFLG_SET_OF,
+		.tag = 0,
+		.offset = offsetof(CMS_SignedData, digestAlgorithms),
+		.field_name = "digestAlgorithms",
+		.item = &X509_ALGOR_it,
+	},
+	{
+		.flags = 0,
+		.tag = 0,
+		.offset = offsetof(CMS_SignedData, encapContentInfo),
+		.field_name = "encapContentInfo",
+		.item = &CMS_EncapsulatedContentInfo_it,
+	},
+	{
+		.flags = ASN1_TFLG_IMPLICIT | ASN1_TFLG_SET_OF | ASN1_TFLG_OPTIONAL,
+		.tag = 0,
+		.offset = offsetof(CMS_SignedData, certificates),
+		.field_name = "certificates",
+		.item = &CMS_CertificateChoices_it,
+	},
+	{
+		.flags = ASN1_TFLG_IMPLICIT | ASN1_TFLG_SET_OF | ASN1_TFLG_OPTIONAL,
+		.tag = 1,
+		.offset = offsetof(CMS_SignedData, crls),
+		.field_name = "crls",
+		.item = &CMS_RevocationInfoChoice_it,
+	},
+	{
+		.flags = ASN1_TFLG_SET_OF,
+		.tag = 0,
+		.offset = offsetof(CMS_SignedData, signerInfos),
+		.field_name = "signerInfos",
+		.item = &CMS_SignerInfo_it,
+	},
+};
 
-ASN1_SEQUENCE(CMS_OtherKeyAttribute) = {
-        ASN1_SIMPLE(CMS_OtherKeyAttribute, keyAttrId, ASN1_OBJECT),
-        ASN1_OPT(CMS_OtherKeyAttribute, keyAttr, ASN1_ANY)
-} ASN1_SEQUENCE_END(CMS_OtherKeyAttribute)
+const ASN1_ITEM CMS_SignedData_it = {
+	.itype = ASN1_ITYPE_NDEF_SEQUENCE,
+	.utype = V_ASN1_SEQUENCE,
+	.templates = CMS_SignedData_seq_tt,
+	.tcount = sizeof(CMS_SignedData_seq_tt) / sizeof(ASN1_TEMPLATE),
+	.funcs = NULL,
+	.size = sizeof(CMS_SignedData),
+	.sname = "CMS_SignedData",
+};
 
-ASN1_SEQUENCE(CMS_RecipientKeyIdentifier) = {
-        ASN1_SIMPLE(CMS_RecipientKeyIdentifier, subjectKeyIdentifier, ASN1_OCTET_STRING),
-        ASN1_OPT(CMS_RecipientKeyIdentifier, date, ASN1_GENERALIZEDTIME),
-        ASN1_OPT(CMS_RecipientKeyIdentifier, other, CMS_OtherKeyAttribute)
-} ASN1_SEQUENCE_END(CMS_RecipientKeyIdentifier)
+static const ASN1_TEMPLATE CMS_OriginatorInfo_seq_tt[] = {
+	{
+		.flags = ASN1_TFLG_IMPLICIT | ASN1_TFLG_SET_OF | ASN1_TFLG_OPTIONAL,
+		.tag = 0,
+		.offset = offsetof(CMS_OriginatorInfo, certificates),
+		.field_name = "certificates",
+		.item = &CMS_CertificateChoices_it,
+	},
+	{
+		.flags = ASN1_TFLG_IMPLICIT | ASN1_TFLG_SET_OF | ASN1_TFLG_OPTIONAL,
+		.tag = 1,
+		.offset = offsetof(CMS_OriginatorInfo, crls),
+		.field_name = "crls",
+		.item = &CMS_RevocationInfoChoice_it,
+	},
+};
 
-ASN1_CHOICE(CMS_KeyAgreeRecipientIdentifier) = {
-  ASN1_SIMPLE(CMS_KeyAgreeRecipientIdentifier, d.issuerAndSerialNumber, CMS_IssuerAndSerialNumber),
-  ASN1_IMP(CMS_KeyAgreeRecipientIdentifier, d.rKeyId, CMS_RecipientKeyIdentifier, 0)
-} ASN1_CHOICE_END(CMS_KeyAgreeRecipientIdentifier)
+const ASN1_ITEM CMS_OriginatorInfo_it = {
+	.itype = ASN1_ITYPE_SEQUENCE,
+	.utype = V_ASN1_SEQUENCE,
+	.templates = CMS_OriginatorInfo_seq_tt,
+	.tcount = sizeof(CMS_OriginatorInfo_seq_tt) / sizeof(ASN1_TEMPLATE),
+	.funcs = NULL,
+	.size = sizeof(CMS_OriginatorInfo),
+	.sname = "CMS_OriginatorInfo",
+};
 
-ASN1_SEQUENCE(CMS_RecipientEncryptedKey) = {
-        ASN1_SIMPLE(CMS_RecipientEncryptedKey, rid, CMS_KeyAgreeRecipientIdentifier),
-        ASN1_SIMPLE(CMS_RecipientEncryptedKey, encryptedKey, ASN1_OCTET_STRING)
-} ASN1_SEQUENCE_END(CMS_RecipientEncryptedKey)
+static const ASN1_TEMPLATE CMS_EncryptedContentInfo_seq_tt[] = {
+	{
+		.flags = 0,
+		.tag = 0,
+		.offset = offsetof(CMS_EncryptedContentInfo, contentType),
+		.field_name = "contentType",
+		.item = &ASN1_OBJECT_it,
+	},
+	{
+		.flags = 0,
+		.tag = 0,
+		.offset = offsetof(CMS_EncryptedContentInfo, contentEncryptionAlgorithm),
+		.field_name = "contentEncryptionAlgorithm",
+		.item = &X509_ALGOR_it,
+	},
+	{
+		.flags = ASN1_TFLG_IMPLICIT | ASN1_TFLG_OPTIONAL,
+		.tag = 0,
+		.offset = offsetof(CMS_EncryptedContentInfo, encryptedContent),
+		.field_name = "encryptedContent",
+		.item = &ASN1_OCTET_STRING_NDEF_it,
+	},
+};
 
-ASN1_SEQUENCE(CMS_OriginatorPublicKey) = {
-  ASN1_SIMPLE(CMS_OriginatorPublicKey, algorithm, X509_ALGOR),
-  ASN1_SIMPLE(CMS_OriginatorPublicKey, publicKey, ASN1_BIT_STRING)
-} ASN1_SEQUENCE_END(CMS_OriginatorPublicKey)
+const ASN1_ITEM CMS_EncryptedContentInfo_it = {
+	.itype = ASN1_ITYPE_NDEF_SEQUENCE,
+	.utype = V_ASN1_SEQUENCE,
+	.templates = CMS_EncryptedContentInfo_seq_tt,
+	.tcount = sizeof(CMS_EncryptedContentInfo_seq_tt) / sizeof(ASN1_TEMPLATE),
+	.funcs = NULL,
+	.size = sizeof(CMS_EncryptedContentInfo),
+	.sname = "CMS_EncryptedContentInfo",
+};
 
-ASN1_CHOICE(CMS_OriginatorIdentifierOrKey) = {
-  ASN1_SIMPLE(CMS_OriginatorIdentifierOrKey, d.issuerAndSerialNumber, CMS_IssuerAndSerialNumber),
-  ASN1_IMP(CMS_OriginatorIdentifierOrKey, d.subjectKeyIdentifier, ASN1_OCTET_STRING, 0),
-  ASN1_IMP(CMS_OriginatorIdentifierOrKey, d.originatorKey, CMS_OriginatorPublicKey, 1)
-} ASN1_CHOICE_END(CMS_OriginatorIdentifierOrKey)
+static const ASN1_TEMPLATE CMS_KeyTransRecipientInfo_seq_tt[] = {
+	{
+		.flags = 0,
+		.tag = 0,
+		.offset = offsetof(CMS_KeyTransRecipientInfo, version),
+		.field_name = "version",
+		.item = &LONG_it,
+	},
+	{
+		.flags = 0,
+		.tag = 0,
+		.offset = offsetof(CMS_KeyTransRecipientInfo, rid),
+		.field_name = "rid",
+		.item = &CMS_SignerIdentifier_it,
+	},
+	{
+		.flags = 0,
+		.tag = 0,
+		.offset = offsetof(CMS_KeyTransRecipientInfo, keyEncryptionAlgorithm),
+		.field_name = "keyEncryptionAlgorithm",
+		.item = &X509_ALGOR_it,
+	},
+	{
+		.flags = 0,
+		.tag = 0,
+		.offset = offsetof(CMS_KeyTransRecipientInfo, encryptedKey),
+		.field_name = "encryptedKey",
+		.item = &ASN1_OCTET_STRING_it,
+	},
+};
 
-ASN1_SEQUENCE(CMS_KeyAgreeRecipientInfo) = {
-        ASN1_SIMPLE(CMS_KeyAgreeRecipientInfo, version, LONG),
-        ASN1_EXP(CMS_KeyAgreeRecipientInfo, originator, CMS_OriginatorIdentifierOrKey, 0),
-        ASN1_EXP_OPT(CMS_KeyAgreeRecipientInfo, ukm, ASN1_OCTET_STRING, 1),
-        ASN1_SIMPLE(CMS_KeyAgreeRecipientInfo, keyEncryptionAlgorithm, X509_ALGOR),
-        ASN1_SEQUENCE_OF(CMS_KeyAgreeRecipientInfo, recipientEncryptedKeys, CMS_RecipientEncryptedKey)
-} ASN1_SEQUENCE_END(CMS_KeyAgreeRecipientInfo)
+const ASN1_ITEM CMS_KeyTransRecipientInfo_it = {
+	.itype = ASN1_ITYPE_SEQUENCE,
+	.utype = V_ASN1_SEQUENCE,
+	.templates = CMS_KeyTransRecipientInfo_seq_tt,
+	.tcount = sizeof(CMS_KeyTransRecipientInfo_seq_tt) / sizeof(ASN1_TEMPLATE),
+	.funcs = NULL,
+	.size = sizeof(CMS_KeyTransRecipientInfo),
+	.sname = "CMS_KeyTransRecipientInfo",
+};
 
-ASN1_SEQUENCE(CMS_KEKIdentifier) = {
-        ASN1_SIMPLE(CMS_KEKIdentifier, keyIdentifier, ASN1_OCTET_STRING),
-        ASN1_OPT(CMS_KEKIdentifier, date, ASN1_GENERALIZEDTIME),
-        ASN1_OPT(CMS_KEKIdentifier, other, CMS_OtherKeyAttribute)
-} ASN1_SEQUENCE_END(CMS_KEKIdentifier)
+static const ASN1_TEMPLATE CMS_OtherKeyAttribute_seq_tt[] = {
+	{
+		.flags = 0,
+		.tag = 0,
+		.offset = offsetof(CMS_OtherKeyAttribute, keyAttrId),
+		.field_name = "keyAttrId",
+		.item = &ASN1_OBJECT_it,
+	},
+	{
+		.flags = ASN1_TFLG_OPTIONAL,
+		.tag = 0,
+		.offset = offsetof(CMS_OtherKeyAttribute, keyAttr),
+		.field_name = "keyAttr",
+		.item = &ASN1_ANY_it,
+	},
+};
 
-ASN1_SEQUENCE(CMS_KEKRecipientInfo) = {
-        ASN1_SIMPLE(CMS_KEKRecipientInfo, version, LONG),
-        ASN1_SIMPLE(CMS_KEKRecipientInfo, kekid, CMS_KEKIdentifier),
-        ASN1_SIMPLE(CMS_KEKRecipientInfo, keyEncryptionAlgorithm, X509_ALGOR),
-        ASN1_SIMPLE(CMS_KEKRecipientInfo, encryptedKey, ASN1_OCTET_STRING)
-} ASN1_SEQUENCE_END(CMS_KEKRecipientInfo)
+const ASN1_ITEM CMS_OtherKeyAttribute_it = {
+	.itype = ASN1_ITYPE_SEQUENCE,
+	.utype = V_ASN1_SEQUENCE,
+	.templates = CMS_OtherKeyAttribute_seq_tt,
+	.tcount = sizeof(CMS_OtherKeyAttribute_seq_tt) / sizeof(ASN1_TEMPLATE),
+	.funcs = NULL,
+	.size = sizeof(CMS_OtherKeyAttribute),
+	.sname = "CMS_OtherKeyAttribute",
+};
 
-ASN1_SEQUENCE(CMS_PasswordRecipientInfo) = {
-        ASN1_SIMPLE(CMS_PasswordRecipientInfo, version, LONG),
-        ASN1_IMP_OPT(CMS_PasswordRecipientInfo, keyDerivationAlgorithm, X509_ALGOR, 0),
-        ASN1_SIMPLE(CMS_PasswordRecipientInfo, keyEncryptionAlgorithm, X509_ALGOR),
-        ASN1_SIMPLE(CMS_PasswordRecipientInfo, encryptedKey, ASN1_OCTET_STRING)
-} ASN1_SEQUENCE_END(CMS_PasswordRecipientInfo)
+static const ASN1_TEMPLATE CMS_RecipientKeyIdentifier_seq_tt[] = {
+	{
+		.flags = 0,
+		.tag = 0,
+		.offset = offsetof(CMS_RecipientKeyIdentifier, subjectKeyIdentifier),
+		.field_name = "subjectKeyIdentifier",
+		.item = &ASN1_OCTET_STRING_it,
+	},
+	{
+		.flags = ASN1_TFLG_OPTIONAL,
+		.tag = 0,
+		.offset = offsetof(CMS_RecipientKeyIdentifier, date),
+		.field_name = "date",
+		.item = &ASN1_GENERALIZEDTIME_it,
+	},
+	{
+		.flags = ASN1_TFLG_OPTIONAL,
+		.tag = 0,
+		.offset = offsetof(CMS_RecipientKeyIdentifier, other),
+		.field_name = "other",
+		.item = &CMS_OtherKeyAttribute_it,
+	},
+};
 
-ASN1_SEQUENCE(CMS_OtherRecipientInfo) = {
-  ASN1_SIMPLE(CMS_OtherRecipientInfo, oriType, ASN1_OBJECT),
-  ASN1_OPT(CMS_OtherRecipientInfo, oriValue, ASN1_ANY)
-} ASN1_SEQUENCE_END(CMS_OtherRecipientInfo)
+const ASN1_ITEM CMS_RecipientKeyIdentifier_it = {
+	.itype = ASN1_ITYPE_SEQUENCE,
+	.utype = V_ASN1_SEQUENCE,
+	.templates = CMS_RecipientKeyIdentifier_seq_tt,
+	.tcount = sizeof(CMS_RecipientKeyIdentifier_seq_tt) / sizeof(ASN1_TEMPLATE),
+	.funcs = NULL,
+	.size = sizeof(CMS_RecipientKeyIdentifier),
+	.sname = "CMS_RecipientKeyIdentifier",
+};
+
+static const ASN1_TEMPLATE CMS_KeyAgreeRecipientIdentifier_ch_tt[] = {
+	{
+		.flags = 0,
+		.tag = 0,
+		.offset = offsetof(CMS_KeyAgreeRecipientIdentifier, d.issuerAndSerialNumber),
+		.field_name = "d.issuerAndSerialNumber",
+		.item = &CMS_IssuerAndSerialNumber_it,
+	},
+	{
+		.flags = ASN1_TFLG_IMPLICIT,
+		.tag = 0,
+		.offset = offsetof(CMS_KeyAgreeRecipientIdentifier, d.rKeyId),
+		.field_name = "d.rKeyId",
+		.item = &CMS_RecipientKeyIdentifier_it,
+	},
+};
+
+const ASN1_ITEM CMS_KeyAgreeRecipientIdentifier_it = {
+	.itype = ASN1_ITYPE_CHOICE,
+	.utype = offsetof(CMS_KeyAgreeRecipientIdentifier, type),
+	.templates = CMS_KeyAgreeRecipientIdentifier_ch_tt,
+	.tcount = sizeof(CMS_KeyAgreeRecipientIdentifier_ch_tt) / sizeof(ASN1_TEMPLATE),
+	.funcs = NULL,
+	.size = sizeof(CMS_KeyAgreeRecipientIdentifier),
+	.sname = "CMS_KeyAgreeRecipientIdentifier",
+};
+
+static const ASN1_TEMPLATE CMS_RecipientEncryptedKey_seq_tt[] = {
+	{
+		.flags = 0,
+		.tag = 0,
+		.offset = offsetof(CMS_RecipientEncryptedKey, rid),
+		.field_name = "rid",
+		.item = &CMS_KeyAgreeRecipientIdentifier_it,
+	},
+	{
+		.flags = 0,
+		.tag = 0,
+		.offset = offsetof(CMS_RecipientEncryptedKey, encryptedKey),
+		.field_name = "encryptedKey",
+		.item = &ASN1_OCTET_STRING_it,
+	},
+};
+
+const ASN1_ITEM CMS_RecipientEncryptedKey_it = {
+	.itype = ASN1_ITYPE_SEQUENCE,
+	.utype = V_ASN1_SEQUENCE,
+	.templates = CMS_RecipientEncryptedKey_seq_tt,
+	.tcount = sizeof(CMS_RecipientEncryptedKey_seq_tt) / sizeof(ASN1_TEMPLATE),
+	.funcs = NULL,
+	.size = sizeof(CMS_RecipientEncryptedKey),
+	.sname = "CMS_RecipientEncryptedKey",
+};
+
+static const ASN1_TEMPLATE CMS_OriginatorPublicKey_seq_tt[] = {
+	{
+		.flags = 0,
+		.tag = 0,
+		.offset = offsetof(CMS_OriginatorPublicKey, algorithm),
+		.field_name = "algorithm",
+		.item = &X509_ALGOR_it,
+	},
+	{
+		.flags = 0,
+		.tag = 0,
+		.offset = offsetof(CMS_OriginatorPublicKey, publicKey),
+		.field_name = "publicKey",
+		.item = &ASN1_BIT_STRING_it,
+	},
+};
+
+const ASN1_ITEM CMS_OriginatorPublicKey_it = {
+	.itype = ASN1_ITYPE_SEQUENCE,
+	.utype = V_ASN1_SEQUENCE,
+	.templates = CMS_OriginatorPublicKey_seq_tt,
+	.tcount = sizeof(CMS_OriginatorPublicKey_seq_tt) / sizeof(ASN1_TEMPLATE),
+	.funcs = NULL,
+	.size = sizeof(CMS_OriginatorPublicKey),
+	.sname = "CMS_OriginatorPublicKey",
+};
+
+static const ASN1_TEMPLATE CMS_OriginatorIdentifierOrKey_ch_tt[] = {
+	{
+		.flags = 0,
+		.tag = 0,
+		.offset = offsetof(CMS_OriginatorIdentifierOrKey, d.issuerAndSerialNumber),
+		.field_name = "d.issuerAndSerialNumber",
+		.item = &CMS_IssuerAndSerialNumber_it,
+	},
+	{
+		.flags = ASN1_TFLG_IMPLICIT,
+		.tag = 0,
+		.offset = offsetof(CMS_OriginatorIdentifierOrKey, d.subjectKeyIdentifier),
+		.field_name = "d.subjectKeyIdentifier",
+		.item = &ASN1_OCTET_STRING_it,
+	},
+	{
+		.flags = ASN1_TFLG_IMPLICIT,
+		.tag = 1,
+		.offset = offsetof(CMS_OriginatorIdentifierOrKey, d.originatorKey),
+		.field_name = "d.originatorKey",
+		.item = &CMS_OriginatorPublicKey_it,
+	},
+};
+
+const ASN1_ITEM CMS_OriginatorIdentifierOrKey_it = {
+	.itype = ASN1_ITYPE_CHOICE,
+	.utype = offsetof(CMS_OriginatorIdentifierOrKey, type),
+	.templates = CMS_OriginatorIdentifierOrKey_ch_tt,
+	.tcount = sizeof(CMS_OriginatorIdentifierOrKey_ch_tt) / sizeof(ASN1_TEMPLATE),
+	.funcs = NULL,
+	.size = sizeof(CMS_OriginatorIdentifierOrKey),
+	.sname = "CMS_OriginatorIdentifierOrKey",
+};
+
+static const ASN1_TEMPLATE CMS_KeyAgreeRecipientInfo_seq_tt[] = {
+	{
+		.flags = 0,
+		.tag = 0,
+		.offset = offsetof(CMS_KeyAgreeRecipientInfo, version),
+		.field_name = "version",
+		.item = &LONG_it,
+	},
+	{
+		.flags = ASN1_TFLG_EXPLICIT,
+		.tag = 0,
+		.offset = offsetof(CMS_KeyAgreeRecipientInfo, originator),
+		.field_name = "originator",
+		.item = &CMS_OriginatorIdentifierOrKey_it,
+	},
+	{
+		.flags = ASN1_TFLG_EXPLICIT | ASN1_TFLG_OPTIONAL,
+		.tag = 1,
+		.offset = offsetof(CMS_KeyAgreeRecipientInfo, ukm),
+		.field_name = "ukm",
+		.item = &ASN1_OCTET_STRING_it,
+	},
+	{
+		.flags = 0,
+		.tag = 0,
+		.offset = offsetof(CMS_KeyAgreeRecipientInfo, keyEncryptionAlgorithm),
+		.field_name = "keyEncryptionAlgorithm",
+		.item = &X509_ALGOR_it,
+	},
+	{
+		.flags = ASN1_TFLG_SEQUENCE_OF,
+		.tag = 0,
+		.offset = offsetof(CMS_KeyAgreeRecipientInfo, recipientEncryptedKeys),
+		.field_name = "recipientEncryptedKeys",
+		.item = &CMS_RecipientEncryptedKey_it,
+	},
+};
+
+const ASN1_ITEM CMS_KeyAgreeRecipientInfo_it = {
+	.itype = ASN1_ITYPE_SEQUENCE,
+	.utype = V_ASN1_SEQUENCE,
+	.templates = CMS_KeyAgreeRecipientInfo_seq_tt,
+	.tcount = sizeof(CMS_KeyAgreeRecipientInfo_seq_tt) / sizeof(ASN1_TEMPLATE),
+	.funcs = NULL,
+	.size = sizeof(CMS_KeyAgreeRecipientInfo),
+	.sname = "CMS_KeyAgreeRecipientInfo",
+};
+
+static const ASN1_TEMPLATE CMS_KEKIdentifier_seq_tt[] = {
+	{
+		.flags = 0,
+		.tag = 0,
+		.offset = offsetof(CMS_KEKIdentifier, keyIdentifier),
+		.field_name = "keyIdentifier",
+		.item = &ASN1_OCTET_STRING_it,
+	},
+	{
+		.flags = ASN1_TFLG_OPTIONAL,
+		.tag = 0,
+		.offset = offsetof(CMS_KEKIdentifier, date),
+		.field_name = "date",
+		.item = &ASN1_GENERALIZEDTIME_it,
+	},
+	{
+		.flags = ASN1_TFLG_OPTIONAL,
+		.tag = 0,
+		.offset = offsetof(CMS_KEKIdentifier, other),
+		.field_name = "other",
+		.item = &CMS_OtherKeyAttribute_it,
+	},
+};
+
+const ASN1_ITEM CMS_KEKIdentifier_it = {
+	.itype = ASN1_ITYPE_SEQUENCE,
+	.utype = V_ASN1_SEQUENCE,
+	.templates = CMS_KEKIdentifier_seq_tt,
+	.tcount = sizeof(CMS_KEKIdentifier_seq_tt) / sizeof(ASN1_TEMPLATE),
+	.funcs = NULL,
+	.size = sizeof(CMS_KEKIdentifier),
+	.sname = "CMS_KEKIdentifier",
+};
+
+static const ASN1_TEMPLATE CMS_KEKRecipientInfo_seq_tt[] = {
+	{
+		.flags = 0,
+		.tag = 0,
+		.offset = offsetof(CMS_KEKRecipientInfo, version),
+		.field_name = "version",
+		.item = &LONG_it,
+	},
+	{
+		.flags = 0,
+		.tag = 0,
+		.offset = offsetof(CMS_KEKRecipientInfo, kekid),
+		.field_name = "kekid",
+		.item = &CMS_KEKIdentifier_it,
+	},
+	{
+		.flags = 0,
+		.tag = 0,
+		.offset = offsetof(CMS_KEKRecipientInfo, keyEncryptionAlgorithm),
+		.field_name = "keyEncryptionAlgorithm",
+		.item = &X509_ALGOR_it,
+	},
+	{
+		.flags = 0,
+		.tag = 0,
+		.offset = offsetof(CMS_KEKRecipientInfo, encryptedKey),
+		.field_name = "encryptedKey",
+		.item = &ASN1_OCTET_STRING_it,
+	},
+};
+
+const ASN1_ITEM CMS_KEKRecipientInfo_it = {
+	.itype = ASN1_ITYPE_SEQUENCE,
+	.utype = V_ASN1_SEQUENCE,
+	.templates = CMS_KEKRecipientInfo_seq_tt,
+	.tcount = sizeof(CMS_KEKRecipientInfo_seq_tt) / sizeof(ASN1_TEMPLATE),
+	.funcs = NULL,
+	.size = sizeof(CMS_KEKRecipientInfo),
+	.sname = "CMS_KEKRecipientInfo",
+};
+
+static const ASN1_TEMPLATE CMS_PasswordRecipientInfo_seq_tt[] = {
+	{
+		.flags = 0,
+		.tag = 0,
+		.offset = offsetof(CMS_PasswordRecipientInfo, version),
+		.field_name = "version",
+		.item = &LONG_it,
+	},
+	{
+		.flags = ASN1_TFLG_IMPLICIT | ASN1_TFLG_OPTIONAL,
+		.tag = 0,
+		.offset = offsetof(CMS_PasswordRecipientInfo, keyDerivationAlgorithm),
+		.field_name = "keyDerivationAlgorithm",
+		.item = &X509_ALGOR_it,
+	},
+	{
+		.flags = 0,
+		.tag = 0,
+		.offset = offsetof(CMS_PasswordRecipientInfo, keyEncryptionAlgorithm),
+		.field_name = "keyEncryptionAlgorithm",
+		.item = &X509_ALGOR_it,
+	},
+	{
+		.flags = 0,
+		.tag = 0,
+		.offset = offsetof(CMS_PasswordRecipientInfo, encryptedKey),
+		.field_name = "encryptedKey",
+		.item = &ASN1_OCTET_STRING_it,
+	},
+};
+
+const ASN1_ITEM CMS_PasswordRecipientInfo_it = {
+	.itype = ASN1_ITYPE_SEQUENCE,
+	.utype = V_ASN1_SEQUENCE,
+	.templates = CMS_PasswordRecipientInfo_seq_tt,
+	.tcount = sizeof(CMS_PasswordRecipientInfo_seq_tt) / sizeof(ASN1_TEMPLATE),
+	.funcs = NULL,
+	.size = sizeof(CMS_PasswordRecipientInfo),
+	.sname = "CMS_PasswordRecipientInfo",
+};
+
+static const ASN1_TEMPLATE CMS_OtherRecipientInfo_seq_tt[] = {
+	{
+		.flags = 0,
+		.tag = 0,
+		.offset = offsetof(CMS_OtherRecipientInfo, oriType),
+		.field_name = "oriType",
+		.item = &ASN1_OBJECT_it,
+	},
+	{
+		.flags = ASN1_TFLG_OPTIONAL,
+		.tag = 0,
+		.offset = offsetof(CMS_OtherRecipientInfo, oriValue),
+		.field_name = "oriValue",
+		.item = &ASN1_ANY_it,
+	},
+};
+
+const ASN1_ITEM CMS_OtherRecipientInfo_it = {
+	.itype = ASN1_ITYPE_SEQUENCE,
+	.utype = V_ASN1_SEQUENCE,
+	.templates = CMS_OtherRecipientInfo_seq_tt,
+	.tcount = sizeof(CMS_OtherRecipientInfo_seq_tt) / sizeof(ASN1_TEMPLATE),
+	.funcs = NULL,
+	.size = sizeof(CMS_OtherRecipientInfo),
+	.sname = "CMS_OtherRecipientInfo",
+};
 
 /* Free up RecipientInfo additional data */
-static int cms_ri_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it,
-                     void *exarg)
+static int
+cms_ri_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it, void *exarg)
 {
-    if (operation == ASN1_OP_FREE_PRE) {
-        CMS_RecipientInfo *ri = (CMS_RecipientInfo *)*pval;
-        if (ri->type == CMS_RECIPINFO_TRANS) {
-            CMS_KeyTransRecipientInfo *ktri = ri->d.ktri;
-            if (ktri->pkey)
-                EVP_PKEY_free(ktri->pkey);
-            if (ktri->recip)
-                X509_free(ktri->recip);
-        } else if (ri->type == CMS_RECIPINFO_KEK) {
-            CMS_KEKRecipientInfo *kekri = ri->d.kekri;
-            if (kekri->key) {
-                OPENSSL_cleanse(kekri->key, kekri->keylen);
-                OPENSSL_free(kekri->key);
-            }
-        } else if (ri->type == CMS_RECIPINFO_PASS) {
-            CMS_PasswordRecipientInfo *pwri = ri->d.pwri;
-            if (pwri->pass) {
-                OPENSSL_cleanse(pwri->pass, pwri->passlen);
-                OPENSSL_free(pwri->pass);
-            }
-        }
-    }
-    return 1;
+	if (operation == ASN1_OP_FREE_PRE) {
+		CMS_RecipientInfo *ri = (CMS_RecipientInfo *)*pval;
+		if (ri->type == CMS_RECIPINFO_TRANS) {
+			CMS_KeyTransRecipientInfo *ktri = ri->d.ktri;
+			EVP_PKEY_free(ktri->pkey);
+			if (ktri->recip)
+				X509_free(ktri->recip);
+		} else if (ri->type == CMS_RECIPINFO_KEK) {
+			CMS_KEKRecipientInfo *kekri = ri->d.kekri;
+			if (kekri->key) {
+				OPENSSL_cleanse(kekri->key, kekri->keylen);
+				free(kekri->key);
+			}
+		} else if (ri->type == CMS_RECIPINFO_PASS) {
+			CMS_PasswordRecipientInfo *pwri = ri->d.pwri;
+			if (pwri->pass) {
+				OPENSSL_cleanse(pwri->pass, pwri->passlen);
+				free(pwri->pass);
+			}
+		}
+	}
+	return 1;
 }
 
-ASN1_CHOICE_cb(CMS_RecipientInfo, cms_ri_cb) = {
-        ASN1_SIMPLE(CMS_RecipientInfo, d.ktri, CMS_KeyTransRecipientInfo),
-        ASN1_IMP(CMS_RecipientInfo, d.kari, CMS_KeyAgreeRecipientInfo, 1),
-        ASN1_IMP(CMS_RecipientInfo, d.kekri, CMS_KEKRecipientInfo, 2),
-        ASN1_IMP(CMS_RecipientInfo, d.pwri, CMS_PasswordRecipientInfo, 3),
-        ASN1_IMP(CMS_RecipientInfo, d.ori, CMS_OtherRecipientInfo, 4)
-} ASN1_CHOICE_END_cb(CMS_RecipientInfo, CMS_RecipientInfo, type)
+static const ASN1_AUX CMS_RecipientInfo_aux = {
+	.app_data = NULL,
+	.flags = 0,
+	.ref_offset = 0,
+	.ref_lock = 0,
+	.asn1_cb = cms_ri_cb,
+	.enc_offset = 0,
+};
+static const ASN1_TEMPLATE CMS_RecipientInfo_ch_tt[] = {
+	{
+		.flags = 0,
+		.tag = 0,
+		.offset = offsetof(CMS_RecipientInfo, d.ktri),
+		.field_name = "d.ktri",
+		.item = &CMS_KeyTransRecipientInfo_it,
+	},
+	{
+		.flags = ASN1_TFLG_IMPLICIT,
+		.tag = 1,
+		.offset = offsetof(CMS_RecipientInfo, d.kari),
+		.field_name = "d.kari",
+		.item = &CMS_KeyAgreeRecipientInfo_it,
+	},
+	{
+		.flags = ASN1_TFLG_IMPLICIT,
+		.tag = 2,
+		.offset = offsetof(CMS_RecipientInfo, d.kekri),
+		.field_name = "d.kekri",
+		.item = &CMS_KEKRecipientInfo_it,
+	},
+	{
+		.flags = ASN1_TFLG_IMPLICIT,
+		.tag = 3,
+		.offset = offsetof(CMS_RecipientInfo, d.pwri),
+		.field_name = "d.pwri",
+		.item = &CMS_PasswordRecipientInfo_it,
+	},
+	{
+		.flags = ASN1_TFLG_IMPLICIT,
+		.tag = 4,
+		.offset = offsetof(CMS_RecipientInfo, d.ori),
+		.field_name = "d.ori",
+		.item = &CMS_OtherRecipientInfo_it,
+	},
+};
 
-ASN1_NDEF_SEQUENCE(CMS_EnvelopedData) = {
-        ASN1_SIMPLE(CMS_EnvelopedData, version, LONG),
-        ASN1_IMP_OPT(CMS_EnvelopedData, originatorInfo, CMS_OriginatorInfo, 0),
-        ASN1_SET_OF(CMS_EnvelopedData, recipientInfos, CMS_RecipientInfo),
-        ASN1_SIMPLE(CMS_EnvelopedData, encryptedContentInfo, CMS_EncryptedContentInfo),
-        ASN1_IMP_SET_OF_OPT(CMS_EnvelopedData, unprotectedAttrs, X509_ATTRIBUTE, 1)
-} ASN1_NDEF_SEQUENCE_END(CMS_EnvelopedData)
+const ASN1_ITEM CMS_RecipientInfo_it = {
+	.itype = ASN1_ITYPE_CHOICE,
+	.utype = offsetof(CMS_RecipientInfo, type),
+	.templates = CMS_RecipientInfo_ch_tt,
+	.tcount = sizeof(CMS_RecipientInfo_ch_tt) / sizeof(ASN1_TEMPLATE),
+	.funcs = &CMS_RecipientInfo_aux,
+	.size = sizeof(CMS_RecipientInfo),
+	.sname = "CMS_RecipientInfo",
+};
 
-ASN1_NDEF_SEQUENCE(CMS_DigestedData) = {
-        ASN1_SIMPLE(CMS_DigestedData, version, LONG),
-        ASN1_SIMPLE(CMS_DigestedData, digestAlgorithm, X509_ALGOR),
-        ASN1_SIMPLE(CMS_DigestedData, encapContentInfo, CMS_EncapsulatedContentInfo),
-        ASN1_SIMPLE(CMS_DigestedData, digest, ASN1_OCTET_STRING)
-} ASN1_NDEF_SEQUENCE_END(CMS_DigestedData)
+static const ASN1_TEMPLATE CMS_EnvelopedData_seq_tt[] = {
+	{
+		.flags = 0,
+		.tag = 0,
+		.offset = offsetof(CMS_EnvelopedData, version),
+		.field_name = "version",
+		.item = &LONG_it,
+	},
+	{
+		.flags = ASN1_TFLG_IMPLICIT | ASN1_TFLG_OPTIONAL,
+		.tag = 0,
+		.offset = offsetof(CMS_EnvelopedData, originatorInfo),
+		.field_name = "originatorInfo",
+		.item = &CMS_OriginatorInfo_it,
+	},
+	{
+		.flags = ASN1_TFLG_SET_OF,
+		.tag = 0,
+		.offset = offsetof(CMS_EnvelopedData, recipientInfos),
+		.field_name = "recipientInfos",
+		.item = &CMS_RecipientInfo_it,
+	},
+	{
+		.flags = 0,
+		.tag = 0,
+		.offset = offsetof(CMS_EnvelopedData, encryptedContentInfo),
+		.field_name = "encryptedContentInfo",
+		.item = &CMS_EncryptedContentInfo_it,
+	},
+	{
+		.flags = ASN1_TFLG_IMPLICIT | ASN1_TFLG_SET_OF | ASN1_TFLG_OPTIONAL,
+		.tag = 1,
+		.offset = offsetof(CMS_EnvelopedData, unprotectedAttrs),
+		.field_name = "unprotectedAttrs",
+		.item = &X509_ATTRIBUTE_it,
+	},
+};
 
-ASN1_NDEF_SEQUENCE(CMS_EncryptedData) = {
-        ASN1_SIMPLE(CMS_EncryptedData, version, LONG),
-        ASN1_SIMPLE(CMS_EncryptedData, encryptedContentInfo, CMS_EncryptedContentInfo),
-        ASN1_IMP_SET_OF_OPT(CMS_EncryptedData, unprotectedAttrs, X509_ATTRIBUTE, 1)
-} ASN1_NDEF_SEQUENCE_END(CMS_EncryptedData)
+const ASN1_ITEM CMS_EnvelopedData_it = {
+	.itype = ASN1_ITYPE_NDEF_SEQUENCE,
+	.utype = V_ASN1_SEQUENCE,
+	.templates = CMS_EnvelopedData_seq_tt,
+	.tcount = sizeof(CMS_EnvelopedData_seq_tt) / sizeof(ASN1_TEMPLATE),
+	.funcs = NULL,
+	.size = sizeof(CMS_EnvelopedData),
+	.sname = "CMS_EnvelopedData",
+};
 
-ASN1_NDEF_SEQUENCE(CMS_AuthenticatedData) = {
-        ASN1_SIMPLE(CMS_AuthenticatedData, version, LONG),
-        ASN1_IMP_OPT(CMS_AuthenticatedData, originatorInfo, CMS_OriginatorInfo, 0),
-        ASN1_SET_OF(CMS_AuthenticatedData, recipientInfos, CMS_RecipientInfo),
-        ASN1_SIMPLE(CMS_AuthenticatedData, macAlgorithm, X509_ALGOR),
-        ASN1_IMP(CMS_AuthenticatedData, digestAlgorithm, X509_ALGOR, 1),
-        ASN1_SIMPLE(CMS_AuthenticatedData, encapContentInfo, CMS_EncapsulatedContentInfo),
-        ASN1_IMP_SET_OF_OPT(CMS_AuthenticatedData, authAttrs, X509_ALGOR, 2),
-        ASN1_SIMPLE(CMS_AuthenticatedData, mac, ASN1_OCTET_STRING),
-        ASN1_IMP_SET_OF_OPT(CMS_AuthenticatedData, unauthAttrs, X509_ALGOR, 3)
-} ASN1_NDEF_SEQUENCE_END(CMS_AuthenticatedData)
+static const ASN1_TEMPLATE CMS_DigestedData_seq_tt[] = {
+	{
+		.flags = 0,
+		.tag = 0,
+		.offset = offsetof(CMS_DigestedData, version),
+		.field_name = "version",
+		.item = &LONG_it,
+	},
+	{
+		.flags = 0,
+		.tag = 0,
+		.offset = offsetof(CMS_DigestedData, digestAlgorithm),
+		.field_name = "digestAlgorithm",
+		.item = &X509_ALGOR_it,
+	},
+	{
+		.flags = 0,
+		.tag = 0,
+		.offset = offsetof(CMS_DigestedData, encapContentInfo),
+		.field_name = "encapContentInfo",
+		.item = &CMS_EncapsulatedContentInfo_it,
+	},
+	{
+		.flags = 0,
+		.tag = 0,
+		.offset = offsetof(CMS_DigestedData, digest),
+		.field_name = "digest",
+		.item = &ASN1_OCTET_STRING_it,
+	},
+};
 
-ASN1_NDEF_SEQUENCE(CMS_CompressedData) = {
-        ASN1_SIMPLE(CMS_CompressedData, version, LONG),
-        ASN1_SIMPLE(CMS_CompressedData, compressionAlgorithm, X509_ALGOR),
-        ASN1_SIMPLE(CMS_CompressedData, encapContentInfo, CMS_EncapsulatedContentInfo),
-} ASN1_NDEF_SEQUENCE_END(CMS_CompressedData)
+const ASN1_ITEM CMS_DigestedData_it = {
+	.itype = ASN1_ITYPE_NDEF_SEQUENCE,
+	.utype = V_ASN1_SEQUENCE,
+	.templates = CMS_DigestedData_seq_tt,
+	.tcount = sizeof(CMS_DigestedData_seq_tt) / sizeof(ASN1_TEMPLATE),
+	.funcs = NULL,
+	.size = sizeof(CMS_DigestedData),
+	.sname = "CMS_DigestedData",
+};
+
+static const ASN1_TEMPLATE CMS_EncryptedData_seq_tt[] = {
+	{
+		.flags = 0,
+		.tag = 0,
+		.offset = offsetof(CMS_EncryptedData, version),
+		.field_name = "version",
+		.item = &LONG_it,
+	},
+	{
+		.flags = 0,
+		.tag = 0,
+		.offset = offsetof(CMS_EncryptedData, encryptedContentInfo),
+		.field_name = "encryptedContentInfo",
+		.item = &CMS_EncryptedContentInfo_it,
+	},
+	{
+		.flags = ASN1_TFLG_IMPLICIT | ASN1_TFLG_SET_OF | ASN1_TFLG_OPTIONAL,
+		.tag = 1,
+		.offset = offsetof(CMS_EncryptedData, unprotectedAttrs),
+		.field_name = "unprotectedAttrs",
+		.item = &X509_ATTRIBUTE_it,
+	},
+};
+
+const ASN1_ITEM CMS_EncryptedData_it = {
+	.itype = ASN1_ITYPE_NDEF_SEQUENCE,
+	.utype = V_ASN1_SEQUENCE,
+	.templates = CMS_EncryptedData_seq_tt,
+	.tcount = sizeof(CMS_EncryptedData_seq_tt) / sizeof(ASN1_TEMPLATE),
+	.funcs = NULL,
+	.size = sizeof(CMS_EncryptedData),
+	.sname = "CMS_EncryptedData",
+};
+
+static const ASN1_TEMPLATE CMS_AuthenticatedData_seq_tt[] = {
+	{
+		.flags = 0,
+		.tag = 0,
+		.offset = offsetof(CMS_AuthenticatedData, version),
+		.field_name = "version",
+		.item = &LONG_it,
+	},
+	{
+		.flags = ASN1_TFLG_IMPLICIT | ASN1_TFLG_OPTIONAL,
+		.tag = 0,
+		.offset = offsetof(CMS_AuthenticatedData, originatorInfo),
+		.field_name = "originatorInfo",
+		.item = &CMS_OriginatorInfo_it,
+	},
+	{
+		.flags = ASN1_TFLG_SET_OF,
+		.tag = 0,
+		.offset = offsetof(CMS_AuthenticatedData, recipientInfos),
+		.field_name = "recipientInfos",
+		.item = &CMS_RecipientInfo_it,
+	},
+	{
+		.flags = 0,
+		.tag = 0,
+		.offset = offsetof(CMS_AuthenticatedData, macAlgorithm),
+		.field_name = "macAlgorithm",
+		.item = &X509_ALGOR_it,
+	},
+	{
+		.flags = ASN1_TFLG_IMPLICIT,
+		.tag = 1,
+		.offset = offsetof(CMS_AuthenticatedData, digestAlgorithm),
+		.field_name = "digestAlgorithm",
+		.item = &X509_ALGOR_it,
+	},
+	{
+		.flags = 0,
+		.tag = 0,
+		.offset = offsetof(CMS_AuthenticatedData, encapContentInfo),
+		.field_name = "encapContentInfo",
+		.item = &CMS_EncapsulatedContentInfo_it,
+	},
+	{
+		.flags = ASN1_TFLG_IMPLICIT | ASN1_TFLG_SET_OF | ASN1_TFLG_OPTIONAL,
+		.tag = 2,
+		.offset = offsetof(CMS_AuthenticatedData, authAttrs),
+		.field_name = "authAttrs",
+		.item = &X509_ALGOR_it,
+	},
+	{
+		.flags = 0,
+		.tag = 0,
+		.offset = offsetof(CMS_AuthenticatedData, mac),
+		.field_name = "mac",
+		.item = &ASN1_OCTET_STRING_it,
+	},
+	{
+		.flags = ASN1_TFLG_IMPLICIT | ASN1_TFLG_SET_OF | ASN1_TFLG_OPTIONAL,
+		.tag = 3,
+		.offset = offsetof(CMS_AuthenticatedData, unauthAttrs),
+		.field_name = "unauthAttrs",
+		.item = &X509_ALGOR_it,
+	},
+};
+
+const ASN1_ITEM CMS_AuthenticatedData_it = {
+	.itype = ASN1_ITYPE_NDEF_SEQUENCE,
+	.utype = V_ASN1_SEQUENCE,
+	.templates = CMS_AuthenticatedData_seq_tt,
+	.tcount = sizeof(CMS_AuthenticatedData_seq_tt) / sizeof(ASN1_TEMPLATE),
+	.funcs = NULL,
+	.size = sizeof(CMS_AuthenticatedData),
+	.sname = "CMS_AuthenticatedData",
+};
+
+static const ASN1_TEMPLATE CMS_CompressedData_seq_tt[] = {
+	{
+		.flags = 0,
+		.tag = 0,
+		.offset = offsetof(CMS_CompressedData, version),
+		.field_name = "version",
+		.item = &LONG_it,
+	},
+	{
+		.flags = 0,
+		.tag = 0,
+		.offset = offsetof(CMS_CompressedData, compressionAlgorithm),
+		.field_name = "compressionAlgorithm",
+		.item = &X509_ALGOR_it,
+	},
+	{
+		.flags = 0,
+		.tag = 0,
+		.offset = offsetof(CMS_CompressedData, encapContentInfo),
+		.field_name = "encapContentInfo",
+		.item = &CMS_EncapsulatedContentInfo_it,
+	},
+};
+
+const ASN1_ITEM CMS_CompressedData_it = {
+	.itype = ASN1_ITYPE_NDEF_SEQUENCE,
+	.utype = V_ASN1_SEQUENCE,
+	.templates = CMS_CompressedData_seq_tt,
+	.tcount = sizeof(CMS_CompressedData_seq_tt) / sizeof(ASN1_TEMPLATE),
+	.funcs = NULL,
+	.size = sizeof(CMS_CompressedData),
+	.sname = "CMS_CompressedData",
+};
 
 /* This is the ANY DEFINED BY table for the top level ContentInfo structure */
 
-ASN1_ADB_TEMPLATE(cms_default) = ASN1_EXP(CMS_ContentInfo, d.other, ASN1_ANY, 0);
+static const ASN1_TEMPLATE cms_default_tt = {
+	.flags = ASN1_TFLG_EXPLICIT,
+	.tag = 0,
+	.offset = offsetof(CMS_ContentInfo, d.other),
+	.field_name = "d.other",
+	.item = &ASN1_ANY_it,
+};
 
-ASN1_ADB(CMS_ContentInfo) = {
-        ADB_ENTRY(NID_pkcs7_data, ASN1_NDEF_EXP(CMS_ContentInfo, d.data, ASN1_OCTET_STRING_NDEF, 0)),
-        ADB_ENTRY(NID_pkcs7_signed, ASN1_NDEF_EXP(CMS_ContentInfo, d.signedData, CMS_SignedData, 0)),
-        ADB_ENTRY(NID_pkcs7_enveloped, ASN1_NDEF_EXP(CMS_ContentInfo, d.envelopedData, CMS_EnvelopedData, 0)),
-        ADB_ENTRY(NID_pkcs7_digest, ASN1_NDEF_EXP(CMS_ContentInfo, d.digestedData, CMS_DigestedData, 0)),
-        ADB_ENTRY(NID_pkcs7_encrypted, ASN1_NDEF_EXP(CMS_ContentInfo, d.encryptedData, CMS_EncryptedData, 0)),
-        ADB_ENTRY(NID_id_smime_ct_authData, ASN1_NDEF_EXP(CMS_ContentInfo, d.authenticatedData, CMS_AuthenticatedData, 0)),
-        ADB_ENTRY(NID_id_smime_ct_compressedData, ASN1_NDEF_EXP(CMS_ContentInfo, d.compressedData, CMS_CompressedData, 0)),
-} ASN1_ADB_END(CMS_ContentInfo, 0, contentType, 0, &cms_default_tt, NULL);
+static const ASN1_ADB_TABLE CMS_ContentInfo_adbtbl[] = {
+	{
+		.value = NID_pkcs7_data,
+		.tt = {
+			.flags = ASN1_TFLG_EXPLICIT | ASN1_TFLG_NDEF,
+			.tag = 0,
+			.offset = offsetof(CMS_ContentInfo, d.data),
+			.field_name = "d.data",
+			.item = &ASN1_OCTET_STRING_NDEF_it,
+		},
+	
+	},
+	{
+		.value = NID_pkcs7_signed,
+		.tt = {
+			.flags = ASN1_TFLG_EXPLICIT | ASN1_TFLG_NDEF,
+			.tag = 0,
+			.offset = offsetof(CMS_ContentInfo, d.signedData),
+			.field_name = "d.signedData",
+			.item = &CMS_SignedData_it,
+		},
+	
+	},
+	{
+		.value = NID_pkcs7_enveloped,
+		.tt = {
+			.flags = ASN1_TFLG_EXPLICIT | ASN1_TFLG_NDEF,
+			.tag = 0,
+			.offset = offsetof(CMS_ContentInfo, d.envelopedData),
+			.field_name = "d.envelopedData",
+			.item = &CMS_EnvelopedData_it,
+		},
+	
+	},
+	{
+		.value = NID_pkcs7_digest,
+		.tt = {
+			.flags = ASN1_TFLG_EXPLICIT | ASN1_TFLG_NDEF,
+			.tag = 0,
+			.offset = offsetof(CMS_ContentInfo, d.digestedData),
+			.field_name = "d.digestedData",
+			.item = &CMS_DigestedData_it,
+		},
+	
+	},
+	{
+		.value = NID_pkcs7_encrypted,
+		.tt = {
+			.flags = ASN1_TFLG_EXPLICIT | ASN1_TFLG_NDEF,
+			.tag = 0,
+			.offset = offsetof(CMS_ContentInfo, d.encryptedData),
+			.field_name = "d.encryptedData",
+			.item = &CMS_EncryptedData_it,
+		},
+	
+	},
+	{
+		.value = NID_id_smime_ct_authData,
+		.tt = {
+			.flags = ASN1_TFLG_EXPLICIT | ASN1_TFLG_NDEF,
+			.tag = 0,
+			.offset = offsetof(CMS_ContentInfo, d.authenticatedData),
+			.field_name = "d.authenticatedData",
+			.item = &CMS_AuthenticatedData_it,
+		},
+	
+	},
+	{
+		.value = NID_id_smime_ct_compressedData,
+		.tt = {
+			.flags = ASN1_TFLG_EXPLICIT | ASN1_TFLG_NDEF,
+			.tag = 0,
+			.offset = offsetof(CMS_ContentInfo, d.compressedData),
+			.field_name = "d.compressedData",
+			.item = &CMS_CompressedData_it,
+		},
+	
+	},
+};
+
+static const ASN1_ADB CMS_ContentInfo_adb = {
+	.flags = 0,
+	.offset = offsetof(CMS_ContentInfo, contentType),
+	.app_items = 0,
+	.tbl = CMS_ContentInfo_adbtbl,
+	.tblcount = sizeof(CMS_ContentInfo_adbtbl) / sizeof(ASN1_ADB_TABLE),
+	.default_tt = &cms_default_tt,
+	.null_tt = NULL,
+};
 
 /* CMS streaming support */
-static int cms_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it,
-                  void *exarg)
+static int
+cms_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it, void *exarg)
 {
-    ASN1_STREAM_ARG *sarg = exarg;
-    CMS_ContentInfo *cms = NULL;
-    if (pval)
-        cms = (CMS_ContentInfo *)*pval;
-    else
-        return 1;
-    switch (operation) {
+	ASN1_STREAM_ARG *sarg = exarg;
+	CMS_ContentInfo *cms = NULL;
 
-    case ASN1_OP_STREAM_PRE:
-        if (CMS_stream(&sarg->boundary, cms) <= 0)
-            return 0;
-    case ASN1_OP_DETACHED_PRE:
-        sarg->ndef_bio = CMS_dataInit(cms, sarg->out);
-        if (!sarg->ndef_bio)
-            return 0;
-        break;
+	if (pval)
+		cms = (CMS_ContentInfo *)*pval;
+	else
+		return 1;
 
-    case ASN1_OP_STREAM_POST:
-    case ASN1_OP_DETACHED_POST:
-        if (CMS_dataFinal(cms, sarg->ndef_bio) <= 0)
-            return 0;
-        break;
-
-    }
-    return 1;
+	switch (operation) {
+	case ASN1_OP_STREAM_PRE:
+		if (CMS_stream(&sarg->boundary, cms) <= 0)
+			return 0;
+	case ASN1_OP_DETACHED_PRE:
+		sarg->ndef_bio = CMS_dataInit(cms, sarg->out);
+		if (!sarg->ndef_bio)
+			return 0;
+		break;
+	case ASN1_OP_STREAM_POST:
+	case ASN1_OP_DETACHED_POST:
+		if (CMS_dataFinal(cms, sarg->ndef_bio) <= 0)
+			return 0;
+		break;
+	}
+	return 1;
 }
 
-ASN1_NDEF_SEQUENCE_cb(CMS_ContentInfo, cms_cb) = {
-        ASN1_SIMPLE(CMS_ContentInfo, contentType, ASN1_OBJECT),
-        ASN1_ADB_OBJECT(CMS_ContentInfo)
-} ASN1_NDEF_SEQUENCE_END_cb(CMS_ContentInfo, CMS_ContentInfo)
+static const ASN1_AUX CMS_ContentInfo_aux = {
+	.app_data = NULL,
+	.flags = 0,
+	.ref_offset = 0,
+	.ref_lock = 0,
+	.asn1_cb = cms_cb,
+	.enc_offset = 0,
+};
+static const ASN1_TEMPLATE CMS_ContentInfo_seq_tt[] = {
+	{
+		.flags = 0,
+		.tag = 0,
+		.offset = offsetof(CMS_ContentInfo, contentType),
+		.field_name = "contentType",
+		.item = &ASN1_OBJECT_it,
+	},
+	{
+		.flags = ASN1_TFLG_ADB_OID,
+		.tag = -1,
+		.offset = 0,
+		.field_name = "CMS_ContentInfo",
+		.item = (const ASN1_ITEM *)&CMS_ContentInfo_adb,
+	},
+};
+
+const ASN1_ITEM CMS_ContentInfo_it = {
+	.itype = ASN1_ITYPE_NDEF_SEQUENCE,
+	.utype = V_ASN1_SEQUENCE,
+	.templates = CMS_ContentInfo_seq_tt,
+	.tcount = sizeof(CMS_ContentInfo_seq_tt) / sizeof(ASN1_TEMPLATE),
+	.funcs = &CMS_ContentInfo_aux,
+	.size = sizeof(CMS_ContentInfo),
+	.sname = "CMS_ContentInfo",
+};
 
 /* Specials for signed attributes */
 
-/*
- * When signing attributes we want to reorder them to match the sorted
+/* When signing attributes we want to reorder them to match the sorted
  * encoding.
  */
 
-ASN1_ITEM_TEMPLATE(CMS_Attributes_Sign) =
-        ASN1_EX_TEMPLATE_TYPE(ASN1_TFLG_SET_ORDER, 0, CMS_ATTRIBUTES, X509_ATTRIBUTE)
-ASN1_ITEM_TEMPLATE_END(CMS_Attributes_Sign)
+static const ASN1_TEMPLATE CMS_Attributes_Sign_item_tt = {
+	.flags = ASN1_TFLG_SET_ORDER,
+	.tag = 0,
+	.offset = 0,
+	.field_name = "CMS_ATTRIBUTES",
+	.item = &X509_ATTRIBUTE_it,
+};
 
-/*
- * When verifying attributes we need to use the received order. So we use
- * SEQUENCE OF and tag it to SET OF
+const ASN1_ITEM CMS_Attributes_Sign_it = {
+	.itype = ASN1_ITYPE_PRIMITIVE,
+	.utype = -1,
+	.templates = &CMS_Attributes_Sign_item_tt,
+	.tcount = 0,
+	.funcs = NULL,
+	.size = 0,
+	.sname = "CMS_Attributes_Sign",
+};
+
+/* When verifying attributes we need to use the received order. So
+ * we use SEQUENCE OF and tag it to SET OF
  */
 
-ASN1_ITEM_TEMPLATE(CMS_Attributes_Verify) =
-        ASN1_EX_TEMPLATE_TYPE(ASN1_TFLG_SEQUENCE_OF | ASN1_TFLG_IMPTAG | ASN1_TFLG_UNIVERSAL,
-                                V_ASN1_SET, CMS_ATTRIBUTES, X509_ATTRIBUTE)
-ASN1_ITEM_TEMPLATE_END(CMS_Attributes_Verify)
+static const ASN1_TEMPLATE CMS_Attributes_Verify_item_tt = {
+	.flags = ASN1_TFLG_SEQUENCE_OF | ASN1_TFLG_IMPTAG | ASN1_TFLG_UNIVERSAL,
+	.tag = V_ASN1_SET,
+	.offset = 0,
+	.field_name = "CMS_ATTRIBUTES",
+	.item = &X509_ATTRIBUTE_it,
+};
 
+const ASN1_ITEM CMS_Attributes_Verify_it = {
+	.itype = ASN1_ITYPE_PRIMITIVE,
+	.utype = -1,
+	.templates = &CMS_Attributes_Verify_item_tt,
+	.tcount = 0,
+	.funcs = NULL,
+	.size = 0,
+	.sname = "CMS_Attributes_Verify",
+};
 
+static const ASN1_TEMPLATE CMS_ReceiptsFrom_ch_tt[] = {
+	{
+		.flags = ASN1_TFLG_IMPLICIT,
+		.tag = 0,
+		.offset = offsetof(CMS_ReceiptsFrom, d.allOrFirstTier),
+		.field_name = "d.allOrFirstTier",
+		.item = &LONG_it,
+	},
+	{
+		.flags = ASN1_TFLG_IMPLICIT | ASN1_TFLG_SEQUENCE_OF,
+		.tag = 1,
+		.offset = offsetof(CMS_ReceiptsFrom, d.receiptList),
+		.field_name = "d.receiptList",
+		.item = &GENERAL_NAMES_it,
+	},
+};
 
-ASN1_CHOICE(CMS_ReceiptsFrom) = {
-  ASN1_IMP(CMS_ReceiptsFrom, d.allOrFirstTier, LONG, 0),
-  ASN1_IMP_SEQUENCE_OF(CMS_ReceiptsFrom, d.receiptList, GENERAL_NAMES, 1)
-} ASN1_CHOICE_END(CMS_ReceiptsFrom)
+const ASN1_ITEM CMS_ReceiptsFrom_it = {
+	.itype = ASN1_ITYPE_CHOICE,
+	.utype = offsetof(CMS_ReceiptsFrom, type),
+	.templates = CMS_ReceiptsFrom_ch_tt,
+	.tcount = sizeof(CMS_ReceiptsFrom_ch_tt) / sizeof(ASN1_TEMPLATE),
+	.funcs = NULL,
+	.size = sizeof(CMS_ReceiptsFrom),
+	.sname = "CMS_ReceiptsFrom",
+};
 
-ASN1_SEQUENCE(CMS_ReceiptRequest) = {
-  ASN1_SIMPLE(CMS_ReceiptRequest, signedContentIdentifier, ASN1_OCTET_STRING),
-  ASN1_SIMPLE(CMS_ReceiptRequest, receiptsFrom, CMS_ReceiptsFrom),
-  ASN1_SEQUENCE_OF(CMS_ReceiptRequest, receiptsTo, GENERAL_NAMES)
-} ASN1_SEQUENCE_END(CMS_ReceiptRequest)
+static const ASN1_TEMPLATE CMS_ReceiptRequest_seq_tt[] = {
+	{
+		.flags = 0,
+		.tag = 0,
+		.offset = offsetof(CMS_ReceiptRequest, signedContentIdentifier),
+		.field_name = "signedContentIdentifier",
+		.item = &ASN1_OCTET_STRING_it,
+	},
+	{
+		.flags = 0,
+		.tag = 0,
+		.offset = offsetof(CMS_ReceiptRequest, receiptsFrom),
+		.field_name = "receiptsFrom",
+		.item = &CMS_ReceiptsFrom_it,
+	},
+	{
+		.flags = ASN1_TFLG_SEQUENCE_OF,
+		.tag = 0,
+		.offset = offsetof(CMS_ReceiptRequest, receiptsTo),
+		.field_name = "receiptsTo",
+		.item = &GENERAL_NAMES_it,
+	},
+};
 
-ASN1_SEQUENCE(CMS_Receipt) = {
-  ASN1_SIMPLE(CMS_Receipt, version, LONG),
-  ASN1_SIMPLE(CMS_Receipt, contentType, ASN1_OBJECT),
-  ASN1_SIMPLE(CMS_Receipt, signedContentIdentifier, ASN1_OCTET_STRING),
-  ASN1_SIMPLE(CMS_Receipt, originatorSignatureValue, ASN1_OCTET_STRING)
-} ASN1_SEQUENCE_END(CMS_Receipt)
+const ASN1_ITEM CMS_ReceiptRequest_it = {
+	.itype = ASN1_ITYPE_SEQUENCE,
+	.utype = V_ASN1_SEQUENCE,
+	.templates = CMS_ReceiptRequest_seq_tt,
+	.tcount = sizeof(CMS_ReceiptRequest_seq_tt) / sizeof(ASN1_TEMPLATE),
+	.funcs = NULL,
+	.size = sizeof(CMS_ReceiptRequest),
+	.sname = "CMS_ReceiptRequest",
+};
+
+static const ASN1_TEMPLATE CMS_Receipt_seq_tt[] = {
+	{
+		.flags = 0,
+		.tag = 0,
+		.offset = offsetof(CMS_Receipt, version),
+		.field_name = "version",
+		.item = &LONG_it,
+	},
+	{
+		.flags = 0,
+		.tag = 0,
+		.offset = offsetof(CMS_Receipt, contentType),
+		.field_name = "contentType",
+		.item = &ASN1_OBJECT_it,
+	},
+	{
+		.flags = 0,
+		.tag = 0,
+		.offset = offsetof(CMS_Receipt, signedContentIdentifier),
+		.field_name = "signedContentIdentifier",
+		.item = &ASN1_OCTET_STRING_it,
+	},
+	{
+		.flags = 0,
+		.tag = 0,
+		.offset = offsetof(CMS_Receipt, originatorSignatureValue),
+		.field_name = "originatorSignatureValue",
+		.item = &ASN1_OCTET_STRING_it,
+	},
+};
+
+const ASN1_ITEM CMS_Receipt_it = {
+	.itype = ASN1_ITYPE_SEQUENCE,
+	.utype = V_ASN1_SEQUENCE,
+	.templates = CMS_Receipt_seq_tt,
+	.tcount = sizeof(CMS_Receipt_seq_tt) / sizeof(ASN1_TEMPLATE),
+	.funcs = NULL,
+	.size = sizeof(CMS_Receipt),
+	.sname = "CMS_Receipt",
+};

@@ -2,7 +2,8 @@
 
 =head1 NAME
 
-EVP_VerifyInit, EVP_VerifyUpdate, EVP_VerifyFinal - EVP signature verification functions
+EVP_VerifyInit, EVP_VerifyUpdate, EVP_VerifyFinal - EVP signature verification
+functions
 
 =head1 SYNOPSIS
 
@@ -38,8 +39,8 @@ implementation of digest B<type>.
 EVP_VerifyInit_ex() and EVP_VerifyUpdate() return 1 for success and 0 for
 failure.
 
-EVP_VerifyFinal() returns 1 for a correct signature, 0 for failure and -1 if some
-other error occurred.
+EVP_VerifyFinal() returns 1 for a correct signature, 0 for failure and -1 if
+some other error occurred.
 
 The error codes can be obtained by L<ERR_get_error(3)|ERR_get_error(3)>.
 
@@ -51,7 +52,7 @@ transparent to the algorithm used and much more flexible.
 
 Due to the link between message digests and public key algorithms the correct
 digest algorithm must be used with the correct public key type. A list of
-algorithms and associated public key algorithms appears in 
+algorithms and associated public key algorithms appears in
 L<EVP_DigestInit(3)|EVP_DigestInit(3)>.
 
 The call to EVP_VerifyFinal() internally finalizes a copy of the digest context.
@@ -64,7 +65,7 @@ will occur.
 
 =head1 BUGS
 
-Older versions of this documentation wrongly stated that calls to 
+Older versions of this documentation wrongly stated that calls to
 EVP_VerifyUpdate() could not be made after calling EVP_VerifyFinal().
 
 Since the public key is passed in the call to EVP_SignFinal() any error
@@ -82,7 +83,7 @@ L<evp(3)|evp(3)>,
 L<EVP_SignInit(3)|EVP_SignInit(3)>,
 L<EVP_DigestInit(3)|EVP_DigestInit(3)>, L<err(3)|err(3)>,
 L<evp(3)|evp(3)>, L<hmac(3)|hmac(3)>, L<md2(3)|md2(3)>,
-L<md5(3)|md5(3)>, L<mdc2(3)|mdc2(3)>, L<ripemd(3)|ripemd(3)>,
+L<md5(3)|md5(3)>, L<ripemd(3)|ripemd(3)>,
 L<sha(3)|sha(3)>, L<dgst(1)|dgst(1)>
 
 =head1 HISTORY

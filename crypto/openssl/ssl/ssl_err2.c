@@ -1,4 +1,4 @@
-/* ssl/ssl_err2.c */
+/* $OpenBSD: ssl_err2.c,v 1.6 2014/11/16 14:12:47 jsing Exp $ */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
@@ -57,13 +57,16 @@
  */
 
 #include <stdio.h>
+
 #include <openssl/err.h>
 #include <openssl/ssl.h>
 
-void SSL_load_error_strings(void)
+void
+SSL_load_error_strings(void)
 {
 #ifndef OPENSSL_NO_ERR
-    ERR_load_crypto_strings();
-    ERR_load_SSL_strings();
+	ERR_load_crypto_strings();
+	ERR_load_SSL_strings();
 #endif
 }
+

@@ -1,4 +1,4 @@
-/* crypto/asn1/x_sig.c */
+/* $OpenBSD: x_sig.c,v 1.10 2015/02/11 03:39:51 jsing Exp $ */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
@@ -57,13 +57,54 @@
  */
 
 #include <stdio.h>
-#include "cryptlib.h"
+
 #include <openssl/asn1t.h>
 #include <openssl/x509.h>
 
-ASN1_SEQUENCE(X509_SIG) = {
-        ASN1_SIMPLE(X509_SIG, algor, X509_ALGOR),
-        ASN1_SIMPLE(X509_SIG, digest, ASN1_OCTET_STRING)
-} ASN1_SEQUENCE_END(X509_SIG)
+static const ASN1_TEMPLATE X509_SIG_seq_tt[] = {
+	{
+		.offset = offsetof(X509_SIG, algor),
+		.field_name = "algor",
+		.item = &X509_ALGOR_it,
+	},
+	{
+		.offset = offsetof(X509_SIG, digest),
+		.field_name = "digest",
+		.item = &ASN1_OCTET_STRING_it,
+	},
+};
 
-IMPLEMENT_ASN1_FUNCTIONS(X509_SIG)
+const ASN1_ITEM X509_SIG_it = {
+	.itype = ASN1_ITYPE_SEQUENCE,
+	.utype = V_ASN1_SEQUENCE,
+	.templates = X509_SIG_seq_tt,
+	.tcount = sizeof(X509_SIG_seq_tt) / sizeof(ASN1_TEMPLATE),
+	.size = sizeof(X509_SIG),
+	.sname = "X509_SIG",
+};
+
+
+X509_SIG *
+d2i_X509_SIG(X509_SIG **a, const unsigned char **in, long len)
+{
+	return (X509_SIG *)ASN1_item_d2i((ASN1_VALUE **)a, in, len,
+	    &X509_SIG_it);
+}
+
+int
+i2d_X509_SIG(X509_SIG *a, unsigned char **out)
+{
+	return ASN1_item_i2d((ASN1_VALUE *)a, out, &X509_SIG_it);
+}
+
+X509_SIG *
+X509_SIG_new(void)
+{
+	return (X509_SIG *)ASN1_item_new(&X509_SIG_it);
+}
+
+void
+X509_SIG_free(X509_SIG *a)
+{
+	ASN1_item_free((ASN1_VALUE *)a, &X509_SIG_it);
+}

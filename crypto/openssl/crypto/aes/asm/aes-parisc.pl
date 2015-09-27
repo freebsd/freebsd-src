@@ -64,8 +64,12 @@ $rounds="%r29";
 
 $code=<<___;
 	.LEVEL	$LEVEL
+#if 0
 	.SPACE	\$TEXT\$
 	.SUBSPA	\$CODE\$,QUAD=0,ALIGN=8,ACCESS=0x2C,CODE_ONLY
+#else
+	.text
+#endif
 
 	.EXPORT	AES_encrypt,ENTRY,ARGW0=GR,ARGW1=GR,ARGW2=GR
 	.ALIGN	64
@@ -1002,6 +1006,8 @@ L\$AES_Td
 	.BYTE	0xc8, 0xeb, 0xbb, 0x3c, 0x83, 0x53, 0x99, 0x61
 	.BYTE	0x17, 0x2b, 0x04, 0x7e, 0xba, 0x77, 0xd6, 0x26
 	.BYTE	0xe1, 0x69, 0x14, 0x63, 0x55, 0x21, 0x0c, 0x7d
+
+	.data
 	.STRINGZ "AES for PA-RISC, CRYPTOGAMS by <appro\@openssl.org>"
 ___
 

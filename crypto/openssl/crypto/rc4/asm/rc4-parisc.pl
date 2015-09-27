@@ -137,8 +137,12 @@ ___
 
 $code=<<___;
 	.LEVEL	$LEVEL
+#if 0
 	.SPACE	\$TEXT\$
 	.SUBSPA	\$CODE\$,QUAD=0,ALIGN=8,ACCESS=0x2C,CODE_ONLY
+#else
+	.text
+#endif
 
 	.EXPORT	RC4,ENTRY,ARGW0=GR,ARGW1=GR,ARGW2=GR,ARGW3=GR
 RC4
@@ -243,9 +247,9 @@ ___
 
 $code.=<<___;
 
-	.EXPORT	private_RC4_set_key,ENTRY,ARGW0=GR,ARGW1=GR,ARGW2=GR
+	.EXPORT	RC4_set_key,ENTRY,ARGW0=GR,ARGW1=GR,ARGW2=GR
 	.ALIGN	8
-private_RC4_set_key
+RC4_set_key
 	.PROC
 	.CALLINFO	NO_CALLS
 	.ENTRY
@@ -301,6 +305,8 @@ L\$pic
 	.EXIT
 	ldo	L\$opts-L\$pic(%r28),%r28
 	.PROCEND
+
+	.data
 	.ALIGN	8
 L\$opts
 	.STRINGZ "rc4(4x,`$SZ==1?"char":"int"`)"

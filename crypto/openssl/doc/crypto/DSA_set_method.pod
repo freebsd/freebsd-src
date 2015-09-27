@@ -37,7 +37,7 @@ been set as a default for DSA, so this function is no longer recommended.
 
 DSA_get_default_method() returns a pointer to the current default
 DSA_METHOD. However, the meaningfulness of this result is dependent on
-whether the ENGINE API is being used, so this function is no longer 
+whether the ENGINE API is being used, so this function is no longer
 recommended.
 
 DSA_set_method() selects B<meth> to perform all operations using the key
@@ -103,8 +103,8 @@ B<DSA_METHOD>s.
 
 DSA_set_default_method() returns no value.
 
-DSA_set_method() returns non-zero if the provided B<meth> was successfully set as
-the method for B<dsa> (including unloading the ENGINE handle if the previous
+DSA_set_method() returns non-zero if the provided B<meth> was successfully set
+as the method for B<dsa> (including unloading the ENGINE handle if the previous
 method was supplied by an ENGINE).
 
 DSA_new_method() returns NULL and sets an error code that can be
@@ -117,8 +117,8 @@ As of version 0.9.7, DSA_METHOD implementations are grouped together with other
 algorithmic APIs (eg. RSA_METHOD, EVP_CIPHER, etc) in B<ENGINE> modules. If a
 default ENGINE is specified for DSA functionality using an ENGINE API function,
 that will override any DSA defaults set using the DSA API (ie.
-DSA_set_default_method()). For this reason, the ENGINE API is the recommended way
-to control default implementations for use in DSA and other cryptographic
+DSA_set_default_method()). For this reason, the ENGINE API is the recommended
+way to control default implementations for use in DSA and other cryptographic
 algorithms.
 
 =head1 SEE ALSO

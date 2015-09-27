@@ -1,4 +1,4 @@
-/* crypto/asn1/x_spki.c */
+/* $OpenBSD: x_spki.c,v 1.10 2015/02/11 03:39:51 jsing Exp $ */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
@@ -56,27 +56,119 @@
  * [including the GNU Public Licence.]
  */
 
- /*
-  * This module was send to me my Pat Richards <patr@x509.com> who wrote it.
-  * It is under my Copyright with his permission
+ /* This module was send to me my Pat Richards <patr@x509.com> who
+  * wrote it.  It is under my Copyright with his permission
   */
 
 #include <stdio.h>
-#include "cryptlib.h"
+
 #include <openssl/x509.h>
 #include <openssl/asn1t.h>
 
-ASN1_SEQUENCE(NETSCAPE_SPKAC) = {
-        ASN1_SIMPLE(NETSCAPE_SPKAC, pubkey, X509_PUBKEY),
-        ASN1_SIMPLE(NETSCAPE_SPKAC, challenge, ASN1_IA5STRING)
-} ASN1_SEQUENCE_END(NETSCAPE_SPKAC)
+static const ASN1_TEMPLATE NETSCAPE_SPKAC_seq_tt[] = {
+	{
+		.offset = offsetof(NETSCAPE_SPKAC, pubkey),
+		.field_name = "pubkey",
+		.item = &X509_PUBKEY_it,
+	},
+	{
+		.offset = offsetof(NETSCAPE_SPKAC, challenge),
+		.field_name = "challenge",
+		.item = &ASN1_IA5STRING_it,
+	},
+};
 
-IMPLEMENT_ASN1_FUNCTIONS(NETSCAPE_SPKAC)
+const ASN1_ITEM NETSCAPE_SPKAC_it = {
+	.itype = ASN1_ITYPE_SEQUENCE,
+	.utype = V_ASN1_SEQUENCE,
+	.templates = NETSCAPE_SPKAC_seq_tt,
+	.tcount = sizeof(NETSCAPE_SPKAC_seq_tt) / sizeof(ASN1_TEMPLATE),
+	.size = sizeof(NETSCAPE_SPKAC),
+	.sname = "NETSCAPE_SPKAC",
+};
 
-ASN1_SEQUENCE(NETSCAPE_SPKI) = {
-        ASN1_SIMPLE(NETSCAPE_SPKI, spkac, NETSCAPE_SPKAC),
-        ASN1_SIMPLE(NETSCAPE_SPKI, sig_algor, X509_ALGOR),
-        ASN1_SIMPLE(NETSCAPE_SPKI, signature, ASN1_BIT_STRING)
-} ASN1_SEQUENCE_END(NETSCAPE_SPKI)
 
-IMPLEMENT_ASN1_FUNCTIONS(NETSCAPE_SPKI)
+NETSCAPE_SPKAC *
+d2i_NETSCAPE_SPKAC(NETSCAPE_SPKAC **a, const unsigned char **in, long len)
+{
+	return (NETSCAPE_SPKAC *)ASN1_item_d2i((ASN1_VALUE **)a, in, len,
+	    &NETSCAPE_SPKAC_it);
+}
+
+int
+i2d_NETSCAPE_SPKAC(NETSCAPE_SPKAC *a, unsigned char **out)
+{
+	return ASN1_item_i2d((ASN1_VALUE *)a, out, &NETSCAPE_SPKAC_it);
+}
+
+NETSCAPE_SPKAC *
+NETSCAPE_SPKAC_new(void)
+{
+	return (NETSCAPE_SPKAC *)ASN1_item_new(&NETSCAPE_SPKAC_it);
+}
+
+void
+NETSCAPE_SPKAC_free(NETSCAPE_SPKAC *a)
+{
+	ASN1_item_free((ASN1_VALUE *)a, &NETSCAPE_SPKAC_it);
+}
+
+static const ASN1_TEMPLATE NETSCAPE_SPKI_seq_tt[] = {
+	{
+		.flags = 0,
+		.tag = 0,
+		.offset = offsetof(NETSCAPE_SPKI, spkac),
+		.field_name = "spkac",
+		.item = &NETSCAPE_SPKAC_it,
+	},
+	{
+		.flags = 0,
+		.tag = 0,
+		.offset = offsetof(NETSCAPE_SPKI, sig_algor),
+		.field_name = "sig_algor",
+		.item = &X509_ALGOR_it,
+	},
+	{
+		.flags = 0,
+		.tag = 0,
+		.offset = offsetof(NETSCAPE_SPKI, signature),
+		.field_name = "signature",
+		.item = &ASN1_BIT_STRING_it,
+	},
+};
+
+const ASN1_ITEM NETSCAPE_SPKI_it = {
+	.itype = ASN1_ITYPE_SEQUENCE,
+	.utype = V_ASN1_SEQUENCE,
+	.templates = NETSCAPE_SPKI_seq_tt,
+	.tcount = sizeof(NETSCAPE_SPKI_seq_tt) / sizeof(ASN1_TEMPLATE),
+	.funcs = NULL,
+	.size = sizeof(NETSCAPE_SPKI),
+	.sname = "NETSCAPE_SPKI",
+};
+
+
+NETSCAPE_SPKI *
+d2i_NETSCAPE_SPKI(NETSCAPE_SPKI **a, const unsigned char **in, long len)
+{
+	return (NETSCAPE_SPKI *)ASN1_item_d2i((ASN1_VALUE **)a, in, len,
+	    &NETSCAPE_SPKI_it);
+}
+
+int
+i2d_NETSCAPE_SPKI(NETSCAPE_SPKI *a, unsigned char **out)
+{
+	return ASN1_item_i2d((ASN1_VALUE *)a, out, &NETSCAPE_SPKI_it);
+}
+
+NETSCAPE_SPKI *
+NETSCAPE_SPKI_new(void)
+{
+	return (NETSCAPE_SPKI *)ASN1_item_new(&NETSCAPE_SPKI_it);
+}
+
+void
+NETSCAPE_SPKI_free(NETSCAPE_SPKI *a)
+{
+	ASN1_item_free((ASN1_VALUE *)a, &NETSCAPE_SPKI_it);
+}

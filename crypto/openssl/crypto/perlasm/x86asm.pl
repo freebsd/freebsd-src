@@ -33,6 +33,13 @@ sub ::emit
     else            { push(@out,"\t$opcode\t".join(',',@_)."\n");	}
 }
 
+sub ::emitraw
+{ my $opcode=shift;
+
+    if ($#_==-1)    { push(@out,"$opcode\n");				}
+    else            { push(@out,"$opcode\t".join(',',@_)."\n");	}
+}
+
 sub ::LB
 {   $_[0] =~ m/^e?([a-d])x$/o or die "$_[0] does not have a 'low byte'";
   $1."l";
@@ -123,14 +130,6 @@ sub ::pclmulqdq
     {	&::generic("pclmulqdq",@_);		}
 }
 
-sub ::rdrand
-{ my ($dst)=@_;
-    if ($dst =~ /(e[a-dsd][ixp])/)
-    {	&::data_byte(0x0f,0xc7,0xf0|$regrm{$dst});	}
-    else
-    {	&::generic("rdrand",@_);	}
-}
-
 # label management
 $lbdecor="L";		# local label decoration, set by package
 $label="000";
@@ -218,23 +217,19 @@ sub ::asm_init
     $filename=$fn;
     $i386=$cpu;
 
-    $elf=$cpp=$coff=$aout=$macosx=$win32=$netware=$mwerks=$android=0;
+    $elf=$cpp=$coff=$aout=$macosx=$win32=$openbsd=$android=0;
     if    (($type eq "elf"))
     {	$elf=1;			require "x86gas.pl";	}
     elsif (($type eq "a\.out"))
     {	$aout=1;		require "x86gas.pl";	}
     elsif (($type eq "coff" or $type eq "gaswin"))
     {	$coff=1;		require "x86gas.pl";	}
-    elsif (($type eq "win32n"))
-    {	$win32=1;		require "x86nasm.pl";	}
-    elsif (($type eq "nw-nasm"))
-    {	$netware=1;		require "x86nasm.pl";	}
-    #elsif (($type eq "nw-mwasm"))
-    #{	$netware=1; $mwerks=1;	require "x86nasm.pl";	}
-    elsif (($type eq "win32"))
-    {	$win32=1;		require "x86masm.pl";	}
     elsif (($type eq "macosx"))
     {	$aout=1; $macosx=1;	require "x86gas.pl";	}
+    elsif (($type eq "openbsd-elf"))
+    {	$openbsd=$elf=1;	require "x86gas.pl";	}
+    elsif (($type eq "openbsd-a.out"))
+    {	$openbsd=1;		require "x86gas.pl";	}
     elsif (($type eq "android"))
     {	$elf=1; $android=1;	require "x86gas.pl";	}
     else
@@ -243,8 +238,8 @@ Pick one target type from
 	elf	- Linux, FreeBSD, Solaris x86, etc.
 	a.out	- DJGPP, elder OpenBSD, etc.
 	coff	- GAS/COFF such as Win32 targets
-	win32n	- Windows 95/Windows NT NASM format
-	nw-nasm - NetWare NASM format
+	openbsd-elf	- OpenBSD elf
+	openbsd-a.out	- OpenBSD a.out
 	macosx	- Mac OS X
 EOF
 	exit(1);
@@ -253,6 +248,7 @@ EOF
     $pic=0;
     for (@ARGV) { $pic=1 if (/\-[fK]PIC/i); }
 
+    ::emitraw("#include <machine/asm.h>\n") if $openbsd;
     $filename =~ s/\.pl$//;
     &file($filename);
 }

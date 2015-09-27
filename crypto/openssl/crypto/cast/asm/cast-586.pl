@@ -29,7 +29,7 @@ $S4="CAST_S_table3";
 
 &CAST_encrypt("CAST_encrypt",1);
 &CAST_encrypt("CAST_decrypt",0);
-&cbc("CAST_cbc_encrypt","CAST_encrypt","CAST_decrypt",1,4,5,3,-1,-1);
+&cbc("CAST_cbc_encrypt","CAST_encrypt","CAST_decrypt",1,4,5,3,-1,-1) unless $main'openbsd;
 
 &asm_finish();
 

@@ -2,7 +2,8 @@
 
 =head1 NAME
 
-DH_get_ex_new_index, DH_set_ex_data, DH_get_ex_data - add application specific data to DH structures
+DH_get_ex_new_index, DH_set_ex_data, DH_get_ex_data - add application specific
+data to DH structures
 
 =head1 SYNOPSIS
 

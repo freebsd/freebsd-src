@@ -2,7 +2,8 @@
 
 =head1 NAME
 
-EVP_PKEY_derive_init, EVP_PKEY_derive_set_peer, EVP_PKEY_derive - derive public key algorithm shared secret.
+EVP_PKEY_derive_init, EVP_PKEY_derive_set_peer, EVP_PKEY_derive - derive public
+key algorithm shared secret.
 
 =head1 SYNOPSIS
 
@@ -67,11 +68,11 @@ Derive shared secret (for example DH or EC keys):
  if (EVP_PKEY_derive(ctx, NULL, &skeylen) <= 0)
 	/* Error */
 
- skey = OPENSSL_malloc(skeylen);
+ skey = malloc(skeylen);
 
  if (!skey)
 	/* malloc failure */
- 
+
  if (EVP_PKEY_derive(ctx, skey, &skeylen) <= 0)
 	/* Error */
 

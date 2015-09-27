@@ -1,7 +1,6 @@
-/* rsa_asn1.c */
-/*
- * Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL project
- * 2000.
+/* $OpenBSD: rsa_asn1.c,v 1.11 2015/02/10 05:12:23 jsing Exp $ */
+/* Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL
+ * project 2000.
  */
 /* ====================================================================
  * Copyright (c) 2000-2005 The OpenSSL Project.  All rights reserved.
@@ -58,66 +57,252 @@
  */
 
 #include <stdio.h>
-#include "cryptlib.h"
+
+#include <openssl/asn1t.h>
 #include <openssl/bn.h>
 #include <openssl/rsa.h>
 #include <openssl/x509.h>
-#include <openssl/asn1t.h>
 
 /* Override the default free and new methods */
-static int rsa_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it,
-                  void *exarg)
+static int
+rsa_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it, void *exarg)
 {
-    if (operation == ASN1_OP_NEW_PRE) {
-        *pval = (ASN1_VALUE *)RSA_new();
-        if (*pval)
-            return 2;
-        return 0;
-    } else if (operation == ASN1_OP_FREE_PRE) {
-        RSA_free((RSA *)*pval);
-        *pval = NULL;
-        return 2;
-    }
-    return 1;
+	if (operation == ASN1_OP_NEW_PRE) {
+		*pval = (ASN1_VALUE *)RSA_new();
+		if (*pval)
+			return 2;
+		return 0;
+	} else if (operation == ASN1_OP_FREE_PRE) {
+		RSA_free((RSA *)*pval);
+		*pval = NULL;
+		return 2;
+	}
+	return 1;
 }
 
-ASN1_SEQUENCE_cb(RSAPrivateKey, rsa_cb) = {
-        ASN1_SIMPLE(RSA, version, LONG),
-        ASN1_SIMPLE(RSA, n, BIGNUM),
-        ASN1_SIMPLE(RSA, e, BIGNUM),
-        ASN1_SIMPLE(RSA, d, BIGNUM),
-        ASN1_SIMPLE(RSA, p, BIGNUM),
-        ASN1_SIMPLE(RSA, q, BIGNUM),
-        ASN1_SIMPLE(RSA, dmp1, BIGNUM),
-        ASN1_SIMPLE(RSA, dmq1, BIGNUM),
-        ASN1_SIMPLE(RSA, iqmp, BIGNUM)
-} ASN1_SEQUENCE_END_cb(RSA, RSAPrivateKey)
+static const ASN1_AUX RSAPrivateKey_aux = {
+	.app_data = NULL,
+	.flags = 0,
+	.ref_offset = 0,
+	.ref_lock = 0,
+	.asn1_cb = rsa_cb,
+	.enc_offset = 0,
+};
+static const ASN1_TEMPLATE RSAPrivateKey_seq_tt[] = {
+	{
+		.flags = 0,
+		.tag = 0,
+		.offset = offsetof(RSA, version),
+		.field_name = "version",
+		.item = &LONG_it,
+	},
+	{
+		.flags = 0,
+		.tag = 0,
+		.offset = offsetof(RSA, n),
+		.field_name = "n",
+		.item = &BIGNUM_it,
+	},
+	{
+		.flags = 0,
+		.tag = 0,
+		.offset = offsetof(RSA, e),
+		.field_name = "e",
+		.item = &BIGNUM_it,
+	},
+	{
+		.flags = 0,
+		.tag = 0,
+		.offset = offsetof(RSA, d),
+		.field_name = "d",
+		.item = &BIGNUM_it,
+	},
+	{
+		.flags = 0,
+		.tag = 0,
+		.offset = offsetof(RSA, p),
+		.field_name = "p",
+		.item = &BIGNUM_it,
+	},
+	{
+		.flags = 0,
+		.tag = 0,
+		.offset = offsetof(RSA, q),
+		.field_name = "q",
+		.item = &BIGNUM_it,
+	},
+	{
+		.flags = 0,
+		.tag = 0,
+		.offset = offsetof(RSA, dmp1),
+		.field_name = "dmp1",
+		.item = &BIGNUM_it,
+	},
+	{
+		.flags = 0,
+		.tag = 0,
+		.offset = offsetof(RSA, dmq1),
+		.field_name = "dmq1",
+		.item = &BIGNUM_it,
+	},
+	{
+		.flags = 0,
+		.tag = 0,
+		.offset = offsetof(RSA, iqmp),
+		.field_name = "iqmp",
+		.item = &BIGNUM_it,
+	},
+};
+
+const ASN1_ITEM RSAPrivateKey_it = {
+	.itype = ASN1_ITYPE_SEQUENCE,
+	.utype = V_ASN1_SEQUENCE,
+	.templates = RSAPrivateKey_seq_tt,
+	.tcount = sizeof(RSAPrivateKey_seq_tt) / sizeof(ASN1_TEMPLATE),
+	.funcs = &RSAPrivateKey_aux,
+	.size = sizeof(RSA),
+	.sname = "RSA",
+};
 
 
-ASN1_SEQUENCE_cb(RSAPublicKey, rsa_cb) = {
-        ASN1_SIMPLE(RSA, n, BIGNUM),
-        ASN1_SIMPLE(RSA, e, BIGNUM),
-} ASN1_SEQUENCE_END_cb(RSA, RSAPublicKey)
+static const ASN1_AUX RSAPublicKey_aux = {
+	.app_data = NULL,
+	.flags = 0,
+	.ref_offset = 0,
+	.ref_lock = 0,
+	.asn1_cb = rsa_cb,
+	.enc_offset = 0,
+};
+static const ASN1_TEMPLATE RSAPublicKey_seq_tt[] = {
+	{
+		.flags = 0,
+		.tag = 0,
+		.offset = offsetof(RSA, n),
+		.field_name = "n",
+		.item = &BIGNUM_it,
+	},
+	{
+		.flags = 0,
+		.tag = 0,
+		.offset = offsetof(RSA, e),
+		.field_name = "e",
+		.item = &BIGNUM_it,
+	},
+};
 
-ASN1_SEQUENCE(RSA_PSS_PARAMS) = {
-        ASN1_EXP_OPT(RSA_PSS_PARAMS, hashAlgorithm, X509_ALGOR,0),
-        ASN1_EXP_OPT(RSA_PSS_PARAMS, maskGenAlgorithm, X509_ALGOR,1),
-        ASN1_EXP_OPT(RSA_PSS_PARAMS, saltLength, ASN1_INTEGER,2),
-        ASN1_EXP_OPT(RSA_PSS_PARAMS, trailerField, ASN1_INTEGER,3)
-} ASN1_SEQUENCE_END(RSA_PSS_PARAMS)
+const ASN1_ITEM RSAPublicKey_it = {
+	.itype = ASN1_ITYPE_SEQUENCE,
+	.utype = V_ASN1_SEQUENCE,
+	.templates = RSAPublicKey_seq_tt,
+	.tcount = sizeof(RSAPublicKey_seq_tt) / sizeof(ASN1_TEMPLATE),
+	.funcs = &RSAPublicKey_aux,
+	.size = sizeof(RSA),
+	.sname = "RSA",
+};
 
-IMPLEMENT_ASN1_FUNCTIONS(RSA_PSS_PARAMS)
+static const ASN1_TEMPLATE RSA_PSS_PARAMS_seq_tt[] = {
+	{
+		.flags = ASN1_TFLG_EXPLICIT | ASN1_TFLG_OPTIONAL,
+		.tag = 0,
+		.offset = offsetof(RSA_PSS_PARAMS, hashAlgorithm),
+		.field_name = "hashAlgorithm",
+		.item = &X509_ALGOR_it,
+	},
+	{
+		.flags = ASN1_TFLG_EXPLICIT | ASN1_TFLG_OPTIONAL,
+		.tag = 1,
+		.offset = offsetof(RSA_PSS_PARAMS, maskGenAlgorithm),
+		.field_name = "maskGenAlgorithm",
+		.item = &X509_ALGOR_it,
+	},
+	{
+		.flags = ASN1_TFLG_EXPLICIT | ASN1_TFLG_OPTIONAL,
+		.tag = 2,
+		.offset = offsetof(RSA_PSS_PARAMS, saltLength),
+		.field_name = "saltLength",
+		.item = &ASN1_INTEGER_it,
+	},
+	{
+		.flags = ASN1_TFLG_EXPLICIT | ASN1_TFLG_OPTIONAL,
+		.tag = 3,
+		.offset = offsetof(RSA_PSS_PARAMS, trailerField),
+		.field_name = "trailerField",
+		.item = &ASN1_INTEGER_it,
+	},
+};
 
-IMPLEMENT_ASN1_ENCODE_FUNCTIONS_const_fname(RSA, RSAPrivateKey, RSAPrivateKey)
+const ASN1_ITEM RSA_PSS_PARAMS_it = {
+	.itype = ASN1_ITYPE_SEQUENCE,
+	.utype = V_ASN1_SEQUENCE,
+	.templates = RSA_PSS_PARAMS_seq_tt,
+	.tcount = sizeof(RSA_PSS_PARAMS_seq_tt) / sizeof(ASN1_TEMPLATE),
+	.funcs = NULL,
+	.size = sizeof(RSA_PSS_PARAMS),
+	.sname = "RSA_PSS_PARAMS",
+};
 
-IMPLEMENT_ASN1_ENCODE_FUNCTIONS_const_fname(RSA, RSAPublicKey, RSAPublicKey)
 
-RSA *RSAPublicKey_dup(RSA *rsa)
+RSA_PSS_PARAMS *
+d2i_RSA_PSS_PARAMS(RSA_PSS_PARAMS **a, const unsigned char **in, long len)
 {
-    return ASN1_item_dup(ASN1_ITEM_rptr(RSAPublicKey), rsa);
+	return (RSA_PSS_PARAMS *)ASN1_item_d2i((ASN1_VALUE **)a, in, len,
+	    &RSA_PSS_PARAMS_it);
 }
 
-RSA *RSAPrivateKey_dup(RSA *rsa)
+int
+i2d_RSA_PSS_PARAMS(RSA_PSS_PARAMS *a, unsigned char **out)
 {
-    return ASN1_item_dup(ASN1_ITEM_rptr(RSAPrivateKey), rsa);
+	return ASN1_item_i2d((ASN1_VALUE *)a, out, &RSA_PSS_PARAMS_it);
+}
+
+RSA_PSS_PARAMS *
+RSA_PSS_PARAMS_new(void)
+{
+	return (RSA_PSS_PARAMS *)ASN1_item_new(&RSA_PSS_PARAMS_it);
+}
+
+void
+RSA_PSS_PARAMS_free(RSA_PSS_PARAMS *a)
+{
+	ASN1_item_free((ASN1_VALUE *)a, &RSA_PSS_PARAMS_it);
+}
+
+
+RSA *
+d2i_RSAPrivateKey(RSA **a, const unsigned char **in, long len)
+{
+	return (RSA *)ASN1_item_d2i((ASN1_VALUE **)a, in, len,
+	    &RSAPrivateKey_it);
+}
+
+int
+i2d_RSAPrivateKey(const RSA *a, unsigned char **out)
+{
+	return ASN1_item_i2d((ASN1_VALUE *)a, out, &RSAPrivateKey_it);
+}
+
+
+RSA *
+d2i_RSAPublicKey(RSA **a, const unsigned char **in, long len)
+{
+	return (RSA *)ASN1_item_d2i((ASN1_VALUE **)a, in, len,
+	    &RSAPublicKey_it);
+}
+
+int
+i2d_RSAPublicKey(const RSA *a, unsigned char **out)
+{
+	return ASN1_item_i2d((ASN1_VALUE *)a, out, &RSAPublicKey_it);
+}
+
+RSA *
+RSAPublicKey_dup(RSA *rsa)
+{
+	return ASN1_item_dup(ASN1_ITEM_rptr(RSAPublicKey), rsa);
+}
+
+RSA *
+RSAPrivateKey_dup(RSA *rsa)
+{
+	return ASN1_item_dup(ASN1_ITEM_rptr(RSAPrivateKey), rsa);
 }

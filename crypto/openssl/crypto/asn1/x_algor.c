@@ -1,7 +1,6 @@
-/* x_algor.c */
-/*
- * Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL project
- * 2000.
+/* $OpenBSD: x_algor.c,v 1.20 2015/02/11 04:00:39 jsing Exp $ */
+/* Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL
+ * project 2000.
  */
 /* ====================================================================
  * Copyright (c) 2000 The OpenSSL Project.  All rights reserved.
@@ -62,87 +61,162 @@
 #include <openssl/asn1.h>
 #include <openssl/asn1t.h>
 
-ASN1_SEQUENCE(X509_ALGOR) = {
-        ASN1_SIMPLE(X509_ALGOR, algorithm, ASN1_OBJECT),
-        ASN1_OPT(X509_ALGOR, parameter, ASN1_ANY)
-} ASN1_SEQUENCE_END(X509_ALGOR)
+static const ASN1_TEMPLATE X509_ALGOR_seq_tt[] = {
+	{
+		.offset = offsetof(X509_ALGOR, algorithm),
+		.field_name = "algorithm",
+		.item = &ASN1_OBJECT_it,
+	},
+	{
+		.flags = ASN1_TFLG_OPTIONAL,
+		.offset = offsetof(X509_ALGOR, parameter),
+		.field_name = "parameter",
+		.item = &ASN1_ANY_it,
+	},
+};
 
-ASN1_ITEM_TEMPLATE(X509_ALGORS) =
-        ASN1_EX_TEMPLATE_TYPE(ASN1_TFLG_SEQUENCE_OF, 0, algorithms, X509_ALGOR)
-ASN1_ITEM_TEMPLATE_END(X509_ALGORS)
+const ASN1_ITEM X509_ALGOR_it = {
+	.itype = ASN1_ITYPE_SEQUENCE,
+	.utype = V_ASN1_SEQUENCE,
+	.templates = X509_ALGOR_seq_tt,
+	.tcount = sizeof(X509_ALGOR_seq_tt) / sizeof(ASN1_TEMPLATE),
+	.size = sizeof(X509_ALGOR),
+	.sname = "X509_ALGOR",
+};
 
-IMPLEMENT_ASN1_FUNCTIONS(X509_ALGOR)
-IMPLEMENT_ASN1_ENCODE_FUNCTIONS_fname(X509_ALGORS, X509_ALGORS, X509_ALGORS)
-IMPLEMENT_ASN1_DUP_FUNCTION(X509_ALGOR)
+static const ASN1_TEMPLATE X509_ALGORS_item_tt = {
+	.flags = ASN1_TFLG_SEQUENCE_OF,
+	.tag = 0,
+	.offset = 0,
+	.field_name = "algorithms",
+	.item = &X509_ALGOR_it,
+};
 
-IMPLEMENT_STACK_OF(X509_ALGOR)
-IMPLEMENT_ASN1_SET_OF(X509_ALGOR)
+const ASN1_ITEM X509_ALGORS_it = {
+	.itype = ASN1_ITYPE_PRIMITIVE,
+	.utype = -1,
+	.templates = &X509_ALGORS_item_tt,
+	.tcount = 0,
+	.funcs = NULL,
+	.size = 0,
+	.sname = "X509_ALGORS",
+};
 
-int X509_ALGOR_set0(X509_ALGOR *alg, ASN1_OBJECT *aobj, int ptype, void *pval)
+
+X509_ALGOR *
+d2i_X509_ALGOR(X509_ALGOR **a, const unsigned char **in, long len)
 {
-    if (!alg)
-        return 0;
-    if (ptype != V_ASN1_UNDEF) {
-        if (alg->parameter == NULL)
-            alg->parameter = ASN1_TYPE_new();
-        if (alg->parameter == NULL)
-            return 0;
-    }
-    if (alg) {
-        if (alg->algorithm)
-            ASN1_OBJECT_free(alg->algorithm);
-        alg->algorithm = aobj;
-    }
-    if (ptype == 0)
-        return 1;
-    if (ptype == V_ASN1_UNDEF) {
-        if (alg->parameter) {
-            ASN1_TYPE_free(alg->parameter);
-            alg->parameter = NULL;
-        }
-    } else
-        ASN1_TYPE_set(alg->parameter, ptype, pval);
-    return 1;
+	return (X509_ALGOR *)ASN1_item_d2i((ASN1_VALUE **)a, in, len,
+	    &X509_ALGOR_it);
 }
 
-void X509_ALGOR_get0(ASN1_OBJECT **paobj, int *pptype, void **ppval,
-                     X509_ALGOR *algor)
+int
+i2d_X509_ALGOR(X509_ALGOR *a, unsigned char **out)
 {
-    if (paobj)
-        *paobj = algor->algorithm;
-    if (pptype) {
-        if (algor->parameter == NULL) {
-            *pptype = V_ASN1_UNDEF;
-            return;
-        } else
-            *pptype = algor->parameter->type;
-        if (ppval)
-            *ppval = algor->parameter->value.ptr;
-    }
+	return ASN1_item_i2d((ASN1_VALUE *)a, out, &X509_ALGOR_it);
+}
+
+X509_ALGOR *
+X509_ALGOR_new(void)
+{
+	return (X509_ALGOR *)ASN1_item_new(&X509_ALGOR_it);
+}
+
+void
+X509_ALGOR_free(X509_ALGOR *a)
+{
+	ASN1_item_free((ASN1_VALUE *)a, &X509_ALGOR_it);
+}
+
+X509_ALGORS *
+d2i_X509_ALGORS(X509_ALGORS **a, const unsigned char **in, long len)
+{
+	return (X509_ALGORS *)ASN1_item_d2i((ASN1_VALUE **)a, in, len,
+	    &X509_ALGORS_it);
+}
+
+int
+i2d_X509_ALGORS(X509_ALGORS *a, unsigned char **out)
+{
+	return ASN1_item_i2d((ASN1_VALUE *)a, out, &X509_ALGORS_it);
+}
+
+X509_ALGOR *
+X509_ALGOR_dup(X509_ALGOR *x)
+{
+	return ASN1_item_dup(&X509_ALGOR_it, x);
+}
+
+int
+X509_ALGOR_set0(X509_ALGOR *alg, ASN1_OBJECT *aobj, int ptype, void *pval)
+{
+	if (!alg)
+		return 0;
+	if (ptype != V_ASN1_UNDEF) {
+		if (alg->parameter == NULL)
+			alg->parameter = ASN1_TYPE_new();
+		if (alg->parameter == NULL)
+			return 0;
+	}
+	if (alg) {
+		if (alg->algorithm)
+			ASN1_OBJECT_free(alg->algorithm);
+		alg->algorithm = aobj;
+	}
+	if (ptype == 0)
+		return 1;
+	if (ptype == V_ASN1_UNDEF) {
+		if (alg->parameter) {
+			ASN1_TYPE_free(alg->parameter);
+			alg->parameter = NULL;
+		}
+	} else
+		ASN1_TYPE_set(alg->parameter, ptype, pval);
+	return 1;
+}
+
+void
+X509_ALGOR_get0(ASN1_OBJECT **paobj, int *pptype, void **ppval,
+    X509_ALGOR *algor)
+{
+	if (paobj)
+		*paobj = algor->algorithm;
+	if (pptype) {
+		if (algor->parameter == NULL) {
+			*pptype = V_ASN1_UNDEF;
+			return;
+		} else
+			*pptype = algor->parameter->type;
+		if (ppval)
+			*ppval = algor->parameter->value.ptr;
+	}
 }
 
 /* Set up an X509_ALGOR DigestAlgorithmIdentifier from an EVP_MD */
 
-void X509_ALGOR_set_md(X509_ALGOR *alg, const EVP_MD *md)
+void
+X509_ALGOR_set_md(X509_ALGOR *alg, const EVP_MD *md)
 {
-    int param_type;
+	int param_type;
 
-    if (md->flags & EVP_MD_FLAG_DIGALGID_ABSENT)
-        param_type = V_ASN1_UNDEF;
-    else
-        param_type = V_ASN1_NULL;
+	if (md->flags & EVP_MD_FLAG_DIGALGID_ABSENT)
+		param_type = V_ASN1_UNDEF;
+	else
+		param_type = V_ASN1_NULL;
 
-    X509_ALGOR_set0(alg, OBJ_nid2obj(EVP_MD_type(md)), param_type, NULL);
-
+	X509_ALGOR_set0(alg, OBJ_nid2obj(EVP_MD_type(md)), param_type, NULL);
 }
 
-int X509_ALGOR_cmp(const X509_ALGOR *a, const X509_ALGOR *b)
+/* Returns 0 if they are equal, != 0 otherwise. */
+int
+X509_ALGOR_cmp(const X509_ALGOR *a, const X509_ALGOR *b)
 {
-    int rv;
-    rv = OBJ_cmp(a->algorithm, b->algorithm);
-    if (rv)
-        return rv;
-    if (!a->parameter && !b->parameter)
-        return 0;
-    return ASN1_TYPE_cmp(a->parameter, b->parameter);
+	int rv = OBJ_cmp(a->algorithm, b->algorithm);
+	if (!rv) {
+		if (!a->parameter && !b->parameter)
+			rv = 0;
+		else
+			rv = ASN1_TYPE_cmp(a->parameter, b->parameter);
+	}
+	return(rv);
 }

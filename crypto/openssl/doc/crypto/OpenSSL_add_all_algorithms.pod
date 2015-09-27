@@ -2,7 +2,7 @@
 
 =head1 NAME
 
-OpenSSL_add_all_algorithms, OpenSSL_add_all_ciphers, OpenSSL_add_all_digests -
+OpenSSL_add_all_algorithms, OpenSSL_add_all_ciphers, OpenSSL_add_all_digests, EVP_cleanup -
 add algorithms to internal table
 
 =head1 SYNOPSIS
@@ -39,24 +39,24 @@ None of the functions return a value.
 A typical application will call OpenSSL_add_all_algorithms() initially and
 EVP_cleanup() before exiting.
 
-An application does not need to add algorithms to use them explicitly, for example
-by EVP_sha1(). It just needs to add them if it (or any of the functions it calls)
-needs to lookup algorithms.
+An application does not need to add algorithms to use them explicitly, for
+example by EVP_sha1(). It just needs to add them if it (or any of the functions
+it calls) needs to lookup algorithms.
 
-The cipher and digest lookup functions are used in many parts of the library. If
-the table is not initialized several functions will misbehave and complain they
-cannot find algorithms. This includes the PEM, PKCS#12, SSL and S/MIME libraries.
-This is a common query in the OpenSSL mailing lists.
+The cipher and digest lookup functions are used in many parts of the library.
+If the table is not initialized several functions will misbehave and complain
+they cannot find algorithms. This includes the PEM, PKCS#12, SSL and S/MIME
+libraries.  This is a common query in the OpenSSL mailing lists.
 
 Calling OpenSSL_add_all_algorithms() links in all algorithms: as a result a
-statically linked executable can be quite large. If this is important it is possible
-to just add the required ciphers and digests.
+statically linked executable can be quite large. If this is important it is
+possible to just add the required ciphers and digests.
 
 =head1 BUGS
 
-Although the functions do not return error codes it is possible for them to fail.
-This will only happen as a result of a memory allocation failure so this is not
-too much of a problem in practice.
+Although the functions do not return error codes it is possible for them to
+fail.  This will only happen as a result of a memory allocation failure so this
+is not too much of a problem in practice.
 
 =head1 SEE ALSO
 

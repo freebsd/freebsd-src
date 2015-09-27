@@ -22,11 +22,9 @@ B<openssl> B<verify>
 [B<-extended_crl>]
 [B<-use_deltas>]
 [B<-policy_print>]
-[B<-no_alt_chains>]
 [B<-untrusted file>]
 [B<-help>]
 [B<-issuer_checks>]
-[B<-attime timestamp>]
 [B<-verbose>]
 [B<->]
 [certificates]
@@ -45,10 +43,10 @@ The B<verify> command verifies certificate chains.
 A directory of trusted certificates. The certificates should have names
 of the form: hash.0 or have symbolic links to them of this
 form ("hash" is the hashed certificate subject name: see the B<-hash> option
-of the B<x509> utility). Under Unix the B<c_rehash> script will automatically
-create symbolic links to a directory of certificates.
+of the B<x509> utility).
 
 =item B<-CAfile file>
+
 A file of trusted certificates. The file should contain multiple certificates
 in PEM format concatenated together.
 
@@ -81,12 +79,6 @@ rejected. The presence of rejection messages does not itself imply that
 anything is wrong; during the normal verification process, several
 rejections may take place.
 
-=item B<-attime timestamp>
-
-Perform validation checks using time specified by B<timestamp> and not
-current system time. B<timestamp> is the number of seconds since
-01.01.1970 (UNIX time).
-
 =item B<-policy arg>
 
 Enable policy processing and add B<arg> to the user-initial-policy-set (see
@@ -109,14 +101,6 @@ Set policy variable inhibit-any-policy (see RFC5280).
 
 Set policy variable inhibit-policy-mapping (see RFC5280).
 
-=item B<-no_alt_chains>
-
-When building a certificate chain, if the first certificate chain found is not
-trusted, then OpenSSL will continue to check to see if an alternative chain can
-be found that is trusted. With this option that behaviour is suppressed so that
-only the first chain found is ever used. Using this option will force the
-behaviour to match that of previous OpenSSL versions.
-
 =item B<-policy_print>
 
 Print out diagnostics related to policy processing.
@@ -124,7 +108,7 @@ Print out diagnostics related to policy processing.
 =item B<-crl_check>
 
 Checks end entity certificate validity by attempting to look up a valid CRL.
-If a valid CRL cannot be found an error occurs. 
+If a valid CRL cannot be found an error occurs.
 
 =item B<-crl_check_all>
 
@@ -187,14 +171,14 @@ The verify operation consists of a number of separate steps.
 Firstly a certificate chain is built up starting from the supplied certificate
 and ending in the root CA. It is an error if the whole chain cannot be built
 up. The chain is built up by looking up the issuers certificate of the current
-certificate. If a certificate is found which is its own issuer it is assumed 
+certificate. If a certificate is found which is its own issuer it is assumed
 to be the root CA.
 
 The process of 'looking up the issuers certificate' itself involves a number
 of steps. In versions of OpenSSL before 0.9.5a the first certificate whose
 subject name matched the issuer of the current certificate was assumed to be
 the issuers certificate. In OpenSSL 0.9.6 and later all certificates
-whose subject name matches the issuer name of the current certificate are 
+whose subject name matches the issuer name of the current certificate are
 subject to further tests. The relevant authority key identifier components
 of the current certificate (if present) must match the subject key identifier
 (if present) and issuer and serial number of the candidate issuer, in addition
@@ -217,7 +201,7 @@ the B<CERTIFICATE EXTENSIONS> section of the B<x509> utility.
 The third operation is to check the trust settings on the root CA. The root
 CA should be trusted for the supplied purpose. For compatibility with previous
 versions of SSLeay and OpenSSL a certificate with no trust settings is considered
-to be valid for all purposes. 
+to be valid for all purposes.
 
 The final operation is to check the validity of the certificate chain. The validity
 period is checked against the current system time and the notBefore and notAfter
@@ -417,9 +401,5 @@ B<20 X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY> error codes.
 =head1 SEE ALSO
 
 L<x509(1)|x509(1)>
-
-=head1 HISTORY
-
-The -no_alt_chains options was first added to OpenSSL 1.0.1n and 1.0.2b.
 
 =cut

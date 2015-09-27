@@ -2,7 +2,8 @@
 
 =head1 NAME
 
-EVP_PKEY_verify_recover_init, EVP_PKEY_verify_recover - recover signature using a public key algorithm
+EVP_PKEY_verify_recover_init, EVP_PKEY_verify_recover - recover signature using
+a public key algorithm
 
 =head1 SYNOPSIS
 
@@ -29,7 +30,7 @@ B<rout> and the amount of data written to B<routlen>.
 =head1 NOTES
 
 Normally an application is only interested in whether a signature verification
-operation is successful in those cases the EVP_verify() function should be 
+operation is successful in those cases the EVP_verify() function should be
 used.
 
 Sometimes however it is useful to obtain the data originally signed using a
@@ -45,7 +46,8 @@ context if several operations are performed using the same parameters.
 
 =head1 RETURN VALUES
 
-EVP_PKEY_verify_recover_init() and EVP_PKEY_verify_recover() return 1 for success
+EVP_PKEY_verify_recover_init() and EVP_PKEY_verify_recover() return 1 for
+success
 and 0 or a negative value for failure. In particular a return value of -2
 indicates the operation is not supported by the public key algorithm.
 
@@ -58,7 +60,7 @@ Recover digest originally signed using PKCS#1 and SHA256 digest:
 
  EVP_PKEY_CTX *ctx;
  unsigned char *rout, *sig;
- size_t routlen, siglen; 
+ size_t routlen, siglen;
  EVP_PKEY *verify_key;
  /* NB: assumes verify_key, sig and siglen are already set up
   * and that verify_key is an RSA public key
@@ -77,11 +79,11 @@ Recover digest originally signed using PKCS#1 and SHA256 digest:
  if (EVP_PKEY_verify_recover(ctx, NULL, &routlen, sig, siglen) <= 0)
 	/* Error */
 
- rout = OPENSSL_malloc(routlen);
+ rout = malloc(routlen);
 
  if (!rout)
 	/* malloc failure */
- 
+
  if (EVP_PKEY_verify_recover(ctx, rout, &routlen, sig, siglen) <= 0)
 	/* Error */
 
@@ -94,7 +96,7 @@ L<EVP_PKEY_encrypt(3)|EVP_PKEY_encrypt(3)>,
 L<EVP_PKEY_decrypt(3)|EVP_PKEY_decrypt(3)>,
 L<EVP_PKEY_sign(3)|EVP_PKEY_sign(3)>,
 L<EVP_PKEY_verify(3)|EVP_PKEY_verify(3)>,
-L<EVP_PKEY_derive(3)|EVP_PKEY_derive(3)> 
+L<EVP_PKEY_derive(3)|EVP_PKEY_derive(3)>
 
 =head1 HISTORY
 

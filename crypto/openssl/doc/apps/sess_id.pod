@@ -35,7 +35,7 @@ format base64 encoded with additional header and footer lines.
 
 =item B<-outform DER|PEM>
 
-This specifies the output format, the options have the same meaning as the 
+This specifies the output format, the options have the same meaning as the
 B<-inform> option.
 
 =item B<-in filename>
@@ -51,7 +51,7 @@ output if this option is not specified.
 =item B<-text>
 
 prints out the various public or private key components in
-plain text in addition to the encoded version. 
+plain text in addition to the encoded version.
 
 =item B<-cert>
 

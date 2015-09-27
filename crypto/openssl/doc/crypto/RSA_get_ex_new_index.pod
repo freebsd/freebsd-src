@@ -2,7 +2,8 @@
 
 =head1 NAME
 
-RSA_get_ex_new_index, RSA_set_ex_data, RSA_get_ex_data - add application specific data to RSA structures
+RSA_get_ex_new_index, RSA_set_ex_data, RSA_get_ex_data - add application
+specific data to RSA structures
 
 =head1 SYNOPSIS
 
@@ -78,26 +79,27 @@ corresponding parameters when B<RSA_get_ex_new_index()> was called.
 B<dup_func()> is called when a structure is being copied. Pointers to the
 destination and source B<CRYPTO_EX_DATA> structures are passed in the B<to> and
 B<from> parameters respectively. The B<from_d> parameter is passed a pointer to
-the source application data when the function is called, when the function returns
-the value is copied to the destination: the application can thus modify the data
-pointed to by B<from_d> and have different values in the source and destination.
-The B<idx>, B<argl> and B<argp> parameters are the same as those in B<new_func()>
-and B<free_func()>.
+the source application data when the function is called, when the function
+returns the value is copied to the destination: the application can thus modify
+the data pointed to by B<from_d> and have different values in the source and
+destination.  The B<idx>, B<argl> and B<argp> parameters are the same as those
+in B<new_func()> and B<free_func()>.
 
 =head1 RETURN VALUES
 
-B<RSA_get_ex_new_index()> returns a new index or -1 on failure (note 0 is a valid
-index value).
+B<RSA_get_ex_new_index()> returns a new index or -1 on failure (note 0 is a
+valid index value).
 
 B<RSA_set_ex_data()> returns 1 on success or 0 on failure.
 
 B<RSA_get_ex_data()> returns the application data or 0 on failure. 0 may also
-be valid application data but currently it can only fail if given an invalid B<idx>
-parameter.
+be valid application data but currently it can only fail if given an invalid
+B<idx> parameter.
 
 B<new_func()> and B<dup_func()> should return 0 for failure and 1 for success.
 
-On failure an error code can be obtained from L<ERR_get_error(3)|ERR_get_error(3)>.
+On failure an error code can be obtained from
+L<ERR_get_error(3)|ERR_get_error(3)>.
 
 =head1 BUGS
 

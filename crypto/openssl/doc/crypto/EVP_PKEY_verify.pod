@@ -2,7 +2,8 @@
 
 =head1 NAME
 
-EVP_PKEY_verify_init, EVP_PKEY_verify - signature verification using a public key algorithm
+EVP_PKEY_verify_init, EVP_PKEY_verify - signature verification using a public
+key algorithm
 
 =head1 SYNOPSIS
 
@@ -36,7 +37,7 @@ context if several operations are performed using the same parameters.
 
 EVP_PKEY_verify_init() and EVP_PKEY_verify() return 1 if the verification was
 successful and 0 if it failed. Unlike other functions the return value 0 from
-EVP_PKEY_verify() only indicates that the signature did not not verify
+EVP_PKEY_verify() only indicates that the signature did not verify
 successfully (that is tbs did not match the original data or the signature was
 of invalid form) it is not an indication of a more serious error.
 
@@ -53,7 +54,7 @@ Verify signature using PKCS#1 and SHA256 digest:
 
  EVP_PKEY_CTX *ctx;
  unsigned char *md, *sig;
- size_t mdlen, siglen; 
+ size_t mdlen, siglen;
  EVP_PKEY *verify_key;
  /* NB: assumes verify_key, sig, siglen md and mdlen are already set up
   * and that verify_key is an RSA public key
@@ -82,7 +83,7 @@ L<EVP_PKEY_encrypt(3)|EVP_PKEY_encrypt(3)>,
 L<EVP_PKEY_decrypt(3)|EVP_PKEY_decrypt(3)>,
 L<EVP_PKEY_sign(3)|EVP_PKEY_sign(3)>,
 L<EVP_PKEY_verify_recover(3)|EVP_PKEY_verify_recover(3)>,
-L<EVP_PKEY_derive(3)|EVP_PKEY_derive(3)> 
+L<EVP_PKEY_derive(3)|EVP_PKEY_derive(3)>
 
 =head1 HISTORY
 

@@ -15,7 +15,7 @@
 	little-endian operators.
 	While rc2 is included because it is used with SSL, I don't know how
 	far I trust it.  It is about the same speed as IDEA and DES.
-	So if you are paranoid, used Tripple DES, else IDEA.  If RC2
+	So if you are paranoid, used Triple DES, else IDEA.  If RC2
 	does get used more, perhaps more people will look for weaknesses in
 	it.
 	

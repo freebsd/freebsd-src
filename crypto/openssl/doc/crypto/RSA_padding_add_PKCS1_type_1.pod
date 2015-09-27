@@ -85,9 +85,6 @@ simply copy the data
 
 =back
 
-The random number generator must be seeded prior to calling
-RSA_padding_add_xxx().
-
 RSA_padding_check_xxx() verifies that the B<fl> bytes at B<f> contain
 a valid encoding for a B<rsa_len> byte RSA key in the respective
 encoding method and stores the recovered data of at most B<tlen> bytes

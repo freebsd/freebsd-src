@@ -23,17 +23,6 @@ engine - ENGINE cryptographic module support
 
  void ENGINE_load_openssl(void);
  void ENGINE_load_dynamic(void);
- #ifndef OPENSSL_NO_STATIC_ENGINE
- void ENGINE_load_4758cca(void);
- void ENGINE_load_aep(void);
- void ENGINE_load_atalla(void);
- void ENGINE_load_chil(void);
- void ENGINE_load_cswift(void);
- void ENGINE_load_gmp(void);
- void ENGINE_load_nuron(void);
- void ENGINE_load_sureware(void);
- void ENGINE_load_ubsec(void);
- #endif
  void ENGINE_load_cryptodev(void);
  void ENGINE_load_builtin_engines(void);
 
@@ -320,15 +309,11 @@ consideration is whether any/all available ENGINE implementations should be
 made visible to OpenSSL - this is controlled by calling the various "load"
 functions, eg.
 
- /* Make the "dynamic" ENGINE available */
- void ENGINE_load_dynamic(void);
- /* Make the CryptoSwift hardware acceleration support available */
- void ENGINE_load_cswift(void);
- /* Make support for nCipher's "CHIL" hardware available */
- void ENGINE_load_chil(void);
- ...
  /* Make ALL ENGINE implementations bundled with OpenSSL available */
- void ENGINE_load_builtin_engines(void);
+ ENGINE_load_builtin_engines();
+
+Note that ENGINE_load_dynamic(void) is a placeholder and does not enable
+dynamic engine loading support.
 
 Having called any of these functions, ENGINE objects would have been
 dynamically allocated and populated with these implementations and linked
@@ -378,15 +363,15 @@ illustrates how to approach this;
  const char *engine_id = "ACME";
  ENGINE_load_builtin_engines();
  e = ENGINE_by_id(engine_id);
- if(!e)
+ if (!e)
      /* the engine isn't available */
      return;
- if(!ENGINE_init(e)) {
+ if (!ENGINE_init(e)) {
      /* the engine couldn't initialise, release 'e' */
      ENGINE_free(e);
      return;
  }
- if(!ENGINE_set_default_RSA(e))
+ if (!ENGINE_set_default_RSA(e))
      /* This should only happen when 'e' can't initialise, but the previous
       * statement suggests it did. */
      abort();
@@ -460,42 +445,54 @@ cases but the name can not. This function should initialise the ENGINE
 and set it as the default for everything except RAND and then return a
 boolean success or failure.
 
- int generic_load_engine_fn(const char *engine_id,
-                            const char **pre_cmds, int pre_num,
-                            const char **post_cmds, int post_num)
+ int
+ generic_load_engine_fn(const char *engine_id,
+     const char **pre_cmds, int pre_num,
+     const char **post_cmds, int post_num)
  {
-     ENGINE *e = ENGINE_by_id(engine_id);
-     if(!e) return 0;
-     while(pre_num--) {
-         if(!ENGINE_ctrl_cmd_string(e, pre_cmds[0], pre_cmds[1], 0)) {
-             fprintf(stderr, "Failed command (%s - %s:%s)\n", engine_id,
-                 pre_cmds[0], pre_cmds[1] ? pre_cmds[1] : "(NULL)");
-             ENGINE_free(e);
-             return 0;
-         }
-	 pre_cmds += 2;
-     }
-     if(!ENGINE_init(e)) {
-         fprintf(stderr, "Failed initialisation\n");
-         ENGINE_free(e);
-         return 0;
-     }
-     /* ENGINE_init() returned a functional reference, so free the structural
-      * reference from ENGINE_by_id(). */
-     ENGINE_free(e);
-     while(post_num--) {
-         if(!ENGINE_ctrl_cmd_string(e, post_cmds[0], post_cmds[1], 0)) {
-             fprintf(stderr, "Failed command (%s - %s:%s)\n", engine_id,
-                 post_cmds[0], post_cmds[1] ? post_cmds[1] : "(NULL)");
-             ENGINE_finish(e);
-             return 0;
-         }
-	 post_cmds += 2;
-     }
-     ENGINE_set_default(e, ENGINE_METHOD_ALL & ~ENGINE_METHOD_RAND);
-     /* Success */
-     return 1;
- }
+	ENGINE *e = ENGINE_by_id(engine_id);
+
+	if (!e)
+		return 0;
+	while (pre_num--) {
+		if (!ENGINE_ctrl_cmd_string(e,
+		    pre_cmds[0], pre_cmds[1], 0)) {
+			fprintf(stderr,
+			    "Failed command (%s - %s:%s)\n",
+			    engine_id, pre_cmds[0],
+			    pre_cmds[1] ? pre_cmds[1] : "(NULL)");
+			ENGINE_free(e);
+			return 0;
+		}
+		pre_cmds += 2;
+	}
+	if (!ENGINE_init(e)) {
+		fprintf(stderr, "Failed initialisation\n");
+		ENGINE_free(e);
+		return 0;
+	}
+	/*
+	 * ENGINE_init() returned a functional reference,
+	 * so free the structural reference from
+	 * ENGINE_by_id().
+	 */
+	ENGINE_free(e);
+	while (post_num--) {
+		if (!ENGINE_ctrl_cmd_string(e,
+		    post_cmds[0], post_cmds[1], 0)) {
+			fprintf(stderr,
+			    "Failed command (%s - %s:%s)\n",
+			    engine_id, post_cmds[0],
+			    post_cmds[1] ? post_cmds[1] : "(NULL)");
+			ENGINE_finish(e);
+			return 0;
+		}
+		post_cmds += 2;
+	}
+	ENGINE_set_default(e, ENGINE_METHOD_ALL & ~ENGINE_METHOD_RAND);
+	/* Success */
+	return 1;
+}
 
 Note that ENGINE_ctrl_cmd_string() accepts a boolean argument that can
 relax the semantics of the function - if set non-zero it will only return

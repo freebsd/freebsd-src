@@ -182,6 +182,15 @@ sub ::align
 sub ::picmeup
 { my($dst,$sym,$base,$reflabel)=@_;
 
+    if ($::openbsd)
+    {  &::emitraw("#if defined(PIC) || defined(__PIC__)");
+       &::emitraw("PIC_PROLOGUE");
+       &::mov($dst, &::DWP("PIC_GOT($sym)"));
+       &::emitraw("PIC_EPILOGUE");
+       &::emitraw("#else /* PIC */");
+       &::lea($dst,&::DWP($sym));
+       &::emitraw("#endif /* PIC */");
+    }
     if (($::pic && ($::elf || $::aout)) || $::macosx)
     {	if (!defined($base))
 	{   &::call(&::label("PIC_me_up"));
@@ -208,7 +217,17 @@ sub ::picmeup
 sub ::initseg
 { my $f=$nmdecor.shift;
 
-    if ($::android)
+    if ($::openbsd)
+    {	$initseg.=<<___;
+.section	.init
+PIC_PROLOGUE
+	call	PIC_PLT($f)
+PIC_EPILOGUE
+	jmp	.Linitalign
+.align	$align
+.Linitalign:
+___
+    } elsif ($::android)
     {	$initseg.=<<___;
 .section	.init_array
 .align	4

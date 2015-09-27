@@ -15,8 +15,6 @@ DSA_generate_key - generate DSA key pair
 DSA_generate_key() expects B<a> to contain DSA parameters. It generates
 a new key pair and stores it in B<a-E<gt>pub_key> and B<a-E<gt>priv_key>.
 
-The PRNG must be seeded prior to calling DSA_generate_key().
-
 =head1 RETURN VALUE
 
 DSA_generate_key() returns 1 on success, 0 otherwise.

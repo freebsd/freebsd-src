@@ -159,8 +159,12 @@ ___
 
 $code=<<___;
 	.LEVEL	$LEVEL
+#if 0
 	.SPACE	\$TEXT\$
 	.SUBSPA	\$CODE\$,QUAD=0,ALIGN=8,ACCESS=0x2C,CODE_ONLY
+#else
+	.text
+#endif
 
 	.ALIGN	64
 L\$table
@@ -265,6 +269,9 @@ L\$pic
 	ldo	L\$table-L\$pic($Tbl),$Tbl
 ___
 $code.=<<___ if ($SZ==8 && $SIZE_T==4);
+#ifndef __OpenBSD__
+___
+$code.=<<___ if ($SZ==8 && $SIZE_T==4);
 	ldi	31,$t1
 	mtctl	$t1,%cr11
 	extrd,u,*= $t1,%sar,1,$t1	; executes on PA-RISC 1.0
@@ -358,6 +365,9 @@ $code.=<<___;
 
 	.ALIGN	64
 L\$parisc1
+___
+$code.=<<___ if ($SZ==8 && $SIZE_T==4);
+#endif
 ___
 
 @V=(  $Ahi,  $Alo,  $Bhi,  $Blo,  $Chi,  $Clo,  $Dhi,  $Dlo,
@@ -682,6 +692,8 @@ $code.=<<___;
 	.EXIT
 	$POPMB	-$FRAME(%sp),%r3
 	.PROCEND
+
+	.data
 	.STRINGZ "SHA`64*$SZ` block transform for PA-RISC, CRYPTOGAMS by <appro\@openssl.org>"
 ___
 

@@ -4,8 +4,6 @@ $flavour = shift;
 $output  = shift;
 if ($flavour =~ /\./) { $output = $flavour; undef $flavour; }
 
-$win64=0; $win64=1 if ($flavour =~ /[nm]asm|mingw64/ || $output =~ /\.asm$/);
-
 $0 =~ m/(.*[\/\\])[^\/\\]+$/; $dir=$1;
 ( $xlate="${dir}x86_64-xlate.pl" and -f $xlate ) or
 ( $xlate="${dir}perlasm/x86_64-xlate.pl" and -f $xlate) or
@@ -14,8 +12,7 @@ die "can't locate x86_64-xlate.pl";
 open OUT,"| \"$^X\" $xlate $flavour $output";
 *STDOUT=*OUT;
 
-($arg1,$arg2,$arg3,$arg4)=$win64?("%rcx","%rdx","%r8", "%r9") :	# Win64 order
-				 ("%rdi","%rsi","%rdx","%rcx");	# Unix order
+($arg1,$arg2,$arg3,$arg4)=("%rdi","%rsi","%rdx","%rcx");	# Unix order
 
 print<<___;
 .extern		OPENSSL_cpuid_setup
@@ -41,16 +38,6 @@ OPENSSL_atomic_add:
 	.byte	0x48,0x98	# cltq/cdqe
 	ret
 .size	OPENSSL_atomic_add,.-OPENSSL_atomic_add
-
-.globl	OPENSSL_rdtsc
-.type	OPENSSL_rdtsc,\@abi-omnipotent
-.align	16
-OPENSSL_rdtsc:
-	rdtsc
-	shl	\$32,%rdx
-	or	%rdx,%rax
-	ret
-.size	OPENSSL_rdtsc,.-OPENSSL_rdtsc
 
 .globl	OPENSSL_ia32_cpuid
 .type	OPENSSL_ia32_cpuid,\@abi-omnipotent
@@ -172,44 +159,9 @@ OPENSSL_ia32_cpuid:
 	or	%r9,%rax
 	ret
 .size	OPENSSL_ia32_cpuid,.-OPENSSL_ia32_cpuid
-
-.globl  OPENSSL_cleanse
-.type   OPENSSL_cleanse,\@abi-omnipotent
-.align  16
-OPENSSL_cleanse:
-	xor	%rax,%rax
-	cmp	\$15,$arg2
-	jae	.Lot
-	cmp	\$0,$arg2
-	je	.Lret
-.Little:
-	mov	%al,($arg1)
-	sub	\$1,$arg2
-	lea	1($arg1),$arg1
-	jnz	.Little
-.Lret:
-	ret
-.align	16
-.Lot:
-	test	\$7,$arg1
-	jz	.Laligned
-	mov	%al,($arg1)
-	lea	-1($arg2),$arg2
-	lea	1($arg1),$arg1
-	jmp	.Lot
-.Laligned:
-	mov	%rax,($arg1)
-	lea	-8($arg2),$arg2
-	test	\$-8,$arg2
-	lea	8($arg1),$arg1
-	jnz	.Laligned
-	cmp	\$0,$arg2
-	jne	.Little
-	ret
-.size	OPENSSL_cleanse,.-OPENSSL_cleanse
 ___
 
-print<<___ if (!$win64);
+print<<___;
 .globl	OPENSSL_wipe_cpu
 .type	OPENSSL_wipe_cpu,\@abi-omnipotent
 .align	16
@@ -241,44 +193,6 @@ OPENSSL_wipe_cpu:
 	leaq	8(%rsp),%rax
 	ret
 .size	OPENSSL_wipe_cpu,.-OPENSSL_wipe_cpu
-___
-print<<___ if ($win64);
-.globl	OPENSSL_wipe_cpu
-.type	OPENSSL_wipe_cpu,\@abi-omnipotent
-.align	16
-OPENSSL_wipe_cpu:
-	pxor	%xmm0,%xmm0
-	pxor	%xmm1,%xmm1
-	pxor	%xmm2,%xmm2
-	pxor	%xmm3,%xmm3
-	pxor	%xmm4,%xmm4
-	pxor	%xmm5,%xmm5
-	xorq	%rcx,%rcx
-	xorq	%rdx,%rdx
-	xorq	%r8,%r8
-	xorq	%r9,%r9
-	xorq	%r10,%r10
-	xorq	%r11,%r11
-	leaq	8(%rsp),%rax
-	ret
-.size	OPENSSL_wipe_cpu,.-OPENSSL_wipe_cpu
-___
-
-print<<___;
-.globl	OPENSSL_ia32_rdrand
-.type	OPENSSL_ia32_rdrand,\@abi-omnipotent
-.align	16
-OPENSSL_ia32_rdrand:
-	mov	\$8,%ecx
-.Loop_rdrand:
-	rdrand	%rax
-	jc	.Lbreak_rdrand
-	loop	.Loop_rdrand
-.Lbreak_rdrand:
-	cmp	\$0,%rax
-	cmove	%rcx,%rax
-	ret
-.size	OPENSSL_ia32_rdrand,.-OPENSSL_ia32_rdrand
 ___
 
 close STDOUT;	# flush

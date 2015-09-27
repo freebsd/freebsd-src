@@ -1,6 +1,5 @@
-/* crypto/cms/cms_cd.c */
-/*
- * Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL
+/* $OpenBSD: cms_cd.c,v 1.5 2014/07/11 08:44:48 jsing Exp $ */
+/* Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL
  * project.
  */
 /* ====================================================================
@@ -52,16 +51,16 @@
  * ====================================================================
  */
 
-#include "cryptlib.h"
+#include <openssl/opensslconf.h>
+
 #include <openssl/asn1t.h>
+#include <openssl/bio.h>
+#include <openssl/cms.h>
+#include <openssl/err.h>
 #include <openssl/pem.h>
 #include <openssl/x509v3.h>
-#include <openssl/err.h>
-#include <openssl/cms.h>
-#include <openssl/bio.h>
-#ifndef OPENSSL_NO_COMP
-# include <openssl/comp.h>
-#endif
+
+
 #include "cms_lcl.h"
 
 DECLARE_ASN1_ITEM(CMS_CompressedData)
@@ -70,65 +69,67 @@ DECLARE_ASN1_ITEM(CMS_CompressedData)
 
 /* CMS CompressedData Utilities */
 
-CMS_ContentInfo *cms_CompressedData_create(int comp_nid)
+CMS_ContentInfo *
+cms_CompressedData_create(int comp_nid)
 {
-    CMS_ContentInfo *cms;
-    CMS_CompressedData *cd;
-    /*
-     * Will need something cleverer if there is ever more than one
-     * compression algorithm or parameters have some meaning...
-     */
-    if (comp_nid != NID_zlib_compression) {
-        CMSerr(CMS_F_CMS_COMPRESSEDDATA_CREATE,
-               CMS_R_UNSUPPORTED_COMPRESSION_ALGORITHM);
-        return NULL;
-    }
-    cms = CMS_ContentInfo_new();
-    if (!cms)
-        return NULL;
+	CMS_ContentInfo *cms;
+	CMS_CompressedData *cd;
 
-    cd = M_ASN1_new_of(CMS_CompressedData);
+	/* Will need something cleverer if there is ever more than one
+	 * compression algorithm or parameters have some meaning...
+	 */
+	if (comp_nid != NID_zlib_compression) {
+		CMSerr(CMS_F_CMS_COMPRESSEDDATA_CREATE,
+		    CMS_R_UNSUPPORTED_COMPRESSION_ALGORITHM);
+		return NULL;
+	}
+	cms = CMS_ContentInfo_new();
+	if (!cms)
+		return NULL;
 
-    if (!cd)
-        goto err;
+	cd = M_ASN1_new_of(CMS_CompressedData);
 
-    cms->contentType = OBJ_nid2obj(NID_id_smime_ct_compressedData);
-    cms->d.compressedData = cd;
+	if (!cd)
+		goto err;
 
-    cd->version = 0;
+	cms->contentType = OBJ_nid2obj(NID_id_smime_ct_compressedData);
+	cms->d.compressedData = cd;
 
-    X509_ALGOR_set0(cd->compressionAlgorithm,
-                    OBJ_nid2obj(NID_zlib_compression), V_ASN1_UNDEF, NULL);
+	cd->version = 0;
 
-    cd->encapContentInfo->eContentType = OBJ_nid2obj(NID_pkcs7_data);
+	X509_ALGOR_set0(cd->compressionAlgorithm,
+	    OBJ_nid2obj(NID_zlib_compression),
+	    V_ASN1_UNDEF, NULL);
 
-    return cms;
+	cd->encapContentInfo->eContentType = OBJ_nid2obj(NID_pkcs7_data);
 
- err:
+	return cms;
 
-    if (cms)
-        CMS_ContentInfo_free(cms);
-
-    return NULL;
+err:
+	if (cms)
+		CMS_ContentInfo_free(cms);
+	return NULL;
 }
 
-BIO *cms_CompressedData_init_bio(CMS_ContentInfo *cms)
+BIO *
+cms_CompressedData_init_bio(CMS_ContentInfo *cms)
 {
-    CMS_CompressedData *cd;
-    ASN1_OBJECT *compoid;
-    if (OBJ_obj2nid(cms->contentType) != NID_id_smime_ct_compressedData) {
-        CMSerr(CMS_F_CMS_COMPRESSEDDATA_INIT_BIO,
-               CMS_R_CONTENT_TYPE_NOT_COMPRESSED_DATA);
-        return NULL;
-    }
-    cd = cms->d.compressedData;
-    X509_ALGOR_get0(&compoid, NULL, NULL, cd->compressionAlgorithm);
-    if (OBJ_obj2nid(compoid) != NID_zlib_compression) {
-        CMSerr(CMS_F_CMS_COMPRESSEDDATA_INIT_BIO,
-               CMS_R_UNSUPPORTED_COMPRESSION_ALGORITHM);
-        return NULL;
-    }
-    return BIO_new(BIO_f_zlib());
+	CMS_CompressedData *cd;
+	ASN1_OBJECT *compoid;
+
+	if (OBJ_obj2nid(cms->contentType) != NID_id_smime_ct_compressedData) {
+		CMSerr(CMS_F_CMS_COMPRESSEDDATA_INIT_BIO,
+		    CMS_R_CONTENT_TYPE_NOT_COMPRESSED_DATA);
+		return NULL;
+	}
+	cd = cms->d.compressedData;
+	X509_ALGOR_get0(&compoid, NULL, NULL, cd->compressionAlgorithm);
+	if (OBJ_obj2nid(compoid) != NID_zlib_compression) {
+		CMSerr(CMS_F_CMS_COMPRESSEDDATA_INIT_BIO,
+		    CMS_R_UNSUPPORTED_COMPRESSION_ALGORITHM);
+		return NULL;
+	}
+	return BIO_new(BIO_f_zlib());
 }
 
 #endif

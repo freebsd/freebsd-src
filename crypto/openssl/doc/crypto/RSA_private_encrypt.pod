@@ -11,7 +11,7 @@ RSA_private_encrypt, RSA_public_decrypt - low level signature operations
  int RSA_private_encrypt(int flen, unsigned char *from,
     unsigned char *to, RSA *rsa, int padding);
 
- int RSA_public_decrypt(int flen, unsigned char *from, 
+ int RSA_public_decrypt(int flen, unsigned char *from,
     unsigned char *to, RSA *rsa, int padding);
 
 =head1 DESCRIPTION
@@ -29,10 +29,9 @@ B<padding> denotes one of the following modes:
 
 =item RSA_PKCS1_PADDING
 
-PKCS #1 v1.5 padding. This function does not handle the
-B<algorithmIdentifier> specified in PKCS #1. When generating or
-verifying PKCS #1 signatures, L<RSA_sign(3)|RSA_sign(3)> and L<RSA_verify(3)|RSA_verify(3)> should be
-used.
+PKCS #1 v1.5 padding. This function does not handle the B<algorithmIdentifier>
+specified in PKCS #1. When generating or verifying PKCS #1 signatures,
+L<RSA_sign(3)|RSA_sign(3)> and L<RSA_verify(3)|RSA_verify(3)> should be used.
 
 =item RSA_NO_PADDING
 

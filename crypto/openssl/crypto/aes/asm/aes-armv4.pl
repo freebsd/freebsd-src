@@ -404,10 +404,10 @@ _armv4_AES_encrypt:
 	ldr	pc,[sp],#4		@ pop and return
 .size	_armv4_AES_encrypt,.-_armv4_AES_encrypt
 
-.global private_AES_set_encrypt_key
-.type   private_AES_set_encrypt_key,%function
+.global AES_set_encrypt_key
+.type   AES_set_encrypt_key,%function
 .align	5
-private_AES_set_encrypt_key:
+AES_set_encrypt_key:
 _armv4_AES_set_encrypt_key:
 	sub	r3,pc,#8		@ AES_set_encrypt_key
 	teq	r0,#0
@@ -679,12 +679,12 @@ _armv4_AES_set_encrypt_key:
 .Labrt:	tst	lr,#1
 	moveq	pc,lr			@ be binary compatible with V4, yet
 	bx	lr			@ interoperable with Thumb ISA:-)
-.size	private_AES_set_encrypt_key,.-private_AES_set_encrypt_key
+.size	AES_set_encrypt_key,.-AES_set_encrypt_key
 
-.global private_AES_set_decrypt_key
-.type   private_AES_set_decrypt_key,%function
+.global AES_set_decrypt_key
+.type   AES_set_decrypt_key,%function
 .align	5
-private_AES_set_decrypt_key:
+AES_set_decrypt_key:
 	str	lr,[sp,#-4]!            @ push lr
 	bl	_armv4_AES_set_encrypt_key
 	teq	r0,#0
@@ -773,7 +773,7 @@ $code.=<<___;
 	moveq	pc,lr			@ be binary compatible with V4, yet
 	bx	lr			@ interoperable with Thumb ISA:-)
 #endif
-.size	private_AES_set_decrypt_key,.-private_AES_set_decrypt_key
+.size	AES_set_decrypt_key,.-AES_set_decrypt_key
 
 .type	AES_Td,%object
 .align	5
