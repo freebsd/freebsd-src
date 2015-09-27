@@ -1333,6 +1333,8 @@ in_lltable_dump_entry(struct lltable *llt, struct llentry *lle,
 			arpc.rtm.rtm_flags |= (RTF_HOST | RTF_LLDATA);
 			if (lle->la_flags & LLE_STATIC)
 				arpc.rtm.rtm_flags |= RTF_STATIC;
+			if (lle->la_flags & LLE_IFADDR)
+				arpc.rtm.rtm_flags |= RTF_PINNED;
 			arpc.rtm.rtm_index = ifp->if_index;
 			error = SYSCTL_OUT(wr, &arpc, sizeof(arpc));
 
