@@ -286,6 +286,29 @@ morecore(int bucket)
 	}
 }
 
+static union overhead *
+find_overhead(void * cp)
+{
+	union overhead *op;
+
+	op = (union overhead *)(void *)((caddr_t)cp - sizeof (union overhead));
+
+	if (cheri_gettag(op) && cheri_getoffset(op) == 0 &&
+	    op->ov_magic == MAGIC)
+	return (op);
+
+	/*
+	 * XXX: the above will fail if the users calls free or realloc
+	 * with a pointer that has had CSetBounds applied to it.  We
+	 * should save all allocation ranges to allow us to find the
+	 * metadata.
+	 */
+	printf("%s: Attempting to free or realloc unallocated memory\n",
+	    __func__);
+	CHERI_PRINT_PTR(cp);
+	return (NULL);
+}
+
 void
 free(void *cp)
 {
@@ -294,15 +317,9 @@ free(void *cp)
 
 	if (cp == NULL)
 		return;
-	op = (union overhead *)(void *)((caddr_t)cp - sizeof (union overhead));
-	ASSERT(cheri_gettag(op) == 1);		/* is a capabiltiy */
-	ASSERT(cheri_getoffset(op) == 0);	/* at the beginning */
-#ifdef MALLOC_DEBUG
-	ASSERT(op->ov_magic == MAGIC);		/* make sure it was in use */
-#else
-	if (op->ov_magic != MAGIC)
-		return;				/* sanity */
-#endif
+	op = find_overhead(cp);
+	if (op == NULL)
+		return;
 #ifdef RCHECK
 	ASSERT(op->ov_rmagic == RMAGIC);
 	ASSERT(*(u_short *)((caddr_t)(op + 1) + op->ov_size) == RMAGIC);
@@ -326,13 +343,9 @@ realloc(void *cp, size_t nbytes)
 
 	if (cp == NULL)
 		return (malloc(nbytes));
-	op = (union overhead *)(void *)((caddr_t)cp - sizeof (union overhead));
-	if (op->ov_magic != MAGIC) {
-		printf("%s: Attempting to reallocate unallocated memory\n",
-		    __func__);
-		CHERI_PRINT_PTR(cp);
+	op = find_overhead(cp);
+	if (op == NULL)
 		return (NULL);
-	}
 	i = op->ov_index;
 	onb = 1 << (i + 3);
 	if (onb < (u_int)pagesz)
