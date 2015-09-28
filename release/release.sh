@@ -320,9 +320,9 @@ chroot_build_release() {
 			VMSIZE="$(eval chroot ${CHROOTDIR} \
 				make -C /usr/src/release -V VMSIZE)"
 		fi
+		RELEASE_RMAKEFLAGS="${RELEASE_RMAKEFLAGS} \
+			VMFORMATS=\"${VMFORMATS}\" VMSIZE=${VMSIZE}"
 	fi
-	RELEASE_RMAKEFLAGS="${RELEASE_RMAKEFLAGS} VMFORMATS=\"${VMFORMATS}\" \
-		VMSIZE=${VMSIZE}"
 	eval chroot ${CHROOTDIR} make -C /usr/src/release \
 		${RELEASE_RMAKEFLAGS} release
 	eval chroot ${CHROOTDIR} make -C /usr/src/release \
