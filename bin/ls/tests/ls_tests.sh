@@ -99,6 +99,19 @@ A_flag_implied_when_root_body()
 	atf_check_equal "$(cat $WITH_EXPLICIT)" "$(cat $WITH_IMPLIED)"
 }
 
+atf_test_case C_flag
+C_flag_head()
+{
+	atf_set "descr" "Verify that the output from ls -C"
+}
+
+C_flag_body()
+{
+	create_test_inputs
+
+	atf_check -e empty -o match:"$(printf 'a[[:space:]]+c[[:space:]]+d[[:space:]]+e[[:space:]]+h\n')" -s exit:0 ls -C
+}
+
 atf_test_case I_flag
 I_flag_head()
 {
@@ -141,11 +154,37 @@ I_flag_voids_A_flag_when_root_body()
 	atf_check -o match:'\.g' -s exit:0 ls -A -I
 }
 
+1_flag_head()
+{
+	atf_set "descr" "Verify that -1 prints out one item per line"
+}
+
+1_flag_body()
+{
+	create_test_inputs
+
+	WITH_1=$PWD/../with_1.out
+	WITHOUT_1=$PWD/../without_1.out
+
+	atf_check -e empty -o save:$WITH_1 -s exit:0 ls -1
+	atf_check -e empty -o save:$WITHOUT_1 -s exit:0 \
+		sh -c 'for i in $(ls); do echo $i; done'
+
+	echo "Explicit -1 usage"
+	cat $WITH_1
+	echo "No -1 usage"
+	cat $WITHOUT_1
+
+	atf_check_equal "$(cat $WITH_1)" "$(cat $WITHOUT_1)"
+}
+
 atf_init_test_cases()
 {
 
 	atf_add_test_case A_flag
 	atf_add_test_case A_flag_implied_when_root
+	atf_add_test_case C_flag
 	atf_add_test_case I_flag
 	atf_add_test_case I_flag_voids_A_flag_when_root
+	atf_add_test_case 1_flag
 }
