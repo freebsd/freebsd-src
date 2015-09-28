@@ -223,7 +223,7 @@ uhci_pci_match(device_t self)
 	case 0x76028086:
 		return ("Intel 82372FB/82468GX USB controller");
 
-	case 0x3309103c:
+	case 0x3300103c:
 		return ("HP iLO Standard Virtual USB controller");
 
 	case 0x30381106:

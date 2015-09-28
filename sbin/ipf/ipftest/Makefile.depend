@@ -25,8 +25,10 @@ ipf_l.o: ipf_y.h
 ipf_l.po: ipf_l.c
 ipf_l.po: ipf_l.h
 ipf_l.po: ipf_y.h
+ipf_y.o: ipf.tab.c
 ipf_y.o: ipf_l.h
 ipf_y.o: ipf_y.c
+ipf_y.po: ipf.tab.c
 ipf_y.po: ipf_l.h
 ipf_y.po: ipf_y.c
 ipnat_l.o: ipnat_l.c
@@ -35,8 +37,10 @@ ipnat_l.o: ipnat_y.h
 ipnat_l.po: ipnat_l.c
 ipnat_l.po: ipnat_l.h
 ipnat_l.po: ipnat_y.h
+ipnat_y.o: ipnat.tab.c
 ipnat_y.o: ipnat_l.h
 ipnat_y.o: ipnat_y.c
+ipnat_y.po: ipnat.tab.c
 ipnat_y.po: ipnat_l.h
 ipnat_y.po: ipnat_y.c
 ippool_l.o: ippool_l.c
@@ -45,8 +49,10 @@ ippool_l.o: ippool_y.h
 ippool_l.po: ippool_l.c
 ippool_l.po: ippool_l.h
 ippool_l.po: ippool_y.h
+ippool_y.o: ippool.tab.c
 ippool_y.o: ippool_l.h
 ippool_y.o: ippool_y.c
+ippool_y.po: ippool.tab.c
 ippool_y.po: ippool_l.h
 ippool_y.po: ippool_y.c
 .endif

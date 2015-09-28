@@ -120,10 +120,8 @@ static const char *ufslike_filesystems[] = {
 };
 
 FTS *
-__fts_open_44bsd(argv, options, compar)
-	char * const *argv;
-	int options;
-	int (*compar)(const FTSENT * const *, const FTSENT * const *);
+__fts_open_44bsd(char * const *argv, int options,
+    int (*compar)(const FTSENT * const *, const FTSENT * const *))
 {
 	struct _fts_private *priv;
 	FTS *sp;
@@ -234,9 +232,7 @@ mem1:	free(sp);
 }
 
 static void
-fts_load(sp, p)
-	FTS *sp;
-	FTSENT *p;
+fts_load(FTS *sp, FTSENT *p)
 {
 	int len;
 	char *cp;
@@ -260,8 +256,7 @@ fts_load(sp, p)
 }
 
 int
-__fts_close_44bsd(sp)
-	FTS *sp;
+__fts_close_44bsd(FTS *sp)
 {
 	FTSENT *freep, *p;
 	int saved_errno;
@@ -315,8 +310,7 @@ __fts_close_44bsd(sp)
 	    ? p->fts_pathlen - 1 : p->fts_pathlen)
 
 FTSENT *
-__fts_read_44bsd(sp)
-	FTS *sp;
+__fts_read_44bsd(FTS *sp)
 {
 	FTSENT *p, *tmp;
 	int instr;
@@ -510,10 +504,7 @@ name:		t = sp->fts_path + NAPPEND(p->fts_parent);
  */
 /* ARGSUSED */
 int
-__fts_set_44bsd(sp, p, instr)
-	FTS *sp;
-	FTSENT *p;
-	int instr;
+__fts_set_44bsd(FTS *sp, FTSENT *p, int instr)
 {
 	if (instr != 0 && instr != FTS_AGAIN && instr != FTS_FOLLOW &&
 	    instr != FTS_NOINSTR && instr != FTS_SKIP) {
@@ -525,9 +516,7 @@ __fts_set_44bsd(sp, p, instr)
 }
 
 FTSENT *
-__fts_children_44bsd(sp, instr)
-	FTS *sp;
-	int instr;
+__fts_children_44bsd(FTS *sp, int instr)
 {
 	FTSENT *p;
 	int fd;
@@ -635,9 +624,7 @@ __fts_set_clientptr_44bsd(FTS *sp, void *clientptr)
  * been found, cutting the stat calls by about 2/3.
  */
 static FTSENT *
-fts_build(sp, type)
-	FTS *sp;
-	int type;
+fts_build(FTS *sp, int type)
 {
 	struct dirent *dp;
 	FTSENT *p, *head;
@@ -901,10 +888,7 @@ mem1:				saved_errno = errno;
 }
 
 static u_short
-fts_stat(sp, p, follow)
-	FTS *sp;
-	FTSENT *p;
-	int follow;
+fts_stat(FTS *sp, FTSENT *p, int follow)
 {
 	FTSENT *t;
 	dev_t dev;
@@ -999,10 +983,7 @@ fts_compar(const void *a, const void *b)
 }
 
 static FTSENT *
-fts_sort(sp, head, nitems)
-	FTS *sp;
-	FTSENT *head;
-	int nitems;
+fts_sort(FTS *sp, FTSENT *head, int nitems)
 {
 	FTSENT **ap, *p;
 
@@ -1031,10 +1012,7 @@ fts_sort(sp, head, nitems)
 }
 
 static FTSENT *
-fts_alloc(sp, name, namelen)
-	FTS *sp;
-	char *name;
-	int namelen;
+fts_alloc(FTS *sp, char *name, int namelen)
 {
 	FTSENT *p;
 	size_t len;
@@ -1081,8 +1059,7 @@ fts_alloc(sp, name, namelen)
 }
 
 static void
-fts_lfree(head)
-	FTSENT *head;
+fts_lfree(FTSENT *head)
 {
 	FTSENT *p;
 
@@ -1100,9 +1077,7 @@ fts_lfree(head)
  * plus 256 bytes so don't realloc the path 2 bytes at a time.
  */
 static int
-fts_palloc(sp, more)
-	FTS *sp;
-	size_t more;
+fts_palloc(FTS *sp, size_t more)
 {
 
 	sp->fts_pathlen += more + 256;
@@ -1127,9 +1102,7 @@ fts_palloc(sp, more)
  * already returned.
  */
 static void
-fts_padjust(sp, head)
-	FTS *sp;
-	FTSENT *head;
+fts_padjust(FTS *sp, FTSENT *head)
 {
 	FTSENT *p;
 	char *addr = sp->fts_path;
@@ -1153,8 +1126,7 @@ fts_padjust(sp, head)
 }
 
 static size_t
-fts_maxarglen(argv)
-	char * const *argv;
+fts_maxarglen(char * const *argv)
 {
 	size_t len, max;
 
@@ -1170,11 +1142,7 @@ fts_maxarglen(argv)
  * Assumes p->fts_dev and p->fts_ino are filled in.
  */
 static int
-fts_safe_changedir(sp, p, fd, path)
-	FTS *sp;
-	FTSENT *p;
-	int fd;
-	char *path;
+fts_safe_changedir(FTS *sp, FTSENT *p, int fd, char *path)
 {
 	int ret, oerrno, newfd;
 	struct stat sb;

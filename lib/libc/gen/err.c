@@ -79,10 +79,7 @@ _err(int eval, const char *fmt, ...)
 }
 
 void
-verr(eval, fmt, ap)
-	int eval;
-	const char *fmt;
-	va_list ap;
+verr(int eval, const char *fmt, va_list ap)
 {
 	verrc(eval, errno, fmt, ap);
 }

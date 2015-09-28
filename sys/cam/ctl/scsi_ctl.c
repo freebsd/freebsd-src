@@ -400,6 +400,7 @@ ctlfeasync(void *callback_arg, uint32_t code, struct cam_path *path, void *arg)
 		 */
 		port->max_targets = cpi->max_target;
 		port->max_target_id = cpi->max_target;
+		port->targ_port = -1;
 		
 		/*
 		 * XXX KDM need to figure out whether we're the master or
@@ -1067,7 +1068,6 @@ ctlfe_adjust_cdb(struct ccb_accept_tio *atio, uint32_t offset)
 	}
 	case READ_16:
 	case WRITE_16:
-	case WRITE_ATOMIC_16:
 	{
 		struct scsi_rw_16 *cdb = (struct scsi_rw_16 *)cmdbyt;
 		lba = scsi_8btou64(cdb->addr);
@@ -1164,9 +1164,8 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 		 * down the immediate notify path below.
 		 */
 		io->io_hdr.io_type = CTL_IO_SCSI;
-		io->io_hdr.nexus.initid.id = atio->init_id;
+		io->io_hdr.nexus.initid = atio->init_id;
 		io->io_hdr.nexus.targ_port = bus_softc->port.targ_port;
-		io->io_hdr.nexus.targ_target.id = atio->ccb_h.target_id;
 		io->io_hdr.nexus.targ_lun = atio->ccb_h.target_lun;
 		io->scsiio.tag_num = atio->tag_id;
 		switch (atio->tag_action) {
@@ -1200,10 +1199,9 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 		      io->scsiio.cdb_len);
 
 #ifdef CTLFEDEBUG
-		printf("%s: %ju:%d:%ju:%d: tag %04x CDB %02x\n", __func__,
-		        (uintmax_t)io->io_hdr.nexus.initid.id,
+		printf("%s: %u:%u:%u: tag %04x CDB %02x\n", __func__,
+		        io->io_hdr.nexus.initid,
 		        io->io_hdr.nexus.targ_port,
-		        (uintmax_t)io->io_hdr.nexus.targ_target.id,
 		        io->io_hdr.nexus.targ_lun,
 			io->scsiio.tag_num, io->scsiio.cdb[0]);
 #endif
@@ -1440,9 +1438,8 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 		io->io_hdr.io_type = CTL_IO_TASK;
 		io->io_hdr.ctl_private[CTL_PRIV_FRONTEND].ptr =done_ccb;
 		inot->ccb_h.io_ptr = io;
-		io->io_hdr.nexus.initid.id = inot->initiator_id;
+		io->io_hdr.nexus.initid = inot->initiator_id;
 		io->io_hdr.nexus.targ_port = bus_softc->port.targ_port;
-		io->io_hdr.nexus.targ_target.id = inot->ccb_h.target_id;
 		io->io_hdr.nexus.targ_lun = inot->ccb_h.target_lun;
 		/* XXX KDM should this be the tag_id? */
 		io->taskio.tag_num = inot->seq_id;

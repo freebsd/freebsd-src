@@ -97,11 +97,11 @@ tpcl_init(void)
 	port->fe_done = tpcl_done;
 	port->max_targets = 1;
 	port->max_target_id = 0;
+	port->targ_port = -1;
 	port->max_initiators = 1;
 
-	if (ctl_port_register(port) != 0)
-	{
-		printf("%s: tpc frontend registration failed\n", __func__);
+	if (ctl_port_register(port) != 0) {
+		printf("%s: ctl_port_register() failed with error\n", __func__);
 		return (0);
 	}
 
@@ -142,10 +142,6 @@ tpcl_datamove(union ctl_io *io)
 	struct ctl_scsiio *ctsio;
 	int i, j;
 
-	ext_sg_start = 0;
-	ext_offset = 0;
-	ext_sglist = NULL;
-
 	CTL_DEBUG_PRINT(("%s\n", __func__));
 
 	ctsio = &io->scsiio;
@@ -162,7 +158,7 @@ tpcl_datamove(union ctl_io *io)
 	 * To simplify things here, if we have a single buffer, stick it in
 	 * a S/G entry and just make it a single entry S/G list.
 	 */
-	if (ctsio->io_hdr.flags & CTL_FLAG_EDPTR_SGLIST) {
+	if (ctsio->ext_sg_entries > 0) {
 		int len_seen;
 
 		ext_sglist = (struct ctl_sg_entry *)ctsio->ext_data_ptr;
@@ -281,13 +277,15 @@ tpcl_resolve(struct ctl_softc *softc, int init_port,
 	struct ctl_lun *lun;
 	uint64_t lunid = UINT64_MAX;
 
-	if (cscd->type_code != EC_CSCD_ID)
+	if (cscd->type_code != EC_CSCD_ID ||
+	    (cscd->luidt_pdt & EC_LUIDT_MASK) != EC_LUIDT_LUN ||
+	    (cscd->luidt_pdt & EC_NUL) != 0)
 		return (lunid);
 
 	cscdid = (struct scsi_ec_cscd_id *)cscd;
 	mtx_lock(&softc->ctl_lock);
 	if (init_port >= 0)
-		port = softc->ctl_ports[ctl_port_idx(init_port)];
+		port = softc->ctl_ports[init_port];
 	else
 		port = NULL;
 	STAILQ_FOREACH(lun, &softc->lun_list, links) {
@@ -328,9 +326,8 @@ tpcl_queue(union ctl_io *io, uint64_t lun)
 {
 	struct tpcl_softc *tsoftc = &tpcl_softc;
 
-	io->io_hdr.nexus.initid.id = 0;
+	io->io_hdr.nexus.initid = 0;
 	io->io_hdr.nexus.targ_port = tsoftc->port.targ_port;
-	io->io_hdr.nexus.targ_target.id = 0;
 	io->io_hdr.nexus.targ_lun = lun;
 	io->scsiio.tag_num = atomic_fetchadd_int(&tsoftc->cur_tag_num, 1);
 	io->scsiio.ext_data_filled = 0;

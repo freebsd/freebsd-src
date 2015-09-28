@@ -41,7 +41,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/protosw.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
-#include <sys/sysctl.h>
 #include <sys/time.h>
 
 #include <net/if.h>
@@ -134,20 +133,11 @@ pfsync_acts_stats(const char *list, const char *desc, uint64_t *a)
 void
 pfsync_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 {
-	struct pfsyncstats pfsyncstat, zerostat;
-	size_t len = sizeof(struct pfsyncstats);
+	struct pfsyncstats pfsyncstat;
 
-	if (live) {
-		if (zflag)
-			memset(&zerostat, 0, len);
-		if (sysctlbyname("net.pfsync.stats", &pfsyncstat, &len,
-		    zflag ? &zerostat : NULL, zflag ? len : 0) < 0) {
-			if (errno != ENOENT)
-				warn("sysctl: net.pfsync.stats");
-			return;
-		}
-	} else
-		kread(off, &pfsyncstat, len);
+	if (fetch_stats("net.pfsync.stats", off, &pfsyncstat,
+	    sizeof(pfsyncstat), kread) != 0)
+		return;
 
 	xo_emit("{T:/%s}:\n", name);
 	xo_open_container(name);

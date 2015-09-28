@@ -2105,7 +2105,7 @@ rt6_deleteroute(struct rtentry *rt, void *arg)
 		return (0);
 
 	return (in6_rtrequest(RTM_DELETE, rt_key(rt), rt->rt_gateway,
-	    rt_mask(rt), rt->rt_flags, NULL, rt->rt_fibnum));
+	    rt_mask(rt), rt->rt_flags | RTF_RNH_LOCKED, NULL, rt->rt_fibnum));
 #undef SIN6
 }
 

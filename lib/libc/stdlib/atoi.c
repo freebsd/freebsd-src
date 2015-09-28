@@ -42,16 +42,13 @@ __FBSDID("$FreeBSD$");
 #include <xlocale.h>
 
 int
-atoi(str)
-	const char *str;
+atoi(const char *str)
 {
 	return (int)strtol(str, (char **)NULL, 10);
 }
 
 int
-atoi_l(str, locale)
-	const char *str;
-	locale_t locale;
+atoi_l(const char *str, locale_t locale)
 {
 	return (int)strtol_l(str, (char **)NULL, 10, locale);
 }

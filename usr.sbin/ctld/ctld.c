@@ -1149,7 +1149,7 @@ valid_iscsi_name(const char *name)
 		}
 	} else {
 		log_warnx("invalid target name \"%s\"; should start with "
-		    "either \".iqn\", \"eui.\", or \"naa.\"",
+		    "either \"iqn.\", \"eui.\", or \"naa.\"",
 		    name);
 	}
 	return (true);
@@ -1397,6 +1397,7 @@ lun_new(struct conf *conf, const char *name)
 	lun->l_name = checked_strdup(name);
 	TAILQ_INIT(&lun->l_options);
 	TAILQ_INSERT_TAIL(&conf->conf_luns, lun, l_next);
+	lun->l_ctl_lun = -1;
 
 	return (lun);
 }
@@ -1452,6 +1453,13 @@ lun_set_blocksize(struct lun *lun, size_t value)
 {
 
 	lun->l_blocksize = value;
+}
+
+void
+lun_set_device_type(struct lun *lun, uint8_t value)
+{
+
+	lun->l_device_type = value;
 }
 
 void
@@ -2002,7 +2010,7 @@ conf_apply(struct conf *oldconf, struct conf *newconf)
 		} else {
 			log_debugx("updating port \"%s\"", newport->p_name);
 			newport->p_ctl_port = oldport->p_ctl_port;
-			error = kernel_port_update(newport);
+			error = kernel_port_update(newport, oldport);
 		}
 		if (error != 0) {
 			log_warnx("failed to %s port %s",
