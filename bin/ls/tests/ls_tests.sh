@@ -232,14 +232,14 @@ I_flag_body()
 	atf_check_equal "$(cat $WITH_I)" "$(cat $WITHOUT_I)"
 }
 
-atf_test_case I_flag_voids_A_flag_when_root
-I_flag_voids_A_flag_when_root_head()
+atf_test_case I_flag_voids_implied_A_flag_when_root
+I_flag_voids_implied_A_flag_when_root_head()
 {
 	atf_set "descr" "Verify that -I voids out implied -A for root"
 	atf_set "require.user" "root"
 }
 
-I_flag_voids_A_flag_when_root_body()
+I_flag_voids_implied_A_flag_when_root_body()
 {
 	create_test_inputs
 
@@ -313,14 +313,46 @@ x_flag_body()
 atf_init_test_cases()
 {
 
-	atf_add_test_case a_flag
 	atf_add_test_case A_flag
 	atf_add_test_case A_flag_implied_when_root
 	atf_add_test_case B_flag
 	atf_add_test_case C_flag
+	#atf_add_test_case D_flag
+	#atf_add_test_case F_flag
+	#atf_add_test_case G_flag
+	#atf_add_test_case H_flag
 	atf_add_test_case I_flag
-	atf_add_test_case I_flag_voids_A_flag_when_root
+	atf_add_test_case I_flag_voids_implied_A_flag_when_root
+	#atf_add_test_case L_flag
+	#atf_add_test_case P_flag
+	#atf_add_test_case R_flag
+	#atf_add_test_case S_flag
+	#atf_add_test_case T_flag
+	#atf_add_test_case U_flag
+	#atf_add_test_case W_flag
+	#atf_add_test_case Z_flag
+	#atf_add_test_case a_flag
+	#atf_add_test_case b_flag
+	#atf_add_test_case c_flag
+	#atf_add_test_case d_flag
+	#atf_add_test_case f_flag
+	#atf_add_test_case g_flag
+	#atf_add_test_case h_flag
+	#atf_add_test_case i_flag
+	#atf_add_test_case k_flag
+	#atf_add_test_case l_flag
 	atf_add_test_case lcomma_flag
+	#atf_add_test_case m_flag
+	#atf_add_test_case n_flag
+	#atf_add_test_case o_flag
+	#atf_add_test_case p_flag
+	#atf_add_test_case q_flag
+	#atf_add_test_case r_flag
+	#atf_add_test_case s_flag
+	#atf_add_test_case t_flag
+	#atf_add_test_case u_flag
+	#atf_add_test_case w_flag
 	atf_add_test_case x_flag
+	#atf_add_test_case y_flag
 	atf_add_test_case 1_flag
 }
