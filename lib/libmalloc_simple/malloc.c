@@ -58,7 +58,6 @@ static char *rcsid = "$FreeBSD$";
 
 union overhead;
 static void morecore(int);
-static int findbucket(union overhead *, int);
 
 /*
  * Pre-allocate mmap'ed pages
@@ -317,19 +316,6 @@ free(void *cp)
 #endif
 }
 
-/*
- * When a program attempts "storage compaction" as mentioned in the
- * old malloc man page, it realloc's an already freed block.  Usually
- * this is the last block it freed; occasionally it might be farther
- * back.  We have to search all the free lists for the block in order
- * to determine its bucket: 1st we make one pass thru the lists
- * checking only the first block in each; if that fails we search
- * ``realloc_srchlen'' blocks in each list for a match (the variable
- * is extern so the caller can modify it).  If that fails we just copy
- * however many bytes was given to realloc() and hope it's not huge.
- */
-static int realloc_srchlen = 4;	/* 4 should be plenty, -1 =>'s whole list */
-
 void *
 realloc(void *cp, size_t nbytes)
 {
@@ -337,83 +323,44 @@ realloc(void *cp, size_t nbytes)
 	int i;
 	union overhead *op;
 	char *res;
-	int was_alloced = 0;
 
 	if (cp == NULL)
 		return (malloc(nbytes));
 	op = (union overhead *)(void *)((caddr_t)cp - sizeof (union overhead));
-	if (op->ov_magic == MAGIC) {
-		was_alloced++;
-		i = op->ov_index;
-	} else {
-		/*
-		 * Already free, doing "compaction".
-		 *
-		 * Search for the old block of memory on the
-		 * free list.  First, check the most common
-		 * case (last element free'd), then (this failing)
-		 * the last ``realloc_srchlen'' items free'd.
-		 * If all lookups fail, then assume the size of
-		 * the memory block being realloc'd is the
-		 * largest possible (so that all "nbytes" of new
-		 * memory are copied into).  Note that this could cause
-		 * a memory fault if the old area was tiny, and the moon
-		 * is gibbous.  However, that is very unlikely.
-		 */
-		if ((i = findbucket(op, 1)) < 0 &&
-		    (i = findbucket(op, realloc_srchlen)) < 0)
-			i = NBUCKETS;
+	if (op->ov_magic != MAGIC) {
+		printf("%s: Attempting to reallocate unallocated memory\n",
+		    __func__);
+		CHERI_PRINT_PTR(cp);
+		return (NULL);
 	}
+	i = op->ov_index;
 	onb = 1 << (i + 3);
 	if (onb < (u_int)pagesz)
 		onb -= sizeof (*op) + RSLOP;
 	else
 		onb += pagesz - sizeof (*op) - RSLOP;
+
 	/* avoid the copy if same size block */
-	if (was_alloced) {
-		if (i) {
-			i = 1 << (i + 2);
-			if (i < pagesz)
-				i -= sizeof (*op) + RSLOP;
-			else
-				i += pagesz - sizeof (*op) - RSLOP;
-		}
-		if (nbytes <= onb && nbytes > (size_t)i) {
-#ifdef RCHECK
-			op->ov_size = (nbytes + RSLOP - 1) & ~(RSLOP - 1);
-			*(u_short *)((caddr_t)(op + 1) + op->ov_size) = RMAGIC;
-#endif
-			return(cp);
-		} else
-			free(cp);
+	if (i > 0) {
+		i = 1 << (i + 2);
+		if (i < pagesz)
+			i -= sizeof (*op) + RSLOP;
+		else
+			i += pagesz - sizeof (*op) - RSLOP;
 	}
+	if (nbytes <= onb && nbytes > (size_t)i) {
+#ifdef RCHECK
+		op->ov_size = (nbytes + RSLOP - 1) & ~(RSLOP - 1);
+		*(u_short *)((caddr_t)(op + 1) + op->ov_size) = RMAGIC;
+#endif
+		return(cp);
+	}
+
 	if ((res = malloc(nbytes)) == NULL)
 		return (NULL);
-	if (cp != res)		/* common optimization if "compacting" */
-		bcopy(cp, res, (nbytes < onb) ? nbytes : onb);
+	bcopy(cp, res, (nbytes < onb) ? nbytes : onb);
+	free(cp);
 	return (res);
-}
-
-/*
- * Search ``srchlen'' elements of each free list for a block whose
- * header starts at ``freep''.  If srchlen is -1 search the whole list.
- * Return bucket number, or -1 if not found.
- */
-static int
-findbucket(union overhead *freep, int srchlen)
-{
-	union overhead *p;
-	int i, j;
-
-	for (i = 0; i < NBUCKETS; i++) {
-		j = 0;
-		for (p = nextf[i]; p && j != srchlen; p = p->ov_next) {
-			if (p == freep)
-				return (i);
-			j++;
-		}
-	}
-	return (-1);
 }
 
 #ifdef MSTATS
