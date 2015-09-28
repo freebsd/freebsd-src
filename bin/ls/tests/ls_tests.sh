@@ -27,9 +27,11 @@
 # $FreeBSD$
 #
 
-create_test_inputs()
+create_test_dir()
 {
-	ATF_TMPDIR=$(pwd)
+	[ -z "$ATF_TMPDIR" ] || return 0
+
+	export ATF_TMPDIR=$(pwd)
 
 	# XXX: need to nest this because of how kyua creates $TMPDIR; otherwise
 	# it will run into EPERM issues later
@@ -37,6 +39,12 @@ create_test_inputs()
 
 	atf_check -e empty -s exit:0 mkdir -m 0777 -p $TEST_INPUTS_DIR
 	cd $TEST_INPUTS_DIR
+}
+
+create_test_inputs()
+{
+	create_test_dir
+
 	atf_check -e empty -s exit:0 mkdir -m 0755 -p a/b
 	atf_check -e empty -s exit:0 ln -s a/b c
 	atf_check -e empty -s exit:0 touch d
@@ -45,6 +53,60 @@ create_test_inputs()
 	atf_check -e empty -s exit:0 mkdir .g
 	atf_check -e empty -s exit:0 mkfifo h
 	atf_check -e ignore -s exit:0 dd if=/dev/zero of=i count=1000 bs=1
+	atf_check -e empty -s exit:0 sh -c 'nc -lU j & sleep 0.5; kill %1'
+	atf_check -e empty -s exit:0 touch klmn
+	atf_check -e empty -s exit:0 touch opqr
+	atf_check -e empty -s exit:0 touch stuv
+	atf_check -e empty -s exit:0 touch wxyz
+	atf_check -e empty -s exit:0 touch 0b00000001
+	atf_check -e empty -s exit:0 touch 0b00000010
+	atf_check -e empty -s exit:0 touch 0b00000011
+	atf_check -e empty -s exit:0 touch 0b00000100
+	atf_check -e empty -s exit:0 touch 0b00000101
+	atf_check -e empty -s exit:0 touch 0b00000110
+	atf_check -e empty -s exit:0 touch 0b00000111
+	atf_check -e empty -s exit:0 touch 0b00001000
+	atf_check -e empty -s exit:0 touch 0b00001001
+	atf_check -e empty -s exit:0 touch 0b00001010
+	atf_check -e empty -s exit:0 touch 0b00001011
+	atf_check -e empty -s exit:0 touch 0b00001100
+	atf_check -e empty -s exit:0 touch 0b00001101
+	atf_check -e empty -s exit:0 touch 0b00001110
+	atf_check -e empty -s exit:0 touch 0b00001111
+}
+
+atf_test_case a_flag
+a_flag_head()
+{
+	atf_set "descr" "Verify -a support"
+}
+
+a_flag_body()
+{
+	create_test_dir
+
+	# Make sure "." and ".." show up with -a
+	atf_check -e empty -o match:'\.[[:space:]]+\.\.'  -s exit:0 ls -ax
+
+	create_test_inputs
+
+	WITH_a=$PWD/../with_a.out
+	WITHOUT_a=$PWD/../without_a.out
+
+	atf_check -e empty -o save:$WITH_a -s exit:0 ls -A
+	atf_check -e empty -o save:$WITHOUT_a -s exit:0 ls
+
+	echo "-A usage"
+	cat $WITH_a
+	echo "No -A usage"
+	cat $WITHOUT_a
+
+	for dot_path in '\.f' '\.g'; do
+		atf_check -e empty -o not-empty -s exit:0 grep "${dot_path}" \
+		    $WITH_a
+		atf_check -e empty -o empty -s not-exit:0 grep "${dot_path}" \
+		    $WITHOUT_a
+	done
 }
 
 atf_test_case A_flag
@@ -55,6 +117,10 @@ A_flag_head()
 
 A_flag_body()
 {
+	create_test_dir
+
+	atf_check -e empty -o empty -s exit:0 ls -A
+
 	create_test_inputs
 
 	WITH_A=$PWD/../with_A.out
@@ -85,6 +151,10 @@ A_flag_implied_when_root_head()
 
 A_flag_implied_when_root_body()
 {
+	create_test_dir
+
+	atf_check -e empty -o empty -s exit:0 ls -A
+
 	create_test_inputs
 
 	WITH_EXPLICIT=$PWD/../with_explicit_A.out
@@ -117,14 +187,24 @@ B_flag_body()
 atf_test_case C_flag
 C_flag_head()
 {
-	atf_set "descr" "Verify that the output from ls -C is multi-column"
+	atf_set "descr" "Verify that the output from ls -C is multi-column, sorted down"
 }
 
 C_flag_body()
 {
 	create_test_inputs
 
-	atf_check -e empty -o match:"$(printf 'a[[:space:]]+c[[:space:]]+d[[:space:]]+e[[:space:]]+h[[:space:]]i\n')" -s exit:0 ls -C
+	WITH_C=$PWD/../with_C.out
+
+	atf_check -e empty -o save:$WITH_C -s exit:0 ls -C
+
+	echo "With -C usage"
+	cat $WITH_C
+
+	atf_check -e ignore -o not-empty -s exit:0 \
+	    egrep "0b00000001[[:space:]]+0b00000111[[:space:]]+0b00001101[[:space:]]+e[[:space:]]+stuv" $WITH_C
+	atf_check -e ignore -o not-empty -s exit:0 \
+	    egrep "0b00000010[[:space:]]+0b00001000[[:space:]]+0b00001110[[:space:]]+h[[:space:]]+wxyz" $WITH_C
 }
 
 atf_test_case I_flag
@@ -183,6 +263,28 @@ lcomma_flag_body()
 	    env LC_ALL=en_US.ISO8859-1 ls -l, i
 }
 
+x_flag_head()
+{
+	atf_set "descr" "Verify that -x prints out one item per line"
+}
+
+x_flag_body()
+{
+	create_test_inputs
+
+	WITH_x=$PWD/../with_x.out
+
+	atf_check -e empty -o save:$WITH_x -s exit:0 ls -x
+
+	echo "With -x usage"
+	cat $WITH_x
+
+	atf_check -e ignore -o not-empty -s exit:0 \
+	    egrep "a[[:space:]]+c[[:space:]]+d[[:space:]]+e[[:space:]]+h" $WITH_x
+	atf_check -e ignore -o not-empty -s exit:0 \
+	    egrep "i[[:space:]]+j[[:space:]]+klmn[[:space:]]+opqr[[:space:]]+stuv" $WITH_x
+}
+
 1_flag_head()
 {
 	atf_set "descr" "Verify that -1 prints out one item per line"
@@ -210,6 +312,7 @@ lcomma_flag_body()
 atf_init_test_cases()
 {
 
+	atf_add_test_case a_flag
 	atf_add_test_case A_flag
 	atf_add_test_case A_flag_implied_when_root
 	atf_add_test_case B_flag
@@ -217,5 +320,6 @@ atf_init_test_cases()
 	atf_add_test_case I_flag
 	atf_add_test_case I_flag_voids_A_flag_when_root
 	atf_add_test_case lcomma_flag
+	atf_add_test_case x_flag
 	atf_add_test_case 1_flag
 }
