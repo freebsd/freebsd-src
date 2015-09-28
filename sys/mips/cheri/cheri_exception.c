@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2011-2014 Robert N. M. Watson
+ * Copyright (c) 2011-2015 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -87,7 +87,7 @@ static const char *cheri_exccode_sw_array[] = {
 static const int cheri_exccode_sw_array_length =
     sizeof(cheri_exccode_sw_array) / sizeof(cheri_exccode_sw_array[0]);
 
-static const char *
+const char *
 cheri_exccode_string(uint8_t exccode)
 {
 
@@ -239,12 +239,19 @@ cheri_log_exception(struct trapframe *frame, int trap_type)
 #endif
 	/* XXXRW: awkward and unmaintainable pointer construction. */
 	cheriframe = &(((struct pcb *)frame)->pcb_cheriframe);
-	cause = cheriframe->cf_capcause;
-	exccode = (cause & CHERI_CAPCAUSE_EXCCODE_MASK) >>
-	    CHERI_CAPCAUSE_EXCCODE_SHIFT;
-	regnum = cause & CHERI_CAPCAUSE_REGNUM_MASK;
-	printf("CHERI cause: ExcCode: 0x%02x RegNum: 0x%02x (%s)\n", exccode,
-	    regnum, cheri_exccode_string(exccode));
-
+	if ((trap_type == T_C2E) || (trap_type == T_C2E + T_USER)) {
+		cause = cheriframe->cf_capcause;
+		exccode = (cause & CHERI_CAPCAUSE_EXCCODE_MASK) >>
+		    CHERI_CAPCAUSE_EXCCODE_SHIFT;
+		regnum = cause & CHERI_CAPCAUSE_REGNUM_MASK;
+		printf("CHERI cause: ExcCode: 0x%02x ", exccode);
+		if (regnum < 32)
+			printf("RegNum: C%02d ", regnum);
+		else if (regnum == 255)
+			printf("RegNum: PCC ");
+		else
+			printf("RegNum: invalid (%d) ", regnum);
+		printf("(%s)\n", cheri_exccode_string(exccode));
+	}
 	cheri_log_exception_registers(frame);
 }

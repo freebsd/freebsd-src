@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2011-2014 Robert N. M. Watson
+ * Copyright (c) 2011-2015 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -51,8 +51,20 @@
 DB_SHOW_COMMAND(cheri, ddb_dump_cheri)
 {
 	register_t cause;
+	uint8_t exccode, regnum;
 
-	db_printf("CHERI registers\n");
+	CHERI_CGETCAUSE(cause);
+	exccode = (cause & CHERI_CAPCAUSE_EXCCODE_MASK) >>
+	    CHERI_CAPCAUSE_EXCCODE_SHIFT;
+	regnum = cause & CHERI_CAPCAUSE_REGNUM_MASK;
+	db_printf("CHERI cause: ExcCode: 0x%02x ", exccode);
+	if (regnum < 32)
+		db_printf("RegNum: C%02d ", regnum);
+	else if (regnum == 255)
+		db_printf("RegNum: PCC ");
+	else
+		db_printf("RegNum: invalid (%d) ", regnum);
+	db_printf("(%s)\n", cheri_exccode_string(exccode));
 	DB_CHERI_REG_PRINT(0, 0);
 	DB_CHERI_REG_PRINT(1, 1);
 	DB_CHERI_REG_PRINT(2, 2);
@@ -85,9 +97,6 @@ DB_SHOW_COMMAND(cheri, ddb_dump_cheri)
 	DB_CHERI_REG_PRINT(29, 29);
 	DB_CHERI_REG_PRINT(30, 30);
 	DB_CHERI_REG_PRINT(31, 31);
-	CHERI_CGETCAUSE(cause);
-	db_printf("CHERI cause: ExcCode: 0x%02x RegNum: 0x%02x\n",
-	    (uint8_t)((cause >> 8) & 0xff), (uint8_t)(cause & 0x1f));
 }
 
 /*
