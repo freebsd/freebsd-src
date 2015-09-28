@@ -453,17 +453,14 @@ static int
 morepages(int n)
 {
 	int	fd = -1;
-	int	offset;
 
 	if (pagepool_end - pagepool_start > pagesz) {
-		caddr_t	addr = (caddr_t)
-			(((long)pagepool_start + pagesz - 1) & ~(pagesz - 1));
+		caddr_t	addr = cheri_setoffset(pagepool_start,
+		    roundup2(cheri_getoffset(pagepool_start), pagesz));
 		if (munmap(addr, pagepool_end - addr) != 0)
 			fprintf(stderr, "morepages: munmap %p",
 			    addr);
 	}
-
-	offset = (long)pagepool_start - ((long)pagepool_start & ~(pagesz - 1));
 
 	if ((pagepool_start = mmap(0, n * pagesz,
 			PROT_READ|PROT_WRITE,
@@ -472,7 +469,6 @@ morepages(int n)
 		return 0;
 	}
 	pagepool_end = pagepool_start + n * pagesz;
-	pagepool_start += offset;
 
 	return n;
 }
