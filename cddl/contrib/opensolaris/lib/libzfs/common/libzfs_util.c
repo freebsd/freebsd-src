@@ -55,7 +55,6 @@
 #include "zfs_prop.h"
 #include "zfeature_common.h"
 
-int aok;
 
 int
 libzfs_errno(libzfs_handle_t *hdl)
