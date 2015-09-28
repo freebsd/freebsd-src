@@ -208,7 +208,6 @@ env_check() {
 	RELEASE_RMAKEFLAGS="${ARCH_FLAGS} \
 		KERNCONF=\"${KERNEL}\" ${CONF_FILES} ${DOCPORTS} \
 		WITH_DVD=${WITH_DVD} WITH_VMIMAGES=${WITH_VMIMAGES} \
-		VMFORMATS=\"${VMFORMATS}\" VMSIZE=${VMSIZE} \
 		WITH_CLOUDWARE=${WITH_CLOUDWARE} XZ_THREADS=${XZ_THREADS}"
 
 	return 0
@@ -312,6 +311,18 @@ chroot_build_target() {
 # chroot_build_release(): Invoke the 'make release' target.
 chroot_build_release() {
 	load_target_env
+	if [ ! -z "${WITH_VMIMAGES}" ]; then
+		if [ -z "${VMFORMATS}" ]; then
+			VMFORMATS="$(eval chroot ${CHROOTDIR} \
+				make -C /usr/src/release -V VMFORMATS)"
+		fi
+		if [ -z "${VMSIZE}" ]; then
+			VMSIZE="$(eval chroot ${CHROOTDIR} \
+				make -C /usr/src/release -V VMSIZE)"
+		fi
+	fi
+	RELEASE_RMAKEFLAGS="${RELEASE_RMAKEFLAGS} VMFORMATS=\"${VMFORMATS}\" \
+		VMSIZE=${VMSIZE}"
 	eval chroot ${CHROOTDIR} make -C /usr/src/release \
 		${RELEASE_RMAKEFLAGS} release
 	eval chroot ${CHROOTDIR} make -C /usr/src/release \
