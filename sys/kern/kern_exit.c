@@ -569,7 +569,7 @@ exit1(struct thread *td, int rval, int signo)
 		reason = CLD_DUMPED;
 	else if (WIFSIGNALED(signo))
 		reason = CLD_KILLED;
-	SDT_PROBE(proc, kernel, , exit, reason, 0, 0, 0, 0);
+	SDT_PROBE1(proc, kernel, , exit, reason);
 #endif
 
 	/*

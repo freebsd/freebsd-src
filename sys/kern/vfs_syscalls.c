@@ -2160,9 +2160,9 @@ kern_statat(struct thread *td, int flag, int fd, char *path,
 		return (error);
 	error = vn_stat(nd.ni_vp, &sb, td->td_ucred, NOCRED, td);
 	if (error == 0) {
-		SDT_PROBE(vfs, , stat, mode, path, sb.st_mode, 0, 0, 0);
+		SDT_PROBE2(vfs, , stat, mode, path, sb.st_mode);
 		if (S_ISREG(sb.st_mode))
-			SDT_PROBE(vfs, , stat, reg, path, pathseg, 0, 0, 0);
+			SDT_PROBE2(vfs, , stat, reg, path, pathseg);
 		if (__predict_false(hook != NULL))
 			hook(nd.ni_vp, &sb);
 	}
