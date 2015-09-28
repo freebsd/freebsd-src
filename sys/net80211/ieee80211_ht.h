@@ -84,8 +84,19 @@ struct ieee80211_tx_ampdu {
  */
 
 static __inline void
+ieee80211_txampdu_init_pps(struct ieee80211_tx_ampdu *tap)
+{
+	/*
+	 * Reset packet estimate.
+	 */
+	tap->txa_lastsample = ticks;
+	tap->txa_avgpps = 0;
+}
+
+static __inline void
 ieee80211_txampdu_update_pps(struct ieee80211_tx_ampdu *tap)
 {
+
 	/* NB: scale factor of 2 was picked heuristically */
 	tap->txa_avgpps = ((tap->txa_avgpps << 2) -
 	     tap->txa_avgpps + tap->txa_pkts) >> 2;
@@ -97,6 +108,7 @@ ieee80211_txampdu_update_pps(struct ieee80211_tx_ampdu *tap)
 static __inline void
 ieee80211_txampdu_count_packet(struct ieee80211_tx_ampdu *tap)
 {
+
 	/* XXX bound loop/do more crude estimate? */
 	while (ticks - tap->txa_lastsample >= hz) {
 		ieee80211_txampdu_update_pps(tap);
