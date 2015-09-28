@@ -679,8 +679,6 @@ ieee80211_ff_check(struct ieee80211_node *ni, struct mbuf *m)
 	 * If there is no frame to combine with and the pps is
 	 * too low; then do not attempt to aggregate this frame.
 	 */
-	IEEE80211_DPRINTF(vap, IEEE80211_MSG_SUPERG,
-	    "%s: staged: %p; pps: %d\n", __func__, mstaged, ieee80211_txampdu_getpps(tap));
 	if (mstaged == NULL &&
 	    ieee80211_txampdu_getpps(tap) < ieee80211_ffppsmin) {
 		IEEE80211_UNLOCK(ic);
