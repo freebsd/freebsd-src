@@ -49,7 +49,6 @@ create_test_inputs()
 atf_test_case A_flag
 A_flag_head()
 {
-	atf_set "require.user" "unprivileged"
 }
 
 A_flag_body()
@@ -100,9 +99,53 @@ A_flag_implied_when_root_body()
 	atf_check_equal "$(cat $WITH_EXPLICIT)" "$(cat $WITH_IMPLIED)"
 }
 
+atf_test_case I_flag
+I_flag_head()
+{
+	atf_set "descr" "Verify that the output from ls -I is the same as ls for an unprivileged user"
+}
+
+I_flag_body()
+{
+	create_test_inputs
+
+	WITH_I=$PWD/../with_I.out
+	WITHOUT_I=$PWD/../without_I.out
+
+	atf_check -e empty -o save:$WITH_I -s exit:0 ls -I
+	atf_check -e empty -o save:$WITHOUT_I -s exit:0 ls
+
+	echo "Explicit -I usage"
+	cat $WITH_I
+	echo "No -I usage"
+	cat $WITHOUT_I
+
+	atf_check_equal "$(cat $WITH_I)" "$(cat $WITHOUT_I)"
+}
+
+atf_test_case I_flag_voids_A_flag_when_root
+I_flag_voids_A_flag_when_root_head()
+{
+	atf_set "descr" "Verify that -I voids out implied -A for root"
+	atf_set "require.user" "root"
+}
+
+I_flag_voids_A_flag_when_root_body()
+{
+	create_test_inputs
+
+	atf_check -o not-match:'\.f' -s exit:0 ls -I
+	atf_check -o not-match:'\.g' -s exit:0 ls -I
+
+	atf_check -o match:'\.f' -s exit:0 ls -A -I
+	atf_check -o match:'\.g' -s exit:0 ls -A -I
+}
+
 atf_init_test_cases()
 {
 
 	atf_add_test_case A_flag
 	atf_add_test_case A_flag_implied_when_root
+	atf_add_test_case I_flag
+	atf_add_test_case I_flag_voids_A_flag_when_root
 }
