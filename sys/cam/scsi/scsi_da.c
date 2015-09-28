@@ -1667,7 +1667,8 @@ daasync(void *callback_arg, u_int32_t code,
 
 		if (cgd->protocol != PROTO_SCSI)
 			break;
-
+		if (SID_QUAL(&cgd->inq_data) != SID_QUAL_LU_CONNECTED)
+			break;
 		if (SID_TYPE(&cgd->inq_data) != T_DIRECT
 		    && SID_TYPE(&cgd->inq_data) != T_RBC
 		    && SID_TYPE(&cgd->inq_data) != T_OPTICAL)
