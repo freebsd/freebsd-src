@@ -38,6 +38,8 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20150928: unused sgsmsg utility is removed
+OLD_FILES+=usr/bin/sgsmsg
 # 20150926: remove links to removed/unimplemented mbuf(9) macros
 OLD_FILES+=usr/share/man/man9/MEXT_ADD_REF.9.gz
 OLD_FILES+=usr/share/man/man9/MEXTFREE.9.gz
