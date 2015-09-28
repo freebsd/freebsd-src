@@ -213,6 +213,22 @@ ieee80211_vap_pkt_send_dest(struct ieee80211vap *vap, struct mbuf *m,
 		}
 	}
 
+	/*
+	 * XXX If we aren't doing AMPDU TX then we /could/ do
+	 * fast-frames encapsulation, however right now this
+	 * output logic doesn't handle that case.
+	 *
+	 * So we'll be limited to "fast-frames" xmit for non-11n STA
+	 * and "no fast frames" xmit for 11n STAs.
+	 * It'd be nice to eventually test fast-frames out by
+	 * gracefully falling from failing A-MPDU transmission
+	 * (driver says no, fail to negotiate it with peer) to
+	 * using fast-frames.
+	 *
+	 * Note: we can actually put A-MSDU's inside an A-MPDU,
+	 * so hopefully we can figure out how to make that particular
+	 * combination work right.
+	 */
 #ifdef IEEE80211_SUPPORT_SUPERG
 	else if (IEEE80211_ATH_CAP(vap, ni, IEEE80211_NODE_FF)) {
 		m = ieee80211_ff_check(ni, m);
@@ -230,6 +246,11 @@ ieee80211_vap_pkt_send_dest(struct ieee80211vap *vap, struct mbuf *m,
 	 */
 	IEEE80211_TX_LOCK(ic);
 
+	/*
+	 * XXX make the encap and transmit code a separate function
+	 * so things like the FF (and later A-MSDU) path can just call
+	 * it for flushed frames.
+	 */
 	if (__predict_true((vap->iv_caps & IEEE80211_C_8023ENCAP) == 0)) {
 		/*
 		 * Encapsulate the packet in prep for transmission.
