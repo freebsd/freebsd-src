@@ -132,6 +132,11 @@ _start1(char **ap,
 	char **argv;
 	char **env;
 
+#ifdef __CHERI_SANDBOX__
+	crt_init_globals();
+	crt_sb_constructors();
+#endif
+
 	argc = * (long *) ap;
 	argv = ap + 1;
 	env  = ap + 2 + argc;
@@ -157,10 +162,6 @@ __asm__("eprol:");
 #endif
 
 	handle_static_init(argc, argv, env);
-#ifdef __CHERI_SANDBOX__
-	crt_init_globals();
-	crt_sb_constructors();
-#endif
 
 	exit(main(argc, argv, env));
 }
