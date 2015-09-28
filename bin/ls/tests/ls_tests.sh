@@ -331,7 +331,7 @@ atf_init_test_cases()
 	#atf_add_test_case U_flag
 	#atf_add_test_case W_flag
 	#atf_add_test_case Z_flag
-	#atf_add_test_case a_flag
+	atf_add_test_case a_flag
 	#atf_add_test_case b_flag
 	#atf_add_test_case c_flag
 	#atf_add_test_case d_flag
