@@ -53,7 +53,7 @@ create_test_inputs()
 	atf_check -e empty -s exit:0 mkdir .g
 	atf_check -e empty -s exit:0 mkfifo h
 	atf_check -e ignore -s exit:0 dd if=/dev/zero of=i count=1000 bs=1
-	atf_check -e empty -s exit:0 sh -c 'nc -lU j & sleep 0.5; kill %1'
+	atf_check -e empty -s exit:0 sh -c 'nc -lU j & sleep 2; kill %1'
 	atf_check -e empty -s exit:0 touch klmn
 	atf_check -e empty -s exit:0 touch opqr
 	atf_check -e empty -s exit:0 touch stuv
