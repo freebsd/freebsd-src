@@ -1599,7 +1599,7 @@ _cheritest=	lib/libxo \
 # Rebuild ctfconvert and ctfmerge to avoid difficult-to-diagnose failures
 # resulting from missing bug fixes or ELF Toolchain updates.
 .if ${MK_CDDL} != "no"
-_dtrace_tools= cddl/usr.bin/sgsmsg cddl/lib/libctf cddl/usr.bin/ctfconvert \
+_dtrace_tools= cddl/lib/libctf cddl/usr.bin/ctfconvert \
     cddl/usr.bin/ctfmerge
 .endif
 
