@@ -984,6 +984,10 @@ struct otus_softc {
 	/* current noisefloor, from SET_FREQUENCY */
 	int				sc_nf[OTUS_NUM_CHAINS];
 
+	/* How many pending, active transmit frames */
+	int				sc_tx_n_pending;
+	int				sc_tx_n_active;
+
 	const uint32_t			*phy_vals;
 
 	struct {
