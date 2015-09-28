@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2003 Silicon Graphics International Corp.
+ * Copyright (c) 2014-2015 Alexander Motin <mav@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -49,14 +50,11 @@
  * particular LUN ID in the req_lun_id field.  If we cannot allocate that
  * LUN ID, the ctl_add_lun() call will fail.
  *
- * The POWERED_OFF flag tells us that the LUN should default to the powered
+ * The STOPPED flag tells us that the LUN should default to the powered
  * off state.  It will return 0x04,0x02 until it is powered up.  ("Logical
  * unit not ready, initializing command required.")
  *
- * The INOPERABLE flag tells us that this LUN is not operable for whatever
- * reason.  This means that user data may have been (or has been?) lost.
- * We will return 0x31,0x00 ("Medium format corrupted") until the host
- * issues a FORMAT UNIT command to clear the error.
+ * The NO_MEDIA flag tells us that the LUN has no media inserted.
  *
  * The PRIMARY flag tells us that this LUN is registered as a Primary LUN
  * which is accessible via the Master shelf controller in an HA. This flag
@@ -72,20 +70,22 @@
  *
  * The DEV_TYPE flag tells us that the device_type field is filled in.
  *
+ * The EJECTED flag tells us that the removable LUN has tray open.
+ *
  * The UNMAP flag tells us that this LUN supports UNMAP.
  *
  * The OFFLINE flag tells us that this LUN can not access backing store.
  */
 typedef enum {
 	CTL_LUN_FLAG_ID_REQ		= 0x01,
-	CTL_LUN_FLAG_POWERED_OFF	= 0x02,
-	CTL_LUN_FLAG_INOPERABLE		= 0x04,
+	CTL_LUN_FLAG_STOPPED		= 0x02,
+	CTL_LUN_FLAG_NO_MEDIA		= 0x04,
 	CTL_LUN_FLAG_PRIMARY		= 0x08,
 	CTL_LUN_FLAG_SERIAL_NUM		= 0x10,
 	CTL_LUN_FLAG_DEVID		= 0x20,
 	CTL_LUN_FLAG_DEV_TYPE		= 0x40,
 	CTL_LUN_FLAG_UNMAP		= 0x80,
-	CTL_LUN_FLAG_OFFLINE		= 0x100,
+	CTL_LUN_FLAG_EJECTED		= 0x100,
 	CTL_LUN_FLAG_READONLY		= 0x200
 } ctl_backend_lun_flags;
 
@@ -289,23 +289,11 @@ int ctl_start_lun(struct ctl_be_lun *be_lun);
 int ctl_stop_lun(struct ctl_be_lun *be_lun);
 
 /*
- * If a LUN is inoperable, call ctl_lun_inoperable().  Generally the LUN
- * will become operable once again when the user issues the SCSI FORMAT UNIT
- * command.  (CTL will automatically clear the inoperable flag.)  If we
- * need to re-enable the LUN, we can call ctl_lun_operable() to enable it
- * without a SCSI command.
+ * Methods to notify about media and tray status changes.
  */
-int ctl_lun_inoperable(struct ctl_be_lun *be_lun);
-int ctl_lun_operable(struct ctl_be_lun *be_lun);
-
-/*
- * To take a LUN offline, call ctl_lun_offline().  Generally the LUN will
- * be online again once the user sends a SCSI START STOP UNIT command with
- * the start and on/offline bits set.  The backend can bring the LUN back
- * online via the ctl_lun_online() function, if necessary.
- */
-int ctl_lun_offline(struct ctl_be_lun *be_lun);
-int ctl_lun_online(struct ctl_be_lun *be_lun);
+int ctl_lun_no_media(struct ctl_be_lun *be_lun);
+int ctl_lun_has_media(struct ctl_be_lun *be_lun);
+int ctl_lun_ejected(struct ctl_be_lun *be_lun);
 
 /*
  * Called on LUN HA role change.
@@ -314,7 +302,7 @@ int ctl_lun_primary(struct ctl_be_lun *be_lun);
 int ctl_lun_secondary(struct ctl_be_lun *be_lun);
 
 /*
- * Let the backend notify the initiator about changed capacity.
+ * Let the backend notify the initiators about changes.
  */
 void ctl_lun_capacity_changed(struct ctl_be_lun *be_lun);
 
