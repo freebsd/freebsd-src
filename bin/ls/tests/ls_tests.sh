@@ -44,11 +44,13 @@ create_test_inputs()
 	atf_check -e empty -s exit:0 touch .f
 	atf_check -e empty -s exit:0 mkdir .g
 	atf_check -e empty -s exit:0 mkfifo h
+	atf_check -e ignore -s exit:0 dd if=/dev/zero of=i count=1000 bs=1
 }
 
 atf_test_case A_flag
 A_flag_head()
 {
+	atf_set "descr" "Verify -A support with unprivileged users"
 }
 
 A_flag_body()
@@ -99,17 +101,30 @@ A_flag_implied_when_root_body()
 	atf_check_equal "$(cat $WITH_EXPLICIT)" "$(cat $WITH_IMPLIED)"
 }
 
+atf_test_case B_flag
+B_flag_head()
+{
+	atf_set "descr" "Verify that the output from ls -B prints out non-printable characters"
+}
+
+B_flag_body()
+{
+
+	atf_check -e empty -o empty -s exit:0 touch "$(printf "y\013z")"
+	atf_check -e empty -o match:'y\\013z' -s exit:0 ls -B
+}
+
 atf_test_case C_flag
 C_flag_head()
 {
-	atf_set "descr" "Verify that the output from ls -C"
+	atf_set "descr" "Verify that the output from ls -C is multi-column"
 }
 
 C_flag_body()
 {
 	create_test_inputs
 
-	atf_check -e empty -o match:"$(printf 'a[[:space:]]+c[[:space:]]+d[[:space:]]+e[[:space:]]+h\n')" -s exit:0 ls -C
+	atf_check -e empty -o match:"$(printf 'a[[:space:]]+c[[:space:]]+d[[:space:]]+e[[:space:]]+h[[:space:]]i\n')" -s exit:0 ls -C
 }
 
 atf_test_case I_flag
@@ -154,6 +169,20 @@ I_flag_voids_A_flag_when_root_body()
 	atf_check -o match:'\.g' -s exit:0 ls -A -I
 }
 
+lcomma_flag_head()
+{
+	atf_set "descr" "Verify that -l, prints out the size with , delimiters"
+}
+
+lcomma_flag_body()
+{
+	create_test_inputs
+
+	atf_check \
+	    -o match:'\-rw\-r\-\-r\-\-[[:space:]]+.+[[:space:]]+1,000[[:space:]]+.+i' \
+	    env LC_ALL=en_US.ISO8859-1 ls -l, i
+}
+
 1_flag_head()
 {
 	atf_set "descr" "Verify that -1 prints out one item per line"
@@ -183,8 +212,10 @@ atf_init_test_cases()
 
 	atf_add_test_case A_flag
 	atf_add_test_case A_flag_implied_when_root
+	atf_add_test_case B_flag
 	atf_add_test_case C_flag
 	atf_add_test_case I_flag
 	atf_add_test_case I_flag_voids_A_flag_when_root
+	atf_add_test_case lcomma_flag
 	atf_add_test_case 1_flag
 }
