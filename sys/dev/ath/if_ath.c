@@ -4127,7 +4127,6 @@ ath_txq_init(struct ath_softc *sc, struct ath_txq *txq, int qnum)
 static struct ath_txq *
 ath_txq_setup(struct ath_softc *sc, int qtype, int subtype)
 {
-#define	N(a)	(sizeof(a)/sizeof(a[0]))
 	struct ath_hal *ah = sc->sc_ah;
 	HAL_TXQ_INFO qi;
 	int qnum;
@@ -4164,10 +4163,10 @@ ath_txq_setup(struct ath_softc *sc, int qtype, int subtype)
 		 */
 		return NULL;
 	}
-	if (qnum >= N(sc->sc_txq)) {
+	if (qnum >= nitems(sc->sc_txq)) {
 		device_printf(sc->sc_dev,
 			"hal qnum %u out of range, max %zu!\n",
-			qnum, N(sc->sc_txq));
+			qnum, nitems(sc->sc_txq));
 		ath_hal_releasetxqueue(ah, qnum);
 		return NULL;
 	}
@@ -4176,7 +4175,6 @@ ath_txq_setup(struct ath_softc *sc, int qtype, int subtype)
 		sc->sc_txqsetup |= 1<<qnum;
 	}
 	return &sc->sc_txq[qnum];
-#undef N
 }
 
 /*
@@ -4191,12 +4189,11 @@ ath_txq_setup(struct ath_softc *sc, int qtype, int subtype)
 static int
 ath_tx_setup(struct ath_softc *sc, int ac, int haltype)
 {
-#define	N(a)	(sizeof(a)/sizeof(a[0]))
 	struct ath_txq *txq;
 
-	if (ac >= N(sc->sc_ac2q)) {
+	if (ac >= nitems(sc->sc_ac2q)) {
 		device_printf(sc->sc_dev, "AC %u out of range, max %zu!\n",
-			ac, N(sc->sc_ac2q));
+			ac, nitems(sc->sc_ac2q));
 		return 0;
 	}
 	txq = ath_txq_setup(sc, HAL_TX_QUEUE_DATA, haltype);
@@ -4206,7 +4203,6 @@ ath_tx_setup(struct ath_softc *sc, int ac, int haltype)
 		return 1;
 	} else
 		return 0;
-#undef N
 }
 
 /*
@@ -4216,7 +4212,6 @@ static int
 ath_txq_update(struct ath_softc *sc, int ac)
 {
 #define	ATH_EXPONENT_TO_VALUE(v)	((1<<v)-1)
-#define	ATH_TXOP_TO_US(v)		(v<<5)
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ath_txq *txq = sc->sc_ac2q[ac];
 	struct wmeParams *wmep = &ic->ic_wme.wme_chanParams.cap_wmeParams[ac];
@@ -4262,7 +4257,7 @@ ath_txq_update(struct ath_softc *sc, int ac)
 		qi.tqi_cwmin = ATH_EXPONENT_TO_VALUE(wmep->wmep_logcwmin);
 		qi.tqi_cwmax = ATH_EXPONENT_TO_VALUE(wmep->wmep_logcwmax);
 		qi.tqi_readyTime = 0;
-		qi.tqi_burstTime = ATH_TXOP_TO_US(wmep->wmep_txopLimit);
+		qi.tqi_burstTime = IEEE80211_TXOP_TO_US(wmep->wmep_txopLimit);
 #ifdef IEEE80211_SUPPORT_TDMA
 	}
 #endif
@@ -4280,7 +4275,6 @@ ath_txq_update(struct ath_softc *sc, int ac)
 		ath_hal_resettxqueue(ah, txq->axq_qnum); /* push to h/w */
 		return 1;
 	}
-#undef ATH_TXOP_TO_US
 #undef ATH_EXPONENT_TO_VALUE
 }
 
@@ -6302,7 +6296,6 @@ ath_rate_setup(struct ath_softc *sc, u_int mode)
 static void
 ath_setcurmode(struct ath_softc *sc, enum ieee80211_phymode mode)
 {
-#define	N(a)	(sizeof(a)/sizeof(a[0]))
 	/* NB: on/off times from the Atheros NDIS driver, w/ permission */
 	static const struct {
 		u_int		rate;		/* tx/rx 802.11 rate */
@@ -6339,7 +6332,7 @@ ath_setcurmode(struct ath_softc *sc, enum ieee80211_phymode mode)
 			sc->sc_rixmap[ieeerate | IEEE80211_RATE_MCS] = i;
 	}
 	memset(sc->sc_hwmap, 0, sizeof(sc->sc_hwmap));
-	for (i = 0; i < N(sc->sc_hwmap); i++) {
+	for (i = 0; i < nitems(sc->sc_hwmap); i++) {
 		if (i >= rt->rateCount) {
 			sc->sc_hwmap[i].ledon = (500 * hz) / 1000;
 			sc->sc_hwmap[i].ledoff = (130 * hz) / 1000;
@@ -6354,7 +6347,7 @@ ath_setcurmode(struct ath_softc *sc, enum ieee80211_phymode mode)
 		    rt->info[i].phy == IEEE80211_T_OFDM)
 			sc->sc_hwmap[i].txflags |= IEEE80211_RADIOTAP_F_SHORTPRE;
 		sc->sc_hwmap[i].rxflags = sc->sc_hwmap[i].txflags;
-		for (j = 0; j < N(blinkrates)-1; j++)
+		for (j = 0; j < nitems(blinkrates)-1; j++)
 			if (blinkrates[j].rate == sc->sc_hwmap[i].ieeerate)
 				break;
 		/* NB: this uses the last entry if the rate isn't found */
@@ -6373,7 +6366,6 @@ ath_setcurmode(struct ath_softc *sc, enum ieee80211_phymode mode)
 	else
 		sc->sc_protrix = ath_tx_findrix(sc, 2*1);
 	/* NB: caller is responsible for resetting rate control state */
-#undef N
 }
 
 static void

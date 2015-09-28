@@ -3954,14 +3954,6 @@ wpi_config(struct wpi_softc *sc)
 	sc->rxon.cck_mask  = 0x0f;	/* not yet negotiated */
 	sc->rxon.ofdm_mask = 0xff;	/* not yet negotiated */
 
-	/* XXX Current configuration may be unusable. */
-	if (IEEE80211_IS_CHAN_NOADHOC(c) && sc->rxon.mode == WPI_MODE_IBSS) {
-		device_printf(sc->sc_dev,
-		    "%s: invalid channel (%d) selected for IBSS mode\n",
-		    __func__, ieee80211_chan2ieee(ic, c));
-		return EINVAL;
-	}
-
 	if ((error = wpi_send_rxon(sc, 0, 0)) != 0) {
 		device_printf(sc->sc_dev, "%s: could not send RXON\n",
 		    __func__);
@@ -4309,8 +4301,9 @@ wpi_auth(struct wpi_softc *sc, struct ieee80211vap *vap)
 static int
 wpi_config_beacon(struct wpi_vap *wvp)
 {
-	struct ieee80211com *ic = wvp->wv_vap.iv_ic;
-	struct ieee80211_beacon_offsets *bo = &wvp->wv_boff;
+	struct ieee80211vap *vap = &wvp->wv_vap;
+	struct ieee80211com *ic = vap->iv_ic;
+	struct ieee80211_beacon_offsets *bo = &vap->iv_bcn_off;
 	struct wpi_buf *bcn = &wvp->wv_bcbuf;
 	struct wpi_softc *sc = ic->ic_softc;
 	struct wpi_cmd_beacon *cmd = (struct wpi_cmd_beacon *)&bcn->data;
@@ -4361,9 +4354,10 @@ end:	bcn->m = m;
 static int
 wpi_setup_beacon(struct wpi_softc *sc, struct ieee80211_node *ni)
 {
-	struct wpi_vap *wvp = WPI_VAP(ni->ni_vap);
+	struct ieee80211vap *vap = ni->ni_vap;
+	struct ieee80211_beacon_offsets *bo = &vap->iv_bcn_off;
+	struct wpi_vap *wvp = WPI_VAP(vap);
 	struct wpi_buf *bcn = &wvp->wv_bcbuf;
-	struct ieee80211_beacon_offsets *bo = &wvp->wv_boff;
 	struct mbuf *m;
 	int error;
 
@@ -4397,7 +4391,7 @@ wpi_update_beacon(struct ieee80211vap *vap, int item)
 	struct wpi_softc *sc = vap->iv_ic->ic_softc;
 	struct wpi_vap *wvp = WPI_VAP(vap);
 	struct wpi_buf *bcn = &wvp->wv_bcbuf;
-	struct ieee80211_beacon_offsets *bo = &wvp->wv_boff;
+	struct ieee80211_beacon_offsets *bo = &vap->iv_bcn_off;
 	struct ieee80211_node *ni = vap->iv_bss;
 	int mcast = 0;
 

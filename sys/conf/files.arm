@@ -84,11 +84,12 @@ cddl/dev/dtrace/arm/dtrace_subr.c			optional dtrace compile-with "${DTRACE_C}"
 cddl/dev/fbt/arm/fbt_isa.c				optional dtrace_fbt | dtraceall compile-with "${FBT_C}"
 crypto/blowfish/bf_enc.c	optional	crypto | ipsec 
 crypto/des/des_enc.c		optional	crypto | ipsec | netsmb
+dev/dwc/if_dwc.c		optional	dwc
+dev/dwc/if_dwc_if.m		optional	dwc
 dev/fb/fb.c			optional	sc
 dev/fdt/fdt_arm_platform.c	optional	platform fdt
 dev/hwpmc/hwpmc_arm.c		optional	hwpmc
 dev/hwpmc/hwpmc_armv7.c		optional	hwpmc armv6
-dev/kbd/kbd.c			optional	sc | vt
 dev/psci/psci.c			optional	psci
 dev/psci/psci_arm.S		optional	psci
 dev/syscons/scgfbrndr.c		optional	sc

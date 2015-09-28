@@ -272,7 +272,6 @@ qca955x_pci_attach(device_t dev)
 {
 	struct ar71xx_pci_softc *sc = device_get_softc(dev);
 	int unit = device_get_unit(dev);
-	int busno = 0;
 	int rid = 0;
 
 	/* Dirty; maybe these could all just be hints */
@@ -362,7 +361,7 @@ qca955x_pci_attach(device_t dev)
 	    | PCIM_CMD_SERRESPEN | PCIM_CMD_BACKTOBACK
 	    | PCIM_CMD_PERRESPEN | PCIM_CMD_MWRICEN, 2);
 
-	device_add_child(dev, "pci", busno);
+	device_add_child(dev, "pci", -1);
 	return (bus_generic_attach(dev));
 }
 

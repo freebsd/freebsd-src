@@ -97,7 +97,6 @@ struct rt2560_rx_ring {
 
 struct rt2560_vap {
 	struct ieee80211vap	ral_vap;
-	struct ieee80211_beacon_offsets	ral_bo;
 
 	int			(*ral_newstate)(struct ieee80211vap *,
 				    enum ieee80211_state, int);

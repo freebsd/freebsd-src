@@ -445,7 +445,7 @@ racct_create(struct racct **racctp)
 	if (!racct_enable)
 		return;
 
-	SDT_PROBE(racct, kernel, racct, create, racctp, 0, 0, 0, 0);
+	SDT_PROBE1(racct, kernel, racct, create, racctp);
 
 	KASSERT(*racctp == NULL, ("racct already allocated"));
 
@@ -460,7 +460,7 @@ racct_destroy_locked(struct racct **racctp)
 
 	ASSERT_RACCT_ENABLED();
 
-	SDT_PROBE(racct, kernel, racct, destroy, racctp, 0, 0, 0, 0);
+	SDT_PROBE1(racct, kernel, racct, destroy, racctp);
 
 	mtx_assert(&racct_lock, MA_OWNED);
 	KASSERT(racctp != NULL, ("NULL racctp"));
@@ -538,7 +538,7 @@ racct_add_locked(struct proc *p, int resource, uint64_t amount)
 
 	ASSERT_RACCT_ENABLED();
 
-	SDT_PROBE(racct, kernel, rusage, add, p, resource, amount, 0, 0);
+	SDT_PROBE3(racct, kernel, rusage, add, p, resource, amount);
 
 	/*
 	 * We need proc lock to dereference p->p_ucred.
@@ -548,8 +548,8 @@ racct_add_locked(struct proc *p, int resource, uint64_t amount)
 #ifdef RCTL
 	error = rctl_enforce(p, resource, amount);
 	if (error && RACCT_IS_DENIABLE(resource)) {
-		SDT_PROBE(racct, kernel, rusage, add__failure, p, resource,
-		    amount, 0, 0);
+		SDT_PROBE3(racct, kernel, rusage, add__failure, p, resource,
+		    amount);
 		return (error);
 	}
 #endif
@@ -584,8 +584,7 @@ racct_add_cred_locked(struct ucred *cred, int resource, uint64_t amount)
 
 	ASSERT_RACCT_ENABLED();
 
-	SDT_PROBE(racct, kernel, rusage, add__cred, cred, resource, amount,
-	    0, 0);
+	SDT_PROBE3(racct, kernel, rusage, add__cred, cred, resource, amount);
 
 	racct_adjust_resource(cred->cr_ruidinfo->ui_racct, resource, amount);
 	for (pr = cred->cr_prison; pr != NULL; pr = pr->pr_parent)
@@ -623,7 +622,7 @@ racct_add_force(struct proc *p, int resource, uint64_t amount)
 	if (!racct_enable)
 		return;
 
-	SDT_PROBE(racct, kernel, rusage, add__force, p, resource, amount, 0, 0);
+	SDT_PROBE3(racct, kernel, rusage, add__force, p, resource, amount);
 
 	/*
 	 * We need proc lock to dereference p->p_ucred.
@@ -647,7 +646,7 @@ racct_set_locked(struct proc *p, int resource, uint64_t amount)
 
 	ASSERT_RACCT_ENABLED();
 
-	SDT_PROBE(racct, kernel, rusage, set, p, resource, amount, 0, 0);
+	SDT_PROBE3(racct, kernel, rusage, set, p, resource, amount);
 
 	/*
 	 * We need proc lock to dereference p->p_ucred.
@@ -679,8 +678,8 @@ racct_set_locked(struct proc *p, int resource, uint64_t amount)
 	if (diff_proc > 0) {
 		error = rctl_enforce(p, resource, diff_proc);
 		if (error && RACCT_IS_DENIABLE(resource)) {
-			SDT_PROBE(racct, kernel, rusage, set__failure, p,
-			    resource, amount, 0, 0);
+			SDT_PROBE3(racct, kernel, rusage, set__failure, p,
+			    resource, amount);
 			return (error);
 		}
 	}
@@ -723,7 +722,7 @@ racct_set_force_locked(struct proc *p, int resource, uint64_t amount)
 
 	ASSERT_RACCT_ENABLED();
 
-	SDT_PROBE(racct, kernel, rusage, set, p, resource, amount, 0, 0);
+	SDT_PROBE3(racct, kernel, rusage, set, p, resource, amount);
 
 	/*
 	 * We need proc lock to dereference p->p_ucred.
@@ -834,7 +833,7 @@ racct_sub(struct proc *p, int resource, uint64_t amount)
 	if (!racct_enable)
 		return;
 
-	SDT_PROBE(racct, kernel, rusage, sub, p, resource, amount, 0, 0);
+	SDT_PROBE3(racct, kernel, rusage, sub, p, resource, amount);
 
 	/*
 	 * We need proc lock to dereference p->p_ucred.
@@ -861,8 +860,7 @@ racct_sub_cred_locked(struct ucred *cred, int resource, uint64_t amount)
 
 	ASSERT_RACCT_ENABLED();
 
-	SDT_PROBE(racct, kernel, rusage, sub__cred, cred, resource, amount,
-	    0, 0);
+	SDT_PROBE3(racct, kernel, rusage, sub__cred, cred, resource, amount);
 
 #ifdef notyet
 	KASSERT(RACCT_CAN_DROP(resource),

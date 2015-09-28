@@ -39,7 +39,7 @@ bsd.port.post.mk	- building ports
 bsd.port.pre.mk		- building ports
 bsd.port.subdir.mk	- targets for building subdirectories for ports
 bsd.prog.mk		- building programs from source files
-bsd.progs.mk		- build multiple programs from sources (deprecated)
+bsd.progs.mk		- build multiple programs from sources
 bsd.snmpmod.mk		- building modules for the SNMP daemon bsnmpd
 bsd.subdir.mk		- targets for building subdirectories
 bsd.sys.mk		- common settings used for building FreeBSD sources
@@ -270,6 +270,10 @@ LDADD		Additional loader objects.  Usually used for libraries.
 
 			LDADD=-lutil -lcompat
 
+LIBADD		Additional libraries.  This is for base system libraries
+		and is only valid inside of the /usr/src tree.
+		Rather than use LDADD=-lname use LIBADD=name.
+
 LDFLAGS		Additional loader flags. Passed to the loader via CC,
 		since that's used to link programs as well, so loader
 		specific flags need to be prefixed with -Wl, to work.
@@ -291,6 +295,20 @@ PROG_CXX	If defined, the name of the program to build.  Also
 		causes <bsd.prog.mk> to link the program with the
 		standard C++ library.  PROG_CXX overrides the value
 		of PROG if PROG is also set.
+
+PROGS		When used with <bsd.progs.mk>, allow building multiple
+PROGS_CXX	PROG and PROGS_CXX in one Makefile.  To define
+		individual variables for each program the VAR.prog
+		syntax should be used.  For example:
+
+		PROGS=		foo bar
+		SRCS.foo=	foo_src.c
+		LDADD.foo=	-lutil
+		SRCS.bar=	bar_src.c
+
+		The supported variables are BINDIR BINGRP BINMODE BINOWN
+		CFLAGS CPPFLAGS CXXFLAGS DPADD DPLIBS DPSRCS LDADD
+		LDFLAGS LIBADD MAN MLINKS PROGNAME SRCS.
 
 PROGNAME	The name that the above program will be installed as, if
 		different from ${PROG}.
@@ -393,6 +411,10 @@ LIBOWN		Library owner.
 LIBMODE		Library mode.
 
 LDADD		Additional loader objects.
+
+LIBADD		Additional libraries.  This is for base system libraries
+		and is only valid inside of the /usr/src tree.
+		Rather than use LDADD=-lname use LIBADD=name.
 
 MAN		The manual pages to be installed (use a .1 - .9 suffix).
 

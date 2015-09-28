@@ -4,7 +4,7 @@
 #
 
 # PROVIDE: automountd
-# REQUIRE: automount
+# REQUIRE: DAEMON
 # KEYWORD: nojail
 
 . /etc/rc.subr

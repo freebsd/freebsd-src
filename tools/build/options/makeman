@@ -34,7 +34,8 @@ show_options()
 	rm -f $t/settings
 	for target in ${ALL_TARGETS} ; do
 		${make} showconfig \
-		    SRCCONF=/dev/null __MAKE_CONF=/dev/null \
+		    SRC_ENV_CONF=/dev/null SRCCONF=/dev/null \
+		    __MAKE_CONF=/dev/null \
 		    TARGET_ARCH=${target#*/} TARGET=${target%/*} |
 		while read var _ val ; do
 			opt=${var#MK_}
@@ -59,7 +60,7 @@ show_options()
 		fi
 	done
 
-	cat $t/settings | while read opt targets ; do
+	while read opt targets ; do
 		if [ "${targets}" = "${ALL_TARGETS}" ] ; then
 			echo "WITHOUT_${opt}"
 		elif [ -z "${targets}" ] ; then
@@ -68,7 +69,7 @@ show_options()
 			echo "WITHOUT_${opt}" $(no_targets "${ALL_TARGETS}" "${targets}")
 			echo "WITH_${opt} ${targets}"
 		fi
-	done
+	done < $t/settings
 }
 
 #
@@ -96,7 +97,8 @@ show()
 		exit 1
 		;;
 	esac
-	${make} .MAKE.MODE=normal "$@" showconfig __MAKE_CONF=/dev/null |
+	${make} .MAKE.MODE=normal "$@" showconfig __MAKE_CONF=/dev/null \
+	    SRCCONF=/dev/null |
 	while read var _ val ; do
 		opt=${var#MK_}
 		case ${val} in
@@ -188,6 +190,18 @@ option of
 or in its environment; see
 .Xr environ 7 .
 .Pp
+The environment of
+.Xr make 1
+for the build can be controlled via the
+.Va SRC_ENV_CONF
+variable, which defaults to
+.Pa /etc/src-env.conf .
+Some examples that may only be set in this file are
+.Va MAKEOBJDIRPREFIX ,
+and
+.Va WITH_META_MODE
+as they are environment-only variables.
+.Pp
 The values of variables are ignored regardless of their setting;
 even if they would be set to
 .Dq Li FALSE
@@ -201,14 +215,15 @@ The following list provides a name and short description for variables
 that can be used for source builds.
 .Bl -tag -width indent
 EOF
-	show settings SRCCONF=/dev/null | sort > $t/config_default
+	show settings SRC_ENV_CONF=/dev/null | sort > $t/config_default
 	# Work around WITH_LDNS_UTILS forcing BIND_UTILS off by parsing the
 	# actual config that results from enabling every WITH_ option.  This
 	# can be reverted if/when we no longer have options that disable
 	# others.
-	show with SRCCONF=/dev/null | sort | sed 's/$/=/' > $t/src.conf
-	show settings SRCCONF=$t/src.conf | sort > $t/config_WITH_ALL
-	show without SRCCONF=/dev/null | sort > $t/config_WITHOUT_ALL
+	show with SRC_ENV_CONF=/dev/null | sort | sed 's/$/=/' > $t/src.conf
+	show settings SRC_ENV_CONF=$t/src.conf | sort > $t/config_WITH_ALL
+	show without SRC_ENV_CONF=/dev/null | sort > $t/config_WITHOUT_ALL
+	env_only_options="$(${make} -V __ENV_ONLY_OPTIONS)"
 
 	show_options |
 	while read opt targets ; do
@@ -227,18 +242,18 @@ EOF
 
 		if [ "${opt%%_*}" = 'WITHOUT' ] ; then
 			sed -n "/^WITH_${opt#WITHOUT_}$/!s/$/=/p" $t/config_WITH_ALL > $t/src.conf
-			show settings SRCCONF=$t/src.conf -D${opt} | sort > $t/config_WITH_ALL_${opt}
+			show settings SRC_ENV_CONF=$t/src.conf -D${opt} | sort > $t/config_WITH_ALL_${opt}
 			comm -13 $t/config_WITH_ALL $t/config_WITH_ALL_${opt} | sed -n "/^${opt}$/!p" > $t/deps
 		elif [ "${opt%%_*}" = 'WITH' ] ; then
 			sed -n "/^WITHOUT${opt#WITH}$/!s/$/=/p" $t/config_WITHOUT_ALL > $t/src.conf
-			show settings SRCCONF=$t/src.conf -D${opt} | sort > $t/config_WITHOUT_ALL_${opt}
+			show settings SRC_ENV_CONF=$t/src.conf -D${opt} | sort > $t/config_WITHOUT_ALL_${opt}
 			comm -13 $t/config_WITHOUT_ALL $t/config_WITHOUT_ALL_${opt} | sed -n "/^${opt}$/!p" > $t/deps
 		else
 			echo 'internal error' >&2
 			exit 1
 		fi
 
-		show settings SRCCONF=/dev/null -D${opt} | sort > $t/config_${opt}
+		show settings SRC_ENV_CONF=/dev/null -D${opt} | sort > $t/config_${opt}
 		comm -13 $t/config_default $t/config_${opt} | sed -n "/^${opt}$/!p" |
 		comm -13 $t/deps - > $t/deps2
 
@@ -250,33 +265,46 @@ EOF
 			:> $t/deps2
 		fi
 
+		havedeps=0
 		if [ -s $t/deps ] ; then
+			havedeps=1
 			echo 'When set, it also enforces the following options:'
 			echo '.Pp'
 			echo '.Bl -item -compact'
-			cat $t/deps | while read opt2 ; do
+			while read opt2 ; do
 				echo '.It'
 				echo ".Va ${opt2}"
-			done
+			done < $t/deps
 			echo '.El'
 		fi
 
 		if [ -s $t/deps2 ] ; then
-			if [ -s $t/deps ] ; then
+			if [ ${havedeps} -eq 1 ] ; then
 				echo '.Pp'
 			fi
 			echo 'When set, the following options are also in effect:'
 			echo '.Pp'
 			echo '.Bl -inset -compact'
-			cat $t/deps2 | while read opt2 ; do
+			while read opt2 ; do
 				echo ".It Va ${opt2}"
 				noopt=$(echo ${opt2} | sed -e's/WITH_/WITHOUT_/;t' -e's/WITHOUT_/WITH_/')
 				echo '(unless'
 				echo ".Va ${noopt}"
 				echo 'is set explicitly)'
-			done
+			done < $t/deps2
 			echo '.El'
 		fi
+
+		case " ${env_only_options} " in
+			*\ ${opt#*_}\ *)
+				echo ".Pp"
+				echo "This must be set in the environment, make command line, or"
+				echo ".Pa /etc/src-env.conf ,"
+				echo "not"
+				echo ".Pa /etc/src.conf ."
+				;;
+		esac
+
 		twiddle >&2
 	done
 	cat <<EOF
@@ -284,6 +312,7 @@ EOF
 .Sh FILES
 .Bl -tag -compact -width Pa
 .It Pa /etc/src.conf
+.It Pa /etc/src-env.conf
 .It Pa /usr/share/mk/bsd.own.mk
 .El
 .Sh SEE ALSO

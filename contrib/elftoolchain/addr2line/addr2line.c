@@ -248,7 +248,13 @@ translate(Dwarf_Debug dbg, const char* addrstr)
 				continue;
 		}
 
-		if (dwarf_srclines(die, &lbuf, &lcount, &de) != DW_DLV_OK) {
+		switch (dwarf_srclines(die, &lbuf, &lcount, &de)) {
+		case DW_DLV_OK:
+			break;
+		case DW_DLV_NO_ENTRY:
+			/* If one CU lacks debug info, just skip it. */
+			continue;
+		default:
 			warnx("dwarf_srclines: %s", dwarf_errmsg(de));
 			goto out;
 		}

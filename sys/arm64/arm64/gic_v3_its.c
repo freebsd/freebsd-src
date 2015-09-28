@@ -180,6 +180,19 @@ gic_v3_its_attach(device_t dev)
 	sc = device_get_softc(dev);
 
 	/*
+	 * XXX ARM64TODO: Avoid configuration of more than one ITS
+	 * device. To be removed when multi-PIC support is added
+	 * to FreeBSD (or at least multi-ITS is implemented). Limit
+	 * supported ITS sockets to '0' only.
+	 */
+	if (device_get_unit(dev) != 0) {
+		device_printf(dev,
+		    "Only single instance of ITS is supported, exitting...\n");
+		return (ENXIO);
+	}
+	sc->its_socket = 0;
+
+	/*
 	 * Initialize sleep & spin mutex for ITS
 	 */
 	/* Protects ITS device list and assigned LPIs bitmaps. */
@@ -557,6 +570,10 @@ its_init_cpu(struct gic_v3_its_softc *sc)
 			 */
 			sc = its_sc;
 		} else
+			return (ENXIO);
+
+		/* Skip if running secondary init on a wrong socket */
+		if (sc->its_socket != CPU_CURRENT_SOCKET)
 			return (ENXIO);
 	}
 

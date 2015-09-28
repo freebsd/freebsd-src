@@ -280,9 +280,6 @@ i2c_write(char *dev, struct options i2c_opt, char *i2c_buf)
 		err(1, "open failed");
 	}
 
-	/*
-	 * Write offset where the data will go
-	 */
 	cmd.slave = i2c_opt.addr;
 	error = ioctl(fd, I2CSTART, &cmd);
 	if (error == -1) {
@@ -297,20 +294,24 @@ i2c_write(char *dev, struct options i2c_opt, char *i2c_buf)
 			err_msg = "error: offset malloc";
 			goto err1;
 		}
-
-		cmd.count = bufsize;
-		cmd.buf = buf;
-		error = ioctl(fd, I2CWRITE, &cmd);
-		free(buf);
-		if (error == -1) {
-			err_msg = "ioctl: error when write offset";
-			goto err1;
-		}
 	}
 
-	/* Mode - stop start */
-	if (i2c_opt.mode == I2C_MODE_STOP_START) {
-		cmd.slave = i2c_opt.addr;
+	switch(i2c_opt.mode) {
+	case I2C_MODE_STOP_START:
+		/*
+		 * Write offset where the data will go
+		 */
+		if (i2c_opt.width) {
+			cmd.count = bufsize;
+			cmd.buf = buf;
+			error = ioctl(fd, I2CWRITE, &cmd);
+			free(buf);
+			if (error == -1) {
+				err_msg = "ioctl: error when write offset";
+				goto err1;
+			}
+		}
+
 		error = ioctl(fd, I2CSTOP, &cmd);
 		if (error == -1) {
 			err_msg = "ioctl: error sending stop condition";
@@ -322,9 +323,35 @@ i2c_write(char *dev, struct options i2c_opt, char *i2c_buf)
 			err_msg = "ioctl: error sending start condition";
 			goto err1;
 		}
-	}
-	/* Mode - repeated start */
-	if (i2c_opt.mode == I2C_MODE_REPEATED_START) {
+
+		/*
+		 * Write the data
+		 */
+		cmd.count = i2c_opt.count;
+		cmd.buf = i2c_buf;
+		cmd.last = 0;
+		error = ioctl(fd, I2CWRITE, &cmd);
+		if (error == -1) {
+			err_msg = "ioctl: error when write";
+			goto err1;
+		}
+		break;
+
+	case I2C_MODE_REPEATED_START:
+		/*
+		 * Write offset where the data will go
+		 */
+		if (i2c_opt.width) {
+			cmd.count = bufsize;
+			cmd.buf = buf;
+			error = ioctl(fd, I2CWRITE, &cmd);
+			free(buf);
+			if (error == -1) {
+				err_msg = "ioctl: error when write offset";
+				goto err1;
+			}
+		}
+
 		cmd.slave = i2c_opt.addr;
 		error = ioctl(fd, I2CRPTSTART, &cmd);
 		if (error == -1) {
@@ -332,18 +359,42 @@ i2c_write(char *dev, struct options i2c_opt, char *i2c_buf)
 			    "condition";
 			goto err1;
 		}
-	}
 
-	/*
-	 * Write the data
-	 */
-	cmd.count = i2c_opt.count;
-	cmd.buf = i2c_buf;
-	cmd.last = 0;
-	error = ioctl(fd, I2CWRITE, &cmd);
-	if (error == -1) {
-		err_msg = "ioctl: error when write";
-		goto err1;
+		/*
+		 * Write the data
+		 */
+		cmd.count = i2c_opt.count;
+		cmd.buf = i2c_buf;
+		cmd.last = 0;
+		error = ioctl(fd, I2CWRITE, &cmd);
+		if (error == -1) {
+			err_msg = "ioctl: error when write";
+			goto err1;
+		}
+		break;
+
+	case I2C_MODE_NONE: /* fall through */
+	default:		
+		buf = realloc(buf, bufsize + i2c_opt.count);
+		if (buf == NULL) {
+			err_msg = "error: data malloc";
+			goto err1;
+		}
+
+		memcpy(buf + bufsize, i2c_buf, i2c_opt.count);
+		/*
+		 * Write offset and data
+		 */
+		cmd.count = bufsize + i2c_opt.count;
+		cmd.buf = buf;
+		cmd.last = 0;
+		error = ioctl(fd, I2CWRITE, &cmd);
+		free(buf);
+		if (error == -1) {
+			err_msg = "ioctl: error when write";
+			goto err1;
+		}
+		break;
 	}
 	cmd.slave = i2c_opt.addr;
 	error = ioctl(fd, I2CSTOP, &cmd);

@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 7, 2015
+.Dd September 27, 2015
 .Dt CTL.CONF 5
 .Os
 .Sh NAME
@@ -388,8 +388,16 @@ The default backend is block.
 .It Ic blocksize Ar size
 The blocksize visible to the initiator.
 The default blocksize is 512.
+.It Ic ctl-lun Ar lun_id
+Global numeric identifier to use for a given LUN inside CTL.
+By default CTL allocates those IDs dynamically, but explicit specification
+may be needed for consistency in HA configurations.
 .It Ic device-id Ar string
 The SCSI Device Identification string presented to the initiator.
+.It Ic device-type Ar type
+Specify the SCSI device type to use when creating the LUN.
+Currently CTL supports Direct Access (type 0), Processor (type 3)
+and CD/DVD (type 5) LUNs.
 .It Ic option Ar name Ar value
 The CTL-specific options passed to the kernel.
 All CTL-specific options are documented in the
