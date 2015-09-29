@@ -137,9 +137,8 @@ __fts_open_44bsd(char * const *argv, int options,
 	}
 
 	/* Allocate/initialize the stream. */
-	if ((priv = malloc(sizeof(*priv))) == NULL)
+	if ((priv = calloc(1, sizeof(*priv))) == NULL)
 		return (NULL);
-	memset(priv, 0, sizeof(*priv));
 	sp = &priv->ftsp_fts;
 	sp->fts_compar = compar;
 	sp->fts_options = options;
