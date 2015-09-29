@@ -263,3 +263,5 @@ END(bzero)
 #else
 END(memset)
 #endif
+
+	.section .note.GNU-stack,"",%progbits
