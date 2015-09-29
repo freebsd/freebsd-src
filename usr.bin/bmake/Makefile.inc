@@ -13,7 +13,7 @@
 MK_BMAKE= yes
 .endif
 
-.if defined(MK_BMAKE) && ${MK_BMAKE} != "no"
+.if defined(MK_BMAKE) && ${MK_BMAKE} != "no" && exists(${.CURDIR}/tests)
 PROG= make
 .endif
 
