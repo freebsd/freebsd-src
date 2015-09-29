@@ -97,6 +97,7 @@ ATF_TC_BODY(test_preexisting, tc)
 
 	/* Close the FILE *. */
 	rc = fclose(fp);
+	ATF_REQUIRE(rc == 0);
 
 	/* Check that the string was not modified after the first 4 bytes. */
 	ATF_REQUIRE(strcmp(str, str3) == 0);
