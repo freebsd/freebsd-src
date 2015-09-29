@@ -59,7 +59,7 @@ show_options()
 		fi
 	done
 
-	cat $t/settings | while read opt targets ; do
+	while read opt targets ; do
 		if [ "${targets}" = "${ALL_TARGETS}" ] ; then
 			echo "WITHOUT_${opt}"
 		elif [ -z "${targets}" ] ; then
@@ -68,7 +68,7 @@ show_options()
 			echo "WITHOUT_${opt}" $(no_targets "${ALL_TARGETS}" "${targets}")
 			echo "WITH_${opt} ${targets}"
 		fi
-	done
+	done < $t/settings
 }
 
 #
@@ -250,31 +250,33 @@ EOF
 			:> $t/deps2
 		fi
 
+		havedeps=0
 		if [ -s $t/deps ] ; then
+			havedeps=1
 			echo 'When set, it also enforces the following options:'
 			echo '.Pp'
 			echo '.Bl -item -compact'
-			cat $t/deps | while read opt2 ; do
+			while read opt2 ; do
 				echo '.It'
 				echo ".Va ${opt2}"
-			done
+			done < $t/deps
 			echo '.El'
 		fi
 
 		if [ -s $t/deps2 ] ; then
-			if [ -s $t/deps ] ; then
+			if [ ${havedeps} -eq 1 ] ; then
 				echo '.Pp'
 			fi
 			echo 'When set, the following options are also in effect:'
 			echo '.Pp'
 			echo '.Bl -inset -compact'
-			cat $t/deps2 | while read opt2 ; do
+			while read opt2 ; do
 				echo ".It Va ${opt2}"
 				noopt=$(echo ${opt2} | sed -e's/WITH_/WITHOUT_/;t' -e's/WITHOUT_/WITH_/')
 				echo '(unless'
 				echo ".Va ${noopt}"
 				echo 'is set explicitly)'
-			done
+			done < $t/deps2
 			echo '.El'
 		fi
 		twiddle >&2
