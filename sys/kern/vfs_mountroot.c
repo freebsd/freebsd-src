@@ -245,7 +245,7 @@ vfs_mountroot_devfs(struct thread *td, struct mount **mpp)
 	return (error);
 }
 
-static int
+static void
 vfs_mountroot_shuffle(struct thread *td, struct mount *mpdevfs)
 {
 	struct nameidata nd;
@@ -355,8 +355,6 @@ vfs_mountroot_shuffle(struct thread *td, struct mount *mpdevfs)
 			printf("mountroot: unable to unlink /dev/dev "
 			    "(error %d)\n", error);
 	}
-
-	return (0);
 }
 
 /*
@@ -948,12 +946,10 @@ vfs_mountroot(void)
 	while (!error) {
 		error = vfs_mountroot_parse(sb, mp);
 		if (!error) {
-			error = vfs_mountroot_shuffle(td, mp);
-			if (!error) {
-				sbuf_clear(sb);
-				error = vfs_mountroot_readconf(td, sb);
-				sbuf_finish(sb);
-			}
+			vfs_mountroot_shuffle(td, mp);
+			sbuf_clear(sb);
+			error = vfs_mountroot_readconf(td, sb);
+			sbuf_finish(sb);
 		}
 	}
 
