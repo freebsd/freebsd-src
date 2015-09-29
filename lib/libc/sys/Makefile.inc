@@ -47,8 +47,6 @@ ASM+=$(_asm)
 .endif
 .endfor
 
-OBJS+=	${ASM} ${PSEUDO}
-
 SASM=	${ASM:S/.o/.S/}
 
 SPSEUDO= ${PSEUDO:S/.o/.S/}
