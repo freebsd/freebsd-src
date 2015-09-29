@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2012 The FreeBSD Foundation
+ * Copyright (c) 2015 Chelsio Communications, Inc.
  * All rights reserved.
  *
  * This software was developed by Edward Tomasz Napierala under sponsorship
@@ -83,7 +84,7 @@ static int recvspace = 1048576;
 SYSCTL_INT(_kern_icl_cxgbei, OID_AUTO, recvspace, CTLFLAG_RWTUN,
     &recvspace, 0, "Default receive socket buffer size");
 
-static uma_zone_t icl_pdu_zone;
+static uma_zone_t icl_cxgbei_pdu_zone;
 static uma_zone_t icl_transfer_zone;
 
 static volatile u_int icl_cxgbei_ncons;
@@ -126,28 +127,32 @@ static kobj_method_t icl_cxgbei_methods[] = {
 	{ 0, 0 }
 };
 
-DEFINE_CLASS(icl_cxgbei, icl_cxgbei_methods, sizeof(struct icl_conn));
+DEFINE_CLASS(icl_cxgbei, icl_cxgbei_methods, sizeof(struct icl_cxgbei_conn));
 
 struct icl_pdu * icl_pdu_new_empty(struct icl_conn *ic, int flags);
 void icl_pdu_free(struct icl_pdu *ip);
 
+#define CXGBEI_PDU_SIGNATURE 0x12344321
+
 struct icl_pdu *
 icl_pdu_new_empty(struct icl_conn *ic, int flags)
 {
+	struct icl_cxgbei_pdu *icp;
 	struct icl_pdu *ip;
 
 #ifdef DIAGNOSTIC
 	refcount_acquire(&ic->ic_outstanding_pdus);
 #endif
-	ip = uma_zalloc(icl_pdu_zone, flags | M_ZERO);
-	if (ip == NULL) {
-		ICL_WARN("failed to allocate %zd bytes", sizeof(*ip));
+	icp = uma_zalloc(icl_cxgbei_pdu_zone, flags | M_ZERO);
+	if (icp == NULL) {
 #ifdef DIAGNOSTIC
 		refcount_release(&ic->ic_outstanding_pdus);
 #endif
 		return (NULL);
 	}
+	icp->icp_signature = CXGBEI_PDU_SIGNATURE;
 
+	ip = &icp->ip;
 	ip->ip_conn = ic;
 
 	return (ip);
@@ -157,13 +162,16 @@ void
 icl_pdu_free(struct icl_pdu *ip)
 {
 	struct icl_conn *ic;
+	struct icl_cxgbei_pdu *icp;
 
+	icp = (void *)ip;
+	MPASS(icp->icp_signature == CXGBEI_PDU_SIGNATURE);
 	ic = ip->ip_conn;
 
 	m_freem(ip->ip_bhs_mbuf);
 	m_freem(ip->ip_ahs_mbuf);
 	m_freem(ip->ip_data_mbuf);
-	uma_zfree(icl_pdu_zone, ip);
+	uma_zfree(icl_cxgbei_pdu_zone, ip);
 #ifdef DIAGNOSTIC
 	refcount_release(&ic->ic_outstanding_pdus);
 #endif
@@ -411,15 +419,21 @@ icl_cxgbei_conn_pdu_queue(struct icl_conn *ic, struct icl_pdu *ip)
 	icl_pdu_queue(ip);
 }
 
+#define CXGBEI_CONN_SIGNATURE 0x56788765
+
 static struct icl_conn *
 icl_cxgbei_new_conn(const char *name, struct mtx *lock)
 {
+	struct icl_cxgbei_conn *icc;
 	struct icl_conn *ic;
 
 	refcount_acquire(&icl_cxgbei_ncons);
 
-	ic = (struct icl_conn *)kobj_create(&icl_cxgbei_class, M_CXGBE, M_WAITOK | M_ZERO);
+	icc = (struct icl_cxgbei_conn *)kobj_create(&icl_cxgbei_class, M_CXGBE,
+	    M_WAITOK | M_ZERO);
+	icc->icc_signature = CXGBEI_CONN_SIGNATURE;
 
+	ic = &icc->ic;
 	STAILQ_INIT(&ic->ic_to_send);
 	ic->ic_lock = lock;
 	cv_init(&ic->ic_send_cv, "icl_cxgbei_tx");
@@ -437,10 +451,13 @@ icl_cxgbei_new_conn(const char *name, struct mtx *lock)
 void
 icl_cxgbei_conn_free(struct icl_conn *ic)
 {
+	struct icl_cxgbei_conn *icc = (void *)ic;
+
+	MPASS(icc->icc_signature == CXGBEI_CONN_SIGNATURE);
 
 	cv_destroy(&ic->ic_send_cv);
 	cv_destroy(&ic->ic_receive_cv);
-	kobj_delete((struct kobj *)ic, M_CXGBE);
+	kobj_delete((struct kobj *)icc, M_CXGBE);
 	refcount_release(&icl_cxgbei_ncons);
 }
 
@@ -740,8 +757,8 @@ icl_cxgbei_load(void)
 {
 	int error;
 
-	icl_pdu_zone = uma_zcreate("icl_pdu",
-	    sizeof(struct icl_pdu), NULL, NULL, NULL, NULL,
+	icl_cxgbei_pdu_zone = uma_zcreate("icl_cxgbei_pdu",
+	    sizeof(struct icl_cxgbei_pdu), NULL, NULL, NULL, NULL,
 	    UMA_ALIGN_PTR, 0);
 	icl_transfer_zone = uma_zcreate("icl_transfer",
 	    16 * 1024, NULL, NULL, NULL, NULL,
@@ -749,12 +766,8 @@ icl_cxgbei_load(void)
 
 	refcount_init(&icl_cxgbei_ncons, 0);
 
-	/*
-	 * The reason we call this "none" is that to the user,
-	 * it's known as "offload driver"; "offload driver: soft"
-	 * doesn't make much sense.
-	 */
-	error = icl_register("cxgbei", 100, icl_cxgbei_limits, icl_cxgbei_new_conn);
+	error = icl_register("cxgbei", 100, icl_cxgbei_limits,
+	    icl_cxgbei_new_conn);
 	KASSERT(error == 0, ("failed to register"));
 
 	return (error);
@@ -769,7 +782,7 @@ icl_cxgbei_unload(void)
 
 	icl_unregister("cxgbei");
 
-	uma_zdestroy(icl_pdu_zone);
+	uma_zdestroy(icl_cxgbei_pdu_zone);
 	uma_zdestroy(icl_transfer_zone);
 
 	return (0);
