@@ -570,11 +570,8 @@ process_rx_iscsi_hdr(struct toepcb *toep, struct mbuf *m)
 
 	/* allocate m_tag to hold ulp info */
 	cb = get_ulp_mbuf_cb(m);
-	if (cb == NULL) {
-		printf("%s: Error allocation m_tag\n", __func__);
-		goto err_out1;
-	}
-	cb->seq = ntohl(cpl->seq);
+	if (cb == NULL)
+		CXGBE_UNIMPLEMENTED(__func__);
 
 	/* strip off CPL header */
 	m_adj(m, sizeof(*cpl));
@@ -585,41 +582,35 @@ process_rx_iscsi_hdr(struct toepcb *toep, struct mbuf *m)
 
 		isock->mbuf_ulp_lhdr = lmbuf = m;
 		lcb = cb;
-		cb->flags = SBUF_ULP_FLAG_HDR_RCVD |
-			SBUF_ULP_FLAG_COALESCE_OFF;
+		cb->flags = SBUF_ULP_FLAG_HDR_RCVD;
 		/* we only update tp->rcv_nxt once per pdu */
-		if (cb->seq != tp->rcv_nxt) {
-			CTR3(KTR_CXGBE,
-			"tid 0x%x, CPL_ISCSI_HDR, BAD seq got 0x%x exp 0x%x.",
-			toep->tid, cb->seq, tp->rcv_nxt);
-			goto err_out1;
+		if (__predict_false(ntohl(cpl->seq) != tp->rcv_nxt)) {
+			panic("%s: seq# 0x%x (expected 0x%x) for tid %u",
+			    __func__, ntohl(cpl->seq), tp->rcv_nxt, toep->tid);
 		}
 		byte = m->m_data;
 		hlen = ntohs(cpl->len);
 		dlen = ntohl(*(unsigned int *)(byte + 4)) & 0xFFFFFF;
 
 		plen = ntohs(cpl->pdu_len_ddp);
-		lcb->ulp.iscsi.pdulen = (hlen + dlen + 3) & (~0x3);
+		lcb->pdulen = (hlen + dlen + 3) & (~0x3);
 		/* workaround for cpl->pdu_len_ddp since it does not include
 		the data digest count */
 		if (dlen)
-			lcb->ulp.iscsi.pdulen += isock->s_dcrc_len;
+			lcb->pdulen += isock->s_dcrc_len;
 
-		tp->rcv_nxt += lcb->ulp.iscsi.pdulen;
-		if (tp->rcv_wnd <= lcb->ulp.iscsi.pdulen)
+		tp->rcv_nxt += lcb->pdulen;
+		if (tp->rcv_wnd <= lcb->pdulen)
 			CTR3(KTR_CXGBE, "%s: Neg rcv_wnd:0x%lx pdulen:0x%x",
-				__func__, tp->rcv_wnd, lcb->ulp.iscsi.pdulen);
-			tp->rcv_wnd -= lcb->ulp.iscsi.pdulen;
+				__func__, tp->rcv_wnd, lcb->pdulen);
+			tp->rcv_wnd -= lcb->pdulen;
 			tp->t_rcvtime = ticks;
 	} else {
 		lmbuf = isock->mbuf_ulp_lhdr;
 		lcb = find_ulp_mbuf_cb(lmbuf);
-		if (lcb == NULL) {
-			printf("%s: lmbuf:%p lcb is NULL\n", __func__, lmbuf);
-			goto err_out1;
-		}
-		lcb->flags |= SBUF_ULP_FLAG_DATA_RCVD |
-			SBUF_ULP_FLAG_COALESCE_OFF;
+		if (lcb == NULL)
+			CXGBE_UNIMPLEMENTED(__func__);
+		lcb->flags |= SBUF_ULP_FLAG_DATA_RCVD;
 		cb->flags = SBUF_ULP_FLAG_DATA_RCVD;
 
 		/* padding */
@@ -629,11 +620,6 @@ process_rx_iscsi_hdr(struct toepcb *toep, struct mbuf *m)
 	}
 	mbufq_enqueue(&isock->iscsi_rcvq, m);
 	mtx_unlock(&isock->iscsi_rcvq_lock);
-	return;
-
-err_out1:
-	mtx_unlock(&isock->iscsi_rcvq_lock);
-	m_freem(m);
 }
 
 /* hand over received PDU to iscsi_initiator */
@@ -663,7 +649,7 @@ iscsi_conn_receive_pdu(struct iscsi_socket *isock)
 	}
 	/* BHS */
 	mbufq_dequeue(&isock->iscsi_rcvq);
-	data_len = cb->ulp.iscsi.pdulen;
+	data_len = cb->pdulen;
 
 	CTR5(KTR_CXGBE, "%s: response:%p m:%p m_len:%d data_len:%d",
 		__func__, response, m, m->m_len, data_len);
@@ -723,15 +709,15 @@ process_rx_data_ddp(struct toepcb *toep, const struct cpl_rx_data_ddp *cpl)
 	lcb->flags |= SBUF_ULP_FLAG_STATUS_RCVD;
 	isock->mbuf_ulp_lhdr = NULL;
 
-	if (ntohs(cpl->len) != lcb->ulp.iscsi.pdulen) {
+	if (ntohs(cpl->len) != lcb->pdulen) {
 		CTR3(KTR_CXGBE, "tid 0x%x, RX_DATA_DDP pdulen %u != %u.",
-			toep->tid, ntohs(cpl->len), lcb->ulp.iscsi.pdulen);
+			toep->tid, ntohs(cpl->len), lcb->pdulen);
 		CTR4(KTR_CXGBE, "%s: lmbuf:%p lcb:%p lcb->flags:0x%x",
 			__func__, lmbuf, lcb, lcb->flags);
 	}
 
-	lcb->ulp.iscsi.ddigest = ntohl(cpl->ulp_crc);
-	pdulen = lcb->ulp.iscsi.pdulen;
+	lcb->ddigest = ntohl(cpl->ulp_crc);
+	pdulen = lcb->pdulen;
 
 	val = ntohl(cpl->ddpvld);
 	if (val & F_DDP_PADDING_ERR)
