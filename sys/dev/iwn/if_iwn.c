@@ -5344,6 +5344,8 @@ iwn_updateedca(struct ieee80211com *ic)
 
 	memset(&cmd, 0, sizeof cmd);
 	cmd.flags = htole32(IWN_EDCA_UPDATE);
+
+	IEEE80211_LOCK(ic);
 	for (aci = 0; aci < WME_NUM_AC; aci++) {
 		const struct wmeParams *ac =
 		    &ic->ic_wme.wme_chanParams.cap_wmeParams[aci];
@@ -5354,10 +5356,10 @@ iwn_updateedca(struct ieee80211com *ic)
 		    htole16(IEEE80211_TXOP_TO_US(ac->wmep_txopLimit));
 	}
 	IEEE80211_UNLOCK(ic);
+
 	IWN_LOCK(sc);
 	(void)iwn_cmd(sc, IWN_CMD_EDCA_PARAMS, &cmd, sizeof cmd, 1);
 	IWN_UNLOCK(sc);
-	IEEE80211_LOCK(ic);
 
 	DPRINTF(sc, IWN_DEBUG_TRACE, "->%s: end\n",__func__);
 
