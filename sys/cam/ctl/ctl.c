@@ -354,6 +354,52 @@ const static struct ctl_logical_block_provisioning_page lbp_page_changeable = {{
 	}
 };
 
+const static struct scsi_cddvd_capabilities_page cddvd_page_default = {
+	/*page_code*/SMS_CDDVD_CAPS_PAGE,
+	/*page_length*/sizeof(struct scsi_cddvd_capabilities_page) - 2,
+	/*caps1*/0x3f,
+	/*caps2*/0x00,
+	/*caps3*/0xf0,
+	/*caps4*/0x00,
+	/*caps5*/0x29,
+	/*caps6*/0x00,
+	/*obsolete*/{0, 0},
+	/*nvol_levels*/{0, 0},
+	/*buffer_size*/{8, 0},
+	/*obsolete2*/{0, 0},
+	/*reserved*/0,
+	/*digital*/0,
+	/*obsolete3*/0,
+	/*copy_management*/0,
+	/*reserved2*/0,
+	/*rotation_control*/0,
+	/*cur_write_speed*/0,
+	/*num_speed_descr*/0,
+};
+
+const static struct scsi_cddvd_capabilities_page cddvd_page_changeable = {
+	/*page_code*/SMS_CDDVD_CAPS_PAGE,
+	/*page_length*/sizeof(struct scsi_cddvd_capabilities_page) - 2,
+	/*caps1*/0,
+	/*caps2*/0,
+	/*caps3*/0,
+	/*caps4*/0,
+	/*caps5*/0,
+	/*caps6*/0,
+	/*obsolete*/{0, 0},
+	/*nvol_levels*/{0, 0},
+	/*buffer_size*/{0, 0},
+	/*obsolete2*/{0, 0},
+	/*reserved*/0,
+	/*digital*/0,
+	/*obsolete3*/0,
+	/*copy_management*/0,
+	/*reserved2*/0,
+	/*rotation_control*/0,
+	/*cur_write_speed*/0,
+	/*num_speed_descr*/0,
+};
+
 SYSCTL_NODE(_kern_cam, OID_AUTO, ctl, CTLFLAG_RD, 0, "CAM Target Layer");
 static int worker_threads = -1;
 SYSCTL_INT(_kern_cam_ctl, OID_AUTO, worker_threads, CTLFLAG_RDTUN,
@@ -4117,6 +4163,23 @@ ctl_init_page_index(struct ctl_lun *lun)
 				page_index->page_data =
 					(uint8_t *)lun->mode_pages.lbp_page;
 			}}
+			break;
+		}
+		case SMS_CDDVD_CAPS_PAGE:{
+			memcpy(&lun->mode_pages.cddvd_page[CTL_PAGE_DEFAULT],
+			       &cddvd_page_default,
+			       sizeof(cddvd_page_default));
+			memcpy(&lun->mode_pages.cddvd_page[
+			       CTL_PAGE_CHANGEABLE], &cddvd_page_changeable,
+			       sizeof(cddvd_page_changeable));
+			memcpy(&lun->mode_pages.cddvd_page[CTL_PAGE_SAVED],
+			       &cddvd_page_default,
+			       sizeof(cddvd_page_default));
+			memcpy(&lun->mode_pages.cddvd_page[CTL_PAGE_CURRENT],
+			       &lun->mode_pages.cddvd_page[CTL_PAGE_SAVED],
+			       sizeof(cddvd_page_default));
+			page_index->page_data =
+				(uint8_t *)lun->mode_pages.cddvd_page;
 			break;
 		}
 		case SMS_VENDOR_SPECIFIC_PAGE:{
