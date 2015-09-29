@@ -89,7 +89,7 @@ NESTED_NOPROFILE(__cerror, CALLFRAME_SIZ, ra)
 
 	move		sp, s8
 	cld		t0, sp, CALLFRAME_S0($c11)
-	csd		t0, zero, 0($c3)
+	csw		t0, zero, 0($c3)
 
 	clc		$c17, sp, CALLFRAME_C17($c11)
 	cld		s8, sp, CALLFRAME_FP($c11)
