@@ -1,8 +1,6 @@
 /*-
- * Copyright (c) 2012 Chelsio Communications, Inc.
+ * Copyright (c) 2012, 2015 Chelsio Communications, Inc.
  * All rights reserved.
- *
- * Chelsio T5xx iSCSI driver
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,6 +27,8 @@
 #ifndef __CXGBEI_OFLD_H__
 #define __CXGBEI_OFLD_H__
 
+#include <dev/iscsi/icl.h>
+
 struct iscsi_socket {
 	u_char  s_dcrc_len;
 	void   *s_conn;	/* ic_conn pointer */
@@ -50,6 +50,20 @@ struct iscsi_socket {
 
 	struct mbuf *mbuf_ulp_lhdr;
 	struct mbuf *mbuf_ulp_ldata;
+};
+
+struct icl_cxgbei_conn {
+	struct icl_conn ic;
+
+	/* cxgbei specific stuff goes here. */
+	uint32_t icc_signature;
+};
+
+struct icl_cxgbei_pdu {
+	struct icl_pdu ip;
+
+	/* cxgbei specific stuff goes here. */
+	uint32_t icp_signature;
 };
 
 struct cxgbei_sgl {
@@ -122,9 +136,6 @@ struct cxgbei_data {
 
 	struct cxgbei_ulp2_tag_format tag_format;
 };
-
-struct icl_conn;
-struct icl_pdu;
 
 struct ulp_mbuf_cb *get_ulp_mbuf_cb(struct mbuf *);
 int cxgbei_conn_handoff(struct icl_conn *);
