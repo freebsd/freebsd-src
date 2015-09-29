@@ -326,6 +326,9 @@ ahci_probe(device_t dev)
 	    pci_get_subclass(dev) == PCIS_STORAGE_SATA &&
 	    pci_get_progif(dev) == PCIP_STORAGE_SATA_AHCI_1_0)
 		valid = 1;
+	else if (pci_get_class(dev) == PCIC_STORAGE &&
+	    pci_get_subclass(dev) == PCIS_STORAGE_RAID)
+		valid = 2;
 	/* Is this a known AHCI chip? */
 	for (i = 0; ahci_ids[i].id != 0; i++) {
 		if (ahci_ids[i].id == devid &&
@@ -342,7 +345,7 @@ ahci_probe(device_t dev)
 			return (BUS_PROBE_DEFAULT);
 		}
 	}
-	if (!valid)
+	if (valid != 1)
 		return (ENXIO);
 	device_set_desc_copy(dev, "AHCI SATA controller");
 	return (BUS_PROBE_DEFAULT);
