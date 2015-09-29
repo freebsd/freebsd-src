@@ -24,6 +24,8 @@ __FBSDID("$FreeBSD$");
  * Driver for Realtek RTL8188CE-VAU/RTL8188CUS/RTL8188EU/RTL8188RU/RTL8192CU.
  */
 
+#include "opt_wlan.h"
+
 #include <sys/param.h>
 #include <sys/sockio.h>
 #include <sys/sysctl.h>
@@ -169,6 +171,7 @@ static device_detach_t	urtwn_detach;
 static usb_callback_t   urtwn_bulk_tx_callback;
 static usb_callback_t	urtwn_bulk_rx_callback;
 
+static void		urtwn_drain_mbufq(struct urtwn_softc *sc);
 static usb_error_t	urtwn_do_request(struct urtwn_softc *,
 			    struct usb_device_request *, void *);
 static struct ieee80211vap *urtwn_vap_create(struct ieee80211com *,
@@ -467,6 +470,20 @@ detach:
 	return (ENXIO);			/* failure */
 }
 
+static void
+urtwn_drain_mbufq(struct urtwn_softc *sc)
+{
+	struct mbuf *m;
+	struct ieee80211_node *ni;
+	URTWN_ASSERT_LOCKED(sc);
+	while ((m = mbufq_dequeue(&sc->sc_snd)) != NULL) {
+		ni = (struct ieee80211_node *)m->m_pkthdr.rcvif;
+		m->m_pkthdr.rcvif = NULL;
+		ieee80211_free_node(ni);
+		m_freem(m);
+	}
+}
+
 static int
 urtwn_detach(device_t self)
 {
@@ -481,6 +498,9 @@ urtwn_detach(device_t self)
 	URTWN_UNLOCK(sc);
 
 	callout_drain(&sc->sc_watchdog_ch);
+
+	/* stop all USB transfers */
+	usbd_transfer_unsetup(sc->sc_xfer, URTWN_N_TRANSFER);
 
 	/* Prevent further allocations from RX/TX data lists. */
 	URTWN_LOCK(sc);
@@ -502,10 +522,7 @@ urtwn_detach(device_t self)
 	urtwn_free_rx_list(sc);
 	URTWN_UNLOCK(sc);
 
-	/* stop all USB transfers */
-	usbd_transfer_unsetup(sc->sc_xfer, URTWN_N_TRANSFER);
 	ieee80211_ifdetach(ic);
-	mbufq_drain(&sc->sc_snd);
 	mtx_destroy(&sc->sc_mtx);
 
 	return (0);
@@ -879,13 +896,12 @@ tr_setup:
 		data = STAILQ_FIRST(&sc->sc_tx_pending);
 		if (data == NULL) {
 			DPRINTF("%s: empty pending queue\n", __func__);
-			return;
+			goto finish;
 		}
 		STAILQ_REMOVE_HEAD(&sc->sc_tx_pending, next);
 		STAILQ_INSERT_TAIL(&sc->sc_tx_active, data, next);
 		usbd_xfer_set_frame_data(xfer, 0, data->buf, data->buflen);
 		usbd_transfer_submit(xfer);
-		urtwn_start(sc);
 		break;
 	default:
 		data = STAILQ_FIRST(&sc->sc_tx_active);
@@ -903,6 +919,9 @@ tr_setup:
 		}
 		break;
 	}
+finish:
+	/* Kick-start more transmit */
+	urtwn_start(sc);
 }
 
 static struct urtwn_data *
@@ -1778,7 +1797,6 @@ urtwn_tx_start(struct urtwn_softc *sc, struct ieee80211_node *ni,
 			device_printf(sc->sc_dev,
 			    "ieee80211_crypto_encap returns NULL.\n");
 			/* XXX we don't expect the fragmented frames */
-			m_freem(m0);
 			return (ENOBUFS);
 		}
 
@@ -1931,6 +1949,7 @@ urtwn_start(struct urtwn_softc *sc)
 			if_inc_counter(ni->ni_vap->iv_ifp,
 			    IFCOUNTER_OERRORS, 1);
 			STAILQ_INSERT_HEAD(&sc->sc_tx_inactive, bf, next);
+			m_freem(m);
 			ieee80211_free_node(ni);
 			break;
 		}
@@ -3417,6 +3436,8 @@ urtwn_stop(struct urtwn_softc *sc)
 	sc->sc_flags &= ~URTWN_RUNNING;
 	callout_stop(&sc->sc_watchdog_ch);
 	urtwn_abort_xfers(sc);
+
+	urtwn_drain_mbufq(sc);
 }
 
 static void
@@ -3455,14 +3476,15 @@ urtwn_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	}
 
 	if (urtwn_tx_start(sc, ni, m, bf) != 0) {
+		m_freem(m);
 		ieee80211_free_node(ni);
 		STAILQ_INSERT_HEAD(&sc->sc_tx_inactive, bf, next);
 		URTWN_UNLOCK(sc);
 		return (EIO);
 	}
+	sc->sc_txtimer = 5;
 	URTWN_UNLOCK(sc);
 
-	sc->sc_txtimer = 5;
 	return (0);
 }
 
