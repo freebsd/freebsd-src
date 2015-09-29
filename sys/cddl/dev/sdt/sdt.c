@@ -168,6 +168,8 @@ sdt_create_probe(struct sdt_probe *probe)
 	 * in the C compiler, so we have to respect const vs non-const.
 	 */
 	strlcpy(func, probe->func, sizeof(func));
+	if (func[0] == '\0')
+		strcpy(func, "none");
 
 	from = probe->name;
 	to = name;
