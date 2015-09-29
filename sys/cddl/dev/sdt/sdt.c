@@ -99,8 +99,8 @@ static dtrace_pops_t sdt_pops = {
 
 static TAILQ_HEAD(, sdt_provider) sdt_prov_list;
 
-eventhandler_tag	sdt_kld_load_tag;
-eventhandler_tag	sdt_kld_unload_try_tag;
+static eventhandler_tag	sdt_kld_load_tag;
+static eventhandler_tag	sdt_kld_unload_try_tag;
 
 static void
 sdt_create_provider(struct sdt_provider *prov)
