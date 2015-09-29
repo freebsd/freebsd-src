@@ -116,11 +116,10 @@ struct pmcstat_args args;
 static void
 pmcstat_clone_event_descriptor(struct pmcstat_ev *ev, const cpuset_t *cpumask)
 {
-	int cpu, mcpu;
+	int cpu;
 	struct pmcstat_ev *ev_clone;
 
-	mcpu = sizeof(*cpumask) * NBBY;
-	for (cpu = 0; cpu < mcpu; cpu++) {
+	for (cpu = 0; cpu < CPU_SETSIZE; cpu++) {
 		if (!CPU_ISSET(cpu, cpumask))
 			continue;
 
@@ -161,6 +160,7 @@ pmcstat_get_cpumask(const char *cpuspec, cpuset_t *cpumask)
 		CPU_SET(cpu, cpumask);
 		s = end + strspn(end, ", \t");
 	} while (*s);
+	assert(!CPU_EMPTY(cpumask));
 }
 
 void
@@ -550,10 +550,10 @@ pmcstat_topexit(void)
 int
 main(int argc, char **argv)
 {
-	cpuset_t cpumask;
+	cpuset_t cpumask, rootmask;
 	double interval;
 	double duration;
-	int hcpu, option, npmc, ncpu;
+	int option, npmc;
 	int c, check_driver_stats, current_sampling_count;
 	int do_callchain, do_descendants, do_logproccsw, do_logprocexit;
 	int do_print, do_read;
@@ -618,14 +618,13 @@ main(int argc, char **argv)
 		err(EX_OSERR, "ERROR: Cannot determine path of running kernel");
 
 	/*
-	 * The initial CPU mask specifies all non-halted CPUS in the
-	 * system.
+	 * The initial CPU mask specifies the root mask of this process
+	 * which is usually all CPUs in the system.
 	 */
-	len = sizeof(int);
-	if (sysctlbyname("hw.ncpu", &ncpu, &len, NULL, 0) < 0)
-		err(EX_OSERR, "ERROR: Cannot determine the number of CPUs");
-	for (hcpu = 0; hcpu < ncpu; hcpu++)
-		CPU_SET(hcpu, &cpumask);
+	if (cpuset_getaffinity(CPU_LEVEL_ROOT, CPU_WHICH_PID, -1,
+	    sizeof(rootmask), &rootmask) == -1)
+		err(EX_OSERR, "ERROR: Cannot determine the root set of CPUs");
+	CPU_COPY(&rootmask, &cpumask);
 
 	while ((option = getopt(argc, argv,
 	    "CD:EF:G:M:NO:P:R:S:TWa:c:df:gk:l:m:n:o:p:qr:s:t:vw:z:")) != -1)
@@ -642,11 +641,9 @@ main(int argc, char **argv)
 			break;
 
 		case 'c':	/* CPU */
-
-			if (optarg[0] == '*' && optarg[1] == '\0') {
-				for (hcpu = 0; hcpu < ncpu; hcpu++)
-					CPU_SET(hcpu, &cpumask);
-			} else
+			if (optarg[0] == '*' && optarg[1] == '\0')
+				CPU_COPY(&rootmask, &cpumask);
+			else
 				pmcstat_get_cpumask(optarg, &cpumask);
 
 			args.pa_flags	 |= FLAGS_HAS_CPUMASK;
@@ -771,13 +768,9 @@ main(int argc, char **argv)
 			else
 				ev->ev_count = -1;
 
-			if (option == 'S' || option == 's') {
-				hcpu = sizeof(cpumask) * NBBY;
-				for (hcpu--; hcpu >= 0; hcpu--)
-					if (CPU_ISSET(hcpu, &cpumask))
-						break;
-				ev->ev_cpu = hcpu;
-			} else
+			if (option == 'S' || option == 's')
+				ev->ev_cpu = CPU_FFS(&cpumask) - 1;
+			else
 				ev->ev_cpu = PMC_CPU_ANY;
 
 			ev->ev_flags = 0;
@@ -804,11 +797,9 @@ main(int argc, char **argv)
 			STAILQ_INSERT_TAIL(&args.pa_events, ev, ev_next);
 
 			if (option == 's' || option == 'S') {
-				hcpu = CPU_ISSET(ev->ev_cpu, &cpumask);
 				CPU_CLR(ev->ev_cpu, &cpumask);
 				pmcstat_clone_event_descriptor(ev, &cpumask);
-				if (hcpu != 0)
-					CPU_SET(ev->ev_cpu, &cpumask);
+				CPU_SET(ev->ev_cpu, &cpumask);
 			}
 
 			break;
