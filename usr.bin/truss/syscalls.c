@@ -534,7 +534,9 @@ static struct xlat idtype_arg[] = {
 };
 
 static struct xlat procctl_arg[] = {
-	X(PROC_SPROTECT) XEND
+	X(PROC_SPROTECT) X(PROC_REAP_ACQUIRE) X(PROC_REAP_RELEASE)
+	X(PROC_REAP_STATUS) X(PROC_REAP_GETPIDS) X(PROC_REAP_KILL)
+	X(PROC_TRACE_CTL) X(PROC_TRACE_STATUS) XEND
 };
 
 static struct xlat umtx_ops[] = {
