@@ -35,6 +35,11 @@ __FBSDID("$FreeBSD$");
 
 #include <stdlib.h>
 
+#if __has_feature(capabilities)
+typedef __uintcap_t big_primitive_type;
+#else
+typedef long big_primitive_type;
+#endif
 #ifdef I_AM_QSORT_R
 typedef int		 cmp_t(void *, const void *, const void *);
 #else
@@ -64,12 +69,12 @@ static inline void	 swapfunc(char *, char *, int, int, int);
 	es % sizeof(TYPE) ? 2 : es == sizeof(TYPE) ? 0 : 1;
 
 static inline void
-swapfunc(a, b, n, swaptype_long, swaptype_int)
+swapfunc(a, b, n, swaptype_big_primitive_type, swaptype_int)
 	char *a, *b;
-	int n, swaptype_long, swaptype_int;
+	int n, swaptype_big_primitive_type, swaptype_int;
 {
-	if (swaptype_long <= 1)
-		swapcode(long, a, b, n)
+	if (swaptype_big_primitive_type <= 1)
+		swapcode(big_primitive_type, a, b, n)
 	else if (swaptype_int <= 1)
 		swapcode(int, a, b, n)
 	else
@@ -77,19 +82,19 @@ swapfunc(a, b, n, swaptype_long, swaptype_int)
 }
 
 #define	swap(a, b)					\
-	if (swaptype_long == 0) {			\
-		long t = *(long *)(a);			\
-		*(long *)(a) = *(long *)(b);		\
-		*(long *)(b) = t;			\
+	if (swaptype_big_primitive_type == 0) {			\
+		big_primitive_type t = *(big_primitive_type *)(a);			\
+		*(big_primitive_type *)(a) = *(big_primitive_type *)(b);		\
+		*(big_primitive_type *)(b) = t;			\
 	} else if (swaptype_int == 0) {			\
 		int t = *(int *)(a);			\
 		*(int *)(a) = *(int *)(b);		\
 		*(int *)(b) = t;			\
 	} else						\
-		swapfunc(a, b, es, swaptype_long, swaptype_int)
+		swapfunc(a, b, es, swaptype_big_primitive_type, swaptype_int)
 
 #define	vecswap(a, b, n)				\
-	if ((n) > 0) swapfunc(a, b, n, swaptype_long, swaptype_int)
+	if ((n) > 0) swapfunc(a, b, n, swaptype_big_primitive_type, swaptype_int)
 
 #ifdef I_AM_QSORT_R
 #define	CMP(t, x, y) (cmp((t), (x), (y)))
@@ -121,9 +126,10 @@ qsort(void *a, size_t n, size_t es, cmp_t *cmp)
 	char *pa, *pb, *pc, *pd, *pl, *pm, *pn;
 	size_t d, r;
 	int cmp_result;
-	int swaptype_long, swaptype_int, swap_cnt;
+	int swaptype_big_primitive_type, swaptype_int, swap_cnt;
 
-loop:	SWAPINIT(long, a, es);
+loop:
+	SWAPINIT(big_primitive_type, a, es);
 	SWAPINIT(int, a, es);
 	swap_cnt = 0;
 	if (n < 7) {
