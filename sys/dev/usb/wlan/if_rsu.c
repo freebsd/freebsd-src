@@ -403,6 +403,7 @@ rsu_attach(device_t self)
 	int error;
 	uint8_t iface_index, bands;
 	struct usb_interface *iface;
+	const char *rft;
 
 	device_set_usb_desc(self);
 	sc->sc_udev = uaa->device;
@@ -462,8 +463,37 @@ rsu_attach(device_t self)
 		device_printf(self, "could not read ROM\n");
 		goto fail_rom;
 	}
+
+	/* Figure out TX/RX streams */
+	switch (sc->rom[84]) {
+	case 0x0:
+		sc->sc_rftype = RTL8712_RFCONFIG_1T1R;
+		sc->sc_nrxstream = 1;
+		sc->sc_ntxstream = 1;
+		rft = "1T1R";
+		break;
+	case 0x1:
+		sc->sc_rftype = RTL8712_RFCONFIG_1T2R;
+		sc->sc_nrxstream = 2;
+		sc->sc_ntxstream = 1;
+		rft = "1T2R";
+		break;
+	case 0x2:
+		sc->sc_rftype = RTL8712_RFCONFIG_2T2R;
+		sc->sc_nrxstream = 2;
+		sc->sc_ntxstream = 2;
+		rft = "2T2R";
+		break;
+	default:
+		device_printf(sc->sc_dev,
+		    "%s: unknown board type (rfconfig=0x%02x)\n",
+		    __func__,
+		    sc->rom[84]);
+		goto fail_rom;
+	}
+
 	IEEE80211_ADDR_COPY(ic->ic_macaddr, &sc->rom[0x12]);
-	device_printf(self, "MAC/BB RTL8712 cut %d\n", sc->cut);
+	device_printf(self, "MAC/BB RTL8712 cut %d %s\n", sc->cut, rft);
 
 	ic->ic_softc = sc;
 	ic->ic_name = device_get_nameunit(self);
@@ -494,8 +524,8 @@ rsu_attach(device_t self)
 		ic->ic_htcaps |= IEEE80211_HTCAP_CHWIDTH40;
 
 		/* set number of spatial streams */
-		ic->ic_txstream = 1;
-		ic->ic_rxstream = 1;
+		ic->ic_txstream = sc->sc_ntxstream;
+		ic->ic_rxstream = sc->sc_nrxstream;
 	}
 
 	/* Set supported .11b and .11g rates. */
@@ -2664,8 +2694,7 @@ rsu_load_firmware(struct rsu_softc *sc)
 	dmem->hci_sel = R92S_HCI_SEL_USB | R92S_HCI_SEL_8172;
 	dmem->nendpoints = sc->sc_nendpoints;
 	dmem->chip_version = sc->cut;
-	/* XXX TODO: rf_config should come from ROM */
-	dmem->rf_config = 0x11;	/* 1T1R */
+	dmem->rf_config = sc->sc_rftype;
 	dmem->vcs_type = R92S_VCS_TYPE_AUTO;
 	dmem->vcs_mode = R92S_VCS_MODE_RTS_CTS;
 	dmem->turbo_mode = 0;
