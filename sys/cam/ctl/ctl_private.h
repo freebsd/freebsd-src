@@ -40,6 +40,10 @@
 #ifndef	_CTL_PRIVATE_H_
 #define	_CTL_PRIVATE_H_
 
+#include <cam/scsi/scsi_all.h>
+#include <cam/scsi/scsi_cd.h>
+#include <cam/scsi/scsi_da.h>
+
 /*
  * SCSI vendor and product names.
  */
@@ -286,6 +290,9 @@ static const struct ctl_page_index page_index_template[] = {
 	{SMS_INFO_EXCEPTIONS_PAGE | SMPH_SPF, 0x02,
 	 sizeof(struct ctl_logical_block_provisioning_page), NULL,
 	 CTL_PAGE_FLAG_DIRECT, NULL, NULL},
+	{SMS_CDDVD_CAPS_PAGE, 0,
+	 sizeof(struct scsi_cddvd_capabilities_page), NULL,
+	 CTL_PAGE_FLAG_CDROM, NULL, NULL},
 	{SMS_VENDOR_SPECIFIC_PAGE | SMPH_SPF, DBGCNF_SUBPAGE_CODE,
 	 sizeof(struct copan_debugconf_subpage), NULL, CTL_PAGE_FLAG_ALL,
 	 ctl_debugconf_sp_sense_handler, ctl_debugconf_sp_select_handler},
@@ -303,6 +310,7 @@ struct ctl_mode_pages {
 	struct scsi_control_ext_page	control_ext_page[4];
 	struct scsi_info_exceptions_page ie_page[4];
 	struct ctl_logical_block_provisioning_page lbp_page[4];
+	struct scsi_cddvd_capabilities_page cddvd_page[4];
 	struct copan_debugconf_subpage	debugconf_subpage[4];
 	struct ctl_page_index		index[CTL_NUM_MODE_PAGES];
 };
