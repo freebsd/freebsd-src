@@ -783,6 +783,37 @@ struct cd_audio_page
 #define	RIGHT_PORT		1
 };
 
+struct scsi_cddvd_capabilities_page_sd {
+	uint8_t reserved;
+	uint8_t rotation_control;
+	uint8_t write_speed_supported[2];
+};
+
+struct scsi_cddvd_capabilities_page {
+	uint8_t page_code;
+#define	SMS_CDDVD_CAPS_PAGE		0x2a
+	uint8_t page_length;
+	uint8_t caps1;
+	uint8_t caps2;
+	uint8_t caps3;
+	uint8_t caps4;
+	uint8_t caps5;
+	uint8_t caps6;
+	uint8_t obsolete[2];
+	uint8_t nvol_levels[2];
+	uint8_t buffer_size[2];
+	uint8_t obsolete2[2];
+	uint8_t reserved;
+	uint8_t digital;
+	uint8_t obsolete3;
+	uint8_t copy_management;
+	uint8_t reserved2;
+	uint8_t rotation_control;
+	uint8_t cur_write_speed;
+	uint8_t num_speed_descr;
+	struct scsi_cddvd_capabilities_page_sd speed_descr[];
+};
+
 union cd_pages
 {
 	struct cd_audio_page audio;
