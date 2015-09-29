@@ -64,6 +64,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/iscsi/icl.h>
 #include <dev/iscsi/iscsi_proto.h>
 #include <icl_conn_if.h>
+
+#include "common/common.h"
 #include "cxgbei.h"
 
 SYSCTL_NODE(_kern_icl, OID_AUTO, cxgbei, CTLFLAG_RD, 0, "Chelsio iSCSI offload");
@@ -81,7 +83,6 @@ static int recvspace = 1048576;
 SYSCTL_INT(_kern_icl_cxgbei, OID_AUTO, recvspace, CTLFLAG_RWTUN,
     &recvspace, 0, "Default receive socket buffer size");
 
-static MALLOC_DEFINE(M_ICL_CXGBEI, "icl_cxgbei", "iSCSI software backend");
 static uma_zone_t icl_pdu_zone;
 static uma_zone_t icl_transfer_zone;
 
@@ -419,7 +420,7 @@ icl_cxgbei_new_conn(const char *name, struct mtx *lock)
 
 	refcount_acquire(&icl_ncons);
 
-	ic = (struct icl_conn *)kobj_create(&icl_cxgbei_class, M_ICL_CXGBEI, M_WAITOK | M_ZERO);
+	ic = (struct icl_conn *)kobj_create(&icl_cxgbei_class, M_CXGBE, M_WAITOK | M_ZERO);
 
 	STAILQ_INIT(&ic->ic_to_send);
 	ic->ic_lock = lock;
@@ -441,7 +442,7 @@ icl_cxgbei_conn_free(struct icl_conn *ic)
 
 	cv_destroy(&ic->ic_send_cv);
 	cv_destroy(&ic->ic_receive_cv);
-	kobj_delete((struct kobj *)ic, M_ICL_CXGBEI);
+	kobj_delete((struct kobj *)ic, M_CXGBE);
 	refcount_release(&icl_ncons);
 }
 
