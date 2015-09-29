@@ -10271,6 +10271,10 @@ ctl_get_config(struct ctl_scsiio *ctsio)
 	    sizeof(struct scsi_get_config_feature) + 8 +
 	    sizeof(struct scsi_get_config_feature) +
 	    sizeof(struct scsi_get_config_feature) + 4 +
+	    sizeof(struct scsi_get_config_feature) + 4 +
+	    sizeof(struct scsi_get_config_feature) + 4 +
+	    sizeof(struct scsi_get_config_feature) + 4 +
+	    sizeof(struct scsi_get_config_feature) + 4 +
 	    sizeof(struct scsi_get_config_feature) + 4;
 	ctsio->kern_data_ptr = malloc(data_len, M_CTL, M_WAITOK | M_ZERO);
 	ctsio->kern_sg_entries = 0;
@@ -10284,8 +10288,16 @@ ctl_get_config(struct ctl_scsiio *ctsio)
 		scsi_ulto2b(0x0010, hdr->current_profile);
 	feature = (struct scsi_get_config_feature *)(hdr + 1);
 
-	if (starting > 0x001f)
+	if (starting > 0x003b)
 		goto done;
+	if (starting > 0x003a)
+		goto f3b;
+	if (starting > 0x002b)
+		goto f3a;
+	if (starting > 0x002a)
+		goto f2b;
+	if (starting > 0x001f)
+		goto f2a;
 	if (starting > 0x001e)
 		goto f1f;
 	if (starting > 0x001d)
@@ -10379,6 +10391,48 @@ f1f:	/* DVD Read */
 	feature->add_length = 4;
 	feature->feature_data[0] = 0x01;
 	feature->feature_data[2] = 0x03;
+	feature = (struct scsi_get_config_feature *)
+	    &feature->feature_data[feature->add_length];
+
+f2a:	/* DVD+RW */
+	scsi_ulto2b(0x002A, feature->feature_code);
+	feature->flags = 0x04;
+	if ((lun->flags & CTL_LUN_NO_MEDIA) == 0)
+		feature->flags |= SGC_F_CURRENT;
+	feature->add_length = 4;
+	feature->feature_data[0] = 0x00;
+	feature->feature_data[1] = 0x00;
+	feature = (struct scsi_get_config_feature *)
+	    &feature->feature_data[feature->add_length];
+
+f2b:	/* DVD+R */
+	scsi_ulto2b(0x002B, feature->feature_code);
+	feature->flags = 0x00;
+	if ((lun->flags & CTL_LUN_NO_MEDIA) == 0)
+		feature->flags |= SGC_F_CURRENT;
+	feature->add_length = 4;
+	feature->feature_data[0] = 0x00;
+	feature = (struct scsi_get_config_feature *)
+	    &feature->feature_data[feature->add_length];
+
+f3a:	/* DVD+RW Dual Layer */
+	scsi_ulto2b(0x003A, feature->feature_code);
+	feature->flags = 0x00;
+	if ((lun->flags & CTL_LUN_NO_MEDIA) == 0)
+		feature->flags |= SGC_F_CURRENT;
+	feature->add_length = 4;
+	feature->feature_data[0] = 0x00;
+	feature->feature_data[1] = 0x00;
+	feature = (struct scsi_get_config_feature *)
+	    &feature->feature_data[feature->add_length];
+
+f3b:	/* DVD+R Dual Layer */
+	scsi_ulto2b(0x003B, feature->feature_code);
+	feature->flags = 0x00;
+	if ((lun->flags & CTL_LUN_NO_MEDIA) == 0)
+		feature->flags |= SGC_F_CURRENT;
+	feature->add_length = 4;
+	feature->feature_data[0] = 0x00;
 	feature = (struct scsi_get_config_feature *)
 	    &feature->feature_data[feature->add_length];
 
