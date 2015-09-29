@@ -72,7 +72,6 @@ struct cxgbei_sgl {
 #define SBUF_ULP_FLAG_HDR_RCVD          0x1
 #define SBUF_ULP_FLAG_DATA_RCVD         0x2
 #define SBUF_ULP_FLAG_STATUS_RCVD       0x4
-#define SBUF_ULP_FLAG_COALESCE_OFF      0x8
 #define SBUF_ULP_FLAG_HCRC_ERROR        0x10
 #define SBUF_ULP_FLAG_DCRC_ERROR        0x20
 #define SBUF_ULP_FLAG_PAD_ERROR         0x40
@@ -83,21 +82,11 @@ struct cxgbei_sgl {
  * etc.
  */
 struct ulp_mbuf_cb {
-	uint8_t ulp_mode;                    /* ULP mode/submode of sk_buff */
-	uint8_t flags;                       /* TCP-like flags */
-	uint32_t seq;                        /* TCP sequence number */
-	union { /* ULP-specific fields */
-		struct {
-			uint32_t ddigest;    /* ULP rx_data_ddp selected field*/
-			uint32_t pdulen;     /* ULP rx_data_ddp selected field*/
-		} iscsi;
-		struct {
-			uint32_t offset;     /* ULP DDP offset notification */
-			uint8_t flags;       /* ULP DDP flags ... */
-		} ddp;
-	} ulp;
-	uint8_t ulp_data[16];                /* scratch area for ULP */
-	void *pdu;                      /* pdu pointer */
+	uint8_t ulp_mode;	/* ULP mode/submode of sk_buff */
+	uint8_t flags;		/* TCP-like flags */
+	uint32_t ddigest;	/* ULP rx_data_ddp selected field*/
+	uint32_t pdulen;	/* ULP rx_data_ddp selected field*/
+	void *pdu;		/* pdu pointer */
 };
 
 /* private data for each scsi task */
