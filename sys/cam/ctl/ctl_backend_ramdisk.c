@@ -880,6 +880,11 @@ ctl_backend_ramdisk_config_write(union ctl_io *io)
 		struct scsi_start_stop_unit *cdb;
 
 		cdb = (struct scsi_start_stop_unit *)io->scsiio.cdb;
+		if ((cdb->how & SSS_PC_MASK) != 0) {
+			ctl_set_success(&io->scsiio);
+			ctl_config_write_done(io);
+			break;
+		}
 		if (cdb->how & SSS_START) {
 			if (cdb->how & SSS_LOEJ)
 				ctl_lun_has_media(cbe_lun);
