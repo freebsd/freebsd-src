@@ -86,14 +86,12 @@ SYSCTL_INT(_kern_icl_cxgbei, OID_AUTO, recvspace, CTLFLAG_RWTUN,
 static uma_zone_t icl_pdu_zone;
 static uma_zone_t icl_transfer_zone;
 
-static volatile u_int	icl_ncons;
+static volatile u_int icl_cxgbei_ncons;
 
 #define ICL_CONN_LOCK(X)		mtx_lock(X->ic_lock)
 #define ICL_CONN_UNLOCK(X)		mtx_unlock(X->ic_lock)
 #define ICL_CONN_LOCK_ASSERT(X)		mtx_assert(X->ic_lock, MA_OWNED)
 #define ICL_CONN_LOCK_ASSERT_NOT(X)	mtx_assert(X->ic_lock, MA_NOTOWNED)
-
-STAILQ_HEAD(icl_pdu_stailq, icl_pdu);
 
 static icl_conn_new_pdu_t	icl_cxgbei_conn_new_pdu;
 static icl_conn_pdu_free_t	icl_cxgbei_conn_pdu_free;
@@ -418,20 +416,20 @@ icl_cxgbei_new_conn(const char *name, struct mtx *lock)
 {
 	struct icl_conn *ic;
 
-	refcount_acquire(&icl_ncons);
+	refcount_acquire(&icl_cxgbei_ncons);
 
 	ic = (struct icl_conn *)kobj_create(&icl_cxgbei_class, M_CXGBE, M_WAITOK | M_ZERO);
 
 	STAILQ_INIT(&ic->ic_to_send);
 	ic->ic_lock = lock;
-	cv_init(&ic->ic_send_cv, "icl_tx");
-	cv_init(&ic->ic_receive_cv, "icl_rx");
+	cv_init(&ic->ic_send_cv, "icl_cxgbei_tx");
+	cv_init(&ic->ic_receive_cv, "icl_cxgbei_rx");
 #ifdef DIAGNOSTIC
 	refcount_init(&ic->ic_outstanding_pdus, 0);
 #endif
 	ic->ic_max_data_segment_length = ICL_MAX_DATA_SEGMENT_LENGTH;
 	ic->ic_name = name;
-	ic->ic_offload = strdup("cxgbei", M_TEMP);;
+	ic->ic_offload = "cxgbei";
 
 	return (ic);
 }
@@ -443,7 +441,7 @@ icl_cxgbei_conn_free(struct icl_conn *ic)
 	cv_destroy(&ic->ic_send_cv);
 	cv_destroy(&ic->ic_receive_cv);
 	kobj_delete((struct kobj *)ic, M_CXGBE);
-	refcount_release(&icl_ncons);
+	refcount_release(&icl_cxgbei_ncons);
 }
 
 /* XXXNP: what is this for?  There's no conn_start method. */
@@ -749,7 +747,7 @@ icl_cxgbei_load(void)
 	    16 * 1024, NULL, NULL, NULL, NULL,
 	    UMA_ALIGN_PTR, 0);
 
-	refcount_init(&icl_ncons, 0);
+	refcount_init(&icl_cxgbei_ncons, 0);
 
 	/*
 	 * The reason we call this "none" is that to the user,
@@ -766,7 +764,7 @@ static int
 icl_cxgbei_unload(void)
 {
 
-	if (icl_ncons != 0)
+	if (icl_cxgbei_ncons != 0)
 		return (EBUSY);
 
 	icl_unregister("cxgbei");
