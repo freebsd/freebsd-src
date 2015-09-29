@@ -520,7 +520,6 @@ load:
 	DTRACE_CPUFLAG_CLEAR(CPU_DTRACE_NOFAULT);
 
 	return (val);
-	return (0);
 }
 
 int
