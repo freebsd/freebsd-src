@@ -1011,6 +1011,8 @@
       <para>Marvell 88W8363 IEEE 802.11n wireless network
 	adapters (&man.mwl.4; driver)</para>
 
+      &hwlist.otus;
+
       &hwlist.ral;
 
       &hwlist.rsu;
