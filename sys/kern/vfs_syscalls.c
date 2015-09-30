@@ -4610,8 +4610,6 @@ kern_posix_fadvise(struct thread *td, int fd, off_t offset, off_t len,
 			new->fa_advice = advice;
 			new->fa_start = offset;
 			new->fa_end = end;
-			new->fa_prevstart = 0;
-			new->fa_prevend = 0;
 			fp->f_advice = new;
 			new = fa;
 		}

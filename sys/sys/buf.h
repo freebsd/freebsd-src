@@ -204,7 +204,7 @@ struct buf {
 #define	B_PERSISTENT	0x00000100	/* Perm. ref'ed while EXT2FS mounted. */
 #define	B_DONE		0x00000200	/* I/O completed. */
 #define	B_EINTR		0x00000400	/* I/O was interrupted */
-#define	B_00000800	0x00000800	/* Available flag. */
+#define	B_NOREUSE	0x00000800	/* Contents not reused once released. */
 #define	B_00001000	0x00001000	/* Available flag. */
 #define	B_INVAL		0x00002000	/* Does not contain valid info. */
 #define	B_BARRIER	0x00004000	/* Write this and all preceeding first. */
@@ -229,7 +229,7 @@ struct buf {
 #define PRINT_BUF_FLAGS "\20\40remfree\37cluster\36vmio\35ram\34managed" \
 	"\33paging\32infreecnt\31nocopy\30b23\27relbuf\26dirty\25b20" \
 	"\24b19\23b18\22clusterok\21malloc\20nocache\17b14\16inval" \
-	"\15b12\14b11\13eintr\12done\11persist\10delwri" \
+	"\15b12\14noreuse\13eintr\12done\11persist\10delwri" \
 	"\7validsuspwrt\6cache\5deferred\4direct\3async\2needcommit\1age"
 
 /*
