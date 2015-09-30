@@ -32,6 +32,8 @@ SUBDIR:=
 .else
 # No C++ support
 SUBDIR:=	${SUBDIR:Nlibstdc++:Nlibsupc++}
+# Don't use csu for CheriABI
+SUBDIR:=	${SUBDIR:Ncsu}
 
 .if ${MK_LIBCHERI_BROKEN} == "no"
 # CHERI-Clang #38
