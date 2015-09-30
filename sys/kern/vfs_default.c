@@ -1034,9 +1034,12 @@ vop_stdallocate(struct vop_allocate_args *ap)
 int
 vop_stdadvise(struct vop_advise_args *ap)
 {
+	struct buf *bp;
+	struct buflists *bl;
 	struct vnode *vp;
+	daddr_t bn, startn, endn;
 	off_t start, end;
-	int error;
+	int bsize, error;
 
 	vp = ap->a_vp;
 	switch (ap->a_advice) {
@@ -1049,27 +1052,58 @@ vop_stdadvise(struct vop_advise_args *ap)
 		error = 0;
 		break;
 	case POSIX_FADV_DONTNEED:
-		/*
-		 * Flush any open FS buffers and then remove pages
-		 * from the backing VM object.  Using vinvalbuf() here
-		 * is a bit heavy-handed as it flushes all buffers for
-		 * the given vnode, not just the buffers covering the
-		 * requested range.
-		 */
 		error = 0;
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 		if (vp->v_iflag & VI_DOOMED) {
 			VOP_UNLOCK(vp, 0);
 			break;
 		}
-		vinvalbuf(vp, V_CLEANONLY, 0, 0);
+
+		/*
+		 * Deactivate pages in the specified range from the backing VM
+		 * object.  Pages that are resident in the buffer cache will
+		 * remain wired until their corresponding buffers are released
+		 * below.
+		 */
 		if (vp->v_object != NULL) {
 			start = trunc_page(ap->a_start);
 			end = round_page(ap->a_end);
 			VM_OBJECT_WLOCK(vp->v_object);
-			vm_object_page_cache(vp->v_object, OFF_TO_IDX(start),
+			vm_object_page_noreuse(vp->v_object, OFF_TO_IDX(start),
 			    OFF_TO_IDX(end));
 			VM_OBJECT_WUNLOCK(vp->v_object);
+		}
+
+		BO_RLOCK(&vp->v_bufobj);
+		bsize = vp->v_bufobj.bo_bsize;
+		startn = ap->a_start / bsize;
+		if (ap->a_end == OFF_MAX) {
+			endn = -1;
+			bl = &vp->v_bufobj.bo_clean.bv_hd;
+			if (!TAILQ_EMPTY(bl))
+				endn = TAILQ_LAST(bl, buflists)->b_lblkno;
+			bl = &vp->v_bufobj.bo_dirty.bv_hd;
+			if (!TAILQ_EMPTY(bl) &&
+			    endn < TAILQ_LAST(bl, buflists)->b_lblkno)
+				endn = TAILQ_LAST(bl, buflists)->b_lblkno;
+		} else
+			endn = ap->a_end / bsize;
+		BO_RUNLOCK(&vp->v_bufobj);
+		/*
+		 * In the VMIO case, use the B_NOREUSE flag to hint that the
+		 * pages backing each buffer in the range are unlikely to be
+		 * reused.  Dirty buffers will have the hint applied once
+		 * they've been written.
+		 */
+		for (bn = startn; bn <= endn; bn++) {
+			bp = getblk(vp, bn, bsize, 0, 0, GB_NOCREAT |
+			    GB_UNMAPPED);
+			if (bp == NULL)
+				continue;
+			bp->b_flags |= B_RELBUF;
+			if (vp->v_object != NULL)
+				bp->b_flags |= B_NOREUSE;
+			brelse(bp);
 		}
 		VOP_UNLOCK(vp, 0);
 		break;

@@ -1785,6 +1785,8 @@ brelse(struct buf *bp)
 	    bp, bp->b_vp, bp->b_flags);
 	KASSERT(!(bp->b_flags & (B_CLUSTER|B_PAGING)),
 	    ("brelse: inappropriate B_PAGING or B_CLUSTER bp %p", bp));
+	KASSERT((bp->b_flags & B_VMIO) != 0 || (bp->b_flags & B_NOREUSE) == 0,
+	    ("brelse: non-VMIO buffer marked NOREUSE"));
 
 	if (BUF_LOCKRECURSED(bp)) {
 		/*
@@ -1873,8 +1875,10 @@ brelse(struct buf *bp)
 		allocbuf(bp, 0);
 	}
 
-	if ((bp->b_flags & (B_INVAL | B_RELBUF)) != 0) {
+	if ((bp->b_flags & (B_INVAL | B_RELBUF)) != 0 ||
+	    (bp->b_flags & (B_DELWRI | B_NOREUSE)) == B_NOREUSE) {
 		allocbuf(bp, 0);
+		bp->b_flags &= ~B_NOREUSE;
 		if (bp->b_vp != NULL)
 			brelvp(bp);
 	}
@@ -1969,6 +1973,10 @@ bqrelse(struct buf *bp)
 		if ((bp->b_flags & B_DELWRI) == 0 &&
 		    (bp->b_xflags & BX_VNDIRTY))
 			panic("bqrelse: not dirty");
+		if ((bp->b_flags & B_NOREUSE) != 0) {
+			brelse(bp);
+			return;
+		}
 		qindex = QUEUE_CLEAN;
 	}
 	binsfree(bp, qindex);
@@ -2079,10 +2087,15 @@ vfs_vmio_unwire(struct buf *bp, vm_page_t m)
 			freed = false;
 		if (!freed) {
 			/*
-			 * In order to maintain LRU page ordering, put
-			 * the page at the tail of the inactive queue.
+			 * If the page is unlikely to be reused, let the
+			 * VM know.  Otherwise, maintain LRU page
+			 * ordering and put the page at the tail of the
+			 * inactive queue.
 			 */
-			vm_page_deactivate(m);
+			if ((bp->b_flags & B_NOREUSE) != 0)
+				vm_page_deactivate_noreuse(m);
+			else
+				vm_page_deactivate(m);
 		}
 	}
 	vm_page_unlock(m);
@@ -2456,8 +2469,9 @@ getnewbuf_reuse_bp(struct buf *bp, int qindex)
 	 * Note: we no longer distinguish between VMIO and non-VMIO
 	 * buffers.
 	 */
-	KASSERT((bp->b_flags & B_DELWRI) == 0,
-	    ("delwri buffer %p found in queue %d", bp, qindex));
+	KASSERT((bp->b_flags & (B_DELWRI | B_NOREUSE)) == 0,
+	    ("invalid buffer %p flags %#x found in queue %d", bp, bp->b_flags,
+	    qindex));
 
 	/*
 	 * When recycling a clean buffer we have to truncate it and
