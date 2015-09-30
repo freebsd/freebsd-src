@@ -71,7 +71,7 @@ EOF
 		exit 1
 	fi
 
-	$dtrace -G -32 -s $oogle.d $oogle.o -o $oogle.d.o
+	$dtrace -G -s $oogle.d $oogle.o -o $oogle.d.o
 
 	if [ $? -ne 0 ]; then
 		print -u2 "failed to process $oogle.d"
