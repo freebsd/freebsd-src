@@ -1922,13 +1922,8 @@ ctl_shutdown(void)
 
 	mtx_lock(&softc->ctl_lock);
 
-	/*
-	 * Free up each LUN.
-	 */
-	for (lun = STAILQ_FIRST(&softc->lun_list); lun != NULL; lun = next_lun){
-		next_lun = STAILQ_NEXT(lun, links);
+	STAILQ_FOREACH_SAFE(lun, &softc->lun_list, links, next_lun)
 		ctl_free_lun(lun);
-	}
 
 	mtx_unlock(&softc->ctl_lock);
 
@@ -2780,9 +2775,9 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 		 * XXX KDM no locking here.  If the LUN list changes,
 		 * things can blow up.
 		 */
-		for (i = 0, lun = STAILQ_FIRST(&softc->lun_list); lun != NULL;
-		     i++, lun = STAILQ_NEXT(lun, links)) {
-			retval = copyout(&lun->stats, &stats->lun_stats[i],
+		i = 0;
+		STAILQ_FOREACH(lun, &softc->lun_list, links) {
+			retval = copyout(&lun->stats, &stats->lun_stats[i++],
 					 sizeof(lun->stats));
 			if (retval != 0)
 				break;
@@ -4637,8 +4632,7 @@ ctl_enable_lun(struct ctl_be_lun *be_lun)
 	lun->flags &= ~CTL_LUN_DISABLED;
 	mtx_unlock(&lun->lun_lock);
 
-	for (port = STAILQ_FIRST(&softc->port_list); port != NULL; port = nport) {
-		nport = STAILQ_NEXT(port, links);
+	STAILQ_FOREACH_SAFE(port, &softc->port_list, links, nport) {
 		if ((port->status & CTL_PORT_STATUS_ONLINE) == 0 ||
 		    port->lun_map != NULL || port->lun_enable == NULL)
 			continue;
@@ -13130,7 +13124,7 @@ ctl_process_done(union ctl_io *io)
 	 * Check to see if we have any errors to inject here.  We only
 	 * inject errors for commands that don't already have errors set.
 	 */
-	if ((STAILQ_FIRST(&lun->error_list) != NULL) &&
+	if (!STAILQ_EMPTY(&lun->error_list) &&
 	    ((io->io_hdr.status & CTL_STATUS_MASK) == CTL_SUCCESS) &&
 	    ((io->io_hdr.flags & CTL_FLAG_STATUS_SENT) == 0))
 		ctl_inject_error(lun, io);
