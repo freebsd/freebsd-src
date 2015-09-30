@@ -44,7 +44,3 @@ GENDIRDEPS_FILTER_VARS+= \
 
 GENDIRDEPS_FILTER+= ${GENDIRDEPS_FILTER_DIR_VARS:@v@S,${$v},_{${v}},@}
 GENDIRDEPS_FILTER+= ${GENDIRDEPS_FILTER_VARS:@v@S,/${$v}/,/_{${v}}/,@:NS,//,*:u}
-
-# handle the non-standard way that gnu/usr.bin/groff/tmac is staged
-GENDIRDEPS_FILTER+= C,.*usr/share/tmac.*stage,gnu/usr.bin/groff/tmac,
-
