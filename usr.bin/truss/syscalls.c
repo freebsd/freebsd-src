@@ -811,7 +811,7 @@ print_kevent(FILE *fp, struct kevent *ke, int input)
 		int ctrl, data;
 
 		ctrl = ke->fflags & NOTE_FFCTRLMASK;
-		data = ke->fflags & NOTE_FFLAGSMASK; 
+		data = ke->fflags & NOTE_FFLAGSMASK;
 		if (input) {
 			fputs(xlookup(kevent_user_ffctrl, ctrl), fp);
 			if (ke->fflags & NOTE_TRIGGER)
@@ -937,7 +937,7 @@ print_arg(struct syscall_args *sc, unsigned long *args, long retval,
 			fprintf(fp, "0x%lx", args[sc->offset]);
 			break;
 		}
-		    
+
 		/*
 		 * Read a page of pointers at a time.  Punt if the top-level
 		 * pointer is not aligned.  Note that the first read is of
