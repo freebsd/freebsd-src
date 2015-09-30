@@ -213,10 +213,13 @@ TOOLSDIR?= ${STAGE_HOST_OBJTOP}
 PATH:= ${PATH:S,:, ,g:@d@${exists(${TOOLSDIR}$d):?${TOOLSDIR}$d:}@:ts:}:${PATH}
 .export PATH
 .if exists(${TOOLSDIR}/usr/bin/cc)
-HOST_CC?= ${TOOLSDIR}/usr/bin/cc
-CC?= ${TOOLSDIR}/usr/bin/cc
-CXX?= ${TOOLSDIR}/usr/bin/c++
-.export HOST_CC CC CXX
+HOST_CC?=	${TOOLSDIR}/usr/bin/cc
+CC?=		${HOST_CC}
+HOST_CXX?=	${TOOLSDIR}/usr/bin/c++
+CXX?=		${HOST_CXX}
+HOST_CPP?=	${TOOLSDIR}/usr/bin/cpp
+CPP?=		${HOST_CPP}
+.export HOST_CC CC HOST_CXX CXX HOST_CPP CPP
 .endif
 .endif
 .endif
