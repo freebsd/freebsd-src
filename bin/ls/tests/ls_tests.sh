@@ -180,6 +180,7 @@ B_flag_head()
 
 B_flag_body()
 {
+	atf_skip "kyua report-jenkins doesn't properly escape non-printable chars: https://github.com/jmmv/kyua/issues/136"
 
 	atf_check -e empty -o empty -s exit:0 touch "$(printf "y\013z")"
 	atf_check -e empty -o match:'y\\013z' -s exit:0 ls -B
