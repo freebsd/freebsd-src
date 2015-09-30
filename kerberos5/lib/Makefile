@@ -20,6 +20,8 @@ SUBDIR:=	${SUBDIR:Nlibgssapi_krb5:Nlibgssapi_ntlm:Nlibgssapi_spnego:Nlibhx509}
 SUBDIR:=	${SUBDIR:Nlibhdb}
 # CHERI-clang #32 (might be #31)
 SUBDIR:=	${SUBDIR:Nlibkrb5}
+# missing krb_err.h
+SUBDIR:=	${SUBDIR:Nlibkafs5}
 .endif
 .endif
 .endif
