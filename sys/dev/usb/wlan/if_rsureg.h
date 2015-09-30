@@ -764,6 +764,7 @@ struct rsu_softc {
 	int				sc_ht;
 	int				sc_nendpoints;
 	int				sc_curpwrstate;
+	int				sc_currssi;
 
 	u_int				sc_running:1,
 					sc_calibrating:1,
