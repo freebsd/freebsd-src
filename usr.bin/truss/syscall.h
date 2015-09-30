@@ -86,11 +86,11 @@ char *print_arg(struct syscall_args *, unsigned long*, long, struct trussinfo *)
 #define LINUX_SETSOCKOPT	14
 #define LINUX_GETSOCKOPT	15
 #define LINUX_SENDMSG		16
-#define LINUX_RECVMSG		17 
+#define LINUX_RECVMSG		17
 
 #define PAD_(t) (sizeof(register_t) <= sizeof(t) ? \
     0 : sizeof(register_t) - sizeof(t))
-    
+
 #if BYTE_ORDER == LITTLE_ENDIAN
 #define PADL_(t)	0
 #define PADR_(t)	PAD_(t)
