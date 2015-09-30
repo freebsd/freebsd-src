@@ -28,4 +28,12 @@
 
 SUBDIR=	${MODULES}
 
+.if defined(LIBCHERI)
+
+.if ${MK_LIBCHERI_BROKEN} == "no"
+# CHERI-LLVM #122
+SUBDIR:=	${SUBDIR:Npam_passwdqc}
+.endif
+.endif
+
 .include <bsd.subdir.mk>

@@ -56,6 +56,13 @@ MAN=
 #
 MODULE_DIR=	../modules
 .include "${.CURDIR}/${MODULE_DIR}/modules.inc"
+.if defined(LIBCHERI)
+.if ${MK_LIBCHERI_BROKEN} == "no"
+# CHERI-LLVM #122
+MODULES:=       ${MODULES:Npam_passwdqc}
+.endif
+.endif
+
 STATIC_MODULES=	${MODULES:C/.*/${MODULE_DIR}\/&\/lib&.a/}
 STATICOBJS+=	openpam_static_modules.o
 CLEANFILES+=	openpam_static.o \
