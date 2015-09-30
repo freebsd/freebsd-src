@@ -180,6 +180,7 @@ B_flag_head()
 
 B_flag_body()
 {
+	atf_skip "kyua report-jenkins doesn't properly escape non-printable chars: https://github.com/jmmv/kyua/issues/136"
 
 	atf_check -e empty -o empty -s exit:0 touch "$(printf "y\013z")"
 	atf_check -e empty -o match:'y\\013z' -s exit:0 ls -B
@@ -264,9 +265,29 @@ lcomma_flag_body()
 	    env LC_ALL=en_US.ISO8859-1 ls -l, i
 }
 
+L_flag_and_P_flag_head()
+{
+	atf_set "descr" "Verify that -L prints out the symbolic link and conversely -P prints out the target for the symbolic link"
+}
+
+L_flag_and_P_flag_body()
+{
+	atf_expect_fail "XXX: this is currently broken"
+
+	atf_check -e empty -o empty -s exit:0 mkdir a
+	atf_check -e empty -o empty -s exit:0 ln -s a/ b
+	atf_check -e empty -o match:b ls -L b
+	atf_check -e empty -o match:a ls -P b
+
+	atf_check -e empty -o empty -s exit:0 touch c
+	atf_check -e empty -o empty -s exit:0 ln -s c d
+	atf_check -e empty -o match:d ls -L d
+	atf_check -e empty -o match:c ls -P d
+}
+
 x_flag_head()
 {
-	atf_set "descr" "Verify that -x prints out one item per line"
+	atf_set "descr" "Verify that the output from ls -x is multi-column, sorted across"
 }
 
 x_flag_body()
@@ -323,8 +344,7 @@ atf_init_test_cases()
 	#atf_add_test_case H_flag
 	atf_add_test_case I_flag
 	atf_add_test_case I_flag_voids_implied_A_flag_when_root
-	#atf_add_test_case L_flag
-	#atf_add_test_case P_flag
+	atf_add_test_case L_flag_and_P_flag
 	#atf_add_test_case R_flag
 	#atf_add_test_case S_flag
 	#atf_add_test_case T_flag
