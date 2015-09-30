@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #endif /* LIBC_SCCS and not lint */
 
 NESTED_NOPROFILE(ptrace, CALLFRAME_SIZ, ra)
+#ifndef __CHERI_SANDBOX__
 	.mask	0x80000000, (CALLFRAME_RA - CALLFRAME_SIZ)
 	SETUP_GP
 	PTR_SUBU	sp, sp, CALLFRAME_SIZ
@@ -68,4 +69,41 @@ NESTED_NOPROFILE(ptrace, CALLFRAME_SIZ, ra)
 
 	j		ra
 1:	j		t9
+#else
+	/* CheriABI saves ra (for now) and fp */
+	.mask	0xc0000000, (CALLFRAME_RA - CALLFRAME_SIZ)
+	PTR_SUBU	sp, sp, CALLFRAME_SIZ
+
+	csd		ra, sp, CALLFRAME_RA($c11)
+	csd		s8, sp, CALLFRAME_FP($c11)
+	csc		$c17, sp, CALLFRAME_C17($c11)
+	move		s8, sp
+
+	PTR_LA		t9, _C_LABEL(__error)	# locate address of errno
+	cgetpcc		$c12
+	csetoffset	$c12, $c12, t9
+	cjalr		$c17, $c12
+	nop
+
+	move		sp, s8
+	csw		zero, zero, 0($c3)	# update errno value
+
+	li		v0, SYS_ptrace
+	syscall
+
+	clc		$c17, sp, CALLFRAME_C17($c11)
+	cld		s8, sp, CALLFRAME_FP($c11)
+	cld		ra, sp, CALLFRAME_RA($c11)
+	PTR_ADDU	sp, sp, CALLFRAME_SIZ
+
+	bne		a3, zero, err
+	nop
+
+	cjr		$c17
+err:
+	PTR_LA		t9, __cerror
+	cgetpcc		$c12
+	csetoffset	$c12, $c12, t9
+	cjr		$c12
+#endif
 END(ptrace)
