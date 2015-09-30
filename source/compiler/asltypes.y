@@ -136,7 +136,7 @@ NoEcho('
 %type <n> DefaultTerm
 %type <n> ElseTerm
 %type <n> FatalTerm
-%type <n> IfElseTerm
+%type <n> ElseIfTerm
 %type <n> IfTerm
 %type <n> LoadTerm
 %type <n> NoOpTerm
@@ -188,6 +188,7 @@ NoEcho('
 %type <n> NotTerm
 %type <n> ObjectTypeTerm
 %type <n> OrTerm
+%type <n> RawDataBufferTerm
 %type <n> RefOfTerm
 %type <n> ShiftLeftTerm
 %type <n> ShiftRightTerm
@@ -297,7 +298,6 @@ NoEcho('
 /* Resource Descriptors */
 
 %type <n> ConnectionTerm
-%type <n> DataBufferTerm
 %type <n> DMATerm
 %type <n> DWordIOTerm
 %type <n> DWordMemoryTerm
@@ -391,3 +391,4 @@ NoEcho('
  */
 %type <n> Expression
 %type <n> EqualsTerm
+%type <n> IndexExpTerm

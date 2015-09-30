@@ -452,8 +452,14 @@ NoEcho('
 %left <i>  PARSEOP_EXP_INCREMENT
            PARSEOP_EXP_DECREMENT
 
+/* Brackets for Index() support */
+
+%left <i>  PARSEOP_EXP_INDEX_LEFT
+%right <i> PARSEOP_EXP_INDEX_RIGHT
+
 %token <i> PARSEOP_PRINTF
 %token <i> PARSEOP_FPRINTF
+
 /* Specific parentheses tokens are not used at this time */
            /* PARSEOP_EXP_PAREN_OPEN */
            /* PARSEOP_EXP_PAREN_CLOSE */

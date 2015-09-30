@@ -361,6 +361,9 @@ ACPI_GLOBAL (UINT16,                    AcpiGbl_NodeTypeCountMisc);
 ACPI_GLOBAL (UINT32,                    AcpiGbl_NumNodes);
 ACPI_GLOBAL (UINT32,                    AcpiGbl_NumObjects);
 
+ACPI_GLOBAL (ACPI_MUTEX,                AcpiGbl_DbCommandReady);
+ACPI_GLOBAL (ACPI_MUTEX,                AcpiGbl_DbCommandComplete);
+
 #endif /* ACPI_DEBUGGER */
 
 

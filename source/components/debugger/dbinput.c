@@ -123,6 +123,7 @@ enum AcpiExDebuggerCommands
     CMD_OSI,
     CMD_OWNER,
     CMD_PATHS,
+    CMD_PREDEFINED,
     CMD_PREFIX,
     CMD_QUIT,
     CMD_REFERENCES,
@@ -152,7 +153,6 @@ enum AcpiExDebuggerCommands
     CMD_TERMINATE,
     CMD_THREADS,
 
-    CMD_PREDEFINED,
     CMD_TEST,
 #endif
 };
@@ -201,6 +201,7 @@ static const ACPI_DB_COMMAND_INFO   AcpiGbl_DbCommands[] =
     {"OSI",          0},
     {"OWNER",        1},
     {"PATHS",        0},
+    {"PREDEFINED",   0},
     {"PREFIX",       0},
     {"QUIT",         0},
     {"REFERENCES",   1},
@@ -230,7 +231,6 @@ static const ACPI_DB_COMMAND_INFO   AcpiGbl_DbCommands[] =
     {"TERMINATE",    0},
     {"THREADS",      3},
 
-    {"PREDEFINED",   0},
     {"TEST",         1},
 #endif
     {NULL,           0}
@@ -1229,7 +1229,8 @@ AcpiDbExecuteThread (
         AcpiGbl_MethodExecuting = FALSE;
         AcpiGbl_StepToNextCall = FALSE;
 
-        MStatus = AcpiUtAcquireMutex (ACPI_MTX_DEBUG_CMD_READY);
+        MStatus = AcpiOsAcquireMutex (AcpiGbl_DbCommandReady,
+            ACPI_WAIT_FOREVER);
         if (ACPI_FAILURE (MStatus))
         {
             return;
@@ -1237,11 +1238,7 @@ AcpiDbExecuteThread (
 
         Status = AcpiDbCommandDispatch (AcpiGbl_DbLineBuf, NULL, NULL);
 
-        MStatus = AcpiUtReleaseMutex (ACPI_MTX_DEBUG_CMD_COMPLETE);
-        if (ACPI_FAILURE (MStatus))
-        {
-            return;
-        }
+        AcpiOsReleaseMutex (AcpiGbl_DbCommandComplete);
     }
 }
 
@@ -1332,13 +1329,14 @@ AcpiDbUserCommands (
              * Signal the debug thread that we have a command to execute,
              * and wait for the command to complete.
              */
-            Status = AcpiUtReleaseMutex (ACPI_MTX_DEBUG_CMD_READY);
+            AcpiOsReleaseMutex (AcpiGbl_DbCommandReady);
             if (ACPI_FAILURE (Status))
             {
                 return (Status);
             }
 
-            Status = AcpiUtAcquireMutex (ACPI_MTX_DEBUG_CMD_COMPLETE);
+            Status = AcpiOsAcquireMutex (AcpiGbl_DbCommandComplete,
+                ACPI_WAIT_FOREVER);
             if (ACPI_FAILURE (Status))
             {
                 return (Status);

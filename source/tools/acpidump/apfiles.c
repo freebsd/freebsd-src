@@ -173,7 +173,7 @@ ApWriteToBinaryFile (
         strcat (Filename, InstanceStr);
     }
 
-    strcat (Filename, ACPI_TABLE_FILE_SUFFIX);
+    strcat (Filename, FILE_SUFFIX_BINARY_TABLE);
 
     if (Gbl_VerboseMode)
     {

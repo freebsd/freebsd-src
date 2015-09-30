@@ -419,8 +419,20 @@ AcpiDbExecute (
 #ifdef ACPI_DEBUG_OUTPUT
     UINT32                  PreviousAllocations;
     UINT32                  Allocations;
+#endif
 
 
+    /*
+     * Allow one execution to be performed by debugger or single step
+     * execution will be dead locked by the interpreter mutexes.
+     */
+    if (AcpiGbl_MethodExecuting)
+    {
+        AcpiOsPrintf ("Only one debugger execution is allowed.\n");
+        return;
+    }
+
+#ifdef ACPI_DEBUG_OUTPUT
     /* Memory allocation tracking */
 
     PreviousAllocations = AcpiDbGetOutstandingAllocations ();

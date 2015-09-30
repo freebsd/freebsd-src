@@ -225,7 +225,6 @@ AcpiExResolveObjectToValue (
                      * (i.e., dereference the package index)
                      * Delete the ref object, increment the returned object
                      */
-                    AcpiUtRemoveReference (StackDesc);
                     AcpiUtAddReference (ObjDesc);
                     *StackPtr = ObjDesc;
                 }
