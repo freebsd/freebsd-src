@@ -538,6 +538,7 @@ TrCreateAssignmentNode (
     case PARSEOP_ADD:
     case PARSEOP_AND:
     case PARSEOP_DIVIDE:
+    case PARSEOP_INDEX:
     case PARSEOP_MOD:
     case PARSEOP_MULTIPLY:
     case PARSEOP_NOT:

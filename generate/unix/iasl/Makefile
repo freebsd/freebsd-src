@@ -234,7 +234,9 @@ MISC = \
 	$(OBJDIR)/prparser.y.h
 
 ASL_PARSER = \
+	$(ASL_COMPILER)/aslcstyle.y\
 	$(ASL_COMPILER)/aslparser.y\
+	$(ASL_COMPILER)/aslresources.y\
 	$(ASL_COMPILER)/aslsupport.y\
 	$(ASL_COMPILER)/asltokens.y\
 	$(ASL_COMPILER)/asltypes.y\

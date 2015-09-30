@@ -1,7 +1,97 @@
 ----------------------------------------
-18 August 2015. Summary of changes for version 20150818:
+30 September 2015. Summary of changes for version 20150930:
 
-This release is available at https://acpica.org/downloads
+1) ACPICA kernel-resident subsystem:
+
+Debugger: Implemented several changes and bug fixes to assist support for 
+the in-kernel version of the AML debugger. Lv Zheng.
+- Fix the "predefined" command for in-kernel debugger.
+- Do not enter debug command loop for the help and version commands.
+- Disallow "execute" command during execution/single-step of a method.
+
+Interpreter: Updated runtime typechecking for all operators that have 
+target operands. The operand is resolved and validated that it is legal. 
+For example, the target cannot be a non-data object such as a Device, 
+Mutex, ThermalZone, etc., as per the ACPI specification.
+
+Debugger: Fixed the double-mutex user I/O handshake to work when local 
+deadlock detection is enabled.
+
+Debugger: limited display of method locals and arguments (LocalX and 
+ArgX) to only those that have actually been initialized. This prevents 
+lines of extraneous output.
+
+Updated the definition of the NFIT table to correct the bit polarity of 
+one flag: ACPI_NFIT_MEM_ARMED --> ACPI_NFIT_MEM_NOT_ARMED
+
+Example Code and Data Size: These are the sizes for the OS-independent 
+acpica.lib produced by the Microsoft Visual C++ 9.0 32-bit compiler. The 
+debug version of the code includes the debug output trace mechanism and 
+has a much larger code and data size.
+
+  Current Release:
+    Non-Debug Version: 101.7K Code, 27.9K Data, 129.6K Total
+    Debug Version:     199.3K Code, 81.4K Data, 280.7K Total
+  Previous Release:
+    Non-Debug Version: 101.3K Code, 27.7K Data, 129.0K Total
+    Debug Version:     198.6K Code, 80.9K Data, 279.5K Total
+
+
+2) iASL Compiler/Disassembler and Tools:
+
+iASL: Improved the compile-time typechecking for operands of many of the 
+ASL operators:
+
+-- Added an option to disable compiler operand/operator typechecking (-
+ot).
+
+-- For the following operators, the TermArg operands are now validated 
+when possible to be Integer data objects: BankField, OperationRegion, 
+DataTableRegion, Buffer, and Package.
+
+-- Store (Source, Target): Both the source and target operands are 
+resolved and checked that the operands are both legal. For example, 
+neither operand can be a non-data object such as a Device, Mutex, 
+ThermalZone, etc. Note, as per the ACPI specification, the CopyObject 
+operator can be used to store an object to any type of target object.
+
+-- Store (Source, Target): If the source is a Package object, the target 
+must be a Package object, LocalX, ArgX, or Debug. Likewise, if the target 
+is a Package, the source must also be a Package.
+
+-- Store (Source, Target): A warning is issued if the source and target 
+resolve to the identical named object.
+
+-- Store (Source, <method invocation>): An error is generated for the 
+target method invocation, as this construct is not supported by the AML 
+interpreter.
+
+-- For all ASL math and logic operators, the target operand must be a 
+data object (Integer, String, Buffer, LocalX, ArgX, or Debug). This 
+includes the function return value also.
+
+-- External declarations are also included in the typechecking where 
+possible. External objects defined using the UnknownObj keyword cannot be 
+typechecked, however.
+
+iASL and Disassembler: Added symbolic (ASL+) support for the ASL Index 
+operator:
+- Legacy code: Index(PKG1, 3)
+- New ASL+ code: PKG1[3]
+This completes the ACPI 6.0 ASL+ support as it was the only operator not 
+supported.
+
+iASL: Fixed the file suffix for the preprocessor output file (.i). Two 
+spaces were inadvertently appended to the filename, causing file access 
+and deletion problems on some systems.
+
+ASL Test Suite (ASLTS): Updated the master makefile to generate all 
+possible compiler output files when building the test suite -- thus 
+exercising these features of the compiler. These files are automatically 
+deleted when the test suite exits.
+
+----------------------------------------
+18 August 2015. Summary of changes for version 20150818:
 
 1) ACPICA kernel-resident subsystem:
 

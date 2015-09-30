@@ -156,6 +156,9 @@ NamePathTail                [.]{NameSeg}
 "^="                        { count (3); return (PARSEOP_EXP_XOR_EQ); }
 "|="                        { count (3); return (PARSEOP_EXP_OR_EQ); }
 
+"["                         { count (3); return(PARSEOP_EXP_INDEX_LEFT); }
+"]"                         { count (0); return(PARSEOP_EXP_INDEX_RIGHT); }
+
 
     /*
      * Begin standard ASL grammar

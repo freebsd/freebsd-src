@@ -302,8 +302,11 @@ CmDoCompile (
 
     Event = UtBeginEvent ("Analyze AML operand types");
     DbgPrint (ASL_DEBUG_OUTPUT, "\nSemantic analysis - Operand type checking\n\n");
-    TrWalkParseTree (RootNode, ASL_WALK_VISIT_UPWARD,
-        NULL, AnOperandTypecheckWalkEnd, &AnalysisWalkInfo);
+    if (Gbl_DoTypechecking)
+    {
+        TrWalkParseTree (RootNode, ASL_WALK_VISIT_UPWARD,
+            NULL, AnOperandTypecheckWalkEnd, &AnalysisWalkInfo);
+    }
     UtEndEvent (Event);
 
     /* Semantic error checking part four - other miscellaneous checks */

@@ -160,6 +160,7 @@ Usage (
     ACPI_OPTION ("-of",             "Disable constant folding");
     ACPI_OPTION ("-oi",             "Disable integer optimization to Zero/One/Ones");
     ACPI_OPTION ("-on",             "Disable named reference string optimization");
+    ACPI_OPTION ("-ot",             "Disable typechecking");
     ACPI_OPTION ("-cr",             "Disable Resource Descriptor error checking");
     ACPI_OPTION ("-in",             "Ignore NoOp operators");
     ACPI_OPTION ("-r <revision>",   "Override table header Revision (1-255)");
@@ -203,7 +204,7 @@ Usage (
     ACPI_OPTION ("-f",              "Ignore errors, force creation of AML output file(s)");
     ACPI_OPTION ("-m <size>",       "Set internal line buffer size (in Kbytes)");
     ACPI_OPTION ("-n",              "Parse only, no output generation");
-    ACPI_OPTION ("-ot",             "Display compile times and statistics");
+    ACPI_OPTION ("-oc",             "Display compile times and statistics");
     ACPI_OPTION ("-x <level>",      "Set debug level for trace output");
     ACPI_OPTION ("-z",              "Do not insert new compiler ID for DataTables");
 }

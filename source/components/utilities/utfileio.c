@@ -45,6 +45,7 @@
 #include "accommon.h"
 #include "actables.h"
 #include "acapps.h"
+#include "errno.h"
 
 #ifdef ACPI_ASL_COMPILER
 #include "aslcompiler.h"
@@ -330,6 +331,12 @@ AcpiUtReadTableFromFile (
     if (!File)
     {
         perror ("Could not open input file");
+
+        if (errno == ENOENT)
+        {
+            return (AE_NOT_EXIST);
+        }
+
         return (Status);
     }
 
