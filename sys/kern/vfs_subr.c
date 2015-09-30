@@ -3010,8 +3010,8 @@ vn_printf(struct vnode *vp, const char *fmt, ...)
 		    "cleanbuf %d dirtybuf %d\n",
 		    vp->v_object, vp->v_object->ref_count,
 		    vp->v_object->resident_page_count,
-		    vp->v_bufobj.bo_dirty.bv_cnt,
-		    vp->v_bufobj.bo_clean.bv_cnt);
+		    vp->v_bufobj.bo_clean.bv_cnt,
+		    vp->v_bufobj.bo_dirty.bv_cnt);
 	printf("    ");
 	lockmgr_printinfo(vp->v_vnlock);
 	if (vp->v_data != NULL)
