@@ -353,6 +353,7 @@ SUBDIR_PARALLEL=
 .endif
 
 .if defined(LIBCHERI)
+SUBDIR+=	libmalloc_simple
 .if ${MK_LIBCHERI_ALL} == "no"
 SUBDIR:=	csu \
 		libcompiler_rt \
