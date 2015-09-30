@@ -371,6 +371,8 @@ SUBDIR:=	${SUBDIR:Nlibc++:Nlibcxxrt}
 .if ${MK_LIBCHERI_BROKEN} == "no"
 # CHERI-Clang #22
 SUBDIR:=	${SUBDIR:Nlibpmc}
+# >27 minutes to compile
+SUBDIR:=	${SUBDIR:Nlibsqlite3}
 .endif
 .endif
 .endif
