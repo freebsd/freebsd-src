@@ -793,6 +793,8 @@ sched_fork_thread(struct thread *td, struct thread *childtd)
 {
 	struct td_sched *ts;
 
+	childtd->td_oncpu = NOCPU;
+	childtd->td_lastcpu = NOCPU;
 	childtd->td_estcpu = td->td_estcpu;
 	childtd->td_lock = &sched_lock;
 	childtd->td_cpuset = cpuset_ref(td->td_cpuset);
@@ -1671,6 +1673,8 @@ sched_throw(struct thread *td)
 	} else {
 		lock_profile_release_lock(&sched_lock.lock_object);
 		MPASS(td->td_lock == &sched_lock);
+		td->td_lastcpu = td->td_oncpu;
+		td->td_oncpu = NOCPU;
 	}
 	mtx_assert(&sched_lock, MA_OWNED);
 	KASSERT(curthread->td_md.md_spinlock_count == 1, ("invalid count"));
