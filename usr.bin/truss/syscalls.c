@@ -106,13 +106,13 @@ static struct syscall syscalls[] = {
 	  .args = { { Atfd, 0 }, { Name, 1 }, { Readlinkres | OUT, 2 },
 		    { Int, 3 } } },
 	{ .name = "lseek", .ret_type = 2, .nargs = 3,
-	  .args = { { Int, 0 }, { Quad, 1 + QUAD_ALIGN },
+	  .args = { { Int, 0 }, { QuadHex, 1 + QUAD_ALIGN },
 		    { Whence, 1 + QUAD_SLOTS + QUAD_ALIGN } } },
 	{ .name = "linux_lseek", .ret_type = 2, .nargs = 3,
 	  .args = { { Int, 0 }, { Int, 1 }, { Whence, 2 } } },
 	{ .name = "mmap", .ret_type = 1, .nargs = 6,
 	  .args = { { Ptr, 0 }, { Int, 1 }, { Mprot, 2 }, { Mmapflags, 3 },
-		    { Int, 4 }, { Quad, 5 + QUAD_ALIGN } } },
+		    { Int, 4 }, { QuadHex, 5 + QUAD_ALIGN } } },
 	{ .name = "linux_mkdir", .ret_type = 1, .nargs = 2,
 	  .args = { { Name | IN, 0 }, { Int, 1 } } },
 	{ .name = "mprotect", .ret_type = 1, .nargs = 3,
@@ -321,9 +321,9 @@ static struct syscall syscalls[] = {
 	{ .name = "pipe2", .ret_type = 1, .nargs = 2,
 	  .args = { { Ptr, 0 }, { Open, 1 } } },
 	{ .name = "truncate", .ret_type = 1, .nargs = 2,
-	  .args = { { Name | IN, 0 }, { Quad | IN, 1 + QUAD_ALIGN } } },
+	  .args = { { Name | IN, 0 }, { QuadHex | IN, 1 + QUAD_ALIGN } } },
 	{ .name = "ftruncate", .ret_type = 1, .nargs = 2,
-	  .args = { { Int | IN, 0 }, { Quad | IN, 1 + QUAD_ALIGN } } },
+	  .args = { { Int | IN, 0 }, { QuadHex | IN, 1 + QUAD_ALIGN } } },
 	{ .name = "kill", .ret_type = 1, .nargs = 2,
 	  .args = { { Int | IN, 0 }, { Signal | IN, 1 } } },
 	{ .name = "munmap", .ret_type = 1, .nargs = 2,
@@ -344,10 +344,15 @@ static struct syscall syscalls[] = {
 	  .args = { { Int, 0 }, { ExitStatus | OUT, 1 }, { Waitoptions, 2 },
 		    { Rusage | OUT, 3 } } },
 	{ .name = "wait6", .ret_type = 1, .nargs = 6,
-	  .args = { { Idtype, 0 }, { Int, 1 }, { ExitStatus | OUT, 2 },
-		    { Waitoptions, 3 }, { Rusage | OUT, 4 }, { Ptr, 5 } } },
+	  .args = { { Idtype, 0 }, { Quad, 1 + QUAD_ALIGN },
+		    { ExitStatus | OUT, 1 + QUAD_ALIGN + QUAD_SLOTS },
+		    { Waitoptions, 2 + QUAD_ALIGN + QUAD_SLOTS },
+		    { Rusage | OUT, 3 + QUAD_ALIGN + QUAD_SLOTS },
+		    { Ptr, 4 + QUAD_ALIGN + QUAD_SLOTS } } },
 	{ .name = "procctl", .ret_type = 1, .nargs = 4,
-	  .args = { { Idtype, 0 }, { Int, 1 }, { Procctl, 2 }, { Ptr, 3 } } },
+	  .args = { { Idtype, 0 }, { Quad, 1 + QUAD_ALIGN },
+		    { Procctl, 1 + QUAD_ALIGN + QUAD_SLOTS },
+		    { Ptr, 2 + QUAD_ALIGN + QUAD_SLOTS } } },
 	{ .name = "sysarch", .ret_type = 1, .nargs = 2,
 	  .args = { { Sysarch, 0 }, { Ptr, 1 } } },
 	{ .name = "_umtx_op", .ret_type = 1, .nargs = 5,
@@ -966,10 +971,14 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 	}
 #ifdef __LP64__
 	case Quad:
+		fprintf(fp, "%ld", args[sc->offset]);
+		break;
+	case QuadHex:
 		fprintf(fp, "0x%lx", args[sc->offset]);
 		break;
 #else
-	case Quad: {
+	case Quad:
+	case QuadHex: {
 		unsigned long long ll;
 
 #if _BYTE_ORDER == _LITTLE_ENDIAN
@@ -979,7 +988,10 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 		ll = (unsigned long long)args[sc->offset] << 32 |
 		    args[sc->offset + 1];
 #endif
-		fprintf(fp, "0x%llx", ll);
+		if ((sc->type & ARG_MASK) == Quad)
+			fprintf(fp, "%lld", ll);
+		else
+			fprintf(fp, "0x%llx", ll);
 		break;
 	}
 #endif
