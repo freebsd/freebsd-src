@@ -1487,6 +1487,15 @@ static state_func_t
 death(void)
 {
 	session_t *sp;
+	int block, blocked;
+	size_t len;
+
+	/* Temporarily block suspend. */
+	len = sizeof(blocked);
+	block = 1;
+	if (sysctlbyname("kern.suspend_blocked", &blocked, &len,
+	    &block, sizeof(block)) == -1)
+		blocked = 0;
 
 	/*
 	 * Also revoke the TTY here.  Because runshutdown() may reopen
@@ -1502,6 +1511,11 @@ death(void)
 
 	/* Try to run the rc.shutdown script within a period of time */
 	runshutdown();
+
+	/* Unblock suspend if we blocked it. */
+	if (!blocked)
+		sysctlbyname("kern.suspend_blocked", NULL, NULL,
+		    &blocked, sizeof(blocked));
 
 	return (state_func_t) death_single;
 }
