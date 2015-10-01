@@ -272,9 +272,8 @@ BMAKEENV=	INSTALL="sh ${.CURDIR}/tools/install.sh" \
 		WORLDTMP=${WORLDTMP} \
 		VERSION="${VERSION}" \
 		MAKEFLAGS="-m ${.CURDIR}/tools/build/mk ${.MAKEFLAGS}"
-BMAKE=		MAKEOBJDIRPREFIX=${WORLDTMP} \
-		${BMAKEENV} ${MAKE} ${WORLD_FLAGS} -f Makefile.inc1 \
-		DESTDIR= \
+# need to keep this in sync with targets/pseudo/bootstrap-tools/Makefile
+BSARGS= 	DESTDIR= \
 		BOOTSTRAPPING=${OSRELDATE} \
 		SSP_CFLAGS= \
 		MK_HTML=no NO_LINT=yes MK_MAN=no \
@@ -282,7 +281,11 @@ BMAKE=		MAKEOBJDIRPREFIX=${WORLDTMP} \
 		-DNO_CPU_CFLAGS MK_WARNS=no MK_CTF=no \
 		MK_CLANG_EXTRAS=no MK_CLANG_FULL=no \
 		MK_LLDB=no MK_TESTS=no \
-		MK_INCLUDES=yes 
+		MK_INCLUDES=yes
+
+BMAKE=		MAKEOBJDIRPREFIX=${WORLDTMP} \
+		${BMAKEENV} ${MAKE} ${WORLD_FLAGS} -f Makefile.inc1 \
+		${BSARGS}
 
 # build-tools stage
 TMAKE=		MAKEOBJDIRPREFIX=${OBJTREE} \
@@ -345,11 +348,13 @@ CROSS_BINUTILS_PREFIX?=${CROSS_TOOLCHAIN_PREFIX}
 # support the target architecture), provide a default cross-binutils prefix.
 # This allows aarch64 builds, for example, to automatically use the
 # aarch64-binutils port or package.
+.if !make(showconfig)
 .if !empty(BROKEN_OPTIONS:MBINUTILS_BOOTSTRAP) && \
     !defined(CROSS_BINUTILS_PREFIX)
 CROSS_BINUTILS_PREFIX=/usr/local/${TARGET_ARCH}-freebsd/bin/
 .if !exists(${CROSS_BINUTILS_PREFIX})
 .error In-tree binutils does not support the ${TARGET_ARCH} architecture. Install the ${TARGET_ARCH}-binutils port or package or set CROSS_BINUTILS_PREFIX.
+.endif
 .endif
 .endif
 
@@ -1377,12 +1382,12 @@ update:
 
 # ELF Tool Chain libraries are needed for ELF tools and dtrace tools.
 .if ${BOOTSTRAPPING} < 1100006
-_elftoolchain_libs= lib/libelf lib/libdwarf 
+_elftoolchain_libs= lib/libelf lib/libdwarf
 .endif
 
 legacy:
 .if ${BOOTSTRAPPING} < 800107 && ${BOOTSTRAPPING} != 0
-	@echo "ERROR: Source upgrades from versions prior to 8.0 not supported."; \
+	@echo "ERROR: Source upgrades from versions prior to 8.0 are not supported."; \
 	false
 .endif
 .for _tool in tools/build ${_elftoolchain_libs}
@@ -1401,7 +1406,7 @@ legacy:
 # binaries is usually quite narrow. Bootstrap tools use the host's compiler and
 # libraries, augmented by -legacy.
 #
-_bt=		_bootstrap-tools	
+_bt=		_bootstrap-tools
 
 .if ${MK_GAMES} != "no"
 _strfile=	games/fortune/strfile
@@ -1479,20 +1484,6 @@ ${_bt}-usr.bin/clang/clang-tblgen: ${_bt}-lib/clang/libllvmtablegen ${_bt}-lib/c
 ${_bt}-usr.bin/clang/tblgen: ${_bt}-lib/clang/libllvmtablegen ${_bt}-lib/clang/libllvmsupport
 .endif
 
-# ELF Tool Chain libraries are needed for ELF tools and dtrace tools.
-# dtrace tools are required for older bootstrap env and cross-build
-# pre libdwarf
-.if ${BOOTSTRAPPING} < 1100006 || (${MACHINE} != ${TARGET} || \
-    ${MACHINE_ARCH} != ${TARGET_ARCH})
-.if ${MK_CDDL} != "no"
-_dtrace_tools= cddl/usr.bin/sgsmsg cddl/lib/libctf cddl/usr.bin/ctfconvert \
-    cddl/usr.bin/ctfmerge
-
-${_bt}-cddl/usr.bin/ctfconvert: ${_bt}-cddl/lib/libctf
-${_bt}-cddl/usr.bin/ctfmerge: ${_bt}-cddl/lib/libctf
-.endif
-.endif
-
 # Default to building the GPL DTC, but build the BSDL one if users explicitly
 # request it.
 _dtc= usr.bin/dtc
@@ -1532,7 +1523,6 @@ bootstrap-tools: .PHONY
 .for _tool in \
     ${_clang_tblgen} \
     ${_kerberos5_bootstrap_tools} \
-    ${_dtrace_tools} \
     ${_strfile} \
     ${_gperf} \
     ${_groff} \
@@ -1628,6 +1618,13 @@ _btxld=		usr.sbin/btxld
 .endif
 .endif
 
+# Rebuild ctfconvert and ctfmerge to avoid difficult-to-diagnose failures
+# resulting from missing bug fixes or ELF Toolchain updates.
+.if ${MK_CDDL} != "no"
+_dtrace_tools= cddl/lib/libctf cddl/usr.bin/ctfconvert \
+    cddl/usr.bin/ctfmerge
+.endif
+
 # If we're given an XAS, don't build binutils.
 .if ${XAS:M/*} == ""
 .if ${MK_BINUTILS_BOOTSTRAP} != "no"
@@ -1671,6 +1668,7 @@ cross-tools: .MAKE
     ${_clang} \
     ${_binutils} \
     ${_elftctools} \
+    ${_dtrace_tools} \
     ${_cc} \
     ${_btxld} \
     ${_crunchide} \

@@ -113,11 +113,9 @@ static struct afswtch af_fib = {
 static __constructor void
 fib_ctor(void)
 {
-#define	N(a)	(sizeof(a) / sizeof(a[0]))
 	size_t i;
 
-	for (i = 0; i < N(fib_cmds);  i++)
+	for (i = 0; i < nitems(fib_cmds);  i++)
 		cmd_register(&fib_cmds[i]);
 	af_register(&af_fib);
-#undef N
 }

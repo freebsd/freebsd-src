@@ -29,10 +29,8 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * This file has routines used to print out system calls and their
@@ -40,23 +38,20 @@ static const char rcsid[] =
  */
 
 #include <sys/types.h>
+#include <sys/event.h>
+#include <sys/ioccom.h>
 #include <sys/mman.h>
 #include <sys/procctl.h>
 #include <sys/ptrace.h>
+#include <sys/resource.h>
 #include <sys/socket.h>
-#include <sys/time.h>
+#include <sys/stat.h>
+#include <sys/umtx.h>
 #include <sys/un.h>
 #include <sys/wait.h>
+#include <machine/sysarch.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#include <sys/ioccom.h>
-#include <machine/atomic.h>
-#include <errno.h>
-#include <sys/umtx.h>
-#include <sys/event.h>
-#include <sys/stat.h>
-#include <sys/resource.h>
-#include <machine/sysarch.h>
 
 #include <ctype.h>
 #include <err.h>
@@ -95,26 +90,16 @@ static const char rcsid[] =
 static struct syscall syscalls[] = {
 	{ .name = "fcntl", .ret_type = 1, .nargs = 3,
 	  .args = { { Int, 0 }, { Fcntl, 1 }, { Fcntlflag, 2 } } },
-	{ .name = "fork", .ret_type = 1, .nargs = 0 },
-	{ .name = "vfork", .ret_type = 1, .nargs = 0 },
 	{ .name = "rfork", .ret_type = 1, .nargs = 1,
 	  .args = { { Rforkflags, 0 } } },
-	{ .name = "getegid", .ret_type = 1, .nargs = 0 },
-	{ .name = "geteuid", .ret_type = 1, .nargs = 0 },
 	{ .name = "linux_readlink", .ret_type = 1, .nargs = 3,
 	  .args = { { Name, 0 }, { Name | OUT, 1 }, { Int, 2 } } },
 	{ .name = "linux_socketcall", .ret_type = 1, .nargs = 2,
 	  .args = { { Int, 0 }, { LinuxSockArgs, 1 } } },
-	{ .name = "getgid", .ret_type = 1, .nargs = 0 },
-	{ .name = "getpid", .ret_type = 1, .nargs = 0 },
 	{ .name = "getpgid", .ret_type = 1, .nargs = 1,
 	  .args = { { Int, 0 } } },
-	{ .name = "getpgrp", .ret_type = 1, .nargs = 0 },
-	{ .name = "getppid", .ret_type = 1, .nargs = 0 },
 	{ .name = "getsid", .ret_type = 1, .nargs = 1,
 	  .args = { { Int, 0 } } },
-	{ .name = "getuid", .ret_type = 1, .nargs = 0 },
-	{ .name = "issetugid", .ret_type = 1, .nargs = 0 },
 	{ .name = "readlink", .ret_type = 1, .nargs = 3,
 	  .args = { { Name, 0 }, { Readlinkres | OUT, 1 }, { Int, 2 } } },
 	{ .name = "readlinkat", .ret_type = 1, .nargs = 4,
@@ -125,7 +110,7 @@ static struct syscall syscalls[] = {
 		    { Whence, 1 + QUAD_SLOTS + QUAD_ALIGN } } },
 	{ .name = "linux_lseek", .ret_type = 2, .nargs = 3,
 	  .args = { { Int, 0 }, { Int, 1 }, { Whence, 2 } } },
-	{ .name = "mmap", .ret_type = 2, .nargs = 6,
+	{ .name = "mmap", .ret_type = 1, .nargs = 6,
 	  .args = { { Ptr, 0 }, { Int, 1 }, { Mprot, 2 }, { Mmapflags, 3 },
 		    { Int, 4 }, { Quad, 5 + QUAD_ALIGN } } },
 	{ .name = "linux_mkdir", .ret_type = 1, .nargs = 2,
@@ -145,49 +130,49 @@ static struct syscall syscalls[] = {
 	  .args = { { Name, 0 }, { Hex, 1 }, { Octal, 2 } } },
 	{ .name = "close", .ret_type = 1, .nargs = 1,
 	  .args = { { Int, 0 } } },
-	{ .name = "link", .ret_type = 0, .nargs = 2,
+	{ .name = "link", .ret_type = 1, .nargs = 2,
 	  .args = { { Name, 0 }, { Name, 1 } } },
-	{ .name = "linkat", .ret_type = 0, .nargs = 5,
+	{ .name = "linkat", .ret_type = 1, .nargs = 5,
 	  .args = { { Atfd, 0 }, { Name, 1 }, { Atfd, 2 }, { Name, 3 },
 		    { Atflags, 4 } } },
-	{ .name = "unlink", .ret_type = 0, .nargs = 1,
+	{ .name = "unlink", .ret_type = 1, .nargs = 1,
 	  .args = { { Name, 0 } } },
-	{ .name = "unlinkat", .ret_type = 0, .nargs = 3,
+	{ .name = "unlinkat", .ret_type = 1, .nargs = 3,
 	  .args = { { Atfd, 0 }, { Name, 1 }, { Atflags, 2 } } },
-	{ .name = "chdir", .ret_type = 0, .nargs = 1,
+	{ .name = "chdir", .ret_type = 1, .nargs = 1,
 	  .args = { { Name, 0 } } },
-	{ .name = "chroot", .ret_type = 0, .nargs = 1,
+	{ .name = "chroot", .ret_type = 1, .nargs = 1,
 	  .args = { { Name, 0 } } },
-	{ .name = "mkfifo", .ret_type = 0, .nargs = 2,
+	{ .name = "mkfifo", .ret_type = 1, .nargs = 2,
 	  .args = { { Name, 0 }, { Octal, 1 } } },
-	{ .name = "mkfifoat", .ret_type = 0, .nargs = 3,
+	{ .name = "mkfifoat", .ret_type = 1, .nargs = 3,
 	  .args = { { Atfd, 0 }, { Name, 1 }, { Octal, 2 } } },
-	{ .name = "mknod", .ret_type = 0, .nargs = 3,
+	{ .name = "mknod", .ret_type = 1, .nargs = 3,
 	  .args = { { Name, 0 }, { Octal, 1 }, { Int, 2 } } },
-	{ .name = "mknodat", .ret_type = 0, .nargs = 4,
+	{ .name = "mknodat", .ret_type = 1, .nargs = 4,
 	  .args = { { Atfd, 0 }, { Name, 1 }, { Octal, 2 }, { Int, 3 } } },
-	{ .name = "chmod", .ret_type = 0, .nargs = 2,
+	{ .name = "chmod", .ret_type = 1, .nargs = 2,
 	  .args = { { Name, 0 }, { Octal, 1 } } },
-	{ .name = "fchmod", .ret_type = 0, .nargs = 2,
+	{ .name = "fchmod", .ret_type = 1, .nargs = 2,
 	  .args = { { Int, 0 }, { Octal, 1 } } },
-	{ .name = "lchmod", .ret_type = 0, .nargs = 2,
+	{ .name = "lchmod", .ret_type = 1, .nargs = 2,
 	  .args = { { Name, 0 }, { Octal, 1 } } },
-	{ .name = "fchmodat", .ret_type = 0, .nargs = 4,
+	{ .name = "fchmodat", .ret_type = 1, .nargs = 4,
 	  .args = { { Atfd, 0 }, { Name, 1 }, { Octal, 2 }, { Atflags, 3 } } },
-	{ .name = "chown", .ret_type = 0, .nargs = 3,
+	{ .name = "chown", .ret_type = 1, .nargs = 3,
 	  .args = { { Name, 0 }, { Int, 1 }, { Int, 2 } } },
-	{ .name = "fchown", .ret_type = 0, .nargs = 3,
+	{ .name = "fchown", .ret_type = 1, .nargs = 3,
 	  .args = { { Int, 0 }, { Int, 1 }, { Int, 2 } } },
-	{ .name = "lchown", .ret_type = 0, .nargs = 3,
+	{ .name = "lchown", .ret_type = 1, .nargs = 3,
 	  .args = { { Name, 0 }, { Int, 1 }, { Int, 2 } } },
-	{ .name = "fchownat", .ret_type = 0, .nargs = 5,
+	{ .name = "fchownat", .ret_type = 1, .nargs = 5,
 	  .args = { { Atfd, 0 }, { Name, 1 }, { Int, 2 }, { Int, 3 },
 		    { Atflags, 4 } } },
 	{ .name = "linux_stat64", .ret_type = 1, .nargs = 3,
 	  .args = { { Name | IN, 0 }, { Ptr | OUT, 1 }, { Ptr | IN, 1 } } },
-	{ .name = "mount", .ret_type = 0, .nargs = 4,
+	{ .name = "mount", .ret_type = 1, .nargs = 4,
 	  .args = { { Name, 0 }, { Name, 1 }, { Int, 2 }, { Ptr, 3 } } },
-	{ .name = "umount", .ret_type = 0, .nargs = 2,
+	{ .name = "umount", .ret_type = 1, .nargs = 2,
 	  .args = { { Name, 0 }, { Int, 2 } } },
 	{ .name = "fstat", .ret_type = 1, .nargs = 2,
 	  .args = { { Int, 0 }, { Stat | OUT, 1 } } },
@@ -250,19 +235,19 @@ static struct syscall syscalls[] = {
 	{ .name = "linux_execve", .ret_type = 1, .nargs = 3,
 	  .args = { { Name | IN, 0 }, { ExecArgs | IN, 1 },
 		    { ExecEnv | IN, 2 } } },
-	{ .name = "kldload", .ret_type = 0, .nargs = 1,
+	{ .name = "kldload", .ret_type = 1, .nargs = 1,
 	  .args = { { Name | IN, 0 } } },
-	{ .name = "kldunload", .ret_type = 0, .nargs = 1,
+	{ .name = "kldunload", .ret_type = 1, .nargs = 1,
 	  .args = { { Int, 0 } } },
-	{ .name = "kldfind", .ret_type = 0, .nargs = 1,
+	{ .name = "kldfind", .ret_type = 1, .nargs = 1,
 	  .args = { { Name | IN, 0 } } },
-	{ .name = "kldnext", .ret_type = 0, .nargs = 1,
+	{ .name = "kldnext", .ret_type = 1, .nargs = 1,
 	  .args = { { Int, 0 } } },
-	{ .name = "kldstat", .ret_type = 0, .nargs = 2,
+	{ .name = "kldstat", .ret_type = 1, .nargs = 2,
 	  .args = { { Int, 0 }, { Ptr, 1 } } },
-	{ .name = "kldfirstmod", .ret_type = 0, .nargs = 1,
+	{ .name = "kldfirstmod", .ret_type = 1, .nargs = 1,
 	  .args = { { Int, 0 } } },
-	{ .name = "nanosleep", .ret_type = 0, .nargs = 1,
+	{ .name = "nanosleep", .ret_type = 1, .nargs = 1,
 	  .args = { { Timespec, 0 } } },
 	{ .name = "select", .ret_type = 1, .nargs = 5,
 	  .args = { { Int, 0 }, { Fd_set, 1 }, { Fd_set, 2 }, { Fd_set, 3 },
@@ -279,18 +264,18 @@ static struct syscall syscalls[] = {
 	  .args = { { Int, 0 }, { Itimerval, 1 }, { Itimerval | OUT, 2 } } },
 	{ .name = "kse_release", .ret_type = 0, .nargs = 1,
 	  .args = { { Timespec, 0 } } },
-	{ .name = "kevent", .ret_type = 0, .nargs = 6,
+	{ .name = "kevent", .ret_type = 1, .nargs = 6,
 	  .args = { { Int, 0 }, { Kevent, 1 }, { Int, 2 }, { Kevent | OUT, 3 },
 		    { Int, 4 }, { Timespec, 5 } } },
-	{ .name = "sigpending", .ret_type = 0, .nargs = 1,
+	{ .name = "sigpending", .ret_type = 1, .nargs = 1,
 	  .args = { { Sigset | OUT, 0 } } },
-	{ .name = "sigprocmask", .ret_type = 0, .nargs = 3,
+	{ .name = "sigprocmask", .ret_type = 1, .nargs = 3,
 	  .args = { { Sigprocmask, 0 }, { Sigset, 1 }, { Sigset | OUT, 2 } } },
-	{ .name = "sigqueue", .ret_type = 0, .nargs = 3,
+	{ .name = "sigqueue", .ret_type = 1, .nargs = 3,
 	  .args = { { Int, 0 }, { Signal, 1 }, { LongHex, 2 } } },
-	{ .name = "sigreturn", .ret_type = 0, .nargs = 1,
+	{ .name = "sigreturn", .ret_type = 1, .nargs = 1,
 	  .args = { { Ptr, 0 } } },
-	{ .name = "sigsuspend", .ret_type = 0, .nargs = 1,
+	{ .name = "sigsuspend", .ret_type = 1, .nargs = 1,
 	  .args = { { Sigset | IN, 0 } } },
 	{ .name = "sigtimedwait", .ret_type = 1, .nargs = 3,
 	  .args = { { Sigset | IN, 0 }, { Ptr, 1 }, { Timespec | IN, 2 } } },
@@ -332,7 +317,7 @@ static struct syscall syscalls[] = {
 	{ .name = "pathconf", .ret_type = 1, .nargs = 2,
 	  .args = { { Name | IN, 0 }, { Pathconf, 1 } } },
 	{ .name = "pipe", .ret_type = 1, .nargs = 1,
-	  .args = { { Ptr, 0 } } },
+	  .args = { { PipeFds | OUT, 0 } } },
 	{ .name = "pipe2", .ret_type = 1, .nargs = 2,
 	  .args = { { Ptr, 0 }, { Open, 1 } } },
 	{ .name = "truncate", .ret_type = 1, .nargs = 3,
@@ -368,9 +353,9 @@ static struct syscall syscalls[] = {
 	{ .name = "_umtx_op", .ret_type = 1, .nargs = 5,
 	  .args = { { Ptr, 0 }, { Umtxop, 1 }, { LongHex, 2 }, { Ptr, 3 },
 		    { Ptr, 4 } } },
-	{ .name = "thr_kill", .ret_type = 0, .nargs = 2,
+	{ .name = "thr_kill", .ret_type = 1, .nargs = 2,
 	  .args = { { Long, 0 }, { Signal, 1 } } },
-	{ .name = "thr_self", .ret_type = 0, .nargs = 1,
+	{ .name = "thr_self", .ret_type = 1, .nargs = 1,
 	  .args = { { Ptr, 0 } } },
 	{ .name = 0 },
 };
@@ -534,7 +519,9 @@ static struct xlat idtype_arg[] = {
 };
 
 static struct xlat procctl_arg[] = {
-	X(PROC_SPROTECT) XEND
+	X(PROC_SPROTECT) X(PROC_REAP_ACQUIRE) X(PROC_REAP_RELEASE)
+	X(PROC_REAP_STATUS) X(PROC_REAP_GETPIDS) X(PROC_REAP_KILL)
+	X(PROC_TRACE_CTL) X(PROC_TRACE_STATUS) XEND
 };
 
 static struct xlat umtx_ops[] = {
@@ -809,7 +796,7 @@ print_kevent(FILE *fp, struct kevent *ke, int input)
 		int ctrl, data;
 
 		ctrl = ke->fflags & NOTE_FFCTRLMASK;
-		data = ke->fflags & NOTE_FFLAGSMASK; 
+		data = ke->fflags & NOTE_FFLAGSMASK;
 		if (input) {
 			fputs(xlookup(kevent_user_ffctrl, ctrl), fp);
 			if (ke->fflags & NOTE_TRIGGER)
@@ -834,7 +821,7 @@ print_kevent(FILE *fp, struct kevent *ke, int input)
  * an array of all of the system call arguments.
  */
 char *
-print_arg(struct syscall_args *sc, unsigned long *args, long retval,
+print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
     struct trussinfo *trussinfo)
 {
 	FILE *fp;
@@ -843,7 +830,7 @@ print_arg(struct syscall_args *sc, unsigned long *args, long retval,
 	pid_t pid;
 
 	fp = open_memstream(&tmp, &tmplen);
-	pid = trussinfo->pid;
+	pid = trussinfo->curthread->proc->pid;
 	switch (sc->type & ARG_MASK) {
 	case Hex:
 		fprintf(fp, "0x%x", (int)args[sc->offset]);
@@ -882,7 +869,7 @@ print_arg(struct syscall_args *sc, unsigned long *args, long retval,
 		int truncated = 0;
 
 		if (sc->type & OUT)
-			len = retval;
+			len = retval[0];
 		else
 			len = args[sc->offset + 1];
 
@@ -922,7 +909,7 @@ print_arg(struct syscall_args *sc, unsigned long *args, long retval,
 		} u;
 		char *string;
 		size_t len;
-		int first, i;
+		u_int first, i;
 
 		/*
 		 * Only parse argv[] and environment arrays from exec calls
@@ -935,7 +922,7 @@ print_arg(struct syscall_args *sc, unsigned long *args, long retval,
 			fprintf(fp, "0x%lx", args[sc->offset]);
 			break;
 		}
-		    
+
 		/*
 		 * Read a page of pointers at a time.  Punt if the top-level
 		 * pointer is not aligned.  Note that the first read is of
@@ -985,7 +972,13 @@ print_arg(struct syscall_args *sc, unsigned long *args, long retval,
 	case Quad: {
 		unsigned long long ll;
 
-		ll = *(unsigned long long *)(args + sc->offset);
+#if _BYTE_ORDER == _LITTLE_ENDIAN
+		ll = (unsigned long long)args[sc->offset + 1] << 32 |
+		    args[sc->offset];
+#else
+		ll = (unsigned long long)args[sc->offset] << 32 |
+		    args[sc->offset + 1];
+#endif
 		fprintf(fp, "0x%llx", ll);
 		break;
 	}
@@ -996,9 +989,9 @@ print_arg(struct syscall_args *sc, unsigned long *args, long retval,
 	case Readlinkres: {
 		char *tmp2;
 
-		if (retval == -1)
+		if (retval[0] == -1)
 			break;
-		tmp2 = get_string(pid, (void*)args[sc->offset], retval);
+		tmp2 = get_string(pid, (void*)args[sc->offset], retval[0]);
 		fprintf(fp, "\"%s\"", tmp2);
 		free(tmp2);
 		break;
@@ -1395,8 +1388,8 @@ print_arg(struct syscall_args *sc, unsigned long *args, long retval,
 
 		if (sc->offset == 1)
 			numevents = args[sc->offset+1];
-		else if (sc->offset == 3 && retval != -1)
-			numevents = retval;
+		else if (sc->offset == 3 && retval[0] != -1)
+			numevents = retval[0];
 
 		if (numevents >= 0) {
 			bytes = sizeof(struct kevent) * numevents;
@@ -1515,6 +1508,21 @@ print_arg(struct syscall_args *sc, unsigned long *args, long retval,
 	case Sysarch:
 		fputs(xlookup(sysarch_ops, args[sc->offset]), fp);
 		break;
+	case PipeFds:
+		/*
+		 * The pipe() system call in the kernel returns its
+		 * two file descriptors via return values.  However,
+		 * the interface exposed by libc is that pipe()
+		 * accepts a pointer to an array of descriptors.
+		 * Format the output to match the libc API by printing
+		 * the returned file descriptors as a fake argument.
+		 *
+		 * Overwrite the first retval to signal a successful
+		 * return as well.
+		 */
+		fprintf(fp, "{ %ld, %ld }", retval[0], retval[1]);
+		retval[0] = 0;
+		break;
 	default:
 		errx(1, "Invalid argument type %d\n", sc->type & ARG_MASK);
 	}
@@ -1536,7 +1544,8 @@ print_syscall(struct trussinfo *trussinfo, const char *name, int nargs,
 
 	len = 0;
 	if (trussinfo->flags & FOLLOWFORKS)
-		len += fprintf(trussinfo->outfile, "%5d: ", trussinfo->pid);
+		len += fprintf(trussinfo->outfile, "%5d: ",
+		    trussinfo->curthread->proc->pid);
 
 	if (name != NULL && (strcmp(name, "execve") == 0 ||
 	    strcmp(name, "exit") == 0)) {
@@ -1575,7 +1584,7 @@ print_syscall(struct trussinfo *trussinfo, const char *name, int nargs,
 
 void
 print_syscall_ret(struct trussinfo *trussinfo, const char *name, int nargs,
-    char **s_args, int errorp, long retval, struct syscall *sc)
+    char **s_args, int errorp, long *retval, struct syscall *sc)
 {
 	struct timespec timediff;
 
@@ -1595,17 +1604,24 @@ print_syscall_ret(struct trussinfo *trussinfo, const char *name, int nargs,
 	print_syscall(trussinfo, name, nargs, s_args);
 	fflush(trussinfo->outfile);
 	if (errorp)
-		fprintf(trussinfo->outfile, " ERR#%ld '%s'\n", retval,
-		    strerror(retval));
-	else {
-		/*
-		 * Because pipe(2) has a special assembly glue to provide the
-		 * libc API, we have to adjust retval.
-		 */
-		if (name != NULL && strcmp(name, "pipe") == 0)
-			retval = 0;
-		fprintf(trussinfo->outfile, " = %ld (0x%lx)\n", retval, retval);
+		fprintf(trussinfo->outfile, " ERR#%ld '%s'\n", retval[0],
+		    strerror(retval[0]));
+#ifndef __LP64__
+	else if (sc != NULL && sc->ret_type == 2) {
+		off_t off;
+
+#if _BYTE_ORDER == _LITTLE_ENDIAN
+		off = (off_t)retval[1] << 32 | retval[0];
+#else
+		off = (off_t)retval[0] << 32 | retval[1];
+#endif
+		fprintf(trussinfo->outfile, " = %jd (0x%jx)\n", (intmax_t)off,
+		    (intmax_t)off);
 	}
+#endif
+	else
+		fprintf(trussinfo->outfile, " = %ld (0x%lx)\n", retval[0],
+		    retval[0]);
 }
 
 void

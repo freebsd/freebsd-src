@@ -130,13 +130,9 @@ cfcs_init(void)
 	struct cfcs_softc *softc;
 	struct ccb_setasync csa;
 	struct ctl_port *port;
-#ifdef NEEDTOPORT
-	char wwnn[8];
-#endif
 	int retval;
 
 	softc = &cfcs_softc;
-	retval = 0;
 	bzero(softc, sizeof(*softc));
 	mtx_init(&softc->lock, "ctl2cam", NULL, MTX_DEF);
 	port = &softc->port;
@@ -166,15 +162,6 @@ cfcs_init(void)
 		mtx_destroy(&softc->lock);
 		return (retval);
 	}
-
-	/*
-	 * Get the WWNN out of the database, and create a WWPN as well.
-	 */
-#ifdef NEEDTOPORT
-	ddb_GetWWNN((char *)wwnn);
-	softc->wwnn = be64dec(wwnn);
-	softc->wwpn = softc->wwnn + (softc->port.targ_port & 0xff);
-#endif
 
 	/*
 	 * If the CTL frontend didn't tell us what our WWNN/WWPN is, go
@@ -435,6 +422,14 @@ cfcs_datamove(union ctl_io *io)
 
 	io->scsiio.ext_data_filled += len_copied;
 
+	if ((io->io_hdr.status & CTL_STATUS_MASK) == CTL_SUCCESS) {
+		io->io_hdr.ctl_private[CTL_PRIV_FRONTEND].ptr = NULL;
+		io->io_hdr.flags |= CTL_FLAG_STATUS_SENT;
+		ccb->ccb_h.status &= ~CAM_STATUS_MASK;
+		ccb->ccb_h.status |= CAM_REQ_CMP;
+		xpt_done(ccb);
+	}
+
 	io->scsiio.be_move_done(io);
 }
 
@@ -458,12 +453,13 @@ cfcs_done(union ctl_io *io)
 	/*
 	 * Translate CTL status to CAM status.
 	 */
+	ccb->ccb_h.status &= ~CAM_STATUS_MASK;
 	switch (io->io_hdr.status & CTL_STATUS_MASK) {
 	case CTL_SUCCESS:
-		ccb->ccb_h.status = CAM_REQ_CMP;
+		ccb->ccb_h.status |= CAM_REQ_CMP;
 		break;
 	case CTL_SCSI_ERROR:
-		ccb->ccb_h.status = CAM_SCSI_STATUS_ERROR | CAM_AUTOSNS_VALID;
+		ccb->ccb_h.status |= CAM_SCSI_STATUS_ERROR | CAM_AUTOSNS_VALID;
 		ccb->csio.scsi_status = io->scsiio.scsi_status;
 		bcopy(&io->scsiio.sense_data, &ccb->csio.sense_data,
 		      min(io->scsiio.sense_len, ccb->csio.sense_len));
@@ -479,14 +475,18 @@ cfcs_done(union ctl_io *io)
 		}
 		break;
 	case CTL_CMD_ABORTED:
-		ccb->ccb_h.status = CAM_REQ_ABORTED;
+		ccb->ccb_h.status |= CAM_REQ_ABORTED;
 		break;
 	case CTL_ERROR:
 	default:
-		ccb->ccb_h.status = CAM_REQ_CMP_ERR;
+		ccb->ccb_h.status |= CAM_REQ_CMP_ERR;
 		break;
 	}
-
+	if ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP &&
+	    (ccb->ccb_h.status & CAM_DEV_QFRZN) == 0) {
+		xpt_freeze_devq(ccb->ccb_h.path, 1);
+		ccb->ccb_h.status |= CAM_DEV_QFRZN;
+	}
 	xpt_done(ccb);
 	ctl_free_io(io);
 }

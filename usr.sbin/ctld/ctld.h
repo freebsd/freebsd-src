@@ -164,6 +164,7 @@ struct lun {
 	TAILQ_HEAD(, lun_option)	l_options;
 	char				*l_name;
 	char				*l_backend;
+	uint8_t				l_device_type;
 	int				l_blocksize;
 	char				*l_device_id;
 	char				*l_path;
@@ -375,6 +376,7 @@ struct lun		*lun_new(struct conf *conf, const char *name);
 void			lun_delete(struct lun *lun);
 struct lun		*lun_find(const struct conf *conf, const char *name);
 void			lun_set_backend(struct lun *lun, const char *value);
+void			lun_set_device_type(struct lun *lun, uint8_t value);
 void			lun_set_blocksize(struct lun *lun, size_t value);
 void			lun_set_device_id(struct lun *lun, const char *value);
 void			lun_set_path(struct lun *lun, const char *value);
@@ -399,7 +401,7 @@ void			kernel_handoff(struct connection *conn);
 void			kernel_limits(const char *offload,
 			    size_t *max_data_segment_length);
 int			kernel_port_add(struct port *port);
-int			kernel_port_update(struct port *port);
+int			kernel_port_update(struct port *port, struct port *old);
 int			kernel_port_remove(struct port *port);
 void			kernel_capsicate(void);
 

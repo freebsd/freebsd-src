@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2003 Silicon Graphics International Corp.
+ * Copyright (c) 2014-2015 Alexander Motin <mav@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -88,8 +89,6 @@ typedef enum {
 	CTL_FLAG_DATA_OUT	= 0x00000002,	/* DATA OUT */
 	CTL_FLAG_DATA_NONE	= 0x00000003,	/* no data */
 	CTL_FLAG_DATA_MASK	= 0x00000003,
-	CTL_FLAG_KDPTR_SGLIST	= 0x00000008, 	/* kern_data_ptr is S/G list*/
-	CTL_FLAG_EDPTR_SGLIST	= 0x00000010,	/* ext_data_ptr is S/G list */
 	CTL_FLAG_DO_AUTOSENSE	= 0x00000020,	/* grab sense info */
 	CTL_FLAG_USER_REQ	= 0x00000040,	/* request came from userland */
 	CTL_FLAG_ALLOCATED	= 0x00000100,	/* data space allocated */
@@ -115,7 +114,8 @@ typedef enum {
 
 	CTL_FLAG_FAILOVER	= 0x04000000,	/* Killed by a failover */
 	CTL_FLAG_IO_ACTIVE	= 0x08000000,	/* I/O active on this SC */
-	CTL_FLAG_STATUS_SENT	= 0x10000000	/* Status sent by datamove */
+	CTL_FLAG_STATUS_SENT	= 0x10000000,	/* Status sent by datamove */
+	CTL_FLAG_SERSEQ_DONE	= 0x20000000	/* All storage I/O started */
 } ctl_io_flags;
 
 
@@ -197,6 +197,9 @@ typedef enum {
 	CTL_MSG_UA,			/* Set/clear UA on secondary. */
 	CTL_MSG_PORT_SYNC,		/* Information about port. */
 	CTL_MSG_LUN_SYNC,		/* Information about LUN. */
+	CTL_MSG_IID_SYNC,		/* Information about initiator. */
+	CTL_MSG_LOGIN,			/* Information about HA peer. */
+	CTL_MSG_MODE_SYNC,		/* Mode page current content. */
 	CTL_MSG_FAILOVER		/* Fake, never sent though the wire */
 } ctl_msg_type;
 
@@ -221,8 +224,8 @@ struct ctl_io_hdr {
 	struct bintime	  start_bt;	/* Timer start ticks */
 	struct bintime	  dma_start_bt;	/* DMA start ticks */
 	struct bintime	  dma_bt;	/* DMA total ticks */
-	uint32_t	  num_dmas;	/* Number of DMAs */
 #endif /* CTL_TIME_IO */
+	uint32_t	  num_dmas;	/* Number of DMAs */
 	union ctl_io	  *original_sc;
 	union ctl_io	  *serializing_sc;
 	void		  *pool;	/* I/O pool */
@@ -328,8 +331,19 @@ typedef enum {
 	CTL_TASK_TARGET_RESET,
 	CTL_TASK_BUS_RESET,
 	CTL_TASK_PORT_LOGIN,
-	CTL_TASK_PORT_LOGOUT
+	CTL_TASK_PORT_LOGOUT,
+	CTL_TASK_QUERY_TASK,
+	CTL_TASK_QUERY_TASK_SET,
+	CTL_TASK_QUERY_ASYNC_EVENT
 } ctl_task_type;
+
+typedef enum {
+	CTL_TASK_FUNCTION_COMPLETE,
+	CTL_TASK_FUNCTION_SUCCEEDED,
+	CTL_TASK_FUNCTION_REJECTED,
+	CTL_TASK_LUN_DOES_NOT_EXIST,
+	CTL_TASK_FUNCTION_NOT_SUPPORTED
+} ctl_task_status;
 
 /*
  * Task management I/O structure.  Aborts, bus resets, etc., are sent using
@@ -343,6 +357,27 @@ struct ctl_taskio {
 	ctl_task_type		task_action; /* Target Reset, Abort, etc.  */
 	uint32_t		tag_num;     /* tag number */
 	ctl_tag_type		tag_type;    /* simple, ordered, etc. */
+	uint8_t			task_status; /* Complete, Succeeded, etc. */
+	uint8_t			task_resp[3];/* Response information */
+};
+
+
+/*
+ * HA link messages.
+ */
+#define	CTL_HA_VERSION		1
+
+/*
+ * Used for CTL_MSG_LOGIN.
+ */
+struct ctl_ha_msg_login {
+	ctl_msg_type		msg_type;
+	int			version;
+	int			ha_mode;
+	int			ha_id;
+	int			max_luns;
+	int			max_ports;
+	int			max_init_per_port;
 };
 
 typedef enum {
@@ -370,10 +405,10 @@ struct ctl_pr_info {
 
 struct ctl_ha_msg_hdr {
 	ctl_msg_type		msg_type;
+	uint32_t		status;	     /* transaction status */
 	union ctl_io		*original_sc;
 	union ctl_io		*serializing_sc;
 	struct ctl_nexus	nexus;	     /* Initiator, port, target, lun */
-	uint32_t		status;	     /* transaction status */
 };
 
 #define	CTL_HA_MAX_SG_ENTRIES	16
@@ -395,6 +430,7 @@ struct ctl_ha_msg_ua {
 	int			ua_all;
 	int			ua_set;
 	int			ua_type;
+	uint8_t			ua_info[8];
 };
 
 /*
@@ -439,7 +475,6 @@ struct ctl_ha_msg_scsi {
 	uint32_t		residual;    /* data residual length */
 	uint32_t		fetd_status; /* trans status, set by FETD,
 						0 = good*/
-	struct ctl_lba_len	lbalen;      /* used for stats */
 	struct scsi_sense_data	sense_data;  /* sense data */
 };
 
@@ -466,6 +501,7 @@ struct ctl_ha_msg_port {
 	int			lun_map_len;
 	int			port_devid_len;
 	int			target_devid_len;
+	int			init_devid_len;
 	uint8_t			data[];
 };
 
@@ -488,6 +524,28 @@ struct ctl_ha_msg_lun_pr_key {
 	uint64_t		pr_key;
 };
 
+/*
+ * Used for CTL_MSG_IID_SYNC.
+ */
+struct ctl_ha_msg_iid {
+	struct ctl_ha_msg_hdr	hdr;
+	int			in_use;
+	int			name_len;
+	uint64_t		wwpn;
+	uint8_t			data[];
+};
+
+/*
+ * Used for CTL_MSG_MODE_SYNC.
+ */
+struct ctl_ha_msg_mode {
+	struct ctl_ha_msg_hdr	hdr;
+	uint8_t			page_code;
+	uint8_t			subpage;
+	uint16_t		page_len;
+	uint8_t			data[];
+};
+
 union ctl_ha_msg {
 	struct ctl_ha_msg_hdr	hdr;
 	struct ctl_ha_msg_task	task;
@@ -497,15 +555,15 @@ union ctl_ha_msg {
 	struct ctl_ha_msg_ua	ua;
 	struct ctl_ha_msg_port	port;
 	struct ctl_ha_msg_lun	lun;
+	struct ctl_ha_msg_iid	iid;
+	struct ctl_ha_msg_login	login;
+	struct ctl_ha_msg_mode	mode;
 };
-
 
 struct ctl_prio {
 	struct ctl_io_hdr  io_hdr;
 	struct ctl_ha_msg_pr pr_msg;
 };
-
-
 
 union ctl_io {
 	struct ctl_io_hdr io_hdr;	/* common to all I/O types */
@@ -520,7 +578,6 @@ union ctl_io *ctl_alloc_io(void *pool_ref);
 union ctl_io *ctl_alloc_io_nowait(void *pool_ref);
 void ctl_free_io(union ctl_io *io);
 void ctl_zero_io(union ctl_io *io);
-void ctl_copy_io(union ctl_io *src, union ctl_io *dest);
 
 #endif /* _KERNEL */
 

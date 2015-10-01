@@ -43,3 +43,5 @@ ENTRY(strcmp)
 	sub	r0, r2, r3
 	RET
 END(strcmp)
+
+	.section .note.GNU-stack,"",%progbits

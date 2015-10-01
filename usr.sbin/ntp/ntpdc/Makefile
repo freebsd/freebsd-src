@@ -33,7 +33,4 @@ CLEANFILES+= .version version.c
 version.c:
 	sh -e ${.CURDIR}/../scripts/mkver ntpdc
 
-afterinstall:
-	rm -f ${DESTDIR}/usr/sbin/xntpdc
-
 .include <bsd.prog.mk>

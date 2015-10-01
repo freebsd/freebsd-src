@@ -145,9 +145,8 @@ ctl_port_register(struct ctl_port *port)
 	int port_num;
 	int retval;
 
-	retval = 0;
-
 	KASSERT(softc != NULL, ("CTL is not initialized"));
+	port->ctl_softc = softc;
 
 	mtx_lock(&softc->ctl_lock);
 	if (port->targ_port >= 0)
@@ -218,7 +217,7 @@ error:
 int
 ctl_port_deregister(struct ctl_port *port)
 {
-	struct ctl_softc *softc = control_softc;
+	struct ctl_softc *softc = port->ctl_softc;
 	struct ctl_io_pool *pool;
 	int retval, i;
 
@@ -309,7 +308,7 @@ ctl_port_set_wwns(struct ctl_port *port, int wwnn_valid, uint64_t wwnn,
 void
 ctl_port_online(struct ctl_port *port)
 {
-	struct ctl_softc *softc = control_softc;
+	struct ctl_softc *softc = port->ctl_softc;
 	struct ctl_lun *lun;
 	uint32_t l;
 
@@ -328,15 +327,23 @@ ctl_port_online(struct ctl_port *port)
 	}
 	if (port->port_online != NULL)
 		port->port_online(port->onoff_arg);
-	/* XXX KDM need a lock here? */
+	mtx_lock(&softc->ctl_lock);
 	port->status |= CTL_PORT_STATUS_ONLINE;
+	STAILQ_FOREACH(lun, &softc->lun_list, links) {
+		if (ctl_lun_map_to_port(port, lun->lun) >= CTL_MAX_LUNS)
+			continue;
+		mtx_lock(&lun->lun_lock);
+		ctl_est_ua_all(lun, -1, CTL_UA_INQ_CHANGE);
+		mtx_unlock(&lun->lun_lock);
+	}
+	mtx_unlock(&softc->ctl_lock);
 	ctl_isc_announce_port(port);
 }
 
 void
 ctl_port_offline(struct ctl_port *port)
 {
-	struct ctl_softc *softc = control_softc;
+	struct ctl_softc *softc = port->ctl_softc;
 	struct ctl_lun *lun;
 	uint32_t l;
 
@@ -355,8 +362,16 @@ ctl_port_offline(struct ctl_port *port)
 				port->lun_disable(port->targ_lun_arg, lun->lun);
 		}
 	}
-	/* XXX KDM need a lock here? */
+	mtx_lock(&softc->ctl_lock);
 	port->status &= ~CTL_PORT_STATUS_ONLINE;
+	STAILQ_FOREACH(lun, &softc->lun_list, links) {
+		if (ctl_lun_map_to_port(port, lun->lun) >= CTL_MAX_LUNS)
+			continue;
+		mtx_lock(&lun->lun_lock);
+		ctl_est_ua_all(lun, -1, CTL_UA_INQ_CHANGE);
+		mtx_unlock(&lun->lun_lock);
+	}
+	mtx_unlock(&softc->ctl_lock);
 	ctl_isc_announce_port(port);
 }
 

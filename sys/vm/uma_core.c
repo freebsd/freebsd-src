@@ -1153,7 +1153,7 @@ noobj_alloc(uma_zone_t zone, vm_size_t bytes, uint8_t *flags, int wait)
 		 * exit.
 		 */
 		TAILQ_FOREACH_SAFE(p, &alloctail, listq, p_next) {
-			vm_page_unwire(p, PQ_INACTIVE);
+			vm_page_unwire(p, PQ_NONE);
 			vm_page_free(p); 
 		}
 		return (NULL);

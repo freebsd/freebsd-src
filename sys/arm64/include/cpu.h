@@ -148,6 +148,8 @@ void	identify_cpu(void);
 void	swi_vm(void *v);
 
 #define	CPU_AFFINITY(cpu)	__cpu_affinity[(cpu)]
+#define	CPU_CURRENT_SOCKET				\
+    (CPU_AFF2(CPU_AFFINITY(PCPU_GET(cpuid))))
 
 static __inline uint64_t
 get_cyclecount(void)

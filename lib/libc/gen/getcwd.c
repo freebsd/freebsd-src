@@ -55,9 +55,7 @@ __FBSDID("$FreeBSD$");
 extern int __getcwd(char *, size_t);
 
 char *
-getcwd(pt, size)
-	char *pt;
-	size_t size;
+getcwd(char *pt, size_t size)
 {
 	struct dirent *dp;
 	DIR *dir = NULL;

@@ -56,6 +56,18 @@ __FBSDID("$FreeBSD$");
 #include <cam/ctl/ctl_debug.h>
 #include <cam/ctl/ctl_error.h>
 
+typedef enum {
+	CTL_IOCTL_INPROG,
+	CTL_IOCTL_DATAMOVE,
+	CTL_IOCTL_DONE
+} ctl_fe_ioctl_state;
+
+struct ctl_fe_ioctl_params {
+	struct cv		sem;
+	struct mtx		ioctl_mtx;
+	ctl_fe_ioctl_state	state;
+};
+
 struct cfi_softc {
 	uint32_t		cur_tag_num;
 	struct ctl_port		port;
@@ -149,7 +161,7 @@ ctl_ioctl_do_datamove(struct ctl_scsiio *ctsio)
 	 * To simplify things here, if we have a single buffer, stick it in
 	 * a S/G entry and just make it a single entry S/G list.
 	 */
-	if (ctsio->io_hdr.flags & CTL_FLAG_EDPTR_SGLIST) {
+	if (ctsio->ext_sg_entries > 0) {
 		int len_seen;
 
 		ext_sglen = ctsio->ext_sg_entries * sizeof(*ext_sglist);
@@ -157,11 +169,8 @@ ctl_ioctl_do_datamove(struct ctl_scsiio *ctsio)
 		ext_sglist = (struct ctl_sg_entry *)malloc(ext_sglen, M_CTL,
 							   M_WAITOK);
 		ext_sglist_malloced = 1;
-		if (copyin(ctsio->ext_data_ptr, ext_sglist,
-				   ext_sglen) != 0) {
-			ctl_set_internal_failure(ctsio,
-						 /*sks_valid*/ 0,
-						 /*retry_count*/ 0);
+		if (copyin(ctsio->ext_data_ptr, ext_sglist, ext_sglen) != 0) {
+			ctsio->io_hdr.port_status = 31343;
 			goto bailout;
 		}
 		ext_sg_entries = ctsio->ext_sg_entries;
@@ -229,9 +238,7 @@ ctl_ioctl_do_datamove(struct ctl_scsiio *ctsio)
 			CTL_DEBUG_PRINT(("ctl_ioctl_do_datamove: from %p "
 					 "to %p\n", kern_ptr, ext_ptr));
 			if (copyout(kern_ptr, ext_ptr, len_to_copy) != 0) {
-				ctl_set_internal_failure(ctsio,
-							 /*sks_valid*/ 0,
-							 /*retry_count*/ 0);
+				ctsio->io_hdr.port_status = 31344;
 				goto bailout;
 			}
 		} else {
@@ -240,9 +247,7 @@ ctl_ioctl_do_datamove(struct ctl_scsiio *ctsio)
 			CTL_DEBUG_PRINT(("ctl_ioctl_do_datamove: from %p "
 					 "to %p\n", ext_ptr, kern_ptr));
 			if (copyin(ext_ptr, kern_ptr, len_to_copy)!= 0){
-				ctl_set_internal_failure(ctsio,
-							 /*sks_valid*/ 0,
-							 /*retry_count*/0);
+				ctsio->io_hdr.port_status = 31345;
 				goto bailout;
 			}
 		}
@@ -314,10 +319,7 @@ cfi_submit_wait(union ctl_io *io)
 	ctl_fe_ioctl_state last_state;
 	int done, retval;
 
-	retval = 0;
-
 	bzero(&params, sizeof(params));
-
 	mtx_init(&params.ioctl_mtx, "ctliocmtx", NULL, MTX_DEF);
 	cv_init(&params.sem, "ctlioccv");
 	params.state = CTL_IOCTL_INPROG;

@@ -92,10 +92,6 @@ test: beforetest realtest
 test: aftertest
 .endif
 
-.if !empty(SUBDIR)
-.include <bsd.subdir.mk>
-.endif
-
 .ifdef PROG
 # we came here via bsd.progs.mk below
 # parent will do staging.
