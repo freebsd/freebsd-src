@@ -768,10 +768,9 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 		bcopy(lladdr, &ln->ll_addr, ifp->if_addrlen);
 		ln->la_flags |= LLE_VALID;
 		EVENTHANDLER_INVOKE(lle_event, ln, LLENTRY_RESOLVED);
-		if (is_solicited) {
+		if (is_solicited)
 			nd6_llinfo_setstate(ln, ND6_LLINFO_REACHABLE);
-			ln->ln_byhint = 0;
-		} else
+		else
 			nd6_llinfo_setstate(ln, ND6_LLINFO_STALE);
 		if ((ln->ln_router = is_router) != 0) {
 			/*
@@ -844,10 +843,9 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 			 * If not solicited and the link-layer address was
 			 * changed, make it STALE.
 			 */
-			if (is_solicited) {
-				ln->ln_byhint = 0;
+			if (is_solicited)
 				nd6_llinfo_setstate(ln, ND6_LLINFO_REACHABLE);
-			} else {
+			else {
 				if (lladdr != NULL && llchange)
 					nd6_llinfo_setstate(ln, ND6_LLINFO_STALE);
 			}

@@ -56,6 +56,18 @@ __FBSDID("$FreeBSD$");
 #include <cam/ctl/ctl_debug.h>
 #include <cam/ctl/ctl_error.h>
 
+typedef enum {
+	CTL_IOCTL_INPROG,
+	CTL_IOCTL_DATAMOVE,
+	CTL_IOCTL_DONE
+} ctl_fe_ioctl_state;
+
+struct ctl_fe_ioctl_params {
+	struct cv		sem;
+	struct mtx		ioctl_mtx;
+	ctl_fe_ioctl_state	state;
+};
+
 struct cfi_softc {
 	uint32_t		cur_tag_num;
 	struct ctl_port		port;
@@ -307,10 +319,7 @@ cfi_submit_wait(union ctl_io *io)
 	ctl_fe_ioctl_state last_state;
 	int done, retval;
 
-	retval = 0;
-
 	bzero(&params, sizeof(params));
-
 	mtx_init(&params.ioctl_mtx, "ctliocmtx", NULL, MTX_DEF);
 	cv_init(&params.sem, "ctlioccv");
 	params.state = CTL_IOCTL_INPROG;

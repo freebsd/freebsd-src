@@ -394,6 +394,10 @@ SHELL=	${__MAKE_SHELL}
 # Tell bmake the makefile preference
 .MAKE.MAKEFILE_PREFERENCE= BSDmakefile makefile Makefile
 
+# Tell bmake to always pass job tokens, regardless of target depending on
+# .MAKE or looking like ${MAKE}/${.MAKE}/$(MAKE)/$(.MAKE)/make.
+.MAKE.ALWAYS_PASS_JOB_QUEUE= yes
+
 # By default bmake does *not* use set -e
 # when running target scripts, this is a problem for many makefiles here.
 # So define a shell that will do what FreeBSD expects.

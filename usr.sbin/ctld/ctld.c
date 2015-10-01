@@ -1149,7 +1149,7 @@ valid_iscsi_name(const char *name)
 		}
 	} else {
 		log_warnx("invalid target name \"%s\"; should start with "
-		    "either \".iqn\", \"eui.\", or \"naa.\"",
+		    "either \"iqn.\", \"eui.\", or \"naa.\"",
 		    name);
 	}
 	return (true);
@@ -1453,6 +1453,13 @@ lun_set_blocksize(struct lun *lun, size_t value)
 {
 
 	lun->l_blocksize = value;
+}
+
+void
+lun_set_device_type(struct lun *lun, uint8_t value)
+{
+
+	lun->l_device_type = value;
 }
 
 void

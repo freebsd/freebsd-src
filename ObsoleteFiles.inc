@@ -101,6 +101,14 @@ OLD_FILES+=usr/lib/clang/3.6.1/lib/freebsd/libclang_rt.ubsan_cxx-x86_64.a
 OLD_DIRS+=usr/lib/clang/3.6.1/lib/freebsd
 OLD_DIRS+=usr/lib/clang/3.6.1/lib
 OLD_DIRS+=usr/lib/clang/3.6.1
+# 20150928: unused sgsmsg utility is removed
+OLD_FILES+=usr/bin/sgsmsg
+# 20150926: remove links to removed/unimplemented mbuf(9) macros
+OLD_FILES+=usr/share/man/man9/MEXT_ADD_REF.9.gz
+OLD_FILES+=usr/share/man/man9/MEXTFREE.9.gz
+OLD_FILES+=usr/share/man/man9/MEXT_IS_REF.9.gz
+OLD_FILES+=usr/share/man/man9/MEXT_REM_REF.9.gz
+OLD_FILES+=usr/share/man/man9/MFREE.9.gz
 # 20150818: *allocm() are gone in jemalloc 4.0.0
 OLD_FILES+=usr/share/man/man3/allocm.3.gz
 OLD_FILES+=usr/share/man/man3/dallocm.3.gz

@@ -770,10 +770,9 @@ vn_read(fp, uio, active_cred, flags, td)
 	struct thread *td;
 {
 	struct vnode *vp;
-	struct mtx *mtxp;
+	off_t orig_offset;
 	int error, ioflag;
 	int advice;
-	off_t offset, start, end;
 
 	KASSERT(uio->uio_td == td, ("uio_td %p is not td %p",
 	    uio->uio_td, td));
@@ -797,7 +796,7 @@ vn_read(fp, uio, active_cred, flags, td)
 		/* Disable read-ahead for random I/O. */
 		break;
 	}
-	offset = uio->uio_offset;
+	orig_offset = uio->uio_offset;
 
 #ifdef MAC
 	error = mac_vnode_check_read(active_cred, fp->f_cred, vp);
@@ -807,39 +806,14 @@ vn_read(fp, uio, active_cred, flags, td)
 	fp->f_nextoff = uio->uio_offset;
 	VOP_UNLOCK(vp, 0);
 	if (error == 0 && advice == POSIX_FADV_NOREUSE &&
-	    offset != uio->uio_offset) {
+	    orig_offset != uio->uio_offset)
 		/*
-		 * Use POSIX_FADV_DONTNEED to flush clean pages and
-		 * buffers for the backing file after a
-		 * POSIX_FADV_NOREUSE read(2).  To optimize the common
-		 * case of using POSIX_FADV_NOREUSE with sequential
-		 * access, track the previous implicit DONTNEED
-		 * request and grow this request to include the
-		 * current read(2) in addition to the previous
-		 * DONTNEED.  With purely sequential access this will
-		 * cause the DONTNEED requests to continously grow to
-		 * cover all of the previously read regions of the
-		 * file.  This allows filesystem blocks that are
-		 * accessed by multiple calls to read(2) to be flushed
-		 * once the last read(2) finishes.
+		 * Use POSIX_FADV_DONTNEED to flush pages and buffers
+		 * for the backing file after a POSIX_FADV_NOREUSE
+		 * read(2).
 		 */
-		start = offset;
-		end = uio->uio_offset - 1;
-		mtxp = mtx_pool_find(mtxpool_sleep, fp);
-		mtx_lock(mtxp);
-		if (fp->f_advice != NULL &&
-		    fp->f_advice->fa_advice == POSIX_FADV_NOREUSE) {
-			if (start != 0 && fp->f_advice->fa_prevend + 1 == start)
-				start = fp->f_advice->fa_prevstart;
-			else if (fp->f_advice->fa_prevstart != 0 &&
-			    fp->f_advice->fa_prevstart == end + 1)
-				end = fp->f_advice->fa_prevend;
-			fp->f_advice->fa_prevstart = start;
-			fp->f_advice->fa_prevend = end;
-		}
-		mtx_unlock(mtxp);
-		error = VOP_ADVISE(vp, start, end, POSIX_FADV_DONTNEED);
-	}
+		error = VOP_ADVISE(vp, orig_offset, uio->uio_offset - 1,
+		    POSIX_FADV_DONTNEED);
 	return (error);
 }
 
@@ -856,10 +830,9 @@ vn_write(fp, uio, active_cred, flags, td)
 {
 	struct vnode *vp;
 	struct mount *mp;
-	struct mtx *mtxp;
+	off_t orig_offset;
 	int error, ioflag, lock_flags;
 	int advice;
-	off_t offset, start, end;
 
 	KASSERT(uio->uio_td == td, ("uio_td %p is not td %p",
 	    uio->uio_td, td));
@@ -902,7 +875,7 @@ vn_write(fp, uio, active_cred, flags, td)
 		/* XXX: Is this correct? */
 		break;
 	}
-	offset = uio->uio_offset;
+	orig_offset = uio->uio_offset;
 
 #ifdef MAC
 	error = mac_vnode_check_write(active_cred, fp->f_cred, vp);
@@ -914,55 +887,14 @@ vn_write(fp, uio, active_cred, flags, td)
 	if (vp->v_type != VCHR)
 		vn_finished_write(mp);
 	if (error == 0 && advice == POSIX_FADV_NOREUSE &&
-	    offset != uio->uio_offset) {
+	    orig_offset != uio->uio_offset)
 		/*
-		 * Use POSIX_FADV_DONTNEED to flush clean pages and
-		 * buffers for the backing file after a
-		 * POSIX_FADV_NOREUSE write(2).  To optimize the
-		 * common case of using POSIX_FADV_NOREUSE with
-		 * sequential access, track the previous implicit
-		 * DONTNEED request and grow this request to include
-		 * the current write(2) in addition to the previous
-		 * DONTNEED.  With purely sequential access this will
-		 * cause the DONTNEED requests to continously grow to
-		 * cover all of the previously written regions of the
-		 * file.
-		 *
-		 * Note that the blocks just written are almost
-		 * certainly still dirty, so this only works when
-		 * VOP_ADVISE() calls from subsequent writes push out
-		 * the data written by this write(2) once the backing
-		 * buffers are clean.  However, as compared to forcing
-		 * IO_DIRECT, this gives much saner behavior.  Write
-		 * clustering is still allowed, and clean pages are
-		 * merely moved to the cache page queue rather than
-		 * outright thrown away.  This means a subsequent
-		 * read(2) can still avoid hitting the disk if the
-		 * pages have not been reclaimed.
-		 *
-		 * This does make POSIX_FADV_NOREUSE largely useless
-		 * with non-sequential access.  However, sequential
-		 * access is the more common use case and the flag is
-		 * merely advisory.
+		 * Use POSIX_FADV_DONTNEED to flush pages and buffers
+		 * for the backing file after a POSIX_FADV_NOREUSE
+		 * write(2).
 		 */
-		start = offset;
-		end = uio->uio_offset - 1;
-		mtxp = mtx_pool_find(mtxpool_sleep, fp);
-		mtx_lock(mtxp);
-		if (fp->f_advice != NULL &&
-		    fp->f_advice->fa_advice == POSIX_FADV_NOREUSE) {
-			if (start != 0 && fp->f_advice->fa_prevend + 1 == start)
-				start = fp->f_advice->fa_prevstart;
-			else if (fp->f_advice->fa_prevstart != 0 &&
-			    fp->f_advice->fa_prevstart == end + 1)
-				end = fp->f_advice->fa_prevend;
-			fp->f_advice->fa_prevstart = start;
-			fp->f_advice->fa_prevend = end;
-		}
-		mtx_unlock(mtxp);
-		error = VOP_ADVISE(vp, start, end, POSIX_FADV_DONTNEED);
-	}
-	
+		error = VOP_ADVISE(vp, orig_offset, uio->uio_offset - 1,
+		    POSIX_FADV_DONTNEED);
 unlock:
 	return (error);
 }

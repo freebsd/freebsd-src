@@ -21,7 +21,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 24, 2015
+.Dd September 29, 2015
 .Dt LOCKSTAT 1
 .Os
 .Sh NAME
@@ -38,7 +38,7 @@
 .Op Fl d Ar duration
 .Op Fl f Ar function Oo Ns , Ns Ar size Oc
 .Op Fl T
-.Op Fl ckgwWRpP
+.Op Fl kgwWRpP
 .Op Fl D Ar count
 .Op Fl o filename
 .Op Fl x Ar opt Oo Ns = Ns Ar val Oc
@@ -172,8 +172,6 @@ This is off by default.
 .El
 .Ss Data Reporting
 .Bl -tag -width indent
-.It Fl c
-Coalesce lock data for lock arrays.
 .It Fl D Ar count
 Only display the top
 .Ar count

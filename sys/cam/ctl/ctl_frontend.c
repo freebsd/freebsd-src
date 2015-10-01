@@ -145,9 +145,8 @@ ctl_port_register(struct ctl_port *port)
 	int port_num;
 	int retval;
 
-	retval = 0;
-
 	KASSERT(softc != NULL, ("CTL is not initialized"));
+	port->ctl_softc = softc;
 
 	mtx_lock(&softc->ctl_lock);
 	if (port->targ_port >= 0)
@@ -218,7 +217,7 @@ error:
 int
 ctl_port_deregister(struct ctl_port *port)
 {
-	struct ctl_softc *softc = control_softc;
+	struct ctl_softc *softc = port->ctl_softc;
 	struct ctl_io_pool *pool;
 	int retval, i;
 
@@ -309,7 +308,7 @@ ctl_port_set_wwns(struct ctl_port *port, int wwnn_valid, uint64_t wwnn,
 void
 ctl_port_online(struct ctl_port *port)
 {
-	struct ctl_softc *softc = control_softc;
+	struct ctl_softc *softc = port->ctl_softc;
 	struct ctl_lun *lun;
 	uint32_t l;
 
@@ -344,7 +343,7 @@ ctl_port_online(struct ctl_port *port)
 void
 ctl_port_offline(struct ctl_port *port)
 {
-	struct ctl_softc *softc = control_softc;
+	struct ctl_softc *softc = port->ctl_softc;
 	struct ctl_lun *lun;
 	uint32_t l;
 

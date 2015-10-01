@@ -451,6 +451,7 @@ void vm_page_cache_transfer(vm_object_t, vm_pindex_t, vm_object_t);
 int vm_page_try_to_cache (vm_page_t);
 int vm_page_try_to_free (vm_page_t);
 void vm_page_deactivate (vm_page_t);
+void vm_page_deactivate_noreuse(vm_page_t);
 void vm_page_dequeue(vm_page_t m);
 void vm_page_dequeue_locked(vm_page_t m);
 vm_page_t vm_page_find_least(vm_object_t, vm_pindex_t);

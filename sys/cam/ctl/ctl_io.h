@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2003 Silicon Graphics International Corp.
+ * Copyright (c) 2014-2015 Alexander Motin <mav@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -223,8 +224,8 @@ struct ctl_io_hdr {
 	struct bintime	  start_bt;	/* Timer start ticks */
 	struct bintime	  dma_start_bt;	/* DMA start ticks */
 	struct bintime	  dma_bt;	/* DMA total ticks */
-	uint32_t	  num_dmas;	/* Number of DMAs */
 #endif /* CTL_TIME_IO */
+	uint32_t	  num_dmas;	/* Number of DMAs */
 	union ctl_io	  *original_sc;
 	union ctl_io	  *serializing_sc;
 	void		  *pool;	/* I/O pool */
@@ -577,7 +578,6 @@ union ctl_io *ctl_alloc_io(void *pool_ref);
 union ctl_io *ctl_alloc_io_nowait(void *pool_ref);
 void ctl_free_io(union ctl_io *io);
 void ctl_zero_io(union ctl_io *io);
-void ctl_copy_io(union ctl_io *src, union ctl_io *dest);
 
 #endif /* _KERNEL */
 
