@@ -79,6 +79,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/resourcevar.h>
 #include <sys/rwlock.h>
+#include <sys/user.h>
 #include <sys/vnode.h>
 #include <sys/vmmeter.h>
 #include <sys/sx.h>
@@ -2268,6 +2269,142 @@ next_page:
 		object = tobject;
 	}
 }
+
+static int
+sysctl_vm_object_list(SYSCTL_HANDLER_ARGS)
+{
+	struct kinfo_vmobject kvo;
+	char *fullpath, *freepath;
+	struct vnode *vp;
+	struct vattr va;
+	vm_object_t obj;
+	vm_page_t m;
+	int count, error;
+
+	if (req->oldptr == NULL) {
+		/*
+		 * If an old buffer has not been provided, generate an
+		 * estimate of the space needed for a subsequent call.
+		 */
+		mtx_lock(&vm_object_list_mtx);
+		count = 0;
+		TAILQ_FOREACH(obj, &vm_object_list, object_list) {
+			if (obj->type == OBJT_DEAD)
+				continue;
+			count++;
+		}
+		mtx_unlock(&vm_object_list_mtx);
+		return (SYSCTL_OUT(req, NULL, sizeof(struct kinfo_vmobject) *
+		    count * 11 / 10));
+	}
+
+	error = 0;
+
+	/*
+	 * VM objects are type stable and are never removed from the
+	 * list once added.  This allows us to safely read obj->object_list
+	 * after reacquiring the VM object lock.
+	 */
+	mtx_lock(&vm_object_list_mtx);
+	TAILQ_FOREACH(obj, &vm_object_list, object_list) {
+		if (obj->type == OBJT_DEAD)
+			continue;
+		VM_OBJECT_RLOCK(obj);
+		if (obj->type == OBJT_DEAD) {
+			VM_OBJECT_RUNLOCK(obj);
+			continue;
+		}
+		mtx_unlock(&vm_object_list_mtx);
+		kvo.kvo_size = ptoa(obj->size);
+		kvo.kvo_resident = obj->resident_page_count;
+		kvo.kvo_ref_count = obj->ref_count;
+		kvo.kvo_shadow_count = obj->shadow_count;
+		kvo.kvo_memattr = obj->memattr;
+		kvo.kvo_active = 0;
+		kvo.kvo_inactive = 0;
+		TAILQ_FOREACH(m, &obj->memq, listq) {
+			/*
+			 * A page may belong to the object but be
+			 * dequeued and set to PQ_NONE while the
+			 * object lock is not held.  This makes the
+			 * reads of m->queue below racy, and we do not
+			 * count pages set to PQ_NONE.  However, this
+			 * sysctl is only meant to give an
+			 * approximation of the system anyway.
+			 */
+			if (m->queue == PQ_ACTIVE)
+				kvo.kvo_active++;
+			else if (m->queue == PQ_INACTIVE)
+				kvo.kvo_inactive++;
+		}
+
+		kvo.kvo_vn_fileid = 0;
+		kvo.kvo_vn_fsid = 0;
+		freepath = NULL;
+		fullpath = "";
+		vp = NULL;
+		switch (obj->type) {
+		case OBJT_DEFAULT:
+			kvo.kvo_type = KVME_TYPE_DEFAULT;
+			break;
+		case OBJT_VNODE:
+			kvo.kvo_type = KVME_TYPE_VNODE;
+			vp = obj->handle;
+			vref(vp);
+			break;
+		case OBJT_SWAP:
+			kvo.kvo_type = KVME_TYPE_SWAP;
+			break;
+		case OBJT_DEVICE:
+			kvo.kvo_type = KVME_TYPE_DEVICE;
+			break;
+		case OBJT_PHYS:
+			kvo.kvo_type = KVME_TYPE_PHYS;
+			break;
+		case OBJT_DEAD:
+			kvo.kvo_type = KVME_TYPE_DEAD;
+			break;
+		case OBJT_SG:
+			kvo.kvo_type = KVME_TYPE_SG;
+			break;
+		case OBJT_MGTDEVICE:
+			kvo.kvo_type = KVME_TYPE_MGTDEVICE;
+			break;
+		default:
+			kvo.kvo_type = KVME_TYPE_UNKNOWN;
+			break;
+		}
+		VM_OBJECT_RUNLOCK(obj);
+		if (vp != NULL) {
+			vn_fullpath(curthread, vp, &fullpath, &freepath);
+			vn_lock(vp, LK_SHARED | LK_RETRY);
+			if (VOP_GETATTR(vp, &va, curthread->td_ucred) == 0) {
+				kvo.kvo_vn_fileid = va.va_fileid;
+				kvo.kvo_vn_fsid = va.va_fsid;
+			}
+			vput(vp);
+		}
+
+		strlcpy(kvo.kvo_path, fullpath, sizeof(kvo.kvo_path));
+		if (freepath != NULL)
+			free(freepath, M_TEMP);
+
+		/* Pack record size down */
+		kvo.kvo_structsize = offsetof(struct kinfo_vmobject, kvo_path) +
+		    strlen(kvo.kvo_path) + 1;
+		kvo.kvo_structsize = roundup(kvo.kvo_structsize,
+		    sizeof(uint64_t));
+		error = SYSCTL_OUT(req, &kvo, kvo.kvo_structsize);
+		mtx_lock(&vm_object_list_mtx);
+		if (error)
+			break;
+	}
+	mtx_unlock(&vm_object_list_mtx);
+	return (error);
+}
+SYSCTL_PROC(_vm, OID_AUTO, objects, CTLTYPE_STRUCT | CTLFLAG_RW | CTLFLAG_SKIP |
+    CTLFLAG_MPSAFE, NULL, 0, sysctl_vm_object_list, "S,kinfo_vmobject",
+    "List of VM objects");
 
 #include "opt_ddb.h"
 #ifdef DDB
