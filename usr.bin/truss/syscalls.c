@@ -71,7 +71,7 @@ __FBSDID("$FreeBSD$");
 #include "syscall.h"
 
 /* 64-bit alignment on 32-bit platforms. */
-#ifdef __powerpc__
+#if !defined(__LP64__) && defined(__powerpc__)
 #define	QUAD_ALIGN	1
 #else
 #define	QUAD_ALIGN	0
@@ -320,10 +320,10 @@ static struct syscall syscalls[] = {
 	  .args = { { PipeFds | OUT, 0 } } },
 	{ .name = "pipe2", .ret_type = 1, .nargs = 2,
 	  .args = { { Ptr, 0 }, { Open, 1 } } },
-	{ .name = "truncate", .ret_type = 1, .nargs = 3,
-	  .args = { { Name | IN, 0 }, { Int | IN, 1 }, { Quad | IN, 2 } } },
-	{ .name = "ftruncate", .ret_type = 1, .nargs = 3,
-	  .args = { { Int | IN, 0 }, { Int | IN, 1 }, { Quad | IN, 2 } } },
+	{ .name = "truncate", .ret_type = 1, .nargs = 2,
+	  .args = { { Name | IN, 0 }, { Quad | IN, 1 + QUAD_ALIGN } } },
+	{ .name = "ftruncate", .ret_type = 1, .nargs = 2,
+	  .args = { { Int | IN, 0 }, { Quad | IN, 1 + QUAD_ALIGN } } },
 	{ .name = "kill", .ret_type = 1, .nargs = 2,
 	  .args = { { Int | IN, 0 }, { Signal | IN, 1 } } },
 	{ .name = "munmap", .ret_type = 1, .nargs = 2,
