@@ -392,11 +392,11 @@ struct ctl_lun {
 	struct ctl_log_pages		log_pages;
 	struct ctl_lun_io_stats		stats;
 	uint32_t			res_idx;
-	unsigned int			PRGeneration;
+	uint32_t			pr_generation;
 	uint64_t			*pr_keys[CTL_MAX_PORTS];
 	int				pr_key_count;
 	uint32_t			pr_res_idx;
-	uint8_t				res_type;
+	uint8_t				pr_res_type;
 	int				prevent_count;
 	uint32_t			prevent[(CTL_MAX_INITIATORS+31)/32];
 	uint8_t				*write_buffer;
