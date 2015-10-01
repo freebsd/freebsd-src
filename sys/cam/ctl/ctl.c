@@ -5101,6 +5101,13 @@ ctl_scsi_reserve(struct ctl_scsiio *ctsio)
 		ctl_set_reservation_conflict(ctsio);
 		goto bailout;
 	}
+
+	/* SPC-3 exceptions to SPC-2 RESERVE and RELEASE behavior. */
+	if (lun->flags & CTL_LUN_PR_RESERVED) {
+		ctl_set_success(ctsio);
+		goto bailout;
+	}
+
 	lun->flags |= CTL_LUN_RESERVED;
 	lun->res_idx = residx;
 	ctl_set_success(ctsio);
@@ -7624,7 +7631,8 @@ retry:
 
 		res_cap = (struct scsi_per_res_cap *)ctsio->kern_data_ptr;
 		scsi_ulto2b(sizeof(*res_cap), res_cap->length);
-		res_cap->flags2 |= SPRI_TMV | SPRI_ALLOW_5;
+		res_cap->flags1 = SPRI_CRH;
+		res_cap->flags2 = SPRI_TMV | SPRI_ALLOW_5;
 		type_mask = SPRI_TM_WR_EX_AR |
 			    SPRI_TM_EX_AC_RO |
 			    SPRI_TM_WR_EX_RO |
