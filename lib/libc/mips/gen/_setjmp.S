@@ -114,6 +114,29 @@ LEAF(_setjmp)
 #endif
 	INT_S	v0, (_JB_FPREG_FCSR * SZREG)(a0)
 #endif /* ! SOFTFLOAT */
+#if defined(_MIPS_ARCH_CHERI)
+	/* jmp_buf is 64-bit aligned, so we need to round it up. */
+	daddiu		t0, a0, ((_JB_CHERI_START * SZREG) + _MIPS_SZCAP/8 - SZREG)
+	li		t1, 0xffffffffffffffe0
+	and		t0, t0, t1
+	cgetdefault	$c4
+	cfromptr	$c3, $c4, t0
+
+	csc		$c11, zero, (_JB_CHERI_C11 * _MIPS_SZCAP/8)($c3)
+	csc		$c12, zero, (_JB_CHERI_C12 * _MIPS_SZCAP/8)($c3)
+	csc		$c13, zero, (_JB_CHERI_C13 * _MIPS_SZCAP/8)($c3)
+	csc		$c14, zero, (_JB_CHERI_C14 * _MIPS_SZCAP/8)($c3)
+	csc		$c15, zero, (_JB_CHERI_C15 * _MIPS_SZCAP/8)($c3)
+	csc		$c16, zero, (_JB_CHERI_C16 * _MIPS_SZCAP/8)($c3)
+	csc		$c17, zero, (_JB_CHERI_C17 * _MIPS_SZCAP/8)($c3)
+	csc		$c18, zero, (_JB_CHERI_C18 * _MIPS_SZCAP/8)($c3)
+	csc		$c19, zero, (_JB_CHERI_C19 * _MIPS_SZCAP/8)($c3)
+	csc		$c20, zero, (_JB_CHERI_C20 * _MIPS_SZCAP/8)($c3)
+	csc		$c21, zero, (_JB_CHERI_C21 * _MIPS_SZCAP/8)($c3)
+	csc		$c22, zero, (_JB_CHERI_C22 * _MIPS_SZCAP/8)($c3)
+	csc		$c23, zero, (_JB_CHERI_C23 * _MIPS_SZCAP/8)($c3)
+	csc		$c24, zero, (_JB_CHERI_C24 * _MIPS_SZCAP/8)($c3)
+#endif
 	REG_EPILOGUE
 
 	j	ra
@@ -182,6 +205,29 @@ LEAF(_longjmp)
 	FP_L	$f31, (_JB_FPREG_F31 * SZREG)(a0)
 #endif
 #endif	/* ! SOFTFLOAT */
+#if defined(_MIPS_ARCH_CHERI)
+	/* jmp_buf is 64-bit aligned, so we need to round it up. */
+	daddiu		t0, a0, ((_JB_CHERI_START * SZREG) + _MIPS_SZCAP/8 - SZREG)
+	li		t1, 0xffffffffffffffe0
+	and		t0, t0, t1
+	cgetdefault	$c4
+	cfromptr	$c3, $c4, t0
+
+	clc		$c11, zero, (_JB_CHERI_C11 * _MIPS_SZCAP/8)($c3)
+	clc		$c12, zero, (_JB_CHERI_C12 * _MIPS_SZCAP/8)($c3)
+	clc		$c13, zero, (_JB_CHERI_C13 * _MIPS_SZCAP/8)($c3)
+	clc		$c14, zero, (_JB_CHERI_C14 * _MIPS_SZCAP/8)($c3)
+	clc		$c15, zero, (_JB_CHERI_C15 * _MIPS_SZCAP/8)($c3)
+	clc		$c16, zero, (_JB_CHERI_C16 * _MIPS_SZCAP/8)($c3)
+	clc		$c17, zero, (_JB_CHERI_C17 * _MIPS_SZCAP/8)($c3)
+	clc		$c18, zero, (_JB_CHERI_C18 * _MIPS_SZCAP/8)($c3)
+	clc		$c19, zero, (_JB_CHERI_C19 * _MIPS_SZCAP/8)($c3)
+	clc		$c20, zero, (_JB_CHERI_C20 * _MIPS_SZCAP/8)($c3)
+	clc		$c21, zero, (_JB_CHERI_C21 * _MIPS_SZCAP/8)($c3)
+	clc		$c22, zero, (_JB_CHERI_C22 * _MIPS_SZCAP/8)($c3)
+	clc		$c23, zero, (_JB_CHERI_C23 * _MIPS_SZCAP/8)($c3)
+	clc		$c24, zero, (_JB_CHERI_C24 * _MIPS_SZCAP/8)($c3)
+#endif
 
 	REG_EPILOGUE
 	move	v0, a1			# get return value in 1st arg

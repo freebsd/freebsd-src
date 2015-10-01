@@ -9,3 +9,9 @@ SRCS+=	infinity.c fabs.c ldexp.c
 SRCS+=	_ctx_start.S _set_tp.c _setjmp.S makecontext.c \
 	setjmp.S signalcontext.c sigsetjmp.S \
 	trivial-getcontextx.c
+
+.if ${MK_CHERI} == "yes"
+# XXX-BD: clang currently miscompiles these.  See CHERI-LLVM bug #125.
+#CC.setjmp.S=      ${_CHERI_CC}
+#CC._setjmp.S=      ${_CHERI_CC}
+.endif

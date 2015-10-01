@@ -741,6 +741,35 @@ _C_LABEL(x):
 #define _JB_FPREG_F31		26
 #define _JB_FPREG_FCSR		27
 
+#ifdef _MIPS_ARCH_CHERI
+/*
+ * CHERI capabilities start here, but must be aligned so are may start up
+ * to two slots later.
+ */
+#define	_JB_CHERI_START	28
+/*
+ * Off set of each capbility relative to the address of _JB_CHERI_START
+ * rounded up to capability alignment.
+ */
+#define	_JB_CHERI_C11	0
+#define	_JB_CHERI_C12	1
+#define	_JB_CHERI_C13	2
+#define	_JB_CHERI_C14	3
+#define	_JB_CHERI_C15	4
+#define	_JB_CHERI_C16	5
+#define	_JB_CHERI_C17	6
+#define	_JB_CHERI_C18	7
+#define	_JB_CHERI_C19	8
+#define	_JB_CHERI_C20	9
+#define	_JB_CHERI_C21	10
+#define	_JB_CHERI_C22	11
+#define	_JB_CHERI_C23	12
+#define	_JB_CHERI_C24	13
+#ifdef __CHERI_SANDBOX__
+#define	_JB_CHERI_DDC	14
+#endif
+#endif
+
 /*
  * Various macros for dealing with TLB hazards
  * (a) why so many?
