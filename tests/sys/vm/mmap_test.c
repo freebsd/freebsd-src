@@ -110,18 +110,26 @@ checked_mmap(int prot, int flags, int fd, int error, const char *msg)
 ATF_TC_WITHOUT_HEAD(mmap__bad_arguments);
 ATF_TC_BODY(mmap__bad_arguments, tc)
 {
-	int fd;
+	int devstatfd, shmfd, zerofd;
 
-	ATF_REQUIRE((fd = shm_open(SHM_ANON, O_RDWR, 0644)) >= 0);
-	ATF_REQUIRE(ftruncate(fd, getpagesize()) == 0);
+	ATF_REQUIRE((devstatfd = open("/dev/devstat", O_RDONLY)) >= 0);
+	ATF_REQUIRE((shmfd = shm_open(SHM_ANON, O_RDWR, 0644)) >= 0);
+	ATF_REQUIRE(ftruncate(shmfd, getpagesize()) == 0);
+	ATF_REQUIRE((zerofd = open("/dev/zero", O_RDONLY)) >= 0);
 
 	/* These should work. */
 	checked_mmap(PROT_READ | PROT_WRITE, MAP_ANON, -1, 0,
 	    "simple MAP_ANON");
-	checked_mmap(PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0,
+	checked_mmap(PROT_READ | PROT_WRITE, MAP_SHARED, shmfd, 0,
 	    "simple shm fd shared");
-	checked_mmap(PROT_READ | PROT_WRITE, MAP_PRIVATE, fd, 0,
+	checked_mmap(PROT_READ | PROT_WRITE, MAP_PRIVATE, shmfd, 0,
 	    "simple shm fd private");
+	checked_mmap(PROT_READ, MAP_SHARED, zerofd, 0,
+	    "simple /dev/zero shared");
+	checked_mmap(PROT_READ | PROT_WRITE, MAP_PRIVATE, zerofd, 0,
+	    "simple /dev/zero private");
+	checked_mmap(PROT_READ, MAP_SHARED, devstatfd, 0,
+	    "simple /dev/devstat shared");
 
 #if 0
 	/*
@@ -133,7 +141,7 @@ ATF_TC_BODY(mmap__bad_arguments, tc)
 	/* Extra PROT flags. */
 	checked_mmap(PROT_READ | PROT_WRITE | 0x100000, MAP_ANON, -1, EINVAL,
 	    "MAP_ANON with extra PROT flags");
-	checked_mmap(0xffff, MAP_SHARED, fd, EINVAL,
+	checked_mmap(0xffff, MAP_SHARED, shmfd, EINVAL,
 	    "shm fd with garbage PROT");
 
 	/* Undefined flag. */
@@ -143,11 +151,11 @@ ATF_TC_BODY(mmap__bad_arguments, tc)
 	/* Both MAP_SHARED and MAP_PRIVATE */
 	checked_mmap(PROT_READ | PROT_WRITE, MAP_ANON | MAP_PRIVATE |
 	    MAP_SHARED, -1, EINVAL, "MAP_ANON with both SHARED and PRIVATE");
-	checked_mmap(PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_SHARED, fd,
+	checked_mmap(PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_SHARED, shmfd,
 	    EINVAL, "shm fd with both SHARED and PRIVATE");
 
 	/* At least one of MAP_SHARED or MAP_PRIVATE without ANON */
-	checked_mmap(PROT_READ | PROT_WRITE, 0, fd, EINVAL,
+	checked_mmap(PROT_READ | PROT_WRITE, 0, shmfd, EINVAL,
 	    "shm fd without sharing flag");
 #endif
 
@@ -160,6 +168,91 @@ ATF_TC_BODY(mmap__bad_arguments, tc)
 	/* MAP_ANON should require an fd of -1. */
 	checked_mmap(PROT_READ | PROT_WRITE, MAP_ANON | MAP_PRIVATE, 0, EINVAL,
 	    "MAP_ANON with fd != -1");
+
+	/* Writable MAP_SHARED should fail on read-only descriptors. */
+	checked_mmap(PROT_READ | PROT_WRITE, MAP_SHARED, zerofd, EACCES,
+	    "MAP_SHARED of read-only /dev/zero");
+
+	/*
+	 * Character devices other than /dev/zero do not support private
+	 * mappings.
+	 */
+	checked_mmap(PROT_READ, MAP_PRIVATE, devstatfd, EINVAL,
+	    "MAP_PRIVATE of /dev/devstat");
+}
+
+ATF_TC_WITHOUT_HEAD(mmap__dev_zero_private);
+ATF_TC_BODY(mmap__dev_zero_private, tc)
+{
+	char *p1, *p2, *p3;
+	size_t i;
+	int fd;
+
+	ATF_REQUIRE((fd = open("/dev/zero", O_RDONLY)) >= 0);
+
+	p1 = mmap(NULL, getpagesize(), PROT_READ | PROT_WRITE, MAP_PRIVATE, fd,
+	    0);
+	ATF_REQUIRE(p1 != MAP_FAILED);
+
+	p2 = mmap(NULL, getpagesize(), PROT_READ | PROT_WRITE, MAP_PRIVATE, fd,
+	    0);
+	ATF_REQUIRE(p2 != MAP_FAILED);
+
+	for (i = 0; i < getpagesize(); i++)
+		ATF_REQUIRE_EQ_MSG(0, p1[i], "byte at p1[%zu] is %x", i, p1[i]);
+
+	ATF_REQUIRE(memcmp(p1, p2, getpagesize()) == 0);
+
+	p1[0] = 1;
+
+	ATF_REQUIRE(p2[0] == 0);
+
+	p2[0] = 2;
+
+	ATF_REQUIRE(p1[0] == 1);
+
+	p3 = mmap(NULL, getpagesize(), PROT_READ | PROT_WRITE, MAP_PRIVATE, fd,
+	    0);
+	ATF_REQUIRE(p3 != MAP_FAILED);
+
+	ATF_REQUIRE(p3[0] == 0);
+}
+
+ATF_TC_WITHOUT_HEAD(mmap__dev_zero_shared);
+ATF_TC_BODY(mmap__dev_zero_shared, tc)
+{
+	char *p1, *p2, *p3;
+	size_t i;
+	int fd;
+
+	ATF_REQUIRE((fd = open("/dev/zero", O_RDWR)) >= 0);
+
+	p1 = mmap(NULL, getpagesize(), PROT_READ | PROT_WRITE, MAP_SHARED, fd,
+	    0);
+	ATF_REQUIRE(p1 != MAP_FAILED);
+
+	p2 = mmap(NULL, getpagesize(), PROT_READ | PROT_WRITE, MAP_SHARED, fd,
+	    0);
+	ATF_REQUIRE(p2 != MAP_FAILED);
+
+	for (i = 0; i < getpagesize(); i++)
+		ATF_REQUIRE_EQ_MSG(0, p1[i], "byte at p1[%zu] is %x", i, p1[i]);
+
+	ATF_REQUIRE(memcmp(p1, p2, getpagesize()) == 0);
+
+	p1[0] = 1;
+
+	ATF_REQUIRE(p2[0] == 0);
+
+	p2[0] = 2;
+
+	ATF_REQUIRE(p1[0] == 1);
+
+	p3 = mmap(NULL, getpagesize(), PROT_READ | PROT_WRITE, MAP_SHARED, fd,
+	    0);
+	ATF_REQUIRE(p3 != MAP_FAILED);
+
+	ATF_REQUIRE(p3[0] == 0);
 }
 
 ATF_TP_ADD_TCS(tp)
@@ -167,6 +260,8 @@ ATF_TP_ADD_TCS(tp)
 
 	ATF_TP_ADD_TC(tp, mmap__map_at_zero);
 	ATF_TP_ADD_TC(tp, mmap__bad_arguments);
+	ATF_TP_ADD_TC(tp, mmap__dev_zero_private);
+	ATF_TP_ADD_TC(tp, mmap__dev_zero_shared);
 
 	return (atf_no_error());
 }
