@@ -1077,16 +1077,15 @@ vop_stdadvise(struct vop_advise_args *ap)
 		BO_RLOCK(&vp->v_bufobj);
 		bsize = vp->v_bufobj.bo_bsize;
 		startn = ap->a_start / bsize;
-		if (ap->a_end == OFF_MAX) {
-			endn = -1;
-			bl = &vp->v_bufobj.bo_clean.bv_hd;
-			if (!TAILQ_EMPTY(bl))
-				endn = TAILQ_LAST(bl, buflists)->b_lblkno;
-			bl = &vp->v_bufobj.bo_dirty.bv_hd;
-			if (!TAILQ_EMPTY(bl) &&
-			    endn < TAILQ_LAST(bl, buflists)->b_lblkno)
-				endn = TAILQ_LAST(bl, buflists)->b_lblkno;
-		} else
+		endn = -1;
+		bl = &vp->v_bufobj.bo_clean.bv_hd;
+		if (!TAILQ_EMPTY(bl))
+			endn = TAILQ_LAST(bl, buflists)->b_lblkno;
+		bl = &vp->v_bufobj.bo_dirty.bv_hd;
+		if (!TAILQ_EMPTY(bl) &&
+		    endn < TAILQ_LAST(bl, buflists)->b_lblkno)
+			endn = TAILQ_LAST(bl, buflists)->b_lblkno;
+		if (ap->a_end != OFF_MAX && endn != -1)
 			endn = ap->a_end / bsize;
 		BO_RUNLOCK(&vp->v_bufobj);
 		/*
