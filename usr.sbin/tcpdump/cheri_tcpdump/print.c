@@ -145,7 +145,7 @@ static const char *hash_colors[] = {
 };
 #define	N_HASH_COLORS	3
 
-#define	MAX_SANDBOXES	129
+#define	MAX_SANDBOXES	256
 static char *hash_names[MAX_SANDBOXES];
 static char *proto_names[MAX_SANDBOXES];
 static struct tcpdump_sandbox *ip_sandboxes[MAX_SANDBOXES] = {0};
@@ -639,9 +639,9 @@ init_print(uint32_t localnet, uint32_t mask, uint32_t timezone_offset)
 
 	/* XXX: check returns */
 	for (i = 0; i < MAX_SANDBOXES; i++)
-		asprintf(&hash_names[i], "hash%02d", i);
+		asprintf(&hash_names[i], "hash%03d", i);
 	for (i = 0; i < MAX_SANDBOXES; i++)
-		asprintf(&proto_names[i], "proto%02d", i);
+		asprintf(&proto_names[i], "proto%03d", i);
 
 	if (tcpdump_classp == NULL) {
 		if (tcpdump_sandbox_object_setup() != 0)
