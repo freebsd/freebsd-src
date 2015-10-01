@@ -2572,7 +2572,7 @@ core_intr(int cpu, struct trapframe *tf)
 		    TRAPF_USERMODE(tf));
 
 		v = pm->pm_sc.pm_reloadcount;
-		v = iaf_reload_count_to_perfctr_value(v);
+		v = iap_reload_count_to_perfctr_value(v);
 
 		/*
 		 * Stop the counter, reload it but only restart it if
