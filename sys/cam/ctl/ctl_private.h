@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2003, 2004, 2005, 2008 Silicon Graphics International Corp.
+ * Copyright (c) 2014-2015 Alexander Motin <mav@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -39,25 +40,18 @@
 #ifndef	_CTL_PRIVATE_H_
 #define	_CTL_PRIVATE_H_
 
+#include <cam/scsi/scsi_all.h>
+#include <cam/scsi/scsi_cd.h>
+#include <cam/scsi/scsi_da.h>
+
 /*
  * SCSI vendor and product names.
  */
 #define	CTL_VENDOR		"FREEBSD "
 #define	CTL_DIRECT_PRODUCT	"CTLDISK         "
 #define	CTL_PROCESSOR_PRODUCT	"CTLPROCESSOR    "
+#define	CTL_CDROM_PRODUCT	"CTLCDROM        "
 #define	CTL_UNKNOWN_PRODUCT	"CTLDEVICE       "
-
-typedef enum {
-	CTL_IOCTL_INPROG,
-	CTL_IOCTL_DATAMOVE,
-	CTL_IOCTL_DONE
-} ctl_fe_ioctl_state;
-
-struct ctl_fe_ioctl_params {
-	struct cv		sem;
-	struct mtx		ioctl_mtx;
-	ctl_fe_ioctl_state	state;
-};
 
 #define CTL_POOL_ENTRIES_OTHER_SC   200
 
@@ -98,17 +92,17 @@ typedef enum {
 typedef enum {
 	CTL_CMD_FLAG_NONE		= 0x0000,
 	CTL_CMD_FLAG_NO_SENSE		= 0x0010,
-	CTL_CMD_FLAG_OK_ON_NO_LUN	= 0x0020,
-	CTL_CMD_FLAG_ALLOW_ON_RESV	= 0x0040,
+	CTL_CMD_FLAG_ALLOW_ON_RESV	= 0x0020,
+	CTL_CMD_FLAG_ALLOW_ON_PR_RESV	= 0x0040,
 	CTL_CMD_FLAG_ALLOW_ON_PR_WRESV	= 0x0080,
 	CTL_CMD_FLAG_OK_ON_PROC		= 0x0100,
-	CTL_CMD_FLAG_OK_ON_SLUN		= 0x0200,
-	CTL_CMD_FLAG_OK_ON_BOTH		= 0x0300,
-	CTL_CMD_FLAG_OK_ON_STOPPED	= 0x0400,
-	CTL_CMD_FLAG_OK_ON_INOPERABLE	= 0x0800,
-	CTL_CMD_FLAG_OK_ON_STANDBY	= 0x1000,
-	CTL_CMD_FLAG_OK_ON_UNAVAIL	= 0x2000,
-	CTL_CMD_FLAG_ALLOW_ON_PR_RESV	= 0x4000,
+	CTL_CMD_FLAG_OK_ON_DIRECT	= 0x0200,
+	CTL_CMD_FLAG_OK_ON_CDROM	= 0x0400,
+	CTL_CMD_FLAG_OK_ON_BOTH		= 0x0700,
+	CTL_CMD_FLAG_OK_ON_NO_LUN	= 0x0800,
+	CTL_CMD_FLAG_OK_ON_NO_MEDIA	= 0x1000,
+	CTL_CMD_FLAG_OK_ON_STANDBY	= 0x2000,
+	CTL_CMD_FLAG_OK_ON_UNAVAIL	= 0x4000,
 	CTL_CMD_FLAG_SA5		= 0x8000,
 	CTL_CMD_FLAG_RUN_HERE		= 0x10000
 } ctl_cmd_flags;
@@ -153,13 +147,14 @@ typedef enum {
 	CTL_LUN_DISABLED	= 0x008,
 	CTL_LUN_MALLOCED	= 0x010,
 	CTL_LUN_STOPPED		= 0x020,
-	CTL_LUN_INOPERABLE	= 0x040,
-	CTL_LUN_OFFLINE		= 0x080,
+	CTL_LUN_NO_MEDIA	= 0x040,
+	CTL_LUN_EJECTED		= 0x080,
 	CTL_LUN_PR_RESERVED	= 0x100,
 	CTL_LUN_PRIMARY_SC	= 0x200,
 	CTL_LUN_SENSE_DESC	= 0x400,
 	CTL_LUN_READONLY	= 0x800,
-	CTL_LUN_PEER_SC_PRIMARY	= 0x1000
+	CTL_LUN_PEER_SC_PRIMARY	= 0x1000,
+	CTL_LUN_REMOVABLE	= 0x2000
 } ctl_lun_flags;
 
 typedef enum {
@@ -243,7 +238,10 @@ typedef int	ctl_modesel_handler(struct ctl_scsiio *ctsio,
 
 typedef enum {
 	CTL_PAGE_FLAG_NONE	 = 0x00,
-	CTL_PAGE_FLAG_DISK_ONLY	 = 0x01
+	CTL_PAGE_FLAG_DIRECT	 = 0x01,
+	CTL_PAGE_FLAG_PROC	 = 0x02,
+	CTL_PAGE_FLAG_CDROM	 = 0x04,
+	CTL_PAGE_FLAG_ALL	 = 0x07
 } ctl_page_flags;
 
 struct ctl_page_index {
@@ -274,25 +272,29 @@ struct ctl_logical_block_provisioning_page {
 
 static const struct ctl_page_index page_index_template[] = {
 	{SMS_RW_ERROR_RECOVERY_PAGE, 0, sizeof(struct scsi_da_rw_recovery_page), NULL,
-	 CTL_PAGE_FLAG_DISK_ONLY, NULL, NULL},
+	 CTL_PAGE_FLAG_DIRECT | CTL_PAGE_FLAG_CDROM, NULL, NULL},
 	{SMS_FORMAT_DEVICE_PAGE, 0, sizeof(struct scsi_format_page), NULL,
-	 CTL_PAGE_FLAG_DISK_ONLY, NULL, NULL},
+	 CTL_PAGE_FLAG_DIRECT, NULL, NULL},
 	{SMS_RIGID_DISK_PAGE, 0, sizeof(struct scsi_rigid_disk_page), NULL,
-	 CTL_PAGE_FLAG_DISK_ONLY, NULL, NULL},
+	 CTL_PAGE_FLAG_DIRECT, NULL, NULL},
 	{SMS_CACHING_PAGE, 0, sizeof(struct scsi_caching_page), NULL,
-	 CTL_PAGE_FLAG_DISK_ONLY, NULL, ctl_caching_sp_handler},
+	 CTL_PAGE_FLAG_DIRECT | CTL_PAGE_FLAG_CDROM,
+	 NULL, ctl_caching_sp_handler},
 	{SMS_CONTROL_MODE_PAGE, 0, sizeof(struct scsi_control_page), NULL,
-	 CTL_PAGE_FLAG_NONE, NULL, ctl_control_page_handler},
+	 CTL_PAGE_FLAG_ALL, NULL, ctl_control_page_handler},
 	{SMS_CONTROL_MODE_PAGE | SMPH_SPF, 0x01,
 	 sizeof(struct scsi_control_ext_page), NULL,
-	 CTL_PAGE_FLAG_NONE, NULL, NULL},
+	 CTL_PAGE_FLAG_ALL, NULL, NULL},
 	{SMS_INFO_EXCEPTIONS_PAGE, 0, sizeof(struct scsi_info_exceptions_page), NULL,
-	 CTL_PAGE_FLAG_NONE, NULL, NULL},
+	 CTL_PAGE_FLAG_ALL, NULL, NULL},
 	{SMS_INFO_EXCEPTIONS_PAGE | SMPH_SPF, 0x02,
 	 sizeof(struct ctl_logical_block_provisioning_page), NULL,
-	 CTL_PAGE_FLAG_DISK_ONLY, NULL, NULL},
+	 CTL_PAGE_FLAG_DIRECT, NULL, NULL},
+	{SMS_CDDVD_CAPS_PAGE, 0,
+	 sizeof(struct scsi_cddvd_capabilities_page), NULL,
+	 CTL_PAGE_FLAG_CDROM, NULL, NULL},
 	{SMS_VENDOR_SPECIFIC_PAGE | SMPH_SPF, DBGCNF_SUBPAGE_CODE,
-	 sizeof(struct copan_debugconf_subpage), NULL, CTL_PAGE_FLAG_NONE,
+	 sizeof(struct copan_debugconf_subpage), NULL, CTL_PAGE_FLAG_ALL,
 	 ctl_debugconf_sp_sense_handler, ctl_debugconf_sp_select_handler},
 };
 
@@ -308,19 +310,20 @@ struct ctl_mode_pages {
 	struct scsi_control_ext_page	control_ext_page[4];
 	struct scsi_info_exceptions_page ie_page[4];
 	struct ctl_logical_block_provisioning_page lbp_page[4];
+	struct scsi_cddvd_capabilities_page cddvd_page[4];
 	struct copan_debugconf_subpage	debugconf_subpage[4];
 	struct ctl_page_index		index[CTL_NUM_MODE_PAGES];
 };
 
 static const struct ctl_page_index log_page_index_template[] = {
 	{SLS_SUPPORTED_PAGES_PAGE, 0, 0, NULL,
-	 CTL_PAGE_FLAG_NONE, NULL, NULL},
+	 CTL_PAGE_FLAG_ALL, NULL, NULL},
 	{SLS_SUPPORTED_PAGES_PAGE, SLS_SUPPORTED_SUBPAGES_SUBPAGE, 0, NULL,
-	 CTL_PAGE_FLAG_NONE, NULL, NULL},
+	 CTL_PAGE_FLAG_ALL, NULL, NULL},
 	{SLS_LOGICAL_BLOCK_PROVISIONING, 0, 0, NULL,
-	 CTL_PAGE_FLAG_NONE, ctl_lbp_log_sense_handler, NULL},
+	 CTL_PAGE_FLAG_DIRECT, ctl_lbp_log_sense_handler, NULL},
 	{SLS_STAT_AND_PERF, 0, 0, NULL,
-	 CTL_PAGE_FLAG_NONE, ctl_sap_log_sense_handler, NULL},
+	 CTL_PAGE_FLAG_ALL, ctl_sap_log_sense_handler, NULL},
 };
 
 #define	CTL_NUM_LOG_PAGES sizeof(log_page_index_template)/   \
@@ -344,17 +347,6 @@ struct ctl_lun_delay_info {
 	ctl_delay_type		done_type;
 	uint32_t		done_delay;
 };
-
-typedef enum {
-	CTL_ERR_INJ_NONE	= 0x00,
-	CTL_ERR_INJ_ABORTED	= 0x01
-} ctl_err_inject_flags;
-
-typedef enum {
-	CTL_PR_FLAG_NONE	= 0x00,
-	CTL_PR_FLAG_REGISTERED	= 0x01,
-	CTL_PR_FLAG_ACTIVE_RES	= 0x02
-} ctl_per_res_flags;
 
 #define CTL_PR_ALL_REGISTRANTS  0xFFFFFFFF
 #define CTL_PR_NO_RESERVATION   0xFFFFFFF0
@@ -381,10 +373,7 @@ struct ctl_lun {
 	struct ctl_softc		*ctl_softc;
 	struct ctl_be_lun		*be_lun;
 	struct ctl_backend_driver	*backend;
-	int				io_count;
 	struct ctl_lun_delay_info	delay_info;
-	int				sync_interval;
-	int				sync_count;
 #ifdef CTL_TIME_IO
 	sbintime_t			idle_time;
 	sbintime_t			last_busy;
@@ -392,7 +381,6 @@ struct ctl_lun {
 	TAILQ_HEAD(ctl_ooaq, ctl_io_hdr)  ooa_queue;
 	TAILQ_HEAD(ctl_blockq,ctl_io_hdr) blocked_queue;
 	STAILQ_ENTRY(ctl_lun)		links;
-	STAILQ_ENTRY(ctl_lun)		run_links;
 #ifdef CTL_WITH_CA
 	uint32_t			have_ca[CTL_MAX_INITIATORS >> 5];
 	struct scsi_sense_data		pending_sense[CTL_MAX_INITIATORS];
@@ -404,18 +392,19 @@ struct ctl_lun {
 	struct ctl_log_pages		log_pages;
 	struct ctl_lun_io_stats		stats;
 	uint32_t			res_idx;
-	unsigned int			PRGeneration;
+	uint32_t			pr_generation;
 	uint64_t			*pr_keys[CTL_MAX_PORTS];
 	int				pr_key_count;
 	uint32_t			pr_res_idx;
-	uint8_t				res_type;
+	uint8_t				pr_res_type;
+	int				prevent_count;
+	uint32_t			prevent[(CTL_MAX_INITIATORS+31)/32];
 	uint8_t				*write_buffer;
 	struct ctl_devid		*lun_devid;
 	TAILQ_HEAD(tpc_lists, tpc_list) tpc_lists;
 };
 
 typedef enum {
-	CTL_FLAG_REAL_SYNC	= 0x02,
 	CTL_FLAG_ACTIVE_SHELF	= 0x04
 } ctl_gen_flags;
 
@@ -435,8 +424,6 @@ struct tpc_token;
 struct ctl_softc {
 	struct mtx ctl_lock;
 	struct cdev *dev;
-	int open_count;
-	int num_disks;
 	int num_luns;
 	ctl_gen_flags flags;
 	ctl_ha_mode ha_mode;
@@ -452,7 +439,6 @@ struct ctl_softc {
 	struct sysctl_oid *sysctl_tree;
 	void *othersc_pool;
 	struct proc *ctl_proc;
-	int targ_online;
 	uint32_t ctl_lun_mask[(CTL_MAX_LUNS + 31) / 32];
 	struct ctl_lun *ctl_luns[CTL_MAX_LUNS];
 	uint32_t ctl_port_mask[(CTL_MAX_PORTS + 31) / 32];
@@ -490,6 +476,7 @@ void ctl_pool_free(struct ctl_io_pool *pool);
 int ctl_scsi_release(struct ctl_scsiio *ctsio);
 int ctl_scsi_reserve(struct ctl_scsiio *ctsio);
 int ctl_start_stop(struct ctl_scsiio *ctsio);
+int ctl_prevent_allow(struct ctl_scsiio *ctsio);
 int ctl_sync_cache(struct ctl_scsiio *ctsio);
 int ctl_format(struct ctl_scsiio *ctsio);
 int ctl_read_buffer(struct ctl_scsiio *ctsio);
@@ -502,6 +489,7 @@ int ctl_log_sense(struct ctl_scsiio *ctsio);
 int ctl_read_capacity(struct ctl_scsiio *ctsio);
 int ctl_read_capacity_16(struct ctl_scsiio *ctsio);
 int ctl_read_defect(struct ctl_scsiio *ctsio);
+int ctl_read_toc(struct ctl_scsiio *ctsio);
 int ctl_read_write(struct ctl_scsiio *ctsio);
 int ctl_cnw(struct ctl_scsiio *ctsio);
 int ctl_report_luns(struct ctl_scsiio *ctsio);
@@ -509,6 +497,9 @@ int ctl_request_sense(struct ctl_scsiio *ctsio);
 int ctl_tur(struct ctl_scsiio *ctsio);
 int ctl_verify(struct ctl_scsiio *ctsio);
 int ctl_inquiry(struct ctl_scsiio *ctsio);
+int ctl_get_config(struct ctl_scsiio *ctsio);
+int ctl_get_event_status(struct ctl_scsiio *ctsio);
+int ctl_mechanism_status(struct ctl_scsiio *ctsio);
 int ctl_persistent_reserve_in(struct ctl_scsiio *ctsio);
 int ctl_persistent_reserve_out(struct ctl_scsiio *ctsio);
 int ctl_report_tagret_port_groups(struct ctl_scsiio *ctsio);

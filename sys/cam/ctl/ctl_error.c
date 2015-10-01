@@ -1,6 +1,7 @@
 /*-
  * Copyright (c) 2003-2009 Silicon Graphics International Corp.
  * Copyright (c) 2011 Spectra Logic Corporation
+ * Copyright (c) 2014-2015 Alexander Motin <mav@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -444,7 +445,7 @@ ctl_ua_to_acsq(struct ctl_lun *lun, ctl_ua_type ua_to_build, int *asc,
 		*asc = 0x2A;
 		*ascq = 0x06;
 		break;
-	case CTL_UA_CAPACITY_CHANGED:
+	case CTL_UA_CAPACITY_CHANGE:
 		/* 2Ah/09h  CAPACITY DATA HAS CHANGED */
 		*asc = 0x2A;
 		*ascq = 0x09;
@@ -454,6 +455,11 @@ ctl_ua_to_acsq(struct ctl_lun *lun, ctl_ua_type ua_to_build, int *asc,
 		*asc = 0x38;
 		*ascq = 0x07;
 		*info = lun->ua_tpt_info;
+		break;
+	case CTL_UA_MEDIUM_CHANGE:
+		/* 28h/00h  NOT READY TO READY CHANGE, MEDIUM MAY HAVE CHANGED */
+		*asc = 0x28;
+		*ascq = 0x00;
 		break;
 	default:
 		panic("%s: Unknown UA %x", __func__, ua_to_build);
@@ -606,10 +612,7 @@ ctl_set_invalid_field(struct ctl_scsiio *ctsio, int sks_valid, int command,
 void
 ctl_set_invalid_opcode(struct ctl_scsiio *ctsio)
 {
-	struct scsi_sense_data *sense;
 	uint8_t sks[3];
-
-	sense = &ctsio->sense_data;
 
 	sks[0] = SSD_SCS_VALID | SSD_FIELDPTR_CMD;
 	scsi_ulto2b(0, &sks[1]);
@@ -744,7 +747,7 @@ ctl_set_lun_stopped(struct ctl_scsiio *ctsio)
 }
 
 void
-ctl_set_lun_not_ready(struct ctl_scsiio *ctsio)
+ctl_set_lun_int_reqd(struct ctl_scsiio *ctsio)
 {
 	/* "Logical unit not ready, manual intervention required" */
 	ctl_set_sense(ctsio,
@@ -752,6 +755,30 @@ ctl_set_lun_not_ready(struct ctl_scsiio *ctsio)
 		      /*sense_key*/ SSD_KEY_NOT_READY,
 		      /*asc*/ 0x04,
 		      /*ascq*/ 0x03,
+		      SSD_ELEM_NONE);
+}
+
+void
+ctl_set_lun_ejected(struct ctl_scsiio *ctsio)
+{
+	/* "Medium not present - tray open" */
+	ctl_set_sense(ctsio,
+		      /*current_error*/ 1,
+		      /*sense_key*/ SSD_KEY_NOT_READY,
+		      /*asc*/ 0x3A,
+		      /*ascq*/ 0x02,
+		      SSD_ELEM_NONE);
+}
+
+void
+ctl_set_lun_no_media(struct ctl_scsiio *ctsio)
+{
+	/* "Medium not present - tray closed" */
+	ctl_set_sense(ctsio,
+		      /*current_error*/ 1,
+		      /*sense_key*/ SSD_KEY_NOT_READY,
+		      /*asc*/ 0x3A,
+		      /*ascq*/ 0x01,
 		      SSD_ELEM_NONE);
 }
 

@@ -158,6 +158,20 @@
 	(((var) & ~field##_M) | SM(field, val))
 
 /*
+ * ROM field with RF config.
+ */
+enum {
+	RTL8712_RFCONFIG_1T = 0x10,
+	RTL8712_RFCONFIG_2T = 0x20,
+	RTL8712_RFCONFIG_1R = 0x01,
+	RTL8712_RFCONFIG_2R = 0x02,
+	RTL8712_RFCONFIG_1T1R = 0x11,
+	RTL8712_RFCONFIG_1T2R = 0x12,
+	RTL8712_RFCONFIG_TURBO = 0x92,
+	RTL8712_RFCONFIG_2T2R = 0x22
+};
+
+/*
  * Firmware image header.
  */
 struct r92s_fw_priv {
@@ -173,6 +187,7 @@ struct r92s_fw_priv {
 	uint8_t		chip_version;
 	uint16_t	custid;
 	uint8_t		rf_config;
+//0x11:  1T1R, 0x12: 1T2R, 0x92: 1T2R turbo, 0x22: 2T2R
 	uint8_t		nendpoints;
 	/* QWORD1 */
 	uint32_t	regulatory;
@@ -749,12 +764,16 @@ struct rsu_softc {
 	int				sc_ht;
 	int				sc_nendpoints;
 	int				sc_curpwrstate;
+	int				sc_currssi;
 
 	u_int				sc_running:1,
 					sc_calibrating:1,
 					sc_scanning:1,
 					sc_scan_pass:1;
 	u_int				cut;
+	uint8_t				sc_rftype;
+	int8_t				sc_nrxstream;
+	int8_t				sc_ntxstream;
 	struct rsu_host_cmd_ring	cmdq;
 	struct rsu_data			sc_rx[RSU_RX_LIST_COUNT];
 	struct rsu_data			sc_tx[RSU_TX_LIST_COUNT];

@@ -379,6 +379,8 @@ MAN=	aac.4 \
 	oce.4 \
 	ohci.4 \
 	orm.4 \
+	otus.4 \
+	otusfw.4 \
 	ow.4 \
 	ow_temp.4 \
 	owc.4 \

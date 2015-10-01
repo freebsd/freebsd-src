@@ -66,8 +66,6 @@ all: ${PROGS}
 
 # We cannot capture dependencies for meta mode here
 UPDATE_DEPENDFILE = NO
-# nor can we safely run in parallel.
-.NOTPARALLEL:
 .endif
 .endif	# PROGS || PROGS_CXX
 
@@ -84,7 +82,7 @@ $v =
 
 .if !empty(PROGS) && !defined(_RECURSING_PROGS)
 # tell progs.mk we might want to install things
-PROGS_TARGETS+= checkdpadd clean cleandepend cleandir cleanobj depend install
+PROGS_TARGETS+= checkdpadd clean cleandepend cleandir depend install
 
 .for p in ${PROGS}
 .if defined(PROGS_CXX) && !empty(PROGS_CXX:M$p)

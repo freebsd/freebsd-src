@@ -130,13 +130,9 @@ cfcs_init(void)
 	struct cfcs_softc *softc;
 	struct ccb_setasync csa;
 	struct ctl_port *port;
-#ifdef NEEDTOPORT
-	char wwnn[8];
-#endif
 	int retval;
 
 	softc = &cfcs_softc;
-	retval = 0;
 	bzero(softc, sizeof(*softc));
 	mtx_init(&softc->lock, "ctl2cam", NULL, MTX_DEF);
 	port = &softc->port;
@@ -166,15 +162,6 @@ cfcs_init(void)
 		mtx_destroy(&softc->lock);
 		return (retval);
 	}
-
-	/*
-	 * Get the WWNN out of the database, and create a WWPN as well.
-	 */
-#ifdef NEEDTOPORT
-	ddb_GetWWNN((char *)wwnn);
-	softc->wwnn = be64dec(wwnn);
-	softc->wwpn = softc->wwnn + (softc->port.targ_port & 0xff);
-#endif
 
 	/*
 	 * If the CTL frontend didn't tell us what our WWNN/WWPN is, go

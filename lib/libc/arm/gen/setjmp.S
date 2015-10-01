@@ -158,3 +158,5 @@ ENTRY(__longjmp)
 	bl	PIC_SYM(_C_LABEL(abort), PLT)
 1:	b	1b		/* Cannot get here */
 END(__longjmp)
+
+	.section .note.GNU-stack,"",%progbits

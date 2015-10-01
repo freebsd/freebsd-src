@@ -3954,14 +3954,6 @@ wpi_config(struct wpi_softc *sc)
 	sc->rxon.cck_mask  = 0x0f;	/* not yet negotiated */
 	sc->rxon.ofdm_mask = 0xff;	/* not yet negotiated */
 
-	/* XXX Current configuration may be unusable. */
-	if (IEEE80211_IS_CHAN_NOADHOC(c) && sc->rxon.mode == WPI_MODE_IBSS) {
-		device_printf(sc->sc_dev,
-		    "%s: invalid channel (%d) selected for IBSS mode\n",
-		    __func__, ieee80211_chan2ieee(ic, c));
-		return EINVAL;
-	}
-
 	if ((error = wpi_send_rxon(sc, 0, 0)) != 0) {
 		device_printf(sc->sc_dev, "%s: could not send RXON\n",
 		    __func__);

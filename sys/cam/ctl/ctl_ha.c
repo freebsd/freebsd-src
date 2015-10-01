@@ -160,8 +160,6 @@ struct ha_softc {
 	TAILQ_HEAD(, ctl_ha_dt_req) ha_dts;
 } ha_softc;
 
-extern struct ctl_softc *control_softc;
-
 static void
 ctl_ha_conn_wake(struct ha_softc *softc)
 {
@@ -429,6 +427,7 @@ static int
 ctl_ha_connect(struct ha_softc *softc)
 {
 	struct thread *td = curthread;
+	struct sockaddr_in sa;
 	struct socket *so;
 	int error;
 
@@ -442,7 +441,8 @@ ctl_ha_connect(struct ha_softc *softc)
 	softc->ha_so = so;
 	ctl_ha_sock_setup(softc);
 
-	error = soconnect(so, (struct sockaddr *)&softc->ha_peer_in, td);
+	memcpy(&sa, &softc->ha_peer_in, sizeof(sa));
+	error = soconnect(so, (struct sockaddr *)&sa, td);
 	if (error != 0) {
 		printf("%s: soconnect() error %d\n", __func__, error);
 		goto out;
@@ -519,6 +519,7 @@ static int
 ctl_ha_listen(struct ha_softc *softc)
 {
 	struct thread *td = curthread;
+	struct sockaddr_in sa;
 	struct sockopt opt;
 	int error, val;
 
@@ -559,7 +560,8 @@ ctl_ha_listen(struct ha_softc *softc)
 		SOCKBUF_UNLOCK(&softc->ha_lso->so_rcv);
 	}
 
-	error = sobind(softc->ha_lso, (struct sockaddr *)&softc->ha_peer_in, td);
+	memcpy(&sa, &softc->ha_peer_in, sizeof(sa));
+	error = sobind(softc->ha_lso, (struct sockaddr *)&sa, td);
 	if (error != 0) {
 		printf("%s: sobind() error %d\n", __func__, error);
 		goto out;

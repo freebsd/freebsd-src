@@ -108,6 +108,7 @@ struct cctl_lun_nv {
 struct cctl_lun {
 	uint64_t lun_id;
 	char *backend_type;
+	uint8_t device_type;
 	uint64_t size_blocks;
 	uint32_t blocksize;
 	char *serial_number;
@@ -221,6 +222,8 @@ cctl_end_element(void *user_data, const char *name)
 	if (strcmp(name, "backend_type") == 0) {
 		cur_lun->backend_type = str;
 		str = NULL;
+	} else if (strcmp(name, "lun_type") == 0) {
+		cur_lun->device_type = strtoull(str, NULL, 0);
 	} else if (strcmp(name, "size") == 0) {
 		cur_lun->size_blocks = strtoull(str, NULL, 0);
 	} else if (strcmp(name, "blocksize") == 0) {
@@ -475,7 +478,7 @@ retry_port:
 		return (NULL);
 	}
 
-	if (list.status == CTL_PORT_LIST_ERROR) {
+	if (list.status == CTL_LUN_LIST_ERROR) {
 		log_warnx("error returned from CTL_PORT_LIST ioctl: %s",
 		    list.error_str);
 		free(str);
@@ -610,6 +613,7 @@ retry_port:
 			continue;
 		}
 		lun_set_backend(cl, lun->backend_type);
+		lun_set_device_type(cl, lun->device_type);
 		lun_set_blocksize(cl, lun->blocksize);
 		lun_set_device_id(cl, lun->device_id);
 		lun_set_serial(cl, lun->serial_number);
@@ -668,7 +672,7 @@ kernel_lun_add(struct lun *lun)
 	}
 
 	req.reqdata.create.flags |= CTL_LUN_FLAG_DEV_TYPE;
-	req.reqdata.create.device_type = T_DIRECT;
+	req.reqdata.create.device_type = lun->l_device_type;
 
 	if (lun->l_serial != NULL) {
 		strncpy(req.reqdata.create.serial_num, lun->l_serial,

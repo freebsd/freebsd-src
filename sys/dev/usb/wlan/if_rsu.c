@@ -22,12 +22,13 @@ __FBSDID("$FreeBSD$");
  * Driver for Realtek RTL8188SU/RTL8191SU/RTL8192SU.
  *
  * TODO:
- *   o 11n HT40 support
  *   o h/w crypto
  *   o hostap / ibss / mesh
  *   o sensible RSSI levels
  *   o power-save operation
  */
+
+#include "opt_wlan.h"
 
 #include <sys/param.h>
 #include <sys/endian.h>
@@ -202,17 +203,18 @@ static void	rsu_delete_key(struct rsu_softc *, const struct ieee80211_key *);
 static int	rsu_site_survey(struct rsu_softc *, struct ieee80211vap *);
 static int	rsu_join_bss(struct rsu_softc *, struct ieee80211_node *);
 static int	rsu_disconnect(struct rsu_softc *);
+static int	rsu_hwrssi_to_rssi(struct rsu_softc *, int hw_rssi);
 static void	rsu_event_survey(struct rsu_softc *, uint8_t *, int);
 static void	rsu_event_join_bss(struct rsu_softc *, uint8_t *, int);
 static void	rsu_rx_event(struct rsu_softc *, uint8_t, uint8_t *, int);
 static void	rsu_rx_multi_event(struct rsu_softc *, uint8_t *, int);
+#if 0
 static int8_t	rsu_get_rssi(struct rsu_softc *, int, void *);
+#endif
+static struct mbuf * rsu_rx_frame(struct rsu_softc *, uint8_t *, int);
+static struct mbuf * rsu_rx_multi_frame(struct rsu_softc *, uint8_t *, int);
 static struct mbuf *
-		rsu_rx_frame(struct rsu_softc *, uint8_t *, int, int *);
-static struct mbuf *
-		rsu_rx_multi_frame(struct rsu_softc *, uint8_t *, int, int *);
-static struct mbuf *
-		rsu_rxeof(struct usb_xfer *, struct rsu_data *, int *);
+		rsu_rxeof(struct usb_xfer *, struct rsu_data *);
 static void	rsu_txeof(struct usb_xfer *, struct rsu_data *);
 static int	rsu_raw_xmit(struct ieee80211_node *, struct mbuf *, 
 		    const struct ieee80211_bpf_params *);
@@ -402,6 +404,7 @@ rsu_attach(device_t self)
 	int error;
 	uint8_t iface_index, bands;
 	struct usb_interface *iface;
+	const char *rft;
 
 	device_set_usb_desc(self);
 	sc->sc_udev = uaa->device;
@@ -461,8 +464,37 @@ rsu_attach(device_t self)
 		device_printf(self, "could not read ROM\n");
 		goto fail_rom;
 	}
+
+	/* Figure out TX/RX streams */
+	switch (sc->rom[84]) {
+	case 0x0:
+		sc->sc_rftype = RTL8712_RFCONFIG_1T1R;
+		sc->sc_nrxstream = 1;
+		sc->sc_ntxstream = 1;
+		rft = "1T1R";
+		break;
+	case 0x1:
+		sc->sc_rftype = RTL8712_RFCONFIG_1T2R;
+		sc->sc_nrxstream = 2;
+		sc->sc_ntxstream = 1;
+		rft = "1T2R";
+		break;
+	case 0x2:
+		sc->sc_rftype = RTL8712_RFCONFIG_2T2R;
+		sc->sc_nrxstream = 2;
+		sc->sc_ntxstream = 2;
+		rft = "2T2R";
+		break;
+	default:
+		device_printf(sc->sc_dev,
+		    "%s: unknown board type (rfconfig=0x%02x)\n",
+		    __func__,
+		    sc->rom[84]);
+		goto fail_rom;
+	}
+
 	IEEE80211_ADDR_COPY(ic->ic_macaddr, &sc->rom[0x12]);
-	device_printf(self, "MAC/BB RTL8712 cut %d\n", sc->cut);
+	device_printf(self, "MAC/BB RTL8712 cut %d %s\n", sc->cut, rft);
 
 	ic->ic_softc = sc;
 	ic->ic_name = device_get_nameunit(self);
@@ -490,18 +522,11 @@ rsu_attach(device_t self)
 		    IEEE80211_HTC_AMSDU |
 		    IEEE80211_HTCAP_MAXAMSDU_3839 |
 		    IEEE80211_HTCAP_SMPS_OFF;
-
-		/*
-		 * XXX HT40 isn't working in this driver yet - there's
-		 * something missing.  Disable it for now.
-		 */
-#if 0
 		ic->ic_htcaps |= IEEE80211_HTCAP_CHWIDTH40;
-#endif
 
 		/* set number of spatial streams */
-		ic->ic_txstream = 1;
-		ic->ic_rxstream = 1;
+		ic->ic_txstream = sc->sc_ntxstream;
+		ic->ic_rxstream = sc->sc_nrxstream;
 	}
 
 	/* Set supported .11b and .11g rates. */
@@ -553,17 +578,24 @@ rsu_detach(device_t self)
 	RSU_LOCK(sc);
 	rsu_stop(sc);
 	RSU_UNLOCK(sc);
+
 	usbd_transfer_unsetup(sc->sc_xfer, RSU_N_TRANSFER);
+
+	/*
+	 * Free buffers /before/ we detach from net80211, else node
+	 * references to destroyed vaps will lead to a panic.
+	 */
+	/* Free Tx/Rx buffers. */
+	RSU_LOCK(sc);
+	rsu_free_tx_list(sc);
+	rsu_free_rx_list(sc);
+	RSU_UNLOCK(sc);
 
 	/* Frames are freed; detach from net80211 */
 	ieee80211_ifdetach(ic);
 
 	taskqueue_drain_timeout(taskqueue_thread, &sc->calib_task);
 	taskqueue_drain(taskqueue_thread, &sc->tx_task);
-
-	/* Free Tx/Rx buffers. */
-	rsu_free_tx_list(sc);
-	rsu_free_rx_list(sc);
 
 	mtx_destroy(&sc->sc_mtx);
 
@@ -1051,7 +1083,9 @@ static void
 rsu_calib_task(void *arg, int pending __unused)
 {
 	struct rsu_softc *sc = arg;
+#ifdef notyet
 	uint32_t reg;
+#endif
 
 	RSU_DPRINTF(sc, RSU_DEBUG_CALIB, "%s: running calibration task\n",
 	    __func__);
@@ -1069,9 +1103,10 @@ rsu_calib_task(void *arg, int pending __unused)
 #endif
 	/* Read current signal level. */
 	if (rsu_fw_iocmd(sc, 0xf4000001) == 0) {
-		reg = rsu_read_4(sc, R92S_IOCMD_DATA);
-		RSU_DPRINTF(sc, RSU_DEBUG_CALIB, "%s: RSSI=%d%%\n",
-		    __func__, reg >> 4);
+		sc->sc_currssi = rsu_read_4(sc, R92S_IOCMD_DATA);
+		RSU_DPRINTF(sc, RSU_DEBUG_CALIB, "%s: RSSI=%d (%d)\n",
+		    __func__, sc->sc_currssi,
+		    rsu_hwrssi_to_rssi(sc, sc->sc_currssi));
 	}
 	if (sc->sc_calibrating)
 		taskqueue_enqueue_timeout(taskqueue_thread, &sc->calib_task, hz);
@@ -1378,8 +1413,10 @@ rsu_join_bss(struct rsu_softc *sc, struct ieee80211_node *ni)
 	if ((ic->ic_flags & IEEE80211_F_WME) &&
 	    (ni->ni_ies.wme_ie != NULL))
 		frm = ieee80211_add_wme_info(frm, &ic->ic_wme);
-	if (ni->ni_flags & IEEE80211_NODE_HT)
+	if (ni->ni_flags & IEEE80211_NODE_HT) {
 		frm = ieee80211_add_htcap(frm, ni);
+		frm = ieee80211_add_htinfo(frm, ni);
+	}
 	bss->ieslen = htole32(frm - (uint8_t *)fixed);
 	bss->len = htole32(((frm - buf) + 3) & ~3);
 	RSU_DPRINTF(sc, RSU_DEBUG_RESET | RSU_DEBUG_FWCMD,
@@ -1398,6 +1435,24 @@ rsu_disconnect(struct rsu_softc *sc)
 	RSU_DPRINTF(sc, RSU_DEBUG_STATE | RSU_DEBUG_FWCMD,
 	    "%s: sending disconnect command\n", __func__);
 	return (rsu_fw_cmd(sc, R92S_CMD_DISCONNECT, &zero, sizeof(zero)));
+}
+
+/*
+ * Map the hardware provided RSSI value to a signal level.
+ * For the most part it's just something we divide by and cap
+ * so it doesn't overflow the representation by net80211.
+ */
+static int
+rsu_hwrssi_to_rssi(struct rsu_softc *sc, int hw_rssi)
+{
+	int v;
+
+	if (hw_rssi == 0)
+		return (0);
+	v = hw_rssi >> 4;
+	if (v > 80)
+		v = 80;
+	return (v);
 }
 
 static void
@@ -1453,8 +1508,9 @@ rsu_event_survey(struct rsu_softc *sc, uint8_t *buf, int len)
 	rxs.r_flags |= IEEE80211_R_NF | IEEE80211_R_RSSI;
 	rxs.c_ieee = le32toh(bss->config.dsconfig);
 	rxs.c_freq = ieee80211_ieee2mhz(rxs.c_ieee, IEEE80211_CHAN_2GHZ);
-	rxs.rssi = le32toh(bss->rssi);
-	rxs.nf = 0; /* XXX */
+	/* This is a number from 0..100; so let's just divide it down a bit */
+	rxs.rssi = le32toh(bss->rssi) / 2;
+	rxs.nf = -96;
 
 	/* XXX avoid a LOR */
 	RSU_UNLOCK(sc);
@@ -1524,7 +1580,7 @@ rsu_event_addba_req_report(struct rsu_softc *sc, uint8_t *buf, int len)
 	if (vap == NULL)
 		return;
 
-	device_printf(sc->sc_dev, "%s: mac=%s, tid=%d, ssn=%d\n",
+	RSU_DPRINTF(sc, RSU_DEBUG_AMPDU, "%s: mac=%s, tid=%d, ssn=%d\n",
 	    __func__,
 	    ether_sprintf(ba->mac_addr),
 	    (int) ba->tid,
@@ -1637,6 +1693,7 @@ rsu_rx_multi_event(struct rsu_softc *sc, uint8_t *buf, int len)
 	}
 }
 
+#if 0
 static int8_t
 rsu_get_rssi(struct rsu_softc *sc, int rate, void *physt)
 {
@@ -1657,9 +1714,10 @@ rsu_get_rssi(struct rsu_softc *sc, int rate, void *physt)
 	}
 	return (rssi);
 }
+#endif
 
 static struct mbuf *
-rsu_rx_frame(struct rsu_softc *sc, uint8_t *buf, int pktlen, int *rssi)
+rsu_rx_frame(struct rsu_softc *sc, uint8_t *buf, int pktlen)
 {
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ieee80211_frame *wh;
@@ -1685,16 +1743,17 @@ rsu_rx_frame(struct rsu_softc *sc, uint8_t *buf, int pktlen, int *rssi)
 	rate = MS(rxdw3, R92S_RXDW3_RATE);
 	infosz = MS(rxdw0, R92S_RXDW0_INFOSZ) * 8;
 
+#if 0
 	/* Get RSSI from PHY status descriptor if present. */
 	if (infosz != 0)
 		*rssi = rsu_get_rssi(sc, rate, &stat[1]);
 	else
 		*rssi = 0;
+#endif
 
 	RSU_DPRINTF(sc, RSU_DEBUG_RX,
-	    "%s: Rx frame len=%d rate=%d infosz=%d rssi=%d\n",
-	    __func__,
-	    pktlen, rate, infosz, *rssi);
+	    "%s: Rx frame len=%d rate=%d infosz=%d\n",
+	    __func__, pktlen, rate, infosz);
 
 	m = m_get2(pktlen, M_NOWAIT, MT_DATA, M_PKTHDR);
 	if (__predict_false(m == NULL)) {
@@ -1736,7 +1795,11 @@ rsu_rx_frame(struct rsu_softc *sc, uint8_t *buf, int pktlen, int *rssi)
 			/* Bit 7 set means HT MCS instead of rate. */
 			tap->wr_rate = 0x80 | (rate - 12);
 		}
+#if 0
 		tap->wr_dbm_antsignal = *rssi;
+#endif
+		/* XXX not nice */
+		tap->wr_dbm_antsignal = rsu_hwrssi_to_rssi(sc, sc->sc_currssi);
 		tap->wr_chan_freq = htole16(ic->ic_curchan->ic_freq);
 		tap->wr_chan_flags = htole16(ic->ic_curchan->ic_flags);
 	}
@@ -1745,7 +1808,7 @@ rsu_rx_frame(struct rsu_softc *sc, uint8_t *buf, int pktlen, int *rssi)
 }
 
 static struct mbuf *
-rsu_rx_multi_frame(struct rsu_softc *sc, uint8_t *buf, int len, int *rssi)
+rsu_rx_multi_frame(struct rsu_softc *sc, uint8_t *buf, int len)
 {
 	struct r92s_rx_stat *stat;
 	uint32_t rxdw0;
@@ -1777,7 +1840,7 @@ rsu_rx_multi_frame(struct rsu_softc *sc, uint8_t *buf, int len, int *rssi)
 			break;
 
 		/* Process 802.11 frame. */
-		m = rsu_rx_frame(sc, buf, pktlen, rssi);
+		m = rsu_rx_frame(sc, buf, pktlen);
 		if (m0 == NULL)
 			m0 = m;
 		if (prevm == NULL)
@@ -1796,7 +1859,7 @@ rsu_rx_multi_frame(struct rsu_softc *sc, uint8_t *buf, int len, int *rssi)
 }
 
 static struct mbuf *
-rsu_rxeof(struct usb_xfer *xfer, struct rsu_data *data, int *rssi)
+rsu_rxeof(struct usb_xfer *xfer, struct rsu_data *data)
 {
 	struct rsu_softc *sc = data->sc;
 	struct ieee80211com *ic = &sc->sc_ic;
@@ -1817,7 +1880,7 @@ rsu_rxeof(struct usb_xfer *xfer, struct rsu_data *data, int *rssi)
 		/* No packets to process. */
 		return (NULL);
 	} else
-		return (rsu_rx_multi_frame(sc, data->buf, len, rssi));
+		return (rsu_rx_multi_frame(sc, data->buf, len));
 }
 
 static void
@@ -1829,7 +1892,6 @@ rsu_bulk_rx_callback(struct usb_xfer *xfer, usb_error_t error)
 	struct ieee80211_node *ni;
 	struct mbuf *m = NULL, *next;
 	struct rsu_data *data;
-	int rssi = 1;
 
 	RSU_ASSERT_LOCKED(sc);
 
@@ -1839,11 +1901,15 @@ rsu_bulk_rx_callback(struct usb_xfer *xfer, usb_error_t error)
 		if (data == NULL)
 			goto tr_setup;
 		STAILQ_REMOVE_HEAD(&sc->sc_rx_active, next);
-		m = rsu_rxeof(xfer, data, &rssi);
+		m = rsu_rxeof(xfer, data);
 		STAILQ_INSERT_TAIL(&sc->sc_rx_inactive, data, next);
 		/* FALLTHROUGH */
 	case USB_ST_SETUP:
 tr_setup:
+		/*
+		 * XXX TODO: if we have an mbuf list, but then
+		 * we hit data == NULL, what now?
+		 */
 		data = STAILQ_FIRST(&sc->sc_rx_inactive);
 		if (data == NULL) {
 			KASSERT(m == NULL, ("mbuf isn't NULL"));
@@ -1861,6 +1927,11 @@ tr_setup:
 		 */
 		RSU_UNLOCK(sc);
 		while (m != NULL) {
+			int rssi;
+
+			/* Cheat and get the last calibrated RSSI */
+			rssi = rsu_hwrssi_to_rssi(sc, sc->sc_currssi);
+
 			next = m->m_next;
 			m->m_next = NULL;
 			wh = mtod(m, struct ieee80211_frame *);
@@ -1869,10 +1940,10 @@ tr_setup:
 			if (ni != NULL) {
 				if (ni->ni_flags & IEEE80211_NODE_HT)
 					m->m_flags |= M_AMPDU;
-				(void)ieee80211_input(ni, m, rssi, 0);
+				(void)ieee80211_input(ni, m, rssi, -96);
 				ieee80211_free_node(ni);
 			} else
-				(void)ieee80211_input_all(ic, m, rssi, 0);
+				(void)ieee80211_input_all(ic, m, rssi, -96);
 			m = next;
 		}
 		RSU_LOCK(sc);
@@ -1966,6 +2037,12 @@ tr_setup:
 		}
 		break;
 	}
+
+	/*
+	 * XXX TODO: if the queue is low, flush out FF TX frames.
+	 * Remember to unlock the driver for now; net80211 doesn't
+	 * defer it for us.
+	 */
 }
 
 static void
@@ -2001,6 +2078,11 @@ rsu_bulk_tx_callback_h2c(struct usb_xfer *xfer, usb_error_t error)
 	rsu_start(sc);
 }
 
+/*
+ * Transmit the given frame.
+ *
+ * This doesn't free the node or mbuf upon failure.
+ */
 static int
 rsu_tx_start(struct rsu_softc *sc, struct ieee80211_node *ni, 
     struct mbuf *m0, struct rsu_data *data)
@@ -2031,7 +2113,6 @@ rsu_tx_start(struct rsu_softc *sc, struct ieee80211_node *ni,
 			device_printf(sc->sc_dev,
 			    "ieee80211_crypto_encap returns NULL.\n");
 			/* XXX we don't expect the fragmented frames */
-			m_freem(m0);
 			return (ENOBUFS);
 		}
 		wh = mtod(m0, struct ieee80211_frame *);
@@ -2147,6 +2228,11 @@ rsu_transmit(struct ieee80211com *ic, struct mbuf *m)
 		RSU_UNLOCK(sc);
 		return (ENXIO);
 	}
+
+	/*
+	 * XXX TODO: ensure that we treat 'm' as a list of frames
+	 * to transmit!
+	 */
 	error = mbufq_enqueue(&sc->sc_snd, m);
 	if (error) {
 		RSU_DPRINTF(sc, RSU_DEBUG_TX,
@@ -2207,6 +2293,7 @@ _rsu_start(struct rsu_softc *sc)
 			    IFCOUNTER_OERRORS, 1);
 			rsu_freebuf(sc, bf);
 			ieee80211_free_node(ni);
+			m_freem(m);
 			break;
 		}
 	}
@@ -2647,8 +2734,7 @@ rsu_load_firmware(struct rsu_softc *sc)
 	dmem->hci_sel = R92S_HCI_SEL_USB | R92S_HCI_SEL_8172;
 	dmem->nendpoints = sc->sc_nendpoints;
 	dmem->chip_version = sc->cut;
-	/* XXX TODO: rf_config should come from ROM */
-	dmem->rf_config = 0x11;	/* 1T1R */
+	dmem->rf_config = sc->sc_rftype;
 	dmem->vcs_type = R92S_VCS_TYPE_AUTO;
 	dmem->vcs_mode = R92S_VCS_MODE_RTS_CTS;
 	dmem->turbo_mode = 0;
@@ -2720,6 +2806,7 @@ rsu_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	}
 	if (rsu_tx_start(sc, ni, m, bf) != 0) {
 		ieee80211_free_node(ni);
+		m_freem(m);
 		rsu_freebuf(sc, bf);
 		RSU_UNLOCK(sc);
 		return (EIO);
@@ -2807,19 +2894,6 @@ rsu_init(struct rsu_softc *sc)
 	if (error != 0) {
 		device_printf(sc->sc_dev, "could not set PS mode\n");
 		goto fail;
-	}
-
-	if (ic->ic_htcaps & IEEE80211_HTCAP_CHWIDTH40) {
-		/* Enable 40MHz mode. */
-		error = rsu_fw_iocmd(sc,
-		    SM(R92S_IOCMD_CLASS, 0xf4) |
-		    SM(R92S_IOCMD_INDEX, 0x00) |
-		    SM(R92S_IOCMD_VALUE, 0x0007));
-		if (error != 0) {
-			device_printf(sc->sc_dev,
-			    "could not enable 40MHz mode\n");
-			goto fail;
-		}
 	}
 
 	sc->sc_scan_pass = 0;
