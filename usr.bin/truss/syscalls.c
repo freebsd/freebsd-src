@@ -58,6 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <fcntl.h>
 #include <poll.h>
 #include <signal.h>
+#include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -1288,12 +1289,12 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 		fputs(xlookup_bits(rfork_flags, args[sc->offset]), fp);
 		break;
 	case Sockaddr: {
-		struct sockaddr_storage ss;
 		char addr[64];
 		struct sockaddr_in *lsin;
 		struct sockaddr_in6 *lsin6;
 		struct sockaddr_un *sun;
 		struct sockaddr *sa;
+		socklen_t len;
 		u_char *q;
 
 		if (args[sc->offset] == 0) {
@@ -1301,70 +1302,71 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 			break;
 		}
 
-		/* yuck: get ss_len */
-		if (get_struct(pid, (void *)args[sc->offset], (void *)&ss,
-		    sizeof(ss.ss_len) + sizeof(ss.ss_family)) == -1) {
-			fprintf(fp, "0x%lx", args[sc->offset]);
-			break;
-		}
-
 		/*
-		 * If ss_len is 0, then try to guess from the sockaddr type.
-		 * AF_UNIX may be initialized incorrectly, so always frob
-		 * it by using the "right" size.
+		 * Extract the address length from the next argument.  If
+		 * this is an output sockaddr (OUT is set), then the
+		 * next argument is a pointer to a socklen_t.  Otherwise
+		 * the next argument contains a socklen_t by value.
 		 */
-		if (ss.ss_len == 0 || ss.ss_family == AF_UNIX) {
-			switch (ss.ss_family) {
-			case AF_INET:
-				ss.ss_len = sizeof(*lsin);
-				break;
-			case AF_INET6:
-				ss.ss_len = sizeof(*lsin6);
-				break;
-			case AF_UNIX:
-				ss.ss_len = sizeof(*sun);
-				break;
-			default:
+		if (sc->type & OUT) {
+			if (get_struct(pid, (void *)args[sc->offset + 1],
+			    &len, sizeof(len)) == -1) {
+				fprintf(fp, "0x%lx", args[sc->offset]);
 				break;
 			}
-		}
-		if (ss.ss_len != 0 &&
-		    get_struct(pid, (void *)args[sc->offset], (void *)&ss,
-		    ss.ss_len) == -1) {
+		} else
+			len = args[sc->offset + 1];
+
+		/* If the length is too small, just bail. */
+		if (len < sizeof(*sa)) {
 			fprintf(fp, "0x%lx", args[sc->offset]);
 			break;
 		}
 
-		switch (ss.ss_family) {
+		sa = calloc(1, len);
+		if (get_struct(pid, (void *)args[sc->offset], sa, len) == -1) {
+			free(sa);
+			fprintf(fp, "0x%lx", args[sc->offset]);
+			break;
+		}
+
+		switch (sa->sa_family) {
 		case AF_INET:
-			lsin = (struct sockaddr_in *)&ss;
+			if (len < sizeof(*lsin))
+				goto sockaddr_short;
+			lsin = (struct sockaddr_in *)(void *)sa;
 			inet_ntop(AF_INET, &lsin->sin_addr, addr, sizeof(addr));
 			fprintf(fp, "{ AF_INET %s:%d }", addr,
 			    htons(lsin->sin_port));
 			break;
 		case AF_INET6:
-			lsin6 = (struct sockaddr_in6 *)&ss;
+			if (len < sizeof(*lsin6))
+				goto sockaddr_short;
+			lsin6 = (struct sockaddr_in6 *)(void *)sa;
 			inet_ntop(AF_INET6, &lsin6->sin6_addr, addr,
 			    sizeof(addr));
 			fprintf(fp, "{ AF_INET6 [%s]:%d }", addr,
 			    htons(lsin6->sin6_port));
 			break;
 		case AF_UNIX:
-			sun = (struct sockaddr_un *)&ss;
-			fprintf(fp, "{ AF_UNIX \"%s\" }", sun->sun_path);
+			sun = (struct sockaddr_un *)sa;
+			fprintf(fp, "{ AF_UNIX \"%.*s\" }",
+			    (int)(len - offsetof(struct sockaddr_un, sun_path)),
+			    sun->sun_path);
 			break;
 		default:
-			sa = (struct sockaddr *)&ss;
+		sockaddr_short:
 			fprintf(fp,
 			    "{ sa_len = %d, sa_family = %d, sa_data = {",
 			    (int)sa->sa_len, (int)sa->sa_family);
 			for (q = (u_char *)sa->sa_data;
-			     q < (u_char *)sa + sa->sa_len; q++)
+			     q < (u_char *)sa + len; q++)
 				fprintf(fp, "%s 0x%02x",
 				    q == (u_char *)sa->sa_data ? "" : ",",
 				    *q);
 			fputs(" } }", fp);
 		}
+		free(sa);
 		break;
 	}
 	case Sigaction: {
