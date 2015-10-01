@@ -1128,7 +1128,7 @@ static int
 tpc_process_wut(struct tpc_list *list)
 {
 	struct tpc_io *tio, *tior, *tiow;
-	struct runl run, *prun;
+	struct runl run;
 	int drange, srange;
 	off_t doffset, soffset;
 	off_t srclba, dstlba, numbytes, donebytes, roundbytes;
@@ -1208,8 +1208,7 @@ tpc_process_wut(struct tpc_list *list)
 //    srclba, dstlba);
 	donebytes = 0;
 	TAILQ_INIT(&run);
-	prun = &run;
-	list->tbdio = 1;
+	list->tbdio = 0;
 	TAILQ_INIT(&list->allio);
 	while (donebytes < numbytes) {
 		roundbytes = numbytes - donebytes;
@@ -1262,8 +1261,8 @@ tpc_process_wut(struct tpc_list *list)
 		tiow->io->io_hdr.ctl_private[CTL_PRIV_FRONTEND].ptr = tiow;
 
 		TAILQ_INSERT_TAIL(&tior->run, tiow, rlinks);
-		TAILQ_INSERT_TAIL(prun, tior, rlinks);
-		prun = &tior->run;
+		TAILQ_INSERT_TAIL(&run, tior, rlinks);
+		list->tbdio++;
 		donebytes += roundbytes;
 		srclba += roundbytes / srcblock;
 		dstlba += roundbytes / dstblock;
