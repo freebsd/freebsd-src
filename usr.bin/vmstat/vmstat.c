@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/resource.h>
 #include <sys/sysctl.h>
 #include <sys/time.h>
+#include <sys/user.h>
 #include <sys/vmmeter.h>
 #include <sys/pcpu.h>
 
@@ -143,12 +144,14 @@ static kvm_t   *kd;
 #define	TIMESTAT	0x10
 #define	VMSTAT		0x20
 #define ZMEMSTAT	0x40
+#define	OBJSTAT		0x80
 
 static void	cpustats(void);
 static void	pcpustats(int, u_long, int);
 static void	devstats(void);
 static void	doforkst(void);
 static void	dointr(void);
+static void	doobjstat(void);
 static void	dosum(void);
 static void	dovmstat(unsigned int, int);
 static void	domemstat_malloc(void);
@@ -181,7 +184,7 @@ main(int argc, char *argv[])
 	interval = reps = todo = 0;
 	maxshowdevs = 2;
 	hflag = isatty(1);
-	while ((c = getopt(argc, argv, "ac:fhHiM:mN:n:Pp:stw:z")) != -1) {
+	while ((c = getopt(argc, argv, "ac:fhHiM:mN:n:oPp:stw:z")) != -1) {
 		switch (c) {
 		case 'a':
 			aflag++;
@@ -219,6 +222,9 @@ main(int argc, char *argv[])
 			if (maxshowdevs < 0)
 				errx(1, "number of devices %d is < 0",
 				     maxshowdevs);
+			break;
+		case 'o':
+			todo |= OBJSTAT;
 			break;
 		case 'p':
 			if (devstat_buildmatch(optarg, &matches, &num_matches) != 0)
@@ -310,6 +316,8 @@ main(int argc, char *argv[])
 		domemstat_zone();
 	if (todo & SUMSTAT)
 		dosum();
+	if (todo & OBJSTAT)
+		doobjstat();
 #ifdef notyet
 	if (todo & TIMESTAT)
 		dotimes();
@@ -1299,6 +1307,129 @@ domemstat_zone(void)
 	printf("\n");
 }
 
+static void
+display_object(struct kinfo_vmobject *kvo)
+{
+	const char *str;
+
+	printf("%5jd ", (uintmax_t)kvo->kvo_resident);
+	printf("%5jd ", (uintmax_t)kvo->kvo_active);
+	printf("%5jd ", (uintmax_t)kvo->kvo_inactive);
+	printf("%3d ", kvo->kvo_ref_count);
+	printf("%3d ", kvo->kvo_shadow_count);
+	switch (kvo->kvo_memattr) {
+#ifdef VM_MEMATTR_UNCACHEABLE
+	case VM_MEMATTR_UNCACHEABLE:
+		str = "UC";
+		break;
+#endif
+#ifdef VM_MEMATTR_WRITE_COMBINING
+	case VM_MEMATTR_WRITE_COMBINING:
+		str = "WC";
+		break;
+#endif
+#ifdef VM_MEMATTR_WRITE_THROUGH
+	case VM_MEMATTR_WRITE_THROUGH:
+		str = "WT";
+		break;
+#endif
+#ifdef VM_MEMATTR_WRITE_PROTECTED
+	case VM_MEMATTR_WRITE_PROTECTED:
+		str = "WP";
+		break;
+#endif
+#ifdef VM_MEMATTR_WRITE_BACK
+	case VM_MEMATTR_WRITE_BACK:
+		str = "WB";
+		break;
+#endif
+#ifdef VM_MEMATTR_WEAK_UNCACHEABLE
+	case VM_MEMATTR_WEAK_UNCACHEABLE:
+		str = "UC-";
+		break;
+#endif
+#ifdef VM_MEMATTR_WB_WA
+	case VM_MEMATTR_WB_WA:
+		str = "WB";
+		break;
+#endif
+#ifdef VM_MEMATTR_NOCACHE
+	case VM_MEMATTR_NOCACHE:
+		str = "NC";
+		break;
+#endif
+#ifdef VM_MEMATTR_DEVICE
+	case VM_MEMATTR_DEVICE:
+		str = "DEV";
+		break;
+#endif
+#ifdef VM_MEMATTR_CACHEABLE
+	case VM_MEMATTR_CACHEABLE:
+		str = "C";
+		break;
+#endif
+#ifdef VM_MEMATTR_PREFETCHABLE
+	case VM_MEMATTR_PREFETCHABLE:
+		str = "PRE";
+		break;
+#endif
+	default:
+		str = "??";
+		break;
+	}
+	printf("%-3s ", str);
+	switch (kvo->kvo_type) {
+	case KVME_TYPE_NONE:
+		str = "--";
+		break;
+	case KVME_TYPE_DEFAULT:
+		str = "df";
+		break;
+	case KVME_TYPE_VNODE:
+		str = "vn";
+		break;
+	case KVME_TYPE_SWAP:
+		str = "sw";
+		break;
+	case KVME_TYPE_DEVICE:
+		str = "dv";
+		break;
+	case KVME_TYPE_PHYS:
+		str = "ph";
+		break;
+	case KVME_TYPE_DEAD:
+		str = "dd";
+		break;
+	case KVME_TYPE_SG:
+		str = "sg";
+		break;
+	case KVME_TYPE_UNKNOWN:
+	default:
+		str = "??";
+		break;
+	}
+	printf("%-2s ", str);
+	printf("%-s\n", kvo->kvo_path);
+}
+
+static void
+doobjstat(void)
+{
+	struct kinfo_vmobject *kvo;
+	int cnt, i;
+
+	kvo = kinfo_getvmobject(&cnt);
+	if (kvo == NULL) {
+		warn("Failed to fetch VM object list");
+		return;
+	}
+	printf("%5s %5s %5s %3s %3s %3s %2s %s\n", "RES", "ACT", "INACT",
+	    "REF", "SHD", "CM", "TP", "PATH");
+	for (i = 0; i < cnt; i++)
+		display_object(&kvo[i]);
+	free(kvo);
+}
+
 /*
  * kread reads something from the kernel, given its nlist index.
  */
@@ -1351,7 +1482,7 @@ static void
 usage(void)
 {
 	(void)fprintf(stderr, "%s%s",
-		"usage: vmstat [-afHhimPsz] [-M core [-N system]] [-c count] [-n devs]\n",
+		"usage: vmstat [-afHhimoPsz] [-M core [-N system]] [-c count] [-n devs]\n",
 		"              [-p type,if,pass] [-w wait] [disks] [wait [count]]\n");
 	exit(1);
 }
