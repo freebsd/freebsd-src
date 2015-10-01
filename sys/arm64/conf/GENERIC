@@ -107,6 +107,9 @@ device		ahci
 device		scbus
 device		da
 
+# ATA/SCSI peripherals
+device		pass		# Passthrough device (direct ATA/SCSI access)
+
 # MMC/SD/SDIO Card slot support
 device		mmc			# mmc/sd bus
 device		mmcsd			# mmc/sd flash cards
@@ -119,7 +122,10 @@ device		pl011
 # USB support
 options 	USB_DEBUG		# enable debug msgs
 device		dwcotg			# DWC OTG controller
+device		xhci			# XHCI PCI->USB interface (USB 3.0)
 device		usb			# USB Bus (required)
+device		ukbd			# Keyboard
+device		umass			# Disks/Mass storage - Requires scbus and da
 
 # Pseudo devices.
 device		loop		# Network loopback

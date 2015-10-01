@@ -1307,9 +1307,6 @@ in6_purgeaddr(struct ifaddr *ifa)
 	/* stop DAD processing */
 	nd6_dad_stop(ifa);
 
-	/* Remove local address entry from lltable. */
-	nd6_rem_ifa_lle(ia);
-
 	/* Leave multicast groups. */
 	while ((imm = LIST_FIRST(&ia->ia6_memberships)) != NULL) {
 		LIST_REMOVE(imm, i6mm_chain);
@@ -1333,6 +1330,7 @@ static void
 in6_unlink_ifa(struct in6_ifaddr *ia, struct ifnet *ifp)
 {
 	char ip6buf[INET6_ADDRSTRLEN];
+	int remove_lle;
 
 	IF_ADDR_WLOCK(ifp);
 	TAILQ_REMOVE(&ifp->if_addrhead, &ia->ia_ifa, ifa_link);
@@ -1353,14 +1351,20 @@ in6_unlink_ifa(struct in6_ifaddr *ia, struct ifnet *ifp)
 	 * Release the reference to the base prefix.  There should be a
 	 * positive reference.
 	 */
+	remove_lle = 0;
 	if (ia->ia6_ndpr == NULL) {
 		nd6log((LOG_NOTICE,
 		    "in6_unlink_ifa: autoconf'ed address "
 		    "%s has no prefix\n", ip6_sprintf(ip6buf, IA6_IN6(ia))));
 	} else {
 		ia->ia6_ndpr->ndpr_refcnt--;
+		/* Do not delete lles within prefix if refcont != 0 */
+		if (ia->ia6_ndpr->ndpr_refcnt == 0)
+			remove_lle = 1;
 		ia->ia6_ndpr = NULL;
 	}
+
+	nd6_rem_ifa_lle(ia, remove_lle);
 
 	/*
 	 * Also, if the address being removed is autoconf'ed, call
@@ -2081,15 +2085,33 @@ in6_lltable_new(const struct in6_addr *addr6, u_int flags)
 }
 
 static int
-in6_lltable_match_prefix(const struct sockaddr *prefix,
-    const struct sockaddr *mask, u_int flags, struct llentry *lle)
+in6_lltable_match_prefix(const struct sockaddr *saddr,
+    const struct sockaddr *smask, u_int flags, struct llentry *lle)
 {
-	const struct sockaddr_in6 *pfx = (const struct sockaddr_in6 *)prefix;
-	const struct sockaddr_in6 *msk = (const struct sockaddr_in6 *)mask;
+	const struct in6_addr *addr, *mask, *lle_addr;
 
-	if (IN6_ARE_MASKED_ADDR_EQUAL(&lle->r_l3addr.addr6,
-	    &pfx->sin6_addr, &msk->sin6_addr) &&
-	    ((flags & LLE_STATIC) || !(lle->la_flags & LLE_STATIC)))
+	addr = &((const struct sockaddr_in6 *)saddr)->sin6_addr;
+	mask = &((const struct sockaddr_in6 *)smask)->sin6_addr;
+	lle_addr = &lle->r_l3addr.addr6;
+
+	if (IN6_ARE_MASKED_ADDR_EQUAL(lle_addr, addr, mask) == 0)
+		return (0);
+
+	if (lle->la_flags & LLE_IFADDR) {
+
+		/*
+		 * Delete LLE_IFADDR records IFF address & flag matches.
+		 * Note that addr is the interface address within prefix
+		 * being matched.
+		 */
+		if (IN6_ARE_ADDR_EQUAL(addr, lle_addr) &&
+		    (flags & LLE_STATIC) != 0)
+			return (1);
+		return (0);
+	}
+
+	/* flags & LLE_STATIC means deleting both dynamic and static entries */
+	if ((flags & LLE_STATIC) || !(lle->la_flags & LLE_STATIC))
 		return (1);
 
 	return (0);
@@ -2200,36 +2222,16 @@ in6_lltable_find_dst(struct lltable *llt, const struct in6_addr *dst)
 	return (lle);
 }
 
-static int
-in6_lltable_delete(struct lltable *llt, u_int flags,
-	const struct sockaddr *l3addr)
+static void
+in6_lltable_delete_entry(struct lltable *llt, struct llentry *lle)
 {
-	const struct sockaddr_in6 *sin6 = (const struct sockaddr_in6 *)l3addr;
-	struct llentry *lle;
 
-	IF_AFDATA_LOCK_ASSERT(llt->llt_ifp);
-	KASSERT(l3addr->sa_family == AF_INET6,
-	    ("sin_family %d", l3addr->sa_family));
-
-	lle = in6_lltable_find_dst(llt, &sin6->sin6_addr);
-
-	if (lle == NULL)
-		return (ENOENT);
-
-	if (!(lle->la_flags & LLE_IFADDR) || (flags & LLE_IFADDR)) {
-		LLE_WLOCK(lle);
-		lle->la_flags |= LLE_DELETED;
-		EVENTHANDLER_INVOKE(lle_event, lle, LLENTRY_DELETED);
+	lle->la_flags |= LLE_DELETED;
+	EVENTHANDLER_INVOKE(lle_event, lle, LLENTRY_DELETED);
 #ifdef DIAGNOSTIC
-		log(LOG_INFO, "ifaddr cache = %p is deleted\n", lle);
+	log(LOG_INFO, "ifaddr cache = %p is deleted\n", lle);
 #endif
-		if ((lle->la_flags & (LLE_STATIC | LLE_IFADDR)) == LLE_STATIC)
-			llentry_free(lle);
-		else
-			LLE_WUNLOCK(lle);
-	}
-
-	return (0);
+	llentry_free(lle);
 }
 
 static struct llentry *
@@ -2352,6 +2354,8 @@ in6_lltable_dump_entry(struct lltable *llt, struct llentry *lle,
 			ndpc.rtm.rtm_flags |= (RTF_HOST | RTF_LLDATA);
 			if (lle->la_flags & LLE_STATIC)
 				ndpc.rtm.rtm_flags |= RTF_STATIC;
+			if (lle->la_flags & LLE_IFADDR)
+				ndpc.rtm.rtm_flags |= RTF_PINNED;
 			ndpc.rtm.rtm_index = ifp->if_index;
 			error = SYSCTL_OUT(wr, &ndpc, sizeof(ndpc));
 
@@ -2369,7 +2373,7 @@ in6_lltattach(struct ifnet *ifp)
 
 	llt->llt_lookup = in6_lltable_lookup;
 	llt->llt_alloc_entry = in6_lltable_alloc;
-	llt->llt_delete = in6_lltable_delete;
+	llt->llt_delete_entry = in6_lltable_delete_entry;
 	llt->llt_dump_entry = in6_lltable_dump_entry;
 	llt->llt_hash = in6_lltable_hash;
 	llt->llt_fill_sa_entry = in6_lltable_fill_sa_entry;

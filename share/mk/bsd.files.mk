@@ -55,10 +55,12 @@ ${group}NAME_${file:T}?=	${${group}NAME}
 ${group}NAME_${file:T}?=	${file:T}
 .endif
 .if !make(buildincludes)
-STAGE_AS_SETS+=	${group}
+STAGE_AS_SETS+=	${file:T}
 .endif
 STAGE_AS_${file:T}= ${${group}NAME_${file:T}}
-stage_as.${group}: ${file}
+# XXX {group}OWN,GRP,MODE
+STAGE_DIR.${file:T}= ${STAGE_OBJTOP}${${group}DIR_${file:T}}
+stage_as.${file:T}: ${file}
 
 installfiles-${group}: _${group}INS_${file:T}
 _${group}INS_${file:T}: ${file}

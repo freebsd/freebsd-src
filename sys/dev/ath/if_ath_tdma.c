@@ -548,7 +548,7 @@ ath_tdma_update(struct ieee80211_node *ni,
 	 *     slot position changes) because ieee80211_add_tdma
 	 *     skips over the data.
 	 */
-	memcpy(ATH_VAP(vap)->av_boff.bo_tdma +
+	memcpy(vap->iv_bcn_off.bo_tdma +
 		__offsetof(struct ieee80211_tdma_param, tdma_tstamp),
 		&ni->ni_tstamp.data, 8);
 #if 0

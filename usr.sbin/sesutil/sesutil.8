@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 1, 2015
+.Dd September 6, 2015
 .Dt SESUTIL 8
 .Os
 .Sh NAME
@@ -32,34 +32,87 @@
 .Nd Utility for managing SCSI Enclosure Services (SES) device
 .Sh SYNOPSIS
 .Nm
-.Cm locate Ar disk Bq on|off
+.Cm fault
+.Op Fl u Ar /dev/sesN
+.Aq Ar disk | Ar sesid | Li all
+.Op on | off
+.Nm
+.Cm locate
+.Op Fl u Ar /dev/sesN
+.Aq Ar disk | Ar sesid | Li all
+.Op on | off
+.Nm
+.Cm map
+.Op Fl u Ar /dev/sesN
+.Nm
+.Cm status
+.Op Fl u Ar /dev/sesN
 .Sh DESCRIPTION
 The
 .Nm
-utility can be used to modify various parameter on SCSI Enclosure Services
-(SES) device.
+utility can be used to query and modify various parameter of SCSI Enclosure
+Services (SES) devices.
 .Pp
 List of supported commands:
 .Bl -tag -width indent
-.It Cm locate Ar disk Bq on|off
-Change the state of the external LED associated with
+.It Cm fault Oo Fl u Ar /dev/sesN Oc Ao Ar disk | Li all Ac Op on | off
+Change the state of the external fault LED associated with
 .Ar disk .
 .Ar disk
 can be the device name of the disk, like
 .Cm da12 ,
 or
-.Cm all .
+.Ql all .
 to indicate all disks attached to SES controllers.
+.It Cm fault Fl u Ar /dev/sesN Ar sesid Op on | off
+Change the state of the external fault LED associated with an element
+connected to the SES controller.
+.Ar sesid
+must be the element ID of a valid item attached to the controller.
+Use the
+.Cm map
+command to list the elements attached to a controller.
+.It Cm locate Oo Fl u Ar /dev/sesN Oc Ao Ar disk | Li all Ac Op on | off
+Change the state of the external locate LED associated with
+.Ar disk .
+.Ar disk
+can be the device name of the disk, like
+.Cm da12 ,
+or
+.Ql all .
+to indicate all disks attached to SES controllers.
+.It Cm locate Fl u Ar /dev/sesN Ar sesid Op on | off
+Change the state of the external locate LED associated with an element
+connected to the SES controller.
+.Ar sesid
+must be the element ID of a valid item attached to the controller.
+Use the
+.Cm map
+command to list the elements attached to a controller.
+.It Cm map Op Fl u Ar /dev/sesN
+Display a map of all elements connected to the specified
+.Xr ses 4
+controller.
+If no controller is specified, all controllers are mapped.
+.It Cm status Op Fl u Ar /dev/sesN
+Display the status of the specified
+.Xr ses 4
+controller.
+If no controller is specified, the status of each controller is returned.
 .El
 .Sh EXAMPLES
-Turn off all external LEDs:
+Turn off all locate LEDs:
 .Pp
 .Dl Nm Cm locate all off
 .Pp
-Turn on the external LED of drive
+Turn on the locate LED for the drive bay corresponding to
 .Pa da15 :
 .Pp
 .Dl Nm Cm locate da15 on
+.Pp
+Turn on the fault LED for a drive bay not associated with a device:
+.Pp
+.Dl Nm Cm fault -u /dev/ses2 7 on
 .Sh SEE ALSO
 .Xr ses 4
 .Sh HISTORY
@@ -68,6 +121,10 @@ The
 utility first appeared in
 .Fx 11.0 .
 .Sh AUTHORS
+.An -nosplit
 The
-.Nm utility was written by
-.An Baptiste Daroussin Aq Mt bapt@FreeBSD.org .
+.Nm
+utility was written by
+.An Baptiste Daroussin Aq Mt bapt@FreeBSD.org
+and
+.An Allan Jude Aq Mt allanjude@FreeBSD.org .

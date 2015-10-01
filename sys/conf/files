@@ -1881,6 +1881,7 @@ dev/ixgbe/ixgbe_dcb_82599.c	optional ix inet | ixv inet \
 dev/jme/if_jme.c		optional jme pci
 dev/joy/joy.c			optional joy
 dev/joy/joy_isa.c		optional joy isa
+dev/kbd/kbd.c			optional atkbd | pckbd | sc | ukbd | vt
 dev/kbdmux/kbdmux.c		optional kbdmux
 dev/ksyms/ksyms.c		optional ksyms
 dev/le/am7990.c			optional le

@@ -265,7 +265,6 @@ dev/ipmi/ipmi_smbios.c		optional ipmi
 dev/ipmi/ipmi_ssif.c		optional ipmi smbus
 dev/ipmi/ipmi_pci.c		optional ipmi pci
 dev/ipmi/ipmi_linux.c		optional ipmi compat_linux
-dev/kbd/kbd.c			optional atkbd | sc | ukbd | vt
 dev/le/if_le_isa.c		optional le isa
 dev/mse/mse.c			optional mse
 dev/mse/mse_isa.c		optional mse isa

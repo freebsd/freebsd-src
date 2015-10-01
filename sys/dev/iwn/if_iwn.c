@@ -2716,7 +2716,6 @@ static uint32_t
 iwn_rate_to_plcp(struct iwn_softc *sc, struct ieee80211_node *ni,
     uint8_t rate)
 {
-#define	RV(v)	((v) & IEEE80211_RATE_VAL)
 	struct ieee80211com *ic = ni->ni_ic;
 	uint32_t plcp = 0;
 	int ridx;
@@ -2731,7 +2730,7 @@ iwn_rate_to_plcp(struct iwn_softc *sc, struct ieee80211_node *ni,
 		 * MCS 0 -> MCS 31, then set the "I'm an MCS rate!"
 		 * flag.
 		 */
-		plcp = RV(rate) | IWN_RFLAG_MCS;
+		plcp = IEEE80211_RV(rate) | IWN_RFLAG_MCS;
 
 		/*
 		 * XXX the following should only occur if both
@@ -2792,7 +2791,6 @@ iwn_rate_to_plcp(struct iwn_softc *sc, struct ieee80211_node *ni,
 	    plcp);
 
 	return (htole32(plcp));
-#undef	RV
 }
 
 static void
@@ -4370,7 +4368,6 @@ iwn_tx_data(struct iwn_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 		struct ieee80211_tx_ampdu *tap = &ni->ni_tx_ampdu[ac];
 
 		if (!IEEE80211_AMPDU_RUNNING(tap)) {
-			m_freem(m);
 			return EINVAL;
 		}
 
@@ -4422,7 +4419,6 @@ iwn_tx_data(struct iwn_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 		/* Retrieve key for TX. */
 		k = ieee80211_crypto_encap(ni, m);
 		if (k == NULL) {
-			m_freem(m);
 			return ENOBUFS;
 		}
 		/* 802.11 header may have moved. */
@@ -4553,7 +4549,6 @@ iwn_tx_data(struct iwn_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 		if (error != EFBIG) {
 			device_printf(sc->sc_dev,
 			    "%s: can't map mbuf (error %d)\n", __func__, error);
-			m_freem(m);
 			return error;
 		}
 		/* Too many DMA segments, linearize mbuf. */
@@ -4561,7 +4556,6 @@ iwn_tx_data(struct iwn_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 		if (m1 == NULL) {
 			device_printf(sc->sc_dev,
 			    "%s: could not defrag mbuf\n", __func__);
-			m_freem(m);
 			return ENOBUFS;
 		}
 		m = m1;
@@ -4571,7 +4565,6 @@ iwn_tx_data(struct iwn_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 		if (error != 0) {
 			device_printf(sc->sc_dev,
 			    "%s: can't map mbuf (error %d)\n", __func__, error);
-			m_freem(m);
 			return error;
 		}
 	}
@@ -4757,7 +4750,6 @@ iwn_tx_data_raw(struct iwn_softc *sc, struct mbuf *m,
 		if (error != EFBIG) {
 			device_printf(sc->sc_dev,
 			    "%s: can't map mbuf (error %d)\n", __func__, error);
-			m_freem(m);
 			return error;
 		}
 		/* Too many DMA segments, linearize mbuf. */
@@ -4765,7 +4757,6 @@ iwn_tx_data_raw(struct iwn_softc *sc, struct mbuf *m,
 		if (m1 == NULL) {
 			device_printf(sc->sc_dev,
 			    "%s: could not defrag mbuf\n", __func__);
-			m_freem(m);
 			return ENOBUFS;
 		}
 		m = m1;
@@ -4775,7 +4766,6 @@ iwn_tx_data_raw(struct iwn_softc *sc, struct mbuf *m,
 		if (error != 0) {
 			device_printf(sc->sc_dev,
 			    "%s: can't map mbuf (error %d)\n", __func__, error);
-			m_freem(m);
 			return error;
 		}
 	}
@@ -4871,6 +4861,9 @@ iwn_xmit_task(void *arg0, int pending)
 	IWN_UNLOCK(sc);
 }
 
+/*
+ * raw frame xmit - free node/reference if failed.
+ */
 static int
 iwn_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
     const struct ieee80211_bpf_params *params)
@@ -4933,12 +4926,17 @@ iwn_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	return error;
 }
 
+/*
+ * transmit - don't free mbuf if failed; don't free node ref if failed.
+ */
 static int
 iwn_transmit(struct ieee80211com *ic, struct mbuf *m)
 {
 	struct iwn_softc *sc = ic->ic_softc;
 	struct ieee80211_node *ni;
 	int error;
+
+	ni = (struct ieee80211_node *)m->m_pkthdr.rcvif;
 
 	IWN_LOCK(sc);
 	if ((sc->sc_flags & IWN_FLAG_RUNNING) == 0 || sc->sc_beacon_wait) {
@@ -4951,11 +4949,9 @@ iwn_transmit(struct ieee80211com *ic, struct mbuf *m)
 		return (ENOBUFS);
 	}
 
-	ni = (struct ieee80211_node *)m->m_pkthdr.rcvif;
 	error = iwn_tx_data(sc, m, ni);
 	if (error) {
 		if_inc_counter(ni->ni_vap->iv_ifp, IFCOUNTER_OERRORS, 1);
-		ieee80211_free_node(ni);
 	} else
 		sc->sc_tx_timer = 5;
 	IWN_UNLOCK(sc);
@@ -5179,7 +5175,6 @@ iwn5000_add_node(struct iwn_softc *sc, struct iwn_node_info *node, int async)
 static int
 iwn_set_link_quality(struct iwn_softc *sc, struct ieee80211_node *ni)
 {
-#define	RV(v)	((v) & IEEE80211_RATE_VAL)
 	struct iwn_node *wn = (void *)ni;
 	struct ieee80211_rateset *rs;
 	struct iwn_cmd_link_quality linkq;
@@ -5238,7 +5233,7 @@ iwn_set_link_quality(struct iwn_softc *sc, struct ieee80211_node *ni)
 		if (is_11n)
 			rate = IEEE80211_RATE_MCS | rs->rs_rates[txrate];
 		else
-			rate = RV(rs->rs_rates[txrate]);
+			rate = IEEE80211_RV(rs->rs_rates[txrate]);
 
 		/* Do rate -> PLCP config mapping */
 		plcp = iwn_rate_to_plcp(sc, ni, rate);
@@ -5263,7 +5258,7 @@ iwn_set_link_quality(struct iwn_softc *sc, struct ieee80211_node *ni)
 		 * entry, we're already pointing at it.
 		 */
 		if ((le32toh(plcp) & IWN_RFLAG_MCS) &&
-		    RV(le32toh(plcp)) > 7)
+		    IEEE80211_RV(le32toh(plcp)) > 7)
 			linkq.mimo = i + 1;
 
 		/* Next retry at immediate lower bit-rate. */
@@ -5283,7 +5278,6 @@ iwn_set_link_quality(struct iwn_softc *sc, struct ieee80211_node *ni)
 	DPRINTF(sc, IWN_DEBUG_TRACE, "->%s: end\n",__func__);
 
 	return iwn_cmd(sc, IWN_CMD_LINK_QUALITY, &linkq, sizeof linkq, 1);
-#undef	RV
 }
 
 /*
@@ -5350,6 +5344,8 @@ iwn_updateedca(struct ieee80211com *ic)
 
 	memset(&cmd, 0, sizeof cmd);
 	cmd.flags = htole32(IWN_EDCA_UPDATE);
+
+	IEEE80211_LOCK(ic);
 	for (aci = 0; aci < WME_NUM_AC; aci++) {
 		const struct wmeParams *ac =
 		    &ic->ic_wme.wme_chanParams.cap_wmeParams[aci];
@@ -5360,10 +5356,10 @@ iwn_updateedca(struct ieee80211com *ic)
 		    htole16(IEEE80211_TXOP_TO_US(ac->wmep_txopLimit));
 	}
 	IEEE80211_UNLOCK(ic);
+
 	IWN_LOCK(sc);
 	(void)iwn_cmd(sc, IWN_CMD_EDCA_PARAMS, &cmd, sizeof cmd, 1);
 	IWN_UNLOCK(sc);
-	IEEE80211_LOCK(ic);
 
 	DPRINTF(sc, IWN_DEBUG_TRACE, "->%s: end\n",__func__);
 

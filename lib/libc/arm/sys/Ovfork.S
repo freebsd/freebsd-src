@@ -53,3 +53,5 @@ ENTRY(vfork)
 	and	r0, r0, r1	/* r0 == 0 if child, else unchanged */
 	mov	r15, r2
 END(vfork)
+
+	.section .note.GNU-stack,"",%progbits

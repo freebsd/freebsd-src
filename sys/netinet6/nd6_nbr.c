@@ -768,17 +768,10 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 		bcopy(lladdr, &ln->ll_addr, ifp->if_addrlen);
 		ln->la_flags |= LLE_VALID;
 		EVENTHANDLER_INVOKE(lle_event, ln, LLENTRY_RESOLVED);
-		if (is_solicited) {
-			ln->ln_state = ND6_LLINFO_REACHABLE;
-			ln->ln_byhint = 0;
-			if (!ND6_LLINFO_PERMANENT(ln)) {
-				nd6_llinfo_settimer_locked(ln,
-				    (long)ND_IFINFO(ln->lle_tbl->llt_ifp)->reachable * hz);
-			}
-		} else {
-			ln->ln_state = ND6_LLINFO_STALE;
-			nd6_llinfo_settimer_locked(ln, (long)V_nd6_gctimer * hz);
-		}
+		if (is_solicited)
+			nd6_llinfo_setstate(ln, ND6_LLINFO_REACHABLE);
+		else
+			nd6_llinfo_setstate(ln, ND6_LLINFO_STALE);
 		if ((ln->ln_router = is_router) != 0) {
 			/*
 			 * This means a router's state has changed from
@@ -829,10 +822,8 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 			 * If state is REACHABLE, make it STALE.
 			 * no other updates should be done.
 			 */
-			if (ln->ln_state == ND6_LLINFO_REACHABLE) {
-				ln->ln_state = ND6_LLINFO_STALE;
-				nd6_llinfo_settimer_locked(ln, (long)V_nd6_gctimer * hz);
-			}
+			if (ln->ln_state == ND6_LLINFO_REACHABLE)
+				nd6_llinfo_setstate(ln, ND6_LLINFO_STALE);
 			goto freeit;
 		} else if (is_override				   /* (2a) */
 			|| (!is_override && (lladdr != NULL && !llchange)) /* (2b) */
@@ -852,19 +843,11 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 			 * If not solicited and the link-layer address was
 			 * changed, make it STALE.
 			 */
-			if (is_solicited) {
-				ln->ln_state = ND6_LLINFO_REACHABLE;
-				ln->ln_byhint = 0;
-				if (!ND6_LLINFO_PERMANENT(ln)) {
-					nd6_llinfo_settimer_locked(ln,
-					    (long)ND_IFINFO(ifp)->reachable * hz);
-				}
-			} else {
-				if (lladdr != NULL && llchange) {
-					ln->ln_state = ND6_LLINFO_STALE;
-					nd6_llinfo_settimer_locked(ln,
-					    (long)V_nd6_gctimer * hz);
-				}
+			if (is_solicited)
+				nd6_llinfo_setstate(ln, ND6_LLINFO_REACHABLE);
+			else {
+				if (lladdr != NULL && llchange)
+					nd6_llinfo_setstate(ln, ND6_LLINFO_STALE);
 			}
 		}
 

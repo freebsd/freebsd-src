@@ -173,7 +173,7 @@ LDFLAGS+=	-Wl,--version-script=${VERSION_MAP}
 
 .if defined(LIB) && !empty(LIB) || defined(SHLIB_NAME)
 OBJS+=		${SRCS:N*.h:R:S/$/.o/}
-NOPATH_FILES+=	${OBJS}
+CLEANFILES+=	${OBJS} ${STATICOBJS}
 .endif
 
 .if defined(LIB) && !empty(LIB)
@@ -191,7 +191,7 @@ lib${LIB_PRIVATE}${LIB}.a: ${OBJS} ${STATICOBJS}
 .if ${MK_PROFILE} != "no" && defined(LIB) && !empty(LIB)
 _LIBS+=		lib${LIB_PRIVATE}${LIB}_p.a
 POBJS+=		${OBJS:.o=.po} ${STATICOBJS:.o=.po}
-NOPATH_FILES+=	${POBJS}
+CLEANFILES+=	${POBJS}
 
 lib${LIB_PRIVATE}${LIB}_p.a: ${POBJS}
 	@${ECHO} building profiled ${LIB} library
@@ -203,7 +203,7 @@ lib${LIB_PRIVATE}${LIB}_p.a: ${POBJS}
 .if defined(SHLIB_NAME) || \
     defined(INSTALL_PIC_ARCHIVE) && defined(LIB) && !empty(LIB)
 SOBJS+=		${OBJS:.o=.So}
-NOPATH_FILES+=	${SOBJS}
+CLEANFILES+=	${SOBJS}
 .endif
 
 .if defined(SHLIB_NAME)
@@ -225,9 +225,8 @@ ${SHLIB_NAME_FULL}: beforelinking
 .endif
 
 .if defined(SHLIB_LINK)
-# ${_SHLIBDIRPREFIX} and ${_LDSCRIPTROOT} are both needed when cross-building
-# and when building 32 bits library shims.  ${_SHLIBDIRPREFIX} is the directory
-# prefix where shared objects will be installed by the install target.
+# ${_LDSCRIPTROOT} is needed when cross-building
+# and when building 32 bits library shims.
 #
 # ${_LDSCRIPTROOT} is the directory prefix that will be used when generating
 # ld(1) scripts.  The crosstools' ld is configured to lookup libraries in an
@@ -250,7 +249,9 @@ ${SHLIB_LINK:R}.ld: ${.CURDIR}/${SHLIB_LDSCRIPT}
 	    ${.ALLSRC} > ${.TARGET}
 
 ${SHLIB_NAME_FULL}: ${SHLIB_LINK:R}.ld
+CLEANFILES+=	${SHLIB_LINK:R}.ld
 .endif
+CLEANFILES+=	${SHLIB_LINK}
 .endif
 
 ${SHLIB_NAME_FULL}: ${SOBJS}
@@ -291,7 +292,7 @@ lib${LIB_PRIVATE}${LIB}_pic.a: ${SOBJS}
 LINTLIB=	llib-l${LIB}.ln
 _LIBS+=		${LINTLIB}
 LINTOBJS+=	${SRCS:M*.c:.c=.ln}
-NOPATH_FILES+=	${LINTOBJS}
+CLEANFILES+=	${LINTOBJS}
 
 ${LINTLIB}: ${LINTOBJS}
 	@${ECHO} building lint library ${.TARGET}
@@ -304,9 +305,12 @@ ${LINTLIB}: ${LINTOBJS}
 .if defined(_SKIP_BUILD)
 all:
 .else
+.if defined(_LIBS) && !empty(_LIBS)
 all: ${_LIBS}
+CLEANFILES+=	${_LIBS}
+.endif
 
-.if ${MK_MAN} != "no"
+.if ${MK_MAN} != "no" && !defined(LIBRARIES_ONLY)
 all: _manpages
 .endif
 .endif
@@ -442,49 +446,6 @@ ${SOBJS}: ${SRCS:M*.h}
 ${_S:R}.So: ${_S}
 .endfor
 .endif
-.endif
-
-.if !target(clean)
-clean:
-.if defined(CLEANFILES) && !empty(CLEANFILES)
-	rm -f ${CLEANFILES}
-.endif
-.if defined(LIB) && !empty(LIB)
-	rm -f a.out ${OBJS} ${OBJS:S/$/.tmp/} ${STATICOBJS}
-.endif
-.if !defined(INTERNALLIB)
-.if ${MK_PROFILE} != "no" && defined(LIB) && !empty(LIB)
-	rm -f ${POBJS} ${POBJS:S/$/.tmp/}
-.endif
-.if defined(SHLIB_NAME) || \
-    defined(INSTALL_PIC_ARCHIVE) && defined(LIB) && !empty(LIB)
-	rm -f ${SOBJS} ${SOBJS:.So=.so} ${SOBJS:S/$/.tmp/}
-.endif
-.if defined(SHLIB_NAME)
-.if defined(SHLIB_LINK)
-.if defined(SHLIB_LDSCRIPT) && exists(${.CURDIR}/${SHLIB_LDSCRIPT})
-	rm -f lib${LIB}.ld
-.endif
-	rm -f ${SHLIB_LINK}
-.endif
-.endif # defined(SHLIB_NAME)
-.if defined(WANT_LINT) && defined(LIB) && !empty(LIB)
-	rm -f ${LINTOBJS}
-.endif
-.endif # !defined(INTERNALLIB)
-.if defined(_LIBS) && !empty(_LIBS)
-	rm -f ${_LIBS}
-.endif
-.if defined(CLEANDIRS) && !empty(CLEANDIRS)
-	rm -rf ${CLEANDIRS}
-.endif
-.if !empty(VERSION_DEF) && !empty(SYMBOL_MAPS)
-	rm -f ${VERSION_MAP}
-.endif
-.endif
-
-.if !empty(_LIBS)
-NOPATH_FILES+=	${_LIBS}
 .endif
 
 .include <bsd.obj.mk>

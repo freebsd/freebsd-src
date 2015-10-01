@@ -174,7 +174,6 @@ static void	cfiscsi_target_release(struct cfiscsi_target *ct);
 static void	cfiscsi_session_delete(struct cfiscsi_session *cs);
 
 static struct cfiscsi_softc cfiscsi_softc;
-extern struct ctl_softc *control_softc;
 
 static struct ctl_frontend cfiscsi_frontend =
 {
@@ -462,6 +461,7 @@ cfiscsi_decode_lun(uint64_t encoded)
 			break;
 		}
 		result = (lun[1] << 16) + (lun[2] << 8) + lun[3];
+		break;
 	default:
 		CFISCSI_WARN("unsupported LUN format 0x%jx",
 		    (uintmax_t)encoded);
@@ -639,6 +639,12 @@ cfiscsi_pdu_handle_task_request(struct icl_pdu *request)
 #endif
 		io->taskio.task_action = CTL_TASK_ABORT_TASK_SET;
 		break;
+	case BHSTMR_FUNCTION_CLEAR_TASK_SET:
+#if 0
+		CFISCSI_SESSION_DEBUG(cs, "BHSTMR_FUNCTION_CLEAR_TASK_SET");
+#endif
+		io->taskio.task_action = CTL_TASK_CLEAR_TASK_SET;
+		break;
 	case BHSTMR_FUNCTION_LOGICAL_UNIT_RESET:
 #if 0
 		CFISCSI_SESSION_DEBUG(cs, "BHSTMR_FUNCTION_LOGICAL_UNIT_RESET");
@@ -650,6 +656,37 @@ cfiscsi_pdu_handle_task_request(struct icl_pdu *request)
 		CFISCSI_SESSION_DEBUG(cs, "BHSTMR_FUNCTION_TARGET_WARM_RESET");
 #endif
 		io->taskio.task_action = CTL_TASK_TARGET_RESET;
+		break;
+	case BHSTMR_FUNCTION_TARGET_COLD_RESET:
+#if 0
+		CFISCSI_SESSION_DEBUG(cs, "BHSTMR_FUNCTION_TARGET_COLD_RESET");
+#endif
+		io->taskio.task_action = CTL_TASK_TARGET_RESET;
+		break;
+	case BHSTMR_FUNCTION_QUERY_TASK:
+#if 0
+		CFISCSI_SESSION_DEBUG(cs, "BHSTMR_FUNCTION_QUERY_TASK");
+#endif
+		io->taskio.task_action = CTL_TASK_QUERY_TASK;
+		io->taskio.tag_num = bhstmr->bhstmr_referenced_task_tag;
+		break;
+	case BHSTMR_FUNCTION_QUERY_TASK_SET:
+#if 0
+		CFISCSI_SESSION_DEBUG(cs, "BHSTMR_FUNCTION_QUERY_TASK_SET");
+#endif
+		io->taskio.task_action = CTL_TASK_QUERY_TASK_SET;
+		break;
+	case BHSTMR_FUNCTION_I_T_NEXUS_RESET:
+#if 0
+		CFISCSI_SESSION_DEBUG(cs, "BHSTMR_FUNCTION_I_T_NEXUS_RESET");
+#endif
+		io->taskio.task_action = CTL_TASK_I_T_NEXUS_RESET;
+		break;
+	case BHSTMR_FUNCTION_QUERY_ASYNC_EVENT:
+#if 0
+		CFISCSI_SESSION_DEBUG(cs, "BHSTMR_FUNCTION_QUERY_ASYNC_EVENT");
+#endif
+		io->taskio.task_action = CTL_TASK_QUERY_ASYNC_EVENT;
 		break;
 	default:
 		CFISCSI_SESSION_DEBUG(cs, "unsupported function 0x%x",
@@ -929,6 +966,7 @@ cfiscsi_pdu_handle_data_out(struct icl_pdu *request)
 		done = (io->scsiio.ext_data_filled != cdw->cdw_r2t_end ||
 		    io->scsiio.ext_data_filled == io->scsiio.kern_data_len);
 		cfiscsi_data_wait_free(cs, cdw);
+		io->io_hdr.flags &= ~CTL_FLAG_DMA_INPROG;
 		if (done)
 			io->scsiio.be_move_done(io);
 		else
@@ -1141,6 +1179,7 @@ cfiscsi_session_terminate_tasks(struct cfiscsi_session *cs)
 		 * assuming that the data transfer actually succeeded
 		 * and writing uninitialized data to disk.
 		 */
+		cdw->cdw_ctl_io->io_hdr.flags &= ~CTL_FLAG_DMA_INPROG;
 		cdw->cdw_ctl_io->scsiio.io_hdr.port_status = 42;
 		cdw->cdw_ctl_io->scsiio.be_move_done(cdw->cdw_ctl_io);
 		cfiscsi_data_wait_free(cs, cdw);
@@ -1339,10 +1378,8 @@ int
 cfiscsi_init(void)
 {
 	struct cfiscsi_softc *softc;
-	int retval;
 
 	softc = &cfiscsi_softc;
-	retval = 0;
 	bzero(softc, sizeof(*softc));
 	mtx_init(&softc->lock, "cfiscsi", NULL, MTX_DEF);
 
@@ -1572,6 +1609,16 @@ restart:
 			if (cs2 != cs && cs2->cs_tasks_aborted == false &&
 			    cs->cs_target == cs2->cs_target &&
 			    strcmp(cs->cs_initiator_id, cs2->cs_initiator_id) == 0) {
+				if (strcmp(cs->cs_initiator_addr,
+				    cs2->cs_initiator_addr) != 0) {
+					CFISCSI_SESSION_WARN(cs2,
+					    "session reinstatement from "
+					    "different address %s",
+					    cs->cs_initiator_addr);
+				} else {
+					CFISCSI_SESSION_DEBUG(cs2,
+					    "session reinstatement");
+				}
 				cfiscsi_session_terminate(cs2);
 				mtx_unlock(&softc->lock);
 				pause("cfiscsi_reinstate", 1);
@@ -2701,6 +2748,7 @@ cfiscsi_datamove_out(union ctl_io *io)
 		cfiscsi_session_terminate(cs);
 		return;
 	}
+	io->io_hdr.flags |= CTL_FLAG_DMA_INPROG;
 	bhsr2t = (struct iscsi_bhs_r2t *)response->ip_bhs;
 	bhsr2t->bhsr2t_opcode = ISCSI_BHS_OPCODE_R2T;
 	bhsr2t->bhsr2t_flags = 0x80;
@@ -2842,7 +2890,9 @@ cfiscsi_task_management_done(union ctl_io *io)
 	struct iscsi_bhs_task_management_request *bhstmr;
 	struct iscsi_bhs_task_management_response *bhstmr2;
 	struct cfiscsi_data_wait *cdw, *tmpcdw;
-	struct cfiscsi_session *cs;
+	struct cfiscsi_session *cs, *tcs;
+	struct cfiscsi_softc *softc;
+	int cold_reset = 0;
 
 	request = io->io_hdr.ctl_private[CTL_PRIV_FRONTEND].ptr;
 	cs = PDU_SESSION(request);
@@ -2875,34 +2925,55 @@ cfiscsi_task_management_done(union ctl_io *io)
 #endif
 			TAILQ_REMOVE(&cs->cs_waiting_for_data_out,
 			    cdw, cdw_next);
+			io->io_hdr.flags &= ~CTL_FLAG_DMA_INPROG;
+			cdw->cdw_ctl_io->scsiio.io_hdr.port_status = 43;
 			cdw->cdw_ctl_io->scsiio.be_move_done(cdw->cdw_ctl_io);
 			cfiscsi_data_wait_free(cs, cdw);
 		}
 		CFISCSI_SESSION_UNLOCK(cs);
 	}
+	if ((bhstmr->bhstmr_function & ~0x80) ==
+	    BHSTMR_FUNCTION_TARGET_COLD_RESET &&
+	    io->io_hdr.status == CTL_SUCCESS)
+		cold_reset = 1;
 
 	response = cfiscsi_pdu_new_response(request, M_WAITOK);
 	bhstmr2 = (struct iscsi_bhs_task_management_response *)
 	    response->ip_bhs;
 	bhstmr2->bhstmr_opcode = ISCSI_BHS_OPCODE_TASK_RESPONSE;
 	bhstmr2->bhstmr_flags = 0x80;
-	if (io->io_hdr.status == CTL_SUCCESS) {
+	switch (io->taskio.task_status) {
+	case CTL_TASK_FUNCTION_COMPLETE:
 		bhstmr2->bhstmr_response = BHSTMR_RESPONSE_FUNCTION_COMPLETE;
-	} else {
-		/*
-		 * XXX: How to figure out what exactly went wrong?  iSCSI spec
-		 * 	expects us to provide detailed error, e.g. "Task does
-		 * 	not exist" or "LUN does not exist".
-		 */
-		CFISCSI_SESSION_DEBUG(cs, "BHSTMR_RESPONSE_FUNCTION_NOT_SUPPORTED");
-		bhstmr2->bhstmr_response =
-		    BHSTMR_RESPONSE_FUNCTION_NOT_SUPPORTED;
+		break;
+	case CTL_TASK_FUNCTION_SUCCEEDED:
+		bhstmr2->bhstmr_response = BHSTMR_RESPONSE_FUNCTION_SUCCEEDED;
+		break;
+	case CTL_TASK_LUN_DOES_NOT_EXIST:
+		bhstmr2->bhstmr_response = BHSTMR_RESPONSE_LUN_DOES_NOT_EXIST;
+		break;
+	case CTL_TASK_FUNCTION_NOT_SUPPORTED:
+	default:
+		bhstmr2->bhstmr_response = BHSTMR_RESPONSE_FUNCTION_NOT_SUPPORTED;
+		break;
 	}
+	memcpy(bhstmr2->bhstmr_additional_reponse_information,
+	    io->taskio.task_resp, sizeof(io->taskio.task_resp));
 	bhstmr2->bhstmr_initiator_task_tag = bhstmr->bhstmr_initiator_task_tag;
 
 	ctl_free_io(io);
 	icl_pdu_free(request);
 	cfiscsi_pdu_queue(response);
+
+	if (cold_reset) {
+		softc = cs->cs_target->ct_softc;
+		mtx_lock(&softc->lock);
+		TAILQ_FOREACH(tcs, &softc->sessions, cs_next) {
+			if (tcs->cs_target == cs->cs_target)
+				cfiscsi_session_terminate(tcs);
+		}
+		mtx_unlock(&softc->lock);
+	}
 }
 
 static void

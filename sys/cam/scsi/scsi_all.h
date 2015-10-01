@@ -103,6 +103,9 @@ typedef enum {
 /* The retyable, error action, with table specified error code */
 #define	SS_RET		SS_RETRY|SSQ_DECREMENT_COUNT|SSQ_PRINT_SENSE
 
+/* Wait for transient error status to change */
+#define	SS_WAIT		SS_TUR|SSQ_MANY|SSQ_DECREMENT_COUNT|SSQ_PRINT_SENSE
+
 /* Fatal error action, with table specified error code */
 #define	SS_FATAL	SS_FAIL|SSQ_PRINT_SENSE
 
@@ -697,6 +700,19 @@ struct scsi_control_page {
 	u_int8_t extended_selftest_completion_time[2];
 };
 
+struct scsi_control_ext_page {
+	uint8_t page_code;
+	uint8_t subpage_code;
+	uint8_t page_length[2];
+	uint8_t flags;
+#define	SCEP_TCMOS			0x04	/* Timestamp Changeable by */
+#define	SCEP_SCSIP			0x02	/* SCSI Precedence (clock) */
+#define	SCEP_IALUAE			0x01	/* Implicit ALUA Enabled */
+	uint8_t prio;
+	uint8_t max_sense;
+	uint8_t reserve[25];
+};
+
 struct scsi_cache_page {
 	u_int8_t page_code;
 #define	SCHP_PAGE_SAVABLE		0x80	/* Page is savable */
@@ -986,6 +1002,16 @@ struct scsi_read_buffer
         u_int8_t control;
 };
 
+struct scsi_read_buffer_16
+{
+	uint8_t opcode;
+	uint8_t byte2;
+	uint8_t offset[8];
+	uint8_t length[4];
+	uint8_t buffer_id;
+	uint8_t control;
+};
+
 struct scsi_write_buffer
 {
 	u_int8_t opcode;
@@ -1255,6 +1281,17 @@ struct scsi_rw_16
 	u_int8_t length[4];
 	u_int8_t reserved;
 	u_int8_t control;
+};
+
+struct scsi_write_atomic_16
+{
+	uint8_t	opcode;
+	uint8_t	byte2;
+	uint8_t	addr[8];
+	uint8_t	boundary[2];
+	uint8_t	length[2];
+	uint8_t	group;
+	uint8_t	control;
 };
 
 struct scsi_write_same_10
@@ -1666,6 +1703,7 @@ struct scsi_ec_cscd
 	uint8_t  type_code;
 #define EC_CSCD_EXT		0xff
 	uint8_t  luidt_pdt;
+#define EC_NUL			0x20
 #define EC_LUIDT_MASK		0xc0
 #define EC_LUIDT_LUN		0x00
 #define EC_LUIDT_PROXY_TOKEN	0x40
@@ -1971,6 +2009,7 @@ struct ata_pass_16 {
 #define	VERIFY_16		0x8F
 #define	SYNCHRONIZE_CACHE_16	0x91
 #define	WRITE_SAME_16		0x93
+#define	READ_BUFFER_16		0x9B
 #define	WRITE_ATOMIC_16		0x9C
 #define	SERVICE_ACTION_IN	0x9E
 #define	REPORT_LUNS		0xA0
@@ -2729,7 +2768,8 @@ struct scsi_vpd_block_limits
 	u_int8_t max_atomic_transfer_length[4];
 	u_int8_t atomic_alignment[4];
 	u_int8_t atomic_transfer_length_granularity[4];
-	u_int8_t reserved2[8];
+	u_int8_t max_atomic_transfer_length_with_atomic_boundary[4];
+	u_int8_t max_atomic_boundary_size[4];
 };
 
 struct scsi_read_capacity
@@ -2824,6 +2864,9 @@ struct scsi_report_luns
 #define	RPL_REPORT_DEFAULT	0x00
 #define	RPL_REPORT_WELLKNOWN	0x01
 #define	RPL_REPORT_ALL		0x02
+#define	RPL_REPORT_ADMIN	0x10
+#define	RPL_REPORT_NONSUBSID	0x11
+#define	RPL_REPORT_CONGLOM	0x12
 	uint8_t select_report;
 	uint8_t reserved2[3];
 	uint8_t length[4];

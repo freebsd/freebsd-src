@@ -109,7 +109,8 @@ struct ctl_ha_dt_req {
 
 struct ctl_softc;
 ctl_ha_status ctl_ha_msg_init(struct ctl_softc *softc);
-ctl_ha_status ctl_ha_msg_shutdown(struct ctl_softc *softc);
+void ctl_ha_msg_shutdown(struct ctl_softc *softc);
+ctl_ha_status ctl_ha_msg_destroy(struct ctl_softc *softc);
 
 typedef void (*ctl_evt_handler)(ctl_ha_channel channel, ctl_ha_event event,
 				int param);
@@ -124,6 +125,7 @@ ctl_ha_status ctl_ha_msg_send(ctl_ha_channel channel, const void *addr,
     size_t len, int wait);
 ctl_ha_status ctl_ha_msg_send2(ctl_ha_channel channel, const void *addr,
     size_t len, const void *addr2, size_t len2, int wait);
+ctl_ha_status ctl_ha_msg_abort(ctl_ha_channel channel);
 ctl_ha_status ctl_ha_msg_deregister(ctl_ha_channel channel);
 
 struct ctl_ha_dt_req * ctl_dt_req_alloc(void);

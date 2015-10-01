@@ -477,7 +477,6 @@ struct ath_vap {
 	struct ieee80211vap av_vap;	/* base class */
 	int		av_bslot;	/* beacon slot index */
 	struct ath_buf	*av_bcbuf;	/* beacon buffer */
-	struct ieee80211_beacon_offsets av_boff;/* dynamic update state */
 	struct ath_txq	av_mcastq;	/* buffered mcast s/w queue */
 
 	void		(*av_recv_mgmt)(struct ieee80211_node *,
@@ -940,26 +939,6 @@ struct ath_softc {
 		MA_NOTOWNED)
 #define	ATH_TX_TRYLOCK(_sc)	(mtx_owned(&(_sc)->sc_tx_mtx) != 0 &&	\
 					mtx_trylock(&(_sc)->sc_tx_mtx))
-
-/*
- * The IC TX lock is non-reentrant and serialises packet queuing from
- * the upper layers.
- */
-#define	ATH_TX_IC_LOCK_INIT(_sc) do {\
-	snprintf((_sc)->sc_tx_ic_mtx_name,				\
-	    sizeof((_sc)->sc_tx_ic_mtx_name),				\
-	    "%s IC TX lock",						\
-	    device_get_nameunit((_sc)->sc_dev));			\
-	mtx_init(&(_sc)->sc_tx_ic_mtx, (_sc)->sc_tx_ic_mtx_name,	\
-		 NULL, MTX_DEF);					\
-	} while (0)
-#define	ATH_TX_IC_LOCK_DESTROY(_sc)	mtx_destroy(&(_sc)->sc_tx_ic_mtx)
-#define	ATH_TX_IC_LOCK(_sc)		mtx_lock(&(_sc)->sc_tx_ic_mtx)
-#define	ATH_TX_IC_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_tx_ic_mtx)
-#define	ATH_TX_IC_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->sc_tx_ic_mtx,	\
-		MA_OWNED)
-#define	ATH_TX_IC_UNLOCK_ASSERT(_sc)	mtx_assert(&(_sc)->sc_tx_ic_mtx,	\
-		MA_NOTOWNED)
 
 /*
  * The PCU lock is non-recursive and should be treated as a spinlock.

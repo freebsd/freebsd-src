@@ -133,6 +133,7 @@ struct ieee80211com {
 	struct task		ic_chan_task;	/* deferred channel change */
 	struct task		ic_bmiss_task;	/* deferred beacon miss hndlr */
 	struct task		ic_chw_task;	/* deferred HT CHW update */
+	struct task		ic_wme_task;	/* deferred WME update */
 
 	counter_u64_t		ic_ierrors;	/* input errors */
 	counter_u64_t		ic_oerrors;	/* output errors */
@@ -417,6 +418,7 @@ struct ieee80211vap {
 	int			iv_amsdu_limit;	/* A-MSDU tx limit (bytes) */
 	u_int			iv_ampdu_mintraffic[WME_NUM_AC];
 
+	struct ieee80211_beacon_offsets iv_bcn_off;
 	uint32_t		*iv_aid_bitmap;	/* association id map */
 	uint16_t		iv_max_aid;
 	uint16_t		iv_sta_assoc;	/* stations associated */
