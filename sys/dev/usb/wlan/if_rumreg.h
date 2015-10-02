@@ -124,11 +124,14 @@
 #define RT2573_MRR_CCK_FALLBACK	(1 << 22)
 
 /* possible flags for register TXRX_CSR9 */
-#define RT2573_TSF_TICKING	(1 << 16)
-#define RT2573_TSF_MODE(x)	(((x) & 0x3) << 17)
-/* TBTT stands for Target Beacon Transmission Time */
-#define RT2573_ENABLE_TBTT	(1 << 19)
-#define RT2573_GENERATE_BEACON	(1 << 20)
+#define RT2573_TSF_TIMER_EN		(1 << 16)
+#define RT2573_TSF_SYNC_MODE(x)		(((x) & 0x3) << 17)
+#define RT2573_TSF_SYNC_MODE_DIS	0
+#define RT2573_TSF_SYNC_MODE_STA	1
+#define RT2573_TSF_SYNC_MODE_IBSS	2
+#define RT2573_TSF_SYNC_MODE_HOSTAP	3
+#define RT2573_TBTT_TIMER_EN		(1 << 19)
+#define RT2573_BCN_TX_EN		(1 << 20)
 
 /* possible flags for register PHY_CSR0 */
 #define RT2573_PA_PE_2GHZ	(1 << 16)
