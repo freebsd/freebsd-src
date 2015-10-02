@@ -1042,20 +1042,16 @@ linprocfs_doprocmaps(PFS_FILL_ARGS)
 		ino = 0;
 		if (lobj) {
 			off = IDX_TO_OFF(lobj->size);
-			if (lobj->type == OBJT_VNODE) {
-				vp = lobj->handle;
-				if (vp)
-					vref(vp);
-			}
-			else
-				vp = NULL;
+			vp = vm_object_vnode(lobj);
+			if (vp != NULL)
+				vref(vp);
 			if (lobj != obj)
 				VM_OBJECT_RUNLOCK(lobj);
 			flags = obj->flags;
 			ref_count = obj->ref_count;
 			shadow_count = obj->shadow_count;
 			VM_OBJECT_RUNLOCK(obj);
-			if (vp) {
+			if (vp != NULL) {
 				vn_fullpath(td, vp, &name, &freename);
 				vn_lock(vp, LK_SHARED | LK_RETRY);
 				VOP_GETATTR(vp, &vat, td->td_ucred);

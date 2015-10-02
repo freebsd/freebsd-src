@@ -2074,7 +2074,15 @@ sysctl_kern_proc_ovmmap(SYSCTL_HANDLER_ARGS)
 				vref(vp);
 				break;
 			case OBJT_SWAP:
-				kve->kve_type = KVME_TYPE_SWAP;
+				if ((lobj->flags & OBJ_TMPFS_NODE) != 0) {
+					kve->kve_type = KVME_TYPE_VNODE;
+					if ((lobj->flags & OBJ_TMPFS) != 0) {
+						vp = lobj->un_pager.swp.swp_tmpfs;
+						vref(vp);
+					}
+				} else {
+					kve->kve_type = KVME_TYPE_SWAP;
+				}
 				break;
 			case OBJT_DEVICE:
 				kve->kve_type = KVME_TYPE_DEVICE;
@@ -2300,7 +2308,15 @@ kern_proc_vmmap_out(struct proc *p, struct sbuf *sb)
 				vref(vp);
 				break;
 			case OBJT_SWAP:
-				kve->kve_type = KVME_TYPE_SWAP;
+				if ((lobj->flags & OBJ_TMPFS_NODE) != 0) {
+					kve->kve_type = KVME_TYPE_VNODE;
+					if ((lobj->flags & OBJ_TMPFS) != 0) {
+						vp = lobj->un_pager.swp.swp_tmpfs;
+						vref(vp);
+					}
+				} else {
+					kve->kve_type = KVME_TYPE_SWAP;
+				}
 				break;
 			case OBJT_DEVICE:
 				kve->kve_type = KVME_TYPE_DEVICE;
