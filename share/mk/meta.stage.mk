@@ -237,10 +237,11 @@ stage_as.$s:	.dirdep
 CLEANFILES += ${STAGE_TARGETS} stage_incs stage_includes
 
 # stage_*links usually needs to follow any others.
-.for t in ${STAGE_TARGETS:N*links:O:u}
-.ORDER: $t stage_links
-.ORDER: $t stage_symlinks
+.if !empty(STAGE_SETS) && !empty(STAGE_TARGETS:Nstage_links)
+.for s in ${STAGE_SETS:O:u}
+stage_links.$s: ${STAGE_TARGETS:Nstage_links:O:u}
 .endfor
+.endif
 
 # make sure this exists
 staging:
