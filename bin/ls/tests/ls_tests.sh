@@ -304,9 +304,31 @@ q_flag_and_w_flag_body()
 	atf_check -e empty -o match:"$test_file" -s exit:0 ls -w "$test_file"
 }
 
+s_flag_head()
+{
+	atf_set "descr" "Verify that the output from ls -s matches the output from stat(1)"
+}
+
+s_flag_body()
+{
+	create_test_dir
+
+	for filesize in 512 1 2048 10240 $(( 512 * 1024 )); do
+		atf_check -e ignore -o empty -s exit:0 \
+		    dd if=/dev/zero of=${filesize}.file bs=${filesize} count=1
+		files="${files} ${filesize}.file"
+	done
+
+	for file in $files; do
+		atf_check -e empty \
+		    -o match:"$(stat -f "%b" $file)[[:space:]]+$file" ls -s $file
+		stat -f "%b" $file
+	done
+}
+
 t_flag_head()
 {
-	atf_set "descr" "Verify that the output from ls -u sorts by last access with -t"
+	atf_set "descr" "Verify that the output from ls -t sorts by modification time"
 }
 
 t_flag_body()
@@ -314,7 +336,6 @@ t_flag_body()
 	create_test_dir
 
 	atf_check -e empty -o empty -s exit:0 touch a.file
-	sync
 	atf_check -e empty -o empty -s exit:0 touch b.file
 	sync
 
@@ -461,7 +482,7 @@ atf_init_test_cases()
 	#atf_add_test_case p_flag
 	atf_add_test_case q_flag_and_w_flag
 	#atf_add_test_case r_flag
-	#atf_add_test_case s_flag
+	atf_add_test_case s_flag
 	atf_add_test_case t_flag
 	atf_add_test_case u_flag
 	atf_add_test_case x_flag
