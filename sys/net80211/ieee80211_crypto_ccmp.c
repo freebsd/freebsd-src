@@ -63,7 +63,7 @@ struct ccmp_ctx {
 static	void *ccmp_attach(struct ieee80211vap *, struct ieee80211_key *);
 static	void ccmp_detach(struct ieee80211_key *);
 static	int ccmp_setkey(struct ieee80211_key *);
-static	int ccmp_encap(struct ieee80211_key *k, struct mbuf *, uint8_t keyid);
+static	int ccmp_encap(struct ieee80211_key *, struct mbuf *);
 static	int ccmp_decap(struct ieee80211_key *, struct mbuf *, int);
 static	int ccmp_enmic(struct ieee80211_key *, struct mbuf *, int);
 static	int ccmp_demic(struct ieee80211_key *, struct mbuf *, int);
@@ -138,11 +138,13 @@ ccmp_setkey(struct ieee80211_key *k)
  * Add privacy headers appropriate for the specified key.
  */
 static int
-ccmp_encap(struct ieee80211_key *k, struct mbuf *m, uint8_t keyid)
+ccmp_encap(struct ieee80211_key *k, struct mbuf *m)
 {
 	struct ccmp_ctx *ctx = k->wk_private;
 	struct ieee80211com *ic = ctx->cc_ic;
+	struct ieee80211vap *vap = ctx->cc_vap;
 	uint8_t *ivp;
+	uint8_t keyid;
 	int hdrlen;
 
 	hdrlen = ieee80211_hdrspace(ic, mtod(m, void *));
@@ -156,6 +158,8 @@ ccmp_encap(struct ieee80211_key *k, struct mbuf *m, uint8_t keyid)
 	ivp = mtod(m, uint8_t *);
 	ovbcopy(ivp + ccmp.ic_header, ivp, hdrlen);
 	ivp += hdrlen;
+
+	keyid = ieee80211_crypto_get_keyid(vap, k) << 6;
 
 	k->wk_keytsc++;		/* XXX wrap at 48 bits */
 	ivp[0] = k->wk_keytsc >> 0;		/* PN0 */
