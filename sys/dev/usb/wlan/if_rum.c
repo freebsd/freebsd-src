@@ -186,6 +186,10 @@ static void		rum_read_multi(struct rum_softc *, uint16_t, void *,
 static usb_error_t	rum_write(struct rum_softc *, uint16_t, uint32_t);
 static usb_error_t	rum_write_multi(struct rum_softc *, uint16_t, void *,
 			    size_t);
+static usb_error_t	rum_setbits(struct rum_softc *, uint16_t, uint32_t);
+static usb_error_t	rum_clrbits(struct rum_softc *, uint16_t, uint32_t);
+static usb_error_t	rum_modbits(struct rum_softc *, uint16_t, uint32_t,
+			    uint32_t);
 static int		rum_bbp_busy(struct rum_softc *);
 static void		rum_bbp_write(struct rum_softc *, uint8_t, uint8_t);
 static uint8_t		rum_bbp_read(struct rum_softc *, uint8_t);
@@ -1411,6 +1415,24 @@ rum_write_multi(struct rum_softc *sc, uint16_t reg, void *buf, size_t len)
 	return (USB_ERR_NORMAL_COMPLETION);
 }
 
+static usb_error_t
+rum_setbits(struct rum_softc *sc, uint16_t reg, uint32_t mask)
+{
+	return (rum_write(sc, reg, rum_read(sc, reg) | mask));
+}
+
+static usb_error_t
+rum_clrbits(struct rum_softc *sc, uint16_t reg, uint32_t mask)
+{
+	return (rum_write(sc, reg, rum_read(sc, reg) & ~mask));
+}
+
+static usb_error_t
+rum_modbits(struct rum_softc *sc, uint16_t reg, uint32_t set, uint32_t unset)
+{
+	return (rum_write(sc, reg, (rum_read(sc, reg) & ~unset) | set));
+}
+
 static int
 rum_bbp_busy(struct rum_softc *sc)
 {
@@ -1528,31 +1550,25 @@ static void
 rum_enable_mrr(struct rum_softc *sc)
 {
 	struct ieee80211com *ic = &sc->sc_ic;
-	uint32_t tmp;
 
-	tmp = rum_read(sc, RT2573_TXRX_CSR4);
-
-	tmp &= ~RT2573_MRR_CCK_FALLBACK;
-	if (!IEEE80211_IS_CHAN_5GHZ(ic->ic_bsschan))
-		tmp |= RT2573_MRR_CCK_FALLBACK;
-	tmp |= RT2573_MRR_ENABLED;
-
-	rum_write(sc, RT2573_TXRX_CSR4, tmp);
+	if (!IEEE80211_IS_CHAN_5GHZ(ic->ic_bsschan)) {
+		rum_setbits(sc, RT2573_TXRX_CSR4,
+		    RT2573_MRR_ENABLED | RT2573_MRR_CCK_FALLBACK);
+	} else {
+		rum_modbits(sc, RT2573_TXRX_CSR4,
+		    RT2573_MRR_ENABLED, RT2573_MRR_CCK_FALLBACK);
+	}
 }
 
 static void
 rum_set_txpreamble(struct rum_softc *sc)
 {
 	struct ieee80211com *ic = &sc->sc_ic;
-	uint32_t tmp;
 
-	tmp = rum_read(sc, RT2573_TXRX_CSR4);
-
-	tmp &= ~RT2573_SHORT_PREAMBLE;
 	if (ic->ic_flags & IEEE80211_F_SHPREAMBLE)
-		tmp |= RT2573_SHORT_PREAMBLE;
-
-	rum_write(sc, RT2573_TXRX_CSR4, tmp);
+		rum_setbits(sc, RT2573_TXRX_CSR4, RT2573_SHORT_PREAMBLE);
+	else
+		rum_clrbits(sc, RT2573_TXRX_CSR4, RT2573_SHORT_PREAMBLE);
 }
 
 static void
@@ -1581,7 +1597,6 @@ static void
 rum_select_band(struct rum_softc *sc, struct ieee80211_channel *c)
 {
 	uint8_t bbp17, bbp35, bbp96, bbp97, bbp98, bbp104;
-	uint32_t tmp;
 
 	/* update all BBP registers that depend on the band */
 	bbp17 = 0x20; bbp96 = 0x48; bbp104 = 0x2c;
@@ -1611,13 +1626,13 @@ rum_select_band(struct rum_softc *sc, struct ieee80211_channel *c)
 	rum_bbp_write(sc, 97, bbp97);
 	rum_bbp_write(sc, 98, bbp98);
 
-	tmp = rum_read(sc, RT2573_PHY_CSR0);
-	tmp &= ~(RT2573_PA_PE_2GHZ | RT2573_PA_PE_5GHZ);
-	if (IEEE80211_IS_CHAN_2GHZ(c))
-		tmp |= RT2573_PA_PE_2GHZ;
-	else
-		tmp |= RT2573_PA_PE_5GHZ;
-	rum_write(sc, RT2573_PHY_CSR0, tmp);
+	if (IEEE80211_IS_CHAN_2GHZ(c)) {
+		rum_modbits(sc, RT2573_PHY_CSR0, RT2573_PA_PE_2GHZ,
+		    RT2573_PA_PE_5GHZ);
+	} else {
+		rum_modbits(sc, RT2573_PHY_CSR0, RT2573_PA_PE_5GHZ,
+		    RT2573_PA_PE_2GHZ);
+	}
 }
 
 static void
@@ -1728,18 +1743,14 @@ rum_enable_tsf_sync(struct rum_softc *sc)
 static void
 rum_enable_tsf(struct rum_softc *sc)
 {
-	rum_write(sc, RT2573_TXRX_CSR9, 
-	    (rum_read(sc, RT2573_TXRX_CSR9) & 0xff000000) |
-	    RT2573_TSF_TICKING | RT2573_TSF_MODE(2));
+	rum_modbits(sc, RT2573_TXRX_CSR9,
+	    RT2573_TSF_TICKING | RT2573_TSF_MODE(2), 0x00ffffff);
 }
 
 static void
 rum_abort_tsf_sync(struct rum_softc *sc)
 {
-	uint32_t tmp;
-
-	tmp = rum_read(sc, RT2573_TXRX_CSR9);
-	rum_write(sc, RT2573_TXRX_CSR9, tmp & ~0x00ffffff);
+	rum_clrbits(sc, RT2573_TXRX_CSR9, 0x00ffffff);
 }
 
 static void
@@ -1747,13 +1758,10 @@ rum_update_slot(struct rum_softc *sc)
 {
 	struct ieee80211com *ic = &sc->sc_ic;
 	uint8_t slottime;
-	uint32_t tmp;
 
 	slottime = (ic->ic_flags & IEEE80211_F_SHSLOT) ? 9 : 20;
 
-	tmp = rum_read(sc, RT2573_MAC_CSR9);
-	tmp = (tmp & ~0xff) | slottime;
-	rum_write(sc, RT2573_MAC_CSR9, tmp);
+	rum_modbits(sc, RT2573_MAC_CSR9, slottime, 0xff);
 
 	DPRINTF("setting slot time to %uus\n", slottime);
 }
@@ -1785,17 +1793,14 @@ rum_set_macaddr(struct rum_softc *sc, const uint8_t *addr)
 static void
 rum_setpromisc(struct rum_softc *sc)
 {
-	uint32_t tmp;
+	struct ieee80211com *ic = &sc->sc_ic;
 
-	tmp = rum_read(sc, RT2573_TXRX_CSR0);
+	if (ic->ic_promisc == 0)
+		rum_setbits(sc, RT2573_TXRX_CSR0, RT2573_DROP_NOT_TO_ME);
+	else
+		rum_clrbits(sc, RT2573_TXRX_CSR0, RT2573_DROP_NOT_TO_ME);
 
-	tmp &= ~RT2573_DROP_NOT_TO_ME;
-	if (sc->sc_ic.ic_promisc == 0)
-		tmp |= RT2573_DROP_NOT_TO_ME;
-
-	rum_write(sc, RT2573_TXRX_CSR0, tmp);
-
-	DPRINTF("%s promiscuous mode\n", sc->sc_ic.ic_promisc > 0 ?
+	DPRINTF("%s promiscuous mode\n", ic->ic_promisc > 0 ?
 	    "entering" : "leaving");
 }
 
@@ -2033,7 +2038,6 @@ fail:	rum_stop(sc);
 static void
 rum_stop(struct rum_softc *sc)
 {
-	uint32_t tmp;
 
 	RUM_LOCK_ASSERT(sc, MA_OWNED);
 
@@ -2052,8 +2056,7 @@ rum_stop(struct rum_softc *sc)
 	rum_unsetup_tx_list(sc);
 
 	/* disable Rx */
-	tmp = rum_read(sc, RT2573_TXRX_CSR0);
-	rum_write(sc, RT2573_TXRX_CSR0, tmp | RT2573_DISABLE_RX);
+	rum_setbits(sc, RT2573_TXRX_CSR0, RT2573_DISABLE_RX);
 
 	/* reset ASIC */
 	rum_write(sc, RT2573_MAC_CSR1, 3);
