@@ -334,3 +334,5 @@ ENTRY(memcpy)
 	sub	r1, r1, #1
 	b	.Lmemcpy_l4
 END(memcpy)
+
+	.section .note.GNU-stack,"",%progbits

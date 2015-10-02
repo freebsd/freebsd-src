@@ -133,6 +133,7 @@ struct ieee80211com {
 	struct task		ic_chan_task;	/* deferred channel change */
 	struct task		ic_bmiss_task;	/* deferred beacon miss hndlr */
 	struct task		ic_chw_task;	/* deferred HT CHW update */
+	struct task		ic_wme_task;	/* deferred WME update */
 
 	counter_u64_t		ic_ierrors;	/* input errors */
 	counter_u64_t		ic_oerrors;	/* output errors */

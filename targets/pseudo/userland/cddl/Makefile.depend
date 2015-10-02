@@ -12,7 +12,6 @@ DIRDEPS = \
 	cddl/lib/libnvpair \
 	cddl/lib/libumem \
 	cddl/lib/libuutil \
-	cddl/usr.bin/sgsmsg \
 
 
 DIRDEPS.CTF = \
