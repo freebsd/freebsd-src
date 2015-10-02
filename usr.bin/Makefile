@@ -230,6 +230,18 @@ SUBDIR+=	finger
 SUBDIR+=	ftp
 .endif
 
+.if ${MK_GAMES} != "no"
+SUBDIR+=	caesar
+SUBDIR+=	factor
+SUBDIR+=	fortune
+SUBDIR+=	grdc
+SUBDIR+=	morse
+SUBDIR+=	number
+SUBDIR+=	pom
+SUBDIR+=	primes
+SUBDIR+=	random
+.endif
+
 .if ${MK_GPL_DTC} != "yes"
 SUBDIR+=	dtc
 .endif
