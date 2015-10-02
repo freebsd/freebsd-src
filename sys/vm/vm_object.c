@@ -2270,6 +2270,18 @@ next_page:
 	}
 }
 
+struct vnode *
+vm_object_vnode(vm_object_t object)
+{
+
+	VM_OBJECT_ASSERT_LOCKED(object);
+	if (object->type == OBJT_VNODE)
+		return (object->handle);
+	if (object->type == OBJT_SWAP && (object->flags & OBJ_TMPFS) != 0)
+		return (object->un_pager.swp.swp_tmpfs);
+	return (NULL);
+}
+
 static int
 sysctl_vm_object_list(SYSCTL_HANDLER_ARGS)
 {

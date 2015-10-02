@@ -1660,7 +1660,8 @@ pmc_log_process_mappings(struct pmc_owner *po, struct proc *p)
 			continue;
 		}
 
-		if (lobj->type != OBJT_VNODE || lobj->handle == NULL) {
+		vp = vm_object_vnode(lobj);
+		if (vp == NULL) {
 			if (lobj != obj)
 				VM_OBJECT_RUNLOCK(lobj);
 			VM_OBJECT_RUNLOCK(obj);
@@ -1672,7 +1673,7 @@ pmc_log_process_mappings(struct pmc_owner *po, struct proc *p)
 		 * vnode, so we don't emit redundant MAP-IN
 		 * directives.
 		 */
-		if (entry->start == last_end && lobj->handle == last_vp) {
+		if (entry->start == last_end && vp == last_vp) {
 			last_end = entry->end;
 			if (lobj != obj)
 				VM_OBJECT_RUNLOCK(lobj);
@@ -1695,7 +1696,6 @@ pmc_log_process_mappings(struct pmc_owner *po, struct proc *p)
 		last_timestamp = map->timestamp;
 		vm_map_unlock_read(map);
 
-		vp = lobj->handle;
 		vref(vp);
 		if (lobj != obj)
 			VM_OBJECT_RUNLOCK(lobj);
