@@ -2543,13 +2543,9 @@ arc_shrink(void)
 	if (arc_c > arc_c_min) {
 		uint64_t to_free;
 
+		to_free = arc_c >> arc_shrink_shift;
 		DTRACE_PROBE4(arc__shrink, uint64_t, arc_c, uint64_t,
 			arc_c_min, uint64_t, arc_p, uint64_t, to_free);
-#ifdef _KERNEL
-		to_free = arc_c >> arc_shrink_shift;
-#else
-		to_free = arc_c >> arc_shrink_shift;
-#endif
 		if (arc_c > arc_c_min + to_free)
 			atomic_add_64(&arc_c, -to_free);
 		else
