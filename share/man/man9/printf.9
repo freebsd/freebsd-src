@@ -67,7 +67,8 @@ The
 .Fn log
 function sends the message to the kernel logging facility, using
 the log level as indicated by
-.Fa pri .
+.Fa pri ,
+and to the console if no process is yet reading the log.
 .Pp
 Each of these related functions use the
 .Fa fmt
