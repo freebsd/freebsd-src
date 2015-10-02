@@ -134,7 +134,7 @@ cpu_fork(register struct thread *td1, register struct proc *p2,
 	pcb2->pcb_regs.sf_sp = STACKALIGN(td2->td_frame);
 
 	pcb2->pcb_vfpcpu = -1;
-	pcb2->pcb_vfpstate.fpscr = VFPSCR_DN | VFPSCR_FZ;
+	pcb2->pcb_vfpstate.fpscr = VFPSCR_DN;
 
 	tf = td2->td_frame;
 	tf->tf_spsr &= ~PSR_C;
