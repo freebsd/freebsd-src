@@ -285,6 +285,26 @@ lcomma_flag_body()
 	    env LC_ALL=en_US.ISO8859-1 ls -l, i
 }
 
+n_flag_head()
+{
+	atf_set "descr" "Verify that the output from ls -p prints out numeric GIDs/UIDs instead of symbolic GIDs/UIDs"
+	atf_set "require.user" "root"
+}
+
+n_flag_body()
+{
+	daemon_gid=$(id -g daemon) || atf_skip "could not resolve gid for daemon (!)"
+	nobody_uid=$(id -u nobody) || atf_skip "could not resolve uid for nobody (!)"
+
+	atf_check -e empty -o empty -s exit:0 touch a.file
+	atf_check -e empty -o empty -s exit:0 chown $nobody_uid:$daemon_gid a.file
+
+	atf_check -e empty \
+	    -o match:'\-rw\-r\-\-r\-\-[[:space:]]+1[[:space:]]+'"$nobody_uid[[:space:]]+$daemon_gid"'[[:space:]]+.+a\.file' \
+	    ls -ln a.file
+
+}
+
 p_flag_head()
 {
 	atf_set "descr" "Verify that the output from ls -p prints out '/' after directories"
@@ -294,14 +314,18 @@ p_flag_body()
 {
 	create_test_inputs
 
-	for path in $(find -L .); do
+	paths=$(find -L .)
+	[ -n "$paths" ] || atf_skip 'Could not find any paths to iterate over (!)'
+
+	for path in $paths; do
 		suffix=
 		# If path is not a symlink and is a directory, then the suffix
 		# must be "/".
 		if [ ! -L "${path}" -a -d "$path" ]; then
 			suffix=/
 		fi
-		atf_check -e empty -o match:"$path${suffix}" ls -dp $path
+		atf_check -e empty -o match:"$path${suffix}" -s exit:0 \
+		    ls -dp $path
 	done
 }
 
@@ -497,7 +521,7 @@ atf_init_test_cases()
 	#atf_add_test_case l_flag
 	atf_add_test_case lcomma_flag
 	#atf_add_test_case m_flag
-	#atf_add_test_case n_flag
+	atf_add_test_case n_flag
 	#atf_add_test_case o_flag
 	atf_add_test_case p_flag
 	atf_add_test_case q_flag_and_w_flag
