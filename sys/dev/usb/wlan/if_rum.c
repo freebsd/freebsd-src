@@ -1730,12 +1730,35 @@ rum_enable_tsf_sync(struct rum_softc *sc)
 
 	/* set beacon interval (in 1/16ms unit) */
 	tmp |= vap->iv_bss->ni_intval * 16;
+	tmp |= RT2573_TSF_TIMER_EN | RT2573_TBTT_TIMER_EN;
 
-	tmp |= RT2573_TSF_TICKING | RT2573_ENABLE_TBTT;
-	if (vap->iv_opmode == IEEE80211_M_STA)
-		tmp |= RT2573_TSF_MODE(1);
-	else
-		tmp |= RT2573_TSF_MODE(2) | RT2573_GENERATE_BEACON;
+	switch (vap->iv_opmode) {
+	case IEEE80211_M_STA:
+		/*
+		 * Local TSF is always updated with remote TSF on beacon
+		 * reception.
+		 */
+		tmp |= RT2573_TSF_SYNC_MODE(RT2573_TSF_SYNC_MODE_STA);
+		break;
+	case IEEE80211_M_IBSS:
+		/*
+		 * Local TSF is updated with remote TSF on beacon reception
+		 * only if the remote TSF is greater than local TSF.
+		 */
+		tmp |= RT2573_TSF_SYNC_MODE(RT2573_TSF_SYNC_MODE_IBSS);
+		tmp |= RT2573_BCN_TX_EN;
+		break;
+	case IEEE80211_M_HOSTAP:
+		/* SYNC with nobody */
+		tmp |= RT2573_TSF_SYNC_MODE(RT2573_TSF_SYNC_MODE_HOSTAP);
+		tmp |= RT2573_BCN_TX_EN;
+		break;
+	default:
+		device_printf(sc->sc_dev,
+		    "Enabling TSF failed. undefined opmode %d\n",
+		    vap->iv_opmode);
+		return;
+	}
 
 	rum_write(sc, RT2573_TXRX_CSR9, tmp);
 }
@@ -1743,8 +1766,8 @@ rum_enable_tsf_sync(struct rum_softc *sc)
 static void
 rum_enable_tsf(struct rum_softc *sc)
 {
-	rum_modbits(sc, RT2573_TXRX_CSR9,
-	    RT2573_TSF_TICKING | RT2573_TSF_MODE(2), 0x00ffffff);
+	rum_modbits(sc, RT2573_TXRX_CSR9, RT2573_TSF_TIMER_EN |
+	    RT2573_TSF_SYNC_MODE(RT2573_TSF_SYNC_MODE_DIS), 0x00ffffff);
 }
 
 static void
