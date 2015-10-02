@@ -199,6 +199,7 @@ static void		rum_set_chan(struct rum_softc *,
 			    struct ieee80211_channel *);
 static void		rum_enable_tsf_sync(struct rum_softc *);
 static void		rum_enable_tsf(struct rum_softc *);
+static void		rum_abort_tsf_sync(struct rum_softc *);
 static void		rum_update_slot(struct rum_softc *);
 static void		rum_set_bssid(struct rum_softc *, const uint8_t *);
 static void		rum_set_macaddr(struct rum_softc *, const uint8_t *);
@@ -687,7 +688,6 @@ rum_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 	const struct ieee80211_txparam *tp;
 	enum ieee80211_state ostate;
 	struct ieee80211_node *ni;
-	uint32_t tmp;
 
 	ostate = vap->iv_state;
 	DPRINTF("%s -> %s\n",
@@ -700,11 +700,9 @@ rum_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 
 	switch (nstate) {
 	case IEEE80211_S_INIT:
-		if (ostate == IEEE80211_S_RUN) {
-			/* abort TSF synchronization */
-			tmp = rum_read(sc, RT2573_TXRX_CSR9);
-			rum_write(sc, RT2573_TXRX_CSR9, tmp & ~0x00ffffff);
-		}
+		if (ostate == IEEE80211_S_RUN)
+			rum_abort_tsf_sync(sc);
+
 		break;
 
 	case IEEE80211_S_RUN:
@@ -1731,6 +1729,15 @@ rum_enable_tsf(struct rum_softc *sc)
 }
 
 static void
+rum_abort_tsf_sync(struct rum_softc *sc)
+{
+	uint32_t tmp;
+
+	tmp = rum_read(sc, RT2573_TXRX_CSR9);
+	rum_write(sc, RT2573_TXRX_CSR9, tmp & ~0x00ffffff);
+}
+
+static void
 rum_update_slot(struct rum_softc *sc)
 {
 	struct ieee80211com *ic = &sc->sc_ic;
@@ -2217,12 +2224,9 @@ static void
 rum_scan_start(struct ieee80211com *ic)
 {
 	struct rum_softc *sc = ic->ic_softc;
-	uint32_t tmp;
 
 	RUM_LOCK(sc);
-	/* abort TSF synchronization */
-	tmp = rum_read(sc, RT2573_TXRX_CSR9);
-	rum_write(sc, RT2573_TXRX_CSR9, tmp & ~0x00ffffff);
+	rum_abort_tsf_sync(sc);
 	rum_set_bssid(sc, ieee80211broadcastaddr);
 	RUM_UNLOCK(sc);
 
