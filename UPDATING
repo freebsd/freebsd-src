@@ -16,6 +16,9 @@ from older versions of FreeBSD, try WITHOUT_CLANG to bootstrap to the tip of
 stable/10, and then rebuild without this option. The bootstrap process from
 older version of current is a bit fragile.
 
+20151002:	p22	FreeBSD-SA-15:24.rpcbind [revised]
+	Revised patch to address a regression that prevents NIS from working.
+
 20150929:	p21	FreeBSD-SA-15:24.rpcbind
 
 	Fix rpcbind(8) remote denial of service. [SA-15:24]
