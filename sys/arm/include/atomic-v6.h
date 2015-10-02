@@ -596,4 +596,32 @@ atomic_store_rel_long(volatile u_long *p, u_long v)
 #undef ATOMIC_ACQ_REL
 #undef ATOMIC_ACQ_REL_LONG
 
+static __inline void
+atomic_thread_fence_acq(void)
+{
+
+	dmb();
+}
+
+static __inline void
+atomic_thread_fence_rel(void)
+{
+
+	dmb();
+}
+
+static __inline void
+atomic_thread_fence_acq_rel(void)
+{
+
+	dmb();
+}
+
+static __inline void
+atomic_thread_fence_seq_cst(void)
+{
+
+	dmb();
+}
+
 #endif /* _MACHINE_ATOMIC_V6_H_ */
