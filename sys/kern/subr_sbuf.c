@@ -623,6 +623,10 @@ sbuf_vprintf(struct sbuf *s, const char *fmt, va_list ap)
 		va_copy(ap_copy, ap);
 		len = vsnprintf(&s->s_buf[s->s_len], SBUF_FREESPACE(s) + 1,
 		    fmt, ap_copy);
+		if (len < 0) {
+			s->s_error = errno;
+			return (-1);
+		}
 		va_end(ap_copy);
 
 		if (SBUF_FREESPACE(s) >= len)
