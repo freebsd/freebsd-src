@@ -76,40 +76,6 @@ create_test_inputs()
 	atf_check -e empty -s exit:0 touch 0b00001111
 }
 
-atf_test_case a_flag
-a_flag_head()
-{
-	atf_set "descr" "Verify -a support"
-}
-
-a_flag_body()
-{
-	create_test_dir
-
-	# Make sure "." and ".." show up with -a
-	atf_check -e empty -o match:'\.[[:space:]]+\.\.'  -s exit:0 ls -ax
-
-	create_test_inputs
-
-	WITH_a=$PWD/../with_a.out
-	WITHOUT_a=$PWD/../without_a.out
-
-	atf_check -e empty -o save:$WITH_a -s exit:0 ls -A
-	atf_check -e empty -o save:$WITHOUT_a -s exit:0 ls
-
-	echo "-A usage"
-	cat $WITH_a
-	echo "No -A usage"
-	cat $WITHOUT_a
-
-	for dot_path in '\.f' '\.g'; do
-		atf_check -e empty -o not-empty -s exit:0 grep "${dot_path}" \
-		    $WITH_a
-		atf_check -e empty -o empty -s not-exit:0 grep "${dot_path}" \
-		    $WITHOUT_a
-	done
-}
-
 atf_test_case A_flag
 A_flag_head()
 {
@@ -251,20 +217,6 @@ I_flag_voids_implied_A_flag_when_root_body()
 	atf_check -o match:'\.g' -s exit:0 ls -A -I
 }
 
-lcomma_flag_head()
-{
-	atf_set "descr" "Verify that -l, prints out the size with , delimiters"
-}
-
-lcomma_flag_body()
-{
-	create_test_inputs
-
-	atf_check \
-	    -o match:'\-rw\-r\-\-r\-\-[[:space:]]+.+[[:space:]]+1,000[[:space:]]+.+i' \
-	    env LC_ALL=en_US.ISO8859-1 ls -l, i
-}
-
 L_flag_and_P_flag_head()
 {
 	atf_set "descr" "Verify that -L prints out the symbolic link and conversely -P prints out the target for the symbolic link"
@@ -283,6 +235,73 @@ L_flag_and_P_flag_body()
 	atf_check -e empty -o empty -s exit:0 ln -s c d
 	atf_check -e empty -o match:d ls -L d
 	atf_check -e empty -o match:c ls -P d
+}
+
+atf_test_case a_flag
+a_flag_head()
+{
+	atf_set "descr" "Verify -a support"
+}
+
+a_flag_body()
+{
+	create_test_dir
+
+	# Make sure "." and ".." show up with -a
+	atf_check -e empty -o match:'\.[[:space:]]+\.\.'  -s exit:0 ls -ax
+
+	create_test_inputs
+
+	WITH_a=$PWD/../with_a.out
+	WITHOUT_a=$PWD/../without_a.out
+
+	atf_check -e empty -o save:$WITH_a -s exit:0 ls -a
+	atf_check -e empty -o save:$WITHOUT_a -s exit:0 ls
+
+	echo "-a usage"
+	cat $WITH_a
+	echo "No -a usage"
+	cat $WITHOUT_a
+
+	for dot_path in '\.f' '\.g'; do
+		atf_check -e empty -o not-empty -s exit:0 grep "${dot_path}" \
+		    $WITH_a
+		atf_check -e empty -o empty -s not-exit:0 grep "${dot_path}" \
+		    $WITHOUT_a
+	done
+}
+
+lcomma_flag_head()
+{
+	atf_set "descr" "Verify that -l, prints out the size with , delimiters"
+}
+
+lcomma_flag_body()
+{
+	create_test_inputs
+
+	atf_check \
+	    -o match:'\-rw\-r\-\-r\-\-[[:space:]]+.+[[:space:]]+1,000[[:space:]]+.+i' \
+	    env LC_ALL=en_US.ISO8859-1 ls -l, i
+}
+
+q_flag_and_w_flag_head()
+{
+	atf_set "descr" "Verify that the output from ls -q prints out '?' for ESC and ls -w prints out the escape character"
+}
+
+q_flag_and_w_flag_body()
+{
+	atf_skip "kyua report-jenkins doesn't properly escape non-printable chars: https://github.com/jmmv/kyua/issues/136"
+
+	create_test_dir
+
+	test_file="$(printf "y\01z")"
+
+	atf_check -e empty -o empty -s exit:0 touch "$test_file"
+
+	atf_check -e empty -o match:'y\?z' -s exit:0 ls -q "$test_file"
+	atf_check -e empty -o match:"$test_file" -s exit:0 ls -w "$test_file"
 }
 
 x_flag_head()
@@ -305,6 +324,29 @@ x_flag_body()
 	    egrep "a[[:space:]]+c[[:space:]]+d[[:space:]]+e[[:space:]]+h" $WITH_x
 	atf_check -e ignore -o not-empty -s exit:0 \
 	    egrep "i[[:space:]]+j[[:space:]]+klmn[[:space:]]+opqr[[:space:]]+stuv" $WITH_x
+}
+
+y_flag_head()
+{
+	atf_set "descr" "Verify that the output from ls -y sorts the same way as sort(1)"
+}
+
+y_flag_body()
+{
+	create_test_inputs
+
+	WITH_sort=$PWD/../with_sort.out
+	WITH_y=$PWD/../with_y.out
+
+	atf_check -e empty -o save:$WITH_sort -s exit:0 sh -c 'ls -1 | sort'
+	atf_check -e empty -o save:$WITH_y -s exit:0 ls -1y
+
+	echo "Sorted with sort(1)"
+	cat $WITH_sort
+	echo "Sorted with -y"
+	cat $WITH_y
+
+	atf_check_equal "$(cat $WITH_sort)" "$(cat $WITH_y)"
 }
 
 1_flag_head()
@@ -366,13 +408,12 @@ atf_init_test_cases()
 	#atf_add_test_case n_flag
 	#atf_add_test_case o_flag
 	#atf_add_test_case p_flag
-	#atf_add_test_case q_flag
+	atf_add_test_case q_flag_and_w_flag
 	#atf_add_test_case r_flag
 	#atf_add_test_case s_flag
 	#atf_add_test_case t_flag
 	#atf_add_test_case u_flag
-	#atf_add_test_case w_flag
 	atf_add_test_case x_flag
-	#atf_add_test_case y_flag
+	atf_add_test_case y_flag
 	atf_add_test_case 1_flag
 }
