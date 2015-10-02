@@ -186,6 +186,7 @@ static void		rum_read_multi(struct rum_softc *, uint16_t, void *,
 static usb_error_t	rum_write(struct rum_softc *, uint16_t, uint32_t);
 static usb_error_t	rum_write_multi(struct rum_softc *, uint16_t, void *,
 			    size_t);
+static int		rum_bbp_busy(struct rum_softc *);
 static void		rum_bbp_write(struct rum_softc *, uint8_t, uint8_t);
 static uint8_t		rum_bbp_read(struct rum_softc *, uint8_t);
 static void		rum_rf_write(struct rum_softc *, uint8_t, uint32_t);
@@ -1410,13 +1411,10 @@ rum_write_multi(struct rum_softc *sc, uint16_t reg, void *buf, size_t len)
 	return (USB_ERR_NORMAL_COMPLETION);
 }
 
-static void
-rum_bbp_write(struct rum_softc *sc, uint8_t reg, uint8_t val)
+static int
+rum_bbp_busy(struct rum_softc *sc)
 {
-	uint32_t tmp;
 	int ntries;
-
-	DPRINTFN(2, "reg=0x%08x\n", reg);
 
 	for (ntries = 0; ntries < 100; ntries++) {
 		if (!(rum_read(sc, RT2573_PHY_CSR3) & RT2573_BBP_BUSY))
@@ -1424,7 +1422,20 @@ rum_bbp_write(struct rum_softc *sc, uint8_t reg, uint8_t val)
 		if (rum_pause(sc, hz / 100))
 			break;
 	}
-	if (ntries == 100) {
+	if (ntries == 100)
+		return (ETIMEDOUT);
+
+	return (0);
+}
+
+static void
+rum_bbp_write(struct rum_softc *sc, uint8_t reg, uint8_t val)
+{
+	uint32_t tmp;
+
+	DPRINTFN(2, "reg=0x%08x\n", reg);
+
+	if (rum_bbp_busy(sc) != 0) {
 		device_printf(sc->sc_dev, "could not write to BBP\n");
 		return;
 	}
@@ -1441,13 +1452,7 @@ rum_bbp_read(struct rum_softc *sc, uint8_t reg)
 
 	DPRINTFN(2, "reg=0x%08x\n", reg);
 
-	for (ntries = 0; ntries < 100; ntries++) {
-		if (!(rum_read(sc, RT2573_PHY_CSR3) & RT2573_BBP_BUSY))
-			break;
-		if (rum_pause(sc, hz / 100))
-			break;
-	}
-	if (ntries == 100) {
+	if (rum_bbp_busy(sc) != 0) {
 		device_printf(sc->sc_dev, "could not read BBP\n");
 		return 0;
 	}
