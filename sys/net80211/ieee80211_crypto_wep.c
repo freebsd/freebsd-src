@@ -50,7 +50,7 @@ __FBSDID("$FreeBSD$");
 static	void *wep_attach(struct ieee80211vap *, struct ieee80211_key *);
 static	void wep_detach(struct ieee80211_key *);
 static	int wep_setkey(struct ieee80211_key *);
-static	int wep_encap(struct ieee80211_key *, struct mbuf *, uint8_t keyid);
+static	int wep_encap(struct ieee80211_key *, struct mbuf *);
 static	int wep_decap(struct ieee80211_key *, struct mbuf *, int hdrlen);
 static	int wep_enmic(struct ieee80211_key *, struct mbuf *, int);
 static	int wep_demic(struct ieee80211_key *, struct mbuf *, int);
@@ -121,12 +121,14 @@ wep_setkey(struct ieee80211_key *k)
  * Add privacy headers appropriate for the specified key.
  */
 static int
-wep_encap(struct ieee80211_key *k, struct mbuf *m, uint8_t keyid)
+wep_encap(struct ieee80211_key *k, struct mbuf *m)
 {
 	struct wep_ctx *ctx = k->wk_private;
+	struct ieee80211vap *vap = ctx->wc_vap;
 	struct ieee80211com *ic = ctx->wc_ic;
 	uint32_t iv;
 	uint8_t *ivp;
+	uint8_t keyid;
 	int hdrlen;
 
 	hdrlen = ieee80211_hdrspace(ic, mtod(m, void *));
@@ -140,6 +142,8 @@ wep_encap(struct ieee80211_key *k, struct mbuf *m, uint8_t keyid)
 	ivp = mtod(m, uint8_t *);
 	ovbcopy(ivp + wep.ic_header, ivp, hdrlen);
 	ivp += hdrlen;
+
+	keyid = ieee80211_crypto_get_keyid(vap, k) << 6;
 
 	/*
 	 * XXX
