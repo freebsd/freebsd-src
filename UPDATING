@@ -11,6 +11,9 @@ handbook:
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
+20151002:	p28	FreeBSD-SA-15:24.rpcbind [revised]
+	Revised patch to address a regression that prevents NIS from working.
+
 20150929:	p27	FreeBSD-SA-15:24.rpcbind
 
 	Fix rpcbind(8) remote denial of service. [SA-15:24]

@@ -1053,12 +1053,15 @@ static bool_t
 netbuf_copybuf(struct netbuf *dst, const struct netbuf *src)
 {
 
-	assert(dst->buf == NULL);
+	if (dst->len != src->len || dst->buf == NULL) {
+		if (dst->buf != NULL)
+			free(dst->buf);
+		if ((dst->buf = malloc(src->len)) == NULL)
+			return (FALSE);
 
-	if ((dst->buf = malloc(src->len)) == NULL)
-		return (FALSE);
+		dst->maxlen = dst->len = src->len;
+	}
 
-	dst->maxlen = dst->len = src->len;
 	memcpy(dst->buf, src->buf, src->len);
 	return (TRUE);
 }
