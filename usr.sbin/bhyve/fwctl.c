@@ -536,7 +536,7 @@ fwctl_handler(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
 	return (0);
 }
 INOUT_PORT(fwctl_wreg, FWCTL_OUT, IOPORT_F_INOUT, fwctl_handler);
-INOUT_PORT(fwctl_rreg, FWCTL_IN,  IOPORT_F_OUT,   fwctl_handler);
+INOUT_PORT(fwctl_rreg, FWCTL_IN,  IOPORT_F_IN,    fwctl_handler);
 
 void
 fwctl_init(void)
