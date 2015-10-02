@@ -1273,7 +1273,7 @@ kern_umtx_wake(struct thread *td, void *uaddr, int n_wake, int is_private)
 		is_private ? THREAD_SHARE : AUTO_SHARE, &key)) != 0)
 		return (ret);
 	umtxq_lock(&key);
-	ret = umtxq_signal(&key, n_wake);
+	umtxq_signal(&key, n_wake);
 	umtxq_unlock(&key);
 	umtx_key_release(&key);
 	return (0);
@@ -1805,7 +1805,7 @@ umtx_pi_setowner(struct umtx_pi *pi, struct thread *owner)
 	uq_owner = owner->td_umtxq;
 	mtx_assert(&umtx_lock, MA_OWNED);
 	if (pi->pi_owner != NULL)
-		panic("pi_ower != NULL");
+		panic("pi_owner != NULL");
 	pi->pi_owner = owner;
 	TAILQ_INSERT_TAIL(&uq_owner->uq_pi_contested, pi, pi_link);
 }
@@ -1829,9 +1829,8 @@ umtx_pi_disown(struct umtx_pi *pi)
 static int
 umtx_pi_claim(struct umtx_pi *pi, struct thread *owner)
 {
-	struct umtx_q *uq, *uq_owner;
+	struct umtx_q *uq;
 
-	uq_owner = owner->td_umtxq;
 	mtx_lock(&umtx_lock);
 	if (pi->pi_owner == owner) {
 		mtx_unlock(&umtx_lock);
@@ -1977,11 +1976,8 @@ umtx_pi_unref(struct umtx_pi *pi)
 	KASSERT(pi->pi_refcount > 0, ("invalid reference count"));
 	if (--pi->pi_refcount == 0) {
 		mtx_lock(&umtx_lock);
-		if (pi->pi_owner != NULL) {
-			TAILQ_REMOVE(&pi->pi_owner->td_umtxq->uq_pi_contested,
-				pi, pi_link);
-			pi->pi_owner = NULL;
-		}
+		if (pi->pi_owner != NULL)
+			umtx_pi_disown(pi);
 		KASSERT(TAILQ_EMPTY(&pi->pi_blocked),
 			("blocked queue not empty"));
 		mtx_unlock(&umtx_lock);
@@ -2241,7 +2237,7 @@ do_unlock_pi(struct thread *td, struct umutex *m, uint32_t flags)
 		mtx_lock(&umtx_lock);
 		pi = uq_first->uq_pi_blocked;
 		KASSERT(pi != NULL, ("pi == NULL?"));
-		if (pi->pi_owner != curthread) {
+		if (pi->pi_owner != td) {
 			mtx_unlock(&umtx_lock);
 			umtxq_unbusy(&key);
 			umtxq_unlock(&key);
@@ -2249,7 +2245,7 @@ do_unlock_pi(struct thread *td, struct umutex *m, uint32_t flags)
 			/* userland messed the mutex */
 			return (EPERM);
 		}
-		uq_me = curthread->td_umtxq;
+		uq_me = td->td_umtxq;
 		umtx_pi_disown(pi);
 		/* get highest priority thread which is still sleeping. */
 		uq_first = TAILQ_FIRST(&pi->pi_blocked);
@@ -2265,9 +2261,9 @@ do_unlock_pi(struct thread *td, struct umutex *m, uint32_t flags)
 					pri = UPRI(uq_first2->uq_thread);
 			}
 		}
-		thread_lock(curthread);
-		sched_lend_user_prio(curthread, pri);
-		thread_unlock(curthread);
+		thread_lock(td);
+		sched_lend_user_prio(td, pri);
+		thread_unlock(td);
 		mtx_unlock(&umtx_lock);
 		if (uq_first)
 			umtxq_signal_thread(uq_first);
