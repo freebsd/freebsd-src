@@ -935,7 +935,7 @@ main(int argc, char **argv)
 		errx(EX_USAGE, "ERROR: options -T and -l are mutually "
 		    "exclusive.");
 
-	/* -m option is allowed with -R only. */
+	/* -m requires -R */
 	if (args.pa_flags & FLAG_DO_ANNOTATE && args.pa_inputpath == NULL)
 		errx(EX_USAGE, "ERROR: option -m requires an input file");
 
