@@ -266,9 +266,7 @@ SUBDIR+=	iscsictl
 
 .if ${MK_KDUMP} != "no"
 SUBDIR+=        kdump
-.if ${MACHINE_ARCH} != "aarch64" # ARM64TODO truss does not build
 SUBDIR+=        truss
-.endif
 .endif
 
 .if ${MK_KERBEROS_SUPPORT} != "no"
