@@ -2776,7 +2776,11 @@ zvol_geom_worker(void *arg)
 			break;
 		case BIO_READ:
 		case BIO_WRITE:
+		case BIO_DELETE:
 			zvol_strategy(bp);
+			break;
+		default:
+			g_io_deliver(bp, EOPNOTSUPP);
 			break;
 		}
 	}
