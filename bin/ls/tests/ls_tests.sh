@@ -304,9 +304,34 @@ q_flag_and_w_flag_body()
 	atf_check -e empty -o match:"$test_file" -s exit:0 ls -w "$test_file"
 }
 
+t_flag_head()
+{
+	atf_set "descr" "Verify that the output from ls -u sorts by last access with -t"
+}
+
+t_flag_body()
+{
+	create_test_dir
+
+	atf_check -e empty -o empty -s exit:0 touch a.file
+	sync
+	atf_check -e empty -o empty -s exit:0 touch b.file
+	sync
+
+	atf_check -e empty -o match:'a\.file' -s exit:0 sh -c 'ls -lt | tail -n 1'
+	atf_check -e empty -o match:'b\.file.*a\.file' -s exit:0 ls -Ct
+
+	atf_check -e empty -o empty -s exit:0 rm a.file
+	atf_check -e empty -o empty -s exit:0 sh -c 'echo "i am a" > a.file'
+	sync
+
+	atf_check -e empty -o match:'b\.file' -s exit:0 sh -c 'ls -lt | tail -n 1'
+	atf_check -e empty -o match:'a\.file.*b\.file' -s exit:0 ls -Ct
+}
+
 u_flag_head()
 {
-	atf_set "descr" "Verify that the output from ls -u sorts by last access with -l and -t"
+	atf_set "descr" "Verify that the output from ls -u sorts by last access"
 }
 
 u_flag_body()
@@ -314,17 +339,17 @@ u_flag_body()
 	create_test_dir
 
 	atf_check -e empty -o empty -s exit:0 touch a.file
-	sleep 0.3
+	sync
 	atf_check -e empty -o empty -s exit:0 touch b.file
-	sleep 0.3
+	sync
 
 	atf_check -e empty -o match:'b\.file' -s exit:0 sh -c 'ls -lu | tail -n 1'
 	atf_check -e empty -o match:'a\.file.*b\.file' -s exit:0 ls -Cu
 
 	atf_check -e empty -o empty -s exit:0 sh -c 'echo "i am a" > a.file'
-	sleep 0.3
+	sync
 	atf_check -e empty -o match:'i am a' -s exit:0 cat a.file
-	sleep 0.3
+	sync
 
 	atf_check -e empty -o match:'b\.file' -s exit:0 sh -c 'ls -lu | tail -n 1'
 	atf_check -e empty -o match:'a\.file.*b\.file' -s exit:0 ls -Cu
@@ -437,7 +462,7 @@ atf_init_test_cases()
 	atf_add_test_case q_flag_and_w_flag
 	#atf_add_test_case r_flag
 	#atf_add_test_case s_flag
-	#atf_add_test_case t_flag
+	atf_add_test_case t_flag
 	atf_add_test_case u_flag
 	atf_add_test_case x_flag
 	atf_add_test_case y_flag
