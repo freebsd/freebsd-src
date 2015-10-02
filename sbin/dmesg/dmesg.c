@@ -116,6 +116,9 @@ main(int argc, char *argv[])
 		 */
 		if (sysctlbyname("kern.msgbuf", NULL, &buflen, NULL, 0) == -1)
 			err(1, "sysctl kern.msgbuf");
+		/* Allocate extra room for growth between the sysctl calls. */
+		buflen += buflen/8;
+		/* Allocate more than sysctl sees, for room to append \n\0. */
 		if ((bp = malloc(buflen + 2)) == NULL)
 			errx(1, "malloc failed");
 		if (sysctlbyname("kern.msgbuf", bp, &buflen, NULL, 0) == -1)
