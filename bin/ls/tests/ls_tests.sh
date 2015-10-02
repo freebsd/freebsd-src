@@ -285,6 +285,26 @@ lcomma_flag_body()
 	    env LC_ALL=en_US.ISO8859-1 ls -l, i
 }
 
+p_flag_head()
+{
+	atf_set "descr" "Verify that the output from ls -p prints out '/' after directories"
+}
+
+p_flag_body()
+{
+	create_test_inputs
+
+	for path in $(find -L .); do
+		suffix=
+		# If path is not a symlink and is a directory, then the suffix
+		# must be "/".
+		if [ ! -L "${path}" -a -d "$path" ]; then
+			suffix=/
+		fi
+		atf_check -e empty -o match:"$path${suffix}" ls -dp $path
+	done
+}
+
 q_flag_and_w_flag_head()
 {
 	atf_set "descr" "Verify that the output from ls -q prints out '?' for ESC and ls -w prints out the escape character"
@@ -479,7 +499,7 @@ atf_init_test_cases()
 	#atf_add_test_case m_flag
 	#atf_add_test_case n_flag
 	#atf_add_test_case o_flag
-	#atf_add_test_case p_flag
+	atf_add_test_case p_flag
 	atf_add_test_case q_flag_and_w_flag
 	#atf_add_test_case r_flag
 	atf_add_test_case s_flag
