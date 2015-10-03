@@ -249,8 +249,7 @@ static int		rum_key_alloc(struct ieee80211vap *,
 			    struct ieee80211_key *, ieee80211_keyix *,
 			    ieee80211_keyix *);
 static int		rum_key_set(struct ieee80211vap *,
-			    const struct ieee80211_key *,
-			    const uint8_t mac[IEEE80211_ADDR_LEN]);
+			    const struct ieee80211_key *);
 static int		rum_key_delete(struct ieee80211vap *,
 			    const struct ieee80211_key *);
 static int		rum_raw_xmit(struct ieee80211_node *, struct mbuf *,
@@ -2659,8 +2658,7 @@ rum_key_alloc(struct ieee80211vap *vap, struct ieee80211_key *k,
 }
 
 static int
-rum_key_set(struct ieee80211vap *vap, const struct ieee80211_key *k,
-    const uint8_t mac[IEEE80211_ADDR_LEN])
+rum_key_set(struct ieee80211vap *vap, const struct ieee80211_key *k)
 {
 	struct rum_softc *sc = vap->iv_ic->ic_softc;
 	int group;

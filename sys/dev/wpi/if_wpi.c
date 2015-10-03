@@ -254,8 +254,7 @@ static void	wpi_del_key_cb(void *, struct ieee80211_node *);
 static int	wpi_process_key(struct ieee80211vap *,
 		    const struct ieee80211_key *, int);
 static int	wpi_key_set(struct ieee80211vap *,
-		    const struct ieee80211_key *,
-		    const uint8_t mac[IEEE80211_ADDR_LEN]);
+		    const struct ieee80211_key *);
 static int	wpi_key_delete(struct ieee80211vap *,
 		    const struct ieee80211_key *);
 static int	wpi_post_alive(struct wpi_softc *);
@@ -4799,8 +4798,7 @@ wpi_process_key(struct ieee80211vap *vap, const struct ieee80211_key *k,
 }
 
 static int
-wpi_key_set(struct ieee80211vap *vap, const struct ieee80211_key *k,
-    const uint8_t mac[IEEE80211_ADDR_LEN])
+wpi_key_set(struct ieee80211vap *vap, const struct ieee80211_key *k)
 {
 	return wpi_process_key(vap, k, 1);
 }
