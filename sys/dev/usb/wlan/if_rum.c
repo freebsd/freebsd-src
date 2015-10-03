@@ -216,7 +216,7 @@ static void		rum_setpromisc(struct rum_softc *);
 static const char	*rum_get_rf(int);
 static void		rum_read_eeprom(struct rum_softc *);
 static int		rum_bbp_init(struct rum_softc *);
-static void		rum_init(struct rum_softc *);
+static int		rum_init(struct rum_softc *);
 static void		rum_stop(struct rum_softc *);
 static void		rum_load_microcode(struct rum_softc *, const uint8_t *,
 			    size_t);
@@ -1373,24 +1373,22 @@ static void
 rum_parent(struct ieee80211com *ic)
 {
 	struct rum_softc *sc = ic->ic_softc;
-	int startall = 0;
+	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
 
 	RUM_LOCK(sc);
 	if (sc->sc_detached) {
 		RUM_UNLOCK(sc);
 		return;
 	}
-	if (ic->ic_nrunning > 0) {
-		if (!sc->sc_running) {
-			rum_init(sc);
-			startall = 1;
-		} else
-			rum_setpromisc(sc);
-	} else if (sc->sc_running)
-		rum_stop(sc);
 	RUM_UNLOCK(sc);
-	if (startall)
-		ieee80211_start_all(ic);
+
+	if (ic->ic_nrunning > 0) {
+		if (rum_init(sc) == 0)
+			ieee80211_start_all(ic);
+		else
+			ieee80211_stop(vap);
+	} else
+		rum_stop(sc);
 }
 
 static void
@@ -2043,18 +2041,19 @@ rum_bbp_init(struct rum_softc *sc)
 	return 0;
 }
 
-static void
+static int
 rum_init(struct rum_softc *sc)
 {
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
 	uint32_t tmp;
-	usb_error_t error;
-	int i, ntries;
+	int i, ntries, ret;
 
-	RUM_LOCK_ASSERT(sc);
-
-	rum_stop(sc);
+	RUM_LOCK(sc);
+	if (sc->sc_running) {
+		ret = 0;
+		goto end;
+	}
 
 	/* initialize MAC registers to default values */
 	for (i = 0; i < nitems(rum_def_mac); i++)
@@ -2075,11 +2074,12 @@ rum_init(struct rum_softc *sc)
 	if (ntries == 100) {
 		device_printf(sc->sc_dev,
 		    "timeout waiting for BBP/RF to wakeup\n");
-		goto fail;
+		ret = ETIMEDOUT;
+		goto end;
 	}
 
-	if ((error = rum_bbp_init(sc)) != 0)
-		goto fail;
+	if ((ret = rum_bbp_init(sc)) != 0)
+		goto end;
 
 	/* select default channel */
 	rum_select_band(sc, ic->ic_curchan);
@@ -2116,20 +2116,25 @@ rum_init(struct rum_softc *sc)
 	sc->sc_running = 1;
 	usbd_xfer_set_stall(sc->sc_xfer[RUM_BULK_WR]);
 	usbd_transfer_start(sc->sc_xfer[RUM_BULK_RD]);
-	return;
 
-fail:	rum_stop(sc);
-#undef N
+end:	RUM_UNLOCK(sc);
+
+	if (ret != 0)
+		rum_stop(sc);
+
+	return ret;
 }
 
 static void
 rum_stop(struct rum_softc *sc)
 {
 
-	RUM_LOCK_ASSERT(sc);
-
+	RUM_LOCK(sc);
+	if (!sc->sc_running) {
+		RUM_UNLOCK(sc);
+		return;
+	}
 	sc->sc_running = 0;
-
 	RUM_UNLOCK(sc);
 
 	/*
@@ -2139,7 +2144,6 @@ rum_stop(struct rum_softc *sc)
 	usbd_transfer_drain(sc->sc_xfer[RUM_BULK_RD]);
 
 	RUM_LOCK(sc);
-
 	rum_unsetup_tx_list(sc);
 
 	/* disable Rx */
@@ -2148,6 +2152,7 @@ rum_stop(struct rum_softc *sc)
 	/* reset ASIC */
 	rum_write(sc, RT2573_MAC_CSR1, RT2573_RESET_ASIC | RT2573_RESET_BBP);
 	rum_write(sc, RT2573_MAC_CSR1, 0);
+	RUM_UNLOCK(sc);
 }
 
 static void
