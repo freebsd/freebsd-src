@@ -623,7 +623,7 @@ gre_set_tunnel(struct ifnet *ifp, struct sockaddr *src,
 	default:
 		return (EAFNOSUPPORT);
 	}
-	if (sc->gre_family != src->sa_family)
+	if (sc->gre_family != 0)
 		gre_detach(sc);
 	GRE_WLOCK(sc);
 	if (sc->gre_family != 0)
