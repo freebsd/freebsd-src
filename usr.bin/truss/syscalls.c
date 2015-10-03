@@ -1452,6 +1452,7 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 	case StatFs: {
 		unsigned int i;
 		struct statfs buf;
+
 		if (get_struct(pid, (void *)args[sc->offset], &buf,
 		    sizeof(buf)) != -1) {
 			char fsid[17];
