@@ -372,7 +372,7 @@ symlinks:
 		    ${DESTDIR}${INCLUDEDIR}/rpc; \
 	done
 .if ${MK_META_MODE} == "yes"
-	touch ${.OBJDIR}/${.TARGET}
+	@touch ${.OBJDIR}/${.TARGET}
 .endif
 
 .if ${MACHINE} == "host"
