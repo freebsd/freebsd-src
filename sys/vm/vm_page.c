@@ -149,6 +149,8 @@ static int sysctl_vm_page_blacklist(SYSCTL_HANDLER_ARGS);
 SYSCTL_PROC(_vm, OID_AUTO, page_blacklist, CTLTYPE_STRING | CTLFLAG_RD |
     CTLFLAG_MPSAFE, NULL, 0, sysctl_vm_page_blacklist, "A", "Blacklist pages");
 
+/* Is the page daemon waiting for free pages? */
+static int vm_pageout_pages_needed;
 
 static uma_zone_t fakepg_zone;
 
