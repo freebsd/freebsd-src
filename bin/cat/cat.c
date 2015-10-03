@@ -168,6 +168,7 @@ scanfiles(char *argv[], int cooked)
 	FILE *fp;
 
 	i = 0;
+	fd = -1;
 	while ((path = argv[i]) != NULL || i == 0) {
 		if (path == NULL || strcmp(path, "-") == 0) {
 			filename = "stdin";
