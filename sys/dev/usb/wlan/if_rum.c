@@ -215,6 +215,7 @@ static void		rum_update_promisc(struct ieee80211com *);
 static void		rum_setpromisc(struct rum_softc *);
 static const char	*rum_get_rf(int);
 static void		rum_read_eeprom(struct rum_softc *);
+static int		rum_bbp_wakeup(struct rum_softc *);
 static int		rum_bbp_init(struct rum_softc *);
 static int		rum_init(struct rum_softc *);
 static void		rum_stop(struct rum_softc *);
@@ -2010,6 +2011,27 @@ rum_read_eeprom(struct rum_softc *sc)
 }
 
 static int
+rum_bbp_wakeup(struct rum_softc *sc)
+{
+	unsigned int ntries;
+
+	for (ntries = 0; ntries < 100; ntries++) {
+		if (rum_read(sc, RT2573_MAC_CSR12) & 8)
+			break;
+		rum_write(sc, RT2573_MAC_CSR12, 4);	/* force wakeup */
+		if (rum_pause(sc, hz / 100))
+			break;
+	}
+	if (ntries == 100) {
+		device_printf(sc->sc_dev,
+		    "timeout waiting for BBP/RF to wakeup\n");
+		return (ETIMEDOUT);
+	}
+
+	return (0);
+}
+
+static int
 rum_bbp_init(struct rum_softc *sc)
 {
 	int i, ntries;
@@ -2047,7 +2069,7 @@ rum_init(struct rum_softc *sc)
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
 	uint32_t tmp;
-	int i, ntries, ret;
+	int i, ret;
 
 	RUM_LOCK(sc);
 	if (sc->sc_running) {
@@ -2064,19 +2086,8 @@ rum_init(struct rum_softc *sc)
 	rum_write(sc, RT2573_MAC_CSR1, 0);
 
 	/* wait for BBP/RF to wakeup */
-	for (ntries = 0; ntries < 100; ntries++) {
-		if (rum_read(sc, RT2573_MAC_CSR12) & 8)
-			break;
-		rum_write(sc, RT2573_MAC_CSR12, 4);	/* force wakeup */
-		if (rum_pause(sc, hz / 100))
-			break;
-	}
-	if (ntries == 100) {
-		device_printf(sc->sc_dev,
-		    "timeout waiting for BBP/RF to wakeup\n");
-		ret = ETIMEDOUT;
+	if ((ret = rum_bbp_wakeup(sc)) != 0)
 		goto end;
-	}
 
 	if ((ret = rum_bbp_init(sc)) != 0)
 		goto end;
