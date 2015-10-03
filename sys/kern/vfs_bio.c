@@ -2050,11 +2050,10 @@ vfs_vmio_iodone(struct buf *bp)
 		    (intmax_t)foff, (uintmax_t)m->pindex));
 
 		vm_page_sunbusy(m);
-		vm_object_pip_subtract(obj, 1);
 		foff = (foff + PAGE_SIZE) & ~(off_t)PAGE_MASK;
 		iosize -= resid;
 	}
-	vm_object_pip_wakeupn(obj, 0);
+	vm_object_pip_wakeupn(obj, bp->b_npages);
 	VM_OBJECT_WUNLOCK(obj);
 	if (bogus && buf_mapped(bp)) {
 		BUF_CHECK_MAPPED(bp);
@@ -3923,10 +3922,9 @@ vfs_unbusy_pages(struct buf *bp)
 			} else
 				BUF_CHECK_UNMAPPED(bp);
 		}
-		vm_object_pip_subtract(obj, 1);
 		vm_page_sunbusy(m);
 	}
-	vm_object_pip_wakeupn(obj, 0);
+	vm_object_pip_wakeupn(obj, bp->b_npages);
 	VM_OBJECT_WUNLOCK(obj);
 }
 
