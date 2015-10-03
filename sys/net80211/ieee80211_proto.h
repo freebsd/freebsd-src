@@ -346,8 +346,7 @@ struct ieee80211_beacon_offsets {
 	uint8_t		*bo_meshconf;	/* start of MESHCONF element */
 	uint8_t		*bo_spare[3];
 };
-struct mbuf *ieee80211_beacon_alloc(struct ieee80211_node *,
-		struct ieee80211_beacon_offsets *);
+struct mbuf *ieee80211_beacon_alloc(struct ieee80211_node *);
 
 /*
  * Beacon frame updates are signaled through calls to iv_update_beacon
@@ -375,7 +374,7 @@ enum {
 	IEEE80211_BEACON_MESHCONF = 11,	/* Mesh Configuration */
 };
 int	ieee80211_beacon_update(struct ieee80211_node *,
-		struct ieee80211_beacon_offsets *, struct mbuf *, int mcast);
+		struct mbuf *, int mcast);
 
 void	ieee80211_csa_startswitch(struct ieee80211com *,
 		struct ieee80211_channel *, int mode, int count);

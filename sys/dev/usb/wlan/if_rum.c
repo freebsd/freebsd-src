@@ -2420,7 +2420,7 @@ rum_alloc_beacon(struct rum_softc *sc, struct ieee80211vap *vap)
 	if (ni->ni_chan == IEEE80211_CHAN_ANYC)
 		return EINVAL;
 
-	m = ieee80211_beacon_alloc(ni, &vap->iv_bcn_off);
+	m = ieee80211_beacon_alloc(ni);
 	if (m == NULL)
 		return ENOMEM;
 
@@ -2454,7 +2454,7 @@ rum_update_beacon(struct ieee80211vap *vap, int item)
 
 	RUM_LOCK(sc);
 	if (m == NULL) {
-		m = ieee80211_beacon_alloc(ni, bo);
+		m = ieee80211_beacon_alloc(ni);
 		if (m == NULL) {
 			device_printf(sc->sc_dev,
 			    "%s: could not allocate beacon frame\n", __func__);
@@ -2477,7 +2477,7 @@ rum_update_beacon(struct ieee80211vap *vap, int item)
 	RUM_UNLOCK(sc);
 
 	setbit(bo->bo_flags, item);
-	ieee80211_beacon_update(ni, bo, m, mcast);
+	ieee80211_beacon_update(ni, m, mcast);
 
 	rum_cmd_sleepable(sc, &vap, sizeof(vap), 0, rum_update_beacon_cb);
 }
