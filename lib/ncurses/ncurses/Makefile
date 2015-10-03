@@ -282,7 +282,6 @@ CFLAGS+=	-DFREEBSD_NATIVE -DTERMIOS
 # Installed
 HEADERS=	curses.h term.h termcap.h unctrl.h
 SRCHDRS=	ncurses_dll.h
-CLEANFILES+=	ncurses_dll.h
 
 .if defined(ENABLE_WIDEC)
 INCS=		${HEADERS} ${SRCHDRS}
