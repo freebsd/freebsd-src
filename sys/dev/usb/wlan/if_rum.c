@@ -912,6 +912,7 @@ rum_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 {
 	struct rum_softc *sc = usbd_xfer_softc(xfer);
 	struct ieee80211com *ic = &sc->sc_ic;
+	struct ieee80211_frame_min *wh;
 	struct ieee80211_node *ni;
 	struct mbuf *m = NULL;
 	struct usb_page_cache *pc;
@@ -959,6 +960,8 @@ rum_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 		usbd_copy_out(pc, RT2573_RX_DESC_SIZE,
 		    mtod(m, uint8_t *), len);
 
+		wh = mtod(m, struct ieee80211_frame_min *);
+
 		/* finalize mbuf */
 		m->m_pkthdr.len = m->m_len = (flags >> 16) & 0xfff;
 
@@ -987,8 +990,11 @@ tr_setup:
 		 */
 		RUM_UNLOCK(sc);
 		if (m) {
-			ni = ieee80211_find_rxnode(ic,
-			    mtod(m, struct ieee80211_frame_min *));
+			if (m->m_len >= sizeof(struct ieee80211_frame_min))
+				ni = ieee80211_find_rxnode(ic, wh);
+			else
+				ni = NULL;
+
 			if (ni != NULL) {
 				(void) ieee80211_input(ni, m, rssi,
 				    RT2573_NOISE_FLOOR);
