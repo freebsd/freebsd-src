@@ -88,7 +88,6 @@ struct rum_cmdq {
 
 struct rum_vap {
 	struct ieee80211vap		vap;
-	struct ieee80211_beacon_offsets	bo;
 	struct usb_callout		ratectl_ch;
 	struct task			ratectl_task;
 
