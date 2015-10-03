@@ -1030,21 +1030,21 @@ SYSCTL_INT(_vfs_zfs, OID_AUTO, l2arc_norw, CTLFLAG_RW,
     &l2arc_norw, 0, "no reads during writes");
 
 SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, anon_size, CTLFLAG_RD,
-    &ARC_anon.arcs_size, 0, "size of anonymous state");
+    &ARC_anon.arcs_size.rc_count, 0, "size of anonymous state");
 SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, anon_metadata_lsize, CTLFLAG_RD,
     &ARC_anon.arcs_lsize[ARC_BUFC_METADATA], 0, "size of anonymous state");
 SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, anon_data_lsize, CTLFLAG_RD,
     &ARC_anon.arcs_lsize[ARC_BUFC_DATA], 0, "size of anonymous state");
 
 SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, mru_size, CTLFLAG_RD,
-    &ARC_mru.arcs_size, 0, "size of mru state");
+    &ARC_mru.arcs_size.rc_count, 0, "size of mru state");
 SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, mru_metadata_lsize, CTLFLAG_RD,
     &ARC_mru.arcs_lsize[ARC_BUFC_METADATA], 0, "size of metadata in mru state");
 SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, mru_data_lsize, CTLFLAG_RD,
     &ARC_mru.arcs_lsize[ARC_BUFC_DATA], 0, "size of data in mru state");
 
 SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, mru_ghost_size, CTLFLAG_RD,
-    &ARC_mru_ghost.arcs_size, 0, "size of mru ghost state");
+    &ARC_mru_ghost.arcs_size.rc_count, 0, "size of mru ghost state");
 SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, mru_ghost_metadata_lsize, CTLFLAG_RD,
     &ARC_mru_ghost.arcs_lsize[ARC_BUFC_METADATA], 0,
     "size of metadata in mru ghost state");
@@ -1053,14 +1053,14 @@ SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, mru_ghost_data_lsize, CTLFLAG_RD,
     "size of data in mru ghost state");
 
 SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, mfu_size, CTLFLAG_RD,
-    &ARC_mfu.arcs_size, 0, "size of mfu state");
+    &ARC_mfu.arcs_size.rc_count, 0, "size of mfu state");
 SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, mfu_metadata_lsize, CTLFLAG_RD,
     &ARC_mfu.arcs_lsize[ARC_BUFC_METADATA], 0, "size of metadata in mfu state");
 SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, mfu_data_lsize, CTLFLAG_RD,
     &ARC_mfu.arcs_lsize[ARC_BUFC_DATA], 0, "size of data in mfu state");
 
 SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, mfu_ghost_size, CTLFLAG_RD,
-    &ARC_mfu_ghost.arcs_size, 0, "size of mfu ghost state");
+    &ARC_mfu_ghost.arcs_size.rc_count, 0, "size of mfu ghost state");
 SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, mfu_ghost_metadata_lsize, CTLFLAG_RD,
     &ARC_mfu_ghost.arcs_lsize[ARC_BUFC_METADATA], 0,
     "size of metadata in mfu ghost state");
@@ -1069,7 +1069,7 @@ SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, mfu_ghost_data_lsize, CTLFLAG_RD,
     "size of data in mfu ghost state");
 
 SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, l2c_only_size, CTLFLAG_RD,
-    &ARC_l2c_only.arcs_size, 0, "size of mru state");
+    &ARC_l2c_only.arcs_size.rc_count, 0, "size of mru state");
 
 /*
  * L2ARC Internals
