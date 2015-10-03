@@ -206,6 +206,7 @@ static void		rum_set_chan(struct rum_softc *,
 static void		rum_enable_tsf_sync(struct rum_softc *);
 static void		rum_enable_tsf(struct rum_softc *);
 static void		rum_abort_tsf_sync(struct rum_softc *);
+static void		rum_get_tsf(struct rum_softc *, uint64_t *);
 static void		rum_update_slot(struct rum_softc *);
 static void		rum_set_bssid(struct rum_softc *, const uint8_t *);
 static void		rum_set_macaddr(struct rum_softc *, const uint8_t *);
@@ -857,6 +858,7 @@ tr_setup:
 
 				tap->wt_flags = 0;
 				tap->wt_rate = data->rate;
+				rum_get_tsf(sc, &tap->wt_tsf);
 				tap->wt_antenna = sc->tx_ant;
 
 				ieee80211_radiotap_tx(vap, m);
@@ -963,11 +965,11 @@ rum_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 		if (ieee80211_radiotap_active(ic)) {
 			struct rum_rx_radiotap_header *tap = &sc->sc_rxtap;
 
-			/* XXX read tsf */
 			tap->wr_flags = 0;
 			tap->wr_rate = ieee80211_plcp2rate(sc->sc_rx_desc.rate,
 			    (flags & RT2573_RX_OFDM) ?
 			    IEEE80211_T_OFDM : IEEE80211_T_CCK);
+			rum_get_tsf(sc, &tap->wr_tsf);
 			tap->wr_antsignal = RT2573_NOISE_FLOOR + rssi;
 			tap->wr_antnoise = RT2573_NOISE_FLOOR;
 			tap->wr_antenna = sc->rx_ant;
@@ -1833,6 +1835,12 @@ static void
 rum_abort_tsf_sync(struct rum_softc *sc)
 {
 	rum_clrbits(sc, RT2573_TXRX_CSR9, 0x00ffffff);
+}
+
+static void
+rum_get_tsf(struct rum_softc *sc, uint64_t *buf)
+{
+	rum_read_multi(sc, RT2573_TXRX_CSR12, buf, sizeof (*buf));
 }
 
 static void
