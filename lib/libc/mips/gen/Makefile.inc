@@ -6,9 +6,15 @@ SRCS+=	infinity.c fabs.c ldexp.c
 # SRCS+=	flt_rounds.c fpgetmask.c fpgetround.c fpgetsticky.c fpsetmask.c \
 #	fpsetround.c fpsetsticky.c
 
-SRCS+=	_ctx_start.S _set_tp.c _setjmp.S makecontext.c \
-	setjmp.S signalcontext.c sigsetjmp.S \
+SRCS+=	_ctx_start.S _set_tp.c makecontext.c \
+	signalcontext.c sigsetjmp.S \
 	trivial-getcontextx.c
+
+.if defined(LIBCHERI)
+SRCS+=	_setjmp_c.S setjmp_c.S
+.else
+SRCS+=	_setjmp.S setjmp.S
+.endif
 
 .if ${MK_CHERI} == "yes"
 # XXX-BD: clang currently miscompiles these.  See CHERI-LLVM bug #125.
