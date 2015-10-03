@@ -45,6 +45,6 @@ INCS=	__wmmintrin_aes.h \
 	xopintrin.h \
 	${GENINCS}
 GENINCS= arm_neon.h
-CLEANFILES= ${GENINCS}
+CLEANFILES= ${GENINCS} ${GENINCS:C/\.h$/.d/}
 
 .include <bsd.prog.mk>
