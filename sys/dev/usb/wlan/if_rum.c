@@ -169,7 +169,7 @@ static int		rum_newstate(struct ieee80211vap *,
 static uint8_t		rum_crypto_mode(struct rum_softc *, u_int, int);
 static void		rum_setup_tx_desc(struct rum_softc *,
 			    struct rum_tx_desc *, struct ieee80211_key *,
-			    uint32_t, uint8_t, int, int, int);
+			    uint32_t, uint8_t, uint8_t, int, int, int);
 static uint32_t		rum_tx_crypto_flags(struct rum_softc *,
 			    struct ieee80211_node *,
 			    const struct ieee80211_key *);
@@ -216,6 +216,9 @@ static void		rum_get_tsf(struct rum_softc *, uint64_t *);
 static void		rum_update_slot_cb(struct rum_softc *,
 			    union sec_param *, uint8_t);
 static void		rum_update_slot(struct ieee80211com *);
+static void		rum_wme_update_cb(struct rum_softc *,
+			    union sec_param *, uint8_t);
+static int		rum_wme_update(struct ieee80211com *);
 static void		rum_set_bssid(struct rum_softc *, const uint8_t *);
 static void		rum_set_macaddr(struct rum_softc *, const uint8_t *);
 static void		rum_update_mcast(struct ieee80211com *);
@@ -526,6 +529,7 @@ rum_attach(device_t self)
 	    | IEEE80211_C_SHSLOT	/* short slot time supported */
 	    | IEEE80211_C_BGSCAN	/* bg scanning supported */
 	    | IEEE80211_C_WPA		/* 802.11i */
+	    | IEEE80211_C_WME		/* 802.11e */
 	    ;
 
 	ic->ic_cryptocaps =
@@ -552,6 +556,7 @@ rum_attach(device_t self)
 	ic->ic_vap_create = rum_vap_create;
 	ic->ic_vap_delete = rum_vap_delete;
 	ic->ic_updateslot = rum_update_slot;
+	ic->ic_wme.wme_update = rum_wme_update;
 	ic->ic_update_mcast = rum_update_mcast;
 
 	ieee80211_radiotap_attach(ic,
@@ -1139,10 +1144,11 @@ rum_crypto_mode(struct rum_softc *sc, u_int cipher, int keylen)
 
 static void
 rum_setup_tx_desc(struct rum_softc *sc, struct rum_tx_desc *desc,
-    struct ieee80211_key *k, uint32_t flags, uint8_t xflags, int hdrlen,
-    int len, int rate)
+    struct ieee80211_key *k, uint32_t flags, uint8_t xflags, uint8_t qid,
+    int hdrlen, int len, int rate)
 {
 	struct ieee80211com *ic = &sc->sc_ic;
+	struct wmeParams *wmep = &sc->wme_params[qid];
 	uint16_t plcp_length;
 	int remainder;
 
@@ -1189,8 +1195,10 @@ rum_setup_tx_desc(struct rum_softc *sc, struct rum_tx_desc *desc,
 	desc->hdrlen = hdrlen;
 	desc->xflags = xflags;
 
-	desc->wme = htole16(RT2573_QID(0) | RT2573_AIFSN(2) |
-	    RT2573_LOGCWMIN(4) | RT2573_LOGCWMAX(10));
+	desc->wme = htole16(RT2573_QID(qid) |
+	    RT2573_AIFSN(wmep->wmep_aifsn) |
+	    RT2573_LOGCWMIN(wmep->wmep_logcwmin) |
+	    RT2573_LOGCWMAX(wmep->wmep_logcwmax));
 }
 
 static int
@@ -1236,7 +1244,7 @@ rum_sendprot(struct rum_softc *sc,
 	data->m = mprot;
 	data->ni = ieee80211_ref_node(ni);
 	data->rate = protrate;
-	rum_setup_tx_desc(sc, &data->desc, NULL, flags, 0, 0,
+	rum_setup_tx_desc(sc, &data->desc, NULL, flags, 0, 0, 0,
 	    mprot->m_pkthdr.len, protrate);
 
 	STAILQ_INSERT_TAIL(&sc->tx_q, data, next);
@@ -1290,7 +1298,7 @@ rum_tx_mgt(struct rum_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 	struct ieee80211_key *k = NULL;
 	uint32_t flags = 0;
 	uint16_t dur;
-	uint8_t type, xflags = 0;
+	uint8_t ac, type, xflags = 0;
 	int hdrlen;
 
 	RUM_LOCK_ASSERT(sc);
@@ -1302,6 +1310,7 @@ rum_tx_mgt(struct rum_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 	wh = mtod(m0, struct ieee80211_frame *);
 	type = wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK;
 	hdrlen = ieee80211_anyhdrsize(wh);
+	ac = M_WME_GETAC(m0);
 
 	if (wh->i_fc[1] & IEEE80211_FC1_PROTECTED) {
 		k = ieee80211_crypto_get_txkey(ni, m0);
@@ -1341,7 +1350,7 @@ rum_tx_mgt(struct rum_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 	data->ni = ni;
 	data->rate = tp->mgmtrate;
 
-	rum_setup_tx_desc(sc, &data->desc, k, flags, xflags, hdrlen,
+	rum_setup_tx_desc(sc, &data->desc, k, flags, xflags, ac, hdrlen,
 	    m0->m_pkthdr.len, tp->mgmtrate);
 
 	DPRINTFN(10, "sending mgt frame len=%d rate=%d\n",
@@ -1361,13 +1370,15 @@ rum_tx_raw(struct rum_softc *sc, struct mbuf *m0, struct ieee80211_node *ni,
 	struct ieee80211_frame *wh;
 	struct rum_tx_data *data;
 	uint32_t flags;
-	uint8_t type, xflags = 0;
+	uint8_t ac, type, xflags = 0;
 	int rate, error;
 
 	RUM_LOCK_ASSERT(sc);
 
 	wh = mtod(m0, struct ieee80211_frame *);
 	type = wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK;
+
+	ac = params->ibp_pri & 3;
 
 	rate = params->ibp_rate0;
 	if (!ieee80211_isratevalid(ic->ic_rt, rate))
@@ -1399,7 +1410,7 @@ rum_tx_raw(struct rum_softc *sc, struct mbuf *m0, struct ieee80211_node *ni,
 	data->rate = rate;
 
 	/* XXX need to setup descriptor ourself */
-	rum_setup_tx_desc(sc, &data->desc, NULL, flags, xflags, 0,
+	rum_setup_tx_desc(sc, &data->desc, NULL, flags, xflags, ac, 0,
 	    m0->m_pkthdr.len, rate);
 
 	DPRINTFN(10, "sending raw frame len=%u rate=%u\n",
@@ -1422,7 +1433,7 @@ rum_tx_data(struct rum_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 	struct ieee80211_key *k = NULL;
 	uint32_t flags = 0;
 	uint16_t dur;
-	uint8_t type, xflags = 0;
+	uint8_t ac, type, qos, xflags = 0;
 	int error, hdrlen, rate;
 
 	RUM_LOCK_ASSERT(sc);
@@ -1430,6 +1441,12 @@ rum_tx_data(struct rum_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 	wh = mtod(m0, struct ieee80211_frame *);
 	type = wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK;
 	hdrlen = ieee80211_anyhdrsize(wh);
+
+	if (IEEE80211_QOS_HAS_SEQ(wh))
+		qos = ((const struct ieee80211_qosframe *)wh)->i_qos[0];
+	else
+		qos = 0;
+	ac = M_WME_GETAC(m0);
 
 	tp = &vap->iv_txparms[ieee80211_chan2mode(ni->ni_chan)];
 	if (IEEE80211_IS_MULTICAST(wh->i_addr1))
@@ -1487,14 +1504,17 @@ rum_tx_data(struct rum_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 	data->rate = rate;
 
 	if (!IEEE80211_IS_MULTICAST(wh->i_addr1)) {
-		flags |= RT2573_TX_NEED_ACK;
+		/* Unicast frame, check if an ACK is expected. */
+		if (!qos || (qos & IEEE80211_QOS_ACKPOLICY) !=
+		    IEEE80211_QOS_ACKPOLICY_NOACK)
+			flags |= RT2573_TX_NEED_ACK;
 
-		dur = ieee80211_ack_duration(ic->ic_rt, rate, 
+		dur = ieee80211_ack_duration(ic->ic_rt, rate,
 		    ic->ic_flags & IEEE80211_F_SHPREAMBLE);
 		USETW(wh->i_dur, dur);
 	}
 
-	rum_setup_tx_desc(sc, &data->desc, k, flags, xflags, hdrlen,
+	rum_setup_tx_desc(sc, &data->desc, k, flags, xflags, ac, hdrlen,
 	    m0->m_pkthdr.len, rate);
 
 	DPRINTFN(10, "sending frame len=%d rate=%d\n",
@@ -2064,6 +2084,65 @@ rum_update_slot(struct ieee80211com *ic)
 }
 
 static void
+rum_wme_update_cb(struct rum_softc *sc, union sec_param *data, uint8_t rvp_id)
+{
+	const struct wmeParams (*chanp)[WME_NUM_AC] = &data->wme_params;
+	int error = 0;
+
+	error = rum_write(sc, RT2573_AIFSN_CSR,
+	    chanp[WME_AC_VO]->wmep_aifsn  << 12 |
+	    chanp[WME_AC_VI]->wmep_aifsn  <<  8 |
+	    chanp[WME_AC_BK]->wmep_aifsn  <<  4 |
+	    chanp[WME_AC_BE]->wmep_aifsn);
+	if (error)
+		goto print_err;
+	error = rum_write(sc, RT2573_CWMIN_CSR,
+	    chanp[WME_AC_VO]->wmep_logcwmin << 12 |
+	    chanp[WME_AC_VI]->wmep_logcwmin <<  8 |
+	    chanp[WME_AC_BK]->wmep_logcwmin <<  4 |
+	    chanp[WME_AC_BE]->wmep_logcwmin);
+	if (error)
+		goto print_err;
+	error = rum_write(sc, RT2573_CWMAX_CSR,
+	    chanp[WME_AC_VO]->wmep_logcwmax << 12 |
+	    chanp[WME_AC_VI]->wmep_logcwmax <<  8 |
+	    chanp[WME_AC_BK]->wmep_logcwmax <<  4 |
+	    chanp[WME_AC_BE]->wmep_logcwmax);
+	if (error)
+		goto print_err;
+	error = rum_write(sc, RT2573_TXOP01_CSR,
+	    chanp[WME_AC_BK]->wmep_txopLimit << 16 |
+	    chanp[WME_AC_BE]->wmep_txopLimit);
+	if (error)
+		goto print_err;
+	error = rum_write(sc, RT2573_TXOP23_CSR,
+	    chanp[WME_AC_VO]->wmep_txopLimit << 16 |
+	    chanp[WME_AC_VI]->wmep_txopLimit);
+	if (error)
+		goto print_err;
+
+	memcpy(sc->wme_params, chanp, sizeof(*chanp) * WME_NUM_AC);
+
+	return;
+
+print_err:
+	device_printf(sc->sc_dev, "%s: WME update failed, error %d\n",
+	    __func__, error);
+}
+
+static int
+rum_wme_update(struct ieee80211com *ic)
+{
+	struct rum_softc *sc = ic->ic_softc;
+	const struct wmeParams (*chanp)[WME_NUM_AC] =
+	   &ic->ic_wme.wme_chanParams.cap_wmeParams;
+
+	rum_cmd_sleepable(sc, chanp, sizeof (*chanp), 0, rum_wme_update_cb);
+
+	return (0);
+}
+
+static void
 rum_set_bssid(struct rum_softc *sc, const uint8_t *bssid)
 {
 
@@ -2288,6 +2367,11 @@ rum_init(struct rum_softc *sc)
 	for (i = 0; i < nitems(rum_def_mac); i++)
 		rum_write(sc, rum_def_mac[i].reg, rum_def_mac[i].val);
 
+	/* reset some WME parameters to default values */
+	sc->wme_params[0].wmep_aifsn = 2;
+	sc->wme_params[0].wmep_logcwmin = 4;
+	sc->wme_params[0].wmep_logcwmax = 10;
+
 	/* set host ready */
 	rum_write(sc, RT2573_MAC_CSR1, RT2573_RESET_ASIC | RT2573_RESET_BBP);
 	rum_write(sc, RT2573_MAC_CSR1, 0);
@@ -2431,7 +2515,7 @@ rum_set_beacon(struct rum_softc *sc, struct ieee80211vap *vap)
 
 	tp = &vap->iv_txparms[ieee80211_chan2mode(ic->ic_bsschan)];
 	rum_setup_tx_desc(sc, &desc, NULL, RT2573_TX_TIMESTAMP,
-	    RT2573_TX_HWSEQ, 0, m->m_pkthdr.len, tp->mgmtrate);
+	    RT2573_TX_HWSEQ, 0, 0, m->m_pkthdr.len, tp->mgmtrate);
 
 	/* copy the Tx descriptor into NIC memory */
 	if (rum_write_multi(sc, RT2573_HW_BCN_BASE(0), (uint8_t *)&desc,
