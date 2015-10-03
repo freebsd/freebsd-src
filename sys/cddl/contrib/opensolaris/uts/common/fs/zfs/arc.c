@@ -4776,7 +4776,6 @@ arc_tempreserve_space(uint64_t reserve, uint64_t txg)
 	return (0);
 }
 
-static kmutex_t arc_lowmem_lock;
 #ifdef _KERNEL
 static eventhandler_tag arc_event_lowmem = NULL;
 
@@ -4784,8 +4783,6 @@ static void
 arc_lowmem(void *arg __unused, int howto __unused)
 {
 
-	/* Serialize access via arc_lowmem_lock. */
-	mutex_enter(&arc_lowmem_lock);
 	mutex_enter(&arc_reclaim_thr_lock);
 	needfree = 1;
 	DTRACE_PROBE(arc__needfree);
@@ -4796,12 +4793,9 @@ arc_lowmem(void *arg __unused, int howto __unused)
 	 * here from ARC itself and may hold ARC locks and thus risk a deadlock
 	 * with ARC reclaim thread.
 	 */
-	if (curproc == pageproc) {
-		while (needfree)
-			msleep(&needfree, &arc_reclaim_thr_lock, 0, "zfs:lowmem", 0);
-	}
+	if (curproc == pageproc)
+		msleep(&needfree, &arc_reclaim_thr_lock, 0, "zfs:lowmem", 0);
 	mutex_exit(&arc_reclaim_thr_lock);
-	mutex_exit(&arc_lowmem_lock);
 }
 #endif
 
@@ -4812,7 +4806,6 @@ arc_init(void)
 
 	mutex_init(&arc_reclaim_thr_lock, NULL, MUTEX_DEFAULT, NULL);
 	cv_init(&arc_reclaim_thr_cv, NULL, CV_DEFAULT, NULL);
-	mutex_init(&arc_lowmem_lock, NULL, MUTEX_DEFAULT, NULL);
 
 	/* Convert seconds to clock ticks */
 	arc_min_prefetch_lifespan = 1 * hz;
@@ -5052,7 +5045,6 @@ arc_fini(void)
 
 	ASSERT0(arc_loaned_bytes);
 
-	mutex_destroy(&arc_lowmem_lock);
 #ifdef _KERNEL
 	if (arc_event_lowmem != NULL)
 		EVENTHANDLER_DEREGISTER(vm_lowmem, arc_event_lowmem);
