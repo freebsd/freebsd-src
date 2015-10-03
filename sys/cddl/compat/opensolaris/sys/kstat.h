@@ -44,9 +44,9 @@ typedef struct kstat {
 #ifdef _KERNEL
 	struct sysctl_ctx_list ks_sysctl_ctx;
 	struct sysctl_oid *ks_sysctl_root;
+#endif
 	int		(*ks_update)(struct kstat *, int); /* dynamic update */
 	void		*ks_private;	/* arbitrary provider-private data */
-#endif
 } kstat_t;
 
 typedef struct kstat_named {
