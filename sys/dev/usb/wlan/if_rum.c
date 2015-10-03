@@ -207,6 +207,8 @@ static void		rum_select_band(struct rum_softc *,
 			    struct ieee80211_channel *);
 static void		rum_set_chan(struct rum_softc *,
 			    struct ieee80211_channel *);
+static void		rum_set_maxretry(struct rum_softc *,
+			    struct ieee80211vap *);
 static int		rum_enable_tsf_sync(struct rum_softc *);
 static void		rum_enable_tsf(struct rum_softc *);
 static void		rum_abort_tsf_sync(struct rum_softc *);
@@ -819,7 +821,8 @@ rum_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		ni = ieee80211_ref_node(vap->iv_bss);
 
 		if (vap->iv_opmode != IEEE80211_M_MONITOR) {
-			if (ic->ic_bsschan == IEEE80211_CHAN_ANYC) {
+			if (ic->ic_bsschan == IEEE80211_CHAN_ANYC ||
+			    ni->ni_chan == IEEE80211_CHAN_ANYC) {
 				ret = EINVAL;
 				goto run_fail;
 			}
@@ -827,6 +830,7 @@ rum_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 			rum_enable_mrr(sc);
 			rum_set_txpreamble(sc);
 			rum_set_basicrates(sc);
+			rum_set_maxretry(sc, vap);
 			IEEE80211_ADDR_COPY(sc->sc_bssid, ni->ni_bssid);
 			rum_set_bssid(sc, sc->sc_bssid);
 		}
@@ -1944,6 +1948,21 @@ rum_set_chan(struct rum_softc *sc, struct ieee80211_channel *c)
 
 	/* give the chip some extra time to do the switchover */
 	rum_pause(sc, hz / 100);
+}
+
+static void
+rum_set_maxretry(struct rum_softc *sc, struct ieee80211vap *vap)
+{
+	const struct ieee80211_txparam *tp;
+	struct ieee80211_node *ni = vap->iv_bss;
+	struct rum_vap *rvp = RUM_VAP(vap);
+
+	tp = &vap->iv_txparms[ieee80211_chan2mode(ni->ni_chan)];
+	rvp->maxretry = tp->maxretry < 0xf ? tp->maxretry : 0xf;
+
+	rum_modbits(sc, RT2573_TXRX_CSR4, RT2573_SHORT_RETRY(rvp->maxretry) |
+	    RT2573_LONG_RETRY(rvp->maxretry),
+	    RT2573_SHORT_RETRY_MASK | RT2573_LONG_RETRY_MASK);
 }
 
 /*
