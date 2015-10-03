@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 static	void *none_attach(struct ieee80211vap *, struct ieee80211_key *);
 static	void none_detach(struct ieee80211_key *);
 static	int none_setkey(struct ieee80211_key *);
+static	void none_setiv(struct ieee80211_key *, uint8_t *);
 static	int none_encap(struct ieee80211_key *, struct mbuf *);
 static	int none_decap(struct ieee80211_key *, struct mbuf *, int);
 static	int none_enmic(struct ieee80211_key *, struct mbuf *, int);
@@ -62,6 +63,7 @@ const struct ieee80211_cipher ieee80211_cipher_none = {
 	.ic_attach	= none_attach,
 	.ic_detach	= none_detach,
 	.ic_setkey	= none_setkey,
+	.ic_setiv	= none_setiv,
 	.ic_encap	= none_encap,
 	.ic_decap	= none_decap,
 	.ic_enmic	= none_enmic,
@@ -85,6 +87,11 @@ none_setkey(struct ieee80211_key *k)
 {
 	(void) k;
 	return 1;
+}
+
+static void
+none_setiv(struct ieee80211_key *k, uint8_t *ivp)
+{
 }
 
 static int
