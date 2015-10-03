@@ -1872,25 +1872,21 @@ rum_update_slot(struct rum_softc *sc)
 static void
 rum_set_bssid(struct rum_softc *sc, const uint8_t *bssid)
 {
-	uint32_t tmp;
 
-	tmp = bssid[0] | bssid[1] << 8 | bssid[2] << 16 | bssid[3] << 24;
-	rum_write(sc, RT2573_MAC_CSR4, tmp);
-
-	tmp = bssid[4] | bssid[5] << 8 | RT2573_ONE_BSSID << 16;
-	rum_write(sc, RT2573_MAC_CSR5, tmp);
+	rum_write(sc, RT2573_MAC_CSR4,
+	    bssid[0] | bssid[1] << 8 | bssid[2] << 16 | bssid[3] << 24);
+	rum_write(sc, RT2573_MAC_CSR5,
+	    bssid[4] | bssid[5] << 8 | RT2573_NUM_BSSID_MSK(1));
 }
 
 static void
 rum_set_macaddr(struct rum_softc *sc, const uint8_t *addr)
 {
-	uint32_t tmp;
 
-	tmp = addr[0] | addr[1] << 8 | addr[2] << 16 | addr[3] << 24;
-	rum_write(sc, RT2573_MAC_CSR2, tmp);
-
-	tmp = addr[4] | addr[5] << 8 | 0xff << 16;
-	rum_write(sc, RT2573_MAC_CSR3, tmp);
+	rum_write(sc, RT2573_MAC_CSR2,
+	    addr[0] | addr[1] << 8 | addr[2] << 16 | addr[3] << 24);
+	rum_write(sc, RT2573_MAC_CSR3,
+	    addr[4] | addr[5] << 8 | 0xff << 16);
 }
 
 static void
@@ -1913,11 +1909,8 @@ rum_update_promisc(struct ieee80211com *ic)
 	struct rum_softc *sc = ic->ic_softc;
 
 	RUM_LOCK(sc);
-	if (!sc->sc_running) {
-		RUM_UNLOCK(sc);
-		return;
-	}
-	rum_setpromisc(sc);
+	if (sc->sc_running)
+		rum_setpromisc(sc);
 	RUM_UNLOCK(sc);
 }
 
