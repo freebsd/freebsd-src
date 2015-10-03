@@ -90,7 +90,7 @@ struct rum_softc {
 	device_t			sc_dev;
 	struct usb_device		*sc_udev;
 
-	struct usb_xfer		*sc_xfer[RUM_N_TRANSFER];
+	struct usb_xfer			*sc_xfer[RUM_N_TRANSFER];
 
 	uint8_t				rf_rev;
 	uint8_t				rffreq;
@@ -125,12 +125,9 @@ struct rum_softc {
 	uint8_t				bbp17;
 
 	struct rum_rx_radiotap_header	sc_rxtap;
-	int				sc_rxtap_len;
-
 	struct rum_tx_radiotap_header	sc_txtap;
-	int				sc_txtap_len;
 };
 
 #define RUM_LOCK(sc)		mtx_lock(&(sc)->sc_mtx)
 #define RUM_UNLOCK(sc)		mtx_unlock(&(sc)->sc_mtx)
-#define RUM_LOCK_ASSERT(sc, t)	mtx_assert(&(sc)->sc_mtx, t)
+#define RUM_LOCK_ASSERT(sc)	mtx_assert(&(sc)->sc_mtx, MA_OWNED)

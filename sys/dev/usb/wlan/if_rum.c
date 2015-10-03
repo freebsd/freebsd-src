@@ -86,8 +86,6 @@ SYSCTL_INT(_hw_usb_rum, OID_AUTO, debug, CTLFLAG_RWTUN, &rum_debug, 0,
     "Debug level");
 #endif
 
-#define N(a)	((int)(sizeof (a) / sizeof ((a)[0])))
-
 static const STRUCT_USB_HOST_ID rum_devs[] = {
 #define	RUM_DEV(v,p)  { USB_VP(USB_VENDOR_##v, USB_PRODUCT_##v##_##p) }
     RUM_DEV(ABOCOM, HWU54DM),
@@ -532,6 +530,7 @@ static int
 rum_detach(device_t self)
 {
 	struct rum_softc *sc = device_get_softc(self);
+	struct ieee80211com *ic = &sc->sc_ic;
 
 	/* Prevent further ioctls */
 	RUM_LOCK(sc);
@@ -546,8 +545,8 @@ rum_detach(device_t self)
 	rum_unsetup_tx_list(sc);
 	RUM_UNLOCK(sc);
 
-	if (sc->sc_ic.ic_softc == sc)
-		ieee80211_ifdetach(&sc->sc_ic);
+	if (ic->ic_softc == sc)
+		ieee80211_ifdetach(ic);
 	mbufq_drain(&sc->sc_snd);
 	mtx_destroy(&sc->sc_mtx);
 	return (0);
@@ -1025,10 +1024,10 @@ rum_sendprot(struct rum_softc *sc,
 	const struct ieee80211_frame *wh;
 	struct rum_tx_data *data;
 	struct mbuf *mprot;
-	int protrate, ackrate, pktlen, flags, isshort;
+	int protrate, pktlen, flags, isshort;
 	uint16_t dur;
 
-	RUM_LOCK_ASSERT(sc, MA_OWNED);
+	RUM_LOCK_ASSERT(sc);
 	KASSERT(prot == IEEE80211_PROT_RTSCTS || prot == IEEE80211_PROT_CTSONLY,
 	    ("protection %d", prot));
 
@@ -1036,7 +1035,6 @@ rum_sendprot(struct rum_softc *sc,
 	pktlen = m->m_pkthdr.len + IEEE80211_CRC_LEN;
 
 	protrate = ieee80211_ctl_rate(ic->ic_rt, rate);
-	ackrate = ieee80211_ack_rate(ic->ic_rt, rate);
 
 	isshort = (ic->ic_flags & IEEE80211_F_SHPREAMBLE) != 0;
 	dur = ieee80211_compute_duration(ic->ic_rt, pktlen, rate, isshort)
@@ -1081,7 +1079,7 @@ rum_tx_mgt(struct rum_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 	uint32_t flags = 0;
 	uint16_t dur;
 
-	RUM_LOCK_ASSERT(sc, MA_OWNED);
+	RUM_LOCK_ASSERT(sc);
 
 	data = STAILQ_FIRST(&sc->tx_free);
 	STAILQ_REMOVE_HEAD(&sc->tx_free, next);
@@ -1137,7 +1135,7 @@ rum_tx_raw(struct rum_softc *sc, struct mbuf *m0, struct ieee80211_node *ni,
 	uint32_t flags;
 	int rate, error;
 
-	RUM_LOCK_ASSERT(sc, MA_OWNED);
+	RUM_LOCK_ASSERT(sc);
 	KASSERT(params != NULL, ("no raw xmit params"));
 
 	rate = params->ibp_rate0;
@@ -1193,7 +1191,7 @@ rum_tx_data(struct rum_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 	uint16_t dur;
 	int error, rate;
 
-	RUM_LOCK_ASSERT(sc, MA_OWNED);
+	RUM_LOCK_ASSERT(sc);
 
 	wh = mtod(m0, struct ieee80211_frame *);
 
@@ -1289,7 +1287,7 @@ rum_start(struct rum_softc *sc)
 	struct ieee80211_node *ni;
 	struct mbuf *m;
 
-	RUM_LOCK_ASSERT(sc, MA_OWNED);
+	RUM_LOCK_ASSERT(sc);
 
 	if (!sc->sc_running)
 		return;
@@ -1844,12 +1842,7 @@ rum_update_promisc(struct ieee80211com *ic)
 static void
 rum_update_mcast(struct ieee80211com *ic)
 {
-	static int warning_printed;
-
-	if (warning_printed == 0) {
-		ic_printf(ic, "need to implement %s\n", __func__);
-		warning_printed = 1;
-	}
+	/* Ignore. */
 }
 
 static const char *
@@ -1966,7 +1959,7 @@ rum_bbp_init(struct rum_softc *sc)
 	}
 
 	/* initialize BBP registers to default values */
-	for (i = 0; i < N(rum_def_bbp); i++)
+	for (i = 0; i < nitems(rum_def_bbp); i++)
 		rum_bbp_write(sc, rum_def_bbp[i].reg, rum_def_bbp[i].val);
 
 	/* write vendor-specific BBP values (from EEPROM) */
@@ -1988,16 +1981,16 @@ rum_init(struct rum_softc *sc)
 	usb_error_t error;
 	int i, ntries;
 
-	RUM_LOCK_ASSERT(sc, MA_OWNED);
+	RUM_LOCK_ASSERT(sc);
 
 	rum_stop(sc);
 
 	/* initialize MAC registers to default values */
-	for (i = 0; i < N(rum_def_mac); i++)
+	for (i = 0; i < nitems(rum_def_mac); i++)
 		rum_write(sc, rum_def_mac[i].reg, rum_def_mac[i].val);
 
 	/* set host ready */
-	rum_write(sc, RT2573_MAC_CSR1, 3);
+	rum_write(sc, RT2573_MAC_CSR1, RT2573_RESET_ASIC | RT2573_RESET_BBP);
 	rum_write(sc, RT2573_MAC_CSR1, 0);
 
 	/* wait for BBP/RF to wakeup */
@@ -2028,7 +2021,7 @@ rum_init(struct rum_softc *sc)
 	rum_set_macaddr(sc, vap ? vap->iv_myaddr : ic->ic_macaddr);
 
 	/* initialize ASIC */
-	rum_write(sc, RT2573_MAC_CSR1, 4);
+	rum_write(sc, RT2573_MAC_CSR1, RT2573_HOST_READY);
 
 	/*
 	 * Allocate Tx and Rx xfer queues.
@@ -2062,7 +2055,7 @@ static void
 rum_stop(struct rum_softc *sc)
 {
 
-	RUM_LOCK_ASSERT(sc, MA_OWNED);
+	RUM_LOCK_ASSERT(sc);
 
 	sc->sc_running = 0;
 
@@ -2082,7 +2075,7 @@ rum_stop(struct rum_softc *sc)
 	rum_setbits(sc, RT2573_TXRX_CSR0, RT2573_DISABLE_RX);
 
 	/* reset ASIC */
-	rum_write(sc, RT2573_MAC_CSR1, 3);
+	rum_write(sc, RT2573_MAC_CSR1, RT2573_RESET_ASIC | RT2573_RESET_BBP);
 	rum_write(sc, RT2573_MAC_CSR1, 0);
 }
 
