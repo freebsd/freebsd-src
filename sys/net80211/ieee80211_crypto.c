@@ -531,16 +531,11 @@ ieee80211_crypto_get_keyid(struct ieee80211vap *vap, struct ieee80211_key *k)
 		return (0);
 }
 
-/*
- * Add privacy headers appropriate for the specified key.
- */
 struct ieee80211_key *
-ieee80211_crypto_encap(struct ieee80211_node *ni, struct mbuf *m)
+ieee80211_crypto_get_txkey(struct ieee80211_node *ni, struct mbuf *m)
 {
 	struct ieee80211vap *vap = ni->ni_vap;
-	struct ieee80211_key *k;
 	struct ieee80211_frame *wh;
-	const struct ieee80211_cipher *cip;
 
 	/*
 	 * Multicast traffic always uses the multicast key.
@@ -559,12 +554,27 @@ ieee80211_crypto_encap(struct ieee80211_node *ni, struct mbuf *m)
 			vap->iv_stats.is_tx_nodefkey++;
 			return NULL;
 		}
-		k = &vap->iv_nw_keys[vap->iv_def_txkey];
-	} else
-		k = &ni->ni_ucastkey;
+		return &vap->iv_nw_keys[vap->iv_def_txkey];
+	}
 
-	cip = k->wk_cipher;
-	return (cip->ic_encap(k, m) ? k : NULL);
+	return &ni->ni_ucastkey;
+}
+
+/*
+ * Add privacy headers appropriate for the specified key.
+ */
+struct ieee80211_key *
+ieee80211_crypto_encap(struct ieee80211_node *ni, struct mbuf *m)
+{
+	struct ieee80211_key *k;
+	const struct ieee80211_cipher *cip;
+
+	if ((k = ieee80211_crypto_get_txkey(ni, m)) != NULL) {
+		cip = k->wk_cipher;
+		return (cip->ic_encap(k, m) ? k : NULL);
+	}
+
+	return NULL;
 }
 
 /*
