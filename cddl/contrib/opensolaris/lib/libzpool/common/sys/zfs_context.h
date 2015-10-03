@@ -655,13 +655,6 @@ extern int zfs_secpolicy_rename_perms(const char *from, const char *to,
 extern int zfs_secpolicy_destroy_perms(const char *name, cred_t *cr);
 extern zoneid_t getzoneid(void);
 /* Random compatibility stuff. */
-#define	lbolt	(gethrtime() >> 23)
-#define	lbolt64	(gethrtime() >> 23)
-
-extern uint64_t physmem;
-
-#define	gethrestime_sec()	time(NULL)
-
 #define	pwrite64(d, p, n, o)	pwrite(d, p, n, o)
 #define	readdir64(d)		readdir(d)
 #define	SIGPENDING(td)		(0)
