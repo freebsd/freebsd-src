@@ -1212,7 +1212,7 @@ rum_sendprot(struct rum_softc *sc,
 	isshort = (ic->ic_flags & IEEE80211_F_SHPREAMBLE) != 0;
 	dur = ieee80211_compute_duration(ic->ic_rt, pktlen, rate, isshort)
 	    + ieee80211_ack_duration(ic->ic_rt, rate, isshort);
-	flags = RT2573_TX_MORE_FRAG;
+	flags = 0;
 	if (prot == IEEE80211_PROT_RTSCTS) {
 		/* NB: CTS is the same size as an ACK */
 		dur += ieee80211_ack_duration(ic->ic_rt, rate, isshort);
@@ -1286,6 +1286,7 @@ rum_tx_mgt(struct rum_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 	struct ieee80211_key *k = NULL;
 	uint32_t flags = 0;
 	uint16_t dur;
+	uint8_t type, xflags = 0;
 	int hdrlen;
 
 	RUM_LOCK_ASSERT(sc);
@@ -1295,6 +1296,7 @@ rum_tx_mgt(struct rum_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 	sc->tx_nfree--;
 
 	wh = mtod(m0, struct ieee80211_frame *);
+	type = wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK;
 	hdrlen = ieee80211_anyhdrsize(wh);
 
 	if (wh->i_fc[1] & IEEE80211_FC1_PROTECTED) {
@@ -1319,11 +1321,14 @@ rum_tx_mgt(struct rum_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 		USETW(wh->i_dur, dur);
 
 		/* tell hardware to add timestamp for probe responses */
-		if ((wh->i_fc[0] &
-		    (IEEE80211_FC0_TYPE_MASK | IEEE80211_FC0_SUBTYPE_MASK)) ==
-		    (IEEE80211_FC0_TYPE_MGT | IEEE80211_FC0_SUBTYPE_PROBE_RESP))
+		if (type == IEEE80211_FC0_TYPE_MGT &&
+		    (wh->i_fc[0] & IEEE80211_FC0_SUBTYPE_MASK) ==
+		    IEEE80211_FC0_SUBTYPE_PROBE_RESP)
 			flags |= RT2573_TX_TIMESTAMP;
 	}
+
+	if (type != IEEE80211_FC0_TYPE_CTL && !IEEE80211_QOS_HAS_SEQ(wh))
+		xflags |= RT2573_TX_HWSEQ;
 
 	if (k != NULL)
 		flags |= rum_tx_crypto_flags(sc, ni, k);
@@ -1332,7 +1337,7 @@ rum_tx_mgt(struct rum_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 	data->ni = ni;
 	data->rate = tp->mgmtrate;
 
-	rum_setup_tx_desc(sc, &data->desc, k, flags, 0, hdrlen,
+	rum_setup_tx_desc(sc, &data->desc, k, flags, xflags, hdrlen,
 	    m0->m_pkthdr.len, tp->mgmtrate);
 
 	DPRINTFN(10, "sending mgt frame len=%d rate=%d\n",
@@ -1349,11 +1354,16 @@ rum_tx_raw(struct rum_softc *sc, struct mbuf *m0, struct ieee80211_node *ni,
     const struct ieee80211_bpf_params *params)
 {
 	struct ieee80211com *ic = ni->ni_ic;
+	struct ieee80211_frame *wh;
 	struct rum_tx_data *data;
 	uint32_t flags;
+	uint8_t type, xflags = 0;
 	int rate, error;
 
 	RUM_LOCK_ASSERT(sc);
+
+	wh = mtod(m0, struct ieee80211_frame *);
+	type = wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK;
 
 	rate = params->ibp_rate0;
 	if (!ieee80211_isratevalid(ic->ic_rt, rate))
@@ -1373,6 +1383,9 @@ rum_tx_raw(struct rum_softc *sc, struct mbuf *m0, struct ieee80211_node *ni,
 		flags |= RT2573_TX_LONG_RETRY | RT2573_TX_IFS_SIFS;
 	}
 
+	if (type != IEEE80211_FC0_TYPE_CTL && !IEEE80211_QOS_HAS_SEQ(wh))
+		xflags |= RT2573_TX_HWSEQ;
+
 	data = STAILQ_FIRST(&sc->tx_free);
 	STAILQ_REMOVE_HEAD(&sc->tx_free, next);
 	sc->tx_nfree--;
@@ -1382,8 +1395,8 @@ rum_tx_raw(struct rum_softc *sc, struct mbuf *m0, struct ieee80211_node *ni,
 	data->rate = rate;
 
 	/* XXX need to setup descriptor ourself */
-	rum_setup_tx_desc(sc, &data->desc, NULL, flags, 0, 0, m0->m_pkthdr.len,
-	    rate);
+	rum_setup_tx_desc(sc, &data->desc, NULL, flags, xflags, 0,
+	    m0->m_pkthdr.len, rate);
 
 	DPRINTFN(10, "sending raw frame len=%u rate=%u\n",
 	    m0->m_pkthdr.len, rate);
@@ -1405,11 +1418,13 @@ rum_tx_data(struct rum_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 	struct ieee80211_key *k = NULL;
 	uint32_t flags = 0;
 	uint16_t dur;
+	uint8_t type, xflags = 0;
 	int error, hdrlen, rate;
 
 	RUM_LOCK_ASSERT(sc);
 
 	wh = mtod(m0, struct ieee80211_frame *);
+	type = wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK;
 	hdrlen = ieee80211_anyhdrsize(wh);
 
 	tp = &vap->iv_txparms[ieee80211_chan2mode(ni->ni_chan)];
@@ -1435,6 +1450,9 @@ rum_tx_data(struct rum_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 		/* packet header may have moved, reset our local pointer */
 		wh = mtod(m0, struct ieee80211_frame *);
 	}
+
+	if (type != IEEE80211_FC0_TYPE_CTL && !IEEE80211_QOS_HAS_SEQ(wh))
+		xflags |= RT2573_TX_HWSEQ;
 
 	if (!IEEE80211_IS_MULTICAST(wh->i_addr1)) {
 		int prot = IEEE80211_PROT_NONE;
@@ -1466,14 +1484,13 @@ rum_tx_data(struct rum_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 
 	if (!IEEE80211_IS_MULTICAST(wh->i_addr1)) {
 		flags |= RT2573_TX_NEED_ACK;
-		flags |= RT2573_TX_MORE_FRAG;
 
 		dur = ieee80211_ack_duration(ic->ic_rt, rate, 
 		    ic->ic_flags & IEEE80211_F_SHPREAMBLE);
 		USETW(wh->i_dur, dur);
 	}
 
-	rum_setup_tx_desc(sc, &data->desc, k, flags, 0, hdrlen,
+	rum_setup_tx_desc(sc, &data->desc, k, flags, xflags, hdrlen,
 	    m0->m_pkthdr.len, rate);
 
 	DPRINTFN(10, "sending frame len=%d rate=%d\n",
