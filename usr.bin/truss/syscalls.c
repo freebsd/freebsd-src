@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/event.h>
 #include <sys/ioccom.h>
 #include <sys/mman.h>
+#include <sys/mount.h>
 #include <sys/procctl.h>
 #include <sys/ptrace.h>
 #include <sys/resource.h>
@@ -182,6 +183,10 @@ static struct syscall syscalls[] = {
 		    { Atflags, 3 } } },
 	{ .name = "stat", .ret_type = 1, .nargs = 2,
 	  .args = { { Name | IN, 0 }, { Stat | OUT, 1 } } },
+	{ .name = "statfs", .ret_type = 1, .nargs = 2,
+	  .args = { { Name | IN, 0 }, { StatFs | OUT, 1 } } },
+	{ .name = "fstatfs", .ret_type = 1, .nargs = 2,
+	  .args = { { Int, 0 }, { StatFs | OUT, 1 } } },
 	{ .name = "lstat", .ret_type = 1, .nargs = 2,
 	  .args = { { Name | IN, 0 }, { Stat | OUT, 1 } } },
 	{ .name = "linux_newstat", .ret_type = 1, .nargs = 2,
@@ -1444,6 +1449,29 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 		}
 		break;
 	}
+	case StatFs: {
+		unsigned int i;
+		struct statfs buf;
+		if (get_struct(pid, (void *)args[sc->offset], &buf,
+		    sizeof(buf)) != -1) {
+			char fsid[17];
+
+			bzero(fsid, sizeof(fsid));
+			if (buf.f_fsid.val[0] != 0 || buf.f_fsid.val[1] != 0) {
+			        for (i = 0; i < sizeof(buf.f_fsid); i++)
+					snprintf(&fsid[i*2],
+					    sizeof(fsid) - (i*2), "%02x",
+					    ((u_char *)&buf.f_fsid)[i]);
+			}
+			fprintf(fp,
+			    "{ fstypename=%s,mntonname=%s,mntfromname=%s,"
+			    "fsid=%s }", buf.f_fstypename, buf.f_mntonname,
+			    buf.f_mntfromname, fsid);
+		} else
+			fprintf(fp, "0x%lx", args[sc->offset]);
+		break;
+	}
+
 	case Rusage: {
 		struct rusage ru;
 
