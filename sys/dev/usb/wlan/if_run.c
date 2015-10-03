@@ -382,8 +382,7 @@ static int	run_newstate(struct ieee80211vap *, enum ieee80211_state, int);
 static int	run_wme_update(struct ieee80211com *);
 static void	run_wme_update_cb(void *);
 static void	run_key_set_cb(void *);
-static int	run_key_set(struct ieee80211vap *, struct ieee80211_key *,
-		    const uint8_t mac[IEEE80211_ADDR_LEN]);
+static int	run_key_set(struct ieee80211vap *, struct ieee80211_key *);
 static void	run_key_delete_cb(void *);
 static int	run_key_delete(struct ieee80211vap *, struct ieee80211_key *);
 static void	run_ratectl_to(void *);
@@ -2361,8 +2360,7 @@ run_key_set_cb(void *arg)
  * return 0 on error
  */
 static int
-run_key_set(struct ieee80211vap *vap, struct ieee80211_key *k,
-		const uint8_t mac[IEEE80211_ADDR_LEN])
+run_key_set(struct ieee80211vap *vap, struct ieee80211_key *k)
 {
 	struct ieee80211com *ic = vap->iv_ic;
 	struct run_softc *sc = ic->ic_softc;
@@ -2374,7 +2372,7 @@ run_key_set(struct ieee80211vap *vap, struct ieee80211_key *k,
 	sc->cmdq[i].arg0 = NULL;
 	sc->cmdq[i].arg1 = vap;
 	sc->cmdq[i].k = k;
-	IEEE80211_ADDR_COPY(sc->cmdq[i].mac, mac);
+	IEEE80211_ADDR_COPY(sc->cmdq[i].mac, k->wk_macaddr);
 	ieee80211_runtask(ic, &sc->cmdq_task);
 
 	/*
