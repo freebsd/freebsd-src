@@ -67,6 +67,25 @@ struct rum_tx_data {
 };
 typedef STAILQ_HEAD(, rum_tx_data) rum_txdhead;
 
+union sec_param {
+	struct ieee80211_key		key;
+	uint8_t				macaddr[IEEE80211_ADDR_LEN];
+	struct ieee80211vap		*vap;
+};
+#define CMD_FUNC_PROTO			void (*func)(struct rum_softc *, \
+					    union sec_param *, uint8_t, \
+					    uint8_t)
+
+struct rum_cmdq {
+	union sec_param			data;
+
+	uint8_t				rn_id;
+	uint8_t				rvp_id;
+
+	CMD_FUNC_PROTO;
+};
+#define RUM_CMDQ_SIZE			16
+
 struct rum_vap {
 	struct ieee80211vap		vap;
 	struct ieee80211_beacon_offsets	bo;
@@ -103,6 +122,12 @@ struct rum_softc {
 
 	struct mtx			sc_mtx;
 
+	struct rum_cmdq			cmdq[RUM_CMDQ_SIZE];
+	struct mtx			cmdq_mtx;
+	struct task			cmdq_task;
+	uint8_t				cmdq_first;
+	uint8_t				cmdq_last;
+
 	uint32_t			sta[6];
 	uint32_t			rf_regs[4];
 	uint8_t				txpow[44];
@@ -128,6 +153,16 @@ struct rum_softc {
 	struct rum_tx_radiotap_header	sc_txtap;
 };
 
-#define RUM_LOCK(sc)		mtx_lock(&(sc)->sc_mtx)
-#define RUM_UNLOCK(sc)		mtx_unlock(&(sc)->sc_mtx)
-#define RUM_LOCK_ASSERT(sc)	mtx_assert(&(sc)->sc_mtx, MA_OWNED)
+#define RUM_LOCK_INIT(sc) \
+	mtx_init(&(sc)->sc_mtx, device_get_nameunit((sc)->sc_dev), \
+	    MTX_NETWORK_LOCK, MTX_DEF);
+#define RUM_LOCK(sc)			mtx_lock(&(sc)->sc_mtx)
+#define RUM_UNLOCK(sc)			mtx_unlock(&(sc)->sc_mtx)
+#define RUM_LOCK_ASSERT(sc)		mtx_assert(&(sc)->sc_mtx, MA_OWNED)
+#define RUM_LOCK_DESTROY(sc)		mtx_destroy(&(sc)->sc_mtx)
+
+#define RUM_CMDQ_LOCK_INIT(sc) \
+	mtx_init(&(sc)->cmdq_mtx, "cmdq lock", NULL, MTX_DEF)
+#define RUM_CMDQ_LOCK(sc)		mtx_lock(&(sc)->cmdq_mtx)
+#define RUM_CMDQ_UNLOCK(sc)		mtx_unlock(&(sc)->cmdq_mtx)
+#define RUM_CMDQ_LOCK_DESTROY(sc)	mtx_destroy(&(sc)->cmdq_mtx)
