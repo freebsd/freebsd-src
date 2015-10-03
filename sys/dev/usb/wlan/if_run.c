@@ -4866,11 +4866,11 @@ run_update_beacon(struct ieee80211vap *vap, int item)
 
 	setbit(bo->bo_flags, item);
 	if (rvp->beacon_mbuf == NULL) {
-		rvp->beacon_mbuf = ieee80211_beacon_alloc(ni, bo);
+		rvp->beacon_mbuf = ieee80211_beacon_alloc(ni);
 		if (rvp->beacon_mbuf == NULL)
 			return;
 	}
-	ieee80211_beacon_update(ni, bo, rvp->beacon_mbuf, mcast);
+	ieee80211_beacon_update(ni, rvp->beacon_mbuf, mcast);
 
 	i = RUN_CMDQ_GET(&sc->cmdq_store);
 	DPRINTF("cmdq_store=%d\n", i);
@@ -4904,8 +4904,7 @@ run_update_beacon_cb(void *arg)
 	 * is taking care of apropriate calls.
 	 */
 	if (rvp->beacon_mbuf == NULL) {
-		rvp->beacon_mbuf = ieee80211_beacon_alloc(ni,
-		    &vap->iv_bcn_off);
+		rvp->beacon_mbuf = ieee80211_beacon_alloc(ni);
 		if (rvp->beacon_mbuf == NULL)
 			return;
 	}
