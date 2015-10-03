@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2014  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2015  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -223,6 +223,21 @@ unknown_totext(dns_rdata_t *rdata, dns_rdata_textctx_t *tctx,
 /*% IPv6 Address Size */
 #define NS_LOCATORSZ	8
 
+/*
+ * Active Diretory gc._msdcs.<forest> prefix.
+ */
+static unsigned char gc_msdcs_data[]  = "\002gc\006_msdcs";
+static unsigned char gc_msdcs_offset [] = { 0, 3 };
+
+static const dns_name_t gc_msdcs = {
+	DNS_NAME_MAGIC,
+	gc_msdcs_data, 10, 2,
+	DNS_NAMEATTR_READONLY,
+	gc_msdcs_offset, NULL,
+	{(void *)-1, (void *)-1},
+	{NULL, NULL}
+};
+
 /*%
  *	convert presentation level address to network order binary form.
  * \return
@@ -313,15 +328,15 @@ name_duporclone(dns_name_t *source, isc_mem_t *mctx, dns_name_t *target) {
 
 static inline void *
 mem_maybedup(isc_mem_t *mctx, void *source, size_t length) {
-	void *new;
+	void *copy;
 
 	if (mctx == NULL)
 		return (source);
-	new = isc_mem_allocate(mctx, length);
-	if (new != NULL)
-		memmove(new, source, length);
+	copy = isc_mem_allocate(mctx, length);
+	if (copy != NULL)
+		memmove(copy, source, length);
 
-	return (new);
+	return (copy);
 }
 
 static const char hexdigits[] = "0123456789abcdef";
@@ -836,6 +851,7 @@ rdata_totext(dns_rdata_t *rdata, dns_rdata_textctx_t *tctx,
 {
 	isc_result_t result = ISC_R_NOTIMPLEMENTED;
 	isc_boolean_t use_default = ISC_FALSE;
+	unsigned int cur;
 
 	REQUIRE(rdata != NULL);
 	REQUIRE(tctx->origin == NULL ||
@@ -849,10 +865,17 @@ rdata_totext(dns_rdata_t *rdata, dns_rdata_textctx_t *tctx,
 		return (ISC_R_SUCCESS);
 	}
 
+	cur = isc_buffer_usedlength(target);
+
 	TOTEXTSWITCH
 
-	if (use_default)
+	if (use_default || (result == ISC_R_NOTIMPLEMENTED)) {
+		unsigned int u = isc_buffer_usedlength(target);
+
+		INSIST(u >= cur);
+		isc_buffer_subtract(target, u - cur);
 		result = unknown_totext(rdata, tctx, target);
+	}
 
 	return (result);
 }
@@ -1269,7 +1292,7 @@ txt_fromwire(isc_buffer_t *source, isc_buffer_t *target) {
 
 	isc_buffer_activeregion(source, &sregion);
 	if (sregion.length == 0)
-		return(ISC_R_UNEXPECTEDEND);
+		return (ISC_R_UNEXPECTEDEND);
 	n = *sregion.base + 1;
 	if (n > sregion.length)
 		return (ISC_R_UNEXPECTEDEND);
@@ -1398,7 +1421,7 @@ multitxt_fromtext(isc_textregion_t *source, isc_buffer_t *target) {
 		if (escape)
 			return (DNS_R_SYNTAX);
 
-		isc_buffer_add(target, t - t0);
+		isc_buffer_add(target, (unsigned int)(t - t0));
 	} while (n != 0);
 	return (ISC_R_SUCCESS);
 }
@@ -1579,7 +1602,7 @@ mem_tobuffer(isc_buffer_t *target, void *base, unsigned int length) {
 
 static int
 hexvalue(char value) {
-	char *s;
+	const char *s;
 	unsigned char c;
 
 	c = (unsigned char)value;
@@ -1595,7 +1618,7 @@ hexvalue(char value) {
 
 static int
 decvalue(char value) {
-	char *s;
+	const char *s;
 
 	/*
 	 * isascii() is valid for full range of int values, no need to
@@ -1653,7 +1676,7 @@ static isc_result_t	byte_btoa(int c, isc_buffer_t *, struct state *state);
  */
 static isc_result_t
 byte_atob(int c, isc_buffer_t *target, struct state *state) {
-	char *s;
+	const char *s;
 	if (c == 'z') {
 		if (bcount != 0)
 			return(DNS_R_SYNTAX);
@@ -1749,8 +1772,12 @@ atob_tobuffer(isc_lex_t *lexer, isc_buffer_t *target) {
 	 */
 	RETERR(isc_lex_getmastertoken(lexer, &token, isc_tokentype_number,
 				      ISC_FALSE));
-	if ((token.value.as_ulong % 4) != 0U)
-		isc_buffer_subtract(target,  4 - (token.value.as_ulong % 4));
+	if ((token.value.as_ulong % 4) != 0U) {
+		unsigned long padding = 4 - (token.value.as_ulong % 4);
+		if (isc_buffer_usedlength(target) < padding)
+			return (DNS_R_SYNTAX);
+		isc_buffer_subtract(target, padding);
+	}
 
 	/*
 	 * Checksum.

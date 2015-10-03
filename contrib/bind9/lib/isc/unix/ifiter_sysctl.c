@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007, 2014  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007, 2014, 2015  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -29,6 +29,8 @@
 
 #include <net/route.h>
 #include <net/if_dl.h>
+
+#include <isc/print.h>
 
 /* XXX what about Alpha? */
 #ifdef sgi

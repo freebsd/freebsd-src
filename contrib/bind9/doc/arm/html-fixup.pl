@@ -1,4 +1,6 @@
-# Copyright (C) 2009, 2012, 2015  Internet Systems Consortium, Inc. ("ISC")
+#!/usr/bin/perl -w
+#
+# Copyright (C) 2015  Internet Systems Consortium, Inc. ("ISC")
 #
 # Permission to use, copy, modify, and/or distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
@@ -12,26 +14,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: Makefile.in,v 1.2 2009/09/01 00:22:27 jinmei Exp $
-
-srcdir =	@srcdir@
-top_srcdir =	@top_srcdir@
-
-@BIND9_VERSION@
-
-HEADERS =	dir.h int.h net.h netdb.h offset.h stat.h stdtime.h \
-		syslog.h time.h
-
-SUBDIRS =
-TARGETS =
-
-@BIND9_MAKE_RULES@
-
-installdirs:
-	$(SHELL) ${top_srcdir}/mkinstalldirs ${DESTDIR}${export_includedir}/isc
-
-install:: installdirs
-	for i in ${HEADERS}; do \
-		${INSTALL_DATA} $(top_srcdir)/lib/isc/unix/include/isc/$$i \
-		${DESTDIR}${export_includedir}/isc ; \
-	done
+while (<>) {
+    s/&#50102;/&ouml;/;
+    print;
+}

@@ -2,7 +2,7 @@
 	       "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd"
 	       [<!ENTITY mdash "&#8212;">]>
 <!--
- - Copyright (C) 2004-2011, 2013, 2014  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004-2011, 2013-2015  Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000-2003  Internet Software Consortium.
  -
  - Permission to use, copy, modify, and/or distribute this software for any
@@ -47,6 +47,7 @@
       <year>2011</year>
       <year>2013</year>
       <year>2014</year>
+      <year>2015</year>
       <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
     </copyright>
     <copyright>
@@ -216,127 +217,204 @@
   <refsect1>
     <title>OPTIONS</title>
 
-    <para>
-      The <option>-b</option> option sets the source IP address of the query
-      to <parameter>address</parameter>.  This must be a valid
-      address on
-      one of the host's network interfaces or "0.0.0.0" or "::".  An optional
-      port
-      may be specified by appending "#&lt;port&gt;"
-    </para>
+    <variablelist>
+      <varlistentry>
+        <term>-4</term>
+        <listitem>
+	  <para>
+	    Use IPv4 only.
+	  </para>
+        </listitem>
+      </varlistentry>
 
-    <para>
-      The default query class (IN for internet) is overridden by the
-      <option>-c</option> option.  <parameter>class</parameter> is
-      any valid
-      class, such as HS for Hesiod records or CH for Chaosnet records.
-    </para>
+      <varlistentry>
+        <term>-6</term>
+        <listitem>
+	  <para>
+	    Use IPv6 only.
+	  </para>
+        </listitem>
+      </varlistentry>
 
-    <para>
-      The <option>-f</option> option makes <command>dig </command>
-      operate
-      in batch mode by reading a list of lookup requests to process from the
-      file <parameter>filename</parameter>.  The file contains a
-      number of
-      queries, one per line.  Each entry in the file should be organized in
-      the same way they would be presented as queries to
-      <command>dig</command> using the command-line interface.
-    </para>
+      <varlistentry>
+        <term>-b <replaceable class="parameter">address<optional>#port</optional></replaceable></term>
+        <listitem>
+	  <para>
+	    Set the source IP address of the query.
+	    The <parameter>address</parameter> must be a valid address on
+	    one of the host's network interfaces, or "0.0.0.0" or "::". An
+	    optional port may be specified by appending "#&lt;port&gt;"
+	  </para>
+        </listitem>
+      </varlistentry>
 
-    <para>
-      The <option>-m</option> option enables memory usage debugging.
-      <!-- It enables ISC_MEM_DEBUGTRACE and ISC_MEM_DEBUGRECORD
-	   documented in include/isc/mem.h -->
-    </para>
+      <varlistentry>
+        <term>-c <replaceable class="parameter">class</replaceable></term>
+        <listitem>
+	  <para>
+	    Set the query class. The
+	    default <parameter>class</parameter> is IN; other classes
+	    are HS for Hesiod records or CH for Chaosnet records.
+	  </para>
+        </listitem>
+      </varlistentry>
 
-    <para>
-      If a non-standard port number is to be queried, the
-      <option>-p</option> option is used.  <parameter>port#</parameter> is
-      the port number that <command>dig</command> will send its
-      queries
-      instead of the standard DNS port number 53.  This option would be used
-      to test a name server that has been configured to listen for queries
-      on a non-standard port number.
-    </para>
+      <varlistentry>
+        <term>-f <replaceable class="parameter">file</replaceable></term>
+        <listitem>
+	  <para>
+	    Batch mode: <command>dig</command> reads a list of lookup
+	    requests to process from the
+	    given <parameter>file</parameter>. Each line in the file
+	    should be organized in the same way they would be
+	    presented as queries to
+	    <command>dig</command> using the command-line interface.
+	  </para>
+        </listitem>
+      </varlistentry>
 
-    <para>
-      The <option>-4</option> option forces <command>dig</command>
-      to only
-      use IPv4 query transport.  The <option>-6</option> option forces
-      <command>dig</command> to only use IPv6 query transport.
-    </para>
+      <varlistentry>
+        <term>-i</term>
+        <listitem>
+	  <para>
+	    Do reverse IPv6 lookups using the obsolete RFC1886 IP6.INT
+	    domain, which is no longer in use. Obsolete bit string
+	    label queries (RFC2874) are not attempted.
+	  </para>
+        </listitem>
+      </varlistentry>
 
-    <para>
-      The <option>-t</option> option sets the query type to
-      <parameter>type</parameter>.  It can be any valid query type
-      which is
-      supported in BIND 9.  The default query type is "A", unless the
-      <option>-x</option> option is supplied to indicate a reverse lookup.
-      A zone transfer can be requested by specifying a type of AXFR.  When
-      an incremental zone transfer (IXFR) is required,
-      <parameter>type</parameter> is set to <literal>ixfr=N</literal>.
-      The incremental zone transfer will contain the changes made to the zone
-      since the serial number in the zone's SOA record was
-      <parameter>N</parameter>.
-    </para>
+      <varlistentry>
+        <term>-k <replaceable class="parameter">keyfile</replaceable></term>
+        <listitem>
+	  <para>
+	    Sign queries using TSIG using a key read from the given file.
+	    Key files can be generated using
+	    <citerefentry>
+	      <refentrytitle>tsig-keygen</refentrytitle><manvolnum>8</manvolnum>
+	    </citerefentry>.
+	    When using TSIG authentication with <command>dig</command>,
+	    the name server that is queried needs to know the key and
+	    algorithm that is being used. In BIND, this is done by
+	    providing appropriate <command>key</command>
+	    and <command>server</command> statements in
+	    <filename>named.conf</filename>.
+	  </para>
+        </listitem>
+      </varlistentry>
 
-    <para>
-      The <option>-q</option> option sets the query name to 
-      <parameter>name</parameter>.  This is useful to distinguish the
-      <parameter>name</parameter> from other arguments.
-    </para>
+      <varlistentry>
+        <term>-m</term>
+        <listitem>
+	  <para>
+	    Enable memory usage debugging.
+	    <!-- It enables ISC_MEM_DEBUGTRACE and ISC_MEM_DEBUGRECORD
+		 documented in include/isc/mem.h -->
+	  </para>
+        </listitem>
+      </varlistentry>
 
-    <para>
-      The <option>-v</option> causes <command>dig</command> to
-      print the version number and exit.
-    </para>
+      <varlistentry>
+        <term>-p <replaceable class="parameter">port</replaceable></term>
+        <listitem>
+	  <para>
+	    Send the query to a non-standard port on the server,
+	    instead of the defaut port 53. This option would be used
+	    to test a name server that has been configured to listen
+	    for queries on a non-standard port number.
+	  </para>
+        </listitem>
+      </varlistentry>
 
-    <para>
-      Reverse lookups &mdash; mapping addresses to names &mdash; are simplified by the
-      <option>-x</option> option.  <parameter>addr</parameter> is
-      an IPv4
-      address in dotted-decimal notation, or a colon-delimited IPv6 address.
-      When this option is used, there is no need to provide the
-      <parameter>name</parameter>, <parameter>class</parameter> and
-      <parameter>type</parameter> arguments.  <command>dig</command>
-      automatically performs a lookup for a name like
-      <literal>11.12.13.10.in-addr.arpa</literal> and sets the
-      query type and
-      class to PTR and IN respectively.  By default, IPv6 addresses are
-      looked up using nibble format under the IP6.ARPA domain.
-      To use the older RFC1886 method using the IP6.INT domain
-      specify the <option>-i</option> option.  Bit string labels (RFC2874)
-      are now experimental and are not attempted.
-    </para>
+      <varlistentry>
+        <term>-q <replaceable class="parameter">name</replaceable></term>
+        <listitem>
+	  <para>
+	    The domain name to query. This is useful to distinguish
+	    the <parameter>name</parameter> from other arguments.
+	  </para>
+        </listitem>
+      </varlistentry>
 
-    <para>
-      To sign the DNS queries sent by <command>dig</command> and
-      their
-      responses using transaction signatures (TSIG), specify a TSIG key file
-      using the <option>-k</option> option.  You can also specify the TSIG
-      key itself on the command line using the <option>-y</option> option;
-      <parameter>hmac</parameter> is the type of the TSIG, default HMAC-MD5,
-      <parameter>name</parameter> is the name of the TSIG key and
-      <parameter>key</parameter> is the actual key.  The key is a
-      base-64
-      encoded string, typically generated by
-      <citerefentry>
-	<refentrytitle>dnssec-keygen</refentrytitle><manvolnum>8</manvolnum>
-      </citerefentry>.
+      <varlistentry>
+        <term>-t <replaceable class="parameter">type</replaceable></term>
+        <listitem>
+	  <para>
+	    The resource record type to query. It can be any valid query type
+	    which is
+	    supported in BIND 9.  The default query type is "A", unless the
+	    <option>-x</option> option is supplied to indicate a reverse lookup.
+	    A zone transfer can be requested by specifying a type of AXFR.  When
+	    an incremental zone transfer (IXFR) is required, set the
+	    <parameter>type</parameter> to <literal>ixfr=N</literal>.
+	    The incremental zone transfer will contain the changes
+	    made to the zone since the serial number in the zone's SOA
+	    record was
+	    <parameter>N</parameter>.
+	  </para>
+        </listitem>
+      </varlistentry>
 
-      Caution should be taken when using the <option>-y</option> option on
-      multi-user systems as the key can be visible in the output from
-      <citerefentry>
-	<refentrytitle>ps</refentrytitle><manvolnum>1</manvolnum>
-      </citerefentry>
-      or in the shell's history file.  When
-      using TSIG authentication with <command>dig</command>, the name
-      server that is queried needs to know the key and algorithm that is
-      being used.  In BIND, this is done by providing appropriate
-      <command>key</command> and <command>server</command> statements in
-      <filename>named.conf</filename>.
-    </para>
+      <varlistentry>
+        <term>-v</term>
+        <listitem>
+	  <para>
+	    Print the version number and exit.
+	  </para>
+        </listitem>
+      </varlistentry>
 
+      <varlistentry>
+        <term>-x <replaceable class="parameter">addr</replaceable></term>
+        <listitem>
+	  <para>
+	    Simplified reverse lookups, for mapping addresses to
+	    names. The <parameter>addr</parameter> is an IPv4 address
+	    in dotted-decimal notation, or a colon-delimited IPv6
+	    address. When the <option>-x</option> is used, there is no
+	    need to provide
+	    the <parameter>name</parameter>, <parameter>class</parameter>
+	    and <parameter>type</parameter>
+	    arguments. <command>dig</command> automatically performs a
+	    lookup for a name like
+	    <literal>94.2.0.192.in-addr.arpa</literal> and sets the
+	    query type and class to PTR and IN respectively. IPv6
+	    addresses are looked up using nibble format under the
+	    IP6.ARPA domain (but see also the <option>-i</option>
+	    option).
+	  </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>-y <replaceable class="parameter"><optional>hmac:</optional>keyname:secret</replaceable></term>
+        <listitem>
+	  <para>
+	    Sign queries using TSIG with the given authentication key.
+	    <parameter>keyname</parameter> is the name of the key, and
+	    <parameter>secret</parameter> is the base64 encoded shared secret.
+	    <parameter>hmac</parameter> is the name of the key algorithm;
+	    valid choices are <literal>hmac-md5</literal>,
+	    <literal>hmac-sha1</literal>, <literal>hmac-sha224</literal>,
+	    <literal>hmac-sha256</literal>, <literal>hmac-sha384</literal>, or
+	    <literal>hmac-sha512</literal>.  If <parameter>hmac</parameter>
+	    is not specified, the default is <literal>hmac-md5</literal>.
+	  </para>
+	  <para>
+	    NOTE: You should use the <option>-k</option> option and
+	    avoid the <option>-y</option> option, because
+	    with <option>-y</option> the shared secret is supplied as
+	    a command line argument in clear text. This may be visible
+	    in the output from
+	    <citerefentry>
+              <refentrytitle>ps</refentrytitle><manvolnum>1</manvolnum>
+	    </citerefentry>
+	    or in a history file maintained by the user's shell.
+	  </para>
+        </listitem>
+      </varlistentry>
+
+    </variablelist>
   </refsect1>
 
   <refsect1>
@@ -358,6 +436,9 @@
       that keyword.  Other
       keywords assign values to options like the timeout interval.  They
       have the form <option>+keyword=value</option>.
+      Keywords may be abbreviated, provided the abbreviation is
+      unambiguous; for example, <literal>+cd</literal> is equivalent
+      to <literal>+cdflag</literal>.
       The query options are:
 
       <variablelist>
@@ -473,7 +554,7 @@
 	</varlistentry>
 
 	<varlistentry>
-	  <term><option>+[no]cl</option></term>
+	  <term><option>+[no]class</option></term>
 	  <listitem>
 	    <para>
 	      Display [do not display] the CLASS when printing the
@@ -686,6 +767,15 @@
 	</varlistentry>
 
 	<varlistentry>
+	  <term><option>+[no]rdflag</option></term>
+	  <listitem>
+	    <para>
+	      A synonym for <parameter>+[no]recurse</parameter>.
+	    </para>
+	  </listitem>
+	</varlistentry>
+
+	<varlistentry>
 	  <term><option>+[no]recurse</option></term>
 	  <listitem>
 	    <para>
@@ -849,6 +939,9 @@
 	      resolve the name being looked up.  It will follow
 	      referrals from the root servers, showing the answer
 	      from each server that was used to resolve the lookup.
+	    </para> <para>
+	      If @server is also specified, it affects only the
+	      initial query for the root zone name servers.
 	    </para> <para>
 	      <command>+dnssec</command> is also set when +trace
 	      is set to better emulate the default queries from a

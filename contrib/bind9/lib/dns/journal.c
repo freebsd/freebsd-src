@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007-2011, 2013, 2014  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007-2011, 2013-2015  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -25,6 +25,7 @@
 
 #include <isc/file.h>
 #include <isc/mem.h>
+#include <isc/print.h>
 #include <isc/stdio.h>
 #include <isc/string.h>
 #include <isc/util.h>
@@ -555,7 +556,7 @@ journal_file_create(isc_mem_t *mctx, const char *filename) {
 }
 
 static isc_result_t
-journal_open(isc_mem_t *mctx, const char *filename, isc_boolean_t write,
+journal_open(isc_mem_t *mctx, const char *filename, isc_boolean_t writable,
 	     isc_boolean_t create, dns_journal_t **journalp)
 {
 	FILE *fp = NULL;
@@ -579,7 +580,7 @@ journal_open(isc_mem_t *mctx, const char *filename, isc_boolean_t write,
 	if (j->filename == NULL)
 		FAIL(ISC_R_NOMEMORY);
 
-	result = isc_stdio_open(j->filename, write ? "rb+" : "rb", &fp);
+	result = isc_stdio_open(j->filename, writable ? "rb+" : "rb", &fp);
 
 	if (result == ISC_R_FILENOTFOUND) {
 		if (create) {
@@ -669,7 +670,7 @@ journal_open(isc_mem_t *mctx, const char *filename, isc_boolean_t write,
 	dns_decompress_init(&j->it.dctx, -1, DNS_DECOMPRESS_NONE);
 
 	j->state =
-		write ? JOURNAL_STATE_WRITE : JOURNAL_STATE_READ;
+		writable ? JOURNAL_STATE_WRITE : JOURNAL_STATE_READ;
 
 	*journalp = j;
 	return (ISC_R_SUCCESS);
@@ -696,12 +697,12 @@ dns_journal_open(isc_mem_t *mctx, const char *filename, unsigned int mode,
 	isc_result_t result;
 	size_t namelen;
 	char backup[1024];
-	isc_boolean_t write, create;
+	isc_boolean_t writable, create;
 
 	create = ISC_TF(mode & DNS_JOURNAL_CREATE);
-	write = ISC_TF(mode & (DNS_JOURNAL_WRITE|DNS_JOURNAL_CREATE));
+	writable = ISC_TF(mode & (DNS_JOURNAL_WRITE|DNS_JOURNAL_CREATE));
 
-	result = journal_open(mctx, filename, write, create, journalp);
+	result = journal_open(mctx, filename, writable, create, journalp);
 	if (result == ISC_R_NOTFOUND) {
 		namelen = strlen(filename);
 		if (namelen > 4U && strcmp(filename + namelen - 4, ".jnl") == 0)
@@ -711,7 +712,8 @@ dns_journal_open(isc_mem_t *mctx, const char *filename, unsigned int mode,
 					   (int)namelen, filename);
 		if (result != ISC_R_SUCCESS)
 			return (result);
-		result = journal_open(mctx, backup, write, write, journalp);
+		result = journal_open(mctx, backup, writable, writable,
+				      journalp);
 	}
 	return (result);
 }
@@ -2109,6 +2111,8 @@ dns_journal_compact(isc_mem_t *mctx, char *filename, isc_uint32_t serial,
 	char newname[1024];
 	char backup[1024];
 	isc_boolean_t is_backup = ISC_FALSE;
+
+	REQUIRE(filename != NULL);
 
 	namelen = strlen(filename);
 	if (namelen > 4U && strcmp(filename + namelen - 4, ".jnl") == 0)

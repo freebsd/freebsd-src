@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007, 2009, 2013  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007, 2009, 2013, 2015  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,8 +15,6 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: main.h,v 1.17 2009/09/29 23:48:03 tbox Exp $ */
-
 #ifndef NAMED_MAIN_H
 #define NAMED_MAIN_H 1
 
@@ -25,6 +23,11 @@
 #ifdef ISC_MAIN_HOOK
 #define main(argc, argv) bindmain(argc, argv)
 #endif
+
+/*
+ * Commandline arguments for named; also referenced in win32/ntservice.c
+ */
+#define NS_MAIN_ARGS "46c:C:d:E:fFgi:lM:m:n:N:p:P:sS:t:T:U:u:vVx:"
 
 ISC_PLATFORM_NORETURN_PRE void
 ns_main_earlyfatal(const char *format, ...)

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2010, 2012-2014  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2010, 2012-2015  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -107,9 +107,10 @@
 #define DNS_OPT_NSID		0x0003		/*%< NSID opt code */
 #define DNS_OPT_CLIENT_SUBNET	0x0008		/*%< client subnet opt code */
 #define DNS_OPT_EXPIRE		0x0009		/*%< EXPIRE opt code */
+#define DNS_OPT_COOKIE		0x000a		/*%< COOKIE opt code */
 
 /*%< The number of EDNS options we know about. */
-#define DNS_EDNSOPTIONS	3
+#define DNS_EDNSOPTIONS	4
 
 #define DNS_MESSAGE_REPLYPRESERVE	(DNS_MESSAGEFLAG_RD|DNS_MESSAGEFLAG_CD)
 #define DNS_MESSAGEEXTFLAG_REPLYPRESERVE (DNS_MESSAGEEXTFLAG_DO)
@@ -193,7 +194,7 @@ struct dns_message {
 	dns_messageid_t			id;
 	unsigned int			flags;
 	dns_rcode_t			rcode;
-	unsigned int			opcode;
+	dns_opcode_t			opcode;
 	dns_rdataclass_t		rdclass;
 
 	/* 4 real, 1 pseudo */

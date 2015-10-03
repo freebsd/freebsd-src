@@ -52,7 +52,7 @@
 <div class="cmdsynopsis"><p><code class="command">dig</code>  [global-queryopt...] [query...]</p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2611911"></a><h2>DESCRIPTION</h2>
+<a name="id2613208"></a><h2>DESCRIPTION</h2>
 <p><span><strong class="command">dig</strong></span>
       (domain information groper) is a flexible tool
       for interrogating DNS name servers.  It performs DNS lookups and
@@ -99,7 +99,7 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2612013"></a><h2>SIMPLE USAGE</h2>
+<a name="id2613310"></a><h2>SIMPLE USAGE</h2>
 <p>
       A typical invocation of <span><strong class="command">dig</strong></span> looks like:
       </p>
@@ -152,115 +152,135 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2612276"></a><h2>OPTIONS</h2>
+<a name="id2613641"></a><h2>OPTIONS</h2>
+<div class="variablelist"><dl>
+<dt><span class="term">-4</span></dt>
+<dd><p>
+	    Use IPv4 only.
+	  </p></dd>
+<dt><span class="term">-6</span></dt>
+<dd><p>
+	    Use IPv6 only.
+	  </p></dd>
+<dt><span class="term">-b <em class="replaceable"><code>address[<span class="optional">#port</span>]</code></em></span></dt>
+<dd><p>
+	    Set the source IP address of the query.
+	    The <em class="parameter"><code>address</code></em> must be a valid address on
+	    one of the host's network interfaces, or "0.0.0.0" or "::". An
+	    optional port may be specified by appending "#&lt;port&gt;"
+	  </p></dd>
+<dt><span class="term">-c <em class="replaceable"><code>class</code></em></span></dt>
+<dd><p>
+	    Set the query class. The
+	    default <em class="parameter"><code>class</code></em> is IN; other classes
+	    are HS for Hesiod records or CH for Chaosnet records.
+	  </p></dd>
+<dt><span class="term">-f <em class="replaceable"><code>file</code></em></span></dt>
+<dd><p>
+	    Batch mode: <span><strong class="command">dig</strong></span> reads a list of lookup
+	    requests to process from the
+	    given <em class="parameter"><code>file</code></em>. Each line in the file
+	    should be organized in the same way they would be
+	    presented as queries to
+	    <span><strong class="command">dig</strong></span> using the command-line interface.
+	  </p></dd>
+<dt><span class="term">-i</span></dt>
+<dd><p>
+	    Do reverse IPv6 lookups using the obsolete RFC1886 IP6.INT
+	    domain, which is no longer in use. Obsolete bit string
+	    label queries (RFC2874) are not attempted.
+	  </p></dd>
+<dt><span class="term">-k <em class="replaceable"><code>keyfile</code></em></span></dt>
+<dd><p>
+	    Sign queries using TSIG using a key read from the given file.
+	    Key files can be generated using
+	    <span class="citerefentry"><span class="refentrytitle">tsig-keygen</span>(8)</span>.
+	    When using TSIG authentication with <span><strong class="command">dig</strong></span>,
+	    the name server that is queried needs to know the key and
+	    algorithm that is being used. In BIND, this is done by
+	    providing appropriate <span><strong class="command">key</strong></span>
+	    and <span><strong class="command">server</strong></span> statements in
+	    <code class="filename">named.conf</code>.
+	  </p></dd>
+<dt><span class="term">-m</span></dt>
+<dd><p>
+	    Enable memory usage debugging.
+	    
+	  </p></dd>
+<dt><span class="term">-p <em class="replaceable"><code>port</code></em></span></dt>
+<dd><p>
+	    Send the query to a non-standard port on the server,
+	    instead of the defaut port 53. This option would be used
+	    to test a name server that has been configured to listen
+	    for queries on a non-standard port number.
+	  </p></dd>
+<dt><span class="term">-q <em class="replaceable"><code>name</code></em></span></dt>
+<dd><p>
+	    The domain name to query. This is useful to distinguish
+	    the <em class="parameter"><code>name</code></em> from other arguments.
+	  </p></dd>
+<dt><span class="term">-t <em class="replaceable"><code>type</code></em></span></dt>
+<dd><p>
+	    The resource record type to query. It can be any valid query type
+	    which is
+	    supported in BIND 9.  The default query type is "A", unless the
+	    <code class="option">-x</code> option is supplied to indicate a reverse lookup.
+	    A zone transfer can be requested by specifying a type of AXFR.  When
+	    an incremental zone transfer (IXFR) is required, set the
+	    <em class="parameter"><code>type</code></em> to <code class="literal">ixfr=N</code>.
+	    The incremental zone transfer will contain the changes
+	    made to the zone since the serial number in the zone's SOA
+	    record was
+	    <em class="parameter"><code>N</code></em>.
+	  </p></dd>
+<dt><span class="term">-v</span></dt>
+<dd><p>
+	    Print the version number and exit.
+	  </p></dd>
+<dt><span class="term">-x <em class="replaceable"><code>addr</code></em></span></dt>
+<dd><p>
+	    Simplified reverse lookups, for mapping addresses to
+	    names. The <em class="parameter"><code>addr</code></em> is an IPv4 address
+	    in dotted-decimal notation, or a colon-delimited IPv6
+	    address. When the <code class="option">-x</code> is used, there is no
+	    need to provide
+	    the <em class="parameter"><code>name</code></em>, <em class="parameter"><code>class</code></em>
+	    and <em class="parameter"><code>type</code></em>
+	    arguments. <span><strong class="command">dig</strong></span> automatically performs a
+	    lookup for a name like
+	    <code class="literal">94.2.0.192.in-addr.arpa</code> and sets the
+	    query type and class to PTR and IN respectively. IPv6
+	    addresses are looked up using nibble format under the
+	    IP6.ARPA domain (but see also the <code class="option">-i</code>
+	    option).
+	  </p></dd>
+<dt><span class="term">-y <em class="replaceable"><code>[<span class="optional">hmac:</span>]keyname:secret</code></em></span></dt>
+<dd>
 <p>
-      The <code class="option">-b</code> option sets the source IP address of the query
-      to <em class="parameter"><code>address</code></em>.  This must be a valid
-      address on
-      one of the host's network interfaces or "0.0.0.0" or "::".  An optional
-      port
-      may be specified by appending "#&lt;port&gt;"
-    </p>
+	    Sign queries using TSIG with the given authentication key.
+	    <em class="parameter"><code>keyname</code></em> is the name of the key, and
+	    <em class="parameter"><code>secret</code></em> is the base64 encoded shared secret.
+	    <em class="parameter"><code>hmac</code></em> is the name of the key algorithm;
+	    valid choices are <code class="literal">hmac-md5</code>,
+	    <code class="literal">hmac-sha1</code>, <code class="literal">hmac-sha224</code>,
+	    <code class="literal">hmac-sha256</code>, <code class="literal">hmac-sha384</code>, or
+	    <code class="literal">hmac-sha512</code>.  If <em class="parameter"><code>hmac</code></em>
+	    is not specified, the default is <code class="literal">hmac-md5</code>.
+	  </p>
 <p>
-      The default query class (IN for internet) is overridden by the
-      <code class="option">-c</code> option.  <em class="parameter"><code>class</code></em> is
-      any valid
-      class, such as HS for Hesiod records or CH for Chaosnet records.
-    </p>
-<p>
-      The <code class="option">-f</code> option makes <span><strong class="command">dig </strong></span>
-      operate
-      in batch mode by reading a list of lookup requests to process from the
-      file <em class="parameter"><code>filename</code></em>.  The file contains a
-      number of
-      queries, one per line.  Each entry in the file should be organized in
-      the same way they would be presented as queries to
-      <span><strong class="command">dig</strong></span> using the command-line interface.
-    </p>
-<p>
-      The <code class="option">-m</code> option enables memory usage debugging.
-      
-    </p>
-<p>
-      If a non-standard port number is to be queried, the
-      <code class="option">-p</code> option is used.  <em class="parameter"><code>port#</code></em> is
-      the port number that <span><strong class="command">dig</strong></span> will send its
-      queries
-      instead of the standard DNS port number 53.  This option would be used
-      to test a name server that has been configured to listen for queries
-      on a non-standard port number.
-    </p>
-<p>
-      The <code class="option">-4</code> option forces <span><strong class="command">dig</strong></span>
-      to only
-      use IPv4 query transport.  The <code class="option">-6</code> option forces
-      <span><strong class="command">dig</strong></span> to only use IPv6 query transport.
-    </p>
-<p>
-      The <code class="option">-t</code> option sets the query type to
-      <em class="parameter"><code>type</code></em>.  It can be any valid query type
-      which is
-      supported in BIND 9.  The default query type is "A", unless the
-      <code class="option">-x</code> option is supplied to indicate a reverse lookup.
-      A zone transfer can be requested by specifying a type of AXFR.  When
-      an incremental zone transfer (IXFR) is required,
-      <em class="parameter"><code>type</code></em> is set to <code class="literal">ixfr=N</code>.
-      The incremental zone transfer will contain the changes made to the zone
-      since the serial number in the zone's SOA record was
-      <em class="parameter"><code>N</code></em>.
-    </p>
-<p>
-      The <code class="option">-q</code> option sets the query name to 
-      <em class="parameter"><code>name</code></em>.  This is useful to distinguish the
-      <em class="parameter"><code>name</code></em> from other arguments.
-    </p>
-<p>
-      The <code class="option">-v</code> causes <span><strong class="command">dig</strong></span> to
-      print the version number and exit.
-    </p>
-<p>
-      Reverse lookups &#8212; mapping addresses to names &#8212; are simplified by the
-      <code class="option">-x</code> option.  <em class="parameter"><code>addr</code></em> is
-      an IPv4
-      address in dotted-decimal notation, or a colon-delimited IPv6 address.
-      When this option is used, there is no need to provide the
-      <em class="parameter"><code>name</code></em>, <em class="parameter"><code>class</code></em> and
-      <em class="parameter"><code>type</code></em> arguments.  <span><strong class="command">dig</strong></span>
-      automatically performs a lookup for a name like
-      <code class="literal">11.12.13.10.in-addr.arpa</code> and sets the
-      query type and
-      class to PTR and IN respectively.  By default, IPv6 addresses are
-      looked up using nibble format under the IP6.ARPA domain.
-      To use the older RFC1886 method using the IP6.INT domain
-      specify the <code class="option">-i</code> option.  Bit string labels (RFC2874)
-      are now experimental and are not attempted.
-    </p>
-<p>
-      To sign the DNS queries sent by <span><strong class="command">dig</strong></span> and
-      their
-      responses using transaction signatures (TSIG), specify a TSIG key file
-      using the <code class="option">-k</code> option.  You can also specify the TSIG
-      key itself on the command line using the <code class="option">-y</code> option;
-      <em class="parameter"><code>hmac</code></em> is the type of the TSIG, default HMAC-MD5,
-      <em class="parameter"><code>name</code></em> is the name of the TSIG key and
-      <em class="parameter"><code>key</code></em> is the actual key.  The key is a
-      base-64
-      encoded string, typically generated by
-      <span class="citerefentry"><span class="refentrytitle">dnssec-keygen</span>(8)</span>.
-
-      Caution should be taken when using the <code class="option">-y</code> option on
-      multi-user systems as the key can be visible in the output from
-      <span class="citerefentry"><span class="refentrytitle">ps</span>(1)</span>
-      or in the shell's history file.  When
-      using TSIG authentication with <span><strong class="command">dig</strong></span>, the name
-      server that is queried needs to know the key and algorithm that is
-      being used.  In BIND, this is done by providing appropriate
-      <span><strong class="command">key</strong></span> and <span><strong class="command">server</strong></span> statements in
-      <code class="filename">named.conf</code>.
-    </p>
+	    NOTE: You should use the <code class="option">-k</code> option and
+	    avoid the <code class="option">-y</code> option, because
+	    with <code class="option">-y</code> the shared secret is supplied as
+	    a command line argument in clear text. This may be visible
+	    in the output from
+	    <span class="citerefentry"><span class="refentrytitle">ps</span>(1)</span>
+	    or in a history file maintained by the user's shell.
+	  </p>
+</dd>
+</dl></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2664309"></a><h2>QUERY OPTIONS</h2>
+<a name="id2665766"></a><h2>QUERY OPTIONS</h2>
 <p><span><strong class="command">dig</strong></span>
       provides a number of query options which affect
       the way in which lookups are made and the results displayed.  Some of
@@ -276,6 +296,9 @@
       that keyword.  Other
       keywords assign values to options like the timeout interval.  They
       have the form <code class="option">+keyword=value</code>.
+      Keywords may be abbreviated, provided the abbreviation is
+      unambiguous; for example, <code class="literal">+cd</code> is equivalent
+      to <code class="literal">+cdflag</code>.
       The query options are:
 
       </p>
@@ -340,7 +363,7 @@
 	      the query.  This requests the server to not perform
 	      DNSSEC validation of responses.
 	    </p></dd>
-<dt><span class="term"><code class="option">+[no]cl</code></span></dt>
+<dt><span class="term"><code class="option">+[no]class</code></span></dt>
 <dd><p>
 	      Display [do not display] the CLASS when printing the
 	      record.
@@ -463,6 +486,10 @@
 	      when an answer is returned.  The default is to print
 	      the question section as a comment.
 	    </p></dd>
+<dt><span class="term"><code class="option">+[no]rdflag</code></span></dt>
+<dd><p>
+	      A synonym for <em class="parameter"><code>+[no]recurse</code></em>.
+	    </p></dd>
 <dt><span class="term"><code class="option">+[no]recurse</code></span></dt>
 <dd><p>
 	      Toggle the setting of the RD (recursion desired) bit
@@ -570,6 +597,10 @@
 	      from each server that was used to resolve the lookup.
 	    </p>
 <p>
+	      If @server is also specified, it affects only the
+	      initial query for the root zone name servers.
+	    </p>
+<p>
 	      <span><strong class="command">+dnssec</strong></span> is also set when +trace
 	      is set to better emulate the default queries from a
 	      nameserver.
@@ -618,7 +649,7 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2665492"></a><h2>MULTIPLE QUERIES</h2>
+<a name="id2666982"></a><h2>MULTIPLE QUERIES</h2>
 <p>
       The BIND 9 implementation of <span><strong class="command">dig </strong></span>
       supports
@@ -664,7 +695,7 @@ dig +qr www.isc.org any -x 127.0.0.1 isc.org ns +noqr
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2665577"></a><h2>IDN SUPPORT</h2>
+<a name="id2667067"></a><h2>IDN SUPPORT</h2>
 <p>
       If <span><strong class="command">dig</strong></span> has been built with IDN (internationalized
       domain name) support, it can accept and display non-ASCII domain names.
@@ -678,14 +709,14 @@ dig +qr www.isc.org any -x 127.0.0.1 isc.org ns +noqr
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2665606"></a><h2>FILES</h2>
+<a name="id2667096"></a><h2>FILES</h2>
 <p><code class="filename">/etc/resolv.conf</code>
     </p>
 <p><code class="filename">${HOME}/.digrc</code>
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2665627"></a><h2>SEE ALSO</h2>
+<a name="id2667117"></a><h2>SEE ALSO</h2>
 <p><span class="citerefentry"><span class="refentrytitle">host</span>(1)</span>,
       <span class="citerefentry"><span class="refentrytitle">named</span>(8)</span>,
       <span class="citerefentry"><span class="refentrytitle">dnssec-keygen</span>(8)</span>,
@@ -693,7 +724,7 @@ dig +qr www.isc.org any -x 127.0.0.1 isc.org ns +noqr
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2665665"></a><h2>BUGS</h2>
+<a name="id2667155"></a><h2>BUGS</h2>
 <p>
       There are probably too many query options.
     </p>
@@ -716,6 +747,6 @@ dig +qr www.isc.org any -x 127.0.0.1 isc.org ns +noqr
 </tr>
 </table>
 </div>
-<p style="text-align: center;">BIND 9.9.7-P2 (Extended Support Version)</p>
+<p style="text-align: center;">BIND 9.9.8 (Extended Support Version)</p>
 </body>
 </html>

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007-2009, 2011, 2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007-2009, 2011, 2012, 2015  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -29,10 +29,25 @@
 #include <openssl/evp.h>
 #include <openssl/conf.h>
 #include <openssl/crypto.h>
+#include <openssl/bn.h>
 
 #if !defined(OPENSSL_NO_ENGINE) && defined(CRYPTO_LOCK_ENGINE) && \
     (OPENSSL_VERSION_NUMBER >= 0x0090707f)
 #define USE_ENGINE 1
+#endif
+
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+/*
+ * These are new in OpenSSL 1.1.0.  BN_GENCB _cb needs to be declared in
+ * the function like this before the BN_GENCB_new call:
+ *
+ * #if OPENSSL_VERSION_NUMBER < 0x10100000L
+ *     	 _cb;
+ * #endif
+ */
+#define BN_GENCB_free(x) (x = NULL);
+#define BN_GENCB_new() (&_cb)
+#define BN_GENCB_get_arg(x) ((x)->arg)
 #endif
 
 ISC_LANG_BEGINDECLS

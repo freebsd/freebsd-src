@@ -90,6 +90,7 @@ ISC_APPFUNC_SCOPE isc_result_t isc__app_onrun(isc_mem_t *mctx,
 					      void *arg);
 ISC_APPFUNC_SCOPE isc_result_t isc__app_ctxrun(isc_appctx_t *ctx);
 ISC_APPFUNC_SCOPE isc_result_t isc__app_run(void);
+ISC_APPFUNC_SCOPE isc_boolean_t isc__app_isrunning(void);
 ISC_APPFUNC_SCOPE isc_result_t isc__app_ctxshutdown(isc_appctx_t *ctx);
 ISC_APPFUNC_SCOPE isc_result_t isc__app_shutdown(void);
 ISC_APPFUNC_SCOPE isc_result_t isc__app_reload(void);
@@ -145,6 +146,7 @@ typedef struct isc__appctx {
 } isc__appctx_t;
 
 static isc__appctx_t isc_g_appctx;
+static isc_boolean_t is_running = ISC_FALSE;
 
 static struct {
 	isc_appmethods_t methods;
@@ -154,7 +156,8 @@ static struct {
 	 */
 #ifndef BIND9
 	void *run, *shutdown, *start, *onrun,
-	     *reload, *finish, *block, *unblock;
+	     *reload, *finish, *block, *unblock,
+	     *isrunning;
 #endif
 } appmethods = {
 	{
@@ -174,7 +177,7 @@ static struct {
 	(void *)isc__app_run, (void *)isc__app_shutdown,
 	(void *)isc__app_start, (void *)isc__app_onrun, (void *)isc__app_reload,
 	(void *)isc__app_finish, (void *)isc__app_block,
-	(void *)isc__app_unblock
+	(void *)isc__app_unblock, (void *)isc__app_isrunning
 #endif
 };
 
@@ -701,7 +704,7 @@ isc__app_ctxrun(isc_appctx_t *ctx0) {
 			return (ISC_R_UNEXPECTED);
 		}
 #endif
-		result = sigsuspend(&sset);
+		(void)sigsuspend(&sset);
 #endif /* HAVE_SIGWAIT */
 
 		if (ctx->want_reload) {
@@ -728,7 +731,18 @@ isc__app_ctxrun(isc_appctx_t *ctx0) {
 
 ISC_APPFUNC_SCOPE isc_result_t
 isc__app_run(void) {
-	return (isc__app_ctxrun((isc_appctx_t *)&isc_g_appctx));
+	isc_result_t result;
+
+	is_running = ISC_TRUE;
+	result = isc__app_ctxrun((isc_appctx_t *)&isc_g_appctx);
+	is_running = ISC_FALSE;
+
+	return (result);
+}
+
+ISC_APPFUNC_SCOPE isc_boolean_t
+isc__app_isrunning(void) {
+	return (is_running);
 }
 
 ISC_APPFUNC_SCOPE isc_result_t

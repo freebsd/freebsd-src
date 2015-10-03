@@ -90,7 +90,7 @@
 /*
  * If this system need a modern sprintf() that returns (int) not (char*).
  */
-#undef LWRES_PLATFORM_NEEDSPRINTF
+
 
 /*
  * The printf format string modifier to use with lwres_uint64_t values.

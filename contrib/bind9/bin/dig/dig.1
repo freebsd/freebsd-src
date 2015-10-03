@@ -1,4 +1,4 @@
-.\" Copyright (C) 2004-2011, 2013, 2014 Internet Systems Consortium, Inc. ("ISC")
+.\" Copyright (C) 2004-2011, 2013-2015 Internet Systems Consortium, Inc. ("ISC")
 .\" Copyright (C) 2000-2003 Internet Software Consortium.
 .\" 
 .\" Permission to use, copy, modify, and/or distribute this software for any
@@ -130,77 +130,97 @@ will perform a lookup for an A record.
 .RE
 .SH "OPTIONS"
 .PP
-The
-\fB\-b\fR
-option sets the source IP address of the query to
-\fIaddress\fR. This must be a valid address on one of the host's network interfaces or "0.0.0.0" or "::". An optional port may be specified by appending "#<port>"
+\-4
+.RS 4
+Use IPv4 only.
+.RE
 .PP
-The default query class (IN for internet) is overridden by the
-\fB\-c\fR
-option.
+\-6
+.RS 4
+Use IPv6 only.
+.RE
+.PP
+\-b \fIaddress\fR\fI[#port]\fR
+.RS 4
+Set the source IP address of the query. The
+\fIaddress\fR
+must be a valid address on one of the host's network interfaces, or "0.0.0.0" or "::". An optional port may be specified by appending "#<port>"
+.RE
+.PP
+\-c \fIclass\fR
+.RS 4
+Set the query class. The default
 \fIclass\fR
-is any valid class, such as HS for Hesiod records or CH for Chaosnet records.
+is IN; other classes are HS for Hesiod records or CH for Chaosnet records.
+.RE
 .PP
-The
-\fB\-f\fR
-option makes
-\fBdig \fR
-operate in batch mode by reading a list of lookup requests to process from the file
-\fIfilename\fR. The file contains a number of queries, one per line. Each entry in the file should be organized in the same way they would be presented as queries to
+\-f \fIfile\fR
+.RS 4
+Batch mode:
+\fBdig\fR
+reads a list of lookup requests to process from the given
+\fIfile\fR. Each line in the file should be organized in the same way they would be presented as queries to
 \fBdig\fR
 using the command\-line interface.
+.RE
 .PP
-The
-\fB\-m\fR
-option enables memory usage debugging.
+\-i
+.RS 4
+Do reverse IPv6 lookups using the obsolete RFC1886 IP6.INT domain, which is no longer in use. Obsolete bit string label queries (RFC2874) are not attempted.
+.RE
 .PP
-If a non\-standard port number is to be queried, the
-\fB\-p\fR
-option is used.
-\fIport#\fR
-is the port number that
-\fBdig\fR
-will send its queries instead of the standard DNS port number 53. This option would be used to test a name server that has been configured to listen for queries on a non\-standard port number.
+\-k \fIkeyfile\fR
+.RS 4
+Sign queries using TSIG using a key read from the given file. Key files can be generated using
+\fBtsig\-keygen\fR(8). When using TSIG authentication with
+\fBdig\fR, the name server that is queried needs to know the key and algorithm that is being used. In BIND, this is done by providing appropriate
+\fBkey\fR
+and
+\fBserver\fR
+statements in
+\fInamed.conf\fR.
+.RE
 .PP
-The
-\fB\-4\fR
-option forces
-\fBdig\fR
-to only use IPv4 query transport. The
-\fB\-6\fR
-option forces
-\fBdig\fR
-to only use IPv6 query transport.
+\-m
+.RS 4
+Enable memory usage debugging.
+.RE
 .PP
-The
-\fB\-t\fR
-option sets the query type to
-\fItype\fR. It can be any valid query type which is supported in BIND 9. The default query type is "A", unless the
-\fB\-x\fR
-option is supplied to indicate a reverse lookup. A zone transfer can be requested by specifying a type of AXFR. When an incremental zone transfer (IXFR) is required,
-\fItype\fR
-is set to
-ixfr=N. The incremental zone transfer will contain the changes made to the zone since the serial number in the zone's SOA record was
-\fIN\fR.
+\-p \fIport\fR
+.RS 4
+Send the query to a non\-standard port on the server, instead of the defaut port 53. This option would be used to test a name server that has been configured to listen for queries on a non\-standard port number.
+.RE
 .PP
-The
-\fB\-q\fR
-option sets the query name to
-\fIname\fR. This is useful to distinguish the
+\-q \fIname\fR
+.RS 4
+The domain name to query. This is useful to distinguish the
 \fIname\fR
 from other arguments.
+.RE
 .PP
-The
-\fB\-v\fR
-causes
-\fBdig\fR
-to print the version number and exit.
-.PP
-Reverse lookups \(em mapping addresses to names \(em are simplified by the
+\-t \fItype\fR
+.RS 4
+The resource record type to query. It can be any valid query type which is supported in BIND 9. The default query type is "A", unless the
 \fB\-x\fR
-option.
+option is supplied to indicate a reverse lookup. A zone transfer can be requested by specifying a type of AXFR. When an incremental zone transfer (IXFR) is required, set the
+\fItype\fR
+to
+ixfr=N. The incremental zone transfer will contain the changes made to the zone since the serial number in the zone's SOA record was
+\fIN\fR.
+.RE
+.PP
+\-v
+.RS 4
+Print the version number and exit.
+.RE
+.PP
+\-x \fIaddr\fR
+.RS 4
+Simplified reverse lookups, for mapping addresses to names. The
 \fIaddr\fR
-is an IPv4 address in dotted\-decimal notation, or a colon\-delimited IPv6 address. When this option is used, there is no need to provide the
+is an IPv4 address in dotted\-decimal notation, or a colon\-delimited IPv6 address. When the
+\fB\-x\fR
+is used, there is no need to provide the
 \fIname\fR,
 \fIclass\fR
 and
@@ -208,35 +228,41 @@ and
 arguments.
 \fBdig\fR
 automatically performs a lookup for a name like
-11.12.13.10.in\-addr.arpa
-and sets the query type and class to PTR and IN respectively. By default, IPv6 addresses are looked up using nibble format under the IP6.ARPA domain. To use the older RFC1886 method using the IP6.INT domain specify the
+94.2.0.192.in\-addr.arpa
+and sets the query type and class to PTR and IN respectively. IPv6 addresses are looked up using nibble format under the IP6.ARPA domain (but see also the
 \fB\-i\fR
-option. Bit string labels (RFC2874) are now experimental and are not attempted.
+option).
+.RE
 .PP
-To sign the DNS queries sent by
-\fBdig\fR
-and their responses using transaction signatures (TSIG), specify a TSIG key file using the
-\fB\-k\fR
-option. You can also specify the TSIG key itself on the command line using the
-\fB\-y\fR
-option;
+\-y \fI[hmac:]\fR\fIkeyname:secret\fR
+.RS 4
+Sign queries using TSIG with the given authentication key.
+\fIkeyname\fR
+is the name of the key, and
+\fIsecret\fR
+is the base64 encoded shared secret.
 \fIhmac\fR
-is the type of the TSIG, default HMAC\-MD5,
-\fIname\fR
-is the name of the TSIG key and
-\fIkey\fR
-is the actual key. The key is a base\-64 encoded string, typically generated by
-\fBdnssec\-keygen\fR(8). Caution should be taken when using the
+is the name of the key algorithm; valid choices are
+hmac\-md5,
+hmac\-sha1,
+hmac\-sha224,
+hmac\-sha256,
+hmac\-sha384, or
+hmac\-sha512. If
+\fIhmac\fR
+is not specified, the default is
+hmac\-md5.
+.sp
+NOTE: You should use the
+\fB\-k\fR
+option and avoid the
 \fB\-y\fR
-option on multi\-user systems as the key can be visible in the output from
+option, because with
+\fB\-y\fR
+the shared secret is supplied as a command line argument in clear text. This may be visible in the output from
 \fBps\fR(1)
-or in the shell's history file. When using TSIG authentication with
-\fBdig\fR, the name server that is queried needs to know the key and algorithm that is being used. In BIND, this is done by providing appropriate
-\fBkey\fR
-and
-\fBserver\fR
-statements in
-\fInamed.conf\fR.
+or in a history file maintained by the user's shell.
+.RE
 .SH "QUERY OPTIONS"
 .PP
 \fBdig\fR
@@ -245,7 +271,10 @@ provides a number of query options which affect the way in which lookups are mad
 Each query option is identified by a keyword preceded by a plus sign (+). Some keywords set or reset an option. These may be preceded by the string
 no
 to negate the meaning of that keyword. Other keywords assign values to options like the timeout interval. They have the form
-\fB+keyword=value\fR. The query options are:
+\fB+keyword=value\fR. Keywords may be abbreviated, provided the abbreviation is unambiguous; for example,
++cd
+is equivalent to
++cdflag. The query options are:
 .PP
 \fB+[no]aaflag\fR
 .RS 4
@@ -300,7 +329,7 @@ bytes. The maximum and minimum sizes of this buffer are 65535 and 0 respectively
 Set [do not set] the CD (checking disabled) bit in the query. This requests the server to not perform DNSSEC validation of responses.
 .RE
 .PP
-\fB+[no]cl\fR
+\fB+[no]class\fR
 .RS 4
 Display [do not display] the CLASS when printing the record.
 .RE
@@ -421,6 +450,12 @@ Print [do not print] the query as it is sent. By default, the query is not print
 Print [do not print] the question section of a query when an answer is returned. The default is to print the question section as a comment.
 .RE
 .PP
+\fB+[no]rdflag\fR
+.RS 4
+A synonym for
+\fI+[no]recurse\fR.
+.RE
+.PP
 \fB+[no]recurse\fR
 .RS 4
 Toggle the setting of the RD (recursion desired) bit in the query. This bit is set by default, which means
@@ -517,6 +552,8 @@ When chasing DNSSEC signature chains perform a top\-down validation. Requires di
 Toggle tracing of the delegation path from the root name servers for the name being looked up. Tracing is disabled by default. When tracing is enabled,
 \fBdig\fR
 makes iterative queries to resolve the name being looked up. It will follow referrals from the root servers, showing the answer from each server that was used to resolve the lookup.
+.sp
+If @server is also specified, it affects only the initial query for the root zone name servers.
 .sp
 \fB+dnssec\fR
 is also set when +trace is set to better emulate the default queries from a nameserver.
@@ -620,7 +657,7 @@ RFC1035.
 .PP
 There are probably too many query options.
 .SH "COPYRIGHT"
-Copyright \(co 2004\-2011, 2013, 2014 Internet Systems Consortium, Inc. ("ISC")
+Copyright \(co 2004\-2011, 2013\-2015 Internet Systems Consortium, Inc. ("ISC")
 .br
 Copyright \(co 2000\-2003 Internet Software Consortium.
 .br

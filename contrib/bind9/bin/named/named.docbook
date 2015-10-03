@@ -2,7 +2,7 @@
                "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd"
 	       [<!ENTITY mdash "&#8212;">]>
 <!--
- - Copyright (C) 2004-2009, 2011, 2013, 2014  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004-2009, 2011, 2013-2015  Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000, 2001, 2003  Internet Software Consortium.
  -
  - Permission to use, copy, modify, and/or distribute this software for any
@@ -45,6 +45,7 @@
       <year>2011</year>
       <year>2013</year>
       <year>2014</year>
+      <year>2015</year>
       <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
     </copyright>
     <copyright>
@@ -65,6 +66,7 @@
       <arg><option>-E <replaceable class="parameter">engine-name</replaceable></option></arg>
       <arg><option>-f</option></arg>
       <arg><option>-g</option></arg>
+      <arg><option>-M <replaceable class="parameter">option</replaceable></option></arg>
       <arg><option>-m <replaceable class="parameter">flag</replaceable></option></arg>
       <arg><option>-n <replaceable class="parameter">#cpus</replaceable></option></arg>
       <arg><option>-p <replaceable class="parameter">port</replaceable></option></arg>
@@ -177,6 +179,19 @@
           <para>
             Run the server in the foreground and force all logging
             to <filename>stderr</filename>.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>-M <replaceable class="parameter">option</replaceable></term>
+        <listitem>
+          <para>
+	    Sets the default memory context options.  Currently
+	    the only supported option is
+	    <replaceable class="parameter">external</replaceable>,
+	    which causes the internal memory manager to be bypassed
+	    in favor of system-provided memory allocation functions.
           </para>
         </listitem>
       </varlistentry>

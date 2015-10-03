@@ -53,7 +53,7 @@ fromtext_nsec3(ARGS_FROMTEXT) {
 	unsigned char hashalg;
 	isc_buffer_t b;
 
-	REQUIRE(type == 50);
+	REQUIRE(type == dns_rdatatype_nsec3);
 
 	UNUSED(type);
 	UNUSED(rdclass);
@@ -144,7 +144,7 @@ totext_nsec3(ARGS_TOTEXT) {
 	isc_uint32_t iterations;
 	isc_boolean_t first;
 
-	REQUIRE(rdata->type == 50);
+	REQUIRE(rdata->type == dns_rdatatype_nsec3);
 	REQUIRE(rdata->length != 0);
 
 	dns_rdata_toregion(rdata, &sr);
@@ -246,7 +246,7 @@ fromwire_nsec3(ARGS_FROMWIRE) {
 	isc_boolean_t first = ISC_TRUE;
 	unsigned int i;
 
-	REQUIRE(type == 50);
+	REQUIRE(type == dns_rdatatype_nsec3);
 
 	UNUSED(type);
 	UNUSED(rdclass);
@@ -318,7 +318,7 @@ static inline isc_result_t
 towire_nsec3(ARGS_TOWIRE) {
 	isc_region_t sr;
 
-	REQUIRE(rdata->type == 50);
+	REQUIRE(rdata->type == dns_rdatatype_nsec3);
 	REQUIRE(rdata->length != 0);
 
 	UNUSED(cctx);
@@ -334,7 +334,7 @@ compare_nsec3(ARGS_COMPARE) {
 
 	REQUIRE(rdata1->type == rdata2->type);
 	REQUIRE(rdata1->rdclass == rdata2->rdclass);
-	REQUIRE(rdata1->type == 50);
+	REQUIRE(rdata1->type == dns_rdatatype_nsec3);
 	REQUIRE(rdata1->length != 0);
 	REQUIRE(rdata2->length != 0);
 
@@ -349,7 +349,7 @@ fromstruct_nsec3(ARGS_FROMSTRUCT) {
 	unsigned int i, len, window, lastwindow = 0;
 	isc_boolean_t first = ISC_TRUE;
 
-	REQUIRE(type == 50);
+	REQUIRE(type == dns_rdatatype_nsec3);
 	REQUIRE(source != NULL);
 	REQUIRE(nsec3->common.rdtype == type);
 	REQUIRE(nsec3->common.rdclass == rdclass);
@@ -390,7 +390,7 @@ tostruct_nsec3(ARGS_TOSTRUCT) {
 	isc_region_t region;
 	dns_rdata_nsec3_t *nsec3 = target;
 
-	REQUIRE(rdata->type == 50);
+	REQUIRE(rdata->type == dns_rdatatype_nsec3);
 	REQUIRE(target != NULL);
 	REQUIRE(rdata->length != 0);
 
@@ -436,7 +436,7 @@ freestruct_nsec3(ARGS_FREESTRUCT) {
 	dns_rdata_nsec3_t *nsec3 = source;
 
 	REQUIRE(source != NULL);
-	REQUIRE(nsec3->common.rdtype == 50);
+	REQUIRE(nsec3->common.rdtype == dns_rdatatype_nsec3);
 
 	if (nsec3->mctx == NULL)
 		return;
@@ -452,7 +452,7 @@ freestruct_nsec3(ARGS_FREESTRUCT) {
 
 static inline isc_result_t
 additionaldata_nsec3(ARGS_ADDLDATA) {
-	REQUIRE(rdata->type == 50);
+	REQUIRE(rdata->type == dns_rdatatype_nsec3);
 
 	UNUSED(rdata);
 	UNUSED(add);
@@ -465,7 +465,7 @@ static inline isc_result_t
 digest_nsec3(ARGS_DIGEST) {
 	isc_region_t r;
 
-	REQUIRE(rdata->type == 50);
+	REQUIRE(rdata->type == dns_rdatatype_nsec3);
 
 	dns_rdata_toregion(rdata, &r);
 	return ((digest)(arg, &r));
@@ -477,7 +477,7 @@ checkowner_nsec3(ARGS_CHECKOWNER) {
 	isc_buffer_t buffer;
 	dns_label_t label;
 
-	REQUIRE(type == 50);
+	REQUIRE(type == dns_rdatatype_nsec3);
 
 	UNUSED(type);
 	UNUSED(rdclass);
@@ -498,7 +498,7 @@ checkowner_nsec3(ARGS_CHECKOWNER) {
 static inline isc_boolean_t
 checknames_nsec3(ARGS_CHECKNAMES) {
 
-	REQUIRE(rdata->type == 50);
+	REQUIRE(rdata->type == dns_rdatatype_nsec3);
 
 	UNUSED(rdata);
 	UNUSED(owner);

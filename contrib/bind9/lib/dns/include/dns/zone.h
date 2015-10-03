@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2013  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2013, 2015  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -331,6 +331,15 @@ dns_zone_asyncload(dns_zone_t *zone, dns_zt_zoneloaded_t done, void *arg);
  * its first argument and 'zone' as its second.  (Normally, 'arg' is
  * expected to point to the zone table but is left undefined for testing
  * purposes.)
+ *
+ * Require:
+ *\li	'zone' to be a valid zone.
+ *
+ * Returns:
+ *\li	#ISC_R_ALREADYRUNNING
+ *\li	#ISC_R_SUCCESS
+ *\li	#ISC_R_FAILURE
+ *\li	#ISC_R_NOMEMORY
  */
 
 isc_boolean_t
@@ -1791,6 +1800,16 @@ dns_zone_name(dns_zone_t *zone, char *buf, size_t len);
  *\li	'buf' to be non NULL.
  */
 
+void
+dns_zone_nameonly(dns_zone_t *zone, char *buf, size_t len);
+/*%<
+ * Return the name of the zone only.
+ *
+ * Requires:
+ *\li	'zone' to be valid.
+ *\li	'buf' to be non NULL.
+ */
+
 isc_result_t
 dns_zone_checknames(dns_zone_t *zone, dns_name_t *name, dns_rdata_t *rdata);
 /*%<
@@ -1894,6 +1913,12 @@ dns_zone_setsignatures(dns_zone_t *zone, isc_uint32_t signatures);
  * Set the number of signatures that will be generated per quantum.
  */
 
+isc_uint32_t
+dns_zone_getsignatures(dns_zone_t *zone);
+/*%<
+ * Get the number of signatures that will be generated per quantum.
+ */
+
 isc_result_t
 dns_zone_signwithkey(dns_zone_t *zone, dns_secalg_t algorithm,
 		     isc_uint16_t keyid, isc_boolean_t deleteit);
@@ -1944,6 +1969,23 @@ dns_zone_nscheck(dns_zone_t *zone, dns_db_t *db, dns_dbversion_t *version,
  *
  * Returns:
  * 	ISC_R_SUCCESS if there were no errors examining the zone contents.
+ */
+
+isc_result_t
+dns_zone_cdscheck(dns_zone_t *zone, dns_db_t *db, dns_dbversion_t *version);
+/*%
+ * Check if CSD, CDNSKEY and DNSKEY are consistent.
+ *
+ * Requires:
+ * \li	'zone' to be valid.
+ * \li	'db' to be valid.
+ * \li	'version' to be valid or NULL.
+ *
+ * Returns:
+ *\li	#ISC_R_SUCCESS
+ *\li	#DNS_R_BADCDS
+ *\li	#DNS_R_BADCDNSKEY
+ *	Others
  */
 
 void

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007, 2011, 2012, 2014  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007, 2011, 2012, 2014, 2015  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -66,6 +66,7 @@ lwres__print_vsnprintf(char *str, size_t size, const char *format, va_list ap) {
 	int h;
 	int l;
 	int q;
+	int z;
 	int alt;
 	int zero;
 	int left;
@@ -110,7 +111,7 @@ lwres__print_vsnprintf(char *str, size_t size, const char *format, va_list ap) {
 		/*
 		 * Reset flags.
 		 */
-		dot = space = plus = left = zero = alt = h = l = q = 0;
+		dot = space = plus = left = zero = alt = h = l = q = z = 0;
 		width = precision = 0;
 		head = "";
 		length = pad = zeropad = 0;
@@ -194,6 +195,10 @@ lwres__print_vsnprintf(char *str, size_t size, const char *format, va_list ap) {
 				format++;
 			}
 			goto doint;
+		case 'z':
+			z = 1;
+			format++;
+			goto doint;
 		case 'n':
 		case 'i':
 		case 'd':
@@ -216,6 +221,11 @@ lwres__print_vsnprintf(char *str, size_t size, const char *format, va_list ap) {
 					p = va_arg(ap, long *);
 					REQUIRE(p != NULL);
 					*p = str - save;
+				} else if (z) {
+					size_t *p;
+					p = va_arg(ap, size_t *);
+					REQUIRE(p != NULL);
+					*p = str - save;
 				} else {
 					int *p;
 					p = va_arg(ap, int *);
@@ -229,6 +239,8 @@ lwres__print_vsnprintf(char *str, size_t size, const char *format, va_list ap) {
 					tmpi = va_arg(ap, long long int);
 				else if (l)
 					tmpi = va_arg(ap, long int);
+				else if (z)
+					tmpi = va_arg(ap, size_t);
 				else
 					tmpi = va_arg(ap, int);
 				if (tmpi < 0) {
@@ -252,6 +264,8 @@ lwres__print_vsnprintf(char *str, size_t size, const char *format, va_list ap) {
 						       unsigned long long int);
 				else if (l)
 					tmpui = va_arg(ap, long int);
+				else if (z)
+					tmpui = va_arg(ap, size_t);
 				else
 					tmpui = va_arg(ap, int);
 				sprintf(buf,
@@ -265,6 +279,8 @@ lwres__print_vsnprintf(char *str, size_t size, const char *format, va_list ap) {
 						       unsigned long long int);
 				else if (l)
 					tmpui = va_arg(ap, unsigned long int);
+				else if (z)
+					tmpui = va_arg(ap, size_t);
 				else
 					tmpui = va_arg(ap, unsigned int);
 				sprintf(buf, "%" LWRES_PRINT_QUADFORMAT "u",
@@ -276,6 +292,8 @@ lwres__print_vsnprintf(char *str, size_t size, const char *format, va_list ap) {
 						       unsigned long long int);
 				else if (l)
 					tmpui = va_arg(ap, unsigned long int);
+				else if (z)
+					tmpui = va_arg(ap, size_t);
 				else
 					tmpui = va_arg(ap, unsigned int);
 				if (alt) {
@@ -292,6 +310,8 @@ lwres__print_vsnprintf(char *str, size_t size, const char *format, va_list ap) {
 						       unsigned long long int);
 				else if (l)
 					tmpui = va_arg(ap, unsigned long int);
+				else if (z)
+					tmpui = va_arg(ap, size_t);
 				else
 					tmpui = va_arg(ap, unsigned int);
 				if (alt) {

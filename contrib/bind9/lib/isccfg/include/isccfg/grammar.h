@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2011, 2014  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2011, 2014, 2015  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2002, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -255,6 +255,7 @@ LIBISCCFG_EXTERNAL_DATA extern cfg_rep_t cfg_rep_tuple;
 LIBISCCFG_EXTERNAL_DATA extern cfg_rep_t cfg_rep_sockaddr;
 LIBISCCFG_EXTERNAL_DATA extern cfg_rep_t cfg_rep_netprefix;
 LIBISCCFG_EXTERNAL_DATA extern cfg_rep_t cfg_rep_void;
+LIBISCCFG_EXTERNAL_DATA extern cfg_rep_t cfg_rep_fixedpoint;
 /*@}*/
 
 /*@{*/
@@ -278,6 +279,7 @@ LIBISCCFG_EXTERNAL_DATA extern cfg_type_t cfg_type_netprefix;
 LIBISCCFG_EXTERNAL_DATA extern cfg_type_t cfg_type_void;
 LIBISCCFG_EXTERNAL_DATA extern cfg_type_t cfg_type_token;
 LIBISCCFG_EXTERNAL_DATA extern cfg_type_t cfg_type_unsupported;
+LIBISCCFG_EXTERNAL_DATA extern cfg_type_t cfg_type_fixedpoint;
 /*@}*/
 
 isc_result_t
@@ -436,6 +438,12 @@ cfg_print_void(cfg_printer_t *pctx, const cfg_obj_t *obj);
 
 void
 cfg_doc_void(cfg_printer_t *pctx, const cfg_type_t *type);
+
+isc_result_t
+cfg_parse_fixedpoint(cfg_parser_t *pctx, const cfg_type_t *type, cfg_obj_t **ret);
+
+void
+cfg_print_fixedpoint(cfg_printer_t *pctx, const cfg_obj_t *obj);
 
 isc_result_t
 cfg_parse_obj(cfg_parser_t *pctx, const cfg_type_t *type, cfg_obj_t **ret);

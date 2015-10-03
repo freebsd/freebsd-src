@@ -1,5 +1,5 @@
 /*
- * Portions Copyright (C) 2005, 2007, 2009-2013  Internet Systems Consortium, Inc. ("ISC")
+ * Portions Copyright (C) 2005, 2007, 2009-2013, 2015  Internet Systems Consortium, Inc. ("ISC")
  * Portions Copyright (C) 1999-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -221,8 +221,8 @@ dns_dlzcreate(isc_mem_t *mctx, const char *dlzname, const char *drivername,
 
 void
 dns_dlzdestroy(dns_dlzdb_t **dbp) {
-	isc_mem_t *mctx;
 	dns_dlzdestroy_t destroy;
+	dns_dlzdb_t *db;
 
 	/* Write debugging message to log */
 	isc_log_write(dns_lctx, DNS_LOGCATEGORY_DATABASE,
@@ -234,23 +234,19 @@ dns_dlzdestroy(dns_dlzdb_t **dbp) {
 	 */
 	REQUIRE(dbp != NULL && DNS_DLZ_VALID(*dbp));
 
+	db = *dbp;
+	*dbp = NULL;
+
 #ifdef BIND9
-	if ((*dbp)->ssutable != NULL) {
-		dns_ssutable_detach(&(*dbp)->ssutable);
-	}
+	if (db->ssutable != NULL)
+		dns_ssutable_detach(&db->ssutable);
 #endif
 
 	/* call the drivers destroy method */
-	if ((*dbp) != NULL) {
-		mctx = (*dbp)->mctx;
-		destroy = (*dbp)->implementation->methods->destroy;
-		(*destroy)((*dbp)->implementation->driverarg,(*dbp)->dbdata);
-		/* return memory */
-		isc_mem_put(mctx, (*dbp), sizeof(dns_dlzdb_t));
-		isc_mem_detach(&mctx);
-	}
-
-	*dbp = NULL;
+	destroy = db->implementation->methods->destroy;
+	(*destroy)(db->implementation->driverarg, db->dbdata);
+	/* return memory and detach */
+	isc_mem_putanddetach(&db->mctx, db, sizeof(dns_dlzdb_t));
 }
 
 

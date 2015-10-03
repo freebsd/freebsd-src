@@ -47,7 +47,8 @@ docclean manclean maintainer-clean distclean::
 
 notes.html: notes-wrapper.xml notes.xml releaseinfo.xml pkgversion.xml noteversion.xml
 	expand notes-wrapper.xml | \
-	${XSLTPROC} --stringparam generate.toc "" -o notes.html ../xsl/isc-notes-html.xsl -
+	${XSLTPROC} --stringparam generate.toc "" ../xsl/isc-notes-html.xsl - |\
+	@PERL@ html-fixup.pl > notes.html
 
 notes.tex: notes-wrapper.xml notes.xml releaseinfo.xml pkgversion.xml noteversion.xml
 	expand notes-wrapper.xml | \

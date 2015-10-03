@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007, 2009  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007, 2009, 2015  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -32,8 +32,8 @@ fromtext_in_nsap_ptr(ARGS_FROMTEXT) {
 	dns_name_t name;
 	isc_buffer_t buffer;
 
-	REQUIRE(type == 23);
-	REQUIRE(rdclass == 1);
+	REQUIRE(type == dns_rdatatype_nsap_ptr);
+	REQUIRE(rdclass == dns_rdataclass_in);
 
 	UNUSED(type);
 	UNUSED(rdclass);
@@ -56,8 +56,8 @@ totext_in_nsap_ptr(ARGS_TOTEXT) {
 	dns_name_t prefix;
 	isc_boolean_t sub;
 
-	REQUIRE(rdata->type == 23);
-	REQUIRE(rdata->rdclass == 1);
+	REQUIRE(rdata->type == dns_rdatatype_nsap_ptr);
+	REQUIRE(rdata->rdclass == dns_rdataclass_in);
 	REQUIRE(rdata->length != 0);
 
 	dns_name_init(&name, NULL);
@@ -75,8 +75,8 @@ static inline isc_result_t
 fromwire_in_nsap_ptr(ARGS_FROMWIRE) {
 	dns_name_t name;
 
-	REQUIRE(type == 23);
-	REQUIRE(rdclass == 1);
+	REQUIRE(type == dns_rdatatype_nsap_ptr);
+	REQUIRE(rdclass == dns_rdataclass_in);
 
 	UNUSED(type);
 	UNUSED(rdclass);
@@ -93,8 +93,8 @@ towire_in_nsap_ptr(ARGS_TOWIRE) {
 	dns_offsets_t offsets;
 	isc_region_t region;
 
-	REQUIRE(rdata->type == 23);
-	REQUIRE(rdata->rdclass == 1);
+	REQUIRE(rdata->type == dns_rdatatype_nsap_ptr);
+	REQUIRE(rdata->rdclass == dns_rdataclass_in);
 	REQUIRE(rdata->length != 0);
 
 	dns_compress_setmethods(cctx, DNS_COMPRESS_NONE);
@@ -114,8 +114,8 @@ compare_in_nsap_ptr(ARGS_COMPARE) {
 
 	REQUIRE(rdata1->type == rdata2->type);
 	REQUIRE(rdata1->rdclass == rdata2->rdclass);
-	REQUIRE(rdata1->type == 23);
-	REQUIRE(rdata1->rdclass == 1);
+	REQUIRE(rdata1->type == dns_rdatatype_nsap_ptr);
+	REQUIRE(rdata1->rdclass == dns_rdataclass_in);
 	REQUIRE(rdata1->length != 0);
 	REQUIRE(rdata2->length != 0);
 
@@ -136,8 +136,8 @@ fromstruct_in_nsap_ptr(ARGS_FROMSTRUCT) {
 	dns_rdata_in_nsap_ptr_t *nsap_ptr = source;
 	isc_region_t region;
 
-	REQUIRE(type == 23);
-	REQUIRE(rdclass == 1);
+	REQUIRE(type == dns_rdatatype_nsap_ptr);
+	REQUIRE(rdclass == dns_rdataclass_in);
 	REQUIRE(source != NULL);
 	REQUIRE(nsap_ptr->common.rdtype == type);
 	REQUIRE(nsap_ptr->common.rdclass == rdclass);
@@ -155,8 +155,8 @@ tostruct_in_nsap_ptr(ARGS_TOSTRUCT) {
 	dns_rdata_in_nsap_ptr_t *nsap_ptr = target;
 	dns_name_t name;
 
-	REQUIRE(rdata->type == 23);
-	REQUIRE(rdata->rdclass == 1);
+	REQUIRE(rdata->type == dns_rdatatype_nsap_ptr);
+	REQUIRE(rdata->rdclass == dns_rdataclass_in);
 	REQUIRE(target != NULL);
 	REQUIRE(rdata->length != 0);
 
@@ -178,8 +178,8 @@ freestruct_in_nsap_ptr(ARGS_FREESTRUCT) {
 	dns_rdata_in_nsap_ptr_t *nsap_ptr = source;
 
 	REQUIRE(source != NULL);
-	REQUIRE(nsap_ptr->common.rdclass == 1);
-	REQUIRE(nsap_ptr->common.rdtype == 23);
+	REQUIRE(nsap_ptr->common.rdclass == dns_rdataclass_in);
+	REQUIRE(nsap_ptr->common.rdtype == dns_rdatatype_nsap_ptr);
 
 	if (nsap_ptr->mctx == NULL)
 		return;
@@ -190,8 +190,8 @@ freestruct_in_nsap_ptr(ARGS_FREESTRUCT) {
 
 static inline isc_result_t
 additionaldata_in_nsap_ptr(ARGS_ADDLDATA) {
-	REQUIRE(rdata->type == 23);
-	REQUIRE(rdata->rdclass == 1);
+	REQUIRE(rdata->type == dns_rdatatype_nsap_ptr);
+	REQUIRE(rdata->rdclass == dns_rdataclass_in);
 
 	UNUSED(rdata);
 	UNUSED(add);
@@ -205,8 +205,8 @@ digest_in_nsap_ptr(ARGS_DIGEST) {
 	isc_region_t r;
 	dns_name_t name;
 
-	REQUIRE(rdata->type == 23);
-	REQUIRE(rdata->rdclass == 1);
+	REQUIRE(rdata->type == dns_rdatatype_nsap_ptr);
+	REQUIRE(rdata->rdclass == dns_rdataclass_in);
 
 	dns_rdata_toregion(rdata, &r);
 	dns_name_init(&name, NULL);
@@ -218,8 +218,8 @@ digest_in_nsap_ptr(ARGS_DIGEST) {
 static inline isc_boolean_t
 checkowner_in_nsap_ptr(ARGS_CHECKOWNER) {
 
-	REQUIRE(type == 23);
-	REQUIRE(rdclass == 1);
+	REQUIRE(type == dns_rdatatype_nsap_ptr);
+	REQUIRE(rdclass == dns_rdataclass_in);
 
 	UNUSED(name);
 	UNUSED(type);
@@ -232,8 +232,8 @@ checkowner_in_nsap_ptr(ARGS_CHECKOWNER) {
 static inline isc_boolean_t
 checknames_in_nsap_ptr(ARGS_CHECKNAMES) {
 
-	REQUIRE(rdata->type == 23);
-	REQUIRE(rdata->rdclass == 1);
+	REQUIRE(rdata->type == dns_rdatatype_nsap_ptr);
+	REQUIRE(rdata->rdclass == dns_rdataclass_in);
 
 	UNUSED(rdata);
 	UNUSED(owner);

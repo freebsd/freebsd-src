@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2011, 2015  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -58,6 +58,12 @@ isc_result_t
 dns_update_signatures(dns_update_log_t *log, dns_zone_t *zone, dns_db_t *db,
 		      dns_dbversion_t *oldver, dns_dbversion_t *newver,
 		      dns_diff_t *diff, isc_uint32_t sigvalidityinterval);
+
+isc_result_t
+dns_update_signaturesinc(dns_update_log_t *log, dns_zone_t *zone, dns_db_t *db,
+			 dns_dbversion_t *oldver, dns_dbversion_t *newver,
+			 dns_diff_t *diff, isc_uint32_t sigvalidityinterval,
+			 dns_update_state_t **state);
 
 ISC_LANG_ENDDECLS
 

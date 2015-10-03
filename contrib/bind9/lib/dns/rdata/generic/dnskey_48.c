@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007, 2009, 2011-2013  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007, 2009, 2011-2013, 2015  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -38,7 +38,7 @@ fromtext_dnskey(ARGS_FROMTEXT) {
 	dns_secproto_t proto;
 	dns_keyflags_t flags;
 
-	REQUIRE(type == 48);
+	REQUIRE(type == dns_rdatatype_dnskey);
 
 	UNUSED(type);
 	UNUSED(rdclass);
@@ -88,7 +88,7 @@ totext_dnskey(ARGS_TOTEXT) {
 	char algbuf[DNS_NAME_FORMATSIZE];
 	const char *keyinfo;
 
-	REQUIRE(rdata->type == 48);
+	REQUIRE(rdata->type == dns_rdatatype_dnskey);
 	REQUIRE(rdata->length != 0);
 
 	dns_rdata_toregion(rdata, &sr);
@@ -172,7 +172,7 @@ fromwire_dnskey(ARGS_FROMWIRE) {
 	unsigned char algorithm;
 	isc_region_t sr;
 
-	REQUIRE(type == 48);
+	REQUIRE(type == dns_rdatatype_dnskey);
 
 	UNUSED(type);
 	UNUSED(rdclass);
@@ -212,7 +212,7 @@ static inline isc_result_t
 towire_dnskey(ARGS_TOWIRE) {
 	isc_region_t sr;
 
-	REQUIRE(rdata->type == 48);
+	REQUIRE(rdata->type == dns_rdatatype_dnskey);
 	REQUIRE(rdata->length != 0);
 
 	UNUSED(cctx);
@@ -228,7 +228,7 @@ compare_dnskey(ARGS_COMPARE) {
 
 	REQUIRE(rdata1->type == rdata2->type);
 	REQUIRE(rdata1->rdclass == rdata2->rdclass);
-	REQUIRE(rdata1->type == 48);
+	REQUIRE(rdata1->type == dns_rdatatype_dnskey);
 	REQUIRE(rdata1->length != 0);
 	REQUIRE(rdata2->length != 0);
 
@@ -241,7 +241,7 @@ static inline isc_result_t
 fromstruct_dnskey(ARGS_FROMSTRUCT) {
 	dns_rdata_dnskey_t *dnskey = source;
 
-	REQUIRE(type == 48);
+	REQUIRE(type == dns_rdatatype_dnskey);
 	REQUIRE(source != NULL);
 	REQUIRE(dnskey->common.rdtype == type);
 	REQUIRE(dnskey->common.rdclass == rdclass);
@@ -267,7 +267,7 @@ tostruct_dnskey(ARGS_TOSTRUCT) {
 	dns_rdata_dnskey_t *dnskey = target;
 	isc_region_t sr;
 
-	REQUIRE(rdata->type == 48);
+	REQUIRE(rdata->type == dns_rdatatype_dnskey);
 	REQUIRE(target != NULL);
 	REQUIRE(rdata->length != 0);
 
@@ -310,7 +310,7 @@ freestruct_dnskey(ARGS_FREESTRUCT) {
 	dns_rdata_dnskey_t *dnskey = (dns_rdata_dnskey_t *) source;
 
 	REQUIRE(source != NULL);
-	REQUIRE(dnskey->common.rdtype == 48);
+	REQUIRE(dnskey->common.rdtype == dns_rdatatype_dnskey);
 
 	if (dnskey->mctx == NULL)
 		return;
@@ -322,7 +322,7 @@ freestruct_dnskey(ARGS_FREESTRUCT) {
 
 static inline isc_result_t
 additionaldata_dnskey(ARGS_ADDLDATA) {
-	REQUIRE(rdata->type == 48);
+	REQUIRE(rdata->type == dns_rdatatype_dnskey);
 
 	UNUSED(rdata);
 	UNUSED(add);
@@ -335,7 +335,7 @@ static inline isc_result_t
 digest_dnskey(ARGS_DIGEST) {
 	isc_region_t r;
 
-	REQUIRE(rdata->type == 48);
+	REQUIRE(rdata->type == dns_rdatatype_dnskey);
 
 	dns_rdata_toregion(rdata, &r);
 
@@ -345,7 +345,7 @@ digest_dnskey(ARGS_DIGEST) {
 static inline isc_boolean_t
 checkowner_dnskey(ARGS_CHECKOWNER) {
 
-	REQUIRE(type == 48);
+	REQUIRE(type == dns_rdatatype_dnskey);
 
 	UNUSED(name);
 	UNUSED(type);
@@ -358,7 +358,7 @@ checkowner_dnskey(ARGS_CHECKOWNER) {
 static inline isc_boolean_t
 checknames_dnskey(ARGS_CHECKNAMES) {
 
-	REQUIRE(rdata->type == 48);
+	REQUIRE(rdata->type == dns_rdatatype_dnskey);
 
 	UNUSED(rdata);
 	UNUSED(owner);

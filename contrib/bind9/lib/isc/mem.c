@@ -43,6 +43,7 @@
 #define ISC_MEM_DEBUGGING 0
 #endif
 LIBISC_EXTERNAL_DATA unsigned int isc_mem_debugging = ISC_MEM_DEBUGGING;
+LIBISC_EXTERNAL_DATA unsigned int isc_mem_defaultflags = ISC_MEMFLAG_DEFAULT;
 
 /*
  * Constants.
@@ -215,6 +216,8 @@ struct isc__mempool {
 static void
 print_active(isc__mem_t *ctx, FILE *out);
 
+#endif /* ISC_MEM_TRACKLINES */
+
 /*%
  * The following can be either static or public, depending on build environment.
  */
@@ -321,7 +324,6 @@ isc__mem_checkdestroyed(FILE *file);
 ISC_MEMFUNC_SCOPE unsigned int
 isc__mem_references(isc_mem_t *ctx0);
 #endif
-#endif /* ISC_MEM_TRACKLINES */
 
 static struct isc__memmethods {
 	isc_memmethods_t methods;
@@ -660,7 +662,7 @@ mem_getunlocked(isc__mem_t *ctx, size_t size) {
 	size_t new_size = quantize(size);
 	void *ret;
 
-	if (size >= ctx->max_size || new_size >= ctx->max_size) {
+	if (new_size >= ctx->max_size) {
 		/*
 		 * memget() was called on something beyond our upper limit.
 		 */
@@ -740,7 +742,7 @@ static inline void
 mem_putunlocked(isc__mem_t *ctx, void *mem, size_t size) {
 	size_t new_size = quantize(size);
 
-	if (size == ctx->max_size || new_size >= ctx->max_size) {
+	if (new_size >= ctx->max_size) {
 		/*
 		 * memput() called on something beyond our upper limit.
 		 */
@@ -896,7 +898,7 @@ isc__mem_createx(size_t init_max_size, size_t target_size,
 		 isc_mem_t **ctxp)
 {
 	return (isc__mem_createx2(init_max_size, target_size, memalloc, memfree,
-				  arg, ctxp, ISC_MEMFLAG_DEFAULT));
+				  arg, ctxp, isc_mem_defaultflags));
 
 }
 
@@ -1038,7 +1040,7 @@ ISC_MEMFUNC_SCOPE isc_result_t
 isc__mem_create(size_t init_max_size, size_t target_size, isc_mem_t **ctxp) {
 	return (isc__mem_createx2(init_max_size, target_size,
 				  default_memalloc, default_memfree, NULL,
-				  ctxp, ISC_MEMFLAG_DEFAULT));
+				  ctxp, isc_mem_defaultflags));
 }
 
 ISC_MEMFUNC_SCOPE isc_result_t
@@ -1092,11 +1094,17 @@ destroy(isc__mem_t *ctx) {
 
 	if (ctx->checkfree) {
 		for (i = 0; i <= ctx->max_size; i++) {
+			if (ctx->stats[i].gets != 0U) {
+				fprintf(stderr,
+					"Failing assertion due to probable "
+					"leaked memory in context %p (\"%s\") "
+					"(stats[%u].gets == %lu).\n",
+					ctx, ctx->name, i, ctx->stats[i].gets);
 #if ISC_MEM_TRACKLINES
-			if (ctx->stats[i].gets != 0U)
 				print_active(ctx, stderr);
 #endif
-			INSIST(ctx->stats[i].gets == 0U);
+				INSIST(ctx->stats[i].gets == 0U);
+			}
 		}
 	}
 
@@ -1286,13 +1294,10 @@ isc___mem_get(isc_mem_t *ctx0, size_t size FLARG) {
 	}
 
 	ADD_TRACE(ctx, ptr, size, file, line);
-	if (ctx->hi_water != 0U && ctx->inuse > ctx->hi_water &&
-	    !ctx->is_overmem) {
+	if (ctx->hi_water != 0U && ctx->inuse > ctx->hi_water) {
 		ctx->is_overmem = ISC_TRUE;
-	}
-	if (ctx->hi_water != 0U && !ctx->hi_called &&
-	    ctx->inuse > ctx->hi_water) {
-		call_water = ISC_TRUE;
+		if (!ctx->hi_called)
+			call_water = ISC_TRUE;
 	}
 	if (ctx->inuse > ctx->maxinuse) {
 		ctx->maxinuse = ctx->inuse;
@@ -1303,7 +1308,7 @@ isc___mem_get(isc_mem_t *ctx0, size_t size FLARG) {
 	}
 	MCTXUNLOCK(ctx, &ctx->lock);
 
-	if (call_water)
+	if (call_water && (ctx->water != NULL))
 		(ctx->water)(ctx->water_arg, ISC_MEM_HIWATER);
 
 	return (ptr);
@@ -1347,18 +1352,15 @@ isc___mem_put(isc_mem_t *ctx0, void *ptr, size_t size FLARG) {
 	 * when the context was pushed over hi_water but then had
 	 * isc_mem_setwater() called with 0 for hi_water and lo_water.
 	 */
-	if (ctx->is_overmem &&
-	    (ctx->inuse < ctx->lo_water || ctx->lo_water == 0U)) {
+	if ((ctx->inuse < ctx->lo_water) || (ctx->lo_water == 0U)) {
 		ctx->is_overmem = ISC_FALSE;
-	}
-	if (ctx->hi_called &&
-	    (ctx->inuse < ctx->lo_water || ctx->lo_water == 0U)) {
-		if (ctx->water != NULL)
+		if (ctx->hi_called)
 			call_water = ISC_TRUE;
 	}
+
 	MCTXUNLOCK(ctx, &ctx->lock);
 
-	if (call_water)
+	if (call_water && (ctx->water != NULL))
 		(ctx->water)(ctx->water_arg, ISC_MEM_LOWATER);
 }
 
@@ -1411,8 +1413,8 @@ print_active(isc__mem_t *mctx, FILE *out) {
 			}
 		}
 		if (!found)
-			fprintf(out, "%s", isc_msgcat_get(isc_msgcat, ISC_MSGSET_MEM,
-						    ISC_MSG_NONE, "\tNone.\n"));
+			fputs(isc_msgcat_get(isc_msgcat, ISC_MSGSET_MEM,
+					     ISC_MSG_NONE, "\tNone.\n"), out);
 	}
 }
 #endif
@@ -1534,15 +1536,10 @@ isc___mem_allocate(isc_mem_t *ctx0, size_t size FLARG) {
 
 	REQUIRE(VALID_CONTEXT(ctx));
 
-	if ((ctx->flags & ISC_MEMFLAG_INTERNAL) != 0) {
-		MCTXLOCK(ctx, &ctx->lock);
-		si = isc__mem_allocateunlocked((isc_mem_t *)ctx, size);
-	} else {
-		si = isc__mem_allocateunlocked((isc_mem_t *)ctx, size);
-		MCTXLOCK(ctx, &ctx->lock);
-		if (si != NULL)
-			mem_getstats(ctx, si[-1].u.size);
-	}
+	MCTXLOCK(ctx, &ctx->lock);
+	si = isc__mem_allocateunlocked((isc_mem_t *)ctx, size);
+	if (((ctx->flags & ISC_MEMFLAG_INTERNAL) == 0) && (si != NULL))
+		mem_getstats(ctx, si[-1].u.size);
 
 #if ISC_MEM_TRACKLINES
 	ADD_TRACE(ctx, si, si[-1].u.size, file, line);
@@ -1767,7 +1764,6 @@ isc__mem_setwater(isc_mem_t *ctx0, isc_mem_water_t water, void *water_arg,
 		ctx->water_arg = NULL;
 		ctx->hi_water = 0;
 		ctx->lo_water = 0;
-		ctx->hi_called = ISC_FALSE;
 	} else {
 		if (ctx->hi_called &&
 		    (ctx->water != water || ctx->water_arg != water_arg ||

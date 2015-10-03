@@ -1,4 +1,4 @@
-Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+Copyright (C) 2004, 2015  Internet Systems Consortium, Inc. ("ISC")
 Copyright (C) 2001  Internet Software Consortium.
 See COPYRIGHT in the source root or http://isc.org/copyright.html for terms.
 
@@ -29,20 +29,79 @@ or Best Current Practice (BCP) documents.
   RFC2181
   RFC2230
   RFC2308
-  RFC2535 [3] [4]
   RFC2536
-  RFC2537
-  RFC2538
   RFC2539
-  RFC2671
-  RFC2672
-  RFC2673
   RFC2782
   RFC2915
   RFC2930
   RFC2931 [5]
   RFC3007
+  RFC3110
+  RFC3123
+  RFC3225
+  RFC3226
+  RFC3363 [6]
+  RFC3490 [7]
+  RFC3491 (Obsoleted by 5890, 5891) [7]
+  RFC3493
+  RFC3496
+  RFC3597
+  RFC3645
+  RFC4025
+  RFC4034
+  RFC4035
+  RFC4074
+  RFC4255
+  RFC4294 - Section 5.1 [8]
+  RFC4343
+  RFC4398
+  RFC4408
+  RFC4431
+  RFC4470 [9]
+  RFC4509
+  RFC4635
+  RFC4701
+  RFC4892
+  RFC4955 [10]
+  RFC5001
+  RFC5011
+  RFC5155
+  RFC5205
+  RFC5452 [11]
+  RFC5702
+  RFC5933 [12]
+  RFC5936
+  RFC5952
+  RFC5966
+  RFC6052
+  RFC6147 [13]
+  RFC6303
+  RFC6605 [14]
+  RFC6672
+  RFC6698
+  RFC6742
+  RFC6840 [15]
+  RFC6844
+  RFC6891
+  RFC7043
+  RFC7314
+  RFC7314
 
+The following DNS related RFC have been obsoleted
+
+  RFC2535 (Obsoleted by 4034, 4035) [3] [4]
+  RFC2537 (Obsoleted by 3110)
+  RFC2538 (Obsoleted by 4398)
+  RFC2671 (Obsoleted by 6891)
+  RFC2672 (Obsoleted by 6672)
+  RFC2673 (Obsoleted by 6891)
+  RFC3008 (Obsoleted by 4034, 4035)
+  RFC3152 (Obsoleted by 3596)
+  RFC3445 (Obsoleted by 4034, 4035)
+  RFC3655 (Obsoleted by 4034, 4035)
+  RFC3658 (Obsoleted by 4034, 4035)
+  RFC3755 (Obsoleted by 4034, 4035)
+  RFC3757 (Obsoleted by 4034, 4035)
 
 [1] Queries to zones that have failed to load return SERVFAIL rather
 than a non-authoritative response.  This is considered a feature.

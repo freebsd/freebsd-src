@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2009, 2013, 2014  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2009, 2013-2015  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -221,17 +221,17 @@ isc_backtrace_gettrace(void **addrs, int maxaddrs, int *nframes) {
 #endif
 
 isc_result_t
-isc_backtrace_getsymbolfromindex(int index, const void **addrp,
+isc_backtrace_getsymbolfromindex(int idx, const void **addrp,
 				 const char **symbolp)
 {
 	REQUIRE(addrp != NULL && *addrp == NULL);
 	REQUIRE(symbolp != NULL && *symbolp == NULL);
 
-	if (index < 0 || index >= isc__backtrace_nsymbols)
+	if (idx < 0 || idx >= isc__backtrace_nsymbols)
 		return (ISC_R_RANGE);
 
-	*addrp = isc__backtrace_symtable[index].addr;
-	*symbolp = isc__backtrace_symtable[index].symbol;
+	*addrp = isc__backtrace_symtable[idx].addr;
+	*symbolp = isc__backtrace_symtable[idx].symbol;
 	return (ISC_R_SUCCESS);
 }
 

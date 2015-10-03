@@ -21,18 +21,13 @@
 </head>
 <body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="article" lang="en"><div class="sect1" lang="en">
 <div class="titlepage"><div><div><h2 class="title" style="clear: both">
-<a name="id2542126"></a>Release Notes for BIND Version 9.9.7-P2</h2></div></div></div>
+<a name="id2542126"></a>Release Notes for BIND Version 9.9.8</h2></div></div></div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
 <a name="relnotes_intro"></a>Introduction</h3></div></div></div>
 <p>
-      This document summarizes changes since BIND 9.9.7.
-    </p>
-<p>
-      BIND 9.9.7-P2 addresses a security issue described in CVE-2015-5477.
-    </p>
-<p>
-      BIND 9.9.7-P1 addresses a security issue described in CVE-2015-4620.
+      This document summarizes changes since the last production release
+      of BIND on the corresponding major release branch.
     </p>
 </div>
 <div class="sect2" lang="en">
@@ -50,6 +45,21 @@
 <div class="titlepage"><div><div><h3 class="title">
 <a name="relnotes_security"></a>Security Fixes</h3></div></div></div>
 <div class="itemizedlist"><ul type="disc">
+<li><p>
+	  An incorrect boundary check in the OPENPGPKEY rdatatype
+	  could trigger an assertion failure. This flaw is disclosed
+	  in CVE-2015-5986. [RT #40286]
+	</p></li>
+<li>
+<p>
+	  A buffer accounting error could trigger an assertion failure
+	  when parsing certain malformed DNSSEC keys.
+	</p>
+<p>
+	  This flaw was discovered by Hanno B&ouml;ck of the Fuzzing
+	  Project, and is disclosed in CVE-2015-5722. [RT #40212]
+	</p>
+</li>
 <li>
 <p>
 	  A specially crafted query could trigger an assertion failure
@@ -57,7 +67,7 @@
 	</p>
 <p>
 	  This flaw was discovered by Jonathan Foote, and is disclosed
-	  in CVE-2015-5477. [RT #39795]
+	  in CVE-2015-5477. [RT #40046]
 	</p>
 </li>
 <li>
@@ -76,17 +86,121 @@
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
 <a name="relnotes_features"></a>New Features</h3></div></div></div>
-<div class="itemizedlist"><ul type="disc"><li><p>None</p></li></ul></div>
+<div class="itemizedlist"><ul type="disc">
+<li>
+<p>
+	  New quotas have been added to limit the queries that are
+	  sent by recursive resolvers to authoritative servers
+	  experiencing denial-of-service attacks. When configured,
+	  these options can both reduce the harm done to authoritative
+	  servers and also avoid the resource exhaustion that can be
+	  experienced by recursives when they are being used as a
+	  vehicle for such an attack.
+	</p>
+<p>
+	  NOTE: These options are not available by default; use
+	  <span><strong class="command">configure --enable-fetchlimit</strong></span> to include
+	  them in the build.
+	</p>
+<div class="itemizedlist"><ul type="circle">
+<li><p>
+	      <code class="option">fetches-per-server</code> limits the number of
+	      simultaneous queries that can be sent to any single
+	      authoritative server.  The configured value is a starting
+	      point; it is automatically adjusted downward if the server is
+	      partially or completely non-responsive. The algorithm used to
+	      adjust the quota can be configured via the
+	      <code class="option">fetch-quota-params</code> option.
+	    </p></li>
+<li><p>
+	      <code class="option">fetches-per-zone</code> limits the number of
+	      simultaneous queries that can be sent for names within a
+	      single domain.  (Note: Unlike "fetches-per-server", this
+	      value is not self-tuning.)
+	    </p></li>
+</ul></div>
+<p>
+	  Statistics counters have also been added to track the number
+	  of queries affected by these quotas.
+	</p>
+</li>
+<li><p>
+	  An <span><strong class="command">--enable-querytrace</strong></span> configure switch is
+	  now available to enable very verbose query tracelogging. This
+	  option can only be set at compile time. This option has a
+	  negative performance impact and should be used only for
+	  debugging.
+	</p></li>
+<li><p>
+	  EDNS COOKIE options content is now displayed as
+	  "COOKIE: &lt;hexvalue&gt;".
+	</p></li>
+</ul></div>
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
 <a name="relnotes_changes"></a>Feature Changes</h3></div></div></div>
-<div class="itemizedlist"><ul type="disc"><li><p>None</p></li></ul></div>
+<div class="itemizedlist"><ul type="disc">
+<li><p>
+	  Large inline-signing changes should be less disruptive.
+	  Signature generation is now done incrementally; the number
+	  of signatures to be generated in each quantum is controlled
+	  by "sig-signing-signatures <em class="replaceable"><code>number</code></em>;".
+	  [RT #37927]
+	</p></li>
+<li><p>
+	  Retrieving the local port range from net.ipv4.ip_local_port_range
+	  on Linux is now supported.
+	</p></li>
+<li><p>
+	  Active Directory names of the form gc._msdcs.&lt;forest&gt; are
+	  now accepted as valid hostnames when using the
+	  <code class="option">check-names</code> option. &lt;forest&gt; is still
+	  restricted to letters, digits and hyphens.
+	</p></li>
+<li><p>
+	  Names containing rich text are now accepted as valid
+	  hostnames in PTR records in DNS-SD reverse lookup zones,
+	  as specified in RFC 6763. [RT #37889]
+	</p></li>
+</ul></div>
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
 <a name="relnotes_bugs"></a>Bug Fixes</h3></div></div></div>
-<div class="itemizedlist"><ul type="disc"><li><p>None</p></li></ul></div>
+<div class="itemizedlist"><ul type="disc">
+<li><p>
+	  Asynchronous zone loads were not handled correctly when the
+	  zone load was already in progress; this could trigger a crash
+	  in zt.c. [RT #37573]
+	</p></li>
+<li><p>
+	  A race during shutdown or reconfiguration could
+	  cause an assertion failure in mem.c. [RT #38979]
+	</p></li>
+<li><p>
+	  Some answer formatting options didn't work correctly with
+	  <span><strong class="command">dig +short</strong></span>. [RT #39291]
+	</p></li>
+<li><p>
+	  Malformed records of some types, including NSAP and UNSPEC,
+	  could trigger assertion failures when loading text zone files.
+	  [RT #40274] [RT #40285]
+	</p></li>
+<li><p>
+	  Fixed a possible crash in ratelimiter.c caused by NOTIFY
+	  messages being removed from the wrong rate limiter queue.
+	  [RT #40350]
+	</p></li>
+<li><p>
+	  The default <code class="option">rrset-order</code> of <code class="literal">random</code>
+	  was inconsistently applied. [RT #40456]
+	</p></li>
+<li><p>
+	  BADVERS responses from broken authoritative name servers were
+	  not handled correctly. [RT #40427]
+	</p></li>
+</ul></div>
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">

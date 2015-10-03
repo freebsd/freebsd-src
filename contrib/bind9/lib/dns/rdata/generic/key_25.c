@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007, 2009, 2011-2013  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007, 2009, 2011-2013, 2015  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -38,7 +38,7 @@ fromtext_key(ARGS_FROMTEXT) {
 	dns_secproto_t proto;
 	dns_keyflags_t flags;
 
-	REQUIRE(type == 25);
+	REQUIRE(type == dns_rdatatype_key);
 
 	UNUSED(type);
 	UNUSED(rdclass);
@@ -87,7 +87,7 @@ totext_key(ARGS_TOTEXT) {
 	unsigned char algorithm;
 	char namebuf[DNS_NAME_FORMATSIZE];
 
-	REQUIRE(rdata->type == 25);
+	REQUIRE(rdata->type == dns_rdatatype_key);
 	REQUIRE(rdata->length != 0);
 
 	dns_rdata_toregion(rdata, &sr);
@@ -163,7 +163,7 @@ fromwire_key(ARGS_FROMWIRE) {
 	unsigned char algorithm;
 	isc_region_t sr;
 
-	REQUIRE(type == 25);
+	REQUIRE(type == dns_rdatatype_key);
 
 	UNUSED(type);
 	UNUSED(rdclass);
@@ -203,7 +203,7 @@ static inline isc_result_t
 towire_key(ARGS_TOWIRE) {
 	isc_region_t sr;
 
-	REQUIRE(rdata->type == 25);
+	REQUIRE(rdata->type == dns_rdatatype_key);
 	REQUIRE(rdata->length != 0);
 
 	UNUSED(cctx);
@@ -219,7 +219,7 @@ compare_key(ARGS_COMPARE) {
 
 	REQUIRE(rdata1->type == rdata2->type);
 	REQUIRE(rdata1->rdclass == rdata2->rdclass);
-	REQUIRE(rdata1->type == 25);
+	REQUIRE(rdata1->type == dns_rdatatype_key);
 	REQUIRE(rdata1->length != 0);
 	REQUIRE(rdata2->length != 0);
 
@@ -232,7 +232,7 @@ static inline isc_result_t
 fromstruct_key(ARGS_FROMSTRUCT) {
 	dns_rdata_key_t *key = source;
 
-	REQUIRE(type == 25);
+	REQUIRE(type == dns_rdatatype_key);
 	REQUIRE(source != NULL);
 	REQUIRE(key->common.rdtype == type);
 	REQUIRE(key->common.rdclass == rdclass);
@@ -258,7 +258,7 @@ tostruct_key(ARGS_TOSTRUCT) {
 	dns_rdata_key_t *key = target;
 	isc_region_t sr;
 
-	REQUIRE(rdata->type == 25);
+	REQUIRE(rdata->type == dns_rdatatype_key);
 	REQUIRE(target != NULL);
 	REQUIRE(rdata->length != 0);
 
@@ -301,7 +301,7 @@ freestruct_key(ARGS_FREESTRUCT) {
 	dns_rdata_key_t *key = (dns_rdata_key_t *) source;
 
 	REQUIRE(source != NULL);
-	REQUIRE(key->common.rdtype == 25);
+	REQUIRE(key->common.rdtype == dns_rdatatype_key);
 
 	if (key->mctx == NULL)
 		return;
@@ -313,7 +313,7 @@ freestruct_key(ARGS_FREESTRUCT) {
 
 static inline isc_result_t
 additionaldata_key(ARGS_ADDLDATA) {
-	REQUIRE(rdata->type == 25);
+	REQUIRE(rdata->type == dns_rdatatype_key);
 
 	UNUSED(rdata);
 	UNUSED(add);
@@ -326,7 +326,7 @@ static inline isc_result_t
 digest_key(ARGS_DIGEST) {
 	isc_region_t r;
 
-	REQUIRE(rdata->type == 25);
+	REQUIRE(rdata->type == dns_rdatatype_key);
 
 	dns_rdata_toregion(rdata, &r);
 
@@ -336,7 +336,7 @@ digest_key(ARGS_DIGEST) {
 static inline isc_boolean_t
 checkowner_key(ARGS_CHECKOWNER) {
 
-	REQUIRE(type == 25);
+	REQUIRE(type == dns_rdatatype_key);
 
 	UNUSED(name);
 	UNUSED(type);
@@ -349,7 +349,7 @@ checkowner_key(ARGS_CHECKOWNER) {
 static inline isc_boolean_t
 checknames_key(ARGS_CHECKNAMES) {
 
-	REQUIRE(rdata->type == 25);
+	REQUIRE(rdata->type == dns_rdatatype_key);
 
 	UNUSED(rdata);
 	UNUSED(owner);

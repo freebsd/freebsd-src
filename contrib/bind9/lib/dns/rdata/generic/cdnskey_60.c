@@ -37,7 +37,7 @@ fromtext_cdnskey(ARGS_FROMTEXT) {
 	dns_secproto_t proto;
 	dns_keyflags_t flags;
 
-	REQUIRE(type == 60);
+	REQUIRE(type == dns_rdatatype_cdnskey);
 
 	UNUSED(type);
 	UNUSED(rdclass);
@@ -87,7 +87,7 @@ totext_cdnskey(ARGS_TOTEXT) {
 	char algbuf[DNS_NAME_FORMATSIZE];
 	const char *keyinfo;
 
-	REQUIRE(rdata->type == 60);
+	REQUIRE(rdata->type == dns_rdatatype_cdnskey);
 	REQUIRE(rdata->length != 0);
 
 	dns_rdata_toregion(rdata, &sr);
@@ -171,7 +171,7 @@ fromwire_cdnskey(ARGS_FROMWIRE) {
 	unsigned char algorithm;
 	isc_region_t sr;
 
-	REQUIRE(type == 60);
+	REQUIRE(type == dns_rdatatype_cdnskey);
 
 	UNUSED(type);
 	UNUSED(rdclass);
@@ -211,7 +211,7 @@ static inline isc_result_t
 towire_cdnskey(ARGS_TOWIRE) {
 	isc_region_t sr;
 
-	REQUIRE(rdata->type == 60);
+	REQUIRE(rdata->type == dns_rdatatype_cdnskey);
 	REQUIRE(rdata->length != 0);
 
 	UNUSED(cctx);
@@ -227,7 +227,7 @@ compare_cdnskey(ARGS_COMPARE) {
 
 	REQUIRE(rdata1->type == rdata2->type);
 	REQUIRE(rdata1->rdclass == rdata2->rdclass);
-	REQUIRE(rdata1->type == 60);
+	REQUIRE(rdata1->type == dns_rdatatype_cdnskey);
 	REQUIRE(rdata1->length != 0);
 	REQUIRE(rdata2->length != 0);
 
@@ -240,7 +240,7 @@ static inline isc_result_t
 fromstruct_cdnskey(ARGS_FROMSTRUCT) {
 	dns_rdata_cdnskey_t *dnskey = source;
 
-	REQUIRE(type == 60);
+	REQUIRE(type == dns_rdatatype_cdnskey);
 	REQUIRE(source != NULL);
 	REQUIRE(dnskey->common.rdtype == type);
 	REQUIRE(dnskey->common.rdclass == rdclass);
@@ -266,7 +266,7 @@ tostruct_cdnskey(ARGS_TOSTRUCT) {
 	dns_rdata_cdnskey_t *dnskey = target;
 	isc_region_t sr;
 
-	REQUIRE(rdata->type == 60);
+	REQUIRE(rdata->type == dns_rdatatype_cdnskey);
 	REQUIRE(target != NULL);
 	REQUIRE(rdata->length != 0);
 
@@ -309,7 +309,7 @@ freestruct_cdnskey(ARGS_FREESTRUCT) {
 	dns_rdata_cdnskey_t *dnskey = (dns_rdata_cdnskey_t *) source;
 
 	REQUIRE(source != NULL);
-	REQUIRE(dnskey->common.rdtype == 60);
+	REQUIRE(dnskey->common.rdtype == dns_rdatatype_cdnskey);
 
 	if (dnskey->mctx == NULL)
 		return;
@@ -321,7 +321,7 @@ freestruct_cdnskey(ARGS_FREESTRUCT) {
 
 static inline isc_result_t
 additionaldata_cdnskey(ARGS_ADDLDATA) {
-	REQUIRE(rdata->type == 60);
+	REQUIRE(rdata->type == dns_rdatatype_cdnskey);
 
 	UNUSED(rdata);
 	UNUSED(add);
@@ -334,7 +334,7 @@ static inline isc_result_t
 digest_cdnskey(ARGS_DIGEST) {
 	isc_region_t r;
 
-	REQUIRE(rdata->type == 60);
+	REQUIRE(rdata->type == dns_rdatatype_cdnskey);
 
 	dns_rdata_toregion(rdata, &r);
 
@@ -344,7 +344,7 @@ digest_cdnskey(ARGS_DIGEST) {
 static inline isc_boolean_t
 checkowner_cdnskey(ARGS_CHECKOWNER) {
 
-	REQUIRE(type == 60);
+	REQUIRE(type == dns_rdatatype_cdnskey);
 
 	UNUSED(name);
 	UNUSED(type);
@@ -357,7 +357,7 @@ checkowner_cdnskey(ARGS_CHECKOWNER) {
 static inline isc_boolean_t
 checknames_cdnskey(ARGS_CHECKNAMES) {
 
-	REQUIRE(rdata->type == 60);
+	REQUIRE(rdata->type == dns_rdatatype_cdnskey);
 
 	UNUSED(rdata);
 	UNUSED(owner);

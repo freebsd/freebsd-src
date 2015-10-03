@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2014  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2015  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2001-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -156,7 +156,14 @@ options {\n\
 	dnssec-enable yes;\n\
 	dnssec-validation yes; \n\
 	dnssec-accept-expired no;\n\
-	clients-per-query 10;\n\
+"
+#ifdef ENABLE_FETCHLIMIT
+" 	fetches-per-server 0;\n\
+	fetches-per-zone 0;\n\
+	fetch-quota-params 100 0.1 0.3 0.7;\n\
+"
+#endif /* ENABLE_FETCHLIMIT */
+"	clients-per-query 10;\n\
 	max-clients-per-query 100;\n\
 	max-recursion-depth 7;\n\
 	max-recursion-queries 50;\n\

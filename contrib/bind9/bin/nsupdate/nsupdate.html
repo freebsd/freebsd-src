@@ -1,5 +1,5 @@
 <!--
- - Copyright (C) 2004-2012, 2014 Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004-2012, 2014, 2015 Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000-2003 Internet Software Consortium.
  - 
  - Permission to use, copy, modify, and/or distribute this software for any
@@ -29,10 +29,10 @@
 </div>
 <div class="refsynopsisdiv">
 <h2>Synopsis</h2>
-<div class="cmdsynopsis"><p><code class="command">nsupdate</code>  [<code class="option">-d</code>] [<code class="option">-D</code>] [[<code class="option">-g</code>] |  [<code class="option">-o</code>] |  [<code class="option">-l</code>] |  [<code class="option">-y <em class="replaceable"><code>[<span class="optional">hmac:</span>]keyname:secret</code></em></code>] |  [<code class="option">-k <em class="replaceable"><code>keyfile</code></em></code>]] [<code class="option">-t <em class="replaceable"><code>timeout</code></em></code>] [<code class="option">-u <em class="replaceable"><code>udptimeout</code></em></code>] [<code class="option">-r <em class="replaceable"><code>udpretries</code></em></code>] [<code class="option">-R <em class="replaceable"><code>randomdev</code></em></code>] [<code class="option">-v</code>] [<code class="option">-V</code>] [filename]</p></div>
+<div class="cmdsynopsis"><p><code class="command">nsupdate</code>  [<code class="option">-d</code>] [<code class="option">-D</code>] [<code class="option">-L <em class="replaceable"><code>level</code></em></code>] [[<code class="option">-g</code>] |  [<code class="option">-o</code>] |  [<code class="option">-l</code>] |  [<code class="option">-y <em class="replaceable"><code>[<span class="optional">hmac:</span>]keyname:secret</code></em></code>] |  [<code class="option">-k <em class="replaceable"><code>keyfile</code></em></code>]] [<code class="option">-t <em class="replaceable"><code>timeout</code></em></code>] [<code class="option">-u <em class="replaceable"><code>udptimeout</code></em></code>] [<code class="option">-r <em class="replaceable"><code>udpretries</code></em></code>] [<code class="option">-R <em class="replaceable"><code>randomdev</code></em></code>] [<code class="option">-v</code>] [<code class="option">-V</code>] [filename]</p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543479"></a><h2>DESCRIPTION</h2>
+<a name="id2543491"></a><h2>DESCRIPTION</h2>
 <p><span><strong class="command">nsupdate</strong></span>
       is used to submit Dynamic DNS Update requests as defined in RFC 2136
       to a name server.
@@ -57,43 +57,30 @@
       This is identified by the MNAME field of the zone's SOA record.
     </p>
 <p>
-      The
-      <code class="option">-d</code>
-      option makes
-      <span><strong class="command">nsupdate</strong></span>
-      operate in debug mode.
-      This provides tracing information about the update requests that are
-      made and the replies received from the name server.
-    </p>
-<p>
-      The <code class="option">-D</code> option makes <span><strong class="command">nsupdate</strong></span>
-      report additional debugging information to <code class="option">-d</code>.
-    </p>
-<p>
-      The <code class="option">-L</code> option with an integer argument of zero or
-      higher sets the logging debug level.  If zero, logging is disabled.
-    </p>
-<p>
       Transaction signatures can be used to authenticate the Dynamic
       DNS updates.  These use the TSIG resource record type described
       in RFC 2845 or the SIG(0) record described in RFC 2535 and
-      RFC 2931 or GSS-TSIG as described in RFC 3645.  TSIG relies on
+      RFC 2931 or GSS-TSIG as described in RFC 3645.
+    </p>
+<p>
+      TSIG relies on
       a shared secret that should only be known to
-      <span><strong class="command">nsupdate</strong></span> and the name server.  Currently,
-      the only supported encryption algorithm for TSIG is HMAC-MD5,
-      which is defined in RFC 2104.  Once other algorithms are
-      defined for TSIG, applications will need to ensure they select
-      the appropriate algorithm as well as the key when authenticating
-      each other.  For instance, suitable <span class="type">key</span> and
+      <span><strong class="command">nsupdate</strong></span> and the name server.
+      For instance, suitable <span class="type">key</span> and
       <span class="type">server</span> statements would be added to
       <code class="filename">/etc/named.conf</code> so that the name server
       can associate the appropriate secret key and algorithm with
       the IP address of the client application that will be using
-      TSIG authentication.  SIG(0) uses public key cryptography.
+      TSIG authentication. You can use <span><strong class="command">ddns-confgen</strong></span>
+      to generate suitable configuration fragments.
+      <span><strong class="command">nsupdate</strong></span>
+      uses the <code class="option">-y</code> or <code class="option">-k</code> options
+      to provide the TSIG shared secret.  These options are mutually exclusive.
+    </p>
+<p>
+      SIG(0) uses public key cryptography.
       To use a SIG(0) key, the public key must be stored in a KEY
       record in a zone served by the name server.
-      <span><strong class="command">nsupdate</strong></span> does not read
-      <code class="filename">/etc/named.conf</code>.
     </p>
 <p>
       GSS-TSIG uses Kerberos credentials.  Standard GSS-TSIG mode
@@ -101,108 +88,119 @@
       non-standards-compliant variant of GSS-TSIG used by Windows
       2000 can be switched on with the <code class="option">-o</code> flag.
     </p>
-<p><span><strong class="command">nsupdate</strong></span>
-      uses the <code class="option">-y</code> or <code class="option">-k</code> option
-      to provide the shared secret needed to generate a TSIG record
-      for authenticating Dynamic DNS update requests, default type
-      HMAC-MD5.  These options are mutually exclusive. 
-    </p>
-<p>
-      When the <code class="option">-y</code> option is used, a signature is
-      generated from
-      [<span class="optional"><em class="parameter"><code>hmac:</code></em></span>]<em class="parameter"><code>keyname:secret.</code></em>
-      <em class="parameter"><code>keyname</code></em> is the name of the key, and
-      <em class="parameter"><code>secret</code></em> is the base64 encoded shared secret.
-      <em class="parameter"><code>hmac</code></em> is the name of the key algorithm;
-      valid choices are <code class="literal">hmac-md5</code>,
-      <code class="literal">hmac-sha1</code>, <code class="literal">hmac-sha224</code>,
-      <code class="literal">hmac-sha256</code>, <code class="literal">hmac-sha384</code>, or
-      <code class="literal">hmac-sha512</code>.  If <em class="parameter"><code>hmac</code></em>
-      is not specified, the default is <code class="literal">hmac-md5</code>.
-      NOTE: Use of the <code class="option">-y</code> option is discouraged because the
-      shared secret is supplied as a command line argument in clear text.
-      This may be visible in the output from
-      <span class="citerefentry"><span class="refentrytitle">ps</span>(1)</span>
-      or in a history file maintained by the user's shell.
-    </p>
-<p>
-      With the
-      <code class="option">-k</code> option, <span><strong class="command">nsupdate</strong></span> reads
-      the shared secret from the file <em class="parameter"><code>keyfile</code></em>.
-      Keyfiles may be in two formats: a single file containing
-      a <code class="filename">named.conf</code>-format <span><strong class="command">key</strong></span>
-      statement, which may be generated automatically by
-      <span><strong class="command">ddns-confgen</strong></span>, or a pair of files whose names are
-      of the format <code class="filename">K{name}.+157.+{random}.key</code> and
-      <code class="filename">K{name}.+157.+{random}.private</code>, which can be
-      generated by <span><strong class="command">dnssec-keygen</strong></span>.
-      The <code class="option">-k</code> may also be used to specify a SIG(0) key used
-      to authenticate Dynamic DNS update requests.  In this case, the key
-      specified is not an HMAC-MD5 key.
-    </p>
-<p>
-      <span><strong class="command">nsupdate</strong></span> can be run in a local-host only mode
-      using the <code class="option">-l</code> flag.  This sets the server address to
-      localhost (disabling the <span><strong class="command">server</strong></span> so that the server
-      address cannot be overridden).  Connections to the local server will
-      use a TSIG key found in <code class="filename">/var/run/named/session.key</code>,
-      which is automatically generated by <span><strong class="command">named</strong></span> if any
-      local master zone has set <span><strong class="command">update-policy</strong></span> to
-      <span><strong class="command">local</strong></span>.  The location of this key file can be
-      overridden with the <code class="option">-k</code> option.
-    </p>
-<p>
-      By default, <span><strong class="command">nsupdate</strong></span>
-      uses UDP to send update requests to the name server unless they are too
-      large to fit in a UDP request in which case TCP will be used.
-      The
-      <code class="option">-v</code>
-      option makes
-      <span><strong class="command">nsupdate</strong></span>
-      use a TCP connection.
-      This may be preferable when a batch of update requests is made.
-    </p>
-<p>
-      The <code class="option">-p</code> sets the default port number to use for
-      connections to a name server.  The default is 53.
-    </p>
-<p>
-      The <code class="option">-t</code> option sets the maximum time an update request
-      can
-      take before it is aborted.  The default is 300 seconds.  Zero can be
-      used
-      to disable the timeout.
-    </p>
-<p>
-      The <code class="option">-u</code> option sets the UDP retry interval.  The default
-      is
-      3 seconds.  If zero, the interval will be computed from the timeout
-      interval
-      and number of UDP retries.
-    </p>
-<p>
-      The <code class="option">-r</code> option sets the number of UDP retries. The
-      default is
-      3.  If zero, only one update request will be made.
-    </p>
-<p>
-      The <code class="option">-R <em class="replaceable"><code>randomdev</code></em></code> option
-      specifies a source of randomness.  If the operating system
-      does not provide a <code class="filename">/dev/random</code> or
-      equivalent device, the default source of randomness is keyboard
-      input.  <code class="filename">randomdev</code> specifies the name of
-      a character device or file containing random data to be used
-      instead of the default.  The special value
-      <code class="filename">keyboard</code> indicates that keyboard input
-      should be used.  This option may be specified multiple times.
-    </p>
-<p>
-      The -V option causes <span><strong class="command">nsupdate</strong></span> to print the
-      version number and exit.
-    </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543849"></a><h2>INPUT FORMAT</h2>
+<a name="id2543564"></a><h2>OPTIONS</h2>
+<div class="variablelist"><dl>
+<dt><span class="term">-d</span></dt>
+<dd><p>
+	    Debug mode. This provides tracing information about the
+	    update requests that are made and the replies received
+	    from the name server.
+	  </p></dd>
+<dt><span class="term">-D</span></dt>
+<dd><p>
+	    Extra debug mode.
+	  </p></dd>
+<dt><span class="term">-k <em class="replaceable"><code>keyfile</code></em></span></dt>
+<dd><p>
+	    The file containing the TSIG authentication key.
+	    Keyfiles may be in two formats: a single file containing
+	    a <code class="filename">named.conf</code>-format <span><strong class="command">key</strong></span>
+	    statement, which may be generated automatically by
+	    <span><strong class="command">ddns-confgen</strong></span>, or a pair of files whose names are
+	    of the format <code class="filename">K{name}.+157.+{random}.key</code> and
+	    <code class="filename">K{name}.+157.+{random}.private</code>, which can be
+	    generated by <span><strong class="command">dnssec-keygen</strong></span>.
+	    The <code class="option">-k</code> may also be used to specify a SIG(0) key used
+	    to authenticate Dynamic DNS update requests.  In this case, the key
+	    specified is not an HMAC-MD5 key.
+	  </p></dd>
+<dt><span class="term">-l</span></dt>
+<dd><p>
+	    Local-host only mode. This sets the server address to
+	    localhost (disabling the <span><strong class="command">server</strong></span> so that the server
+	    address cannot be overridden).  Connections to the local server will
+	    use a TSIG key found in <code class="filename">/var/run/named/session.key</code>,
+	    which is automatically generated by <span><strong class="command">named</strong></span> if any
+	    local master zone has set <span><strong class="command">update-policy</strong></span> to
+	    <span><strong class="command">local</strong></span>.  The location of this key file can be
+	    overridden with the <code class="option">-k</code> option.
+	  </p></dd>
+<dt><span class="term">-L <em class="replaceable"><code>level</code></em></span></dt>
+<dd><p>
+	    Set the logging debug level.  If zero, logging is disabled.
+	  </p></dd>
+<dt><span class="term">-p <em class="replaceable"><code>port</code></em></span></dt>
+<dd><p>
+	    Set the port to use for connections to a name server. The
+	    default is 53.
+	  </p></dd>
+<dt><span class="term">-r <em class="replaceable"><code>udpretries</code></em></span></dt>
+<dd><p>
+	    The number of UDP retries. The default is 3. If zero, only
+	    one update request will be made.
+	  </p></dd>
+<dt><span class="term">-R <em class="replaceable"><code>randomdev</code></em></span></dt>
+<dd><p>
+	  Where to obtain randomness. If the operating system
+	  does not provide a <code class="filename">/dev/random</code> or
+	  equivalent device, the default source of randomness is keyboard
+	  input.  <code class="filename">randomdev</code> specifies the name of
+	  a character device or file containing random data to be used
+	  instead of the default.  The special value
+	  <code class="filename">keyboard</code> indicates that keyboard input
+	  should be used.  This option may be specified multiple times.
+	</p></dd>
+<dt><span class="term">-t <em class="replaceable"><code>timeout</code></em></span></dt>
+<dd><p>
+	    The maximum time an update request can take before it is
+	    aborted. The default is 300 seconds. Zero can be used to
+	    disable the timeout.
+	  </p></dd>
+<dt><span class="term">-u <em class="replaceable"><code>udptimeout</code></em></span></dt>
+<dd><p>
+	    The UDP retry interval. The default is 3 seconds. If zero,
+	    the interval will be computed from the timeout interval and
+	    number of UDP retries.
+	  </p></dd>
+<dt><span class="term">-v</span></dt>
+<dd><p>
+	    Use TCP even for small update requests.
+	    By default, <span><strong class="command">nsupdate</strong></span>
+	    uses UDP to send update requests to the name server unless they are too
+	    large to fit in a UDP request in which case TCP will be used.
+	    TCP may be preferable when a batch of update requests is made.
+	  </p></dd>
+<dt><span class="term">-V</span></dt>
+<dd><p>
+	    Print the version number and exit.
+	  </p></dd>
+<dt><span class="term">-y <em class="replaceable"><code>[<span class="optional">hmac:</span>]keyname:secret</code></em></span></dt>
+<dd>
+<p>
+	    Literal TSIG authentication key.
+	    <em class="parameter"><code>keyname</code></em> is the name of the key, and
+	    <em class="parameter"><code>secret</code></em> is the base64 encoded shared secret.
+	    <em class="parameter"><code>hmac</code></em> is the name of the key algorithm;
+	    valid choices are <code class="literal">hmac-md5</code>,
+	    <code class="literal">hmac-sha1</code>, <code class="literal">hmac-sha224</code>,
+	    <code class="literal">hmac-sha256</code>, <code class="literal">hmac-sha384</code>, or
+	    <code class="literal">hmac-sha512</code>.  If <em class="parameter"><code>hmac</code></em>
+	    is not specified, the default is <code class="literal">hmac-md5</code>.
+	  </p>
+<p>
+	    NOTE: Use of the <code class="option">-y</code> option is discouraged because the
+	    shared secret is supplied as a command line argument in clear text.
+	    This may be visible in the output from
+	    <span class="citerefentry"><span class="refentrytitle">ps</span>(1)</span>
+	    or in a history file maintained by the user's shell.
+	  </p>
+</dd>
+</dl></div>
+</div>
+<div class="refsect1" lang="en">
+<a name="id2543963"></a><h2>INPUT FORMAT</h2>
 <p><span><strong class="command">nsupdate</strong></span>
       reads input from
       <em class="parameter"><code>filename</code></em>
@@ -232,270 +230,270 @@
       </p>
 <div class="variablelist"><dl>
 <dt><span class="term">
-              <span><strong class="command">server</strong></span>
-               {servername}
-               [port]
-            </span></dt>
+	      <span><strong class="command">server</strong></span>
+	       {servername}
+	       [port]
+	    </span></dt>
 <dd><p>
-              Sends all dynamic update requests to the name server
-              <em class="parameter"><code>servername</code></em>.
-              When no server statement is provided,
-              <span><strong class="command">nsupdate</strong></span>
-              will send updates to the master server of the correct zone.
-              The MNAME field of that zone's SOA record will identify the
-              master
-              server for that zone.
-              <em class="parameter"><code>port</code></em>
-              is the port number on
-              <em class="parameter"><code>servername</code></em>
-              where the dynamic update requests get sent.
-              If no port number is specified, the default DNS port number of
-              53 is
-              used.
-            </p></dd>
+	      Sends all dynamic update requests to the name server
+	      <em class="parameter"><code>servername</code></em>.
+	      When no server statement is provided,
+	      <span><strong class="command">nsupdate</strong></span>
+	      will send updates to the master server of the correct zone.
+	      The MNAME field of that zone's SOA record will identify the
+	      master
+	      server for that zone.
+	      <em class="parameter"><code>port</code></em>
+	      is the port number on
+	      <em class="parameter"><code>servername</code></em>
+	      where the dynamic update requests get sent.
+	      If no port number is specified, the default DNS port number of
+	      53 is
+	      used.
+	    </p></dd>
 <dt><span class="term">
-              <span><strong class="command">local</strong></span>
-               {address}
-               [port]
-            </span></dt>
+	      <span><strong class="command">local</strong></span>
+	       {address}
+	       [port]
+	    </span></dt>
 <dd><p>
-              Sends all dynamic update requests using the local
-              <em class="parameter"><code>address</code></em>.
+	      Sends all dynamic update requests using the local
+	      <em class="parameter"><code>address</code></em>.
 
-              When no local statement is provided,
-              <span><strong class="command">nsupdate</strong></span>
-              will send updates using an address and port chosen by the
-              system.
-              <em class="parameter"><code>port</code></em>
-              can additionally be used to make requests come from a specific
-              port.
-              If no port number is specified, the system will assign one.
-            </p></dd>
+	      When no local statement is provided,
+	      <span><strong class="command">nsupdate</strong></span>
+	      will send updates using an address and port chosen by the
+	      system.
+	      <em class="parameter"><code>port</code></em>
+	      can additionally be used to make requests come from a specific
+	      port.
+	      If no port number is specified, the system will assign one.
+	    </p></dd>
 <dt><span class="term">
-              <span><strong class="command">zone</strong></span>
-               {zonename}
-            </span></dt>
+	      <span><strong class="command">zone</strong></span>
+	       {zonename}
+	    </span></dt>
 <dd><p>
-              Specifies that all updates are to be made to the zone
-              <em class="parameter"><code>zonename</code></em>.
-              If no
-              <em class="parameter"><code>zone</code></em>
-              statement is provided,
-              <span><strong class="command">nsupdate</strong></span>
-              will attempt determine the correct zone to update based on the
-              rest of the input.
-            </p></dd>
+	      Specifies that all updates are to be made to the zone
+	      <em class="parameter"><code>zonename</code></em>.
+	      If no
+	      <em class="parameter"><code>zone</code></em>
+	      statement is provided,
+	      <span><strong class="command">nsupdate</strong></span>
+	      will attempt determine the correct zone to update based on the
+	      rest of the input.
+	    </p></dd>
 <dt><span class="term">
-              <span><strong class="command">class</strong></span>
-               {classname}
-            </span></dt>
+	      <span><strong class="command">class</strong></span>
+	       {classname}
+	    </span></dt>
 <dd><p>
-              Specify the default class.
-              If no <em class="parameter"><code>class</code></em> is specified, the
-              default class is
-              <em class="parameter"><code>IN</code></em>.
-            </p></dd>
+	      Specify the default class.
+	      If no <em class="parameter"><code>class</code></em> is specified, the
+	      default class is
+	      <em class="parameter"><code>IN</code></em>.
+	    </p></dd>
 <dt><span class="term">
-              <span><strong class="command">ttl</strong></span>
-               {seconds}
-            </span></dt>
+	      <span><strong class="command">ttl</strong></span>
+	       {seconds}
+	    </span></dt>
 <dd><p>
-              Specify the default time to live for records to be added.
+	      Specify the default time to live for records to be added.
 	      The value <em class="parameter"><code>none</code></em> will clear the default
 	      ttl.
-            </p></dd>
+	    </p></dd>
 <dt><span class="term">
-              <span><strong class="command">key</strong></span>
-               [hmac:] {keyname}
-               {secret}
-            </span></dt>
+	      <span><strong class="command">key</strong></span>
+	       [hmac:] {keyname}
+	       {secret}
+	    </span></dt>
 <dd><p>
-              Specifies that all updates are to be TSIG-signed using the
-              <em class="parameter"><code>keyname</code></em> <em class="parameter"><code>secret</code></em> pair.
-              If <em class="parameter"><code>hmac</code></em> is specified, then it sets the
-              signing algorithm in use; the default is
-              <code class="literal">hmac-md5</code>.  The <span><strong class="command">key</strong></span>
-              command overrides any key specified on the command line via
-              <code class="option">-y</code> or <code class="option">-k</code>.
-            </p></dd>
+	      Specifies that all updates are to be TSIG-signed using the
+	      <em class="parameter"><code>keyname</code></em> <em class="parameter"><code>secret</code></em> pair.
+	      If <em class="parameter"><code>hmac</code></em> is specified, then it sets the
+	      signing algorithm in use; the default is
+	      <code class="literal">hmac-md5</code>.  The <span><strong class="command">key</strong></span>
+	      command overrides any key specified on the command line via
+	      <code class="option">-y</code> or <code class="option">-k</code>.
+	    </p></dd>
 <dt><span class="term">
-            <span><strong class="command">gsstsig</strong></span>
-          </span></dt>
+	    <span><strong class="command">gsstsig</strong></span>
+	  </span></dt>
 <dd><p>
 	      Use GSS-TSIG to sign the updated.  This is equivalent to
 	      specifying <code class="option">-g</code> on the commandline.
-            </p></dd>
+	    </p></dd>
 <dt><span class="term">
-            <span><strong class="command">oldgsstsig</strong></span>
-          </span></dt>
+	    <span><strong class="command">oldgsstsig</strong></span>
+	  </span></dt>
 <dd><p>
 	      Use the Windows 2000 version of GSS-TSIG to sign the updated.
 	      This is equivalent to specifying <code class="option">-o</code> on the
 	      commandline.
-            </p></dd>
+	    </p></dd>
 <dt><span class="term">
-            <span><strong class="command">realm</strong></span>
-             {[<span class="optional">realm_name</span>]}
-          </span></dt>
+	    <span><strong class="command">realm</strong></span>
+	     {[<span class="optional">realm_name</span>]}
+	  </span></dt>
 <dd><p>
 	      When using GSS-TSIG use <em class="parameter"><code>realm_name</code></em> rather
 	      than the default realm in <code class="filename">krb5.conf</code>.  If no
 	      realm is specified the saved realm is cleared.
-            </p></dd>
+	    </p></dd>
 <dt><span class="term">
-              <span><strong class="command">[<span class="optional">prereq</span>] nxdomain</strong></span>
-               {domain-name}
-            </span></dt>
+	      <span><strong class="command">[<span class="optional">prereq</span>] nxdomain</strong></span>
+	       {domain-name}
+	    </span></dt>
 <dd><p>
-              Requires that no resource record of any type exists with name
-              <em class="parameter"><code>domain-name</code></em>.
-            </p></dd>
+	      Requires that no resource record of any type exists with name
+	      <em class="parameter"><code>domain-name</code></em>.
+	    </p></dd>
 <dt><span class="term">
-              <span><strong class="command">[<span class="optional">prereq</span>] yxdomain</strong></span>
-               {domain-name}
-            </span></dt>
+	      <span><strong class="command">[<span class="optional">prereq</span>] yxdomain</strong></span>
+	       {domain-name}
+	    </span></dt>
 <dd><p>
-              Requires that
-              <em class="parameter"><code>domain-name</code></em>
-              exists (has as at least one resource record, of any type).
-            </p></dd>
+	      Requires that
+	      <em class="parameter"><code>domain-name</code></em>
+	      exists (has as at least one resource record, of any type).
+	    </p></dd>
 <dt><span class="term">
-              <span><strong class="command">[<span class="optional">prereq</span>] nxrrset</strong></span>
-               {domain-name}
-               [class]
-               {type}
-            </span></dt>
+	      <span><strong class="command">[<span class="optional">prereq</span>] nxrrset</strong></span>
+	       {domain-name}
+	       [class]
+	       {type}
+	    </span></dt>
 <dd><p>
-              Requires that no resource record exists of the specified
-              <em class="parameter"><code>type</code></em>,
-              <em class="parameter"><code>class</code></em>
-              and
-              <em class="parameter"><code>domain-name</code></em>.
-              If
-              <em class="parameter"><code>class</code></em>
-              is omitted, IN (internet) is assumed.
-            </p></dd>
+	      Requires that no resource record exists of the specified
+	      <em class="parameter"><code>type</code></em>,
+	      <em class="parameter"><code>class</code></em>
+	      and
+	      <em class="parameter"><code>domain-name</code></em>.
+	      If
+	      <em class="parameter"><code>class</code></em>
+	      is omitted, IN (internet) is assumed.
+	    </p></dd>
 <dt><span class="term">
-              <span><strong class="command">[<span class="optional">prereq</span>] yxrrset</strong></span>
-               {domain-name}
-               [class]
-               {type}
-            </span></dt>
+	      <span><strong class="command">[<span class="optional">prereq</span>] yxrrset</strong></span>
+	       {domain-name}
+	       [class]
+	       {type}
+	    </span></dt>
 <dd><p>
-              This requires that a resource record of the specified
-              <em class="parameter"><code>type</code></em>,
-              <em class="parameter"><code>class</code></em>
-              and
-              <em class="parameter"><code>domain-name</code></em>
-              must exist.
-              If
-              <em class="parameter"><code>class</code></em>
-              is omitted, IN (internet) is assumed.
-            </p></dd>
+	      This requires that a resource record of the specified
+	      <em class="parameter"><code>type</code></em>,
+	      <em class="parameter"><code>class</code></em>
+	      and
+	      <em class="parameter"><code>domain-name</code></em>
+	      must exist.
+	      If
+	      <em class="parameter"><code>class</code></em>
+	      is omitted, IN (internet) is assumed.
+	    </p></dd>
 <dt><span class="term">
-              <span><strong class="command">[<span class="optional">prereq</span>] yxrrset</strong></span>
-               {domain-name}
-               [class]
-               {type}
-               {data...}
-            </span></dt>
+	      <span><strong class="command">[<span class="optional">prereq</span>] yxrrset</strong></span>
+	       {domain-name}
+	       [class]
+	       {type}
+	       {data...}
+	    </span></dt>
 <dd><p>
-              The
-              <em class="parameter"><code>data</code></em>
-              from each set of prerequisites of this form
-              sharing a common
-              <em class="parameter"><code>type</code></em>,
-              <em class="parameter"><code>class</code></em>,
-              and
-              <em class="parameter"><code>domain-name</code></em>
-              are combined to form a set of RRs.  This set of RRs must
-              exactly match the set of RRs existing in the zone at the
-              given
-              <em class="parameter"><code>type</code></em>,
-              <em class="parameter"><code>class</code></em>,
-              and
-              <em class="parameter"><code>domain-name</code></em>.
-              The
-              <em class="parameter"><code>data</code></em>
-              are written in the standard text representation of the resource
-              record's
-              RDATA.
-            </p></dd>
+	      The
+	      <em class="parameter"><code>data</code></em>
+	      from each set of prerequisites of this form
+	      sharing a common
+	      <em class="parameter"><code>type</code></em>,
+	      <em class="parameter"><code>class</code></em>,
+	      and
+	      <em class="parameter"><code>domain-name</code></em>
+	      are combined to form a set of RRs.  This set of RRs must
+	      exactly match the set of RRs existing in the zone at the
+	      given
+	      <em class="parameter"><code>type</code></em>,
+	      <em class="parameter"><code>class</code></em>,
+	      and
+	      <em class="parameter"><code>domain-name</code></em>.
+	      The
+	      <em class="parameter"><code>data</code></em>
+	      are written in the standard text representation of the resource
+	      record's
+	      RDATA.
+	    </p></dd>
 <dt><span class="term">
-              <span><strong class="command">[<span class="optional">update</span>] del[<span class="optional">ete</span>]</strong></span>
-               {domain-name}
-               [ttl]
-               [class]
-               [type [data...]]
-            </span></dt>
+	      <span><strong class="command">[<span class="optional">update</span>] del[<span class="optional">ete</span>]</strong></span>
+	       {domain-name}
+	       [ttl]
+	       [class]
+	       [type [data...]]
+	    </span></dt>
 <dd><p>
-              Deletes any resource records named
-              <em class="parameter"><code>domain-name</code></em>.
-              If
-              <em class="parameter"><code>type</code></em>
-              and
-              <em class="parameter"><code>data</code></em>
-              is provided, only matching resource records will be removed.
-              The internet class is assumed if
-              <em class="parameter"><code>class</code></em>
-              is not supplied.  The
-              <em class="parameter"><code>ttl</code></em>
-              is ignored, and is only allowed for compatibility.
-            </p></dd>
+	      Deletes any resource records named
+	      <em class="parameter"><code>domain-name</code></em>.
+	      If
+	      <em class="parameter"><code>type</code></em>
+	      and
+	      <em class="parameter"><code>data</code></em>
+	      is provided, only matching resource records will be removed.
+	      The internet class is assumed if
+	      <em class="parameter"><code>class</code></em>
+	      is not supplied.  The
+	      <em class="parameter"><code>ttl</code></em>
+	      is ignored, and is only allowed for compatibility.
+	    </p></dd>
 <dt><span class="term">
-              <span><strong class="command">[<span class="optional">update</span>] add</strong></span>
-               {domain-name}
-               {ttl}
-               [class]
-               {type}
-               {data...}
-            </span></dt>
+	      <span><strong class="command">[<span class="optional">update</span>] add</strong></span>
+	       {domain-name}
+	       {ttl}
+	       [class]
+	       {type}
+	       {data...}
+	    </span></dt>
 <dd><p>
-              Adds a new resource record with the specified
-              <em class="parameter"><code>ttl</code></em>,
-              <em class="parameter"><code>class</code></em>
-              and
-              <em class="parameter"><code>data</code></em>.
-            </p></dd>
+	      Adds a new resource record with the specified
+	      <em class="parameter"><code>ttl</code></em>,
+	      <em class="parameter"><code>class</code></em>
+	      and
+	      <em class="parameter"><code>data</code></em>.
+	    </p></dd>
 <dt><span class="term">
-              <span><strong class="command">show</strong></span>
-            </span></dt>
+	      <span><strong class="command">show</strong></span>
+	    </span></dt>
 <dd><p>
-              Displays the current message, containing all of the
-              prerequisites and
-              updates specified since the last send.
-            </p></dd>
+	      Displays the current message, containing all of the
+	      prerequisites and
+	      updates specified since the last send.
+	    </p></dd>
 <dt><span class="term">
-              <span><strong class="command">send</strong></span>
-            </span></dt>
+	      <span><strong class="command">send</strong></span>
+	    </span></dt>
 <dd><p>
-              Sends the current message.  This is equivalent to entering a
-              blank line.
-            </p></dd>
+	      Sends the current message.  This is equivalent to entering a
+	      blank line.
+	    </p></dd>
 <dt><span class="term">
-              <span><strong class="command">answer</strong></span>
-            </span></dt>
+	      <span><strong class="command">answer</strong></span>
+	    </span></dt>
 <dd><p>
-              Displays the answer.
-            </p></dd>
+	      Displays the answer.
+	    </p></dd>
 <dt><span class="term">
-              <span><strong class="command">debug</strong></span>
-            </span></dt>
+	      <span><strong class="command">debug</strong></span>
+	    </span></dt>
 <dd><p>
-              Turn on debugging.
-            </p></dd>
+	      Turn on debugging.
+	    </p></dd>
 <dt><span class="term">
-              <span><strong class="command">version</strong></span>
-            </span></dt>
+	      <span><strong class="command">version</strong></span>
+	    </span></dt>
 <dd><p>
-              Print version number.
-            </p></dd>
+	      Print version number.
+	    </p></dd>
 <dt><span class="term">
-              <span><strong class="command">help</strong></span>
-            </span></dt>
+	      <span><strong class="command">help</strong></span>
+	    </span></dt>
 <dd><p>
-              Print a list of commands.
-            </p></dd>
+	      Print a list of commands.
+	    </p></dd>
 </dl></div>
 <p>
     </p>
@@ -504,7 +502,7 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2544823"></a><h2>EXAMPLES</h2>
+<a name="id2545067"></a><h2>EXAMPLES</h2>
 <p>
       The examples below show how
       <span><strong class="command">nsupdate</strong></span>
@@ -558,30 +556,30 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2544867"></a><h2>FILES</h2>
+<a name="id2545111"></a><h2>FILES</h2>
 <div class="variablelist"><dl>
 <dt><span class="term"><code class="constant">/etc/resolv.conf</code></span></dt>
 <dd><p>
-            used to identify default name server
-          </p></dd>
+	    used to identify default name server
+	  </p></dd>
 <dt><span class="term"><code class="constant">/var/run/named/session.key</code></span></dt>
 <dd><p>
-            sets the default TSIG key for use in local-only mode
-          </p></dd>
+	    sets the default TSIG key for use in local-only mode
+	  </p></dd>
 <dt><span class="term"><code class="constant">K{name}.+157.+{random}.key</code></span></dt>
 <dd><p>
-            base-64 encoding of HMAC-MD5 key created by
-            <span class="citerefentry"><span class="refentrytitle">dnssec-keygen</span>(8)</span>.
-          </p></dd>
+	    base-64 encoding of HMAC-MD5 key created by
+	    <span class="citerefentry"><span class="refentrytitle">dnssec-keygen</span>(8)</span>.
+	  </p></dd>
 <dt><span class="term"><code class="constant">K{name}.+157.+{random}.private</code></span></dt>
 <dd><p>
-            base-64 encoding of HMAC-MD5 key created by
-            <span class="citerefentry"><span class="refentrytitle">dnssec-keygen</span>(8)</span>.
-          </p></dd>
+	    base-64 encoding of HMAC-MD5 key created by
+	    <span class="citerefentry"><span class="refentrytitle">dnssec-keygen</span>(8)</span>.
+	  </p></dd>
 </dl></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2544950"></a><h2>SEE ALSO</h2>
+<a name="id2545197"></a><h2>SEE ALSO</h2>
 <p>
       <em class="citetitle">RFC 2136</em>,
       <em class="citetitle">RFC 3007</em>,
@@ -596,7 +594,7 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2542004"></a><h2>BUGS</h2>
+<a name="id2545255"></a><h2>BUGS</h2>
 <p>
       The TSIG key is redundantly stored in two separate files.
       This is a consequence of nsupdate using the DST library

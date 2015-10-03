@@ -172,6 +172,10 @@ int sigwait(const unsigned int *set, int *sig);
 /* Define to enable "rrset-order fixed" syntax. */
 /* #undef DNS_RDATASET_FIXED */
 
+/* Define to enable the "fetches-per-server" and "fetches-per-zone" options.
+   */
+/* #undef ENABLE_FETCHLIMIT */
+
 /* Define to enable rpz-nsdname rules. */
 #define ENABLE_RPZ_NSDNAME 1
 
@@ -472,6 +476,9 @@ int sigwait(const unsigned int *set, int *sig);
 
 /* Enable DNS Response Rate Limiting */
 /* #undef USE_RRL */
+
+/* Define to enable very verbose query trace logging. */
+/* #undef WANT_QUERYTRACE */
 
 /* define if idnkit support is to be included. */
 /* #undef WITH_IDN */

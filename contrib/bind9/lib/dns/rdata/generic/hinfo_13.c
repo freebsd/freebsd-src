@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2007, 2009, 2014  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2007, 2009, 2014, 2015  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -37,7 +37,7 @@ fromtext_hinfo(ARGS_FROMTEXT) {
 	UNUSED(options);
 	UNUSED(callbacks);
 
-	REQUIRE(type == 13);
+	REQUIRE(type == dns_rdatatype_hinfo);
 
 	for (i = 0; i < 2; i++) {
 		RETERR(isc_lex_getmastertoken(lexer, &token,
@@ -54,7 +54,7 @@ totext_hinfo(ARGS_TOTEXT) {
 
 	UNUSED(tctx);
 
-	REQUIRE(rdata->type == 13);
+	REQUIRE(rdata->type == dns_rdatatype_hinfo);
 	REQUIRE(rdata->length != 0);
 
 	dns_rdata_toregion(rdata, &region);
@@ -66,7 +66,7 @@ totext_hinfo(ARGS_TOTEXT) {
 static inline isc_result_t
 fromwire_hinfo(ARGS_FROMWIRE) {
 
-	REQUIRE(type == 13);
+	REQUIRE(type == dns_rdatatype_hinfo);
 
 	UNUSED(type);
 	UNUSED(dctx);
@@ -82,7 +82,7 @@ towire_hinfo(ARGS_TOWIRE) {
 
 	UNUSED(cctx);
 
-	REQUIRE(rdata->type == 13);
+	REQUIRE(rdata->type == dns_rdatatype_hinfo);
 	REQUIRE(rdata->length != 0);
 
 	return (mem_tobuffer(target, rdata->data, rdata->length));
@@ -95,7 +95,7 @@ compare_hinfo(ARGS_COMPARE) {
 
 	REQUIRE(rdata1->type == rdata2->type);
 	REQUIRE(rdata1->rdclass == rdata2->rdclass);
-	REQUIRE(rdata1->type == 13);
+	REQUIRE(rdata1->type == dns_rdatatype_hinfo);
 	REQUIRE(rdata1->length != 0);
 	REQUIRE(rdata2->length != 0);
 
@@ -108,7 +108,7 @@ static inline isc_result_t
 fromstruct_hinfo(ARGS_FROMSTRUCT) {
 	dns_rdata_hinfo_t *hinfo = source;
 
-	REQUIRE(type == 13);
+	REQUIRE(type == dns_rdatatype_hinfo);
 	REQUIRE(source != NULL);
 	REQUIRE(hinfo->common.rdtype == type);
 	REQUIRE(hinfo->common.rdclass == rdclass);
@@ -127,7 +127,7 @@ tostruct_hinfo(ARGS_TOSTRUCT) {
 	dns_rdata_hinfo_t *hinfo = target;
 	isc_region_t region;
 
-	REQUIRE(rdata->type == 13);
+	REQUIRE(rdata->type == dns_rdatatype_hinfo);
 	REQUIRE(target != NULL);
 	REQUIRE(rdata->length != 0);
 
@@ -176,7 +176,7 @@ freestruct_hinfo(ARGS_FREESTRUCT) {
 
 static inline isc_result_t
 additionaldata_hinfo(ARGS_ADDLDATA) {
-	REQUIRE(rdata->type == 13);
+	REQUIRE(rdata->type == dns_rdatatype_hinfo);
 
 	UNUSED(add);
 	UNUSED(arg);
@@ -189,7 +189,7 @@ static inline isc_result_t
 digest_hinfo(ARGS_DIGEST) {
 	isc_region_t r;
 
-	REQUIRE(rdata->type == 13);
+	REQUIRE(rdata->type == dns_rdatatype_hinfo);
 
 	dns_rdata_toregion(rdata, &r);
 
@@ -199,7 +199,7 @@ digest_hinfo(ARGS_DIGEST) {
 static inline isc_boolean_t
 checkowner_hinfo(ARGS_CHECKOWNER) {
 
-	REQUIRE(type == 13);
+	REQUIRE(type == dns_rdatatype_hinfo);
 
 	UNUSED(name);
 	UNUSED(type);
@@ -212,7 +212,7 @@ checkowner_hinfo(ARGS_CHECKOWNER) {
 static inline isc_boolean_t
 checknames_hinfo(ARGS_CHECKNAMES) {
 
-	REQUIRE(rdata->type == 13);
+	REQUIRE(rdata->type == dns_rdatatype_hinfo);
 
 	UNUSED(rdata);
 	UNUSED(owner);

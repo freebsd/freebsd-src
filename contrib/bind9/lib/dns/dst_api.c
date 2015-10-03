@@ -1,5 +1,5 @@
 /*
- * Portions Copyright (C) 2004-2013  Internet Systems Consortium, Inc. ("ISC")
+ * Portions Copyright (C) 2004-2013, 2015  Internet Systems Consortium, Inc. ("ISC")
  * Portions Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -1001,9 +1001,6 @@ comparekeys(const dst_key_t *key1, const dst_key_t *key2,
 	if (key1 == key2)
 		return (ISC_TRUE);
 
-	if (key1 == NULL || key2 == NULL)
-		return (ISC_FALSE);
-
 	if (key1->key_alg != key2->key_alg)
 		return (ISC_FALSE);
 
@@ -1093,8 +1090,6 @@ dst_key_paramcompare(const dst_key_t *key1, const dst_key_t *key2) {
 
 	if (key1 == key2)
 		return (ISC_TRUE);
-	if (key1 == NULL || key2 == NULL)
-		return (ISC_FALSE);
 	if (key1->key_alg == key2->key_alg &&
 	    key1->func->paramcompare != NULL &&
 	    key1->func->paramcompare(key1, key2) == ISC_TRUE)

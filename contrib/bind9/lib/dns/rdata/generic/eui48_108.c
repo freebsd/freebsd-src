@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013, 2014  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2013-2015  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -28,7 +28,7 @@ fromtext_eui48(ARGS_FROMTEXT) {
 	unsigned int l0, l1, l2, l3, l4, l5;
 	int n;
 
-	REQUIRE(type == 108);
+	REQUIRE(type == dns_rdatatype_eui48);
 
 	UNUSED(type);
 	UNUSED(rdclass);
@@ -57,7 +57,7 @@ static inline isc_result_t
 totext_eui48(ARGS_TOTEXT) {
 	char buf[sizeof("xx-xx-xx-xx-xx-xx")];
 
-	REQUIRE(rdata->type == 108);
+	REQUIRE(rdata->type == dns_rdatatype_eui48);
 	REQUIRE(rdata->length == 6);
 
 	UNUSED(tctx);
@@ -72,7 +72,7 @@ static inline isc_result_t
 fromwire_eui48(ARGS_FROMWIRE) {
 	isc_region_t sregion;
 
-	REQUIRE(type == 108);
+	REQUIRE(type == dns_rdatatype_eui48);
 
 	UNUSED(type);
 	UNUSED(options);
@@ -89,7 +89,7 @@ fromwire_eui48(ARGS_FROMWIRE) {
 static inline isc_result_t
 towire_eui48(ARGS_TOWIRE) {
 
-	REQUIRE(rdata->type == 108);
+	REQUIRE(rdata->type == dns_rdatatype_eui48);
 	REQUIRE(rdata->length == 6);
 
 	UNUSED(cctx);
@@ -104,7 +104,7 @@ compare_eui48(ARGS_COMPARE) {
 
 	REQUIRE(rdata1->type == rdata2->type);
 	REQUIRE(rdata1->rdclass == rdata2->rdclass);
-	REQUIRE(rdata1->type == 108);
+	REQUIRE(rdata1->type == dns_rdatatype_eui48);
 	REQUIRE(rdata1->length == 6);
 	REQUIRE(rdata2->length == 6);
 
@@ -117,7 +117,7 @@ static inline isc_result_t
 fromstruct_eui48(ARGS_FROMSTRUCT) {
 	dns_rdata_eui48_t *eui48 = source;
 
-	REQUIRE(type == 108);
+	REQUIRE(type == dns_rdatatype_eui48);
 	REQUIRE(source != NULL);
 	REQUIRE(eui48->common.rdtype == type);
 	REQUIRE(eui48->common.rdclass == rdclass);
@@ -132,7 +132,7 @@ static inline isc_result_t
 tostruct_eui48(ARGS_TOSTRUCT) {
 	dns_rdata_eui48_t *eui48 = target;
 
-	REQUIRE(rdata->type == 108);
+	REQUIRE(rdata->type == dns_rdatatype_eui48);
 	REQUIRE(target != NULL);
 	REQUIRE(rdata->length == 6);
 
@@ -151,7 +151,7 @@ freestruct_eui48(ARGS_FREESTRUCT) {
 	dns_rdata_eui48_t *eui48 = source;
 
 	REQUIRE(source != NULL);
-	REQUIRE(eui48->common.rdtype == 108);
+	REQUIRE(eui48->common.rdtype == dns_rdatatype_eui48);
 
 	return;
 }
@@ -159,7 +159,7 @@ freestruct_eui48(ARGS_FREESTRUCT) {
 static inline isc_result_t
 additionaldata_eui48(ARGS_ADDLDATA) {
 
-	REQUIRE(rdata->type == 108);
+	REQUIRE(rdata->type == dns_rdatatype_eui48);
 	REQUIRE(rdata->length == 6);
 
 	UNUSED(rdata);
@@ -173,7 +173,7 @@ static inline isc_result_t
 digest_eui48(ARGS_DIGEST) {
 	isc_region_t r;
 
-	REQUIRE(rdata->type == 108);
+	REQUIRE(rdata->type == dns_rdatatype_eui48);
 	REQUIRE(rdata->length == 6);
 
 	dns_rdata_toregion(rdata, &r);
@@ -184,7 +184,7 @@ digest_eui48(ARGS_DIGEST) {
 static inline isc_boolean_t
 checkowner_eui48(ARGS_CHECKOWNER) {
 
-	REQUIRE(type == 108);
+	REQUIRE(type == dns_rdatatype_eui48);
 
 	UNUSED(name);
 	UNUSED(type);
@@ -197,7 +197,7 @@ checkowner_eui48(ARGS_CHECKOWNER) {
 static inline isc_boolean_t
 checknames_eui48(ARGS_CHECKNAMES) {
 
-	REQUIRE(rdata->type == 108);
+	REQUIRE(rdata->type == dns_rdatatype_eui48);
 	REQUIRE(rdata->length == 6);
 
 	UNUSED(rdata);
