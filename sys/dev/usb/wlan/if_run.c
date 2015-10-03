@@ -392,6 +392,8 @@ static void	run_drain_fifo(void *);
 static void	run_iter_func(void *, struct ieee80211_node *);
 static void	run_newassoc_cb(void *);
 static void	run_newassoc(struct ieee80211_node *, int);
+static void	run_recv_mgmt(struct ieee80211_node *, struct mbuf *, int,
+		    const struct ieee80211_rx_stats *, int, int);
 static void	run_rx_frame(struct run_softc *, struct mbuf *, uint32_t);
 static void	run_tx_free(struct run_endpoint_queue *pq,
 		    struct run_tx_data *, int);
@@ -939,6 +941,10 @@ run_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
 	/* override state transition machine */
 	rvp->newstate = vap->iv_newstate;
 	vap->iv_newstate = run_newstate;
+	if (opmode == IEEE80211_M_IBSS) {
+		rvp->recv_mgmt = vap->iv_recv_mgmt;
+		vap->iv_recv_mgmt = run_recv_mgmt;
+	}
 
 	ieee80211_ratectl_init(vap);
 	ieee80211_ratectl_setinterval(vap, 1000 /* 1 sec */);
@@ -2722,6 +2728,34 @@ run_maxrssi_chain(struct run_softc *sc, const struct rt2860_rxwi *rxwi)
 				rxchain = 2;
 	}
 	return (rxchain);
+}
+
+static void
+run_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m, int subtype,
+    const struct ieee80211_rx_stats *rxs, int rssi, int nf)
+{
+	struct ieee80211vap *vap = ni->ni_vap;
+	struct run_softc *sc = vap->iv_ic->ic_softc;
+	struct run_vap *rvp = RUN_VAP(vap);
+	uint64_t ni_tstamp, rx_tstamp;
+
+	rvp->recv_mgmt(ni, m, subtype, rxs, rssi, nf);
+
+	if (vap->iv_state == IEEE80211_S_RUN &&
+	    (subtype == IEEE80211_FC0_SUBTYPE_BEACON ||
+	    subtype == IEEE80211_FC0_SUBTYPE_PROBE_RESP)) {
+		ni_tstamp = le64toh(ni->ni_tstamp.tsf);
+		RUN_LOCK(sc);
+		run_get_tsf(sc, &rx_tstamp);
+		RUN_UNLOCK(sc);
+		rx_tstamp = le64toh(rx_tstamp);
+
+		if (ni_tstamp >= rx_tstamp) {
+			DPRINTF("ibss merge, tsf %ju tstamp %ju\n",
+			    (uintmax_t)rx_tstamp, (uintmax_t)ni_tstamp);
+			(void) ieee80211_ibss_merge(ni);
+		}
+	}
 }
 
 static void
