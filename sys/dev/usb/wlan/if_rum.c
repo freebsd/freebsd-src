@@ -1157,10 +1157,9 @@ rum_tx_mgt(struct rum_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 	wh = mtod(m0, struct ieee80211_frame *);
 	if (wh->i_fc[1] & IEEE80211_FC1_PROTECTED) {
 		k = ieee80211_crypto_encap(ni, m0);
-		if (k == NULL) {
-			m_freem(m0);
-			return ENOBUFS;
-		}
+		if (k == NULL)
+			return (ENOBUFS);
+
 		wh = mtod(m0, struct ieee80211_frame *);
 	}
 
@@ -1205,13 +1204,11 @@ rum_tx_raw(struct rum_softc *sc, struct mbuf *m0, struct ieee80211_node *ni,
 	int rate, error;
 
 	RUM_LOCK_ASSERT(sc);
-	KASSERT(params != NULL, ("no raw xmit params"));
 
 	rate = params->ibp_rate0;
-	if (!ieee80211_isratevalid(ic->ic_rt, rate)) {
-		m_freem(m0);
-		return EINVAL;
-	}
+	if (!ieee80211_isratevalid(ic->ic_rt, rate))
+		return (EINVAL);
+
 	flags = 0;
 	if ((params->ibp_flags & IEEE80211_BPF_NOACK) == 0)
 		flags |= RT2573_TX_NEED_ACK;
@@ -1220,10 +1217,9 @@ rum_tx_raw(struct rum_softc *sc, struct mbuf *m0, struct ieee80211_node *ni,
 		    params->ibp_flags & IEEE80211_BPF_RTS ?
 			 IEEE80211_PROT_RTSCTS : IEEE80211_PROT_CTSONLY,
 		    rate);
-		if (error || sc->tx_nfree == 0) {
-			m_freem(m0);
-			return ENOBUFS;
-		}
+		if (error || sc->tx_nfree == 0)
+			return (ENOBUFS);
+
 		flags |= RT2573_TX_LONG_RETRY | RT2573_TX_IFS_SIFS;
 	}
 
@@ -2224,20 +2220,17 @@ rum_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
     const struct ieee80211_bpf_params *params)
 {
 	struct rum_softc *sc = ni->ni_ic->ic_softc;
+	int ret;
 
 	RUM_LOCK(sc);
 	/* prevent management frames from being sent if we're not ready */
 	if (!sc->sc_running) {
-		RUM_UNLOCK(sc);
-		m_freem(m);
-		ieee80211_free_node(ni);
-		return ENETDOWN;
+		ret = ENETDOWN;
+		goto bad;
 	}
 	if (sc->tx_nfree < RUM_TX_MINFREE) {
-		RUM_UNLOCK(sc);
-		m_freem(m);
-		ieee80211_free_node(ni);
-		return EIO;
+		ret = EIO;
+		goto bad;
 	}
 
 	if (params == NULL) {
@@ -2245,14 +2238,14 @@ rum_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 		 * Legacy path; interpret frame contents to decide
 		 * precisely how to send the frame.
 		 */
-		if (rum_tx_mgt(sc, m, ni) != 0)
+		if ((ret = rum_tx_mgt(sc, m, ni)) != 0)
 			goto bad;
 	} else {
 		/*
 		 * Caller supplied explicit parameters to use in
 		 * sending the frame.
 		 */
-		if (rum_tx_raw(sc, m, ni, params) != 0)
+		if ((ret = rum_tx_raw(sc, m, ni, params)) != 0)
 			goto bad;
 	}
 	RUM_UNLOCK(sc);
@@ -2260,8 +2253,9 @@ rum_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	return 0;
 bad:
 	RUM_UNLOCK(sc);
+	m_freem(m);
 	ieee80211_free_node(ni);
-	return EIO;
+	return ret;
 }
 
 static void
