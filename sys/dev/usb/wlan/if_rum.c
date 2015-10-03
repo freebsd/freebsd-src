@@ -227,6 +227,9 @@ static int		rum_set_beacon(struct rum_softc *,
 			    struct ieee80211vap *);
 static int		rum_alloc_beacon(struct rum_softc *,
 			    struct ieee80211vap *);
+static void		rum_update_beacon_cb(struct rum_softc *,
+			    union sec_param *, uint8_t, uint8_t);
+static void		rum_update_beacon(struct ieee80211vap *, int);
 static int		rum_raw_xmit(struct ieee80211_node *, struct mbuf *,
 			    const struct ieee80211_bpf_params *);
 static void		rum_scan_start(struct ieee80211com *);
@@ -617,6 +620,7 @@ rum_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
 	/* override state transition machine */
 	rvp->newstate = vap->iv_newstate;
 	vap->iv_newstate = rum_newstate;
+	vap->iv_update_beacon = rum_update_beacon;
 
 	usb_callout_init_mtx(&rvp->ratectl_ch, &sc->sc_mtx, 0);
 	TASK_INIT(&rvp->ratectl_task, 0, rum_ratectl_task, rvp);
@@ -2273,6 +2277,56 @@ rum_alloc_beacon(struct rum_softc *sc, struct ieee80211vap *vap)
 	rvp->bcn_mbuf = m;
 
 	return (rum_set_beacon(sc, vap));
+}
+
+static void
+rum_update_beacon_cb(struct rum_softc *sc, union sec_param *data,
+    uint8_t rn_id, uint8_t rvp_id)
+{
+	struct ieee80211vap *vap = data->vap;
+
+	rum_set_beacon(sc, vap);
+}
+
+static void
+rum_update_beacon(struct ieee80211vap *vap, int item)
+{
+	struct ieee80211com *ic = vap->iv_ic;
+	struct rum_softc *sc = ic->ic_softc;
+	struct rum_vap *rvp = RUM_VAP(vap);
+	struct ieee80211_beacon_offsets *bo = &vap->iv_bcn_off;
+	struct ieee80211_node *ni = vap->iv_bss;
+	struct mbuf *m = rvp->bcn_mbuf;
+	int mcast = 0;
+
+	RUM_LOCK(sc);
+	if (m == NULL) {
+		m = ieee80211_beacon_alloc(ni, bo);
+		if (m == NULL) {
+			device_printf(sc->sc_dev,
+			    "%s: could not allocate beacon frame\n", __func__);
+			RUM_UNLOCK(sc);
+			return;
+		}
+		rvp->bcn_mbuf = m;
+	}
+
+	switch (item) {
+	case IEEE80211_BEACON_ERP:
+		rum_update_slot(ic);
+		break;
+	case IEEE80211_BEACON_TIM:
+		mcast = 1;	/*TODO*/
+		break;
+	default:
+		break;
+	}
+	RUM_UNLOCK(sc);
+
+	setbit(bo->bo_flags, item);
+	ieee80211_beacon_update(ni, bo, m, mcast);
+
+	rum_cmd_sleepable(sc, &vap, sizeof(vap), 0, 0, rum_update_beacon_cb);
 }
 
 static int
