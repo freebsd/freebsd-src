@@ -2187,7 +2187,7 @@ rum_prepare_beacon(struct rum_softc *sc, struct ieee80211vap *vap)
 	if (ic->ic_bsschan == IEEE80211_CHAN_ANYC)
 		return;
 
-	m0 = ieee80211_beacon_alloc(vap->iv_bss, &RUM_VAP(vap)->bo);
+	m0 = ieee80211_beacon_alloc(vap->iv_bss, &vap->iv_bcn_off);
 	if (m0 == NULL)
 		return;
 
