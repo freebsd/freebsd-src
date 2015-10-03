@@ -68,10 +68,8 @@ test: example minigzip
 	(export LD_LIBRARY_PATH=. ; \
 		echo hello world | ./minigzip | ./minigzip -d )
 
-.ifndef COMPAT_32BIT
 FILES=		zlib.pc
 FILESDIR=	${LIBDATADIR}/pkgconfig
-.endif
 
 .include <bsd.lib.mk>
 
