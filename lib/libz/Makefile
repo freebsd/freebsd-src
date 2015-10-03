@@ -68,9 +68,10 @@ test: example minigzip
 	(export LD_LIBRARY_PATH=. ; \
 		echo hello world | ./minigzip | ./minigzip -d )
 
-beforeinstall:
-	${INSTALL} -C -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
-		${.CURDIR}/zlib.pc ${DESTDIR}${LIBDATADIR}/pkgconfig
+.ifndef COMPAT_32BIT
+FILES=		zlib.pc
+FILESDIR=	${LIBDATADIR}/pkgconfig
+.endif
 
 .include <bsd.lib.mk>
 
