@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2009, 2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2009, 2012, 2015  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -61,8 +61,10 @@ enum {
 	dns_resstatscounter_queryrtt3 = 27,
 	dns_resstatscounter_queryrtt4 = 28,
 	dns_resstatscounter_queryrtt5 = 29,
+	dns_resstatscounter_zonequota = 30,
+	dns_resstatscounter_serverquota = 31,
 
-	dns_resstatscounter_max = 30,
+	dns_resstatscounter_max = 32,
 
 	/*
 	 * DNSSEC stats.

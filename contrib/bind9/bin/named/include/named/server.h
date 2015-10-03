@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2014  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2015  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -51,6 +51,7 @@ struct ns_server {
 	isc_quota_t		xfroutquota;
 	isc_quota_t		tcpquota;
 	isc_quota_t		recursionquota;
+
 	dns_acl_t		*blackholeacl;
 	char *			statsfile;	/*%< Statistics file name */
 	char *			dumpfile;	/*%< Dump file name */
@@ -130,7 +131,7 @@ enum {
 	dns_nsstatscounter_tsigin = 4,
 	dns_nsstatscounter_sig0in = 5,
 	dns_nsstatscounter_invalidsig = 6,
-	dns_nsstatscounter_tcp = 7,
+	dns_nsstatscounter_requesttcp = 7,
 
 	dns_nsstatscounter_authrej = 8,
 	dns_nsstatscounter_recurserej = 9,
@@ -165,16 +166,31 @@ enum {
 	dns_nsstatscounter_updatefail = 34,
 	dns_nsstatscounter_updatebadprereq = 35,
 
-	dns_nsstatscounter_rpz_rewrites = 36,
+	dns_nsstatscounter_recursclients = 36,
 
-#ifdef USE_RRL
-	dns_nsstatscounter_ratedropped = 37,
-	dns_nsstatscounter_rateslipped = 38,
+	dns_nsstatscounter_dns64 = 37,
 
-	dns_nsstatscounter_max = 39
-#else /* USE_RRL */
-	dns_nsstatscounter_max = 37
-#endif /* USE_RRL */
+	dns_nsstatscounter_ratedropped = 38,
+	dns_nsstatscounter_rateslipped = 39,
+
+	dns_nsstatscounter_rpz_rewrites = 40,
+
+	dns_nsstatscounter_udp = 41,
+	dns_nsstatscounter_tcp = 42,
+
+	dns_nsstatscounter_nsidopt = 43,
+	dns_nsstatscounter_expireopt = 44,
+	dns_nsstatscounter_otheropt = 45,
+	dns_nsstatscounter_ecsopt = 46,
+
+	dns_nsstatscounter_sitopt = 47,
+	dns_nsstatscounter_sitbadsize = 48,
+	dns_nsstatscounter_sitbadtime = 49,
+	dns_nsstatscounter_sitnomatch = 50,
+	dns_nsstatscounter_sitmatch = 51,
+	dns_nsstatscounter_sitnew = 52,
+
+	dns_nsstatscounter_max = 53
 };
 
 void
@@ -213,7 +229,7 @@ ns_server_reloadcommand(ns_server_t *server, char *args, isc_buffer_t *text);
  */
 
 isc_result_t
-ns_server_reconfigcommand(ns_server_t *server, char *args);
+ns_server_reconfigcommand(ns_server_t *server);
 /*%<
  * Act on a "reconfig" command from the command channel.
  */

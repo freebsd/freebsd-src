@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2009, 2011, 2013  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2009, 2011, 2013, 2015  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -1125,29 +1125,41 @@ cleaner_shutdown_action(isc_task_t *task, isc_event_t *event) {
 
 isc_result_t
 dns_cache_flush(dns_cache_t *cache) {
-	dns_db_t *db = NULL;
+	dns_db_t *db = NULL, *olddb;
+	dns_dbiterator_t *dbiterator = NULL, *olddbiterator = NULL;
 	isc_result_t result;
 
 	result = cache_create_db(cache, &db);
 	if (result != ISC_R_SUCCESS)
 		return (result);
 
+	result = dns_db_createiterator(db, ISC_FALSE, &dbiterator);
+	if (result != ISC_R_SUCCESS) {
+		dns_db_detach(&db);
+		return (result);
+	}
+
 	LOCK(&cache->lock);
 	LOCK(&cache->cleaner.lock);
 	if (cache->cleaner.state == cleaner_s_idle) {
-		if (cache->cleaner.iterator != NULL)
-			dns_dbiterator_destroy(&cache->cleaner.iterator);
-		(void) dns_db_createiterator(db, ISC_FALSE,
-					     &cache->cleaner.iterator);
+		olddbiterator = cache->cleaner.iterator;
+		cache->cleaner.iterator = dbiterator;
+		dbiterator = NULL;
 	} else {
 		if (cache->cleaner.state == cleaner_s_busy)
 			cache->cleaner.state = cleaner_s_done;
 		cache->cleaner.replaceiterator = ISC_TRUE;
 	}
-	dns_db_detach(&cache->db);
+	olddb = cache->db;
 	cache->db = db;
 	UNLOCK(&cache->cleaner.lock);
 	UNLOCK(&cache->lock);
+
+	if (dbiterator != NULL)
+		dns_dbiterator_destroy(&dbiterator);
+	if (olddbiterator != NULL)
+		dns_dbiterator_destroy(&olddbiterator);
+	dns_db_detach(&olddb);
 
 	return (ISC_R_SUCCESS);
 }

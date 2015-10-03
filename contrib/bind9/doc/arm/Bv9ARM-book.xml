@@ -646,7 +646,7 @@
       <para>
 	ISC <acronym>BIND</acronym> 9 compiles and runs on a large
 	number
-	of Unix-like operating systems and on 
+	of Unix-like operating systems and on
 	Microsoft Windows Server 2003 and 2008, and Windows XP and Vista.
 	For an up-to-date
 	list of supported systems, see the README file in the top level
@@ -1390,7 +1390,7 @@ controls {
 	<command>allow-update</command> or an <command>update-policy</command>
 	clause in the <command>zone</command> statement.
       </para>
-      
+
       <para>
 	If the zone's <command>update-policy</command> is set to
 	<userinput>local</userinput>, updates to the zone
@@ -2234,10 +2234,10 @@ allow-update { key host1-host2. ;};
 	  To enable <command>named</command> to validate answers from
 	  other servers, the <command>dnssec-enable</command> option
 	  must be set to <userinput>yes</userinput>, and the
-	  <command>dnssec-validation</command> options must be set to 
+	  <command>dnssec-validation</command> options must be set to
 	  <userinput>yes</userinput> or <userinput>auto</userinput>.
 	</para>
-	  
+
 	<para>
 	  If <command>dnssec-validation</command> is set to
 	  <userinput>auto</userinput>, then a default
@@ -2250,7 +2250,7 @@ allow-update { key host1-host2. ;};
 	  will not occur.  The default setting is
 	  <userinput>yes</userinput>.
 	</para>
-	  
+
 	<para>
 	  <command>trusted-keys</command> are copies of DNSKEY RRs
 	  for zones that are used to form the first link in the
@@ -2359,7 +2359,7 @@ options {
 	  including missing, expired, or invalid signatures, a key which
 	  does not match the DS RRset in the parent zone, or an insecure
 	  response from a zone which, according to its parent, should have
-	  been secure.  
+	  been secure.
 	</para>
 
 	<note>
@@ -2419,7 +2419,7 @@ options {
 	the traditional "nibble" format used in the
 	<emphasis>ip6.arpa</emphasis> domain, as well as the older, deprecated
 	<emphasis>ip6.int</emphasis> domain.
-	Older versions of <acronym>BIND</acronym> 9 
+	Older versions of <acronym>BIND</acronym> 9
 	supported the "binary label" (also known as "bitstring") format,
 	but support of binary labels has been completely removed per
 	RFC 3363.
@@ -2878,7 +2878,7 @@ $ORIGIN 0.0.0.0.0.0.0.0.8.b.d.0.1.0.0.2.ip6.arpa.
 		  "as big as possible", depending on the context.
 		  See the explanations of particular parameters
 		  that use <varname>size_spec</varname>
-		  for details on how they interpret its use. 
+		  for details on how they interpret its use.
 		</para>
 		<para>
 		  Numeric values can optionally be followed by a
@@ -2897,12 +2897,12 @@ $ORIGIN 0.0.0.0.0.0.0.0.8.b.d.0.1.0.0.2.ip6.arpa.
 		  (including <option>max-cache-size</option>), it may
 		  mean the largest possible 32-bit unsigned integer
 		  (0xffffffff); this distinction can be important when
-		  dealing with larger quantities. 
+		  dealing with larger quantities.
 		  <varname>unlimited</varname> is usually the best way
 		  to safely set a very large number.
 		</para>
 		<para>
-		  <varname>default</varname> 
+		  <varname>default</varname>
 		  uses the limit that was in force when the server was started.
 		</para>
 	      </entry>
@@ -3240,7 +3240,7 @@ $ORIGIN 0.0.0.0.0.0.0.0.8.b.d.0.1.0.0.2.ip6.arpa.
 		<para>
 		  defines a named masters list for
 		  inclusion in stub and slave zones'
-		  <command>masters</command> or 
+		  <command>masters</command> or
 		  <command>also-notify</command> lists.
 		</para>
 	      </entry>
@@ -3576,8 +3576,8 @@ $ORIGIN 0.0.0.0.0.0.0.0.8.b.d.0.1.0.0.2.ip6.arpa.
 	<title><command>key</command> Statement Grammar</title>
 
 <programlisting><command>key</command> <replaceable>key_id</replaceable> {
-    algorithm <replaceable>string</replaceable>;
-    secret <replaceable>string</replaceable>;
+    algorithm <replaceable>algorithm_id</replaceable>;
+    secret <replaceable>secret_string</replaceable>;
 };
 </programlisting>
 
@@ -4652,7 +4652,7 @@ badresp:1,adberr:0,findfail:0,valfail:0]
 	<title><command>masters</command> Statement Grammar</title>
 
 <programlisting>
-<command>masters</command> <replaceable>name</replaceable> <optional>port <replaceable>ip_port</replaceable></optional> { ( <replaceable>masters_list</replaceable> | 
+<command>masters</command> <replaceable>name</replaceable> <optional>port <replaceable>ip_port</replaceable></optional> { ( <replaceable>masters_list</replaceable> |
       <replaceable>ip_addr</replaceable> <optional>port <replaceable>ip_port</replaceable></optional> <optional>key <replaceable>key</replaceable></optional> ) ; <optional>...</optional> };
 </programlisting>
 
@@ -4731,7 +4731,7 @@ badresp:1,adberr:0,findfail:0,valfail:0]
     <optional> forwarders { <optional> <replaceable>ip_addr</replaceable> <optional>port <replaceable>ip_port</replaceable></optional> ; ... </optional> }; </optional>
     <optional> dual-stack-servers <optional>port <replaceable>ip_port</replaceable></optional> {
 	( <replaceable>domain_name</replaceable> <optional>port <replaceable>ip_port</replaceable></optional> |
-	  <replaceable>ip_addr</replaceable> <optional>port <replaceable>ip_port</replaceable></optional> ) ; 
+	  <replaceable>ip_addr</replaceable> <optional>port <replaceable>ip_port</replaceable></optional> ) ;
 	... }; </optional>
     <optional> check-names ( <replaceable>master</replaceable> | <replaceable>slave</replaceable> | <replaceable>response</replaceable> )
 	( <replaceable>warn</replaceable> | <replaceable>fail</replaceable> | <replaceable>ignore</replaceable> ); </optional>
@@ -4774,8 +4774,8 @@ badresp:1,adberr:0,findfail:0,valfail:0]
 	<optional> address ( <replaceable>ip4_addr</replaceable> | <replaceable>*</replaceable> ) </optional>
 	<optional> port ( <replaceable>ip_port</replaceable> | <replaceable>*</replaceable> ) </optional> ) ; </optional>
     <optional> query-source-v6 ( ( <replaceable>ip6_addr</replaceable> | <replaceable>*</replaceable> )
-	<optional> port ( <replaceable>ip_port</replaceable> | <replaceable>*</replaceable> ) </optional> | 
-	<optional> address ( <replaceable>ip6_addr</replaceable> | <replaceable>*</replaceable> ) </optional> 
+	<optional> port ( <replaceable>ip_port</replaceable> | <replaceable>*</replaceable> ) </optional> |
+	<optional> address ( <replaceable>ip6_addr</replaceable> | <replaceable>*</replaceable> ) </optional>
 	<optional> port ( <replaceable>ip_port</replaceable> | <replaceable>*</replaceable> ) </optional> ) ; </optional>
     <optional> use-queryport-pool <replaceable>yes_or_no</replaceable>; </optional>
     <optional> queryport-pool-ports <replaceable>number</replaceable>; </optional>
@@ -4784,9 +4784,14 @@ badresp:1,adberr:0,findfail:0,valfail:0]
     <optional> max-transfer-time-out <replaceable>number</replaceable>; </optional>
     <optional> max-transfer-idle-in <replaceable>number</replaceable>; </optional>
     <optional> max-transfer-idle-out <replaceable>number</replaceable>; </optional>
-    <optional> tcp-clients <replaceable>number</replaceable>; </optional>
     <optional> reserved-sockets <replaceable>number</replaceable>; </optional>
     <optional> recursive-clients <replaceable>number</replaceable>; </optional>
+    <optional> tcp-clients <replaceable>number</replaceable>; </optional>
+    <optional> clients-per-query <replaceable>number</replaceable> ; </optional>
+    <optional> max-clients-per-query <replaceable>number</replaceable> ; </optional>
+    <optional> fetches-per-server <replaceable>number</replaceable> <optional><replaceable>(drop | fail)</replaceable></optional>; </optional>
+    <optional> fetch-quota-params <replaceable>number fixedpoint fixedpoint fixedpoint</replaceable> ; </optional>
+    <optional> fetches-per-zone<replaceable>number</replaceable> <optional><replaceable>(drop | fail)</replaceable></optional>; </optional>
     <optional> serial-query-rate <replaceable>number</replaceable>; </optional>
     <optional> serial-queries <replaceable>number</replaceable>; </optional>
     <optional> tcp-listen-queue <replaceable>number</replaceable>; </optional>
@@ -4865,8 +4870,6 @@ badresp:1,adberr:0,findfail:0,valfail:0]
     <optional> acache-enable <replaceable>yes_or_no</replaceable> ; </optional>
     <optional> acache-cleaning-interval <replaceable>number</replaceable>; </optional>
     <optional> max-acache-size <replaceable>size_spec</replaceable> ; </optional>
-    <optional> clients-per-query <replaceable>number</replaceable> ; </optional>
-    <optional> max-clients-per-query <replaceable>number</replaceable> ; </optional>
     <optional> max-recursion-depth <replaceable>number</replaceable> ; </optional>
     <optional> max-recursion-queries <replaceable>number</replaceable> ; </optional>
     <optional> masterfile-format (<constant>text</constant>|<constant>raw</constant>) ; </optional>
@@ -4900,12 +4903,12 @@ badresp:1,adberr:0,findfail:0,valfail:0]
 	zone <replaceable>zone_name</replaceable>
 	<optional> policy <replaceable>(given | disabled | passthru |
 		  nxdomain | nodata | cname domain</replaceable>) </optional>
-	<optional> recursive-only <replaceable>yes_or_no</replaceable> </optional>
-	<optional> max-policy-ttl <replaceable>number</replaceable> </optional>
-	<optional> break-dnssec <replaceable>yes_or_no</replaceable> </optional>
-	<optional> min-ns-dots <replaceable>number</replaceable> </optional>
 	; <optional>...</optional>
-    } ; </optional>
+    } <optional> recursive-only <replaceable>yes_or_no</replaceable> </optional>
+      <optional> max-policy-ttl <replaceable>number</replaceable> </optional>
+      <optional> break-dnssec <replaceable>yes_or_no</replaceable> </optional>
+      <optional> min-ns-dots <replaceable>number</replaceable> </optional>
+    ; </optional>
 };
 </programlisting>
 
@@ -5248,7 +5251,7 @@ badresp:1,adberr:0,findfail:0,valfail:0]
 		The pathname of a file to override the built-in trusted
 		keys provided by <command>named</command>.
 		See the discussion of <command>dnssec-lookaside</command>
-		and <command>dnssec-validation</command> for details. 
+		and <command>dnssec-validation</command> for details.
 		If not specified, the default is
 		<filename>/etc/bind.keys</filename>.
 	      </para>
@@ -5526,7 +5529,7 @@ options {
 	      <para>
 		Each <command>dns64</command> supports an optional
 		<command>mapped</command> ACL that selects which
-		IPv4 addresses are to be mapped in the corresponding	
+		IPv4 addresses are to be mapped in the corresponding
 		A RRset.  If not defined it defaults to
 		<userinput>any;</userinput>.
 	      </para>
@@ -6117,7 +6120,7 @@ options {
 	      <listitem>
 		<para>
 		  If <userinput>yes</userinput>, then an empty EDNS(0)
-		  NSID (Name Server Identifier) option is sent with all 
+		  NSID (Name Server Identifier) option is sent with all
 		  queries to authoritative name servers during iterative
 		  resolution. If the authoritative server returns an NSID
 		  option in its response, then its contents are logged in
@@ -6340,7 +6343,7 @@ options {
 		<para>
 		  If <userinput>yes</userinput>,
 		  the DNS client is at an IPv4 address, in <command>filter-aaaa</command>,
-		  and if the response does not include DNSSEC signatures, 
+		  and if the response does not include DNSSEC signatures,
 		  then all AAAA records are deleted from the response.
 		  This filtering applies to all responses and not only
 		  authoritative responses.
@@ -6352,8 +6355,8 @@ options {
 		  because the DNSSEC protocol is designed detect deletions.
 		</para>
 		<para>
-		  This mechanism can erroneously cause other servers to 
-		  not give AAAA records to their clients.  
+		  This mechanism can erroneously cause other servers to
+		  not give AAAA records to their clients.
 		  A recursing server with both IPv6 and IPv4 network connections
 		  that queries an authoritative server using this mechanism
 		  via IPv4 will be denied AAAA records even if its client is
@@ -6430,8 +6433,11 @@ options {
 	      <term><command>dnssec-enable</command></term>
 	      <listitem>
 		<para>
-		  Enable DNSSEC support in <command>named</command>.  Unless set to <userinput>yes</userinput>,
-		  <command>named</command> behaves as if it does not support DNSSEC.
+		  This indicates whether DNSSEC-related resource
+		  records are to be returned by <command>named</command>.
+		  If set to <userinput>no</userinput>,
+		  <command>named</command> will not return DNSSEC-related
+		  resource records unless specifically queried for.
 		  The default is <userinput>yes</userinput>.
 		</para>
 	      </listitem>
@@ -6454,6 +6460,14 @@ options {
 		  <command>managed-keys</command> statement.  The default
 		  is <userinput>yes</userinput>.
 		</para>
+		<note>
+		  <para>
+		    Whenever the resolver sends out queries to an
+		    EDNS-compliant server, it always sets the DO bit
+		    indicating it can support DNSSEC responses even if
+		    <command>dnssec-validation</command> is off.
+		  </para>
+		</note>
 	      </listitem>
 	    </varlistentry>
 
@@ -7346,7 +7360,7 @@ avoid-v6-udp-ports {};
 
 	  <para>
 	    Note: BIND 9.5.0 introduced
-	    the <command>use-queryport-pool</command> 
+	    the <command>use-queryport-pool</command>
 	    option to support a pool of such random ports, but this
 	    option is now obsolete because reusing the same ports in
 	    the pool may not be sufficiently secure.
@@ -7384,7 +7398,7 @@ avoid-v6-udp-ports {};
 		</para>
 	      </listitem>
 	    </varlistentry>
-	    
+
 	  </variablelist>
 	  <note>
 	    <para>
@@ -7522,7 +7536,7 @@ avoid-v6-udp-ports {};
 		</para>
 		<para>
 		  In addition to controlling the rate SOA refresh
-		  queries are issued at
+		  queries are issued at,
 		  <command>serial-query-rate</command> also controls
 		  the rate at which NOTIFY messages are sent from
 		  both master and slave zones.
@@ -7933,17 +7947,33 @@ avoid-v6-udp-ports { 40000; range 50000 60000; };
 	      <term><command>recursive-clients</command></term>
 	      <listitem>
 		<para>
-		  The maximum number of simultaneous recursive lookups
-		  the server will perform on behalf of clients.  The default
-		  is
+		  The maximum number ("hard quota") of simultaneous
+		  recursive lookups the server will perform on behalf
+		  of clients.  The default is
 		  <literal>1000</literal>.  Because each recursing
 		  client uses a fair
-		  bit of memory, on the order of 20 kilobytes, the value of
-		  the
+		  bit of memory (on the order of 20 kilobytes), the
+		  value of the
 		  <command>recursive-clients</command> option may
-		  have to be decreased
-		  on hosts with limited memory.
+		  have to be decreased on hosts with limited memory.
 		</para>
+		<para>
+		  <option>recursive-clients</option> defines a "hard
+		  quota" limit for pending recursive clients: when more
+		  clients than this are pending, new incoming requests
+		  will not be accepted, and for each incoming request
+		  a previous pending request will also be dropped.
+		</para>
+                <para>
+                  A "soft quota" is also set.  When this lower
+		  quota is exceeded, incoming requests are accepted, but
+		  for each one, a pending request will be dropped.
+                  If <option>recursive-clients</option> is greater than
+                  1000, the soft quota is set to
+                  <option>recursive-clients</option> minus 100;
+                  otherwise it is set to 90% of
+                  <option>recursive-clients</option>.
+                </para>
 	      </listitem>
 	    </varlistentry>
 
@@ -7954,6 +7984,187 @@ avoid-v6-udp-ports { 40000; range 50000 60000; };
 		  The maximum number of simultaneous client TCP
 		  connections that the server will accept.
 		  The default is <literal>100</literal>.
+		</para>
+	      </listitem>
+	    </varlistentry>
+
+	    <varlistentry id="clients-per-query">
+	      <term><command>clients-per-query</command></term>
+	      <term><command>max-clients-per-query</command></term>
+	      <listitem>
+		<para>These set the
+		  initial value (minimum) and maximum number of recursive
+		  simultaneous clients for any given query
+		  (&lt;qname,qtype,qclass&gt;) that the server will accept
+		  before dropping additional clients.  <command>named</command> will attempt to
+		  self tune this value and changes will be logged.  The
+		  default values are 10 and 100.
+		</para>
+		<para>
+		  This value should reflect how many queries come in for
+		  a given name in the time it takes to resolve that name.
+		  If the number of queries exceed this value, <command>named</command> will
+		  assume that it is dealing with a non-responsive zone
+		  and will drop additional queries.  If it gets a response
+		  after dropping queries, it will raise the estimate.  The
+		  estimate will then be lowered in 20 minutes if it has
+		  remained unchanged.
+		</para>
+		<para>
+		  If <command>clients-per-query</command> is set to zero,
+		  then there is no limit on the number of clients per query
+		  and no queries will be dropped.
+		</para>
+		<para>
+		  If <command>max-clients-per-query</command> is set to zero,
+		  then there is no upper bound other than imposed by
+		  <command>recursive-clients</command>.
+		</para>
+	      </listitem>
+	    </varlistentry>
+
+	    <varlistentry id="fetches-per-zone">
+	      <term><command>fetches-per-zone</command></term>
+	      <listitem>
+		<para>
+		  The maximum number of simultaneous iterative
+		  queries to any one domain that the server will
+		  permit before blocking new queries for data
+		  in or beneath that zone.
+		  This value should reflect how many fetches would
+		  normally be sent to any one zone in the time it
+		  would take to resolve them.  It should be smaller
+		  than <option>recursive-clients</option>.
+		</para>
+		<para>
+		  When many clients simultaneously query for the
+		  same name and type, the clients will all be attached
+		  to the same fetch, up to the
+		  <option>max-clients-per-query</option> limit,
+		  and only one iterative query will be sent.
+		  However, when clients are simultaneously
+		  querying for <emphasis>different</emphasis> names
+		  or types, multiple queries will be sent and
+		  <option>max-clients-per-query</option> is not
+		  effective as a limit.
+		</para>
+		<para>
+		  Optionally, this value may be followed by the keyword
+		  <literal>drop</literal> or <literal>fail</literal>,
+		  indicating whether queries which exceed the fetch
+		  quota for a zone will be dropped with no response,
+		  or answered with SERVFAIL.  The default is
+		  <literal>drop</literal>.
+		</para>
+		<para>
+		  If <command>fetches-per-zone</command> is set to zero,
+		  then there is no limit on the number of fetches per query
+		  and no queries will be dropped.  The default is zero.
+		</para>
+		<para>
+		  The current list of active fetches can be dumped by
+		  running <command>rndc recursing</command>.  The list
+		  includes the number of active fetches for each
+		  domain and the number of queries that have been
+		  passed or dropped as a result of the
+		  <option>fetches-per-zone</option> limit.  (Note:
+		  these counters are not cumulative over time; whenever
+		  the number of active fetches for a domain drops to
+		  zero, the counter for that domain is deleted, and the
+		  next time a fetch is sent to that domain, it is
+		  recreated with the counters set to zero.)
+		</para>
+		<para>
+		  (Note: This option is only available when BIND is
+		  built with <command>configure --enable-fetchlimit</command>.)
+		</para>
+	      </listitem>
+	    </varlistentry>
+
+	    <varlistentry id="fetches-per-server">
+	      <term><command>fetches-per-server</command></term>
+	      <listitem>
+		<para>
+		  The maximum number of simultaneous iterative
+                  queries that the server will allow to be sent to
+                  a single upstream name server before blocking
+                  additional queries.
+		  This value should reflect how many fetches would
+		  normally be sent to any one server in the time it
+		  would take to resolve them.  It should be smaller
+                  than <option>recursive-clients</option>.
+		</para>
+		<para>
+		  Optionally, this value may be followed by the keyword
+		  <literal>drop</literal> or <literal>fail</literal>,
+		  indicating whether queries will be dropped with no
+		  response, or answered with SERVFAIL, when all of the
+		  servers authoritative for a zone are found to have
+		  exceeded the per-server quota.  The default is
+		  <literal>fail</literal>.
+		</para>
+		<para>
+		  If <command>fetches-per-server</command> is set to zero,
+		  then there is no limit on the number of fetches per query
+		  and no queries will be dropped.  The default is zero.
+		</para>
+		<para>
+		  The <command>fetches-per-server</command> quota is
+		  dynamically adjusted in response to detected
+		  congestion. As queries are sent to a server
+		  and are either answered or time out, an
+		  exponentially weighted moving average is calculated
+		  of the ratio of timeouts to responses.  If the
+		  current average timeout ratio rises above a "high"
+		  threshold, then <command>fetches-per-server</command>
+		  is reduced for that server.  If the timeout ratio
+		  drops below a "low" threshold, then
+		  <command>fetches-per-server</command> is increased.
+		  The <command>fetch-quota-params</command> options
+		  can be used to adjust the parameters for this
+		  calculation.
+		</para>
+		<para>
+		  (Note: This option is only available when BIND is
+		  built with <command>configure --enable-fetchlimit</command>.)
+		</para>
+	      </listitem>
+	    </varlistentry>
+
+	    <varlistentry>
+	      <term><command>fetch-quota-params</command></term>
+	      <listitem>
+		<para>
+		  Sets the parameters to use for dynamic resizing of
+		  the <option>fetches-per-server</option> quota in
+		  response to detected congestion.
+		</para>
+		<para>
+		  The first argument is an integer value indicating
+		  how frequently to recalculate the moving average
+		  of the ratio of timeouts to responses for each
+		  server.  The default is 100, meaning we recalculate
+		  the average ratio after every 100 queries have either
+		  been answered or timed out.
+		</para>
+		<para>
+		  The remaining three arguments represent the "low"
+		  threshold (defaulting to a timeout ratio of 0.1),
+		  the "high" threshold (defaulting to a timeout
+		  ratio of 0.3), and the discount rate for
+		  the moving average (defaulting to 0.7).
+		  A higher discount rate causes recent events to
+		  weigh more heavily when calculating the moving
+		  average; a lower discount rate causes past
+		  events to weigh more heavily, smoothing out
+		  short-term blips in the timeout ratio.
+		  These arguments are all fixed-point numbers with
+		  precision of 1/100: at most two places after
+		  the decimal point are significant.
+		</para>
+		<para>
+		  (Note: This option is only available when BIND is
+		  built with <command>configure --enable-fetchlimit</command>.)
 		</para>
 	      </listitem>
 	    </varlistentry>
@@ -8015,7 +8226,7 @@ avoid-v6-udp-ports { 40000; range 50000 60000; };
 		  waiting for
 		  some data before being passed to accept.  Nonzero values
 		  less than 10 will be silently raised. A value of 0 may also
-		  be used; on most platforms this sets the listen queue 
+		  be used; on most platforms this sets the listen queue
 		  length to a system-defined default value.
 		</para>
 	      </listitem>
@@ -8658,41 +8869,6 @@ avoid-v6-udp-ports { 40000; range 50000 60000; };
 	      </listitem>
 	    </varlistentry>
 
-	    <varlistentry id="clients-per-query">
-	      <term><command>clients-per-query</command></term>
-	      <term><command>max-clients-per-query</command></term>
-	      <listitem>
-		<para>These set the
-		  initial value (minimum) and maximum number of recursive
-		  simultaneous clients for any given query
-		  (&lt;qname,qtype,qclass&gt;) that the server will accept
-		  before dropping additional clients.  <command>named</command> will attempt to
-		  self tune this value and changes will be logged.  The
-		  default values are 10 and 100.
-		</para>
-		<para>
-		  This value should reflect how many queries come in for
-		  a given name in the time it takes to resolve that name.
-		  If the number of queries exceed this value, <command>named</command> will
-		  assume that it is dealing with a non-responsive zone
-		  and will drop additional queries.  If it gets a response
-		  after dropping queries, it will raise the estimate.  The
-		  estimate will then be lowered in 20 minutes if it has
-		  remained unchanged.
-		</para>
-		<para>
-		  If <command>clients-per-query</command> is set to zero,
-		  then there is no limit on the number of clients per query
-		  and no queries will be dropped.
-		</para>
-		<para>
-		  If <command>max-clients-per-query</command> is set to zero,
-		  then there is no upper bound other than imposed by
-		  <command>recursive-clients</command>.
-		</para>
-	      </listitem>
-	    </varlistentry>
-
 	    <varlistentry id="max-recursion-depth">
 	      <term><command>max-recursion-depth</command></term>
 	      <listitem>
@@ -8719,7 +8895,7 @@ avoid-v6-udp-ports { 40000; range 50000 60000; };
 		  is terminated and returns SERVFAIL. Queries to
 		  look up top level comains such as "com" and "net"
 		  and the DNS root zone are exempt from this limitation.
-		  The default is 50.
+		  The default is 75.
 		</para>
 	      </listitem>
 	    </varlistentry>
@@ -8995,7 +9171,7 @@ avoid-v6-udp-ports { 40000; range 50000 60000; };
 		</para>
 	       </listitem>
 	    </varlistentry>
-	      
+
 	    <varlistentry>
 	      <term><command>empty-contact</command></term>
 	      <listitem>
@@ -9006,7 +9182,7 @@ avoid-v6-udp-ports { 40000; range 50000 60000; };
 		</para>
 	      </listitem>
 	    </varlistentry>
-  
+
 	    <varlistentry>
 	      <term><command>empty-zones-enable</command></term>
 	      <listitem>
@@ -9016,7 +9192,7 @@ avoid-v6-udp-ports { 40000; range 50000 60000; };
 		</para>
 	      </listitem>
 	    </varlistentry>
-  
+
 	    <varlistentry>
 	    <term><command>disable-empty-zone</command></term>
 	      <listitem>
@@ -9803,7 +9979,7 @@ ns.domain.com.rpz-nsdname   CNAME   .
     <optional> max-udp-size <replaceable>number</replaceable> ; </optional>
     <optional> transfers <replaceable>number</replaceable> ; </optional>
     <optional> transfer-format <replaceable>( one-answer | many-answers )</replaceable> ; ]</optional>
-    <optional> keys <replaceable>{ string ; <optional> string ; <optional>...</optional></optional> }</replaceable> ; </optional>
+    <optional> keys { <replaceable>key_id</replaceable> }; </optional>
     <optional> transfer-source (<replaceable>ip4_addr</replaceable> | <constant>*</constant>) <optional>port <replaceable>ip_port</replaceable></optional> ; </optional>
     <optional> transfer-source-v6 (<replaceable>ip6_addr</replaceable> | <constant>*</constant>) <optional>port <replaceable>ip_port</replaceable></optional> ; </optional>
     <optional> notify-source (<replaceable>ip4_addr</replaceable> | <constant>*</constant>) <optional>port <replaceable>ip_port</replaceable></optional> ; </optional>
@@ -9960,11 +10136,7 @@ ns.domain.com.rpz-nsdname   CNAME   .
 	  </para>
 
 	  <para>
-	    Although the grammar of the <command>keys</command>
-	    clause
-	    allows for multiple keys, only a single key per server is
-	    currently
-	    supported.
+	    Only a single key per server is currently supported.
 	  </para>
 
 	  <para>
@@ -10009,7 +10181,7 @@ ns.domain.com.rpz-nsdname   CNAME   .
 	    whether the local server will add a NSID EDNS option
 	    to requests sent to the server.  This overrides
 	    <command>request-nsid</command> set at the view or
-	    option level. 
+	    option level.
 	  </para>
 	</sect2>
 
@@ -10087,9 +10259,9 @@ ns.domain.com.rpz-nsdname   CNAME   .
 		  >http://127.0.0.1:8888/</ulink> or
 	  <ulink url="http://127.0.0.1:8888/xml"
 		  >http://127.0.0.1:8888/xml</ulink>. A CSS file is
-	  included which can format the XML statistics into tables 
+	  included which can format the XML statistics into tables
 	  when viewed with a stylesheet-capable browser.  When
-	  <acronym>BIND</acronym> 9 is configured with --enable-newstats, 
+	  <acronym>BIND</acronym> 9 is configured with --enable-newstats,
 	  a new XML schema is used (version 3) which adds additional
 	  zone statistics and uses a flatter tree for more efficient
 	  parsing.  The stylesheet included uses the Google Charts API
@@ -10099,10 +10271,10 @@ ns.domain.com.rpz-nsdname   CNAME   .
 
 	<para>
 	  Applications that depend on a particular XML schema
-	  can request 
+	  can request
 	  <ulink url="http://127.0.0.1:8888/xml/v2"
 		  >http://127.0.0.1:8888/xml/v2</ulink> for version 2
-	  of the statistics XML schema or 
+	  of the statistics XML schema or
 	  <ulink url="http://127.0.0.1:8888/xml/v3"
 		  >http://127.0.0.1:8888/xml/v3</ulink> for version 3.
 	  If the requested schema is supported by the server, then
@@ -10176,7 +10348,7 @@ ns.domain.com.rpz-nsdname   CNAME   .
 	  <title><command>managed-keys</command> Statement Definition
 	    and Usage</title>
 	  <para>
-	    The <command>managed-keys</command> statement, like 
+	    The <command>managed-keys</command> statement, like
 	    <command>trusted-keys</command>, defines DNSSEC
 	    security roots.  The difference is that
 	    <command>managed-keys</command> can be kept up to date
@@ -10222,7 +10394,7 @@ ns.domain.com.rpz-nsdname   CNAME   .
 	    <literal>initial-key</literal>.  The difference is, whereas the
 	    keys listed in a <command>trusted-keys</command> continue to be
 	    trusted until they are removed from
-	    <filename>named.conf</filename>, an initializing key listed 
+	    <filename>named.conf</filename>, an initializing key listed
 	    in a <command>managed-keys</command> statement is only trusted
 	    <emphasis>once</emphasis>: for as long as it takes to load the
 	    managed key database and start the RFC 5011 key maintenance
@@ -10598,7 +10770,7 @@ zone <replaceable>zone_name</replaceable> <optional><replaceable>class</replacea
     type static-stub;
     <optional> allow-query { <replaceable>address_match_list</replaceable> }; </optional>
     <optional> server-addresses { <optional> <replaceable>ip_addr</replaceable> ; ... </optional> }; </optional>
-    <optional> server-names { <optional> <replaceable>namelist</replaceable> </optional> }; </optional>  
+    <optional> server-names { <optional> <replaceable>namelist</replaceable> </optional> }; </optional>
     <optional> zone-statistics <replaceable>yes_or_no</replaceable> ; </optional>
 };
 
@@ -10798,7 +10970,7 @@ zone <replaceable>zone_name</replaceable> <optional><replaceable>class</replacea
 		      <para>
 			Each static-stub zone is configured with
 			internally generated NS and (if necessary)
-			glue A or AAAA RRs 
+			glue A or AAAA RRs
 		      </para>
 		    </entry>
 		  </row>
@@ -10882,7 +11054,7 @@ zone <replaceable>zone_name</replaceable> <optional><replaceable>class</replacea
 			2001:ffff:ffff::100.100.100.2, one would
 			configure a type redirect zone named ".",
 			with the zone file containing wildcard records
-			that point to the desired addresses: 
+			that point to the desired addresses:
 			<literal>"*. IN A 100.100.100.2"</literal>
 			and
 			<literal>"*. IN AAAA 2001:ffff:ffff::100.100.100.2"</literal>.
@@ -10890,7 +11062,7 @@ zone <replaceable>zone_name</replaceable> <optional><replaceable>class</replacea
 		      <para>
 			To redirect all Spanish names (under .ES) one
 			would use similar entries but with the names
-			"*.ES." instead of "*.".  To redirect all 
+			"*.ES." instead of "*.".  To redirect all
 			commercial Spanish names (under COM.ES) one
 			would use wildcard entries called "*.COM.ES.".
 		      </para>
@@ -11659,7 +11831,7 @@ example.com. NS ns2.example.net.
 		    <replaceable>zonename</replaceable></command> causes
 		    <command>named</command> to load keys from the key
 		    repository and sign the zone with all keys that are
-		    active. 
+		    active.
 		    <command>rndc loadkeys
 		    <replaceable>zonename</replaceable></command> causes
 		    <command>named</command> to load keys from the key
@@ -11693,7 +11865,7 @@ example.com. NS ns2.example.net.
 		    the zone is updated.
 		  </para>
 		  <para>
-		    When set to 
+		    When set to
 		    <command>serial-update-method unixtime;</command>, the
 		    SOA serial number will be set to the number of seconds
 		    since the UNIX epoch, unless the serial number is
@@ -11726,7 +11898,7 @@ example.com. NS ns2.example.net.
 		  </para>
 		</listitem>
 	      </varlistentry>
-	
+
 	      <varlistentry>
 		<term><command>masterfile-format</command></term>
 		<listitem>
@@ -12002,7 +12174,7 @@ example.com. NS ns2.example.net.
 		      <para>
 			This rule takes a Windows machine principal
 			(machine$@REALM) for machine in REALM and
-			and converts it machine.realm allowing the machine 
+			and converts it machine.realm allowing the machine
 			to update machine.realm.  The REALM to be matched
 			is specified in the <replaceable>identity</replaceable>
 			field.
@@ -12016,7 +12188,7 @@ example.com. NS ns2.example.net.
 		      </para>
 		    </entry> <entry colname="2">
 		      <para>
-			This rule takes a Windows machine principal 
+			This rule takes a Windows machine principal
 			(machine$@REALM) for machine in REALM and
 			converts it to machine.realm allowing the machine
 			to update subdomains of machine.realm.  The REALM
@@ -12034,7 +12206,7 @@ example.com. NS ns2.example.net.
 		      <para>
 			This rule takes a Kerberos machine principal
 			(host/machine@REALM) for machine in REALM and
-			and converts it machine.realm allowing the machine 
+			and converts it machine.realm allowing the machine
 			to update machine.realm.  The REALM to be matched
 			is specified in the <replaceable>identity</replaceable>
 			field.
@@ -12048,7 +12220,7 @@ example.com. NS ns2.example.net.
 		      </para>
 		    </entry> <entry colname="2">
 		      <para>
-			This rule takes a Kerberos machine principal 
+			This rule takes a Kerberos machine principal
 			(host/machine@REALM) for machine in REALM and
 			converts it to machine.realm allowing the machine
 			to update subdomains of machine.realm.  The REALM
@@ -12340,6 +12512,58 @@ example.com. NS ns2.example.net.
 		  <row rowsep="0">
 		    <entry colname="1">
 		      <para>
+			ATMA
+		      </para>
+		    </entry>
+		    <entry colname="2">
+		      <para>
+			ATM Address.
+		      </para>
+		    </entry>
+		  </row>
+		  <row rowsep="0">
+		    <entry colname="1">
+		      <para>
+			CAA
+		      </para>
+		    </entry>
+		    <entry colname="2">
+		      <para>
+			Identifies which Certificate Authorities can issue
+			certificates for this domain and what rules they
+			need to follow when doing so. Defined in RFC 6844.
+		      </para>
+		    </entry>
+		  </row>
+		  <row rowsep="0">
+		    <entry colname="1">
+		      <para>
+			CDNSKEY
+		      </para>
+		    </entry>
+		    <entry colname="2">
+		      <para>
+			Identifies which DNSKEY records should be published
+			as DS records in the parent zone.
+		      </para>
+		    </entry>
+		  </row>
+		  <row rowsep="0">
+		    <entry colname="1">
+		      <para>
+			CDS
+		      </para>
+		    </entry>
+		    <entry colname="2">
+		      <para>
+			Contains the set of DS records that should be published
+			by the parent zone.
+		      </para>
+		    </entry>
+		  </row>
+		  <row rowsep="0">
+		    <entry colname="1">
+		      <para>
 			CERT
 		      </para>
 		    </entry>
@@ -12373,6 +12597,20 @@ example.com. NS ns2.example.net.
 		      <para>
 			Is used for identifying which DHCP client is
 			associated with this name.  Described in RFC 4701.
+		      </para>
+		    </entry>
+		  </row>
+		  <row rowsep="0">
+		    <entry colname="1">
+		      <para>
+			DLV
+		      </para>
+		    </entry>
+		    <entry colname="2">
+		      <para>
+			A DNS Look-aside Validation record which contains
+			the records that are used as trust anchors for
+			zones in a DLV namespace.  Described in RFC 4431.
 		      </para>
 		    </entry>
 		  </row>
@@ -12423,6 +12661,54 @@ example.com. NS ns2.example.net.
 		  <row rowsep="0">
 		    <entry colname="1">
 		      <para>
+			EID
+		      </para>
+		    </entry>
+		    <entry colname="2">
+		      <para>
+			End Point Identifier.
+		      </para>
+		    </entry>
+		  </row>
+		  <row rowsep="0">
+		    <entry colname="1">
+		      <para>
+			EUI48
+		      </para>
+		    </entry>
+		    <entry colname="2">
+		      <para>
+			A 48-bit EUI address. Described in RFC 7043.
+		      </para>
+		    </entry>
+		  </row>
+		  <row rowsep="0">
+		    <entry colname="1">
+		      <para>
+			EUI64
+		      </para>
+		    </entry>
+		    <entry colname="2">
+		      <para>
+			A 64-bit EUI address. Described in RFC 7043.
+		      </para>
+		    </entry>
+		  </row>
+		  <row rowsep="0">
+		    <entry colname="1">
+		      <para>
+			GID
+		      </para>
+		    </entry>
+		    <entry colname="2">
+		      <para>
+			Reserved.
+		      </para>
+		    </entry>
+		  </row>
+		  <row rowsep="0">
+		    <entry colname="1">
+		      <para>
 			GPOS
 		      </para>
 		    </entry>
@@ -12442,6 +12728,19 @@ example.com. NS ns2.example.net.
 		      <para>
 			Identifies the CPU and OS used by a host.
 			Described in RFC 1035.
+		      </para>
+		    </entry>
+		  </row>
+		  <row rowsep="0">
+		    <entry colname="1">
+		      <para>
+			HIP
+		      </para>
+		    </entry>
+		    <entry colname="2">
+		      <para>
+			Host Identity Protocol Address.
+			Described in RFC 5205.
 		      </para>
 		    </entry>
 		  </row>
@@ -12502,6 +12801,34 @@ example.com. NS ns2.example.net.
 		  <row rowsep="0">
 		    <entry colname="1">
 		      <para>
+			L32
+		      </para>
+		    </entry>
+		    <entry colname="2">
+		      <para>
+			Holds 32-bit Locator values for
+			Identifier-Locator Network Protocol. Described
+			in RFC 6742.
+		      </para>
+		    </entry>
+		  </row>
+		  <row rowsep="0">
+		    <entry colname="1">
+		      <para>
+			L64
+		      </para>
+		    </entry>
+		    <entry colname="2">
+		      <para>
+			Holds 64-bit Locator values for
+			Identifier-Locator Network Protocol. Described
+			in RFC 6742.
+		      </para>
+		    </entry>
+		  </row>
+		  <row rowsep="0">
+		    <entry colname="1">
+		      <para>
 			LOC
 		      </para>
 		    </entry>
@@ -12509,6 +12836,91 @@ example.com. NS ns2.example.net.
 		      <para>
 			For storing GPS info.  Described in RFC 1876.
 			Experimental.
+		      </para>
+		    </entry>
+		  </row>
+		  <row rowsep="0">
+		    <entry colname="1">
+		      <para>
+			LP
+		      </para>
+		    </entry>
+		    <entry colname="2">
+		      <para>
+			Identifier-Locator Network Protocol.
+			Described in RFC 6742.
+		      </para>
+		    </entry>
+		  </row>
+		  <row rowsep="0">
+		    <entry colname="1">
+		      <para>
+			MB
+		      </para>
+		    </entry>
+		    <entry colname="2">
+		      <para>
+			Mail Box.  Historical.
+		      </para>
+		    </entry>
+		  </row>
+		  <row rowsep="0">
+		    <entry colname="1">
+		      <para>
+			MD
+		      </para>
+		    </entry>
+		    <entry colname="2">
+		      <para>
+			Mail Destination.  Historical.
+		      </para>
+		    </entry>
+		  </row>
+		  <row rowsep="0">
+		    <entry colname="1">
+		      <para>
+			MF
+		      </para>
+		    </entry>
+		    <entry colname="2">
+		      <para>
+			Mail Forwarder.  Historical.
+		      </para>
+		    </entry>
+		  </row>
+		  <row rowsep="0">
+		    <entry colname="1">
+		      <para>
+			MG
+		      </para>
+		    </entry>
+		    <entry colname="2">
+		      <para>
+			Mail Group.  Historical.
+		      </para>
+		    </entry>
+		  </row>
+		  <row rowsep="0">
+		    <entry colname="1">
+		      <para>
+			MINFO
+		      </para>
+		    </entry>
+		    <entry colname="2">
+		      <para>
+			Mail Information.
+		      </para>
+		    </entry>
+		  </row>
+		  <row rowsep="0">
+		    <entry colname="1">
+		      <para>
+			MR
+		      </para>
+		    </entry>
+		    <entry colname="2">
+		      <para>
+			Mail Rename. Historical.
 		      </para>
 		    </entry>
 		  </row>
@@ -12542,6 +12954,32 @@ example.com. NS ns2.example.net.
 		  <row rowsep="0">
 		    <entry colname="1">
 		      <para>
+			NID
+		      </para>
+		    </entry>
+		    <entry colname="2">
+		      <para>
+			Holds values for Node Identifiers in
+			Identifier-Locator Network Protocol. Described
+			in RFC 6742.
+		      </para>
+		    </entry>
+		  </row>
+		  <row rowsep="0">
+		    <entry colname="1">
+		      <para>
+			NIMLOC
+		      </para>
+		    </entry>
+		    <entry colname="2">
+		      <para>
+			Nimrod Locator.
+		      </para>
+		    </entry>
+		  </row>
+		  <row rowsep="0">
+		    <entry colname="1">
+		      <para>
 			NSAP
 		      </para>
 		    </entry>
@@ -12549,6 +12987,18 @@ example.com. NS ns2.example.net.
 		      <para>
 			A network service access point.
 			Described in RFC 1706.
+		      </para>
+		    </entry>
+		  </row>
+		  <row rowsep="0">
+		    <entry colname="1">
+		      <para>
+			NSAP-PTR
+		      </para>
+		    </entry>
+		    <entry colname="2">
+		      <para>
+			Historical.
 		      </para>
 		    </entry>
 		  </row>
@@ -12619,6 +13069,18 @@ example.com. NS ns2.example.net.
 		  <row rowsep="0">
 		    <entry colname="1">
 		      <para>
+			NULL
+		      </para>
+		    </entry>
+		    <entry colname="2">
+		      <para>
+			This is an opaque container.
+		      </para>
+		    </entry>
+		  </row>
+		  <row rowsep="0">
+		    <entry colname="1">
+		      <para>
 			NXT
 		      </para>
 		    </entry>
@@ -12632,6 +13094,18 @@ example.com. NS ns2.example.net.
 			Used in original DNSSEC; replaced by NSEC in
 			DNSSECbis.
 			Described in RFC 2535.
+		      </para>
+		    </entry>
+		  </row>
+		  <row rowsep="0">
+		    <entry colname="1">
+		      <para>
+			OPENPGPKEY
+		      </para>
+		    </entry>
+		    <entry colname="2">
+		      <para>
+			Used to hold an OPENPGPKEY.
 		      </para>
 		    </entry>
 		  </row>
@@ -12772,12 +13246,73 @@ example.com. NS ns2.example.net.
 		  <row rowsep="0">
 		    <entry colname="1">
 		      <para>
+			TLSA
+		      </para>
+		    </entry>
+		    <entry colname="2">
+		      <para>
+			Transport Layer Security Certificate Association.
+			Described in RFC 6698.
+		      </para>
+		    </entry>
+		  </row>
+		  <row rowsep="0">
+		    <entry colname="1">
+		      <para>
 			TXT
 		      </para>
 		    </entry>
 		    <entry colname="2">
 		      <para>
 			Text records.  Described in RFC 1035.
+		      </para>
+		    </entry>
+		  </row>
+		  <row rowsep="0">
+		    <entry colname="1">
+		      <para>
+			UID
+		      </para>
+		    </entry>
+		    <entry colname="2">
+		      <para>
+			Reserved.
+		      </para>
+		    </entry>
+		  </row>
+		  <row rowsep="0">
+		    <entry colname="1">
+		      <para>
+			UINFO
+		      </para>
+		    </entry>
+		    <entry colname="2">
+		      <para>
+			Reserved.
+		      </para>
+		    </entry>
+		  </row>
+		  <row rowsep="0">
+		    <entry colname="1">
+		      <para>
+			UNSPEC
+		      </para>
+		    </entry>
+		    <entry colname="2">
+		      <para>
+			Reserved. Historical.
+		      </para>
+		    </entry>
+		  </row>
+		  <row rowsep="0">
+		    <entry colname="1">
+		      <para>
+			URI
+		      </para>
+		    </entry>
+		    <entry colname="2">
+		      <para>
+			Holds a URI. Described in RFC 7553.
 		      </para>
 		    </entry>
 		  </row>
@@ -13444,7 +13979,7 @@ example.com. NS ns2.example.net.
 	    <para>
 	      When used in the label (or name) field, the asperand or
 	      at-sign (@) symbol represents the current origin.
-	      At the start of the zone file, it is the 
+	      At the start of the zone file, it is the
 	      &lt;<varname>zone_name</varname>&gt; (followed by
 	      trailing dot).
 	    </para>

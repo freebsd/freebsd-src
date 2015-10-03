@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007, 2009-2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007, 2009-2012, 2015  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -989,10 +989,6 @@ dns_name_split(dns_name_t *name, unsigned int suffixlabels,
  *
  *\li	'suffix' is a valid name or NULL, and cannot be read-only.
  *
- *\li	If non-NULL, 'prefix' and 'suffix' must have dedicated buffers.
- *
- *\li	'prefix' and 'suffix' cannot point to the same buffer.
- *
  * Ensures:
  *
  *\li	On success:
@@ -1161,6 +1157,7 @@ dns_name_tostring(dns_name_t *source, char **target, isc_mem_t *mctx);
  * Returns:
  *
  *\li	ISC_R_SUCCESS
+ *\li	ISC_R_NOMEMORY
  *
  *\li	Any error that dns_name_totext() can return.
  */
@@ -1281,6 +1278,12 @@ dns_name_destroy(void);
  * Note: dns_name_settotextfilter(NULL); should be called for all
  * threads which have called dns_name_settotextfilter() with a
  * non-NULL argument prior to calling dns_name_destroy();
+ */
+
+isc_boolean_t
+dns_name_isdnssd(const dns_name_t *owner);
+/*%<
+ * Determine if the 'owner' is a DNS-SD prefix.
  */
 
 ISC_LANG_ENDDECLS

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2007, 2009, 2011, 2012, 2014  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2007, 2009, 2011, 2012, 2014, 2015  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -37,7 +37,7 @@ fromtext_tkey(ARGS_FROMTEXT) {
 	long i;
 	char *e;
 
-	REQUIRE(type == 249);
+	REQUIRE(type == dns_rdatatype_tkey);
 
 	UNUSED(type);
 	UNUSED(rdclass);
@@ -132,7 +132,7 @@ totext_tkey(ARGS_TOTEXT) {
 	dns_name_t prefix;
 	isc_boolean_t sub;
 
-	REQUIRE(rdata->type == 249);
+	REQUIRE(rdata->type == dns_rdatatype_tkey);
 	REQUIRE(rdata->length != 0);
 
 	dns_rdata_toregion(rdata, &sr);
@@ -247,7 +247,7 @@ fromwire_tkey(ARGS_FROMWIRE) {
 	unsigned long n;
 	dns_name_t name;
 
-	REQUIRE(type == 249);
+	REQUIRE(type == dns_rdatatype_tkey);
 
 	UNUSED(type);
 	UNUSED(rdclass);
@@ -303,7 +303,7 @@ towire_tkey(ARGS_TOWIRE) {
 	dns_name_t name;
 	dns_offsets_t offsets;
 
-	REQUIRE(rdata->type == 249);
+	REQUIRE(rdata->type == dns_rdatatype_tkey);
 	REQUIRE(rdata->length != 0);
 
 	dns_compress_setmethods(cctx, DNS_COMPRESS_NONE);
@@ -329,7 +329,7 @@ compare_tkey(ARGS_COMPARE) {
 
 	REQUIRE(rdata1->type == rdata2->type);
 	REQUIRE(rdata1->rdclass == rdata2->rdclass);
-	REQUIRE(rdata1->type == 249);
+	REQUIRE(rdata1->type == dns_rdatatype_tkey);
 	REQUIRE(rdata1->length != 0);
 	REQUIRE(rdata2->length != 0);
 
@@ -353,7 +353,7 @@ static inline isc_result_t
 fromstruct_tkey(ARGS_FROMSTRUCT) {
 	dns_rdata_tkey_t *tkey = source;
 
-	REQUIRE(type == 249);
+	REQUIRE(type == dns_rdatatype_tkey);
 	REQUIRE(source != NULL);
 	REQUIRE(tkey->common.rdtype == type);
 	REQUIRE(tkey->common.rdclass == rdclass);
@@ -413,7 +413,7 @@ tostruct_tkey(ARGS_TOSTRUCT) {
 	dns_name_t alg;
 	isc_region_t sr;
 
-	REQUIRE(rdata->type == 249);
+	REQUIRE(rdata->type == dns_rdatatype_tkey);
 	REQUIRE(target != NULL);
 	REQUIRE(rdata->length != 0);
 
@@ -519,7 +519,7 @@ additionaldata_tkey(ARGS_ADDLDATA) {
 	UNUSED(add);
 	UNUSED(arg);
 
-	REQUIRE(rdata->type == 249);
+	REQUIRE(rdata->type == dns_rdatatype_tkey);
 
 	return (ISC_R_SUCCESS);
 }
@@ -530,7 +530,7 @@ digest_tkey(ARGS_DIGEST) {
 	UNUSED(digest);
 	UNUSED(arg);
 
-	REQUIRE(rdata->type == 249);
+	REQUIRE(rdata->type == dns_rdatatype_tkey);
 
 	return (ISC_R_NOTIMPLEMENTED);
 }
@@ -538,7 +538,7 @@ digest_tkey(ARGS_DIGEST) {
 static inline isc_boolean_t
 checkowner_tkey(ARGS_CHECKOWNER) {
 
-	REQUIRE(type == 249);
+	REQUIRE(type == dns_rdatatype_tkey);
 
 	UNUSED(name);
 	UNUSED(type);
@@ -551,7 +551,7 @@ checkowner_tkey(ARGS_CHECKOWNER) {
 static inline isc_boolean_t
 checknames_tkey(ARGS_CHECKNAMES) {
 
-	REQUIRE(rdata->type == 249);
+	REQUIRE(rdata->type == dns_rdatatype_tkey);
 
 	UNUSED(rdata);
 	UNUSED(owner);

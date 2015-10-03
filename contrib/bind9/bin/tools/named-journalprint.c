@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2009  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2009, 2015  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -22,6 +22,7 @@
 
 #include <isc/log.h>
 #include <isc/mem.h>
+#include <isc/print.h>
 #include <isc/util.h>
 
 #include <dns/journal.h>

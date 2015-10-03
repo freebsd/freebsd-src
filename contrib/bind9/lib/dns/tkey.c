@@ -15,9 +15,6 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/*
- * $Id$
- */
 /*! \file */
 #include <config.h>
 
@@ -25,6 +22,7 @@
 #include <isc/entropy.h>
 #include <isc/md5.h>
 #include <isc/mem.h>
+#include <isc/print.h>
 #include <isc/string.h>
 #include <isc/util.h>
 
@@ -45,6 +43,7 @@
 #include <dst/dst.h>
 #include <dst/gssapi.h>
 
+#define TEMP_BUFFER_SZ 8192
 #define TKEY_RANDOM_AMOUNT 16
 
 #define RETERR(x) do { \
@@ -67,19 +66,38 @@ tkey_log(const char *fmt, ...) {
 }
 
 static void
-_dns_tkey_dumpmessage(dns_message_t *msg) {
+dumpmessage(dns_message_t *msg) {
 	isc_buffer_t outbuf;
-	unsigned char output[4096];
+	unsigned char *output;
+	int len = TEMP_BUFFER_SZ;
 	isc_result_t result;
 
-	isc_buffer_init(&outbuf, output, sizeof(output));
-	result = dns_message_totext(msg, &dns_master_style_debug, 0,
-				    &outbuf);
-	if (result != ISC_R_SUCCESS)
-		fprintf(stderr, "Warning: dns_message_totext returned: %s\n",
-			dns_result_totext(result));
-	fprintf(stderr, "%.*s\n", (int)isc_buffer_usedlength(&outbuf),
-		(char *)isc_buffer_base(&outbuf));
+	for (;;) {
+		output = isc_mem_get(msg->mctx, len);
+		if (output == NULL)
+			return;
+
+		isc_buffer_init(&outbuf, output, len);
+		result = dns_message_totext(msg, &dns_master_style_debug,
+					    0, &outbuf);
+		if (result == ISC_R_NOSPACE) {
+			isc_mem_put(msg->mctx, output, len);
+			len *= 2;
+			continue;
+		}
+
+		if (result == ISC_R_SUCCESS)
+			tkey_log("%.*s",
+				 (int)isc_buffer_usedlength(&outbuf),
+				 (char *)isc_buffer_base(&outbuf));
+		else
+			tkey_log("Warning: dns_message_totext: %s",
+				 dns_result_totext(result));
+		break;
+	}
+
+	if (output != NULL)
+		isc_mem_put(msg->mctx, output, len);
 }
 
 isc_result_t
@@ -163,9 +181,7 @@ add_rdata_to_list(dns_message_t *msg, dns_name_t *name, dns_rdata_t *rdata,
 	RETERR(dns_message_gettemprdatalist(msg, &newlist));
 	newlist->rdclass = newrdata->rdclass;
 	newlist->type = newrdata->type;
-	newlist->covers = 0;
 	newlist->ttl = ttl;
-	ISC_LIST_INIT(newlist->rdata);
 	ISC_LIST_APPEND(newlist->rdata, newrdata, link);
 
 	RETERR(dns_message_gettemprdataset(msg, &newset));
@@ -862,6 +878,7 @@ buildquery(dns_message_t *msg, dns_name_t *name,
 	dns_rdata_t *rdata = NULL;
 	isc_buffer_t *dynbuf = NULL, *anamebuf = NULL, *qnamebuf = NULL;
 	isc_result_t result;
+	unsigned int len;
 
 	REQUIRE(msg != NULL);
 	REQUIRE(name != NULL);
@@ -875,9 +892,10 @@ buildquery(dns_message_t *msg, dns_name_t *name,
 	dns_rdataset_makequestion(question, dns_rdataclass_any,
 				  dns_rdatatype_tkey);
 
-	RETERR(isc_buffer_allocate(msg->mctx, &dynbuf, 4096));
-	RETERR(isc_buffer_allocate(msg->mctx, &anamebuf, DNS_NAME_MAXWIRE));
-	RETERR(isc_buffer_allocate(msg->mctx, &qnamebuf, DNS_NAME_MAXWIRE));
+	len = 16 + tkey->algorithm.length + tkey->keylen + tkey->otherlen;
+	RETERR(isc_buffer_allocate(msg->mctx, &dynbuf, len));
+	RETERR(isc_buffer_allocate(msg->mctx, &anamebuf, name->length));
+	RETERR(isc_buffer_allocate(msg->mctx, &qnamebuf, name->length));
 	RETERR(dns_message_gettemprdata(msg, &rdata));
 
 	RETERR(dns_rdata_fromstruct(rdata, dns_rdataclass_any,
@@ -887,9 +905,6 @@ buildquery(dns_message_t *msg, dns_name_t *name,
 	RETERR(dns_message_gettemprdatalist(msg, &tkeylist));
 	tkeylist->rdclass = dns_rdataclass_any;
 	tkeylist->type = dns_rdatatype_tkey;
-	tkeylist->covers = 0;
-	tkeylist->ttl = 0;
-	ISC_LIST_INIT(tkeylist->rdata);
 	ISC_LIST_APPEND(tkeylist->rdata, rdata, link);
 
 	RETERR(dns_message_gettemprdataset(msg, &tkeyset));
@@ -897,10 +912,10 @@ buildquery(dns_message_t *msg, dns_name_t *name,
 	RETERR(dns_rdatalist_tordataset(tkeylist, tkeyset));
 
 	dns_name_init(qname, NULL);
-	dns_name_copy(name, qname, qnamebuf);
+	RETERR(dns_name_copy(name, qname, qnamebuf));
 
 	dns_name_init(aname, NULL);
-	dns_name_copy(name, aname, anamebuf);
+	RETERR(dns_name_copy(name, aname, anamebuf));
 
 	ISC_LIST_APPEND(qname->list, question, link);
 	ISC_LIST_APPEND(aname->list, tkeyset, link);
@@ -935,7 +950,6 @@ buildquery(dns_message_t *msg, dns_name_t *name,
 		isc_buffer_free(&qnamebuf);
 	if (anamebuf != NULL)
 		isc_buffer_free(&anamebuf);
-	printf("buildquery error\n");
 	return (result);
 }
 
@@ -1027,7 +1041,7 @@ dns_tkey_buildgssquery(dns_message_t *msg, dns_name_t *name, dns_name_t *gname,
 	isc_result_t result;
 	isc_stdtime_t now;
 	isc_buffer_t token;
-	unsigned char array[4096];
+	unsigned char array[TEMP_BUFFER_SZ];
 
 	UNUSED(intoken);
 
@@ -1064,12 +1078,7 @@ dns_tkey_buildgssquery(dns_message_t *msg, dns_name_t *name, dns_name_t *gname,
 	tkey.other = NULL;
 	tkey.otherlen = 0;
 
-	RETERR(buildquery(msg, name, &tkey, win2k));
-
-	return (ISC_R_SUCCESS);
-
- failure:
-	return (result);
+	return (buildquery(msg, name, &tkey, win2k));
 }
 
 isc_result_t
@@ -1299,8 +1308,8 @@ dns_tkey_processgssresponse(dns_message_t *qmsg, dns_message_t *rmsg,
 	    !dns_name_equal(&rtkey.algorithm, &qtkey.algorithm)) {
 		tkey_log("dns_tkey_processgssresponse: tkey mode invalid "
 			 "or error set(2) %d", rtkey.error);
-		_dns_tkey_dumpmessage(qmsg);
-		_dns_tkey_dumpmessage(rmsg);
+		dumpmessage(qmsg);
+		dumpmessage(rmsg);
 		result = DNS_R_INVALIDTKEY;
 		goto failure;
 	}

@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Copyright (C) 2004, 2007, 2012, 2013  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2004, 2007, 2012, 2013, 2015  Internet Systems Consortium, Inc. ("ISC")
 # Copyright (C) 2000, 2001, 2003  Internet Software Consortium.
 #
 # Permission to use, copy, modify, and/or distribute this software for any
@@ -40,6 +40,7 @@ Libraries:
 	dns
 	lwres
 	bind9
+	irs
 EOF
 	exit $1
 }
@@ -82,7 +83,13 @@ while test $# -gt 0; do
 	--libs)
 		echo_libs=true;
 		;;
-	isc)
+	irs)
+		libirs=true;
+		libdns=true;
+		libisccfg=true;
+		libisc=true;
+		;;
+	isc) 
 		libisc=true;
 		;;
 	isccc)
@@ -131,9 +138,12 @@ if test x"$echo_cflags" = x"true"; then
 fi
 if test x"$echo_libs" = x"true"; then
 	if test x"${exec_prefix_set}" = x"true"; then
-		includes="-L${exec_prefix}/lib"
+		libs="-L${exec_prefix}/lib"
 	else
 		libs="-L${libdir}"
+	fi
+	if test x"$libirs" = x"true" ; then
+		libs="$libs -lirs"
 	fi
 	if test x"$liblwres" = x"true" ; then
 		libs="$libs -llwres"

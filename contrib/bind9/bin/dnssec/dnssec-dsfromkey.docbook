@@ -2,7 +2,7 @@
                "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd"
                [<!ENTITY mdash "&#8212;">]>
 <!--
- - Copyright (C) 2008-2012, 2014  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2008-2012, 2014, 2015  Internet Systems Consortium, Inc. ("ISC")
  -
  - Permission to use, copy, modify, and/or distribute this software for any
  - purpose with or without fee is hereby granted, provided that the above
@@ -41,6 +41,7 @@
       <year>2011</year>
       <year>2012</year>
       <year>2014</year>
+      <year>2015</year>
       <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
     </copyright>
   </docinfo>
@@ -52,6 +53,7 @@
       <arg><option>-1</option></arg>
       <arg><option>-2</option></arg>
       <arg><option>-a <replaceable class="parameter">alg</replaceable></option></arg>
+      <arg><option>-C</option></arg>
       <arg><option>-l <replaceable class="parameter">domain</replaceable></option></arg>
       <arg><option>-T <replaceable class="parameter">TTL</replaceable></option></arg>
       <arg choice="req">keyfile</arg>
@@ -123,6 +125,16 @@
       </varlistentry>
 
       <varlistentry>
+        <term>-C</term>
+        <listitem>
+          <para>
+            Generate CDS records rather than DS records.  This is mutually
+	    exclusive with generating lookaside records.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
         <term>-T <replaceable class="parameter">TTL</replaceable></term>
         <listitem>
           <para>
@@ -182,7 +194,8 @@
             <option>domain</option> is appended to the name for each
             record in the set.
             The DNSSEC Lookaside Validation (DLV) RR is described
-            in RFC 4431.
+            in RFC 4431.  This is mutually exclusive with generating
+	    CDS records.
           </para>
         </listitem>
       </varlistentry>

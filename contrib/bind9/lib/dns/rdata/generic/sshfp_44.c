@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2006, 2007, 2009, 2011-2013  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2006, 2007, 2009, 2011-2013, 2015  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -28,7 +28,7 @@ static inline isc_result_t
 fromtext_sshfp(ARGS_FROMTEXT) {
 	isc_token_t token;
 
-	REQUIRE(type == 44);
+	REQUIRE(type == dns_rdatatype_sshfp);
 
 	UNUSED(type);
 	UNUSED(rdclass);
@@ -66,7 +66,7 @@ totext_sshfp(ARGS_TOTEXT) {
 	char buf[sizeof("64000 ")];
 	unsigned int n;
 
-	REQUIRE(rdata->type == 44);
+	REQUIRE(rdata->type == dns_rdatatype_sshfp);
 	REQUIRE(rdata->length != 0);
 
 	UNUSED(tctx);
@@ -109,7 +109,7 @@ static inline isc_result_t
 fromwire_sshfp(ARGS_FROMWIRE) {
 	isc_region_t sr;
 
-	REQUIRE(type == 44);
+	REQUIRE(type == dns_rdatatype_sshfp);
 
 	UNUSED(type);
 	UNUSED(rdclass);
@@ -128,7 +128,7 @@ static inline isc_result_t
 towire_sshfp(ARGS_TOWIRE) {
 	isc_region_t sr;
 
-	REQUIRE(rdata->type == 44);
+	REQUIRE(rdata->type == dns_rdatatype_sshfp);
 	REQUIRE(rdata->length != 0);
 
 	UNUSED(cctx);
@@ -144,7 +144,7 @@ compare_sshfp(ARGS_COMPARE) {
 
 	REQUIRE(rdata1->type == rdata2->type);
 	REQUIRE(rdata1->rdclass == rdata2->rdclass);
-	REQUIRE(rdata1->type == 44);
+	REQUIRE(rdata1->type == dns_rdatatype_sshfp);
 	REQUIRE(rdata1->length != 0);
 	REQUIRE(rdata2->length != 0);
 
@@ -157,7 +157,7 @@ static inline isc_result_t
 fromstruct_sshfp(ARGS_FROMSTRUCT) {
 	dns_rdata_sshfp_t *sshfp = source;
 
-	REQUIRE(type == 44);
+	REQUIRE(type == dns_rdatatype_sshfp);
 	REQUIRE(source != NULL);
 	REQUIRE(sshfp->common.rdtype == type);
 	REQUIRE(sshfp->common.rdclass == rdclass);
@@ -176,7 +176,7 @@ tostruct_sshfp(ARGS_TOSTRUCT) {
 	dns_rdata_sshfp_t *sshfp = target;
 	isc_region_t region;
 
-	REQUIRE(rdata->type == 44);
+	REQUIRE(rdata->type == dns_rdatatype_sshfp);
 	REQUIRE(target != NULL);
 	REQUIRE(rdata->length != 0);
 
@@ -205,7 +205,7 @@ freestruct_sshfp(ARGS_FREESTRUCT) {
 	dns_rdata_sshfp_t *sshfp = source;
 
 	REQUIRE(sshfp != NULL);
-	REQUIRE(sshfp->common.rdtype == 44);
+	REQUIRE(sshfp->common.rdtype == dns_rdatatype_sshfp);
 
 	if (sshfp->mctx == NULL)
 		return;
@@ -217,7 +217,7 @@ freestruct_sshfp(ARGS_FREESTRUCT) {
 
 static inline isc_result_t
 additionaldata_sshfp(ARGS_ADDLDATA) {
-	REQUIRE(rdata->type == 44);
+	REQUIRE(rdata->type == dns_rdatatype_sshfp);
 
 	UNUSED(rdata);
 	UNUSED(add);
@@ -230,7 +230,7 @@ static inline isc_result_t
 digest_sshfp(ARGS_DIGEST) {
 	isc_region_t r;
 
-	REQUIRE(rdata->type == 44);
+	REQUIRE(rdata->type == dns_rdatatype_sshfp);
 
 	dns_rdata_toregion(rdata, &r);
 
@@ -240,7 +240,7 @@ digest_sshfp(ARGS_DIGEST) {
 static inline isc_boolean_t
 checkowner_sshfp(ARGS_CHECKOWNER) {
 
-	REQUIRE(type == 44);
+	REQUIRE(type == dns_rdatatype_sshfp);
 
 	UNUSED(name);
 	UNUSED(type);
@@ -253,7 +253,7 @@ checkowner_sshfp(ARGS_CHECKOWNER) {
 static inline isc_boolean_t
 checknames_sshfp(ARGS_CHECKNAMES) {
 
-	REQUIRE(rdata->type == 44);
+	REQUIRE(rdata->type == dns_rdatatype_sshfp);
 
 	UNUSED(rdata);
 	UNUSED(owner);

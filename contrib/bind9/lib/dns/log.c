@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007, 2009, 2011-2014  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007, 2009, 2011-2015  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -14,8 +14,6 @@
  * OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
  */
-
-/* $Id: log.c,v 1.49 2011/10/13 22:48:24 tbox Exp $ */
 
 /*! \file */
 
@@ -47,6 +45,7 @@ LIBDNS_EXTERNAL_DATA isc_logcategory_t dns_categories[] = {
 	{ "rpz",	0 },
 	{ "rate-limit",	0 },
 	{ "cname",	0 },
+	{ "spill",	0 },
 	{ NULL, 	0 }
 };
 

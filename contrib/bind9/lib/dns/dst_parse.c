@@ -1,5 +1,5 @@
 /*
- * Portions Copyright (C) 2004-2013  Internet Systems Consortium, Inc. ("ISC")
+ * Portions Copyright (C) 2004-2013, 2015  Internet Systems Consortium, Inc. ("ISC")
  * Portions Copyright (C) 1999-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -38,13 +38,14 @@
 
 #include <isc/base64.h>
 #include <isc/dir.h>
+#include <isc/file.h>
 #include <isc/fsaccess.h>
 #include <isc/lex.h>
 #include <isc/mem.h>
+#include <isc/print.h>
 #include <isc/stdtime.h>
 #include <isc/string.h>
 #include <isc/util.h>
-#include <isc/file.h>
 
 #include <dns/time.h>
 #include <dns/log.h>

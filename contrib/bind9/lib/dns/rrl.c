@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013, 2014  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2013-2015  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -376,7 +376,7 @@ hash_key(const dns_rrl_key_t *key) {
 	int i;
 
 	hval = key->w[0];
-	for (i = sizeof(*key) / sizeof(key->w[0]) - 1; i >= 0; --i) {
+	for (i = sizeof(key->w) / sizeof(key->w[0]) - 1; i >= 0; --i) {
 		hval = key->w[i] + (hval<<1);
 	}
 	return (hval);
@@ -1161,22 +1161,17 @@ dns_rrl(dns_view_t *view,
 						 client_addr, now,
 						 log_buf, log_buf_len);
 		if (rrl_all_result != DNS_RRL_RESULT_OK) {
-			int level;
-
 			e = e_all;
 			rrl_result = rrl_all_result;
-			if (rrl_result == DNS_RRL_RESULT_OK)
-				level = DNS_RRL_LOG_DEBUG2;
-			else
-				level = DNS_RRL_LOG_DEBUG1;
-			if (isc_log_wouldlog(dns_lctx, level)) {
+			if (isc_log_wouldlog(dns_lctx, DNS_RRL_LOG_DEBUG1)) {
 				make_log_buf(rrl, e,
 					     "prefer all-per-second limiting ",
 					     NULL, ISC_TRUE, qname, ISC_FALSE,
 					     DNS_RRL_RESULT_OK, resp_result,
 					     log_buf, log_buf_len);
 				isc_log_write(dns_lctx, DNS_LOGCATEGORY_RRL,
-					      DNS_LOGMODULE_REQUEST, level,
+					      DNS_LOGMODULE_REQUEST,
+					      DNS_RRL_LOG_DEBUG1,
 					      "%s", log_buf);
 			}
 		}

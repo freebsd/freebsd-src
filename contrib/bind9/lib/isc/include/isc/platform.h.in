@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2010, 2013, 2014  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2010, 2013-2015  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -14,8 +14,6 @@
  * OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
  */
-
-/* $Id: platform.h.in,v 1.56 2010/12/18 01:56:23 each Exp $ */
 
 #ifndef ISC_PLATFORM_H
 #define ISC_PLATFORM_H 1
@@ -170,6 +168,16 @@
  * If this system need a modern sprintf() that returns (int) not (char*).
  */
 @ISC_PLATFORM_NEEDSPRINTF@
+
+/*! \brief
+ * If this system need a modern printf() that format size %z (size_t).
+ */
+@ISC_PLATFORM_NEEDPRINTF@
+
+/*! \brief
+ * If this system need a modern fprintf() that format size %z (size_t).
+ */
+@ISC_PLATFORM_NEEDFPRINTF@
 
 /*! \brief
  * The printf format string modifier to use with isc_uint64_t values.

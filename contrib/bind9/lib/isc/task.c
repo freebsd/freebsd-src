@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2012, 2014  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2012, 2014, 2015  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -34,6 +34,7 @@
 #include <isc/mem.h>
 #include <isc/msgs.h>
 #include <isc/platform.h>
+#include <isc/print.h>
 #include <isc/string.h>
 #include <isc/task.h>
 #include <isc/thread.h>
@@ -156,6 +157,13 @@ struct isc__taskmgr {
 	isc_boolean_t			pause_requested;
 	isc_boolean_t			exclusive_requested;
 	isc_boolean_t			exiting;
+
+	/*
+	 * Multiple threads can read/write 'excl' at the same time, so we need
+	 * to protect the access.  We can't use 'lock' since isc_task_detach()
+	 * will try to acquire it.
+	 */
+	isc_mutex_t			excl_lock;
 	isc__task_t			*excl;
 #ifdef USE_SHARED_MANAGER
 	unsigned int			refs;
@@ -1307,6 +1315,7 @@ manager_free(isc__taskmgr_t *manager) {
 	isc_mem_free(manager->mctx, manager->threads);
 #endif /* USE_WORKER_THREADS */
 	DESTROYLOCK(&manager->lock);
+	DESTROYLOCK(&manager->excl_lock);
 	manager->common.impmagic = 0;
 	manager->common.magic = 0;
 	mctx = manager->mctx;
@@ -1359,6 +1368,11 @@ isc__taskmgr_create(isc_mem_t *mctx, unsigned int workers,
 	result = isc_mutex_init(&manager->lock);
 	if (result != ISC_R_SUCCESS)
 		goto cleanup_mgr;
+	result = isc_mutex_init(&manager->excl_lock);
+	if (result != ISC_R_SUCCESS) {
+		DESTROYLOCK(&manager->lock);
+		goto cleanup_mgr;
+	}
 
 #ifdef USE_WORKER_THREADS
 	manager->workers = 0;
@@ -1490,8 +1504,10 @@ isc__taskmgr_destroy(isc_taskmgr_t **managerp) {
 	/*
 	 * Detach the exclusive task before acquiring the manager lock
 	 */
+	LOCK(&manager->excl_lock);
 	if (manager->excl != NULL)
 		isc__task_detach((isc_task_t **) &manager->excl);
+	UNLOCK(&manager->excl_lock);
 
 	/*
 	 * Unlike elsewhere, we're going to hold this lock a long time.
@@ -1650,23 +1666,29 @@ isc__taskmgr_setexcltask(isc_taskmgr_t *mgr0, isc_task_t *task0) {
 
 	REQUIRE(VALID_MANAGER(mgr));
 	REQUIRE(VALID_TASK(task));
+	LOCK(&mgr->excl_lock);
 	if (mgr->excl != NULL)
 		isc__task_detach((isc_task_t **) &mgr->excl);
 	isc__task_attach(task0, (isc_task_t **) &mgr->excl);
+	UNLOCK(&mgr->excl_lock);
 }
 
 ISC_TASKFUNC_SCOPE isc_result_t
 isc__taskmgr_excltask(isc_taskmgr_t *mgr0, isc_task_t **taskp) {
 	isc__taskmgr_t *mgr = (isc__taskmgr_t *) mgr0;
+	isc_result_t result = ISC_R_SUCCESS;
 
 	REQUIRE(VALID_MANAGER(mgr));
 	REQUIRE(taskp != NULL && *taskp == NULL);
 
-	if (mgr->excl == NULL)
-		return (ISC_R_NOTFOUND);
+	LOCK(&mgr->excl_lock);
+	if (mgr->excl != NULL)
+		isc__task_attach((isc_task_t *) mgr->excl, taskp);
+	else
+		result = ISC_R_NOTFOUND;
+	UNLOCK(&mgr->excl_lock);
 
-	isc__task_attach((isc_task_t *) mgr->excl, taskp);
-	return (ISC_R_SUCCESS);
+	return (result);
 }
 
 ISC_TASKFUNC_SCOPE isc_result_t

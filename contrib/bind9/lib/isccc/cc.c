@@ -1,5 +1,5 @@
 /*
- * Portions Copyright (C) 2004-2007, 2012, 2013  Internet Systems Consortium, Inc. ("ISC")
+ * Portions Copyright (C) 2004-2007, 2012, 2013, 2015  Internet Systems Consortium, Inc. ("ISC")
  * Portions Copyright (C) 2001-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -160,7 +160,7 @@ table_towire(isccc_sexpr_t *alist, isccc_region_t *target)
 	isccc_sexpr_t *kv, *elt, *k, *v;
 	char *ks;
 	isc_result_t result;
-	size_t len;
+	unsigned int len;
 
 	for (elt = isccc_alist_first(alist);
 	     elt != NULL;
@@ -169,7 +169,7 @@ table_towire(isccc_sexpr_t *alist, isccc_region_t *target)
 		k = ISCCC_SEXPR_CAR(kv);
 		ks = isccc_sexpr_tostring(k);
 		v = ISCCC_SEXPR_CDR(kv);
-		len = strlen(ks);
+		len = (unsigned int)strlen(ks);
 		INSIST(len <= 255U);
 		/*
 		 * Emit the key name.
@@ -313,8 +313,8 @@ verify(isccc_sexpr_t *alist, unsigned char *data, unsigned int length,
 	/*
 	 * Verify.
 	 */
-	if (!isc_safe_memcmp((unsigned char *) isccc_sexpr_tostring(hmd5),
-			     digestb64, HMD5_LENGTH))
+	if (!isc_safe_memequal((unsigned char *) isccc_sexpr_tostring(hmd5),
+			       digestb64, HMD5_LENGTH))
 		return (ISCCC_R_BADAUTH);
 
 	return (ISC_R_SUCCESS);

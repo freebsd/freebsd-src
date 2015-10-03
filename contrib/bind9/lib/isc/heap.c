@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007, 2010-2014  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007, 2010-2015  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1997-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -74,7 +74,7 @@ struct isc_heap {
 
 isc_result_t
 isc_heap_create(isc_mem_t *mctx, isc_heapcompare_t compare,
-		isc_heapindex_t index, unsigned int size_increment,
+		isc_heapindex_t idx, unsigned int size_increment,
 		isc_heap_t **heapp)
 {
 	isc_heap_t *heap;
@@ -96,7 +96,7 @@ isc_heap_create(isc_mem_t *mctx, isc_heapcompare_t compare,
 	heap->last = 0;
 	heap->array = NULL;
 	heap->compare = compare;
-	heap->index = index;
+	heap->index = idx;
 
 	*heapp = heap;
 
@@ -203,14 +203,14 @@ isc_heap_insert(isc_heap_t *heap, void *elt) {
 }
 
 void
-isc_heap_delete(isc_heap_t *heap, unsigned int index) {
+isc_heap_delete(isc_heap_t *heap, unsigned int idx) {
 	void *elt;
 	isc_boolean_t less;
 
 	REQUIRE(VALID_HEAP(heap));
-	REQUIRE(index >= 1 && index <= heap->last);
+	REQUIRE(idx >= 1 && idx <= heap->last);
 
-	if (index == heap->last) {
+	if (idx == heap->last) {
 		heap->array[heap->last] = NULL;
 		heap->last--;
 	} else {
@@ -218,38 +218,38 @@ isc_heap_delete(isc_heap_t *heap, unsigned int index) {
 		heap->array[heap->last] = NULL;
 		heap->last--;
 
-		less = heap->compare(elt, heap->array[index]);
-		heap->array[index] = elt;
+		less = heap->compare(elt, heap->array[idx]);
+		heap->array[idx] = elt;
 		if (less)
-			float_up(heap, index, heap->array[index]);
+			float_up(heap, idx, heap->array[idx]);
 		else
-			sink_down(heap, index, heap->array[index]);
+			sink_down(heap, idx, heap->array[idx]);
 	}
 }
 
 void
-isc_heap_increased(isc_heap_t *heap, unsigned int index) {
+isc_heap_increased(isc_heap_t *heap, unsigned int idx) {
 	REQUIRE(VALID_HEAP(heap));
-	REQUIRE(index >= 1 && index <= heap->last);
+	REQUIRE(idx >= 1 && idx <= heap->last);
 
-	float_up(heap, index, heap->array[index]);
+	float_up(heap, idx, heap->array[idx]);
 }
 
 void
-isc_heap_decreased(isc_heap_t *heap, unsigned int index) {
+isc_heap_decreased(isc_heap_t *heap, unsigned int idx) {
 	REQUIRE(VALID_HEAP(heap));
-	REQUIRE(index >= 1 && index <= heap->last);
+	REQUIRE(idx >= 1 && idx <= heap->last);
 
-	sink_down(heap, index, heap->array[index]);
+	sink_down(heap, idx, heap->array[idx]);
 }
 
 void *
-isc_heap_element(isc_heap_t *heap, unsigned int index) {
+isc_heap_element(isc_heap_t *heap, unsigned int idx) {
 	REQUIRE(VALID_HEAP(heap));
-	REQUIRE(index >= 1);
+	REQUIRE(idx >= 1);
 
-	if (index <= heap->last)
-		return (heap->array[index]);
+	if (idx <= heap->last)
+		return (heap->array[idx]);
 	return (NULL);
 }
 

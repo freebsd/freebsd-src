@@ -23,6 +23,7 @@
 #include <isc/buffer.h>
 #include <isc/httpd.h>
 #include <isc/mem.h>
+#include <isc/print.h>
 #include <isc/socket.h>
 #include <isc/string.h>
 #include <isc/task.h>
@@ -61,6 +62,7 @@
 
 #define HTTPD_CLOSE		0x0001 /* Got a Connection: close header */
 #define HTTPD_FOUNDHOST		0x0002 /* Got a Host: header */
+#define HTTPD_KEEPALIVE		0x0004 /* Got a Connection: Keep-Alive */
 
 /*% http client */
 struct isc_httpd {
@@ -236,39 +238,40 @@ isc_result_t
 isc_httpdmgr_create(isc_mem_t *mctx, isc_socket_t *sock, isc_task_t *task,
 		    isc_httpdclientok_t *client_ok,
 		    isc_httpdondestroy_t *ondestroy, void *cb_arg,
-		    isc_timermgr_t *tmgr, isc_httpdmgr_t **httpdp)
+		    isc_timermgr_t *tmgr, isc_httpdmgr_t **httpdmgrp)
 {
 	isc_result_t result;
-	isc_httpdmgr_t *httpd;
+	isc_httpdmgr_t *httpdmgr;
 
 	REQUIRE(mctx != NULL);
 	REQUIRE(sock != NULL);
 	REQUIRE(task != NULL);
 	REQUIRE(tmgr != NULL);
-	REQUIRE(httpdp != NULL && *httpdp == NULL);
+	REQUIRE(httpdmgrp != NULL && *httpdmgrp == NULL);
 
-	httpd = isc_mem_get(mctx, sizeof(isc_httpdmgr_t));
-	if (httpd == NULL)
+	httpdmgr = isc_mem_get(mctx, sizeof(isc_httpdmgr_t));
+	if (httpdmgr == NULL)
 		return (ISC_R_NOMEMORY);
 
-	result = isc_mutex_init(&httpd->lock);
+	result = isc_mutex_init(&httpdmgr->lock);
 	if (result != ISC_R_SUCCESS) {
-		isc_mem_put(mctx, httpd, sizeof(isc_httpdmgr_t));
+		isc_mem_put(mctx, httpdmgr, sizeof(isc_httpdmgr_t));
 		return (result);
 	}
-	httpd->mctx = NULL;
-	isc_mem_attach(mctx, &httpd->mctx);
-	httpd->sock = NULL;
-	isc_socket_attach(sock, &httpd->sock);
-	httpd->task = NULL;
-	isc_task_attach(task, &httpd->task);
-	httpd->timermgr = tmgr; /* XXXMLG no attach function? */
-	httpd->client_ok = client_ok;
-	httpd->ondestroy = ondestroy;
-	httpd->cb_arg = cb_arg;
+	httpdmgr->mctx = NULL;
+	isc_mem_attach(mctx, &httpdmgr->mctx);
+	httpdmgr->sock = NULL;
+	isc_socket_attach(sock, &httpdmgr->sock);
+	httpdmgr->task = NULL;
+	isc_task_attach(task, &httpdmgr->task);
+	httpdmgr->timermgr = tmgr; /* XXXMLG no attach function? */
+	httpdmgr->client_ok = client_ok;
+	httpdmgr->ondestroy = ondestroy;
+	httpdmgr->cb_arg = cb_arg;
+	httpdmgr->flags = 0;
 
-	ISC_LIST_INIT(httpd->running);
-	ISC_LIST_INIT(httpd->urls);
+	ISC_LIST_INIT(httpdmgr->running);
+	ISC_LIST_INIT(httpdmgr->urls);
 
 	/* XXXMLG ignore errors on isc_socket_listen() */
 	result = isc_socket_listen(sock, SOMAXCONN);
@@ -281,22 +284,22 @@ isc_httpdmgr_create(isc_mem_t *mctx, isc_socket_t *sock, isc_task_t *task,
 
 	(void)isc_socket_filter(sock, "httpready");
 
-	result = isc_socket_accept(sock, task, isc_httpd_accept, httpd);
+	result = isc_socket_accept(sock, task, isc_httpd_accept, httpdmgr);
 	if (result != ISC_R_SUCCESS)
 		goto cleanup;
 
-	httpd->render_404 = render_404;
-	httpd->render_500 = render_500;
+	httpdmgr->render_404 = render_404;
+	httpdmgr->render_500 = render_500;
 
-	*httpdp = httpd;
+	*httpdmgrp = httpdmgr;
 	return (ISC_R_SUCCESS);
 
   cleanup:
-	isc_task_detach(&httpd->task);
-	isc_socket_detach(&httpd->sock);
-	isc_mem_detach(&httpd->mctx);
-	(void)isc_mutex_destroy(&httpd->lock);
-	isc_mem_put(mctx, httpd, sizeof(isc_httpdmgr_t));
+	isc_task_detach(&httpdmgr->task);
+	isc_socket_detach(&httpdmgr->sock);
+	isc_mem_detach(&httpdmgr->mctx);
+	(void)isc_mutex_destroy(&httpdmgr->lock);
+	isc_mem_put(mctx, httpdmgr, sizeof(isc_httpdmgr_t));
 	return (result);
 }
 
@@ -481,6 +484,13 @@ process_request(isc_httpd_t *httpd, int length) {
 	if (strstr(s, "Host: ") != NULL)
 		httpd->flags |= HTTPD_FOUNDHOST;
 
+	if (strncmp(httpd->protocol, "HTTP/1.0", 8) == 0) {
+		if (strcasestr(s, "Connection: Keep-Alive") != NULL)
+			httpd->flags |= HTTPD_KEEPALIVE;
+		else
+			httpd->flags |= HTTPD_CLOSE;
+	}
+
 	/*
 	 * Standards compliance hooks here.
 	 */
@@ -595,7 +605,7 @@ render_404(const char *url, isc_httpdurl_t *urlinfo,
 	   const char **mimetype, isc_buffer_t *b,
 	   isc_httpdfree_t **freecb, void **freecb_args)
 {
-	static char msg[] = "No such URL.";
+	static char msg[] = "No such URL.\r\n";
 
 	UNUSED(url);
 	UNUSED(urlinfo);
@@ -621,7 +631,7 @@ render_500(const char *url, isc_httpdurl_t *urlinfo,
 	   const char **mimetype, isc_buffer_t *b,
 	   isc_httpdfree_t **freecb, void **freecb_args)
 {
-	static char msg[] = "Internal server failure.";
+	static char msg[] = "Internal server failure.\r\n";
 
 	UNUSED(url);
 	UNUSED(urlinfo);
@@ -724,6 +734,8 @@ isc_httpd_recvdone(isc_task_t *task, isc_event_t *ev) {
 	}
 
 	isc_httpd_response(httpd);
+	if ((httpd->flags & HTTPD_KEEPALIVE) != 0)
+		isc_httpd_addheader(httpd, "Connection", "Keep-Alive");
 	isc_httpd_addheader(httpd, "Content-Type", httpd->mimetype);
 	isc_httpd_addheader(httpd, "Date", datebuf);
 	isc_httpd_addheader(httpd, "Expires", datebuf);

@@ -51,15 +51,35 @@ BIND 9
 	For up-to-date release notes and errata, see
 	http://www.isc.org/software/bind9/releasenotes
 
-BIND 9.9.7-P2
+BIND 9.9.8
 
-       BIND 9.9.7-P1 is a security release addressing the flaw
-       described in CVE-2015-5477.
+	BIND 9.9.8 is a maintenance release and addresses bugs
+	found in BIND 9.9.7 and earlier, as well as the security
+	flaws described in CVE-2015-4620, CVE-2015-5477,
+	CVE-2015-5722, and CVE-2015-5986.
 
-BIND 9.9.7-P1
+	It also makes the following new features available via a
+	compile-time option:
 
-       BIND 9.9.7-P1 is a security release addressing the flaw
-       described in CVE-2015-4620.
+	- New "fetchlimit" quotas are now available for the use of
+	  recursive resolvers that are are under high query load for
+	  domains whose authoritative servers are nonresponsive or are
+	  experiencing a denial of service attack.
+
+	  + "fetches-per-server" limits the number of simultaneous queries
+	    that can be sent to any single authoritative server.  The
+	    configured value is a starting point; it is automatically
+	    adjusted downward if the server is partially or completely
+	    non-responsive. The algorithm used to adjust the quota can be
+	    configured via the "fetch-quota-params" option.
+	  + "fetches-per-zone" limits the number of simultaneous queries
+	    that can be sent for names within a single domain.  (Note:
+	    Unlike "fetches-per-server", this value is not self-tuning.)
+	  + New stats counters have been added to count
+	    queries spilled due to these quotas.
+
+	  NOTE: These options are NOT built in by default; use
+	  "configure --enable-fetchlimit" to enable them.
 
 BIND 9.9.7
 

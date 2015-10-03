@@ -15,11 +15,11 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
-
 /*! \file */
 
 #include <config.h>
+
+#include <stdlib.h>
 
 #include <isc/buffer.h>
 #include <isc/dir.h>
@@ -122,6 +122,7 @@ cfg_rep_t cfg_rep_tuple = { "tuple", free_tuple };
 cfg_rep_t cfg_rep_sockaddr = { "sockaddr", free_noop };
 cfg_rep_t cfg_rep_netprefix = { "netprefix", free_noop };
 cfg_rep_t cfg_rep_void = { "void", free_noop };
+cfg_rep_t cfg_rep_fixedpoint = { "fixedpoint", free_noop };
 
 /*
  * Configuration type definitions.
@@ -601,6 +602,79 @@ cfg_type_t cfg_type_void = {
 	"void", cfg_parse_void, cfg_print_void, cfg_doc_void, &cfg_rep_void,
 	NULL };
 
+/*
+ * Fixed point
+ */
+isc_result_t
+cfg_parse_fixedpoint(cfg_parser_t *pctx, const cfg_type_t *type,
+		     cfg_obj_t **ret)
+{
+	isc_result_t result;
+	cfg_obj_t *obj = NULL;
+	size_t n1, n2, n3, l;
+	const char *p;
+
+	UNUSED(type);
+
+	CHECK(cfg_gettoken(pctx, 0));
+	if (pctx->token.type != isc_tokentype_string) {
+		cfg_parser_error(pctx, CFG_LOG_NEAR,
+				 "expected fixed point number");
+		return (ISC_R_UNEXPECTEDTOKEN);
+	}
+
+
+	p = TOKEN_STRING(pctx);
+	l = strlen(p);
+	n1 = strspn(p, "0123456789");
+	n2 = strspn(p + n1, ".");
+	n3 = strspn(p + n1 + n2, "0123456789");
+
+	if ((n1 + n2 + n3 != l) || (n1 + n3 == 0) ||
+	    n1 > 5 || n2 > 1 || n3 > 2) {
+		cfg_parser_error(pctx, CFG_LOG_NEAR,
+				 "expected fixed point number");
+		return (ISC_R_UNEXPECTEDTOKEN);
+	}
+
+	CHECK(cfg_create_obj(pctx, &cfg_type_fixedpoint, &obj));
+
+	obj->value.uint32 = strtoul(p, NULL, 10) * 100;
+	switch (n3) {
+	case 2:
+		obj->value.uint32 += strtoul(p + n1 + n2, NULL, 10);
+		break;
+	case 1:
+		obj->value.uint32 += strtoul(p + n1 + n2, NULL, 10) * 10;
+		break;
+	}
+	*ret = obj;
+
+ cleanup:
+	return (result);
+}
+
+void
+cfg_print_fixedpoint(cfg_printer_t *pctx, const cfg_obj_t *obj) {
+	char buf[64];
+	int n;
+
+	n = snprintf(buf, sizeof(buf), "%u.%02u",
+		     obj->value.uint32/100, obj->value.uint32%100);
+	INSIST(n > 0 && (size_t)n < sizeof(buf));
+	cfg_print_chars(pctx, buf, strlen(buf));
+}
+
+isc_uint32_t
+cfg_obj_asfixedpoint(const cfg_obj_t *obj) {
+	REQUIRE(obj != NULL && obj->type->rep == &cfg_rep_fixedpoint);
+	return (obj->value.uint32);
+}
+
+cfg_type_t cfg_type_fixedpoint = {
+	"fixedpoint", cfg_parse_fixedpoint, cfg_print_fixedpoint,
+	cfg_doc_terminal, &cfg_rep_fixedpoint, NULL
+};
 
 /*
  * uint32
@@ -1442,10 +1516,11 @@ parse_any_named_map(cfg_parser_t *pctx, cfg_type_t *nametype, const cfg_type_t *
 	CHECK(cfg_parse_obj(pctx, nametype, &idobj));
 	CHECK(cfg_parse_map(pctx, type, &mapobj));
 	mapobj->value.map.id = idobj;
-	idobj = NULL;
 	*ret = mapobj;
+	return (result);
  cleanup:
 	CLEANUP_OBJ(idobj);
+	CLEANUP_OBJ(mapobj);
 	return (result);
 }
 
@@ -2332,9 +2407,10 @@ parser_complain(cfg_parser_t *pctx, isc_boolean_t is_warning,
 			 current_file(pctx), pctx->line);
 
 	len = vsnprintf(message, sizeof(message), format, args);
+#define ELIPSIS " ... "
 	if (len >= sizeof(message))
-		FATAL_ERROR(__FILE__, __LINE__,
-			    "error message would overflow");
+		strcpy(message + sizeof(message) - sizeof(ELIPSIS) - 1,
+		       ELIPSIS);
 
 	if ((flags & (CFG_LOG_NEAR|CFG_LOG_BEFORE|CFG_LOG_NOPREP)) != 0) {
 		isc_region_t r;

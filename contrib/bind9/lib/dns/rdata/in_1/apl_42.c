@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007-2009, 2014  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007-2009, 2014, 2015  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -35,8 +35,8 @@ fromtext_in_apl(ARGS_FROMTEXT) {
 	char *cp, *ap, *slash;
 	int n;
 
-	REQUIRE(type == 42);
-	REQUIRE(rdclass == 1);
+	REQUIRE(type == dns_rdatatype_apl);
+	REQUIRE(rdclass == dns_rdataclass_in);
 
 	UNUSED(type);
 	UNUSED(rdclass);
@@ -120,8 +120,8 @@ totext_in_apl(ARGS_TOTEXT) {
 	const char *sep = "";
 	int n;
 
-	REQUIRE(rdata->type == 42);
-	REQUIRE(rdata->rdclass == 1);
+	REQUIRE(rdata->type == dns_rdatatype_apl);
+	REQUIRE(rdata->rdclass == dns_rdataclass_in);
 
 	UNUSED(tctx);
 
@@ -180,8 +180,8 @@ fromwire_in_apl(ARGS_FROMWIRE) {
 	isc_uint8_t prefix;
 	isc_uint8_t len;
 
-	REQUIRE(type == 42);
-	REQUIRE(rdclass == 1);
+	REQUIRE(type == dns_rdatatype_apl);
+	REQUIRE(rdclass == dns_rdataclass_in);
 
 	UNUSED(type);
 	UNUSED(dctx);
@@ -227,8 +227,8 @@ static inline isc_result_t
 towire_in_apl(ARGS_TOWIRE) {
 	UNUSED(cctx);
 
-	REQUIRE(rdata->type == 42);
-	REQUIRE(rdata->rdclass == 1);
+	REQUIRE(rdata->type == dns_rdatatype_apl);
+	REQUIRE(rdata->rdclass == dns_rdataclass_in);
 
 	return (mem_tobuffer(target, rdata->data, rdata->length));
 }
@@ -240,8 +240,8 @@ compare_in_apl(ARGS_COMPARE) {
 
 	REQUIRE(rdata1->type == rdata2->type);
 	REQUIRE(rdata1->rdclass == rdata2->rdclass);
-	REQUIRE(rdata1->type == 42);
-	REQUIRE(rdata1->rdclass == 1);
+	REQUIRE(rdata1->type == dns_rdatatype_apl);
+	REQUIRE(rdata1->rdclass == dns_rdataclass_in);
 
 	dns_rdata_toregion(rdata1, &r1);
 	dns_rdata_toregion(rdata2, &r2);
@@ -253,8 +253,8 @@ fromstruct_in_apl(ARGS_FROMSTRUCT) {
 	dns_rdata_in_apl_t *apl = source;
 	isc_buffer_t b;
 
-	REQUIRE(type == 42);
-	REQUIRE(rdclass == 1);
+	REQUIRE(type == dns_rdatatype_apl);
+	REQUIRE(rdclass == dns_rdataclass_in);
 	REQUIRE(source != NULL);
 	REQUIRE(apl->common.rdtype == type);
 	REQUIRE(apl->common.rdclass == rdclass);
@@ -271,8 +271,8 @@ tostruct_in_apl(ARGS_TOSTRUCT) {
 	dns_rdata_in_apl_t *apl = target;
 	isc_region_t r;
 
-	REQUIRE(rdata->type == 42);
-	REQUIRE(rdata->rdclass == 1);
+	REQUIRE(rdata->type == dns_rdatatype_apl);
+	REQUIRE(rdata->rdclass == dns_rdataclass_in);
 
 	apl->common.rdclass = rdata->rdclass;
 	apl->common.rdtype = rdata->type;
@@ -294,8 +294,8 @@ freestruct_in_apl(ARGS_FREESTRUCT) {
 	dns_rdata_in_apl_t *apl = source;
 
 	REQUIRE(source != NULL);
-	REQUIRE(apl->common.rdtype == 42);
-	REQUIRE(apl->common.rdclass == 1);
+	REQUIRE(apl->common.rdtype == dns_rdatatype_apl);
+	REQUIRE(apl->common.rdclass == dns_rdataclass_in);
 
 	if (apl->mctx == NULL)
 		return;
@@ -309,8 +309,8 @@ dns_rdata_apl_first(dns_rdata_in_apl_t *apl) {
 	isc_uint32_t length;
 
 	REQUIRE(apl != NULL);
-	REQUIRE(apl->common.rdtype == 42);
-	REQUIRE(apl->common.rdclass == 1);
+	REQUIRE(apl->common.rdtype == dns_rdatatype_apl);
+	REQUIRE(apl->common.rdclass == dns_rdataclass_in);
 	REQUIRE(apl->apl != NULL || apl->apl_len == 0);
 
 	/*
@@ -335,8 +335,8 @@ dns_rdata_apl_next(dns_rdata_in_apl_t *apl) {
 	isc_uint32_t length;
 
 	REQUIRE(apl != NULL);
-	REQUIRE(apl->common.rdtype == 42);
-	REQUIRE(apl->common.rdclass == 1);
+	REQUIRE(apl->common.rdtype == dns_rdatatype_apl);
+	REQUIRE(apl->common.rdclass == dns_rdataclass_in);
 	REQUIRE(apl->apl != NULL || apl->apl_len == 0);
 
 	/*
@@ -367,8 +367,8 @@ dns_rdata_apl_current(dns_rdata_in_apl_t *apl, dns_rdata_apl_ent_t *ent) {
 	isc_uint32_t length;
 
 	REQUIRE(apl != NULL);
-	REQUIRE(apl->common.rdtype == 42);
-	REQUIRE(apl->common.rdclass == 1);
+	REQUIRE(apl->common.rdtype == dns_rdatatype_apl);
+	REQUIRE(apl->common.rdclass == dns_rdataclass_in);
 	REQUIRE(ent != NULL);
 	REQUIRE(apl->apl != NULL || apl->apl_len == 0);
 	REQUIRE(apl->offset <= apl->apl_len);
@@ -401,8 +401,8 @@ dns_rdata_apl_current(dns_rdata_in_apl_t *apl, dns_rdata_apl_ent_t *ent) {
 
 static inline isc_result_t
 additionaldata_in_apl(ARGS_ADDLDATA) {
-	REQUIRE(rdata->type == 42);
-	REQUIRE(rdata->rdclass == 1);
+	REQUIRE(rdata->type == dns_rdatatype_apl);
+	REQUIRE(rdata->rdclass == dns_rdataclass_in);
 
 	(void)add;
 	(void)arg;
@@ -414,8 +414,8 @@ static inline isc_result_t
 digest_in_apl(ARGS_DIGEST) {
 	isc_region_t r;
 
-	REQUIRE(rdata->type == 42);
-	REQUIRE(rdata->rdclass == 1);
+	REQUIRE(rdata->type == dns_rdatatype_apl);
+	REQUIRE(rdata->rdclass == dns_rdataclass_in);
 
 	dns_rdata_toregion(rdata, &r);
 
@@ -425,8 +425,8 @@ digest_in_apl(ARGS_DIGEST) {
 static inline isc_boolean_t
 checkowner_in_apl(ARGS_CHECKOWNER) {
 
-	REQUIRE(type == 42);
-	REQUIRE(rdclass == 1);
+	REQUIRE(type == dns_rdatatype_apl);
+	REQUIRE(rdclass == dns_rdataclass_in);
 
 	UNUSED(name);
 	UNUSED(type);
@@ -440,8 +440,8 @@ checkowner_in_apl(ARGS_CHECKOWNER) {
 static inline isc_boolean_t
 checknames_in_apl(ARGS_CHECKNAMES) {
 
-	REQUIRE(rdata->type == 42);
-	REQUIRE(rdata->rdclass == 1);
+	REQUIRE(rdata->type == dns_rdatatype_apl);
+	REQUIRE(rdata->rdclass == dns_rdataclass_in);
 
 	UNUSED(rdata);
 	UNUSED(owner);

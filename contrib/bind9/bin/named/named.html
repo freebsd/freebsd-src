@@ -1,5 +1,5 @@
 <!--
- - Copyright (C) 2004-2009, 2011, 2013, 2014 Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004-2009, 2011, 2013-2015 Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000, 2001, 2003 Internet Software Consortium.
  - 
  - Permission to use, copy, modify, and/or distribute this software for any
@@ -29,10 +29,10 @@
 </div>
 <div class="refsynopsisdiv">
 <h2>Synopsis</h2>
-<div class="cmdsynopsis"><p><code class="command">named</code>  [<code class="option">-4</code>] [<code class="option">-6</code>] [<code class="option">-c <em class="replaceable"><code>config-file</code></em></code>] [<code class="option">-d <em class="replaceable"><code>debug-level</code></em></code>] [<code class="option">-E <em class="replaceable"><code>engine-name</code></em></code>] [<code class="option">-f</code>] [<code class="option">-g</code>] [<code class="option">-m <em class="replaceable"><code>flag</code></em></code>] [<code class="option">-n <em class="replaceable"><code>#cpus</code></em></code>] [<code class="option">-p <em class="replaceable"><code>port</code></em></code>] [<code class="option">-s</code>] [<code class="option">-S <em class="replaceable"><code>#max-socks</code></em></code>] [<code class="option">-t <em class="replaceable"><code>directory</code></em></code>] [<code class="option">-U <em class="replaceable"><code>#listeners</code></em></code>] [<code class="option">-u <em class="replaceable"><code>user</code></em></code>] [<code class="option">-v</code>] [<code class="option">-V</code>] [<code class="option">-x <em class="replaceable"><code>cache-file</code></em></code>]</p></div>
+<div class="cmdsynopsis"><p><code class="command">named</code>  [<code class="option">-4</code>] [<code class="option">-6</code>] [<code class="option">-c <em class="replaceable"><code>config-file</code></em></code>] [<code class="option">-d <em class="replaceable"><code>debug-level</code></em></code>] [<code class="option">-E <em class="replaceable"><code>engine-name</code></em></code>] [<code class="option">-f</code>] [<code class="option">-g</code>] [<code class="option">-M <em class="replaceable"><code>option</code></em></code>] [<code class="option">-m <em class="replaceable"><code>flag</code></em></code>] [<code class="option">-n <em class="replaceable"><code>#cpus</code></em></code>] [<code class="option">-p <em class="replaceable"><code>port</code></em></code>] [<code class="option">-s</code>] [<code class="option">-S <em class="replaceable"><code>#max-socks</code></em></code>] [<code class="option">-t <em class="replaceable"><code>directory</code></em></code>] [<code class="option">-U <em class="replaceable"><code>#listeners</code></em></code>] [<code class="option">-u <em class="replaceable"><code>user</code></em></code>] [<code class="option">-v</code>] [<code class="option">-V</code>] [<code class="option">-x <em class="replaceable"><code>cache-file</code></em></code>]</p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543507"></a><h2>DESCRIPTION</h2>
+<a name="id2543518"></a><h2>DESCRIPTION</h2>
 <p><span><strong class="command">named</strong></span>
       is a Domain Name System (DNS) server,
       part of the BIND 9 distribution from ISC.  For more
@@ -47,7 +47,7 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543531"></a><h2>OPTIONS</h2>
+<a name="id2543543"></a><h2>OPTIONS</h2>
 <div class="variablelist"><dl>
 <dt><span class="term">-4</span></dt>
 <dd><p>
@@ -95,6 +95,14 @@
 <dd><p>
             Run the server in the foreground and force all logging
             to <code class="filename">stderr</code>.
+          </p></dd>
+<dt><span class="term">-M <em class="replaceable"><code>option</code></em></span></dt>
+<dd><p>
+	    Sets the default memory context options.  Currently
+	    the only supported option is
+	    <em class="replaceable"><code>external</code></em>,
+	    which causes the internal memory manager to be bypassed
+	    in favor of system-provided memory allocation functions.
           </p></dd>
 <dt><span class="term">-m <em class="replaceable"><code>flag</code></em></span></dt>
 <dd><p>
@@ -240,7 +248,7 @@
 </dl></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2544021"></a><h2>SIGNALS</h2>
+<a name="id2544192"></a><h2>SIGNALS</h2>
 <p>
       In routine operation, signals should not be used to control
       the nameserver; <span><strong class="command">rndc</strong></span> should be used
@@ -261,7 +269,7 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2544137"></a><h2>CONFIGURATION</h2>
+<a name="id2544308"></a><h2>CONFIGURATION</h2>
 <p>
       The <span><strong class="command">named</strong></span> configuration file is too complex
       to describe in detail here.  A complete description is provided
@@ -278,7 +286,7 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2544310"></a><h2>FILES</h2>
+<a name="id2544344"></a><h2>FILES</h2>
 <div class="variablelist"><dl>
 <dt><span class="term"><code class="filename">/etc/named.conf</code></span></dt>
 <dd><p>
@@ -291,7 +299,7 @@
 </dl></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2544349"></a><h2>SEE ALSO</h2>
+<a name="id2544384"></a><h2>SEE ALSO</h2>
 <p><em class="citetitle">RFC 1033</em>,
       <em class="citetitle">RFC 1034</em>,
       <em class="citetitle">RFC 1035</em>,
@@ -304,7 +312,7 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2544420"></a><h2>AUTHOR</h2>
+<a name="id2544454"></a><h2>AUTHOR</h2>
 <p><span class="corpauthor">Internet Systems Consortium</span>
     </p>
 </div>

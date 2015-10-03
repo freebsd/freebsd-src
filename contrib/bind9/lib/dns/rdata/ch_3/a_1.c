@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005, 2007, 2009, 2014  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2005, 2007, 2009, 2014, 2015  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -32,7 +32,7 @@ fromtext_ch_a(ARGS_FROMTEXT) {
 	dns_name_t name;
 	isc_buffer_t buffer;
 
-	REQUIRE(type == 1);
+	REQUIRE(type == dns_rdatatype_a);
 	REQUIRE(rdclass == dns_rdataclass_ch); /* 3 */
 
 	UNUSED(type);
@@ -72,7 +72,7 @@ totext_ch_a(ARGS_TOTEXT) {
 	char buf[sizeof("0177777")];
 	isc_uint16_t addr;
 
-	REQUIRE(rdata->type == 1);
+	REQUIRE(rdata->type == dns_rdatatype_a);
 	REQUIRE(rdata->rdclass == dns_rdataclass_ch); /* 3 */
 	REQUIRE(rdata->length != 0);
 
@@ -98,7 +98,7 @@ fromwire_ch_a(ARGS_FROMWIRE) {
 	isc_region_t tregion;
 	dns_name_t name;
 
-	REQUIRE(type == 1);
+	REQUIRE(type == dns_rdatatype_a);
 	REQUIRE(rdclass == dns_rdataclass_ch);
 
 	UNUSED(type);
@@ -131,7 +131,7 @@ towire_ch_a(ARGS_TOWIRE) {
 	isc_region_t sregion;
 	isc_region_t tregion;
 
-	REQUIRE(rdata->type == 1);
+	REQUIRE(rdata->type == dns_rdatatype_a);
 	REQUIRE(rdata->rdclass == dns_rdataclass_ch);
 	REQUIRE(rdata->length != 0);
 
@@ -164,7 +164,7 @@ compare_ch_a(ARGS_COMPARE) {
 
 	REQUIRE(rdata1->type == rdata2->type);
 	REQUIRE(rdata1->rdclass == rdata2->rdclass);
-	REQUIRE(rdata1->type == 1);
+	REQUIRE(rdata1->type == dns_rdatatype_a);
 	REQUIRE(rdata1->rdclass == dns_rdataclass_ch);
 	REQUIRE(rdata1->length != 0);
 	REQUIRE(rdata2->length != 0);
@@ -195,7 +195,7 @@ fromstruct_ch_a(ARGS_FROMSTRUCT) {
 	dns_rdata_ch_a_t *a = source;
 	isc_region_t region;
 
-	REQUIRE(type == 1);
+	REQUIRE(type == dns_rdatatype_a);
 	REQUIRE(source != NULL);
 	REQUIRE(a->common.rdtype == type);
 	REQUIRE(a->common.rdclass == rdclass);
@@ -215,7 +215,7 @@ tostruct_ch_a(ARGS_TOSTRUCT) {
 	isc_region_t region;
 	dns_name_t name;
 
-	REQUIRE(rdata->type == 1);
+	REQUIRE(rdata->type == dns_rdatatype_a);
 	REQUIRE(rdata->rdclass == dns_rdataclass_ch);
 	REQUIRE(rdata->length != 0);
 
@@ -241,7 +241,7 @@ freestruct_ch_a(ARGS_FREESTRUCT) {
 	dns_rdata_ch_a_t *a = source;
 
 	REQUIRE(source != NULL);
-	REQUIRE(a->common.rdtype == 1);
+	REQUIRE(a->common.rdtype == dns_rdatatype_a);
 
 	if (a->mctx == NULL)
 		return;
@@ -253,7 +253,7 @@ freestruct_ch_a(ARGS_FREESTRUCT) {
 static inline isc_result_t
 additionaldata_ch_a(ARGS_ADDLDATA) {
 
-	REQUIRE(rdata->type == 1);
+	REQUIRE(rdata->type == dns_rdatatype_a);
 	REQUIRE(rdata->rdclass == dns_rdataclass_ch);
 
 	UNUSED(rdata);
@@ -266,10 +266,9 @@ additionaldata_ch_a(ARGS_ADDLDATA) {
 static inline isc_result_t
 digest_ch_a(ARGS_DIGEST) {
 	isc_region_t r;
-
 	dns_name_t name;
 
-	REQUIRE(rdata->type == 1);
+	REQUIRE(rdata->type == dns_rdatatype_a);
 	REQUIRE(rdata->rdclass == dns_rdataclass_ch);
 
 	dns_rdata_toregion(rdata, &r);
@@ -283,7 +282,7 @@ digest_ch_a(ARGS_DIGEST) {
 static inline isc_boolean_t
 checkowner_ch_a(ARGS_CHECKOWNER) {
 
-	REQUIRE(type == 1);
+	REQUIRE(type == dns_rdatatype_a);
 	REQUIRE(rdclass == dns_rdataclass_ch);
 
 	UNUSED(type);
@@ -296,7 +295,7 @@ checknames_ch_a(ARGS_CHECKNAMES) {
 	isc_region_t region;
 	dns_name_t name;
 
-	REQUIRE(rdata->type == 1);
+	REQUIRE(rdata->type == dns_rdatatype_a);
 	REQUIRE(rdata->rdclass == dns_rdataclass_ch);
 
 	UNUSED(owner);

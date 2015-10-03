@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2013, 2015  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -90,16 +90,17 @@ typedef enum {
  */
 #define DNS_RRL_MAX_PREFIX  64
 typedef union dns_rrl_key dns_rrl_key_t;
+struct dns__rrl_key {
+	isc_uint32_t	    ip[DNS_RRL_MAX_PREFIX/32];
+	isc_uint32_t	    qname_hash;
+	dns_rdatatype_t	    qtype;
+	isc_uint8_t         qclass;
+	dns_rrl_rtype_t	    rtype   :4; /* 3 bits + sign bit */
+	isc_boolean_t	    ipv6    :1;
+};
 union dns_rrl_key {
-	struct {
-		isc_uint32_t	    ip[DNS_RRL_MAX_PREFIX/32];
-		isc_uint32_t	    qname_hash;
-		dns_rdatatype_t	    qtype;
-		isc_uint8_t         qclass;
-		dns_rrl_rtype_t	    rtype   :4; /* 3 bits + sign bit */
-		isc_boolean_t	    ipv6    :1;
-	} s;
-	isc_uint16_t	w[1];
+	struct dns__rrl_key s;
+	isc_uint16_t	w[sizeof(struct dns__rrl_key)/sizeof(isc_uint16_t)];
 };
 
 /*

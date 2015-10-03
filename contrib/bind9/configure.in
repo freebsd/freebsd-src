@@ -72,6 +72,7 @@ case "$enable_developer" in
 yes)
 	STD_CDEFINES="$STD_CDEFINES -DISC_LIST_CHECKINIT=1"
 	test "${enable_fixed_rrset+set}" = set || enable_fixed_rrset=yes
+	test "${enable_querytrace+set}" = set || enable_querytrace=yes
 	test "${with_atf+set}" = set || with_atf=yes
 	test "${enable_filter_aaaa+set}" = set || enable_filter_aaaa=yes
 	test "${enable_rrl+set}" = set || enable_rrl=yes
@@ -85,6 +86,7 @@ yes)
 		;;
 	esac
 	test "${enable_symtable+set}" = set || enable_symtable=all
+	test "${enable_fetchlimit+set}" = set || enable_fetchlimit=yes
 	test "${enable_warn_error+set}" = set || enable_warn_error=yes
 	test "${enable_warn_shadow+set}" = set || enable_warn_shadow=yes
 	;;
@@ -166,7 +168,7 @@ case "$use_python" in
 			for p in $python
 			do
 				AC_PATH_PROGS(PYTHON, $p)
-				if test "X$PYTHON" == "X"; then
+				if test "X$PYTHON" = "X"; then
 					continue;
 				fi
 				AC_MSG_CHECKING([python module 'argparse'])
@@ -178,7 +180,7 @@ case "$use_python" in
 				unset ac_cv_path_PYTHON
 				unset PYTHON
 			done
-			if test "X$PYTHON" == "X"
+			if test "X$PYTHON" = "X"
 			then
 				AC_MSG_CHECKING([for python support])
 				case "$use_python" in
@@ -776,12 +778,15 @@ shared library configuration (e.g., LD_LIBRARY_PATH).)],
 
 		AC_MSG_CHECKING(whether linking with OpenSSL requires -ldl)
 		AC_TRY_LINK([
-#include <openssl/err.h>],
+#include <openssl/err.h>
+#include <openssl/dso.h>
+],
 [ DSO_METHOD_dlfcn(); ],
 		[AC_MSG_RESULT(no)],
 		[LIBS="$LIBS -ldl"
 		AC_TRY_LINK([
 #include <openssl/err.h>
+#include <openssl/dso.h>
 ],[ DSO_METHOD_dlfcn(); ],
 		[AC_MSG_RESULT(yes)
 		DNS_OPENSSL_LIBS="$DNS_OPENSSL_LIBS -ldl"
@@ -1490,8 +1495,13 @@ case "$use_libxml2" in
 			libxml2_cflags=`xml2-config --cflags`
 			;;
 		*)
-			libxml2_libs=
-			libxml2_cflags=
+			if test "$use_libxml2" = "yes" ; then
+				AC_MSG_RESULT(no)
+				AC_MSG_ERROR(required libxml2 version not available)
+			else
+				libxml2_libs=
+				libxml2_cflags=
+			fi
 			;;
 		esac
 		;;
@@ -1570,7 +1580,7 @@ if test "X$GCC" = "Xyes"; then
 	STD_CWARNINGS="$STD_CWARNINGS -W -Wall -Wmissing-prototypes -Wcast-qual -Wwrite-strings -Wformat -Wpointer-arith"
 	AC_MSG_CHECKING(if "$CC" supports -fno-strict-aliasing)
 	SAVE_CFLAGS="$CFLAGS"
-	CFLAGS="$CFLAGS -fno-strict-aliasing"
+	CFLAGS="$CFLAGS -Werror -fno-strict-aliasing"
 	AC_TRY_COMPILE(,, [FNOSTRICTALIASING=yes],[FNOSTRICTALIASING=no])
 	CFLAGS="$SAVE_CFLAGS"
 	if test "$FNOSTRICTALIASING" = "yes"; then
@@ -1584,7 +1594,7 @@ if test "X$GCC" = "Xyes"; then
 	#
 	AC_MSG_CHECKING(if "$CC" supports -fno-delete-null-pointer-checks)
 	SAVE_CFLAGS="$CFLAGS"
-	CFLAGS="$CFLAGS -fno-delete-null-pointer-checks"
+	CFLAGS="$CFLAGS -Werror -fno-delete-null-pointer-checks"
 	AC_TRY_COMPILE(,, [FNODELETENULLPOINTERCHECKS=yes],
 			  [FNODELETENULLPOINTERCHECKS=no])
 	CFLAGS="$SAVE_CFLAGS"
@@ -2575,21 +2585,62 @@ AC_SUBST(ISC_PLATFORM_NEEDSTRCASESTR)
 
 AC_SUBST(READLINE_LIB)
 AC_ARG_WITH(readline,
-	[  --with-readline[=LIBSPEC]    specify readline library [default -lreadline]],
-	readline="$withval", readline="-lreadline")
+	[  --with-readline[=LIBSPEC]    specify readline library [default auto]],
+	readline="$withval", readline="auto")
 case "$readline" in
 no)	;;
+yes|auto)
+	saved_LIBS="$LIBS"
+	for readline in -ledit -lreadline
+	do
+		LIBS="$readline"
+		AC_MSG_NOTICE(checking for readline with $readline)
+		AC_CHECK_FUNCS(readline)
+		if test "$ac_cv_func_readline" = "yes"
+		then
+			READLINE_LIB="$readline"
+			break
+		fi
+		if test "X$readline" = "X"
+		then
+			continue
+		fi
+		for lib in -lterminfo -ltermcap -lncurses -lcurses
+		do
+			AC_MSG_NOTICE(checking for readline with $readline $lib)
+			unset ac_cv_func_readline
+			LIBS="$readline $lib"
+			AC_CHECK_FUNCS(readline)
+			if test "$ac_cv_func_readline" = "yes"
+			then
+				READLINE_LIB="$readline $lib"
+				break
+			fi
+		done
+	done
+	LIBS="$saved_LIBS"
+	;;
 *)
-	if test "x$readline" = "xyes"
-	then
-		readline=-lreadline
-	fi
 	saved_LIBS="$LIBS"
 	LIBS="$readline"
+	AC_MSG_NOTICE(checking for readline with $readline)
 	AC_CHECK_FUNCS(readline)
 	if test "$ac_cv_func_readline" = "yes"
 	then
 		READLINE_LIB="$readline"
+	else
+		for lib in -lterminfo -ltermcap -lncurses -lcurses
+		do
+			AC_MSG_NOTICE(checking for readline with $readline $lib)
+			unset ac_cv_func_readline
+			LIBS="$readline $lib"
+			AC_CHECK_FUNCS(readline)
+			if test "$ac_cv_func_readline" = "yes"
+			then
+				READLINE_LIB="$readline $lib"
+				break
+			fi
+		done
 	fi
 	LIBS="$saved_LIBS"
 	;;
@@ -2597,40 +2648,65 @@ esac
 
 ISC_PRINT_OBJS=
 ISC_PRINT_SRCS=
-AC_MSG_CHECKING(sprintf)
+ISC_PLATFORM_NEEDPRINTF='#undef ISC_PLATFORM_NEEDPRINTF'
+ISC_PLATFORM_NEEDFPRINTF='#undef ISC_PLATFORM_NEEDFPRINTF'
+ISC_PLATFORM_NEEDSPRINTF='#undef ISC_PLATFORM_NEEDSPRINTF'
+ISC_PLATFORM_NEEDVSNPRINTF='#undef ISC_PLATFORM_NEEDVSNPRINTF'
+LWRES_PLATFORM_NEEDVSNPRINTF='#undef LWRES_PLATFORM_NEEDVSNPRINTF'
+
+AC_MSG_CHECKING(sprintf return type)
 AC_TRY_COMPILE([
 #include <stdio.h>
 ],
 [ char buf[2]; return(*sprintf(buf,"x"));],
-[
+[AC_MSG_RESULT(char *)
 ISC_PRINT_OBJS="print.$O"
 ISC_PRINT_SRCS="print.c"
 ISC_PLATFORM_NEEDSPRINTF="#define ISC_PLATFORM_NEEDSPRINTF"
 LWRES_PLATFORM_NEEDSPRINTF="#define LWRES_PLATFORM_NEEDSPRINTF"
-],
-[ISC_PLATFORM_NEEDSPRINTF="#undef ISC_PLATFORM_NEEDSPRINTF"
- LWRES_PLATFORM_NEEDSPRINTF="#undef LWRES_PLATFORM_NEEDSPRINTF"]
-)
-AC_SUBST(ISC_PLATFORM_NEEDSPRINTF)
-AC_SUBST(LWRES_PLATFORM_NEEDSPRINTF)
+],[AC_MSG_RESULT(int)])
 
-AC_CHECK_FUNC(vsnprintf,
-	[ISC_PLATFORM_NEEDVSNPRINTF="#undef ISC_PLATFORM_NEEDVSNPRINTF"
-	 LWRES_PLATFORM_NEEDVSNPRINTF="#undef LWRES_PLATFORM_NEEDVSNPRINTF"],
+AC_CHECK_FUNC(vsnprintf, [],
 	[ISC_PRINT_OBJS="print.$O"
 	 ISC_PRINT_SRCS="print.c"
 	 ISC_PLATFORM_NEEDVSNPRINTF="#define ISC_PLATFORM_NEEDVSNPRINTF 1"
 	 LWRES_PLATFORM_NEEDVSNPRINTF="#define LWRES_PLATFORM_NEEDVSNPRINTF 1"])
+
+AC_MSG_CHECKING(printf for %z support)
+AC_TRY_RUN([
+#include <stdio.h>
+main() {
+        size_t j = 0;
+        char buf[100];
+        buf[0] = 0;
+        sprintf(buf, "%zu", j);
+        exit(strcmp(buf, "0") != 0);
+}
+],
+        [AC_MSG_RESULT(yes)],
+        [AC_MSG_RESULT(no)
+	ISC_PRINT_OBJS="print.$O"
+	ISC_PRINT_SRCS="print.c"
+        ISC_PLATFORM_NEEDPRINTF='#define ISC_PLATFORM_NEEDPRINTF 1'
+        ISC_PLATFORM_NEEDFPRINTF='#define ISC_PLATFORM_NEEDFPRINTF 1'
+        ISC_PLATFORM_NEEDFSRINTF='#define ISC_PLATFORM_NEEDSPRINTF 1'
+	ISC_PLATFORM_NEEDVSNPRINTF="#define ISC_PLATFORM_NEEDVSNPRINTF 1"
+	LWRES_PLATFORM_NEEDVSNPRINTF="#define LWRES_PLATFORM_NEEDVSNPRINTF 1"],
+        [AC_MSG_RESULT(assuming target platform supports %z)])
+
+AC_SUBST(ISC_PLATFORM_NEEDPRINTF)
+AC_SUBST(ISC_PLATFORM_NEEDFPRINTF)
+AC_SUBST(ISC_PLATFORM_NEEDSPRINTF)
 AC_SUBST(ISC_PLATFORM_NEEDVSNPRINTF)
+AC_SUBST(LWRES_PLATFORM_NEEDSPRINTF)
 AC_SUBST(LWRES_PLATFORM_NEEDVSNPRINTF)
+
 ISC_EXTRA_OBJS="$ISC_EXTRA_OBJS $ISC_PRINT_OBJS"
 ISC_EXTRA_SRCS="$ISC_EXTRA_SRCS $ISC_PRINT_SRCS"
-
-AC_CHECK_FUNC(strerror, AC_DEFINE(HAVE_STRERROR))
-
 AC_SUBST(ISC_EXTRA_OBJS)
 AC_SUBST(ISC_EXTRA_SRCS)
 
+AC_CHECK_FUNC(strerror, AC_DEFINE(HAVE_STRERROR))
 #
 # Use our own SPNEGO implementation?
 #
@@ -2693,6 +2769,7 @@ main() {
 	LWRES_PLATFORM_QUADFORMAT='#define LWRES_PLATFORM_QUADFORMAT "ll"'])
 AC_SUBST(ISC_PLATFORM_QUADFORMAT)
 AC_SUBST(LWRES_PLATFORM_QUADFORMAT)
+
 
 #
 # Security Stuff
@@ -3007,6 +3084,9 @@ case "$enable_atomic" in
 esac
 
 ISC_PLATFORM_USEOSFASM="#undef ISC_PLATFORM_USEOSFASM"
+ISC_PLATFORM_USEGCCASM="#undef ISC_PLATFORM_USEGCCASM"
+ISC_PLATFORM_USESTDASM="#undef ISC_PLATFORM_USESTDASM"
+ISC_PLATFORM_USEMACASM="#undef ISC_PLATFORM_USEMACASM"
 if test "$use_atomic" = "yes"; then
 	AC_MSG_CHECKING([architecture type for atomic operations])
 	have_atomic=yes		# set default
@@ -3127,15 +3207,15 @@ if test "$have_atomic" = "yes"; then
 	ISC_PLATFORM_HAVEXADD="#define ISC_PLATFORM_HAVEXADD 1"
 	ISC_PLATFORM_HAVECMPXCHG="#define ISC_PLATFORM_HAVECMPXCHG 1"
 	ISC_PLATFORM_HAVEATOMICSTORE="#define ISC_PLATFORM_HAVEATOMICSTORE 1"
+	if test "$have_xaddq" = "yes"; then
+		ISC_PLATFORM_HAVEXADDQ="#define ISC_PLATFORM_HAVEXADDQ 1"
+	else
+		ISC_PLATFORM_HAVEXADDQ="#undef ISC_PLATFORM_HAVEXADDQ"
+	fi
 else
 	ISC_PLATFORM_HAVEXADD="#undef ISC_PLATFORM_HAVEXADD"
 	ISC_PLATFORM_HAVECMPXCHG="#undef ISC_PLATFORM_HAVECMPXCHG"
 	ISC_PLATFORM_HAVEATOMICSTORE="#undef ISC_PLATFORM_HAVEATOMICSTORE"
-fi
-
-if test "$have_xaddq" = "yes"; then
-	ISC_PLATFORM_HAVEXADDQ="#define ISC_PLATFORM_HAVEXADDQ 1"
-else
 	ISC_PLATFORM_HAVEXADDQ="#undef ISC_PLATFORM_HAVEXADDQ"
 fi
 
@@ -3208,7 +3288,25 @@ case "$enable_nsdname" in
 esac
 
 #
-# Activate "filter-aaaa-on-v4" or not?
+# Activate recursive fetch limits
+#
+AC_ARG_ENABLE(fetchlimit,
+	[  --enable-fetchlimit     enable recursive fetch limits [[default=no]]],
+			enable_fetchlimit="$enableval",
+			enable_fetchlimit="no")
+case "$enable_fetchlimit" in
+	yes)
+		AC_DEFINE(ENABLE_FETCHLIMIT, 1,
+			  [Define to enable the "fetches-per-server" and "fetches-per-zone" options.])
+		;;
+	no)
+		;;
+	*)
+		;;
+esac
+
+#
+# Activate "filter-aaaa" or not?
 #
 AC_ARG_ENABLE(filter-aaaa,
 	[  --enable-filter-aaaa    enable filtering of AAAA records over IPv4
@@ -3295,6 +3393,13 @@ AC_SUBST(XMLLINT)
 
 AC_PATH_PROG(DOXYGEN, doxygen, doxygen)
 AC_SUBST(DOXYGEN)
+
+#
+# Look for curl
+#
+
+AC_PATH_PROG(CURL, curl, curl)
+AC_SUBST(CURL)
 
 #
 # Subroutine for searching for an ordinary file (e.g., a stylesheet)
@@ -3516,6 +3621,26 @@ AC_SUBST(UNITTESTS)
 
 AC_CHECK_HEADERS(locale.h)
 AC_CHECK_FUNCS(setlocale)
+
+#
+# was --enable-querytrace specified?
+#
+AC_ARG_ENABLE(querytrace,
+	[  --enable-querytrace     enable very verbose query trace logging [[default=no]]],
+	want_querytrace="$enableval", want_querytrace="no")
+
+case "$want_querytrace" in
+yes)
+	AC_MSG_RESULT(yes)
+	AC_DEFINE(WANT_QUERYTRACE, 1, [Define to enable very verbose query trace logging.])
+	;;
+no)
+	AC_MSG_RESULT(no)
+	;;
+*)
+	AC_MSG_ERROR("--enable-querytrace requires yes or no")
+	;;
+esac
 
 #
 # Substitutions
@@ -3921,9 +4046,11 @@ AC_CONFIG_FILES([
 	bin/tests/system/dlz/prereq.sh
 	bin/tests/system/dlzexternal/Makefile
 	bin/tests/system/dlzexternal/ns1/named.conf
+	bin/tests/system/fetchlimit/Makefile
 	bin/tests/system/filter-aaaa/Makefile
 	bin/tests/system/inline/checkdsa.sh
 	bin/tests/system/lwresd/Makefile
+	bin/tests/system/statistics/Makefile
 	bin/tests/system/rpz/Makefile
 	bin/tests/system/rrl/Makefile
 	bin/tests/system/rsabigexponent/Makefile
@@ -4054,6 +4181,8 @@ $use_threads && echo "    Multiprocessing support (--enable-threads)"
 
 test "$enable_rrl" = "yes" && \
     echo "    Response Rate Limiting (--enable-rrl)"
+test "$enable_fetchlimit" = "yes" && \
+    echo "    Recursive fetch limits for DoS attack mitigation (--enable-fetchlimit)"
 test "$use_gssapi" = "no" || echo "    GSS-API (--with-gssapi)"
 test "$use_pkcs11" = "no" || echo "    PKCS#11/Cryptoki support (--with-pkcs11)"
 test "$enable_newstats" = "yes" && \
@@ -4068,6 +4197,8 @@ test "$want_symtable" = "minimal" && \
     echo "    Use symbol table for backtrace, named only (--enable-symtable)"
 test "$want_symtable" = "yes" -o "$want_symtable" = "all" && \
     echo "    Use symbol table for backtrace, all binaries (--enable-symtable=all)"
+test "$want_querytrace" = "yes" && \
+    echo "    Very verbose query trace logging (--enable-querytrace)"
 test "$atf" = "no" || echo "    Automated Testing Framework (--with-atf)"
 
 # these lines are only printed if run with --enable-full-report 
@@ -4108,6 +4239,8 @@ test "$enable_ipv6" = "no" -o "$found_ipv6" = "no" && \
 	echo "    IPv6 support (--enable-ipv6)"
 test "$enable_rrl" = "yes" || \
     echo "    Response Rate Limiting (--enable-rrl)"
+test "$enable_fetchlimit" = "no" && \
+        echo "    Recursive fetch limits for DoS attack mitigation (--enable-fetchlimit)"
 test "$use_gssapi" = "no" && echo "    GSS-API (--with-gssapi)"
 test "$use_pkcs11" = "no" && echo "    PKCS#11/Cryptoki support (--with-pkcs11)"
 test "X$enable_newstats" = "X" && echo "    New statistics (--enable-newstats)"
@@ -4115,6 +4248,8 @@ test "$enable_fixed" = "yes" || \
     echo "    Allow 'fixed' rrset-order (--enable-fixed-rrset)"
 test "$want_backtrace" = "yes" || \
     echo "    Print backtrace on crash (--enable-backtrace)"
+test "$want_querytrace" = "yes" || \
+    echo "    Very verbose query trace logging (--enable-querytrace)"
 test "$atf" = "no" && echo "    Automated Testing Framework (--with-atf)"
 test "X$USE_OPENSSL" = "X" && \
 	echo "    OpenSSL cryptography/DNSSEC (--with-openssl)"

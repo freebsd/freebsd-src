@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007, 2009, 2014  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007, 2009, 2014, 2015  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -34,8 +34,8 @@ fromtext_in_aaaa(ARGS_FROMTEXT) {
 	unsigned char addr[16];
 	isc_region_t region;
 
-	REQUIRE(type == 28);
-	REQUIRE(rdclass == 1);
+	REQUIRE(type == dns_rdatatype_aaaa);
+	REQUIRE(rdclass == dns_rdataclass_in);
 
 	UNUSED(type);
 	UNUSED(origin);
@@ -62,8 +62,8 @@ totext_in_aaaa(ARGS_TOTEXT) {
 
 	UNUSED(tctx);
 
-	REQUIRE(rdata->type == 28);
-	REQUIRE(rdata->rdclass == 1);
+	REQUIRE(rdata->type == dns_rdatatype_aaaa);
+	REQUIRE(rdata->rdclass == dns_rdataclass_in);
 	REQUIRE(rdata->length == 16);
 
 	dns_rdata_toregion(rdata, &region);
@@ -75,8 +75,8 @@ fromwire_in_aaaa(ARGS_FROMWIRE) {
 	isc_region_t sregion;
 	isc_region_t tregion;
 
-	REQUIRE(type == 28);
-	REQUIRE(rdclass == 1);
+	REQUIRE(type == dns_rdatatype_aaaa);
+	REQUIRE(rdclass == dns_rdataclass_in);
 
 	UNUSED(type);
 	UNUSED(dctx);
@@ -102,8 +102,8 @@ towire_in_aaaa(ARGS_TOWIRE) {
 
 	UNUSED(cctx);
 
-	REQUIRE(rdata->type == 28);
-	REQUIRE(rdata->rdclass == 1);
+	REQUIRE(rdata->type == dns_rdatatype_aaaa);
+	REQUIRE(rdata->rdclass == dns_rdataclass_in);
 	REQUIRE(rdata->length == 16);
 
 	isc_buffer_availableregion(target, &region);
@@ -121,8 +121,8 @@ compare_in_aaaa(ARGS_COMPARE) {
 
 	REQUIRE(rdata1->type == rdata2->type);
 	REQUIRE(rdata1->rdclass == rdata2->rdclass);
-	REQUIRE(rdata1->type == 28);
-	REQUIRE(rdata1->rdclass == 1);
+	REQUIRE(rdata1->type == dns_rdatatype_aaaa);
+	REQUIRE(rdata1->rdclass == dns_rdataclass_in);
 	REQUIRE(rdata1->length == 16);
 	REQUIRE(rdata2->length == 16);
 
@@ -135,8 +135,8 @@ static inline isc_result_t
 fromstruct_in_aaaa(ARGS_FROMSTRUCT) {
 	dns_rdata_in_aaaa_t *aaaa = source;
 
-	REQUIRE(type == 28);
-	REQUIRE(rdclass == 1);
+	REQUIRE(type == dns_rdatatype_aaaa);
+	REQUIRE(rdclass == dns_rdataclass_in);
 	REQUIRE(source != NULL);
 	REQUIRE(aaaa->common.rdtype == type);
 	REQUIRE(aaaa->common.rdclass == rdclass);
@@ -152,8 +152,8 @@ tostruct_in_aaaa(ARGS_TOSTRUCT) {
 	dns_rdata_in_aaaa_t *aaaa = target;
 	isc_region_t r;
 
-	REQUIRE(rdata->type == 28);
-	REQUIRE(rdata->rdclass == 1);
+	REQUIRE(rdata->type == dns_rdatatype_aaaa);
+	REQUIRE(rdata->rdclass == dns_rdataclass_in);
 	REQUIRE(target != NULL);
 	REQUIRE(rdata->length == 16);
 
@@ -175,16 +175,16 @@ freestruct_in_aaaa(ARGS_FREESTRUCT) {
 	dns_rdata_in_aaaa_t *aaaa = source;
 
 	REQUIRE(source != NULL);
-	REQUIRE(aaaa->common.rdclass == 1);
-	REQUIRE(aaaa->common.rdtype == 28);
+	REQUIRE(aaaa->common.rdclass == dns_rdataclass_in);
+	REQUIRE(aaaa->common.rdtype == dns_rdatatype_aaaa);
 
 	UNUSED(aaaa);
 }
 
 static inline isc_result_t
 additionaldata_in_aaaa(ARGS_ADDLDATA) {
-	REQUIRE(rdata->type == 28);
-	REQUIRE(rdata->rdclass == 1);
+	REQUIRE(rdata->type == dns_rdatatype_aaaa);
+	REQUIRE(rdata->rdclass == dns_rdataclass_in);
 
 	UNUSED(rdata);
 	UNUSED(add);
@@ -197,8 +197,8 @@ static inline isc_result_t
 digest_in_aaaa(ARGS_DIGEST) {
 	isc_region_t r;
 
-	REQUIRE(rdata->type == 28);
-	REQUIRE(rdata->rdclass == 1);
+	REQUIRE(rdata->type == dns_rdatatype_aaaa);
+	REQUIRE(rdata->rdclass == dns_rdataclass_in);
 
 	dns_rdata_toregion(rdata, &r);
 
@@ -207,12 +207,26 @@ digest_in_aaaa(ARGS_DIGEST) {
 
 static inline isc_boolean_t
 checkowner_in_aaaa(ARGS_CHECKOWNER) {
+	dns_name_t prefix, suffix;
 
-	REQUIRE(type == 28);
-	REQUIRE(rdclass == 1);
+	REQUIRE(type == dns_rdatatype_aaaa);
+	REQUIRE(rdclass == dns_rdataclass_in);
 
 	UNUSED(type);
 	UNUSED(rdclass);
+
+	/*
+	 * Handle Active Diretory gc._msdcs.<forest> name.
+	 */
+	if (dns_name_countlabels(name) > 2U) {
+		dns_name_init(&prefix, NULL);
+		dns_name_init(&suffix, NULL);
+		dns_name_split(name, dns_name_countlabels(name) - 2,
+			       &prefix, &suffix);
+		if (dns_name_equal(&gc_msdcs, &prefix) &&
+		    dns_name_ishostname(&suffix, ISC_FALSE))
+			return (ISC_TRUE);
+	}
 
 	return (dns_name_ishostname(name, wildcard));
 }
@@ -220,8 +234,8 @@ checkowner_in_aaaa(ARGS_CHECKOWNER) {
 static inline isc_boolean_t
 checknames_in_aaaa(ARGS_CHECKNAMES) {
 
-	REQUIRE(rdata->type == 28);
-	REQUIRE(rdata->rdclass == 1);
+	REQUIRE(rdata->type == dns_rdatatype_aaaa);
+	REQUIRE(rdata->rdclass == dns_rdataclass_in);
 
 	UNUSED(rdata);
 	UNUSED(owner);

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2014  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2015  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -216,7 +216,7 @@ static void
 check_config(const char *gss_name) {
 	const char *p;
 	krb5_context krb5_ctx;
-	char *krb5_realm = NULL;
+	char *krb5_realm_name = NULL;
 
 	if (strncasecmp(gss_name, "DNS/", 4) != 0) {
 		gss_log(ISC_LOG_ERROR, "tkey-gssapi-credential (%s) "
@@ -228,7 +228,7 @@ check_config(const char *gss_name) {
 		gss_log(ISC_LOG_ERROR, "Unable to initialise krb5 context");
 		return;
 	}
-	if (krb5_get_default_realm(krb5_ctx, &krb5_realm) != 0) {
+	if (krb5_get_default_realm(krb5_ctx, &krb5_realm_name) != 0) {
 		gss_log(ISC_LOG_ERROR, "Unable to get krb5 default realm");
 		krb5_free_context(krb5_ctx);
 		return;
@@ -240,10 +240,10 @@ check_config(const char *gss_name) {
 		krb5_free_context(krb5_ctx);
 		return;
 	}
-	if (strcasecmp(p + 1, krb5_realm) != 0) {
+	if (strcasecmp(p + 1, krb5_realm_name) != 0) {
 		gss_log(ISC_LOG_ERROR, "default realm from krb5.conf (%s) "
 			"does not match tkey-gssapi-credential (%s)",
-			krb5_realm, gss_name);
+			krb5_realm_name, gss_name);
 		krb5_free_context(krb5_ctx);
 		return;
 	}
@@ -633,7 +633,6 @@ dst_gssapi_initctx(dns_name_t *name, isc_buffer_t *intoken,
 	if (gouttoken.length != 0U) {
 		GBUFFER_TO_REGION(gouttoken, r);
 		RETERR(isc_buffer_copyregion(outtoken, &r));
-		(void)gss_release_buffer(&minor, &gouttoken);
 	}
 
 	if (gret == GSS_S_COMPLETE)
@@ -642,6 +641,8 @@ dst_gssapi_initctx(dns_name_t *name, isc_buffer_t *intoken,
 		result = DNS_R_CONTINUE;
 
  out:
+	if (gouttoken.length != 0U)
+		(void)gss_release_buffer(&minor, &gouttoken);
 	(void)gss_release_name(&minor, &gname);
 	return (result);
 #else

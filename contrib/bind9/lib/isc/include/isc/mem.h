@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2012, 2015  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1997-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -14,8 +14,6 @@
  * OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
  */
-
-/* $Id$ */
 
 #ifndef ISC_MEM_H
 #define ISC_MEM_H 1
@@ -50,7 +48,14 @@ typedef void (*isc_memfree_t)(void *, void *);
 /*%
  * Define ISC_MEM_CHECKOVERRUN=1 to turn on checks for using memory outside
  * the requested space.  This will increase the size of each allocation.
+ *
+ * If we are performing a Coverity static analysis then ISC_MEM_CHECKOVERRUN
+ * can hide bugs that would otherwise discovered so force to zero.
  */
+#ifdef __COVERITY__
+#undef ISC_MEM_CHECKOVERRUN
+#define ISC_MEM_CHECKOVERRUN 0
+#endif
 #ifndef ISC_MEM_CHECKOVERRUN
 #define ISC_MEM_CHECKOVERRUN 1
 #endif
@@ -60,7 +65,14 @@ typedef void (*isc_memfree_t)(void *, void *);
  * with the byte string '0xbe'.  This helps track down uninitialized pointers
  * and the like.  On freeing memory, the space is filled with '0xde' for
  * the same reasons.
+ *
+ * If we are performing a Coverity static analysis then ISC_MEM_FILL
+ * can hide bugs that would otherwise discovered so force to zero.
  */
+#ifdef __COVERITY__
+#undef ISC_MEM_FILL
+#define ISC_MEM_FILL 0
+#endif
 #ifndef ISC_MEM_FILL
 #define ISC_MEM_FILL 1
 #endif
@@ -75,6 +87,8 @@ typedef void (*isc_memfree_t)(void *, void *);
 #endif
 
 LIBISC_EXTERNAL_DATA extern unsigned int isc_mem_debugging;
+LIBISC_EXTERNAL_DATA extern unsigned int isc_mem_defaultflags;
+
 /*@{*/
 #define ISC_MEM_DEBUGTRACE		0x00000001U
 #define ISC_MEM_DEBUGRECORD		0x00000002U

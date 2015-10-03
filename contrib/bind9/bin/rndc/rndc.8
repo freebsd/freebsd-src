@@ -1,4 +1,4 @@
-.\" Copyright (C) 2004, 2005, 2007, 2013, 2014 Internet Systems Consortium, Inc. ("ISC")
+.\" Copyright (C) 2004, 2005, 2007, 2013-2015 Internet Systems Consortium, Inc. ("ISC")
 .\" Copyright (C) 2000, 2001 Internet Software Consortium.
 .\" 
 .\" Permission to use, copy, modify, and/or distribute this software for any
@@ -107,7 +107,9 @@ Use the key
 \fIkey_id\fR
 from the configuration file.
 \fIkey_id\fR
-must be known by named with the same algorithm and secret string in order for control message validation to succeed. If no
+must be known by
+\fBnamed\fR
+with the same algorithm and secret string in order for control message validation to succeed. If no
 \fIkey_id\fR
 is specified,
 \fBrndc\fR
@@ -122,210 +124,6 @@ can be seen by running
 without arguments.
 .PP
 Currently supported commands are:
-.PP
-\fBreload\fR
-.RS 4
-Reload configuration file and zones.
-.RE
-.PP
-\fBreload \fR\fB\fIzone\fR\fR\fB \fR\fB[\fIclass\fR [\fIview\fR]]\fR
-.RS 4
-Reload the given zone.
-.RE
-.PP
-\fBrefresh \fR\fB\fIzone\fR\fR\fB \fR\fB[\fIclass\fR [\fIview\fR]]\fR
-.RS 4
-Schedule zone maintenance for the given zone.
-.RE
-.PP
-\fBretransfer \fR\fB\fIzone\fR\fR\fB \fR\fB[\fIclass\fR [\fIview\fR]]\fR
-.RS 4
-Retransfer the given slave zone from the master server.
-.sp
-If the zone is configured to use
-\fBinline\-signing\fR, the signed version of the zone is discarded; after the retransfer of the unsigned version is complete, the signed version will be regenerated with all new signatures.
-.RE
-.PP
-\fBsign \fR\fB\fIzone\fR\fR\fB \fR\fB[\fIclass\fR [\fIview\fR]]\fR
-.RS 4
-Fetch all DNSSEC keys for the given zone from the key directory (see the
-\fBkey\-directory\fR
-option in the BIND 9 Administrator Reference Manual). If they are within their publication period, merge them into the zone's DNSKEY RRset. If the DNSKEY RRset is changed, then the zone is automatically re\-signed with the new key set.
-.sp
-This command requires that the
-\fBauto\-dnssec\fR
-zone option be set to
-allow
-or
-maintain, and also requires the zone to be configured to allow dynamic DNS. (See "Dynamic Update Policies" in the Administrator Reference Manual for more details.)
-.RE
-.PP
-\fBloadkeys \fR\fB\fIzone\fR\fR\fB \fR\fB[\fIclass\fR [\fIview\fR]]\fR
-.RS 4
-Fetch all DNSSEC keys for the given zone from the key directory. If they are within their publication period, merge them into the zone's DNSKEY RRset. Unlike
-\fBrndc sign\fR, however, the zone is not immediately re\-signed by the new keys, but is allowed to incrementally re\-sign over time.
-.sp
-This command requires that the
-\fBauto\-dnssec\fR
-zone option be set to
-maintain, and also requires the zone to be configured to allow dynamic DNS. (See "Dynamic Update Policies" in the Administrator Reference Manual for more details.)
-.RE
-.PP
-\fBfreeze \fR\fB[\fIzone\fR [\fIclass\fR [\fIview\fR]]]\fR
-.RS 4
-Suspend updates to a dynamic zone. If no zone is specified, then all zones are suspended. This allows manual edits to be made to a zone normally updated by dynamic update. It also causes changes in the journal file to be synced into the master file. All dynamic update attempts will be refused while the zone is frozen.
-.RE
-.PP
-\fBthaw \fR\fB[\fIzone\fR [\fIclass\fR [\fIview\fR]]]\fR
-.RS 4
-Enable updates to a frozen dynamic zone. If no zone is specified, then all frozen zones are enabled. This causes the server to reload the zone from disk, and re\-enables dynamic updates after the load has completed. After a zone is thawed, dynamic updates will no longer be refused. If the zone has changed and the
-\fBixfr\-from\-differences\fR
-option is in use, then the journal file will be updated to reflect changes in the zone. Otherwise, if the zone has changed, any existing journal file will be removed.
-.RE
-.PP
-\fBsync \fR\fB[\-clean]\fR\fB \fR\fB[\fIzone\fR [\fIclass\fR [\fIview\fR]]]\fR
-.RS 4
-Sync changes in the journal file for a dynamic zone to the master file. If the "\-clean" option is specified, the journal file is also removed. If no zone is specified, then all zones are synced.
-.RE
-.PP
-\fBnotify \fR\fB\fIzone\fR\fR\fB \fR\fB[\fIclass\fR [\fIview\fR]]\fR
-.RS 4
-Resend NOTIFY messages for the zone.
-.RE
-.PP
-\fBreconfig\fR
-.RS 4
-Reload the configuration file and load new zones, but do not reload existing zone files even if they have changed. This is faster than a full
-\fBreload\fR
-when there is a large number of zones because it avoids the need to examine the modification times of the zones files.
-.RE
-.PP
-\fBstats\fR
-.RS 4
-Write server statistics to the statistics file.
-.RE
-.PP
-\fBquerylog\fR [on|off]
-.RS 4
-Enable or disable query logging. (For backward compatibility, this command can also be used without an argument to toggle query logging on and off.)
-.sp
-Query logging can also be enabled by explicitly directing the
-\fBqueries\fR
-\fBcategory\fR
-to a
-\fBchannel\fR
-in the
-\fBlogging\fR
-section of
-\fInamed.conf\fR
-or by specifying
-\fBquerylog yes;\fR
-in the
-\fBoptions\fR
-section of
-\fInamed.conf\fR.
-.RE
-.PP
-\fBdumpdb \fR\fB[\-all|\-cache|\-zone]\fR\fB \fR\fB[\fIview ...\fR]\fR
-.RS 4
-Dump the server's caches (default) and/or zones to the dump file for the specified views. If no view is specified, all views are dumped.
-.RE
-.PP
-\fBsecroots \fR\fB[\fIview ...\fR]\fR
-.RS 4
-Dump the server's security roots to the secroots file for the specified views. If no view is specified, security roots for all views are dumped.
-.RE
-.PP
-\fBstop \fR\fB[\-p]\fR
-.RS 4
-Stop the server, making sure any recent changes made through dynamic update or IXFR are first saved to the master files of the updated zones. If
-\fB\-p\fR
-is specified
-\fBnamed\fR's process id is returned. This allows an external process to determine when
-\fBnamed\fR
-had completed stopping.
-.RE
-.PP
-\fBhalt \fR\fB[\-p]\fR
-.RS 4
-Stop the server immediately. Recent changes made through dynamic update or IXFR are not saved to the master files, but will be rolled forward from the journal files when the server is restarted. If
-\fB\-p\fR
-is specified
-\fBnamed\fR's process id is returned. This allows an external process to determine when
-\fBnamed\fR
-had completed halting.
-.RE
-.PP
-\fBtrace\fR
-.RS 4
-Increment the servers debugging level by one.
-.RE
-.PP
-\fBtrace \fR\fB\fIlevel\fR\fR
-.RS 4
-Sets the server's debugging level to an explicit value.
-.RE
-.PP
-\fBnotrace\fR
-.RS 4
-Sets the server's debugging level to 0.
-.RE
-.PP
-\fBflush\fR
-.RS 4
-Flushes the server's cache.
-.RE
-.PP
-\fBflushname\fR \fIname\fR [\fIview\fR]
-.RS 4
-Flushes the given name from the server's DNS cache and, if applicable, from the server's nameserver address database or bad\-server cache.
-.RE
-.PP
-\fBflushtree\fR \fIname\fR [\fIview\fR]
-.RS 4
-Flushes the given name, and all of its subdomains, from the server's DNS cache. Note that this does
-\fInot\fR
-affect he server's address database or bad\-server cache.
-.RE
-.PP
-\fBstatus\fR
-.RS 4
-Display status of the server. Note that the number of zones includes the internal
-\fBbind/CH\fR
-zone and the default
-\fB./IN\fR
-hint zone if there is not an explicit root zone configured.
-.RE
-.PP
-\fBrecursing\fR
-.RS 4
-Dump the list of queries
-\fBnamed\fR
-is currently recursing on.
-.RE
-.PP
-\fBvalidation ( on | off | check ) \fR\fB[\fIview ...\fR]\fR\fB \fR
-.RS 4
-Enable, disable, or check the current status of DNSSEC validation. Note
-\fBdnssec\-enable\fR
-also needs to be set to
-\fByes\fR
-or
-\fBauto\fR
-to be effective. It defaults to enabled.
-.RE
-.PP
-\fBtsig\-list\fR
-.RS 4
-List the names of all TSIG keys currently configured for use by
-\fBnamed\fR
-in each view. The list both statically configured keys and dynamic TKEY\-negotiated keys.
-.RE
-.PP
-\fBtsig\-delete\fR \fIkeyname\fR [\fIview\fR]
-.RS 4
-Delete a given TKEY\-negotiated key from the server. (This does not apply to statically configured TSIG keys.)
-.RE
 .PP
 \fBaddzone \fR\fB\fIzone\fR\fR\fB \fR\fB[\fIclass\fR [\fIview\fR]]\fR\fB \fR\fB\fIconfiguration\fR\fR\fB \fR
 .RS 4
@@ -353,6 +151,9 @@ to the default view:
 $\fBrndc addzone example.com '{ type master; file "example.com.db"; };'\fR
 .sp
 (Note the brackets and semi\-colon around the zone configuration text.)
+.sp
+See also
+\fBrndc delzone\fR.
 .RE
 .PP
 \fBdelzone \fR\fB\fIzone\fR\fR\fB \fR\fB[\fIclass\fR [\fIview\fR]]\fR\fB \fR
@@ -360,6 +161,160 @@ $\fBrndc addzone example.com '{ type master; file "example.com.db"; };'\fR
 Delete a zone while the server is running. Only zones that were originally added via
 \fBrndc addzone\fR
 can be deleted in this manner.
+.sp
+See also
+\fBrndc addzone\fR
+.RE
+.PP
+\fBdumpdb \fR\fB[\-all|\-cache|\-zone|\-adb|\-bad]\fR\fB \fR\fB[\fIview ...\fR]\fR
+.RS 4
+Dump the server's caches (default) and/or zones to the dump file for the specified views. If no view is specified, all views are dumped. (See the
+\fBdump\-file\fR
+option in the BIND 9 Administrator Reference Manual.)
+.RE
+.PP
+\fBflush\fR
+.RS 4
+Flushes the server's cache.
+.RE
+.PP
+\fBflushname\fR \fIname\fR [\fIview\fR]
+.RS 4
+Flushes the given name from the view's DNS cache and, if applicable, from the view's nameserver address database or bad\-server cache.
+.RE
+.PP
+\fBflushtree\fR \fIname\fR [\fIview\fR]
+.RS 4
+Flushes the given name, and all of its subdomains, from the view's DNS cache. Note that this does
+\fInot\fR
+affect he server's address database or bad\-server cache.
+.RE
+.PP
+\fBfreeze \fR\fB[\fIzone\fR [\fIclass\fR [\fIview\fR]]]\fR
+.RS 4
+Suspend updates to a dynamic zone. If no zone is specified, then all zones are suspended. This allows manual edits to be made to a zone normally updated by dynamic update. It also causes changes in the journal file to be synced into the master file. All dynamic update attempts will be refused while the zone is frozen.
+.sp
+See also
+\fBrndc thaw\fR.
+.RE
+.PP
+\fBhalt \fR\fB[\-p]\fR
+.RS 4
+Stop the server immediately. Recent changes made through dynamic update or IXFR are not saved to the master files, but will be rolled forward from the journal files when the server is restarted. If
+\fB\-p\fR
+is specified
+\fBnamed\fR's process id is returned. This allows an external process to determine when
+\fBnamed\fR
+had completed halting.
+.sp
+See also
+\fBrndc stop\fR.
+.RE
+.PP
+\fBloadkeys \fR\fB\fIzone\fR\fR\fB \fR\fB[\fIclass\fR [\fIview\fR]]\fR
+.RS 4
+Fetch all DNSSEC keys for the given zone from the key directory. If they are within their publication period, merge them into the zone's DNSKEY RRset. Unlike
+\fBrndc sign\fR, however, the zone is not immediately re\-signed by the new keys, but is allowed to incrementally re\-sign over time.
+.sp
+This command requires that the
+\fBauto\-dnssec\fR
+zone option be set to
+maintain, and also requires the zone to be configured to allow dynamic DNS. (See "Dynamic Update Policies" in the Administrator Reference Manual for more details.)
+.RE
+.PP
+\fBnotify \fR\fB\fIzone\fR\fR\fB \fR\fB[\fIclass\fR [\fIview\fR]]\fR
+.RS 4
+Resend NOTIFY messages for the zone.
+.RE
+.PP
+\fBnotrace\fR
+.RS 4
+Sets the server's debugging level to 0.
+.sp
+See also
+\fBrndc trace\fR.
+.RE
+.PP
+\fBquerylog\fR [on|off]
+.RS 4
+Enable or disable query logging. (For backward compatibility, this command can also be used without an argument to toggle query logging on and off.)
+.sp
+Query logging can also be enabled by explicitly directing the
+\fBqueries\fR
+\fBcategory\fR
+to a
+\fBchannel\fR
+in the
+\fBlogging\fR
+section of
+\fInamed.conf\fR
+or by specifying
+\fBquerylog yes;\fR
+in the
+\fBoptions\fR
+section of
+\fInamed.conf\fR.
+.RE
+.PP
+\fBreconfig\fR
+.RS 4
+Reload the configuration file and load new zones, but do not reload existing zone files even if they have changed. This is faster than a full
+\fBreload\fR
+when there is a large number of zones because it avoids the need to examine the modification times of the zones files.
+.RE
+.PP
+\fBrecursing\fR
+.RS 4
+Dump the list of queries
+\fBnamed\fR
+is currently recursing on, and the list of domains to which iterative queries are currently being sent. (The second list includes the number of fetches currently active for the given domain, and how many have been passed or dropped because of the
+\fBfetches\-per\-zone\fR
+option.)
+.RE
+.PP
+\fBrefresh \fR\fB\fIzone\fR\fR\fB \fR\fB[\fIclass\fR [\fIview\fR]]\fR
+.RS 4
+Schedule zone maintenance for the given zone.
+.RE
+.PP
+\fBreload\fR
+.RS 4
+Reload configuration file and zones.
+.RE
+.PP
+\fBreload \fR\fB\fIzone\fR\fR\fB \fR\fB[\fIclass\fR [\fIview\fR]]\fR
+.RS 4
+Reload the given zone.
+.RE
+.PP
+\fBretransfer \fR\fB\fIzone\fR\fR\fB \fR\fB[\fIclass\fR [\fIview\fR]]\fR
+.RS 4
+Retransfer the given slave zone from the master server.
+.sp
+If the zone is configured to use
+\fBinline\-signing\fR, the signed version of the zone is discarded; after the retransfer of the unsigned version is complete, the signed version will be regenerated with all new signatures.
+.RE
+.PP
+\fBsecroots \fR\fB[\fIview ...\fR]\fR
+.RS 4
+Dump the server's security roots to the secroots file for the specified views. If no view is specified, security roots for all views are dumped.
+.RE
+.PP
+\fBsign \fR\fB\fIzone\fR\fR\fB \fR\fB[\fIclass\fR [\fIview\fR]]\fR
+.RS 4
+Fetch all DNSSEC keys for the given zone from the key directory (see the
+\fBkey\-directory\fR
+option in the BIND 9 Administrator Reference Manual). If they are within their publication period, merge them into the zone's DNSKEY RRset. If the DNSKEY RRset is changed, then the zone is automatically re\-signed with the new key set.
+.sp
+This command requires that the
+\fBauto\-dnssec\fR
+zone option be set to
+allow
+or
+maintain, and also requires the zone to be configured to allow dynamic DNS. (See "Dynamic Update Policies" in the Administrator Reference Manual for more details.)
+.sp
+See also
+\fBrndc loadkeys\fR.
 .RE
 .PP
 \fBsigning \fR\fB[( \-list | \-clear \fIkeyid/algorithm\fR | \-clear all | \-nsec3param ( \fIparameters\fR | none ) ) ]\fR\fB \fR\fB\fIzone\fR\fR\fB \fR\fB[\fIclass\fR [\fIview\fR]]\fR\fB \fR
@@ -398,6 +353,86 @@ So, for example, to create an NSEC3 chain using the SHA\-1 hash algorithm, no op
 \fBrndc signing \-nsec3param none\fR
 removes an existing NSEC3 chain and replaces it with NSEC.
 .RE
+.PP
+\fBstats\fR
+.RS 4
+Write server statistics to the statistics file. (See the
+\fBstatistics\-file\fR
+option in the BIND 9 Administrator Reference Manual.)
+.RE
+.PP
+\fBstatus\fR
+.RS 4
+Display status of the server. Note that the number of zones includes the internal
+\fBbind/CH\fR
+zone and the default
+\fB./IN\fR
+hint zone if there is not an explicit root zone configured.
+.RE
+.PP
+\fBstop \fR\fB[\-p]\fR
+.RS 4
+Stop the server, making sure any recent changes made through dynamic update or IXFR are first saved to the master files of the updated zones. If
+\fB\-p\fR
+is specified
+\fBnamed\fR's process id is returned. This allows an external process to determine when
+\fBnamed\fR
+had completed stopping.
+.sp
+See also
+\fBrndc halt\fR.
+.RE
+.PP
+\fBsync \fR\fB[\-clean]\fR\fB \fR\fB[\fIzone\fR [\fIclass\fR [\fIview\fR]]]\fR
+.RS 4
+Sync changes in the journal file for a dynamic zone to the master file. If the "\-clean" option is specified, the journal file is also removed. If no zone is specified, then all zones are synced.
+.RE
+.PP
+\fBthaw \fR\fB[\fIzone\fR [\fIclass\fR [\fIview\fR]]]\fR
+.RS 4
+Enable updates to a frozen dynamic zone. If no zone is specified, then all frozen zones are enabled. This causes the server to reload the zone from disk, and re\-enables dynamic updates after the load has completed. After a zone is thawed, dynamic updates will no longer be refused. If the zone has changed and the
+\fBixfr\-from\-differences\fR
+option is in use, then the journal file will be updated to reflect changes in the zone. Otherwise, if the zone has changed, any existing journal file will be removed.
+.sp
+See also
+\fBrndc freeze\fR.
+.RE
+.PP
+\fBtrace\fR
+.RS 4
+Increment the servers debugging level by one.
+.RE
+.PP
+\fBtrace \fR\fB\fIlevel\fR\fR
+.RS 4
+Sets the server's debugging level to an explicit value.
+.sp
+See also
+\fBrndc notrace\fR.
+.RE
+.PP
+\fBtsig\-delete\fR \fIkeyname\fR [\fIview\fR]
+.RS 4
+Delete a given TKEY\-negotiated key from the server. (This does not apply to statically configured TSIG keys.)
+.RE
+.PP
+\fBtsig\-list\fR
+.RS 4
+List the names of all TSIG keys currently configured for use by
+\fBnamed\fR
+in each view. The list both statically configured keys and dynamic TKEY\-negotiated keys.
+.RE
+.PP
+\fBvalidation ( on | off | check ) \fR\fB[\fIview ...\fR]\fR\fB \fR
+.RS 4
+Enable, disable, or check the current status of DNSSEC validation. Note
+\fBdnssec\-enable\fR
+also needs to be set to
+\fByes\fR
+or
+\fBauto\fR
+to be effective. It defaults to enabled.
+.RE
 .SH "LIMITATIONS"
 .PP
 There is currently no way to provide the shared secret for a
@@ -417,7 +452,7 @@ BIND 9 Administrator Reference Manual.
 .PP
 Internet Systems Consortium
 .SH "COPYRIGHT"
-Copyright \(co 2004, 2005, 2007, 2013, 2014 Internet Systems Consortium, Inc. ("ISC")
+Copyright \(co 2004, 2005, 2007, 2013\-2015 Internet Systems Consortium, Inc. ("ISC")
 .br
 Copyright \(co 2000, 2001 Internet Software Consortium.
 .br

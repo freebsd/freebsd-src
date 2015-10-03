@@ -31,6 +31,7 @@
 #include <isc/buffer.h>
 #include <isc/lib.h>
 #include <isc/mem.h>
+#include <isc/print.h>
 #include <isc/socket.h>
 #include <isc/sockaddr.h>
 #include <isc/string.h>

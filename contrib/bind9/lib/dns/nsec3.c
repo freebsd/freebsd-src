@@ -25,6 +25,7 @@
 #include <isc/log.h>
 #include <isc/string.h>
 #include <isc/util.h>
+#include <isc/safe.h>
 
 #include <dst/dst.h>
 
@@ -1929,7 +1930,7 @@ dns_nsec3_noexistnodata(dns_rdatatype_t type, dns_name_t* name,
 	 * Work out what this NSEC3 covers.
 	 * Inside (<0) or outside (>=0).
 	 */
-	scope = memcmp(owner, nsec3.next, nsec3.next_length);
+	scope = isc_safe_memcompare(owner, nsec3.next, nsec3.next_length);
 
 	/*
 	 * Prepare to compute all the hashes.
@@ -1954,7 +1955,7 @@ dns_nsec3_noexistnodata(dns_rdatatype_t type, dns_name_t* name,
 			return (ISC_R_IGNORE);
 		}
 
-		order = memcmp(hash, owner, length);
+		order = isc_safe_memcompare(hash, owner, length);
 		if (first && order == 0) {
 			/*
 			 * The hashes are the same.

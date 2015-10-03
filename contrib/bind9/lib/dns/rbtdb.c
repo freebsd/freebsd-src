@@ -753,7 +753,7 @@ typedef struct rbtdb_dbiterator {
 
 static void free_rbtdb(dns_rbtdb_t *rbtdb, isc_boolean_t log,
 		       isc_event_t *event);
-static void overmem(dns_db_t *db, isc_boolean_t overmem);
+static void overmem(dns_db_t *db, isc_boolean_t over);
 #ifdef BIND9
 static void setnsec3parameters(dns_db_t *db, rbtdb_version_t *version);
 #endif
@@ -852,11 +852,14 @@ set_ttl(dns_rbtdb_t *rbtdb, rdatasetheader_t *header, dns_ttl_t newttl) {
 	isc_heap_t *heap;
 	dns_ttl_t oldttl;
 
+
+	if (!IS_CACHE(rbtdb)) {
+		header->rdh_ttl = newttl;
+		return;
+	}
+
 	oldttl = header->rdh_ttl;
 	header->rdh_ttl = newttl;
-
-	if (!IS_CACHE(rbtdb))
-		return;
 
 	/*
 	 * It's possible the rbtdb is not a cache.  If this is the case,
@@ -904,10 +907,10 @@ resign_sooner(void *v1, void *v2) {
  * This function sets the heap index into the header.
  */
 static void
-set_index(void *what, unsigned int index) {
+set_index(void *what, unsigned int idx) {
 	rdatasetheader_t *h = what;
 
-	h->heap_index = index;
+	h->heap_index = idx;
 }
 
 /*%
@@ -1385,6 +1388,7 @@ new_rdataset(dns_rbtdb_t *rbtdb, isc_mem_t *mctx)
 		fprintf(stderr, "allocated header: %p\n", h);
 #endif
 	init_rdataset(rbtdb, h);
+	h->rdh_ttl = 0;
 	return (h);
 }
 
@@ -2192,6 +2196,7 @@ setnsec3parameters(dns_db_t *db, rbtdb_version_t *version) {
 	unsigned int count, length;
 	dns_rbtdb_t *rbtdb = (dns_rbtdb_t *)db;
 
+	RWLOCK(&rbtdb->tree_lock, isc_rwlocktype_read);
 	version->havensec3 = ISC_FALSE;
 	node = rbtdb->origin_node;
 	NODE_LOCK(&(rbtdb->node_locks[node->locknum].lock),
@@ -2268,6 +2273,7 @@ setnsec3parameters(dns_db_t *db, rbtdb_version_t *version) {
  unlock:
 	NODE_UNLOCK(&(rbtdb->node_locks[node->locknum].lock),
 		    isc_rwlocktype_read);
+	RWUNLOCK(&rbtdb->tree_lock, isc_rwlocktype_read);
 }
 #endif
 
@@ -2330,6 +2336,13 @@ closeversion(dns_db_t *db, dns_dbversion_t **versionp, isc_boolean_t commit) {
 		goto end;
 	}
 
+	/*
+	 * Update the zone's secure status in version before making
+	 * it the current version.
+	 */
+	if (version->writer && commit && !IS_CACHE(rbtdb))
+		iszonesecure(db, version, rbtdb->origin_node);
+
 	RBTDB_LOCK(&rbtdb->lock, isc_rwlocktype_write);
 	serial = version->serial;
 	if (version->writer) {
@@ -2387,11 +2400,6 @@ closeversion(dns_db_t *db, dns_dbversion_t **versionp, isc_boolean_t commit) {
 					   cleanup_version->changed_list,
 					   link);
 			}
-			/*
-			 * Update the zone's secure status.
-			 */
-			if (!IS_CACHE(rbtdb))
-				iszonesecure(db, version, rbtdb->origin_node);
 			/*
 			 * Become the current version.
 			 */
@@ -5580,11 +5588,11 @@ expirenode(dns_db_t *db, dns_dbnode_t *node, isc_stdtime_t now) {
 }
 
 static void
-overmem(dns_db_t *db, isc_boolean_t overmem) {
+overmem(dns_db_t *db, isc_boolean_t over) {
 	/* This is an empty callback.  See adb.c:water() */
 
 	UNUSED(db);
-	UNUSED(overmem);
+	UNUSED(over);
 
 	return;
 }
