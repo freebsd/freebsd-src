@@ -221,7 +221,9 @@ static int		rum_init(struct rum_softc *);
 static void		rum_stop(struct rum_softc *);
 static void		rum_load_microcode(struct rum_softc *, const uint8_t *,
 			    size_t);
-static int		rum_prepare_beacon(struct rum_softc *,
+static int		rum_set_beacon(struct rum_softc *,
+			    struct ieee80211vap *);
+static int		rum_alloc_beacon(struct rum_softc *,
 			    struct ieee80211vap *);
 static int		rum_raw_xmit(struct ieee80211_node *, struct mbuf *,
 			    const struct ieee80211_bpf_params *);
@@ -630,6 +632,7 @@ rum_vap_delete(struct ieee80211vap *vap)
 	struct rum_vap *rvp = RUM_VAP(vap);
 	struct ieee80211com *ic = vap->iv_ic;
 
+	m_freem(rvp->bcn_mbuf);
 	usb_callout_drain(&rvp->ratectl_ch);
 	ieee80211_draintask(ic, &rvp->ratectl_task);
 	ieee80211_ratectl_deinit(vap);
@@ -792,7 +795,7 @@ rum_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 
 		if (vap->iv_opmode == IEEE80211_M_HOSTAP ||
 		    vap->iv_opmode == IEEE80211_M_IBSS) {
-			if ((ret = rum_prepare_beacon(sc, vap)) != 0)
+			if ((ret = rum_alloc_beacon(sc, vap)) != 0)
 				goto run_fail;
 		}
 
@@ -2208,42 +2211,58 @@ rum_load_microcode(struct rum_softc *sc, const uint8_t *ucode, size_t size)
 }
 
 static int
-rum_prepare_beacon(struct rum_softc *sc, struct ieee80211vap *vap)
+rum_set_beacon(struct rum_softc *sc, struct ieee80211vap *vap)
 {
 	struct ieee80211com *ic = vap->iv_ic;
+	struct rum_vap *rvp = RUM_VAP(vap);
+	struct mbuf *m = rvp->bcn_mbuf;
 	const struct ieee80211_txparam *tp;
 	struct rum_tx_desc desc;
-	struct mbuf *m0;
-	int ret = 0;
 
-	if (vap->iv_bss->ni_chan == IEEE80211_CHAN_ANYC)
+	RUM_LOCK_ASSERT(sc);
+
+	if (m == NULL)
 		return EINVAL;
 	if (ic->ic_bsschan == IEEE80211_CHAN_ANYC)
 		return EINVAL;
 
-	m0 = ieee80211_beacon_alloc(vap->iv_bss, &vap->iv_bcn_off);
-	if (m0 == NULL)
-		return ENOMEM;
-
 	tp = &vap->iv_txparms[ieee80211_chan2mode(ic->ic_bsschan)];
 	rum_setup_tx_desc(sc, &desc, RT2573_TX_TIMESTAMP, RT2573_TX_HWSEQ,
-	    m0->m_pkthdr.len, tp->mgmtrate);
+	    m->m_pkthdr.len, tp->mgmtrate);
 
-	/* copy the first 24 bytes of Tx descriptor into NIC memory */
-	if ((ret = rum_write_multi(sc, RT2573_HW_BEACON_BASE0,
-	    (uint8_t *)&desc, 24)) != 0) {
-		ret = EIO;
-		goto end;
-	}
+	/* copy the Tx descriptor into NIC memory */
+	if (rum_write_multi(sc, RT2573_HW_BCN_BASE(0), (uint8_t *)&desc,
+	    RT2573_TX_DESC_SIZE) != 0)
+		return EIO;
 
 	/* copy beacon header and payload into NIC memory */
-	if ((ret = rum_write_multi(sc, RT2573_HW_BEACON_BASE0 + 24, mtod(m0, uint8_t *),
-	    m0->m_pkthdr.len)) != 0)
-		ret = EIO;
+	if (rum_write_multi(sc, RT2573_HW_BCN_BASE(0) + RT2573_TX_DESC_SIZE,
+	    mtod(m, uint8_t *), m->m_pkthdr.len) != 0)
+		return EIO;
 
-end:
-	m_freem(m0);
-	return ret;
+	return 0;
+}
+
+static int
+rum_alloc_beacon(struct rum_softc *sc, struct ieee80211vap *vap)
+{
+	struct rum_vap *rvp = RUM_VAP(vap);
+	struct ieee80211_node *ni = vap->iv_bss;
+	struct mbuf *m;
+
+	if (ni->ni_chan == IEEE80211_CHAN_ANYC)
+		return EINVAL;
+
+	m = ieee80211_beacon_alloc(ni, &vap->iv_bcn_off);
+	if (m == NULL)
+		return ENOMEM;
+
+	if (rvp->bcn_mbuf != NULL)
+		m_freem(rvp->bcn_mbuf);
+
+	rvp->bcn_mbuf = m;
+
+	return (rum_set_beacon(sc, vap));
 }
 
 static int
