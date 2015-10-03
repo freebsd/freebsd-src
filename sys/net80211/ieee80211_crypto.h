@@ -178,6 +178,7 @@ struct ieee80211_cipher {
 	void*	(*ic_attach)(struct ieee80211vap *, struct ieee80211_key *);
 	void	(*ic_detach)(struct ieee80211_key *);
 	int	(*ic_setkey)(struct ieee80211_key *);
+	void	(*ic_setiv)(struct ieee80211_key *, uint8_t *);
 	int	(*ic_encap)(struct ieee80211_key *, struct mbuf *);
 	int	(*ic_decap)(struct ieee80211_key *, struct mbuf *, int);
 	int	(*ic_enmic)(struct ieee80211_key *, struct mbuf *, int);
