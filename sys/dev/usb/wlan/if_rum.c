@@ -158,6 +158,9 @@ static struct ieee80211vap *rum_vap_create(struct ieee80211com *,
 			    int, const uint8_t [IEEE80211_ADDR_LEN],
 			    const uint8_t [IEEE80211_ADDR_LEN]);
 static void		rum_vap_delete(struct ieee80211vap *);
+static void		rum_cmdq_cb(void *, int);
+static int		rum_cmd_sleepable(struct rum_softc *, const void *,
+			    size_t, uint8_t, uint8_t, CMD_FUNC_PROTO);
 static void		rum_tx_free(struct rum_tx_data *, int);
 static void		rum_setup_tx_list(struct rum_softc *);
 static void		rum_unsetup_tx_list(struct rum_softc *);
@@ -438,8 +441,8 @@ rum_attach(device_t self)
 	sc->sc_udev = uaa->device;
 	sc->sc_dev = self;
 
-	mtx_init(&sc->sc_mtx, device_get_nameunit(self),
-	    MTX_NETWORK_LOCK, MTX_DEF);
+	RUM_LOCK_INIT(sc);
+	RUM_CMDQ_LOCK_INIT(sc);
 	mbufq_init(&sc->sc_snd, ifqmaxlen);
 
 	iface_index = RT2573_IFACE_INDEX;
@@ -516,6 +519,8 @@ rum_attach(device_t self)
 	    &sc->sc_rxtap.wr_ihdr, sizeof(sc->sc_rxtap),
 		RT2573_RX_RADIOTAP_PRESENT);
 
+	TASK_INIT(&sc->cmdq_task, 0, rum_cmdq_cb, sc);
+
 	if (bootverbose)
 		ieee80211_announce(ic);
 
@@ -545,10 +550,15 @@ rum_detach(device_t self)
 	rum_unsetup_tx_list(sc);
 	RUM_UNLOCK(sc);
 
-	if (ic->ic_softc == sc)
+	if (ic->ic_softc == sc) {
+		ieee80211_draintask(ic, &sc->cmdq_task);
 		ieee80211_ifdetach(ic);
+	}
+
 	mbufq_drain(&sc->sc_snd);
-	mtx_destroy(&sc->sc_mtx);
+	RUM_CMDQ_LOCK_DESTROY(sc);
+	RUM_LOCK_DESTROY(sc);
+
 	return (0);
 }
 
@@ -622,6 +632,57 @@ rum_vap_delete(struct ieee80211vap *vap)
 	ieee80211_ratectl_deinit(vap);
 	ieee80211_vap_detach(vap);
 	free(rvp, M_80211_VAP);
+}
+
+static void
+rum_cmdq_cb(void *arg, int pending)
+{
+	struct rum_softc *sc = arg;
+	struct rum_cmdq *rc;
+
+	RUM_CMDQ_LOCK(sc);
+	while (sc->cmdq[sc->cmdq_first].func != NULL) {
+		rc = &sc->cmdq[sc->cmdq_first];
+		RUM_CMDQ_UNLOCK(sc);
+
+		RUM_LOCK(sc);
+		rc->func(sc, &rc->data, rc->rn_id, rc->rvp_id);
+		RUM_UNLOCK(sc);
+
+		RUM_CMDQ_LOCK(sc);
+		memset(rc, 0, sizeof (*rc));
+		sc->cmdq_first = (sc->cmdq_first + 1) % RUM_CMDQ_SIZE;
+	}
+	RUM_CMDQ_UNLOCK(sc);
+}
+
+static int
+rum_cmd_sleepable(struct rum_softc *sc, const void *ptr, size_t len,
+    uint8_t rn_id, uint8_t rvp_id, CMD_FUNC_PROTO)
+{
+	struct ieee80211com *ic = &sc->sc_ic;
+
+	KASSERT(len <= sizeof(union sec_param), ("buffer overflow"));
+
+	RUM_CMDQ_LOCK(sc);
+	if (sc->cmdq[sc->cmdq_last].func != NULL) {
+		device_printf(sc->sc_dev, "%s: cmdq overflow\n", __func__);
+		RUM_CMDQ_UNLOCK(sc);
+
+		return EAGAIN;
+	}
+
+	if (ptr != NULL)
+		memcpy(&sc->cmdq[sc->cmdq_last].data, ptr, len);
+	sc->cmdq[sc->cmdq_last].rn_id = rn_id;
+	sc->cmdq[sc->cmdq_last].rvp_id = rvp_id;
+	sc->cmdq[sc->cmdq_last].func = func;
+	sc->cmdq_last = (sc->cmdq_last + 1) % RUM_CMDQ_SIZE;
+	RUM_CMDQ_UNLOCK(sc);
+
+	ieee80211_runtask(ic, &sc->cmdq_task);
+
+	return 0;
 }
 
 static void
