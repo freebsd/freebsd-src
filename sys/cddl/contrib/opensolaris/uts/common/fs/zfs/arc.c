@@ -4732,48 +4732,6 @@ arc_memory_throttle(uint64_t reserve, uint64_t txg)
 	return (0);
 }
 
-static void
-arc_kstat_update_state(arc_state_t *state, kstat_named_t *size,
-    kstat_named_t *evict_data, kstat_named_t *evict_metadata)
-{
-	size->value.ui64 = state->arcs_size;
-	evict_data->value.ui64 = state->arcs_lsize[ARC_BUFC_DATA];
-	evict_metadata->value.ui64 = state->arcs_lsize[ARC_BUFC_METADATA];
-}
-
-static int
-arc_kstat_update(kstat_t *ksp, int rw)
-{
-	arc_stats_t *as = ksp->ks_data;
-
-	if (rw == KSTAT_WRITE) {
-		return (EACCES);
-	} else {
-		arc_kstat_update_state(arc_anon,
-		    &as->arcstat_anon_size,
-		    &as->arcstat_anon_evictable_data,
-		    &as->arcstat_anon_evictable_metadata);
-		arc_kstat_update_state(arc_mru,
-		    &as->arcstat_mru_size,
-		    &as->arcstat_mru_evictable_data,
-		    &as->arcstat_mru_evictable_metadata);
-		arc_kstat_update_state(arc_mru_ghost,
-		    &as->arcstat_mru_ghost_size,
-		    &as->arcstat_mru_ghost_evictable_data,
-		    &as->arcstat_mru_ghost_evictable_metadata);
-		arc_kstat_update_state(arc_mfu,
-		    &as->arcstat_mfu_size,
-		    &as->arcstat_mfu_evictable_data,
-		    &as->arcstat_mfu_evictable_metadata);
-		arc_kstat_update_state(arc_mfu_ghost,
-		    &as->arcstat_mfu_ghost_size,
-		    &as->arcstat_mfu_ghost_evictable_data,
-		    &as->arcstat_mfu_ghost_evictable_metadata);
-	}
-
-	return (0);
-}
-
 void
 arc_tempreserve_clear(uint64_t reserve)
 {
@@ -4829,6 +4787,48 @@ arc_tempreserve_space(uint64_t reserve, uint64_t txg)
 		return (SET_ERROR(ERESTART));
 	}
 	atomic_add_64(&arc_tempreserve, reserve);
+	return (0);
+}
+
+static void
+arc_kstat_update_state(arc_state_t *state, kstat_named_t *size,
+    kstat_named_t *evict_data, kstat_named_t *evict_metadata)
+{
+	size->value.ui64 = state->arcs_size;
+	evict_data->value.ui64 = state->arcs_lsize[ARC_BUFC_DATA];
+	evict_metadata->value.ui64 = state->arcs_lsize[ARC_BUFC_METADATA];
+}
+
+static int
+arc_kstat_update(kstat_t *ksp, int rw)
+{
+	arc_stats_t *as = ksp->ks_data;
+
+	if (rw == KSTAT_WRITE) {
+		return (EACCES);
+	} else {
+		arc_kstat_update_state(arc_anon,
+		    &as->arcstat_anon_size,
+		    &as->arcstat_anon_evictable_data,
+		    &as->arcstat_anon_evictable_metadata);
+		arc_kstat_update_state(arc_mru,
+		    &as->arcstat_mru_size,
+		    &as->arcstat_mru_evictable_data,
+		    &as->arcstat_mru_evictable_metadata);
+		arc_kstat_update_state(arc_mru_ghost,
+		    &as->arcstat_mru_ghost_size,
+		    &as->arcstat_mru_ghost_evictable_data,
+		    &as->arcstat_mru_ghost_evictable_metadata);
+		arc_kstat_update_state(arc_mfu,
+		    &as->arcstat_mfu_size,
+		    &as->arcstat_mfu_evictable_data,
+		    &as->arcstat_mfu_evictable_metadata);
+		arc_kstat_update_state(arc_mfu_ghost,
+		    &as->arcstat_mfu_ghost_size,
+		    &as->arcstat_mfu_ghost_evictable_data,
+		    &as->arcstat_mfu_ghost_evictable_metadata);
+	}
+
 	return (0);
 }
 
