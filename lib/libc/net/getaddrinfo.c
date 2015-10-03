@@ -168,12 +168,6 @@ struct explore {
 };
 
 static const struct explore explore[] = {
-	{ PF_LOCAL, SOCK_DGRAM,	ANY,
-	    AF_ANY | PROTOCOL_ANY },
-	{ PF_LOCAL, SOCK_STREAM, ANY,
-	    AF_ANY | PROTOCOL_ANY },
-	{ PF_LOCAL, SOCK_SEQPACKET, ANY,
-	    AF_ANY | PROTOCOL_ANY },
 #ifdef INET6
 	{ PF_INET6, SOCK_DGRAM,	 IPPROTO_UDP,
 	    AF_ANY | SOCKTYPE_ANY | PROTOCOL_ANY },
@@ -200,6 +194,12 @@ static const struct explore explore[] = {
 	    AF_ANY | SOCKTYPE_ANY },
 	{ PF_INET, SOCK_RAW, ANY,
 	    AF_ANY | PROTOCOL_ANY },
+	{ PF_LOCAL, SOCK_DGRAM,	ANY,
+	    AF_ANY | SOCKTYPE_ANY | PROTOCOL_ANY },
+	{ PF_LOCAL, SOCK_STREAM, ANY,
+	    AF_ANY | SOCKTYPE_ANY | PROTOCOL_ANY },
+	{ PF_LOCAL, SOCK_SEQPACKET, ANY,
+	    AF_ANY | SOCKTYPE_ANY | PROTOCOL_ANY },
 	{ -1, 0, 0, 0 },
 };
 
@@ -1245,7 +1245,9 @@ explore_numeric(const struct addrinfo *pai, const char *hostname,
 	if (pai->ai_family == afd->a_af) {
 		GET_AI(ai, afd, p);
 		GET_PORT(ai, servname);
-		if ((pai->ai_flags & AI_CANONNAME)) {
+		if ((pai->ai_family == AF_INET ||
+		     pai->ai_family == AF_INET6) &&
+		    (pai->ai_flags & AI_CANONNAME)) {
 			/*
 			 * Set the numeric address itself as the canonical
 			 * name, based on a clarification in RFC3493.
