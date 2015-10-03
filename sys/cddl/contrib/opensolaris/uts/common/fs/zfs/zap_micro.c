@@ -547,7 +547,7 @@ mzap_upgrade(zap_t **zapp, dmu_tx_t *tx, zap_flags_t flags)
 	ASSERT(RW_WRITE_HELD(&zap->zap_rwlock));
 
 	sz = zap->zap_dbuf->db_size;
-	mzp = kmem_alloc(sz, KM_SLEEP);
+	mzp = zio_buf_alloc(sz);
 	bcopy(zap->zap_dbuf->db_data, mzp, sz);
 	nchunks = zap->zap_m.zap_num_chunks;
 
@@ -555,7 +555,7 @@ mzap_upgrade(zap_t **zapp, dmu_tx_t *tx, zap_flags_t flags)
 		err = dmu_object_set_blocksize(zap->zap_objset, zap->zap_object,
 		    1ULL << fzap_default_block_shift, 0, tx);
 		if (err) {
-			kmem_free(mzp, sz);
+			zio_buf_free(mzp, sz);
 			return (err);
 		}
 	}
@@ -581,7 +581,7 @@ mzap_upgrade(zap_t **zapp, dmu_tx_t *tx, zap_flags_t flags)
 		if (err)
 			break;
 	}
-	kmem_free(mzp, sz);
+	zio_buf_free(mzp, sz);
 	*zapp = zap;
 	return (err);
 }
