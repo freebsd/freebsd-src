@@ -22,6 +22,8 @@ DPADD=	${LIBKADM5CLNT} ${LIBKRB5} ${LIBSL} ${LIBROKEN} ${LIBVERS} \
 LDADD=	-lkadm5clnt -lkrb5 ${LIBSL} -lroken ${LIBVERS} \
 	-lasn1 -lcrypto -lcrypt -ledit
 
+CLEANFILES=	ktutil-commands.h ktutil-commands.c
+
 .include <bsd.prog.mk>
 
 ktutil-commands.h: ${KRB5DIR}/admin/ktutil-commands.in
