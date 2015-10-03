@@ -4354,7 +4354,6 @@ static int
 wpi_setup_beacon(struct wpi_softc *sc, struct ieee80211_node *ni)
 {
 	struct ieee80211vap *vap = ni->ni_vap;
-	struct ieee80211_beacon_offsets *bo = &vap->iv_bcn_off;
 	struct wpi_vap *wvp = WPI_VAP(vap);
 	struct wpi_buf *bcn = &wvp->wv_bcbuf;
 	struct mbuf *m;
@@ -4365,7 +4364,7 @@ wpi_setup_beacon(struct wpi_softc *sc, struct ieee80211_node *ni)
 	if (ni->ni_chan == IEEE80211_CHAN_ANYC)
 		return EINVAL;
 
-	m = ieee80211_beacon_alloc(ni, bo);
+	m = ieee80211_beacon_alloc(ni);
 	if (m == NULL) {
 		device_printf(sc->sc_dev,
 		    "%s: could not allocate beacon frame\n", __func__);
@@ -4398,7 +4397,7 @@ wpi_update_beacon(struct ieee80211vap *vap, int item)
 
 	WPI_VAP_LOCK(wvp);
 	if (bcn->m == NULL) {
-		bcn->m = ieee80211_beacon_alloc(ni, bo);
+		bcn->m = ieee80211_beacon_alloc(ni);
 		if (bcn->m == NULL) {
 			device_printf(sc->sc_dev,
 			    "%s: could not allocate beacon frame\n", __func__);
@@ -4416,7 +4415,7 @@ wpi_update_beacon(struct ieee80211vap *vap, int item)
 		mcast = 1;	/* TODO */
 
 	setbit(bo->bo_flags, item);
-	ieee80211_beacon_update(ni, bo, bcn->m, mcast);
+	ieee80211_beacon_update(ni, bcn->m, mcast);
 
 	WPI_VAP_LOCK(wvp);
 	wpi_config_beacon(wvp);

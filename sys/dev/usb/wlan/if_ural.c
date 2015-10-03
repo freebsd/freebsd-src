@@ -710,7 +710,7 @@ ural_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 
 		if (vap->iv_opmode == IEEE80211_M_HOSTAP ||
 		    vap->iv_opmode == IEEE80211_M_IBSS) {
-			m = ieee80211_beacon_alloc(ni, &vap->iv_bcn_off);
+			m = ieee80211_beacon_alloc(ni);
 			if (m == NULL) {
 				device_printf(sc->sc_dev,
 				    "could not allocate beacon\n");

@@ -1843,10 +1843,9 @@ mwl_beacon_setup(struct ieee80211vap *vap)
 {
 	struct mwl_hal_vap *hvap = MWL_VAP(vap)->mv_hvap;
 	struct ieee80211_node *ni = vap->iv_bss;
-	struct ieee80211_beacon_offsets *bo = &vap->iv_bcn_off;
 	struct mbuf *m;
 
-	m = ieee80211_beacon_alloc(ni, bo);
+	m = ieee80211_beacon_alloc(ni);
 	if (m == NULL)
 		return ENOBUFS;
 	mwl_hal_setbeacon(hvap, mtod(m, const void *), m->m_len);

@@ -205,7 +205,7 @@ wtap_beacon_alloc(struct wtap_softc *sc, struct ieee80211_node *ni)
 	 * we assume the mbuf routines will return us something
 	 * with this alignment (perhaps should assert).
 	 */
-	avp->beacon = ieee80211_beacon_alloc(ni, &vap->iv_bcn_off);
+	avp->beacon = ieee80211_beacon_alloc(ni);
 	if (avp->beacon == NULL) {
 		printf("%s: cannot get mbuf\n", __func__);
 		return ENOMEM;
@@ -242,7 +242,7 @@ wtap_beacon_intrp(void *arg)
 	 * of the TIM bitmap).
 	 */
 	m = m_dup(avp->beacon, M_NOWAIT);
-	if (ieee80211_beacon_update(avp->bf_node, &vap->iv_bcn_off, m, 0)) {
+	if (ieee80211_beacon_update(avp->bf_node, m, 0)) {
 		printf("%s, need to remap the memory because the beacon frame"
 		    " changed size.\n",__func__);
 	}

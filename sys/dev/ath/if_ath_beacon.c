@@ -199,7 +199,7 @@ ath_beacon_alloc(struct ath_softc *sc, struct ieee80211_node *ni)
 	 * we assume the mbuf routines will return us something
 	 * with this alignment (perhaps should assert).
 	 */
-	m = ieee80211_beacon_alloc(ni, &vap->iv_bcn_off);
+	m = ieee80211_beacon_alloc(ni);
 	if (m == NULL) {
 		device_printf(sc->sc_dev, "%s: cannot get mbuf\n", __func__);
 		sc->sc_stats.ast_be_nombuf++;
@@ -713,7 +713,7 @@ ath_beacon_generate(struct ath_softc *sc, struct ieee80211vap *vap)
 	/* XXX lock mcastq? */
 	nmcastq = avp->av_mcastq.axq_depth;
 
-	if (ieee80211_beacon_update(bf->bf_node, &vap->iv_bcn_off, m, nmcastq)) {
+	if (ieee80211_beacon_update(bf->bf_node, m, nmcastq)) {
 		/* XXX too conservative? */
 		bus_dmamap_unload(sc->sc_dmat, bf->bf_dmamap);
 		error = bus_dmamap_load_mbuf_sg(sc->sc_dmat, bf->bf_dmamap, m,
@@ -829,7 +829,7 @@ ath_beacon_start_adhoc(struct ath_softc *sc, struct ieee80211vap *vap)
 	 */
 	bf = avp->av_bcbuf;
 	m = bf->bf_m;
-	if (ieee80211_beacon_update(bf->bf_node, &vap->iv_bcn_off, m, 0)) {
+	if (ieee80211_beacon_update(bf->bf_node, m, 0)) {
 		/* XXX too conservative? */
 		bus_dmamap_unload(sc->sc_dmat, bf->bf_dmamap);
 		error = bus_dmamap_load_mbuf_sg(sc->sc_dmat, bf->bf_dmamap, m,
