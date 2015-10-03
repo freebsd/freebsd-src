@@ -61,9 +61,6 @@ SUBDIR=	${SUBDIR_OVERRIDE}
 .else
 SUBDIR=	lib libexec
 SUBDIR+=bin
-.if ${MK_GAMES} != "no"
-SUBDIR+=games
-.endif
 .if ${MK_CDDL} != "no"
 SUBDIR+=cddl
 .endif
@@ -1409,7 +1406,7 @@ legacy:
 _bt=		_bootstrap-tools
 
 .if ${MK_GAMES} != "no"
-_strfile=	games/fortune/strfile
+_strfile=	usr.bin/fortune/strfile
 .endif
 
 .if ${MK_GCC} != "no" && ${MK_CXX} != "no"

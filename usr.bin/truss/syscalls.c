@@ -58,6 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <fcntl.h>
 #include <poll.h>
 #include <signal.h>
+#include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -71,7 +72,7 @@ __FBSDID("$FreeBSD$");
 #include "syscall.h"
 
 /* 64-bit alignment on 32-bit platforms. */
-#ifdef __powerpc__
+#if !defined(__LP64__) && defined(__powerpc__)
 #define	QUAD_ALIGN	1
 #else
 #define	QUAD_ALIGN	0
@@ -106,13 +107,13 @@ static struct syscall syscalls[] = {
 	  .args = { { Atfd, 0 }, { Name, 1 }, { Readlinkres | OUT, 2 },
 		    { Int, 3 } } },
 	{ .name = "lseek", .ret_type = 2, .nargs = 3,
-	  .args = { { Int, 0 }, { Quad, 1 + QUAD_ALIGN },
+	  .args = { { Int, 0 }, { QuadHex, 1 + QUAD_ALIGN },
 		    { Whence, 1 + QUAD_SLOTS + QUAD_ALIGN } } },
 	{ .name = "linux_lseek", .ret_type = 2, .nargs = 3,
 	  .args = { { Int, 0 }, { Int, 1 }, { Whence, 2 } } },
 	{ .name = "mmap", .ret_type = 1, .nargs = 6,
 	  .args = { { Ptr, 0 }, { Int, 1 }, { Mprot, 2 }, { Mmapflags, 3 },
-		    { Int, 4 }, { Quad, 5 + QUAD_ALIGN } } },
+		    { Int, 4 }, { QuadHex, 5 + QUAD_ALIGN } } },
 	{ .name = "linux_mkdir", .ret_type = 1, .nargs = 2,
 	  .args = { { Name | IN, 0 }, { Int, 1 } } },
 	{ .name = "mprotect", .ret_type = 1, .nargs = 3,
@@ -320,10 +321,10 @@ static struct syscall syscalls[] = {
 	  .args = { { PipeFds | OUT, 0 } } },
 	{ .name = "pipe2", .ret_type = 1, .nargs = 2,
 	  .args = { { Ptr, 0 }, { Open, 1 } } },
-	{ .name = "truncate", .ret_type = 1, .nargs = 3,
-	  .args = { { Name | IN, 0 }, { Int | IN, 1 }, { Quad | IN, 2 } } },
-	{ .name = "ftruncate", .ret_type = 1, .nargs = 3,
-	  .args = { { Int | IN, 0 }, { Int | IN, 1 }, { Quad | IN, 2 } } },
+	{ .name = "truncate", .ret_type = 1, .nargs = 2,
+	  .args = { { Name | IN, 0 }, { QuadHex | IN, 1 + QUAD_ALIGN } } },
+	{ .name = "ftruncate", .ret_type = 1, .nargs = 2,
+	  .args = { { Int | IN, 0 }, { QuadHex | IN, 1 + QUAD_ALIGN } } },
 	{ .name = "kill", .ret_type = 1, .nargs = 2,
 	  .args = { { Int | IN, 0 }, { Signal | IN, 1 } } },
 	{ .name = "munmap", .ret_type = 1, .nargs = 2,
@@ -344,10 +345,15 @@ static struct syscall syscalls[] = {
 	  .args = { { Int, 0 }, { ExitStatus | OUT, 1 }, { Waitoptions, 2 },
 		    { Rusage | OUT, 3 } } },
 	{ .name = "wait6", .ret_type = 1, .nargs = 6,
-	  .args = { { Idtype, 0 }, { Int, 1 }, { ExitStatus | OUT, 2 },
-		    { Waitoptions, 3 }, { Rusage | OUT, 4 }, { Ptr, 5 } } },
+	  .args = { { Idtype, 0 }, { Quad, 1 + QUAD_ALIGN },
+		    { ExitStatus | OUT, 1 + QUAD_ALIGN + QUAD_SLOTS },
+		    { Waitoptions, 2 + QUAD_ALIGN + QUAD_SLOTS },
+		    { Rusage | OUT, 3 + QUAD_ALIGN + QUAD_SLOTS },
+		    { Ptr, 4 + QUAD_ALIGN + QUAD_SLOTS } } },
 	{ .name = "procctl", .ret_type = 1, .nargs = 4,
-	  .args = { { Idtype, 0 }, { Int, 1 }, { Procctl, 2 }, { Ptr, 3 } } },
+	  .args = { { Idtype, 0 }, { Quad, 1 + QUAD_ALIGN },
+		    { Procctl, 1 + QUAD_ALIGN + QUAD_SLOTS },
+		    { Ptr, 2 + QUAD_ALIGN + QUAD_SLOTS } } },
 	{ .name = "sysarch", .ret_type = 1, .nargs = 2,
 	  .args = { { Sysarch, 0 }, { Ptr, 1 } } },
 	{ .name = "_umtx_op", .ret_type = 1, .nargs = 5,
@@ -966,10 +972,14 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 	}
 #ifdef __LP64__
 	case Quad:
+		fprintf(fp, "%ld", args[sc->offset]);
+		break;
+	case QuadHex:
 		fprintf(fp, "0x%lx", args[sc->offset]);
 		break;
 #else
-	case Quad: {
+	case Quad:
+	case QuadHex: {
 		unsigned long long ll;
 
 #if _BYTE_ORDER == _LITTLE_ENDIAN
@@ -979,7 +989,10 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 		ll = (unsigned long long)args[sc->offset] << 32 |
 		    args[sc->offset + 1];
 #endif
-		fprintf(fp, "0x%llx", ll);
+		if ((sc->type & ARG_MASK) == Quad)
+			fprintf(fp, "%lld", ll);
+		else
+			fprintf(fp, "0x%llx", ll);
 		break;
 	}
 #endif
@@ -1276,12 +1289,12 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 		fputs(xlookup_bits(rfork_flags, args[sc->offset]), fp);
 		break;
 	case Sockaddr: {
-		struct sockaddr_storage ss;
 		char addr[64];
 		struct sockaddr_in *lsin;
 		struct sockaddr_in6 *lsin6;
 		struct sockaddr_un *sun;
 		struct sockaddr *sa;
+		socklen_t len;
 		u_char *q;
 
 		if (args[sc->offset] == 0) {
@@ -1289,70 +1302,71 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 			break;
 		}
 
-		/* yuck: get ss_len */
-		if (get_struct(pid, (void *)args[sc->offset], (void *)&ss,
-		    sizeof(ss.ss_len) + sizeof(ss.ss_family)) == -1) {
-			fprintf(fp, "0x%lx", args[sc->offset]);
-			break;
-		}
-
 		/*
-		 * If ss_len is 0, then try to guess from the sockaddr type.
-		 * AF_UNIX may be initialized incorrectly, so always frob
-		 * it by using the "right" size.
+		 * Extract the address length from the next argument.  If
+		 * this is an output sockaddr (OUT is set), then the
+		 * next argument is a pointer to a socklen_t.  Otherwise
+		 * the next argument contains a socklen_t by value.
 		 */
-		if (ss.ss_len == 0 || ss.ss_family == AF_UNIX) {
-			switch (ss.ss_family) {
-			case AF_INET:
-				ss.ss_len = sizeof(*lsin);
-				break;
-			case AF_INET6:
-				ss.ss_len = sizeof(*lsin6);
-				break;
-			case AF_UNIX:
-				ss.ss_len = sizeof(*sun);
-				break;
-			default:
+		if (sc->type & OUT) {
+			if (get_struct(pid, (void *)args[sc->offset + 1],
+			    &len, sizeof(len)) == -1) {
+				fprintf(fp, "0x%lx", args[sc->offset]);
 				break;
 			}
-		}
-		if (ss.ss_len != 0 &&
-		    get_struct(pid, (void *)args[sc->offset], (void *)&ss,
-		    ss.ss_len) == -1) {
+		} else
+			len = args[sc->offset + 1];
+
+		/* If the length is too small, just bail. */
+		if (len < sizeof(*sa)) {
 			fprintf(fp, "0x%lx", args[sc->offset]);
 			break;
 		}
 
-		switch (ss.ss_family) {
+		sa = calloc(1, len);
+		if (get_struct(pid, (void *)args[sc->offset], sa, len) == -1) {
+			free(sa);
+			fprintf(fp, "0x%lx", args[sc->offset]);
+			break;
+		}
+
+		switch (sa->sa_family) {
 		case AF_INET:
-			lsin = (struct sockaddr_in *)&ss;
+			if (len < sizeof(*lsin))
+				goto sockaddr_short;
+			lsin = (struct sockaddr_in *)(void *)sa;
 			inet_ntop(AF_INET, &lsin->sin_addr, addr, sizeof(addr));
 			fprintf(fp, "{ AF_INET %s:%d }", addr,
 			    htons(lsin->sin_port));
 			break;
 		case AF_INET6:
-			lsin6 = (struct sockaddr_in6 *)&ss;
+			if (len < sizeof(*lsin6))
+				goto sockaddr_short;
+			lsin6 = (struct sockaddr_in6 *)(void *)sa;
 			inet_ntop(AF_INET6, &lsin6->sin6_addr, addr,
 			    sizeof(addr));
 			fprintf(fp, "{ AF_INET6 [%s]:%d }", addr,
 			    htons(lsin6->sin6_port));
 			break;
 		case AF_UNIX:
-			sun = (struct sockaddr_un *)&ss;
-			fprintf(fp, "{ AF_UNIX \"%s\" }", sun->sun_path);
+			sun = (struct sockaddr_un *)sa;
+			fprintf(fp, "{ AF_UNIX \"%.*s\" }",
+			    (int)(len - offsetof(struct sockaddr_un, sun_path)),
+			    sun->sun_path);
 			break;
 		default:
-			sa = (struct sockaddr *)&ss;
+		sockaddr_short:
 			fprintf(fp,
 			    "{ sa_len = %d, sa_family = %d, sa_data = {",
 			    (int)sa->sa_len, (int)sa->sa_family);
 			for (q = (u_char *)sa->sa_data;
-			     q < (u_char *)sa + sa->sa_len; q++)
+			     q < (u_char *)sa + len; q++)
 				fprintf(fp, "%s 0x%02x",
 				    q == (u_char *)sa->sa_data ? "" : ",",
 				    *q);
 			fputs(" } }", fp);
 		}
+		free(sa);
 		break;
 	}
 	case Sigaction: {
