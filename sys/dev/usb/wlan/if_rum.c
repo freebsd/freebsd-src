@@ -785,8 +785,8 @@ rum_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 			rum_enable_mrr(sc);
 			rum_set_txpreamble(sc);
 			rum_set_basicrates(sc);
-			IEEE80211_ADDR_COPY(ic->ic_macaddr, ni->ni_bssid);
-			rum_set_bssid(sc, ic->ic_macaddr);
+			IEEE80211_ADDR_COPY(sc->sc_bssid, ni->ni_bssid);
+			rum_set_bssid(sc, sc->sc_bssid);
 		}
 
 		if (vap->iv_opmode == IEEE80211_M_HOSTAP ||
@@ -2368,7 +2368,7 @@ rum_scan_end(struct ieee80211com *ic)
 
 	RUM_LOCK(sc);
 	rum_enable_tsf_sync(sc);
-	rum_set_bssid(sc, ic->ic_macaddr);
+	rum_set_bssid(sc, sc->sc_bssid);
 	RUM_UNLOCK(sc);
 
 }

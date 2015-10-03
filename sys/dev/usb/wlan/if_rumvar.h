@@ -137,6 +137,8 @@ struct rum_softc {
 	u_int				sc_detached:1,
 					sc_running:1;
 
+	uint8_t				sc_bssid[IEEE80211_ADDR_LEN];
+
 	struct {
 		uint8_t	val;
 		uint8_t	reg;
