@@ -101,7 +101,7 @@
 #define RT2573_HOST_READY	(1 << 2)
 
 /* possible flags for register MAC_CSR5 */
-#define RT2573_ONE_BSSID	3
+#define RT2573_NUM_BSSID_MSK(n)	(((n * 3) & 3) << 16)
 
 /* possible flags for register TXRX_CSR0 */
 /* Tx filter flags are in the low 16 bits */
