@@ -489,6 +489,7 @@ rum_attach(device_t self)
 	    | IEEE80211_C_IBSS		/* IBSS mode supported */
 	    | IEEE80211_C_MONITOR	/* monitor mode supported */
 	    | IEEE80211_C_HOSTAP	/* HostAp mode supported */
+	    | IEEE80211_C_AHDEMO	/* adhoc demo mode */
 	    | IEEE80211_C_TXPMGT	/* tx power management */
 	    | IEEE80211_C_SHPREAMBLE	/* short preamble supported */
 	    | IEEE80211_C_SHSLOT	/* short slot time supported */
@@ -795,7 +796,8 @@ rum_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 				goto run_fail;
 		}
 
-		if (vap->iv_opmode != IEEE80211_M_MONITOR) {
+		if (vap->iv_opmode != IEEE80211_M_MONITOR &&
+		    vap->iv_opmode != IEEE80211_M_AHDEMO) {
 			if ((ret = rum_enable_tsf_sync(sc)) != 0)
 				goto run_fail;
 		} else
@@ -2360,7 +2362,10 @@ rum_scan_end(struct ieee80211com *ic)
 	struct rum_softc *sc = ic->ic_softc;
 
 	RUM_LOCK(sc);
-	rum_enable_tsf_sync(sc);
+	if (ic->ic_opmode != IEEE80211_M_AHDEMO)
+		rum_enable_tsf_sync(sc);
+	else
+		rum_enable_tsf(sc);
 	rum_set_bssid(sc, sc->sc_bssid);
 	RUM_UNLOCK(sc);
 
