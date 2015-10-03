@@ -1531,7 +1531,7 @@ check_ipfw_rule_body(ipfw_insn *cmd, int cmd_len, struct rule_check_info *ci)
 		case O_IP_SRC_MASK:
 		case O_IP_DST_MASK:
 			/* only odd command lengths */
-			if ( !(cmdlen & 1) || cmdlen > 31)
+			if ((cmdlen & 1) == 0)
 				goto bad_size;
 			break;
 
