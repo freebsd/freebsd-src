@@ -6403,6 +6403,12 @@ OLD_LIBS+=usr/lib/libposix1e.so.2
 OLD_LIBS+=usr/lib/libskey.so.2
 OLD_LIBS+=usr/lib/libusbhid.so.0
 OLD_LIBS+=usr/lib/libvgl.so.2
+# 20030218: OpenSSL 0.9.7 import
+OLD_FILES+=usr/include/des.h
+OLD_FILES+=usr/lib/libdes.a
+OLD_FILES+=usr/lib/libdes.so
+OLD_LIBS+=usr/lib/libdes.so.3
+OLD_FILES+=usr/lib/libdes_p.a
 # 200302XX
 OLD_LIBS+=usr/lib/libacl.so.3
 OLD_LIBS+=usr/lib/libasn1.so.5

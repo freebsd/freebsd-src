@@ -402,14 +402,6 @@ opensslconf.h: opensslconf-${MACHINE_CPUARCH}.h
 .endif
 	cp -f ${.ALLSRC} ${.TARGET}
 
-OLDSYMLINKS+=	libdes.a libdes.so libdes.so.3 libdes_p.a
-afterinstall:
-	@${ECHO} "Removing stale symlinks."
-	rm -f ${DESTDIR}${INCLUDEDIR}/des.h
-.for symlink in ${OLDSYMLINKS}
-	rm -f ${DESTDIR}${LIBDIR}/${symlink}
-.endfor
-
 .include <bsd.lib.mk>
 
 .if ${MACHINE_CPUARCH} == "amd64"
