@@ -160,7 +160,7 @@ static struct ieee80211vap *rum_vap_create(struct ieee80211com *,
 static void		rum_vap_delete(struct ieee80211vap *);
 static void		rum_cmdq_cb(void *, int);
 static int		rum_cmd_sleepable(struct rum_softc *, const void *,
-			    size_t, uint8_t, uint8_t, CMD_FUNC_PROTO);
+			    size_t, uint8_t, CMD_FUNC_PROTO);
 static void		rum_tx_free(struct rum_tx_data *, int);
 static void		rum_setup_tx_list(struct rum_softc *);
 static void		rum_unsetup_tx_list(struct rum_softc *);
@@ -212,7 +212,7 @@ static void		rum_enable_tsf(struct rum_softc *);
 static void		rum_abort_tsf_sync(struct rum_softc *);
 static void		rum_get_tsf(struct rum_softc *, uint64_t *);
 static void		rum_update_slot_cb(struct rum_softc *,
-			    union sec_param *, uint8_t, uint8_t);
+			    union sec_param *, uint8_t);
 static void		rum_update_slot(struct ieee80211com *);
 static void		rum_set_bssid(struct rum_softc *, const uint8_t *);
 static void		rum_set_macaddr(struct rum_softc *, const uint8_t *);
@@ -233,18 +233,18 @@ static int		rum_set_beacon(struct rum_softc *,
 static int		rum_alloc_beacon(struct rum_softc *,
 			    struct ieee80211vap *);
 static void		rum_update_beacon_cb(struct rum_softc *,
-			    union sec_param *, uint8_t, uint8_t);
+			    union sec_param *, uint8_t);
 static void		rum_update_beacon(struct ieee80211vap *, int);
 static int		rum_common_key_set(struct rum_softc *,
 			    struct ieee80211_key *, uint16_t);
 static void		rum_group_key_set_cb(struct rum_softc *,
-			    union sec_param *, uint8_t, uint8_t);
+			    union sec_param *, uint8_t);
 static void		rum_group_key_del_cb(struct rum_softc *,
-			    union sec_param *, uint8_t, uint8_t);
+			    union sec_param *, uint8_t);
 static void		rum_pair_key_set_cb(struct rum_softc *,
-			    union sec_param *, uint8_t, uint8_t);
+			    union sec_param *, uint8_t);
 static void		rum_pair_key_del_cb(struct rum_softc *,
-			    union sec_param *, uint8_t, uint8_t);
+			    union sec_param *, uint8_t);
 static int		rum_key_alloc(struct ieee80211vap *,
 			    struct ieee80211_key *, ieee80211_keyix *,
 			    ieee80211_keyix *);
@@ -692,7 +692,7 @@ rum_cmdq_cb(void *arg, int pending)
 		RUM_CMDQ_UNLOCK(sc);
 
 		RUM_LOCK(sc);
-		rc->func(sc, &rc->data, rc->rn_id, rc->rvp_id);
+		rc->func(sc, &rc->data, rc->rvp_id);
 		RUM_UNLOCK(sc);
 
 		RUM_CMDQ_LOCK(sc);
@@ -704,7 +704,7 @@ rum_cmdq_cb(void *arg, int pending)
 
 static int
 rum_cmd_sleepable(struct rum_softc *sc, const void *ptr, size_t len,
-    uint8_t rn_id, uint8_t rvp_id, CMD_FUNC_PROTO)
+    uint8_t rvp_id, CMD_FUNC_PROTO)
 {
 	struct ieee80211com *ic = &sc->sc_ic;
 
@@ -720,7 +720,6 @@ rum_cmd_sleepable(struct rum_softc *sc, const void *ptr, size_t len,
 
 	if (ptr != NULL)
 		memcpy(&sc->cmdq[sc->cmdq_last].data, ptr, len);
-	sc->cmdq[sc->cmdq_last].rn_id = rn_id;
 	sc->cmdq[sc->cmdq_last].rvp_id = rvp_id;
 	sc->cmdq[sc->cmdq_last].func = func;
 	sc->cmdq_last = (sc->cmdq_last + 1) % RUM_CMDQ_SIZE;
@@ -825,7 +824,7 @@ rum_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 				ret = EINVAL;
 				goto run_fail;
 			}
-			rum_update_slot_cb(sc, NULL, 0, 0);
+			rum_update_slot_cb(sc, NULL, 0);
 			rum_enable_mrr(sc);
 			rum_set_txpreamble(sc);
 			rum_set_basicrates(sc);
@@ -2011,8 +2010,7 @@ rum_get_tsf(struct rum_softc *sc, uint64_t *buf)
 }
 
 static void
-rum_update_slot_cb(struct rum_softc *sc, union sec_param *data, uint8_t rv_id,
-    uint8_t rvp_id)
+rum_update_slot_cb(struct rum_softc *sc, union sec_param *data, uint8_t rvp_id)
 {
 	struct ieee80211com *ic = &sc->sc_ic;
 	uint8_t slottime;
@@ -2027,7 +2025,7 @@ rum_update_slot_cb(struct rum_softc *sc, union sec_param *data, uint8_t rv_id,
 static void
 rum_update_slot(struct ieee80211com *ic)
 {
-	rum_cmd_sleepable(ic->ic_softc, NULL, 0, 0, 0, rum_update_slot_cb);
+	rum_cmd_sleepable(ic->ic_softc, NULL, 0, 0, rum_update_slot_cb);
 }
 
 static void
@@ -2437,7 +2435,7 @@ rum_alloc_beacon(struct rum_softc *sc, struct ieee80211vap *vap)
 
 static void
 rum_update_beacon_cb(struct rum_softc *sc, union sec_param *data,
-    uint8_t rn_id, uint8_t rvp_id)
+    uint8_t rvp_id)
 {
 	struct ieee80211vap *vap = data->vap;
 
@@ -2482,7 +2480,7 @@ rum_update_beacon(struct ieee80211vap *vap, int item)
 	setbit(bo->bo_flags, item);
 	ieee80211_beacon_update(ni, bo, m, mcast);
 
-	rum_cmd_sleepable(sc, &vap, sizeof(vap), 0, 0, rum_update_beacon_cb);
+	rum_cmd_sleepable(sc, &vap, sizeof(vap), 0, rum_update_beacon_cb);
 }
 
 static int
@@ -2507,7 +2505,7 @@ rum_common_key_set(struct rum_softc *sc, struct ieee80211_key *k,
 
 static void
 rum_group_key_set_cb(struct rum_softc *sc, union sec_param *data,
-    uint8_t rn_id, uint8_t rvp_id) 
+    uint8_t rvp_id) 
 {
 	struct ieee80211_key *k = &data->key;
 	uint8_t mode;
@@ -2551,7 +2549,7 @@ print_err:
 
 static void
 rum_group_key_del_cb(struct rum_softc *sc, union sec_param *data,
-    uint8_t rn_id, uint8_t rvp_id)
+    uint8_t rvp_id)
 {
 	struct ieee80211_key *k = &data->key;
 
@@ -2565,7 +2563,7 @@ rum_group_key_del_cb(struct rum_softc *sc, union sec_param *data,
 }
 
 static void
-rum_pair_key_set_cb(struct rum_softc *sc, union sec_param *data, uint8_t rn_id,
+rum_pair_key_set_cb(struct rum_softc *sc, union sec_param *data,
     uint8_t rvp_id)
 {
 	struct ieee80211_key *k = &data->key;
@@ -2613,7 +2611,7 @@ print_err:
 }
 
 static void
-rum_pair_key_del_cb(struct rum_softc *sc, union sec_param *data, uint8_t rn_id,
+rum_pair_key_del_cb(struct rum_softc *sc, union sec_param *data,
     uint8_t rvp_id)
 {
 	struct ieee80211_key *k = &data->key;
@@ -2674,7 +2672,7 @@ rum_key_set(struct ieee80211vap *vap, const struct ieee80211_key *k,
 
 	group = k >= &vap->iv_nw_keys[0] && k < &vap->iv_nw_keys[IEEE80211_WEP_NKID];
 
-	return !rum_cmd_sleepable(sc, k, sizeof(*k), 0, 0,
+	return !rum_cmd_sleepable(sc, k, sizeof(*k), 0,
 		   group ? rum_group_key_set_cb : rum_pair_key_set_cb);
 }
 
@@ -2691,7 +2689,7 @@ rum_key_delete(struct ieee80211vap *vap, const struct ieee80211_key *k)
 
 	group = k >= &vap->iv_nw_keys[0] && k < &vap->iv_nw_keys[IEEE80211_WEP_NKID];
 
-	return !rum_cmd_sleepable(sc, k, sizeof(*k), 0, 0,
+	return !rum_cmd_sleepable(sc, k, sizeof(*k), 0,
 		   group ? rum_group_key_del_cb : rum_pair_key_del_cb);
 }
 

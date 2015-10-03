@@ -77,13 +77,10 @@ union sec_param {
 	struct ieee80211vap		*vap;
 };
 #define CMD_FUNC_PROTO			void (*func)(struct rum_softc *, \
-					    union sec_param *, uint8_t, \
-					    uint8_t)
+					    union sec_param *, uint8_t)
 
 struct rum_cmdq {
 	union sec_param			data;
-
-	uint8_t				rn_id;
 	uint8_t				rvp_id;
 
 	CMD_FUNC_PROTO;
