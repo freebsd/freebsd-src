@@ -89,8 +89,7 @@ null_key_delete(struct ieee80211vap *vap, const struct ieee80211_key *k)
 	return 1;
 }
 static 	int
-null_key_set(struct ieee80211vap *vap, const struct ieee80211_key *k,
-	const uint8_t mac[IEEE80211_ADDR_LEN])
+null_key_set(struct ieee80211vap *vap, const struct ieee80211_key *k)
 {
 	return 1;
 }
@@ -132,7 +131,7 @@ dev_key_delete(struct ieee80211vap *vap,
 static __inline int
 dev_key_set(struct ieee80211vap *vap, const struct ieee80211_key *key)
 {
-	return vap->iv_key_set(vap, key, key->wk_macaddr);
+	return vap->iv_key_set(vap, key);
 }
 
 /*

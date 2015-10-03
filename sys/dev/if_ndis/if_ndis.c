@@ -194,7 +194,7 @@ static void ndis_media_status	(struct ifnet *, struct ifmediareq *);
 static int ndis_set_cipher	(struct ndis_softc *, int);
 static int ndis_set_wpa		(struct ndis_softc *, void *, int);
 static int ndis_add_key		(struct ieee80211vap *,
-	const struct ieee80211_key *, const u_int8_t []);
+	const struct ieee80211_key *);
 static int ndis_del_key		(struct ieee80211vap *,
 	const struct ieee80211_key *);
 static void ndis_setmulti	(struct ndis_softc *);
@@ -3070,8 +3070,7 @@ ndis_del_key(struct ieee80211vap *vap, const struct ieee80211_key *key)
  * set after initial authentication with the AP.
  */
 static int
-ndis_add_key(struct ieee80211vap *vap, const struct ieee80211_key *key,
-    const uint8_t mac[IEEE80211_ADDR_LEN])
+ndis_add_key(struct ieee80211vap *vap, const struct ieee80211_key *key)
 {
 	struct ndis_softc	*sc = vap->iv_ic->ic_softc;
 	ndis_80211_key		rkey;
