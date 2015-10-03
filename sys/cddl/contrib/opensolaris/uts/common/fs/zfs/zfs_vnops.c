@@ -293,25 +293,32 @@ zfs_ioctl(vnode_t *vp, u_long com, intptr_t data, int flag, cred_t *cred,
     int *rvalp, caller_context_t *ct)
 {
 	offset_t off;
+	offset_t ndata;
+	dmu_object_info_t doi;
 	int error;
 	zfsvfs_t *zfsvfs;
 	znode_t *zp;
 
 	switch (com) {
 	case _FIOFFS:
+	{
 		return (0);
 
 		/*
 		 * The following two ioctls are used by bfu.  Faking out,
 		 * necessary to avoid bfu errors.
 		 */
+	}
 	case _FIOGDIO:
 	case _FIOSDIO:
+	{
 		return (0);
+	}
 
 	case _FIO_SEEK_DATA:
 	case _FIO_SEEK_HOLE:
-#ifdef sun
+	{
+#ifdef illumos
 		if (ddi_copyin((void *)data, &off, sizeof (off), flag))
 			return (SET_ERROR(EFAULT));
 #else
@@ -334,6 +341,48 @@ zfs_ioctl(vnode_t *vp, u_long com, intptr_t data, int flag, cred_t *cred,
 		*(offset_t *)data = off;
 #endif
 		return (0);
+	}
+#ifdef illumos
+	case _FIO_COUNT_FILLED:
+	{
+		/*
+		 * _FIO_COUNT_FILLED adds a new ioctl command which
+		 * exposes the number of filled blocks in a
+		 * ZFS object.
+		 */
+		zp = VTOZ(vp);
+		zfsvfs = zp->z_zfsvfs;
+		ZFS_ENTER(zfsvfs);
+		ZFS_VERIFY_ZP(zp);
+
+		/*
+		 * Wait for all dirty blocks for this object
+		 * to get synced out to disk, and the DMU info
+		 * updated.
+		 */
+		error = dmu_object_wait_synced(zfsvfs->z_os, zp->z_id);
+		if (error) {
+			ZFS_EXIT(zfsvfs);
+			return (error);
+		}
+
+		/*
+		 * Retrieve fill count from DMU object.
+		 */
+		error = dmu_object_info(zfsvfs->z_os, zp->z_id, &doi);
+		if (error) {
+			ZFS_EXIT(zfsvfs);
+			return (error);
+		}
+
+		ndata = doi.doi_fill_count;
+
+		ZFS_EXIT(zfsvfs);
+		if (ddi_copyout(&ndata, (void *)data, sizeof (ndata), flag))
+			return (SET_ERROR(EFAULT));
+		return (0);
+	}
+#endif
 	}
 	return (SET_ERROR(ENOTTY));
 }
