@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 static	void *tkip_attach(struct ieee80211vap *, struct ieee80211_key *);
 static	void tkip_detach(struct ieee80211_key *);
 static	int tkip_setkey(struct ieee80211_key *);
+static	void tkip_setiv(struct ieee80211_key *, uint8_t *);
 static	int tkip_encap(struct ieee80211_key *, struct mbuf *);
 static	int tkip_enmic(struct ieee80211_key *, struct mbuf *, int);
 static	int tkip_decap(struct ieee80211_key *, struct mbuf *, int);
@@ -69,6 +70,7 @@ static const struct ieee80211_cipher tkip  = {
 	.ic_attach	= tkip_attach,
 	.ic_detach	= tkip_detach,
 	.ic_setkey	= tkip_setkey,
+	.ic_setiv	= tkip_setiv,
 	.ic_encap	= tkip_encap,
 	.ic_decap	= tkip_decap,
 	.ic_enmic	= tkip_enmic,
@@ -146,6 +148,26 @@ tkip_setkey(struct ieee80211_key *k)
 	return 1;
 }
 
+static void
+tkip_setiv(struct ieee80211_key *k, uint8_t *ivp)
+{
+	struct tkip_ctx *ctx = k->wk_private;
+	struct ieee80211vap *vap = ctx->tc_vap;
+	uint8_t keyid;
+
+	keyid = ieee80211_crypto_get_keyid(vap, k) << 6;
+
+	k->wk_keytsc++;
+	ivp[0] = k->wk_keytsc >> 8;		/* TSC1 */
+	ivp[1] = (ivp[0] | 0x20) & 0x7f;	/* WEP seed */
+	ivp[2] = k->wk_keytsc >> 0;		/* TSC0 */
+	ivp[3] = keyid | IEEE80211_WEP_EXTIV;	/* KeyID | ExtID */
+	ivp[4] = k->wk_keytsc >> 16;		/* TSC2 */
+	ivp[5] = k->wk_keytsc >> 24;		/* TSC3 */
+	ivp[6] = k->wk_keytsc >> 32;		/* TSC4 */
+	ivp[7] = k->wk_keytsc >> 40;		/* TSC5 */
+}
+
 /*
  * Add privacy headers and do any s/w encryption required.
  */
@@ -156,7 +178,6 @@ tkip_encap(struct ieee80211_key *k, struct mbuf *m)
 	struct ieee80211vap *vap = ctx->tc_vap;
 	struct ieee80211com *ic = vap->iv_ic;
 	uint8_t *ivp;
-	uint8_t keyid;
 	int hdrlen;
 
 	/*
@@ -184,17 +205,7 @@ tkip_encap(struct ieee80211_key *k, struct mbuf *m)
 	memmove(ivp, ivp + tkip.ic_header, hdrlen);
 	ivp += hdrlen;
 
-	keyid = ieee80211_crypto_get_keyid(vap, k) << 6;
-
-	k->wk_keytsc++;
-	ivp[0] = k->wk_keytsc >> 8;		/* TSC1 */
-	ivp[1] = (ivp[0] | 0x20) & 0x7f;	/* WEP seed */
-	ivp[2] = k->wk_keytsc >> 0;		/* TSC0 */
-	ivp[3] = keyid | IEEE80211_WEP_EXTIV;	/* KeyID | ExtID */
-	ivp[4] = k->wk_keytsc >> 16;		/* TSC2 */
-	ivp[5] = k->wk_keytsc >> 24;		/* TSC3 */
-	ivp[6] = k->wk_keytsc >> 32;		/* TSC4 */
-	ivp[7] = k->wk_keytsc >> 40;		/* TSC5 */
+	tkip_setiv(k, ivp);
 
 	/*
 	 * Finally, do software encrypt if needed.
