@@ -92,6 +92,7 @@ struct rum_cmdq {
 
 struct rum_vap {
 	struct ieee80211vap		vap;
+	struct mbuf			*bcn_mbuf;
 	struct usb_callout		ratectl_ch;
 	struct task			ratectl_task;
 
