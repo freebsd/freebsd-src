@@ -2416,6 +2416,7 @@ arc_hdr_destroy(arc_buf_hdr_t *hdr)
 
 	if (!BUF_EMPTY(hdr))
 		buf_discard_identity(hdr);
+
 	if (hdr->b_freeze_cksum != NULL) {
 		kmem_free(hdr->b_freeze_cksum, sizeof (zio_cksum_t));
 		hdr->b_freeze_cksum = NULL;
@@ -4658,8 +4659,6 @@ arc_release(arc_buf_t *buf, void *tag)
 {
 	arc_buf_hdr_t *hdr = buf->b_hdr;
 
-	ASSERT(HDR_HAS_L1HDR(hdr));
-
 	/*
 	 * It would be nice to assert that if it's DMU metadata (level >
 	 * 0 || it's the dnode file), then it must be syncing context.
@@ -4667,6 +4666,9 @@ arc_release(arc_buf_t *buf, void *tag)
 	 */
 
 	mutex_enter(&buf->b_evict_lock);
+
+	ASSERT(HDR_HAS_L1HDR(hdr));
+
 	/*
 	 * We don't grab the hash lock prior to this check, because if
 	 * the buffer's header is in the arc_anon state, it won't be
@@ -5897,6 +5899,7 @@ top:
 			/*
 			 * Error - drop L2ARC entry.
 			 */
+			list_remove(buflist, hdr);
 			trim_map_free(hdr->b_l2hdr.b_dev->l2ad_vdev,
 			    hdr->b_l2hdr.b_daddr, hdr->b_l2hdr.b_asize, 0);
 			hdr->b_flags &= ~ARC_FLAG_HAS_L2HDR;
@@ -6437,14 +6440,6 @@ l2arc_write_buffers(spa_t *spa, l2arc_dev_t *dev, uint64_t target_sz,
 		buf_sz = hdr->b_l2hdr.b_asize;
 
 		/*
-		 * If the data has not been compressed, then clear b_tmp_cdata
-		 * to make sure that it points only to a temporary compression
-		 * buffer.
-		 */
-		if (!L2ARC_IS_VALID_COMPRESS(HDR_GET_COMPRESS(hdr)))
-			hdr->b_l1hdr.b_tmp_cdata = NULL;
-
-		/*
 		 * We need to do this regardless if buf_sz is zero or
 		 * not, otherwise, when this l2hdr is evicted we'll
 		 * remove a reference that was never added.
@@ -6537,6 +6532,12 @@ l2arc_compress_buf(arc_buf_hdr_t *hdr)
 	csize = zio_compress_data(ZIO_COMPRESS_LZ4, hdr->b_l1hdr.b_tmp_cdata,
 	    cdata, l2hdr->b_asize);
 
+	rounded = P2ROUNDUP(csize, (size_t)SPA_MINBLOCKSIZE);
+	if (rounded > csize) {
+		bzero((char *)cdata + csize, rounded - csize);
+		csize = rounded;
+	}
+
 	if (csize == 0) {
 		/* zero block, indicate that there's nothing to write */
 		zio_data_buf_free(cdata, len);
@@ -6545,19 +6546,11 @@ l2arc_compress_buf(arc_buf_hdr_t *hdr)
 		hdr->b_l1hdr.b_tmp_cdata = NULL;
 		ARCSTAT_BUMP(arcstat_l2_compress_zeros);
 		return (B_TRUE);
-	}
-
-	rounded = P2ROUNDUP(csize,
-	    (size_t)1 << l2hdr->b_dev->l2ad_vdev->vdev_ashift);
-	if (rounded < len) {
+	} else if (csize > 0 && csize < len) {
 		/*
 		 * Compression succeeded, we'll keep the cdata around for
 		 * writing and release it afterwards.
 		 */
-		if (rounded > csize) {
-			bzero((char *)cdata + csize, rounded - csize);
-			csize = rounded;
-		}
 		HDR_SET_COMPRESS(hdr, ZIO_COMPRESS_LZ4);
 		l2hdr->b_asize = csize;
 		hdr->b_l1hdr.b_tmp_cdata = cdata;
@@ -6674,6 +6667,7 @@ l2arc_release_cdata_buf(arc_buf_hdr_t *hdr)
 		    hdr->b_size);
 		hdr->b_l1hdr.b_tmp_cdata = NULL;
 	}
+
 }
 
 /*
