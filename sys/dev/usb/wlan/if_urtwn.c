@@ -1775,7 +1775,7 @@ urtwn_tx_start(struct urtwn_softc *sc, struct ieee80211_node *ni,
 	struct r92c_tx_desc *txd;
 	uint8_t raid, type;
 	uint16_t sum;
-	int i, hasqos, xferlen;
+	int i, xferlen;
 	struct usb_xfer *urtwn_pipes[4] = {
 		sc->sc_xfer[URTWN_BULK_TX_BE],
 		sc->sc_xfer[URTWN_BULK_TX_BK],
@@ -1815,8 +1815,6 @@ urtwn_tx_start(struct urtwn_softc *sc, struct ieee80211_node *ni,
 		xfer = urtwn_pipes[M_WME_GETAC(m0)];
 		break;
 	}
-
-	hasqos = 0;
 
 	/* Fill Tx descriptor. */
 	txd = (struct r92c_tx_desc *)data->buf;
@@ -1873,7 +1871,7 @@ urtwn_tx_start(struct urtwn_softc *sc, struct ieee80211_node *ni,
 	/* Set sequence number (already little endian). */
 	txd->txdseq |= *(uint16_t *)wh->i_seq;
 
-	if (!hasqos) {
+	if (!IEEE80211_QOS_HAS_SEQ(wh)) {
 		/* Use HW sequence numbering for non-QoS frames. */
 		txd->txdw4  |= htole32(R92C_TXDW4_HWSEQ);
 		txd->txdseq |= htole16(0x8000);
