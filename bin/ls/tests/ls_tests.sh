@@ -45,7 +45,7 @@ create_test_inputs()
 {
 	create_test_dir
 
-	atf_check -e empty -s exit:0 mkdir -m 0755 -p a/b
+	atf_check -e empty -s exit:0 mkdir -m 0755 -p a/b/1
 	atf_check -e empty -s exit:0 ln -s a/b c
 	atf_check -e empty -s exit:0 touch d
 	atf_check -e empty -s exit:0 ln d e
@@ -58,7 +58,7 @@ create_test_inputs()
 	atf_check -e empty -s exit:0 touch klmn
 	atf_check -e empty -s exit:0 touch opqr
 	atf_check -e empty -s exit:0 touch stuv
-	atf_check -e empty -s exit:0 touch wxyz
+	atf_check -e empty -s exit:0 install -m 0755 /dev/null wxyz
 	atf_check -e empty -s exit:0 touch 0b00000001
 	atf_check -e empty -s exit:0 touch 0b00000010
 	atf_check -e empty -s exit:0 touch 0b00000011
@@ -175,6 +175,50 @@ C_flag_body()
 	    egrep "0b00000010[[:space:]]+0b00001000[[:space:]]+0b00001110[[:space:]]+h[[:space:]]+wxyz" $WITH_C
 }
 
+atf_test_case D_flag
+D_flag_head()
+{
+	atf_set "descr" "Verify that the output from ls -D modifies the time format used with ls -l"
+}
+
+D_flag_body()
+{
+	atf_check -e empty -o empty -s exit:0 touch a.file
+	atf_check -e empty -o match:"$(stat -f '%c[[:space:]]+%N' a.file)" \
+	    -s exit:0 ls -lD '%s'
+}
+
+atf_test_case F_flag
+F_flag_head()
+{
+	atf_set "descr" "Verify that the output from ls -F prints out appropriate symbols after files"
+}
+
+F_flag_body()
+{
+	create_test_inputs
+
+	atf_check -e empty -o match:'a/' -s exit:0 ls -F
+	atf_check -e empty -o match:'c@' -s exit:0 ls -F
+	atf_check -e empty -o match:'h\|' -s exit:0 ls -F
+	atf_check -e empty -o match:'j=' -s exit:0 ls -F
+	#atf_check -e empty -o match:'<whiteout-file>%' -s exit:0 ls -F
+	atf_check -e empty -o match:'wxyz\*' -s exit:0 ls -F
+}
+
+atf_test_case H_flag
+H_flag_head()
+{
+	atf_set "descr" "Verify that ls -H follows symlinks"
+}
+
+H_flag_body()
+{
+	create_test_inputs
+
+	atf_check -e empty -o match:'1' -s exit:0 ls -H c
+}
+
 atf_test_case I_flag
 I_flag_head()
 {
@@ -217,24 +261,16 @@ I_flag_voids_implied_A_flag_when_root_body()
 	atf_check -o match:'\.g' -s exit:0 ls -A -I
 }
 
-L_flag_and_P_flag_head()
+L_flag_head()
 {
 	atf_set "descr" "Verify that -L prints out the symbolic link and conversely -P prints out the target for the symbolic link"
 }
 
-L_flag_and_P_flag_body()
+L_flag_body()
 {
-	atf_expect_fail "XXX: this is currently broken"
-
-	atf_check -e empty -o empty -s exit:0 mkdir a
-	atf_check -e empty -o empty -s exit:0 ln -s a/ b
-	atf_check -e empty -o match:b ls -L b
-	atf_check -e empty -o match:a ls -P b
-
-	atf_check -e empty -o empty -s exit:0 touch c
-	atf_check -e empty -o empty -s exit:0 ln -s c d
-	atf_check -e empty -o match:d ls -L d
-	atf_check -e empty -o match:c ls -P d
+	atf_check -e empty -o empty -s exit:0 ln -s target1/target2 link1
+	atf_check -e empty -o match:link1 -s exit:0 ls -L
+	atf_check -e empty -o not-match:target1/target2 -s exit:0 ls -L
 }
 
 atf_test_case a_flag
@@ -271,9 +307,30 @@ a_flag_body()
 	done
 }
 
+k_flag_head()
+{
+	atf_set "descr" "Verify that -k prints out the size with a block size of 1kB"
+}
+
+k_flag_body()
+{
+	create_test_dir
+
+	for filesize in 512 1 2048 10240 $(( 512 * 1024 )); do
+		atf_check -e ignore -o empty -s exit:0 \
+		    dd if=/dev/zero of=${filesize}.file bs=${filesize} count=1
+		files="${files} ${filesize}.file"
+	done
+
+	for file in $files; do
+		atf_check -e empty \
+		    -o match:"[[:space:]]+$(stat -f "%z" $file)[[:space:]]+.+[[:space:]]+$file" ls -lk $file
+	done
+}
+
 lcomma_flag_head()
 {
-	atf_set "descr" "Verify that -l, prints out the size with , delimiters"
+	atf_set "descr" "Verify that -l, prints out the size with ',' delimiters"
 }
 
 lcomma_flag_body()
@@ -348,6 +405,29 @@ q_flag_and_w_flag_body()
 	atf_check -e empty -o match:"$test_file" -s exit:0 ls -w "$test_file"
 }
 
+r_flag_head()
+{
+	atf_set "descr" "Verify that the output from ls -r sorts the same way as reverse sorting with sort(1)"
+}
+
+r_flag_body()
+{
+	create_test_inputs
+
+	WITH_r=$PWD/../with_r.out
+	WITH_sort=$PWD/../with_sort.out
+
+	atf_check -e empty -o save:$WITH_r -s exit:0 ls -1r
+	atf_check -e empty -o save:$WITH_sort -s exit:0 sh -c 'ls -1 | sort -r'
+
+	echo "Sorted with -r"
+	cat $WITH_r
+	echo "Reverse sorted with sort(1)"
+	cat $WITH_sort
+
+	atf_check_equal "$(cat $WITH_r)" "$(cat $WITH_sort)"
+}
+
 s_flag_head()
 {
 	atf_set "descr" "Verify that the output from ls -s matches the output from stat(1)"
@@ -366,7 +446,6 @@ s_flag_body()
 	for file in $files; do
 		atf_check -e empty \
 		    -o match:"$(stat -f "%b" $file)[[:space:]]+$file" ls -s $file
-		stat -f "%b" $file
 	done
 }
 
@@ -496,13 +575,14 @@ atf_init_test_cases()
 	atf_add_test_case A_flag_implied_when_root
 	atf_add_test_case B_flag
 	atf_add_test_case C_flag
-	#atf_add_test_case D_flag
-	#atf_add_test_case F_flag
+	atf_add_test_case D_flag
+	atf_add_test_case F_flag
 	#atf_add_test_case G_flag
-	#atf_add_test_case H_flag
+	atf_add_test_case H_flag
 	atf_add_test_case I_flag
 	atf_add_test_case I_flag_voids_implied_A_flag_when_root
-	atf_add_test_case L_flag_and_P_flag
+	atf_add_test_case L_flag
+	#atf_add_test_case P_flag
 	#atf_add_test_case R_flag
 	#atf_add_test_case S_flag
 	#atf_add_test_case T_flag
@@ -517,7 +597,7 @@ atf_init_test_cases()
 	#atf_add_test_case g_flag
 	#atf_add_test_case h_flag
 	#atf_add_test_case i_flag
-	#atf_add_test_case k_flag
+	atf_add_test_case k_flag
 	#atf_add_test_case l_flag
 	atf_add_test_case lcomma_flag
 	#atf_add_test_case m_flag
@@ -525,7 +605,7 @@ atf_init_test_cases()
 	#atf_add_test_case o_flag
 	atf_add_test_case p_flag
 	atf_add_test_case q_flag_and_w_flag
-	#atf_add_test_case r_flag
+	atf_add_test_case r_flag
 	atf_add_test_case s_flag
 	atf_add_test_case t_flag
 	atf_add_test_case u_flag
