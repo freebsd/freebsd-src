@@ -203,7 +203,7 @@ static void		rum_select_band(struct rum_softc *,
 			    struct ieee80211_channel *);
 static void		rum_set_chan(struct rum_softc *,
 			    struct ieee80211_channel *);
-static void		rum_enable_tsf_sync(struct rum_softc *);
+static int		rum_enable_tsf_sync(struct rum_softc *);
 static void		rum_enable_tsf(struct rum_softc *);
 static void		rum_abort_tsf_sync(struct rum_softc *);
 static void		rum_get_tsf(struct rum_softc *, uint64_t *);
@@ -221,7 +221,7 @@ static int		rum_init(struct rum_softc *);
 static void		rum_stop(struct rum_softc *);
 static void		rum_load_microcode(struct rum_softc *, const uint8_t *,
 			    size_t);
-static void		rum_prepare_beacon(struct rum_softc *,
+static int		rum_prepare_beacon(struct rum_softc *,
 			    struct ieee80211vap *);
 static int		rum_raw_xmit(struct ieee80211_node *, struct mbuf *,
 			    const struct ieee80211_bpf_params *);
@@ -755,6 +755,7 @@ rum_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 	const struct ieee80211_txparam *tp;
 	enum ieee80211_state ostate;
 	struct ieee80211_node *ni;
+	int ret;
 
 	ostate = vap->iv_state;
 	DPRINTF("%s -> %s\n",
@@ -777,10 +778,8 @@ rum_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 
 		if (vap->iv_opmode != IEEE80211_M_MONITOR) {
 			if (ic->ic_bsschan == IEEE80211_CHAN_ANYC) {
-				RUM_UNLOCK(sc);
-				IEEE80211_LOCK(ic);
-				ieee80211_free_node(ni);
-				return (-1);
+				ret = EINVAL;
+				goto run_fail;
 			}
 			rum_update_slot(sc);
 			rum_enable_mrr(sc);
@@ -791,12 +790,15 @@ rum_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		}
 
 		if (vap->iv_opmode == IEEE80211_M_HOSTAP ||
-		    vap->iv_opmode == IEEE80211_M_IBSS)
-			rum_prepare_beacon(sc, vap);
+		    vap->iv_opmode == IEEE80211_M_IBSS) {
+			if ((ret = rum_prepare_beacon(sc, vap)) != 0)
+				goto run_fail;
+		}
 
-		if (vap->iv_opmode != IEEE80211_M_MONITOR)
-			rum_enable_tsf_sync(sc);
-		else
+		if (vap->iv_opmode != IEEE80211_M_MONITOR) {
+			if ((ret = rum_enable_tsf_sync(sc)) != 0)
+				goto run_fail;
+		} else
 			rum_enable_tsf(sc);
 
 		/* enable automatic rate adaptation */
@@ -811,6 +813,12 @@ rum_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 	RUM_UNLOCK(sc);
 	IEEE80211_LOCK(ic);
 	return (rvp->newstate(vap, nstate, arg));
+
+run_fail:
+	RUM_UNLOCK(sc);
+	IEEE80211_LOCK(ic);
+	ieee80211_free_node(ni);
+	return ret;
 }
 
 static void
@@ -1773,7 +1781,7 @@ rum_set_chan(struct rum_softc *sc, struct ieee80211_channel *c)
  * Enable TSF synchronization and tell h/w to start sending beacons for IBSS
  * and HostAP operating modes.
  */
-static void
+static int
 rum_enable_tsf_sync(struct rum_softc *sc)
 {
 	struct ieee80211com *ic = &sc->sc_ic;
@@ -1785,7 +1793,8 @@ rum_enable_tsf_sync(struct rum_softc *sc)
 		 * Change default 16ms TBTT adjustment to 8ms.
 		 * Must be done before enabling beacon generation.
 		 */
-		rum_write(sc, RT2573_TXRX_CSR10, 1 << 12 | 8);
+		if (rum_write(sc, RT2573_TXRX_CSR10, 1 << 12 | 8) != 0)
+			return EIO;
 	}
 
 	tmp = rum_read(sc, RT2573_TXRX_CSR9) & 0xff000000;
@@ -1819,10 +1828,13 @@ rum_enable_tsf_sync(struct rum_softc *sc)
 		device_printf(sc->sc_dev,
 		    "Enabling TSF failed. undefined opmode %d\n",
 		    vap->iv_opmode);
-		return;
+		return EINVAL;
 	}
 
-	rum_write(sc, RT2573_TXRX_CSR9, tmp);
+	if (rum_write(sc, RT2573_TXRX_CSR9, tmp) != 0)
+		return EIO;
+
+	return 0;
 }
 
 static void
@@ -2200,35 +2212,43 @@ rum_load_microcode(struct rum_softc *sc, const uint8_t *ucode, size_t size)
 	rum_pause(sc, hz / 8);
 }
 
-static void
+static int
 rum_prepare_beacon(struct rum_softc *sc, struct ieee80211vap *vap)
 {
 	struct ieee80211com *ic = vap->iv_ic;
 	const struct ieee80211_txparam *tp;
 	struct rum_tx_desc desc;
 	struct mbuf *m0;
+	int ret = 0;
 
 	if (vap->iv_bss->ni_chan == IEEE80211_CHAN_ANYC)
-		return;
+		return EINVAL;
 	if (ic->ic_bsschan == IEEE80211_CHAN_ANYC)
-		return;
+		return EINVAL;
 
 	m0 = ieee80211_beacon_alloc(vap->iv_bss, &vap->iv_bcn_off);
 	if (m0 == NULL)
-		return;
+		return ENOMEM;
 
 	tp = &vap->iv_txparms[ieee80211_chan2mode(ic->ic_bsschan)];
 	rum_setup_tx_desc(sc, &desc, RT2573_TX_TIMESTAMP, RT2573_TX_HWSEQ,
 	    m0->m_pkthdr.len, tp->mgmtrate);
 
 	/* copy the first 24 bytes of Tx descriptor into NIC memory */
-	rum_write_multi(sc, RT2573_HW_BEACON_BASE0, (uint8_t *)&desc, 24);
+	if ((ret = rum_write_multi(sc, RT2573_HW_BEACON_BASE0,
+	    (uint8_t *)&desc, 24)) != 0) {
+		ret = EIO;
+		goto end;
+	}
 
 	/* copy beacon header and payload into NIC memory */
-	rum_write_multi(sc, RT2573_HW_BEACON_BASE0 + 24, mtod(m0, uint8_t *),
-	    m0->m_pkthdr.len);
+	if ((ret = rum_write_multi(sc, RT2573_HW_BEACON_BASE0 + 24, mtod(m0, uint8_t *),
+	    m0->m_pkthdr.len)) != 0)
+		ret = EIO;
 
+end:
 	m_freem(m0);
+	return ret;
 }
 
 static int
