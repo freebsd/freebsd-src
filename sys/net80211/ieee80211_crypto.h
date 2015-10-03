@@ -195,6 +195,8 @@ int	ieee80211_crypto_available(u_int cipher);
 
 uint8_t	ieee80211_crypto_get_keyid(struct ieee80211vap *vap,
 		struct ieee80211_key *k);
+struct ieee80211_key *ieee80211_crypto_get_txkey(struct ieee80211_node *,
+		struct mbuf *);
 struct ieee80211_key *ieee80211_crypto_encap(struct ieee80211_node *,
 		struct mbuf *);
 struct ieee80211_key *ieee80211_crypto_decap(struct ieee80211_node *,
