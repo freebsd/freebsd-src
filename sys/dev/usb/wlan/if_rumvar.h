@@ -92,6 +92,7 @@ struct rum_vap {
 	struct mbuf			*bcn_mbuf;
 	struct usb_callout		ratectl_ch;
 	struct task			ratectl_task;
+	uint8_t				maxretry;
 
 	int				(*newstate)(struct ieee80211vap *,
 					    enum ieee80211_state, int);
