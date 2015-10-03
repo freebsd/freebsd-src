@@ -2797,29 +2797,34 @@ rum_ratectl_task(void *arg, int pending)
 {
 	struct rum_vap *rvp = arg;
 	struct ieee80211vap *vap = &rvp->vap;
-	struct ieee80211com *ic = vap->iv_ic;
-	struct rum_softc *sc = ic->ic_softc;
+	struct rum_softc *sc = vap->iv_ic->ic_softc;
 	struct ieee80211_node *ni;
-	int ok, fail;
-	int sum, retrycnt;
+	int ok[3], fail;
+	int sum, success, retrycnt;
 
 	RUM_LOCK(sc);
-	/* read and clear statistic registers (STA_CSR0 to STA_CSR10) */
+	/* read and clear statistic registers (STA_CSR0 to STA_CSR5) */
 	rum_read_multi(sc, RT2573_STA_CSR0, sc->sta, sizeof(sc->sta));
 
-	ok = (le32toh(sc->sta[4]) >> 16) +	/* TX ok w/o retry */
-	    (le32toh(sc->sta[5]) & 0xffff);	/* TX ok w/ retry */
-	fail = (le32toh(sc->sta[5]) >> 16);	/* TX retry-fail count */
-	sum = ok+fail;
-	retrycnt = (le32toh(sc->sta[5]) & 0xffff) + fail;
+	ok[0] = (le32toh(sc->sta[4]) & 0xffff);	/* TX ok w/o retry */
+	ok[1] = (le32toh(sc->sta[4]) >> 16);	/* TX ok w/ one retry */
+	ok[2] = (le32toh(sc->sta[5]) & 0xffff);	/* TX ok w/ multiple retries */
+	fail =  (le32toh(sc->sta[5]) >> 16);	/* TX retry-fail count */
 
-	ni = ieee80211_ref_node(vap->iv_bss);
-	ieee80211_ratectl_tx_update(vap, ni, &sum, &ok, &retrycnt);
-	(void) ieee80211_ratectl_rate(ni, NULL, 0);
-	ieee80211_free_node(ni);
+	success = ok[0] + ok[1] + ok[2];
+	sum = success + fail;
+	/* XXX at least */
+	retrycnt = ok[1] + ok[2] * 2 + fail * (rvp->maxretry + 1);
+
+	if (sum != 0) {
+		ni = ieee80211_ref_node(vap->iv_bss);
+		ieee80211_ratectl_tx_update(vap, ni, &sum, &ok, &retrycnt);
+		(void) ieee80211_ratectl_rate(ni, NULL, 0);
+		ieee80211_free_node(ni);
+	}
 
 	/* count TX retry-fail as Tx errors */
-	if_inc_counter(ni->ni_vap->iv_ifp, IFCOUNTER_OERRORS, fail);
+	if_inc_counter(vap->iv_ifp, IFCOUNTER_OERRORS, fail);
 
 	usb_callout_reset(&rvp->ratectl_ch, hz, rum_ratectl_timeout, rvp);
 	RUM_UNLOCK(sc);
