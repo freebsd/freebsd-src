@@ -207,7 +207,9 @@ static int		rum_enable_tsf_sync(struct rum_softc *);
 static void		rum_enable_tsf(struct rum_softc *);
 static void		rum_abort_tsf_sync(struct rum_softc *);
 static void		rum_get_tsf(struct rum_softc *, uint64_t *);
-static void		rum_update_slot(struct rum_softc *);
+static void		rum_update_slot_cb(struct rum_softc *,
+			    union sec_param *, uint8_t, uint8_t);
+static void		rum_update_slot(struct ieee80211com *);
 static void		rum_set_bssid(struct rum_softc *, const uint8_t *);
 static void		rum_set_macaddr(struct rum_softc *, const uint8_t *);
 static void		rum_update_mcast(struct ieee80211com *);
@@ -516,6 +518,7 @@ rum_attach(device_t self)
 	ic->ic_parent = rum_parent;
 	ic->ic_vap_create = rum_vap_create;
 	ic->ic_vap_delete = rum_vap_delete;
+	ic->ic_updateslot = rum_update_slot;
 	ic->ic_update_mcast = rum_update_mcast;
 
 	ieee80211_radiotap_attach(ic,
@@ -785,7 +788,7 @@ rum_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 				ret = EINVAL;
 				goto run_fail;
 			}
-			rum_update_slot(sc);
+			rum_update_slot_cb(sc, NULL, 0, 0);
 			rum_enable_mrr(sc);
 			rum_set_txpreamble(sc);
 			rum_set_basicrates(sc);
@@ -1862,7 +1865,8 @@ rum_get_tsf(struct rum_softc *sc, uint64_t *buf)
 }
 
 static void
-rum_update_slot(struct rum_softc *sc)
+rum_update_slot_cb(struct rum_softc *sc, union sec_param *data, uint8_t rv_id,
+    uint8_t rvp_id)
 {
 	struct ieee80211com *ic = &sc->sc_ic;
 	uint8_t slottime;
@@ -1872,6 +1876,12 @@ rum_update_slot(struct rum_softc *sc)
 	rum_modbits(sc, RT2573_MAC_CSR9, slottime, 0xff);
 
 	DPRINTF("setting slot time to %uus\n", slottime);
+}
+
+static void
+rum_update_slot(struct ieee80211com *ic)
+{
+	rum_cmd_sleepable(ic->ic_softc, NULL, 0, 0, 0, rum_update_slot_cb);
 }
 
 static void
