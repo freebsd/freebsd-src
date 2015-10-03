@@ -136,9 +136,13 @@ struct rum_softc {
 	uint32_t			rf_regs[4];
 	uint8_t				txpow[44];
 	u_int				sc_detached:1,
-					sc_running:1;
+					sc_running:1,
+					sc_clr_shkeys:1;
 
 	uint8_t				sc_bssid[IEEE80211_ADDR_LEN];
+
+	uint8_t				vap_key_count[1];
+	uint64_t			keys_bmap;
 
 	struct {
 		uint8_t	val;
