@@ -21,7 +21,7 @@
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2012, Joyent, Inc. All rights reserved.
- * Copyright (c) 2011, 2014 by Delphix. All rights reserved.
+ * Copyright (c) 2011, 2015 by Delphix. All rights reserved.
  * Copyright (c) 2014 by Saso Kiselkov. All rights reserved.
  * Copyright 2015 Nexenta Systems, Inc.  All rights reserved.
  */
@@ -350,7 +350,7 @@ typedef struct arc_state {
 	 * total amount of data in this state; this includes: evictable,
 	 * non-evictable, ARC_BUFC_DATA, and ARC_BUFC_METADATA.
 	 */
-	uint64_t arcs_size;
+	refcount_t arcs_size;
 } arc_state_t;
 
 /* The 6 states: */
@@ -1863,12 +1863,73 @@ arc_change_state(arc_state_t *new_state, arc_buf_hdr_t *hdr,
 		buf_hash_remove(hdr);
 
 	/* adjust state sizes (ignore arc_l2c_only) */
-	if (to_delta && new_state != arc_l2c_only)
-		atomic_add_64(&new_state->arcs_size, to_delta);
-	if (from_delta && old_state != arc_l2c_only) {
-		ASSERT3U(old_state->arcs_size, >=, from_delta);
-		atomic_add_64(&old_state->arcs_size, -from_delta);
+
+	if (to_delta && new_state != arc_l2c_only) {
+		ASSERT(HDR_HAS_L1HDR(hdr));
+		if (GHOST_STATE(new_state)) {
+			ASSERT0(datacnt);
+
+			/*
+			 * We moving a header to a ghost state, we first
+			 * remove all arc buffers. Thus, we'll have a
+			 * datacnt of zero, and no arc buffer to use for
+			 * the reference. As a result, we use the arc
+			 * header pointer for the reference.
+			 */
+			(void) refcount_add_many(&new_state->arcs_size,
+			    hdr->b_size, hdr);
+		} else {
+			ASSERT3U(datacnt, !=, 0);
+
+			/*
+			 * Each individual buffer holds a unique reference,
+			 * thus we must remove each of these references one
+			 * at a time.
+			 */
+			for (arc_buf_t *buf = hdr->b_l1hdr.b_buf; buf != NULL;
+			    buf = buf->b_next) {
+				(void) refcount_add_many(&new_state->arcs_size,
+				    hdr->b_size, buf);
+			}
+		}
 	}
+
+	if (from_delta && old_state != arc_l2c_only) {
+		ASSERT(HDR_HAS_L1HDR(hdr));
+		if (GHOST_STATE(old_state)) {
+			/*
+			 * When moving a header off of a ghost state,
+			 * there's the possibility for datacnt to be
+			 * non-zero. This is because we first add the
+			 * arc buffer to the header prior to changing
+			 * the header's state. Since we used the header
+			 * for the reference when putting the header on
+			 * the ghost state, we must balance that and use
+			 * the header when removing off the ghost state
+			 * (even though datacnt is non zero).
+			 */
+
+			IMPLY(datacnt == 0, new_state == arc_anon ||
+			    new_state == arc_l2c_only);
+
+			(void) refcount_remove_many(&old_state->arcs_size,
+			    hdr->b_size, hdr);
+		} else {
+			ASSERT3P(datacnt, !=, 0);
+
+			/*
+			 * Each individual buffer holds a unique reference,
+			 * thus we must remove each of these references one
+			 * at a time.
+			 */
+			for (arc_buf_t *buf = hdr->b_l1hdr.b_buf; buf != NULL;
+			    buf = buf->b_next) {
+				(void) refcount_remove_many(
+				    &old_state->arcs_size, hdr->b_size, buf);
+			}
+		}
+	}
+
 	if (HDR_HAS_L1HDR(hdr))
 		hdr->b_l1hdr.b_state = new_state;
 
@@ -2227,8 +2288,8 @@ arc_buf_destroy(arc_buf_t *buf, boolean_t remove)
 			ASSERT3U(*cnt, >=, size);
 			atomic_add_64(cnt, -size);
 		}
-		ASSERT3U(state->arcs_size, >=, size);
-		atomic_add_64(&state->arcs_size, -size);
+
+		(void) refcount_remove_many(&state->arcs_size, size, buf);
 		buf->b_data = NULL;
 
 		/*
@@ -2952,7 +3013,8 @@ arc_adjust_meta(void)
 	 * evict some from the MRU here, and some from the MFU below.
 	 */
 	target = MIN((int64_t)(arc_meta_used - arc_meta_limit),
-	    (int64_t)(arc_anon->arcs_size + arc_mru->arcs_size - arc_p));
+	    (int64_t)(refcount_count(&arc_anon->arcs_size) +
+	    refcount_count(&arc_mru->arcs_size) - arc_p));
 
 	total_evicted += arc_adjust_impl(arc_mru, 0, target, ARC_BUFC_METADATA);
 
@@ -2962,7 +3024,7 @@ arc_adjust_meta(void)
 	 * space alloted to the MFU (which is defined as arc_c - arc_p).
 	 */
 	target = MIN((int64_t)(arc_meta_used - arc_meta_limit),
-	    (int64_t)(arc_mfu->arcs_size - (arc_c - arc_p)));
+	    (int64_t)(refcount_count(&arc_mfu->arcs_size) - (arc_c - arc_p)));
 
 	total_evicted += arc_adjust_impl(arc_mfu, 0, target, ARC_BUFC_METADATA);
 
@@ -3071,8 +3133,8 @@ arc_adjust(void)
 	 * arc_p here, and then evict more from the MFU below.
 	 */
 	target = MIN((int64_t)(arc_size - arc_c),
-	    (int64_t)(arc_anon->arcs_size + arc_mru->arcs_size + arc_meta_used -
-	    arc_p));
+	    (int64_t)(refcount_count(&arc_anon->arcs_size) +
+	    refcount_count(&arc_mru->arcs_size) + arc_meta_used - arc_p));
 
 	/*
 	 * If we're below arc_meta_min, always prefer to evict data.
@@ -3156,7 +3218,8 @@ arc_adjust(void)
 	 * cache. The following logic enforces these limits on the ghost
 	 * caches, and evicts from them as needed.
 	 */
-	target = arc_mru->arcs_size + arc_mru_ghost->arcs_size - arc_c;
+	target = refcount_count(&arc_mru->arcs_size) +
+	    refcount_count(&arc_mru_ghost->arcs_size) - arc_c;
 
 	bytes = arc_adjust_impl(arc_mru_ghost, 0, target, ARC_BUFC_DATA);
 	total_evicted += bytes;
@@ -3174,7 +3237,8 @@ arc_adjust(void)
 	 *	mru + mfu + mru ghost + mfu ghost <= 2 * arc_c
 	 *		    mru ghost + mfu ghost <= arc_c
 	 */
-	target = arc_mru_ghost->arcs_size + arc_mfu_ghost->arcs_size - arc_c;
+	target = refcount_count(&arc_mru_ghost->arcs_size) +
+	    refcount_count(&arc_mfu_ghost->arcs_size) - arc_c;
 
 	bytes = arc_adjust_impl(arc_mfu_ghost, 0, target, ARC_BUFC_DATA);
 	total_evicted += bytes;
@@ -3668,6 +3732,8 @@ arc_adapt(int bytes, arc_state_t *state)
 {
 	int mult;
 	uint64_t arc_p_min = (arc_c >> arc_p_min_shift);
+	int64_t mrug_size = refcount_count(&arc_mru_ghost->arcs_size);
+	int64_t mfug_size = refcount_count(&arc_mfu_ghost->arcs_size);
 
 	if (state == arc_l2c_only)
 		return;
@@ -3682,16 +3748,14 @@ arc_adapt(int bytes, arc_state_t *state)
 	 *	  target size of the MRU list.
 	 */
 	if (state == arc_mru_ghost) {
-		mult = ((arc_mru_ghost->arcs_size >= arc_mfu_ghost->arcs_size) ?
-		    1 : (arc_mfu_ghost->arcs_size/arc_mru_ghost->arcs_size));
+		mult = (mrug_size >= mfug_size) ? 1 : (mfug_size / mrug_size);
 		mult = MIN(mult, 10); /* avoid wild arc_p adjustment */
 
 		arc_p = MIN(arc_c - arc_p_min, arc_p + bytes * mult);
 	} else if (state == arc_mfu_ghost) {
 		uint64_t delta;
 
-		mult = ((arc_mfu_ghost->arcs_size >= arc_mru_ghost->arcs_size) ?
-		    1 : (arc_mru_ghost->arcs_size/arc_mfu_ghost->arcs_size));
+		mult = (mfug_size >= mrug_size) ? 1 : (mrug_size / mfug_size);
 		mult = MIN(mult, 10);
 
 		delta = MIN(bytes * mult, arc_p);
@@ -3808,8 +3872,9 @@ arc_get_data_buf(arc_buf_t *buf)
 	 */
 	if (!GHOST_STATE(buf->b_hdr->b_l1hdr.b_state)) {
 		arc_buf_hdr_t *hdr = buf->b_hdr;
+		arc_state_t *state = hdr->b_l1hdr.b_state;
 
-		atomic_add_64(&hdr->b_l1hdr.b_state->arcs_size, size);
+		(void) refcount_add_many(&state->arcs_size, size, buf);
 
 		/*
 		 * If this is reached via arc_read, the link is
@@ -3830,7 +3895,8 @@ arc_get_data_buf(arc_buf_t *buf)
 		 * data, and we have outgrown arc_p, update arc_p
 		 */
 		if (arc_size < arc_c && hdr->b_l1hdr.b_state == arc_anon &&
-		    arc_anon->arcs_size + arc_mru->arcs_size > arc_p)
+		    (refcount_count(&arc_anon->arcs_size) +
+		    refcount_count(&arc_mru->arcs_size) > arc_p))
 			arc_p = MIN(arc_c, arc_p + size);
 	}
 	ARCSTAT_BUMP(arcstat_allocated);
@@ -4686,8 +4752,10 @@ arc_release(arc_buf_t *buf, void *tag)
 		buf->b_next = NULL;
 
 		ASSERT3P(state, !=, arc_l2c_only);
-		ASSERT3U(state->arcs_size, >=, hdr->b_size);
-		atomic_add_64(&state->arcs_size, -hdr->b_size);
+
+		(void) refcount_remove_many(
+		    &state->arcs_size, hdr->b_size, buf);
+
 		if (refcount_is_zero(&hdr->b_l1hdr.b_refcnt)) {
 			ASSERT3P(state, !=, arc_l2c_only);
 			uint64_t *size = &state->arcs_lsize[type];
@@ -4730,7 +4798,7 @@ arc_release(arc_buf_t *buf, void *tag)
 		(void) refcount_add(&nhdr->b_l1hdr.b_refcnt, tag);
 		buf->b_hdr = nhdr;
 		mutex_exit(&buf->b_evict_lock);
-		atomic_add_64(&arc_anon->arcs_size, blksz);
+		(void) refcount_add_many(&arc_anon->arcs_size, blksz, buf);
 	} else {
 		mutex_exit(&buf->b_evict_lock);
 		ASSERT(refcount_count(&hdr->b_l1hdr.b_refcnt) == 1);
@@ -4997,7 +5065,8 @@ arc_tempreserve_space(uint64_t reserve, uint64_t txg)
 	 * network delays from blocking transactions that are ready to be
 	 * assigned to a txg.
 	 */
-	anon_size = MAX((int64_t)(arc_anon->arcs_size - arc_loaned_bytes), 0);
+	anon_size = MAX((int64_t)(refcount_count(&arc_anon->arcs_size) -
+	    arc_loaned_bytes), 0);
 
 	/*
 	 * Writes will, almost always, require additional memory allocations
@@ -5034,7 +5103,7 @@ static void
 arc_kstat_update_state(arc_state_t *state, kstat_named_t *size,
     kstat_named_t *evict_data, kstat_named_t *evict_metadata)
 {
-	size->value.ui64 = state->arcs_size;
+	size->value.ui64 = refcount_count(&state->arcs_size);
 	evict_data->value.ui64 = state->arcs_lsize[ARC_BUFC_DATA];
 	evict_metadata->value.ui64 = state->arcs_lsize[ARC_BUFC_METADATA];
 }
@@ -5274,6 +5343,13 @@ arc_init(void)
 	    offsetof(arc_buf_hdr_t, b_l1hdr.b_arc_node),
 	    zfs_arc_num_sublists_per_state, arc_state_multilist_index_func);
 
+	refcount_create(&arc_anon->arcs_size);
+	refcount_create(&arc_mru->arcs_size);
+	refcount_create(&arc_mru_ghost->arcs_size);
+	refcount_create(&arc_mfu->arcs_size);
+	refcount_create(&arc_mfu_ghost->arcs_size);
+	refcount_create(&arc_l2c_only->arcs_size);
+
 	buf_init();
 
 	arc_reclaim_thread_exit = FALSE;
@@ -5399,6 +5475,13 @@ arc_fini(void)
 
 	mutex_destroy(&arc_user_evicts_lock);
 	cv_destroy(&arc_user_evicts_cv);
+
+	refcount_destroy(&arc_anon->arcs_size);
+	refcount_destroy(&arc_mru->arcs_size);
+	refcount_destroy(&arc_mru_ghost->arcs_size);
+	refcount_destroy(&arc_mfu->arcs_size);
+	refcount_destroy(&arc_mfu_ghost->arcs_size);
+	refcount_destroy(&arc_l2c_only->arcs_size);
 
 	multilist_destroy(&arc_mru->arcs_list[ARC_BUFC_METADATA]);
 	multilist_destroy(&arc_mru_ghost->arcs_list[ARC_BUFC_METADATA]);
