@@ -939,7 +939,23 @@ Disabling checksums is
 .Em NOT
 a recommended practice.
 .It Sy compression Ns = Ns Cm on | off | lzjb | gzip | gzip- Ns Ar N | Cm zle | Cm lz4
-Controls the compression algorithm used for this dataset. The
+Controls the compression algorithm used for this dataset.
+Setting compression to
+.Cm on
+indicates that the current default compression algorithm should be used.
+The default balances compression and decompression speed, with compression
+ratio and is expected to work well on a wide variety of workloads.
+Unlike all other settings for this property, on does not select a fixed
+compression type.
+As new compression algorithms are added to ZFS and enabled on a pool, the
+default compression algorithm may change.
+The current default compression algorthm is either
+.Cm lzjb
+or, if the
+.Sy lz4_compress
+feature is enabled,
+.Cm lz4 .
+The
 .Cm lzjb
 compression algorithm is optimized for performance while providing decent data
 compression. Setting compression to
