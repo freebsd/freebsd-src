@@ -4663,6 +4663,7 @@ int
 sys_posix_fadvise(struct thread *td, struct posix_fadvise_args *uap)
 {
 
-	return (kern_posix_fadvise(td, uap->fd, uap->offset, uap->len,
-	    uap->advice));
+	td->td_retval[0] = kern_posix_fadvise(td, uap->fd, uap->offset,
+	    uap->len, uap->advice);
+	return (0);
 }
