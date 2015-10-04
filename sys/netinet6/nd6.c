@@ -512,12 +512,13 @@ nd6_llinfo_settimer_locked(struct llentry *ln, long tick)
 }
 
 /*
-* Gets source address of the first packet in hold queue
-* and stores it in @src.
-* Returns pointer to @src (if hold queue is not empty) or NULL.
-*
-*/
-static struct in6_addr *
+ * Gets source address of the first packet in hold queue
+ * and stores it in @src.
+ * Returns pointer to @src (if hold queue is not empty) or NULL.
+ *
+ * Set noinline to be dtrace-friendly
+ */
+static __noinline struct in6_addr *
 nd6_llinfo_get_holdsrc(struct llentry *ln, struct in6_addr *src)
 {
 	struct ip6_hdr hdr;
@@ -541,8 +542,10 @@ nd6_llinfo_get_holdsrc(struct llentry *ln, struct in6_addr *src)
 
 /*
  * Switch @lle state to new state optionally arming timers.
+ *
+ * Set noinline to be dtrace-friendly
  */
-void
+__noinline void
 nd6_llinfo_setstate(struct llentry *lle, int newstate)
 {
 	struct ifnet *ifp;
@@ -586,7 +589,12 @@ nd6_llinfo_settimer(struct llentry *ln, long tick)
 	LLE_WUNLOCK(ln);
 }
 
-static void
+/*
+ * Timer-dependent part of nd state machine.
+ *
+ * Set noinline to be dtrace-friendly
+ */
+static __noinline void
 nd6_llinfo_timer(void *arg)
 {
 	struct llentry *ln;
@@ -1179,8 +1187,10 @@ nd6_is_addr_neighbor(const struct sockaddr_in6 *addr, struct ifnet *ifp)
  * Since the function would cause significant changes in the kernel, DO NOT
  * make it global, unless you have a strong reason for the change, and are sure
  * that the change is safe.
+ *
+ * Set noinline to be dtrace-friendly
  */
-static void
+static __noinline void
 nd6_free(struct llentry *ln, int gc)
 {
 	struct nd_defrouter *dr;
@@ -2036,8 +2046,10 @@ nd6_resolve(struct ifnet *ifp, int is_gw, struct mbuf *m,
  * Heavy version.
  * Function assume that destination LLE does not exist,
  * is invalid or stale, so LLE_EXCLUSIVE lock needs to be acquired.
+ *
+ * Set noinline to be dtrace-friendly
  */
-static int
+static __noinline int
 nd6_resolve_slow(struct ifnet *ifp, struct mbuf *m,
     const struct sockaddr_in6 *dst, u_char *desten, uint32_t *pflags)
 {
