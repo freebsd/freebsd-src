@@ -287,6 +287,7 @@ I_flag_voids_implied_A_flag_when_root_body()
 	atf_check -o match:'\.g' -s exit:0 ls -A -I
 }
 
+atf_test_case L_flag
 L_flag_head()
 {
 	atf_set "descr" "Verify that -L prints out the symbolic link and conversely -P prints out the target for the symbolic link"
@@ -299,6 +300,7 @@ L_flag_body()
 	atf_check -e empty -o not-match:target1/target2 -s exit:0 ls -L
 }
 
+atf_test_case S_flag
 S_flag_head()
 {
 	atf_set "descr" "Verify that -S sorts by file size, then by filename lexicographically"
@@ -378,6 +380,7 @@ a_flag_body()
 	done
 }
 
+atf_test_case d_flag
 d_flag_head()
 {
 	atf_set "descr" "Verify that -d doesn't descend down directories"
@@ -397,6 +400,7 @@ d_flag_body()
 	done
 }
 
+atf_test_case g_flag
 g_flag_head()
 {
 	atf_set "descr" "Verify that -g does nothing (compatibility flag)"
@@ -413,6 +417,7 @@ g_flag_body()
 	done
 }
 
+atf_test_case h_flag
 h_flag_head()
 {
 	atf_set "descr" "Verify that -h prints out the humanized units for file sizes with ls -l"
@@ -457,6 +462,7 @@ h_flag_body()
 	done
 }
 
+atf_test_case i_flag
 i_flag_head()
 {
 	atf_set "descr" "Verify that -i prints out the inode for files"
@@ -476,6 +482,7 @@ i_flag_body()
 	done
 }
 
+atf_test_case k_flag
 k_flag_head()
 {
 	atf_set "descr" "Verify that -k prints out the size with a block size of 1kB"
@@ -490,6 +497,7 @@ k_flag_body()
 	done
 }
 
+atf_test_case lcomma_flag
 lcomma_flag_head()
 {
 	atf_set "descr" "Verify that -l, prints out the size with ',' delimiters"
@@ -504,6 +512,7 @@ lcomma_flag_body()
 	    env LC_ALL=en_US.ISO8859-1 ls -l, i
 }
 
+atf_test_case m_flag
 m_flag_head()
 {
 	atf_set "descr" "Verify that the output from ls -m is comma-separated"
@@ -522,6 +531,7 @@ m_flag_body()
 	atf_check_equal "$(cat $output)" ",,, a,b , c, d, e"
 }
 
+atf_test_case n_flag
 n_flag_head()
 {
 	atf_set "descr" "Verify that the output from ls -n prints out numeric GIDs/UIDs instead of symbolic GIDs/UIDs"
@@ -542,6 +552,7 @@ n_flag_body()
 
 }
 
+atf_test_case o_flag
 o_flag_head()
 {
 	atf_set "descr" "Verify that the output from ls -o prints out the chflag values or '-' if none are set"
@@ -566,6 +577,7 @@ o_flag_body()
 	    -s exit:0 ls -lo b.file
 }
 
+atf_test_case p_flag
 p_flag_head()
 {
 	atf_set "descr" "Verify that the output from ls -p prints out '/' after directories"
@@ -590,6 +602,7 @@ p_flag_body()
 	done
 }
 
+atf_test_case q_flag_and_w_flag
 q_flag_and_w_flag_head()
 {
 	atf_set "descr" "Verify that the output from ls -q prints out '?' for ESC and ls -w prints out the escape character"
@@ -609,6 +622,7 @@ q_flag_and_w_flag_body()
 	atf_check -e empty -o match:"$test_file" -s exit:0 ls -w "$test_file"
 }
 
+atf_test_case r_flag
 r_flag_head()
 {
 	atf_set "descr" "Verify that the output from ls -r sorts the same way as reverse sorting with sort(1)"
@@ -632,6 +646,7 @@ r_flag_body()
 	atf_check_equal "$(cat $WITH_r)" "$(cat $WITH_sort)"
 }
 
+atf_test_case s_flag
 s_flag_head()
 {
 	atf_set "descr" "Verify that the output from ls -s matches the output from stat(1)"
@@ -646,6 +661,7 @@ s_flag_body()
 	done
 }
 
+atf_test_case t_flag
 t_flag_head()
 {
 	atf_set "descr" "Verify that the output from ls -t sorts by modification time"
@@ -670,6 +686,7 @@ t_flag_body()
 	atf_check -e empty -o match:'a\.file.*b\.file' -s exit:0 ls -Ct
 }
 
+atf_test_case u_flag
 u_flag_head()
 {
 	atf_set "descr" "Verify that the output from ls -u sorts by last access"
@@ -696,6 +713,7 @@ u_flag_body()
 	atf_check -e empty -o match:'a\.file.*b\.file' -s exit:0 ls -Cu
 }
 
+atf_test_case x_flag
 x_flag_head()
 {
 	atf_set "descr" "Verify that the output from ls -x is multi-column, sorted across"
@@ -718,6 +736,7 @@ x_flag_body()
 	    egrep "i[[:space:]]+j[[:space:]]+klmn[[:space:]]+opqr[[:space:]]+stuv" $WITH_x
 }
 
+atf_test_case y_flag
 y_flag_head()
 {
 	atf_set "descr" "Verify that the output from ls -y sorts the same way as sort(1)"
@@ -741,6 +760,7 @@ y_flag_body()
 	atf_check_equal "$(cat $WITH_sort)" "$(cat $WITH_y)"
 }
 
+atf_test_case 1_flag
 1_flag_head()
 {
 	atf_set "descr" "Verify that -1 prints out one item per line"
