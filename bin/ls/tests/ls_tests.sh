@@ -76,6 +76,32 @@ create_test_inputs()
 	atf_check -e empty -s exit:0 touch 0b00001111
 }
 
+KB=1024
+MB=$(( 1024 * $KB ))
+GB=$(( 1024 * $MB ))
+TB=$(( 1024 * $GB ))
+PB=$(( 1024 * $TB ))
+
+create_test_inputs2()
+{
+	create_test_dir
+
+	for filesize in 1 512 $(( 2 * $KB )) $(( 10 * $KB )) $(( 512 * $KB )); \
+	do
+		atf_check -e ignore -o empty -s exit:0 \
+		    dd if=/dev/zero of=${filesize}.file bs=1 \
+		    count=1 oseek=${filesize} conv=sparse
+		files="${files} ${filesize}.file"
+	done
+
+	for filesize in $MB $GB $TB; do
+		atf_check -e ignore -o empty -s exit:0 \
+		    dd if=/dev/zero of=${filesize}.file bs=$MB \
+		    count=1 oseek=$(( $filesize / $MB )) conv=sparse
+		files="${files} ${filesize}.file"
+	done
+}
+
 atf_test_case A_flag
 A_flag_head()
 {
@@ -307,6 +333,103 @@ a_flag_body()
 	done
 }
 
+d_flag_head()
+{
+	atf_set "descr" "Verify that -d doesn't descend down directories"
+}
+
+d_flag_body()
+{
+	create_test_dir
+
+	output=$PWD/../output
+
+	atf_check -e empty -o empty -s exit:0 mkdir -p a/b
+
+	for path in . $PWD a; do
+		atf_check -e empty -o save:$output -s exit:0 ls -d $path
+		atf_check_equal "$(cat $output)" "$path"
+	done
+}
+
+g_flag_head()
+{
+	atf_set "descr" "Verify that -g does nothing (compatibility flag)"
+}
+
+g_flag_body()
+{
+	create_test_inputs2
+	for file in $files; do
+		atf_check -e empty -o match:"$(ls -a $file)" -s exit:0 \
+		    ls -ag $file
+		atf_check -e empty -o match:"$(ls -la $file)" -s exit:0 \
+		    ls -alg $file
+	done
+}
+
+h_flag_head()
+{
+	atf_set "descr" "Verify that -h prints out the humanized units for file sizes with ls -l"
+}
+
+h_flag_body()
+{
+	# XXX: this test doesn't currently show how 999 bytes will be 999B,
+	# but 1000 bytes will be 1.0K, due to how humanize_number(3) works.
+	create_test_inputs2
+	for file in $files; do
+		file_size=$(stat -f '%z' "$file") || \
+		    atf_fail "stat'ing $file failed"
+		scale=2
+		if [ $file_size -lt $KB ]; then
+			divisor=1
+			scale=0
+			suffix=B
+		elif [ $file_size -lt $MB ]; then
+			divisor=$KB
+			suffix=K
+		elif [ $file_size -lt $GB ]; then
+			divisor=$MB
+			suffix=M
+		elif [ $file_size -lt $TB ]; then
+			divisor=$GB
+			suffix=G
+		elif [ $file_size -lt $PB ]; then
+			divisor=$TB
+			suffix=T
+		else
+			divisor=$PB
+			suffix=P
+		fi
+
+		bc_expr="$(printf "scale=%s\n%s/%s\nquit" $scale $file_size $divisor)"
+		size_humanized=$(bc -e "$bc_expr" | tr '.' '\.' | sed -e 's,\.00,,')
+
+		atf_check -e empty -o match:"$size_humanized.+$file" \
+		    -s exit:0 ls -hl $file
+	done
+}
+
+i_flag_head()
+{
+	atf_set "descr" "Verify that -i prints out the inode for files"
+}
+
+i_flag_body()
+{
+	create_test_inputs
+
+	paths=$(find -L . -mindepth 1)
+	[ -n "$paths" ] || atf_skip 'Could not find any paths to iterate over (!)'
+
+	for path in $paths; do
+		atf_check -e empty \
+		    -o match:"$(stat -f '[[:space:]]*%i[[:space:]]+%N' $path)" \
+		    -s exit:0 ls -d1i $path
+	done
+}
+
 k_flag_head()
 {
 	atf_set "descr" "Verify that -k prints out the size with a block size of 1kB"
@@ -314,14 +437,7 @@ k_flag_head()
 
 k_flag_body()
 {
-	create_test_dir
-
-	for filesize in 512 1 2048 10240 $(( 512 * 1024 )); do
-		atf_check -e ignore -o empty -s exit:0 \
-		    dd if=/dev/zero of=${filesize}.file bs=${filesize} count=1
-		files="${files} ${filesize}.file"
-	done
-
+	create_test_inputs2
 	for file in $files; do
 		atf_check -e empty \
 		    -o match:"[[:space:]]+$(stat -f "%z" $file)[[:space:]]+.+[[:space:]]+$file" ls -lk $file
@@ -344,7 +460,7 @@ lcomma_flag_body()
 
 n_flag_head()
 {
-	atf_set "descr" "Verify that the output from ls -p prints out numeric GIDs/UIDs instead of symbolic GIDs/UIDs"
+	atf_set "descr" "Verify that the output from ls -n prints out numeric GIDs/UIDs instead of symbolic GIDs/UIDs"
 	atf_set "require.user" "root"
 }
 
@@ -360,6 +476,30 @@ n_flag_body()
 	    -o match:'\-rw\-r\-\-r\-\-[[:space:]]+1[[:space:]]+'"$nobody_uid[[:space:]]+$daemon_gid"'[[:space:]]+.+a\.file' \
 	    ls -ln a.file
 
+}
+
+o_flag_head()
+{
+	atf_set "descr" "Verify that the output from ls -o prints out the chflag values or '-' if none are set"
+	atf_set "require.user" "root"
+}
+
+o_flag_body()
+{
+	local size=12345
+
+	create_test_dir
+
+	atf_check -e ignore -o empty -s exit:0 dd if=/dev/zero of=a.file \
+	    bs=$size count=1
+	atf_check -e ignore -o empty -s exit:0 dd if=/dev/zero of=b.file \
+	    bs=$size count=1
+	atf_check -e empty -o empty -s exit:0 chflags uarch a.file
+
+	atf_check -e empty -o match:"[[:space:]]+uarch[[:space:]]$size+.+a\\.file" \
+	    -s exit:0 ls -lo a.file
+	atf_check -e empty -o match:"[[:space:]]+\\-[[:space:]]$size+.+b\\.file" \
+	    -s exit:0 ls -lo b.file
 }
 
 p_flag_head()
@@ -435,14 +575,7 @@ s_flag_head()
 
 s_flag_body()
 {
-	create_test_dir
-
-	for filesize in 512 1 2048 10240 $(( 512 * 1024 )); do
-		atf_check -e ignore -o empty -s exit:0 \
-		    dd if=/dev/zero of=${filesize}.file bs=${filesize} count=1
-		files="${files} ${filesize}.file"
-	done
-
+	create_test_inputs2
 	for file in $files; do
 		atf_check -e empty \
 		    -o match:"$(stat -f "%b" $file)[[:space:]]+$file" ls -s $file
@@ -592,17 +725,17 @@ atf_init_test_cases()
 	atf_add_test_case a_flag
 	#atf_add_test_case b_flag
 	#atf_add_test_case c_flag
-	#atf_add_test_case d_flag
+	atf_add_test_case d_flag
 	#atf_add_test_case f_flag
-	#atf_add_test_case g_flag
-	#atf_add_test_case h_flag
-	#atf_add_test_case i_flag
+	atf_add_test_case g_flag
+	atf_add_test_case h_flag
+	atf_add_test_case i_flag
 	atf_add_test_case k_flag
 	#atf_add_test_case l_flag
 	atf_add_test_case lcomma_flag
 	#atf_add_test_case m_flag
 	atf_add_test_case n_flag
-	#atf_add_test_case o_flag
+	atf_add_test_case o_flag
 	atf_add_test_case p_flag
 	atf_add_test_case q_flag_and_w_flag
 	atf_add_test_case r_flag
