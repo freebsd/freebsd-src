@@ -533,11 +533,9 @@ void intel_opregion_fini(struct drm_device *dev)
 	opregion->vbt = NULL;
 }
 #else
-int
+void
 intel_opregion_init(struct drm_device *dev)
 {
-
-	return (0);
 }
 
 void
