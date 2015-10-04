@@ -831,6 +831,21 @@ detach:
 	return (ENXIO);
 }
 
+static void
+run_drain_mbufq(struct run_softc *sc)
+{
+	struct mbuf *m;
+	struct ieee80211_node *ni;
+
+	RUN_LOCK_ASSERT(sc, MA_OWNED);
+	while ((m = mbufq_dequeue(&sc->sc_snd)) != NULL) {
+		ni = (struct ieee80211_node *)m->m_pkthdr.rcvif;
+		m->m_pkthdr.rcvif = NULL;
+		ieee80211_free_node(ni);
+		m_freem(m);
+	}
+}
+
 static int
 run_detach(device_t self)
 {
@@ -852,6 +867,9 @@ run_detach(device_t self)
 	/* free TX list, if any */
 	for (i = 0; i != RUN_EP_QUEUES; i++)
 		run_unsetup_tx_list(sc, &sc->sc_epq[i]);
+
+	/* Free TX queue */
+	run_drain_mbufq(sc);
 	RUN_UNLOCK(sc);
 
 	if (sc->sc_ic.ic_softc == sc) {
@@ -862,7 +880,6 @@ run_detach(device_t self)
 		ieee80211_ifdetach(ic);
 	}
 
-	mbufq_drain(&sc->sc_snd);
 	mtx_destroy(&sc->sc_mtx);
 
 	return (0);
@@ -6171,6 +6188,8 @@ run_stop(void *arg)
 		usbd_transfer_drain(sc->sc_xfer[i]);
 
 	RUN_LOCK(sc);
+
+	run_drain_mbufq(sc);
 
 	if (sc->rx_m != NULL) {
 		m_free(sc->rx_m);
