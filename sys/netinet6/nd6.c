@@ -134,6 +134,7 @@ static int regen_tmpaddr(struct in6_ifaddr *);
 static void nd6_free(struct llentry *, int);
 static void nd6_free_redirect(const struct llentry *);
 static void nd6_llinfo_timer(void *);
+static void nd6_llinfo_settimer_locked(struct llentry *, long);
 static void clear_llinfo_pqueue(struct llentry *);
 static void nd6_rtrequest(int, struct rtentry *, struct rt_addrinfo *);
 static int nd6_resolve_slow(struct ifnet *, struct mbuf *,
@@ -483,7 +484,7 @@ skip1:
 /*
  * ND6 timer routine to handle ND6 entries
  */
-void
+static void
 nd6_llinfo_settimer_locked(struct llentry *ln, long tick)
 {
 	int canceled;
@@ -577,16 +578,6 @@ nd6_llinfo_setstate(struct llentry *lle, int newstate)
 		nd6_llinfo_settimer_locked(lle, delay);
 
 	lle->ln_state = newstate;
-}
-
-
-void
-nd6_llinfo_settimer(struct llentry *ln, long tick)
-{
-
-	LLE_WLOCK(ln);
-	nd6_llinfo_settimer_locked(ln, tick);
-	LLE_WUNLOCK(ln);
 }
 
 /*
