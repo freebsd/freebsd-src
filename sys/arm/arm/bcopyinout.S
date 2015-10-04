@@ -68,7 +68,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 
-#define SAVE_REGS	stmfd	sp!, {r4-r11}
+#define SAVE_REGS	stmfd	sp!, {r4-r11}; _SAVE({r4-r11})
 #define RESTORE_REGS	ldmfd	sp!, {r4-r11}
 
 #if defined(_ARM_ARCH_5E)
@@ -341,6 +341,7 @@ ENTRY(copyout)
 	cmp	r2, r3
 	blt	.Lnormale
 	stmfd	sp!, {r0-r2, r4, lr}
+	_SAVE({r0-r2, r4, lr})
 	mov     r3, r0
 	mov     r0, r1
 	mov     r1, r3
