@@ -306,7 +306,8 @@ udom_open(const char *path, int flags)
 {
 	struct addrinfo hints, *res, *res0;
 	char rpath[PATH_MAX];
-	int fd, error;
+	int fd = -1;
+	int error;
 
 	/*
 	 * Construct the unix domain socket address and attempt to connect.
