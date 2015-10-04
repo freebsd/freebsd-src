@@ -229,6 +229,7 @@ F_flag_body()
 	atf_check -e empty -o match:'h\|' -s exit:0 ls -F
 	atf_check -e empty -o match:'j=' -s exit:0 ls -F
 	#atf_check -e empty -o match:'<whiteout-file>%' -s exit:0 ls -F
+	atf_check -e empty -o match:'stuv' -s exit:0 ls -F
 	atf_check -e empty -o match:'wxyz\*' -s exit:0 ls -F
 }
 
