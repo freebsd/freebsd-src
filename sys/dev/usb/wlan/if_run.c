@@ -1692,14 +1692,14 @@ run_get_txpower(struct run_softc *sc)
 	/* Fix broken Tx power entries. */
 	for (i = 0; i < 14; i++) {
 		if (sc->mac_ver >= 0x5390) {
-			if (sc->txpow1[i] < 0 || sc->txpow1[i] > 27)
+			if (sc->txpow1[i] < 0 || sc->txpow1[i] > 39)
 				sc->txpow1[i] = 5;
 		} else {
 			if (sc->txpow1[i] < 0 || sc->txpow1[i] > 31)
 				sc->txpow1[i] = 5;
 		}
 		if (sc->mac_ver > 0x5390) {
-			if (sc->txpow2[i] < 0 || sc->txpow2[i] > 27)
+			if (sc->txpow2[i] < 0 || sc->txpow2[i] > 39)
 				sc->txpow2[i] = 5;
 		} else if (sc->mac_ver < 0x5390) {
 			if (sc->txpow2[i] < 0 || sc->txpow2[i] > 31)
