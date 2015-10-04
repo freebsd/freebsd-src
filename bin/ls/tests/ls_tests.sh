@@ -53,8 +53,6 @@ create_test_inputs()
 	atf_check -e empty -s exit:0 mkdir .g
 	atf_check -e empty -s exit:0 mkfifo h
 	atf_check -e ignore -s exit:0 dd if=/dev/zero of=i count=1000 bs=1
-	atf_check -e empty -s exit:0 \
-	    sh -c "pid=${ATF_TMPDIR}/nc.pid; daemon -p \$pid nc -lU j; sleep 2; pkill -F \$pid"
 	atf_check -e empty -s exit:0 touch klmn
 	atf_check -e empty -s exit:0 touch opqr
 	atf_check -e empty -s exit:0 touch stuv
@@ -184,21 +182,53 @@ C_flag_head()
 	atf_set "descr" "Verify that the output from ls -C is multi-column, sorted down"
 }
 
+print_index()
+{
+	local i=1
+	local wanted_index=$1; shift
+
+	while [ $i -le $wanted_index ]; do
+		if [ $i -eq $wanted_index ]; then
+			echo $1
+			return
+		fi
+		shift
+		: $(( i += 1 ))
+	done
+}
+
 C_flag_body()
 {
 	create_test_inputs
 
 	WITH_C=$PWD/../with_C.out
 
+	export COLUMNS=40
 	atf_check -e empty -o save:$WITH_C -s exit:0 ls -C
 
 	echo "With -C usage"
 	cat $WITH_C
 
-	atf_check -e ignore -o not-empty -s exit:0 \
-	    egrep "0b00000001[[:space:]]+0b00000111[[:space:]]+0b00001101[[:space:]]+e[[:space:]]+stuv" $WITH_C
-	atf_check -e ignore -o not-empty -s exit:0 \
-	    egrep "0b00000010[[:space:]]+0b00001000[[:space:]]+0b00001110[[:space:]]+h[[:space:]]+wxyz" $WITH_C
+	paths=$(find -s . -mindepth 1 -maxdepth 1 \! -name '.*' -exec basename {} \; )
+	set -- $paths
+	num_paths=$#
+	num_columns=2
+
+	max_num_paths_per_column=$(( $(( $num_paths + 1 )) / $num_columns ))
+
+	local i=1
+	while [ $i -le $max_num_paths_per_column ]; do
+		column_1=$(print_index $i $paths)
+		column_2=$(print_index $(( $i + $max_num_paths_per_column )) $paths)
+		#echo "paths[$(( $i + $max_num_paths_per_column ))] = $column_2"
+		expected_expr="$column_1"
+		if [ -n "$column_2" ]; then
+			expected_expr="$expected_expr[[:space:]]+$column_2"
+		fi
+		atf_check -e ignore -o not-empty -s exit:0 \
+		    egrep "$expected_expr" $WITH_C
+		: $(( i += 1 ))
+	done
 }
 
 atf_test_case D_flag
@@ -223,6 +253,9 @@ F_flag_head()
 F_flag_body()
 {
 	create_test_inputs
+
+	atf_check -e empty -s exit:0 \
+	    sh -c "pid=${ATF_TMPDIR}/nc.pid; daemon -p \$pid nc -lU j; sleep 2; pkill -F \$pid"
 
 	atf_check -e empty -o match:'a/' -s exit:0 ls -F
 	atf_check -e empty -o match:'c@' -s exit:0 ls -F
@@ -812,7 +845,7 @@ x_flag_body()
 	atf_check -e ignore -o not-empty -s exit:0 \
 	    egrep "a[[:space:]]+c[[:space:]]+d[[:space:]]+e[[:space:]]+h" $WITH_x
 	atf_check -e ignore -o not-empty -s exit:0 \
-	    egrep "i[[:space:]]+j[[:space:]]+klmn[[:space:]]+opqr[[:space:]]+stuv" $WITH_x
+	    egrep "i[[:space:]]+klmn[[:space:]]+opqr[[:space:]]+stuv[[:space:]]+wxyz" $WITH_x
 }
 
 atf_test_case y_flag
