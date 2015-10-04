@@ -2086,38 +2086,40 @@ rum_update_slot(struct ieee80211com *ic)
 static void
 rum_wme_update_cb(struct rum_softc *sc, union sec_param *data, uint8_t rvp_id)
 {
-	const struct wmeParams (*chanp)[WME_NUM_AC] = &data->wme_params;
+	struct ieee80211com *ic = &sc->sc_ic;
+	const struct wmeParams *chanp =
+	    ic->ic_wme.wme_chanParams.cap_wmeParams;
 	int error = 0;
 
 	error = rum_write(sc, RT2573_AIFSN_CSR,
-	    chanp[WME_AC_VO]->wmep_aifsn  << 12 |
-	    chanp[WME_AC_VI]->wmep_aifsn  <<  8 |
-	    chanp[WME_AC_BK]->wmep_aifsn  <<  4 |
-	    chanp[WME_AC_BE]->wmep_aifsn);
+	    chanp[WME_AC_VO].wmep_aifsn  << 12 |
+	    chanp[WME_AC_VI].wmep_aifsn  <<  8 |
+	    chanp[WME_AC_BK].wmep_aifsn  <<  4 |
+	    chanp[WME_AC_BE].wmep_aifsn);
 	if (error)
 		goto print_err;
 	error = rum_write(sc, RT2573_CWMIN_CSR,
-	    chanp[WME_AC_VO]->wmep_logcwmin << 12 |
-	    chanp[WME_AC_VI]->wmep_logcwmin <<  8 |
-	    chanp[WME_AC_BK]->wmep_logcwmin <<  4 |
-	    chanp[WME_AC_BE]->wmep_logcwmin);
+	    chanp[WME_AC_VO].wmep_logcwmin << 12 |
+	    chanp[WME_AC_VI].wmep_logcwmin <<  8 |
+	    chanp[WME_AC_BK].wmep_logcwmin <<  4 |
+	    chanp[WME_AC_BE].wmep_logcwmin);
 	if (error)
 		goto print_err;
 	error = rum_write(sc, RT2573_CWMAX_CSR,
-	    chanp[WME_AC_VO]->wmep_logcwmax << 12 |
-	    chanp[WME_AC_VI]->wmep_logcwmax <<  8 |
-	    chanp[WME_AC_BK]->wmep_logcwmax <<  4 |
-	    chanp[WME_AC_BE]->wmep_logcwmax);
+	    chanp[WME_AC_VO].wmep_logcwmax << 12 |
+	    chanp[WME_AC_VI].wmep_logcwmax <<  8 |
+	    chanp[WME_AC_BK].wmep_logcwmax <<  4 |
+	    chanp[WME_AC_BE].wmep_logcwmax);
 	if (error)
 		goto print_err;
 	error = rum_write(sc, RT2573_TXOP01_CSR,
-	    chanp[WME_AC_BK]->wmep_txopLimit << 16 |
-	    chanp[WME_AC_BE]->wmep_txopLimit);
+	    chanp[WME_AC_BK].wmep_txopLimit << 16 |
+	    chanp[WME_AC_BE].wmep_txopLimit);
 	if (error)
 		goto print_err;
 	error = rum_write(sc, RT2573_TXOP23_CSR,
-	    chanp[WME_AC_VO]->wmep_txopLimit << 16 |
-	    chanp[WME_AC_VI]->wmep_txopLimit);
+	    chanp[WME_AC_VO].wmep_txopLimit << 16 |
+	    chanp[WME_AC_VI].wmep_txopLimit);
 	if (error)
 		goto print_err;
 
@@ -2134,10 +2136,8 @@ static int
 rum_wme_update(struct ieee80211com *ic)
 {
 	struct rum_softc *sc = ic->ic_softc;
-	const struct wmeParams (*chanp)[WME_NUM_AC] =
-	   &ic->ic_wme.wme_chanParams.cap_wmeParams;
 
-	rum_cmd_sleepable(sc, chanp, sizeof (*chanp), 0, rum_wme_update_cb);
+	rum_cmd_sleepable(sc, NULL, 0, 0, rum_wme_update_cb);
 
 	return (0);
 }
