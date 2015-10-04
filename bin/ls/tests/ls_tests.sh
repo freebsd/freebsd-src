@@ -299,6 +299,51 @@ L_flag_body()
 	atf_check -e empty -o not-match:target1/target2 -s exit:0 ls -L
 }
 
+S_flag_head()
+{
+	atf_set "descr" "Verify that -S sorts by file size, then by filename lexicographically"
+}
+
+S_flag_body()
+{
+	create_test_dir
+
+	file_list_dir=$PWD/../files
+
+	atf_check -e empty -o empty -s exit:0 mkdir -p $file_list_dir
+
+	create_test_inputs
+	create_test_inputs2
+
+	WITH_S=$PWD/../with_S.out
+	WITHOUT_S=$PWD/../without_S.out
+
+	atf_check -e empty -o save:$WITH_S ls -D '%s' -lS
+	atf_check -e empty -o save:$WITHOUT_S ls -D '%s' -l
+
+	#echo "-lS usage"
+	#cat $WITH_S
+	#echo "-l usage"
+	#cat $WITHOUT_S
+
+	WITH_S_parsed=$(awk '! /^total/ { print $7 }' $WITH_S)
+	set -- $(awk '! /^total/ { print $5, $7 }' $WITHOUT_S)
+	while [ $# -gt 0 ]; do
+		size=$1; shift
+		filename=$1; shift
+		echo $filename >> $file_list_dir/${size}
+	done
+	file_lists=$(find $file_list_dir -type f -exec basename {} \; | sort -nr)
+	WITHOUT_S_parsed=$(for file_list in $file_lists; do sort < $file_list_dir/$file_list; done)
+
+	echo "-lS usage (parsed)"
+	echo "$WITH_S_parsed"
+	echo "-l usage (parsed)"
+	echo "$WITHOUT_S_parsed"
+
+	atf_check_equal "$WITHOUT_S_parsed" "$WITH_S_parsed"
+}
+
 atf_test_case a_flag
 a_flag_head()
 {
@@ -736,7 +781,7 @@ atf_init_test_cases()
 	atf_add_test_case L_flag
 	#atf_add_test_case P_flag
 	#atf_add_test_case R_flag
-	#atf_add_test_case S_flag
+	atf_add_test_case S_flag
 	#atf_add_test_case T_flag
 	#atf_add_test_case U_flag
 	#atf_add_test_case W_flag
