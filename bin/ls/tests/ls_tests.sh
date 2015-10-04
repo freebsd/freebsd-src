@@ -557,6 +557,25 @@ k_flag_body()
 	done
 }
 
+atf_test_case l_flag
+l_flag_head()
+{
+	atf_set "descr" "Verify that -l prints out the output in long format"
+}
+
+l_flag_body()
+{
+
+	atf_check -e empty -o empty -s exit:0 touch a.file
+
+	birthtime_in_secs=$(stat -f "%B" -t "%s" a.file)
+	birthtime=$(date -j -f "%s" $birthtime_in_secs +"[[:space:]]+%b[[:space:]]+%e[[:space:]]+%H:%M")
+
+	expected_output=$(stat -f "%Sp[[:space:]]+%i%Su[[:space:]]+%Sg[[:space:]]+%z[[:space:]]+$birthtime[[:space:]]+a\\.file")
+
+	atf_check -e empty -o match:"$expected_output" -s exit:0 ls -l a.file
+}
+
 atf_test_case lcomma_flag
 lcomma_flag_head()
 {
@@ -875,7 +894,7 @@ atf_init_test_cases()
 	atf_add_test_case h_flag
 	atf_add_test_case i_flag
 	atf_add_test_case k_flag
-	#atf_add_test_case l_flag
+	atf_add_test_case l_flag
 	atf_add_test_case lcomma_flag
 	atf_add_test_case m_flag
 	atf_add_test_case n_flag
