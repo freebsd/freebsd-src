@@ -1750,10 +1750,12 @@ nd6_cache_lladdr(struct ifnet *ifp, struct in6_addr *from, char *lladdr,
 			lltable_link_entry(LLTABLE6(ifp), ln);
 		IF_AFDATA_WUNLOCK(ifp);
 		if (ln_tmp == NULL) {
-			/* No existing lle, mark as new entry */
+			/* No existing lle, mark as new entry (6,7) */
 			is_newentry = 1;
 			nd6_llinfo_setstate(ln, ND6_LLINFO_STALE);
-			EVENTHANDLER_INVOKE(lle_event, ln, LLENTRY_RESOLVED);
+			if (lladdr != NULL)	/* (7) */
+				EVENTHANDLER_INVOKE(lle_event, ln,
+				    LLENTRY_RESOLVED);
 		} else {
 			lltable_free_entry(LLTABLE6(ifp), ln);
 			ln = ln_tmp;
