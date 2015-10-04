@@ -530,7 +530,7 @@ nd6_llinfo_get_holdsrc(struct llentry *ln, struct in6_addr *src)
 	 * assume every packet in la_hold has the same IP header
 	 */
 	m = ln->la_hold;
-	if (sizeof(hdr) < m->m_len)
+	if (sizeof(hdr) > m->m_len)
 		return (NULL);
 
 	m_copydata(m, 0, sizeof(hdr), (caddr_t)&hdr);
@@ -1798,7 +1798,8 @@ nd6_cache_lladdr(struct ifnet *ifp, struct in6_addr *from, char *lladdr,
 		 */
 		bcopy(lladdr, &ln->ll_addr, ifp->if_addrlen);
 		ln->la_flags |= LLE_VALID;
-		nd6_llinfo_setstate(ln, ND6_LLINFO_STALE);
+		if (do_update != 0)	/* 3,5,7 */
+			nd6_llinfo_setstate(ln, ND6_LLINFO_STALE);
 
 		EVENTHANDLER_INVOKE(lle_event, ln, LLENTRY_RESOLVED);
 
