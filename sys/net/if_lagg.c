@@ -221,13 +221,6 @@ static const struct lagg_proto {
 	.pr_portreq = lacp_portreq,
     },
     {
-	.pr_num = LAGG_PROTO_ETHERCHANNEL,
-	.pr_attach = lagg_lb_attach,
-	.pr_detach = lagg_lb_detach,
-	.pr_start = lagg_lb_start,
-	.pr_input = lagg_lb_input,
-    },
-    {
 	.pr_num = LAGG_PROTO_BROADCAST,
 	.pr_start = lagg_bcast_start,
 	.pr_input = lagg_bcast_input,
@@ -1125,7 +1118,6 @@ lagg_port2req(struct lagg_port *lp, struct lagg_reqport *rp)
 
 		case LAGG_PROTO_ROUNDROBIN:
 		case LAGG_PROTO_LOADBALANCE:
-		case LAGG_PROTO_ETHERCHANNEL:
 		case LAGG_PROTO_BROADCAST:
 			if (LAGG_PORTACTIVE(lp))
 				rp->rp_flags |= LAGG_PORT_ACTIVE;
@@ -1759,7 +1751,6 @@ lagg_linkstate(struct lagg_softc *sc)
 			break;
 		case LAGG_PROTO_ROUNDROBIN:
 		case LAGG_PROTO_LOADBALANCE:
-		case LAGG_PROTO_ETHERCHANNEL:
 		case LAGG_PROTO_BROADCAST:
 			speed = 0;
 			SLIST_FOREACH(lp, &sc->sc_ports, lp_entries)
