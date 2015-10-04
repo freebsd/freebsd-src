@@ -377,6 +377,11 @@ do_el0_sync(struct trapframe *frame)
 	case EXCP_UNKNOWN:
 		el0_excp_unknown(frame);
 		break;
+	case EXCP_PC_ALIGN:
+		td = curthread;
+		call_trapsignal(td, SIGBUS, BUS_ADRALN, (void *)frame->tf_elr);
+		userret(td, frame);
+		break;
 	case EXCP_BRK:
 		td = curthread;
 		call_trapsignal(td, SIGTRAP, TRAP_BRKPT, (void *)frame->tf_elr);
