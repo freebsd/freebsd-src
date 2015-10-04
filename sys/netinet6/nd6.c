@@ -1753,6 +1753,7 @@ nd6_cache_lladdr(struct ifnet *ifp, struct in6_addr *from, char *lladdr,
 			/* No existing lle, mark as new entry */
 			is_newentry = 1;
 			nd6_llinfo_setstate(ln, ND6_LLINFO_STALE);
+			EVENTHANDLER_INVOKE(lle_event, ln, LLENTRY_RESOLVED);
 		} else {
 			lltable_free_entry(LLTABLE6(ifp), ln);
 			ln = ln_tmp;
@@ -1789,25 +1790,21 @@ nd6_cache_lladdr(struct ifnet *ifp, struct in6_addr *from, char *lladdr,
 	 */
 
 	do_update = 0;
-	if (!is_newentry && llchange != 0)
+	if (is_newentry == 0 && llchange != 0) {
 		do_update = 1;	/* (3,5) */
 
-	if (lladdr) {		/* (3-5) and (7) */
 		/*
 		 * Record source link-layer address
 		 * XXX is it dependent to ifp->if_type?
 		 */
 		bcopy(lladdr, &ln->ll_addr, ifp->if_addrlen);
 		ln->la_flags |= LLE_VALID;
-		if (do_update != 0)	/* 3,5,7 */
-			nd6_llinfo_setstate(ln, ND6_LLINFO_STALE);
+		nd6_llinfo_setstate(ln, ND6_LLINFO_STALE);
 
 		EVENTHANDLER_INVOKE(lle_event, ln, LLENTRY_RESOLVED);
 
-		if (do_update) {
-			if (ln->la_hold != NULL)
-				nd6_grab_holdchain(ln, &chain, &sin6);
-		}
+		if (ln->la_hold != NULL)
+			nd6_grab_holdchain(ln, &chain, &sin6);
 	}
 
 	/* Calculates new router status */
