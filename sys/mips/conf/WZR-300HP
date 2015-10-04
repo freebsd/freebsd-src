@@ -28,9 +28,6 @@ device		geom_uncompress	# compressed in-memory filesystem hackery!
 
 options 	ROOTDEVNAME=\"ufs:/dev/map/rootfs.uncompress\"
 
-# options 	MD_ROOT
-# options 	MD_ROOT_SIZE="6144"
-
 options 	AR71XX_ATH_EEPROM	# Fetch EEPROM/PCI config from flash
 options 	ATH_EEPROM_FIRMWARE	# Use EEPROM from flash
 device		firmware		# Used by the above
@@ -42,10 +39,11 @@ device          miiproxy                # MDIO bus <-> MII PHY rendezvous
 device          etherswitch
 device          arswitch
 
-# Enable GPIO
-device         gpio
-device         gpioled
-
 # hwpmc
 device		hwpmc_mips24k
 device		hwpmc
+
+# load these via modules, shrink kernel
+nodevice	if_bridge
+nodevice	bridgestp
+nodevice	random
