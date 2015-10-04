@@ -346,6 +346,25 @@ S_flag_body()
 	atf_check_equal "$WITHOUT_S_parsed" "$WITH_S_parsed"
 }
 
+atf_test_case T_flag
+T_flag_head()
+{
+	atf_set "descr" "Verify -T support"
+}
+
+T_flag_body()
+{
+	create_test_dir
+
+	atf_check -e empty -o empty -s exit:0 touch a.file
+
+	birthtime_in_secs=$(stat -f %B -t %s a.file)
+	birthtime=$(date -j -f %s $birthtime_in_secs +"[[:space:]]+%b[[:space:]]+%e[[:space:]]+%H:%M:%S[[:space:]]+%Y")
+
+	atf_check -e empty -o match:"$birthtime"'[[:space:]]+a\.file' \
+	    -s exit:0 ls -lT a.file
+}
+
 atf_test_case a_flag
 a_flag_head()
 {
@@ -378,6 +397,20 @@ a_flag_body()
 		atf_check -e empty -o empty -s not-exit:0 grep "${dot_path}" \
 		    $WITHOUT_a
 	done
+}
+
+atf_test_case b_flag
+b_flag_head()
+{
+	atf_set "descr" "Verify that the output from ls -b prints out non-printable characters"
+}
+
+b_flag_body()
+{
+	atf_skip "kyua report-jenkins doesn't properly escape non-printable chars: https://github.com/jmmv/kyua/issues/136"
+
+	atf_check -e empty -o empty -s exit:0 touch "$(printf "y\013z")"
+	atf_check -e empty -o match:'y\\vz' -s exit:0 ls -b
 }
 
 atf_test_case d_flag
@@ -802,12 +835,12 @@ atf_init_test_cases()
 	#atf_add_test_case P_flag
 	#atf_add_test_case R_flag
 	atf_add_test_case S_flag
-	#atf_add_test_case T_flag
+	atf_add_test_case T_flag
 	#atf_add_test_case U_flag
 	#atf_add_test_case W_flag
 	#atf_add_test_case Z_flag
 	atf_add_test_case a_flag
-	#atf_add_test_case b_flag
+	atf_add_test_case b_flag
 	#atf_add_test_case c_flag
 	atf_add_test_case d_flag
 	#atf_add_test_case f_flag
