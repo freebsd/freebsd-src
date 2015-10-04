@@ -301,6 +301,37 @@ L_flag_body()
 	atf_check -e empty -o not-match:target1/target2 -s exit:0 ls -L
 }
 
+atf_test_case R_flag
+R_flag_head()
+{
+	atf_set "descr" "Verify that the output from ls -R prints out the directory contents recursively"
+}
+
+R_flag_body()
+{
+	create_test_inputs
+
+	WITH_R=$PWD/../with_R.out
+	WITH_R_expected_output=$PWD/../with_R_expected.out
+
+	atf_check -e empty -o save:$WITH_R -s exit:0 ls -R
+
+	set -- . $(find -s . \! -name '.*' -type d)
+	while [ $# -gt 0 ]; do
+		dir=$1; shift
+		[ "$dir" != "." ] && echo "$dir:"
+		(cd $dir && ls -1A | sed -e '/^\./d')
+		[ $# -ne 0 ] && echo
+	done > $WITH_R_expected_output
+
+	echo "-R usage"
+	cat $WITH_R
+	echo "-R expected output"
+	cat $WITH_R_expected_output
+
+	atf_check_equal "$(cat $WITH_R)" "$(cat $WITH_R_expected_output)"
+}
+
 atf_test_case S_flag
 S_flag_head()
 {
@@ -323,11 +354,6 @@ S_flag_body()
 
 	atf_check -e empty -o save:$WITH_S ls -D '%s' -lS
 	atf_check -e empty -o save:$WITHOUT_S ls -D '%s' -l
-
-	#echo "-lS usage"
-	#cat $WITH_S
-	#echo "-l usage"
-	#cat $WITHOUT_S
 
 	WITH_S_parsed=$(awk '! /^total/ { print $7 }' $WITH_S)
 	set -- $(awk '! /^total/ { print $5, $7 }' $WITHOUT_S)
@@ -834,7 +860,7 @@ atf_init_test_cases()
 	atf_add_test_case I_flag_voids_implied_A_flag_when_root
 	atf_add_test_case L_flag
 	#atf_add_test_case P_flag
-	#atf_add_test_case R_flag
+	atf_add_test_case R_flag
 	atf_add_test_case S_flag
 	atf_add_test_case T_flag
 	#atf_add_test_case U_flag
