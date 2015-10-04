@@ -371,6 +371,7 @@ g_flag_body()
 h_flag_head()
 {
 	atf_set "descr" "Verify that -h prints out the humanized units for file sizes with ls -l"
+	atf_set "require.files" "/usr/bin/bc"
 }
 
 h_flag_body()
@@ -456,6 +457,24 @@ lcomma_flag_body()
 	atf_check \
 	    -o match:'\-rw\-r\-\-r\-\-[[:space:]]+.+[[:space:]]+1,000[[:space:]]+.+i' \
 	    env LC_ALL=en_US.ISO8859-1 ls -l, i
+}
+
+m_flag_head()
+{
+	atf_set "descr" "Verify that the output from ls -m is comma-separated"
+}
+
+m_flag_body()
+{
+	create_test_dir
+
+	output=$PWD/../output
+
+	atf_check -e empty -o empty -s exit:0 touch ,, "a,b " c d e
+
+	atf_check -e empty -o save:$output -s exit:0 ls -m
+
+	atf_check_equal "$(cat $output)" ",,, a,b , c, d, e"
 }
 
 n_flag_head()
@@ -733,7 +752,7 @@ atf_init_test_cases()
 	atf_add_test_case k_flag
 	#atf_add_test_case l_flag
 	atf_add_test_case lcomma_flag
-	#atf_add_test_case m_flag
+	atf_add_test_case m_flag
 	atf_add_test_case n_flag
 	atf_add_test_case o_flag
 	atf_add_test_case p_flag
