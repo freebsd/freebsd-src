@@ -176,6 +176,11 @@
 	updated to include support for <literal>NTFS</literal>
 	filesystems in both <acronym>MBR</acronym> and
 	<acronym>GPT</acronym> partitioning schemes.</para>
+
+      <para revision="288202" contrib="sponsor" sponsor="&ff;">The
+	&man.ar.1; utility now enables deterministic mode
+	(<literal>-D</literal>) by default.  This behavior can be
+	disabled by specifying the <literal>-U</literal> flag.</para>
     </sect2>
 
     <sect2 xml:id="userland-contrib">
