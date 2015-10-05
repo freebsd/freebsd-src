@@ -1661,7 +1661,10 @@ conf_verify_lun(struct lun *lun)
 		}
 	}
 	if (lun->l_blocksize == 0) {
-		lun_set_blocksize(lun, DEFAULT_BLOCKSIZE);
+		if (lun->l_device_type == 5)
+			lun_set_blocksize(lun, DEFAULT_CD_BLOCKSIZE);
+		else
+			lun_set_blocksize(lun, DEFAULT_BLOCKSIZE);
 	} else if (lun->l_blocksize < 0) {
 		log_warnx("invalid blocksize for lun \"%s\"; "
 		    "must be larger than 0", lun->l_name);

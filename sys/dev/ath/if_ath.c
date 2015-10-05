@@ -1438,8 +1438,7 @@ ath_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
 	int needbeacon, error;
 	enum ieee80211_opmode ic_opmode;
 
-	avp = (struct ath_vap *) malloc(sizeof(struct ath_vap),
-	    M_80211_VAP, M_WAITOK | M_ZERO);
+	avp = malloc(sizeof(struct ath_vap), M_80211_VAP, M_WAITOK | M_ZERO);
 	needbeacon = 0;
 	IEEE80211_ADDR_COPY(mac, mac0);
 
