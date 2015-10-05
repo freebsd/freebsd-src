@@ -253,6 +253,8 @@ static struct syscall decoded_syscalls[] = {
 	  .args = { { Int, 0 }, { Ptr, 1 } } },
 	{ .name = "kldfirstmod", .ret_type = 1, .nargs = 1,
 	  .args = { { Int, 0 } } },
+	{ .name = "modfind", .ret_type = 1, .nargs = 1,
+	  .args = { { Name | IN, 0 } } },
 	{ .name = "nanosleep", .ret_type = 1, .nargs = 1,
 	  .args = { { Timespec, 0 } } },
 	{ .name = "select", .ret_type = 1, .nargs = 5,
