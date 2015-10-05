@@ -27,22 +27,26 @@
 # $FreeBSD$
 #
 
-# This is a wrapper script to run tools-nfs4.test on UFS filesystem.
+# This is a wrapper script to run tools-posix.test on UFS filesystem.
 #
 # If any of the tests fails, here is how to debug it: go to
 # the directory with problematic filesystem mounted on it,
-# and do /path/to/test run /path/to/test tools-nfs4.test, e.g.
+# and do /path/to/test run /path/to/test tools-posix.test, e.g.
 #
-# /usr/src/tools/regression/acltools/run /usr/src/tools/regression/acltools/tools-nfs4.test
+# /usr/src/tools/regression/acltools/run /usr/src/tools/regression/acltools/tools-posix.test
 #
 # Output should be obvious.
 
-echo "1..4"
-
-if [ `whoami` != "root" ]; then
-	echo "not ok 1 - you need to be root to run this test."
-	exit 1
+if [ $(sysctl -n kern.features.ufs_acl 2>/dev/null || echo 0) -eq 0 ]; then
+	echo "1..0 # SKIP system does not have UFS ACL support"
+	exit 0
 fi
+if [ $(id -u) -ne 0 ]; then
+	echo "1..0 # SKIP you must be root"
+	exit 0
+fi
+
+echo "1..4"
 
 TESTDIR=$(dirname $(realpath $0))
 
@@ -50,9 +54,11 @@ TESTDIR=$(dirname $(realpath $0))
 MD=`mdconfig -at swap -s 10m`
 MNT=`mktemp -dt acltools`
 newfs /dev/$MD > /dev/null
-mount -o nfsv4acls /dev/$MD $MNT
+trap "cd /; umount -f $MNT; rmdir $MNT; mdconfig -d -u $MD" EXIT
+mount -o acls /dev/$MD $MNT
 if [ $? -ne 0 ]; then
 	echo "not ok 1 - mount failed."
+	echo 'Bail out!'
 	exit 1
 fi
 
@@ -63,17 +69,13 @@ cd $MNT
 # First, check whether we can crash the kernel by creating too many
 # entries.  For some reason this won't work in the test file.
 touch xxx
-setfacl -x2 xxx
-while :; do setfacl -a0 u:42:rwx:allow xxx 2> /dev/null; if [ $? -ne 0 ]; then break; fi; done
+i=0;
+while :; do i=$(($i+1)); setfacl -m u:$i:rwx xxx 2> /dev/null; if [ $? -ne 0 ]; then break; fi; done
 chmod 600 xxx
 rm xxx
 echo "ok 2"
 
-if [ `sysctl -n vfs.acl_nfs4_old_semantics` = 0 ]; then
-	perl $TESTDIR/run $TESTDIR/tools-nfs4-psarc.test > /dev/null
-else
-	perl $TESTDIR/run $TESTDIR/tools-nfs4.test > /dev/null
-fi
+perl $TESTDIR/run $TESTDIR/tools-posix.test > /dev/null
 
 if [ $? -eq 0 ]; then
 	echo "ok 3"
@@ -82,9 +84,5 @@ else
 fi
 
 cd /
-umount -f $MNT
-rmdir $MNT
-mdconfig -du $MD
 
 echo "ok 4"
-

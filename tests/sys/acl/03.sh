@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Copyright (c) 2011 Edward Tomasz Napierała <trasz@FreeBSD.org>
+# Copyright (c) 2008, 2009 Edward Tomasz Napierała <trasz@FreeBSD.org>
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -27,43 +27,91 @@
 # $FreeBSD$
 #
 
-# This is a wrapper script to run tools-nfs4-trivial.test on ZFS filesystem.
+# This is a wrapper script to run tools-crossfs.test between UFS without
+# ACLs, UFS with POSIX.1e ACLs, and ZFS with NFSv4 ACLs.
 #
 # WARNING: It uses hardcoded ZFS pool name "acltools"
+#
+# Output should be obvious.
 
-echo "1..3"
-
-if [ `whoami` != "root" ]; then
-	echo "not ok 1 - you need to be root to run this test."
-	exit 1
+if ! sysctl vfs.zfs.version.spa >/dev/null 2>&1; then
+	echo "1..0 # SKIP system doesn't have ZFS loaded"
+	exit 0
+fi
+if [ $(id -u) -ne 0 ]; then
+	echo "1..0 # SKIP you must be root"
+	exit 0
 fi
 
-TESTDIR=$(dirname $(realpath $0))
+echo "1..5"
 
-# Set up the test filesystem.
-MD=`mdconfig -at swap -s 64m`
-MNT=`mktemp -dt acltools`
-zpool create -m $MNT acltools /dev/$MD
+TESTDIR=$(dirname $(realpath $0))
+MNTROOT=`mktemp -dt acltools`
+
+# Set up the test filesystems.
+MD1=`mdconfig -at swap -s 64m`
+MNT1=$MNTROOT/nfs4
+mkdir $MNT1
+zpool create -m $MNT1 acltools /dev/$MD1
 if [ $? -ne 0 ]; then
 	echo "not ok 1 - 'zpool create' failed."
+	echo 'Bail out!'
 	exit 1
 fi
 
 echo "ok 1"
 
-cd $MNT
+MD2=`mdconfig -at swap -s 10m`
+MNT2=$MNTROOT/posix
+mkdir $MNT2
+newfs /dev/$MD2 > /dev/null
+mount -o acls /dev/$MD2 $MNT2
+if [ $? -ne 0 ]; then
+	echo "not ok 2 - mount failed."
+	echo 'Bail out!'
+	exit 1
+fi
 
-perl $TESTDIR/run $TESTDIR/tools-nfs4-trivial.test > /dev/null
+echo "ok 2"
+
+MD3=`mdconfig -at swap -s 10m`
+MNT3=$MNTROOT/none
+mkdir $MNT3
+newfs /dev/$MD3 > /dev/null
+mount /dev/$MD3 $MNT3
+if [ $? -ne 0 ]; then
+	echo "not ok 3 - mount failed."
+	echo 'Bail out!'
+	exit 1
+fi
+
+echo "ok 3"
+
+cd $MNTROOT
+
+perl $TESTDIR/run $TESTDIR/tools-crossfs.test > /dev/null
 
 if [ $? -eq 0 ]; then
-	echo "ok 2"
+	echo "ok 4"
 else
-	echo "not ok 2"
+	echo "not ok 4"
 fi
 
 cd /
-zpool destroy -f acltools
-rmdir $MNT
-mdconfig -du $MD
 
-echo "ok 3"
+umount -f $MNT3
+rmdir $MNT3
+mdconfig -du $MD3
+
+umount -f $MNT2
+rmdir $MNT2
+mdconfig -du $MD2
+
+zpool destroy -f acltools
+rmdir $MNT1
+mdconfig -du $MD1
+
+rmdir $MNTROOT
+
+echo "ok 5"
+
