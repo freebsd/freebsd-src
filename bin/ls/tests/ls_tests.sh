@@ -493,6 +493,31 @@ d_flag_body()
 	done
 }
 
+atf_test_case f_flag
+f_flag_head()
+{
+	atf_set "descr" "Verify that -f prints out the contents of a directory unsorted"
+}
+
+f_flag_body()
+{
+	create_test_inputs
+
+	output=$PWD/../output
+
+	# XXX: I don't have enough understanding of how the algorithm works yet
+	# to determine more than the fact that all the entries printed out
+	# exist
+	paths=$(find -s . -mindepth 1 -maxdepth 1 \! -name '.*' -exec basename {} \; )
+
+	atf_check -e empty -o save:$output -s exit:0 ls -f
+
+	for path in $paths; do
+		atf_check -e ignore -o not-empty -s exit:0 \
+		    egrep "^$path$" $output
+	done
+}
+
 atf_test_case g_flag
 g_flag_head()
 {
@@ -922,7 +947,7 @@ atf_init_test_cases()
 	atf_add_test_case b_flag
 	#atf_add_test_case c_flag
 	atf_add_test_case d_flag
-	#atf_add_test_case f_flag
+	atf_add_test_case f_flag
 	atf_add_test_case g_flag
 	atf_add_test_case h_flag
 	atf_add_test_case i_flag
