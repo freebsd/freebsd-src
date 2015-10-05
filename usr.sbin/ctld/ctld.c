@@ -1985,7 +1985,7 @@ conf_apply(struct conf *oldconf, struct conf *newconf)
 		} else {
 			log_debugx("updating port \"%s\"", newport->p_name);
 			newport->p_ctl_port = oldport->p_ctl_port;
-			error = kernel_port_update(newport);
+			error = kernel_port_update(newport, oldport);
 		}
 		if (error != 0) {
 			log_warnx("failed to %s port %s",

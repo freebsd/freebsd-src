@@ -986,11 +986,13 @@ kernel_port_add(struct port *port)
 }
 
 int
-kernel_port_update(struct port *port)
+kernel_port_update(struct port *port, struct port *oport)
 {
 	struct ctl_lun_map lm;
 	struct target *targ = port->p_target;
+	struct target *otarg = oport->p_target;
 	int error, i;
+	uint32_t olun;
 
 	/* Map configured LUNs and unmap others */
 	for (i = 0; i < MAX_LUNS; i++) {
@@ -1000,6 +1002,12 @@ kernel_port_update(struct port *port)
 			lm.lun = UINT32_MAX;
 		else
 			lm.lun = targ->t_luns[i]->l_ctl_lun;
+		if (otarg->t_luns[i] == NULL)
+			olun = UINT32_MAX;
+		else
+			olun = otarg->t_luns[i]->l_ctl_lun;
+		if (lm.lun == olun)
+			continue;
 		error = ioctl(ctl_fd, CTL_LUN_MAP, &lm);
 		if (error != 0)
 			log_warn("CTL_LUN_MAP ioctl failed");
