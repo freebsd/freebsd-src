@@ -564,15 +564,12 @@ eventloop(struct trussinfo *info)
 			}
 			find_thread(info, si.si_pid, pl.pl_lwpid);
 
-			if (si.si_status == SIGTRAP) {
+			if (si.si_status == SIGTRAP &&
+			    (pl.pl_flags & (PL_FLAG_SCE|PL_FLAG_SCX)) != 0) {
 				if (pl.pl_flags & PL_FLAG_SCE)
 					enter_syscall(info, &pl);
 				else if (pl.pl_flags & PL_FLAG_SCX)
 					exit_syscall(info, &pl);
-				else
-					errx(1,
-		   "pl_flags %x contains neither PL_FLAG_SCE nor PL_FLAG_SCX",
-					    pl.pl_flags);
 				pending_signal = 0;
 			} else if (pl.pl_flags & PL_FLAG_CHILD) {
 				if ((info->flags & COUNTONLY) == 0)
