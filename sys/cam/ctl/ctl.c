@@ -407,14 +407,6 @@ static int ctl_scsiio_lun_check(struct ctl_lun *lun,
 				const struct ctl_cmd_entry *entry,
 				struct ctl_scsiio *ctsio);
 static void ctl_failover_lun(struct ctl_lun *lun);
-static void ctl_est_ua(struct ctl_lun *lun, uint32_t initidx, ctl_ua_type ua);
-static void ctl_est_ua_port(struct ctl_lun *lun, int port, uint32_t except,
-    ctl_ua_type ua);
-static void ctl_est_ua_all(struct ctl_lun *lun, uint32_t except, ctl_ua_type ua);
-static void ctl_clr_ua(struct ctl_lun *lun, uint32_t initidx, ctl_ua_type ua);
-static void ctl_clr_ua_all(struct ctl_lun *lun, uint32_t except, ctl_ua_type ua);
-static void ctl_clr_ua_allluns(struct ctl_softc *ctl_softc, uint32_t initidx,
-			 ctl_ua_type ua_type);
 static int ctl_scsiio_precheck(struct ctl_softc *ctl_softc,
 			       struct ctl_scsiio *ctsio);
 static int ctl_scsiio(struct ctl_scsiio *ctsio);
@@ -804,6 +796,7 @@ static void
 ctl_isc_port_sync(struct ctl_softc *softc, union ctl_ha_msg *msg, int len)
 {
 	struct ctl_port *port;
+	struct ctl_lun *lun;
 	int i, new;
 
 	port = softc->ctl_ports[msg->hdr.nexus.targ_port];
@@ -879,6 +872,15 @@ ctl_isc_port_sync(struct ctl_softc *softc, union ctl_ha_msg *msg, int len)
 			    __func__);
 		}
 	}
+	mtx_lock(&softc->ctl_lock);
+	STAILQ_FOREACH(lun, &softc->lun_list, links) {
+		if (ctl_lun_map_to_port(port, lun->lun) >= CTL_MAX_LUNS)
+			continue;
+		mtx_lock(&lun->lun_lock);
+		ctl_est_ua_all(lun, -1, CTL_UA_INQ_CHANGE);
+		mtx_unlock(&lun->lun_lock);
+	}
+	mtx_unlock(&softc->ctl_lock);
 }
 
 /*
@@ -1201,7 +1203,7 @@ ctl_copy_sense_data_back(union ctl_io *src, union ctl_ha_msg *dest)
 	dest->hdr.status = src->io_hdr.status;
 }
 
-static void
+void
 ctl_est_ua(struct ctl_lun *lun, uint32_t initidx, ctl_ua_type ua)
 {
 	struct ctl_softc *softc = lun->ctl_softc;
@@ -1216,7 +1218,7 @@ ctl_est_ua(struct ctl_lun *lun, uint32_t initidx, ctl_ua_type ua)
 	pu[initidx % CTL_MAX_INIT_PER_PORT] |= ua;
 }
 
-static void
+void
 ctl_est_ua_port(struct ctl_lun *lun, int port, uint32_t except, ctl_ua_type ua)
 {
 	int i;
@@ -1231,7 +1233,7 @@ ctl_est_ua_port(struct ctl_lun *lun, int port, uint32_t except, ctl_ua_type ua)
 	}
 }
 
-static void
+void
 ctl_est_ua_all(struct ctl_lun *lun, uint32_t except, ctl_ua_type ua)
 {
 	struct ctl_softc *softc = lun->ctl_softc;
@@ -1242,7 +1244,7 @@ ctl_est_ua_all(struct ctl_lun *lun, uint32_t except, ctl_ua_type ua)
 		ctl_est_ua_port(lun, i, except, ua);
 }
 
-static void
+void
 ctl_clr_ua(struct ctl_lun *lun, uint32_t initidx, ctl_ua_type ua)
 {
 	struct ctl_softc *softc = lun->ctl_softc;
@@ -1257,7 +1259,7 @@ ctl_clr_ua(struct ctl_lun *lun, uint32_t initidx, ctl_ua_type ua)
 	pu[initidx % CTL_MAX_INIT_PER_PORT] &= ~ua;
 }
 
-static void
+void
 ctl_clr_ua_all(struct ctl_lun *lun, uint32_t except, ctl_ua_type ua)
 {
 	struct ctl_softc *softc = lun->ctl_softc;
@@ -1275,7 +1277,7 @@ ctl_clr_ua_all(struct ctl_lun *lun, uint32_t except, ctl_ua_type ua)
 	}
 }
 
-static void
+void
 ctl_clr_ua_allluns(struct ctl_softc *ctl_softc, uint32_t initidx,
     ctl_ua_type ua_type)
 {
