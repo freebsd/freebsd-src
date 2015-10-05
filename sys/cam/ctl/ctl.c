@@ -1367,6 +1367,9 @@ ctl_isc_event_handler(ctl_ha_channel channel, ctl_ha_event event, int param)
 				io->io_hdr.status = msg->hdr.status;
 
 			if (msg->dt.sg_sequence == 0) {
+#ifdef CTL_TIME_IO
+				getbintime(&io->io_hdr.dma_start_bt);
+#endif
 				i = msg->dt.kern_sg_entries +
 				    msg->dt.kern_data_len /
 				    CTL_HA_DATAMOVE_SEGMENT + 1;
@@ -12624,9 +12627,11 @@ static void
 ctl_send_datamove_done(union ctl_io *io, int have_lock)
 {
 	union ctl_ha_msg msg;
+#ifdef CTL_TIME_IO
+	struct bintime cur_bt;
+#endif
 
 	memset(&msg, 0, sizeof(msg));
-
 	msg.hdr.msg_type = CTL_MSG_DATAMOVE_DONE;
 	msg.hdr.original_sc = io;
 	msg.hdr.serializing_sc = io->io_hdr.serializing_sc;
@@ -12642,15 +12647,20 @@ ctl_send_datamove_done(union ctl_io *io, int have_lock)
 	msg.scsi.fetd_status = io->io_hdr.port_status;
 	msg.scsi.residual = io->scsiio.residual;
 	io->io_hdr.flags &= ~CTL_FLAG_IO_ACTIVE;
-
 	if (io->io_hdr.flags & CTL_FLAG_FAILOVER) {
 		ctl_failover_io(io, /*have_lock*/ have_lock);
 		return;
 	}
-
 	ctl_ha_msg_send(CTL_HA_CHAN_CTL, &msg,
 	    sizeof(msg.scsi) - sizeof(msg.scsi.sense_data) +
 	    msg.scsi.sense_len, M_WAITOK);
+
+#ifdef CTL_TIME_IO
+	getbintime(&cur_bt);
+	bintime_sub(&cur_bt, &io->io_hdr.dma_start_bt);
+	bintime_add(&io->io_hdr.dma_bt, &cur_bt);
+	io->io_hdr.num_dmas++;
+#endif
 }
 
 /*
