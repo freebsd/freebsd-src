@@ -115,7 +115,6 @@ void			keys_delete(struct keys *key);
 void			keys_load(struct keys *keys, const struct pdu *pdu);
 void			keys_save(struct keys *keys, struct pdu *pdu);
 const char		*keys_find(struct keys *keys, const char *name);
-int			keys_find_int(struct keys *keys, const char *name);
 void			keys_add(struct keys *keys,
 			    const char *name, const char *value);
 void			keys_add_int(struct keys *keys,
