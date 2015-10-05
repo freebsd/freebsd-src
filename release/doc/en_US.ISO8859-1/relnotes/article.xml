@@ -1519,6 +1519,12 @@
 	6864) has been added.  Support for this feature can be toggled
 	with the <literal>net.inet.ip.rfc6864</literal>
 	&man.sysctl.8;, which is enabled by default.</para>
+
+      <para revision="285336" contrib="sponsor"
+	sponsor="&netgate;">The <acronym>IPSEC</acronym> has been
+	updated to include support for <acronym>AES</acronym> modes on
+	both software-only and hardware-backed (&man.aesni.4;)
+	systems.</para>
     </sect2>
   </sect1>
 
