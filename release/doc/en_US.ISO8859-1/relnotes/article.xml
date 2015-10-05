@@ -855,6 +855,11 @@
       <para revision="281261" arch="powerpc">Support for
 	&man.dtrace.1; has been added for the
 	Book-E&nbsp;&trade;.</para>
+
+      <para revision="287886" contrib="sponsor"
+	sponsor="&multiplay;">The &man.kqueue.2; system call has been
+	updated to handle write events to files larger than 2
+	gigabytes.</para>
     </sect2>
 
     <sect2 xml:id="kernel-config">
