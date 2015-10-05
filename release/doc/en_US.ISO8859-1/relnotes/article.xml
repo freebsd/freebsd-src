@@ -981,6 +981,13 @@
       <para revision="287306" arch="arm">The
 	<filename>CUBIEBOARD2</filename> kernel configuration has been
 	renamed to <filename>A20</filename>.</para>
+
+      <para revision="288176" contrib="sponsor" sponsor="&ff;">Kernel
+	debugging symbols are now installed to <filename
+	  class="directory">/usr/lib/debug/boot/kernel/</filename>.
+	To retain the previous behavior, add
+	<literal>KERN_DEBUGDIR=""</literal> to
+	&man.src.conf.5;.</para>
     </sect2>
 
     <sect2 xml:id="kernel-sysctl">
