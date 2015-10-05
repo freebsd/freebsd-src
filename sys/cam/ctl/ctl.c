@@ -11267,7 +11267,8 @@ ctl_scsiio_precheck(struct ctl_softc *softc, struct ctl_scsiio *ctsio)
 	 * side so when we are done we can find the copy.
 	 */
 	if ((lun->flags & CTL_LUN_PRIMARY_SC) == 0 &&
-	    (lun->flags & CTL_LUN_PEER_SC_PRIMARY) != 0) {
+	    (lun->flags & CTL_LUN_PEER_SC_PRIMARY) != 0 &&
+	    (entry->flags & CTL_CMD_FLAG_RUN_HERE) == 0) {
 		union ctl_ha_msg msg_info;
 		int isc_retval;
 
