@@ -1401,6 +1401,11 @@
 	sponsor="&ff;">Initial
 	<acronym>ACPI</acronym> support has been added for
 	&os;/&arch.arm64;.</para>
+
+      <para revision="287225">Support for 1-Wire devices has been
+	added, providing support for 1-Wire hardware through
+	&man.gpio.4;.  See &man.ow.4;, &man.owc.4;, and
+	&man.ow.temp.4; for more information.</para>
     </sect2>
   </sect1>
 
