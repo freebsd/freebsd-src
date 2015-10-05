@@ -86,7 +86,6 @@ __FBSDID("$FreeBSD$");
 #include <cam/ctl/ctl_io.h>
 #include <cam/ctl/ctl.h>
 #include <cam/ctl/ctl_backend.h>
-#include <cam/ctl/ctl_frontend_internal.h>
 #include <cam/ctl/ctl_ioctl.h>
 #include <cam/ctl/ctl_scsi_all.h>
 #include <cam/ctl/ctl_error.h>
