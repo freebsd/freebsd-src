@@ -1583,13 +1583,12 @@ ctl_shutdown(void)
 	softc = (struct ctl_softc *)control_softc;
 
 	if (softc->is_single == 0) {
+		ctl_ha_msg_shutdown(softc);
 		if (ctl_ha_msg_deregister(CTL_HA_CHAN_CTL)
-		    != CTL_HA_STATUS_SUCCESS) {
-			printf("ctl_shutdown: ctl_ha_msg_deregister failed.\n");
-		}
-		if (ctl_ha_msg_shutdown(softc) != CTL_HA_STATUS_SUCCESS) {
-			printf("ctl_shutdown: ctl_ha_msg_shutdown failed.\n");
-		}
+		    != CTL_HA_STATUS_SUCCESS)
+			printf("%s: ctl_ha_msg_deregister failed.\n", __func__);
+		if (ctl_ha_msg_destroy(softc) != CTL_HA_STATUS_SUCCESS)
+			printf("%s: ctl_ha_msg_destroy failed.\n", __func__);
 		ctl_frontend_deregister(&ha_frontend);
 	}
 
