@@ -93,6 +93,8 @@ struct xpt_task {
 };
 
 struct xpt_softc {
+	uint32_t		xpt_generation;
+
 	/* number of high powered commands that can go through right now */
 	struct mtx		xpt_highpower_lock;
 	STAILQ_HEAD(highpowerlist, cam_ed)	highpowerq;
@@ -154,6 +156,8 @@ MTX_SYSINIT(xpt_topo_init, &xsoftc.xpt_topo_lock, "XPT topology lock", MTX_DEF);
 TUNABLE_INT("kern.cam.boot_delay", &xsoftc.boot_delay);
 SYSCTL_INT(_kern_cam, OID_AUTO, boot_delay, CTLFLAG_RDTUN,
            &xsoftc.boot_delay, 0, "Bus registration wait time");
+SYSCTL_UINT(_kern_cam, OID_AUTO, xpt_generation, CTLFLAG_RD,
+	    &xsoftc.xpt_generation, 0, "CAM peripheral generation count");
 
 struct cam_doneq {
 	struct mtx_padalign	cam_doneq_mtx;
@@ -981,6 +985,7 @@ xpt_add_periph(struct cam_periph *periph)
 		device->generation++;
 		SLIST_INSERT_HEAD(&device->periphs, periph, periph_links);
 		mtx_unlock(&device->target->bus->eb_mtx);
+		atomic_add_32(&xsoftc.xpt_generation, 1);
 	}
 
 	return (status);
@@ -997,6 +1002,7 @@ xpt_remove_periph(struct cam_periph *periph)
 		device->generation++;
 		SLIST_REMOVE(&device->periphs, periph, cam_periph, periph_links);
 		mtx_unlock(&device->target->bus->eb_mtx);
+		atomic_add_32(&xsoftc.xpt_generation, 1);
 	}
 }
 
