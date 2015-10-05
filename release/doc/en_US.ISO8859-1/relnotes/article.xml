@@ -1161,6 +1161,10 @@
 
       <para revision="284125">The &man.cdce.4; driver has been updated
 	to include support for the RTL8153 chipset.</para>
+
+      <para revision="286441">The &man.iwm.4; driver has been imported
+	from OpenBSD, providing support for &intel; 3160/7260/7265
+	wireless chipsets.</para>
     </sect2>
   </sect1>
 
