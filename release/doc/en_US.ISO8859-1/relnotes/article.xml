@@ -526,9 +526,6 @@
       <para revision="284254"><application>bmake</application> has
 	been updated to version 20150606.</para>
 
-      <para revision="284397">Timezone data files have been updated to
-	version 2015e.</para>
-
       <para revision="285229"><application>sendmail</application> has
 	been updated to 8.15.2.  Starting with &os;&nbsp;11.0 and
 	sendmail 8.15, sendmail uses uncompressed IPv6 addresses by
@@ -560,9 +557,6 @@
 	updated to properly skip a sparse file entry in a &man.tar.1;
 	file, which would previously produce errors.</para>
 
-      <para revision="287168">The &man.acpi.4; subsystem has been
-	updated to version 20150818.</para>
-
       <para revision="286503">The <application>apr</application>
 	library used by &man.svnlite.1; has been updated to version
 	1.5.2.</para>
@@ -577,6 +571,12 @@
       <para revision="286510">The <application>sqlite3</application>
 	library used by &man.svnlite.1; and &man.kerberos.8; has been
 	updated to version 3.8.11.1.</para>
+
+      <para revision="286750">Timezone data files have been updated to
+	version 2015f.</para>
+
+      <para revision="287168">The &man.acpi.4; subsystem has been
+	updated to version 20150818.</para>
     </sect2>
 
     <sect2 xml:id="userland-installer">
