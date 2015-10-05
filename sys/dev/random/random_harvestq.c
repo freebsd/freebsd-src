@@ -211,7 +211,7 @@ random_sources_feed(void)
 	LIST_FOREACH(rrs, &source_list, rrs_entries) {
 		for (i = 0; i < p_random_alg_context->ra_poolcount*(local_read_rate + 1); i++) {
 			n = rrs->rrs_source->rs_read(entropy, sizeof(entropy));
-			KASSERT((n <= sizeof(entropy)), ("%s: rs_read returned too much data (%d > %d) in %s", __func__, n, sizeof(entropy)));
+			KASSERT((n <= sizeof(entropy)), ("%s: rs_read returned too much data (%u > %zu)", __func__, n, sizeof(entropy)));
 			/* It would appear that in some circumstances (e.g. virtualisation),
 			 * the underlying hardware entropy source might not always return
 			 * random numbers. Accept this but make a noise. If too much happens,
