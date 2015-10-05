@@ -360,8 +360,11 @@ main(int argc, char *argv[])
 			fwrite(&ival, sizeof(ival), 1, fxref);
 			reccnt = 0;
 		}
-		/* skip non-files or .symbols entries */
+		/* skip non-files and separate debug files */
 		if (p->fts_info != FTS_F)
+			continue;
+		if (p->fts_namelen >= 6 &&
+		    strcmp(p->fts_name + p->fts_namelen - 6, ".debug") == 0)
 			continue;
 		if (p->fts_namelen >= 8 &&
 		    strcmp(p->fts_name + p->fts_namelen - 8, ".symbols") == 0)

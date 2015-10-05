@@ -10,6 +10,7 @@
  * BinString -- pointer to an array of chars, printed via strvisx().
  * Ptr -- pointer to some unspecified structure.  Just print as hex for now.
  * Stat -- a pointer to a stat buffer.  Prints a couple fields.
+ * StatFs -- a pointer to a statfs buffer.  Prints a few fields.
  * Ioctl -- an ioctl command.  Woefully limited.
  * Quad -- a double-word value.  e.g., lseek(int, offset_t, int)
  * Signal -- a signal number.  Prints the signal name (SIGxxx)
@@ -38,7 +39,7 @@
 enum Argtype { None = 1, Hex, Octal, Int, LongHex, Name, Ptr, Stat, Ioctl, Quad,
 	Signal, Sockaddr, StringArray, Timespec, Timeval, Itimerval, Pollfd,
 	Fd_set, Sigaction, Fcntl, Mprot, Mmapflags, Whence, Readlinkres,
-	Sigset, Sigprocmask, Kevent, Sockdomain, Socktype, Open,
+	Sigset, Sigprocmask, StatFs, Kevent, Sockdomain, Socktype, Open,
 	Fcntlflag, Rusage, BinString, Shutdown, Resource, Rlimit, Timeval2,
 	Pathconf, Rforkflags, ExitStatus, Waitoptions, Idtype, Procctl,
 	LinuxSockArgs, Umtxop, Atfd, Atflags, Timespec2, Accessmode, Long,

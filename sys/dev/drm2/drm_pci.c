@@ -225,7 +225,7 @@ int drm_pci_set_unique(struct drm_device *dev,
 
 	master->unique_len = u->unique_len;
 	master->unique_size = u->unique_len + 1;
-	master->unique = malloc(master->unique_size, DRM_MEM_DRIVER, M_WAITOK);
+	master->unique = malloc(master->unique_size, DRM_MEM_DRIVER, M_NOWAIT);
 	if (!master->unique) {
 		ret = -ENOMEM;
 		goto err;

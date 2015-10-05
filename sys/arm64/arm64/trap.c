@@ -275,7 +275,7 @@ do_el1h_sync(struct trapframe *frame)
 	 */
 	KASSERT((esr & ESR_ELx_IL) == ESR_ELx_IL ||
 	    (exception == EXCP_DATA_ABORT && ((esr & ISS_DATA_ISV) == 0)),
-	    ("Invalid instruction length in exception"));
+	    ("Invalid instruction length in exception, esr %lx", esr));
 
 	CTR4(KTR_TRAP,
 	    "do_el1_sync: curthread: %p, esr %lx, elr: %lx, frame: %p",
@@ -376,6 +376,11 @@ do_el0_sync(struct trapframe *frame)
 		break;
 	case EXCP_UNKNOWN:
 		el0_excp_unknown(frame);
+		break;
+	case EXCP_PC_ALIGN:
+		td = curthread;
+		call_trapsignal(td, SIGBUS, BUS_ADRALN, (void *)frame->tf_elr);
+		userret(td, frame);
 		break;
 	case EXCP_BRK:
 		td = curthread;

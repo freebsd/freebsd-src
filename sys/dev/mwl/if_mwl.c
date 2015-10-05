@@ -111,7 +111,10 @@ static int	mwl_key_alloc(struct ieee80211vap *,
 			ieee80211_keyix *, ieee80211_keyix *);
 static int	mwl_key_delete(struct ieee80211vap *,
 			const struct ieee80211_key *);
-static int	mwl_key_set(struct ieee80211vap *, const struct ieee80211_key *,
+static int	mwl_key_set(struct ieee80211vap *,
+			const struct ieee80211_key *);
+static int	_mwl_key_set(struct ieee80211vap *,
+			const struct ieee80211_key *,
 			const uint8_t mac[IEEE80211_ADDR_LEN]);
 static int	mwl_mode_init(struct mwl_softc *);
 static void	mwl_update_mcast(struct ieee80211com *);
@@ -1604,7 +1607,13 @@ addgroupflags(MWL_HAL_KEYVAL *hk, const struct ieee80211_key *k)
  * slot(s) must already have been allocated by mwl_key_alloc.
  */
 static int
-mwl_key_set(struct ieee80211vap *vap, const struct ieee80211_key *k,
+mwl_key_set(struct ieee80211vap *vap, const struct ieee80211_key *k)
+{
+	return (_mwl_key_set(vap, k, k->wk_macaddr));
+}
+
+static int
+_mwl_key_set(struct ieee80211vap *vap, const struct ieee80211_key *k,
 	const uint8_t mac[IEEE80211_ADDR_LEN])
 {
 #define	GRPXMIT	(IEEE80211_KEY_XMIT | IEEE80211_KEY_GROUP)
@@ -1834,10 +1843,9 @@ mwl_beacon_setup(struct ieee80211vap *vap)
 {
 	struct mwl_hal_vap *hvap = MWL_VAP(vap)->mv_hvap;
 	struct ieee80211_node *ni = vap->iv_bss;
-	struct ieee80211_beacon_offsets *bo = &vap->iv_bcn_off;
 	struct mbuf *m;
 
-	m = ieee80211_beacon_alloc(ni, bo);
+	m = ieee80211_beacon_alloc(ni);
 	if (m == NULL)
 		return ENOBUFS;
 	mwl_hal_setbeacon(hvap, mtod(m, const void *), m->m_len);
@@ -3911,7 +3919,8 @@ mwl_setanywepkey(struct ieee80211vap *vap, const uint8_t mac[IEEE80211_ADDR_LEN]
 		IEEE80211_F_PRIVACY &&
 	    vap->iv_def_txkey != IEEE80211_KEYIX_NONE &&
 	    vap->iv_nw_keys[vap->iv_def_txkey].wk_keyix != IEEE80211_KEYIX_NONE)
-		(void) mwl_key_set(vap, &vap->iv_nw_keys[vap->iv_def_txkey], mac);
+		(void) _mwl_key_set(vap, &vap->iv_nw_keys[vap->iv_def_txkey],
+				    mac);
 }
 
 static int
@@ -3956,7 +3965,7 @@ mwl_setglobalkeys(struct ieee80211vap *vap)
 	wk = &vap->iv_nw_keys[0];
 	for (; wk < &vap->iv_nw_keys[IEEE80211_WEP_NKID]; wk++)
 		if (wk->wk_keyix != IEEE80211_KEYIX_NONE)
-			(void) mwl_key_set(vap, wk, vap->iv_myaddr);
+			(void) _mwl_key_set(vap, wk, vap->iv_myaddr);
 }
 
 /*
