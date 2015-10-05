@@ -1460,6 +1460,12 @@
 	&man.sysctl.8; has been removed, and replaced with the
 	<literal>kstat.zfs.misc.arcstats.arc_meta_used</literal>
 	&man.sysctl.8;.</para>
+
+      <para revision="287099" contrib="sponsor"
+	sponsor="&clusterhq;">The &man.zfs.8; <literal>l2arc</literal>
+	code has been updated to take <literal>ashift</literal> into
+	account when gathering buffers to be written to the
+	<literal>l2arc</literal> device.</para>
     </sect2>
 
     <sect2 xml:id="storage-geom">
