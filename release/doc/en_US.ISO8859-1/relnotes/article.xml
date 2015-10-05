@@ -449,9 +449,6 @@
       <para revision="260445">&man.byacc.1; has been updated to
 	version 20140101.</para>
 
-      <para revision="261071">&man.jemalloc.3; has been updated to
-	version 3.5.0.</para>
-
       <para revision="261283"><application>libc++</application> has
 	been updated to version 3.4.</para>
 
@@ -580,6 +577,9 @@
 
       <para revision="287168">The &man.acpi.4; subsystem has been
 	updated to version 20150818.</para>
+
+      <para revision="288090">&man.jemalloc.3; has been updated to
+	version 4.0.2.</para>
     </sect2>
 
     <sect2 xml:id="userland-installer">
