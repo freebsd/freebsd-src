@@ -345,17 +345,6 @@ struct ctl_lun_delay_info {
 	uint32_t		done_delay;
 };
 
-typedef enum {
-	CTL_ERR_INJ_NONE	= 0x00,
-	CTL_ERR_INJ_ABORTED	= 0x01
-} ctl_err_inject_flags;
-
-typedef enum {
-	CTL_PR_FLAG_NONE	= 0x00,
-	CTL_PR_FLAG_REGISTERED	= 0x01,
-	CTL_PR_FLAG_ACTIVE_RES	= 0x02
-} ctl_per_res_flags;
-
 #define CTL_PR_ALL_REGISTRANTS  0xFFFFFFFF
 #define CTL_PR_NO_RESERVATION   0xFFFFFFF0
 
@@ -381,10 +370,7 @@ struct ctl_lun {
 	struct ctl_softc		*ctl_softc;
 	struct ctl_be_lun		*be_lun;
 	struct ctl_backend_driver	*backend;
-	int				io_count;
 	struct ctl_lun_delay_info	delay_info;
-	int				sync_interval;
-	int				sync_count;
 #ifdef CTL_TIME_IO
 	sbintime_t			idle_time;
 	sbintime_t			last_busy;
@@ -392,7 +378,6 @@ struct ctl_lun {
 	TAILQ_HEAD(ctl_ooaq, ctl_io_hdr)  ooa_queue;
 	TAILQ_HEAD(ctl_blockq,ctl_io_hdr) blocked_queue;
 	STAILQ_ENTRY(ctl_lun)		links;
-	STAILQ_ENTRY(ctl_lun)		run_links;
 #ifdef CTL_WITH_CA
 	uint32_t			have_ca[CTL_MAX_INITIATORS >> 5];
 	struct scsi_sense_data		pending_sense[CTL_MAX_INITIATORS];
@@ -415,7 +400,6 @@ struct ctl_lun {
 };
 
 typedef enum {
-	CTL_FLAG_REAL_SYNC	= 0x02,
 	CTL_FLAG_ACTIVE_SHELF	= 0x04
 } ctl_gen_flags;
 

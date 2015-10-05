@@ -101,13 +101,8 @@ typedef enum {
 	CTLADM_CMD_START,
 	CTLADM_CMD_STOP,
 	CTLADM_CMD_SYNC_CACHE,
-	CTLADM_CMD_SHUTDOWN,
-	CTLADM_CMD_STARTUP,
 	CTLADM_CMD_LUNLIST,
 	CTLADM_CMD_DELAY,
-	CTLADM_CMD_REALSYNC,
-	CTLADM_CMD_SETSYNC,
-	CTLADM_CMD_GETSYNC,
 	CTLADM_CMD_ERR_INJECT,
 	CTLADM_CMD_PRES_IN,
 	CTLADM_CMD_PRES_OUT,
@@ -163,7 +158,7 @@ typedef enum {
 } ctladm_optret;
 
 static const char rw_opts[] = "Nb:c:d:f:l:";
-static const char startstop_opts[] = "io";
+static const char startstop_opts[] = "i";
 
 static struct ctladm_opts option_table[] = {
 	{"adddev", CTLADM_CMD_ADDDEV, CTLADM_ARG_NONE, NULL},
@@ -173,7 +168,6 @@ static struct ctladm_opts option_table[] = {
 	{"devlist", CTLADM_CMD_DEVLIST, CTLADM_ARG_NONE, "b:vx"},
 	{"dumpooa", CTLADM_CMD_DUMPOOA, CTLADM_ARG_NONE, NULL},
 	{"dumpstructs", CTLADM_CMD_DUMPSTRUCTS, CTLADM_ARG_NONE, NULL},
-	{"getsync", CTLADM_CMD_GETSYNC, CTLADM_ARG_NEED_TL, NULL},
 	{"help", CTLADM_CMD_HELP, CTLADM_ARG_NONE, NULL},
 	{"inject", CTLADM_CMD_ERR_INJECT, CTLADM_ARG_NEED_TL, "cd:i:p:r:s:"},
 	{"inquiry", CTLADM_CMD_INQUIRY, CTLADM_ARG_NEED_TL, NULL},
@@ -190,15 +184,11 @@ static struct ctladm_opts option_table[] = {
 	{"prout", CTLADM_CMD_PRES_OUT, CTLADM_ARG_NEED_TL, "a:k:r:s:"},
 	{"read", CTLADM_CMD_READ, CTLADM_ARG_NEED_TL, rw_opts},
 	{"readcapacity", CTLADM_CMD_READCAPACITY, CTLADM_ARG_NEED_TL, "c:"},
-	{"realsync", CTLADM_CMD_REALSYNC, CTLADM_ARG_NONE, NULL},
 	{"remove", CTLADM_CMD_RM, CTLADM_ARG_NONE, "b:l:o:"},
 	{"reportluns", CTLADM_CMD_REPORT_LUNS, CTLADM_ARG_NEED_TL, NULL},
 	{"reqsense", CTLADM_CMD_REQ_SENSE, CTLADM_ARG_NEED_TL, NULL},
 	{"rtpg", CTLADM_CMD_RTPG, CTLADM_ARG_NEED_TL, NULL},
-	{"setsync", CTLADM_CMD_SETSYNC, CTLADM_ARG_NEED_TL, "i:"},
-	{"shutdown", CTLADM_CMD_SHUTDOWN, CTLADM_ARG_NONE, NULL},
 	{"start", CTLADM_CMD_START, CTLADM_ARG_NEED_TL, startstop_opts},
-	{"startup", CTLADM_CMD_STARTUP, CTLADM_ARG_NONE, NULL},
 	{"stop", CTLADM_CMD_STOP, CTLADM_ARG_NEED_TL, startstop_opts},
 	{"synccache", CTLADM_CMD_SYNC_CACHE, CTLADM_ARG_NEED_TL, "b:c:il:r"},
 	{"tur", CTLADM_CMD_TUR, CTLADM_ARG_NEED_TL, NULL},
@@ -212,15 +202,11 @@ static struct ctladm_opts option_table[] = {
 ctladm_optret getoption(struct ctladm_opts *table, char *arg, uint32_t *cmdnum,
 			ctladm_cmdargs *argnum, const char **subopt);
 static int cctl_dump_ooa(int fd, int argc, char **argv);
-static int cctl_port_dump(int fd, int quiet, int xml, int32_t fe_num,
-			  ctl_port_type port_type);
 static int cctl_port(int fd, int argc, char **argv, char *combinedopt);
 static int cctl_do_io(int fd, int retries, union ctl_io *io, const char *func);
 static int cctl_delay(int fd, int lun, int argc, char **argv,
 		      char *combinedopt);
 static int cctl_lunlist(int fd);
-static int cctl_startup_shutdown(int fd, int lun, int iid,
-				 ctladm_cmdfunction command);
 static int cctl_sync_cache(int fd, int lun, int iid, int retries,
 			   int argc, char **argv, char *combinedopt);
 static int cctl_start_stop(int fd, int lun, int iid, int retries,
@@ -253,6 +239,7 @@ static int cctl_create_lun(int fd, int argc, char **argv, char *combinedopt);
 static int cctl_inquiry_vpd_devid(int fd, int lun, int initiator);
 static int cctl_report_target_port_group(int fd, int lun, int initiator);
 static int cctl_modify_lun(int fd, int argc, char **argv, char *combinedopt);
+static int cctl_portlist(int fd, int argc, char **argv, char *combinedopt);
 
 ctladm_optret
 getoption(struct ctladm_opts *table, char *arg, uint32_t *cmdnum,
@@ -287,9 +274,7 @@ cctl_dump_ooa(int fd, int argc, char **argv)
 {
 	struct ctl_ooa ooa;
 	long double cmd_latency;
-	int num_entries, len;
-	int lun = -1;
-	int retval;
+	int num_entries, len, lun = -1, retval = 0;
 	unsigned int i;
 
 	num_entries = 104;
@@ -299,21 +284,16 @@ cctl_dump_ooa(int fd, int argc, char **argv)
 retry:
 
 	len = num_entries * sizeof(struct ctl_ooa_entry);
-
 	bzero(&ooa, sizeof(ooa));
-
 	ooa.entries = malloc(len);
-
 	if (ooa.entries == NULL) {
 		warn("%s: error mallocing %d bytes", __func__, len);
 		return (1);
 	}
-
-	if (argc > 2) {
+	if (lun >= 0) {
 		ooa.lun_num = lun;
 	} else
 		ooa.flags |= CTL_OOA_FLAG_ALL_LUNS;
-
 	ooa.alloc_len = len;
 	ooa.alloc_num = num_entries;
 	if (ioctl(fd, CTL_GET_OOA, &ooa) == -1) {
@@ -368,17 +348,10 @@ retry:
 			cmd_latency);
 	}
 	fprintf(stdout, "OOA queues dump done\n");
-#if 0
-	if (ioctl(fd, CTL_DUMP_OOA) == -1) {
-		warn("%s: CTL_DUMP_OOA ioctl failed", __func__);
-		return (1);
-	}
-#endif
 
 bailout:
 	free(ooa.entries);
-
-	return (0);
+	return (retval);
 }
 
 static int
@@ -389,152 +362,6 @@ cctl_dump_structs(int fd, ctladm_cmdargs cmdargs __unused)
 		return (1);
 	}
 	return (0);
-}
-
-static int
-cctl_port_dump(int fd, int quiet, int xml, int32_t targ_port,
-	       ctl_port_type port_type)
-{
-	struct ctl_port_list port_list;
-	struct ctl_port_entry *entries;
-	struct sbuf *sb = NULL;
-	int num_entries;
-	int did_print = 0;
-	unsigned int i;
-
-	num_entries = 16;
-
-retry:
-
-	entries = malloc(sizeof(*entries) * num_entries);
-	bzero(&port_list, sizeof(port_list));
-	port_list.entries = entries;
-	port_list.alloc_num = num_entries;
-	port_list.alloc_len = num_entries * sizeof(*entries);
-	if (ioctl(fd, CTL_GET_PORT_LIST, &port_list) != 0) {
-		warn("%s: CTL_GET_PORT_LIST ioctl failed", __func__);
-		return (1);
-	}
-	if (port_list.status == CTL_PORT_LIST_NEED_MORE_SPACE) {
-		printf("%s: allocated %d, need %d, retrying\n", __func__,
-		       num_entries, port_list.fill_num + port_list.dropped_num);
-		free(entries);
-		num_entries = port_list.fill_num + port_list.dropped_num;
-		goto retry;
-	}
-
-	if ((quiet == 0)
-	 && (xml == 0))
-		printf("Port Online Type     Name         pp vp %-18s %-18s\n",
-		       "WWNN", "WWPN");
-
-	if (xml != 0) {
-		sb = sbuf_new_auto();
-		sbuf_printf(sb, "<ctlfelist>\n");
-	}
-	for (i = 0; i < port_list.fill_num; i++) {
-		struct ctl_port_entry *entry;
-		const char *type;
-
-		entry = &entries[i];
-
-		switch (entry->port_type) {
-		case CTL_PORT_FC:
-			type = "FC";
-			break;
-		case CTL_PORT_SCSI:
-			type = "SCSI";
-			break;
-		case CTL_PORT_IOCTL:
-			type = "IOCTL";
-			break;
-		case CTL_PORT_INTERNAL:
-			type = "INTERNAL";
-			break;
-		case CTL_PORT_ISC:
-			type = "ISC";
-			break;
-		case CTL_PORT_ISCSI:
-			type = "ISCSI";
-			break;
-		case CTL_PORT_SAS:
-			type = "SAS";
-			break;
-		default:
-			type = "UNKNOWN";
-			break;
-		}
-
-		/*
-		 * If the user specified a frontend number or a particular
-		 * frontend type, only print out that particular frontend
-		 * or frontend type.
-		 */
-		if ((targ_port != -1)
-		 && (targ_port != entry->targ_port))
-			continue;
-		else if ((port_type != CTL_PORT_NONE)
-		      && ((port_type & entry->port_type) == 0))
-			continue;
-
-		did_print = 1;
-
-#if 0
-		printf("Num: %ju Type: %s (%#x) Name: %s Physical Port: %d "
-		       "Virtual Port: %d\n", (uintmax_t)entry->fe_num, type,
-		       entry->port_type, entry->fe_name, entry->physical_port,
-		       entry->virtual_port);
-		printf("WWNN %#jx WWPN %#jx Online: %s\n",
-		       (uintmax_t)entry->wwnn, (uintmax_t)entry->wwpn,
-		       (entry->online) ? "YES" : "NO" );
-#endif
-		if (xml == 0) {
-			printf("%-4d %-6s %-8s %-12s %-2d %-2d %#-18jx "
-			       "%#-18jx\n",
-			       entry->targ_port, (entry->online) ? "YES" : "NO",
-			       type, entry->port_name, entry->physical_port,
-			       entry->virtual_port, (uintmax_t)entry->wwnn,
-			       (uintmax_t)entry->wwpn);
-		} else {
-			sbuf_printf(sb, "<targ_port id=\"%d\">\n",
-				    entry->targ_port);
-			sbuf_printf(sb, "<online>%s</online>\n",
-				    (entry->online) ? "YES" : "NO");
-			sbuf_printf(sb, "<port_type>%s</port_type>\n", type);
-			sbuf_printf(sb, "<port_name>%s</port_name>\n",
-				    entry->port_name);
-			sbuf_printf(sb, "<physical_port>%d</physical_port>\n",
-				    entry->physical_port);
-			sbuf_printf(sb, "<virtual_port>%d</virtual_port>\n",
-				    entry->virtual_port);
-			sbuf_printf(sb, "<wwnn>%#jx</wwnn>\n",
-				    (uintmax_t)entry->wwnn);
-			sbuf_printf(sb, "<wwpn>%#jx</wwpn>\n",
-				    (uintmax_t)entry->wwpn);
-			sbuf_printf(sb, "</targ_port>\n");
-		}
-
-	}
-	if (xml != 0) {
-		sbuf_printf(sb, "</ctlfelist>\n");
-		if (sbuf_finish(sb) != 0)
-			err(1, "%s: sbuf_finish", __func__);
-		printf("%s", sbuf_data(sb));
-		sbuf_delete(sb);
-	}
-
-	/*
-	 * Give some indication that we didn't find the frontend or
-	 * frontend type requested by the user.  We could print something
-	 * out, but it would probably be better to hide that behind a
-	 * verbose flag.
-	 */
-	if ((did_print == 0)
-	 && ((targ_port != -1)
-	  || (port_type != CTL_PORT_NONE)))
-		return (1);
-	else
-		return (0);
 }
 
 typedef enum {
@@ -672,9 +499,22 @@ cctl_port(int fd, int argc, char **argv, char *combinedopt)
 	entry.targ_port = targ_port;
 
 	switch (port_mode) {
-	case CCTL_PORT_MODE_LIST:
-		cctl_port_dump(fd, quiet, xml, targ_port, port_type);
+	case CCTL_PORT_MODE_LIST: {
+		char opts[] = "xq";
+		char argx[] = "-x";
+		char argq[] = "-q";
+		char *argvx[2];
+		int argcx = 0;
+
+		optind = 0;
+		optreset = 1;
+		if (xml)
+			argvx[argcx++] = argx;
+		if (quiet)
+			argvx[argcx++] = argq;
+		cctl_portlist(fd, argcx, argvx, opts);
 		break;
+	}
 	case CCTL_PORT_MODE_SET:
 		if (targ_port == -1) {
 			warnx("%s: -w and -W require -n", __func__);
@@ -839,136 +679,10 @@ cctl_delay(int fd, int lun, int argc, char **argv,
 		retval = 1;
 		break;
 	}
+
 bailout:
-
-	/* delayloc should never be NULL, but just in case...*/
-	if (delayloc != NULL)
-		free(delayloc);
-
-	return (retval);
-}
-
-static int
-cctl_realsync(int fd, int argc, char **argv)
-{
-	int syncstate;
-	int retval;
-	char *syncarg;
-
-	retval = 0;
-
-	if (argc != 3) {
-		warnx("%s %s takes exactly one argument", argv[0], argv[1]);
-		retval = 1;
-		goto bailout;
-	}
-
-	syncarg = argv[2];
-
-	if (strncasecmp(syncarg, "query", min(strlen(syncarg),
-			strlen("query"))) == 0) {
-		if (ioctl(fd, CTL_REALSYNC_GET, &syncstate) == -1) {
-			warn("%s: CTL_REALSYNC_GET ioctl failed", __func__);
-			retval = 1;
-			goto bailout;
-		}
-		fprintf(stdout, "SYNCHRONIZE CACHE support is: ");
-		switch (syncstate) {
-		case 0:
-			fprintf(stdout, "OFF\n");
-			break;
-		case 1:
-			fprintf(stdout, "ON\n");
-			break;
-		default:
-			fprintf(stdout, "unknown (%d)\n", syncstate);
-			break;
-		}
-		goto bailout;
-	} else if (strcasecmp(syncarg, "on") == 0) {
-		syncstate = 1;
-	} else if (strcasecmp(syncarg, "off") == 0) {
-		syncstate = 0;
-	} else {
-		warnx("%s: invalid realsync argument %s", __func__, syncarg);
-		retval = 1;
-		goto bailout;
-	}
-
-	if (ioctl(fd, CTL_REALSYNC_SET, &syncstate) == -1) {
-		warn("%s: CTL_REALSYNC_SET ioctl failed", __func__);
-		retval = 1;
-		goto bailout;
-	}
-bailout:
-	return (retval);
-}
-
-static int
-cctl_getsetsync(int fd, int lun, ctladm_cmdfunction command,
-		int argc, char **argv, char *combinedopt)
-{
-	struct ctl_sync_info sync_info;
-	uint32_t ioctl_cmd;
-	int sync_interval = -1;
-	int retval;
-	int c;
-
-	retval = 0;
-
-	memset(&sync_info, 0, sizeof(sync_info));
-	sync_info.lun_id = lun;
-
-	while ((c = getopt(argc, argv, combinedopt)) != -1) {
-		switch (c) {
-		case 'i':
-			sync_interval = strtoul(optarg, NULL, 0);
-			break;
-		default:
-			break;
-		}
-	}
-
-	if (command == CTLADM_CMD_SETSYNC) {
-		if (sync_interval == -1) {
-			warnx("%s: you must specify the sync interval with -i",
-			      __func__);
-			retval = 1;
-			goto bailout;
-		}
-		sync_info.sync_interval = sync_interval;
-		ioctl_cmd = CTL_SETSYNC;
-	} else {
-		ioctl_cmd = CTL_GETSYNC;
-	}
-
-	if (ioctl(fd, ioctl_cmd, &sync_info) == -1) {
-		warn("%s: CTL_%sSYNC ioctl failed", __func__,
-		     (command == CTLADM_CMD_SETSYNC) ? "SET" : "GET");
-		retval = 1;
-		goto bailout;
-	}
-
-	switch (sync_info.status) {
-	case CTL_GS_SYNC_OK:
-		if (command == CTLADM_CMD_GETSYNC) {
-			fprintf(stdout, "%d: sync interval: %d\n",
-				lun, sync_info.sync_interval);
-		}
-		break;
-	case CTL_GS_SYNC_NO_LUN:
-		warnx("%s: unknown LUN %d", __func__, lun);
-		retval = 1;
-		break;
-	case CTL_GS_SYNC_NONE:
-	default:
-		warnx("%s: unknown CTL_%sSYNC status %d", __func__,
-		      (command == CTLADM_CMD_SETSYNC) ? "SET" : "GET",
-		      sync_info.status);
-		retval = 1;
-		break;
-	}
-bailout:
+	free(delayloc);
+	free(delaytype);
 	return (retval);
 }
 
@@ -1225,9 +939,7 @@ cctl_lunlist(int fd)
 	unsigned int i;
 	int retval;
 
-	retval = 0;
 	inq_data = NULL;
-
 	initid = 7;
 
 	/*
@@ -1287,160 +999,6 @@ bailout:
 
 	if (inq_data != NULL)
 		free(inq_data);
-
-	return (retval);
-}
-
-static int
-cctl_startup_shutdown(int fd, int lun, int iid,
-		      ctladm_cmdfunction command)
-{
-	union ctl_io *io;
-	struct scsi_report_luns_data *lun_data;
-	struct scsi_inquiry_data *inq_data;
-	uint32_t num_luns;
-	unsigned int i;
-	int retval;
-
-	retval = 0;
-	inq_data = NULL;
-
-	/*
-	 * - report luns
-	 * - step through each lun, do an inquiry
-	 * - check OOA queue on direct access luns
-	 * - send stop with offline bit to each direct access device with a
-	 *   clear OOA queue
-	 *   - if we get a reservation conflict, reset the LUN to clear it
-	 *     and reissue the stop with the offline bit set
-	 */
-
-	io = ctl_scsi_alloc_io(iid);
-	if (io == NULL) {
-		warnx("%s: can't allocate memory", __func__);
-		return (1);
-	}
-
-	if ((retval = cctl_get_luns(fd, lun, iid, /*retries*/ 2,
-				    &lun_data, &num_luns)) != 0)
-		goto bailout;
-
-	inq_data = malloc(sizeof(*inq_data));
-	if (inq_data == NULL) {
-		warn("%s: couldn't allocate memory for inquiry data\n",
-		     __func__);
-		retval = 1;
-		goto bailout;
-	}
-	for (i = 0; i < num_luns; i++) {
-		char scsi_path[40];
-		int lun_val;
-
-		/*
-		 * XXX KDM figure out a way to share this code with
-		 * cctl_lunlist()?
-		 */
-		switch (lun_data->luns[i].lundata[0] & RPL_LUNDATA_ATYP_MASK) {
-		case RPL_LUNDATA_ATYP_PERIPH:
-			lun_val = lun_data->luns[i].lundata[1];
-			break;
-		case RPL_LUNDATA_ATYP_FLAT:
-			lun_val = (lun_data->luns[i].lundata[0] &
-				RPL_LUNDATA_FLAT_LUN_MASK) |
-				(lun_data->luns[i].lundata[1] <<
-				RPL_LUNDATA_FLAT_LUN_BITS);
-			break;
-		case RPL_LUNDATA_ATYP_LUN:
-		case RPL_LUNDATA_ATYP_EXTLUN:
-		default:
-			fprintf(stdout, "Unsupported LUN format %d\n",
-				lun_data->luns[i].lundata[0] &
-				RPL_LUNDATA_ATYP_MASK);
-			lun_val = -1;
-			break;
-		}
-		if (lun_val == -1)
-			continue;
-
-		if ((retval = cctl_get_inquiry(fd, lun_val, iid,
-					       /*retries*/ 2, scsi_path,
-					       sizeof(scsi_path),
-					       inq_data)) != 0) {
-			goto bailout;
-		}
-		printf("%s", scsi_path);
-		scsi_print_inquiry(inq_data);
-		/*
-		 * We only want to shutdown direct access devices.
-		 */
-		if (SID_TYPE(inq_data) != T_DIRECT) {
-			printf("%s LUN is not direct access, skipped\n",
-			       scsi_path);
-			continue;
-		}
-
-		if (command == CTLADM_CMD_SHUTDOWN) {
-			struct ctl_ooa_info ooa_info;
-
-			ooa_info.lun_id = lun_val;
-
-			if (ioctl(fd, CTL_CHECK_OOA, &ooa_info) == -1) {
-				printf("%s CTL_CHECK_OOA ioctl failed\n",
-				       scsi_path);
-				continue;
-			}
-
-			if (ooa_info.status != CTL_OOA_SUCCESS) {
-				printf("%s CTL_CHECK_OOA returned status %d\n",
-				       scsi_path, ooa_info.status);
-				continue;
-			}
-			if (ooa_info.num_entries != 0) {
-				printf("%s %d entr%s in the OOA queue, "
-				       "skipping shutdown\n", scsi_path,
-				       ooa_info.num_entries,
-				       (ooa_info.num_entries > 1)?"ies" : "y" );
-				continue;
-			}
-		}
-
-		ctl_scsi_start_stop(/*io*/ io,
-				    /*start*/(command == CTLADM_CMD_STARTUP) ?
-					      1 : 0,
-				    /*load_eject*/ 0,
-				    /*immediate*/ 0,
-				    /*power_conditions*/ SSS_PC_START_VALID,
-				    /*onoffline*/ 1,
-				    /*ctl_tag_type*/
-				    (command == CTLADM_CMD_STARTUP) ?
-				    CTL_TAG_SIMPLE :CTL_TAG_ORDERED,
-				    /*control*/ 0);
-
-		io->io_hdr.nexus.targ_lun = lun_val;
-		io->io_hdr.nexus.initid = iid;
-
-		if (cctl_do_io(fd, /*retries*/ 3, io, __func__) != 0) {
-			retval = 1;
-			goto bailout;
-		}
-
-		if ((io->io_hdr.status & CTL_STATUS_MASK) != CTL_SUCCESS)
-			ctl_io_error_print(io, inq_data, stderr);
-		else {
-			printf("%s LUN is now %s\n", scsi_path,
-			       (command == CTLADM_CMD_STARTUP) ? "online" :
-			       "offline");
-		}
-	}
-bailout:
-	if (lun_data != NULL)
-		free(lun_data);
-
-	if (inq_data != NULL)
-		free(inq_data);
-
-	if (io != NULL)
-		ctl_scsi_free_io(io);
 
 	return (retval);
 }
@@ -1535,7 +1093,7 @@ cctl_start_stop(int fd, int lun, int iid, int retries, int start,
 {
 	union ctl_io *io;
 	char scsi_path[40];
-	int immed = 0, onoffline = 0;
+	int immed = 0;
 	int retval, c;
 
 	retval = 0;
@@ -1550,9 +1108,6 @@ cctl_start_stop(int fd, int lun, int iid, int retries, int start,
 		switch (c) {
 		case 'i':
 			immed = 1;
-			break;
-		case 'o':
-			onoffline = 1;
 			break;
 		default:
 			break;
@@ -1570,7 +1125,6 @@ cctl_start_stop(int fd, int lun, int iid, int retries, int start,
 			    /*load_eject*/ 0,
 			    /*immediate*/ immed,
 			    /*power_conditions*/ SSS_PC_START_VALID,
-			    /*onoffline*/ onoffline,
 			    /*ctl_tag_type*/ start ? CTL_TAG_SIMPLE :
 						     CTL_TAG_ORDERED,
 			    /*control*/ 0);
@@ -2319,8 +1873,6 @@ cctl_inquiry(int fd, int lun, int iid, int retries)
 	char scsi_path[40];
 	int retval;
 
-	retval = 0;
-
 	inq_data = malloc(sizeof(*inq_data));
 	if (inq_data == NULL) {
 		warnx("%s: can't allocate inquiry data", __func__);
@@ -2585,8 +2137,6 @@ cctl_persistent_reserve_in(int fd, int lun, int iid,
 
 	if ((io->io_hdr.status & CTL_STATUS_MASK) == CTL_SUCCESS) {
 		int returned_len, used_len;
-
-		returned_len = 0;
 
 		switch (action) {
 		case 0:
@@ -4298,19 +3848,14 @@ usage(int error)
 "         ctladm remove      <-b backend> <-l lun_id> [-o name=value]\n"
 "         ctladm modify      <-b backend> <-l lun_id> <-s size_bytes>\n"
 "         ctladm devlist     [-b backend] [-v] [-x]\n"
-"         ctladm shutdown\n"
-"         ctladm startup\n"
 "         ctladm lunlist\n"
 "         ctladm lunmap      -p targ_port [-l pLUN] [-L cLUN]\n"
 "         ctladm delay       [dev_id] <-l datamove|done> [-T oneshot|cont]\n"
 "                            [-t secs]\n"
-"         ctladm realsync    <on|off|query>\n"
-"         ctladm setsync     [dev_id] <-i interval>\n"
-"         ctladm getsync     [dev_id]\n"
 "         ctladm inject      [dev_id] <-i action> <-p pattern> [-r lba,len]\n"
 "                            [-s len fmt [args]] [-c] [-d delete_id]\n"
-"         ctladm port        <-l | -o <on|off> | [-w wwnn][-W wwpn]>\n"
-"                            [-p targ_port] [-t port_type] [-q] [-x]\n"
+"         ctladm port        <-o <on|off> | [-w wwnn][-W wwpn]>\n"
+"                            [-p targ_port] [-t port_type]\n"
 "         ctladm portlist    [-f frontend] [-i] [-p targ_port] [-q] [-v] [-x]\n"
 "         ctladm islist      [-v | -x]\n"
 "         ctladm islogout    <-a | -c connection-id | -i name | -p portal>\n"
@@ -4650,24 +4195,11 @@ main(int argc, char **argv)
 		retval = cctl_sync_cache(fd, lun, initid, retries,
 					 argc, argv, combinedopt);
 		break;
-	case CTLADM_CMD_SHUTDOWN:
-	case CTLADM_CMD_STARTUP:
-		retval = cctl_startup_shutdown(fd, lun, initid,
-					       command);
-		break;
 	case CTLADM_CMD_LUNLIST:
 		retval = cctl_lunlist(fd);
 		break;
 	case CTLADM_CMD_DELAY:
 		retval = cctl_delay(fd, lun, argc, argv, combinedopt);
-		break;
-	case CTLADM_CMD_REALSYNC:
-		retval = cctl_realsync(fd, argc, argv);
-		break;
-	case CTLADM_CMD_SETSYNC:
-	case CTLADM_CMD_GETSYNC:
-		retval = cctl_getsetsync(fd, lun, command,
-					 argc, argv, combinedopt);
 		break;
 	case CTLADM_CMD_ERR_INJECT:
 		retval = cctl_error_inject(fd, lun, argc, argv,
