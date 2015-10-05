@@ -1152,6 +1152,9 @@
       <para revision="287621" contrib="sponsor" sponsor="&ix;">The
 	<acronym>CTL</acronym> High Availability implementation has
 	been rewritten.</para>
+
+      <para revision="288310">The &man.ctl.4; driver has been updated
+	to support CD-ROM and removable devices.</para>
     </sect2>
 
     <sect2 xml:id="drivers-network">
