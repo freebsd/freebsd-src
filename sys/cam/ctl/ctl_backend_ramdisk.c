@@ -56,14 +56,18 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>
 #include <sys/ioccom.h>
 #include <sys/module.h>
+#include <sys/sysctl.h>
 
 #include <cam/scsi/scsi_all.h>
+#include <cam/scsi/scsi_da.h>
 #include <cam/ctl/ctl_io.h>
 #include <cam/ctl/ctl.h>
 #include <cam/ctl/ctl_util.h>
 #include <cam/ctl/ctl_backend.h>
 #include <cam/ctl/ctl_debug.h>
 #include <cam/ctl/ctl_ioctl.h>
+#include <cam/ctl/ctl_ha.h>
+#include <cam/ctl/ctl_private.h>
 #include <cam/ctl/ctl_error.h>
 
 typedef enum {
@@ -101,6 +105,7 @@ struct ctl_be_ramdisk_softc {
 };
 
 static struct ctl_be_ramdisk_softc rd_softc;
+extern struct ctl_softc *control_softc;
 
 int ctl_backend_ramdisk_init(void);
 void ctl_backend_ramdisk_shutdown(void);
@@ -546,7 +551,13 @@ ctl_backend_ramdisk_create(struct ctl_be_ramdisk_softc *softc,
 	else
 		cbe_lun->lun_type = T_DIRECT;
 	be_lun->flags = CTL_BE_RAMDISK_LUN_UNCONFIGURED;
-	cbe_lun->flags = CTL_LUN_FLAG_PRIMARY;
+	cbe_lun->flags = 0;
+	value = ctl_get_opt(&cbe_lun->options, "ha_role");
+	if (value != NULL) {
+		if (strcmp(value, "primary") == 0)
+			cbe_lun->flags |= CTL_LUN_FLAG_PRIMARY;
+	} else if (control_softc->flags & CTL_FLAG_ACTIVE_SHELF)
+		cbe_lun->flags |= CTL_LUN_FLAG_PRIMARY;
 
 	if (cbe_lun->lun_type == T_DIRECT) {
 		if (params->blocksize_bytes != 0)
@@ -717,7 +728,9 @@ ctl_backend_ramdisk_modify(struct ctl_be_ramdisk_softc *softc,
 	struct ctl_be_ramdisk_lun *be_lun;
 	struct ctl_be_lun *cbe_lun;
 	struct ctl_lun_modify_params *params;
+	char *value;
 	uint32_t blocksize;
+	int wasprim;
 
 	params = &req->reqdata.modify;
 
@@ -739,15 +752,32 @@ ctl_backend_ramdisk_modify(struct ctl_be_ramdisk_softc *softc,
 	if (params->lun_size_bytes != 0)
 		be_lun->params.lun_size_bytes = params->lun_size_bytes;
 	ctl_update_opts(&cbe_lun->options, req->num_be_args, req->kern_be_args);
-	blocksize = be_lun->cbe_lun.blocksize;
 
+	wasprim = (cbe_lun->flags & CTL_LUN_FLAG_PRIMARY);
+	value = ctl_get_opt(&cbe_lun->options, "ha_role");
+	if (value != NULL) {
+		if (strcmp(value, "primary") == 0)
+			cbe_lun->flags |= CTL_LUN_FLAG_PRIMARY;
+		else
+			cbe_lun->flags &= ~CTL_LUN_FLAG_PRIMARY;
+	} else if (control_softc->flags & CTL_FLAG_ACTIVE_SHELF)
+		cbe_lun->flags |= CTL_LUN_FLAG_PRIMARY;
+	else
+		cbe_lun->flags &= ~CTL_LUN_FLAG_PRIMARY;
+	if (wasprim != (cbe_lun->flags & CTL_LUN_FLAG_PRIMARY)) {
+		if (cbe_lun->flags & CTL_LUN_FLAG_PRIMARY)
+			ctl_lun_primary(cbe_lun);
+		else
+			ctl_lun_secondary(cbe_lun);
+	}
+
+	blocksize = be_lun->cbe_lun.blocksize;
 	if (be_lun->params.lun_size_bytes < blocksize) {
 		snprintf(req->error_str, sizeof(req->error_str),
 			"%s: LUN size %ju < blocksize %u", __func__,
 			be_lun->params.lun_size_bytes, blocksize);
 		goto bailout_error;
 	}
-
 	be_lun->size_blocks = be_lun->params.lun_size_bytes / blocksize;
 	be_lun->size_bytes = be_lun->size_blocks * blocksize;
 	be_lun->cbe_lun.maxlba = be_lun->size_blocks - 1;

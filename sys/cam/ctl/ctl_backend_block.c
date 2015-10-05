@@ -87,7 +87,9 @@ __FBSDID("$FreeBSD$");
 #include <cam/ctl/ctl.h>
 #include <cam/ctl/ctl_backend.h>
 #include <cam/ctl/ctl_ioctl.h>
+#include <cam/ctl/ctl_ha.h>
 #include <cam/ctl/ctl_scsi_all.h>
+#include <cam/ctl/ctl_private.h>
 #include <cam/ctl/ctl_error.h>
 
 /*
@@ -218,6 +220,8 @@ struct ctl_be_block_io {
 	struct ctl_be_block_lun		*lun;
 	void (*beio_cont)(struct ctl_be_block_io *beio); /* to continue processing */
 };
+
+extern struct ctl_softc *control_softc;
 
 static int cbb_num_threads = 14;
 TUNABLE_INT("kern.cam.ctl.block.num_threads", &cbb_num_threads);
@@ -2228,7 +2232,13 @@ ctl_be_block_create(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 	else
 		cbe_lun->lun_type = T_DIRECT;
 	be_lun->flags = CTL_BE_BLOCK_LUN_UNCONFIGURED;
-	cbe_lun->flags = CTL_LUN_FLAG_PRIMARY;
+	cbe_lun->flags = 0;
+	value = ctl_get_opt(&cbe_lun->options, "ha_role");
+	if (value != NULL) {
+		if (strcmp(value, "primary") == 0)
+			cbe_lun->flags |= CTL_LUN_FLAG_PRIMARY;
+	} else if (control_softc->flags & CTL_FLAG_ACTIVE_SHELF)
+		cbe_lun->flags |= CTL_LUN_FLAG_PRIMARY;
 
 	if (cbe_lun->lun_type == T_DIRECT) {
 		be_lun->size_bytes = params->lun_size_bytes;
@@ -2240,10 +2250,13 @@ ctl_be_block_create(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 		cbe_lun->maxlba = (be_lun->size_blocks == 0) ?
 		    0 : (be_lun->size_blocks - 1);
 
-		retval = ctl_be_block_open(softc, be_lun, req);
-		if (retval != 0) {
-			retval = 0;
-			req->status = CTL_LUN_WARNING;
+		if ((cbe_lun->flags & CTL_LUN_FLAG_PRIMARY) ||
+		    control_softc->ha_mode == CTL_HA_MODE_SER_ONLY) {
+			retval = ctl_be_block_open(softc, be_lun, req);
+			if (retval != 0) {
+				retval = 0;
+				req->status = CTL_LUN_WARNING;
+			}
 		}
 		num_threads = cbb_num_threads;
 	} else {
@@ -2601,8 +2614,9 @@ ctl_be_block_modify(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 	struct ctl_lun_modify_params *params;
 	struct ctl_be_block_lun *be_lun;
 	struct ctl_be_lun *cbe_lun;
+	char *value;
 	uint64_t oldsize;
-	int error;
+	int error, wasprim;
 
 	params = &req->reqdata.modify;
 
@@ -2625,23 +2639,51 @@ ctl_be_block_modify(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 		be_lun->params.lun_size_bytes = params->lun_size_bytes;
 	ctl_update_opts(&cbe_lun->options, req->num_be_args, req->kern_be_args);
 
-	oldsize = be_lun->size_blocks;
-	if (be_lun->vn == NULL)
-		error = ctl_be_block_open(softc, be_lun, req);
-	else if (vn_isdisk(be_lun->vn, &error))
-		error = ctl_be_block_modify_dev(be_lun, req);
-	else if (be_lun->vn->v_type == VREG)
-		error = ctl_be_block_modify_file(be_lun, req);
+	wasprim = (cbe_lun->flags & CTL_LUN_FLAG_PRIMARY);
+	value = ctl_get_opt(&cbe_lun->options, "ha_role");
+	if (value != NULL) {
+		if (strcmp(value, "primary") == 0)
+			cbe_lun->flags |= CTL_LUN_FLAG_PRIMARY;
+		else
+			cbe_lun->flags &= ~CTL_LUN_FLAG_PRIMARY;
+	} else if (control_softc->flags & CTL_FLAG_ACTIVE_SHELF)
+		cbe_lun->flags |= CTL_LUN_FLAG_PRIMARY;
 	else
-		error = EINVAL;
+		cbe_lun->flags &= ~CTL_LUN_FLAG_PRIMARY;
+	if (wasprim != (cbe_lun->flags & CTL_LUN_FLAG_PRIMARY)) {
+		if (cbe_lun->flags & CTL_LUN_FLAG_PRIMARY)
+			ctl_lun_primary(cbe_lun);
+		else
+			ctl_lun_secondary(cbe_lun);
+	}
 
+	oldsize = be_lun->size_blocks;
+	if ((cbe_lun->flags & CTL_LUN_FLAG_PRIMARY) ||
+	    control_softc->ha_mode == CTL_HA_MODE_SER_ONLY) {
+		if (be_lun->vn == NULL)
+			error = ctl_be_block_open(softc, be_lun, req);
+		else if (vn_isdisk(be_lun->vn, &error))
+			error = ctl_be_block_modify_dev(be_lun, req);
+		else if (be_lun->vn->v_type == VREG)
+			error = ctl_be_block_modify_file(be_lun, req);
+		else
+			error = EINVAL;
+		if ((cbe_lun->flags & CTL_LUN_FLAG_OFFLINE) &&
+		    be_lun->vn != NULL) {
+			cbe_lun->flags &= ~CTL_LUN_FLAG_OFFLINE;
+			ctl_lun_online(cbe_lun);
+		}
+	} else {
+		if (be_lun->vn != NULL) {
+			cbe_lun->flags |= CTL_LUN_FLAG_OFFLINE;
+			ctl_lun_offline(cbe_lun);
+			pause("CTL LUN offline", hz / 8);	// XXX
+			error = ctl_be_block_close(be_lun);
+		} else
+			error = 0;
+	}
 	if (be_lun->size_blocks != oldsize)
 		ctl_lun_capacity_changed(cbe_lun);
-	if ((cbe_lun->flags & CTL_LUN_FLAG_OFFLINE) &&
-	    be_lun->vn != NULL) {
-		cbe_lun->flags &= ~CTL_LUN_FLAG_OFFLINE;
-		ctl_lun_online(cbe_lun);
-	}
 
 	/* Tell the user the exact size we ended up using */
 	params->lun_size_bytes = be_lun->size_bytes;
