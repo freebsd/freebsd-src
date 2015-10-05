@@ -392,6 +392,11 @@
 	updated to be able to detect &man.zfs.8; and &man.geli.8;
 	filesystems.</para>
 
+      <para revision="284883">The &man.mkimg.1; utility has been
+	updated to include support for <literal>NTFS</literal>
+	filesystems in both <acronym>MBR</acronym> and
+	<acronym>GPT</acronym> partitioning schemes.</para>
+
       <para revision="285550">The &man.w.1; utility has been updated
 	to display the full IPv6 remote address of the host from which
 	a user is connected.</para>
