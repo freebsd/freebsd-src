@@ -193,6 +193,8 @@ void ctl_clr_ua_allluns(struct ctl_softc *ctl_softc, uint32_t initidx,
 void ctl_isc_announce_lun(struct ctl_lun *lun);
 void ctl_isc_announce_port(struct ctl_port *port);
 void ctl_isc_announce_iid(struct ctl_port *port, int iid);
+void ctl_isc_announce_mode(struct ctl_lun *lun, uint32_t initidx,
+    uint8_t page, uint8_t subpage);
 
 /*
  * KPI to manipulate LUN/port options
