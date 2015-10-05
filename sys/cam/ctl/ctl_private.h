@@ -47,18 +47,6 @@
 #define	CTL_PROCESSOR_PRODUCT	"CTLPROCESSOR    "
 #define	CTL_UNKNOWN_PRODUCT	"CTLDEVICE       "
 
-typedef enum {
-	CTL_IOCTL_INPROG,
-	CTL_IOCTL_DATAMOVE,
-	CTL_IOCTL_DONE
-} ctl_fe_ioctl_state;
-
-struct ctl_fe_ioctl_params {
-	struct cv		sem;
-	struct mtx		ioctl_mtx;
-	ctl_fe_ioctl_state	state;
-};
-
 #define CTL_POOL_ENTRIES_OTHER_SC   200
 
 struct ctl_io_pool {
