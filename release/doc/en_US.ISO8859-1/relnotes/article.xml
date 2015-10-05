@@ -1155,6 +1155,10 @@
 
       <para>The &man.uart.4; driver has been updated to support
 	<acronym>AMT</acronym> devices on newer systems.</para>
+
+      <para revision="285316" contrib="sponsor" sponsor="&ff;"
+	arch="arm64">Initial <acronym>SMP</acronym> support has been
+	added to the &os;/&arch.arm64; port.</para>
     </sect2>
 
     <sect2 xml:id="hardware-virtualization">
