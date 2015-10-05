@@ -356,3 +356,9 @@ GLIBCXX_3.4.9 {
     };
 } GLIBCXX_3.4;
 
+GLIBCXX_3.4.22 {
+    extern "C++" {
+        "std::uncaught_exceptions()";
+    };
+} GLIBCXX_3.4.9;
+
