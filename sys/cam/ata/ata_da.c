@@ -1797,6 +1797,16 @@ adadone(struct cam_periph *periph, union ccb *done_ccb)
 
 			TAILQ_INIT(&queue);
 			TAILQ_CONCAT(&queue, &softc->trim_req.bps, bio_queue);
+			/*
+			 * Normally, the xpt_release_ccb() above would make sure
+			 * that when we have more work to do, that work would
+			 * get kicked off. However, we specifically keep
+			 * trim_running set to 0 before the call above to allow
+			 * other I/O to progress when many BIO_DELETE requests
+			 * are pushed down. We set trim_running to 0 and call
+			 * daschedule again so that we don't stall if there are
+			 * no other I/Os pending apart from BIO_DELETEs.
+			 */
 			softc->trim_running = 0;
 			adaschedule(periph);
 			cam_periph_unlock(periph);
