@@ -980,6 +980,8 @@ ctl_isc_event_handler(ctl_ha_channel channel, ctl_ha_event event, int param)
 			 * when the datamove is complete.
 			 */
 			io->io_hdr.serializing_sc = msg->hdr.serializing_sc;
+			if (msg->hdr.status == CTL_SUCCESS)
+				io->io_hdr.status = msg->hdr.status;
 
 			if (msg->dt.sg_sequence == 0) {
 				i = msg->dt.kern_sg_entries +
@@ -1062,6 +1064,8 @@ ctl_isc_event_handler(ctl_ha_channel channel, ctl_ha_event event, int param)
 				memcpy(&io->scsiio.sense_data,
 				    &msg->scsi.sense_data,
 				    msg->scsi.sense_len);
+				if (msg->hdr.status == CTL_SUCCESS)
+					io->io_hdr.flags |= CTL_FLAG_STATUS_SENT;
 			}
 			ctl_enqueue_isc(io);
 			break;
@@ -12209,6 +12213,7 @@ ctl_datamove(union ctl_io *io)
 		msg.hdr.original_sc = io->io_hdr.original_sc;
 		msg.hdr.serializing_sc = io;
 		msg.hdr.nexus = io->io_hdr.nexus;
+		msg.hdr.status = io->io_hdr.status;
 		msg.dt.flags = io->io_hdr.flags;
 		/*
 		 * We convert everything into a S/G list here.  We can't
@@ -12592,10 +12597,12 @@ ctl_datamove_remote_xfer(union ctl_io *io, unsigned command,
 	 * failure.
 	 */
 	if ((rq == NULL)
-	 && ((io->io_hdr.status & CTL_STATUS_MASK) != CTL_STATUS_NONE))
+	 && ((io->io_hdr.status & CTL_STATUS_MASK) != CTL_STATUS_NONE &&
+	     (io->io_hdr.status & CTL_STATUS_MASK) != CTL_SUCCESS))
 		ctl_set_busy(&io->scsiio);
 
-	if ((io->io_hdr.status & CTL_STATUS_MASK) != CTL_STATUS_NONE) {
+	if ((io->io_hdr.status & CTL_STATUS_MASK) != CTL_STATUS_NONE &&
+	    (io->io_hdr.status & CTL_STATUS_MASK) != CTL_SUCCESS) {
 
 		if (rq != NULL)
 			ctl_dt_req_free(rq);
