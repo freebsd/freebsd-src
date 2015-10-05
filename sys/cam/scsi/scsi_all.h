@@ -1669,6 +1669,7 @@ struct scsi_ec_cscd
 	uint8_t  type_code;
 #define EC_CSCD_EXT		0xff
 	uint8_t  luidt_pdt;
+#define EC_NUL			0x20
 #define EC_LUIDT_MASK		0xc0
 #define EC_LUIDT_LUN		0x00
 #define EC_LUIDT_PROXY_TOKEN	0x40
