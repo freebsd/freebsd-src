@@ -1390,6 +1390,13 @@
 	<literal>apple-boot</literal>, <literal>apple-hfs</literal>,
 	and <literal>apple-ufs</literal> <acronym>MBR</acronym>
 	partitioning schemes have been added to &man.gpart.8;.</para>
+
+      <para revision="285594" contrib="sponsor"
+	sponsor="&scaleengine;">The &man.gpart.8; utility has been
+	updated to include a new attribute for <acronym>GPT</acronym>
+	partitions, <literal>lenovofix</literal>, which when set,
+	which works around <acronym>BIOS</acronym> compatibility
+	issues reported on several Lenovo&nbsp;&trade; laptops.</para>
     </sect2>
   </sect1>
 
