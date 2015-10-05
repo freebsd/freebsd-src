@@ -387,7 +387,7 @@ void			lun_option_set(struct lun_option *clo,
 
 void			kernel_init(void);
 int			kernel_lun_add(struct lun *lun);
-int			kernel_lun_resize(struct lun *lun);
+int			kernel_lun_modify(struct lun *lun);
 int			kernel_lun_remove(struct lun *lun);
 void			kernel_handoff(struct connection *conn);
 int			kernel_port_add(struct port *port);

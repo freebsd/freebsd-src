@@ -1944,18 +1944,14 @@ conf_apply(struct conf *oldconf, struct conf *newconf)
 	TAILQ_FOREACH_SAFE(newlun, &newconf->conf_luns, l_next, tmplun) {
 		oldlun = lun_find(oldconf, newlun->l_name);
 		if (oldlun != NULL) {
-			if (newlun->l_size != oldlun->l_size ||
-			    newlun->l_size == 0) {
-				log_debugx("resizing lun \"%s\", CTL lun %d",
+			log_debugx("modifying lun \"%s\", CTL lun %d",
+			    newlun->l_name, newlun->l_ctl_lun);
+			error = kernel_lun_modify(newlun);
+			if (error != 0) {
+				log_warnx("failed to "
+				    "modify lun \"%s\", CTL lun %d",
 				    newlun->l_name, newlun->l_ctl_lun);
-				error = kernel_lun_resize(newlun);
-				if (error != 0) {
-					log_warnx("failed to "
-					    "resize lun \"%s\", CTL lun %d",
-					    newlun->l_name,
-					    newlun->l_ctl_lun);
-					cumulated_error++;
-				}
+				cumulated_error++;
 			}
 			continue;
 		}

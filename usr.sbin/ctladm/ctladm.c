@@ -183,7 +183,7 @@ static struct ctladm_opts option_table[] = {
 	{"lunlist", CTLADM_CMD_LUNLIST, CTLADM_ARG_NONE, NULL},
 	{"lunmap", CTLADM_CMD_LUNMAP, CTLADM_ARG_NONE, "p:l:L:"},
 	{"modesense", CTLADM_CMD_MODESENSE, CTLADM_ARG_NEED_TL, "P:S:dlm:c:"},
-	{"modify", CTLADM_CMD_MODIFY, CTLADM_ARG_NONE, "b:l:s:"},
+	{"modify", CTLADM_CMD_MODIFY, CTLADM_ARG_NONE, "b:l:o:s:"},
 	{"port", CTLADM_CMD_PORT, CTLADM_ARG_NONE, "lo:p:qt:w:W:x"},
 	{"portlist", CTLADM_CMD_PORTLIST, CTLADM_ARG_NONE, "f:ilp:qvx"},
 	{"prin", CTLADM_CMD_PRES_IN, CTLADM_ARG_NEED_TL, "a:"},
@@ -3169,8 +3169,11 @@ cctl_modify_lun(int fd, int argc, char **argv, char *combinedopt)
 	uint32_t lun_id = 0;
 	int lun_id_set = 0, lun_size_set = 0;
 	char *backend_name = NULL;
+	STAILQ_HEAD(, cctl_req_option) option_list;
+	int num_options = 0;
 	int retval = 0, c;
 
+	STAILQ_INIT(&option_list);
 	while ((c = getopt(argc, argv, combinedopt)) != -1) {
 		switch (c) {
 		case 'b':
@@ -3180,6 +3183,43 @@ cctl_modify_lun(int fd, int argc, char **argv, char *combinedopt)
 			lun_id = strtoul(optarg, NULL, 0);
 			lun_id_set = 1;
 			break;
+		case 'o': {
+			struct cctl_req_option *option;
+			char *tmpstr;
+			char *name, *value;
+
+			tmpstr = strdup(optarg);
+			name = strsep(&tmpstr, "=");
+			if (name == NULL) {
+				warnx("%s: option -o takes \"name=value\""
+				      "argument", __func__);
+				retval = 1;
+				goto bailout;
+			}
+			value = strsep(&tmpstr, "=");
+			if (value == NULL) {
+				warnx("%s: option -o takes \"name=value\""
+				      "argument", __func__);
+				retval = 1;
+				goto bailout;
+			}
+			option = malloc(sizeof(*option));
+			if (option == NULL) {
+				warn("%s: error allocating %zd bytes",
+				     __func__, sizeof(*option));
+				retval = 1;
+				goto bailout;
+			}
+			option->name = strdup(name);
+			option->namelen = strlen(name) + 1;
+			option->value = strdup(value);
+			option->vallen = strlen(value) + 1;
+			free(tmpstr);
+
+			STAILQ_INSERT_TAIL(&option_list, option, links);
+			num_options++;
+			break;
+		}
 		case 's':
 			if (strcasecmp(optarg, "auto") != 0) {
 				retval = expand_number(optarg, &lun_size);
@@ -3203,8 +3243,9 @@ cctl_modify_lun(int fd, int argc, char **argv, char *combinedopt)
 	if (lun_id_set == 0)
 		errx(1, "%s: LUN id (-l) must be specified", __func__);
 
-	if (lun_size_set == 0)
-		errx(1, "%s: size (-s) must be specified", __func__);
+	if (lun_size_set == 0 && num_options == 0)
+		errx(1, "%s: size (-s) or options (-o) must be specified",
+		    __func__);
 
 	bzero(&req, sizeof(req));
 
@@ -3213,6 +3254,42 @@ cctl_modify_lun(int fd, int argc, char **argv, char *combinedopt)
 
 	req.reqdata.modify.lun_id = lun_id;
 	req.reqdata.modify.lun_size_bytes = lun_size;
+
+	req.num_be_args = num_options;
+	if (num_options > 0) {
+		struct cctl_req_option *option, *next_option;
+		int i;
+
+		req.be_args = malloc(num_options * sizeof(*req.be_args));
+		if (req.be_args == NULL) {
+			warn("%s: error allocating %zd bytes", __func__,
+			     num_options * sizeof(*req.be_args));
+			retval = 1;
+			goto bailout;
+		}
+
+		for (i = 0, option = STAILQ_FIRST(&option_list);
+		     i < num_options; i++, option = next_option) {
+			next_option = STAILQ_NEXT(option, links);
+
+			req.be_args[i].namelen = option->namelen;
+			req.be_args[i].name = strdup(option->name);
+			req.be_args[i].vallen = option->vallen;
+			req.be_args[i].value = strdup(option->value);
+			/*
+			 * XXX KDM do we want a way to specify a writeable
+			 * flag of some sort?  Do we want a way to specify
+			 * binary data?
+			 */
+			req.be_args[i].flags = CTL_BEARG_ASCII | CTL_BEARG_RD;
+
+			STAILQ_REMOVE(&option_list, option, cctl_req_option,
+				      links);
+			free(option->name);
+			free(option->value);
+			free(option);
+		}
+	}
 
 	if (ioctl(fd, CTL_LUN_REQ, &req) == -1) {
 		warn("%s: error issuing CTL_LUN_REQ ioctl", __func__);

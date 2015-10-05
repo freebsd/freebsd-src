@@ -34,7 +34,7 @@
 .\" $Id: //depot/users/kenm/FreeBSD-test2/usr.sbin/ctladm/ctladm.8#3 $
 .\" $FreeBSD$
 .\"
-.Dd May 22, 2015
+.Dd September 6, 2015
 .Dt CTLADM 8
 .Os
 .Sh NAME
@@ -166,6 +166,7 @@
 .Ic modify
 .Aq Fl b Ar backend
 .Aq Fl l Ar lun_id
+.Op Fl o Ar name=value
 .Aq Fl s Ar size_bytes
 .Nm
 .Ic devlist
@@ -859,6 +860,12 @@ and
 .Dq block .
 .It Fl l Ar lun_id
 Specify the LUN number to remove.
+.It Fl o Ar name=value
+Specify a backend-specific name/value pair.
+Multiple
+.Fl o
+arguments may be specified.
+Refer to the backend documentation for arguments that may be used.
 .It Fl s Ar size_bytes
 Specify the size of the LUN in bytes.
 For the
