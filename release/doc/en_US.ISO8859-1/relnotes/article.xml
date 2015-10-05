@@ -1106,6 +1106,11 @@
 	providing support for the PMC Sierra line of
 	<acronym>SAS</acronym>/<acronym>SATA</acronym> host bus
 	adapters.</para>
+
+      <para revision="287117" contrib="sponsor"
+	sponsor="&emcisilon;">The &man.ioat.4; driver has been added,
+	providing support for the <acronym>PSE</acronym> (Platform
+	Storage Extension).</para>
     </sect2>
 
     <sect2 xml:id="drivers-network">
