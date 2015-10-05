@@ -1,4 +1,5 @@
 .\" Copyright (c) 2012 The FreeBSD Foundation
+.\" Copyright (c) 2015 Alexander Motin <mav@FreeBSD.org>
 .\" All rights reserved.
 .\"
 .\" This software was developed by Edward Tomasz Napierala under sponsorship
@@ -27,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 24, 2015
+.Dd September 7, 2015
 .Dt CTL.CONF 5
 .Os
 .Sh NAME
@@ -239,6 +240,15 @@ Redirection happens before authentication and any
 or
 .Sy initiator-portal
 checks are skipped.
+.It Ic tag Ar value
+Unique 16-bit tag value of this
+.Sy portal-group .
+If not specified, the value is generated automatically.
+.It Ic foreign
+Specifies that this
+.Sy portal-group
+is listened by some other host.
+This host will announce it on discovery stage, but won't listen.
 .El
 .Ss target Context
 .Bl -tag -width indent
