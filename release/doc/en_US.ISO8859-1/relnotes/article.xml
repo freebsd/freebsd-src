@@ -1292,6 +1292,10 @@
       <para revision="284746" contrib="sponsor" sponsor="&msostc;">The
 	&man.hv.netvsc.4; driver has been updated to support checksum
 	offloading and <acronym>TSO</acronym>.</para>
+
+      <para revision="286062">The &man.xen.4; driver has been updated
+	to include support for <literal>blkif</literal> indirect
+	segment I/O.</para>
     </sect2>
 
     <sect2 xml:id="hardware-arm">
