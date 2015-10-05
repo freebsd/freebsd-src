@@ -562,6 +562,21 @@
 
       <para revision="287168">The &man.acpi.4; subsystem has been
 	updated to version 20150818.</para>
+
+      <para revision="286503">The <application>apr</application>
+	library used by &man.svnlite.1; has been updated to version
+	1.5.2.</para>
+
+      <para revision="286505">The <application>serf</application>
+	library used by &man.svnlite.1; has been updated to version
+	1.3.8.</para>
+
+      <para revision="286505">The &man.svnlite.1; utility has been
+	updated to version 1.8.14.</para>
+
+      <para revision="286510">The <application>sqlite3</application>
+	library used by &man.svnlite.1; and &man.kerberos.8; has been
+	updated to version 3.8.11.1.</para>
     </sect2>
 
     <sect2 xml:id="userland-installer">
