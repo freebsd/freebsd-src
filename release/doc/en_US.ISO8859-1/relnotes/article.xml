@@ -1042,6 +1042,11 @@
 
       <para revision="281387">The &man.hptnr.4; driver has been
 	updated to version 1.1.1.</para>
+
+      <para revision="285662">The &man.pms.4; driver has been added,
+	providing support for the PMC Sierra line of
+	<acronym>SAS</acronym>/<acronym>SATA</acronym> host bus
+	adapters.</para>
     </sect2>
 
     <sect2 xml:id="drivers-network">
