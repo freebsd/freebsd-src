@@ -181,7 +181,9 @@
     <sect2 xml:id="userland-contrib">
       <title>Contributed Software</title>
 
-      <para>&nbsp;</para>
+      <para revision="286082">The &man.libarchive.3; library has been
+	updated to properly skip a sparse file entry in a &man.tar.1;
+	file, which would previously produce errors.</para>
     </sect2>
 
     <sect2 xml:id="userland-installer">
