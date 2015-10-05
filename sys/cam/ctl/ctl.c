@@ -10848,9 +10848,7 @@ ctl_scsiio_lun_check(struct ctl_lun *lun,
 	if (entry->pattern & CTL_LUN_PAT_WRITE) {
 		if (lun->be_lun &&
 		    lun->be_lun->flags & CTL_LUN_FLAG_READONLY) {
-			ctl_set_sense(ctsio, /*current_error*/ 1,
-			    /*sense_key*/ SSD_KEY_DATA_PROTECT,
-			    /*asc*/ 0x27, /*ascq*/ 0x01, SSD_ELEM_NONE);
+			ctl_set_hw_write_protected(ctsio);
 			retval = 1;
 			goto bailout;
 		}
