@@ -344,12 +344,7 @@ typedef struct {
  * devices) or by the driver (e.g., for fabric devices).
  *
  * It has a state. If the state if VALID, that means that we've logged into
- * the device. We also *may* have a initiator map index entry. This is a value
- * from 0..MAX_FC_TARG that is used to index into the isp_dev_map array. If
- * the value therein is non-zero, then that value minus one is used to index
- * into the Port Database to find the handle for forming commands. There is
- * back-index minus one value within to Port Database entry that tells us
- * which entry in isp_dev_map points to us (to avoid searching).
+ * the device.
  *
  * Local loop devices the firmware automatically performs PLOGI on for us
  * (which is why that handle is imposed upon us). Fabric devices we assign
@@ -395,7 +390,6 @@ typedef struct {
 
 	/*
 	 * The dev_map_idx, if nonzero, is the system virtual target ID (+1)
-	 * as a cross-reference with the isp_dev_map.
 	 *
 	 * A device is 'autologin' if the firmware automatically logs into
 	 * it (re-logins as needed). Basically, local private loop devices.
@@ -490,15 +484,6 @@ typedef struct {
 	 * Our Port Data Base
 	 */
 	fcportdb_t		portdb[MAX_FC_TARG];
-
-	/*
-	 * This maps system virtual 'target' id to a portdb entry.
-	 *
-	 * The mapping function is to take any non-zero entry and
-	 * subtract one to get the portdb index. This means that
-	 * entries which are zero are unmapped (i.e., don't exist).
-	 */
-	uint16_t		isp_dev_map[MAX_FC_TARG];
 
 #ifdef	ISP_TARGET_MODE
 	/*
