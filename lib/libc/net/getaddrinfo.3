@@ -18,7 +18,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 20, 2015
+.Dd October 5, 2015
 .Dt GETADDRINFO 3
 .Os
 .Sh NAME
@@ -243,15 +243,14 @@ The list can be traversed by following the
 pointer in each
 .Li addrinfo
 structure until a null pointer is encountered.
-The three members
+Each returned
+.Li addrinfo
+structure contains three members that are suitable for a call to
+.Xr socket 2 :
 .Fa ai_family ,
 .Fa ai_socktype ,
 and
-.Fa ai_protocol
-in each returned
-.Li addrinfo
-structure are suitable for a call to
-.Xr socket 2 .
+.Fa ai_protocol .
 For each
 .Li addrinfo
 structure in the list, the
