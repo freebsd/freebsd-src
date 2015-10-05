@@ -1756,12 +1756,7 @@ ctl_init(void)
 	softc->io_zone = uma_zcreate("CTL IO", sizeof(union ctl_io),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
 	softc->open_count = 0;
-
-	/*
-	 * Default to actually sending a SYNCHRONIZE CACHE command down to
-	 * the drive.
-	 */
-	softc->flags = CTL_FLAG_REAL_SYNC;
+	softc->flags = 0;
 
 	SYSCTL_ADD_INT(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
 	    OID_AUTO, "ha_mode", CTLFLAG_RDTUN, (int *)&softc->ha_mode, 0,
@@ -2588,112 +2583,6 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 		mtx_unlock(&softc->ctl_lock);
 		break;
 	}
-	case CTL_GET_PORT_LIST: {
-		struct ctl_port *port;
-		struct ctl_port_list *list;
-		int i;
-
-		list = (struct ctl_port_list *)addr;
-
-		if (list->alloc_len != (list->alloc_num *
-		    sizeof(struct ctl_port_entry))) {
-			printf("%s: CTL_GET_PORT_LIST: alloc_len %u != "
-			       "alloc_num %u * sizeof(struct ctl_port_entry) "
-			       "%zu\n", __func__, list->alloc_len,
-			       list->alloc_num, sizeof(struct ctl_port_entry));
-			retval = EINVAL;
-			break;
-		}
-		list->fill_len = 0;
-		list->fill_num = 0;
-		list->dropped_num = 0;
-		i = 0;
-		mtx_lock(&softc->ctl_lock);
-		STAILQ_FOREACH(port, &softc->port_list, links) {
-			struct ctl_port_entry entry, *list_entry;
-
-			if (list->fill_num >= list->alloc_num) {
-				list->dropped_num++;
-				continue;
-			}
-
-			entry.port_type = port->port_type;
-			strlcpy(entry.port_name, port->port_name,
-				sizeof(entry.port_name));
-			entry.targ_port = port->targ_port;
-			entry.physical_port = port->physical_port;
-			entry.virtual_port = port->virtual_port;
-			entry.wwnn = port->wwnn;
-			entry.wwpn = port->wwpn;
-			if (port->status & CTL_PORT_STATUS_ONLINE)
-				entry.online = 1;
-			else
-				entry.online = 0;
-
-			list_entry = &list->entries[i];
-
-			retval = copyout(&entry, list_entry, sizeof(entry));
-			if (retval != 0) {
-				printf("%s: CTL_GET_PORT_LIST: copyout "
-				       "returned %d\n", __func__, retval);
-				break;
-			}
-			i++;
-			list->fill_num++;
-			list->fill_len += sizeof(entry);
-		}
-		mtx_unlock(&softc->ctl_lock);
-
-		/*
-		 * If this is non-zero, we had a copyout fault, so there's
-		 * probably no point in attempting to set the status inside
-		 * the structure.
-		 */
-		if (retval != 0)
-			break;
-
-		if (list->dropped_num > 0)
-			list->status = CTL_PORT_LIST_NEED_MORE_SPACE;
-		else
-			list->status = CTL_PORT_LIST_OK;
-		break;
-	}
-	case CTL_DUMP_OOA: {
-		union ctl_io *io;
-		char printbuf[128];
-		struct sbuf sb;
-
-		mtx_lock(&softc->ctl_lock);
-		printf("Dumping OOA queues:\n");
-		STAILQ_FOREACH(lun, &softc->lun_list, links) {
-			mtx_lock(&lun->lun_lock);
-			for (io = (union ctl_io *)TAILQ_FIRST(
-			     &lun->ooa_queue); io != NULL;
-			     io = (union ctl_io *)TAILQ_NEXT(&io->io_hdr,
-			     ooa_links)) {
-				sbuf_new(&sb, printbuf, sizeof(printbuf),
-					 SBUF_FIXEDLEN);
-				sbuf_printf(&sb, "LUN %jd tag 0x%04x%s%s%s%s: ",
-					    (intmax_t)lun->lun,
-					    io->scsiio.tag_num,
-					    (io->io_hdr.flags &
-					    CTL_FLAG_BLOCKED) ? "" : " BLOCKED",
-					    (io->io_hdr.flags &
-					    CTL_FLAG_DMA_INPROG) ? " DMA" : "",
-					    (io->io_hdr.flags &
-					    CTL_FLAG_ABORT) ? " ABORT" : "",
-			                    (io->io_hdr.flags &
-		                        CTL_FLAG_IS_WAS_ON_RTR) ? " RTR" : "");
-				ctl_scsi_command_string(&io->scsiio, NULL, &sb);
-				sbuf_finish(&sb);
-				printf("%s\n", sbuf_data(&sb));
-			}
-			mtx_unlock(&lun->lun_lock);
-		}
-		printf("OOA queues dump done\n");
-		mtx_unlock(&softc->ctl_lock);
-		break;
-	}
 	case CTL_GET_OOA: {
 		struct ctl_ooa *ooa_hdr;
 		struct ctl_ooa_entry *entries;
@@ -2776,38 +2665,6 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 		free(entries, M_CTL);
 		break;
 	}
-	case CTL_CHECK_OOA: {
-		union ctl_io *io;
-		struct ctl_ooa_info *ooa_info;
-
-
-		ooa_info = (struct ctl_ooa_info *)addr;
-
-		if (ooa_info->lun_id >= CTL_MAX_LUNS) {
-			ooa_info->status = CTL_OOA_INVALID_LUN;
-			break;
-		}
-		mtx_lock(&softc->ctl_lock);
-		lun = softc->ctl_luns[ooa_info->lun_id];
-		if (lun == NULL) {
-			mtx_unlock(&softc->ctl_lock);
-			ooa_info->status = CTL_OOA_INVALID_LUN;
-			break;
-		}
-		mtx_lock(&lun->lun_lock);
-		mtx_unlock(&softc->ctl_lock);
-		ooa_info->num_entries = 0;
-		for (io = (union ctl_io *)TAILQ_FIRST(&lun->ooa_queue);
-		     io != NULL; io = (union ctl_io *)TAILQ_NEXT(
-		     &io->io_hdr, ooa_links)) {
-			ooa_info->num_entries++;
-		}
-		mtx_unlock(&lun->lun_lock);
-
-		ooa_info->status = CTL_OOA_SUCCESS;
-
-		break;
-	}
 	case CTL_DELAY_IO: {
 		struct ctl_io_delay_info *delay_info;
 
@@ -2861,70 +2718,6 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 #else
 		delay_info->status = CTL_DELAY_STATUS_NOT_IMPLEMENTED;
 #endif /* CTL_IO_DELAY */
-		break;
-	}
-	case CTL_REALSYNC_SET: {
-		int *syncstate;
-
-		syncstate = (int *)addr;
-
-		mtx_lock(&softc->ctl_lock);
-		switch (*syncstate) {
-		case 0:
-			softc->flags &= ~CTL_FLAG_REAL_SYNC;
-			break;
-		case 1:
-			softc->flags |= CTL_FLAG_REAL_SYNC;
-			break;
-		default:
-			retval = EINVAL;
-			break;
-		}
-		mtx_unlock(&softc->ctl_lock);
-		break;
-	}
-	case CTL_REALSYNC_GET: {
-		int *syncstate;
-
-		syncstate = (int*)addr;
-
-		mtx_lock(&softc->ctl_lock);
-		if (softc->flags & CTL_FLAG_REAL_SYNC)
-			*syncstate = 1;
-		else
-			*syncstate = 0;
-		mtx_unlock(&softc->ctl_lock);
-
-		break;
-	}
-	case CTL_SETSYNC:
-	case CTL_GETSYNC: {
-		struct ctl_sync_info *sync_info;
-
-		sync_info = (struct ctl_sync_info *)addr;
-
-		mtx_lock(&softc->ctl_lock);
-		lun = softc->ctl_luns[sync_info->lun_id];
-		if (lun == NULL) {
-			mtx_unlock(&softc->ctl_lock);
-			sync_info->status = CTL_GS_SYNC_NO_LUN;
-			break;
-		}
-		/*
-		 * Get or set the sync interval.  We're not bounds checking
-		 * in the set case, hopefully the user won't do something
-		 * silly.
-		 */
-		mtx_lock(&lun->lun_lock);
-		mtx_unlock(&softc->ctl_lock);
-		if (cmd == CTL_GETSYNC)
-			sync_info->sync_interval = lun->sync_interval;
-		else
-			lun->sync_interval = sync_info->sync_interval;
-		mtx_unlock(&lun->lun_lock);
-
-		sync_info->status = CTL_GS_SYNC_OK;
-
 		break;
 	}
 	case CTL_GETSTATS: {
@@ -5303,8 +5096,6 @@ ctl_start_stop(struct ctl_scsiio *ctsio)
 	CTL_DEBUG_PRINT(("ctl_start_stop\n"));
 
 	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
-	retval = 0;
-
 	cdb = (struct scsi_start_stop_unit *)ctsio->cdb;
 
 	/*
@@ -5362,54 +5153,27 @@ ctl_start_stop(struct ctl_scsiio *ctsio)
 	}
 
 	/*
-	 * XXX KDM Copan-specific offline behavior.
-	 * Figure out a reasonable way to port this?
+	 * In the non-immediate case, we send the request to
+	 * the backend and return status to the user when
+	 * it is done.
+	 *
+	 * In the immediate case, we allocate a new ctl_io
+	 * to hold a copy of the request, and send that to
+	 * the backend.  We then set good status on the
+	 * user's request and return it immediately.
 	 */
-#ifdef NEEDTOPORT
-	mtx_lock(&lun->lun_lock);
+	if (cdb->byte2 & SSS_IMMED) {
+		union ctl_io *new_io;
 
-	if (((cdb->byte2 & SSS_ONOFFLINE) == 0)
-	 && (lun->flags & CTL_LUN_OFFLINE)) {
-		/*
-		 * If the LUN is offline, and the on/offline bit isn't set,
-		 * reject the start or stop.  Otherwise, let it through.
-		 */
-		mtx_unlock(&lun->lun_lock);
-		ctl_set_lun_not_ready(ctsio);
+		new_io = ctl_alloc_io(ctsio->io_hdr.pool);
+		ctl_copy_io((union ctl_io *)ctsio, new_io);
+		retval = lun->backend->config_write(new_io);
+		ctl_set_success(ctsio);
 		ctl_done((union ctl_io *)ctsio);
 	} else {
-		mtx_unlock(&lun->lun_lock);
-#endif /* NEEDTOPORT */
-		/*
-		 * This could be a start or a stop when we're online,
-		 * or a stop/offline or start/online.  A start or stop when
-		 * we're offline is covered in the case above.
-		 */
-		/*
-		 * In the non-immediate case, we send the request to
-		 * the backend and return status to the user when
-		 * it is done.
-		 *
-		 * In the immediate case, we allocate a new ctl_io
-		 * to hold a copy of the request, and send that to
-		 * the backend.  We then set good status on the
-		 * user's request and return it immediately.
-		 */
-		if (cdb->byte2 & SSS_IMMED) {
-			union ctl_io *new_io;
-
-			new_io = ctl_alloc_io(ctsio->io_hdr.pool);
-			ctl_copy_io((union ctl_io *)ctsio, new_io);
-			retval = lun->backend->config_write(new_io);
-			ctl_set_success(ctsio);
-			ctl_done((union ctl_io *)ctsio);
-		} else {
-			retval = lun->backend->config_write(
-				(union ctl_io *)ctsio);
-		}
-#ifdef NEEDTOPORT
+		retval = lun->backend->config_write(
+			(union ctl_io *)ctsio);
 	}
-#endif
 	return (retval);
 }
 
@@ -5487,25 +5251,9 @@ ctl_sync_cache(struct ctl_scsiio *ctsio)
 	lbalen->lba = starting_lba;
 	lbalen->len = block_count;
 	lbalen->flags = byte2;
-
-	/*
-	 * Check to see whether we're configured to send the SYNCHRONIZE
-	 * CACHE command directly to the back end.
-	 */
-	mtx_lock(&lun->lun_lock);
-	if ((softc->flags & CTL_FLAG_REAL_SYNC)
-	 && (++(lun->sync_count) >= lun->sync_interval)) {
-		lun->sync_count = 0;
-		mtx_unlock(&lun->lun_lock);
-		retval = lun->backend->config_write((union ctl_io *)ctsio);
-	} else {
-		mtx_unlock(&lun->lun_lock);
-		ctl_set_success(ctsio);
-		ctl_done((union ctl_io *)ctsio);
-	}
+	retval = lun->backend->config_write((union ctl_io *)ctsio);
 
 bailout:
-
 	return (retval);
 }
 
@@ -6142,9 +5890,6 @@ ctl_debugconf_sp_sense_handler(struct ctl_scsiio *ctsio,
 		page->ctl_time_io_secs[1] = ctl_time_io_secs >> 0;
 		break;
 	default:
-#ifdef NEEDTOPORT
-		EPRINT(0, "Invalid PC %d!!", pc);
-#endif /* NEEDTOPORT */
 		break;
 	}
 	return (0);
@@ -7800,18 +7545,6 @@ retry:
 			 * sync), we've got a problem.
 			 */
 			if (key_count >= lun->pr_key_count) {
-#ifdef NEEDTOPORT
-				csevent_log(CSC_CTL | CSC_SHELF_SW |
-					    CTL_PR_ERROR,
-					    csevent_LogType_Fault,
-					    csevent_AlertLevel_Yellow,
-					    csevent_FRU_ShelfController,
-					    csevent_FRU_Firmware,
-				        csevent_FRU_Unknown,
-					    "registered keys %d >= key "
-					    "count %d", key_count,
-					    lun->pr_key_count);
-#endif
 				key_count++;
 				continue;
 			}
