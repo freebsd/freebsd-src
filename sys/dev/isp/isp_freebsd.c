@@ -1898,10 +1898,10 @@ isp_target_start_ctio(ispsoftc_t *isp, union ccb *ccb, enum Start_Ctio_How how)
 			cto->ct_header.rqs_entry_count = 1;
 			cto->ct_header.rqs_seqno |= ATPD_SEQ_NOTIFY_CAM;
 			ATPD_SET_SEQNO(cto, atp);
-			if (ISP_CAP_2KLOGIN(isp) == 0) {
-				((ct2e_entry_t *)cto)->ct_iid = cso->init_id;
+			if (ISP_CAP_2KLOGIN(isp)) {
+				((ct2e_entry_t *)cto)->ct_iid = atp->nphdl;
 			} else {
-				cto->ct_iid = cso->init_id;
+				cto->ct_iid = atp->nphdl;
 				if (ISP_CAP_SCCFW(isp) == 0) {
 					cto->ct_lun = ccb->ccb_h.target_lun;
 				}
@@ -2441,28 +2441,24 @@ isp_handle_platform_atio2(ispsoftc_t *isp, at2_entry_t *aep)
 	 * We don't get 'suggested' sense data as we do with SCSI cards.
 	 */
 	atiop->sense_len = 0;
-	if (ISP_CAP_2KLOGIN(isp)) {
-		/*
-		 * NB: We could not possibly have 2K logins if we
-		 * NB: also did not have SCC FW.
-		 */
-		atiop->init_id = ((at2e_entry_t *)aep)->at_iid;
-	} else {
-		atiop->init_id = aep->at_iid;
-	}
 
 	/*
 	 * If we're not in the port database, add ourselves.
 	 */
-	if (!IS_2100(isp) &&
-	    (isp_find_pdb_by_handle(isp, 0, atiop->init_id, &lp) == 0 ||
-	     lp->state == FC_PORTDB_STATE_ZOMBIE)) {
-		uint64_t iid =
-			(((uint64_t) aep->at_wwpn[0]) << 48) |
-			(((uint64_t) aep->at_wwpn[1]) << 32) |
-			(((uint64_t) aep->at_wwpn[2]) << 16) |
-			(((uint64_t) aep->at_wwpn[3]) <<  0);
-		isp_add_wwn_entry(isp, 0, iid, atiop->init_id, PORT_ANY, 0);
+	if (IS_2100(isp))
+		atiop->init_id = nphdl;
+	else {
+		if ((isp_find_pdb_by_handle(isp, 0, nphdl, &lp) == 0 ||
+		     lp->state == FC_PORTDB_STATE_ZOMBIE)) {
+			uint64_t iid =
+				(((uint64_t) aep->at_wwpn[0]) << 48) |
+				(((uint64_t) aep->at_wwpn[1]) << 32) |
+				(((uint64_t) aep->at_wwpn[2]) << 16) |
+				(((uint64_t) aep->at_wwpn[3]) <<  0);
+			isp_add_wwn_entry(isp, 0, iid, nphdl, PORT_ANY, 0);
+			isp_find_pdb_by_handle(isp, 0, nphdl, &lp);
+		}
+		atiop->init_id = FC_PORTDB_TGT(isp, 0, lp);
 	}
 	atiop->cdb_len = ATIO2_CDBLEN;
 	ISP_MEMCPY(atiop->cdb_io.cdb_bytes, aep->at_cdb, ATIO2_CDBLEN);
@@ -2491,7 +2487,7 @@ isp_handle_platform_atio2(ispsoftc_t *isp, at2_entry_t *aep)
 	atp->orig_datalen = aep->at_datalen;
 	atp->bytes_xfered = 0;
 	atp->lun = lun;
-	atp->nphdl = atiop->init_id;
+	atp->nphdl = nphdl;
 	atp->sid = PORT_ANY;
 	atp->oxid = aep->at_oxid;
 	atp->cdb0 = aep->at_cdb[0];
@@ -2520,7 +2516,6 @@ isp_handle_platform_atio7(ispsoftc_t *isp, at7_entry_t *aep)
 	int cdbxlen;
 	uint16_t lun, chan, nphdl = NIL_HANDLE;
 	uint32_t did, sid;
-	uint64_t wwn = INI_NONE;
 	fcportdb_t *lp;
 	tstate_t *tptr;
 	struct ccb_accept_tio *atiop;
@@ -2588,7 +2583,6 @@ isp_handle_platform_atio7(ispsoftc_t *isp, at7_entry_t *aep)
 		return;
 	}
 	nphdl = lp->handle;
-	wwn = lp->port_wwn;
 
 	/*
 	 * Get the tstate pointer
@@ -2676,7 +2670,7 @@ isp_handle_platform_atio7(ispsoftc_t *isp, at7_entry_t *aep)
 	SLIST_REMOVE_HEAD(&tptr->atios, sim_links.sle);
 	tptr->atio_count--;
 	ISP_PATH_PRT(isp, ISP_LOGTDEBUG2, atiop->ccb_h.path, "Take FREE ATIO count now %d\n", tptr->atio_count);
-	atiop->init_id = nphdl;
+	atiop->init_id = FC_PORTDB_TGT(isp, chan, lp);
 	atiop->ccb_h.target_id = FCPARAM(isp, chan)->isp_loopid;
 	atiop->ccb_h.target_lun = lun;
 	atiop->sense_len = 0;
@@ -3090,7 +3084,7 @@ isp_handle_platform_notify_fc(ispsoftc_t *isp, in_fcentry_t *inp)
 	{
 		tstate_t *tptr;
 		uint16_t lun;
-		uint32_t loopid;
+		uint32_t loopid, sid;
 		uint64_t wwn;
 		atio_private_data_t *atp;
 		fcportdb_t *lp;
@@ -3108,8 +3102,10 @@ isp_handle_platform_notify_fc(ispsoftc_t *isp, in_fcentry_t *inp)
 		}
 		if (isp_find_pdb_by_handle(isp, 0, loopid, &lp)) {
 			wwn = lp->port_wwn;
+			sid = lp->portid;
 		} else {
 			wwn = INI_ANY;
+			sid = PORT_ANY;
 		}
 		tptr = get_lun_statep(isp, 0, lun);
 		if (tptr == NULL) {
@@ -3141,7 +3137,7 @@ isp_handle_platform_notify_fc(ispsoftc_t *isp, in_fcentry_t *inp)
 			nt->nt_tgt = FCPARAM(isp, 0)->isp_wwpn;
 			nt->nt_wwn = wwn;
 			nt->nt_nphdl = loopid;
-			nt->nt_sid = PORT_ANY;
+			nt->nt_sid = sid;
 			nt->nt_did = PORT_ANY;
     			nt->nt_lun = lun;
             		nt->nt_need_ack = 1;
@@ -3453,10 +3449,11 @@ isp_handle_platform_target_tmf(ispsoftc_t *isp, isp_notify_t *notify)
 		goto bad;
 	}
 
-	if (isp_find_pdb_by_sid(isp, notify->nt_channel, notify->nt_sid, &lp) == 0) {
+	if (isp_find_pdb_by_sid(isp, notify->nt_channel, notify->nt_sid, &lp) == 0 &&
+	    isp_find_pdb_by_handle(isp, notify->nt_channel, notify->nt_nphdl, &lp) == 0) {
 		inot->initiator_id = CAM_TARGET_WILDCARD;
 	} else {
-		inot->initiator_id = lp->handle;
+		inot->initiator_id = FC_PORTDB_TGT(isp, notify->nt_channel, lp);
 	}
 	inot->seq_id = notify->nt_tagval;
 	inot->tag_id = notify->nt_tagval >> 32;
@@ -4666,7 +4663,7 @@ isp_gdt_task(void *arg, int pending)
 			adc = (struct ac_device_changed *) ac.contract_data;
 			adc->wwpn = lp->port_wwn;
 			adc->port = lp->portid;
-			adc->target = lp->handle;
+			adc->target = dbidx;
 			adc->arrived = 0;
 			xpt_async(AC_CONTRACT, fc->path, &ac);
 		}
@@ -4753,7 +4750,7 @@ isp_ldt_task(void *arg, int pending)
 			adc = (struct ac_device_changed *) ac.contract_data;
 			adc->wwpn = lp->port_wwn;
 			adc->port = lp->portid;
-			adc->target = lp->handle;
+			adc->target = dbidx;
 			adc->arrived = 0;
 			xpt_async(AC_CONTRACT, fc->path, &ac);
 		}
@@ -5757,7 +5754,7 @@ isp_async(ispsoftc_t *isp, ispasync_t cmd, ...)
 			adc = (struct ac_device_changed *) ac.contract_data;
 			adc->wwpn = lp->port_wwn;
 			adc->port = lp->portid;
-			adc->target = lp->handle;
+			adc->target = tgt;
 			adc->arrived = 1;
 			xpt_async(AC_CONTRACT, fc->path, &ac);
 		}
@@ -5792,7 +5789,7 @@ changed:
 			adc = (struct ac_device_changed *) ac.contract_data;
 			adc->wwpn = lp->port_wwn;
 			adc->port = lp->portid;
-			adc->target = lp->handle;
+			adc->target = tgt;
 			adc->arrived = lp->is_initiator;
 			xpt_async(AC_CONTRACT, fc->path, &ac);
 		}
