@@ -437,6 +437,10 @@
 
       <para revision="286795">The &man.patch.1; utility has been
 	updated to remove the automatic checkout feature.</para>
+
+      <para revision="287473" contrib="sponsor" sponsor="&gandi;">A
+	new utility, &man.sesutil.8;, has been added, which is used
+	to manage &man.ses.4; devices.</para>
     </sect2>
 
     <sect2 xml:id="userland-contrib">
