@@ -65,10 +65,6 @@ static struct cfi_softc cfi_softc;
 
 static int cfi_init(void);
 static void cfi_shutdown(void);
-static void cfi_online(void *arg);
-static void cfi_offline(void *arg);
-static int cfi_lun_enable(void *arg, int lun_id);
-static int cfi_lun_disable(void *arg, int lun_id);
 static void cfi_datamove(union ctl_io *io);
 static void cfi_done(union ctl_io *io);
 
@@ -93,12 +89,6 @@ cfi_init(void)
 	port->port_type = CTL_PORT_IOCTL;
 	port->num_requested_ctl_io = 100;
 	port->port_name = "ioctl";
-	port->port_online = cfi_online;
-	port->port_offline = cfi_offline;
-	port->onoff_arg = &isoftc;
-	port->lun_enable = cfi_lun_enable;
-	port->lun_disable = cfi_lun_disable;
-	port->targ_lun_arg = &isoftc;
 	port->fe_datamove = cfi_datamove;
 	port->fe_done = cfi_done;
 	port->max_targets = 1;
@@ -123,30 +113,6 @@ cfi_shutdown(void)
 	ctl_port_offline(port);
 	if (ctl_port_deregister(&isoftc->port) != 0)
 		printf("%s: ctl_frontend_deregister() failed\n", __func__);
-}
-
-static void
-cfi_online(void *arg)
-{
-}
-
-static void
-cfi_offline(void *arg)
-{
-}
-
-static int
-cfi_lun_enable(void *arg, int lun_id)
-{
-
-	return (0);
-}
-
-static int
-cfi_lun_disable(void *arg, int lun_id)
-{
-
-	return (0);
 }
 
 /*

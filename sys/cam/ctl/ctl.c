@@ -3102,7 +3102,8 @@ ctl_lun_map_init(struct ctl_port *port)
 		return (ENOMEM);
 	for (i = 0; i < CTL_MAX_LUNS; i++)
 		port->lun_map[i] = UINT32_MAX;
-	if (port->status & CTL_PORT_STATUS_ONLINE) {
+	if (port->status & CTL_PORT_STATUS_ONLINE &&
+	    port->lun_disable != NULL) {
 		STAILQ_FOREACH(lun, &softc->lun_list, links)
 			port->lun_disable(port->targ_lun_arg, lun->lun);
 	}
@@ -3119,7 +3120,8 @@ ctl_lun_map_deinit(struct ctl_port *port)
 		return (0);
 	free(port->lun_map, M_CTL);
 	port->lun_map = NULL;
-	if (port->status & CTL_PORT_STATUS_ONLINE) {
+	if (port->status & CTL_PORT_STATUS_ONLINE &&
+	    port->lun_enable != NULL) {
 		STAILQ_FOREACH(lun, &softc->lun_list, links)
 			port->lun_enable(port->targ_lun_arg, lun->lun);
 	}
@@ -3139,7 +3141,8 @@ ctl_lun_map_set(struct ctl_port *port, uint32_t plun, uint32_t glun)
 	}
 	old = port->lun_map[plun];
 	port->lun_map[plun] = glun;
-	if ((port->status & CTL_PORT_STATUS_ONLINE) && old >= CTL_MAX_LUNS)
+	if ((port->status & CTL_PORT_STATUS_ONLINE) && old >= CTL_MAX_LUNS &&
+	    port->lun_enable != NULL)
 		port->lun_enable(port->targ_lun_arg, plun);
 	return (0);
 }
@@ -3153,7 +3156,8 @@ ctl_lun_map_unset(struct ctl_port *port, uint32_t plun)
 		return (0);
 	old = port->lun_map[plun];
 	port->lun_map[plun] = UINT32_MAX;
-	if ((port->status & CTL_PORT_STATUS_ONLINE) && old < CTL_MAX_LUNS)
+	if ((port->status & CTL_PORT_STATUS_ONLINE) && old < CTL_MAX_LUNS &&
+	    port->lun_disable != NULL)
 		port->lun_disable(port->targ_lun_arg, plun);
 	return (0);
 }
@@ -4321,7 +4325,7 @@ ctl_enable_lun(struct ctl_be_lun *be_lun)
 	for (port = STAILQ_FIRST(&softc->port_list); port != NULL; port = nport) {
 		nport = STAILQ_NEXT(port, links);
 		if ((port->status & CTL_PORT_STATUS_ONLINE) == 0 ||
-		    port->lun_map != NULL)
+		    port->lun_map != NULL || port->lun_enable == NULL)
 			continue;
 
 		/*
@@ -4368,9 +4372,9 @@ ctl_disable_lun(struct ctl_be_lun *be_lun)
 
 	STAILQ_FOREACH(port, &softc->port_list, links) {
 		if ((port->status & CTL_PORT_STATUS_ONLINE) == 0 ||
-		    port->lun_map != NULL)
+		    port->lun_map != NULL || port->lun_disable == NULL)
 			continue;
-		mtx_unlock(&softc->ctl_lock);
+
 		/*
 		 * Drop the lock before we call the frontend's disable
 		 * routine, to avoid lock order reversals.
@@ -4378,6 +4382,7 @@ ctl_disable_lun(struct ctl_be_lun *be_lun)
 		 * XXX KDM what happens if the frontend list changes while
 		 * we're traversing it?  It's unlikely, but should be handled.
 		 */
+		mtx_unlock(&softc->ctl_lock);
 		retval = port->lun_disable(port->targ_lun_arg, lun->lun);
 		mtx_lock(&softc->ctl_lock);
 		if (retval != 0) {

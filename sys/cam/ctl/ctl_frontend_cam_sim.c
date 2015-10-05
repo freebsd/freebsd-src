@@ -98,8 +98,6 @@ int cfcs_init(void);
 static void cfcs_poll(struct cam_sim *sim);
 static void cfcs_online(void *arg);
 static void cfcs_offline(void *arg);
-static int cfcs_lun_enable(void *arg, int lun_id);
-static int cfcs_lun_disable(void *arg, int lun_id);
 static void cfcs_datamove(union ctl_io *io);
 static void cfcs_done(union ctl_io *io);
 void cfcs_action(struct cam_sim *sim, union ccb *ccb);
@@ -152,9 +150,6 @@ cfcs_init(void)
 	port->port_online = cfcs_online;
 	port->port_offline = cfcs_offline;
 	port->onoff_arg = softc;
-	port->lun_enable = cfcs_lun_enable;
-	port->lun_disable = cfcs_lun_disable;
-	port->targ_lun_arg = softc;
 	port->fe_datamove = cfcs_datamove;
 	port->fe_done = cfcs_done;
 
@@ -299,17 +294,6 @@ static void
 cfcs_offline(void *arg)
 {
 	cfcs_onoffline(arg, /*online*/ 0);
-}
-
-static int
-cfcs_lun_enable(void *arg, int lun_id)
-{
-	return (0);
-}
-static int
-cfcs_lun_disable(void *arg, int lun_id)
-{
-	return (0);
 }
 
 /*
