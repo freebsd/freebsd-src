@@ -439,7 +439,7 @@ static int ctl_scsiio_lun_check(struct ctl_lun *lun,
 #ifdef notyet
 static void ctl_failover(void);
 #endif
-static void ctl_clear_ua(struct ctl_softc *ctl_softc, uint32_t initidx,
+static void ctl_clr_ua_allluns(struct ctl_softc *ctl_softc, uint32_t initidx,
 			 ctl_ua_type ua_type);
 static int ctl_scsiio_precheck(struct ctl_softc *ctl_softc,
 			       struct ctl_scsiio *ctsio);
@@ -1011,6 +1011,20 @@ ctl_clr_ua_all(struct ctl_lun *lun, uint32_t except, ctl_ua_type ua)
 				continue;
 			lun->pending_ua[i][j] &= ~ua;
 		}
+	}
+}
+
+static void
+ctl_clr_ua_allluns(struct ctl_softc *ctl_softc, uint32_t initidx,
+    ctl_ua_type ua_type)
+{
+	struct ctl_lun *lun;
+
+	mtx_assert(&ctl_softc->ctl_lock, MA_OWNED);
+	STAILQ_FOREACH(lun, &ctl_softc->lun_list, links) {
+		mtx_lock(&lun->lun_lock);
+		ctl_clr_ua(lun, initidx, ua_type);
+		mtx_unlock(&lun->lun_lock);
 	}
 }
 
@@ -9102,7 +9116,7 @@ ctl_request_sense(struct ctl_scsiio *ctsio)
 		if (ua_type == CTL_UA_LUN_CHANGE) {
 			mtx_unlock(&lun->lun_lock);
 			mtx_lock(&ctl_softc->ctl_lock);
-			ctl_clear_ua(ctl_softc, initidx, ua_type);
+			ctl_clr_ua_allluns(ctl_softc, initidx, ua_type);
 			mtx_unlock(&ctl_softc->ctl_lock);
 			mtx_lock(&lun->lun_lock);
 		}
@@ -11089,24 +11103,6 @@ ctl_failover(void)
 	mtx_unlock(&softc->ctl_lock);
 }
 #endif
-
-static void
-ctl_clear_ua(struct ctl_softc *ctl_softc, uint32_t initidx,
-	     ctl_ua_type ua_type)
-{
-	struct ctl_lun *lun;
-	ctl_ua_type *pu;
-
-	mtx_assert(&ctl_softc->ctl_lock, MA_OWNED);
-
-	STAILQ_FOREACH(lun, &ctl_softc->lun_list, links) {
-		mtx_lock(&lun->lun_lock);
-		pu = lun->pending_ua[initidx / CTL_MAX_INIT_PER_PORT];
-		if (pu != NULL)
-			pu[initidx % CTL_MAX_INIT_PER_PORT] &= ~ua_type;
-		mtx_unlock(&lun->lun_lock);
-	}
-}
 
 static int
 ctl_scsiio_precheck(struct ctl_softc *softc, struct ctl_scsiio *ctsio)
