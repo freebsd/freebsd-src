@@ -166,6 +166,12 @@
     <sect2 xml:id="userland-programs">
       <title>Userland Application Changes</title>
 
+      <para revision="286064">The &man.jail.8; utility has been
+	updated to include a new flag, <literal>-l</literal>, which
+	ensures a clean environment in the target jail when used.
+	Additionally, &man.jail.8; will run a shell within the target
+	jail when run no commands are specified.</para>
+
       <para revision="287122">The &man.mkimg.1; utility has been
 	updated to include support for <literal>NTFS</literal>
 	filesystems in both <acronym>MBR</acronym> and
