@@ -3458,7 +3458,7 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 			 * Disable queue sorting for non-rotational media
 			 * by default.
 			 */
-			u_int old_rate = softc->disk->d_rotation_rate;
+			u_int16_t old_rate = softc->disk->d_rotation_rate;
 
 			softc->disk->d_rotation_rate =
 				scsi_2btoul(bdc->medium_rotation_rate);
