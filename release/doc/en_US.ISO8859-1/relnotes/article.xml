@@ -1410,6 +1410,10 @@
 	added, providing support for 1-Wire hardware through
 	&man.gpio.4;.  See &man.ow.4;, &man.owc.4;, and
 	&man.ow.temp.4; for more information.</para>
+
+      <para revision="287371" arch="arm64" contrib="sponsor"
+	sponsor="&abt;">Support for the HiSilicon HI6220 SoC has been
+	added.</para>
     </sect2>
   </sect1>
 
