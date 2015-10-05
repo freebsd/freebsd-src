@@ -525,9 +525,6 @@
 	&man.hostapd.8; utilities have been updated to version
 	2.4.</para>
 
-      <para revision="282089">The &man.unbound.8; utility has been
-	updated to version 1.5.3.</para>
-
       <para revision="282434" contrib="sponsor" sponsor="&ff;">The
 	&man.resolvconf.8; utility has been updated to version
 	3.7.0.</para>
@@ -589,6 +586,9 @@
 
       <para revision="287168">The &man.acpi.4; subsystem has been
 	updated to version 20150818.</para>
+
+      <para revision="287917">The &man.unbound.8; utility has been
+	updated to version 1.5.4.</para>
 
       <para revision="288090">&man.jemalloc.3; has been updated to
 	version 4.0.2.</para>
