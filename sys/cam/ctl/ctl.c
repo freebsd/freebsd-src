@@ -571,15 +571,14 @@ ctl_isc_handler_finish_ser_only(struct ctl_softc *ctl_softc,
 		printf("%s: %p use after free!\n", __func__,
 		       ctsio);
 		printf("%s: type %d msg %d cdb %x iptl: "
-		       "%d:%d:%d:%d tag 0x%04x "
+		       "%u:%u:%u tag 0x%04x "
 		       "flag %#x status %x\n",
 			__func__,
 			tmp_io->io_hdr.io_type,
 			tmp_io->io_hdr.msg_type,
 			tmp_io->scsiio.cdb[0],
-			tmp_io->io_hdr.nexus.initid.id,
+			tmp_io->io_hdr.nexus.initid,
 			tmp_io->io_hdr.nexus.targ_port,
-			tmp_io->io_hdr.nexus.targ_target.id,
 			tmp_io->io_hdr.nexus.targ_lun,
 			(tmp_io->io_hdr.io_type ==
 			CTL_IO_TASK) ?
@@ -667,10 +666,9 @@ ctl_isc_event_handler(ctl_ha_channel channel, ctl_ha_event event, int param)
 				io->io_hdr.flags |= CTL_FLAG_INT_COPY;
 			io->io_hdr.nexus = msg_info.hdr.nexus;
 #if 0
-			printf("targ %d, port %d, iid %d, lun %d\n",
-			       io->io_hdr.nexus.targ_target.id,
+			printf("port %u, iid %u, lun %u\n",
 			       io->io_hdr.nexus.targ_port,
-			       io->io_hdr.nexus.initid.id,
+			       io->io_hdr.nexus.initid,
 			       io->io_hdr.nexus.targ_lun);
 #endif
 			io->scsiio.tag_num = msg_info.scsi.tag_num;
@@ -3070,10 +3068,10 @@ uint32_t
 ctl_get_initindex(struct ctl_nexus *nexus)
 {
 	if (nexus->targ_port < CTL_MAX_PORTS)
-		return (nexus->initid.id +
+		return (nexus->initid +
 			(nexus->targ_port * CTL_MAX_INIT_PER_PORT));
 	else
-		return (nexus->initid.id +
+		return (nexus->initid +
 		       ((nexus->targ_port - CTL_MAX_PORTS) *
 			CTL_MAX_INIT_PER_PORT));
 }
@@ -3081,7 +3079,7 @@ ctl_get_initindex(struct ctl_nexus *nexus)
 uint32_t
 ctl_get_resindex(struct ctl_nexus *nexus)
 {
-	return (nexus->initid.id + (nexus->targ_port * CTL_MAX_INIT_PER_PORT));
+	return (nexus->initid + (nexus->targ_port * CTL_MAX_INIT_PER_PORT));
 }
 
 uint32_t
@@ -10434,8 +10432,8 @@ ctl_check_for_blockage(struct ctl_lun *lun, union ctl_io *pending_io,
 	 && (ooa_io->scsiio.tag_type == CTL_TAG_UNTAGGED)
 	 && ((pending_io->io_hdr.nexus.targ_port ==
 	      ooa_io->io_hdr.nexus.targ_port)
-	  && (pending_io->io_hdr.nexus.initid.id ==
-	      ooa_io->io_hdr.nexus.initid.id))
+	  && (pending_io->io_hdr.nexus.initid ==
+	      ooa_io->io_hdr.nexus.initid))
 	 && ((ooa_io->io_hdr.flags & (CTL_FLAG_ABORT |
 	      CTL_FLAG_STATUS_SENT)) == 0))
 		return (CTL_ACTION_OVERLAP);
@@ -10456,8 +10454,8 @@ ctl_check_for_blockage(struct ctl_lun *lun, union ctl_io *pending_io,
 	 && (pending_io->scsiio.tag_num == ooa_io->scsiio.tag_num)
 	 && ((pending_io->io_hdr.nexus.targ_port ==
 	      ooa_io->io_hdr.nexus.targ_port)
-	  && (pending_io->io_hdr.nexus.initid.id ==
-	      ooa_io->io_hdr.nexus.initid.id))
+	  && (pending_io->io_hdr.nexus.initid ==
+	      ooa_io->io_hdr.nexus.initid))
 	 && ((ooa_io->io_hdr.flags & (CTL_FLAG_ABORT |
 	      CTL_FLAG_STATUS_SENT)) == 0))
 		return (CTL_ACTION_OVERLAP_TAG);
@@ -11571,9 +11569,9 @@ ctl_abort_tasks_lun(struct ctl_lun *lun, uint32_t targ_port, uint32_t init_id,
 		if ((targ_port == UINT32_MAX ||
 		     targ_port == xio->io_hdr.nexus.targ_port) &&
 		    (init_id == UINT32_MAX ||
-		     init_id == xio->io_hdr.nexus.initid.id)) {
+		     init_id == xio->io_hdr.nexus.initid)) {
 			if (targ_port != xio->io_hdr.nexus.targ_port ||
-			    init_id != xio->io_hdr.nexus.initid.id)
+			    init_id != xio->io_hdr.nexus.initid)
 				xio->io_hdr.flags |= CTL_FLAG_ABORT_STATUS;
 			xio->io_hdr.flags |= CTL_FLAG_ABORT;
 			if (!other_sc && !(lun->flags & CTL_LUN_PRIMARY_SC)) {
@@ -11616,7 +11614,7 @@ ctl_abort_task_set(union ctl_io *io)
 	mtx_unlock(&softc->ctl_lock);
 	if (io->taskio.task_action == CTL_TASK_ABORT_TASK_SET) {
 		ctl_abort_tasks_lun(lun, io->io_hdr.nexus.targ_port,
-		    io->io_hdr.nexus.initid.id,
+		    io->io_hdr.nexus.initid,
 		    (io->io_hdr.flags & CTL_FLAG_FROM_OTHER_SC) != 0);
 	} else { /* CTL_TASK_CLEAR_TASK_SET */
 		ctl_abort_tasks_lun(lun, UINT32_MAX, UINT32_MAX,
@@ -11639,7 +11637,7 @@ ctl_i_t_nexus_reset(union ctl_io *io)
 	STAILQ_FOREACH(lun, &softc->lun_list, links) {
 		mtx_lock(&lun->lun_lock);
 		ctl_abort_tasks_lun(lun, io->io_hdr.nexus.targ_port,
-		    io->io_hdr.nexus.initid.id,
+		    io->io_hdr.nexus.initid,
 		    (io->io_hdr.flags & CTL_FLAG_FROM_OTHER_SC) != 0);
 #ifdef CTL_WITH_CA
 		ctl_clear_mask(lun->have_ca, initidx);
@@ -11718,7 +11716,7 @@ ctl_abort_task(union ctl_io *io)
 #endif
 
 		if ((xio->io_hdr.nexus.targ_port != io->io_hdr.nexus.targ_port)
-		 || (xio->io_hdr.nexus.initid.id != io->io_hdr.nexus.initid.id)
+		 || (xio->io_hdr.nexus.initid != io->io_hdr.nexus.initid)
 		 || (xio->io_hdr.flags & CTL_FLAG_ABORT))
 			continue;
 
@@ -11780,10 +11778,9 @@ ctl_abort_task(union ctl_io *io)
 		 */
 #if 0
 		printf("ctl_abort_task: ABORT sent for nonexistent I/O: "
-		       "%d:%d:%d:%d tag %d type %d\n",
-		       io->io_hdr.nexus.initid.id,
+		       "%u:%u:%u tag %d type %d\n",
+		       io->io_hdr.nexus.initid,
 		       io->io_hdr.nexus.targ_port,
-		       io->io_hdr.nexus.targ_target.id,
 		       io->io_hdr.nexus.targ_lun, io->taskio.tag_num,
 		       io->taskio.tag_type);
 #endif
@@ -12210,10 +12207,9 @@ ctl_datamove(union ctl_io *io)
 	 * the data move.
 	 */
 	if (io->io_hdr.flags & CTL_FLAG_ABORT) {
-		printf("ctl_datamove: tag 0x%04x on (%ju:%d:%ju:%d) aborted\n",
-		       io->scsiio.tag_num,(uintmax_t)io->io_hdr.nexus.initid.id,
+		printf("ctl_datamove: tag 0x%04x on (%u:%u:%u) aborted\n",
+		       io->scsiio.tag_num, io->io_hdr.nexus.initid,
 		       io->io_hdr.nexus.targ_port,
-		       (uintmax_t)io->io_hdr.nexus.targ_target.id,
 		       io->io_hdr.nexus.targ_lun);
 		io->io_hdr.port_status = 31337;
 		/*
@@ -12981,10 +12977,9 @@ ctl_datamove_remote(union ctl_io *io)
 	 * have been done if need be on the other controller.
 	 */
 	if (io->io_hdr.flags & CTL_FLAG_ABORT) {
-		printf("%s: tag 0x%04x on (%d:%d:%d:%d) aborted\n", __func__,
-		       io->scsiio.tag_num, io->io_hdr.nexus.initid.id,
+		printf("%s: tag 0x%04x on (%u:%u:%u) aborted\n", __func__,
+		       io->scsiio.tag_num, io->io_hdr.nexus.initid,
 		       io->io_hdr.nexus.targ_port,
-		       io->io_hdr.nexus.targ_target.id,
 		       io->io_hdr.nexus.targ_lun);
 		io->io_hdr.port_status = 31338;
 		ctl_send_datamove_done(io, /*have_lock*/ 0);
@@ -13379,15 +13374,14 @@ ctl_done(union ctl_io *io)
 #if 0
 	if (io->io_hdr.flags & CTL_FLAG_ALREADY_DONE) {
 		printf("%s: type %d msg %d cdb %x iptl: "
-		       "%d:%d:%d:%d tag 0x%04x "
+		       "%u:%u:%u tag 0x%04x "
 		       "flag %#x status %x\n",
 			__func__,
 			io->io_hdr.io_type,
 			io->io_hdr.msg_type,
 			io->scsiio.cdb[0],
-			io->io_hdr.nexus.initid.id,
+			io->io_hdr.nexus.initid,
 			io->io_hdr.nexus.targ_port,
-			io->io_hdr.nexus.targ_target.id,
 			io->io_hdr.nexus.targ_lun,
 			(io->io_hdr.io_type ==
 			CTL_IO_TASK) ?
@@ -13651,7 +13645,7 @@ ctl_enqueue_incoming(union ctl_io *io)
 	u_int idx;
 
 	idx = (io->io_hdr.nexus.targ_port * 127 +
-	       io->io_hdr.nexus.initid.id) % worker_threads;
+	       io->io_hdr.nexus.initid) % worker_threads;
 	thr = &softc->threads[idx];
 	mtx_lock(&thr->queue_lock);
 	STAILQ_INSERT_TAIL(&thr->incoming_queue, &io->io_hdr, links);
