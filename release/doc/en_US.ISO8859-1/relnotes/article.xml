@@ -1396,6 +1396,13 @@
 	&man.auto.master.5; map, <literal>-noauto</literal>, which
 	handles &man.fstab.5; entries set to
 	<literal>noauto</literal>.</para>
+
+      <para revision="286444">The <acronym>GELI</acronym> class has
+	been updated to support the <literal>BIO_DELETE</literal>
+	&man.g.bio.9; <literal>bio_cmd</literal> field, providing
+	<acronym>TRIM</acronym>/<acronym>UNMAP</acronym> support on
+	<acronym>GELI</acronym>-backed <acronym>SSD</acronym> storage
+	providers.</para>
     </sect2>
 
     <sect2 xml:id="storage-net">
