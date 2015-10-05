@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2003 Silicon Graphics International Corp.
+ * Copyright (c) 2014-2015 Alexander Motin <mav@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -577,7 +578,6 @@ union ctl_io *ctl_alloc_io(void *pool_ref);
 union ctl_io *ctl_alloc_io_nowait(void *pool_ref);
 void ctl_free_io(union ctl_io *io);
 void ctl_zero_io(union ctl_io *io);
-void ctl_copy_io(union ctl_io *src, union ctl_io *dest);
 
 #endif /* _KERNEL */
 
