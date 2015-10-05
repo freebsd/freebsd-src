@@ -509,7 +509,8 @@ static struct op_table_entry scsi_op_codes[] = {
 	/* 99 */
 	/* 9A */
 	/* 9B */
-	/* 9C */
+	/* 9C  O              WRITE ATOMIC(16) */
+	{ 0x9C, D, "WRITE ATOMIC(16)" },
 	/* 9D */
 	/* XXX KDM ALL for this?  op-num.txt defines it for none.. */
 	/* 9E                  SERVICE ACTION IN(16) */
