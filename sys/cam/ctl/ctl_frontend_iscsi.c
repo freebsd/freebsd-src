@@ -1565,6 +1565,16 @@ restart:
 			if (cs2 != cs && cs2->cs_tasks_aborted == false &&
 			    cs->cs_target == cs2->cs_target &&
 			    strcmp(cs->cs_initiator_id, cs2->cs_initiator_id) == 0) {
+				if (strcmp(cs->cs_initiator_addr,
+				    cs2->cs_initiator_addr) != 0) {
+					CFISCSI_SESSION_WARN(cs2,
+					    "session reinstatement from "
+					    "different address %s",
+					    cs->cs_initiator_addr);
+				} else {
+					CFISCSI_SESSION_DEBUG(cs2,
+					    "session reinstatement");
+				}
 				cfiscsi_session_terminate(cs2);
 				mtx_unlock(&softc->lock);
 				pause("cfiscsi_reinstate", 1);
