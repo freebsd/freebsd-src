@@ -709,6 +709,11 @@
       <para revision="284483" contrib="sponsor"
 	sponsor="&scaleengine;">The Blowfish &man.crypt.3; library
 	has been updated to support &dollar;2y&dollar; hashes.</para>
+
+      <para revision="285277">The &man.execl.3; and &man.execlp.3;
+	library functions have been updated to use the
+	<literal>__sentinel</literal> <application>gcc</application>
+	attribute.</para>
     </sect2>
 
     <sect2 xml:id="userland-abi">
