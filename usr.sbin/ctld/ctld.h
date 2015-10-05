@@ -43,6 +43,7 @@
 #define	DEFAULT_CONFIG_PATH		"/etc/ctl.conf"
 #define	DEFAULT_PIDFILE			"/var/run/ctld.pid"
 #define	DEFAULT_BLOCKSIZE		512
+#define	DEFAULT_CD_BLOCKSIZE		2048
 
 #define	MAX_LUNS			1024
 #define	MAX_NAME_LEN			223

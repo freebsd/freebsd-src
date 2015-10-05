@@ -123,6 +123,10 @@ struct run_vap {
 
 	int                             (*newstate)(struct ieee80211vap *,
                                             enum ieee80211_state, int);
+	void				(*recv_mgmt)(struct ieee80211_node *,
+					    struct mbuf *, int,
+					    const struct ieee80211_rx_stats *,
+					    int, int);
 
 	uint8_t				rvp_id;
 };

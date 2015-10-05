@@ -2860,9 +2860,10 @@ ieee80211_tx_mgt_cb(struct ieee80211_node *ni, void *arg, int status)
 
 static void
 ieee80211_beacon_construct(struct mbuf *m, uint8_t *frm,
-	struct ieee80211_beacon_offsets *bo, struct ieee80211_node *ni)
+	struct ieee80211_node *ni)
 {
 	struct ieee80211vap *vap = ni->ni_vap;
+	struct ieee80211_beacon_offsets *bo = &vap->iv_bcn_off;
 	struct ieee80211com *ic = ni->ni_ic;
 	struct ieee80211_rateset *rs = &ni->ni_rates;
 	uint16_t capinfo;
@@ -3021,8 +3022,7 @@ ieee80211_beacon_construct(struct mbuf *m, uint8_t *frm,
  * Allocate a beacon frame and fillin the appropriate bits.
  */
 struct mbuf *
-ieee80211_beacon_alloc(struct ieee80211_node *ni,
-	struct ieee80211_beacon_offsets *bo)
+ieee80211_beacon_alloc(struct ieee80211_node *ni)
 {
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211com *ic = ni->ni_ic;
@@ -3104,7 +3104,7 @@ ieee80211_beacon_alloc(struct ieee80211_node *ni,
 		vap->iv_stats.is_tx_nobuf++;
 		return NULL;
 	}
-	ieee80211_beacon_construct(m, frm, bo, ni);
+	ieee80211_beacon_construct(m, frm, ni);
 
 	M_PREPEND(m, sizeof(struct ieee80211_frame), M_NOWAIT);
 	KASSERT(m != NULL, ("no space for 802.11 header?"));
@@ -3125,10 +3125,10 @@ ieee80211_beacon_alloc(struct ieee80211_node *ni,
  * Update the dynamic parts of a beacon frame based on the current state.
  */
 int
-ieee80211_beacon_update(struct ieee80211_node *ni,
-	struct ieee80211_beacon_offsets *bo, struct mbuf *m, int mcast)
+ieee80211_beacon_update(struct ieee80211_node *ni, struct mbuf *m, int mcast)
 {
 	struct ieee80211vap *vap = ni->ni_vap;
+	struct ieee80211_beacon_offsets *bo = &vap->iv_bcn_off;
 	struct ieee80211com *ic = ni->ni_ic;
 	int len_changed = 0;
 	uint16_t capinfo;
@@ -3158,7 +3158,7 @@ ieee80211_beacon_update(struct ieee80211_node *ni,
 		 * clear IEEE80211_BEACON_CSA.
 		 */
 		ieee80211_beacon_construct(m,
-		    mtod(m, uint8_t*) + sizeof(struct ieee80211_frame), bo, ni);
+		    mtod(m, uint8_t*) + sizeof(struct ieee80211_frame), ni);
 
 		/* XXX do WME aggressive mode processing? */
 		IEEE80211_UNLOCK(ic);
