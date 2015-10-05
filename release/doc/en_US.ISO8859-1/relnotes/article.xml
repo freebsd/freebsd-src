@@ -508,9 +508,6 @@
       <para revision="282613">The &man.nc.1; utility has been updated
 	to the OpenBSD 5.7 version.</para>
 
-      <para revision="283092">The &man.acpi.4; subsystem has been
-	updated to version 20150515.</para>
-
       <para revision="284237">The &man.file.1; utility has been
 	updated to version 5.23.</para>
 
@@ -546,6 +543,9 @@
 	&man.ssh.1; utility has been updated to re-implement hostname
 	canonicalization before locating the host in
 	<filename>known_hosts</filename>.</para>
+
+      <para revision="r287168">The &man.acpi.4; subsystem has been
+	updated to version 20150818.</para>
     </sect2>
 
     <sect2 xml:id="userland-installer">
