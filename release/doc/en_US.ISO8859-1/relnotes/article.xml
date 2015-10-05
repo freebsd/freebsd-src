@@ -400,6 +400,9 @@
 	filesystems in both <acronym>MBR</acronym> and
 	<acronym>GPT</acronym> partitioning schemes.</para>
 
+      <para revision="285253">The &man.quota.1; utility has been
+	updated to include support for <acronym>IPv6</acronym>.</para>
+
       <para revision="285550">The &man.w.1; utility has been updated
 	to display the full IPv6 remote address of the host from which
 	a user is connected.</para>
