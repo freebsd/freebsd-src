@@ -1018,6 +1018,10 @@
 
       <para revision="285876">The &man.cyapa.4; driver has been added,
 	supporting the Cypress APA I2C trackpad.</para>
+
+      <para revision="285883">The &man.isl.4; driver has been added,
+	supporting the Intersil I2C ISL29018 digital ambient light
+	sensor.</para>
     </sect2>
 
     <sect2 xml:id="drivers-storage">
