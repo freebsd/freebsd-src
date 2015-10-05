@@ -427,6 +427,13 @@
 	&man.ar.1; utility now enables deterministic mode
 	(<literal>-D</literal>) by default.  This behavior can be
 	disabled by specifying the <literal>-U</literal> flag.</para>
+
+      <para revision="286289" contrib="sponsor"
+	sponsor="&scaleengine;">The &man.xargs.1; utility has been
+	updated to allow specifying <literal>0</literal> as an
+	argument to the <literal>-P</literal> (parallel mode) flag,
+	which allows creating as many concurrent processes as
+	possible.</para>
     </sect2>
 
     <sect2 xml:id="userland-contrib">
