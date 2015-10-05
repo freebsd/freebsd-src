@@ -872,6 +872,11 @@
 	<para>Multi-queue support in the &man.em.4; driver is not
 	  officially supported by &intel;.</para>
       </note>
+
+      <para revision="285142" contrib="sponsor"
+	sponsor="&netgate;">The <filename>GENERIC</filename> kernel
+	configuration has been updated to include the
+	<literal>IPSEC</literal> option by default.</para>
     </sect2>
 
     <sect2 xml:id="kernel-sysctl">
