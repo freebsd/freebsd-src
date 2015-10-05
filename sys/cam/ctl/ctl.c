@@ -4003,7 +4003,7 @@ ctl_alloc_lun(struct ctl_softc *ctl_softc, struct ctl_lun *ctl_lun,
 	struct ctl_lun *nlun, *lun;
 	struct scsi_vpd_id_descriptor *desc;
 	struct scsi_vpd_id_t10 *t10id;
-	const char *eui, *naa, *scsiname, *vendor, *value;
+	const char *eui, *naa, *scsiname, *vendor;
 	int lun_number, i, lun_malloced;
 	int devidlen, idlen1, idlen2 = 0, len;
 
@@ -4168,21 +4168,6 @@ ctl_alloc_lun(struct ctl_softc *ctl_softc, struct ctl_lun *ctl_lun,
 
 	if (be_lun->flags & CTL_LUN_FLAG_PRIMARY)
 		lun->flags |= CTL_LUN_PRIMARY_SC;
-
-	value = ctl_get_opt(&be_lun->options, "readonly");
-	if (value != NULL && strcmp(value, "on") == 0)
-		lun->flags |= CTL_LUN_READONLY;
-
-	lun->serseq = CTL_LUN_SERSEQ_OFF;
-	if (be_lun->flags & CTL_LUN_FLAG_SERSEQ_READ)
-		lun->serseq = CTL_LUN_SERSEQ_READ;
-	value = ctl_get_opt(&be_lun->options, "serseq");
-	if (value != NULL && strcmp(value, "on") == 0)
-		lun->serseq = CTL_LUN_SERSEQ_ON;
-	else if (value != NULL && strcmp(value, "read") == 0)
-		lun->serseq = CTL_LUN_SERSEQ_READ;
-	else if (value != NULL && strcmp(value, "off") == 0)
-		lun->serseq = CTL_LUN_SERSEQ_OFF;
 
 	lun->ctl_softc = ctl_softc;
 #ifdef CTL_TIME_IO
@@ -6276,7 +6261,7 @@ ctl_mode_sense(struct ctl_scsiio *ctsio)
 		header->datalen = MIN(total_len - 1, 254);
 		if (control_dev == 0) {
 			header->dev_specific = 0x10; /* DPOFUA */
-			if ((lun->flags & CTL_LUN_READONLY) ||
+			if ((lun->be_lun->flags & CTL_LUN_FLAG_READONLY) ||
 			    (lun->mode_pages.control_page[CTL_PAGE_CURRENT]
 			    .eca_and_aen & SCP_SWP) != 0)
 				    header->dev_specific |= 0x80; /* WP */
@@ -6299,7 +6284,7 @@ ctl_mode_sense(struct ctl_scsiio *ctsio)
 		scsi_ulto2b(datalen, header->datalen);
 		if (control_dev == 0) {
 			header->dev_specific = 0x10; /* DPOFUA */
-			if ((lun->flags & CTL_LUN_READONLY) ||
+			if ((lun->be_lun->flags & CTL_LUN_FLAG_READONLY) ||
 			    (lun->mode_pages.control_page[CTL_PAGE_CURRENT]
 			    .eca_and_aen & SCP_SWP) != 0)
 				    header->dev_specific |= 0x80; /* WP */
@@ -10532,15 +10517,16 @@ ctl_check_for_blockage(struct ctl_lun *lun, union ctl_io *pending_io,
 		return (CTL_ACTION_BLOCK);
 	case CTL_SER_EXTENT:
 		return (ctl_extent_check(ooa_io, pending_io,
-		    (lun->serseq == CTL_LUN_SERSEQ_ON)));
+		    (lun->be_lun && lun->be_lun->serseq == CTL_LUN_SERSEQ_ON)));
 	case CTL_SER_EXTENTOPT:
 		if ((lun->mode_pages.control_page[CTL_PAGE_CURRENT].queue_flags
 		    & SCP_QUEUE_ALG_MASK) != SCP_QUEUE_ALG_UNRESTRICTED)
 			return (ctl_extent_check(ooa_io, pending_io,
-			    (lun->serseq == CTL_LUN_SERSEQ_ON)));
+			    (lun->be_lun &&
+			     lun->be_lun->serseq == CTL_LUN_SERSEQ_ON)));
 		return (CTL_ACTION_PASS);
 	case CTL_SER_EXTENTSEQ:
-		if (lun->serseq != CTL_LUN_SERSEQ_OFF)
+		if (lun->be_lun && lun->be_lun->serseq != CTL_LUN_SERSEQ_OFF)
 			return (ctl_extent_check_seq(ooa_io, pending_io));
 		return (CTL_ACTION_PASS);
 	case CTL_SER_PASS:
@@ -10767,7 +10753,8 @@ ctl_scsiio_lun_check(struct ctl_lun *lun,
 	}
 
 	if (entry->pattern & CTL_LUN_PAT_WRITE) {
-		if (lun->flags & CTL_LUN_READONLY) {
+		if (lun->be_lun &&
+		    lun->be_lun->flags & CTL_LUN_FLAG_READONLY) {
 			ctl_set_sense(ctsio, /*current_error*/ 1,
 			    /*sense_key*/ SSD_KEY_DATA_PROTECT,
 			    /*asc*/ 0x27, /*ascq*/ 0x01, SSD_ELEM_NONE);
