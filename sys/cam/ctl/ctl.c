@@ -705,6 +705,9 @@ ctl_isc_ua(struct ctl_softc *softc, union ctl_ha_msg *msg, int len)
 	    (lun = softc->ctl_luns[msg->hdr.nexus.targ_mapped_lun]) != NULL) {
 		mtx_lock(&lun->lun_lock);
 		mtx_unlock(&softc->ctl_lock);
+		if (msg->ua.ua_type == CTL_UA_THIN_PROV_THRES &&
+		    msg->ua.ua_set)
+			memcpy(lun->ua_tpt_info, msg->ua.ua_info, 8);
 		if (msg->ua.ua_all) {
 			if (msg->ua.ua_set)
 				ctl_est_ua_all(lun, iid, msg->ua.ua_type);
@@ -11133,15 +11136,9 @@ ctl_scsiio_precheck(struct ctl_softc *softc, struct ctl_scsiio *ctsio)
 	 */
 	if ((entry->flags & CTL_CMD_FLAG_NO_SENSE) == 0) {
 		ctl_ua_type ua_type;
-		scsi_sense_data_type sense_format;
-
-		if (lun->flags & CTL_LUN_SENSE_DESC)
-			sense_format = SSD_TYPE_DESC;
-		else
-			sense_format = SSD_TYPE_FIXED;
 
 		ua_type = ctl_build_ua(lun, initidx, &ctsio->sense_data,
-		    sense_format);
+		    SSD_TYPE_NONE);
 		if (ua_type != CTL_UA_NONE) {
 			mtx_unlock(&lun->lun_lock);
 			ctsio->scsi_status = SCSI_STATUS_CHECK_COND;
@@ -13340,12 +13337,16 @@ ctl_thresh_thread(void *arg)
 					continue;
 				if ((page->descr[i].flags & SLBPPD_ARMING_MASK)
 				    == SLBPPD_ARMING_INC)
-					e |= (val >= thres);
+					e = (val >= thres);
 				else
-					e |= (val <= thres);
+					e = (val <= thres);
+				if (e)
+					break;
 			}
 			mtx_lock(&lun->lun_lock);
 			if (e) {
+				scsi_u64to8b((uint8_t *)&page->descr[i] -
+				    (uint8_t *)page, lun->ua_tpt_info);
 				if (lun->lasttpt == 0 ||
 				    time_uptime - lun->lasttpt >= CTL_LBP_UA_PERIOD) {
 					lun->lasttpt = time_uptime;
@@ -13371,6 +13372,7 @@ ctl_thresh_thread(void *arg)
 				msg.ua.ua_all = 1;
 				msg.ua.ua_set = (set > 0);
 				msg.ua.ua_type = CTL_UA_THIN_PROV_THRES;
+				memcpy(msg.ua.ua_info, lun->ua_tpt_info, 8);
 				mtx_unlock(&softc->ctl_lock); // XXX
 				ctl_ha_msg_send(CTL_HA_CHAN_CTL, &msg,
 				    sizeof(msg.ua), M_WAITOK);
