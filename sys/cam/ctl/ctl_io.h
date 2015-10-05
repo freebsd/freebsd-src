@@ -183,11 +183,6 @@ struct ctl_sg_entry {
 	size_t	len;
 };
 
-struct ctl_id {
-	uint32_t		id;
-	uint64_t		wwid[2];
-};
-
 typedef enum {
 	CTL_IO_NONE,
 	CTL_IO_SCSI,
@@ -195,9 +190,8 @@ typedef enum {
 } ctl_io_type;
 
 struct ctl_nexus {
-	struct ctl_id initid;		/* Initiator ID */
+	uint32_t initid;		/* Initiator ID */
 	uint32_t targ_port;		/* Target port, filled in by PORT */
-	struct ctl_id targ_target;	/* Destination target */
 	uint32_t targ_lun;		/* Destination lun */
 	uint32_t targ_mapped_lun;	/* Destination lun CTL-wide */
 };

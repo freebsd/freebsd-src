@@ -86,7 +86,6 @@ typedef enum {
 } ctl_ooa_status;
 
 struct ctl_ooa_info {
-	uint32_t target_id;	/* Passed in to CTL */
 	uint32_t lun_id;	/* Passed in to CTL */
 	uint32_t num_entries;	/* Returned from CTL */
 	ctl_ooa_status status;	/* Returned from CTL */
@@ -114,7 +113,6 @@ typedef enum {
 } ctl_delay_status;
 
 struct ctl_io_delay_info {
-	uint32_t		target_id;
 	uint32_t		lun_id;
 	ctl_delay_type		delay_type;
 	ctl_delay_location	delay_loc;
@@ -133,7 +131,6 @@ typedef enum {
  * means that we will let through every N SYNCHRONIZE CACHE commands.
  */
 struct ctl_sync_info {
-	uint32_t		target_id;	/* passed to kernel */
 	uint32_t		lun_id;		/* passed to kernel */
 	int			sync_interval;	/* depends on whether get/set */
 	ctl_gs_sync_status	status;		/* passed from kernel */
@@ -262,7 +259,6 @@ struct ctl_error_desc_cmd {
 /*
  * Error injection descriptor.
  *
- * target_id:	   Target ID to act on.
  * lun_id	   LUN to act on.
  * lun_error:	   The type of error to inject.  See above for descriptions.
  * error_pattern:  What kind of command to act on.  See above.
@@ -273,7 +269,6 @@ struct ctl_error_desc_cmd {
  * links:	   Kernel use only.
  */
 struct ctl_error_desc {
-	uint32_t			target_id;	/* To kernel */
 	uint32_t			lun_id;		/* To kernel */
 	ctl_lun_error			lun_error;	/* To kernel */
 	ctl_lun_error_pattern		error_pattern;	/* To kernel */
