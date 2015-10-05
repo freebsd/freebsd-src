@@ -1360,7 +1360,12 @@ ctl_be_block_cw_dispatch_ws(struct ctl_be_block_lun *be_lun,
 		buf = beio->sg_segs[i].addr;
 		end = buf + seglen;
 		for (; buf < end; buf += cbe_lun->blocksize) {
-			memcpy(buf, io->scsiio.kern_data_ptr, cbe_lun->blocksize);
+			if (lbalen->flags & SWS_NDOB) {
+				memset(buf, 0, cbe_lun->blocksize);
+			} else {
+				memcpy(buf, io->scsiio.kern_data_ptr,
+				    cbe_lun->blocksize);
+			}
 			if (lbalen->flags & SWS_LBDATA)
 				scsi_ulto4b(lbalen->lba + lba, buf);
 			lba++;

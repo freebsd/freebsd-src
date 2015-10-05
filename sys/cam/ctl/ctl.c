@@ -5810,9 +5810,8 @@ ctl_write_same(struct ctl_scsiio *ctsio)
 		break; /* NOTREACHED */
 	}
 
-	/* NDOB and ANCHOR flags can be used only together with UNMAP */
-	if ((byte2 & SWS_UNMAP) == 0 &&
-	    (byte2 & (SWS_NDOB | SWS_ANCHOR)) != 0) {
+	/* ANCHOR flag can be used only together with UNMAP */
+	if ((byte2 & SWS_UNMAP) == 0 && (byte2 & SWS_ANCHOR) != 0) {
 		ctl_set_invalid_field(ctsio, /*sks_valid*/ 1,
 		    /*command*/ 1, /*field*/ 1, /*bit_valid*/ 1, /*bit*/ 0);
 		ctl_done((union ctl_io *)ctsio);
