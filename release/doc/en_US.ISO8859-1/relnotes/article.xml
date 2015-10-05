@@ -434,6 +434,9 @@
 	argument to the <literal>-P</literal> (parallel mode) flag,
 	which allows creating as many concurrent processes as
 	possible.</para>
+
+      <para revision="286795">The &man.patch.1; utility has been
+	updated to remove the automatic checkout feature.</para>
     </sect2>
 
     <sect2 xml:id="userland-contrib">
