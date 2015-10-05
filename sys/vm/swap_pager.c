@@ -313,8 +313,6 @@ swap_release_by_cred(vm_ooffset_t decr, struct ucred *cred)
 	racct_sub_cred(cred, RACCT_SWAP, decr);
 }
 
-static void swapdev_strategy(struct buf *, struct swdevt *sw);
-
 #define SWM_FREE	0x02	/* free, period			*/
 #define SWM_POP		0x04	/* pop out			*/
 
@@ -1308,7 +1306,7 @@ swap_pager_getpages_async(vm_object_t object, vm_page_t *m, int count,
  *	those whos rtvals[] entry is not set to VM_PAGER_PEND on return.
  *	We need to unbusy the rest on I/O completion.
  */
-void
+static void
 swap_pager_putpages(vm_object_t object, vm_page_t *m, int count,
     int flags, int *rtvals)
 {
