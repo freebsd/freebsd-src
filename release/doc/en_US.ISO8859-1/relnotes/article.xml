@@ -951,6 +951,10 @@
 	been added, which when set to <literal>1</literal> during
 	runtime will flush all
 	<literal>net.inet.tcp.hostcache</literal> entries.</para>
+
+      <para revision="285524">A new &man.sysctl.8;,
+	<literal>hw.model</literal>, has been added, which displays
+	<acronym>CPU</acronym> model information.</para>
     </sect2>
   </sect1>
 
