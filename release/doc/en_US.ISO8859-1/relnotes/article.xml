@@ -447,6 +447,11 @@
 	  role="package">misc/pciids</filename> package, if present,
 	falling back to the PCI ID database in the &os; base
 	system.</para>
+
+      <para revision="287842" contrib="sponsor"
+	sponsor="&scaleengine;">The &man.ifconfig.8; utility has been
+	updated to always exit with an error code if an important
+	&man.ioctl.2; fails.</para>
     </sect2>
 
     <sect2 xml:id="userland-contrib">
