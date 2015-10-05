@@ -292,7 +292,9 @@
     <sect2 xml:id="hardware-virtualization">
       <title>Virtualization Support</title>
 
-      <para>&nbsp;</para>
+      <para revision="287802">The &man.xen.4; driver has been updated
+	to include support for <literal>blkif</literal> indirect
+	segment I/O.</para>
     </sect2>
 
     <sect2 xml:id="hardware-arm">
