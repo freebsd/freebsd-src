@@ -3718,46 +3718,6 @@ ctl_zero_io(union ctl_io *io)
 	io->io_hdr.pool = pool_ref;
 }
 
-/*
- * This routine is currently used for internal copies of ctl_ios that need
- * to persist for some reason after we've already returned status to the
- * FETD.  (Thus the flag set.)
- *
- * XXX XXX
- * Note that this makes a blind copy of all fields in the ctl_io, except
- * for the pool reference.  This includes any memory that has been
- * allocated!  That memory will no longer be valid after done has been
- * called, so this would be VERY DANGEROUS for command that actually does
- * any reads or writes.  Right now (11/7/2005), this is only used for immediate
- * start and stop commands, which don't transfer any data, so this is not a
- * problem.  If it is used for anything else, the caller would also need to
- * allocate data buffer space and this routine would need to be modified to
- * copy the data buffer(s) as well.
- */
-void
-ctl_copy_io(union ctl_io *src, union ctl_io *dest)
-{
-	void *pool_ref;
-
-	if ((src == NULL)
-	 || (dest == NULL))
-		return;
-
-	/*
-	 * May need to preserve linked list pointers at some point too.
-	 */
-	pool_ref = dest->io_hdr.pool;
-
-	memcpy(dest, src, MIN(sizeof(*src), sizeof(*dest)));
-
-	dest->io_hdr.pool = pool_ref;
-	/*
-	 * We need to know that this is an internal copy, and doesn't need
-	 * to get passed back to the FETD that allocated it.
-	 */
-	dest->io_hdr.flags |= CTL_FLAG_INT_COPY;
-}
-
 int
 ctl_expand_number(const char *buf, uint64_t *num)
 {
@@ -4451,14 +4411,12 @@ ctl_alloc_lun(struct ctl_softc *ctl_softc, struct ctl_lun *ctl_lun,
 	be_lun->ctl_lun = lun;
 	be_lun->lun_id = lun_number;
 	atomic_add_int(&be_lun->be->num_luns, 1);
-	if (be_lun->flags & CTL_LUN_FLAG_OFFLINE)
-		lun->flags |= CTL_LUN_OFFLINE;
-
-	if (be_lun->flags & CTL_LUN_FLAG_POWERED_OFF)
+	if (be_lun->flags & CTL_LUN_FLAG_EJECTED)
+		lun->flags |= CTL_LUN_EJECTED;
+	if (be_lun->flags & CTL_LUN_FLAG_NO_MEDIA)
+		lun->flags |= CTL_LUN_NO_MEDIA;
+	if (be_lun->flags & CTL_LUN_FLAG_STOPPED)
 		lun->flags |= CTL_LUN_STOPPED;
-
-	if (be_lun->flags & CTL_LUN_FLAG_INOPERABLE)
-		lun->flags |= CTL_LUN_INOPERABLE;
 
 	if (be_lun->flags & CTL_LUN_FLAG_PRIMARY)
 		lun->flags |= CTL_LUN_PRIMARY_SC;
@@ -4719,23 +4677,51 @@ ctl_stop_lun(struct ctl_be_lun *be_lun)
 }
 
 int
-ctl_lun_offline(struct ctl_be_lun *be_lun)
+ctl_lun_no_media(struct ctl_be_lun *be_lun)
 {
 	struct ctl_lun *lun = (struct ctl_lun *)be_lun->ctl_lun;
 
 	mtx_lock(&lun->lun_lock);
-	lun->flags |= CTL_LUN_OFFLINE;
+	lun->flags |= CTL_LUN_NO_MEDIA;
 	mtx_unlock(&lun->lun_lock);
 	return (0);
 }
 
 int
-ctl_lun_online(struct ctl_be_lun *be_lun)
+ctl_lun_has_media(struct ctl_be_lun *be_lun)
+{
+	struct ctl_lun *lun = (struct ctl_lun *)be_lun->ctl_lun;
+	union ctl_ha_msg msg;
+
+	mtx_lock(&lun->lun_lock);
+	lun->flags &= ~(CTL_LUN_NO_MEDIA | CTL_LUN_EJECTED);
+	if (lun->flags & CTL_LUN_REMOVABLE)
+		ctl_est_ua_all(lun, -1, CTL_UA_MEDIUM_CHANGE);
+	mtx_unlock(&lun->lun_lock);
+	if ((lun->flags & CTL_LUN_REMOVABLE) &&
+	    lun->ctl_softc->ha_mode == CTL_HA_MODE_XFER) {
+		bzero(&msg.ua, sizeof(msg.ua));
+		msg.hdr.msg_type = CTL_MSG_UA;
+		msg.hdr.nexus.initid = -1;
+		msg.hdr.nexus.targ_port = -1;
+		msg.hdr.nexus.targ_lun = lun->lun;
+		msg.hdr.nexus.targ_mapped_lun = lun->lun;
+		msg.ua.ua_all = 1;
+		msg.ua.ua_set = 1;
+		msg.ua.ua_type = CTL_UA_MEDIUM_CHANGE;
+		ctl_ha_msg_send(CTL_HA_CHAN_CTL, &msg, sizeof(msg.ua),
+		    M_WAITOK);
+	}
+	return (0);
+}
+
+int
+ctl_lun_ejected(struct ctl_be_lun *be_lun)
 {
 	struct ctl_lun *lun = (struct ctl_lun *)be_lun->ctl_lun;
 
 	mtx_lock(&lun->lun_lock);
-	lun->flags &= ~CTL_LUN_OFFLINE;
+	lun->flags |= CTL_LUN_EJECTED;
 	mtx_unlock(&lun->lun_lock);
 	return (0);
 }
@@ -4805,28 +4791,6 @@ ctl_invalidate_lun(struct ctl_be_lun *be_lun)
 	return (0);
 }
 
-int
-ctl_lun_inoperable(struct ctl_be_lun *be_lun)
-{
-	struct ctl_lun *lun = (struct ctl_lun *)be_lun->ctl_lun;
-
-	mtx_lock(&lun->lun_lock);
-	lun->flags |= CTL_LUN_INOPERABLE;
-	mtx_unlock(&lun->lun_lock);
-	return (0);
-}
-
-int
-ctl_lun_operable(struct ctl_be_lun *be_lun)
-{
-	struct ctl_lun *lun = (struct ctl_lun *)be_lun->ctl_lun;
-
-	mtx_lock(&lun->lun_lock);
-	lun->flags &= ~CTL_LUN_INOPERABLE;
-	mtx_unlock(&lun->lun_lock);
-	return (0);
-}
-
 void
 ctl_lun_capacity_changed(struct ctl_be_lun *be_lun)
 {
@@ -4834,7 +4798,7 @@ ctl_lun_capacity_changed(struct ctl_be_lun *be_lun)
 	union ctl_ha_msg msg;
 
 	mtx_lock(&lun->lun_lock);
-	ctl_est_ua_all(lun, -1, CTL_UA_CAPACITY_CHANGED);
+	ctl_est_ua_all(lun, -1, CTL_UA_CAPACITY_CHANGE);
 	mtx_unlock(&lun->lun_lock);
 	if (lun->ctl_softc->ha_mode == CTL_HA_MODE_XFER) {
 		/* Send msg to other side. */
@@ -4846,7 +4810,7 @@ ctl_lun_capacity_changed(struct ctl_be_lun *be_lun)
 		msg.hdr.nexus.targ_mapped_lun = lun->lun;
 		msg.ua.ua_all = 1;
 		msg.ua.ua_set = 1;
-		msg.ua.ua_type = CTL_UA_CAPACITY_CHANGED;
+		msg.ua.ua_type = CTL_UA_CAPACITY_CHANGE;
 		ctl_ha_msg_send(CTL_HA_CHAN_CTL, &msg, sizeof(msg.ua),
 		    M_WAITOK);
 	}
@@ -5104,34 +5068,6 @@ ctl_start_stop(struct ctl_scsiio *ctsio)
 	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
 	cdb = (struct scsi_start_stop_unit *)ctsio->cdb;
 
-	/*
-	 * XXX KDM
-	 * We don't support the immediate bit on a stop unit.  In order to
-	 * do that, we would need to code up a way to know that a stop is
-	 * pending, and hold off any new commands until it completes, one
-	 * way or another.  Then we could accept or reject those commands
-	 * depending on its status.  We would almost need to do the reverse
-	 * of what we do below for an immediate start -- return the copy of
-	 * the ctl_io to the FETD with status to send to the host (and to
-	 * free the copy!) and then free the original I/O once the stop
-	 * actually completes.  That way, the OOA queue mechanism can work
-	 * to block commands that shouldn't proceed.  Another alternative
-	 * would be to put the copy in the queue in place of the original,
-	 * and return the original back to the caller.  That could be
-	 * slightly safer..
-	 */
-	if ((cdb->byte2 & SSS_IMMED)
-	 && ((cdb->how & SSS_START) == 0)) {
-		ctl_set_invalid_field(ctsio,
-				      /*sks_valid*/ 1,
-				      /*command*/ 1,
-				      /*field*/ 1,
-				      /*bit_valid*/ 1,
-				      /*bit*/ 0);
-		ctl_done((union ctl_io *)ctsio);
-		return (CTL_RETVAL_COMPLETE);
-	}
-
 	if ((lun->flags & CTL_LUN_PR_RESERVED)
 	 && ((cdb->how & SSS_START)==0)) {
 		uint32_t residx;
@@ -5158,28 +5094,7 @@ ctl_start_stop(struct ctl_scsiio *ctsio)
 		return (CTL_RETVAL_COMPLETE);
 	}
 
-	/*
-	 * In the non-immediate case, we send the request to
-	 * the backend and return status to the user when
-	 * it is done.
-	 *
-	 * In the immediate case, we allocate a new ctl_io
-	 * to hold a copy of the request, and send that to
-	 * the backend.  We then set good status on the
-	 * user's request and return it immediately.
-	 */
-	if (cdb->byte2 & SSS_IMMED) {
-		union ctl_io *new_io;
-
-		new_io = ctl_alloc_io(ctsio->io_hdr.pool);
-		ctl_copy_io((union ctl_io *)ctsio, new_io);
-		retval = lun->backend->config_write(new_io);
-		ctl_set_success(ctsio);
-		ctl_done((union ctl_io *)ctsio);
-	} else {
-		retval = lun->backend->config_write(
-			(union ctl_io *)ctsio);
-	}
+	retval = lun->backend->config_write((union ctl_io *)ctsio);
 	return (retval);
 }
 
@@ -5347,17 +5262,6 @@ ctl_format(struct ctl_scsiio *ctsio)
 			}
 		}
 	}
-
-	/*
-	 * The format command will clear out the "Medium format corrupted"
-	 * status if set by the configuration code.  That status is really
-	 * just a way to notify the host that we have lost the media, and
-	 * get them to issue a command that will basically make them think
-	 * they're blowing away the media.
-	 */
-	mtx_lock(&lun->lun_lock);
-	lun->flags &= ~CTL_LUN_INOPERABLE;
-	mtx_unlock(&lun->lun_lock);
 
 	ctl_set_success(ctsio);
 bailout:
@@ -10313,7 +10217,7 @@ ctl_get_config(struct ctl_scsiio *ctsio)
 	ctsio->kern_rel_offset = 0;
 
 	hdr = (struct scsi_get_config_header *)ctsio->kern_data_ptr;
-	if (lun->flags & CTL_LUN_OFFLINE)
+	if (lun->flags & CTL_LUN_NO_MEDIA)
 		scsi_ulto2b(0x0000, hdr->current_profile);
 	else
 		scsi_ulto2b(0x0010, hdr->current_profile);
@@ -10372,13 +10276,13 @@ f3:	/* Removable Medium */
 	feature = (struct scsi_get_config_feature *)
 	    &feature->feature_data[feature->add_length];
 
-	if (rt == SGC_RT_CURRENT && (lun->flags & CTL_LUN_OFFLINE))
+	if (rt == SGC_RT_CURRENT && (lun->flags & CTL_LUN_NO_MEDIA))
 		goto done;
 
 f10:	/* Random Read */
 	scsi_ulto2b(0x0010, feature->feature_code);
 	feature->flags = 0x00;
-	if ((lun->flags & CTL_LUN_OFFLINE) == 0)
+	if ((lun->flags & CTL_LUN_NO_MEDIA) == 0)
 		feature->flags |= SGC_F_CURRENT;
 	feature->add_length = 8;
 	scsi_ulto4b(lun->be_lun->blocksize, &feature->feature_data[0]);
@@ -10390,7 +10294,7 @@ f10:	/* Random Read */
 f1d:	/* Multi-Read */
 	scsi_ulto2b(0x001D, feature->feature_code);
 	feature->flags = 0x00;
-	if ((lun->flags & CTL_LUN_OFFLINE) == 0)
+	if ((lun->flags & CTL_LUN_NO_MEDIA) == 0)
 		feature->flags |= SGC_F_CURRENT;
 	feature->add_length = 0;
 	feature = (struct scsi_get_config_feature *)
@@ -10399,7 +10303,7 @@ f1d:	/* Multi-Read */
 f1e:	/* CD Read */
 	scsi_ulto2b(0x001E, feature->feature_code);
 	feature->flags = 0x00;
-	if ((lun->flags & CTL_LUN_OFFLINE) == 0)
+	if ((lun->flags & CTL_LUN_NO_MEDIA) == 0)
 		feature->flags |= SGC_F_CURRENT;
 	feature->add_length = 4;
 	feature->feature_data[0] = 0x00;
@@ -10409,7 +10313,7 @@ f1e:	/* CD Read */
 f1f:	/* DVD Read */
 	scsi_ulto2b(0x001F, feature->feature_code);
 	feature->flags = 0x08;
-	if ((lun->flags & CTL_LUN_OFFLINE) == 0)
+	if ((lun->flags & CTL_LUN_NO_MEDIA) == 0)
 		feature->flags |= SGC_F_CURRENT;
 	feature->add_length = 4;
 	feature->feature_data[0] = 0x01;
@@ -11263,25 +11167,18 @@ ctl_scsiio_lun_check(struct ctl_lun *lun,
 		}
 	}
 
-	if ((lun->flags & CTL_LUN_OFFLINE)
-	 && ((entry->flags & CTL_CMD_FLAG_OK_ON_STANDBY) == 0)) {
-		ctl_set_lun_not_ready(ctsio);
-		retval = 1;
-		goto bailout;
-	}
-
-	if ((lun->flags & CTL_LUN_STOPPED)
-	 && ((entry->flags & CTL_CMD_FLAG_OK_ON_STOPPED) == 0)) {
-		/* "Logical unit not ready, initializing cmd. required" */
-		ctl_set_lun_stopped(ctsio);
-		retval = 1;
-		goto bailout;
-	}
-
-	if ((lun->flags & CTL_LUN_INOPERABLE)
-	 && ((entry->flags & CTL_CMD_FLAG_OK_ON_INOPERABLE) == 0)) {
-		/* "Medium format corrupted" */
-		ctl_set_medium_format_corrupted(ctsio);
+	if ((entry->flags & CTL_CMD_FLAG_OK_ON_NO_MEDIA) == 0) {
+		if (lun->flags & CTL_LUN_EJECTED)
+			ctl_set_lun_ejected(ctsio);
+		else if (lun->flags & CTL_LUN_NO_MEDIA) {
+			if (lun->flags & CTL_LUN_REMOVABLE)
+				ctl_set_lun_no_media(ctsio);
+			else
+				ctl_set_lun_int_reqd(ctsio);
+		} else if (lun->flags & CTL_LUN_STOPPED)
+			ctl_set_lun_stopped(ctsio);
+		else
+			goto bailout;
 		retval = 1;
 		goto bailout;
 	}
@@ -13486,7 +13383,7 @@ ctl_thresh_thread(void *arg)
 		mtx_lock(&softc->ctl_lock);
 		STAILQ_FOREACH(lun, &softc->lun_list, links) {
 			if ((lun->flags & CTL_LUN_DISABLED) ||
-			    (lun->flags & CTL_LUN_OFFLINE) ||
+			    (lun->flags & CTL_LUN_NO_MEDIA) ||
 			    lun->backend->lun_attr == NULL)
 				continue;
 			if ((lun->flags & CTL_LUN_PRIMARY_SC) == 0 &&
