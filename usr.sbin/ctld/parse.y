@@ -761,6 +761,7 @@ target_lun:	LUN lun_number
 lun_number:	STR
 	{
 		uint64_t tmp;
+		int ret;
 		char *name;
 
 		if (expand_number($1, &tmp) != 0) {
@@ -769,7 +770,9 @@ lun_number:	STR
 			return (1);
 		}
 
-		asprintf(&name, "%s,lun,%ju", target->t_name, tmp);
+		ret = asprintf(&name, "%s,lun,%ju", target->t_name, tmp);
+		if (ret <= 0)
+			log_err(1, "asprintf");
 		lun = lun_new(conf, name);
 		if (lun == NULL)
 			return (1);
