@@ -38,9 +38,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
-# 2015mmdd: new libc++ import
+# 20151005: new libc++ import
 OLD_FILES+=usr/include/c++/__tuple_03
-# 2015mmdd: new clang import which bumps version from 3.6.1 to 3.7.0.
+# 20151005: new clang import which bumps version from 3.6.1 to 3.7.0.
 OLD_FILES+=usr/lib/clang/3.6.1/include/__stddef_max_align_t.h
 OLD_FILES+=usr/lib/clang/3.6.1/include/__wmmintrin_aes.h
 OLD_FILES+=usr/lib/clang/3.6.1/include/__wmmintrin_pclmul.h
