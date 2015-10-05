@@ -1187,6 +1187,10 @@
       <para revision="286441">The &man.iwm.4; driver has been imported
 	from OpenBSD, providing support for &intel; 3160/7260/7265
 	wireless chipsets.</para>
+
+      <para revision="286829" contrib="sponsor"
+	sponsor="&limelight;">The &man.em.4; driver has been updated
+	to allow disabling <acronym>CRC</acronym> stripping.</para>
     </sect2>
   </sect1>
 
