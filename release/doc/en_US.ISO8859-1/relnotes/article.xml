@@ -520,6 +520,9 @@
 	<literal>confUSE_COMPRESSED_IPV6_ADDRESSES</literal> or the cf
 	option <literal>UseCompressedIPv6Addresses</literal>.</para>
 
+      <para revision="285275">The &man.tcpdump.1; utility has been
+	updated to version 4.7.4.</para>
+
       <para revision="285329"><application>OpenSSL</application> has
 	been updated to version 1.0.1p.</para>
 
