@@ -273,7 +273,9 @@
     <sect2 xml:id="drivers-storage">
       <title>Storage Drivers</title>
 
-      <para>&nbsp;</para>
+      <para revision="288732" contrib="sponsor" sponsor="&ix;">The
+	<acronym>CTL</acronym> High Availability implementation has
+	been rewritten.</para>
     </sect2>
 
     <sect2 xml:id="drivers-network">
