@@ -664,6 +664,12 @@
 	<filename>iovctl</filename>, has been added, which allows
 	automatically starting the &man.iovctl.8; utility at
 	boot.</para>
+
+      <para revision="287576" contrib="sponsor"
+	sponsor="&scaleengine;">The &man.service.8; utility has been
+	updated to honor entries within <filename
+	  class="directory">/etc/rc.conf.d/</filename>.</para>
+
     </sect2>
 
     <sect2 xml:id="userland-periodic">
