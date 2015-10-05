@@ -2768,6 +2768,11 @@ ctl_be_block_config_write(union ctl_io *io)
 		struct ctl_lun_req req;
 
 		cdb = (struct scsi_start_stop_unit *)io->scsiio.cdb;
+		if ((cdb->how & SSS_PC_MASK) != 0) {
+			ctl_set_success(&io->scsiio);
+			ctl_config_write_done(io);
+			break;
+		}
 		if (cdb->how & SSS_START) {
 			if ((cdb->how & SSS_LOEJ) && be_lun->vn == NULL) {
 				retval = ctl_be_block_open(be_lun, &req);
