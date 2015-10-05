@@ -545,8 +545,10 @@ ctl_be_block_biodone(struct bio *bio)
 			ctl_set_internal_failure(&io->scsiio,
 						 /*sks_valid*/ 1,
 						 /*retry_count*/ 0xbad2);
-		} else
-			ctl_set_medium_error(&io->scsiio);
+		} else {
+			ctl_set_medium_error(&io->scsiio,
+			    beio->bio_cmd == BIO_READ);
+		}
 		ctl_complete_beio(beio);
 		return;
 	}
@@ -761,17 +763,14 @@ ctl_be_block_dispatch_file(struct ctl_be_block_lun *be_lun,
 	 * return the I/O to the user.
 	 */
 	if (error != 0) {
-		char path_str[32];
-
-		ctl_scsi_path_string(io, path_str, sizeof(path_str));
-		printf("%s%s command returned errno %d\n", path_str,
-		       (beio->bio_cmd == BIO_READ) ? "READ" : "WRITE", error);
 		if (error == ENOSPC || error == EDQUOT) {
 			ctl_set_space_alloc_fail(&io->scsiio);
 		} else if (error == EROFS || error == EACCES) {
 			ctl_set_hw_write_protected(&io->scsiio);
-		} else
-			ctl_set_medium_error(&io->scsiio);
+		} else {
+			ctl_set_medium_error(&io->scsiio,
+			    beio->bio_cmd == BIO_READ);
+		}
 		ctl_complete_beio(beio);
 		return;
 	}
@@ -937,8 +936,10 @@ ctl_be_block_dispatch_zvol(struct ctl_be_block_lun *be_lun,
 			ctl_set_space_alloc_fail(&io->scsiio);
 		} else if (error == EROFS || error == EACCES) {
 			ctl_set_hw_write_protected(&io->scsiio);
-		} else
-			ctl_set_medium_error(&io->scsiio);
+		} else {
+			ctl_set_medium_error(&io->scsiio,
+			    beio->bio_cmd == BIO_READ);
+		}
 		ctl_complete_beio(beio);
 		return;
 	}

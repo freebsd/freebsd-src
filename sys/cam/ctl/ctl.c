@@ -12048,7 +12048,9 @@ ctl_inject_error(struct ctl_lun *lun, union ctl_io *io)
 			ctl_set_aborted(&io->scsiio);
 			break;
 		case CTL_LUN_INJ_MEDIUM_ERR:
-			ctl_set_medium_error(&io->scsiio);
+			ctl_set_medium_error(&io->scsiio,
+			    (io->io_hdr.flags & CTL_FLAG_DATA_MASK) !=
+			     CTL_FLAG_DATA_OUT);
 			break;
 		case CTL_LUN_INJ_UA:
 			/* 29h/00h  POWER ON, RESET, OR BUS DEVICE RESET
