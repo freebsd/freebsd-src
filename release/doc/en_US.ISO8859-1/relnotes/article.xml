@@ -441,6 +441,12 @@
       <para revision="287473" contrib="sponsor" sponsor="&gandi;">A
 	new utility, &man.sesutil.8;, has been added, which is used
 	to manage &man.ses.4; devices.</para>
+
+      <para revision="287522">The &man.pciconf.8; utility has been
+	updated to use the PCI ID database from the <filename
+	  role="package">misc/pciids</filename> package, if present,
+	falling back to the PCI ID database in the &os; base
+	system.</para>
     </sect2>
 
     <sect2 xml:id="userland-contrib">
