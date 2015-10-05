@@ -1329,7 +1329,7 @@ ctl_isc_event_handler(ctl_ha_channel channel, ctl_ha_event event, int param)
 			io->scsiio.tag_type = msg->scsi.tag_type;
 #ifdef CTL_TIME_IO
 			io->io_hdr.start_time = time_uptime;
-			getbintime(&io->io_hdr.start_bt);
+			getbinuptime(&io->io_hdr.start_bt);
 #endif /* CTL_TIME_IO */
 			io->scsiio.cdb_len = msg->scsi.cdb_len;
 			memcpy(io->scsiio.cdb, msg->scsi.cdb,
@@ -1368,7 +1368,7 @@ ctl_isc_event_handler(ctl_ha_channel channel, ctl_ha_event event, int param)
 
 			if (msg->dt.sg_sequence == 0) {
 #ifdef CTL_TIME_IO
-				getbintime(&io->io_hdr.dma_start_bt);
+				getbinuptime(&io->io_hdr.dma_start_bt);
 #endif
 				i = msg->dt.kern_sg_entries +
 				    msg->dt.kern_data_len /
@@ -1518,7 +1518,7 @@ ctl_isc_event_handler(ctl_ha_channel channel, ctl_ha_event event, int param)
 			taskio->tag_type = msg->task.tag_type;
 #ifdef CTL_TIME_IO
 			taskio->io_hdr.start_time = time_uptime;
-			getbintime(&taskio->io_hdr.start_bt);
+			getbinuptime(&taskio->io_hdr.start_bt);
 #endif /* CTL_TIME_IO */
 			ctl_run_task((union ctl_io *)taskio);
 			break;
@@ -2777,7 +2777,7 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 			       __func__, ooa_hdr->fill_len);
 		}
 
-		getbintime(&ooa_hdr->cur_bt);
+		getbinuptime(&ooa_hdr->cur_bt);
 
 		if (cur_fill_num > ooa_hdr->alloc_num) {
 			ooa_hdr->dropped_num = cur_fill_num -ooa_hdr->alloc_num;
@@ -12656,11 +12656,11 @@ ctl_send_datamove_done(union ctl_io *io, int have_lock)
 	    msg.scsi.sense_len, M_WAITOK);
 
 #ifdef CTL_TIME_IO
-	getbintime(&cur_bt);
+	getbinuptime(&cur_bt);
 	bintime_sub(&cur_bt, &io->io_hdr.dma_start_bt);
 	bintime_add(&io->io_hdr.dma_bt, &cur_bt);
-	io->io_hdr.num_dmas++;
 #endif
+	io->io_hdr.num_dmas++;
 }
 
 /*
@@ -13169,12 +13169,12 @@ ctl_process_done(union ctl_io *io)
 #ifdef CTL_TIME_IO
 		bintime_add(&lun->stats.ports[targ_port].dma_time[type],
 		   &io->io_hdr.dma_bt);
-		lun->stats.ports[targ_port].num_dmas[type] +=
-		    io->io_hdr.num_dmas;
-		getbintime(&cur_bt);
+		getbinuptime(&cur_bt);
 		bintime_sub(&cur_bt, &io->io_hdr.start_bt);
 		bintime_add(&lun->stats.ports[targ_port].time[type], &cur_bt);
 #endif
+		lun->stats.ports[targ_port].num_dmas[type] +=
+		    io->io_hdr.num_dmas;
 	}
 
 	/*
@@ -13319,7 +13319,7 @@ ctl_queue(union ctl_io *io)
 
 #ifdef CTL_TIME_IO
 	io->io_hdr.start_time = time_uptime;
-	getbintime(&io->io_hdr.start_bt);
+	getbinuptime(&io->io_hdr.start_bt);
 #endif /* CTL_TIME_IO */
 
 	/* Map FE-specific LUN ID into global one. */
