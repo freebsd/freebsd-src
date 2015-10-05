@@ -246,7 +246,9 @@
     <sect2 xml:id="kernel-sysctl">
       <title>System Tuning and Controls</title>
 
-      <para>&nbsp;</para>
+      <para revision="287037">The &man.uart.4; driver has been
+	updated to allow tuning packets per second captured during
+	runtime.</para>
     </sect2>
   </sect1>
 
