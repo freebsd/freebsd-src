@@ -8406,7 +8406,7 @@ ctl_hndl_per_res_out_on_other_sc(union ctl_ha_msg *msg)
 	struct ctl_lun *lun;
 	struct ctl_softc *softc;
 	int i;
-	uint32_t targ_lun;
+	uint32_t residx, targ_lun;
 
 	softc = control_softc;
 	targ_lun = msg->hdr.nexus.targ_mapped_lun;
@@ -8422,6 +8422,7 @@ ctl_hndl_per_res_out_on_other_sc(union ctl_ha_msg *msg)
 		mtx_unlock(&lun->lun_lock);
 		return;
 	}
+	residx = ctl_get_initindex(&msg->hdr.nexus);
 	switch(msg->pr.pr_info.action) {
 	case CTL_PR_REG_KEY:
 		ctl_alloc_prkey(lun, msg->pr.pr_info.residx);
@@ -8486,8 +8487,9 @@ ctl_hndl_per_res_out_on_other_sc(union ctl_ha_msg *msg)
 		if (lun->res_type != SPR_TYPE_EX_AC
 		 && lun->res_type != SPR_TYPE_WR_EX) {
 			for (i = softc->init_min; i < softc->init_max; i++)
-				if (ctl_get_prkey(lun, i) != 0)
-					ctl_est_ua(lun, i, CTL_UA_RES_RELEASE);
+				if (i == residx || ctl_get_prkey(lun, i) == 0)
+					continue;
+				ctl_est_ua(lun, i, CTL_UA_RES_RELEASE);
 		}
 
 		lun->flags &= ~CTL_LUN_PR_RESERVED;
