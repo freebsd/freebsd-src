@@ -626,7 +626,7 @@ alloc:
 void
 ctl_isc_announce_port(struct ctl_port *port)
 {
-	struct ctl_softc *softc = control_softc;
+	struct ctl_softc *softc = port->ctl_softc;
 	union ctl_ha_msg *msg;
 	int i;
 
@@ -687,7 +687,7 @@ ctl_isc_announce_port(struct ctl_port *port)
 void
 ctl_isc_announce_iid(struct ctl_port *port, int iid)
 {
-	struct ctl_softc *softc = control_softc;
+	struct ctl_softc *softc = port->ctl_softc;
 	union ctl_ha_msg *msg;
 	int i, l;
 
@@ -1128,12 +1128,11 @@ ctl_isc_mode_sync(struct ctl_softc *softc, union ctl_ha_msg *msg, int len)
 static void
 ctl_isc_event_handler(ctl_ha_channel channel, ctl_ha_event event, int param)
 {
-	struct ctl_softc *softc;
+	struct ctl_softc *softc = control_softc;
 	union ctl_io *io;
 	struct ctl_prio *presio;
 	ctl_ha_status isc_status;
 
-	softc = control_softc;
 	CTL_DEBUG_PRINT(("CTL: Isc Msg event %d\n", event));
 	if (event == CTL_HA_EVT_MSG_RECV) {
 		union ctl_ha_msg *msg, msgbuf;
@@ -1584,13 +1583,11 @@ ctl_init(void)
 	int i, error, retval;
 
 	retval = 0;
-	control_softc = malloc(sizeof(*control_softc), M_DEVBUF,
+	softc = control_softc = malloc(sizeof(*control_softc), M_DEVBUF,
 			       M_WAITOK | M_ZERO);
-	softc = control_softc;
 
 	softc->dev = make_dev(&ctl_cdevsw, 0, UID_ROOT, GID_OPERATOR, 0600,
 			      "cam/ctl");
-
 	softc->dev->si_drv1 = softc;
 
 	sysctl_ctx_init(&softc->sysctl_ctx);
@@ -1722,10 +1719,8 @@ ctl_init(void)
 void
 ctl_shutdown(void)
 {
-	struct ctl_softc *softc;
+	struct ctl_softc *softc = control_softc;
 	struct ctl_lun *lun, *next_lun;
-
-	softc = (struct ctl_softc *)control_softc;
 
 	if (softc->is_single == 0) {
 		ctl_ha_msg_shutdown(softc);
@@ -1803,7 +1798,7 @@ ctl_close(struct cdev *dev, int flags, int fmt, struct thread *td)
 int
 ctl_remove_initiator(struct ctl_port *port, int iid)
 {
-	struct ctl_softc *softc = control_softc;
+	struct ctl_softc *softc = port->ctl_softc;
 
 	mtx_assert(&softc->ctl_lock, MA_NOTOWNED);
 
@@ -1829,7 +1824,7 @@ ctl_remove_initiator(struct ctl_port *port, int iid)
 int
 ctl_add_initiator(struct ctl_port *port, int iid, uint64_t wwpn, char *name)
 {
-	struct ctl_softc *softc = control_softc;
+	struct ctl_softc *softc = port->ctl_softc;
 	time_t best_time;
 	int i, best;
 
@@ -2004,14 +1999,12 @@ ctl_create_iid(struct ctl_port *port, int iid, uint8_t *buf)
 static int
 ctl_serialize_other_sc_cmd(struct ctl_scsiio *ctsio)
 {
-	struct ctl_softc *softc;
+	struct ctl_softc *softc = control_softc;
 	union ctl_ha_msg msg_info;
 	struct ctl_lun *lun;
 	const struct ctl_cmd_entry *entry;
 	int retval = 0;
 	uint32_t targ_lun;
-
-	softc = control_softc;
 
 	targ_lun = ctsio->io_hdr.nexus.targ_mapped_lun;
 	mtx_lock(&softc->ctl_lock);
@@ -2379,11 +2372,9 @@ static int
 ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 	  struct thread *td)
 {
-	struct ctl_softc *softc;
+	struct ctl_softc *softc = dev->si_drv1;
 	struct ctl_lun *lun;
 	int retval;
-
-	softc = control_softc;
 
 	retval = 0;
 
@@ -3483,7 +3474,7 @@ ctl_get_initindex(struct ctl_nexus *nexus)
 int
 ctl_lun_map_init(struct ctl_port *port)
 {
-	struct ctl_softc *softc = control_softc;
+	struct ctl_softc *softc = port->ctl_softc;
 	struct ctl_lun *lun;
 	uint32_t i;
 
@@ -3507,7 +3498,7 @@ ctl_lun_map_init(struct ctl_port *port)
 int
 ctl_lun_map_deinit(struct ctl_port *port)
 {
-	struct ctl_softc *softc = control_softc;
+	struct ctl_softc *softc = port->ctl_softc;
 	struct ctl_lun *lun;
 
 	if (port->lun_map == NULL)
@@ -4674,14 +4665,11 @@ ctl_free_lun(struct ctl_lun *lun)
 static void
 ctl_create_lun(struct ctl_be_lun *be_lun)
 {
-	struct ctl_softc *softc;
-
-	softc = control_softc;
 
 	/*
 	 * ctl_alloc_lun() should handle all potential failure cases.
 	 */
-	ctl_alloc_lun(softc, NULL, be_lun);
+	ctl_alloc_lun(control_softc, NULL, be_lun);
 }
 
 int
@@ -8726,12 +8714,11 @@ done:
 static void
 ctl_hndl_per_res_out_on_other_sc(union ctl_ha_msg *msg)
 {
+	struct ctl_softc *softc = control_softc;
 	struct ctl_lun *lun;
-	struct ctl_softc *softc;
 	int i;
 	uint32_t residx, targ_lun;
 
-	softc = control_softc;
 	targ_lun = msg->hdr.nexus.targ_mapped_lun;
 	mtx_lock(&softc->ctl_lock);
 	if ((targ_lun >= CTL_MAX_LUNS) ||
@@ -9259,7 +9246,7 @@ ctl_verify(struct ctl_scsiio *ctsio)
 int
 ctl_report_luns(struct ctl_scsiio *ctsio)
 {
-	struct ctl_softc *softc = control_softc;
+	struct ctl_softc *softc;
 	struct scsi_report_luns *cdb;
 	struct scsi_report_luns_data *lun_data;
 	struct ctl_lun *lun, *request_lun;
@@ -9272,6 +9259,7 @@ ctl_report_luns(struct ctl_scsiio *ctsio)
 	retval = CTL_RETVAL_COMPLETE;
 	cdb = (struct scsi_report_luns *)ctsio->cdb;
 	port = ctl_io_port(&ctsio->io_hdr);
+	softc = port->ctl_softc;
 
 	CTL_DEBUG_PRINT(("ctl_report_luns\n"));
 
@@ -10348,14 +10336,12 @@ ctl_inquiry_std(struct ctl_scsiio *ctsio)
 {
 	struct scsi_inquiry_data *inq_ptr;
 	struct scsi_inquiry *cdb;
-	struct ctl_softc *softc;
+	struct ctl_softc *softc = control_softc;
 	struct ctl_port *port;
 	struct ctl_lun *lun;
 	char *val;
 	uint32_t alloc_len, data_len;
 	ctl_port_type port_type;
-
-	softc = control_softc;
 
 	/*
 	 * Figure out whether we're talking to a Fibre Channel port or not.
@@ -12190,10 +12176,8 @@ ctl_handle_isc(union ctl_io *io)
 {
 	int free_io;
 	struct ctl_lun *lun;
-	struct ctl_softc *softc;
+	struct ctl_softc *softc = control_softc;
 	uint32_t targ_lun;
-
-	softc = control_softc;
 
 	targ_lun = io->io_hdr.nexus.targ_mapped_lun;
 	lun = softc->ctl_luns[targ_lun];
@@ -12863,13 +12847,11 @@ static int
 ctl_datamove_remote_sgl_setup(union ctl_io *io)
 {
 	struct ctl_sg_entry *local_sglist;
-	struct ctl_softc *softc;
 	uint32_t len_to_go;
 	int retval;
 	int i;
 
 	retval = 0;
-	softc = control_softc;
 	local_sglist = io->io_hdr.local_sglist;
 	len_to_go = io->scsiio.kern_data_len;
 
