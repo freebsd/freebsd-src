@@ -2033,6 +2033,7 @@ cfiscsi_ioctl_port_create(struct ctl_req *req)
 	/* XXX These should probably be fetched from CTL. */
 	port->max_targets = 1;
 	port->max_target_id = 15;
+	port->targ_port = -1;
 
 	port->options = opts;
 	STAILQ_INIT(&opts);

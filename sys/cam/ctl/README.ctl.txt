@@ -43,11 +43,8 @@ Features:
  - Persistent reservation support
  - Mode sense/select support
  - Error injection support
- - High Availability support (1)
+ - High Availability support
  - All I/O handled in-kernel, no userland context switch overhead.
-
-(1) HA Support is just an API stub, and needs much more to be fully
-    functional.  See the to-do list below.
 
 Configuring and Running CTL:
 ===========================
@@ -245,27 +242,6 @@ To Do List:
    another data structure in the stack, more memory allocations, etc.  This
    will also require changes to the CAM CCB structure to support CTL.
 
- - Full-featured High Availability support.  The HA API that is in ctl_ha.h
-   is essentially a renamed version of Copan's HA API.  There is no
-   substance to it, but it remains in CTL to show what needs to be done to
-   implement active/active HA from a CTL standpoint.  The things that would
-   need to be done include:
-	- A kernel level software API for message passing as well as DMA
-	  between at least two nodes.
-	- Hardware support and drivers for inter-node communication.  This
-	  could be as simples as ethernet hardware and drivers.
-	- A "supervisor", or startup framework to control and coordinate
-	  HA startup, failover (going from active/active to single mode),
-	  and failback (going from single mode to active/active).
-	- HA support in other components of the stack.  The goal behind HA
-	  is that one node can fail and another node can seamlessly take
-	  over handling I/O requests.  This requires support from pretty
-	  much every component in the storage stack, from top to bottom.
-	  CTL is one piece of it, but you also need support in the RAID
-	  stack/filesystem/backing store.  You also need full configuration
-	  mirroring, and all peer nodes need to be able to talk to the
-	  underlying storage hardware.
-
 Code Roadmap:
 ============
 
@@ -365,11 +341,11 @@ This is a CTL frontend port that is also a CAM SIM.  The idea is that this
 frontend allows for using CTL without any target-capable hardware.  So any
 LUNs you create in CTL are visible via this port.
 
+ctl_ha.c:
 ctl_ha.h:
 --------
 
-This is a stubbed-out High Availability API.  See the comments in the
-header and the description of what is needed as far as HA support above.
+This is a High Availability API and TCP-based interlink implementation.
 
 ctl_io.h:
 --------
