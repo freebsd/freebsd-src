@@ -1295,7 +1295,6 @@ complete:
 			ctl_free_io(tio->io);
 			free(tio, M_CTL);
 		}
-		free(list->buf, M_CTL);
 		if (list->abort) {
 			ctl_set_task_aborted(list->ctsio);
 			return (CTL_RETVAL_ERROR);
@@ -1311,7 +1310,6 @@ complete:
 	}
 
 	dstblock = list->lun->be_lun->blocksize;
-	list->buf = malloc(dstblock, M_CTL, M_WAITOK | M_ZERO);
 	TAILQ_INIT(&run);
 	prun = &run;
 	list->tbdio = 1;
@@ -1328,9 +1326,9 @@ complete:
 		TAILQ_INSERT_TAIL(&list->allio, tiow, links);
 		tiow->io = tpcl_alloc_io();
 		ctl_scsi_write_same(tiow->io,
-				    /*data_ptr*/ list->buf,
-				    /*data_len*/ dstblock,
-				    /*byte2*/ 0,
+				    /*data_ptr*/ NULL,
+				    /*data_len*/ 0,
+				    /*byte2*/ SWS_NDOB,
 				    /*lba*/ scsi_8btou64(list->range[r].lba),
 				    /*num_blocks*/ len,
 				    /*tag_type*/ CTL_TAG_SIMPLE,
