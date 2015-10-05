@@ -57,8 +57,8 @@ extern void	yyrestart(FILE *);
 %}
 
 %token ALIAS AUTH_GROUP AUTH_TYPE BACKEND BLOCKSIZE CHAP CHAP_MUTUAL
-%token CLOSING_BRACKET DEBUG DEVICE_ID DISCOVERY_AUTH_GROUP DISCOVERY_FILTER
-%token FOREIGN
+%token CLOSING_BRACKET CTL_LUN DEBUG DEVICE_ID DISCOVERY_AUTH_GROUP
+%token DISCOVERY_FILTER FOREIGN
 %token INITIATOR_NAME INITIATOR_PORTAL ISNS_SERVER ISNS_PERIOD ISNS_TIMEOUT
 %token LISTEN LISTEN_ISER LUN MAXPROC OPENING_BRACKET OPTION
 %token PATH PIDFILE PORT PORTAL_GROUP REDIRECT SEMICOLON SERIAL SIZE STR
@@ -842,6 +842,8 @@ lun_entry:
 	|
 	lun_device_id
 	|
+	lun_ctl_lun
+	|
 	lun_option
 	|
 	lun_path
@@ -896,6 +898,26 @@ lun_device_id:	DEVICE_ID STR
 		}
 		lun_set_device_id(lun, $2);
 		free($2);
+	}
+	;
+
+lun_ctl_lun:	CTL_LUN STR
+	{
+		uint64_t tmp;
+
+		if (expand_number($2, &tmp) != 0) {
+			yyerror("invalid numeric value");
+			free($2);
+			return (1);
+		}
+
+		if (lun->l_ctl_lun >= 0) {
+			log_warnx("ctl_lun for lun \"%s\" "
+			    "specified more than once",
+			    lun->l_name);
+			return (1);
+		}
+		lun_set_ctl_lun(lun, tmp);
 	}
 	;
 

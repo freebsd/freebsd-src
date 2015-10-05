@@ -1380,6 +1380,7 @@ lun_new(struct conf *conf, const char *name)
 	lun->l_name = checked_strdup(name);
 	TAILQ_INIT(&lun->l_options);
 	TAILQ_INSERT_TAIL(&conf->conf_luns, lun, l_next);
+	lun->l_ctl_lun = -1;
 
 	return (lun);
 }
