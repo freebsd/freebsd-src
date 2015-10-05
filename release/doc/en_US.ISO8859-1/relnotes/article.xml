@@ -951,6 +951,10 @@
       <para revision="286231">The &man.pms.4; driver has been added
 	to the <filename>GENERIC</filename> kernel configuration for
 	supported architectures.</para>
+
+      <para revision="287306" arch="arm">The
+	<filename>CUBIEBOARD2</filename> kernel configuration has been
+	renamed to <filename>A20</filename>.</para>
     </sect2>
 
     <sect2 xml:id="kernel-sysctl">
