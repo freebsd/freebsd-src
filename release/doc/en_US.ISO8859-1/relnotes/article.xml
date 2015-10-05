@@ -548,7 +548,7 @@
 	updated to properly skip a sparse file entry in a &man.tar.1;
 	file, which would previously produce errors.</para>
 
-      <para revision="r287168">The &man.acpi.4; subsystem has been
+      <para revision="287168">The &man.acpi.4; subsystem has been
 	updated to version 20150818.</para>
     </sect2>
 
