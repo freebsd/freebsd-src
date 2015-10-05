@@ -416,6 +416,12 @@
       <para revision="285685">The &man.jail.8; framework has been
 	updated to allow mounting &man.linprocfs.5; and
 	&man.linsysfs.5; within a jail.</para>
+
+      <para revision="285772" contrib="sponsor"
+	sponsor="&emcisilon;">The &man.patch.1; utility has been
+	updated to include a new option to the <literal>-V</literal>
+	flag, <literal>none</literal>, which disables backup file
+	creation when applying a patch.</para>
     </sect2>
 
     <sect2 xml:id="userland-contrib">

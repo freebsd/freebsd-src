@@ -21,6 +21,8 @@
 <!ENTITY darpa_afrl	"DARPA, AFRL">
 <!ENTITY dell		"Dell, Inc.">
 
+<!ENTITY emcisilon	"EMC / Isilon Storage Division">
+
 <!ENTITY ff		"The&nbsp;&os;&nbsp;Foundation">
 <!ENTITY ff.url		"https://www.FreeBSDFoundation.org/">
 
