@@ -128,18 +128,11 @@ typedef enum {
 	CTL_BE_BLOCK_FILE
 } ctl_be_block_type;
 
-struct ctl_be_block_devdata {
-	struct cdev *cdev;
-	struct cdevsw *csw;
-	int dev_ref;
-};
-
 struct ctl_be_block_filedata {
 	struct ucred *cred;
 };
 
 union ctl_be_block_bedata {
-	struct ctl_be_block_devdata dev;
 	struct ctl_be_block_filedata file;
 };
 
@@ -826,16 +819,15 @@ static void
 ctl_be_block_dispatch_zvol(struct ctl_be_block_lun *be_lun,
 			   struct ctl_be_block_io *beio)
 {
-	struct ctl_be_block_devdata *dev_data;
 	union ctl_io *io;
+	struct cdevsw *csw;
+	struct cdev *dev;
 	struct uio xuio;
 	struct iovec *xiovec;
-	int flags;
-	int error, i;
+	int error, flags, i, ref;
 
 	DPRINTF("entered\n");
 
-	dev_data = &be_lun->backend.dev;
 	io = beio->io;
 	flags = 0;
 	if (ARGS(io)->flags & CTL_LLF_DPO)
@@ -868,13 +860,20 @@ ctl_be_block_dispatch_zvol(struct ctl_be_block_lun *be_lun,
 	devstat_start_transaction(beio->lun->disk_stats, &beio->ds_t0);
 	mtx_unlock(&be_lun->io_lock);
 
-	if (beio->bio_cmd == BIO_READ) {
-		error = (*dev_data->csw->d_read)(dev_data->cdev, &xuio, flags);
+	csw = devvn_refthread(be_lun->vn, &dev, &ref);
+	if (csw) {
+		if (beio->bio_cmd == BIO_READ)
+			error = csw->d_read(dev, &xuio, flags);
+		else
+			error = csw->d_write(dev, &xuio, flags);
+		dev_relthread(dev, ref);
+	} else
+		error = ENXIO;
+
+	if (beio->bio_cmd == BIO_READ)
 		SDT_PROBE(cbb, kernel, read, file_done, 0, 0, 0, 0, 0);
-	} else {
-		error = (*dev_data->csw->d_write)(dev_data->cdev, &xuio, flags);
+	else
 		SDT_PROBE(cbb, kernel, write, file_done, 0, 0, 0, 0, 0);
-	}
 
 	mtx_lock(&be_lun->io_lock);
 	devstat_end_transaction(beio->lun->disk_stats, beio->io_len,
@@ -918,23 +917,30 @@ static void
 ctl_be_block_gls_zvol(struct ctl_be_block_lun *be_lun,
 			struct ctl_be_block_io *beio)
 {
-	struct ctl_be_block_devdata *dev_data = &be_lun->backend.dev;
 	union ctl_io *io = beio->io;
+	struct cdevsw *csw;
+	struct cdev *dev;
 	struct ctl_lba_len_flags *lbalen = ARGS(io);
 	struct scsi_get_lba_status_data *data;
 	off_t roff, off;
-	int error, status;
+	int error, ref, status;
 
 	DPRINTF("entered\n");
 
+	csw = devvn_refthread(be_lun->vn, &dev, &ref);
+	if (csw == NULL) {
+		status = 0;	/* unknown up to the end */
+		off = be_lun->size_bytes;
+		goto done;
+	}
 	off = roff = ((off_t)lbalen->lba) * be_lun->cbe_lun.blocksize;
-	error = (*dev_data->csw->d_ioctl)(dev_data->cdev, FIOSEEKHOLE,
-	    (caddr_t)&off, FREAD, curthread);
+	error = csw->d_ioctl(dev, FIOSEEKHOLE, (caddr_t)&off, FREAD,
+	    curthread);
 	if (error == 0 && off > roff)
 		status = 0;	/* mapped up to off */
 	else {
-		error = (*dev_data->csw->d_ioctl)(dev_data->cdev, FIOSEEKDATA,
-		    (caddr_t)&off, FREAD, curthread);
+		error = csw->d_ioctl(dev, FIOSEEKDATA, (caddr_t)&off, FREAD,
+		    curthread);
 		if (error == 0 && off > roff)
 			status = 1;	/* deallocated up to off */
 		else {
@@ -942,7 +948,9 @@ ctl_be_block_gls_zvol(struct ctl_be_block_lun *be_lun,
 			off = be_lun->size_bytes;
 		}
 	}
+	dev_relthread(dev, ref);
 
+done:
 	data = (struct scsi_get_lba_status_data *)io->scsiio.kern_data_ptr;
 	scsi_u64to8b(lbalen->lba, data->descr[0].addr);
 	scsi_ulto4b(MIN(UINT32_MAX, off / be_lun->cbe_lun.blocksize -
@@ -958,9 +966,10 @@ ctl_be_block_flush_dev(struct ctl_be_block_lun *be_lun,
 {
 	struct bio *bio;
 	union ctl_io *io;
-	struct ctl_be_block_devdata *dev_data;
+	struct cdevsw *csw;
+	struct cdev *dev;
+	int ref;
 
-	dev_data = &be_lun->backend.dev;
 	io = beio->io;
 
 	DPRINTF("entered\n");
@@ -969,7 +978,6 @@ ctl_be_block_flush_dev(struct ctl_be_block_lun *be_lun,
 	bio = g_alloc_bio();
 
 	bio->bio_cmd	    = BIO_FLUSH;
-	bio->bio_dev	    = dev_data->cdev;
 	bio->bio_offset	    = 0;
 	bio->bio_data	    = 0;
 	bio->bio_done	    = ctl_be_block_biodone;
@@ -989,7 +997,15 @@ ctl_be_block_flush_dev(struct ctl_be_block_lun *be_lun,
 	devstat_start_transaction(be_lun->disk_stats, &beio->ds_t0);
 	mtx_unlock(&be_lun->io_lock);
 
-	(*dev_data->csw->d_strategy)(bio);
+	csw = devvn_refthread(be_lun->vn, &dev, &ref);
+	if (csw) {
+		bio->bio_dev = dev;
+		csw->d_strategy(bio);
+		dev_relthread(dev, ref);
+	} else {
+		bio->bio_error = ENXIO;
+		ctl_be_block_biodone(bio);
+	}
 }
 
 static void
@@ -998,15 +1014,17 @@ ctl_be_block_unmap_dev_range(struct ctl_be_block_lun *be_lun,
 		       uint64_t off, uint64_t len, int last)
 {
 	struct bio *bio;
-	struct ctl_be_block_devdata *dev_data;
 	uint64_t maxlen;
+	struct cdevsw *csw;
+	struct cdev *dev;
+	int ref;
 
-	dev_data = &be_lun->backend.dev;
+	csw = devvn_refthread(be_lun->vn, &dev, &ref);
 	maxlen = LONG_MAX - (LONG_MAX % be_lun->cbe_lun.blocksize);
 	while (len > 0) {
 		bio = g_alloc_bio();
 		bio->bio_cmd	    = BIO_DELETE;
-		bio->bio_dev	    = dev_data->cdev;
+		bio->bio_dev	    = dev;
 		bio->bio_offset	    = off;
 		bio->bio_length	    = MIN(len, maxlen);
 		bio->bio_data	    = 0;
@@ -1023,8 +1041,15 @@ ctl_be_block_unmap_dev_range(struct ctl_be_block_lun *be_lun,
 			beio->send_complete = 1;
 		mtx_unlock(&be_lun->io_lock);
 
-		(*dev_data->csw->d_strategy)(bio);
+		if (csw) {
+			csw->d_strategy(bio);
+		} else {
+			bio->bio_error = ENXIO;
+			ctl_be_block_biodone(bio);
+		}
 	}
+	if (csw)
+		dev_relthread(dev, ref);
 }
 
 static void
@@ -1032,12 +1057,10 @@ ctl_be_block_unmap_dev(struct ctl_be_block_lun *be_lun,
 		       struct ctl_be_block_io *beio)
 {
 	union ctl_io *io;
-	struct ctl_be_block_devdata *dev_data;
 	struct ctl_ptr_len_flags *ptrlen;
 	struct scsi_unmap_desc *buf, *end;
 	uint64_t len;
 
-	dev_data = &be_lun->backend.dev;
 	io = beio->io;
 
 	DPRINTF("entered\n");
@@ -1070,23 +1093,25 @@ ctl_be_block_dispatch_dev(struct ctl_be_block_lun *be_lun,
 			  struct ctl_be_block_io *beio)
 {
 	TAILQ_HEAD(, bio) queue = TAILQ_HEAD_INITIALIZER(queue);
-	int i;
 	struct bio *bio;
-	struct ctl_be_block_devdata *dev_data;
+	struct cdevsw *csw;
+	struct cdev *dev;
 	off_t cur_offset;
-	int max_iosize;
+	int i, max_iosize, ref;
 
 	DPRINTF("entered\n");
-
-	dev_data = &be_lun->backend.dev;
+	csw = devvn_refthread(be_lun->vn, &dev, &ref);
 
 	/*
 	 * We have to limit our I/O size to the maximum supported by the
 	 * backend device.  Hopefully it is MAXPHYS.  If the driver doesn't
 	 * set it properly, use DFLTPHYS.
 	 */
-	max_iosize = dev_data->cdev->si_iosize_max;
-	if (max_iosize < PAGE_SIZE)
+	if (csw) {
+		max_iosize = dev->si_iosize_max;
+		if (max_iosize < PAGE_SIZE)
+			max_iosize = DFLTPHYS;
+	} else
 		max_iosize = DFLTPHYS;
 
 	cur_offset = beio->io_offset;
@@ -1104,7 +1129,7 @@ ctl_be_block_dispatch_dev(struct ctl_be_block_lun *be_lun,
 			KASSERT(bio != NULL, ("g_alloc_bio() failed!\n"));
 
 			bio->bio_cmd = beio->bio_cmd;
-			bio->bio_dev = dev_data->cdev;
+			bio->bio_dev = dev;
 			bio->bio_caller1 = beio;
 			bio->bio_length = min(cur_size, max_iosize);
 			bio->bio_offset = cur_offset;
@@ -1131,23 +1156,36 @@ ctl_be_block_dispatch_dev(struct ctl_be_block_lun *be_lun,
 	 */
 	while ((bio = TAILQ_FIRST(&queue)) != NULL) {
 		TAILQ_REMOVE(&queue, bio, bio_queue);
-		(*dev_data->csw->d_strategy)(bio);
+		if (csw)
+			csw->d_strategy(bio);
+		else {
+			bio->bio_error = ENXIO;
+			ctl_be_block_biodone(bio);
+		}
 	}
+	if (csw)
+		dev_relthread(dev, ref);
 }
 
 static uint64_t
 ctl_be_block_getattr_dev(struct ctl_be_block_lun *be_lun, const char *attrname)
 {
-	struct ctl_be_block_devdata	*dev_data = &be_lun->backend.dev;
 	struct diocgattr_arg	arg;
-	int			error;
+	struct cdevsw *csw;
+	struct cdev *dev;
+	int error, ref;
 
-	if (dev_data->csw == NULL || dev_data->csw->d_ioctl == NULL)
+	csw = devvn_refthread(be_lun->vn, &dev, &ref);
+	if (csw == NULL)
 		return (UINT64_MAX);
 	strlcpy(arg.name, attrname, sizeof(arg.name));
 	arg.len = sizeof(arg.value.off);
-	error = dev_data->csw->d_ioctl(dev_data->cdev,
-	    DIOCGATTR, (caddr_t)&arg, FREAD, curthread);
+	if (csw->d_ioctl) {
+		error = csw->d_ioctl(dev, DIOCGATTR, (caddr_t)&arg, FREAD,
+		    curthread);
+	} else
+		error = ENODEV;
+	dev_relthread(dev, ref);
 	if (error != 0)
 		return (UINT64_MAX);
 	return (arg.value.off);
@@ -1856,22 +1894,19 @@ ctl_be_block_open_dev(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 {
 	struct ctl_be_lun *cbe_lun = &be_lun->cbe_lun;
 	struct ctl_lun_create_params *params;
-	struct vattr		      vattr;
+	struct cdevsw		     *csw;
 	struct cdev		     *dev;
-	struct cdevsw		     *devsw;
 	char			     *value;
-	int			      error, atomic, maxio, unmap, tmp;
+	int			      error, atomic, maxio, ref, unmap, tmp;
 	off_t			      ps, pss, po, pos, us, uss, uo, uos, otmp;
 
 	params = &be_lun->params;
 
 	be_lun->dev_type = CTL_BE_BLOCK_DEV;
-	be_lun->backend.dev.cdev = be_lun->vn->v_rdev;
-	be_lun->backend.dev.csw = dev_refthread(be_lun->backend.dev.cdev,
-					     &be_lun->backend.dev.dev_ref);
-	if (be_lun->backend.dev.csw == NULL)
-		panic("Unable to retrieve device switch");
-	if (strcmp(be_lun->backend.dev.csw->d_name, "zvol") == 0) {
+	csw = devvn_refthread(be_lun->vn, &dev, &ref);
+	if (csw == NULL)
+		return (ENXIO);
+	if (strcmp(csw->d_name, "zvol") == 0) {
 		be_lun->dispatch = ctl_be_block_dispatch_zvol;
 		be_lun->get_lba_status = ctl_be_block_gls_zvol;
 		atomic = maxio = CTLBLK_MAX_IO_SIZE;
@@ -1879,7 +1914,7 @@ ctl_be_block_open_dev(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 		be_lun->dispatch = ctl_be_block_dispatch_dev;
 		be_lun->get_lba_status = NULL;
 		atomic = 0;
-		maxio = be_lun->backend.dev.cdev->si_iosize_max;
+		maxio = dev->si_iosize_max;
 		if (maxio <= 0)
 			maxio = DFLTPHYS;
 		if (maxio > CTLBLK_MAX_IO_SIZE)
@@ -1889,26 +1924,17 @@ ctl_be_block_open_dev(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 	be_lun->getattr = ctl_be_block_getattr_dev;
 	be_lun->unmap = ctl_be_block_unmap_dev;
 
-	error = VOP_GETATTR(be_lun->vn, &vattr, NOCRED);
-	if (error) {
+	if (!csw->d_ioctl) {
+		dev_relthread(dev, ref);
 		snprintf(req->error_str, sizeof(req->error_str),
-			 "error getting vnode attributes for device %s",
-			 be_lun->dev_path);
-		return (error);
-	}
-
-	dev = be_lun->vn->v_rdev;
-	devsw = dev->si_devsw;
-	if (!devsw->d_ioctl) {
-		snprintf(req->error_str, sizeof(req->error_str),
-			 "no d_ioctl for device %s!",
-			 be_lun->dev_path);
+			 "no d_ioctl for device %s!", be_lun->dev_path);
 		return (ENODEV);
 	}
 
-	error = devsw->d_ioctl(dev, DIOCGSECTORSIZE, (caddr_t)&tmp, FREAD,
+	error = csw->d_ioctl(dev, DIOCGSECTORSIZE, (caddr_t)&tmp, FREAD,
 			       curthread);
 	if (error) {
+		dev_relthread(dev, ref);
 		snprintf(req->error_str, sizeof(req->error_str),
 			 "error %d returned for DIOCGSECTORSIZE ioctl "
 			 "on %s!", error, be_lun->dev_path);
@@ -1926,14 +1952,15 @@ ctl_be_block_open_dev(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 		if (params->blocksize_bytes % tmp == 0) {
 			cbe_lun->blocksize = params->blocksize_bytes;
 		} else {
+			dev_relthread(dev, ref);
 			snprintf(req->error_str, sizeof(req->error_str),
 				 "requested blocksize %u is not an even "
 				 "multiple of backing device blocksize %u",
 				 params->blocksize_bytes, tmp);
 			return (EINVAL);
-			
 		}
 	} else if (params->blocksize_bytes != 0) {
+		dev_relthread(dev, ref);
 		snprintf(req->error_str, sizeof(req->error_str),
 			 "requested blocksize %u < backing device "
 			 "blocksize %u", params->blocksize_bytes, tmp);
@@ -1941,9 +1968,10 @@ ctl_be_block_open_dev(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 	} else
 		cbe_lun->blocksize = tmp;
 
-	error = devsw->d_ioctl(dev, DIOCGMEDIASIZE, (caddr_t)&otmp, FREAD,
-			       curthread);
+	error = csw->d_ioctl(dev, DIOCGMEDIASIZE, (caddr_t)&otmp, FREAD,
+			     curthread);
 	if (error) {
+		dev_relthread(dev, ref);
 		snprintf(req->error_str, sizeof(req->error_str),
 			 "error %d returned for DIOCGMEDIASIZE "
 			 " ioctl on %s!", error,
@@ -1953,6 +1981,7 @@ ctl_be_block_open_dev(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 
 	if (params->lun_size_bytes != 0) {
 		if (params->lun_size_bytes > otmp) {
+			dev_relthread(dev, ref);
 			snprintf(req->error_str, sizeof(req->error_str),
 				 "requested LUN size %ju > backing device "
 				 "size %ju",
@@ -1968,13 +1997,13 @@ ctl_be_block_open_dev(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 	cbe_lun->maxlba = (be_lun->size_blocks == 0) ?
 	    0 : (be_lun->size_blocks - 1);
 
-	error = devsw->d_ioctl(dev, DIOCGSTRIPESIZE,
-			       (caddr_t)&ps, FREAD, curthread);
+	error = csw->d_ioctl(dev, DIOCGSTRIPESIZE, (caddr_t)&ps, FREAD,
+	    curthread);
 	if (error)
 		ps = po = 0;
 	else {
-		error = devsw->d_ioctl(dev, DIOCGSTRIPEOFFSET,
-				       (caddr_t)&po, FREAD, curthread);
+		error = csw->d_ioctl(dev, DIOCGSTRIPEOFFSET, (caddr_t)&po,
+		    FREAD, curthread);
 		if (error)
 			po = 0;
 	}
@@ -2019,8 +2048,8 @@ ctl_be_block_open_dev(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 
 		strlcpy(arg.name, "GEOM::candelete", sizeof(arg.name));
 		arg.len = sizeof(arg.value.i);
-		error = devsw->d_ioctl(dev, DIOCGATTR,
-		    (caddr_t)&arg, FREAD, curthread);
+		error = csw->d_ioctl(dev, DIOCGATTR, (caddr_t)&arg, FREAD,
+		    curthread);
 		unmap = (error == 0) ? arg.value.i : 0;
 	}
 	value = ctl_get_opt(&cbe_lun->options, "unmap");
@@ -2031,6 +2060,7 @@ ctl_be_block_open_dev(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 	else
 		cbe_lun->flags &= ~CTL_LUN_FLAG_UNMAP;
 
+	dev_relthread(dev, ref);
 	return (0);
 }
 
@@ -2041,24 +2071,6 @@ ctl_be_block_close(struct ctl_be_block_lun *be_lun)
 	int flags;
 
 	if (be_lun->vn) {
-		switch (be_lun->dev_type) {
-		case CTL_BE_BLOCK_DEV:
-			if (be_lun->backend.dev.csw) {
-				dev_relthread(be_lun->backend.dev.cdev,
-					      be_lun->backend.dev.dev_ref);
-				be_lun->backend.dev.csw  = NULL;
-				be_lun->backend.dev.cdev = NULL;
-			}
-			break;
-		case CTL_BE_BLOCK_FILE:
-			break;
-		case CTL_BE_BLOCK_NONE:
-			break;
-		default:
-			panic("Unexpected backend type.");
-			break;
-		}
-
 		flags = FREAD;
 		if ((cbe_lun->flags & CTL_LUN_FLAG_READONLY) == 0)
 			flags |= FWRITE;
@@ -2567,21 +2579,25 @@ ctl_be_block_modify_dev(struct ctl_be_block_lun *be_lun,
 			struct ctl_lun_req *req)
 {
 	struct ctl_be_lun *cbe_lun = &be_lun->cbe_lun;
-	struct ctl_be_block_devdata *dev_data;
-	int error;
 	struct ctl_lun_create_params *params = &be_lun->params;
+	struct cdevsw *csw;
+	struct cdev *dev;
 	uint64_t size_bytes;
+	int error, ref;
 
-	dev_data = &be_lun->backend.dev;
-	if (!dev_data->csw->d_ioctl) {
+	csw = devvn_refthread(be_lun->vn, &dev, &ref);
+	if (csw == NULL)
+		return (ENXIO);
+	if (csw->d_ioctl == NULL) {
+		dev_relthread(dev, ref);
 		snprintf(req->error_str, sizeof(req->error_str),
 			 "no d_ioctl for device %s!", be_lun->dev_path);
 		return (ENODEV);
 	}
 
-	error = dev_data->csw->d_ioctl(dev_data->cdev, DIOCGMEDIASIZE,
-			       (caddr_t)&size_bytes, FREAD,
-			       curthread);
+	error = csw->d_ioctl(dev, DIOCGMEDIASIZE, (caddr_t)&size_bytes, FREAD,
+	    curthread);
+	dev_relthread(dev, ref);
 	if (error) {
 		snprintf(req->error_str, sizeof(req->error_str),
 			 "error %d returned for DIOCGMEDIASIZE ioctl "
