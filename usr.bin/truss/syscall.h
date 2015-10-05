@@ -55,6 +55,7 @@ struct syscall_args {
 };
 
 struct syscall {
+	STAILQ_ENTRY(syscall) entries;
 	const char *name;
 	u_int ret_type;	/* 0, 1, or 2 return values */
 	u_int nargs;	/* actual number of meaningful arguments */
@@ -65,7 +66,7 @@ struct syscall {
 	int nerror;	/* Number of calls that returned with error */
 };
 
-struct syscall *get_syscall(const char*);
+struct syscall *get_syscall(const char *, int nargs);
 char *print_arg(struct syscall_args *, unsigned long*, long *, struct trussinfo *);
 
 /*
@@ -108,6 +109,7 @@ struct linux_socketcall_args {
     char args_l_[PADL_(l_ulong)]; l_ulong args; char args_r_[PADR_(l_ulong)];
 };
 
+void init_syscalls(void);
 void print_syscall(struct trussinfo *, const char *, int, char **);
 void print_syscall_ret(struct trussinfo *, const char *, int, char **, int,
     long *, struct syscall *);
