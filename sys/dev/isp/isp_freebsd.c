@@ -170,6 +170,7 @@ isp_attach_chan(ispsoftc_t *isp, struct cam_devq *devq, int chan)
 			ISP_SET_PC(isp, chan, proc_active, 0);
 			isp_prt(isp, ISP_LOGERR, "cannot create test target thread");
 		}
+		ISP_SPI_PC(isp, chan)->num_threads += 1;
 #endif
 	} else {
 		fcparam *fcp = FCPARAM(isp, chan);
@@ -208,12 +209,14 @@ isp_attach_chan(ispsoftc_t *isp, struct cam_devq *devq, int chan)
 			cam_sim_free(fc->sim, FALSE);
 			return (ENOMEM);
 		}
+		ISP_FC_PC(isp, chan)->num_threads += 1;
 #ifdef	ISP_INTERNAL_TARGET
 		ISP_SET_PC(isp, chan, proc_active, 1);
 		if (THREAD_CREATE(isp_target_thread_fc, fc, &fc->target_proc, 0, 0, "%s: isp_test_tgt%d", device_get_nameunit(isp->isp_osinfo.dev), chan)) {
 			ISP_SET_PC(isp, chan, proc_active, 0);
 			isp_prt(isp, ISP_LOGERR, "cannot create test target thread");
 		}
+		ISP_FC_PC(isp, chan)->num_threads += 1;
 #endif
 		if (chan > 0) {
 			snprintf(name, sizeof(name), "chan%d", chan);
@@ -232,6 +235,47 @@ isp_attach_chan(ispsoftc_t *isp, struct cam_devq *devq, int chan)
 		    isp_role_sysctl, "I", "Current role");
 	}
 	return (0);
+}
+
+static void
+isp_detach_internal_target(ispsoftc_t *isp, int chan)
+{
+#ifdef ISP_INTERNAL_TARGET
+	void *wchan;
+
+	ISP_GET_PC(isp, chan, target_proc, wchan);
+	ISP_SET_PC(isp, chan, proc_active, 0);
+	wakeup(wchan);
+#endif
+}
+
+static void
+isp_detach_chan(ispsoftc_t *isp, int chan)
+{
+	struct cam_sim *sim;
+	struct cam_path *path;
+	struct ccb_setasync csa;
+	int *num_threads;
+
+	ISP_GET_PC(isp, chan, sim, sim);
+	ISP_GET_PC(isp, chan, path, path);
+	ISP_GET_PC_ADDR(isp, chan, num_threads, num_threads);
+
+	xpt_setup_ccb(&csa.ccb_h, path, 5);
+	csa.ccb_h.func_code = XPT_SASYNC_CB;
+	csa.event_enable = 0;
+	csa.callback = isp_cam_async;
+	csa.callback_arg = sim;
+	xpt_action((union ccb *)&csa);
+	xpt_free_path(path);
+	xpt_bus_deregister(cam_sim_path(sim));
+	cam_sim_free(sim, FALSE);
+
+	/* Wait for the channel's spawned threads to exit. */
+	wakeup(isp->isp_osinfo.pc.ptr);
+	isp_detach_internal_target(isp, chan);
+	while (*num_threads != 0)
+		mtx_sleep(isp, &isp->isp_osinfo.lock, PRIBIO, "isp_reap", 100);
 }
 
 int
@@ -284,13 +328,9 @@ unwind:
 	while (--chan >= 0) {
 		struct cam_sim *sim;
 		struct cam_path *path;
-		if (IS_FC(isp)) {
-			sim = ISP_FC_PC(isp, chan)->sim;
-			path = ISP_FC_PC(isp, chan)->path;
-		} else {
-			sim = ISP_SPI_PC(isp, chan)->sim;
-			path = ISP_SPI_PC(isp, chan)->path;
-		}
+
+		ISP_GET_PC(isp, chan, sim, sim);
+		ISP_GET_PC(isp, chan, path, path);
 		xpt_free_path(path);
 		ISP_LOCK(isp);
 		xpt_bus_deregister(cam_sim_path(sim));
@@ -314,49 +354,26 @@ int
 isp_detach(ispsoftc_t *isp)
 {
 	struct cam_sim *sim;
-	struct cam_path *path;
-	struct ccb_setasync csa;
 	int chan;
 
 	ISP_LOCK(isp);
 	for (chan = isp->isp_nchan - 1; chan >= 0; chan -= 1) {
-		if (IS_FC(isp)) {
-			sim = ISP_FC_PC(isp, chan)->sim;
-			path = ISP_FC_PC(isp, chan)->path;
-		} else {
-			sim = ISP_SPI_PC(isp, chan)->sim;
-			path = ISP_SPI_PC(isp, chan)->path;
-		}
+		ISP_GET_PC(isp, chan, sim, sim);
 		if (sim->refcount > 2) {
 			ISP_UNLOCK(isp);
 			return (EBUSY);
 		}
 	}
+	/* Tell spawned threads that we're exiting. */
+	isp->isp_osinfo.is_exiting = 1;
 	if (isp->isp_osinfo.timer_active) {
 		callout_stop(&isp->isp_osinfo.tmo);
 		isp->isp_osinfo.timer_active = 0;
 	}
-	for (chan = isp->isp_nchan - 1; chan >= 0; chan -= 1) {
-		if (IS_FC(isp)) {
-			sim = ISP_FC_PC(isp, chan)->sim;
-			path = ISP_FC_PC(isp, chan)->path;
-		} else {
-			sim = ISP_SPI_PC(isp, chan)->sim;
-			path = ISP_SPI_PC(isp, chan)->path;
-		}
-		xpt_setup_ccb(&csa.ccb_h, path, 5);
-		csa.ccb_h.func_code = XPT_SASYNC_CB;
-		csa.event_enable = 0;
-		csa.callback = isp_cam_async;
-		csa.callback_arg = sim;
-		ISP_LOCK(isp);
-		xpt_action((union ccb *)&csa);
-		ISP_UNLOCK(isp);
-		xpt_free_path(path);
-		xpt_bus_deregister(cam_sim_path(sim));
-		cam_sim_free(sim, FALSE);
-	}
+	for (chan = isp->isp_nchan - 1; chan >= 0; chan -= 1)
+		isp_detach_chan(isp, chan);
 	ISP_UNLOCK(isp);
+
 	if (isp->isp_osinfo.cdev) {
 		destroy_dev(isp->isp_osinfo.cdev);
 		isp->isp_osinfo.cdev = NULL;
@@ -4269,7 +4286,7 @@ isp_target_thread(ispsoftc_t *isp, int chan)
 	/*
 	 * Add resources
 	 */
-	ISP_GET_PC_ADDR(isp, chan, target_proc, wchan);
+	ISP_GET_PC(isp, chan, target_proc, wchan);
 	for (i = 0; i < 4; i++) {
 		ccb = malloc(sizeof (*ccb), M_ISPTARG, M_WAITOK | M_ZERO);
 		xpt_setup_ccb(&ccb->ccb_h, wperiph->path, 1);
@@ -4357,14 +4374,24 @@ static void
 isp_target_thread_pi(void *arg)
 {
 	struct isp_spi *pi = arg;
-	isp_target_thread(cam_sim_softc(pi->sim), cam_sim_bus(pi->sim));
+	ispsoftc_t *isp = cam_sim_softc(pi->sim);
+	int chan = cam_sim_bus(pi->sim);
+
+	isp_target_thread(isp, chan);
+	ISP_SPI_PC(isp, chan)->num_threads -= 1;
+	kthread_exit();
 }
 
 static void
 isp_target_thread_fc(void *arg)
 {
 	struct isp_fc *fc = arg;
-	isp_target_thread(cam_sim_softc(fc->sim), cam_sim_bus(fc->sim));
+	ispsoftc_t *isp = cam_sim_softc(pi->sim);
+	int chan = cam_sim_bus(pi->sim);
+
+	isp_target_thread(isp, chan);
+	ISP_FC_PC(isp, chan)->num_threads -= 1;
+	kthread_exit();
 }
 
 static int
@@ -4804,7 +4831,7 @@ isp_kthread(void *arg)
 
 	mtx_lock(&isp->isp_osinfo.lock);
 
-	for (;;) {
+	while (isp->isp_osinfo.is_exiting == 0) {
 		int lb, lim;
 
 		isp_prt(isp, ISP_LOG_SANCFG|ISP_LOGDEBUG0, "%s: Chan %d checking FC state", __func__, chan);
@@ -4900,7 +4927,9 @@ isp_kthread(void *arg)
 			mtx_lock(&isp->isp_osinfo.lock);
 		}
 	}
+	fc->num_threads -= 1;
 	mtx_unlock(&isp->isp_osinfo.lock);
+	kthread_exit();
 }
 
 static void
