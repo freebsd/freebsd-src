@@ -94,9 +94,9 @@ atomic_set_32(__volatile uint32_t *p, uint32_t v)
 #else
 	__asm __volatile (
 		"1:\n\t"
-		"cllw	%0, $0(%3)\n\t"		/* load old value */
+		"cllw	%0, %3\n\t"		/* load old value */
 		"or	%0, %2, %0\n\t"		/* calculate new value */
-		"cscw	%0, $0(%1)\n\t"		/* attempt to store */
+		"cscw	%0, %0, %1\n\t"		/* attempt to store */
 		"beqz	%0, 1b\n\t"		/* spin if failed */
 		: "=&r" (temp), "=C" (p)
 		: "r" (v), "C" (p)
@@ -123,9 +123,9 @@ atomic_clear_32(__volatile uint32_t *p, uint32_t v)
 #else
 	__asm __volatile (
 		"1:\n\t"
-		"cllw	%0, $0(%3)\n\t"		/* load old value */
+		"cllw	%0, %3\n\t"		/* load old value */
 		"and	%0, %2, %0\n\t"		/* calculate new value */
-		"cscw	%0, $0(%1)\n\t"		/* attempt to store */
+		"cscw	%0, %0, %1\n\t"		/* attempt to store */
 		"beqz	%0, 1b\n\t"		/* spin if failed */
 		: "=&r" (temp), "=C" (p)
 		: "r" (v), "C" (p)
@@ -150,9 +150,9 @@ atomic_add_32(__volatile uint32_t *p, uint32_t v)
 #else
 	__asm __volatile (
 		"1:\n\t"
-		"cllw	%0, $0(%3)\n\t"		/* load old value */
+		"cllw	%0, %3\n\t"	/* load old value */
 		"addu	%0, %2, %0\n\t"		/* calculate new value */
-		"cscw	%0, $0(%1)\n\t"		/* attempt to store */
+		"cscw	%0, %0, %1\n\t"		/* attempt to store */
 		"beqz	%0, 1b\n\t"		/* spin if failed */
 		: "=&r" (temp), "=C" (p)
 		: "r" (v), "C" (p)
@@ -177,9 +177,9 @@ atomic_subtract_32(__volatile uint32_t *p, uint32_t v)
 #else
 	__asm __volatile (
 		"1:\n\t"
-		"cllw	%0, $0(%3)\n\t"		/* load old value */
+		"cllw	%0, %3\n\t"		/* load old value */
 		"subu	%0, %2\n\t"		/* calculate new value */
-		"cscw	%0, $0(%1)\n\t"		/* attempt to store */
+		"cscw	%0, %0, %1\n\t"		/* attempt to store */
 		"beqz	%0, 1b\n\t"		/* spin if failed */
 		: "=&r" (temp), "=C" (p)
 		: "r" (v), "C" (p)
@@ -204,9 +204,9 @@ atomic_readandclear_32(__volatile uint32_t *addr)
 #else
 	__asm __volatile (
 		"1:\n\t"
-		"cllw	%0, $0(%3)\n\t"	/* load current value, asserting lock */
+		"cllw	%0, %3\n\t"	/* load current value, asserting lock */
 		"li	%1, 0\n\t"	/* value to store */
-		"cscw	%1, $0(%2)\n\t"	/* attempt to store */
+		"cscw	%1, %1, %2\n\t"	/* attempt to store */
 		"beqz	%1, 1b\n\t"	/* if the store failed, spin */
 		: "=&r"(result), "=&r"(temp), "=C" (addr)
 		: "C" (addr)
@@ -233,9 +233,9 @@ atomic_readandset_32(__volatile uint32_t *addr, uint32_t value)
 #else
 	__asm __volatile (
 		"1:\n\t"
-		"cllw	%0, $0(%3)\n\t"	/* load current value, asserting lock */
+		"cllw	%0, %3\n\t"	/* load current value, asserting lock */
 		"or	%1, $0, %4\n\t"
-		"cscw	%1, $0(%2)\n\t"	/* attempt to store */
+		"cscw	%1, %1, %2\n\t"	/* attempt to store */
 		"beqz	%1, 1b\n\t"	/* if the store failed, spin */
 		: "=&r"(result), "=&r"(temp), "=C" (addr)
 		: "C" (addr), "r" (value)
@@ -527,10 +527,10 @@ atomic_cmpset_32(__volatile uint32_t* p, uint32_t cmpval, uint32_t newval)
 #else
 	__asm __volatile (
 		"1:\n\t"
-		"cllw	%0, $0(%4)\n\t"		/* load old value */
+		"cllw	%0, %4\n\t"		/* load old value */
 		"bne	%0, %2, 2f\n\t"		/* compare */
 		"move	%0, %3\n\t"		/* value to store */
-		"cscw	%0, $0(%1)\n\t"		/* attempt to store */
+		"cscw	%0, %0, %1\n\t"		/* attempt to store */
 		"beqz	%0, 1b\n\t"		/* if it failed, spin */
 		"j 3f\n\t"
 		"2:\n\t"
@@ -586,9 +586,9 @@ atomic_fetchadd_32(__volatile uint32_t *p, uint32_t v)
 #else
 	__asm __volatile (
 		"1:\n\t"
-		"cllw	%0, $0(%1)\n\t"		/* load old value */
+		"cllw	%0, %1\n\t"		/* load old value */
 		"addu	%2, %3, %0\n\t"		/* calculate new value */
-		"cscw	%2, $0(%1)\n\t"		/* attempt to store */
+		"cscw	%2, %2, %1\n\t"		/* attempt to store */
 		"beqz %2, 1b\n\t"		/* spin if failed */
 		: "=&r" (value), "=C" (p), "=&r" (temp)
 		: "r" (v), "C" (p));
