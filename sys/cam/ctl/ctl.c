@@ -3821,14 +3821,8 @@ ctl_init_page_index(struct ctl_lun *lun)
 	for (i = 0; i < CTL_NUM_MODE_PAGES; i++) {
 
 		page_index = &lun->mode_pages.index[i];
-		/*
-		 * If this is a disk-only mode page, there's no point in
-		 * setting it up.  For some pages, we have to have some
-		 * basic information about the disk in order to calculate the
-		 * mode page data.
-		 */
-		if ((lun->be_lun->lun_type != T_DIRECT)
-		 && (page_index->page_flags & CTL_PAGE_FLAG_DISK_ONLY))
+		if (lun->be_lun->lun_type != T_DIRECT &&
+		    (page_index->page_flags & CTL_PAGE_FLAG_DISK_ONLY))
 			continue;
 
 		switch (page_index->page_code & SMPH_PC_MASK) {
@@ -4213,18 +4207,12 @@ ctl_init_log_page_index(struct ctl_lun *lun)
 	for (i = 0, j = 0, k = 0; i < CTL_NUM_LOG_PAGES; i++) {
 
 		page_index = &lun->log_pages.index[i];
-		/*
-		 * If this is a disk-only mode page, there's no point in
-		 * setting it up.  For some pages, we have to have some
-		 * basic information about the disk in order to calculate the
-		 * mode page data.
-		 */
-		if ((lun->be_lun->lun_type != T_DIRECT)
-		 && (page_index->page_flags & CTL_PAGE_FLAG_DISK_ONLY))
+		if (lun->be_lun->lun_type != T_DIRECT &&
+		    (page_index->page_flags & CTL_PAGE_FLAG_DISK_ONLY))
 			continue;
 
 		if (page_index->page_code == SLS_LOGICAL_BLOCK_PROVISIONING &&
-		     lun->backend->lun_attr == NULL)
+		    lun->backend->lun_attr == NULL)
 			continue;
 
 		if (page_index->page_code != prev) {
@@ -4496,9 +4484,8 @@ ctl_alloc_lun(struct ctl_softc *ctl_softc, struct ctl_lun *ctl_lun,
 	/* Setup statistics gathering */
 	lun->stats.device_type = be_lun->lun_type;
 	lun->stats.lun_number = lun_number;
-	if (lun->stats.device_type == T_DIRECT)
-		lun->stats.blocksize = be_lun->blocksize;
-	else
+	lun->stats.blocksize = be_lun->blocksize;
+	if (be_lun->blocksize == 0)
 		lun->stats.flags = CTL_LUN_STATS_NO_BLOCKSIZE;
 	for (i = 0;i < CTL_MAX_PORTS;i++)
 		lun->stats.ports[i].targ_port = i;
@@ -5901,8 +5888,7 @@ ctl_do_mode_select(union ctl_io *io)
 	struct scsi_mode_page_header *page_header;
 	struct ctl_page_index *page_index;
 	struct ctl_scsiio *ctsio;
-	int control_dev, page_len;
-	int page_len_offset, page_len_size;
+	int page_len, page_len_offset, page_len_size;
 	union ctl_modepage_info *modepage_info;
 	struct ctl_lun *lun;
 	int *len_left, *len_used;
@@ -5912,11 +5898,6 @@ ctl_do_mode_select(union ctl_io *io)
 	page_index = NULL;
 	page_len = 0;
 	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
-
-	if (lun->be_lun->lun_type != T_DIRECT)
-		control_dev = 1;
-	else
-		control_dev = 0;
 
 	modepage_info = (union ctl_modepage_info *)
 		ctsio->io_hdr.ctl_private[CTL_PRIV_MODEPAGE].bytes;
@@ -5955,8 +5936,8 @@ do_next_page:
 	 */
 	for (i = 0; i < CTL_NUM_MODE_PAGES; i++) {
 
-		if ((control_dev != 0)
-		 && (lun->mode_pages.index[i].page_flags &
+		if (lun->be_lun->lun_type != T_DIRECT &&
+		    (lun->mode_pages.index[i].page_flags &
 		     CTL_PAGE_FLAG_DISK_ONLY))
 			continue;
 
@@ -6253,7 +6234,6 @@ ctl_mode_sense(struct ctl_scsiio *ctsio)
 	int alloc_len, page_len, header_len, total_len;
 	struct scsi_mode_block_descr *block_desc;
 	struct ctl_page_index *page_index;
-	int control_dev;
 
 	dbd = 0;
 	llba = 0;
@@ -6263,12 +6243,6 @@ ctl_mode_sense(struct ctl_scsiio *ctsio)
 	CTL_DEBUG_PRINT(("ctl_mode_sense\n"));
 
 	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
-
-	if (lun->be_lun->lun_type != T_DIRECT)
-		control_dev = 1;
-	else
-		control_dev = 0;
-
 	switch (ctsio->cdb[0]) {
 	case MODE_SENSE_6: {
 		struct scsi_mode_sense_6 *cdb;
@@ -6341,8 +6315,8 @@ ctl_mode_sense(struct ctl_scsiio *ctsio)
 		}
 
 		for (i = 0; i < CTL_NUM_MODE_PAGES; i++) {
-			if ((control_dev != 0)
-			 && (lun->mode_pages.index[i].page_flags &
+			if (lun->be_lun->lun_type != T_DIRECT &&
+			    (lun->mode_pages.index[i].page_flags &
 			     CTL_PAGE_FLAG_DISK_ONLY))
 				continue;
 
@@ -6381,8 +6355,8 @@ ctl_mode_sense(struct ctl_scsiio *ctsio)
 				continue;
 
 			/* Make sure the page is supported for this dev type */
-			if ((control_dev != 0)
-			 && (lun->mode_pages.index[i].page_flags &
+			if (lun->be_lun->lun_type != T_DIRECT &&
+			    (lun->mode_pages.index[i].page_flags &
 			     CTL_PAGE_FLAG_DISK_ONLY))
 				continue;
 
@@ -6437,7 +6411,7 @@ ctl_mode_sense(struct ctl_scsiio *ctsio)
 		header = (struct scsi_mode_hdr_6 *)ctsio->kern_data_ptr;
 
 		header->datalen = MIN(total_len - 1, 254);
-		if (control_dev == 0) {
+		if (lun->be_lun->lun_type == T_DIRECT) {
 			header->dev_specific = 0x10; /* DPOFUA */
 			if ((lun->be_lun->flags & CTL_LUN_FLAG_READONLY) ||
 			    (lun->mode_pages.control_page[CTL_PAGE_CURRENT]
@@ -6460,7 +6434,7 @@ ctl_mode_sense(struct ctl_scsiio *ctsio)
 
 		datalen = MIN(total_len - 2, 65533);
 		scsi_ulto2b(datalen, header->datalen);
-		if (control_dev == 0) {
+		if (lun->be_lun->lun_type == T_DIRECT) {
 			header->dev_specific = 0x10; /* DPOFUA */
 			if ((lun->be_lun->flags & CTL_LUN_FLAG_READONLY) ||
 			    (lun->mode_pages.control_page[CTL_PAGE_CURRENT]
@@ -6485,7 +6459,7 @@ ctl_mode_sense(struct ctl_scsiio *ctsio)
 	 * descriptor.  Otherwise, just set it to 0.
 	 */
 	if (dbd == 0) {
-		if (control_dev == 0)
+		if (lun->be_lun->lun_type == T_DIRECT)
 			scsi_ulto3b(lun->be_lun->blocksize,
 				    block_desc->block_len);
 		else
@@ -6502,9 +6476,8 @@ ctl_mode_sense(struct ctl_scsiio *ctsio)
 
 			page_index = &lun->mode_pages.index[i];
 
-			if ((control_dev != 0)
-			 && (page_index->page_flags &
-			    CTL_PAGE_FLAG_DISK_ONLY))
+			if (lun->be_lun->lun_type != T_DIRECT &&
+			    (page_index->page_flags & CTL_PAGE_FLAG_DISK_ONLY))
 				continue;
 
 			/*
@@ -6552,9 +6525,8 @@ ctl_mode_sense(struct ctl_scsiio *ctsio)
 				continue;
 
 			/* Make sure the page is supported for this dev type */
-			if ((control_dev != 0)
-			 && (page_index->page_flags &
-			     CTL_PAGE_FLAG_DISK_ONLY))
+			if (lun->be_lun->lun_type != T_DIRECT &&
+			    (page_index->page_flags & CTL_PAGE_FLAG_DISK_ONLY))
 				continue;
 
 			/*
@@ -10111,23 +10083,13 @@ ctl_inquiry_std(struct ctl_scsiio *ctsio)
 			 inq_ptr->additional_length));
 
 	inq_ptr->spc3_flags = SPC3_SID_3PC | SPC3_SID_TPGS_IMPLICIT;
-	/* 16 bit addressing */
 	if (port_type == CTL_PORT_SCSI)
 		inq_ptr->spc2_flags = SPC2_SID_ADDR16;
-	/* XXX set the SID_MultiP bit here if we're actually going to
-	   respond on multiple ports */
 	inq_ptr->spc2_flags |= SPC2_SID_MultiP;
-
-	/* 16 bit data bus, synchronous transfers */
+	inq_ptr->flags = SID_CmdQue;
 	if (port_type == CTL_PORT_SCSI)
-		inq_ptr->flags = SID_WBus16 | SID_Sync;
-	/*
-	 * XXX KDM do we want to support tagged queueing on the control
-	 * device at all?
-	 */
-	if ((lun == NULL)
-	 || (lun->be_lun->lun_type != T_PROCESSOR))
-		inq_ptr->flags |= SID_CmdQue;
+		inq_ptr->flags |= SID_WBus16 | SID_Sync;
+
 	/*
 	 * Per SPC-3, unused bytes in ASCII strings are filled with spaces.
 	 * We have 8 bytes for the vendor name, and 16 bytes for the device
