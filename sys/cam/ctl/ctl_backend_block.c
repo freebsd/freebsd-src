@@ -1872,6 +1872,8 @@ ctl_be_block_open_file(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 	 */
 	if (params->blocksize_bytes != 0)
 		cbe_lun->blocksize = params->blocksize_bytes;
+	else if (cbe_lun->lun_type == T_CDROM)
+		cbe_lun->blocksize = 2048;
 	else
 		cbe_lun->blocksize = 512;
 	be_lun->size_blocks = be_lun->size_bytes / cbe_lun->blocksize;
@@ -2000,7 +2002,9 @@ ctl_be_block_open_dev(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 			 "requested blocksize %u < backing device "
 			 "blocksize %u", params->blocksize_bytes, tmp);
 		return (EINVAL);
-	} else
+	} else if (cbe_lun->lun_type == T_CDROM)
+		cbe_lun->blocksize = MAX(tmp, 2048);
+	else
 		cbe_lun->blocksize = tmp;
 
 	error = csw->d_ioctl(dev, DIOCGMEDIASIZE, (caddr_t)&otmp, FREAD,
@@ -2171,7 +2175,10 @@ ctl_be_block_open(struct ctl_be_block_softc *softc,
 
 	flags = FREAD;
 	value = ctl_get_opt(&cbe_lun->options, "readonly");
-	if (value == NULL || strcmp(value, "on") != 0)
+	if (value != NULL) {
+		if (strcmp(value, "on") != 0)
+			flags |= FWRITE;
+	} else if (cbe_lun->lun_type == T_DIRECT)
 		flags |= FWRITE;
 
 again:
@@ -2287,10 +2294,13 @@ ctl_be_block_create(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 	} else if (control_softc->flags & CTL_FLAG_ACTIVE_SHELF)
 		cbe_lun->flags |= CTL_LUN_FLAG_PRIMARY;
 
-	if (cbe_lun->lun_type == T_DIRECT) {
+	if (cbe_lun->lun_type == T_DIRECT ||
+	    cbe_lun->lun_type == T_CDROM) {
 		be_lun->size_bytes = params->lun_size_bytes;
 		if (params->blocksize_bytes != 0)
 			cbe_lun->blocksize = params->blocksize_bytes;
+		else if (cbe_lun->lun_type == T_CDROM)
+			cbe_lun->blocksize = 2048;
 		else
 			cbe_lun->blocksize = 512;
 		be_lun->size_blocks = be_lun->size_bytes / cbe_lun->blocksize;
@@ -2775,6 +2785,10 @@ ctl_be_block_config_write(union ctl_io *io)
 		ctl_config_write_done(io);
 		break;
 	}
+	case PREVENT_ALLOW:
+		ctl_set_success(&io->scsiio);
+		ctl_config_write_done(io);
+		break;
 	default:
 		ctl_set_invalid_opcode(&io->scsiio);
 		ctl_config_write_done(io);

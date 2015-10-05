@@ -1439,6 +1439,13 @@ lun_set_blocksize(struct lun *lun, size_t value)
 }
 
 void
+lun_set_device_type(struct lun *lun, uint8_t value)
+{
+
+	lun->l_device_type = value;
+}
+
+void
 lun_set_device_id(struct lun *lun, const char *value)
 {
 	free(lun->l_device_id);

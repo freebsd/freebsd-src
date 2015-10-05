@@ -717,11 +717,10 @@ Specify the serial number to be used in the
 INQUIRY VPD page 0x80 data.
 .It Fl t Ar device_type
 Specify the numeric SCSI device type to use when creating the LUN.
-For example, the Direct Access type is 0.
 If this flag is not used, the type of LUN created is backend-specific.
 Not all LUN types are supported.
-Currently CTL only supports Direct Access (type 0) and Processor (type 3)
-LUNs.
+Currently CTL supports Direct Access (type 0), Processor (type 3)
+and CD/DVD (type 5) LUNs.
 The backend requested may or may not support all of the LUN types that CTL
 supports.
 .El
@@ -876,6 +875,8 @@ Set to "off", disables read caching for the LUN, if supported by the backend.
 .It Va readonly
 Set to "on", blocks all media write operations to the LUN, reporting it
 as write protected.
+.It Va removable
+Set to "on", makes LUN removable.
 .It Va reordering
 Set to "unrestricted", allows target to process commands with SIMPLE task
 attribute in arbitrary order.  Any data integrity exposures related to
