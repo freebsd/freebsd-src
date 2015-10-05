@@ -1006,12 +1006,9 @@ ctl_be_block_flush_dev(struct ctl_be_block_lun *be_lun,
 		       struct ctl_be_block_io *beio)
 {
 	struct bio *bio;
-	union ctl_io *io;
 	struct cdevsw *csw;
 	struct cdev *dev;
 	int ref;
-
-	io = beio->io;
 
 	DPRINTF("entered\n");
 
@@ -1826,7 +1823,6 @@ ctl_be_block_open_file(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 	off_t			      ps, pss, po, pos, us, uss, uo, uos;
 	int			      error;
 
-	error = 0;
 	cbe_lun = &be_lun->cbe_lun;
 	file_data = &be_lun->backend.file;
 	params = &be_lun->params;

@@ -458,6 +458,7 @@ cfiscsi_decode_lun(uint64_t encoded)
 			break;
 		}
 		result = (lun[1] << 16) + (lun[2] << 8) + lun[3];
+		break;
 	default:
 		CFISCSI_WARN("unsupported LUN format 0x%jx",
 		    (uintmax_t)encoded);
@@ -1331,10 +1332,8 @@ int
 cfiscsi_init(void)
 {
 	struct cfiscsi_softc *softc;
-	int retval;
 
 	softc = &cfiscsi_softc;
-	retval = 0;
 	bzero(softc, sizeof(*softc));
 	mtx_init(&softc->lock, "cfiscsi", NULL, MTX_DEF);
 

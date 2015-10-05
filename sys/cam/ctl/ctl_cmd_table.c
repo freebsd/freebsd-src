@@ -134,7 +134,7 @@ const struct ctl_cmd_entry ctl_cmd_table_5f[32] =
 						CTL_FLAG_DATA_OUT |
 						CTL_CMD_FLAG_ALLOW_ON_PR_RESV,
  CTL_LUN_PAT_NONE,
- 10, { 0x01, 0xff, 0, 0, 0xff, 0xff, 0xff, 0xff, 0x07}},
+ 10, { 0, 0, 0, 0, 0, 0, 0, 0, 0x07}},
 
 /* 02 RELEASE */
 {ctl_persistent_reserve_out, CTL_SERIDX_RES, CTL_CMD_FLAG_ALLOW_ON_RESV |
@@ -145,7 +145,7 @@ const struct ctl_cmd_entry ctl_cmd_table_5f[32] =
 						CTL_FLAG_DATA_OUT |
 						CTL_CMD_FLAG_ALLOW_ON_PR_RESV,
  CTL_LUN_PAT_NONE,
- 10, { 0x02, 0xff, 0, 0, 0xff, 0xff, 0xff, 0xff, 0x07}},
+ 10, { 0, 0, 0, 0, 0, 0, 0, 0, 0x07}},
 
 /* 03 CLEAR */
 {ctl_persistent_reserve_out, CTL_SERIDX_RES, CTL_CMD_FLAG_ALLOW_ON_RESV |
