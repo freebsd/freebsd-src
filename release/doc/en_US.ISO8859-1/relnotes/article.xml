@@ -1015,6 +1015,9 @@
       <para revision="282783" arch="powerpc">Support for the Freescale
 	<acronym>PCI</acronym> Root Complex device has been
 	added.</para>
+
+      <para revision="285876">The &man.cyapa.4; driver has been added,
+	supporting the Cypress APA I2C trackpad.</para>
     </sect2>
 
     <sect2 xml:id="drivers-storage">
