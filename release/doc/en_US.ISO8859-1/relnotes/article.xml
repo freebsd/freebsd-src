@@ -1686,6 +1686,10 @@
 	updated to include support for <acronym>AES</acronym> modes on
 	both software-only and hardware-backed (&man.aesni.4;)
 	systems.</para>
+
+      <para revision="287798" contrib="sponsor" sponsor="&dell;">The
+	network stack has been updated to fix handling of
+	<acronym>IPv6</acronym> On-Link redirects.</para>
     </sect2>
   </sect1>
 
