@@ -11338,6 +11338,7 @@ static int
 ctl_target_reset(struct ctl_softc *softc, union ctl_io *io,
 		 ctl_ua_type ua_type)
 {
+	struct ctl_port *port;
 	struct ctl_lun *lun;
 	int retval;
 
@@ -11358,8 +11359,13 @@ ctl_target_reset(struct ctl_softc *softc, union ctl_io *io,
 	retval = 0;
 
 	mtx_lock(&softc->ctl_lock);
-	STAILQ_FOREACH(lun, &softc->lun_list, links)
+	port = softc->ctl_ports[io->io_hdr.nexus.targ_port];
+	STAILQ_FOREACH(lun, &softc->lun_list, links) {
+		if (port != NULL &&
+		    ctl_lun_map_to_port(port, lun->lun) >= CTL_MAX_LUNS)
+			continue;
 		retval += ctl_lun_reset(lun, io, ua_type);
+	}
 	mtx_unlock(&softc->ctl_lock);
 
 	return (retval);
