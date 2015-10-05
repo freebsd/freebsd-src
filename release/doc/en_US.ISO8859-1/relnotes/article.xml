@@ -173,6 +173,9 @@
 
       <para revision="272350">The <literal>MK_ARM_EABI</literal>
 	&man.src.conf.5; option has been removed.</para>
+
+      <para revision="285169">The <application>ntp</application> suite
+	has been updated to version 4.2.8p3.</para>
     </sect2>
 
     <sect2 xml:id="userland-programs">
