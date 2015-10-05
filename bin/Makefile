@@ -45,28 +45,15 @@ SUBDIR+=	shmem_bench
 SUBDIR+=	cheri_bench
 .endif
 
-.if ${MK_CHERI} != "no"
-SUBDIR+=	cheri_helloworld
-SUBDIR+=	cheriabitest
-SUBDIR+=	cheritest
-SUBDIR+=	helloworld
-.endif
+SUBDIR.${MK_CHERI}+=	cheri_helloworld
+SUBDIR.${MK_CHERI}+=	cheriabitest
+SUBDIR.${MK_CHERI}+=	cheritest
+SUBDIR.${MK_CHERI}+=	helloworld
 
-.if ${MK_RCMDS} != "no"
-SUBDIR+=	rcp
-.endif
-
-.if ${MK_SENDMAIL} != "no"
-SUBDIR+=	rmail
-.endif
-
-.if ${MK_TCSH} != "no"
-SUBDIR+=	csh
-.endif
-
-.if ${MK_TESTS} != "no"
-SUBDIR+=	tests
-.endif
+SUBDIR.${MK_RCMDS}+=	rcp
+SUBDIR.${MK_SENDMAIL}+=	rmail
+SUBDIR.${MK_TCSH}+=	csh
+SUBDIR.${MK_TESTS}+=	tests
 
 .include <bsd.arch.inc.mk>
 
