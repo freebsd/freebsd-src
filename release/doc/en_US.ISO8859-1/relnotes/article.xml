@@ -922,6 +922,10 @@
 	affinity and policy configuration has been added.  See
 	&man.numactl.1;, and &man.numa.getaffinity.2;, for usage
 	details.</para>
+
+      <para revision="286231">The &man.pms.4; driver has been added
+	to the <filename>GENERIC</filename> kernel configuration for
+	supported architectures.</para>
     </sect2>
 
     <sect2 xml:id="kernel-sysctl">
