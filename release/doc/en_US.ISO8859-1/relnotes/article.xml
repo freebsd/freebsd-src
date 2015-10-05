@@ -1207,6 +1207,10 @@
 	rule in &man.pf.conf.5; will implicitly be converted to the
 	<literal>scrub fragment reassemble</literal> filtering rule,
 	without necessary intervention.</para>
+
+      <para revision="287469" contrib="sponsor"
+	sponsor="&intelcorp;">The &man.em.4; driver has been updated
+	to support the Skylake I219 chipset.</para>
     </sect2>
   </sect1>
 
