@@ -1589,6 +1589,10 @@ ctl_extended_copy_lid1(struct ctl_scsiio *ctsio)
 	cdb = (struct scsi_extended_copy *)ctsio->cdb;
 	len = scsi_4btoul(cdb->length);
 
+	if (len == 0) {
+		ctl_set_success(ctsio);
+		goto done;
+	}
 	if (len < sizeof(struct scsi_extended_copy_lid1_data) ||
 	    len > sizeof(struct scsi_extended_copy_lid1_data) +
 	    TPC_MAX_LIST + TPC_MAX_INLINE) {
@@ -1619,20 +1623,22 @@ ctl_extended_copy_lid1(struct ctl_scsiio *ctsio)
 	lencscd = scsi_2btoul(data->cscd_list_length);
 	lenseg = scsi_4btoul(data->segment_list_length);
 	leninl = scsi_4btoul(data->inline_data_length);
-	if (len < sizeof(struct scsi_extended_copy_lid1_data) +
-	    lencscd + lenseg + leninl ||
-	    leninl > TPC_MAX_INLINE) {
-		ctl_set_invalid_field(ctsio, /*sks_valid*/ 1, /*command*/ 0,
-		    /*field*/ 2, /*bit_valid*/ 0, /*bit*/ 0);
-		goto done;
-	}
 	if (lencscd > TPC_MAX_CSCDS * sizeof(struct scsi_ec_cscd)) {
 		ctl_set_sense(ctsio, /*current_error*/ 1,
 		    /*sense_key*/ SSD_KEY_ILLEGAL_REQUEST,
 		    /*asc*/ 0x26, /*ascq*/ 0x06, SSD_ELEM_NONE);
 		goto done;
 	}
-	if (lencscd + lenseg > TPC_MAX_LIST) {
+	if (lenseg > TPC_MAX_SEGS * sizeof(struct scsi_ec_segment)) {
+		ctl_set_sense(ctsio, /*current_error*/ 1,
+		    /*sense_key*/ SSD_KEY_ILLEGAL_REQUEST,
+		    /*asc*/ 0x26, /*ascq*/ 0x08, SSD_ELEM_NONE);
+		goto done;
+	}
+	if (lencscd + lenseg > TPC_MAX_LIST ||
+	    leninl > TPC_MAX_INLINE ||
+	    len < sizeof(struct scsi_extended_copy_lid1_data) +
+	     lencscd + lenseg + leninl) {
 		ctl_set_param_len_error(ctsio);
 		goto done;
 	}
@@ -1716,6 +1722,10 @@ ctl_extended_copy_lid4(struct ctl_scsiio *ctsio)
 	cdb = (struct scsi_extended_copy *)ctsio->cdb;
 	len = scsi_4btoul(cdb->length);
 
+	if (len == 0) {
+		ctl_set_success(ctsio);
+		goto done;
+	}
 	if (len < sizeof(struct scsi_extended_copy_lid4_data) ||
 	    len > sizeof(struct scsi_extended_copy_lid4_data) +
 	    TPC_MAX_LIST + TPC_MAX_INLINE) {
@@ -1746,20 +1756,22 @@ ctl_extended_copy_lid4(struct ctl_scsiio *ctsio)
 	lencscd = scsi_2btoul(data->cscd_list_length);
 	lenseg = scsi_2btoul(data->segment_list_length);
 	leninl = scsi_2btoul(data->inline_data_length);
-	if (len < sizeof(struct scsi_extended_copy_lid4_data) +
-	    lencscd + lenseg + leninl ||
-	    leninl > TPC_MAX_INLINE) {
-		ctl_set_invalid_field(ctsio, /*sks_valid*/ 1, /*command*/ 0,
-		    /*field*/ 2, /*bit_valid*/ 0, /*bit*/ 0);
-		goto done;
-	}
 	if (lencscd > TPC_MAX_CSCDS * sizeof(struct scsi_ec_cscd)) {
 		ctl_set_sense(ctsio, /*current_error*/ 1,
 		    /*sense_key*/ SSD_KEY_ILLEGAL_REQUEST,
 		    /*asc*/ 0x26, /*ascq*/ 0x06, SSD_ELEM_NONE);
 		goto done;
 	}
-	if (lencscd + lenseg > TPC_MAX_LIST) {
+	if (lenseg > TPC_MAX_SEGS * sizeof(struct scsi_ec_segment)) {
+		ctl_set_sense(ctsio, /*current_error*/ 1,
+		    /*sense_key*/ SSD_KEY_ILLEGAL_REQUEST,
+		    /*asc*/ 0x26, /*ascq*/ 0x08, SSD_ELEM_NONE);
+		goto done;
+	}
+	if (lencscd + lenseg > TPC_MAX_LIST ||
+	    leninl > TPC_MAX_INLINE ||
+	    len < sizeof(struct scsi_extended_copy_lid1_data) +
+	     lencscd + lenseg + leninl) {
 		ctl_set_param_len_error(ctsio);
 		goto done;
 	}
