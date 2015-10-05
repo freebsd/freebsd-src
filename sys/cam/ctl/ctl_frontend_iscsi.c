@@ -1652,6 +1652,55 @@ cfiscsi_ioctl_list(struct ctl_iscsi *ci)
 }
 
 static void
+cfiscsi_ioctl_logout(struct ctl_iscsi *ci)
+{
+	struct icl_pdu *response;
+	struct iscsi_bhs_asynchronous_message *bhsam;
+	struct ctl_iscsi_logout_params *cilp;
+	struct cfiscsi_session *cs;
+	struct cfiscsi_softc *softc;
+	int found = 0;
+
+	cilp = (struct ctl_iscsi_logout_params *)&(ci->data);
+	softc = &cfiscsi_softc;
+
+	mtx_lock(&softc->lock);
+	TAILQ_FOREACH(cs, &softc->sessions, cs_next) {
+		if (cilp->all == 0 && cs->cs_id != cilp->connection_id &&
+		    strcmp(cs->cs_initiator_name, cilp->initiator_name) != 0 &&
+		    strcmp(cs->cs_initiator_addr, cilp->initiator_addr) != 0)
+			continue;
+
+		response = icl_pdu_new(cs->cs_conn, M_NOWAIT);
+		if (response == NULL) {
+			ci->status = CTL_ISCSI_ERROR;
+			snprintf(ci->error_str, sizeof(ci->error_str),
+			    "Unable to allocate memory");
+			mtx_unlock(&softc->lock);
+			return;
+		}
+		bhsam =
+		    (struct iscsi_bhs_asynchronous_message *)response->ip_bhs;
+		bhsam->bhsam_opcode = ISCSI_BHS_OPCODE_ASYNC_MESSAGE;
+		bhsam->bhsam_flags = 0x80;
+		bhsam->bhsam_async_event = BHSAM_EVENT_TARGET_REQUESTS_LOGOUT;
+		bhsam->bhsam_parameter3 = htons(10);
+		cfiscsi_pdu_queue(response);
+		found++;
+	}
+	mtx_unlock(&softc->lock);
+
+	if (found == 0) {
+		ci->status = CTL_ISCSI_SESSION_NOT_FOUND;
+		snprintf(ci->error_str, sizeof(ci->error_str),
+		    "No matching connections found");
+		return;
+	}
+
+	ci->status = CTL_ISCSI_OK;
+}
+
+static void
 cfiscsi_ioctl_terminate(struct ctl_iscsi *ci)
 {
 	struct icl_pdu *response;
@@ -1687,55 +1736,6 @@ cfiscsi_ioctl_terminate(struct ctl_iscsi *ci)
 			cfiscsi_pdu_queue(response);
 		}
 		cfiscsi_session_terminate(cs);
-		found++;
-	}
-	mtx_unlock(&softc->lock);
-
-	if (found == 0) {
-		ci->status = CTL_ISCSI_SESSION_NOT_FOUND;
-		snprintf(ci->error_str, sizeof(ci->error_str),
-		    "No matching connections found");
-		return;
-	}
-
-	ci->status = CTL_ISCSI_OK;
-}
-
-static void
-cfiscsi_ioctl_logout(struct ctl_iscsi *ci)
-{
-	struct icl_pdu *response;
-	struct iscsi_bhs_asynchronous_message *bhsam;
-	struct ctl_iscsi_logout_params *cilp;
-	struct cfiscsi_session *cs;
-	struct cfiscsi_softc *softc;
-	int found = 0;
-
-	cilp = (struct ctl_iscsi_logout_params *)&(ci->data);
-	softc = &cfiscsi_softc;
-
-	mtx_lock(&softc->lock);
-	TAILQ_FOREACH(cs, &softc->sessions, cs_next) {
-		if (cilp->all == 0 && cs->cs_id != cilp->connection_id &&
-		    strcmp(cs->cs_initiator_name, cilp->initiator_name) != 0 &&
-		    strcmp(cs->cs_initiator_addr, cilp->initiator_addr) != 0)
-			continue;
-
-		response = icl_pdu_new(cs->cs_conn, M_NOWAIT);
-		if (response == NULL) {
-			ci->status = CTL_ISCSI_ERROR;
-			snprintf(ci->error_str, sizeof(ci->error_str),
-			    "Unable to allocate memory");
-			mtx_unlock(&softc->lock);
-			return;
-		}
-		bhsam =
-		    (struct iscsi_bhs_asynchronous_message *)response->ip_bhs;
-		bhsam->bhsam_opcode = ISCSI_BHS_OPCODE_ASYNC_MESSAGE;
-		bhsam->bhsam_flags = 0x80;
-		bhsam->bhsam_async_event = BHSAM_EVENT_TARGET_REQUESTS_LOGOUT;
-		bhsam->bhsam_parameter3 = htons(10);
-		cfiscsi_pdu_queue(response);
 		found++;
 	}
 	mtx_unlock(&softc->lock);
@@ -2170,11 +2170,11 @@ cfiscsi_ioctl(struct cdev *dev,
 	case CTL_ISCSI_LIST:
 		cfiscsi_ioctl_list(ci);
 		break;
-	case CTL_ISCSI_TERMINATE:
-		cfiscsi_ioctl_terminate(ci);
-		break;
 	case CTL_ISCSI_LOGOUT:
 		cfiscsi_ioctl_logout(ci);
+		break;
+	case CTL_ISCSI_TERMINATE:
+		cfiscsi_ioctl_terminate(ci);
 		break;
 #ifdef ICL_KERNEL_PROXY
 	case CTL_ISCSI_LISTEN:
