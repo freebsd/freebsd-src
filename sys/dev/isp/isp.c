@@ -2233,9 +2233,6 @@ isp_del_all_init_entries(ispsoftc_t *isp, int chan)
 		lp = &fcp->portdb[i];
 		if (lp->state == FC_PORTDB_STATE_NIL || lp->target_mode)
 			continue;
-		/*
-		 * It's up to the outer layers to clear isp_dev_map.
-		 */
 		lp->state = FC_PORTDB_STATE_NIL;
 		isp_async(isp, ISPASYNC_DEV_GONE, chan, lp, 1);
 		if (lp->autologin == 0) {
@@ -3007,9 +3004,6 @@ isp_pdb_sync(ispsoftc_t *isp, int chan)
 		switch (lp->state) {
 		case FC_PORTDB_STATE_PROBATIONAL:
 		case FC_PORTDB_STATE_DEAD:
-			/*
-			 * It's up to the outer layers to clear isp_dev_map.
-			 */
 			lp->state = FC_PORTDB_STATE_NIL;
 			isp_async(isp, ISPASYNC_DEV_GONE, chan, lp, 0);
 			if (lp->autologin == 0) {
@@ -3029,10 +3023,6 @@ isp_pdb_sync(ispsoftc_t *isp, int chan)
 			 */
 			break;
 		case FC_PORTDB_STATE_NEW:
-			/*
-			 * It's up to the outer layers to assign a virtual
-			 * target id in isp_dev_map (if any).
-			 */
 			lp->portid = lp->new_portid;
 			lp->prli_word3 = lp->new_prli_word3;
 			lp->state = FC_PORTDB_STATE_VALID;
@@ -3054,10 +3044,6 @@ isp_pdb_sync(ispsoftc_t *isp, int chan)
 		case FC_PORTDB_STATE_PENDING_VALID:
 			lp->portid = lp->new_portid;
 			lp->prli_word3 = lp->new_prli_word3;
-			if (lp->dev_map_idx) {
-				int t = lp->dev_map_idx - 1;
-				fcp->isp_dev_map[t] = dbidx + 1;
-			}
 			lp->state = FC_PORTDB_STATE_VALID;
 			isp_async(isp, ISPASYNC_DEV_STAYED, chan, lp);
 			if (dbidx != FL_ID) {
@@ -4354,7 +4340,8 @@ isp_start(XS_T *xs)
 	ispreq_t *reqp;
 	void *cdbp, *qep;
 	uint16_t *tptr;
-	int target, dmaresult, hdlidx = 0;
+	fcportdb_t *lp;
+	int target, dmaresult;
 
 	XS_INITERR(xs);
 	isp = XS_ISP(xs);
@@ -4403,29 +4390,23 @@ isp_start(XS_T *xs)
 			return (CMD_RQLATER);
 		}
 
-		if (XS_TGT(xs) >= MAX_FC_TARG) {
-			isp_prt(isp, ISP_LOG_WARN1, "%d.%d.%d target too big", XS_CHANNEL(xs), target, XS_LUN(xs));
+		isp_prt(isp, ISP_LOGDEBUG2, "XS_TGT(xs)=%d", target);
+		lp = &fcp->portdb[target];
+		if (target < 0 || target >= MAX_FC_TARG ||
+		    lp->dev_map_idx == 0) {
 			XS_SETERR(xs, HBA_SELTIMEOUT);
 			return (CMD_COMPLETE);
 		}
-
-		hdlidx = fcp->isp_dev_map[XS_TGT(xs)] - 1;
-		isp_prt(isp, ISP_LOGDEBUG2, "XS_TGT(xs)=%d- hdlidx value %d", XS_TGT(xs), hdlidx);
-		if (hdlidx < 0 || hdlidx >= MAX_FC_TARG) {
-			XS_SETERR(xs, HBA_SELTIMEOUT);
-			return (CMD_COMPLETE);
-		}
-		if (fcp->portdb[hdlidx].state == FC_PORTDB_STATE_ZOMBIE) {
+		if (lp->state == FC_PORTDB_STATE_ZOMBIE) {
 			isp_prt(isp, ISP_LOGDEBUG1, "%d.%d.%d target zombie", XS_CHANNEL(xs), target, XS_LUN(xs));
 			return (CMD_RQLATER);
 		}
-		if (fcp->portdb[hdlidx].state != FC_PORTDB_STATE_VALID) {
-			isp_prt(isp, ISP_LOGDEBUG1, "%d.%d.%d bad db port state 0x%x", XS_CHANNEL(xs), target, XS_LUN(xs), fcp->portdb[hdlidx].state);
+		if (lp->state != FC_PORTDB_STATE_VALID) {
+			isp_prt(isp, ISP_LOGDEBUG1, "%d.%d.%d bad db port state 0x%x", XS_CHANNEL(xs), target, XS_LUN(xs), lp->state);
 			XS_SETERR(xs, HBA_SELTIMEOUT);
 			return (CMD_COMPLETE);
 		}
-		target = fcp->portdb[hdlidx].handle;
-		fcp->portdb[hdlidx].dirty = 1;
+		lp->dirty = 1;
 	} else {
 		sdparam *sdp = SDPARAM(isp, XS_CHANNEL(xs));
 		if ((sdp->role & ISP_ROLE_INITIATOR) == 0) {
@@ -4567,7 +4548,6 @@ isp_start(XS_T *xs)
 		reqp->req_cdblen = cdblen;
 	} else if (IS_24XX(isp)) {
 		ispreqt7_t *t7 = (ispreqt7_t *)local;
-		fcportdb_t *lp;
 
 		if (cdblen > sizeof (t7->req_cdb)) {
 			isp_prt(isp, ISP_LOGERR, "Command Length %u too long for this chip", cdblen);
@@ -4575,8 +4555,7 @@ isp_start(XS_T *xs)
 			return (CMD_COMPLETE);
 		}
 
-		lp = &FCPARAM(isp, XS_CHANNEL(xs))->portdb[hdlidx];
-		t7->req_nphdl = target;
+		t7->req_nphdl = lp->handle;
 		t7->req_tidlo = lp->portid;
 		t7->req_tidhi = lp->portid >> 16;
 		t7->req_vpidx = ISP_GET_VPIDX(isp, XS_CHANNEL(xs));
@@ -4596,14 +4575,12 @@ isp_start(XS_T *xs)
 		cdbp = t7->req_cdb;
 	} else {
 		ispreqt2_t *t2 = (ispreqt2_t *)local;
-		fcportdb_t *lp;
 
 		if (cdblen > sizeof t2->req_cdb) {
 			isp_prt(isp, ISP_LOGERR, "Command Length %u too long for this chip", cdblen);
 			XS_SETERR(xs, HBA_BOTCH);
 			return (CMD_COMPLETE);
 		}
-		lp = &FCPARAM(isp, XS_CHANNEL(xs))->portdb[hdlidx];
 		if (FCPARAM(isp, XS_CHANNEL(xs))->fctape_enabled && (lp->prli_word3 & PRLI_WD3_RETRY)) {
 			if (FCP_NEXT_CRN(isp, &t2->req_crn, xs)) {
 				isp_prt(isp, ISP_LOG_WARN1, "%d.%d.%d cannot generate next CRN", XS_CHANNEL(xs), target, XS_LUN(xs));
@@ -4613,16 +4590,16 @@ isp_start(XS_T *xs)
 		}
 		if (ISP_CAP_2KLOGIN(isp)) {
 			ispreqt2e_t *t2e = (ispreqt2e_t *)local;
-			t2e->req_target = target;
+			t2e->req_target = lp->handle;
 			t2e->req_scclun = XS_LUN(xs);
 			cdbp = t2e->req_cdb;
 		} else if (ISP_CAP_SCCFW(isp)) {
 			ispreqt2_t *t2 = (ispreqt2_t *)local;
-			t2->req_target = target;
+			t2->req_target = lp->handle;
 			t2->req_scclun = XS_LUN(xs);
 			cdbp = t2->req_cdb;
 		} else {
-			t2->req_target = target;
+			t2->req_target = lp->handle;
 			t2->req_lun_trn = XS_LUN(xs);
 			cdbp = t2->req_cdb;
 		}
@@ -4720,16 +4697,15 @@ isp_control(ispsoftc_t *isp, ispctl_t ctl, ...)
 			isp24xx_statusreq_t *sp;
 			fcparam *fcp = FCPARAM(isp, chan);
 			fcportdb_t *lp;
-			int hdlidx;
 
-			hdlidx = fcp->isp_dev_map[tgt] - 1;
-			if (hdlidx < 0 || hdlidx >= MAX_FC_TARG) {
-				isp_prt(isp, ISP_LOGWARN, "Chan %d bad handle %d trying to reset target %d", chan, hdlidx, tgt);
+			if (tgt < 0 || tgt >= MAX_FC_TARG) {
+				isp_prt(isp, ISP_LOGWARN, "Chan %d trying to reset bad target %d", chan, tgt);
 				break;
 			}
-			lp = &fcp->portdb[hdlidx];
-			if (lp->state != FC_PORTDB_STATE_VALID) {
-				isp_prt(isp, ISP_LOGWARN, "Chan %d handle %d for abort of target %d no longer valid", chan, hdlidx, tgt);
+			lp = &fcp->portdb[tgt];
+			if (lp->dev_map_idx == 0 ||
+			    lp->state != FC_PORTDB_STATE_VALID) {
+				isp_prt(isp, ISP_LOGWARN, "Chan %d abort of no longer valid target %d", chan, tgt);
 				break;
 			}
 
@@ -4810,17 +4786,16 @@ isp_control(ispsoftc_t *isp, ispctl_t ctl, ...)
 			isp24xx_abrt_t local, *ab = &local, *ab2;
 			fcparam *fcp;
 			fcportdb_t *lp;
-			int hdlidx;
 
 			fcp = FCPARAM(isp, chan);
-			hdlidx = fcp->isp_dev_map[tgt] - 1;
-			if (hdlidx < 0 || hdlidx >= MAX_FC_TARG) {
-				isp_prt(isp, ISP_LOGWARN, "Chan %d bad handle %d trying to abort target %d", chan, hdlidx, tgt);
+			if (tgt < 0 || tgt >= MAX_FC_TARG) {
+				isp_prt(isp, ISP_LOGWARN, "Chan %d trying to abort bad target %d", chan, tgt);
 				break;
 			}
-			lp = &fcp->portdb[hdlidx];
-			if (lp->state != FC_PORTDB_STATE_VALID) {
-				isp_prt(isp, ISP_LOGWARN, "Chan %d handle %d for abort of target %d no longer valid", chan, hdlidx, tgt);
+			lp = &fcp->portdb[tgt];
+			if (lp->dev_map_idx == 0 ||
+			    lp->state != FC_PORTDB_STATE_VALID) {
+				isp_prt(isp, ISP_LOGWARN, "Chan %d abort of no longer valid target %d", chan, tgt);
 				break;
 			}
 			isp_prt(isp, ISP_LOGALL, "Chan %d Abort Cmd for N-Port 0x%04x @ Port 0x%06x", chan, lp->handle, lp->portid);
@@ -4860,7 +4835,7 @@ isp_control(ispsoftc_t *isp, ispctl_t ctl, ...)
 			if (ab->abrt_nphdl == ISP24XX_ABRT_OKAY) {
 				return (0);
 			}
-			isp_prt(isp, ISP_LOGWARN, "Chan %d handle %d abort returned 0x%x", chan, hdlidx, ab->abrt_nphdl);
+			isp_prt(isp, ISP_LOGWARN, "Chan %d handle %d abort returned 0x%x", chan, tgt, ab->abrt_nphdl);
 			break;
 		} else if (IS_FC(isp)) {
 			if (ISP_CAP_SCCFW(isp)) {
