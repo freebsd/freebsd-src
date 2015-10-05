@@ -240,7 +240,10 @@
     <sect2 xml:id="kernel-bugfix">
       <title>Kernel Bug Fixes</title>
 
-      <para>&nbsp;</para>
+      <para revision="288167" contrib="sponsor"
+	sponsor="&multiplay;">The &man.kqueue.2; system call has been
+	updated to handle write events to files larger than 2
+	gigabytes.</para>
     </sect2>
 
     <sect2 xml:id="kernel-config">
