@@ -181,6 +181,12 @@
 	&man.ar.1; utility now enables deterministic mode
 	(<literal>-D</literal>) by default.  This behavior can be
 	disabled by specifying the <literal>-U</literal> flag.</para>
+
+      <para revision="287746">The &man.pciconf.8; utility has been
+	updated to use the PCI ID database from the <filename
+	  role="package">misc/pciids</filename> package, if present,
+	falling back to the PCI ID database in the &os; base
+	system.</para>
     </sect2>
 
     <sect2 xml:id="userland-contrib">
