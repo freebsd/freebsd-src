@@ -1196,6 +1196,13 @@
       <para revision="286829" contrib="sponsor"
 	sponsor="&limelight;">The &man.em.4; driver has been updated
 	to allow disabling <acronym>CRC</acronym> stripping.</para>
+
+      <para revision="287222">The &man.pf.4; implementation has been
+	updated to remove support for the <literal>scrub fragment
+	  crop|drop-ovl</literal> filtering rule.  Systems with this
+	rule in &man.pf.conf.5; will implicitly be converted to the
+	<literal>scrub fragment reassemble</literal> filtering rule,
+	without necessary intervention.</para>
     </sect2>
   </sect1>
 
