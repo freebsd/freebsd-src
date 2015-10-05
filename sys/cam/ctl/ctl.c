@@ -1748,12 +1748,12 @@ ctl_serialize_other_sc_cmd(struct ctl_scsiio *ctsio)
 		lun = NULL;
 	if (lun == NULL) {
 		/*
-		 * Why isn't LUN defined? The other side wouldn't
-		 * send a cmd if the LUN is undefined.
+		 * The other node would not send this request to us unless
+		 * received announce that we are primary node for this LUN.
+		 * If this LUN does not exist now, it is probably result of
+		 * a race, so respond to initiator in the most opaque way.
 		 */
-		printf("%s: Bad JUJU!, LUN is NULL!\n", __func__);
-
-		ctl_set_unsupported_lun(ctsio);
+		ctl_set_busy(ctsio);
 		ctl_copy_sense_data_back((union ctl_io *)ctsio, &msg_info);
 		msg_info.hdr.original_sc = ctsio->io_hdr.original_sc;
 		msg_info.hdr.serializing_sc = NULL;
