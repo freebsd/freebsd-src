@@ -1000,6 +1000,10 @@
       <para revision="285524">A new &man.sysctl.8;,
 	<literal>hw.model</literal>, has been added, which displays
 	<acronym>CPU</acronym> model information.</para>
+
+      <para revision="286591">The &man.uart.4; driver has been
+	updated to allow tuning packets per second captured during
+	runtime.</para>
     </sect2>
   </sect1>
 
