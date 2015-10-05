@@ -1190,15 +1190,6 @@ ctl_init(void)
 	SYSCTL_ADD_PROC(&softc->sysctl_ctx,SYSCTL_CHILDREN(softc->sysctl_tree),
 	    OID_AUTO, "ha_state", CTLTYPE_INT | CTLFLAG_RWTUN,
 	    softc, 0, ctl_ha_state_sysctl, "I", "HA state for this head");
-
-#ifdef CTL_IO_DELAY
-	if (sizeof(struct callout) > CTL_TIMER_BYTES) {
-		printf("sizeof(struct callout) %zd > CTL_TIMER_BYTES %zd\n",
-		       sizeof(struct callout), CTL_TIMER_BYTES);
-		return (EINVAL);
-	}
-#endif /* CTL_IO_DELAY */
-
 	return (0);
 }
 
@@ -12200,12 +12191,10 @@ ctl_datamove(union ctl_io *io)
 		lun =(struct ctl_lun *)io->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
 		if ((lun != NULL)
 		 && (lun->delay_info.datamove_delay > 0)) {
-			struct callout *callout;
 
-			callout = (struct callout *)&io->io_hdr.timer_bytes;
-			callout_init(callout, /*mpsafe*/ 1);
+			callout_init(&io->io_hdr.delay_callout, /*mpsafe*/ 1);
 			io->io_hdr.flags |= CTL_FLAG_DELAY_DONE;
-			callout_reset(callout,
+			callout_reset(&io->io_hdr.delay_callout,
 				      lun->delay_info.datamove_delay * hz,
 				      ctl_datamove_timer_wakeup, io);
 			if (lun->delay_info.datamove_type ==
@@ -13450,12 +13439,10 @@ ctl_done(union ctl_io *io)
 
 		if ((lun != NULL)
 		 && (lun->delay_info.done_delay > 0)) {
-			struct callout *callout;
 
-			callout = (struct callout *)&io->io_hdr.timer_bytes;
-			callout_init(callout, /*mpsafe*/ 1);
+			callout_init(&io->io_hdr.delay_callout, /*mpsafe*/ 1);
 			io->io_hdr.flags |= CTL_FLAG_DELAY_DONE;
-			callout_reset(callout,
+			callout_reset(&io->io_hdr.delay_callout,
 				      lun->delay_info.done_delay * hz,
 				      ctl_done_timer_wakeup, io);
 			if (lun->delay_info.done_type == CTL_DELAY_TYPE_ONESHOT)
