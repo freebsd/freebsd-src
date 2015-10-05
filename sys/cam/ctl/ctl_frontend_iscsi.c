@@ -636,6 +636,12 @@ cfiscsi_pdu_handle_task_request(struct icl_pdu *request)
 #endif
 		io->taskio.task_action = CTL_TASK_ABORT_TASK_SET;
 		break;
+	case BHSTMR_FUNCTION_CLEAR_TASK_SET:
+#if 0
+		CFISCSI_SESSION_DEBUG(cs, "BHSTMR_FUNCTION_CLEAR_TASK_SET");
+#endif
+		io->taskio.task_action = CTL_TASK_CLEAR_TASK_SET;
+		break;
 	case BHSTMR_FUNCTION_LOGICAL_UNIT_RESET:
 #if 0
 		CFISCSI_SESSION_DEBUG(cs, "BHSTMR_FUNCTION_LOGICAL_UNIT_RESET");
@@ -653,6 +659,12 @@ cfiscsi_pdu_handle_task_request(struct icl_pdu *request)
 		CFISCSI_SESSION_DEBUG(cs, "BHSTMR_FUNCTION_TARGET_COLD_RESET");
 #endif
 		io->taskio.task_action = CTL_TASK_TARGET_RESET;
+		break;
+	case BHSTMR_FUNCTION_I_T_NEXUS_RESET:
+#if 0
+		CFISCSI_SESSION_DEBUG(cs, "BHSTMR_FUNCTION_I_T_NEXUS_RESET");
+#endif
+		io->taskio.task_action = CTL_TASK_I_T_NEXUS_RESET;
 		break;
 	default:
 		CFISCSI_SESSION_DEBUG(cs, "unsupported function 0x%x",
