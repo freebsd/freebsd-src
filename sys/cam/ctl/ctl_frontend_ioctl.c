@@ -307,10 +307,7 @@ cfi_submit_wait(union ctl_io *io)
 	ctl_fe_ioctl_state last_state;
 	int done, retval;
 
-	retval = 0;
-
 	bzero(&params, sizeof(params));
-
 	mtx_init(&params.ioctl_mtx, "ctliocmtx", NULL, MTX_DEF);
 	cv_init(&params.sem, "ctlioccv");
 	params.state = CTL_IOCTL_INPROG;
