@@ -180,14 +180,7 @@ ctl_backend_ramdisk_shutdown(void)
 #endif
 
 	mtx_lock(&softc->lock);
-	for (lun = STAILQ_FIRST(&softc->lun_list); lun != NULL; lun = next_lun){
-		/*
-		 * Grab the next LUN.  The current LUN may get removed by
-		 * ctl_invalidate_lun(), which will call our LUN shutdown
-		 * routine, if there is no outstanding I/O for this LUN.
-		 */
-		next_lun = STAILQ_NEXT(lun, links);
-
+	STAILQ_FOREACH_SAFE(lun, &softc->lun_list, links, next_lun) {
 		/*
 		 * Drop our lock here.  Since ctl_invalidate_lun() can call
 		 * back into us, this could potentially lead to a recursive
