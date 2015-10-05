@@ -891,6 +891,12 @@
 	sponsor="&netgate;">The <filename>GENERIC</filename> kernel
 	configuration has been updated to include the
 	<literal>IPSEC</literal> option by default.</para>
+
+      <para revision="285387" contrib="sponsor"
+	sponsor="&norse;, &dell;">Initial <acronym>NUMA</acronym>
+	affinity and policy configuration has been added.  See
+	&man.numactl.1;, and &man.numa.getaffinity.2;, for usage
+	details.</para>
     </sect2>
 
     <sect2 xml:id="kernel-sysctl">
