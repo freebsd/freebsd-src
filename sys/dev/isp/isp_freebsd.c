@@ -115,7 +115,7 @@ isp_role_sysctl(SYSCTL_HANDLER_ARGS)
 	}
 
 	/* Actually change the role. */
-	error = isp_fc_change_role(isp, chan, value);
+	error = isp_control(isp, ISPCTL_CHANGE_ROLE, chan, value);
 	ISP_UNLOCK(isp);
 	return (error);
 }
@@ -474,18 +474,14 @@ ispioctl(struct cdev *dev, u_long c, caddr_t addr, int flags, struct thread *td)
 				retval = EINVAL;
 				break;
 			}
-			*(int *)addr = FCPARAM(isp, chan)->role;
-#ifdef	ISP_INTERNAL_TARGET
 			ISP_LOCK(isp);
-			retval = isp_fc_change_role(isp, chan, nr);
-			ISP_UNLOCK(isp);
-#else
-			FCPARAM(isp, chan)->role = nr;
-#endif
+			*(int *)addr = FCPARAM(isp, chan)->role;
 		} else {
+			ISP_LOCK(isp);
 			*(int *)addr = SDPARAM(isp, chan)->role;
-			SDPARAM(isp, chan)->role = nr;
 		}
+		retval = isp_control(isp, ISPCTL_CHANGE_ROLE, chan, nr);
+		ISP_UNLOCK(isp);
 		retval = 0;
 		break;
 
@@ -5478,7 +5474,8 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 				ISP_SET_PC(isp, bus, tm_enabled, 0);
 				ISP_SET_PC(isp, bus, tm_luns_enabled, 0);
 #endif
-				if (isp_fc_change_role(isp, bus, newrole) != 0) {
+				if (isp_control(isp, ISPCTL_CHANGE_ROLE,
+				    bus, newrole) != 0) {
 					ccb->ccb_h.status = CAM_REQ_CMP_ERR;
 					xpt_done(ccb);
 					break;
@@ -5668,7 +5665,7 @@ isp_done(XS_T *sccb)
 void
 isp_async(ispsoftc_t *isp, ispasync_t cmd, ...)
 {
-	int bus;
+	int bus, now;
 	static const char prom0[] = "Chan %d PortID 0x%06x handle 0x%x %s %s WWPN 0x%08x%08x";
 	static const char prom2[] = "Chan %d PortID 0x%06x handle 0x%x %s %s tgt %u WWPN 0x%08x%08x";
 	char buf[64];
@@ -5909,6 +5906,7 @@ isp_async(ispsoftc_t *isp, ispasync_t cmd, ...)
 		va_start(ap, cmd);
 		bus = va_arg(ap, int);
 		lp = va_arg(ap, fcportdb_t *);
+		now = va_arg(ap, int);
 		va_end(ap);
 		fc = ISP_FC_PC(isp, bus);
 		/*
@@ -5921,7 +5919,15 @@ isp_async(ispsoftc_t *isp, ispasync_t cmd, ...)
 		 *
 		 */
 		isp_gen_role_str(buf, sizeof (buf), lp->prli_word3);
-		if (lp->dev_map_idx && lp->announced == 0) {
+		if (lp->dev_map_idx && lp->announced == 0 && now) {
+			lp->announced = 1;
+			tgt = lp->dev_map_idx - 1;
+			FCPARAM(isp, bus)->isp_dev_map[tgt] = 0;
+			lp->dev_map_idx = 0;
+			isp_make_gone(isp, lp, bus, tgt);
+			isp_prt(isp, ISP_LOGCONFIG, prom2, bus, lp->portid, lp->handle, buf, "gone at", tgt, (uint32_t) (lp->port_wwn >> 32), (uint32_t) lp->port_wwn);
+			isp_fcp_reset_crn(fc, tgt, /*tgt_set*/ 1);
+		} else if (lp->dev_map_idx && lp->announced == 0) {
 			lp->announced = 1;
 			lp->state = FC_PORTDB_STATE_ZOMBIE;
 			lp->gone_timer = ISP_FC_PC(isp, bus)->gone_device_time;
