@@ -1131,6 +1131,10 @@
 	sponsor="&emcisilon;">The &man.ioat.4; driver has been added,
 	providing support for the <acronym>PSE</acronym> (Platform
 	Storage Extension).</para>
+
+      <para revision="287621" contrib="sponsor" sponsor="&ix;">The
+	<acronym>CTL</acronym> High Availability implementation has
+	been rewritten.</para>
     </sect2>
 
     <sect2 xml:id="drivers-network">
