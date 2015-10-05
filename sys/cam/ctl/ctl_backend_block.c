@@ -266,10 +266,6 @@ static int ctl_be_block_create(struct ctl_be_block_softc *softc,
 			       struct ctl_lun_req *req);
 static int ctl_be_block_rm(struct ctl_be_block_softc *softc,
 			   struct ctl_lun_req *req);
-static int ctl_be_block_modify_file(struct ctl_be_block_lun *be_lun,
-				  struct ctl_lun_req *req);
-static int ctl_be_block_modify_dev(struct ctl_be_block_lun *be_lun,
-				 struct ctl_lun_req *req);
 static int ctl_be_block_modify(struct ctl_be_block_softc *softc,
 			   struct ctl_lun_req *req);
 static void ctl_be_block_lun_shutdown(void *be_lun);
@@ -2607,85 +2603,6 @@ bailout_error:
 }
 
 static int
-ctl_be_block_modify_file(struct ctl_be_block_lun *be_lun,
-			 struct ctl_lun_req *req)
-{
-	struct ctl_be_lun *cbe_lun = &be_lun->cbe_lun;
-	struct vattr vattr;
-	int error;
-	struct ctl_lun_create_params *params = &be_lun->params;
-
-	if (params->lun_size_bytes != 0) {
-		be_lun->size_bytes = params->lun_size_bytes;
-	} else  {
-		vn_lock(be_lun->vn, LK_SHARED | LK_RETRY);
-		error = VOP_GETATTR(be_lun->vn, &vattr, curthread->td_ucred);
-		VOP_UNLOCK(be_lun->vn, 0);
-		if (error != 0) {
-			snprintf(req->error_str, sizeof(req->error_str),
-				 "error calling VOP_GETATTR() for file %s",
-				 be_lun->dev_path);
-			return (error);
-		}
-		be_lun->size_bytes = vattr.va_size;
-	}
-	be_lun->size_blocks = be_lun->size_bytes / cbe_lun->blocksize;
-	cbe_lun->maxlba = (be_lun->size_blocks == 0) ?
-	    0 : (be_lun->size_blocks - 1);
-	return (0);
-}
-
-static int
-ctl_be_block_modify_dev(struct ctl_be_block_lun *be_lun,
-			struct ctl_lun_req *req)
-{
-	struct ctl_be_lun *cbe_lun = &be_lun->cbe_lun;
-	struct ctl_lun_create_params *params = &be_lun->params;
-	struct cdevsw *csw;
-	struct cdev *dev;
-	uint64_t size_bytes;
-	int error, ref;
-
-	csw = devvn_refthread(be_lun->vn, &dev, &ref);
-	if (csw == NULL)
-		return (ENXIO);
-	if (csw->d_ioctl == NULL) {
-		dev_relthread(dev, ref);
-		snprintf(req->error_str, sizeof(req->error_str),
-			 "no d_ioctl for device %s!", be_lun->dev_path);
-		return (ENODEV);
-	}
-
-	error = csw->d_ioctl(dev, DIOCGMEDIASIZE, (caddr_t)&size_bytes, FREAD,
-	    curthread);
-	dev_relthread(dev, ref);
-	if (error) {
-		snprintf(req->error_str, sizeof(req->error_str),
-			 "error %d returned for DIOCGMEDIASIZE ioctl "
-			 "on %s!", error, be_lun->dev_path);
-		return (error);
-	}
-
-	if (params->lun_size_bytes != 0) {
-		if (params->lun_size_bytes > size_bytes) {
-			snprintf(req->error_str, sizeof(req->error_str),
-				 "requested LUN size %ju > backing device "
-				 "size %ju",
-				 (uintmax_t)params->lun_size_bytes,
-				 (uintmax_t)size_bytes);
-			return (EINVAL);
-		}
-		be_lun->size_bytes = params->lun_size_bytes;
-	} else {
-		be_lun->size_bytes = size_bytes;
-	}
-	be_lun->size_blocks = be_lun->size_bytes / cbe_lun->blocksize;
-	cbe_lun->maxlba = (be_lun->size_blocks == 0) ?
-	    0 : (be_lun->size_blocks - 1);
-	return (0);
-}
-
-static int
 ctl_be_block_modify(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 {
 	struct ctl_lun_modify_params *params;
@@ -2740,9 +2657,9 @@ ctl_be_block_modify(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 		if (be_lun->vn == NULL)
 			error = ctl_be_block_open(softc, be_lun, req);
 		else if (vn_isdisk(be_lun->vn, &error))
-			error = ctl_be_block_modify_dev(be_lun, req);
+			error = ctl_be_block_open_dev(be_lun, req);
 		else if (be_lun->vn->v_type == VREG)
-			error = ctl_be_block_modify_file(be_lun, req);
+			error = ctl_be_block_open_file(be_lun, req);
 		else
 			error = EINVAL;
 		if ((cbe_lun->flags & CTL_LUN_FLAG_OFFLINE) &&
