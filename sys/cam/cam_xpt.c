@@ -4527,7 +4527,7 @@ xpt_get_ccb_nowait(struct cam_periph *periph)
 {
 	union ccb *new_ccb;
 
-	new_ccb = malloc(sizeof(*new_ccb), M_CAMCCB, M_NOWAIT);
+	new_ccb = malloc(sizeof(*new_ccb), M_CAMCCB, M_ZERO|M_NOWAIT);
 	if (new_ccb == NULL)
 		return (NULL);
 	periph->periph_allocated++;
@@ -4541,7 +4541,7 @@ xpt_get_ccb(struct cam_periph *periph)
 	union ccb *new_ccb;
 
 	cam_periph_unlock(periph);
-	new_ccb = malloc(sizeof(*new_ccb), M_CAMCCB, M_WAITOK);
+	new_ccb = malloc(sizeof(*new_ccb), M_CAMCCB, M_ZERO|M_WAITOK);
 	cam_periph_lock(periph);
 	periph->periph_allocated++;
 	cam_ccbq_take_opening(&periph->path->device->ccbq);
