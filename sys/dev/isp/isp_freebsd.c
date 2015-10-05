@@ -462,24 +462,11 @@ ispioctl(struct cdev *dev, u_long c, caddr_t addr, int flags, struct thread *td)
 			retval = EINVAL;
 			break;
 		}
-		if (IS_FC(isp)) {
-			/*
-			 * We don't really support dual role at present on FC cards.
-			 *
-			 * We should, but a bunch of things are currently broken,
-			 * so don't allow it.
-			 */
-			if (nr == ISP_ROLE_BOTH) {
-				isp_prt(isp, ISP_LOGERR, "cannot support dual role at present");
-				retval = EINVAL;
-				break;
-			}
-			ISP_LOCK(isp);
+		ISP_LOCK(isp);
+		if (IS_FC(isp))
 			*(int *)addr = FCPARAM(isp, chan)->role;
-		} else {
-			ISP_LOCK(isp);
+		else
 			*(int *)addr = SDPARAM(isp, chan)->role;
-		}
 		retval = isp_control(isp, ISPCTL_CHANGE_ROLE, chan, nr);
 		ISP_UNLOCK(isp);
 		retval = 0;
@@ -1262,11 +1249,6 @@ isp_enable_lun(ispsoftc_t *isp, union ccb *ccb)
 	target = ccb->ccb_h.target_id;
 	lun = ccb->ccb_h.target_lun;
 	ISP_PATH_PRT(isp, ISP_LOGTDEBUG0|ISP_LOGCONFIG, ccb->ccb_h.path, "enabling lun %u\n", lun);
-	if (target != CAM_TARGET_WILDCARD && target != 0) {
-		ccb->ccb_h.status = CAM_TID_INVALID;
-		xpt_done(ccb);
-		return;
-	}
 	if (target == CAM_TARGET_WILDCARD && lun != CAM_LUN_WILDCARD) {
 		ccb->ccb_h.status = CAM_LUN_INVALID;
 		xpt_done(ccb);
@@ -1479,12 +1461,6 @@ isp_disable_lun(ispsoftc_t *isp, union ccb *ccb)
 	target = ccb->ccb_h.target_id;
 	lun = ccb->ccb_h.target_lun;
 	ISP_PATH_PRT(isp, ISP_LOGTDEBUG0|ISP_LOGCONFIG, ccb->ccb_h.path, "disabling lun %u\n", lun);
-	if (target != CAM_TARGET_WILDCARD && target != 0) {
-		ccb->ccb_h.status = CAM_TID_INVALID;
-		xpt_done(ccb);
-		return;
-	}
-
 	if (target == CAM_TARGET_WILDCARD && lun != CAM_LUN_WILDCARD) {
 		ccb->ccb_h.status = CAM_LUN_INVALID;
 		xpt_done(ccb);
@@ -5437,21 +5413,10 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 				}
 				break;
 			case KNOB_ROLE_BOTH:
-#if 0
 				if (fcp->role != ISP_ROLE_BOTH) {
 					rchange = 1;
 					newrole = ISP_ROLE_BOTH;
 				}
-#else
-				/*
-				 * We don't really support dual role at present on FC cards.
-				 *
-				 * We should, but a bunch of things are currently broken,
-				 * so don't allow it.
-				 */
-				isp_prt(isp, ISP_LOGERR, "cannot support dual role at present");
-				ccb->ccb_h.status = CAM_REQ_INVALID;
-#endif
 				break;
 			}
 			if (rchange) {
