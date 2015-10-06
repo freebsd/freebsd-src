@@ -283,8 +283,6 @@ struct thread {
 	int		td_no_sleeping;	/* (k) Sleeping disabled count. */
 	int		td_dom_rr_idx;	/* (k) RR Numa domain selection. */
 	void		*td_su;		/* (k) FFS SU private */
-	u_int		td_dbg_sc_code;	/* (c) Syscall code to debugger. */
-	u_int		td_dbg_sc_narg;	/* (c) Syscall arg count to debugger.*/
 #define	td_endzero td_sigmask
 
 /* Copied during fork1() or create_thread(). */
@@ -296,6 +294,8 @@ struct thread {
 	u_char		td_pri_class;	/* (t) Scheduling class. */
 	u_char		td_user_pri;	/* (t) User pri from estcpu and nice. */
 	u_char		td_base_user_pri; /* (t) Base user pri */
+	u_int		td_dbg_sc_code;	/* (c) Syscall code to debugger. */
+	u_int		td_dbg_sc_narg;	/* (c) Syscall arg count to debugger.*/
 #define	td_endcopy td_pcb
 
 /*

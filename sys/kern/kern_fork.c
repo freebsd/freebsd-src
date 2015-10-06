@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/procdesc.h>
 #include <sys/pioctl.h>
+#include <sys/ptrace.h>
 #include <sys/racct.h>
 #include <sys/resourcevar.h>
 #include <sys/sched.h>
@@ -1031,8 +1032,8 @@ fork_return(struct thread *td, struct trapframe *frame)
 {
 	struct proc *p, *dbg;
 
+	p = td->td_proc;
 	if (td->td_dbgflags & TDB_STOPATFORK) {
-		p = td->td_proc;
 		sx_xlock(&proctree_lock);
 		PROC_LOCK(p);
 		if ((p->p_pptr->p_flag & (P_TRACED | P_FOLLOWFORK)) ==
@@ -1049,9 +1050,9 @@ fork_return(struct thread *td, struct trapframe *frame)
 			    p->p_pid, p->p_oppid);
 			proc_reparent(p, dbg);
 			sx_xunlock(&proctree_lock);
-			td->td_dbgflags |= TDB_CHILD;
+			td->td_dbgflags |= TDB_CHILD | TDB_SCX;
 			ptracestop(td, SIGSTOP);
-			td->td_dbgflags &= ~TDB_CHILD;
+			td->td_dbgflags &= ~(TDB_CHILD | TDB_SCX);
 		} else {
 			/*
 			 * ... otherwise clear the request.
@@ -1060,6 +1061,18 @@ fork_return(struct thread *td, struct trapframe *frame)
 			td->td_dbgflags &= ~TDB_STOPATFORK;
 			cv_broadcast(&p->p_dbgwait);
 		}
+		PROC_UNLOCK(p);
+	} else if (p->p_flag & P_TRACED) {
+ 		/*
+		 * This is the start of a new thread in a traced
+		 * process.  Report a system call exit event.
+		 */
+		PROC_LOCK(p);
+		td->td_dbgflags |= TDB_SCX;
+		_STOPEVENT(p, S_SCX, td->td_dbg_sc_code);
+		if ((p->p_stops & S_PT_SCX) != 0)
+			ptracestop(td, SIGTRAP);
+		td->td_dbgflags &= ~TDB_SCX;
 		PROC_UNLOCK(p);
 	}
 
