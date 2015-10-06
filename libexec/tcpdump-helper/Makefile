@@ -30,6 +30,7 @@ CFLAGS+=	-DHAVE_CONFIG_H \
 		-mxgot
 LDFLAGS+=	-Wl,--script=${.CURDIR}/../../lib/libc_cheri/sandbox.ld \
 		-nostdlib
+WARNS=	3
 
 # Contains a table of formats selected by a function so safe-ish
 CFLAGS.print-icmp.c=	-Wno-format-nonliteral
