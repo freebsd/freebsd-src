@@ -228,9 +228,6 @@ FILES+= test_11.X.out
 FILES+= test_11.XP.err
 FILES+= test_11.XP.out
 
-# XXX: the `E` format testcases don't appear to match the expected format.
-#FILES:=	${FILES:N*.E.*}
-
 PROGS+= test_01
 PROGS+= test_02
 PROGS+= test_03
