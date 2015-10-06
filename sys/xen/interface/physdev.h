@@ -16,6 +16,8 @@
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
+ *
+ * Copyright (c) 2006, Keir Fraser
  */
 
 #ifndef __XEN_PUBLIC_PHYSDEV_H__
@@ -158,15 +160,15 @@ struct physdev_map_pirq {
     domid_t domid;
     /* IN */
     int type;
-    /* IN */
+    /* IN (ignored for ..._MULTI_MSI) */
     int index;
     /* IN or OUT */
     int pirq;
-    /* IN - high 16 bits hold segment for MAP_PIRQ_TYPE_MSI_SEG */
+    /* IN - high 16 bits hold segment for ..._MSI_SEG and ..._MULTI_MSI */
     int bus;
     /* IN */
     int devfn;
-    /* IN */
+    /* IN (also OUT for ..._MULTI_MSI) */
     int entry_nr;
     /* IN */
     uint64_t table_base;
@@ -293,6 +295,11 @@ struct physdev_pci_device_add {
         uint8_t bus;
         uint8_t devfn;
     } physfn;
+    /*
+     * Optional parameters array.
+     * First element ([0]) is PXM domain associated with the device (if
+     * XEN_PCI_DEV_PXM is set)
+     */
 #if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 199901L
     uint32_t optarr[];
 #elif defined(__GNUC__)
@@ -304,6 +311,12 @@ DEFINE_XEN_GUEST_HANDLE(physdev_pci_device_add_t);
 
 #define PHYSDEVOP_pci_device_remove     26
 #define PHYSDEVOP_restore_msi_ext       27
+/*
+ * Dom0 should use these two to announce MMIO resources assigned to
+ * MSI-X capable devices won't (prepare) or may (release) change.
+ */
+#define PHYSDEVOP_prepare_msix          30
+#define PHYSDEVOP_release_msix          31
 struct physdev_pci_device {
     /* IN */
     uint16_t seg;
@@ -313,6 +326,24 @@ struct physdev_pci_device {
 typedef struct physdev_pci_device physdev_pci_device_t;
 DEFINE_XEN_GUEST_HANDLE(physdev_pci_device_t);
 
+#define PHYSDEVOP_DBGP_RESET_PREPARE    1
+#define PHYSDEVOP_DBGP_RESET_DONE       2
+
+#define PHYSDEVOP_DBGP_BUS_UNKNOWN      0
+#define PHYSDEVOP_DBGP_BUS_PCI          1
+
+#define PHYSDEVOP_dbgp_op               29
+struct physdev_dbgp_op {
+    /* IN */
+    uint8_t op;
+    uint8_t bus;
+    union {
+        struct physdev_pci_device pci;
+    } u;
+};
+typedef struct physdev_dbgp_op physdev_dbgp_op_t;
+DEFINE_XEN_GUEST_HANDLE(physdev_dbgp_op_t);
+
 /*
  * Notify that some PIRQ-bound event channels have been unmasked.
  * ** This command is obsolete since interface version 0x00030202 and is **
@@ -320,9 +351,11 @@ DEFINE_XEN_GUEST_HANDLE(physdev_pci_device_t);
  */
 #define PHYSDEVOP_IRQ_UNMASK_NOTIFY      4
 
+#if __XEN_INTERFACE_VERSION__ < 0x00040600
 /*
  * These all-capitals physdev operation names are superceded by the new names
- * (defined above) since interface version 0x00030202.
+ * (defined above) since interface version 0x00030202. The guard above was
+ * added post-4.5 only though and hence shouldn't check for 0x00030202.
  */
 #define PHYSDEVOP_IRQ_STATUS_QUERY       PHYSDEVOP_irq_status_query
 #define PHYSDEVOP_SET_IOPL               PHYSDEVOP_set_iopl
@@ -333,6 +366,7 @@ DEFINE_XEN_GUEST_HANDLE(physdev_pci_device_t);
 #define PHYSDEVOP_FREE_VECTOR            PHYSDEVOP_free_irq_vector
 #define PHYSDEVOP_IRQ_NEEDS_UNMASK_NOTIFY XENIRQSTAT_needs_eoi
 #define PHYSDEVOP_IRQ_SHARED             XENIRQSTAT_shared
+#endif
 
 #if __XEN_INTERFACE_VERSION__ < 0x00040200
 #define PHYSDEVOP_pirq_eoi_gmfn PHYSDEVOP_pirq_eoi_gmfn_v1
@@ -345,7 +379,7 @@ DEFINE_XEN_GUEST_HANDLE(physdev_pci_device_t);
 /*
  * Local variables:
  * mode: C
- * c-set-style: "BSD"
+ * c-file-style: "BSD"
  * c-basic-offset: 4
  * tab-width: 4
  * indent-tabs-mode: nil
