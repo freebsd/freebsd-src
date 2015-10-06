@@ -187,6 +187,10 @@
 	  role="package">misc/pciids</filename> package, if present,
 	falling back to the PCI ID database in the &os; base
 	system.</para>
+
+      <para revision="288710" contrib="sponsor" sponsor="&gandi;">A
+	new utility, &man.sesutil.8;, has been added, which is used
+	to manage &man.ses.4; devices.</para>
     </sect2>
 
     <sect2 xml:id="userland-contrib">
