@@ -132,10 +132,10 @@ NESTED(setjmp, SETJMP_FRAME_SIZE, ra)
 	cgetbase	t0, $c3
 	cgetoffset	t1, $c3
 	daddu		t1, t0, t1
-	daddiu		t1, t1, ((_JB_CHERI_START * SZREG) + _MIPS_SZCAP/8 - SZREG)
+	daddiu		t0, t1, ((_JB_CHERI_START * SZREG) + _MIPS_SZCAP/8 - SZREG)
 	li		t2, 0xffffffffffffffe0
-	and		t2, t2, t1
-	dsubu		t1, t2, t0
+	and		t2, t2, t0
+	dsubu		t1, t2, t1
 
 	csc		$c11, t1, (_JB_CHERI_C11 * _MIPS_SZCAP/8)($c3)
 	csc		$c12, t1, (_JB_CHERI_C12 * _MIPS_SZCAP/8)($c3)
@@ -233,10 +233,10 @@ NESTED(longjmp, LONGJMP_FRAME_SIZE, ra)
 	cgetbase	t0, $c3
 	cgetoffset	t1, $c3
 	daddu		t1, t0, t1
-	daddiu		t1, t1, ((_JB_CHERI_START * SZREG) + _MIPS_SZCAP/8 - SZREG)
+	daddiu		t0, t1, ((_JB_CHERI_START * SZREG) + _MIPS_SZCAP/8 - SZREG)
 	li		t2, 0xffffffffffffffe0
-	and		t2, t2, t1
-	dsubu		t1, t2, t0
+	and		t2, t2, t0
+	dsubu		t1, t2, t1
 
 	clc		$c11, t1, (_JB_CHERI_C11 * _MIPS_SZCAP/8)($c3)
 	clc		$c12, t1, (_JB_CHERI_C12 * _MIPS_SZCAP/8)($c3)
