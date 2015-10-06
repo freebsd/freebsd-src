@@ -44,6 +44,7 @@ _CHERI_CFLAGS+=	-Qunused-arguments
 .if ${WANT_CHERI} != "variables"
 NO_SHARED=	yes
 CC:=	${_CHERI_CC}
+COMPILER_TYPE=	clang
 CFLAGS+=	${_CHERI_CFLAGS}
 # Don't remove CHERI symbols from the symbol table
 STRIP_FLAGS+=	-w --keep-symbol=__cheri_callee_method.\* \
