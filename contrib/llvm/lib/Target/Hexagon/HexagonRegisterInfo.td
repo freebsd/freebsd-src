@@ -163,18 +163,20 @@ let Namespace = "Hexagon" in {
 // FIXME: the register order should be defined in terms of the preferred
 // allocation order...
 //
-def IntRegs : RegisterClass<"Hexagon", [i32,f32], 32,
+def IntRegs : RegisterClass<"Hexagon", [i32, f32, v4i8, v2i16], 32,
                             (add (sequence "R%u", 0, 9),
                                  (sequence "R%u", 12, 28),
                                  R10, R11, R29, R30, R31)> {
 }
 
-def DoubleRegs : RegisterClass<"Hexagon", [i64,f64], 64,
+def DoubleRegs : RegisterClass<"Hexagon", [i64, f64, v8i8, v4i16, v2i32], 64,
                                (add (sequence "D%u", 0, 4),
                                     (sequence "D%u", 6, 13), D5, D14, D15)>;
 
 
-def PredRegs : RegisterClass<"Hexagon", [i1], 32, (add (sequence "P%u", 0, 3))>
+def PredRegs : RegisterClass<"Hexagon", 
+                             [i1, v2i1, v4i1, v8i1, v4i8, v2i16, i32], 32,
+                             (add (sequence "P%u", 0, 3))>
 {
   let Size = 32;
 }

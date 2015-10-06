@@ -7,20 +7,11 @@
 //
 //===----------------------------------------------------------------------===//
 
-//++
-// File:        MICmdCmdGdbInfo.cpp
-//
 // Overview:    CMICmdCmdGdbInfo        implementation.
-//
-// Environment: Compilers:  Visual C++ 12.
-//                          gcc (Ubuntu/Linaro 4.8.1-10ubuntu9) 4.8.1
-//              Libraries:  See MIReadmetxt.
-//
-// Copyright:   None.
-//--
 
 // Third party headers:
-#include <lldb/API/SBCommandReturnObject.h>
+#include <inttypes.h> // For PRIx64
+#include "lldb/API/SBCommandReturnObject.h"
 
 // In-house headers:
 #include "MICmdCmdGdbInfo.h"
@@ -198,25 +189,25 @@ CMICmdCmdGdbInfo::PrintFnSharedLibrary(void)
     bool bOk = rStdout.TextToStdout("~\"From        To          Syms Read   Shared Object Library\"");
 
     CMICmnLLDBDebugSessionInfo &rSessionInfo(CMICmnLLDBDebugSessionInfo::Instance());
-    lldb::SBTarget &rTarget = rSessionInfo.m_lldbTarget;
-    const MIuint nModules = rTarget.GetNumModules();
+    lldb::SBTarget sbTarget = rSessionInfo.GetTarget();
+    const MIuint nModules = sbTarget.GetNumModules();
     for (MIuint i = 0; bOk && (i < nModules); i++)
     {
-        lldb::SBModule module = rTarget.GetModuleAtIndex(i);
+        lldb::SBModule module = sbTarget.GetModuleAtIndex(i);
         if (module.IsValid())
         {
             const CMIUtilString strModuleFilePath(module.GetFileSpec().GetDirectory());
             const CMIUtilString strModuleFileName(module.GetFileSpec().GetFilename());
             const CMIUtilString strModuleFullPath(CMIUtilString::Format("%s/%s", strModuleFilePath.c_str(), strModuleFileName.c_str()));
             const CMIUtilString strHasSymbols = (module.GetNumSymbols() > 0) ? "Yes" : "No";
-            lldb::addr_t addrLoadS = 0xffffffff;
+            lldb::addr_t addrLoadS = 0xffffffffffffffff;
             lldb::addr_t addrLoadSize = 0;
             bool bHaveAddrLoad = false;
             const MIuint nSections = module.GetNumSections();
             for (MIuint j = 0; j < nSections; j++)
             {
                 lldb::SBSection section = module.GetSectionAtIndex(j);
-                lldb::addr_t addrLoad = section.GetLoadAddress(rTarget);
+                lldb::addr_t addrLoad = section.GetLoadAddress(sbTarget);
                 if (addrLoad != (lldb::addr_t) - 1)
                 {
                     if (!bHaveAddrLoad)
@@ -229,7 +220,7 @@ CMICmdCmdGdbInfo::PrintFnSharedLibrary(void)
                 }
             }
             bOk = bOk &&
-                  rStdout.TextToStdout(CMIUtilString::Format("~\"0x%08x\t0x%08x\t%s\t\t%s\"", addrLoadS, addrLoadS + addrLoadSize,
+                  rStdout.TextToStdout(CMIUtilString::Format("~\"0x%016" PRIx64 "\t0x%016" PRIx64 "\t%s\t\t%s\"", addrLoadS, addrLoadS + addrLoadSize,
                                                              strHasSymbols.c_str(), strModuleFullPath.c_str()));
         }
     }

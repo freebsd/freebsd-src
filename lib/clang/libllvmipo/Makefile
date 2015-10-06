@@ -9,6 +9,7 @@ SRCS=	ArgumentPromotion.cpp \
 	BarrierNoopPass.cpp \
 	ConstantMerge.cpp \
 	DeadArgumentElimination.cpp \
+	ElimAvailExtern.cpp \
 	ExtractGV.cpp \
 	FunctionAttrs.cpp \
 	GlobalDCE.cpp \
@@ -19,6 +20,7 @@ SRCS=	ArgumentPromotion.cpp \
 	Inliner.cpp \
 	Internalize.cpp \
 	LoopExtractor.cpp \
+	LowerBitSets.cpp \
 	MergeFunctions.cpp \
 	PartialInlining.cpp \
 	PassManagerBuilder.cpp \

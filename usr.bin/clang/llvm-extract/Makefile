@@ -16,13 +16,12 @@ LIBDEPS=llvmirreader \
 	llvmprofiledata \
 	llvmobject \
 	llvmmcparser \
+	llvmmc \
 	llvmbitreader \
 	llvminstcombine \
 	llvmtransformutils \
 	llvmipa \
 	llvmanalysis \
-	llvmtarget \
-	llvmmc \
 	llvmcore \
 	llvmsupport
 

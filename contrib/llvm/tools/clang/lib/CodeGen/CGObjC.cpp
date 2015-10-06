@@ -31,10 +31,9 @@ using namespace CodeGen;
 typedef llvm::PointerIntPair<llvm::Value*,1,bool> TryEmitResult;
 static TryEmitResult
 tryEmitARCRetainScalarExpr(CodeGenFunction &CGF, const Expr *e);
-static RValue AdjustRelatedResultType(CodeGenFunction &CGF,
-                                      QualType ET,
-                                      const ObjCMethodDecl *Method,
-                                      RValue Result);
+static RValue AdjustObjCObjectType(CodeGenFunction &CGF,
+                                   QualType ET,
+                                   RValue Result);
 
 /// Given the address of a variable of pointer type, find the correct
 /// null to store into it.
@@ -55,13 +54,15 @@ llvm::Value *CodeGenFunction::EmitObjCStringLiteral(const ObjCStringLiteral *E)
 
 /// EmitObjCBoxedExpr - This routine generates code to call
 /// the appropriate expression boxing method. This will either be
-/// one of +[NSNumber numberWith<Type>:], or +[NSString stringWithUTF8String:].
+/// one of +[NSNumber numberWith<Type>:], or +[NSString stringWithUTF8String:],
+/// or [NSValue valueWithBytes:objCType:].
 ///
 llvm::Value *
 CodeGenFunction::EmitObjCBoxedExpr(const ObjCBoxedExpr *E) {
   // Generate the correct selector for this literal's concrete type.
   // Get the method.
   const ObjCMethodDecl *BoxingMethod = E->getBoxingMethod();
+  const Expr *SubExpr = E->getSubExpr();
   assert(BoxingMethod && "BoxingMethod is null");
   assert(BoxingMethod->isClassMethod() && "BoxingMethod must be a class method");
   Selector Sel = BoxingMethod->getSelector();
@@ -74,7 +75,35 @@ CodeGenFunction::EmitObjCBoxedExpr(const ObjCBoxedExpr *E) {
   llvm::Value *Receiver = Runtime.GetClass(*this, ClassDecl);
 
   CallArgList Args;
-  EmitCallArgs(Args, BoxingMethod, E->arg_begin(), E->arg_end());
+  const ParmVarDecl *ArgDecl = *BoxingMethod->param_begin();
+  QualType ArgQT = ArgDecl->getType().getUnqualifiedType();
+  
+  // ObjCBoxedExpr supports boxing of structs and unions 
+  // via [NSValue valueWithBytes:objCType:]
+  const QualType ValueType(SubExpr->getType().getCanonicalType());
+  if (ValueType->isObjCBoxableRecordType()) {
+    // Emit CodeGen for first parameter
+    // and cast value to correct type
+    llvm::Value *Temporary = CreateMemTemp(SubExpr->getType());
+    EmitAnyExprToMem(SubExpr, Temporary, Qualifiers(), /*isInit*/ true);
+    llvm::Value *BitCast = Builder.CreateBitCast(Temporary,
+                                                 ConvertType(ArgQT));
+    Args.add(RValue::get(BitCast), ArgQT);
+
+    // Create char array to store type encoding
+    std::string Str;
+    getContext().getObjCEncodingForType(ValueType, Str);
+    llvm::GlobalVariable *GV = CGM.GetAddrOfConstantCString(Str);
+    
+    // Cast type encoding to correct type
+    const ParmVarDecl *EncodingDecl = BoxingMethod->parameters()[1];
+    QualType EncodingQT = EncodingDecl->getType().getUnqualifiedType();
+    llvm::Value *Cast = Builder.CreateBitCast(GV, ConvertType(EncodingQT));
+
+    Args.add(RValue::get(Cast), EncodingQT);
+  } else {
+    Args.add(EmitAnyExpr(SubExpr), ArgQT);
+  }
 
   RValue result = Runtime.GenerateMessageSend(
       *this, ReturnValueSlot(), BoxingMethod->getReturnType(), Sel, Receiver,
@@ -102,8 +131,8 @@ llvm::Value *CodeGenFunction::EmitObjCCollectionLiteral(const Expr *E,
                                    ArrayType::Normal, /*IndexTypeQuals=*/0);
 
   // Allocate the temporary array(s).
-  llvm::Value *Objects = CreateMemTemp(ElementArrayType, "objects");
-  llvm::Value *Keys = nullptr;
+  llvm::AllocaInst *Objects = CreateMemTemp(ElementArrayType, "objects");
+  llvm::AllocaInst *Keys = nullptr;
   if (DLE)
     Keys = CreateMemTemp(ElementArrayType, "keys");
   
@@ -119,10 +148,9 @@ llvm::Value *CodeGenFunction::EmitObjCCollectionLiteral(const Expr *E,
     if (ALE) {
       // Emit the element and store it to the appropriate array slot.
       const Expr *Rhs = ALE->getElement(i);
-      LValue LV = LValue::MakeAddr(Builder.CreateStructGEP(Objects, i),
-                                   ElementType,
-                                   Context.getTypeAlignInChars(Rhs->getType()),
-                                   Context);
+      LValue LV = LValue::MakeAddr(
+          Builder.CreateStructGEP(Objects->getAllocatedType(), Objects, i),
+          ElementType, Context.getTypeAlignInChars(Rhs->getType()), Context);
 
       llvm::Value *value = EmitScalarExpr(Rhs);
       EmitStoreThroughLValue(RValue::get(value), LV, true);
@@ -132,19 +160,17 @@ llvm::Value *CodeGenFunction::EmitObjCCollectionLiteral(const Expr *E,
     } else {      
       // Emit the key and store it to the appropriate array slot.
       const Expr *Key = DLE->getKeyValueElement(i).Key;
-      LValue KeyLV = LValue::MakeAddr(Builder.CreateStructGEP(Keys, i),
-                                      ElementType,
-                                    Context.getTypeAlignInChars(Key->getType()),
-                                      Context);
+      LValue KeyLV = LValue::MakeAddr(
+          Builder.CreateStructGEP(Keys->getAllocatedType(), Keys, i),
+          ElementType, Context.getTypeAlignInChars(Key->getType()), Context);
       llvm::Value *keyValue = EmitScalarExpr(Key);
       EmitStoreThroughLValue(RValue::get(keyValue), KeyLV, /*isInit=*/true);
 
       // Emit the value and store it to the appropriate array slot.
-      const Expr *Value = DLE->getKeyValueElement(i).Value;  
-      LValue ValueLV = LValue::MakeAddr(Builder.CreateStructGEP(Objects, i), 
-                                        ElementType,
-                                  Context.getTypeAlignInChars(Value->getType()),
-                                        Context);
+      const Expr *Value = DLE->getKeyValueElement(i).Value;
+      LValue ValueLV = LValue::MakeAddr(
+          Builder.CreateStructGEP(Objects->getAllocatedType(), Objects, i),
+          ElementType, Context.getTypeAlignInChars(Value->getType()), Context);
       llvm::Value *valueValue = EmitScalarExpr(Value);
       EmitStoreThroughLValue(RValue::get(valueValue), ValueLV, /*isInit=*/true);
       if (TrackNeededObjects) {
@@ -221,23 +247,22 @@ llvm::Value *CodeGenFunction::EmitObjCProtocolExpr(const ObjCProtocolExpr *E) {
   return CGM.getObjCRuntime().GenerateProtocolRef(*this, E->getProtocol());
 }
 
-/// \brief Adjust the type of the result of an Objective-C message send 
-/// expression when the method has a related result type.
-static RValue AdjustRelatedResultType(CodeGenFunction &CGF,
-                                      QualType ExpT,
-                                      const ObjCMethodDecl *Method,
-                                      RValue Result) {
-  if (!Method)
+/// \brief Adjust the type of an Objective-C object that doesn't match up due
+/// to type erasure at various points, e.g., related result types or the use
+/// of parameterized classes.
+static RValue AdjustObjCObjectType(CodeGenFunction &CGF, QualType ExpT,
+                                   RValue Result) {
+  if (!ExpT->isObjCRetainableType())
     return Result;
 
-  if (!Method->hasRelatedResultType() ||
-      CGF.getContext().hasSameType(ExpT, Method->getReturnType()) ||
-      !Result.isScalar())
+  // If the converted types are the same, we're done.
+  llvm::Type *ExpLLVMTy = CGF.ConvertType(ExpT);
+  if (ExpLLVMTy == Result.getScalarVal()->getType())
     return Result;
-  
-  // We have applied a related result type. Cast the rvalue appropriately.
+
+  // We have applied a substitution. Cast the rvalue appropriately.
   return RValue::get(CGF.Builder.CreateBitCast(Result.getScalarVal(),
-                                               CGF.ConvertType(ExpT)));
+                                               ExpLLVMTy));
 }
 
 /// Decide whether to extend the lifetime of the receiver of a
@@ -422,7 +447,7 @@ RValue CodeGenFunction::EmitObjCMessageExpr(const ObjCMessageExpr *E,
     Builder.CreateStore(newSelf, selfAddr);
   }
 
-  return AdjustRelatedResultType(*this, E->getType(), method, result);
+  return AdjustObjCObjectType(*this, E->getType(), result);
 }
 
 namespace {
@@ -472,8 +497,7 @@ void CodeGenFunction::StartObjCMethod(const ObjCMethodDecl *OMD,
   args.push_back(OMD->getSelfDecl());
   args.push_back(OMD->getCmdDecl());
 
-  for (const auto *PI : OMD->params())
-    args.push_back(PI);
+  args.append(OMD->param_begin(), OMD->param_end());
 
   CurGD = OMD;
   CurEHLocation = OMD->getLocEnd();
@@ -501,8 +525,7 @@ void CodeGenFunction::GenerateObjCMethod(const ObjCMethodDecl *OMD) {
   StartObjCMethod(OMD, OMD->getClassInterface());
   PGO.assignRegionCounters(OMD, CurFn);
   assert(isa<CompoundStmt>(OMD->getBody()));
-  RegionCounter Cnt = getPGORegionCounter(OMD->getBody());
-  Cnt.beginRegion(Builder);
+  incrementProfileCounter(OMD->getBody());
   EmitCompoundStmtWithoutScope(*cast<CompoundStmt>(OMD->getBody()));
   FinishFunction(OMD->getBodyRBrace());
 }
@@ -1435,7 +1458,7 @@ void CodeGenFunction::EmitObjCForCollectionStmt(const ObjCForCollectionStmt &S){
 
   // Fast enumeration state.
   QualType StateTy = CGM.getObjCFastEnumerationStateType();
-  llvm::Value *StatePtr = CreateMemTemp(StateTy, "state.ptr");
+  llvm::AllocaInst *StatePtr = CreateMemTemp(StateTy, "state.ptr");
   EmitNullInitialization(StatePtr, StateTy);
 
   // Number of elements in the items array.
@@ -1507,11 +1530,11 @@ void CodeGenFunction::EmitObjCForCollectionStmt(const ObjCForCollectionStmt &S){
   // If the limit pointer was zero to begin with, the collection is
   // empty; skip all this. Set the branch weight assuming this has the same
   // probability of exiting the loop as any other loop exit.
-  uint64_t EntryCount = PGO.getCurrentRegionCount();
-  RegionCounter Cnt = getPGORegionCounter(&S);
-  Builder.CreateCondBr(Builder.CreateICmpEQ(initialBufferLimit, zero, "iszero"),
-                       EmptyBB, LoopInitBB,
-                       PGO.createBranchWeights(EntryCount, Cnt.getCount()));
+  uint64_t EntryCount = getCurrentProfileCount();
+  Builder.CreateCondBr(
+      Builder.CreateICmpEQ(initialBufferLimit, zero, "iszero"), EmptyBB,
+      LoopInitBB,
+      createProfileWeights(EntryCount, getProfileCount(S.getBody())));
 
   // Otherwise, initialize the loop.
   EmitBlock(LoopInitBB);
@@ -1519,8 +1542,8 @@ void CodeGenFunction::EmitObjCForCollectionStmt(const ObjCForCollectionStmt &S){
   // Save the initial mutations value.  This is the value at an
   // address that was written into the state object by
   // countByEnumeratingWithState:objects:count:.
-  llvm::Value *StateMutationsPtrPtr =
-    Builder.CreateStructGEP(StatePtr, 2, "mutationsptr.ptr");
+  llvm::Value *StateMutationsPtrPtr = Builder.CreateStructGEP(
+      StatePtr->getAllocatedType(), StatePtr, 2, "mutationsptr.ptr");
   llvm::Value *StateMutationsPtr = Builder.CreateLoad(StateMutationsPtrPtr,
                                                       "mutationsptr");
 
@@ -1540,7 +1563,7 @@ void CodeGenFunction::EmitObjCForCollectionStmt(const ObjCForCollectionStmt &S){
   llvm::PHINode *count = Builder.CreatePHI(UnsignedLongLTy, 3, "forcoll.count");
   count->addIncoming(initialBufferLimit, LoopInitBB);
 
-  Cnt.beginRegion(Builder);
+  incrementProfileCounter(&S);
 
   // Check whether the mutations value has changed from where it was
   // at start.  StateMutationsPtr should actually be invariant between
@@ -1600,8 +1623,8 @@ void CodeGenFunction::EmitObjCForCollectionStmt(const ObjCForCollectionStmt &S){
   // Fetch the buffer out of the enumeration state.
   // TODO: this pointer should actually be invariant between
   // refreshes, which would help us do certain loop optimizations.
-  llvm::Value *StateItemsPtr =
-    Builder.CreateStructGEP(StatePtr, 1, "stateitems.ptr");
+  llvm::Value *StateItemsPtr = Builder.CreateStructGEP(
+      StatePtr->getAllocatedType(), StatePtr, 1, "stateitems.ptr");
   llvm::Value *EnumStateItems =
     Builder.CreateLoad(StateItemsPtr, "stateitems");
 
@@ -1652,9 +1675,9 @@ void CodeGenFunction::EmitObjCForCollectionStmt(const ObjCForCollectionStmt &S){
   // Set the branch weights based on the simplifying assumption that this is
   // like a while-loop, i.e., ignoring that the false branch fetches more
   // elements and then returns to the loop.
-  Builder.CreateCondBr(Builder.CreateICmpULT(indexPlusOne, count),
-                       LoopBodyBB, FetchMoreBB,
-                       PGO.createBranchWeights(Cnt.getCount(), EntryCount));
+  Builder.CreateCondBr(
+      Builder.CreateICmpULT(indexPlusOne, count), LoopBodyBB, FetchMoreBB,
+      createProfileWeights(getProfileCount(S.getBody()), EntryCount));
 
   index->addIncoming(indexPlusOne, AfterBody.getBlock());
   count->addIncoming(count, AfterBody.getBlock());
@@ -1985,7 +2008,8 @@ CodeGenFunction::EmitARCRetainAutoreleasedReturnValue(llvm::Value *value) {
   }
 
   // Call the marker asm if we made one, which we do only at -O0.
-  if (marker) Builder.CreateCall(marker);
+  if (marker)
+    Builder.CreateCall(marker);
 
   return emitARCValueOperation(*this, value,
                      CGM.getARCEntrypoints().objc_retainAutoreleasedReturnValue,
@@ -3000,13 +3024,9 @@ CodeGenFunction::GenerateObjCAtomicGetterCopyHelperFunction(
   
   SmallVector<Expr*, 4> ConstructorArgs;
   ConstructorArgs.push_back(&SRC);
-  CXXConstructExpr::arg_iterator A = CXXConstExpr->arg_begin();
-  ++A;
-  
-  for (CXXConstructExpr::arg_iterator AEnd = CXXConstExpr->arg_end();
-       A != AEnd; ++A)
-    ConstructorArgs.push_back(*A);
-  
+  ConstructorArgs.append(std::next(CXXConstExpr->arg_begin()),
+                         CXXConstExpr->arg_end());
+
   CXXConstructExpr *TheCXXConstructExpr =
     CXXConstructExpr::Create(C, Ty, SourceLocation(),
                              CXXConstExpr->getConstructor(),

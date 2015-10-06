@@ -38,8 +38,7 @@
 #include "lldb/Core/DataBufferHeap.h"
 #include "lldb/Core/DataExtractor.h"
 #include "lldb/Utility/CleanUp.h"
-
-#include "Plugins/Process/Utility/FreeBSDSignals.h"
+#include "lldb/Utility/NameMatches.h"
 
 #include "llvm/Support/Host.h"
 
@@ -49,35 +48,6 @@ extern "C" {
 
 using namespace lldb;
 using namespace lldb_private;
-
-void
-Host::Backtrace (Stream &strm, uint32_t max_frames)
-{
-    char backtrace_path[] = "/tmp/lldb-backtrace-tmp-XXXXXX";
-    int backtrace_fd = ::mkstemp (backtrace_path);
-    if (backtrace_fd != -1)
-    {
-        std::vector<void *> frame_buffer (max_frames, NULL);
-        int count = ::backtrace (&frame_buffer[0], frame_buffer.size());
-        ::backtrace_symbols_fd (&frame_buffer[0], count, backtrace_fd);
-
-        const off_t buffer_size = ::lseek(backtrace_fd, 0, SEEK_CUR);
-
-        if (::lseek(backtrace_fd, 0, SEEK_SET) == 0)
-        {
-            char *buffer = (char *)::malloc (buffer_size);
-            if (buffer)
-            {
-                ssize_t bytes_read = ::read (backtrace_fd, buffer, buffer_size);
-                if (bytes_read > 0)
-                    strm.Write(buffer, bytes_read);
-                ::free (buffer);
-            }
-        }
-        ::close (backtrace_fd);
-        ::unlink (backtrace_path);
-    }
-}
 
 size_t
 Host::GetEnvironment (StringList &env)
@@ -305,10 +275,9 @@ Host::GetAuxvData(lldb_private::Process *process)
    return buf_sp;
 }
 
-const UnixSignalsSP&
-Host::GetUnixSignals ()
+Error
+Host::ShellExpandArguments (ProcessLaunchInfo &launch_info)
 {
-    static const lldb_private::UnixSignalsSP s_unix_signals_sp (new FreeBSDSignals ());
-    return s_unix_signals_sp;
+    return Error("unimplemented");
 }
 

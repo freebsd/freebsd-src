@@ -406,6 +406,8 @@ enum OperandEncoding {
   ENUM_ENTRY(TYPE_IMM64,      "8-byte")                                        \
   ENUM_ENTRY(TYPE_IMM3,       "1-byte immediate operand between 0 and 7")      \
   ENUM_ENTRY(TYPE_IMM5,       "1-byte immediate operand between 0 and 31")     \
+  ENUM_ENTRY(TYPE_AVX512ICC,  "1-byte immediate operand for AVX512 icmp")      \
+  ENUM_ENTRY(TYPE_UIMM8,      "1-byte unsigned immediate operand")             \
   ENUM_ENTRY(TYPE_RM8,        "1-byte register or memory operand")             \
   ENUM_ENTRY(TYPE_RM16,       "2-byte")                                        \
   ENUM_ENTRY(TYPE_RM32,       "4-byte")                                        \
@@ -458,6 +460,7 @@ enum OperandEncoding {
   ENUM_ENTRY(TYPE_SEGMENTREG, "Segment register operand")                      \
   ENUM_ENTRY(TYPE_DEBUGREG,   "Debug register operand")                        \
   ENUM_ENTRY(TYPE_CONTROLREG, "Control register operand")                      \
+  ENUM_ENTRY(TYPE_BNDR,       "MPX bounds register")                           \
                                                                                \
   ENUM_ENTRY(TYPE_Mv,         "Memory operand of operand size")                \
   ENUM_ENTRY(TYPE_Rv,         "Register operand of operand size")              \
@@ -482,18 +485,6 @@ struct OperandSpecifier {
   uint8_t encoding;
   uint8_t type;
 };
-
-// Indicates where the opcode modifier (if any) is to be found.  Extended
-// opcodes with AddRegFrm have the opcode modifier in the ModR/M byte.
-#define MODIFIER_TYPES        \
-  ENUM_ENTRY(MODIFIER_NONE)
-
-#define ENUM_ENTRY(n) n,
-enum ModifierType {
-  MODIFIER_TYPES
-  MODIFIER_max
-};
-#undef ENUM_ENTRY
 
 static const unsigned X86_MAX_OPERANDS = 6;
 

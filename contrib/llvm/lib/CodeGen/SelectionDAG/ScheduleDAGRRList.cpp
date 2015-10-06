@@ -173,7 +173,7 @@ public:
       HazardRec = STI.getInstrInfo()->CreateTargetHazardRecognizer(&STI, this);
   }
 
-  ~ScheduleDAGRRList() {
+  ~ScheduleDAGRRList() override {
     delete HazardRec;
     delete AvailableQueue;
   }
@@ -415,8 +415,8 @@ static bool IsChainDependent(SDNode *Outer, SDNode *Inner,
     // to get to the CALLSEQ_BEGIN, but we need to find the path with the
     // most nesting in order to ensure that we find the corresponding match.
     if (N->getOpcode() == ISD::TokenFactor) {
-      for (unsigned i = 0, e = N->getNumOperands(); i != e; ++i)
-        if (IsChainDependent(N->getOperand(i).getNode(), Inner, NestLevel, TII))
+      for (const SDValue &Op : N->op_values())
+        if (IsChainDependent(Op.getNode(), Inner, NestLevel, TII))
           return true;
       return false;
     }
@@ -433,9 +433,9 @@ static bool IsChainDependent(SDNode *Outer, SDNode *Inner,
       }
     }
     // Otherwise, find the chain and continue climbing.
-    for (unsigned i = 0, e = N->getNumOperands(); i != e; ++i)
-      if (N->getOperand(i).getValueType() == MVT::Other) {
-        N = N->getOperand(i).getNode();
+    for (const SDValue &Op : N->op_values())
+      if (Op.getValueType() == MVT::Other) {
+        N = Op.getNode();
         goto found_chain_operand;
       }
     return false;
@@ -464,10 +464,10 @@ FindCallSeqStart(SDNode *N, unsigned &NestLevel, unsigned &MaxNest,
     if (N->getOpcode() == ISD::TokenFactor) {
       SDNode *Best = nullptr;
       unsigned BestMaxNest = MaxNest;
-      for (unsigned i = 0, e = N->getNumOperands(); i != e; ++i) {
+      for (const SDValue &Op : N->op_values()) {
         unsigned MyNestLevel = NestLevel;
         unsigned MyMaxNest = MaxNest;
-        if (SDNode *New = FindCallSeqStart(N->getOperand(i).getNode(),
+        if (SDNode *New = FindCallSeqStart(Op.getNode(),
                                            MyNestLevel, MyMaxNest, TII))
           if (!Best || (MyMaxNest > BestMaxNest)) {
             Best = New;
@@ -493,9 +493,9 @@ FindCallSeqStart(SDNode *N, unsigned &NestLevel, unsigned &MaxNest,
       }
     }
     // Otherwise, find the chain and continue climbing.
-    for (unsigned i = 0, e = N->getNumOperands(); i != e; ++i)
-      if (N->getOperand(i).getValueType() == MVT::Other) {
-        N = N->getOperand(i).getNode();
+    for (const SDValue &Op : N->op_values())
+      if (Op.getValueType() == MVT::Other) {
+        N = Op.getNode();
         goto found_chain_operand;
       }
     return nullptr;
@@ -848,17 +848,26 @@ void ScheduleDAGRRList::UnscheduleNodeBottomUp(SUnit *SU) {
       }
     }
 
-  for (SUnit::succ_iterator I = SU->Succs.begin(), E = SU->Succs.end();
-       I != E; ++I) {
-    if (I->isAssignedRegDep()) {
-      if (!LiveRegDefs[I->getReg()])
+  for (auto &Succ : SU->Succs) {
+    if (Succ.isAssignedRegDep()) {
+      auto Reg = Succ.getReg();
+      if (!LiveRegDefs[Reg])
         ++NumLiveRegs;
       // This becomes the nearest def. Note that an earlier def may still be
       // pending if this is a two-address node.
-      LiveRegDefs[I->getReg()] = SU;
-      if (LiveRegGens[I->getReg()] == nullptr ||
-          I->getSUnit()->getHeight() < LiveRegGens[I->getReg()]->getHeight())
-        LiveRegGens[I->getReg()] = I->getSUnit();
+      LiveRegDefs[Reg] = SU;
+
+      // Update LiveRegGen only if was empty before this unscheduling.
+      // This is to avoid incorrect updating LiveRegGen set in previous run.
+      if (!LiveRegGens[Reg]) {
+        // Find the successor with the lowest height.
+        LiveRegGens[Reg] = Succ.getSUnit();
+        for (auto &Succ2 : SU->Succs) {
+          if (Succ2.isAssignedRegDep() && Succ2.getReg() == Reg &&
+              Succ2.getSUnit()->getHeight() < LiveRegGens[Reg]->getHeight())
+            LiveRegGens[Reg] = Succ2.getSUnit();
+        }
+      }
     }
   }
   if (SU->getHeight() < MinAvailableCycle)
@@ -951,8 +960,7 @@ SUnit *ScheduleDAGRRList::CopyAndMoveSuccessors(SUnit *SU) {
     else if (VT == MVT::Other)
       TryUnfold = true;
   }
-  for (unsigned i = 0, e = N->getNumOperands(); i != e; ++i) {
-    const SDValue &Op = N->getOperand(i);
+  for (const SDValue &Op : N->op_values()) {
     MVT VT = Op.getNode()->getSimpleValueType(Op.getResNo());
     if (VT == MVT::Glue)
       return nullptr;
@@ -1247,10 +1255,9 @@ static void CheckForLiveRegDefMasked(SUnit *SU, const uint32_t *RegMask,
 
 /// getNodeRegMask - Returns the register mask attached to an SDNode, if any.
 static const uint32_t *getNodeRegMask(const SDNode *N) {
-  for (unsigned i = 0, e = N->getNumOperands(); i != e; ++i)
-    if (const RegisterMaskSDNode *Op =
-        dyn_cast<RegisterMaskSDNode>(N->getOperand(i).getNode()))
-      return Op->getRegMask();
+  for (const SDValue &Op : N->op_values())
+    if (const auto *RegOp = dyn_cast<RegisterMaskSDNode>(Op.getNode()))
+      return RegOp->getRegMask();
   return nullptr;
 }
 

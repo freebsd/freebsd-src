@@ -7,18 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-//++
-// File:        MICmdArgSet.h
-//
-// Overview:    CMICmdArgSet interface.
-//
-// Environment: Compilers:  Visual C++ 12.
-//                          gcc (Ubuntu/Linaro 4.8.1-10ubuntu9) 4.8.1
-//              Libraries:  See MIReadmetxt.
-//
-// Copyright:   None.
-//--
-
 #pragma once
 
 // Third party headers:
@@ -40,7 +28,7 @@ class CMICmdArgValBase;
 //          Argument objects added to *this container are owned by this container
 //          and are deleted when this container goes out of scope. Allocate argument
 //          objects on the heap.
-//          It is assummed the arguments to be parsed are read from left to right in
+//          It is assumed the arguments to be parsed are read from left to right in
 //          order. The order added to *this container is the order they will parsed.
 // Gotchas: None.
 // Authors: Illya Rudkin 14/04/2014.

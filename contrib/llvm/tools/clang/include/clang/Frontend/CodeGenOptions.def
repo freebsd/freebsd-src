@@ -35,11 +35,12 @@ CODEGENOPT(AsmVerbose        , 1, 0) ///< -dA, -fverbose-asm.
 CODEGENOPT(ObjCAutoRefCountExceptions , 1, 0) ///< Whether ARC should be EH-safe.
 CODEGENOPT(CoverageExtraChecksum, 1, 0) ///< Whether we need a second checksum for functions in GCNO files.
 CODEGENOPT(CoverageNoFunctionNamesInData, 1, 0) ///< Do not include function names in GCDA files.
-CODEGENOPT(CUDAIsDevice      , 1, 0) ///< Set when compiling for CUDA device.
+CODEGENOPT(CoverageExitBlockBeforeBody, 1, 0) ///< Whether to emit the exit block before the body blocks in GCNO files.
 CODEGENOPT(CXAAtExit         , 1, 1) ///< Use __cxa_atexit for calling destructors.
 CODEGENOPT(CXXCtorDtorAliases, 1, 0) ///< Emit complete ctors/dtors as linker
                                      ///< aliases to base ctors when possible.
 CODEGENOPT(DataSections      , 1, 0) ///< Set when -fdata-sections is enabled.
+CODEGENOPT(UniqueSectionNames, 1, 1) ///< Set for -funique-section-names.
 CODEGENOPT(DisableFPElim     , 1, 0) ///< Set when -fomit-frame-pointer is enabled.
 CODEGENOPT(DisableFree       , 1, 0) ///< Don't free memory.
 CODEGENOPT(DisableGCov       , 1, 0) ///< Don't run the GCov pass, for testing.
@@ -66,8 +67,11 @@ CODEGENOPT(InstrumentFunctions , 1, 0) ///< Set when -finstrument-functions is
 CODEGENOPT(InstrumentForProfiling , 1, 0) ///< Set when -pg is enabled.
 CODEGENOPT(LessPreciseFPMAD  , 1, 0) ///< Enable less precise MAD instructions to
                                      ///< be generated.
+CODEGENOPT(PrepareForLTO     , 1, 0) ///< Set when -flto is enabled on the
+                                     ///< compile step.
 CODEGENOPT(MergeAllConstants , 1, 1) ///< Merge identical constants.
 CODEGENOPT(MergeFunctions    , 1, 0) ///< Set when -fmerge-functions is enabled.
+CODEGENOPT(MSVolatile        , 1, 0) ///< Set when /volatile:ms is enabled.
 CODEGENOPT(NoCommon          , 1, 0) ///< Set when -fno-common or C++ is enabled.
 CODEGENOPT(NoDwarfDirectoryAsm , 1, 0) ///< Set when -fno-dwarf-directory-asm is
                                        ///< enabled.
@@ -75,11 +79,11 @@ CODEGENOPT(NoExecStack       , 1, 0) ///< Set when -Wa,--noexecstack is enabled.
 CODEGENOPT(FatalWarnings     , 1, 0) ///< Set when -Wa,--fatal-warnings is
                                      ///< enabled.
 CODEGENOPT(EnableSegmentedStacks , 1, 0) ///< Set when -fsplit-stack is enabled.
-CODEGENOPT(NoGlobalMerge     , 1, 0) ///< Set when -mno-global-merge is enabled.
 CODEGENOPT(NoImplicitFloat   , 1, 0) ///< Set when -mno-implicit-float is enabled.
 CODEGENOPT(NoInfsFPMath      , 1, 0) ///< Assume FP arguments, results not +-Inf.
 CODEGENOPT(NoSignedZeros     , 1, 0) ///< Allow ignoring the signedness of FP zero
-CODEGENOPT(NoInline          , 1, 0) ///< Set when -fno-inline is enabled. 
+CODEGENOPT(ReciprocalMath    , 1, 0) ///< Allow FP divisions to be reassociated.
+CODEGENOPT(NoInline          , 1, 0) ///< Set when -fno-inline is enabled.
                                      ///< Disables use of the inline keyword.
 CODEGENOPT(NoNaNsFPMath      , 1, 0) ///< Assume FP arguments, results not NaN.
 CODEGENOPT(NoZeroInitializedInBSS , 1, 0) ///< -fno-zero-initialized-in-bss.
@@ -108,9 +112,18 @@ CODEGENOPT(SanitizeAddressZeroBaseShadow , 1, 0) ///< Map shadow memory at zero
                                                  ///< offset in AddressSanitizer.
 CODEGENOPT(SanitizeMemoryTrackOrigins, 2, 0) ///< Enable tracking origins in
                                              ///< MemorySanitizer
-CODEGENOPT(SanitizeCoverage, 3, 0) ///< Enable sanitizer coverage instrumentation.
-CODEGENOPT(SanitizeUndefinedTrapOnError, 1, 0) ///< Set on
-                                               /// -fsanitize-undefined-trap-on-error
+CODEGENOPT(SanitizeMemoryUseAfterDtor, 1, 0) ///< Enable use-after-delete detection
+                                             ///< in MemorySanitizer
+CODEGENOPT(SanitizeCoverageType, 2, 0) ///< Type of sanitizer coverage
+                                       ///< instrumentation.
+CODEGENOPT(SanitizeCoverageIndirectCalls, 1, 0) ///< Enable sanitizer coverage
+                                                ///< for indirect calls.
+CODEGENOPT(SanitizeCoverageTraceBB, 1, 0) ///< Enable basic block tracing in
+                                          ///< in sanitizer coverage.
+CODEGENOPT(SanitizeCoverageTraceCmp, 1, 0) ///< Enable cmp instruction tracing
+                                           ///< in sanitizer coverage.
+CODEGENOPT(SanitizeCoverage8bitCounters, 1, 0) ///< Use 8-bit frequency counters
+                                               ///< in sanitizer coverage.
 CODEGENOPT(SimplifyLibCalls  , 1, 1) ///< Set when -fbuiltin is enabled.
 CODEGENOPT(SoftFloat         , 1, 0) ///< -soft-float.
 CODEGENOPT(StrictEnums       , 1, 0) ///< Optimize based on strict enum definition.
@@ -138,8 +151,12 @@ CODEGENOPT(UseInitArray      , 1, 0) ///< Control whether to use .init_array or
                                      ///< .ctors.
 VALUE_CODEGENOPT(StackAlignment    , 32, 0) ///< Overrides default stack 
                                             ///< alignment, if not 0.
+VALUE_CODEGENOPT(StackProbeSize    , 32, 4096) ///< Overrides default stack
+                                               ///< probe size, even if 0.
 CODEGENOPT(DebugColumnInfo, 1, 0) ///< Whether or not to use column information
                                   ///< in debug info.
+
+CODEGENOPT(EmitLLVMUseLists, 1, 0) ///< Control whether to serialize use-lists.
 
 /// The user specified number of registers to be used for integral arguments,
 /// or 0 if unspecified.
@@ -156,6 +173,9 @@ VALUE_CODEGENOPT(DwarfVersion, 3, 0)
 
 /// The kind of inlining to perform.
 ENUM_CODEGENOPT(Inlining, InliningMethod, 2, NoInlining)
+
+// Vector functions library to use.
+ENUM_CODEGENOPT(VecLib, VectorLibrary, 1, NoLibrary)
 
 /// The default TLS model to use.
 ENUM_CODEGENOPT(DefaultTLSModel, TLSModel, 2, GeneralDynamicTLSModel)

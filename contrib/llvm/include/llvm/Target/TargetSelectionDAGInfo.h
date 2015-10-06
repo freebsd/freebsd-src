@@ -20,24 +20,16 @@
 
 namespace llvm {
 
-class DataLayout;
-class TargetMachine;
-
 //===----------------------------------------------------------------------===//
 /// TargetSelectionDAGInfo - Targets can subclass this to parameterize the
 /// SelectionDAG lowering and instruction selection process.
 ///
 class TargetSelectionDAGInfo {
-  TargetSelectionDAGInfo(const TargetSelectionDAGInfo &) LLVM_DELETED_FUNCTION;
-  void operator=(const TargetSelectionDAGInfo &) LLVM_DELETED_FUNCTION;
-
-  const DataLayout *DL;
-
-protected:
-  const DataLayout *getDataLayout() const { return DL; }
+  TargetSelectionDAGInfo(const TargetSelectionDAGInfo &) = delete;
+  void operator=(const TargetSelectionDAGInfo &) = delete;
 
 public:
-  explicit TargetSelectionDAGInfo(const DataLayout *DL);
+  explicit TargetSelectionDAGInfo() = default;
   virtual ~TargetSelectionDAGInfo();
 
   /// EmitTargetCodeForMemcpy - Emit target-specific code that performs a

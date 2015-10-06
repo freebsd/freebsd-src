@@ -33,8 +33,8 @@ class ObjCPropertyImplDecl;
 class CXXCtorInitializer;
 
 class ObjCListBase {
-  ObjCListBase(const ObjCListBase &) LLVM_DELETED_FUNCTION;
-  void operator=(const ObjCListBase &) LLVM_DELETED_FUNCTION;
+  ObjCListBase(const ObjCListBase &) = delete;
+  void operator=(const ObjCListBase &) = delete;
 protected:
   /// List is an array of pointers to objects that are not owned by this object.
   void **List;
@@ -141,7 +141,7 @@ private:
 
   // NOTE: VC++ treats enums as signed, avoid using the ObjCDeclQualifier enum
   /// in, inout, etc.
-  unsigned objcDeclQualifier : 6;
+  unsigned objcDeclQualifier : 7;
 
   /// \brief Indicates whether this method has a related result type.
   unsigned RelatedResultType : 1;
@@ -332,10 +332,14 @@ public:
   SourceRange getReturnTypeSourceRange() const;
 
   /// \brief Determine the type of an expression that sends a message to this
-  /// function.
-  QualType getSendResultType() const {
-    return getReturnType().getNonLValueExprType(getASTContext());
-  }
+  /// function. This replaces the type parameters with the types they would
+  /// get if the receiver was parameterless (e.g. it may replace the type
+  /// parameter with 'id').
+  QualType getSendResultType() const;
+
+  /// Determine the type of an expression that sends a message to this
+  /// function with the given receiver type.
+  QualType getSendResultType(QualType receiverType) const;
 
   TypeSourceInfo *getReturnTypeSourceInfo() const { return ReturnTInfo; }
   void setReturnTypeSourceInfo(TypeSourceInfo *TInfo) { ReturnTInfo = TInfo; }
@@ -398,6 +402,11 @@ public:
   /// or getCmdDecl(). The call is ignored if the implicit paramters
   /// have already been created.
   void createImplicitParams(ASTContext &Context, const ObjCInterfaceDecl *ID);
+
+  /// \return the type for \c self and set \arg selfIsPseudoStrong and
+  /// \arg selfIsConsumed accordingly.
+  QualType getSelfType(ASTContext &Context, const ObjCInterfaceDecl *OID,
+                       bool &selfIsPseudoStrong, bool &selfIsConsumed);
 
   ImplicitParamDecl * getSelfDecl() const { return SelfDecl; }
   void setSelfDecl(ImplicitParamDecl *SD) { SelfDecl = SD; }
@@ -499,6 +508,183 @@ public:
 
   friend class ASTDeclReader;
   friend class ASTDeclWriter;
+};
+
+/// Describes the variance of a given generic parameter.
+enum class ObjCTypeParamVariance : uint8_t {
+  /// The parameter is invariant: must match exactly.
+  Invariant,
+  /// The parameter is covariant, e.g., X<T> is a subtype of X<U> when
+  /// the type parameter is covariant and T is a subtype of U.
+  Covariant,
+  /// The parameter is contravariant, e.g., X<T> is a subtype of X<U>
+  /// when the type parameter is covariant and U is a subtype of T.
+  Contravariant,
+};
+
+/// Represents the declaration of an Objective-C type parameter.
+///
+/// \code
+/// @interface NSDictionary<Key : id<NSCopying>, Value>
+/// @end
+/// \endcode
+///
+/// In the example above, both \c Key and \c Value are represented by
+/// \c ObjCTypeParamDecl. \c Key has an explicit bound of \c id<NSCopying>,
+/// while \c Value gets an implicit bound of \c id.
+///
+/// Objective-C type parameters are typedef-names in the grammar,
+class ObjCTypeParamDecl : public TypedefNameDecl {
+  void anchor() override;
+
+  /// Index of this type parameter in the type parameter list.
+  unsigned Index : 14;
+
+  /// The variance of the type parameter.
+  unsigned Variance : 2;
+
+  /// The location of the variance, if any.
+  SourceLocation VarianceLoc;
+
+  /// The location of the ':', which will be valid when the bound was
+  /// explicitly specified.
+  SourceLocation ColonLoc;
+
+  ObjCTypeParamDecl(ASTContext &ctx, DeclContext *dc, 
+                    ObjCTypeParamVariance variance, SourceLocation varianceLoc,
+                    unsigned index,
+                    SourceLocation nameLoc, IdentifierInfo *name,
+                    SourceLocation colonLoc, TypeSourceInfo *boundInfo)
+    : TypedefNameDecl(ObjCTypeParam, ctx, dc, nameLoc, nameLoc, name,
+                      boundInfo),
+      Index(index), Variance(static_cast<unsigned>(variance)),
+      VarianceLoc(varianceLoc), ColonLoc(colonLoc) { }
+
+public:
+  static ObjCTypeParamDecl *Create(ASTContext &ctx, DeclContext *dc,
+                                   ObjCTypeParamVariance variance,
+                                   SourceLocation varianceLoc,
+                                   unsigned index,
+                                   SourceLocation nameLoc,
+                                   IdentifierInfo *name,
+                                   SourceLocation colonLoc,
+                                   TypeSourceInfo *boundInfo);
+  static ObjCTypeParamDecl *CreateDeserialized(ASTContext &ctx, unsigned ID);
+
+  SourceRange getSourceRange() const override LLVM_READONLY;
+
+  /// Determine the variance of this type parameter.
+  ObjCTypeParamVariance getVariance() const {
+    return static_cast<ObjCTypeParamVariance>(Variance);
+  }
+
+  /// Set the variance of this type parameter.
+  void setVariance(ObjCTypeParamVariance variance) {
+    Variance = static_cast<unsigned>(variance);
+  }
+
+  /// Retrieve the location of the variance keyword.
+  SourceLocation getVarianceLoc() const { return VarianceLoc; }
+
+  /// Retrieve the index into its type parameter list.
+  unsigned getIndex() const { return Index; }
+
+  /// Whether this type parameter has an explicitly-written type bound, e.g.,
+  /// "T : NSView".
+  bool hasExplicitBound() const { return ColonLoc.isValid(); }
+
+  /// Retrieve the location of the ':' separating the type parameter name
+  /// from the explicitly-specified bound.
+  SourceLocation getColonLoc() const { return ColonLoc; }
+
+  // Implement isa/cast/dyncast/etc.
+  static bool classof(const Decl *D) { return classofKind(D->getKind()); }
+  static bool classofKind(Kind K) { return K == ObjCTypeParam; }
+
+  friend class ASTDeclReader;
+  friend class ASTDeclWriter;
+};
+
+/// Stores a list of Objective-C type parameters for a parameterized class
+/// or a category/extension thereof.
+///
+/// \code
+/// @interface NSArray<T> // stores the <T>
+/// @end
+/// \endcode
+class ObjCTypeParamList {
+  /// Stores the components of a SourceRange as a POD.
+  struct PODSourceRange {
+    unsigned Begin;
+    unsigned End;
+  };
+
+  union { 
+    /// Location of the left and right angle brackets.
+    PODSourceRange Brackets;
+
+    // Used only for alignment.
+    ObjCTypeParamDecl *AlignmentHack;
+  };
+
+  /// The number of parameters in the list, which are tail-allocated.
+  unsigned NumParams;
+
+  ObjCTypeParamList(SourceLocation lAngleLoc,
+                    ArrayRef<ObjCTypeParamDecl *> typeParams,
+                    SourceLocation rAngleLoc);
+
+public:
+  /// Create a new Objective-C type parameter list.
+  static ObjCTypeParamList *create(ASTContext &ctx,
+                                   SourceLocation lAngleLoc,
+                                   ArrayRef<ObjCTypeParamDecl *> typeParams,
+                                   SourceLocation rAngleLoc);
+
+  /// Iterate through the type parameters in the list.
+  typedef ObjCTypeParamDecl **iterator;
+
+  iterator begin() { return reinterpret_cast<ObjCTypeParamDecl **>(this + 1); }
+
+  iterator end() { return begin() + size(); }
+
+  /// Determine the number of type parameters in this list.
+  unsigned size() const { return NumParams; }
+
+  // Iterate through the type parameters in the list.
+  typedef ObjCTypeParamDecl * const *const_iterator;
+
+  const_iterator begin() const {
+    return reinterpret_cast<ObjCTypeParamDecl * const *>(this + 1);
+  }
+
+  const_iterator end() const {
+    return begin() + size();
+  }
+
+  ObjCTypeParamDecl *front() const {
+    assert(size() > 0 && "empty Objective-C type parameter list");
+    return *begin();
+  }
+
+  ObjCTypeParamDecl *back() const {
+    assert(size() > 0 && "empty Objective-C type parameter list");
+    return *(end() - 1);
+  }
+
+  SourceLocation getLAngleLoc() const {
+    return SourceLocation::getFromRawEncoding(Brackets.Begin);
+  }
+  SourceLocation getRAngleLoc() const {
+    return SourceLocation::getFromRawEncoding(Brackets.End);
+  }
+  SourceRange getSourceRange() const {
+    return SourceRange(getLAngleLoc(), getRAngleLoc());
+  }
+
+  /// Gather the default set of type arguments to be substituted for
+  /// these type parameters when dealing with an unspecialized type.
+  void gatherDefaultTypeArgs(SmallVectorImpl<QualType> &typeArgs) const;
 };
 
 /// ObjCContainerDecl - Represents a container for method declarations.
@@ -676,9 +862,9 @@ class ObjCInterfaceDecl : public ObjCContainerDecl
     /// declaration.
     ObjCInterfaceDecl *Definition;
     
-    /// Class's super class.
-    ObjCInterfaceDecl *SuperClass;
-
+    /// When non-null, this is always an ObjCObjectType.
+    TypeSourceInfo *SuperClassTInfo;
+    
     /// Protocols referenced in the \@interface  declaration
     ObjCProtocolList ReferencedProtocols;
 
@@ -719,16 +905,13 @@ class ObjCInterfaceDecl : public ObjCContainerDecl
     };
     /// One of the \c InheritedDesignatedInitializersState enumeratos.
     mutable unsigned InheritedDesignatedInitializers : 2;
-
-    /// \brief The location of the superclass, if any.
-    SourceLocation SuperClassLoc;
     
     /// \brief The location of the last location in this declaration, before
     /// the properties/methods. For example, this will be the '>', '}', or 
     /// identifier, 
     SourceLocation EndLoc; 
 
-    DefinitionData() : Definition(), SuperClass(), CategoryList(), IvarList(), 
+    DefinitionData() : Definition(), SuperClassTInfo(), CategoryList(), IvarList(), 
                        ExternallyCompleted(),
                        IvarListMissingImplementation(true),
                        HasDesignatedInitializers(),
@@ -736,10 +919,14 @@ class ObjCInterfaceDecl : public ObjCContainerDecl
   };
 
   ObjCInterfaceDecl(const ASTContext &C, DeclContext *DC, SourceLocation AtLoc,
-                    IdentifierInfo *Id, SourceLocation CLoc,
-                    ObjCInterfaceDecl *PrevDecl, bool IsInternal);
+                    IdentifierInfo *Id, ObjCTypeParamList *typeParamList,
+                    SourceLocation CLoc, ObjCInterfaceDecl *PrevDecl,
+                    bool IsInternal);
 
   void LoadExternalDefinition() const;
+
+  /// The type parameters associated with this class, if any.
+  ObjCTypeParamList *TypeParamList;
 
   /// \brief Contains a pointer to the data associated with this class,
   /// which will be NULL if this class has not yet been defined.
@@ -771,11 +958,32 @@ public:
   static ObjCInterfaceDecl *Create(const ASTContext &C, DeclContext *DC,
                                    SourceLocation atLoc,
                                    IdentifierInfo *Id,
+                                   ObjCTypeParamList *typeParamList,
                                    ObjCInterfaceDecl *PrevDecl,
                                    SourceLocation ClassLoc = SourceLocation(),
                                    bool isInternal = false);
 
   static ObjCInterfaceDecl *CreateDeserialized(const ASTContext &C, unsigned ID);
+
+  /// Retrieve the type parameters of this class.
+  ///
+  /// This function looks for a type parameter list for the given
+  /// class; if the class has been declared (with \c \@class) but not
+  /// defined (with \c \@interface), it will search for a declaration that
+  /// has type parameters, skipping any declarations that do not.
+  ObjCTypeParamList *getTypeParamList() const;
+
+  /// Set the type parameters of this class.
+  ///
+  /// This function is used by the AST importer, which must import the type
+  /// parameters after creating their DeclContext to avoid loops.
+  void setTypeParamList(ObjCTypeParamList *TPL);
+
+  /// Retrieve the type parameters written on this particular declaration of
+  /// the class.
+  ObjCTypeParamList *getTypeParamListAsWritten() const {
+    return TypeParamList;
+  }
 
   SourceRange getSourceRange() const override LLVM_READONLY {
     if (isThisDeclarationADefinition())
@@ -820,8 +1028,8 @@ public:
   ObjCMethodDecl *getCategoryInstanceMethod(Selector Sel) const;
   ObjCMethodDecl *getCategoryClassMethod(Selector Sel) const;
   ObjCMethodDecl *getCategoryMethod(Selector Sel, bool isInstance) const {
-    return isInstance ? getInstanceMethod(Sel)
-                      : getClassMethod(Sel);
+    return isInstance ? getCategoryInstanceMethod(Sel)
+                      : getCategoryClassMethod(Sel);
   }
 
   typedef ObjCProtocolList::iterator protocol_iterator;
@@ -1023,7 +1231,16 @@ public:
   /// a forward declaration (\@class) to a definition (\@interface).
   void startDefinition();
   
-  ObjCInterfaceDecl *getSuperClass() const {
+  /// Retrieve the superclass type.
+  const ObjCObjectType *getSuperClassType() const {
+    if (TypeSourceInfo *TInfo = getSuperClassTInfo())
+      return TInfo->getType()->castAs<ObjCObjectType>();
+
+    return nullptr;
+  }
+
+  // Retrieve the type source information for the superclass.
+  TypeSourceInfo *getSuperClassTInfo() const {
     // FIXME: Should make sure no callers ever do this.
     if (!hasDefinition())
       return nullptr;
@@ -1031,13 +1248,15 @@ public:
     if (data().ExternallyCompleted)
       LoadExternalDefinition();
 
-    return data().SuperClass;
+    return data().SuperClassTInfo;
   }
 
-  void setSuperClass(ObjCInterfaceDecl * superCls) { 
-    data().SuperClass = 
-      (superCls && superCls->hasDefinition()) ? superCls->getDefinition() 
-                                              : superCls; 
+  // Retrieve the declaration for the superclass of this class, which
+  // does not include any type arguments that apply to the superclass.
+  ObjCInterfaceDecl *getSuperClass() const;
+
+  void setSuperClass(TypeSourceInfo *superClass) { 
+    data().SuperClassTInfo = superClass;
   }
 
   /// \brief Iterator that walks over the list of categories, filtering out
@@ -1329,8 +1548,8 @@ public:
                           
   void setEndOfDefinitionLoc(SourceLocation LE) { data().EndLoc = LE; }
 
-  void setSuperClassLoc(SourceLocation Loc) { data().SuperClassLoc = Loc; }
-  SourceLocation getSuperClassLoc() const { return data().SuperClassLoc; }
+  /// Retrieve the starting location of the superclass.
+  SourceLocation getSuperClassLoc() const;
 
   /// isImplicitInterfaceDecl - check that this is an implicitly declared
   /// ObjCInterfaceDecl node. This is for legacy objective-c \@implementation
@@ -1437,6 +1656,10 @@ public:
 
   void setSynthesize(bool synth) { Synthesized = synth; }
   bool getSynthesize() const { return Synthesized; }
+
+  /// Retrieve the type of this instance variable when viewed as a member of a
+  /// specific object type.
+  QualType getUsageType(QualType objectType) const;
 
   // Implement isa/cast/dyncast/etc.
   static bool classof(const Decl *D) { return classofKind(D->getKind()); }
@@ -1719,6 +1942,9 @@ class ObjCCategoryDecl : public ObjCContainerDecl {
   /// Interface belonging to this category
   ObjCInterfaceDecl *ClassInterface;
 
+  /// The type parameters associated with this category, if any.
+  ObjCTypeParamList *TypeParamList;
+
   /// referenced protocols in this category.
   ObjCProtocolList ReferencedProtocols;
 
@@ -1736,13 +1962,9 @@ class ObjCCategoryDecl : public ObjCContainerDecl {
   ObjCCategoryDecl(DeclContext *DC, SourceLocation AtLoc,
                    SourceLocation ClassNameLoc, SourceLocation CategoryNameLoc,
                    IdentifierInfo *Id, ObjCInterfaceDecl *IDecl,
+                   ObjCTypeParamList *typeParamList,
                    SourceLocation IvarLBraceLoc=SourceLocation(),
-                   SourceLocation IvarRBraceLoc=SourceLocation())
-    : ObjCContainerDecl(ObjCCategory, DC, Id, ClassNameLoc, AtLoc),
-      ClassInterface(IDecl), NextClassCategory(nullptr),
-      CategoryNameLoc(CategoryNameLoc),
-      IvarLBraceLoc(IvarLBraceLoc), IvarRBraceLoc(IvarRBraceLoc) {
-  }
+                   SourceLocation IvarRBraceLoc=SourceLocation());
 
 public:
 
@@ -1752,12 +1974,24 @@ public:
                                   SourceLocation CategoryNameLoc,
                                   IdentifierInfo *Id,
                                   ObjCInterfaceDecl *IDecl,
+                                  ObjCTypeParamList *typeParamList,
                                   SourceLocation IvarLBraceLoc=SourceLocation(),
                                   SourceLocation IvarRBraceLoc=SourceLocation());
   static ObjCCategoryDecl *CreateDeserialized(ASTContext &C, unsigned ID);
 
   ObjCInterfaceDecl *getClassInterface() { return ClassInterface; }
   const ObjCInterfaceDecl *getClassInterface() const { return ClassInterface; }
+
+  /// Retrieve the type parameter list associated with this category or
+  /// extension.
+  ObjCTypeParamList *getTypeParamList() const { return TypeParamList; }
+
+  /// Set the type parameters of this category.
+  ///
+  /// This function is used by the AST importer, which must import the type
+  /// parameters after creating their DeclContext to avoid loops.
+  void setTypeParamList(ObjCTypeParamList *TPL);
+
 
   ObjCCategoryImplDecl *getImplementation() const;
   void setImplementation(ObjCCategoryImplDecl *ImplD);
@@ -2002,8 +2236,8 @@ class ObjCImplementationDecl : public ObjCImplDecl {
   SourceLocation IvarRBraceLoc;
   
   /// Support for ivar initialization.
-  /// IvarInitializers - The arguments used to initialize the ivars
-  CXXCtorInitializer **IvarInitializers;
+  /// \brief The arguments used to initialize the ivars
+  LazyCXXCtorInitializersPtr IvarInitializers;
   unsigned NumIvarInitializers;
 
   /// Do the ivars of this class require initialization other than
@@ -2052,17 +2286,20 @@ public:
   }
 
   /// init_begin() - Retrieve an iterator to the first initializer.
-  init_iterator       init_begin()       { return IvarInitializers; }
+  init_iterator init_begin() {
+    const auto *ConstThis = this;
+    return const_cast<init_iterator>(ConstThis->init_begin());
+  }
   /// begin() - Retrieve an iterator to the first initializer.
-  init_const_iterator init_begin() const { return IvarInitializers; }
+  init_const_iterator init_begin() const;
 
   /// init_end() - Retrieve an iterator past the last initializer.
   init_iterator       init_end()       {
-    return IvarInitializers + NumIvarInitializers;
+    return init_begin() + NumIvarInitializers;
   }
   /// end() - Retrieve an iterator past the last initializer.
   init_const_iterator init_end() const {
-    return IvarInitializers + NumIvarInitializers;
+    return init_begin() + NumIvarInitializers;
   }
   /// getNumArgs - Number of ivars which must be initialized.
   unsigned getNumIvarInitializers() const {
@@ -2200,13 +2437,17 @@ public:
     OBJC_PR_atomic    = 0x100,
     OBJC_PR_weak      = 0x200,
     OBJC_PR_strong    = 0x400,
-    OBJC_PR_unsafe_unretained = 0x800
+    OBJC_PR_unsafe_unretained = 0x800,
+    /// Indicates that the nullability of the type was spelled with a
+    /// property attribute rather than a type qualifier.
+    OBJC_PR_nullability = 0x1000,
+    OBJC_PR_null_resettable = 0x2000
     // Adding a property should change NumPropertyAttrsBits
   };
 
   enum {
     /// \brief Number of bits fitting all the property attributes.
-    NumPropertyAttrsBits = 12
+    NumPropertyAttrsBits = 14
   };
 
   enum SetterKind { Assign, Retain, Copy, Weak };
@@ -2214,7 +2455,8 @@ public:
 private:
   SourceLocation AtLoc;   // location of \@property
   SourceLocation LParenLoc; // location of '(' starting attribute list or null.
-  TypeSourceInfo *DeclType;
+  QualType DeclType;
+  TypeSourceInfo *DeclTypeSourceInfo;
   unsigned PropertyAttributes : NumPropertyAttrsBits;
   unsigned PropertyAttributesAsWritten : NumPropertyAttrsBits;
   // \@required/\@optional
@@ -2229,12 +2471,13 @@ private:
 
   ObjCPropertyDecl(DeclContext *DC, SourceLocation L, IdentifierInfo *Id,
                    SourceLocation AtLocation,  SourceLocation LParenLocation,
-                   TypeSourceInfo *T)
+                   QualType T, TypeSourceInfo *TSI,
+                   PropertyControl propControl)
     : NamedDecl(ObjCProperty, DC, L, Id), AtLoc(AtLocation), 
-      LParenLoc(LParenLocation), DeclType(T),
+      LParenLoc(LParenLocation), DeclType(T), DeclTypeSourceInfo(TSI),
       PropertyAttributes(OBJC_PR_noattr),
       PropertyAttributesAsWritten(OBJC_PR_noattr),
-      PropertyImplementation(None),
+      PropertyImplementation(propControl),
       GetterName(Selector()),
       SetterName(Selector()),
       GetterMethodDecl(nullptr), SetterMethodDecl(nullptr),
@@ -2245,7 +2488,8 @@ public:
                                   SourceLocation L,
                                   IdentifierInfo *Id, SourceLocation AtLocation,
                                   SourceLocation LParenLocation,
-                                  TypeSourceInfo *T,
+                                  QualType T,
+                                  TypeSourceInfo *TSI,
                                   PropertyControl propControl = None);
   
   static ObjCPropertyDecl *CreateDeserialized(ASTContext &C, unsigned ID);
@@ -2256,9 +2500,18 @@ public:
   SourceLocation getLParenLoc() const { return LParenLoc; }
   void setLParenLoc(SourceLocation L) { LParenLoc = L; }
 
-  TypeSourceInfo *getTypeSourceInfo() const { return DeclType; }
-  QualType getType() const { return DeclType->getType(); }
-  void setType(TypeSourceInfo *T) { DeclType = T; }
+  TypeSourceInfo *getTypeSourceInfo() const { return DeclTypeSourceInfo; }
+
+  QualType getType() const { return DeclType; }
+
+  void setType(QualType T, TypeSourceInfo *TSI) { 
+    DeclType = T;
+    DeclTypeSourceInfo = TSI; 
+  }
+
+  /// Retrieve the type when this property is used with a specific base object
+  /// type.
+  QualType getUsageType(QualType objectType) const;
 
   PropertyAttributeKind getPropertyAttributes() const {
     return PropertyAttributeKind(PropertyAttributes);
