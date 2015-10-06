@@ -203,7 +203,7 @@ static inline locale_t __get_locale(void)
 {
 
 #ifdef FORCE_C_LOCALE
-	return (__xlocale_C_locale);
+	return (&__xlocale_C_locale);
 #else
 	if (!__has_thread_locale) {
 		return (&__xlocale_global_locale);
