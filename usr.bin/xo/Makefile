@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <src.opts.mk>
+
 LIBXOSRC=	${SRCTOP}/contrib/libxo
 
 .PATH:	${LIBXOSRC}/xo
@@ -11,5 +13,9 @@ MAN=	xo.1
 CFLAGS+=-I${LIBXOSRC}/libxo
 
 LIBADD=	xo util
+
+.if ${MK_TESTS} != "no"
+SUBDIR+=	tests
+.endif
 
 .include <bsd.prog.mk>
