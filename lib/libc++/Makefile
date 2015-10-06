@@ -63,7 +63,6 @@ CXXFLAGS+=	-std=c++11
 .endif
 
 LIBADD+=	cxxrt
-LDFLAGS+=	--verbose
 INCSGROUPS=	STD EXP EXT
 
 STD_HEADERS=	__bit_reference\
