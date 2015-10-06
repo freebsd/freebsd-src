@@ -181,6 +181,7 @@ struct ngpppoe_maxp {
 #define PTT_AC_COOKIE	(0x0104)
 #define PTT_VENDOR 	(0x0105)
 #define PTT_RELAY_SID	(0x0110)
+#define	PTT_MAX_PAYL	(0x0120)	/* PPP-Max-Payload (RFC4638) */
 #define PTT_SRV_ERR     (0x0201)
 #define PTT_SYS_ERR  	(0x0202)
 #define PTT_GEN_ERR  	(0x0203)
@@ -197,6 +198,7 @@ struct ngpppoe_maxp {
 #define PTT_AC_COOKIE	(0x0401)
 #define PTT_VENDOR 	(0x0501)
 #define PTT_RELAY_SID	(0x1001)
+#define	PTT_MAX_PAYL	(0x2001)	/* PPP-Max-Payload (RFC4638) */
 #define PTT_SRV_ERR     (0x0102)
 #define PTT_SYS_ERR  	(0x0202)
 #define PTT_GEN_ERR  	(0x0302)
