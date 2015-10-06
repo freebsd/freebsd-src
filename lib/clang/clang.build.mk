@@ -247,9 +247,11 @@ Checkers.inc.h: ${CLANG_SRCS}/lib/StaticAnalyzer/Checkers/Checkers.td
 	    -I ${CLANG_SRCS}/include -d ${.TARGET:C/\.h$/.d/} -o ${.TARGET} \
 	    ${CLANG_SRCS}/lib/StaticAnalyzer/Checkers/Checkers.td
 
-.for dep in ${TGHDRS:C/$/.inc.d/}
-. sinclude "${dep}"
-.endfor
+.if !make(depend)
+. for dep in ${TGHDRS:C/$/.inc.d/}
+.  sinclude "${dep}"
+. endfor
+.endif
 
 SRCS+=		${TGHDRS:C/$/.inc.h/}
 DPSRCS+=	${TGHDRS:C/$/.inc.h/}
