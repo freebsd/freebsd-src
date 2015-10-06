@@ -14,6 +14,7 @@
 #include "lldb/Core/Section.h"
 #include "lldb/Core/Timer.h"
 #include "lldb/Symbol/ObjectFile.h"
+#include "lldb/Symbol/Symbol.h"
 #include "lldb/Symbol/SymbolContext.h"
 #include "lldb/Symbol/Symtab.h"
 #include "lldb/Target/CPPLanguageRuntime.h"
@@ -135,7 +136,7 @@ Symtab::Dump (Stream *s, Target *target, SortOrder sort_order)
                 CStringToSymbol name_map;
                 for (const_iterator pos = m_symbols.begin(), end = m_symbols.end(); pos != end; ++pos)
                 {
-                    const char *name = pos->GetMangled().GetName(Mangled::ePreferDemangled).AsCString();
+                    const char *name = pos->GetName().AsCString();
                     if (name && name[0])
                         name_map.insert (std::make_pair(name, &(*pos)));
                 }
@@ -201,16 +202,16 @@ Symtab::DumpSymbolHeader (Stream *s)
     s->Indent("               |Synthetic symbol\n");
     s->Indent("               ||Externally Visible\n");
     s->Indent("               |||\n");
-    s->Indent("Index   UserID DSX Type         File Address/Value Load Address       Size               Flags      Name\n");
-    s->Indent("------- ------ --- ------------ ------------------ ------------------ ------------------ ---------- ----------------------------------\n");
+    s->Indent("Index   UserID DSX Type            File Address/Value Load Address       Size               Flags      Name\n");
+    s->Indent("------- ------ --- --------------- ------------------ ------------------ ------------------ ---------- ----------------------------------\n");
 }
 
 
 static int
 CompareSymbolID (const void *key, const void *p)
 {
-    const user_id_t match_uid = *(user_id_t*) key;
-    const user_id_t symbol_uid = ((Symbol *)p)->GetID();
+    const user_id_t match_uid = *(const user_id_t*) key;
+    const user_id_t symbol_uid = ((const Symbol *)p)->GetID();
     if (match_uid < symbol_uid)
         return -1;
     if (match_uid > symbol_uid)
@@ -226,7 +227,7 @@ Symtab::FindSymbolByID (lldb::user_id_t symbol_uid) const
     Symbol *symbol = (Symbol*)::bsearch (&symbol_uid, 
                                          &m_symbols[0], 
                                          m_symbols.size(), 
-                                         (uint8_t *)&m_symbols[1] - (uint8_t *)&m_symbols[0], 
+                                         sizeof(m_symbols[0]),
                                          CompareSymbolID);
     return symbol;
 }
@@ -312,6 +313,13 @@ Symtab::InitNameIndexes()
             if (entry.cstring && entry.cstring[0])
             {
                 m_name_to_index.Append (entry);
+
+                if (symbol->ContainsLinkerAnnotations()) {
+                    // If the symbol has linker annotations, also add the version without the
+                    // annotations.
+                    entry.cstring = ConstString(m_objfile->StripLinkerSymbolAnnotations(entry.cstring)).GetCString();
+                    m_name_to_index.Append (entry);
+                }
                 
                 const SymbolType symbol_type = symbol->GetType();
                 if (symbol_type == eSymbolTypeCode || symbol_type == eSymbolTypeResolver)
@@ -321,7 +329,7 @@ Symtab::InitNameIndexes()
                          entry.cstring[2] != 'G' && // avoid guard variables
                          entry.cstring[2] != 'Z'))  // named local entities (if we eventually handle eSymbolTypeData, we will want this back)
                     {
-                        CPPLanguageRuntime::MethodName cxx_method (mangled.GetDemangledName());
+                        CPPLanguageRuntime::MethodName cxx_method (mangled.GetDemangledName(lldb::eLanguageTypeC_plus_plus));
                         entry.cstring = ConstString(cxx_method.GetBasename()).GetCString();
                         if (entry.cstring && entry.cstring[0])
                         {
@@ -370,9 +378,17 @@ Symtab::InitNameIndexes()
                 }
             }
             
-            entry.cstring = mangled.GetDemangledName().GetCString();
-            if (entry.cstring && entry.cstring[0])
+            entry.cstring = mangled.GetDemangledName(symbol->GetLanguage()).GetCString();
+            if (entry.cstring && entry.cstring[0]) {
                 m_name_to_index.Append (entry);
+
+                if (symbol->ContainsLinkerAnnotations()) {
+                    // If the symbol has linker annotations, also add the version without the
+                    // annotations.
+                    entry.cstring = ConstString(m_objfile->StripLinkerSymbolAnnotations(entry.cstring)).GetCString();
+                    m_name_to_index.Append (entry);
+                }
+            }
                 
             // If the demangled name turns out to be an ObjC name, and
             // is a category name, add the version without categories to the index too.
@@ -470,7 +486,7 @@ Symtab::AppendSymbolNamesToMap (const IndexCollection &indexes,
             const Mangled &mangled = symbol->GetMangled();
             if (add_demangled)
             {
-                entry.cstring = mangled.GetDemangledName().GetCString();
+                entry.cstring = mangled.GetDemangledName(symbol->GetLanguage()).GetCString();
                 if (entry.cstring && entry.cstring[0])
                     name_to_index_map.Append (entry);
             }
@@ -546,9 +562,12 @@ Symtab::AppendSymbolIndexesWithType (SymbolType symbol_type, Debug symbol_debug_
 uint32_t
 Symtab::GetIndexForSymbol (const Symbol *symbol) const
 {
-    const Symbol *first_symbol = &m_symbols[0];
-    if (symbol >= first_symbol && symbol < first_symbol + m_symbols.size())
-        return symbol - first_symbol;
+    if (!m_symbols.empty())
+    {
+        const Symbol *first_symbol = &m_symbols[0];
+        if (symbol >= first_symbol && symbol < first_symbol + m_symbols.size())
+            return symbol - first_symbol;
+    }
     return UINT32_MAX;
 }
 
@@ -579,14 +598,14 @@ namespace {
             addr_t value_a = addr_cache[index_a];
             if (value_a == LLDB_INVALID_ADDRESS)
             {
-                value_a = symbols[index_a].GetAddress().GetFileAddress();
+                value_a = symbols[index_a].GetAddressRef().GetFileAddress();
                 addr_cache[index_a] = value_a;
             }
             
             addr_t value_b = addr_cache[index_b];
             if (value_b == LLDB_INVALID_ADDRESS)
             {
-                value_b = symbols[index_b].GetAddress().GetFileAddress();
+                value_b = symbols[index_b].GetAddressRef().GetFileAddress();
                 addr_cache[index_b] = value_b;
             }
             
@@ -727,7 +746,7 @@ Symtab::AppendSymbolIndexesMatchingRegExAndType (const RegularExpression &regexp
     {
         if (symbol_type == eSymbolTypeAny || m_symbols[i].GetType() == symbol_type)
         {
-            const char *name = m_symbols[i].GetMangled().GetName().AsCString();
+            const char *name = m_symbols[i].GetName().AsCString();
             if (name)
             {
                 if (regexp.Execute (name))
@@ -754,7 +773,7 @@ Symtab::AppendSymbolIndexesMatchingRegExAndType (const RegularExpression &regexp
             if (CheckSymbolAtIndex(i, symbol_debug_type, symbol_visibility) == false)
                 continue;
 
-            const char *name = m_symbols[i].GetMangled().GetName().AsCString();
+            const char *name = m_symbols[i].GetName().AsCString();
             if (name)
             {
                 if (regexp.Execute (name))
@@ -883,7 +902,7 @@ SymbolWithClosestFileAddress (SymbolSearchInfo *info, const uint32_t *index_ptr)
     const addr_t info_file_addr = info->file_addr;
     if (symbol->ValueIsAddress())
     {
-        const addr_t curr_file_addr = symbol->GetAddress().GetFileAddress();
+        const addr_t curr_file_addr = symbol->GetAddressRef().GetFileAddress();
         if (info_file_addr < curr_file_addr)
             return -1;
 
@@ -917,7 +936,7 @@ Symtab::InitAddressIndexes()
         {
             if (pos->ValueIsAddress())
             {
-                entry.SetRangeBase(pos->GetAddress().GetFileAddress());
+                entry.SetRangeBase(pos->GetAddressRef().GetFileAddress());
                 entry.SetByteSize(pos->GetByteSize());
                 entry.data = std::distance(begin, pos);
                 m_file_addr_to_index.Append(entry);
@@ -1178,3 +1197,20 @@ Symtab::FindFunctionSymbols (const ConstString &name,
     return count;
 }
 
+
+const Symbol *
+Symtab::GetParent (Symbol *child_symbol) const
+{
+    uint32_t child_idx = GetIndexForSymbol(child_symbol);
+    if (child_idx != UINT32_MAX && child_idx > 0)
+    {
+        for (uint32_t idx = child_idx - 1; idx != UINT32_MAX; --idx)
+        {
+            const Symbol *symbol = SymbolAtIndex (idx);
+            const uint32_t sibling_idx = symbol->GetSiblingIndex();
+            if (sibling_idx != UINT32_MAX && sibling_idx > child_idx)
+                return symbol;
+        }
+    }
+    return NULL;
+}

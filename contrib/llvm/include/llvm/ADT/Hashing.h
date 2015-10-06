@@ -53,13 +53,8 @@
 #include <cassert>
 #include <cstring>
 #include <iterator>
+#include <string>
 #include <utility>
-
-// Allow detecting C++11 feature availability when building with Clang without
-// breaking other compilers.
-#ifndef __has_feature
-# define __has_feature(x) 0
-#endif
 
 namespace llvm {
 
@@ -81,7 +76,7 @@ class hash_code {
 public:
   /// \brief Default construct a hash_code.
   /// Note that this leaves the value uninitialized.
-  hash_code() {}
+  hash_code() = default;
 
   /// \brief Form a hash code directly from a numerical value.
   hash_code(size_t value) : value(value) {}
@@ -553,8 +548,6 @@ public:
     return buffer_ptr;
   }
 
-#if defined(__has_feature) && __has_feature(__cxx_variadic_templates__)
-
   /// \brief Recursive, variadic combining method.
   ///
   /// This function recurses through each argument, combining that argument
@@ -567,53 +560,6 @@ public:
     // Recurse to the next argument.
     return combine(length, buffer_ptr, buffer_end, args...);
   }
-
-#else
-  // Manually expanded recursive combining methods. See variadic above for
-  // documentation.
-
-  template <typename T1, typename T2, typename T3, typename T4, typename T5,
-            typename T6>
-  hash_code combine(size_t length, char *buffer_ptr, char *buffer_end,
-                    const T1 &arg1, const T2 &arg2, const T3 &arg3,
-                    const T4 &arg4, const T5 &arg5, const T6 &arg6) {
-    buffer_ptr = combine_data(length, buffer_ptr, buffer_end, get_hashable_data(arg1));
-    return combine(length, buffer_ptr, buffer_end, arg2, arg3, arg4, arg5, arg6);
-  }
-  template <typename T1, typename T2, typename T3, typename T4, typename T5>
-  hash_code combine(size_t length, char *buffer_ptr, char *buffer_end,
-                    const T1 &arg1, const T2 &arg2, const T3 &arg3,
-                    const T4 &arg4, const T5 &arg5) {
-    buffer_ptr = combine_data(length, buffer_ptr, buffer_end, get_hashable_data(arg1));
-    return combine(length, buffer_ptr, buffer_end, arg2, arg3, arg4, arg5);
-  }
-  template <typename T1, typename T2, typename T3, typename T4>
-  hash_code combine(size_t length, char *buffer_ptr, char *buffer_end,
-                    const T1 &arg1, const T2 &arg2, const T3 &arg3,
-                    const T4 &arg4) {
-    buffer_ptr = combine_data(length, buffer_ptr, buffer_end, get_hashable_data(arg1));
-    return combine(length, buffer_ptr, buffer_end, arg2, arg3, arg4);
-  }
-  template <typename T1, typename T2, typename T3>
-  hash_code combine(size_t length, char *buffer_ptr, char *buffer_end,
-                    const T1 &arg1, const T2 &arg2, const T3 &arg3) {
-    buffer_ptr = combine_data(length, buffer_ptr, buffer_end, get_hashable_data(arg1));
-    return combine(length, buffer_ptr, buffer_end, arg2, arg3);
-  }
-  template <typename T1, typename T2>
-  hash_code combine(size_t length, char *buffer_ptr, char *buffer_end,
-                    const T1 &arg1, const T2 &arg2) {
-    buffer_ptr = combine_data(length, buffer_ptr, buffer_end, get_hashable_data(arg1));
-    return combine(length, buffer_ptr, buffer_end, arg2);
-  }
-  template <typename T1>
-  hash_code combine(size_t length, char *buffer_ptr, char *buffer_end,
-                    const T1 &arg1) {
-    buffer_ptr = combine_data(length, buffer_ptr, buffer_end, get_hashable_data(arg1));
-    return combine(length, buffer_ptr, buffer_end);
-  }
-
-#endif
 
   /// \brief Base case for recursive, variadic combining.
   ///
@@ -643,9 +589,6 @@ public:
 } // namespace detail
 } // namespace hashing
 
-
-#if __has_feature(__cxx_variadic_templates__)
-
 /// \brief Combine values into a single hash_code.
 ///
 /// This routine accepts a varying number of arguments of any type. It will
@@ -662,52 +605,6 @@ template <typename ...Ts> hash_code hash_combine(const Ts &...args) {
   ::llvm::hashing::detail::hash_combine_recursive_helper helper;
   return helper.combine(0, helper.buffer, helper.buffer + 64, args...);
 }
-
-#else
-
-// What follows are manually exploded overloads for each argument width. See
-// the above variadic definition for documentation and specification.
-
-template <typename T1, typename T2, typename T3, typename T4, typename T5,
-          typename T6>
-hash_code hash_combine(const T1 &arg1, const T2 &arg2, const T3 &arg3,
-                       const T4 &arg4, const T5 &arg5, const T6 &arg6) {
-  ::llvm::hashing::detail::hash_combine_recursive_helper helper;
-  return helper.combine(0, helper.buffer, helper.buffer + 64,
-                        arg1, arg2, arg3, arg4, arg5, arg6);
-}
-template <typename T1, typename T2, typename T3, typename T4, typename T5>
-hash_code hash_combine(const T1 &arg1, const T2 &arg2, const T3 &arg3,
-                       const T4 &arg4, const T5 &arg5) {
-  ::llvm::hashing::detail::hash_combine_recursive_helper helper;
-  return helper.combine(0, helper.buffer, helper.buffer + 64,
-                        arg1, arg2, arg3, arg4, arg5);
-}
-template <typename T1, typename T2, typename T3, typename T4>
-hash_code hash_combine(const T1 &arg1, const T2 &arg2, const T3 &arg3,
-                       const T4 &arg4) {
-  ::llvm::hashing::detail::hash_combine_recursive_helper helper;
-  return helper.combine(0, helper.buffer, helper.buffer + 64,
-                        arg1, arg2, arg3, arg4);
-}
-template <typename T1, typename T2, typename T3>
-hash_code hash_combine(const T1 &arg1, const T2 &arg2, const T3 &arg3) {
-  ::llvm::hashing::detail::hash_combine_recursive_helper helper;
-  return helper.combine(0, helper.buffer, helper.buffer + 64, arg1, arg2, arg3);
-}
-template <typename T1, typename T2>
-hash_code hash_combine(const T1 &arg1, const T2 &arg2) {
-  ::llvm::hashing::detail::hash_combine_recursive_helper helper;
-  return helper.combine(0, helper.buffer, helper.buffer + 64, arg1, arg2);
-}
-template <typename T1>
-hash_code hash_combine(const T1 &arg1) {
-  ::llvm::hashing::detail::hash_combine_recursive_helper helper;
-  return helper.combine(0, helper.buffer, helper.buffer + 64, arg1);
-}
-
-#endif
-
 
 // Implementation details for implementations of hash_value overloads provided
 // here.

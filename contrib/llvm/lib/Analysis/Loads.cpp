@@ -19,6 +19,7 @@
 #include "llvm/IR/GlobalVariable.h"
 #include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/LLVMContext.h"
+#include "llvm/IR/Module.h"
 #include "llvm/IR/Operator.h"
 using namespace llvm;
 
@@ -62,7 +63,14 @@ static bool AreEquivalentAddressValues(const Value *A, const Value *B) {
 /// This uses the pointee type to determine how many bytes need to be safe to
 /// load from the pointer.
 bool llvm::isSafeToLoadUnconditionally(Value *V, Instruction *ScanFrom,
-                                       unsigned Align, const DataLayout *DL) {
+                                       unsigned Align) {
+  const DataLayout &DL = ScanFrom->getModule()->getDataLayout();
+
+  // Zero alignment means that the load has the ABI alignment for the target
+  if (Align == 0)
+    Align = DL.getABITypeAlignment(V->getType()->getPointerElementType());
+  assert(isPowerOf2_32(Align));
+
   int64_t ByteOffset = 0;
   Value *Base = V;
   Base = GetPointerBaseWithConstantOffset(V, ByteOffset, DL);
@@ -87,20 +95,20 @@ bool llvm::isSafeToLoadUnconditionally(Value *V, Instruction *ScanFrom,
   }
 
   PointerType *AddrTy = cast<PointerType>(V->getType());
-  uint64_t LoadSize = DL ? DL->getTypeStoreSize(AddrTy->getElementType()) : 0;
+  uint64_t LoadSize = DL.getTypeStoreSize(AddrTy->getElementType());
 
   // If we found a base allocated type from either an alloca or global variable,
   // try to see if we are definitively within the allocated region. We need to
   // know the size of the base type and the loaded type to do anything in this
-  // case, so only try this when we have the DataLayout available.
-  if (BaseType && BaseType->isSized() && DL) {
+  // case.
+  if (BaseType && BaseType->isSized()) {
     if (BaseAlign == 0)
-      BaseAlign = DL->getPrefTypeAlignment(BaseType);
+      BaseAlign = DL.getPrefTypeAlignment(BaseType);
 
     if (Align <= BaseAlign) {
       // Check if the load is within the bounds of the underlying object.
-      if (ByteOffset + LoadSize <= DL->getTypeAllocSize(BaseType) &&
-          (Align == 0 || (ByteOffset % Align) == 0))
+      if (ByteOffset + LoadSize <= DL.getTypeAllocSize(BaseType) &&
+          ((ByteOffset % Align) == 0))
         return true;
     }
   }
@@ -126,23 +134,28 @@ bool llvm::isSafeToLoadUnconditionally(Value *V, Instruction *ScanFrom,
       return false;
 
     Value *AccessedPtr;
-    if (LoadInst *LI = dyn_cast<LoadInst>(BBI))
+    unsigned AccessedAlign;
+    if (LoadInst *LI = dyn_cast<LoadInst>(BBI)) {
       AccessedPtr = LI->getPointerOperand();
-    else if (StoreInst *SI = dyn_cast<StoreInst>(BBI))
+      AccessedAlign = LI->getAlignment();
+    } else if (StoreInst *SI = dyn_cast<StoreInst>(BBI)) {
       AccessedPtr = SI->getPointerOperand();
-    else
+      AccessedAlign = SI->getAlignment();
+    } else
       continue;
 
-    // Handle trivial cases even w/o DataLayout or other work.
+    Type *AccessedTy = AccessedPtr->getType()->getPointerElementType();
+    if (AccessedAlign == 0)
+      AccessedAlign = DL.getABITypeAlignment(AccessedTy);
+    if (AccessedAlign < Align)
+      continue;
+
+    // Handle trivial cases.
     if (AccessedPtr == V)
       return true;
 
-    if (!DL)
-      continue;
-
-    auto *AccessedTy = cast<PointerType>(AccessedPtr->getType());
     if (AreEquivalentAddressValues(AccessedPtr->stripPointerCasts(), V) &&
-        LoadSize <= DL->getTypeStoreSize(AccessedTy->getElementType()))
+        LoadSize <= DL.getTypeStoreSize(AccessedTy))
       return true;
   }
   return false;
@@ -176,13 +189,10 @@ Value *llvm::FindAvailableLoadedValue(Value *Ptr, BasicBlock *ScanBB,
 
   Type *AccessTy = cast<PointerType>(Ptr->getType())->getElementType();
 
-  // Try to get the DataLayout for this module. This may be null, in which case
-  // the optimizations will be limited.
-  const DataLayout *DL = ScanBB->getDataLayout();
+  const DataLayout &DL = ScanBB->getModule()->getDataLayout();
 
   // Try to get the store size for the type.
-  uint64_t AccessSize = DL ? DL->getTypeStoreSize(AccessTy)
-                           : AA ? AA->getTypeStoreSize(AccessTy) : 0;
+  uint64_t AccessSize = DL.getTypeStoreSize(AccessTy);
 
   Value *StrippedPtr = Ptr->stripPointerCasts();
 

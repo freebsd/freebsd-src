@@ -208,7 +208,7 @@ typedef std::vector<bit_value_t> insn_t;
 ///
 /// The Debug output shows the path that the decoding tree follows to reach the
 /// the conclusion that there is a conflict.  VST4q8a is a vst4 to double-spaced
-/// even registers, while VST4q8b is a vst4 to double-spaced odd regsisters.
+/// even registers, while VST4q8b is a vst4 to double-spaced odd registers.
 ///
 /// The encoding info in the .td files does not specify this meta information,
 /// which could have been used by the decoder to resolve the conflict.  The
@@ -333,8 +333,8 @@ protected:
   // Parent emitter
   const FixedLenDecoderEmitter *Emitter;
 
-  FilterChooser(const FilterChooser &) LLVM_DELETED_FUNCTION;
-  void operator=(const FilterChooser &) LLVM_DELETED_FUNCTION;
+  FilterChooser(const FilterChooser &) = delete;
+  void operator=(const FilterChooser &) = delete;
 public:
 
   FilterChooser(const std::vector<const CodeGenInstruction*> &Insts,
@@ -540,7 +540,7 @@ void Filter::recurse() {
   // Starts by inheriting our parent filter chooser's filter bit values.
   std::vector<bit_value_t> BitValueArray(Owner->FilterBitValues);
 
-  if (VariableInstructions.size()) {
+  if (!VariableInstructions.empty()) {
     // Conservatively marks each segment position as BIT_UNSET.
     for (unsigned bitIndex = 0; bitIndex < NumBits; ++bitIndex)
       BitValueArray[StartBit + bitIndex] = BIT_UNSET;
@@ -610,7 +610,7 @@ void Filter::emitTableEntry(DecoderTableInfo &TableInfo) const {
   TableInfo.Table.push_back(NumBits);
 
   // A new filter entry begins a new scope for fixup resolution.
-  TableInfo.FixupStack.push_back(FixupList());
+  TableInfo.FixupStack.emplace_back();
 
   DecoderTable &Table = TableInfo.Table;
 
@@ -676,7 +676,7 @@ void Filter::emitTableEntry(DecoderTableInfo &TableInfo) const {
 // Returns the number of fanout produced by the filter.  More fanout implies
 // the filter distinguishes more categories of instructions.
 unsigned Filter::usefulness() const {
-  if (VariableInstructions.size())
+  if (!VariableInstructions.empty())
     return FilteredInstructions.size();
   else
     return FilteredInstructions.size() + 1;
@@ -848,7 +848,7 @@ emitPredicateFunction(formatted_raw_ostream &OS, PredicateSet &Predicates,
   // The predicate function is just a big switch statement based on the
   // input predicate index.
   OS.indent(Indentation) << "static bool checkDecoderPredicate(unsigned Idx, "
-    << "uint64_t Bits) {\n";
+    << "const FeatureBitset& Bits) {\n";
   Indentation += 2;
   if (!Predicates.empty()) {
     OS.indent(Indentation) << "switch (Idx) {\n";
@@ -1054,7 +1054,7 @@ void FilterChooser::emitBinaryParser(raw_ostream &o, unsigned &Indentation,
                           << "(MI, tmp, Address, Decoder)"
                           << Emitter->GuardPostfix << "\n";
   else
-    o.indent(Indentation) << "MI.addOperand(MCOperand::CreateImm(tmp));\n";
+    o.indent(Indentation) << "MI.addOperand(MCOperand::createImm(tmp));\n";
 
 }
 
@@ -1091,7 +1091,7 @@ unsigned FilterChooser::getDecoderIndex(DecoderSet &Decoders,
   // overkill for now, though.
 
   // Make sure the predicate is in the table.
-  Decoders.insert(Decoder.str());
+  Decoders.insert(StringRef(Decoder));
   // Now figure out the index for when we write out the table.
   DecoderSet::const_iterator P = std::find(Decoders.begin(),
                                            Decoders.end(),
@@ -1102,17 +1102,18 @@ unsigned FilterChooser::getDecoderIndex(DecoderSet &Decoders,
 static void emitSinglePredicateMatch(raw_ostream &o, StringRef str,
                                      const std::string &PredicateNamespace) {
   if (str[0] == '!')
-    o << "!(Bits & " << PredicateNamespace << "::"
-      << str.slice(1,str.size()) << ")";
+    o << "!Bits[" << PredicateNamespace << "::"
+      << str.slice(1,str.size()) << "]";
   else
-    o << "(Bits & " << PredicateNamespace << "::" << str << ")";
+    o << "Bits[" << PredicateNamespace << "::" << str << "]";
 }
 
 bool FilterChooser::emitPredicateMatch(raw_ostream &o, unsigned &Indentation,
                                        unsigned Opc) const {
   ListInit *Predicates =
     AllInstructions[Opc]->TheDef->getValueAsListInit("Predicates");
-  for (unsigned i = 0; i < Predicates->getSize(); ++i) {
+  bool IsFirstEmission = true;
+  for (unsigned i = 0; i < Predicates->size(); ++i) {
     Record *Pred = Predicates->getElementAsRecord(i);
     if (!Pred->getValue("AssemblerMatcherPredicate"))
       continue;
@@ -1122,7 +1123,7 @@ bool FilterChooser::emitPredicateMatch(raw_ostream &o, unsigned &Indentation,
     if (!P.length())
       continue;
 
-    if (i != 0)
+    if (!IsFirstEmission)
       o << " && ";
 
     StringRef SR(P);
@@ -1133,14 +1134,15 @@ bool FilterChooser::emitPredicateMatch(raw_ostream &o, unsigned &Indentation,
       pairs = pairs.second.split(',');
     }
     emitSinglePredicateMatch(o, pairs.first, Emitter->PredicateNamespace);
+    IsFirstEmission = false;
   }
-  return Predicates->getSize() > 0;
+  return !Predicates->empty();
 }
 
 bool FilterChooser::doesOpcodeNeedPredicate(unsigned Opc) const {
   ListInit *Predicates =
     AllInstructions[Opc]->TheDef->getValueAsListInit("Predicates");
-  for (unsigned i = 0; i < Predicates->getSize(); ++i) {
+  for (unsigned i = 0; i < Predicates->size(); ++i) {
     Record *Pred = Predicates->getElementAsRecord(i);
     if (!Pred->getValue("AssemblerMatcherPredicate"))
       continue;
@@ -1331,7 +1333,7 @@ void FilterChooser::emitSingletonTableEntry(DecoderTableInfo &TableInfo,
 
   // complex singletons need predicate checks from the first singleton
   // to refer forward to the variable filterchooser that follows.
-  TableInfo.FixupStack.push_back(FixupList());
+  TableInfo.FixupStack.emplace_back();
 
   emitSingletonTableEntry(TableInfo, Opc);
 
@@ -1348,7 +1350,7 @@ void FilterChooser::emitSingletonTableEntry(DecoderTableInfo &TableInfo,
 void FilterChooser::runSingleFilter(unsigned startBit, unsigned numBit,
                                     bool mixed) {
   Filters.clear();
-  Filters.push_back(Filter(*this, startBit, numBit, true));
+  Filters.emplace_back(*this, startBit, numBit, true);
   BestIndex = 0; // Sole Filter instance to choose from.
   bestFilter().recurse();
 }
@@ -1358,9 +1360,9 @@ void FilterChooser::runSingleFilter(unsigned startBit, unsigned numBit,
 void FilterChooser::reportRegion(bitAttr_t RA, unsigned StartBit,
                                  unsigned BitIndex, bool AllowMixed) {
   if (RA == ATTR_MIXED && AllowMixed)
-    Filters.push_back(Filter(*this, StartBit, BitIndex - StartBit, true));
+    Filters.emplace_back(*this, StartBit, BitIndex - StartBit, true);
   else if (RA == ATTR_ALL_SET && !AllowMixed)
-    Filters.push_back(Filter(*this, StartBit, BitIndex - StartBit, false));
+    Filters.emplace_back(*this, StartBit, BitIndex - StartBit, false);
 }
 
 // FilterProcessor scans the well-known encoding bits of the instructions and
@@ -1780,7 +1782,7 @@ static bool populateInstruction(CodeGenTarget &Target,
       unsigned NumberOps = CGI.Operands.size();
       while (NumberedOp < NumberOps &&
              (CGI.Operands.isFlatOperandNotEmitted(NumberedOp) ||
-              (NamedOpIndices.size() && NamedOpIndices.count(
+              (!NamedOpIndices.empty() && NamedOpIndices.count(
                 CGI.Operands.getSubOperandNumber(NumberedOp).first))))
         ++NumberedOp;
 
@@ -2010,7 +2012,7 @@ static void emitDecodeInstruction(formatted_raw_ostream &OS) {
      << "                                      InsnType insn, uint64_t Address,\n"
      << "                                      const void *DisAsm,\n"
      << "                                      const MCSubtargetInfo &STI) {\n"
-     << "  uint64_t Bits = STI.getFeatureBits();\n"
+     << "  const FeatureBitset& Bits = STI.getFeatureBits();\n"
      << "\n"
      << "  const uint8_t *Ptr = DecodeTable;\n"
      << "  uint32_t CurFieldValue = 0;\n"
@@ -2177,7 +2179,7 @@ void FixedLenDecoderEmitter::run(raw_ostream &o) {
     TableInfo.Table.clear();
     TableInfo.FixupStack.clear();
     TableInfo.Table.reserve(16384);
-    TableInfo.FixupStack.push_back(FixupList());
+    TableInfo.FixupStack.emplace_back();
     FC.emitTableEntries(TableInfo);
     // Any NumToSkip fixups in the top level scope can resolve to the
     // OPC_Fail at the end of the table.

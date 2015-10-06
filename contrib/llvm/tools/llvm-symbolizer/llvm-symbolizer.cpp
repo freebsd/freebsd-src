@@ -17,10 +17,12 @@
 
 #include "LLVMSymbolize.h"
 #include "llvm/ADT/StringRef.h"
+#include "llvm/Support/COM.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/ManagedStatic.h"
+#include "llvm/Support/Path.h"
 #include "llvm/Support/PrettyStackTrace.h"
 #include "llvm/Support/Signals.h"
 #include "llvm/Support/raw_ostream.h"
@@ -47,8 +49,13 @@ static cl::opt<FunctionNameKind> ClPrintFunctions(
                clEnumValEnd));
 
 static cl::opt<bool>
-ClPrintInlining("inlining", cl::init(true),
-                cl::desc("Print all inlined frames for a given address"));
+    ClUseRelativeAddress("relative-address", cl::init(false),
+                         cl::desc("Interpret addresses as relative addresses"),
+                         cl::ReallyHidden);
+
+static cl::opt<bool>
+    ClPrintInlining("inlining", cl::init(true),
+                    cl::desc("Print all inlined frames for a given address"));
 
 static cl::opt<bool>
 ClDemangle("demangle", cl::init(true), cl::desc("Demangle function names"));
@@ -122,9 +129,12 @@ int main(int argc, char **argv) {
   PrettyStackTraceProgram X(argc, argv);
   llvm_shutdown_obj Y; // Call llvm_shutdown() on exit.
 
+  llvm::sys::InitializeCOMRAII COM(llvm::sys::COMThreadingMode::MultiThreaded);
+
   cl::ParseCommandLineOptions(argc, argv, "llvm-symbolizer\n");
-  LLVMSymbolizer::Options Opts(ClUseSymbolTable, ClPrintFunctions,
-                               ClPrintInlining, ClDemangle, ClDefaultArch);
+  LLVMSymbolizer::Options Opts(ClPrintFunctions, ClUseSymbolTable,
+                               ClPrintInlining, ClDemangle,
+                               ClUseRelativeAddress, ClDefaultArch);
   for (const auto &hint : ClDsymHint) {
     if (sys::path::extension(hint) == ".dSYM") {
       Opts.DsymHints.push_back(hint);
@@ -145,5 +155,6 @@ int main(int argc, char **argv) {
     outs() << Result << "\n";
     outs().flush();
   }
+
   return 0;
 }

@@ -28,54 +28,65 @@ using namespace llvm;
   MAP(C2, 34)           \
   MAP(C3, 35)           \
   MAP(C4, 36)           \
-  MAP(C8, 37)           \
-  MAP(C9, 38)           \
-  MAP(CA, 39)           \
-  MAP(CB, 40)           \
-  MAP(CF, 41)           \
-  MAP(D0, 42)           \
-  MAP(D1, 43)           \
-  MAP(D4, 44)           \
-  MAP(D5, 45)           \
-  MAP(D6, 46)           \
-  MAP(D7, 47)           \
-  MAP(D8, 48)           \
-  MAP(D9, 49)           \
-  MAP(DA, 50)           \
-  MAP(DB, 51)           \
-  MAP(DC, 52)           \
-  MAP(DD, 53)           \
-  MAP(DE, 54)           \
-  MAP(DF, 55)           \
-  MAP(E0, 56)           \
-  MAP(E1, 57)           \
-  MAP(E2, 58)           \
-  MAP(E3, 59)           \
-  MAP(E4, 60)           \
-  MAP(E5, 61)           \
-  MAP(E8, 62)           \
-  MAP(E9, 63)           \
-  MAP(EA, 64)           \
-  MAP(EB, 65)           \
-  MAP(EC, 66)           \
-  MAP(ED, 67)           \
-  MAP(EE, 68)           \
-  MAP(F0, 69)           \
-  MAP(F1, 70)           \
-  MAP(F2, 71)           \
-  MAP(F3, 72)           \
-  MAP(F4, 73)           \
-  MAP(F5, 74)           \
-  MAP(F6, 75)           \
-  MAP(F7, 76)           \
-  MAP(F8, 77)           \
-  MAP(F9, 78)           \
-  MAP(FA, 79)           \
-  MAP(FB, 80)           \
-  MAP(FC, 81)           \
-  MAP(FD, 82)           \
-  MAP(FE, 83)           \
-  MAP(FF, 84)
+  MAP(C5, 37)           \
+  MAP(C6, 38)           \
+  MAP(C7, 39)           \
+  MAP(C8, 40)           \
+  MAP(C9, 41)           \
+  MAP(CA, 42)           \
+  MAP(CB, 43)           \
+  MAP(CC, 44)           \
+  MAP(CD, 45)           \
+  MAP(CE, 46)           \
+  MAP(CF, 47)           \
+  MAP(D0, 48)           \
+  MAP(D1, 49)           \
+  MAP(D2, 50)           \
+  MAP(D3, 51)           \
+  MAP(D4, 52)           \
+  MAP(D5, 53)           \
+  MAP(D6, 54)           \
+  MAP(D7, 55)           \
+  MAP(D8, 56)           \
+  MAP(D9, 57)           \
+  MAP(DA, 58)           \
+  MAP(DB, 59)           \
+  MAP(DC, 60)           \
+  MAP(DD, 61)           \
+  MAP(DE, 62)           \
+  MAP(DF, 63)           \
+  MAP(E0, 64)           \
+  MAP(E1, 65)           \
+  MAP(E2, 66)           \
+  MAP(E3, 67)           \
+  MAP(E4, 68)           \
+  MAP(E5, 69)           \
+  MAP(E6, 70)           \
+  MAP(E7, 71)           \
+  MAP(E8, 72)           \
+  MAP(E9, 73)           \
+  MAP(EA, 74)           \
+  MAP(EB, 75)           \
+  MAP(EC, 76)           \
+  MAP(ED, 77)           \
+  MAP(EE, 78)           \
+  MAP(EF, 79)           \
+  MAP(F0, 80)           \
+  MAP(F1, 81)           \
+  MAP(F2, 82)           \
+  MAP(F3, 83)           \
+  MAP(F4, 84)           \
+  MAP(F5, 85)           \
+  MAP(F6, 86)           \
+  MAP(F7, 87)           \
+  MAP(F8, 88)           \
+  MAP(F9, 89)           \
+  MAP(FA, 90)           \
+  MAP(FB, 91)           \
+  MAP(FC, 92)           \
+  MAP(FD, 93)           \
+  MAP(FE, 94)           \
+  MAP(FF, 95)
 
 // A clone of X86 since we can't depend on something that is generated.
 namespace X86Local {
@@ -514,7 +525,7 @@ void RecognizableInstr::emitInstructionSpecifier() {
   assert(numOperands <= X86_MAX_OPERANDS && "X86_MAX_OPERANDS is not large enough");
 
   for (unsigned operandIndex = 0; operandIndex < numOperands; ++operandIndex) {
-    if (OperandList[operandIndex].Constraints.size()) {
+    if (!OperandList[operandIndex].Constraints.empty()) {
       const CGIOperandList::ConstraintInfo &Constraint =
         OperandList[operandIndex].Constraints[0];
       if (Constraint.isTied()) {
@@ -803,9 +814,7 @@ void RecognizableInstr::emitDecodePath(DisassemblerTables &tables) const {
   // Special cases where the LLVM tables are not complete
 
 #define MAP(from, to)                     \
-  case X86Local::MRM_##from:              \
-    filter = new ExactFilter(0x##from);   \
-    break;
+  case X86Local::MRM_##from:
 
   OpcodeType    opcodeType  = (OpcodeType)-1;
 
@@ -854,6 +863,8 @@ void RecognizableInstr::emitDecodePath(DisassemblerTables &tables) const {
       filter = new ExtendedFilter(false, Form - X86Local::MRM0m);
       break;
     MRM_MAPPING
+      filter = new ExactFilter(0xC0 + Form - X86Local::MRM_C0);   \
+      break;
     } // switch (Form)
 
     opcodeToSet = Opcode;
@@ -932,6 +943,8 @@ OperandType RecognizableInstr::typeFromString(const std::string &s,
   TYPE("GR64",                TYPE_R64)
   TYPE("i8mem",               TYPE_M8)
   TYPE("i8imm",               TYPE_IMM8)
+  TYPE("u8imm",               TYPE_UIMM8)
+  TYPE("i32u8imm",            TYPE_UIMM8)
   TYPE("GR8",                 TYPE_R8)
   TYPE("VR128",               TYPE_XMM128)
   TYPE("VR128X",              TYPE_XMM128)
@@ -954,7 +967,9 @@ OperandType RecognizableInstr::typeFromString(const std::string &s,
   TYPE("i16imm_pcrel",        TYPE_REL16)
   TYPE("i32imm_pcrel",        TYPE_REL32)
   TYPE("SSECC",               TYPE_IMM3)
+  TYPE("XOPCC",               TYPE_IMM3)
   TYPE("AVXCC",               TYPE_IMM5)
+  TYPE("AVX512ICC",           TYPE_AVX512ICC)
   TYPE("AVX512RC",            TYPE_IMM32)
   TYPE("brtarget32",          TYPE_RELv)
   TYPE("brtarget16",          TYPE_RELv)
@@ -1012,12 +1027,16 @@ OperandType RecognizableInstr::typeFromString(const std::string &s,
   TYPE("GR32_NOAX",           TYPE_Rv)
   TYPE("GR64_NOAX",           TYPE_R64)
   TYPE("vx32mem",             TYPE_M32)
+  TYPE("vx32xmem",            TYPE_M32)
   TYPE("vy32mem",             TYPE_M32)
+  TYPE("vy32xmem",            TYPE_M32)
   TYPE("vz32mem",             TYPE_M32)
   TYPE("vx64mem",             TYPE_M64)
+  TYPE("vx64xmem",            TYPE_M64)
   TYPE("vy64mem",             TYPE_M64)
   TYPE("vy64xmem",            TYPE_M64)
   TYPE("vz64mem",             TYPE_M64)
+  TYPE("BNDR",                TYPE_BNDR)
   errs() << "Unhandled type string " << s << "\n";
   llvm_unreachable("Unhandled type string");
 }
@@ -1034,7 +1053,9 @@ RecognizableInstr::immediateEncodingFromString(const std::string &s,
   }
   ENCODING("i32i8imm",        ENCODING_IB)
   ENCODING("SSECC",           ENCODING_IB)
+  ENCODING("XOPCC",           ENCODING_IB)
   ENCODING("AVXCC",           ENCODING_IB)
+  ENCODING("AVX512ICC",       ENCODING_IB)
   ENCODING("AVX512RC",        ENCODING_IB)
   ENCODING("i16imm",          ENCODING_Iv)
   ENCODING("i16i8imm",        ENCODING_IB)
@@ -1042,6 +1063,8 @@ RecognizableInstr::immediateEncodingFromString(const std::string &s,
   ENCODING("i64i32imm",       ENCODING_ID)
   ENCODING("i64i8imm",        ENCODING_IB)
   ENCODING("i8imm",           ENCODING_IB)
+  ENCODING("u8imm",           ENCODING_IB)
+  ENCODING("i32u8imm",        ENCODING_IB)
   // This is not a typo.  Instructions like BLENDVPD put
   // register IDs in 8-bit immediates nowadays.
   ENCODING("FR32",            ENCODING_IB)
@@ -1077,10 +1100,13 @@ RecognizableInstr::rmRegisterEncodingFromString(const std::string &s,
   ENCODING("VR256X",          ENCODING_RM)
   ENCODING("VR512",           ENCODING_RM)
   ENCODING("VK1",             ENCODING_RM)
+  ENCODING("VK2",             ENCODING_RM)
+  ENCODING("VK4",             ENCODING_RM)
   ENCODING("VK8",             ENCODING_RM)
   ENCODING("VK16",            ENCODING_RM)
   ENCODING("VK32",            ENCODING_RM)
   ENCODING("VK64",            ENCODING_RM)
+  ENCODING("BNDR",            ENCODING_RM)
   errs() << "Unhandled R/M register encoding " << s << "\n";
   llvm_unreachable("Unhandled R/M register encoding");
 }
@@ -1114,8 +1140,13 @@ RecognizableInstr::roRegisterEncodingFromString(const std::string &s,
   ENCODING("VK32",            ENCODING_REG)
   ENCODING("VK64",            ENCODING_REG)
   ENCODING("VK1WM",           ENCODING_REG)
+  ENCODING("VK2WM",           ENCODING_REG)
+  ENCODING("VK4WM",           ENCODING_REG)
   ENCODING("VK8WM",           ENCODING_REG)
   ENCODING("VK16WM",          ENCODING_REG)
+  ENCODING("VK32WM",          ENCODING_REG)
+  ENCODING("VK64WM",          ENCODING_REG)
+  ENCODING("BNDR",            ENCODING_REG)
   errs() << "Unhandled reg/opcode register encoding " << s << "\n";
   llvm_unreachable("Unhandled reg/opcode register encoding");
 }
@@ -1185,9 +1216,12 @@ RecognizableInstr::memoryEncodingFromString(const std::string &s,
   ENCODING("opaque80mem",     ENCODING_RM)
   ENCODING("opaque512mem",    ENCODING_RM)
   ENCODING("vx32mem",         ENCODING_RM)
+  ENCODING("vx32xmem",        ENCODING_RM)
   ENCODING("vy32mem",         ENCODING_RM)
+  ENCODING("vy32xmem",        ENCODING_RM)
   ENCODING("vz32mem",         ENCODING_RM)
   ENCODING("vx64mem",         ENCODING_RM)
+  ENCODING("vx64xmem",        ENCODING_RM)
   ENCODING("vy64mem",         ENCODING_RM)
   ENCODING("vy64xmem",        ENCODING_RM)
   ENCODING("vz64mem",         ENCODING_RM)
@@ -1210,6 +1244,8 @@ RecognizableInstr::relocationEncodingFromString(const std::string &s,
   ENCODING("i64i32imm",       ENCODING_ID)
   ENCODING("i64i8imm",        ENCODING_IB)
   ENCODING("i8imm",           ENCODING_IB)
+  ENCODING("u8imm",           ENCODING_IB)
+  ENCODING("i32u8imm",        ENCODING_IB)
   ENCODING("i64i32imm_pcrel", ENCODING_ID)
   ENCODING("i16imm_pcrel",    ENCODING_IW)
   ENCODING("i32imm_pcrel",    ENCODING_ID)

@@ -57,8 +57,8 @@ private:
   Optional<std::pair<std::string, int> > Owner;
   Optional<std::error_code> Error;
 
-  LockFileManager(const LockFileManager &) LLVM_DELETED_FUNCTION;
-  LockFileManager &operator=(const LockFileManager &) LLVM_DELETED_FUNCTION;
+  LockFileManager(const LockFileManager &) = delete;
+  LockFileManager &operator=(const LockFileManager &) = delete;
 
   static Optional<std::pair<std::string, int> >
   readLockFile(StringRef LockFileName);
@@ -77,6 +77,10 @@ public:
 
   /// \brief For a shared lock, wait until the owner releases the lock.
   WaitForUnlockResult waitForUnlock();
+
+  /// \brief Remove the lock file.  This may delete a different lock file than
+  /// the one previously read if there is a race.
+  std::error_code unsafeRemoveLockFile();
 };
 
 } // end namespace llvm

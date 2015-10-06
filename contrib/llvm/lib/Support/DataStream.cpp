@@ -16,10 +16,9 @@
 
 #include "llvm/Support/DataStream.h"
 #include "llvm/ADT/Statistic.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/Program.h"
-#include <cerrno>
-#include <cstdio>
 #include <string>
 #include <system_error>
 #if !defined(_MSC_VER) && !defined(__MINGW32__)
@@ -56,9 +55,7 @@ class DataFileStreamer : public DataStreamer {
  int Fd;
 public:
   DataFileStreamer() : Fd(0) {}
-  virtual ~DataFileStreamer() {
-    close(Fd);
-  }
+  ~DataFileStreamer() override { close(Fd); }
   size_t GetBytes(unsigned char *buf, size_t len) override {
     NumStreamFetches++;
     return read(Fd, buf, len);
@@ -77,16 +74,13 @@ public:
 
 }
 
-namespace llvm {
-DataStreamer *getDataFileStreamer(const std::string &Filename,
-                                  std::string *StrError) {
-  DataFileStreamer *s = new DataFileStreamer();
+std::unique_ptr<DataStreamer>
+llvm::getDataFileStreamer(const std::string &Filename, std::string *StrError) {
+  std::unique_ptr<DataFileStreamer> s = make_unique<DataFileStreamer>();
   if (std::error_code e = s->OpenFile(Filename)) {
     *StrError = std::string("Could not open ") + Filename + ": " +
         e.message() + "\n";
     return nullptr;
   }
-  return s;
-}
-
+  return std::move(s);
 }

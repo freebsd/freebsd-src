@@ -22,6 +22,7 @@
 #include "MCTargetDesc/AArch64MCTargetDesc.h" // For AArch64::X0 and friends.
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/StringSwitch.h"
+#include "llvm/MC/SubtargetFeature.h"
 #include "llvm/Support/ErrorHandling.h"
 
 namespace llvm {
@@ -280,22 +281,45 @@ struct AArch64NamedImmMapper {
   struct Mapping {
     const char *Name;
     uint32_t Value;
+    // Set of features this mapping is available for
+    // Zero value of FeatureBitSet means the mapping is always available
+    FeatureBitset FeatureBitSet;
+
+    bool isNameEqual(std::string Other, 
+                     const FeatureBitset& FeatureBits) const {
+      if (FeatureBitSet.any() && 
+          (FeatureBitSet & FeatureBits).none())
+        return false;
+      return Name == Other;
+    }
+
+    bool isValueEqual(uint32_t Other, 
+                      const FeatureBitset& FeatureBits) const {
+      if (FeatureBitSet.any() && 
+          (FeatureBitSet & FeatureBits).none())
+        return false;
+      return Value == Other;
+    }
   };
 
   template<int N>
-  AArch64NamedImmMapper(const Mapping (&Pairs)[N], uint32_t TooBigImm)
-    : Pairs(&Pairs[0]), NumPairs(N), TooBigImm(TooBigImm) {}
+  AArch64NamedImmMapper(const Mapping (&Mappings)[N], uint32_t TooBigImm)
+    : Mappings(&Mappings[0]), NumMappings(N), TooBigImm(TooBigImm) {}
 
-  StringRef toString(uint32_t Value, bool &Valid) const;
-  uint32_t fromString(StringRef Name, bool &Valid) const;
+  // Maps value to string, depending on availability for FeatureBits given
+  StringRef toString(uint32_t Value, const FeatureBitset& FeatureBits,
+                     bool &Valid) const;
+  // Maps string to value, depending on availability for FeatureBits given
+  uint32_t fromString(StringRef Name, const FeatureBitset& FeatureBits, 
+                     bool &Valid) const;
 
   /// Many of the instructions allow an alternative assembly form consisting of
   /// a simple immediate. Currently the only valid forms are ranges [0, N) where
   /// N being 0 indicates no immediate syntax-form is allowed.
   bool validImm(uint32_t Value) const;
 protected:
-  const Mapping *Pairs;
-  size_t NumPairs;
+  const Mapping *Mappings;
+  size_t NumMappings;
   uint32_t TooBigImm;
 };
 
@@ -317,7 +341,7 @@ namespace AArch64AT {
   };
 
   struct ATMapper : AArch64NamedImmMapper {
-    const static Mapping ATPairs[];
+    const static Mapping ATMappings[];
 
     ATMapper();
   };
@@ -341,7 +365,7 @@ namespace AArch64DB {
   };
 
   struct DBarrierMapper : AArch64NamedImmMapper {
-    const static Mapping DBarrierPairs[];
+    const static Mapping DBarrierMappings[];
 
     DBarrierMapper();
   };
@@ -361,7 +385,7 @@ namespace  AArch64DC {
   };
 
   struct DCMapper : AArch64NamedImmMapper {
-    const static Mapping DCPairs[];
+    const static Mapping DCMappings[];
 
     DCMapper();
   };
@@ -378,7 +402,7 @@ namespace  AArch64IC {
 
 
   struct ICMapper : AArch64NamedImmMapper {
-    const static Mapping ICPairs[];
+    const static Mapping ICMappings[];
 
     ICMapper();
   };
@@ -394,7 +418,7 @@ namespace  AArch64ISB {
     SY = 0xf
   };
   struct ISBMapper : AArch64NamedImmMapper {
-    const static Mapping ISBPairs[];
+    const static Mapping ISBMappings[];
 
     ISBMapper();
   };
@@ -424,7 +448,7 @@ namespace AArch64PRFM {
   };
 
   struct PRFMMapper : AArch64NamedImmMapper {
-    const static Mapping PRFMPairs[];
+    const static Mapping PRFMMappings[];
 
     PRFMMapper();
   };
@@ -435,11 +459,14 @@ namespace AArch64PState {
     Invalid = -1,
     SPSel = 0x05,
     DAIFSet = 0x1e,
-    DAIFClr = 0x1f
+    DAIFClr = 0x1f,
+
+    // v8.1a "Privileged Access Never" extension-specific PStates
+    PAN = 0x04,
   };
 
   struct PStateMapper : AArch64NamedImmMapper {
-    const static Mapping PStatePairs[];
+    const static Mapping PStateMappings[];
 
     PStateMapper();
   };
@@ -576,6 +603,7 @@ namespace AArch64SysReg {
     ISR_EL1           = 0xc608, // 11  000  1100  0001  000
     CNTPCT_EL0        = 0xdf01, // 11  011  1110  0000  001
     CNTVCT_EL0        = 0xdf02,  // 11  011  1110  0000  010
+    ID_MMFR4_EL1      = 0xc016,  // 11  000  0000  0010  110
 
     // Trace registers
     TRCSTATR          = 0x8818, // 10  001  0000  0011  000
@@ -1122,11 +1150,48 @@ namespace AArch64SysReg {
     ICH_LR13_EL2      = 0xe66d, // 11  100  1100  1101  101
     ICH_LR14_EL2      = 0xe66e, // 11  100  1100  1101  110
     ICH_LR15_EL2      = 0xe66f, // 11  100  1100  1101  111
-  };
 
-  // Cyclone specific system registers
-  enum CycloneSysRegValues {
-    CPM_IOACC_CTL_EL3 = 0xff90
+    // v8.1a "Privileged Access Never" extension-specific system registers
+    PAN               = 0xc213, // 11  000  0100  0010  011
+
+    // v8.1a "Limited Ordering Regions" extension-specific system registers
+    LORSA_EL1         = 0xc520, // 11  000  1010  0100  000
+    LOREA_EL1         = 0xc521, // 11  000  1010  0100  001
+    LORN_EL1          = 0xc522, // 11  000  1010  0100  010
+    LORC_EL1          = 0xc523, // 11  000  1010  0100  011
+    LORID_EL1         = 0xc527, // 11  000  1010  0100  111
+
+    // v8.1a "Virtualization host extensions" system registers
+    TTBR1_EL2         = 0xe101, // 11  100  0010  0000  001
+    CONTEXTIDR_EL2    = 0xe681, // 11  100  1101  0000  001
+    CNTHV_TVAL_EL2    = 0xe718, // 11  100  1110  0011  000
+    CNTHV_CVAL_EL2    = 0xe71a, // 11  100  1110  0011  010
+    CNTHV_CTL_EL2     = 0xe719, // 11  100  1110  0011  001
+    SCTLR_EL12        = 0xe880, // 11  101  0001  0000  000
+    CPACR_EL12        = 0xe882, // 11  101  0001  0000  010
+    TTBR0_EL12        = 0xe900, // 11  101  0010  0000  000
+    TTBR1_EL12        = 0xe901, // 11  101  0010  0000  001
+    TCR_EL12          = 0xe902, // 11  101  0010  0000  010
+    AFSR0_EL12        = 0xea88, // 11  101  0101  0001  000
+    AFSR1_EL12        = 0xea89, // 11  101  0101  0001  001
+    ESR_EL12          = 0xea90, // 11  101  0101  0010  000
+    FAR_EL12          = 0xeb00, // 11  101  0110  0000  000
+    MAIR_EL12         = 0xed10, // 11  101  1010  0010  000
+    AMAIR_EL12        = 0xed18, // 11  101  1010  0011  000
+    VBAR_EL12         = 0xee00, // 11  101  1100  0000  000
+    CONTEXTIDR_EL12   = 0xee81, // 11  101  1101  0000  001
+    CNTKCTL_EL12      = 0xef08, // 11  101  1110  0001  000
+    CNTP_TVAL_EL02    = 0xef10, // 11  101  1110  0010  000
+    CNTP_CTL_EL02     = 0xef11, // 11  101  1110  0010  001
+    CNTP_CVAL_EL02    = 0xef12, // 11  101  1110  0010  010
+    CNTV_TVAL_EL02    = 0xef18, // 11  101  1110  0011  000
+    CNTV_CTL_EL02     = 0xef19, // 11  101  1110  0011  001
+    CNTV_CVAL_EL02    = 0xef1a, // 11  101  1110  0011  010
+    SPSR_EL12         = 0xea00, // 11  101  0100  0000  000
+    ELR_EL12          = 0xea01, // 11  101  0100  0000  001
+
+    // Cyclone specific system registers
+    CPM_IOACC_CTL_EL3 = 0xff90,
   };
 
   // Note that these do not inherit from AArch64NamedImmMapper. This class is
@@ -1134,26 +1199,25 @@ namespace AArch64SysReg {
   // burdening the common AArch64NamedImmMapper with abstractions only needed in
   // this one case.
   struct SysRegMapper {
-    static const AArch64NamedImmMapper::Mapping SysRegPairs[];
-    static const AArch64NamedImmMapper::Mapping CycloneSysRegPairs[];
+    static const AArch64NamedImmMapper::Mapping SysRegMappings[];
 
-    const AArch64NamedImmMapper::Mapping *InstPairs;
-    size_t NumInstPairs;
-    uint64_t FeatureBits;
+    const AArch64NamedImmMapper::Mapping *InstMappings;
+    size_t NumInstMappings;
 
-    SysRegMapper(uint64_t FeatureBits) : FeatureBits(FeatureBits) { }
-    uint32_t fromString(StringRef Name, bool &Valid) const;
-    std::string toString(uint32_t Bits) const;
+    SysRegMapper() { }
+    uint32_t fromString(StringRef Name, const FeatureBitset& FeatureBits,
+                        bool &Valid) const;
+    std::string toString(uint32_t Bits, const FeatureBitset& FeatureBits) const;
   };
 
   struct MSRMapper : SysRegMapper {
-    static const AArch64NamedImmMapper::Mapping MSRPairs[];
-    MSRMapper(uint64_t FeatureBits);
+    static const AArch64NamedImmMapper::Mapping MSRMappings[];
+    MSRMapper();
   };
 
   struct MRSMapper : SysRegMapper {
-    static const AArch64NamedImmMapper::Mapping MRSPairs[];
-    MRSMapper(uint64_t FeatureBits);
+    static const AArch64NamedImmMapper::Mapping MRSMappings[];
+    MRSMapper();
   };
 
   uint32_t ParseGenericRegister(StringRef Name, bool &Valid);
@@ -1197,7 +1261,7 @@ namespace AArch64TLBI {
   };
 
   struct TLBIMapper : AArch64NamedImmMapper {
-    const static Mapping TLBIPairs[];
+    const static Mapping TLBIMappings[];
 
     TLBIMapper();
   };
