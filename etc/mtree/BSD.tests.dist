@@ -310,6 +310,8 @@
         ..
         libutil
         ..
+        libxo
+        ..
         msun
         ..
     ..
@@ -567,6 +569,8 @@
         uuencode
         ..
         xargs
+        ..
+        xo
         ..
         yacc
             yacc
