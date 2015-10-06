@@ -10,9 +10,8 @@
 
 __<bsd.test.mk>__:
 
-.ifndef TESTSDIR
-.error "Please define TESTSDIR when including bsd.test.mk"
-.endif
+# Tests directory under /usr/tests.
+TESTSDIR?=	${TESTSBASE}/${RELDIR:H}
 
 # List of subdirectories containing tests into which to recurse.  This has the
 # same semantics as SUBDIR at build-time.  However, the directories listed here
