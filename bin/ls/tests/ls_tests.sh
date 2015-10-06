@@ -814,14 +814,16 @@ t_flag_body()
 
 	atf_check -e empty -o empty -s exit:0 touch a.file
 	atf_check -e empty -o empty -s exit:0 touch b.file
-	sync
+
+	atf_check -e empty -s exit:0 sync
 
 	atf_check -e empty -o match:'a\.file' -s exit:0 sh -c 'ls -lt | tail -n 1'
 	atf_check -e empty -o match:'b\.file.*a\.file' -s exit:0 ls -Ct
 
 	atf_check -e empty -o empty -s exit:0 rm a.file
 	atf_check -e empty -o empty -s exit:0 sh -c 'echo "i am a" > a.file'
-	sync
+
+	atf_check -e empty -s exit:0 sync
 
 	atf_check -e empty -o match:'b\.file' -s exit:0 sh -c 'ls -lt | tail -n 1'
 	atf_check -e empty -o match:'a\.file.*b\.file' -s exit:0 ls -Ct
@@ -838,17 +840,15 @@ u_flag_body()
 	create_test_dir
 
 	atf_check -e empty -o empty -s exit:0 touch a.file
-	sync
 	atf_check -e empty -o empty -s exit:0 touch b.file
-	sync
+	atf_check -e empty -s exit:0 sync
 
 	atf_check -e empty -o match:'b\.file' -s exit:0 sh -c 'ls -lu | tail -n 1'
 	atf_check -e empty -o match:'a\.file.*b\.file' -s exit:0 ls -Cu
 
 	atf_check -e empty -o empty -s exit:0 sh -c 'echo "i am a" > a.file'
-	sync
 	atf_check -e empty -o match:'i am a' -s exit:0 cat a.file
-	sync
+	atf_check -e empty -s exit:0 sync
 
 	atf_check -e empty -o match:'b\.file' -s exit:0 sh -c 'ls -lu | tail -n 1'
 	atf_check -e empty -o match:'a\.file.*b\.file' -s exit:0 ls -Cu
