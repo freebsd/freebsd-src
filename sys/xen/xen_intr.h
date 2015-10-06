@@ -33,11 +33,7 @@
 #ifndef _XEN_INTR_H_
 #define _XEN_INTR_H_
 
-#ifndef __XEN_EVTCHN_PORT_DEFINED__
-typedef uint32_t evtchn_port_t;
-DEFINE_XEN_GUEST_HANDLE(evtchn_port_t);
-#define __XEN_EVTCHN_PORT_DEFINED__ 1
-#endif
+#include <xen/interface/event_channel.h>
 
 /** Registered Xen interrupt callback handle. */
 typedef void * xen_intr_handle_t;

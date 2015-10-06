@@ -28,6 +28,20 @@
 #define __XEN_PUBLIC_FEATURES_H__
 
 /*
+ * `incontents 200 elfnotes_features XEN_ELFNOTE_FEATURES
+ *
+ * The list of all the features the guest supports. They are set by
+ * parsing the XEN_ELFNOTE_FEATURES and XEN_ELFNOTE_SUPPORTED_FEATURES
+ * string. The format is the  feature names (as given here without the
+ * "XENFEAT_" prefix) separated by '|' characters.
+ * If a feature is required for the kernel to function then the feature name
+ * must be preceded by a '!' character.
+ *
+ * Note that if XEN_ELFNOTE_SUPPORTED_FEATURES is used, then in the
+ * XENFEAT_dom0 MUST be set if the guest is to be booted as dom0,
+ */
+
+/*
  * If set, the guest does not need to write-protect its pagetables, and can
  * update them via direct writes.
  */
@@ -80,6 +94,14 @@
 /* operation as Dom0 is supported */
 #define XENFEAT_dom0                      11
 
+/* Xen also maps grant references at pfn = mfn.
+ * This feature flag is deprecated and should not be used.
+#define XENFEAT_grant_map_identity        12
+ */
+
+/* Guest can use XENMEMF_vnode to specify virtual node for memory op. */
+#define XENFEAT_memory_op_vnode_supported 13
+
 #define XENFEAT_NR_SUBMAPS 1
 
 #endif /* __XEN_PUBLIC_FEATURES_H__ */
@@ -87,7 +109,7 @@
 /*
  * Local variables:
  * mode: C
- * c-set-style: "BSD"
+ * c-file-style: "BSD"
  * c-basic-offset: 4
  * tab-width: 4
  * indent-tabs-mode: nil
