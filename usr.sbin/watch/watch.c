@@ -247,7 +247,7 @@ set_dev(const char *name)
 	if ((sb.st_mode & S_IFMT) != S_IFCHR)
 		fatal(EX_DATAERR, "must be a character device");
 
-	strncpy(dev_name, buf, DEV_NAME_LEN);
+	strlcpy(dev_name, buf, sizeof(dev_name));
 
 	attach_snp();
 }
@@ -340,7 +340,7 @@ main(int ac, char *av[])
 		else
 			fatal(EX_DATAERR, "no device name given");
 	} else
-		strncpy(dev_name, *av, DEV_NAME_LEN);
+		strlcpy(dev_name, *av, sizeof(dev_name));
 
 	set_dev(dev_name);
 
