@@ -294,7 +294,7 @@ invoke_libcheri_userfn_setstack(register_t arg)
 	return (v);
 }
 
-void *saved_capability;
+static void *saved_capability;
 int
 invoke_libcheri_save_capability_in_heap(void *data_input)
 {
