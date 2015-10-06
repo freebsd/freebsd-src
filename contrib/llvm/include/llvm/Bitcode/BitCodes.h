@@ -125,7 +125,7 @@ public:
     case Blob:
       return false;
     }
-    llvm_unreachable("Invalid encoding");
+    report_fatal_error("Invalid encoding");
   }
 
   /// isChar6 - Return true if this character is legal in the Char6 encoding.
@@ -164,8 +164,8 @@ template <> struct isPodLike<BitCodeAbbrevOp> { static const bool value=true; };
 /// specialized format instead of the fully-general, fully-vbr, format.
 class BitCodeAbbrev : public RefCountedBase<BitCodeAbbrev> {
   SmallVector<BitCodeAbbrevOp, 32> OperandList;
-  ~BitCodeAbbrev() {}
   // Only RefCountedBase is allowed to delete.
+  ~BitCodeAbbrev() = default;
   friend class RefCountedBase<BitCodeAbbrev>;
 
 public:

@@ -68,7 +68,7 @@ ClassifyGlobalReference(const GlobalValue *GV, const TargetMachine &TM) const {
   if (GV->hasDLLImportStorageClass())
     return X86II::MO_DLLIMPORT;
 
-  bool isDecl = GV->isDeclarationForLinker();
+  bool isDef = GV->isStrongDefinitionForLinker();
 
   // X86-64 in PIC mode.
   if (isPICStyleRIPRel()) {
@@ -80,8 +80,7 @@ ClassifyGlobalReference(const GlobalValue *GV, const TargetMachine &TM) const {
       // If symbol visibility is hidden, the extra load is not needed if
       // target is x86-64 or the symbol is definitely defined in the current
       // translation unit.
-      if (GV->hasDefaultVisibility() &&
-          (isDecl || GV->isWeakForLinker()))
+      if (GV->hasDefaultVisibility() && !isDef)
         return X86II::MO_GOTPCREL;
     } else if (!isTargetWin64()) {
       assert(isTargetELF() && "Unknown rip-relative target");
@@ -107,7 +106,7 @@ ClassifyGlobalReference(const GlobalValue *GV, const TargetMachine &TM) const {
 
     // If this is a strong reference to a definition, it is definitely not
     // through a stub.
-    if (!isDecl && !GV->isWeakForLinker())
+    if (isDef)
       return X86II::MO_PIC_BASE_OFFSET;
 
     // Unless we have a symbol with hidden visibility, we have to go through a
@@ -117,7 +116,7 @@ ClassifyGlobalReference(const GlobalValue *GV, const TargetMachine &TM) const {
 
     // If symbol visibility is hidden, we have a stub for common symbol
     // references and external declarations.
-    if (isDecl || GV->hasCommonLinkage()) {
+    if (GV->isDeclarationForLinker() || GV->hasCommonLinkage()) {
       // Hidden $non_lazy_ptr reference.
       return X86II::MO_DARWIN_HIDDEN_NONLAZY_PIC_BASE;
     }
@@ -131,7 +130,7 @@ ClassifyGlobalReference(const GlobalValue *GV, const TargetMachine &TM) const {
 
     // If this is a strong reference to a definition, it is definitely not
     // through a stub.
-    if (!isDecl && !GV->isWeakForLinker())
+    if (isDef)
       return X86II::MO_NO_FLAG;
 
     // Unless we have a symbol with hidden visibility, we have to go through a
@@ -193,11 +192,8 @@ void X86Subtarget::initSubtargetFeatures(StringRef CPU, StringRef FS) {
       FullFS = "+64bit,+sse2";
   }
 
-  // If feature string is not empty, parse features string.
+  // Parse features string and set the CPU.
   ParseSubtargetFeatures(CPUName, FullFS);
-
-  // Make sure the right MCSchedModel is used.
-  InitCPUSchedModel(CPUName);
 
   InstrItins = getInstrItineraryForCPU(CPUName);
 
@@ -257,10 +253,9 @@ void X86Subtarget::initializeEnvironment() {
   HasVLX = false;
   HasADX = false;
   HasSHA = false;
-  HasSGX = false;
   HasPRFCHW = false;
   HasRDSEED = false;
-  HasSMAP = false;
+  HasMPX = false;
   IsBTMemSlow = false;
   IsSHLDSlow = false;
   IsUAMemFast = false;
@@ -275,51 +270,10 @@ void X86Subtarget::initializeEnvironment() {
   LEAUsesAG = false;
   SlowLEA = false;
   SlowIncDec = false;
-  UseSqrtEst = false;
-  UseReciprocalEst = false;
   stackAlignment = 4;
   // FIXME: this is a known good value for Yonah. How about others?
   MaxInlineSizeThreshold = 128;
-}
-
-static std::string computeDataLayout(const Triple &TT) {
-  // X86 is little endian
-  std::string Ret = "e";
-
-  Ret += DataLayout::getManglingComponent(TT);
-  // X86 and x32 have 32 bit pointers.
-  if ((TT.isArch64Bit() &&
-       (TT.getEnvironment() == Triple::GNUX32 || TT.isOSNaCl())) ||
-      !TT.isArch64Bit())
-    Ret += "-p:32:32";
-
-  // Some ABIs align 64 bit integers and doubles to 64 bits, others to 32.
-  if (TT.isArch64Bit() || TT.isOSWindows() || TT.isOSNaCl())
-    Ret += "-i64:64";
-  else
-    Ret += "-f64:32:64";
-
-  // Some ABIs align long double to 128 bits, others to 32.
-  if (TT.isOSNaCl())
-    ; // No f80
-  else if (TT.isArch64Bit() || TT.isOSDarwin())
-    Ret += "-f80:128";
-  else
-    Ret += "-f80:32";
-
-  // The registers can hold 8, 16, 32 or, in x86-64, 64 bits.
-  if (TT.isArch64Bit())
-    Ret += "-n8:16:32:64";
-  else
-    Ret += "-n8:16:32";
-
-  // The stack is aligned to 32 bits on some ABIs and 128 bits on others.
-  if (!TT.isArch64Bit() && TT.isOSWindows())
-    Ret += "-S32";
-  else
-    Ret += "-S128";
-
-  return Ret;
+  UseSoftFloat = false;
 }
 
 X86Subtarget &X86Subtarget::initializeSubtargetDependencies(StringRef CPU,
@@ -329,21 +283,19 @@ X86Subtarget &X86Subtarget::initializeSubtargetDependencies(StringRef CPU,
   return *this;
 }
 
-X86Subtarget::X86Subtarget(const std::string &TT, const std::string &CPU,
+X86Subtarget::X86Subtarget(const Triple &TT, const std::string &CPU,
                            const std::string &FS, const X86TargetMachine &TM,
                            unsigned StackAlignOverride)
     : X86GenSubtargetInfo(TT, CPU, FS), X86ProcFamily(Others),
       PICStyle(PICStyles::None), TargetTriple(TT),
-      DL(computeDataLayout(TargetTriple)),
       StackAlignOverride(StackAlignOverride),
       In64BitMode(TargetTriple.getArch() == Triple::x86_64),
       In32BitMode(TargetTriple.getArch() == Triple::x86 &&
                   TargetTriple.getEnvironment() != Triple::CODE16),
       In16BitMode(TargetTriple.getArch() == Triple::x86 &&
                   TargetTriple.getEnvironment() == Triple::CODE16),
-      TSInfo(DL), InstrInfo(initializeSubtargetDependencies(CPU, FS)),
-      TLInfo(TM), FrameLowering(TargetFrameLowering::StackGrowsDown,
-                                getStackAlignment(), is64Bit() ? -8 : -4) {
+      TSInfo(), InstrInfo(initializeSubtargetDependencies(CPU, FS)),
+      TLInfo(TM, *this), FrameLowering(*this, getStackAlignment()) {
   // Determine the PICStyle based on the target selected.
   if (TM.getRelocationModel() == Reloc::Static) {
     // Unless we're in PIC or DynamicNoPIC mode, set the PIC style to None.

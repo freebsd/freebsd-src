@@ -7,8 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "lldb/lldb-python.h"
-
 #include "lldb/Interpreter/CommandObjectRegexCommand.h"
 
 // C Includes
@@ -111,7 +109,7 @@ CommandObjectRegexCommand::AddRegexCommand (const char *re_cstr, const char *com
 {
     m_entries.resize(m_entries.size() + 1);
     // Only add the regular expression if it compiles
-    if (m_entries.back().regex.Compile (re_cstr, REG_EXTENDED))
+    if (m_entries.back().regex.Compile (re_cstr))
     {
         m_entries.back().command.assign (command_cstr);
         return true;

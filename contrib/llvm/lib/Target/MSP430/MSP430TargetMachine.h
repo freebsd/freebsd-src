@@ -28,13 +28,13 @@ class MSP430TargetMachine : public LLVMTargetMachine {
   MSP430Subtarget        Subtarget;
 
 public:
-  MSP430TargetMachine(const Target &T, StringRef TT,
-                      StringRef CPU, StringRef FS, const TargetOptions &Options,
+  MSP430TargetMachine(const Target &T, const Triple &TT, StringRef CPU,
+                      StringRef FS, const TargetOptions &Options,
                       Reloc::Model RM, CodeModel::Model CM,
                       CodeGenOpt::Level OL);
   ~MSP430TargetMachine() override;
 
-  const MSP430Subtarget *getSubtargetImpl() const override {
+  const MSP430Subtarget *getSubtargetImpl(const Function &F) const override {
     return &Subtarget;
   }
   TargetPassConfig *createPassConfig(PassManagerBase &PM) override;

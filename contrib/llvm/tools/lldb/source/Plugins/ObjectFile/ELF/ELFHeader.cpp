@@ -180,7 +180,7 @@ ELFHeader::GetRelocationJumpSlotType() const
         slot = R_PPC64_JMP_SLOT;
         break;
     case EM_386:
-    case EM_486:
+    case EM_IAMCU: // FIXME: is this correct?
         slot = R_386_JUMP_SLOT;
         break;
     case EM_X86_64:
@@ -278,9 +278,8 @@ ELFSymbol::typeToCString(unsigned char type)
     ENUM_TO_CSTR(STT_FILE);
     ENUM_TO_CSTR(STT_COMMON);
     ENUM_TO_CSTR(STT_TLS);
-    ENUM_TO_CSTR(STT_LOOS);
-    ENUM_TO_CSTR(STT_HIOS);
     ENUM_TO_CSTR(STT_GNU_IFUNC);
+    ENUM_TO_CSTR(STT_HIOS);
     ENUM_TO_CSTR(STT_LOPROC);
     ENUM_TO_CSTR(STT_HIPROC);
     }

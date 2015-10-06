@@ -220,14 +220,14 @@ bool XCoreFrameLowering::hasFP(const MachineFunction &MF) const {
          MF.getFrameInfo()->hasVarSizedObjects();
 }
 
-void XCoreFrameLowering::emitPrologue(MachineFunction &MF) const {
-  MachineBasicBlock &MBB = MF.front();   // Prolog goes in entry BB
+void XCoreFrameLowering::emitPrologue(MachineFunction &MF,
+                                      MachineBasicBlock &MBB) const {
+  assert(&MF.front() == &MBB && "Shrink-wrapping not yet supported");
   MachineBasicBlock::iterator MBBI = MBB.begin();
   MachineFrameInfo *MFI = MF.getFrameInfo();
   MachineModuleInfo *MMI = &MF.getMMI();
   const MCRegisterInfo *MRI = MMI->getContext().getRegisterInfo();
-  const XCoreInstrInfo &TII =
-      *static_cast<const XCoreInstrInfo *>(MF.getSubtarget().getInstrInfo());
+  const XCoreInstrInfo &TII = *MF.getSubtarget<XCoreSubtarget>().getInstrInfo();
   XCoreFunctionInfo *XFI = MF.getInfo<XCoreFunctionInfo>();
   // Debug location must be unknown since the first debug location is used
   // to determine the end of the prologue.
@@ -341,8 +341,7 @@ void XCoreFrameLowering::emitEpilogue(MachineFunction &MF,
                                      MachineBasicBlock &MBB) const {
   MachineFrameInfo *MFI = MF.getFrameInfo();
   MachineBasicBlock::iterator MBBI = MBB.getLastNonDebugInstr();
-  const XCoreInstrInfo &TII =
-      *static_cast<const XCoreInstrInfo *>(MF.getSubtarget().getInstrInfo());
+  const XCoreInstrInfo &TII = *MF.getSubtarget<XCoreSubtarget>().getInstrInfo();
   XCoreFunctionInfo *XFI = MF.getInfo<XCoreFunctionInfo>();
   DebugLoc dl = MBBI->getDebugLoc();
   unsigned RetOpcode = MBBI->getOpcode();
@@ -480,8 +479,7 @@ restoreCalleeSavedRegisters(MachineBasicBlock &MBB,
 void XCoreFrameLowering::
 eliminateCallFramePseudoInstr(MachineFunction &MF, MachineBasicBlock &MBB,
                               MachineBasicBlock::iterator I) const {
-  const XCoreInstrInfo &TII =
-      *static_cast<const XCoreInstrInfo *>(MF.getSubtarget().getInstrInfo());
+  const XCoreInstrInfo &TII = *MF.getSubtarget<XCoreSubtarget>().getInstrInfo();
   if (!hasReservedCallFrame(MF)) {
     // Turn the adjcallstackdown instruction into 'extsp <amt>' and the
     // adjcallstackup instruction into 'ldaw sp, sp[<amt>]'
@@ -527,12 +525,15 @@ eliminateCallFramePseudoInstr(MachineFunction &MF, MachineBasicBlock &MBB,
   MBB.erase(I);
 }
 
-void XCoreFrameLowering::
-processFunctionBeforeCalleeSavedScan(MachineFunction &MF,
-                                     RegScavenger *RS) const {
+void XCoreFrameLowering::determineCalleeSaves(MachineFunction &MF,
+                                              BitVector &SavedRegs,
+                                              RegScavenger *RS) const {
+  TargetFrameLowering::determineCalleeSaves(MF, SavedRegs, RS);
+
   XCoreFunctionInfo *XFI = MF.getInfo<XCoreFunctionInfo>();
 
-  bool LRUsed = MF.getRegInfo().isPhysRegUsed(XCore::LR);
+  const MachineRegisterInfo &MRI = MF.getRegInfo();
+  bool LRUsed = MRI.isPhysRegModified(XCore::LR);
 
   if (!LRUsed && !MF.getFunction()->isVarArg() &&
       MF.getFrameInfo()->estimateStackSize(MF))
@@ -552,7 +553,7 @@ processFunctionBeforeCalleeSavedScan(MachineFunction &MF,
   if (LRUsed) {
     // We will handle the LR in the prologue/epilogue
     // and allocate space on the stack ourselves.
-    MF.getRegInfo().setPhysRegUnused(XCore::LR);
+    SavedRegs.reset(XCore::LR);
     XFI->createLRSpillSlot(MF);
   }
 

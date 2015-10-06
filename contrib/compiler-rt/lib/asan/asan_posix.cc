@@ -21,6 +21,7 @@
 #include "asan_report.h"
 #include "asan_stack.h"
 #include "sanitizer_common/sanitizer_libc.h"
+#include "sanitizer_common/sanitizer_posix.h"
 #include "sanitizer_common/sanitizer_procmaps.h"
 
 #include <pthread.h>
@@ -31,13 +32,6 @@
 #include <unistd.h>
 
 namespace __asan {
-
-SignalContext SignalContext::Create(void *siginfo, void *context) {
-  uptr addr = (uptr)((siginfo_t*)siginfo)->si_addr;
-  uptr pc, sp, bp;
-  GetPcSpBp(context, &pc, &sp, &bp);
-  return SignalContext(context, addr, pc, sp, bp);
-}
 
 void AsanOnSIGSEGV(int, void *siginfo, void *context) {
   ScopedDeadlySignal signal_scope(GetCurrentThread());

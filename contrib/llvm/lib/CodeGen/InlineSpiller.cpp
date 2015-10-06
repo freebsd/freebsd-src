@@ -135,7 +135,7 @@ private:
   // Dead defs generated during spilling.
   SmallVector<MachineInstr*, 8> DeadDefs;
 
-  ~InlineSpiller() {}
+  ~InlineSpiller() override {}
 
 public:
   InlineSpiller(MachineFunctionPass &pass, MachineFunction &mf, VirtRegMap &vrm)
@@ -576,8 +576,8 @@ MachineInstr *InlineSpiller::traceSiblingValue(unsigned UseReg, VNInfo *UseVNI,
         std::tie(SVI, Inserted) =
           SibValues.insert(std::make_pair(NonPHI, SibValueInfo(Reg, NonPHI)));
         // Add all the PHIs as dependents of NonPHI.
-        for (unsigned pi = 0, pe = PHIs.size(); pi != pe; ++pi)
-          SVI->second.Deps.push_back(PHIs[pi]);
+        SVI->second.Deps.insert(SVI->second.Deps.end(), PHIs.begin(),
+                                PHIs.end());
         // This is the first time we see NonPHI, add it to the worklist.
         if (Inserted)
           WorkList.push_back(std::make_pair(Reg, NonPHI));
@@ -921,7 +921,7 @@ bool InlineSpiller::reMaterializeFor(LiveInterval &VirtReg,
 
   // Replace operands
   for (unsigned i = 0, e = Ops.size(); i != e; ++i) {
-    MachineOperand &MO = MI->getOperand(Ops[i].second);
+    MachineOperand &MO = Ops[i].first->getOperand(Ops[i].second);
     if (MO.isReg() && MO.isUse() && MO.getReg() == VirtReg.reg) {
       MO.setReg(NewVReg);
       MO.setIsKill();
@@ -1100,6 +1100,7 @@ foldMemoryOperand(ArrayRef<std::pair<MachineInstr*, unsigned> > Ops,
   SmallVector<unsigned, 8> FoldOps;
   for (unsigned i = 0, e = Ops.size(); i != e; ++i) {
     unsigned Idx = Ops[i].second;
+    assert(MI == Ops[i].first && "Instruction conflict during operand folding");
     MachineOperand &MO = MI->getOperand(Idx);
     if (MO.isImplicit()) {
       ImpReg = MO.getReg();
@@ -1142,13 +1143,8 @@ foldMemoryOperand(ArrayRef<std::pair<MachineInstr*, unsigned> > Ops,
       continue;
     // FoldMI does not define this physreg. Remove the LI segment.
     assert(MO->isDead() && "Cannot fold physreg def");
-    for (MCRegUnitIterator Units(Reg, &TRI); Units.isValid(); ++Units) {
-      if (LiveRange *LR = LIS.getCachedRegUnit(*Units)) {
-        SlotIndex Idx = LIS.getInstructionIndex(MI).getRegSlot();
-        if (VNInfo *VNI = LR->getVNInfoAt(Idx))
-          LR->removeValNo(VNI);
-      }
-    }
+    SlotIndex Idx = LIS.getInstructionIndex(MI).getRegSlot();
+    LIS.removePhysRegDefAt(Reg, Idx);
   }
 
   LIS.ReplaceMachineInstrInMaps(MI, FoldMI);
@@ -1237,6 +1233,8 @@ void InlineSpiller::spillAroundUses(unsigned Reg) {
       DebugLoc DL = MI->getDebugLoc();
       DEBUG(dbgs() << "Modifying debug info due to spill:" << "\t" << *MI);
       MachineBasicBlock *MBB = MI->getParent();
+      assert(cast<DILocalVariable>(Var)->isValidLocationForIntrinsic(DL) &&
+             "Expected inlined-at fields to agree");
       BuildMI(*MBB, MBB->erase(MI), DL, TII.get(TargetOpcode::DBG_VALUE))
           .addFrameIndex(StackSlot)
           .addImm(Offset)

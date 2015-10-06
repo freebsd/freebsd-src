@@ -7,15 +7,12 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "lldb/lldb-python.h"
-
 #include "CommandObjectExpression.h"
 
 // C Includes
 // C++ Includes
 // Other libraries and framework includes
 // Project includes
-#include "lldb/Interpreter/Args.h"
 #include "lldb/Core/Value.h"
 #include "lldb/Core/ValueObjectVariable.h"
 #include "lldb/DataFormatters/ValueObjectPrinter.h"
@@ -24,6 +21,7 @@
 #include "lldb/Expression/ClangFunction.h"
 #include "lldb/Expression/DWARFExpression.h"
 #include "lldb/Host/Host.h"
+#include "lldb/Host/StringConvert.h"
 #include "lldb/Core/Debugger.h"
 #include "lldb/Interpreter/CommandInterpreter.h"
 #include "lldb/Interpreter/CommandReturnObject.h"
@@ -119,7 +117,7 @@ CommandObjectExpression::CommandOptions::SetOptionValue (CommandInterpreter &int
         {
             bool success;
             uint32_t result;
-            result = Args::StringToUInt32(option_arg, 0, 0, &success);
+            result = StringConvert::ToUInt32(option_arg, 0, 0, &success);
             if (success)
                 timeout = result;
             else
@@ -196,7 +194,7 @@ CommandObjectExpression::CommandObjectExpression (CommandInterpreter &interprete
                       "expression",
                       "Evaluate a C/ObjC/C++ expression in the current program context, using user defined variables and variables currently in scope.",
                       NULL,
-                      eFlagProcessMustBePaused | eFlagTryTargetAPILock),
+                      eCommandProcessMustBePaused | eCommandTryTargetAPILock),
     IOHandlerDelegate (IOHandlerDelegate::Completion::Expression),
     m_option_group (interpreter),
     m_format_options (eFormatDefault),
@@ -204,35 +202,39 @@ CommandObjectExpression::CommandObjectExpression (CommandInterpreter &interprete
     m_expr_line_count (0),
     m_expr_lines ()
 {
-  SetHelpLong(
-"Timeouts:\n\
-    If the expression can be evaluated statically (without running code) then it will be.\n\
-    Otherwise, by default the expression will run on the current thread with a short timeout:\n\
-    currently .25 seconds.  If it doesn't return in that time, the evaluation will be interrupted\n\
-    and resumed with all threads running.  You can use the -a option to disable retrying on all\n\
-    threads.  You can use the -t option to set a shorter timeout.\n\
-\n\
-User defined variables:\n\
-    You can define your own variables for convenience or to be used in subsequent expressions.\n\
-    You define them the same way you would define variables in C.  If the first character of \n\
-    your user defined variable is a $, then the variable's value will be available in future\n\
-    expressions, otherwise it will just be available in the current expression.\n\
-\n\
-\n\
-Continuing evaluation after a breakpoint:\n\
-    If the \"-i false\" option is used, and execution is interrupted by a breakpoint hit, once\n\
-    you are done with your investigation, you can either remove the expression execution frames\n\
-    from the stack with \"thread return -x\" or if you are still interested in the expression result\n\
-    you can issue the \"continue\" command and the expression evaluation will complete and the\n\
-    expression result will be available using the \"thread.completed-expression\" key in the thread\n\
-    format.\n\
-\n\
-Examples: \n\
-\n\
-   expr my_struct->a = my_array[3] \n\
-   expr -f bin -- (index * 8) + 5 \n\
-   expr unsigned int $foo = 5\n\
-   expr char c[] = \"foo\"; c[0]\n");
+    SetHelpLong(
+R"(
+Timeouts:
+
+)" "    If the expression can be evaluated statically (without running code) then it will be.  \
+Otherwise, by default the expression will run on the current thread with a short timeout: \
+currently .25 seconds.  If it doesn't return in that time, the evaluation will be interrupted \
+and resumed with all threads running.  You can use the -a option to disable retrying on all \
+threads.  You can use the -t option to set a shorter timeout." R"(
+
+User defined variables:
+
+)" "    You can define your own variables for convenience or to be used in subsequent expressions.  \
+You define them the same way you would define variables in C.  If the first character of \
+your user defined variable is a $, then the variable's value will be available in future \
+expressions, otherwise it will just be available in the current expression." R"(
+
+Continuing evaluation after a breakpoint:
+
+)" "    If the \"-i false\" option is used, and execution is interrupted by a breakpoint hit, once \
+you are done with your investigation, you can either remove the expression execution frames \
+from the stack with \"thread return -x\" or if you are still interested in the expression result \
+you can issue the \"continue\" command and the expression evaluation will complete and the \
+expression result will be available using the \"thread.completed-expression\" key in the thread \
+format." R"(
+
+Examples:
+
+    expr my_struct->a = my_array[3]
+    expr -f bin -- (index * 8) + 5
+    expr unsigned int $foo = 5
+    expr char c[] = \"foo\"; c[0])"
+    );
 
     CommandArgumentEntry arg;
     CommandArgumentData expression_arg;
@@ -487,7 +489,7 @@ CommandObjectExpression::DoExecute
 
         if (end_options)
         {
-            Args args (command, end_options - command);
+            Args args (llvm::StringRef(command, end_options - command));
             if (!ParseOptions (args, result))
                 return false;
             

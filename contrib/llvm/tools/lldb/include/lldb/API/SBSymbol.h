@@ -17,7 +17,7 @@
 
 namespace lldb {
 
-class SBSymbol
+class LLDB_API SBSymbol
 {
 public:
 
@@ -37,6 +37,9 @@ public:
     const char *
     GetName() const;
 
+    const char *
+    GetDisplayName() const;
+    
     const char *
     GetMangledName () const;
 

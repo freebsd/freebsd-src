@@ -45,17 +45,11 @@ struct UseListOrder {
   }
 
 private:
-  UseListOrder(const UseListOrder &X) LLVM_DELETED_FUNCTION;
-  UseListOrder &operator=(const UseListOrder &X) LLVM_DELETED_FUNCTION;
+  UseListOrder(const UseListOrder &X) = delete;
+  UseListOrder &operator=(const UseListOrder &X) = delete;
 };
 
 typedef std::vector<UseListOrder> UseListOrderStack;
-
-/// \brief Whether to preserve use-list ordering.
-bool shouldPreserveBitcodeUseListOrder();
-bool shouldPreserveAssemblyUseListOrder();
-void setPreserveBitcodeUseListOrder(bool ShouldPreserve);
-void setPreserveAssemblyUseListOrder(bool ShouldPreserve);
 
 } // end namespace llvm
 

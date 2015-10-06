@@ -201,6 +201,10 @@ let Namespace = "Mips" in {
   foreach I = 0-7 in
   def FCC#I : MipsReg<#I, "fcc"#I>;
 
+  // COP0 registers.
+  foreach I = 0-31 in
+  def COP0#I : MipsReg<#I, ""#I>;
+
   // COP2 registers.
   foreach I = 0-31 in
   def COP2#I : MipsReg<#I, ""#I>;
@@ -301,6 +305,16 @@ def GPRMM16Zero : RegisterClass<"Mips", [i32], 32, (add
   S1,
   // Return Values and Arguments
   V0, V1, A0, A1, A2, A3)>;
+
+def GPRMM16MoveP : RegisterClass<"Mips", [i32], 32, (add
+  // Reserved
+  ZERO,
+  // Callee save
+  S1,
+  // Return Values and Arguments
+  V0, V1,
+  // Callee save
+  S0, S2, S3, S4)>;
 
 def GPR64 : RegisterClass<"Mips", [i64], 64, (add
 // Reserved
@@ -421,6 +435,10 @@ def ACC64DSP : RegisterClass<"Mips", [untyped], 64, (sequence "AC%u", 0, 3)> {
 
 def DSPCC : RegisterClass<"Mips", [v4i8, v2i16], 32, (add DSPCCond)>;
 
+// Coprocessor 0 registers.
+def COP0 : RegisterClass<"Mips", [i32], 32, (sequence "COP0%u", 0, 31)>,
+           Unallocatable;
+
 // Coprocessor 2 registers.
 def COP2 : RegisterClass<"Mips", [i32], 32, (sequence "COP2%u", 0, 31)>,
            Unallocatable;
@@ -459,6 +477,11 @@ def GPRMM16AsmOperand : MipsAsmRegOperand {
 def GPRMM16AsmOperandZero : MipsAsmRegOperand {
   let Name = "GPRMM16AsmRegZero";
   let PredicateMethod = "isMM16AsmRegZero";
+}
+
+def GPRMM16AsmOperandMoveP : MipsAsmRegOperand {
+  let Name = "GPRMM16AsmRegMoveP";
+  let PredicateMethod = "isMM16AsmRegMoveP";
 }
 
 def ACC64DSPAsmOperand : MipsAsmRegOperand {
@@ -524,6 +547,10 @@ def GPRMM16OpndZero : RegisterOperand<GPRMM16Zero> {
   let ParserMatchClass = GPRMM16AsmOperandZero;
 }
 
+def GPRMM16OpndMoveP : RegisterOperand<GPRMM16MoveP> {
+  let ParserMatchClass = GPRMM16AsmOperandMoveP;
+}
+
 def GPR64Opnd : RegisterOperand<GPR64> {
   let ParserMatchClass = GPR64AsmOperand;
 }
@@ -538,6 +565,10 @@ def CCROpnd : RegisterOperand<CCR> {
 
 def HWRegsAsmOperand : MipsAsmRegOperand {
   let Name = "HWRegsAsmReg";
+}
+
+def COP0AsmOperand : MipsAsmRegOperand {
+  let Name = "COP0AsmReg";
 }
 
 def COP2AsmOperand : MipsAsmRegOperand {
@@ -588,6 +619,10 @@ def HI32DSPOpnd : RegisterOperand<HI32DSP> {
 
 def ACC64DSPOpnd : RegisterOperand<ACC64DSP> {
   let ParserMatchClass = ACC64DSPAsmOperand;
+}
+
+def COP0Opnd : RegisterOperand<COP0> {
+  let ParserMatchClass = COP0AsmOperand;
 }
 
 def COP2Opnd : RegisterOperand<COP2> {

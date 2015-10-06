@@ -17,9 +17,11 @@
 #include "MipsInstrInfo.h"
 #include "MipsMachineFunction.h"
 #include "MipsSubtarget.h"
+#include "MipsTargetMachine.h"
 #include "llvm/ADT/BitVector.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
+#include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/IR/Constants.h"
@@ -42,15 +44,15 @@ using namespace llvm;
 #define GET_REGINFO_TARGET_DESC
 #include "MipsGenRegisterInfo.inc"
 
-MipsRegisterInfo::MipsRegisterInfo(const MipsSubtarget &ST)
-  : MipsGenRegisterInfo(Mips::RA), Subtarget(ST) {}
+MipsRegisterInfo::MipsRegisterInfo() : MipsGenRegisterInfo(Mips::RA) {}
 
 unsigned MipsRegisterInfo::getPICCallReg() { return Mips::T9; }
 
 const TargetRegisterClass *
 MipsRegisterInfo::getPointerRegClass(const MachineFunction &MF,
                                      unsigned Kind) const {
-  return Subtarget.isABI_N64() ? &Mips::GPR64RegClass : &Mips::GPR32RegClass;
+  MipsABIInfo ABI = MF.getSubtarget<MipsSubtarget>().getABI();
+  return ABI.ArePtrs64bit() ? &Mips::GPR64RegClass : &Mips::GPR32RegClass;
 }
 
 unsigned
@@ -81,6 +83,7 @@ MipsRegisterInfo::getRegPressureLimit(const TargetRegisterClass *RC,
 /// Mips Callee Saved Registers
 const MCPhysReg *
 MipsRegisterInfo::getCalleeSavedRegs(const MachineFunction *MF) const {
+  const MipsSubtarget &Subtarget = MF->getSubtarget<MipsSubtarget>();
   if (Subtarget.isSingleFloat())
     return CSR_SingleFloatOnly_SaveList;
 
@@ -99,8 +102,10 @@ MipsRegisterInfo::getCalleeSavedRegs(const MachineFunction *MF) const {
   return CSR_O32_SaveList;
 }
 
-const uint32_t*
-MipsRegisterInfo::getCallPreservedMask(CallingConv::ID) const {
+const uint32_t *
+MipsRegisterInfo::getCallPreservedMask(const MachineFunction &MF,
+                                       CallingConv::ID) const {
+  const MipsSubtarget &Subtarget = MF.getSubtarget<MipsSubtarget>();
   if (Subtarget.isSingleFloat())
     return CSR_SingleFloatOnly_RegMask;
 
@@ -134,6 +139,7 @@ getReservedRegs(const MachineFunction &MF) const {
   };
 
   BitVector Reserved(getNumRegs());
+  const MipsSubtarget &Subtarget = MF.getSubtarget<MipsSubtarget>();
   typedef TargetRegisterClass::const_iterator RegIter;
 
   for (unsigned I = 0; I < array_lengthof(ReservedGPR32); ++I)
@@ -167,12 +173,21 @@ getReservedRegs(const MachineFunction &MF) const {
       Reserved.set(*Reg);
   }
   // Reserve FP if this function should have a dedicated frame pointer register.
-  if (MF.getSubtarget().getFrameLowering()->hasFP(MF)) {
+  if (Subtarget.getFrameLowering()->hasFP(MF)) {
     if (Subtarget.inMips16Mode())
       Reserved.set(Mips::S0);
     else {
       Reserved.set(Mips::FP);
       Reserved.set(Mips::FP_64);
+
+      // Reserve the base register if we need to both realign the stack and
+      // allocate variable-sized objects at runtime. This should test the
+      // same conditions as MipsFrameLowering::hasBP().
+      if (needsStackRealignment(MF) &&
+          MF.getFrameInfo()->hasVarSizedObjects()) {
+        Reserved.set(Mips::S7);
+        Reserved.set(Mips::S7_64);
+      }
     }
   }
 
@@ -256,14 +271,77 @@ eliminateFrameIndex(MachineBasicBlock::iterator II, int SPAdj,
 
 unsigned MipsRegisterInfo::
 getFrameRegister(const MachineFunction &MF) const {
-  const TargetFrameLowering *TFI = MF.getSubtarget().getFrameLowering();
-  bool IsN64 = Subtarget.isABI_N64();
+  const MipsSubtarget &Subtarget = MF.getSubtarget<MipsSubtarget>();
+  const TargetFrameLowering *TFI = Subtarget.getFrameLowering();
+  bool IsN64 =
+      static_cast<const MipsTargetMachine &>(MF.getTarget()).getABI().IsN64();
 
   if (Subtarget.inMips16Mode())
     return TFI->hasFP(MF) ? Mips::S0 : Mips::SP;
   else
     return TFI->hasFP(MF) ? (IsN64 ? Mips::FP_64 : Mips::FP) :
                             (IsN64 ? Mips::SP_64 : Mips::SP);
-
 }
 
+bool MipsRegisterInfo::canRealignStack(const MachineFunction &MF) const {
+  const MipsSubtarget &Subtarget = MF.getSubtarget<MipsSubtarget>();
+  unsigned FP = Subtarget.isGP32bit() ? Mips::FP : Mips::FP_64;
+  unsigned BP = Subtarget.isGP32bit() ? Mips::S7 : Mips::S7_64;
+
+  // Support dynamic stack realignment only for targets with standard encoding.
+  if (!Subtarget.hasStandardEncoding())
+    return false;
+
+  // We can't perform dynamic stack realignment if we can't reserve the
+  // frame pointer register.
+  if (!MF.getRegInfo().canReserveReg(FP))
+    return false;
+
+  // We can realign the stack if we know the maximum call frame size and we
+  // don't have variable sized objects.
+  if (Subtarget.getFrameLowering()->hasReservedCallFrame(MF))
+    return true;
+
+  // We have to reserve the base pointer register in the presence of variable
+  // sized objects.
+  return MF.getRegInfo().canReserveReg(BP);
+}
+
+bool MipsRegisterInfo::needsStackRealignment(const MachineFunction &MF) const {
+  const MipsSubtarget &Subtarget = MF.getSubtarget<MipsSubtarget>();
+  const MachineFrameInfo *MFI = MF.getFrameInfo();
+
+  bool CanRealign = canRealignStack(MF);
+
+  // Avoid realigning functions that explicitly do not want to be realigned.
+  // Normally, we should report an error when a function should be dynamically
+  // realigned but also has the attribute no-realign-stack. Unfortunately,
+  // with this attribute, MachineFrameInfo clamps each new object's alignment
+  // to that of the stack's alignment as specified by the ABI. As a result,
+  // the information of whether we have objects with larger alignment
+  // requirement than the stack's alignment is already lost at this point.
+  if (MF.getFunction()->hasFnAttribute("no-realign-stack"))
+    return false;
+
+  const Function *F = MF.getFunction();
+  if (F->hasFnAttribute(Attribute::StackAlignment)) {
+#ifdef DEBUG
+    if (!CanRealign)
+      DEBUG(dbgs() << "It's not possible to realign the stack of the function: "
+            << F->getName() << "\n");
+#endif
+    return CanRealign;
+  }
+
+  unsigned StackAlignment = Subtarget.getFrameLowering()->getStackAlignment();
+  if (MFI->getMaxAlignment() > StackAlignment) {
+#ifdef DEBUG
+    if (!CanRealign)
+      DEBUG(dbgs() << "It's not possible to realign the stack of the function: "
+            << F->getName() << "\n");
+#endif
+    return CanRealign;
+  }
+
+  return false;
+}
