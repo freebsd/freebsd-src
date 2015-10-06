@@ -457,25 +457,14 @@
     <sect2 xml:id="userland-contrib">
       <title>Contributed Software</title>
 
-      <para revision="258884" contrib="sponsor"
-	sponsor="&darpa_afrl;">&man.lldb.1; has been updated to
-	upstream snapshot version r196259.</para>
-
       <para revision="260445">&man.byacc.1; has been updated to
 	version 20140101.</para>
-
-      <para revision="261283"><application>libc++</application> has
-	been updated to version 3.4.</para>
 
       <para revision="261320"><application>OpenSSH</application> has
 	been updated to 6.5p1.</para>
 
       <para revision="261344"><application>mdocml</application> has
 	been updated to version 1.12.3.</para>
-
-      <para revision="261991"><application>LLVM</application> and
-	<application>Clang</application> have been updated to
-	version 3.4.</para>
 
       <para revision="275718">The <application>binutils</application>
 	suite of utilities has been updated to include upstream
@@ -595,6 +584,10 @@
 
       <para revision="288303">The &man.nc.1; utility has been updated
 	to the OpenBSD 5.8 version.</para>
+
+      <para revision="288943"><application>LLVM</application> and
+	<application>Clang</application> have been updated to
+	version 3.7.0.</para>
     </sect2>
 
     <sect2 xml:id="userland-installer">
