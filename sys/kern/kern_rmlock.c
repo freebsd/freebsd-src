@@ -375,9 +375,11 @@ _rm_rlock_hard(struct rmlock *rm, struct rm_priotracker *tracker, int trylock)
 				return (0);
 		}
 	} else {
-		if (rm->lock_object.lo_flags & LO_SLEEPABLE)
+		if (rm->lock_object.lo_flags & LO_SLEEPABLE) {
+			THREAD_SLEEPING_OK();
 			sx_xlock(&rm->rm_lock_sx);
-		else
+			THREAD_NO_SLEEPING();
+		} else
 			mtx_lock(&rm->rm_lock_mtx);
 	}
 
