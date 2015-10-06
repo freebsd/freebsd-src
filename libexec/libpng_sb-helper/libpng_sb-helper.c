@@ -56,7 +56,7 @@ register_t invoke(struct cheri_object co __unused, register_t v0 __unused,
     __capability void *c7, __capability void *c8)
     __attribute__((cheri_ccall)); /* XXXRW: Will be ccheri_ccaller. */
 
-png_structp g_png_ptr;
+static png_structp g_png_ptr;
 
 static void
 sb_warning_fn(png_structp png_ptr __unused, png_const_charp warning_message)
