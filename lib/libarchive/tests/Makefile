@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-LIBARCHIVEDIR=	${.CURDIR}/../../../contrib/libarchive
+LIBARCHIVEDIR=	${SRCTOP}/contrib/libarchive
 
 MAN=
 
