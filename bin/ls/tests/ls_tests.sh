@@ -928,6 +928,7 @@ atf_test_case 1_flag
 
 atf_init_test_cases()
 {
+	export BLOCKSIZE=512
 
 	atf_add_test_case A_flag
 	atf_add_test_case A_flag_implied_when_root
