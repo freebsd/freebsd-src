@@ -1251,6 +1251,10 @@
       <para revision="287469" contrib="sponsor"
 	sponsor="&intelcorp;">The &man.em.4; driver has been updated
 	to support the Skylake I219 chipset.</para>
+
+      <para revision="288654">The &man.lagg.4; driver has been updated
+	to remove support for the <literal>fec</literal>
+	protocol.</para>
     </sect2>
   </sect1>
 
