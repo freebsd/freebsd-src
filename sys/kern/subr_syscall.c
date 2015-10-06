@@ -83,11 +83,12 @@ syscallenter(struct thread *td, struct syscall_args *sa)
 	if (error == 0) {
 
 		STOPEVENT(p, S_SCE, sa->narg);
-		if (p->p_flag & P_TRACED && p->p_stops & S_PT_SCE) {
+		if (p->p_flag & P_TRACED) {
 			PROC_LOCK(p);
 			td->td_dbg_sc_code = sa->code;
 			td->td_dbg_sc_narg = sa->narg;
-			ptracestop((td), SIGTRAP);
+			if (p->p_stops & S_PT_SCE)
+				ptracestop((td), SIGTRAP);
 			PROC_UNLOCK(p);
 		}
 		if (td->td_dbgflags & TDB_USERWR) {
