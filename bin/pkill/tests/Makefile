@@ -2,8 +2,6 @@
 
 .include <bsd.own.mk>
 
-TESTSDIR=	${TESTSBASE}/bin/pkill
-
 TAP_TESTS_SH=			pgrep-F_test
 TAP_TESTS_SH+=			pgrep-LF_test
 TAP_TESTS_SH+=			pgrep-P_test
