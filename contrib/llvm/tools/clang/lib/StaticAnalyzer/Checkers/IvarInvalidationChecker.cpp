@@ -167,9 +167,9 @@ class IvarInvalidationCheckerImpl {
     void VisitObjCMessageExpr(const ObjCMessageExpr *ME);
 
     void VisitChildren(const Stmt *S) {
-      for (Stmt::const_child_range I = S->children(); I; ++I) {
-        if (*I)
-          this->Visit(*I);
+      for (const Stmt *Child : S->children()) {
+        if (Child)
+          this->Visit(Child);
         if (CalledAnotherInvalidationMethod)
           return;
       }
@@ -336,7 +336,7 @@ const ObjCIvarDecl *IvarInvalidationCheckerImpl::findPropertyBackingIvar(
       llvm::raw_svector_ostream os(PropNameWithUnderscore);
       os << '_' << PropName;
     }
-    if (IvarName == PropNameWithUnderscore.str())
+    if (IvarName == PropNameWithUnderscore)
       return Iv;
   }
 

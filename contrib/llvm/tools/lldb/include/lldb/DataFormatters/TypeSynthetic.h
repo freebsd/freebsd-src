@@ -23,6 +23,7 @@
 #include "lldb/lldb-public.h"
 #include "lldb/lldb-enumerations.h"
 
+#include "lldb/Core/StructuredData.h"
 #include "lldb/Core/ValueObject.h"
 
 namespace lldb_private {
@@ -235,6 +236,22 @@ namespace lldb_private {
                 return *this;
             }
             
+            bool
+            GetNonCacheable () const
+            {
+                return (m_flags & lldb::eTypeOptionNonCacheable) == lldb::eTypeOptionNonCacheable;
+            }
+            
+            Flags&
+            SetNonCacheable (bool value = true)
+            {
+                if (value)
+                    m_flags |= lldb::eTypeOptionNonCacheable;
+                else
+                    m_flags &= ~lldb::eTypeOptionNonCacheable;
+                return *this;
+            }
+            
             uint32_t
             GetValue ()
             {
@@ -276,6 +293,11 @@ namespace lldb_private {
         {
             return m_flags.GetSkipReferences();
         }
+        bool
+        NonCacheable () const
+        {
+            return m_flags.GetNonCacheable();
+        }
         
         void
         SetCascades (bool value)
@@ -293,6 +315,12 @@ namespace lldb_private {
         SetSkipsReferences (bool value)
         {
             m_flags.SetSkipReferences(value);
+        }
+        
+        void
+        SetNonCacheable (bool value)
+        {
+            m_flags.SetNonCacheable(value);
         }
         
         uint32_t
@@ -551,7 +579,7 @@ namespace lldb_private {
         {
         private:
             std::string m_python_class;
-            lldb::ScriptInterpreterObjectSP m_wrapper_sp;
+            StructuredData::ObjectSP m_wrapper_sp;
             ScriptInterpreter *m_interpreter;
         public:
             

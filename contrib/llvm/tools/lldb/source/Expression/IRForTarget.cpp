@@ -16,7 +16,7 @@
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Intrinsics.h"
 #include "llvm/IR/Module.h"
-#include "llvm/PassManager.h"
+#include "llvm/IR/LegacyPassManager.h"
 #include "llvm/Transforms/IPO.h"
 #include "llvm/IR/Metadata.h"
 #include "llvm/IR/ValueSymbolTable.h"
@@ -35,6 +35,7 @@
 #include "lldb/Host/Endian.h"
 #include "lldb/Symbol/ClangASTContext.h"
 #include "lldb/Symbol/ClangASTType.h"
+#include "lldb/Target/CPPLanguageRuntime.h"
 
 #include <map>
 
@@ -59,7 +60,8 @@ IRForTarget::FunctionValueCache::~FunctionValueCache()
 {
 }
 
-llvm::Value *IRForTarget::FunctionValueCache::GetValue(llvm::Function *function)
+llvm::Value *
+IRForTarget::FunctionValueCache::GetValue(llvm::Function *function)
 {
     if (!m_values.count(function))
     {
@@ -70,7 +72,8 @@ llvm::Value *IRForTarget::FunctionValueCache::GetValue(llvm::Function *function)
     return m_values[function];
 }
 
-lldb::addr_t IRForTarget::StaticDataAllocator::Allocate()
+lldb::addr_t
+IRForTarget::StaticDataAllocator::Allocate()
 {
     lldb_private::Error err;
 
@@ -85,7 +88,14 @@ lldb::addr_t IRForTarget::StaticDataAllocator::Allocate()
     return m_allocation;
 }
 
-static llvm::Value *FindEntryInstruction (llvm::Function *function)
+lldb::TargetSP
+IRForTarget::StaticDataAllocator::GetTarget()
+{
+    return m_execution_unit.GetTarget();
+}
+
+static llvm::Value *
+FindEntryInstruction (llvm::Function *function)
 {
     if (function->empty())
         return NULL;
@@ -217,50 +227,51 @@ IRForTarget::GetFunctionAddress (llvm::Function *fun,
     {
         if (!m_decl_map->GetFunctionInfo (fun_decl, fun_addr))
         {
-            lldb_private::ConstString altnernate_name;
+            std::vector<lldb_private::ConstString> alternates;
             bool found_it = m_decl_map->GetFunctionAddress (name, fun_addr);
             if (!found_it)
             {
-                // Check for an alternate mangling for "std::basic_string<char>"
-                // that is part of the itanium C++ name mangling scheme
-                const char *name_cstr = name.GetCString();
-                if (name_cstr && strncmp(name_cstr, "_ZNKSbIcE", strlen("_ZNKSbIcE")) == 0)
+                if (log)
+                    log->Printf("Address of function \"%s\" not found.\n", name.GetCString());
+                // Check for an alternate mangling for names from the standard library.
+                // For example, "std::basic_string<...>" has an alternate mangling scheme per
+                // the Itanium C++ ABI.
+                lldb::ProcessSP process_sp = m_data_allocator.GetTarget()->GetProcessSP();
+                if (process_sp)
                 {
-                    std::string alternate_mangling("_ZNKSs");
-                    alternate_mangling.append (name_cstr + strlen("_ZNKSbIcE"));
-                    altnernate_name.SetCString(alternate_mangling.c_str());
-                    found_it = m_decl_map->GetFunctionAddress (altnernate_name, fun_addr);
+                    lldb_private::CPPLanguageRuntime *cpp_runtime = process_sp->GetCPPLanguageRuntime();
+                    if (cpp_runtime && cpp_runtime->GetAlternateManglings(name, alternates))
+                    {
+                        for (size_t i = 0; i < alternates.size(); ++i)
+                        {
+                            const lldb_private::ConstString &alternate_name = alternates[i];
+                            if (log)
+                                log->Printf("Looking up address of function \"%s\" with alternate name \"%s\"",
+                                            name.GetCString(), alternate_name.GetCString());
+                            if ((found_it = m_decl_map->GetFunctionAddress (alternate_name, fun_addr)))
+                            {
+                                if (log)
+                                    log->Printf("Found address of function \"%s\" with alternate name \"%s\"",
+                                                name.GetCString(), alternate_name.GetCString());
+                                break;
+                            }
+                        }
+                    }
                 }
             }
 
             if (!found_it)
             {
                 lldb_private::Mangled mangled_name(name);
-                lldb_private::Mangled alt_mangled_name(altnernate_name);
-                if (log)
-                {
-                    if (alt_mangled_name)
-                        log->Printf("Function \"%s\" (alternate name \"%s\") has no address",
-                                    mangled_name.GetName().GetCString(),
-                                    alt_mangled_name.GetName().GetCString());
-                    else
-                        log->Printf("Function \"%s\" had no address",
-                                    mangled_name.GetName().GetCString());
-                }
-
                 if (m_error_stream)
                 {
-                    if (alt_mangled_name)
-                        m_error_stream->Printf("error: call to a function '%s' (alternate name '%s') that is not present in the target\n",
-                                               mangled_name.GetName().GetCString(),
-                                               alt_mangled_name.GetName().GetCString());
-                    else if (mangled_name.GetMangledName())
+                    if (mangled_name.GetMangledName())
                         m_error_stream->Printf("error: call to a function '%s' ('%s') that is not present in the target\n",
-                                               mangled_name.GetName().GetCString(),
+                                               mangled_name.GetName(lldb::eLanguageTypeObjC_plus_plus).GetCString(),
                                                mangled_name.GetMangledName().GetCString());
                     else
                         m_error_stream->Printf("error: call to a function '%s' that is not present in the target\n",
-                                               mangled_name.GetName().GetCString());
+                                               mangled_name.GetName(lldb::eLanguageTypeObjC_plus_plus).GetCString());
                 }
                 return LookupResult::Fail;
             }
@@ -590,7 +601,10 @@ IRForTarget::CreateResultVariable (llvm::Function &llvm_function)
                                                      &result_decl->getASTContext());
     }
 
-    if (m_result_type.GetBitSize() == 0)
+
+    lldb::TargetSP target_sp (m_data_allocator.GetTarget());
+    lldb_private::ExecutionContext exe_ctx (target_sp, true);
+    if (m_result_type.GetBitSize(exe_ctx.GetBestExecutionContextScope()) == 0)
     {
         lldb_private::StreamString type_desc_stream;
         m_result_type.DumpTypeDescription(&type_desc_stream);
@@ -617,7 +631,7 @@ IRForTarget::CreateResultVariable (llvm::Function &llvm_function)
     if (log)
         log->Printf("Creating a new result global: \"%s\" with size 0x%" PRIx64,
                     m_result_name.GetCString(),
-                    m_result_type.GetByteSize());
+                    m_result_type.GetByteSize(nullptr));
 
     // Construct a new result global and set up its metadata
 
@@ -1345,7 +1359,7 @@ IRForTarget::MaterializeInitializer (uint8_t *data, Constant *initializer)
     lldb_private::Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_EXPRESSIONS));
 
     if (log && log->GetVerbose())
-        log->Printf("  MaterializeInitializer(%p, %s)", data, PrintValue(initializer).c_str());
+        log->Printf("  MaterializeInitializer(%p, %s)", (void *)data, PrintValue(initializer).c_str());
 
     Type *initializer_type = initializer->getType();
 
@@ -1501,7 +1515,7 @@ IRForTarget::MaybeHandleVariable (Value *llvm_value_ptr)
 
         if (name[0] == '$')
         {
-            // The $__lldb_expr_result name indicates the the return value has allocated as
+            // The $__lldb_expr_result name indicates the return value has allocated as
             // a static variable.  Per the comment at ASTResultSynthesizer::SynthesizeBodyResult,
             // accesses to this static variable need to be redirected to the result of dereferencing
             // a pointer that is passed in as one of the arguments.
@@ -1518,7 +1532,7 @@ IRForTarget::MaybeHandleVariable (Value *llvm_value_ptr)
             value_type = global_variable->getType();
         }
 
-        const uint64_t value_size = clang_type.GetByteSize();
+        const uint64_t value_size = clang_type.GetByteSize(nullptr);
         lldb::offset_t value_alignment = (clang_type.GetTypeBitAlign() + 7ull) / 8ull;
 
         if (log)
@@ -2194,7 +2208,7 @@ IRForTarget::UnfoldConstant(Constant *old_constant,
 
                             ArrayRef <Value*> indices(index_vector);
 
-                            return GetElementPtrInst::Create(ptr, indices, "", llvm::cast<Instruction>(entry_instruction_finder.GetValue(function)));
+                            return GetElementPtrInst::Create(nullptr, ptr, indices, "", llvm::cast<Instruction>(entry_instruction_finder.GetValue(function)));
                         });
 
                         if (!UnfoldConstant(constant_expr, get_element_pointer_maker, entry_instruction_finder))
@@ -2381,7 +2395,8 @@ IRForTarget::ReplaceVariables (Function &llvm_function)
                 llvm::Instruction *entry_instruction = llvm::cast<Instruction>(m_entry_instruction_finder.GetValue(function));
 
                 ConstantInt *offset_int(ConstantInt::get(offset_type, offset, true));
-                GetElementPtrInst *get_element_ptr = GetElementPtrInst::Create(argument,
+                GetElementPtrInst *get_element_ptr = GetElementPtrInst::Create(nullptr,
+                                                                               argument,
                                                                                offset_int,
                                                                                "",
                                                                                entry_instruction);
@@ -2441,11 +2456,14 @@ IRForTarget::BuildRelocation(llvm::Type *type, uint64_t offset)
     offset_array[0] = offset_int;
 
     llvm::ArrayRef<llvm::Constant *> offsets(offset_array, 1);
+    llvm::Type *char_type = llvm::Type::getInt8Ty(m_module->getContext());
+    llvm::Type *char_pointer_type = char_type->getPointerTo();
 
-    llvm::Constant *reloc_getelementptr = ConstantExpr::getGetElementPtr(m_reloc_placeholder, offsets);
-    llvm::Constant *reloc_getbitcast = ConstantExpr::getBitCast(reloc_getelementptr, type);
+    llvm::Constant *reloc_placeholder_bitcast = ConstantExpr::getBitCast(m_reloc_placeholder, char_pointer_type);
+    llvm::Constant *reloc_getelementptr = ConstantExpr::getGetElementPtr(char_type, reloc_placeholder_bitcast, offsets);
+    llvm::Constant *reloc_bitcast = ConstantExpr::getBitCast(reloc_getelementptr, type);
 
-    return reloc_getbitcast;
+    return reloc_bitcast;
 }
 
 bool

@@ -226,7 +226,7 @@ OptionValueProperties::SetSubValue (const ExecutionContext *exe_ctx,
     const bool will_modify = true;
     lldb::OptionValueSP value_sp (GetSubValue (exe_ctx, name, will_modify, error));
     if (value_sp)
-        error = value_sp->SetValueFromCString(value, op);
+        error = value_sp->SetValueFromString(value ? llvm::StringRef(value) : llvm::StringRef(), op);
     else
     {
         if (error.AsCString() == nullptr)
@@ -421,6 +421,18 @@ OptionValueProperties::SetPropertyAtIndexAsEnumeration (const ExecutionContext *
     return false;
 }
 
+const FormatEntity::Entry *
+OptionValueProperties::GetPropertyAtIndexAsFormatEntity (const ExecutionContext *exe_ctx, uint32_t idx)
+{
+    const Property *property = GetPropertyAtIndex (exe_ctx, true, idx);
+    if (property)
+    {
+        OptionValue *value = property->GetValue().get();
+        if (value)
+            return value->GetFormatEntity();
+    }
+    return nullptr;
+}
 
 OptionValueFileSpec *
 OptionValueProperties::GetPropertyAtIndexAsOptionValueFileSpec (const ExecutionContext *exe_ctx, bool will_modify, uint32_t idx) const
@@ -588,7 +600,7 @@ OptionValueProperties::Clear ()
 
 
 Error
-OptionValueProperties::SetValueFromCString (const char *value, VarSetOperationType op)
+OptionValueProperties::SetValueFromString (llvm::StringRef value, VarSetOperationType op)
 {
     Error error;
     
@@ -607,7 +619,7 @@ OptionValueProperties::SetValueFromCString (const char *value, VarSetOperationTy
         case eVarSetOperationInsertAfter:
         case eVarSetOperationAppend:
         case eVarSetOperationInvalid:
-            error = OptionValue::SetValueFromCString (value, op);
+            error = OptionValue::SetValueFromString (value, op);
             break;
     }
     

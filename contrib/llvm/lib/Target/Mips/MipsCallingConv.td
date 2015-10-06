@@ -64,9 +64,9 @@ def RetCC_F128HardFloat : CallingConv<[
 // Handle F128 specially since we can't identify the original type during the
 // tablegen-erated code.
 def RetCC_F128 : CallingConv<[
-  CCIfSubtarget<"abiUsesSoftFloat()",
+  CCIfSubtarget<"useSoftFloat()",
       CCIfType<[i64], CCDelegateTo<RetCC_F128SoftFloat>>>,
-  CCIfSubtargetNot<"abiUsesSoftFloat()",
+  CCIfSubtargetNot<"useSoftFloat()",
       CCIfType<[i64], CCDelegateTo<RetCC_F128HardFloat>>>
 ]>;
 
@@ -90,6 +90,9 @@ def CC_MipsO32 : CallingConv<[
 // Only the return rules are defined here for O32. The rules for argument
 // passing are defined in MipsISelLowering.cpp.
 def RetCC_MipsO32 : CallingConv<[
+  // Promote i1/i8/i16 return values to i32.
+  CCIfType<[i1, i8, i16], CCPromoteToType<i32>>,
+
   // i32 are returned in registers V0, V1, A0, A1
   CCIfType<[i32], CCAssignToReg<[V0, V1, A0, A1]>>,
 
@@ -131,7 +134,7 @@ def CC_MipsN : CallingConv<[
   CCIfType<[i8, i16, i32], CCIfOrigArgWasNotFloat<CCPromoteToType<i64>>>,
 
   // The only i32's we have left are soft-float arguments.
-  CCIfSubtarget<"abiUsesSoftFloat()", CCIfType<[i32], CCDelegateTo<CC_MipsN_SoftFloat>>>,
+  CCIfSubtarget<"useSoftFloat()", CCIfType<[i32], CCDelegateTo<CC_MipsN_SoftFloat>>>,
 
   // Integer arguments are passed in integer registers.
   CCIfType<[i64], CCAssignToRegWithShadow<[A0_64, A1_64, A2_64, A3_64,
@@ -369,7 +372,7 @@ def CC_Mips_FixedArg : CallingConv<[
   // f128 should only occur for the N64 ABI where long double is 128-bit. On
   // N32, long double is equivalent to double.
   CCIfType<[i64],
-      CCIfSubtargetNot<"abiUsesSoftFloat()",
+      CCIfSubtargetNot<"useSoftFloat()",
           CCIfOrigArgWasF128<CCBitConvertToType<f64>>>>,
 
   CCIfCC<"CallingConv::Fast", CCDelegateTo<CC_Mips_FastCC>>,

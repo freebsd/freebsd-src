@@ -7,18 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-//++
-// File:        MICmdArgValOptionLong.h
-//
-// Overview:    CMICmdArgValOptionLong interface.
-//
-// Environment: Compilers:  Visual C++ 12.
-//                          gcc (Ubuntu/Linaro 4.8.1-10ubuntu9) 4.8.1
-//              Libraries:  See MIReadmetxt.
-//
-// Copyright:   None.
-//--
-
 #pragma once
 
 // In-house headers:
@@ -58,9 +46,9 @@ class CMICmdArgValOptionLong : public CMICmdArgValListBase
     // Overridden:
   public:
     // From CMICmdArgValBase
-    /* dtor */ virtual ~CMICmdArgValOptionLong(void);
+    /* dtor */ ~CMICmdArgValOptionLong(void) override;
     // From CMICmdArgSet::IArg
-    virtual bool Validate(CMICmdArgContext &vArgContext);
+    bool Validate(CMICmdArgContext &vArgContext) override;
 
     // Methods:
   protected:

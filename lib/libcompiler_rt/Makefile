@@ -48,6 +48,7 @@ SRCF=	absvdi2 \
 	divxc3 \
 	enable_execute_stack \
 	eprintf \
+	extendhfsf2 \
 	ffsdi2 \
 	ffsti2 \
 	fixdfdi \
@@ -121,6 +122,8 @@ SRCF=	absvdi2 \
 	subvsi3 \
 	subvti3 \
 	trampoline_setup \
+	truncdfhf2 \
+	truncsfhf2 \
 	ucmpdi2 \
 	ucmpti2 \
 	udivdi3 \

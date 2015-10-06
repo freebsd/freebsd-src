@@ -20,7 +20,7 @@
 #include "llvm/IR/LegacyPassNameParser.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Verifier.h"
-#include "llvm/PassManager.h"
+#include "llvm/IR/LegacyPassManager.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/ManagedStatic.h"
@@ -31,7 +31,8 @@
 #include <set>
 #include <sstream>
 #include <vector>
-using namespace llvm;
+
+namespace llvm {
 
 static cl::opt<unsigned> SeedCL("seed",
   cl::desc("Seed used for randomness"), cl::init(0));
@@ -42,16 +43,39 @@ static cl::opt<std::string>
 OutputFilename("o", cl::desc("Override output filename"),
                cl::value_desc("filename"));
 
-static cl::opt<bool> GenHalfFloat("generate-half-float",
-  cl::desc("Generate half-length floating-point values"), cl::init(false));
-static cl::opt<bool> GenX86FP80("generate-x86-fp80",
-  cl::desc("Generate 80-bit X86 floating-point values"), cl::init(false));
-static cl::opt<bool> GenFP128("generate-fp128",
-  cl::desc("Generate 128-bit floating-point values"), cl::init(false));
-static cl::opt<bool> GenPPCFP128("generate-ppc-fp128",
-  cl::desc("Generate 128-bit PPC floating-point values"), cl::init(false));
-static cl::opt<bool> GenX86MMX("generate-x86-mmx",
-  cl::desc("Generate X86 MMX floating-point values"), cl::init(false));
+namespace cl {
+template <> class parser<Type*> final : public basic_parser<Type*> {
+public:
+  parser(Option &O) : basic_parser(O) {}
+
+  // Parse options as IR types. Return true on error.
+  bool parse(Option &O, StringRef, StringRef Arg, Type *&Value) {
+    auto &Context = getGlobalContext();
+    if      (Arg == "half")      Value = Type::getHalfTy(Context);
+    else if (Arg == "fp128")     Value = Type::getFP128Ty(Context);
+    else if (Arg == "x86_fp80")  Value = Type::getX86_FP80Ty(Context);
+    else if (Arg == "ppc_fp128") Value = Type::getPPC_FP128Ty(Context);
+    else if (Arg == "x86_mmx")   Value = Type::getX86_MMXTy(Context);
+    else if (Arg.startswith("i")) {
+      unsigned N = 0;
+      Arg.drop_front().getAsInteger(10, N);
+      if (N > 0)
+        Value = Type::getIntNTy(Context, N);
+    }
+
+    if (!Value)
+      return O.error("Invalid IR scalar type: '" + Arg + "'!");
+    return false;
+  }
+
+  const char *getValueName() const override { return "IR scalar type"; }
+};
+}
+
+
+static cl::list<Type*> AdditionalScalarTypes("types", cl::CommaSeparated,
+  cl::desc("Additional IR scalar types "
+           "(always includes i1, i8, i16, i32, i64, float and double)"));
 
 namespace {
 /// A utility class to provide a pseudo-random number generator which is
@@ -96,24 +120,21 @@ private:
 
 /// Generate an empty function with a default argument list.
 Function *GenEmptyFunction(Module *M) {
-  // Type Definitions
-  std::vector<Type*> ArgsTy;
   // Define a few arguments
   LLVMContext &Context = M->getContext();
-  ArgsTy.push_back(PointerType::get(IntegerType::getInt8Ty(Context), 0));
-  ArgsTy.push_back(PointerType::get(IntegerType::getInt32Ty(Context), 0));
-  ArgsTy.push_back(PointerType::get(IntegerType::getInt64Ty(Context), 0));
-  ArgsTy.push_back(IntegerType::getInt32Ty(Context));
-  ArgsTy.push_back(IntegerType::getInt64Ty(Context));
-  ArgsTy.push_back(IntegerType::getInt8Ty(Context));
+  Type* ArgsTy[] = {
+    Type::getInt8PtrTy(Context),
+    Type::getInt32PtrTy(Context),
+    Type::getInt64PtrTy(Context),
+    Type::getInt32Ty(Context),
+    Type::getInt64Ty(Context),
+    Type::getInt8Ty(Context)
+  };
 
-  FunctionType *FuncTy = FunctionType::get(Type::getVoidTy(Context), ArgsTy, 0);
+  auto *FuncTy = FunctionType::get(Type::getVoidTy(Context), ArgsTy, false);
   // Pick a unique name to describe the input parameters
-  std::stringstream ss;
-  ss<<"autogen_SD"<<SeedCL;
-  Function *Func = Function::Create(FuncTy, GlobalValue::ExternalLinkage,
-                                    ss.str(), M);
-
+  Twine Name = "autogen_SD" + Twine{SeedCL};
+  auto *Func = Function::Create(FuncTy, GlobalValue::ExternalLinkage, Name, M);
   Func->setCallingConv(CallingConv::C);
   return Func;
 }
@@ -246,35 +267,22 @@ protected:
 
   /// Pick a random scalar type.
   Type *pickScalarType() {
-    Type *t = nullptr;
-    do {
-      switch (Ran->Rand() % 30) {
-      case 0: t = Type::getInt1Ty(Context); break;
-      case 1: t = Type::getInt8Ty(Context); break;
-      case 2: t = Type::getInt16Ty(Context); break;
-      case 3: case 4:
-      case 5: t = Type::getFloatTy(Context); break;
-      case 6: case 7:
-      case 8: t = Type::getDoubleTy(Context); break;
-      case 9: case 10:
-      case 11: t = Type::getInt32Ty(Context); break;
-      case 12: case 13:
-      case 14: t = Type::getInt64Ty(Context); break;
-      case 15: case 16:
-      case 17: if (GenHalfFloat) t = Type::getHalfTy(Context); break;
-      case 18: case 19:
-      case 20: if (GenX86FP80) t = Type::getX86_FP80Ty(Context); break;
-      case 21: case 22:
-      case 23: if (GenFP128) t = Type::getFP128Ty(Context); break;
-      case 24: case 25:
-      case 26: if (GenPPCFP128) t = Type::getPPC_FP128Ty(Context); break;
-      case 27: case 28:
-      case 29: if (GenX86MMX) t = Type::getX86_MMXTy(Context); break;
-      default: llvm_unreachable("Invalid scalar value");
-      }
-    } while (t == nullptr);
+    static std::vector<Type*> ScalarTypes;
+    if (ScalarTypes.empty()) {
+      ScalarTypes.assign({
+        Type::getInt1Ty(Context),
+        Type::getInt8Ty(Context),
+        Type::getInt16Ty(Context),
+        Type::getInt32Ty(Context),
+        Type::getInt64Ty(Context),
+        Type::getFloatTy(Context),
+        Type::getDoubleTy(Context)
+      });
+      ScalarTypes.insert(ScalarTypes.end(),
+        AdditionalScalarTypes.begin(), AdditionalScalarTypes.end());
+    }
 
-    return t;
+    return ScalarTypes[Ran->Rand() % ScalarTypes.size()];
   }
 
   /// Basic block to populate
@@ -620,59 +628,45 @@ static void FillFunction(Function *F, Random &R) {
   Modifier::PieceTable PT;
 
   // Consider arguments as legal values.
-  for (Function::arg_iterator it = F->arg_begin(), e = F->arg_end();
-       it != e; ++it)
-    PT.push_back(it);
+  for (auto &arg : F->args())
+    PT.push_back(&arg);
 
   // List of modifiers which add new random instructions.
-  std::vector<Modifier*> Modifiers;
-  std::unique_ptr<Modifier> LM(new LoadModifier(BB, &PT, &R));
-  std::unique_ptr<Modifier> SM(new StoreModifier(BB, &PT, &R));
-  std::unique_ptr<Modifier> EE(new ExtractElementModifier(BB, &PT, &R));
-  std::unique_ptr<Modifier> SHM(new ShuffModifier(BB, &PT, &R));
-  std::unique_ptr<Modifier> IE(new InsertElementModifier(BB, &PT, &R));
-  std::unique_ptr<Modifier> BM(new BinModifier(BB, &PT, &R));
-  std::unique_ptr<Modifier> CM(new CastModifier(BB, &PT, &R));
-  std::unique_ptr<Modifier> SLM(new SelectModifier(BB, &PT, &R));
-  std::unique_ptr<Modifier> PM(new CmpModifier(BB, &PT, &R));
-  Modifiers.push_back(LM.get());
-  Modifiers.push_back(SM.get());
-  Modifiers.push_back(EE.get());
-  Modifiers.push_back(SHM.get());
-  Modifiers.push_back(IE.get());
-  Modifiers.push_back(BM.get());
-  Modifiers.push_back(CM.get());
-  Modifiers.push_back(SLM.get());
-  Modifiers.push_back(PM.get());
+  std::vector<std::unique_ptr<Modifier>> Modifiers;
+  Modifiers.emplace_back(new LoadModifier(BB, &PT, &R));
+  Modifiers.emplace_back(new StoreModifier(BB, &PT, &R));
+  auto SM = Modifiers.back().get();
+  Modifiers.emplace_back(new ExtractElementModifier(BB, &PT, &R));
+  Modifiers.emplace_back(new ShuffModifier(BB, &PT, &R));
+  Modifiers.emplace_back(new InsertElementModifier(BB, &PT, &R));
+  Modifiers.emplace_back(new BinModifier(BB, &PT, &R));
+  Modifiers.emplace_back(new CastModifier(BB, &PT, &R));
+  Modifiers.emplace_back(new SelectModifier(BB, &PT, &R));
+  Modifiers.emplace_back(new CmpModifier(BB, &PT, &R));
 
   // Generate the random instructions
-  AllocaModifier AM(BB, &PT, &R); AM.ActN(5); // Throw in a few allocas
-  ConstModifier COM(BB, &PT, &R);  COM.ActN(40); // Throw in a few constants
+  AllocaModifier{BB, &PT, &R}.ActN(5); // Throw in a few allocas
+  ConstModifier{BB, &PT, &R}.ActN(40); // Throw in a few constants
 
-  for (unsigned i=0; i< SizeCL / Modifiers.size(); ++i)
-    for (std::vector<Modifier*>::iterator it = Modifiers.begin(),
-         e = Modifiers.end(); it != e; ++it) {
-      (*it)->Act();
-    }
+  for (unsigned i = 0; i < SizeCL / Modifiers.size(); ++i)
+    for (auto &Mod : Modifiers)
+      Mod->Act();
 
   SM->ActN(5); // Throw in a few stores.
 }
 
 static void IntroduceControlFlow(Function *F, Random &R) {
   std::vector<Instruction*> BoolInst;
-  for (BasicBlock::iterator it = F->begin()->begin(),
-       e = F->begin()->end(); it != e; ++it) {
-    if (it->getType() == IntegerType::getInt1Ty(F->getContext()))
-      BoolInst.push_back(it);
+  for (auto &Instr : F->front()) {
+    if (Instr.getType() == IntegerType::getInt1Ty(F->getContext()))
+      BoolInst.push_back(&Instr);
   }
 
   std::random_shuffle(BoolInst.begin(), BoolInst.end(), R);
 
-  for (std::vector<Instruction*>::iterator it = BoolInst.begin(),
-       e = BoolInst.end(); it != e; ++it) {
-    Instruction *Instr = *it;
+  for (auto *Instr : BoolInst) {
     BasicBlock *Curr = Instr->getParent();
-    BasicBlock::iterator Loc= Instr;
+    BasicBlock::iterator Loc = Instr;
     BasicBlock *Next = Curr->splitBasicBlock(Loc, "CF");
     Instr->moveBefore(Curr->getTerminator());
     if (Curr != &F->getEntryBlock()) {
@@ -682,13 +676,17 @@ static void IntroduceControlFlow(Function *F, Random &R) {
   }
 }
 
+}
+
 int main(int argc, char **argv) {
+  using namespace llvm;
+
   // Init LLVM, call llvm_shutdown() on exit, parse args, etc.
-  llvm::PrettyStackTraceProgram X(argc, argv);
+  PrettyStackTraceProgram X(argc, argv);
   cl::ParseCommandLineOptions(argc, argv, "llvm codegen stress-tester\n");
   llvm_shutdown_obj Y;
 
-  std::unique_ptr<Module> M(new Module("/tmp/autogen.bc", getGlobalContext()));
+  auto M = make_unique<Module>("/tmp/autogen.bc", getGlobalContext());
   Function *F = GenEmptyFunction(M.get());
 
   // Pick an initial seed value
@@ -711,9 +709,8 @@ int main(int argc, char **argv) {
     return 1;
   }
 
-  PassManager Passes;
+  legacy::PassManager Passes;
   Passes.add(createVerifierPass());
-  Passes.add(createDebugInfoVerifierPass());
   Passes.add(createPrintModulePass(Out->os()));
   Passes.run(*M.get());
   Out->keep();

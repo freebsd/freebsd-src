@@ -94,6 +94,13 @@ bool IsInInterceptorScope() {
     if (!IsInInterceptorScope()) CHECK_UNPOISONED_0(x, n); \
   } while (0);
 
+#define CHECK_UNPOISONED_STRING_OF_LEN(x, len, n)               \
+  CHECK_UNPOISONED((x),                                         \
+    common_flags()->strict_string_checks ? (len) + 1 : (n) )
+
+#define CHECK_UNPOISONED_STRING(x, n)                           \
+    CHECK_UNPOISONED_STRING_OF_LEN((x), internal_strlen(x), (n))
+
 INTERCEPTOR(SIZE_T, fread, void *ptr, SIZE_T size, SIZE_T nmemb, void *file) {
   ENSURE_MSAN_INITED();
   SIZE_T res = REAL(fread)(ptr, size, nmemb, file);
@@ -118,6 +125,7 @@ INTERCEPTOR(SIZE_T, fread_unlocked, void *ptr, SIZE_T size, SIZE_T nmemb,
 
 INTERCEPTOR(SSIZE_T, readlink, const char *path, char *buf, SIZE_T bufsiz) {
   ENSURE_MSAN_INITED();
+  CHECK_UNPOISONED_STRING(path, 0)
   SSIZE_T res = REAL(readlink)(path, buf, bufsiz);
   if (res > 0)
     __msan_unpoison(buf, res);
@@ -283,13 +291,11 @@ INTERCEPTOR(SIZE_T, strnlen, const char *s, SIZE_T n) {
   return res;
 }
 
-// FIXME: Add stricter shadow checks in str* interceptors (ex.: strcpy should
-// check the shadow of the terminating \0 byte).
-
 INTERCEPTOR(char *, strcpy, char *dest, const char *src) {  // NOLINT
   ENSURE_MSAN_INITED();
   GET_STORE_STACK_TRACE;
   SIZE_T n = REAL(strlen)(src);
+  CHECK_UNPOISONED_STRING(src + n, 0);
   char *res = REAL(strcpy)(dest, src);  // NOLINT
   CopyShadowAndOrigin(dest, src, n + 1, &stack);
   return res;
@@ -311,6 +317,7 @@ INTERCEPTOR(char *, stpcpy, char *dest, const char *src) {  // NOLINT
   ENSURE_MSAN_INITED();
   GET_STORE_STACK_TRACE;
   SIZE_T n = REAL(strlen)(src);
+  CHECK_UNPOISONED_STRING(src + n, 0);
   char *res = REAL(stpcpy)(dest, src);  // NOLINT
   CopyShadowAndOrigin(dest, src, n + 1, &stack);
   return res;
@@ -322,6 +329,7 @@ INTERCEPTOR(char *, strdup, char *src) {
   // On FreeBSD strdup() leverages strlen().
   InterceptorScope interceptor_scope;
   SIZE_T n = REAL(strlen)(src);
+  CHECK_UNPOISONED_STRING(src + n, 0);
   char *res = REAL(strdup)(src);
   CopyShadowAndOrigin(res, src, n + 1, &stack);
   return res;
@@ -332,6 +340,7 @@ INTERCEPTOR(char *, __strdup, char *src) {
   ENSURE_MSAN_INITED();
   GET_STORE_STACK_TRACE;
   SIZE_T n = REAL(strlen)(src);
+  CHECK_UNPOISONED_STRING(src + n, 0);
   char *res = REAL(__strdup)(src);
   CopyShadowAndOrigin(res, src, n + 1, &stack);
   return res;
@@ -381,6 +390,8 @@ INTERCEPTOR(char *, strcat, char *dest, const char *src) {  // NOLINT
   GET_STORE_STACK_TRACE;
   SIZE_T src_size = REAL(strlen)(src);
   SIZE_T dest_size = REAL(strlen)(dest);
+  CHECK_UNPOISONED_STRING(src + src_size, 0);
+  CHECK_UNPOISONED_STRING(dest + dest_size, 0);
   char *res = REAL(strcat)(dest, src);  // NOLINT
   CopyShadowAndOrigin(dest + dest_size, src, src_size + 1, &stack);
   return res;
@@ -391,6 +402,7 @@ INTERCEPTOR(char *, strncat, char *dest, const char *src, SIZE_T n) {  // NOLINT
   GET_STORE_STACK_TRACE;
   SIZE_T dest_size = REAL(strlen)(dest);
   SIZE_T copy_size = REAL(strnlen)(src, n);
+  CHECK_UNPOISONED_STRING(dest + dest_size, 0);
   char *res = REAL(strncat)(dest, src, n);  // NOLINT
   CopyShadowAndOrigin(dest + dest_size, src, copy_size, &stack);
   __msan_unpoison(dest + dest_size + copy_size, 1); // \0
@@ -667,6 +679,7 @@ static void UnpoisonEnviron() {
 
 INTERCEPTOR(int, setenv, const char *name, const char *value, int overwrite) {
   ENSURE_MSAN_INITED();
+  CHECK_UNPOISONED_STRING(name, 0)
   int res = REAL(setenv)(name, value, overwrite);
   if (!res) UnpoisonEnviron();
   return res;
@@ -1384,6 +1397,14 @@ int OnExit() {
     if (map) ForEachMappedRegion(map, __msan_unpoison);      \
   } while (false)
 
+#define COMMON_INTERCEPTOR_GET_TLS_RANGE(begin, end)                           \
+  if (MsanThread *t = GetCurrentThread()) {                                    \
+    *begin = t->tls_begin();                                                   \
+    *end = t->tls_end();                                                       \
+  } else {                                                                     \
+    *begin = *end = 0;                                                         \
+  }
+
 #include "sanitizer_common/sanitizer_common_interceptors.inc"
 
 #define COMMON_SYSCALL_PRE_READ_RANGE(p, s) CHECK_UNPOISONED(p, s)
@@ -1420,7 +1441,8 @@ void __msan_clear_and_unpoison(void *a, uptr size) {
 
 void *__msan_memcpy(void *dest, const void *src, SIZE_T n) {
   if (!msan_inited) return internal_memcpy(dest, src, n);
-  if (msan_init_is_running) return REAL(memcpy)(dest, src, n);
+  if (msan_init_is_running || __msan::IsInSymbolizer())
+    return REAL(memcpy)(dest, src, n);
   ENSURE_MSAN_INITED();
   GET_STORE_STACK_TRACE;
   void *res = REAL(memcpy)(dest, src, n);

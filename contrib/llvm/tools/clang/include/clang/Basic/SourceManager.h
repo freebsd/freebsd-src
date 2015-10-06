@@ -82,22 +82,13 @@ namespace SrcMgr {
   /// \brief One instance of this struct is kept for every file loaded or used.
   ///
   /// This object owns the MemoryBuffer object.
-  class ContentCache {
+  class LLVM_ALIGNAS(8) ContentCache {
     enum CCFlags {
       /// \brief Whether the buffer is invalid.
       InvalidFlag = 0x01,
       /// \brief Whether the buffer should not be freed on destruction.
       DoNotFreeFlag = 0x02
     };
-
-    // Note that the first member of this class is an aligned character buffer
-    // to ensure that this class has an alignment of 8 bytes. This wastes
-    // 8 bytes for every ContentCache object, but each of these corresponds to
-    // a file loaded into memory, so the 8 bytes doesn't seem terribly
-    // important. It is quite awkward to fit this aligner into any other part
-    // of the class due to the lack of portable ways to combine it with other
-    // members.
-    llvm::AlignedCharArray<8, 1> NonceAligner;
 
     /// \brief The actual buffer containing the characters from the input
     /// file.
@@ -142,14 +133,9 @@ namespace SrcMgr {
     /// \brief True if this content cache was initially created for a source
     /// file considered as a system one.
     unsigned IsSystemFile : 1;
-    
-    ContentCache(const FileEntry *Ent = nullptr)
-      : Buffer(nullptr, false), OrigEntry(Ent), ContentsEntry(Ent),
-        SourceLineCache(nullptr), NumLines(0), BufferOverridden(false),
-        IsSystemFile(false) {
-      (void)NonceAligner; // Silence warnings about unused member.
-    }
-    
+
+    ContentCache(const FileEntry *Ent = nullptr) : ContentCache(Ent, Ent) {}
+
     ContentCache(const FileEntry *Ent, const FileEntry *contentEnt)
       : Buffer(nullptr, false), OrigEntry(Ent), ContentsEntry(contentEnt),
         SourceLineCache(nullptr), NumLines(0), BufferOverridden(false),
@@ -231,7 +217,7 @@ namespace SrcMgr {
 
   private:
     // Disable assignments.
-    ContentCache &operator=(const ContentCache& RHS) LLVM_DELETED_FUNCTION;
+    ContentCache &operator=(const ContentCache& RHS) = delete;
   };
 
   // Assert that the \c ContentCache objects will always be 8-byte aligned so
@@ -705,8 +691,8 @@ class SourceManager : public RefCountedBase<SourceManager> {
   SmallVector<std::pair<std::string, FullSourceLoc>, 2> StoredModuleBuildStack;
 
   // SourceManager doesn't support copy construction.
-  explicit SourceManager(const SourceManager&) LLVM_DELETED_FUNCTION;
-  void operator=(const SourceManager&) LLVM_DELETED_FUNCTION;
+  explicit SourceManager(const SourceManager&) = delete;
+  void operator=(const SourceManager&) = delete;
 public:
   SourceManager(DiagnosticsEngine &Diag, FileManager &FileMgr,
                 bool UserFilesAreVolatile = false);
@@ -1057,10 +1043,16 @@ public:
   getImmediateExpansionRange(SourceLocation Loc) const;
 
   /// \brief Given a SourceLocation object, return the range of
-  /// tokens covered by the expansion the ultimate file.
+  /// tokens covered by the expansion in the ultimate file.
   std::pair<SourceLocation,SourceLocation>
   getExpansionRange(SourceLocation Loc) const;
 
+  /// \brief Given a SourceRange object, return the range of
+  /// tokens covered by the expansion in the ultimate file.
+  SourceRange getExpansionRange(SourceRange Range) const {
+    return SourceRange(getExpansionRange(Range.getBegin()).first,
+                       getExpansionRange(Range.getEnd()).second);
+  }
 
   /// \brief Given a SourceLocation object, return the spelling
   /// location referenced by the ID.

@@ -22,8 +22,9 @@ public:
 
   typedef uint64_t TargetPtrT;
 
-  RuntimeDyldMachOX86_64(RTDyldMemoryManager *MM)
-      : RuntimeDyldMachOCRTPBase(MM) {}
+  RuntimeDyldMachOX86_64(RuntimeDyld::MemoryManager &MM,
+                         RuntimeDyld::SymbolResolver &Resolver)
+      : RuntimeDyldMachOCRTPBase(MM, Resolver) {}
 
   unsigned getMaxStubSize() override { return 8; }
 
@@ -49,7 +50,7 @@ public:
 
     bool IsExtern = Obj.getPlainRelocationExternal(RelInfo);
     if (!IsExtern && RE.IsPCRel)
-      makeValueAddendPCRel(Value, Obj, RelI, 1 << RE.Size);
+      makeValueAddendPCRel(Value, RelI, 1 << RE.Size);
 
     if (RE.RelType == MachO::X86_64_RELOC_GOT ||
         RE.RelType == MachO::X86_64_RELOC_GOT_LOAD)

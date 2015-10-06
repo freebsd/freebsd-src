@@ -25,7 +25,7 @@
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Type.h"
 #include "llvm/Pass.h"
-#include "llvm/Target/TargetLibraryInfo.h"
+#include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/Transforms/Utils/Local.h"
 using namespace llvm;
 
@@ -43,7 +43,7 @@ namespace {
     void getAnalysisUsage(AnalysisUsage &AU) const override {
       AU.setPreservesCFG();
       AU.addRequired<AssumptionCacheTracker>();
-      AU.addRequired<TargetLibraryInfo>();
+      AU.addRequired<TargetLibraryInfoWrapperPass>();
     }
 
     /// runOnFunction - Remove instructions that simplify.
@@ -51,9 +51,9 @@ namespace {
       const DominatorTreeWrapperPass *DTWP =
           getAnalysisIfAvailable<DominatorTreeWrapperPass>();
       const DominatorTree *DT = DTWP ? &DTWP->getDomTree() : nullptr;
-      DataLayoutPass *DLP = getAnalysisIfAvailable<DataLayoutPass>();
-      const DataLayout *DL = DLP ? &DLP->getDataLayout() : nullptr;
-      const TargetLibraryInfo *TLI = &getAnalysis<TargetLibraryInfo>();
+      const DataLayout &DL = F.getParent()->getDataLayout();
+      const TargetLibraryInfo *TLI =
+          &getAnalysis<TargetLibraryInfoWrapperPass>().getTLI();
       AssumptionCache *AC =
           &getAnalysis<AssumptionCacheTracker>().getAssumptionCache(F);
       SmallPtrSet<const Instruction*, 8> S1, S2, *ToSimplify = &S1, *Next = &S2;
@@ -106,7 +106,7 @@ char InstSimplifier::ID = 0;
 INITIALIZE_PASS_BEGIN(InstSimplifier, "instsimplify",
                       "Remove redundant instructions", false, false)
 INITIALIZE_PASS_DEPENDENCY(AssumptionCacheTracker)
-INITIALIZE_PASS_DEPENDENCY(TargetLibraryInfo)
+INITIALIZE_PASS_DEPENDENCY(TargetLibraryInfoWrapperPass)
 INITIALIZE_PASS_END(InstSimplifier, "instsimplify",
                     "Remove redundant instructions", false, false)
 char &llvm::InstructionSimplifierID = InstSimplifier::ID;

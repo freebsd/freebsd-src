@@ -34,9 +34,9 @@ template<typename ValueSubClass, typename ItemParentClass>
 
 class GlobalVariable : public GlobalObject, public ilist_node<GlobalVariable> {
   friend class SymbolTableListTraits<GlobalVariable, Module>;
-  void *operator new(size_t, unsigned) LLVM_DELETED_FUNCTION;
-  void operator=(const GlobalVariable &) LLVM_DELETED_FUNCTION;
-  GlobalVariable(const GlobalVariable &) LLVM_DELETED_FUNCTION;
+  void *operator new(size_t, unsigned) = delete;
+  void operator=(const GlobalVariable &) = delete;
+  GlobalVariable(const GlobalVariable &) = delete;
 
   void setParent(Module *parent);
 
@@ -45,7 +45,6 @@ class GlobalVariable : public GlobalObject, public ilist_node<GlobalVariable> {
                                                // can change from its initial
                                                // value before global
                                                // initializers are run?
-
 public:
   // allocate space for exactly one operand
   void *operator new(size_t s) {
@@ -66,8 +65,9 @@ public:
                  ThreadLocalMode = NotThreadLocal, unsigned AddressSpace = 0,
                  bool isExternallyInitialized = false);
 
-  ~GlobalVariable() {
-    NumOperands = 1; // FIXME: needed by operator delete
+  ~GlobalVariable() override {
+    // FIXME: needed by operator delete
+    setGlobalVariableNumOperands(1);
   }
 
   /// Provide fast operand accessors
@@ -164,10 +164,6 @@ public:
   /// and deletes it.
   ///
   void eraseFromParent() override;
-
-  /// Override Constant's implementation of this method so we can
-  /// replace constant initializers.
-  void replaceUsesOfWithOnConstant(Value *From, Value *To, Use *U) override;
 
   // Methods for support type inquiry through isa, cast, and dyn_cast:
   static inline bool classof(const Value *V) {

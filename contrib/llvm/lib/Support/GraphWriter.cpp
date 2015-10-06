@@ -15,7 +15,6 @@
 #include "llvm/Config/config.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/FileSystem.h"
-#include "llvm/Support/Path.h"
 #include "llvm/Support/Program.h"
 using namespace llvm;
 
@@ -93,11 +92,12 @@ static bool ExecGraphViewer(StringRef ExecPath, std::vector<const char *> &args,
     errs() << " done. \n";
   } else {
     sys::ExecuteNoWait(ExecPath, args.data(), nullptr, nullptr, 0, &ErrMsg);
-    errs() << "Remember to erase graph file: " << Filename.str() << "\n";
+    errs() << "Remember to erase graph file: " << Filename << "\n";
   }
   return false;
 }
 
+namespace {
 struct GraphSession {
   std::string LogBuffer;
   bool TryFindProgram(StringRef Names, std::string &ProgramPath) {
@@ -114,6 +114,7 @@ struct GraphSession {
     return false;
   }
 };
+} // namespace
 
 static const char *getProgramName(GraphProgram::Name program) {
   switch (program) {
@@ -134,10 +135,33 @@ static const char *getProgramName(GraphProgram::Name program) {
 bool llvm::DisplayGraph(StringRef FilenameRef, bool wait,
                         GraphProgram::Name program) {
   std::string Filename = FilenameRef;
-  wait &= !ViewBackground;
   std::string ErrMsg;
   std::string ViewerPath;
   GraphSession S;
+
+#ifdef __APPLE__
+  wait &= !ViewBackground;
+  if (S.TryFindProgram("open", ViewerPath)) {
+    std::vector<const char *> args;
+    args.push_back(ViewerPath.c_str());
+    if (wait)
+      args.push_back("-W");
+    args.push_back(Filename.c_str());
+    args.push_back(nullptr);
+    errs() << "Trying 'open' program... ";
+    if (!ExecGraphViewer(ViewerPath, args, Filename, wait, ErrMsg))
+      return false;
+  }
+#endif
+  if (S.TryFindProgram("xdg-open", ViewerPath)) {
+    std::vector<const char *> args;
+    args.push_back(ViewerPath.c_str());
+    args.push_back(Filename.c_str());
+    args.push_back(nullptr);
+    errs() << "Trying 'xdg-open' program... ";
+    if (!ExecGraphViewer(ViewerPath, args, Filename, wait, ErrMsg))
+      return false;
+  }
 
   // Graphviz
   if (S.TryFindProgram("Graphviz", ViewerPath)) {

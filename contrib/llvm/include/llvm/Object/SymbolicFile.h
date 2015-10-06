@@ -45,7 +45,9 @@ inline bool operator<(const DataRefImpl &a, const DataRefImpl &b) {
   return std::memcmp(&a, &b, sizeof(DataRefImpl)) < 0;
 }
 
-template <class content_type> class content_iterator {
+template <class content_type>
+class content_iterator
+    : public std::iterator<std::forward_iterator_tag, content_type> {
   content_type Current;
 
 public:
@@ -87,9 +89,11 @@ public:
     SF_Absolute = 1U << 3,       // Absolute symbol
     SF_Common = 1U << 4,         // Symbol has common linkage
     SF_Indirect = 1U << 5,       // Symbol is an alias to another symbol
-    SF_FormatSpecific = 1U << 6, // Specific to the object file format
+    SF_Exported = 1U << 6,       // Symbol is visible to other DSOs
+    SF_FormatSpecific = 1U << 7, // Specific to the object file format
                                  // (e.g. section symbols)
-    SF_Thumb = 1U << 7           // Thumb symbol in a 32-bit ARM binary
+    SF_Thumb = 1U << 8,          // Thumb symbol in a 32-bit ARM binary
+    SF_Hidden = 1U << 9,         // Symbol has hidden visibility
   };
 
   BasicSymbolRef() : OwningObject(nullptr) { }
@@ -111,11 +115,9 @@ public:
 
 typedef content_iterator<BasicSymbolRef> basic_symbol_iterator;
 
-const uint64_t UnknownAddressOrSize = ~0ULL;
-
 class SymbolicFile : public Binary {
 public:
-  virtual ~SymbolicFile();
+  ~SymbolicFile() override;
   SymbolicFile(unsigned int Type, MemoryBufferRef Source);
 
   // virtual interface.

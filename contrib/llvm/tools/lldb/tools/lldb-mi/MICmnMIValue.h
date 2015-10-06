@@ -7,18 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-//++
-// File:        MICmnMIValue.h
-//
-// Overview:    CMICmnMIValue interface.
-//
-// Environment: Compilers:  Visual C++ 12.
-//                          gcc (Ubuntu/Linaro 4.8.1-10ubuntu9) 4.8.1
-//              Libraries:  See MIReadmetxt.
-//
-// Copyright:   None.
-//--
-
 #pragma once
 
 // In-house headers:
@@ -55,7 +43,7 @@ class CMICmnMIValue : public CMICmnBase
     // Overridden:
   public:
     // From CMICmnBase
-    /* dtor */ virtual ~CMICmnMIValue(void);
+    /* dtor */ ~CMICmnMIValue(void) override;
 
     // Attributes:
   protected:

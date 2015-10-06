@@ -16,7 +16,7 @@ class CCIfAlign<string Align, CCAction A> :
   CCIf<!strconcat("ArgFlags.getOrigAlign() == ", Align), A>;
 /// CCIfBigEndian - Match only if we're in big endian mode.
 class CCIfBigEndian<CCAction A> :
-  CCIf<"State.getMachineFunction().getSubtarget().getDataLayout()->isBigEndian()", A>;
+  CCIf<"State.getMachineFunction().getTarget().getDataLayout()->isBigEndian()", A>;
 
 //===----------------------------------------------------------------------===//
 // ARM AAPCS64 Calling Convention
@@ -39,6 +39,11 @@ def CC_AArch64_AAPCS : CallingConv<[
   // Put ByVal arguments directly on the stack. Minimum size and alignment of a
   // slot is 64-bit.
   CCIfByVal<CCPassByVal<8, 8>>,
+
+  // The 'nest' parameter, if any, is passed in X18.
+  // Darwin uses X18 as the platform register and hence 'nest' isn't currently
+  // supported there.
+  CCIfNest<CCAssignToReg<[X18]>>,
 
   CCIfConsecutiveRegs<CCCustom<"CC_AArch64_Custom_Block">>,
 

@@ -129,7 +129,7 @@ CLANG_NO_IAS=	 -no-integrated-as
 .endif
 CLANG_OPT_SMALL= -mstack-alignment=8 -mllvm -inline-threshold=3\
 		 -mllvm -simplifycfg-dup-ret
-.if ${COMPILER_VERSION} >= 30500
+.if ${COMPILER_VERSION} >= 30500 && ${COMPILER_VERSION} < 30700
 CLANG_OPT_SMALL+= -mllvm -enable-gvn=false
 .else
 CLANG_OPT_SMALL+= -mllvm -enable-load-pre=false

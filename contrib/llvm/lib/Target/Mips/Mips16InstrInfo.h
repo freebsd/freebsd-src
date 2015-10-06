@@ -18,7 +18,7 @@
 #include "MipsInstrInfo.h"
 
 namespace llvm {
-
+class MipsSubtarget;
 class Mips16InstrInfo : public MipsInstrInfo {
   const Mips16RegisterInfo RI;
 
@@ -77,7 +77,7 @@ public:
 
   /// Adjust SP by Amount bytes.
   void adjustStackPtr(unsigned SP, int64_t Amount, MachineBasicBlock &MBB,
-                      MachineBasicBlock::iterator I) const;
+                      MachineBasicBlock::iterator I) const override;
 
   /// Emit a series of instructions to load an immediate.
   // This is to adjust some FrameReg. We return the new register to be used

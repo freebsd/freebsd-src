@@ -88,56 +88,6 @@ IT(cl::desc("IT block support"), cl::Hidden, cl::init(DefaultIT),
                          "Allow IT blocks based on ARMv7"),
               clEnumValEnd));
 
-static std::string computeDataLayout(ARMSubtarget &ST) {
-  std::string Ret = "";
-
-  if (ST.isLittle())
-    // Little endian.
-    Ret += "e";
-  else
-    // Big endian.
-    Ret += "E";
-
-  Ret += DataLayout::getManglingComponent(ST.getTargetTriple());
-
-  // Pointers are 32 bits and aligned to 32 bits.
-  Ret += "-p:32:32";
-
-  // ABIs other than APCS have 64 bit integers with natural alignment.
-  if (!ST.isAPCS_ABI())
-    Ret += "-i64:64";
-
-  // We have 64 bits floats. The APCS ABI requires them to be aligned to 32
-  // bits, others to 64 bits. We always try to align to 64 bits.
-  if (ST.isAPCS_ABI())
-    Ret += "-f64:32:64";
-
-  // We have 128 and 64 bit vectors. The APCS ABI aligns them to 32 bits, others
-  // to 64. We always ty to give them natural alignment.
-  if (ST.isAPCS_ABI())
-    Ret += "-v64:32:64-v128:32:128";
-  else
-    Ret += "-v128:64:128";
-
-  // Try to align aggregates to 32 bits (the default is 64 bits, which has no
-  // particular hardware support on 32-bit ARM).
-  Ret += "-a:0:32";
-
-  // Integer registers are 32 bits.
-  Ret += "-n32";
-
-  // The stack is 128 bit aligned on NaCl, 64 bit aligned on AAPCS and 32 bit
-  // aligned everywhere else.
-  if (ST.isTargetNaCl())
-    Ret += "-S128";
-  else if (ST.isAAPCS_ABI())
-    Ret += "-S64";
-  else
-    Ret += "-S32";
-
-  return Ret;
-}
-
 /// initializeSubtargetDependencies - Initializes using a CPU and feature string
 /// so that we can use initializer lists for subtarget initialization.
 ARMSubtarget &ARMSubtarget::initializeSubtargetDependencies(StringRef CPU,
@@ -147,23 +97,30 @@ ARMSubtarget &ARMSubtarget::initializeSubtargetDependencies(StringRef CPU,
   return *this;
 }
 
-ARMSubtarget::ARMSubtarget(const std::string &TT, const std::string &CPU,
-                           const std::string &FS, const ARMBaseTargetMachine &TM,
-                           bool IsLittle)
+ARMFrameLowering *ARMSubtarget::initializeFrameLowering(StringRef CPU,
+                                                        StringRef FS) {
+  ARMSubtarget &STI = initializeSubtargetDependencies(CPU, FS);
+  if (STI.isThumb1Only())
+    return (ARMFrameLowering *)new Thumb1FrameLowering(STI);
+
+  return new ARMFrameLowering(STI);
+}
+
+ARMSubtarget::ARMSubtarget(const Triple &TT, const std::string &CPU,
+                           const std::string &FS,
+                           const ARMBaseTargetMachine &TM, bool IsLittle)
     : ARMGenSubtargetInfo(TT, CPU, FS), ARMProcFamily(Others),
       ARMProcClass(None), stackAlignment(4), CPUString(CPU), IsLittle(IsLittle),
       TargetTriple(TT), Options(TM.Options), TM(TM),
-      DL(computeDataLayout(initializeSubtargetDependencies(CPU, FS))),
-      TSInfo(DL),
+      FrameLowering(initializeFrameLowering(CPU, FS)),
+      // At this point initializeSubtargetDependencies has been called so
+      // we can query directly.
       InstrInfo(isThumb1Only()
                     ? (ARMBaseInstrInfo *)new Thumb1InstrInfo(*this)
                     : !isThumb()
                           ? (ARMBaseInstrInfo *)new ARMInstrInfo(*this)
                           : (ARMBaseInstrInfo *)new Thumb2InstrInfo(*this)),
-      TLInfo(TM),
-      FrameLowering(!isThumb1Only()
-                        ? new ARMFrameLowering(*this)
-                        : (ARMFrameLowering *)new Thumb1FrameLowering(*this)) {}
+      TLInfo(TM, *this) {}
 
 void ARMSubtarget::initializeEnvironment() {
   HasV4TOps = false;
@@ -171,9 +128,11 @@ void ARMSubtarget::initializeEnvironment() {
   HasV5TEOps = false;
   HasV6Ops = false;
   HasV6MOps = false;
+  HasV6KOps = false;
   HasV6T2Ops = false;
   HasV7Ops = false;
   HasV8Ops = false;
+  HasV8_1aOps = false;
   HasVFPv2 = false;
   HasVFPv3 = false;
   HasVFPv4 = false;
@@ -185,6 +144,7 @@ void ARMSubtarget::initializeEnvironment() {
   HasVMLxForwarding = false;
   SlowFPBrcc = false;
   InThumbMode = false;
+  UseSoftFloat = false;
   HasThumb2 = false;
   NoARM = false;
   IsR9Reserved = ReserveR9;
@@ -211,6 +171,7 @@ void ARMSubtarget::initializeEnvironment() {
   AllowsUnalignedMem = false;
   Thumb2DSP = false;
   UseNaClTrap = false;
+  GenLongCalls = false;
   UnsafeFPMath = false;
 }
 
@@ -226,11 +187,10 @@ void ARMSubtarget::initSubtargetFeatures(StringRef CPU, StringRef FS) {
   // Insert the architecture feature derived from the target triple into the
   // feature string. This is important for setting features that are implied
   // based on the architecture version.
-  std::string ArchFS =
-      ARM_MC::ParseARMTriple(TargetTriple.getTriple(), CPUString);
+  std::string ArchFS = ARM_MC::ParseARMTriple(TargetTriple, CPUString);
   if (!FS.empty()) {
     if (!ArchFS.empty())
-      ArchFS = ArchFS + "," + FS.str();
+      ArchFS = (Twine(ArchFS) + "," + FS).str();
     else
       ArchFS = FS;
   }
@@ -293,7 +253,7 @@ void ARMSubtarget::initSubtargetFeatures(StringRef CPU, StringRef FS) {
 
   switch (IT) {
   case DefaultIT:
-    RestrictIT = hasV8Ops() ? true : false;
+    RestrictIT = hasV8Ops();
     break;
   case RestrictedIT:
     RestrictIT = true;
@@ -304,8 +264,8 @@ void ARMSubtarget::initSubtargetFeatures(StringRef CPU, StringRef FS) {
   }
 
   // NEON f32 ops are non-IEEE 754 compliant. Darwin is ok with it by default.
-  uint64_t Bits = getFeatureBits();
-  if ((Bits & ARM::ProcA5 || Bits & ARM::ProcA8) && // Where this matters
+  const FeatureBitset &Bits = getFeatureBits();
+  if ((Bits[ARM::ProcA5] || Bits[ARM::ProcA8]) && // Where this matters
       (Options.UnsafeFPMath || isTargetDarwin()))
     UseNEONForSinglePrecisionFP = true;
 }
@@ -326,7 +286,7 @@ ARMSubtarget::GVIsIndirectSymbol(const GlobalValue *GV,
   if (RelocM == Reloc::Static)
     return false;
 
-  bool isDecl = GV->isDeclarationForLinker();
+  bool isDef = GV->isStrongDefinitionForLinker();
 
   if (!isTargetMachO()) {
     // Extra load is needed for all externally visible.
@@ -334,33 +294,21 @@ ARMSubtarget::GVIsIndirectSymbol(const GlobalValue *GV,
       return false;
     return true;
   } else {
+    // If this is a strong reference to a definition, it is definitely not
+    // through a stub.
+    if (isDef)
+      return false;
+
+    // Unless we have a symbol with hidden visibility, we have to go through a
+    // normal $non_lazy_ptr stub because this symbol might be resolved late.
+    if (!GV->hasHiddenVisibility())  // Non-hidden $non_lazy_ptr reference.
+      return true;
+
     if (RelocM == Reloc::PIC_) {
-      // If this is a strong reference to a definition, it is definitely not
-      // through a stub.
-      if (!isDecl && !GV->isWeakForLinker())
-        return false;
-
-      // Unless we have a symbol with hidden visibility, we have to go through a
-      // normal $non_lazy_ptr stub because this symbol might be resolved late.
-      if (!GV->hasHiddenVisibility())  // Non-hidden $non_lazy_ptr reference.
-        return true;
-
       // If symbol visibility is hidden, we have a stub for common symbol
       // references and external declarations.
-      if (isDecl || GV->hasCommonLinkage())
+      if (GV->isDeclarationForLinker() || GV->hasCommonLinkage())
         // Hidden $non_lazy_ptr reference.
-        return true;
-
-      return false;
-    } else {
-      // If this is a strong reference to a definition, it is definitely not
-      // through a stub.
-      if (!isDecl && !GV->isWeakForLinker())
-        return false;
-
-      // Unless we have a symbol with hidden visibility, we have to go through a
-      // normal $non_lazy_ptr stub because this symbol might be resolved late.
-      if (!GV->hasHiddenVisibility())  // Non-hidden $non_lazy_ptr reference.
         return true;
     }
   }
@@ -377,7 +325,7 @@ bool ARMSubtarget::hasSinCos() const {
 }
 
 // This overrides the PostRAScheduler bit in the SchedModel for any CPU.
-bool ARMSubtarget::enablePostMachineScheduler() const {
+bool ARMSubtarget::enablePostRAScheduler() const {
   return (!isThumb() || hasThumb2());
 }
 
@@ -390,6 +338,12 @@ bool ARMSubtarget::useMovt(const MachineFunction &MF) const {
   // immediates as it is inherently position independent, and may be out of
   // range otherwise.
   return UseMovt && (isTargetWindows() ||
-                     !MF.getFunction()->getAttributes().hasAttribute(
-                         AttributeSet::FunctionIndex, Attribute::MinSize));
+                     !MF.getFunction()->hasFnAttribute(Attribute::MinSize));
+}
+
+bool ARMSubtarget::useFastISel() const {
+  // Thumb2 support on iOS; ARM support on iOS, Linux and NaCl.
+  return TM.Options.EnableFastISel &&
+         ((isTargetMachO() && !isThumb1Only()) ||
+          (isTargetLinux() && !isThumb()) || (isTargetNaCl() && !isThumb()));
 }

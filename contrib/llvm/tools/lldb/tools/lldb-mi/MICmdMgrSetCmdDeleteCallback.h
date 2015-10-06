@@ -6,18 +6,6 @@
 // License. See LICENSE.TXT for details.
 //
 //===----------------------------------------------------------------------===//
-
-//++
-// File:        MICmdMgrSetCmdDeleteCallback.h
-//
-// Overview:    ICallback   interface.
-//              CSetClients interface.
-//
-// Environment: Compilers:  Visual C++ 12.
-//                          gcc (Ubuntu/Linaro 4.8.1-10ubuntu9) 4.8.1
-//              Libraries:  See MIReadmetxt.
-//
-// Copyright:   None.
 //--
 
 #pragma once
@@ -76,7 +64,7 @@ class CSetClients : public std::set<class ICallback *>, public CMICmnBase
     // Overridden:
   public:
     // From CMICmnBase
-    /* dtor */ virtual ~CSetClients(void);
+    /* dtor */ ~CSetClients(void) override;
 
     // Attributes:
   private:

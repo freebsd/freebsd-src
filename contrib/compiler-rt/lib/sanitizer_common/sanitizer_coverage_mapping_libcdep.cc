@@ -35,7 +35,6 @@
 
 namespace __sanitizer {
 
-static const uptr kMaxNumberOfModules = 1 << 14;
 static const uptr kMaxTextSize = 64 * 1024;
 
 struct CachedMapping {
@@ -96,32 +95,30 @@ void CovUpdateMapping(const char *coverage_dir, uptr caller_pc) {
     }
   }
 
-  int err;
+  error_t err;
   InternalScopedString tmp_path(64 + internal_strlen(coverage_dir));
   uptr res = internal_snprintf((char *)tmp_path.data(), tmp_path.size(),
                                "%s/%zd.sancov.map.tmp", coverage_dir,
                                internal_getpid());
   CHECK_LE(res, tmp_path.size());
-  uptr map_fd = OpenFile(tmp_path.data(), true);
-  if (internal_iserror(map_fd, &err)) {
-    Report(" Coverage: failed to open %s for writing: %d\n", tmp_path.data(),
+  fd_t map_fd = OpenFile(tmp_path.data(), WrOnly, &err);
+  if (map_fd == kInvalidFd) {
+    Report("Coverage: failed to open %s for writing: %d\n", tmp_path.data(),
            err);
     Die();
   }
 
-  res = internal_write(map_fd, text.data(), text.length());
-  if (internal_iserror(res, &err)) {
+  if (!WriteToFile(map_fd, text.data(), text.length(), nullptr, &err)) {
     Printf("sancov.map write failed: %d\n", err);
     Die();
   }
-  internal_close(map_fd);
+  CloseFile(map_fd);
 
   InternalScopedString path(64 + internal_strlen(coverage_dir));
   res = internal_snprintf((char *)path.data(), path.size(), "%s/%zd.sancov.map",
                           coverage_dir, internal_getpid());
   CHECK_LE(res, path.size());
-  res = internal_rename(tmp_path.data(), path.data());
-  if (internal_iserror(res, &err)) {
+  if (!RenameFile(tmp_path.data(), path.data(), &err)) {
     Printf("sancov.map rename failed: %d\n", err);
     Die();
   }

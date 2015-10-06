@@ -19,7 +19,8 @@
 #include "HexagonSubtarget.h"
 #include "HexagonTargetMachine.h"
 #include "MCTargetDesc/HexagonInstPrinter.h"
-#include "MCTargetDesc/HexagonMCInst.h"
+#include "MCTargetDesc/HexagonMCInstrInfo.h"
+#include "MCTargetDesc/HexagonMCShuffler.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringExtras.h"
@@ -61,6 +62,10 @@ static cl::opt<bool> AlignCalls(
          "hexagon-align-calls", cl::Hidden, cl::init(true),
           cl::desc("Insert falign after call instruction for Hexagon target"));
 
+HexagonAsmPrinter::HexagonAsmPrinter(TargetMachine &TM,
+                                     std::unique_ptr<MCStreamer> Streamer)
+    : AsmPrinter(TM, std::move(Streamer)), Subtarget(nullptr) {}
+
 void HexagonAsmPrinter::printOperand(const MachineInstr *MI, unsigned OpNo,
                                     raw_ostream &O) {
   const MachineOperand &MO = MI->getOperand(OpNo);
@@ -74,14 +79,14 @@ void HexagonAsmPrinter::printOperand(const MachineInstr *MI, unsigned OpNo,
     O << MO.getImm();
     return;
   case MachineOperand::MO_MachineBasicBlock:
-    O << *MO.getMBB()->getSymbol();
+    MO.getMBB()->getSymbol()->print(O, MAI);
     return;
   case MachineOperand::MO_ConstantPoolIndex:
-    O << *GetCPISymbol(MO.getIndex());
+    GetCPISymbol(MO.getIndex())->print(O, MAI);
     return;
   case MachineOperand::MO_GlobalAddress:
     // Computing the address of a global symbol, not calling it.
-    O << *getSymbol(MO.getGlobal());
+    getSymbol(MO.getGlobal())->print(O, MAI);
     printOffset(MO.getOffset(), O);
     return;
   }
@@ -173,66 +178,42 @@ bool HexagonAsmPrinter::PrintAsmMemoryOperand(const MachineInstr *MI,
 /// the current output stream.
 ///
 void HexagonAsmPrinter::EmitInstruction(const MachineInstr *MI) {
+  MCInst MCB;
+  MCB.setOpcode(Hexagon::BUNDLE);
+  MCB.addOperand(MCOperand::createImm(0));
+
   if (MI->isBundle()) {
-    std::vector<MachineInstr const *> BundleMIs;
-
-    const MachineBasicBlock *MBB = MI->getParent();
+    const MachineBasicBlock* MBB = MI->getParent();
     MachineBasicBlock::const_instr_iterator MII = MI;
-    ++MII;
-    unsigned int IgnoreCount = 0;
-    while (MII != MBB->end() && MII->isInsideBundle()) {
-      const MachineInstr *MInst = MII;
-      if (MInst->getOpcode() == TargetOpcode::DBG_VALUE ||
-        MInst->getOpcode() == TargetOpcode::IMPLICIT_DEF) {
-        IgnoreCount++;
-        ++MII;
-        continue;
-      }
-      // BundleMIs.push_back(&*MII);
-      BundleMIs.push_back(MInst);
-      ++MII;
-    }
-    unsigned Size = BundleMIs.size();
-    assert((Size + IgnoreCount) == MI->getBundleSize() && "Corrupt Bundle!");
-    for (unsigned Index = 0; Index < Size; Index++) {
-      HexagonMCInst MCI;
+    unsigned IgnoreCount = 0;
 
-      HexagonLowerToMC(BundleMIs[Index], MCI, *this);
-      HexagonMCInst::AppendImplicitOperands(MCI);
-      MCI.setPacketBegin(Index == 0);
-      MCI.setPacketEnd(Index == (Size - 1));
-      EmitToStreamer(OutStreamer, MCI);
+    for (++MII; MII != MBB->end() && MII->isInsideBundle(); ++MII) {
+      if (MII->getOpcode() == TargetOpcode::DBG_VALUE ||
+          MII->getOpcode() == TargetOpcode::IMPLICIT_DEF)
+        ++IgnoreCount;
+      else {
+        HexagonLowerToMC(MII, MCB, *this);
+      }
     }
   }
   else {
-    HexagonMCInst MCI;
-    HexagonLowerToMC(MI, MCI, *this);
-    HexagonMCInst::AppendImplicitOperands(MCI);
-    if (MI->getOpcode() == Hexagon::ENDLOOP0) {
-      MCI.setPacketBegin(true);
-      MCI.setPacketEnd(true);
-    }
-    EmitToStreamer(OutStreamer, MCI);
+    HexagonLowerToMC(MI, MCB, *this);
+    HexagonMCInstrInfo::padEndloop(MCB);
   }
-
-  return;
-}
-
-static MCInstPrinter *createHexagonMCInstPrinter(const Target &T,
-                                                 unsigned SyntaxVariant,
-                                                 const MCAsmInfo &MAI,
-                                                 const MCInstrInfo &MII,
-                                                 const MCRegisterInfo &MRI,
-                                                 const MCSubtargetInfo &STI) {
-  if (SyntaxVariant == 0)
-    return(new HexagonInstPrinter(MAI, MII, MRI));
-  else
-   return nullptr;
+  // Examine the packet and try to find instructions that can be converted
+  // to compounds.
+  HexagonMCInstrInfo::tryCompound(*Subtarget->getInstrInfo(),
+                                  OutStreamer->getContext(), MCB);
+  // Examine the packet and convert pairs of instructions to duplex
+  // instructions when possible.
+  SmallVector<DuplexCandidate, 8> possibleDuplexes;
+  possibleDuplexes = HexagonMCInstrInfo::getDuplexPossibilties(
+      *Subtarget->getInstrInfo(), MCB);
+  HexagonMCShuffle(*Subtarget->getInstrInfo(), *Subtarget,
+                   OutStreamer->getContext(), MCB, possibleDuplexes);
+  EmitToStreamer(*OutStreamer, MCB);
 }
 
 extern "C" void LLVMInitializeHexagonAsmPrinter() {
   RegisterAsmPrinter<HexagonAsmPrinter> X(TheHexagonTarget);
-
-  TargetRegistry::RegisterMCInstPrinter(TheHexagonTarget,
-                                        createHexagonMCInstPrinter);
 }

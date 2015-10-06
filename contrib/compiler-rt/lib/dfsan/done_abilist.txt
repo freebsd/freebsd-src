@@ -258,3 +258,18 @@ fun:reflect.MakeFuncStubGo=uninstrumented
 fun:reflect.MakeFuncStubGo=discard
 fun:reflect.makeFuncStub=uninstrumented
 fun:reflect.makeFuncStub=discard
+
+
+###############################################################################
+# lib/Fuzzer
+###############################################################################
+# Replaces __sanitizer_cov_trace_cmp with __dfsw___sanitizer_cov_trace_cmp
+fun:__sanitizer_cov_trace_cmp=custom
+fun:__sanitizer_cov_trace_cmp=uninstrumented
+
+# Ignores all other __sanitizer callbacks.
+fun:__sanitizer_*=uninstrumented
+fun:__sanitizer_*=discard
+
+# Don't add extra parameters to the Fuzzer callback.
+fun:LLVMFuzzerTestOneInput=uninstrumented

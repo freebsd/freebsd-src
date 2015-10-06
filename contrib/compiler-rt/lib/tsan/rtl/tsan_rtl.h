@@ -313,7 +313,7 @@ class Shadow : public FastState {
   }
 };
 
-struct SignalContext;
+struct ThreadSignalContext;
 
 struct JmpBuf {
   uptr sp;
@@ -371,6 +371,7 @@ struct ThreadState {
   const int unique_id;
   bool in_symbolizer;
   bool in_ignored_lib;
+  bool is_inited;
   bool is_dead;
   bool is_freeing;
   bool is_vptr_access;
@@ -387,7 +388,7 @@ struct ThreadState {
   DDLogicalThread *dd_lt;
 
   atomic_uintptr_t in_signal_handler;
-  SignalContext *signal_ctx;
+  ThreadSignalContext *signal_ctx;
 
   DenseSlabAllocCache block_cache;
   DenseSlabAllocCache sync_cache;
@@ -430,13 +431,13 @@ class ThreadContext : public ThreadContextBase {
   u64 epoch1;
 
   // Override superclass callbacks.
-  void OnDead();
-  void OnJoined(void *arg);
-  void OnFinished();
-  void OnStarted(void *arg);
-  void OnCreated(void *arg);
-  void OnReset();
-  void OnDetached(void *arg);
+  void OnDead() override;
+  void OnJoined(void *arg) override;
+  void OnFinished() override;
+  void OnStarted(void *arg) override;
+  void OnCreated(void *arg) override;
+  void OnReset() override;
+  void OnDetached(void *arg) override;
 };
 
 struct RacyStacks {
@@ -573,7 +574,7 @@ void ALWAYS_INLINE StatSet(ThreadState *thr, StatType typ, u64 n) {
 }
 
 void MapShadow(uptr addr, uptr size);
-void MapThreadTrace(uptr addr, uptr size);
+void MapThreadTrace(uptr addr, uptr size, const char *name);
 void DontNeedShadowFor(uptr addr, uptr size);
 void InitializeShadowMemory();
 void InitializeInterceptors();

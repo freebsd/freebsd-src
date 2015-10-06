@@ -303,8 +303,8 @@ INTERFACE_FUNCTION(__sanitizer_cov_init)
 INTERFACE_FUNCTION(__sanitizer_cov_module_init)
 INTERFACE_FUNCTION(__sanitizer_cov_trace_basic_block)
 INTERFACE_FUNCTION(__sanitizer_cov_trace_func_enter)
+INTERFACE_FUNCTION(__sanitizer_cov_trace_cmp)
 INTERFACE_FUNCTION(__sanitizer_cov_with_check)
-INTERFACE_FUNCTION(__sanitizer_free_hook)
 INTERFACE_FUNCTION(__sanitizer_get_allocated_size)
 INTERFACE_FUNCTION(__sanitizer_get_coverage_guards)
 INTERFACE_FUNCTION(__sanitizer_get_current_allocated_bytes)
@@ -314,13 +314,14 @@ INTERFACE_FUNCTION(__sanitizer_get_heap_size)
 INTERFACE_FUNCTION(__sanitizer_get_ownership)
 INTERFACE_FUNCTION(__sanitizer_get_total_unique_coverage)
 INTERFACE_FUNCTION(__sanitizer_get_unmapped_bytes)
-INTERFACE_FUNCTION(__sanitizer_malloc_hook)
 INTERFACE_FUNCTION(__sanitizer_maybe_open_cov_file)
 INTERFACE_FUNCTION(__sanitizer_print_stack_trace)
 INTERFACE_FUNCTION(__sanitizer_ptr_cmp)
 INTERFACE_FUNCTION(__sanitizer_ptr_sub)
 INTERFACE_FUNCTION(__sanitizer_report_error_summary)
 INTERFACE_FUNCTION(__sanitizer_reset_coverage)
+INTERFACE_FUNCTION(__sanitizer_get_number_of_counters)
+INTERFACE_FUNCTION(__sanitizer_update_counter_bitset_and_clear_counters)
 INTERFACE_FUNCTION(__sanitizer_sandbox_on_notify)
 INTERFACE_FUNCTION(__sanitizer_set_death_callback)
 INTERFACE_FUNCTION(__sanitizer_set_report_path)
@@ -380,11 +381,15 @@ INTERCEPT_LIBRARY_FUNCTION(strcat);  // NOLINT
 INTERCEPT_LIBRARY_FUNCTION(strchr);
 INTERCEPT_LIBRARY_FUNCTION(strcmp);
 INTERCEPT_LIBRARY_FUNCTION(strcpy);  // NOLINT
+INTERCEPT_LIBRARY_FUNCTION(strcspn);
 INTERCEPT_LIBRARY_FUNCTION(strlen);
 INTERCEPT_LIBRARY_FUNCTION(strncat);
 INTERCEPT_LIBRARY_FUNCTION(strncmp);
 INTERCEPT_LIBRARY_FUNCTION(strncpy);
 INTERCEPT_LIBRARY_FUNCTION(strnlen);
+INTERCEPT_LIBRARY_FUNCTION(strpbrk);
+INTERCEPT_LIBRARY_FUNCTION(strspn);
+INTERCEPT_LIBRARY_FUNCTION(strstr);
 INTERCEPT_LIBRARY_FUNCTION(strtol);
 INTERCEPT_LIBRARY_FUNCTION(wcslen);
 

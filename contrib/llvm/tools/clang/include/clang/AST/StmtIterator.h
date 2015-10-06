@@ -32,8 +32,10 @@ protected:
   enum { StmtMode = 0x0, SizeOfTypeVAMode = 0x1, DeclGroupMode = 0x2,
          Flags = 0x3 };
   
-  Stmt **stmt;
-  Decl **DGI;
+  union {
+    Stmt **stmt;
+    Decl **DGI;
+  };
   uintptr_t RawVAPtr;
   Decl **DGE;
   
@@ -64,10 +66,10 @@ protected:
 
   Stmt*& GetDeclExpr() const;
 
-  StmtIteratorBase(Stmt **s) : stmt(s), DGI(nullptr), RawVAPtr(0) {}
+  StmtIteratorBase(Stmt **s) : stmt(s), RawVAPtr(0) {}
   StmtIteratorBase(const VariableArrayType *t);
   StmtIteratorBase(Decl **dgi, Decl **dge);
-  StmtIteratorBase() : stmt(nullptr), DGI(nullptr), RawVAPtr(0) {}
+  StmtIteratorBase() : stmt(nullptr), RawVAPtr(0) {}
 };
 
 
@@ -148,7 +150,7 @@ struct StmtRange : std::pair<StmtIterator,StmtIterator> {
     : std::pair<StmtIterator,StmtIterator>(begin, end) {}
 
   bool empty() const { return first == second; }
-  LLVM_EXPLICIT operator bool() const { return !empty(); }
+  explicit operator bool() const { return !empty(); }
 
   Stmt *operator->() const { return first.operator->(); }
   Stmt *&operator*() const { return first.operator*(); }
@@ -191,7 +193,7 @@ struct ConstStmtRange : std::pair<ConstStmtIterator,ConstStmtIterator> {
     : std::pair<ConstStmtIterator,ConstStmtIterator>(begin, end) {}
 
   bool empty() const { return first == second; }
-  LLVM_EXPLICIT operator bool() const { return !empty(); }
+  explicit operator bool() const { return !empty(); }
 
   const Stmt *operator->() const { return first.operator->(); }
   const Stmt *operator*() const { return first.operator*(); }

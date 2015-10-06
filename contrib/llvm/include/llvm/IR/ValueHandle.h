@@ -58,7 +58,7 @@ private:
 
   Value* V;
 
-  ValueHandleBase(const ValueHandleBase&) LLVM_DELETED_FUNCTION;
+  ValueHandleBase(const ValueHandleBase&) = delete;
 public:
   explicit ValueHandleBase(HandleBaseKind Kind)
     : PrevPair(nullptr, Kind), Next(nullptr), V(nullptr) {}
@@ -159,11 +159,13 @@ public:
 
 // Specialize simplify_type to allow WeakVH to participate in
 // dyn_cast, isa, etc.
-template<> struct simplify_type<WeakVH> {
-  typedef Value* SimpleType;
-  static SimpleType getSimplifiedValue(WeakVH &WVH) {
-    return WVH;
-  }
+template <> struct simplify_type<WeakVH> {
+  typedef Value *SimpleType;
+  static SimpleType getSimplifiedValue(WeakVH &WVH) { return WVH; }
+};
+template <> struct simplify_type<const WeakVH> {
+  typedef Value *SimpleType;
+  static SimpleType getSimplifiedValue(const WeakVH &WVH) { return WVH; }
 };
 
 /// \brief Value handle that asserts if the Value is deleted.

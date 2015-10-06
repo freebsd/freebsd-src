@@ -17,6 +17,7 @@
 #if SANITIZER_FREEBSD || SANITIZER_LINUX
 #include "sanitizer_common.h"
 #include "sanitizer_internal_defs.h"
+#include "sanitizer_posix.h"
 #include "sanitizer_platform_limits_posix.h"
 
 struct link_map;  // Opaque type returned by dlopen().
@@ -79,11 +80,6 @@ uptr ThreadSelfOffset();
 // Matches a library's file name against a base name (stripping path and version
 // information).
 bool LibraryNameIs(const char *full_name, const char *base_name);
-
-// Read the name of the current binary from /proc/self/exe.
-uptr ReadBinaryName(/*out*/char *buf, uptr buf_len);
-// Cache the value of /proc/self/exe.
-void CacheBinaryName();
 
 // Call cb for each region mapped by map.
 void ForEachMappedRegion(link_map *map, void (*cb)(const void *, uptr));

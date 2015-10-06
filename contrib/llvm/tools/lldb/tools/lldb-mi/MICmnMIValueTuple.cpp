@@ -7,18 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-//++
-// File:        MICmnMIValueTuple.h
-//
-// Overview:    CMICmnMIValueTuple implementation.
-//
-// Environment: Compilers:  Visual C++ 12.
-//                          gcc (Ubuntu/Linaro 4.8.1-10ubuntu9) 4.8.1
-//              Libraries:  See MIReadmetxt.
-//
-// Copyright:   None.
-//--
-
 // In-house headers:
 #include "MICmnMIValueTuple.h"
 
@@ -54,7 +42,7 @@ CMICmnMIValueTuple::CMICmnMIValueTuple(const CMICmnMIValueResult &vResult)
 // Details: CMICmnMIValueTuple constructor.
 // Type:    Method.
 // Args:    vResult         - (R) MI result object.
-//          vbUseSpacing    - (R) True = put space seperators into the string, false = no spaces used.
+//          vbUseSpacing    - (R) True = put space separators into the string, false = no spaces used.
 // Return:  None.
 // Throws:  None.
 //--
@@ -88,7 +76,7 @@ CMICmnMIValueTuple::~CMICmnMIValueTuple(void)
 bool
 CMICmnMIValueTuple::BuildTuple(void)
 {
-    const MIchar *pFormat = "{%s}";
+    const char *pFormat = "{%s}";
     m_strValue = CMIUtilString::Format(pFormat, m_strValue.c_str());
 
     return MIstatus::success;
@@ -122,7 +110,7 @@ CMICmnMIValueTuple::BuildTuple(const CMICmnMIValueResult &vResult)
         m_strValue = m_strValue.substr(0, m_strValue.size() - 1);
     }
 
-    const MIchar *pFormat = m_bSpaceAfterComma ? "{%s, %s}" : "{%s,%s}";
+    const char *pFormat = m_bSpaceAfterComma ? "{%s, %s}" : "{%s,%s}";
     m_strValue = CMIUtilString::Format(pFormat, m_strValue.c_str(), vResult.GetString().c_str());
 
     return MIstatus::success;
@@ -148,7 +136,7 @@ CMICmnMIValueTuple::BuildTuple(const CMIUtilString &vValue)
     }
 
     const CMIUtilString data(ExtractContentNoBrackets());
-    const MIchar *pFormat = m_bSpaceAfterComma ? "{%s, %s}" : "{%s,%s}";
+    const char *pFormat = m_bSpaceAfterComma ? "{%s, %s}" : "{%s,%s}";
     m_strValue = CMIUtilString::Format(pFormat, data.c_str(), vValue.c_str());
 
     return MIstatus::success;
@@ -176,7 +164,7 @@ CMICmnMIValueTuple::Add(const CMICmnMIValueResult &vResult)
 //          will return MIstatus::failure.
 // Type:    Method.
 // Args:    vValue          - (R) The MI value object.
-//          vbUseSpacing    - (R) True = put space seperators into the string, false = no spaces used.
+//          vbUseSpacing    - (R) True = put space separators into the string, false = no spaces used.
 // Return:  MIstatus::success - Functional succeeded.
 //          MIstatus::failure - Functional failed.
 // Throws:  None.
@@ -194,7 +182,7 @@ CMICmnMIValueTuple::Add(const CMICmnMIValueResult &vResult, const bool vbUseSpac
 //          will return MIstatus::failure.
 // Type:    Method.
 // Args:    vValue          - (R) The MI value object.
-//          vbUseSpacing    - (R) True = put space seperators into the string, false = no spaces used.
+//          vbUseSpacing    - (R) True = put space separators into the string, false = no spaces used.
 // Return:  MIstatus::success - Functional succeeded.
 //          MIstatus::failure - Functional failed.
 // Throws:  None.

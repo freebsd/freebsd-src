@@ -198,6 +198,21 @@ SymbolVendor::ParseCompileUnitSupportFiles (const SymbolContext& sc, FileSpecLis
     return false;
 }
 
+bool
+SymbolVendor::ParseImportedModules (const SymbolContext &sc,
+                                    std::vector<ConstString> &imported_modules)
+{
+    ModuleSP module_sp(GetModule());
+    if (module_sp)
+    {
+        lldb_private::Mutex::Locker locker(module_sp->GetMutex());
+        if (m_sym_file_ap.get())
+            return m_sym_file_ap->ParseImportedModules(sc, imported_modules);
+    }
+    return false;
+    
+}
+
 size_t
 SymbolVendor::ParseFunctionBlocks (const SymbolContext &sc)
 {
@@ -380,6 +395,8 @@ SymbolVendor::Dump(Stream *s)
     ModuleSP module_sp(GetModule());
     if (module_sp)
     {
+        lldb_private::Mutex::Locker locker(module_sp->GetMutex());
+
         bool show_context = false;
 
         s->Printf("%p: ", static_cast<void*>(this));
@@ -423,6 +440,7 @@ SymbolVendor::GetCompileUnitAtIndex(size_t idx)
     ModuleSP module_sp(GetModule());
     if (module_sp)
     {
+        lldb_private::Mutex::Locker locker(module_sp->GetMutex());
         const size_t num_compile_units = GetNumCompileUnits();
         if (idx < num_compile_units)
         {
@@ -435,6 +453,19 @@ SymbolVendor::GetCompileUnitAtIndex(size_t idx)
         }
     }
     return cu_sp;
+}
+
+FileSpec
+SymbolVendor::GetMainFileSpec() const
+{
+    if (m_sym_file_ap.get())
+    {
+        const ObjectFile *symfile_objfile = m_sym_file_ap->GetObjectFile();
+        if (symfile_objfile)
+            return symfile_objfile->GetFileSpec();
+    }
+
+    return FileSpec();
 }
 
 Symtab *

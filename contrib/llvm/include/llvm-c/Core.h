@@ -161,14 +161,15 @@ typedef enum {
     /* FIXME: These attributes are currently not included in the C API as
        a temporary measure until the API/ABI impact to the C API is understood
        and the path forward agreed upon.
-    LLVMAddressSafety = 1ULL << 32,
-    LLVMStackProtectStrongAttribute = 1ULL<<33,
-    LLVMCold = 1ULL << 34,
-    LLVMOptimizeNone = 1ULL << 35,
-    LLVMInAllocaAttribute = 1ULL << 36,
-    LLVMNonNullAttribute = 1ULL << 37,
-    LLVMJumpTableAttribute = 1ULL << 38,
-    LLVMDereferenceableAttribute = 1ULL << 39,
+    LLVMSanitizeAddressAttribute = 1ULL << 32,
+    LLVMStackProtectStrongAttribute = 1ULL<<35,
+    LLVMColdAttribute = 1ULL << 40,
+    LLVMOptimizeNoneAttribute = 1ULL << 42,
+    LLVMInAllocaAttribute = 1ULL << 43,
+    LLVMNonNullAttribute = 1ULL << 44,
+    LLVMJumpTableAttribute = 1ULL << 45,
+    LLVMConvergentAttribute = 1ULL << 46,
+    LLVMSafeStackAttribute = 1ULL << 47,
     */
 } LLVMAttribute;
 
@@ -995,6 +996,13 @@ unsigned LLVMCountStructElementTypes(LLVMTypeRef StructTy);
  * is contained in.
  */
 void LLVMGetStructElementTypes(LLVMTypeRef StructTy, LLVMTypeRef *Dest);
+
+/**
+ * Get the type of the element at a given index in the structure.
+ *
+ * @see llvm::StructType::getTypeAtIndex()
+ */
+LLVMTypeRef LLVMStructGetTypeAtIndex(LLVMTypeRef StructTy, unsigned i);
 
 /**
  * Determine whether a structure is packed.
@@ -1880,6 +1888,20 @@ LLVMValueRef LLVMAddAlias(LLVMModuleRef M, LLVMTypeRef Ty, LLVMValueRef Aliasee,
 void LLVMDeleteFunction(LLVMValueRef Fn);
 
 /**
+ * Obtain the personality function attached to the function.
+ *
+ * @see llvm::Function::getPersonalityFn()
+ */
+LLVMValueRef LLVMGetPersonalityFn(LLVMValueRef Fn);
+
+/**
+ * Set the personality function attached to the function.
+ *
+ * @see llvm::Function::setPersonalityFn()
+ */
+void LLVMSetPersonalityFn(LLVMValueRef Fn, LLVMValueRef PersonalityFn);
+
+/**
  * Obtain the ID number from a function instance.
  *
  * @see llvm::Function::getIntrinsicID()
@@ -2653,8 +2675,7 @@ LLVMValueRef LLVMBuildInvoke(LLVMBuilderRef, LLVMValueRef Fn,
                              LLVMBasicBlockRef Then, LLVMBasicBlockRef Catch,
                              const char *Name);
 LLVMValueRef LLVMBuildLandingPad(LLVMBuilderRef B, LLVMTypeRef Ty,
-                                 LLVMValueRef PersFn, unsigned NumClauses,
-                                 const char *Name);
+                                 unsigned NumClauses, const char *Name);
 LLVMValueRef LLVMBuildResume(LLVMBuilderRef B, LLVMValueRef Exn);
 LLVMValueRef LLVMBuildUnreachable(LLVMBuilderRef);
 

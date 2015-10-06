@@ -7,18 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-//++
-// File:        MICmdArgValListBase.h
-//
-// Overview:    CMICmdArgValListBase interface.
-//
-// Environment: Compilers:  Visual C++ 12.
-//                          gcc (Ubuntu/Linaro 4.8.1-10ubuntu9) 4.8.1
-//              Libraries:  See MIReadmetxt.
-//
-// Copyright:   None.
-//--
-
 #pragma once
 
 // Third party headers:
@@ -87,7 +75,7 @@ class CMICmdArgValListBase : public CMICmdArgValBaseTemplate<std::vector<CMICmdA
     // Overridden:
   public:
     // From CMICmdArgValBase
-    /* dtor */ virtual ~CMICmdArgValListBase(void);
+    /* dtor */ ~CMICmdArgValListBase(void) override;
 
     // Methods:
   protected:

@@ -26,7 +26,6 @@
 // Other libraries and framework includes
 // Project includes
 #include "llvm/Support/MathExtras.h"
-#include "lldb/lldb-private-log.h"
 #include "lldb/Core/Communication.h"
 #include "lldb/Core/Log.h"
 
@@ -105,6 +104,13 @@ ConnectionSharedMemory::Write (const void *src, size_t src_len, ConnectionStatus
 {
     status = eConnectionStatusSuccess;
     return 0;
+}
+
+std::string
+ConnectionSharedMemory::GetURI()
+{
+    // TODO: fix when Connect is fixed?
+    return "";
 }
 
 ConnectionStatus

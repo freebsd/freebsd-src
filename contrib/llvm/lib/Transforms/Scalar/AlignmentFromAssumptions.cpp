@@ -23,15 +23,15 @@
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Analysis/AssumptionCache.h"
 #include "llvm/Analysis/LoopInfo.h"
-#include "llvm/Analysis/ValueTracking.h"
 #include "llvm/Analysis/ScalarEvolution.h"
 #include "llvm/Analysis/ScalarEvolutionExpressions.h"
+#include "llvm/Analysis/ValueTracking.h"
 #include "llvm/IR/Constant.h"
 #include "llvm/IR/Dominators.h"
 #include "llvm/IR/Instruction.h"
 #include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/Intrinsics.h"
-#include "llvm/IR/DataLayout.h"
+#include "llvm/IR/Module.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
 using namespace llvm;
@@ -50,15 +50,15 @@ struct AlignmentFromAssumptions : public FunctionPass {
     initializeAlignmentFromAssumptionsPass(*PassRegistry::getPassRegistry());
   }
 
-  bool runOnFunction(Function &F);
+  bool runOnFunction(Function &F) override;
 
-  virtual void getAnalysisUsage(AnalysisUsage &AU) const {
+  void getAnalysisUsage(AnalysisUsage &AU) const override {
     AU.addRequired<AssumptionCacheTracker>();
     AU.addRequired<ScalarEvolution>();
     AU.addRequired<DominatorTreeWrapperPass>();
 
     AU.setPreservesCFG();
-    AU.addPreserved<LoopInfo>();
+    AU.addPreserved<LoopInfoWrapperPass>();
     AU.addPreserved<DominatorTreeWrapperPass>();
     AU.addPreserved<ScalarEvolution>();
   }
@@ -71,7 +71,6 @@ struct AlignmentFromAssumptions : public FunctionPass {
 
   ScalarEvolution *SE;
   DominatorTree *DT;
-  const DataLayout *DL;
 
   bool extractAlignmentInfo(CallInst *I, Value *&AAPtr, const SCEV *&AlignSCEV,
                             const SCEV *&OffSCEV);
@@ -123,7 +122,7 @@ static unsigned getNewAlignmentDiff(const SCEV *DiffSCEV,
 
     // If the displacement is not an exact multiple, but the remainder is a
     // constant, then return this remainder (but only if it is a power of 2).
-    uint64_t DiffUnitsAbs = abs64(DiffUnits);
+    uint64_t DiffUnitsAbs = std::abs(DiffUnits);
     if (isPowerOf2_64(DiffUnitsAbs))
       return (unsigned) DiffUnitsAbs;
   }
@@ -316,7 +315,7 @@ bool AlignmentFromAssumptions::processAssumption(CallInst *ACall) {
       continue;
 
     if (Instruction *K = dyn_cast<Instruction>(J))
-      if (isValidAssumeForContext(ACall, K, DL, DT))
+      if (isValidAssumeForContext(ACall, K, DT))
         WorkList.push_back(K);
   }
 
@@ -400,7 +399,7 @@ bool AlignmentFromAssumptions::processAssumption(CallInst *ACall) {
     Visited.insert(J);
     for (User *UJ : J->users()) {
       Instruction *K = cast<Instruction>(UJ);
-      if (!Visited.count(K) && isValidAssumeForContext(ACall, K, DL, DT))
+      if (!Visited.count(K) && isValidAssumeForContext(ACall, K, DT))
         WorkList.push_back(K);
     }
   }
@@ -413,8 +412,6 @@ bool AlignmentFromAssumptions::runOnFunction(Function &F) {
   auto &AC = getAnalysis<AssumptionCacheTracker>().getAssumptionCache(F);
   SE = &getAnalysis<ScalarEvolution>();
   DT = &getAnalysis<DominatorTreeWrapperPass>().getDomTree();
-  DataLayoutPass *DLP = getAnalysisIfAvailable<DataLayoutPass>();
-  DL = DLP ? &DLP->getDataLayout() : nullptr;
 
   NewDestAlignments.clear();
   NewSrcAlignments.clear();

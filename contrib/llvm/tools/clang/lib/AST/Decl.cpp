@@ -44,6 +44,12 @@ bool Decl::isOutOfLine() const {
   return !getLexicalDeclContext()->Equals(getDeclContext());
 }
 
+TranslationUnitDecl::TranslationUnitDecl(ASTContext &ctx)
+    : Decl(TranslationUnit, nullptr, SourceLocation()),
+      DeclContext(TranslationUnit), Ctx(ctx), AnonymousNamespace(nullptr) {
+  Hidden = Ctx.getLangOpts().ModulesLocalVisibility;
+}
+
 //===----------------------------------------------------------------------===//
 // NamedDecl Implementation
 //===----------------------------------------------------------------------===//
@@ -894,13 +900,13 @@ static LinkageInfo getLVForClassMember(const NamedDecl *D,
   if (const CXXMethodDecl *MD = dyn_cast<CXXMethodDecl>(D)) {
     // If the type of the function uses a type with unique-external
     // linkage, it's not legally usable from outside this translation unit.
-    // But only look at the type-as-written. If this function has an auto-deduced
-    // return type, we can't compute the linkage of that type because it could
-    // require looking at the linkage of this function, and we don't need this
-    // for correctness because the type is not part of the function's
-    // signature.
-    // FIXME: This is a hack. We should be able to solve this circularity and the
-    // one in getLVForNamespaceScopeDecl for Functions some other way.
+    // But only look at the type-as-written. If this function has an
+    // auto-deduced return type, we can't compute the linkage of that type
+    // because it could require looking at the linkage of this function, and we
+    // don't need this for correctness because the type is not part of the
+    // function's signature.
+    // FIXME: This is a hack. We should be able to solve this circularity and
+    // the one in getLVForNamespaceScopeDecl for Functions some other way.
     {
       QualType TypeAsWritten = MD->getType();
       if (TypeSourceInfo *TSI = MD->getTypeSourceInfo())
@@ -1445,74 +1451,127 @@ void NamedDecl::getNameForDiagnostic(raw_ostream &OS,
     printName(OS);
 }
 
-bool NamedDecl::declarationReplaces(NamedDecl *OldD) const {
+static bool isKindReplaceableBy(Decl::Kind OldK, Decl::Kind NewK) {
+  // For method declarations, we never replace.
+  if (ObjCMethodDecl::classofKind(NewK))
+    return false;
+
+  if (OldK == NewK)
+    return true;
+
+  // A compatibility alias for a class can be replaced by an interface.
+  if (ObjCCompatibleAliasDecl::classofKind(OldK) &&
+      ObjCInterfaceDecl::classofKind(NewK))
+    return true;
+
+  // A typedef-declaration, alias-declaration, or Objective-C class declaration
+  // can replace another declaration of the same type. Semantic analysis checks
+  // that we have matching types.
+  if ((TypedefNameDecl::classofKind(OldK) ||
+       ObjCInterfaceDecl::classofKind(OldK)) &&
+      (TypedefNameDecl::classofKind(NewK) ||
+       ObjCInterfaceDecl::classofKind(NewK)))
+    return true;
+
+  // Otherwise, a kind mismatch implies that the declaration is not replaced.
+  return false;
+}
+
+template<typename T> static bool isRedeclarableImpl(Redeclarable<T> *) {
+  return true;
+}
+static bool isRedeclarableImpl(...) { return false; }
+static bool isRedeclarable(Decl::Kind K) {
+  switch (K) {
+#define DECL(Type, Base) \
+  case Decl::Type: \
+    return isRedeclarableImpl((Type##Decl *)nullptr);
+#define ABSTRACT_DECL(DECL)
+#include "clang/AST/DeclNodes.inc"
+  }
+  llvm_unreachable("unknown decl kind");
+}
+
+bool NamedDecl::declarationReplaces(NamedDecl *OldD, bool IsKnownNewer) const {
   assert(getDeclName() == OldD->getDeclName() && "Declaration name mismatch");
 
-  // UsingDirectiveDecl's are not really NamedDecl's, and all have same name.
-  // We want to keep it, unless it nominates same namespace.
-  if (getKind() == Decl::UsingDirective) {
-    return cast<UsingDirectiveDecl>(this)->getNominatedNamespace()
-             ->getOriginalNamespace() ==
-           cast<UsingDirectiveDecl>(OldD)->getNominatedNamespace()
-             ->getOriginalNamespace();
-  }
+  // Never replace one imported declaration with another; we need both results
+  // when re-exporting.
+  if (OldD->isFromASTFile() && isFromASTFile())
+    return false;
+
+  if (!isKindReplaceableBy(OldD->getKind(), getKind()))
+    return false;
+
+  // Inline namespaces can give us two declarations with the same
+  // name and kind in the same scope but different contexts; we should
+  // keep both declarations in this case.
+  if (!this->getDeclContext()->getRedeclContext()->Equals(
+          OldD->getDeclContext()->getRedeclContext()))
+    return false;
 
   if (const FunctionDecl *FD = dyn_cast<FunctionDecl>(this))
     // For function declarations, we keep track of redeclarations.
-    return FD->getPreviousDecl() == OldD;
+    // FIXME: This returns false for functions that should in fact be replaced.
+    // Instead, perform some kind of type check?
+    if (FD->getPreviousDecl() != OldD)
+      return false;
 
   // For function templates, the underlying function declarations are linked.
-  if (const FunctionTemplateDecl *FunctionTemplate
-        = dyn_cast<FunctionTemplateDecl>(this))
-    if (const FunctionTemplateDecl *OldFunctionTemplate
-          = dyn_cast<FunctionTemplateDecl>(OldD))
-      return FunctionTemplate->getTemplatedDecl()
-               ->declarationReplaces(OldFunctionTemplate->getTemplatedDecl());
+  if (const FunctionTemplateDecl *FunctionTemplate =
+          dyn_cast<FunctionTemplateDecl>(this))
+    return FunctionTemplate->getTemplatedDecl()->declarationReplaces(
+        cast<FunctionTemplateDecl>(OldD)->getTemplatedDecl());
 
-  // For method declarations, we keep track of redeclarations.
-  if (isa<ObjCMethodDecl>(this))
-    return false;
+  // Using shadow declarations can be overloaded on their target declarations
+  // if they introduce functions.
+  // FIXME: If our target replaces the old target, can we replace the old
+  //        shadow declaration?
+  if (auto *USD = dyn_cast<UsingShadowDecl>(this))
+    if (USD->getTargetDecl() != cast<UsingShadowDecl>(OldD)->getTargetDecl())
+      return false;
 
-  // FIXME: Is this correct if one of the decls comes from an inline namespace?
-  if (isa<ObjCInterfaceDecl>(this) && isa<ObjCCompatibleAliasDecl>(OldD))
-    return true;
-
-  if (isa<UsingShadowDecl>(this) && isa<UsingShadowDecl>(OldD))
-    return cast<UsingShadowDecl>(this)->getTargetDecl() ==
-           cast<UsingShadowDecl>(OldD)->getTargetDecl();
-
-  if (isa<UsingDecl>(this) && isa<UsingDecl>(OldD)) {
+  // Using declarations can be overloaded if they introduce functions.
+  if (auto *UD = dyn_cast<UsingDecl>(this)) {
     ASTContext &Context = getASTContext();
-    return Context.getCanonicalNestedNameSpecifier(
-                                     cast<UsingDecl>(this)->getQualifier()) ==
+    return Context.getCanonicalNestedNameSpecifier(UD->getQualifier()) ==
            Context.getCanonicalNestedNameSpecifier(
-                                        cast<UsingDecl>(OldD)->getQualifier());
+               cast<UsingDecl>(OldD)->getQualifier());
   }
-
-  if (isa<UnresolvedUsingValueDecl>(this) &&
-      isa<UnresolvedUsingValueDecl>(OldD)) {
+  if (auto *UUVD = dyn_cast<UnresolvedUsingValueDecl>(this)) {
     ASTContext &Context = getASTContext();
-    return Context.getCanonicalNestedNameSpecifier(
-                      cast<UnresolvedUsingValueDecl>(this)->getQualifier()) ==
+    return Context.getCanonicalNestedNameSpecifier(UUVD->getQualifier()) ==
            Context.getCanonicalNestedNameSpecifier(
                         cast<UnresolvedUsingValueDecl>(OldD)->getQualifier());
   }
 
-  // A typedef of an Objective-C class type can replace an Objective-C class
-  // declaration or definition, and vice versa.
-  // FIXME: Is this correct if one of the decls comes from an inline namespace?
-  if ((isa<TypedefNameDecl>(this) && isa<ObjCInterfaceDecl>(OldD)) ||
-      (isa<ObjCInterfaceDecl>(this) && isa<TypedefNameDecl>(OldD)))
-    return true;
+  // UsingDirectiveDecl's are not really NamedDecl's, and all have same name.
+  // We want to keep it, unless it nominates same namespace.
+  if (auto *UD = dyn_cast<UsingDirectiveDecl>(this))
+    return UD->getNominatedNamespace()->getOriginalNamespace() ==
+           cast<UsingDirectiveDecl>(OldD)->getNominatedNamespace()
+               ->getOriginalNamespace();
 
-  // For non-function declarations, if the declarations are of the
-  // same kind and have the same parent then this must be a redeclaration,
-  // or semantic analysis would not have given us the new declaration.
-  // Note that inline namespaces can give us two declarations with the same
-  // name and kind in the same scope but different contexts.
-  return this->getKind() == OldD->getKind() &&
-         this->getDeclContext()->getRedeclContext()->Equals(
-             OldD->getDeclContext()->getRedeclContext());
+  if (!IsKnownNewer && isRedeclarable(getKind())) {
+    // Check whether this is actually newer than OldD. We want to keep the
+    // newer declaration. This loop will usually only iterate once, because
+    // OldD is usually the previous declaration.
+    for (auto D : redecls()) {
+      if (D == OldD)
+        break;
+
+      // If we reach the canonical declaration, then OldD is not actually older
+      // than this one.
+      //
+      // FIXME: In this case, we should not add this decl to the lookup table.
+      if (D->isCanonicalDecl())
+        return false;
+    }
+  }
+
+  // It's a newer declaration of the same kind of declaration in the same scope,
+  // and not an overload: we want this decl instead of the existing one.
+  return true;
 }
 
 bool NamedDecl::hasLinkage() const {
@@ -1684,8 +1743,7 @@ QualifierInfo::setTemplateParameterListsInfo(ASTContext &Context,
   if (NumTPLists > 0) {
     TemplParamLists = new (Context) TemplateParameterList*[NumTPLists];
     NumTemplParamLists = NumTPLists;
-    for (unsigned i = NumTPLists; i-- > 0; )
-      TemplParamLists[i] = TPLists[i];
+    std::copy(TPLists, TPLists + NumTPLists, TemplParamLists);
   }
 }
 
@@ -1717,6 +1775,8 @@ VarDecl::VarDecl(Kind DK, ASTContext &C, DeclContext *DC,
                 "VarDeclBitfields too large!");
   static_assert(sizeof(ParmVarDeclBitfields) <= sizeof(unsigned),
                 "ParmVarDeclBitfields too large!");
+  static_assert(sizeof(NonParmVarDeclBitfields) <= sizeof(unsigned),
+                "NonParmVarDeclBitfields too large!");
   AllBits = 0;
   VarDeclBits.SClass = SC;
   // Everything else is implicitly initialized to false.
@@ -1743,12 +1803,19 @@ void VarDecl::setStorageClass(StorageClass SC) {
 VarDecl::TLSKind VarDecl::getTLSKind() const {
   switch (VarDeclBits.TSCSpec) {
   case TSCS_unspecified:
-    if (hasAttr<ThreadAttr>())
-      return TLS_Static;
-    return TLS_None;
+    if (!hasAttr<ThreadAttr>() &&
+        !(getASTContext().getLangOpts().OpenMPUseTLS &&
+          getASTContext().getTargetInfo().isTLSSupported() &&
+          hasAttr<OMPThreadPrivateDeclAttr>()))
+      return TLS_None;
+    return ((getASTContext().getLangOpts().isCompatibleWithMSVC(
+                LangOptions::MSVC2015)) ||
+            hasAttr<OMPThreadPrivateDeclAttr>())
+               ? TLS_Dynamic
+               : TLS_Static;
   case TSCS___thread: // Fall through.
   case TSCS__Thread_local:
-      return TLS_Static;
+    return TLS_Static;
   case TSCS_thread_local:
     return TLS_Dynamic;
   }
@@ -1825,9 +1892,8 @@ bool VarDecl::isInExternCXXContext() const {
 
 VarDecl *VarDecl::getCanonicalDecl() { return getFirstDecl(); }
 
-VarDecl::DefinitionKind VarDecl::isThisDeclarationADefinition(
-  ASTContext &C) const
-{
+VarDecl::DefinitionKind
+VarDecl::isThisDeclarationADefinition(ASTContext &C) const {
   // C++ [basic.def]p2:
   //   A declaration is a definition unless [...] it contains the 'extern'
   //   specifier or a linkage-specification and neither an initializer [...],
@@ -1866,6 +1932,10 @@ VarDecl::DefinitionKind VarDecl::isThisDeclarationADefinition(
 
   if (hasAttr<AliasAttr>())
     return Definition;
+
+  if (const auto *SAA = getAttr<SelectAnyAttr>())
+    if (!SAA->isInherited())
+      return Definition;
 
   // A variable template specialization (other than a static data member
   // template or an explicit specialization) is a declaration until we
@@ -2460,39 +2530,6 @@ bool FunctionDecl::isReplaceableGlobalAllocationFunction() const {
   return RD && isNamed(RD, "nothrow_t") && RD->isInStdNamespace();
 }
 
-FunctionDecl *
-FunctionDecl::getCorrespondingUnsizedGlobalDeallocationFunction() const {
-  ASTContext &Ctx = getASTContext();
-  if (!Ctx.getLangOpts().SizedDeallocation)
-    return nullptr;
-
-  if (getDeclName().getNameKind() != DeclarationName::CXXOperatorName)
-    return nullptr;
-  if (getDeclName().getCXXOverloadedOperator() != OO_Delete &&
-      getDeclName().getCXXOverloadedOperator() != OO_Array_Delete)
-    return nullptr;
-  if (isa<CXXRecordDecl>(getDeclContext()))
-    return nullptr;
-
-  if (!getDeclContext()->getRedeclContext()->isTranslationUnit())
-    return nullptr;
-
-  if (getNumParams() != 2 || isVariadic() ||
-      !Ctx.hasSameType(getType()->castAs<FunctionProtoType>()->getParamType(1),
-                       Ctx.getSizeType()))
-    return nullptr;
-
-  // This is a sized deallocation function. Find the corresponding unsized
-  // deallocation function.
-  lookup_const_result R = getDeclContext()->lookup(getDeclName());
-  for (lookup_const_result::iterator RI = R.begin(), RE = R.end(); RI != RE;
-       ++RI)
-    if (FunctionDecl *FD = dyn_cast<FunctionDecl>(*RI))
-      if (FD->getNumParams() == 1 && !FD->isVariadic())
-        return FD;
-  return nullptr;
-}
-
 LanguageLinkage FunctionDecl::getLanguageLinkage() const {
   return getDeclLanguageLinkage(*this);
 }
@@ -2550,10 +2587,6 @@ FunctionDecl::setPreviousDeclaration(FunctionDecl *PrevDecl) {
     IsInline = true;
 }
 
-const FunctionDecl *FunctionDecl::getCanonicalDecl() const {
-  return getFirstDecl();
-}
-
 FunctionDecl *FunctionDecl::getCanonicalDecl() { return getFirstDecl(); }
 
 /// \brief Returns a value indicating whether this function
@@ -2581,7 +2614,14 @@ unsigned FunctionDecl::getBuiltinID() const {
     // extern "C".
     // FIXME: A recognised library function may not be directly in an extern "C"
     // declaration, for instance "extern "C" { namespace std { decl } }".
-    if (!LinkageDecl || LinkageDecl->getLanguage() != LinkageSpecDecl::lang_c)
+    if (!LinkageDecl) {
+      if (BuiltinID == Builtin::BI__GetExceptionInfo &&
+          Context.getTargetInfo().getCXXABI().isMicrosoft() &&
+          isInStdNamespace())
+        return Builtin::BI__GetExceptionInfo;
+      return 0;
+    }
+    if (LinkageDecl->getLanguage() != LinkageSpecDecl::lang_c)
       return 0;
   }
 
@@ -2676,7 +2716,7 @@ bool FunctionDecl::isMSExternInline() const {
 
   for (const FunctionDecl *FD = getMostRecentDecl(); FD;
        FD = FD->getPreviousDecl())
-    if (FD->getStorageClass() == SC_Extern)
+    if (!FD->isImplicit() && FD->getStorageClass() == SC_Extern)
       return true;
 
   return false;
@@ -2688,7 +2728,7 @@ static bool redeclForcesDefMSVC(const FunctionDecl *Redecl) {
 
   for (const FunctionDecl *FD = Redecl->getPreviousDecl(); FD;
        FD = FD->getPreviousDecl())
-    if (FD->getStorageClass() == SC_Extern)
+    if (!FD->isImplicit() && FD->getStorageClass() == SC_Extern)
       return false;
 
   return true;
@@ -2794,6 +2834,18 @@ SourceRange FunctionDecl::getReturnTypeSourceRange() const {
     return SourceRange();
 
   return RTRange;
+}
+
+bool FunctionDecl::hasUnusedResultAttr() const {
+  QualType RetType = getReturnType();
+  if (RetType->isRecordType()) {
+    const CXXRecordDecl *Ret = RetType->getAsCXXRecordDecl();
+    const CXXMethodDecl *MD = dyn_cast<CXXMethodDecl>(this);
+    if (Ret && Ret->hasAttr<WarnUnusedResultAttr>() &&
+        !(MD && MD->getCorrespondingMethodInClass(Ret, true)))
+      return true;
+  }
+  return hasAttr<WarnUnusedResultAttr>();
 }
 
 /// \brief For an inline function definition in C, or for a gnu_inline function
@@ -3077,6 +3129,8 @@ DependentFunctionTemplateSpecializationInfo::
 DependentFunctionTemplateSpecializationInfo(const UnresolvedSetImpl &Ts,
                                       const TemplateArgumentListInfo &TArgs)
   : AngleLocs(TArgs.getLAngleLoc(), TArgs.getRAngleLoc()) {
+  static_assert(sizeof(*this) % llvm::AlignOf<void *>::Alignment == 0,
+                "Trailing data is unaligned!");
 
   d.NumTemplates = Ts.size();
   d.NumArgs = TArgs.size();
@@ -3590,7 +3644,7 @@ void RecordDecl::completeDefinition() {
 /// This which can be turned on with an attribute, pragma, or the
 /// -mms-bitfields command-line option.
 bool RecordDecl::isMsStruct(const ASTContext &C) const {
-  return hasAttr<MsStructAttr>() || C.getLangOpts().MSBitfields == 1;
+  return hasAttr<MSStructAttr>() || C.getLangOpts().MSBitfields == 1;
 }
 
 static bool isFieldOrIndirectField(Decl::Kind K) {
@@ -3631,7 +3685,8 @@ void RecordDecl::LoadFieldsFromExternalStorage() const {
 
 bool RecordDecl::mayInsertExtraPadding(bool EmitRemark) const {
   ASTContext &Context = getASTContext();
-  if (!Context.getLangOpts().Sanitize.has(SanitizerKind::Address) ||
+  if (!Context.getLangOpts().Sanitize.hasOneOf(
+          SanitizerKind::Address | SanitizerKind::KernelAddress) ||
       !Context.getLangOpts().SanitizeAddressFieldPadding)
     return false;
   const auto &Blacklist = Context.getSanitizerBlacklist();
@@ -3745,6 +3800,13 @@ void TranslationUnitDecl::anchor() { }
 
 TranslationUnitDecl *TranslationUnitDecl::Create(ASTContext &C) {
   return new (C, (DeclContext *)nullptr) TranslationUnitDecl(C);
+}
+
+void ExternCContextDecl::anchor() { }
+
+ExternCContextDecl *ExternCContextDecl::Create(const ASTContext &C,
+                                               TranslationUnitDecl *DC) {
+  return new (C, DC) ExternCContextDecl(DC);
 }
 
 void LabelDecl::anchor() { }
@@ -3884,6 +3946,21 @@ TypedefDecl *TypedefDecl::Create(ASTContext &C, DeclContext *DC,
 }
 
 void TypedefNameDecl::anchor() { }
+
+TagDecl *TypedefNameDecl::getAnonDeclWithTypedefName(bool AnyRedecl) const {
+  if (auto *TT = getTypeSourceInfo()->getType()->getAs<TagType>()) {
+    auto *OwningTypedef = TT->getDecl()->getTypedefNameForAnonDecl();
+    auto *ThisTypedef = this;
+    if (AnyRedecl && OwningTypedef) {
+      OwningTypedef = OwningTypedef->getCanonicalDecl();
+      ThisTypedef = ThisTypedef->getCanonicalDecl();
+    }
+    if (OwningTypedef == ThisTypedef)
+      return TT->getDecl();
+  }
+
+  return nullptr;
+}
 
 TypedefDecl *TypedefDecl::CreateDeserialized(ASTContext &C, unsigned ID) {
   return new (C, ID) TypedefDecl(C, nullptr, SourceLocation(), SourceLocation(),

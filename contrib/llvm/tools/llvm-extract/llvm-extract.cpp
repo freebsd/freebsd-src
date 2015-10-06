@@ -20,7 +20,7 @@
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IRReader/IRReader.h"
-#include "llvm/PassManager.h"
+#include "llvm/IR/LegacyPassManager.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/ManagedStatic.h"
@@ -89,6 +89,16 @@ ExtractRegExpGlobals("rglob", cl::desc("Specify global(s) to extract using a "
 static cl::opt<bool>
 OutputAssembly("S",
                cl::desc("Write output as LLVM assembly"), cl::Hidden);
+
+static cl::opt<bool> PreserveBitcodeUseListOrder(
+    "preserve-bc-uselistorder",
+    cl::desc("Preserve use-list order when writing LLVM bitcode."),
+    cl::init(true), cl::Hidden);
+
+static cl::opt<bool> PreserveAssemblyUseListOrder(
+    "preserve-ll-uselistorder",
+    cl::desc("Preserve use-list order when writing LLVM assembly."),
+    cl::init(false), cl::Hidden);
 
 int main(int argc, char **argv) {
   // Print a stack trace if we signal out.
@@ -246,8 +256,7 @@ int main(int argc, char **argv) {
 
   // In addition to deleting all other functions, we also want to spiff it
   // up a little bit.  Do this now.
-  PassManager Passes;
-  Passes.add(new DataLayoutPass()); // Use correct DataLayout
+  legacy::PassManager Passes;
 
   std::vector<GlobalValue*> Gvs(GVs.begin(), GVs.end());
 
@@ -265,9 +274,10 @@ int main(int argc, char **argv) {
   }
 
   if (OutputAssembly)
-    Passes.add(createPrintModulePass(Out.os()));
+    Passes.add(
+        createPrintModulePass(Out.os(), "", PreserveAssemblyUseListOrder));
   else if (Force || !CheckBitcodeOutputToConsole(Out.os(), true))
-    Passes.add(createBitcodeWriterPass(Out.os()));
+    Passes.add(createBitcodeWriterPass(Out.os(), PreserveBitcodeUseListOrder));
 
   Passes.run(*M.get());
 

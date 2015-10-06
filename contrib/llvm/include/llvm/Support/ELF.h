@@ -133,7 +133,7 @@ enum {
   EM_386           = 3, // Intel 386
   EM_68K           = 4, // Motorola 68000
   EM_88K           = 5, // Motorola 88000
-  EM_486           = 6, // Intel 486 (deprecated)
+  EM_IAMCU         = 6, // Intel MCU
   EM_860           = 7, // Intel 80860
   EM_MIPS          = 8, // MIPS R3000
   EM_S370          = 9, // IBM System/370
@@ -308,7 +308,8 @@ enum {
   EM_COGE          = 216, // Cognitive Smart Memory Processor
   EM_COOL          = 217, // iCelero CoolEngine
   EM_NORC          = 218, // Nanoradio Optimized RISC
-  EM_CSR_KALIMBA   = 219  // CSR Kalimba architecture family
+  EM_CSR_KALIMBA   = 219, // CSR Kalimba architecture family
+  EM_AMDGPU        = 224  // AMD GPU architecture
 };
 
 // Object file classes.
@@ -344,7 +345,9 @@ enum {
   ELFOSABI_NSK = 14,          // Hewlett-Packard Non-Stop Kernel
   ELFOSABI_AROS = 15,         // AROS
   ELFOSABI_FENIXOS = 16,      // FenixOS
+  ELFOSABI_CLOUDABI = 17,     // Nuxi CloudABI
   ELFOSABI_C6000_ELFABI = 64, // Bare-metal TMS320C6000
+  ELFOSABI_AMDGPU_HSA = 64,   // AMD HSA runtime
   ELFOSABI_C6000_LINUX = 65,  // Linux TMS320C6000
   ELFOSABI_ARM = 97,          // ARM
   ELFOSABI_STANDALONE = 255   // Standalone (embedded) application
@@ -431,22 +434,50 @@ enum : unsigned {
   EF_MIPS_NOREORDER = 0x00000001, // Don't reorder instructions
   EF_MIPS_PIC       = 0x00000002, // Position independent code
   EF_MIPS_CPIC      = 0x00000004, // Call object with Position independent code
-  EF_MIPS_ABI2      = 0x00000020,
-  EF_MIPS_32BITMODE = 0x00000100,
+  EF_MIPS_ABI2      = 0x00000020, // File uses N32 ABI
+  EF_MIPS_32BITMODE = 0x00000100, // Code compiled for a 64-bit machine
+                                  // in 32-bit mode
+  EF_MIPS_FP64      = 0x00000200, // Code compiled for a 32-bit machine
+                                  // but uses 64-bit FP registers
   EF_MIPS_NAN2008   = 0x00000400, // Uses IEE 754-2008 NaN encoding
 
   // ABI flags
-  EF_MIPS_ABI_O32   = 0x00001000, // This file follows the first MIPS 32 bit ABI
+  EF_MIPS_ABI_O32    = 0x00001000, // This file follows the first MIPS 32 bit ABI
   EF_MIPS_ABI_O64    = 0x00002000, // O32 ABI extended for 64-bit architecture.
   EF_MIPS_ABI_EABI32 = 0x00003000, // EABI in 32 bit mode.
   EF_MIPS_ABI_EABI64 = 0x00004000, // EABI in 64 bit mode.
   EF_MIPS_ABI        = 0x0000f000, // Mask for selecting EF_MIPS_ABI_ variant.
 
-  //ARCH_ASE
+  // MIPS machine variant
+  EF_MIPS_MACH_3900    = 0x00810000, // Toshiba R3900
+  EF_MIPS_MACH_4010    = 0x00820000, // LSI R4010
+  EF_MIPS_MACH_4100    = 0x00830000, // NEC VR4100
+  EF_MIPS_MACH_4650    = 0x00850000, // MIPS R4650
+  EF_MIPS_MACH_4120    = 0x00870000, // NEC VR4120
+  EF_MIPS_MACH_4111    = 0x00880000, // NEC VR4111/VR4181
+  EF_MIPS_MACH_SB1     = 0x008a0000, // Broadcom SB-1
+  EF_MIPS_MACH_OCTEON  = 0x008b0000, // Cavium Networks Octeon
+  EF_MIPS_MACH_XLR     = 0x008c0000, // RMI Xlr
+  EF_MIPS_MACH_OCTEON2 = 0x008d0000, // Cavium Networks Octeon2
+  EF_MIPS_MACH_OCTEON3 = 0x008e0000, // Cavium Networks Octeon3
+  EF_MIPS_MACH_5400    = 0x00910000, // NEC VR5400
+  EF_MIPS_MACH_5900    = 0x00920000, // MIPS R5900
+  EF_MIPS_MACH_5500    = 0x00980000, // NEC VR5500
+  EF_MIPS_MACH_9000    = 0x00990000, // Unknown
+  EF_MIPS_MACH_LS2E    = 0x00a00000, // ST Microelectronics Loongson 2E
+  EF_MIPS_MACH_LS2F    = 0x00a10000, // ST Microelectronics Loongson 2F
+  EF_MIPS_MACH_LS3A    = 0x00a20000, // Loongson 3A
+  EF_MIPS_MACH         = 0x00ff0000, // EF_MIPS_MACH_xxx selection mask
+
+  // ARCH_ASE
   EF_MIPS_MICROMIPS = 0x02000000, // microMIPS
   EF_MIPS_ARCH_ASE_M16 =
                       0x04000000, // Has Mips-16 ISA extensions
-  //ARCH
+  EF_MIPS_ARCH_ASE_MDMX =
+                      0x08000000, // Has MDMX multimedia extensions
+  EF_MIPS_ARCH_ASE  = 0x0f000000, // Mask for EF_MIPS_ARCH_ASE_xxx flags
+
+  // ARCH
   EF_MIPS_ARCH_1    = 0x00000000, // MIPS1 instruction set
   EF_MIPS_ARCH_2    = 0x10000000, // MIPS2 instruction set
   EF_MIPS_ARCH_3    = 0x20000000, // MIPS3 instruction set
@@ -454,8 +485,8 @@ enum : unsigned {
   EF_MIPS_ARCH_5    = 0x40000000, // MIPS5 instruction set
   EF_MIPS_ARCH_32   = 0x50000000, // MIPS32 instruction set per linux not elf.h
   EF_MIPS_ARCH_64   = 0x60000000, // MIPS64 instruction set per linux not elf.h
-  EF_MIPS_ARCH_32R2 = 0x70000000, // mips32r2
-  EF_MIPS_ARCH_64R2 = 0x80000000, // mips64r2
+  EF_MIPS_ARCH_32R2 = 0x70000000, // mips32r2, mips32r3, mips32r5
+  EF_MIPS_ARCH_64R2 = 0x80000000, // mips64r2, mips64r3, mips64r5
   EF_MIPS_ARCH_32R6 = 0x90000000, // mips32r6
   EF_MIPS_ARCH_64R6 = 0xa0000000, // mips64r6
   EF_MIPS_ARCH      = 0xf0000000  // Mask for applying EF_MIPS_ARCH_ variant
@@ -473,6 +504,22 @@ enum {
   STO_MIPS_PIC             = 0x20,  // PIC func in an object mixes PIC/non-PIC
   STO_MIPS_MICROMIPS       = 0x80,  // MIPS Specific ISA for MicroMips
   STO_MIPS_MIPS16          = 0xf0   // MIPS Specific ISA for Mips16
+};
+
+// .MIPS.options section descriptor kinds
+enum {
+  ODK_NULL       = 0,   // Undefined
+  ODK_REGINFO    = 1,   // Register usage information
+  ODK_EXCEPTIONS = 2,   // Exception processing options
+  ODK_PAD        = 3,   // Section padding options
+  ODK_HWPATCH    = 4,   // Hardware patches applied
+  ODK_FILL       = 5,   // Linker fill value
+  ODK_TAGS       = 6,   // Space for tool identification
+  ODK_HWAND      = 7,   // Hardware AND patches applied
+  ODK_HWOR       = 8,   // Hardware OR patches applied
+  ODK_GP_GROUP   = 9,   // GP group to use for text/data sections
+  ODK_IDENT      = 10,  // ID information
+  ODK_PAGESIZE   = 11   // Page size information
 };
 
 // Hexagon Specific e_flags
@@ -761,6 +808,7 @@ enum {
   STB_LOCAL = 0,   // Local symbol, not visible outside obj file containing def
   STB_GLOBAL = 1,  // Global symbol, visible to all object files being combined
   STB_WEAK = 2,    // Weak symbol, like global but lower-precedence
+  STB_GNU_UNIQUE = 10,
   STB_LOOS   = 10, // Lowest operating system-specific binding type
   STB_HIOS   = 12, // Highest operating system-specific binding type
   STB_LOPROC = 13, // Lowest processor-specific binding type
@@ -776,9 +824,9 @@ enum {
   STT_FILE    = 4,   // Local, absolute symbol that refers to a file
   STT_COMMON  = 5,   // An uninitialized common block
   STT_TLS     = 6,   // Thread local data object
-  STT_LOOS    = 7,   // Lowest operating system-specific symbol type
-  STT_HIOS    = 8,   // Highest operating system-specific symbol type
   STT_GNU_IFUNC = 10, // GNU indirect function
+  STT_LOOS    = 10,  // Lowest operating system-specific symbol type
+  STT_HIOS    = 12,  // Highest operating system-specific symbol type
   STT_LOPROC  = 13,  // Lowest processor-specific symbol type
   STT_HIPROC  = 15   // Highest processor-specific symbol type
 };
@@ -793,6 +841,14 @@ enum {
 // Symbol number.
 enum {
   STN_UNDEF = 0
+};
+
+// Special relocation symbols used in the MIPS64 ELF relocation entries
+enum {
+  RSS_UNDEF = 0, // None
+  RSS_GP = 1,    // Value of gp
+  RSS_GP0 = 2,   // Value of gp used to create object being relocated
+  RSS_LOC = 3    // Address of location being relocated
 };
 
 // Relocation entry, without explicit addend.
@@ -1114,7 +1170,16 @@ enum {
   DF_1_CONFALT    = 0x00002000, // Configuration alternative created.
   DF_1_ENDFILTEE  = 0x00004000, // Filtee terminates filters search.
   DF_1_DISPRELDNE = 0x00008000, // Disp reloc applied at build time.
-  DF_1_DISPRELPND = 0x00010000  // Disp reloc applied at run-time.
+  DF_1_DISPRELPND = 0x00010000, // Disp reloc applied at run-time.
+  DF_1_NODIRECT   = 0x00020000, // Object has no-direct binding.
+  DF_1_IGNMULDEF  = 0x00040000,
+  DF_1_NOKSYMS    = 0x00080000,
+  DF_1_NOHDR      = 0x00100000,
+  DF_1_EDITED     = 0x00200000, // Object is modified after built.
+  DF_1_NORELOC    = 0x00400000,
+  DF_1_SYMINTPOSE = 0x00800000, // Object has individual interposers.
+  DF_1_GLOBAUDIT  = 0x01000000, // Global auditing required.
+  DF_1_SINGLETON  = 0x02000000  // Singleton symbols are used.
 };
 
 // DT_MIPS_FLAGS values.

@@ -36,6 +36,7 @@
 // access stat from asm/stat.h, without conflicting with definition in
 // sys/stat.h, we use this trick.
 #if defined(__mips64)
+#include <asm/unistd.h>
 #include <sys/types.h>
 #define stat kernel_stat
 #include <asm/stat.h>
@@ -45,9 +46,7 @@
 #include <dlfcn.h>
 #include <errno.h>
 #include <fcntl.h>
-#if !SANITIZER_ANDROID
 #include <link.h>
-#endif
 #include <pthread.h>
 #include <sched.h>
 #include <sys/mman.h>
@@ -57,6 +56,7 @@
 #include <sys/syscall.h>
 #include <sys/time.h>
 #include <sys/types.h>
+#include <ucontext.h>
 #include <unistd.h>
 
 #if SANITIZER_FREEBSD
@@ -110,7 +110,7 @@ namespace __sanitizer {
 
 // --------------- sanitizer_libc.h
 uptr internal_mmap(void *addr, uptr length, int prot, int flags, int fd,
-                   u64 offset) {
+                   OFF_T offset) {
 #if SANITIZER_FREEBSD || SANITIZER_LINUX_USES_64BIT_SYSCALLS
   return internal_syscall(SYSCALL(mmap), (uptr)addr, length, prot, flags, fd,
                           offset);
@@ -124,6 +124,10 @@ uptr internal_mmap(void *addr, uptr length, int prot, int flags, int fd,
 
 uptr internal_munmap(void *addr, uptr length) {
   return internal_syscall(SYSCALL(munmap), (uptr)addr, length);
+}
+
+int internal_mprotect(void *addr, uptr length, int prot) {
+  return internal_syscall(SYSCALL(mprotect), (uptr)addr, length, prot);
 }
 
 uptr internal_close(fd_t fd) {
@@ -147,11 +151,6 @@ uptr internal_open(const char *filename, int flags, u32 mode) {
 #endif
 }
 
-uptr OpenFile(const char *filename, bool write) {
-  return internal_open(filename,
-      write ? O_RDWR | O_CREAT /*| O_CLOEXEC*/ : O_RDONLY, 0660);
-}
-
 uptr internal_read(fd_t fd, void *buf, uptr count) {
   sptr res;
   HANDLE_EINTR(res, (sptr)internal_syscall(SYSCALL(read), fd, (uptr)buf,
@@ -168,7 +167,8 @@ uptr internal_write(fd_t fd, const void *buf, uptr count) {
 
 uptr internal_ftruncate(fd_t fd, uptr size) {
   sptr res;
-  HANDLE_EINTR(res, (sptr)internal_syscall(SYSCALL(ftruncate), fd, size));
+  HANDLE_EINTR(res, (sptr)internal_syscall(SYSCALL(ftruncate), fd,
+               (OFF_T)size));
   return res;
 }
 
@@ -558,6 +558,7 @@ int internal_fork() {
 }
 
 #if SANITIZER_LINUX
+#define SA_RESTORER 0x04000000
 // Doesn't set sa_restorer, use with caution (see below).
 int internal_sigaction_norestorer(int signum, const void *act, void *oldact) {
   __sanitizer_kernel_sigaction_t k_act, k_oldact;
@@ -570,7 +571,8 @@ int internal_sigaction_norestorer(int signum, const void *act, void *oldact) {
     k_act.sigaction = u_act->sigaction;
     internal_memcpy(&k_act.sa_mask, &u_act->sa_mask,
                     sizeof(__sanitizer_kernel_sigset_t));
-    k_act.sa_flags = u_act->sa_flags;
+    // Without SA_RESTORER kernel ignores the calls (probably returns EINVAL).
+    k_act.sa_flags = u_act->sa_flags | SA_RESTORER;
     // FIXME: most often sa_restorer is unset, however the kernel requires it
     // to point to a valid signal restorer that calls the rt_sigreturn syscall.
     // If sa_restorer passed to the kernel is NULL, the program may crash upon
@@ -704,45 +706,30 @@ uptr GetPageSize() {
 #endif
 }
 
-static char proc_self_exe_cache_str[kMaxPathLength];
-static uptr proc_self_exe_cache_len = 0;
-
 uptr ReadBinaryName(/*out*/char *buf, uptr buf_len) {
-  if (proc_self_exe_cache_len > 0) {
-    // If available, use the cached module name.
-    uptr module_name_len =
-        internal_snprintf(buf, buf_len, "%s", proc_self_exe_cache_str);
-    CHECK_LT(module_name_len, buf_len);
-    return module_name_len;
-  }
 #if SANITIZER_FREEBSD
-  const int Mib[4] = { CTL_KERN, KERN_PROC, KERN_PROC_PATHNAME, -1 };
+  const int Mib[] = { CTL_KERN, KERN_PROC, KERN_PROC_PATHNAME, -1 };
+  const char *default_module_name = "kern.proc.pathname";
   size_t Size = buf_len;
-  bool IsErr = (sysctl(Mib, 4, buf, &Size, NULL, 0) != 0);
+  bool IsErr = (sysctl(Mib, ARRAY_SIZE(Mib), buf, &Size, NULL, 0) != 0);
   int readlink_error = IsErr ? errno : 0;
   uptr module_name_len = Size;
 #else
+  const char *default_module_name = "/proc/self/exe";
   uptr module_name_len = internal_readlink(
-      "/proc/self/exe", buf, buf_len);
+      default_module_name, buf, buf_len);
   int readlink_error;
   bool IsErr = internal_iserror(module_name_len, &readlink_error);
 #endif
   if (IsErr) {
-    // We can't read /proc/self/exe for some reason, assume the name of the
-    // binary is unknown.
-    Report("WARNING: readlink(\"/proc/self/exe\") failed with errno %d, "
+    // We can't read binary name for some reason, assume it's unknown.
+    Report("WARNING: reading executable name failed with errno %d, "
            "some stack frames may not be symbolized\n", readlink_error);
-    module_name_len = internal_snprintf(buf, buf_len, "/proc/self/exe");
+    module_name_len = internal_snprintf(buf, buf_len, "%s",
+                                        default_module_name);
     CHECK_LT(module_name_len, buf_len);
   }
   return module_name_len;
-}
-
-void CacheBinaryName() {
-  if (!proc_self_exe_cache_len) {
-    proc_self_exe_cache_len =
-        ReadBinaryName(proc_self_exe_cache_str, kMaxPathLength);
-  }
 }
 
 // Match full names of the form /path/to/base_name{-,.}*
@@ -861,11 +848,70 @@ uptr internal_clone(int (*fn)(void *), void *child_stack, int flags, void *arg,
   return res;
 }
 #elif defined(__mips__)
-// TODO(sagarthakur): clone function is to be rewritten in assembly.
 uptr internal_clone(int (*fn)(void *), void *child_stack, int flags, void *arg,
                     int *parent_tidptr, void *newtls, int *child_tidptr) {
-  return clone(fn, child_stack, flags, arg, parent_tidptr,
-               newtls, child_tidptr);
+  long long res;
+  if (!fn || !child_stack)
+    return -EINVAL;
+  CHECK_EQ(0, (uptr)child_stack % 16);
+  child_stack = (char *)child_stack - 2 * sizeof(unsigned long long);
+  ((unsigned long long *)child_stack)[0] = (uptr)fn;
+  ((unsigned long long *)child_stack)[1] = (uptr)arg;
+  register void *a3 __asm__("$7") = newtls;
+  register int *a4 __asm__("$8") = child_tidptr;
+  // We don't have proper CFI directives here because it requires alot of code
+  // for very marginal benefits.
+  __asm__ __volatile__(
+                       /* $v0 = syscall($v0 = __NR_clone,
+                        * $a0 = flags,
+                        * $a1 = child_stack,
+                        * $a2 = parent_tidptr,
+                        * $a3 = new_tls,
+                        * $a4 = child_tidptr)
+                        */
+                       ".cprestore 16;\n"
+                       "move $4,%1;\n"
+                       "move $5,%2;\n"
+                       "move $6,%3;\n"
+                       "move $7,%4;\n"
+                       /* Store the fifth argument on stack
+                        * if we are using 32-bit abi.
+                        */
+#if SANITIZER_WORDSIZE == 32
+                       "lw %5,16($29);\n"
+#else
+                       "move $8,%5;\n"
+#endif
+                       "li $2,%6;\n"
+                       "syscall;\n"
+
+                       /* if ($v0 != 0)
+                        * return;
+                        */
+                       "bnez $2,1f;\n"
+
+                       /* Call "fn(arg)". */
+                       "ld $25,0($29);\n"
+                       "ld $4,8($29);\n"
+                       "jal $25;\n"
+
+                       /* Call _exit($v0). */
+                       "move $4,$2;\n"
+                       "li $2,%7;\n"
+                       "syscall;\n"
+
+                       /* Return to parent. */
+                     "1:\n"
+                       : "=r" (res)
+                       : "r"(flags),
+                         "r"(child_stack),
+                         "r"(parent_tidptr),
+                         "r"(a3),
+                         "r"(a4),
+                         "i"(__NR_clone),
+                         "i"(__NR_exit)
+                       : "memory", "$29" );
+  return res;
 }
 #endif  // defined(__x86_64__) && SANITIZER_LINUX
 
@@ -901,9 +947,52 @@ void GetExtraActivationFlags(char *buf, uptr size) {
   CHECK(size > PROP_VALUE_MAX);
   __system_property_get("asan.options", buf);
 }
+
+#if __ANDROID_API__ < 21
+extern "C" __attribute__((weak)) int dl_iterate_phdr(
+    int (*)(struct dl_phdr_info *, size_t, void *), void *);
+#endif
+
+static int dl_iterate_phdr_test_cb(struct dl_phdr_info *info, size_t size,
+                                   void *data) {
+  // Any name starting with "lib" indicates a bug in L where library base names
+  // are returned instead of paths.
+  if (info->dlpi_name && info->dlpi_name[0] == 'l' &&
+      info->dlpi_name[1] == 'i' && info->dlpi_name[2] == 'b') {
+    *(bool *)data = true;
+    return 1;
+  }
+  return 0;
+}
+
+static atomic_uint32_t android_api_level;
+
+static AndroidApiLevel AndroidDetectApiLevel() {
+  if (!&dl_iterate_phdr)
+    return ANDROID_KITKAT; // K or lower
+  bool base_name_seen = false;
+  dl_iterate_phdr(dl_iterate_phdr_test_cb, &base_name_seen);
+  if (base_name_seen)
+    return ANDROID_LOLLIPOP_MR1; // L MR1
+  return ANDROID_POST_LOLLIPOP;   // post-L
+  // Plain L (API level 21) is completely broken wrt ASan and not very
+  // interesting to detect.
+}
+
+AndroidApiLevel AndroidGetApiLevel() {
+  AndroidApiLevel level =
+      (AndroidApiLevel)atomic_load(&android_api_level, memory_order_relaxed);
+  if (level) return level;
+  level = AndroidDetectApiLevel();
+  atomic_store(&android_api_level, level, memory_order_relaxed);
+  return level;
+}
+
 #endif
 
 bool IsDeadlySignal(int signum) {
+  if (common_flags()->handle_abort && signum == SIGABRT)
+    return true;
   return (signum == SIGSEGV || signum == SIGBUS) && common_flags()->handle_segv;
 }
 
@@ -912,6 +1001,11 @@ void *internal_start_thread(void(*func)(void *arg), void *arg) {
   // Start the thread with signals blocked, otherwise it can steal user signals.
   __sanitizer_sigset_t set, old;
   internal_sigfillset(&set);
+#if SANITIZER_LINUX && !SANITIZER_ANDROID
+  // Glibc uses SIGSETXID signal during setuid call. If this signal is blocked
+  // on any thread, setuid call hangs (see test/tsan/setuid.c).
+  internal_sigdelset(&set, 33);
+#endif
   internal_sigprocmask(SIG_SETMASK, &set, &old);
   void *th;
   real_pthread_create(&th, 0, (void*(*)(void *arg))func, arg);
@@ -927,6 +1021,78 @@ void *internal_start_thread(void (*func)(void *), void *arg) { return 0; }
 
 void internal_join_thread(void *th) {}
 #endif
+
+void GetPcSpBp(void *context, uptr *pc, uptr *sp, uptr *bp) {
+#if defined(__arm__)
+  ucontext_t *ucontext = (ucontext_t*)context;
+  *pc = ucontext->uc_mcontext.arm_pc;
+  *bp = ucontext->uc_mcontext.arm_fp;
+  *sp = ucontext->uc_mcontext.arm_sp;
+#elif defined(__aarch64__)
+  ucontext_t *ucontext = (ucontext_t*)context;
+  *pc = ucontext->uc_mcontext.pc;
+  *bp = ucontext->uc_mcontext.regs[29];
+  *sp = ucontext->uc_mcontext.sp;
+#elif defined(__hppa__)
+  ucontext_t *ucontext = (ucontext_t*)context;
+  *pc = ucontext->uc_mcontext.sc_iaoq[0];
+  /* GCC uses %r3 whenever a frame pointer is needed.  */
+  *bp = ucontext->uc_mcontext.sc_gr[3];
+  *sp = ucontext->uc_mcontext.sc_gr[30];
+#elif defined(__x86_64__)
+# if SANITIZER_FREEBSD
+  ucontext_t *ucontext = (ucontext_t*)context;
+  *pc = ucontext->uc_mcontext.mc_rip;
+  *bp = ucontext->uc_mcontext.mc_rbp;
+  *sp = ucontext->uc_mcontext.mc_rsp;
+# else
+  ucontext_t *ucontext = (ucontext_t*)context;
+  *pc = ucontext->uc_mcontext.gregs[REG_RIP];
+  *bp = ucontext->uc_mcontext.gregs[REG_RBP];
+  *sp = ucontext->uc_mcontext.gregs[REG_RSP];
+# endif
+#elif defined(__i386__)
+# if SANITIZER_FREEBSD
+  ucontext_t *ucontext = (ucontext_t*)context;
+  *pc = ucontext->uc_mcontext.mc_eip;
+  *bp = ucontext->uc_mcontext.mc_ebp;
+  *sp = ucontext->uc_mcontext.mc_esp;
+# else
+  ucontext_t *ucontext = (ucontext_t*)context;
+  *pc = ucontext->uc_mcontext.gregs[REG_EIP];
+  *bp = ucontext->uc_mcontext.gregs[REG_EBP];
+  *sp = ucontext->uc_mcontext.gregs[REG_ESP];
+# endif
+#elif defined(__powerpc__) || defined(__powerpc64__)
+  ucontext_t *ucontext = (ucontext_t*)context;
+  *pc = ucontext->uc_mcontext.regs->nip;
+  *sp = ucontext->uc_mcontext.regs->gpr[PT_R1];
+  // The powerpc{,64}-linux ABIs do not specify r31 as the frame
+  // pointer, but GCC always uses r31 when we need a frame pointer.
+  *bp = ucontext->uc_mcontext.regs->gpr[PT_R31];
+#elif defined(__sparc__)
+  ucontext_t *ucontext = (ucontext_t*)context;
+  uptr *stk_ptr;
+# if defined (__arch64__)
+  *pc = ucontext->uc_mcontext.mc_gregs[MC_PC];
+  *sp = ucontext->uc_mcontext.mc_gregs[MC_O6];
+  stk_ptr = (uptr *) (*sp + 2047);
+  *bp = stk_ptr[15];
+# else
+  *pc = ucontext->uc_mcontext.gregs[REG_PC];
+  *sp = ucontext->uc_mcontext.gregs[REG_O6];
+  stk_ptr = (uptr *) *sp;
+  *bp = stk_ptr[15];
+# endif
+#elif defined(__mips__)
+  ucontext_t *ucontext = (ucontext_t*)context;
+  *pc = ucontext->uc_mcontext.pc;
+  *bp = ucontext->uc_mcontext.gregs[30];
+  *sp = ucontext->uc_mcontext.gregs[29];
+#else
+# error "Unsupported arch"
+#endif
+}
 
 }  // namespace __sanitizer
 

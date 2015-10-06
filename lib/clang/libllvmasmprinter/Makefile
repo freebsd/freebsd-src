@@ -12,6 +12,7 @@ SRCS=	ARMException.cpp \
 	AsmPrinterInlineAsm.cpp \
 	DIE.cpp \
 	DIEHash.cpp \
+	DebugLocStream.cpp \
 	DbgValueHistoryCalculator.cpp \
 	DwarfAccelTable.cpp \
 	DwarfCFIException.cpp \
@@ -24,8 +25,8 @@ SRCS=	ARMException.cpp \
 	EHStreamer.cpp \
 	ErlangGCPrinter.cpp \
 	OcamlGCPrinter.cpp \
-	Win64Exception.cpp \
-	WinCodeViewLineTables.cpp
+	WinCodeViewLineTables.cpp \
+	WinException.cpp
 
 TGHDRS=	Intrinsics
 

@@ -26,41 +26,37 @@ namespace llvm {
 
   namespace X86ISD {
     // X86 Specific DAG Nodes
-    enum NodeType {
+    enum NodeType : unsigned {
       // Start the numbering where the builtin ops leave off.
       FIRST_NUMBER = ISD::BUILTIN_OP_END,
 
-      /// BSF - Bit scan forward.
-      /// BSR - Bit scan reverse.
+      /// Bit scan forward.
       BSF,
+      /// Bit scan reverse.
       BSR,
 
-      /// SHLD, SHRD - Double shift instructions. These correspond to
+      /// Double shift instructions. These correspond to
       /// X86::SHLDxx and X86::SHRDxx instructions.
       SHLD,
       SHRD,
 
-      /// FAND - Bitwise logical AND of floating point values. This corresponds
+      /// Bitwise logical AND of floating point values. This corresponds
       /// to X86::ANDPS or X86::ANDPD.
       FAND,
 
-      /// FOR - Bitwise logical OR of floating point values. This corresponds
+      /// Bitwise logical OR of floating point values. This corresponds
       /// to X86::ORPS or X86::ORPD.
       FOR,
 
-      /// FXOR - Bitwise logical XOR of floating point values. This corresponds
+      /// Bitwise logical XOR of floating point values. This corresponds
       /// to X86::XORPS or X86::XORPD.
       FXOR,
 
-      /// FANDN - Bitwise logical ANDNOT of floating point values. This
+      ///  Bitwise logical ANDNOT of floating point values. This
       /// corresponds to X86::ANDNPS or X86::ANDNPD.
       FANDN,
 
-      /// FSRL - Bitwise logical right shift of floating point values. These
-      /// corresponds to X86::PSRLDQ.
-      FSRL,
-
-      /// CALL - These operations represent an abstract X86 call
+      /// These operations represent an abstract X86 call
       /// instruction, which includes a bunch of information.  In particular the
       /// operands of these node are:
       ///
@@ -79,8 +75,7 @@ namespace llvm {
       ///
       CALL,
 
-      /// RDTSC_DAG - This operation implements the lowering for
-      /// readcyclecounter
+      /// This operation implements the lowering for readcyclecounter
       RDTSC_DAG,
 
       /// X86 Read Time-Stamp Counter and Processor ID.
@@ -131,178 +126,204 @@ namespace llvm {
       /// 1 is the number of bytes of stack to pop.
       RET_FLAG,
 
-      /// REP_STOS - Repeat fill, corresponds to X86::REP_STOSx.
+      /// Repeat fill, corresponds to X86::REP_STOSx.
       REP_STOS,
 
-      /// REP_MOVS - Repeat move, corresponds to X86::REP_MOVSx.
+      /// Repeat move, corresponds to X86::REP_MOVSx.
       REP_MOVS,
 
-      /// GlobalBaseReg - On Darwin, this node represents the result of the popl
+      /// On Darwin, this node represents the result of the popl
       /// at function entry, used for PIC code.
       GlobalBaseReg,
 
-      /// Wrapper - A wrapper node for TargetConstantPool,
+      /// A wrapper node for TargetConstantPool,
       /// TargetExternalSymbol, and TargetGlobalAddress.
       Wrapper,
 
-      /// WrapperRIP - Special wrapper used under X86-64 PIC mode for RIP
+      /// Special wrapper used under X86-64 PIC mode for RIP
       /// relative displacements.
       WrapperRIP,
 
-      /// MOVDQ2Q - Copies a 64-bit value from the low word of an XMM vector
+      /// Copies a 64-bit value from the low word of an XMM vector
       /// to an MMX vector.  If you think this is too close to the previous
       /// mnemonic, so do I; blame Intel.
       MOVDQ2Q,
 
-      /// MMX_MOVD2W - Copies a 32-bit value from the low word of a MMX
+      /// Copies a 32-bit value from the low word of a MMX
       /// vector to a GPR.
       MMX_MOVD2W,
 
-      /// PEXTRB - Extract an 8-bit value from a vector and zero extend it to
+      /// Copies a GPR into the low 32-bit word of a MMX vector
+      /// and zero out the high word.
+      MMX_MOVW2D,
+
+      /// Extract an 8-bit value from a vector and zero extend it to
       /// i32, corresponds to X86::PEXTRB.
       PEXTRB,
 
-      /// PEXTRW - Extract a 16-bit value from a vector and zero extend it to
+      /// Extract a 16-bit value from a vector and zero extend it to
       /// i32, corresponds to X86::PEXTRW.
       PEXTRW,
 
-      /// INSERTPS - Insert any element of a 4 x float vector into any element
+      /// Insert any element of a 4 x float vector into any element
       /// of a destination 4 x floatvector.
       INSERTPS,
 
-      /// PINSRB - Insert the lower 8-bits of a 32-bit value to a vector,
+      /// Insert the lower 8-bits of a 32-bit value to a vector,
       /// corresponds to X86::PINSRB.
       PINSRB,
 
-      /// PINSRW - Insert the lower 16-bits of a 32-bit value to a vector,
+      /// Insert the lower 16-bits of a 32-bit value to a vector,
       /// corresponds to X86::PINSRW.
       PINSRW, MMX_PINSRW,
 
-      /// PSHUFB - Shuffle 16 8-bit values within a vector.
+      /// Shuffle 16 8-bit values within a vector.
       PSHUFB,
 
-      /// ANDNP - Bitwise Logical AND NOT of Packed FP values.
+      /// Compute Sum of Absolute Differences.
+      PSADBW,
+
+      /// Bitwise Logical AND NOT of Packed FP values.
       ANDNP,
 
-      /// PSIGN - Copy integer sign.
+      /// Copy integer sign.
       PSIGN,
 
-      /// BLENDI - Blend where the selector is an immediate.
+      /// Blend where the selector is an immediate.
       BLENDI,
 
-      /// SHRUNKBLEND - Blend where the condition has been shrunk.
+      /// Blend where the condition has been shrunk.
       /// This is used to emphasize that the condition mask is
       /// no more valid for generic VSELECT optimizations.
       SHRUNKBLEND,
 
-      /// ADDSUB - Combined add and sub on an FP vector.
+      /// Combined add and sub on an FP vector.
       ADDSUB,
 
-      // SUBUS - Integer sub with unsigned saturation.
-      SUBUS,
+      //  FP vector ops with rounding mode.
+      FADD_RND,
+      FSUB_RND,
+      FMUL_RND,
+      FDIV_RND,
+      FMAX_RND,
+      FMIN_RND,
+      FSQRT_RND,
 
-      /// HADD - Integer horizontal add.
+      // FP vector get exponent 
+      FGETEXP_RND,
+      // FP Scale
+      SCALEF,
+      // Integer add/sub with unsigned saturation.
+      ADDUS,
+      SUBUS,
+      // Integer add/sub with signed saturation.
+      ADDS,
+      SUBS,
+      // Unsigned Integer average 
+      AVG,
+      /// Integer horizontal add.
       HADD,
 
-      /// HSUB - Integer horizontal sub.
+      /// Integer horizontal sub.
       HSUB,
 
-      /// FHADD - Floating point horizontal add.
+      /// Floating point horizontal add.
       FHADD,
 
-      /// FHSUB - Floating point horizontal sub.
+      /// Floating point horizontal sub.
       FHSUB,
 
-      /// UMAX, UMIN - Unsigned integer max and min.
-      UMAX, UMIN,
+      // Integer absolute value
+      ABS,
 
-      /// SMAX, SMIN - Signed integer max and min.
-      SMAX, SMIN,
-
-      /// FMAX, FMIN - Floating point max and min.
-      ///
+      /// Floating point max and min.
       FMAX, FMIN,
 
-      /// FMAXC, FMINC - Commutative FMIN and FMAX.
+      /// Commutative FMIN and FMAX.
       FMAXC, FMINC,
 
-      /// FRSQRT, FRCP - Floating point reciprocal-sqrt and reciprocal
-      /// approximation.  Note that these typically require refinement
+      /// Floating point reciprocal-sqrt and reciprocal approximation.
+      /// Note that these typically require refinement
       /// in order to obtain suitable precision.
       FRSQRT, FRCP,
 
-      // TLSADDR - Thread Local Storage.
+      // Thread Local Storage.
       TLSADDR,
 
-      // TLSBASEADDR - Thread Local Storage. A call to get the start address
+      // Thread Local Storage. A call to get the start address
       // of the TLS block for the current module.
       TLSBASEADDR,
 
-      // TLSCALL - Thread Local Storage.  When calling to an OS provided
+      // Thread Local Storage.  When calling to an OS provided
       // thunk at the address from an earlier relocation.
       TLSCALL,
 
-      // EH_RETURN - Exception Handling helpers.
+      // Exception Handling helpers.
       EH_RETURN,
 
-      // EH_SJLJ_SETJMP - SjLj exception handling setjmp.
+      // SjLj exception handling setjmp.
       EH_SJLJ_SETJMP,
 
-      // EH_SJLJ_LONGJMP - SjLj exception handling longjmp.
+      // SjLj exception handling longjmp.
       EH_SJLJ_LONGJMP,
 
-      /// TC_RETURN - Tail call return. See X86TargetLowering::LowerCall for
+      /// Tail call return. See X86TargetLowering::LowerCall for
       /// the list of operands.
       TC_RETURN,
 
-      // VZEXT_MOVL - Vector move to low scalar and zero higher vector elements.
+      // Vector move to low scalar and zero higher vector elements.
       VZEXT_MOVL,
 
-      // VZEXT - Vector integer zero-extend.
+      // Vector integer zero-extend.
       VZEXT,
 
-      // VSEXT - Vector integer signed-extend.
+      // Vector integer signed-extend.
       VSEXT,
 
-      // VTRUNC - Vector integer truncate.
+      // Vector integer truncate.
       VTRUNC,
 
-      // VTRUNC - Vector integer truncate with mask.
+      // Vector integer truncate with mask.
       VTRUNCM,
 
-      // VFPEXT - Vector FP extend.
+      // Vector FP extend.
       VFPEXT,
 
-      // VFPROUND - Vector FP round.
+      // Vector FP round.
       VFPROUND,
 
-      // VSHL, VSRL - 128-bit vector logical left / right shift
+      // Vector signed/unsigned integer to double.
+      CVTDQ2PD, CVTUDQ2PD,
+
+      // 128-bit vector logical left / right shift
       VSHLDQ, VSRLDQ,
 
-      // VSHL, VSRL, VSRA - Vector shift elements
+      // Vector shift elements
       VSHL, VSRL, VSRA,
 
-      // VSHLI, VSRLI, VSRAI - Vector shift elements by immediate
+      // Vector shift elements by immediate
       VSHLI, VSRLI, VSRAI,
 
-      // CMPP - Vector packed double/float comparison.
+      // Vector packed double/float comparison.
       CMPP,
 
-      // PCMP* - Vector integer comparisons.
+      // Vector integer comparisons.
       PCMPEQ, PCMPGT,
-      // PCMP*M - Vector integer comparisons, the result is in a mask vector.
+      // Vector integer comparisons, the result is in a mask vector.
       PCMPEQM, PCMPGTM,
 
-      /// CMPM, CMPMU - Vector comparison generating mask bits for fp and
+      /// Vector comparison generating mask bits for fp and
       /// integer signed and unsigned data types.
       CMPM,
       CMPMU,
+      // Vector comparison with rounding mode for FP values
+      CMPM_RND,
 
-      // ADD, SUB, SMUL, etc. - Arithmetic operations with FLAGS results.
+      // Arithmetic operations with FLAGS results.
       ADD, SUB, ADC, SBB, SMUL,
       INC, DEC, OR, XOR, AND,
 
-      BEXTR,  // BEXTR - Bit field extract
+      BEXTR,  // Bit field extract
 
       UMUL, // LOW, HI, FLAGS = umul LHS, RHS
 
@@ -313,16 +334,16 @@ namespace llvm {
       UDIVREM8_ZEXT_HREG,
       SDIVREM8_SEXT_HREG,
 
-      // MUL_IMM - X86 specific multiply by immediate.
+      // X86-specific multiply by immediate.
       MUL_IMM,
 
-      // PTEST - Vector bitwise comparisons.
+      // Vector bitwise comparisons.
       PTEST,
 
-      // TESTP - Vector packed fp sign bitwise comparisons.
+      // Vector packed fp sign bitwise comparisons.
       TESTP,
 
-      // TESTM, TESTNM - Vector "test" in AVX-512, the result is in a mask vector.
+      // Vector "test" in AVX-512, the result is in a mask vector.
       TESTM,
       TESTNM,
 
@@ -340,6 +361,8 @@ namespace llvm {
       PSHUFHW,
       PSHUFLW,
       SHUFP,
+      //Shuffle Packed Values at 128-bit granularity
+      SHUF128,
       MOVDDUP,
       MOVSHDUP,
       MOVSLDUP,
@@ -359,17 +382,27 @@ namespace llvm {
       VPERMIV3,
       VPERMI,
       VPERM2X128,
+      //Fix Up Special Packed Float32/64 values
+      VFIXUPIMM,
+      //Range Restriction Calculation For Packed Pairs of Float32/64 values
+      VRANGE,
+      // Broadcast scalar to vector
       VBROADCAST,
-      // masked broadcast
-      VBROADCASTM,
+      // Broadcast subvector to vector
+      SUBV_BROADCAST,
       // Insert/Extract vector element
       VINSERT,
       VEXTRACT,
+
+      /// SSE4A Extraction and Insertion.
+      EXTRQI, INSERTQI,
 
       // Vector multiply packed unsigned doubleword integers
       PMULUDQ,
       // Vector multiply packed signed doubleword integers
       PMULDQ,
+      // Vector Multiply Packed UnsignedIntegers with Round and Scale
+      MULHRS,
 
       // FMA nodes
       FMADD,
@@ -378,11 +411,26 @@ namespace llvm {
       FNMSUB,
       FMADDSUB,
       FMSUBADD,
+      // FMA with rounding mode
+      FMADD_RND,
+      FNMADD_RND,
+      FMSUB_RND,
+      FNMSUB_RND,
+      FMADDSUB_RND,
+      FMSUBADD_RND,
+      RNDSCALE,
 
       // Compress and expand
       COMPRESS,
       EXPAND,
 
+      //Convert Unsigned/Integer to Scalar Floating-Point Value
+      //with rounding mode
+      SINT_TO_FP_RND,
+      UINT_TO_FP_RND,
+
+      // Vector float/double to signed/unsigned integer.
+      FP_TO_SINT_RND, FP_TO_UINT_RND,
       // Save xmm argument registers to the stack, according to %al. An operator
       // is needed so that this can be expanded with control flow.
       VASTART_SAVE_XMM_REGS,
@@ -547,11 +595,15 @@ namespace llvm {
   //  X86 Implementation of the TargetLowering interface
   class X86TargetLowering final : public TargetLowering {
   public:
-    explicit X86TargetLowering(const X86TargetMachine &TM);
+    explicit X86TargetLowering(const X86TargetMachine &TM,
+                               const X86Subtarget &STI);
 
     unsigned getJumpTableEncoding() const override;
+    bool useSoftFloat() const override;
 
-    MVT getScalarShiftAmountTy(EVT LHSTy) const override { return MVT::i8; }
+    MVT getScalarShiftAmountTy(const DataLayout &, EVT) const override {
+      return MVT::i8;
+    }
 
     const MCExpr *
     LowerCustomJumpTableEntry(const MachineJumpTableInfo *MJTI,
@@ -569,7 +621,8 @@ namespace llvm {
     /// function arguments in the caller parameter area. For X86, aggregates
     /// that contains are placed at 16-byte boundaries while the rest are at
     /// 4-byte boundaries.
-    unsigned getByValTypeAlignment(Type *Ty) const override;
+    unsigned getByValTypeAlignment(Type *Ty,
+                                   const DataLayout &DL) const override;
 
     /// Returns the target specific optimal type for load
     /// and store operations as a result of memset, memcpy, and memmove
@@ -594,9 +647,8 @@ namespace llvm {
     /// legal as the hook is used before type legalization.
     bool isSafeMemOpType(MVT VT) const override;
 
-    /// Returns true if the target allows
-    /// unaligned memory accesses. of the specified type. Returns whether it
-    /// is "fast" by reference in the second argument.
+    /// Returns true if the target allows unaligned memory accesses of the
+    /// specified type. Returns whether it is "fast" in the last argument.
     bool allowsMisalignedMemoryAccesses(EVT VT, unsigned AS, unsigned Align,
                                        bool *Fast) const override;
 
@@ -638,7 +690,8 @@ namespace llvm {
     bool isCheapToSpeculateCtlz() const override;
 
     /// Return the value type to use for ISD::SETCC.
-    EVT getSetCCResultType(LLVMContext &Context, EVT VT) const override;
+    EVT getSetCCResultType(const DataLayout &DL, LLVMContext &Context,
+                           EVT VT) const override;
 
     /// Determine which of the bits specified in Mask are known to be either
     /// zero or one and return them in the KnownZero/KnownOne bitsets.
@@ -660,8 +713,7 @@ namespace llvm {
 
     bool ExpandInlineAsm(CallInst *CI) const override;
 
-    ConstraintType
-      getConstraintType(const std::string &Constraint) const override;
+    ConstraintType getConstraintType(StringRef Constraint) const override;
 
     /// Examine constraint string and operand type and determine a weight value.
     /// The operand object must already have been set up with the operand type.
@@ -679,17 +731,31 @@ namespace llvm {
                                       std::vector<SDValue> &Ops,
                                       SelectionDAG &DAG) const override;
 
+    unsigned
+    getInlineAsmMemConstraint(StringRef ConstraintCode) const override {
+      if (ConstraintCode == "i")
+        return InlineAsm::Constraint_i;
+      else if (ConstraintCode == "o")
+        return InlineAsm::Constraint_o;
+      else if (ConstraintCode == "v")
+        return InlineAsm::Constraint_v;
+      else if (ConstraintCode == "X")
+        return InlineAsm::Constraint_X;
+      return TargetLowering::getInlineAsmMemConstraint(ConstraintCode);
+    }
+
     /// Given a physical register constraint
     /// (e.g. {edx}), return the register number and the register class for the
     /// register.  This should only be used for C_Register constraints.  On
     /// error, this returns a register number of 0.
-    std::pair<unsigned, const TargetRegisterClass*>
-      getRegForInlineAsmConstraint(const std::string &Constraint,
-                                   MVT VT) const override;
+    std::pair<unsigned, const TargetRegisterClass *>
+    getRegForInlineAsmConstraint(const TargetRegisterInfo *TRI,
+                                 StringRef Constraint, MVT VT) const override;
 
     /// Return true if the addressing mode represented
     /// by AM is legal for this target, for a load/store of the specified type.
-    bool isLegalAddressingMode(const AddrMode &AM, Type *Ty) const override;
+    bool isLegalAddressingMode(const DataLayout &DL, const AddrMode &AM,
+                               Type *Ty, unsigned AS) const override;
 
     /// Return true if the specified immediate is legal
     /// icmp immediate, that is the target has icmp instructions which can
@@ -708,7 +774,8 @@ namespace llvm {
     /// of the specified type.
     /// If the AM is supported, the return value must be >= 0.
     /// If the AM is not supported, it returns a negative value.
-    int getScalingFactorCost(const AddrMode &AM, Type *Ty) const override;
+    int getScalingFactorCost(const DataLayout &DL, const AddrMode &AM, Type *Ty,
+                             unsigned AS) const override;
 
     bool isVectorShiftByScalarCheap(Type *Ty) const override;
 
@@ -731,6 +798,10 @@ namespace llvm {
     bool isZExtFree(Type *Ty1, Type *Ty2) const override;
     bool isZExtFree(EVT VT1, EVT VT2) const override;
     bool isZExtFree(SDValue Val, EVT VT2) const override;
+
+    /// Return true if folding a vector load into ExtVal (a sign, zero, or any
+    /// extend node) is profitable.
+    bool isVectorLoadExtDesirable(SDValue) const override;
 
     /// Return true if an FMA operation is faster than a pair of fmul and fadd
     /// instructions. fmuladd intrinsics will be expanded to FMAs when this
@@ -775,10 +846,6 @@ namespace llvm {
     bool shouldReduceLoadWidth(SDNode *Load, ISD::LoadExtType ExtTy,
                                EVT NewVT) const override;
 
-    const X86Subtarget* getSubtarget() const {
-      return Subtarget;
-    }
-
     /// Return true if the specified scalar FP type is computed in an SSE
     /// register, not on the X87 floating point stack.
     bool isScalarFPTypeInSSEReg(EVT VT) const {
@@ -809,7 +876,8 @@ namespace llvm {
       return nullptr; // nothing to do, move along.
     }
 
-    unsigned getRegisterByName(const char* RegName, EVT VT) const override;
+    unsigned getRegisterByName(const char* RegName, EVT VT,
+                               SelectionDAG &DAG) const override;
 
     /// This method returns a target specific FastISel object,
     /// or null if the target does not support "fast" ISel.
@@ -827,26 +895,20 @@ namespace llvm {
 
     bool isNoopAddrSpaceCast(unsigned SrcAS, unsigned DestAS) const override;
 
-    /// \brief Reset the operation actions based on target options.
-    void resetOperationActions() override;
-
     bool useLoadStackGuardNode() const override;
     /// \brief Customize the preferred legalization strategy for certain types.
     LegalizeTypeAction getPreferredVectorAction(EVT VT) const override;
 
   protected:
-    std::pair<const TargetRegisterClass*, uint8_t>
-    findRepresentativeClass(MVT VT) const override;
+    std::pair<const TargetRegisterClass *, uint8_t>
+    findRepresentativeClass(const TargetRegisterInfo *TRI,
+                            MVT VT) const override;
 
   private:
     /// Keep a pointer to the X86Subtarget around so that we can
     /// make the right decision when generating code for different targets.
     const X86Subtarget *Subtarget;
     const DataLayout *TD;
-
-    /// Used to store the TargetOptions so that we don't waste time resetting
-    /// the operation actions unless we have to.
-    TargetOptions TO;
 
     /// Select between SSE or x87 floating point ops.
     /// When SSE is available, use it for f32 operations.
@@ -947,8 +1009,9 @@ namespace llvm {
     SDValue lowerEH_SJLJ_LONGJMP(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerINIT_TRAMPOLINE(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerFLT_ROUNDS_(SDValue Op, SelectionDAG &DAG) const;
-    SDValue LowerSIGN_EXTEND_INREG(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerWin64_i128OP(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerGC_TRANSITION_START(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerGC_TRANSITION_END(SDValue Op, SelectionDAG &DAG) const;
 
     SDValue
       LowerFormalArguments(SDValue Chain,
@@ -981,7 +1044,8 @@ namespace llvm {
 
     bool shouldExpandAtomicLoadInIR(LoadInst *SI) const override;
     bool shouldExpandAtomicStoreInIR(StoreInst *SI) const override;
-    bool shouldExpandAtomicRMWInIR(AtomicRMWInst *AI) const override;
+    TargetLoweringBase::AtomicRMWExpansionKind
+    shouldExpandAtomicRMWInIR(AtomicRMWInst *AI) const override;
 
     LoadInst *
     lowerIdempotentRMWIntoFencedLoad(AtomicRMWInst *AI) const override;
@@ -1055,6 +1119,9 @@ namespace llvm {
     /// Use rcp* to speed up fdiv calculations.
     SDValue getRecipEstimate(SDValue Operand, DAGCombinerInfo &DCI,
                              unsigned &RefinementSteps) const override;
+
+    /// Reassociate floating point divisions into multiply by reciprocal.
+    bool combineRepeatedFPDivisors(unsigned NumUsers) const override;
   };
 
   namespace X86 {

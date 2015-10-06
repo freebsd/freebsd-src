@@ -30,15 +30,14 @@ OldT2IfCvt("old-thumb2-ifcvt", cl::Hidden,
            cl::init(false));
 
 Thumb2InstrInfo::Thumb2InstrInfo(const ARMSubtarget &STI)
-  : ARMBaseInstrInfo(STI), RI(STI) {
-}
+    : ARMBaseInstrInfo(STI), RI() {}
 
 /// getNoopForMachoTarget - Return the noop instruction to use for a noop.
 void Thumb2InstrInfo::getNoopForMachoTarget(MCInst &NopInst) const {
   NopInst.setOpcode(ARM::tHINT);
-  NopInst.addOperand(MCOperand::CreateImm(0));
-  NopInst.addOperand(MCOperand::CreateImm(ARMCC::AL));
-  NopInst.addOperand(MCOperand::CreateReg(0));
+  NopInst.addOperand(MCOperand::createImm(0));
+  NopInst.addOperand(MCOperand::createImm(ARMCC::AL));
+  NopInst.addOperand(MCOperand::createReg(0));
 }
 
 unsigned Thumb2InstrInfo::getUnindexedOpcode(unsigned Opc) const {
@@ -257,14 +256,19 @@ void llvm::emitT2RegPlusImmediate(MachineBasicBlock &MBB,
     if (Fits) {
       if (isSub) {
         BuildMI(MBB, MBBI, dl, TII.get(ARM::t2SUBrr), DestReg)
-          .addReg(BaseReg, RegState::Kill)
+          .addReg(BaseReg)
           .addReg(DestReg, RegState::Kill)
           .addImm((unsigned)Pred).addReg(PredReg).addReg(0)
           .setMIFlags(MIFlags);
       } else {
+        // Here we know that DestReg is not SP but we do not
+        // know anything about BaseReg. t2ADDrr is an invalid
+        // instruction is SP is used as the second argument, but
+        // is fine if SP is the first argument. To be sure we
+        // do not generate invalid encoding, put BaseReg first.
         BuildMI(MBB, MBBI, dl, TII.get(ARM::t2ADDrr), DestReg)
+          .addReg(BaseReg)
           .addReg(DestReg, RegState::Kill)
-          .addReg(BaseReg, RegState::Kill)
           .addImm((unsigned)Pred).addReg(PredReg).addReg(0)
           .setMIFlags(MIFlags);
       }
@@ -574,13 +578,10 @@ bool llvm::rewriteT2FrameIndex(MachineInstr &MI, unsigned FrameRegIdx,
       }
     } else if (AddrMode == ARMII::AddrModeT2_i8s4) {
       Offset += MI.getOperand(FrameRegIdx + 1).getImm() * 4;
-      NumBits = 8;
-      // MCInst operand has already scaled value.
+      NumBits = 10; // 8 bits scaled by 4
+      // MCInst operand expects already scaled value.
       Scale = 1;
-      if (Offset < 0) {
-        isSub = true;
-        Offset = -Offset;
-      }
+      assert((Offset & 3) == 0 && "Can't encode this offset!");
     } else {
       llvm_unreachable("Unsupported addressing mode!");
     }

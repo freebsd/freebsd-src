@@ -206,6 +206,7 @@ SRCS+=	adddf3.c			\
 	fixdfsi.c			\
 	fixsfdi.c			\
 	fixsfsi.c			\
+	fixunsdfdi.c			\
 	fixunsdfsi.c			\
 	floatdidf.c			\
 	floatdisf.c			\

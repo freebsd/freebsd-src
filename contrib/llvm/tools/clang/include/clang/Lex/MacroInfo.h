@@ -17,11 +17,15 @@
 
 #include "clang/Lex/Token.h"
 #include "llvm/ADT/ArrayRef.h"
+#include "llvm/ADT/FoldingSet.h"
+#include "llvm/ADT/PointerIntPair.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/Allocator.h"
 #include <cassert>
 
 namespace clang {
+class Module;
+class ModuleMacro;
 class Preprocessor;
 
 /// \brief Encapsulates the data about a macro definition (e.g. its tokens).
@@ -40,8 +44,8 @@ class MacroInfo {
   ///
   /// ArgumentList points to the first of NumArguments pointers.
   ///
-  /// This can be empty, for, e.g. "#define X()".  In a C99-style variadic macro, this
-  /// includes the \c __VA_ARGS__ identifier on the list.
+  /// This can be empty, for, e.g. "#define X()".  In a C99-style variadic
+  /// macro, this includes the \c __VA_ARGS__ identifier on the list.
   IdentifierInfo **ArgumentList;
 
   /// \see ArgumentList
@@ -66,15 +70,15 @@ class MacroInfo {
 
   /// \brief True if this macro is of the form "#define X(a...)".
   ///
-  /// The "a" identifier in the replacement list will be replaced with all arguments
-  /// of the macro starting with the specified one.
+  /// The "a" identifier in the replacement list will be replaced with all
+  /// arguments of the macro starting with the specified one.
   bool IsGNUVarargs : 1;
 
   /// \brief True if this macro requires processing before expansion.
   ///
   /// This is the case for builtin macros such as __LINE__, so long as they have
-  /// not been redefined, but not for regular predefined macros from the "<built-in>"
-  /// memory buffer (see Preprocessing::getPredefinesFileID).
+  /// not been redefined, but not for regular predefined macros from the
+  /// "<built-in>" memory buffer (see Preprocessing::getPredefinesFileID).
   bool IsBuiltinMacro : 1;
 
   /// \brief Whether this macro contains the sequence ", ## __VA_ARGS__"
@@ -109,7 +113,7 @@ class MacroInfo {
 
   // Only the Preprocessor gets to create and destroy these.
   MacroInfo(SourceLocation DefLoc);
-  ~MacroInfo() {}
+  ~MacroInfo() = default;
 
 public:
   /// \brief Return the location that the macro was defined at.
@@ -139,14 +143,10 @@ public:
                      bool Syntactically) const;
 
   /// \brief Set or clear the isBuiltinMacro flag.
-  void setIsBuiltinMacro(bool Val = true) {
-    IsBuiltinMacro = Val;
-  }
+  void setIsBuiltinMacro(bool Val = true) { IsBuiltinMacro = Val; }
 
   /// \brief Set the value of the IsUsed flag.
-  void setIsUsed(bool Val) {
-    IsUsed = Val;
-  }
+  void setIsUsed(bool Val) { IsUsed = Val; }
 
   /// \brief Set the value of the IsAllowRedefinitionsWithoutWarning flag.
   void setIsAllowRedefinitionsWithoutWarning(bool Val) {
@@ -154,37 +154,40 @@ public:
   }
 
   /// \brief Set the value of the IsWarnIfUnused flag.
-  void setIsWarnIfUnused(bool val) {
-    IsWarnIfUnused = val;
-  }
+  void setIsWarnIfUnused(bool val) { IsWarnIfUnused = val; }
 
   /// \brief Set the specified list of identifiers as the argument list for
   /// this macro.
-  void setArgumentList(IdentifierInfo* const *List, unsigned NumArgs,
+  void setArgumentList(IdentifierInfo *const *List, unsigned NumArgs,
                        llvm::BumpPtrAllocator &PPAllocator) {
     assert(ArgumentList == nullptr && NumArguments == 0 &&
            "Argument list already set!");
-    if (NumArgs == 0) return;
+    if (NumArgs == 0)
+      return;
 
     NumArguments = NumArgs;
-    ArgumentList = PPAllocator.Allocate<IdentifierInfo*>(NumArgs);
+    ArgumentList = PPAllocator.Allocate<IdentifierInfo *>(NumArgs);
     for (unsigned i = 0; i != NumArgs; ++i)
       ArgumentList[i] = List[i];
   }
 
   /// Arguments - The list of arguments for a function-like macro.  This can be
   /// empty, for, e.g. "#define X()".
-  typedef IdentifierInfo* const *arg_iterator;
+  typedef IdentifierInfo *const *arg_iterator;
   bool arg_empty() const { return NumArguments == 0; }
   arg_iterator arg_begin() const { return ArgumentList; }
-  arg_iterator arg_end() const { return ArgumentList+NumArguments; }
+  arg_iterator arg_end() const { return ArgumentList + NumArguments; }
   unsigned getNumArgs() const { return NumArguments; }
+  ArrayRef<const IdentifierInfo *> args() const {
+    return ArrayRef<const IdentifierInfo *>(ArgumentList, NumArguments);
+  }
 
   /// \brief Return the argument number of the specified identifier,
   /// or -1 if the identifier is not a formal argument identifier.
-  int getArgumentNum(IdentifierInfo *Arg) const {
+  int getArgumentNum(const IdentifierInfo *Arg) const {
     for (arg_iterator I = arg_begin(), E = arg_end(); I != E; ++I)
-      if (*I == Arg) return I-arg_begin();
+      if (*I == Arg)
+        return I - arg_begin();
     return -1;
   }
 
@@ -222,15 +225,11 @@ public:
   }
 
   /// \brief Return true if we should emit a warning if the macro is unused.
-  bool isWarnIfUnused() const {
-    return IsWarnIfUnused;
-  }
+  bool isWarnIfUnused() const { return IsWarnIfUnused; }
 
   /// \brief Return the number of tokens that this macro expands to.
   ///
-  unsigned getNumTokens() const {
-    return ReplacementTokens.size();
-  }
+  unsigned getNumTokens() const { return ReplacementTokens.size(); }
 
   const Token &getReplacementToken(unsigned Tok) const {
     assert(Tok < ReplacementTokens.size() && "Invalid token #");
@@ -241,11 +240,13 @@ public:
   tokens_iterator tokens_begin() const { return ReplacementTokens.begin(); }
   tokens_iterator tokens_end() const { return ReplacementTokens.end(); }
   bool tokens_empty() const { return ReplacementTokens.empty(); }
+  ArrayRef<Token> tokens() const { return ReplacementTokens; }
 
   /// \brief Add the specified token to the replacement text for the macro.
   void AddTokenToBody(const Token &Tok) {
-    assert(!IsDefinitionLengthCached &&
-          "Changing replacement tokens after definition length got calculated");
+    assert(
+        !IsDefinitionLengthCached &&
+        "Changing replacement tokens after definition length got calculated");
     ReplacementTokens.push_back(Tok);
   }
 
@@ -277,7 +278,7 @@ public:
   /// macro info.
   unsigned getOwningModuleID() const {
     if (isFromASTFile())
-      return *(const unsigned*)(this+1);
+      return *(const unsigned *)(this + 1);
 
     return 0;
   }
@@ -289,7 +290,7 @@ private:
 
   void setOwningModuleID(unsigned ID) {
     assert(isFromASTFile());
-    *(unsigned*)(this+1) = ID;
+    *(unsigned *)(this + 1) = ID;
   }
 
   friend class Preprocessor;
@@ -302,22 +303,11 @@ class DefMacroDirective;
 ///
 /// MacroDirectives, associated with an identifier, are used to model the macro
 /// history. Usually a macro definition (MacroInfo) is where a macro name
-/// becomes active (MacroDirective) but modules can have their own macro
-/// history, separate from the local (current translation unit) macro history.
-///
-/// For example, if "@import A;" imports macro FOO, there will be a new local
-/// MacroDirective created to indicate that "FOO" became active at the import
-/// location. Module "A" itself will contain another MacroDirective in its macro
-/// history (at the point of the definition of FOO) and both MacroDirectives
-/// will point to the same MacroInfo object.
-///
+/// becomes active (MacroDirective) but #pragma push_macro / pop_macro can
+/// create additional DefMacroDirectives for the same MacroInfo.
 class MacroDirective {
 public:
-  enum Kind {
-    MD_Define,
-    MD_Undefine,
-    MD_Visibility
-  };
+  enum Kind { MD_Define, MD_Undefine, MD_Visibility };
 
 protected:
   /// \brief Previous macro directive for the same identifier, or NULL.
@@ -331,47 +321,15 @@ protected:
   /// \brief True if the macro directive was loaded from a PCH file.
   bool IsFromPCH : 1;
 
-  // Used by DefMacroDirective -----------------------------------------------//
-
-  /// \brief Whether the definition of this macro is ambiguous, due to
-  /// multiple definitions coming in from multiple modules.
-  bool IsAmbiguous : 1;
-
   // Used by VisibilityMacroDirective ----------------------------------------//
 
   /// \brief Whether the macro has public visibility (when described in a
   /// module).
   bool IsPublic : 1;
 
-  // Used by DefMacroDirective and UndefMacroDirective -----------------------//
-
-  /// \brief True if this macro was imported from a module.
-  bool IsImported : 1;
-
-  /// \brief For an imported directive, the number of modules whose macros are
-  /// overridden by this directive. Only used if IsImported.
-  unsigned NumOverrides : 26;
-
-  unsigned *getModuleDataStart();
-  const unsigned *getModuleDataStart() const {
-    return const_cast<MacroDirective*>(this)->getModuleDataStart();
-  }
-
-  MacroDirective(Kind K, SourceLocation Loc,
-                 unsigned ImportedFromModuleID = 0,
-                 ArrayRef<unsigned> Overrides = None)
+  MacroDirective(Kind K, SourceLocation Loc)
       : Previous(nullptr), Loc(Loc), MDKind(K), IsFromPCH(false),
-        IsAmbiguous(false), IsPublic(true), IsImported(ImportedFromModuleID),
-        NumOverrides(Overrides.size()) {
-    assert(NumOverrides == Overrides.size() && "too many overrides");
-    assert((IsImported || !NumOverrides) && "overrides for non-module macro");
-
-    if (IsImported) {
-      unsigned *Extra = getModuleDataStart();
-      *Extra++ = ImportedFromModuleID;
-      std::copy(Overrides.begin(), Overrides.end(), Extra);
-    }
-  }
+        IsPublic(true) {}
 
 public:
   Kind getKind() const { return Kind(MDKind); }
@@ -379,9 +337,7 @@ public:
   SourceLocation getLocation() const { return Loc; }
 
   /// \brief Set previous definition of the macro with the same name.
-  void setPrevious(MacroDirective *Prev) {
-    Previous = Prev;
-  }
+  void setPrevious(MacroDirective *Prev) { Previous = Prev; }
 
   /// \brief Get previous definition of the macro with the same name.
   const MacroDirective *getPrevious() const { return Previous; }
@@ -394,46 +350,25 @@ public:
 
   void setIsFromPCH() { IsFromPCH = true; }
 
-  /// \brief True if this macro was imported from a module.
-  /// Note that this is never the case for a VisibilityMacroDirective.
-  bool isImported() const { return IsImported; }
-
-  /// \brief If this directive was imported from a module, get the submodule
-  /// whose directive this is. Note that this may be different from the module
-  /// that owns the MacroInfo for a DefMacroDirective due to #pragma pop_macro
-  /// and similar effects.
-  unsigned getOwningModuleID() const {
-    if (isImported())
-      return *getModuleDataStart();
-    return 0;
-  }
-
-  /// \brief Get the module IDs of modules whose macros are overridden by this
-  /// directive. Only valid if this is an imported directive.
-  ArrayRef<unsigned> getOverriddenModules() const {
-    assert(IsImported && "can only get overridden modules for imported macro");
-    return llvm::makeArrayRef(getModuleDataStart() + 1, NumOverrides);
-  }
-
   class DefInfo {
     DefMacroDirective *DefDirective;
     SourceLocation UndefLoc;
     bool IsPublic;
 
   public:
-    DefInfo() : DefDirective(nullptr) { }
+    DefInfo() : DefDirective(nullptr), IsPublic(true) {}
 
     DefInfo(DefMacroDirective *DefDirective, SourceLocation UndefLoc,
             bool isPublic)
-      : DefDirective(DefDirective), UndefLoc(UndefLoc), IsPublic(isPublic) { }
+        : DefDirective(DefDirective), UndefLoc(UndefLoc), IsPublic(isPublic) {}
 
     const DefMacroDirective *getDirective() const { return DefDirective; }
-          DefMacroDirective *getDirective()       { return DefDirective; }
+    DefMacroDirective *getDirective() { return DefDirective; }
 
     inline SourceLocation getLocation() const;
     inline MacroInfo *getMacroInfo();
     const MacroInfo *getMacroInfo() const {
-      return const_cast<DefInfo*>(this)->getMacroInfo();
+      return const_cast<DefInfo *>(this)->getMacroInfo();
     }
 
     SourceLocation getUndefLocation() const { return UndefLoc; }
@@ -444,11 +379,11 @@ public:
     bool isValid() const { return DefDirective != nullptr; }
     bool isInvalid() const { return !isValid(); }
 
-    LLVM_EXPLICIT operator bool() const { return isValid(); }
+    explicit operator bool() const { return isValid(); }
 
     inline DefInfo getPreviousDefinition();
     const DefInfo getPreviousDefinition() const {
-      return const_cast<DefInfo*>(this)->getPreviousDefinition();
+      return const_cast<DefInfo *>(this)->getPreviousDefinition();
     }
   };
 
@@ -457,7 +392,7 @@ public:
   /// (if there is one) and if it is public or private.
   DefInfo getDefinition();
   const DefInfo getDefinition() const {
-    return const_cast<MacroDirective*>(this)->getDefinition();
+    return const_cast<MacroDirective *>(this)->getDefinition();
   }
 
   bool isDefined() const {
@@ -469,9 +404,7 @@ public:
   const MacroInfo *getMacroInfo() const {
     return getDefinition().getMacroInfo();
   }
-  MacroInfo *getMacroInfo() {
-    return getDefinition().getMacroInfo();
-  }
+  MacroInfo *getMacroInfo() { return getDefinition().getMacroInfo(); }
 
   /// \brief Find macro definition active in the specified source location. If
   /// this macro was not defined there, return NULL.
@@ -487,29 +420,16 @@ class DefMacroDirective : public MacroDirective {
   MacroInfo *Info;
 
 public:
+  DefMacroDirective(MacroInfo *MI, SourceLocation Loc)
+      : MacroDirective(MD_Define, Loc), Info(MI) {
+    assert(MI && "MacroInfo is null");
+  }
   explicit DefMacroDirective(MacroInfo *MI)
-      : MacroDirective(MD_Define, MI->getDefinitionLoc()), Info(MI) {
-    assert(MI && "MacroInfo is null");
-  }
-
-  DefMacroDirective(MacroInfo *MI, SourceLocation Loc,
-                    unsigned ImportedFromModuleID = 0,
-                    ArrayRef<unsigned> Overrides = None)
-      : MacroDirective(MD_Define, Loc, ImportedFromModuleID, Overrides),
-        Info(MI) {
-    assert(MI && "MacroInfo is null");
-  }
+      : DefMacroDirective(MI, MI->getDefinitionLoc()) {}
 
   /// \brief The data for the macro definition.
   const MacroInfo *getInfo() const { return Info; }
   MacroInfo *getInfo() { return Info; }
-
-  /// \brief Determine whether this macro definition is ambiguous with
-  /// other macro definitions.
-  bool isAmbiguous() const { return IsAmbiguous; }
-
-  /// \brief Set whether this macro definition is ambiguous.
-  void setAmbiguous(bool Val) { IsAmbiguous = Val; }
 
   static bool classof(const MacroDirective *MD) {
     return MD->getKind() == MD_Define;
@@ -518,13 +438,11 @@ public:
 };
 
 /// \brief A directive for an undefined macro.
-class UndefMacroDirective : public MacroDirective  {
+class UndefMacroDirective : public MacroDirective {
 public:
-  explicit UndefMacroDirective(SourceLocation UndefLoc,
-                               unsigned ImportedFromModuleID = 0,
-                               ArrayRef<unsigned> Overrides = None)
-      : MacroDirective(MD_Undefine, UndefLoc, ImportedFromModuleID, Overrides) {
-    assert((UndefLoc.isValid() || ImportedFromModuleID) && "Invalid UndefLoc!");
+  explicit UndefMacroDirective(SourceLocation UndefLoc)
+      : MacroDirective(MD_Undefine, UndefLoc) {
+    assert(UndefLoc.isValid() && "Invalid UndefLoc!");
   }
 
   static bool classof(const MacroDirective *MD) {
@@ -534,10 +452,10 @@ public:
 };
 
 /// \brief A directive for setting the module visibility of a macro.
-class VisibilityMacroDirective : public MacroDirective  {
+class VisibilityMacroDirective : public MacroDirective {
 public:
   explicit VisibilityMacroDirective(SourceLocation Loc, bool Public)
-    : MacroDirective(MD_Visibility, Loc) {
+      : MacroDirective(MD_Visibility, Loc) {
     IsPublic = Public;
   }
 
@@ -550,13 +468,6 @@ public:
   }
   static bool classof(const VisibilityMacroDirective *) { return true; }
 };
-
-inline unsigned *MacroDirective::getModuleDataStart() {
-  if (auto *Def = dyn_cast<DefMacroDirective>(this))
-    return reinterpret_cast<unsigned*>(Def + 1);
-  else
-    return reinterpret_cast<unsigned*>(cast<UndefMacroDirective>(this) + 1);
-}
 
 inline SourceLocation MacroDirective::DefInfo::getLocation() const {
   if (isInvalid())
@@ -577,6 +488,123 @@ MacroDirective::DefInfo::getPreviousDefinition() {
   return DefDirective->getPrevious()->getDefinition();
 }
 
-}  // end namespace clang
+/// \brief Represents a macro directive exported by a module.
+///
+/// There's an instance of this class for every macro #define or #undef that is
+/// the final directive for a macro name within a module. These entities also
+/// represent the macro override graph.
+///
+/// These are stored in a FoldingSet in the preprocessor.
+class ModuleMacro : public llvm::FoldingSetNode {
+  /// The name defined by the macro.
+  IdentifierInfo *II;
+  /// The body of the #define, or nullptr if this is a #undef.
+  MacroInfo *Macro;
+  /// The module that exports this macro.
+  Module *OwningModule;
+  /// The number of module macros that override this one.
+  unsigned NumOverriddenBy;
+  /// The number of modules whose macros are directly overridden by this one.
+  unsigned NumOverrides;
+  // ModuleMacro *OverriddenMacros[NumOverrides];
+
+  friend class Preprocessor;
+
+  ModuleMacro(Module *OwningModule, IdentifierInfo *II, MacroInfo *Macro,
+              ArrayRef<ModuleMacro *> Overrides)
+      : II(II), Macro(Macro), OwningModule(OwningModule), NumOverriddenBy(0),
+        NumOverrides(Overrides.size()) {
+    std::copy(Overrides.begin(), Overrides.end(),
+              reinterpret_cast<ModuleMacro **>(this + 1));
+  }
+
+public:
+  static ModuleMacro *create(Preprocessor &PP, Module *OwningModule,
+                             IdentifierInfo *II, MacroInfo *Macro,
+                             ArrayRef<ModuleMacro *> Overrides);
+
+  void Profile(llvm::FoldingSetNodeID &ID) const {
+    return Profile(ID, OwningModule, II);
+  }
+  static void Profile(llvm::FoldingSetNodeID &ID, Module *OwningModule,
+                      IdentifierInfo *II) {
+    ID.AddPointer(OwningModule);
+    ID.AddPointer(II);
+  }
+
+  /// Get the ID of the module that exports this macro.
+  Module *getOwningModule() const { return OwningModule; }
+
+  /// Get definition for this exported #define, or nullptr if this
+  /// represents a #undef.
+  MacroInfo *getMacroInfo() const { return Macro; }
+
+  /// Iterators over the overridden module IDs.
+  /// \{
+  typedef ModuleMacro *const *overrides_iterator;
+  overrides_iterator overrides_begin() const {
+    return reinterpret_cast<overrides_iterator>(this + 1);
+  }
+  overrides_iterator overrides_end() const {
+    return overrides_begin() + NumOverrides;
+  }
+  ArrayRef<ModuleMacro *> overrides() const {
+    return llvm::makeArrayRef(overrides_begin(), overrides_end());
+  }
+  /// \}
+
+  /// Get the number of macros that override this one.
+  unsigned getNumOverridingMacros() const { return NumOverriddenBy; }
+};
+
+/// \brief A description of the current definition of a macro.
+///
+/// The definition of a macro comprises a set of (at least one) defining
+/// entities, which are either local MacroDirectives or imported ModuleMacros.
+class MacroDefinition {
+  llvm::PointerIntPair<DefMacroDirective *, 1, bool> LatestLocalAndAmbiguous;
+  ArrayRef<ModuleMacro *> ModuleMacros;
+
+public:
+  MacroDefinition() : LatestLocalAndAmbiguous(), ModuleMacros() {}
+  MacroDefinition(DefMacroDirective *MD, ArrayRef<ModuleMacro *> MMs,
+                  bool IsAmbiguous)
+      : LatestLocalAndAmbiguous(MD, IsAmbiguous), ModuleMacros(MMs) {}
+
+  /// \brief Determine whether there is a definition of this macro.
+  explicit operator bool() const {
+    return getLocalDirective() || !ModuleMacros.empty();
+  }
+
+  /// \brief Get the MacroInfo that should be used for this definition.
+  MacroInfo *getMacroInfo() const {
+    if (!ModuleMacros.empty())
+      return ModuleMacros.back()->getMacroInfo();
+    if (auto *MD = getLocalDirective())
+      return MD->getMacroInfo();
+    return nullptr;
+  }
+
+  /// \brief \c true if the definition is ambiguous, \c false otherwise.
+  bool isAmbiguous() const { return LatestLocalAndAmbiguous.getInt(); }
+
+  /// \brief Get the latest non-imported, non-\#undef'd macro definition
+  /// for this macro.
+  DefMacroDirective *getLocalDirective() const {
+    return LatestLocalAndAmbiguous.getPointer();
+  }
+
+  /// \brief Get the active module macros for this macro.
+  ArrayRef<ModuleMacro *> getModuleMacros() const { return ModuleMacros; }
+
+  template <typename Fn> void forAllDefinitions(Fn F) const {
+    if (auto *MD = getLocalDirective())
+      F(MD->getMacroInfo());
+    for (auto *MM : getModuleMacros())
+      F(MM->getMacroInfo());
+  }
+};
+
+} // end namespace clang
 
 #endif

@@ -14,6 +14,7 @@
 #ifndef LLVM_SUPPORT_REGISTRY_H
 #define LLVM_SUPPORT_REGISTRY_H
 
+#include "llvm/ADT/iterator_range.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/Support/Compiler.h"
 #include <memory>
@@ -41,7 +42,7 @@ namespace llvm {
   /// is necessary to define an alternate traits class.
   template <typename T>
   class RegistryTraits {
-    RegistryTraits() LLVM_DELETED_FUNCTION;
+    RegistryTraits() = delete;
 
   public:
     typedef SimpleRegistryEntry<T> entry;
@@ -67,7 +68,7 @@ namespace llvm {
     class iterator;
 
   private:
-    Registry() LLVM_DELETED_FUNCTION;
+    Registry() = delete;
 
     static void Announce(const entry &E) {
       for (listener *Cur = ListenerHead; Cur; Cur = Cur->Next)
@@ -119,6 +120,10 @@ namespace llvm {
 
     static iterator begin() { return iterator(Head); }
     static iterator end()   { return iterator(nullptr); }
+
+    static iterator_range<iterator> entries() {
+      return iterator_range<iterator>(begin(), end());
+    }
 
 
     /// Abstract base class for registry listeners, which are informed when new

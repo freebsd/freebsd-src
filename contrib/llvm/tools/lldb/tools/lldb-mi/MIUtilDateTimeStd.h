@@ -7,18 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-//++
-// File:        MIUtilDateTimeStd.h
-//
-// Overview:    CMIUtilDateTimeStd interface.
-//
-// Environment: Compilers:  Visual C++ 12.
-//                          gcc (Ubuntu/Linaro 4.8.1-10ubuntu9) 4.8.1
-//              Libraries:  See MIReadmetxt.
-//
-// Copyright:   None.
-//--
-
 #pragma once
 
 // Third party headers
@@ -42,6 +30,7 @@ class CMIUtilDateTimeStd
 
     CMIUtilString GetDate(void);
     CMIUtilString GetTime(void);
+    CMIUtilString GetDateTimeLogFilename(void);
 
     // Overrideable:
   public:
@@ -51,5 +40,5 @@ class CMIUtilDateTimeStd
     // Attributes:
   private:
     std::time_t m_rawTime;
-    MIchar m_pScratch[16];
+    char m_pScratch[16];
 };

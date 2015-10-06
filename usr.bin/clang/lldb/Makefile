@@ -30,11 +30,17 @@ LLDB_LIBS=\
 	lldbHostFreeBSD \
 	lldbHostCommon \
 	lldbHostPOSIX \
+	lldbInitialization \
 	lldbInterpreter \
 	lldbSymbol \
 	lldbTarget \
 	lldbUtility \
 	\
+	lldbPluginABISysV_arm \
+	lldbPluginABISysV_arm64 \
+	lldbPluginABISysV_i386 \
+	lldbPluginABISysV_mips \
+	lldbPluginABISysV_mips64 \
 	lldbPluginABISysV_ppc \
 	lldbPluginABISysV_ppc64 \
 	lldbPluginABISysV_x86_64 \
@@ -42,6 +48,8 @@ LLDB_LIBS=\
 	lldbPluginDisassemblerLLVM \
 	lldbPluginInstructionARM \
 	lldbPluginInstructionARM64 \
+	lldbPluginInstructionMIPS \
+	lldbPluginInstructionMIPS64 \
 	lldbPluginInstrumentationRuntimeAddressSanitizer \
 	lldbPluginJITLoaderGDB \
 	lldbPluginSymbolFileDWARF \
@@ -82,13 +90,11 @@ LIBDEPS=\
 	clanganalysis \
 	clangedit \
 	clangast \
-	clangbasic \
 	clanglex \
+	clangbasic \
 	\
-	llvmmcdisassembler \
-	llvmobjcarcopts \
-	llvmprofiledata \
 	llvmoption \
+	llvmobjcarcopts \
 	llvmlinker \
 	llvmmcjit \
 	llvmruntimedyld \
@@ -96,7 +102,6 @@ LIBDEPS=\
 	llvmirreader \
 	llvmipo \
 	llvmvectorize \
-	llvminstrumentation \
 	llvmbitwriter \
 	llvmasmparser \
 	llvmaarch64disassembler \
@@ -136,21 +141,24 @@ LIBDEPS=\
 	llvmselectiondag \
 	llvmasmprinter \
 	llvmcodegen \
+	llvmtarget \
 	llvmscalaropts \
+	llvmprofiledata \
 	llvminstcombine \
 	llvmtransformutils \
 	llvmipa \
 	llvmanalysis \
-	llvmtarget \
+	llvminstrumentation \
 	llvmx86desc \
 	llvmobject \
 	llvmmcparser \
 	llvmbitreader \
-	llvmcore \
+	llvmmcdisassembler \
 	llvmx86info \
 	llvmx86instprinter \
 	llvmmc \
 	llvmx86utils \
+	llvmcore \
 	llvmsupport
 
 .include "../clang.prog.mk"

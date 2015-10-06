@@ -24,7 +24,7 @@ using namespace llvm;
 
 namespace {
 class PPCMachObjectWriter : public MCMachObjectTargetWriter {
-  bool RecordScatteredRelocation(MachObjectWriter *Writer,
+  bool recordScatteredRelocation(MachObjectWriter *Writer,
                                  const MCAssembler &Asm,
                                  const MCAsmLayout &Layout,
                                  const MCFragment *Fragment,
@@ -38,10 +38,9 @@ class PPCMachObjectWriter : public MCMachObjectTargetWriter {
 
 public:
   PPCMachObjectWriter(bool Is64Bit, uint32_t CPUType, uint32_t CPUSubtype)
-      : MCMachObjectTargetWriter(Is64Bit, CPUType, CPUSubtype,
-                                 /*UseAggressiveSymbolFolding=*/Is64Bit) {}
+      : MCMachObjectTargetWriter(Is64Bit, CPUType, CPUSubtype) {}
 
-  void RecordRelocation(MachObjectWriter *Writer, const MCAssembler &Asm,
+  void recordRelocation(MachObjectWriter *Writer, MCAssembler &Asm,
                         const MCAsmLayout &Layout, const MCFragment *Fragment,
                         const MCFixup &Fixup, MCValue Target,
                         uint64_t &FixedValue) override {
@@ -187,9 +186,9 @@ static uint32_t getFixupOffset(const MCAsmLayout &Layout,
 
 /// \return false if falling back to using non-scattered relocation,
 /// otherwise true for normal scattered relocation.
-/// based on X86MachObjectWriter::RecordScatteredRelocation
-/// and ARMMachObjectWriter::RecordScatteredRelocation
-bool PPCMachObjectWriter::RecordScatteredRelocation(
+/// based on X86MachObjectWriter::recordScatteredRelocation
+/// and ARMMachObjectWriter::recordScatteredRelocation
+bool PPCMachObjectWriter::recordScatteredRelocation(
     MachObjectWriter *Writer, const MCAssembler &Asm, const MCAsmLayout &Layout,
     const MCFragment *Fragment, const MCFixup &Fixup, MCValue Target,
     unsigned Log2Size, uint64_t &FixedValue) {
@@ -206,28 +205,26 @@ bool PPCMachObjectWriter::RecordScatteredRelocation(
 
   // See <reloc.h>.
   const MCSymbol *A = &Target.getSymA()->getSymbol();
-  const MCSymbolData *A_SD = &Asm.getSymbolData(*A);
 
-  if (!A_SD->getFragment())
+  if (!A->getFragment())
     report_fatal_error("symbol '" + A->getName() +
                        "' can not be undefined in a subtraction expression");
 
-  uint32_t Value = Writer->getSymbolAddress(A_SD, Layout);
-  uint64_t SecAddr =
-      Writer->getSectionAddress(A_SD->getFragment()->getParent());
+  uint32_t Value = Writer->getSymbolAddress(*A, Layout);
+  uint64_t SecAddr = Writer->getSectionAddress(A->getFragment()->getParent());
   FixedValue += SecAddr;
   uint32_t Value2 = 0;
 
   if (const MCSymbolRefExpr *B = Target.getSymB()) {
-    const MCSymbolData *B_SD = &Asm.getSymbolData(B->getSymbol());
+    const MCSymbol *SB = &B->getSymbol();
 
-    if (!B_SD->getFragment())
+    if (!SB->getFragment())
       report_fatal_error("symbol '" + B->getSymbol().getName() +
                          "' can not be undefined in a subtraction expression");
 
     // FIXME: is Type correct? see include/llvm/Support/MachO.h
-    Value2 = Writer->getSymbolAddress(B_SD, Layout);
-    FixedValue -= Writer->getSectionAddress(B_SD->getFragment()->getParent());
+    Value2 = Writer->getSymbolAddress(B->getSymbol(), Layout);
+    FixedValue -= Writer->getSectionAddress(SB->getFragment()->getParent());
   }
   // FIXME: does FixedValue get used??
 
@@ -244,7 +241,7 @@ bool PPCMachObjectWriter::RecordScatteredRelocation(
     if (FixupOffset > 0xffffff) {
       char Buffer[32];
       format("0x%x", FixupOffset).print(Buffer, sizeof(Buffer));
-      Asm.getContext().FatalError(Fixup.getLoc(),
+      Asm.getContext().reportFatalError(Fixup.getLoc(),
                                   Twine("Section too large, can't encode "
                                         "r_address (") +
                                       Buffer + ") into 24 bits of scattered "
@@ -253,7 +250,7 @@ bool PPCMachObjectWriter::RecordScatteredRelocation(
     }
 
     // Is this supposed to follow MCTarget/PPCAsmBackend.cpp:adjustFixupValue()?
-    // see PPCMCExpr::EvaluateAsRelocatableImpl()
+    // see PPCMCExpr::evaluateAsRelocatableImpl()
     uint32_t other_half = 0;
     switch (Type) {
     case MachO::PPC_RELOC_LO16_SECTDIFF:
@@ -282,7 +279,7 @@ bool PPCMachObjectWriter::RecordScatteredRelocation(
     MachO::any_relocation_info MRE;
     makeScatteredRelocationInfo(MRE, other_half, MachO::GENERIC_RELOC_PAIR,
                                 Log2Size, IsPCRel, Value2);
-    Writer->addRelocation(Fragment->getParent(), MRE);
+    Writer->addRelocation(nullptr, Fragment->getParent(), MRE);
   } else {
     // If the offset is more than 24-bits, it won't fit in a scattered
     // relocation offset field, so we fall back to using a non-scattered
@@ -296,7 +293,7 @@ bool PPCMachObjectWriter::RecordScatteredRelocation(
   }
   MachO::any_relocation_info MRE;
   makeScatteredRelocationInfo(MRE, FixupOffset, Type, Log2Size, IsPCRel, Value);
-  Writer->addRelocation(Fragment->getParent(), MRE);
+  Writer->addRelocation(nullptr, Fragment->getParent(), MRE);
   return true;
 }
 
@@ -317,23 +314,23 @@ void PPCMachObjectWriter::RecordPPCRelocation(
       // Q: are branch targets ever scattered?
       RelocType != MachO::PPC_RELOC_BR24 &&
       RelocType != MachO::PPC_RELOC_BR14) {
-    RecordScatteredRelocation(Writer, Asm, Layout, Fragment, Fixup, Target,
+    recordScatteredRelocation(Writer, Asm, Layout, Fragment, Fixup, Target,
                               Log2Size, FixedValue);
     return;
   }
 
   // this doesn't seem right for RIT_PPC_BR24
   // Get the symbol data, if any.
-  const MCSymbolData *SD = nullptr;
+  const MCSymbol *A = nullptr;
   if (Target.getSymA())
-    SD = &Asm.getSymbolData(Target.getSymA()->getSymbol());
+    A = &Target.getSymA()->getSymbol();
 
   // See <reloc.h>.
   const uint32_t FixupOffset = getFixupOffset(Layout, Fragment, Fixup);
   unsigned Index = 0;
-  unsigned IsExtern = 0;
   unsigned Type = RelocType;
 
+  const MCSymbol *RelSymbol = nullptr;
   if (Target.isAbsolute()) { // constant
                              // SymbolNum of 0 indicates the absolute section.
                              //
@@ -344,9 +341,9 @@ void PPCMachObjectWriter::RecordPPCRelocation(
     // the above line stolen from ARM, not sure
   } else {
     // Resolve constant variables.
-    if (SD->getSymbol().isVariable()) {
+    if (A->isVariable()) {
       int64_t Res;
-      if (SD->getSymbol().getVariableValue()->EvaluateAsAbsolute(
+      if (A->getVariableValue()->evaluateAsAbsolute(
               Res, Layout, Writer->getSectionAddressMap())) {
         FixedValue = Res;
         return;
@@ -354,20 +351,18 @@ void PPCMachObjectWriter::RecordPPCRelocation(
     }
 
     // Check whether we need an external or internal relocation.
-    if (Writer->doesSymbolRequireExternRelocation(SD)) {
-      IsExtern = 1;
-      Index = SD->getIndex();
+    if (Writer->doesSymbolRequireExternRelocation(*A)) {
+      RelSymbol = A;
       // For external relocations, make sure to offset the fixup value to
       // compensate for the addend of the symbol address, if it was
       // undefined. This occurs with weak definitions, for example.
-      if (!SD->getSymbol().isUndefined())
-        FixedValue -= Layout.getSymbolOffset(SD);
+      if (!A->isUndefined())
+        FixedValue -= Layout.getSymbolOffset(*A);
     } else {
       // The index is the section ordinal (1-based).
-      const MCSectionData &SymSD =
-          Asm.getSectionData(SD->getSymbol().getSection());
-      Index = SymSD.getOrdinal() + 1;
-      FixedValue += Writer->getSectionAddress(&SymSD);
+      const MCSection &Sec = A->getSection();
+      Index = Sec.getOrdinal() + 1;
+      FixedValue += Writer->getSectionAddress(&Sec);
     }
     if (IsPCRel)
       FixedValue -= Writer->getSectionAddress(Fragment->getParent());
@@ -375,13 +370,12 @@ void PPCMachObjectWriter::RecordPPCRelocation(
 
   // struct relocation_info (8 bytes)
   MachO::any_relocation_info MRE;
-  makeRelocationInfo(MRE, FixupOffset, Index, IsPCRel, Log2Size, IsExtern,
-                     Type);
-  Writer->addRelocation(Fragment->getParent(), MRE);
+  makeRelocationInfo(MRE, FixupOffset, Index, IsPCRel, Log2Size, false, Type);
+  Writer->addRelocation(RelSymbol, Fragment->getParent(), MRE);
 }
 
-MCObjectWriter *llvm::createPPCMachObjectWriter(raw_ostream &OS, bool Is64Bit,
-                                                uint32_t CPUType,
+MCObjectWriter *llvm::createPPCMachObjectWriter(raw_pwrite_stream &OS,
+                                                bool Is64Bit, uint32_t CPUType,
                                                 uint32_t CPUSubtype) {
   return createMachObjectWriter(
       new PPCMachObjectWriter(Is64Bit, CPUType, CPUSubtype), OS,

@@ -55,7 +55,8 @@ void RegScavenger::initRegState() {
     setRegUsed(*I);
 
   // Pristine CSRs are also unavailable.
-  BitVector PR = MBB->getParent()->getFrameInfo()->getPristineRegs(MBB);
+  const MachineFunction &MF = *MBB->getParent();
+  BitVector PR = MF.getFrameInfo()->getPristineRegs(MF);
   for (int I = PR.find_first(); I>0; I = PR.find_next(I))
     setRegUsed(I);
 }
@@ -102,10 +103,6 @@ void RegScavenger::determineKillsAndDefs() {
 
   // Find out which registers are early clobbered, killed, defined, and marked
   // def-dead in this instruction.
-  // FIXME: The scavenger is not predication aware. If the instruction is
-  // predicated, conservatively assume "kill" markers do not actually kill the
-  // register. Similarly ignores "dead" markers.
-  bool isPred = TII->isPredicated(MI);
   KillRegUnits.reset();
   DefRegUnits.reset();
   for (unsigned i = 0, e = MI->getNumOperands(); i != e; ++i) {
@@ -123,7 +120,7 @@ void RegScavenger::determineKillsAndDefs() {
       }
       
       // Apply the mask.
-      (isPred ? DefRegUnits : KillRegUnits) |= TmpRegUnits;
+      KillRegUnits |= TmpRegUnits;
     }
     if (!MO.isReg())
       continue;
@@ -135,11 +132,11 @@ void RegScavenger::determineKillsAndDefs() {
       // Ignore undef uses.
       if (MO.isUndef())
         continue;
-      if (!isPred && MO.isKill())
+      if (MO.isKill())
         addRegUnits(KillRegUnits, Reg);
     } else {
       assert(MO.isDef());
-      if (!isPred && MO.isDead())
+      if (MO.isDead())
         addRegUnits(KillRegUnits, Reg);
       else
         addRegUnits(DefRegUnits, Reg);

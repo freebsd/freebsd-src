@@ -7,23 +7,11 @@
 //
 //===----------------------------------------------------------------------===//
 
-//++
-// File:        MIDriverMgr.h
-//
-// Overview:    CMIImplCmn interface.
-//
-// Environment: Compilers:  Visual C++ 12.
-//                          gcc (Ubuntu/Linaro 4.8.1-10ubuntu9) 4.8.1
-//              Libraries:  See MIReadme.txt.
-//
-// Copyright:   None.
-//--
-
 #pragma once
 
 // Third party headers:
 #include <map>
-#include <lldb/API/SBDebugger.h>
+#include "lldb/API/SBDebugger.h"
 
 // In-house headers:
 #include "MICmnBase.h"
@@ -44,7 +32,7 @@
 //          those objects (modules/components) to support it's own functionality).
 //          The Driver manager is the first object instantiated as part of the
 //          MI code base. It is also the first thing to interpret the command
-//          line arguments passed to the executeable. Bases on options it
+//          line arguments passed to the executable. Bases on options it
 //          understands the manage will set up the appropriate driver or give
 //          help information. Other options are passed on to the driver chosen
 //          to do work.
@@ -71,7 +59,6 @@ class CMIDriverMgr : public CMICmnBase, public MI::ISingleton<CMIDriverMgr>
         virtual bool DoInitialize(void) = 0;
         virtual bool DoShutdown(void) = 0;
         virtual bool DoMainLoop(void) = 0;
-        virtual void DoResizeWindow(const uint32_t vWindowSizeWsCol) = 0;
         virtual lldb::SBError DoParseArgs(const int argc, const char *argv[], FILE *vpStdOut, bool &vwbExiting) = 0;
         virtual CMIUtilString GetError(void) const = 0;
         virtual const CMIUtilString &GetName(void) const = 0;
@@ -79,6 +66,7 @@ class CMIDriverMgr : public CMICmnBase, public MI::ISingleton<CMIDriverMgr>
         virtual bool GetDriverIsGDBMICompatibleDriver(void) const = 0;
         virtual bool SetId(const CMIUtilString &vId) = 0;
         virtual const CMIUtilString &GetId(void) const = 0;
+        virtual void DeliverSignal(int signal) = 0;
 
         // Not part of the interface, ignore
         /* dtor */ virtual ~IDriver(void) {}
@@ -87,8 +75,8 @@ class CMIDriverMgr : public CMICmnBase, public MI::ISingleton<CMIDriverMgr>
     // Methods:
   public:
     // MI system
-    bool Initialize(void);
-    bool Shutdown(void);
+    bool Initialize(void) override;
+    bool Shutdown(void) override;
     //
     CMIUtilString GetAppVersion(void) const;
     bool RegisterDriver(const IDriver &vrADriver, const CMIUtilString &vrDriverID);
@@ -101,11 +89,11 @@ class CMIDriverMgr : public CMICmnBase, public MI::ISingleton<CMIDriverMgr>
     //
     // MI Proxy fn to current specified working driver
     bool DriverMainLoop(void);
-    void DriverResizeWindow(const uint32_t vWindowSizeWsCol);
     bool DriverParseArgs(const int argc, const char *argv[], FILE *vpStdOut, bool &vwbExiting);
     CMIUtilString DriverGetError(void) const;
     CMIUtilString DriverGetName(void) const;
     lldb::SBDebugger *DriverGetTheDebugger(void);
+    void DeliverSignal(int signal);
 
     // Typedef:
   private:
@@ -127,7 +115,7 @@ class CMIDriverMgr : public CMICmnBase, public MI::ISingleton<CMIDriverMgr>
     // Overridden:
   private:
     // From CMICmnBase
-    /* dtor */ virtual ~CMIDriverMgr(void);
+    /* dtor */ ~CMIDriverMgr(void) override;
 
     // Attributes:
   private:

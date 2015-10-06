@@ -14,8 +14,11 @@
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCExpr.h"
+#include "llvm/MC/MCInst.h"
+#include "llvm/MC/MCInstPrinter.h"
 #include "llvm/MC/MCObjectFileInfo.h"
 #include "llvm/MC/MCObjectWriter.h"
+#include "llvm/MC/MCSection.h"
 #include "llvm/MC/MCSymbol.h"
 #include "llvm/MC/MCWin64EH.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -115,7 +118,7 @@ void MCStreamer::EmitSymbolValue(const MCSymbol *Sym, unsigned Size,
          "SectionRelative value requires 4-bytes");
 
   if (!IsSectionRelative)
-    EmitValueImpl(MCSymbolRefExpr::Create(Sym, getContext()), Size);
+    EmitValueImpl(MCSymbolRefExpr::create(Sym, getContext()), Size);
   else
     EmitCOFFSecRel32(Sym);
 }
@@ -131,7 +134,7 @@ void MCStreamer::EmitGPRel32Value(const MCExpr *Value) {
 /// EmitFill - Emit NumBytes bytes worth of the value specified by
 /// FillValue.  This implements directives such as '.space'.
 void MCStreamer::EmitFill(uint64_t NumBytes, uint8_t FillValue) {
-  const MCExpr *E = MCConstantExpr::Create(FillValue, getContext());
+  const MCExpr *E = MCConstantExpr::create(FillValue, getContext());
   for (uint64_t i = 0, e = NumBytes; i != e; ++i)
     EmitValue(E, 1);
 }
@@ -144,7 +147,7 @@ void MCStreamer::EmitZeros(uint64_t NumBytes) {
 unsigned MCStreamer::EmitDwarfFileDirective(unsigned FileNo,
                                             StringRef Directory,
                                             StringRef Filename, unsigned CUID) {
-  return getContext().GetDwarfFile(Directory, Filename, FileNo, CUID);
+  return getContext().getDwarfFile(Directory, Filename, FileNo, CUID);
 }
 
 void MCStreamer::EmitDwarfLocDirective(unsigned FileNo, unsigned Line,
@@ -161,7 +164,7 @@ MCSymbol *MCStreamer::getDwarfLineTableSymbol(unsigned CUID) {
   if (!Table.getLabel()) {
     StringRef Prefix = Context.getAsmInfo()->getPrivateGlobalPrefix();
     Table.setLabel(
-        Context.GetOrCreateSymbol(Prefix + "line_table_start" + Twine(CUID)));
+        Context.getOrCreateSymbol(Prefix + "line_table_start" + Twine(CUID)));
   }
   return Table.getLabel();
 }
@@ -186,7 +189,7 @@ void MCStreamer::InitSections(bool NoExecStack) {
   SwitchSection(getContext().getObjectFileInfo()->getTextSection());
 }
 
-void MCStreamer::AssignSection(MCSymbol *Symbol, const MCSection *Section) {
+void MCStreamer::AssignSection(MCSymbol *Symbol, MCSection *Section) {
   if (Section)
     Symbol->setSection(*Section);
   else
@@ -250,7 +253,7 @@ void MCStreamer::EmitCFIEndProcImpl(MCDwarfFrameInfo &Frame) {
 
 MCSymbol *MCStreamer::EmitCFICommon() {
   EnsureValidDwarfFrame();
-  MCSymbol *Label = getContext().CreateTempSymbol();
+  MCSymbol *Label = getContext().createTempSymbol();
   EmitLabel(Label);
   return Label;
 }
@@ -389,15 +392,21 @@ void MCStreamer::EmitCFIWindowSave() {
 }
 
 void MCStreamer::EnsureValidWinFrameInfo() {
+  const MCAsmInfo *MAI = Context.getAsmInfo();
+  if (!MAI->usesWindowsCFI())
+    report_fatal_error(".seh_* directives are not supported on this target");
   if (!CurrentWinFrameInfo || CurrentWinFrameInfo->End)
     report_fatal_error("No open Win64 EH frame function!");
 }
 
 void MCStreamer::EmitWinCFIStartProc(const MCSymbol *Symbol) {
+  const MCAsmInfo *MAI = Context.getAsmInfo();
+  if (!MAI->usesWindowsCFI())
+    report_fatal_error(".seh_* directives are not supported on this target");
   if (CurrentWinFrameInfo && !CurrentWinFrameInfo->End)
     report_fatal_error("Starting a function before ending the previous one!");
 
-  MCSymbol *StartProc = getContext().CreateTempSymbol();
+  MCSymbol *StartProc = getContext().createTempSymbol();
   EmitLabel(StartProc);
 
   WinFrameInfos.push_back(new WinEH::FrameInfo(Symbol, StartProc));
@@ -409,7 +418,7 @@ void MCStreamer::EmitWinCFIEndProc() {
   if (CurrentWinFrameInfo->ChainedParent)
     report_fatal_error("Not all chained regions terminated!");
 
-  MCSymbol *Label = getContext().CreateTempSymbol();
+  MCSymbol *Label = getContext().createTempSymbol();
   EmitLabel(Label);
   CurrentWinFrameInfo->End = Label;
 }
@@ -417,7 +426,7 @@ void MCStreamer::EmitWinCFIEndProc() {
 void MCStreamer::EmitWinCFIStartChained() {
   EnsureValidWinFrameInfo();
 
-  MCSymbol *StartProc = getContext().CreateTempSymbol();
+  MCSymbol *StartProc = getContext().createTempSymbol();
   EmitLabel(StartProc);
 
   WinFrameInfos.push_back(new WinEH::FrameInfo(CurrentWinFrameInfo->Function,
@@ -430,7 +439,7 @@ void MCStreamer::EmitWinCFIEndChained() {
   if (!CurrentWinFrameInfo->ChainedParent)
     report_fatal_error("End of a chained region outside a chained region!");
 
-  MCSymbol *Label = getContext().CreateTempSymbol();
+  MCSymbol *Label = getContext().createTempSymbol();
   EmitLabel(Label);
 
   CurrentWinFrameInfo->End = Label;
@@ -461,7 +470,7 @@ void MCStreamer::EmitWinEHHandlerData() {
 void MCStreamer::EmitWinCFIPushReg(unsigned Register) {
   EnsureValidWinFrameInfo();
 
-  MCSymbol *Label = getContext().CreateTempSymbol();
+  MCSymbol *Label = getContext().createTempSymbol();
   EmitLabel(Label);
 
   WinEH::Instruction Inst = Win64EH::Instruction::PushNonVol(Label, Register);
@@ -477,7 +486,7 @@ void MCStreamer::EmitWinCFISetFrame(unsigned Register, unsigned Offset) {
   if (Offset > 240)
     report_fatal_error("Frame offset must be less than or equal to 240!");
 
-  MCSymbol *Label = getContext().CreateTempSymbol();
+  MCSymbol *Label = getContext().createTempSymbol();
   EmitLabel(Label);
 
   WinEH::Instruction Inst =
@@ -493,7 +502,7 @@ void MCStreamer::EmitWinCFIAllocStack(unsigned Size) {
   if (Size & 7)
     report_fatal_error("Misaligned stack allocation!");
 
-  MCSymbol *Label = getContext().CreateTempSymbol();
+  MCSymbol *Label = getContext().createTempSymbol();
   EmitLabel(Label);
 
   WinEH::Instruction Inst = Win64EH::Instruction::Alloc(Label, Size);
@@ -505,7 +514,7 @@ void MCStreamer::EmitWinCFISaveReg(unsigned Register, unsigned Offset) {
   if (Offset & 7)
     report_fatal_error("Misaligned saved register offset!");
 
-  MCSymbol *Label = getContext().CreateTempSymbol();
+  MCSymbol *Label = getContext().createTempSymbol();
   EmitLabel(Label);
 
   WinEH::Instruction Inst =
@@ -518,7 +527,7 @@ void MCStreamer::EmitWinCFISaveXMM(unsigned Register, unsigned Offset) {
   if (Offset & 0x0F)
     report_fatal_error("Misaligned saved vector register offset!");
 
-  MCSymbol *Label = getContext().CreateTempSymbol();
+  MCSymbol *Label = getContext().createTempSymbol();
   EmitLabel(Label);
 
   WinEH::Instruction Inst =
@@ -531,7 +540,7 @@ void MCStreamer::EmitWinCFIPushFrame(bool Code) {
   if (CurrentWinFrameInfo->Instructions.size() > 0)
     report_fatal_error("If present, PushMachFrame must be the first UOP");
 
-  MCSymbol *Label = getContext().CreateTempSymbol();
+  MCSymbol *Label = getContext().createTempSymbol();
   EmitLabel(Label);
 
   WinEH::Instruction Inst = Win64EH::Instruction::PushMachFrame(Label, Code);
@@ -541,10 +550,13 @@ void MCStreamer::EmitWinCFIPushFrame(bool Code) {
 void MCStreamer::EmitWinCFIEndProlog() {
   EnsureValidWinFrameInfo();
 
-  MCSymbol *Label = getContext().CreateTempSymbol();
+  MCSymbol *Label = getContext().createTempSymbol();
   EmitLabel(Label);
 
   CurrentWinFrameInfo->PrologEnd = Label;
+}
+
+void MCStreamer::EmitCOFFSafeSEH(MCSymbol const *Symbol) {
 }
 
 void MCStreamer::EmitCOFFSectionIndex(MCSymbol const *Symbol) {
@@ -590,6 +602,11 @@ void MCStreamer::EmitAssignment(MCSymbol *Symbol, const MCExpr *Value) {
     TS->emitAssignment(Symbol, Value);
 }
 
+void MCTargetStreamer::prettyPrintAsm(MCInstPrinter &InstPrinter, raw_ostream &OS,
+                              const MCInst &Inst, const MCSubtargetInfo &STI) {
+  InstPrinter.printInst(&Inst, OS, "", STI);
+}
+
 void MCStreamer::visitUsedSymbol(const MCSymbol &Sym) {
 }
 
@@ -627,6 +644,25 @@ void MCStreamer::EmitInstruction(const MCInst &Inst,
       visitUsedExpr(*Inst.getOperand(i).getExpr());
 }
 
+void MCStreamer::emitAbsoluteSymbolDiff(const MCSymbol *Hi, const MCSymbol *Lo,
+                                        unsigned Size) {
+  // Get the Hi-Lo expression.
+  const MCExpr *Diff =
+      MCBinaryExpr::createSub(MCSymbolRefExpr::create(Hi, Context),
+                              MCSymbolRefExpr::create(Lo, Context), Context);
+
+  const MCAsmInfo *MAI = Context.getAsmInfo();
+  if (!MAI->doesSetDirectiveSuppressesReloc()) {
+    EmitValue(Diff, Size);
+    return;
+  }
+
+  // Otherwise, emit with .set (aka assignment).
+  MCSymbol *SetLabel = Context.createTempSymbol("set", true);
+  EmitAssignment(SetLabel, Diff);
+  EmitSymbolValue(SetLabel, Size);
+}
+
 void MCStreamer::EmitAssemblerFlag(MCAssemblerFlag Flag) {}
 void MCStreamer::EmitThumbFunc(MCSymbol *Func) {}
 void MCStreamer::EmitSymbolDesc(MCSymbol *Symbol, unsigned DescValue) {}
@@ -635,12 +671,12 @@ void MCStreamer::EndCOFFSymbolDef() {}
 void MCStreamer::EmitFileDirective(StringRef Filename) {}
 void MCStreamer::EmitCOFFSymbolStorageClass(int StorageClass) {}
 void MCStreamer::EmitCOFFSymbolType(int Type) {}
-void MCStreamer::EmitELFSize(MCSymbol *Symbol, const MCExpr *Value) {}
+void MCStreamer::emitELFSize(MCSymbolELF *Symbol, const MCExpr *Value) {}
 void MCStreamer::EmitLocalCommonSymbol(MCSymbol *Symbol, uint64_t Size,
                                        unsigned ByteAlignment) {}
-void MCStreamer::EmitTBSSSymbol(const MCSection *Section, MCSymbol *Symbol,
+void MCStreamer::EmitTBSSSymbol(MCSection *Section, MCSymbol *Symbol,
                                 uint64_t Size, unsigned ByteAlignment) {}
-void MCStreamer::ChangeSection(const MCSection *, const MCExpr *) {}
+void MCStreamer::ChangeSection(MCSection *, const MCExpr *) {}
 void MCStreamer::EmitWeakReference(MCSymbol *Alias, const MCSymbol *Symbol) {}
 void MCStreamer::EmitBytes(StringRef Data) {}
 void MCStreamer::EmitValueImpl(const MCExpr *Value, unsigned Size,
@@ -661,3 +697,29 @@ void MCStreamer::EmitBundleAlignMode(unsigned AlignPow2) {}
 void MCStreamer::EmitBundleLock(bool AlignToEnd) {}
 void MCStreamer::FinishImpl() {}
 void MCStreamer::EmitBundleUnlock() {}
+
+void MCStreamer::SwitchSection(MCSection *Section, const MCExpr *Subsection) {
+  assert(Section && "Cannot switch to a null section!");
+  MCSectionSubPair curSection = SectionStack.back().first;
+  SectionStack.back().second = curSection;
+  if (MCSectionSubPair(Section, Subsection) != curSection) {
+    ChangeSection(Section, Subsection);
+    SectionStack.back().first = MCSectionSubPair(Section, Subsection);
+    assert(!Section->hasEnded() && "Section already ended");
+    MCSymbol *Sym = Section->getBeginSymbol();
+    if (Sym && !Sym->isInSection())
+      EmitLabel(Sym);
+  }
+}
+
+MCSymbol *MCStreamer::endSection(MCSection *Section) {
+  // TODO: keep track of the last subsection so that this symbol appears in the
+  // correct place.
+  MCSymbol *Sym = Section->getEndSymbol(Context);
+  if (Sym->isInSection())
+    return Sym;
+
+  SwitchSection(Section);
+  EmitLabel(Sym);
+  return Sym;
+}

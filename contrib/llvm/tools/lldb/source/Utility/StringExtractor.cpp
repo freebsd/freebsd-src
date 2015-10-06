@@ -7,7 +7,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "Utility/StringExtractor.h"
+#include "lldb/Utility/StringExtractor.h"
 
 // C Includes
 #include <stdlib.h>
@@ -143,7 +143,7 @@ StringExtractor::GetU32 (uint32_t fail_value, int base)
         char *end = nullptr;
         const char *start = m_packet.c_str();
         const char *cstr = start + m_index;
-        uint32_t result = ::strtoul (cstr, &end, base);
+        uint32_t result = static_cast<uint32_t>(::strtoul (cstr, &end, base));
 
         if (end && end != cstr)
         {
@@ -162,7 +162,7 @@ StringExtractor::GetS32 (int32_t fail_value, int base)
         char *end = nullptr;
         const char *start = m_packet.c_str();
         const char *cstr = start + m_index;
-        int32_t result = ::strtol (cstr, &end, base);
+        int32_t result = static_cast<int32_t>(::strtol (cstr, &end, base));
         
         if (end && end != cstr)
         {
@@ -476,3 +476,12 @@ StringExtractor::GetNameColonValue (std::string &name, std::string &value)
     m_index = UINT64_MAX;
     return false;
 }
+
+void
+StringExtractor::SkipSpaces ()
+{
+    const size_t n = m_packet.size();
+    while (m_index < n && isspace(m_packet[m_index]))
+        ++m_index;
+}
+

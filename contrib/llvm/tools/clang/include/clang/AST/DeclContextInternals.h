@@ -142,31 +142,29 @@ public:
   /// represents.
   DeclContext::lookup_result getLookupResult() {
     if (isNull())
-      return DeclContext::lookup_result(DeclContext::lookup_iterator(nullptr),
-                                        DeclContext::lookup_iterator(nullptr));
+      return DeclContext::lookup_result();
 
     // If we have a single NamedDecl, return it.
-    if (getAsDecl()) {
+    if (NamedDecl *ND = getAsDecl()) {
       assert(!isNull() && "Empty list isn't allowed");
 
       // Data is a raw pointer to a NamedDecl*, return it.
-      void *Ptr = &Data;
-      return DeclContext::lookup_result((NamedDecl**)Ptr, (NamedDecl**)Ptr+1);
+      return DeclContext::lookup_result(ND);
     }
 
     assert(getAsVector() && "Must have a vector at this point");
     DeclsTy &Vector = *getAsVector();
 
     // Otherwise, we have a range result.
-    return DeclContext::lookup_result(Vector.begin(), Vector.end());
+    return DeclContext::lookup_result(Vector);
   }
 
   /// HandleRedeclaration - If this is a redeclaration of an existing decl,
   /// replace the old one with D and return true.  Otherwise return false.
-  bool HandleRedeclaration(NamedDecl *D) {
+  bool HandleRedeclaration(NamedDecl *D, bool IsKnownNewer) {
     // Most decls only have one entry in their list, special case it.
     if (NamedDecl *OldD = getAsDecl()) {
-      if (!D->declarationReplaces(OldD))
+      if (!D->declarationReplaces(OldD, IsKnownNewer))
         return false;
       setOnlyValue(D);
       return true;
@@ -177,7 +175,7 @@ public:
     for (DeclsTy::iterator OD = Vec.begin(), ODEnd = Vec.end();
          OD != ODEnd; ++OD) {
       NamedDecl *OldD = *OD;
-      if (D->declarationReplaces(OldD)) {
+      if (D->declarationReplaces(OldD, IsKnownNewer)) {
         *OD = D;
         return true;
       }

@@ -11,6 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "ubsan_platform.h"
+#if CAN_SANITIZE_UB
 #include "ubsan_flags.h"
 #include "sanitizer_common/sanitizer_common.h"
 #include "sanitizer_common/sanitizer_flags.h"
@@ -18,7 +20,7 @@
 
 namespace __ubsan {
 
-static const char *MaybeCallUbsanDefaultOptions() {
+const char *MaybeCallUbsanDefaultOptions() {
   return (&__ubsan_default_options) ? __ubsan_default_options() : "";
 }
 
@@ -37,31 +39,22 @@ void RegisterUbsanFlags(FlagParser *parser, Flags *f) {
 #undef UBSAN_FLAG
 }
 
-void InitializeFlags(bool standalone) {
-  Flags *f = flags();
-  FlagParser parser;
-  RegisterUbsanFlags(&parser, f);
-
-  if (standalone) {
-    RegisterCommonFlags(&parser);
-
-    SetCommonFlagsDefaults();
+void InitializeFlags() {
+  SetCommonFlagsDefaults();
+  {
     CommonFlags cf;
     cf.CopyFrom(*common_flags());
     cf.print_summary = false;
     OverrideCommonFlags(cf);
-  } else {
-    // Ignore common flags if not standalone.
-    // This is inconsistent with LSan, which allows common flags in LSAN_FLAGS.
-    // This is caused by undefined initialization order between ASan and UBsan,
-    // which makes it impossible to make sure that common flags from ASAN_OPTIONS
-    // have not been used (in __asan_init) before they are overwritten with flags
-    // from UBSAN_OPTIONS.
-    CommonFlags cf_ignored;
-    RegisterCommonFlags(&parser, &cf_ignored);
   }
 
+  Flags *f = flags();
   f->SetDefaults();
+
+  FlagParser parser;
+  RegisterCommonFlags(&parser);
+  RegisterUbsanFlags(&parser, f);
+
   // Override from user-specified string.
   parser.ParseString(MaybeCallUbsanDefaultOptions());
   // Override from environment variable.
@@ -71,9 +64,22 @@ void InitializeFlags(bool standalone) {
 
 }  // namespace __ubsan
 
-#if !SANITIZER_SUPPORTS_WEAK_HOOKS
 extern "C" {
+
+#if !SANITIZER_SUPPORTS_WEAK_HOOKS
 SANITIZER_INTERFACE_ATTRIBUTE SANITIZER_WEAK_ATTRIBUTE
 const char *__ubsan_default_options() { return ""; }
-}  // extern "C"
 #endif
+
+#if SANITIZER_WINDOWS
+const char *__ubsan_default_default_options() { return ""; }
+# ifdef _WIN64
+#  pragma comment(linker, "/alternatename:__ubsan_default_options=__ubsan_default_default_options")
+# else
+#  pragma comment(linker, "/alternatename:___ubsan_default_options=___ubsan_default_default_options")
+# endif
+#endif
+
+}  // extern "C"
+
+#endif  // CAN_SANITIZE_UB

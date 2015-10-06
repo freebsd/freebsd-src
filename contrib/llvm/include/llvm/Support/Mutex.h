@@ -70,14 +70,16 @@ namespace llvm
     /// @name Platform Dependent Data
     /// @{
     private:
+#if defined(LLVM_ENABLE_THREADS) && LLVM_ENABLE_THREADS != 0
       void* data_; ///< We don't know what the data will be
+#endif
 
     /// @}
     /// @name Do Not Implement
     /// @{
     private:
-      MutexImpl(const MutexImpl &) LLVM_DELETED_FUNCTION;
-      void operator=(const MutexImpl &) LLVM_DELETED_FUNCTION;
+      MutexImpl(const MutexImpl &) = delete;
+      void operator=(const MutexImpl &) = delete;
     /// @}
     };
 

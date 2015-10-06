@@ -15,6 +15,7 @@
 #ifndef LLVM_EXECUTIONENGINE_EXECUTIONENGINE_H
 #define LLVM_EXECUTIONENGINE_EXECUTIONENGINE_H
 
+#include "RuntimeDyld.h"
 #include "llvm-c/ExecutionEngine.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
@@ -30,6 +31,7 @@
 #include <map>
 #include <string>
 #include <vector>
+#include <functional>
 
 namespace llvm {
 
@@ -42,6 +44,7 @@ class GlobalVariable;
 class GlobalValue;
 class JITEventListener;
 class MachineCodeInfo;
+class MCJITMemoryManager;
 class MutexGuard;
 class ObjectCache;
 class RTDyldMemoryManager;
@@ -57,47 +60,37 @@ namespace object {
 /// table.  Access to this class should be serialized under a mutex.
 class ExecutionEngineState {
 public:
-  struct AddressMapConfig : public ValueMapConfig<const GlobalValue*> {
-    typedef ExecutionEngineState *ExtraData;
-    static sys::Mutex *getMutex(ExecutionEngineState *EES);
-    static void onDelete(ExecutionEngineState *EES, const GlobalValue *Old);
-    static void onRAUW(ExecutionEngineState *, const GlobalValue *,
-                       const GlobalValue *);
-  };
-
-  typedef ValueMap<const GlobalValue *, void *, AddressMapConfig>
-      GlobalAddressMapTy;
+  typedef StringMap<uint64_t> GlobalAddressMapTy;
 
 private:
-  ExecutionEngine &EE;
 
-  /// GlobalAddressMap - A mapping between LLVM global values and their
-  /// actualized version...
+  /// GlobalAddressMap - A mapping between LLVM global symbol names values and
+  /// their actualized version...
   GlobalAddressMapTy GlobalAddressMap;
 
   /// GlobalAddressReverseMap - This is the reverse mapping of GlobalAddressMap,
   /// used to convert raw addresses into the LLVM global value that is emitted
   /// at the address.  This map is not computed unless getGlobalValueAtAddress
   /// is called at some point.
-  std::map<void *, AssertingVH<const GlobalValue> > GlobalAddressReverseMap;
+  std::map<uint64_t, std::string> GlobalAddressReverseMap;
 
 public:
-  ExecutionEngineState(ExecutionEngine &EE);
 
   GlobalAddressMapTy &getGlobalAddressMap() {
     return GlobalAddressMap;
   }
 
-  std::map<void*, AssertingVH<const GlobalValue> > &
-  getGlobalAddressReverseMap() {
+  std::map<uint64_t, std::string> &getGlobalAddressReverseMap() {
     return GlobalAddressReverseMap;
   }
 
   /// \brief Erase an entry from the mapping table.
   ///
   /// \returns The address that \p ToUnmap was happed to.
-  void *RemoveMapping(const GlobalValue *ToUnmap);
+  uint64_t RemoveMapping(StringRef Name);
 };
+
+using FunctionCreator = std::function<void *(const std::string &)>;
 
 /// \brief Abstract interface for implementation execution of LLVM modules,
 /// designed to support both interpreter and just-in-time (JIT) compiler
@@ -139,17 +132,28 @@ protected:
   virtual char *getMemoryForGV(const GlobalVariable *GV);
 
   static ExecutionEngine *(*MCJITCtor)(
-                                     std::unique_ptr<Module> M,
-                                     std::string *ErrorStr,
-                                     std::unique_ptr<RTDyldMemoryManager> MCJMM,
-                                     std::unique_ptr<TargetMachine> TM);
+                                std::unique_ptr<Module> M,
+                                std::string *ErrorStr,
+                                std::shared_ptr<MCJITMemoryManager> MM,
+                                std::shared_ptr<RuntimeDyld::SymbolResolver> SR,
+                                std::unique_ptr<TargetMachine> TM);
+
+  static ExecutionEngine *(*OrcMCJITReplacementCtor)(
+                                std::string *ErrorStr,
+                                std::shared_ptr<MCJITMemoryManager> MM,
+                                std::shared_ptr<RuntimeDyld::SymbolResolver> SR,
+                                std::unique_ptr<TargetMachine> TM);
+
   static ExecutionEngine *(*InterpCtor)(std::unique_ptr<Module> M,
                                         std::string *ErrorStr);
 
   /// LazyFunctionCreator - If an unknown function is needed, this function
   /// pointer is invoked to create it.  If this returns null, the JIT will
   /// abort.
-  void *(*LazyFunctionCreator)(const std::string &);
+  FunctionCreator LazyFunctionCreator;
+
+  /// getMangledName - Get mangled name.
+  std::string getMangledName(const GlobalValue *GV);
 
 public:
   /// lock - This lock protects the ExecutionEngine and MCJIT classes. It must
@@ -196,15 +200,20 @@ public:
   /// M is found.
   virtual bool removeModule(Module *M);
 
-  /// FindFunctionNamed - Search all of the active modules to find the one that
+  /// FindFunctionNamed - Search all of the active modules to find the function that
   /// defines FnName.  This is very slow operation and shouldn't be used for
   /// general code.
   virtual Function *FindFunctionNamed(const char *FnName);
 
+  /// FindGlobalVariableNamed - Search all of the active modules to find the global variable
+  /// that defines Name.  This is very slow operation and shouldn't be used for
+  /// general code.
+  virtual GlobalVariable *FindGlobalVariableNamed(const char *Name, bool AllowInternal = false);
+
   /// runFunction - Execute the specified function with the specified arguments,
   /// and return the result.
   virtual GenericValue runFunction(Function *F,
-                                const std::vector<GenericValue> &ArgValues) = 0;
+                                   ArrayRef<GenericValue> ArgValues) = 0;
 
   /// getPointerToNamedFunction - This method returns the address of the
   /// specified function by using the dlsym function call.  As such it is only
@@ -222,7 +231,8 @@ public:
   /// Map the address of a JIT section as returned from the memory manager
   /// to the address in the target process as the running code will see it.
   /// This is the address which will be used for relocation resolution.
-  virtual void mapSectionAddress(const void *LocalAddress, uint64_t TargetAddress) {
+  virtual void mapSectionAddress(const void *LocalAddress,
+                                 uint64_t TargetAddress) {
     llvm_unreachable("Re-mapping of section addresses not supported with this "
                      "EE!");
   }
@@ -280,6 +290,7 @@ public:
   /// existing data in memory.  Mappings are automatically removed when their
   /// GlobalValue is destroyed.
   void addGlobalMapping(const GlobalValue *GV, void *Addr);
+  void addGlobalMapping(StringRef Name, uint64_t Addr);
 
   /// clearAllGlobalMappings - Clear all global mappings and start over again,
   /// for use in dynamic compilation scenarios to move globals.
@@ -293,14 +304,17 @@ public:
   /// address.  This updates both maps as required.  If "Addr" is null, the
   /// entry for the global is removed from the mappings.  This returns the old
   /// value of the pointer, or null if it was not in the map.
-  void *updateGlobalMapping(const GlobalValue *GV, void *Addr);
+  uint64_t updateGlobalMapping(const GlobalValue *GV, void *Addr);
+  uint64_t updateGlobalMapping(StringRef Name, uint64_t Addr);
+
+  /// getAddressToGlobalIfAvailable - This returns the address of the specified
+  /// global symbol.
+  uint64_t getAddressToGlobalIfAvailable(StringRef S);
 
   /// getPointerToGlobalIfAvailable - This returns the address of the specified
   /// global value if it is has already been codegen'd, otherwise it returns
   /// null.
-  ///
-  /// This function is deprecated for the MCJIT execution engine.  It doesn't
-  /// seem to be needed in that case, but an equivalent can be added if it is.
+  void *getPointerToGlobalIfAvailable(StringRef S);
   void *getPointerToGlobalIfAvailable(const GlobalValue *GV);
 
   /// getPointerToGlobal - This returns the address of the specified global
@@ -459,11 +473,12 @@ public:
   /// InstallLazyFunctionCreator - If an unknown function is needed, the
   /// specified function pointer is invoked to create it.  If it returns null,
   /// the JIT will abort.
-  void InstallLazyFunctionCreator(void* (*P)(const std::string &)) {
-    LazyFunctionCreator = P;
+  void InstallLazyFunctionCreator(FunctionCreator C) {
+    LazyFunctionCreator = C;
   }
 
 protected:
+  ExecutionEngine() {}
   explicit ExecutionEngine(std::unique_ptr<Module> M);
 
   void emitGlobals();
@@ -493,7 +508,8 @@ private:
   EngineKind::Kind WhichEngine;
   std::string *ErrorStr;
   CodeGenOpt::Level OptLevel;
-  std::unique_ptr<RTDyldMemoryManager> MCJMM;
+  std::shared_ptr<MCJITMemoryManager> MemMgr;
+  std::shared_ptr<RuntimeDyld::SymbolResolver> Resolver;
   TargetOptions Options;
   Reloc::Model RelocModel;
   CodeModel::Model CMModel;
@@ -501,11 +517,12 @@ private:
   std::string MCPU;
   SmallVector<std::string, 4> MAttrs;
   bool VerifyModules;
-
-  /// InitEngine - Does the common initialization of default options.
-  void InitEngine();
+  bool UseOrcMCJITReplacement;
 
 public:
+  /// Default constructor for EngineBuilder.
+  EngineBuilder();
+
   /// Constructor for EngineBuilder.
   EngineBuilder(std::unique_ptr<Module> M);
 
@@ -526,6 +543,12 @@ public:
   /// is called and is successful, the created engine takes ownership of the
   /// memory manager. This option defaults to NULL.
   EngineBuilder &setMCJITMemoryManager(std::unique_ptr<RTDyldMemoryManager> mcjmm);
+
+  EngineBuilder&
+  setMemoryManager(std::unique_ptr<MCJITMemoryManager> MM);
+
+  EngineBuilder&
+  setSymbolResolver(std::unique_ptr<RuntimeDyld::SymbolResolver> SR);
 
   /// setErrorStr - Set the error string to write to on error.  This option
   /// defaults to NULL.
@@ -588,6 +611,11 @@ public:
     MAttrs.clear();
     MAttrs.append(mattrs.begin(), mattrs.end());
     return *this;
+  }
+
+  // \brief Use OrcMCJITReplacement instead of MCJIT. Off by default.
+  void setUseOrcMCJITReplacement(bool UseOrcMCJITReplacement) {
+    this->UseOrcMCJITReplacement = UseOrcMCJITReplacement;
   }
 
   TargetMachine *selectTarget();

@@ -15,6 +15,7 @@
 #include "lldb/Core/ValueObject.h"
 #include "lldb/Core/ValueObjectVariable.h"
 #include "lldb/Symbol/Block.h"
+#include "lldb/Symbol/CompileUnit.h"
 #include "lldb/Symbol/Function.h"
 #include "lldb/Symbol/SymbolContext.h"
 #include "lldb/Symbol/Type.h"
@@ -36,7 +37,7 @@ Variable::Variable
 (
     lldb::user_id_t uid,
     const char *name, 
-    const char *mangled,   // The mangled variable name for variables in namespaces
+    const char *mangled,  // The mangled or fully qualified name of the variable.
     const lldb::SymbolFileTypeSP &symfile_type_sp,
     ValueType scope,
     SymbolContextScope *context,
@@ -47,7 +48,7 @@ Variable::Variable
 ) :
     UserID(uid),
     m_name(name),
-    m_mangled (ConstString(mangled), true),
+    m_mangled (ConstString(mangled)),
     m_symfile_type_sp(symfile_type_sp),
     m_scope(scope),
     m_owner_scope(context),
@@ -65,21 +66,48 @@ Variable::~Variable()
 {
 }
 
+lldb::LanguageType
+Variable::GetLanguage () const
+{
+    SymbolContext variable_sc;
+    m_owner_scope->CalculateSymbolContext(&variable_sc);
+    if (variable_sc.comp_unit)
+        return variable_sc.comp_unit->GetLanguage();
+    return lldb::eLanguageTypeUnknown;
+}
 
-const ConstString&
+
+
+ConstString
 Variable::GetName() const
 {
-    if (m_mangled)
-        return m_mangled.GetName();
+    ConstString name = m_mangled.GetName(GetLanguage());
+    if (name)
+        return name;
     return m_name;
 }
 
+bool
+Variable::NameMatches (const ConstString &name) const
+{
+    if (m_name == name)
+        return true;
+    SymbolContext variable_sc;
+    m_owner_scope->CalculateSymbolContext(&variable_sc);
+
+    LanguageType language = eLanguageTypeUnknown;
+    if (variable_sc.comp_unit)
+        language = variable_sc.comp_unit->GetLanguage();
+    return m_mangled.NameMatches (name, language);
+}
 bool
 Variable::NameMatches (const RegularExpression& regex) const
 {
     if (regex.Execute (m_name.AsCString()))
         return true;
-    return m_mangled.NameMatches (regex);
+    if (m_mangled)
+        return m_mangled.NameMatches (regex, GetLanguage());
+    return false;
 }
 
 Type *
@@ -175,6 +203,7 @@ Variable::DumpDeclaration (Stream *s, bool show_fullpaths, bool show_module)
         sc.line_entry.Clear();
         bool show_inlined_frames = false;
         const bool show_function_arguments = true;
+        const bool show_function_name = true;
     
         dumped_declaration_info = sc.DumpStopContext (s, 
                                                       nullptr,
@@ -182,7 +211,8 @@ Variable::DumpDeclaration (Stream *s, bool show_fullpaths, bool show_module)
                                                       show_fullpaths, 
                                                       show_module, 
                                                       show_inlined_frames,
-                                                      show_function_arguments);
+                                                      show_function_arguments,
+                                                      show_function_name);
         
         if (sc.function)
             s->PutChar(':');
@@ -203,7 +233,10 @@ void
 Variable::CalculateSymbolContext (SymbolContext *sc)
 {
     if (m_owner_scope)
+    {
         m_owner_scope->CalculateSymbolContext(sc);
+        sc->variable = this;
+    }
     else
         sc->Clear(false);
 }

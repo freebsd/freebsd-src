@@ -66,9 +66,12 @@ protected:
   unsigned char LongWidth, LongAlign;
   unsigned char LongLongWidth, LongLongAlign;
   unsigned char SuitableAlign;
+  unsigned char DefaultAlignForAttributeAligned;
   unsigned char MinGlobalAlign;
   unsigned char MaxAtomicPromoteWidth, MaxAtomicInlineWidth;
   unsigned short MaxVectorAlign;
+  unsigned short MaxTLSAlign;
+  unsigned short SimdDefaultAlign;
   const char *DescriptionString;
   const char *UserLabelPrefix;
   const char *MCountName;
@@ -314,6 +317,12 @@ public:
   /// object with a fundamental alignment requirement.
   unsigned getSuitableAlign() const { return SuitableAlign; }
 
+  /// \brief Return the default alignment for __attribute__((aligned)) on
+  /// this target, to be used if no alignment value is specified.
+  unsigned getDefaultAlignForAttributeAligned() const {
+    return DefaultAlignForAttributeAligned;
+  }
+
   /// getMinGlobalAlign - Return the minimum alignment of a global variable,
   /// unless its alignment is explicitly reduced via attributes.
   unsigned getMinGlobalAlign() const { return MinGlobalAlign; }
@@ -356,6 +365,10 @@ public:
     return *LongDoubleFormat;
   }
 
+  /// \brief Return true if the 'long double' type should be mangled like
+  /// __float128.
+  virtual bool useFloat128ManglingForLongDouble() const { return false; }
+
   /// \brief Return the value for the C99 FLT_EVAL_METHOD macro.
   virtual unsigned getFloatEvalMethod() const { return 0; }
 
@@ -382,6 +395,10 @@ public:
 
   /// \brief Return the maximum vector alignment supported for the given target.
   unsigned getMaxVectorAlign() const { return MaxVectorAlign; }
+  /// \brief Return default simd alignment for the given target. Generally, this
+  /// value is type-specific, but this alignment can be used for most of the
+  /// types for the given target.
+  unsigned getSimdDefaultAlign() const { return SimdDefaultAlign; }
 
   /// \brief Return the size of intmax_t and uintmax_t for this target, in bits.
   unsigned getIntMaxTWidth() const {
@@ -600,6 +617,9 @@ public:
     }
   };
 
+  // Validate the contents of the __builtin_cpu_supports(const char*) argument.
+  virtual bool validateCpuSupports(StringRef Name) const { return false; }
+
   // validateOutputConstraint, validateInputConstraint - Checks that
   // a constraint is valid and provides information about it.
   // FIXME: These should return a real error instead of just true/false.
@@ -636,6 +656,12 @@ public:
     if (*Constraint == 'p')
       return std::string("r");
     return std::string(1, *Constraint);
+  }
+
+  /// \brief Returns true if NaN encoding is IEEE 754-2008.
+  /// Only MIPS allows a different encoding.
+  virtual bool isNan2008() const {
+    return true;
   }
 
   /// \brief Returns a string of target-specific clobbers, in LLVM format.
@@ -784,6 +810,21 @@ public:
     return TLSSupported;
   }
 
+  /// \brief Return the maximum alignment (in bits) of a TLS variable
+  ///
+  /// Gets the maximum alignment (in bits) of a TLS variable on this target.
+  /// Returns zero if there is no such constraint.
+  unsigned short getMaxTLSAlign() const {
+    return MaxTLSAlign;
+  }
+
+  /// \brief Whether the target supports SEH __try.
+  bool isSEHTrySupported() const {
+    return getTriple().isOSWindows() &&
+           (getTriple().getArch() == llvm::Triple::x86 ||
+            getTriple().getArch() == llvm::Triple::x86_64);
+  }
+
   /// \brief Return true if {|} are normal characters in the asm string.
   ///
   /// If this returns false (the default), then {abc|xyz} is syntax
@@ -836,7 +877,8 @@ public:
 
   enum CallingConvCheckResult {
     CCCR_OK,
-    CCCR_Warning
+    CCCR_Warning,
+    CCCR_Ignore,
   };
 
   /// \brief Determines whether a given calling convention is valid for the

@@ -14,7 +14,7 @@
 #if __APPLE__
   #include <libkern/OSCacheControl.h>
 #endif
-#if defined(__FreeBSD__) && defined(__arm__)
+#if (defined(__FreeBSD__) || defined(__Bitrig__)) && defined(__arm__)
   #include <sys/types.h>
   #include <machine/sysarch.h>
 #endif
@@ -26,6 +26,7 @@
 #if defined(__mips__) && !defined(__FreeBSD__)
   #include <sys/cachectl.h>
   #include <sys/syscall.h>
+  #include <unistd.h>
   #if defined(__ANDROID__) && defined(__LP64__)
     /*
      * clear_mips_cache - Invalidates instruction cache for Mips.
@@ -90,7 +91,7 @@ void __clear_cache(void *start, void *end) {
  * so there is nothing to do
  */
 #elif defined(__arm__) && !defined(__APPLE__)
-    #if defined(__FreeBSD__) || defined(__NetBSD__)
+    #if defined(__FreeBSD__) || defined(__NetBSD__) || defined(__Bitrig__)
         struct arm_sync_icache_args arg;
 
         arg.addr = (uintptr_t)start;
@@ -127,6 +128,7 @@ void __clear_cache(void *start, void *end) {
 #elif defined(__aarch64__) && !defined(__APPLE__)
   uint64_t xstart = (uint64_t)(uintptr_t) start;
   uint64_t xend = (uint64_t)(uintptr_t) end;
+  uint64_t addr;
 
   // Get Cache Type Info
   uint64_t ctr_el0;
@@ -137,12 +139,12 @@ void __clear_cache(void *start, void *end) {
    * uintptr_t in case this runs in an IPL32 environment.
    */
   const size_t dcache_line_size = 4 << ((ctr_el0 >> 16) & 15);
-  for (uint64_t addr = xstart; addr < xend; addr += dcache_line_size)
+  for (addr = xstart; addr < xend; addr += dcache_line_size)
     __asm __volatile("dc cvau, %0" :: "r"(addr));
   __asm __volatile("dsb ish");
 
   const size_t icache_line_size = 4 << ((ctr_el0 >> 0) & 15);
-  for (uint64_t addr = xstart; addr < xend; addr += icache_line_size)
+  for (addr = xstart; addr < xend; addr += icache_line_size)
     __asm __volatile("ic ivau, %0" :: "r"(addr));
   __asm __volatile("isb sy");
 #else

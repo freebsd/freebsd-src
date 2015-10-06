@@ -7,18 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-//++
-// File:        MICmdFactory.cpp
-//
-// Overview:    CMICmdFactory implementation.
-//
-// Environment: Compilers:  Visual C++ 12.
-//                          gcc (Ubuntu/Linaro 4.8.1-10ubuntu9) 4.8.1
-//              Libraries:  See MIReadmetxt.
-//
-// Copyright:   None.
-//--
-
 // In-house headers:
 #include "MICmdFactory.h"
 #include "MICmnResources.h"
@@ -97,7 +85,7 @@ CMICmdFactory::Shutdown(void)
 }
 
 //++ ------------------------------------------------------------------------------------
-// Details: Register a command's creator function with the command identitier the MI
+// Details: Register a command's creator function with the command identifier the MI
 //          command name i.e. 'file-exec-and-symbols'.
 // Type:    Method.
 // Args:    vMiCmd          - (R) Command's name, the MI command.
@@ -171,8 +159,8 @@ CMICmdFactory::IsValid(const CMIUtilString &vMiCmd) const
         return false;
     }
 
-    const MIint nPos = vMiCmd.find(" ");
-    if (nPos != (MIint)std::string::npos)
+    const size_t nPos = vMiCmd.find(' ');
+    if (nPos != std::string::npos)
         bValid = false;
 
     return bValid;

@@ -15,8 +15,8 @@
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringMap.h"
+#include "llvm/ADT/Twine.h"
 #include "llvm/MC/MCDwarf.h"
-#include "llvm/MC/MCStreamer.h"
 #include "llvm/MC/SectionKind.h"
 #include "llvm/Support/Allocator.h"
 #include "llvm/Support/Compiler.h"
@@ -30,6 +30,7 @@ namespace llvm {
   class MCExpr;
   class MCSection;
   class MCSymbol;
+  class MCSymbolELF;
   class MCLabel;
   struct MCDwarfFile;
   class MCDwarfLoc;
@@ -37,20 +38,20 @@ namespace llvm {
   class MCRegisterInfo;
   class MCLineSection;
   class SMLoc;
-  class StringRef;
-  class Twine;
   class MCSectionMachO;
   class MCSectionELF;
   class MCSectionCOFF;
 
-  /// MCContext - Context object for machine code objects.  This class owns all
-  /// of the sections that it creates.
+  /// Context object for machine code objects.  This class owns all of the
+  /// sections that it creates.
   ///
   class MCContext {
-    MCContext(const MCContext&) LLVM_DELETED_FUNCTION;
-    MCContext &operator=(const MCContext&) LLVM_DELETED_FUNCTION;
+    MCContext(const MCContext &) = delete;
+    MCContext &operator=(const MCContext &) = delete;
+
   public:
-    typedef StringMap<MCSymbol*, BumpPtrAllocator&> SymbolTable;
+    typedef StringMap<MCSymbol *, BumpPtrAllocator &> SymbolTable;
+
   private:
     /// The SourceMgr for this object, if any.
     const SourceMgr *SrcMgr;
@@ -64,34 +65,34 @@ namespace llvm {
     /// The MCObjectFileInfo for this target.
     const MCObjectFileInfo *MOFI;
 
-    /// Allocator - Allocator object used for creating machine code objects.
+    /// Allocator object used for creating machine code objects.
     ///
     /// We use a bump pointer allocator to avoid the need to track all allocated
     /// objects.
     BumpPtrAllocator Allocator;
 
-    /// Symbols - Bindings of names to symbols.
+    /// Bindings of names to symbols.
     SymbolTable Symbols;
 
     /// ELF sections can have a corresponding symbol. This maps one to the
     /// other.
-    DenseMap<const MCSectionELF*, MCSymbol*> SectionSymbols;
+    DenseMap<const MCSectionELF *, MCSymbolELF *> SectionSymbols;
 
-    /// A maping from a local label number and an instance count to a symbol.
+    /// A mapping from a local label number and an instance count to a symbol.
     /// For example, in the assembly
     ///     1:
     ///     2:
     ///     1:
     /// We have three labels represented by the pairs (1, 0), (2, 0) and (1, 1)
-    DenseMap<std::pair<unsigned, unsigned>, MCSymbol*> LocalSymbols;
+    DenseMap<std::pair<unsigned, unsigned>, MCSymbol *> LocalSymbols;
 
-    /// UsedNames - Keeps tracks of names that were used both for used declared
-    /// and artificial symbols.
-    StringMap<bool, BumpPtrAllocator&> UsedNames;
+    /// Keeps tracks of names that were used both for used declared and
+    /// artificial symbols.
+    StringMap<bool, BumpPtrAllocator &> UsedNames;
 
-    /// NextUniqueID - The next ID to dole out to an unnamed assembler temporary
-    /// symbol.
-    unsigned NextUniqueID;
+    /// The next ID to dole out to an unnamed assembler temporary symbol with
+    /// a given prefix.
+    StringMap<unsigned> NextID;
 
     /// Instances of directional local labels.
     DenseMap<unsigned, MCLabel *> Instances;
@@ -136,10 +137,8 @@ namespace llvm {
     /// assembly source files.
     unsigned GenDwarfFileNumber;
 
-    /// Symbols created for the start and end of each section, used for
-    /// generating the .debug_ranges and .debug_aranges sections.
-    MapVector<const MCSection *, std::pair<MCSymbol *, MCSymbol *> >
-    SectionStartEndSyms;
+    /// Sections for generating the .debug_ranges and .debug_aranges sections.
+    SetVector<MCSection *> SectionsForRanges;
 
     /// The information gathered from labels that will have dwarf label
     /// entries when generating dwarf assembly source files.
@@ -160,21 +159,57 @@ namespace llvm {
     /// differences between temporary and non-temporary labels (primarily on
     /// Darwin).
     bool AllowTemporaryLabels;
+    bool UseNamesOnTempLabels = true;
 
     /// The Compile Unit ID that we are currently processing.
     unsigned DwarfCompileUnitID;
 
-    typedef std::pair<std::string, std::string> SectionGroupPair;
-    typedef std::tuple<std::string, std::string, int> SectionGroupTriple;
+    struct ELFSectionKey {
+      std::string SectionName;
+      StringRef GroupName;
+      unsigned UniqueID;
+      ELFSectionKey(StringRef SectionName, StringRef GroupName,
+                    unsigned UniqueID)
+          : SectionName(SectionName), GroupName(GroupName), UniqueID(UniqueID) {
+      }
+      bool operator<(const ELFSectionKey &Other) const {
+        if (SectionName != Other.SectionName)
+          return SectionName < Other.SectionName;
+        if (GroupName != Other.GroupName)
+          return GroupName < Other.GroupName;
+        return UniqueID < Other.UniqueID;
+      }
+    };
 
-    StringMap<const MCSectionMachO*> MachOUniquingMap;
-    std::map<SectionGroupPair, const MCSectionELF *> ELFUniquingMap;
-    std::map<SectionGroupTriple, const MCSectionCOFF *> COFFUniquingMap;
+    struct COFFSectionKey {
+      std::string SectionName;
+      StringRef GroupName;
+      int SelectionKey;
+      COFFSectionKey(StringRef SectionName, StringRef GroupName,
+                     int SelectionKey)
+          : SectionName(SectionName), GroupName(GroupName),
+            SelectionKey(SelectionKey) {}
+      bool operator<(const COFFSectionKey &Other) const {
+        if (SectionName != Other.SectionName)
+          return SectionName < Other.SectionName;
+        if (GroupName != Other.GroupName)
+          return GroupName < Other.GroupName;
+        return SelectionKey < Other.SelectionKey;
+      }
+    };
+
+    StringMap<MCSectionMachO *> MachOUniquingMap;
+    std::map<ELFSectionKey, MCSectionELF *> ELFUniquingMap;
+    std::map<COFFSectionKey, MCSectionCOFF *> COFFUniquingMap;
+    StringMap<bool> ELFRelSecNames;
 
     /// Do automatic reset in destructor
     bool AutoReset;
 
-    MCSymbol *CreateSymbol(StringRef Name);
+    MCSymbol *createSymbolImpl(const StringMapEntry<bool> *Name,
+                               bool CanBeUnnamed);
+    MCSymbol *createSymbol(StringRef Name, bool AlwaysAddSuffix,
+                           bool IsTemporary);
 
     MCSymbol *getOrCreateDirectionalLocalSymbol(unsigned LocalLabelVal,
                                                 unsigned Instance);
@@ -194,8 +229,9 @@ namespace llvm {
     const MCObjectFileInfo *getObjectFileInfo() const { return MOFI; }
 
     void setAllowTemporaryLabels(bool Value) { AllowTemporaryLabels = Value; }
+    void setUseNamesOnTempLabels(bool Value) { UseNamesOnTempLabels = Value; }
 
-    /// @name Module Lifetime Management
+    /// \name Module Lifetime Management
     /// @{
 
     /// reset - return object to right after construction state to prepare
@@ -204,104 +240,145 @@ namespace llvm {
 
     /// @}
 
-    /// @name Symbol Management
+    /// \name Symbol Management
     /// @{
 
-    /// CreateLinkerPrivateTempSymbol - Create and return a new linker temporary
-    /// symbol with a unique but unspecified name.
-    MCSymbol *CreateLinkerPrivateTempSymbol();
+    /// Create and return a new linker temporary symbol with a unique but
+    /// unspecified name.
+    MCSymbol *createLinkerPrivateTempSymbol();
 
-    /// CreateTempSymbol - Create and return a new assembler temporary symbol
-    /// with a unique but unspecified name.
-    MCSymbol *CreateTempSymbol();
+    /// Create and return a new assembler temporary symbol with a unique but
+    /// unspecified name.
+    MCSymbol *createTempSymbol(bool CanBeUnnamed = true);
 
-    /// getUniqueSymbolID() - Return a unique identifier for use in constructing
-    /// symbol names.
-    unsigned getUniqueSymbolID() { return NextUniqueID++; }
+    MCSymbol *createTempSymbol(const Twine &Name, bool AlwaysAddSuffix,
+                               bool CanBeUnnamed = true);
 
     /// Create the definition of a directional local symbol for numbered label
     /// (used for "1:" definitions).
-    MCSymbol *CreateDirectionalLocalSymbol(unsigned LocalLabelVal);
+    MCSymbol *createDirectionalLocalSymbol(unsigned LocalLabelVal);
 
     /// Create and return a directional local symbol for numbered label (used
     /// for "1b" or 1f" references).
-    MCSymbol *GetDirectionalLocalSymbol(unsigned LocalLabelVal, bool Before);
+    MCSymbol *getDirectionalLocalSymbol(unsigned LocalLabelVal, bool Before);
 
-    /// GetOrCreateSymbol - Lookup the symbol inside with the specified
-    /// @p Name.  If it exists, return it.  If not, create a forward
-    /// reference and return it.
+    /// Lookup the symbol inside with the specified \p Name.  If it exists,
+    /// return it.  If not, create a forward reference and return it.
     ///
-    /// @param Name - The symbol name, which must be unique across all symbols.
-    MCSymbol *GetOrCreateSymbol(StringRef Name);
-    MCSymbol *GetOrCreateSymbol(const Twine &Name);
+    /// \param Name - The symbol name, which must be unique across all symbols.
+    MCSymbol *getOrCreateSymbol(const Twine &Name);
 
-    MCSymbol *getOrCreateSectionSymbol(const MCSectionELF &Section);
+    MCSymbolELF *getOrCreateSectionSymbol(const MCSectionELF &Section);
 
-    MCSymbol *getOrCreateFrameAllocSymbol(StringRef FuncName);
+    /// Gets a symbol that will be defined to the final stack offset of a local
+    /// variable after codegen.
+    ///
+    /// \param Idx - The index of a local variable passed to @llvm.localescape.
+    MCSymbol *getOrCreateFrameAllocSymbol(StringRef FuncName, unsigned Idx);
 
-    /// LookupSymbol - Get the symbol for \p Name, or null.
-    MCSymbol *LookupSymbol(StringRef Name) const;
-    MCSymbol *LookupSymbol(const Twine &Name) const;
+    MCSymbol *getOrCreateParentFrameOffsetSymbol(StringRef FuncName);
+
+    MCSymbol *getOrCreateLSDASymbol(StringRef FuncName);
+
+    /// Get the symbol for \p Name, or null.
+    MCSymbol *lookupSymbol(const Twine &Name) const;
 
     /// getSymbols - Get a reference for the symbol table for clients that
     /// want to, for example, iterate over all symbols. 'const' because we
     /// still want any modifications to the table itself to use the MCContext
     /// APIs.
-    const SymbolTable &getSymbols() const {
-      return Symbols;
-    }
+    const SymbolTable &getSymbols() const { return Symbols; }
 
     /// @}
 
-    /// @name Section Management
+    /// \name Section Management
     /// @{
 
-    /// getMachOSection - Return the MCSection for the specified mach-o section.
-    /// This requires the operands to be valid.
-    const MCSectionMachO *getMachOSection(StringRef Segment,
-                                          StringRef Section,
-                                          unsigned TypeAndAttributes,
-                                          unsigned Reserved2,
-                                          SectionKind K);
-    const MCSectionMachO *getMachOSection(StringRef Segment,
-                                          StringRef Section,
-                                          unsigned TypeAndAttributes,
-                                          SectionKind K) {
-      return getMachOSection(Segment, Section, TypeAndAttributes, 0, K);
+    /// Return the MCSection for the specified mach-o section.  This requires
+    /// the operands to be valid.
+    MCSectionMachO *getMachOSection(StringRef Segment, StringRef Section,
+                                    unsigned TypeAndAttributes,
+                                    unsigned Reserved2, SectionKind K,
+                                    const char *BeginSymName = nullptr);
+
+    MCSectionMachO *getMachOSection(StringRef Segment, StringRef Section,
+                                    unsigned TypeAndAttributes, SectionKind K,
+                                    const char *BeginSymName = nullptr) {
+      return getMachOSection(Segment, Section, TypeAndAttributes, 0, K,
+                             BeginSymName);
     }
 
-    const MCSectionELF *getELFSection(StringRef Section, unsigned Type,
-                                      unsigned Flags, SectionKind Kind);
+    MCSectionELF *getELFSection(StringRef Section, unsigned Type,
+                                unsigned Flags) {
+      return getELFSection(Section, Type, Flags, nullptr);
+    }
 
-    const MCSectionELF *getELFSection(StringRef Section, unsigned Type,
-                                      unsigned Flags, SectionKind Kind,
-                                      unsigned EntrySize, StringRef Group);
+    MCSectionELF *getELFSection(StringRef Section, unsigned Type,
+                                unsigned Flags, const char *BeginSymName) {
+      return getELFSection(Section, Type, Flags, 0, "", BeginSymName);
+    }
 
-    void renameELFSection(const MCSectionELF *Section, StringRef Name);
+    MCSectionELF *getELFSection(StringRef Section, unsigned Type,
+                                unsigned Flags, unsigned EntrySize,
+                                StringRef Group) {
+      return getELFSection(Section, Type, Flags, EntrySize, Group, nullptr);
+    }
 
-    const MCSectionELF *CreateELFGroupSection();
+    MCSectionELF *getELFSection(StringRef Section, unsigned Type,
+                                unsigned Flags, unsigned EntrySize,
+                                StringRef Group, const char *BeginSymName) {
+      return getELFSection(Section, Type, Flags, EntrySize, Group, ~0,
+                           BeginSymName);
+    }
 
-    const MCSectionCOFF *getCOFFSection(StringRef Section,
-                                        unsigned Characteristics,
-                                        SectionKind Kind,
-                                        StringRef COMDATSymName, int Selection);
+    MCSectionELF *getELFSection(StringRef Section, unsigned Type,
+                                unsigned Flags, unsigned EntrySize,
+                                StringRef Group, unsigned UniqueID) {
+      return getELFSection(Section, Type, Flags, EntrySize, Group, UniqueID,
+                           nullptr);
+    }
 
-    const MCSectionCOFF *getCOFFSection(StringRef Section,
-                                        unsigned Characteristics,
-                                        SectionKind Kind);
+    MCSectionELF *getELFSection(StringRef Section, unsigned Type,
+                                unsigned Flags, unsigned EntrySize,
+                                StringRef Group, unsigned UniqueID,
+                                const char *BeginSymName);
 
-    const MCSectionCOFF *getCOFFSection(StringRef Section);
+    MCSectionELF *getELFSection(StringRef Section, unsigned Type,
+                                unsigned Flags, unsigned EntrySize,
+                                const MCSymbolELF *Group, unsigned UniqueID,
+                                const char *BeginSymName,
+                                const MCSectionELF *Associated);
+
+    MCSectionELF *createELFRelSection(StringRef Name, unsigned Type,
+                                      unsigned Flags, unsigned EntrySize,
+                                      const MCSymbolELF *Group,
+                                      const MCSectionELF *Associated);
+
+    void renameELFSection(MCSectionELF *Section, StringRef Name);
+
+    MCSectionELF *createELFGroupSection(const MCSymbolELF *Group);
+
+    MCSectionCOFF *getCOFFSection(StringRef Section, unsigned Characteristics,
+                                  SectionKind Kind, StringRef COMDATSymName,
+                                  int Selection,
+                                  const char *BeginSymName = nullptr);
+
+    MCSectionCOFF *getCOFFSection(StringRef Section, unsigned Characteristics,
+                                  SectionKind Kind,
+                                  const char *BeginSymName = nullptr);
+
+    MCSectionCOFF *getCOFFSection(StringRef Section);
 
     /// Gets or creates a section equivalent to Sec that is associated with the
     /// section containing KeySym. For example, to create a debug info section
     /// associated with an inline function, pass the normal debug info section
     /// as Sec and the function symbol as KeySym.
-    const MCSectionCOFF *getAssociativeCOFFSection(const MCSectionCOFF *Sec,
-                                                   const MCSymbol *KeySym);
+    MCSectionCOFF *getAssociativeCOFFSection(MCSectionCOFF *Sec,
+                                             const MCSymbol *KeySym);
 
     /// @}
 
-    /// @name Dwarf Management
+    /// \name Dwarf Management
     /// @{
 
     /// \brief Get the compilation directory for DW_AT_comp_dir
@@ -323,8 +400,8 @@ namespace llvm {
     /// \brief Set the main file name and override the default.
     void setMainFileName(StringRef S) { MainFileName = S; }
 
-    /// GetDwarfFile - creates an entry in the dwarf file and directory tables.
-    unsigned GetDwarfFile(StringRef Directory, StringRef FileName,
+    /// Creates an entry in the dwarf file and directory tables.
+    unsigned getDwarfFile(StringRef Directory, StringRef FileName,
                           unsigned FileNumber, unsigned CUID);
 
     bool isValidDwarfFileNumber(unsigned FileNumber, unsigned CUID = 0);
@@ -356,9 +433,7 @@ namespace llvm {
           return true;
       return false;
     }
-    unsigned getDwarfCompileUnitID() {
-      return DwarfCompileUnitID;
-    }
+    unsigned getDwarfCompileUnitID() { return DwarfCompileUnitID; }
     void setDwarfCompileUnitID(unsigned CUIndex) {
       DwarfCompileUnitID = CUIndex;
     }
@@ -366,10 +441,10 @@ namespace llvm {
       getMCDwarfLineTable(CUID).setCompilationDir(CompilationDir);
     }
 
-    /// setCurrentDwarfLoc - saves the information from the currently parsed
-    /// dwarf .loc directive and sets DwarfLocSeen.  When the next instruction
-    /// is assembled an entry in the line number table with this information and
-    /// the address of the instruction will be created.
+    /// Saves the information from the currently parsed dwarf .loc directive
+    /// and sets DwarfLocSeen.  When the next instruction is assembled an entry
+    /// in the line number table with this information and the address of the
+    /// instruction will be created.
     void setCurrentDwarfLoc(unsigned FileNum, unsigned Line, unsigned Column,
                             unsigned Flags, unsigned Isa,
                             unsigned Discriminator) {
@@ -381,7 +456,7 @@ namespace llvm {
       CurrentDwarfLoc.setDiscriminator(Discriminator);
       DwarfLocSeen = true;
     }
-    void ClearDwarfLocSeen() { DwarfLocSeen = false; }
+    void clearDwarfLocSeen() { DwarfLocSeen = false; }
 
     bool getDwarfLocSeen() { return DwarfLocSeen; }
     const MCDwarfLoc &getCurrentDwarfLoc() { return CurrentDwarfLoc; }
@@ -392,17 +467,13 @@ namespace llvm {
     void setGenDwarfFileNumber(unsigned FileNumber) {
       GenDwarfFileNumber = FileNumber;
     }
-    MapVector<const MCSection *, std::pair<MCSymbol *, MCSymbol *> > &
-    getGenDwarfSectionSyms() {
-      return SectionStartEndSyms;
+    const SetVector<MCSection *> &getGenDwarfSectionSyms() {
+      return SectionsForRanges;
     }
-    std::pair<MapVector<const MCSection *,
-                        std::pair<MCSymbol *, MCSymbol *> >::iterator,
-              bool>
-    addGenDwarfSection(const MCSection *Sec) {
-      return SectionStartEndSyms.insert(
-          std::make_pair(Sec, std::make_pair(nullptr, nullptr)));
+    bool addGenDwarfSection(MCSection *Sec) {
+      return SectionsForRanges.insert(Sec);
     }
+
     void finalizeDwarfSections(MCStreamer &MCOS);
     const std::vector<MCGenDwarfLabelEntry> &getMCGenDwarfLabelEntries() const {
       return MCGenDwarfLabelEntries;
@@ -425,56 +496,52 @@ namespace llvm {
     char *getSecureLogFile() { return SecureLogFile; }
     raw_ostream *getSecureLog() { return SecureLog; }
     bool getSecureLogUsed() { return SecureLogUsed; }
-    void setSecureLog(raw_ostream *Value) {
-      SecureLog = Value;
-    }
-    void setSecureLogUsed(bool Value) {
-      SecureLogUsed = Value;
-    }
+    void setSecureLog(raw_ostream *Value) { SecureLog = Value; }
+    void setSecureLogUsed(bool Value) { SecureLogUsed = Value; }
 
-    void *Allocate(unsigned Size, unsigned Align = 8) {
+    void *allocate(unsigned Size, unsigned Align = 8) {
       return Allocator.Allocate(Size, Align);
     }
-    void Deallocate(void *Ptr) {
-    }
+    void deallocate(void *Ptr) {}
 
     // Unrecoverable error has occurred. Display the best diagnostic we can
     // and bail via exit(1). For now, most MC backend errors are unrecoverable.
     // FIXME: We should really do something about that.
-    LLVM_ATTRIBUTE_NORETURN void FatalError(SMLoc L, const Twine &Msg) const;
+    LLVM_ATTRIBUTE_NORETURN void reportFatalError(SMLoc L,
+                                                  const Twine &Msg) const;
   };
 
 } // end namespace llvm
 
 // operator new and delete aren't allowed inside namespaces.
 // The throw specifications are mandated by the standard.
-/// @brief Placement new for using the MCContext's allocator.
+/// \brief Placement new for using the MCContext's allocator.
 ///
 /// This placement form of operator new uses the MCContext's allocator for
 /// obtaining memory. It is a non-throwing new, which means that it returns
 /// null on error. (If that is what the allocator does. The current does, so if
 /// this ever changes, this operator will have to be changed, too.)
 /// Usage looks like this (assuming there's an MCContext 'Context' in scope):
-/// @code
-/// // Default alignment (16)
+/// \code
+/// // Default alignment (8)
 /// IntegerLiteral *Ex = new (Context) IntegerLiteral(arguments);
 /// // Specific alignment
-/// IntegerLiteral *Ex2 = new (Context, 8) IntegerLiteral(arguments);
-/// @endcode
+/// IntegerLiteral *Ex2 = new (Context, 4) IntegerLiteral(arguments);
+/// \endcode
 /// Please note that you cannot use delete on the pointer; it must be
 /// deallocated using an explicit destructor call followed by
-/// @c Context.Deallocate(Ptr).
+/// \c Context.Deallocate(Ptr).
 ///
-/// @param Bytes The number of bytes to allocate. Calculated by the compiler.
-/// @param C The MCContext that provides the allocator.
-/// @param Alignment The alignment of the allocated memory (if the underlying
+/// \param Bytes The number of bytes to allocate. Calculated by the compiler.
+/// \param C The MCContext that provides the allocator.
+/// \param Alignment The alignment of the allocated memory (if the underlying
 ///                  allocator supports it).
-/// @return The allocated memory. Could be NULL.
+/// \return The allocated memory. Could be NULL.
 inline void *operator new(size_t Bytes, llvm::MCContext &C,
-                          size_t Alignment = 16) throw () {
-  return C.Allocate(Bytes, Alignment);
+                          size_t Alignment = 8) throw() {
+  return C.allocate(Bytes, Alignment);
 }
-/// @brief Placement delete companion to the new above.
+/// \brief Placement delete companion to the new above.
 ///
 /// This operator is just a companion to the new above. There is no way of
 /// invoking it directly; see the new operator for more details. This operator
@@ -482,41 +549,41 @@ inline void *operator new(size_t Bytes, llvm::MCContext &C,
 /// the MCContext throws in the object constructor.
 inline void operator delete(void *Ptr, llvm::MCContext &C, size_t)
               throw () {
-  C.Deallocate(Ptr);
+  C.deallocate(Ptr);
 }
 
 /// This placement form of operator new[] uses the MCContext's allocator for
 /// obtaining memory. It is a non-throwing new[], which means that it returns
 /// null on error.
 /// Usage looks like this (assuming there's an MCContext 'Context' in scope):
-/// @code
-/// // Default alignment (16)
+/// \code
+/// // Default alignment (8)
 /// char *data = new (Context) char[10];
 /// // Specific alignment
-/// char *data = new (Context, 8) char[10];
-/// @endcode
+/// char *data = new (Context, 4) char[10];
+/// \endcode
 /// Please note that you cannot use delete on the pointer; it must be
 /// deallocated using an explicit destructor call followed by
-/// @c Context.Deallocate(Ptr).
+/// \c Context.Deallocate(Ptr).
 ///
-/// @param Bytes The number of bytes to allocate. Calculated by the compiler.
-/// @param C The MCContext that provides the allocator.
-/// @param Alignment The alignment of the allocated memory (if the underlying
+/// \param Bytes The number of bytes to allocate. Calculated by the compiler.
+/// \param C The MCContext that provides the allocator.
+/// \param Alignment The alignment of the allocated memory (if the underlying
 ///                  allocator supports it).
-/// @return The allocated memory. Could be NULL.
+/// \return The allocated memory. Could be NULL.
 inline void *operator new[](size_t Bytes, llvm::MCContext& C,
-                            size_t Alignment = 16) throw () {
-  return C.Allocate(Bytes, Alignment);
+                            size_t Alignment = 8) throw() {
+  return C.allocate(Bytes, Alignment);
 }
 
-/// @brief Placement delete[] companion to the new[] above.
+/// \brief Placement delete[] companion to the new[] above.
 ///
 /// This operator is just a companion to the new[] above. There is no way of
 /// invoking it directly; see the new[] operator for more details. This operator
 /// is called implicitly by the compiler if a placement new[] expression using
 /// the MCContext throws in the object constructor.
 inline void operator delete[](void *Ptr, llvm::MCContext &C) throw () {
-  C.Deallocate(Ptr);
+  C.deallocate(Ptr);
 }
 
 #endif

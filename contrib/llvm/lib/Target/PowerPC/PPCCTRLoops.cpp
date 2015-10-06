@@ -30,6 +30,7 @@
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Analysis/ScalarEvolutionExpander.h"
+#include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/Dominators.h"
@@ -42,7 +43,6 @@
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/Target/TargetLibraryInfo.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Transforms/Utils/Local.h"
 #include "llvm/Transforms/Utils/LoopUtils.h"
@@ -94,8 +94,8 @@ namespace {
     bool runOnFunction(Function &F) override;
 
     void getAnalysisUsage(AnalysisUsage &AU) const override {
-      AU.addRequired<LoopInfo>();
-      AU.addPreserved<LoopInfo>();
+      AU.addRequired<LoopInfoWrapperPass>();
+      AU.addPreserved<LoopInfoWrapperPass>();
       AU.addRequired<DominatorTreeWrapperPass>();
       AU.addPreserved<DominatorTreeWrapperPass>();
       AU.addRequired<ScalarEvolution>();
@@ -146,7 +146,7 @@ namespace {
 INITIALIZE_PASS_BEGIN(PPCCTRLoops, "ppc-ctr-loops", "PowerPC CTR Loops",
                       false, false)
 INITIALIZE_PASS_DEPENDENCY(DominatorTreeWrapperPass)
-INITIALIZE_PASS_DEPENDENCY(LoopInfo)
+INITIALIZE_PASS_DEPENDENCY(LoopInfoWrapperPass)
 INITIALIZE_PASS_DEPENDENCY(ScalarEvolution)
 INITIALIZE_PASS_END(PPCCTRLoops, "ppc-ctr-loops", "PowerPC CTR Loops",
                     false, false)
@@ -168,12 +168,12 @@ FunctionPass *llvm::createPPCCTRLoopsVerify() {
 #endif // NDEBUG
 
 bool PPCCTRLoops::runOnFunction(Function &F) {
-  LI = &getAnalysis<LoopInfo>();
+  LI = &getAnalysis<LoopInfoWrapperPass>().getLoopInfo();
   SE = &getAnalysis<ScalarEvolution>();
   DT = &getAnalysis<DominatorTreeWrapperPass>().getDomTree();
-  DataLayoutPass *DLP = getAnalysisIfAvailable<DataLayoutPass>();
-  DL = DLP ? &DLP->getDataLayout() : nullptr;
-  LibInfo = getAnalysisIfAvailable<TargetLibraryInfo>();
+  DL = &F.getParent()->getDataLayout();
+  auto *TLIP = getAnalysisIfAvailable<TargetLibraryInfoWrapperPass>();
+  LibInfo = TLIP ? &TLIP->getTLI() : nullptr;
 
   bool MadeChange = false;
 
@@ -229,7 +229,8 @@ bool PPCCTRLoops::mightUseCTR(const Triple &TT, BasicBlock *BB) {
 
       if (!TM)
         return true;
-      const TargetLowering *TLI = TM->getSubtargetImpl()->getTargetLowering();
+      const TargetLowering *TLI =
+          TM->getSubtargetImpl(*BB->getParent())->getTargetLowering();
 
       if (Function *F = CI->getCalledFunction()) {
         // Most intrinsics don't become function calls, but some might.
@@ -350,8 +351,9 @@ bool PPCCTRLoops::mightUseCTR(const Triple &TT, BasicBlock *BB) {
             Opcode = ISD::FTRUNC; break;
           }
 
-          MVT VTy =
-            TLI->getSimpleValueType(CI->getArgOperand(0)->getType(), true);
+          auto &DL = CI->getModule()->getDataLayout();
+          MVT VTy = TLI->getSimpleValueType(DL, CI->getArgOperand(0)->getType(),
+                                            true);
           if (VTy == MVT::Other)
             return true;
           
@@ -399,7 +401,8 @@ bool PPCCTRLoops::mightUseCTR(const Triple &TT, BasicBlock *BB) {
     } else if (SwitchInst *SI = dyn_cast<SwitchInst>(J)) {
       if (!TM)
         return true;
-      const TargetLowering *TLI = TM->getSubtargetImpl()->getTargetLowering();
+      const TargetLowering *TLI =
+          TM->getSubtargetImpl(*BB->getParent())->getTargetLowering();
 
       if (SI->getNumCases() + 1 >= (unsigned)TLI->getMinimumJumpTableEntries())
         return true;
@@ -415,8 +418,8 @@ bool PPCCTRLoops::mightUseCTR(const Triple &TT, BasicBlock *BB) {
 bool PPCCTRLoops::convertToCTRLoop(Loop *L) {
   bool MadeChange = false;
 
-  Triple TT = Triple(L->getHeader()->getParent()->getParent()->
-                     getTargetTriple());
+  const Triple TT =
+      Triple(L->getHeader()->getParent()->getParent()->getTargetTriple());
   if (!TT.isArch32Bit() && !TT.isArch64Bit())
     return MadeChange; // Unknown arch. type.
 
@@ -530,7 +533,7 @@ bool PPCCTRLoops::convertToCTRLoop(Loop *L) {
   // selected branch.
   MadeChange = true;
 
-  SCEVExpander SCEVE(*SE, "loopcnt");
+  SCEVExpander SCEVE(*SE, Preheader->getModule()->getDataLayout(), "loopcnt");
   LLVMContext &C = SE->getContext();
   Type *CountType = TT.isArch64Bit() ? Type::getInt64Ty(C) :
                                        Type::getInt32Ty(C);
@@ -551,7 +554,7 @@ bool PPCCTRLoops::convertToCTRLoop(Loop *L) {
   IRBuilder<> CondBuilder(CountedExitBranch);
   Value *DecFunc =
     Intrinsic::getDeclaration(M, Intrinsic::ppc_is_decremented_ctr_nonzero);
-  Value *NewCond = CondBuilder.CreateCall(DecFunc);
+  Value *NewCond = CondBuilder.CreateCall(DecFunc, {});
   Value *OldCond = CountedExitBranch->getCondition();
   CountedExitBranch->setCondition(NewCond);
 

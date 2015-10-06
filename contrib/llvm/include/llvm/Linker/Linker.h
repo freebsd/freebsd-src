@@ -54,6 +54,7 @@ public:
     NonOpaqueStructTypeSet NonOpaqueStructTypes;
 
     void addNonOpaque(StructType *Ty);
+    void switchToNonOpaque(StructType *Ty);
     void addOpaque(StructType *Ty);
     StructType *findNonOpaque(ArrayRef<Type *> ETypes, bool IsPacked);
     bool hasType(StructType *Ty);
@@ -67,8 +68,13 @@ public:
   void deleteModule();
 
   /// \brief Link \p Src into the composite. The source is destroyed.
+  /// Passing OverrideSymbols as true will have symbols from Src
+  /// shadow those in the Dest.
   /// Returns true on error.
-  bool linkInModule(Module *Src);
+  bool linkInModule(Module *Src, bool OverrideSymbols = false);
+
+  /// \brief Set the composite to the passed-in module.
+  void setModule(Module *Dst);
 
   static bool LinkModules(Module *Dest, Module *Src,
                           DiagnosticHandlerFunction DiagnosticHandler);

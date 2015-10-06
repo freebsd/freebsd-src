@@ -16,7 +16,7 @@
 #define LLVM_EXECUTIONENGINE_SECTIONMEMORYMANAGER_H
 
 #include "llvm/ADT/SmallVector.h"
-#include "llvm/ExecutionEngine/RuntimeDyld.h"
+#include "llvm/ExecutionEngine/RTDyldMemoryManager.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/Memory.h"
 
@@ -35,12 +35,12 @@ namespace llvm {
 /// MCJIT::finalizeObject or by calling SectionMemoryManager::finalizeMemory
 /// directly.  Clients of MCJIT should call MCJIT::finalizeObject.
 class SectionMemoryManager : public RTDyldMemoryManager {
-  SectionMemoryManager(const SectionMemoryManager&) LLVM_DELETED_FUNCTION;
-  void operator=(const SectionMemoryManager&) LLVM_DELETED_FUNCTION;
+  SectionMemoryManager(const SectionMemoryManager&) = delete;
+  void operator=(const SectionMemoryManager&) = delete;
 
 public:
   SectionMemoryManager() { }
-  virtual ~SectionMemoryManager();
+  ~SectionMemoryManager() override;
 
   /// \brief Allocates a memory block of (at least) the given size suitable for
   /// executable code.

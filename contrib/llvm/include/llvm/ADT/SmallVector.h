@@ -24,6 +24,7 @@
 #include <cstddef>
 #include <cstdlib>
 #include <cstring>
+#include <initializer_list>
 #include <iterator>
 #include <memory>
 
@@ -236,51 +237,6 @@ public:
     this->setEnd(this->end()-1);
     this->end()->~T();
   }
-
-#if LLVM_HAS_VARIADIC_TEMPLATES
-  template <typename... ArgTypes> void emplace_back(ArgTypes &&... Args) {
-    if (LLVM_UNLIKELY(this->EndX >= this->CapacityX))
-      this->grow();
-    ::new ((void *)this->end()) T(std::forward<ArgTypes>(Args)...);
-    this->setEnd(this->end() + 1);
-  }
-#else
-private:
-  template <typename Constructor> void emplace_back_impl(Constructor construct) {
-    if (LLVM_UNLIKELY(this->EndX >= this->CapacityX))
-      this->grow();
-    construct((void *)this->end());
-    this->setEnd(this->end() + 1);
-  }
-
-public:
-  void emplace_back() {
-    emplace_back_impl([](void *Mem) { ::new (Mem) T(); });
-  }
-  template <typename T1> void emplace_back(T1 &&A1) {
-    emplace_back_impl([&](void *Mem) { ::new (Mem) T(std::forward<T1>(A1)); });
-  }
-  template <typename T1, typename T2> void emplace_back(T1 &&A1, T2 &&A2) {
-    emplace_back_impl([&](void *Mem) {
-      ::new (Mem) T(std::forward<T1>(A1), std::forward<T2>(A2));
-    });
-  }
-  template <typename T1, typename T2, typename T3>
-  void emplace_back(T1 &&A1, T2 &&A2, T3 &&A3) {
-    T(std::forward<T1>(A1), std::forward<T2>(A2), std::forward<T3>(A3));
-    emplace_back_impl([&](void *Mem) {
-      ::new (Mem)
-          T(std::forward<T1>(A1), std::forward<T2>(A2), std::forward<T3>(A3));
-    });
-  }
-  template <typename T1, typename T2, typename T3, typename T4>
-  void emplace_back(T1 &&A1, T2 &&A2, T3 &&A3, T4 &&A4) {
-    emplace_back_impl([&](void *Mem) {
-      ::new (Mem) T(std::forward<T1>(A1), std::forward<T2>(A2),
-                    std::forward<T3>(A3), std::forward<T4>(A4));
-    });
-  }
-#endif // LLVM_HAS_VARIADIC_TEMPLATES
 };
 
 // Define this out-of-line to dissuade the C++ compiler from inlining it.
@@ -352,12 +308,17 @@ protected:
 
   /// Copy the range [I, E) onto the uninitialized memory
   /// starting with "Dest", constructing elements into it as needed.
-  template<typename T1, typename T2>
-  static void uninitialized_copy(T1 *I, T1 *E, T2 *Dest) {
+  template <typename T1, typename T2>
+  static void uninitialized_copy(
+      T1 *I, T1 *E, T2 *Dest,
+      typename std::enable_if<std::is_same<typename std::remove_const<T1>::type,
+                                           T2>::value>::type * = nullptr) {
     // Use memcpy for PODs iterated by pointers (which includes SmallVector
     // iterators): std::uninitialized_copy optimizes to memmove, but we can
-    // use memcpy here.
-    memcpy(Dest, I, (E-I)*sizeof(T));
+    // use memcpy here. Note that I and E are iterators and thus might be
+    // invalid for memcpy if they are equal.
+    if (I != E)
+      memcpy(Dest, I, (E - I) * sizeof(T));
   }
 
   /// Double the size of the allocated memory, guaranteeing space for at
@@ -385,7 +346,7 @@ template <typename T>
 class SmallVectorImpl : public SmallVectorTemplateBase<T, isPodLike<T>::value> {
   typedef SmallVectorTemplateBase<T, isPodLike<T>::value > SuperClass;
 
-  SmallVectorImpl(const SmallVectorImpl&) LLVM_DELETED_FUNCTION;
+  SmallVectorImpl(const SmallVectorImpl&) = delete;
 public:
   typedef typename SuperClass::iterator iterator;
   typedef typename SuperClass::size_type size_type;
@@ -459,9 +420,7 @@ public:
       this->grow(this->size()+NumInputs);
 
     // Copy the new elements over.
-    // TODO: NEED To compile time dispatch on whether in_iter is a random access
-    // iterator to use the fast uninitialized_copy.
-    std::uninitialized_copy(in_start, in_end, this->end());
+    this->uninitialized_copy(in_start, in_end, this->end());
     this->setEnd(this->end() + NumInputs);
   }
 
@@ -476,12 +435,21 @@ public:
     this->setEnd(this->end() + NumInputs);
   }
 
+  void append(std::initializer_list<T> IL) {
+    append(IL.begin(), IL.end());
+  }
+
   void assign(size_type NumElts, const T &Elt) {
     clear();
     if (this->capacity() < NumElts)
       this->grow(NumElts);
     this->setEnd(this->begin()+NumElts);
     std::uninitialized_fill(this->begin(), this->end(), Elt);
+  }
+
+  void assign(std::initializer_list<T> IL) {
+    clear();
+    append(IL);
   }
 
   iterator erase(iterator I) {
@@ -675,6 +643,17 @@ public:
     // Insert the non-overwritten middle part.
     this->uninitialized_copy(From, To, OldEnd);
     return I;
+  }
+
+  void insert(iterator I, std::initializer_list<T> IL) {
+    insert(I, IL.begin(), IL.end());
+  }
+
+  template <typename... ArgTypes> void emplace_back(ArgTypes &&... Args) {
+    if (LLVM_UNLIKELY(this->EndX >= this->CapacityX))
+      this->grow();
+    ::new ((void *)this->end()) T(std::forward<ArgTypes>(Args)...);
+    this->setEnd(this->end() + 1);
   }
 
   SmallVectorImpl &operator=(const SmallVectorImpl &RHS);
@@ -902,6 +881,10 @@ public:
     this->append(R.begin(), R.end());
   }
 
+  SmallVector(std::initializer_list<T> IL) : SmallVectorImpl<T>(N) {
+    this->assign(IL);
+  }
+
   SmallVector(const SmallVector &RHS) : SmallVectorImpl<T>(N) {
     if (!RHS.empty())
       SmallVectorImpl<T>::operator=(RHS);
@@ -919,6 +902,21 @@ public:
 
   const SmallVector &operator=(SmallVector &&RHS) {
     SmallVectorImpl<T>::operator=(::std::move(RHS));
+    return *this;
+  }
+
+  SmallVector(SmallVectorImpl<T> &&RHS) : SmallVectorImpl<T>(N) {
+    if (!RHS.empty())
+      SmallVectorImpl<T>::operator=(::std::move(RHS));
+  }
+
+  const SmallVector &operator=(SmallVectorImpl<T> &&RHS) {
+    SmallVectorImpl<T>::operator=(::std::move(RHS));
+    return *this;
+  }
+
+  const SmallVector &operator=(std::initializer_list<T> IL) {
+    this->assign(IL);
     return *this;
   }
 };

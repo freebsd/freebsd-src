@@ -12,6 +12,7 @@
 
 // C Includes
 // C++ Includes
+#include <string>
 // Other libraries and framework includes
 // Project includes
 #include "lldb/lldb-private.h"
@@ -110,6 +111,13 @@ public:
     ///     The number of bytes to attempt to read, and also the max
     ///     number of bytes that can be placed into \a dst.
     ///
+    /// @param[in] timeout_usec
+    ///     The number of microseconds to wait for the data.
+    ///
+    /// @param[out] status
+    ///     On return, indicates whether the call was sucessful or terminated
+    ///     due to some error condition.
+    ///
     /// @param[out] error_ptr
     ///     A pointer to an error object that should be given an
     ///     approriate error value if this method returns zero. This
@@ -133,13 +141,13 @@ public:
     ///
     /// Subclasses must override this function.
     ///
-    /// @param[in] src
-    ///     A source buffer that must be at least \a src_len bytes
+    /// @param[in] dst
+    ///     A desination buffer that must be at least \a dst_len bytes
     ///     long.
     ///
-    /// @param[in] src_len
+    /// @param[in] dst_len
     ///     The number of bytes to attempt to write, and also the
-    ///     number of bytes are currently available in \a src.
+    ///     number of bytes are currently available in \a dst.
     ///
     /// @param[out] error_ptr
     ///     A pointer to an error object that should be given an
@@ -150,7 +158,48 @@ public:
     ///     The number of bytes actually Written.
     //------------------------------------------------------------------
     virtual size_t
-    Write (const void *buffer, size_t length, lldb::ConnectionStatus &status, Error *error_ptr) = 0;
+    Write (const void *dst, size_t dst_len, lldb::ConnectionStatus &status, Error *error_ptr) = 0;
+
+    //------------------------------------------------------------------
+    /// Returns a URI that describes this connection object
+    ///
+    /// Subclasses may override this function.
+    ///
+    /// @return
+    ///     Returns URI or an empty string if disconnecteds
+    //------------------------------------------------------------------
+    virtual std::string
+    GetURI() = 0;
+
+    //------------------------------------------------------------------
+    /// Interrupts an ongoing Read() operation.
+    ///
+    /// If there is an ongoing read operation in another thread, this operation
+    /// return with status == eConnectionStatusInterrupted. Note that if there
+    /// data waiting to be read and an interrupt request is issued, the Read()
+    /// function will return the data immediately without processing the
+    /// interrupt request (which will remain queued for the next Read()
+    /// operation).
+    ///
+    /// @return
+    ///     Returns true is the interrupt request was sucessful.
+    //------------------------------------------------------------------
+    virtual bool
+    InterruptRead() = 0;
+
+    //------------------------------------------------------------------
+    /// Returns the underlying IOObject used by the Connection.
+    ///
+    /// The IOObject can be used to wait for data to become available
+    /// on the connection. If the Connection does not use IOObjects (and
+    /// hence does not support waiting) this function should return a
+    /// null pointer.
+    ///
+    /// @return
+    ///     The underlying IOObject used for reading.
+    //------------------------------------------------------------------
+    virtual lldb::IOObjectSP
+    GetReadObject() { return lldb::IOObjectSP(); }
 
 private:
     //------------------------------------------------------------------

@@ -26,14 +26,10 @@ Instruction::Instruction(Type *ty, unsigned it, Use *Ops, unsigned NumOps,
 
   // If requested, insert this instruction into a basic block...
   if (InsertBefore) {
-    assert(InsertBefore->getParent() &&
-           "Instruction to insert before is not in a basic block!");
-    InsertBefore->getParent()->getInstList().insert(InsertBefore, this);
+    BasicBlock *BB = InsertBefore->getParent();
+    assert(BB && "Instruction to insert before is not in a basic block!");
+    BB->getInstList().insert(InsertBefore, this);
   }
-}
-
-const DataLayout *Instruction::getDataLayout() const {
-  return getParent()->getDataLayout();
 }
 
 Instruction::Instruction(Type *ty, unsigned it, Use *Ops, unsigned NumOps,
@@ -58,12 +54,21 @@ void Instruction::setParent(BasicBlock *P) {
   Parent = P;
 }
 
+const Module *Instruction::getModule() const {
+  return getParent()->getModule();
+}
+
+Module *Instruction::getModule() {
+  return getParent()->getModule();
+}
+
+
 void Instruction::removeFromParent() {
   getParent()->getInstList().remove(this);
 }
 
-void Instruction::eraseFromParent() {
-  getParent()->getInstList().erase(this);
+iplist<Instruction>::iterator Instruction::eraseFromParent() {
+  return getParent()->getInstList().erase(this);
 }
 
 /// insertBefore - Insert an unlinked instructions into a basic block
@@ -529,8 +534,23 @@ bool Instruction::isNilpotent(unsigned Opcode) {
   return Opcode == Xor;
 }
 
+Instruction *Instruction::cloneImpl() const {
+  llvm_unreachable("Subclass of Instruction failed to implement cloneImpl");
+}
+
 Instruction *Instruction::clone() const {
-  Instruction *New = clone_impl();
+  Instruction *New = nullptr;
+  switch (getOpcode()) {
+  default:
+    llvm_unreachable("Unhandled Opcode.");
+#define HANDLE_INST(num, opc, clas)                                            \
+  case Instruction::opc:                                                       \
+    New = cast<clas>(this)->cloneImpl();                                       \
+    break;
+#include "llvm/IR/Instruction.def"
+#undef HANDLE_INST
+  }
+
   New->SubclassOptionalData = SubclassOptionalData;
   if (!hasMetadata())
     return New;

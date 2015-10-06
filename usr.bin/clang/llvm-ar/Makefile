@@ -7,7 +7,9 @@ PROG_CXX=llvm-ar
 SRCDIR=	tools/llvm-ar
 SRCS=	llvm-ar.cpp
 
-LIBDEPS=llvmaarch64disassembler \
+LIBDEPS=llvmlibdriver \
+	llvmoption \
+	llvmaarch64disassembler \
 	llvmaarch64codegen \
 	llvmaarch64asmparser \
 	llvmaarch64desc \
@@ -44,13 +46,14 @@ LIBDEPS=llvmaarch64disassembler \
 	llvmselectiondag \
 	llvmasmprinter \
 	llvmcodegen \
+	llvmtarget \
 	llvmscalaropts \
 	llvmprofiledata \
 	llvminstcombine \
+	llvminstrumentation \
 	llvmtransformutils \
 	llvmipa \
 	llvmanalysis \
-	llvmtarget \
 	llvmx86desc \
 	llvmobject \
 	llvmmcparser \

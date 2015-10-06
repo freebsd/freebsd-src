@@ -51,8 +51,8 @@ static void EmitAbsDifference(MCStreamer &Streamer, const MCSymbol *LHS,
                               const MCSymbol *RHS) {
   MCContext &Context = Streamer.getContext();
   const MCExpr *Diff =
-      MCBinaryExpr::CreateSub(MCSymbolRefExpr::Create(LHS, Context),
-                              MCSymbolRefExpr::Create(RHS, Context), Context);
+      MCBinaryExpr::createSub(MCSymbolRefExpr::create(LHS, Context),
+                              MCSymbolRefExpr::create(RHS, Context), Context);
   Streamer.EmitValue(Diff, 1);
 }
 
@@ -126,13 +126,13 @@ static void EmitSymbolRefWithOfs(MCStreamer &streamer,
                                  const MCSymbol *Base,
                                  const MCSymbol *Other) {
   MCContext &Context = streamer.getContext();
-  const MCSymbolRefExpr *BaseRef = MCSymbolRefExpr::Create(Base, Context);
-  const MCSymbolRefExpr *OtherRef = MCSymbolRefExpr::Create(Other, Context);
-  const MCExpr *Ofs = MCBinaryExpr::CreateSub(OtherRef, BaseRef, Context);
-  const MCSymbolRefExpr *BaseRefRel = MCSymbolRefExpr::Create(Base,
+  const MCSymbolRefExpr *BaseRef = MCSymbolRefExpr::create(Base, Context);
+  const MCSymbolRefExpr *OtherRef = MCSymbolRefExpr::create(Other, Context);
+  const MCExpr *Ofs = MCBinaryExpr::createSub(OtherRef, BaseRef, Context);
+  const MCSymbolRefExpr *BaseRefRel = MCSymbolRefExpr::create(Base,
                                               MCSymbolRefExpr::VK_COFF_IMGREL32,
                                               Context);
-  streamer.EmitValue(MCBinaryExpr::CreateAdd(BaseRefRel, Ofs, Context), 4);
+  streamer.EmitValue(MCBinaryExpr::createAdd(BaseRefRel, Ofs, Context), 4);
 }
 
 static void EmitRuntimeFunction(MCStreamer &streamer,
@@ -142,7 +142,7 @@ static void EmitRuntimeFunction(MCStreamer &streamer,
   streamer.EmitValueToAlignment(4);
   EmitSymbolRefWithOfs(streamer, info->Function, info->Begin);
   EmitSymbolRefWithOfs(streamer, info->Function, info->End);
-  streamer.EmitValue(MCSymbolRefExpr::Create(info->Symbol,
+  streamer.EmitValue(MCSymbolRefExpr::create(info->Symbol,
                                              MCSymbolRefExpr::VK_COFF_IMGREL32,
                                              context), 4);
 }
@@ -153,7 +153,7 @@ static void EmitUnwindInfo(MCStreamer &streamer, WinEH::FrameInfo *info) {
     return;
 
   MCContext &context = streamer.getContext();
-  MCSymbol *Label = context.CreateTempSymbol();
+  MCSymbol *Label = context.createTempSymbol();
 
   streamer.EmitValueToAlignment(4);
   streamer.EmitLabel(Label);
@@ -207,7 +207,7 @@ static void EmitUnwindInfo(MCStreamer &streamer, WinEH::FrameInfo *info) {
     EmitRuntimeFunction(streamer, info->ChainedParent);
   else if (flags &
            ((Win64EH::UNW_TerminateHandler|Win64EH::UNW_ExceptionHandler) << 3))
-    streamer.EmitValue(MCSymbolRefExpr::Create(info->ExceptionHandler,
+    streamer.EmitValue(MCSymbolRefExpr::create(info->ExceptionHandler,
                                               MCSymbolRefExpr::VK_COFF_IMGREL32,
                                               context), 4);
   else if (numCodes == 0) {
@@ -224,16 +224,14 @@ void UnwindEmitter::Emit(MCStreamer &Streamer) const {
 
   // Emit the unwind info structs first.
   for (const auto &CFI : Streamer.getWinFrameInfos()) {
-    const MCSection *XData =
-        getXDataSection(CFI->Function, Context);
+    MCSection *XData = getXDataSection(CFI->Function, Context);
     Streamer.SwitchSection(XData);
     EmitUnwindInfo(Streamer, CFI);
   }
 
   // Now emit RUNTIME_FUNCTION entries.
   for (const auto &CFI : Streamer.getWinFrameInfos()) {
-    const MCSection *PData =
-        getPDataSection(CFI->Function, Context);
+    MCSection *PData = getPDataSection(CFI->Function, Context);
     Streamer.SwitchSection(PData);
     EmitRuntimeFunction(Streamer, CFI);
   }
@@ -244,8 +242,7 @@ void UnwindEmitter::EmitUnwindInfo(MCStreamer &Streamer,
   // Switch sections (the static function above is meant to be called from
   // here and from Emit().
   MCContext &context = Streamer.getContext();
-  const MCSection *xdataSect =
-    getXDataSection(info->Function, context);
+  MCSection *xdataSect = getXDataSection(info->Function, context);
   Streamer.SwitchSection(xdataSect);
 
   llvm::EmitUnwindInfo(Streamer, info);

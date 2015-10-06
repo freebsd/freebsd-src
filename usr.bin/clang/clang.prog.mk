@@ -12,6 +12,9 @@ LDADD+=	${.OBJDIR}/../../../lib/clang/lib${lib}/lib${lib}.a
 DPADD+=	${LIBNCURSESW}
 LDADD+=	-lncursesw
 
+DPADD+=	${LIBPTHREAD}
+LDADD+=	-lpthread
+
 BINDIR?= /usr/bin
 
 

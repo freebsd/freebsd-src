@@ -7,20 +7,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-//++
-// File:        MIDriverMgr.cpp
-//
-// Overview:    CMIDriverMgr implementation.
-//
-// Environment: Compilers:  Visual C++ 12.
-//                          gcc (Ubuntu/Linaro 4.8.1-10ubuntu9) 4.8.1
-//              Libraries:  See MIReadmetxt.
-//
-// Copyright:   None.
-//--
-
 // Third Party Headers:
-#include <lldb/API/SBError.h>
+#include "lldb/API/SBError.h"
 
 // In-house headers:
 #include "MIDriverMgr.h"
@@ -28,7 +16,6 @@
 #include "MICmnLog.h"
 #include "MICmnLogMediumFile.h"
 #include "MIDriver.h"
-#include "MIUtilTermios.h"
 #include "MICmnStreamStdout.h"
 #include "MIUtilSingletonHelper.h"
 
@@ -82,11 +69,6 @@ CMIDriverMgr::Initialize(void)
     MI::ModuleInit<CMICmnLog>(IDS_MI_INIT_ERR_LOG, bOk, errMsg);
     MI::ModuleInit<CMICmnResources>(IDS_MI_INIT_ERR_RESOURCES, bOk, errMsg);
 
-    if (bOk)
-    {
-        MIUtilTermios::StdinTermiosSet();
-    }
-
     m_bInitialized = bOk;
 
     if (!bOk)
@@ -116,41 +98,10 @@ CMIDriverMgr::Shutdown(void)
     // if( --m_clientUsageRefCnt > 0 )
     //  return MIstatus::success;
 
-    bool vbAppExitOk = true;
-
     ClrErrorDescription();
 
     if (!m_bInitialized)
         return MIstatus::success;
-
-    if (vbAppExitOk)
-    {
-        // The MI Driver's log updating may have been switched off switch back on to say all is ok.
-        CMICmnLog::Instance().SetEnabled(true);
-#if _DEBUG
-        CMICmnStreamStdout::Instance().Write(MIRSRC(IDE_MI_APP_EXIT_OK)); // Both stdout and Log
-#else
-        CMICmnLog::WriteLog(MIRSRC(IDE_MI_APP_EXIT_OK)); // Just to the Log
-#endif // _DEBUG
-    }
-    else
-    {
-        CMICmnLog &rAppLog = CMICmnLog::Instance();
-        if (rAppLog.GetEnabled())
-        {
-            const CMIUtilString msg(
-                CMIUtilString::Format(MIRSRC(IDE_MI_APP_EXIT_WITH_PROBLEM), CMICmnLogMediumFile::Instance().GetFileName().c_str()));
-            CMICmnStreamStdout::Instance().Write(msg);
-        }
-        else
-        {
-            // The MI Driver's log updating may have been switched off switch back on to say there has been problem.
-            rAppLog.SetEnabled(true);
-            const CMIUtilString msg(
-                CMIUtilString::Format(MIRSRC(IDE_MI_APP_EXIT_WITH_PROBLEM_NO_LOG), CMICmnLogMediumFile::Instance().GetFileName().c_str()));
-            CMICmnStreamStdout::Instance().Write(msg);
-        }
-    }
 
     m_bInitialized = false;
 
@@ -159,7 +110,6 @@ CMIDriverMgr::Shutdown(void)
 
     // Tidy up
     UnregisterDriverAll();
-    MIUtilTermios::StdinTermiosReset();
 
     // Note shutdown order is important here
     MI::ModuleShutdown<CMICmnResources>(IDE_MI_SHTDWN_ERR_RESOURCES, bOk, errMsg);
@@ -359,26 +309,6 @@ CMIDriverMgr::DriverMainLoop(void)
 }
 
 //++ ------------------------------------------------------------------------------------
-// Details: Call *this driver to resize the console window.
-// Type:    Method.
-// Args:    vWindowSizeWsCol  - (R) New window column size.
-// Return:  MIstatus::success - Functional succeeded.
-//          MIstatus::failure - Functional failed.
-// Throws:  None.
-//--
-void
-CMIDriverMgr::DriverResizeWindow(const uint32_t vWindowSizeWsCol)
-{
-    if (m_pDriverCurrent != nullptr)
-        return m_pDriverCurrent->DoResizeWindow(vWindowSizeWsCol);
-    else
-    {
-        const CMIUtilString errMsg(CMIUtilString::Format(MIRSRC(IDS_DRIVER_ERR_CURRENT_NOT_SET)));
-        CMICmnStreamStdout::Instance().Write(errMsg, true);
-    }
-}
-
-//++ ------------------------------------------------------------------------------------
 // Details: Get the current driver to validate executable command line arguments.
 // Type:    Method.
 // Args:    argc        - (R)   An integer that contains the count of arguments that follow in
@@ -407,7 +337,7 @@ CMIDriverMgr::DriverParseArgs(const int argc, const char *argv[], FILE *vpStdOut
     if (!bOk)
     {
         CMIUtilString errMsg;
-        const MIchar *pErrorCstr = error.GetCString();
+        const char *pErrorCstr = error.GetCString();
         if (pErrorCstr != nullptr)
             errMsg = CMIUtilString::Format(MIRSRC(IDS_DRIVER_ERR_PARSE_ARGS), m_pDriverCurrent->GetName().c_str(), pErrorCstr);
         else
@@ -495,8 +425,9 @@ CMIDriverMgr::DriverGetTheDebugger(void)
 //              --interpreter
 //              --version
 //              --versionLong
-//              --noLog
+//              --log
 //              --executable
+//              --log-dir
 //          The above arguments are not handled by any driver object except for --executable.
 //          The options --interpreter and --executable in code act very similar. The
 //          --executable is necessary to differentiate whither the MI Driver is being using
@@ -505,8 +436,9 @@ CMIDriverMgr::DriverGetTheDebugger(void)
 //          executable if called from the command line. Using --executable tells the MI
 //          Driver is being called the command line and that the executable argument is indeed
 //          a specified executable an so actions commands to set up the executable for a
-//          debug session. Using --interpreter on the commnd line does not action additional
-//          commands to initialise a debug session and so be able to launch the process.
+//          debug session. Using --interpreter on the command line does not action additional
+//          commands to initialise a debug session and so be able to launch the process. The directory
+//          where the log file is created is specified using --log-dir.
 // Type:    Method.
 // Args:    argc        - (R)   An integer that contains the count of arguments that follow in
 //                              argv. The argc parameter is always greater than or equal to 1.
@@ -552,14 +484,12 @@ CMIDriverMgr::ParseArgs(const int argc, const char *argv[], bool &vwbExiting)
     bool bHaveArgInterpret = false;
     bool bHaveArgVersion = false;
     bool bHaveArgVersionLong = false;
-    bool bHaveArgNoLog = false;
+    bool bHaveArgLog = false;
+    bool bHaveArgLogDir = false;
     bool bHaveArgHelp = false;
+    CMIUtilString strLogDir;
 
-// Hardcode the use of the MI driver
-#if MICONFIG_DEFAULT_TO_MI_DRIVER
     bHaveArgInterpret = true;
-#endif // MICONFIG_DEFAULT_TO_MI_DRIVER
-
     if (bHaveArgs)
     {
         // CODETAG_MIDRIVE_CMD_LINE_ARG_HANDLING
@@ -582,9 +512,14 @@ CMIDriverMgr::ParseArgs(const int argc, const char *argv[], bool &vwbExiting)
             {
                 bHaveArgVersionLong = true;
             }
-            if (0 == strArg.compare("--noLog"))
+            if (0 == strArg.compare("--log"))
             {
-                bHaveArgNoLog = true;
+                bHaveArgLog = true;
+            }
+            if (0 == strArg.compare(0,10,"--log-dir="))
+            {
+                strLogDir = strArg.substr(10, CMIUtilString::npos);
+                bHaveArgLogDir = true;
             }
             if ((0 == strArg.compare("--help")) || (0 == strArg.compare("-h")))
             {
@@ -593,12 +528,17 @@ CMIDriverMgr::ParseArgs(const int argc, const char *argv[], bool &vwbExiting)
         }
     }
 
-    if (bHaveArgNoLog)
+    if (bHaveArgLog)
     {
-        CMICmnLog::Instance().SetEnabled(false);
+        CMICmnLog::Instance().SetEnabled(true);
     }
 
-    // Todo: Remove this output when MI is finished. It is temporary to persuade Ecllipse plugin to work.
+    if (bHaveArgLogDir)
+    {
+        bOk = bOk && CMICmnLogMediumFile::Instance().SetDirectory(strLogDir);
+    }
+
+    // Todo: Remove this output when MI is finished. It is temporary to persuade Eclipse plugin to work.
     //       Eclipse reads this literally and will not work unless it gets this exact version text.
     // Handle --version option (ignore the --interpreter option if present)
     if (bHaveArgVersion)
@@ -608,7 +548,7 @@ CMIDriverMgr::ParseArgs(const int argc, const char *argv[], bool &vwbExiting)
         return bOk;
     }
 
-    // Todo: Make this the --version when the the above --version version is removed
+    // Todo: Make this the --version when the above --version version is removed
     // Handle --versionlong option (ignore the --interpreter option if present)
     if (bHaveArgVersionLong)
     {
@@ -617,7 +557,7 @@ CMIDriverMgr::ParseArgs(const int argc, const char *argv[], bool &vwbExiting)
         return bOk;
     }
 
-    // Both '--help' and '--intepreter' means give help for MI only. Without
+    // Both '--help' and '--interpreter' means give help for MI only. Without
     // '--interpreter' help the LLDB driver is working and so help is for that.
     if (bHaveArgHelp && bHaveArgInterpret)
     {
@@ -627,7 +567,7 @@ CMIDriverMgr::ParseArgs(const int argc, const char *argv[], bool &vwbExiting)
     }
 
     // This makes the assumption that there is at least one MI compatible
-    // driver registered and one LLDB driver registerd and the CMIDriver
+    // driver registered and one LLDB driver registered and the CMIDriver
     // is the first one found.
     // ToDo: Implement a better solution that handle any order, any number
     // of drivers. Or this 'feature' may be removed if deemed not required.
@@ -686,8 +626,10 @@ CMIDriverMgr::GetHelpOnCmdLineArgOptions(void) const
         MIRSRC(IDE_MI_APP_ARG_VERSION),
         MIRSRC(IDE_MI_APP_ARG_VERSION_LONG),
         MIRSRC(IDE_MI_APP_ARG_INTERPRETER),
+        MIRSRC(IDE_MI_APP_ARG_SOURCE),
         MIRSRC(IDE_MI_APP_ARG_EXECUTEABLE),
-        CMIUtilString::Format(MIRSRC(IDE_MI_APP_ARG_NO_APP_LOG), CMICmnLogMediumFile::Instance().GetFileName().c_str()),
+        CMIUtilString::Format(MIRSRC(IDE_MI_APP_ARG_APP_LOG), CMICmnLogMediumFile::Instance().GetFileName().c_str()),
+        MIRSRC(IDE_MI_APP_ARG_APP_LOG_DIR),
         MIRSRC(IDE_MI_APP_ARG_EXECUTABLE),
         MIRSRC(IDS_CMD_QUIT_HELP),
         MIRSRC(IDE_MI_APP_ARG_EXAMPLE)};
@@ -781,4 +723,20 @@ CMIDriverMgr::GetDriver(const CMIUtilString &vrDriverId) const
     IDriver *pDriver = (*it).second;
 
     return pDriver;
+}
+
+
+//++ ------------------------------------------------------------------------------------
+// Details: Gets called when lldb-mi gets a signal. Passed signal to current driver.
+//
+// Type:    Method.
+// Args:    signal that was delivered
+// Return:  None.
+// Throws:  None.
+//--
+void
+CMIDriverMgr::DeliverSignal(int signal)
+{
+    if (m_pDriverCurrent != nullptr)
+        m_pDriverCurrent->DeliverSignal(signal);
 }

@@ -123,8 +123,8 @@ private:
   /// second element.
   std::vector<std::pair<unsigned, unsigned> > LiveIns;
 
-  MachineRegisterInfo(const MachineRegisterInfo&) LLVM_DELETED_FUNCTION;
-  void operator=(const MachineRegisterInfo&) LLVM_DELETED_FUNCTION;
+  MachineRegisterInfo(const MachineRegisterInfo&) = delete;
+  void operator=(const MachineRegisterInfo&) = delete;
 public:
   explicit MachineRegisterInfo(const MachineFunction *MF);
 
@@ -182,7 +182,18 @@ public:
   /// information.
   void invalidateLiveness() { TracksLiveness = false; }
 
-  bool tracksSubRegLiveness() const { return TracksSubRegLiveness; }
+  /// Returns true if liveness for register class @p RC should be tracked at
+  /// the subregister level.
+  bool shouldTrackSubRegLiveness(const TargetRegisterClass &RC) const {
+    return subRegLivenessEnabled() && RC.HasDisjunctSubRegs;
+  }
+  bool shouldTrackSubRegLiveness(unsigned VReg) const {
+    assert(TargetRegisterInfo::isVirtualRegister(VReg) && "Must pass a VReg");
+    return shouldTrackSubRegLiveness(*getRegClass(VReg));
+  }
+  bool subRegLivenessEnabled() const {
+    return TracksSubRegLiveness;
+  }
 
   void enableSubRegLiveness(bool Enable = true) {
     TracksSubRegLiveness = Enable;
@@ -593,7 +604,7 @@ public:
   /// virtual register, for example after removing instructions or splitting
   /// the live range.
   ///
-  bool recomputeRegClass(unsigned Reg, const TargetMachine&);
+  bool recomputeRegClass(unsigned Reg);
 
   /// createVirtualRegister - Create and return a new virtual register in the
   /// function with the specified register class.
@@ -609,22 +620,25 @@ public:
 
   /// setRegAllocationHint - Specify a register allocation hint for the
   /// specified virtual register.
-  void setRegAllocationHint(unsigned Reg, unsigned Type, unsigned PrefReg) {
-    RegAllocHints[Reg].first  = Type;
-    RegAllocHints[Reg].second = PrefReg;
+  void setRegAllocationHint(unsigned VReg, unsigned Type, unsigned PrefReg) {
+    assert(TargetRegisterInfo::isVirtualRegister(VReg));
+    RegAllocHints[VReg].first  = Type;
+    RegAllocHints[VReg].second = PrefReg;
   }
 
   /// getRegAllocationHint - Return the register allocation hint for the
   /// specified virtual register.
   std::pair<unsigned, unsigned>
-  getRegAllocationHint(unsigned Reg) const {
-    return RegAllocHints[Reg];
+  getRegAllocationHint(unsigned VReg) const {
+    assert(TargetRegisterInfo::isVirtualRegister(VReg));
+    return RegAllocHints[VReg];
   }
 
   /// getSimpleHint - Return the preferred register allocation hint, or 0 if a
   /// standard simple hint (Type == 0) is not set.
-  unsigned getSimpleHint(unsigned Reg) const {
-    std::pair<unsigned, unsigned> Hint = getRegAllocationHint(Reg);
+  unsigned getSimpleHint(unsigned VReg) const {
+    assert(TargetRegisterInfo::isVirtualRegister(VReg));
+    std::pair<unsigned, unsigned> Hint = getRegAllocationHint(VReg);
     return Hint.first ? 0 : Hint.second;
   }
 
@@ -632,6 +646,12 @@ public:
   /// specified register as undefined which causes the DBG_VALUE to be
   /// deleted during LiveDebugVariables analysis.
   void markUsesInDebugValueAsUndef(unsigned Reg) const;
+
+  /// Return true if the specified register is modified in this function.
+  /// This checks that no defining machine operands exist for the register or
+  /// any of its aliases. Definitions found on functions marked noreturn are
+  /// ignored.
+  bool isPhysRegModified(unsigned PhysReg) const;
 
   //===--------------------------------------------------------------------===//
   // Physical Register Use Info
@@ -641,9 +661,7 @@ public:
   /// function. Also check for clobbered aliases and registers clobbered by
   /// function calls with register mask operands.
   ///
-  /// This only works after register allocation. It is primarily used by
-  /// PrologEpilogInserter to determine which callee-saved registers need
-  /// spilling.
+  /// This only works after register allocation.
   bool isPhysRegUsed(unsigned Reg) const {
     if (UsedPhysRegMask.test(Reg))
       return true;
@@ -829,7 +847,6 @@ public:
     typedef std::iterator<std::forward_iterator_tag,
                           MachineInstr, ptrdiff_t>::pointer pointer;
 
-    defusechain_iterator(const defusechain_iterator &I) : Op(I.Op) {}
     defusechain_iterator() : Op(nullptr) {}
 
     bool operator==(const defusechain_iterator &x) const {
@@ -932,7 +949,6 @@ public:
     typedef std::iterator<std::forward_iterator_tag,
                           MachineInstr, ptrdiff_t>::pointer pointer;
 
-    defusechain_instr_iterator(const defusechain_instr_iterator &I) : Op(I.Op){}
     defusechain_instr_iterator() : Op(nullptr) {}
 
     bool operator==(const defusechain_instr_iterator &x) const {

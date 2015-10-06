@@ -18,6 +18,7 @@
 #include "MipsMachineFunction.h"
 #include "MipsSEInstrInfo.h"
 #include "MipsSubtarget.h"
+#include "MipsTargetMachine.h"
 #include "llvm/ADT/BitVector.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
@@ -41,8 +42,7 @@ using namespace llvm;
 
 #define DEBUG_TYPE "mips-reg-info"
 
-MipsSERegisterInfo::MipsSERegisterInfo(const MipsSubtarget &ST)
-  : MipsRegisterInfo(ST) {}
+MipsSERegisterInfo::MipsSERegisterInfo() : MipsRegisterInfo() {}
 
 bool MipsSERegisterInfo::
 requiresRegisterScavenging(const MachineFunction &MF) const {
@@ -111,6 +111,11 @@ void MipsSERegisterInfo::eliminateFI(MachineBasicBlock::iterator II,
   MachineFrameInfo *MFI = MF.getFrameInfo();
   MipsFunctionInfo *MipsFI = MF.getInfo<MipsFunctionInfo>();
 
+  MipsABIInfo ABI =
+      static_cast<const MipsTargetMachine &>(MF.getTarget()).getABI();
+  const MipsRegisterInfo *RegInfo =
+    static_cast<const MipsRegisterInfo *>(MF.getSubtarget().getRegisterInfo());
+
   const std::vector<CalleeSavedInfo> &CSI = MFI->getCalleeSavedInfo();
   int MinCSFI = 0;
   int MaxCSFI = -1;
@@ -132,8 +137,15 @@ void MipsSERegisterInfo::eliminateFI(MachineBasicBlock::iterator II,
   unsigned FrameReg;
 
   if ((FrameIndex >= MinCSFI && FrameIndex <= MaxCSFI) || EhDataRegFI)
-    FrameReg = Subtarget.isABI_N64() ? Mips::SP_64 : Mips::SP;
-  else
+    FrameReg = ABI.GetStackPtr();
+  else if (RegInfo->needsStackRealignment(MF)) {
+    if (MFI->hasVarSizedObjects() && !MFI->isFixedObjectIndex(FrameIndex))
+      FrameReg = ABI.GetBasePtr();
+    else if (MFI->isFixedObjectIndex(FrameIndex))
+      FrameReg = getFrameRegister(MF);
+    else
+      FrameReg = ABI.GetStackPtr();
+  } else
     FrameReg = getFrameRegister(MF);
 
   // Calculate final offset.
@@ -165,15 +177,16 @@ void MipsSERegisterInfo::eliminateFI(MachineBasicBlock::iterator II,
       // (where n < 16) and doesn't, but does fit into 16-bits then use an ADDiu
       MachineBasicBlock &MBB = *MI.getParent();
       DebugLoc DL = II->getDebugLoc();
-      unsigned ADDiu = Subtarget.isABI_N64() ? Mips::DADDiu : Mips::ADDiu;
-      const TargetRegisterClass *RC =
-          Subtarget.isABI_N64() ? &Mips::GPR64RegClass : &Mips::GPR32RegClass;
+      const TargetRegisterClass *PtrRC =
+          ABI.ArePtrs64bit() ? &Mips::GPR64RegClass : &Mips::GPR32RegClass;
       MachineRegisterInfo &RegInfo = MBB.getParent()->getRegInfo();
-      unsigned Reg = RegInfo.createVirtualRegister(RC);
+      unsigned Reg = RegInfo.createVirtualRegister(PtrRC);
       const MipsSEInstrInfo &TII =
           *static_cast<const MipsSEInstrInfo *>(
               MBB.getParent()->getSubtarget().getInstrInfo());
-      BuildMI(MBB, II, DL, TII.get(ADDiu), Reg).addReg(FrameReg).addImm(Offset);
+      BuildMI(MBB, II, DL, TII.get(ABI.GetPtrAddiuOp()), Reg)
+          .addReg(FrameReg)
+          .addImm(Offset);
 
       FrameReg = Reg;
       Offset = 0;
@@ -183,14 +196,13 @@ void MipsSERegisterInfo::eliminateFI(MachineBasicBlock::iterator II,
       // instructions.
       MachineBasicBlock &MBB = *MI.getParent();
       DebugLoc DL = II->getDebugLoc();
-      unsigned ADDu = Subtarget.isABI_N64() ? Mips::DADDu : Mips::ADDu;
       unsigned NewImm = 0;
       const MipsSEInstrInfo &TII =
           *static_cast<const MipsSEInstrInfo *>(
               MBB.getParent()->getSubtarget().getInstrInfo());
       unsigned Reg = TII.loadImmediate(Offset, MBB, II, DL,
                                        OffsetBitSize == 16 ? &NewImm : nullptr);
-      BuildMI(MBB, II, DL, TII.get(ADDu), Reg).addReg(FrameReg)
+      BuildMI(MBB, II, DL, TII.get(ABI.GetPtrAdduOp()), Reg).addReg(FrameReg)
         .addReg(Reg, RegState::Kill);
 
       FrameReg = Reg;

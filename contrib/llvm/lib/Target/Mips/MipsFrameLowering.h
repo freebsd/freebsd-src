@@ -32,6 +32,15 @@ public:
 
   bool hasFP(const MachineFunction &MF) const override;
 
+  bool hasBP(const MachineFunction &MF) const;
+
+  bool isFPCloseToIncomingSP() const override { return false; }
+
+  void
+  eliminateCallFramePseudoInstr(MachineFunction &MF,
+                                MachineBasicBlock &MBB,
+                                MachineBasicBlock::iterator I) const override;
+
 protected:
   uint64_t estimateStackSize(const MachineFunction &MF) const;
 };

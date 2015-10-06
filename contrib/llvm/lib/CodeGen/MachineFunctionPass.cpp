@@ -16,7 +16,6 @@
 #include "llvm/Analysis/DominanceFrontier.h"
 #include "llvm/Analysis/IVUsers.h"
 #include "llvm/Analysis/LoopInfo.h"
-#include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Analysis/MemoryDependenceAnalysis.h"
 #include "llvm/Analysis/ScalarEvolution.h"
 #include "llvm/CodeGen/MachineFunctionAnalysis.h"
@@ -54,7 +53,7 @@ void MachineFunctionPass::getAnalysisUsage(AnalysisUsage &AU) const {
   AU.addPreserved<DominanceFrontier>();
   AU.addPreserved<DominatorTreeWrapperPass>();
   AU.addPreserved<IVUsers>();
-  AU.addPreserved<LoopInfo>();
+  AU.addPreserved<LoopInfoWrapperPass>();
   AU.addPreserved<MemoryDependenceAnalysis>();
   AU.addPreserved<ScalarEvolution>();
   AU.addPreserved<StackProtector>();

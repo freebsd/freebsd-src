@@ -27,11 +27,14 @@
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/SlotIndexes.h"
 #include "llvm/Support/Allocator.h"
+#include "llvm/Support/CommandLine.h"
 #include "llvm/Target/TargetRegisterInfo.h"
 #include <cmath>
 #include <iterator>
 
 namespace llvm {
+
+extern cl::opt<bool> UseSegmentSetForPhysRegs;
 
   class AliasAnalysis;
   class BitVector;
@@ -97,7 +100,7 @@ namespace llvm {
   public:
     static char ID; // Pass identification, replacement for typeid
     LiveIntervals();
-    virtual ~LiveIntervals();
+    ~LiveIntervals() override;
 
     // Calculate the spill weight to assign to a single instruction.
     static float getSpillWeight(bool isDef, bool isUse,
@@ -179,12 +182,6 @@ namespace llvm {
     /// Calling pruneValue() and extendToIndices() can be used to reconstruct
     /// SSA form after adding defs to a virtual register.
     void pruneValue(LiveRange &LR, SlotIndex Kill,
-                    SmallVectorImpl<SlotIndex> *EndPoints);
-
-    /// Subregister aware variant of pruneValue(LiveRange &LR, SlotIndex Kill,
-    /// SmallVectorImpl<SlotIndex> &EndPoints). Prunes the value in the main
-    /// range and all sub ranges.
-    void pruneValue(LiveInterval &LI, SlotIndex Kill,
                     SmallVectorImpl<SlotIndex> *EndPoints);
 
     SlotIndexes *getSlotIndexes() const {
@@ -383,7 +380,8 @@ namespace llvm {
       LiveRange *LR = RegUnitRanges[Unit];
       if (!LR) {
         // Compute missing ranges on demand.
-        RegUnitRanges[Unit] = LR = new LiveRange();
+        // Use segment set to speed-up initial computation of the live range.
+        RegUnitRanges[Unit] = LR = new LiveRange(UseSegmentSetForPhysRegs);
         computeRegUnitRange(*LR, Unit);
       }
       return *LR;
@@ -398,6 +396,15 @@ namespace llvm {
     const LiveRange *getCachedRegUnit(unsigned Unit) const {
       return RegUnitRanges[Unit];
     }
+
+    /// Remove value numbers and related live segments starting at position
+    /// @p Pos that are part of any liverange of physical register @p Reg or one
+    /// of its subregisters.
+    void removePhysRegDefAt(unsigned Reg, SlotIndex Pos);
+
+    /// Remove value number and related live segments of @p LI and its subranges
+    /// that start at position @p Pos.
+    void removeVRegDefAt(LiveInterval &LI, SlotIndex Pos);
 
   private:
     /// Compute live intervals for all virtual registers.

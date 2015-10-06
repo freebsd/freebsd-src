@@ -240,14 +240,25 @@ class DelayedDiagnosticPool {
   const DelayedDiagnosticPool *Parent;
   SmallVector<DelayedDiagnostic, 4> Diagnostics;
 
-  DelayedDiagnosticPool(const DelayedDiagnosticPool &) LLVM_DELETED_FUNCTION;
-  void operator=(const DelayedDiagnosticPool &) LLVM_DELETED_FUNCTION;
+  DelayedDiagnosticPool(const DelayedDiagnosticPool &) = delete;
+  void operator=(const DelayedDiagnosticPool &) = delete;
 public:
   DelayedDiagnosticPool(const DelayedDiagnosticPool *parent) : Parent(parent) {}
   ~DelayedDiagnosticPool() {
     for (SmallVectorImpl<DelayedDiagnostic>::iterator
            i = Diagnostics.begin(), e = Diagnostics.end(); i != e; ++i)
       i->Destroy();
+  }
+
+  DelayedDiagnosticPool(DelayedDiagnosticPool &&Other)
+    : Parent(Other.Parent), Diagnostics(std::move(Other.Diagnostics)) {
+    Other.Diagnostics.clear();
+  }
+  DelayedDiagnosticPool &operator=(DelayedDiagnosticPool &&Other) {
+    Parent = Other.Parent;
+    Diagnostics = std::move(Other.Diagnostics);
+    Other.Diagnostics.clear();
+    return *this;
   }
 
   const DelayedDiagnosticPool *getParent() const { return Parent; }

@@ -19,14 +19,18 @@
 //===----------------------------------------------------------------------===//
 
 #include "CGCXXABI.h"
+#include "CGCleanup.h"
 #include "CGRecordLayout.h"
 #include "CGVTables.h"
 #include "CodeGenFunction.h"
 #include "CodeGenModule.h"
+#include "TargetInfo.h"
 #include "clang/AST/Mangle.h"
 #include "clang/AST/Type.h"
+#include "clang/AST/StmtCXX.h"
 #include "llvm/IR/CallSite.h"
 #include "llvm/IR/DataLayout.h"
+#include "llvm/IR/Instructions.h"
 #include "llvm/IR/Intrinsics.h"
 #include "llvm/IR/Value.h"
 
@@ -90,7 +94,7 @@ public:
 
   llvm::Constant *EmitNullMemberPointer(const MemberPointerType *MPT) override;
 
-  llvm::Constant *EmitMemberPointer(const CXXMethodDecl *MD) override;
+  llvm::Constant *EmitMemberFunctionPointer(const CXXMethodDecl *MD) override;
   llvm::Constant *EmitMemberDataPointer(const MemberPointerType *MPT,
                                         CharUnits offset) override;
   llvm::Constant *EmitMemberPointer(const APValue &MP, QualType MPT) override;
@@ -111,10 +115,22 @@ public:
                                const CXXDestructorDecl *Dtor) override;
 
   void emitRethrow(CodeGenFunction &CGF, bool isNoReturn) override;
+  void emitThrow(CodeGenFunction &CGF, const CXXThrowExpr *E) override;
+
+  void emitBeginCatch(CodeGenFunction &CGF, const CXXCatchStmt *C) override;
+
+  llvm::CallInst *
+  emitTerminateForUnexpectedException(CodeGenFunction &CGF,
+                                      llvm::Value *Exn) override;
 
   void EmitFundamentalRTTIDescriptor(QualType Type);
   void EmitFundamentalRTTIDescriptors();
   llvm::Constant *getAddrOfRTTIDescriptor(QualType Ty) override;
+  llvm::Constant *
+  getAddrOfCXXCatchHandlerType(QualType Ty,
+                               QualType CatchHandlerType) override {
+    return getAddrOfRTTIDescriptor(Ty);
+  }
 
   bool shouldTypeidBeNullChecked(bool IsDeref, QualType SrcRecordTy) override;
   void EmitBadTypeidCall(CodeGenFunction &CGF) override;
@@ -188,7 +204,8 @@ public:
 
   llvm::Value *getVirtualFunctionPointer(CodeGenFunction &CGF, GlobalDecl GD,
                                          llvm::Value *This,
-                                         llvm::Type *Ty) override;
+                                         llvm::Type *Ty,
+                                         SourceLocation Loc) override;
 
   llvm::Value *EmitVirtualDestructorCall(CodeGenFunction &CGF,
                                          const CXXDestructorDecl *Dtor,
@@ -202,7 +219,7 @@ public:
                        bool ReturnAdjustment) override {
     // Allow inlining of thunks by emitting them with available_externally
     // linkage together with vtables when needed.
-    if (ForVTable)
+    if (ForVTable && !Thunk->hasLocalLinkage())
       Thunk->setLinkage(llvm::GlobalValue::AvailableExternallyLinkage);
   }
 
@@ -639,7 +656,8 @@ ItaniumCXXABI::EmitMemberDataPointer(const MemberPointerType *MPT,
   return llvm::ConstantInt::get(CGM.PtrDiffTy, offset.getQuantity());
 }
 
-llvm::Constant *ItaniumCXXABI::EmitMemberPointer(const CXXMethodDecl *MD) {
+llvm::Constant *
+ItaniumCXXABI::EmitMemberFunctionPointer(const CXXMethodDecl *MD) {
   return BuildMemberPointer(MD, CharUnits::Zero());
 }
 
@@ -849,7 +867,7 @@ bool ItaniumCXXABI::classifyReturnType(CGFunctionInfo &FI) const {
 /// The Itanium ABI requires non-zero initialization only for data
 /// member pointers, for which '0' is a valid offset.
 bool ItaniumCXXABI::isZeroInitializable(const MemberPointerType *MPT) {
-  return MPT->getPointeeType()->isFunctionType();
+  return MPT->isMemberFunctionPointer();
 }
 
 /// The Itanium ABI always places an offset to the complete object
@@ -904,6 +922,59 @@ void ItaniumCXXABI::emitRethrow(CodeGenFunction &CGF, bool isNoReturn) {
     CGF.EmitNoreturnRuntimeCallOrInvoke(Fn, None);
   else
     CGF.EmitRuntimeCallOrInvoke(Fn);
+}
+
+static llvm::Constant *getAllocateExceptionFn(CodeGenModule &CGM) {
+  // void *__cxa_allocate_exception(size_t thrown_size);
+
+  llvm::FunctionType *FTy =
+    llvm::FunctionType::get(CGM.Int8PtrTy, CGM.SizeTy, /*IsVarArgs=*/false);
+
+  return CGM.CreateRuntimeFunction(FTy, "__cxa_allocate_exception");
+}
+
+static llvm::Constant *getThrowFn(CodeGenModule &CGM) {
+  // void __cxa_throw(void *thrown_exception, std::type_info *tinfo,
+  //                  void (*dest) (void *));
+
+  llvm::Type *Args[3] = { CGM.Int8PtrTy, CGM.Int8PtrTy, CGM.Int8PtrTy };
+  llvm::FunctionType *FTy =
+    llvm::FunctionType::get(CGM.VoidTy, Args, /*IsVarArgs=*/false);
+
+  return CGM.CreateRuntimeFunction(FTy, "__cxa_throw");
+}
+
+void ItaniumCXXABI::emitThrow(CodeGenFunction &CGF, const CXXThrowExpr *E) {
+  QualType ThrowType = E->getSubExpr()->getType();
+  // Now allocate the exception object.
+  llvm::Type *SizeTy = CGF.ConvertType(getContext().getSizeType());
+  uint64_t TypeSize = getContext().getTypeSizeInChars(ThrowType).getQuantity();
+
+  llvm::Constant *AllocExceptionFn = getAllocateExceptionFn(CGM);
+  llvm::CallInst *ExceptionPtr = CGF.EmitNounwindRuntimeCall(
+      AllocExceptionFn, llvm::ConstantInt::get(SizeTy, TypeSize), "exception");
+
+  CGF.EmitAnyExprToExn(E->getSubExpr(), ExceptionPtr);
+
+  // Now throw the exception.
+  llvm::Constant *TypeInfo = CGM.GetAddrOfRTTIDescriptor(ThrowType,
+                                                         /*ForEH=*/true);
+
+  // The address of the destructor.  If the exception type has a
+  // trivial destructor (or isn't a record), we just pass null.
+  llvm::Constant *Dtor = nullptr;
+  if (const RecordType *RecordTy = ThrowType->getAs<RecordType>()) {
+    CXXRecordDecl *Record = cast<CXXRecordDecl>(RecordTy->getDecl());
+    if (!Record->hasTrivialDestructor()) {
+      CXXDestructorDecl *DtorD = Record->getDestructor();
+      Dtor = CGM.getAddrOfCXXStructor(DtorD, StructorType::Complete);
+      Dtor = llvm::ConstantExpr::getBitCast(Dtor, CGM.Int8PtrTy);
+    }
+  }
+  if (!Dtor) Dtor = llvm::Constant::getNullValue(CGM.Int8PtrTy);
+
+  llvm::Value *args[] = { ExceptionPtr, TypeInfo, Dtor };
+  CGF.EmitNoreturnRuntimeCallOrInvoke(getThrowFn(CGM), args);
 }
 
 static llvm::Constant *getItaniumDynamicCastFn(CodeGenFunction &CGF) {
@@ -1259,6 +1330,9 @@ void ItaniumCXXABI::emitVTableDefinitions(CodeGenVTables &CGVT,
   // Set the correct linkage.
   VTable->setLinkage(Linkage);
 
+  if (CGM.supportsCOMDAT() && VTable->isWeakForLinker())
+    VTable->setComdat(CGM.getModule().getOrInsertComdat(VTable->getName()));
+
   // Set the right visibility.
   CGM.setGlobalVisibility(VTable, RD);
 
@@ -1278,6 +1352,8 @@ void ItaniumCXXABI::emitVTableDefinitions(CodeGenVTables &CGVT,
       cast<NamespaceDecl>(DC)->getIdentifier()->isStr("__cxxabiv1") &&
       DC->getParent()->isTranslationUnit())
     EmitFundamentalRTTIDescriptors();
+
+  CGM.EmitVTableBitSetEntries(VTable, VTLayout);
 }
 
 llvm::Value *ItaniumCXXABI::getVTableAddressPointInStructor(
@@ -1314,7 +1390,7 @@ llvm::Value *ItaniumCXXABI::getVTableAddressPointInStructor(
 
 llvm::Constant *ItaniumCXXABI::getVTableAddressPointForConstExpr(
     BaseSubobject Base, const CXXRecordDecl *VTableClass) {
-  llvm::Constant *VTable = getAddrOfVTable(VTableClass, CharUnits());
+  auto *VTable = getAddrOfVTable(VTableClass, CharUnits());
 
   // Find the appropriate vtable within the vtable group.
   uint64_t AddressPoint = CGM.getItaniumVTableContext()
@@ -1325,7 +1401,8 @@ llvm::Constant *ItaniumCXXABI::getVTableAddressPointForConstExpr(
     llvm::ConstantInt::get(CGM.Int64Ty, AddressPoint)
   };
 
-  return llvm::ConstantExpr::getInBoundsGetElementPtr(VTable, Indices);
+  return llvm::ConstantExpr::getInBoundsGetElementPtr(VTable->getValueType(),
+                                                      VTable, Indices);
 }
 
 llvm::GlobalVariable *ItaniumCXXABI::getAddrOfVTable(const CXXRecordDecl *RD,
@@ -1364,10 +1441,15 @@ llvm::GlobalVariable *ItaniumCXXABI::getAddrOfVTable(const CXXRecordDecl *RD,
 llvm::Value *ItaniumCXXABI::getVirtualFunctionPointer(CodeGenFunction &CGF,
                                                       GlobalDecl GD,
                                                       llvm::Value *This,
-                                                      llvm::Type *Ty) {
+                                                      llvm::Type *Ty,
+                                                      SourceLocation Loc) {
   GD = GD.getCanonicalDecl();
   Ty = Ty->getPointerTo()->getPointerTo();
   llvm::Value *VTable = CGF.GetVTablePtr(This, Ty);
+
+  if (CGF.SanOpts.has(SanitizerKind::CFIVCall))
+    CGF.EmitVTablePtrCheckForCall(cast<CXXMethodDecl>(GD.getDecl()), VTable,
+                                  CodeGenFunction::CFITCK_VCall, Loc);
 
   uint64_t VTableIndex = CGM.getItaniumVTableContext().getMethodVTableIndex(GD);
   llvm::Value *VFuncPtr =
@@ -1385,7 +1467,8 @@ llvm::Value *ItaniumCXXABI::EmitVirtualDestructorCall(
       Dtor, getFromDtorType(DtorType));
   llvm::Type *Ty = CGF.CGM.getTypes().GetFunctionType(*FInfo);
   llvm::Value *Callee =
-      getVirtualFunctionPointer(CGF, GlobalDecl(Dtor, DtorType), This, Ty);
+      getVirtualFunctionPointer(CGF, GlobalDecl(Dtor, DtorType), This, Ty,
+                                CE ? CE->getLocStart() : SourceLocation());
 
   CGF.EmitCXXMemberOrOperatorCall(Dtor, Callee, ReturnValueSlot(), This,
                                   /*ImplicitParam=*/nullptr, QualType(), CE);
@@ -1591,7 +1674,7 @@ llvm::Value *ARMCXXABI::InitializeArrayCookie(CodeGenFunction &CGF,
   CGF.Builder.CreateStore(elementSize, cookie);
 
   // The second element is the element count.
-  cookie = CGF.Builder.CreateConstInBoundsGEP1_32(cookie, 1);
+  cookie = CGF.Builder.CreateConstInBoundsGEP1_32(CGF.SizeTy, cookie, 1);
   CGF.Builder.CreateStore(numElements, cookie);
 
   // Finally, compute a pointer to the actual data buffer by skipping
@@ -1714,11 +1797,12 @@ void ItaniumCXXABI::EmitGuardedInit(CodeGenFunction &CGF,
 
     // The ABI says: It is suggested that it be emitted in the same COMDAT group
     // as the associated data object
-    if (!D.isLocalVarDecl() && var->isWeakForLinker() && CGM.supportsCOMDAT()) {
-      llvm::Comdat *C = CGM.getModule().getOrInsertComdat(var->getName());
+    llvm::Comdat *C = var->getComdat();
+    if (!D.isLocalVarDecl() && C) {
       guard->setComdat(C);
-      var->setComdat(C);
       CGF.CurFn->setComdat(C);
+    } else if (CGM.supportsCOMDAT() && guard->isWeakForLinker()) {
+      guard->setComdat(CGM.getModule().getOrInsertComdat(guard->getName()));
     }
 
     CGM.setStaticLocalDeclGuardAddress(&D, guard);
@@ -2336,10 +2420,13 @@ static bool ShouldUseExternalRTTIDescriptor(CodeGenModule &CGM,
 
     // FIXME: this may need to be reconsidered if the key function
     // changes.
+    // N.B. We must always emit the RTTI data ourselves if there exists a key
+    // function.
+    bool IsDLLImport = RD->hasAttr<DLLImportAttr>();
     if (CGM.getVTables().isVTableExternal(RD))
-      return true;
+      return IsDLLImport ? false : true;
 
-    if (RD->hasAttr<DLLImportAttr>())
+    if (IsDLLImport)
       return true;
   }
 
@@ -2528,7 +2615,8 @@ void ItaniumRTTIBuilder::BuildVTablePointer(const Type *Ty) {
 
   // The vtable address point is 2.
   llvm::Constant *Two = llvm::ConstantInt::get(PtrDiffTy, 2);
-  VTable = llvm::ConstantExpr::getInBoundsGetElementPtr(VTable, Two);
+  VTable =
+      llvm::ConstantExpr::getInBoundsGetElementPtr(CGM.Int8PtrTy, VTable, Two);
   VTable = llvm::ConstantExpr::getBitCast(VTable, CGM.Int8PtrTy);
 
   Fields.push_back(VTable);
@@ -2568,8 +2656,15 @@ static llvm::GlobalVariable::LinkageTypes getTypeInfoLinkage(CodeGenModule &CGM,
       const CXXRecordDecl *RD = cast<CXXRecordDecl>(Record->getDecl());
       if (RD->hasAttr<WeakAttr>())
         return llvm::GlobalValue::WeakODRLinkage;
-      if (RD->isDynamicClass())
-        return CGM.getVTableLinkage(RD);
+      if (RD->isDynamicClass()) {
+        llvm::GlobalValue::LinkageTypes LT = CGM.getVTableLinkage(RD);
+        // MinGW won't export the RTTI information when there is a key function.
+        // Make sure we emit our own copy instead of attempting to dllimport it.
+        if (RD->hasAttr<DLLImportAttr>() &&
+            llvm::GlobalValue::isAvailableExternallyLinkage(LT))
+          LT = llvm::GlobalValue::LinkOnceODRLinkage;
+        return LT;
+      }
     }
 
     return llvm::GlobalValue::LinkOnceODRLinkage;
@@ -2718,9 +2813,13 @@ llvm::Constant *ItaniumRTTIBuilder::BuildTypeInfo(QualType Ty, bool Force) {
 
   llvm::Constant *Init = llvm::ConstantStruct::getAnon(Fields);
 
+  llvm::Module &M = CGM.getModule();
   llvm::GlobalVariable *GV =
-    new llvm::GlobalVariable(CGM.getModule(), Init->getType(),
-                             /*Constant=*/true, Linkage, Init, Name);
+      new llvm::GlobalVariable(M, Init->getType(),
+                               /*Constant=*/true, Linkage, Init, Name);
+
+  if (CGM.supportsCOMDAT() && GV->isWeakForLinker())
+    GV->setComdat(M.getOrInsertComdat(GV->getName()));
 
   // If there's already an old global variable, replace it with the new one.
   if (OldGV) {
@@ -3136,8 +3235,8 @@ static void emitConstructorDestructorAlias(CodeGenModule &CGM,
   llvm::PointerType *AliasType = Aliasee->getType();
 
   // Create the alias with no name.
-  auto *Alias = llvm::GlobalAlias::create(
-      AliasType->getElementType(), 0, Linkage, "", Aliasee, &CGM.getModule());
+  auto *Alias = llvm::GlobalAlias::create(AliasType, Linkage, "", Aliasee,
+                                          &CGM.getModule());
 
   // Switch any previous uses to the alias.
   if (Entry) {
@@ -3204,5 +3303,352 @@ void ItaniumCXXABI::emitCXXStructor(const CXXMethodDecl *MD,
       getMangleContext().mangleCXXCtorComdat(CD, Out);
     llvm::Comdat *C = CGM.getModule().getOrInsertComdat(Out.str());
     Fn->setComdat(C);
+  } else {
+    CGM.maybeSetTrivialComdat(*MD, *Fn);
   }
+}
+
+static llvm::Constant *getBeginCatchFn(CodeGenModule &CGM) {
+  // void *__cxa_begin_catch(void*);
+  llvm::FunctionType *FTy = llvm::FunctionType::get(
+      CGM.Int8PtrTy, CGM.Int8PtrTy, /*IsVarArgs=*/false);
+
+  return CGM.CreateRuntimeFunction(FTy, "__cxa_begin_catch");
+}
+
+static llvm::Constant *getEndCatchFn(CodeGenModule &CGM) {
+  // void __cxa_end_catch();
+  llvm::FunctionType *FTy =
+      llvm::FunctionType::get(CGM.VoidTy, /*IsVarArgs=*/false);
+
+  return CGM.CreateRuntimeFunction(FTy, "__cxa_end_catch");
+}
+
+static llvm::Constant *getGetExceptionPtrFn(CodeGenModule &CGM) {
+  // void *__cxa_get_exception_ptr(void*);
+  llvm::FunctionType *FTy = llvm::FunctionType::get(
+      CGM.Int8PtrTy, CGM.Int8PtrTy, /*IsVarArgs=*/false);
+
+  return CGM.CreateRuntimeFunction(FTy, "__cxa_get_exception_ptr");
+}
+
+namespace {
+  /// A cleanup to call __cxa_end_catch.  In many cases, the caught
+  /// exception type lets us state definitively that the thrown exception
+  /// type does not have a destructor.  In particular:
+  ///   - Catch-alls tell us nothing, so we have to conservatively
+  ///     assume that the thrown exception might have a destructor.
+  ///   - Catches by reference behave according to their base types.
+  ///   - Catches of non-record types will only trigger for exceptions
+  ///     of non-record types, which never have destructors.
+  ///   - Catches of record types can trigger for arbitrary subclasses
+  ///     of the caught type, so we have to assume the actual thrown
+  ///     exception type might have a throwing destructor, even if the
+  ///     caught type's destructor is trivial or nothrow.
+  struct CallEndCatch : EHScopeStack::Cleanup {
+    CallEndCatch(bool MightThrow) : MightThrow(MightThrow) {}
+    bool MightThrow;
+
+    void Emit(CodeGenFunction &CGF, Flags flags) override {
+      if (!MightThrow) {
+        CGF.EmitNounwindRuntimeCall(getEndCatchFn(CGF.CGM));
+        return;
+      }
+
+      CGF.EmitRuntimeCallOrInvoke(getEndCatchFn(CGF.CGM));
+    }
+  };
+}
+
+/// Emits a call to __cxa_begin_catch and enters a cleanup to call
+/// __cxa_end_catch.
+///
+/// \param EndMightThrow - true if __cxa_end_catch might throw
+static llvm::Value *CallBeginCatch(CodeGenFunction &CGF,
+                                   llvm::Value *Exn,
+                                   bool EndMightThrow) {
+  llvm::CallInst *call =
+    CGF.EmitNounwindRuntimeCall(getBeginCatchFn(CGF.CGM), Exn);
+
+  CGF.EHStack.pushCleanup<CallEndCatch>(NormalAndEHCleanup, EndMightThrow);
+
+  return call;
+}
+
+/// A "special initializer" callback for initializing a catch
+/// parameter during catch initialization.
+static void InitCatchParam(CodeGenFunction &CGF,
+                           const VarDecl &CatchParam,
+                           llvm::Value *ParamAddr,
+                           SourceLocation Loc) {
+  // Load the exception from where the landing pad saved it.
+  llvm::Value *Exn = CGF.getExceptionFromSlot();
+
+  CanQualType CatchType =
+    CGF.CGM.getContext().getCanonicalType(CatchParam.getType());
+  llvm::Type *LLVMCatchTy = CGF.ConvertTypeForMem(CatchType);
+
+  // If we're catching by reference, we can just cast the object
+  // pointer to the appropriate pointer.
+  if (isa<ReferenceType>(CatchType)) {
+    QualType CaughtType = cast<ReferenceType>(CatchType)->getPointeeType();
+    bool EndCatchMightThrow = CaughtType->isRecordType();
+
+    // __cxa_begin_catch returns the adjusted object pointer.
+    llvm::Value *AdjustedExn = CallBeginCatch(CGF, Exn, EndCatchMightThrow);
+
+    // We have no way to tell the personality function that we're
+    // catching by reference, so if we're catching a pointer,
+    // __cxa_begin_catch will actually return that pointer by value.
+    if (const PointerType *PT = dyn_cast<PointerType>(CaughtType)) {
+      QualType PointeeType = PT->getPointeeType();
+
+      // When catching by reference, generally we should just ignore
+      // this by-value pointer and use the exception object instead.
+      if (!PointeeType->isRecordType()) {
+
+        // Exn points to the struct _Unwind_Exception header, which
+        // we have to skip past in order to reach the exception data.
+        unsigned HeaderSize =
+          CGF.CGM.getTargetCodeGenInfo().getSizeOfUnwindException();
+        AdjustedExn = CGF.Builder.CreateConstGEP1_32(Exn, HeaderSize);
+
+      // However, if we're catching a pointer-to-record type that won't
+      // work, because the personality function might have adjusted
+      // the pointer.  There's actually no way for us to fully satisfy
+      // the language/ABI contract here:  we can't use Exn because it
+      // might have the wrong adjustment, but we can't use the by-value
+      // pointer because it's off by a level of abstraction.
+      //
+      // The current solution is to dump the adjusted pointer into an
+      // alloca, which breaks language semantics (because changing the
+      // pointer doesn't change the exception) but at least works.
+      // The better solution would be to filter out non-exact matches
+      // and rethrow them, but this is tricky because the rethrow
+      // really needs to be catchable by other sites at this landing
+      // pad.  The best solution is to fix the personality function.
+      } else {
+        // Pull the pointer for the reference type off.
+        llvm::Type *PtrTy =
+          cast<llvm::PointerType>(LLVMCatchTy)->getElementType();
+
+        // Create the temporary and write the adjusted pointer into it.
+        llvm::Value *ExnPtrTmp = CGF.CreateTempAlloca(PtrTy, "exn.byref.tmp");
+        llvm::Value *Casted = CGF.Builder.CreateBitCast(AdjustedExn, PtrTy);
+        CGF.Builder.CreateStore(Casted, ExnPtrTmp);
+
+        // Bind the reference to the temporary.
+        AdjustedExn = ExnPtrTmp;
+      }
+    }
+
+    llvm::Value *ExnCast =
+      CGF.Builder.CreateBitCast(AdjustedExn, LLVMCatchTy, "exn.byref");
+    CGF.Builder.CreateStore(ExnCast, ParamAddr);
+    return;
+  }
+
+  // Scalars and complexes.
+  TypeEvaluationKind TEK = CGF.getEvaluationKind(CatchType);
+  if (TEK != TEK_Aggregate) {
+    llvm::Value *AdjustedExn = CallBeginCatch(CGF, Exn, false);
+
+    // If the catch type is a pointer type, __cxa_begin_catch returns
+    // the pointer by value.
+    if (CatchType->hasPointerRepresentation()) {
+      llvm::Value *CastExn =
+        CGF.Builder.CreateBitCast(AdjustedExn, LLVMCatchTy, "exn.casted");
+
+      switch (CatchType.getQualifiers().getObjCLifetime()) {
+      case Qualifiers::OCL_Strong:
+        CastExn = CGF.EmitARCRetainNonBlock(CastExn);
+        // fallthrough
+
+      case Qualifiers::OCL_None:
+      case Qualifiers::OCL_ExplicitNone:
+      case Qualifiers::OCL_Autoreleasing:
+        CGF.Builder.CreateStore(CastExn, ParamAddr);
+        return;
+
+      case Qualifiers::OCL_Weak:
+        CGF.EmitARCInitWeak(ParamAddr, CastExn);
+        return;
+      }
+      llvm_unreachable("bad ownership qualifier!");
+    }
+
+    // Otherwise, it returns a pointer into the exception object.
+
+    llvm::Type *PtrTy = LLVMCatchTy->getPointerTo(0); // addrspace 0 ok
+    llvm::Value *Cast = CGF.Builder.CreateBitCast(AdjustedExn, PtrTy);
+
+    LValue srcLV = CGF.MakeNaturalAlignAddrLValue(Cast, CatchType);
+    LValue destLV = CGF.MakeAddrLValue(ParamAddr, CatchType,
+                                  CGF.getContext().getDeclAlign(&CatchParam));
+    switch (TEK) {
+    case TEK_Complex:
+      CGF.EmitStoreOfComplex(CGF.EmitLoadOfComplex(srcLV, Loc), destLV,
+                             /*init*/ true);
+      return;
+    case TEK_Scalar: {
+      llvm::Value *ExnLoad = CGF.EmitLoadOfScalar(srcLV, Loc);
+      CGF.EmitStoreOfScalar(ExnLoad, destLV, /*init*/ true);
+      return;
+    }
+    case TEK_Aggregate:
+      llvm_unreachable("evaluation kind filtered out!");
+    }
+    llvm_unreachable("bad evaluation kind");
+  }
+
+  assert(isa<RecordType>(CatchType) && "unexpected catch type!");
+
+  llvm::Type *PtrTy = LLVMCatchTy->getPointerTo(0); // addrspace 0 ok
+
+  // Check for a copy expression.  If we don't have a copy expression,
+  // that means a trivial copy is okay.
+  const Expr *copyExpr = CatchParam.getInit();
+  if (!copyExpr) {
+    llvm::Value *rawAdjustedExn = CallBeginCatch(CGF, Exn, true);
+    llvm::Value *adjustedExn = CGF.Builder.CreateBitCast(rawAdjustedExn, PtrTy);
+    CGF.EmitAggregateCopy(ParamAddr, adjustedExn, CatchType);
+    return;
+  }
+
+  // We have to call __cxa_get_exception_ptr to get the adjusted
+  // pointer before copying.
+  llvm::CallInst *rawAdjustedExn =
+    CGF.EmitNounwindRuntimeCall(getGetExceptionPtrFn(CGF.CGM), Exn);
+
+  // Cast that to the appropriate type.
+  llvm::Value *adjustedExn = CGF.Builder.CreateBitCast(rawAdjustedExn, PtrTy);
+
+  // The copy expression is defined in terms of an OpaqueValueExpr.
+  // Find it and map it to the adjusted expression.
+  CodeGenFunction::OpaqueValueMapping
+    opaque(CGF, OpaqueValueExpr::findInCopyConstruct(copyExpr),
+           CGF.MakeAddrLValue(adjustedExn, CatchParam.getType()));
+
+  // Call the copy ctor in a terminate scope.
+  CGF.EHStack.pushTerminate();
+
+  // Perform the copy construction.
+  CharUnits Alignment = CGF.getContext().getDeclAlign(&CatchParam);
+  CGF.EmitAggExpr(copyExpr,
+                  AggValueSlot::forAddr(ParamAddr, Alignment, Qualifiers(),
+                                        AggValueSlot::IsNotDestructed,
+                                        AggValueSlot::DoesNotNeedGCBarriers,
+                                        AggValueSlot::IsNotAliased));
+
+  // Leave the terminate scope.
+  CGF.EHStack.popTerminate();
+
+  // Undo the opaque value mapping.
+  opaque.pop();
+
+  // Finally we can call __cxa_begin_catch.
+  CallBeginCatch(CGF, Exn, true);
+}
+
+/// Begins a catch statement by initializing the catch variable and
+/// calling __cxa_begin_catch.
+void ItaniumCXXABI::emitBeginCatch(CodeGenFunction &CGF,
+                                   const CXXCatchStmt *S) {
+  // We have to be very careful with the ordering of cleanups here:
+  //   C++ [except.throw]p4:
+  //     The destruction [of the exception temporary] occurs
+  //     immediately after the destruction of the object declared in
+  //     the exception-declaration in the handler.
+  //
+  // So the precise ordering is:
+  //   1.  Construct catch variable.
+  //   2.  __cxa_begin_catch
+  //   3.  Enter __cxa_end_catch cleanup
+  //   4.  Enter dtor cleanup
+  //
+  // We do this by using a slightly abnormal initialization process.
+  // Delegation sequence:
+  //   - ExitCXXTryStmt opens a RunCleanupsScope
+  //     - EmitAutoVarAlloca creates the variable and debug info
+  //       - InitCatchParam initializes the variable from the exception
+  //       - CallBeginCatch calls __cxa_begin_catch
+  //       - CallBeginCatch enters the __cxa_end_catch cleanup
+  //     - EmitAutoVarCleanups enters the variable destructor cleanup
+  //   - EmitCXXTryStmt emits the code for the catch body
+  //   - EmitCXXTryStmt close the RunCleanupsScope
+
+  VarDecl *CatchParam = S->getExceptionDecl();
+  if (!CatchParam) {
+    llvm::Value *Exn = CGF.getExceptionFromSlot();
+    CallBeginCatch(CGF, Exn, true);
+    return;
+  }
+
+  // Emit the local.
+  CodeGenFunction::AutoVarEmission var = CGF.EmitAutoVarAlloca(*CatchParam);
+  InitCatchParam(CGF, *CatchParam, var.getObjectAddress(CGF), S->getLocStart());
+  CGF.EmitAutoVarCleanups(var);
+}
+
+/// Get or define the following function:
+///   void @__clang_call_terminate(i8* %exn) nounwind noreturn
+/// This code is used only in C++.
+static llvm::Constant *getClangCallTerminateFn(CodeGenModule &CGM) {
+  llvm::FunctionType *fnTy =
+    llvm::FunctionType::get(CGM.VoidTy, CGM.Int8PtrTy, /*IsVarArgs=*/false);
+  llvm::Constant *fnRef =
+    CGM.CreateRuntimeFunction(fnTy, "__clang_call_terminate");
+
+  llvm::Function *fn = dyn_cast<llvm::Function>(fnRef);
+  if (fn && fn->empty()) {
+    fn->setDoesNotThrow();
+    fn->setDoesNotReturn();
+
+    // What we really want is to massively penalize inlining without
+    // forbidding it completely.  The difference between that and
+    // 'noinline' is negligible.
+    fn->addFnAttr(llvm::Attribute::NoInline);
+
+    // Allow this function to be shared across translation units, but
+    // we don't want it to turn into an exported symbol.
+    fn->setLinkage(llvm::Function::LinkOnceODRLinkage);
+    fn->setVisibility(llvm::Function::HiddenVisibility);
+    if (CGM.supportsCOMDAT())
+      fn->setComdat(CGM.getModule().getOrInsertComdat(fn->getName()));
+
+    // Set up the function.
+    llvm::BasicBlock *entry =
+      llvm::BasicBlock::Create(CGM.getLLVMContext(), "", fn);
+    CGBuilderTy builder(entry);
+
+    // Pull the exception pointer out of the parameter list.
+    llvm::Value *exn = &*fn->arg_begin();
+
+    // Call __cxa_begin_catch(exn).
+    llvm::CallInst *catchCall = builder.CreateCall(getBeginCatchFn(CGM), exn);
+    catchCall->setDoesNotThrow();
+    catchCall->setCallingConv(CGM.getRuntimeCC());
+
+    // Call std::terminate().
+    llvm::CallInst *termCall = builder.CreateCall(CGM.getTerminateFn());
+    termCall->setDoesNotThrow();
+    termCall->setDoesNotReturn();
+    termCall->setCallingConv(CGM.getRuntimeCC());
+
+    // std::terminate cannot return.
+    builder.CreateUnreachable();
+  }
+
+  return fnRef;
+}
+
+llvm::CallInst *
+ItaniumCXXABI::emitTerminateForUnexpectedException(CodeGenFunction &CGF,
+                                                   llvm::Value *Exn) {
+  // In C++, we want to call __cxa_begin_catch() before terminating.
+  if (Exn) {
+    assert(CGF.CGM.getLangOpts().CPlusPlus);
+    return CGF.EmitNounwindRuntimeCall(getClangCallTerminateFn(CGF.CGM), Exn);
+  }
+  return CGF.EmitNounwindRuntimeCall(CGF.CGM.getTerminateFn());
 }

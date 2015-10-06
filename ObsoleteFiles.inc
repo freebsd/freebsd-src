@@ -38,6 +38,69 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20151006: new libc++ import
+OLD_FILES+=usr/include/c++/__tuple_03
+# 20151006: new clang import which bumps version from 3.6.1 to 3.7.0.
+OLD_FILES+=usr/lib/clang/3.6.1/include/__stddef_max_align_t.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/__wmmintrin_aes.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/__wmmintrin_pclmul.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/adxintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/altivec.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/ammintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/arm_acle.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/arm_neon.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/avx2intrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/avx512bwintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/avx512erintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/avx512fintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/avx512vlbwintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/avx512vlintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/avxintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/bmi2intrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/bmiintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/cpuid.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/emmintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/f16cintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/fma4intrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/fmaintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/ia32intrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/immintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/lzcntintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/mm3dnow.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/mm_malloc.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/mmintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/module.modulemap
+OLD_FILES+=usr/lib/clang/3.6.1/include/nmmintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/pmmintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/popcntintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/prfchwintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/rdseedintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/rtmintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/shaintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/smmintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/tbmintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/tmmintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/wmmintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/x86intrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/xmmintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/xopintrin.h
+OLD_DIRS+=usr/lib/clang/3.6.1/include
+OLD_FILES+=usr/lib/clang/3.6.1/lib/freebsd/libclang_rt.asan-i386.a
+OLD_FILES+=usr/lib/clang/3.6.1/lib/freebsd/libclang_rt.asan-x86_64.a
+OLD_FILES+=usr/lib/clang/3.6.1/lib/freebsd/libclang_rt.asan_cxx-i386.a
+OLD_FILES+=usr/lib/clang/3.6.1/lib/freebsd/libclang_rt.asan_cxx-x86_64.a
+OLD_FILES+=usr/lib/clang/3.6.1/lib/freebsd/libclang_rt.profile-arm.a
+OLD_FILES+=usr/lib/clang/3.6.1/lib/freebsd/libclang_rt.profile-i386.a
+OLD_FILES+=usr/lib/clang/3.6.1/lib/freebsd/libclang_rt.profile-x86_64.a
+OLD_FILES+=usr/lib/clang/3.6.1/lib/freebsd/libclang_rt.san-i386.a
+OLD_FILES+=usr/lib/clang/3.6.1/lib/freebsd/libclang_rt.san-x86_64.a
+OLD_FILES+=usr/lib/clang/3.6.1/lib/freebsd/libclang_rt.ubsan-i386.a
+OLD_FILES+=usr/lib/clang/3.6.1/lib/freebsd/libclang_rt.ubsan-x86_64.a
+OLD_FILES+=usr/lib/clang/3.6.1/lib/freebsd/libclang_rt.ubsan_cxx-i386.a
+OLD_FILES+=usr/lib/clang/3.6.1/lib/freebsd/libclang_rt.ubsan_cxx-x86_64.a
+OLD_DIRS+=usr/lib/clang/3.6.1/lib/freebsd
+OLD_DIRS+=usr/lib/clang/3.6.1/lib
+OLD_DIRS+=usr/lib/clang/3.6.1
 # 20150928: unused sgsmsg utility is removed
 OLD_FILES+=usr/bin/sgsmsg
 # 20150926: remove links to removed/unimplemented mbuf(9) macros

@@ -19,6 +19,7 @@
 #include "llvm/Support/Format.h"
 #include "llvm/Support/MemoryObject.h"
 #include "llvm/Support/Path.h"
+#include "llvm/Support/raw_ostream.h"
 #include <algorithm>
 #include <system_error>
 using namespace llvm;
@@ -28,12 +29,16 @@ using namespace llvm;
 
 /// readGCNO - Read GCNO buffer.
 bool GCOVFile::readGCNO(GCOVBuffer &Buffer) {
-  if (!Buffer.readGCNOFormat()) return false;
-  if (!Buffer.readGCOVVersion(Version)) return false;
+  if (!Buffer.readGCNOFormat())
+    return false;
+  if (!Buffer.readGCOVVersion(Version))
+    return false;
 
-  if (!Buffer.readInt(Checksum)) return false;
+  if (!Buffer.readInt(Checksum))
+    return false;
   while (true) {
-    if (!Buffer.readFunctionTag()) break;
+    if (!Buffer.readFunctionTag())
+      break;
     auto GFun = make_unique<GCOVFunction>(*this);
     if (!GFun->readGCNO(Buffer, Version))
       return false;
@@ -48,19 +53,22 @@ bool GCOVFile::readGCNO(GCOVBuffer &Buffer) {
 /// called after readGCNO().
 bool GCOVFile::readGCDA(GCOVBuffer &Buffer) {
   assert(GCNOInitialized && "readGCDA() can only be called after readGCNO()");
-  if (!Buffer.readGCDAFormat()) return false;
+  if (!Buffer.readGCDAFormat())
+    return false;
   GCOV::GCOVVersion GCDAVersion;
-  if (!Buffer.readGCOVVersion(GCDAVersion)) return false;
+  if (!Buffer.readGCOVVersion(GCDAVersion))
+    return false;
   if (Version != GCDAVersion) {
     errs() << "GCOV versions do not match.\n";
     return false;
   }
 
   uint32_t GCDAChecksum;
-  if (!Buffer.readInt(GCDAChecksum)) return false;
+  if (!Buffer.readInt(GCDAChecksum))
+    return false;
   if (Checksum != GCDAChecksum) {
-    errs() << "File checksums do not match: " << Checksum << " != "
-           << GCDAChecksum << ".\n";
+    errs() << "File checksums do not match: " << Checksum
+           << " != " << GCDAChecksum << ".\n";
     return false;
   }
   for (size_t i = 0, e = Functions.size(); i < e; ++i) {
@@ -74,15 +82,20 @@ bool GCOVFile::readGCDA(GCOVBuffer &Buffer) {
   if (Buffer.readObjectTag()) {
     uint32_t Length;
     uint32_t Dummy;
-    if (!Buffer.readInt(Length)) return false;
-    if (!Buffer.readInt(Dummy)) return false; // checksum
-    if (!Buffer.readInt(Dummy)) return false; // num
-    if (!Buffer.readInt(RunCount)) return false;
-    Buffer.advanceCursor(Length-3);
+    if (!Buffer.readInt(Length))
+      return false;
+    if (!Buffer.readInt(Dummy))
+      return false; // checksum
+    if (!Buffer.readInt(Dummy))
+      return false; // num
+    if (!Buffer.readInt(RunCount))
+      return false;
+    Buffer.advanceCursor(Length - 3);
   }
   while (Buffer.readProgramTag()) {
     uint32_t Length;
-    if (!Buffer.readInt(Length)) return false;
+    if (!Buffer.readInt(Length))
+      return false;
     Buffer.advanceCursor(Length);
     ++ProgramCount;
   }
@@ -112,21 +125,28 @@ void GCOVFile::collectLineCounts(FileInfo &FI) {
 /// occurs.
 bool GCOVFunction::readGCNO(GCOVBuffer &Buff, GCOV::GCOVVersion Version) {
   uint32_t Dummy;
-  if (!Buff.readInt(Dummy)) return false; // Function header length
-  if (!Buff.readInt(Ident)) return false;
-  if (!Buff.readInt(Checksum)) return false;
+  if (!Buff.readInt(Dummy))
+    return false; // Function header length
+  if (!Buff.readInt(Ident))
+    return false;
+  if (!Buff.readInt(Checksum))
+    return false;
   if (Version != GCOV::V402) {
     uint32_t CfgChecksum;
-    if (!Buff.readInt(CfgChecksum)) return false;
+    if (!Buff.readInt(CfgChecksum))
+      return false;
     if (Parent.getChecksum() != CfgChecksum) {
       errs() << "File checksums do not match: " << Parent.getChecksum()
              << " != " << CfgChecksum << " in (" << Name << ").\n";
       return false;
     }
   }
-  if (!Buff.readString(Name)) return false;
-  if (!Buff.readString(Filename)) return false;
-  if (!Buff.readInt(LineNumber)) return false;
+  if (!Buff.readString(Name))
+    return false;
+  if (!Buff.readString(Filename))
+    return false;
+  if (!Buff.readInt(LineNumber))
+    return false;
 
   // read blocks.
   if (!Buff.readBlockTag()) {
@@ -134,19 +154,23 @@ bool GCOVFunction::readGCNO(GCOVBuffer &Buff, GCOV::GCOVVersion Version) {
     return false;
   }
   uint32_t BlockCount;
-  if (!Buff.readInt(BlockCount)) return false;
+  if (!Buff.readInt(BlockCount))
+    return false;
   for (uint32_t i = 0, e = BlockCount; i != e; ++i) {
-    if (!Buff.readInt(Dummy)) return false; // Block flags;
+    if (!Buff.readInt(Dummy))
+      return false; // Block flags;
     Blocks.push_back(make_unique<GCOVBlock>(*this, i));
   }
 
   // read edges.
   while (Buff.readEdgeTag()) {
     uint32_t EdgeCount;
-    if (!Buff.readInt(EdgeCount)) return false;
+    if (!Buff.readInt(EdgeCount))
+      return false;
     EdgeCount = (EdgeCount - 1) / 2;
     uint32_t BlockNo;
-    if (!Buff.readInt(BlockNo)) return false;
+    if (!Buff.readInt(BlockNo))
+      return false;
     if (BlockNo >= BlockCount) {
       errs() << "Unexpected block number: " << BlockNo << " (in " << Name
              << ").\n";
@@ -154,12 +178,14 @@ bool GCOVFunction::readGCNO(GCOVBuffer &Buff, GCOV::GCOVVersion Version) {
     }
     for (uint32_t i = 0, e = EdgeCount; i != e; ++i) {
       uint32_t Dst;
-      if (!Buff.readInt(Dst)) return false;
+      if (!Buff.readInt(Dst))
+        return false;
       Edges.push_back(make_unique<GCOVEdge>(*Blocks[BlockNo], *Blocks[Dst]));
       GCOVEdge *Edge = Edges.back().get();
       Blocks[BlockNo]->addDstEdge(Edge);
       Blocks[Dst]->addSrcEdge(Edge);
-      if (!Buff.readInt(Dummy)) return false; // Edge flag
+      if (!Buff.readInt(Dummy))
+        return false; // Edge flag
     }
   }
 
@@ -167,11 +193,13 @@ bool GCOVFunction::readGCNO(GCOVBuffer &Buff, GCOV::GCOVVersion Version) {
   while (Buff.readLineTag()) {
     uint32_t LineTableLength;
     // Read the length of this line table.
-    if (!Buff.readInt(LineTableLength)) return false;
-    uint32_t EndPos = Buff.getCursor() + LineTableLength*4;
+    if (!Buff.readInt(LineTableLength))
+      return false;
+    uint32_t EndPos = Buff.getCursor() + LineTableLength * 4;
     uint32_t BlockNo;
     // Read the block number this table is associated with.
-    if (!Buff.readInt(BlockNo)) return false;
+    if (!Buff.readInt(BlockNo))
+      return false;
     if (BlockNo >= BlockCount) {
       errs() << "Unexpected block number: " << BlockNo << " (in " << Name
              << ").\n";
@@ -180,13 +208,15 @@ bool GCOVFunction::readGCNO(GCOVBuffer &Buff, GCOV::GCOVVersion Version) {
     GCOVBlock &Block = *Blocks[BlockNo];
     // Read the word that pads the beginning of the line table. This may be a
     // flag of some sort, but seems to always be zero.
-    if (!Buff.readInt(Dummy)) return false;
+    if (!Buff.readInt(Dummy))
+      return false;
 
     // Line information starts here and continues up until the last word.
     if (Buff.getCursor() != (EndPos - sizeof(uint32_t))) {
       StringRef F;
       // Read the source file name.
-      if (!Buff.readString(F)) return false;
+      if (!Buff.readString(F))
+        return false;
       if (Filename != F) {
         errs() << "Multiple sources for a single basic block: " << Filename
                << " != " << F << " (in " << Name << ").\n";
@@ -195,17 +225,21 @@ bool GCOVFunction::readGCNO(GCOVBuffer &Buff, GCOV::GCOVVersion Version) {
       // Read lines up to, but not including, the null terminator.
       while (Buff.getCursor() < (EndPos - 2 * sizeof(uint32_t))) {
         uint32_t Line;
-        if (!Buff.readInt(Line)) return false;
+        if (!Buff.readInt(Line))
+          return false;
         // Line 0 means this instruction was injected by the compiler. Skip it.
-        if (!Line) continue;
+        if (!Line)
+          continue;
         Block.addLine(Line);
       }
       // Read the null terminator.
-      if (!Buff.readInt(Dummy)) return false;
+      if (!Buff.readInt(Dummy))
+        return false;
     }
     // The last word is either a flag or padding, it isn't clear which. Skip
     // over it.
-    if (!Buff.readInt(Dummy)) return false;
+    if (!Buff.readInt(Dummy))
+      return false;
   }
   return true;
 }
@@ -214,27 +248,31 @@ bool GCOVFunction::readGCNO(GCOVBuffer &Buff, GCOV::GCOVVersion Version) {
 /// occurs.
 bool GCOVFunction::readGCDA(GCOVBuffer &Buff, GCOV::GCOVVersion Version) {
   uint32_t Dummy;
-  if (!Buff.readInt(Dummy)) return false; // Function header length
+  if (!Buff.readInt(Dummy))
+    return false; // Function header length
 
   uint32_t GCDAIdent;
-  if (!Buff.readInt(GCDAIdent)) return false;
+  if (!Buff.readInt(GCDAIdent))
+    return false;
   if (Ident != GCDAIdent) {
-    errs() << "Function identifiers do not match: " << Ident << " != "
-           << GCDAIdent << " (in " << Name << ").\n";
+    errs() << "Function identifiers do not match: " << Ident
+           << " != " << GCDAIdent << " (in " << Name << ").\n";
     return false;
   }
 
   uint32_t GCDAChecksum;
-  if (!Buff.readInt(GCDAChecksum)) return false;
+  if (!Buff.readInt(GCDAChecksum))
+    return false;
   if (Checksum != GCDAChecksum) {
-    errs() << "Function checksums do not match: " << Checksum << " != "
-           << GCDAChecksum << " (in " << Name << ").\n";
+    errs() << "Function checksums do not match: " << Checksum
+           << " != " << GCDAChecksum << " (in " << Name << ").\n";
     return false;
   }
 
   uint32_t CfgChecksum;
   if (Version != GCOV::V402) {
-    if (!Buff.readInt(CfgChecksum)) return false;
+    if (!Buff.readInt(CfgChecksum))
+      return false;
     if (Parent.getChecksum() != CfgChecksum) {
       errs() << "File checksums do not match: " << Parent.getChecksum()
              << " != " << CfgChecksum << " (in " << Name << ").\n";
@@ -243,7 +281,8 @@ bool GCOVFunction::readGCDA(GCOVBuffer &Buff, GCOV::GCOVVersion Version) {
   }
 
   StringRef GCDAName;
-  if (!Buff.readString(GCDAName)) return false;
+  if (!Buff.readString(GCDAName))
+    return false;
   if (Name != GCDAName) {
     errs() << "Function names do not match: " << Name << " != " << GCDAName
            << ".\n";
@@ -256,7 +295,8 @@ bool GCOVFunction::readGCDA(GCOVBuffer &Buff, GCOV::GCOVVersion Version) {
   }
 
   uint32_t Count;
-  if (!Buff.readInt(Count)) return false;
+  if (!Buff.readInt(Count))
+    return false;
   Count /= 2;
 
   // This for loop adds the counts for each block. A second nested loop is
@@ -271,13 +311,14 @@ bool GCOVFunction::readGCDA(GCOVBuffer &Buff, GCOV::GCOVVersion Version) {
       errs() << "(" << Name << ") has arcs from exit block.\n";
     GCOVBlock &Block = *Blocks[BlockNo];
     for (size_t EdgeNo = 0, End = Block.getNumDstEdges(); EdgeNo < End;
-           ++EdgeNo) {
+         ++EdgeNo) {
       if (Count == 0) {
         errs() << "Unexpected number of edges (in " << Name << ").\n";
         return false;
       }
       uint64_t ArcCount;
-      if (!Buff.readInt64(ArcCount)) return false;
+      if (!Buff.readInt64(ArcCount))
+        return false;
       Block.addCount(EdgeNo, ArcCount);
       --Count;
     }
@@ -351,9 +392,8 @@ void GCOVBlock::sortDstEdges() {
 /// collectLineCounts - Collect line counts. This must be used after
 /// reading .gcno and .gcda files.
 void GCOVBlock::collectLineCounts(FileInfo &FI) {
-  for (SmallVectorImpl<uint32_t>::iterator I = Lines.begin(),
-         E = Lines.end(); I != E; ++I)
-    FI.addBlockLine(Parent.getFilename(), *I, this);
+  for (uint32_t N : Lines)
+    FI.addBlockLine(Parent.getFilename(), N, this);
 }
 
 /// dump - Dump GCOVBlock content to dbgs() for debugging purposes.
@@ -361,25 +401,20 @@ void GCOVBlock::dump() const {
   dbgs() << "Block : " << Number << " Counter : " << Counter << "\n";
   if (!SrcEdges.empty()) {
     dbgs() << "\tSource Edges : ";
-    for (EdgeIterator I = SrcEdges.begin(), E = SrcEdges.end(); I != E; ++I) {
-      const GCOVEdge *Edge = *I;
+    for (const GCOVEdge *Edge : SrcEdges)
       dbgs() << Edge->Src.Number << " (" << Edge->Count << "), ";
-    }
     dbgs() << "\n";
   }
   if (!DstEdges.empty()) {
     dbgs() << "\tDestination Edges : ";
-    for (EdgeIterator I = DstEdges.begin(), E = DstEdges.end(); I != E; ++I) {
-      const GCOVEdge *Edge = *I;
+    for (const GCOVEdge *Edge : DstEdges)
       dbgs() << Edge->Dst.Number << " (" << Edge->Count << "), ";
-    }
     dbgs() << "\n";
   }
   if (!Lines.empty()) {
     dbgs() << "\tLines : ";
-    for (SmallVectorImpl<uint32_t>::const_iterator I = Lines.begin(),
-           E = Lines.end(); I != E; ++I)
-      dbgs() << (*I) << ",";
+    for (uint32_t N : Lines)
+      dbgs() << (N) << ",";
     dbgs() << "\n";
   }
 }
@@ -391,7 +426,7 @@ void GCOVBlock::dump() const {
 static uint32_t safeDiv(uint64_t Numerator, uint64_t Divisor) {
   if (!Numerator)
     return 0;
-  return Numerator/Divisor;
+  return Numerator / Divisor;
 }
 
 // This custom division function mimics gcov's branch ouputs:
@@ -403,7 +438,7 @@ static uint32_t branchDiv(uint64_t Numerator, uint64_t Divisor) {
   if (Numerator == Divisor)
     return 100;
 
-  uint8_t Res = (Numerator*100+Divisor/2) / Divisor;
+  uint8_t Res = (Numerator * 100 + Divisor / 2) / Divisor;
   if (Res == 0)
     return 1;
   if (Res == 100)
@@ -411,10 +446,10 @@ static uint32_t branchDiv(uint64_t Numerator, uint64_t Divisor) {
   return Res;
 }
 
+namespace {
 struct formatBranchInfo {
-  formatBranchInfo(const GCOVOptions &Options, uint64_t Count,
-                   uint64_t Total) :
-    Options(Options), Count(Count), Total(Total) {}
+  formatBranchInfo(const GCOVOptions &Options, uint64_t Count, uint64_t Total)
+      : Options(Options), Count(Count), Total(Total) {}
 
   void print(raw_ostream &OS) const {
     if (!Total)
@@ -435,10 +470,10 @@ static raw_ostream &operator<<(raw_ostream &OS, const formatBranchInfo &FBI) {
   return OS;
 }
 
-namespace {
 class LineConsumer {
   std::unique_ptr<MemoryBuffer> Buffer;
   StringRef Remaining;
+
 public:
   LineConsumer(StringRef Filename) {
     ErrorOr<std::unique_ptr<MemoryBuffer>> BufferOrErr =
@@ -510,8 +545,7 @@ std::string FileInfo::getCoveragePath(StringRef Filename,
   if (Options.LongFileNames && !Filename.equals(MainFilename))
     CoveragePath =
         mangleCoveragePath(MainFilename, Options.PreservePaths) + "##";
-  CoveragePath +=
-      mangleCoveragePath(Filename, Options.PreservePaths) + ".gcov";
+  CoveragePath += mangleCoveragePath(Filename, Options.PreservePaths) + ".gcov";
   return CoveragePath;
 }
 
@@ -521,7 +555,7 @@ FileInfo::openCoveragePath(StringRef CoveragePath) {
     return llvm::make_unique<raw_null_ostream>();
 
   std::error_code EC;
-  auto OS = llvm::make_unique<raw_fd_ostream>(CoveragePath.str(), EC,
+  auto OS = llvm::make_unique<raw_fd_ostream>(CoveragePath, EC,
                                               sys::fs::F_Text);
   if (EC) {
     errs() << EC.message() << "\n";
@@ -531,47 +565,44 @@ FileInfo::openCoveragePath(StringRef CoveragePath) {
 }
 
 /// print -  Print source files with collected line count information.
-void FileInfo::print(StringRef MainFilename, StringRef GCNOFile,
-                     StringRef GCDAFile) {
-  for (StringMap<LineData>::const_iterator I = LineInfo.begin(),
-         E = LineInfo.end(); I != E; ++I) {
-    StringRef Filename = I->first();
+void FileInfo::print(raw_ostream &InfoOS, StringRef MainFilename,
+                     StringRef GCNOFile, StringRef GCDAFile) {
+  for (const auto &LI : LineInfo) {
+    StringRef Filename = LI.first();
     auto AllLines = LineConsumer(Filename);
 
     std::string CoveragePath = getCoveragePath(Filename, MainFilename);
-    std::unique_ptr<raw_ostream> S = openCoveragePath(CoveragePath);
-    raw_ostream &OS = *S;
+    std::unique_ptr<raw_ostream> CovStream = openCoveragePath(CoveragePath);
+    raw_ostream &CovOS = *CovStream;
 
-    OS << "        -:    0:Source:" << Filename << "\n";
-    OS << "        -:    0:Graph:" << GCNOFile << "\n";
-    OS << "        -:    0:Data:" << GCDAFile << "\n";
-    OS << "        -:    0:Runs:" << RunCount << "\n";
-    OS << "        -:    0:Programs:" << ProgramCount << "\n";
+    CovOS << "        -:    0:Source:" << Filename << "\n";
+    CovOS << "        -:    0:Graph:" << GCNOFile << "\n";
+    CovOS << "        -:    0:Data:" << GCDAFile << "\n";
+    CovOS << "        -:    0:Runs:" << RunCount << "\n";
+    CovOS << "        -:    0:Programs:" << ProgramCount << "\n";
 
-    const LineData &Line = I->second;
+    const LineData &Line = LI.second;
     GCOVCoverage FileCoverage(Filename);
-    for (uint32_t LineIndex = 0;
-         LineIndex < Line.LastLine || !AllLines.empty(); ++LineIndex) {
+    for (uint32_t LineIndex = 0; LineIndex < Line.LastLine || !AllLines.empty();
+         ++LineIndex) {
       if (Options.BranchInfo) {
         FunctionLines::const_iterator FuncsIt = Line.Functions.find(LineIndex);
         if (FuncsIt != Line.Functions.end())
-          printFunctionSummary(OS, FuncsIt->second);
+          printFunctionSummary(CovOS, FuncsIt->second);
       }
 
       BlockLines::const_iterator BlocksIt = Line.Blocks.find(LineIndex);
       if (BlocksIt == Line.Blocks.end()) {
         // No basic blocks are on this line. Not an executable line of code.
-        OS << "        -:";
-        AllLines.printNext(OS, LineIndex + 1);
+        CovOS << "        -:";
+        AllLines.printNext(CovOS, LineIndex + 1);
       } else {
         const BlockVector &Blocks = BlocksIt->second;
 
         // Add up the block counts to form line counts.
         DenseMap<const GCOVFunction *, bool> LineExecs;
         uint64_t LineCount = 0;
-        for (BlockVector::const_iterator I = Blocks.begin(), E = Blocks.end();
-               I != E; ++I) {
-          const GCOVBlock *Block = *I;
+        for (const GCOVBlock *Block : Blocks) {
           if (Options.AllBlocks) {
             // Only take the highest block count for that line.
             uint64_t BlockCount = Block->getCount();
@@ -595,8 +626,8 @@ void FileInfo::print(StringRef MainFilename, StringRef GCNOFile,
             //    one of the blocks are executed.
             const GCOVFunction *Function = &Block->getParent();
             if (FuncCoverages.find(Function) == FuncCoverages.end()) {
-              std::pair<const GCOVFunction *, GCOVCoverage>
-                KeyValue(Function, GCOVCoverage(Function->getName()));
+              std::pair<const GCOVFunction *, GCOVCoverage> KeyValue(
+                  Function, GCOVCoverage(Function->getName()));
               FuncCoverages.insert(KeyValue);
             }
             GCOVCoverage &FuncCoverage = FuncCoverages.find(Function)->second;
@@ -617,32 +648,30 @@ void FileInfo::print(StringRef MainFilename, StringRef GCNOFile,
         }
 
         if (LineCount == 0)
-          OS << "    #####:";
+          CovOS << "    #####:";
         else {
-          OS << format("%9" PRIu64 ":", LineCount);
+          CovOS << format("%9" PRIu64 ":", LineCount);
           ++FileCoverage.LinesExec;
         }
         ++FileCoverage.LogicalLines;
 
-        AllLines.printNext(OS, LineIndex + 1);
+        AllLines.printNext(CovOS, LineIndex + 1);
 
         uint32_t BlockNo = 0;
         uint32_t EdgeNo = 0;
-        for (BlockVector::const_iterator I = Blocks.begin(), E = Blocks.end();
-               I != E; ++I) {
-          const GCOVBlock *Block = *I;
-
+        for (const GCOVBlock *Block : Blocks) {
           // Only print block and branch information at the end of the block.
-          if (Block->getLastLine() != LineIndex+1)
+          if (Block->getLastLine() != LineIndex + 1)
             continue;
           if (Options.AllBlocks)
-            printBlockInfo(OS, *Block, LineIndex, BlockNo);
+            printBlockInfo(CovOS, *Block, LineIndex, BlockNo);
           if (Options.BranchInfo) {
             size_t NumEdges = Block->getNumDstEdges();
             if (NumEdges > 1)
-              printBranchInfo(OS, *Block, FileCoverage, EdgeNo);
+              printBranchInfo(CovOS, *Block, FileCoverage, EdgeNo);
             else if (Options.UncondBranch && NumEdges == 1)
-              printUncondBranchInfo(OS, EdgeNo, (*Block->dst_begin())->Count);
+              printUncondBranchInfo(CovOS, EdgeNo,
+                                    (*Block->dst_begin())->Count);
           }
         }
       }
@@ -652,30 +681,25 @@ void FileInfo::print(StringRef MainFilename, StringRef GCNOFile,
 
   // FIXME: There is no way to detect calls given current instrumentation.
   if (Options.FuncCoverage)
-    printFuncCoverage();
-  printFileCoverage();
+    printFuncCoverage(InfoOS);
+  printFileCoverage(InfoOS);
   return;
 }
 
 /// printFunctionSummary - Print function and block summary.
 void FileInfo::printFunctionSummary(raw_ostream &OS,
                                     const FunctionVector &Funcs) const {
-  for (FunctionVector::const_iterator I = Funcs.begin(), E = Funcs.end();
-         I != E; ++I) {
-    const GCOVFunction *Func = *I;
+  for (const GCOVFunction *Func : Funcs) {
     uint64_t EntryCount = Func->getEntryCount();
     uint32_t BlocksExec = 0;
-    for (GCOVFunction::BlockIterator I = Func->block_begin(),
-           E = Func->block_end(); I != E; ++I) {
-      const GCOVBlock &Block = **I;
+    for (const GCOVBlock &Block : Func->blocks())
       if (Block.getNumDstEdges() && Block.getCount())
-          ++BlocksExec;
-    }
+        ++BlocksExec;
 
     OS << "function " << Func->getName() << " called " << EntryCount
-       << " returned " << safeDiv(Func->getExitCount()*100, EntryCount)
+       << " returned " << safeDiv(Func->getExitCount() * 100, EntryCount)
        << "% blocks executed "
-       << safeDiv(BlocksExec*100, Func->getNumBlocks()-1) << "%\n";
+       << safeDiv(BlocksExec * 100, Func->getNumBlocks() - 1) << "%\n";
   }
 }
 
@@ -686,7 +710,7 @@ void FileInfo::printBlockInfo(raw_ostream &OS, const GCOVBlock &Block,
     OS << "    $$$$$:";
   else
     OS << format("%9" PRIu64 ":", Block.getCount());
-  OS << format("%5u-block %2u\n", LineIndex+1, BlockNo++);
+  OS << format("%5u-block %2u\n", LineIndex + 1, BlockNo++);
 }
 
 /// printBranchInfo - Print conditional branch probabilities.
@@ -694,29 +718,29 @@ void FileInfo::printBranchInfo(raw_ostream &OS, const GCOVBlock &Block,
                                GCOVCoverage &Coverage, uint32_t &EdgeNo) {
   SmallVector<uint64_t, 16> BranchCounts;
   uint64_t TotalCounts = 0;
-  for (GCOVBlock::EdgeIterator I = Block.dst_begin(), E = Block.dst_end();
-         I != E; ++I) {
-    const GCOVEdge *Edge = *I;
+  for (const GCOVEdge *Edge : Block.dsts()) {
     BranchCounts.push_back(Edge->Count);
     TotalCounts += Edge->Count;
-    if (Block.getCount()) ++Coverage.BranchesExec;
-    if (Edge->Count) ++Coverage.BranchesTaken;
+    if (Block.getCount())
+      ++Coverage.BranchesExec;
+    if (Edge->Count)
+      ++Coverage.BranchesTaken;
     ++Coverage.Branches;
 
     if (Options.FuncCoverage) {
       const GCOVFunction *Function = &Block.getParent();
       GCOVCoverage &FuncCoverage = FuncCoverages.find(Function)->second;
-      if (Block.getCount()) ++FuncCoverage.BranchesExec;
-      if (Edge->Count) ++FuncCoverage.BranchesTaken;
+      if (Block.getCount())
+        ++FuncCoverage.BranchesExec;
+      if (Edge->Count)
+        ++FuncCoverage.BranchesTaken;
       ++FuncCoverage.Branches;
     }
   }
 
-  for (SmallVectorImpl<uint64_t>::const_iterator I = BranchCounts.begin(),
-         E = BranchCounts.end(); I != E; ++I) {
+  for (uint64_t N : BranchCounts)
     OS << format("branch %2u ", EdgeNo++)
-       << formatBranchInfo(Options, *I, TotalCounts) << "\n";
-  }
+       << formatBranchInfo(Options, N, TotalCounts) << "\n";
 }
 
 /// printUncondBranchInfo - Print unconditional branch probabilities.
@@ -728,46 +752,45 @@ void FileInfo::printUncondBranchInfo(raw_ostream &OS, uint32_t &EdgeNo,
 
 // printCoverage - Print generic coverage info used by both printFuncCoverage
 // and printFileCoverage.
-void FileInfo::printCoverage(const GCOVCoverage &Coverage) const {
-  outs() << format("Lines executed:%.2f%% of %u\n",
-                   double(Coverage.LinesExec)*100/Coverage.LogicalLines,
-                   Coverage.LogicalLines);
+void FileInfo::printCoverage(raw_ostream &OS,
+                             const GCOVCoverage &Coverage) const {
+  OS << format("Lines executed:%.2f%% of %u\n",
+               double(Coverage.LinesExec) * 100 / Coverage.LogicalLines,
+               Coverage.LogicalLines);
   if (Options.BranchInfo) {
     if (Coverage.Branches) {
-      outs() << format("Branches executed:%.2f%% of %u\n",
-                       double(Coverage.BranchesExec)*100/Coverage.Branches,
-                       Coverage.Branches);
-      outs() << format("Taken at least once:%.2f%% of %u\n",
-                       double(Coverage.BranchesTaken)*100/Coverage.Branches,
-                       Coverage.Branches);
+      OS << format("Branches executed:%.2f%% of %u\n",
+                   double(Coverage.BranchesExec) * 100 / Coverage.Branches,
+                   Coverage.Branches);
+      OS << format("Taken at least once:%.2f%% of %u\n",
+                   double(Coverage.BranchesTaken) * 100 / Coverage.Branches,
+                   Coverage.Branches);
     } else {
-      outs() << "No branches\n";
+      OS << "No branches\n";
     }
-    outs() << "No calls\n"; // to be consistent with gcov
+    OS << "No calls\n"; // to be consistent with gcov
   }
 }
 
 // printFuncCoverage - Print per-function coverage info.
-void FileInfo::printFuncCoverage() const {
-  for (FuncCoverageMap::const_iterator I = FuncCoverages.begin(),
-                                       E = FuncCoverages.end(); I != E; ++I) {
-    const GCOVCoverage &Coverage = I->second;
-    outs() << "Function '" << Coverage.Name << "'\n";
-    printCoverage(Coverage);
-    outs() << "\n";
+void FileInfo::printFuncCoverage(raw_ostream &OS) const {
+  for (const auto &FC : FuncCoverages) {
+    const GCOVCoverage &Coverage = FC.second;
+    OS << "Function '" << Coverage.Name << "'\n";
+    printCoverage(OS, Coverage);
+    OS << "\n";
   }
 }
 
 // printFileCoverage - Print per-file coverage info.
-void FileInfo::printFileCoverage() const {
-  for (FileCoverageList::const_iterator I = FileCoverages.begin(),
-                                        E = FileCoverages.end(); I != E; ++I) {
-    const std::string &Filename = I->first;
-    const GCOVCoverage &Coverage = I->second;
-    outs() << "File '" << Coverage.Name << "'\n";
-    printCoverage(Coverage);
+void FileInfo::printFileCoverage(raw_ostream &OS) const {
+  for (const auto &FC : FileCoverages) {
+    const std::string &Filename = FC.first;
+    const GCOVCoverage &Coverage = FC.second;
+    OS << "File '" << Coverage.Name << "'\n";
+    printCoverage(OS, Coverage);
     if (!Options.NoOutput)
-      outs() << Coverage.Name << ":creating '" << Filename << "'\n";
-    outs() << "\n";
+      OS << Coverage.Name << ":creating '" << Filename << "'\n";
+    OS << "\n";
   }
 }

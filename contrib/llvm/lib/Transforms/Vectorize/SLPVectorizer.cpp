@@ -17,9 +17,9 @@
 //===----------------------------------------------------------------------===//
 #include "llvm/Transforms/Vectorize.h"
 #include "llvm/ADT/MapVector.h"
+#include "llvm/ADT/Optional.h"
 #include "llvm/ADT/PostOrderIterator.h"
 #include "llvm/ADT/SetVector.h"
-#include "llvm/ADT/Optional.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/Analysis/AssumptionCache.h"
@@ -43,7 +43,7 @@
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/Transforms/Utils/VectorUtils.h"
+#include "llvm/Analysis/VectorUtils.h"
 #include <algorithm>
 #include <map>
 #include <memory>
@@ -69,11 +69,25 @@ static cl::opt<bool> ShouldStartVectorizeHorAtStore(
     cl::desc(
         "Attempt to vectorize horizontal reductions feeding into a store"));
 
+static cl::opt<int>
+MaxVectorRegSizeOption("slp-max-reg-size", cl::init(128), cl::Hidden,
+    cl::desc("Attempt to vectorize for this register size in bits"));
+
 namespace {
 
+// FIXME: Set this via cl::opt to allow overriding.
 static const unsigned MinVecRegSize = 128;
 
 static const unsigned RecursionMaxDepth = 12;
+
+// Limit the number of alias checks. The limit is chosen so that
+// it has no negative effect on the llvm benchmarks.
+static const unsigned AliasedCheckLimit = 10;
+
+// Another limit for the alias checks: The maximum distance between load/store
+// instructions where alias checks are done.
+// This limit is useful for very large basic blocks.
+static const unsigned MaxMemDepDistance = 160;
 
 /// \brief Predicate for the element types that the SLP vectorizer supports.
 ///
@@ -278,104 +292,6 @@ static bool CanReuseExtract(ArrayRef<Value *> VL) {
   return true;
 }
 
-static void reorderInputsAccordingToOpcode(ArrayRef<Value *> VL,
-                                           SmallVectorImpl<Value *> &Left,
-                                           SmallVectorImpl<Value *> &Right) {
-
-  SmallVector<Value *, 16> OrigLeft, OrigRight;
-
-  bool AllSameOpcodeLeft = true;
-  bool AllSameOpcodeRight = true;
-  for (unsigned i = 0, e = VL.size(); i != e; ++i) {
-    Instruction *I = cast<Instruction>(VL[i]);
-    Value *V0 = I->getOperand(0);
-    Value *V1 = I->getOperand(1);
-
-    OrigLeft.push_back(V0);
-    OrigRight.push_back(V1);
-
-    Instruction *I0 = dyn_cast<Instruction>(V0);
-    Instruction *I1 = dyn_cast<Instruction>(V1);
-
-    // Check whether all operands on one side have the same opcode. In this case
-    // we want to preserve the original order and not make things worse by
-    // reordering.
-    AllSameOpcodeLeft = I0;
-    AllSameOpcodeRight = I1;
-
-    if (i && AllSameOpcodeLeft) {
-      if(Instruction *P0 = dyn_cast<Instruction>(OrigLeft[i-1])) {
-        if(P0->getOpcode() != I0->getOpcode())
-          AllSameOpcodeLeft = false;
-      } else
-        AllSameOpcodeLeft = false;
-    }
-    if (i && AllSameOpcodeRight) {
-      if(Instruction *P1 = dyn_cast<Instruction>(OrigRight[i-1])) {
-        if(P1->getOpcode() != I1->getOpcode())
-          AllSameOpcodeRight = false;
-      } else
-        AllSameOpcodeRight = false;
-    }
-
-    // Sort two opcodes. In the code below we try to preserve the ability to use
-    // broadcast of values instead of individual inserts.
-    // vl1 = load
-    // vl2 = phi
-    // vr1 = load
-    // vr2 = vr2
-    //    = vl1 x vr1
-    //    = vl2 x vr2
-    // If we just sorted according to opcode we would leave the first line in
-    // tact but we would swap vl2 with vr2 because opcode(phi) > opcode(load).
-    //    = vl1 x vr1
-    //    = vr2 x vl2
-    // Because vr2 and vr1 are from the same load we loose the opportunity of a
-    // broadcast for the packed right side in the backend: we have [vr1, vl2]
-    // instead of [vr1, vr2=vr1].
-    if (I0 && I1) {
-       if(!i && I0->getOpcode() > I1->getOpcode()) {
-         Left.push_back(I1);
-         Right.push_back(I0);
-       } else if (i && I0->getOpcode() > I1->getOpcode() && Right[i-1] != I1) {
-         // Try not to destroy a broad cast for no apparent benefit.
-         Left.push_back(I1);
-         Right.push_back(I0);
-       } else if (i && I0->getOpcode() == I1->getOpcode() && Right[i-1] ==  I0) {
-         // Try preserve broadcasts.
-         Left.push_back(I1);
-         Right.push_back(I0);
-       } else if (i && I0->getOpcode() == I1->getOpcode() && Left[i-1] == I1) {
-         // Try preserve broadcasts.
-         Left.push_back(I1);
-         Right.push_back(I0);
-       } else {
-         Left.push_back(I0);
-         Right.push_back(I1);
-       }
-       continue;
-    }
-    // One opcode, put the instruction on the right.
-    if (I0) {
-      Left.push_back(V1);
-      Right.push_back(I0);
-      continue;
-    }
-    Left.push_back(V0);
-    Right.push_back(V1);
-  }
-
-  bool LeftBroadcast = isSplat(Left);
-  bool RightBroadcast = isSplat(Right);
-
-  // Don't reorder if the operands where good to begin with.
-  if (!(LeftBroadcast || RightBroadcast) &&
-      (AllSameOpcodeRight || AllSameOpcodeLeft)) {
-    Left = OrigLeft;
-    Right = OrigRight;
-  }
-}
-
 /// \returns True if in-tree use also needs extract. This refers to
 /// possible scalar operand in vectorized instruction.
 static bool InTreeUserNeedToExtract(Value *Scalar, Instruction *UserInst,
@@ -404,12 +320,23 @@ static bool InTreeUserNeedToExtract(Value *Scalar, Instruction *UserInst,
 }
 
 /// \returns the AA location that is being access by the instruction.
-static AliasAnalysis::Location getLocation(Instruction *I, AliasAnalysis *AA) {
+static MemoryLocation getLocation(Instruction *I, AliasAnalysis *AA) {
   if (StoreInst *SI = dyn_cast<StoreInst>(I))
-    return AA->getLocation(SI);
+    return MemoryLocation::get(SI);
   if (LoadInst *LI = dyn_cast<LoadInst>(I))
-    return AA->getLocation(LI);
-  return AliasAnalysis::Location();
+    return MemoryLocation::get(LI);
+  return MemoryLocation();
+}
+
+/// \returns True if the instruction is not a volatile or atomic load/store.
+static bool isSimple(Instruction *I) {
+  if (LoadInst *LI = dyn_cast<LoadInst>(I))
+    return LI->isSimple();
+  if (StoreInst *SI = dyn_cast<StoreInst>(I))
+    return SI->isSimple();
+  if (MemIntrinsic *MI = dyn_cast<MemIntrinsic>(I))
+    return !MI->isVolatile();
+  return true;
 }
 
 /// Bottom Up SLP Vectorizer.
@@ -420,11 +347,11 @@ public:
   typedef SmallPtrSet<Value *, 16> ValueSet;
   typedef SmallVector<StoreInst *, 8> StoreList;
 
-  BoUpSLP(Function *Func, ScalarEvolution *Se, const DataLayout *Dl,
-          TargetTransformInfo *Tti, TargetLibraryInfo *TLi, AliasAnalysis *Aa,
-          LoopInfo *Li, DominatorTree *Dt, AssumptionCache *AC)
+  BoUpSLP(Function *Func, ScalarEvolution *Se, TargetTransformInfo *Tti,
+          TargetLibraryInfo *TLi, AliasAnalysis *Aa, LoopInfo *Li,
+          DominatorTree *Dt, AssumptionCache *AC)
       : NumLoadsWantToKeepOrder(0), NumLoadsWantToChangeOrder(0), F(Func),
-        SE(Se), DL(Dl), TTI(Tti), TLI(TLi), AA(Aa), LI(Li), DT(Dt),
+        SE(Se), TTI(Tti), TLI(TLi), AA(Aa), LI(Li), DT(Dt),
         Builder(Se->getContext()) {
     CodeMetrics::collectEphemeralValues(F, AC, EphValues);
   }
@@ -461,7 +388,7 @@ public:
   }
 
   /// \returns true if the memory operations A and B are consecutive.
-  bool isConsecutiveAccess(Value *A, Value *B);
+  bool isConsecutiveAccess(Value *A, Value *B, const DataLayout &DL);
 
   /// \brief Perform LICM and CSE on the newly generated gather sequences.
   void optimizeGatherSequence();
@@ -518,6 +445,16 @@ private:
   /// be beneficial even the tree height is tiny.
   bool isFullyVectorizableTinyTree();
 
+  /// \reorder commutative operands in alt shuffle if they result in
+  ///  vectorized code.
+  void reorderAltShuffleOperands(ArrayRef<Value *> VL,
+                                 SmallVectorImpl<Value *> &Left,
+                                 SmallVectorImpl<Value *> &Right);
+  /// \reorder commutative operands to get better probability of
+  /// generating vectorized code.
+  void reorderInputsAccordingToOpcode(ArrayRef<Value *> VL,
+                                      SmallVectorImpl<Value *> &Left,
+                                      SmallVectorImpl<Value *> &Right);
   struct TreeEntry {
     TreeEntry() : Scalars(), VectorizedValue(nullptr),
     NeedToGather(0) {}
@@ -540,7 +477,7 @@ private:
 
   /// Create a new VectorizableTree entry.
   TreeEntry *newTreeEntry(ArrayRef<Value *> VL, bool Vectorized) {
-    VectorizableTree.push_back(TreeEntry());
+    VectorizableTree.emplace_back();
     int idx = VectorizableTree.size() - 1;
     TreeEntry *Last = &VectorizableTree[idx];
     Last->Scalars.insert(Last->Scalars.begin(), VL.begin(), VL.end());
@@ -583,7 +520,7 @@ private:
   ///
   /// \p Loc1 is the location of \p Inst1. It is passed explicitly because it
   /// is invariant in the calling loop.
-  bool isAliased(const AliasAnalysis::Location &Loc1, Instruction *Inst1,
+  bool isAliased(const MemoryLocation &Loc1, Instruction *Inst1,
                  Instruction *Inst2) {
 
     // First check if the result is already in the cache.
@@ -592,9 +529,9 @@ private:
     if (result.hasValue()) {
       return result.getValue();
     }
-    AliasAnalysis::Location Loc2 = getLocation(Inst2, AA);
+    MemoryLocation Loc2 = getLocation(Inst2, AA);
     bool aliased = true;
-    if (Loc1.Ptr && Loc2.Ptr) {
+    if (Loc1.Ptr && Loc2.Ptr && isSimple(Inst1) && isSimple(Inst2)) {
       // Do the alias check.
       aliased = AA->alias(Loc1, Loc2);
     }
@@ -945,7 +882,6 @@ private:
   // Analysis and block reference.
   Function *F;
   ScalarEvolution *SE;
-  const DataLayout *DL;
   TargetTransformInfo *TTI;
   TargetLibraryInfo *TLI;
   AliasAnalysis *AA;
@@ -1198,8 +1134,9 @@ void BoUpSLP::buildTree_rec(ArrayRef<Value *> VL, unsigned Depth) {
           DEBUG(dbgs() << "SLP: Gathering non-simple loads.\n");
           return;
         }
-        if (!isConsecutiveAccess(VL[i], VL[i + 1])) {
-          if (VL.size() == 2 && isConsecutiveAccess(VL[1], VL[0])) {
+        const DataLayout &DL = F->getParent()->getDataLayout();
+        if (!isConsecutiveAccess(VL[i], VL[i + 1], DL)) {
+          if (VL.size() == 2 && isConsecutiveAccess(VL[1], VL[0], DL)) {
             ++NumLoadsWantToChangeOrder;
           }
           BS.cancelScheduling(VL);
@@ -1251,7 +1188,7 @@ void BoUpSLP::buildTree_rec(ArrayRef<Value *> VL, unsigned Depth) {
     case Instruction::ICmp:
     case Instruction::FCmp: {
       // Check that all of the compares have the same predicate.
-      CmpInst::Predicate P0 = dyn_cast<CmpInst>(VL0)->getPredicate();
+      CmpInst::Predicate P0 = cast<CmpInst>(VL0)->getPredicate();
       Type *ComparedTy = cast<Instruction>(VL[0])->getOperand(0)->getType();
       for (unsigned i = 1, e = VL.size(); i < e; ++i) {
         CmpInst *Cmp = cast<CmpInst>(VL[i]);
@@ -1368,9 +1305,10 @@ void BoUpSLP::buildTree_rec(ArrayRef<Value *> VL, unsigned Depth) {
       return;
     }
     case Instruction::Store: {
+      const DataLayout &DL = F->getParent()->getDataLayout();
       // Check if the stores are consecutive or of we need to swizzle them.
       for (unsigned i = 0, e = VL.size() - 1; i < e; ++i)
-        if (!isConsecutiveAccess(VL[i], VL[i + 1])) {
+        if (!isConsecutiveAccess(VL[i], VL[i + 1], DL)) {
           BS.cancelScheduling(VL);
           newTreeEntry(VL, false);
           DEBUG(dbgs() << "SLP: Non-consecutive store.\n");
@@ -1451,6 +1389,16 @@ void BoUpSLP::buildTree_rec(ArrayRef<Value *> VL, unsigned Depth) {
       }
       newTreeEntry(VL, true);
       DEBUG(dbgs() << "SLP: added a ShuffleVector op.\n");
+
+      // Reorder operands if reordering would enable vectorization.
+      if (isa<BinaryOperator>(VL0)) {
+        ValueList Left, Right;
+        reorderAltShuffleOperands(VL, Left, Right);
+        buildTree_rec(Left, Depth + 1);
+        buildTree_rec(Right, Depth + 1);
+        return;
+      }
+
       for (unsigned i = 0, e = VL0->getNumOperands(); i < e; ++i) {
         ValueList Operands;
         // Prepare the operand vector.
@@ -1694,8 +1642,10 @@ bool BoUpSLP::isFullyVectorizableTinyTree() {
   if (VectorizableTree.size() != 2)
     return false;
 
-  // Handle splat stores.
-  if (!VectorizableTree[0].NeedToGather && isSplat(VectorizableTree[1].Scalars))
+  // Handle splat and all-constants stores.
+  if (!VectorizableTree[0].NeedToGather &&
+      (allConstant(VectorizableTree[1].Scalars) ||
+       isSplat(VectorizableTree[1].Scalars)))
     return true;
 
   // Gathering cost would be too much for tiny trees.
@@ -1774,7 +1724,7 @@ int BoUpSLP::getTreeCost() {
 
   // We only vectorize tiny trees if it is fully vectorizable.
   if (VectorizableTree.size() < 3 && !isFullyVectorizableTinyTree()) {
-    if (!VectorizableTree.size()) {
+    if (VectorizableTree.empty()) {
       assert(!ExternalUses.size() && "We should not have any external users");
     }
     return INT_MAX;
@@ -1847,7 +1797,7 @@ unsigned BoUpSLP::getAddressSpaceOperand(Value *I) {
   return -1;
 }
 
-bool BoUpSLP::isConsecutiveAccess(Value *A, Value *B) {
+bool BoUpSLP::isConsecutiveAccess(Value *A, Value *B, const DataLayout &DL) {
   Value *PtrA = getPointerOperand(A);
   Value *PtrB = getPointerOperand(B);
   unsigned ASA = getAddressSpaceOperand(A);
@@ -1861,13 +1811,13 @@ bool BoUpSLP::isConsecutiveAccess(Value *A, Value *B) {
   if (PtrA == PtrB || PtrA->getType() != PtrB->getType())
     return false;
 
-  unsigned PtrBitWidth = DL->getPointerSizeInBits(ASA);
+  unsigned PtrBitWidth = DL.getPointerSizeInBits(ASA);
   Type *Ty = cast<PointerType>(PtrA->getType())->getElementType();
-  APInt Size(PtrBitWidth, DL->getTypeStoreSize(Ty));
+  APInt Size(PtrBitWidth, DL.getTypeStoreSize(Ty));
 
   APInt OffsetA(PtrBitWidth, 0), OffsetB(PtrBitWidth, 0);
-  PtrA = PtrA->stripAndAccumulateInBoundsConstantOffsets(*DL, OffsetA);
-  PtrB = PtrB->stripAndAccumulateInBoundsConstantOffsets(*DL, OffsetB);
+  PtrA = PtrA->stripAndAccumulateInBoundsConstantOffsets(DL, OffsetA);
+  PtrB = PtrB->stripAndAccumulateInBoundsConstantOffsets(DL, OffsetB);
 
   APInt OffsetDelta = OffsetB - OffsetA;
 
@@ -1886,6 +1836,198 @@ bool BoUpSLP::isConsecutiveAccess(Value *A, Value *B) {
   const SCEV *C = SE->getConstant(BaseDelta);
   const SCEV *X = SE->getAddExpr(PtrSCEVA, C);
   return X == PtrSCEVB;
+}
+
+// Reorder commutative operations in alternate shuffle if the resulting vectors
+// are consecutive loads. This would allow us to vectorize the tree.
+// If we have something like-
+// load a[0] - load b[0]
+// load b[1] + load a[1]
+// load a[2] - load b[2]
+// load a[3] + load b[3]
+// Reordering the second load b[1]  load a[1] would allow us to vectorize this
+// code.
+void BoUpSLP::reorderAltShuffleOperands(ArrayRef<Value *> VL,
+                                        SmallVectorImpl<Value *> &Left,
+                                        SmallVectorImpl<Value *> &Right) {
+  const DataLayout &DL = F->getParent()->getDataLayout();
+
+  // Push left and right operands of binary operation into Left and Right
+  for (unsigned i = 0, e = VL.size(); i < e; ++i) {
+    Left.push_back(cast<Instruction>(VL[i])->getOperand(0));
+    Right.push_back(cast<Instruction>(VL[i])->getOperand(1));
+  }
+
+  // Reorder if we have a commutative operation and consecutive access
+  // are on either side of the alternate instructions.
+  for (unsigned j = 0; j < VL.size() - 1; ++j) {
+    if (LoadInst *L = dyn_cast<LoadInst>(Left[j])) {
+      if (LoadInst *L1 = dyn_cast<LoadInst>(Right[j + 1])) {
+        Instruction *VL1 = cast<Instruction>(VL[j]);
+        Instruction *VL2 = cast<Instruction>(VL[j + 1]);
+        if (isConsecutiveAccess(L, L1, DL) && VL1->isCommutative()) {
+          std::swap(Left[j], Right[j]);
+          continue;
+        } else if (isConsecutiveAccess(L, L1, DL) && VL2->isCommutative()) {
+          std::swap(Left[j + 1], Right[j + 1]);
+          continue;
+        }
+        // else unchanged
+      }
+    }
+    if (LoadInst *L = dyn_cast<LoadInst>(Right[j])) {
+      if (LoadInst *L1 = dyn_cast<LoadInst>(Left[j + 1])) {
+        Instruction *VL1 = cast<Instruction>(VL[j]);
+        Instruction *VL2 = cast<Instruction>(VL[j + 1]);
+        if (isConsecutiveAccess(L, L1, DL) && VL1->isCommutative()) {
+          std::swap(Left[j], Right[j]);
+          continue;
+        } else if (isConsecutiveAccess(L, L1, DL) && VL2->isCommutative()) {
+          std::swap(Left[j + 1], Right[j + 1]);
+          continue;
+        }
+        // else unchanged
+      }
+    }
+  }
+}
+
+void BoUpSLP::reorderInputsAccordingToOpcode(ArrayRef<Value *> VL,
+                                             SmallVectorImpl<Value *> &Left,
+                                             SmallVectorImpl<Value *> &Right) {
+
+  SmallVector<Value *, 16> OrigLeft, OrigRight;
+
+  bool AllSameOpcodeLeft = true;
+  bool AllSameOpcodeRight = true;
+  for (unsigned i = 0, e = VL.size(); i != e; ++i) {
+    Instruction *I = cast<Instruction>(VL[i]);
+    Value *VLeft = I->getOperand(0);
+    Value *VRight = I->getOperand(1);
+
+    OrigLeft.push_back(VLeft);
+    OrigRight.push_back(VRight);
+
+    Instruction *ILeft = dyn_cast<Instruction>(VLeft);
+    Instruction *IRight = dyn_cast<Instruction>(VRight);
+
+    // Check whether all operands on one side have the same opcode. In this case
+    // we want to preserve the original order and not make things worse by
+    // reordering.
+    if (i && AllSameOpcodeLeft && ILeft) {
+      if (Instruction *PLeft = dyn_cast<Instruction>(OrigLeft[i - 1])) {
+        if (PLeft->getOpcode() != ILeft->getOpcode())
+          AllSameOpcodeLeft = false;
+      } else
+        AllSameOpcodeLeft = false;
+    }
+    if (i && AllSameOpcodeRight && IRight) {
+      if (Instruction *PRight = dyn_cast<Instruction>(OrigRight[i - 1])) {
+        if (PRight->getOpcode() != IRight->getOpcode())
+          AllSameOpcodeRight = false;
+      } else
+        AllSameOpcodeRight = false;
+    }
+
+    // Sort two opcodes. In the code below we try to preserve the ability to use
+    // broadcast of values instead of individual inserts.
+    // vl1 = load
+    // vl2 = phi
+    // vr1 = load
+    // vr2 = vr2
+    //    = vl1 x vr1
+    //    = vl2 x vr2
+    // If we just sorted according to opcode we would leave the first line in
+    // tact but we would swap vl2 with vr2 because opcode(phi) > opcode(load).
+    //    = vl1 x vr1
+    //    = vr2 x vl2
+    // Because vr2 and vr1 are from the same load we loose the opportunity of a
+    // broadcast for the packed right side in the backend: we have [vr1, vl2]
+    // instead of [vr1, vr2=vr1].
+    if (ILeft && IRight) {
+      if (!i && ILeft->getOpcode() > IRight->getOpcode()) {
+        Left.push_back(IRight);
+        Right.push_back(ILeft);
+      } else if (i && ILeft->getOpcode() > IRight->getOpcode() &&
+                 Right[i - 1] != IRight) {
+        // Try not to destroy a broad cast for no apparent benefit.
+        Left.push_back(IRight);
+        Right.push_back(ILeft);
+      } else if (i && ILeft->getOpcode() == IRight->getOpcode() &&
+                 Right[i - 1] == ILeft) {
+        // Try preserve broadcasts.
+        Left.push_back(IRight);
+        Right.push_back(ILeft);
+      } else if (i && ILeft->getOpcode() == IRight->getOpcode() &&
+                 Left[i - 1] == IRight) {
+        // Try preserve broadcasts.
+        Left.push_back(IRight);
+        Right.push_back(ILeft);
+      } else {
+        Left.push_back(ILeft);
+        Right.push_back(IRight);
+      }
+      continue;
+    }
+    // One opcode, put the instruction on the right.
+    if (ILeft) {
+      Left.push_back(VRight);
+      Right.push_back(ILeft);
+      continue;
+    }
+    Left.push_back(VLeft);
+    Right.push_back(VRight);
+  }
+
+  bool LeftBroadcast = isSplat(Left);
+  bool RightBroadcast = isSplat(Right);
+
+  // If operands end up being broadcast return this operand order.
+  if (LeftBroadcast || RightBroadcast)
+    return;
+
+  // Don't reorder if the operands where good to begin.
+  if (AllSameOpcodeRight || AllSameOpcodeLeft) {
+    Left = OrigLeft;
+    Right = OrigRight;
+  }
+
+  const DataLayout &DL = F->getParent()->getDataLayout();
+
+  // Finally check if we can get longer vectorizable chain by reordering
+  // without breaking the good operand order detected above.
+  // E.g. If we have something like-
+  // load a[0]  load b[0]
+  // load b[1]  load a[1]
+  // load a[2]  load b[2]
+  // load a[3]  load b[3]
+  // Reordering the second load b[1]  load a[1] would allow us to vectorize
+  // this code and we still retain AllSameOpcode property.
+  // FIXME: This load reordering might break AllSameOpcode in some rare cases
+  // such as-
+  // add a[0],c[0]  load b[0]
+  // add a[1],c[2]  load b[1]
+  // b[2]           load b[2]
+  // add a[3],c[3]  load b[3]
+  for (unsigned j = 0; j < VL.size() - 1; ++j) {
+    if (LoadInst *L = dyn_cast<LoadInst>(Left[j])) {
+      if (LoadInst *L1 = dyn_cast<LoadInst>(Right[j + 1])) {
+        if (isConsecutiveAccess(L, L1, DL)) {
+          std::swap(Left[j + 1], Right[j + 1]);
+          continue;
+        }
+      }
+    }
+    if (LoadInst *L = dyn_cast<LoadInst>(Right[j])) {
+      if (LoadInst *L1 = dyn_cast<LoadInst>(Left[j + 1])) {
+        if (isConsecutiveAccess(L, L1, DL)) {
+          std::swap(Left[j + 1], Right[j + 1]);
+          continue;
+        }
+      }
+    }
+    // else unchanged
+  }
 }
 
 void BoUpSLP::setInsertPointAfterBundle(ArrayRef<Value *> VL) {
@@ -1974,6 +2116,7 @@ Value *BoUpSLP::vectorizeTree(TreeEntry *E) {
     return Gather(E->Scalars, VecTy);
   }
 
+  const DataLayout &DL = F->getParent()->getDataLayout();
   unsigned Opcode = getSameOpcode(E->Scalars);
 
   switch (Opcode) {
@@ -1998,9 +2141,8 @@ Value *BoUpSLP::vectorizeTree(TreeEntry *E) {
         }
 
         // Prepare the operand vector.
-        for (unsigned j = 0; j < E->Scalars.size(); ++j)
-          Operands.push_back(cast<PHINode>(E->Scalars[j])->
-                             getIncomingValueForBlock(IBB));
+        for (Value *V : E->Scalars)
+          Operands.push_back(cast<PHINode>(V)->getIncomingValueForBlock(IBB));
 
         Builder.SetInsertPoint(IBB->getTerminator());
         Builder.SetCurrentDebugLocation(PH->getDebugLoc());
@@ -2034,8 +2176,8 @@ Value *BoUpSLP::vectorizeTree(TreeEntry *E) {
     case Instruction::FPTrunc:
     case Instruction::BitCast: {
       ValueList INVL;
-      for (int i = 0, e = E->Scalars.size(); i < e; ++i)
-        INVL.push_back(cast<Instruction>(E->Scalars[i])->getOperand(0));
+      for (Value *V : E->Scalars)
+        INVL.push_back(cast<Instruction>(V)->getOperand(0));
 
       setInsertPointAfterBundle(E->Scalars);
 
@@ -2053,9 +2195,9 @@ Value *BoUpSLP::vectorizeTree(TreeEntry *E) {
     case Instruction::FCmp:
     case Instruction::ICmp: {
       ValueList LHSV, RHSV;
-      for (int i = 0, e = E->Scalars.size(); i < e; ++i) {
-        LHSV.push_back(cast<Instruction>(E->Scalars[i])->getOperand(0));
-        RHSV.push_back(cast<Instruction>(E->Scalars[i])->getOperand(1));
+      for (Value *V : E->Scalars) {
+        LHSV.push_back(cast<Instruction>(V)->getOperand(0));
+        RHSV.push_back(cast<Instruction>(V)->getOperand(1));
       }
 
       setInsertPointAfterBundle(E->Scalars);
@@ -2066,7 +2208,7 @@ Value *BoUpSLP::vectorizeTree(TreeEntry *E) {
       if (Value *V = alreadyVectorized(E->Scalars))
         return V;
 
-      CmpInst::Predicate P0 = dyn_cast<CmpInst>(VL0)->getPredicate();
+      CmpInst::Predicate P0 = cast<CmpInst>(VL0)->getPredicate();
       Value *V;
       if (Opcode == Instruction::FCmp)
         V = Builder.CreateFCmp(P0, L, R);
@@ -2079,10 +2221,10 @@ Value *BoUpSLP::vectorizeTree(TreeEntry *E) {
     }
     case Instruction::Select: {
       ValueList TrueVec, FalseVec, CondVec;
-      for (int i = 0, e = E->Scalars.size(); i < e; ++i) {
-        CondVec.push_back(cast<Instruction>(E->Scalars[i])->getOperand(0));
-        TrueVec.push_back(cast<Instruction>(E->Scalars[i])->getOperand(1));
-        FalseVec.push_back(cast<Instruction>(E->Scalars[i])->getOperand(2));
+      for (Value *V : E->Scalars) {
+        CondVec.push_back(cast<Instruction>(V)->getOperand(0));
+        TrueVec.push_back(cast<Instruction>(V)->getOperand(1));
+        FalseVec.push_back(cast<Instruction>(V)->getOperand(2));
       }
 
       setInsertPointAfterBundle(E->Scalars);
@@ -2121,9 +2263,9 @@ Value *BoUpSLP::vectorizeTree(TreeEntry *E) {
       if (isa<BinaryOperator>(VL0) && VL0->isCommutative())
         reorderInputsAccordingToOpcode(E->Scalars, LHSVL, RHSVL);
       else
-        for (int i = 0, e = E->Scalars.size(); i < e; ++i) {
-          LHSVL.push_back(cast<Instruction>(E->Scalars[i])->getOperand(0));
-          RHSVL.push_back(cast<Instruction>(E->Scalars[i])->getOperand(1));
+        for (Value *V : E->Scalars) {
+          LHSVL.push_back(cast<Instruction>(V)->getOperand(0));
+          RHSVL.push_back(cast<Instruction>(V)->getOperand(1));
         }
 
       setInsertPointAfterBundle(E->Scalars);
@@ -2170,8 +2312,9 @@ Value *BoUpSLP::vectorizeTree(TreeEntry *E) {
 
       unsigned Alignment = LI->getAlignment();
       LI = Builder.CreateLoad(VecPtr);
-      if (!Alignment)
-        Alignment = DL->getABITypeAlignment(ScalarLoadTy);
+      if (!Alignment) {
+        Alignment = DL.getABITypeAlignment(ScalarLoadTy);
+      }
       LI->setAlignment(Alignment);
       E->VectorizedValue = LI;
       ++NumVectorInstructions;
@@ -2183,8 +2326,8 @@ Value *BoUpSLP::vectorizeTree(TreeEntry *E) {
       unsigned AS = SI->getPointerAddressSpace();
 
       ValueList ValueOp;
-      for (int i = 0, e = E->Scalars.size(); i < e; ++i)
-        ValueOp.push_back(cast<StoreInst>(E->Scalars[i])->getValueOperand());
+      for (Value *V : E->Scalars)
+        ValueOp.push_back(cast<StoreInst>(V)->getValueOperand());
 
       setInsertPointAfterBundle(E->Scalars);
 
@@ -2200,8 +2343,9 @@ Value *BoUpSLP::vectorizeTree(TreeEntry *E) {
         ExternalUses.push_back(
             ExternalUser(SI->getPointerOperand(), cast<User>(VecPtr), 0));
 
-      if (!Alignment)
-        Alignment = DL->getABITypeAlignment(SI->getValueOperand()->getType());
+      if (!Alignment) {
+        Alignment = DL.getABITypeAlignment(SI->getValueOperand()->getType());
+      }
       S->setAlignment(Alignment);
       E->VectorizedValue = S;
       ++NumVectorInstructions;
@@ -2211,8 +2355,8 @@ Value *BoUpSLP::vectorizeTree(TreeEntry *E) {
       setInsertPointAfterBundle(E->Scalars);
 
       ValueList Op0VL;
-      for (int i = 0, e = E->Scalars.size(); i < e; ++i)
-        Op0VL.push_back(cast<GetElementPtrInst>(E->Scalars[i])->getOperand(0));
+      for (Value *V : E->Scalars)
+        Op0VL.push_back(cast<GetElementPtrInst>(V)->getOperand(0));
 
       Value *Op0 = vectorizeTree(Op0VL);
 
@@ -2220,14 +2364,15 @@ Value *BoUpSLP::vectorizeTree(TreeEntry *E) {
       for (int j = 1, e = cast<GetElementPtrInst>(VL0)->getNumOperands(); j < e;
            ++j) {
         ValueList OpVL;
-        for (int i = 0, e = E->Scalars.size(); i < e; ++i)
-          OpVL.push_back(cast<GetElementPtrInst>(E->Scalars[i])->getOperand(j));
+        for (Value *V : E->Scalars)
+          OpVL.push_back(cast<GetElementPtrInst>(V)->getOperand(j));
 
         Value *OpVec = vectorizeTree(OpVL);
         OpVecs.push_back(OpVec);
       }
 
-      Value *V = Builder.CreateGEP(Op0, OpVecs);
+      Value *V = Builder.CreateGEP(
+          cast<GetElementPtrInst>(VL0)->getSourceElementType(), Op0, OpVecs);
       E->VectorizedValue = V;
       ++NumVectorInstructions;
 
@@ -2243,7 +2388,7 @@ Value *BoUpSLP::vectorizeTree(TreeEntry *E) {
       Intrinsic::ID IID  = Intrinsic::not_intrinsic;
       Value *ScalarArg = nullptr;
       if (CI && (FI = CI->getCalledFunction())) {
-        IID = (Intrinsic::ID) FI->getIntrinsicID();
+        IID = FI->getIntrinsicID();
       }
       std::vector<Value *> OpVecs;
       for (int j = 0, e = CI->getNumArgOperands(); j < e; ++j) {
@@ -2256,8 +2401,8 @@ Value *BoUpSLP::vectorizeTree(TreeEntry *E) {
           OpVecs.push_back(CEI->getArgOperand(j));
           continue;
         }
-        for (int i = 0, e = E->Scalars.size(); i < e; ++i) {
-          CallInst *CEI = cast<CallInst>(E->Scalars[i]);
+        for (Value *V : E->Scalars) {
+          CallInst *CEI = cast<CallInst>(V);
           OpVL.push_back(CEI->getArgOperand(j));
         }
 
@@ -2284,10 +2429,8 @@ Value *BoUpSLP::vectorizeTree(TreeEntry *E) {
     }
     case Instruction::ShuffleVector: {
       ValueList LHSVL, RHSVL;
-      for (int i = 0, e = E->Scalars.size(); i < e; ++i) {
-        LHSVL.push_back(cast<Instruction>(E->Scalars[i])->getOperand(0));
-        RHSVL.push_back(cast<Instruction>(E->Scalars[i])->getOperand(1));
-      }
+      assert(isa<BinaryOperator>(VL0) && "Invalid Shuffle Vector Operand");
+      reorderAltShuffleOperands(E->Scalars, LHSVL, RHSVL);
       setInsertPointAfterBundle(E->Scalars);
 
       Value *LHS = vectorizeTree(LHSVL);
@@ -2766,25 +2909,59 @@ void BoUpSLP::BlockScheduling::calculateDependencies(ScheduleData *SD,
         ScheduleData *DepDest = BundleMember->NextLoadStore;
         if (DepDest) {
           Instruction *SrcInst = BundleMember->Inst;
-          AliasAnalysis::Location SrcLoc = getLocation(SrcInst, SLP->AA);
+          MemoryLocation SrcLoc = getLocation(SrcInst, SLP->AA);
           bool SrcMayWrite = BundleMember->Inst->mayWriteToMemory();
+          unsigned numAliased = 0;
+          unsigned DistToSrc = 1;
 
           while (DepDest) {
             assert(isInSchedulingRegion(DepDest));
-            if (SrcMayWrite || DepDest->Inst->mayWriteToMemory()) {
-              if (SLP->isAliased(SrcLoc, SrcInst, DepDest->Inst)) {
-                DepDest->MemoryDependencies.push_back(BundleMember);
-                BundleMember->Dependencies++;
-                ScheduleData *DestBundle = DepDest->FirstInBundle;
-                if (!DestBundle->IsScheduled) {
-                  BundleMember->incrementUnscheduledDeps(1);
-                }
-                if (!DestBundle->hasValidDependencies()) {
-                  WorkList.push_back(DestBundle);
-                }
+
+            // We have two limits to reduce the complexity:
+            // 1) AliasedCheckLimit: It's a small limit to reduce calls to
+            //    SLP->isAliased (which is the expensive part in this loop).
+            // 2) MaxMemDepDistance: It's for very large blocks and it aborts
+            //    the whole loop (even if the loop is fast, it's quadratic).
+            //    It's important for the loop break condition (see below) to
+            //    check this limit even between two read-only instructions.
+            if (DistToSrc >= MaxMemDepDistance ||
+                    ((SrcMayWrite || DepDest->Inst->mayWriteToMemory()) &&
+                     (numAliased >= AliasedCheckLimit ||
+                      SLP->isAliased(SrcLoc, SrcInst, DepDest->Inst)))) {
+
+              // We increment the counter only if the locations are aliased
+              // (instead of counting all alias checks). This gives a better
+              // balance between reduced runtime and accurate dependencies.
+              numAliased++;
+
+              DepDest->MemoryDependencies.push_back(BundleMember);
+              BundleMember->Dependencies++;
+              ScheduleData *DestBundle = DepDest->FirstInBundle;
+              if (!DestBundle->IsScheduled) {
+                BundleMember->incrementUnscheduledDeps(1);
+              }
+              if (!DestBundle->hasValidDependencies()) {
+                WorkList.push_back(DestBundle);
               }
             }
             DepDest = DepDest->NextLoadStore;
+
+            // Example, explaining the loop break condition: Let's assume our
+            // starting instruction is i0 and MaxMemDepDistance = 3.
+            //
+            //                      +--------v--v--v
+            //             i0,i1,i2,i3,i4,i5,i6,i7,i8
+            //             +--------^--^--^
+            //
+            // MaxMemDepDistance let us stop alias-checking at i3 and we add
+            // dependencies from i0 to i3,i4,.. (even if they are not aliased).
+            // Previously we already added dependencies from i3 to i6,i7,i8
+            // (because of MaxMemDepDistance). As we added a dependency from
+            // i0 to i3, we have transitive dependencies from i0 to i6,i7,i8
+            // and we can abort this loop at i6.
+            if (DistToSrc >= 2 * MaxMemDepDistance)
+                break;
+            DistToSrc++;
           }
         }
       }
@@ -2888,7 +3065,6 @@ struct SLPVectorizer : public FunctionPass {
   }
 
   ScalarEvolution *SE;
-  const DataLayout *DL;
   TargetTransformInfo *TTI;
   TargetLibraryInfo *TLI;
   AliasAnalysis *AA;
@@ -2901,12 +3077,11 @@ struct SLPVectorizer : public FunctionPass {
       return false;
 
     SE = &getAnalysis<ScalarEvolution>();
-    DataLayoutPass *DLP = getAnalysisIfAvailable<DataLayoutPass>();
-    DL = DLP ? &DLP->getDataLayout() : nullptr;
-    TTI = &getAnalysis<TargetTransformInfo>();
-    TLI = getAnalysisIfAvailable<TargetLibraryInfo>();
+    TTI = &getAnalysis<TargetTransformInfoWrapperPass>().getTTI(F);
+    auto *TLIP = getAnalysisIfAvailable<TargetLibraryInfoWrapperPass>();
+    TLI = TLIP ? &TLIP->getTLI() : nullptr;
     AA = &getAnalysis<AliasAnalysis>();
-    LI = &getAnalysis<LoopInfo>();
+    LI = &getAnalysis<LoopInfoWrapperPass>().getLoopInfo();
     DT = &getAnalysis<DominatorTreeWrapperPass>().getDomTree();
     AC = &getAnalysis<AssumptionCacheTracker>().getAssumptionCache(F);
 
@@ -2918,10 +3093,16 @@ struct SLPVectorizer : public FunctionPass {
     if (!TTI->getNumberOfRegisters(true))
       return false;
 
-    // Must have DataLayout. We can't require it because some tests run w/o
-    // triple.
-    if (!DL)
-      return false;
+    // Use the vector register size specified by the target unless overridden
+    // by a command-line option.
+    // TODO: It would be better to limit the vectorization factor based on
+    //       data type rather than just register size. For example, x86 AVX has
+    //       256-bit registers, but it does not support integer operations
+    //       at that width (that requires AVX2).
+    if (MaxVectorRegSizeOption.getNumOccurrences())
+      MaxVecRegSize = MaxVectorRegSizeOption;
+    else
+      MaxVecRegSize = TTI->getRegisterBitWidth(true);
 
     // Don't vectorize when the attribute NoImplicitFloat is used.
     if (F.hasFnAttribute(Attribute::NoImplicitFloat))
@@ -2931,15 +3112,13 @@ struct SLPVectorizer : public FunctionPass {
 
     // Use the bottom up slp vectorizer to construct chains that start with
     // store instructions.
-    BoUpSLP R(&F, SE, DL, TTI, TLI, AA, LI, DT, AC);
+    BoUpSLP R(&F, SE, TTI, TLI, AA, LI, DT, AC);
 
     // A general note: the vectorizer must use BoUpSLP::eraseInstruction() to
     // delete instructions.
 
     // Scan the blocks in the function in post order.
-    for (po_iterator<BasicBlock*> it = po_begin(&F.getEntryBlock()),
-         e = po_end(&F.getEntryBlock()); it != e; ++it) {
-      BasicBlock *BB = *it;
+    for (auto BB : post_order(&F.getEntryBlock())) {
       // Vectorize trees that end at stores.
       if (unsigned count = collectStores(BB, R)) {
         (void)count;
@@ -2964,10 +3143,10 @@ struct SLPVectorizer : public FunctionPass {
     AU.addRequired<AssumptionCacheTracker>();
     AU.addRequired<ScalarEvolution>();
     AU.addRequired<AliasAnalysis>();
-    AU.addRequired<TargetTransformInfo>();
-    AU.addRequired<LoopInfo>();
+    AU.addRequired<TargetTransformInfoWrapperPass>();
+    AU.addRequired<LoopInfoWrapperPass>();
     AU.addRequired<DominatorTreeWrapperPass>();
-    AU.addPreserved<LoopInfo>();
+    AU.addPreserved<LoopInfoWrapperPass>();
     AU.addPreserved<DominatorTreeWrapperPass>();
     AU.setPreservesCFG();
   }
@@ -3002,37 +3181,36 @@ private:
   bool vectorizeChainsInBlock(BasicBlock *BB, BoUpSLP &R);
 
   bool vectorizeStoreChain(ArrayRef<Value *> Chain, int CostThreshold,
-                           BoUpSLP &R);
+                           BoUpSLP &R, unsigned VecRegSize);
 
   bool vectorizeStores(ArrayRef<StoreInst *> Stores, int costThreshold,
                        BoUpSLP &R);
 private:
   StoreListMap StoreRefs;
+  unsigned MaxVecRegSize; // This is set by TTI or overridden by cl::opt.
 };
 
 /// \brief Check that the Values in the slice in VL array are still existent in
 /// the WeakVH array.
 /// Vectorization of part of the VL array may cause later values in the VL array
 /// to become invalid. We track when this has happened in the WeakVH array.
-static bool hasValueBeenRAUWed(ArrayRef<Value *> &VL,
-                               SmallVectorImpl<WeakVH> &VH,
-                               unsigned SliceBegin,
-                               unsigned SliceSize) {
-  for (unsigned i = SliceBegin; i < SliceBegin + SliceSize; ++i)
-    if (VH[i] != VL[i])
-      return true;
-
-  return false;
+static bool hasValueBeenRAUWed(ArrayRef<Value *> VL, ArrayRef<WeakVH> VH,
+                               unsigned SliceBegin, unsigned SliceSize) {
+  VL = VL.slice(SliceBegin, SliceSize);
+  VH = VH.slice(SliceBegin, SliceSize);
+  return !std::equal(VL.begin(), VL.end(), VH.begin());
 }
 
 bool SLPVectorizer::vectorizeStoreChain(ArrayRef<Value *> Chain,
-                                          int CostThreshold, BoUpSLP &R) {
+                                        int CostThreshold, BoUpSLP &R,
+                                        unsigned VecRegSize) {
   unsigned ChainLen = Chain.size();
   DEBUG(dbgs() << "SLP: Analyzing a store chain of length " << ChainLen
         << "\n");
   Type *StoreTy = cast<StoreInst>(Chain[0])->getValueOperand()->getType();
-  unsigned Sz = DL->getTypeSizeInBits(StoreTy);
-  unsigned VF = MinVecRegSize / Sz;
+  auto &DL = cast<StoreInst>(Chain[0])->getModule()->getDataLayout();
+  unsigned Sz = DL.getTypeSizeInBits(StoreTy);
+  unsigned VF = VecRegSize / Sz;
 
   if (!isPowerOf2_32(Sz) || VF < 2)
     return false;
@@ -3074,8 +3252,8 @@ bool SLPVectorizer::vectorizeStoreChain(ArrayRef<Value *> Chain,
 
 bool SLPVectorizer::vectorizeStores(ArrayRef<StoreInst *> Stores,
                                     int costThreshold, BoUpSLP &R) {
-  SetVector<Value *> Heads, Tails;
-  SmallDenseMap<Value *, Value *> ConsecutiveChain;
+  SetVector<StoreInst *> Heads, Tails;
+  SmallDenseMap<StoreInst *, StoreInst *> ConsecutiveChain;
 
   // We may run into multiple chains that merge into a single chain. We mark the
   // stores that we vectorized so that we don't visit the same store twice.
@@ -3088,8 +3266,8 @@ bool SLPVectorizer::vectorizeStores(ArrayRef<StoreInst *> Stores,
     for (unsigned j = 0; j < e; ++j) {
       if (i == j)
         continue;
-
-      if (R.isConsecutiveAccess(Stores[i], Stores[j])) {
+      const DataLayout &DL = Stores[i]->getModule()->getDataLayout();
+      if (R.isConsecutiveAccess(Stores[i], Stores[j], DL)) {
         Tails.insert(Stores[j]);
         Heads.insert(Stores[i]);
         ConsecutiveChain[Stores[i]] = Stores[j];
@@ -3098,7 +3276,7 @@ bool SLPVectorizer::vectorizeStores(ArrayRef<StoreInst *> Stores,
   }
 
   // For stores that start but don't end a link in the chain:
-  for (SetVector<Value *>::iterator it = Heads.begin(), e = Heads.end();
+  for (SetVector<StoreInst *>::iterator it = Heads.begin(), e = Heads.end();
        it != e; ++it) {
     if (Tails.count(*it))
       continue;
@@ -3106,7 +3284,7 @@ bool SLPVectorizer::vectorizeStores(ArrayRef<StoreInst *> Stores,
     // We found a store instr that starts a chain. Now follow the chain and try
     // to vectorize it.
     BoUpSLP::ValueList Operands;
-    Value *I = *it;
+    StoreInst *I = *it;
     // Collect the chain into a list.
     while (Tails.count(I) || Heads.count(I)) {
       if (VectorizedStores.count(I))
@@ -3116,12 +3294,16 @@ bool SLPVectorizer::vectorizeStores(ArrayRef<StoreInst *> Stores,
       I = ConsecutiveChain[I];
     }
 
-    bool Vectorized = vectorizeStoreChain(Operands, costThreshold, R);
-
-    // Mark the vectorized stores so that we don't vectorize them again.
-    if (Vectorized)
-      VectorizedStores.insert(Operands.begin(), Operands.end());
-    Changed |= Vectorized;
+    // FIXME: Is division-by-2 the correct step? Should we assert that the
+    // register size is a power-of-2?
+    for (unsigned Size = MaxVecRegSize; Size >= MinVecRegSize; Size /= 2) {
+      if (vectorizeStoreChain(Operands, costThreshold, R, Size)) {
+        // Mark the vectorized stores so that we don't vectorize them again.
+        VectorizedStores.insert(Operands.begin(), Operands.end());
+        Changed = true;
+        break;
+      }
+    }
   }
 
   return Changed;
@@ -3131,8 +3313,9 @@ bool SLPVectorizer::vectorizeStores(ArrayRef<StoreInst *> Stores,
 unsigned SLPVectorizer::collectStores(BasicBlock *BB, BoUpSLP &R) {
   unsigned count = 0;
   StoreRefs.clear();
-  for (BasicBlock::iterator it = BB->begin(), e = BB->end(); it != e; ++it) {
-    StoreInst *SI = dyn_cast<StoreInst>(it);
+  const DataLayout &DL = BB->getModule()->getDataLayout();
+  for (Instruction &I : *BB) {
+    StoreInst *SI = dyn_cast<StoreInst>(&I);
     if (!SI)
       continue;
 
@@ -3176,16 +3359,19 @@ bool SLPVectorizer::tryToVectorizeList(ArrayRef<Value *> VL, BoUpSLP &R,
     return false;
 
   unsigned Opcode0 = I0->getOpcode();
+  const DataLayout &DL = I0->getModule()->getDataLayout();
 
   Type *Ty0 = I0->getType();
-  unsigned Sz = DL->getTypeSizeInBits(Ty0);
+  unsigned Sz = DL.getTypeSizeInBits(Ty0);
+  // FIXME: Register size should be a parameter to this function, so we can
+  // try different vectorization factors.
   unsigned VF = MinVecRegSize / Sz;
 
-  for (int i = 0, e = VL.size(); i < e; ++i) {
-    Type *Ty = VL[i]->getType();
+  for (Value *V : VL) {
+    Type *Ty = V->getType();
     if (!isValidElementType(Ty))
       return false;
-    Instruction *Inst = dyn_cast<Instruction>(VL[i]);
+    Instruction *Inst = dyn_cast<Instruction>(V);
     if (!Inst || Inst->getOpcode() != Opcode0)
       return false;
   }
@@ -3380,8 +3566,7 @@ public:
     ReducedValueOpcode(0), ReduxWidth(0), IsPairwiseReduction(false) {}
 
   /// \brief Try to find a reduction tree.
-  bool matchAssociativeReduction(PHINode *Phi, BinaryOperator *B,
-                                 const DataLayout *DL) {
+  bool matchAssociativeReduction(PHINode *Phi, BinaryOperator *B) {
     assert((!Phi ||
             std::find(Phi->op_begin(), Phi->op_end(), B) != Phi->op_end()) &&
            "Thi phi needs to use the binary operator");
@@ -3406,9 +3591,12 @@ public:
     if (!isValidElementType(Ty))
       return false;
 
+    const DataLayout &DL = B->getModule()->getDataLayout();
     ReductionOpcode = B->getOpcode();
     ReducedValueOpcode = 0;
-    ReduxWidth = MinVecRegSize / DL->getTypeSizeInBits(Ty);
+    // FIXME: Register size should be a parameter to this function, so we can
+    // try different vectorization factors.
+    ReduxWidth = MinVecRegSize / DL.getTypeSizeInBits(Ty);
     ReductionRoot = B;
     ReductionPHI = Phi;
 
@@ -3718,8 +3906,7 @@ bool SLPVectorizer::vectorizeChainsInBlock(BasicBlock *BB, BoUpSLP &R) {
 
       // Try to match and vectorize a horizontal reduction.
       HorizontalReduction HorRdx;
-      if (ShouldVectorizeHor &&
-          HorRdx.matchAssociativeReduction(P, BI, DL) &&
+      if (ShouldVectorizeHor && HorRdx.matchAssociativeReduction(P, BI) &&
           HorRdx.tryToReduce(R, TTI)) {
         Changed = true;
         it = BB->begin();
@@ -3749,7 +3936,7 @@ bool SLPVectorizer::vectorizeChainsInBlock(BasicBlock *BB, BoUpSLP &R) {
         if (BinaryOperator *BinOp =
                 dyn_cast<BinaryOperator>(SI->getValueOperand())) {
           HorizontalReduction HorRdx;
-          if (((HorRdx.matchAssociativeReduction(nullptr, BinOp, DL) &&
+          if (((HorRdx.matchAssociativeReduction(nullptr, BinOp) &&
                 HorRdx.tryToReduce(R, TTI)) ||
                tryToVectorize(BinOp, R))) {
             Changed = true;
@@ -3793,6 +3980,7 @@ bool SLPVectorizer::vectorizeChainsInBlock(BasicBlock *BB, BoUpSLP &R) {
             // and the iterator may become invalid value.
             it = BB->begin();
             e = BB->end();
+            break;
           }
         }
       }
@@ -3834,6 +4022,9 @@ bool SLPVectorizer::vectorizeStoreChains(BoUpSLP &R) {
           << it->second.size() << ".\n");
 
     // Process the stores in chunks of 16.
+    // TODO: The limit of 16 inhibits greater vectorization factors.
+    //       For example, AVX2 supports v32i8. Increasing this limit, however,
+    //       may cause a significant compile-time increase.
     for (unsigned CI = 0, CE = it->second.size(); CI < CE; CI+=16) {
       unsigned Len = std::min<unsigned>(CE - CI, 16);
       Changed |= vectorizeStores(makeArrayRef(&it->second[CI], Len),
@@ -3849,7 +4040,7 @@ char SLPVectorizer::ID = 0;
 static const char lv_name[] = "SLP Vectorizer";
 INITIALIZE_PASS_BEGIN(SLPVectorizer, SV_NAME, lv_name, false, false)
 INITIALIZE_AG_DEPENDENCY(AliasAnalysis)
-INITIALIZE_AG_DEPENDENCY(TargetTransformInfo)
+INITIALIZE_PASS_DEPENDENCY(TargetTransformInfoWrapperPass)
 INITIALIZE_PASS_DEPENDENCY(AssumptionCacheTracker)
 INITIALIZE_PASS_DEPENDENCY(ScalarEvolution)
 INITIALIZE_PASS_DEPENDENCY(LoopSimplify)

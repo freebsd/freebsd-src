@@ -7,23 +7,11 @@
 //
 //===----------------------------------------------------------------------===//
 
-//++
-// File:        MICmnLLDBDebugger.cpp
-//
-// Overview:    CMICmnLLDBDebugger implementation.
-//
-// Environment: Compilers:  Visual C++ 12.
-//                          gcc (Ubuntu/Linaro 4.8.1-10ubuntu9) 4.8.1
-//              Libraries:  See MIReadmetxt.
-//
-// Copyright:   None.
-//--
-
 // Third party headers:
-#include <lldb/API/SBTarget.h>
-#include <lldb/API/SBThread.h>
-#include <lldb/API/SBProcess.h>
-#include <lldb/API/SBCommandInterpreter.h>
+#include "lldb/API/SBTarget.h"
+#include "lldb/API/SBThread.h"
+#include "lldb/API/SBProcess.h"
+#include "lldb/API/SBCommandInterpreter.h"
 
 // In-house headers:
 #include "MICmnLLDBDebugger.h"
@@ -148,7 +136,8 @@ CMICmnLLDBDebugger::Shutdown(void)
 
     // Explicitly delete the remote target in case MI needs to exit prematurely otherwise
     // LLDB debugger may hang in its Destroy() fn waiting on events
-    m_lldbDebugger.DeleteTarget(CMICmnLLDBDebugSessionInfo::Instance().m_lldbTarget);
+    lldb::SBTarget sbTarget = CMICmnLLDBDebugSessionInfo::Instance().GetTarget();
+    m_lldbDebugger.DeleteTarget(sbTarget);
 
     // Debug: May need this but does seem to work without it so commented out the fudge 19/06/2014
     // It appears we need to wait as hang does not occur when hitting a debug breakpoint here
@@ -233,6 +222,73 @@ CMICmnLLDBDebugger::GetDriver(void) const
 }
 
 //++ ------------------------------------------------------------------------------------
+// Details: Wait until all events have been handled.
+//          This function works in pair with CMICmnLLDBDebugger::MonitorSBListenerEvents
+//          that handles events from queue. When all events were handled and queue is
+//          empty the MonitorSBListenerEvents notifies this function that it's ready to
+//          go on. To synchronize them the m_mutexEventQueue and
+//          m_conditionEventQueueEmpty are used.
+// Type:    Method.
+// Args:    None.
+// Return:  None.
+// Throws:  None.
+//--
+void
+CMICmnLLDBDebugger::WaitForHandleEvent(void)
+{
+    std::unique_lock<std::mutex> lock(m_mutexEventQueue);
+
+    lldb::SBEvent event;
+    if (ThreadIsActive() && m_lldbListener.PeekAtNextEvent(event))
+        m_conditionEventQueueEmpty.wait(lock);
+}
+
+//++ ------------------------------------------------------------------------------------
+// Details: Check if need to rebroadcast stop event. This function will return true if
+//          debugger is in synchronouse mode. In such case the
+//          CMICmnLLDBDebugger::RebroadcastStopEvent should be called to rebroadcast
+//          a new stop event (if any).
+// Type:    Method.
+// Args:    None.
+// Return:  bool    - True = Need to rebroadcast stop event, false = otherwise.
+// Throws:  None.
+//--
+bool
+CMICmnLLDBDebugger::CheckIfNeedToRebroadcastStopEvent(void)
+{
+    CMICmnLLDBDebugSessionInfo &rSessionInfo(CMICmnLLDBDebugSessionInfo::Instance());
+    if (!rSessionInfo.GetDebugger().GetAsync())
+    {
+        const bool include_expression_stops = false;
+        m_nLastStopId = CMICmnLLDBDebugSessionInfo::Instance().GetProcess().GetStopID(include_expression_stops);
+        return true;
+    }
+
+    return false;
+}
+
+//++ ------------------------------------------------------------------------------------
+// Details: Rebroadcast stop event if needed. This function should be called only if the
+//          CMICmnLLDBDebugger::CheckIfNeedToRebroadcastStopEvent() returned true.
+// Type:    Method.
+// Args:    None.
+// Return:  None.
+// Throws:  None.
+//--
+void
+CMICmnLLDBDebugger::RebroadcastStopEvent(void)
+{
+    lldb::SBProcess process = CMICmnLLDBDebugSessionInfo::Instance().GetProcess();
+    const bool include_expression_stops = false;
+    const uint32_t nStopId = process.GetStopID(include_expression_stops);
+    if (m_nLastStopId != nStopId)
+    {
+        lldb::SBEvent event = process.GetStopEventForStopID(nStopId);
+        process.GetBroadcaster().BroadcastEvent(event);
+    }
+}
+
+//++ ------------------------------------------------------------------------------------
 // Details: Initialize the LLDB Debugger object.
 // Type:    Method.
 // Args:    None.
@@ -244,11 +300,15 @@ bool
 CMICmnLLDBDebugger::InitSBDebugger(void)
 {
     m_lldbDebugger = lldb::SBDebugger::Create(false);
-    if (m_lldbDebugger.IsValid())
-        return MIstatus::success;
+    if (!m_lldbDebugger.IsValid())
+    {
+        SetErrorDescription(MIRSRC(IDS_LLDBDEBUGGER_ERR_INVALIDDEBUGGER));
+        return MIstatus::failure;
+    }
 
-    SetErrorDescription(MIRSRC(IDS_LLDBDEBUGGER_ERR_INVALIDDEBUGGER));
-    return MIstatus::failure;
+    m_lldbDebugger.GetCommandInterpreter().SetPromptOnQuit(false);
+
+    return MIstatus::success;
 }
 
 //++ ------------------------------------------------------------------------------------
@@ -274,7 +334,7 @@ CMICmnLLDBDebugger::InitStdStreams(void)
 }
 
 //++ ------------------------------------------------------------------------------------
-// Details: Set up the events from the SBDebugger's we would to listent to.
+// Details: Set up the events from the SBDebugger's we would like to listen to.
 // Type:    Method.
 // Args:    None.
 // Return:  MIstatus::success - Functionality succeeded.
@@ -292,7 +352,9 @@ CMICmnLLDBDebugger::InitSBListener(void)
     }
 
     const CMIUtilString strDbgId("CMICmnLLDBDebugger1");
-    MIuint eventMask = lldb::SBTarget::eBroadcastBitBreakpointChanged;
+    MIuint eventMask = lldb::SBTarget::eBroadcastBitBreakpointChanged | lldb::SBTarget::eBroadcastBitModulesLoaded |
+                       lldb::SBTarget::eBroadcastBitModulesUnloaded | lldb::SBTarget::eBroadcastBitWatchpointChanged |
+                       lldb::SBTarget::eBroadcastBitSymbolsLoaded;
     bool bOk = RegisterForEvent(strDbgId, CMIUtilString(lldb::SBTarget::GetBroadcasterClassName()), eventMask);
 
     eventMask = lldb::SBThread::eBroadcastBitStackChanged;
@@ -305,7 +367,7 @@ CMICmnLLDBDebugger::InitSBListener(void)
     eventMask = lldb::SBCommandInterpreter::eBroadcastBitQuitCommandReceived | lldb::SBCommandInterpreter::eBroadcastBitThreadShouldExit |
                 lldb::SBCommandInterpreter::eBroadcastBitAsynchronousOutputData |
                 lldb::SBCommandInterpreter::eBroadcastBitAsynchronousErrorData;
-    bOk = bOk && RegisterForEvent(strDbgId, CMIUtilString(lldb::SBCommandInterpreter::GetBroadcasterClass()), eventMask);
+    bOk = bOk && RegisterForEvent(strDbgId, m_lldbDebugger.GetCommandInterpreter().GetBroadcaster(), eventMask);
 
     return bOk;
 }
@@ -331,7 +393,7 @@ CMICmnLLDBDebugger::RegisterForEvent(const CMIUtilString &vClientName, const CMI
     if (!ClientSaveMask(vClientName, vBroadcasterClass, vEventMask))
         return MIstatus::failure;
 
-    const MIchar *pBroadCasterName = vBroadcasterClass.c_str();
+    const char *pBroadCasterName = vBroadcasterClass.c_str();
     MIuint eventMask = vEventMask;
     eventMask += existingMask;
     const MIuint result = m_lldbListener.StartListeningForEventClass(m_lldbDebugger, pBroadCasterName, eventMask);
@@ -358,16 +420,16 @@ CMICmnLLDBDebugger::RegisterForEvent(const CMIUtilString &vClientName, const CMI
 bool
 CMICmnLLDBDebugger::RegisterForEvent(const CMIUtilString &vClientName, const lldb::SBBroadcaster &vBroadcaster, const MIuint vEventMask)
 {
-    const MIchar *pBroadcasterName = vBroadcaster.GetName();
+    const char *pBroadcasterName = vBroadcaster.GetName();
     if (pBroadcasterName == nullptr)
     {
-        SetErrorDescription(CMIUtilString::Format(MIRSRC(IDS_LLDBDEBUGGER_ERR_BROARDCASTER_NAME), MIRSRC(IDS_WORD_INVALIDNULLPTR)));
+        SetErrorDescription(CMIUtilString::Format(MIRSRC(IDS_LLDBDEBUGGER_ERR_BROADCASTER_NAME), MIRSRC(IDS_WORD_INVALIDNULLPTR)));
         return MIstatus::failure;
     }
     CMIUtilString broadcasterName(pBroadcasterName);
     if (broadcasterName.length() == 0)
     {
-        SetErrorDescription(CMIUtilString::Format(MIRSRC(IDS_LLDBDEBUGGER_ERR_BROARDCASTER_NAME), MIRSRC(IDS_WORD_INVALIDEMPTY)));
+        SetErrorDescription(CMIUtilString::Format(MIRSRC(IDS_LLDBDEBUGGER_ERR_BROADCASTER_NAME), MIRSRC(IDS_WORD_INVALIDEMPTY)));
         return MIstatus::failure;
     }
 
@@ -423,7 +485,7 @@ CMICmnLLDBDebugger::UnregisterForEvent(const CMIUtilString &vClientName, const C
         }
     }
 
-    const MIchar *pBroadCasterName = vBroadcasterClass.c_str();
+    const char *pBroadCasterName = vBroadcasterClass.c_str();
     if (!m_lldbListener.StopListeningForEventClass(m_lldbDebugger, pBroadCasterName, newEventMask))
     {
         SetErrorDescription(CMIUtilString::Format(MIRSRC(IDS_LLDBDEBUGGER_ERR_STOPLISTENER), vClientName.c_str(), pBroadCasterName));
@@ -625,7 +687,7 @@ CMICmnLLDBDebugger::ClientGetTheirMask(const CMIUtilString &vClientName, const C
         vwEventMask = (*it).second;
     }
 
-    SetErrorDescription(CMIUtilString::Format(MIRSRC(IDS_LLDBDEBUGGER_ERR_CLIENTNOTREGISTERD), vClientName.c_str()));
+    SetErrorDescription(CMIUtilString::Format(MIRSRC(IDS_LLDBDEBUGGER_ERR_CLIENTNOTREGISTERED), vClientName.c_str()));
 
     return MIstatus::failure;
 }
@@ -634,7 +696,7 @@ CMICmnLLDBDebugger::ClientGetTheirMask(const CMIUtilString &vClientName, const C
 // Details: Momentarily wait for an events being broadcast and inspect those that do
 //          come this way. Check if the target should exit event if so start shutting
 //          down this thread and the application. Any other events pass on to the
-//          Out-of-band handler to futher determine what kind of event arrived.
+//          Out-of-band handler to further determine what kind of event arrived.
 //          This function runs in the thread "MI debugger event".
 // Type:    Method.
 // Args:    vrbIsAlive  - (W) False = yes exit event monitoring thread, true = continue.
@@ -647,43 +709,48 @@ CMICmnLLDBDebugger::MonitorSBListenerEvents(bool &vrbIsAlive)
 {
     vrbIsAlive = true;
 
+    // Lock the mutex of event queue
+    // Note that it should be locked while we are in CMICmnLLDBDebugger::MonitorSBListenerEvents to
+    // avoid a race condition with CMICmnLLDBDebugger::WaitForHandleEvent
+    std::unique_lock<std::mutex> lock(m_mutexEventQueue);
+
     lldb::SBEvent event;
     const bool bGotEvent = m_lldbListener.GetNextEvent(event);
-    if (!bGotEvent || !event.IsValid())
+    if (!bGotEvent)
     {
+        // Notify that we are finished and unlock the mutex of event queue before sleeping
+        m_conditionEventQueueEmpty.notify_one();
+        lock.unlock();
+
+        // Wait a bit to reduce CPU load
         const std::chrono::milliseconds time(1);
         std::this_thread::sleep_for(time);
         return MIstatus::success;
     }
-    if (!event.GetBroadcaster().IsValid())
-        return MIstatus::success;
+    assert(event.IsValid());
+    assert(event.GetBroadcaster().IsValid());
 
     // Debugging
     m_pLog->WriteLog(CMIUtilString::Format("##### An event occurred: %s", event.GetBroadcasterClass()));
 
     bool bHandledEvent = false;
-    bool bExitAppEvent = false;
-    const bool bOk = CMICmnLLDBDebuggerHandleEvents::Instance().HandleEvent(event, bHandledEvent, bExitAppEvent);
+    bool bOk = false;
+    {
+        // Lock Mutex before handling events so that we don't disturb a running cmd
+        CMIUtilThreadLock lock(CMICmnLLDBDebugSessionInfo::Instance().GetSessionMutex());
+        bOk = CMICmnLLDBDebuggerHandleEvents::Instance().HandleEvent(event, bHandledEvent);
+    }
+
     if (!bHandledEvent)
     {
         const CMIUtilString msg(CMIUtilString::Format(MIRSRC(IDS_LLDBDEBUGGER_WRN_UNKNOWN_EVENT), event.GetBroadcasterClass()));
         m_pLog->WriteLog(msg);
     }
+
     if (!bOk)
-    {
         m_pLog->WriteLog(CMICmnLLDBDebuggerHandleEvents::Instance().GetErrorDescription());
-    }
 
-    if (bExitAppEvent)
-    {
-        // Set the application to shutdown
-        m_pClientDriver->SetExitApplicationFlag(true);
-
-        // Kill *this thread
-        vrbIsAlive = false;
-    }
-
-    return bOk;
+    return MIstatus::success;
 }
 
 //++ ------------------------------------------------------------------------------------

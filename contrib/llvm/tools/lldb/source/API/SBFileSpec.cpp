@@ -93,9 +93,8 @@ SBFileSpec::ResolvePath (const char *src_path, char *dst_path, size_t dst_len)
 {
     llvm::SmallString<64> result(src_path);
     lldb_private::FileSpec::Resolve (result);
-    size_t result_length = std::min(dst_len-1, result.size());
-    ::strncpy(dst_path, result.c_str(), result_length + 1);
-    return result_length;
+    ::snprintf(dst_path, dst_len, "%s", result.c_str());
+    return std::min(dst_len-1, result.size());
 }
 
 const char *
@@ -120,18 +119,19 @@ SBFileSpec::GetFilename() const
 const char *
 SBFileSpec::GetDirectory() const
 {
-    const char *s = m_opaque_ap->GetDirectory().AsCString();
+    FileSpec directory{*m_opaque_ap};
+    directory.GetFilename().Clear();
     Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_API));
     if (log)
     {
-        if (s)
+        if (directory)
             log->Printf ("SBFileSpec(%p)::GetDirectory () => \"%s\"",
-                         static_cast<void*>(m_opaque_ap.get()), s);
+                         static_cast<void*>(m_opaque_ap.get()), directory.GetCString());
         else
             log->Printf ("SBFileSpec(%p)::GetDirectory () => NULL",
                          static_cast<void*>(m_opaque_ap.get()));
     }
-    return s;
+    return directory.GetCString();
 }
 
 void

@@ -21,6 +21,7 @@
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/DepthFirstIterator.h"
 #include "llvm/ADT/GraphTraits.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/Compiler.h"
@@ -93,8 +94,9 @@ public:
   DomTreeNodeBase(NodeT *BB, DomTreeNodeBase<NodeT> *iDom)
       : TheBB(BB), IDom(iDom), DFSNumIn(-1), DFSNumOut(-1) {}
 
-  DomTreeNodeBase<NodeT> *addChild(DomTreeNodeBase<NodeT> *C) {
-    Children.push_back(C);
+  std::unique_ptr<DomTreeNodeBase<NodeT>>
+  addChild(std::unique_ptr<DomTreeNodeBase<NodeT>> C) {
+    Children.push_back(C.get());
     return C;
   }
 
@@ -182,8 +184,8 @@ void Calculate(DominatorTreeBase<typename GraphTraits<N>::NodeType> &DT,
 /// This class is a generic template over graph nodes. It is instantiated for
 /// various graphs in the LLVM IR or in the code generator.
 template <class NodeT> class DominatorTreeBase : public DominatorBase<NodeT> {
-  DominatorTreeBase(const DominatorTreeBase &) LLVM_DELETED_FUNCTION;
-  DominatorTreeBase &operator=(const DominatorTreeBase &) LLVM_DELETED_FUNCTION;
+  DominatorTreeBase(const DominatorTreeBase &) = delete;
+  DominatorTreeBase &operator=(const DominatorTreeBase &) = delete;
 
   bool dominatedBySlowTreeWalk(const DomTreeNodeBase<NodeT> *A,
                                const DomTreeNodeBase<NodeT> *B) const {
@@ -210,7 +212,8 @@ template <class NodeT> class DominatorTreeBase : public DominatorBase<NodeT> {
   }
 
 protected:
-  typedef DenseMap<NodeT *, DomTreeNodeBase<NodeT> *> DomTreeNodeMapType;
+  typedef DenseMap<NodeT *, std::unique_ptr<DomTreeNodeBase<NodeT>>>
+      DomTreeNodeMapType;
   DomTreeNodeMapType DomTreeNodes;
   DomTreeNodeBase<NodeT> *RootNode;
 
@@ -235,15 +238,13 @@ protected:
   DenseMap<NodeT *, InfoRec> Info;
 
   void reset() {
-    for (typename DomTreeNodeMapType::iterator I = this->DomTreeNodes.begin(),
-                                               E = DomTreeNodes.end();
-         I != E; ++I)
-      delete I->second;
     DomTreeNodes.clear();
     IDoms.clear();
     this->Roots.clear();
     Vertex.clear();
     RootNode = nullptr;
+    DFSInfoValid = false;
+    SlowQueries = 0;
   }
 
   // NewBB is split and now it has one successor. Update dominator tree to
@@ -314,7 +315,6 @@ protected:
 public:
   explicit DominatorTreeBase(bool isPostDom)
       : DominatorBase<NodeT>(isPostDom), DFSInfoValid(false), SlowQueries(0) {}
-  ~DominatorTreeBase() { reset(); }
 
   DominatorTreeBase(DominatorTreeBase &&Arg)
       : DominatorBase<NodeT>(
@@ -358,10 +358,10 @@ public:
       if (OI == OtherDomTreeNodes.end())
         return true;
 
-      DomTreeNodeBase<NodeT> *MyNd = I->second;
-      DomTreeNodeBase<NodeT> *OtherNd = OI->second;
+      DomTreeNodeBase<NodeT> &MyNd = *I->second;
+      DomTreeNodeBase<NodeT> &OtherNd = *OI->second;
 
-      if (MyNd->compare(OtherNd))
+      if (MyNd.compare(&OtherNd))
         return true;
     }
 
@@ -374,7 +374,10 @@ public:
   /// block.  This is the same as using operator[] on this class.
   ///
   DomTreeNodeBase<NodeT> *getNode(NodeT *BB) const {
-    return DomTreeNodes.lookup(BB);
+    auto I = DomTreeNodes.find(BB);
+    if (I != DomTreeNodes.end())
+      return I->second.get();
+    return nullptr;
   }
 
   DomTreeNodeBase<NodeT> *operator[](NodeT *BB) const { return getNode(BB); }
@@ -555,8 +558,8 @@ public:
     DomTreeNodeBase<NodeT> *IDomNode = getNode(DomBB);
     assert(IDomNode && "Not immediate dominator specified for block!");
     DFSInfoValid = false;
-    return DomTreeNodes[BB] =
-               IDomNode->addChild(new DomTreeNodeBase<NodeT>(BB, IDomNode));
+    return (DomTreeNodes[BB] = IDomNode->addChild(
+                llvm::make_unique<DomTreeNodeBase<NodeT>>(BB, IDomNode))).get();
   }
 
   /// changeImmediateDominator - This method is used to update the dominator
@@ -592,15 +595,6 @@ public:
       IDom->Children.erase(I);
     }
 
-    DomTreeNodes.erase(BB);
-    delete Node;
-  }
-
-  /// removeNode - Removes a node from the dominator tree.  Block must not
-  /// dominate any other blocks.  Invalidates any node pointing to removed
-  /// block.
-  void removeNode(NodeT *BB) {
-    assert(getNode(BB) && "Removing node that isn't in dominator tree.");
     DomTreeNodes.erase(BB);
   }
 
@@ -645,9 +639,38 @@ protected:
   friend void
   Calculate(DominatorTreeBase<typename GraphTraits<N>::NodeType> &DT, FuncT &F);
 
+
+  DomTreeNodeBase<NodeT> *getNodeForBlock(NodeT *BB) {
+    if (DomTreeNodeBase<NodeT> *Node = getNode(BB))
+      return Node;
+
+    // Haven't calculated this node yet?  Get or calculate the node for the
+    // immediate dominator.
+    NodeT *IDom = getIDom(BB);
+
+    assert(IDom || this->DomTreeNodes[nullptr]);
+    DomTreeNodeBase<NodeT> *IDomNode = getNodeForBlock(IDom);
+
+    // Add a new tree node for this NodeT, and link it as a child of
+    // IDomNode
+    return (this->DomTreeNodes[BB] = IDomNode->addChild(
+                llvm::make_unique<DomTreeNodeBase<NodeT>>(BB, IDomNode))).get();
+  }
+
+  NodeT *getIDom(NodeT *BB) const { return IDoms.lookup(BB); }
+
+  void addRoot(NodeT *BB) { this->Roots.push_back(BB); }
+
+public:
   /// updateDFSNumbers - Assign In and Out numbers to the nodes while walking
   /// dominator tree in dfs order.
   void updateDFSNumbers() const {
+
+    if (DFSInfoValid) {
+      SlowQueries = 0;
+      return;
+    }
+
     unsigned DFSNum = 0;
 
     SmallVector<std::pair<const DomTreeNodeBase<NodeT> *,
@@ -690,28 +713,6 @@ protected:
     DFSInfoValid = true;
   }
 
-  DomTreeNodeBase<NodeT> *getNodeForBlock(NodeT *BB) {
-    if (DomTreeNodeBase<NodeT> *Node = getNode(BB))
-      return Node;
-
-    // Haven't calculated this node yet?  Get or calculate the node for the
-    // immediate dominator.
-    NodeT *IDom = getIDom(BB);
-
-    assert(IDom || this->DomTreeNodes[nullptr]);
-    DomTreeNodeBase<NodeT> *IDomNode = getNodeForBlock(IDom);
-
-    // Add a new tree node for this NodeT, and link it as a child of
-    // IDomNode
-    DomTreeNodeBase<NodeT> *C = new DomTreeNodeBase<NodeT>(BB, IDomNode);
-    return this->DomTreeNodes[BB] = IDomNode->addChild(C);
-  }
-
-  NodeT *getIDom(NodeT *BB) const { return IDoms.lookup(BB); }
-
-  void addRoot(NodeT *BB) { this->Roots.push_back(BB); }
-
-public:
   /// recalculate - compute a dominator tree for the given function
   template <class FT> void recalculate(FT &F) {
     typedef GraphTraits<FT *> TraitsTy;

@@ -112,7 +112,7 @@ public:
   /// @name Construction
   /// @{
 
-  static const AArch64MCExpr *Create(const MCExpr *Expr, VariantKind Kind,
+  static const AArch64MCExpr *create(const MCExpr *Expr, VariantKind Kind,
                                    MCContext &Ctx);
 
   /// @}
@@ -120,7 +120,7 @@ public:
   /// @{
 
   /// Get the kind of this expression.
-  VariantKind getKind() const { return static_cast<VariantKind>(Kind); }
+  VariantKind getKind() const { return Kind; }
 
   /// Get the expression this modifier applies to.
   const MCExpr *getSubExpr() const { return Expr; }
@@ -145,13 +145,13 @@ public:
   /// (e.g. ":got:", ":lo12:").
   StringRef getVariantKindName() const;
 
-  void PrintImpl(raw_ostream &OS) const override;
+  void printImpl(raw_ostream &OS, const MCAsmInfo *MAI) const override;
 
   void visitUsedExpr(MCStreamer &Streamer) const override;
 
-  const MCSection *FindAssociatedSection() const override;
+  MCSection *findAssociatedSection() const override;
 
-  bool EvaluateAsRelocatableImpl(MCValue &Res,
+  bool evaluateAsRelocatableImpl(MCValue &Res,
                                  const MCAsmLayout *Layout,
 				 const MCFixup *Fixup) const override;
 

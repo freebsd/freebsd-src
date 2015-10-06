@@ -24,6 +24,7 @@ namespace clang {
 
 class GlobalModuleIndex;
 class ModuleMap;
+class PCHContainerReader;
 
 namespace serialization {
 
@@ -32,14 +33,27 @@ class ModuleManager {
   /// \brief The chain of AST files. The first entry is the one named by the
   /// user, the last one is the one that doesn't depend on anything further.
   SmallVector<ModuleFile *, 2> Chain;
+
+  // \brief The roots of the dependency DAG of AST files. This is used
+  // to implement short-circuiting logic when running DFS over the dependencies.
+  SmallVector<ModuleFile *, 2> Roots;
   
   /// \brief All loaded modules, indexed by name.
   llvm::DenseMap<const FileEntry *, ModuleFile *> Modules;
-  
+
+  typedef llvm::SetVector<const FileEntry *> AdditionalKnownModuleFileSet;
+
+  /// \brief Additional module files that are known but not loaded. Tracked
+  /// here so that we can re-export them if necessary.
+  AdditionalKnownModuleFileSet AdditionalKnownModuleFiles;
+
   /// \brief FileManager that handles translating between filenames and
   /// FileEntry *.
   FileManager &FileMgr;
-  
+
+  /// \brief Knows how to unwrap module containers.
+  const PCHContainerReader &PCHContainerRdr;
+
   /// \brief A lookup of in-memory (virtual file) buffers
   llvm::DenseMap<const FileEntry *, std::unique_ptr<llvm::MemoryBuffer>>
       InMemoryBuffers;
@@ -102,10 +116,11 @@ public:
   typedef SmallVectorImpl<ModuleFile*>::const_iterator ModuleConstIterator;
   typedef SmallVectorImpl<ModuleFile*>::reverse_iterator ModuleReverseIterator;
   typedef std::pair<uint32_t, StringRef> ModuleOffset;
-  
-  explicit ModuleManager(FileManager &FileMgr);
+
+  explicit ModuleManager(FileManager &FileMgr,
+                         const PCHContainerReader &PCHContainerRdr);
   ~ModuleManager();
-  
+
   /// \brief Forward iterator to traverse all loaded modules.  This is reverse
   /// source-order.
   ModuleIterator begin() { return Chain.begin(); }
@@ -159,6 +174,8 @@ public:
     OutOfDate
   };
 
+  typedef ASTFileSignature(*ASTFileSignatureReader)(llvm::BitstreamReader &);
+
   /// \brief Attempts to create a new module and add it to the list of known
   /// modules.
   ///
@@ -198,8 +215,7 @@ public:
                             ModuleFile *ImportedBy, unsigned Generation,
                             off_t ExpectedSize, time_t ExpectedModTime,
                             ASTFileSignature ExpectedSignature,
-                            std::function<ASTFileSignature(llvm::BitstreamReader &)>
-                                ReadSignature,
+                            ASTFileSignatureReader ReadSignature,
                             ModuleFile *&Module,
                             std::string &ErrorStr);
 
@@ -218,6 +234,19 @@ public:
   /// \brief Notification from the AST reader that the given module file
   /// has been "accepted", and will not (can not) be unloaded.
   void moduleFileAccepted(ModuleFile *MF);
+
+  /// \brief Notification from the frontend that the given module file is
+  /// part of this compilation (even if not imported) and, if this compilation
+  /// is exported, should be made available to importers of it.
+  bool addKnownModuleFile(StringRef FileName);
+
+  /// \brief Get a list of additional module files that are not currently
+  /// loaded but are considered to be part of the current compilation.
+  llvm::iterator_range<AdditionalKnownModuleFileSet::const_iterator>
+  getAdditionalKnownModuleFiles() {
+    return llvm::make_range(AdditionalKnownModuleFiles.begin(),
+                            AdditionalKnownModuleFiles.end());
+  }
 
   /// \brief Visit each of the modules.
   ///
@@ -244,25 +273,35 @@ public:
   /// manager that is *not* in this set can be skipped.
   void visit(bool (*Visitor)(ModuleFile &M, void *UserData), void *UserData,
              llvm::SmallPtrSetImpl<ModuleFile *> *ModuleFilesHit = nullptr);
-  
+
+  /// \brief Control DFS behavior during preorder visitation.
+  enum DFSPreorderControl {
+    Continue,    /// Continue visiting all nodes.
+    Abort,       /// Stop the visitation immediately.
+    SkipImports, /// Do not visit imports of the current node.
+  };
+
   /// \brief Visit each of the modules with a depth-first traversal.
   ///
   /// This routine visits each of the modules known to the module
   /// manager using a depth-first search, starting with the first
-  /// loaded module. The traversal invokes the callback both before
-  /// traversing the children (preorder traversal) and after
-  /// traversing the children (postorder traversal).
+  /// loaded module. The traversal invokes one callback before
+  /// traversing the imports (preorder traversal) and one after
+  /// traversing the imports (postorder traversal).
   ///
-  /// \param Visitor A visitor function that will be invoked with each
-  /// module and given a \c Preorder flag that indicates whether we're
-  /// visiting the module before or after visiting its children.  The
-  /// visitor may return true at any time to abort the depth-first
-  /// visitation.
+  /// \param PreorderVisitor A visitor function that will be invoked with each
+  /// module before visiting its imports. The visitor can control how to
+  /// continue the visitation through its return value.
+  ///
+  /// \param PostorderVisitor A visitor function taht will be invoked with each
+  /// module after visiting its imports. The visitor may return true at any time
+  /// to abort the depth-first visitation.
   ///
   /// \param UserData User data ssociated with the visitor object,
   /// which will be passed along to the user.
-  void visitDepthFirst(bool (*Visitor)(ModuleFile &M, bool Preorder, 
-                                       void *UserData), 
+  void visitDepthFirst(DFSPreorderControl (*PreorderVisitor)(ModuleFile &M,
+                                                             void *UserData),
+                       bool (*PostorderVisitor)(ModuleFile &M, void *UserData),
                        void *UserData);
 
   /// \brief Attempt to resolve the given module file name to a file entry.

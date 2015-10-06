@@ -19,6 +19,7 @@
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Instructions.h"
+#include "llvm/IR/Module.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
@@ -102,32 +103,53 @@ bool CorrelatedValuePropagation::processPHI(PHINode *P) {
 
     Value *V = LVI->getConstantOnEdge(Incoming, P->getIncomingBlock(i), BB, P);
 
-    // Look if the incoming value is a select with a constant but LVI tells us
-    // that the incoming value can never be that constant. In that case replace
-    // the incoming value with the other value of the select. This often allows
-    // us to remove the select later.
+    // Look if the incoming value is a select with a scalar condition for which
+    // LVI can tells us the value. In that case replace the incoming value with
+    // the appropriate value of the select. This often allows us to remove the
+    // select later.
     if (!V) {
       SelectInst *SI = dyn_cast<SelectInst>(Incoming);
       if (!SI) continue;
 
-      Constant *C = dyn_cast<Constant>(SI->getFalseValue());
-      if (!C) continue;
+      Value *Condition = SI->getCondition();
+      if (!Condition->getType()->isVectorTy()) {
+        if (Constant *C = LVI->getConstantOnEdge(
+                Condition, P->getIncomingBlock(i), BB, P)) {
+          if (C->isOneValue()) {
+            V = SI->getTrueValue();
+          } else if (C->isZeroValue()) {
+            V = SI->getFalseValue();
+          }
+          // Once LVI learns to handle vector types, we could also add support
+          // for vector type constants that are not all zeroes or all ones.
+        }
+      }
 
-      if (LVI->getPredicateOnEdge(ICmpInst::ICMP_EQ, SI, C,
-                                  P->getIncomingBlock(i), BB, P) !=
-          LazyValueInfo::False)
-        continue;
+      // Look if the select has a constant but LVI tells us that the incoming
+      // value can never be that constant. In that case replace the incoming
+      // value with the other value of the select. This often allows us to
+      // remove the select later.
+      if (!V) {
+        Constant *C = dyn_cast<Constant>(SI->getFalseValue());
+        if (!C) continue;
+
+        if (LVI->getPredicateOnEdge(ICmpInst::ICMP_EQ, SI, C,
+              P->getIncomingBlock(i), BB, P) !=
+            LazyValueInfo::False)
+          continue;
+        V = SI->getTrueValue();
+      }
 
       DEBUG(dbgs() << "CVP: Threading PHI over " << *SI << '\n');
-      V = SI->getTrueValue();
     }
 
     P->setIncomingValue(i, V);
     Changed = true;
   }
 
-  // FIXME: Provide DL, TLI, DT, AT to SimplifyInstruction.
-  if (Value *V = SimplifyInstruction(P)) {
+  // FIXME: Provide TLI, DT, AT to SimplifyInstruction.
+  const DataLayout &DL = BB->getModule()->getDataLayout();
+  if (Value *V = SimplifyInstruction(P, DL)) {
     P->replaceAllUsesWith(V);
     P->eraseFromParent();
     Changed = true;

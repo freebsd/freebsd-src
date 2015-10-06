@@ -22,9 +22,9 @@
 #include "llvm/IR/Instruction.h"
 #include "llvm/IR/Metadata.h"
 #include "llvm/IR/Module.h"
-#include "llvm/Support/Atomic.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Regex.h"
+#include <atomic>
 #include <string>
 
 using namespace llvm;
@@ -87,8 +87,8 @@ PassRemarksAnalysis(
 }
 
 int llvm::getNextAvailablePluginDiagnosticKind() {
-  static sys::cas_flag PluginKindID = DK_FirstPluginKind;
-  return (int)sys::AtomicIncrement(&PluginKindID);
+  static std::atomic<int> PluginKindID(DK_FirstPluginKind);
+  return ++PluginKindID;
 }
 
 DiagnosticInfoInlineAsm::DiagnosticInfoInlineAsm(const Instruction &I,
@@ -129,16 +129,17 @@ void DiagnosticInfoSampleProfile::print(DiagnosticPrinter &DP) const {
 }
 
 bool DiagnosticInfoOptimizationBase::isLocationAvailable() const {
-  return getDebugLoc().isUnknown() == false;
+  return getDebugLoc();
 }
 
 void DiagnosticInfoOptimizationBase::getLocation(StringRef *Filename,
                                                  unsigned *Line,
                                                  unsigned *Column) const {
-  DILocation DIL(getDebugLoc().getAsMDNode(getFunction().getContext()));
-  *Filename = DIL.getFilename();
-  *Line = DIL.getLineNumber();
-  *Column = DIL.getColumnNumber();
+  DILocation *L = getDebugLoc();
+  assert(L != nullptr && "debug location is invalid");
+  *Filename = L->getFilename();
+  *Line = L->getLine();
+  *Column = L->getColumn();
 }
 
 const std::string DiagnosticInfoOptimizationBase::getLocationStr() const {
@@ -147,7 +148,7 @@ const std::string DiagnosticInfoOptimizationBase::getLocationStr() const {
   unsigned Column = 0;
   if (isLocationAvailable())
     getLocation(&Filename, &Line, &Column);
-  return Twine(Filename + ":" + Twine(Line) + ":" + Twine(Column)).str();
+  return (Filename + ":" + Twine(Line) + ":" + Twine(Column)).str();
 }
 
 void DiagnosticInfoOptimizationBase::print(DiagnosticPrinter &DP) const {
@@ -167,6 +168,10 @@ bool DiagnosticInfoOptimizationRemarkMissed::isEnabled() const {
 bool DiagnosticInfoOptimizationRemarkAnalysis::isEnabled() const {
   return PassRemarksAnalysisOptLoc.Pattern &&
          PassRemarksAnalysisOptLoc.Pattern->match(getPassName());
+}
+
+void DiagnosticInfoMIRParser::print(DiagnosticPrinter &DP) const {
+  DP << Diagnostic;
 }
 
 void llvm::emitOptimizationRemark(LLVMContext &Ctx, const char *PassName,

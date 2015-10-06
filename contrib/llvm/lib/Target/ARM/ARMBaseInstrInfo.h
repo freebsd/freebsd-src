@@ -116,8 +116,7 @@ public:
                      bool AllowModify = false) const override;
   unsigned RemoveBranch(MachineBasicBlock &MBB) const override;
   unsigned InsertBranch(MachineBasicBlock &MBB, MachineBasicBlock *TBB,
-                        MachineBasicBlock *FBB,
-                        const SmallVectorImpl<MachineOperand> &Cond,
+                        MachineBasicBlock *FBB, ArrayRef<MachineOperand> Cond,
                         DebugLoc DL) const override;
 
   bool
@@ -133,10 +132,10 @@ public:
   }
 
   bool PredicateInstruction(MachineInstr *MI,
-                    const SmallVectorImpl<MachineOperand> &Pred) const override;
+                    ArrayRef<MachineOperand> Pred) const override;
 
-  bool SubsumesPredicate(const SmallVectorImpl<MachineOperand> &Pred1,
-                   const SmallVectorImpl<MachineOperand> &Pred2) const override;
+  bool SubsumesPredicate(ArrayRef<MachineOperand> Pred1,
+                         ArrayRef<MachineOperand> Pred2) const override;
 
   bool DefinesPredicate(MachineInstr *MI,
                         std::vector<MachineOperand> &Pred) const override;
@@ -328,12 +327,12 @@ private:
   int getInstrLatency(const InstrItineraryData *ItinData,
                       SDNode *Node) const override;
 
-  bool hasHighOperandLatency(const InstrItineraryData *ItinData,
+  bool hasHighOperandLatency(const TargetSchedModel &SchedModel,
                              const MachineRegisterInfo *MRI,
                              const MachineInstr *DefMI, unsigned DefIdx,
                              const MachineInstr *UseMI,
                              unsigned UseIdx) const override;
-  bool hasLowDefLatency(const InstrItineraryData *ItinData,
+  bool hasLowDefLatency(const TargetSchedModel &SchedModel,
                         const MachineInstr *DefMI,
                         unsigned DefIdx) const override;
 
@@ -439,7 +438,7 @@ static inline bool isPushOpcode(int Opc) {
 /// register by reference.
 ARMCC::CondCodes getInstrPredicate(const MachineInstr *MI, unsigned &PredReg);
 
-int getMatchingCondBranchOpcode(int Opc);
+unsigned getMatchingCondBranchOpcode(unsigned Opc);
 
 /// Determine if MI can be folded into an ARM MOVCC instruction, and return the
 /// opcode of the SSA instruction representing the conditional MI.

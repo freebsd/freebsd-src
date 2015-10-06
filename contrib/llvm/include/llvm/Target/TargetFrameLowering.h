@@ -19,6 +19,7 @@
 #include <vector>
 
 namespace llvm {
+  class BitVector;
   class CalleeSavedInfo;
   class MachineFunction;
   class RegScavenger;
@@ -130,21 +131,26 @@ public:
 
   /// emitProlog/emitEpilog - These methods insert prolog and epilog code into
   /// the function.
-  virtual void emitPrologue(MachineFunction &MF) const = 0;
+  virtual void emitPrologue(MachineFunction &MF,
+                            MachineBasicBlock &MBB) const = 0;
   virtual void emitEpilogue(MachineFunction &MF,
                             MachineBasicBlock &MBB) const = 0;
 
   /// Adjust the prologue to have the function use segmented stacks. This works
   /// by adding a check even before the "normal" function prologue.
-  virtual void adjustForSegmentedStacks(MachineFunction &MF) const { }
+  virtual void adjustForSegmentedStacks(MachineFunction &MF,
+                                        MachineBasicBlock &PrologueMBB) const {}
 
   /// Adjust the prologue to add Erlang Run-Time System (ERTS) specific code in
   /// the assembly prologue to explicitly handle the stack.
-  virtual void adjustForHiPEPrologue(MachineFunction &MF) const { }
+  virtual void adjustForHiPEPrologue(MachineFunction &MF,
+                                     MachineBasicBlock &PrologueMBB) const {}
 
   /// Adjust the prologue to add an allocation at a fixed offset from the frame
   /// pointer.
-  virtual void adjustForFrameAllocatePrologue(MachineFunction &MF) const { }
+  virtual void
+  adjustForFrameAllocatePrologue(MachineFunction &MF,
+                                 MachineBasicBlock &PrologueMBB) const {}
 
   /// spillCalleeSavedRegisters - Issues instruction(s) to spill all callee
   /// saved registers and returns true if it isn't possible / profitable to do
@@ -167,6 +173,9 @@ public:
                                         const TargetRegisterInfo *TRI) const {
     return false;
   }
+
+  /// Return true if the target needs to disable frame pointer elimination.
+  virtual bool noFramePointerElim(const MachineFunction &MF) const;
 
   /// hasFP - Return true if the specified function should have a dedicated
   /// frame pointer register. For most targets this is true only if the function
@@ -218,13 +227,15 @@ public:
     return 0;
   }
 
-  /// processFunctionBeforeCalleeSavedScan - This method is called immediately
-  /// before PrologEpilogInserter scans the physical registers used to determine
-  /// what callee saved registers should be spilled. This method is optional.
-  virtual void processFunctionBeforeCalleeSavedScan(MachineFunction &MF,
-                                             RegScavenger *RS = nullptr) const {
-
-  }
+  /// This method determines which of the registers reported by
+  /// TargetRegisterInfo::getCalleeSavedRegs() should actually get saved.
+  /// The default implementation checks populates the \p SavedRegs bitset with
+  /// all registers which are modified in the function, targets may override
+  /// this function to save additional registers.
+  /// This method also sets up the register scavenger ensuring there is a free
+  /// register or a frameindex available.
+  virtual void determineCalleeSaves(MachineFunction &MF, BitVector &SavedRegs,
+                                    RegScavenger *RS = nullptr) const;
 
   /// processFunctionBeforeFrameFinalized - This method is called immediately
   /// before the specified function's frame layout (MF.getFrameInfo()) is
@@ -248,6 +259,30 @@ public:
                                 MachineBasicBlock::iterator MI) const {
     llvm_unreachable("Call Frame Pseudo Instructions do not exist on this "
                      "target!");
+  }
+
+  /// Check whether or not the given \p MBB can be used as a prologue
+  /// for the target.
+  /// The prologue will be inserted first in this basic block.
+  /// This method is used by the shrink-wrapping pass to decide if
+  /// \p MBB will be correctly handled by the target.
+  /// As soon as the target enable shrink-wrapping without overriding
+  /// this method, we assume that each basic block is a valid
+  /// prologue.
+  virtual bool canUseAsPrologue(const MachineBasicBlock &MBB) const {
+    return true;
+  }
+
+  /// Check whether or not the given \p MBB can be used as a epilogue
+  /// for the target.
+  /// The epilogue will be inserted before the first terminator of that block.
+  /// This method is used by the shrink-wrapping pass to decide if
+  /// \p MBB will be correctly handled by the target.
+  /// As soon as the target enable shrink-wrapping without overriding
+  /// this method, we assume that each basic block is a valid
+  /// epilogue.
+  virtual bool canUseAsEpilogue(const MachineBasicBlock &MBB) const {
+    return true;
   }
 };
 
