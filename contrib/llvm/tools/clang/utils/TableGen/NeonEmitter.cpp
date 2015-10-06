@@ -25,6 +25,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringExtras.h"
@@ -130,7 +131,7 @@ class Type {
 private:
   TypeSpec TS;
 
-  bool Float, Signed, Void, Poly, Constant, Pointer;
+  bool Float, Signed, Immediate, Void, Poly, Constant, Pointer;
   // ScalarForMangling and NoManglingQ are really not suited to live here as
   // they are not related to the type. But they live in the TypeSpec (not the
   // prototype), so this is really the only place to store them.
@@ -139,13 +140,13 @@ private:
 
 public:
   Type()
-      : Float(false), Signed(false), Void(true), Poly(false), Constant(false),
-        Pointer(false), ScalarForMangling(false), NoManglingQ(false),
-        Bitwidth(0), ElementBitwidth(0), NumVectors(0) {}
+      : Float(false), Signed(false), Immediate(false), Void(true), Poly(false),
+        Constant(false), Pointer(false), ScalarForMangling(false),
+        NoManglingQ(false), Bitwidth(0), ElementBitwidth(0), NumVectors(0) {}
 
   Type(TypeSpec TS, char CharMod)
-      : TS(TS), Float(false), Signed(false), Void(false), Poly(false),
-        Constant(false), Pointer(false), ScalarForMangling(false),
+      : TS(TS), Float(false), Signed(false), Immediate(false), Void(false),
+        Poly(false), Constant(false), Pointer(false), ScalarForMangling(false),
         NoManglingQ(false), Bitwidth(0), ElementBitwidth(0), NumVectors(0) {
     applyModifier(CharMod);
   }
@@ -166,6 +167,7 @@ public:
   bool isFloating() const { return Float; }
   bool isInteger() const { return !Float && !Poly; }
   bool isSigned() const { return Signed; }
+  bool isImmediate() const { return Immediate; }
   bool isScalar() const { return NumVectors == 0; }
   bool isVector() const { return NumVectors > 0; }
   bool isFloat() const { return Float && ElementBitwidth == 32; }
@@ -191,6 +193,14 @@ public:
     Float = false;
     Poly = false;
     Signed = Sign;
+    Immediate = false;
+    ElementBitwidth = ElemWidth;
+  }
+  void makeImmediate(unsigned ElemWidth) {
+    Float = false;
+    Poly = false;
+    Signed = true;
+    Immediate = true;
     ElementBitwidth = ElemWidth;
   }
   void makeScalar() {
@@ -336,9 +346,9 @@ public:
     // Modify the TypeSpec per-argument to get a concrete Type, and create
     // known variables for each.
     // Types[0] is the return value.
-    Types.push_back(Type(OutTS, Proto[0]));
+    Types.emplace_back(OutTS, Proto[0]);
     for (unsigned I = 1; I < Proto.size(); ++I)
-      Types.push_back(Type(InTS, Proto[I]));
+      Types.emplace_back(InTS, Proto[I]);
   }
 
   /// Get the Record that this intrinsic is based off.
@@ -599,6 +609,12 @@ std::string Type::builtin_str() const {
   else if (isInteger() && !Pointer && !Signed)
     S = "U" + S;
 
+  // Constant indices are "int", but have the "constant expression" modifier.
+  if (isImmediate()) {
+    assert(isInteger() && isSigned());
+    S = "I" + S;
+  }
+
   if (isScalar()) {
     if (Constant) S += "C";
     if (Pointer) S += "*";
@@ -852,6 +868,7 @@ void Type::applyModifier(char Mod) {
     ElementBitwidth = Bitwidth = 32;
     NumVectors = 0;
     Signed = true;
+    Immediate = true;
     break;
   case 'l':
     Float = false;
@@ -859,6 +876,7 @@ void Type::applyModifier(char Mod) {
     ElementBitwidth = Bitwidth = 64;
     NumVectors = 0;
     Signed = false;
+    Immediate = true;
     break;
   case 'z':
     ElementBitwidth /= 2;
@@ -1018,9 +1036,8 @@ std::string Intrinsic::getBuiltinTypeStr() {
     if (LocalCK == ClassI)
       T.makeSigned();
 
-    // Constant indices are always just "int".
     if (hasImmediate() && getImmediateIdx() == I)
-      T.makeInteger(32, true);
+      T.makeImmediate(32);
 
     S += T.builtin_str();
   }
@@ -1393,7 +1410,7 @@ void Intrinsic::emitBody(StringRef CallPrefix) {
     }
   }
 
-  assert(Lines.size() && "Empty def?");
+  assert(!Lines.empty() && "Empty def?");
   if (!RetVar.getType().isVoid())
     Lines.back().insert(0, RetVar.getName() + " = ");
 
@@ -1563,10 +1580,8 @@ std::pair<Type, std::string> Intrinsic::DagEmitter::emitDagShuffle(DagInit *DI){
   // See the documentation in arm_neon.td for a description of these operators.
   class LowHalf : public SetTheory::Operator {
   public:
-    virtual void anchor() {}
-    virtual ~LowHalf() {}
-    virtual void apply(SetTheory &ST, DagInit *Expr, SetTheory::RecSet &Elts,
-                       ArrayRef<SMLoc> Loc) {
+    void apply(SetTheory &ST, DagInit *Expr, SetTheory::RecSet &Elts,
+               ArrayRef<SMLoc> Loc) override {
       SetTheory::RecSet Elts2;
       ST.evaluate(Expr->arg_begin(), Expr->arg_end(), Elts2, Loc);
       Elts.insert(Elts2.begin(), Elts2.begin() + (Elts2.size() / 2));
@@ -1574,10 +1589,8 @@ std::pair<Type, std::string> Intrinsic::DagEmitter::emitDagShuffle(DagInit *DI){
   };
   class HighHalf : public SetTheory::Operator {
   public:
-    virtual void anchor() {}
-    virtual ~HighHalf() {}
-    virtual void apply(SetTheory &ST, DagInit *Expr, SetTheory::RecSet &Elts,
-                       ArrayRef<SMLoc> Loc) {
+    void apply(SetTheory &ST, DagInit *Expr, SetTheory::RecSet &Elts,
+               ArrayRef<SMLoc> Loc) override {
       SetTheory::RecSet Elts2;
       ST.evaluate(Expr->arg_begin(), Expr->arg_end(), Elts2, Loc);
       Elts.insert(Elts2.begin() + (Elts2.size() / 2), Elts2.end());
@@ -1588,10 +1601,8 @@ std::pair<Type, std::string> Intrinsic::DagEmitter::emitDagShuffle(DagInit *DI){
 
   public:
     Rev(unsigned ElementSize) : ElementSize(ElementSize) {}
-    virtual void anchor() {}
-    virtual ~Rev() {}
-    virtual void apply(SetTheory &ST, DagInit *Expr, SetTheory::RecSet &Elts,
-                       ArrayRef<SMLoc> Loc) {
+    void apply(SetTheory &ST, DagInit *Expr, SetTheory::RecSet &Elts,
+               ArrayRef<SMLoc> Loc) override {
       SetTheory::RecSet Elts2;
       ST.evaluate(Expr->arg_begin() + 1, Expr->arg_end(), Elts2, Loc);
 
@@ -1613,9 +1624,7 @@ std::pair<Type, std::string> Intrinsic::DagEmitter::emitDagShuffle(DagInit *DI){
 
   public:
     MaskExpander(unsigned N) : N(N) {}
-    virtual void anchor() {}
-    virtual ~MaskExpander() {}
-    virtual void expand(SetTheory &ST, Record *R, SetTheory::RecSet &Elts) {
+    void expand(SetTheory &ST, Record *R, SetTheory::RecSet &Elts) override {
       unsigned Addend = 0;
       if (R->getName() == "mask0")
         Addend = 0;
@@ -1637,15 +1646,13 @@ std::pair<Type, std::string> Intrinsic::DagEmitter::emitDagShuffle(DagInit *DI){
                   "Different types in arguments to shuffle!");
 
   SetTheory ST;
-  LowHalf LH;
-  HighHalf HH;
-  MaskExpander ME(Arg1.first.getNumElements());
-  Rev R(Arg1.first.getElementSizeInBits());
   SetTheory::RecSet Elts;
-  ST.addOperator("lowhalf", &LH);
-  ST.addOperator("highhalf", &HH);
-  ST.addOperator("rev", &R);
-  ST.addExpander("MaskExpand", &ME);
+  ST.addOperator("lowhalf", llvm::make_unique<LowHalf>());
+  ST.addOperator("highhalf", llvm::make_unique<HighHalf>());
+  ST.addOperator("rev",
+                 llvm::make_unique<Rev>(Arg1.first.getElementSizeInBits()));
+  ST.addExpander("MaskExpand",
+                 llvm::make_unique<MaskExpander>(Arg1.first.getNumElements()));
   ST.evaluate(DI->getArg(2), Elts, None);
 
   std::string S = "__builtin_shufflevector(" + Arg1.second + ", " + Arg2.second;
@@ -1938,7 +1945,8 @@ void NeonEmitter::createIntrinsic(Record *R,
   }
 
   std::sort(NewTypeSpecs.begin(), NewTypeSpecs.end());
-  std::unique(NewTypeSpecs.begin(), NewTypeSpecs.end());
+  NewTypeSpecs.erase(std::unique(NewTypeSpecs.begin(), NewTypeSpecs.end()),
+		     NewTypeSpecs.end());
 
   for (auto &I : NewTypeSpecs) {
     Intrinsic *IT = new Intrinsic(R, Name, Proto, I.first, I.second, CK, Body,

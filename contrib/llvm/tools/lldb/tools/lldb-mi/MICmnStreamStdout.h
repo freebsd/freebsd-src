@@ -7,18 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-//++
-// File:        MICmnStreamStdout.h
-//
-// Overview:    CMICmnStreamStdout interface.
-//
-// Environment: Compilers:  Visual C++ 12.
-//                          gcc (Ubuntu/Linaro 4.8.1-10ubuntu9) 4.8.1
-//              Libraries:  See MIReadmetxt.
-//
-// Copyright:   None.
-//--
-
 #pragma once
 
 // In-house headers:
@@ -43,11 +31,12 @@ class CMICmnStreamStdout : public CMICmnBase, public MI::ISingleton<CMICmnStream
     // Statics:
   public:
     static bool TextToStdout(const CMIUtilString &vrTxt);
+    static bool WritePrompt(void);
 
     // Methods:
   public:
-    bool Initialize(void);
-    bool Shutdown(void);
+    bool Initialize(void) override;
+    bool Shutdown(void) override;
     //
     bool Lock(void);
     bool Unlock(void);
@@ -65,7 +54,7 @@ class CMICmnStreamStdout : public CMICmnBase, public MI::ISingleton<CMICmnStream
     // Overridden:
   private:
     // From CMICmnBase
-    /* dtor */ virtual ~CMICmnStreamStdout(void);
+    /* dtor */ ~CMICmnStreamStdout(void) override;
 
     // Attributes:
   private:

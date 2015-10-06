@@ -17,6 +17,7 @@
 #include "clang/AST/CanonicalType.h"
 #include "clang/AST/Type.h"
 #include "clang/Sema/CodeCompleteOptions.h"
+#include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/Allocator.h"
@@ -440,15 +441,15 @@ private:
   /// entity being completed by this result.
   const char *BriefComment;
   
-  CodeCompletionString(const CodeCompletionString &) LLVM_DELETED_FUNCTION;
-  void operator=(const CodeCompletionString &) LLVM_DELETED_FUNCTION;
+  CodeCompletionString(const CodeCompletionString &) = delete;
+  void operator=(const CodeCompletionString &) = delete;
 
   CodeCompletionString(const Chunk *Chunks, unsigned NumChunks,
                        unsigned Priority, CXAvailabilityKind Availability,
                        const char **Annotations, unsigned NumAnnotations,
                        StringRef ParentName,
                        const char *BriefComment);
-  ~CodeCompletionString() { }
+  ~CodeCompletionString() = default;
 
   friend class CodeCompletionBuilder;
   friend class CodeCompletionResult;
@@ -498,20 +499,7 @@ public:
 class CodeCompletionAllocator : public llvm::BumpPtrAllocator {
 public:
   /// \brief Copy the given string into this allocator.
-  const char *CopyString(StringRef String);
-
-  /// \brief Copy the given string into this allocator.
-  const char *CopyString(Twine String);
-
-  // \brief Copy the given string into this allocator.
-  const char *CopyString(const char *String) {
-    return CopyString(StringRef(String));
-  }
-
-  /// \brief Copy the given string into this allocator.
-  const char *CopyString(const std::string &String) {
-    return CopyString(StringRef(String));
-  }
+  const char *CopyString(const Twine &String);
 };
 
 /// \brief Allocator for a cached set of global code completions.
@@ -777,11 +765,13 @@ public:
   /// \param Allocator The allocator that will be used to allocate the
   /// string itself.
   CodeCompletionString *CreateCodeCompletionString(Sema &S,
+                                         const CodeCompletionContext &CCContext,
                                            CodeCompletionAllocator &Allocator,
                                            CodeCompletionTUInfo &CCTUInfo,
                                            bool IncludeBriefComments);
   CodeCompletionString *CreateCodeCompletionString(ASTContext &Ctx,
                                                    Preprocessor &PP,
+                                         const CodeCompletionContext &CCContext,
                                            CodeCompletionAllocator &Allocator,
                                            CodeCompletionTUInfo &CCTUInfo,
                                            bool IncludeBriefComments);
@@ -885,7 +875,8 @@ public:
     CodeCompletionString *CreateSignatureString(unsigned CurrentArg,
                                                 Sema &S,
                                       CodeCompletionAllocator &Allocator,
-                                      CodeCompletionTUInfo &CCTUInfo) const;
+                                      CodeCompletionTUInfo &CCTUInfo,
+                                      bool IncludeBriefComments) const;
   };
 
   CodeCompleteConsumer(const CodeCompleteOptions &CodeCompleteOpts,

@@ -42,30 +42,22 @@ AArch64Subtarget::initializeSubtargetDependencies(StringRef FS) {
   return *this;
 }
 
-AArch64Subtarget::AArch64Subtarget(const std::string &TT,
-                                   const std::string &CPU,
+AArch64Subtarget::AArch64Subtarget(const Triple &TT, const std::string &CPU,
                                    const std::string &FS,
                                    const TargetMachine &TM, bool LittleEndian)
     : AArch64GenSubtargetInfo(TT, CPU, FS), ARMProcFamily(Others),
-      HasFPARMv8(false), HasNEON(false), HasCrypto(false), HasCRC(false),
-      HasZeroCycleRegMove(false), HasZeroCycleZeroing(false), CPUString(CPU),
-      TargetTriple(TT),
-      // This nested ternary is horrible, but DL needs to be properly
-      // initialized
-      // before TLInfo is constructed.
-      DL(isTargetMachO()
-             ? "e-m:o-i64:64-i128:128-n32:64-S128"
-             : (LittleEndian ? "e-m:e-i64:64-i128:128-n32:64-S128"
-                             : "E-m:e-i64:64-i128:128-n32:64-S128")),
-      FrameLowering(), InstrInfo(initializeSubtargetDependencies(FS)),
-      TSInfo(&DL), TLInfo(TM) {}
+      HasV8_1aOps(false), HasFPARMv8(false), HasNEON(false), HasCrypto(false),
+      HasCRC(false), HasZeroCycleRegMove(false), HasZeroCycleZeroing(false),
+      IsLittle(LittleEndian), CPUString(CPU), TargetTriple(TT), FrameLowering(),
+      InstrInfo(initializeSubtargetDependencies(FS)), TSInfo(),
+      TLInfo(TM, *this) {}
 
 /// ClassifyGlobalReference - Find the target operand flags that describe
 /// how a global value should be referenced for the current subtarget.
 unsigned char
 AArch64Subtarget::ClassifyGlobalReference(const GlobalValue *GV,
                                         const TargetMachine &TM) const {
-  bool isDecl = GV->isDeclarationForLinker();
+  bool isDef = GV->isStrongDefinitionForLinker();
 
   // MachO large model always goes via a GOT, simply to get a single 8-byte
   // absolute relocation on all global addresses.
@@ -74,8 +66,7 @@ AArch64Subtarget::ClassifyGlobalReference(const GlobalValue *GV,
 
   // The small code mode's direct accesses use ADRP, which cannot necessarily
   // produce the value 0 (if the code is above 4GB).
-  if (TM.getCodeModel() == CodeModel::Small &&
-      GV->isWeakForLinker() && isDecl) {
+  if (TM.getCodeModel() == CodeModel::Small && GV->hasExternalWeakLinkage()) {
     // In PIC mode use the GOT, but in absolute mode use a constant pool load.
     if (TM.getRelocationModel() == Reloc::Static)
         return AArch64II::MO_CONSTPOOL;
@@ -93,8 +84,7 @@ AArch64Subtarget::ClassifyGlobalReference(const GlobalValue *GV,
   //     defined could end up in unexpected places. Use a GOT.
   if (TM.getRelocationModel() != Reloc::Static && GV->hasDefaultVisibility()) {
     if (isTargetMachO())
-      return (isDecl || GV->isWeakForLinker()) ? AArch64II::MO_GOT
-                                               : AArch64II::MO_NO_FLAG;
+      return isDef ? AArch64II::MO_NO_FLAG : AArch64II::MO_GOT;
     else
       // No need to go through the GOT for local symbols on ELF.
       return GV->hasLocalLinkage() ? AArch64II::MO_NO_FLAG : AArch64II::MO_GOT;

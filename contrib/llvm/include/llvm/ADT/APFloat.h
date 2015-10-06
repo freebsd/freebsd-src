@@ -276,17 +276,15 @@ public:
   /// \param isIEEE   - If 128 bit number, select between PPC and IEEE
   static APFloat getAllOnesValue(unsigned BitWidth, bool isIEEE = false);
 
+  /// Returns the size of the floating point number (in bits) in the given
+  /// semantics.
+  static unsigned getSizeInBits(const fltSemantics &Sem);
+
   /// @}
 
   /// Used to insert APFloat objects, or objects that contain APFloat objects,
   /// into FoldingSets.
   void Profile(FoldingSetNodeID &NID) const;
-
-  /// \brief Used by the Bitcode serializer to emit APInts to Bitcode.
-  void Emit(Serializer &S) const;
-
-  /// \brief Used by the Bitcode deserializer to deserialize APInts.
-  static APFloat ReadVal(Deserializer &D);
 
   /// \name Arithmetic
   /// @{
@@ -349,7 +347,7 @@ public:
   /// copied from some other APFloat.
   static APFloat copySign(APFloat Value, const APFloat &Sign) {
     Value.copySign(Sign);
-    return std::move(Value);
+    return Value;
   }
 
   /// @}
@@ -376,7 +374,7 @@ public:
   /// The definition of equality is not straightforward for floating point, so
   /// we won't use operator==.  Use one of the following, or write whatever it
   /// is you really mean.
-  bool operator==(const APFloat &) const LLVM_DELETED_FUNCTION;
+  bool operator==(const APFloat &) const = delete;
 
   /// IEEE comparison with another floating point number (NaNs compare
   /// unordered, 0==-0).

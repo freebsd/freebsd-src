@@ -7,18 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-//++
-// File:        MIUtilSingletonBase.h
-//
-// Overview:    MI::ISingleton interface.
-//
-// Environment: Compilers:  Visual C++ 12.
-//                          gcc (Ubuntu/Linaro 4.8.1-10ubuntu9) 4.8.1
-//              Libraries:  See MIReadmetxt.
-//
-// Copyright:   None.
-//--
-
 #pragma once
 
 namespace MI
@@ -34,8 +22,8 @@ namespace MI
 //   // Overridden:
 //   public:
 //       // From MI::ISingleton
-//       virtual bool Initialize( void );
-//       virtual bool Shutdown( void );
+//       bool Initialize(void) override;
+//       bool Shutdown(void) override;
 //   };
 
 //++ ============================================================================
