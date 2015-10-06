@@ -6,7 +6,7 @@
 .PATH: ${.CURDIR}/../ktrace
 
 PROG=		kdump
-SRCS=		kdump_subr.c kdump.c ioctl.c subr.c
+SRCS=		kdump_subr.c kdump.c ioctl.c subr.c utrace.c
 DPSRCS=		kdump_subr.h
 CFLAGS+=	-I${.CURDIR}/../ktrace -I${.CURDIR} -I${.CURDIR}/../.. -I.
 
