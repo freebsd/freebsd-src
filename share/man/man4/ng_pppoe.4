@@ -35,7 +35,7 @@
 .\" $FreeBSD$
 .\" $Whistle: ng_pppoe.8,v 1.1 1999/01/25 23:46:27 archie Exp $
 .\"
-.Dd December 27, 2007
+.Dd September 15, 2015
 .Dt NG_PPPOE 4
 .Os
 .Sh NAME
@@ -187,7 +187,7 @@ above messages, and reports the Access Concentrator Name.
 The four commands above use a common data structure:
 .Bd -literal -offset 4n
 struct ngpppoe_sts {
-    char    hook[NG_HOOKSIZ];    /* hook associated with event session */
+    char    hook[NG_HOOKSIZ];
 };
 .Ed
 .Bl -tag -width 3n
@@ -244,6 +244,20 @@ hook, or when user wants to override this address with another one.
 .Tn ASCII
 form of this message is
 .Qq Li setenaddr .
+.It Dv NGM_PPPOE_SETMAXP Pq Ic setmaxp
+Set the node PPP-Max-Payload value as described in RFC 4638.
+This message applies only to a client configuration.
+.Tn ASCII
+form of this message is
+.Qq Li setmaxp .
+.Pp
+Data structure returned to client is:
+.Bd -literal -offset 4n
+struct ngpppoe_maxp {
+    char     hook[NG_HOOKSIZ];
+    uint16_t data;
+};
+.Ed
 .El
 .Sh SHUTDOWN
 This node shuts down upon receipt of a
