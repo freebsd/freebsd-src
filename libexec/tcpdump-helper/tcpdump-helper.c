@@ -75,8 +75,8 @@
 
 #include "tcpdump-helper.h"
 
-struct print_info printinfo;
-netdissect_options Gndo;
+static struct print_info printinfo;
+static netdissect_options Gndo;
 netdissect_options *gndo = &Gndo;
 struct cheri_object g_next_object;
 struct cheri_object cheri_tcpdump;
