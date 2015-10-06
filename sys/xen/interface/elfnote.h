@@ -28,6 +28,8 @@
 #define __XEN_PUBLIC_ELFNOTE_H__
 
 /*
+ * `incontents 200 elfnotes ELF notes
+ *
  * The notes should live in a PT_NOTE segment and have "Xen" in the
  * name field.
  *
@@ -36,6 +38,9 @@
  *
  * LEGACY indicated the fields in the legacy __xen_guest string which
  * this a note type replaces.
+ *
+ * String values (for non-legacy) are NULL terminated ASCII, also known
+ * as ASCIZ type.
  */
 
 /*
@@ -66,8 +71,8 @@
 #define XEN_ELFNOTE_VIRT_BASE      3
 
 /*
- * The offset of the ELF paddr field from the acutal required
- * psuedo-physical address (numeric).
+ * The offset of the ELF paddr field from the actual required
+ * pseudo-physical address (numeric).
  *
  * This is used to maintain backwards compatibility with older kernels
  * which wrote __PAGE_OFFSET into that field. This field defaults to 0
@@ -158,6 +163,9 @@
 
 /*
  * Whether or not the guest supports cooperative suspend cancellation.
+ * This is a numeric value.
+ *
+ * Default is 0
  */
 #define XEN_ELFNOTE_SUSPEND_CANCEL 14
 
@@ -255,7 +263,7 @@
 /*
  * Local variables:
  * mode: C
- * c-set-style: "BSD"
+ * c-file-style: "BSD"
  * c-basic-offset: 4
  * tab-width: 4
  * indent-tabs-mode: nil
