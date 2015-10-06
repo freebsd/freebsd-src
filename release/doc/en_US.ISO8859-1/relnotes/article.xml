@@ -796,6 +796,13 @@
 	evaluated when building the <filename
 	  role="package">emulators/linux-c6</filename> and related
 	ports.</para>
+
+      <para revision="288669">The stack protector has been upgraded to
+	the "strong" level, elevating the protection against buffer
+	overflows.  While this significantly improves the security of
+	the system, extensive testing was done to ensure there are no
+	measurable side effects in performance or
+	functionality.</para>
     </sect2>
   </sect1>
 
