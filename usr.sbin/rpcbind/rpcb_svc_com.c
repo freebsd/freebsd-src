@@ -1051,17 +1051,19 @@ netbufcmp(struct netbuf *n1, struct netbuf *n2)
 static bool_t
 netbuf_copybuf(struct netbuf *dst, const struct netbuf *src)
 {
+	assert(src->len <= src->maxlen);
 
-	if (dst->len != src->len || dst->buf == NULL) {
+	if (dst->maxlen < src->len || dst->buf == NULL) {
 		if (dst->buf != NULL)
 			free(dst->buf);
-		if ((dst->buf = malloc(src->len)) == NULL)
+		if ((dst->buf = calloc(1, src->maxlen)) == NULL)
 			return (FALSE);
-
-		dst->maxlen = dst->len = src->len;
+		dst->maxlen = src->maxlen;
 	}
 
+	dst->len = src->len;
 	memcpy(dst->buf, src->buf, src->len);
+
 	return (TRUE);
 }
 
