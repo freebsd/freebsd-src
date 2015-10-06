@@ -72,6 +72,9 @@ __FBSDID("$FreeBSD$");
 #include "extern.h"
 #include "syscall.h"
 
+/* usr.bin/kdump/utrace.c */
+int kdump_print_utrace(FILE *, void *, size_t, int);
+
 /* 64-bit alignment on 32-bit platforms. */
 #if !defined(__LP64__) && defined(__powerpc__)
 #define	QUAD_ALIGN	1
@@ -342,6 +345,8 @@ static struct syscall decoded_syscalls[] = {
 		    { Atflags, 3 } } },
 	{ .name = "utimes", .ret_type = 1, .nargs = 2,
 	  .args = { { Name | IN, 0 }, { Timeval2 | IN, 1 } } },
+	{ .name = "utrace", .ret_type = 1, .nargs = 1,
+	  .args = { { Utrace, 0 } } },
 	{ .name = "wait4", .ret_type = 1, .nargs = 4,
 	  .args = { { Int, 0 }, { ExitStatus | OUT, 1 }, { Waitoptions, 2 },
 		    { Rusage | OUT, 3 } } },
@@ -858,6 +863,24 @@ print_kevent(FILE *fp, struct kevent *ke, int input)
 		fprintf(fp, "%#x", ke->fflags);
 	}
 	fprintf(fp, ",%p,%p", (void *)ke->data, (void *)ke->udata);
+}
+
+static void
+print_utrace(FILE *fp, void *utrace_addr, size_t len)
+{
+	unsigned char *utrace_buffer;
+
+	fprintf(fp, "{ ");
+	if (kdump_print_utrace(fp, utrace_addr, len, 0)) {
+		fprintf(fp, " }");
+		return;
+	}
+
+	utrace_buffer = utrace_addr;
+	fprintf(fp, "%zu:", len);
+	while (len--)
+		fprintf(fp, " %02x", *utrace_buffer++);
+	fprintf(fp, " }");
 }
 
 /*
@@ -1601,6 +1624,20 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 		fprintf(fp, "{ %ld, %ld }", retval[0], retval[1]);
 		retval[0] = 0;
 		break;
+	case Utrace: {
+		size_t len;
+		void *utrace_addr;
+
+		len = args[sc->offset + 1];
+		utrace_addr = calloc(1, len);
+		if (get_struct(pid, (void *)args[sc->offset],
+		    (void *)utrace_addr, len) != -1)
+			print_utrace(fp, utrace_addr, len);
+		else
+			fprintf(fp, "0x%lx", args[sc->offset]);
+		free(utrace_addr);
+		break;
+	}
 	default:
 		errx(1, "Invalid argument type %d\n", sc->type & ARG_MASK);
 	}
