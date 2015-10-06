@@ -72,6 +72,8 @@ create_test_inputs()
 	atf_check -e empty -s exit:0 touch 0b00001101
 	atf_check -e empty -s exit:0 touch 0b00001110
 	atf_check -e empty -s exit:0 touch 0b00001111
+
+	atf_check -e empty -s exit:0 sync
 }
 
 KB=1024
@@ -98,6 +100,8 @@ create_test_inputs2()
 		    count=1 oseek=$(( $filesize / $MB )) conv=sparse
 		files="${files} ${filesize}.file"
 	done
+
+	atf_check -e empty -s exit:0 sync
 }
 
 atf_test_case A_flag
