@@ -21,8 +21,6 @@ SRCS=	rtadvd.c rrenum.c advcap.c if.c config.c timer.c timer_subr.c	\
 
 LIBADD=	util
 
-CFLAGS+= -DHAVE_ARC4RANDOM
-
 WARNS?=	1
 
 .include <bsd.prog.mk>

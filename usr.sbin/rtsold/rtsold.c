@@ -214,10 +214,6 @@ main(int argc, char **argv)
 		errx(1, "pid filename (%s) must be an absolute path",
 		    pidfilename);
 	}
-#ifndef HAVE_ARC4RANDOM
-	/* random value initialization */
-	srandom((u_long)time(NULL));
-#endif
 
 #if (__FreeBSD_version < 900000)
 	if (Fflag) {
@@ -725,11 +721,7 @@ rtsol_timer_update(struct ifinfo *ifi)
 			ifi->timer = tm_max;	/* stop timer(valid?) */
 		break;
 	case IFS_DELAY:
-#ifndef HAVE_ARC4RANDOM
-		interval = random() % (MAX_RTR_SOLICITATION_DELAY * MILLION);
-#else
 		interval = arc4random_uniform(MAX_RTR_SOLICITATION_DELAY * MILLION);
-#endif
 		ifi->timer.tv_sec = interval / MILLION;
 		ifi->timer.tv_nsec = (interval % MILLION) * 1000;
 		break;

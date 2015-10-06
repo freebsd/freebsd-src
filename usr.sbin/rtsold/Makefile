@@ -20,6 +20,5 @@ MLINKS=	rtsold.8 rtsol.8
 SRCS=	rtsold.c rtsol.c if.c probe.c dump.c rtsock.c
 
 WARNS?=	3
-CFLAGS+= -DHAVE_ARC4RANDOM
 
 .include <bsd.prog.mk>
