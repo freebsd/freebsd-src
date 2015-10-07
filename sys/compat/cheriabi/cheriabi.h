@@ -52,8 +52,6 @@ __cheri_cap_to_ptr(struct chericap *c)
 #define CP(src,dst,fld) do { (dst).fld = (src).fld; } while (0)
 #define PTRIN_CP(src,dst,fld) \
 	do { (dst).fld = PTRIN((src).fld); } while (0)
-#define PTROUT_CP(src,dst,fld) \
-	do { (dst).fld = PTROUT((src).fld); } while (0)
 
 struct kevent_c {
 	uintptr_t	ident;		/* identifier for this event */
