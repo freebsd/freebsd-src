@@ -531,12 +531,15 @@ arpintr(struct mbuf *m)
 	ar = mtod(m, struct arphdr *);
 
 	/* Check if length is sufficient */
-	if ((m = m_pullup(m, arphdr_len(ar))) == NULL) {
-		ARP_LOG(LOG_NOTICE, "short packet received on %s\n",
-		    if_name(ifp));
-		return;
+	if (m->m_len <  arphdr_len(ar)) {
+		m = m_pullup(m, arphdr_len(ar));
+		if (m == NULL) {
+			ARP_LOG(LOG_NOTICE, "short packet received on %s\n",
+			    if_name(ifp));
+			return;
+		}
+		ar = mtod(m, struct arphdr *);
 	}
-	ar = mtod(m, struct arphdr *);
 
 	hlen = 0;
 	layer = "";
