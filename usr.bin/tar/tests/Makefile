@@ -1,9 +1,15 @@
 # $FreeBSD$
 
-LIBARCHIVEDIR=	${.CURDIR}/../../../contrib/libarchive
+LIBARCHIVEDIR=	${SRCTOP}/contrib/libarchive
+
+ATF_TESTS_SH+=	functional_test
+
+BINDIR=		${TESTSDIR}
+
+PROGS+=		bsdtar_test
 
 .PATH: ${LIBARCHIVEDIR}/tar/test
-TESTS=	\
+TESTS_SRCS=	\
 	test_0.c				\
 	test_basic.c				\
 	test_copy.c				\
@@ -56,46 +62,54 @@ TESTS=	\
 	test_version.c
 
 # Build the test program
-SRCS=	${TAR_SRCS}				\
-	${TESTS}				\
-	list.h					\
+SRCS.bsdtar_test=	\
+	${TESTS_SRCS}	\
+	list.h		\
 	main.c
 
+BROKEN_TESTS=
+
+DPSRCS.bsdtar_test+=	list.h
+
 .PATH: ${LIBARCHIVEDIR}/test_utils
-SRCS+=	test_utils.c
+SRCS.bsdtar_test+=	test_utils.c
 
-CLEANFILES+= list.h
+CLEANFILES+=	list.h
 
-MAN=
+LIBADD+=	archive
 
-PROG=bsdtar_test
-DPADD=${LIBARCHIVE} ${LIBBZ2} ${LIBZ} ${LIBLZMA}
-CFLAGS+=	-DPLATFORM_CONFIG_H=\"${.CURDIR}/../../../lib/libarchive/config_freebsd.h\"
-LDADD= -larchive -lz -lbz2 -llzma
-CFLAGS+= -static -g -O2 -Wall
-CFLAGS+= -I${.CURDIR}/../../../lib/libarchive -I${.OBJDIR}
-CFLAGS+= -I${LIBARCHIVEDIR}/tar -I${LIBARCHIVEDIR}/test_utils
+DEBUG_FLAGS+=	-g
+CFLAGS+=	-DPLATFORM_CONFIG_H=\"${SRCTOP}/lib/libarchive/config_freebsd.h\"
+CFLAGS+=	-static -Wall
+
+CFLAGS+=	-I${SRCTOP}/lib/libarchive -I${.OBJDIR}
+CFLAGS+=	-I${LIBARCHIVEDIR}/tar -I${LIBARCHIVEDIR}/test_utils
 
 # Uncomment to link against dmalloc
 #LDADD+= -L/usr/local/lib -ldmalloc
 #CFLAGS+= -I/usr/local/include -DUSE_DMALLOC
 
-check test:	bsdtar_test
-	./bsdtar_test -p ${.OBJDIR}/../bsdtar -r ${LIBARCHIVEDIR}/tar/test
+list.h: ${TESTS_SRCS} Makefile
+	@(cd ${LIBARCHIVEDIR}/tar/test && \
+	grep -h DEFINE_TEST ${.ALLSRC:N*Makefile}) > ${.TARGET}.tmp
+	@mv ${.TARGET}.tmp ${.TARGET}
 
-list.h: ${TESTS} Makefile
-	(cd ${LIBARCHIVEDIR}/tar/test; cat ${TESTS}) | \
-	grep DEFINE_TEST > ${.OBJDIR}/list.h
+CLEANFILES+=	list.h list.h.tmp
 
-clean:
-	rm -f ${CLEANFILES}
-	rm -f *.out
-	rm -f *.o
-	rm -f *.core
-	rm -f *~
-	rm -f list.h
-	rm -f archive.h ../archive.h
-	-chmod -R +w /tmp/bsdtar_test.*
-	rm -rf /tmp/bsdtar_test.*
+FILES+=	test_extract.tar.Z.uu
+FILES+=	test_extract.tar.bz2.uu
+FILES+=	test_extract.tar.grz.uu
+FILES+=	test_extract.tar.gz.uu
+FILES+=	test_extract.tar.lrz.uu
+FILES+=	test_extract.tar.lz.uu
+FILES+=	test_extract.tar.lzma.uu
+FILES+=	test_extract.tar.lzo.uu
+FILES+=	test_extract.tar.xz.uu
+FILES+=	test_option_keep_newer_files.tar.Z.uu
+FILES+=	test_option_s.tar.Z.uu
+FILES+=	test_patterns_2.tar.uu
+FILES+=	test_patterns_3.tar.uu
+FILES+=	test_patterns_4.tar.uu
+FILES+=	test_print_longpath.tar.Z.uu
 
-.include <bsd.prog.mk>
+.include <bsd.test.mk>
