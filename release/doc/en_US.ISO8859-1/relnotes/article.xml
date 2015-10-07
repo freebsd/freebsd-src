@@ -585,9 +585,21 @@
       <para revision="288303">The &man.nc.1; utility has been updated
 	to the OpenBSD 5.8 version.</para>
 
-      <para revision="288943"><application>LLVM</application> and
-	<application>Clang</application> have been updated to
-	version 3.7.0.</para>
+      <para revision="288943"><application>Clang</application> has
+	been updated to version 3.7.0.</para>
+
+      <para revision="288943"><application>LLVM</application> has
+	been updated to version 3.7.0.</para>
+
+      <para revision="288943"><application>LLDB</application> has
+	been updated to version 3.7.0.</para>
+
+      <para revision="288943"><application>libc++</application> has
+	been updated to version 3.7.0.</para>
+
+      <para revision="288943">The
+	<application>compiler_rt</application> utility has been
+	updated to version 3.7.0.</para>
     </sect2>
 
     <sect2 xml:id="userland-installer">
