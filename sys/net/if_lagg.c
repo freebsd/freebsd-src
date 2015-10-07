@@ -640,7 +640,7 @@ lagg_port_lladdr(struct lagg_port *lp, uint8_t *lladdr)
 
 	/* Check to make sure its not already queued to be changed */
 	SLIST_FOREACH(llq, &sc->sc_llq_head, llq_entries) {
-		if (llq->llq_ifp == ifp) {
+		if (llq->llq_ifp == ifp && llq->llq_primary == primary) {
 			pending = 1;
 			break;
 		}
@@ -855,7 +855,7 @@ static int
 lagg_port_destroy(struct lagg_port *lp, int rundelport)
 {
 	struct lagg_softc *sc = lp->lp_softc;
-	struct lagg_port *lp_ptr;
+	struct lagg_port *lp_ptr, *lp0;
 	struct lagg_llq *llq;
 	struct ifnet *ifp = lp->lp_ifp;
 	uint64_t *pval, vdiff;
@@ -897,18 +897,26 @@ lagg_port_destroy(struct lagg_port *lp, int rundelport)
 	if (lp == sc->sc_primary) {
 		uint8_t lladdr[ETHER_ADDR_LEN];
 
-		if ((lp_ptr = SLIST_FIRST(&sc->sc_ports)) == NULL) {
+		if ((lp0 = SLIST_FIRST(&sc->sc_ports)) == NULL) {
 			bzero(&lladdr, ETHER_ADDR_LEN);
 		} else {
-			bcopy(lp_ptr->lp_lladdr,
+			bcopy(lp0->lp_lladdr,
 			    lladdr, ETHER_ADDR_LEN);
 		}
 		lagg_lladdr(sc, lladdr);
-		sc->sc_primary = lp_ptr;
 
-		/* Update link layer address for each port */
+		/*
+		 * Update link layer address for each port.  No port is
+		 * marked as primary at this moment.
+		 */
 		SLIST_FOREACH(lp_ptr, &sc->sc_ports, lp_entries)
 			lagg_port_lladdr(lp_ptr, lladdr);
+		/*
+		 * Mark lp0 as the new primary.  This invokes an
+		 * iflladdr_event.
+		 */
+		sc->sc_primary = lp0;
+		lagg_port_lladdr(lp0, lladdr);
 	}
 
 	/* Remove any pending lladdr changes from the queue */
