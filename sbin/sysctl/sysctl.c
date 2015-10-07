@@ -262,6 +262,12 @@ parse(const char *string, int lineno)
 		newvalstr = cp;
 		newsize = strlen(cp);
 	}
+	/* Trim spaces */
+	cp = bufp + strlen(bufp) - 1;
+	while (cp >= bufp && isspace((int)*cp)) {
+		*cp = '\0';
+		cp--;
+	}
 	len = name2oid(bufp, mib);
 
 	if (len < 0) {
