@@ -14,6 +14,12 @@ LDFLAGS+= ${LDFLAGS_LAST}
 
 CLEANFILES+= .depend
 
+.for h in ${SRCS:M*.h}
+.if target($h)
+buildfiles: $h
+.endif
+.endfor
+
 # handy for debugging
 .SUFFIXES:  .S .c .cc .cpp .cpp-out
 
