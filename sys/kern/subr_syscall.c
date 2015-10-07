@@ -64,14 +64,14 @@ syscallenter(struct thread *td, struct syscall_args *sa)
 	td->td_pticks = 0;
 	if (td->td_ucred != p->p_ucred)
 		cred_update_thread(td);
-	if (p->p_flag & P_TRACED) {
-		traced = 1;
+	traced = (p->p_flag & P_TRACED) != 0;
+	if (traced || td->td_dbgflags & TDB_USERWR) {
 		PROC_LOCK(p);
 		td->td_dbgflags &= ~TDB_USERWR;
-		td->td_dbgflags |= TDB_SCE;
+		if (traced)
+			td->td_dbgflags |= TDB_SCE;
 		PROC_UNLOCK(p);
-	} else
-		traced = 0;
+	}
 	error = (p->p_sysent->sv_fetch_syscall_args)(td, sa);
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_SYSCALL))
