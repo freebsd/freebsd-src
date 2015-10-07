@@ -1867,6 +1867,11 @@ m_unshare(struct mbuf *m0, int how)
 			m_freem(m0);
 			return (NULL);
 		}
+		if (m->m_flags & M_PKTHDR) {
+			KASSERT(mprev == NULL, ("%s: m0 %p, m %p has M_PKTHDR",
+			    __func__, m0, m));
+			m_move_pkthdr(n, m);
+		}
 		len = m->m_len;
 		off = 0;
 		mfirst = n;
