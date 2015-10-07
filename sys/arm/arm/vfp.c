@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/armreg.h>
 #include <machine/frame.h>
 #include <machine/fp.h>
+#include <machine/md_var.h>
 #include <machine/pcb.h>
 #include <machine/undefined.h>
 #include <machine/vfp.h>
@@ -128,6 +129,15 @@ vfp_init(void)
 
 			tmp = fmrx(mvfr1);
 			PCPU_SET(vfpmvfr1, tmp);
+
+			if (PCPU_GET(cpuid) == 0) {
+				if ((tmp & VMVFR1_FZ_MASK) == 0x1) {
+					/* Denormals arithmetic support */
+					initial_fpscr &= ~VFPSCR_FZ;
+					thread0.td_pcb->pcb_vfpstate.fpscr =
+					    initial_fpscr;
+				}
+			}
 		}
 
 		/* initialize the coprocess 10 and 11 calls
