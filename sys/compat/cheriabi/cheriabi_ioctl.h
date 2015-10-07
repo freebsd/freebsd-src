@@ -34,14 +34,6 @@
 
 #include <cam/scsi/scsi_sg.h>
 
-typedef __uint32_t caddr_t32;
-
-struct ioc_toc_header32 {
-	u_short	len;
-	u_char	starting_track;
-	u_char	ending_track;
-};
-
 struct ioc_read_toc_entry_c {
 	u_char	address_format;
 	u_char	starting_track;
