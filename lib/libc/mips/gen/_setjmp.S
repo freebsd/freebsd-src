@@ -116,11 +116,13 @@ LEAF(_setjmp)
 #endif /* ! SOFTFLOAT */
 #if defined(_MIPS_ARCH_CHERI)
 	/* jmp_buf is 64-bit aligned, so we need to round it up. */
-	daddiu		t0, a0, ((_JB_CHERI_START * SZREG) + _MIPS_SZCAP/8 - SZREG)
-	li		t1, 0xffffffffffffffe0
-	and		t0, t0, t1
-	cgetdefault	$c4
-	cfromptr	$c3, $c4, t0
+	cgetbase	t0, $c3
+	cgetoffset	t1, $c3
+	daddu		t1, t0, t1
+	daddiu		t0, t1, ((_JB_CHERI_START * SZREG) + _MIPS_SZCAP/8 - SZREG)
+	li		t2, _MIPS_CAP_ALIGN_MASK
+	and		t2, t2, t0
+	dsubu		t1, t2, t1
 
 	csc		$c11, zero, (_JB_CHERI_C11 * _MIPS_SZCAP/8)($c3)
 	csc		$c12, zero, (_JB_CHERI_C12 * _MIPS_SZCAP/8)($c3)
@@ -207,11 +209,13 @@ LEAF(_longjmp)
 #endif	/* ! SOFTFLOAT */
 #if defined(_MIPS_ARCH_CHERI)
 	/* jmp_buf is 64-bit aligned, so we need to round it up. */
-	daddiu		t0, a0, ((_JB_CHERI_START * SZREG) + _MIPS_SZCAP/8 - SZREG)
-	li		t1, 0xffffffffffffffe0
-	and		t0, t0, t1
-	cgetdefault	$c4
-	cfromptr	$c3, $c4, t0
+	cgetbase	t0, $c3
+	cgetoffset	t1, $c3
+	daddu		t1, t0, t1
+	daddiu		t0, t1, ((_JB_CHERI_START * SZREG) + _MIPS_SZCAP/8 - SZREG)
+	li		t2, _MIPS_CAP_ALIGN_MASK
+	and		t2, t2, t0
+	dsubu		t1, t2, t1
 
 	clc		$c11, zero, (_JB_CHERI_C11 * _MIPS_SZCAP/8)($c3)
 	clc		$c12, zero, (_JB_CHERI_C12 * _MIPS_SZCAP/8)($c3)
