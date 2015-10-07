@@ -205,7 +205,7 @@ stage_as.prog: ${PROG}
 .else
 STAGE_SETS+= prog
 stage_files.prog: ${PROG}
-staging: stage_files
+STAGE_TARGETS+= stage_files
 .endif
 .endif
 .endif
@@ -251,18 +251,18 @@ beforebuild: stage_includes
 
 .for t in stage_libs stage_files stage_as
 .if target($t)
-staging: $t
+STAGE_TARGETS+= $t
 .endif
 .endfor
 
 .if !empty(STAGE_AS_SETS)
-staging: stage_as
+STAGE_TARGETS+= stage_as
 .endif
 
 .if !empty(_LIBS) || ${MK_STAGING_PROG} != "no"
 
 .if !empty(LINKS)
-staging: stage_links
+STAGE_TARGETS+= stage_links
 .if ${MAKE_VERSION} < 20131001
 stage_links.links: ${_LIBS} ${PROG}
 .endif
@@ -271,7 +271,7 @@ STAGE_LINKS.links= ${LINKS}
 .endif
 
 .if !empty(SYMLINKS)
-staging: stage_symlinks
+STAGE_TARGETS+= stage_symlinks
 STAGE_SETS+= links
 STAGE_SYMLINKS.links= ${SYMLINKS}
 .endif
