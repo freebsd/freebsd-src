@@ -42,7 +42,10 @@ __start:
 	/* Ensure the stack is 32-byte aligned so we can store capabilities
 	 * on it. Do this before allocating the first stack frame. This is
 	 * only necessary on CHERI. */
-	li	t0, 0xffffff20 # rely on sign extension to set all MS bits to 1
+#ifndef _MIPS_CAP_ALIGN_MASK
+#define	_MIPS_CAP_ALIGN_MASK	0xffffffffffffffe0
+#endif
+	li	t0, _MIPS_CAP_ALIGN_MASK
 	and	sp, sp, t0
 #endif
 
