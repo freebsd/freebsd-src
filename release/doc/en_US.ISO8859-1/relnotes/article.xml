@@ -403,10 +403,10 @@
       <para revision="285253">The &man.quota.1; utility has been
 	updated to include support for <acronym>IPv6</acronym>.</para>
 
-      <para revision="285420">The &man.jail.8; utility has been
+      <para revision="285420">The &man.jexec.8; utility has been
 	updated to include a new flag, <literal>-l</literal>, which
 	ensures a clean environment in the target jail when used.
-	Additionally, &man.jail.8; will run a shell within the target
+	Additionally, &man.jexec.8; will run a shell within the target
 	jail when run no commands are specified.</para>
 
       <para revision="285550">The &man.w.1; utility has been updated
