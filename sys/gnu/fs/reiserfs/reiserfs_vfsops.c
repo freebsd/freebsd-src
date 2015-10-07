@@ -985,8 +985,8 @@ uint32_t find_hash_out(struct reiserfs_mount *rmp)
 		    key.on_disk_key.k_objectid, key.on_disk_key.k_dir_id);
 		retval = search_by_entry_key(sbi, &key, &path, &de);
 		if (retval == IO_ERROR) {
-			pathrelse(&path);
-			return (UNSET_HASH);
+			hash = UNSET_HASH;
+			break;
 		}
 		if (retval == NAME_NOT_FOUND)
 			de.de_entry_num--;
