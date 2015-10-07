@@ -47,6 +47,10 @@ __cheri_cap_to_ptr(struct chericap *c)
 	return (ptr);
 }
 
+/*
+ * XXX-BD: We should check lengths and permissions at each invocation of
+ * PTRIN and PTRIN_CP.
+ */
 #define PTRIN(v)        __cheri_cap_to_ptr(&v)
 
 #define CP(src,dst,fld) do { (dst).fld = (src).fld; } while (0)
