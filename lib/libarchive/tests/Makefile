@@ -2,23 +2,26 @@
 
 LIBARCHIVEDIR=	${SRCTOP}/contrib/libarchive
 
-MAN=
+ATF_TESTS_SH+=	functional_test
 
-PROG=libarchive_test
-INTERNALPROG=yes  # Don't install this; it's just for testing
-LDADD= -L ${.OBJDIR}/.. -larchive
-LIBADD=	z bz2 lzma md crypto bsdxml
-CFLAGS+= -g
-CFLAGS+= -I${.CURDIR}/.. -I${.OBJDIR}
+BINDIR=	${TESTSDIR}
+
+PROGS+=	libarchive_test
+
+CFLAGS+= -I${.CURDIR:H} -I${.OBJDIR}
 CFLAGS+= -I${LIBARCHIVEDIR}/libarchive -I${LIBARCHIVEDIR}/test_utils
 CFLAGS+= -DHAVE_LIBLZMA=1 -DHAVE_LZMA_H=1
+
+DEBUG_CFLAGS+= -g
+
+LIBADD.libarchive_test=	archive
 
 # Uncomment to link against dmalloc
 #LDADD+= -L/usr/local/lib -ldmalloc
 #CFLAGS+= -I/usr/local/include -DUSE_DMALLOC
 
-.PATH:  ${LIBARCHIVEDIR}/libarchive/test
-TESTS= \
+.PATH: ${LIBARCHIVEDIR}/libarchive/test
+TESTS_SRCS= \
 	test_acl_freebsd_nfs4.c			\
 	test_acl_freebsd_posix1e.c		\
 	test_acl_nfs4.c				\
@@ -227,30 +230,228 @@ TESTS= \
 	test_write_open_memory.c		\
 	test_zip_filename_encoding.c
 
+# Deterministic failures:
+# Crashes with SIGBUS
+BROKEN_TESTS+=			test_archive_rmd160
+# Fails with `libarchive/test/test_archive_crypto.c:121: md != actualmd`
+BROKEN_TESTS+=			test_archive_sha384
+# Fails with `test_compat_pax_libarchive_2x.c:122: ARCHIVE_WARN != archive_read_next_header(a, &ae)`
+BROKEN_TESTS+=			test_compat_pax_libarchive_2x
+# Fails with `test_read_disk_directory_traversals.c:1094: File at has atime 886622, 1443306049 seconds ago`
+BROKEN_TESTS+=			test_read_disk_directory_traversals
+
+# Non-deterministic failures:
+# (Times out?) [and] crashes
+BROKEN_TESTS+=			test_fuzz_rar
+
 # Build the test program.
-SRCS= \
-	${TESTS}				\
-	list.h					\
-	main.c					\
+SRCS.libarchive_test=		\
+	${TESTS_SRCS}		\
+	main.c			\
 	read_open_memory.c
 
-.PATH:	${LIBARCHIVEDIR}/test_utils
-SRCS+=	test_utils.c
+DPSRCS.libarchive_test= \
+	list.h
 
-# Build libarchive_test and run it.
-check test: libarchive_test
-	./libarchive_test -r ${LIBARCHIVEDIR}/libarchive/test
+.PATH: ${LIBARCHIVEDIR}/test_utils
+SRCS.libarchive_test+=	test_utils.c
 
 # list.h is just a list of all tests, as indicated by DEFINE_TEST macro lines
-list.h: ${TESTS} Makefile
-	(cd ${LIBARCHIVEDIR}/libarchive/test; cat test_*.c) | \
-	grep DEFINE_TEST > ${.OBJDIR}/list.h
+list.h: ${TESTS_SRCS} Makefile
+	@(cd ${LIBARCHIVEDIR}/libarchive/test && \
+	grep -h DEFINE_TEST ${.ALLSRC:N*Makefile} | \
+	    egrep -v '${BROKEN_TESTS:tW:C/ /|/g}') > ${.TARGET}.tmp
+	@mv ${.TARGET}.tmp ${.TARGET}
 
-CLEANFILES += *.out *.o *.core *~ list.h .dirstamp .depend
-CLEANDIRS += .deps .libs
+FILES+=	README
+FILES+=	test_acl_pax.tar.uu
+FILES+=	test_archive_string_conversion.txt.Z.uu
+FILES+=	test_compat_bzip2_1.tbz.uu
+FILES+=	test_compat_bzip2_2.tbz.uu
+FILES+=	test_compat_cpio_1.cpio.uu
+FILES+=	test_compat_gtar_1.tar.uu
+FILES+=	test_compat_gzip_1.tgz.uu
+FILES+=	test_compat_gzip_2.tgz.uu
+FILES+=	test_compat_lzip_1.tlz.uu
+FILES+=	test_compat_lzip_2.tlz.uu
+FILES+=	test_compat_lzma_1.tlz.uu
+FILES+=	test_compat_lzma_2.tlz.uu
+FILES+=	test_compat_lzma_3.tlz.uu
+FILES+=	test_compat_lzop_1.tar.lzo.uu
+FILES+=	test_compat_lzop_2.tar.lzo.uu
+FILES+=	test_compat_lzop_3.tar.lzo.uu
+FILES+=	test_compat_mac-1.tar.Z.uu
+FILES+=	test_compat_mac-2.tar.Z.uu
+FILES+=	test_compat_pax_libarchive_2x.tar.Z.uu
+FILES+=	test_compat_solaris_pax_sparse_1.pax.Z.uu
+FILES+=	test_compat_solaris_pax_sparse_2.pax.Z.uu
+FILES+=	test_compat_solaris_tar_acl.tar.uu
+FILES+=	test_compat_tar_hardlink_1.tar.uu
+FILES+=	test_compat_xz_1.txz.uu
+FILES+=	test_compat_zip_1.zip.uu
+FILES+=	test_compat_zip_2.zip.uu
+FILES+=	test_compat_zip_3.zip.uu
+FILES+=	test_compat_zip_4.zip.uu
+FILES+=	test_compat_zip_5.zip.uu
+FILES+=	test_compat_zip_6.zip.uu
+FILES+=	test_compat_zip_7.xps.uu
+FILES+=	test_fuzz.cab.uu
+FILES+=	test_fuzz.lzh.uu
+FILES+=	test_fuzz_1.iso.Z.uu
+FILES+=	test_pax_filename_encoding.tar.uu
+FILES+=	test_rar_multivolume_multiple_files.part1.rar.uu
+FILES+=	test_rar_multivolume_multiple_files.part2.rar.uu
+FILES+=	test_rar_multivolume_multiple_files.part3.rar.uu
+FILES+=	test_rar_multivolume_multiple_files.part4.rar.uu
+FILES+=	test_rar_multivolume_multiple_files.part5.rar.uu
+FILES+=	test_rar_multivolume_multiple_files.part6.rar.uu
+FILES+=	test_rar_multivolume_single_file.part1.rar.uu
+FILES+=	test_rar_multivolume_single_file.part2.rar.uu
+FILES+=	test_rar_multivolume_single_file.part3.rar.uu
+FILES+=	test_rar_multivolume_uncompressed_files.part01.rar.uu
+FILES+=	test_rar_multivolume_uncompressed_files.part02.rar.uu
+FILES+=	test_rar_multivolume_uncompressed_files.part03.rar.uu
+FILES+=	test_rar_multivolume_uncompressed_files.part04.rar.uu
+FILES+=	test_rar_multivolume_uncompressed_files.part05.rar.uu
+FILES+=	test_rar_multivolume_uncompressed_files.part06.rar.uu
+FILES+=	test_rar_multivolume_uncompressed_files.part07.rar.uu
+FILES+=	test_rar_multivolume_uncompressed_files.part08.rar.uu
+FILES+=	test_rar_multivolume_uncompressed_files.part09.rar.uu
+FILES+=	test_rar_multivolume_uncompressed_files.part10.rar.uu
+FILES+=	test_read_filter_grzip.tar.grz.uu
+FILES+=	test_read_filter_lrzip.tar.lrz.uu
+FILES+=	test_read_filter_lzop.tar.lzo.uu
+FILES+=	test_read_filter_lzop_multiple_parts.tar.lzo.uu
+FILES+=	test_read_format_7zip_bcj2_bzip2.7z.uu
+FILES+=	test_read_format_7zip_bcj2_copy_1.7z.uu
+FILES+=	test_read_format_7zip_bcj2_copy_2.7z.uu
+FILES+=	test_read_format_7zip_bcj2_copy_lzma.7z.uu
+FILES+=	test_read_format_7zip_bcj2_deflate.7z.uu
+FILES+=	test_read_format_7zip_bcj2_lzma1_1.7z.uu
+FILES+=	test_read_format_7zip_bcj2_lzma1_2.7z.uu
+FILES+=	test_read_format_7zip_bcj2_lzma2_1.7z.uu
+FILES+=	test_read_format_7zip_bcj2_lzma2_2.7z.uu
+FILES+=	test_read_format_7zip_bcj_bzip2.7z.uu
+FILES+=	test_read_format_7zip_bcj_copy.7z.uu
+FILES+=	test_read_format_7zip_bcj_deflate.7z.uu
+FILES+=	test_read_format_7zip_bcj_lzma1.7z.uu
+FILES+=	test_read_format_7zip_bcj_lzma2.7z.uu
+FILES+=	test_read_format_7zip_bzip2.7z.uu
+FILES+=	test_read_format_7zip_copy.7z.uu
+FILES+=	test_read_format_7zip_copy_2.7z.uu
+FILES+=	test_read_format_7zip_deflate.7z.uu
+FILES+=	test_read_format_7zip_delta_lzma1.7z.uu
+FILES+=	test_read_format_7zip_delta_lzma2.7z.uu
+FILES+=	test_read_format_7zip_empty_archive.7z.uu
+FILES+=	test_read_format_7zip_empty_file.7z.uu
+FILES+=	test_read_format_7zip_lzma1.7z.uu
+FILES+=	test_read_format_7zip_lzma1_2.7z.uu
+FILES+=	test_read_format_7zip_lzma1_lzma2.7z.uu
+FILES+=	test_read_format_7zip_lzma2.7z.uu
+FILES+=	test_read_format_7zip_ppmd.7z.uu
+FILES+=	test_read_format_7zip_symbolic_name.7z.uu
+FILES+=	test_read_format_ar.ar.uu
+FILES+=	test_read_format_cab_1.cab.uu
+FILES+=	test_read_format_cab_2.cab.uu
+FILES+=	test_read_format_cab_3.cab.uu
+FILES+=	test_read_format_cab_filename_cp932.cab.uu
+FILES+=	test_read_format_cpio_bin_be.cpio.uu
+FILES+=	test_read_format_cpio_filename_cp866.cpio.uu
+FILES+=	test_read_format_cpio_filename_eucjp.cpio.uu
+FILES+=	test_read_format_cpio_filename_koi8r.cpio.uu
+FILES+=	test_read_format_cpio_filename_utf8_jp.cpio.uu
+FILES+=	test_read_format_cpio_filename_utf8_ru.cpio.uu
+FILES+=	test_read_format_cpio_svr4_bzip2_rpm.rpm.uu
+FILES+=	test_read_format_cpio_svr4_gzip_rpm.rpm.uu
+FILES+=	test_read_format_gtar_filename_cp866.tar.Z.uu
+FILES+=	test_read_format_gtar_filename_eucjp.tar.Z.uu
+FILES+=	test_read_format_gtar_filename_koi8r.tar.Z.uu
+FILES+=	test_read_format_gtar_sparse_1_13.tar.uu
+FILES+=	test_read_format_gtar_sparse_1_17.tar.uu
+FILES+=	test_read_format_gtar_sparse_1_17_posix00.tar.uu
+FILES+=	test_read_format_gtar_sparse_1_17_posix01.tar.uu
+FILES+=	test_read_format_gtar_sparse_1_17_posix10.tar.uu
+FILES+=	test_read_format_gtar_sparse_1_17_posix10_modified.tar.uu
+FILES+=	test_read_format_gtar_sparse_skip_entry.tar.Z.uu
+FILES+=	test_read_format_iso.iso.Z.uu
+FILES+=	test_read_format_iso_2.iso.Z.uu
+FILES+=	test_read_format_iso_joliet.iso.Z.uu
+FILES+=	test_read_format_iso_joliet_by_nero.iso.Z.uu
+FILES+=	test_read_format_iso_joliet_long.iso.Z.uu
+FILES+=	test_read_format_iso_joliet_rockridge.iso.Z.uu
+FILES+=	test_read_format_iso_multi_extent.iso.Z.uu
+FILES+=	test_read_format_iso_rockridge.iso.Z.uu
+FILES+=	test_read_format_iso_rockridge_ce.iso.Z.uu
+FILES+=	test_read_format_iso_rockridge_new.iso.Z.uu
+FILES+=	test_read_format_iso_rockridge_rr_moved.iso.Z.uu
+FILES+=	test_read_format_iso_xorriso.iso.Z.uu
+FILES+=	test_read_format_iso_zisofs.iso.Z.uu
+FILES+=	test_read_format_lha_filename_cp932.lzh.uu
+FILES+=	test_read_format_lha_header0.lzh.uu
+FILES+=	test_read_format_lha_header1.lzh.uu
+FILES+=	test_read_format_lha_header2.lzh.uu
+FILES+=	test_read_format_lha_header3.lzh.uu
+FILES+=	test_read_format_lha_lh0.lzh.uu
+FILES+=	test_read_format_lha_lh6.lzh.uu
+FILES+=	test_read_format_lha_lh7.lzh.uu
+FILES+=	test_read_format_lha_withjunk.lzh.uu
+FILES+=	test_read_format_mtree.mtree.uu
+FILES+=	test_read_format_mtree_nomagic.mtree.uu
+FILES+=	test_read_format_mtree_nomagic2.mtree.uu
+FILES+=	test_read_format_mtree_nomagic3.mtree.uu
+FILES+=	test_read_format_rar.rar.uu
+FILES+=	test_read_format_rar_binary_data.rar.uu
+FILES+=	test_read_format_rar_compress_best.rar.uu
+FILES+=	test_read_format_rar_compress_normal.rar.uu
+FILES+=	test_read_format_rar_multi_lzss_blocks.rar.uu
+FILES+=	test_read_format_rar_multivolume.part0001.rar.uu
+FILES+=	test_read_format_rar_multivolume.part0002.rar.uu
+FILES+=	test_read_format_rar_multivolume.part0003.rar.uu
+FILES+=	test_read_format_rar_multivolume.part0004.rar.uu
+FILES+=	test_read_format_rar_noeof.rar.uu
+FILES+=	test_read_format_rar_ppmd_lzss_conversion.rar.uu
+FILES+=	test_read_format_rar_sfx.exe.uu
+FILES+=	test_read_format_rar_subblock.rar.uu
+FILES+=	test_read_format_rar_unicode.rar.uu
+FILES+=	test_read_format_rar_windows.rar.uu
+FILES+=	test_read_format_raw.data.Z.uu
+FILES+=	test_read_format_raw.data.uu
+FILES+=	test_read_format_tar_empty_filename.tar.uu
+FILES+=	test_read_format_tar_filename_koi8r.tar.Z.uu
+FILES+=	test_read_format_ustar_filename_cp866.tar.Z.uu
+FILES+=	test_read_format_ustar_filename_eucjp.tar.Z.uu
+FILES+=	test_read_format_ustar_filename_koi8r.tar.Z.uu
+FILES+=	test_read_format_zip.zip.uu
+FILES+=	test_read_format_zip_comment_stored_1.zip.uu
+FILES+=	test_read_format_zip_comment_stored_2.zip.uu
+FILES+=	test_read_format_zip_filename_cp866.zip.uu
+FILES+=	test_read_format_zip_filename_cp932.zip.uu
+FILES+=	test_read_format_zip_filename_koi8r.zip.uu
+FILES+=	test_read_format_zip_filename_utf8_jp.zip.uu
+FILES+=	test_read_format_zip_filename_utf8_ru.zip.uu
+FILES+=	test_read_format_zip_filename_utf8_ru2.zip.uu
+FILES+=	test_read_format_zip_length_at_end.zip.uu
+FILES+=	test_read_format_zip_mac_metadata.zip.uu
+FILES+=	test_read_format_zip_sfx.uu
+FILES+=	test_read_format_zip_symlink.zip.uu
+FILES+=	test_read_format_zip_ux.zip.uu
+FILES+=	test_read_large_splitted_rar_aa.uu
+FILES+=	test_read_large_splitted_rar_ab.uu
+FILES+=	test_read_large_splitted_rar_ac.uu
+FILES+=	test_read_large_splitted_rar_ad.uu
+FILES+=	test_read_large_splitted_rar_ae.uu
+FILES+=	test_read_splitted_rar_aa.uu
+FILES+=	test_read_splitted_rar_ab.uu
+FILES+=	test_read_splitted_rar_ac.uu
+FILES+=	test_read_splitted_rar_ad.uu
+FILES+=	test_splitted_rar_seek_support_aa.uu
+FILES+=	test_splitted_rar_seek_support_ab.uu
+FILES+=	test_splitted_rar_seek_support_ac.uu
+FILES+=	test_write_disk_appledouble.cpio.gz.uu
+FILES+=	test_write_disk_hfs_compression.tgz.uu
+FILES+=	test_write_disk_mac_metadata.tar.gz.uu
+FILES+=	test_write_disk_no_hfs_compression.tgz.uu
 
-cleantest:
-	-chmod -R +w /tmp/libarchive_test.*
-	rm -rf /tmp/libarchive_test.*
+CLEANFILES+=	list.h list.h.tmp
 
-.include <bsd.prog.mk>
+.include <bsd.test.mk>
