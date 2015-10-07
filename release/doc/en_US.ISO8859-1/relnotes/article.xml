@@ -1054,8 +1054,9 @@
 	<acronym>CPU</acronym> model information.</para>
 
       <para revision="286591">The &man.uart.4; driver has been
-	updated to allow tuning packets per second captured during
-	runtime.</para>
+	updated to allow tuning pulses per second captured in the
+	CTS line during runtime, whereas previously only the DCD line
+	could be used without rebuilding the kernel.</para>
     </sect2>
   </sect1>
 
