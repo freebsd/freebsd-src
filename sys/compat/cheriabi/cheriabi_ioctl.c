@@ -76,26 +76,25 @@ static int
 cheriabi_ioctl_md(struct thread *td, struct cheriabi_ioctl_args *uap,
     struct file *fp)
 {
-#if 0
 	struct md_ioctl mdv;
 	struct md_ioctl_c md_c;
 	u_long com = 0;
 	int i, error;
 
 	if (uap->com & IOC_IN) {
-		if ((error = copyin(uap->data, &md32, sizeof(md32)))) {
+		if ((error = copyincap(uap->data, &md_c, sizeof(md_c)))) {
 			return (error);
 		}
-		CP(md32, mdv, md_version);
-		CP(md32, mdv, md_unit);
-		CP(md32, mdv, md_type);
-		PTRIN_CP(md32, mdv, md_file);
-		CP(md32, mdv, md_mediasize);
-		CP(md32, mdv, md_sectorsize);
-		CP(md32, mdv, md_options);
-		CP(md32, mdv, md_base);
-		CP(md32, mdv, md_fwheads);
-		CP(md32, mdv, md_fwsectors);
+		CP(md_c, mdv, md_version);
+		CP(md_c, mdv, md_unit);
+		CP(md_c, mdv, md_type);
+		PTRIN_CP(md_c, mdv, md_file);
+		CP(md_c, mdv, md_mediasize);
+		CP(md_c, mdv, md_sectorsize);
+		CP(md_c, mdv, md_options);
+		CP(md_c, mdv, md_base);
+		CP(md_c, mdv, md_fwheads);
+		CP(md_c, mdv, md_fwsectors);
 	} else if (uap->com & IOC_OUT) {
 		/*
 		 * Zero the buffer so the user always
@@ -105,46 +104,44 @@ cheriabi_ioctl_md(struct thread *td, struct cheriabi_ioctl_args *uap,
 	}
 
 	switch (uap->com) {
-	case MDIOCATTACH_32:
+	case MDIOCATTACH_C:
 		com = MDIOCATTACH;
 		break;
-	case MDIOCDETACH_32:
+	case MDIOCDETACH_C:
 		com = MDIOCDETACH;
 		break;
-	case MDIOCQUERY_32:
+	case MDIOCQUERY_C:
 		com = MDIOCQUERY;
 		break;
-	case MDIOCLIST_32:
+	case MDIOCLIST_C:
 		com = MDIOCLIST;
 		break;
 	default:
-		panic("%s: unknown MDIOC %#x", __func__, uap->com);
+		panic("%s: unknown MDIOC %lx", __func__, uap->com);
 	}
 	error = fo_ioctl(fp, com, (caddr_t)&mdv, td->td_ucred, td);
 	if (error == 0 && (com & IOC_OUT)) {
-		CP(mdv, md32, md_version);
-		CP(mdv, md32, md_unit);
-		CP(mdv, md32, md_type);
-		PTROUT_CP(mdv, md32, md_file);
-		CP(mdv, md32, md_mediasize);
-		CP(mdv, md32, md_sectorsize);
-		CP(mdv, md32, md_options);
-		CP(mdv, md32, md_base);
-		CP(mdv, md32, md_fwheads);
-		CP(mdv, md32, md_fwsectors);
+		CP(mdv, md_c, md_version);
+		CP(mdv, md_c, md_unit);
+		CP(mdv, md_c, md_type);
+		/*
+		 * Don't copy out a new value for md_file.  Either we've
+		 * used the one that was copied in or there wasn't one.
+		 */
+		CP(mdv, md_c, md_mediasize);
+		CP(mdv, md_c, md_sectorsize);
+		CP(mdv, md_c, md_options);
+		CP(mdv, md_c, md_base);
+		CP(mdv, md_c, md_fwheads);
+		CP(mdv, md_c, md_fwsectors);
 		if (com == MDIOCLIST) {
-			/*
-			 * Use MDNPAD, and not MDNPAD32.  Padding is
-			 * allocated and used by compat32 ABI.
-			 */
+			/* Use MDNPAD, and not MDNPAD_C. */
 			for (i = 0; i < MDNPAD; i++)
-				CP(mdv, md32, md_pad[i]);
+				CP(mdv, md_c, md_pad[i]);
 		}
-		error = copyout(&md32, uap->data, sizeof(md32));
+		error = copyoutcap(&md_c, uap->data, sizeof(md_c));
 	}
 	return error;
-#endif
-	return (EINVAL);
 }
 
 
@@ -152,267 +149,183 @@ static int
 cheriabi_ioctl_ioc_read_toc(struct thread *td,
     struct cheriabi_ioctl_args *uap, struct file *fp)
 {
-#if 0
 	struct ioc_read_toc_entry toce;
-	struct ioc_read_toc_entry32 toce32;
+	struct ioc_read_toc_entry_c toce_c;
 	int error;
 
-	if ((error = copyin(uap->data, &toce32, sizeof(toce32))))
+	if ((error = copyincap(uap->data, &toce_c, sizeof(toce_c))))
 		return (error);
-	CP(toce32, toce, address_format);
-	CP(toce32, toce, starting_track);
-	CP(toce32, toce, data_len);
-	PTRIN_CP(toce32, toce, data);
+	CP(toce_c, toce, address_format);
+	CP(toce_c, toce, starting_track);
+	CP(toce_c, toce, data_len);
+	PTRIN_CP(toce_c, toce, data);
 
 	if ((error = fo_ioctl(fp, CDIOREADTOCENTRYS, (caddr_t)&toce,
 	    td->td_ucred, td))) {
-		CP(toce, toce32, address_format);
-		CP(toce, toce32, starting_track);
-		CP(toce, toce32, data_len);
-		PTROUT_CP(toce, toce32, data);
-		error = copyout(&toce32, uap->data, sizeof(toce32));
+		CP(toce, toce_c, address_format);
+		CP(toce, toce_c, starting_track);
+		CP(toce, toce_c, data_len);
+		/* Don't update data pointer */
+		error = copyoutcap(&toce_c, uap->data, sizeof(toce_c));
 	}
 	return error;
-#endif
-	return (EINVAL);
 }
 
 static int
 cheriabi_ioctl_fiodgname(struct thread *td,
     struct cheriabi_ioctl_args *uap, struct file *fp)
 {
-#if 0
 	struct fiodgname_arg fgn;
-	struct fiodgname_arg32 fgn32;
+	struct fiodgname_arg_c fgn_c;
 	int error;
 
-	if ((error = copyin(uap->data, &fgn32, sizeof fgn32)) != 0)
+	if ((error = copyincap(uap->data, &fgn_c, sizeof fgn_c)) != 0)
 		return (error);
-	CP(fgn32, fgn, len);
-	PTRIN_CP(fgn32, fgn, buf);
+	CP(fgn_c, fgn, len);
+	PTRIN_CP(fgn_c, fgn, buf);
 	error = fo_ioctl(fp, FIODGNAME, (caddr_t)&fgn, td->td_ucred, td);
 	return (error);
-#endif
-	return (EINVAL);
 }
 
 static int
 cheriabi_ioctl_memrange(struct thread *td,
     struct cheriabi_ioctl_args *uap, struct file *fp)
 {
-#if 0
 	struct mem_range_op mro;
-	struct mem_range_op32 mro32;
+	struct mem_range_op_c mro_c;
 	int error;
 	u_long com;
 
-	if ((error = copyin(uap->data, &mro32, sizeof(mro32))) != 0)
+	if ((error = copyincap(uap->data, &mro_c, sizeof(mro_c))) != 0)
 		return (error);
 
-	PTRIN_CP(mro32, mro, mo_desc);
-	CP(mro32, mro, mo_arg[0]);
-	CP(mro32, mro, mo_arg[1]);
+	PTRIN_CP(mro_c, mro, mo_desc);
+	CP(mro_c, mro, mo_arg[0]);
+	CP(mro_c, mro, mo_arg[1]);
 
 	com = 0;
 	switch (uap->com) {
-	case MEMRANGE_GET32:
+	case MEMRANGE_GET_C:
 		com = MEMRANGE_GET;
 		break;
 
-	case MEMRANGE_SET32:
+	case MEMRANGE_SET_C:
 		com = MEMRANGE_SET;
 		break;
 
 	default:
-		panic("%s: unknown MEMRANGE %#x", __func__, uap->com);
+		panic("%s: unknown MEMRANGE %lx", __func__, uap->com);
 	}
 
 	if ((error = fo_ioctl(fp, com, (caddr_t)&mro, td->td_ucred, td)) != 0)
 		return (error);
 
 	if ( (com & IOC_OUT) ) {
-		CP(mro, mro32, mo_arg[0]);
-		CP(mro, mro32, mo_arg[1]);
+		CP(mro, mro_c, mo_arg[0]);
+		CP(mro, mro_c, mo_arg[1]);
 
-		error = copyout(&mro32, uap->data, sizeof(mro32));
+		error = copyoutcap(&mro_c, uap->data, sizeof(mro_c));
 	}
 
 	return (error);
-#endif
-	return (EINVAL);
 }
 
 static int
 cheriabi_ioctl_pciocgetconf(struct thread *td,
     struct cheriabi_ioctl_args *uap, struct file *fp)
 {
-#if 0
 	struct pci_conf_io pci;
-	struct pci_conf_io32 pci32;
-	struct pci_match_conf32 pmc32;
-	struct pci_match_conf32 *pmc32p;
-	struct pci_match_conf pmc;
-	struct pci_match_conf *pmcp;
-	struct pci_conf32 pc32;
-	struct pci_conf32 *pc32p;
-	struct pci_conf pc;
-	struct pci_conf *pcp;
-	u_int32_t i;
-	u_int32_t npat_to_convert;
-	u_int32_t nmatch_to_convert;
-	vm_offset_t addr;
+	struct pci_conf_io_c pci_c;
 	int error;
 
-	if ((error = copyin(uap->data, &pci32, sizeof(pci32))) != 0)
+	if ((error = copyincap(uap->data, &pci_c, sizeof(pci_c))) != 0)
 		return (error);
 
-	CP(pci32, pci, num_patterns);
-	CP(pci32, pci, offset);
-	CP(pci32, pci, generation);
+	CP(pci_c, pci, pat_buf_len);
+	CP(pci_c, pci, num_patterns);
+	PTRIN_CP(pci_c, pci, patterns);
+	CP(pci_c, pci, match_buf_len);
+	/* num_matches is an output parameter */
+	PTRIN_CP(pci_c, pci, matches);
+	CP(pci_c, pci, offset);
+	CP(pci_c, pci, generation);
+	/* status is an output parameter */
 
-	npat_to_convert = pci32.pat_buf_len / sizeof(struct pci_match_conf32);
-	pci.pat_buf_len = npat_to_convert * sizeof(struct pci_match_conf);
-	pci.patterns = NULL;
-	nmatch_to_convert = pci32.match_buf_len / sizeof(struct pci_conf32);
-	pci.match_buf_len = nmatch_to_convert * sizeof(struct pci_conf);
-	pci.matches = NULL;
+	if ((error = fo_ioctl(fp, PCIOCGETCONF, (caddr_t)&pci, td->td_ucred,
+	    td)) != 0)
+		return (error);
 
-	if ((error = copyout_map(td, &addr, pci.pat_buf_len)) != 0)
-		goto cleanup;
-	pci.patterns = (struct pci_match_conf *)addr;
-	if ((error = copyout_map(td, &addr, pci.match_buf_len)) != 0)
-		goto cleanup;
-	pci.matches = (struct pci_conf *)addr;
+	CP(pci, pci_c, num_matches);
+	CP(pci, pci_c, offset);
+	CP(pci, pci_c, generation);
+	CP(pci, pci_c, status);
 
-	npat_to_convert = min(npat_to_convert, pci.num_patterns);
-
-	for (i = 0, pmc32p = (struct pci_match_conf32 *)PTRIN(pci32.patterns),
-	     pmcp = pci.patterns;
-	     i < npat_to_convert; i++, pmc32p++, pmcp++) {
-		if ((error = copyin(pmc32p, &pmc32, sizeof(pmc32))) != 0)
-			goto cleanup;
-		CP(pmc32,pmc,pc_sel);
-		strlcpy(pmc.pd_name, pmc32.pd_name, sizeof(pmc.pd_name));
-		CP(pmc32,pmc,pd_unit);
-		CP(pmc32,pmc,pc_vendor);
-		CP(pmc32,pmc,pc_device);
-		CP(pmc32,pmc,pc_class);
-		CP(pmc32,pmc,flags);
-		if ((error = copyout(&pmc, pmcp, sizeof(pmc))) != 0)
-			goto cleanup;
-	}
-
-	if ((error = fo_ioctl(fp, PCIOCGETCONF, (caddr_t)&pci,
-			      td->td_ucred, td)) != 0)
-		goto cleanup;
-
-	nmatch_to_convert = min(nmatch_to_convert, pci.num_matches);
-
-	for (i = 0, pcp = pci.matches,
-	     pc32p = (struct pci_conf32 *)PTRIN(pci32.matches);
-	     i < nmatch_to_convert; i++, pcp++, pc32p++) {
-		if ((error = copyin(pcp, &pc, sizeof(pc))) != 0)
-			goto cleanup;
-		CP(pc,pc32,pc_sel);
-		CP(pc,pc32,pc_hdr);
-		CP(pc,pc32,pc_subvendor);
-		CP(pc,pc32,pc_subdevice);
-		CP(pc,pc32,pc_vendor);
-		CP(pc,pc32,pc_device);
-		CP(pc,pc32,pc_class);
-		CP(pc,pc32,pc_subclass);
-		CP(pc,pc32,pc_progif);
-		CP(pc,pc32,pc_revid);
-		strlcpy(pc32.pd_name, pc.pd_name, sizeof(pc32.pd_name));
-		CP(pc,pc32,pd_unit);
-		if ((error = copyout(&pc32, pc32p, sizeof(pc32))) != 0)
-			goto cleanup;
-	}
-
-	CP(pci, pci32, num_matches);
-	CP(pci, pci32, offset);
-	CP(pci, pci32, generation);
-	CP(pci, pci32, status);
-
-	error = copyout(&pci32, uap->data, sizeof(pci32));
-
-cleanup:
-	if (pci.patterns)
-		copyout_unmap(td, (vm_offset_t)pci.patterns, pci.pat_buf_len);
-	if (pci.matches)
-		copyout_unmap(td, (vm_offset_t)pci.matches, pci.match_buf_len);
+	error = copyoutcap(&pci_c, uap->data, sizeof(pci_c));
 
 	return (error);
-#endif
-	return (EINVAL);
 }
 
 static int
 cheriabi_ioctl_sg(struct thread *td,
     struct cheriabi_ioctl_args *uap, struct file *fp)
 {
-#if 0
 	struct sg_io_hdr io;
-	struct sg_io_hdr32 io32;
+	struct sg_io_hdr_c io_c;
 	int error;
 
-	if ((error = copyin(uap->data, &io32, sizeof(io32))) != 0)
+	if ((error = copyincap(uap->data, &io_c, sizeof(io_c))) != 0)
 		return (error);
 
-	CP(io32, io, interface_id);
-	CP(io32, io, dxfer_direction);
-	CP(io32, io, cmd_len);
-	CP(io32, io, mx_sb_len);
-	CP(io32, io, iovec_count);
-	CP(io32, io, dxfer_len);
-	PTRIN_CP(io32, io, dxferp);
-	PTRIN_CP(io32, io, cmdp);
-	PTRIN_CP(io32, io, sbp);
-	CP(io32, io, timeout);
-	CP(io32, io, flags);
-	CP(io32, io, pack_id);
-	PTRIN_CP(io32, io, usr_ptr);
-	CP(io32, io, status);
-	CP(io32, io, masked_status);
-	CP(io32, io, msg_status);
-	CP(io32, io, sb_len_wr);
-	CP(io32, io, host_status);
-	CP(io32, io, driver_status);
-	CP(io32, io, resid);
-	CP(io32, io, duration);
-	CP(io32, io, info);
+	CP(io_c, io, interface_id);
+	CP(io_c, io, dxfer_direction);
+	CP(io_c, io, cmd_len);
+	CP(io_c, io, mx_sb_len);
+	CP(io_c, io, iovec_count);
+	CP(io_c, io, dxfer_len);
+	PTRIN_CP(io_c, io, dxferp);
+	PTRIN_CP(io_c, io, cmdp);
+	PTRIN_CP(io_c, io, sbp);
+	CP(io_c, io, timeout);
+	CP(io_c, io, flags);
+	CP(io_c, io, pack_id);
+	PTRIN_CP(io_c, io, usr_ptr);
+	CP(io_c, io, status);
+	CP(io_c, io, masked_status);
+	CP(io_c, io, msg_status);
+	CP(io_c, io, sb_len_wr);
+	CP(io_c, io, host_status);
+	CP(io_c, io, driver_status);
+	CP(io_c, io, resid);
+	CP(io_c, io, duration);
+	CP(io_c, io, info);
 
 	if ((error = fo_ioctl(fp, SG_IO, (caddr_t)&io, td->td_ucred, td)) != 0)
 		return (error);
 
-	CP(io, io32, interface_id);
-	CP(io, io32, dxfer_direction);
-	CP(io, io32, cmd_len);
-	CP(io, io32, mx_sb_len);
-	CP(io, io32, iovec_count);
-	CP(io, io32, dxfer_len);
-	PTROUT_CP(io, io32, dxferp);
-	PTROUT_CP(io, io32, cmdp);
-	PTROUT_CP(io, io32, sbp);
-	CP(io, io32, timeout);
-	CP(io, io32, flags);
-	CP(io, io32, pack_id);
-	PTROUT_CP(io, io32, usr_ptr);
-	CP(io, io32, status);
-	CP(io, io32, masked_status);
-	CP(io, io32, msg_status);
-	CP(io, io32, sb_len_wr);
-	CP(io, io32, host_status);
-	CP(io, io32, driver_status);
-	CP(io, io32, resid);
-	CP(io, io32, duration);
-	CP(io, io32, info);
+	CP(io, io_c, interface_id);
+	CP(io, io_c, dxfer_direction);
+	CP(io, io_c, cmd_len);
+	CP(io, io_c, mx_sb_len);
+	CP(io, io_c, iovec_count);
+	CP(io, io_c, dxfer_len);
+	/* Don't change dxferp, cmdp, or sbp */
+	CP(io, io_c, timeout);
+	CP(io, io_c, flags);
+	CP(io, io_c, pack_id);
+	/* Don't change usr_ptr */
+	CP(io, io_c, status);
+	CP(io, io_c, masked_status);
+	CP(io, io_c, msg_status);
+	CP(io, io_c, sb_len_wr);
+	CP(io, io_c, host_status);
+	CP(io, io_c, driver_status);
+	CP(io, io_c, resid);
+	CP(io, io_c, duration);
+	CP(io, io_c, info);
 
-	error = copyout(&io32, uap->data, sizeof(io32));
+	error = copyoutcap(&io_c, uap->data, sizeof(io_c));
 
 	return (error);
-#endif
-	return (EINVAL);
 }
 
 int
