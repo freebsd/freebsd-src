@@ -80,10 +80,6 @@ extern volatile int ticks;
  * for binary compatibility with inserted elements.
  *
  * The SI_SUB_LAST value must have the highest lexical value.
- *
- * The SI_SUB_SWAP values represent a value used by
- * the BSD 4.4Lite but not by FreeBSD; it is maintained in dependent
- * order to support porting.
  */
 enum sysinit_sub_id {
 	SI_SUB_DUMMY		= 0x0000000,	/* not executed; for linker*/
