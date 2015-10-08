@@ -206,7 +206,6 @@ static int	wpi_tx_data_raw(struct wpi_softc *, struct mbuf *,
 static int	wpi_raw_xmit(struct ieee80211_node *, struct mbuf *,
 		    const struct ieee80211_bpf_params *);
 static int	wpi_transmit(struct ieee80211com *, struct mbuf *);
-static void	wpi_start(void *, int);
 static void	wpi_watchdog_rfkill(void *);
 static void	wpi_scan_timeout(void *);
 static void	wpi_tx_timeout(void *);
@@ -525,7 +524,6 @@ wpi_attach(device_t dev)
 	TASK_INIT(&sc->sc_reinittask, 0, wpi_hw_reset, sc);
 	TASK_INIT(&sc->sc_radiooff_task, 0, wpi_radio_off, sc);
 	TASK_INIT(&sc->sc_radioon_task, 0, wpi_radio_on, sc);
-	TASK_INIT(&sc->sc_start_task, 0, wpi_start, sc);
 
 	sc->sc_tq = taskqueue_create("wpi_taskq", M_WAITOK,
 	    taskqueue_thread_enqueue, &sc->sc_tq);
@@ -685,7 +683,6 @@ wpi_detach(device_t dev)
 
 	if (ic->ic_vap_create == wpi_vap_create) {
 		ieee80211_draintask(ic, &sc->sc_radioon_task);
-		ieee80211_draintask(ic, &sc->sc_start_task);
 
 		wpi_stop(sc);
 
@@ -1165,7 +1162,6 @@ wpi_alloc_tx_ring(struct wpi_softc *sc, struct wpi_tx_ring *ring, int qid)
 	ring->queued = 0;
 	ring->cur = 0;
 	ring->update = 0;
-	mbufq_init(&ring->snd, ifqmaxlen);
 
 	DPRINTF(sc, WPI_DEBUG_TRACE, TRACE_STR_BEGIN, __func__);
 
@@ -1293,8 +1289,6 @@ wpi_reset_tx_ring(struct wpi_softc *sc, struct wpi_tx_ring *ring)
 	memset(ring->desc, 0, ring->desc_dma.size);
 	bus_dmamap_sync(ring->desc_dma.tag, ring->desc_dma.map,
 	    BUS_DMASYNC_PREWRITE);
-	mbufq_drain(&ring->snd);
-	sc->qfullmsk &= ~(1 << ring->qid);
 	ring->queued = 0;
 	ring->cur = 0;
 	ring->update = 0;
@@ -2104,16 +2098,9 @@ wpi_tx_done(struct wpi_softc *sc, struct wpi_rx_desc *desc)
 	ieee80211_tx_complete(ni, m, (status & WPI_TX_STATUS_FAIL) != 0);
 
 	WPI_TXQ_STATE_LOCK(sc);
-	ring->queued -= 1;
-	if (ring->queued > 0) {
+	if (--ring->queued > 0)
 		callout_reset(&sc->tx_timeout, 5*hz, wpi_tx_timeout, sc);
-
-		if ((sc->qfullmsk & (1 << ring->qid)) != 0 &&
-		     ring->queued < WPI_TX_RING_LOMARK) {
-			sc->qfullmsk &= ~(1 << ring->qid);
-			ieee80211_runtask(ic, &sc->sc_start_task);
-		}
-	} else
+	else
 		callout_stop(&sc->tx_timeout);
 	WPI_TXQ_STATE_UNLOCK(sc);
 
@@ -2692,10 +2679,8 @@ wpi_cmd2(struct wpi_softc *sc, struct wpi_buf *buf)
 	sc->sc_update_tx_ring(sc, ring);
 
 	if (ring->qid < WPI_CMD_QUEUE_NUM) {
-		/* Mark TX ring as full if we reach a certain threshold. */
 		WPI_TXQ_STATE_LOCK(sc);
-		if (++ring->queued > WPI_TX_RING_HIMARK)
-			sc->qfullmsk |= 1 << ring->qid;
+		ring->queued++;
 		callout_reset(&sc->tx_timeout, 5*hz, wpi_tx_timeout, sc);
 		WPI_TXQ_STATE_UNLOCK(sc);
 	}
@@ -3063,7 +3048,6 @@ wpi_transmit(struct ieee80211com *ic, struct mbuf *m)
 {
 	struct wpi_softc *sc = ic->ic_softc;
 	struct ieee80211_node *ni;
-	struct mbufq *sndq;
 	int ac, error;
 
 	WPI_TX_LOCK(sc);
@@ -3077,10 +3061,8 @@ wpi_transmit(struct ieee80211com *ic, struct mbuf *m)
 
 	/* Check for available space. */
 	ac = M_WME_GETAC(m);
-	sndq = &sc->txq[ac].snd;
-	if (wpi_tx_ring_is_full(sc, ac) || mbufq_len(sndq) != 0) {
-		/* wpi_tx_done() will dequeue it. */
-		error = mbufq_enqueue(sndq, m);
+	if (wpi_tx_ring_is_full(sc, ac)) {
+		error = ENOBUFS;
 		goto unlock;
 	}
 
@@ -3095,44 +3077,6 @@ wpi_transmit(struct ieee80211com *ic, struct mbuf *m)
 unlock:	WPI_TX_UNLOCK(sc);
 
 	return (error);
-}
-
-/**
- * Process data waiting to be sent on the output queue
- */
-static void
-wpi_start(void *arg0, int pending)
-{
-	struct wpi_softc *sc = arg0;
-	struct ieee80211_node *ni;
-	struct mbuf *m;
-	uint8_t i;
-
-	WPI_TX_LOCK(sc);
-	if (sc->sc_running == 0)
-		goto unlock;
-
-	DPRINTF(sc, WPI_DEBUG_XMIT, "%s: called\n", __func__);
-
-	for (i = 0; i < WPI_CMD_QUEUE_NUM; i++) {
-		struct mbufq *sndq = &sc->txq[i].snd;
-
-		for (;;) {
-			if (wpi_tx_ring_is_full(sc, i))
-				break;
-
-			if ((m = mbufq_dequeue(sndq)) == NULL)
-				break;
-
-			ni = (struct ieee80211_node *)m->m_pkthdr.rcvif;
-			if (wpi_tx_data(sc, m, ni) != 0) {
-				wpi_handle_tx_failure(ni);
-			}
-		}
-	}
-
-	DPRINTF(sc, WPI_DEBUG_XMIT, "%s: done\n", __func__);
-unlock:	WPI_TX_UNLOCK(sc);
 }
 
 static void
