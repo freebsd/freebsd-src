@@ -72,8 +72,13 @@ Kyuafile.auto: Makefile
             echo; \
 	} >Kyuafile.auto.tmp
 .for _T in ${_TESTS}
+.if defined(.PARSEDIR)
 	@echo '${TEST_INTERFACE.${_T}}_test_program{name="${_T}"${TEST_METADATA.${_T}:C/$/,/:tW:C/^/, /W:C/,$//W}}' \
 	    >>Kyuafile.auto.tmp
+.else
+	@echo '${TEST_INTERFACE.${_T}}_test_program{name="${_T}"${TEST_METADATA.${_T}:C/^/, /:Q:S/\\ ,/,/g:S,\\,,g}}' \
+	    >>Kyuafile.auto.tmp
+.endif
 .endfor
 .for _T in ${TESTS_SUBDIRS:N.WAIT}
 	@echo "include(\"${_T}/Kyuafile\")" >>Kyuafile.auto.tmp
