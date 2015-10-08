@@ -90,8 +90,6 @@ enum sysinit_sub_id {
 	SI_SUB_DONE		= 0x0000001,	/* processed*/
 	SI_SUB_TUNABLES		= 0x0700000,	/* establish tunable values */
 	SI_SUB_COPYRIGHT	= 0x0800001,	/* first use of console*/
-	SI_SUB_SETTINGS		= 0x0880000,	/* check and recheck settings */
-	SI_SUB_MTX_POOL_STATIC	= 0x0900000,	/* static mutex pool */
 	SI_SUB_VM		= 0x1000000,	/* virtual memory system init*/
 	SI_SUB_KMEM		= 0x1800000,	/* kernel memory*/
 	SI_SUB_HYPERVISOR	= 0x1A40000,	/*
@@ -119,14 +117,12 @@ enum sysinit_sub_id {
 	SI_SUB_RUN_QUEUE	= 0x2400000,	/* set up run queue*/
 	SI_SUB_KTRACE		= 0x2480000,	/* ktrace */
 	SI_SUB_OPENSOLARIS	= 0x2490000,	/* OpenSolaris compatibility */
-	SI_SUB_CYCLIC		= 0x24A0000,	/* Cyclic timers */
 	SI_SUB_AUDIT		= 0x24C0000,	/* audit */
 	SI_SUB_CREATE_INIT	= 0x2500000,	/* create init process*/
 	SI_SUB_SCHED_IDLE	= 0x2600000,	/* required idle procs */
 	SI_SUB_MBUF		= 0x2700000,	/* mbuf subsystem */
 	SI_SUB_INTR		= 0x2800000,	/* interrupt threads */
 	SI_SUB_SOFTINTR		= 0x2800001,	/* start soft interrupt thread */
-	SI_SUB_ACL		= 0x2900000,	/* start for filesystem ACLs */
 	SI_SUB_DEVFS		= 0x2F00000,	/* devfs ready for devices */
 	SI_SUB_INIT_IF		= 0x3000000,	/* prep for net interfaces */
 	SI_SUB_NETGRAPH		= 0x3010000,	/* Let Netgraph initialize */
@@ -153,9 +149,6 @@ enum sysinit_sub_id {
 	SI_SUB_KICK_SCHEDULER	= 0xa000000,	/* start the timeout events*/
 	SI_SUB_INT_CONFIG_HOOKS	= 0xa800000,	/* Interrupts enabled config */
 	SI_SUB_ROOT_CONF	= 0xb000000,	/* Find root devices */
-	SI_SUB_DUMP_CONF	= 0xb200000,	/* Find dump devices */
-	SI_SUB_RAID		= 0xb380000,	/* Configure GEOM classes */
-	SI_SUB_SWAP		= 0xc000000,	/* swap */
 	SI_SUB_INTRINSIC_POST	= 0xd000000,	/* proc 0 cleanup*/
 	SI_SUB_SYSCALLS		= 0xd800000,	/* register system calls */
 	SI_SUB_VNET_DONE	= 0xdc00000,	/* vnet registration complete */
