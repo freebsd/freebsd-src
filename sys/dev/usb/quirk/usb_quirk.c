@@ -61,6 +61,7 @@ MODULE_VERSION(usb_quirk, 1);
 
 #define	USB_DEV_QUIRKS_MAX 384
 #define	USB_SUB_QUIRKS_MAX 8
+#define	USB_QUIRK_ENVROOT "hw.usb.quirk."
 
 struct usb_quirk_entry {
 	uint16_t vid;
@@ -607,8 +608,32 @@ static const char *usb_quirk_str[USB_QUIRK_MAX] = {
 static const char *
 usb_quirkstr(uint16_t quirk)
 {
-	return ((quirk < USB_QUIRK_MAX) ?
-	    usb_quirk_str[quirk] : "USB_QUIRK_UNKNOWN");
+	return ((quirk < USB_QUIRK_MAX && usb_quirk_str[quirk] != NULL) ?
+	    usb_quirk_str[quirk] : "UQ_UNKNOWN");
+}
+
+/*------------------------------------------------------------------------*
+ *	usb_strquirk
+ *
+ * This function converts a string into a USB quirk code.
+ *
+ * Returns:
+ * Less than USB_QUIRK_MAX: Quirk code
+ * Else: Quirk code not found
+ *------------------------------------------------------------------------*/
+static uint16_t
+usb_strquirk(const char *str, size_t len)
+{
+	const char *quirk;
+	uint16_t x;
+
+	for (x = 0; x != USB_QUIRK_MAX; x++) {
+		quirk = usb_quirkstr(x);
+		if (strncmp(str, quirk, len) == 0 &&
+		    quirk[len] == 0)
+			break;
+	}
+	return (x);
 }
 
 /*------------------------------------------------------------------------*
@@ -853,12 +878,122 @@ usb_quirk_ioctl(unsigned long cmd, caddr_t data,
 	return (ENOIOCTL);
 }
 
+/*------------------------------------------------------------------------*
+ *	usb_quirk_strtou16
+ *
+ * Helper function to scan a 16-bit integer.
+ *------------------------------------------------------------------------*/
+static uint16_t
+usb_quirk_strtou16(const char **pptr, const char *name, const char *what)
+{
+	unsigned long value;
+	char *end;
+
+	value = strtoul(*pptr, &end, 0);
+	if (value > 65535 || *pptr == end || (*end != ' ' && *end != '\t')) {
+		printf("%s: %s 16-bit %s value set to zero\n",
+		    name, what, *end == 0 ? "incomplete" : "invalid");
+		return (0);
+	}
+	*pptr = end + 1;
+	return ((uint16_t)value);
+}
+
+/*------------------------------------------------------------------------*
+ *	usb_quirk_add_entry_from_str
+ *
+ * Add a USB quirk entry from string.
+ *     "VENDOR PRODUCT LO_REV HI_REV QUIRK[,QUIRK[,...]]"
+ *------------------------------------------------------------------------*/
+static void
+usb_quirk_add_entry_from_str(const char *name, const char *env)
+{
+	struct usb_quirk_entry entry = { };
+	struct usb_quirk_entry *new;
+	uint16_t quirk_idx;
+	uint16_t quirk;
+	const char *end;
+
+	/* check for invalid environment variable */
+	if (name == NULL || env == NULL)
+		return;
+
+	if (bootverbose)
+		printf("Adding USB QUIRK '%s' = '%s'\n", name, env);
+
+	/* parse device information */
+	entry.vid = usb_quirk_strtou16(&env, name, "Vendor ID");
+	entry.pid = usb_quirk_strtou16(&env, name, "Product ID");
+	entry.lo_rev = usb_quirk_strtou16(&env, name, "Low revision");
+	entry.hi_rev = usb_quirk_strtou16(&env, name, "High revision");
+
+	/* parse quirk information */
+	quirk_idx = 0;
+	while (*env != 0 && quirk_idx != USB_SUB_QUIRKS_MAX) {
+		/* skip whitespace before quirks */
+		while (*env == ' ' || *env == '\t')
+			env++;
+
+		/* look for quirk separation character */
+		end = strchr(env, ',');
+		if (end == NULL)
+			end = env + strlen(env);
+
+		/* lookup quirk in string table */
+		quirk = usb_strquirk(env, end - env);
+		if (quirk < USB_QUIRK_MAX) {
+			entry.quirks[quirk_idx++] = quirk;
+		} else {
+			printf("%s: unknown USB quirk '%.*s' (skipped)\n",
+			    name, (int)(end - env), env);
+		}
+		env = end;
+
+		/* skip quirk delimiter, if any */
+		if (*env != 0)
+			env++;
+	}
+
+	/* register quirk */
+	if (quirk_idx != 0) {
+		if (*env != 0) {
+			printf("%s: Too many USB quirks, only %d allowed!\n",
+			    name, USB_SUB_QUIRKS_MAX);
+		}
+		mtx_lock(&usb_quirk_mtx);
+		new = usb_quirk_get_entry(entry.vid, entry.pid,
+		    entry.lo_rev, entry.hi_rev, 1);
+		if (new == NULL)
+			printf("%s: USB quirks table is full!\n", name);
+		else
+			memcpy(new->quirks, entry.quirks, sizeof(entry.quirks));
+		mtx_unlock(&usb_quirk_mtx);
+	} else {
+		printf("%s: No USB quirks found!\n", name);
+	}
+}
+
 static void
 usb_quirk_init(void *arg)
 {
+	char envkey[sizeof(USB_QUIRK_ENVROOT) + 2];	/* 2 digits max, 0 to 99 */
+	int i;
+  
 	/* initialize mutex */
 	mtx_init(&usb_quirk_mtx, "USB quirk", NULL, MTX_DEF);
 
+	/* look for quirks defined by the environment variable */
+	for (i = 0; i != 100; i++) {
+		snprintf(envkey, sizeof(envkey), USB_QUIRK_ENVROOT "%d", i);
+
+		/* Stop at first undefined var */
+		if (!testenv(envkey))
+			break;
+
+		/* parse environment variable */
+		usb_quirk_add_entry_from_str(envkey, getenv(envkey));
+	}
+	
 	/* register our function */
 	usb_test_quirk_p = &usb_test_quirk_by_info;
 	usb_quirk_ioctl_p = &usb_quirk_ioctl;
