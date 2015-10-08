@@ -10,6 +10,10 @@
 
 __<bsd.test.mk>__:
 
+.ifndef TESTSDIR
+.error "Please define TESTSDIR when including bsd.test.mk"
+.endif
+
 # List of subdirectories containing tests into which to recurse.  This has the
 # same semantics as SUBDIR at build-time.  However, the directories listed here
 # get registered into the run-time test suite definitions so that the test
