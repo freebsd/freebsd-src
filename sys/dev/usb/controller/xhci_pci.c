@@ -199,6 +199,7 @@ xhci_pci_attach(device_t self)
 
 	switch (pci_get_devid(self)) {
 	case 0x01941033:	/* NEC uPD720200 USB 3.0 controller */
+	case 0x00141912:	/* NEC uPD720201 USB 3.0 controller */
 		/* Don't use 64-bit DMA on these controllers. */
 		usedma32 = 1;
 		break;
