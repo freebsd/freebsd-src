@@ -212,7 +212,7 @@ SRCS=	assym.s vnode_if.h ${BEFORE_DEPEND} ${CFILES} \
 	mv .newdep .depend
 
 _ILINKS= machine
-.if ${MACHINE} != ${MACHINE_CPUARCH}
+.if ${MACHINE} != ${MACHINE_CPUARCH} && ${MACHINE} != "arm64"
 _ILINKS+= ${MACHINE_CPUARCH}
 .endif
 .if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"

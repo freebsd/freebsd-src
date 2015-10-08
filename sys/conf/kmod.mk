@@ -113,6 +113,10 @@ CFLAGS+=	${DEBUG_FLAGS}
 CFLAGS+=	-fno-omit-frame-pointer -mno-omit-leaf-frame-pointer
 .endif
 
+.if ${MACHINE_CPUARCH} == "aarch64"
+CFLAGS+=	-fPIC
+.endif
+
 # Temporary workaround for PR 196407, which contains the fascinating details.
 # Don't allow clang to use fpu instructions or registers in kernel modules.
 .if ${MACHINE_CPUARCH} == arm
@@ -182,7 +186,17 @@ ${PROG}.debug: ${FULLPROG}
 
 .if ${__KLD_SHARED} == yes
 ${FULLPROG}: ${KMOD}.kld
+.if ${MACHINE_CPUARCH} != "aarch64"
 	${LD} -Bshareable ${_LDFLAGS} -o ${.TARGET} ${KMOD}.kld
+.else
+#XXXKIB Relocatable linking in aarch64 ld from binutils 2.25.1 does
+#       not work.  The linker corrupts the references to the external
+#       symbols which are defined by other object in the linking set
+#       and should therefore loose the GOT entry.  The problem seems
+#       to be fixed in the binutils-gdb git HEAD as of 2015-10-04.  Hack
+#       below allows to get partially functioning modules for now.
+	${LD} -Bshareable ${_LDFLAGS} -o ${.TARGET} ${OBJS}
+.endif
 .if !defined(DEBUG_FLAGS)
 	${OBJCOPY} --strip-debug ${.TARGET}
 .endif
@@ -220,7 +234,7 @@ ${FULLPROG}: ${OBJS}
 .endif
 
 _ILINKS=machine
-.if ${MACHINE} != ${MACHINE_CPUARCH}
+.if ${MACHINE} != ${MACHINE_CPUARCH} && ${MACHINE} != "arm64"
 _ILINKS+=${MACHINE_CPUARCH}
 .endif
 .if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
