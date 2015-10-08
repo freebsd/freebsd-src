@@ -66,25 +66,27 @@ UPDATE_DEPENDFILE ?= NO
 DEPENDFILE?= .depend.${PROG}
 # prog.mk will do the rest
 .else
-all: ${FILES} ${PROGS} ${SCRIPTS}
+all: ${PROGS}
 
 # We cannot capture dependencies for meta mode here
 UPDATE_DEPENDFILE = NO
 # nor can we safely run in parallel.
 .NOTPARALLEL:
 .endif
-.endif
+.endif	# PROGS || PROGS_CXX
 
-# The non-recursive call to bsd.progs.mk will handle FILES; NUL out
-# FILESGROUPS so recursive calls don't duplicate the work
+# These are handled by the main make process.
 .ifdef _RECURSING_PROGS
-FILESGROUPS=
+_PROGS_GLOBAL_VARS= CLEANFILES CLEANDIRS FILESGROUPS SCRIPTS
+.for v in ${_PROGS_GLOBAL_VARS}
+$v =
+.endfor
 .endif
 
 # handle being called [bsd.]progs.mk
 .include <bsd.prog.mk>
 
-.ifndef _RECURSING_PROGS
+.if !empty(PROGS) && !defined(_RECURSING_PROGS)
 # tell progs.mk we might want to install things
 PROGS_TARGETS+= checkdpadd clean cleandepend cleandir cleanobj depend install
 
@@ -94,12 +96,14 @@ PROGS_TARGETS+= checkdpadd clean cleandepend cleandir cleanobj depend install
 x.$p= PROG_CXX=$p
 .endif
 
+# Main PROG target
 $p ${p}_p: .PHONY .MAKE
 	(cd ${.CURDIR} && ${MAKE} -f ${MAKEFILE} _RECURSING_PROGS= \
 	    SUBDIR= PROG=$p \
 	    DEPENDFILE=.depend.$p .MAKE.DEPENDFILE=.depend.$p \
 	    ${x.$p})
 
+# Pseudo targets for PROG, such as 'install'.
 .for t in ${PROGS_TARGETS:O:u}
 $p.$t: .PHONY .MAKE
 	(cd ${.CURDIR} && ${MAKE} -f ${MAKEFILE} _RECURSING_PROGS= \
@@ -109,21 +113,8 @@ $p.$t: .PHONY .MAKE
 .endfor
 .endfor
 
-.if !empty(PROGS)
+# Depend main pseudo targets on all PROG.pseudo targets too.
 .for t in ${PROGS_TARGETS:O:u}
 $t: ${PROGS:%=%.$t}
 .endfor
-.endif
-
-.if empty(PROGS) && !empty(SCRIPTS)
-
-.for t in ${PROGS_TARGETS:O:u}
-scripts.$t: .PHONY .MAKE
-	(cd ${.CURDIR} && ${MAKE} -f ${MAKEFILE} SUBDIR= _RECURSING_PROGS= \
-	    $t)
-$t: scripts.$t
-.endfor
-
-.endif
-
 .endif

@@ -99,10 +99,6 @@ test: beforetest realtest
 test: aftertest
 .endif
 
-.if !empty(SUBDIR)
-.include <bsd.subdir.mk>
-.endif
-
 .if !empty(PROGS) || !empty(PROGS_CXX) || !empty(SCRIPTS)
 .include <bsd.progs.mk>
 .endif
