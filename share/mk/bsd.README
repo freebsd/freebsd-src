@@ -251,6 +251,20 @@ PROG_CXX	If defined, the name of the program to build.  Also
 		standard C++ library.  PROG_CXX overrides the value
 		of PROG if PROG is also set.
 
+PROGS		When used with <bsd.progs.mk>, allow building multiple
+PROGS_CXX	PROG and PROGS_CXX in one Makefile.  To define
+		individual variables for each program the VAR.prog
+		syntax should be used.  For example:
+
+		PROGS=		foo bar
+		SRCS.foo=	foo_src.c
+		LDADD.foo=	-lutil
+		SRCS.bar=	bar_src.c
+
+		The supported variables are BINDIR BINGRP BINMODE BINOWN
+		CFLAGS CPPFLAGS CXXFLAGS DPADD DPLIBS DPSRCS LDADD
+		LDFLAGS MAN MLINKS PROGNAME SRCS.
+
 PROGNAME	The name that the above program will be installed as, if
 		different from ${PROG}.
 
