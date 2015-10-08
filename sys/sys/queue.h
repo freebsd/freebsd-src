@@ -79,8 +79,10 @@
  *
  *				SLIST	LIST	STAILQ	TAILQ
  * _HEAD			+	+	+	+
+ * _CLASS_HEAD			+	+	+	+
  * _HEAD_INITIALIZER		+	+	+	+
  * _ENTRY			+	+	+	+
+ * _CLASS_ENTRY			+	+	+	+
  * _INIT			+	+	+	+
  * _EMPTY			+	+	+	+
  * _FIRST			+	+	+	+
@@ -141,6 +143,15 @@ struct qm_trace {
 #define	TRASHIT(x)
 #endif	/* QUEUE_MACRO_DEBUG */
 
+#ifdef __cplusplus
+/*
+ * In C++ there can be structure lists and class lists:
+ */
+#define	QUEUE_TYPEOF(type) type
+#else
+#define	QUEUE_TYPEOF(type) struct type
+#endif
+
 /*
  * Singly-linked List declarations.
  */
@@ -149,12 +160,22 @@ struct name {								\
 	struct type *slh_first;	/* first element */			\
 }
 
+#define	SLIST_CLASS_HEAD(name, type)					\
+struct name {								\
+	class type *slh_first;	/* first element */			\
+}
+
 #define	SLIST_HEAD_INITIALIZER(head)					\
 	{ NULL }
 
 #define	SLIST_ENTRY(type)						\
 struct {								\
 	struct type *sle_next;	/* next element */			\
+}
+
+#define	SLIST_CLASS_ENTRY(type)						\
+struct {								\
+	class type *sle_next;		/* next element */		\
 }
 
 /*
@@ -211,7 +232,7 @@ struct {								\
 		SLIST_REMOVE_HEAD((head), field);			\
 	}								\
 	else {								\
-		struct type *curelm = SLIST_FIRST((head));		\
+		QUEUE_TYPEOF(type) *curelm = SLIST_FIRST(head);		\
 		while (SLIST_NEXT(curelm, field) != (elm))		\
 			curelm = SLIST_NEXT(curelm, field);		\
 		SLIST_REMOVE_AFTER(curelm, field);			\
@@ -229,7 +250,7 @@ struct {								\
 } while (0)
 
 #define SLIST_SWAP(head1, head2, type) do {				\
-	struct type *swap_first = SLIST_FIRST(head1);			\
+	QUEUE_TYPEOF(type) *swap_first = SLIST_FIRST(head1);		\
 	SLIST_FIRST(head1) = SLIST_FIRST(head2);			\
 	SLIST_FIRST(head2) = swap_first;				\
 } while (0)
@@ -243,12 +264,23 @@ struct name {								\
 	struct type **stqh_last;/* addr of last next element */		\
 }
 
+#define	STAILQ_CLASS_HEAD(name, type)					\
+struct name {								\
+	class type *stqh_first;	/* first element */			\
+	class type **stqh_last;	/* addr of last next element */		\
+}
+
 #define	STAILQ_HEAD_INITIALIZER(head)					\
 	{ NULL, &(head).stqh_first }
 
 #define	STAILQ_ENTRY(type)						\
 struct {								\
 	struct type *stqe_next;	/* next element */			\
+}
+
+#define	STAILQ_CLASS_ENTRY(type)					\
+struct {								\
+	class type *stqe_next;	/* next element */			\
 }
 
 /*
@@ -309,9 +341,10 @@ struct {								\
 	(head)->stqh_last = &STAILQ_NEXT((elm), field);			\
 } while (0)
 
-#define	STAILQ_LAST(head, type, field)					\
-	(STAILQ_EMPTY((head)) ? NULL :					\
-	    __containerof((head)->stqh_last, struct type, field.stqe_next))
+#define	STAILQ_LAST(head, type, field)				\
+	(STAILQ_EMPTY((head)) ? NULL :				\
+	    __containerof((head)->stqh_last,			\
+	    QUEUE_TYPEOF(type), field.stqe_next))
 
 #define	STAILQ_NEXT(elm, field)	((elm)->field.stqe_next)
 
@@ -321,7 +354,7 @@ struct {								\
 		STAILQ_REMOVE_HEAD((head), field);			\
 	}								\
 	else {								\
-		struct type *curelm = STAILQ_FIRST((head));		\
+		QUEUE_TYPEOF(type) *curelm = STAILQ_FIRST(head);	\
 		while (STAILQ_NEXT(curelm, field) != (elm))		\
 			curelm = STAILQ_NEXT(curelm, field);		\
 		STAILQ_REMOVE_AFTER(head, curelm, field);		\
@@ -342,8 +375,8 @@ struct {								\
 } while (0)
 
 #define STAILQ_SWAP(head1, head2, type) do {				\
-	struct type *swap_first = STAILQ_FIRST(head1);			\
-	struct type **swap_last = (head1)->stqh_last;			\
+	QUEUE_TYPEOF(type) *swap_first = STAILQ_FIRST(head1);		\
+	QUEUE_TYPEOF(type) **swap_last = (head1)->stqh_last;		\
 	STAILQ_FIRST(head1) = STAILQ_FIRST(head2);			\
 	(head1)->stqh_last = (head2)->stqh_last;			\
 	STAILQ_FIRST(head2) = swap_first;				\
@@ -363,6 +396,11 @@ struct name {								\
 	struct type *lh_first;	/* first element */			\
 }
 
+#define	LIST_CLASS_HEAD(name, type)					\
+struct name {								\
+	class type *lh_first;	/* first element */			\
+}
+
 #define	LIST_HEAD_INITIALIZER(head)					\
 	{ NULL }
 
@@ -370,6 +408,12 @@ struct name {								\
 struct {								\
 	struct type *le_next;	/* next element */			\
 	struct type **le_prev;	/* address of previous next element */	\
+}
+
+#define	LIST_CLASS_ENTRY(type)						\
+struct {								\
+	class type *le_next;	/* next element */			\
+	class type **le_prev;	/* address of previous next element */	\
 }
 
 /*
@@ -456,9 +500,10 @@ struct {								\
 
 #define	LIST_NEXT(elm, field)	((elm)->field.le_next)
 
-#define	LIST_PREV(elm, head, type, field)				\
-	((elm)->field.le_prev == &LIST_FIRST((head)) ? NULL :		\
-	    __containerof((elm)->field.le_prev, struct type, field.le_next))
+#define	LIST_PREV(elm, head, type, field)			\
+	((elm)->field.le_prev == &LIST_FIRST((head)) ? NULL :	\
+	    __containerof((elm)->field.le_prev,			\
+	    QUEUE_TYPEOF(type), field.le_next))
 
 #define	LIST_REMOVE(elm, field) do {					\
 	QMD_SAVELINK(oldnext, (elm)->field.le_next);			\
@@ -474,7 +519,7 @@ struct {								\
 } while (0)
 
 #define LIST_SWAP(head1, head2, type, field) do {			\
-	struct type *swap_tmp = LIST_FIRST((head1));			\
+	QUEUE_TYPEOF(type) *swap_tmp = LIST_FIRST(head1);		\
 	LIST_FIRST((head1)) = LIST_FIRST((head2));			\
 	LIST_FIRST((head2)) = swap_tmp;					\
 	if ((swap_tmp = LIST_FIRST((head1))) != NULL)			\
@@ -493,6 +538,13 @@ struct name {								\
 	TRACEBUF							\
 }
 
+#define	TAILQ_CLASS_HEAD(name, type)					\
+struct name {								\
+	class type *tqh_first;	/* first element */			\
+	class type **tqh_last;	/* addr of last next element */		\
+	TRACEBUF							\
+}
+
 #define	TAILQ_HEAD_INITIALIZER(head)					\
 	{ NULL, &(head).tqh_first }
 
@@ -500,6 +552,13 @@ struct name {								\
 struct {								\
 	struct type *tqe_next;	/* next element */			\
 	struct type **tqe_prev;	/* address of previous next element */	\
+	TRACEBUF							\
+}
+
+#define	TAILQ_CLASS_ENTRY(type)						\
+struct {								\
+	class type *tqe_next;	/* next element */			\
+	class type **tqe_prev;	/* address of previous next element */	\
 	TRACEBUF							\
 }
 
@@ -673,8 +732,8 @@ struct {								\
 } while (0)
 
 #define TAILQ_SWAP(head1, head2, type, field) do {			\
-	struct type *swap_first = (head1)->tqh_first;			\
-	struct type **swap_last = (head1)->tqh_last;			\
+	QUEUE_TYPEOF(type) *swap_first = (head1)->tqh_first;		\
+	QUEUE_TYPEOF(type) **swap_last = (head1)->tqh_last;		\
 	(head1)->tqh_first = (head2)->tqh_first;			\
 	(head1)->tqh_last = (head2)->tqh_last;				\
 	(head2)->tqh_first = swap_first;				\
