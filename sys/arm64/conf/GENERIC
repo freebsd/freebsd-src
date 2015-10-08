@@ -22,7 +22,6 @@ cpu		ARM64
 ident		GENERIC
 
 makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
-makeoptions	NO_MODULES=1		# We don't yet support modules on arm64
 
 options 	SCHED_ULE		# ULE scheduler
 options 	PREEMPTION		# Enable kernel thread preemption

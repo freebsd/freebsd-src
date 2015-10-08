@@ -97,6 +97,13 @@ INLINE_LIMIT?=	8000
 INLINE_LIMIT?=	8000
 .endif
 
+.if ${MACHINE_CPUARCH} == "aarch64"
+# We generally don't want fpu instructions in the kernel.
+CFLAGS += -mgeneral-regs-only
+# Reserve x18 for pcpu data
+CFLAGS += -ffixed-x18
+.endif
+
 #
 # For sparc64 we want the medany code model so modules may be located
 # anywhere in the 64-bit address space.  We also tell GCC to use floating
