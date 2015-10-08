@@ -1,10 +1,13 @@
 /*-
- * Copyright (c) 2014 The FreeBSD Foundation.
+ * Copyright (c) 2014, 2015 The FreeBSD Foundation.
  * Copyright (c) 2014 Andrew Turner.
  * All rights reserved.
  *
  * This software was developed by Andrew Turner under
  * sponsorship from the FreeBSD Foundation.
+ *
+ * Portions of this software were developed by Konstantin Belousov
+ * under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -124,12 +127,66 @@ elf64_dump_thread(struct thread *td __unused, void *dst __unused,
 
 }
 
+static int
+elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
+    int type, int local, elf_lookup_fn lookup)
+{
+	Elf_Addr *where, addr, addend;
+	Elf_Word rtype, symidx;
+	const Elf_Rel *rel;
+	const Elf_Rela *rela;
+	int error;
+
+	switch (type) {
+	case ELF_RELOC_REL:
+		rel = (const Elf_Rel *)data;
+		where = (Elf_Addr *) (relocbase + rel->r_offset);
+		addend = *where;
+		rtype = ELF_R_TYPE(rel->r_info);
+		symidx = ELF_R_SYM(rel->r_info);
+		break;
+	case ELF_RELOC_RELA:
+		rela = (const Elf_Rela *)data;
+		where = (Elf_Addr *) (relocbase + rela->r_offset);
+		addend = rela->r_addend;
+		rtype = ELF_R_TYPE(rela->r_info);
+		symidx = ELF_R_SYM(rela->r_info);
+		break;
+	default:
+		panic("unknown reloc type %d\n", type);
+	}
+
+	if (local) {
+		if (rtype == R_AARCH64_RELATIVE)
+			*where = elf_relocaddr(lf, relocbase + addend);
+		return (0);
+	}
+
+	switch (rtype) {
+	case R_AARCH64_NONE:
+	case R_AARCH64_RELATIVE:
+		break;
+	case R_AARCH64_ABS64:
+	case R_AARCH64_GLOB_DAT:
+	case R_AARCH64_JUMP_SLOT:
+		error = lookup(lf, symidx, 1, &addr);
+		if (error != 0)
+			return (-1);
+		*where = addr + addend;
+		break;
+	default:
+		printf("kldload: unexpected relocation type %d\n", rtype);
+		return (-1);
+	}
+	return (0);
+}
+
 int
 elf_reloc_local(linker_file_t lf, Elf_Addr relocbase, const void *data,
-    int type, elf_lookup_fn lookup __unused)
+    int type, elf_lookup_fn lookup)
 {
 
-	panic("ARM64TODO: elf_reloc_local");
+	return (elf_reloc_internal(lf, relocbase, data, type, 1, lookup));
 }
 
 /* Process one elf relocation with addend. */
@@ -138,13 +195,15 @@ elf_reloc(linker_file_t lf, Elf_Addr relocbase, const void *data, int type,
     elf_lookup_fn lookup)
 {
 
-	panic("ARM64TODO: elf_reloc");
+	return (elf_reloc_internal(lf, relocbase, data, type, 0, lookup));
 }
 
 int
-elf_cpu_load_file(linker_file_t lf __unused)
+elf_cpu_load_file(linker_file_t lf)
 {
 
+	if (lf->id != 1)
+		cpu_icache_sync_range((vm_offset_t)lf->address, lf->size);
 	return (0);
 }
 
