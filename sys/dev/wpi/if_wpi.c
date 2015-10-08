@@ -2731,6 +2731,7 @@ wpi_tx_data(struct wpi_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 	wh = mtod(m, struct ieee80211_frame *);
 	type = wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK;
 	ismcast = IEEE80211_IS_MULTICAST(wh->i_addr1);
+	swcrypt = 1;
 
 	/* Select EDCA Access Category and TX ring for this frame. */
 	if (IEEE80211_QOS_HAS_SEQ(wh)) {
@@ -2844,7 +2845,7 @@ wpi_tx_data(struct wpi_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 		tx->id = wn->id;
 	}
 
-	if (k != NULL && !swcrypt) {
+	if (!swcrypt) {
 		switch (k->wk_cipher->ic_cipher) {
 		case IEEE80211_CIPHER_AES_CCM:
 			tx->security = WPI_CIPHER_CCMP;
@@ -2894,6 +2895,7 @@ wpi_tx_data_raw(struct wpi_softc *sc, struct mbuf *m,
 
 	wh = mtod(m, struct ieee80211_frame *);
 	type = wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK;
+	swcrypt = 1;
 
 	ac = params->ibp_pri & 3;
 
@@ -2952,7 +2954,7 @@ wpi_tx_data_raw(struct wpi_softc *sc, struct mbuf *m,
 			tx->timeout = htole16(2);
 	}
 
-	if (k != NULL && !swcrypt) {
+	if (!swcrypt) {
 		switch (k->wk_cipher->ic_cipher) {
 		case IEEE80211_CIPHER_AES_CCM:
 			tx->security = WPI_CIPHER_CCMP;
