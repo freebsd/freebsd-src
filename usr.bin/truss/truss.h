@@ -51,7 +51,7 @@ struct procabi {
 
 /*
  * This is confusingly named.  It holds per-thread state about the
- * currently executing system call.  syscalls.h defines a struct
+ * currently executing system call.  syscall.h defines a struct
  * syscall that holds metadata used to format system call arguments.
  *
  * NB: args[] stores the raw argument values (e.g. from registers)
