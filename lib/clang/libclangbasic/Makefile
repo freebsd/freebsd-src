@@ -47,3 +47,6 @@ TGHDRS=	AttrHasAttributeImpl \
 	arm_neon
 
 .include "../clang.lib.mk"
+
+# XX: work around GCC bug 67888
+CFLAGS.gcc += -fpermissive
