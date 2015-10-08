@@ -44,6 +44,7 @@
 #        list-new-changesets.py  -r254153:261794 \
 #                        svn://svn.freebsd.org/base/stable/9
 
+from __future__ import print_function
 import os
 import subprocess
 import sys
@@ -60,15 +61,15 @@ def print_logentry(logentry):
     date = logentry.find('date').text
     msg = logentry.find('msg').text
 
-    print "-" * 71
-    print "%s | %s | %s" % (rev, author, date)
-    print "Changed paths:"
+    print("-" * 71)
+    print("%s | %s | %s" % (rev, author, date))
+    print("Changed paths:")
     for paths in logentry.findall('paths'):
         for path in paths.findall('path'):
-            print "   %s %s" % (path.attrib['action'], path.text)
+            print("   %s %s" % (path.attrib['action'], path.text))
 
-    print
-    print msg.encode('utf-8')
+    print()
+    print(msg.encode('utf-8'))
 
 def main(args):
     """Main function.
@@ -80,13 +81,13 @@ def main(args):
     cmd = ["svn", "log", "-v", "--xml"]
     cmd += args[1:] 
 
-    print " ".join(cmd)
+    print(" ".join(cmd))
 
     proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     (out, err) = proc.communicate()
 
     if proc.returncode != 0:
-        print err
+        print(err)
         sys.exit(proc.returncode) 
 
     displayed_entries = 0
@@ -107,10 +108,10 @@ def main(args):
            displayed_entries += 1
 
     if displayed_entries == 0:
-        print "No changesets with Added or Deleted files"
+        print("No changesets with Added or Deleted files")
 
     if displayed_entries > 0:    
-        print "-" * 71
+        print("-" * 71)
 
 
 if __name__ == "__main__":
