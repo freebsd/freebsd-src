@@ -2131,12 +2131,18 @@ extern void dtrace_probe(dtrace_id_t, uintptr_t arg0, uintptr_t arg1,
  *
  * 1.2.4  Caller's context
  *
- *   dtms_create_probe() is called from either ioctl() or module load context.
- *   The DTrace framework is locked in such a way that meta providers may not
- *   register or unregister. This means that the meta provider cannot call
- *   dtrace_meta_register() or dtrace_meta_unregister(). However, the context is
- *   such that the provider may (and is expected to) call provider-related
- *   DTrace provider APIs including dtrace_probe_create().
+ *   dtms_create_probe() is called from either ioctl() or module load context
+ *   in the context of a newly-created provider (that is, a provider that
+ *   is a result of a call to dtms_provide_pid()). The DTrace framework is
+ *   locked in such a way that meta providers may not register or unregister,
+ *   such that no other thread can call into a meta provider operation and that
+ *   atomicity is assured with respect to meta provider operations across
+ *   dtms_provide_pid() and subsequent calls to dtms_create_probe().
+ *   The context is thus effectively single-threaded with respect to the meta
+ *   provider, and that the meta provider cannot call dtrace_meta_register()
+ *   or dtrace_meta_unregister(). However, the context is such that the
+ *   provider may (and is expected to) call provider-related DTrace provider
+ *   APIs including dtrace_probe_create().
  *
  * 1.3  void *dtms_provide_pid(void *arg, dtrace_meta_provider_t *mprov,
  *	      pid_t pid)
