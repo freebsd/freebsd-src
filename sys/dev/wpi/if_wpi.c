@@ -2116,6 +2116,7 @@ wpi_cmd_done(struct wpi_softc *sc, struct wpi_rx_desc *desc)
 {
 	struct wpi_tx_ring *ring = &sc->txq[WPI_CMD_QUEUE_NUM];
 	struct wpi_tx_data *data;
+	struct wpi_tx_cmd *cmd;
 
 	DPRINTF(sc, WPI_DEBUG_CMD, "cmd notification qid %x idx %d flags %x "
 				   "type %s len %d\n", desc->qid, desc->idx,
@@ -2128,6 +2129,7 @@ wpi_cmd_done(struct wpi_softc *sc, struct wpi_rx_desc *desc)
 	KASSERT(ring->queued == 0, ("ring->queued must be 0"));
 
 	data = &ring->data[desc->idx];
+	cmd = &ring->cmd[desc->idx];
 
 	/* If the command was mapped in an mbuf, free it. */
 	if (data->m != NULL) {
@@ -2138,11 +2140,16 @@ wpi_cmd_done(struct wpi_softc *sc, struct wpi_rx_desc *desc)
 		data->m = NULL;
 	}
 
-	wakeup(&ring->cmd[desc->idx]);
+	wakeup(cmd);
 
 	if (desc->type == WPI_CMD_SET_POWER_MODE) {
+		struct wpi_pmgt_cmd *pcmd = (struct wpi_pmgt_cmd *)cmd->data;
+
+		bus_dmamap_sync(ring->data_dmat, ring->cmd_dma.map,
+		    BUS_DMASYNC_POSTREAD);
+
 		WPI_TXQ_LOCK(sc);
-		if (sc->sc_flags & WPI_PS_PATH) {
+		if (le16toh(pcmd->flags) & WPI_PS_ALLOW_SLEEP) {
 			sc->sc_update_rx_ring = wpi_update_rx_ring_ps;
 			sc->sc_update_tx_ring = wpi_update_tx_ring_ps;
 		} else {
@@ -3714,13 +3721,8 @@ wpi_set_pslevel(struct wpi_softc *sc, uint8_t dtim, int level, int async)
 		pmgt = &wpi_pmgt[1][level];
 
 	memset(&cmd, 0, sizeof cmd);
-	WPI_TXQ_LOCK(sc);
-	if (level != 0)	{	/* not CAM */
+	if (level != 0)	/* not CAM */
 		cmd.flags |= htole16(WPI_PS_ALLOW_SLEEP);
-		sc->sc_flags |= WPI_PS_PATH;
-	} else
-		sc->sc_flags &= ~WPI_PS_PATH;
-	WPI_TXQ_UNLOCK(sc);
 	/* Retrieve PCIe Active State Power Management (ASPM). */
 	reg = pci_read_config(sc->sc_dev, sc->sc_cap_off + 0x10, 1);
 	if (!(reg & 0x1))	/* L0s Entry disabled. */
