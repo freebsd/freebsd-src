@@ -114,7 +114,7 @@ open(const char *fname, int mode)
 	error = (fs->fo_open)(fname, f);
 	if (error == 0)
 	    goto ok;
-	goto fail;
+	goto err;
     }
 
     error = devopen(f, fname, &file);
