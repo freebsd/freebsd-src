@@ -1925,7 +1925,7 @@ wpi_rx_done(struct wpi_softc *sc, struct wpi_rx_desc *desc,
 
 	stat = (struct wpi_rx_stat *)(desc + 1);
 
-	if (stat->len > WPI_STAT_MAXLEN) {
+	if (__predict_false(stat->len > WPI_STAT_MAXLEN)) {
 		device_printf(sc->sc_dev, "invalid RX statistic header\n");
 		goto fail1;
 	}
@@ -1955,7 +1955,7 @@ wpi_rx_done(struct wpi_softc *sc, struct wpi_rx_desc *desc,
 	}
 
 	m1 = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR, MJUMPAGESIZE);
-	if (m1 == NULL) {
+	if (__predict_false(m1 == NULL)) {
 		DPRINTF(sc, WPI_DEBUG_ANY, "%s: no mbuf to restock ring\n",
 		    __func__);
 		goto fail1;
@@ -1964,7 +1964,7 @@ wpi_rx_done(struct wpi_softc *sc, struct wpi_rx_desc *desc,
 
 	error = bus_dmamap_load(ring->data_dmat, data->map, mtod(m1, void *),
 	    MJUMPAGESIZE, wpi_dma_map_addr, &paddr, BUS_DMA_NOWAIT);
-	if (error != 0 && error != EFBIG) {
+	if (__predict_false(error != 0 && error != EFBIG)) {
 		device_printf(sc->sc_dev,
 		    "%s: bus_dmamap_load failed, error %d\n", __func__, error);
 		m_freem(m1);
@@ -2198,7 +2198,7 @@ wpi_notif_intr(struct wpi_softc *sc)
 			/* An 802.11 frame has been received. */
 			wpi_rx_done(sc, desc, data);
 
-			if (sc->sc_running == 0) {
+			if (__predict_false(sc->sc_running == 0)) {
 				/* wpi_stop() was called. */
 				return;
 			}
@@ -2527,7 +2527,8 @@ wpi_intr(void *arg)
 
 	r1 = WPI_READ(sc, WPI_INT);
 
-	if (r1 == 0xffffffff || (r1 & 0xfffffff0) == 0xa5a5a5a0)
+	if (__predict_false(r1 == 0xffffffff ||
+			   (r1 & 0xfffffff0) == 0xa5a5a5a0))
 		goto end;	/* Hardware gone! */
 
 	r2 = WPI_READ(sc, WPI_FH_INT);
@@ -2542,7 +2543,7 @@ wpi_intr(void *arg)
 	WPI_WRITE(sc, WPI_INT, r1);
 	WPI_WRITE(sc, WPI_FH_INT, r2);
 
-	if (r1 & (WPI_INT_SW_ERR | WPI_INT_HW_ERR)) {
+	if (__predict_false(r1 & (WPI_INT_SW_ERR | WPI_INT_HW_ERR))) {
 		device_printf(sc->sc_dev, "fatal firmware error\n");
 #ifdef WPI_DEBUG
 		wpi_debug_registers(sc);
@@ -2567,7 +2568,7 @@ wpi_intr(void *arg)
 
 done:
 	/* Re-enable interrupts. */
-	if (sc->sc_running)
+	if (__predict_true(sc->sc_running))
 		WPI_WRITE(sc, WPI_INT_MASK, WPI_INT_MASK_DEF);
 
 end:	WPI_UNLOCK(sc);
@@ -2591,7 +2592,7 @@ wpi_cmd2(struct wpi_softc *sc, struct wpi_buf *buf)
 
 	DPRINTF(sc, WPI_DEBUG_TRACE, TRACE_STR_BEGIN, __func__);
 
-	if (sc->sc_running == 0) {
+	if (__predict_false(sc->sc_running == 0)) {
 		/* wpi_stop() was called */
 		error = ENETDOWN;
 		goto fail;
@@ -2644,7 +2645,7 @@ wpi_cmd2(struct wpi_softc *sc, struct wpi_buf *buf)
 
 		error = bus_dmamap_load_mbuf_sg(ring->data_dmat, data->map,
 		    buf->m, segs, &nsegs, BUS_DMA_NOWAIT);
-		if (error != 0) {
+		if (__predict_false(error != 0)) {
 			device_printf(sc->sc_dev,
 			    "%s: can't map mbuf (error %d)\n", __func__,
 			    error);
@@ -3061,7 +3062,7 @@ wpi_transmit(struct ieee80211com *ic, struct mbuf *m)
 	DPRINTF(sc, WPI_DEBUG_XMIT, "%s: called\n", __func__);
 
 	/* Check if interface is up & running. */
-	if (sc->sc_running == 0) {
+	if (__predict_false(sc->sc_running == 0)) {
 		error = ENXIO;
 		goto unlock;
 	}
@@ -3160,7 +3161,7 @@ wpi_cmd(struct wpi_softc *sc, int code, const void *buf, size_t size,
 
 	DPRINTF(sc, WPI_DEBUG_TRACE, TRACE_STR_BEGIN, __func__);
 
-	if (sc->sc_running == 0) {
+	if (__predict_false(sc->sc_running == 0)) {
 		/* wpi_stop() was called */
 		if (code == WPI_CMD_SCAN)
 			error = ENETDOWN;
