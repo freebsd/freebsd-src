@@ -165,8 +165,6 @@ struct wpi_softc {
 	device_t		sc_dev;
 	int			sc_debug;
 
-	int			sc_flags;
-#define WPI_PS_PATH		(1 << 0)
 	int			sc_running;
 
 	struct mtx		sc_mtx;
