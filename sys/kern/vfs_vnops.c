@@ -43,6 +43,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_hwpmc_hooks.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/disk.h>
@@ -83,6 +85,10 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vnode_pager.h>
+
+#ifdef HWPMC_HOOKS
+#include <sys/pmckern.h>
+#endif
 
 static fo_rdwr_t	vn_read;
 static fo_rdwr_t	vn_write;
@@ -2461,7 +2467,7 @@ vn_mmap(struct file *fp, vm_map_t map, vm_offset_t *addr, vm_size_t size,
 	/* Inform hwpmc(4) if an executable is being mapped. */
 	if (error == 0 && (prot & VM_PROT_EXECUTE) != 0) {
 		pkm.pm_file = vp;
-		pkm.pm_address = (uintptr_t) addr;
+		pkm.pm_address = (uintptr_t) *addr;
 		PMC_CALL_HOOK(td, PMC_FN_MMAP, (void *) &pkm);
 	}
 #endif
