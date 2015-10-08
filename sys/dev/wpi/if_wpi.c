@@ -2603,6 +2603,11 @@ wpi_cmd2(struct wpi_softc *sc, struct wpi_buf *buf)
 	hdrlen = ieee80211_anyhdrsize(wh);
 	totlen = buf->m->m_pkthdr.len;
 
+	if (__predict_false(totlen < sizeof(struct ieee80211_frame_min))) {
+		error = EINVAL;
+		goto fail;
+	}
+
 	if (hdrlen & 3) {
 		/* First segment length must be a multiple of 4. */
 		pad = 4 - (hdrlen & 3);
