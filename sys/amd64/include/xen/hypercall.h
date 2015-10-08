@@ -308,7 +308,7 @@ HYPERVISOR_xen_version(
 
 static inline int __must_check
 HYPERVISOR_console_io(
-	int cmd, unsigned int count, char *str)
+	int cmd, unsigned int count, const char *str)
 {
 	return _hypercall3(int, console_io, cmd, count, str);
 }
