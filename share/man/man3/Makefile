@@ -40,10 +40,13 @@ MLINKS+=	fpgetround.3 fpgetmask.3 \
 MLINKS+=	makedev.3 major.3 \
 		makedev.3 minor.3
 MLINKS+=	${PTHREAD_MLINKS}
-MLINKS+=	queue.3 LIST_EMPTY.3 \
+MLINKS+=	queue.3 LIST_CLASS_ENTRY.3 \
+		queue.3 LIST_CLASS_HEAD.3 \
+		queue.3 LIST_EMPTY.3 \
 		queue.3 LIST_ENTRY.3 \
 		queue.3 LIST_FIRST.3 \
 		queue.3 LIST_FOREACH.3 \
+		queue.3 LIST_FOREACH_FROM_SAFE.3 \
 		queue.3 LIST_FOREACH_SAFE.3 \
 		queue.3 LIST_HEAD.3 \
 		queue.3 LIST_HEAD_INITIALIZER.3 \
@@ -55,10 +58,13 @@ MLINKS+=	queue.3 LIST_EMPTY.3 \
 		queue.3 LIST_PREV.3 \
 		queue.3 LIST_REMOVE.3 \
 		queue.3 LIST_SWAP.3 \
+		queue.3 SLIST_CLASS_ENTRY.3 \
+		queue.3 SLIST_CLASS_HEAD.3 \
 		queue.3 SLIST_EMPTY.3 \
 		queue.3 SLIST_ENTRY.3 \
 		queue.3 SLIST_FIRST.3 \
 		queue.3 SLIST_FOREACH.3 \
+		queue.3 SLIST_FOREACH_FROM_SAFE.3 \
 		queue.3 SLIST_FOREACH_SAFE.3 \
 		queue.3 SLIST_HEAD.3 \
 		queue.3 SLIST_HEAD_INITIALIZER.3 \
@@ -70,11 +76,14 @@ MLINKS+=	queue.3 LIST_EMPTY.3 \
 		queue.3 SLIST_REMOVE_AFTER.3 \
 		queue.3 SLIST_REMOVE_HEAD.3 \
 		queue.3 SLIST_SWAP.3 \
+		queue.3 STAILQ_CLASS_ENTRY.3 \
+		queue.3 STAILQ_CLASS_HEAD.3 \
 		queue.3 STAILQ_CONCAT.3 \
 		queue.3 STAILQ_EMPTY.3 \
 		queue.3 STAILQ_ENTRY.3 \
 		queue.3 STAILQ_FIRST.3 \
 		queue.3 STAILQ_FOREACH.3 \
+		queue.3 STAILQ_FOREACH_FROM_SAFE.3 \
 		queue.3 STAILQ_FOREACH_SAFE.3 \
 		queue.3 STAILQ_HEAD.3 \
 		queue.3 STAILQ_HEAD_INITIALIZER.3 \
@@ -88,12 +97,16 @@ MLINKS+=	queue.3 LIST_EMPTY.3 \
 		queue.3 STAILQ_REMOVE_AFTER.3 \
 		queue.3 STAILQ_REMOVE_HEAD.3 \
 		queue.3 STAILQ_SWAP.3 \
+		queue.3 TAILQ_CLASS_ENTRY.3 \
+		queue.3 TAILQ_CLASS_HEAD.3 \
 		queue.3 TAILQ_CONCAT.3 \
 		queue.3 TAILQ_EMPTY.3 \
 		queue.3 TAILQ_ENTRY.3 \
 		queue.3 TAILQ_FIRST.3 \
 		queue.3 TAILQ_FOREACH.3 \
+		queue.3 TAILQ_FOREACH_FROM_SAFE.3 \
 		queue.3 TAILQ_FOREACH_REVERSE.3 \
+		queue.3 TAILQ_FOREACH_REVERSE_FROM_SAFE.3 \
 		queue.3 TAILQ_FOREACH_REVERSE_SAFE.3 \
 		queue.3 TAILQ_FOREACH_SAFE.3 \
 		queue.3 TAILQ_HEAD.3 \
