@@ -2265,7 +2265,8 @@ wpi_notif_intr(struct wpi_softc *sc)
 			    "duration %u, status %x, tsf %ju, mode %x\n",
 			    stat->rtsfailcnt, stat->ackfailcnt,
 			    stat->btkillcnt, stat->rate, le32toh(stat->duration),
-			    le32toh(stat->status), *tsf, *mode);
+			    le32toh(stat->status), le64toh(*tsf),
+			    le32toh(*mode));
 
 			break;
 		}
@@ -4121,7 +4122,7 @@ wpi_scan(struct wpi_softc *sc, struct ieee80211_channel *c)
 	 * after the scan probe request
 	 */
 	chan = (struct wpi_scan_chan *)frm;
-	chan->chan = htole16(ieee80211_chan2ieee(ic, c));
+	chan->chan = ieee80211_chan2ieee(ic, c);
 	chan->flags = 0;
 	if (nssid) {
 		hdr->crc_threshold = WPI_SCAN_CRC_TH_DEFAULT;
