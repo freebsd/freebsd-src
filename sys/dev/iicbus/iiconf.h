@@ -82,10 +82,10 @@
  * adapter layer errors
  */
 #define IIC_NOERR	0x0	/* no error occured */
-#define IIC_EBUSERR	0x1	/* bus error */
+#define IIC_EBUSERR	0x1	/* bus error (hardware not in expected state) */
 #define IIC_ENOACK	0x2	/* ack not received until timeout */
 #define IIC_ETIMEOUT	0x3	/* timeout */
-#define IIC_EBUSBSY	0x4	/* bus busy */
+#define IIC_EBUSBSY	0x4	/* bus busy (reserved by another client) */
 #define IIC_ESTATUS	0x5	/* status error */
 #define IIC_EUNDERFLOW	0x6	/* slave ready for more data */
 #define IIC_EOVERFLOW	0x7	/* too much data */

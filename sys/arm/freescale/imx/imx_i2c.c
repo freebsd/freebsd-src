@@ -243,7 +243,7 @@ wait_for_xfer(struct i2c_softc *sc, int checkack)
 		sr = i2c_read_reg(sc, I2C_STATUS_REG);
 		if (sr & I2CSR_MIF) {
                         if (sr & I2CSR_MAL) 
-				return (IIC_EBUSBSY);
+				return (IIC_EBUSERR);
 			else if (checkack && (sr & I2CSR_RXAK))
 				return (IIC_ENOACK);
 			else
@@ -350,7 +350,7 @@ i2c_start(device_t dev, u_char slave, int timeout)
 	i2c_write_reg(sc, I2C_CONTROL_REG, I2CCR_MEN);
 	DELAY(10); /* Delay for controller to sample bus state. */
 	if (i2c_read_reg(sc, I2C_STATUS_REG) & I2CSR_MBB) {
-		return (i2c_error_handler(sc, IIC_EBUSBSY));
+		return (i2c_error_handler(sc, IIC_EBUSERR));
 	}
 	i2c_write_reg(sc, I2C_CONTROL_REG, I2CCR_MEN | I2CCR_MSTA | I2CCR_MTX);
 	if ((error = wait_for_busbusy(sc, true)) != IIC_NOERR)
