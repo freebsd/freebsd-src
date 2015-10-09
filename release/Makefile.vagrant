@@ -24,7 +24,8 @@ VAGRANT_VERSION!=	date +%Y.%m.%d
 VAGRANT_TARGET:=	${OSRELEASE}${SNAPSHOT_DATE}
 .if !empty(CLOUDWARE)
 . for _PROVIDER in ${CLOUDWARE}
-.  if !empty(${_PROVIDER:MVAGRANT*})
+_provider=	${_PROVIDER}
+.  if ${_provider:MVAGRANT*}
 VAGRANT_PROVIDERS+=	${_PROVIDER:S/VAGRANT-//:tl}
 .  endif
 . endfor
@@ -51,6 +52,7 @@ vagrant-check-depends:
 .endif
 
 .for PROVIDER in ${VAGRANT_PROVIDERS}
+_provider=	${PROVIDER}
 CLEANFILES+=	vagrant-do-package-${PROVIDER} ${VAGRANT_TARGET}.${PROVIDER}.box
 CLEANDIRS+=	${PROVIDER}
 VAGRANT_UPLOAD_TGTS+=	vagrant-do-upload-${PROVIDER}
@@ -61,19 +63,19 @@ ${PROVIDER}:
 ${VAGRANT_TARGET}.${PROVIDER}.box: ${PROVIDER} cw-vagrant-${PROVIDER} vagrant-create-${PROVIDER}-metadata
 	@echo "==> PACKAGING: ${VAGRANT_TARGET}.${PROVIDER}.box in `pwd`"
 	@cp vagrant-${PROVIDER}.vmdk ${PROVIDER}/vagrant.vmdk
-. if !empty(${PROVIDER:Mvirtualbox})
+. if ${_provider} == virtualbox
 	@(cd ${.OBJDIR}/${PROVIDER} && echo '{"provider":"${PROVIDER}"}' > metadata.json)
 	@(cd ${.OBJDIR}/${PROVIDER} && tar -czf ../${VAGRANT_TARGET}.${PROVIDER}.box metadata.json box.ovf vagrant.vmdk)
-. elif !empty(${PROVIDER:Mvmware})
+. elif ${_provider} == vmware
 	@(cd ${.OBJDIR}/${PROVIDER} && echo '{"provider":"${PROVIDER}_desktop"}' > metadata.json)
 	@(cd ${.OBJDIR}/${PROVIDER} && tar -czf ../${VAGRANT_TARGET}.${PROVIDER}.box metadata.json vagrant.vmx vagrant.vmdk)
 . endif
 
 CLEANFILES+=	vagrant-do-upload-${PROVIDER}
 vagrant-do-upload-${PROVIDER}: ${VAGRANT_TARGET}.${PROVIDER}.box
-. if !empty(${PROVIDER:Mvirtualbox})
+. if ${_provider} == virtualbox
 	${.CURDIR}/scripts/atlas-upload.sh -b ${TYPE}-${REVISION}-${BRANCH} -f ${VAGRANT_TARGET}.${PROVIDER}.box -p ${PROVIDER} -k ${VAGRANT_KEY} -u ${VAGRANT_USERNAME} -v ${VAGRANT_VERSION}
-. elif !empty(${PROVIDER:Mvmware})
+. elif ${_provider} == vmware
 	${.CURDIR}/scripts/atlas-upload.sh -b ${TYPE}-${REVISION}-${BRANCH} -f ${VAGRANT_TARGET}.${PROVIDER}.box -p ${PROVIDER}_desktop -k ${VAGRANT_KEY} -u ${VAGRANT_USERNAME} -v ${VAGRANT_VERSION}
 . endif
 	touch ${.OBJDIR}/${.TARGET}
