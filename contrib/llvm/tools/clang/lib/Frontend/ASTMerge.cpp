@@ -45,8 +45,10 @@ void ASTMergeAction::ExecuteAction() {
                                     new ForwardingDiagnosticConsumer(
                                           *CI.getDiagnostics().getClient()),
                                     /*ShouldOwnClient=*/true));
-    std::unique_ptr<ASTUnit> Unit = ASTUnit::LoadFromASTFile(
-        ASTFiles[I], Diags, CI.getFileSystemOpts(), false);
+    std::unique_ptr<ASTUnit> Unit =
+        ASTUnit::LoadFromASTFile(ASTFiles[I], CI.getPCHContainerReader(),
+                                 Diags, CI.getFileSystemOpts(), false);
+
     if (!Unit)
       continue;
 
@@ -57,6 +59,7 @@ void ASTMergeAction::ExecuteAction() {
                          /*MinimalImport=*/false);
 
     TranslationUnitDecl *TU = Unit->getASTContext().getTranslationUnitDecl();
+    CI.getASTConsumer().Initialize(CI.getASTContext());
     for (auto *D : TU->decls()) {
       // Don't re-import __va_list_tag, __builtin_va_list.
       if (const auto *ND = dyn_cast<NamedDecl>(D))
@@ -64,7 +67,12 @@ void ASTMergeAction::ExecuteAction() {
           if (II->isStr("__va_list_tag") || II->isStr("__builtin_va_list"))
             continue;
       
-      Importer.Import(D);
+      Decl *ToD = Importer.Import(D);
+    
+      if (ToD) {
+        DeclGroupRef DGR(ToD);
+        CI.getASTConsumer().HandleTopLevelDecl(DGR);
+      }
     }
   }
 

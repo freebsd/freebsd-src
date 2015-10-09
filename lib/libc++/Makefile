@@ -63,7 +63,6 @@ CXXFLAGS+=	-std=c++11
 .endif
 
 LIBADD+=	cxxrt
-LDFLAGS+=	--verbose
 INCSGROUPS=	STD EXP EXT
 
 STD_HEADERS=	__bit_reference\
@@ -81,7 +80,7 @@ STD_HEADERS=	__bit_reference\
 		__std_stream\
 		__tree\
 		__tuple\
-		__tuple_03\
+		__undef___deallocate\
 		__undef_min_max\
 		algorithm\
 		array\
@@ -178,9 +177,14 @@ STD+=		${LIBCXXRTDIR}/${hdr}
 STDDIR=		${CXXINCLUDEDIR}
 
 EXP_HEADERS=	__config\
+		algorithm\
+		chrono\
 		dynarray\
 		optional\
+		ratio\
 		string_view\
+		system_error\
+		tuple\
 		type_traits\
 		utility
 

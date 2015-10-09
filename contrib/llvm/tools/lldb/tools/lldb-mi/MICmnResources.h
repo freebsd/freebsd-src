@@ -7,18 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-//++
-// File:        MICmnResources.h
-//
-// Overview:    CMICmnResources interface.
-//
-// Environment: Compilers:  Visual C++ 12.
-//                          gcc (Ubuntu/Linaro 4.8.1-10ubuntu9) 4.8.1
-//              Libraries:  See MIReadmetxt.
-//
-// Copyright:   None.
-//--
-
 #pragma once
 
 // Third party headers
@@ -77,10 +65,6 @@ enum
     IDE_MEDIUMSTDERR_NAME,
     IDE_MEDIUMSTDOUT_NAME,
 
-    IDE_MI_APP_EXIT_OK,
-    IDE_MI_APP_EXIT_WITH_PROBLEM,
-    IDE_MI_APP_EXIT_WITH_PROBLEM_NO_LOG,
-
     IDE_MI_APP_DESCRIPTION,
     IDE_MI_APP_INFORMATION,
     IDE_MI_APP_ARG_USAGE,
@@ -89,7 +73,9 @@ enum
     IDE_MI_APP_ARG_VERSION_LONG,
     IDE_MI_APP_ARG_INTERPRETER,
     IDE_MI_APP_ARG_EXECUTEABLE,
-    IDE_MI_APP_ARG_NO_APP_LOG,
+    IDE_MI_APP_ARG_SOURCE,
+    IDE_MI_APP_ARG_APP_LOG,
+    IDE_MI_APP_ARG_APP_LOG_DIR,
     IDE_MI_APP_ARG_EXAMPLE,
     IDE_MI_APP_ARG_EXECUTABLE,
 
@@ -115,8 +101,6 @@ enum
 
     IDS_CMDMGR_ERR_CMD_FAILED_CREATE,
     IDS_CMDMGR_ERR_CMD_INVOKER,
-
-    IDS_PROCESS_SIGNAL_RECEIVED,
 
     IDS_MI_INIT_ERR_LOG,
     IDS_MI_INIT_ERR_RESOURCES,
@@ -154,9 +138,9 @@ enum
     IDS_LLDBDEBUGGER_ERR_THREAD_DELETE,
     IDS_LLDBDEBUGGER_ERR_INVALIDBROADCASTER,
     IDS_LLDBDEBUGGER_ERR_INVALIDCLIENTNAME,
-    IDS_LLDBDEBUGGER_ERR_CLIENTNOTREGISTERD,
+    IDS_LLDBDEBUGGER_ERR_CLIENTNOTREGISTERED,
     IDS_LLDBDEBUGGER_ERR_STOPLISTENER,
-    IDS_LLDBDEBUGGER_ERR_BROARDCASTER_NAME,
+    IDS_LLDBDEBUGGER_ERR_BROADCASTER_NAME,
     IDS_LLDBDEBUGGER_WRN_UNKNOWN_EVENT,
 
     IDS_LLDBOUTOFBAND_ERR_UNKNOWN_EVENT,
@@ -208,10 +192,8 @@ enum
 
     IDS_DRIVER_WAITING_STDIN_DATA,
 
-    IDS_STDOUT_ERR_NOT_ALL_DATA_WRITTEN,
     IDS_STDERR_ERR_NOT_ALL_DATA_WRITTEN,
 
-    IDS_CMD_ARGS_ERR_N_OPTIONS_REQUIRED,
     IDS_CMD_ARGS_ERR_OPTION_NOT_FOUND,
     IDS_CMD_ARGS_ERR_VALIDATION_MANDATORY,
     IDS_CMD_ARGS_ERR_VALIDATION_INVALID,
@@ -241,6 +223,7 @@ enum
     IDS_CMD_ERR_FNFAILED,
     IDS_CMD_ERR_SHARED_DATA_NOT_FOUND,
     IDS_CMD_ERR_LLDBPROCESS_DETACH,
+    IDS_CMD_ERR_LLDBPROCESS_DESTROY,
     IDS_CMD_ERR_SETWKDIR,
     IDS_CMD_ERR_INVALID_TARGET,
     IDS_CMD_ERR_INVALID_TARGET_CURRENT,
@@ -252,6 +235,7 @@ enum
     IDS_CMD_ERR_NOT_IMPLEMENTED_DEPRECATED,
     IDS_CMD_ERR_CREATE_TARGET,
     IDS_CMD_ERR_BRKPT_LOCATION_FORMAT,
+    IDS_CMD_ERR_BRKPT_LOCATION_NOT_FOUND,
     IDS_CMD_ERR_BRKPT_INVALID,
     IDS_CMD_ERR_BRKPT_CNT_EXCEEDED,
     IDS_CMD_ERR_SOME_ERROR,
@@ -262,6 +246,7 @@ enum
     IDS_CMD_ERR_VARIABLE_ENUM_INVALID,
     IDS_CMD_ERR_VARIABLE_EXPRESSIONPATH,
     IDS_CMD_ERR_VARIABLE_CREATION_FAILED,
+    IDS_CMD_ERR_VARIABLE_CHILD_RANGE_INVALID,
     IDS_CMD_ERR_CMD_RUN_BUT_NO_ACTION,
     IDS_CMD_ERR_EVENT_HANDLED_BUT_NO_ACTION,
     IDS_CMD_ERR_DISASM_ADDR_START_INVALID,
@@ -270,6 +255,8 @@ enum
     IDS_CMD_ERR_LLDB_ERR_NOT_READ_WHOLE_BLK,
     IDS_CMD_ERR_LLDB_ERR_READ_MEM_BYTES,
     IDS_CMD_ERR_INVALID_PROCESS,
+    IDS_CMD_ERR_INVALID_PRINT_VALUES,
+    IDS_CMD_ERR_INVALID_LOCATION_FORMAT,
     IDS_CMD_ERR_INVALID_FORMAT_TYPE,
     IDS_CMD_ERR_BRKPT_INFO_OBJ_NOT_FOUND,
     IDS_CMD_ERR_LLDB_ERR_WRITE_MEM_BYTES,
@@ -277,7 +264,15 @@ enum
     IDS_CMD_ERR_SET_NEW_DRIVER_STATE,
     IDS_CMD_ERR_INFO_PRINTFN_NOT_FOUND,
     IDS_CMD_ERR_INFO_PRINTFN_FAILED,
-    IDS_CMD_ERR_GDBSET_OPT_SOLIBSEARCHPATH
+    IDS_CMD_ERR_GDBSET_OPT_TARGETASYNC,
+    IDS_CMD_ERR_GDBSET_OPT_SOLIBSEARCHPATH,
+    IDS_CMD_ERR_GDBSET_OPT_PRINT_BAD_ARGS,
+    IDS_CMD_ERR_GDBSET_OPT_PRINT_UNKNOWN_OPTION,
+    IDS_CMD_ERR_GDBSHOW_OPT_PRINT_BAD_ARGS,
+    IDS_CMD_ERR_GDBSHOW_OPT_PRINT_UNKNOWN_OPTION,
+    IDS_CMD_ERR_EXPR_INVALID,
+    IDS_CMD_ERR_ATTACH_FAILED,
+    IDS_CMD_ERR_ATTACH_BAD_ARGS
 };
 
 //++ ============================================================================
@@ -294,16 +289,16 @@ class CMICmnResources : public CMICmnBase, public MI::ISingleton<CMICmnResources
 
     // Methods:
   public:
-    bool Initialize(void);
-    bool Shutdown(void);
+    bool Initialize(void) override;
+    bool Shutdown(void) override;
 
     CMIUtilString GetString(const MIuint vResourceId) const;
     bool HasString(const MIuint vResourceId) const;
 
     // Typedef:
   private:
-    typedef std::map<MIuint, const MIchar *> MapRscrIdToTextData_t;
-    typedef std::pair<MIuint, const MIchar *> MapPairRscrIdToTextData_t;
+    typedef std::map<MIuint, const char *> MapRscrIdToTextData_t;
+    typedef std::pair<MIuint, const char *> MapPairRscrIdToTextData_t;
 
     // Enumerations:
   private:
@@ -317,7 +312,7 @@ class CMICmnResources : public CMICmnBase, public MI::ISingleton<CMICmnResources
     struct SRsrcTextData
     {
         MIuint id;
-        const MIchar *pTextData;
+        const char *pTextData;
     };
 
     // Methods:
@@ -332,7 +327,7 @@ class CMICmnResources : public CMICmnBase, public MI::ISingleton<CMICmnResources
     // Overridden:
   private:
     // From CMICmnBase
-    /* dtor */ virtual ~CMICmnResources(void);
+    /* dtor */ ~CMICmnResources(void) override;
 
     // Attributes:
   private:

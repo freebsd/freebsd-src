@@ -72,7 +72,6 @@ struct wpi_tx_ring {
 	struct wpi_tx_cmd	*cmd;
 	struct wpi_tx_data	data[WPI_TX_RING_COUNT];
 	bus_dma_tag_t		data_dmat;
-	struct mbufq		snd;
 	int			qid;
 	int			queued;
 	int			cur;
@@ -166,8 +165,6 @@ struct wpi_softc {
 	device_t		sc_dev;
 	int			sc_debug;
 
-	int			sc_flags;
-#define WPI_PS_PATH		(1 << 0)
 	int			sc_running;
 
 	struct mtx		sc_mtx;
@@ -188,7 +185,6 @@ struct wpi_softc {
 
 	/* TX Thermal Callibration. */
 	struct callout		calib_to;
-	int			calib_cnt;
 
 	struct callout		scan_timeout;
 	struct callout		tx_timeout;
@@ -212,7 +208,6 @@ struct wpi_softc {
 	struct mtx		rxon_mtx;
 
 	int			temp;
-	uint32_t		qfullmsk;
 
 	uint32_t		nodesmsk;
 	struct mtx		nt_mtx;
@@ -235,7 +230,6 @@ struct wpi_softc {
 	struct task		sc_reinittask;
 	struct task		sc_radiooff_task;
 	struct task		sc_radioon_task;
-	struct task		sc_start_task;
 
 	/* Taskqueue */
 	struct taskqueue	*sc_tq;

@@ -246,6 +246,7 @@ static const STRUCT_USB_HOST_ID run_devs[] = {
     RUN_DEV(MSI,		RT3070_9),
     RUN_DEV(MSI,		RT3070_10),
     RUN_DEV(MSI,		RT3070_11),
+    RUN_DEV(NETGEAR,		WNDA4100),
     RUN_DEV(OVISLINK,		RT3072),
     RUN_DEV(PARA,		RT3070),
     RUN_DEV(PEGATRON,		RT2870),
@@ -382,8 +383,7 @@ static int	run_newstate(struct ieee80211vap *, enum ieee80211_state, int);
 static int	run_wme_update(struct ieee80211com *);
 static void	run_wme_update_cb(void *);
 static void	run_key_set_cb(void *);
-static int	run_key_set(struct ieee80211vap *, struct ieee80211_key *,
-		    const uint8_t mac[IEEE80211_ADDR_LEN]);
+static int	run_key_set(struct ieee80211vap *, struct ieee80211_key *);
 static void	run_key_delete_cb(void *);
 static int	run_key_delete(struct ieee80211vap *, struct ieee80211_key *);
 static void	run_ratectl_to(void *);
@@ -392,6 +392,8 @@ static void	run_drain_fifo(void *);
 static void	run_iter_func(void *, struct ieee80211_node *);
 static void	run_newassoc_cb(void *);
 static void	run_newassoc(struct ieee80211_node *, int);
+static void	run_recv_mgmt(struct ieee80211_node *, struct mbuf *, int,
+		    const struct ieee80211_rx_stats *, int, int);
 static void	run_rx_frame(struct run_softc *, struct mbuf *, uint32_t);
 static void	run_tx_free(struct run_endpoint_queue *pq,
 		    struct run_tx_data *, int);
@@ -830,6 +832,21 @@ detach:
 	return (ENXIO);
 }
 
+static void
+run_drain_mbufq(struct run_softc *sc)
+{
+	struct mbuf *m;
+	struct ieee80211_node *ni;
+
+	RUN_LOCK_ASSERT(sc, MA_OWNED);
+	while ((m = mbufq_dequeue(&sc->sc_snd)) != NULL) {
+		ni = (struct ieee80211_node *)m->m_pkthdr.rcvif;
+		m->m_pkthdr.rcvif = NULL;
+		ieee80211_free_node(ni);
+		m_freem(m);
+	}
+}
+
 static int
 run_detach(device_t self)
 {
@@ -851,6 +868,9 @@ run_detach(device_t self)
 	/* free TX list, if any */
 	for (i = 0; i != RUN_EP_QUEUES; i++)
 		run_unsetup_tx_list(sc, &sc->sc_epq[i]);
+
+	/* Free TX queue */
+	run_drain_mbufq(sc);
 	RUN_UNLOCK(sc);
 
 	if (sc->sc_ic.ic_softc == sc) {
@@ -861,7 +881,6 @@ run_detach(device_t self)
 		ieee80211_ifdetach(ic);
 	}
 
-	mbufq_drain(&sc->sc_snd);
 	mtx_destroy(&sc->sc_mtx);
 
 	return (0);
@@ -939,6 +958,10 @@ run_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
 	/* override state transition machine */
 	rvp->newstate = vap->iv_newstate;
 	vap->iv_newstate = run_newstate;
+	if (opmode == IEEE80211_M_IBSS) {
+		rvp->recv_mgmt = vap->iv_recv_mgmt;
+		vap->iv_recv_mgmt = run_recv_mgmt;
+	}
 
 	ieee80211_ratectl_init(vap);
 	ieee80211_ratectl_setinterval(vap, 1000 /* 1 sec */);
@@ -1670,14 +1693,14 @@ run_get_txpower(struct run_softc *sc)
 	/* Fix broken Tx power entries. */
 	for (i = 0; i < 14; i++) {
 		if (sc->mac_ver >= 0x5390) {
-			if (sc->txpow1[i] < 0 || sc->txpow1[i] > 27)
+			if (sc->txpow1[i] < 0 || sc->txpow1[i] > 39)
 				sc->txpow1[i] = 5;
 		} else {
 			if (sc->txpow1[i] < 0 || sc->txpow1[i] > 31)
 				sc->txpow1[i] = 5;
 		}
 		if (sc->mac_ver > 0x5390) {
-			if (sc->txpow2[i] < 0 || sc->txpow2[i] > 27)
+			if (sc->txpow2[i] < 0 || sc->txpow2[i] > 39)
 				sc->txpow2[i] = 5;
 		} else if (sc->mac_ver < 0x5390) {
 			if (sc->txpow2[i] < 0 || sc->txpow2[i] > 31)
@@ -2157,7 +2180,8 @@ run_wme_update_cb(void *arg)
 {
 	struct ieee80211com *ic = arg;
 	struct run_softc *sc = ic->ic_softc;
-	struct ieee80211_wme_state *wmesp = &ic->ic_wme;
+	const struct wmeParams *ac =
+	    ic->ic_wme.wme_chanParams.cap_wmeParams;
 	int aci, error = 0;
 
 	RUN_LOCK_ASSERT(sc, MA_OWNED);
@@ -2165,39 +2189,39 @@ run_wme_update_cb(void *arg)
 	/* update MAC TX configuration registers */
 	for (aci = 0; aci < WME_NUM_AC; aci++) {
 		error = run_write(sc, RT2860_EDCA_AC_CFG(aci),
-		    wmesp->wme_params[aci].wmep_logcwmax << 16 |
-		    wmesp->wme_params[aci].wmep_logcwmin << 12 |
-		    wmesp->wme_params[aci].wmep_aifsn  <<  8 |
-		    wmesp->wme_params[aci].wmep_txopLimit);
+		    ac[aci].wmep_logcwmax << 16 |
+		    ac[aci].wmep_logcwmin << 12 |
+		    ac[aci].wmep_aifsn    <<  8 |
+		    ac[aci].wmep_txopLimit);
 		if (error) goto err;
 	}
 
 	/* update SCH/DMA registers too */
 	error = run_write(sc, RT2860_WMM_AIFSN_CFG,
-	    wmesp->wme_params[WME_AC_VO].wmep_aifsn  << 12 |
-	    wmesp->wme_params[WME_AC_VI].wmep_aifsn  <<  8 |
-	    wmesp->wme_params[WME_AC_BK].wmep_aifsn  <<  4 |
-	    wmesp->wme_params[WME_AC_BE].wmep_aifsn);
+	    ac[WME_AC_VO].wmep_aifsn  << 12 |
+	    ac[WME_AC_VI].wmep_aifsn  <<  8 |
+	    ac[WME_AC_BK].wmep_aifsn  <<  4 |
+	    ac[WME_AC_BE].wmep_aifsn);
 	if (error) goto err;
 	error = run_write(sc, RT2860_WMM_CWMIN_CFG,
-	    wmesp->wme_params[WME_AC_VO].wmep_logcwmin << 12 |
-	    wmesp->wme_params[WME_AC_VI].wmep_logcwmin <<  8 |
-	    wmesp->wme_params[WME_AC_BK].wmep_logcwmin <<  4 |
-	    wmesp->wme_params[WME_AC_BE].wmep_logcwmin);
+	    ac[WME_AC_VO].wmep_logcwmin << 12 |
+	    ac[WME_AC_VI].wmep_logcwmin <<  8 |
+	    ac[WME_AC_BK].wmep_logcwmin <<  4 |
+	    ac[WME_AC_BE].wmep_logcwmin);
 	if (error) goto err;
 	error = run_write(sc, RT2860_WMM_CWMAX_CFG,
-	    wmesp->wme_params[WME_AC_VO].wmep_logcwmax << 12 |
-	    wmesp->wme_params[WME_AC_VI].wmep_logcwmax <<  8 |
-	    wmesp->wme_params[WME_AC_BK].wmep_logcwmax <<  4 |
-	    wmesp->wme_params[WME_AC_BE].wmep_logcwmax);
+	    ac[WME_AC_VO].wmep_logcwmax << 12 |
+	    ac[WME_AC_VI].wmep_logcwmax <<  8 |
+	    ac[WME_AC_BK].wmep_logcwmax <<  4 |
+	    ac[WME_AC_BE].wmep_logcwmax);
 	if (error) goto err;
 	error = run_write(sc, RT2860_WMM_TXOP0_CFG,
-	    wmesp->wme_params[WME_AC_BK].wmep_txopLimit << 16 |
-	    wmesp->wme_params[WME_AC_BE].wmep_txopLimit);
+	    ac[WME_AC_BK].wmep_txopLimit << 16 |
+	    ac[WME_AC_BE].wmep_txopLimit);
 	if (error) goto err;
 	error = run_write(sc, RT2860_WMM_TXOP1_CFG,
-	    wmesp->wme_params[WME_AC_VO].wmep_txopLimit << 16 |
-	    wmesp->wme_params[WME_AC_VI].wmep_txopLimit);
+	    ac[WME_AC_VO].wmep_txopLimit << 16 |
+	    ac[WME_AC_VI].wmep_txopLimit);
 
 err:
 	if (error)
@@ -2355,8 +2379,7 @@ run_key_set_cb(void *arg)
  * return 0 on error
  */
 static int
-run_key_set(struct ieee80211vap *vap, struct ieee80211_key *k,
-		const uint8_t mac[IEEE80211_ADDR_LEN])
+run_key_set(struct ieee80211vap *vap, struct ieee80211_key *k)
 {
 	struct ieee80211com *ic = vap->iv_ic;
 	struct run_softc *sc = ic->ic_softc;
@@ -2368,7 +2391,7 @@ run_key_set(struct ieee80211vap *vap, struct ieee80211_key *k,
 	sc->cmdq[i].arg0 = NULL;
 	sc->cmdq[i].arg1 = vap;
 	sc->cmdq[i].k = k;
-	IEEE80211_ADDR_COPY(sc->cmdq[i].mac, mac);
+	IEEE80211_ADDR_COPY(sc->cmdq[i].mac, k->wk_macaddr);
 	ieee80211_runtask(ic, &sc->cmdq_task);
 
 	/*
@@ -2722,6 +2745,34 @@ run_maxrssi_chain(struct run_softc *sc, const struct rt2860_rxwi *rxwi)
 				rxchain = 2;
 	}
 	return (rxchain);
+}
+
+static void
+run_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m, int subtype,
+    const struct ieee80211_rx_stats *rxs, int rssi, int nf)
+{
+	struct ieee80211vap *vap = ni->ni_vap;
+	struct run_softc *sc = vap->iv_ic->ic_softc;
+	struct run_vap *rvp = RUN_VAP(vap);
+	uint64_t ni_tstamp, rx_tstamp;
+
+	rvp->recv_mgmt(ni, m, subtype, rxs, rssi, nf);
+
+	if (vap->iv_state == IEEE80211_S_RUN &&
+	    (subtype == IEEE80211_FC0_SUBTYPE_BEACON ||
+	    subtype == IEEE80211_FC0_SUBTYPE_PROBE_RESP)) {
+		ni_tstamp = le64toh(ni->ni_tstamp.tsf);
+		RUN_LOCK(sc);
+		run_get_tsf(sc, &rx_tstamp);
+		RUN_UNLOCK(sc);
+		rx_tstamp = le64toh(rx_tstamp);
+
+		if (ni_tstamp >= rx_tstamp) {
+			DPRINTF("ibss merge, tsf %ju tstamp %ju\n",
+			    (uintmax_t)rx_tstamp, (uintmax_t)ni_tstamp);
+			(void) ieee80211_ibss_merge(ni);
+		}
+	}
 }
 
 static void
@@ -4834,11 +4885,11 @@ run_update_beacon(struct ieee80211vap *vap, int item)
 
 	setbit(bo->bo_flags, item);
 	if (rvp->beacon_mbuf == NULL) {
-		rvp->beacon_mbuf = ieee80211_beacon_alloc(ni, bo);
+		rvp->beacon_mbuf = ieee80211_beacon_alloc(ni);
 		if (rvp->beacon_mbuf == NULL)
 			return;
 	}
-	ieee80211_beacon_update(ni, bo, rvp->beacon_mbuf, mcast);
+	ieee80211_beacon_update(ni, rvp->beacon_mbuf, mcast);
 
 	i = RUN_CMDQ_GET(&sc->cmdq_store);
 	DPRINTF("cmdq_store=%d\n", i);
@@ -4872,8 +4923,7 @@ run_update_beacon_cb(void *arg)
 	 * is taking care of apropriate calls.
 	 */
 	if (rvp->beacon_mbuf == NULL) {
-		rvp->beacon_mbuf = ieee80211_beacon_alloc(ni,
-		    &vap->iv_bcn_off);
+		rvp->beacon_mbuf = ieee80211_beacon_alloc(ni);
 		if (rvp->beacon_mbuf == NULL)
 			return;
 	}
@@ -6139,6 +6189,8 @@ run_stop(void *arg)
 		usbd_transfer_drain(sc->sc_xfer[i]);
 
 	RUN_LOCK(sc);
+
+	run_drain_mbufq(sc);
 
 	if (sc->rx_m != NULL) {
 		m_free(sc->rx_m);

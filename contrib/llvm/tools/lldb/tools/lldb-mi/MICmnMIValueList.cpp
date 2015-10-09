@@ -7,18 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-//++
-// File:        MICmnMIValueList.h
-//
-// Overview:    CMICmnMIValueList implementation.
-//
-// Environment: Compilers:  Visual C++ 12.
-//                          gcc (Ubuntu/Linaro 4.8.1-10ubuntu9) 4.8.1
-//              Libraries:  See MIReadmetxt.
-//
-// Copyright:   None.
-//--
-
 // In-house headers:
 #include "MICmnMIValueList.h"
 #include "MICmnResources.h"
@@ -88,7 +76,7 @@ CMICmnMIValueList::~CMICmnMIValueList(void)
 bool
 CMICmnMIValueList::BuildList(void)
 {
-    const MIchar *pFormat = "[%s]";
+    const char *pFormat = "[%s]";
     m_strValue = CMIUtilString::Format(pFormat, m_strValue.c_str());
 
     return MIstatus::success;
@@ -96,7 +84,7 @@ CMICmnMIValueList::BuildList(void)
 
 //++ ------------------------------------------------------------------------------------
 // Details: Add another MI result object to  the value list's of list is results.
-//          Only result obejcts can be added to a list of result otherwise this function
+//          Only result objects can be added to a list of result otherwise this function
 //          will return MIstatus::failure.
 // Type:    Method.
 // Args:    vResult - (R) The MI result object.
@@ -128,7 +116,7 @@ CMICmnMIValueList::Add(const CMICmnMIValue &vValue)
 
 //++ ------------------------------------------------------------------------------------
 // Details: Add another MI result object to  the value list's of list is results.
-//          Only result obejcts can be added to a list of result otherwise this function
+//          Only result objects can be added to a list of result otherwise this function
 //          will return MIstatus::failure.
 // Type:    Method.
 // Args:    vResult - (R) The MI result object.
@@ -148,7 +136,7 @@ CMICmnMIValueList::BuildList(const CMICmnMIValueResult &vResult)
     }
 
     const CMIUtilString data(ExtractContentNoBrackets());
-    const MIchar *pFormat = "[%s,%s]";
+    const char *pFormat = "[%s,%s]";
     m_strValue = CMIUtilString::Format(pFormat, data.c_str(), vResult.GetString().c_str());
 
     return MIstatus::success;
@@ -175,9 +163,12 @@ CMICmnMIValueList::BuildList(const CMICmnMIValue &vValue)
         return BuildList();
     }
 
-    const MIchar *pFormat = "[%s,%s]";
-    m_strValue = m_strValue.FindAndReplace("[", "");
-    m_strValue = m_strValue.FindAndReplace("]", "");
+    // Remove already present '[' and ']' from the start and end
+    m_strValue = m_strValue.Trim();
+    size_t len = m_strValue.size();
+    if ( (len > 1) && (m_strValue[0] == '[') && (m_strValue[len - 1] == ']') )
+        m_strValue = m_strValue.substr(1, len - 2);
+    const char *pFormat = "[%s,%s]";
     m_strValue = CMIUtilString::Format(pFormat, m_strValue.c_str(), vValue.GetString().c_str());
 
     return MIstatus::success;

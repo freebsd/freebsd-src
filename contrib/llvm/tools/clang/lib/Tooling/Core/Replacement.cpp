@@ -43,8 +43,9 @@ Replacement::Replacement(const SourceManager &Sources, SourceLocation Start,
 
 Replacement::Replacement(const SourceManager &Sources,
                          const CharSourceRange &Range,
-                         StringRef ReplacementText) {
-  setFromSourceRange(Sources, Range, ReplacementText);
+                         StringRef ReplacementText,
+                         const LangOptions &LangOpts) {
+  setFromSourceRange(Sources, Range, ReplacementText, LangOpts);
 }
 
 bool Replacement::isApplicable() const {
@@ -77,18 +78,23 @@ bool Replacement::apply(Rewriter &Rewrite) const {
 }
 
 std::string Replacement::toString() const {
-  std::string result;
-  llvm::raw_string_ostream stream(result);
-  stream << FilePath << ": " << ReplacementRange.getOffset() << ":+"
+  std::string Result;
+  llvm::raw_string_ostream Stream(Result);
+  Stream << FilePath << ": " << ReplacementRange.getOffset() << ":+"
          << ReplacementRange.getLength() << ":\"" << ReplacementText << "\"";
-  return result;
+  return Stream.str();
 }
 
 bool operator<(const Replacement &LHS, const Replacement &RHS) {
   if (LHS.getOffset() != RHS.getOffset())
     return LHS.getOffset() < RHS.getOffset();
+
+  // Apply longer replacements first, specifically so that deletions are
+  // executed before insertions. It is (hopefully) never the intention to
+  // delete parts of newly inserted code.
   if (LHS.getLength() != RHS.getLength())
-    return LHS.getLength() < RHS.getLength();
+    return LHS.getLength() > RHS.getLength();
+
   if (LHS.getFilePath() != RHS.getFilePath())
     return LHS.getFilePath() < RHS.getFilePath();
   return LHS.getReplacementText() < RHS.getReplacementText();
@@ -124,23 +130,25 @@ void Replacement::setFromSourceLocation(const SourceManager &Sources,
 // to handle ranges for refactoring in general first - there is no obvious
 // good way how to integrate this into the Lexer yet.
 static int getRangeSize(const SourceManager &Sources,
-                        const CharSourceRange &Range) {
+                        const CharSourceRange &Range,
+                        const LangOptions &LangOpts) {
   SourceLocation SpellingBegin = Sources.getSpellingLoc(Range.getBegin());
   SourceLocation SpellingEnd = Sources.getSpellingLoc(Range.getEnd());
   std::pair<FileID, unsigned> Start = Sources.getDecomposedLoc(SpellingBegin);
   std::pair<FileID, unsigned> End = Sources.getDecomposedLoc(SpellingEnd);
   if (Start.first != End.first) return -1;
   if (Range.isTokenRange())
-    End.second += Lexer::MeasureTokenLength(SpellingEnd, Sources,
-                                            LangOptions());
+    End.second += Lexer::MeasureTokenLength(SpellingEnd, Sources, LangOpts);
   return End.second - Start.second;
 }
 
 void Replacement::setFromSourceRange(const SourceManager &Sources,
                                      const CharSourceRange &Range,
-                                     StringRef ReplacementText) {
+                                     StringRef ReplacementText,
+                                     const LangOptions &LangOpts) {
   setFromSourceLocation(Sources, Sources.getSpellingLoc(Range.getBegin()),
-                        getRangeSize(Sources, Range), ReplacementText);
+                        getRangeSize(Sources, Range, LangOpts),
+                        ReplacementText);
 }
 
 unsigned shiftedCodePosition(const Replacements &Replaces, unsigned Position) {

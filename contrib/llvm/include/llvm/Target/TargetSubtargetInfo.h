@@ -42,15 +42,25 @@ template <typename T> class SmallVectorImpl;
 /// be exposed through a TargetSubtargetInfo-derived class.
 ///
 class TargetSubtargetInfo : public MCSubtargetInfo {
-  TargetSubtargetInfo(const TargetSubtargetInfo&) LLVM_DELETED_FUNCTION;
-  void operator=(const TargetSubtargetInfo&) LLVM_DELETED_FUNCTION;
+  TargetSubtargetInfo(const TargetSubtargetInfo &) = delete;
+  void operator=(const TargetSubtargetInfo &) = delete;
+  TargetSubtargetInfo() = delete;
+
 protected: // Can only create subclasses...
-  TargetSubtargetInfo();
+  TargetSubtargetInfo(const Triple &TT, StringRef CPU, StringRef FS,
+                      ArrayRef<SubtargetFeatureKV> PF,
+                      ArrayRef<SubtargetFeatureKV> PD,
+                      const SubtargetInfoKV *ProcSched,
+                      const MCWriteProcResEntry *WPR,
+                      const MCWriteLatencyEntry *WL,
+                      const MCReadAdvanceEntry *RA, const InstrStage *IS,
+                      const unsigned *OC, const unsigned *FP);
+
 public:
   // AntiDepBreakMode - Type of anti-dependence breaking that should
   // be performed before post-RA scheduling.
   typedef enum { ANTIDEP_NONE, ANTIDEP_CRITICAL, ANTIDEP_ALL } AntiDepBreakMode;
-  typedef SmallVectorImpl<const TargetRegisterClass*> RegClassVector;
+  typedef SmallVectorImpl<const TargetRegisterClass *> RegClassVector;
 
   virtual ~TargetSubtargetInfo();
 
@@ -71,7 +81,6 @@ public:
   virtual const TargetSelectionDAGInfo *getSelectionDAGInfo() const {
     return nullptr;
   }
-  virtual const DataLayout *getDataLayout() const { return nullptr; }
 
   /// getRegisterInfo - If register information is available, return it.  If
   /// not, return null.  This is kept separate from RegInfo until RegInfo has
@@ -90,27 +99,35 @@ public:
   /// MCSchedClassDesc with the isVariant property. This may return the ID of
   /// another variant SchedClass, but repeated invocation must quickly terminate
   /// in a nonvariant SchedClass.
-  virtual unsigned resolveSchedClass(unsigned SchedClass, const MachineInstr *MI,
-                                     const TargetSchedModel* SchedModel) const {
+  virtual unsigned resolveSchedClass(unsigned SchedClass,
+                                     const MachineInstr *MI,
+                                     const TargetSchedModel *SchedModel) const {
     return 0;
   }
-
-  /// \brief Temporary API to test migration to MI scheduler.
-  bool useMachineScheduler() const;
 
   /// \brief True if the subtarget should run MachineScheduler after aggressive
   /// coalescing.
   ///
   /// This currently replaces the SelectionDAG scheduler with the "source" order
-  /// scheduler. It does not yet disable the postRA scheduler.
+  /// scheduler (though see below for an option to turn this off and use the
+  /// TargetLowering preference). It does not yet disable the postRA scheduler.
   virtual bool enableMachineScheduler() const;
 
-  /// \brief True if the subtarget should run PostMachineScheduler.
+  /// \brief True if the machine scheduler should disable the TLI preference
+  /// for preRA scheduling with the source level scheduler.
+  virtual bool enableMachineSchedDefaultSched() const { return true; }
+
+  /// \brief True if the subtarget should enable joining global copies.
   ///
-  /// This only takes effect if the target has configured the
-  /// PostMachineScheduler pass to run, or if the global cl::opt flag,
-  /// MISchedPostRA, is set.
-  virtual bool enablePostMachineScheduler() const;
+  /// By default this is enabled if the machine scheduler is enabled, but
+  /// can be overridden.
+  virtual bool enableJoinGlobalCopies() const;
+
+  /// True if the subtarget should run a scheduler after register allocation.
+  ///
+  /// By default this queries the PostRAScheduling bit in the scheduling model
+  /// which is the preferred way to influence this.
+  virtual bool enablePostRAScheduler() const;
 
   /// \brief True if the subtarget should run the atomic expansion pass.
   virtual bool enableAtomicExpand() const;
@@ -121,20 +138,16 @@ public:
   /// scheduling heuristics (no custom MachineSchedStrategy) to make
   /// changes to the generic scheduling policy.
   virtual void overrideSchedPolicy(MachineSchedPolicy &Policy,
-                                   MachineInstr *begin,
-                                   MachineInstr *end,
+                                   MachineInstr *begin, MachineInstr *end,
                                    unsigned NumRegionInstrs) const {}
 
   // \brief Perform target specific adjustments to the latency of a schedule
   // dependency.
-  virtual void adjustSchedDependency(SUnit *def, SUnit *use,
-                                     SDep& dep) const { }
+  virtual void adjustSchedDependency(SUnit *def, SUnit *use, SDep &dep) const {}
 
   // For use with PostRAScheduling: get the anti-dependence breaking that should
   // be performed before post-RA scheduling.
-  virtual AntiDepBreakMode getAntiDepBreakMode() const {
-    return ANTIDEP_NONE;
-  }
+  virtual AntiDepBreakMode getAntiDepBreakMode() const { return ANTIDEP_NONE; }
 
   // For use with PostRAScheduling: in CriticalPathRCs, return any register
   // classes that should only be considered for anti-dependence breaking if they
@@ -170,9 +183,7 @@ public:
   }
 
   /// Enable tracking of subregister liveness in register allocator.
-  virtual bool enableSubRegLiveness() const {
-    return false;
-  }
+  virtual bool enableSubRegLiveness() const { return false; }
 };
 
 } // End llvm namespace

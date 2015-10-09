@@ -10,6 +10,7 @@
 #ifndef SymbolFileDWARF_DWARFCompileUnit_h_
 #define SymbolFileDWARF_DWARFCompileUnit_h_
 
+#include "lldb/lldb-enumerations.h"
 #include "DWARFDebugInfoEntry.h"
 #include "SymbolFileDWARF.h"
 
@@ -186,6 +187,12 @@ public:
     uint32_t
     GetProducerVersionUpdate();
 
+    static lldb::LanguageType
+    LanguageTypeFromDWARF(uint64_t val);
+
+    lldb::LanguageType
+    GetLanguageType();
+
     bool
     IsDWARF64() const;
 
@@ -204,6 +211,7 @@ protected:
     uint32_t            m_producer_version_major;
     uint32_t            m_producer_version_minor;
     uint32_t            m_producer_version_update;
+    lldb::LanguageType  m_language_type;
     bool                m_is_dwarf64;
     
     void

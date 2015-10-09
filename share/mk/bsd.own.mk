@@ -213,6 +213,7 @@ NLSGRP?=	${SHAREGRP}
 NLSMODE?=	${NOBINMODE}
 
 INCLUDEDIR?=	/usr/include
+ETCDIR?=	/etc
 
 #
 # install(1) parameters.
@@ -246,7 +247,10 @@ XZ_CMD?=	xz
 # overriden by Makefiles, but the user may choose to set this in src.conf(5).
 TESTSBASE?= /usr/tests
 
-# Compat for the moment
+# Compat for the moment -- old bsd.own.mk only included this when _WITHOUT_SRCCONF
+# wasn't defined. bsd.ports.mk and friends depend on this behavior. Remove in 12.
+.if !defined(_WITHOUT_SRCCONF)
 .include <bsd.compiler.mk>
+.endif # !_WITHOUT_SRCCONF
 
 .endif	# !target(__<bsd.own.mk>__)

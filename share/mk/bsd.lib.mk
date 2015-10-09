@@ -410,6 +410,7 @@ _libinstall:
 .include <bsd.nls.mk>
 .include <bsd.files.mk>
 .include <bsd.incs.mk>
+.include <bsd.confs.mk>
 .endif
 
 .include <bsd.links.mk>

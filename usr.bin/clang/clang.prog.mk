@@ -14,6 +14,9 @@ PACKAGE=	clang
 DPADD+=	${LIBNCURSESW}
 LDADD+=	-lncursesw
 
+DPADD+=	${LIBPTHREAD}
+LDADD+=	-lpthread
+
 BINDIR?= /usr/bin
 
 

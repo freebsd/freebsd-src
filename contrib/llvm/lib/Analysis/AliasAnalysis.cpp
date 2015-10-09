@@ -27,6 +27,7 @@
 #include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/Analysis/CFG.h"
 #include "llvm/Analysis/CaptureTracking.h"
+#include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/Analysis/ValueTracking.h"
 #include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/DataLayout.h"
@@ -37,7 +38,6 @@
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Type.h"
 #include "llvm/Pass.h"
-#include "llvm/Target/TargetLibraryInfo.h"
 using namespace llvm;
 
 // Register the AliasAnalysis interface, providing a nice name to refer to.
@@ -48,23 +48,22 @@ char AliasAnalysis::ID = 0;
 // Default chaining methods
 //===----------------------------------------------------------------------===//
 
-AliasAnalysis::AliasResult
-AliasAnalysis::alias(const Location &LocA, const Location &LocB) {
+AliasResult AliasAnalysis::alias(const MemoryLocation &LocA,
+                                 const MemoryLocation &LocB) {
   assert(AA && "AA didn't call InitializeAliasAnalysis in its run method!");
   return AA->alias(LocA, LocB);
 }
 
-bool AliasAnalysis::pointsToConstantMemory(const Location &Loc,
+bool AliasAnalysis::pointsToConstantMemory(const MemoryLocation &Loc,
                                            bool OrLocal) {
   assert(AA && "AA didn't call InitializeAliasAnalysis in its run method!");
   return AA->pointsToConstantMemory(Loc, OrLocal);
 }
 
-AliasAnalysis::Location
-AliasAnalysis::getArgLocation(ImmutableCallSite CS, unsigned ArgIdx,
-                              AliasAnalysis::ModRefResult &Mask) {
+AliasAnalysis::ModRefResult
+AliasAnalysis::getArgModRefInfo(ImmutableCallSite CS, unsigned ArgIdx) {
   assert(AA && "AA didn't call InitializeAliasAnalysis in its run method!");
-  return AA->getArgLocation(CS, ArgIdx, Mask);
+  return AA->getArgModRefInfo(CS, ArgIdx);
 }
 
 void AliasAnalysis::deleteValue(Value *V) {
@@ -72,20 +71,31 @@ void AliasAnalysis::deleteValue(Value *V) {
   AA->deleteValue(V);
 }
 
-void AliasAnalysis::copyValue(Value *From, Value *To) {
-  assert(AA && "AA didn't call InitializeAliasAnalysis in its run method!");
-  AA->copyValue(From, To);
-}
-
 void AliasAnalysis::addEscapingUse(Use &U) {
   assert(AA && "AA didn't call InitializeAliasAnalysis in its run method!");
   AA->addEscapingUse(U);
 }
 
+AliasAnalysis::ModRefResult
+AliasAnalysis::getModRefInfo(Instruction *I, ImmutableCallSite Call) {
+  // We may have two calls
+  if (auto CS = ImmutableCallSite(I)) {
+    // Check if the two calls modify the same memory
+    return getModRefInfo(Call, CS);
+  } else {
+    // Otherwise, check if the call modifies or references the
+    // location this memory access defines.  The best we can say
+    // is that if the call references what this instruction
+    // defines, it must be clobbered by this location.
+    const MemoryLocation DefLoc = MemoryLocation::get(I);
+    if (getModRefInfo(Call, DefLoc) != AliasAnalysis::NoModRef)
+      return AliasAnalysis::ModRef;
+  }
+  return AliasAnalysis::NoModRef;
+}
 
 AliasAnalysis::ModRefResult
-AliasAnalysis::getModRefInfo(ImmutableCallSite CS,
-                             const Location &Loc) {
+AliasAnalysis::getModRefInfo(ImmutableCallSite CS, const MemoryLocation &Loc) {
   assert(AA && "AA didn't call InitializeAliasAnalysis in its run method!");
 
   ModRefBehavior MRB = getModRefBehavior(CS);
@@ -105,11 +115,11 @@ AliasAnalysis::getModRefInfo(ImmutableCallSite CS,
         const Value *Arg = *AI;
         if (!Arg->getType()->isPointerTy())
           continue;
-        ModRefResult ArgMask;
-        Location CSLoc =
-          getArgLocation(CS, (unsigned) std::distance(CS.arg_begin(), AI),
-                         ArgMask);
-        if (!isNoAlias(CSLoc, Loc)) {
+        unsigned ArgIdx = std::distance(CS.arg_begin(), AI);
+        MemoryLocation ArgLoc =
+            MemoryLocation::getForArgument(CS, ArgIdx, *TLI);
+        if (!isNoAlias(ArgLoc, Loc)) {
+          ModRefResult ArgMask = getArgModRefInfo(CS, ArgIdx);
           doesAlias = true;
           AllArgsMask = ModRefResult(AllArgsMask | ArgMask);
         }
@@ -166,18 +176,18 @@ AliasAnalysis::getModRefInfo(ImmutableCallSite CS1, ImmutableCallSite CS2) {
         const Value *Arg = *I;
         if (!Arg->getType()->isPointerTy())
           continue;
-        ModRefResult ArgMask;
-        Location CS2Loc =
-          getArgLocation(CS2, (unsigned) std::distance(CS2.arg_begin(), I),
-                         ArgMask);
-        // ArgMask indicates what CS2 might do to CS2Loc, and the dependence of
+        unsigned CS2ArgIdx = std::distance(CS2.arg_begin(), I);
+        auto CS2ArgLoc = MemoryLocation::getForArgument(CS2, CS2ArgIdx, *TLI);
+
+        // ArgMask indicates what CS2 might do to CS2ArgLoc, and the dependence of
         // CS1 on that location is the inverse.
+        ModRefResult ArgMask = getArgModRefInfo(CS2, CS2ArgIdx);
         if (ArgMask == Mod)
           ArgMask = ModRef;
         else if (ArgMask == Ref)
           ArgMask = Mod;
 
-        R = ModRefResult((R | (getModRefInfo(CS1, CS2Loc) & ArgMask)) & Mask);
+        R = ModRefResult((R | (getModRefInfo(CS1, CS2ArgLoc) & ArgMask)) & Mask);
         if (R == Mask)
           break;
       }
@@ -195,13 +205,14 @@ AliasAnalysis::getModRefInfo(ImmutableCallSite CS1, ImmutableCallSite CS2) {
         const Value *Arg = *I;
         if (!Arg->getType()->isPointerTy())
           continue;
-        ModRefResult ArgMask;
-        Location CS1Loc = getArgLocation(
-            CS1, (unsigned)std::distance(CS1.arg_begin(), I), ArgMask);
-        // ArgMask indicates what CS1 might do to CS1Loc; if CS1 might Mod
-        // CS1Loc, then we care about either a Mod or a Ref by CS2. If CS1
+        unsigned CS1ArgIdx = std::distance(CS1.arg_begin(), I);
+        auto CS1ArgLoc = MemoryLocation::getForArgument(CS1, CS1ArgIdx, *TLI);
+
+        // ArgMask indicates what CS1 might do to CS1ArgLoc; if CS1 might Mod
+        // CS1ArgLoc, then we care about either a Mod or a Ref by CS2. If CS1
         // might Ref, then we care only about a Mod by CS2.
-        ModRefResult ArgR = getModRefInfo(CS2, CS1Loc);
+        ModRefResult ArgMask = getArgModRefInfo(CS1, CS1ArgIdx);
+        ModRefResult ArgR = getModRefInfo(CS2, CS1ArgLoc);
         if (((ArgMask & Mod) != NoModRef && (ArgR & ModRef) != NoModRef) ||
             ((ArgMask & Ref) != NoModRef && (ArgR & Mod)    != NoModRef))
           R = ModRefResult((R | ArgMask) & Mask);
@@ -250,87 +261,15 @@ AliasAnalysis::getModRefBehavior(const Function *F) {
 // AliasAnalysis non-virtual helper method implementation
 //===----------------------------------------------------------------------===//
 
-AliasAnalysis::Location AliasAnalysis::getLocation(const LoadInst *LI) {
-  AAMDNodes AATags;
-  LI->getAAMetadata(AATags);
-
-  return Location(LI->getPointerOperand(),
-                  getTypeStoreSize(LI->getType()), AATags);
-}
-
-AliasAnalysis::Location AliasAnalysis::getLocation(const StoreInst *SI) {
-  AAMDNodes AATags;
-  SI->getAAMetadata(AATags);
-
-  return Location(SI->getPointerOperand(),
-                  getTypeStoreSize(SI->getValueOperand()->getType()), AATags);
-}
-
-AliasAnalysis::Location AliasAnalysis::getLocation(const VAArgInst *VI) {
-  AAMDNodes AATags;
-  VI->getAAMetadata(AATags);
-
-  return Location(VI->getPointerOperand(), UnknownSize, AATags);
-}
-
-AliasAnalysis::Location
-AliasAnalysis::getLocation(const AtomicCmpXchgInst *CXI) {
-  AAMDNodes AATags;
-  CXI->getAAMetadata(AATags);
-
-  return Location(CXI->getPointerOperand(),
-                  getTypeStoreSize(CXI->getCompareOperand()->getType()),
-                  AATags);
-}
-
-AliasAnalysis::Location
-AliasAnalysis::getLocation(const AtomicRMWInst *RMWI) {
-  AAMDNodes AATags;
-  RMWI->getAAMetadata(AATags);
-
-  return Location(RMWI->getPointerOperand(),
-                  getTypeStoreSize(RMWI->getValOperand()->getType()), AATags);
-}
-
-AliasAnalysis::Location
-AliasAnalysis::getLocationForSource(const MemTransferInst *MTI) {
-  uint64_t Size = UnknownSize;
-  if (ConstantInt *C = dyn_cast<ConstantInt>(MTI->getLength()))
-    Size = C->getValue().getZExtValue();
-
-  // memcpy/memmove can have AA tags. For memcpy, they apply
-  // to both the source and the destination.
-  AAMDNodes AATags;
-  MTI->getAAMetadata(AATags);
-
-  return Location(MTI->getRawSource(), Size, AATags);
-}
-
-AliasAnalysis::Location
-AliasAnalysis::getLocationForDest(const MemIntrinsic *MTI) {
-  uint64_t Size = UnknownSize;
-  if (ConstantInt *C = dyn_cast<ConstantInt>(MTI->getLength()))
-    Size = C->getValue().getZExtValue();
-
-  // memcpy/memmove can have AA tags. For memcpy, they apply
-  // to both the source and the destination.
-  AAMDNodes AATags;
-  MTI->getAAMetadata(AATags);
-
-  return Location(MTI->getRawDest(), Size, AATags);
-}
-
-
-
 AliasAnalysis::ModRefResult
-AliasAnalysis::getModRefInfo(const LoadInst *L, const Location &Loc) {
+AliasAnalysis::getModRefInfo(const LoadInst *L, const MemoryLocation &Loc) {
   // Be conservative in the face of volatile/atomic.
   if (!L->isUnordered())
     return ModRef;
 
   // If the load address doesn't alias the given address, it doesn't read
   // or write the specified memory.
-  if (!alias(getLocation(L), Loc))
+  if (Loc.Ptr && !alias(MemoryLocation::get(L), Loc))
     return NoModRef;
 
   // Otherwise, a load just reads.
@@ -338,62 +277,70 @@ AliasAnalysis::getModRefInfo(const LoadInst *L, const Location &Loc) {
 }
 
 AliasAnalysis::ModRefResult
-AliasAnalysis::getModRefInfo(const StoreInst *S, const Location &Loc) {
+AliasAnalysis::getModRefInfo(const StoreInst *S, const MemoryLocation &Loc) {
   // Be conservative in the face of volatile/atomic.
   if (!S->isUnordered())
     return ModRef;
 
-  // If the store address cannot alias the pointer in question, then the
-  // specified memory cannot be modified by the store.
-  if (!alias(getLocation(S), Loc))
-    return NoModRef;
+  if (Loc.Ptr) {
+    // If the store address cannot alias the pointer in question, then the
+    // specified memory cannot be modified by the store.
+    if (!alias(MemoryLocation::get(S), Loc))
+      return NoModRef;
 
-  // If the pointer is a pointer to constant memory, then it could not have been
-  // modified by this store.
-  if (pointsToConstantMemory(Loc))
-    return NoModRef;
+    // If the pointer is a pointer to constant memory, then it could not have
+    // been modified by this store.
+    if (pointsToConstantMemory(Loc))
+      return NoModRef;
+
+  }
 
   // Otherwise, a store just writes.
   return Mod;
 }
 
 AliasAnalysis::ModRefResult
-AliasAnalysis::getModRefInfo(const VAArgInst *V, const Location &Loc) {
-  // If the va_arg address cannot alias the pointer in question, then the
-  // specified memory cannot be accessed by the va_arg.
-  if (!alias(getLocation(V), Loc))
-    return NoModRef;
+AliasAnalysis::getModRefInfo(const VAArgInst *V, const MemoryLocation &Loc) {
 
-  // If the pointer is a pointer to constant memory, then it could not have been
-  // modified by this va_arg.
-  if (pointsToConstantMemory(Loc))
-    return NoModRef;
+  if (Loc.Ptr) {
+    // If the va_arg address cannot alias the pointer in question, then the
+    // specified memory cannot be accessed by the va_arg.
+    if (!alias(MemoryLocation::get(V), Loc))
+      return NoModRef;
+
+    // If the pointer is a pointer to constant memory, then it could not have
+    // been modified by this va_arg.
+    if (pointsToConstantMemory(Loc))
+      return NoModRef;
+  }
 
   // Otherwise, a va_arg reads and writes.
   return ModRef;
 }
 
 AliasAnalysis::ModRefResult
-AliasAnalysis::getModRefInfo(const AtomicCmpXchgInst *CX, const Location &Loc) {
+AliasAnalysis::getModRefInfo(const AtomicCmpXchgInst *CX,
+                             const MemoryLocation &Loc) {
   // Acquire/Release cmpxchg has properties that matter for arbitrary addresses.
   if (CX->getSuccessOrdering() > Monotonic)
     return ModRef;
 
   // If the cmpxchg address does not alias the location, it does not access it.
-  if (!alias(getLocation(CX), Loc))
+  if (Loc.Ptr && !alias(MemoryLocation::get(CX), Loc))
     return NoModRef;
 
   return ModRef;
 }
 
 AliasAnalysis::ModRefResult
-AliasAnalysis::getModRefInfo(const AtomicRMWInst *RMW, const Location &Loc) {
+AliasAnalysis::getModRefInfo(const AtomicRMWInst *RMW,
+                             const MemoryLocation &Loc) {
   // Acquire/Release atomicrmw has properties that matter for arbitrary addresses.
   if (RMW->getOrdering() > Monotonic)
     return ModRef;
 
   // If the atomicrmw address does not alias the location, it does not access it.
-  if (!alias(getLocation(RMW), Loc))
+  if (Loc.Ptr && !alias(MemoryLocation::get(RMW), Loc))
     return NoModRef;
 
   return ModRef;
@@ -403,13 +350,12 @@ AliasAnalysis::getModRefInfo(const AtomicRMWInst *RMW, const Location &Loc) {
 // BasicAA isn't willing to spend linear time determining whether an alloca
 // was captured before or after this particular call, while we are. However,
 // with a smarter AA in place, this test is just wasting compile time.
-AliasAnalysis::ModRefResult
-AliasAnalysis::callCapturesBefore(const Instruction *I,
-                                  const AliasAnalysis::Location &MemLoc,
-                                  DominatorTree *DT) {
-  if (!DT || !DL) return AliasAnalysis::ModRef;
+AliasAnalysis::ModRefResult AliasAnalysis::callCapturesBefore(
+    const Instruction *I, const MemoryLocation &MemLoc, DominatorTree *DT) {
+  if (!DT)
+    return AliasAnalysis::ModRef;
 
-  const Value *Object = GetUnderlyingObject(MemLoc.Ptr, DL);
+  const Value *Object = GetUnderlyingObject(MemLoc.Ptr, *DL);
   if (!isIdentifiedObject(Object) || isa<GlobalValue>(Object) ||
       isa<Constant>(Object))
     return AliasAnalysis::ModRef;
@@ -438,8 +384,7 @@ AliasAnalysis::callCapturesBefore(const Instruction *I,
     // is impossible to alias the pointer we're checking.  If not, we have to
     // assume that the call could touch the pointer, even though it doesn't
     // escape.
-    if (isNoAlias(AliasAnalysis::Location(*CI),
-                  AliasAnalysis::Location(Object)))
+    if (isNoAlias(MemoryLocation(*CI), MemoryLocation(Object)))
       continue;
     if (CS.doesNotAccessMemory(ArgNo))
       continue;
@@ -462,10 +407,10 @@ AliasAnalysis::~AliasAnalysis() {}
 /// InitializeAliasAnalysis - Subclasses must call this method to initialize the
 /// AliasAnalysis interface before any other methods are called.
 ///
-void AliasAnalysis::InitializeAliasAnalysis(Pass *P) {
-  DataLayoutPass *DLP = P->getAnalysisIfAvailable<DataLayoutPass>();
-  DL = DLP ? &DLP->getDataLayout() : nullptr;
-  TLI = P->getAnalysisIfAvailable<TargetLibraryInfo>();
+void AliasAnalysis::InitializeAliasAnalysis(Pass *P, const DataLayout *NewDL) {
+  DL = NewDL;
+  auto *TLIP = P->getAnalysisIfAvailable<TargetLibraryInfoWrapperPass>();
+  TLI = TLIP ? &TLIP->getTLI() : nullptr;
   AA = &P->getAnalysis<AliasAnalysis>();
 }
 
@@ -479,14 +424,14 @@ void AliasAnalysis::getAnalysisUsage(AnalysisUsage &AU) const {
 /// if known, or a conservative value otherwise.
 ///
 uint64_t AliasAnalysis::getTypeStoreSize(Type *Ty) {
-  return DL ? DL->getTypeStoreSize(Ty) : UnknownSize;
+  return DL ? DL->getTypeStoreSize(Ty) : MemoryLocation::UnknownSize;
 }
 
 /// canBasicBlockModify - Return true if it is possible for execution of the
 /// specified basic block to modify the location Loc.
 ///
 bool AliasAnalysis::canBasicBlockModify(const BasicBlock &BB,
-                                        const Location &Loc) {
+                                        const MemoryLocation &Loc) {
   return canInstructionRangeModRef(BB.front(), BB.back(), Loc, Mod);
 }
 
@@ -494,10 +439,10 @@ bool AliasAnalysis::canBasicBlockModify(const BasicBlock &BB,
 /// execution of the specified instructions to mod\ref (according to the
 /// mode) the location Loc. The instructions to consider are all
 /// of the instructions in the range of [I1,I2] INCLUSIVE.
-/// I1 and I2 must be in the same basic block.  
+/// I1 and I2 must be in the same basic block.
 bool AliasAnalysis::canInstructionRangeModRef(const Instruction &I1,
                                               const Instruction &I2,
-                                              const Location &Loc,
+                                              const MemoryLocation &Loc,
                                               const ModRefResult Mode) {
   assert(I1.getParent() == I2.getParent() &&
          "Instructions not in same basic block!");

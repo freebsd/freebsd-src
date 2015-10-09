@@ -24,6 +24,7 @@
 #include "llvm/CodeGen/MachineBranchProbabilityInfo.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/MachineJumpTableInfo.h"
+#include "llvm/CodeGen/MachineMemOperand.h"
 #include "llvm/CodeGen/MachineModuleInfo.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/Passes.h"
@@ -269,11 +270,17 @@ static unsigned HashMachineInstr(const MachineInstr *MI) {
   for (unsigned i = 0, e = MI->getNumOperands(); i != e; ++i) {
     const MachineOperand &Op = MI->getOperand(i);
 
-    // Merge in bits from the operand if easy.
+    // Merge in bits from the operand if easy. We can't use MachineOperand's
+    // hash_code here because it's not deterministic and we sort by hash value
+    // later.
     unsigned OperandHash = 0;
     switch (Op.getType()) {
-    case MachineOperand::MO_Register:          OperandHash = Op.getReg(); break;
-    case MachineOperand::MO_Immediate:         OperandHash = Op.getImm(); break;
+    case MachineOperand::MO_Register:
+      OperandHash = Op.getReg();
+      break;
+    case MachineOperand::MO_Immediate:
+      OperandHash = Op.getImm();
+      break;
     case MachineOperand::MO_MachineBasicBlock:
       OperandHash = Op.getMBB()->getNumber();
       break;
@@ -288,27 +295,20 @@ static unsigned HashMachineInstr(const MachineInstr *MI) {
       // pull in the offset.
       OperandHash = Op.getOffset();
       break;
-    default: break;
+    default:
+      break;
     }
 
-    Hash += ((OperandHash << 3) | Op.getType()) << (i&31);
+    Hash += ((OperandHash << 3) | Op.getType()) << (i & 31);
   }
   return Hash;
 }
 
 /// HashEndOfMBB - Hash the last instruction in the MBB.
 static unsigned HashEndOfMBB(const MachineBasicBlock *MBB) {
-  MachineBasicBlock::const_iterator I = MBB->end();
-  if (I == MBB->begin())
-    return 0;   // Empty MBB.
-
-  --I;
-  // Skip debug info so it will not affect codegen.
-  while (I->isDebugValue()) {
-    if (I==MBB->begin())
-      return 0;      // MBB empty except for debug info.
-    --I;
-  }
+  MachineBasicBlock::const_iterator I = MBB->getLastNonDebugInstr();
+  if (I == MBB->end())
+    return 0;
 
   return HashMachineInstr(I);
 }
@@ -601,8 +601,7 @@ static bool ProfitableToMerge(MachineBasicBlock *MBB1,
   // instructions that would be deleted in the merge.
   MachineFunction *MF = MBB1->getParent();
   if (EffectiveTailLen >= 2 &&
-      MF->getFunction()->getAttributes().
-        hasAttribute(AttributeSet::FunctionIndex, Attribute::OptimizeForSize) &&
+      MF->getFunction()->hasFnAttribute(Attribute::OptimizeForSize) &&
       (I1 == MBB1->begin() || I2 == MBB2->begin()))
     return true;
 
@@ -728,6 +727,62 @@ bool BranchFolder::CreateCommonTailOnlyBlock(MachineBasicBlock *&PredBB,
   return true;
 }
 
+static bool hasIdenticalMMOs(const MachineInstr *MI1, const MachineInstr *MI2) {
+  auto I1 = MI1->memoperands_begin(), E1 = MI1->memoperands_end();
+  auto I2 = MI2->memoperands_begin(), E2 = MI2->memoperands_end();
+  if ((E1 - I1) != (E2 - I2))
+    return false;
+  for (; I1 != E1; ++I1, ++I2) {
+    if (**I1 != **I2)
+      return false;
+  }
+  return true;
+}
+
+static void
+removeMMOsFromMemoryOperations(MachineBasicBlock::iterator MBBIStartPos,
+                               MachineBasicBlock &MBBCommon) {
+  // Remove MMOs from memory operations in the common block
+  // when they do not match the ones from the block being tail-merged.
+  // This ensures later passes conservatively compute dependencies.
+  MachineBasicBlock *MBB = MBBIStartPos->getParent();
+  // Note CommonTailLen does not necessarily matches the size of
+  // the common BB nor all its instructions because of debug
+  // instructions differences.
+  unsigned CommonTailLen = 0;
+  for (auto E = MBB->end(); MBBIStartPos != E; ++MBBIStartPos)
+    ++CommonTailLen;
+
+  MachineBasicBlock::reverse_iterator MBBI = MBB->rbegin();
+  MachineBasicBlock::reverse_iterator MBBIE = MBB->rend();
+  MachineBasicBlock::reverse_iterator MBBICommon = MBBCommon.rbegin();
+  MachineBasicBlock::reverse_iterator MBBIECommon = MBBCommon.rend();
+
+  while (CommonTailLen--) {
+    assert(MBBI != MBBIE && "Reached BB end within common tail length!");
+    (void)MBBIE;
+
+    if (MBBI->isDebugValue()) {
+      ++MBBI;
+      continue;
+    }
+
+    while ((MBBICommon != MBBIECommon) && MBBICommon->isDebugValue())
+      ++MBBICommon;
+
+    assert(MBBICommon != MBBIECommon &&
+           "Reached BB end within common tail length!");
+    assert(MBBICommon->isIdenticalTo(&*MBBI) && "Expected matching MIIs!");
+
+    if (MBBICommon->mayLoad() || MBBICommon->mayStore())
+      if (!hasIdenticalMMOs(&*MBBI, &*MBBICommon))
+        MBBICommon->clearMemRefs();
+
+    ++MBBI;
+    ++MBBICommon;
+  }
+}
+
 // See if any of the blocks in MergePotentials (which all have a common single
 // successor, or all have no successor) can be tail-merged.  If there is a
 // successor, any blocks in MergePotentials that are not tail-merged and
@@ -762,7 +817,7 @@ bool BranchFolder::TryTailMergeBlocks(MachineBasicBlock *SuccBB,
 
   // Sort by hash value so that blocks with identical end sequences sort
   // together.
-  std::stable_sort(MergePotentials.begin(), MergePotentials.end());
+  array_pod_sort(MergePotentials.begin(), MergePotentials.end());
 
   // Walk through equivalence sets looking for actual exact matches.
   while (MergePotentials.size() > 1) {
@@ -841,6 +896,8 @@ bool BranchFolder::TryTailMergeBlocks(MachineBasicBlock *SuccBB,
         continue;
       DEBUG(dbgs() << "BB#" << SameTails[i].getBlock()->getNumber()
                    << (i == e-1 ? "" : ", "));
+      // Remove MMOs from memory operations as needed.
+      removeMMOsFromMemoryOperations(SameTails[i].getTailStartPos(), *MBB);
       // Hack the end off BB i, making it jump to BB commonTailIndex instead.
       ReplaceTailWithBranchTo(SameTails[i].getTailStartPos(), MBB);
       // BB i is no longer a predecessor of SuccBB; remove it from the worklist.
@@ -1060,25 +1117,15 @@ bool BranchFolder::OptimizeBranches(MachineFunction &MF) {
 // Blocks should be considered empty if they contain only debug info;
 // else the debug info would affect codegen.
 static bool IsEmptyBlock(MachineBasicBlock *MBB) {
-  if (MBB->empty())
-    return true;
-  for (MachineBasicBlock::iterator MBBI = MBB->begin(), MBBE = MBB->end();
-       MBBI!=MBBE; ++MBBI) {
-    if (!MBBI->isDebugValue())
-      return false;
-  }
-  return true;
+  return MBB->getFirstNonDebugInstr() == MBB->end();
 }
 
 // Blocks with only debug info and branches should be considered the same
 // as blocks with only branches.
 static bool IsBranchOnlyBlock(MachineBasicBlock *MBB) {
-  MachineBasicBlock::iterator MBBI, MBBE;
-  for (MBBI = MBB->begin(), MBBE = MBB->end(); MBBI!=MBBE; ++MBBI) {
-    if (!MBBI->isDebugValue())
-      break;
-  }
-  return (MBBI->isBranch());
+  MachineBasicBlock::iterator I = MBB->getFirstNonDebugInstr();
+  assert(I != MBB->end() && "empty block!");
+  return I->isBranch();
 }
 
 /// IsBetterFallthrough - Return true if it would be clearly better to
@@ -1091,36 +1138,24 @@ static bool IsBetterFallthrough(MachineBasicBlock *MBB1,
   // MBB1 doesn't, we prefer to fall through into MBB1.  This allows us to
   // optimize branches that branch to either a return block or an assert block
   // into a fallthrough to the return.
-  if (IsEmptyBlock(MBB1) || IsEmptyBlock(MBB2)) return false;
+  MachineBasicBlock::iterator MBB1I = MBB1->getLastNonDebugInstr();
+  MachineBasicBlock::iterator MBB2I = MBB2->getLastNonDebugInstr();
+  if (MBB1I == MBB1->end() || MBB2I == MBB2->end())
+    return false;
 
   // If there is a clear successor ordering we make sure that one block
   // will fall through to the next
   if (MBB1->isSuccessor(MBB2)) return true;
   if (MBB2->isSuccessor(MBB1)) return false;
 
-  // Neither block consists entirely of debug info (per IsEmptyBlock check),
-  // so we needn't test for falling off the beginning here.
-  MachineBasicBlock::iterator MBB1I = --MBB1->end();
-  while (MBB1I->isDebugValue())
-    --MBB1I;
-  MachineBasicBlock::iterator MBB2I = --MBB2->end();
-  while (MBB2I->isDebugValue())
-    --MBB2I;
   return MBB2I->isCall() && !MBB1I->isCall();
 }
 
 /// getBranchDebugLoc - Find and return, if any, the DebugLoc of the branch
-/// instructions on the block. Always use the DebugLoc of the first
-/// branching instruction found unless its absent, in which case use the
-/// DebugLoc of the second if present.
+/// instructions on the block.
 static DebugLoc getBranchDebugLoc(MachineBasicBlock &MBB) {
-  MachineBasicBlock::iterator I = MBB.end();
-  if (I == MBB.begin())
-    return DebugLoc();
-  --I;
-  while (I->isDebugValue() && I != MBB.begin())
-    --I;
-  if (I->isBranch())
+  MachineBasicBlock::iterator I = MBB.getLastNonDebugInstr();
+  if (I != MBB.end() && I->isBranch())
     return I->getDebugLoc();
   return DebugLoc();
 }
@@ -1145,6 +1180,11 @@ ReoptimizeBlock:
 
     if (FallThrough == MF.end()) {
       // TODO: Simplify preds to not branch here if possible!
+    } else if (FallThrough->isLandingPad()) {
+      // Don't rewrite to a landing pad fallthough.  That could lead to the case
+      // where a BB jumps to more than one landing pad.
+      // TODO: Is it ever worth rewriting predecessors which don't already
+      // jump to a landing pad, and so can safely jump to the fallthrough?
     } else {
       // Rewrite all predecessors of the old block to go to the fallthrough
       // instead.
@@ -1340,19 +1380,10 @@ ReoptimizeBlock:
       // If the only things remaining in the block are debug info, remove these
       // as well, so this will behave the same as an empty block in non-debug
       // mode.
-      if (!MBB->empty()) {
-        bool NonDebugInfoFound = false;
-        for (MachineBasicBlock::iterator I = MBB->begin(), E = MBB->end();
-             I != E; ++I) {
-          if (!I->isDebugValue()) {
-            NonDebugInfoFound = true;
-            break;
-          }
-        }
-        if (!NonDebugInfoFound)
-          // Make the block empty, losing the debug info (we could probably
-          // improve this in some cases.)
-          MBB->erase(MBB->begin(), MBB->end());
+      if (IsEmptyBlock(MBB)) {
+        // Make the block empty, losing the debug info (we could probably
+        // improve this in some cases.)
+        MBB->erase(MBB->begin(), MBB->end());
       }
       // If this block is just an unconditional branch to CurTBB, we can
       // usually completely eliminate the block.  The only case we cannot
@@ -1620,8 +1651,7 @@ MachineBasicBlock::iterator findHoistingInsertPosAndDeps(MachineBasicBlock *MBB,
   // Also avoid moving code above predicated instruction since it's hard to
   // reason about register liveness with predicated instruction.
   bool DontMoveAcrossStore = true;
-  if (!PI->isSafeToMove(TII, nullptr, DontMoveAcrossStore) ||
-      TII->isPredicated(PI))
+  if (!PI->isSafeToMove(nullptr, DontMoveAcrossStore) || TII->isPredicated(PI))
     return MBB->end();
 
 
@@ -1759,7 +1789,7 @@ bool BranchFolder::HoistCommonCodeInSuccs(MachineBasicBlock *MBB) {
       break;
 
     bool DontMoveAcrossStore = true;
-    if (!TIB->isSafeToMove(TII, nullptr, DontMoveAcrossStore))
+    if (!TIB->isSafeToMove(nullptr, DontMoveAcrossStore))
       break;
 
     // Remove kills from LocalDefsSet, these registers had short live ranges.

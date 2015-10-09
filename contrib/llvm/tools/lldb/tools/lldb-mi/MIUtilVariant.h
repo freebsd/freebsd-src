@@ -6,18 +6,6 @@
 // License. See LICENSE.TXT for details.
 //
 //===----------------------------------------------------------------------===//
-
-//++
-// File:        MIUtilVariant.h
-//
-// Overview:    CMIUtilVariant interface.
-//
-// Environment: Compilers:  Visual C++ 12.
-//                          gcc (Ubuntu/Linaro 4.8.1-10ubuntu9) 4.8.1
-//              Libraries:  See MIReadmetxt.
-//
-// Gotchas:     See CMIUtilVariant class description.
-//
 // Copyright:   None.
 //--
 
@@ -107,9 +95,9 @@ class CMIUtilVariant
         // Overridden:
       public:
         // From CDataObjectBase
-        virtual ~CDataObject(void);
-        virtual CDataObjectBase *CreateCopyOfSelf(void);
-        virtual bool GetIsDerivedClass(void) const;
+        ~CDataObject(void) override;
+        CDataObjectBase *CreateCopyOfSelf(void) override;
+        bool GetIsDerivedClass(void) const override;
 
         // Overrideable:
       private:
@@ -118,7 +106,7 @@ class CMIUtilVariant
         // Overridden:
       private:
         // From CDataObjectBase
-        virtual void Destroy(void);
+        void Destroy(void) override;
 
         // Attributes:
       private:

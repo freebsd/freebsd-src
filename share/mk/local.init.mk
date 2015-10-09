@@ -9,11 +9,12 @@
 .endif
 .endif
 
-.if ${MK_SYSROOT} == "yes" && !empty(SYSROOT)
+.if ${MK_SYSROOT} == "yes" && !empty(SYSROOT) && ${MACHINE} != "host"
 CFLAGS_LAST+= --sysroot=${SYSROOT}
 CXXFLAGS_LAST+= --sysroot=${SYSROOT}
 LDADD+= --sysroot=${SYSROOT}
 .elif ${MK_STAGING} == "yes"
+CFLAGS+= -nostdinc
 CFLAGS+= -I${STAGE_INCLUDEDIR}
 LDADD+= -L${STAGE_LIBDIR}
 .endif

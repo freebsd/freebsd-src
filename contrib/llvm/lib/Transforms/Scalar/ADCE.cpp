@@ -32,19 +32,18 @@ using namespace llvm;
 STATISTIC(NumRemoved, "Number of instructions removed");
 
 namespace {
-  struct ADCE : public FunctionPass {
-    static char ID; // Pass identification, replacement for typeid
-    ADCE() : FunctionPass(ID) {
-      initializeADCEPass(*PassRegistry::getPassRegistry());
-    }
+struct ADCE : public FunctionPass {
+  static char ID; // Pass identification, replacement for typeid
+  ADCE() : FunctionPass(ID) {
+    initializeADCEPass(*PassRegistry::getPassRegistry());
+  }
 
-    bool runOnFunction(Function& F) override;
+  bool runOnFunction(Function& F) override;
 
-    void getAnalysisUsage(AnalysisUsage& AU) const override {
-      AU.setPreservesCFG();
-    }
-
-  };
+  void getAnalysisUsage(AnalysisUsage& AU) const override {
+    AU.setPreservesCFG();
+  }
+};
 }
 
 char ADCE::ID = 0;
@@ -54,46 +53,45 @@ bool ADCE::runOnFunction(Function& F) {
   if (skipOptnoneFunction(F))
     return false;
 
-  SmallPtrSet<Instruction*, 128> alive;
-  SmallVector<Instruction*, 128> worklist;
+  SmallPtrSet<Instruction*, 128> Alive;
+  SmallVector<Instruction*, 128> Worklist;
 
   // Collect the set of "root" instructions that are known live.
-  for (inst_iterator I = inst_begin(F), E = inst_end(F); I != E; ++I)
-    if (isa<TerminatorInst>(I.getInstructionIterator()) ||
-        isa<DbgInfoIntrinsic>(I.getInstructionIterator()) ||
-        isa<LandingPadInst>(I.getInstructionIterator()) ||
-        I->mayHaveSideEffects()) {
-      alive.insert(I.getInstructionIterator());
-      worklist.push_back(I.getInstructionIterator());
+  for (Instruction &I : inst_range(F)) {
+    if (isa<TerminatorInst>(I) || isa<DbgInfoIntrinsic>(I) ||
+        isa<LandingPadInst>(I) || I.mayHaveSideEffects()) {
+      Alive.insert(&I);
+      Worklist.push_back(&I);
     }
+  }
 
   // Propagate liveness backwards to operands.
-  while (!worklist.empty()) {
-    Instruction* curr = worklist.pop_back_val();
-    for (Instruction::op_iterator OI = curr->op_begin(), OE = curr->op_end();
-         OI != OE; ++OI)
-      if (Instruction* Inst = dyn_cast<Instruction>(OI))
-        if (alive.insert(Inst).second)
-          worklist.push_back(Inst);
+  while (!Worklist.empty()) {
+    Instruction *Curr = Worklist.pop_back_val();
+    for (Use &OI : Curr->operands()) {
+      if (Instruction *Inst = dyn_cast<Instruction>(OI))
+        if (Alive.insert(Inst).second)
+          Worklist.push_back(Inst);
+    }
   }
 
   // The inverse of the live set is the dead set.  These are those instructions
   // which have no side effects and do not influence the control flow or return
   // value of the function, and may therefore be deleted safely.
-  // NOTE: We reuse the worklist vector here for memory efficiency.
-  for (inst_iterator I = inst_begin(F), E = inst_end(F); I != E; ++I)
-    if (!alive.count(I.getInstructionIterator())) {
-      worklist.push_back(I.getInstructionIterator());
-      I->dropAllReferences();
+  // NOTE: We reuse the Worklist vector here for memory efficiency.
+  for (Instruction &I : inst_range(F)) {
+    if (!Alive.count(&I)) {
+      Worklist.push_back(&I);
+      I.dropAllReferences();
     }
-
-  for (SmallVectorImpl<Instruction *>::iterator I = worklist.begin(),
-       E = worklist.end(); I != E; ++I) {
-    ++NumRemoved;
-    (*I)->eraseFromParent();
   }
 
-  return !worklist.empty();
+  for (Instruction *&I : Worklist) {
+    ++NumRemoved;
+    I->eraseFromParent();
+  }
+
+  return !Worklist.empty();
 }
 
 FunctionPass *llvm::createAggressiveDCEPass() {
