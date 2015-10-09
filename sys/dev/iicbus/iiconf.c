@@ -207,7 +207,7 @@ iicbus_start(device_t bus, u_char slave, int timeout)
 	int error = 0;
 
 	if (sc->started)
-		return (EINVAL);		/* bus already started */
+		return (IIC_ESTATUS); /* protocol error, bus already started */
 
 	if (!(error = IICBUS_START(device_get_parent(bus), slave, timeout)))
 		sc->started = slave;
@@ -229,7 +229,7 @@ iicbus_repeated_start(device_t bus, u_char slave, int timeout)
 	int error = 0;
 
 	if (!sc->started)
-		return (EINVAL);     /* bus should have been already started */
+		return (IIC_ESTATUS); /* protocol error, bus not started */
 
 	if (!(error = IICBUS_REPEATED_START(device_get_parent(bus), slave, timeout)))
 		sc->started = slave;
@@ -251,7 +251,7 @@ iicbus_stop(device_t bus)
 	int error = 0;
 
 	if (!sc->started)
-		return (EINVAL);		/* bus not started */
+		return (IIC_ESTATUS); /* protocol error, bus not started */
 
 	error = IICBUS_STOP(device_get_parent(bus));
 
@@ -274,7 +274,7 @@ iicbus_write(device_t bus, const char *buf, int len, int *sent, int timeout)
 	
 	/* a slave must have been started for writing */
 	if (sc->started == 0 || (sc->strict != 0 && (sc->started & LSB) != 0))
-		return (EINVAL);
+		return (IIC_ESTATUS);
 
 	return (IICBUS_WRITE(device_get_parent(bus), buf, len, sent, timeout));
 }
@@ -292,7 +292,7 @@ iicbus_read(device_t bus, char *buf, int len, int *read, int last, int delay)
 	
 	/* a slave must have been started for reading */
 	if (sc->started == 0 || (sc->strict != 0 && (sc->started & LSB) == 0))
-		return (EINVAL);
+		return (IIC_ESTATUS);
 
 	return (IICBUS_READ(device_get_parent(bus), buf, len, read, last, delay));
 }
@@ -305,8 +305,13 @@ iicbus_read(device_t bus, char *buf, int len, int *read, int last, int delay)
 int
 iicbus_write_byte(device_t bus, char byte, int timeout)
 {
+	struct iicbus_softc *sc = device_get_softc(bus);
 	char data = byte;
 	int sent;
+
+	/* a slave must have been started for writing */
+	if (sc->started == 0 || (sc->strict != 0 && (sc->started & LSB) != 0))
+		return (IIC_ESTATUS);
 
 	return (iicbus_write(bus, &data, 1, &sent, timeout));
 }
@@ -319,7 +324,12 @@ iicbus_write_byte(device_t bus, char byte, int timeout)
 int
 iicbus_read_byte(device_t bus, char *byte, int timeout)
 {
+	struct iicbus_softc *sc = device_get_softc(bus);
 	int read;
+
+	/* a slave must have been started for reading */
+	if (sc->started == 0 || (sc->strict != 0 && (sc->started & LSB) == 0))
+		return (IIC_ESTATUS);
 
 	return (iicbus_read(bus, byte, 1, &read, IIC_LAST_READ, timeout));
 }
@@ -381,6 +391,7 @@ iicbus_block_read(device_t bus, u_char slave, char *buf, int len, int *read)
 int
 iicbus_transfer(device_t bus, struct iic_msg *msgs, uint32_t nmsgs)
 {
+
 	return (IICBUS_TRANSFER(device_get_parent(bus), msgs, nmsgs));
 }
 
@@ -397,10 +408,10 @@ iicbus_transfer_gen(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 	bool nostop;
 
 	if ((error = device_get_children(dev, &children, &nkid)) != 0)
-		return (error);
+		return (IIC_ERESOURCE);
 	if (nkid != 1) {
 		free(children, M_TEMP);
-		return (EIO);
+		return (IIC_ENOTSUPP);
 	}
 	bus = children[0];
 	rpstart = 0;
