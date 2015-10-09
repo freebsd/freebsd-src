@@ -1,7 +1,7 @@
 #
 # Rules for handling include files.
 #
-# $Id: elftoolchain.inc.mk 2608 2012-10-03 09:16:11Z jkoshy $
+# $Id: elftoolchain.inc.mk 3245 2015-08-31 19:54:13Z emaste $
 
 .if !defined(TOP)
 .error	Make variable \"TOP\" has not been defined.
@@ -11,8 +11,8 @@
 
 .include <bsd.own.mk>
 
-.if ${OS_HOST} == "DragonFly" || ${OS_HOST} == "FreeBSD" || \
-	${OS_HOST} == "OpenBSD"
+.if ${OS_HOST} == "Darwin" || ${OS_HOST} == "DragonFly" || \
+	${OS_HOST} == "FreeBSD" || ${OS_HOST} == "OpenBSD"
 # Simulate <bsd.inc.mk>.
 
 NOBINMODE?=	444		# Missing in OpenBSD's rule set.
