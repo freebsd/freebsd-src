@@ -1,7 +1,7 @@
 /*-
  * Copyright (c) 2008 Hyogeol Lee
  * Copyright (c) 2000, 2001 David O'Brien
- * Copyright (c) 1996 Søren Schmidt
+ * Copyright (c) 1996 SÃ¸ren Schmidt
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -44,7 +44,7 @@
 
 #include "_elftc.h"
 
-ELFTC_VCSID("$Id: brandelf.c 3174 2015-03-27 17:13:41Z emaste $");
+ELFTC_VCSID("$Id: brandelf.c 3234 2015-07-31 12:35:09Z emaste $");
 
 static int elftype(const char *);
 static const char *iselftype(int);
