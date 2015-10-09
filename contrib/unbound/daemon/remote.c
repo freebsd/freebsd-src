@@ -243,9 +243,9 @@ daemon_remote_create(struct config_file* cfg)
 		goto setup_error;
 	}
 	verbose(VERB_ALGO, "setup SSL certificates");
-	if (!SSL_CTX_use_certificate_file(rc->ctx,s_cert,SSL_FILETYPE_PEM)) {
+	if (!SSL_CTX_use_certificate_chain_file(rc->ctx,s_cert)) {
 		log_err("Error for server-cert-file: %s", s_cert);
-		log_crypto_err("Error in SSL_CTX use_certificate_file");
+		log_crypto_err("Error in SSL_CTX use_certificate_chain_file");
 		goto setup_error;
 	}
 	if(!SSL_CTX_use_PrivateKey_file(rc->ctx,s_key,SSL_FILETYPE_PEM)) {
@@ -258,6 +258,23 @@ daemon_remote_create(struct config_file* cfg)
 		log_crypto_err("Error in SSL_CTX check_private_key");
 		goto setup_error;
 	}
+#if HAVE_DECL_SSL_CTX_SET_ECDH_AUTO
+	if(!SSL_CTX_set_ecdh_auto(rc->ctx,1)) {
+		log_crypto_err("Error in SSL_CTX_ecdh_auto, not enabling ECDHE");
+	}
+#elif defined(USE_ECDSA)
+	if(1) {
+		EC_KEY *ecdh = EC_KEY_new_by_curve_name (NID_X9_62_prime256v1);
+		if (!ecdh) {
+			log_crypto_err("could not find p256, not enabling ECDHE");
+		} else {
+			if (1 != SSL_CTX_set_tmp_ecdh (rc->ctx, ecdh)) {
+				log_crypto_err("Error in SSL_CTX_set_tmp_ecdh, not enabling ECDHE");
+			}
+			EC_KEY_free (ecdh);
+		}
+	}
+#endif
 	if(!SSL_CTX_load_verify_locations(rc->ctx, s_cert, NULL)) {
 		log_crypto_err("Error setting up SSL_CTX verify locations");
 	setup_error:
@@ -1242,8 +1259,6 @@ struct del_info {
 	size_t len;
 	/** labels */
 	int labs;
-	/** now */
-	time_t now;
 	/** time to invalidate to */
 	time_t expired;
 	/** number of rrsets removed */
@@ -1272,7 +1287,7 @@ infra_del_host(struct lruhash_entry* e, void* arg)
 		d->timeout_AAAA = 0;
 		d->timeout_other = 0;
 		rtt_init(&d->rtt);
-		if(d->ttl >= inf->now) {
+		if(d->ttl > inf->expired) {
 			d->ttl = inf->expired;
 			inf->num_keys++;
 		}
@@ -1301,7 +1316,6 @@ do_flush_infra(SSL* ssl, struct worker* worker, char* arg)
 	inf.name = 0;
 	inf.len = 0;
 	inf.labs = 0;
-	inf.now = *worker->env.now;
 	inf.expired = *worker->env.now;
 	inf.expired -= 3; /* handle 3 seconds skew between threads */
 	inf.num_rrsets = 0;
@@ -1332,7 +1346,7 @@ zone_del_rrset(struct lruhash_entry* e, void* arg)
 	if(dname_subdomain_c(k->rk.dname, inf->name)) {
 		struct packed_rrset_data* d = 
 			(struct packed_rrset_data*)e->data;
-		if(d->ttl >= inf->now) {
+		if(d->ttl > inf->expired) {
 			d->ttl = inf->expired;
 			inf->num_rrsets++;
 		}
@@ -1348,7 +1362,7 @@ zone_del_msg(struct lruhash_entry* e, void* arg)
 	struct msgreply_entry* k = (struct msgreply_entry*)e->key;
 	if(dname_subdomain_c(k->key.qname, inf->name)) {
 		struct reply_info* d = (struct reply_info*)e->data;
-		if(d->ttl >= inf->now) {
+		if(d->ttl > inf->expired) {
 			d->ttl = inf->expired;
 			inf->num_msgs++;
 		}
@@ -1364,7 +1378,7 @@ zone_del_kcache(struct lruhash_entry* e, void* arg)
 	struct key_entry_key* k = (struct key_entry_key*)e->key;
 	if(dname_subdomain_c(k->name, inf->name)) {
 		struct key_entry_data* d = (struct key_entry_data*)e->data;
-		if(d->ttl >= inf->now) {
+		if(d->ttl > inf->expired) {
 			d->ttl = inf->expired;
 			inf->num_keys++;
 		}
@@ -1387,7 +1401,6 @@ do_flush_zone(SSL* ssl, struct worker* worker, char* arg)
 	inf.name = nm;
 	inf.len = nmlen;
 	inf.labs = nmlabs;
-	inf.now = *worker->env.now;
 	inf.expired = *worker->env.now;
 	inf.expired -= 3; /* handle 3 seconds skew between threads */
 	inf.num_rrsets = 0;
@@ -1457,7 +1470,6 @@ do_flush_bogus(SSL* ssl, struct worker* worker)
 	struct del_info inf;
 	/* what we do is to set them all expired */
 	inf.worker = worker;
-	inf.now = *worker->env.now;
 	inf.expired = *worker->env.now;
 	inf.expired -= 3; /* handle 3 seconds skew between threads */
 	inf.num_rrsets = 0;
@@ -1533,7 +1545,6 @@ do_flush_negative(SSL* ssl, struct worker* worker)
 	struct del_info inf;
 	/* what we do is to set them all expired */
 	inf.worker = worker;
-	inf.now = *worker->env.now;
 	inf.expired = *worker->env.now;
 	inf.expired -= 3; /* handle 3 seconds skew between threads */
 	inf.num_rrsets = 0;
@@ -1683,6 +1694,7 @@ parse_delegpt(SSL* ssl, char* args, uint8_t* nm, int allow_names)
 			}
 		}
 	}
+	dp->has_parent_side_NS = 1;
 	return dp;
 }
 
@@ -2265,11 +2277,17 @@ do_list_local_data(SSL* ssl, struct worker* worker)
 				for(i=0; i<d->count + d->rrsig_count; i++) {
 					if(!packed_rr_to_string(p->rrset, i,
 						0, s, slen)) {
-						if(!ssl_printf(ssl, "BADRR\n"))
+						if(!ssl_printf(ssl, "BADRR\n")) {
+							lock_rw_unlock(&z->lock);
+							lock_rw_unlock(&zones->lock);
 							return;
+						}
 					}
-				        if(!ssl_printf(ssl, "%s\n", s))
+				        if(!ssl_printf(ssl, "%s\n", s)) {
+						lock_rw_unlock(&z->lock);
+						lock_rw_unlock(&zones->lock);
 						return;
+					}
 				}
 			}
 		}
