@@ -397,8 +397,7 @@ iicbus_transfer_gen(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 			else
 				error = iicbus_start(bus, addr, 0);
 		}
-
-		if (error)
+		if (error != 0)
 			break;
 
 		if (msgs[i].flags & IIC_M_RD)
@@ -407,6 +406,8 @@ iicbus_transfer_gen(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 		else
 			error = iicbus_write(bus, msgs[i].buf, msgs[i].len,
 			    &lenwrote, 0);
+		if (error != 0)
+			break;
 
 		if ((msgs[i].flags & IIC_M_NOSTOP) != 0 ||
 		    (nostop && i + 1 < nmsgs)) {
@@ -416,5 +417,7 @@ iicbus_transfer_gen(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 			iicbus_stop(bus);
 		}
 	}
+	if (error != 0 && !nostop)
+		iicbus_stop(bus);
 	return (error);
 }
