@@ -1,13 +1,5 @@
 # $FreeBSD$
 
-.PATH:	${.CURDIR}/../../contrib/dma
-
-CFLAGS=	-I${.CURDIR}/../../contrib/dma \
-	-DHAVE_REALLOCF -DHAVE_STRLCPY -DHAVE_GETPROGNAME \
-	-DCONF_PATH='"/etc/dma"' \
-	-DLIBEXEC_PATH='"/usr/libexec"' -DDMA_VERSION='"v0.9+"' \
-	-DDMA_ROOT_USER='"mailnull"' \
-	-DDMA_GROUP='"mail"'
 LIBADD=	ssl crypto
 
 PROG=	dma
@@ -24,10 +16,13 @@ SRCS=	aliases_parse.y \
 	spool.c \
 	util.c
 MAN8=	dma.8
+CONFS=	dma.conf
+CONFSDIR=	${ETCDIR}/dma
 YFLAGS+=	-i
 CLEANFILES=	aliases_parse.i
+FILES=	mailer.conf
+FILESDIR=	${SHAREDIR}/examples/dma
 
-BINGRP=	mail
 BINMODE=	2555
 
 .include <bsd.compiler.mk>
