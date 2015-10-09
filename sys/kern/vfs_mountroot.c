@@ -166,24 +166,6 @@ root_mounted(void)
 	return (root_mount_complete);
 }
 
-void
-root_mount_wait(void)
-{
-
-	/*
-	 * Panic on an obvious deadlock - the function can't be called from
-	 * a thread which is doing the whole SYSINIT stuff.
-	 */
-	KASSERT(curthread->td_proc->p_pid != 0,
-	    ("root_mount_wait: cannot be called from the swapper thread"));
-	mtx_lock(&root_holds_mtx);
-	while (!root_mount_complete) {
-		msleep(&root_mount_complete, &root_holds_mtx, PZERO, "rootwait",
-		    hz);
-	}
-	mtx_unlock(&root_holds_mtx);
-}
-
 static void
 set_rootvnode(void)
 {
