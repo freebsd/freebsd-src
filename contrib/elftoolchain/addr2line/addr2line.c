@@ -228,6 +228,7 @@ translate(Dwarf_Debug dbg, const char* addrstr)
 	addr += section_base;
 	lineno = 0;
 	file = unknown;
+	die = NULL;
 	lbuf = NULL;
 	lcount = 0;
 
