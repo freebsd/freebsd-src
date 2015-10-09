@@ -284,7 +284,6 @@ main(int argc, char* argv[])
 		case 's':
 			free(pass_argv[1]);
 			testbound_selftest();
-			printf("selftest successful\n");
 			exit(0);
 		case '2':
 #if (defined(HAVE_EVP_SHA256) || defined(HAVE_NSS)) && defined(USE_SHA2)

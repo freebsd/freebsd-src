@@ -1,6 +1,8 @@
 # The NSIS (http://nsis.sourceforge.net) install script.
 # This script is BSD licensed.
-SetCompressor /solid /final lzma
+
+# use the default compression to help anti-virus in scanning us
+#SetCompressor /solid /final lzma
 
 !include LogicLib.nsh
 !include MUI2.nsh

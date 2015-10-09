@@ -10,14 +10,14 @@ sinclude(dnstap/dnstap.m4)
 # must be numbers. ac_defun because of later processing
 m4_define([VERSION_MAJOR],[1])
 m4_define([VERSION_MINOR],[5])
-m4_define([VERSION_MICRO],[4])
+m4_define([VERSION_MICRO],[5])
 AC_INIT(unbound, m4_defn([VERSION_MAJOR]).m4_defn([VERSION_MINOR]).m4_defn([VERSION_MICRO]), unbound-bugs@nlnetlabs.nl, unbound)
 AC_SUBST(UNBOUND_VERSION_MAJOR, [VERSION_MAJOR])
 AC_SUBST(UNBOUND_VERSION_MINOR, [VERSION_MINOR])
 AC_SUBST(UNBOUND_VERSION_MICRO, [VERSION_MICRO])
 
 LIBUNBOUND_CURRENT=5
-LIBUNBOUND_REVISION=7
+LIBUNBOUND_REVISION=8
 LIBUNBOUND_AGE=3
 # 1.0.0 had 0:12:0
 # 1.0.1 had 0:13:0
@@ -61,6 +61,7 @@ LIBUNBOUND_AGE=3
 # 1.5.2 had 5:5:3
 # 1.5.3 had 5:6:3
 # 1.5.4 had 5:7:3
+# 1.5.5 had 5:8:3
 
 #   Current  -- the number of the binary API that we're implementing
 #   Revision -- which iteration of the implementation of the binary
@@ -246,6 +247,8 @@ case "$debug_enabled" in
 		;;
 esac
 ACX_CHECK_FLTO
+ACX_CHECK_PIE
+ACX_CHECK_RELRO_NOW
 
 AC_C_INLINE
 ACX_CHECK_FORMAT_ATTRIBUTE
@@ -475,7 +478,7 @@ if test x_$ub_test_python != x_no; then
 		AC_ERROR([Python version >= 2.4.0 is required])
 	fi
 
-      PY_MAJOR_VERSION="`$PYTHON -c "import sys; print(sys.version_info.major)"`"
+      [PY_MAJOR_VERSION="`$PYTHON -c \"import sys; print(sys.version_info[0])\"`"]
       AC_SUBST(PY_MAJOR_VERSION)
       # Have Python
       AC_DEFINE(HAVE_PYTHON,1,[Define if you have Python libraries and header files.])
@@ -566,7 +569,7 @@ if test $USE_NSS = "no"; then
 ACX_WITH_SSL
 ACX_LIB_SSL
 AC_MSG_CHECKING([for LibreSSL])
-if grep OPENSSL_VERSION_TEXT $ssldir/include/openssl/opensslv.h | grep "LibreSSL" >/dev/null; then
+if grep VERSION_TEXT $ssldir/include/openssl/opensslv.h | grep "LibreSSL" >/dev/null; then
 	AC_MSG_RESULT([yes])
 	AC_DEFINE([HAVE_LIBRESSL], [1], [Define if we have LibreSSL])
 	# libressl provides these compat functions, but they may also be
@@ -578,7 +581,7 @@ fi
 AC_CHECK_HEADERS([openssl/conf.h],,, [AC_INCLUDES_DEFAULT])
 AC_CHECK_HEADERS([openssl/engine.h],,, [AC_INCLUDES_DEFAULT])
 AC_CHECK_FUNCS([OPENSSL_config EVP_sha1 EVP_sha256 EVP_sha512 FIPS_mode])
-AC_CHECK_DECLS([SSL_COMP_get_compression_methods,sk_SSL_COMP_pop_free], [], [], [
+AC_CHECK_DECLS([SSL_COMP_get_compression_methods,sk_SSL_COMP_pop_free,SSL_CTX_set_ecdh_auto], [], [], [
 AC_INCLUDES_DEFAULT
 #ifdef HAVE_OPENSSL_ERR_H
 #include <openssl/err.h>
