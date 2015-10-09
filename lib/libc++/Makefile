@@ -64,7 +64,6 @@ CXXFLAGS+=	-std=c++11
 
 DPADD=		${LIBCXXRT}
 LDADD=		-lcxxrt
-LDFLAGS+=	--verbose
 INCSGROUPS=	STD EXP EXT
 
 STD_HEADERS=	__bit_reference\
