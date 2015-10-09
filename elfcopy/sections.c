@@ -34,7 +34,7 @@
 
 #include "elfcopy.h"
 
-ELFTC_VCSID("$Id: sections.c 3220 2015-05-24 23:42:39Z kaiwang27 $");
+ELFTC_VCSID("$Id: sections.c 3225 2015-06-06 02:35:23Z kaiwang27 $");
 
 static void	add_gnu_debuglink(struct elfcopy *ecp);
 static uint32_t calc_crc32(const char *p, size_t len, uint32_t crc);
@@ -1345,6 +1345,14 @@ set_shstrtab(struct elfcopy *ecp)
 	GElf_Shdr	 sh;
 
 	s = ecp->shstrtab;
+
+	if (s->os == NULL) {
+		/* Input object does not contain .shstrtab section */
+		if ((s->os = elf_newscn(ecp->eout)) == NULL)
+			errx(EXIT_FAILURE, "elf_newscn failed: %s",
+			    elf_errmsg(-1));
+		insert_to_sec_list(ecp, s, 1);
+	}
 
 	if (gelf_getshdr(s->os, &sh) == NULL)
 		errx(EXIT_FAILURE, "692 gelf_getshdr() failed: %s",
