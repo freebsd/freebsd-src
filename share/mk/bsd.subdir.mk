@@ -122,7 +122,7 @@ _sub.${__target}: _SUBDIR
 .endif
 .endfor
 
-.for __target in files includes
+.for __target in files includes config
 .for __stage in build install
 ${__stage}${__target}:
 .if make(${__stage}${__target})
