@@ -250,11 +250,11 @@ reloc_nonplt_object(Obj_Entry *obj_rtld, Obj_Entry *obj, const Elf_Rela *rela,
 		}
 
 		*(Elf_Addr **)where = *where * sizeof(Elf_Addr)
-		    + (Elf_Addr *)(def->st_value + rela->r_addend 
+		    + (Elf_Addr *)(def->st_value + rela->r_addend
 		    + defobj->tlsoffset - TLS_TP_OFFSET);
-		
+
 		break;
-		
+
 	case R_PPC64_DTPREL64:
 		def = find_symdef(ELF_R_SYM(rela->r_info), obj, &defobj,
 		    flags, cache, lockstate);
@@ -262,11 +262,11 @@ reloc_nonplt_object(Obj_Entry *obj_rtld, Obj_Entry *obj, const Elf_Rela *rela,
 		if (def == NULL)
 			return (-1);
 
-		*where += (Elf_Addr)(def->st_value + rela->r_addend 
+		*where += (Elf_Addr)(def->st_value + rela->r_addend
 		    - TLS_DTV_OFFSET);
 
 		break;
-		
+
 	default:
 		_rtld_error("%s: Unsupported relocation type %ld"
 			    " in non-PLT relocations\n", obj->path,
