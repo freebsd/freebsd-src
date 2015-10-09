@@ -233,7 +233,7 @@ cmdhelp(int mode, int which)
 			{
 				"usage: pw useradd [name] [switches]\n"
 				"\t-V etcdir      alternate /etc location\n"
-				"\t-R rootir      alternate root directory\n"
+				"\t-R rootdir     alternate root directory\n"
 				"\t-C config      configuration file\n"
 				"\t-q             quiet operation\n"
 				"  Adding users:\n"
@@ -256,7 +256,7 @@ cmdhelp(int mode, int which)
 				"\t-N             no update\n"
 				"  Setting defaults:\n"
 				"\t-V etcdir      alternate /etc location\n"
-				"\t-R rootir      alternate root directory\n"
+				"\t-R rootdir     alternate root directory\n"
 				"\t-D             set user defaults\n"
 				"\t-b dir         default home root dir\n"
 				"\t-e period      default expiry period\n"
@@ -273,7 +273,7 @@ cmdhelp(int mode, int which)
 				"\t-y path        set NIS passwd file path\n",
 				"usage: pw userdel [uid|name] [switches]\n"
 				"\t-V etcdir      alternate /etc location\n"
-				"\t-R rootir      alternate root directory\n"
+				"\t-R rootdir     alternate root directory\n"
 				"\t-n name        login name\n"
 				"\t-u uid         user id\n"
 				"\t-Y             update NIS maps\n"
@@ -281,7 +281,7 @@ cmdhelp(int mode, int which)
 				"\t-r             remove home & contents\n",
 				"usage: pw usermod [uid|name] [switches]\n"
 				"\t-V etcdir      alternate /etc location\n"
-				"\t-R rootir      alternate root directory\n"
+				"\t-R rootdir     alternate root directory\n"
 				"\t-C config      configuration file\n"
 				"\t-q             quiet operation\n"
 				"\t-F             force add if no user\n"
@@ -306,7 +306,7 @@ cmdhelp(int mode, int which)
 				"\t-N             no update\n",
 				"usage: pw usershow [uid|name] [switches]\n"
 				"\t-V etcdir      alternate /etc location\n"
-				"\t-R rootir      alternate root directory\n"
+				"\t-R rootdir     alternate root directory\n"
 				"\t-n name        login name\n"
 				"\t-u uid         user id\n"
 				"\t-F             force print\n"
@@ -315,7 +315,7 @@ cmdhelp(int mode, int which)
 				"\t-7             print in v7 format\n",
 				"usage: pw usernext [switches]\n"
 				"\t-V etcdir      alternate /etc location\n"
-				"\t-R rootir      alternate root directory\n"
+				"\t-R rootdir     alternate root directory\n"
 				"\t-C config      configuration file\n"
 				"\t-q             quiet operation\n",
 				"usage pw: lock [switches]\n"
@@ -330,7 +330,7 @@ cmdhelp(int mode, int which)
 			{
 				"usage: pw groupadd [group|gid] [switches]\n"
 				"\t-V etcdir      alternate /etc location\n"
-				"\t-R rootir      alternate root directory\n"
+				"\t-R rootdir     alternate root directory\n"
 				"\t-C config      configuration file\n"
 				"\t-q             quiet operation\n"
 				"\t-n group       group name\n"
@@ -341,13 +341,13 @@ cmdhelp(int mode, int which)
 				"\t-N             no update\n",
 				"usage: pw groupdel [group|gid] [switches]\n"
 				"\t-V etcdir      alternate /etc location\n"
-				"\t-R rootir      alternate root directory\n"
+				"\t-R rootdir     alternate root directory\n"
 				"\t-n name        group name\n"
 				"\t-g gid         group id\n"
 				"\t-Y             update NIS maps\n",
 				"usage: pw groupmod [group|gid] [switches]\n"
 				"\t-V etcdir      alternate /etc location\n"
-				"\t-R rootir      alternate root directory\n"
+				"\t-R rootdir     alternate root directory\n"
 				"\t-C config      configuration file\n"
 				"\t-q             quiet operation\n"
 				"\t-F             force add if not exists\n"
@@ -361,7 +361,7 @@ cmdhelp(int mode, int which)
 				"\t-N             no update\n",
 				"usage: pw groupshow [group|gid] [switches]\n"
 				"\t-V etcdir      alternate /etc location\n"
-				"\t-R rootir      alternate root directory\n"
+				"\t-R rootdir     alternate root directory\n"
 				"\t-n name        group name\n"
 				"\t-g gid         group id\n"
 				"\t-F             force print\n"
@@ -369,7 +369,7 @@ cmdhelp(int mode, int which)
 				"\t-a             print all accounting groups\n",
 				"usage: pw groupnext [switches]\n"
 				"\t-V etcdir      alternate /etc location\n"
-				"\t-R rootir      alternate root directory\n"
+				"\t-R rootdir     alternate root directory\n"
 				"\t-C config      configuration file\n"
 				"\t-q             quiet operation\n"
 			}
