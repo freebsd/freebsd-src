@@ -412,7 +412,6 @@ struct root_hold_token;
 
 struct root_hold_token *root_mount_hold(const char *identifier);
 void root_mount_rel(struct root_hold_token *h);
-void root_mount_wait(void);
 int root_mounted(void);
 
 
