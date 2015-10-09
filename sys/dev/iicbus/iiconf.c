@@ -40,6 +40,28 @@ __FBSDID("$FreeBSD$");
 #include "iicbus_if.h"
 
 /*
+ * Translate IIC_Exxxxx status values to vaguely-equivelent errno values.
+ */
+int
+iic2errno(int iic_status)
+{
+	switch (iic_status) {
+	case IIC_NOERR:         return (0);
+	case IIC_EBUSERR:       return (EALREADY);
+	case IIC_ENOACK:        return (EIO);
+	case IIC_ETIMEOUT:      return (ETIMEDOUT);
+	case IIC_EBUSBSY:       return (EWOULDBLOCK);
+	case IIC_ESTATUS:       return (EPROTO);
+	case IIC_EUNDERFLOW:    return (EIO);
+	case IIC_EOVERFLOW:     return (EOVERFLOW);
+	case IIC_ENOTSUPP:      return (EOPNOTSUPP);
+	case IIC_ENOADDR:       return (EADDRNOTAVAIL);
+	case IIC_ERESOURCE:     return (ENOMEM);
+	default:                return (EIO);
+	}
+}
+
+/*
  * iicbus_intr()
  */
 void
