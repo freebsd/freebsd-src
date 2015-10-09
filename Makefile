@@ -123,7 +123,7 @@ TGTS=	all all-man buildenv buildenvvars buildkernel buildworld \
 	build32 buildcheri builddtb distribute32 distributecheri \
 	libcheribuildenv libcheribuildenvvars \
 	install32 installcheri xdev xdev-build xdev-install \
-	xdev-links native-xtools \
+	xdev-links native-xtools installconfig \
 
 TGTS+=	${SUBDIR_TARGETS}
 
