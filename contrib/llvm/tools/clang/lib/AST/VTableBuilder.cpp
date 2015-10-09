@@ -13,9 +13,11 @@
 
 #include "clang/AST/VTableBuilder.h"
 #include "clang/AST/ASTContext.h"
+#include "clang/AST/ASTDiagnostic.h"
 #include "clang/AST/CXXInheritance.h"
 #include "clang/AST/RecordLayout.h"
 #include "clang/Basic/TargetInfo.h"
+#include "llvm/ADT/SetOperations.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/Support/Format.h"
 #include "llvm/Support/raw_ostream.h"
@@ -216,7 +218,7 @@ FinalOverriders::FinalOverriders(const CXXRecordDecl *MostDerivedClass,
 #endif
 }
 
-static BaseOffset ComputeBaseOffset(ASTContext &Context, 
+static BaseOffset ComputeBaseOffset(const ASTContext &Context,
                                     const CXXRecordDecl *DerivedRD,
                                     const CXXBasePath &Path) {
   CharUnits NonVirtualOffset = CharUnits::Zero();
@@ -255,7 +257,7 @@ static BaseOffset ComputeBaseOffset(ASTContext &Context,
   
 }
 
-static BaseOffset ComputeBaseOffset(ASTContext &Context, 
+static BaseOffset ComputeBaseOffset(const ASTContext &Context,
                                     const CXXRecordDecl *BaseRD,
                                     const CXXRecordDecl *DerivedRD) {
   CXXBasePaths Paths(/*FindAmbiguities=*/false,
@@ -411,7 +413,8 @@ void FinalOverriders::dump(raw_ostream &Out, BaseSubobject Base,
   for (const auto *MD : RD->methods()) {
     if (!MD->isVirtual())
       continue;
-  
+    MD = MD->getCanonicalDecl();
+
     OverriderInfo Overrider = getOverrider(MD, Base.getBaseOffset());
 
     Out << "  ";
@@ -695,6 +698,7 @@ void VCallAndVBaseOffsetBuilder::AddVCallOffsets(BaseSubobject Base,
   for (const auto *MD : RD->methods()) {
     if (!MD->isVirtual())
       continue;
+    MD = MD->getCanonicalDecl();
 
     CharUnits OffsetOffset = getCurrentOffsetOffset();
     
@@ -1514,6 +1518,7 @@ void ItaniumVTableBuilder::AddMethods(
   for (const auto *MD : RD->methods()) {
     if (!MD->isVirtual())
       continue;
+    MD = MD->getCanonicalDecl();
 
     // Get the final overrider.
     FinalOverriders::OverriderInfo Overrider = 
@@ -2196,6 +2201,7 @@ void ItaniumVTableBuilder::dumpLayout(raw_ostream &Out) {
     // We only want virtual member functions.
     if (!MD->isVirtual())
       continue;
+    MD = MD->getCanonicalDecl();
 
     std::string MethodName =
       PredefinedExpr::ComputeName(PredefinedExpr::PrettyFunctionNoVirtual,
@@ -2585,7 +2591,9 @@ public:
     // Only include the RTTI component if we know that we will provide a
     // definition of the vftable.
     HasRTTIComponent = Context.getLangOpts().RTTIData &&
-                       !MostDerivedClass->hasAttr<DLLImportAttr>();
+                       !MostDerivedClass->hasAttr<DLLImportAttr>() &&
+                       MostDerivedClass->getTemplateSpecializationKind() !=
+                           TSK_ExplicitInstantiationDeclaration;
 
     LayoutVFTable();
 
@@ -2625,8 +2633,6 @@ public:
   void dumpLayout(raw_ostream &);
 };
 
-} // end namespace
-
 /// InitialOverriddenDefinitionCollector - Finds the set of least derived bases
 /// that define the given method.
 struct InitialOverriddenDefinitionCollector {
@@ -2640,6 +2646,8 @@ struct InitialOverriddenDefinitionCollector {
     return VisitedOverriddenMethods.insert(OverriddenMD).second;
   }
 };
+
+} // end namespace
 
 static bool BaseInSet(const CXXBaseSpecifier *Specifier,
                       CXXBasePath &Path, void *BasesSet) {
@@ -2730,8 +2738,9 @@ VFTableBuilder::ComputeThisOffset(FinalOverriders::OverriderInfo Overrider) {
     CharUnits ThisOffset = Overrider.Offset;
     CharUnits LastVBaseOffset;
 
-    // For each path from the overrider to the parents of the overridden methods,
-    // traverse the path, calculating the this offset in the most derived class.
+    // For each path from the overrider to the parents of the overridden
+    // methods, traverse the path, calculating the this offset in the most
+    // derived class.
     for (int J = 0, F = Path.size(); J != F; ++J) {
       const CXXBasePathElement &Element = Path[J];
       QualType CurTy = Element.Base->getType();
@@ -2930,6 +2939,7 @@ static void GroupNewVirtualOverloads(
   typedef llvm::DenseMap<DeclarationName, unsigned> VisitedGroupIndicesTy;
   VisitedGroupIndicesTy VisitedGroupIndices;
   for (const auto *MD : RD->methods()) {
+    MD = MD->getCanonicalDecl();
     VisitedGroupIndicesTy::iterator J;
     bool Inserted;
     std::tie(J, Inserted) = VisitedGroupIndices.insert(
@@ -2962,7 +2972,8 @@ void VFTableBuilder::AddMethods(BaseSubobject Base, unsigned BaseDepth,
   const ASTRecordLayout &Layout = Context.getASTRecordLayout(RD);
 
   // See if this class expands a vftable of the base we look at, which is either
-  // the one defined by the vfptr base path or the primary base of the current class.
+  // the one defined by the vfptr base path or the primary base of the current
+  // class.
   const CXXRecordDecl *NextBase = nullptr, *NextLastVBase = LastVBase;
   CharUnits NextBaseOffset;
   if (BaseDepth < WhichVFPtr.PathToBaseWithVPtr.size()) {
@@ -3020,7 +3031,8 @@ void VFTableBuilder::AddMethods(BaseSubobject Base, unsigned BaseDepth,
                                   ThisAdjustmentOffset);
 
     if (OverriddenMD) {
-      // If MD overrides anything in this vftable, we need to update the entries.
+      // If MD overrides anything in this vftable, we need to update the
+      // entries.
       MethodInfoMapTy::iterator OverriddenMDIterator =
           MethodInfoMap.find(OverriddenMD);
 
@@ -3435,55 +3447,176 @@ MicrosoftVTableContext::~MicrosoftVTableContext() {
   llvm::DeleteContainerSeconds(VBaseInfo);
 }
 
-static bool
-findPathForVPtr(ASTContext &Context, const ASTRecordLayout &MostDerivedLayout,
-                const CXXRecordDecl *RD, CharUnits Offset,
-                llvm::SmallPtrSetImpl<const CXXRecordDecl *> &VBasesSeen,
-                VPtrInfo::BasePath &FullPath, VPtrInfo *Info) {
-  if (RD == Info->BaseWithVPtr && Offset == Info->FullOffsetInMDC) {
-    Info->PathToBaseWithVPtr = FullPath;
-    return true;
+namespace {
+typedef llvm::SetVector<BaseSubobject, std::vector<BaseSubobject>,
+                        llvm::DenseSet<BaseSubobject>> FullPathTy;
+}
+
+// This recursive function finds all paths from a subobject centered at
+// (RD, Offset) to the subobject located at BaseWithVPtr.
+static void findPathsToSubobject(ASTContext &Context,
+                                 const ASTRecordLayout &MostDerivedLayout,
+                                 const CXXRecordDecl *RD, CharUnits Offset,
+                                 BaseSubobject BaseWithVPtr,
+                                 FullPathTy &FullPath,
+                                 std::list<FullPathTy> &Paths) {
+  if (BaseSubobject(RD, Offset) == BaseWithVPtr) {
+    Paths.push_back(FullPath);
+    return;
   }
 
   const ASTRecordLayout &Layout = Context.getASTRecordLayout(RD);
 
-  // Recurse with non-virtual bases first.
-  // FIXME: Does this need to be in layout order? Virtual bases will be in base
-  // specifier order, which isn't necessarily layout order.
-  SmallVector<CXXBaseSpecifier, 4> Bases(RD->bases_begin(), RD->bases_end());
-  std::stable_partition(Bases.begin(), Bases.end(),
-                        [](CXXBaseSpecifier bs) { return !bs.isVirtual(); });
-
-  for (const auto &B : Bases) {
-    const CXXRecordDecl *Base = B.getType()->getAsCXXRecordDecl();
-    CharUnits NewOffset;
-    if (!B.isVirtual())
-      NewOffset = Offset + Layout.getBaseClassOffset(Base);
-    else {
-      if (!VBasesSeen.insert(Base).second)
-        return false;
-      NewOffset = MostDerivedLayout.getVBaseClassOffset(Base);
-    }
-    FullPath.push_back(Base);
-    if (findPathForVPtr(Context, MostDerivedLayout, Base, NewOffset, VBasesSeen,
-                        FullPath, Info))
-      return true;
+  for (const CXXBaseSpecifier &BS : RD->bases()) {
+    const CXXRecordDecl *Base = BS.getType()->getAsCXXRecordDecl();
+    CharUnits NewOffset = BS.isVirtual()
+                              ? MostDerivedLayout.getVBaseClassOffset(Base)
+                              : Offset + Layout.getBaseClassOffset(Base);
+    FullPath.insert(BaseSubobject(Base, NewOffset));
+    findPathsToSubobject(Context, MostDerivedLayout, Base, NewOffset,
+                         BaseWithVPtr, FullPath, Paths);
     FullPath.pop_back();
   }
-  return false;
+}
+
+// Return the paths which are not subsets of other paths.
+static void removeRedundantPaths(std::list<FullPathTy> &FullPaths) {
+  FullPaths.remove_if([&](const FullPathTy &SpecificPath) {
+    for (const FullPathTy &OtherPath : FullPaths) {
+      if (&SpecificPath == &OtherPath)
+        continue;
+      if (std::all_of(SpecificPath.begin(), SpecificPath.end(),
+                      [&](const BaseSubobject &BSO) {
+                        return OtherPath.count(BSO) != 0;
+                      })) {
+        return true;
+      }
+    }
+    return false;
+  });
+}
+
+static CharUnits getOffsetOfFullPath(ASTContext &Context,
+                                     const CXXRecordDecl *RD,
+                                     const FullPathTy &FullPath) {
+  const ASTRecordLayout &MostDerivedLayout =
+      Context.getASTRecordLayout(RD);
+  CharUnits Offset = CharUnits::fromQuantity(-1);
+  for (const BaseSubobject &BSO : FullPath) {
+    const CXXRecordDecl *Base = BSO.getBase();
+    // The first entry in the path is always the most derived record, skip it.
+    if (Base == RD) {
+      assert(Offset.getQuantity() == -1);
+      Offset = CharUnits::Zero();
+      continue;
+    }
+    assert(Offset.getQuantity() != -1);
+    const ASTRecordLayout &Layout = Context.getASTRecordLayout(RD);
+    // While we know which base has to be traversed, we don't know if that base
+    // was a virtual base.
+    const CXXBaseSpecifier *BaseBS = std::find_if(
+        RD->bases_begin(), RD->bases_end(), [&](const CXXBaseSpecifier &BS) {
+          return BS.getType()->getAsCXXRecordDecl() == Base;
+        });
+    Offset = BaseBS->isVirtual() ? MostDerivedLayout.getVBaseClassOffset(Base)
+                                 : Offset + Layout.getBaseClassOffset(Base);
+    RD = Base;
+  }
+  return Offset;
+}
+
+// We want to select the path which introduces the most covariant overrides.  If
+// two paths introduce overrides which the other path doesn't contain, issue a
+// diagnostic.
+static const FullPathTy *selectBestPath(ASTContext &Context,
+                                        const CXXRecordDecl *RD, VPtrInfo *Info,
+                                        std::list<FullPathTy> &FullPaths) {
+  // Handle some easy cases first.
+  if (FullPaths.empty())
+    return nullptr;
+  if (FullPaths.size() == 1)
+    return &FullPaths.front();
+
+  const FullPathTy *BestPath = nullptr;
+  typedef std::set<const CXXMethodDecl *> OverriderSetTy;
+  OverriderSetTy LastOverrides;
+  for (const FullPathTy &SpecificPath : FullPaths) {
+    assert(!SpecificPath.empty());
+    OverriderSetTy CurrentOverrides;
+    const CXXRecordDecl *TopLevelRD = SpecificPath.begin()->getBase();
+    // Find the distance from the start of the path to the subobject with the
+    // VPtr.
+    CharUnits BaseOffset =
+        getOffsetOfFullPath(Context, TopLevelRD, SpecificPath);
+    FinalOverriders Overriders(TopLevelRD, CharUnits::Zero(), TopLevelRD);
+    for (const CXXMethodDecl *MD : Info->BaseWithVPtr->methods()) {
+      if (!MD->isVirtual())
+        continue;
+      FinalOverriders::OverriderInfo OI =
+          Overriders.getOverrider(MD->getCanonicalDecl(), BaseOffset);
+      const CXXMethodDecl *OverridingMethod = OI.Method;
+      // Only overriders which have a return adjustment introduce problematic
+      // thunks.
+      if (ComputeReturnAdjustmentBaseOffset(Context, OverridingMethod, MD)
+              .isEmpty())
+        continue;
+      // It's possible that the overrider isn't in this path.  If so, skip it
+      // because this path didn't introduce it.
+      const CXXRecordDecl *OverridingParent = OverridingMethod->getParent();
+      if (std::none_of(SpecificPath.begin(), SpecificPath.end(),
+                       [&](const BaseSubobject &BSO) {
+                         return BSO.getBase() == OverridingParent;
+                       }))
+        continue;
+      CurrentOverrides.insert(OverridingMethod);
+    }
+    OverriderSetTy NewOverrides =
+        llvm::set_difference(CurrentOverrides, LastOverrides);
+    if (NewOverrides.empty())
+      continue;
+    OverriderSetTy MissingOverrides =
+        llvm::set_difference(LastOverrides, CurrentOverrides);
+    if (MissingOverrides.empty()) {
+      // This path is a strict improvement over the last path, let's use it.
+      BestPath = &SpecificPath;
+      std::swap(CurrentOverrides, LastOverrides);
+    } else {
+      // This path introduces an overrider with a conflicting covariant thunk.
+      DiagnosticsEngine &Diags = Context.getDiagnostics();
+      const CXXMethodDecl *CovariantMD = *NewOverrides.begin();
+      const CXXMethodDecl *ConflictMD = *MissingOverrides.begin();
+      Diags.Report(RD->getLocation(), diag::err_vftable_ambiguous_component)
+          << RD;
+      Diags.Report(CovariantMD->getLocation(), diag::note_covariant_thunk)
+          << CovariantMD;
+      Diags.Report(ConflictMD->getLocation(), diag::note_covariant_thunk)
+          << ConflictMD;
+    }
+  }
+  // Go with the path that introduced the most covariant overrides.  If there is
+  // no such path, pick the first path.
+  return BestPath ? BestPath : &FullPaths.front();
 }
 
 static void computeFullPathsForVFTables(ASTContext &Context,
                                         const CXXRecordDecl *RD,
                                         VPtrInfoVector &Paths) {
-  llvm::SmallPtrSet<const CXXRecordDecl*, 4> VBasesSeen;
   const ASTRecordLayout &MostDerivedLayout = Context.getASTRecordLayout(RD);
-  VPtrInfo::BasePath FullPath;
+  FullPathTy FullPath;
+  std::list<FullPathTy> FullPaths;
   for (VPtrInfo *Info : Paths) {
-    findPathForVPtr(Context, MostDerivedLayout, RD, CharUnits::Zero(),
-                    VBasesSeen, FullPath, Info);
-    VBasesSeen.clear();
+    findPathsToSubobject(
+        Context, MostDerivedLayout, RD, CharUnits::Zero(),
+        BaseSubobject(Info->BaseWithVPtr, Info->FullOffsetInMDC), FullPath,
+        FullPaths);
     FullPath.clear();
+    removeRedundantPaths(FullPaths);
+    Info->PathToBaseWithVPtr.clear();
+    if (const FullPathTy *BestPath =
+            selectBestPath(Context, RD, Info, FullPaths))
+      for (const BaseSubobject &BSO : *BestPath)
+        Info->PathToBaseWithVPtr.push_back(BSO.getBase());
+    FullPaths.clear();
   }
 }
 

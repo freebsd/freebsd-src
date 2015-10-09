@@ -47,7 +47,7 @@ ResourcePriorityQueue::ResourcePriorityQueue(SelectionDAGISel *IS)
   TRI = STI.getRegisterInfo();
   TLI = IS->TLI;
   TII = STI.getInstrInfo();
-  ResourcesModel = TII->CreateTargetScheduleState(STI);
+  ResourcesModel.reset(TII->CreateTargetScheduleState(STI));
   // This hard requirement could be relaxed, but for now
   // do not let it procede.
   assert(ResourcesModel && "Unimplemented CreateTargetScheduleState.");
@@ -637,17 +637,3 @@ void ResourcePriorityQueue::remove(SUnit *SU) {
 
   Queue.pop_back();
 }
-
-
-#ifdef NDEBUG
-void ResourcePriorityQueue::dump(ScheduleDAG *DAG) const {}
-#else
-void ResourcePriorityQueue::dump(ScheduleDAG *DAG) const {
-  ResourcePriorityQueue q = *this;
-  while (!q.empty()) {
-    SUnit *su = q.pop();
-    dbgs() << "Height " << su->getHeight() << ": ";
-    su->dump(DAG);
-  }
-}
-#endif

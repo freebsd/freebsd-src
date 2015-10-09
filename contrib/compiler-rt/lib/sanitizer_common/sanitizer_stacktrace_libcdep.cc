@@ -35,7 +35,8 @@ void StackTrace::Print() const {
     for (SymbolizedStack *cur = frames; cur; cur = cur->next) {
       frame_desc.clear();
       RenderFrame(&frame_desc, common_flags()->stack_trace_format, frame_num++,
-                  cur->info, common_flags()->strip_path_prefix);
+                  cur->info, common_flags()->symbolize_vs_style,
+                  common_flags()->strip_path_prefix);
       Printf("%s\n", frame_desc.data());
     }
     frames->ClearAll();
@@ -59,10 +60,14 @@ void BufferedStackTrace::Unwind(u32 max_depth, uptr pc, uptr bp, void *context,
     return;
   }
   if (!WillUseFastUnwind(request_fast_unwind)) {
+#if SANITIZER_CAN_SLOW_UNWIND
     if (context)
       SlowUnwindStackWithContext(pc, context, max_depth);
     else
       SlowUnwindStack(pc, max_depth);
+#else
+    UNREACHABLE("slow unwind requested but not available");
+#endif
   } else {
     FastUnwindStack(pc, bp, stack_top, stack_bottom, max_depth);
   }

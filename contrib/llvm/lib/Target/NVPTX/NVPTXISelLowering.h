@@ -21,7 +21,7 @@
 
 namespace llvm {
 namespace NVPTXISD {
-enum NodeType {
+enum NodeType : unsigned {
   // Start the numbering from where ISD NodeType finishes.
   FIRST_NUMBER = ISD::BUILTIN_OP_END,
   Wrapper,
@@ -436,7 +436,8 @@ class NVPTXSubtarget;
 //===--------------------------------------------------------------------===//
 class NVPTXTargetLowering : public TargetLowering {
 public:
-  explicit NVPTXTargetLowering(const NVPTXTargetMachine &TM);
+  explicit NVPTXTargetLowering(const NVPTXTargetMachine &TM,
+                               const NVPTXSubtarget &STI);
   SDValue LowerOperation(SDValue Op, SelectionDAG &DAG) const override;
 
   SDValue LowerGlobalAddress(SDValue Op, SelectionDAG &DAG) const;
@@ -455,22 +456,23 @@ public:
   /// Used to guide target specific optimizations, like loop strength
   /// reduction (LoopStrengthReduce.cpp) and memory optimization for
   /// address mode (CodeGenPrepare.cpp)
-  bool isLegalAddressingMode(const AddrMode &AM, Type *Ty) const override;
+  bool isLegalAddressingMode(const DataLayout &DL, const AddrMode &AM, Type *Ty,
+                             unsigned AS) const override;
 
   /// getFunctionAlignment - Return the Log2 alignment of this function.
   unsigned getFunctionAlignment(const Function *F) const;
 
-  EVT getSetCCResultType(LLVMContext &Ctx, EVT VT) const override {
+  EVT getSetCCResultType(const DataLayout &DL, LLVMContext &Ctx,
+                         EVT VT) const override {
     if (VT.isVector())
       return EVT::getVectorVT(Ctx, MVT::i1, VT.getVectorNumElements());
     return MVT::i1;
   }
 
-  ConstraintType
-  getConstraintType(const std::string &Constraint) const override;
+  ConstraintType getConstraintType(StringRef Constraint) const override;
   std::pair<unsigned, const TargetRegisterClass *>
-  getRegForInlineAsmConstraint(const std::string &Constraint,
-                               MVT VT) const override;
+  getRegForInlineAsmConstraint(const TargetRegisterInfo *TRI,
+                               StringRef Constraint, MVT VT) const override;
 
   SDValue LowerFormalArguments(
       SDValue Chain, CallingConv::ID CallConv, bool isVarArg,
@@ -480,7 +482,7 @@ public:
   SDValue LowerCall(CallLoweringInfo &CLI,
                     SmallVectorImpl<SDValue> &InVals) const override;
 
-  std::string getPrototype(Type *, const ArgListTy &,
+  std::string getPrototype(const DataLayout &DL, Type *, const ArgListTy &,
                            const SmallVectorImpl<ISD::OutputArg> &,
                            unsigned retAlignment,
                            const ImmutableCallSite *CS) const;
@@ -498,7 +500,9 @@ public:
   const NVPTXTargetMachine *nvTM;
 
   // PTX always uses 32-bit shift amounts
-  MVT getScalarShiftAmountTy(EVT LHSTy) const override { return MVT::i32; }
+  MVT getScalarShiftAmountTy(const DataLayout &, EVT) const override {
+    return MVT::i32;
+  }
 
   TargetLoweringBase::LegalizeTypeAction
   getPreferredVectorAction(EVT VT) const override;
@@ -510,7 +514,7 @@ public:
   bool enableAggressiveFMAFusion(EVT VT) const override { return true; }
 
 private:
-  const NVPTXSubtarget &nvptxSubtarget; // cache the subtarget here
+  const NVPTXSubtarget &STI; // cache the subtarget here
 
   SDValue getExtSymb(SelectionDAG &DAG, const char *name, int idx,
                      EVT = MVT::i32) const;
@@ -528,6 +532,8 @@ private:
 
   SDValue LowerShiftRightParts(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerShiftLeftParts(SDValue Op, SelectionDAG &DAG) const;
+
+  SDValue LowerSelect(SDValue Op, SelectionDAG &DAG) const;
 
   void ReplaceNodeResults(SDNode *N, SmallVectorImpl<SDValue> &Results,
                           SelectionDAG &DAG) const override;

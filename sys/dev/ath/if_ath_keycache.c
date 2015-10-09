@@ -527,8 +527,7 @@ ath_key_delete(struct ieee80211vap *vap, const struct ieee80211_key *k)
  * slot(s) must already have been allocated by ath_key_alloc.
  */
 int
-ath_key_set(struct ieee80211vap *vap, const struct ieee80211_key *k,
-	const u_int8_t mac[IEEE80211_ADDR_LEN])
+ath_key_set(struct ieee80211vap *vap, const struct ieee80211_key *k)
 {
 	struct ath_softc *sc = vap->iv_ic->ic_softc;
 

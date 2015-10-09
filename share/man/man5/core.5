@@ -28,7 +28,7 @@
 .\"     @(#)core.5	8.3 (Berkeley) 12/11/93
 .\" $FreeBSD$
 .\"
-.Dd September 2, 2015
+.Dd October 5, 2015
 .Dt CORE 5
 .Os
 .Sh NAME
@@ -130,6 +130,19 @@ All file descriptor information can be preserved by disabling packing.
 This potentially wastes up to PATH_MAX bytes per open fd.
 Packing is disabled with
 .Dl sysctl kern.coredump_pack_fileinfo=0 .
+.Pp
+Similarly, corefiles are written with vmmap information as an ELF note, which
+contains file paths.
+By default, they are packed to only use as much space as
+needed.
+By the same mechanism as for the open files note, these paths can also
+change at any time and result in a truncated note.
+.Pp
+All vmmap information can be preserved by disabling packing.
+Like the file information, this potentially wastes up to PATH_MAX bytes per
+mapped object.
+Packing is disabled with
+.Dl sysctl kern.coredump_pack_vmmapinfo=0 .
 .Sh EXAMPLES
 In order to store all core images in per-user private areas under
 .Pa /var/coredumps ,

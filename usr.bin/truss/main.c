@@ -94,6 +94,7 @@ main(int ac, char **av)
 	trussinfo->strsize = 32;
 	trussinfo->curthread = NULL;
 	LIST_INIT(&trussinfo->proclist);
+	init_syscalls();
 	while ((c = getopt(ac, av, "p:o:facedDs:S")) != -1) {
 		switch (c) {
 		case 'p':	/* specified pid */
@@ -110,7 +111,7 @@ main(int ac, char **av)
 			trussinfo->flags |= EXECVEARGS;
 			break;
 		case 'c': /* Count number of system calls and time. */
-			trussinfo->flags |= COUNTONLY;
+			trussinfo->flags |= (COUNTONLY | NOSIGS);
 			break;
 		case 'e': /* Print execve() environment strings. */
 			trussinfo->flags |= EXECVEENVS;

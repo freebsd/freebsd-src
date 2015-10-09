@@ -341,17 +341,9 @@ enter_syscall(struct trussinfo *info, struct ptrace_lwpinfo *pl)
 		fprintf(info->outfile, "-- UNKNOWN %s SYSCALL %d --\n",
 		    t->proc->abi->type, t->cs.number);
 
-	sc = get_syscall(t->cs.name);
-	if (sc) {
-		t->cs.nargs = sc->nargs;
-		assert(sc->nargs <= nitems(t->cs.s_args));
-	} else {
-#if DEBUG
-		fprintf(stderr, "unknown syscall %s -- setting "
-		    "args to %d\n", t->cs.name, t->cs.nargs);
-#endif
-		t->cs.nargs = narg;
-	}
+	sc = get_syscall(t->cs.name, narg);
+	t->cs.nargs = sc->nargs;
+	assert(sc->nargs <= nitems(t->cs.s_args));
 
 	t->cs.sc = sc;
 
@@ -372,7 +364,7 @@ enter_syscall(struct trussinfo *info, struct ptrace_lwpinfo *pl)
 			    t->cs.args[sc->args[i].offset] : t->cs.args[i],
 			    i < (t->cs.nargs - 1) ? "," : "");
 #endif
-			if (sc && !(sc->args[i].type & OUT)) {
+			if (!(sc->args[i].type & OUT)) {
 				t->cs.s_args[i] = print_arg(&sc->args[i],
 				    t->cs.args, 0, info);
 			}
@@ -407,31 +399,26 @@ exit_syscall(struct trussinfo *info, struct ptrace_lwpinfo *pl)
 	}
 
 	sc = t->cs.sc;
-	if (sc == NULL) {
-		for (i = 0; i < t->cs.nargs; i++)
-			asprintf(&t->cs.s_args[i], "0x%lx", t->cs.args[i]);
-	} else {
-		/*
-		 * Here, we only look for arguments that have OUT masked in --
-		 * otherwise, they were handled in enter_syscall().
-		 */
-		for (i = 0; i < sc->nargs; i++) {
-			char *temp;
+	/*
+	 * Here, we only look for arguments that have OUT masked in --
+	 * otherwise, they were handled in enter_syscall().
+	 */
+	for (i = 0; i < sc->nargs; i++) {
+		char *temp;
 
-			if (sc->args[i].type & OUT) {
-				/*
-				 * If an error occurred, then don't bother
-				 * getting the data; it may not be valid.
-				 */
-				if (errorp) {
-					asprintf(&temp, "0x%lx",
-					    t->cs.args[sc->args[i].offset]);
-				} else {
-					temp = print_arg(&sc->args[i],
-					    t->cs.args, retval, info);
-				}
-				t->cs.s_args[i] = temp;
+		if (sc->args[i].type & OUT) {
+			/*
+			 * If an error occurred, then don't bother
+			 * getting the data; it may not be valid.
+			 */
+			if (errorp) {
+				asprintf(&temp, "0x%lx",
+				    t->cs.args[sc->args[i].offset]);
+			} else {
+				temp = print_arg(&sc->args[i],
+				    t->cs.args, retval, info);
 			}
+			t->cs.s_args[i] = temp;
 		}
 	}
 
@@ -577,15 +564,12 @@ eventloop(struct trussinfo *info)
 			}
 			find_thread(info, si.si_pid, pl.pl_lwpid);
 
-			if (si.si_status == SIGTRAP) {
+			if (si.si_status == SIGTRAP &&
+			    (pl.pl_flags & (PL_FLAG_SCE|PL_FLAG_SCX)) != 0) {
 				if (pl.pl_flags & PL_FLAG_SCE)
 					enter_syscall(info, &pl);
 				else if (pl.pl_flags & PL_FLAG_SCX)
 					exit_syscall(info, &pl);
-				else
-					errx(1,
-		   "pl_flags %x contains neither PL_FLAG_SCE nor PL_FLAG_SCX",
-					    pl.pl_flags);
 				pending_signal = 0;
 			} else if (pl.pl_flags & PL_FLAG_CHILD) {
 				if ((info->flags & COUNTONLY) == 0)

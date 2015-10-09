@@ -98,9 +98,9 @@ realinstall: installincludes
 
 .if ${MK_STAGING} != "no" && !defined(_SKIP_BUILD)
 .if !defined(NO_STAGE_INCLUDES)
-staging: stage_includes
+STAGE_TARGETS+= stage_includes
 .if !empty(INCSLINKS)
-staging: stage_symlinks
+STAGE_TARGETS+= stage_symlinks
 STAGE_SYMLINKS.INCS= ${INCSLINKS}
 .endif
 .endif

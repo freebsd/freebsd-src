@@ -12,6 +12,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Target/TargetMachine.h"
+#include "llvm/Analysis/TargetTransformInfo.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/GlobalAlias.h"
@@ -21,9 +22,11 @@
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCCodeGenInfo.h"
 #include "llvm/MC/MCContext.h"
+#include "llvm/MC/MCInstrInfo.h"
 #include "llvm/MC/MCSectionMachO.h"
 #include "llvm/MC/MCTargetOptions.h"
 #include "llvm/MC/SectionKind.h"
+#include "llvm/IR/LegacyPassManager.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Target/TargetLowering.h"
 #include "llvm/Target/TargetLoweringObjectFile.h"
@@ -34,39 +37,39 @@ using namespace llvm;
 // TargetMachine Class
 //
 
-TargetMachine::TargetMachine(const Target &T,
-                             StringRef TT, StringRef CPU, StringRef FS,
+TargetMachine::TargetMachine(const Target &T, StringRef DataLayoutString,
+                             const Triple &TT, StringRef CPU, StringRef FS,
                              const TargetOptions &Options)
-  : TheTarget(T), TargetTriple(TT), TargetCPU(CPU), TargetFS(FS),
-    CodeGenInfo(nullptr), AsmInfo(nullptr),
-    RequireStructuredCFG(false),
-    Options(Options) {
-}
+    : TheTarget(T), DL(DataLayoutString), TargetTriple(TT), TargetCPU(CPU),
+      TargetFS(FS), CodeGenInfo(nullptr), AsmInfo(nullptr), MRI(nullptr),
+      MII(nullptr), STI(nullptr), RequireStructuredCFG(false),
+      Options(Options) {}
 
 TargetMachine::~TargetMachine() {
   delete CodeGenInfo;
   delete AsmInfo;
+  delete MRI;
+  delete MII;
+  delete STI;
 }
 
 /// \brief Reset the target options based on the function's attributes.
+// FIXME: This function needs to go away for a number of reasons:
+// a) global state on the TargetMachine is terrible in general,
+// b) there's no default state here to keep,
+// c) these target options should be passed only on the function
+//    and not on the TargetMachine (via TargetOptions) at all.
 void TargetMachine::resetTargetOptions(const Function &F) const {
 #define RESET_OPTION(X, Y)                                                     \
   do {                                                                         \
-    if (F.hasFnAttribute(Y))                                                  \
-      Options.X = (F.getAttributes()                                          \
-                       .getAttribute(AttributeSet::FunctionIndex, Y)           \
-                       .getValueAsString() == "true");                         \
+    if (F.hasFnAttribute(Y))                                                   \
+      Options.X = (F.getFnAttribute(Y).getValueAsString() == "true");          \
   } while (0)
 
-  RESET_OPTION(NoFramePointerElim, "no-frame-pointer-elim");
   RESET_OPTION(LessPreciseFPMADOption, "less-precise-fpmad");
   RESET_OPTION(UnsafeFPMath, "unsafe-fp-math");
   RESET_OPTION(NoInfsFPMath, "no-infs-fp-math");
   RESET_OPTION(NoNaNsFPMath, "no-nans-fp-math");
-  RESET_OPTION(UseSoftFloat, "use-soft-float");
-  RESET_OPTION(DisableTailCalls, "disable-tail-calls");
-
-  Options.MCOptions.SanitizeAddress = F.hasFnAttribute(Attribute::SanitizeAddress);
 }
 
 /// getRelocationModel - Returns the code generation relocation model. The
@@ -146,28 +149,10 @@ void TargetMachine::setOptLevel(CodeGenOpt::Level Level) const {
     CodeGenInfo->setOptLevel(Level);
 }
 
-bool TargetMachine::getAsmVerbosityDefault() const {
-  return Options.MCOptions.AsmVerbose;
-}
-
-void TargetMachine::setAsmVerbosityDefault(bool V) {
-  Options.MCOptions.AsmVerbose = V;
-}
-
-bool TargetMachine::getFunctionSections() const {
-  return Options.FunctionSections;
-}
-
-bool TargetMachine::getDataSections() const {
-  return Options.DataSections;
-}
-
-void TargetMachine::setFunctionSections(bool V) {
-  Options.FunctionSections = V;
-}
-
-void TargetMachine::setDataSections(bool V) {
-  Options.DataSections = V;
+TargetIRAnalysis TargetMachine::getTargetIRAnalysis() {
+  return TargetIRAnalysis([this](Function &F) {
+    return TargetTransformInfo(F.getParent()->getDataLayout());
+  });
 }
 
 static bool canUsePrivateLabel(const MCAsmInfo &AsmInfo,
@@ -193,17 +178,15 @@ void TargetMachine::getNameWithPrefix(SmallVectorImpl<char> &Name,
     return;
   }
   SectionKind GVKind = TargetLoweringObjectFile::getKindForGlobal(GV, *this);
-  const TargetLoweringObjectFile &TLOF =
-      getSubtargetImpl()->getTargetLowering()->getObjFileLowering();
-  const MCSection *TheSection = TLOF.SectionForGlobal(GV, GVKind, Mang, *this);
+  const TargetLoweringObjectFile *TLOF = getObjFileLowering();
+  const MCSection *TheSection = TLOF->SectionForGlobal(GV, GVKind, Mang, *this);
   bool CannotUsePrivateLabel = !canUsePrivateLabel(*AsmInfo, *TheSection);
-  Mang.getNameWithPrefix(Name, GV, CannotUsePrivateLabel);
+  TLOF->getNameWithPrefix(Name, GV, CannotUsePrivateLabel, Mang, *this);
 }
 
 MCSymbol *TargetMachine::getSymbol(const GlobalValue *GV, Mangler &Mang) const {
-  SmallString<60> NameStr;
+  SmallString<128> NameStr;
   getNameWithPrefix(NameStr, GV, Mang);
-  const TargetLoweringObjectFile &TLOF =
-      getSubtargetImpl()->getTargetLowering()->getObjFileLowering();
-  return TLOF.getContext().GetOrCreateSymbol(NameStr.str());
+  const TargetLoweringObjectFile *TLOF = getObjFileLowering();
+  return TLOF->getContext().getOrCreateSymbol(NameStr);
 }

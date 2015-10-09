@@ -144,7 +144,8 @@ static unsigned ProcessCharEscape(const char *ThisTokBegin,
       int CharVal = llvm::hexDigitValue(ThisTokBuf[0]);
       if (CharVal == -1) break;
       // About to shift out a digit?
-      Overflow |= (ResultChar & 0xF0000000) ? true : false;
+      if (ResultChar & 0xF0000000)
+        Overflow = true;
       ResultChar <<= 4;
       ResultChar |= CharVal;
     }
@@ -596,7 +597,8 @@ NumericLiteralParser::NumericLiteralParser(StringRef TokSpelling,
       if (isFloat) break;               // LF invalid.
 
       // Check for long long.  The L's need to be adjacent and the same case.
-      if (s+1 != ThisTokEnd && s[1] == s[0]) {
+      if (s[1] == s[0]) {
+        assert(s + 1 < ThisTokEnd && "didn't maximally munch?");
         if (isFPConstant) break;        // long long invalid for floats.
         isLongLong = true;
         ++s;  // Eat both of them.
@@ -610,54 +612,45 @@ NumericLiteralParser::NumericLiteralParser(StringRef TokSpelling,
         if (isLong || isLongLong || MicrosoftInteger)
           break;
 
-        // Allow i8, i16, i32, i64, and i128.
-        if (s + 1 != ThisTokEnd) {
+        if (!isFPConstant) {
+          // Allow i8, i16, i32, i64, and i128.
           switch (s[1]) {
-            case '8':
-              if (isFPConstant) break;
-              s += 2; // i8 suffix
-              MicrosoftInteger = 8;
-              break;
-            case '1':
-              if (isFPConstant) break;
-              if (s + 2 == ThisTokEnd) break;
-              if (s[2] == '6') {
-                s += 3; // i16 suffix
-                MicrosoftInteger = 16;
-              }
-              else if (s[2] == '2') {
-                if (s + 3 == ThisTokEnd) break;
-                if (s[3] == '8') {
-                  s += 4; // i128 suffix
-                  MicrosoftInteger = 128;
-                }
-              }
-              break;
-            case '3':
-              if (isFPConstant) break;
-              if (s + 2 == ThisTokEnd) break;
-              if (s[2] == '2') {
-                s += 3; // i32 suffix
-                MicrosoftInteger = 32;
-              }
-              break;
-            case '6':
-              if (isFPConstant) break;
-              if (s + 2 == ThisTokEnd) break;
-              if (s[2] == '4') {
-                s += 3; // i64 suffix
-                MicrosoftInteger = 64;
-              }
-              break;
-            default:
-              break;
-          }
-          if (MicrosoftInteger)
+          case '8':
+            s += 2; // i8 suffix
+            MicrosoftInteger = 8;
             break;
+          case '1':
+            if (s[2] == '6') {
+              s += 3; // i16 suffix
+              MicrosoftInteger = 16;
+            } else if (s[2] == '2' && s[3] == '8') {
+              s += 4; // i128 suffix
+              MicrosoftInteger = 128;
+            }
+            break;
+          case '3':
+            if (s[2] == '2') {
+              s += 3; // i32 suffix
+              MicrosoftInteger = 32;
+            }
+            break;
+          case '6':
+            if (s[2] == '4') {
+              s += 3; // i64 suffix
+              MicrosoftInteger = 64;
+            }
+            break;
+          default:
+            break;
+          }
+        }
+        if (MicrosoftInteger) {
+          assert(s <= ThisTokEnd && "didn't maximally munch?");
+          break;
         }
       }
       // "i", "if", and "il" are user-defined suffixes in C++1y.
-      if (PP.getLangOpts().CPlusPlus14 && *s == 'i')
+      if (*s == 'i' && PP.getLangOpts().CPlusPlus14)
         break;
       // fall through.
     case 'j':
@@ -755,11 +748,11 @@ void NumericLiteralParser::ParseNumberStartingWithZero(SourceLocation TokLoc) {
   s++;
 
   int c1 = s[0];
-  int c2 = s[1];
 
   // Handle a hex number like 0x1234.
-  if ((c1 == 'x' || c1 == 'X') && (isHexDigit(c2) || c2 == '.')) {
+  if ((c1 == 'x' || c1 == 'X') && (isHexDigit(s[1]) || s[1] == '.')) {
     s++;
+    assert(s < ThisTokEnd && "didn't maximally munch?");
     radix = 16;
     DigitsBegin = s;
     s = SkipHexDigits(s);
@@ -811,7 +804,7 @@ void NumericLiteralParser::ParseNumberStartingWithZero(SourceLocation TokLoc) {
   }
 
   // Handle simple binary numbers 0b01010
-  if ((c1 == 'b' || c1 == 'B') && (c2 == '0' || c2 == '1')) {
+  if ((c1 == 'b' || c1 == 'B') && (s[1] == '0' || s[1] == '1')) {
     // 0b101010 is a C++1y / GCC extension.
     PP.Diag(TokLoc,
             PP.getLangOpts().CPlusPlus14
@@ -820,6 +813,7 @@ void NumericLiteralParser::ParseNumberStartingWithZero(SourceLocation TokLoc) {
                 ? diag::ext_binary_literal_cxx14
                 : diag::ext_binary_literal);
     ++s;
+    assert(s < ThisTokEnd && "didn't maximally munch?");
     radix = 2;
     DigitsBegin = s;
     s = SkipBinaryDigits(s);

@@ -34,8 +34,6 @@
 #include <grp.h>
 #include <limits.h>
 #include <net/if.h>
-#include <net/if_arp.h>
-#include <net/route.h>
 #include <netdb.h>
 #include <poll.h>
 #include <pthread.h>
@@ -53,6 +51,10 @@
 #include <termios.h>
 #include <time.h>
 #include <wchar.h>
+
+#if !SANITIZER_IOS
+#include <net/route.h>
+#endif
 
 #if !SANITIZER_ANDROID
 #include <sys/mount.h>
@@ -75,6 +77,7 @@
 #include <linux/sysctl.h>
 #include <linux/utsname.h>
 #include <linux/posix_types.h>
+#include <net/if_arp.h>
 #endif
 
 #if SANITIZER_FREEBSD
@@ -135,7 +138,11 @@
 #include <netax25/ax25.h>
 #include <netipx/ipx.h>
 #include <netrom/netrom.h>
-#include <rpc/xdr.h>
+#if HAVE_RPC_XDR_H
+# include <rpc/xdr.h>
+#elif HAVE_TIRPC_RPC_XDR_H
+# include <tirpc/rpc/xdr.h>
+#endif
 #include <scsi/scsi.h>
 #include <sys/mtio.h>
 #include <sys/kd.h>
@@ -289,19 +296,20 @@ namespace __sanitizer {
 #endif
 
 #if SANITIZER_LINUX && !SANITIZER_ANDROID && \
-    (defined(__i386) || defined(__x86_64) || defined(__mips64))
-#if defined(__mips64)
+    (defined(__i386) || defined(__x86_64) || defined(__mips64) || \
+      defined(__powerpc64__))
+#if defined(__mips64) || defined(__powerpc64__)
   unsigned struct_user_regs_struct_sz = sizeof(struct pt_regs);
   unsigned struct_user_fpregs_struct_sz = sizeof(elf_fpregset_t);
 #else
   unsigned struct_user_regs_struct_sz = sizeof(struct user_regs_struct);
   unsigned struct_user_fpregs_struct_sz = sizeof(struct user_fpregs_struct);
-#endif // __mips64
-#if (defined(__x86_64) || defined(__mips64))
+#endif // __mips64 || __powerpc64__
+#if defined(__x86_64) || defined(__mips64) || defined(__powerpc64__)
   unsigned struct_user_fpxregs_struct_sz = 0;
 #else
   unsigned struct_user_fpxregs_struct_sz = sizeof(struct user_fpxregs_struct);
-#endif // __x86_64 || __mips64
+#endif // __x86_64 || __mips64 || __powerpc64__
 
   int ptrace_peektext = PTRACE_PEEKTEXT;
   int ptrace_peekdata = PTRACE_PEEKDATA;
@@ -310,8 +318,13 @@ namespace __sanitizer {
   int ptrace_setregs = PTRACE_SETREGS;
   int ptrace_getfpregs = PTRACE_GETFPREGS;
   int ptrace_setfpregs = PTRACE_SETFPREGS;
+#if defined(PTRACE_GETFPXREGS) && defined(PTRACE_SETFPXREGS)
   int ptrace_getfpxregs = PTRACE_GETFPXREGS;
   int ptrace_setfpxregs = PTRACE_SETFPXREGS;
+#else
+  int ptrace_getfpxregs = -1;
+  int ptrace_setfpxregs = -1;
+#endif  // PTRACE_GETFPXREGS/PTRACE_SETFPXREGS
   int ptrace_geteventmsg = PTRACE_GETEVENTMSG;
 #if (defined(PTRACE_GETSIGINFO) && defined(PTRACE_SETSIGINFO)) ||              \
     (defined(PT_GETSIGINFO) && defined(PT_SETSIGINFO))
@@ -333,12 +346,12 @@ namespace __sanitizer {
   unsigned path_max = PATH_MAX;
 
   // ioctl arguments
-  unsigned struct_arpreq_sz = sizeof(struct arpreq);
   unsigned struct_ifreq_sz = sizeof(struct ifreq);
   unsigned struct_termios_sz = sizeof(struct termios);
   unsigned struct_winsize_sz = sizeof(struct winsize);
 
 #if SANITIZER_LINUX
+  unsigned struct_arpreq_sz = sizeof(struct arpreq);
   unsigned struct_cdrom_msf_sz = sizeof(struct cdrom_msf);
   unsigned struct_cdrom_multisession_sz = sizeof(struct cdrom_multisession);
   unsigned struct_cdrom_read_audio_sz = sizeof(struct cdrom_read_audio);
@@ -1016,7 +1029,7 @@ CHECK_SIZE_AND_OFFSET(__sysctl_args, newlen);
 CHECK_TYPE_SIZE(__kernel_uid_t);
 CHECK_TYPE_SIZE(__kernel_gid_t);
 
-#if !defined(__aarch64__)
+#if SANITIZER_USES_UID16_SYSCALLS
 CHECK_TYPE_SIZE(__kernel_old_uid_t);
 CHECK_TYPE_SIZE(__kernel_old_gid_t);
 #endif
@@ -1159,7 +1172,7 @@ CHECK_SIZE_AND_OFFSET(group, gr_passwd);
 CHECK_SIZE_AND_OFFSET(group, gr_gid);
 CHECK_SIZE_AND_OFFSET(group, gr_mem);
 
-#if SANITIZER_LINUX && !SANITIZER_ANDROID
+#if HAVE_RPC_XDR_H || HAVE_TIRPC_RPC_XDR_H
 CHECK_TYPE_SIZE(XDR);
 CHECK_SIZE_AND_OFFSET(XDR, x_op);
 CHECK_SIZE_AND_OFFSET(XDR, x_ops);
@@ -1200,6 +1213,12 @@ CHECK_SIZE_AND_OFFSET(obstack, chunk_size);
 CHECK_SIZE_AND_OFFSET(obstack, chunk);
 CHECK_SIZE_AND_OFFSET(obstack, object_base);
 CHECK_SIZE_AND_OFFSET(obstack, next_free);
+
+CHECK_TYPE_SIZE(cookie_io_functions_t);
+CHECK_SIZE_AND_OFFSET(cookie_io_functions_t, read);
+CHECK_SIZE_AND_OFFSET(cookie_io_functions_t, write);
+CHECK_SIZE_AND_OFFSET(cookie_io_functions_t, seek);
+CHECK_SIZE_AND_OFFSET(cookie_io_functions_t, close);
 #endif
 
 #endif  // SANITIZER_LINUX || SANITIZER_FREEBSD || SANITIZER_MAC

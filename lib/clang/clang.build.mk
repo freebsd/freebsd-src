@@ -227,20 +227,31 @@ Diagnostic${hdr}Kinds.inc.h: ${CLANG_SRCS}/include/clang/Basic/Diagnostic.td
 	    -o ${.TARGET} ${CLANG_SRCS}/include/clang/Basic/Diagnostic.td
 .endfor
 
+# XXX: Atrocious hack, need to clean this up later
+.if defined(LIB) && ${LIB} == "llvmlibdriver"
+Options.inc.h: ${LLVM_SRCS}/lib/LibDriver/Options.td
+	${TBLGEN} -gen-opt-parser-defs \
+	    -I ${LLVM_SRCS}/include \
+	    -d ${.TARGET:C/\.h$/.d/} -o ${.TARGET} \
+	    ${LLVM_SRCS}/lib/LibDriver/Options.td
+.else
 Options.inc.h: ${CLANG_SRCS}/include/clang/Driver/Options.td
 	${TBLGEN} -gen-opt-parser-defs \
 	    -I ${LLVM_SRCS}/include -I ${CLANG_SRCS}/include/clang/Driver \
 	    -d ${.TARGET:C/\.h$/.d/} -o ${.TARGET} \
 	    ${CLANG_SRCS}/include/clang/Driver/Options.td
+.endif
 
 Checkers.inc.h: ${CLANG_SRCS}/lib/StaticAnalyzer/Checkers/Checkers.td
 	${CLANG_TBLGEN} -gen-clang-sa-checkers \
 	    -I ${CLANG_SRCS}/include -d ${.TARGET:C/\.h$/.d/} -o ${.TARGET} \
 	    ${CLANG_SRCS}/lib/StaticAnalyzer/Checkers/Checkers.td
 
-.for dep in ${TGHDRS:C/$/.inc.d/}
-. sinclude "${dep}"
-.endfor
+.if !make(depend)
+. for dep in ${TGHDRS:C/$/.inc.d/}
+.  sinclude "${dep}"
+. endfor
+.endif
 
 SRCS+=		${TGHDRS:C/$/.inc.h/}
 DPSRCS+=	${TGHDRS:C/$/.inc.h/}

@@ -15,7 +15,7 @@
 
 using namespace llvm;
 
-void MCOperand::print(raw_ostream &OS, const MCAsmInfo *MAI) const {
+void MCOperand::print(raw_ostream &OS) const {
   OS << "<MCOperand ";
   if (!isValid())
     OS << "INVALID";
@@ -34,22 +34,21 @@ void MCOperand::print(raw_ostream &OS, const MCAsmInfo *MAI) const {
 
 #if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
 void MCOperand::dump() const {
-  print(dbgs(), nullptr);
+  print(dbgs());
   dbgs() << "\n";
 }
 #endif
 
-void MCInst::print(raw_ostream &OS, const MCAsmInfo *MAI) const {
+void MCInst::print(raw_ostream &OS) const {
   OS << "<MCInst " << getOpcode();
   for (unsigned i = 0, e = getNumOperands(); i != e; ++i) {
     OS << " ";
-    getOperand(i).print(OS, MAI);
+    getOperand(i).print(OS);
   }
   OS << ">";
 }
 
-void MCInst::dump_pretty(raw_ostream &OS, const MCAsmInfo *MAI,
-                         const MCInstPrinter *Printer,
+void MCInst::dump_pretty(raw_ostream &OS, const MCInstPrinter *Printer,
                          StringRef Separator) const {
   OS << "<MCInst #" << getOpcode();
 
@@ -59,14 +58,14 @@ void MCInst::dump_pretty(raw_ostream &OS, const MCAsmInfo *MAI,
 
   for (unsigned i = 0, e = getNumOperands(); i != e; ++i) {
     OS << Separator;
-    getOperand(i).print(OS, MAI);
+    getOperand(i).print(OS);
   }
   OS << ">";
 }
 
 #if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
 void MCInst::dump() const {
-  print(dbgs(), nullptr);
+  print(dbgs());
   dbgs() << "\n";
 }
 #endif

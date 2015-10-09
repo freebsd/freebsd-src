@@ -698,12 +698,9 @@ ural_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		ni = ieee80211_ref_node(vap->iv_bss);
 
 		if (vap->iv_opmode != IEEE80211_M_MONITOR) {
-			if (ic->ic_bsschan == IEEE80211_CHAN_ANYC) {
-				RAL_UNLOCK(sc);
-				IEEE80211_LOCK(ic);
-				ieee80211_free_node(ni);
-				return (-1);
-			}
+			if (ic->ic_bsschan == IEEE80211_CHAN_ANYC)
+				goto fail;
+
 			ural_update_slot(sc);
 			ural_set_txpreamble(sc);
 			ural_set_basicrates(sc, ic->ic_bsschan);
@@ -713,23 +710,17 @@ ural_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 
 		if (vap->iv_opmode == IEEE80211_M_HOSTAP ||
 		    vap->iv_opmode == IEEE80211_M_IBSS) {
-			m = ieee80211_beacon_alloc(ni, &vap->iv_bcn_off);
+			m = ieee80211_beacon_alloc(ni);
 			if (m == NULL) {
 				device_printf(sc->sc_dev,
 				    "could not allocate beacon\n");
-				RAL_UNLOCK(sc);
-				IEEE80211_LOCK(ic);
-				ieee80211_free_node(ni);
-				return (-1);
+				goto fail;
 			}
 			ieee80211_ref_node(ni);
 			if (ural_tx_bcn(sc, m, ni) != 0) {
 				device_printf(sc->sc_dev,
 				    "could not send beacon\n");
-				RAL_UNLOCK(sc);
-				IEEE80211_LOCK(ic);
-				ieee80211_free_node(ni);
-				return (-1);
+				goto fail;
 			}
 		}
 
@@ -755,6 +746,12 @@ ural_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 	RAL_UNLOCK(sc);
 	IEEE80211_LOCK(ic);
 	return (uvp->newstate(vap, nstate, arg));
+
+fail:
+	RAL_UNLOCK(sc);
+	IEEE80211_LOCK(ic);
+	ieee80211_free_node(ni);
+	return (-1);
 }
 
 

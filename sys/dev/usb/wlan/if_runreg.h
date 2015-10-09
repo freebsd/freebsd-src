@@ -274,7 +274,6 @@
 #define	RT2860_USB_TXOP_HALT		(1 << 20)
 #define	RT2860_USB_TX_CLEAR		(1 << 19)
 #define	RT2860_USB_PHY_WD_EN		(1 << 16)
-#define	RT2860_USB_PHY_MAN_RST		(1 << 15)
 #define	RT2860_USB_RX_AGG_LMT(x)	((x) << 8)	/* in unit of 1KB */
 #define	RT2860_USB_RX_AGG_TO(x)		((x) & 0xff)	/* in unit of 33ns */
 

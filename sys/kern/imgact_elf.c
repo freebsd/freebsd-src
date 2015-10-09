@@ -1959,24 +1959,30 @@ note_procstat_vmmap(void *arg, struct sbuf *sb, size_t *sizep)
 {
 	struct proc *p;
 	size_t size;
-	int structsize;
+	int structsize, vmmap_flags;
+
+	if (coredump_pack_vmmapinfo)
+		vmmap_flags = KERN_VMMAP_PACK_KINFO;
+	else
+		vmmap_flags = 0;
 
 	p = (struct proc *)arg;
+	structsize = sizeof(struct kinfo_vmentry);
 	if (sb == NULL) {
 		size = 0;
 		sb = sbuf_new(NULL, NULL, 128, SBUF_FIXEDLEN);
 		sbuf_set_drain(sb, sbuf_drain_count, &size);
 		sbuf_bcat(sb, &structsize, sizeof(structsize));
 		PROC_LOCK(p);
-		kern_proc_vmmap_out(p, sb);
+		kern_proc_vmmap_out(p, sb, -1, vmmap_flags);
 		sbuf_finish(sb);
 		sbuf_delete(sb);
 		*sizep = size;
 	} else {
-		structsize = sizeof(struct kinfo_vmentry);
 		sbuf_bcat(sb, &structsize, sizeof(structsize));
 		PROC_LOCK(p);
-		kern_proc_vmmap_out(p, sb);
+		kern_proc_vmmap_out(p, sb, *sizep - sizeof(structsize),
+		    vmmap_flags);
 	}
 }
 

@@ -478,6 +478,12 @@ typedef struct {
 /* Flags for section groups. */
 #define	GRP_COMDAT	0x1	/* COMDAT semantics. */
 
+/*
+ * Flags / mask for .gnu.versym sections.
+ */
+#define	VERSYM_VERSION	0x7fff
+#define	VERSYM_HIDDEN	0x8000
+
 /* Values for p_type. */
 #define	PT_NULL		0	/* Unused entry. */
 #define	PT_LOAD		1	/* Loadable segment. */

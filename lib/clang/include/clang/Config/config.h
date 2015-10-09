@@ -10,6 +10,9 @@
 /* Bug report URL. */
 #define BUG_REPORT_URL "https://bugs.freebsd.org/submit/"
 
+/* Default OpenMP runtime used by -fopenmp. */
+#define CLANG_DEFAULT_OPENMP_RUNTIME "libgomp"
+
 /* Multilib suffix for libdir. */
 #define CLANG_LIBDIR_SUFFIX ""
 
@@ -28,7 +31,7 @@
 /* Define if we have libxml2 */
 /* #undef CLANG_HAVE_LIBXML */
 
-#define PACKAGE_STRING "LLVM 3.6.1"
+#define PACKAGE_STRING "LLVM 3.7.0"
 
 /* The LLVM product name and version */
 #define BACKEND_PACKAGE_STRING PACKAGE_STRING

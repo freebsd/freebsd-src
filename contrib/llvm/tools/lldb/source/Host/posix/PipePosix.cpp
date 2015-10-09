@@ -9,12 +9,16 @@
 
 #include "lldb/Host/posix/PipePosix.h"
 #include "lldb/Host/FileSystem.h"
+#include "lldb/Host/HostInfo.h"
+#include "llvm/ADT/SmallString.h"
+#include "llvm/Support/FileSystem.h"
 
 #include <functional>
 #include <thread>
 
 #include <errno.h>
 #include <fcntl.h>
+#include <limits.h>
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -125,9 +129,27 @@ SelectIO(int handle, bool is_read, const std::function<Error(bool&)> &io_handler
 }
 
 PipePosix::PipePosix()
+    : m_fds{
+        PipePosix::kInvalidDescriptor,
+        PipePosix::kInvalidDescriptor
+    } {}
+
+PipePosix::PipePosix(int read_fd, int write_fd)
+    : m_fds{read_fd, write_fd} {}
+
+PipePosix::PipePosix(PipePosix &&pipe_posix)
+    : PipeBase{std::move(pipe_posix)},
+      m_fds{
+        pipe_posix.ReleaseReadFileDescriptor(),
+        pipe_posix.ReleaseWriteFileDescriptor()
+      } {}
+
+PipePosix &PipePosix::operator=(PipePosix &&pipe_posix)
 {
-    m_fds[READ] = PipePosix::kInvalidDescriptor;
-    m_fds[WRITE] = PipePosix::kInvalidDescriptor;
+    PipeBase::operator=(std::move(pipe_posix));
+    m_fds[READ] = pipe_posix.ReleaseReadFileDescriptor();
+    m_fds[WRITE] = pipe_posix.ReleaseWriteFileDescriptor();
+    return *this;
 }
 
 PipePosix::~PipePosix()
@@ -179,6 +201,37 @@ PipePosix::CreateNew(llvm::StringRef name, bool child_process_inherit)
     if (::mkfifo(name.data(), 0660) != 0)
         error.SetErrorToErrno();
 
+    return error;
+}
+
+Error
+PipePosix::CreateWithUniqueName(llvm::StringRef prefix, bool child_process_inherit, llvm::SmallVectorImpl<char>& name)
+{
+    llvm::SmallString<PATH_MAX> named_pipe_path;
+    llvm::SmallString<PATH_MAX> pipe_spec((prefix + ".%%%%%%").str());
+    FileSpec tmpdir_file_spec;
+    tmpdir_file_spec.Clear();
+    if (HostInfo::GetLLDBPath(ePathTypeLLDBTempSystemDir, tmpdir_file_spec))
+    {
+        tmpdir_file_spec.AppendPathComponent(pipe_spec.c_str());
+    }
+    else
+    {
+        tmpdir_file_spec.AppendPathComponent("/tmp");
+        tmpdir_file_spec.AppendPathComponent(pipe_spec.c_str());
+    }
+
+    // It's possible that another process creates the target path after we've
+    // verified it's available but before we create it, in which case we
+    // should try again.
+    Error error;
+    do {
+        llvm::sys::fs::createUniqueFile(tmpdir_file_spec.GetPath().c_str(), named_pipe_path);
+        error = CreateNew(named_pipe_path, child_process_inherit);
+    } while (error.GetError() == EEXIST);
+
+    if (error.Success())
+        name = named_pipe_path;
     return error;
 }
 
@@ -282,7 +335,7 @@ PipePosix::Close()
 Error
 PipePosix::Delete(llvm::StringRef name)
 {
-    return FileSystem::Unlink(name.data());
+    return FileSystem::Unlink(FileSpec{name.data(), true});
 }
 
 bool

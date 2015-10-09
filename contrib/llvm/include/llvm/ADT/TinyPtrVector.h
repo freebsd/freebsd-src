@@ -27,9 +27,12 @@ class TinyPtrVector {
 public:
   typedef llvm::SmallVector<EltTy, 4> VecTy;
   typedef typename VecTy::value_type value_type;
+  typedef llvm::PointerUnion<EltTy, VecTy *> PtrUnion;
 
-  llvm::PointerUnion<EltTy, VecTy*> Val;
+private:
+  PtrUnion Val;
 
+public:
   TinyPtrVector() {}
   ~TinyPtrVector() {
     if (VecTy *V = Val.template dyn_cast<VecTy*>())
@@ -96,15 +99,25 @@ public:
     return *this;
   }
 
-  /// Constructor from a single element.
-  explicit TinyPtrVector(EltTy Elt) : Val(Elt) {}
-
   /// Constructor from an ArrayRef.
+  ///
+  /// This also is a constructor for individual array elements due to the single
+  /// element constructor for ArrayRef.
   explicit TinyPtrVector(ArrayRef<EltTy> Elts)
-      : Val(new VecTy(Elts.begin(), Elts.end())) {}
+      : Val(Elts.size() == 1 ? PtrUnion(Elts[0])
+                             : PtrUnion(new VecTy(Elts.begin(), Elts.end()))) {}
 
   // implicit conversion operator to ArrayRef.
   operator ArrayRef<EltTy>() const {
+    if (Val.isNull())
+      return None;
+    if (Val.template is<EltTy>())
+      return *Val.getAddrOfPtr1();
+    return *Val.template get<VecTy*>();
+  }
+
+  // implicit conversion operator to MutableArrayRef.
+  operator MutableArrayRef<EltTy>() {
     if (Val.isNull())
       return None;
     if (Val.template is<EltTy>())

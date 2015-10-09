@@ -249,11 +249,21 @@ let isCall = 1, isTerminator = 1, isReturn = 1, isBarrier = 1 in {
     def CallBR : Alias<2, (outs), (ins), [(z_sibcall R1D)]>;
 }
 
+// TLS calls.  These will be lowered into a call to __tls_get_offset,
+// with an extra relocation specifying the TLS symbol.
+let isCall = 1, Defs = [R14D, CC] in {
+  def TLS_GDCALL : Alias<6, (outs), (ins tlssym:$I2, variable_ops),
+                         [(z_tls_gdcall tglobaltlsaddr:$I2)]>;
+  def TLS_LDCALL : Alias<6, (outs), (ins tlssym:$I2, variable_ops),
+                         [(z_tls_ldcall tglobaltlsaddr:$I2)]>;
+}
+
 // Define the general form of the call instructions for the asm parser.
 // These instructions don't hard-code %r14 as the return address register.
-def BRAS  : InstRI<0xA75, (outs), (ins GR64:$R1, brtarget16:$I2),
+// Allow an optional TLS marker symbol to generate TLS call relocations.
+def BRAS  : InstRI<0xA75, (outs), (ins GR64:$R1, brtarget16tls:$I2),
                    "bras\t$R1, $I2", []>;
-def BRASL : InstRIL<0xC05, (outs), (ins GR64:$R1, brtarget32:$I2),
+def BRASL : InstRIL<0xC05, (outs), (ins GR64:$R1, brtarget32tls:$I2),
                     "brasl\t$R1, $I2", []>;
 def BASR  : InstRR<0x0D, (outs), (ins GR64:$R1, ADDR64:$R2),
                    "basr\t$R1, $R2", []>;
@@ -586,6 +596,12 @@ let hasSideEffects = 0, isAsCheapAsAMove = 1, isMoveImm = 1,
                      "larl\t$R1, $I2",
                      [(set GR64:$R1, pcrel32:$I2)]>;
 }
+
+// Load the Global Offset Table address.  This will be lowered into a
+//     larl $R1, _GLOBAL_OFFSET_TABLE_
+// instruction.
+def GOT : Alias<6, (outs GR64:$R1), (ins),
+                [(set GR64:$R1, (global_offset_table))]>;
 
 //===----------------------------------------------------------------------===//
 // Absolute and Negation
@@ -1045,6 +1061,10 @@ let Defs = [CC] in {
     def RISBG : RotateSelectRIEf<"risbg", 0xEC55, GR64, GR64>;
 }
 
+// On zEC12 we have a variant of RISBG that does not set CC.
+let Predicates = [FeatureMiscellaneousExtensions] in
+  def RISBGN : RotateSelectRIEf<"risbgn", 0xEC59, GR64, GR64>;
+
 // Forms of RISBG that only affect one word of the destination register.
 // They do not set CC.
 let Predicates = [FeatureHighWord] in {
@@ -1342,6 +1362,60 @@ let Defs = [CC] in {
 }
 
 //===----------------------------------------------------------------------===//
+// Transactional execution
+//===----------------------------------------------------------------------===//
+
+let Predicates = [FeatureTransactionalExecution] in {
+  // Transaction Begin
+  let hasSideEffects = 1, mayStore = 1,
+      usesCustomInserter = 1, Defs = [CC] in {
+    def TBEGIN : InstSIL<0xE560,
+                         (outs), (ins bdaddr12only:$BD1, imm32zx16:$I2),
+                         "tbegin\t$BD1, $I2",
+                         [(z_tbegin bdaddr12only:$BD1, imm32zx16:$I2)]>;
+    def TBEGIN_nofloat : Pseudo<(outs), (ins bdaddr12only:$BD1, imm32zx16:$I2),
+                                [(z_tbegin_nofloat bdaddr12only:$BD1,
+                                                   imm32zx16:$I2)]>;
+    def TBEGINC : InstSIL<0xE561,
+                          (outs), (ins bdaddr12only:$BD1, imm32zx16:$I2),
+                          "tbeginc\t$BD1, $I2",
+                          [(int_s390_tbeginc bdaddr12only:$BD1,
+                                             imm32zx16:$I2)]>;
+  }
+
+  // Transaction End
+  let hasSideEffects = 1, Defs = [CC], BD2 = 0 in
+    def TEND : InstS<0xB2F8, (outs), (ins), "tend", [(z_tend)]>;
+
+  // Transaction Abort
+  let hasSideEffects = 1, isTerminator = 1, isBarrier = 1 in
+    def TABORT : InstS<0xB2FC, (outs), (ins bdaddr12only:$BD2),
+                       "tabort\t$BD2",
+                       [(int_s390_tabort bdaddr12only:$BD2)]>;
+
+  // Nontransactional Store
+  let hasSideEffects = 1 in
+    def NTSTG : StoreRXY<"ntstg", 0xE325, int_s390_ntstg, GR64, 8>;
+
+  // Extract Transaction Nesting Depth
+  let hasSideEffects = 1 in
+    def ETND : InherentRRE<"etnd", 0xB2EC, GR32, (int_s390_etnd)>;
+}
+
+//===----------------------------------------------------------------------===//
+// Processor assist
+//===----------------------------------------------------------------------===//
+
+let Predicates = [FeatureProcessorAssist] in {
+  let hasSideEffects = 1, R4 = 0 in
+    def PPA : InstRRF<0xB2E8, (outs), (ins GR64:$R1, GR64:$R2, imm32zx4:$R3),
+                      "ppa\t$R1, $R2, $R3", []>;
+  def : Pat<(int_s390_ppa_txassist GR32:$src),
+            (PPA (INSERT_SUBREG (i64 (IMPLICIT_DEF)), GR32:$src, subreg_l32),
+                 0, 1)>;
+}
+
+//===----------------------------------------------------------------------===//
 // Miscellaneous Instructions.
 //===----------------------------------------------------------------------===//
 
@@ -1365,6 +1439,13 @@ let Defs = [CC] in {
 }
 def : Pat<(ctlz GR64:$src),
           (EXTRACT_SUBREG (FLOGR GR64:$src), subreg_h64)>;
+
+// Population count.  Counts bits set per byte.
+let Predicates = [FeaturePopulationCount], Defs = [CC] in {
+  def POPCNT : InstRRE<0xB9E1, (outs GR64:$R1), (ins GR64:$R2),
+                       "popcnt\t$R1, $R2",
+                       [(set GR64:$R1, (z_popcnt GR64:$R2))]>;
+}
 
 // Use subregs to populate the "don't care" bits in a 32-bit to 64-bit anyext.
 def : Pat<(i64 (anyext GR32:$src)),

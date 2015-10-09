@@ -10,6 +10,7 @@
  * BinString -- pointer to an array of chars, printed via strvisx().
  * Ptr -- pointer to some unspecified structure.  Just print as hex for now.
  * Stat -- a pointer to a stat buffer.  Prints a couple fields.
+ * StatFs -- a pointer to a statfs buffer.  Prints a few fields.
  * Ioctl -- an ioctl command.  Woefully limited.
  * Quad -- a double-word value.  e.g., lseek(int, offset_t, int)
  * Signal -- a signal number.  Prints the signal name (SIGxxx)
@@ -26,6 +27,7 @@
  * Sigprocmask -- the first argument to sigprocmask().  Prints the name.
  * Kevent -- a pointer to an array of struct kevents.  Prints all elements.
  * Pathconf -- the 2nd argument of pathconf().
+ * Utrace -- utrace(2) buffer.
  *
  * In addition, the pointer types (String, Ptr) may have OUT masked in --
  * this means that the data is set on *return* from the system call -- or
@@ -35,14 +37,21 @@
  * $FreeBSD$
  */
 
-enum Argtype { None = 1, Hex, Octal, Int, LongHex, Name, Ptr, Stat, Ioctl, Quad,
-	Signal, Sockaddr, StringArray, Timespec, Timeval, Itimerval, Pollfd,
-	Fd_set, Sigaction, Fcntl, Mprot, Mmapflags, Whence, Readlinkres,
-	Sigset, Sigprocmask, Kevent, Sockdomain, Socktype, Open,
+enum Argtype { None = 1, Hex, Octal, Int, UInt, LongHex, Name, Ptr, Stat, Ioctl,
+	Quad, Signal, Sockaddr, StringArray, Timespec, Timeval, Itimerval,
+	Pollfd, Fd_set, Sigaction, Fcntl, Mprot, Mmapflags, Whence, Readlinkres,
+	Sigset, Sigprocmask, StatFs, Kevent, Sockdomain, Socktype, Open,
 	Fcntlflag, Rusage, BinString, Shutdown, Resource, Rlimit, Timeval2,
 	Pathconf, Rforkflags, ExitStatus, Waitoptions, Idtype, Procctl,
 	LinuxSockArgs, Umtxop, Atfd, Atflags, Timespec2, Accessmode, Long,
-	Sysarch, ExecArgs, ExecEnv, PipeFds, QuadHex };
+	Sysarch, ExecArgs, ExecEnv, PipeFds, QuadHex, Utrace, IntArray,
+
+	CloudABIAdvice, CloudABIClockID, ClouduABIFDSFlags,
+	CloudABIFDStat, CloudABIFileStat, CloudABIFileType,
+	CloudABIFSFlags, CloudABILookup, CloudABIMFlags, CloudABIMProt,
+	CloudABIMSFlags, CloudABIOFlags, CloudABISDFlags,
+	CloudABISignal, CloudABISockStat, CloudABISSFlags,
+	CloudABITimestamp, CloudABIULFlags, CloudABIWhence };
 
 #define	ARG_MASK	0xff
 #define	OUT	0x100
@@ -54,6 +63,7 @@ struct syscall_args {
 };
 
 struct syscall {
+	STAILQ_ENTRY(syscall) entries;
 	const char *name;
 	u_int ret_type;	/* 0, 1, or 2 return values */
 	u_int nargs;	/* actual number of meaningful arguments */
@@ -64,7 +74,7 @@ struct syscall {
 	int nerror;	/* Number of calls that returned with error */
 };
 
-struct syscall *get_syscall(const char*);
+struct syscall *get_syscall(const char *, int nargs);
 char *print_arg(struct syscall_args *, unsigned long*, long *, struct trussinfo *);
 
 /*
@@ -107,6 +117,7 @@ struct linux_socketcall_args {
     char args_l_[PADL_(l_ulong)]; l_ulong args; char args_r_[PADR_(l_ulong)];
 };
 
+void init_syscalls(void);
 void print_syscall(struct trussinfo *, const char *, int, char **);
 void print_syscall_ret(struct trussinfo *, const char *, int, char **, int,
     long *, struct syscall *);
