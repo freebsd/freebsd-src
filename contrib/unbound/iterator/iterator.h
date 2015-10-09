@@ -54,7 +54,7 @@ struct iter_priv;
 struct rbtree_t;
 
 /** max number of targets spawned for a query and its subqueries */
-#define MAX_TARGET_COUNT	32
+#define MAX_TARGET_COUNT	64
 /** max number of query restarts. Determines max number of CNAME chain. */
 #define MAX_RESTART_COUNT       8
 /** max number of referrals. Makes sure resolver does not run away */

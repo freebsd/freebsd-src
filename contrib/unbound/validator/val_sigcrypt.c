@@ -795,10 +795,6 @@ canonical_compare(struct ub_packed_rrset_key* rrset, size_t i, size_t j)
 
 	if(i==j)
 		return 0;
-	/* in case rdata-len is to be compared for canonical order
-	c = memcmp(d->rr_data[i], d->rr_data[j], 2);
-	if(c != 0)
-		return c; */
 
 	switch(type) {
 		/* These RR types have only a name as RDATA. 
