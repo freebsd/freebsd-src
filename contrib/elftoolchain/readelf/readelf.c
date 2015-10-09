@@ -1295,6 +1295,20 @@ r_type(unsigned int mach, unsigned int type)
 		case 22: return "R_MIPS_GOTLO16";
 		case 30: return "R_MIPS_CALLHI16";
 		case 31: return "R_MIPS_CALLLO16";
+		case 38: return "R_MIPS_TLS_DTPMOD32";
+		case 39: return "R_MIPS_TLS_DTPREL32";
+		case 40: return "R_MIPS_TLS_DTPMOD64";
+		case 41: return "R_MIPS_TLS_DTPREL64";
+		case 42: return "R_MIPS_TLS_GD";
+		case 43: return "R_MIPS_TLS_LDM";
+		case 44: return "R_MIPS_TLS_DTPREL_HI16";
+		case 45: return "R_MIPS_TLS_DTPREL_LO16";
+		case 46: return "R_MIPS_TLS_GOTTPREL";
+		case 47: return "R_MIPS_TLS_TPREL32";
+		case 48: return "R_MIPS_TLS_TPREL64";
+		case 49: return "R_MIPS_TLS_TPREL_HI16";
+		case 50: return "R_MIPS_TLS_TPREL_LO16";
+
 		default: return "";
 		}
 	case EM_PPC:
