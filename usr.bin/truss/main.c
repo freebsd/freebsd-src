@@ -111,7 +111,7 @@ main(int ac, char **av)
 			trussinfo->flags |= EXECVEARGS;
 			break;
 		case 'c': /* Count number of system calls and time. */
-			trussinfo->flags |= COUNTONLY;
+			trussinfo->flags |= (COUNTONLY | NOSIGS);
 			break;
 		case 'e': /* Print execve() environment strings. */
 			trussinfo->flags |= EXECVEENVS;
