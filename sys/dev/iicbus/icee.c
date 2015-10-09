@@ -84,7 +84,7 @@ static struct cdevsw icee_cdevsw =
 static int
 icee_probe(device_t dev)
 {
-	/* XXX really probe? -- not until we know the size... */
+
 	device_set_desc(dev, "I2C EEPROM");
 	return (BUS_PROBE_NOWILDCARD);
 }
@@ -118,7 +118,7 @@ icee_attach(device_t dev)
 	}
 	sc->cdev->si_drv1 = sc;
 	ICEE_LOCK_INIT(sc);
-out:;
+out:
 	return (err);
 }
 
@@ -126,7 +126,7 @@ static int
 icee_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 {
 
-    	return (0);
+	return (0);
 }
 
 static int
@@ -241,18 +241,14 @@ icee_write(struct cdev *dev, struct uio *uio, int ioflag)
 		error = iicbus_transfer(sc->sc_dev, wr, 1);
 		if (error)
 			break;
-		// Now wait for the write to be done by trying to read
-		// the part.
+		/* Read after write to wait for write-done. */
 		waitlimit = 10000;
 		rd[0].slave = slave;
-		do 
-		{
-		    error = iicbus_transfer(sc->sc_dev, rd, 1);
+		do {
+			error = iicbus_transfer(sc->sc_dev, rd, 1);
 		} while (waitlimit-- > 0 && error != 0);
-		if (error) {
-		    printf("waiting for write failed %d\n", error);
-		    break;
-		}
+		if (error)
+			break;
 	}
 	ICEE_UNLOCK(sc);
 	return error;
