@@ -403,10 +403,10 @@
       <para revision="285253">The &man.quota.1; utility has been
 	updated to include support for <acronym>IPv6</acronym>.</para>
 
-      <para revision="285420">The &man.jail.8; utility has been
+      <para revision="285420">The &man.jexec.8; utility has been
 	updated to include a new flag, <literal>-l</literal>, which
 	ensures a clean environment in the target jail when used.
-	Additionally, &man.jail.8; will run a shell within the target
+	Additionally, &man.jexec.8; will run a shell within the target
 	jail when run no commands are specified.</para>
 
       <para revision="285550">The &man.w.1; utility has been updated
@@ -585,9 +585,21 @@
       <para revision="288303">The &man.nc.1; utility has been updated
 	to the OpenBSD 5.8 version.</para>
 
-      <para revision="288943"><application>LLVM</application> and
-	<application>Clang</application> have been updated to
-	version 3.7.0.</para>
+      <para revision="288943"><application>Clang</application> has
+	been updated to version 3.7.0.</para>
+
+      <para revision="288943"><application>LLVM</application> has
+	been updated to version 3.7.0.</para>
+
+      <para revision="288943"><application>LLDB</application> has
+	been updated to version 3.7.0.</para>
+
+      <para revision="288943"><application>libc++</application> has
+	been updated to version 3.7.0.</para>
+
+      <para revision="288943">The
+	<application>compiler_rt</application> utility has been
+	updated to version 3.7.0.</para>
     </sect2>
 
     <sect2 xml:id="userland-installer">
@@ -1042,8 +1054,9 @@
 	<acronym>CPU</acronym> model information.</para>
 
       <para revision="286591">The &man.uart.4; driver has been
-	updated to allow tuning packets per second captured during
-	runtime.</para>
+	updated to allow tuning pulses per second captured in the
+	CTS line during runtime, whereas previously only the DCD line
+	could be used without rebuilding the kernel.</para>
     </sect2>
   </sect1>
 
@@ -1247,10 +1260,6 @@
 	rule in &man.pf.conf.5; will implicitly be converted to the
 	<literal>scrub fragment reassemble</literal> filtering rule,
 	without necessary intervention.</para>
-
-      <para revision="287469" contrib="sponsor"
-	sponsor="&intelcorp;">The &man.em.4; driver has been updated
-	to support the Skylake I219 chipset.</para>
 
       <para revision="288654">The &man.lagg.4; driver has been updated
 	to remove support for the <literal>fec</literal>

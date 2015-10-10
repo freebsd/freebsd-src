@@ -27,6 +27,7 @@
  * Sigprocmask -- the first argument to sigprocmask().  Prints the name.
  * Kevent -- a pointer to an array of struct kevents.  Prints all elements.
  * Pathconf -- the 2nd argument of pathconf().
+ * Utrace -- utrace(2) buffer.
  *
  * In addition, the pointer types (String, Ptr) may have OUT masked in --
  * this means that the data is set on *return* from the system call -- or
@@ -36,14 +37,21 @@
  * $FreeBSD$
  */
 
-enum Argtype { None = 1, Hex, Octal, Int, LongHex, Name, Ptr, Stat, Ioctl, Quad,
-	Signal, Sockaddr, StringArray, Timespec, Timeval, Itimerval, Pollfd,
-	Fd_set, Sigaction, Fcntl, Mprot, Mmapflags, Whence, Readlinkres,
+enum Argtype { None = 1, Hex, Octal, Int, UInt, LongHex, Name, Ptr, Stat, Ioctl,
+	Quad, Signal, Sockaddr, StringArray, Timespec, Timeval, Itimerval,
+	Pollfd, Fd_set, Sigaction, Fcntl, Mprot, Mmapflags, Whence, Readlinkres,
 	Sigset, Sigprocmask, StatFs, Kevent, Sockdomain, Socktype, Open,
 	Fcntlflag, Rusage, BinString, Shutdown, Resource, Rlimit, Timeval2,
 	Pathconf, Rforkflags, ExitStatus, Waitoptions, Idtype, Procctl,
 	LinuxSockArgs, Umtxop, Atfd, Atflags, Timespec2, Accessmode, Long,
-	Sysarch, ExecArgs, ExecEnv, PipeFds, QuadHex };
+	Sysarch, ExecArgs, ExecEnv, PipeFds, QuadHex, Utrace, IntArray,
+
+	CloudABIAdvice, CloudABIClockID, ClouduABIFDSFlags,
+	CloudABIFDStat, CloudABIFileStat, CloudABIFileType,
+	CloudABIFSFlags, CloudABILookup, CloudABIMFlags, CloudABIMProt,
+	CloudABIMSFlags, CloudABIOFlags, CloudABISDFlags,
+	CloudABISignal, CloudABISockStat, CloudABISSFlags,
+	CloudABITimestamp, CloudABIULFlags, CloudABIWhence };
 
 #define	ARG_MASK	0xff
 #define	OUT	0x100

@@ -1,16 +1,13 @@
 /*-
- * Copyright (c) 2014 The FreeBSD Foundation.
+ * Copyright (c) 2014, 2015 The FreeBSD Foundation.
  * Copyright (c) 2014 Andrew Turner.
- * Copyright (c) 2001 Jake Burkholder.
- * Copyright (c) 2000 Eduardo Horvath.
- * Copyright (c) 1999 The NetBSD Foundation, Inc.
  * All rights reserved.
- *
- * This code is derived from software contributed to The NetBSD Foundation
- * by Paul Kranenburg.
  *
  * This software was developed by Andrew Turner under
  * sponsorship from the FreeBSD Foundation.
+ *
+ * Portions of this software were developed by Konstantin Belousov
+ * under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -21,19 +18,17 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
- * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
- * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
- * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- *
- *	from: NetBSD: mdreloc.c,v 1.42 2008/04/28 20:23:04 martin Exp
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  */
 
 #include <sys/cdefs.h>
@@ -132,12 +127,66 @@ elf64_dump_thread(struct thread *td __unused, void *dst __unused,
 
 }
 
+static int
+elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
+    int type, int local, elf_lookup_fn lookup)
+{
+	Elf_Addr *where, addr, addend;
+	Elf_Word rtype, symidx;
+	const Elf_Rel *rel;
+	const Elf_Rela *rela;
+	int error;
+
+	switch (type) {
+	case ELF_RELOC_REL:
+		rel = (const Elf_Rel *)data;
+		where = (Elf_Addr *) (relocbase + rel->r_offset);
+		addend = *where;
+		rtype = ELF_R_TYPE(rel->r_info);
+		symidx = ELF_R_SYM(rel->r_info);
+		break;
+	case ELF_RELOC_RELA:
+		rela = (const Elf_Rela *)data;
+		where = (Elf_Addr *) (relocbase + rela->r_offset);
+		addend = rela->r_addend;
+		rtype = ELF_R_TYPE(rela->r_info);
+		symidx = ELF_R_SYM(rela->r_info);
+		break;
+	default:
+		panic("unknown reloc type %d\n", type);
+	}
+
+	if (local) {
+		if (rtype == R_AARCH64_RELATIVE)
+			*where = elf_relocaddr(lf, relocbase + addend);
+		return (0);
+	}
+
+	switch (rtype) {
+	case R_AARCH64_NONE:
+	case R_AARCH64_RELATIVE:
+		break;
+	case R_AARCH64_ABS64:
+	case R_AARCH64_GLOB_DAT:
+	case R_AARCH64_JUMP_SLOT:
+		error = lookup(lf, symidx, 1, &addr);
+		if (error != 0)
+			return (-1);
+		*where = addr + addend;
+		break;
+	default:
+		printf("kldload: unexpected relocation type %d\n", rtype);
+		return (-1);
+	}
+	return (0);
+}
+
 int
 elf_reloc_local(linker_file_t lf, Elf_Addr relocbase, const void *data,
-    int type, elf_lookup_fn lookup __unused)
+    int type, elf_lookup_fn lookup)
 {
 
-	panic("ARM64TODO: elf_reloc_local");
+	return (elf_reloc_internal(lf, relocbase, data, type, 1, lookup));
 }
 
 /* Process one elf relocation with addend. */
@@ -146,13 +195,15 @@ elf_reloc(linker_file_t lf, Elf_Addr relocbase, const void *data, int type,
     elf_lookup_fn lookup)
 {
 
-	panic("ARM64TODO: elf_reloc");
+	return (elf_reloc_internal(lf, relocbase, data, type, 0, lookup));
 }
 
 int
-elf_cpu_load_file(linker_file_t lf __unused)
+elf_cpu_load_file(linker_file_t lf)
 {
 
+	if (lf->id != 1)
+		cpu_icache_sync_range((vm_offset_t)lf->address, lf->size);
 	return (0);
 }
 

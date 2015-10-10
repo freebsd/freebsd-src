@@ -56,7 +56,7 @@ __FBSDID("$FreeBSD$");
 /*
  * Hack to let ypserv/rpc.nisd use AUTH_DES.
  */
-int (*__getpublickey_LOCAL)() = 0;
+int (*__getpublickey_LOCAL)(const char *, char *) = 0;
 
 /*
  * Get somebody's public key

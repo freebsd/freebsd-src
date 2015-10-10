@@ -1103,7 +1103,7 @@ ATF_TC_BODY(ptrace__new_child_pl_syscall_code_thread, tc)
 {
 	struct ptrace_lwpinfo pl;
 	pid_t fpid, wpid;
-	lwpid_t main;
+	lwpid_t mainlwp;
 	int status;
 
 	ATF_REQUIRE((fpid = fork()) != -1);
@@ -1126,7 +1126,7 @@ ATF_TC_BODY(ptrace__new_child_pl_syscall_code_thread, tc)
 
 	ATF_REQUIRE(ptrace(PT_LWPINFO, wpid, (caddr_t)&pl,
 	    sizeof(pl)) != -1);
-	main = pl.pl_lwpid;
+	mainlwp = pl.pl_lwpid;
 
 	/*
 	 * Continue the child ignoring the SIGSTOP and tracing all
@@ -1151,7 +1151,7 @@ ATF_TC_BODY(ptrace__new_child_pl_syscall_code_thread, tc)
 		    sizeof(pl)) != -1);
 		ATF_REQUIRE((pl.pl_flags & PL_FLAG_SCX) != 0);
 		ATF_REQUIRE(pl.pl_syscall_code != 0);
-		if (pl.pl_lwpid != main)
+		if (pl.pl_lwpid != mainlwp)
 			/* New thread seen. */
 			break;
 

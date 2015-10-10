@@ -10,7 +10,10 @@ SRCS+= ${MACHINE_ARCH}-fbsd.c
 SRCS+= ${MACHINE_CPUARCH}-fbsd.c
 .endif
 
-CFLAGS+= -I${.CURDIR} -I.
+.PATH:	${.CURDIR:H}/kdump
+SRCS+=	utrace.c
+
+CFLAGS+= -I${.CURDIR} -I. -I${.CURDIR}/../../sys
 CLEANFILES= syscalls.master syscalls.h ioctl.c
 
 .SUFFIXES: .master
