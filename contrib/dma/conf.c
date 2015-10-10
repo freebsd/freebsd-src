@@ -64,7 +64,7 @@ trim_line(char *line)
 	if (line[0] == '.') {
 		if ((linelen + 2) > 1000) {
 			syslog(LOG_CRIT, "Cannot escape leading dot.  Buffer overflow");
-			exit(1);
+			exit(EX_DATAERR);
 		}
 		memmove((line + 1), line, (linelen + 1));
 		line[0] = '.';
@@ -101,7 +101,7 @@ parse_authfile(const char *path)
 
 	a = fopen(path, "r");
 	if (a == NULL) {
-		errlog(1, "can not open auth file `%s'", path);
+		errlog(EX_NOINPUT, "can not open auth file `%s'", path);
 		/* NOTREACHED */
 	}
 
@@ -121,7 +121,7 @@ parse_authfile(const char *path)
 
 		au = calloc(1, sizeof(*au));
 		if (au == NULL)
-			errlog(1, "calloc failed");
+			errlog(EX_OSERR, NULL);
 
 		data = strdup(line);
 		au->login = strsep(&data, "|");
@@ -131,8 +131,7 @@ parse_authfile(const char *path)
 		if (au->login == NULL ||
 		    au->host == NULL ||
 		    au->password == NULL) {
-			errlogx(1, "syntax error in authfile %s:%d",
-				path, lineno);
+			errlogx(EX_CONFIG, "syntax error in authfile %s:%d", path, lineno);
 			/* NOTREACHED */
 		}
 
@@ -160,7 +159,7 @@ parse_conf(const char *config_path)
 		/* Don't treat a non-existing config file as error */
 		if (errno == ENOENT)
 			return;
-		errlog(1, "can not open config `%s'", config_path);
+		errlog(EX_NOINPUT, "can not open config `%s'", config_path);
 		/* NOTREACHED */
 	}
 
@@ -211,7 +210,7 @@ parse_conf(const char *config_path)
 			} else {
 				host = data;
 			}
- 			if (host && *host == 0)
+			if (host && *host == 0)
 				host = NULL;
                         if (user && *user == 0)
                                 user = NULL;
@@ -232,13 +231,13 @@ parse_conf(const char *config_path)
 		else if (strcmp(word, "NULLCLIENT") == 0 && data == NULL)
 			config.features |= NULLCLIENT;
 		else {
-			errlogx(1, "syntax error in %s:%d", config_path, lineno);
+			errlogx(EX_CONFIG, "syntax error in %s:%d", config_path, lineno);
 			/* NOTREACHED */
 		}
 	}
 
 	if ((config.features & NULLCLIENT) && config.smarthost == NULL) {
-		errlogx(1, "%s: NULLCLIENT requires SMARTHOST", config_path);
+		errlogx(EX_CONFIG, "%s: NULLCLIENT requires SMARTHOST", config_path);
 		/* NOTREACHED */
 	}
 
