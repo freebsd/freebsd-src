@@ -285,9 +285,6 @@ typedef	_Bool	bool;
  * The following are all things that really shouldn't exist in this header,
  * since its purpose is to provide typedefs, not miscellaneous doodads.
  */
-#if __BSD_VISIBLE
-
-#include <sys/select.h>
 
 #ifdef __POPCNT__
 #define	__bitcount64(x)	__builtin_popcountll((__uint64_t)(x))
@@ -350,6 +347,10 @@ __bitcount64(__uint64_t _x)
 #endif
 #define	__bitcount(x)	__bitcount32((unsigned int)(x))
 #endif
+
+#if __BSD_VISIBLE
+
+#include <sys/select.h>
 
 /*
  * minor() gives a cookie instead of an index since we don't want to
