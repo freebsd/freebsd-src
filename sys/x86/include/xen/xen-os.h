@@ -50,6 +50,13 @@ extern int xen_disable_pv_disks;
 extern int xen_disable_pv_nics;
 
 static inline bool
+xen_has_percpu_evtchn(void)
+{
+
+	return (!xen_hvm_domain() || xen_vector_callback_enabled);
+}
+
+static inline bool
 xen_pv_shutdown_handler(void)
 {
 

@@ -510,7 +510,7 @@ xen_intr_handle_upcall(struct trapframe *trap_frame)
 	s   = HYPERVISOR_shared_info;
 	v   = DPCPU_GET(vcpu_info);
 
-	if (xen_hvm_domain() && !xen_vector_callback_enabled) {
+	if (!xen_has_percpu_evtchn()) {
 		KASSERT((cpu == 0), ("Fired PCI event callback on wrong CPU"));
 	}
 
@@ -859,7 +859,7 @@ xen_intr_assign_cpu(struct intsrc *base_isrc, u_int apic_id)
 	u_int to_cpu, vcpu_id;
 	int error, masked;
 
-	if (xen_vector_callback_enabled == 0)
+	if (!xen_has_percpu_evtchn())
 		return (EOPNOTSUPP);
 
 	to_cpu = apic_cpuid(apic_id);
