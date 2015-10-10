@@ -1035,7 +1035,9 @@ distrib-dirs: .MAKE
 distribution: .MAKE
 	cd ${.CURDIR}/etc; ${CROSSENV} PATH=${TMPPATH} ${MAKE} \
 	    ${IMAKE_INSTALL} ${IMAKE_MTREE} METALOG=${METALOG} ${.TARGET}
-	${_+_}cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 installconfig
+	${_+_}cd ${.CURDIR}; ${CROSSENV} PATH=${TMPPATH} \
+		${MAKE} -f Makefile.inc1 ${IMAKE_INSTALL} \
+		METALOG=${METALOG} installconfig
 
 #
 # buildkernel and installkernel
