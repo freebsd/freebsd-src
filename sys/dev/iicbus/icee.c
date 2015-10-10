@@ -48,7 +48,7 @@ __FBSDID("$FreeBSD$");
 
 struct icee_softc {
 	device_t	sc_dev;		/* Myself */
-	struct sx	sc_lock;	/* basically a perimeter lock */
+	device_t	sc_busdev;	/* Parent bus */
 	struct cdev	*cdev;		/* user interface */
 	int		addr;
 	int		size;		/* How big am I? */
@@ -57,12 +57,6 @@ struct icee_softc {
 	int		wr_sz;		/* What's the write page size */
 };
 
-#define ICEE_LOCK(_sc)		sx_xlock(&(_sc)->sc_lock)
-#define	ICEE_UNLOCK(_sc)	sx_xunlock(&(_sc)->sc_lock)
-#define ICEE_LOCK_INIT(_sc)	sx_init(&_sc->sc_lock, "icee")
-#define ICEE_LOCK_DESTROY(_sc)	sx_destroy(&_sc->sc_lock);
-#define ICEE_ASSERT_LOCKED(_sc)	sx_assert(&_sc->sc_lock, SA_XLOCKED);
-#define ICEE_ASSERT_UNLOCKED(_sc) sx_assert(&_sc->sc_lock, SA_UNLOCKED);
 #define CDEV2SOFTC(dev)		((dev)->si_drv1)
 
 /* cdev routines */
@@ -97,6 +91,7 @@ icee_attach(device_t dev)
 	int dunit, err;
 
 	sc->sc_dev = dev;
+	sc->sc_busdev = device_get_parent(sc->sc_dev);
 	sc->addr = iicbus_get_addr(dev);
 	err = 0;
 	dname = device_get_name(dev);
@@ -117,7 +112,6 @@ icee_attach(device_t dev)
 		goto out;
 	}
 	sc->cdev->si_drv1 = sc;
-	ICEE_LOCK_INIT(sc);
 out:
 	return (err);
 }
@@ -155,7 +149,9 @@ icee_read(struct cdev *dev, struct uio *uio, int ioflag)
 		return (EIO);
 	if (sc->type != 8 && sc->type != 16)
 		return (EINVAL);
-	ICEE_LOCK(sc);
+	error = iicbus_request_bus(sc->sc_busdev, sc->sc_dev, IIC_INTRWAIT);
+	if (error!= 0)
+		return (iic2errno(error));
 	slave = error = 0;
 	while (uio->uio_resid > 0) {
 		if (uio->uio_offset >= sc->size)
@@ -188,7 +184,7 @@ icee_read(struct cdev *dev, struct uio *uio, int ioflag)
 		if (error)
 			break;
 	}
-	ICEE_UNLOCK(sc);
+	iicbus_release_bus(sc->sc_busdev, sc->sc_dev);
 	return (error);
 }
 
@@ -216,7 +212,10 @@ icee_write(struct cdev *dev, struct uio *uio, int ioflag)
 		return (EIO);
 	if (sc->type != 8 && sc->type != 16)
 		return (EINVAL);
-	ICEE_LOCK(sc);
+
+	error = iicbus_request_bus(sc->sc_busdev, sc->sc_dev, IIC_INTRWAIT);
+	if (error!= 0)
+		return (iic2errno(error));
 	slave = error = 0;
 	while (uio->uio_resid > 0) {
 		if (uio->uio_offset >= sc->size)
@@ -256,7 +255,7 @@ icee_write(struct cdev *dev, struct uio *uio, int ioflag)
 			break;
 		}
 	}
-	ICEE_UNLOCK(sc);
+	iicbus_release_bus(sc->sc_busdev, sc->sc_dev);
 	return error;
 }
 
