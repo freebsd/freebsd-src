@@ -50,16 +50,6 @@ device	geom_uncompress
 # Used for the static uboot partition map
 device	geom_map
 
-# Boot off of the rootfs, as defined in the geom_map setup.
-# Probably, this should be a USB device as the memory available
-# compressed rootfs is simply too small for FreeBSD
-#options	ROOTDEVNAME=\"ufs:map/rootfs.uncompress\"
-
-# Boot off of a uboot tftp ramdisk kernel image.  Because the flash
-# on this unit is so small, this is the only way to do dev work.
-# For full deployment, you will *have* to use a usb storage device
-# as a rootfs and use the flash to hold the kernel only.
-options		MD_ROOT         # md device usable as a potential root device
-options		MD_ROOT_SIZE=10240
-#makeoptions	MFS_IMAGE=/tftpboot/mfsroot-tl-mr3020.img.ulzma
-options		ROOTDEVNAME=\"ufs:md0.uncompress\"
+# With only 4MB of flash, we are stuck using USB
+# for the rootfs.
+options		ROOTDEVNAME=\"ufs:da0\"
