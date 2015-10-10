@@ -2671,7 +2671,7 @@ ar9300_fill_capability_info(struct ath_hal *ah)
     p_cap->halBurstSupport = AH_TRUE;
     p_cap->halChapTuningSupport = AH_TRUE;
     p_cap->halTurboPrimeSupport = AH_TRUE;
-    p_cap->halFastFramesSupport = AH_FALSE;
+    p_cap->halFastFramesSupport = AH_TRUE;
 
     p_cap->halTurboGSupport = p_cap->halWirelessModes & HAL_MODE_108G;
 
