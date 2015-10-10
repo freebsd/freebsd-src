@@ -92,7 +92,7 @@ iicbus_poll(struct iicbus_softc *sc, int how)
 		break;
 
 	default:
-		return (EWOULDBLOCK);
+		return (IIC_EBUSBSY);
 	}
 
 	return (error);
@@ -157,7 +157,7 @@ iicbus_release_bus(device_t bus, device_t dev)
 
 	if (sc->owner != dev) {
 		IICBUS_UNLOCK(sc);
-		return (EACCES);
+		return (IIC_EBUSBSY);
 	}
 
 	/* 
