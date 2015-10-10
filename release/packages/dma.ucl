@@ -1,0 +1,14 @@
+name = "FreeBSD-dma"
+origin = "base"
+version = "%VERSION%"
+comment = "DragonFly Mail Agent"
+categories = [ base ]
+maintainer = "re@FreeBSD.org"
+www = "https://www.FreeBSD.org"
+prefix = "/"
+licenselogic = "single"
+licenses = [ BSD2CLAUSE ]
+desc = <<EOD
+The DragonFly Mail Agent, a small Mail Transport Agent (MTA), designed for
+home and office use.
+EOD
