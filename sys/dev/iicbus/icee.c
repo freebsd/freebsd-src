@@ -180,8 +180,10 @@ icee_read(struct cdev *dev, struct uio *uio, int ioflag)
 		for (i = 0; i < 2; i++)
 			msgs[i].slave = slave;
 		error = iicbus_transfer(sc->sc_dev, msgs, 2);
-		if (error)
+		if (error) {
+			error = iic2errno(error);
 			break;
+		}
 		error = uiomove(data, len, uio);
 		if (error)
 			break;
@@ -239,16 +241,20 @@ icee_write(struct cdev *dev, struct uio *uio, int ioflag)
 		if (error)
 			break;
 		error = iicbus_transfer(sc->sc_dev, wr, 1);
-		if (error)
+		if (error) {
+			error = iic2errno(error);
 			break;
+		}
 		/* Read after write to wait for write-done. */
 		waitlimit = 10000;
 		rd[0].slave = slave;
 		do {
 			error = iicbus_transfer(sc->sc_dev, rd, 1);
 		} while (waitlimit-- > 0 && error != 0);
-		if (error)
+		if (error) {
+			error = iic2errno(error);
 			break;
+		}
 	}
 	ICEE_UNLOCK(sc);
 	return error;
