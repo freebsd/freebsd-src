@@ -97,7 +97,7 @@ xendebug_identify(driver_t *driver, device_t parent)
 	KASSERT(xen_domain(),
 	    ("Trying to add Xen debug device to non-xen guest"));
 
-	if (xen_hvm_domain() && !xen_vector_callback_enabled)
+	if (!xen_has_percpu_evtchn())
 		return;
 
 	if (BUS_ADD_CHILD(parent, 0, "debug", 0) == NULL)
