@@ -21,6 +21,9 @@ PPP_NO_PAM=
 PPP_NO_RADIUS=
 PPP_NO_SUID=
 .endif
+CONFS=	ppp.conf
+CONFSDIR=	${CONFIGDIR}/ppp
+CONFSMODE=	600
 
 .if ${MK_ATM} == "no"
 PPP_NO_ATM=

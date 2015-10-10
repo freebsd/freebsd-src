@@ -43,6 +43,7 @@
 #define IIC_NOINTR	0
 #define IIC_WAIT	0x1
 #define IIC_INTR	0x2
+#define IIC_INTRWAIT	(IIC_INTR | IIC_WAIT)
 
 /*
  * i2c modes
@@ -82,16 +83,22 @@
  * adapter layer errors
  */
 #define IIC_NOERR	0x0	/* no error occured */
-#define IIC_EBUSERR	0x1	/* bus error */
+#define IIC_EBUSERR	0x1	/* bus error (hardware not in expected state) */
 #define IIC_ENOACK	0x2	/* ack not received until timeout */
 #define IIC_ETIMEOUT	0x3	/* timeout */
-#define IIC_EBUSBSY	0x4	/* bus busy */
+#define IIC_EBUSBSY	0x4	/* bus busy (reserved by another client) */
 #define IIC_ESTATUS	0x5	/* status error */
 #define IIC_EUNDERFLOW	0x6	/* slave ready for more data */
 #define IIC_EOVERFLOW	0x7	/* too much data */
 #define IIC_ENOTSUPP	0x8	/* request not supported */
 #define IIC_ENOADDR	0x9	/* no address assigned to the interface */
+#define IIC_ERESOURCE	0xa	/* resources (memory, whatever) unavailable */
 
+/*
+ * Note that all iicbus functions return IIC_Exxxxx status values,
+ * except iic2errno() (obviously) and iicbus_started() (returns bool).
+ */
+extern int iic2errno(int);
 extern int iicbus_request_bus(device_t, device_t, int);
 extern int iicbus_release_bus(device_t, device_t);
 extern device_t iicbus_alloc_bus(device_t);

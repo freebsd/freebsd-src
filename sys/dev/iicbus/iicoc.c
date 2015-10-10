@@ -236,7 +236,7 @@ iicoc_detach(device_t dev)
 static int 
 iicoc_start(device_t dev, u_char slave, int timeout)
 {
-	int error = IIC_EBUSBSY;
+	int error = IIC_EBUSERR;
 	struct iicoc_softc *sc;
 
 	sc = device_get_softc(dev);
