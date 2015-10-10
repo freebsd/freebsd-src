@@ -937,13 +937,7 @@ ar5416FillCapabilityInfo(struct ath_hal *ah)
 
 	pCap->halCompressSupport = AH_FALSE;
 	pCap->halBurstSupport = AH_TRUE;
-	/*
-	 * This is disabled for now; the net80211 layer needs to be
-	 * taught when it is and isn't appropriate to enable FF processing
-	 * with 802.11n NICs (it tries to enable both A-MPDU and
-	 * fast frames, with very tragic crash-y results.)
-	 */
-	pCap->halFastFramesSupport = AH_FALSE;
+	pCap->halFastFramesSupport = AH_TRUE;
 	pCap->halChapTuningSupport = AH_TRUE;
 	pCap->halTurboPrimeSupport = AH_TRUE;
 
