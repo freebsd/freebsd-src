@@ -34,8 +34,10 @@ hint.arge.1.fduplex=1
 
 # Where the ART is - last 64k in the flash
 # 0x9fff1000 ?
-hint.ath.0.eepromaddr=0x1fff0000
+hint.ath.0.eepromaddr=0x1fff1000
 hint.ath.0.eepromsize=16384
+ 
+hint.ar71xx.0.eeprom_mac_addr=0x1f01fc00
 
 # The board 16MiB flash layout in uboot env:
 #
