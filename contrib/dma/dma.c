@@ -596,7 +596,7 @@ skipopts:
 		errlog(EX_SOFTWARE, "could not parse aliases file `%s'", config.aliases);
 
 	if ((sender = set_from(&queue, sender)) == NULL)
-		errlog(EX_SOFTWARE, NULL);
+		errlog(EX_SOFTWARE, "set_from()");
 
 	if (newspoolf(&queue) != 0)
 		errlog(EX_CANTCREAT, "can not create temp file in `%s'", config.spooldir);
