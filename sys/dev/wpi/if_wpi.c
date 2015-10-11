@@ -176,7 +176,7 @@ static int	wpi_read_eeprom_group(struct wpi_softc *, uint8_t);
 static struct ieee80211_node *wpi_node_alloc(struct ieee80211vap *,
 		    const uint8_t mac[IEEE80211_ADDR_LEN]);
 static void	wpi_node_free(struct ieee80211_node *);
-static void	wpi_recv_mgmt(struct ieee80211_node *, struct mbuf *, int,
+static void	wpi_ibss_recv_mgmt(struct ieee80211_node *, struct mbuf *, int,
 		    const struct ieee80211_rx_stats *,
 		    int, int);
 static void	wpi_restore_node(void *, struct ieee80211_node *);
@@ -640,8 +640,10 @@ wpi_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
 	/* Override with driver methods. */
 	vap->iv_key_set = wpi_key_set;
 	vap->iv_key_delete = wpi_key_delete;
-	wvp->wv_recv_mgmt = vap->iv_recv_mgmt;
-	vap->iv_recv_mgmt = wpi_recv_mgmt;
+	if (opmode == IEEE80211_M_IBSS) {
+		wvp->wv_recv_mgmt = vap->iv_recv_mgmt;
+		vap->iv_recv_mgmt = wpi_ibss_recv_mgmt;
+	}
 	wvp->wv_newstate = vap->iv_newstate;
 	vap->iv_newstate = wpi_newstate;
 	vap->iv_update_beacon = wpi_update_beacon;
@@ -1664,7 +1666,7 @@ wpi_check_bss_filter(struct wpi_softc *sc)
 }
 
 static void
-wpi_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m, int subtype,
+wpi_ibss_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m, int subtype,
     const struct ieee80211_rx_stats *rxs,
     int rssi, int nf)
 {
@@ -1675,8 +1677,7 @@ wpi_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m, int subtype,
 
 	wvp->wv_recv_mgmt(ni, m, subtype, rxs, rssi, nf);
 
-	if (vap->iv_opmode == IEEE80211_M_IBSS &&
-	    vap->iv_state == IEEE80211_S_RUN &&
+	if (vap->iv_state == IEEE80211_S_RUN &&
 	    (subtype == IEEE80211_FC0_SUBTYPE_BEACON ||
 	    subtype == IEEE80211_FC0_SUBTYPE_PROBE_RESP)) {
 		ni_tstamp = le64toh(ni->ni_tstamp.tsf);
