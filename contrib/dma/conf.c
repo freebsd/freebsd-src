@@ -121,7 +121,7 @@ parse_authfile(const char *path)
 
 		au = calloc(1, sizeof(*au));
 		if (au == NULL)
-			errlog(EX_OSERR, NULL);
+			errlog(EX_OSERR, "calloc()");
 
 		data = strdup(line);
 		au->login = strsep(&data, "|");
