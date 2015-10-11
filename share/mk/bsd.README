@@ -474,9 +474,15 @@ It has seven targets:
 
 It sets/uses the following variables, among many others:
 
-TESTDIR		Path to the installed tests.  Must be a subdirectory of
+TESTSBASE	Installation prefix for tests. Defaults to /usr/tests
+
+TESTSDIR	Path to the installed tests.  Must be a subdirectory of
 		TESTSBASE and the subpath should match the relative
 		location of the tests within the src tree.
+
+		The value of TESTSDIR defaults to
+		${TESTSBASE}/${RELDIR:H} , e.g. /usr/tests/bin/ls when
+		included from bin/ls/tests .
 
 KYUAFILE	If 'auto' (the default), generate a Kyuafile out of the
 		test programs defined in the Makefile.  If 'yes', then a
