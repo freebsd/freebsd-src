@@ -10,7 +10,7 @@
 
 __<bsd.test.mk>__:
 
-# Tests directory under /usr/tests.
+# Tests install directory
 TESTSDIR?=	${TESTSBASE}/${RELDIR:H}
 
 # List of subdirectories containing tests into which to recurse.  This has the
