@@ -3149,13 +3149,10 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 				lbp = (lalba & SRC16_LBPME_A);
 				dp = &softc->params;
 				snprintf(announce_buf, sizeof(announce_buf),
-				        "%juMB (%ju %u byte sectors: %dH %dS/T "
-                                        "%dC)", (uintmax_t)
-	                                (((uintmax_t)dp->secsize *
-				        dp->sectors) / (1024*1024)),
-			                (uintmax_t)dp->sectors,
-				        dp->secsize, dp->heads,
-                                        dp->secs_per_track, dp->cylinders);
+				    "%juMB (%ju %u byte sectors)",
+				    ((uintmax_t)dp->secsize * dp->sectors) /
+				     (1024 * 1024),
+				    (uintmax_t)dp->sectors, dp->secsize);
 			}
 		} else {
 			int	error;
