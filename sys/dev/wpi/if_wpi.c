@@ -3001,14 +3001,6 @@ wpi_tx_ring_is_full(struct wpi_softc *sc, uint16_t ac)
 	return retval;
 }
 
-static __inline void
-wpi_handle_tx_failure(struct ieee80211_node *ni)
-{
-	/* NB: m is reclaimed on tx failure */
-	if_inc_counter(ni->ni_vap->iv_ifp, IFCOUNTER_OERRORS, 1);
-	ieee80211_free_node(ni);
-}
-
 static int
 wpi_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
     const struct ieee80211_bpf_params *params)
@@ -3046,8 +3038,8 @@ wpi_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 unlock:	WPI_TX_UNLOCK(sc);
 
 	if (error != 0) {
-		wpi_handle_tx_failure(ni);
 		m_freem(m);
+		ieee80211_free_node(ni);
 		DPRINTF(sc, WPI_DEBUG_TRACE, TRACE_STR_END_ERR, __func__);
 
 		return error;
@@ -3085,7 +3077,8 @@ wpi_transmit(struct ieee80211com *ic, struct mbuf *m)
 	error = 0;
 	ni = (struct ieee80211_node *)m->m_pkthdr.rcvif;
 	if (wpi_tx_data(sc, m, ni) != 0) {
-		wpi_handle_tx_failure(ni);
+		if_inc_counter(ni->ni_vap->iv_ifp, IFCOUNTER_OERRORS, 1);
+		ieee80211_free_node(ni);
 		m_freem(m);
 	}
 
