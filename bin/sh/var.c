@@ -403,14 +403,13 @@ setvareq_const(const char *s, int flags)
  */
 
 void
-listsetvar(struct strlist *list, int flags)
+listsetvar(struct arglist *list, int flags)
 {
-	struct strlist *lp;
+	int i;
 
 	INTOFF;
-	for (lp = list ; lp ; lp = lp->next) {
-		setvareq(savestr(lp->text), flags);
-	}
+	for (i = 0; i < list->count; i++)
+		setvareq(savestr(list->args[i]), flags);
 	INTON;
 }
 
@@ -442,14 +441,14 @@ lookupvar(const char *name)
 char *
 bltinlookup(const char *name, int doall)
 {
-	struct strlist *sp;
 	struct var *v;
 	char *result;
+	int i;
 
 	result = NULL;
-	for (sp = cmdenviron ; sp ; sp = sp->next) {
-		if (varequal(sp->text, name))
-			result = strchr(sp->text, '=') + 1;
+	if (cmdenviron) for (i = 0; i < cmdenviron->count; i++) {
+		if (varequal(cmdenviron->args[i], name))
+			result = strchr(cmdenviron->args[i], '=') + 1;
 	}
 	if (result != NULL)
 		return result;
@@ -468,13 +467,12 @@ bltinlookup(const char *name, int doall)
 void
 bltinsetlocale(void)
 {
-	struct strlist *lp;
 	int act = 0;
 	char *loc, *locdef;
 	int i;
 
-	for (lp = cmdenviron ; lp ; lp = lp->next) {
-		if (localevar(lp->text)) {
+	if (cmdenviron) for (i = 0; i < cmdenviron->count; i++) {
+		if (localevar(cmdenviron->args[i])) {
 			act = 1;
 			break;
 		}
@@ -507,11 +505,11 @@ bltinsetlocale(void)
 void
 bltinunsetlocale(void)
 {
-	struct strlist *lp;
+	int i;
 
 	INTOFF;
-	for (lp = cmdenviron ; lp ; lp = lp->next) {
-		if (localevar(lp->text)) {
+	if (cmdenviron) for (i = 0; i < cmdenviron->count; i++) {
+		if (localevar(cmdenviron->args[i])) {
 			setlocale(LC_ALL, "");
 			updatecharset();
 			return;

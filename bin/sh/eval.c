@@ -82,7 +82,7 @@ static int builtin_flags;	/* evalcommand flags for builtins */
 
 
 char *commandname;
-struct strlist *cmdenviron;
+struct arglist *cmdenviron;
 int exitstatus;			/* exit status of last command */
 int oexitstatus;		/* saved exit status */
 
@@ -352,20 +352,19 @@ evalfor(union node *n, int flags)
 {
 	struct arglist arglist;
 	union node *argp;
-	struct strlist *sp;
+	int i;
 	int status;
 
-	arglist.lastp = &arglist.list;
+	emptyarglist(&arglist);
 	for (argp = n->nfor.args ; argp ; argp = argp->narg.next) {
 		oexitstatus = exitstatus;
 		expandarg(argp, &arglist, EXP_FULL | EXP_TILDE);
 	}
-	*arglist.lastp = NULL;
 
 	loopnest++;
 	status = 0;
-	for (sp = arglist.list ; sp ; sp = sp->next) {
-		setvar(n->nfor.var, sp->text, 0);
+	for (i = 0; i < arglist.count; i++) {
+		setvar(n->nfor.var, arglist.args[i], 0);
 		evaltree(n->nfor.body, flags);
 		status = exitstatus;
 		if (evalskip) {
@@ -396,12 +395,12 @@ evalcase(union node *n)
 	union node *patp;
 	struct arglist arglist;
 
-	arglist.lastp = &arglist.list;
+	emptyarglist(&arglist);
 	oexitstatus = exitstatus;
 	expandarg(n->ncase.expr, &arglist, EXP_TILDE);
 	for (cp = n->ncase.cases ; cp ; cp = cp->nclist.next) {
 		for (patp = cp->nclist.pattern ; patp ; patp = patp->narg.next) {
-			if (casematch(patp, arglist.list->text)) {
+			if (casematch(patp, arglist.args[0])) {
 				while (cp->nclist.next &&
 				    cp->type == NCLISTFALLTHRU &&
 				    cp->nclist.body == NULL)
@@ -508,7 +507,7 @@ exphere(union node *redir, struct arglist *fn)
 	else {
 		handler = &jmploc;
 		expandarg(redir->nhere.doc, fn, 0);
-		redir->nhere.expdoc = fn->list->text;
+		redir->nhere.expdoc = fn->args[0];
 		INTOFF;
 	}
 	handler = savehandler;
@@ -532,7 +531,7 @@ expredir(union node *n)
 
 	for (redir = n ; redir ; redir = redir->nfile.next) {
 		struct arglist fn;
-		fn.lastp = &fn.list;
+		emptyarglist(&fn);
 		switch (redir->type) {
 		case NFROM:
 		case NTO:
@@ -540,13 +539,13 @@ expredir(union node *n)
 		case NAPPEND:
 		case NCLOBBER:
 			expandarg(redir->nfile.fname, &fn, EXP_TILDE);
-			redir->nfile.expfname = fn.list->text;
+			redir->nfile.expfname = fn.args[0];
 			break;
 		case NFROMFD:
 		case NTOFD:
 			if (redir->ndup.vname) {
 				expandarg(redir->ndup.vname, &fn, EXP_TILDE);
-				fixredir(redir, fn.list->text, 1);
+				fixredir(redir, fn.args[0], 1);
 			}
 			break;
 		case NXHERE:
@@ -753,28 +752,30 @@ isdeclarationcmd(struct narg *arg)
 static void
 xtracecommand(struct arglist *varlist, struct arglist *arglist)
 {
-	struct strlist *sp;
 	char sep = 0;
-	const char *p, *ps4;
+	const char *text, *p, *ps4;
+	int i;
 
 	ps4 = expandstr(ps4val());
 	out2str(ps4 != NULL ? ps4 : ps4val());
-	for (sp = varlist->list ; sp ; sp = sp->next) {
+	for (i = 0; i < varlist->count; i++) {
+		text = varlist->args[i];
 		if (sep != 0)
 			out2c(' ');
-		p = strchr(sp->text, '=');
+		p = strchr(text, '=');
 		if (p != NULL) {
 			p++;
-			outbin(sp->text, p - sp->text, out2);
+			outbin(text, p - text, out2);
 			out2qstr(p);
 		} else
-			out2qstr(sp->text);
+			out2qstr(text);
 		sep = ' ';
 	}
-	for (sp = arglist->list ; sp ; sp = sp->next) {
+	for (i = 0; i < arglist->count; i++) {
+		text = arglist->args[i];
 		if (sep != 0)
 			out2c(' ');
-		out2qstr(sp->text);
+		out2qstr(text);
 		sep = ' ';
 	}
 	out2c('\n');
@@ -822,7 +823,6 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 	int argc;
 	char **envp;
 	int varflag;
-	struct strlist *sp;
 	int mode;
 	int pip[2];
 	struct cmdentry cmdentry;
@@ -838,11 +838,12 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 	int realstatus;
 	int do_clearcmdentry;
 	const char *path = pathval();
+	int i;
 
 	/* First expand the arguments. */
 	TRACE(("evalcommand(%p, %d) called\n", (void *)cmd, flags));
-	arglist.lastp = &arglist.list;
-	varlist.lastp = &varlist.list;
+	emptyarglist(&arglist);
+	emptyarglist(&varlist);
 	varflag = 1;
 	jp = NULL;
 	do_clearcmdentry = 0;
@@ -857,25 +858,17 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 			varflag = isdeclarationcmd(&argp->narg) ? 2 : 0;
 		expandarg(argp, &arglist, EXP_FULL | EXP_TILDE);
 	}
-	*arglist.lastp = NULL;
-	*varlist.lastp = NULL;
 	expredir(cmd->ncmd.redirect);
-	argc = 0;
-	for (sp = arglist.list ; sp ; sp = sp->next)
-		argc++;
+	argc = arglist.count;
 	/* Add one slot at the beginning for tryexec(). */
 	argv = stalloc(sizeof (char *) * (argc + 2));
 	argv++;
 
-	for (sp = arglist.list ; sp ; sp = sp->next) {
-		TRACE(("evalcommand arg: %s\n", sp->text));
-		*argv++ = sp->text;
-	}
-	*argv = NULL;
+	memcpy(argv, arglist.args, sizeof(*argv) * argc);
+	argv[argc] = NULL;
 	lastarg = NULL;
 	if (iflag && funcnest == 0 && argc > 0)
-		lastarg = argv[-1];
-	argv -= argc;
+		lastarg = argv[argc - 1];
 
 	/* Print the command if xflag is set. */
 	if (xflag)
@@ -895,9 +888,9 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 		 * Modify the command lookup path, if a PATH= assignment
 		 * is present
 		 */
-		for (sp = varlist.list ; sp ; sp = sp->next)
-			if (strncmp(sp->text, PATH, sizeof(PATH) - 1) == 0) {
-				path = sp->text + sizeof(PATH) - 1;
+		for (i = 0; i < varlist.count; i++)
+			if (strncmp(varlist.args[i], PATH, sizeof(PATH) - 1) == 0) {
+				path = varlist.args[i] + sizeof(PATH) - 1;
 				/*
 				 * On `PATH=... command`, we need to make
 				 * sure that the command isn't using the
@@ -999,7 +992,7 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 		}
 		if (cmdentry.cmdtype == CMDNORMAL &&
 		    cmd->ncmd.redirect == NULL &&
-		    varlist.list == NULL &&
+		    varlist.count == 0 &&
 		    (mode == FORK_FG || mode == FORK_NOJOB) &&
 		    !disvforkset() && !iflag && !mflag) {
 			vforkexecshell(jp, argv, environment(), path,
@@ -1053,8 +1046,8 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 		funcnest++;
 		redirect(cmd->ncmd.redirect, REDIR_PUSH);
 		INTON;
-		for (sp = varlist.list ; sp ; sp = sp->next)
-			mklocal(sp->text);
+		for (i = 0; i < varlist.count; i++)
+			mklocal(varlist.args[i]);
 		exitstatus = oexitstatus;
 		evaltree(getfuncnode(cmdentry.u.func),
 		    flags & (EV_TESTED | EV_EXIT));
@@ -1087,7 +1080,7 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 		}
 		savecmdname = commandname;
 		savetopfile = getcurrentfile();
-		cmdenviron = varlist.list;
+		cmdenviron = &varlist;
 		e = -1;
 		savehandler = handler;
 		if (setjmp(jmploc.loc)) {
@@ -1152,8 +1145,8 @@ cmddone:
 		trputs("normal command:  ");  trargs(argv);
 #endif
 		redirect(cmd->ncmd.redirect, 0);
-		for (sp = varlist.list ; sp ; sp = sp->next)
-			setvareq(sp->text, VEXPORT|VSTACK);
+		for (i = 0; i < varlist.count; i++)
+			setvareq(varlist.args[i], VEXPORT|VSTACK);
 		envp = environment();
 		shellexec(argv, envp, path, cmdentry.u.index);
 		/*NOTREACHED*/
@@ -1336,6 +1329,8 @@ truecmd(int argc __unused, char **argv __unused)
 int
 execcmd(int argc, char **argv)
 {
+	int i;
+
 	/*
 	 * Because we have historically not supported any options,
 	 * only treat "--" specially.
@@ -1343,13 +1338,11 @@ execcmd(int argc, char **argv)
 	if (argc > 1 && strcmp(argv[1], "--") == 0)
 		argc--, argv++;
 	if (argc > 1) {
-		struct strlist *sp;
-
 		iflag = 0;		/* exit on error */
 		mflag = 0;
 		optschanged();
-		for (sp = cmdenviron; sp ; sp = sp->next)
-			setvareq(sp->text, VEXPORT|VSTACK);
+		for (i = 0; i < cmdenviron->count; i++)
+			setvareq(cmdenviron->args[i], VEXPORT|VSTACK);
 		shellexec(argv + 1, environment(), pathval(), 0);
 
 	}

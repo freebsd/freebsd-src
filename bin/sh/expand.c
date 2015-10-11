@@ -96,7 +96,6 @@ static char *expdest;			/* output of current string */
 static struct nodelist *argbackq;	/* list of back quote expressions */
 static struct ifsregion ifsfirst;	/* first struct in list of ifs regions */
 static struct ifsregion *ifslastp;	/* last struct in list */
-static struct arglist exparg;		/* holds expanded arg list */
 
 static char *argstr(char *, int);
 static char *exptilde(char *, int);
@@ -110,14 +109,42 @@ static void varvalue(const char *, int, int, int);
 static void recordregion(int, int, int);
 static void removerecordregions(int);
 static void ifsbreakup(char *, struct arglist *);
-static void expandmeta(struct strlist *);
-static void expmeta(char *, char *);
-static void addfname(char *);
-static struct strlist *expsort(struct strlist *);
-static struct strlist *msort(struct strlist *, int);
+static void expandmeta(struct arglist *, struct arglist *);
+static void expmeta(char *, char *, struct arglist *);
+static int expsortcmp(const void *, const void *);
 static int patmatch(const char *, const char *, int);
 static char *cvtnum(int, char *);
+static void appendarglist(struct arglist *, char *);
 static int collate_range_cmp(wchar_t, wchar_t);
+
+void
+emptyarglist(struct arglist *list)
+{
+
+	list->args = list->smallarg;
+	list->count = 0;
+	list->capacity = sizeof(list->smallarg) / sizeof(list->smallarg[0]);
+}
+
+static void
+appendarglist(struct arglist *list, char *str)
+{
+	char **newargs;
+	int newcapacity;
+
+	if (list->count >= list->capacity) {
+		newcapacity = list->capacity * 2;
+		if (newcapacity < 16)
+			newcapacity = 16;
+		if (newcapacity > INT_MAX / (int)sizeof(newargs[0]))
+			error("Too many entries in arglist");
+		newargs = stalloc(newcapacity * sizeof(newargs[0]));
+		memcpy(newargs, list->args, list->count * sizeof(newargs[0]));
+		list->args = newargs;
+		list->capacity = newcapacity;
+	}
+	list->args[list->count++] = str;
+}
 
 static int
 collate_range_cmp(wchar_t c1, wchar_t c2)
@@ -157,7 +184,7 @@ stputs_quotes(const char *data, const char *syntax, char *p)
 void
 expandarg(union node *arg, struct arglist *arglist, int flag)
 {
-	struct strlist *sp;
+	struct arglist exparg;
 	char *p;
 
 	argbackq = arg->narg.backquote;
@@ -171,18 +198,12 @@ expandarg(union node *arg, struct arglist *arglist, int flag)
 	}
 	STPUTC('\0', expdest);
 	p = grabstackstr(expdest);
-	exparg.lastp = &exparg.list;
+	emptyarglist(&exparg);
 	if (flag & EXP_FULL) {
 		ifsbreakup(p, &exparg);
-		*exparg.lastp = NULL;
-		exparg.lastp = &exparg.list;
-		expandmeta(exparg.list);
-	} else {
-		sp = (struct strlist *)stalloc(sizeof (struct strlist));
-		sp->text = p;
-		*exparg.lastp = sp;
-		exparg.lastp = &sp->next;
-	}
+		expandmeta(&exparg, arglist);
+	} else
+		appendarglist(arglist, p);
 	while (ifsfirst.next != NULL) {
 		struct ifsregion *ifsp;
 		INTOFF;
@@ -190,11 +211,6 @@ expandarg(union node *arg, struct arglist *arglist, int flag)
 		ckfree(ifsfirst.next);
 		ifsfirst.next = ifsp;
 		INTON;
-	}
-	*exparg.lastp = NULL;
-	if (exparg.list) {
-		*arglist->lastp = exparg.list;
-		arglist->lastp = exparg.lastp;
 	}
 }
 
@@ -984,7 +1000,6 @@ static void
 ifsbreakup(char *string, struct arglist *arglist)
 {
 	struct ifsregion *ifsp;
-	struct strlist *sp;
 	char *start;
 	char *p;
 	char *q;
@@ -996,10 +1011,7 @@ ifsbreakup(char *string, struct arglist *arglist)
 
 	if (ifslastp == NULL) {
 		/* Return entire argument, IFS doesn't apply to any of it */
-		sp = (struct strlist *)stalloc(sizeof *sp);
-		sp->text = start;
-		*arglist->lastp = sp;
-		arglist->lastp = &sp->next;
+		appendarglist(arglist, start);
 		return;
 	}
 
@@ -1038,10 +1050,7 @@ ifsbreakup(char *string, struct arglist *arglist)
 
 			/* Save this argument... */
 			*q = '\0';
-			sp = (struct strlist *)stalloc(sizeof *sp);
-			sp->text = start;
-			*arglist->lastp = sp;
-			arglist->lastp = &sp->next;
+			appendarglist(arglist, start);
 			p++;
 
 			if (ifsspc != NULL) {
@@ -1071,12 +1080,8 @@ ifsbreakup(char *string, struct arglist *arglist)
 	 * Some recent clarification of the Posix spec say that it
 	 * should only generate one....
 	 */
-	if (had_param_ch || *start != 0) {
-		sp = (struct strlist *)stalloc(sizeof *sp);
-		sp->text = start;
-		*arglist->lastp = sp;
-		arglist->lastp = &sp->next;
-	}
+	if (had_param_ch || *start != 0)
+		appendarglist(arglist, start);
 }
 
 
@@ -1086,45 +1091,42 @@ static char expdir[PATH_MAX];
 /*
  * Perform pathname generation and remove control characters.
  * At this point, the only control characters should be CTLESC and CTLQUOTEMARK.
- * The results are stored in the list exparg.
+ * The results are stored in the list dstlist.
  */
 static void
-expandmeta(struct strlist *str)
+expandmeta(struct arglist *srclist, struct arglist *dstlist)
 {
 	char *p;
-	struct strlist **savelastp;
-	struct strlist *sp;
+	int firstmatch;
+	int i;
 	char c;
 
-	while (str) {
-		savelastp = exparg.lastp;
+	for (i = 0; i < srclist->count; i++) {
+		firstmatch = dstlist->count;
 		if (!fflag) {
-			p = str->text;
+			p = srclist->args[i];
 			for (; (c = *p) != '\0'; p++) {
 				/* fast check for meta chars */
 				if (c == '*' || c == '?' || c == '[') {
 					INTOFF;
-					expmeta(expdir, str->text);
+					expmeta(expdir, srclist->args[i],
+					    dstlist);
 					INTON;
 					break;
 				}
 			}
 		}
-		if (exparg.lastp == savelastp) {
+		if (dstlist->count == firstmatch) {
 			/*
 			 * no matches
 			 */
-			*exparg.lastp = str;
-			rmescapes(str->text);
-			exparg.lastp = &str->next;
+			rmescapes(srclist->args[i]);
+			appendarglist(dstlist, srclist->args[i]);
 		} else {
-			*exparg.lastp = NULL;
-			*savelastp = sp = expsort(*savelastp);
-			while (sp->next != NULL)
-				sp = sp->next;
-			exparg.lastp = &sp->next;
+			qsort(&dstlist->args[firstmatch],
+			    dstlist->count - firstmatch,
+			    sizeof(dstlist->args[0]), expsortcmp);
 		}
-		str = str->next;
 	}
 }
 
@@ -1134,7 +1136,7 @@ expandmeta(struct strlist *str)
  */
 
 static void
-expmeta(char *enddir, char *name)
+expmeta(char *enddir, char *name, struct arglist *arglist)
 {
 	const char *p;
 	const char *q;
@@ -1199,7 +1201,7 @@ expmeta(char *enddir, char *name)
 				return;
 		}
 		if (metaflag == 0 || lstat(expdir, &statb) >= 0)
-			addfname(expdir);
+			appendarglist(arglist, stsavestr(expdir));
 		return;
 	}
 	endname = name + (p - name);
@@ -1251,7 +1253,7 @@ expmeta(char *enddir, char *name)
 				continue;
 			memcpy(enddir, dp->d_name, namlen + 1);
 			if (atend)
-				addfname(expdir);
+				appendarglist(arglist, stsavestr(expdir));
 			else {
 				if (dp->d_type != DT_UNKNOWN &&
 				    dp->d_type != DT_DIR &&
@@ -1261,7 +1263,7 @@ expmeta(char *enddir, char *name)
 					continue;
 				enddir[namlen] = '/';
 				enddir[namlen + 1] = '\0';
-				expmeta(enddir + namlen + 1, endname);
+				expmeta(enddir + namlen + 1, endname, arglist);
 			}
 		}
 	}
@@ -1271,81 +1273,13 @@ expmeta(char *enddir, char *name)
 }
 
 
-/*
- * Add a file name to the list.
- */
-
-static void
-addfname(char *name)
+static int
+expsortcmp(const void *p1, const void *p2)
 {
-	char *p;
-	struct strlist *sp;
+	const char *s1 = *(const char * const *)p1;
+	const char *s2 = *(const char * const *)p2;
 
-	p = stsavestr(name);
-	sp = (struct strlist *)stalloc(sizeof *sp);
-	sp->text = p;
-	*exparg.lastp = sp;
-	exparg.lastp = &sp->next;
-}
-
-
-/*
- * Sort the results of file name expansion.  It calculates the number of
- * strings to sort and then calls msort (short for merge sort) to do the
- * work.
- */
-
-static struct strlist *
-expsort(struct strlist *str)
-{
-	int len;
-	struct strlist *sp;
-
-	len = 0;
-	for (sp = str ; sp ; sp = sp->next)
-		len++;
-	return msort(str, len);
-}
-
-
-static struct strlist *
-msort(struct strlist *list, int len)
-{
-	struct strlist *p, *q = NULL;
-	struct strlist **lpp;
-	int half;
-	int n;
-
-	if (len <= 1)
-		return list;
-	half = len >> 1;
-	p = list;
-	for (n = half ; --n >= 0 ; ) {
-		q = p;
-		p = p->next;
-	}
-	q->next = NULL;			/* terminate first half of list */
-	q = msort(list, half);		/* sort first half of list */
-	p = msort(p, len - half);		/* sort second half */
-	lpp = &list;
-	for (;;) {
-		if (strcmp(p->text, q->text) < 0) {
-			*lpp = p;
-			lpp = &p->next;
-			if ((p = *lpp) == NULL) {
-				*lpp = q;
-				break;
-			}
-		} else {
-			*lpp = q;
-			lpp = &q->next;
-			if ((q = *lpp) == NULL) {
-				*lpp = p;
-				break;
-			}
-		}
-	}
-	return list;
+	return (strcmp(s1, s2));
 }
 
 
@@ -1666,11 +1600,11 @@ freebsd_wordexpcmd(int argc __unused, char **argv __unused)
 {
 	struct arglist arglist;
 	union node *args, *n;
-	struct strlist *sp;
-	size_t count, len;
+	size_t len;
 	int ch;
 	int protected = 0;
 	int fd = -1;
+	int i;
 
 	while ((ch = nextopt("f:p")) != '\0') {
 		switch (ch) {
@@ -1699,14 +1633,13 @@ freebsd_wordexpcmd(int argc __unused, char **argv __unused)
 			}
 		}
 	outcslow(' ', out1);
-	arglist.lastp = &arglist.list;
+	emptyarglist(&arglist);
 	for (n = args; n != NULL; n = n->narg.next)
 		expandarg(n, &arglist, EXP_FULL | EXP_TILDE);
-	*arglist.lastp = NULL;
-	for (sp = arglist.list, count = len = 0; sp; sp = sp->next)
-		count++, len += strlen(sp->text);
-	out1fmt("%016zx %016zx", count, len);
-	for (sp = arglist.list; sp; sp = sp->next)
-		outbin(sp->text, strlen(sp->text) + 1, out1);
+	for (i = 0, len = 0; i < arglist.count; i++)
+		len += strlen(arglist.args[i]);
+	out1fmt("%016x %016zx", arglist.count, len);
+	for (i = 0; i < arglist.count; i++)
+		outbin(arglist.args[i], strlen(arglist.args[i]) + 1, out1);
 	return (0);
 }
