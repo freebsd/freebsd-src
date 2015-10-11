@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 10, 2015
+.Dd September 15, 2015
 .Dt GNOP 8
 .Os
 .Sh NAME
@@ -72,10 +72,9 @@ The
 utility is used for setting up transparent providers on existing ones.
 Its main purpose is testing other GEOM classes, as it allows forced provider
 removal and I/O error simulation with a given probability.
-It also gathers statistics on the number of read, write, delete,
-getattr, flush, and other requests, and the number of bytes read and written.
-.Nm
-can also be used as a good starting point for implementing new GEOM
+It also gathers the following statistics: number of read requests, number of
+write requests, number of bytes read and number of bytes written.
+In addition, it can be used as a good starting point for implementing new GEOM
 classes.
 .Pp
 The first argument to

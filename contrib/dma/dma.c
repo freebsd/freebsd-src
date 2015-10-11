@@ -1,9 +1,8 @@
 /*
- * Copyright (c) 2008-2014, Simon Schubert <2@0x2c.org>.
  * Copyright (c) 2008 The DragonFly Project.  All rights reserved.
  *
  * This code is derived from software contributed to The DragonFly Project
- * by Simon Schubert <2@0x2c.org>.
+ * by Simon 'corecode' Schubert <corecode@fs.ei.tum.de>.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -248,7 +247,7 @@ go_background(struct queue *queue)
 
 	if (daemonize && daemon(0, 0) != 0) {
 		syslog(LOG_ERR, "can not daemonize: %m");
-		exit(EX_OSERR);
+		exit(1);
 	}
 	daemonize = 0;
 
@@ -265,7 +264,7 @@ go_background(struct queue *queue)
 		switch (pid) {
 		case -1:
 			syslog(LOG_ERR, "can not fork: %m");
-			exit(EX_OSERR);
+			exit(1);
 			break;
 
 		case 0:
@@ -287,11 +286,11 @@ retit:
 				break;
 			case 1:
 				if (doqueue)
-					exit(EX_OK);
+					exit(0);
 				syslog(LOG_WARNING, "could not lock queue file");
-				exit(EX_SOFTWARE);
+				exit(1);
 			default:
-				exit(EX_SOFTWARE);
+				exit(1);
 			}
 			dropspool(queue, it);
 			return (it);
@@ -307,7 +306,7 @@ retit:
 	}
 
 	syslog(LOG_CRIT, "reached dead code");
-	exit(EX_SOFTWARE);
+	exit(1);
 }
 
 static void
@@ -332,12 +331,12 @@ retry:
 	case 0:
 		delqueue(it);
 		syslog(LOG_INFO, "delivery successful");
-		exit(EX_OK);
+		exit(0);
 
 	case 1:
 		if (stat(it->queuefn, &st) != 0) {
 			syslog(LOG_ERR, "lost queue file `%s'", it->queuefn);
-			exit(EX_SOFTWARE);
+			exit(1);
 		}
 		if (gettimeofday(&now, NULL) == 0 &&
 		    (now.tv_sec - st.st_mtim.tv_sec > MAX_TIMEOUT)) {
@@ -439,16 +438,16 @@ main(int argc, char **argv)
 		pw = getpwnam(DMA_ROOT_USER);
 		if (pw == NULL) {
 			if (errno == 0)
-				errx(EX_CONFIG, "user '%s' not found", DMA_ROOT_USER);
+				errx(1, "user '%s' not found", DMA_ROOT_USER);
 			else
-				err(EX_OSERR, "cannot drop root privileges");
+				err(1, "cannot drop root privileges");
 		}
 
 		if (setuid(pw->pw_uid) != 0)
-			err(EX_OSERR, "cannot drop root privileges");
+			err(1, "cannot drop root privileges");
 
 		if (geteuid() == 0 || getuid() == 0)
-			errx(EX_OSERR, "cannot drop root privileges");
+			errx(1, "cannot drop root privileges");
 	}
 
 	atexit(deltmp);
@@ -461,15 +460,15 @@ main(int argc, char **argv)
 		argv++; argc--;
 		showq = 1;
 		if (argc != 0)
-			errx(EX_USAGE, "invalid arguments");
+			errx(1, "invalid arguments");
 		goto skipopts;
 	} else if (strcmp(argv[0], "newaliases") == 0) {
 		logident_base = "dma";
 		setlogident("%s", logident_base);
 
 		if (read_aliases() != 0)
-			errx(EX_SOFTWARE, "could not parse aliases file `%s'", config.aliases);
-		exit(EX_OK);
+			errx(1, "could not parse aliases file `%s'", config.aliases);
+		exit(0);
 	}
 
 	opterr = 0;
@@ -548,7 +547,7 @@ main(int argc, char **argv)
 
 		default:
 			fprintf(stderr, "invalid argument: `-%c'\n", optopt);
-			exit(EX_USAGE);
+			exit(1);
 		}
 	}
 	argc -= optind;
@@ -556,10 +555,10 @@ main(int argc, char **argv)
 	opterr = 1;
 
 	if (argc != 0 && (showq || doqueue))
-		errx(EX_USAGE, "sending mail and queue operations are mutually exclusive");
+		errx(1, "sending mail and queue operations are mutually exclusive");
 
 	if (showq + doqueue > 1)
-		errx(EX_USAGE, "conflicting queue operations");
+		errx(1, "conflicting queue operations");
 
 skipopts:
 	if (logident_base == NULL)
@@ -579,7 +578,7 @@ skipopts:
 
 	if (showq) {
 		if (load_queue(&queue) < 0)
-			errlog(EX_NOINPUT, "can not load queue");
+			errlog(1, "can not load queue");
 		show_queue(&queue);
 		return (0);
 	}
@@ -587,38 +586,38 @@ skipopts:
 	if (doqueue) {
 		flushqueue_signal();
 		if (load_queue(&queue) < 0)
-			errlog(EX_NOINPUT, "can not load queue");
+			errlog(1, "can not load queue");
 		run_queue(&queue);
 		return (0);
 	}
 
 	if (read_aliases() != 0)
-		errlog(EX_SOFTWARE, "could not parse aliases file `%s'", config.aliases);
+		errlog(1, "could not parse aliases file `%s'", config.aliases);
 
 	if ((sender = set_from(&queue, sender)) == NULL)
-		errlog(EX_SOFTWARE, NULL);
+		errlog(1, "set_from failed");
 
 	if (newspoolf(&queue) != 0)
-		errlog(EX_CANTCREAT, "can not create temp file in `%s'", config.spooldir);
+		errlog(1, "can not create temp file in `%s'", config.spooldir);
 
 	setlogident("%s", queue.id);
 
 	for (i = 0; i < argc; i++) {
 		if (add_recp(&queue, argv[i], EXPAND_WILDCARD) != 0)
-			errlogx(EX_DATAERR, "invalid recipient `%s'", argv[i]);
+			errlogx(1, "invalid recipient `%s'", argv[i]);
 	}
 
 	if (LIST_EMPTY(&queue.queue) && !recp_from_header)
-		errlogx(EX_NOINPUT, "no recipients");
+		errlogx(1, "no recipients");
 
 	if (readmail(&queue, nodot, recp_from_header) != 0)
-		errlog(EX_NOINPUT, "can not read mail");
+		errlog(1, "can not read mail");
 
 	if (LIST_EMPTY(&queue.queue))
-		errlogx(EX_NOINPUT, "no recipients");
+		errlogx(1, "no recipients");
 
 	if (linkspool(&queue) != 0)
-		errlog(EX_CANTCREAT, "can not create spools");
+		errlog(1, "can not create spools");
 
 	/* From here on the mail is safe. */
 

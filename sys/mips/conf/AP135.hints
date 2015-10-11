@@ -127,17 +127,6 @@ hint.ath.0.eepromsize=16384
 #
 # bootargs=console=ttyS0,115200 root=31:02 rootfstype=jffs2 init=/sbin/init mtdparts=ath-nor0:256k(u-boot),64k(u-boot-env),6336k(rootfs),1408k(uImage),8256k(mib0),64k(ART)
 
-# The default flash layout isn't enough to fit a freebsd kernel
-# now, so the layout has been shuffled around.
-#
-# By default it's set to:
-# 256KB uboot, 64KB uboot-env, 6336KB rootfs, 1344KB kernel, 64KB cfg, 8256MB mib0, 64KB ART
-# With 'bootcmd=bootm 0x9f680000' in the environment.
-#
-# Instead, now let's make it:
-# 256KB uboot, 64KB uboot-env, 2048MB kernel, 6144MB rootfs, 7644KB mib0, 64KB cfg, 64KB ART
-# .. and then you change the boot env to be:
-# 'bootcmd=bootm 0x9f050000'
 
 # 256KiB u-boot
 hint.map.0.at="flash/spi0"
@@ -153,37 +142,37 @@ hint.map.1.end=0x00050000	# 64k u-boot-env
 hint.map.1.name="u-boot-env"
 hint.map.1.readonly=1
 
-# 2048KiB kernel
+# 6336KiB rootfs
 hint.map.2.at="flash/spi0"
 hint.map.2.start=0x00050000
-hint.map.2.end=0x00250000	# 2048k rootfs
-hint.map.2.name="kernel"
+hint.map.2.end=0x00680000	# 6336k rootfs
+hint.map.2.name="rootfs"
 hint.map.2.readonly=1
 
-# 6144KiB rootfs
+# 1344KiB uImage
 hint.map.3.at="flash/spi0"
-hint.map.3.start=0x00250000
-hint.map.3.end=0x00850000
-hint.map.3.name="rootfs"
+hint.map.3.start=0x00680000
+hint.map.3.end=0x007d0000	# 1408k uImage, 64k off the end..
+hint.map.3.name="uImage"
 hint.map.3.readonly=1
 
-# 7644KiB mib0
+# 64KiB cfg
 hint.map.4.at="flash/spi0"
-hint.map.4.start=0x00850000
-hint.map.4.end=0x00fe0000
-hint.map.4.name="mib0"
+hint.map.4.start=0x007d0000
+hint.map.4.end=0x007e0000
+hint.map.4.name="cfg"
 hint.map.4.readonly=0
 
-# 64KiB cfg
+# 8256 KiB mib0
 hint.map.5.at="flash/spi0"
-hint.map.5.start=0x00fe0000
-hint.map.5.end=0x00ff0000
-hint.map.5.name="cfg"
-hint.map.5.readonly=0
+hint.map.5.start=0x007e0000
+hint.map.5.end=0x00ff0000	# 64k mib0
+hint.map.5.name="mib0"
+hint.map.5.readonly=1
 
 # 64KiB ART
 hint.map.6.at="flash/spi0"
-hint.map.6.start=0x00ff0000
+hint.map.6.start=0x007f0000
 hint.map.6.end=0x01000000	# 64k ART
 hint.map.6.name="ART"
 hint.map.6.readonly=1

@@ -43,7 +43,6 @@
 #define IIC_NOINTR	0
 #define IIC_WAIT	0x1
 #define IIC_INTR	0x2
-#define IIC_INTRWAIT	(IIC_INTR | IIC_WAIT)
 
 /*
  * i2c modes

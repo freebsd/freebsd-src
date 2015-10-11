@@ -1,9 +1,8 @@
 /*
- * Copyright (c) 2008-2014, Simon Schubert <2@0x2c.org>.
  * Copyright (c) 2008 The DragonFly Project.  All rights reserved.
  *
  * This code is derived from software contributed to The DragonFly Project
- * by Simon Schubert <2@0x2c.org>.
+ * by Simon 'corecode' Schubert <corecode@fs.ei.tum.de>.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -82,7 +81,7 @@ create_mbox(const char *name)
 
 		execl(LIBEXEC_PATH "/dma-mbox-create", "dma-mbox-create", name, NULL);
 		syslog(LOG_ERR, "cannot execute "LIBEXEC_PATH"/dma-mbox-create: %m");
-		exit(EX_SOFTWARE);
+		exit(1);
 
 	default:
 		/* parent */

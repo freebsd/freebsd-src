@@ -1,9 +1,8 @@
 /*
- * Copyright (c) 2008-2014, Simon Schubert <2@0x2c.org>.
  * Copyright (c) 2008 The DragonFly Project.  All rights reserved.
  *
  * This code is derived from software contributed to The DragonFly Project
- * by Simon Schubert <2@0x2c.org>.
+ * by Simon 'corecode' Schubert <corecode@fs.ei.tum.de>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -68,6 +67,7 @@ add_host(int pref, const char *host, int port, struct mx_hostentry **he, size_t 
 	char servname[10];
 	struct mx_hostentry *p;
 	const int count_inc = 10;
+	int err;
 
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_family = PF_UNSPEC;
@@ -75,26 +75,9 @@ add_host(int pref, const char *host, int port, struct mx_hostentry **he, size_t 
 	hints.ai_protocol = IPPROTO_TCP;
 
 	snprintf(servname, sizeof(servname), "%d", port);
-	switch (getaddrinfo(host, servname, &hints, &res0)) {
-	case 0:
-		break;
-	case EAI_AGAIN:
-	case EAI_NONAME:
-		/*
-		 * EAI_NONAME gets returned for:
-		 * SMARTHOST set but DNS server not reachable -> defer
-		 * SMARTHOST set but DNS server returns "host does not exist"
-		 *           -> buggy configuration
-		 *           -> either defer or bounce would be ok -> defer
-		 * MX entry was returned by DNS server but name doesn't resolve
-		 *           -> hopefully transient situation -> defer
-		 * all other DNS problems should have been caught earlier
-		 * in dns_get_mx_list().
-		 */
-		goto out;
-	default:
-		return(-1);
-	}
+	err = getaddrinfo(host, servname, &hints, &res0);
+	if (err)
+		return (err == EAI_AGAIN ? 1 : -1);
 
 	for (res = res0; res != NULL; res = res->ai_next) {
 		if (*ps + 1 >= roundup(*ps, count_inc)) {

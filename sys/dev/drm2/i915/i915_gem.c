@@ -2527,8 +2527,10 @@ i915_gem_object_unbind(struct drm_i915_gem_object *obj)
 	if (obj->gtt_space == NULL)
 		return 0;
 
-	if (obj->pin_count)
+	if (obj->pin_count) {
+		DRM_ERROR("Attempting to unbind pinned buffer\n");
 		return -EINVAL;
+	}
 
 	ret = i915_gem_object_finish_gpu(obj);
 	if (ret == -ERESTARTSYS || ret == -EINTR)

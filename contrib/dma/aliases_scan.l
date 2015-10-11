@@ -1,11 +1,11 @@
 %{
 
 #include <string.h>
-#include "dma.h"
 #include "aliases_parse.h"
 
 #define YY_NO_INPUT
 
+int yylex(void);
 %}
 
 %option yylineno

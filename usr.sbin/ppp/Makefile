@@ -22,7 +22,7 @@ PPP_NO_RADIUS=
 PPP_NO_SUID=
 .endif
 CONFS=	ppp.conf
-CONFSDIR=	${CONFIGDIR}/ppp
+CONFSDIR=	${ETCDIR}/ppp
 CONFSMODE=	600
 
 .if ${MK_ATM} == "no"

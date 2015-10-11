@@ -1,9 +1,8 @@
 /*
- * Copyright (c) 2008-2014, Simon Schubert <2@0x2c.org>.
  * Copyright (c) 2008 The DragonFly Project.  All rights reserved.
  *
  * This code is derived from software contributed to The DragonFly Project
- * by Simon Schubert <2@0x2c.org>.
+ * by Simon 'corecode' Schubert <corecode@fs.ei.tum.de>.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -52,7 +51,7 @@ bounce(struct qitem *it, const char *reason)
 	/* Don't bounce bounced mails */
 	if (it->sender[0] == 0) {
 		syslog(LOG_INFO, "can not bounce a bounce message, discarding");
-		exit(EX_SOFTWARE);
+		exit(1);
 	}
 
 	bzero(&bounceq, sizeof(bounceq));
@@ -133,7 +132,7 @@ bounce(struct qitem *it, const char *reason)
 fail:
 	syslog(LOG_CRIT, "error creating bounce: %m");
 	delqueue(it);
-	exit(EX_IOERR);
+	exit(1);
 }
 
 struct parse_state {
@@ -333,10 +332,10 @@ newaddr:
 	ps->pos = 0;
 	addr = strdup(ps->addr);
 	if (addr == NULL)
-		errlog(EX_SOFTWARE, NULL);
+		errlog(1, "strdup failed");
 
 	if (add_recp(queue, addr, EXPAND_WILDCARD) != 0)
-		errlogx(EX_DATAERR, "invalid recipient `%s'", addr);
+		errlogx(1, "invalid recipient `%s'", addr);
 
 	goto again;
 }
@@ -375,9 +374,7 @@ readmail(struct queue *queue, int nodot, int recp_from_header)
 		if (fgets(line, sizeof(line) - 1, stdin) == NULL)
 			break;
 		if (had_last_line)
-			errlogx(EX_DATAERR, "bad mail input format:"
-				" from %s (uid %d) (envelope-from %s)",
-				username, useruid, queue->sender);
+			errlogx(1, "bad mail input format");
 		linelen = strlen(line);
 		if (linelen == 0 || line[linelen - 1] != '\n') {
 			/*
@@ -408,7 +405,7 @@ readmail(struct queue *queue, int nodot, int recp_from_header)
 
 			if (parse_state.state != NONE) {
 				if (parse_addrs(&parse_state, line, queue) < 0) {
-					errlogx(EX_DATAERR, "invalid address in header\n");
+					errlogx(1, "invalid address in header\n");
 					/* NOTREACHED */
 				}
 			}
@@ -419,7 +416,7 @@ readmail(struct queue *queue, int nodot, int recp_from_header)
 					strprefixcmp(line, "Bcc:") == 0)) {
 				parse_state.state = START;
 				if (parse_addrs(&parse_state, line, queue) < 0) {
-					errlogx(EX_DATAERR, "invalid address in header\n");
+					errlogx(1, "invalid address in header\n");
 					/* NOTREACHED */
 				}
 			}

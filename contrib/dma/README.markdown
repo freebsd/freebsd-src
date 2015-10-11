@@ -15,13 +15,8 @@ incoming connections.
 Building
 --------
 
-In Linux:
-
 	make
 
-In BSD:
-
-	cd bsd && make
 
 Installation
 ------------

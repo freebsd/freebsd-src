@@ -1,9 +1,9 @@
 /*
- * Copyright (c) 2010-2014, Simon Schubert <2@0x2c.org>.
+ * Copyright (c) 2010 Simon Schubert <2@0x2c.org>
  * Copyright (c) 2008 The DragonFly Project.  All rights reserved.
  *
  * This code is derived from software contributed to The DragonFly Project
- * by Simon Schubert <2@0x2c.org>.
+ * by Simon 'corecode' Schubert <corecode@fs.ei.tum.de>.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -54,7 +54,7 @@
 
 
 static void
-logfail(int exitcode, const char *fmt, ...)
+logfail(const char *fmt, ...)
 {
 	int oerrno = errno;
 	va_list ap;
@@ -73,7 +73,7 @@ logfail(int exitcode, const char *fmt, ...)
 	else
 		syslog(LOG_ERR, errno ? "%m" : "unknown error");
 
-	exit(exitcode);
+	exit(1);
 }
 
 /*
@@ -98,21 +98,21 @@ main(int argc, char **argv)
 	errno = 0;
 	gr = getgrnam(DMA_GROUP);
 	if (!gr)
-		logfail(EX_CONFIG, "cannot find dma group `%s'", DMA_GROUP);
+		logfail("cannot find dma group `%s'", DMA_GROUP);
 
 	mail_gid = gr->gr_gid;
 
 	if (setgid(mail_gid) != 0)
-		logfail(EX_NOPERM, "cannot set gid to %d (%s)", mail_gid, DMA_GROUP);
+		logfail("cannot set gid to %d (%s)", mail_gid, DMA_GROUP);
 	if (getegid() != mail_gid)
-		logfail(EX_NOPERM, "cannot set gid to %d (%s), still at %d", mail_gid, DMA_GROUP, getegid());
+		logfail("cannot set gid to %d (%s), still at %d", mail_gid, DMA_GROUP, getegid());
 
 	/*
 	 * We take exactly one argument: the username.
 	 */
 	if (argc != 2) {
 		errno = 0;
-		logfail(EX_USAGE, "no arguments");
+		logfail("no arguments");
 	}
 	user = argv[1];
 
@@ -121,7 +121,7 @@ main(int argc, char **argv)
 	/* the username may not contain a pathname separator */
 	if (strchr(user, '/')) {
 		errno = 0;
-		logfail(EX_DATAERR, "path separator in username `%s'", user);
+		logfail("path separator in username `%s'", user);
 		exit(1);
 	}
 
@@ -129,7 +129,7 @@ main(int argc, char **argv)
 	errno = 0;
 	pw = getpwnam(user);
 	if (!pw)
-		logfail(EX_NOUSER, "cannot find user `%s'", user);
+		logfail("cannot find user `%s'", user);
 
 	user_uid = pw->pw_uid;
 
@@ -137,20 +137,20 @@ main(int argc, char **argv)
 	if (error < 0 || (size_t)error >= sizeof(fn)) {
 		if (error >= 0) {
 			errno = 0;
-			logfail(EX_USAGE, "mbox path too long");
+			logfail("mbox path too long");
 		}
-		logfail(EX_CANTCREAT, "cannot build mbox path for `%s/%s'", _PATH_MAILDIR, user);
+		logfail("cannot build mbox path for `%s/%s'", _PATH_MAILDIR, user);
 	}
 
 	f = open(fn, O_RDONLY|O_CREAT, 0600);
 	if (f < 0)
-		logfail(EX_NOINPUT, "cannt open mbox `%s'", fn);
+		logfail("cannot open mbox `%s'", fn);
 
 	if (fchown(f, user_uid, mail_gid))
-		logfail(EX_OSERR, "cannot change owner of mbox `%s'", fn);
+		logfail("cannot change owner of mbox `%s'", fn);
 
 	if (fchmod(f, 0620))
-		logfail(EX_OSERR, "cannot change permissions of mbox `%s'", fn);
+		logfail("cannot change permissions of mbox `%s'", fn);
 
 	/* file should be present with the right owner and permissions */
 

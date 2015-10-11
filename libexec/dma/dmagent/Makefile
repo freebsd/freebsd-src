@@ -17,7 +17,7 @@ SRCS=	aliases_parse.y \
 	util.c
 MAN8=	dma.8
 CONFS=	dma.conf
-CONFSDIR=	${CONFIGDIR}/dma
+CONFSDIR=	${ETCDIR}/dma
 YFLAGS+=	-i
 CLEANFILES=	aliases_parse.i
 FILES=	mailer.conf

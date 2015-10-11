@@ -52,9 +52,9 @@ device driver provides support for VirtIO Ethernet devices.
 If the hypervisor advertises the appreciate features, the
 .Nm
 driver supports TCP/UDP checksum offload for both transmit and receive,
-TCP segmentation offload (TSO), TCP large receive offload (LRO),
-hardware VLAN tag stripping/insertion features, a multicast hash filter,
-as well as Jumbo Frames (up to 9216 bytes), which can be
+TCP segmentation offload (TSO), TCP large receive offload (LRO), and
+hardware VLAN tag stripping/insertion features, as well as a multicast
+hash filter, as well as Jumbo Frames (up to 9216 bytes), which can be
 configured via the interface MTU setting.
 Selecting an MTU larger than 1500 bytes with the
 .Xr ifconfig 8

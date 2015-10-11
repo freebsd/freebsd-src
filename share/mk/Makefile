@@ -13,7 +13,6 @@ FILES=	\
 	bsd.README \
 	bsd.arch.inc.mk \
 	bsd.compiler.mk \
-	bsd.confs.mk \
 	bsd.cpu.mk \
 	bsd.crunchgen.mk \
 	bsd.dep.mk \
