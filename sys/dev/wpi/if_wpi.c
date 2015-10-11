@@ -1093,6 +1093,7 @@ wpi_update_rx_ring_ps(struct wpi_softc *sc)
 		return;
 	}
 
+	WPI_TXQ_LOCK(sc);
 	WPI_SETBITS(sc, WPI_GP_CNTRL, WPI_GP_CNTRL_MAC_ACCESS_REQ);
 	if (WPI_READ(sc, WPI_GP_CNTRL) & WPI_GP_CNTRL_SLEEP) {
 		DPRINTF(sc, WPI_DEBUG_PWRSAVE, "%s: wakeup request\n",
@@ -1102,6 +1103,7 @@ wpi_update_rx_ring_ps(struct wpi_softc *sc)
 		wpi_update_rx_ring(sc);
 		WPI_CLRBITS(sc, WPI_GP_CNTRL, WPI_GP_CNTRL_MAC_ACCESS_REQ);
 	}
+	WPI_TXQ_UNLOCK(sc);
 }
 
 static void
