@@ -176,7 +176,7 @@ struct wpi_softc {
 	struct wpi_dma_info	shared_dma;
 	struct wpi_shared	*shared;
 
-	struct wpi_tx_ring	txq[WPI_NTXQUEUES];
+	struct wpi_tx_ring	txq[WPI_DRV_NTXQUEUES];
 	struct mtx		txq_mtx;
 	struct mtx		txq_state_mtx;
 
