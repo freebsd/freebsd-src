@@ -1283,6 +1283,8 @@ _cat=		bin/cat
 
 .if ${BOOTSTRAPPING} < 1000033
 _lex=		usr.bin/lex
+
+${_bt}-usr.bin/lex: ${_bt}-usr.bin/m4
 .endif
 
 .if ${BOOTSTRAPPING} >= 900040 && ${BOOTSTRAPPING} < 900041
