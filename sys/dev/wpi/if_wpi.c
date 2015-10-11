@@ -2595,7 +2595,7 @@ wpi_cmd2(struct wpi_softc *sc, struct wpi_buf *buf)
 	if (__predict_false(sc->sc_running == 0)) {
 		/* wpi_stop() was called */
 		error = ENETDOWN;
-		goto fail;
+		goto end;
 	}
 
 	wh = mtod(buf->m, struct ieee80211_frame *);
@@ -2604,7 +2604,7 @@ wpi_cmd2(struct wpi_softc *sc, struct wpi_buf *buf)
 
 	if (__predict_false(totlen < sizeof(struct ieee80211_frame_min))) {
 		error = EINVAL;
-		goto fail;
+		goto end;
 	}
 
 	if (hdrlen & 3) {
@@ -2635,7 +2635,7 @@ wpi_cmd2(struct wpi_softc *sc, struct wpi_buf *buf)
 	if (error != 0 && error != EFBIG) {
 		device_printf(sc->sc_dev,
 		    "%s: can't map mbuf (error %d)\n", __func__, error);
-		goto fail;
+		goto end;
 	}
 	if (error != 0) {
 		/* Too many DMA segments, linearize mbuf. */
@@ -2644,17 +2644,29 @@ wpi_cmd2(struct wpi_softc *sc, struct wpi_buf *buf)
 			device_printf(sc->sc_dev,
 			    "%s: could not defrag mbuf\n", __func__);
 			error = ENOBUFS;
-			goto fail;
+			goto end;
 		}
 		buf->m = m1;
 
 		error = bus_dmamap_load_mbuf_sg(ring->data_dmat, data->map,
 		    buf->m, segs, &nsegs, BUS_DMA_NOWAIT);
 		if (__predict_false(error != 0)) {
+			/* XXX fix this (applicable to the iwn(4) too) */
+			/*
+			 * NB: Do not return error;
+			 * original mbuf does not exist anymore.
+			 */
 			device_printf(sc->sc_dev,
 			    "%s: can't map mbuf (error %d)\n", __func__,
 			    error);
-			goto fail;
+			if (ring->qid < WPI_CMD_QUEUE_NUM) {
+				if_inc_counter(buf->ni->ni_vap->iv_ifp,
+				    IFCOUNTER_OERRORS, 1);
+				ieee80211_free_node(buf->ni);
+			}
+			m_freem(buf->m);
+			error = 0;
+			goto end;
 		}
 	}
 
@@ -2698,19 +2710,12 @@ wpi_cmd2(struct wpi_softc *sc, struct wpi_buf *buf)
 		WPI_TXQ_STATE_UNLOCK(sc);
 	}
 
-	DPRINTF(sc, WPI_DEBUG_TRACE, TRACE_STR_END, __func__);
+end:	DPRINTF(sc, WPI_DEBUG_TRACE, error ? TRACE_STR_END_ERR : TRACE_STR_END,
+	    __func__);
 
 	WPI_TXQ_UNLOCK(sc);
 
-	return 0;
-
-fail:	m_freem(buf->m);
-
-	DPRINTF(sc, WPI_DEBUG_TRACE, TRACE_STR_END_ERR, __func__);
-
-	WPI_TXQ_UNLOCK(sc);
-
-	return error;
+	return (error);
 }
 
 /*
@@ -2731,7 +2736,7 @@ wpi_tx_data(struct wpi_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 	uint32_t flags;
 	uint16_t ac, qos;
 	uint8_t tid, type, rate;
-	int error, swcrypt, ismcast, totlen;
+	int swcrypt, ismcast, totlen;
 
 	wh = mtod(m, struct ieee80211_frame *);
 	type = wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK;
@@ -2771,10 +2776,9 @@ wpi_tx_data(struct wpi_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 	if (wh->i_fc[1] & IEEE80211_FC1_PROTECTED) {
 		/* Retrieve key for TX. */
 		k = ieee80211_crypto_encap(ni, m);
-		if (k == NULL) {
-			error = ENOBUFS;
-			goto fail;
-		}
+		if (k == NULL)
+			return (ENOBUFS);
+
 		swcrypt = k->wk_flags & IEEE80211_KEY_SWCRYPT;
 
 		/* 802.11 header may have moved. */
@@ -2843,8 +2847,7 @@ wpi_tx_data(struct wpi_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 		if (wn->id == WPI_ID_UNDEFINED) {
 			device_printf(sc->sc_dev,
 			    "%s: undefined node id\n", __func__);
-			error = EINVAL;
-			goto fail;
+			return (EINVAL);
 		}
 
 		tx->id = wn->id;
@@ -2880,9 +2883,6 @@ wpi_tx_data(struct wpi_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 	tx_data.ac = ac;
 
 	return wpi_cmd2(sc, &tx_data);
-
-fail:	m_freem(m);
-	return error;
 }
 
 static int
@@ -2923,10 +2923,9 @@ wpi_tx_data_raw(struct wpi_softc *sc, struct mbuf *m,
 	if (params->ibp_flags & IEEE80211_BPF_CRYPTO) {
 		/* Retrieve key for TX. */
 		k = ieee80211_crypto_encap(ni, m);
-		if (k == NULL) {
-			m_freem(m);
-			return ENOBUFS;
-		}
+		if (k == NULL)
+			return (ENOBUFS);
+
 		swcrypt = k->wk_flags & IEEE80211_KEY_SWCRYPT;
 
 		/* 802.11 header may have moved. */
@@ -3026,7 +3025,6 @@ wpi_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	WPI_TX_LOCK(sc);
 
 	if (sc->sc_running == 0 || wpi_tx_ring_is_full(sc, ac)) {
-		m_freem(m);
 		error = sc->sc_running ? ENOBUFS : ENETDOWN;
 		goto unlock;
 	}
@@ -3049,6 +3047,7 @@ unlock:	WPI_TX_UNLOCK(sc);
 
 	if (error != 0) {
 		wpi_handle_tx_failure(ni);
+		m_freem(m);
 		DPRINTF(sc, WPI_DEBUG_TRACE, TRACE_STR_END_ERR, __func__);
 
 		return error;
@@ -3087,6 +3086,7 @@ wpi_transmit(struct ieee80211com *ic, struct mbuf *m)
 	ni = (struct ieee80211_node *)m->m_pkthdr.rcvif;
 	if (wpi_tx_data(sc, m, ni) != 0) {
 		wpi_handle_tx_failure(ni);
+		m_freem(m);
 	}
 
 	DPRINTF(sc, WPI_DEBUG_XMIT, "%s: done\n", __func__);
@@ -4300,6 +4300,7 @@ wpi_config_beacon(struct wpi_vap *wvp)
 		device_printf(sc->sc_dev,
 		    "%s: could not update beacon frame, error %d", __func__,
 		    error);
+		m_freem(bcn->m);
 	}
 
 	/* Restore mbuf. */
