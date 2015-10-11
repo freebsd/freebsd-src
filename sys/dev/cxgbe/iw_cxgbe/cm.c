@@ -99,7 +99,7 @@ static int abort_connection(struct c4iw_ep *ep);
 static void peer_close_upcall(struct c4iw_ep *ep);
 static void peer_abort_upcall(struct c4iw_ep *ep);
 static void connect_reply_upcall(struct c4iw_ep *ep, int status);
-static void connect_request_upcall(struct c4iw_ep *ep);
+static int connect_request_upcall(struct c4iw_ep *ep);
 static void established_upcall(struct c4iw_ep *ep);
 static void process_mpa_reply(struct c4iw_ep *ep);
 static void process_mpa_request(struct c4iw_ep *ep);
@@ -1216,7 +1216,6 @@ static int abort_connection(struct c4iw_ep *ep)
 	int err;
 
 	CTR2(KTR_IW_CXGBE, "%s:abB %p", __func__, ep);
-	close_complete_upcall(ep, -ECONNRESET);
 	state_set(&ep->com, ABORTING);
 	abort_socket(ep);
 	err = close_socket(&ep->com, 0);
@@ -1319,9 +1318,10 @@ static void connect_reply_upcall(struct c4iw_ep *ep, int status)
 	CTR2(KTR_IW_CXGBE, "%s:cruE %p", __func__, ep);
 }
 
-static void connect_request_upcall(struct c4iw_ep *ep)
+static int connect_request_upcall(struct c4iw_ep *ep)
 {
 	struct iw_cm_event event;
+	int ret;
 
 	CTR3(KTR_IW_CXGBE, "%s: ep %p, mpa_v1 %d", __func__, ep,
 	    ep->tried_with_mpa_v1);
@@ -1355,10 +1355,14 @@ static void connect_request_upcall(struct c4iw_ep *ep)
 	}
 
 	c4iw_get_ep(&ep->com);
-	ep->parent_ep->com.cm_id->event_handler(ep->parent_ep->com.cm_id,
+	ret = ep->parent_ep->com.cm_id->event_handler(ep->parent_ep->com.cm_id,
 	    &event);
+	if(ret)
+		c4iw_put_ep(&ep->com);
+
 	set_bit(CONNREQ_UPCALL, &ep->com.history);
 	c4iw_put_ep(&ep->parent_ep->com);
+	return ret;
 }
 
 static void established_upcall(struct c4iw_ep *ep)
@@ -1835,9 +1839,11 @@ abort:
 
 	/* drive upcall */
 	mutex_lock(&ep->parent_ep->com.mutex);
-	if (ep->parent_ep->com.state != DEAD)
-		connect_request_upcall(ep);
-	else
+	if (ep->parent_ep->com.state != DEAD) {
+		if(connect_request_upcall(ep)) {
+			abort_connection(ep);
+		}
+	}else
 		abort_connection(ep);
 	mutex_unlock(&ep->parent_ep->com.mutex);
 }
@@ -2213,7 +2219,7 @@ int c4iw_ep_disconnect(struct c4iw_ep *ep, int abrupt, gfp_t gfp)
 
 		CTR2(KTR_IW_CXGBE, "%s:ced1 %p", __func__, ep);
 		fatal = 1;
-		close_complete_upcall(ep, -EIO);
+		close_complete_upcall(ep, -ECONNRESET);
 		ep->com.state = DEAD;
 	}
 	CTR3(KTR_IW_CXGBE, "%s:ced2 %p %s", __func__, ep,
