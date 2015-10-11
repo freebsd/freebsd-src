@@ -31,6 +31,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20151011:
+	Compatibility shims for legacy ATA device names have been removed.
+	It includes ATA_STATIC_ID kernel option, kern.cam.ada.legacy_aliases
+	and kern.geom.raid.legacy_aliases loader tunables, kern.devalias.*
+	environment variables, /dev/ad* and /dev/ar* symbolic links.
+
 20151006:
 	Clang, llvm, lldb, compiler-rt and libc++ have been upgraded to 3.7.0.
 	Please see the 20141231 entry below for information about prerequisites

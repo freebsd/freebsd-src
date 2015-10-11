@@ -101,7 +101,6 @@ int			xpt_path_string(struct cam_path *path, char *str,
 path_id_t		xpt_path_path_id(struct cam_path *path);
 target_id_t		xpt_path_target_id(struct cam_path *path);
 lun_id_t		xpt_path_lun_id(struct cam_path *path);
-int			xpt_path_legacy_ata_id(struct cam_path *path);
 struct cam_sim		*xpt_path_sim(struct cam_path *path);
 struct cam_periph	*xpt_path_periph(struct cam_path *path);
 void			xpt_async(u_int32_t async_code, struct cam_path *path,
