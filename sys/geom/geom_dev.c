@@ -280,9 +280,9 @@ g_dev_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 	struct g_geom *gp;
 	struct g_consumer *cp;
 	struct g_dev_softc *sc;
-	int error, len;
-	struct cdev *dev, *adev;
-	char buf[SPECNAMELEN + 6], *val;
+	int error;
+	struct cdev *dev;
+	char buf[SPECNAMELEN + 6];
 
 	g_trace(G_T_TOPOLOGY, "dev_taste(%s,%s)", mp->name, pp->name);
 	g_topology_assert();
@@ -310,33 +310,9 @@ g_dev_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 	dev->si_flags |= SI_UNMAPPED;
 	sc->sc_dev = dev;
 
-	/* Search for device alias name and create it if found. */
-	adev = NULL;
-	for (len = MIN(strlen(gp->name), sizeof(buf) - 15); len > 0; len--) {
-		snprintf(buf, sizeof(buf), "kern.devalias.%s", gp->name);
-		buf[14 + len] = 0;
-		val = kern_getenv(buf);
-		if (val != NULL) {
-			snprintf(buf, sizeof(buf), "%s%s",
-			    val, gp->name + len);
-			freeenv(val);
-			if ((make_dev_alias_p(MAKEDEV_CHECKNAME|MAKEDEV_WAITOK,
-			    &adev, dev, "%s", buf)) != 0)
-				printf("Warning: unable to create device "
-				    "alias %s\n", buf);
-			break;
-		}
-	}
-
 	dev->si_iosize_max = MAXPHYS;
 	dev->si_drv2 = cp;
 	init_dumpdev(dev);
-	if (adev != NULL) {
-		adev->si_iosize_max = MAXPHYS;
-		adev->si_drv2 = cp;
-		adev->si_flags |= SI_UNMAPPED;
-		init_dumpdev(adev);
-	}
 
 	g_dev_attrchanged(cp, "GEOM::physpath");
 	snprintf(buf, sizeof(buf), "cdev=%s", gp->name);
