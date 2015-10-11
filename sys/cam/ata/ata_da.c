@@ -1345,12 +1345,9 @@ adaregister(struct cam_periph *periph, void *arg)
 
 	dp = &softc->params;
 	snprintf(announce_buf, sizeof(announce_buf),
-		"%juMB (%ju %u byte sectors: %dH %dS/T %dC)",
-		(uintmax_t)(((uintmax_t)dp->secsize *
-		dp->sectors) / (1024*1024)),
-		(uintmax_t)dp->sectors,
-		dp->secsize, dp->heads,
-		dp->secs_per_track, dp->cylinders);
+	    "%juMB (%ju %u byte sectors)",
+	    ((uintmax_t)dp->secsize * dp->sectors) / (1024 * 1024),
+	    (uintmax_t)dp->sectors, dp->secsize);
 	xpt_announce_periph(periph, announce_buf);
 	xpt_announce_quirks(periph, softc->quirks, ADA_Q_BIT_STRING);
 
