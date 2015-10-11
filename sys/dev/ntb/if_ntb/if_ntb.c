@@ -853,7 +853,8 @@ ntb_rx_pendq_full(void *arg)
 static void
 ntb_transport_rx(struct ntb_transport_qp *qp)
 {
-	int rc, i;
+	uint64_t i;
+	int rc;
 
 	/* 
 	 * Limit the number of packets processed in a single interrupt to
@@ -861,7 +862,7 @@ ntb_transport_rx(struct ntb_transport_qp *qp)
 	 */
 	mtx_lock(&qp->transport->rx_lock);
 	CTR0(KTR_NTB, "RX: transport_rx");
-	for (i = 0; i < NTB_RX_MAX_PKTS; i++) {
+	for (i = 0; i < qp->rx_max_entry; i++) {
 		rc = ntb_process_rxc(qp);
 		if (rc != 0) {
 			CTR0(KTR_NTB, "RX: process_rxc failed");
