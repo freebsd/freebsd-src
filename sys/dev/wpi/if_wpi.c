@@ -425,7 +425,7 @@ wpi_attach(device_t dev)
 	}
 
 	/* Allocate TX rings - 4 for QoS purposes, 1 for commands. */
-	for (i = 0; i < WPI_NTXQUEUES; i++) {
+	for (i = 0; i < WPI_DRV_NTXQUEUES; i++) {
 		if ((error = wpi_alloc_tx_ring(sc, &sc->txq[i], i)) != 0) {
 			device_printf(dev,
 			    "could not allocate TX ring %d, error %d\n", i,
@@ -713,7 +713,7 @@ wpi_detach(device_t dev)
 
 	if (sc->txq[0].data_dmat) {
 		/* Free DMA resources. */
-		for (qid = 0; qid < WPI_NTXQUEUES; qid++)
+		for (qid = 0; qid < WPI_DRV_NTXQUEUES; qid++)
 			wpi_free_tx_ring(sc, &sc->txq[qid]);
 
 		wpi_free_rx_ring(sc);
@@ -1185,16 +1185,6 @@ wpi_alloc_tx_ring(struct wpi_softc *sc, struct wpi_tx_ring *ring, uint8_t qid)
 	sc->shared->txbase[qid] = htole32(ring->desc_dma.paddr);
 	bus_dmamap_sync(sc->shared_dma.tag, sc->shared_dma.map,
 	    BUS_DMASYNC_PREWRITE);
-
-	/*
-	 * We only use rings 0 through 4 (4 EDCA + cmd) so there is no need
-	 * to allocate commands space for other rings.
-	 * XXX Do we really need to allocate descriptors for other rings?
-	 */
-	if (qid > WPI_CMD_QUEUE_NUM) {
-		DPRINTF(sc, WPI_DEBUG_TRACE, TRACE_STR_END, __func__);
-		return 0;
-	}
 
 	size = WPI_TX_RING_COUNT * sizeof (struct wpi_tx_cmd);
 	error = wpi_dma_contig_alloc(sc, &ring->cmd_dma, (void **)&ring->cmd,
@@ -5326,7 +5316,7 @@ wpi_hw_stop(struct wpi_softc *sc)
 	wpi_reset_rx_ring(sc);
 
 	/* Reset all TX rings. */
-	for (qid = 0; qid < WPI_NTXQUEUES; qid++)
+	for (qid = 0; qid < WPI_DRV_NTXQUEUES; qid++)
 		wpi_reset_tx_ring(sc, &sc->txq[qid]);
 
 	if (wpi_nic_lock(sc) == 0) {
