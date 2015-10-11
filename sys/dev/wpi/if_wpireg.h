@@ -978,7 +978,7 @@ static const struct wpi_pmgt {
 	uint32_t	rxtimeout;
 	uint32_t	txtimeout;
 	uint32_t	intval[5];
-	int		skip_dtim;
+	uint8_t		skip_dtim;
 } wpi_pmgt[WPI_NDTIMRANGES][WPI_NPOWERLEVELS] = {
 	/* DTIM <= 10 */
 	{
