@@ -1129,12 +1129,20 @@ ntb_set_mw(struct ntb_netdev *nt, int num_mw, unsigned int size)
 {
 	struct ntb_transport_mw *mw = &nt->mw[num_mw];
 
+	/* No need to re-setup */
+	if (mw->size == size)
+		return (0);
+
+	if (mw->size != 0)
+		ntb_free_mw(nt, num_mw);
+
 	/* Alloc memory for receiving data.  Must be 4k aligned */
 	mw->size = size;
 
 	mw->virt_addr = contigmalloc(mw->size, M_NTB_IF, M_ZERO, 0,
 	    BUS_SPACE_MAXADDR, mw->size, 0);
 	if (mw->virt_addr == NULL) {
+		mw->size = 0;
 		printf("ntb: Unable to allocate MW buffer of size %d\n",
 		    (int)mw->size);
 		return (ENOMEM);
