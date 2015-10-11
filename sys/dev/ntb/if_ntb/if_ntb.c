@@ -562,7 +562,6 @@ ntb_transport_init_queue(struct ntb_netdev *nt, unsigned int qp_num)
 	qp->tx_max_frame = min(transport_mtu + sizeof(struct ntb_payload_header),
 	    tx_size);
 	qp->tx_max_entry = tx_size / qp->tx_max_frame;
-	qp->tx_index = 0;
 
 	callout_init(&qp->link_work, 0);
 	callout_init(&qp->queue_full, 1);
@@ -1192,7 +1191,6 @@ ntb_transport_setup_qp_mw(struct ntb_netdev *nt, unsigned int qp_num)
 	    rx_size);
 	qp->rx_max_entry = rx_size / qp->rx_max_frame;
 	qp->rx_index = 0;
-	qp->tx_index = 0;
 
 	qp->remote_rx_info->entry = qp->rx_max_entry;
 
@@ -1206,6 +1204,7 @@ ntb_transport_setup_qp_mw(struct ntb_netdev *nt, unsigned int qp_num)
 
 	qp->rx_pkts = 0;
 	qp->tx_pkts = 0;
+	qp->tx_index = 0;
 }
 
 static void
