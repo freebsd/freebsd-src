@@ -1840,21 +1840,6 @@ ctl_be_block_open_file(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 		return (error);
 	}
 
-	/*
-	 * Verify that we have the ability to upgrade to exclusive
-	 * access on this file so we can trap errors at open instead
-	 * of reporting them during first access.
-	 */
-	if (VOP_ISLOCKED(be_lun->vn) != LK_EXCLUSIVE) {
-		vn_lock(be_lun->vn, LK_UPGRADE | LK_RETRY);
-		if (be_lun->vn->v_iflag & VI_DOOMED) {
-			error = EBADF;
-			snprintf(req->error_str, sizeof(req->error_str),
-				 "error locking file %s", be_lun->dev_path);
-			return (error);
-		}
-	}
-
 	file_data->cred = crhold(curthread->td_ucred);
 	if (params->lun_size_bytes != 0)
 		be_lun->size_bytes = params->lun_size_bytes;
