@@ -559,8 +559,9 @@ ntb_transport_init_queue(struct ntb_netdev *nt, unsigned int qp_num)
 	tx_size -= sizeof(struct ntb_rx_info);
 
 	qp->tx_mw = qp->rx_info + 1;
+	/* Due to house-keeping, there must be at least 2 buffs */
 	qp->tx_max_frame = min(transport_mtu + sizeof(struct ntb_payload_header),
-	    tx_size);
+	    tx_size / 2);
 	qp->tx_max_entry = tx_size / qp->tx_max_frame;
 
 	callout_init(&qp->link_work, 0);
@@ -1187,12 +1188,13 @@ ntb_transport_setup_qp_mw(struct ntb_netdev *nt, unsigned int qp_num)
 	rx_size -= sizeof(struct ntb_rx_info);
 
 	qp->rx_buff = qp->remote_rx_info + 1;
+	/* Due to house-keeping, there must be at least 2 buffs */
 	qp->rx_max_frame = min(transport_mtu + sizeof(struct ntb_payload_header),
-	    rx_size);
+	    rx_size / 2);
 	qp->rx_max_entry = rx_size / qp->rx_max_frame;
 	qp->rx_index = 0;
 
-	qp->remote_rx_info->entry = qp->rx_max_entry;
+	qp->remote_rx_info->entry = qp->rx_max_entry - 1;
 
 	/* setup the hdr offsets with 0's */
 	for (i = 0; i < qp->rx_max_entry; i++) {
