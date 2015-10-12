@@ -47,8 +47,11 @@ typedef int win32_xlate__dummy;
 #include "svn_string.h"
 #include "svn_utf.h"
 #include "private/svn_atomic.h"
+#include "private/svn_subr_private.h"
 
 #include "win32_xlate.h"
+
+#include "svn_private_config.h"
 
 static svn_atomic_t com_initialized = 0;
 
@@ -74,11 +77,11 @@ initialize_com(void *baton, apr_pool_t* pool)
   return SVN_NO_ERROR;
 }
 
-typedef struct win32_xlate_t
+struct svn_subr__win32_xlate_t
 {
   UINT from_page_id;
   UINT to_page_id;
-} win32_xlate_t;
+};
 
 static apr_status_t
 get_page_id_from_name(UINT *page_id_p, const char *page_name, apr_pool_t *pool)
@@ -113,16 +116,26 @@ get_page_id_from_name(UINT *page_id_p, const char *page_name, apr_pool_t *pool)
   if ((page_name[0] == 'c' || page_name[0] == 'C')
       && (page_name[1] == 'p' || page_name[1] == 'P'))
     {
-      *page_id_p = atoi(page_name + 2);
+      int page_id;
+
+      err = svn_cstring_atoi(&page_id, page_name + 2);
+      if (err)
+        {
+          apr_status_t saved = err->apr_err;
+          svn_error_clear(err);
+          return saved;
+        }
+
+      *page_id_p = page_id;
       return APR_SUCCESS;
     }
 
   err = svn_atomic__init_once(&com_initialized, initialize_com, NULL, pool);
-
   if (err)
     {
+      apr_status_t saved = err->apr_err;
       svn_error_clear(err);
-      return APR_EGENERAL;
+      return saved; /* probably SVN_ERR_ATOMIC_INIT_FAILURE */
     }
 
   hr = CoCreateInstance(&CLSID_CMultiLanguage, NULL, CLSCTX_INPROC_SERVER,
@@ -153,12 +166,12 @@ get_page_id_from_name(UINT *page_id_p, const char *page_name, apr_pool_t *pool)
 }
 
 apr_status_t
-svn_subr__win32_xlate_open(win32_xlate_t **xlate_p, const char *topage,
+svn_subr__win32_xlate_open(svn_subr__win32_xlate_t **xlate_p, const char *topage,
                            const char *frompage, apr_pool_t *pool)
 {
   UINT from_page_id, to_page_id;
   apr_status_t apr_err = APR_SUCCESS;
-  win32_xlate_t *xlate;
+  svn_subr__win32_xlate_t *xlate;
 
   apr_err = get_page_id_from_name(&to_page_id, topage, pool);
   if (apr_err == APR_SUCCESS)
@@ -177,7 +190,7 @@ svn_subr__win32_xlate_open(win32_xlate_t **xlate_p, const char *topage,
 }
 
 apr_status_t
-svn_subr__win32_xlate_to_stringbuf(win32_xlate_t *handle,
+svn_subr__win32_xlate_to_stringbuf(svn_subr__win32_xlate_t *handle,
                                    const char *src_data,
                                    apr_size_t src_length,
                                    svn_stringbuf_t **dest,

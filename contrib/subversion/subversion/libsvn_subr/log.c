@@ -36,6 +36,7 @@
 #include "svn_path.h"
 #include "svn_pools.h"
 #include "svn_string.h"
+#include "svn_hash.h"
 
 #include "private/svn_log.h"
 
@@ -45,7 +46,7 @@ log_depth(svn_depth_t depth, apr_pool_t *pool)
 {
   if (depth == svn_depth_unknown)
     return "";
-  return apr_pstrcat(pool, " depth=", svn_depth_to_word(depth), (char *)NULL);
+  return apr_pstrcat(pool, " depth=", svn_depth_to_word(depth), SVN_VA_NULL);
 }
 
 static const char *
@@ -306,18 +307,18 @@ svn_log__get_file_revs(const char *path, svn_revnum_t start, svn_revnum_t end,
 }
 
 const char *
-svn_log__lock(const apr_array_header_t *paths,
+svn_log__lock(apr_hash_t *targets,
               svn_boolean_t steal, apr_pool_t *pool)
 {
-  int i;
+  apr_hash_index_t *hi;
   apr_pool_t *iterpool = svn_pool_create(pool);
   svn_stringbuf_t *space_separated_paths = svn_stringbuf_create_empty(pool);
 
-  for (i = 0; i < paths->nelts; i++)
+  for (hi = apr_hash_first(pool, targets); hi; hi = apr_hash_next(hi))
     {
-      const char *path = APR_ARRAY_IDX(paths, i, const char *);
+      const char *path = apr_hash_this_key(hi);
       svn_pool_clear(iterpool);
-      if (i != 0)
+      if (space_separated_paths->len)
         svn_stringbuf_appendcstr(space_separated_paths, " ");
       svn_stringbuf_appendcstr(space_separated_paths,
                                svn_path_uri_encode(path, iterpool));
@@ -329,18 +330,18 @@ svn_log__lock(const apr_array_header_t *paths,
 }
 
 const char *
-svn_log__unlock(const apr_array_header_t *paths,
+svn_log__unlock(apr_hash_t *targets,
                 svn_boolean_t break_lock, apr_pool_t *pool)
 {
-  int i;
+  apr_hash_index_t *hi;
   apr_pool_t *iterpool = svn_pool_create(pool);
   svn_stringbuf_t *space_separated_paths = svn_stringbuf_create_empty(pool);
 
-  for (i = 0; i < paths->nelts; i++)
+  for (hi = apr_hash_first(pool, targets); hi; hi = apr_hash_next(hi))
     {
-      const char *path = APR_ARRAY_IDX(paths, i, const char *);
+      const char *path = apr_hash_this_key(hi);
       svn_pool_clear(iterpool);
-      if (i != 0)
+      if (space_separated_paths->len)
         svn_stringbuf_appendcstr(space_separated_paths, " ");
       svn_stringbuf_appendcstr(space_separated_paths,
                                svn_path_uri_encode(path, iterpool));
@@ -355,18 +356,18 @@ const char *
 svn_log__lock_one_path(const char *path, svn_boolean_t steal,
                        apr_pool_t *pool)
 {
-    apr_array_header_t *paths = apr_array_make(pool, 1, sizeof(path));
-    APR_ARRAY_PUSH(paths, const char *) = path;
-    return svn_log__lock(paths, steal, pool);
+  apr_hash_t *paths = apr_hash_make(pool);
+  svn_hash_sets(paths, path, path);
+  return svn_log__lock(paths, steal, pool);
 }
 
 const char *
 svn_log__unlock_one_path(const char *path, svn_boolean_t break_lock,
                          apr_pool_t *pool)
 {
-    apr_array_header_t *paths = apr_array_make(pool, 1, sizeof(path));
-    APR_ARRAY_PUSH(paths, const char *) = path;
-    return svn_log__unlock(paths, break_lock, pool);
+  apr_hash_t *paths = apr_hash_make(pool);
+  svn_hash_sets(paths, path, path);
+  return svn_log__unlock(paths, break_lock, pool);
 }
 
 const char *
