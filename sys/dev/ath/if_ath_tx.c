@@ -2452,7 +2452,6 @@ badbad:
 	ATH_KTR(sc, ATH_KTR_TX, 2, "ath_raw_xmit: bad0: m=%p, params=%p",
 	    m, params);
 	sc->sc_stats.ast_tx_raw_fail++;
-	ieee80211_free_node(ni);
 
 	return error;
 }
