@@ -16122,9 +16122,12 @@ bxe_sysctl_state(SYSCTL_HANDLER_ARGS)
     }
 
     if (result == 1) {
+	uint32_t  temp;
         sc = (struct bxe_softc *)arg1;
+
         BLOGI(sc, "... dumping driver state ...\n");
-        /* XXX */
+	temp = SHMEM2_RD(sc, temperature_in_half_celsius);
+	BLOGI(sc, "\t Device Temperature = %d Celsius\n", (temp/2));
     }
 
     return (error);
