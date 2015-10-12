@@ -99,11 +99,14 @@ xhci_pci_match(device_t self)
 	case 0x01941033:
 		return ("NEC uPD720200 USB 3.0 controller");
 
+	case 0x10001b73:
+		return ("Fresco Logic FL1000G USB 3.0 controller");
+
 	case 0x10421b21:
 		return ("ASMedia ASM1042 USB 3.0 controller");
 
 	case 0x0f358086:
-		return ("Intel Intel BayTrail USB 3.0 controller");
+		return ("Intel BayTrail USB 3.0 controller");
 	case 0x9c318086:
 	case 0x1e318086:
 		return ("Intel Panther Point USB 3.0 controller");
@@ -183,7 +186,8 @@ xhci_pci_attach(device_t self)
 {
 	struct xhci_softc *sc = device_get_softc(self);
 	int count, err, rid;
-	uint8_t usedma32;
+	uint8_t usemsi = 1;
+	uint8_t usedma32 = 0;
 
 	rid = PCI_XHCI_CBMEM;
 	sc->sc_io_res = bus_alloc_resource_any(self, SYS_RES_MEMORY, &rid,
@@ -201,8 +205,9 @@ xhci_pci_attach(device_t self)
 	case 0x01941033:	/* NEC uPD720200 USB 3.0 controller */
 		usedma32 = 1;
 		break;
-	default:
-		usedma32 = 0;
+	case 0x10001b73:	/* FL1000G */
+		/* Fresco Logic host doesn't support MSI. */
+		usemsi = 0;
 		break;
 	}
 	
@@ -218,7 +223,7 @@ xhci_pci_attach(device_t self)
 	usb_callout_init_mtx(&sc->sc_callout, &sc->sc_bus.bus_mtx, 0);
 
 	rid = 0;
-	if (xhci_use_msi) {
+	if (xhci_use_msi && usemsi) {
 		count = 1;
 		if (pci_alloc_msi(self, &count) == 0) {
 			if (bootverbose)
