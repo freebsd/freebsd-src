@@ -520,6 +520,8 @@ struct wpi_cmd_data {
 	uint8_t		key[IEEE80211_KEYBUF_SIZE];
 	uint8_t		tkip[IEEE80211_WEP_MICLEN];
 	uint32_t	fnext;
+#define WPI_NEXT_STA_ID(id)	((id) << 8)
+
 	uint32_t	lifetime;
 #define WPI_LIFETIME_INFINITE	0xffffffff
 

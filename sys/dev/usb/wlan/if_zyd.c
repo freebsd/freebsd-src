@@ -2590,13 +2590,11 @@ zyd_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	if (!(sc->sc_flags & ZYD_FLAG_RUNNING)) {
 		ZYD_UNLOCK(sc);
 		m_freem(m);
-		ieee80211_free_node(ni);
 		return (ENETDOWN);
 	}
 	if (sc->tx_nfree == 0) {
 		ZYD_UNLOCK(sc);
 		m_freem(m);
-		ieee80211_free_node(ni);
 		return (ENOBUFS);		/* XXX */
 	}
 
@@ -2607,7 +2605,6 @@ zyd_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	 */
 	if (zyd_tx_start(sc, m, ni) != 0) {
 		ZYD_UNLOCK(sc);
-		ieee80211_free_node(ni);
 		m_freem(m);
 		return (EIO);
 	}

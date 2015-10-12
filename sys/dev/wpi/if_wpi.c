@@ -196,6 +196,7 @@ static void	wpi_debug_registers(struct wpi_softc *);
 #endif
 static void	wpi_fatal_intr(struct wpi_softc *);
 static void	wpi_intr(void *);
+static void	wpi_free_txfrags(struct wpi_softc *, uint16_t);
 static int	wpi_cmd2(struct wpi_softc *, struct wpi_buf *);
 static int	wpi_tx_data(struct wpi_softc *, struct mbuf *,
 		    struct ieee80211_node *);
@@ -458,6 +459,7 @@ wpi_attach(device_t dev)
 		| IEEE80211_C_MONITOR		/* monitor mode supported */
 		| IEEE80211_C_AHDEMO		/* adhoc demo mode */
 		| IEEE80211_C_BGSCAN		/* capable of bg scanning */
+		| IEEE80211_C_TXFRAG		/* handle tx frags */
 		| IEEE80211_C_TXPMGT		/* tx power management */
 		| IEEE80211_C_SHSLOT		/* short slot time supported */
 		| IEEE80211_C_WPA		/* 802.11i */
@@ -1168,6 +1170,7 @@ wpi_alloc_tx_ring(struct wpi_softc *sc, struct wpi_tx_ring *ring, uint8_t qid)
 	ring->qid = qid;
 	ring->queued = 0;
 	ring->cur = 0;
+	ring->pending = 0;
 	ring->update = 0;
 
 	DPRINTF(sc, WPI_DEBUG_TRACE, TRACE_STR_BEGIN, __func__);
@@ -1288,6 +1291,7 @@ wpi_reset_tx_ring(struct wpi_softc *sc, struct wpi_tx_ring *ring)
 	    BUS_DMASYNC_PREWRITE);
 	ring->queued = 0;
 	ring->cur = 0;
+	ring->pending = 0;
 	ring->update = 0;
 }
 
@@ -2572,6 +2576,34 @@ done:
 end:	WPI_UNLOCK(sc);
 }
 
+static void
+wpi_free_txfrags(struct wpi_softc *sc, uint16_t ac)
+{
+	struct wpi_tx_ring *ring;
+	struct wpi_tx_data *data;
+	uint8_t cur;
+
+	WPI_TXQ_LOCK(sc);
+	ring = &sc->txq[ac];
+
+	while (ring->pending != 0) {
+		ring->pending--;
+		cur = (ring->cur + ring->pending) % WPI_TX_RING_COUNT;
+		data = &ring->data[cur];
+
+		bus_dmamap_sync(ring->data_dmat, data->map,
+		    BUS_DMASYNC_POSTWRITE);
+		bus_dmamap_unload(ring->data_dmat, data->map);
+		m_freem(data->m);
+		data->m = NULL;
+
+		ieee80211_node_decref(data->ni);
+		data->ni = NULL;
+	}
+
+	WPI_TXQ_UNLOCK(sc);
+}
+
 static int
 wpi_cmd2(struct wpi_softc *sc, struct wpi_buf *buf)
 {
@@ -2582,9 +2614,9 @@ wpi_cmd2(struct wpi_softc *sc, struct wpi_buf *buf)
 	struct wpi_tx_ring *ring;
 	struct mbuf *m1;
 	bus_dma_segment_t *seg, segs[WPI_MAX_SCATTER];
-	uint8_t pad;
+	uint8_t cur, pad;
 	uint16_t hdrlen;
-	int error, i, nsegs, totlen;
+	int error, i, nsegs, totlen, frag;
 
 	WPI_TXQ_LOCK(sc);
 
@@ -2601,6 +2633,7 @@ wpi_cmd2(struct wpi_softc *sc, struct wpi_buf *buf)
 	wh = mtod(buf->m, struct ieee80211_frame *);
 	hdrlen = ieee80211_anyhdrsize(wh);
 	totlen = buf->m->m_pkthdr.len;
+	frag = ((buf->m->m_flags & (M_FRAG | M_LASTFRAG)) == M_FRAG);
 
 	if (__predict_false(totlen < sizeof(struct ieee80211_frame_min))) {
 		error = EINVAL;
@@ -2614,15 +2647,16 @@ wpi_cmd2(struct wpi_softc *sc, struct wpi_buf *buf)
 		pad = 0;
 
 	ring = &sc->txq[buf->ac];
-	desc = &ring->desc[ring->cur];
-	data = &ring->data[ring->cur];
+	cur = (ring->cur + ring->pending) % WPI_TX_RING_COUNT;
+	desc = &ring->desc[cur];
+	data = &ring->data[cur];
 
 	/* Prepare TX firmware command. */
-	cmd = &ring->cmd[ring->cur];
+	cmd = &ring->cmd[cur];
 	cmd->code = buf->code;
 	cmd->flags = 0;
 	cmd->qid = ring->qid;
-	cmd->idx = ring->cur;
+	cmd->idx = cur;
 
 	memcpy(cmd->data, buf->data, buf->size);
 
@@ -2662,7 +2696,8 @@ wpi_cmd2(struct wpi_softc *sc, struct wpi_buf *buf)
 			if (ring->qid < WPI_CMD_QUEUE_NUM) {
 				if_inc_counter(buf->ni->ni_vap->iv_ifp,
 				    IFCOUNTER_OERRORS, 1);
-				ieee80211_free_node(buf->ni);
+				if (!frag)
+					ieee80211_free_node(buf->ni);
 			}
 			m_freem(buf->m);
 			error = 0;
@@ -2678,7 +2713,7 @@ wpi_cmd2(struct wpi_softc *sc, struct wpi_buf *buf)
 	data->ni = buf->ni;
 
 	DPRINTF(sc, WPI_DEBUG_XMIT, "%s: qid %d idx %d len %d nsegs %d\n",
-	    __func__, ring->qid, ring->cur, totlen, nsegs);
+	    __func__, ring->qid, cur, totlen, nsegs);
 
 	/* Fill TX descriptor. */
 	desc->nsegs = WPI_PAD32(totlen + pad) << 4 | (1 + nsegs);
@@ -2699,16 +2734,23 @@ wpi_cmd2(struct wpi_softc *sc, struct wpi_buf *buf)
 	bus_dmamap_sync(ring->desc_dma.tag, ring->desc_dma.map,
 	    BUS_DMASYNC_PREWRITE);
 
-	/* Kick TX ring. */
-	ring->cur = (ring->cur + 1) % WPI_TX_RING_COUNT;
-	sc->sc_update_tx_ring(sc, ring);
+	ring->pending += 1;
 
-	if (ring->qid < WPI_CMD_QUEUE_NUM) {
-		WPI_TXQ_STATE_LOCK(sc);
-		ring->queued++;
-		callout_reset(&sc->tx_timeout, 5*hz, wpi_tx_timeout, sc);
-		WPI_TXQ_STATE_UNLOCK(sc);
-	}
+	if (!frag) {
+		if (ring->qid < WPI_CMD_QUEUE_NUM) {
+			WPI_TXQ_STATE_LOCK(sc);
+			ring->queued += ring->pending;
+			callout_reset(&sc->tx_timeout, 5*hz, wpi_tx_timeout,
+			    sc);
+			WPI_TXQ_STATE_UNLOCK(sc);
+		}
+
+		/* Kick TX ring. */
+		ring->cur = (ring->cur + ring->pending) % WPI_TX_RING_COUNT;
+		ring->pending = 0;
+		sc->sc_update_tx_ring(sc, ring);
+	} else
+		ieee80211_node_incref(data->ni);
 
 end:	DPRINTF(sc, WPI_DEBUG_TRACE, error ? TRACE_STR_END_ERR : TRACE_STR_END,
 	    __func__);
@@ -2793,6 +2835,8 @@ wpi_tx_data(struct wpi_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 		tap->wt_rate = rate;
 		if (k != NULL)
 			tap->wt_flags |= IEEE80211_RADIOTAP_F_WEP;
+		if (wh->i_fc[1] & IEEE80211_FC1_MORE_FRAG)
+			tap->wt_flags |= IEEE80211_RADIOTAP_F_FRAG;
 
 		ieee80211_radiotap_tx(vap, m);
 	}
@@ -2808,7 +2852,7 @@ wpi_tx_data(struct wpi_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 	if (!IEEE80211_QOS_HAS_SEQ(wh))
 		flags |= WPI_TX_AUTO_SEQ;
 	if (wh->i_fc[1] & IEEE80211_FC1_MORE_FRAG)
-		flags |= WPI_TX_MORE_FRAG;	/* Cannot happen yet. */
+		flags |= WPI_TX_MORE_FRAG;
 
 	/* Check if frame must be protected using RTS/CTS or CTS-to-self. */
 	if (!ismcast) {
@@ -2864,6 +2908,15 @@ wpi_tx_data(struct wpi_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 		}
 
 		memcpy(tx->key, k->wk_key, k->wk_keylen);
+	}
+
+	if (wh->i_fc[1] & IEEE80211_FC1_MORE_FRAG) {
+		struct mbuf *next = m->m_nextpkt;
+
+		tx->lnext = htole16(next->m_pkthdr.len);
+		tx->fnext = htole32(tx->security |
+				    (flags & WPI_TX_NEED_ACK) |
+				    WPI_NEXT_STA_ID(tx->id));
 	}
 
 	tx->len = htole16(totlen);
@@ -2989,13 +3042,13 @@ wpi_tx_data_raw(struct wpi_softc *sc, struct mbuf *m,
 }
 
 static __inline int
-wpi_tx_ring_is_full(struct wpi_softc *sc, uint16_t ac)
+wpi_tx_ring_free_space(struct wpi_softc *sc, uint16_t ac)
 {
 	struct wpi_tx_ring *ring = &sc->txq[ac];
 	int retval;
 
 	WPI_TXQ_STATE_LOCK(sc);
-	retval = (ring->queued > WPI_TX_RING_HIMARK);
+	retval = WPI_TX_RING_HIMARK - ring->queued;
 	WPI_TXQ_STATE_UNLOCK(sc);
 
 	return retval;
@@ -3016,7 +3069,8 @@ wpi_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 
 	WPI_TX_LOCK(sc);
 
-	if (sc->sc_running == 0 || wpi_tx_ring_is_full(sc, ac)) {
+	/* NB: no fragments here */
+	if (sc->sc_running == 0 || wpi_tx_ring_free_space(sc, ac) < 1) {
 		error = sc->sc_running ? ENOBUFS : ENETDOWN;
 		goto unlock;
 	}
@@ -3039,7 +3093,6 @@ unlock:	WPI_TX_UNLOCK(sc);
 
 	if (error != 0) {
 		m_freem(m);
-		ieee80211_free_node(ni);
 		DPRINTF(sc, WPI_DEBUG_TRACE, TRACE_STR_END_ERR, __func__);
 
 		return error;
@@ -3055,8 +3108,9 @@ wpi_transmit(struct ieee80211com *ic, struct mbuf *m)
 {
 	struct wpi_softc *sc = ic->ic_softc;
 	struct ieee80211_node *ni;
+	struct mbuf *mnext;
 	uint16_t ac;
-	int error;
+	int error, nmbufs;
 
 	WPI_TX_LOCK(sc);
 	DPRINTF(sc, WPI_DEBUG_XMIT, "%s: called\n", __func__);
@@ -3067,20 +3121,30 @@ wpi_transmit(struct ieee80211com *ic, struct mbuf *m)
 		goto unlock;
 	}
 
+	nmbufs = 1;
+	for (mnext = m->m_nextpkt; mnext != NULL; mnext = mnext->m_nextpkt)
+		nmbufs++;
+
 	/* Check for available space. */
 	ac = M_WME_GETAC(m);
-	if (wpi_tx_ring_is_full(sc, ac)) {
+	if (wpi_tx_ring_free_space(sc, ac) < nmbufs) {
 		error = ENOBUFS;
 		goto unlock;
 	}
 
 	error = 0;
 	ni = (struct ieee80211_node *)m->m_pkthdr.rcvif;
-	if (wpi_tx_data(sc, m, ni) != 0) {
-		if_inc_counter(ni->ni_vap->iv_ifp, IFCOUNTER_OERRORS, 1);
-		ieee80211_free_node(ni);
-		m_freem(m);
-	}
+	do {
+		mnext = m->m_nextpkt;
+		if (wpi_tx_data(sc, m, ni) != 0) {
+			if_inc_counter(ni->ni_vap->iv_ifp, IFCOUNTER_OERRORS,
+			    nmbufs);
+			wpi_free_txfrags(sc, ac);
+			ieee80211_free_mbuf(m);
+			ieee80211_free_node(ni);
+			break;
+		}
+	} while((m = mnext) != NULL);
 
 	DPRINTF(sc, WPI_DEBUG_XMIT, "%s: done\n", __func__);
 

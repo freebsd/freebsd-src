@@ -3,7 +3,7 @@
 .if !target(__netbsd_tests.test.mk__)
 __netbsd_tests.test.mk__:
 
-OBJROOT?=	${.OBJDIR:S/${RELDIR}//}
+OBJTOP?=	${.OBJDIR:S/${RELDIR}//}
 
 TESTSRC?=	${SRCTOP}/contrib/netbsd-tests/${RELDIR:H}
 

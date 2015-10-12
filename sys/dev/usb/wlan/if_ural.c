@@ -2123,13 +2123,11 @@ ural_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	if (!sc->sc_running) {
 		RAL_UNLOCK(sc);
 		m_freem(m);
-		ieee80211_free_node(ni);
 		return ENETDOWN;
 	}
 	if (sc->tx_nfree < RAL_TX_MINFREE) {
 		RAL_UNLOCK(sc);
 		m_freem(m);
-		ieee80211_free_node(ni);
 		return EIO;
 	}
 
@@ -2152,7 +2150,6 @@ ural_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	return 0;
 bad:
 	RAL_UNLOCK(sc);
-	ieee80211_free_node(ni);
 	return EIO;		/* XXX */
 }
 
