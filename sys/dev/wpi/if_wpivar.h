@@ -74,6 +74,7 @@ struct wpi_tx_ring {
 	bus_dma_tag_t		data_dmat;
 	uint8_t			qid;
 	uint8_t			cur;
+	uint8_t			pending;
 	int16_t			queued;
 	int			update:1;
 };
