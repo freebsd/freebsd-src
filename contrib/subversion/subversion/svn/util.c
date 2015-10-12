@@ -340,7 +340,8 @@ static const char *prefixes[] = {
   "MFC after:",
   "Relnotes:",
   "Security:",
-  "Sponsored by:"
+  "Sponsored by:",
+  "Differential Revision:",
 };
 
 void
@@ -399,6 +400,10 @@ svn_cl__get_log_message(const char **log_msg,
   svn_stringbuf_t *default_msg = NULL;
   struct log_msg_baton *lmb = baton;
   svn_stringbuf_t *message = NULL;
+  svn_config_t *cfg;
+  const char *mfc_after, *sponsored_by;
+
+  cfg = lmb->config ? svn_hash_gets(lmb->config, SVN_CONFIG_CATEGORY_CONFIG) : NULL;
 
   /* Set default message.  */
   default_msg = svn_stringbuf_create(APR_EOL_STR, pool);
@@ -408,26 +413,38 @@ svn_cl__get_log_message(const char **log_msg,
   svn_stringbuf_appendcstr(default_msg, "Reviewed by:\t" APR_EOL_STR);
   svn_stringbuf_appendcstr(default_msg, "Approved by:\t" APR_EOL_STR);
   svn_stringbuf_appendcstr(default_msg, "Obtained from:\t" APR_EOL_STR);
-  svn_stringbuf_appendcstr(default_msg, "MFC after:\t" APR_EOL_STR);
+  svn_stringbuf_appendcstr(default_msg, "MFC after:\t");
+  svn_config_get(cfg, &mfc_after, SVN_CONFIG_SECTION_MISCELLANY, "freebsd-mfc-after", NULL);
+  if (mfc_after != NULL)
+	  svn_stringbuf_appendcstr(default_msg, mfc_after);
+  svn_stringbuf_appendcstr(default_msg, APR_EOL_STR);
   svn_stringbuf_appendcstr(default_msg, "Relnotes:\t" APR_EOL_STR);
   svn_stringbuf_appendcstr(default_msg, "Security:\t" APR_EOL_STR);
-  svn_stringbuf_appendcstr(default_msg, "Sponsored by:\t"
+  svn_stringbuf_appendcstr(default_msg, "Sponsored by:\t");
+  svn_config_get(cfg, &sponsored_by, SVN_CONFIG_SECTION_MISCELLANY, "freebsd-sponsored-by",
 #ifdef HAS_ORGANIZATION_NAME
-      ORGANIZATION_NAME
+  	ORGANIZATION_NAME);
+#else
+	NULL);
 #endif
-      APR_EOL_STR);
+  if (sponsored_by != NULL)
+	  svn_stringbuf_appendcstr(default_msg, sponsored_by);
+  svn_stringbuf_appendcstr(default_msg, APR_EOL_STR);
+  svn_stringbuf_appendcstr(default_msg, "Differential Revision:\t" APR_EOL_STR);
   svn_stringbuf_appendcstr(default_msg, EDITOR_EOF_PREFIX);
   svn_stringbuf_appendcstr(default_msg, APR_EOL_STR);
   svn_stringbuf_appendcstr(default_msg, "> Description of fields to fill in above:                     76 columns --|" APR_EOL_STR);
-  svn_stringbuf_appendcstr(default_msg, "> PR:            If a Bugzilla PR is affected by the change." APR_EOL_STR);
-  svn_stringbuf_appendcstr(default_msg, "> Submitted by:  If someone else sent in the change." APR_EOL_STR);
-  svn_stringbuf_appendcstr(default_msg, "> Reviewed by:   If someone else reviewed your modification." APR_EOL_STR);
-  svn_stringbuf_appendcstr(default_msg, "> Approved by:   If you needed approval for this commit." APR_EOL_STR);
-  svn_stringbuf_appendcstr(default_msg, "> Obtained from: If the change is from a third party." APR_EOL_STR);
-  svn_stringbuf_appendcstr(default_msg, "> MFC after:     N [day[s]|week[s]|month[s]].  Request a reminder email." APR_EOL_STR);
-  svn_stringbuf_appendcstr(default_msg, "> Relnotes:      Set to 'yes' for mention in release notes." APR_EOL_STR);
-  svn_stringbuf_appendcstr(default_msg, "> Security:      Vulnerability reference (one per line) or description." APR_EOL_STR);
-  svn_stringbuf_appendcstr(default_msg, "> Sponsored by:  If the change was sponsored by an organization." APR_EOL_STR);
+  svn_stringbuf_appendcstr(default_msg, "> PR:                       If a Bugzilla PR is affected by the change." APR_EOL_STR);
+  svn_stringbuf_appendcstr(default_msg, "> Submitted by:             If someone else sent in the change." APR_EOL_STR);
+  svn_stringbuf_appendcstr(default_msg, "> Reviewed by:              If someone else reviewed your modification." APR_EOL_STR);
+  svn_stringbuf_appendcstr(default_msg, "> Approved by:              If you needed approval for this commit." APR_EOL_STR);
+  svn_stringbuf_appendcstr(default_msg, "> Obtained from:            If the change is from a third party." APR_EOL_STR);
+  svn_stringbuf_appendcstr(default_msg, "> MFC after:                N [day[s]|week[s]|month[s]].  Request a reminder email." APR_EOL_STR);
+  svn_stringbuf_appendcstr(default_msg, "> MFH:                      Ports tree branch name.  Request approval for merge." APR_EOL_STR);
+  svn_stringbuf_appendcstr(default_msg, "> Relnotes:                 Set to 'yes' for mention in release notes." APR_EOL_STR);
+  svn_stringbuf_appendcstr(default_msg, "> Security:                 Vulnerability reference (one per line) or description." APR_EOL_STR);
+  svn_stringbuf_appendcstr(default_msg, "> Sponsored by:             If the change was sponsored by an organization." APR_EOL_STR);
+  svn_stringbuf_appendcstr(default_msg, "> Differential Revision:    https://reviews.freebsd.org/D### (*full* phabric URL needed)." APR_EOL_STR);
   svn_stringbuf_appendcstr(default_msg, "> Empty fields above will be automatically removed." APR_EOL_STR);
   svn_stringbuf_appendcstr(default_msg, APR_EOL_STR);
 
