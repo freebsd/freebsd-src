@@ -125,10 +125,7 @@ struct ural_softc {
 	int				nb_ant;
 
 	struct ural_rx_radiotap_header	sc_rxtap;
-	int				sc_rxtap_len;
-
 	struct ural_tx_radiotap_header	sc_txtap;
-	int				sc_txtap_len;
 };
 
 #define RAL_LOCK(sc)		mtx_lock(&(sc)->sc_mtx)

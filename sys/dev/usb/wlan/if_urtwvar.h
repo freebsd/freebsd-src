@@ -178,9 +178,7 @@ struct urtw_softc {
 	struct urtw_stats		sc_stats;
 
 	struct	urtw_rx_radiotap_header	sc_rxtap;
-	int				sc_rxtap_len;
 	struct	urtw_tx_radiotap_header	sc_txtap;
-	int				sc_txtap_len;
 };
 
 #define URTW_LOCK(sc)			mtx_lock(&(sc)->sc_mtx)

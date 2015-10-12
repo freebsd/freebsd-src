@@ -195,10 +195,7 @@ struct urtwn_softc {
 	struct usb_xfer			*sc_xfer[URTWN_N_TRANSFER];
 
 	struct urtwn_rx_radiotap_header	sc_rxtap;
-	int				sc_rxtap_len;
-
 	struct urtwn_tx_radiotap_header	sc_txtap;
-	int				sc_txtap_len;
 };
 
 #define	URTWN_LOCK(sc)			mtx_lock(&(sc)->sc_mtx)
