@@ -891,18 +891,18 @@ remove_node_conflict_markers(svn_wc__db_t *db,
         {
           const char *marker_abspath;
           const char *child_relpath;
-          const char *child_abpath;
+          const char *child_abspath;
 
           marker_abspath = APR_ARRAY_IDX(markers, i, const char *);
 
-          child_relpath = svn_dirent_is_child(src_dir, marker_abspath, NULL);
+          child_relpath = svn_dirent_skip_ancestor(src_dir, marker_abspath);
 
           if (child_relpath)
             {
-              child_abpath = svn_dirent_join(dst_dir, child_relpath,
-                                             scratch_pool);
+              child_abspath = svn_dirent_join(dst_dir, child_relpath,
+                                              scratch_pool);
 
-              SVN_ERR(svn_io_remove_file2(child_abpath, TRUE, scratch_pool));
+              SVN_ERR(svn_io_remove_file2(child_abspath, TRUE, scratch_pool));
             }
         }
     }
@@ -922,7 +922,7 @@ remove_node_conflict_markers(svn_wc__db_t *db,
 static svn_error_t *
 remove_all_conflict_markers(svn_wc__db_t *db,
                             const char *src_dir_abspath,
-                            const char *wc_dir_abspath,
+                            const char *dst_dir_abspath,
                             apr_pool_t *scratch_pool)
 {
   apr_pool_t *iterpool = svn_pool_create(scratch_pool);
@@ -951,7 +951,7 @@ remove_all_conflict_markers(svn_wc__db_t *db,
           SVN_ERR(remove_node_conflict_markers(
                             db,
                             svn_dirent_join(src_dir_abspath, name, iterpool),
-                            svn_dirent_join(wc_dir_abspath, name, iterpool),
+                            svn_dirent_join(dst_dir_abspath, name, iterpool),
                             iterpool));
         }
       if (info->kind == svn_node_dir)
@@ -960,7 +960,7 @@ remove_all_conflict_markers(svn_wc__db_t *db,
           SVN_ERR(remove_all_conflict_markers(
                             db,
                             svn_dirent_join(src_dir_abspath, name, iterpool),
-                            svn_dirent_join(wc_dir_abspath, name, iterpool),
+                            svn_dirent_join(dst_dir_abspath, name, iterpool),
                             iterpool));
         }
     }
@@ -1033,8 +1033,16 @@ svn_wc__move2(svn_wc_context_t *wc_ctx,
                                         scratch_pool));
 
   if (conflicted)
-    SVN_ERR(remove_node_conflict_markers(db, src_abspath, dst_abspath,
-                                         scratch_pool));
+    {
+      /* When we moved a directory, we moved the conflict markers
+         with the target... if we moved a file we only moved the
+         file itself and the markers are still in the old location */
+      SVN_ERR(remove_node_conflict_markers(db, src_abspath,
+                                           (kind == svn_node_dir)
+                                             ? dst_abspath
+                                             : src_abspath,
+                                           scratch_pool));
+    }
 
   SVN_ERR(svn_wc__db_op_delete(db, src_abspath,
                                move_degraded_to_copy ? NULL : dst_abspath,

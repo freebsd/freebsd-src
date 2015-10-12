@@ -726,23 +726,6 @@ svn_repos_trace_node_locations(svn_fs_t *fs,
       if (! prev_path)
         break;
 
-      if (authz_read_func)
-        {
-          svn_boolean_t readable;
-          svn_fs_root_t *tmp_root;
-
-          SVN_ERR(svn_fs_revision_root(&tmp_root, fs, revision, currpool));
-          SVN_ERR(authz_read_func(&readable, tmp_root, path,
-                                  authz_read_baton, currpool));
-          if (! readable)
-            {
-              svn_pool_destroy(lastpool);
-              svn_pool_destroy(currpool);
-
-              return SVN_NO_ERROR;
-            }
-        }
-
       /* Assign the current path to all younger revisions until we reach
          the copy target rev. */
       while ((revision_ptr < revision_ptr_end)
@@ -764,6 +747,20 @@ svn_repos_trace_node_locations(svn_fs_t *fs,
       /* State update. */
       path = prev_path;
       revision = prev_rev;
+
+      if (authz_read_func)
+        {
+          svn_boolean_t readable;
+          SVN_ERR(svn_fs_revision_root(&root, fs, revision, currpool));
+          SVN_ERR(authz_read_func(&readable, root, path,
+                                  authz_read_baton, currpool));
+          if (!readable)
+            {
+              svn_pool_destroy(lastpool);
+              svn_pool_destroy(currpool);
+              return SVN_NO_ERROR;
+            }
+        }
 
       /* Clear last pool and switch. */
       svn_pool_clear(lastpool);

@@ -38,7 +38,7 @@
  */
 
 
-#define APU_COPYRIGHT "Copyright (c) 2013 The Apache Software " \
+#define APU_COPYRIGHT "Copyright (c) 2000-2014 The Apache Software " \
                       "Foundation or its licensors, as applicable."
 
 /* The numeric compile-time version constants. These constants are the
@@ -62,7 +62,7 @@
  * The Patch Level never includes API changes, simply bug fixes.
  * Reset to 0 when upgrading APR_MINOR_VERSION
  */
-#define APU_PATCH_VERSION       3
+#define APU_PATCH_VERSION       4
 
 /** 
  * The symbol APU_IS_DEV_VERSION is only defined for internal,

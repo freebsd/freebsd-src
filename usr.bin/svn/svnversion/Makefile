@@ -26,10 +26,10 @@ LDADD=	-L${LIBSVN_WCDIR} -lsvn_wc \
 	-lbsdxml \
 	-L${LIBAPRDIR} -lapr \
 	-L${LIBSQLITEDIR} -lsqlite3 \
-	-lz -lcrypt
+	-lz -lcrypt -lpthread
 
 DPADD=	${LIBSVN_WC} ${LIBSVN_DELTA} ${LIBSVN_DIFF} ${LIBSVN_SUBR} \
 	${LIBSERF} ${LIBAPR_UTIL} ${LIBBSDXML} ${LIBAPR} ${LIBSQLITE} \
-	${LIBZ} ${LIBCRYPT}
+	${LIBZ} ${LIBCRYPT} ${LIBPTHREAD}
 
 .include <bsd.prog.mk>

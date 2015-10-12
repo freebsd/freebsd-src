@@ -436,6 +436,8 @@ APR_DECLARE(apr_status_t) apr_escape_path(char *escaped, const char *path,
         while ((c = *s) && slen) {
             if (TEST_CHAR(c, T_OS_ESCAPE_PATH)) {
                 d = c2x(c, '%', d);
+                size += 2;
+                found = 1;
             }
             else {
                 *d++ = c;

@@ -88,6 +88,8 @@ APROUTDIR=$(OUTDIR)
 !IF "$(MODEL)" == "static"
 PROGRAM_DEPENDENCIES = \
 	$(APR_PATH)\$(APROUTDIR)\apr-1.lib \
+	$(API_PATH)\$(OUTDIR)\apriconv-1.lib \
+	..\xml\expat\lib\$(OUTDIR)\xml.lib \
 	..\$(OUTDIR)\aprutil-1.lib 
 STATIC_CFLAGS = /D APR_DECLARE_STATIC /D APU_DECLARE_STATIC
 STATIC_LIBS = odbc32.lib odbccp32.lib wldap32.lib 

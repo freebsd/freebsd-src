@@ -1327,6 +1327,13 @@ const svn_opt_subcommand_desc2_t svn_cl__cmd_table[] =
      "  directory:\n"
      "    svn:ignore         - A list of file glob patterns to ignore, one per line.\n"
      "    svn:global-ignores - Like svn:ignore, but inheritable.\n"
+     "    svn:auto-props     - Automatically set properties on files when they are\n"
+     "      added or imported. Contains key-value pairs, one per line, in the format:\n"
+     "        PATTERN = PROPNAME=VALUE[;PROPNAME=VALUE ...]\n"
+     "      Example (where a literal ';' is escaped by adding another ';'):\n"
+     "        *.html = svn:eol-style=native;svn:mime-type=text/html;; charset=UTF8\n"
+     "      Applies recursively to all files added or imported under the directory\n"
+     "      it is set on.  See also [auto-props] in the client configuration file.\n"
      "    svn:externals      - A list of module specifiers, one per line, in the\n"
      "      following format similar to the syntax of 'svn checkout':\n"
      "        [-r REV] URL[@PEG] LOCALPATH\n"
@@ -2514,9 +2521,15 @@ sub_main(int argc, const char *argv[], apr_pool_t *pool)
       if (APR_STATUS_IS_EACCES(err->apr_err)
           || SVN__APR_STATUS_IS_ENOTDIR(err->apr_err))
         {
+          svn_config_t *empty_cfg;
+
           svn_handle_warning2(stderr, err, "svn: ");
           svn_error_clear(err);
-          cfg_hash = NULL;
+          cfg_hash = apr_hash_make(pool);
+          SVN_INT_ERR(svn_config_create2(&empty_cfg, FALSE, FALSE, pool));
+          svn_hash_sets(cfg_hash, SVN_CONFIG_CATEGORY_CONFIG, empty_cfg);
+          SVN_INT_ERR(svn_config_create2(&empty_cfg, FALSE, FALSE, pool));
+          svn_hash_sets(cfg_hash, SVN_CONFIG_CATEGORY_SERVERS, empty_cfg);
         }
       else
         return EXIT_ERROR(err);

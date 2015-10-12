@@ -777,6 +777,13 @@ close_edit(void *edit_baton,
           post_commit_err = svn_repos__post_commit_error_str(err, pool);
           svn_error_clear(err);
         }
+
+      /* Make sure a future abort doesn't perform
+         any work. This may occur if the commit
+         callback returns an error! */
+
+      eb->txn = NULL;
+      eb->txn_root = NULL;
     }
   else
     {

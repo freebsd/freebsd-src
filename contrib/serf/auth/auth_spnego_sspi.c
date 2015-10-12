@@ -95,8 +95,8 @@ cleanup_ctx(void *data)
     }
 
     if (SecIsValidHandle(&ctx->sspi_credentials)) {
-        FreeCredentialsHandle(&ctx->sspi_context);
-        SecInvalidateHandle(&ctx->sspi_context);
+        FreeCredentialsHandle(&ctx->sspi_credentials);
+        SecInvalidateHandle(&ctx->sspi_credentials);
     }
 
     return APR_SUCCESS;
