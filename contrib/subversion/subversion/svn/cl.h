@@ -158,7 +158,7 @@ typedef struct svn_cl__opt_state_t
   /* Was --no-unlock specified? */
   svn_boolean_t no_unlock;
 
-  const char *message;           /* log message */
+  const char *message;           /* log message (not converted to UTF-8) */
   svn_boolean_t force;           /* be more forceful, as in "svn rm -f ..." */
   svn_boolean_t force_log;       /* force validity of a suspect log msg file */
   svn_boolean_t incremental;     /* yield output suitable for concatenation */
@@ -167,20 +167,22 @@ typedef struct svn_cl__opt_state_t
   svn_boolean_t version;         /* print version information */
   svn_boolean_t verbose;         /* be verbose */
   svn_boolean_t update;          /* contact the server for the full story */
-  svn_boolean_t strict;          /* do strictly what was requested */
-  svn_stringbuf_t *filedata;     /* contents of file used as option data */
-  const char *encoding;          /* the locale/encoding of the data*/
+  svn_stringbuf_t *filedata;     /* contents of file used as option data
+                                    (not converted to UTF-8) */
+  const char *encoding;          /* the locale/encoding of 'message' and of
+                                    'filedata' (not converted to UTF-8) */
   svn_boolean_t help;            /* print usage message */
-  const char *auth_username;     /* auth username */ /* UTF-8! */
-  const char *auth_password;     /* auth password */ /* UTF-8! */
-  const char *extensions;        /* subprocess extension args */ /* UTF-8! */
-  apr_array_header_t *targets;   /* target list from file */ /* UTF-8! */
+  const char *auth_username;     /* auth username */
+  const char *auth_password;     /* auth password */
+  const char *extensions;        /* subprocess extension args */
+  apr_array_header_t *targets;   /* target list from file */
   svn_boolean_t xml;             /* output in xml, e.g., "svn log --xml" */
   svn_boolean_t no_ignore;       /* disregard default ignores & svn:ignore's */
   svn_boolean_t no_auth_cache;   /* do not cache authentication information */
   struct
     {
-  const char *diff_cmd;              /* the external diff command to use */
+  const char *diff_cmd;              /* the external diff command to use
+                                        (not converted to UTF-8) */
   svn_boolean_t internal_diff;       /* override diff_cmd in config file */
   svn_boolean_t no_diff_added;       /* do not show diffs for deleted files */
   svn_boolean_t no_diff_deleted;     /* do not show diffs for deleted files */
@@ -197,8 +199,10 @@ typedef struct svn_cl__opt_state_t
   svn_boolean_t stop_on_copy;    /* don't cross copies during processing */
   svn_boolean_t dry_run;         /* try operation but make no changes */
   svn_boolean_t revprop;         /* operate on a revision property */
-  const char *merge_cmd;         /* the external merge command to use */
-  const char *editor_cmd;        /* the external editor command to use */
+  const char *merge_cmd;         /* the external merge command to use
+                                    (not converted to UTF-8) */
+  const char *editor_cmd;        /* the external editor command to use
+                                    (not converted to UTF-8) */
   svn_boolean_t record_only;     /* whether to record mergeinfo */
   const char *old_target;        /* diff target */
   const char *new_target;        /* diff target */
@@ -210,21 +214,24 @@ typedef struct svn_cl__opt_state_t
   const char *native_eol;        /* override system standard eol marker */
   svn_boolean_t remove;          /* deassociate a changelist */
   apr_array_header_t *changelists; /* changelist filters */
-  const char *changelist;        /* operate on this changelist
-                                    THIS IS TEMPORARY (LAST OF CHANGELISTS) */
   svn_boolean_t keep_changelists;/* don't remove changelists after commit */
   svn_boolean_t keep_local;      /* delete path only from repository */
   svn_boolean_t all_revprops;    /* retrieve all revprops */
   svn_boolean_t no_revprops;     /* retrieve no revprops */
-  apr_hash_t *revprop_table;     /* table of revision properties to get/set */
+  apr_hash_t *revprop_table;     /* table of revision properties to get/set
+                                    (not converted to UTF-8) */
   svn_boolean_t parents;         /* create intermediate directories */
   svn_boolean_t use_merge_history; /* use/display extra merge information */
   svn_cl__accept_t accept_which;   /* how to handle conflicts */
   svn_cl__show_revs_t show_revs;   /* mergeinfo flavor */
   svn_depth_t set_depth;           /* new sticky ambient depth value */
   svn_boolean_t reintegrate;      /* use "reintegrate" merge-source heuristic */
-  svn_boolean_t trust_server_cert; /* trust server SSL certs that would
-                                      otherwise be rejected as "untrusted" */
+  /* trust server SSL certs that would otherwise be rejected as "untrusted" */
+  svn_boolean_t trust_server_cert_unknown_ca;
+  svn_boolean_t trust_server_cert_cn_mismatch;
+  svn_boolean_t trust_server_cert_expired;
+  svn_boolean_t trust_server_cert_not_yet_valid;
+  svn_boolean_t trust_server_cert_other_failure;
   int strip; /* number of leading path components to strip */
   svn_boolean_t ignore_keywords;   /* do not expand keywords */
   svn_boolean_t reverse_diff;      /* reverse a diff (e.g. when patching) */
@@ -235,6 +242,13 @@ typedef struct svn_cl__opt_state_t
   svn_boolean_t include_externals; /* Recurses (in)to file & dir externals */
   svn_boolean_t show_inherited_props;  /* get inherited properties */
   apr_array_header_t* search_patterns; /* pattern arguments for --search */
+  svn_boolean_t mergeinfo_log;     /* show log message in mergeinfo command */
+  svn_boolean_t remove_unversioned;/* remove unversioned items */
+  svn_boolean_t remove_ignored;    /* remove ignored items */
+  svn_boolean_t no_newline;        /* do not output the trailing newline */
+  svn_boolean_t show_passwords;    /* show cached passwords */
+  svn_boolean_t pin_externals;     /* pin externals to last-changed revisions */
+  const char *show_item;           /* print only the given item */
 } svn_cl__opt_state_t;
 
 
@@ -248,6 +262,7 @@ typedef struct svn_cl__cmd_baton_t
 /* Declare all the command procedures */
 svn_opt_subcommand_t
   svn_cl__add,
+  svn_cl__auth,
   svn_cl__blame,
   svn_cl__cat,
   svn_cl__changelist,
@@ -310,7 +325,7 @@ extern const apr_getopt_option_t svn_cl__options[];
  *
  * Typically, error codes like SVN_ERR_UNVERSIONED_RESOURCE,
  * SVN_ERR_ENTRY_NOT_FOUND, etc, are supplied in varargs.  Don't
- * forget to terminate the argument list with SVN_NO_ERROR.
+ * forget to terminate the argument list with 0 (or APR_SUCCESS).
  */
 svn_error_t *
 svn_cl__try(svn_error_t *err,
@@ -347,6 +362,14 @@ svn_cl__conflict_stats_resolved(svn_cl__conflict_stats_t *conflict_stats,
                                 const char *path_local,
                                 svn_wc_conflict_kind_t conflict_kind);
 
+/* Print the conflict stats accumulated in CONFLICT_STATS.
+ *
+ * Return any error encountered during printing.
+ * See also svn_cl__notifier_print_conflict_stats().
+ */
+svn_error_t *
+svn_cl__print_conflict_stats(svn_cl__conflict_stats_t *conflict_stats,
+                             apr_pool_t *scratch_pool);
 
 /* Create and return an baton for use with svn_cl__conflict_func_interactive
  * in *B, allocated from RESULT_POOL, and initialised with the values
@@ -514,7 +537,8 @@ svn_cl__merge_file_externally(const char *base_path,
 /* Like svn_cl__merge_file_externally, but using a built-in merge tool
  * with help from an external editor specified by EDITOR_CMD. */
 svn_error_t *
-svn_cl__merge_file(const char *base_path,
+svn_cl__merge_file(svn_boolean_t *remains_in_conflict,
+                   const char *base_path,
                    const char *their_path,
                    const char *my_path,
                    const char *merged_path,
@@ -522,7 +546,8 @@ svn_cl__merge_file(const char *base_path,
                    const char *path_prefix,
                    const char *editor_cmd,
                    apr_hash_t *config,
-                   svn_boolean_t *remains_in_conflict,
+                   svn_cancel_func_t cancel_func,
+                   void *cancel_baton,
                    apr_pool_t *scratch_pool);
 
 
@@ -571,7 +596,9 @@ svn_cl__check_externals_failed_notify_wrapper(void *baton,
                                               apr_pool_t *pool);
 
 /* Print the conflict stats accumulated in BATON, which is the
- * notifier baton from svn_cl__get_notifier().
+ * notifier baton from svn_cl__get_notifier().  This is just like
+ * calling svn_cl__print_conflict_stats().
+ *
  * Return any error encountered during printing.
  */
 svn_error_t *
@@ -827,6 +854,48 @@ svn_cl__deprecated_merge_reintegrate(const char *source_path_or_url,
                                      const apr_array_header_t *merge_options,
                                      svn_client_ctx_t *ctx,
                                      apr_pool_t *pool);
+
+
+/* Forward declaration of the similarity check context. */
+typedef struct svn_cl__simcheck_context_t svn_cl__simcheck_context_t;
+
+/* Token definition for the similarity check. */
+typedef struct svn_cl__simcheck_t
+{
+  /* The token we're checking for similarity. */
+  svn_string_t token;
+
+  /* User data associated with this token. */
+  const void *data;
+
+  /*
+   * The following fields are populated by svn_cl__similarity_check.
+   */
+
+  /* Similarity score [0..SVN_STRING__SIM_RANGE_MAX] */
+  apr_size_t score;
+
+  /* Number of characters of difference from the key. */
+  apr_size_t diff;
+
+  /* Similarity check context (private) */
+  svn_cl__simcheck_context_t *context;
+} svn_cl__simcheck_t;
+
+/* Find the entries in TOKENS that are most similar to KEY.
+ * TOKEN_COUNT is the number of entries in the (mutable) TOKENS array.
+ * Use SCRATCH_POOL for temporary allocations.
+ *
+ * On return, the TOKENS array will be sorted according to similarity
+ * to KEY, in descending order. The return value will be zero if the
+ * first token is an exact match; otherwise, it will be one more than
+ * the number of tokens that are at least two-thirds similar to KEY.
+ */
+apr_size_t
+svn_cl__similarity_check(const char *key,
+                         svn_cl__simcheck_t **tokens,
+                         apr_size_t token_count,
+                         apr_pool_t *scratch_pool);
 
 #ifdef __cplusplus
 }
