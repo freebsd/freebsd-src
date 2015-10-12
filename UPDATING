@@ -31,6 +31,16 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20151012:
+	If you specify SENDMAIL_MC or SENDMAIL_CF in make.conf, mergemaster
+	and etcupdate will now use this file. A custom sendmail.cf is now
+	updated via this mechanism rather than via installworld.  If you had
+	excluded sendmail.cf in mergemaster.rc or etcupdate.conf, you may
+	want to remove the exclusion or change it to "always install".
+	/etc/mail/sendmail.cf is now managed the same way regardless of
+	whether SENDMAIL_MC/SENDMAIL_CF is used.  If you are not using
+	SENDMAIL_MC/SENDMAIL_CF there should be no change in behavior.
+
 20151011:
 	Compatibility shims for legacy ATA device names have been removed.
 	It includes ATA_STATIC_ID kernel option, kern.cam.ada.legacy_aliases
