@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-TESTSDIR=	${TESTSBASE}/usr.bin/col
-
 ATF_TESTS_SH=	col
 
 FILES=		rlf.in \

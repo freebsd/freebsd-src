@@ -4,8 +4,6 @@
 
 BINDIR=		${TESTSDIR}
 
-TESTSDIR=	${TESTSBASE}/lib/libc/regex
-
 IMPLEMENTATION?=      -DREGEX_SPENCER
 
 CFLAGS.h_regex+=-I${TESTSRC} -I${.CURDIR:H:H}/regex

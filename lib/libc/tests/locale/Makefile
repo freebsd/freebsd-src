@@ -2,8 +2,6 @@
 
 .include <bsd.own.mk>
 
-TESTSDIR=	${TESTSBASE}/lib/libc/locale
-
 NETBSD_ATF_TESTS_C=	io_test
 NETBSD_ATF_TESTS_C+=	mbrtowc_test
 NETBSD_ATF_TESTS_C+=	mbstowcs_test

@@ -1,6 +1,5 @@
 # $FreeBSD$
 
-TESTSDIR=		${TESTSBASE}/lib/libc/rpc
 SRCS.xdr_test=		${RPCSRC:.x=_xdr.c} t_xdr.c ${RPCSRC:.x=.h}
 
 NETBSD_ATF_TESTS_C=	rpc_test

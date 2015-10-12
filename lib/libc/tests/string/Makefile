@@ -2,8 +2,6 @@
 
 .include <bsd.own.mk>
 
-TESTSDIR=	${TESTSBASE}/lib/libc/string
-
 # TODO: popcount, stresep
 
 NETBSD_ATF_TESTS_C+=	memchr

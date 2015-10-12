@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-TESTSDIR=	${TESTSBASE}/lib/libc/stdio
-
 ATF_TESTS_C=		fmemopen2_test
 
 NETBSD_ATF_TESTS_C=	clearerr_test

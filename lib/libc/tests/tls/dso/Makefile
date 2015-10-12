@@ -1,7 +1,6 @@
 # $FreeBSD$
 
 OBJTOP=		${.OBJDIR:H:H:H:H:H}
-SRCTOP=		${.CURDIR:H:H:H:H:H}
 TESTSRC=	${SRCTOP}/contrib/netbsd-tests/lib/libc/tls/${.CURDIR:T}
 
 LIB=		h_tls_dlopen
