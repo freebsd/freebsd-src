@@ -1399,7 +1399,6 @@ bwi_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	int idx, error;
 
 	if ((sc->sc_flags & BWI_F_RUNNING) == 0) {
-		ieee80211_free_node(ni);
 		m_freem(m);
 		return ENETDOWN;
 	}
@@ -1424,9 +1423,7 @@ bwi_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 		tbd->tbd_used++;
 		tbd->tbd_idx = (idx + 1) % BWI_TX_NDESC;
 		sc->sc_tx_timer = 5;
-	} else
-		/* NB: m is reclaimed on encap failure */
-		ieee80211_free_node(ni);
+	}
 	BWI_UNLOCK(sc);
 	return error;
 }

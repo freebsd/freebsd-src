@@ -1527,20 +1527,17 @@ urtw_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	/* prevent management frames from being sent if we're not ready */
 	if (!(sc->sc_flags & URTW_RUNNING)) {
 		m_freem(m);
-		ieee80211_free_node(ni);
 		return ENETDOWN;
 	}
 	URTW_LOCK(sc);
 	bf = urtw_getbuf(sc);
 	if (bf == NULL) {
-		ieee80211_free_node(ni);
 		m_freem(m);
 		URTW_UNLOCK(sc);
 		return (ENOBUFS);		/* XXX */
 	}
 
 	if (urtw_tx_start(sc, ni, m, bf, URTW_PRIORITY_LOW) != 0) {
-		ieee80211_free_node(ni);
 		STAILQ_INSERT_HEAD(&sc->sc_tx_inactive, bf, next);
 		URTW_UNLOCK(sc);
 		return (EIO);

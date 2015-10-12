@@ -4875,7 +4875,6 @@ iwn_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	DPRINTF(sc, IWN_DEBUG_XMIT | IWN_DEBUG_TRACE, "->%s begin\n", __func__);
 
 	if ((sc->sc_flags & IWN_FLAG_RUNNING) == 0) {
-		ieee80211_free_node(ni);
 		m_freem(m);
 		return ENETDOWN;
 	}
@@ -4889,9 +4888,6 @@ iwn_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	if (sc->sc_beacon_wait) {
 		if (iwn_xmit_queue_enqueue(sc, m) != 0) {
 			m_freem(m);
-			if_inc_counter(ni->ni_vap->iv_ifp,
-			    IFCOUNTER_OERRORS, 1);
-			ieee80211_free_node(ni);
 			IWN_UNLOCK(sc);
 			return (ENOBUFS);
 		}
@@ -4913,10 +4909,7 @@ iwn_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 		 */
 		error = iwn_tx_data_raw(sc, m, ni, params);
 	}
-	if (error != 0) {
-		/* NB: m is reclaimed on tx failure */
-		ieee80211_free_node(ni);
-	} else
+	if (error == 0)
 		sc->sc_tx_timer = 5;
 
 	IWN_UNLOCK(sc);

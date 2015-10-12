@@ -1702,7 +1702,6 @@ rt2860_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	if (!(sc->sc_flags & RT2860_RUNNNING)) {
 		RAL_UNLOCK(sc);
 		m_freem(m);
-		ieee80211_free_node(ni);
 		return ENETDOWN;
 	}
 	if (params == NULL) {
@@ -1717,10 +1716,6 @@ rt2860_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 		 * sending the frame.
 		 */
 		error = rt2860_tx_raw(sc, m, ni, params);
-	}
-	if (error != 0) {
-		/* NB: m is reclaimed on tx failure */
-		ieee80211_free_node(ni);
 	}
 	sc->sc_tx_timer = 5;
 	RAL_UNLOCK(sc);

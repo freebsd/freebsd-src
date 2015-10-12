@@ -2711,13 +2711,11 @@ rt2560_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	if (!(sc->sc_flags & RT2560_F_RUNNING)) {
 		RAL_UNLOCK(sc);
 		m_freem(m);
-		ieee80211_free_node(ni);
 		return ENETDOWN;
 	}
 	if (sc->prioq.queued >= RT2560_PRIO_RING_COUNT) {
 		RAL_UNLOCK(sc);
 		m_freem(m);
-		ieee80211_free_node(ni);
 		return ENOBUFS;		/* XXX */
 	}
 
@@ -2742,7 +2740,6 @@ rt2560_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 
 	return 0;
 bad:
-	ieee80211_free_node(ni);
 	RAL_UNLOCK(sc);
 	return EIO;		/* XXX */
 }

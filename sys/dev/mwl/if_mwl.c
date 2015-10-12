@@ -1422,7 +1422,6 @@ mwl_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	struct mwl_txq *txq;
 
 	if (!sc->sc_running || sc->sc_invalid) {
-		ieee80211_free_node(ni);
 		m_freem(m);
 		return ENETDOWN;
 	}
@@ -1438,7 +1437,6 @@ mwl_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	bf = mwl_gettxbuf(sc, txq);
 	if (bf == NULL) {
 		sc->sc_stats.mst_tx_qstop++;
-		ieee80211_free_node(ni);
 		m_freem(m);
 		return ENOBUFS;
 	}
@@ -1448,7 +1446,6 @@ mwl_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	if (mwl_tx_start(sc, ni, bf, m)) {
 		mwl_puttxbuf_head(txq, bf);
 
-		ieee80211_free_node(ni);
 		return EIO;		/* XXX */
 	}
 	/*

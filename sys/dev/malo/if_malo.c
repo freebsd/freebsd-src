@@ -1786,7 +1786,6 @@ malo_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	struct malo_txq *txq;
 
 	if (!sc->malo_running || sc->malo_invalid) {
-		ieee80211_free_node(ni);
 		m_freem(m);
 		return ENETDOWN;
 	}
@@ -1800,7 +1799,6 @@ malo_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	txq = &sc->malo_txq[0];
 	bf = malo_getbuf(sc, txq);
 	if (bf == NULL) {
-		ieee80211_free_node(ni);
 		m_freem(m);
 		return ENOBUFS;
 	}
@@ -1816,7 +1814,6 @@ malo_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 		txq->nfree++;
 		MALO_TXQ_UNLOCK(txq);
 
-		ieee80211_free_node(ni);
 		return EIO;		/* XXX */
 	}
 

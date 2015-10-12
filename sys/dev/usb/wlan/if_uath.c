@@ -1781,7 +1781,6 @@ uath_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	if ((sc->sc_flags & UATH_FLAG_INVALID) ||
 	    !(sc->sc_flags & UATH_FLAG_INITDONE)) {
 		m_freem(m);
-		ieee80211_free_node(ni);
 		UATH_UNLOCK(sc);
 		return (ENETDOWN);
 	}
@@ -1789,7 +1788,6 @@ uath_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	/* grab a TX buffer  */
 	bf = uath_getbuf(sc);
 	if (bf == NULL) {
-		ieee80211_free_node(ni);
 		m_freem(m);
 		UATH_UNLOCK(sc);
 		return (ENOBUFS);
@@ -1797,7 +1795,6 @@ uath_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 
 	sc->sc_seqnum = 0;
 	if (uath_tx_start(sc, m, ni, bf) != 0) {
-		ieee80211_free_node(ni);
 		STAILQ_INSERT_HEAD(&sc->sc_tx_inactive, bf, next);
 		UATH_STAT_INC(sc, st_tx_inactive);
 		UATH_UNLOCK(sc);

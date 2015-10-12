@@ -2877,7 +2877,6 @@ iwm_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	    "->%s begin\n", __func__);
 
 	if ((sc->sc_flags & IWM_FLAG_HW_INITED) == 0) {
-		ieee80211_free_node(ni);
 		m_freem(m);
 		IWM_DPRINTF(sc, IWM_DEBUG_XMIT,
 		    "<-%s not RUNNING\n", __func__);
@@ -2890,10 +2889,6 @@ iwm_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 		error = iwm_tx(sc, m, ni, 0);
 	} else {
 		error = iwm_tx(sc, m, ni, 0);
-	}
-	if (error != 0) {
-		/* NB: m is reclaimed on tx failure */
-		ieee80211_free_node(ni);
 	}
 	sc->sc_tx_timer = 5;
 	IWM_UNLOCK(sc);

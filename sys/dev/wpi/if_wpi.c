@@ -3093,7 +3093,6 @@ unlock:	WPI_TX_UNLOCK(sc);
 
 	if (error != 0) {
 		m_freem(m);
-		ieee80211_free_node(ni);
 		DPRINTF(sc, WPI_DEBUG_TRACE, TRACE_STR_END_ERR, __func__);
 
 		return error;

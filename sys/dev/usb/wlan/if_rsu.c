@@ -2793,19 +2793,16 @@ rsu_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	/* prevent management frames from being sent if we're not ready */
 	if (!sc->sc_running) {
 		m_freem(m);
-		ieee80211_free_node(ni);
 		return (ENETDOWN);
 	}
 	RSU_LOCK(sc);
 	bf = rsu_getbuf(sc);
 	if (bf == NULL) {
-		ieee80211_free_node(ni);
 		m_freem(m);
 		RSU_UNLOCK(sc);
 		return (ENOBUFS);
 	}
 	if (rsu_tx_start(sc, ni, m, bf) != 0) {
-		ieee80211_free_node(ni);
 		m_freem(m);
 		rsu_freebuf(sc, bf);
 		RSU_UNLOCK(sc);
