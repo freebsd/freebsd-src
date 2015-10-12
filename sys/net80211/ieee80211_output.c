@@ -132,7 +132,7 @@ ieee80211_vap_pkt_send_dest(struct ieee80211vap *vap, struct mbuf *m,
 {
 	struct ieee80211com *ic = vap->iv_ic;
 	struct ifnet *ifp = vap->iv_ifp;
-	int error, len, mcast;
+	int len, mcast;
 
 	if ((ni->ni_flags & IEEE80211_NODE_PWR_MGT) &&
 	    (m->m_flags & M_PWR_SAV) == 0) {
@@ -264,18 +264,13 @@ ieee80211_vap_pkt_send_dest(struct ieee80211vap *vap, struct mbuf *m,
 			return (ENOBUFS);
 		}
 	}
-	error = ieee80211_parent_xmitpkt(ic, m);
+	(void) ieee80211_parent_xmitpkt(ic, m);
 
 	/*
 	 * Unlock at this point - no need to hold it across
 	 * ieee80211_free_node() (ie, the comlock)
 	 */
 	IEEE80211_TX_UNLOCK(ic);
-	if (error != 0) {
-		/* NB: IFQ_HANDOFF reclaims mbuf */
-		ieee80211_free_node(ni);
-		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
-	}
 	ic->ic_lastdata = ticks;
 
 	return (0);

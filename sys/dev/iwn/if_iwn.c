@@ -4950,9 +4950,7 @@ iwn_transmit(struct ieee80211com *ic, struct mbuf *m)
 	}
 
 	error = iwn_tx_data(sc, m, ni);
-	if (error) {
-		if_inc_counter(ni->ni_vap->iv_ifp, IFCOUNTER_OERRORS, 1);
-	} else
+	if (!error)
 		sc->sc_tx_timer = 5;
 	IWN_UNLOCK(sc);
 	return (error);

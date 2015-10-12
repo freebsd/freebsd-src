@@ -475,13 +475,9 @@ ff_transmit(struct ieee80211_node *ni, struct mbuf *m)
 	if (m != NULL) {
 		struct ifnet *ifp = vap->iv_ifp;
 
-		error = ieee80211_parent_xmitpkt(ic, m);;
-		if (error != 0) {
-			/* NB: IFQ_HANDOFF reclaims mbuf */
-			ieee80211_free_node(ni);
-		} else {
+		error = ieee80211_parent_xmitpkt(ic, m);
+		if (!error)
 			if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
-		}
 	} else
 		ieee80211_free_node(ni);
 }
