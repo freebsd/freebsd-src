@@ -567,7 +567,6 @@ error:
 	if (bf)
 		otus_freebuf(sc, bf);
 	OTUS_UNLOCK(sc);
-	ieee80211_free_node(ni);
 	m_freem(m);
 	return (ENXIO);
 }

@@ -2850,7 +2850,6 @@ rum_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 bad:
 	RUM_UNLOCK(sc);
 	m_freem(m);
-	ieee80211_free_node(ni);
 	return ret;
 }
 

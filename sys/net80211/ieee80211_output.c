@@ -531,8 +531,10 @@ ieee80211_raw_output(struct ieee80211vap *vap, struct ieee80211_node *ni,
 		(void) ieee80211_add_xmit_params(m, params);
 
 	error = ic->ic_raw_xmit(ni, m, params);
-	if (error)
+	if (error) {
 		if_inc_counter(vap->iv_ifp, IFCOUNTER_OERRORS, 1);
+		ieee80211_free_node(ni);
+	}
 	return (error);
 }
 

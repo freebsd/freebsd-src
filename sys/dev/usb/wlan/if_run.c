@@ -3707,7 +3707,6 @@ done:
 	if (error != 0) {
 		if(m != NULL)
 			m_freem(m);
-		ieee80211_free_node(ni);
 	}
 
 	return (error);
