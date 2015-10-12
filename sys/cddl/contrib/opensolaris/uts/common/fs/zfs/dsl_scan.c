@@ -107,6 +107,9 @@ extern int zfs_txg_timeout;
  */
 boolean_t zfs_free_bpobj_enabled = B_TRUE;
 
+SYSCTL_INT(_vfs_zfs, OID_AUTO, free_bpobj_enabled, CTLFLAG_RWTUN,
+    &zfs_free_bpobj_enabled, 0, "Enable free_bpobj processing");
+
 /* the order has to match pool_scan_type */
 static scan_cb_t *scan_funcs[POOL_SCAN_FUNCS] = {
 	NULL,
