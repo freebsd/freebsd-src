@@ -2990,7 +2990,7 @@ ipfw_add(char *av[])
 		action->opcode = O_NAT;
 		action->len = F_INSN_SIZE(ipfw_insn_nat);
 		CHECK_ACTLEN;
-		if (_substrcmp(*av, "global") == 0) {
+		if (*av != NULL && _substrcmp(*av, "global") == 0) {
 			action->arg1 = 0;
 			av++;
 			break;
