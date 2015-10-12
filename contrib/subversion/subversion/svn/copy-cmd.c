@@ -150,8 +150,7 @@ svn_cl__copy(apr_getopt_t *os,
     }
   else
     {
-      /* URL -> URL, meaning that no notification is needed. */
-      ctx->notify_func2 = NULL;
+      /* URL -> URL */
     }
 
   if (! dst_is_url)
@@ -168,8 +167,11 @@ svn_cl__copy(apr_getopt_t *os,
     SVN_ERR(svn_cl__make_log_msg_baton(&(ctx->log_msg_baton3), opt_state,
                                        NULL, ctx->config, pool));
 
-  err = svn_client_copy6(sources, dst_path, TRUE,
+  err = svn_client_copy7(sources, dst_path, TRUE,
                          opt_state->parents, opt_state->ignore_externals,
+                         FALSE /* metadata_only */,
+                         opt_state->pin_externals,
+                         NULL, /* pin all externals */
                          opt_state->revprop_table,
                          (opt_state->quiet ? NULL : svn_cl__print_commit_info),
                          NULL,

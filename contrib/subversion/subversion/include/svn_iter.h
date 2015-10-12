@@ -77,7 +77,7 @@ svn_iter_apr_hash(svn_boolean_t *completed,
                   void *baton,
                   apr_pool_t *pool);
 
-/** Iteration callback used in conjuction with svn_iter_apr_array().
+/** Iteration callback used in conjunction with svn_iter_apr_array().
  *
  * Use @a pool for temporary allocation, it's cleared between invocations.
  *

@@ -27,6 +27,8 @@
 #include "svn_delta.h"
 #include "private/svn_cache.h"
 
+#include "id.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */
@@ -175,6 +177,12 @@ svn_error_t *svn_fs_fs__dag_get_proplist(apr_hash_t **proplist_p,
                                          dag_node_t *node,
                                          apr_pool_t *pool);
 
+/* Set *HAS_PROPS to TRUE if NODE has properties. Use SCRATCH_POOL
+   for temporary allocations */
+svn_error_t *svn_fs_fs__dag_has_props(svn_boolean_t *has_props,
+                                      dag_node_t *node,
+                                      apr_pool_t *scratch_pool);
+
 /* Set the property list of NODE to PROPLIST, allocating from POOL.
    The node being changed must be mutable.
 
@@ -224,7 +232,7 @@ svn_error_t *svn_fs_fs__dag_revision_root(dag_node_t **node_p,
    for a transaction, call svn_fs_fs__dag_clone_root.  */
 svn_error_t *svn_fs_fs__dag_txn_root(dag_node_t **node_p,
                                      svn_fs_t *fs,
-                                     const char *txn_id,
+                                     const svn_fs_fs__id_part_t *txn_id,
                                      apr_pool_t *pool);
 
 
@@ -232,7 +240,7 @@ svn_error_t *svn_fs_fs__dag_txn_root(dag_node_t **node_p,
    allocating from POOL.  Allocate the node in TRAIL->pool.  */
 svn_error_t *svn_fs_fs__dag_txn_base_root(dag_node_t **node_p,
                                           svn_fs_t *fs,
-                                          const char *txn_id,
+                                          const svn_fs_fs__id_part_t *txn_id,
                                           apr_pool_t *pool);
 
 
@@ -242,7 +250,7 @@ svn_error_t *svn_fs_fs__dag_txn_base_root(dag_node_t **node_p,
    root directory clone.  Allocate *ROOT_P in POOL.  */
 svn_error_t *svn_fs_fs__dag_clone_root(dag_node_t **root_p,
                                        svn_fs_t *fs,
-                                       const char *txn_id,
+                                       const svn_fs_fs__id_part_t *txn_id,
                                        apr_pool_t *pool);
 
 
@@ -252,7 +260,8 @@ svn_error_t *svn_fs_fs__dag_clone_root(dag_node_t **root_p,
 
 /* Open the node named NAME in the directory PARENT.  Set *CHILD_P to
    the new node, allocated in RESULT_POOL.  NAME must be a single path
-   component; it cannot be a slash-separated directory path.
+   component; it cannot be a slash-separated directory path.  If NAME does
+   not exist within PARENT, set *CHILD_P to NULL.
  */
 svn_error_t *
 svn_fs_fs__dag_open(dag_node_t **child_p,
@@ -262,24 +271,25 @@ svn_fs_fs__dag_open(dag_node_t **child_p,
                     apr_pool_t *scratch_pool);
 
 
-/* Set *ENTRIES_P to a hash table of NODE's entries.  The keys of the
-   table are entry names, and the values are svn_fs_dirent_t's.  The
-   returned table (and its keys and values) is allocated in POOL,
-   which is also used for temporary allocations. */
-svn_error_t *svn_fs_fs__dag_dir_entries(apr_hash_t **entries_p,
+/* Set *ENTRIES_P to an array of NODE's entries, sorted by entry names,
+   and the values are svn_fs_dirent_t's.  The returned table (and elements)
+   is allocated in POOL, which is also used for temporary allocations. */
+svn_error_t *svn_fs_fs__dag_dir_entries(apr_array_header_t **entries_p,
                                         dag_node_t *node,
                                         apr_pool_t *pool);
 
 /* Fetches the NODE's entries and returns a copy of the entry selected
    by the key value given in NAME and set *DIRENT to a copy of that
-   entry. If such entry was found, the copy will be allocated in POOL.
+   entry. If such entry was found, the copy will be allocated in
+   RESULT_POOL.  Temporary data will be used in SCRATCH_POOL.
    Otherwise, the *DIRENT will be set to NULL.
  */
 /* ### This function is currently only called from dag.c. */
 svn_error_t * svn_fs_fs__dag_dir_entry(svn_fs_dirent_t **dirent,
                                        dag_node_t *node,
                                        const char* name,
-                                       apr_pool_t *pool);
+                                       apr_pool_t *result_pool,
+                                       apr_pool_t *scratch_pool);
 
 /* Set ENTRY_NAME in NODE to point to ID (with kind KIND), allocating
    from POOL.  NODE must be a mutable directory.  ID can refer to a
@@ -294,7 +304,7 @@ svn_error_t *svn_fs_fs__dag_set_entry(dag_node_t *node,
                                       const char *entry_name,
                                       const svn_fs_id_t *id,
                                       svn_node_kind_t kind,
-                                      const char *txn_id,
+                                      const svn_fs_fs__id_part_t *txn_id,
                                       apr_pool_t *pool);
 
 
@@ -321,8 +331,8 @@ svn_error_t *svn_fs_fs__dag_clone_child(dag_node_t **child_p,
                                         dag_node_t *parent,
                                         const char *parent_path,
                                         const char *name,
-                                        const char *copy_id,
-                                        const char *txn_id,
+                                        const svn_fs_fs__id_part_t *copy_id,
+                                        const svn_fs_fs__id_part_t *txn_id,
                                         svn_boolean_t is_parent_copyroot,
                                         apr_pool_t *pool);
 
@@ -341,7 +351,7 @@ svn_error_t *svn_fs_fs__dag_clone_child(dag_node_t **child_p,
  */
 svn_error_t *svn_fs_fs__dag_delete(dag_node_t *parent,
                                    const char *name,
-                                   const char *txn_id,
+                                   const svn_fs_fs__id_part_t *txn_id,
                                    apr_pool_t *pool);
 
 
@@ -384,7 +394,7 @@ svn_error_t *svn_fs_fs__dag_make_dir(dag_node_t **child_p,
                                      dag_node_t *parent,
                                      const char *parent_path,
                                      const char *name,
-                                     const char *txn_id,
+                                     const svn_fs_fs__id_part_t *txn_id,
                                      apr_pool_t *pool);
 
 
@@ -495,7 +505,7 @@ svn_error_t *svn_fs_fs__dag_make_file(dag_node_t **child_p,
                                       dag_node_t *parent,
                                       const char *parent_path,
                                       const char *name,
-                                      const char *txn_id,
+                                      const svn_fs_fs__id_part_t *txn_id,
                                       apr_pool_t *pool);
 
 
@@ -522,33 +532,31 @@ svn_error_t *svn_fs_fs__dag_copy(dag_node_t *to_node,
                                  svn_boolean_t preserve_history,
                                  svn_revnum_t from_rev,
                                  const char *from_path,
-                                 const char *txn_id,
+                                 const svn_fs_fs__id_part_t *txn_id,
                                  apr_pool_t *pool);
 
 
 /* Comparison */
 
-/* Find out what is the same between two nodes.
+/* Find out what is the same between two nodes.  If STRICT is FALSE,
+   this function may report false positives, i.e. report changes even
+   if the resulting contents / props are equal.
 
    If PROPS_CHANGED is non-null, set *PROPS_CHANGED to 1 if the two
    nodes have different property lists, or to 0 if same.
 
    If CONTENTS_CHANGED is non-null, set *CONTENTS_CHANGED to 1 if the
-   two nodes have different contents, or to 0 if same.  For files,
-   file contents are compared; for directories, the entries lists are
-   compared.  If one is a file and the other is a directory, the one's
-   contents will be compared to the other's entries list.  (Not
-   terribly useful, I suppose, but that's the caller's business.)
+   two nodes have different contents, or to 0 if same.  NODE1 and NODE2
+   must refer to files from the same filesystem.
 
-   ### todo: This function only compares rep keys at the moment.  This
-   may leave us with a slight chance of a false positive, though I
-   don't really see how that would happen in practice.  Nevertheless,
-   it should probably be fixed.
+   Use POOL for temporary allocations.
  */
 svn_error_t *svn_fs_fs__dag_things_different(svn_boolean_t *props_changed,
                                              svn_boolean_t *contents_changed,
                                              dag_node_t *node1,
-                                             dag_node_t *node2);
+                                             dag_node_t *node2,
+                                             svn_boolean_t strict,
+                                             apr_pool_t *pool);
 
 
 /* Set *REV and *PATH to the copyroot revision and path of node NODE, or

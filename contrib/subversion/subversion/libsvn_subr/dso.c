@@ -29,6 +29,7 @@
 
 #include "private/svn_mutex.h"
 #include "private/svn_atomic.h"
+#include "private/svn_subr_private.h"
 
 /* A mutex to protect our global pool and cache. */
 static svn_mutex__t *dso_mutex = NULL;
@@ -123,4 +124,11 @@ svn_dso_load(apr_dso_handle_t **dso, const char *fname)
 
   return SVN_NO_ERROR;
 }
+
+apr_pool_t *
+svn_dso__pool(void)
+{
+  return dso_pool;
+}
+
 #endif /* APR_HAS_DSO */

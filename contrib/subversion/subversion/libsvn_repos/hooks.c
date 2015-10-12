@@ -184,8 +184,8 @@ env_from_env_hash(apr_hash_t *env_hash,
   for (hi = apr_hash_first(scratch_pool, env_hash); hi; hi = apr_hash_next(hi))
     {
       *envp = apr_psprintf(result_pool, "%s=%s",
-                           (const char *)svn__apr_hash_index_key(hi),
-                           (const char *)svn__apr_hash_index_val(hi));
+                           (const char *)apr_hash_this_key(hi),
+                           (const char *)apr_hash_this_val(hi));
       envp++;
     }
   *envp = NULL;
@@ -318,7 +318,7 @@ check_hook_cmd(const char *hook, svn_boolean_t *broken_link, apr_pool_t *pool)
 #ifdef WIN32
   /* For WIN32, we need to check with file name extension(s) added.
 
-     As Windows Scripting Host (.wsf) files can accomodate (at least)
+     As Windows Scripting Host (.wsf) files can accommodate (at least)
      JavaScript (.js) and VB Script (.vbs) code, extensions for the
      corresponding file types need not be enumerated explicitly. */
     ".exe", ".cmd", ".bat", ".wsf", /* ### Any other extensions? */
@@ -334,7 +334,7 @@ check_hook_cmd(const char *hook, svn_boolean_t *broken_link, apr_pool_t *pool)
   for (extn = check_extns; *extn; ++extn)
     {
       const char *const hook_path =
-        (**extn ? apr_pstrcat(pool, hook, *extn, (char *)NULL) : hook);
+        (**extn ? apr_pstrcat(pool, hook, *extn, SVN_VA_NULL) : hook);
 
       svn_node_kind_t kind;
       if (!(err = svn_io_check_resolved_path(hook_path, &kind, pool))
@@ -363,7 +363,7 @@ struct parse_hooks_env_option_baton {
    * options apply. */
   const char *section;
   apr_hash_t *hooks_env;
-} parse_hooks_env_option_baton;
+};
 
 /* An implementation of svn_config_enumerator2_t.
  * Set environment variable NAME to value VALUE in the environment for
@@ -393,7 +393,7 @@ parse_hooks_env_option(const char *name, const char *value,
 struct parse_hooks_env_section_baton {
   svn_config_t *cfg;
   apr_hash_t *hooks_env;
-} parse_hooks_env_section_baton;
+};
 
 /* An implementation of svn_config_section_enumerator2_t. */
 static svn_boolean_t
@@ -416,17 +416,25 @@ svn_repos__parse_hooks_env(apr_hash_t **hooks_env_p,
                            apr_pool_t *result_pool,
                            apr_pool_t *scratch_pool)
 {
-  svn_config_t *cfg;
   struct parse_hooks_env_section_baton b;
-
   if (local_abspath)
     {
-      SVN_ERR(svn_config_read3(&cfg, local_abspath, FALSE,
-                               TRUE, TRUE, scratch_pool));
-      b.cfg = cfg;
+      svn_node_kind_t kind;
+      SVN_ERR(svn_io_check_path(local_abspath, &kind, scratch_pool));
+
       b.hooks_env = apr_hash_make(result_pool);
-      (void)svn_config_enumerate_sections2(cfg, parse_hooks_env_section, &b,
-                                           scratch_pool);
+
+      if (kind != svn_node_none)
+        {
+          svn_config_t *cfg;
+          SVN_ERR(svn_config_read3(&cfg, local_abspath, FALSE,
+                                  TRUE, TRUE, scratch_pool));
+          b.cfg = cfg;
+
+          (void)svn_config_enumerate_sections2(cfg, parse_hooks_env_section,
+                                               &b, scratch_pool);
+        }
+
       *hooks_env_p = b.hooks_env;
     }
   else
@@ -511,15 +519,22 @@ lock_token_content(apr_file_t **handle, apr_hash_t *lock_tokens,
   for (hi = apr_hash_first(pool, lock_tokens); hi;
        hi = apr_hash_next(hi))
     {
-      void *val;
-      const char *path, *token;
+      const char *token = apr_hash_this_key(hi);
+      const char *path = apr_hash_this_val(hi);
 
-      apr_hash_this(hi, (void *)&token, NULL, &val);
-      path = val;
+      if (path == (const char *) 1)
+        {
+          /* Special handling for svn_fs_access_t * created by using deprecated
+             svn_fs_access_add_lock_token() function. */
+          path = "";
+        }
+      else
+        {
+          path = svn_path_uri_autoescape(path, pool);
+        }
+
       svn_stringbuf_appendstr(lock_str,
-        svn_stringbuf_createf(pool, "%s|%s\n",
-                              svn_path_uri_autoescape(path, pool),
-                              token));
+          svn_stringbuf_createf(pool, "%s|%s\n", path, token));
     }
 
   svn_stringbuf_appendcstr(lock_str, "\n");

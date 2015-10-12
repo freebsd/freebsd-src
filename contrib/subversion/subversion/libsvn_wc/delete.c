@@ -135,7 +135,8 @@ create_delete_wq_items(svn_skel_t **work_items,
       const apr_array_header_t *markers;
       int i;
 
-      SVN_ERR(svn_wc__db_read_conflict(&conflict, db, local_abspath,
+      SVN_ERR(svn_wc__db_read_conflict(&conflict, NULL, NULL,
+                                       db, local_abspath,
                                        scratch_pool, scratch_pool));
 
       SVN_ERR(svn_wc__conflict_read_markers(&markers, db, local_abspath,
@@ -431,9 +432,6 @@ svn_wc__internal_remove_from_revision_control(svn_wc__db_t *db,
                                     db, local_abspath,
                                     destroy_wf /* destroy_wc */,
                                     destroy_wf /* destroy_changes */,
-                                    SVN_INVALID_REVNUM,
-                                    svn_wc__db_status_not_present,
-                                    svn_node_none,
                                     NULL, NULL,
                                     cancel_func, cancel_baton,
                                     scratch_pool));

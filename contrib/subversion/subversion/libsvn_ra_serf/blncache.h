@@ -59,7 +59,7 @@ svn_ra_serf__blncache_set(svn_ra_serf__blncache_t *blncache,
                           const char *baseline_url,
                           svn_revnum_t revnum,
                           const char *bc_url,
-                          apr_pool_t *pool);
+                          apr_pool_t *scratch_pool);
 
 /* Sets *BC_URL_P with a pointer to baseline collection URL for the given
  * REVNUM. *BC_URL_P will be NULL if cache doesn't have information about
@@ -69,7 +69,7 @@ svn_error_t *
 svn_ra_serf__blncache_get_bc_url(const char **bc_url_p,
                                  svn_ra_serf__blncache_t *blncache,
                                  svn_revnum_t revnum,
-                                 apr_pool_t *pool);
+                                 apr_pool_t *result_pool);
 
 /* Sets *BC_URL_P with pointer to baseline collection URL and *REVISION_P
  * with revision number of baseline BASELINE_URL. *BC_URL_P will be NULL,

@@ -43,7 +43,11 @@ extern "C" {
    repository format number, and independent of any other FS back
    ends.  See the SVN_FS_BASE__MIN_*_FORMAT defines to get a sense of
    what changes and features were added in which versions of this
-   back-end's format.  */
+   back-end's format.
+
+   Note: If you bump this, please update the switch statement in
+         base_create() as well.
+ */
 #define SVN_FS_BASE__FORMAT_NUMBER                4
 
 /* Minimum format number that supports representation sharing.  This
@@ -191,7 +195,11 @@ typedef struct node_revision_t
      only because one or both of us decided to pick up a shared
      representation after-the-fact."  May be NULL (if this node
      revision isn't using a shared rep, or isn't the original
-     "assignee" of a shared rep). */
+     "assignee" of a shared rep).
+
+     This is no longer used by the 1.9 code but we have to keep
+     reading and writing it to remain compatible with 1.8, and
+     earlier, that require it. */
   const char *data_key_uniquifier;
 
   /* representation key for this node's text-data-in-progess (files

@@ -177,7 +177,7 @@ terminal_open(terminal_handle_t **terminal, svn_boolean_t noecho,
      and stderr for prompting. */
   apr_file_t *tmpfd;
   status = apr_file_open(&tmpfd, "/dev/tty",
-                         APR_READ | APR_WRITE,
+                         APR_FOPEN_READ | APR_FOPEN_WRITE,
                          APR_OS_DEFAULT, pool);
   *terminal = apr_palloc(pool, sizeof(terminal_handle_t));
   if (!status)
@@ -236,7 +236,6 @@ terminal_puts(const char *string, terminal_handle_t *terminal,
               apr_pool_t *pool)
 {
   svn_error_t *err;
-  apr_status_t status;
   const char *converted;
 
   err = svn_cmdline_cstring_from_utf8(&converted, string, pool);
@@ -255,13 +254,10 @@ terminal_puts(const char *string, terminal_handle_t *terminal,
     }
 #endif
 
-  status = apr_file_write_full(terminal->outfd, converted,
-                               strlen(converted), NULL);
-  if (!status)
-    status = apr_file_flush(terminal->outfd);
-  if (status)
-    return svn_error_wrap_apr(status, _("Can't write to terminal"));
-  return SVN_NO_ERROR;
+  SVN_ERR(svn_io_file_write_full(terminal->outfd, converted,
+                                 strlen(converted), NULL, pool));
+
+  return svn_error_trace(svn_io_file_flush(terminal->outfd, pool));
 }
 
 /* These codes can be returned from terminal_getc instead of a character. */

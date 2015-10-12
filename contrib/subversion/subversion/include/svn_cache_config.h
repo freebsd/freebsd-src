@@ -41,6 +41,9 @@ extern "C" {
 /** Cache resource settings. It controls what caches, in what size and
    how they will be created. The settings apply for the whole process.
 
+   @note Do not extend this data structure as this would break binary
+         compatibility.
+
    @since New in 1.7.
  */
 typedef struct svn_cache_config_t
@@ -56,6 +59,8 @@ typedef struct svn_cache_config_t
 
   /** is this application guaranteed to be single-threaded? */
   svn_boolean_t single_threaded;
+
+  /* DON'T add new members here.  Bump struct and API version instead. */
 } svn_cache_config_t;
 
 /** Get the current cache configuration. If it has not been set,

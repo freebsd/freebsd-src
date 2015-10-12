@@ -138,37 +138,38 @@ generate_status_desc(enum svn_wc_status_kind status)
 
 /* Make a relative path containing '..' elements as needed.
    TARGET_ABSPATH shall be the absolute version of TARGET_PATH.
-   TARGET_ABSPATH, TARGET_PATH and PATH shall be canonical.
+   TARGET_ABSPATH, TARGET_PATH and LOCAL_ABSPATH shall be canonical
 
    If above conditions are met, a relative path that leads to PATH
    from TARGET_PATH is returned, but there is no error checking involved.
 
    The returned path is allocated from RESULT_POOL, all other
-   allocations are made in SCRATCH_POOL.  */
+   allocations are made in SCRATCH_POOL.
+
+   Note that it is not possible to just join the resulting path to
+   reconstruct the real path as the "../" paths are relative from
+   a different base than the normal relative paths!
+ */
 static const char *
 make_relpath(const char *target_abspath,
              const char *target_path,
-             const char *path,
+             const char *local_abspath,
              apr_pool_t *result_pool,
              apr_pool_t *scratch_pool)
 {
   const char *la;
   const char *parent_dir_els = "";
-  const char *abspath, *relative;
-  svn_error_t *err = svn_dirent_get_absolute(&abspath, path, scratch_pool);
+  const char *t_relpath;
+  const char *p_relpath;
 
-  if (err)
-    {
-      /* We probably got passed some invalid path. */
-      svn_error_clear(err);
-      return apr_pstrdup(result_pool, path);
-    }
+#ifdef SVN_DEBUG
+  SVN_ERR_ASSERT_NO_RETURN(svn_dirent_is_absolute(local_abspath));
+#endif
 
-  relative = svn_dirent_skip_ancestor(target_abspath, abspath);
-  if (relative)
-    {
-      return svn_dirent_join(target_path, relative, result_pool);
-    }
+  t_relpath = svn_dirent_skip_ancestor(target_abspath, local_abspath);
+
+  if (t_relpath)
+    return svn_dirent_join(target_path, t_relpath, result_pool);
 
   /* An example:
    *  relative_to_path = /a/b/c
@@ -180,17 +181,16 @@ make_relpath(const char *target_abspath,
    *  path             = C:/wc
    *  result           = C:/wc
    */
-
   /* Skip the common ancestor of both paths, here '/a'. */
-  la = svn_dirent_get_longest_ancestor(target_abspath, abspath,
+  la = svn_dirent_get_longest_ancestor(target_abspath, local_abspath,
                                        scratch_pool);
   if (*la == '\0')
     {
       /* Nothing in common: E.g. C:/ vs F:/ on Windows */
-      return apr_pstrdup(result_pool, path);
+      return apr_pstrdup(result_pool, local_abspath);
     }
-  relative = svn_dirent_skip_ancestor(la, target_abspath);
-  path = svn_dirent_skip_ancestor(la, path);
+  t_relpath = svn_dirent_skip_ancestor(la, target_abspath);
+  p_relpath = svn_dirent_skip_ancestor(la, local_abspath);
 
   /* In above example, we'd now have:
    *  relative_to_path = b/c
@@ -198,14 +198,14 @@ make_relpath(const char *target_abspath,
 
   /* Count the elements of relative_to_path and prepend as many '..' elements
    * to path. */
-  while (*relative)
+  while (*t_relpath)
     {
-      svn_dirent_split(&relative, NULL, relative,
-                       scratch_pool);
+      t_relpath = svn_dirent_dirname(t_relpath, scratch_pool);
       parent_dir_els = svn_dirent_join(parent_dir_els, "..", scratch_pool);
     }
 
-  return svn_dirent_join(parent_dir_els, path, result_pool);
+  /* This returns a ../ style path relative from the status target */
+  return svn_dirent_join(parent_dir_els, p_relpath, result_pool);
 }
 
 
@@ -231,8 +231,6 @@ print_status(const char *target_abspath,
   const char *tree_desc_line = "";
   const char *moved_from_line = "";
   const char *moved_to_line = "";
-
-  path = make_relpath(target_abspath, target_path, path, pool, pool);
 
   /* For historic reasons svn ignores the property status for added nodes, even
      if these nodes were copied and have local property changes.
@@ -317,7 +315,7 @@ print_status(const char *target_abspath,
                                     apr_psprintf(pool,
                                                  _("swapped places with %s"),
                                                  relpath),
-                                    (char *)NULL);
+                                    SVN_VA_NULL);
     }
   else if (status->moved_from_abspath || status->moved_to_abspath)
     {
@@ -332,7 +330,7 @@ print_status(const char *target_abspath,
           moved_from_line = apr_pstrcat(pool, "\n        > ",
                                         apr_psprintf(pool, _("moved from %s"),
                                                      relpath),
-                                        (char *)NULL);
+                                        SVN_VA_NULL);
         }
 
       if (status->moved_to_abspath)
@@ -344,7 +342,7 @@ print_status(const char *target_abspath,
           moved_to_line = apr_pstrcat(pool, "\n        > ",
                                       apr_psprintf(pool, _("moved to %s"),
                                                    relpath),
-                                      (char *)NULL);
+                                      SVN_VA_NULL);
         }
     }
 
@@ -487,10 +485,9 @@ svn_cl__print_status_xml(const char *target_abspath,
     SVN_ERR(svn_wc_conflicted_p3(NULL, NULL, &tree_conflicted,
                                  ctx->wc_ctx, local_abspath, pool));
 
-  path = make_relpath(target_abspath, target_path, path, pool, pool);
-
   svn_xml_make_open_tag(&sb, pool, svn_xml_normal, "entry",
-                        "path", svn_dirent_local_style(path, pool), NULL);
+                        "path", svn_dirent_local_style(path, pool),
+                        SVN_VA_NULL);
 
   att_hash = apr_hash_make(pool);
   svn_hash_sets(att_hash, "item",
@@ -560,7 +557,7 @@ svn_cl__print_status_xml(const char *target_abspath,
                             generate_status_desc(combined_repos_status(status)),
                             "props",
                             generate_status_desc(status->repos_prop_status),
-                            NULL);
+                            SVN_VA_NULL);
       if (status->repos_lock)
         svn_cl__print_xml_lock(&sb, status->repos_lock, pool);
 

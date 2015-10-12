@@ -303,18 +303,20 @@ second place for auth-request point as noted below.
 
   get-file
     params:   ( path:string [ rev:number ] want-props:bool want-contents:bool
-                [ want-iprops:bool ] )
+                ? want-iprops:bool )
     response: ( [ checksum:string ] rev:number props:proplist
                 [ inherited-props:iproplist ] )
     If want-contents is specified, then after sending response, server
      sends file contents as a series of strings, terminated by the empty
      string, followed by a second empty command response to indicate
      whether an error occurred during the sending of the file.
-    NOTE: the standard client never sends want-iprops, it uses get-iprops. 
+    NOTE: the standard client doesn't send want-iprops as true, it uses
+     get-iprops, but does send want-iprops as false to workaround a server
+     bug in 1.8.0-1.8.8.
 
   get-dir
     params:   ( path:string [ rev:number ] want-props:bool want-contents:bool
-                ? ( field:dirent-field ... ) [ want-iprops:bool ] )
+                ? ( field:dirent-field ... ) ? want-iprops:bool )
     response: ( rev:number props:proplist ( entry:dirent ... )
                 [ inherited-props:iproplist ] )]
     dirent:   ( name:string kind:node-kind size:number has-props:bool
@@ -322,7 +324,9 @@ second place for auth-request point as noted below.
                 [ last-author:string ] )
     dirent-field: kind | size | has-props | created-rev | time | last-author
                   | word
-    NOTE: the standard client never sends want-iprops, it uses get-iprops. 
+    NOTE: the standard client doesn't send want-iprops as true, it uses
+     get-iprops, but does send want-iprops as false to workaround a server
+     bug in 1.8.0-1.8.8.
 
   check-path
     params:   ( path:string [ rev:number ] )
@@ -339,7 +343,7 @@ second place for auth-request point as noted below.
 
   get-mergeinfo
     params:   ( ( path:string ... ) [ rev:number ] inherit:word 
-                descendents:bool)
+                descendants:bool)
     response: ( ( ( path:string merge-info:string ) ... ) )
     New in svn 1.5.  If no paths are specified, an empty response is
     returned.  If rev is not specified, the youngest revision is used.
@@ -597,7 +601,13 @@ desirability:
   * The protocol version may be bumped.  Clients and servers can then
     choose to any range of protocol versions.
 
-4.1. Extending existing commands
+4.1. Limitations
+
+The current implementation limits the length of a word to 31 characters.
+Longer words, such as capability names, will be cause an error on the
+receiver side.
+
+4.2. Extending existing commands
 
 Extending an existing command is normally done by indicating that its
 tuple is allowed to end where it currently ends, for backwards

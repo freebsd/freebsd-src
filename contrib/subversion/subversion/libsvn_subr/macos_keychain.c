@@ -32,6 +32,7 @@
 #include "svn_config.h"
 #include "svn_user.h"
 
+#include "auth.h"
 #include "private/svn_auth_private.h"
 
 #include "svn_private_config.h"
@@ -241,7 +242,7 @@ static const svn_auth_provider_t keychain_ssl_client_cert_pw_provider = {
 
 /* Public API */
 void
-svn_auth_get_keychain_simple_provider(svn_auth_provider_object_t **provider,
+svn_auth__get_keychain_simple_provider(svn_auth_provider_object_t **provider,
                                       apr_pool_t *pool)
 {
   svn_auth_provider_object_t *po = apr_pcalloc(pool, sizeof(*po));
@@ -251,7 +252,7 @@ svn_auth_get_keychain_simple_provider(svn_auth_provider_object_t **provider,
 }
 
 void
-svn_auth_get_keychain_ssl_client_cert_pw_provider
+svn_auth__get_keychain_ssl_client_cert_pw_provider
   (svn_auth_provider_object_t **provider,
    apr_pool_t *pool)
 {
