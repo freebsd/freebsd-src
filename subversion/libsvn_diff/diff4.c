@@ -270,7 +270,7 @@ svn_diff_diff4_2(svn_diff_t **diff,
     }
 
   /* Get the lcs for common ancestor - original
-   * Do reverse adjustements
+   * Do reverse adjustments
    */
   lcs_adjust = svn_diff__lcs(position_list[3], position_list[2],
                              token_counts[3], token_counts[2],

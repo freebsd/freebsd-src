@@ -34,6 +34,7 @@
 #include "svn_ctype.h"
 
 #include "private/svn_utf_private.h"
+#include "private/svn_subr_private.h"
 
 #ifdef SVN_HAVE_OLD_EXPAT
 #include <xmlparse.h>
@@ -44,6 +45,28 @@
 #ifdef XML_UNICODE
 #error Expat is unusable -- it has been compiled for wide characters
 #endif
+
+const char *
+svn_xml__compiled_version(void)
+{
+  static const char xml_version_str[] = APR_STRINGIFY(XML_MAJOR_VERSION)
+                                        "." APR_STRINGIFY(XML_MINOR_VERSION)
+                                        "." APR_STRINGIFY(XML_MICRO_VERSION);
+
+  return xml_version_str;
+}
+
+const char *
+svn_xml__runtime_version(void)
+{
+  const char *expat_version = XML_ExpatVersion();
+
+  if (!strncmp(expat_version, "expat_", 6))
+    expat_version += 6;
+
+  return expat_version;
+}
+
 
 /* The private internals for a parser object. */
 struct svn_xml_parser_t

@@ -112,7 +112,7 @@ svn_ra_serf__blncache_set(svn_ra_serf__blncache_t *blncache,
                           const char *baseline_url,
                           svn_revnum_t revision,
                           const char *bc_url,
-                          apr_pool_t *pool)
+                          apr_pool_t *scratch_pool)
 {
   if (bc_url && SVN_IS_VALID_REVNUM(revision))
     {
@@ -147,11 +147,11 @@ svn_error_t *
 svn_ra_serf__blncache_get_bc_url(const char **bc_url_p,
                                  svn_ra_serf__blncache_t *blncache,
                                  svn_revnum_t revnum,
-                                 apr_pool_t *pool)
+                                 apr_pool_t *result_pool)
 {
   const char *value = apr_hash_get(blncache->revnum_to_bc,
                                    &revnum, sizeof(revnum));
-  *bc_url_p = value ? apr_pstrdup(pool, value) : NULL;
+  *bc_url_p = value ? apr_pstrdup(result_pool, value) : NULL;
   return SVN_NO_ERROR;
 }
 
