@@ -242,6 +242,8 @@
             test-programs
             ..
         ..
+        libarchive
+        ..
         libc
             c063
             ..
@@ -518,6 +520,8 @@
         ..
         cmp
         ..
+        cpio
+        ..
         col
         ..
         comm
@@ -555,6 +559,8 @@
             ..
         ..
         soelim
+        ..
+        tar
         ..
         timeout
         ..
