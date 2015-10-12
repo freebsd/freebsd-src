@@ -2,8 +2,6 @@
 
 .include <bsd.own.mk>
 
-TESTSDIR=	${TESTSBASE}/lib/libc/stdlib
-
 # TODO: t_getenv_thread, t_mi_vector_hash
 NETBSD_ATF_TESTS_C=	abs_test
 NETBSD_ATF_TESTS_C+=	atoi_test
