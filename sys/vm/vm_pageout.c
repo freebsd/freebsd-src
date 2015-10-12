@@ -166,7 +166,6 @@ static struct mtx vm_daemon_mtx;
 /* Allow for use by vm_pageout before vm_daemon is initialized. */
 MTX_SYSINIT(vm_daemon, &vm_daemon_mtx, "vm daemon", MTX_DEF);
 #endif
-static int vm_max_launder = 32;
 static int vm_pageout_update_period;
 static int disable_swap_pageouts;
 static int lowmem_period = 10;
@@ -189,9 +188,6 @@ SYSCTL_INT(_vm, OID_AUTO, panic_on_oom,
 SYSCTL_INT(_vm, OID_AUTO, pageout_wakeup_thresh,
 	CTLFLAG_RW, &vm_pageout_wakeup_thresh, 0,
 	"free page threshold for waking up the pageout daemon");
-
-SYSCTL_INT(_vm, OID_AUTO, max_launder,
-	CTLFLAG_RW, &vm_max_launder, 0, "Limit dirty flushes in pageout");
 
 SYSCTL_INT(_vm, OID_AUTO, pageout_update_period,
 	CTLFLAG_RW, &vm_pageout_update_period, 0,
@@ -229,7 +225,7 @@ SYSCTL_INT(_vm, OID_AUTO, max_wired,
 static boolean_t vm_pageout_fallback_object_lock(vm_page_t, vm_page_t *);
 static boolean_t vm_pageout_launder(struct vm_pagequeue *pq, int, vm_paddr_t,
     vm_paddr_t);
-static void vm_pageout_launder1(struct vm_domain *vmd, int pass);
+static void vm_pageout_launder1(struct vm_domain *vmd);
 static void vm_pageout_laundry_worker(void *arg);
 #if !defined(NO_SWAPPING)
 static void vm_pageout_map_deactivate_pages(vm_map_t, long);
@@ -1015,7 +1011,7 @@ unlock_mp:
  * XXX
  */
 static void
-vm_pageout_launder1(struct vm_domain *vmd, int pass)
+vm_pageout_launder1(struct vm_domain *vmd)
 {
 	vm_page_t m, next;
 	struct vm_page laundry_marker;
@@ -1027,19 +1023,13 @@ vm_pageout_launder1(struct vm_domain *vmd, int pass)
 	vm_pageout_init_marker(&laundry_marker, PQ_LAUNDRY);
 
 	/*
-	 * maxlaunder limits the number of dirty pages we flush per scan.
-	 * For most systems a smaller value (16 or 32) is more robust under
-	 * extreme memory and disk pressure because any unnecessary writes
-	 * to disk can result in extreme performance degredation.  However,
-	 * systems with excessive dirty pages (especially when MAP_NOSYNC is
-	 * used) will die horribly with limited laundering.  If the pageout
-	 * daemon cannot clean enough pages in the first pass, we let it go
-	 * all out in succeeding passes.
+	 * XXX
 	 */
-	if ((maxlaunder = vm_max_launder) <= 1)
-		maxlaunder = 1;
-	if (pass > 1)
-		maxlaunder = 10000;
+	maxlaunder = vm_cnt.v_inactive_target - vm_cnt.v_inactive_count +
+	    vm_paging_target() + vm_pageout_deficit;
+	if (maxlaunder < 0)
+		return;
+	maxlaunder /= 8;
 
 	vnodes_skipped = 0;
 
@@ -1145,9 +1135,9 @@ vm_pageout_launder1(struct vm_domain *vmd, int pass)
 		/*
 		 * Clean pages can be freed, but dirty pages must be sent back
 		 * to the laundry, unless they belong to a dead object.
-		 * However, requeueing dirty pages from dead objects is
-		 * pointless, as they are being paged out and freed by the
-		 * thread that destroyed the object.
+		 * Requeueing dirty pages from dead objects is pointless, as
+		 * they are being paged out and freed by the thread that
+		 * destroyed the object.
 		 */
 		if (m->dirty == 0) {
 free_page:
@@ -1215,7 +1205,7 @@ vm_pageout_laundry_worker(void *arg)
 	 */
 	for (;;) {
 		tsleep(&vm_cnt.v_laundry_count, PVM, "laundr", hz / 10);
-		vm_pageout_launder1(domain, 1);
+		vm_pageout_launder1(domain);
 	}
 }
 
@@ -1424,9 +1414,9 @@ unlock_page:
 		/*
 		 * Clean pages can be freed, but dirty pages must be sent back
 		 * to the laundry, unless they belong to a dead object.
-		 * However, requeueing dirty pages from dead objects is
-		 * pointless, as they are being paged out and freed by the
-		 * thread that destroyed the object.
+		 * Requeueing dirty pages from dead objects is pointless, as
+		 * they are being paged out and freed by the thread that
+		 * destroyed the object.
 		 */
 		if (m->dirty == 0) {
 free_page:
@@ -1465,10 +1455,11 @@ drop_page:
 
 	/*
 	 * Compute the number of pages we want to try to move from the
-	 * active queue to the inactive queue.
+	 * active queue to either the inactive or laundry queue.
 	 */
-	page_shortage = vm_cnt.v_inactive_target - vm_cnt.v_inactive_count +
-	    vm_paging_target() + deficit + addl_page_shortage;
+	page_shortage = vm_cnt.v_inactive_target - (vm_cnt.v_inactive_count +
+	    vm_cnt.v_laundry_count) + vm_paging_target() + deficit +
+	    addl_page_shortage;
 
 	pq = &vmd->vmd_pagequeues[PQ_ACTIVE];
 	vm_pagequeue_lock(pq);
