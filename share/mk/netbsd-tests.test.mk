@@ -14,7 +14,7 @@ TESTSRC?=	${SRCTOP}/contrib/netbsd-tests/${RELDIR:H}
 .PATH: ${TESTSRC}
 
 LIBNETBSD_SRCDIR=	${SRCTOP}/lib/libnetbsd
-LIBNETBSD_OBJDIR=	${OBJROOT}/lib/libnetbsd
+LIBNETBSD_OBJDIR=	${OBJTOP}/lib/libnetbsd
 
 .for t in ${NETBSD_ATF_TESTS_C}
 CFLAGS.$t+=	-I${LIBNETBSD_SRCDIR} -I${SRCTOP}/contrib/netbsd-tests
