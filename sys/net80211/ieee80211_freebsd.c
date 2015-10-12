@@ -545,7 +545,7 @@ ieee80211_parent_xmitpkt(struct ieee80211com *ic, struct mbuf *m)
 	IEEE80211_TX_LOCK_ASSERT(ic);
 	error = ic->ic_transmit(ic, m);
 	if (error)
-		m_freem(m);
+		ieee80211_free_mbuf(m);
 	return (error);
 }
 

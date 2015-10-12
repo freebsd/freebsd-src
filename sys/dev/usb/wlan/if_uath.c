@@ -1663,22 +1663,6 @@ uath_txfrag_setup(struct uath_softc *sc, uath_datahead *frags,
 	return !STAILQ_EMPTY(frags);
 }
 
-/*
- * Reclaim mbuf resources.  For fragmented frames we need to claim each frag
- * chained with m_nextpkt.
- */
-static void
-uath_freetx(struct mbuf *m)
-{
-	struct mbuf *next;
-
-	do {
-		next = m->m_nextpkt;
-		m->m_nextpkt = NULL;
-		m_freem(m);
-	} while ((m = next) != NULL);
-}
-
 static int
 uath_transmit(struct ieee80211com *ic, struct mbuf *m)   
 {
@@ -1735,7 +1719,7 @@ uath_start(struct uath_softc *sc)
 		    !uath_txfrag_setup(sc, &frags, m, ni)) {
 			DPRINTF(sc, UATH_DEBUG_XMIT,
 			    "%s: out of txfrag buffers\n", __func__);
-			uath_freetx(m);
+			ieee80211_free_mbuf(m);
 			goto bad;
 		}
 		sc->sc_seqnum = 0;
@@ -1770,7 +1754,7 @@ uath_start(struct uath_softc *sc)
 				    "%s: flush fragmented packet, state %s\n",
 				    __func__,
 				    ieee80211_state_name[ni->ni_vap->iv_state]);
-				uath_freetx(next);
+				ieee80211_free_mbuf(next);
 				goto reclaim;
 			}
 			m = next;

@@ -3262,7 +3262,7 @@ ath_transmit(struct ieee80211com *ic, struct mbuf *m)
 		 * XXXGL: is mbuf valid after ath_txfrag_setup? If yes,
 		 * we shouldn't free it but return back.
 		 */
-		ath_freetx(m);
+		ieee80211_free_mbuf(m);
 		m = NULL;
 		goto bad;
 	}
@@ -3356,7 +3356,7 @@ reclaim:
 			    __func__,
 			    ieee80211_state_name[ni->ni_vap->iv_state]);
 			/* XXX dmamap */
-			ath_freetx(next);
+			ieee80211_free_mbuf(next);
 			goto reclaim;
 		}
 		m = next;

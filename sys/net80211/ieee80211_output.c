@@ -1583,6 +1583,21 @@ bad:
 #undef MC01
 }
 
+void
+ieee80211_free_mbuf(struct mbuf *m)
+{
+	struct mbuf *next;
+
+	if (m == NULL)
+		return;
+
+	do {
+		next = m->m_nextpkt;
+		m->m_nextpkt = NULL;
+		m_freem(m);
+	} while ((m = next) != NULL);
+}
+
 /*
  * Fragment the frame according to the specified mtu.
  * The size of the 802.11 header (w/o padding) is provided
@@ -1597,7 +1612,7 @@ ieee80211_fragment(struct ieee80211vap *vap, struct mbuf *m0,
 {
 	struct ieee80211com *ic = vap->iv_ic;
 	struct ieee80211_frame *wh, *whf;
-	struct mbuf *m, *prev, *next;
+	struct mbuf *m, *prev;
 	u_int totalhdrsize, fragno, fragsize, off, remainder, payload;
 	u_int hdrspace;
 
@@ -1692,11 +1707,7 @@ ieee80211_fragment(struct ieee80211vap *vap, struct mbuf *m0,
 	return 1;
 bad:
 	/* reclaim fragments but leave original frame for caller to free */
-	for (m = m0->m_nextpkt; m != NULL; m = next) {
-		next = m->m_nextpkt;
-		m->m_nextpkt = NULL;		/* XXX paranoid */
-		m_freem(m);
-	}
+	ieee80211_free_mbuf(m0->m_nextpkt);
 	m0->m_nextpkt = NULL;
 	return 0;
 }
