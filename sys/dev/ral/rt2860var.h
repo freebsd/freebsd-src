@@ -194,9 +194,7 @@ struct rt2860_softc {
 	uint32_t			txpow40mhz_5ghz[5];
 
 	struct rt2860_rx_radiotap_header sc_rxtap;
-	int				sc_rxtap_len;
 	struct rt2860_tx_radiotap_header sc_txtap;
-	int				sc_txtap_len;
 };
 
 int	rt2860_attach(device_t, int);
