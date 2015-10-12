@@ -76,6 +76,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/usb_debug.h>
 
 #include <dev/usb/wlan/if_urtwnreg.h>
+#include <dev/usb/wlan/if_urtwnvar.h>
 
 #ifdef USB_DEBUG
 static int urtwn_debug = 0;
