@@ -83,11 +83,13 @@ fetch_repos_info(const char **repos_root,
 }
 
 /* Forward definition. Upgrades svn:externals properties in the working copy
-   LOCAL_ABSPATH to the WC-NG  storage.
+   LOCAL_ABSPATH to the WC-NG  storage. INFO_BATON will be used to fetch
+   repository info using fetch_repos_info() function if needed.
  */
 static svn_error_t *
 upgrade_externals_from_properties(svn_client_ctx_t *ctx,
                                   const char *local_abspath,
+                                  struct repos_info_baton *info_baton,
                                   apr_pool_t *scratch_pool);
 
 svn_error_t *
@@ -138,7 +140,7 @@ svn_client_upgrade(const char *path,
 
           svn_pool_clear(iterpool);
 
-          ext_abspath = svn__apr_hash_index_key(hi);
+          ext_abspath = apr_hash_this_key(hi);
 
           SVN_ERR(svn_wc__read_external_info(&kind, NULL, NULL, NULL, NULL,
                                              ctx->wc_ctx, local_abspath,
@@ -172,7 +174,7 @@ svn_client_upgrade(const char *path,
          (There is no way to detect the difference from libsvn_client :( ) */
 
       SVN_ERR(upgrade_externals_from_properties(ctx, local_abspath,
-                                                scratch_pool));
+                                                &info_baton, scratch_pool));
     }
   return SVN_NO_ERROR;
 }
@@ -180,6 +182,7 @@ svn_client_upgrade(const char *path,
 static svn_error_t *
 upgrade_externals_from_properties(svn_client_ctx_t *ctx,
                                   const char *local_abspath,
+                                  struct repos_info_baton *info_baton,
                                   apr_pool_t *scratch_pool)
 {
   apr_hash_index_t *hi;
@@ -187,7 +190,6 @@ upgrade_externals_from_properties(svn_client_ctx_t *ctx,
   apr_pool_t *iterpool2;
   apr_hash_t *externals;
   svn_opt_revision_t rev = {svn_opt_revision_unspecified, {0}};
-  struct repos_info_baton info_baton;
 
   /* Now it's time to upgrade the externals too. We do it after the wc
      upgrade to avoid that errors in the externals causes the wc upgrade to
@@ -209,8 +211,8 @@ upgrade_externals_from_properties(svn_client_ctx_t *ctx,
       const char *externals_parent_url;
       const char *externals_parent_repos_root_url;
       const char *externals_parent_repos_relpath;
-      const char *externals_parent = svn__apr_hash_index_key(hi);
-      svn_string_t *external_desc = svn__apr_hash_index_val(hi);
+      const char *externals_parent = apr_hash_this_key(hi);
+      svn_string_t *external_desc = apr_hash_this_val(hi);
       apr_array_header_t *externals_p;
       svn_error_t *err;
 
@@ -345,7 +347,7 @@ upgrade_externals_from_properties(svn_client_ctx_t *ctx,
             {
               err = fetch_repos_info(&repos_root_url,
                                      &repos_uuid,
-                                     &info_baton,
+                                     info_baton,
                                      resolved_url,
                                      scratch_pool, scratch_pool);
               if (err)
