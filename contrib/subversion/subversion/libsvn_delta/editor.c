@@ -391,16 +391,6 @@ svn_editor_setcb_move(svn_editor_t *editor,
 
 
 svn_error_t *
-svn_editor_setcb_rotate(svn_editor_t *editor,
-                        svn_editor_cb_rotate_t callback,
-                        apr_pool_t *scratch_pool)
-{
-  editor->funcs.cb_rotate = callback;
-  return SVN_NO_ERROR;
-}
-
-
-svn_error_t *
 svn_editor_setcb_complete(svn_editor_t *editor,
                           svn_editor_cb_complete_t callback,
                           apr_pool_t *scratch_pool)
@@ -437,7 +427,6 @@ svn_editor_setcb_many(svn_editor_t *editor,
   COPY_CALLBACK(cb_delete);
   COPY_CALLBACK(cb_copy);
   COPY_CALLBACK(cb_move);
-  COPY_CALLBACK(cb_rotate);
   COPY_CALLBACK(cb_complete);
   COPY_CALLBACK(cb_abort);
 
@@ -683,9 +672,9 @@ svn_error_t *
 svn_editor_alter_file(svn_editor_t *editor,
                       const char *relpath,
                       svn_revnum_t revision,
-                      apr_hash_t *props,
                       const svn_checksum_t *checksum,
-                      svn_stream_t *contents)
+                      svn_stream_t *contents,
+                      apr_hash_t *props)
 {
   svn_error_t *err = SVN_NO_ERROR;
 
@@ -705,8 +694,8 @@ svn_editor_alter_file(svn_editor_t *editor,
     {
       START_CALLBACK(editor);
       err = editor->funcs.cb_alter_file(editor->baton,
-                                        relpath, revision, props,
-                                        checksum, contents,
+                                        relpath, revision,
+                                        checksum, contents, props,
                                         editor->scratch_pool);
       END_CALLBACK(editor);
     }
@@ -723,8 +712,8 @@ svn_error_t *
 svn_editor_alter_symlink(svn_editor_t *editor,
                          const char *relpath,
                          svn_revnum_t revision,
-                         apr_hash_t *props,
-                         const char *target)
+                         const char *target,
+                         apr_hash_t *props)
 {
   svn_error_t *err = SVN_NO_ERROR;
 
@@ -740,8 +729,8 @@ svn_editor_alter_symlink(svn_editor_t *editor,
     {
       START_CALLBACK(editor);
       err = editor->funcs.cb_alter_symlink(editor->baton,
-                                           relpath, revision, props,
-                                           target,
+                                           relpath, revision,
+                                           target, props,
                                            editor->scratch_pool);
       END_CALLBACK(editor);
     }
@@ -855,56 +844,6 @@ svn_editor_move(svn_editor_t *editor,
   MARK_ALLOW_ALTER(editor, dst_relpath);
   MARK_PARENT_STABLE(editor, dst_relpath);
   CLEAR_INCOMPLETE(editor, dst_relpath);
-
-  svn_pool_clear(editor->scratch_pool);
-  return svn_error_trace(err);
-}
-
-
-svn_error_t *
-svn_editor_rotate(svn_editor_t *editor,
-                  const apr_array_header_t *relpaths,
-                  const apr_array_header_t *revisions)
-{
-  svn_error_t *err = SVN_NO_ERROR;
-
-  SHOULD_NOT_BE_FINISHED(editor);
-#ifdef ENABLE_ORDERING_CHECK
-  {
-    int i;
-    for (i = 0; i < relpaths->nelts; i++)
-      {
-        const char *relpath = APR_ARRAY_IDX(relpaths, i, const char *);
-
-        SVN_ERR_ASSERT(svn_relpath_is_canonical(relpath));
-        SHOULD_NOT_BE_COMPLETED(editor, relpath);
-        VERIFY_PARENT_MAY_EXIST(editor, relpath);
-        CHILD_DELETIONS_ALLOWED(editor, relpath);
-      }
-  }
-#endif
-
-  SVN_ERR(check_cancel(editor));
-
-  if (editor->funcs.cb_rotate)
-    {
-      START_CALLBACK(editor);
-      err = editor->funcs.cb_rotate(editor->baton, relpaths, revisions,
-                                    editor->scratch_pool);
-      END_CALLBACK(editor);
-    }
-
-#ifdef ENABLE_ORDERING_CHECK
-  {
-    int i;
-    for (i = 0; i < relpaths->nelts; i++)
-      {
-        const char *relpath = APR_ARRAY_IDX(relpaths, i, const char *);
-        MARK_ALLOW_ALTER(editor, relpath);
-        MARK_PARENT_STABLE(editor, relpath);
-      }
-  }
-#endif
 
   svn_pool_clear(editor->scratch_pool);
   return svn_error_trace(err);
