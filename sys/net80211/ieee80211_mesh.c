@@ -1239,12 +1239,8 @@ mesh_forward(struct ieee80211vap *vap, struct mbuf *m,
 	IEEE80211_TX_LOCK(ic);
 	err = ieee80211_parent_xmitpkt(ic, mcopy);
 	IEEE80211_TX_UNLOCK(ic);
-	if (err != 0) {
-		/* NB: IFQ_HANDOFF reclaims mbuf */
-		ieee80211_free_node(ni);
-	} else {
+	if (!err)
 		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
-	}
 }
 
 static struct mbuf *
