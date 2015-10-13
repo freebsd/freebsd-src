@@ -412,6 +412,8 @@
         ..
         posixshm
         ..
+        vfs
+        ..
         vm
         ..
     ..
