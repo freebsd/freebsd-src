@@ -47,6 +47,21 @@ __start:
 #endif
 	li	t0, _MIPS_CAP_ALIGN_MASK
 	and	sp, sp, t0
+#ifdef __CHERI_SANDBOX__
+	/* Remove execute permission from $c0. */
+	dli       t0, ~__CHERI_CAP_PERMISSION_PERMIT_EXECUTE__
+	candperm  $c0, $c0, t0
+	/* Remove store permissions from PCC. */
+	dli       t0, (~__CHERI_CAP_PERMISSION_PERMIT_STORE__ & ~__CHERI_CAP_PERMISSION_PERMIT_STORE_CAPABILITY__)
+	dli       t1, 6 * 4
+	cgetpcc   $c5
+	candperm  $c5, $c5, t0
+	cincoffset $c5, $c5, t1
+	cjr       $c5
+	nop
+	nop
+	nop
+#endif
 #endif
 
 	/* Set up $gp as if this was a proper function. This is needed so we
@@ -83,7 +98,7 @@ __start:
 	cfromptr	$c6, $c11, a3	# ps_strings
 
 	dla		$25, _start1
-	cgetdefault	$c19
+	cgetpcc    	$c19
 	csetoffset	$c12, $c19, $25
 	cjalr		$c17, $c12
 #else
