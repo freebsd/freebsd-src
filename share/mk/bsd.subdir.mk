@@ -86,7 +86,7 @@ ${SUBDIR:N.WAIT}: .PHONY .MAKE
 # Work around parsing of .if nested in .for by putting .WAIT string into a var.
 __wait= .WAIT
 .for __target in all all-man checkdpadd clean cleandepend cleandir \
-    cleanilinks depend distribute lint maninstall manlint obj objlink \
+    cleanilinks cleanobj depend distribute lint maninstall manlint obj objlink \
     realinstall regress tags ${SUBDIR_TARGETS}
 .ifdef SUBDIR_PARALLEL
 __subdir_targets=
