@@ -160,8 +160,10 @@ static void	ixl_free_mac_filters(struct ixl_vsi *vsi);
 
 
 /* Sysctl debug interface */
+#ifdef IXL_DEBUG_SYSCTL
 static int	ixl_debug_info(SYSCTL_HANDLER_ARGS);
 static void	ixl_print_debug_info(struct ixl_pf *);
+#endif
 
 /* The MSI/X Interrupt handlers */
 static void	ixl_intr(void *);
@@ -4373,6 +4375,7 @@ ixl_do_adminq(void *context, int pending)
 	IXL_PF_UNLOCK(pf);
 }
 
+#ifdef IXL_DEBUG_SYSCTL
 static int
 ixl_debug_info(SYSCTL_HANDLER_ARGS)
 {
@@ -4437,6 +4440,7 @@ ixl_print_debug_info(struct ixl_pf *pf)
 	reg = rd32(hw, I40E_GLPRT_MLFC(hw->port));
 	 printf("mac local fault = %x\n", reg);
 }
+#endif
 
 /**
  * Update VSI-specific ethernet statistics counters.
