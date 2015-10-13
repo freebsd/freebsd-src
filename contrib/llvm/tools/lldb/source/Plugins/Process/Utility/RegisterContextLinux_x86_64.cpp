@@ -46,12 +46,16 @@ typedef struct _GPR
     uint64_t gs;
 } GPR;
 
+struct DBG {
+    uint64_t dr[8];
+};
+
 struct UserArea
 {
     GPR      gpr;           // General purpose registers.
     int32_t  fpvalid;       // True if FPU is being used.
     int32_t  pad0;
-    FXSAVE   i387;          // General purpose floating point registers (see FPR for extended register sets).
+    FXSAVE   fpr;           // General purpose floating point registers (see FPR for extended register sets).
     uint64_t tsize;         // Text segment size.
     uint64_t dsize;         // Data segment size.
     uint64_t ssize;         // Stack segment size.
@@ -64,14 +68,15 @@ struct UserArea
     FXSAVE*  fpstate;       // Location of FPR's.
     uint64_t magic;         // Identifier for core dumps.
     char     u_comm[32];    // Command causing core dump.
-    uint64_t u_debugreg[8]; // Debug registers (DR0 - DR7).
+    DBG      dbg;           // Debug registers.
     uint64_t error_code;    // CPU error code.
     uint64_t fault_address; // Control register CR3.
 };
 
-#define DR_SIZE sizeof(((UserArea*)NULL)->u_debugreg[0])
+
 #define DR_OFFSET(reg_index) \
-    (LLVM_EXTENSION offsetof(UserArea, u_debugreg[reg_index]))
+    (LLVM_EXTENSION offsetof(UserArea, dbg) + \
+     LLVM_EXTENSION offsetof(DBG, dr[reg_index]))
 
 //---------------------------------------------------------------------------
 // Include RegisterInfos_x86_64 to declare our g_register_infos_x86_64 structure.
@@ -145,10 +150,26 @@ GetRegisterInfoCount (const ArchSpec &target_arch)
     }
 }
 
+static uint32_t
+GetUserRegisterInfoCount (const ArchSpec &target_arch)
+{
+    switch (target_arch.GetMachine())
+    {
+        case llvm::Triple::x86:
+            return static_cast<uint32_t> (k_num_user_registers_i386);
+        case llvm::Triple::x86_64:
+            return static_cast<uint32_t> (k_num_user_registers_x86_64);
+        default:
+            assert(false && "Unhandled target architecture.");
+            return 0;
+    }
+}
+
 RegisterContextLinux_x86_64::RegisterContextLinux_x86_64(const ArchSpec &target_arch) :
     lldb_private::RegisterInfoInterface(target_arch),
     m_register_info_p (GetRegisterInfoPtr (target_arch)),
-    m_register_info_count (GetRegisterInfoCount (target_arch))
+    m_register_info_count (GetRegisterInfoCount (target_arch)),
+    m_user_register_count (GetUserRegisterInfoCount (target_arch))
 {
 }
 
@@ -168,4 +189,10 @@ uint32_t
 RegisterContextLinux_x86_64::GetRegisterCount () const
 {
     return m_register_info_count;
+}
+
+uint32_t
+RegisterContextLinux_x86_64::GetUserRegisterCount () const
+{
+    return m_user_register_count;
 }

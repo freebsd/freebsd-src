@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2003, 2004, 2005, 2008 Silicon Graphics International Corp.
+ * Copyright (c) 2014-2015 Alexander Motin <mav@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,6 +39,10 @@
 
 #ifndef	_CTL_PRIVATE_H_
 #define	_CTL_PRIVATE_H_
+
+#include <cam/scsi/scsi_all.h>
+#include <cam/scsi/scsi_cd.h>
+#include <cam/scsi/scsi_da.h>
 
 /*
  * SCSI vendor and product names.
@@ -87,20 +92,19 @@ typedef enum {
 typedef enum {
 	CTL_CMD_FLAG_NONE		= 0x0000,
 	CTL_CMD_FLAG_NO_SENSE		= 0x0010,
-	CTL_CMD_FLAG_OK_ON_NO_LUN	= 0x0020,
-	CTL_CMD_FLAG_ALLOW_ON_RESV	= 0x0040,
+	CTL_CMD_FLAG_ALLOW_ON_RESV	= 0x0020,
+	CTL_CMD_FLAG_ALLOW_ON_PR_RESV	= 0x0040,
 	CTL_CMD_FLAG_ALLOW_ON_PR_WRESV	= 0x0080,
 	CTL_CMD_FLAG_OK_ON_PROC		= 0x0100,
 	CTL_CMD_FLAG_OK_ON_DIRECT	= 0x0200,
 	CTL_CMD_FLAG_OK_ON_CDROM	= 0x0400,
 	CTL_CMD_FLAG_OK_ON_BOTH		= 0x0700,
-	CTL_CMD_FLAG_OK_ON_INOPERABLE	= 0x0800,
-	CTL_CMD_FLAG_OK_ON_STANDBY	= 0x1000,
-	CTL_CMD_FLAG_OK_ON_UNAVAIL	= 0x2000,
-	CTL_CMD_FLAG_ALLOW_ON_PR_RESV	= 0x4000,
+	CTL_CMD_FLAG_OK_ON_NO_LUN	= 0x0800,
+	CTL_CMD_FLAG_OK_ON_NO_MEDIA	= 0x1000,
+	CTL_CMD_FLAG_OK_ON_STANDBY	= 0x2000,
+	CTL_CMD_FLAG_OK_ON_UNAVAIL	= 0x4000,
 	CTL_CMD_FLAG_SA5		= 0x8000,
-	CTL_CMD_FLAG_RUN_HERE		= 0x10000,
-	CTL_CMD_FLAG_OK_ON_STOPPED	= 0x20000
+	CTL_CMD_FLAG_RUN_HERE		= 0x10000
 } ctl_cmd_flags;
 
 typedef enum {
@@ -143,8 +147,8 @@ typedef enum {
 	CTL_LUN_DISABLED	= 0x008,
 	CTL_LUN_MALLOCED	= 0x010,
 	CTL_LUN_STOPPED		= 0x020,
-	CTL_LUN_INOPERABLE	= 0x040,
-	CTL_LUN_OFFLINE		= 0x080,
+	CTL_LUN_NO_MEDIA	= 0x040,
+	CTL_LUN_EJECTED		= 0x080,
 	CTL_LUN_PR_RESERVED	= 0x100,
 	CTL_LUN_PRIMARY_SC	= 0x200,
 	CTL_LUN_SENSE_DESC	= 0x400,
@@ -286,6 +290,9 @@ static const struct ctl_page_index page_index_template[] = {
 	{SMS_INFO_EXCEPTIONS_PAGE | SMPH_SPF, 0x02,
 	 sizeof(struct ctl_logical_block_provisioning_page), NULL,
 	 CTL_PAGE_FLAG_DIRECT, NULL, NULL},
+	{SMS_CDDVD_CAPS_PAGE, 0,
+	 sizeof(struct scsi_cddvd_capabilities_page), NULL,
+	 CTL_PAGE_FLAG_CDROM, NULL, NULL},
 	{SMS_VENDOR_SPECIFIC_PAGE | SMPH_SPF, DBGCNF_SUBPAGE_CODE,
 	 sizeof(struct copan_debugconf_subpage), NULL, CTL_PAGE_FLAG_ALL,
 	 ctl_debugconf_sp_sense_handler, ctl_debugconf_sp_select_handler},
@@ -303,6 +310,7 @@ struct ctl_mode_pages {
 	struct scsi_control_ext_page	control_ext_page[4];
 	struct scsi_info_exceptions_page ie_page[4];
 	struct ctl_logical_block_provisioning_page lbp_page[4];
+	struct scsi_cddvd_capabilities_page cddvd_page[4];
 	struct copan_debugconf_subpage	debugconf_subpage[4];
 	struct ctl_page_index		index[CTL_NUM_MODE_PAGES];
 };
@@ -384,11 +392,13 @@ struct ctl_lun {
 	struct ctl_log_pages		log_pages;
 	struct ctl_lun_io_stats		stats;
 	uint32_t			res_idx;
-	unsigned int			PRGeneration;
+	uint32_t			pr_generation;
 	uint64_t			*pr_keys[CTL_MAX_PORTS];
 	int				pr_key_count;
 	uint32_t			pr_res_idx;
-	uint8_t				res_type;
+	uint8_t				pr_res_type;
+	int				prevent_count;
+	uint32_t			prevent[(CTL_MAX_INITIATORS+31)/32];
 	uint8_t				*write_buffer;
 	struct ctl_devid		*lun_devid;
 	TAILQ_HEAD(tpc_lists, tpc_list) tpc_lists;

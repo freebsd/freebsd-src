@@ -7,18 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-//++
-// File:        MICmdArgValFile.cpp
-//
-// Overview:    CMICmdArgValFile implementation.
-//
-// Environment: Compilers:  Visual C++ 12.
-//                          gcc (Ubuntu/Linaro 4.8.1-10ubuntu9) 4.8.1
-//              Libraries:  See MIReadmetxt.
-//
-// Copyright:   None.
-//--
-
 // In-house headers:
 #include "MICmdArgValFile.h"
 #include "MICmdArgContext.h"
@@ -72,7 +60,7 @@ bool
 CMICmdArgValFile::Validate(CMICmdArgContext &vwArgContext)
 {
     if (vwArgContext.IsEmpty())
-        return MIstatus::success;
+        return m_bMandatory ? MIstatus::failure : MIstatus::success;
 
     // The GDB/MI spec suggests there is only parameter
 
@@ -133,9 +121,9 @@ CMICmdArgValFile::GetFileNamePath(const CMIUtilString &vrTxt) const
     CMIUtilString fileNamePath(vrTxt);
 
     // Look for a space in the path
-    const MIchar cSpace = ' ';
-    const MIint nPos = fileNamePath.find(cSpace);
-    if (nPos != (MIint)std::string::npos)
+    const char cSpace = ' ';
+    const size_t nPos = fileNamePath.find(cSpace);
+    if (nPos != std::string::npos)
         fileNamePath = CMIUtilString::Format("\"%s\"", fileNamePath.c_str());
 
     return fileNamePath;
@@ -158,7 +146,7 @@ CMICmdArgValFile::IsFilePath(const CMIUtilString &vrFileNamePath) const
     const bool bHaveBckSlash = (vrFileNamePath.find_first_of("\\") != std::string::npos);
 
     // Look for --someLongOption
-    MIint nPos = vrFileNamePath.find_first_of("--");
+    size_t nPos = vrFileNamePath.find_first_of("--");
     const bool bLong = (nPos == 0);
     if (bLong)
         return false;
@@ -193,13 +181,14 @@ CMICmdArgValFile::IsFilePath(const CMIUtilString &vrFileNamePath) const
 bool
 CMICmdArgValFile::IsValidChars(const CMIUtilString &vrText) const
 {
-    const MIchar *pPtr = const_cast<MIchar *>(vrText.c_str());
+    static CMIUtilString s_strSpecialCharacters(".'\"`@#$%^&*()_+-={}[]| ");
+    const char *pPtr = vrText.c_str();
     for (MIuint i = 0; i < vrText.length(); i++, pPtr++)
     {
-        const MIchar c = *pPtr;
+        const char c = *pPtr;
         if (::isalnum((int)c) == 0)
         {
-            if ((c != '.') && (c != '-') && (c != '_'))
+            if (s_strSpecialCharacters.find(c) == CMIUtilString::npos)
                 return false;
         }
     }

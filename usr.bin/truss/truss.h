@@ -25,6 +25,7 @@
  * $FreeBSD$
  */
 
+#include <sys/linker_set.h>
 #include <sys/queue.h>
 
 #define	FOLLOWFORKS		0x00000001
@@ -35,23 +36,63 @@
 #define	EXECVEENVS		0x00000020
 #define	COUNTONLY		0x00000040
 
+struct procinfo;
+struct trussinfo;
+
+struct procabi {
+	const char *type;
+	const char **syscallnames;
+	int nsyscalls;
+	int (*fetch_args)(struct trussinfo *, u_int);
+	int (*fetch_retval)(struct trussinfo *, long *, int *);
+};
+
+#define	PROCABI(abi)	DATA_SET(procabi, abi)
+
+/*
+ * This is confusingly named.  It holds per-thread state about the
+ * currently executing system call.  syscall.h defines a struct
+ * syscall that holds metadata used to format system call arguments.
+ *
+ * NB: args[] stores the raw argument values (e.g. from registers)
+ * passed to the system call.  s_args[] stores a string representation
+ * of a system call's arguments.  These do not necessarily map one to
+ * one.  A system call description may omit individual arguments
+ * (padding) or combine adjacent arguments (e.g. when passing an off_t
+ * argument on a 32-bit system).  The nargs member contains the count
+ * of valid pointers in s_args[], not args[].
+ */
+struct current_syscall {
+	struct syscall *sc;
+	const char *name;
+	int number;
+	unsigned long args[10];
+	unsigned int nargs;
+	char *s_args[10];	/* the printable arguments */
+};
+
 struct threadinfo
 {
 	SLIST_ENTRY(threadinfo) entries;
+	struct procinfo *proc;
 	lwpid_t tid;
 	int in_syscall;
-	int in_fork;
-	void *fsc;
+	struct current_syscall cs;
 	struct timespec before;
 	struct timespec after;
 };
 
+struct procinfo {
+	LIST_ENTRY(procinfo) entries;
+	pid_t pid;
+	struct procabi *abi;
+
+	SLIST_HEAD(, threadinfo) threadlist;
+};
+
 struct trussinfo
 {
-	pid_t pid;
 	int flags;
-	int pr_why;
-	int pr_data;
 	int strsize;
 	FILE *outfile;
 
@@ -59,7 +100,7 @@ struct trussinfo
 
 	struct threadinfo *curthread;
 
-	SLIST_HEAD(, threadinfo) threadlist;
+	LIST_HEAD(, procinfo) proclist;
 };
 
 #define	timespecsubt(tvp, uvp, vvp)					\
@@ -81,11 +122,3 @@ struct trussinfo
 			(vvp)->tv_nsec -= 1000000000;			\
 		}							\
 	} while (0)
-
-#define	S_NONE	0
-#define	S_SCE	1
-#define	S_SCX	2
-#define	S_EXIT	3
-#define	S_SIG	4
-#define	S_EXEC	5
-#define	S_DETACHED	6

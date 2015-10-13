@@ -34,42 +34,232 @@
 using namespace clang;
 
 MacroDirective *
-Preprocessor::getMacroDirectiveHistory(const IdentifierInfo *II) const {
-  assert(II->hadMacroDefinition() && "Identifier has not been not a macro!");
-
-  macro_iterator Pos = Macros.find(II);
-  assert(Pos != Macros.end() && "Identifier macro info is missing!");
-  return Pos->second;
+Preprocessor::getLocalMacroDirectiveHistory(const IdentifierInfo *II) const {
+  if (!II->hadMacroDefinition())
+    return nullptr;
+  auto Pos = CurSubmoduleState->Macros.find(II);
+  return Pos == CurSubmoduleState->Macros.end() ? nullptr
+                                                : Pos->second.getLatest();
 }
 
 void Preprocessor::appendMacroDirective(IdentifierInfo *II, MacroDirective *MD){
   assert(MD && "MacroDirective should be non-zero!");
   assert(!MD->getPrevious() && "Already attached to a MacroDirective history.");
 
-  MacroDirective *&StoredMD = Macros[II];
-  MD->setPrevious(StoredMD);
-  StoredMD = MD;
-  // Setup the identifier as having associated macro history.
+  MacroState &StoredMD = CurSubmoduleState->Macros[II];
+  auto *OldMD = StoredMD.getLatest();
+  MD->setPrevious(OldMD);
+  StoredMD.setLatest(MD);
+  StoredMD.overrideActiveModuleMacros(*this, II);
+
+  // Set up the identifier as having associated macro history.
   II->setHasMacroDefinition(true);
-  if (!MD->isDefined())
+  if (!MD->isDefined() && LeafModuleMacros.find(II) == LeafModuleMacros.end())
     II->setHasMacroDefinition(false);
-  bool isImportedMacro = isa<DefMacroDirective>(MD) &&
-                         cast<DefMacroDirective>(MD)->isImported();
-  if (II->isFromAST() && !isImportedMacro)
+  if (II->isFromAST())
     II->setChangedSinceDeserialization();
 }
 
 void Preprocessor::setLoadedMacroDirective(IdentifierInfo *II,
                                            MacroDirective *MD) {
   assert(II && MD);
-  MacroDirective *&StoredMD = Macros[II];
-  assert(!StoredMD &&
+  MacroState &StoredMD = CurSubmoduleState->Macros[II];
+  assert(!StoredMD.getLatest() &&
          "the macro history was modified before initializing it from a pch");
   StoredMD = MD;
   // Setup the identifier as having associated macro history.
   II->setHasMacroDefinition(true);
-  if (!MD->isDefined())
+  if (!MD->isDefined() && LeafModuleMacros.find(II) == LeafModuleMacros.end())
     II->setHasMacroDefinition(false);
+}
+
+ModuleMacro *Preprocessor::addModuleMacro(Module *Mod, IdentifierInfo *II,
+                                          MacroInfo *Macro,
+                                          ArrayRef<ModuleMacro *> Overrides,
+                                          bool &New) {
+  llvm::FoldingSetNodeID ID;
+  ModuleMacro::Profile(ID, Mod, II);
+
+  void *InsertPos;
+  if (auto *MM = ModuleMacros.FindNodeOrInsertPos(ID, InsertPos)) {
+    New = false;
+    return MM;
+  }
+
+  auto *MM = ModuleMacro::create(*this, Mod, II, Macro, Overrides);
+  ModuleMacros.InsertNode(MM, InsertPos);
+
+  // Each overridden macro is now overridden by one more macro.
+  bool HidAny = false;
+  for (auto *O : Overrides) {
+    HidAny |= (O->NumOverriddenBy == 0);
+    ++O->NumOverriddenBy;
+  }
+
+  // If we were the first overrider for any macro, it's no longer a leaf.
+  auto &LeafMacros = LeafModuleMacros[II];
+  if (HidAny) {
+    LeafMacros.erase(std::remove_if(LeafMacros.begin(), LeafMacros.end(),
+                                    [](ModuleMacro *MM) {
+                                      return MM->NumOverriddenBy != 0;
+                                    }),
+                     LeafMacros.end());
+  }
+
+  // The new macro is always a leaf macro.
+  LeafMacros.push_back(MM);
+  // The identifier now has defined macros (that may or may not be visible).
+  II->setHasMacroDefinition(true);
+
+  New = true;
+  return MM;
+}
+
+ModuleMacro *Preprocessor::getModuleMacro(Module *Mod, IdentifierInfo *II) {
+  llvm::FoldingSetNodeID ID;
+  ModuleMacro::Profile(ID, Mod, II);
+
+  void *InsertPos;
+  return ModuleMacros.FindNodeOrInsertPos(ID, InsertPos);
+}
+
+void Preprocessor::updateModuleMacroInfo(const IdentifierInfo *II,
+                                         ModuleMacroInfo &Info) {
+  assert(Info.ActiveModuleMacrosGeneration !=
+             CurSubmoduleState->VisibleModules.getGeneration() &&
+         "don't need to update this macro name info");
+  Info.ActiveModuleMacrosGeneration =
+      CurSubmoduleState->VisibleModules.getGeneration();
+
+  auto Leaf = LeafModuleMacros.find(II);
+  if (Leaf == LeafModuleMacros.end()) {
+    // No imported macros at all: nothing to do.
+    return;
+  }
+
+  Info.ActiveModuleMacros.clear();
+
+  // Every macro that's locally overridden is overridden by a visible macro.
+  llvm::DenseMap<ModuleMacro *, int> NumHiddenOverrides;
+  for (auto *O : Info.OverriddenMacros)
+    NumHiddenOverrides[O] = -1;
+
+  // Collect all macros that are not overridden by a visible macro.
+  llvm::SmallVector<ModuleMacro *, 16> Worklist(Leaf->second.begin(),
+                                                Leaf->second.end());
+  while (!Worklist.empty()) {
+    auto *MM = Worklist.pop_back_val();
+    if (CurSubmoduleState->VisibleModules.isVisible(MM->getOwningModule())) {
+      // We only care about collecting definitions; undefinitions only act
+      // to override other definitions.
+      if (MM->getMacroInfo())
+        Info.ActiveModuleMacros.push_back(MM);
+    } else {
+      for (auto *O : MM->overrides())
+        if ((unsigned)++NumHiddenOverrides[O] == O->getNumOverridingMacros())
+          Worklist.push_back(O);
+    }
+  }
+  // Our reverse postorder walk found the macros in reverse order.
+  std::reverse(Info.ActiveModuleMacros.begin(), Info.ActiveModuleMacros.end());
+
+  // Determine whether the macro name is ambiguous.
+  MacroInfo *MI = nullptr;
+  bool IsSystemMacro = true;
+  bool IsAmbiguous = false;
+  if (auto *MD = Info.MD) {
+    while (MD && isa<VisibilityMacroDirective>(MD))
+      MD = MD->getPrevious();
+    if (auto *DMD = dyn_cast_or_null<DefMacroDirective>(MD)) {
+      MI = DMD->getInfo();
+      IsSystemMacro &= SourceMgr.isInSystemHeader(DMD->getLocation());
+    }
+  }
+  for (auto *Active : Info.ActiveModuleMacros) {
+    auto *NewMI = Active->getMacroInfo();
+
+    // Before marking the macro as ambiguous, check if this is a case where
+    // both macros are in system headers. If so, we trust that the system
+    // did not get it wrong. This also handles cases where Clang's own
+    // headers have a different spelling of certain system macros:
+    //   #define LONG_MAX __LONG_MAX__ (clang's limits.h)
+    //   #define LONG_MAX 0x7fffffffffffffffL (system's limits.h)
+    //
+    // FIXME: Remove the defined-in-system-headers check. clang's limits.h
+    // overrides the system limits.h's macros, so there's no conflict here.
+    if (MI && NewMI != MI &&
+        !MI->isIdenticalTo(*NewMI, *this, /*Syntactically=*/true))
+      IsAmbiguous = true;
+    IsSystemMacro &= Active->getOwningModule()->IsSystem ||
+                     SourceMgr.isInSystemHeader(NewMI->getDefinitionLoc());
+    MI = NewMI;
+  }
+  Info.IsAmbiguous = IsAmbiguous && !IsSystemMacro;
+}
+
+void Preprocessor::dumpMacroInfo(const IdentifierInfo *II) {
+  ArrayRef<ModuleMacro*> Leaf;
+  auto LeafIt = LeafModuleMacros.find(II);
+  if (LeafIt != LeafModuleMacros.end())
+    Leaf = LeafIt->second;
+  const MacroState *State = nullptr;
+  auto Pos = CurSubmoduleState->Macros.find(II);
+  if (Pos != CurSubmoduleState->Macros.end())
+    State = &Pos->second;
+
+  llvm::errs() << "MacroState " << State << " " << II->getNameStart();
+  if (State && State->isAmbiguous(*this, II))
+    llvm::errs() << " ambiguous";
+  if (State && !State->getOverriddenMacros().empty()) {
+    llvm::errs() << " overrides";
+    for (auto *O : State->getOverriddenMacros())
+      llvm::errs() << " " << O->getOwningModule()->getFullModuleName();
+  }
+  llvm::errs() << "\n";
+
+  // Dump local macro directives.
+  for (auto *MD = State ? State->getLatest() : nullptr; MD;
+       MD = MD->getPrevious()) {
+    llvm::errs() << " ";
+    MD->dump();
+  }
+
+  // Dump module macros.
+  llvm::DenseSet<ModuleMacro*> Active;
+  for (auto *MM : State ? State->getActiveModuleMacros(*this, II) : None)
+    Active.insert(MM);
+  llvm::DenseSet<ModuleMacro*> Visited;
+  llvm::SmallVector<ModuleMacro *, 16> Worklist(Leaf.begin(), Leaf.end());
+  while (!Worklist.empty()) {
+    auto *MM = Worklist.pop_back_val();
+    llvm::errs() << " ModuleMacro " << MM << " "
+                 << MM->getOwningModule()->getFullModuleName();
+    if (!MM->getMacroInfo())
+      llvm::errs() << " undef";
+
+    if (Active.count(MM))
+      llvm::errs() << " active";
+    else if (!CurSubmoduleState->VisibleModules.isVisible(
+                 MM->getOwningModule()))
+      llvm::errs() << " hidden";
+    else if (MM->getMacroInfo())
+      llvm::errs() << " overridden";
+
+    if (!MM->overrides().empty()) {
+      llvm::errs() << " overrides";
+      for (auto *O : MM->overrides()) {
+        llvm::errs() << " " << O->getOwningModule()->getFullModuleName();
+        if (Visited.insert(O).second)
+          Worklist.push_back(O);
+      }
+    }
+    llvm::errs() << "\n";
+    if (auto *MI = MM->getMacroInfo()) {
+      llvm::errs() << "  ";
+      MI->dump();
+      llvm::errs() << "\n";
+    }
+  }
 }
 
 /// RegisterBuiltinMacro - Register the specified identifier in the identifier
@@ -97,7 +287,11 @@ void Preprocessor::RegisterBuiltinMacros() {
   Ident_Pragma  = RegisterBuiltinMacro(*this, "_Pragma");
 
   // C++ Standing Document Extensions.
-  Ident__has_cpp_attribute = RegisterBuiltinMacro(*this, "__has_cpp_attribute");
+  if (LangOpts.CPlusPlus)
+    Ident__has_cpp_attribute =
+        RegisterBuiltinMacro(*this, "__has_cpp_attribute");
+  else
+    Ident__has_cpp_attribute = nullptr;
 
   // GCC Extensions.
   Ident__BASE_FILE__     = RegisterBuiltinMacro(*this, "__BASE_FILE__");
@@ -156,10 +350,11 @@ static bool isTrivialSingleTokenExpansion(const MacroInfo *MI,
 
   // If the identifier is a macro, and if that macro is enabled, it may be
   // expanded so it's not a trivial expansion.
-  if (II->hasMacroDefinition() && PP.getMacroInfo(II)->isEnabled() &&
-      // Fast expanding "#define X X" is ok, because X would be disabled.
-      II != MacroIdent)
-    return false;
+  if (auto *ExpansionMI = PP.getMacroInfo(II))
+    if (ExpansionMI->isEnabled() &&
+        // Fast expanding "#define X X" is ok, because X would be disabled.
+        II != MacroIdent)
+      return false;
 
   // If this is an object-like macro invocation, it is safe to trivially expand
   // it.
@@ -167,12 +362,8 @@ static bool isTrivialSingleTokenExpansion(const MacroInfo *MI,
 
   // If this is a function-like macro invocation, it's safe to trivially expand
   // as long as the identifier is not a macro argument.
-  for (MacroInfo::arg_iterator I = MI->arg_begin(), E = MI->arg_end();
-       I != E; ++I)
-    if (*I == II)
-      return false;   // Identifier is a macro argument.
+  return std::find(MI->arg_begin(), MI->arg_end(), II) == MI->arg_end();
 
-  return true;
 }
 
 
@@ -222,10 +413,8 @@ bool Preprocessor::isNextPPTokenLParen() {
 /// HandleMacroExpandedIdentifier - If an identifier token is read that is to be
 /// expanded as a macro, handle it and return the next token as 'Identifier'.
 bool Preprocessor::HandleMacroExpandedIdentifier(Token &Identifier,
-                                                 MacroDirective *MD) {
-  MacroDirective::DefInfo Def = MD->getDefinition();
-  assert(Def.isValid());
-  MacroInfo *MI = Def.getMacroInfo();
+                                                 const MacroDefinition &M) {
+  MacroInfo *MI = M.getMacroInfo();
 
   // If this is a macro expansion in the "#if !defined(x)" line for the file,
   // then the macro could expand to different things in other contexts, we need
@@ -234,9 +423,9 @@ bool Preprocessor::HandleMacroExpandedIdentifier(Token &Identifier,
 
   // If this is a builtin macro, like __LINE__ or _Pragma, handle it specially.
   if (MI->isBuiltinMacro()) {
-    if (Callbacks) Callbacks->MacroExpands(Identifier, MD,
-                                           Identifier.getLocation(),
-                                           /*Args=*/nullptr);
+    if (Callbacks)
+      Callbacks->MacroExpands(Identifier, M, Identifier.getLocation(),
+                              /*Args=*/nullptr);
     ExpandBuiltinMacro(Identifier);
     return true;
   }
@@ -283,9 +472,9 @@ bool Preprocessor::HandleMacroExpandedIdentifier(Token &Identifier,
       // MacroExpands callbacks still happen in source order, queue this
       // callback to have it happen after the function macro callback.
       DelayedMacroExpandsCallbacks.push_back(
-                              MacroExpandsInfo(Identifier, MD, ExpansionRange));
+          MacroExpandsInfo(Identifier, M, ExpansionRange));
     } else {
-      Callbacks->MacroExpands(Identifier, MD, ExpansionRange, Args);
+      Callbacks->MacroExpands(Identifier, M, ExpansionRange, Args);
       if (!DelayedMacroExpandsCallbacks.empty()) {
         for (unsigned i=0, e = DelayedMacroExpandsCallbacks.size(); i!=e; ++i) {
           MacroExpandsInfo &Info = DelayedMacroExpandsCallbacks[i];
@@ -299,20 +488,16 @@ bool Preprocessor::HandleMacroExpandedIdentifier(Token &Identifier,
   }
 
   // If the macro definition is ambiguous, complain.
-  if (Def.getDirective()->isAmbiguous()) {
+  if (M.isAmbiguous()) {
     Diag(Identifier, diag::warn_pp_ambiguous_macro)
       << Identifier.getIdentifierInfo();
     Diag(MI->getDefinitionLoc(), diag::note_pp_ambiguous_macro_chosen)
       << Identifier.getIdentifierInfo();
-    for (MacroDirective::DefInfo PrevDef = Def.getPreviousDefinition();
-         PrevDef && !PrevDef.isUndefined();
-         PrevDef = PrevDef.getPreviousDefinition()) {
-      Diag(PrevDef.getMacroInfo()->getDefinitionLoc(),
-           diag::note_pp_ambiguous_macro_other)
-        << Identifier.getIdentifierInfo();
-      if (!PrevDef.getDirective()->isAmbiguous())
-        break;
-    }
+    M.forAllDefinitions([&](const MacroInfo *OtherMI) {
+      if (OtherMI != MI)
+        Diag(OtherMI->getDefinitionLoc(), diag::note_pp_ambiguous_macro_other)
+          << Identifier.getIdentifierInfo();
+    });
   }
 
   // If we started lexing a macro, enter the macro expansion body.
@@ -541,10 +726,10 @@ MacroArgs *Preprocessor::ReadFunctionLikeMacroArgs(Token &MacroName,
 
   unsigned NumActuals = 0;
   while (Tok.isNot(tok::r_paren)) {
-    if (ContainsCodeCompletionTok && (Tok.is(tok::eof) || Tok.is(tok::eod)))
+    if (ContainsCodeCompletionTok && Tok.isOneOf(tok::eof, tok::eod))
       break;
 
-    assert((Tok.is(tok::l_paren) || Tok.is(tok::comma)) &&
+    assert(Tok.isOneOf(tok::l_paren, tok::comma) &&
            "only expect argument separators here");
 
     unsigned ArgTokenStart = ArgTokens.size();
@@ -559,7 +744,7 @@ MacroArgs *Preprocessor::ReadFunctionLikeMacroArgs(Token &MacroName,
       // an argument value in a macro could expand to ',' or '(' or ')'.
       LexUnexpandedToken(Tok);
 
-      if (Tok.is(tok::eof) || Tok.is(tok::eod)) { // "#if f(<eof>" & "#if f(\n"
+      if (Tok.isOneOf(tok::eof, tok::eod)) { // "#if f(<eof>" & "#if f(\n"
         if (!ContainsCodeCompletionTok) {
           Diag(MacroName, diag::err_unterm_macro_invoc);
           Diag(MI->getDefinitionLoc(), diag::note_macro_here)
@@ -598,7 +783,7 @@ MacroArgs *Preprocessor::ReadFunctionLikeMacroArgs(Token &MacroName,
         // If this is a comment token in the argument list and we're just in
         // -C mode (not -CC mode), discard the comment.
         continue;
-      } else if (Tok.getIdentifierInfo() != nullptr) {
+      } else if (!Tok.isAnnotation() && Tok.getIdentifierInfo() != nullptr) {
         // Reading macro arguments can cause macros that we are currently
         // expanding from to be popped off the expansion stack.  Doing so causes
         // them to be reenabled for expansion.  Here we record whether any
@@ -864,12 +1049,17 @@ static bool HasFeature(const Preprocessor &PP, const IdentifierInfo *II) {
     Feature = Feature.substr(2, Feature.size() - 4);
 
   return llvm::StringSwitch<bool>(Feature)
-      .Case("address_sanitizer", LangOpts.Sanitize.has(SanitizerKind::Address))
+      .Case("address_sanitizer",
+            LangOpts.Sanitize.hasOneOf(SanitizerKind::Address |
+                                       SanitizerKind::KernelAddress))
+      .Case("assume_nonnull", true)
       .Case("attribute_analyzer_noreturn", true)
       .Case("attribute_availability", true)
       .Case("attribute_availability_with_message", true)
+      .Case("attribute_availability_app_extension", true)
       .Case("attribute_cf_returns_not_retained", true)
       .Case("attribute_cf_returns_retained", true)
+      .Case("attribute_cf_returns_on_parameters", true)
       .Case("attribute_deprecated_with_message", true)
       .Case("attribute_ext_vector_type", true)
       .Case("attribute_ns_returns_not_retained", true)
@@ -887,6 +1077,7 @@ static bool HasFeature(const Preprocessor &PP, const IdentifierInfo *II) {
       .Case("cxx_exceptions", LangOpts.CXXExceptions)
       .Case("cxx_rtti", LangOpts.RTTI)
       .Case("enumerator_attributes", true)
+      .Case("nullability", true)
       .Case("memory_sanitizer", LangOpts.Sanitize.has(SanitizerKind::Memory))
       .Case("thread_sanitizer", LangOpts.Sanitize.has(SanitizerKind::Thread))
       .Case("dataflow_sanitizer", LangOpts.Sanitize.has(SanitizerKind::DataFlow))
@@ -897,6 +1088,7 @@ static bool HasFeature(const Preprocessor &PP, const IdentifierInfo *II) {
       .Case("objc_default_synthesize_properties", LangOpts.ObjC2)
       .Case("objc_fixed_enum", LangOpts.ObjC2)
       .Case("objc_instancetype", LangOpts.ObjC2)
+      .Case("objc_kindof", LangOpts.ObjC2)
       .Case("objc_modules", LangOpts.ObjC2 && LangOpts.Modules)
       .Case("objc_nonfragile_abi", LangOpts.ObjCRuntime.isNonFragile())
       .Case("objc_property_explicit_atomic",
@@ -911,8 +1103,12 @@ static bool HasFeature(const Preprocessor &PP, const IdentifierInfo *II) {
       .Case("objc_array_literals", LangOpts.ObjC2)
       .Case("objc_dictionary_literals", LangOpts.ObjC2)
       .Case("objc_boxed_expressions", LangOpts.ObjC2)
+      .Case("objc_boxed_nsvalue_expressions", LangOpts.ObjC2)
       .Case("arc_cf_code_audited", true)
-      .Case("objc_bridge_id", LangOpts.ObjC2)
+      .Case("objc_bridge_id", true)
+      .Case("objc_bridge_id_on_typedefs", true)
+      .Case("objc_generics", LangOpts.ObjC2)
+      .Case("objc_generics_variance", LangOpts.ObjC2)
       // C11 features
       .Case("c_alignas", LangOpts.C11)
       .Case("c_alignof", LangOpts.C11)
@@ -1003,6 +1199,7 @@ static bool HasFeature(const Preprocessor &PP, const IdentifierInfo *II) {
       .Case("is_trivially_copyable", LangOpts.CPlusPlus)
       .Case("is_union", LangOpts.CPlusPlus)
       .Case("modules", LangOpts.Modules)
+      .Case("safe_stack", LangOpts.Sanitize.has(SanitizerKind::SafeStack))
       .Case("tls", PP.getTargetInfo().isTLSSupported())
       .Case("underlying_type", LangOpts.CPlusPlus)
       .Default(false);
@@ -1050,6 +1247,7 @@ static bool HasExtension(const Preprocessor &PP, const IdentifierInfo *II) {
            .Case("cxx_range_for", LangOpts.CPlusPlus)
            .Case("cxx_reference_qualified_functions", LangOpts.CPlusPlus)
            .Case("cxx_rvalue_references", LangOpts.CPlusPlus)
+           .Case("cxx_variadic_templates", LangOpts.CPlusPlus)
            // C++1y features supported by other languages as extensions.
            .Case("cxx_binary_literals", true)
            .Case("cxx_init_captures", LangOpts.CPlusPlus11)
@@ -1071,6 +1269,9 @@ static bool EvaluateHasIncludeCommon(Token &Tok,
   // These expressions are only allowed within a preprocessor directive.
   if (!PP.isParsingIfOrElifDirective()) {
     PP.Diag(LParenLoc, diag::err_pp_directive_required) << II->getName();
+    // Return a valid identifier token.
+    assert(Tok.is(tok::identifier));
+    Tok.setIdentifierInfo(II);
     return false;
   }
 
@@ -1129,7 +1330,7 @@ static bool EvaluateHasIncludeCommon(Token &Tok,
       Tok.setKind(tok::eod);
       return false;   // Found <eod> but no ">"?  Diagnostic already emitted.
     }
-    Filename = FilenameBuffer.str();
+    Filename = FilenameBuffer;
     break;
   default:
     PP.Diag(Tok.getLocation(), diag::err_pp_expects_filename);
@@ -1179,7 +1380,7 @@ static bool EvaluateHasIncludeNext(Token &Tok,
   // __has_include_next is like __has_include, except that we start
   // searching after the current found directory.  If we can't do this,
   // issue a diagnostic.
-  // FIXME: Factor out duplication wiht
+  // FIXME: Factor out duplication with 
   // Preprocessor::HandleIncludeNextDirective.
   const DirectoryLookup *Lookup = PP.GetCurDirLookup();
   const FileEntry *LookupFromFile = nullptr;
@@ -1312,7 +1513,7 @@ void Preprocessor::ExpandBuiltinMacro(Token &Tok) {
     if (PLoc.isValid()) {
       FN += PLoc.getFilename();
       Lexer::Stringify(FN);
-      OS << '"' << FN.str() << '"';
+      OS << '"' << FN << '"';
     }
     Tok.setKind(tok::string_literal);
   } else if (II == Ident__DATE__) {
@@ -1459,9 +1660,11 @@ void Preprocessor::ExpandBuiltinMacro(Token &Tok) {
       Value = EvaluateHasInclude(Tok, II, *this);
     else
       Value = EvaluateHasIncludeNext(Tok, II, *this);
+
+    if (Tok.isNot(tok::r_paren))
+      return;
     OS << (int)Value;
-    if (Tok.is(tok::r_paren))
-      Tok.setKind(tok::numeric_constant);
+    Tok.setKind(tok::numeric_constant);
   } else if (II == Ident__has_warning) {
     // The argument should be a parenthesized string literal.
     // The argument to these builtins should be a parenthesized identifier.
@@ -1553,7 +1756,7 @@ void Preprocessor::ExpandBuiltinMacro(Token &Tok) {
       Diag(Tok.getLocation(), diag::err_pp_identifier_arg_not_identifier)
         << Tok.getKind();
       // Don't walk past anything that's not a real token.
-      if (Tok.is(tok::eof) || Tok.is(tok::eod) || Tok.isAnnotation())
+      if (Tok.isOneOf(tok::eof, tok::eod) || Tok.isAnnotation())
         return;
     }
 

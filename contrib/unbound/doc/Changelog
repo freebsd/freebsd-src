@@ -1,3 +1,92 @@
+28 September 2015: Wouter
+	- MAX_TARGET_COUNT increased to 64, to fix up sporadic resolution
+	  failures.
+	- tag for 1.5.5rc1 release.
+	- makedist.sh: pgp sig echo commands.
+
+25 September 2015: Wouter
+	- Fix unbound-control flush that does not succeed in removing data.
+
+22 September 2015: Wouter
+	- Fix config globbed include chroot treatment, this fixes reload of
+	  globs (patch from Dag-Erling Smørgrav).
+	- iana portlist update.
+	- Fix #702: New IPs for for h.root-servers.net.
+	- Remove confusion comment from canonical_compare() function.
+	- Fix #705: ub_ctx_set_fwd() return value mishandled on windows.
+	- testbound selftest also works in non-debug mode.
+	- Fix minor error in unbound.conf.5.in
+	- Fix unbound.conf(5) access-control description for precedence
+	  and default.
+
+31 August 2015: Wouter
+	- changed windows setup compression to be more transparent.
+
+28 August 2015: Wouter
+	- Fix #697: Get PY_MAJOR_VERSION failure at configure for python
+	  2.4 to 2.6.
+	- Feature #699: --enable-pie option to that builds PIE binary.
+	- Feature #700: --enable-relro-now option that enables full read-only
+	  relocation.
+
+24 August 2015: Wouter
+	- Fix deadlock for local data add and zone add when unbound-control
+	  list_local_data printout is interrupted.
+	- iana portlist update.
+	- Change default of harden-algo-downgrade to off.  This is lenient
+	  for algorithm rollover.
+
+13 August 2015: Wouter
+	- 5011 implementation does not insist on all algorithms, when
+	  harden-algo-downgrade is turned off.
+	- Reap the child process that libunbound spawns.
+
+11 August 2015: Wouter
+	- Fix #694: configure script does not detect LibreSSL 2.2.2
+
+4 August 2015: Wouter
+	- Document that local-zone nodefault matches exactly and transparent
+	  can be used to release a subzone.
+
+3 August 2015: Wouter
+	- Document in the manual more text about configuring locally served
+	  zones.
+	- Fix 5011 anchor update timer after reload.
+	- Fix mktime in unbound-anchor not using UTC.
+
+30 July 2015: Wouter
+	- please afl-gcc (llvm) for uninitialised variable warning.
+	- Added permit-small-holddown config to debug fast 5011 rollover.
+
+24 July 2015: Wouter
+	- Fix #690: Reload fails when so-reuseport is yes after changing
+	  num-threads.
+	- iana portlist update.
+
+21 July 2015: Wouter
+	- Fix configure to detect SSL_CTX_set_ecdh_auto.
+	- iana portlist update.
+
+20 July 2015: Wouter
+	- Enable ECDHE for servers.  Where available, use
+	  SSL_CTX_set_ecdh_auto() for TLS-wrapped server configurations to
+	  enable ECDHE.  Otherwise, manually offer curve p256.
+	  Client connections should automatically use ECDHE when available.
+	  (thanks Daniel Kahn Gillmor)
+
+18 July 2015: Willem
+	- Allow certificate chain files to allow for intermediate certificates.
+	  (thanks Daniel Kahn Gillmor)
+
+13 July 2015: Wouter
+	- makedist produces sha1 and sha256 files for created binaries too.
+
+9 July 2015: Wouter
+	- 1.5.4 release tag
+	- trunk has 1.5.5 in development.
+	- Fix #681: Setting forwarders with unbound-control forward
+	  implicitly turns on forward-first.
+
 29 June 2015: Wouter
 	- iana portlist update.
 	- Fix alloc with log for allocation size checks.

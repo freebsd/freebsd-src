@@ -178,7 +178,7 @@ main(int argc, char **argv)
 		 * devices. We can now use sysctl only.
 		 */
 		use_kvm = 0;
-		kd = kvm_openfiles("/dev/null", "/dev/null", "/dev/null",
+		kd = kvm_openfiles(_PATH_DEVNULL, _PATH_DEVNULL, _PATH_DEVNULL,
 		    O_RDONLY, errbuf);
 		if (kd == NULL) {
 			error("%s", errbuf);

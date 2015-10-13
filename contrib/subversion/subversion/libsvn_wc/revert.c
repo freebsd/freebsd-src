@@ -46,6 +46,7 @@
 #include "svn_private_config.h"
 #include "private/svn_io_private.h"
 #include "private/svn_wc_private.h"
+#include "private/svn_sorts_private.h"
 
 /* Thoughts on Reversion.
 
@@ -154,7 +155,7 @@ revert_restore_handle_copied_dirs(svn_boolean_t *removed_self,
                                   void *cancel_baton,
                                   apr_pool_t *scratch_pool)
 {
-  const apr_array_header_t *copied_children;
+  apr_array_header_t *copied_children;
   svn_wc__db_revert_list_copied_child_info_t *child_info;
   int i;
   svn_node_kind_t on_disk;
@@ -198,9 +199,7 @@ revert_restore_handle_copied_dirs(svn_boolean_t *removed_self,
    * that still exist on disk (e.g. unversioned files within the copied tree).
    * So sort the children list such that longest paths come first and try to
    * remove each child directory in order. */
-  qsort(copied_children->elts, copied_children->nelts,
-        sizeof(svn_wc__db_revert_list_copied_child_info_t *),
-        compare_revert_list_copied_children);
+  svn_sort__array(copied_children, compare_revert_list_copied_children);
   for (i = 0; i < copied_children->nelts; i++)
     {
       child_info = APR_ARRAY_IDX(
@@ -247,6 +246,22 @@ revert_restore_handle_copied_dirs(svn_boolean_t *removed_self,
   return SVN_NO_ERROR;
 }
 
+/* Forward definition */
+static svn_error_t *
+revert_wc_data(svn_boolean_t *run_wq,
+               svn_boolean_t *notify_required,
+               svn_wc__db_t *db,
+               const char *local_abspath,
+               svn_wc__db_status_t status,
+               svn_node_kind_t kind,
+               svn_node_kind_t reverted_kind,
+               svn_filesize_t recorded_size,
+               apr_time_t recorded_time,
+               svn_boolean_t copied_here,
+               svn_boolean_t use_commit_times,
+               svn_cancel_func_t cancel_func,
+               void *cancel_baton,
+               apr_pool_t *scratch_pool);
 
 /* Make the working tree under LOCAL_ABSPATH to depth DEPTH match the
    versioned tree.  This function is called after svn_wc__db_op_revert
@@ -255,56 +270,63 @@ revert_restore_handle_copied_dirs(svn_boolean_t *removed_self,
 
    REVERT_ROOT is true for explicit revert targets and FALSE for targets
    reached via recursion.
+
+   Sets *RUN_WQ to TRUE when the caller should (eventually) run the workqueue.
+   (The function sets it to FALSE when it has run the WQ itself)
+
+   If INFO is NULL, LOCAL_ABSPATH doesn't exist in DB. Otherwise INFO
+   specifies the state of LOCAL_ABSPATH in DB.
  */
 static svn_error_t *
-revert_restore(svn_wc__db_t *db,
+revert_restore(svn_boolean_t *run_wq,
+               svn_wc__db_t *db,
                const char *local_abspath,
                svn_depth_t depth,
+               svn_boolean_t metadata_only,
                svn_boolean_t use_commit_times,
                svn_boolean_t revert_root,
+               const struct svn_wc__db_info_t *info,
                svn_cancel_func_t cancel_func,
                void *cancel_baton,
                svn_wc_notify_func2_t notify_func,
                void *notify_baton,
                apr_pool_t *scratch_pool)
 {
-  svn_error_t *err;
   svn_wc__db_status_t status;
   svn_node_kind_t kind;
-  svn_node_kind_t on_disk;
   svn_boolean_t notify_required;
   const apr_array_header_t *conflict_files;
   svn_filesize_t recorded_size;
   apr_time_t recorded_time;
-  apr_finfo_t finfo;
-#ifdef HAVE_SYMLINK
-  svn_boolean_t special;
-#endif
   svn_boolean_t copied_here;
   svn_node_kind_t reverted_kind;
-  svn_boolean_t is_wcroot;
-
   if (cancel_func)
     SVN_ERR(cancel_func(cancel_baton));
 
-  SVN_ERR(svn_wc__db_is_wcroot(&is_wcroot, db, local_abspath, scratch_pool));
-  if (is_wcroot && !revert_root)
+  if (!revert_root)
     {
-      /* Issue #4162: Obstructing working copy. We can't access the working
-         copy data from the parent working copy for this node by just using
-         local_abspath */
+      svn_boolean_t is_wcroot;
 
-      if (notify_func)
+      SVN_ERR(svn_wc__db_is_wcroot(&is_wcroot, db, local_abspath, scratch_pool));
+      if (is_wcroot)
         {
-          svn_wc_notify_t *notify = svn_wc_create_notify(
+          /* Issue #4162: Obstructing working copy. We can't access the working
+             copy data from the parent working copy for this node by just using
+             local_abspath */
+
+          if (notify_func)
+            {
+              svn_wc_notify_t *notify =
+                        svn_wc_create_notify(
                                         local_abspath,
                                         svn_wc_notify_update_skip_obstruction,
                                         scratch_pool);
 
-          notify_func(notify_baton, notify, scratch_pool);
-        }
+              notify_func(notify_baton, notify, scratch_pool);
+            }
 
-      return SVN_NO_ERROR; /* We don't revert obstructing working copies */
+          return SVN_NO_ERROR; /* We don't revert obstructing working copies */
+        }
     }
 
   SVN_ERR(svn_wc__db_revert_list_read(&notify_required,
@@ -313,17 +335,15 @@ revert_restore(svn_wc__db_t *db,
                                       db, local_abspath,
                                       scratch_pool, scratch_pool));
 
-  err = svn_wc__db_read_info(&status, &kind,
-                             NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-                             NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-                             &recorded_size, &recorded_time, NULL,
-                             NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-                             db, local_abspath, scratch_pool, scratch_pool);
-
-  if (err && err->apr_err == SVN_ERR_WC_PATH_NOT_FOUND)
+  if (info)
     {
-      svn_error_clear(err);
-
+      status = info->status;
+      kind = info->kind;
+      recorded_size = info->recorded_size;
+      recorded_time = info->recorded_time;
+    }
+  else
+    {
       if (!copied_here)
         {
           if (notify_func && notify_required)
@@ -350,9 +370,116 @@ revert_restore(svn_wc__db_t *db,
           recorded_time = 0;
         }
     }
-  else if (err)
-    return svn_error_trace(err);
 
+  if (!metadata_only)
+    {
+      SVN_ERR(revert_wc_data(run_wq,
+                             &notify_required,
+                             db, local_abspath, status, kind,
+                             reverted_kind, recorded_size, recorded_time,
+                             copied_here, use_commit_times,
+                             cancel_func, cancel_baton, scratch_pool));
+    }
+
+  /* We delete these marker files even though they are not strictly metadata.
+     But for users that use revert as an API with metadata_only, these are. */
+  if (conflict_files)
+    {
+      int i;
+      for (i = 0; i < conflict_files->nelts; i++)
+        {
+          SVN_ERR(remove_conflict_file(&notify_required,
+                                       APR_ARRAY_IDX(conflict_files, i,
+                                                     const char *),
+                                       local_abspath, scratch_pool));
+        }
+    }
+
+  if (notify_func && notify_required)
+    notify_func(notify_baton,
+                svn_wc_create_notify(local_abspath, svn_wc_notify_revert,
+                                     scratch_pool),
+                scratch_pool);
+
+  if (depth == svn_depth_infinity && kind == svn_node_dir)
+    {
+      apr_pool_t *iterpool = svn_pool_create(scratch_pool);
+      apr_hash_t *children, *conflicts;
+      apr_hash_index_t *hi;
+
+      SVN_ERR(revert_restore_handle_copied_dirs(NULL, db, local_abspath, FALSE,
+                                                cancel_func, cancel_baton,
+                                                iterpool));
+
+      SVN_ERR(svn_wc__db_read_children_info(&children, &conflicts,
+                                            db, local_abspath, FALSE,
+                                            scratch_pool, iterpool));
+
+      for (hi = apr_hash_first(scratch_pool, children);
+           hi;
+           hi = apr_hash_next(hi))
+        {
+          const char *child_name = apr_hash_this_key(hi);
+          const char *child_abspath;
+
+          svn_pool_clear(iterpool);
+
+          child_abspath = svn_dirent_join(local_abspath, child_name, iterpool);
+
+          SVN_ERR(revert_restore(run_wq,
+                                 db, child_abspath, depth, metadata_only,
+                                 use_commit_times, FALSE /* revert root */,
+                                 apr_hash_this_val(hi),
+                                 cancel_func, cancel_baton,
+                                 notify_func, notify_baton,
+                                 iterpool));
+        }
+
+      /* Run the queue per directory */
+      if (*run_wq)
+        {
+          SVN_ERR(svn_wc__wq_run(db, local_abspath, cancel_func, cancel_baton,
+                                 iterpool));
+          *run_wq = FALSE;
+        }
+
+      svn_pool_destroy(iterpool);
+    }
+
+  if (notify_func && (revert_root || kind == svn_node_dir))
+    SVN_ERR(svn_wc__db_revert_list_notify(notify_func, notify_baton,
+                                          db, local_abspath, scratch_pool));
+
+  return SVN_NO_ERROR;
+}
+
+/* Perform the in-working copy revert of LOCAL_ABSPATH, to what is stored in DB */
+static svn_error_t *
+revert_wc_data(svn_boolean_t *run_wq,
+               svn_boolean_t *notify_required,
+               svn_wc__db_t *db,
+               const char *local_abspath,
+               svn_wc__db_status_t status,
+               svn_node_kind_t kind,
+               svn_node_kind_t reverted_kind,
+               svn_filesize_t recorded_size,
+               apr_time_t recorded_time,
+               svn_boolean_t copied_here,
+               svn_boolean_t use_commit_times,
+               svn_cancel_func_t cancel_func,
+               void *cancel_baton,
+               apr_pool_t *scratch_pool)
+{
+  svn_error_t *err;
+  apr_finfo_t finfo;
+  svn_node_kind_t on_disk;
+#ifdef HAVE_SYMLINK
+  svn_boolean_t special;
+#endif
+
+  /* Would be nice to use svn_io_dirent2_t here, but the performance
+     improvement that provides doesn't work, because we need the read
+     only and executable bits later on, in the most likely code path */
   err = svn_io_stat(&finfo, local_abspath,
                     APR_FINFO_TYPE | APR_FINFO_LINK
                     | APR_FINFO_SIZE | APR_FINFO_MTIME
@@ -478,14 +605,14 @@ revert_restore(svn_wc__db_t *db,
                   modified = FALSE;
                 }
               else
+                /* Side effect: fixes recorded timestamps */
                 SVN_ERR(svn_wc__internal_file_modified_p(&modified,
                                                          db, local_abspath,
                                                          TRUE, scratch_pool));
 
               if (modified)
                 {
-                  SVN_ERR(svn_io_remove_file2(local_abspath, FALSE,
-                                              scratch_pool));
+                  /* Install will replace the file */
                   on_disk = svn_node_none;
                 }
               else
@@ -505,14 +632,14 @@ revert_restore(svn_wc__db_t *db,
                           SVN_ERR(svn_io_set_file_read_only(local_abspath,
                                                             FALSE,
                                                             scratch_pool));
-                          notify_required = TRUE;
+                          *notify_required = TRUE;
                         }
                       else if (!needs_lock_prop && read_only)
                         {
                           SVN_ERR(svn_io_set_file_read_write(local_abspath,
                                                              FALSE,
                                                              scratch_pool));
-                          notify_required = TRUE;
+                          *notify_required = TRUE;
                         }
                     }
 
@@ -533,14 +660,14 @@ revert_restore(svn_wc__db_t *db,
                           SVN_ERR(svn_io_set_file_executable(local_abspath,
                                                              TRUE, FALSE,
                                                              scratch_pool));
-                          notify_required = TRUE;
+                          *notify_required = TRUE;
                         }
                       else if (!executable_prop && executable)
                         {
                           SVN_ERR(svn_io_set_file_executable(local_abspath,
                                                              FALSE, FALSE,
                                                              scratch_pool));
-                          notify_required = TRUE;
+                          *notify_required = TRUE;
                         }
                     }
 #endif
@@ -564,90 +691,36 @@ revert_restore(svn_wc__db_t *db,
         {
           svn_skel_t *work_item;
 
-          /* ### Get the checksum from read_info above and pass in here? */
           SVN_ERR(svn_wc__wq_build_file_install(&work_item, db, local_abspath,
                                                 NULL, use_commit_times, TRUE,
                                                 scratch_pool, scratch_pool));
           SVN_ERR(svn_wc__db_wq_add(db, local_abspath, work_item,
                                     scratch_pool));
-          SVN_ERR(svn_wc__wq_run(db, local_abspath, cancel_func, cancel_baton,
-                                 scratch_pool));
+          *run_wq = TRUE;
         }
-      notify_required = TRUE;
+      *notify_required = TRUE;
     }
 
-  if (conflict_files)
-    {
-      int i;
-      for (i = 0; i < conflict_files->nelts; i++)
-        {
-          SVN_ERR(remove_conflict_file(&notify_required,
-                                       APR_ARRAY_IDX(conflict_files, i,
-                                                     const char *),
-                                       local_abspath, scratch_pool));
-        }
-    }
-
-  if (notify_func && notify_required)
-    notify_func(notify_baton,
-                svn_wc_create_notify(local_abspath, svn_wc_notify_revert,
-                                     scratch_pool),
-                scratch_pool);
-
-  if (depth == svn_depth_infinity && kind == svn_node_dir)
-    {
-      apr_pool_t *iterpool = svn_pool_create(scratch_pool);
-      const apr_array_header_t *children;
-      int i;
-
-      SVN_ERR(revert_restore_handle_copied_dirs(NULL, db, local_abspath, FALSE,
-                                                cancel_func, cancel_baton,
-                                                iterpool));
-
-      SVN_ERR(svn_wc__db_read_children_of_working_node(&children, db,
-                                                       local_abspath,
-                                                       scratch_pool,
-                                                       iterpool));
-      for (i = 0; i < children->nelts; ++i)
-        {
-          const char *child_abspath;
-
-          svn_pool_clear(iterpool);
-
-          child_abspath = svn_dirent_join(local_abspath,
-                                          APR_ARRAY_IDX(children, i,
-                                                        const char *),
-                                          iterpool);
-
-          SVN_ERR(revert_restore(db, child_abspath, depth,
-                                 use_commit_times, FALSE /* revert root */,
-                                 cancel_func, cancel_baton,
-                                 notify_func, notify_baton,
-                                 iterpool));
-        }
-
-      svn_pool_destroy(iterpool);
-    }
-
-  if (notify_func)
-    SVN_ERR(svn_wc__db_revert_list_notify(notify_func, notify_baton,
-                                          db, local_abspath, scratch_pool));
   return SVN_NO_ERROR;
 }
 
-
-svn_error_t *
-svn_wc__revert_internal(svn_wc__db_t *db,
-                        const char *local_abspath,
-                        svn_depth_t depth,
-                        svn_boolean_t use_commit_times,
-                        svn_cancel_func_t cancel_func,
-                        void *cancel_baton,
-                        svn_wc_notify_func2_t notify_func,
-                        void *notify_baton,
-                        apr_pool_t *scratch_pool)
+/* Revert tree LOCAL_ABSPATH to depth DEPTH and notify for all reverts. */
+static svn_error_t *
+revert(svn_wc__db_t *db,
+       const char *local_abspath,
+       svn_depth_t depth,
+       svn_boolean_t use_commit_times,
+       svn_boolean_t clear_changelists,
+       svn_boolean_t metadata_only,
+       svn_cancel_func_t cancel_func,
+       void *cancel_baton,
+       svn_wc_notify_func2_t notify_func,
+       void *notify_baton,
+       apr_pool_t *scratch_pool)
 {
   svn_error_t *err;
+  const struct svn_wc__db_info_t *info = NULL;
+  svn_boolean_t run_queue = FALSE;
 
   SVN_ERR_ASSERT(depth == svn_depth_empty || depth == svn_depth_infinity);
 
@@ -667,15 +740,37 @@ svn_wc__revert_internal(svn_wc__db_t *db,
     SVN_ERR(svn_wc__write_check(db, dir_abspath, scratch_pool));
   }
 
-  err = svn_wc__db_op_revert(db, local_abspath, depth,
-                             scratch_pool, scratch_pool);
+  err = svn_error_trace(
+        svn_wc__db_op_revert(db, local_abspath, depth, clear_changelists,
+                             scratch_pool, scratch_pool));
 
   if (!err)
-    err = revert_restore(db, local_abspath, depth,
-                         use_commit_times, TRUE /* revert root */,
-                         cancel_func, cancel_baton,
-                         notify_func, notify_baton,
-                         scratch_pool);
+    {
+      err = svn_error_trace(
+              svn_wc__db_read_single_info(&info, db, local_abspath, FALSE,
+                                          scratch_pool, scratch_pool));
+
+      if (err && err->apr_err == SVN_ERR_WC_PATH_NOT_FOUND)
+        {
+          svn_error_clear(err);
+          err = NULL;
+          info = NULL;
+        }
+    }
+
+  if (!err)
+    err = svn_error_trace(
+              revert_restore(&run_queue, db, local_abspath, depth, metadata_only,
+                             use_commit_times, TRUE /* revert root */,
+                             info, cancel_func, cancel_baton,
+                             notify_func, notify_baton,
+                             scratch_pool));
+
+  if (run_queue)
+    err = svn_error_compose_create(err,
+                                   svn_wc__wq_run(db, local_abspath,
+                                                  cancel_func, cancel_baton,
+                                                  scratch_pool));
 
   err = svn_error_compose_create(err,
                                  svn_wc__db_revert_list_done(db,
@@ -694,6 +789,8 @@ revert_changelist(svn_wc__db_t *db,
                   svn_depth_t depth,
                   svn_boolean_t use_commit_times,
                   apr_hash_t *changelist_hash,
+                  svn_boolean_t clear_changelists,
+                  svn_boolean_t metadata_only,
                   svn_cancel_func_t cancel_func,
                   void *cancel_baton,
                   svn_wc_notify_func2_t notify_func,
@@ -710,11 +807,12 @@ revert_changelist(svn_wc__db_t *db,
   /* Revert this node (depth=empty) if it matches one of the changelists.  */
   if (svn_wc__internal_changelist_match(db, local_abspath, changelist_hash,
                                         scratch_pool))
-    SVN_ERR(svn_wc__revert_internal(db, local_abspath,
-                                    svn_depth_empty, use_commit_times,
-                                    cancel_func, cancel_baton,
-                                    notify_func, notify_baton,
-                                    scratch_pool));
+    SVN_ERR(revert(db, local_abspath,
+                   svn_depth_empty, use_commit_times, clear_changelists,
+                   metadata_only,
+                   cancel_func, cancel_baton,
+                   notify_func, notify_baton,
+                   scratch_pool));
 
   if (depth == svn_depth_empty)
     return SVN_NO_ERROR;
@@ -746,6 +844,7 @@ revert_changelist(svn_wc__db_t *db,
 
       SVN_ERR(revert_changelist(db, child_abspath, depth,
                                 use_commit_times, changelist_hash,
+                                clear_changelists, metadata_only,
                                 cancel_func, cancel_baton,
                                 notify_func, notify_baton,
                                 iterpool));
@@ -770,6 +869,8 @@ revert_partial(svn_wc__db_t *db,
                const char *local_abspath,
                svn_depth_t depth,
                svn_boolean_t use_commit_times,
+               svn_boolean_t clear_changelists,
+               svn_boolean_t metadata_only,
                svn_cancel_func_t cancel_func,
                void *cancel_baton,
                svn_wc_notify_func2_t notify_func,
@@ -789,9 +890,10 @@ revert_partial(svn_wc__db_t *db,
 
   /* Revert the root node itself (depth=empty), then move on to the
      children.  */
-  SVN_ERR(svn_wc__revert_internal(db, local_abspath, svn_depth_empty,
-                                  use_commit_times, cancel_func, cancel_baton,
-                                  notify_func, notify_baton, iterpool));
+  SVN_ERR(revert(db, local_abspath, svn_depth_empty,
+                 use_commit_times, clear_changelists, metadata_only,
+                 cancel_func, cancel_baton,
+                 notify_func, notify_baton, iterpool));
 
   SVN_ERR(svn_wc__db_read_children_of_working_node(&children, db,
                                                    local_abspath,
@@ -822,11 +924,12 @@ revert_partial(svn_wc__db_t *db,
         }
 
       /* Revert just this node (depth=empty).  */
-      SVN_ERR(svn_wc__revert_internal(db, child_abspath,
-                                      svn_depth_empty, use_commit_times,
-                                      cancel_func, cancel_baton,
-                                      notify_func, notify_baton,
-                                      iterpool));
+      SVN_ERR(revert(db, child_abspath,
+                     svn_depth_empty, use_commit_times, clear_changelists,
+                     metadata_only,
+                     cancel_func, cancel_baton,
+                     notify_func, notify_baton,
+                     iterpool));
     }
 
   svn_pool_destroy(iterpool);
@@ -836,11 +939,13 @@ revert_partial(svn_wc__db_t *db,
 
 
 svn_error_t *
-svn_wc_revert4(svn_wc_context_t *wc_ctx,
+svn_wc_revert5(svn_wc_context_t *wc_ctx,
                const char *local_abspath,
                svn_depth_t depth,
                svn_boolean_t use_commit_times,
                const apr_array_header_t *changelist_filter,
+               svn_boolean_t clear_changelists,
+               svn_boolean_t metadata_only,
                svn_cancel_func_t cancel_func,
                void *cancel_baton,
                svn_wc_notify_func2_t notify_func,
@@ -856,17 +961,20 @@ svn_wc_revert4(svn_wc_context_t *wc_ctx,
       return svn_error_trace(revert_changelist(wc_ctx->db, local_abspath,
                                                depth, use_commit_times,
                                                changelist_hash,
+                                               clear_changelists,
+                                               metadata_only,
                                                cancel_func, cancel_baton,
                                                notify_func, notify_baton,
                                                scratch_pool));
     }
 
   if (depth == svn_depth_empty || depth == svn_depth_infinity)
-    return svn_error_trace(svn_wc__revert_internal(wc_ctx->db, local_abspath,
-                                                   depth, use_commit_times,
-                                                   cancel_func, cancel_baton,
-                                                   notify_func, notify_baton,
-                                                   scratch_pool));
+    return svn_error_trace(revert(wc_ctx->db, local_abspath,
+                                  depth, use_commit_times, clear_changelists,
+                                  metadata_only,
+                                  cancel_func, cancel_baton,
+                                  notify_func, notify_baton,
+                                  scratch_pool));
 
   /* The user may expect svn_depth_files/svn_depth_immediates to work
      on copied dirs with one level of children.  It doesn't, the user
@@ -877,6 +985,7 @@ svn_wc_revert4(svn_wc_context_t *wc_ctx,
   if (depth == svn_depth_files || depth == svn_depth_immediates)
     return svn_error_trace(revert_partial(wc_ctx->db, local_abspath,
                                           depth, use_commit_times,
+                                          clear_changelists, metadata_only,
                                           cancel_func, cancel_baton,
                                           notify_func, notify_baton,
                                           scratch_pool));

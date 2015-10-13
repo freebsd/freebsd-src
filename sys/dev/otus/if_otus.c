@@ -567,7 +567,6 @@ error:
 	if (bf)
 		otus_freebuf(sc, bf);
 	OTUS_UNLOCK(sc);
-	ieee80211_free_node(ni);
 	m_freem(m);
 	return (ENXIO);
 }
@@ -1713,7 +1712,6 @@ otus_sub_rxeof(struct otus_softc *sc, uint8_t *buf, int len, struct mbufq *rxq)
 			break;
 		}
 		mb.m_data = (caddr_t)tap;
-		mb.m_len = sc->sc_rxtap_len;
 		mb.m_next = m;
 		mb.m_nextpkt = NULL;
 		mb.m_type = 0;

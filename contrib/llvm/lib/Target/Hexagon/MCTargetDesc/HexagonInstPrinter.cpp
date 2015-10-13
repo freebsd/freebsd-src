@@ -14,7 +14,7 @@
 #include "HexagonAsmPrinter.h"
 #include "Hexagon.h"
 #include "HexagonInstPrinter.h"
-#include "MCTargetDesc/HexagonMCInst.h"
+#include "MCTargetDesc/HexagonMCInstrInfo.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCExpr.h"
@@ -28,7 +28,47 @@ using namespace llvm;
 #define GET_INSTRUCTION_NAME
 #include "HexagonGenAsmWriter.inc"
 
-const char HexagonInstPrinter::PacketPadding = '\t';
+HexagonAsmInstPrinter::HexagonAsmInstPrinter(MCInstPrinter *RawPrinter)
+    : MCInstPrinter(*RawPrinter), RawPrinter(RawPrinter) {}
+
+void HexagonAsmInstPrinter::printInst(MCInst const *MI, raw_ostream &O,
+                                      StringRef Annot,
+                                      MCSubtargetInfo const &STI) {
+  assert(HexagonMCInstrInfo::isBundle(*MI));
+  assert(HexagonMCInstrInfo::bundleSize(*MI) <= HEXAGON_PACKET_SIZE);
+  std::string Buffer;
+  {
+    raw_string_ostream TempStream(Buffer);
+    RawPrinter->printInst(MI, TempStream, "", STI);
+  }
+  StringRef Contents(Buffer);
+  auto PacketBundle = Contents.rsplit('\n');
+  auto HeadTail = PacketBundle.first.split('\n');
+  auto Preamble = "\t{\n\t\t";
+  auto Separator = "";
+  while(!HeadTail.first.empty()) {
+    O << Separator;
+    StringRef Inst;
+    auto Duplex = HeadTail.first.split('\v');
+    if(!Duplex.second.empty()){
+      O << Duplex.first << "\n";
+      Inst = Duplex.second;
+    }
+    else
+      Inst = Duplex.first;
+    O << Preamble;
+    O << Inst;
+    HeadTail = HeadTail.second.split('\n');
+    Preamble = "";
+    Separator = "\n\t\t";
+  }
+  O << "\n\t}" << PacketBundle.second;
+}
+
+void HexagonAsmInstPrinter::printRegName(raw_ostream &O, unsigned RegNo) const {
+  RawPrinter->printRegName(O, RegNo);
+}
+
 // Return the minimum value that a constant extendable operand can have
 // without being extended.
 static int getMinValue(uint64_t TSFlags) {
@@ -73,56 +113,48 @@ StringRef HexagonInstPrinter::getOpcodeName(unsigned Opcode) const {
   return MII.getName(Opcode);
 }
 
-StringRef HexagonInstPrinter::getRegName(unsigned RegNo) const {
-  return getRegisterName(RegNo);
+void HexagonInstPrinter::printRegName(raw_ostream &OS, unsigned RegNo) const {
+  OS << getRegisterName(RegNo);
 }
 
-void HexagonInstPrinter::printInst(const MCInst *MI, raw_ostream &O,
-                                   StringRef Annot) {
-  printInst((const HexagonMCInst*)(MI), O, Annot);
+void HexagonInstPrinter::setExtender(MCInst const &MCI) {
+  HasExtender = HexagonMCInstrInfo::isImmext(MCI);
 }
 
-void HexagonInstPrinter::printInst(const HexagonMCInst *MI, raw_ostream &O,
-                                   StringRef Annot) {
-  const char startPacket = '{',
-             endPacket = '}';
-  // TODO: add outer HW loop when it's supported too.
-  if (MI->getOpcode() == Hexagon::ENDLOOP0) {
-    // Ending a harware loop is different from ending an regular packet.
-    assert(MI->isPacketEnd() && "Loop-end must also end the packet");
-
-    if (MI->isPacketBegin()) {
-      // There must be a packet to end a loop.
-      // FIXME: when shuffling is always run, this shouldn't be needed.
-      HexagonMCInst Nop;
-      StringRef NoAnnot;
-
-      Nop.setOpcode (Hexagon::A2_nop);
-      Nop.setPacketBegin (MI->isPacketBegin());
-      printInst (&Nop, O, NoAnnot);
-    }
-
-    // Close the packet.
-    if (MI->isPacketEnd())
-      O << PacketPadding << endPacket;
-
-    printInstruction(MI, O);
-  }
-  else {
-    // Prefix the insn opening the packet.
-    if (MI->isPacketBegin())
-      O << PacketPadding << startPacket << '\n';
-
-    printInstruction(MI, O);
-
-    // Suffix the insn closing the packet.
-    if (MI->isPacketEnd())
-      // Suffix the packet in a new line always, since the GNU assembler has
-      // issues with a closing brace on the same line as CONST{32,64}.
-      O << '\n' << PacketPadding << endPacket;
+void HexagonInstPrinter::printInst(MCInst const *MI, raw_ostream &OS,
+                                   StringRef Annot,
+                                   MCSubtargetInfo const &STI) {
+  assert(HexagonMCInstrInfo::isBundle(*MI));
+  assert(HexagonMCInstrInfo::bundleSize(*MI) <= HEXAGON_PACKET_SIZE);
+  HasExtender = false;
+  for (auto const &I : HexagonMCInstrInfo::bundleInstructions(*MI)) {
+    MCInst const &MCI = *I.getInst();
+    if (HexagonMCInstrInfo::isDuplex(MII, MCI)) {
+      printInstruction(MCI.getOperand(1).getInst(), OS);
+      OS << '\v';
+      HasExtender = false;
+      printInstruction(MCI.getOperand(0).getInst(), OS);
+    } else
+      printInstruction(&MCI, OS);
+    setExtender(MCI);
+    OS << "\n";
   }
 
-  printAnnotation(O, Annot);
+  auto Separator = "";
+  if (HexagonMCInstrInfo::isInnerLoop(*MI)) {
+    OS << Separator;
+    Separator = " ";
+    MCInst ME;
+    ME.setOpcode(Hexagon::ENDLOOP0);
+    printInstruction(&ME, OS);
+  }
+  if (HexagonMCInstrInfo::isOuterLoop(*MI)) {
+    OS << Separator;
+    Separator = " ";
+    MCInst ME;
+    ME.setOpcode(Hexagon::ENDLOOP1);
+    printInstruction(&ME, OS);
+  }
 }
 
 void HexagonInstPrinter::printOperand(const MCInst *MI, unsigned OpNo,
@@ -130,9 +162,9 @@ void HexagonInstPrinter::printOperand(const MCInst *MI, unsigned OpNo,
   const MCOperand& MO = MI->getOperand(OpNo);
 
   if (MO.isReg()) {
-    O << getRegisterName(MO.getReg());
+    printRegName(O, MO.getReg());
   } else if(MO.isExpr()) {
-    O << *MO.getExpr();
+    MO.getExpr()->print(O, &MAI);
   } else if(MO.isImm()) {
     printImmOperand(MI, OpNo, O);
   } else {
@@ -145,7 +177,7 @@ void HexagonInstPrinter::printImmOperand(const MCInst *MI, unsigned OpNo,
   const MCOperand& MO = MI->getOperand(OpNo);
 
   if(MO.isExpr()) {
-    O << *MO.getExpr();
+    MO.getExpr()->print(O, &MAI);
   } else if(MO.isImm()) {
     O << MI->getOperand(OpNo).getImm();
   } else {
@@ -192,7 +224,7 @@ void HexagonInstPrinter::printMEMriOperand(const MCInst *MI, unsigned OpNo,
   const MCOperand& MO0 = MI->getOperand(OpNo);
   const MCOperand& MO1 = MI->getOperand(OpNo + 1);
 
-  O << getRegisterName(MO0.getReg());
+  printRegName(O, MO0.getReg());
   O << " + #" << MO1.getImm();
 }
 
@@ -201,7 +233,8 @@ void HexagonInstPrinter::printFrameIndexOperand(const MCInst *MI, unsigned OpNo,
   const MCOperand& MO0 = MI->getOperand(OpNo);
   const MCOperand& MO1 = MI->getOperand(OpNo + 1);
 
-  O << getRegisterName(MO0.getReg()) << ", #" << MO1.getImm();
+  printRegName(O, MO0.getReg());
+  O << ", #" << MO1.getImm();
 }
 
 void HexagonInstPrinter::printGlobalOperand(const MCInst *MI, unsigned OpNo,
@@ -251,4 +284,18 @@ void HexagonInstPrinter::printSymbol(const MCInst *MI, unsigned OpNo,
   O << '#' << (hi ? "HI" : "LO") << "(#";
   printOperand(MI, OpNo, O);
   O << ')';
+}
+
+void HexagonInstPrinter::printExtBrtarget(const MCInst *MI, unsigned OpNo,
+                                          raw_ostream &O) const {
+  const MCOperand &MO = MI->getOperand(OpNo);
+  const MCInstrDesc &MII = getMII().get(MI->getOpcode());
+
+  assert((isExtendable(MII.TSFlags) || isExtended(MII.TSFlags)) &&
+         "Expecting an extendable operand");
+
+  if (MO.isExpr() || isExtended(MII.TSFlags)) {
+    O << "##";
+  }
+  printOperand(MI, OpNo, O);
 }

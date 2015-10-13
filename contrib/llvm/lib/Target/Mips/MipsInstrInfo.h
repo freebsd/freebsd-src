@@ -29,7 +29,7 @@
 #include "MipsGenInstrInfo.inc"
 
 namespace llvm {
-
+class MipsSubtarget;
 class MipsInstrInfo : public MipsGenInstrInfo {
   virtual void anchor();
 protected:
@@ -59,8 +59,7 @@ public:
   unsigned RemoveBranch(MachineBasicBlock &MBB) const override;
 
   unsigned InsertBranch(MachineBasicBlock &MBB, MachineBasicBlock *TBB,
-                        MachineBasicBlock *FBB,
-                        const SmallVectorImpl<MachineOperand> &Cond,
+                        MachineBasicBlock *FBB, ArrayRef<MachineOperand> Cond,
                         DebugLoc DL) const override;
 
   bool
@@ -117,6 +116,10 @@ public:
                                 const TargetRegisterInfo *TRI,
                                 int64_t Offset) const = 0;
 
+  virtual void adjustStackPtr(unsigned SP, int64_t Amount,
+                              MachineBasicBlock &MBB,
+                              MachineBasicBlock::iterator I) const = 0;
+
   /// Create an instruction which has the same operands and memory operands
   /// as MI but has a new opcode.
   MachineInstrBuilder genInstrWithNewOpc(unsigned NewOpc,
@@ -136,7 +139,7 @@ private:
                      SmallVectorImpl<MachineOperand> &Cond) const;
 
   void BuildCondBr(MachineBasicBlock &MBB, MachineBasicBlock *TBB, DebugLoc DL,
-                   const SmallVectorImpl<MachineOperand>& Cond) const;
+                   ArrayRef<MachineOperand> Cond) const;
 };
 
 /// Create MipsInstrInfo objects.

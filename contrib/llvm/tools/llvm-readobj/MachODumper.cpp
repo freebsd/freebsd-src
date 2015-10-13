@@ -14,6 +14,7 @@
 #include "llvm-readobj.h"
 #include "Error.h"
 #include "ObjDumper.h"
+#include "StackMapPrinter.h"
 #include "StreamWriter.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringExtras.h"
@@ -37,6 +38,7 @@ public:
   void printSymbols() override;
   void printDynamicSymbols() override;
   void printUnwindInfo() override;
+  void printStackMap() const override;
 
 private:
   template<class MachHeader>
@@ -201,31 +203,6 @@ static const EnumEntry<uint32_t> MachOHeaderFlags[] = {
   LLVM_READOBJ_ENUM_ENT(MachO, MH_HAS_TLV_DESCRIPTORS),
   LLVM_READOBJ_ENUM_ENT(MachO, MH_NO_HEAP_EXECUTION),
   LLVM_READOBJ_ENUM_ENT(MachO, MH_APP_EXTENSION_SAFE),
-};
-
-static const EnumEntry<unsigned> MachOSectionTypes[] = {
-  { "Regular"                        , 0x00 },
-  { "ZeroFill"                       , 0x01 },
-  { "CStringLiterals"                , 0x02 },
-  { "4ByteLiterals"                  , 0x03 },
-  { "8ByteLiterals"                  , 0x04 },
-  { "LiteralPointers"                , 0x05 },
-  { "NonLazySymbolPointers"          , 0x06 },
-  { "LazySymbolPointers"             , 0x07 },
-  { "SymbolStubs"                    , 0x08 },
-  { "ModInitFuncs"                   , 0x09 },
-  { "ModTermFuncs"                   , 0x0A },
-  { "Coalesced"                      , 0x0B },
-  { "GBZeroFill"                     , 0x0C },
-  { "Interposing"                    , 0x0D },
-  { "16ByteLiterals"                 , 0x0E },
-  { "DTraceDOF"                      , 0x0F },
-  { "LazyDylibSymbolPoints"          , 0x10 },
-  { "ThreadLocalRegular"             , 0x11 },
-  { "ThreadLocalZerofill"            , 0x12 },
-  { "ThreadLocalVariables"           , 0x13 },
-  { "ThreadLocalVariablePointers"    , 0x14 },
-  { "ThreadLocalInitFunctionPointers", 0x15 }
 };
 
 static const EnumEntry<unsigned> MachOSectionAttributes[] = {
@@ -484,45 +461,56 @@ void MachODumper::printRelocation(const RelocationRef &Reloc) {
 
 void MachODumper::printRelocation(const MachOObjectFile *Obj,
                                   const RelocationRef &Reloc) {
-  uint64_t Offset;
+  uint64_t Offset = Reloc.getOffset();
   SmallString<32> RelocName;
-  if (error(Reloc.getOffset(Offset)))
-    return;
-  if (error(Reloc.getTypeName(RelocName)))
-    return;
+  Reloc.getTypeName(RelocName);
 
   DataRefImpl DR = Reloc.getRawDataRefImpl();
   MachO::any_relocation_info RE = Obj->getRelocation(DR);
   bool IsScattered = Obj->isRelocationScattered(RE);
-  SmallString<32> SymbolNameOrOffset("0x");
-  if (IsScattered) {
-    // Scattered relocations don't really have an associated symbol
-    // for some reason, even if one exists in the symtab at the correct address.
-    SymbolNameOrOffset += utohexstr(Obj->getScatteredRelocationValue(RE));
-  } else {
+  bool IsExtern = !IsScattered && Obj->getPlainRelocationExternal(RE);
+
+  StringRef TargetName;
+  if (IsExtern) {
     symbol_iterator Symbol = Reloc.getSymbol();
     if (Symbol != Obj->symbol_end()) {
-      StringRef SymbolName;
-      if (error(Symbol->getName(SymbolName)))
+      ErrorOr<StringRef> TargetNameOrErr = Symbol->getName();
+      if (error(TargetNameOrErr.getError()))
         return;
-      SymbolNameOrOffset = SymbolName;
-    } else
-      SymbolNameOrOffset += utohexstr(Obj->getPlainRelocationSymbolNum(RE));
+      TargetName = *TargetNameOrErr;
+    }
+  } else if (!IsScattered) {
+    section_iterator SecI = Obj->getRelocationSection(DR);
+    if (SecI != Obj->section_end()) {
+      if (error(SecI->getName(TargetName)))
+        return;
+    }
   }
+  if (TargetName.empty())
+    TargetName = "-";
 
   if (opts::ExpandRelocs) {
     DictScope Group(W, "Relocation");
     W.printHex("Offset", Offset);
     W.printNumber("PCRel", Obj->getAnyRelocationPCRel(RE));
     W.printNumber("Length", Obj->getAnyRelocationLength(RE));
-    if (IsScattered)
-      W.printString("Extern", StringRef("N/A"));
-    else
-      W.printNumber("Extern", Obj->getPlainRelocationExternal(RE));
     W.printNumber("Type", RelocName, Obj->getAnyRelocationType(RE));
-    W.printString("Symbol", SymbolNameOrOffset);
-    W.printNumber("Scattered", IsScattered);
+    if (IsScattered) {
+      W.printHex("Value", Obj->getScatteredRelocationValue(RE));
+    } else {
+      const char *Kind = IsExtern ? "Symbol" : "Section";
+      W.printNumber(Kind, TargetName, Obj->getPlainRelocationSymbolNum(RE));
+    }
   } else {
+    SmallString<32> SymbolNameOrOffset("0x");
+    if (IsScattered) {
+      // Scattered relocations don't really have an associated symbol for some
+      // reason, even if one exists in the symtab at the correct address.
+      SymbolNameOrOffset += utohexstr(Obj->getScatteredRelocationValue(RE));
+    } else {
+      SymbolNameOrOffset = TargetName;
+    }
+
     raw_ostream& OS = W.startLine();
     OS << W.hex(Offset)
        << " " << Obj->getAnyRelocationPCRel(RE)
@@ -552,8 +540,8 @@ void MachODumper::printDynamicSymbols() {
 
 void MachODumper::printSymbol(const SymbolRef &Symbol) {
   StringRef SymbolName;
-  if (Symbol.getName(SymbolName))
-    SymbolName = "";
+  if (ErrorOr<StringRef> SymbolNameOrErr = Symbol.getName())
+    SymbolName = *SymbolNameOrErr;
 
   MachOSymbol MOSymbol;
   getSymbol(Obj, Symbol.getRawDataRefImpl(), MOSymbol);
@@ -585,4 +573,33 @@ void MachODumper::printSymbol(const SymbolRef &Symbol) {
 
 void MachODumper::printUnwindInfo() {
   W.startLine() << "UnwindInfo not implemented.\n";
+}
+
+void MachODumper::printStackMap() const {
+  object::SectionRef StackMapSection;
+  for (auto Sec : Obj->sections()) {
+    StringRef Name;
+    Sec.getName(Name);
+    if (Name == "__llvm_stackmaps") {
+      StackMapSection = Sec;
+      break;
+    }
+  }
+
+  if (StackMapSection == object::SectionRef())
+    return;
+
+  StringRef StackMapContents;
+  StackMapSection.getContents(StackMapContents);
+  ArrayRef<uint8_t> StackMapContentsArray(
+      reinterpret_cast<const uint8_t*>(StackMapContents.data()),
+      StackMapContents.size());
+
+  if (Obj->isLittleEndian())
+     prettyPrintStackMap(
+                      llvm::outs(),
+                      StackMapV1Parser<support::little>(StackMapContentsArray));
+  else
+     prettyPrintStackMap(llvm::outs(),
+                         StackMapV1Parser<support::big>(StackMapContentsArray));
 }

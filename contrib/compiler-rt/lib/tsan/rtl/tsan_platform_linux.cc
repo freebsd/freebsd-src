@@ -18,6 +18,7 @@
 
 #include "sanitizer_common/sanitizer_common.h"
 #include "sanitizer_common/sanitizer_libc.h"
+#include "sanitizer_common/sanitizer_posix.h"
 #include "sanitizer_common/sanitizer_procmaps.h"
 #include "sanitizer_common/sanitizer_stoptheworld.h"
 #include "sanitizer_common/sanitizer_stackdepot.h"
@@ -135,7 +136,7 @@ static void ProtectRange(uptr beg, uptr end) {
   CHECK_LE(beg, end);
   if (beg == end)
     return;
-  if (beg != (uptr)Mprotect(beg, end - beg)) {
+  if (beg != (uptr)MmapNoAccess(beg, end - beg)) {
     Printf("FATAL: ThreadSanitizer can not protect [%zx,%zx]\n", beg, end);
     Printf("FATAL: Make sure you are not using unlimited stack\n");
     Die();
@@ -201,8 +202,8 @@ static void MapRodata() {
 
 void InitializeShadowMemory() {
   // Map memory shadow.
-  uptr shadow = (uptr)MmapFixedNoReserve(kShadowBeg,
-    kShadowEnd - kShadowBeg);
+  uptr shadow =
+      (uptr)MmapFixedNoReserve(kShadowBeg, kShadowEnd - kShadowBeg, "shadow");
   if (shadow != kShadowBeg) {
     Printf("FATAL: ThreadSanitizer can not mmap the shadow memory\n");
     Printf("FATAL: Make sure to compile with -fPIE and "
@@ -223,6 +224,10 @@ void InitializeShadowMemory() {
 #endif
   NoHugePagesInRegion(MemToShadow(kMadviseRangeBeg),
                       kMadviseRangeSize * kShadowMultiplier);
+  // Meta shadow is compressing and we don't flush it,
+  // so it makes sense to mark it as NOHUGEPAGE to not over-allocate memory.
+  // On one program it reduces memory consumption from 5GB to 2.5GB.
+  NoHugePagesInRegion(kMetaShadowBeg, kMetaShadowEnd - kMetaShadowBeg);
   if (common_flags()->use_madv_dontdump)
     DontDumpShadowMemory(kShadowBeg, kShadowEnd - kShadowBeg);
   DPrintf("memory shadow: %zx-%zx (%zuGB)\n",
@@ -231,7 +236,8 @@ void InitializeShadowMemory() {
 
   // Map meta shadow.
   uptr meta_size = kMetaShadowEnd - kMetaShadowBeg;
-  uptr meta = (uptr)MmapFixedNoReserve(kMetaShadowBeg, meta_size);
+  uptr meta =
+      (uptr)MmapFixedNoReserve(kMetaShadowBeg, meta_size, "meta shadow");
   if (meta != kMetaShadowBeg) {
     Printf("FATAL: ThreadSanitizer can not mmap the shadow memory\n");
     Printf("FATAL: Make sure to compile with -fPIE and "
@@ -394,6 +400,8 @@ int ExtractRecvmsgFDs(void *msgp, int *fds, int nfd) {
   return res;
 }
 
+// Note: this function runs with async signals enabled,
+// so it must not touch any tsan state.
 int call_pthread_cancel_with_cleanup(int(*fn)(void *c, void *m,
     void *abstime), void *c, void *m, void *abstime,
     void(*cleanup)(void *arg), void *arg) {

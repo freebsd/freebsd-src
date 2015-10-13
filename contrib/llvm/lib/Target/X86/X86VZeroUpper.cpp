@@ -9,7 +9,7 @@
 //
 // This file defines the pass which inserts x86 AVX vzeroupper instructions
 // before calls to SSE encoded functions. This avoids transition latency
-// penalty when tranfering control between AVX encoded instructions and old
+// penalty when transferring control between AVX encoded instructions and old
 // SSE encoding mode.
 //
 //===----------------------------------------------------------------------===//
@@ -171,7 +171,7 @@ void VZeroUpperInserter::addDirtySuccessor(MachineBasicBlock &MBB) {
 }
 
 /// processBasicBlock - Loop over all of the instructions in the basic block,
-/// inserting vzero upper instructions before function calls.
+/// inserting vzeroupper instructions before function calls.
 void VZeroUpperInserter::processBasicBlock(MachineBasicBlock &MBB) {
 
   // Start by assuming that the block PASS_THROUGH, which implies no unguarded
@@ -202,7 +202,7 @@ void VZeroUpperInserter::processBasicBlock(MachineBasicBlock &MBB) {
     // If the call won't clobber any YMM register, skip it as well. It usually
     // happens on helper function calls (such as '_chkstk', '_ftol2') where
     // standard calling convention is not used (RegMask is not used to mark
-    // register clobbered and register usage (def/imp-def/use) is well-dfined
+    // register clobbered and register usage (def/imp-def/use) is well-defined
     // and explicitly specified.
     if (MI->isCall() && !callClobbersAnyYmmReg(MI))
       continue;
@@ -245,12 +245,12 @@ void VZeroUpperInserter::processBasicBlock(MachineBasicBlock &MBB) {
 }
 
 /// runOnMachineFunction - Loop over all of the basic blocks, inserting
-/// vzero upper instructions before function calls.
+/// vzeroupper instructions before function calls.
 bool VZeroUpperInserter::runOnMachineFunction(MachineFunction &MF) {
-  const X86Subtarget &ST = MF.getTarget().getSubtarget<X86Subtarget>();
+  const X86Subtarget &ST = MF.getSubtarget<X86Subtarget>();
   if (!ST.hasAVX() || ST.hasAVX512())
     return false;
-  TII = MF.getSubtarget().getInstrInfo();
+  TII = ST.getInstrInfo();
   MachineRegisterInfo &MRI = MF.getRegInfo();
   EverMadeChange = false;
 
@@ -281,8 +281,8 @@ bool VZeroUpperInserter::runOnMachineFunction(MachineFunction &MF) {
   // Process all blocks. This will compute block exit states, record the first
   // unguarded call in each block, and add successors of dirty blocks to the
   // DirtySuccessors list.
-  for (MachineFunction::iterator I = MF.begin(), E = MF.end(); I != E; ++I)
-    processBasicBlock(*I);
+  for (MachineBasicBlock &MBB : MF)
+    processBasicBlock(MBB);
 
   // If any YMM regs are live in to this function, add the entry block to the
   // DirtySuccessors list

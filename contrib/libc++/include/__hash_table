@@ -19,6 +19,7 @@
 #include <cmath>
 
 #include <__undef_min_max>
+#include <__undef___deallocate>
 
 #include <__debug>
 
@@ -61,7 +62,7 @@ struct __hash_node
 
 inline _LIBCPP_INLINE_VISIBILITY
 bool
-__is_power2(size_t __bc)
+__is_hash_power2(size_t __bc)
 {
     return __bc > 2 && !(__bc & (__bc - 1));
 }
@@ -75,7 +76,7 @@ __constrain_hash(size_t __h, size_t __bc)
 
 inline _LIBCPP_INLINE_VISIBILITY
 size_t
-__next_pow2(size_t __n)
+__next_hash_pow2(size_t __n)
 {
     return size_t(1) << (std::numeric_limits<size_t>::digits - __clz(__n-1));
 }
@@ -84,8 +85,6 @@ template <class _Tp, class _Hash, class _Equal, class _Alloc> class __hash_table
 template <class _ConstNodePtr> class _LIBCPP_TYPE_VIS_ONLY __hash_const_iterator;
 template <class _HashIterator> class _LIBCPP_TYPE_VIS_ONLY __hash_map_iterator;
 template <class _HashIterator> class _LIBCPP_TYPE_VIS_ONLY __hash_map_const_iterator;
-template <class _Key, class _Tp, class _Hash, class _Pred, class _Alloc>
-    class _LIBCPP_TYPE_VIS_ONLY unordered_map;
 
 template <class _NodePtr>
 class _LIBCPP_TYPE_VIS_ONLY __hash_iterator
@@ -776,13 +775,7 @@ public:
 public:
     // Create __node
     typedef __hash_node<value_type, typename __alloc_traits::void_pointer> __node;
-    typedef typename __alloc_traits::template
-#ifndef _LIBCPP_HAS_NO_TEMPLATE_ALIASES
-            rebind_alloc<__node>
-#else
-            rebind_alloc<__node>::other
-#endif
-                                                     __node_allocator;
+    typedef typename __rebind_alloc_helper<__alloc_traits, __node>::type __node_allocator;
     typedef allocator_traits<__node_allocator>       __node_traits;
     typedef typename __node_traits::pointer          __node_pointer;
     typedef typename __node_traits::pointer          __node_const_pointer;
@@ -797,13 +790,7 @@ public:
 
 private:
 
-    typedef typename __node_traits::template
-#ifndef _LIBCPP_HAS_NO_TEMPLATE_ALIASES
-            rebind_alloc<__node_pointer>
-#else
-            rebind_alloc<__node_pointer>::other
-#endif
-                                                            __pointer_allocator;
+    typedef typename __rebind_alloc_helper<__node_traits, __node_pointer>::type __pointer_allocator;
     typedef __bucket_list_deallocator<__pointer_allocator> __bucket_list_deleter;
     typedef unique_ptr<__node_pointer[], __bucket_list_deleter> __bucket_list;
     typedef allocator_traits<__pointer_allocator>          __pointer_alloc_traits;
@@ -909,11 +896,21 @@ public:
         iterator __emplace_hint_multi(const_iterator __p, _Args&&... __args);
 #endif  // !defined(_LIBCPP_HAS_NO_RVALUE_REFERENCES) && !defined(_LIBCPP_HAS_NO_VARIADICS)
 
+#ifndef _LIBCPP_HAS_NO_RVALUE_REFERENCES
+    template <class _ValueTp>
+    _LIBCPP_INLINE_VISIBILITY
+    pair<iterator, bool> __insert_unique_value(_ValueTp&& __x);
+#else
+    _LIBCPP_INLINE_VISIBILITY
+    pair<iterator, bool> __insert_unique_value(const value_type& __x);
+#endif
+
     pair<iterator, bool> __insert_unique(const value_type& __x);
 
 #ifndef _LIBCPP_HAS_NO_RVALUE_REFERENCES
+    pair<iterator, bool> __insert_unique(value_type&& __x);
     template <class _Pp>
-        pair<iterator, bool> __insert_unique(_Pp&& __x);
+    pair<iterator, bool> __insert_unique(_Pp&& __x);
 #endif  // _LIBCPP_HAS_NO_RVALUE_REFERENCES
 
 #ifndef _LIBCPP_HAS_NO_RVALUE_REFERENCES
@@ -987,13 +984,17 @@ public:
         __equal_range_multi(const _Key& __k) const;
 
     void swap(__hash_table& __u)
+#if _LIBCPP_STD_VER <= 11
         _NOEXCEPT_(
-            (!allocator_traits<__pointer_allocator>::propagate_on_container_swap::value ||
-             __is_nothrow_swappable<__pointer_allocator>::value) &&
-            (!__node_traits::propagate_on_container_swap::value ||
-             __is_nothrow_swappable<__node_allocator>::value) &&
-            __is_nothrow_swappable<hasher>::value &&
-            __is_nothrow_swappable<key_equal>::value);
+            __is_nothrow_swappable<hasher>::value && __is_nothrow_swappable<key_equal>::value
+            && (!allocator_traits<__pointer_allocator>::propagate_on_container_swap::value
+                  || __is_nothrow_swappable<__pointer_allocator>::value)
+            && (!__node_traits::propagate_on_container_swap::value
+                  || __is_nothrow_swappable<__node_allocator>::value)
+            );
+#else
+     _NOEXCEPT_(__is_nothrow_swappable<hasher>::value && __is_nothrow_swappable<key_equal>::value);
+#endif
 
     _LIBCPP_INLINE_VISIBILITY
     size_type max_bucket_count() const _NOEXCEPT
@@ -1120,38 +1121,6 @@ private:
     }
     _LIBCPP_INLINE_VISIBILITY
         void __move_assign_alloc(__hash_table&, false_type) _NOEXCEPT {}
-
-    template <class _Ap>
-    _LIBCPP_INLINE_VISIBILITY
-    static
-    void
-    __swap_alloc(_Ap& __x, _Ap& __y)
-        _NOEXCEPT_(
-            !allocator_traits<_Ap>::propagate_on_container_swap::value ||
-            __is_nothrow_swappable<_Ap>::value)
-    {
-        __swap_alloc(__x, __y,
-                     integral_constant<bool,
-                        allocator_traits<_Ap>::propagate_on_container_swap::value
-                                      >());
-    }
-
-    template <class _Ap>
-    _LIBCPP_INLINE_VISIBILITY
-    static
-    void
-    __swap_alloc(_Ap& __x, _Ap& __y, true_type)
-        _NOEXCEPT_(__is_nothrow_swappable<_Ap>::value)
-    {
-        using _VSTD::swap;
-        swap(__x, __y);
-    }
-
-    template <class _Ap>
-    _LIBCPP_INLINE_VISIBILITY
-    static
-    void
-    __swap_alloc(_Ap&, _Ap&, false_type) _NOEXCEPT {}
 
     void __deallocate(__node_pointer __np) _NOEXCEPT;
     __node_pointer __detach() _NOEXCEPT;
@@ -1615,7 +1584,7 @@ __hash_table<_Tp, _Hash, _Equal, _Alloc>::__node_insert_unique(__node_pointer __
     {
         if (size()+1 > __bc * max_load_factor() || __bc == 0)
         {
-            rehash(_VSTD::max<size_type>(2 * __bc + !__is_power2(__bc),
+            rehash(_VSTD::max<size_type>(2 * __bc + !__is_hash_power2(__bc),
                            size_type(ceil(float(size() + 1) / max_load_factor()))));
             __bc = bucket_count();
             __chash = __constrain_hash(__nd->__hash_, __bc);
@@ -1658,7 +1627,7 @@ __hash_table<_Tp, _Hash, _Equal, _Alloc>::__node_insert_multi(__node_pointer __c
     size_type __bc = bucket_count();
     if (size()+1 > __bc * max_load_factor() || __bc == 0)
     {
-        rehash(_VSTD::max<size_type>(2 * __bc + !__is_power2(__bc),
+        rehash(_VSTD::max<size_type>(2 * __bc + !__is_hash_power2(__bc),
                        size_type(ceil(float(size() + 1) / max_load_factor()))));
         __bc = bucket_count();
     }
@@ -1728,7 +1697,7 @@ __hash_table<_Tp, _Hash, _Equal, _Alloc>::__node_insert_multi(
         size_type __bc = bucket_count();
         if (size()+1 > __bc * max_load_factor() || __bc == 0)
         {
-            rehash(_VSTD::max<size_type>(2 * __bc + !__is_power2(__bc),
+            rehash(_VSTD::max<size_type>(2 * __bc + !__is_hash_power2(__bc),
                            size_type(ceil(float(size() + 1) / max_load_factor()))));
             __bc = bucket_count();
         }
@@ -1752,6 +1721,26 @@ template <class _Tp, class _Hash, class _Equal, class _Alloc>
 pair<typename __hash_table<_Tp, _Hash, _Equal, _Alloc>::iterator, bool>
 __hash_table<_Tp, _Hash, _Equal, _Alloc>::__insert_unique(const value_type& __x)
 {
+    return __insert_unique_value(__x);
+}
+
+
+#ifndef _LIBCPP_HAS_NO_RVALUE_REFERENCES
+template <class _Tp, class _Hash, class _Equal, class _Alloc>
+template <class _ValueTp>
+_LIBCPP_INLINE_VISIBILITY
+pair<typename __hash_table<_Tp, _Hash, _Equal, _Alloc>::iterator, bool>
+__hash_table<_Tp, _Hash, _Equal, _Alloc>::__insert_unique_value(_ValueTp&& __x)
+#else
+template <class _Tp, class _Hash, class _Equal, class _Alloc>
+_LIBCPP_INLINE_VISIBILITY
+pair<typename __hash_table<_Tp, _Hash, _Equal, _Alloc>::iterator, bool>
+__hash_table<_Tp, _Hash, _Equal, _Alloc>::__insert_unique_value(const value_type& __x)
+#endif
+{
+#if defined(_LIBCPP_HAS_NO_RVALUE_REFERENCES)
+    typedef const value_type& _ValueTp;
+#endif
     size_t __hash = hash_function()(__x);
     size_type __bc = bucket_count();
     bool __inserted = false;
@@ -1773,10 +1762,10 @@ __hash_table<_Tp, _Hash, _Equal, _Alloc>::__insert_unique(const value_type& __x)
         }
     }
     {
-        __node_holder __h = __construct_node(__x, __hash);
+        __node_holder __h = __construct_node(_VSTD::forward<_ValueTp>(__x), __hash);
         if (size()+1 > __bc * max_load_factor() || __bc == 0)
         {
-            rehash(_VSTD::max<size_type>(2 * __bc + !__is_power2(__bc),
+            rehash(_VSTD::max<size_type>(2 * __bc + !__is_hash_power2(__bc),
                            size_type(ceil(float(size() + 1) / max_load_factor()))));
             __bc = bucket_count();
             __chash = __constrain_hash(__hash, __bc);
@@ -1855,6 +1844,13 @@ __hash_table<_Tp, _Hash, _Equal, _Alloc>::__emplace_hint_multi(
 }
 
 #endif  // _LIBCPP_HAS_NO_VARIADICS
+
+template <class _Tp, class _Hash, class _Equal, class _Alloc>
+pair<typename __hash_table<_Tp, _Hash, _Equal, _Alloc>::iterator, bool>
+__hash_table<_Tp, _Hash, _Equal, _Alloc>::__insert_unique(value_type&& __x)
+{
+    return __insert_unique_value(_VSTD::move(__x));
+}
 
 template <class _Tp, class _Hash, class _Equal, class _Alloc>
 template <class _Pp>
@@ -1946,8 +1942,8 @@ __hash_table<_Tp, _Hash, _Equal, _Alloc>::rehash(size_type __n)
         __n = _VSTD::max<size_type>
               (
                   __n,
-                  __is_power2(__bc) ? __next_pow2(size_t(ceil(float(size()) / max_load_factor()))) :
-                                      __next_prime(size_t(ceil(float(size()) / max_load_factor())))
+                  __is_hash_power2(__bc) ? __next_hash_pow2(size_t(ceil(float(size()) / max_load_factor()))) :
+                                           __next_prime(size_t(ceil(float(size()) / max_load_factor())))
               );
         if (__n < __bc)
             __rehash(__n);
@@ -2357,13 +2353,17 @@ __hash_table<_Tp, _Hash, _Equal, _Alloc>::__equal_range_multi(
 template <class _Tp, class _Hash, class _Equal, class _Alloc>
 void
 __hash_table<_Tp, _Hash, _Equal, _Alloc>::swap(__hash_table& __u)
+#if _LIBCPP_STD_VER <= 11
     _NOEXCEPT_(
-        (!allocator_traits<__pointer_allocator>::propagate_on_container_swap::value ||
-         __is_nothrow_swappable<__pointer_allocator>::value) &&
-        (!__node_traits::propagate_on_container_swap::value ||
-         __is_nothrow_swappable<__node_allocator>::value) &&
-        __is_nothrow_swappable<hasher>::value &&
-        __is_nothrow_swappable<key_equal>::value)
+        __is_nothrow_swappable<hasher>::value && __is_nothrow_swappable<key_equal>::value
+        && (!allocator_traits<__pointer_allocator>::propagate_on_container_swap::value
+              || __is_nothrow_swappable<__pointer_allocator>::value)
+        && (!__node_traits::propagate_on_container_swap::value
+              || __is_nothrow_swappable<__node_allocator>::value)
+            )
+#else
+  _NOEXCEPT_(__is_nothrow_swappable<hasher>::value && __is_nothrow_swappable<key_equal>::value)
+#endif
 {
     {
     __node_pointer_pointer __npp = __bucket_list_.release();
@@ -2371,9 +2371,9 @@ __hash_table<_Tp, _Hash, _Equal, _Alloc>::swap(__hash_table& __u)
     __u.__bucket_list_.reset(__npp);
     }
     _VSTD::swap(__bucket_list_.get_deleter().size(), __u.__bucket_list_.get_deleter().size());
-    __swap_alloc(__bucket_list_.get_deleter().__alloc(),
+    __swap_allocator(__bucket_list_.get_deleter().__alloc(),
              __u.__bucket_list_.get_deleter().__alloc());
-    __swap_alloc(__node_alloc(), __u.__node_alloc());
+    __swap_allocator(__node_alloc(), __u.__node_alloc());
     _VSTD::swap(__p1_.first().__next_, __u.__p1_.first().__next_);
     __p2_.swap(__u.__p2_);
     __p3_.swap(__u.__p3_);

@@ -53,12 +53,12 @@ public:
   /// getABIInfo() - Returns ABI info helper for the target.
   const ABIInfo &getABIInfo() const { return *Info; }
 
-  /// SetTargetAttributes - Provides a convenient hook to handle extra
+  /// setTargetAttributes - Provides a convenient hook to handle extra
   /// target-specific attributes for the given global.
-  virtual void SetTargetAttributes(const Decl *D, llvm::GlobalValue *GV,
+  virtual void setTargetAttributes(const Decl *D, llvm::GlobalValue *GV,
                                    CodeGen::CodeGenModule &M) const {}
 
-  /// EmitTargetMD - Provides a convenient hook to handle extra
+  /// emitTargetMD - Provides a convenient hook to handle extra
   /// target-specific metadata for the given global.
   virtual void emitTargetMD(const Decl *D, llvm::GlobalValue *GV,
                             CodeGen::CodeGenModule &M) const {}
@@ -218,13 +218,6 @@ public:
   virtual void getDetectMismatchOption(llvm::StringRef Name,
                                        llvm::StringRef Value,
                                        llvm::SmallString<32> &Opt) const {}
-
-  /// Gets the target-specific default alignment used when an 'aligned' clause
-  /// is used with a 'simd' OpenMP directive without specifying a specific
-  /// alignment.
-  virtual unsigned getOpenMPSimdDefaultAlignment(QualType Type) const {
-    return 0;
-  }
 };
 }
 

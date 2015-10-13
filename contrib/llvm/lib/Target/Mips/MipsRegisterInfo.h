@@ -21,15 +21,9 @@
 #include "MipsGenRegisterInfo.inc"
 
 namespace llvm {
-class MipsSubtarget;
-class Type;
-
 class MipsRegisterInfo : public MipsGenRegisterInfo {
-protected:
-  const MipsSubtarget &Subtarget;
-
 public:
-  MipsRegisterInfo(const MipsSubtarget &Subtarget);
+  MipsRegisterInfo();
 
   /// getRegisterNumbering - Given the enum value for some register, e.g.
   /// Mips::RA, return the number that it corresponds to (e.g. 31).
@@ -47,9 +41,9 @@ public:
 
   unsigned getRegPressureLimit(const TargetRegisterClass *RC,
                                MachineFunction &MF) const override;
-  const MCPhysReg *
-  getCalleeSavedRegs(const MachineFunction *MF = nullptr) const override;
-  const uint32_t *getCallPreservedMask(CallingConv::ID) const override;
+  const MCPhysReg *getCalleeSavedRegs(const MachineFunction *MF) const override;
+  const uint32_t *getCallPreservedMask(const MachineFunction &MF,
+                                       CallingConv::ID) const override;
   static const uint32_t *getMips16RetHelperMask();
 
   BitVector getReservedRegs(const MachineFunction &MF) const override;
@@ -65,6 +59,11 @@ public:
 
   void processFunctionBeforeFrameFinalized(MachineFunction &MF,
                                        RegScavenger *RS = nullptr) const;
+
+  // Stack realignment queries.
+  bool canRealignStack(const MachineFunction &MF) const;
+
+  bool needsStackRealignment(const MachineFunction &MF) const override;
 
   /// Debug information queries.
   unsigned getFrameRegister(const MachineFunction &MF) const override;

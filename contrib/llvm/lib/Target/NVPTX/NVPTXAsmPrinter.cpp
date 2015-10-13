@@ -27,6 +27,7 @@
 #include "llvm/Analysis/ConstantFolding.h"
 #include "llvm/CodeGen/Analysis.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
+#include "llvm/CodeGen/MachineLoopInfo.h"
 #include "llvm/CodeGen/MachineModuleInfo.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/IR/DebugInfo.h"
@@ -36,6 +37,7 @@
 #include "llvm/IR/Mangler.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Operator.h"
+#include "llvm/MC/MCInst.h"
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/MC/MCSymbol.h"
 #include "llvm/Support/CommandLine.h"
@@ -45,6 +47,7 @@
 #include "llvm/Support/TargetRegistry.h"
 #include "llvm/Support/TimeValue.h"
 #include "llvm/Target/TargetLoweringObjectFile.h"
+#include "llvm/Transforms/Utils/UnrollLoop.h"
 #include <sstream>
 using namespace llvm;
 
@@ -116,7 +119,7 @@ void NVPTXAsmPrinter::emitLineNumberAsDotLoc(const MachineInstr &MI) {
 
   DebugLoc curLoc = MI.getDebugLoc();
 
-  if (prevDebugLoc.isUnknown() && curLoc.isUnknown())
+  if (!prevDebugLoc && !curLoc)
     return;
 
   if (prevDebugLoc == curLoc)
@@ -124,50 +127,43 @@ void NVPTXAsmPrinter::emitLineNumberAsDotLoc(const MachineInstr &MI) {
 
   prevDebugLoc = curLoc;
 
-  if (curLoc.isUnknown())
+  if (!curLoc)
     return;
 
-  const MachineFunction *MF = MI.getParent()->getParent();
-  //const TargetMachine &TM = MF->getTarget();
-
-  const LLVMContext &ctx = MF->getFunction()->getContext();
-  DIScope Scope(curLoc.getScope(ctx));
-
-  assert((!Scope || Scope.isScope()) &&
-    "Scope of a DebugLoc should be null or a DIScope.");
+  auto *Scope = cast_or_null<DIScope>(curLoc.getScope());
   if (!Scope)
      return;
 
-  StringRef fileName(Scope.getFilename());
-  StringRef dirName(Scope.getDirectory());
+  StringRef fileName(Scope->getFilename());
+  StringRef dirName(Scope->getDirectory());
   SmallString<128> FullPathName = dirName;
   if (!dirName.empty() && !sys::path::is_absolute(fileName)) {
     sys::path::append(FullPathName, fileName);
-    fileName = FullPathName.str();
+    fileName = FullPathName;
   }
 
-  if (filenameMap.find(fileName.str()) == filenameMap.end())
+  if (filenameMap.find(fileName) == filenameMap.end())
     return;
 
   // Emit the line from the source file.
   if (InterleaveSrc)
-    this->emitSrcInText(fileName.str(), curLoc.getLine());
+    this->emitSrcInText(fileName, curLoc.getLine());
 
   std::stringstream temp;
-  temp << "\t.loc " << filenameMap[fileName.str()] << " " << curLoc.getLine()
+  temp << "\t.loc " << filenameMap[fileName] << " " << curLoc.getLine()
        << " " << curLoc.getCol();
-  OutStreamer.EmitRawText(Twine(temp.str().c_str()));
+  OutStreamer->EmitRawText(temp.str());
 }
 
 void NVPTXAsmPrinter::EmitInstruction(const MachineInstr *MI) {
   SmallString<128> Str;
   raw_svector_ostream OS(Str);
-  if (nvptxSubtarget.getDrvInterface() == NVPTX::CUDA)
+  if (static_cast<NVPTXTargetMachine &>(TM).getDrvInterface() == NVPTX::CUDA)
     emitLineNumberAsDotLoc(*MI);
 
   MCInst Inst;
   lowerToMCInst(MI, Inst);
-  EmitToStreamer(OutStreamer, Inst);
+  EmitToStreamer(*OutStreamer, Inst);
 }
 
 // Handle symbol backtracking for targets that do not support image handles
@@ -229,19 +225,17 @@ void NVPTXAsmPrinter::lowerImageHandleSymbol(unsigned Index, MCOperand &MCOp) {
   const char *Sym = MFI->getImageHandleSymbol(Index);
   std::string *SymNamePtr =
     nvTM.getManagedStrPool()->getManagedString(Sym);
-  MCOp = GetSymbolRef(OutContext.GetOrCreateSymbol(
+  MCOp = GetSymbolRef(OutContext.getOrCreateSymbol(
     StringRef(SymNamePtr->c_str())));
 }
 
 void NVPTXAsmPrinter::lowerToMCInst(const MachineInstr *MI, MCInst &OutMI) {
   OutMI.setOpcode(MI->getOpcode());
-  const NVPTXSubtarget &ST = TM.getSubtarget<NVPTXSubtarget>();
-
   // Special: Do not mangle symbol operand of CALL_PROTOTYPE
   if (MI->getOpcode() == NVPTX::CALL_PROTOTYPE) {
     const MachineOperand &MO = MI->getOperand(0);
     OutMI.addOperand(GetSymbolRef(
-      OutContext.GetOrCreateSymbol(Twine(MO.getSymbolName()))));
+      OutContext.getOrCreateSymbol(Twine(MO.getSymbolName()))));
     return;
   }
 
@@ -249,7 +243,7 @@ void NVPTXAsmPrinter::lowerToMCInst(const MachineInstr *MI, MCInst &OutMI) {
     const MachineOperand &MO = MI->getOperand(i);
 
     MCOperand MCOp;
-    if (!ST.hasImageHandles()) {
+    if (!nvptxSubtarget->hasImageHandles()) {
       if (lowerImageHandleOperand(MI, i, MCOp)) {
         OutMI.addOperand(MCOp);
         continue;
@@ -266,13 +260,13 @@ bool NVPTXAsmPrinter::lowerOperand(const MachineOperand &MO,
   switch (MO.getType()) {
   default: llvm_unreachable("unknown operand type");
   case MachineOperand::MO_Register:
-    MCOp = MCOperand::CreateReg(encodeVirtualRegister(MO.getReg()));
+    MCOp = MCOperand::createReg(encodeVirtualRegister(MO.getReg()));
     break;
   case MachineOperand::MO_Immediate:
-    MCOp = MCOperand::CreateImm(MO.getImm());
+    MCOp = MCOperand::createImm(MO.getImm());
     break;
   case MachineOperand::MO_MachineBasicBlock:
-    MCOp = MCOperand::CreateExpr(MCSymbolRefExpr::Create(
+    MCOp = MCOperand::createExpr(MCSymbolRefExpr::create(
         MO.getMBB()->getSymbol(), OutContext));
     break;
   case MachineOperand::MO_ExternalSymbol:
@@ -288,12 +282,12 @@ bool NVPTXAsmPrinter::lowerOperand(const MachineOperand &MO,
     switch (Cnt->getType()->getTypeID()) {
     default: report_fatal_error("Unsupported FP type"); break;
     case Type::FloatTyID:
-      MCOp = MCOperand::CreateExpr(
-        NVPTXFloatMCExpr::CreateConstantFPSingle(Val, OutContext));
+      MCOp = MCOperand::createExpr(
+        NVPTXFloatMCExpr::createConstantFPSingle(Val, OutContext));
       break;
     case Type::DoubleTyID:
-      MCOp = MCOperand::CreateExpr(
-        NVPTXFloatMCExpr::CreateConstantFPDouble(Val, OutContext));
+      MCOp = MCOperand::createExpr(
+        NVPTXFloatMCExpr::createConstantFPDouble(Val, OutContext));
       break;
     }
     break;
@@ -340,18 +334,18 @@ unsigned NVPTXAsmPrinter::encodeVirtualRegister(unsigned Reg) {
 
 MCOperand NVPTXAsmPrinter::GetSymbolRef(const MCSymbol *Symbol) {
   const MCExpr *Expr;
-  Expr = MCSymbolRefExpr::Create(Symbol, MCSymbolRefExpr::VK_None,
+  Expr = MCSymbolRefExpr::create(Symbol, MCSymbolRefExpr::VK_None,
                                  OutContext);
-  return MCOperand::CreateExpr(Expr);
+  return MCOperand::createExpr(Expr);
 }
 
 void NVPTXAsmPrinter::printReturnValStr(const Function *F, raw_ostream &O) {
-  const DataLayout *TD = TM.getSubtargetImpl()->getDataLayout();
-  const TargetLowering *TLI = TM.getSubtargetImpl()->getTargetLowering();
+  const DataLayout &DL = getDataLayout();
+  const TargetLowering *TLI = nvptxSubtarget->getTargetLowering();
 
   Type *Ty = F->getReturnType();
 
-  bool isABI = (nvptxSubtarget.getSmVersion() >= 20);
+  bool isABI = (nvptxSubtarget->getSmVersion() >= 20);
 
   if (Ty->getTypeID() == Type::VoidTyID)
     return;
@@ -372,20 +366,20 @@ void NVPTXAsmPrinter::printReturnValStr(const Function *F, raw_ostream &O) {
 
       O << ".param .b" << size << " func_retval0";
     } else if (isa<PointerType>(Ty)) {
-      O << ".param .b" << TLI->getPointerTy().getSizeInBits()
+      O << ".param .b" << TLI->getPointerTy(DL).getSizeInBits()
         << " func_retval0";
     } else if ((Ty->getTypeID() == Type::StructTyID) || isa<VectorType>(Ty)) {
-       unsigned totalsz = TD->getTypeAllocSize(Ty);
+      unsigned totalsz = DL.getTypeAllocSize(Ty);
        unsigned retAlignment = 0;
        if (!llvm::getAlign(*F, 0, retAlignment))
-         retAlignment = TD->getABITypeAlignment(Ty);
+         retAlignment = DL.getABITypeAlignment(Ty);
        O << ".param .align " << retAlignment << " .b8 func_retval0[" << totalsz
          << "]";
     } else
       llvm_unreachable("Unknown return type");
   } else {
     SmallVector<EVT, 16> vtparts;
-    ComputeValueVTs(*TLI, Ty, vtparts);
+    ComputeValueVTs(*TLI, DL, Ty, vtparts);
     unsigned idx = 0;
     for (unsigned i = 0, e = vtparts.size(); i != e; ++i) {
       unsigned elems = 1;
@@ -418,6 +412,41 @@ void NVPTXAsmPrinter::printReturnValStr(const MachineFunction &MF,
   printReturnValStr(F, O);
 }
 
+// Return true if MBB is the header of a loop marked with
+// llvm.loop.unroll.disable.
+// TODO: consider "#pragma unroll 1" which is equivalent to "#pragma nounroll".
+bool NVPTXAsmPrinter::isLoopHeaderOfNoUnroll(
+    const MachineBasicBlock &MBB) const {
+  MachineLoopInfo &LI = getAnalysis<MachineLoopInfo>();
+  // We insert .pragma "nounroll" only to the loop header.
+  if (!LI.isLoopHeader(&MBB))
+    return false;
+
+  // llvm.loop.unroll.disable is marked on the back edges of a loop. Therefore,
+  // we iterate through each back edge of the loop with header MBB, and check
+  // whether its metadata contains llvm.loop.unroll.disable.
+  for (auto I = MBB.pred_begin(); I != MBB.pred_end(); ++I) {
+    const MachineBasicBlock *PMBB = *I;
+    if (LI.getLoopFor(PMBB) != LI.getLoopFor(&MBB)) {
+      // Edges from other loops to MBB are not back edges.
+      continue;
+    }
+    if (const BasicBlock *PBB = PMBB->getBasicBlock()) {
+      if (MDNode *LoopID = PBB->getTerminator()->getMetadata("llvm.loop")) {
+        if (GetUnrollMetadata(LoopID, "llvm.loop.unroll.disable"))
+          return true;
+      }
+    }
+  }
+  return false;
+}
+
+void NVPTXAsmPrinter::EmitBasicBlockStart(const MachineBasicBlock &MBB) const {
+  AsmPrinter::EmitBasicBlockStart(MBB);
+  if (isLoopHeaderOfNoUnroll(MBB))
+    OutStreamer->EmitRawText(StringRef("\t.pragma \"nounroll\";\n"));
+}
+
 void NVPTXAsmPrinter::EmitFunctionEntryLabel() {
   SmallString<128> Str;
   raw_svector_ostream O(Str);
@@ -438,46 +467,44 @@ void NVPTXAsmPrinter::EmitFunctionEntryLabel() {
     printReturnValStr(*MF, O);
   }
 
-  O << *CurrentFnSym;
+  CurrentFnSym->print(O, MAI);
 
   emitFunctionParamList(*MF, O);
 
   if (llvm::isKernelFunction(*F))
     emitKernelFunctionDirectives(*F, O);
 
-  OutStreamer.EmitRawText(O.str());
+  OutStreamer->EmitRawText(O.str());
 
   prevDebugLoc = DebugLoc();
 }
 
 void NVPTXAsmPrinter::EmitFunctionBodyStart() {
   VRegMapping.clear();
-  OutStreamer.EmitRawText(StringRef("{\n"));
+  OutStreamer->EmitRawText(StringRef("{\n"));
   setAndEmitFunctionVirtualRegisters(*MF);
 
   SmallString<128> Str;
   raw_svector_ostream O(Str);
   emitDemotedVars(MF->getFunction(), O);
-  OutStreamer.EmitRawText(O.str());
+  OutStreamer->EmitRawText(O.str());
 }
 
 void NVPTXAsmPrinter::EmitFunctionBodyEnd() {
-  OutStreamer.EmitRawText(StringRef("}\n"));
+  OutStreamer->EmitRawText(StringRef("}\n"));
   VRegMapping.clear();
 }
 
 void NVPTXAsmPrinter::emitImplicitDef(const MachineInstr *MI) const {
   unsigned RegNo = MI->getOperand(0).getReg();
-  const TargetRegisterInfo *TRI = TM.getSubtargetImpl()->getRegisterInfo();
-  if (TRI->isVirtualRegister(RegNo)) {
-    OutStreamer.AddComment(Twine("implicit-def: ") +
-                           getVirtualRegisterName(RegNo));
+  if (TargetRegisterInfo::isVirtualRegister(RegNo)) {
+    OutStreamer->AddComment(Twine("implicit-def: ") +
+                            getVirtualRegisterName(RegNo));
   } else {
-    OutStreamer.AddComment(
-        Twine("implicit-def: ") +
-        TM.getSubtargetImpl()->getRegisterInfo()->getName(RegNo));
+    OutStreamer->AddComment(Twine("implicit-def: ") +
+                            nvptxSubtarget->getRegisterInfo()->getName(RegNo));
   }
-  OutStreamer.AddBlankLine();
+  OutStreamer->AddBlankLine();
 }
 
 void NVPTXAsmPrinter::emitKernelFunctionDirectives(const Function &F,
@@ -487,15 +514,15 @@ void NVPTXAsmPrinter::emitKernelFunctionDirectives(const Function &F,
   // If none of reqntid* is specified, don't output reqntid directive.
   unsigned reqntidx, reqntidy, reqntidz;
   bool specified = false;
-  if (llvm::getReqNTIDx(F, reqntidx) == false)
+  if (!llvm::getReqNTIDx(F, reqntidx))
     reqntidx = 1;
   else
     specified = true;
-  if (llvm::getReqNTIDy(F, reqntidy) == false)
+  if (!llvm::getReqNTIDy(F, reqntidy))
     reqntidy = 1;
   else
     specified = true;
-  if (llvm::getReqNTIDz(F, reqntidz) == false)
+  if (!llvm::getReqNTIDz(F, reqntidz))
     reqntidz = 1;
   else
     specified = true;
@@ -509,15 +536,15 @@ void NVPTXAsmPrinter::emitKernelFunctionDirectives(const Function &F,
   // If none of maxntid* is specified, don't output maxntid directive.
   unsigned maxntidx, maxntidy, maxntidz;
   specified = false;
-  if (llvm::getMaxNTIDx(F, maxntidx) == false)
+  if (!llvm::getMaxNTIDx(F, maxntidx))
     maxntidx = 1;
   else
     specified = true;
-  if (llvm::getMaxNTIDy(F, maxntidy) == false)
+  if (!llvm::getMaxNTIDy(F, maxntidy))
     maxntidy = 1;
   else
     specified = true;
-  if (llvm::getMaxNTIDz(F, maxntidz) == false)
+  if (!llvm::getMaxNTIDz(F, maxntidz))
     maxntidz = 1;
   else
     specified = true;
@@ -597,7 +624,8 @@ void NVPTXAsmPrinter::emitDeclaration(const Function *F, raw_ostream &O) {
   else
     O << ".func ";
   printReturnValStr(F, O);
-  O << *getSymbol(F) << "\n";
+  getSymbol(F)->print(O, MAI);
+  O << "\n";
   emitFunctionParamList(F, O);
   O << ";\n";
 }
@@ -607,7 +635,7 @@ static bool usedInGlobalVarDef(const Constant *C) {
     return false;
 
   if (const GlobalVariable *GV = dyn_cast<GlobalVariable>(C)) {
-    if (GV->getName().str() == "llvm.used")
+    if (GV->getName() == "llvm.used")
       return false;
     return true;
   }
@@ -622,7 +650,7 @@ static bool usedInGlobalVarDef(const Constant *C) {
 
 static bool usedInOneFunc(const User *U, Function const *&oneFunc) {
   if (const GlobalVariable *othergv = dyn_cast<GlobalVariable>(U)) {
-    if (othergv->getName().str() == "llvm.used")
+    if (othergv->getName() == "llvm.used")
       return true;
   }
 
@@ -638,7 +666,7 @@ static bool usedInOneFunc(const User *U, Function const *&oneFunc) {
   }
 
   for (const User *UU : U->users())
-    if (usedInOneFunc(UU, oneFunc) == false)
+    if (!usedInOneFunc(UU, oneFunc))
       return false;
 
   return true;
@@ -652,7 +680,7 @@ static bool usedInOneFunc(const User *U, Function const *&oneFunc) {
  * 3. Is the global variable referenced only in one function?
  */
 static bool canDemoteGlobalVar(const GlobalVariable *gv, Function const *&f) {
-  if (gv->hasInternalLinkage() == false)
+  if (!gv->hasInternalLinkage())
     return false;
   const PointerType *Pty = gv->getType();
   if (Pty->getAddressSpace() != llvm::ADDRESS_SPACE_SHARED)
@@ -661,7 +689,7 @@ static bool canDemoteGlobalVar(const GlobalVariable *gv, Function const *&f) {
   const Function *oneFunc = nullptr;
 
   bool flag = usedInOneFunc(gv, oneFunc);
-  if (flag == false)
+  if (!flag)
     return false;
   if (!oneFunc)
     return false;
@@ -746,43 +774,50 @@ void NVPTXAsmPrinter::recordAndEmitFilenames(Module &M) {
   DbgFinder.processModule(M);
 
   unsigned i = 1;
-  for (DICompileUnit DIUnit : DbgFinder.compile_units()) {
-    StringRef Filename(DIUnit.getFilename());
-    StringRef Dirname(DIUnit.getDirectory());
+  for (const DICompileUnit *DIUnit : DbgFinder.compile_units()) {
+    StringRef Filename = DIUnit->getFilename();
+    StringRef Dirname = DIUnit->getDirectory();
     SmallString<128> FullPathName = Dirname;
     if (!Dirname.empty() && !sys::path::is_absolute(Filename)) {
       sys::path::append(FullPathName, Filename);
-      Filename = FullPathName.str();
+      Filename = FullPathName;
     }
-    if (filenameMap.find(Filename.str()) != filenameMap.end())
+    if (filenameMap.find(Filename) != filenameMap.end())
       continue;
-    filenameMap[Filename.str()] = i;
-    OutStreamer.EmitDwarfFileDirective(i, "", Filename.str());
+    filenameMap[Filename] = i;
+    OutStreamer->EmitDwarfFileDirective(i, "", Filename);
     ++i;
   }
 
-  for (DISubprogram SP : DbgFinder.subprograms()) {
-    StringRef Filename(SP.getFilename());
-    StringRef Dirname(SP.getDirectory());
+  for (DISubprogram *SP : DbgFinder.subprograms()) {
+    StringRef Filename = SP->getFilename();
+    StringRef Dirname = SP->getDirectory();
     SmallString<128> FullPathName = Dirname;
     if (!Dirname.empty() && !sys::path::is_absolute(Filename)) {
       sys::path::append(FullPathName, Filename);
-      Filename = FullPathName.str();
+      Filename = FullPathName;
     }
-    if (filenameMap.find(Filename.str()) != filenameMap.end())
+    if (filenameMap.find(Filename) != filenameMap.end())
       continue;
-    filenameMap[Filename.str()] = i;
+    filenameMap[Filename] = i;
     ++i;
   }
 }
 
 bool NVPTXAsmPrinter::doInitialization(Module &M) {
+  // Construct a default subtarget off of the TargetMachine defaults. The
+  // rest of NVPTX isn't friendly to change subtargets per function and
+  // so the default TargetMachine will have all of the options.
+  const Triple &TT = TM.getTargetTriple();
+  StringRef CPU = TM.getTargetCPU();
+  StringRef FS = TM.getTargetFeatureString();
+  const NVPTXTargetMachine &NTM = static_cast<const NVPTXTargetMachine &>(TM);
+  const NVPTXSubtarget STI(TT, CPU, FS, NTM);
 
   SmallString<128> Str1;
   raw_svector_ostream OS1(Str1);
 
   MMI = getAnalysisIfAvailable<MachineModuleInfo>();
-  MMI->AnalyzeModule(M);
 
   // We need to call the parent's one explicitly.
   //bool Result = AsmPrinter::doInitialization(M);
@@ -791,26 +826,27 @@ bool NVPTXAsmPrinter::doInitialization(Module &M) {
   const_cast<TargetLoweringObjectFile &>(getObjFileLowering())
       .Initialize(OutContext, TM);
 
-  Mang = new Mangler(TM.getSubtargetImpl()->getDataLayout());
+  Mang = new Mangler();
 
   // Emit header before any dwarf directives are emitted below.
-  emitHeader(M, OS1);
-  OutStreamer.EmitRawText(OS1.str());
+  emitHeader(M, OS1, STI);
+  OutStreamer->EmitRawText(OS1.str());
 
   // Already commented out
   //bool Result = AsmPrinter::doInitialization(M);
 
   // Emit module-level inline asm if it exists.
   if (!M.getModuleInlineAsm().empty()) {
-    OutStreamer.AddComment("Start of file scope inline assembly");
-    OutStreamer.AddBlankLine();
-    OutStreamer.EmitRawText(StringRef(M.getModuleInlineAsm()));
-    OutStreamer.AddBlankLine();
-    OutStreamer.AddComment("End of file scope inline assembly");
-    OutStreamer.AddBlankLine();
+    OutStreamer->AddComment("Start of file scope inline assembly");
+    OutStreamer->AddBlankLine();
+    OutStreamer->EmitRawText(StringRef(M.getModuleInlineAsm()));
+    OutStreamer->AddBlankLine();
+    OutStreamer->AddComment("End of file scope inline assembly");
+    OutStreamer->AddBlankLine();
   }
 
-  if (nvptxSubtarget.getDrvInterface() == NVPTX::CUDA)
+  // If we're not NVCL we're CUDA, go ahead and emit filenames.
+  if (TM.getTargetTriple().getOS() != Triple::NVCL)
     recordAndEmitFilenames(M);
 
   GlobalsEmitted = false;
@@ -848,25 +884,27 @@ void NVPTXAsmPrinter::emitGlobals(const Module &M) {
 
   OS2 << '\n';
 
-  OutStreamer.EmitRawText(OS2.str());
+  OutStreamer->EmitRawText(OS2.str());
 }
 
-void NVPTXAsmPrinter::emitHeader(Module &M, raw_ostream &O) {
+void NVPTXAsmPrinter::emitHeader(Module &M, raw_ostream &O,
+                                 const NVPTXSubtarget &STI) {
   O << "//\n";
   O << "// Generated by LLVM NVPTX Back-End\n";
   O << "//\n";
   O << "\n";
 
-  unsigned PTXVersion = nvptxSubtarget.getPTXVersion();
+  unsigned PTXVersion = STI.getPTXVersion();
   O << ".version " << (PTXVersion / 10) << "." << (PTXVersion % 10) << "\n";
 
   O << ".target ";
-  O << nvptxSubtarget.getTargetName();
+  O << STI.getTargetName();
 
-  if (nvptxSubtarget.getDrvInterface() == NVPTX::NVCL)
+  const NVPTXTargetMachine &NTM = static_cast<const NVPTXTargetMachine &>(TM);
+  if (NTM.getDrvInterface() == NVPTX::NVCL)
     O << ", texmode_independent";
-  if (nvptxSubtarget.getDrvInterface() == NVPTX::CUDA) {
-    if (!nvptxSubtarget.hasDouble())
+  else {
+    if (!STI.hasDouble())
       O << ", map_f64_to_f32";
   }
 
@@ -876,7 +914,7 @@ void NVPTXAsmPrinter::emitHeader(Module &M, raw_ostream &O) {
   O << "\n";
 
   O << ".address_size ";
-  if (nvptxSubtarget.is64Bit())
+  if (NTM.is64Bit())
     O << "64";
   else
     O << "32";
@@ -886,7 +924,6 @@ void NVPTXAsmPrinter::emitHeader(Module &M, raw_ostream &O) {
 }
 
 bool NVPTXAsmPrinter::doFinalization(Module &M) {
-
   // If we did not emit any functions, then the global declarations have not
   // yet been emitted.
   if (!GlobalsEmitted) {
@@ -948,7 +985,7 @@ bool NVPTXAsmPrinter::doFinalization(Module &M) {
 
 void NVPTXAsmPrinter::emitLinkageDirective(const GlobalValue *V,
                                            raw_ostream &O) {
-  if (nvptxSubtarget.getDrvInterface() == NVPTX::CUDA) {
+  if (static_cast<NVPTXTargetMachine &>(TM).getDrvInterface() == NVPTX::CUDA) {
     if (V->hasExternalLinkage()) {
       if (isa<GlobalVariable>(V)) {
         const GlobalVariable *GVar = cast<GlobalVariable>(V);
@@ -967,7 +1004,7 @@ void NVPTXAsmPrinter::emitLinkageDirective(const GlobalValue *V,
       msg.append("Error: ");
       msg.append("Symbol ");
       if (V->hasName())
-        msg.append(V->getName().str());
+        msg.append(V->getName());
       msg.append("has unsupported appending linkage type");
       llvm_unreachable(msg.c_str());
     } else if (!V->hasInternalLinkage() &&
@@ -992,7 +1029,7 @@ void NVPTXAsmPrinter::printModuleLevelGV(const GlobalVariable *GVar,
       GVar->getName().startswith("nvvm."))
     return;
 
-  const DataLayout *TD = TM.getSubtargetImpl()->getDataLayout();
+  const DataLayout *TD = TM.getDataLayout();
 
   // GlobalVariables are always constant pointers themselves.
   const PointerType *PTy = GVar->getType();
@@ -1103,7 +1140,7 @@ void NVPTXAsmPrinter::printModuleLevelGV(const GlobalVariable *GVar,
 
   const Function *demotedFunc = nullptr;
   if (!processDemoted && canDemoteGlobalVar(GVar, demotedFunc)) {
-    O << "// " << GVar->getName().str() << " has been demoted\n";
+    O << "// " << GVar->getName() << " has been demoted\n";
     if (localDecls.find(demotedFunc) != localDecls.end())
       localDecls[demotedFunc].push_back(GVar);
     else {
@@ -1134,7 +1171,7 @@ void NVPTXAsmPrinter::printModuleLevelGV(const GlobalVariable *GVar,
     else
       O << getPTXFundamentalTypeStr(ETy, false);
     O << " ";
-    O << *getSymbol(GVar);
+    getSymbol(GVar)->print(O, MAI);
 
     // Ptx allows variable initilization only for constant and global state
     // spaces.
@@ -1142,7 +1179,7 @@ void NVPTXAsmPrinter::printModuleLevelGV(const GlobalVariable *GVar,
       if ((PTy->getAddressSpace() == llvm::ADDRESS_SPACE_GLOBAL) ||
           (PTy->getAddressSpace() == llvm::ADDRESS_SPACE_CONST)) {
         const Constant *Initializer = GVar->getInitializer();
-        // 'undef' is treated as there is no value spefied.
+        // 'undef' is treated as there is no value specified.
         if (!Initializer->isNullValue() && !isa<UndefValue>(Initializer)) {
           O << " = ";
           printScalarConstant(Initializer, O);
@@ -1151,10 +1188,9 @@ void NVPTXAsmPrinter::printModuleLevelGV(const GlobalVariable *GVar,
         // The frontend adds zero-initializer to variables that don't have an
         // initial value, so skip warning for this case.
         if (!GVar->getInitializer()->isNullValue()) {
-          std::string warnMsg = "initial value of '" + GVar->getName().str() +
-              "' is not allowed in addrspace(" +
-              llvm::utostr_32(PTy->getAddressSpace()) + ")";
-          report_fatal_error(warnMsg.c_str());
+          report_fatal_error("initial value of '" + GVar->getName() +
+                             "' is not allowed in addrspace(" +
+                             Twine(PTy->getAddressSpace()) + ")");
         }
       }
     }
@@ -1180,16 +1216,22 @@ void NVPTXAsmPrinter::printModuleLevelGV(const GlobalVariable *GVar,
           AggBuffer aggBuffer(ElementSize, O, *this);
           bufferAggregateConstant(Initializer, &aggBuffer);
           if (aggBuffer.numSymbols) {
-            if (nvptxSubtarget.is64Bit()) {
-              O << " .u64 " << *getSymbol(GVar) << "[";
+            if (static_cast<const NVPTXTargetMachine &>(TM).is64Bit()) {
+              O << " .u64 ";
+              getSymbol(GVar)->print(O, MAI);
+              O << "[";
               O << ElementSize / 8;
             } else {
-              O << " .u32 " << *getSymbol(GVar) << "[";
+              O << " .u32 ";
+              getSymbol(GVar)->print(O, MAI);
+              O << "[";
               O << ElementSize / 4;
             }
             O << "]";
           } else {
-            O << " .b8 " << *getSymbol(GVar) << "[";
+            O << " .b8 ";
+            getSymbol(GVar)->print(O, MAI);
+            O << "[";
             O << ElementSize;
             O << "]";
           }
@@ -1197,7 +1239,8 @@ void NVPTXAsmPrinter::printModuleLevelGV(const GlobalVariable *GVar,
           aggBuffer.print();
           O << "}";
         } else {
-          O << " .b8 " << *getSymbol(GVar);
+          O << " .b8 ";
+          getSymbol(GVar)->print(O, MAI);
           if (ElementSize) {
             O << "[";
             O << ElementSize;
@@ -1205,7 +1248,8 @@ void NVPTXAsmPrinter::printModuleLevelGV(const GlobalVariable *GVar,
           }
         }
       } else {
-        O << " .b8 " << *getSymbol(GVar);
+        O << " .b8 ";
+        getSymbol(GVar)->print(O, MAI);
         if (ElementSize) {
           O << "[";
           O << ElementSize;
@@ -1278,7 +1322,7 @@ NVPTXAsmPrinter::getPTXFundamentalTypeStr(const Type *Ty, bool useB4PTR) const {
   case Type::DoubleTyID:
     return "f64";
   case Type::PointerTyID:
-    if (nvptxSubtarget.is64Bit())
+    if (static_cast<const NVPTXTargetMachine &>(TM).is64Bit())
       if (useB4PTR)
         return "b64";
       else
@@ -1295,7 +1339,7 @@ NVPTXAsmPrinter::getPTXFundamentalTypeStr(const Type *Ty, bool useB4PTR) const {
 void NVPTXAsmPrinter::emitPTXGlobalVariable(const GlobalVariable *GVar,
                                             raw_ostream &O) {
 
-  const DataLayout *TD = TM.getSubtargetImpl()->getDataLayout();
+  const DataLayout *TD = TM.getDataLayout();
 
   // GlobalVariables are always constant pointers themselves.
   const PointerType *PTy = GVar->getType();
@@ -1312,7 +1356,7 @@ void NVPTXAsmPrinter::emitPTXGlobalVariable(const GlobalVariable *GVar,
     O << " .";
     O << getPTXFundamentalTypeStr(ETy);
     O << " ";
-    O << *getSymbol(GVar);
+    getSymbol(GVar)->print(O, MAI);
     return;
   }
 
@@ -1327,9 +1371,11 @@ void NVPTXAsmPrinter::emitPTXGlobalVariable(const GlobalVariable *GVar,
   case Type::ArrayTyID:
   case Type::VectorTyID:
     ElementSize = TD->getTypeStoreSize(ETy);
-    O << " .b8 " << *getSymbol(GVar) << "[";
+    O << " .b8 ";
+    getSymbol(GVar)->print(O, MAI);
+    O << "[";
     if (ElementSize) {
-      O << itostr(ElementSize);
+      O << ElementSize;
     }
     O << "]";
     break;
@@ -1369,51 +1415,25 @@ static unsigned int getOpenCLAlignment(const DataLayout *TD, Type *Ty) {
 
 void NVPTXAsmPrinter::printParamName(Function::const_arg_iterator I,
                                      int paramIndex, raw_ostream &O) {
-  if ((nvptxSubtarget.getDrvInterface() == NVPTX::NVCL) ||
-      (nvptxSubtarget.getDrvInterface() == NVPTX::CUDA))
-    O << *getSymbol(I->getParent()) << "_param_" << paramIndex;
-  else {
-    std::string argName = I->getName();
-    const char *p = argName.c_str();
-    while (*p) {
-      if (*p == '.')
-        O << "_";
-      else
-        O << *p;
-      p++;
-    }
-  }
+  getSymbol(I->getParent())->print(O, MAI);
+  O << "_param_" << paramIndex;
 }
 
 void NVPTXAsmPrinter::printParamName(int paramIndex, raw_ostream &O) {
-  Function::const_arg_iterator I, E;
-  int i = 0;
-
-  if ((nvptxSubtarget.getDrvInterface() == NVPTX::NVCL) ||
-      (nvptxSubtarget.getDrvInterface() == NVPTX::CUDA)) {
-    O << *CurrentFnSym << "_param_" << paramIndex;
-    return;
-  }
-
-  for (I = F->arg_begin(), E = F->arg_end(); I != E; ++I, i++) {
-    if (i == paramIndex) {
-      printParamName(I, paramIndex, O);
-      return;
-    }
-  }
-  llvm_unreachable("paramIndex out of bound");
+  CurrentFnSym->print(O, MAI);
+  O << "_param_" << paramIndex;
 }
 
 void NVPTXAsmPrinter::emitFunctionParamList(const Function *F, raw_ostream &O) {
-  const DataLayout *TD = TM.getSubtargetImpl()->getDataLayout();
+  const DataLayout *TD = TM.getDataLayout();
   const AttributeSet &PAL = F->getAttributes();
-  const TargetLowering *TLI = TM.getSubtargetImpl()->getTargetLowering();
+  const TargetLowering *TLI = nvptxSubtarget->getTargetLowering();
   Function::const_arg_iterator I, E;
   unsigned paramIndex = 0;
   bool first = true;
   bool isKernelFunc = llvm::isKernelFunction(*F);
-  bool isABI = (nvptxSubtarget.getSmVersion() >= 20);
-  MVT thePointerTy = TLI->getPointerTy();
+  bool isABI = (nvptxSubtarget->getSmVersion() >= 20);
+  MVT thePointerTy = TLI->getPointerTy(*TD);
 
   O << "(\n";
 
@@ -1431,31 +1451,34 @@ void NVPTXAsmPrinter::emitFunctionParamList(const Function *F, raw_ostream &O) {
         if (isImage(*I)) {
           std::string sname = I->getName();
           if (isImageWriteOnly(*I) || isImageReadWrite(*I)) {
-            if (nvptxSubtarget.hasImageHandles())
+            if (nvptxSubtarget->hasImageHandles())
               O << "\t.param .u64 .ptr .surfref ";
             else
               O << "\t.param .surfref ";
-            O << *CurrentFnSym << "_param_" << paramIndex;
+            CurrentFnSym->print(O, MAI);
+            O << "_param_" << paramIndex;
           }
           else { // Default image is read_only
-            if (nvptxSubtarget.hasImageHandles())
+            if (nvptxSubtarget->hasImageHandles())
               O << "\t.param .u64 .ptr .texref ";
             else
               O << "\t.param .texref ";
-            O << *CurrentFnSym << "_param_" << paramIndex;
+            CurrentFnSym->print(O, MAI);
+            O << "_param_" << paramIndex;
           }
         } else {
-          if (nvptxSubtarget.hasImageHandles())
+          if (nvptxSubtarget->hasImageHandles())
             O << "\t.param .u64 .ptr .samplerref ";
           else
             O << "\t.param .samplerref ";
-          O << *CurrentFnSym << "_param_" << paramIndex;
+          CurrentFnSym->print(O, MAI);
+          O << "_param_" << paramIndex;
         }
         continue;
       }
     }
 
-    if (PAL.hasAttribute(paramIndex + 1, Attribute::ByVal) == false) {
+    if (!PAL.hasAttribute(paramIndex + 1, Attribute::ByVal)) {
       if (Ty->isAggregateType() || Ty->isVectorTy()) {
         // Just print .param .align <a> .b8 .param[size];
         // <a> = PAL.getparamalignment
@@ -1478,7 +1501,8 @@ void NVPTXAsmPrinter::emitFunctionParamList(const Function *F, raw_ostream &O) {
           // Special handling for pointer arguments to kernel
           O << "\t.param .u" << thePointerTy.getSizeInBits() << " ";
 
-          if (nvptxSubtarget.getDrvInterface() != NVPTX::CUDA) {
+          if (static_cast<NVPTXTargetMachine &>(TM).getDrvInterface() !=
+              NVPTX::CUDA) {
             Type *ETy = PTy->getElementType();
             int addrSpace = PTy->getAddressSpace();
             switch (addrSpace) {
@@ -1555,7 +1579,7 @@ void NVPTXAsmPrinter::emitFunctionParamList(const Function *F, raw_ostream &O) {
       // Further, if a part is vector, print the above for
       // each vector element.
       SmallVector<EVT, 16> vtparts;
-      ComputeValueVTs(*TLI, ETy, vtparts);
+      ComputeValueVTs(*TLI, getDataLayout(), ETy, vtparts);
       for (unsigned i = 0, e = vtparts.size(); i != e; ++i) {
         unsigned elems = 1;
         EVT elemtype = vtparts[i];
@@ -1607,7 +1631,7 @@ void NVPTXAsmPrinter::setAndEmitFunctionVirtualRegisters(
   if (NumBytes) {
     O << "\t.local .align " << MFI->getMaxAlignment() << " .b8 \t" << DEPOTNAME
       << getFunctionNumber() << "[" << NumBytes << "];\n";
-    if (nvptxSubtarget.is64Bit()) {
+    if (static_cast<const NVPTXTargetMachine &>(MF.getTarget()).is64Bit()) {
       O << "\t.reg .b64 \t%SP;\n";
       O << "\t.reg .b64 \t%SPL;\n";
     } else {
@@ -1655,7 +1679,7 @@ void NVPTXAsmPrinter::setAndEmitFunctionVirtualRegisters(
     }
   }
 
-  OutStreamer.EmitRawText(O.str());
+  OutStreamer->EmitRawText(O.str());
 }
 
 void NVPTXAsmPrinter::printFPConstant(const ConstantFP *Fp, raw_ostream &O) {
@@ -1704,10 +1728,10 @@ void NVPTXAsmPrinter::printScalarConstant(const Constant *CPV, raw_ostream &O) {
     }
     if (EmitGeneric && !isa<Function>(CPV) && !IsNonGenericPointer) {
       O << "generic(";
-      O << *getSymbol(GVar);
+      getSymbol(GVar)->print(O, MAI);
       O << ")";
     } else {
-      O << *getSymbol(GVar);
+      getSymbol(GVar)->print(O, MAI);
     }
     return;
   }
@@ -1721,24 +1745,48 @@ void NVPTXAsmPrinter::printScalarConstant(const Constant *CPV, raw_ostream &O) {
     if (const GlobalValue *GVar = dyn_cast<GlobalValue>(v)) {
       if (EmitGeneric && !isa<Function>(v) && !IsNonGenericPointer) {
         O << "generic(";
-        O << *getSymbol(GVar);
+        getSymbol(GVar)->print(O, MAI);
         O << ")";
       } else {
-        O << *getSymbol(GVar);
+        getSymbol(GVar)->print(O, MAI);
       }
       return;
     } else {
-      O << *lowerConstant(CPV);
+      lowerConstant(CPV)->print(O, MAI);
       return;
     }
   }
   llvm_unreachable("Not scalar type found in printScalarConstant()");
 }
 
+// These utility functions assure we get the right sequence of bytes for a given
+// type even for big-endian machines
+template <typename T> static void ConvertIntToBytes(unsigned char *p, T val) {
+  int64_t vp = (int64_t)val;
+  for (unsigned i = 0; i < sizeof(T); ++i) {
+    p[i] = (unsigned char)vp;
+    vp >>= 8;
+  }
+}
+static void ConvertFloatToBytes(unsigned char *p, float val) {
+  int32_t *vp = (int32_t *)&val;
+  for (unsigned i = 0; i < sizeof(int32_t); ++i) {
+    p[i] = (unsigned char)*vp;
+    *vp >>= 8;
+  }
+}
+static void ConvertDoubleToBytes(unsigned char *p, double val) {
+  int64_t *vp = (int64_t *)&val;
+  for (unsigned i = 0; i < sizeof(int64_t); ++i) {
+    p[i] = (unsigned char)*vp;
+    *vp >>= 8;
+  }
+}
+
 void NVPTXAsmPrinter::bufferLEByte(const Constant *CPV, int Bytes,
                                    AggBuffer *aggBuffer) {
 
-  const DataLayout *TD = TM.getSubtargetImpl()->getDataLayout();
+  const DataLayout *TD = TM.getDataLayout();
 
   if (isa<UndefValue>(CPV) || CPV->isNullValue()) {
     int s = TD->getTypeAllocSize(CPV->getType());
@@ -1748,37 +1796,36 @@ void NVPTXAsmPrinter::bufferLEByte(const Constant *CPV, int Bytes,
     return;
   }
 
-  unsigned char *ptr;
+  unsigned char ptr[8];
   switch (CPV->getType()->getTypeID()) {
 
   case Type::IntegerTyID: {
     const Type *ETy = CPV->getType();
     if (ETy == Type::getInt8Ty(CPV->getContext())) {
-      unsigned char c =
-          (unsigned char)(dyn_cast<ConstantInt>(CPV))->getZExtValue();
-      ptr = &c;
+      unsigned char c = (unsigned char)cast<ConstantInt>(CPV)->getZExtValue();
+      ConvertIntToBytes<>(ptr, c);
       aggBuffer->addBytes(ptr, 1, Bytes);
     } else if (ETy == Type::getInt16Ty(CPV->getContext())) {
-      short int16 = (short)(dyn_cast<ConstantInt>(CPV))->getZExtValue();
-      ptr = (unsigned char *)&int16;
+      short int16 = (short)cast<ConstantInt>(CPV)->getZExtValue();
+      ConvertIntToBytes<>(ptr, int16);
       aggBuffer->addBytes(ptr, 2, Bytes);
     } else if (ETy == Type::getInt32Ty(CPV->getContext())) {
       if (const ConstantInt *constInt = dyn_cast<ConstantInt>(CPV)) {
         int int32 = (int)(constInt->getZExtValue());
-        ptr = (unsigned char *)&int32;
+        ConvertIntToBytes<>(ptr, int32);
         aggBuffer->addBytes(ptr, 4, Bytes);
         break;
       } else if (const ConstantExpr *Cexpr = dyn_cast<ConstantExpr>(CPV)) {
         if (const ConstantInt *constInt = dyn_cast<ConstantInt>(
-                ConstantFoldConstantExpression(Cexpr, TD))) {
+                ConstantFoldConstantExpression(Cexpr, *TD))) {
           int int32 = (int)(constInt->getZExtValue());
-          ptr = (unsigned char *)&int32;
+          ConvertIntToBytes<>(ptr, int32);
           aggBuffer->addBytes(ptr, 4, Bytes);
           break;
         }
         if (Cexpr->getOpcode() == Instruction::PtrToInt) {
           Value *v = Cexpr->getOperand(0)->stripPointerCasts();
-          aggBuffer->addSymbol(v);
+          aggBuffer->addSymbol(v, Cexpr->getOperand(0));
           aggBuffer->addZeros(4);
           break;
         }
@@ -1787,20 +1834,20 @@ void NVPTXAsmPrinter::bufferLEByte(const Constant *CPV, int Bytes,
     } else if (ETy == Type::getInt64Ty(CPV->getContext())) {
       if (const ConstantInt *constInt = dyn_cast<ConstantInt>(CPV)) {
         long long int64 = (long long)(constInt->getZExtValue());
-        ptr = (unsigned char *)&int64;
+        ConvertIntToBytes<>(ptr, int64);
         aggBuffer->addBytes(ptr, 8, Bytes);
         break;
       } else if (const ConstantExpr *Cexpr = dyn_cast<ConstantExpr>(CPV)) {
         if (const ConstantInt *constInt = dyn_cast<ConstantInt>(
-                ConstantFoldConstantExpression(Cexpr, TD))) {
+                ConstantFoldConstantExpression(Cexpr, *TD))) {
           long long int64 = (long long)(constInt->getZExtValue());
-          ptr = (unsigned char *)&int64;
+          ConvertIntToBytes<>(ptr, int64);
           aggBuffer->addBytes(ptr, 8, Bytes);
           break;
         }
         if (Cexpr->getOpcode() == Instruction::PtrToInt) {
           Value *v = Cexpr->getOperand(0)->stripPointerCasts();
-          aggBuffer->addSymbol(v);
+          aggBuffer->addSymbol(v, Cexpr->getOperand(0));
           aggBuffer->addZeros(8);
           break;
         }
@@ -1816,11 +1863,11 @@ void NVPTXAsmPrinter::bufferLEByte(const Constant *CPV, int Bytes,
     const Type *Ty = CFP->getType();
     if (Ty == Type::getFloatTy(CPV->getContext())) {
       float float32 = (float) CFP->getValueAPF().convertToFloat();
-      ptr = (unsigned char *)&float32;
+      ConvertFloatToBytes(ptr, float32);
       aggBuffer->addBytes(ptr, 4, Bytes);
     } else if (Ty == Type::getDoubleTy(CPV->getContext())) {
       double float64 = CFP->getValueAPF().convertToDouble();
-      ptr = (unsigned char *)&float64;
+      ConvertDoubleToBytes(ptr, float64);
       aggBuffer->addBytes(ptr, 8, Bytes);
     } else {
       llvm_unreachable("unsupported fp const type");
@@ -1829,10 +1876,10 @@ void NVPTXAsmPrinter::bufferLEByte(const Constant *CPV, int Bytes,
   }
   case Type::PointerTyID: {
     if (const GlobalValue *GVar = dyn_cast<GlobalValue>(CPV)) {
-      aggBuffer->addSymbol(GVar);
+      aggBuffer->addSymbol(GVar, GVar);
     } else if (const ConstantExpr *Cexpr = dyn_cast<ConstantExpr>(CPV)) {
       const Value *v = Cexpr->stripPointerCasts();
-      aggBuffer->addSymbol(v);
+      aggBuffer->addSymbol(v, Cexpr);
     }
     unsigned int s = TD->getTypeAllocSize(CPV->getType());
     aggBuffer->addZeros(s);
@@ -1862,7 +1909,7 @@ void NVPTXAsmPrinter::bufferLEByte(const Constant *CPV, int Bytes,
 
 void NVPTXAsmPrinter::bufferAggregateConstant(const Constant *CPV,
                                               AggBuffer *aggBuffer) {
-  const DataLayout *TD = TM.getSubtargetImpl()->getDataLayout();
+  const DataLayout *TD = TM.getDataLayout();
   int Bytes;
 
   // Old constants
@@ -1973,6 +2020,212 @@ bool NVPTXAsmPrinter::ignoreLoc(const MachineInstr &MI) {
   return false;
 }
 
+/// lowerConstantForGV - Return an MCExpr for the given Constant.  This is mostly
+/// a copy from AsmPrinter::lowerConstant, except customized to only handle
+/// expressions that are representable in PTX and create
+/// NVPTXGenericMCSymbolRefExpr nodes for addrspacecast instructions.
+const MCExpr *
+NVPTXAsmPrinter::lowerConstantForGV(const Constant *CV, bool ProcessingGeneric) {
+  MCContext &Ctx = OutContext;
+
+  if (CV->isNullValue() || isa<UndefValue>(CV))
+    return MCConstantExpr::create(0, Ctx);
+
+  if (const ConstantInt *CI = dyn_cast<ConstantInt>(CV))
+    return MCConstantExpr::create(CI->getZExtValue(), Ctx);
+
+  if (const GlobalValue *GV = dyn_cast<GlobalValue>(CV)) {
+    const MCSymbolRefExpr *Expr =
+      MCSymbolRefExpr::create(getSymbol(GV), Ctx);
+    if (ProcessingGeneric) {
+      return NVPTXGenericMCSymbolRefExpr::create(Expr, Ctx);
+    } else {
+      return Expr;
+    }
+  }
+
+  const ConstantExpr *CE = dyn_cast<ConstantExpr>(CV);
+  if (!CE) {
+    llvm_unreachable("Unknown constant value to lower!");
+  }
+
+  switch (CE->getOpcode()) {
+  default:
+    // If the code isn't optimized, there may be outstanding folding
+    // opportunities. Attempt to fold the expression using DataLayout as a
+    // last resort before giving up.
+    if (Constant *C = ConstantFoldConstantExpression(CE, *TM.getDataLayout()))
+      if (C != CE)
+        return lowerConstantForGV(C, ProcessingGeneric);
+
+    // Otherwise report the problem to the user.
+    {
+      std::string S;
+      raw_string_ostream OS(S);
+      OS << "Unsupported expression in static initializer: ";
+      CE->printAsOperand(OS, /*PrintType=*/false,
+                     !MF ? nullptr : MF->getFunction()->getParent());
+      report_fatal_error(OS.str());
+    }
+
+  case Instruction::AddrSpaceCast: {
+    // Strip the addrspacecast and pass along the operand
+    PointerType *DstTy = cast<PointerType>(CE->getType());
+    if (DstTy->getAddressSpace() == 0) {
+      return lowerConstantForGV(cast<const Constant>(CE->getOperand(0)), true);
+    }
+    std::string S;
+    raw_string_ostream OS(S);
+    OS << "Unsupported expression in static initializer: ";
+    CE->printAsOperand(OS, /*PrintType=*/ false,
+                       !MF ? 0 : MF->getFunction()->getParent());
+    report_fatal_error(OS.str());
+  }
+
+  case Instruction::GetElementPtr: {
+    const DataLayout &DL = *TM.getDataLayout();
+
+    // Generate a symbolic expression for the byte address
+    APInt OffsetAI(DL.getPointerTypeSizeInBits(CE->getType()), 0);
+    cast<GEPOperator>(CE)->accumulateConstantOffset(DL, OffsetAI);
+
+    const MCExpr *Base = lowerConstantForGV(CE->getOperand(0),
+                                            ProcessingGeneric);
+    if (!OffsetAI)
+      return Base;
+
+    int64_t Offset = OffsetAI.getSExtValue();
+    return MCBinaryExpr::createAdd(Base, MCConstantExpr::create(Offset, Ctx),
+                                   Ctx);
+  }
+
+  case Instruction::Trunc:
+    // We emit the value and depend on the assembler to truncate the generated
+    // expression properly.  This is important for differences between
+    // blockaddress labels.  Since the two labels are in the same function, it
+    // is reasonable to treat their delta as a 32-bit value.
+    // FALL THROUGH.
+  case Instruction::BitCast:
+    return lowerConstantForGV(CE->getOperand(0), ProcessingGeneric);
+
+  case Instruction::IntToPtr: {
+    const DataLayout &DL = *TM.getDataLayout();
+
+    // Handle casts to pointers by changing them into casts to the appropriate
+    // integer type.  This promotes constant folding and simplifies this code.
+    Constant *Op = CE->getOperand(0);
+    Op = ConstantExpr::getIntegerCast(Op, DL.getIntPtrType(CV->getType()),
+                                      false/*ZExt*/);
+    return lowerConstantForGV(Op, ProcessingGeneric);
+  }
+
+  case Instruction::PtrToInt: {
+    const DataLayout &DL = *TM.getDataLayout();
+
+    // Support only foldable casts to/from pointers that can be eliminated by
+    // changing the pointer to the appropriately sized integer type.
+    Constant *Op = CE->getOperand(0);
+    Type *Ty = CE->getType();
+
+    const MCExpr *OpExpr = lowerConstantForGV(Op, ProcessingGeneric);
+
+    // We can emit the pointer value into this slot if the slot is an
+    // integer slot equal to the size of the pointer.
+    if (DL.getTypeAllocSize(Ty) == DL.getTypeAllocSize(Op->getType()))
+      return OpExpr;
+
+    // Otherwise the pointer is smaller than the resultant integer, mask off
+    // the high bits so we are sure to get a proper truncation if the input is
+    // a constant expr.
+    unsigned InBits = DL.getTypeAllocSizeInBits(Op->getType());
+    const MCExpr *MaskExpr = MCConstantExpr::create(~0ULL >> (64-InBits), Ctx);
+    return MCBinaryExpr::createAnd(OpExpr, MaskExpr, Ctx);
+  }
+
+  // The MC library also has a right-shift operator, but it isn't consistently
+  // signed or unsigned between different targets.
+  case Instruction::Add: {
+    const MCExpr *LHS = lowerConstantForGV(CE->getOperand(0), ProcessingGeneric);
+    const MCExpr *RHS = lowerConstantForGV(CE->getOperand(1), ProcessingGeneric);
+    switch (CE->getOpcode()) {
+    default: llvm_unreachable("Unknown binary operator constant cast expr");
+    case Instruction::Add: return MCBinaryExpr::createAdd(LHS, RHS, Ctx);
+    }
+  }
+  }
+}
+
+// Copy of MCExpr::print customized for NVPTX
+void NVPTXAsmPrinter::printMCExpr(const MCExpr &Expr, raw_ostream &OS) {
+  switch (Expr.getKind()) {
+  case MCExpr::Target:
+    return cast<MCTargetExpr>(&Expr)->printImpl(OS, MAI);
+  case MCExpr::Constant:
+    OS << cast<MCConstantExpr>(Expr).getValue();
+    return;
+
+  case MCExpr::SymbolRef: {
+    const MCSymbolRefExpr &SRE = cast<MCSymbolRefExpr>(Expr);
+    const MCSymbol &Sym = SRE.getSymbol();
+    Sym.print(OS, MAI);
+    return;
+  }
+
+  case MCExpr::Unary: {
+    const MCUnaryExpr &UE = cast<MCUnaryExpr>(Expr);
+    switch (UE.getOpcode()) {
+    case MCUnaryExpr::LNot:  OS << '!'; break;
+    case MCUnaryExpr::Minus: OS << '-'; break;
+    case MCUnaryExpr::Not:   OS << '~'; break;
+    case MCUnaryExpr::Plus:  OS << '+'; break;
+    }
+    printMCExpr(*UE.getSubExpr(), OS);
+    return;
+  }
+
+  case MCExpr::Binary: {
+    const MCBinaryExpr &BE = cast<MCBinaryExpr>(Expr);
+
+    // Only print parens around the LHS if it is non-trivial.
+    if (isa<MCConstantExpr>(BE.getLHS()) || isa<MCSymbolRefExpr>(BE.getLHS()) ||
+        isa<NVPTXGenericMCSymbolRefExpr>(BE.getLHS())) {
+      printMCExpr(*BE.getLHS(), OS);
+    } else {
+      OS << '(';
+      printMCExpr(*BE.getLHS(), OS);
+      OS<< ')';
+    }
+
+    switch (BE.getOpcode()) {
+    case MCBinaryExpr::Add:
+      // Print "X-42" instead of "X+-42".
+      if (const MCConstantExpr *RHSC = dyn_cast<MCConstantExpr>(BE.getRHS())) {
+        if (RHSC->getValue() < 0) {
+          OS << RHSC->getValue();
+          return;
+        }
+      }
+
+      OS <<  '+';
+      break;
+    default: llvm_unreachable("Unhandled binary operator");
+    }
+
+    // Only print parens around the LHS if it is non-trivial.
+    if (isa<MCConstantExpr>(BE.getRHS()) || isa<MCSymbolRefExpr>(BE.getRHS())) {
+      printMCExpr(*BE.getRHS(), OS);
+    } else {
+      OS << '(';
+      printMCExpr(*BE.getRHS(), OS);
+      OS << ')';
+    }
+    return;
+  }
+  }
+
+  llvm_unreachable("Invalid expression kind!");
+}
+
 /// PrintAsmOperand - Print out an operand for an inline asm expression.
 ///
 bool NVPTXAsmPrinter::PrintAsmOperand(const MachineInstr *MI, unsigned OpNo,
@@ -2039,11 +2292,11 @@ void NVPTXAsmPrinter::printOperand(const MachineInstr *MI, int opNum,
     break;
 
   case MachineOperand::MO_GlobalAddress:
-    O << *getSymbol(MO.getGlobal());
+    getSymbol(MO.getGlobal())->print(O, MAI);
     break;
 
   case MachineOperand::MO_MachineBasicBlock:
-    O << *MO.getMBB()->getSymbol();
+    MO.getMBB()->getSymbol()->print(O, MAI);
     return;
 
   default:
@@ -2067,16 +2320,9 @@ void NVPTXAsmPrinter::printMemOperand(const MachineInstr *MI, int opNum,
   }
 }
 
-
-// Force static initialization.
-extern "C" void LLVMInitializeNVPTXBackendAsmPrinter() {
-  RegisterAsmPrinter<NVPTXAsmPrinter> X(TheNVPTXTarget32);
-  RegisterAsmPrinter<NVPTXAsmPrinter> Y(TheNVPTXTarget64);
-}
-
 void NVPTXAsmPrinter::emitSrcInText(StringRef filename, unsigned line) {
   std::stringstream temp;
-  LineReader *reader = this->getReader(filename.str());
+  LineReader *reader = this->getReader(filename);
   temp << "\n//";
   temp << filename.str();
   temp << ":";
@@ -2084,7 +2330,7 @@ void NVPTXAsmPrinter::emitSrcInText(StringRef filename, unsigned line) {
   temp << " ";
   temp << reader->readLine(line);
   temp << "\n";
-  this->OutStreamer.EmitRawText(Twine(temp.str()));
+  this->OutStreamer->EmitRawText(temp.str());
 }
 
 LineReader *NVPTXAsmPrinter::getReader(std::string filename) {

@@ -89,8 +89,8 @@ class Lexer : public PreprocessorLexer {
   // CurrentConflictMarkerState - The kind of conflict marker we are handling.
   ConflictMarkerKind CurrentConflictMarkerState;
 
-  Lexer(const Lexer &) LLVM_DELETED_FUNCTION;
-  void operator=(const Lexer &) LLVM_DELETED_FUNCTION;
+  Lexer(const Lexer &) = delete;
+  void operator=(const Lexer &) = delete;
   friend class Preprocessor;
 
   void InitLexer(const char *BufStart, const char *BufPtr, const char *BufEnd);
@@ -228,7 +228,7 @@ public:
   /// Stringify - Convert the specified string into a C string by escaping '\'
   /// and " characters.  This does not add surrounding ""'s to the string.
   /// If Charify is true, this escapes the ' character instead of ".
-  static std::string Stringify(const std::string &Str, bool Charify = false);
+  static std::string Stringify(StringRef Str, bool Charify = false);
 
   /// Stringify - Convert the specified string into a C string by escaping '\'
   /// and " characters.  This does not add surrounding ""'s to the string.
@@ -322,6 +322,26 @@ public:
   static SourceLocation getLocForEndOfToken(SourceLocation Loc, unsigned Offset,
                                             const SourceManager &SM,
                                             const LangOptions &LangOpts);
+
+  /// \brief Given a token range, produce a corresponding CharSourceRange that
+  /// is not a token range. This allows the source range to be used by
+  /// components that don't have access to the lexer and thus can't find the
+  /// end of the range for themselves.
+  static CharSourceRange getAsCharRange(SourceRange Range,
+                                        const SourceManager &SM,
+                                        const LangOptions &LangOpts) {
+    SourceLocation End = getLocForEndOfToken(Range.getEnd(), 0, SM, LangOpts);
+    return End.isInvalid() ? CharSourceRange()
+                           : CharSourceRange::getCharRange(
+                                 Range.getBegin(), End.getLocWithOffset(-1));
+  }
+  static CharSourceRange getAsCharRange(CharSourceRange Range,
+                                        const SourceManager &SM,
+                                        const LangOptions &LangOpts) {
+    return Range.isTokenRange()
+               ? getAsCharRange(Range.getAsRange(), SM, LangOpts)
+               : Range;
+  }
 
   /// \brief Returns true if the given MacroID location points at the first
   /// token of the macro expansion.

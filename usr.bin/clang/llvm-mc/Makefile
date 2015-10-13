@@ -6,8 +6,8 @@ MAN=
 PROG_CXX=llvm-mc
 
 SRCDIR=	tools/llvm-mc
-SRCS=	llvm-mc.cpp \
-	Disassembler.cpp
+SRCS=	Disassembler.cpp \
+	llvm-mc.cpp
 
 LIBDEPS=llvmaarch64disassembler \
 	llvmaarch64codegen \
@@ -46,13 +46,14 @@ LIBDEPS=llvmaarch64disassembler \
 	llvmselectiondag \
 	llvmasmprinter \
 	llvmcodegen \
+	llvmtarget \
 	llvmscalaropts \
 	llvmprofiledata \
 	llvminstcombine \
+	llvminstrumentation \
 	llvmtransformutils \
 	llvmipa \
 	llvmanalysis \
-	llvmtarget \
 	llvmx86desc \
 	llvmobject \
 	llvmmcparser \

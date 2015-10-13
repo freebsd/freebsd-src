@@ -26,8 +26,8 @@
 #include "llvm/Analysis/ScalarEvolution.h"
 #include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/DataLayout.h"
-#include "llvm/IR/Dominators.h"
 #include "llvm/IR/DiagnosticInfo.h"
+#include "llvm/IR/Dominators.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
@@ -146,6 +146,13 @@ FoldBlockIntoPredecessor(BasicBlock *BB, LoopInfo* LI, LPPassManager *LPM,
 /// Similarly, TripMultiple divides the number of times that the LatchBlock may
 /// execute without exiting the loop.
 ///
+/// If AllowRuntime is true then UnrollLoop will consider unrolling loops that
+/// have a runtime (i.e. not compile time constant) trip count.  Unrolling these
+/// loops require a unroll "prologue" that runs "RuntimeTripCount % Count"
+/// iterations before branching into the unrolled loop.  UnrollLoop will not
+/// runtime-unroll the loop if computing RuntimeTripCount will be expensive and
+/// AllowExpensiveTripCount is false.
+///
 /// The LoopInfo Analysis that is passed will be kept consistent.
 ///
 /// If a LoopPassManager is passed in, and the loop is fully removed, it will be
@@ -154,8 +161,9 @@ FoldBlockIntoPredecessor(BasicBlock *BB, LoopInfo* LI, LPPassManager *LPM,
 /// This utility preserves LoopInfo. If DominatorTree or ScalarEvolution are
 /// available from the Pass it must also preserve those analyses.
 bool llvm::UnrollLoop(Loop *L, unsigned Count, unsigned TripCount,
-                      bool AllowRuntime, unsigned TripMultiple, LoopInfo *LI,
-                      Pass *PP, LPPassManager *LPM, AssumptionCache *AC) {
+                      bool AllowRuntime, bool AllowExpensiveTripCount,
+                      unsigned TripMultiple, LoopInfo *LI, Pass *PP,
+                      LPPassManager *LPM, AssumptionCache *AC) {
   BasicBlock *Preheader = L->getLoopPreheader();
   if (!Preheader) {
     DEBUG(dbgs() << "  Can't unroll; loop preheader-insertion failed.\n");
@@ -218,7 +226,8 @@ bool llvm::UnrollLoop(Loop *L, unsigned Count, unsigned TripCount,
   // flag is specified.
   bool RuntimeTripCount = (TripCount == 0 && Count > 0 && AllowRuntime);
 
-  if (RuntimeTripCount && !UnrollRuntimeLoopProlog(L, Count, LI, LPM))
+  if (RuntimeTripCount &&
+      !UnrollRuntimeLoopProlog(L, Count, AllowExpensiveTripCount, LI, LPM))
     return false;
 
   // Notify ScalarEvolution that the loop will be substantially changed,
@@ -311,7 +320,7 @@ bool llvm::UnrollLoop(Loop *L, unsigned Count, unsigned TripCount,
       // Tell LI about New.
       if (*BB == Header) {
         assert(LI->getLoopFor(*BB) == L && "Header should not be in a sub-loop");
-        L->addBasicBlockToLoop(New, LI->getBase());
+        L->addBasicBlockToLoop(New, *LI);
       } else {
         // Figure out which loop New is in.
         const Loop *OldLoop = LI->getLoopFor(*BB);
@@ -333,7 +342,7 @@ bool llvm::UnrollLoop(Loop *L, unsigned Count, unsigned TripCount,
           if (SE)
             SE->forgetLoop(OldLoop);
         }
-        NewLoop->addBasicBlockToLoop(New, LI->getBase());
+        NewLoop->addBasicBlockToLoop(New, *LI);
       }
 
       if (*BB == Header)
@@ -500,6 +509,7 @@ bool llvm::UnrollLoop(Loop *L, unsigned Count, unsigned TripCount,
   // At this point, the code is well formed.  We now do a quick sweep over the
   // inserted code, doing constant propagation and dead code elimination as we
   // go.
+  const DataLayout &DL = Header->getModule()->getDataLayout();
   const std::vector<BasicBlock*> &NewLoopBlocks = L->getBlocks();
   for (std::vector<BasicBlock*>::const_iterator BB = NewLoopBlocks.begin(),
        BBE = NewLoopBlocks.end(); BB != BBE; ++BB)
@@ -508,7 +518,7 @@ bool llvm::UnrollLoop(Loop *L, unsigned Count, unsigned TripCount,
 
       if (isInstructionTriviallyDead(Inst))
         (*BB)->getInstList().erase(Inst);
-      else if (Value *V = SimplifyInstruction(Inst))
+      else if (Value *V = SimplifyInstruction(Inst, DL))
         if (LI->replacementPreservesLCSSAForm(Inst, V)) {
           Inst->replaceAllUsesWith(V);
           (*BB)->getInstList().erase(Inst);
@@ -531,9 +541,7 @@ bool llvm::UnrollLoop(Loop *L, unsigned Count, unsigned TripCount,
     if (!OuterL && !CompletelyUnroll)
       OuterL = L;
     if (OuterL) {
-      DataLayoutPass *DLP = PP->getAnalysisIfAvailable<DataLayoutPass>();
-      const DataLayout *DL = DLP ? &DLP->getDataLayout() : nullptr;
-      simplifyLoop(OuterL, DT, LI, PP, /*AliasAnalysis*/ nullptr, SE, DL, AC);
+      simplifyLoop(OuterL, DT, LI, PP, /*AliasAnalysis*/ nullptr, SE, AC);
 
       // LCSSA must be performed on the outermost affected loop. The unrolled
       // loop's last loop latch is guaranteed to be in the outermost loop after
@@ -548,4 +556,27 @@ bool llvm::UnrollLoop(Loop *L, unsigned Count, unsigned TripCount,
   }
 
   return true;
+}
+
+/// Given an llvm.loop loop id metadata node, returns the loop hint metadata
+/// node with the given name (for example, "llvm.loop.unroll.count"). If no
+/// such metadata node exists, then nullptr is returned.
+MDNode *llvm::GetUnrollMetadata(MDNode *LoopID, StringRef Name) {
+  // First operand should refer to the loop id itself.
+  assert(LoopID->getNumOperands() > 0 && "requires at least one operand");
+  assert(LoopID->getOperand(0) == LoopID && "invalid loop id");
+
+  for (unsigned i = 1, e = LoopID->getNumOperands(); i < e; ++i) {
+    MDNode *MD = dyn_cast<MDNode>(LoopID->getOperand(i));
+    if (!MD)
+      continue;
+
+    MDString *S = dyn_cast<MDString>(MD->getOperand(0));
+    if (!S)
+      continue;
+
+    if (Name.equals(S->getString()))
+      return MD;
+  }
+  return nullptr;
 }

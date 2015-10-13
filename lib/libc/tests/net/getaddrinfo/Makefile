@@ -1,12 +1,8 @@
 # $FreeBSD$
 
-OBJTOP=		${.OBJDIR:H:H:H:H:H}
-SRCTOP=		${.CURDIR:H:H:H:H:H}
 TESTSRC=	${SRCTOP}/contrib/netbsd-tests/lib/libc/net/${.CURDIR:T}
 
 .include <bsd.own.mk>
-
-TESTSDIR=	${TESTSBASE}/lib/libc/net/getaddrinfo
 
 BINDIR=		${TESTSDIR}
 

@@ -61,9 +61,6 @@ SUBDIR=	${SUBDIR_OVERRIDE}
 .else
 SUBDIR=	lib libexec
 SUBDIR+=bin
-.if ${MK_GAMES} != "no"
-SUBDIR+=games
-.endif
 .if ${MK_CDDL} != "no"
 SUBDIR+=cddl
 .endif
@@ -999,9 +996,16 @@ redistribute: .MAKE
 	    DISTRIBUTION=lib32
 .endif
 
-distrib-dirs distribution: .MAKE
+distrib-dirs: .MAKE
 	cd ${.CURDIR}/etc; ${CROSSENV} PATH=${TMPPATH} ${MAKE} \
 	    ${IMAKE_INSTALL} ${IMAKE_MTREE} METALOG=${METALOG} ${.TARGET}
+
+distribution: .MAKE
+	cd ${.CURDIR}/etc; ${CROSSENV} PATH=${TMPPATH} ${MAKE} \
+	    ${IMAKE_INSTALL} ${IMAKE_MTREE} METALOG=${METALOG} ${.TARGET}
+	${_+_}cd ${.CURDIR}; ${CROSSENV} PATH=${TMPPATH} \
+		${MAKE} -f Makefile.inc1 ${IMAKE_INSTALL} \
+		METALOG=${METALOG} installconfig
 
 #
 # buildkernel and installkernel
@@ -1285,7 +1289,7 @@ legacy:
 _bt=		_bootstrap-tools
 
 .if ${MK_GAMES} != "no"
-_strfile=	games/fortune/strfile
+_strfile=	usr.bin/fortune/strfile
 .endif
 
 .if ${MK_GCC} != "no" && ${MK_CXX} != "no"
@@ -1325,6 +1329,8 @@ _cat=		bin/cat
 
 .if ${BOOTSTRAPPING} < 1000033
 _lex=		usr.bin/lex
+
+${_bt}-usr.bin/lex: ${_bt}-usr.bin/m4
 .endif
 
 # r277259 crunchide: Correct 64-bit section header offset

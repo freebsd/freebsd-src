@@ -1438,8 +1438,7 @@ ath_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
 	int needbeacon, error;
 	enum ieee80211_opmode ic_opmode;
 
-	avp = (struct ath_vap *) malloc(sizeof(struct ath_vap),
-	    M_80211_VAP, M_WAITOK | M_ZERO);
+	avp = malloc(sizeof(struct ath_vap), M_80211_VAP, M_WAITOK | M_ZERO);
 	needbeacon = 0;
 	IEEE80211_ADDR_COPY(mac, mac0);
 
@@ -3263,7 +3262,7 @@ ath_transmit(struct ieee80211com *ic, struct mbuf *m)
 		 * XXXGL: is mbuf valid after ath_txfrag_setup? If yes,
 		 * we shouldn't free it but return back.
 		 */
-		ath_freetx(m);
+		ieee80211_free_mbuf(m);
 		m = NULL;
 		goto bad;
 	}
@@ -3357,7 +3356,7 @@ reclaim:
 			    __func__,
 			    ieee80211_state_name[ni->ni_vap->iv_state]);
 			/* XXX dmamap */
-			ath_freetx(next);
+			ieee80211_free_mbuf(next);
 			goto reclaim;
 		}
 		m = next;

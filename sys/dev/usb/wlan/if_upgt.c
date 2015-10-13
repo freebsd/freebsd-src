@@ -798,14 +798,12 @@ upgt_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	/* prevent management frames from being sent if we're not ready */
 	if (!(sc->sc_flags & UPGT_FLAG_INITDONE)) {
 		m_freem(m);
-		ieee80211_free_node(ni);
 		UPGT_UNLOCK(sc);
 		return ENETDOWN;
 	}
 
 	data_tx = upgt_gettxbuf(sc);
 	if (data_tx == NULL) {
-		ieee80211_free_node(ni);
 		m_freem(m);
 		UPGT_UNLOCK(sc);
 		return (ENOBUFS);
@@ -814,7 +812,6 @@ upgt_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	if (upgt_tx_start(sc, m, ni, data_tx) != 0) {
 		STAILQ_INSERT_HEAD(&sc->sc_tx_inactive, data_tx, next);
 		UPGT_STAT_INC(sc, st_tx_inactive);
-		ieee80211_free_node(ni);
 		UPGT_UNLOCK(sc);
 		return (EIO);
 	}
@@ -956,10 +953,7 @@ upgt_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
 
 	if (!TAILQ_EMPTY(&ic->ic_vaps))		/* only one at a time */
 		return NULL;
-	uvp = (struct upgt_vap *) malloc(sizeof(struct upgt_vap),
-	    M_80211_VAP, M_NOWAIT | M_ZERO);
-	if (uvp == NULL)
-		return NULL;
+	uvp = malloc(sizeof(struct upgt_vap), M_80211_VAP, M_WAITOK | M_ZERO);
 	vap = &uvp->vap;
 	/* enable s/w bmiss handling for sta mode */
 

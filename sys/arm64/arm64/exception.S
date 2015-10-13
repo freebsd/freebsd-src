@@ -131,45 +131,51 @@ __FBSDID("$FreeBSD$");
 2:
 .endm
 
-handle_el1h_sync:
+ENTRY(handle_el1h_sync)
 	save_registers 1
 	mov	x0, sp
 	bl	do_el1h_sync
 	restore_registers 1
 	eret
+END(handle_el1h_sync)
 
-handle_el1h_irq:
+ENTRY(handle_el1h_irq)
 	save_registers 1
 	mov	x0, sp
 	bl	arm_cpu_intr
 	restore_registers 1
 	eret
+END(handle_el1h_irq)
 
-handle_el1h_error:
+ENTRY(handle_el1h_error)
 	brk	0xf13
+END(handle_el1h_error)
 
-handle_el0_sync:
+ENTRY(handle_el0_sync)
 	save_registers 0
 	mov	x0, sp
 	bl	do_el0_sync
 	do_ast
 	restore_registers 0
 	eret
+END(handle_el0_sync)
 
-handle_el0_irq:
+ENTRY(handle_el0_irq)
 	save_registers 0
 	mov	x0, sp
 	bl	arm_cpu_intr
 	do_ast
 	restore_registers 0
 	eret
+END(handle_el0_irq)
 
-handle_el0_error:
+ENTRY(handle_el0_error)
 	save_registers 0
 	mov	x0, sp
 	bl	do_el0_error
 	brk	0xf23
 	1: b 1b
+END(handle_el0_error)
 
 .macro	vempty
 	.align 7

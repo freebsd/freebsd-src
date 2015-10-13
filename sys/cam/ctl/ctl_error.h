@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2003 Silicon Graphics International Corp.
+ * Copyright (c) 2014-2015 Alexander Motin <mav@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -77,7 +78,9 @@ void ctl_set_medium_error(struct ctl_scsiio *ctsio, int read);
 void ctl_set_aborted(struct ctl_scsiio *ctsio);
 void ctl_set_lba_out_of_range(struct ctl_scsiio *ctsio);
 void ctl_set_lun_stopped(struct ctl_scsiio *ctsio);
-void ctl_set_lun_not_ready(struct ctl_scsiio *ctsio);
+void ctl_set_lun_int_reqd(struct ctl_scsiio *ctsio);
+void ctl_set_lun_ejected(struct ctl_scsiio *ctsio);
+void ctl_set_lun_no_media(struct ctl_scsiio *ctsio);
 void ctl_set_illegal_pr_release(struct ctl_scsiio *ctsio);
 void ctl_set_medium_format_corrupted(struct ctl_scsiio *ctsio);
 void ctl_set_medium_magazine_inaccessible(struct ctl_scsiio *ctsio);
