@@ -37,7 +37,7 @@
 
 #define XEON_MSIX_CNT		4
 #define XEON_MAX_SPADS		16
-#define XEON_MAX_COMPAT_SPADS	8
+#define XEON_MAX_COMPAT_SPADS	16
 /* Reserve the uppermost bit for link interrupt */
 #define XEON_MAX_DB_BITS	15
 #define XEON_DB_BITS_PER_VEC	5
