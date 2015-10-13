@@ -207,13 +207,15 @@ static void ntb_handle_legacy_interrupt(void *arg);
 static int ntb_create_callbacks(struct ntb_softc *ntb, int num_vectors);
 static void ntb_free_callbacks(struct ntb_softc *ntb);
 static struct ntb_hw_info *ntb_get_device_info(uint32_t device_id);
-static int ntb_initialize_hw(struct ntb_softc *ntb);
 static int ntb_setup_xeon(struct ntb_softc *ntb);
 static int ntb_setup_soc(struct ntb_softc *ntb);
+static void ntb_teardown_xeon(struct ntb_softc *ntb);
 static void configure_soc_secondary_side_bars(struct ntb_softc *ntb);
 static void configure_xeon_secondary_side_bars(struct ntb_softc *ntb);
 static void ntb_handle_heartbeat(void *arg);
 static void ntb_handle_link_event(struct ntb_softc *ntb, int link_state);
+static void ntb_hw_link_down(struct ntb_softc *ntb);
+static void ntb_hw_link_up(struct ntb_softc *ntb);
 static void recover_soc_link(void *arg);
 static int ntb_check_link_status(struct ntb_softc *ntb);
 static void save_bar_parameters(struct ntb_pci_bar_info *bar);
@@ -301,7 +303,10 @@ ntb_attach(device_t device)
 	error = ntb_map_pci_bars(ntb);
 	if (error)
 		goto out;
-	error = ntb_initialize_hw(ntb);
+	if (ntb->type == NTB_SOC)
+		error = ntb_setup_soc(ntb);
+	else
+		error = ntb_setup_xeon(ntb);
 	if (error)
 		goto out;
 	error = ntb_setup_interrupts(ntb);
@@ -324,6 +329,8 @@ ntb_detach(device_t device)
 	ntb = DEVICE2SOFTC(device);
 	callout_drain(&ntb->heartbeat_timer);
 	callout_drain(&ntb->lr_timer);
+	if (ntb->type == NTB_XEON)
+		ntb_teardown_xeon(ntb);
 	ntb_teardown_interrupts(ntb);
 	ntb_unmap_pci_bar(ntb);
 
@@ -691,14 +698,11 @@ ntb_get_device_info(uint32_t device_id)
 	return (NULL);
 }
 
-static int
-ntb_initialize_hw(struct ntb_softc *ntb)
+static void
+ntb_teardown_xeon(struct ntb_softc *ntb)
 {
 
-	if (ntb->type == NTB_SOC)
-		return (ntb_setup_soc(ntb));
-	else
-		return (ntb_setup_xeon(ntb));
+	ntb_hw_link_down(ntb);
 }
 
 static int
@@ -805,8 +809,7 @@ ntb_setup_xeon(struct ntb_softc *ntb)
 		    PCIM_CMD_MEMEN | PCIM_CMD_BUSMASTEREN);
 
 	/* Enable link training */
-	ntb_reg_write(4, ntb->reg_ofs.lnk_cntl,
-	    NTB_CNTL_BAR23_SNOOP | NTB_CNTL_BAR45_SNOOP);
+	ntb_hw_link_up(ntb);
 
 	return (0);
 }
@@ -1037,6 +1040,33 @@ ntb_handle_link_event(struct ntb_softc *ntb, int link_state)
 	/* notify the upper layer if we have an event change */
 	if (ntb->event_cb != NULL)
 		ntb->event_cb(ntb->ntb_transport, event);
+}
+
+static void
+ntb_hw_link_up(struct ntb_softc *ntb)
+{
+
+	if (ntb->conn_type == NTB_CONN_TRANSPARENT)
+		ntb_handle_link_event(ntb, NTB_LINK_UP);
+	else
+		ntb_reg_write(4, ntb->reg_ofs.lnk_cntl,
+		    NTB_CNTL_BAR23_SNOOP | NTB_CNTL_BAR45_SNOOP);
+}
+
+static void
+ntb_hw_link_down(struct ntb_softc *ntb)
+{
+	uint32_t cntl;
+
+	if (ntb->conn_type == NTB_CONN_TRANSPARENT) {
+		ntb_handle_link_event(ntb, NTB_LINK_DOWN);
+		return;
+	}
+
+	cntl = ntb_reg_read(4, ntb->reg_ofs.lnk_cntl);
+	cntl &= ~(NTB_CNTL_BAR23_SNOOP | NTB_CNTL_BAR45_SNOOP);
+	cntl |= NTB_CNTL_LINK_DISABLE;
+	ntb_reg_write(4, ntb->reg_ofs.lnk_cntl, cntl);
 }
 
 static void
