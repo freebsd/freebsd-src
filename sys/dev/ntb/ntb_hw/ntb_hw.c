@@ -479,7 +479,7 @@ ntb_setup_interrupts(struct ntb_softc *ntb)
 		ntb_reg_write(8, ntb->reg_ofs.ldb_mask, ~0);
 	else
 		ntb_reg_write(2, ntb->reg_ofs.ldb_mask,
-		    ~(1 << ntb->limits.max_db_bits));
+		    (uint16_t) ~(1 << XEON_LINK_DB));
 
 	num_vectors = MIN(pci_msix_count(ntb->device),
 	    ntb->limits.max_db_bits);
@@ -616,7 +616,7 @@ handle_xeon_event_irq(void *arg)
 		device_printf(ntb->device, "Error determining link status\n");
 
 	/* bit 15 is always the link bit */
-	ntb_reg_write(2, ntb->reg_ofs.ldb, 1 << ntb->limits.max_db_bits);
+	ntb_reg_write(2, ntb->reg_ofs.ldb, 1 << XEON_LINK_DB);
 }
 
 static void
@@ -783,6 +783,19 @@ ntb_setup_xeon(struct ntb_softc *ntb)
 	ntb->limits.max_db_bits	 = XEON_MAX_DB_BITS;
 	ntb->limits.msix_cnt	 = XEON_MSIX_CNT;
 	ntb->bits_per_vector	 = XEON_DB_BITS_PER_VEC;
+
+	/*
+	 * HW Errata on bit 14 of b2bdoorbell register.  Writes will not be
+	 * mirrored to the remote system.  Shrink the number of bits by one,
+	 * since bit 14 is the last bit.
+	 *
+	 * On REGS_THRU_MW errata mode, we don't use the b2bdoorbell register
+	 * anyway.  Nor for non-B2B connection types.
+	 */
+	if (HAS_FEATURE(NTB_B2BDOORBELL_BIT14) &&
+	    !HAS_FEATURE(NTB_REGS_THRU_MW) &&
+	    connection_type == NTB_CONN_B2B)
+		ntb->limits.max_db_bits = XEON_MAX_DB_BITS - 1;
 
 	configure_xeon_secondary_side_bars(ntb);
 
