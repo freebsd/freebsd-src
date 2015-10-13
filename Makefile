@@ -245,9 +245,9 @@ cleanworld:
 # Handle the user-driven targets, using the source relative mk files.
 #
 
-.if empty(.MAKEFLAGS:M-n)
+.if !(!empty(.MAKEFLAGS:M-n) && ${.MAKEFLAGS:M-n} == "-n")
 # skip this for -n to avoid changing previous behavior of 
-# 'make -n buildworld' etc.
+# 'make -n buildworld' etc.  Using -n -n will run it.
 ${TGTS}: .MAKE
 tinderbox toolchains kernel-toolchains: .MAKE
 .endif
