@@ -111,15 +111,14 @@ std::unique_ptr<PathDiagnosticPiece> BugReporterVisitor::getDefaultEndPath(
   PathDiagnosticLocation L =
     PathDiagnosticLocation::createEndOfPath(EndPathNode,BRC.getSourceManager());
 
-  BugReport::ranges_iterator Beg, End;
-  std::tie(Beg, End) = BR.getRanges();
+  const auto &Ranges = BR.getRanges();
 
   // Only add the statement itself as a range if we didn't specify any
   // special ranges for this report.
-  auto P = llvm::make_unique<PathDiagnosticEventPiece>(L, BR.getDescription(),
-                                                       Beg == End);
-  for (; Beg != End; ++Beg)
-    P->addRange(*Beg);
+  auto P = llvm::make_unique<PathDiagnosticEventPiece>(
+      L, BR.getDescription(), Ranges.begin() == Ranges.end());
+  for (const SourceRange &Range : Ranges)
+    P->addRange(Range);
 
   return std::move(P);
 }
@@ -1131,9 +1130,8 @@ void FindLastStoreBRVisitor::registerStatementVarDecls(BugReport &BR,
       }
     }
 
-    for (Stmt::const_child_iterator I = Head->child_begin();
-        I != Head->child_end(); ++I)
-      WorkList.push_back(*I);
+    for (const Stmt *SubStmt : Head->children())
+      WorkList.push_back(SubStmt);
   }
 }
 
@@ -1530,7 +1528,7 @@ LikelyFalsePositiveSuppressionBRVisitor::getEndPath(BugReporterContext &BRC,
       return nullptr;
 
     } else {
-      // If the the complete 'std' suppression is not enabled, suppress reports
+      // If the complete 'std' suppression is not enabled, suppress reports
       // from the 'std' namespace that are known to produce false positives.
 
       // The analyzer issues a false use-after-free when std::list::pop_front

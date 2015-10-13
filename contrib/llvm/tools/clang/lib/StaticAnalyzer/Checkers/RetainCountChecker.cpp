@@ -94,6 +94,16 @@ public:
     ErrorReturnedNotOwned
   };
 
+  /// Tracks how an object referenced by an ivar has been used.
+  ///
+  /// This accounts for us not knowing if an arbitrary ivar is supposed to be
+  /// stored at +0 or +1.
+  enum class IvarAccessHistory {
+    None,
+    AccessedDirectly,
+    ReleasedAfterDirectAccess
+  };
+
 private:
   /// The number of outstanding retains.
   unsigned Cnt;
@@ -121,14 +131,16 @@ private:
   /// This setting should not be propagated to state derived from this state.
   /// Once we start deriving new states, it would be inconsistent to override
   /// them.
-  unsigned IsOverridable : 1;
+  unsigned RawIvarAccessHistory : 2;
 
   RefVal(Kind k, RetEffect::ObjKind o, unsigned cnt, unsigned acnt, QualType t,
-         bool Overridable = false)
+         IvarAccessHistory IvarAccess)
     : Cnt(cnt), ACnt(acnt), T(t), RawKind(static_cast<unsigned>(k)),
-      RawObjectKind(static_cast<unsigned>(o)), IsOverridable(Overridable) {
+      RawObjectKind(static_cast<unsigned>(o)),
+      RawIvarAccessHistory(static_cast<unsigned>(IvarAccess)) {
     assert(getKind() == k && "not enough bits for the kind");
     assert(getObjKind() == o && "not enough bits for the object kind");
+    assert(getIvarAccessHistory() == IvarAccess && "not enough bits");
   }
 
 public:
@@ -144,20 +156,24 @@ public:
   void clearCounts() {
     Cnt = 0;
     ACnt = 0;
-    IsOverridable = false;
   }
   void setCount(unsigned i) {
     Cnt = i;
-    IsOverridable = false;
   }
   void setAutoreleaseCount(unsigned i) {
     ACnt = i;
-    IsOverridable = false;
   }
 
   QualType getType() const { return T; }
 
-  bool isOverridable() const { return IsOverridable; }
+  /// Returns what the analyzer knows about direct accesses to a particular
+  /// instance variable.
+  ///
+  /// If the object with this refcount wasn't originally from an Objective-C
+  /// ivar region, this should always return IvarAccessHistory::None.
+  IvarAccessHistory getIvarAccessHistory() const {
+    return static_cast<IvarAccessHistory>(RawIvarAccessHistory);
+  }
 
   bool isOwned() const {
     return getKind() == Owned;
@@ -181,7 +197,7 @@ public:
   /// Most commonly, this is an owned object with a retain count of +1.
   static RefVal makeOwned(RetEffect::ObjKind o, QualType t,
                           unsigned Count = 1) {
-    return RefVal(Owned, o, Count, 0, t);
+    return RefVal(Owned, o, Count, 0, t, IvarAccessHistory::None);
   }
 
   /// Create a state for an object whose lifetime is not the responsibility of
@@ -190,47 +206,49 @@ public:
   /// Most commonly, this is an unowned object with a retain count of +0.
   static RefVal makeNotOwned(RetEffect::ObjKind o, QualType t,
                              unsigned Count = 0) {
-    return RefVal(NotOwned, o, Count, 0, t);
-  }
-
-  /// Create an "overridable" state for an unowned object at +0.
-  ///
-  /// An overridable state is one that provides a good approximation of the
-  /// reference counting state now, but which may be discarded later if the
-  /// checker sees the object being used in new ways.
-  static RefVal makeOverridableNotOwned(RetEffect::ObjKind o, QualType t) {
-    return RefVal(NotOwned, o, 0, 0, t, /*Overridable=*/true);
+    return RefVal(NotOwned, o, Count, 0, t, IvarAccessHistory::None);
   }
 
   RefVal operator-(size_t i) const {
     return RefVal(getKind(), getObjKind(), getCount() - i,
-                  getAutoreleaseCount(), getType());
+                  getAutoreleaseCount(), getType(), getIvarAccessHistory());
   }
 
   RefVal operator+(size_t i) const {
     return RefVal(getKind(), getObjKind(), getCount() + i,
-                  getAutoreleaseCount(), getType());
+                  getAutoreleaseCount(), getType(), getIvarAccessHistory());
   }
 
   RefVal operator^(Kind k) const {
     return RefVal(k, getObjKind(), getCount(), getAutoreleaseCount(),
-                  getType());
+                  getType(), getIvarAccessHistory());
   }
 
   RefVal autorelease() const {
     return RefVal(getKind(), getObjKind(), getCount(), getAutoreleaseCount()+1,
-                  getType());
+                  getType(), getIvarAccessHistory());
+  }
+
+  RefVal withIvarAccess() const {
+    assert(getIvarAccessHistory() == IvarAccessHistory::None);
+    return RefVal(getKind(), getObjKind(), getCount(), getAutoreleaseCount(),
+                  getType(), IvarAccessHistory::AccessedDirectly);
+  }
+  RefVal releaseViaIvar() const {
+    assert(getIvarAccessHistory() == IvarAccessHistory::AccessedDirectly);
+    return RefVal(getKind(), getObjKind(), getCount(), getAutoreleaseCount(),
+                  getType(), IvarAccessHistory::ReleasedAfterDirectAccess);
   }
 
   // Comparison, profiling, and pretty-printing.
 
   bool hasSameState(const RefVal &X) const {
-    return getKind() == X.getKind() && Cnt == X.Cnt && ACnt == X.ACnt;
+    return getKind() == X.getKind() && Cnt == X.Cnt && ACnt == X.ACnt &&
+           getIvarAccessHistory() == X.getIvarAccessHistory();
   }
 
   bool operator==(const RefVal& X) const {
-    return T == X.T && hasSameState(X) && getObjKind() == X.getObjKind() &&
-           IsOverridable == X.IsOverridable;
+    return T == X.T && hasSameState(X) && getObjKind() == X.getObjKind();
   }
   
   void Profile(llvm::FoldingSetNodeID& ID) const {
@@ -239,7 +257,7 @@ public:
     ID.AddInteger(Cnt);
     ID.AddInteger(ACnt);
     ID.AddInteger(RawObjectKind);
-    ID.AddBoolean(IsOverridable);
+    ID.AddInteger(RawIvarAccessHistory);
   }
 
   void print(raw_ostream &Out) const;
@@ -248,9 +266,6 @@ public:
 void RefVal::print(raw_ostream &Out) const {
   if (!T.isNull())
     Out << "Tracked " << T.getAsString() << '/';
-
-  if (isOverridable())
-    Out << "(overridable) ";
 
   switch (getKind()) {
     default: llvm_unreachable("Invalid RefVal kind");
@@ -323,8 +338,18 @@ void RefVal::print(raw_ostream &Out) const {
       break;
   }
 
+  switch (getIvarAccessHistory()) {
+  case IvarAccessHistory::None:
+    break;
+  case IvarAccessHistory::AccessedDirectly:
+    Out << " [direct ivar access]";
+    break;
+  case IvarAccessHistory::ReleasedAfterDirectAccess:
+    Out << " [released after direct ivar access]";
+  }
+
   if (ACnt) {
-    Out << " [ARC +" << ACnt << ']';
+    Out << " [autorelease -" << ACnt << ']';
   }
 }
 } //end anonymous namespace
@@ -881,6 +906,8 @@ static ArgEffect getStopTrackingHardEquivalent(ArgEffect E) {
   case IncRef:
   case IncRefMsg:
   case MakeCollectable:
+  case UnretainedOutParameter:
+  case RetainedOutParameter:
   case MayEscape:
   case StopTracking:
   case StopTrackingHard:
@@ -1310,7 +1337,18 @@ RetainSummaryManager::updateSummaryFromAnnotations(const RetainSummary *&Summ,
     if (pd->hasAttr<NSConsumedAttr>())
       Template->addArg(AF, parm_idx, DecRefMsg);
     else if (pd->hasAttr<CFConsumedAttr>())
-      Template->addArg(AF, parm_idx, DecRef);      
+      Template->addArg(AF, parm_idx, DecRef);
+    else if (pd->hasAttr<CFReturnsRetainedAttr>()) {
+      QualType PointeeTy = pd->getType()->getPointeeType();
+      if (!PointeeTy.isNull())
+        if (coreFoundation::isCFObjectRef(PointeeTy))
+          Template->addArg(AF, parm_idx, RetainedOutParameter);
+    } else if (pd->hasAttr<CFReturnsNotRetainedAttr>()) {
+      QualType PointeeTy = pd->getType()->getPointeeType();
+      if (!PointeeTy.isNull())
+        if (coreFoundation::isCFObjectRef(PointeeTy))
+          Template->addArg(AF, parm_idx, UnretainedOutParameter);
+    }
   }
 
   QualType RetTy = FD->getReturnType();
@@ -1341,7 +1379,17 @@ RetainSummaryManager::updateSummaryFromAnnotations(const RetainSummary *&Summ,
       Template->addArg(AF, parm_idx, DecRefMsg);      
     else if (pd->hasAttr<CFConsumedAttr>()) {
       Template->addArg(AF, parm_idx, DecRef);      
-    }   
+    } else if (pd->hasAttr<CFReturnsRetainedAttr>()) {
+      QualType PointeeTy = pd->getType()->getPointeeType();
+      if (!PointeeTy.isNull())
+        if (coreFoundation::isCFObjectRef(PointeeTy))
+          Template->addArg(AF, parm_idx, RetainedOutParameter);
+    } else if (pd->hasAttr<CFReturnsNotRetainedAttr>()) {
+      QualType PointeeTy = pd->getType()->getPointeeType();
+      if (!PointeeTy.isNull())
+        if (coreFoundation::isCFObjectRef(PointeeTy))
+          Template->addArg(AF, parm_idx, UnretainedOutParameter);
+    }
   }
 
   QualType RetTy = MD->getReturnType();
@@ -1763,12 +1811,11 @@ namespace {
       addGCModeDescription(LOpts, GCEnabled);
     }
 
-    std::pair<ranges_iterator, ranges_iterator> getRanges() override {
+    llvm::iterator_range<ranges_iterator> getRanges() override {
       const CFRefBug& BugTy = static_cast<CFRefBug&>(getBugType());
       if (!BugTy.isLeak())
         return BugReport::getRanges();
-      else
-        return std::make_pair(ranges_iterator(), ranges_iterator());
+      return llvm::make_range(ranges_iterator(), ranges_iterator());
     }
   };
 
@@ -1829,6 +1876,16 @@ static bool isNumericLiteralExpression(const Expr *E) {
          isa<CXXBoolLiteralExpr>(E);
 }
 
+/// Returns true if this stack frame is for an Objective-C method that is a
+/// property getter or setter whose body has been synthesized by the analyzer.
+static bool isSynthesizedAccessor(const StackFrameContext *SFC) {
+  auto Method = dyn_cast_or_null<ObjCMethodDecl>(SFC->getDecl());
+  if (!Method || !Method->isPropertyAccessor())
+    return false;
+
+  return SFC->getAnalysisDeclContext()->isBodyAutosynthesized();
+}
+
 PathDiagnosticPiece *CFRefReportVisitor::VisitNode(const ExplodedNode *N,
                                                    const ExplodedNode *PrevN,
                                                    BugReporterContext &BRC,
@@ -1859,6 +1916,11 @@ PathDiagnosticPiece *CFRefReportVisitor::VisitNode(const ExplodedNode *N,
   if (!PrevT) {
     const Stmt *S = N->getLocation().castAs<StmtPoint>().getStmt();
 
+    if (isa<ObjCIvarRefExpr>(S) &&
+        isSynthesizedAccessor(LCtx->getCurrentStackFrame())) {
+      S = LCtx->getCurrentStackFrame()->getCallSite();
+    }
+
     if (isa<ObjCArrayLiteral>(S)) {
       os << "NSArray literal is an object with a +0 retain count";
     }
@@ -1882,6 +1944,9 @@ PathDiagnosticPiece *CFRefReportVisitor::VisitNode(const ExplodedNode *N,
 
         os << "oxed expression produces an object with a +0 retain count";
       }
+    }
+    else if (isa<ObjCIvarRefExpr>(S)) {
+      os << "Object loaded from instance variable";
     }
     else {      
       if (const CallExpr *CE = dyn_cast<CallExpr>(S)) {
@@ -2034,7 +2099,6 @@ PathDiagnosticPiece *CFRefReportVisitor::VisitNode(const ExplodedNode *N,
       switch (CurrV.getKind()) {
         case RefVal::Owned:
         case RefVal::NotOwned:
-
           if (PrevV.getCount() == CurrV.getCount()) {
             // Did an autorelease message get sent?
             if (PrevV.getAutoreleaseCount() == CurrV.getAutoreleaseCount())
@@ -2062,6 +2126,11 @@ PathDiagnosticPiece *CFRefReportVisitor::VisitNode(const ExplodedNode *N,
           break;
 
         case RefVal::Released:
+          if (CurrV.getIvarAccessHistory() ==
+                RefVal::IvarAccessHistory::ReleasedAfterDirectAccess &&
+              CurrV.getIvarAccessHistory() != PrevV.getIvarAccessHistory()) {
+            os << "Strong instance variable relinquished. ";
+          }
           os << "Object released.";
           break;
 
@@ -2113,9 +2182,8 @@ PathDiagnosticPiece *CFRefReportVisitor::VisitNode(const ExplodedNode *N,
 
   // Add the range by scanning the children of the statement for any bindings
   // to Sym.
-  for (Stmt::const_child_iterator I = S->child_begin(), E = S->child_end();
-       I!=E; ++I)
-    if (const Expr *Exp = dyn_cast_or_null<Expr>(*I))
+  for (const Stmt *Child : S->children())
+    if (const Expr *Exp = dyn_cast_or_null<Expr>(Child))
       if (CurrSt->getSValAsScalarOrLoc(Exp, LCtx).getAsLocSymbol() == Sym) {
         P->addRange(Exp->getSourceRange());
         break;
@@ -2143,7 +2211,7 @@ static AllocationInfo
 GetAllocationSite(ProgramStateManager& StateMgr, const ExplodedNode *N,
                   SymbolRef Sym) {
   const ExplodedNode *AllocationNode = N;
-  const ExplodedNode *AllocationNodeInCurrentContext = N;
+  const ExplodedNode *AllocationNodeInCurrentOrParentContext = N;
   const MemRegion *FirstBinding = nullptr;
   const LocationContext *LeakContext = N->getLocationContext();
 
@@ -2173,10 +2241,15 @@ GetAllocationSite(ProgramStateManager& StateMgr, const ExplodedNode *N,
     // AllocationNode is the last node in which the symbol was tracked.
     AllocationNode = N;
 
-    // AllocationNodeInCurrentContext, is the last node in the current context
-    // in which the symbol was tracked.
-    if (NContext == LeakContext)
-      AllocationNodeInCurrentContext = N;
+    // AllocationNodeInCurrentContext, is the last node in the current or
+    // parent context in which the symbol was tracked.
+    //
+    // Note that the allocation site might be in the parent conext. For example,
+    // the case where an allocation happens in a block that captures a reference
+    // to it and that reference is overwritten/dropped by another call to
+    // the block.
+    if (NContext == LeakContext || NContext->isParentOf(LeakContext))
+      AllocationNodeInCurrentOrParentContext = N;
 
     // Find the last init that was called on the given symbol and store the
     // init method's location context.
@@ -2214,7 +2287,7 @@ GetAllocationSite(ProgramStateManager& StateMgr, const ExplodedNode *N,
     FirstBinding = nullptr;
   }
 
-  return AllocationInfo(AllocationNodeInCurrentContext,
+  return AllocationInfo(AllocationNodeInCurrentOrParentContext,
                         FirstBinding,
                         InterestingMethodContext);
 }
@@ -2345,20 +2418,8 @@ CFRefLeakReport::CFRefLeakReport(CFRefBug &D, const LangOptions &LOpts,
   ProgramPoint P = AllocNode->getLocation();
   if (Optional<CallExitEnd> Exit = P.getAs<CallExitEnd>())
     AllocStmt = Exit->getCalleeContext()->getCallSite();
-  else {
-    // We are going to get a BlockEdge when the leak and allocation happen in
-    // different, non-nested frames (contexts). For example, the case where an
-    // allocation happens in a block that captures a reference to it and
-    // that reference is overwritten/dropped by another call to the block.
-    if (Optional<BlockEdge> Edge = P.getAs<BlockEdge>()) {
-      if (Optional<CFGStmt> St = Edge->getDst()->front().getAs<CFGStmt>()) {
-        AllocStmt = St->getStmt();
-      }
-    }
-    else {
-      AllocStmt = P.castAs<PostStmt>().getStmt();
-    }
-  }
+  else
+    AllocStmt = P.castAs<PostStmt>().getStmt();
   assert(AllocStmt && "Cannot find allocation statement");
 
   PathDiagnosticLocation AllocLocation =
@@ -2436,9 +2497,7 @@ public:
     : ShouldResetSummaryLog(false),
       IncludeAllocationLine(shouldIncludeAllocationSiteInLeakDiagnostics(AO)) {}
 
-  virtual ~RetainCountChecker() {
-    DeleteContainerSeconds(DeadSymbolTags);
-  }
+  ~RetainCountChecker() override { DeleteContainerSeconds(DeadSymbolTags); }
 
   void checkEndAnalysis(ExplodedGraph &G, BugReporter &BR,
                         ExprEngine &Eng) const {
@@ -2709,7 +2768,6 @@ void RetainCountChecker::checkPostStmt(const CastExpr *CE,
   
   if (hasErr) {
     // FIXME: If we get an error during a bridge cast, should we report it?
-    // Should we assert that there is no error?
     return;
   }
 
@@ -2720,16 +2778,14 @@ void RetainCountChecker::processObjCLiterals(CheckerContext &C,
                                              const Expr *Ex) const {
   ProgramStateRef state = C.getState();
   const ExplodedNode *pred = C.getPredecessor();  
-  for (Stmt::const_child_iterator it = Ex->child_begin(), et = Ex->child_end() ;
-       it != et ; ++it) {
-    const Stmt *child = *it;
-    SVal V = state->getSVal(child, pred->getLocationContext());
+  for (const Stmt *Child : Ex->children()) {
+    SVal V = state->getSVal(Child, pred->getLocationContext());
     if (SymbolRef sym = V.getAsSymbol())
       if (const RefVal* T = getRefBinding(state, sym)) {
         RefVal::Kind hasErr = (RefVal::Kind) 0;
         state = updateSymbol(state, sym, *T, MayEscape, hasErr, C);
         if (hasErr) {
-          processNonLeakError(state, child->getSourceRange(), hasErr, sym, C);
+          processNonLeakError(state, Child->getSourceRange(), hasErr, sym, C);
           return;
         }
       }
@@ -2774,17 +2830,64 @@ void RetainCountChecker::checkPostStmt(const ObjCBoxedExpr *Ex,
   C.addTransition(State);
 }
 
+static bool wasLoadedFromIvar(SymbolRef Sym) {
+  if (auto DerivedVal = dyn_cast<SymbolDerived>(Sym))
+    return isa<ObjCIvarRegion>(DerivedVal->getRegion());
+  if (auto RegionVal = dyn_cast<SymbolRegionValue>(Sym))
+    return isa<ObjCIvarRegion>(RegionVal->getRegion());
+  return false;
+}
+
 void RetainCountChecker::checkPostStmt(const ObjCIvarRefExpr *IRE,
                                        CheckerContext &C) const {
+  Optional<Loc> IVarLoc = C.getSVal(IRE).getAs<Loc>();
+  if (!IVarLoc)
+    return;
+
   ProgramStateRef State = C.getState();
-  // If an instance variable was previously accessed through a property,
-  // it may have a synthesized refcount of +0. Override right now that we're
-  // doing direct access.
-  if (Optional<Loc> IVarLoc = C.getSVal(IRE).getAs<Loc>())
-    if (SymbolRef Sym = State->getSVal(*IVarLoc).getAsSymbol())
-      if (const RefVal *RV = getRefBinding(State, Sym))
-        if (RV->isOverridable())
-          State = removeRefBinding(State, Sym);
+  SymbolRef Sym = State->getSVal(*IVarLoc).getAsSymbol();
+  if (!Sym || !wasLoadedFromIvar(Sym))
+    return;
+
+  // Accessing an ivar directly is unusual. If we've done that, be more
+  // forgiving about what the surrounding code is allowed to do.
+
+  QualType Ty = Sym->getType();
+  RetEffect::ObjKind Kind;
+  if (Ty->isObjCRetainableType())
+    Kind = RetEffect::ObjC;
+  else if (coreFoundation::isCFObjectRef(Ty))
+    Kind = RetEffect::CF;
+  else
+    return;
+
+  // If the value is already known to be nil, don't bother tracking it.
+  ConstraintManager &CMgr = State->getConstraintManager();
+  if (CMgr.isNull(State, Sym).isConstrainedTrue())
+    return;
+
+  if (const RefVal *RV = getRefBinding(State, Sym)) {
+    // If we've seen this symbol before, or we're only seeing it now because
+    // of something the analyzer has synthesized, don't do anything.
+    if (RV->getIvarAccessHistory() != RefVal::IvarAccessHistory::None ||
+        isSynthesizedAccessor(C.getStackFrame())) {
+      return;
+    }
+
+    // Note that this value has been loaded from an ivar.
+    C.addTransition(setRefBinding(State, Sym, RV->withIvarAccess()));
+    return;
+  }
+
+  RefVal PlusZero = RefVal::makeNotOwned(Kind, Ty);
+
+  // In a synthesized accessor, the effective retain count is +0.
+  if (isSynthesizedAccessor(C.getStackFrame())) {
+    C.addTransition(setRefBinding(State, Sym, PlusZero));
+    return;
+  }
+
+  State = setRefBinding(State, Sym, PlusZero.withIvarAccess());
   C.addTransition(State);
 }
 
@@ -2828,16 +2931,6 @@ static QualType GetReturnType(const Expr *RetE, ASTContext &Ctx) {
   return RetTy;
 }
 
-static bool wasSynthesizedProperty(const ObjCMethodCall *Call,
-                                   ExplodedNode *N) {
-  if (!Call || !Call->getDecl()->isPropertyAccessor())
-    return false;
-
-  CallExitEnd PP = N->getLocation().castAs<CallExitEnd>();
-  const StackFrameContext *Frame = PP.getCalleeContext();
-  return Frame->getAnalysisDeclContext()->isBodyAutosynthesized();
-}
-
 // We don't always get the exact modeling of the function with regards to the
 // retain count checker even when the function is inlined. For example, we need
 // to stop tracking the symbols which were marked with StopTrackingHard.
@@ -2872,22 +2965,43 @@ void RetainCountChecker::processSummaryOfInlined(const RetainSummary &Summ,
     SymbolRef Sym = CallOrMsg.getReturnValue().getAsSymbol();
     if (Sym)
       state = removeRefBinding(state, Sym);
-  } else if (RE.getKind() == RetEffect::NotOwnedSymbol) {
-    if (wasSynthesizedProperty(MsgInvocation, C.getPredecessor())) {
-      // Believe the summary if we synthesized the body of a property getter
-      // and the return value is currently untracked. If the corresponding
-      // instance variable is later accessed directly, however, we're going to
-      // want to override this state, so that the owning object can perform
-      // reference counting operations on its own ivars.
-      SymbolRef Sym = CallOrMsg.getReturnValue().getAsSymbol();
-      if (Sym && !getRefBinding(state, Sym))
-        state = setRefBinding(state, Sym,
-                              RefVal::makeOverridableNotOwned(RE.getObjKind(),
-                                                              Sym->getType()));
-    }
   }
   
   C.addTransition(state);
+}
+
+static ProgramStateRef updateOutParameter(ProgramStateRef State,
+                                          SVal ArgVal,
+                                          ArgEffect Effect) {
+  auto *ArgRegion = dyn_cast_or_null<TypedValueRegion>(ArgVal.getAsRegion());
+  if (!ArgRegion)
+    return State;
+
+  QualType PointeeTy = ArgRegion->getValueType();
+  if (!coreFoundation::isCFObjectRef(PointeeTy))
+    return State;
+
+  SVal PointeeVal = State->getSVal(ArgRegion);
+  SymbolRef Pointee = PointeeVal.getAsLocSymbol();
+  if (!Pointee)
+    return State;
+
+  switch (Effect) {
+  case UnretainedOutParameter:
+    State = setRefBinding(State, Pointee,
+                          RefVal::makeNotOwned(RetEffect::CF, PointeeTy));
+    break;
+  case RetainedOutParameter:
+    // Do nothing. Retained out parameters will either point to a +1 reference
+    // or NULL, but the way you check for failure differs depending on the API.
+    // Consequently, we don't have a good way to track them yet.
+    break;
+
+  default:
+    llvm_unreachable("only for out parameters");
+  }
+
+  return State;
 }
 
 void RetainCountChecker::checkSummary(const RetainSummary &Summ,
@@ -2903,9 +3017,12 @@ void RetainCountChecker::checkSummary(const RetainSummary &Summ,
   for (unsigned idx = 0, e = CallOrMsg.getNumArgs(); idx != e; ++idx) {
     SVal V = CallOrMsg.getArgSVal(idx);
 
-    if (SymbolRef Sym = V.getAsLocSymbol()) {
+    ArgEffect Effect = Summ.getArg(idx);
+    if (Effect == RetainedOutParameter || Effect == UnretainedOutParameter) {
+      state = updateOutParameter(state, V, Effect);
+    } else if (SymbolRef Sym = V.getAsLocSymbol()) {
       if (const RefVal *T = getRefBinding(state, Sym)) {
-        state = updateSymbol(state, Sym, *T, Summ.getArg(idx), hasErr, C);
+        state = updateSymbol(state, Sym, *T, Effect, hasErr, C);
         if (hasErr) {
           ErrorRange = CallOrMsg.getArgSourceRange(idx);
           ErrorSym = Sym;
@@ -3054,6 +3171,11 @@ RetainCountChecker::updateSymbol(ProgramStateRef state, SymbolRef sym,
     case DecRefMsgAndStopTrackingHard:
       llvm_unreachable("DecRefMsg/IncRefMsg/MakeCollectable already converted");
 
+    case UnretainedOutParameter:
+    case RetainedOutParameter:
+      llvm_unreachable("Applies to pointer-to-pointer parameters, which should "
+                       "not have ref state.");
+
     case Dealloc:
       // Any use of -dealloc in GC is *bad*.
       if (C.isObjCGCEnabled()) {
@@ -3125,11 +3247,16 @@ RetainCountChecker::updateSymbol(ProgramStateRef state, SymbolRef sym,
 
         case RefVal::Owned:
           assert(V.getCount() > 0);
-          if (V.getCount() == 1)
-            V = V ^ (E == DecRefBridgedTransferred ? RefVal::NotOwned
-                                                   : RefVal::Released);
-          else if (E == DecRefAndStopTrackingHard)
+          if (V.getCount() == 1) {
+            if (E == DecRefBridgedTransferred ||
+                V.getIvarAccessHistory() ==
+                  RefVal::IvarAccessHistory::AccessedDirectly)
+              V = V ^ RefVal::NotOwned;
+            else
+              V = V ^ RefVal::Released;
+          } else if (E == DecRefAndStopTrackingHard) {
             return removeRefBinding(state, sym);
+          }
 
           V = V - 1;
           break;
@@ -3139,6 +3266,13 @@ RetainCountChecker::updateSymbol(ProgramStateRef state, SymbolRef sym,
             if (E == DecRefAndStopTrackingHard)
               return removeRefBinding(state, sym);
             V = V - 1;
+          } else if (V.getIvarAccessHistory() ==
+                       RefVal::IvarAccessHistory::AccessedDirectly) {
+            // Assume that the instance variable was holding on the object at
+            // +1, and we just didn't know.
+            if (E == DecRefAndStopTrackingHard)
+              return removeRefBinding(state, sym);
+            V = V.releaseViaIvar() ^ RefVal::Released;
           } else {
             V = V ^ RefVal::ErrorReleaseNotOwned;
             hasErr = V.getKind();
@@ -3162,6 +3296,16 @@ void RetainCountChecker::processNonLeakError(ProgramStateRef St,
                                              RefVal::Kind ErrorKind,
                                              SymbolRef Sym,
                                              CheckerContext &C) const {
+  // HACK: Ignore retain-count issues on values accessed through ivars,
+  // because of cases like this:
+  //   [_contentView retain];
+  //   [_contentView removeFromSuperview];
+  //   [self addSubview:_contentView]; // invalidates 'self'
+  //   [_contentView release];
+  if (const RefVal *RV = getRefBinding(St, Sym))
+    if (RV->getIvarAccessHistory() != RefVal::IvarAccessHistory::None)
+      return;
+
   ExplodedNode *N = C.generateSink(St);
   if (!N)
     return;
@@ -3173,31 +3317,31 @@ void RetainCountChecker::processNonLeakError(ProgramStateRef St,
     case RefVal::ErrorUseAfterRelease:
       if (!useAfterRelease)
         useAfterRelease.reset(new UseAfterRelease(this));
-      BT = &*useAfterRelease;
+      BT = useAfterRelease.get();
       break;
     case RefVal::ErrorReleaseNotOwned:
       if (!releaseNotOwned)
         releaseNotOwned.reset(new BadRelease(this));
-      BT = &*releaseNotOwned;
+      BT = releaseNotOwned.get();
       break;
     case RefVal::ErrorDeallocGC:
       if (!deallocGC)
         deallocGC.reset(new DeallocGC(this));
-      BT = &*deallocGC;
+      BT = deallocGC.get();
       break;
     case RefVal::ErrorDeallocNotOwned:
       if (!deallocNotOwned)
         deallocNotOwned.reset(new DeallocNotOwned(this));
-      BT = &*deallocNotOwned;
+      BT = deallocNotOwned.get();
       break;
   }
 
   assert(BT);
-  CFRefReport *report = new CFRefReport(*BT, C.getASTContext().getLangOpts(),
-                                        C.isObjCGCEnabled(), SummaryLog,
-                                        N, Sym);
+  auto report = std::unique_ptr<BugReport>(
+      new CFRefReport(*BT, C.getASTContext().getLangOpts(), C.isObjCGCEnabled(),
+                      SummaryLog, N, Sym));
   report->addRange(ErrorRange);
-  C.emitReport(report);
+  C.emitReport(std::move(report));
 }
 
 //===----------------------------------------------------------------------===//
@@ -3229,7 +3373,7 @@ bool RetainCountChecker::evalCall(const CallExpr *CE, CheckerContext &C) const {
   // See if it's one of the specific functions we know how to eval.
   bool canEval = false;
 
-  QualType ResultTy = CE->getCallReturnType();
+  QualType ResultTy = CE->getCallReturnType(C.getASTContext());
   if (ResultTy->isObjCIdType()) {
     // Handle: id NSMakeCollectable(CFTypeRef)
     canEval = II->isStr("NSMakeCollectable");
@@ -3388,6 +3532,15 @@ void RetainCountChecker::checkReturnWithRetEffect(const ReturnStmt *S,
                                                   RetEffect RE, RefVal X,
                                                   SymbolRef Sym,
                                               ProgramStateRef state) const {
+  // HACK: Ignore retain-count issues on values accessed through ivars,
+  // because of cases like this:
+  //   [_contentView retain];
+  //   [_contentView removeFromSuperview];
+  //   [self addSubview:_contentView]; // invalidates 'self'
+  //   [_contentView release];
+  if (X.getIvarAccessHistory() != RefVal::IvarAccessHistory::None)
+    return;
+
   // Any leaks or other errors?
   if (X.isReturnedOwned() && X.getCount() == 0) {
     if (RE.getKind() != RetEffect::NoRet) {
@@ -3417,33 +3570,37 @@ void RetainCountChecker::checkReturnWithRetEffect(const ReturnStmt *S,
         if (N) {
           const LangOptions &LOpts = C.getASTContext().getLangOpts();
           bool GCEnabled = C.isObjCGCEnabled();
-          CFRefReport *report =
-            new CFRefLeakReport(*getLeakAtReturnBug(LOpts, GCEnabled),
-                                LOpts, GCEnabled, SummaryLog,
-                                N, Sym, C, IncludeAllocationLine);
-
-          C.emitReport(report);
+          C.emitReport(std::unique_ptr<BugReport>(new CFRefLeakReport(
+              *getLeakAtReturnBug(LOpts, GCEnabled), LOpts, GCEnabled,
+              SummaryLog, N, Sym, C, IncludeAllocationLine)));
         }
       }
     }
   } else if (X.isReturnedNotOwned()) {
     if (RE.isOwned()) {
-      // Trying to return a not owned object to a caller expecting an
-      // owned object.
-      state = setRefBinding(state, Sym, X ^ RefVal::ErrorReturnedNotOwned);
+      if (X.getIvarAccessHistory() ==
+            RefVal::IvarAccessHistory::AccessedDirectly) {
+        // Assume the method was trying to transfer a +1 reference from a
+        // strong ivar to the caller.
+        state = setRefBinding(state, Sym,
+                              X.releaseViaIvar() ^ RefVal::ReturnedOwned);
+      } else {
+        // Trying to return a not owned object to a caller expecting an
+        // owned object.
+        state = setRefBinding(state, Sym, X ^ RefVal::ErrorReturnedNotOwned);
 
-      static CheckerProgramPointTag ReturnNotOwnedTag(this, 
-                                                      "ReturnNotOwnedForOwned");
-      ExplodedNode *N = C.addTransition(state, Pred, &ReturnNotOwnedTag);
-      if (N) {
-        if (!returnNotOwnedForOwned)
-          returnNotOwnedForOwned.reset(new ReturnedNotOwnedForOwned(this));
+        static CheckerProgramPointTag
+            ReturnNotOwnedTag(this, "ReturnNotOwnedForOwned");
 
-        CFRefReport *report =
-            new CFRefReport(*returnNotOwnedForOwned,
-                            C.getASTContext().getLangOpts(), 
-                            C.isObjCGCEnabled(), SummaryLog, N, Sym);
-        C.emitReport(report);
+        ExplodedNode *N = C.addTransition(state, Pred, &ReturnNotOwnedTag);
+        if (N) {
+          if (!returnNotOwnedForOwned)
+            returnNotOwnedForOwned.reset(new ReturnedNotOwnedForOwned(this));
+
+          C.emitReport(std::unique_ptr<BugReport>(new CFRefReport(
+              *returnNotOwnedForOwned, C.getASTContext().getLangOpts(),
+              C.isObjCGCEnabled(), SummaryLog, N, Sym)));
+        }
       }
     }
   }
@@ -3594,6 +3751,14 @@ RetainCountChecker::handleAutoreleaseCounts(ProgramStateRef state,
   if (V.getKind() == RefVal::ReturnedOwned)
     ++Cnt;
 
+  // If we would over-release here, but we know the value came from an ivar,
+  // assume it was a strong ivar that's just been relinquished.
+  if (ACnt > Cnt &&
+      V.getIvarAccessHistory() == RefVal::IvarAccessHistory::AccessedDirectly) {
+    V = V.releaseViaIvar();
+    --ACnt;
+  }
+
   if (ACnt <= Cnt) {
     if (ACnt == Cnt) {
       V.clearCounts();
@@ -3607,6 +3772,15 @@ RetainCountChecker::handleAutoreleaseCounts(ProgramStateRef state,
     }
     return setRefBinding(state, Sym, V);
   }
+
+  // HACK: Ignore retain-count issues on values accessed through ivars,
+  // because of cases like this:
+  //   [_contentView retain];
+  //   [_contentView removeFromSuperview];
+  //   [self addSubview:_contentView]; // invalidates 'self'
+  //   [_contentView release];
+  if (V.getIvarAccessHistory() != RefVal::IvarAccessHistory::None)
+    return state;
 
   // Woah!  More autorelease counts then retain counts left.
   // Emit hard error.
@@ -3628,10 +3802,9 @@ RetainCountChecker::handleAutoreleaseCounts(ProgramStateRef state,
       overAutorelease.reset(new OverAutorelease(this));
 
     const LangOptions &LOpts = Ctx.getASTContext().getLangOpts();
-    CFRefReport *report =
-      new CFRefReport(*overAutorelease, LOpts, /* GCEnabled = */ false,
-                      SummaryLog, N, Sym, os.str());
-    Ctx.emitReport(report);
+    Ctx.emitReport(std::unique_ptr<BugReport>(
+        new CFRefReport(*overAutorelease, LOpts, /* GCEnabled = */ false,
+                        SummaryLog, N, Sym, os.str())));
   }
 
   return nullptr;
@@ -3641,11 +3814,22 @@ ProgramStateRef
 RetainCountChecker::handleSymbolDeath(ProgramStateRef state,
                                       SymbolRef sid, RefVal V,
                                     SmallVectorImpl<SymbolRef> &Leaked) const {
-  bool hasLeak = false;
-  if (V.isOwned())
+  bool hasLeak;
+
+  // HACK: Ignore retain-count issues on values accessed through ivars,
+  // because of cases like this:
+  //   [_contentView retain];
+  //   [_contentView removeFromSuperview];
+  //   [self addSubview:_contentView]; // invalidates 'self'
+  //   [_contentView release];
+  if (V.getIvarAccessHistory() != RefVal::IvarAccessHistory::None)
+    hasLeak = false;
+  else if (V.isOwned())
     hasLeak = true;
   else if (V.isNotOwned() || V.isReturnedOwned())
     hasLeak = (V.getCount() > 0);
+  else
+    hasLeak = false;
 
   if (!hasLeak)
     return removeRefBinding(state, sid);
@@ -3672,10 +3856,9 @@ RetainCountChecker::processLeaks(ProgramStateRef state,
                           : getLeakAtReturnBug(LOpts, GCEnabled);
       assert(BT && "BugType not initialized.");
 
-      CFRefLeakReport *report = new CFRefLeakReport(*BT, LOpts, GCEnabled, 
-                                                    SummaryLog, N, *I, Ctx,
-                                                    IncludeAllocationLine);
-      Ctx.emitReport(report);
+      Ctx.emitReport(std::unique_ptr<BugReport>(
+          new CFRefLeakReport(*BT, LOpts, GCEnabled, SummaryLog, N, *I, Ctx,
+                              IncludeAllocationLine)));
     }
   }
 

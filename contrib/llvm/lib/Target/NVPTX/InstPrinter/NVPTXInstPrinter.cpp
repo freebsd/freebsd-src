@@ -28,13 +28,9 @@ using namespace llvm;
 
 #include "NVPTXGenAsmWriter.inc"
 
-
 NVPTXInstPrinter::NVPTXInstPrinter(const MCAsmInfo &MAI, const MCInstrInfo &MII,
-                                   const MCRegisterInfo &MRI,
-                                   const MCSubtargetInfo &STI)
-  : MCInstPrinter(MAI, MII, MRI) {
-  setAvailableFeatures(STI.getFeatureBits());
-}
+                                   const MCRegisterInfo &MRI)
+    : MCInstPrinter(MAI, MII, MRI) {}
 
 void NVPTXInstPrinter::printRegName(raw_ostream &OS, unsigned RegNo) const {
   // Decode the virtual register
@@ -72,7 +68,7 @@ void NVPTXInstPrinter::printRegName(raw_ostream &OS, unsigned RegNo) const {
 }
 
 void NVPTXInstPrinter::printInst(const MCInst *MI, raw_ostream &OS,
-                                 StringRef Annot) {
+                                 StringRef Annot, const MCSubtargetInfo &STI) {
   printInstruction(MI, OS);
 
   // Next always print the annotation.
@@ -89,7 +85,7 @@ void NVPTXInstPrinter::printOperand(const MCInst *MI, unsigned OpNo,
     O << markup("<imm:") << formatImm(Op.getImm()) << markup(">");
   } else {
     assert(Op.isExpr() && "Unknown operand kind in printOperand");
-    O << *Op.getExpr();
+    Op.getExpr()->print(O, &MAI);
   }
 }
 

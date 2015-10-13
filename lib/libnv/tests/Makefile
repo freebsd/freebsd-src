@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-TESTSDIR=	${TESTSBASE}/lib/libnv
-
 ATF_TESTS_CXX=	\
 	dnv_tests \
 	nv_array_tests \

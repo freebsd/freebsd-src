@@ -18,6 +18,7 @@ bsd.lib.mk.
 
 bsd.arch.inc.mk		- includes arch-specific Makefile.$arch
 bsd.compiler.mk		- defined based on current compiler
+bsd.confs.mk		- install of configuration files
 bsd.cpu.mk		- sets CPU/arch-related variables (included from sys.mk)
 bsd.dep.mk		- handle Makefile dependencies
 bsd.doc.mk		- building troff system documents
@@ -473,9 +474,15 @@ It has seven targets:
 
 It sets/uses the following variables, among many others:
 
-TESTDIR		Path to the installed tests.  Must be a subdirectory of
+TESTSBASE	Installation prefix for tests. Defaults to /usr/tests
+
+TESTSDIR	Path to the installed tests.  Must be a subdirectory of
 		TESTSBASE and the subpath should match the relative
 		location of the tests within the src tree.
+
+		The value of TESTSDIR defaults to
+		${TESTSBASE}/${RELDIR:H} , e.g. /usr/tests/bin/ls when
+		included from bin/ls/tests .
 
 KYUAFILE	If 'auto' (the default), generate a Kyuafile out of the
 		test programs defined in the Makefile.  If 'yes', then a

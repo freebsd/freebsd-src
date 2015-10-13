@@ -35,9 +35,12 @@
 #include "svn_utf.h"
 #include "svn_dirent_uri.h"
 #include "svn_diff.h"
+#include "svn_ctype.h"
+#include "svn_mergeinfo.h"
 
 #include "private/svn_eol_private.h"
 #include "private/svn_dep_compat.h"
+#include "private/svn_sorts_private.h"
 
 /* Helper macro for readability */
 #define starts_with(str, start)  \
@@ -385,7 +388,6 @@ svn_diff_hunk_readline_diff_text(svn_diff_hunk_t *hunk,
                                  apr_pool_t *result_pool,
                                  apr_pool_t *scratch_pool)
 {
-  svn_diff_hunk_t dummy;
   svn_stringbuf_t *line;
   apr_size_t max_len;
   apr_off_t pos;
@@ -415,33 +417,10 @@ svn_diff_hunk_readline_diff_text(svn_diff_hunk_t *hunk,
 
   if (hunk->patch->reverse)
     {
-      if (parse_hunk_header(line->data, &dummy, "@@", scratch_pool))
-        {
-          /* Line is a hunk header, reverse it. */
-          line = svn_stringbuf_createf(result_pool,
-                                       "@@ -%lu,%lu +%lu,%lu @@",
-                                       hunk->modified_start,
-                                       hunk->modified_length,
-                                       hunk->original_start,
-                                       hunk->original_length);
-        }
-      else if (parse_hunk_header(line->data, &dummy, "##", scratch_pool))
-        {
-          /* Line is a hunk header, reverse it. */
-          line = svn_stringbuf_createf(result_pool,
-                                       "## -%lu,%lu +%lu,%lu ##",
-                                       hunk->modified_start,
-                                       hunk->modified_length,
-                                       hunk->original_start,
-                                       hunk->original_length);
-        }
-      else
-        {
-          if (line->data[0] == '+')
-            line->data[0] = '-';
-          else if (line->data[0] == '-')
-            line->data[0] = '+';
-        }
+      if (line->data[0] == '+')
+        line->data[0] = '-';
+      else if (line->data[0] == '-')
+        line->data[0] = '+';
     }
 
   *stringbuf = line;
@@ -466,6 +445,147 @@ parse_prop_name(const char **prop_name, const char *header,
       svn_stringbuf_t *buf = svn_stringbuf_create(*prop_name, result_pool);
       svn_stringbuf_strip_whitespace(buf);
       *prop_name = (svn_prop_name_is_valid(buf->data) ? buf->data : NULL);
+    }
+
+  return SVN_NO_ERROR;
+}
+
+
+/* A helper function to parse svn:mergeinfo diffs.
+ *
+ * These diffs use a special pretty-print format, for instance:
+ *
+ * Added: svn:mergeinfo
+ * ## -0,0 +0,1 ##
+ *   Merged /trunk:r2-3
+ *
+ * The hunk header has the following format:
+ * ## -0,NUMBER_OF_REVERSE_MERGES +0,NUMBER_OF_FORWARD_MERGES ##
+ *
+ * At this point, the number of reverse merges has already been
+ * parsed into HUNK->ORIGINAL_LENGTH, and the number of forward
+ * merges has been parsed into HUNK->MODIFIED_LENGTH.
+ *
+ * The header is followed by a list of mergeinfo, one path per line.
+ * This function parses such lines. Lines describing reverse merges
+ * appear first, and then all lines describing forward merges appear.
+ *
+ * Parts of the line are affected by i18n. The words 'Merged'
+ * and 'Reverse-merged' can appear in any language and at any
+ * position within the line. We can only assume that a leading
+ * '/' starts the merge source path, the path is followed by
+ * ":r", which in turn is followed by a mergeinfo revision range,
+ *  which is terminated by whitespace or end-of-string.
+ *
+ * If the current line meets the above criteria and we're able
+ * to parse valid mergeinfo from it, the resulting mergeinfo
+ * is added to patch->mergeinfo or patch->reverse_mergeinfo,
+ * and we proceed to the next line.
+ */
+static svn_error_t *
+parse_mergeinfo(svn_boolean_t *found_mergeinfo,
+                svn_stringbuf_t *line,
+                svn_diff_hunk_t *hunk,
+                svn_patch_t *patch,
+                apr_pool_t *result_pool,
+                apr_pool_t *scratch_pool)
+{
+  char *slash = strchr(line->data, '/');
+  char *colon = strrchr(line->data, ':');
+
+  *found_mergeinfo = FALSE;
+
+  if (slash && colon && colon[1] == 'r' && slash < colon)
+    {
+      svn_stringbuf_t *input;
+      svn_mergeinfo_t mergeinfo = NULL;
+      char *s;
+      svn_error_t *err;
+
+      input = svn_stringbuf_create_ensure(line->len, scratch_pool);
+
+      /* Copy the merge source path + colon */
+      s = slash;
+      while (s <= colon)
+        {
+          svn_stringbuf_appendbyte(input, *s);
+          s++;
+        }
+
+      /* skip 'r' after colon */
+      s++;
+
+      /* Copy the revision range. */
+      while (s < line->data + line->len)
+        {
+          if (svn_ctype_isspace(*s))
+            break;
+          svn_stringbuf_appendbyte(input, *s);
+          s++;
+        }
+
+      err = svn_mergeinfo_parse(&mergeinfo, input->data, result_pool);
+      if (err && err->apr_err == SVN_ERR_MERGEINFO_PARSE_ERROR)
+        {
+          svn_error_clear(err);
+          mergeinfo = NULL;
+        }
+      else
+        SVN_ERR(err);
+
+      if (mergeinfo)
+        {
+          if (hunk->original_length > 0) /* reverse merges */
+            {
+              if (patch->reverse)
+                {
+                  if (patch->mergeinfo == NULL)
+                    patch->mergeinfo = mergeinfo;
+                  else
+                    SVN_ERR(svn_mergeinfo_merge2(patch->mergeinfo,
+                                                 mergeinfo,
+                                                 result_pool,
+                                                 scratch_pool));
+                }
+              else
+                {
+                  if (patch->reverse_mergeinfo == NULL)
+                    patch->reverse_mergeinfo = mergeinfo;
+                  else
+                    SVN_ERR(svn_mergeinfo_merge2(patch->reverse_mergeinfo,
+                                                 mergeinfo,
+                                                 result_pool,
+                                                 scratch_pool));
+                }
+              hunk->original_length--;
+            }
+          else if (hunk->modified_length > 0) /* forward merges */
+            {
+              if (patch->reverse)
+                {
+                  if (patch->reverse_mergeinfo == NULL)
+                    patch->reverse_mergeinfo = mergeinfo;
+                  else
+                    SVN_ERR(svn_mergeinfo_merge2(patch->reverse_mergeinfo,
+                                                 mergeinfo,
+                                                 result_pool,
+                                                 scratch_pool));
+                }
+              else
+                {
+                  if (patch->mergeinfo == NULL)
+                    patch->mergeinfo = mergeinfo;
+                  else
+                    SVN_ERR(svn_mergeinfo_merge2(patch->mergeinfo,
+                                                 mergeinfo,
+                                                 result_pool,
+                                                 scratch_pool));
+                }
+              hunk->modified_length--;
+            }
+
+          *found_mergeinfo = TRUE;
+        }
     }
 
   return SVN_NO_ERROR;
@@ -598,6 +718,17 @@ parse_next_hunk(svn_diff_hunk_t **hunk,
             }
 
           continue;
+        }
+
+      if (in_hunk && *is_property && *prop_name &&
+          strcmp(*prop_name, SVN_PROP_MERGEINFO) == 0)
+        {
+          svn_boolean_t found_mergeinfo;
+
+          SVN_ERR(parse_mergeinfo(&found_mergeinfo, line, *hunk, patch,
+                                  result_pool, iterpool));
+          if (found_mergeinfo)
+            continue; /* Proceed to the next line in the patch. */
         }
 
       if (in_hunk)
@@ -1192,6 +1323,13 @@ parse_hunks(svn_patch_t *patch, apr_file_t *apr_file,
             prop_name = last_prop_name;
           else
             last_prop_name = prop_name;
+
+          /* Skip svn:mergeinfo properties.
+           * Mergeinfo data cannot be represented as a hunk and
+           * is therefore stored in PATCH itself. */
+          if (strcmp(prop_name, SVN_PROP_MERGEINFO) == 0)
+            continue;
+
           SVN_ERR(add_property_hunk(patch, prop_name, hunk, prop_operation,
                                     result_pool));
         }
@@ -1229,7 +1367,7 @@ static struct transition transitions[] =
 };
 
 svn_error_t *
-svn_diff_parse_next_patch(svn_patch_t **patch,
+svn_diff_parse_next_patch(svn_patch_t **patch_p,
                           svn_patch_file_t *patch_file,
                           svn_boolean_t reverse,
                           svn_boolean_t ignore_whitespace,
@@ -1240,16 +1378,17 @@ svn_diff_parse_next_patch(svn_patch_t **patch,
   svn_boolean_t eof;
   svn_boolean_t line_after_tree_header_read = FALSE;
   apr_pool_t *iterpool;
+  svn_patch_t *patch;
   enum parse_state state = state_start;
 
   if (apr_file_eof(patch_file->apr_file) == APR_EOF)
     {
       /* No more patches here. */
-      *patch = NULL;
+      *patch_p = NULL;
       return SVN_NO_ERROR;
     }
 
-  *patch = apr_pcalloc(result_pool, sizeof(**patch));
+  patch = apr_pcalloc(result_pool, sizeof(*patch));
 
   pos = patch_file->next_patch_offset;
   SVN_ERR(svn_io_file_seek(patch_file->apr_file, APR_SET, &pos, scratch_pool));
@@ -1282,7 +1421,7 @@ svn_diff_parse_next_patch(svn_patch_t **patch,
           if (starts_with(line->data, transitions[i].expected_input)
               && state == transitions[i].required_state)
             {
-              SVN_ERR(transitions[i].fn(&state, line->data, *patch,
+              SVN_ERR(transitions[i].fn(&state, line->data, patch,
                                         result_pool, iterpool));
               valid_header_line = TRUE;
               break;
@@ -1328,22 +1467,22 @@ svn_diff_parse_next_patch(svn_patch_t **patch,
     }
   while (! eof);
 
-  (*patch)->reverse = reverse;
+  patch->reverse = reverse;
   if (reverse)
     {
       const char *temp;
-      temp = (*patch)->old_filename;
-      (*patch)->old_filename = (*patch)->new_filename;
-      (*patch)->new_filename = temp;
+      temp = patch->old_filename;
+      patch->old_filename = patch->new_filename;
+      patch->new_filename = temp;
     }
 
-  if ((*patch)->old_filename == NULL || (*patch)->new_filename == NULL)
+  if (patch->old_filename == NULL || patch->new_filename == NULL)
     {
       /* Something went wrong, just discard the result. */
-      *patch = NULL;
+      patch = NULL;
     }
   else
-    SVN_ERR(parse_hunks(*patch, patch_file->apr_file, ignore_whitespace,
+    SVN_ERR(parse_hunks(patch, patch_file->apr_file, ignore_whitespace,
                         result_pool, iterpool));
 
   svn_pool_destroy(iterpool);
@@ -1352,16 +1491,16 @@ svn_diff_parse_next_patch(svn_patch_t **patch,
   SVN_ERR(svn_io_file_seek(patch_file->apr_file, APR_CUR,
                            &patch_file->next_patch_offset, scratch_pool));
 
-  if (*patch)
+  if (patch)
     {
       /* Usually, hunks appear in the patch sorted by their original line
        * offset. But just in case they weren't parsed in this order for
        * some reason, we sort them so that our caller can assume that hunks
        * are sorted as if parsed from a usual patch. */
-      qsort((*patch)->hunks->elts, (*patch)->hunks->nelts,
-            (*patch)->hunks->elt_size, compare_hunks);
+      svn_sort__array(patch->hunks, compare_hunks);
     }
 
+  *patch_p = patch;
   return SVN_NO_ERROR;
 }
 

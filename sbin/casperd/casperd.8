@@ -35,8 +35,8 @@
 .Nd "Capability Services friendly daemon"
 .Sh SYNOPSIS
 .Nm
-[-Fhv] [-D servconfdir] [-P pidfile] [-S sockpath]
 .Op Fl Fhv
+.Op Fl l Ar listenqueue
 .Op Fl D Ar servconfdir
 .Op Fl P Ar pidfile
 .Op Fl S Ar sockpath
@@ -74,6 +74,12 @@ starts in the background.
 Print the
 .Nm
 usage message.
+.It Fl l Ar listenqueue
+Specify depth of socket listen queue for the
+.Nm
+daemon.
+The default queue length is
+.Pa SOMAXCONN .
 .It Fl P Ar pidfile
 Specify alternative location of a file where main process PID will be
 stored.

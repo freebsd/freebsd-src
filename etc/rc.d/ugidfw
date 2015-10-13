@@ -3,6 +3,7 @@
 # $FreeBSD$
 
 # PROVIDE: ugidfw
+# REQUIRE: FILESYSTEMS
 # BEFORE: LOGIN
 # KEYWORD: nojail shutdown
 
@@ -33,9 +34,17 @@ ugidfw_start()
 
 ugidfw_stop()
 {
+	local rulecount
+
 	# Disable the policy
 	#
-	kldunload mac_bsdextended
+	# Check for the existence of rules and flush them if needed.
+	rulecount=$(sysctl -in security.mac.bsdextended.rule_count)
+	if [ ${rulecount:-0} -gt 0 ]; then
+		ugidfw list | sed -n '2,$p' | cut -d ' ' -f 1 | sort -r -n |
+		    xargs -n 1 ugidfw remove
+		echo "MAC bsdextended rules flushed."
+	fi
 }
 
 load_rc_config $name

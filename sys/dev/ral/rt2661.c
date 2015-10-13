@@ -1636,13 +1636,11 @@ rt2661_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	if (!(sc->sc_flags & RAL_RUNNING)) {
 		RAL_UNLOCK(sc);
 		m_freem(m);
-		ieee80211_free_node(ni);
 		return ENETDOWN;
 	}
 	if (sc->mgtq.queued >= RT2661_MGT_RING_COUNT) {
 		RAL_UNLOCK(sc);
 		m_freem(m);
-		ieee80211_free_node(ni);
 		return ENOBUFS;		/* XXX */
 	}
 
@@ -1659,7 +1657,6 @@ rt2661_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 
 	return 0;
 bad:
-	ieee80211_free_node(ni);
 	RAL_UNLOCK(sc);
 	return EIO;		/* XXX */
 }
@@ -2626,13 +2623,11 @@ static int
 rt2661_prepare_beacon(struct rt2661_softc *sc, struct ieee80211vap *vap)
 {
 	struct ieee80211com *ic = vap->iv_ic;
-	struct ieee80211_beacon_offsets *bo = &vap->iv_bcn_off;
 	struct rt2661_tx_desc desc;
 	struct mbuf *m0;
 	int rate;
 
-	m0 = ieee80211_beacon_alloc(vap->iv_bss, bo);
-	if (m0 == NULL) {
+	if ((m0 = ieee80211_beacon_alloc(vap->iv_bss))== NULL) {
 		device_printf(sc->sc_dev, "could not allocate beacon frame\n");
 		return ENOBUFS;
 	}

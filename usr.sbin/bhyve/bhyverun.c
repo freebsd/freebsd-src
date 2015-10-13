@@ -56,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include "acpi.h"
 #include "inout.h"
 #include "dbgport.h"
+#include "fwctl.h"
 #include "ioapic.h"
 #include "mem.h"
 #include "mevent.h"
@@ -949,6 +950,9 @@ main(int argc, char *argv[])
 		error = acpi_build(ctx, guest_ncpus);
 		assert(error == 0);
 	}
+
+	if (lpc_bootrom())
+		fwctl_init();
 
 	/*
 	 * Change the proc title to include the VM name.

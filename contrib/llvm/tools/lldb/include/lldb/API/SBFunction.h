@@ -16,7 +16,7 @@
 
 namespace lldb {
 
-class SBFunction
+class LLDB_API SBFunction
 {
 public:
 
@@ -35,6 +35,9 @@ public:
     const char *
     GetName() const;
 
+    const char *
+    GetDisplayName() const;
+    
     const char *
     GetMangledName () const;
 

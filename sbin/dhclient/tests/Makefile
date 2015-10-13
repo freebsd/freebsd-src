@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-TESTSDIR=	${TESTSBASE}/sbin/dhclient
-
 .PATH:	${.CURDIR}/..
 
 PLAIN_TESTS_C=				option-domain-search_test

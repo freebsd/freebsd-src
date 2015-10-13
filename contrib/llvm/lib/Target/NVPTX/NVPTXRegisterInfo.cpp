@@ -71,15 +71,14 @@ std::string getNVPTXRegClassStr(TargetRegisterClass const *RC) {
 }
 }
 
-NVPTXRegisterInfo::NVPTXRegisterInfo(const NVPTXSubtarget &st)
-    : NVPTXGenRegisterInfo(0), Is64Bit(st.is64Bit()) {}
+NVPTXRegisterInfo::NVPTXRegisterInfo() : NVPTXGenRegisterInfo(0) {}
 
 #define GET_REGINFO_TARGET_DESC
 #include "NVPTXGenRegisterInfo.inc"
 
 /// NVPTX Callee Saved Registers
 const MCPhysReg *
-NVPTXRegisterInfo::getCalleeSavedRegs(const MachineFunction *MF) const {
+NVPTXRegisterInfo::getCalleeSavedRegs(const MachineFunction *) const {
   static const MCPhysReg CalleeSavedRegs[] = { 0 };
   return CalleeSavedRegs;
 }

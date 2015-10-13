@@ -7,8 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "lldb/lldb-python.h"
-
 // C Includes
 // C++ Includes
 // Other libraries and framework includes
@@ -98,12 +96,12 @@ TargetList::CreateTarget (Debugger &debugger,
 
 Error
 TargetList::CreateTargetInternal (Debugger &debugger,
-                          const char *user_exe_path,
-                          const char *triple_cstr,
-                          bool get_dependent_files,
-                          const OptionGroupPlatform *platform_options,
-                          TargetSP &target_sp,
-                          bool is_dummy_target)
+                                  const char *user_exe_path,
+                                  const char *triple_cstr,
+                                  bool get_dependent_files,
+                                  const OptionGroupPlatform *platform_options,
+                                  TargetSP &target_sp,
+                                  bool is_dummy_target)
 {
     Error error;
     PlatformSP platform_sp;
@@ -126,16 +124,24 @@ TargetList::CreateTargetInternal (Debugger &debugger,
     bool prefer_platform_arch = false;
     
     CommandInterpreter &interpreter = debugger.GetCommandInterpreter();
+
+    // let's see if there is already an existing plaform before we go creating another...
+    platform_sp = debugger.GetPlatformList().GetSelectedPlatform();
+
     if (platform_options && platform_options->PlatformWasSpecified ())
     {
-        const bool select_platform = true;
-        platform_sp = platform_options->CreatePlatformWithOptions (interpreter,
-                                                                   arch,
-                                                                   select_platform,
-                                                                   error,
-                                                                   platform_arch);
-        if (!platform_sp)
-            return error;
+        // Create a new platform if it doesn't match the selected platform
+        if (!platform_options->PlatformMatches(platform_sp))
+        {
+            const bool select_platform = true;
+            platform_sp = platform_options->CreatePlatformWithOptions (interpreter,
+                                                                       arch,
+                                                                       select_platform,
+                                                                       error,
+                                                                       platform_arch);
+            if (!platform_sp)
+                return error;
+        }
     }
     
     if (user_exe_path && user_exe_path[0])
@@ -285,32 +291,27 @@ TargetList::CreateTargetInternal (Debugger &debugger,
         }
     }
 
-    if (!platform_sp)
+    // If we have a valid architecture, make sure the current platform is
+    // compatible with that architecture
+    if (!prefer_platform_arch && arch.IsValid())
     {
-        // Get the current platform and make sure it is compatible with the
-        // current architecture if we have a valid architecture.
-        platform_sp = debugger.GetPlatformList().GetSelectedPlatform ();
-        
-        if (!prefer_platform_arch && arch.IsValid())
+        if (!platform_sp->IsCompatibleArchitecture(arch, false, &platform_arch))
         {
-            if (!platform_sp->IsCompatibleArchitecture(arch, false, &platform_arch))
-            {
-                platform_sp = Platform::GetPlatformForArchitecture(arch, &platform_arch);
-                if (platform_sp)
-                    debugger.GetPlatformList().SetSelectedPlatform(platform_sp);
-            }
+            platform_sp = Platform::GetPlatformForArchitecture(arch, &platform_arch);
+            if (!is_dummy_target && platform_sp)
+                debugger.GetPlatformList().SetSelectedPlatform(platform_sp);
         }
-        else if (platform_arch.IsValid())
+    }
+    else if (platform_arch.IsValid())
+    {
+        // if "arch" isn't valid, yet "platform_arch" is, it means we have an executable file with
+        // a single architecture which should be used
+        ArchSpec fixed_platform_arch;
+        if (!platform_sp->IsCompatibleArchitecture(platform_arch, false, &fixed_platform_arch))
         {
-            // if "arch" isn't valid, yet "platform_arch" is, it means we have an executable file with
-            // a single architecture which should be used
-            ArchSpec fixed_platform_arch;
-            if (!platform_sp->IsCompatibleArchitecture(platform_arch, false, &fixed_platform_arch))
-            {
-                platform_sp = Platform::GetPlatformForArchitecture(platform_arch, &fixed_platform_arch);
-                if (platform_sp)
-                    debugger.GetPlatformList().SetSelectedPlatform(platform_sp);
-            }
+            platform_sp = Platform::GetPlatformForArchitecture(platform_arch, &fixed_platform_arch);
+            if (!is_dummy_target && platform_sp)
+                debugger.GetPlatformList().SetSelectedPlatform(platform_sp);
         }
     }
     
@@ -361,12 +362,12 @@ TargetList::CreateDummyTarget (Debugger &debugger,
 
 Error
 TargetList::CreateTargetInternal (Debugger &debugger,
-                      const char *user_exe_path,
-                      const ArchSpec& specified_arch,
-                      bool get_dependent_files,
-                      lldb::PlatformSP &platform_sp,
-                      lldb::TargetSP &target_sp,
-                      bool is_dummy_target)
+                                  const char *user_exe_path,
+                                  const ArchSpec& specified_arch,
+                                  bool get_dependent_files,
+                                  lldb::PlatformSP &platform_sp,
+                                  lldb::TargetSP &target_sp,
+                                  bool is_dummy_target)
 {
 
     Timer scoped_timer (__PRETTY_FUNCTION__,
@@ -411,7 +412,7 @@ TargetList::CreateTargetInternal (Debugger &debugger,
         if (file.GetFileType() == FileSpec::eFileTypeDirectory)
             user_exe_path_is_bundle = true;
 
-        if (file.IsRelativeToCurrentWorkingDirectory() && user_exe_path)
+        if (file.IsRelative() && user_exe_path)
         {
             // Ignore paths that start with "./" and "../"
             if (!((user_exe_path[0] == '.' && user_exe_path[1] == '/') ||

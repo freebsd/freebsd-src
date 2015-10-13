@@ -874,7 +874,7 @@ struct otus_softc;
 struct otus_tx_cmd {
 	uint8_t			*buf;
 	uint16_t		buflen;
-	void *			*odata;
+	void			*odata;
 	uint16_t		odatalen;
 	uint16_t		token;
 	STAILQ_ENTRY(otus_tx_cmd)	next_cmd;
@@ -1017,14 +1017,12 @@ struct otus_softc {
 		uint8_t	pad[64];
 	}				sc_rxtapu;
 #define sc_rxtap	sc_rxtapu.th
-	int				sc_rxtap_len;
 
 	union {
 		struct otus_tx_radiotap_header th;
 		uint8_t	pad[64];
 	}				sc_txtapu;
 #define sc_txtap	sc_txtapu.th
-	int				sc_txtap_len;
 };
 
 #endif	/* __IF_OTUSREG_H__ */

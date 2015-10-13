@@ -4875,7 +4875,6 @@ iwn_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	DPRINTF(sc, IWN_DEBUG_XMIT | IWN_DEBUG_TRACE, "->%s begin\n", __func__);
 
 	if ((sc->sc_flags & IWN_FLAG_RUNNING) == 0) {
-		ieee80211_free_node(ni);
 		m_freem(m);
 		return ENETDOWN;
 	}
@@ -4889,9 +4888,6 @@ iwn_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	if (sc->sc_beacon_wait) {
 		if (iwn_xmit_queue_enqueue(sc, m) != 0) {
 			m_freem(m);
-			if_inc_counter(ni->ni_vap->iv_ifp,
-			    IFCOUNTER_OERRORS, 1);
-			ieee80211_free_node(ni);
 			IWN_UNLOCK(sc);
 			return (ENOBUFS);
 		}
@@ -4913,10 +4909,7 @@ iwn_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 		 */
 		error = iwn_tx_data_raw(sc, m, ni, params);
 	}
-	if (error != 0) {
-		/* NB: m is reclaimed on tx failure */
-		ieee80211_free_node(ni);
-	} else
+	if (error == 0)
 		sc->sc_tx_timer = 5;
 
 	IWN_UNLOCK(sc);
@@ -4950,9 +4943,7 @@ iwn_transmit(struct ieee80211com *ic, struct mbuf *m)
 	}
 
 	error = iwn_tx_data(sc, m, ni);
-	if (error) {
-		if_inc_counter(ni->ni_vap->iv_ifp, IFCOUNTER_OERRORS, 1);
-	} else
+	if (!error)
 		sc->sc_tx_timer = 5;
 	IWN_UNLOCK(sc);
 	return (error);
@@ -5344,6 +5335,8 @@ iwn_updateedca(struct ieee80211com *ic)
 
 	memset(&cmd, 0, sizeof cmd);
 	cmd.flags = htole32(IWN_EDCA_UPDATE);
+
+	IEEE80211_LOCK(ic);
 	for (aci = 0; aci < WME_NUM_AC; aci++) {
 		const struct wmeParams *ac =
 		    &ic->ic_wme.wme_chanParams.cap_wmeParams[aci];
@@ -5354,10 +5347,10 @@ iwn_updateedca(struct ieee80211com *ic)
 		    htole16(IEEE80211_TXOP_TO_US(ac->wmep_txopLimit));
 	}
 	IEEE80211_UNLOCK(ic);
+
 	IWN_LOCK(sc);
 	(void)iwn_cmd(sc, IWN_CMD_EDCA_PARAMS, &cmd, sizeof cmd, 1);
 	IWN_UNLOCK(sc);
-	IEEE80211_LOCK(ic);
 
 	DPRINTF(sc, IWN_DEBUG_TRACE, "->%s: end\n",__func__);
 

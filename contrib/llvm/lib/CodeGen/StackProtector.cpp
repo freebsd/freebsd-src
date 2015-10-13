@@ -88,10 +88,9 @@ bool StackProtector::runOnFunction(Function &Fn) {
   DominatorTreeWrapperPass *DTWP =
       getAnalysisIfAvailable<DominatorTreeWrapperPass>();
   DT = DTWP ? &DTWP->getDomTree() : nullptr;
-  TLI = TM->getSubtargetImpl()->getTargetLowering();
+  TLI = TM->getSubtargetImpl(Fn)->getTargetLowering();
 
-  Attribute Attr = Fn.getAttributes().getAttribute(
-      AttributeSet::FunctionIndex, "stack-protector-buffer-size");
+  Attribute Attr = Fn.getFnAttribute("stack-protector-buffer-size");
   if (Attr.isStringAttribute() &&
       Attr.getValueAsString().getAsInteger(10, SSPBufferSize))
       return false; // Invalid integer string
@@ -123,7 +122,7 @@ bool StackProtector::ContainsProtectableArray(Type *Ty, bool &IsLarge,
 
     // If an array has more than SSPBufferSize bytes of allocated space, then we
     // emit stack protectors.
-    if (SSPBufferSize <= TLI->getDataLayout()->getTypeAllocSize(AT)) {
+    if (SSPBufferSize <= M->getDataLayout().getTypeAllocSize(AT)) {
       IsLarge = true;
       return true;
     }
@@ -201,15 +200,12 @@ bool StackProtector::HasAddressTaken(const Instruction *AI) {
 bool StackProtector::RequiresStackProtector() {
   bool Strong = false;
   bool NeedsProtector = false;
-  if (F->getAttributes().hasAttribute(AttributeSet::FunctionIndex,
-                                      Attribute::StackProtectReq)) {
+  if (F->hasFnAttribute(Attribute::StackProtectReq)) {
     NeedsProtector = true;
     Strong = true; // Use the same heuristic as strong to determine SSPLayout
-  } else if (F->getAttributes().hasAttribute(AttributeSet::FunctionIndex,
-                                             Attribute::StackProtectStrong))
+  } else if (F->hasFnAttribute(Attribute::StackProtectStrong))
     Strong = true;
-  else if (!F->getAttributes().hasAttribute(AttributeSet::FunctionIndex,
-                                            Attribute::StackProtect))
+  else if (!F->hasFnAttribute(Attribute::StackProtect))
     return false;
 
   for (const BasicBlock &BB : *F) {
@@ -357,8 +353,8 @@ static bool CreatePrologue(Function *F, Module *M, ReturnInst *RI,
   IRBuilder<> B(&F->getEntryBlock().front());
   AI = B.CreateAlloca(PtrTy, nullptr, "StackGuardSlot");
   LoadInst *LI = B.CreateLoad(StackGuardVar, "StackGuard");
-  B.CreateCall2(Intrinsic::getDeclaration(M, Intrinsic::stackprotector), LI,
-                AI);
+  B.CreateCall(Intrinsic::getDeclaration(M, Intrinsic::stackprotector),
+               {LI, AI});
 
   return SupportsSelectionDAGSP;
 }
@@ -492,7 +488,7 @@ BasicBlock *StackProtector::CreateFailBB() {
     Constant *StackChkFail =
         M->getOrInsertFunction("__stack_chk_fail", Type::getVoidTy(Context),
                                nullptr);
-    B.CreateCall(StackChkFail);
+    B.CreateCall(StackChkFail, {});
   }
   B.CreateUnreachable();
   return FailBB;

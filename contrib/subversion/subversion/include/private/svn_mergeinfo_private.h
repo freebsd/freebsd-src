@@ -119,13 +119,13 @@ svn_mergeinfo__equals(svn_boolean_t *is_equal,
                       svn_boolean_t consider_inheritance,
                       apr_pool_t *pool);
 
-/* Examine MERGEINFO, removing all paths from the hash which map to
-   empty rangelists.  POOL is used only to allocate the apr_hash_index_t
-   iterator.  Returns TRUE if any paths were removed and FALSE if none were
+/* Remove all paths from MERGEINFO which map to empty rangelists.
+
+   Return TRUE if any paths were removed and FALSE if none were
    removed or MERGEINFO is NULL. */
 svn_boolean_t
 svn_mergeinfo__remove_empty_rangelists(svn_mergeinfo_t mergeinfo,
-                                       apr_pool_t *pool);
+                                       apr_pool_t *scratch_pool);
 
 /* Make a shallow (ie, mergeinfos are not duped, or altered at all;
    keys share storage) copy of IN_CATALOG in *OUT_CATALOG, removing

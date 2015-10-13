@@ -121,7 +121,7 @@ TGTS=	all all-man buildenv buildenvvars buildkernel buildworld \
 	_worldtmp _legacy _bootstrap-tools _cleanobj _obj \
 	_build-tools _cross-tools _includes _libraries _depend \
 	build32 builddtb distribute32 install32 xdev xdev-build xdev-install \
-	xdev-links native-xtools \
+	xdev-links native-xtools installconfig \
 
 TGTS+=	${SUBDIR_TARGETS}
 
@@ -243,9 +243,9 @@ cleanworld:
 # Handle the user-driven targets, using the source relative mk files.
 #
 
-.if empty(.MAKEFLAGS:M-n)
+.if !(!empty(.MAKEFLAGS:M-n) && ${.MAKEFLAGS:M-n} == "-n")
 # skip this for -n to avoid changing previous behavior of 
-# 'make -n buildworld' etc.
+# 'make -n buildworld' etc.  Using -n -n will run it.
 ${TGTS}: .MAKE
 tinderbox toolchains kernel-toolchains: .MAKE
 .endif

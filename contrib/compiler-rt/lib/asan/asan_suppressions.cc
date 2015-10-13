@@ -26,14 +26,28 @@ static SuppressionContext *suppression_ctx = nullptr;
 static const char kInterceptorName[] = "interceptor_name";
 static const char kInterceptorViaFunction[] = "interceptor_via_fun";
 static const char kInterceptorViaLibrary[] = "interceptor_via_lib";
+static const char kODRViolation[] = "odr_violation";
 static const char *kSuppressionTypes[] = {
-    kInterceptorName, kInterceptorViaFunction, kInterceptorViaLibrary};
+    kInterceptorName, kInterceptorViaFunction, kInterceptorViaLibrary,
+    kODRViolation};
+
+extern "C" {
+#if SANITIZER_SUPPORTS_WEAK_HOOKS
+SANITIZER_INTERFACE_ATTRIBUTE SANITIZER_WEAK_ATTRIBUTE
+const char *__asan_default_suppressions();
+#else
+// No week hooks, provide empty implementation.
+const char *__asan_default_suppressions() { return ""; }
+#endif  // SANITIZER_SUPPORTS_WEAK_HOOKS
+}  // extern "C"
 
 void InitializeSuppressions() {
   CHECK_EQ(nullptr, suppression_ctx);
   suppression_ctx = new (suppression_placeholder)  // NOLINT
       SuppressionContext(kSuppressionTypes, ARRAY_SIZE(kSuppressionTypes));
   suppression_ctx->ParseFromFile(flags()->suppressions);
+  if (&__asan_default_suppressions)
+    suppression_ctx->Parse(__asan_default_suppressions());
 }
 
 bool IsInterceptorSuppressed(const char *interceptor_name) {
@@ -49,6 +63,13 @@ bool HaveStackTraceBasedSuppressions() {
          suppression_ctx->HasSuppressionType(kInterceptorViaLibrary);
 }
 
+bool IsODRViolationSuppressed(const char *global_var_name) {
+  CHECK(suppression_ctx);
+  Suppression *s;
+  // Match "odr_violation" suppressions.
+  return suppression_ctx->Match(global_var_name, kODRViolation, &s);
+}
+
 bool IsStackTraceSuppressed(const StackTrace *stack) {
   if (!HaveStackTraceBasedSuppressions())
     return false;
@@ -60,14 +81,10 @@ bool IsStackTraceSuppressed(const StackTrace *stack) {
     uptr addr = stack->trace[i];
 
     if (suppression_ctx->HasSuppressionType(kInterceptorViaLibrary)) {
-      const char *module_name;
-      uptr module_offset;
       // Match "interceptor_via_lib" suppressions.
-      if (symbolizer->GetModuleNameAndOffsetForPC(addr, &module_name,
-                                                  &module_offset) &&
-          suppression_ctx->Match(module_name, kInterceptorViaLibrary, &s)) {
-        return true;
-      }
+      if (const char *module_name = symbolizer->GetModuleNameForPc(addr))
+        if (suppression_ctx->Match(module_name, kInterceptorViaLibrary, &s))
+          return true;
     }
 
     if (suppression_ctx->HasSuppressionType(kInterceptorViaFunction)) {

@@ -35,6 +35,7 @@
 #include "svn_config.h"
 #include "svn_ctype.h"
 #include "private/svn_fspath.h"
+#include "private/svn_repos_private.h"
 #include "repos.h"
 
 
@@ -76,8 +77,8 @@ struct authz_validate_baton {
                            enumerator, if any. */
 };
 
-/* Currently this structure is just a wrapper around a
-   svn_config_t. */
+/* Currently this structure is just a wrapper around a svn_config_t.
+   Please update authz_pool if you modify this structure. */
 struct svn_authz_t
 {
   svn_config_t *cfg;
@@ -351,7 +352,7 @@ authz_get_path_access(svn_config_t *cfg, const char *repos_name,
   baton.user = user;
 
   /* Try to locate a repository-specific block first. */
-  qualified_path = apr_pstrcat(pool, repos_name, ":", path, (char *)NULL);
+  qualified_path = apr_pstrcat(pool, repos_name, ":", path, SVN_VA_NULL);
   svn_config_enumerate2(cfg, qualified_path,
                         authz_parse_line, &baton, pool);
 
@@ -394,7 +395,7 @@ authz_get_tree_access(svn_config_t *cfg, const char *repos_name,
   baton.required_access = required_access;
   baton.repos_path = path;
   baton.qualified_repos_path = apr_pstrcat(pool, repos_name,
-                                           ":", path, (char *)NULL);
+                                           ":", path, SVN_VA_NULL);
   /* Default to access granted if no rules say otherwise. */
   baton.access = TRUE;
 
@@ -453,7 +454,7 @@ authz_get_any_access(svn_config_t *cfg, const char *repos_name,
   baton.access = FALSE; /* Deny access by default. */
   baton.repos_path = "/";
   baton.qualified_repos_path = apr_pstrcat(pool, repos_name,
-                                           ":/", (char *)NULL);
+                                           ":/", SVN_VA_NULL);
 
   /* We could have used svn_config_enumerate2 for "repos_name:/".
    * However, this requires access for root explicitly (which the user
@@ -748,9 +749,8 @@ static svn_boolean_t authz_validate_section(const char *name,
 }
 
 
-/* Walk the configuration in AUTHZ looking for any errors. */
-static svn_error_t *
-authz_validate(svn_authz_t *authz, apr_pool_t *pool)
+svn_error_t *
+svn_repos__authz_validate(svn_authz_t *authz, apr_pool_t *pool)
 {
   struct authz_validate_baton baton = { 0 };
 
@@ -771,13 +771,17 @@ authz_validate(svn_authz_t *authz, apr_pool_t *pool)
  *
  * If DIRENT cannot be parsed as a config file then an error is returned.  The
  * contents of CFG_P is then undefined.  If MUST_EXIST is TRUE, a missing
- * authz file is also an error.
+ * authz file is also an error.  The CASE_SENSITIVE controls the lookup
+ * behavior for section and option names alike.
  *
  * SCRATCH_POOL will be used for temporary allocations. */
 static svn_error_t *
-authz_retrieve_config_repo(svn_config_t **cfg_p, const char *dirent,
-                          svn_boolean_t must_exist,
-                          apr_pool_t *result_pool, apr_pool_t *scratch_pool)
+authz_retrieve_config_repo(svn_config_t **cfg_p,
+                           const char *dirent,
+                           svn_boolean_t must_exist,
+                           svn_boolean_t case_sensitive,
+                           apr_pool_t *result_pool,
+                           apr_pool_t *scratch_pool)
 {
   svn_error_t *err;
   svn_repos_t *repos;
@@ -796,7 +800,8 @@ authz_retrieve_config_repo(svn_config_t **cfg_p, const char *dirent,
                              "Unable to find repository at '%s'", dirent);
 
   /* Attempt to open a repository at repos_root_dirent. */
-  SVN_ERR(svn_repos_open2(&repos, repos_root_dirent, NULL, scratch_pool));
+  SVN_ERR(svn_repos_open3(&repos, repos_root_dirent, NULL, scratch_pool,
+                          scratch_pool));
 
   fs_path = &dirent[strlen(repos_root_dirent)];
 
@@ -824,7 +829,8 @@ authz_retrieve_config_repo(svn_config_t **cfg_p, const char *dirent,
     {
       if (!must_exist)
         {
-          SVN_ERR(svn_config_create2(cfg_p, TRUE, TRUE, result_pool));
+          SVN_ERR(svn_config_create2(cfg_p, case_sensitive, case_sensitive,
+                                     result_pool));
           return SVN_NO_ERROR;
         }
       else
@@ -842,7 +848,8 @@ authz_retrieve_config_repo(svn_config_t **cfg_p, const char *dirent,
     }
 
   SVN_ERR(svn_fs_file_contents(&contents, root, fs_path, scratch_pool));
-  err = svn_config_parse(cfg_p, contents, TRUE, TRUE, result_pool);
+  err = svn_config_parse(cfg_p, contents, case_sensitive, case_sensitive,
+                         result_pool);
 
   /* Add the URL to the error stack since the parser doesn't have it. */
   if (err != SVN_NO_ERROR)
@@ -853,23 +860,12 @@ authz_retrieve_config_repo(svn_config_t **cfg_p, const char *dirent,
   return SVN_NO_ERROR;
 }
 
-/* Given a PATH which might be a relative repo URL (^/), an absolute
- * local repo URL (file://), an absolute path outside of the repo
- * or a location in the Windows registry.
- *
- * Retrieve the configuration data that PATH points at and parse it into
- * CFG_P allocated in POOL.
- *
- * If PATH cannot be parsed as a config file then an error is returned.  The
- * contents of CFG_P is then undefined.  If MUST_EXIST is TRUE, a missing
- * authz file is also an error.
- *
- * REPOS_ROOT points at the root of the repos you are
- * going to apply the authz against, can be NULL if you are sure that you
- * don't have a repos relative URL in PATH. */
-static svn_error_t *
-authz_retrieve_config(svn_config_t **cfg_p, const char *path,
-                      svn_boolean_t must_exist, apr_pool_t *pool)
+svn_error_t *
+svn_repos__retrieve_config(svn_config_t **cfg_p,
+                           const char *path,
+                           svn_boolean_t must_exist,
+                           svn_boolean_t case_sensitive,
+                           apr_pool_t *pool)
 {
   if (svn_path_is_url(path))
     {
@@ -880,8 +876,8 @@ authz_retrieve_config(svn_config_t **cfg_p, const char *path,
       err = svn_uri_get_dirent_from_file_url(&dirent, path, scratch_pool);
 
       if (err == SVN_NO_ERROR)
-        err = authz_retrieve_config_repo(cfg_p, dirent, must_exist, pool,
-                                         scratch_pool);
+        err = authz_retrieve_config_repo(cfg_p, dirent, must_exist,
+                                         case_sensitive, pool, scratch_pool);
 
       /* Close the repos and streams we opened. */
       svn_pool_destroy(scratch_pool);
@@ -891,7 +887,8 @@ authz_retrieve_config(svn_config_t **cfg_p, const char *path,
   else
     {
       /* Outside of repo file or Windows registry*/
-      SVN_ERR(svn_config_read3(cfg_p, path, must_exist, TRUE, TRUE, pool));
+      SVN_ERR(svn_config_read3(cfg_p, path, must_exist, case_sensitive,
+                               case_sensitive, pool));
     }
 
   return SVN_NO_ERROR;
@@ -942,9 +939,11 @@ svn_repos__authz_read(svn_authz_t **authz_p, const char *path,
 
   /* Load the authz file */
   if (accept_urls)
-    SVN_ERR(authz_retrieve_config(&authz->cfg, path, must_exist, pool));
+    SVN_ERR(svn_repos__retrieve_config(&authz->cfg, path, must_exist, TRUE,
+                                       pool));
   else
-    SVN_ERR(svn_config_read3(&authz->cfg, path, must_exist, TRUE, TRUE, pool));
+    SVN_ERR(svn_config_read3(&authz->cfg, path, must_exist, TRUE, TRUE,
+                             pool));
 
   if (groups_path)
     {
@@ -953,8 +952,8 @@ svn_repos__authz_read(svn_authz_t **authz_p, const char *path,
 
       /* Load the groups file */
       if (accept_urls)
-        SVN_ERR(authz_retrieve_config(&groups_cfg, groups_path, must_exist,
-                                      pool));
+        SVN_ERR(svn_repos__retrieve_config(&groups_cfg, groups_path,
+                                           must_exist, TRUE, pool));
       else
         SVN_ERR(svn_config_read3(&groups_cfg, groups_path, must_exist,
                                  TRUE, TRUE, pool));
@@ -971,7 +970,7 @@ svn_repos__authz_read(svn_authz_t **authz_p, const char *path,
     }
 
   /* Make sure there are no errors in the configuration. */
-  SVN_ERR(authz_validate(authz, pool));
+  SVN_ERR(svn_repos__authz_validate(authz, pool));
 
   *authz_p = authz;
   return SVN_NO_ERROR;
@@ -1011,7 +1010,7 @@ svn_repos_authz_parse(svn_authz_t **authz_p, svn_stream_t *stream,
     }
 
   /* Make sure there are no errors in the configuration. */
-  SVN_ERR(authz_validate(authz, pool));
+  SVN_ERR(svn_repos__authz_validate(authz, pool));
 
   *authz_p = authz;
   return SVN_NO_ERROR;

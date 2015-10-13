@@ -39,7 +39,7 @@
 
 #include "_elftc.h"
 
-ELFTC_VCSID("$Id: addr2line.c 3197 2015-05-12 21:01:31Z emaste $");
+ELFTC_VCSID("$Id: addr2line.c 3249 2015-10-04 08:11:30Z kaiwang27 $");
 
 static struct option longopts[] = {
 	{"target" , required_argument, NULL, 'b'},
@@ -61,7 +61,7 @@ Usage: %s [options] hexaddress...\n\
   Map program addresses to source file names and line numbers.\n\n\
   Options:\n\
   -b TGT  | --target=TGT      (Accepted but ignored).\n\
-  -e EXE  | --exec=EXE        Use program \"EXE\" to translate addresses.\n\
+  -e EXE  | --exe=EXE         Use program \"EXE\" to translate addresses.\n\
   -f      | --functions       Display function names.\n\
   -j NAME | --section=NAME    Values are offsets into section \"NAME\".\n\
   -s      | --basename        Only show the base name for each file name.\n\
@@ -123,8 +123,7 @@ handle_high_pc(Dwarf_Die die, Dwarf_Unsigned lopc, Dwarf_Unsigned *hipc)
 }
 
 static void
-search_func(Dwarf_Debug dbg, Dwarf_Die die, Dwarf_Addr addr,
-    const char **rlt_func)
+search_func(Dwarf_Debug dbg, Dwarf_Die die, Dwarf_Addr addr, char **rlt_func)
 {
 	Dwarf_Die ret_die, spec_die;
 	Dwarf_Error de;
@@ -133,10 +132,11 @@ search_func(Dwarf_Debug dbg, Dwarf_Die die, Dwarf_Addr addr,
 	Dwarf_Off ref;
 	Dwarf_Attribute sub_at, spec_at;
 	char *func0;
+	const char *func1;
 	int ret;
 
 	if (*rlt_func != NULL)
-		return;
+		goto done;
 
 	if (dwarf_tag(die, &tag, &de)) {
 		warnx("dwarf_tag: %s", dwarf_errmsg(de));
@@ -153,16 +153,19 @@ search_func(Dwarf_Debug dbg, Dwarf_Die die, Dwarf_Addr addr,
 
 		/* Found it! */
 
-		*rlt_func = unknown;
+		if ((*rlt_func = strdup(unknown)) == NULL)
+			err(EXIT_FAILURE, "strdup");
 		ret = dwarf_attr(die, DW_AT_name, &sub_at, &de);
 		if (ret == DW_DLV_ERROR)
-			return;
+			goto done;
 		if (ret == DW_DLV_OK) {
-			if (dwarf_formstring(sub_at, &func0, &de))
-				*rlt_func = unknown;
-			else
-				*rlt_func = func0;
-			return;
+			if (dwarf_formstring(sub_at, &func0, &de) ==
+			    DW_DLV_OK) {
+				free(*rlt_func);
+				if ((*rlt_func = strdup(func0)) == NULL)
+					err(EXIT_FAILURE, "strdup");
+			}
+			goto done;
 		}
 
 		/*
@@ -171,15 +174,19 @@ search_func(Dwarf_Debug dbg, Dwarf_Die die, Dwarf_Addr addr,
 		 * referenced by DW_AT_specification.
 		 */
 		if (dwarf_attr(die, DW_AT_specification, &spec_at, &de))
-			return;
+			goto done;
 		if (dwarf_global_formref(spec_at, &ref, &de))
-			return;
+			goto done;
 		if (dwarf_offdie(dbg, ref, &spec_die, &de))
-			return;
-		if (dwarf_attrval_string(spec_die, DW_AT_name, rlt_func, &de))
-			*rlt_func = unknown;
+			goto done;
+		if (dwarf_attrval_string(spec_die, DW_AT_name, &func1, &de) ==
+		    DW_DLV_OK) {
+			free(*rlt_func);
+			if ((*rlt_func = strdup(func1)) == NULL)
+			    err(EXIT_FAILURE, "strdup");
+		}
 
-		return;
+		goto done;
 	}
 
 cont_search:
@@ -197,19 +204,22 @@ cont_search:
 		errx(EXIT_FAILURE, "dwarf_siblingof: %s", dwarf_errmsg(de));
 	else if (ret == DW_DLV_OK)
 		search_func(dbg, ret_die, addr, rlt_func);
+
+done:
+	dwarf_dealloc(dbg, die, DW_DLA_DIE);
 }
 
 static void
 translate(Dwarf_Debug dbg, const char* addrstr)
 {
-	Dwarf_Die die;
+	Dwarf_Die die, ret_die;
 	Dwarf_Line *lbuf;
 	Dwarf_Error de;
 	Dwarf_Half tag;
 	Dwarf_Unsigned lopc, hipc, addr, lineno, plineno;
 	Dwarf_Signed lcount;
 	Dwarf_Addr lineaddr, plineaddr;
-	const char *funcname;
+	char *funcname;
 	char *file, *file0, *pfile;
 	char demangled[1024];
 	int i, ret;
@@ -218,23 +228,30 @@ translate(Dwarf_Debug dbg, const char* addrstr)
 	addr += section_base;
 	lineno = 0;
 	file = unknown;
+	die = NULL;
+	lbuf = NULL;
+	lcount = 0;
 
 	while ((ret = dwarf_next_cu_header(dbg, NULL, NULL, NULL, NULL, NULL,
 	    &de)) ==  DW_DLV_OK) {
 		die = NULL;
-		while (dwarf_siblingof(dbg, die, &die, &de) == DW_DLV_OK) {
+		while (dwarf_siblingof(dbg, die, &ret_die, &de) == DW_DLV_OK) {
+			if (die != NULL)
+				dwarf_dealloc(dbg, die, DW_DLA_DIE);
+			die = ret_die;
 			if (dwarf_tag(die, &tag, &de) != DW_DLV_OK) {
 				warnx("dwarf_tag failed: %s",
 				    dwarf_errmsg(de));
-				goto out;
+				goto next_cu;
 			}
+
 			/* XXX: What about DW_TAG_partial_unit? */
 			if (tag == DW_TAG_compile_unit)
 				break;
 		}
-		if (die == NULL) {
+		if (ret_die == NULL) {
 			warnx("could not find DW_TAG_compile_unit die");
-			goto out;
+			goto next_cu;
 		}
 		if (!dwarf_attrval_unsigned(die, DW_AT_low_pc, &lopc, &de) &&
 		    !dwarf_attrval_unsigned(die, DW_AT_high_pc, &hipc, &de)) {
@@ -243,17 +260,17 @@ translate(Dwarf_Debug dbg, const char* addrstr)
 			 * this CU.
 			 */
 			if (handle_high_pc(die, lopc, &hipc) != DW_DLV_OK)
-				continue;
+				goto next_cu;
 			if (addr < lopc || addr >= hipc)
-				continue;
+				goto next_cu;
 		}
 
 		switch (dwarf_srclines(die, &lbuf, &lcount, &de)) {
 		case DW_DLV_OK:
 			break;
 		case DW_DLV_NO_ENTRY:
-			/* If one CU lacks debug info, just skip it. */
-			continue;
+			/* If a CU lacks debug info, just skip it. */
+			goto next_cu;
 		default:
 			warnx("dwarf_srclines: %s", dwarf_errmsg(de));
 			goto out;
@@ -289,24 +306,36 @@ translate(Dwarf_Debug dbg, const char* addrstr)
 			plineno = lineno;
 			pfile = file;
 		}
+	next_cu:
+		if (die != NULL) {
+			dwarf_dealloc(dbg, die, DW_DLA_DIE);
+			die = NULL;
+		}
 	}
 
 out:
 	funcname = NULL;
-	if (ret == DW_DLV_OK && func)
+	if (ret == DW_DLV_OK && func) {
 		search_func(dbg, die, addr, &funcname);
+		die = NULL;
+	}
 
 	if (func) {
 		if (funcname == NULL)
-			funcname = unknown;
+			if ((funcname = strdup(unknown)) == NULL)
+				err(EXIT_FAILURE, "strdup");
 		if (demangle &&
 		    !elftc_demangle(funcname, demangled, sizeof(demangled), 0))
 			printf("%s\n", demangled);
 		else
 			printf("%s\n", funcname);
+		free(funcname);
 	}
 
 	(void) printf("%s:%ju\n", base ? basename(file) : file, lineno);
+
+	if (die != NULL)
+		dwarf_dealloc(dbg, die, DW_DLA_DIE);
 
 	/*
 	 * Reset internal CU pointer, so we will start from the first CU

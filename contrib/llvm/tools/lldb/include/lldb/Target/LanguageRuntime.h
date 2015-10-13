@@ -34,6 +34,9 @@ public:
     
     static LanguageRuntime* 
     FindPlugin (Process *process, lldb::LanguageType language);
+
+    static void
+    InitializeCommands (CommandObject* parent);
     
     virtual lldb::LanguageType
     GetLanguageType () const = 0;
@@ -80,16 +83,27 @@ public:
     
     static lldb::BreakpointSP
     CreateExceptionBreakpoint (Target &target,
-                               lldb::LanguageType language, 
+                               lldb::LanguageType language,
                                bool catch_bp, 
                                bool throw_bp, 
                                bool is_internal = false);
-                            
+
+    static Breakpoint::BreakpointPreconditionSP
+    CreateExceptionPrecondition (lldb::LanguageType language,
+                                 bool catch_bp,
+                                 bool throw_bp);
+
     static lldb::LanguageType
     GetLanguageTypeFromString (const char *string);
     
     static const char *
     GetNameForLanguageType (lldb::LanguageType language);
+
+    static void
+    PrintAllLanguages (Stream &s, const char *prefix, const char *suffix);
+
+    static bool
+    LanguageIsCPlusPlus (lldb::LanguageType language);
     
     Process *
     GetProcess()
@@ -102,6 +116,25 @@ public:
     
     virtual lldb::SearchFilterSP
     CreateExceptionSearchFilter ();
+    
+    virtual bool
+    GetTypeBitSize (const ClangASTType& clang_type,
+                    uint64_t &size)
+    {
+        return false;
+    }
+    
+    virtual bool
+    IsRuntimeSupportValue (ValueObject& valobj)
+    {
+        return false;
+    }
+
+    virtual void
+    ModulesDidLoad (const ModuleList &module_list)
+    {
+        return;
+    }
 
 protected:
     //------------------------------------------------------------------

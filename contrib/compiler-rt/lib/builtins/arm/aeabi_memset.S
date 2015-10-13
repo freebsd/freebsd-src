@@ -32,3 +32,4 @@ END_COMPILERRT_FUNCTION(__aeabi_memclr)
 DEFINE_AEABI_FUNCTION_ALIAS(__aeabi_memclr4, __aeabi_memclr)
 DEFINE_AEABI_FUNCTION_ALIAS(__aeabi_memclr8, __aeabi_memclr)
 
+	.section .note.GNU-stack,"",%progbits

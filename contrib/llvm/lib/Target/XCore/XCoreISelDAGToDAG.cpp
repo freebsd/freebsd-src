@@ -37,20 +37,18 @@ using namespace llvm;
 ///
 namespace {
   class XCoreDAGToDAGISel : public SelectionDAGISel {
-    const XCoreSubtarget &Subtarget;
 
   public:
     XCoreDAGToDAGISel(XCoreTargetMachine &TM, CodeGenOpt::Level OptLevel)
-      : SelectionDAGISel(TM, OptLevel),
-        Subtarget(*TM.getSubtargetImpl()) { }
+      : SelectionDAGISel(TM, OptLevel) {}
 
     SDNode *Select(SDNode *N) override;
     SDNode *SelectBRIND(SDNode *N);
 
     /// getI32Imm - Return a target constant with the specified value, of type
     /// i32.
-    inline SDValue getI32Imm(unsigned Imm) {
-      return CurDAG->getTargetConstant(Imm, MVT::i32);
+    inline SDValue getI32Imm(unsigned Imm, SDLoc dl) {
+      return CurDAG->getTargetConstant(Imm, dl, MVT::i32);
     }
 
     inline bool immMskBitp(SDNode *inN) const {
@@ -67,7 +65,7 @@ namespace {
     // Complex Pattern Selectors.
     bool SelectADDRspii(SDValue Addr, SDValue &Base, SDValue &Offset);
 
-    bool SelectInlineAsmMemoryOperand(const SDValue &Op, char ConstraintCode,
+    bool SelectInlineAsmMemoryOperand(const SDValue &Op, unsigned ConstraintID,
                                       std::vector<SDValue> &OutOps) override;
 
     const char *getPassName() const override {
@@ -92,7 +90,7 @@ bool XCoreDAGToDAGISel::SelectADDRspii(SDValue Addr, SDValue &Base,
   FrameIndexSDNode *FIN = nullptr;
   if ((FIN = dyn_cast<FrameIndexSDNode>(Addr))) {
     Base = CurDAG->getTargetFrameIndex(FIN->getIndex(), MVT::i32);
-    Offset = CurDAG->getTargetConstant(0, MVT::i32);
+    Offset = CurDAG->getTargetConstant(0, SDLoc(Addr), MVT::i32);
     return true;
   }
   if (Addr.getOpcode() == ISD::ADD) {
@@ -102,7 +100,8 @@ bool XCoreDAGToDAGISel::SelectADDRspii(SDValue Addr, SDValue &Base,
       && (CN->getSExtValue() % 4 == 0 && CN->getSExtValue() >= 0)) {
       // Constant positive word offset from frame index
       Base = CurDAG->getTargetFrameIndex(FIN->getIndex(), MVT::i32);
-      Offset = CurDAG->getTargetConstant(CN->getSExtValue(), MVT::i32);
+      Offset = CurDAG->getTargetConstant(CN->getSExtValue(), SDLoc(Addr),
+                                         MVT::i32);
       return true;
     }
   }
@@ -110,12 +109,12 @@ bool XCoreDAGToDAGISel::SelectADDRspii(SDValue Addr, SDValue &Base,
 }
 
 bool XCoreDAGToDAGISel::
-SelectInlineAsmMemoryOperand(const SDValue &Op, char ConstraintCode,
+SelectInlineAsmMemoryOperand(const SDValue &Op, unsigned ConstraintID,
                              std::vector<SDValue> &OutOps) {
   SDValue Reg;
-  switch (ConstraintCode) {
+  switch (ConstraintID) {
   default: return true;
-  case 'm': // Memory.
+  case InlineAsm::Constraint_m: // Memory.
     switch (Op.getOpcode()) {
     default: return true;
     case XCoreISD::CPRelativeWrapper:
@@ -140,15 +139,14 @@ SDNode *XCoreDAGToDAGISel::Select(SDNode *N) {
     if (immMskBitp(N)) {
       // Transformation function: get the size of a mask
       // Look for the first non-zero bit
-      SDValue MskSize = getI32Imm(32 - countLeadingZeros((uint32_t)Val));
+      SDValue MskSize = getI32Imm(32 - countLeadingZeros((uint32_t)Val), dl);
       return CurDAG->getMachineNode(XCore::MKMSK_rus, dl,
                                     MVT::i32, MskSize);
     }
     else if (!isUInt<16>(Val)) {
-      SDValue CPIdx =
-        CurDAG->getTargetConstantPool(ConstantInt::get(
-                              Type::getInt32Ty(*CurDAG->getContext()), Val),
-                                      getTargetLowering()->getPointerTy());
+      SDValue CPIdx = CurDAG->getTargetConstantPool(
+          ConstantInt::get(Type::getInt32Ty(*CurDAG->getContext()), Val),
+          getTargetLowering()->getPointerTy(CurDAG->getDataLayout()));
       SDNode *node = CurDAG->getMachineNode(XCore::LDWCP_lru6, dl, MVT::i32,
                                             MVT::Other, CPIdx,
                                             CurDAG->getEntryNode());
@@ -258,7 +256,7 @@ SDNode *XCoreDAGToDAGISel::SelectBRIND(SDNode *N) {
   // after with clrsr 1. If any resources owned by the thread are ready an event
   // will be taken. If no resource is ready we branch to the address which was
   // the operand to the checkevent intrinsic.
-  SDValue constOne = getI32Imm(1);
+  SDValue constOne = getI32Imm(1, dl);
   SDValue Glue =
     SDValue(CurDAG->getMachineNode(XCore::SETSR_branch_u6, dl, MVT::Glue,
                                    constOne, Chain), 0);

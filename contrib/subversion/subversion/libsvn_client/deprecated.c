@@ -627,6 +627,28 @@ svn_client_commit(svn_client_commit_info_t **commit_info_p,
 
 /*** From copy.c ***/
 svn_error_t *
+svn_client_copy6(const apr_array_header_t *sources,
+                 const char *dst_path,
+                 svn_boolean_t copy_as_child,
+                 svn_boolean_t make_parents,
+                 svn_boolean_t ignore_externals,
+                 const apr_hash_t *revprop_table,
+                 svn_commit_callback2_t commit_callback,
+                 void *commit_baton,
+                 svn_client_ctx_t *ctx,
+                 apr_pool_t *pool)
+{
+  return svn_error_trace(svn_client_copy7(sources, dst_path, copy_as_child,
+                                          make_parents, ignore_externals,
+                                          FALSE /* metadata_only */,
+                                          FALSE /* pin_externals */,
+                                          NULL /* externals_to_pin */,
+                                          revprop_table,
+                                          commit_callback, commit_baton,
+                                          ctx, pool));
+}
+
+svn_error_t *
 svn_client_copy5(svn_commit_info_t **commit_info_p,
                  const apr_array_header_t *sources,
                  const char *dst_path,
@@ -1498,6 +1520,7 @@ svn_client_ls(apr_hash_t **dirents,
 }
 
 /*** From log.c ***/
+
 svn_error_t *
 svn_client_log4(const apr_array_header_t *targets,
                 const svn_opt_revision_t *peg_revision,
@@ -1970,8 +1993,8 @@ svn_client_propget3(apr_hash_t **props,
       for (hi = apr_hash_first(pool, temp_props); hi;
             hi = apr_hash_next(hi))
         {
-          const char *abspath = svn__apr_hash_index_key(hi);
-          svn_string_t *value = svn__apr_hash_index_val(hi);
+          const char *abspath = apr_hash_this_key(hi);
+          svn_string_t *value = apr_hash_this_val(hi);
           const char *relpath = svn_dirent_join(path_or_url,
                                      svn_dirent_skip_ancestor(target, abspath),
                                      pool);
@@ -2031,9 +2054,9 @@ string_hash_dup(apr_hash_t *hash, apr_pool_t *pool)
 
   for (hi = apr_hash_first(pool, hash); hi; hi = apr_hash_next(hi))
     {
-      const char *key = apr_pstrdup(pool, svn__apr_hash_index_key(hi));
-      apr_ssize_t klen = svn__apr_hash_index_klen(hi);
-      svn_string_t *val = svn_string_dup(svn__apr_hash_index_val(hi), pool);
+      const char *key = apr_pstrdup(pool, apr_hash_this_key(hi));
+      apr_ssize_t klen = apr_hash_this_key_len(hi);
+      svn_string_t *val = svn_string_dup(apr_hash_this_val(hi), pool);
 
       apr_hash_set(new_hash, key, klen, val);
     }
@@ -2184,6 +2207,28 @@ svn_client_proplist(apr_array_header_t **props,
 }
 
 /*** From status.c ***/
+
+svn_error_t *
+svn_client_status5(svn_revnum_t *result_rev,
+                   svn_client_ctx_t *ctx,
+                   const char *path,
+                   const svn_opt_revision_t *revision,
+                   svn_depth_t depth,
+                   svn_boolean_t get_all,
+                   svn_boolean_t update,
+                   svn_boolean_t no_ignore,
+                   svn_boolean_t ignore_externals,
+                   svn_boolean_t depth_as_sticky,
+                   const apr_array_header_t *changelists,
+                   svn_client_status_func_t status_func,
+                   void *status_baton,
+                   apr_pool_t *scratch_pool)
+{
+  return svn_client_status6(result_rev, ctx, path, revision, depth,
+                            get_all, update, TRUE, no_ignore,
+                            ignore_externals, depth_as_sticky, changelists,
+                            status_func, status_baton, scratch_pool);
+}
 
 struct status4_wrapper_baton
 {
@@ -2439,6 +2484,21 @@ svn_client_switch(svn_revnum_t *result_rev,
 
 /*** From cat.c ***/
 svn_error_t *
+svn_client_cat2(svn_stream_t *out,
+                const char *path_or_url,
+                const svn_opt_revision_t *peg_revision,
+                const svn_opt_revision_t *revision,
+                svn_client_ctx_t *ctx,
+                apr_pool_t *pool)
+{
+  return svn_client_cat3(NULL /* props */,
+                         out, path_or_url, peg_revision, revision,
+                         TRUE /* expand_keywords */,
+                         ctx, pool, pool);
+}
+
+
+svn_error_t *
 svn_client_cat(svn_stream_t *out,
                const char *path_or_url,
                const svn_opt_revision_t *revision,
@@ -2486,6 +2546,32 @@ svn_client_checkout(svn_revnum_t *result_rev,
 }
 
 /*** From info.c ***/
+
+svn_error_t *
+svn_client_info3(const char *abspath_or_url,
+                 const svn_opt_revision_t *peg_revision,
+                 const svn_opt_revision_t *revision,
+                 svn_depth_t depth,
+                 svn_boolean_t fetch_excluded,
+                 svn_boolean_t fetch_actual_only,
+                 const apr_array_header_t *changelists,
+                 svn_client_info_receiver2_t receiver,
+                 void *receiver_baton,
+                 svn_client_ctx_t *ctx,
+                 apr_pool_t *pool)
+{
+  return svn_error_trace(
+            svn_client_info4(abspath_or_url,
+                             peg_revision,
+                             revision,
+                             depth,
+                             fetch_excluded,
+                             fetch_actual_only,
+                             FALSE /* include_externals */,
+                             changelists,
+                             receiver, receiver_baton,
+                             ctx, pool));
+}
 
 svn_info_t *
 svn_info_dup(const svn_info_t *info, apr_pool_t *pool)
@@ -2747,6 +2833,22 @@ svn_client_resolved(const char *path,
 }
 /*** From revert.c ***/
 svn_error_t *
+svn_client_revert2(const apr_array_header_t *paths,
+                   svn_depth_t depth,
+                   const apr_array_header_t *changelists,
+                   svn_client_ctx_t *ctx,
+                   apr_pool_t *pool)
+{
+  return svn_error_trace(svn_client_revert3(paths,
+                                            depth,
+                                            changelists,
+                                            FALSE /* clear_changelists */,
+                                            FALSE /* metadata_only */,
+                                            ctx,
+                                            pool));
+}
+
+svn_error_t *
 svn_client_revert(const apr_array_header_t *paths,
                   svn_boolean_t recursive,
                   svn_client_ctx_t *ctx,
@@ -2783,7 +2885,7 @@ svn_client_uuid_from_url(const char **uuid,
   /* destroy the RA session */
   svn_pool_destroy(subpool);
 
-  return svn_error_trace(err);;
+  return svn_error_trace(err);
 }
 
 svn_error_t *
@@ -2964,3 +3066,24 @@ svn_client_commit_item2_dup(const svn_client_commit_item2_t *item,
   return new_item;
 }
 
+svn_error_t *
+svn_client_cleanup(const char *path,
+                   svn_client_ctx_t *ctx,
+                   apr_pool_t *scratch_pool)
+{
+  const char *local_abspath;
+
+  if (svn_path_is_url(path))
+    return svn_error_createf(SVN_ERR_ILLEGAL_TARGET, NULL,
+                             _("'%s' is not a local path"), path);
+
+  SVN_ERR(svn_dirent_get_absolute(&local_abspath, path, scratch_pool));
+
+  return svn_error_trace(svn_client_cleanup2(local_abspath,
+                                             TRUE /* break_locks */,
+                                             TRUE /* fix_recorded_timestamps */,
+                                             TRUE /* clear_dav_cache */,
+                                             TRUE /* vacuum_pristines */,
+                                             FALSE /* include_externals */,
+                                             ctx, scratch_pool));
+}
