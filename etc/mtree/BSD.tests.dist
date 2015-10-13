@@ -410,6 +410,8 @@
             unlink
             ..
         ..
+        posixshm
+        ..
         vm
         ..
     ..

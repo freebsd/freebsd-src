@@ -79,7 +79,12 @@ main(int argc, char **argv)
 			/*
 			 * Can't use mkstemp for obvious reasons...
 			 */
-			strcpy(buf, "/tmp/shmtest.XXXXXXXXXXXX");
+			char *tmpdir = getenv("TMPDIR");
+			if (tmpdir == NULL)
+				tmpdir = "/tmp";
+			snprintf(buf, sizeof(buf) - 1,
+			    "%s/shmtest.XXXXXXXXXXXX", tmpdir);
+			buf[sizeof(buf) - 1] = '\0';
 			mktemp(buf);
 			desc = shm_open(buf, O_EXCL | O_CREAT | O_RDWR, 0600);
 		} while (desc < 0 && errno == EEXIST);
