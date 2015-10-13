@@ -51,7 +51,7 @@ __start:
 	/* Remove execute permission from $c0. */
 	dli       t0, ~__CHERI_CAP_PERMISSION_PERMIT_EXECUTE__
 	candperm  $c0, $c0, t0
-	/* Remove store permissions from $c0. */
+	/* Remove store permissions from PCC. */
 	dli       t0, (~__CHERI_CAP_PERMISSION_PERMIT_STORE__ & ~__CHERI_CAP_PERMISSION_PERMIT_STORE_CAPABILITY__)
 	dli       t1, 6 * 4
 	cgetpcc   $c5
