@@ -22,7 +22,6 @@ cpu		ARM64
 ident		GENERIC
 
 makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
-makeoptions	NO_MODULES=1		# We don't yet support modules on arm64
 
 options 	SCHED_ULE		# ULE scheduler
 options 	PREEMPTION		# Enable kernel thread preemption
@@ -84,6 +83,11 @@ options 	WITNESS			# Enable checks to detect deadlocks and cycles
 options 	WITNESS_SKIPSPIN	# Don't run witness on spinlocks for speed
 options 	MALLOC_DEBUG_MAXZONES=8	# Separate malloc(9) zones
 
+# SoC support
+options 	SOC_CAVM_THUNDERX
+options 	SOC_HISI_HI6220
+
+# VirtIO support
 device		virtio
 device		virtio_mmio
 device		virtio_blk
@@ -91,7 +95,6 @@ device		vtnet
 
 # Bus drivers
 device		pci
-device		thunder_pci
 
 # Ethernet NICs
 device		em		# Intel PRO/1000 Gigabit Ethernet Family
@@ -103,9 +106,25 @@ device		ahci
 device		scbus
 device		da
 
+# ATA/SCSI peripherals
+device		pass		# Passthrough device (direct ATA/SCSI access)
+
+# MMC/SD/SDIO Card slot support
+device		mmc			# mmc/sd bus
+device		mmcsd			# mmc/sd flash cards
+device		dwmmc
+
 # Serial (COM) ports
 device		uart		# Generic UART driver
 device		pl011
+
+# USB support
+options 	USB_DEBUG		# enable debug msgs
+device		dwcotg			# DWC OTG controller
+device		xhci			# XHCI PCI->USB interface (USB 3.0)
+device		usb			# USB Bus (required)
+device		ukbd			# Keyboard
+device		umass			# Disks/Mass storage - Requires scbus and da
 
 # Pseudo devices.
 device		loop		# Network loopback

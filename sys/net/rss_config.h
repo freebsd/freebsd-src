@@ -93,6 +93,21 @@
 #define	RSS_HASH_PKT_EGRESS	1
 
 /*
+ * Rate limited debugging routines.
+ */
+#define	RSS_DEBUG(format, ...)	do {					\
+	if (rss_debug) {						\
+		static struct timeval lastfail;				\
+		static int curfail;					\
+		if (ppsratecheck(&lastfail, &curfail, 5))		\
+			printf("RSS (%s:%u): " format, __func__, __LINE__,\
+			    ##__VA_ARGS__);				\
+	}								\
+} while (0)
+
+extern int	rss_debug;
+
+/*
  * Device driver interfaces to query RSS properties that must be programmed
  * into hardware.
  */

@@ -121,9 +121,6 @@ enum svc_rpc_gss_client_state {
 };
 
 #define SVC_RPC_GSS_SEQWINDOW	128
-#ifndef RPCAUTH_UNIXGIDS
-#define RPCAUTH_UNIXGIDS	16
-#endif
 
 struct svc_rpc_gss_clientid {
 	unsigned long		ci_hostid;
@@ -150,7 +147,7 @@ struct svc_rpc_gss_client {
 	int			cl_rpcflavor;	/* RPC pseudo sec flavor */
 	bool_t			cl_done_callback; /* TRUE after call */
 	void			*cl_cookie;	/* user cookie from callback */
-	gid_t			cl_gid_storage[RPCAUTH_UNIXGIDS];
+	gid_t			cl_gid_storage[NGROUPS];
 	gss_OID			cl_mech;	/* mechanism */
 	gss_qop_t		cl_qop;		/* quality of protection */
 	uint32_t		cl_seqlast;	/* sequence window origin */
@@ -776,7 +773,7 @@ svc_rpc_gss_build_ucred(struct svc_rpc_gss_client *client,
 	uc->gid = 65534;
 	uc->gidlist = client->cl_gid_storage;
 
-	numgroups = RPCAUTH_UNIXGIDS;
+	numgroups = NGROUPS;
 	maj_stat = gss_pname_to_unix_cred(&min_stat, name, client->cl_mech,
 	    &uc->uid, &uc->gid, &numgroups, &uc->gidlist[0]);
 	if (GSS_ERROR(maj_stat))

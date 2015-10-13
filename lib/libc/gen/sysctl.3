@@ -28,7 +28,7 @@
 .\"	@(#)sysctl.3	8.4 (Berkeley) 5/9/95
 .\" $FreeBSD$
 .\"
-.Dd May 17, 2013
+.Dd September 10, 2015
 .Dt SYSCTL 3
 .Os
 .Sh NAME
@@ -736,8 +736,6 @@ privilege may change the value.
 .It "VM_LOADAVG	struct loadavg	no"
 .It "VM_TOTAL	struct vmtotal	no"
 .It "VM_SWAPPING_ENABLED	integer	maybe"
-.It "VM_V_CACHE_MAX	integer	yes"
-.It "VM_V_CACHE_MIN	integer	yes"
 .It "VM_V_FREE_MIN	integer	yes"
 .It "VM_V_FREE_RESERVED	integer	yes"
 .It "VM_V_FREE_TARGET	integer	yes"
@@ -757,12 +755,6 @@ The returned data consists of a
 1 if process swapping is enabled or 0 if disabled.
 This variable is
 permanently set to 0 if the kernel was built with swapping disabled.
-.It Li VM_V_CACHE_MAX
-Maximum desired size of the cache queue.
-.It Li VM_V_CACHE_MIN
-Minimum desired size of the cache queue.
-If the cache queue size
-falls very far below this value, the pageout daemon is awakened.
 .It Li VM_V_FREE_MIN
 Minimum amount of memory (cache memory plus free memory)
 required to be available before a process waiting on memory will be

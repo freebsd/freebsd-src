@@ -63,7 +63,7 @@ enum PPC970_Unit {
 };
 } // end namespace PPCII
 
-
+class PPCSubtarget;
 class PPCInstrInfo : public PPCGenInstrInfo {
   PPCSubtarget &Subtarget;
   const PPCRegisterInfo RI;
@@ -95,6 +95,10 @@ public:
   CreateTargetPostRAHazardRecognizer(const InstrItineraryData *II,
                                      const ScheduleDAG *DAG) const override;
 
+  unsigned getInstrLatency(const InstrItineraryData *ItinData,
+                           const MachineInstr *MI,
+                           unsigned *PredCost = nullptr) const override;
+
   int getOperandLatency(const InstrItineraryData *ItinData,
                         const MachineInstr *DefMI, unsigned DefIdx,
                         const MachineInstr *UseMI,
@@ -106,7 +110,7 @@ public:
                                               UseNode, UseIdx);
   }
 
-  bool hasLowDefLatency(const InstrItineraryData *ItinData,
+  bool hasLowDefLatency(const TargetSchedModel &SchedModel,
                         const MachineInstr *DefMI,
                         unsigned DefIdx) const override {
     // Machine LICM should hoist all instructions in low-register-pressure
@@ -141,18 +145,14 @@ public:
                      bool AllowModify) const override;
   unsigned RemoveBranch(MachineBasicBlock &MBB) const override;
   unsigned InsertBranch(MachineBasicBlock &MBB, MachineBasicBlock *TBB,
-                        MachineBasicBlock *FBB,
-                        const SmallVectorImpl<MachineOperand> &Cond,
+                        MachineBasicBlock *FBB, ArrayRef<MachineOperand> Cond,
                         DebugLoc DL) const override;
 
   // Select analysis.
-  bool canInsertSelect(const MachineBasicBlock&,
-                       const SmallVectorImpl<MachineOperand> &Cond,
-                       unsigned, unsigned, int&, int&, int&) const override;
-  void insertSelect(MachineBasicBlock &MBB,
-                    MachineBasicBlock::iterator MI, DebugLoc DL,
-                    unsigned DstReg,
-                    const SmallVectorImpl<MachineOperand> &Cond,
+  bool canInsertSelect(const MachineBasicBlock &, ArrayRef<MachineOperand> Cond,
+                       unsigned, unsigned, int &, int &, int &) const override;
+  void insertSelect(MachineBasicBlock &MBB, MachineBasicBlock::iterator MI,
+                    DebugLoc DL, unsigned DstReg, ArrayRef<MachineOperand> Cond,
                     unsigned TrueReg, unsigned FalseReg) const override;
 
   void copyPhysReg(MachineBasicBlock &MBB,
@@ -211,10 +211,10 @@ public:
   bool isUnpredicatedTerminator(const MachineInstr *MI) const override;
 
   bool PredicateInstruction(MachineInstr *MI,
-                    const SmallVectorImpl<MachineOperand> &Pred) const override;
+                            ArrayRef<MachineOperand> Pred) const override;
 
-  bool SubsumesPredicate(const SmallVectorImpl<MachineOperand> &Pred1,
-                   const SmallVectorImpl<MachineOperand> &Pred2) const override;
+  bool SubsumesPredicate(ArrayRef<MachineOperand> Pred1,
+                         ArrayRef<MachineOperand> Pred2) const override;
 
   bool DefinesPredicate(MachineInstr *MI,
                         std::vector<MachineOperand> &Pred) const override;

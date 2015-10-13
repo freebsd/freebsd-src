@@ -107,6 +107,7 @@ static void update_mcast(void *, int);
 static void update_promisc(void *, int);
 static void update_channel(void *, int);
 static void update_chw(void *, int);
+static void update_wme(void *, int);
 static void ieee80211_newstate_cb(void *, int);
 
 static int
@@ -122,28 +123,29 @@ null_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 void
 ieee80211_proto_attach(struct ieee80211com *ic)
 {
-	struct ifnet *ifp = ic->ic_ifp;
+	uint8_t hdrlen;
 
 	/* override the 802.3 setting */
-	ifp->if_hdrlen = ic->ic_headroom
+	hdrlen = ic->ic_headroom
 		+ sizeof(struct ieee80211_qosframe_addr4)
 		+ IEEE80211_WEP_IVLEN + IEEE80211_WEP_KIDLEN
 		+ IEEE80211_WEP_EXTIVLEN;
 	/* XXX no way to recalculate on ifdetach */
-	if (ALIGN(ifp->if_hdrlen) > max_linkhdr) {
+	if (ALIGN(hdrlen) > max_linkhdr) {
 		/* XXX sanity check... */
-		max_linkhdr = ALIGN(ifp->if_hdrlen);
+		max_linkhdr = ALIGN(hdrlen);
 		max_hdr = max_linkhdr + max_protohdr;
 		max_datalen = MHLEN - max_hdr;
 	}
 	ic->ic_protmode = IEEE80211_PROT_CTSONLY;
 
-	TASK_INIT(&ic->ic_parent_task, 0, parent_updown, ifp);
+	TASK_INIT(&ic->ic_parent_task, 0, parent_updown, ic);
 	TASK_INIT(&ic->ic_mcast_task, 0, update_mcast, ic);
 	TASK_INIT(&ic->ic_promisc_task, 0, update_promisc, ic);
 	TASK_INIT(&ic->ic_chan_task, 0, update_channel, ic);
 	TASK_INIT(&ic->ic_bmiss_task, 0, beacon_miss, ic);
 	TASK_INIT(&ic->ic_chw_task, 0, update_chw, ic);
+	TASK_INIT(&ic->ic_wme_task, 0, update_wme, ic);
 
 	ic->ic_wme.wme_hipri_switch_hysteresis =
 		AGGRESSIVE_MODE_SWITCH_HYSTERESIS;
@@ -188,7 +190,10 @@ ieee80211_proto_vattach(struct ieee80211vap *vap)
 	int i;
 
 	/* override the 802.3 setting */
-	ifp->if_hdrlen = ic->ic_ifp->if_hdrlen;
+	ifp->if_hdrlen = ic->ic_headroom
+                + sizeof(struct ieee80211_qosframe_addr4)
+                + IEEE80211_WEP_IVLEN + IEEE80211_WEP_KIDLEN
+                + IEEE80211_WEP_EXTIVLEN;
 
 	vap->iv_rtsthreshold = IEEE80211_RTS_DEFAULT;
 	vap->iv_fragthreshold = IEEE80211_FRAG_DEFAULT;
@@ -488,7 +493,6 @@ int
 ieee80211_fix_rate(struct ieee80211_node *ni,
 	struct ieee80211_rateset *nrs, int flags)
 {
-#define	RV(v)	((v) & IEEE80211_RATE_VAL)
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211com *ic = ni->ni_ic;
 	int i, j, rix, error;
@@ -542,7 +546,8 @@ ieee80211_fix_rate(struct ieee80211_node *ni,
 			 * Sort rates.
 			 */
 			for (j = i + 1; j < nrs->rs_nrates; j++) {
-				if (RV(nrs->rs_rates[i]) > RV(nrs->rs_rates[j])) {
+				if (IEEE80211_RV(nrs->rs_rates[i]) >
+				    IEEE80211_RV(nrs->rs_rates[j])) {
 					r = nrs->rs_rates[i];
 					nrs->rs_rates[i] = nrs->rs_rates[j];
 					nrs->rs_rates[j] = r;
@@ -601,8 +606,7 @@ ieee80211_fix_rate(struct ieee80211_node *ni,
 		    "ucastrate %x\n", __func__, fixedrate, ucastrate, flags);
 		return badrate | IEEE80211_RATE_BASIC;
 	} else
-		return RV(okrate);
-#undef RV
+		return IEEE80211_RV(okrate);
 }
 
 /*
@@ -1131,7 +1135,8 @@ ieee80211_wme_updateparams_locked(struct ieee80211vap *vap)
 		ieee80211_beacon_notify(vap, IEEE80211_BEACON_WME);
 	}
 
-	wme->wme_update(ic);
+	/* schedule the deferred WME update */
+	ieee80211_runtask(ic, &ic->ic_wme_task);
 
 	IEEE80211_DPRINTF(vap, IEEE80211_MSG_WME,
 	    "%s: WME params updated, cap_info 0x%x\n", __func__,
@@ -1155,9 +1160,9 @@ ieee80211_wme_updateparams(struct ieee80211vap *vap)
 static void
 parent_updown(void *arg, int npending)
 {
-	struct ifnet *parent = arg;
+	struct ieee80211com *ic = arg;
 
-	parent->if_ioctl(parent, SIOCSIFFLAGS, NULL);
+	ic->ic_parent(ic);
 }
 
 static void
@@ -1196,6 +1201,17 @@ update_chw(void *arg, int npending)
 	ic->ic_update_chw(ic);
 }
 
+static void
+update_wme(void *arg, int npending)
+{
+	struct ieee80211com *ic = arg;
+
+	/*
+	 * XXX should we defer the WME configuration update until now?
+	 */
+	ic->ic_wme.wme_update(ic);
+}
+
 /*
  * Block until the parent is in a known state.  This is
  * used after any operations that dispatch a task (e.g.
@@ -1211,6 +1227,7 @@ ieee80211_waitfor_parent(struct ieee80211com *ic)
 	ieee80211_draintask(ic, &ic->ic_chan_task);
 	ieee80211_draintask(ic, &ic->ic_bmiss_task);
 	ieee80211_draintask(ic, &ic->ic_chw_task);
+	ieee80211_draintask(ic, &ic->ic_wme_task);
 	taskqueue_unblock(ic->ic_tq);
 }
 
@@ -1259,7 +1276,6 @@ ieee80211_start_locked(struct ieee80211vap *vap)
 {
 	struct ifnet *ifp = vap->iv_ifp;
 	struct ieee80211com *ic = vap->iv_ic;
-	struct ifnet *parent = ic->ic_ifp;
 
 	IEEE80211_LOCK_ASSERT(ic);
 
@@ -1281,8 +1297,7 @@ ieee80211_start_locked(struct ieee80211vap *vap)
 		 * We are not running; if this we are the first vap
 		 * to be brought up auto-up the parent if necessary.
 		 */
-		if (ic->ic_nrunning++ == 0 &&
-		    (parent->if_drv_flags & IFF_DRV_RUNNING) == 0) {
+		if (ic->ic_nrunning++ == 0) {
 
 			/* reset the channel to a known good channel */
 			if (ieee80211_start_check_reset_chan(vap))
@@ -1290,8 +1305,7 @@ ieee80211_start_locked(struct ieee80211vap *vap)
 
 			IEEE80211_DPRINTF(vap,
 			    IEEE80211_MSG_STATE | IEEE80211_MSG_DEBUG,
-			    "%s: up parent %s\n", __func__, parent->if_xname);
-			parent->if_flags |= IFF_UP;
+			    "%s: up parent %s\n", __func__, ic->ic_name);
 			ieee80211_runtask(ic, &ic->ic_parent_task);
 			return;
 		}
@@ -1300,8 +1314,7 @@ ieee80211_start_locked(struct ieee80211vap *vap)
 	 * If the parent is up and running, then kick the
 	 * 802.11 state machine as appropriate.
 	 */
-	if ((parent->if_drv_flags & IFF_DRV_RUNNING) &&
-	    vap->iv_roaming != IEEE80211_ROAMING_MANUAL) {
+	if (vap->iv_roaming != IEEE80211_ROAMING_MANUAL) {
 		if (vap->iv_opmode == IEEE80211_M_STA) {
 #if 0
 			/* XXX bypasses scan too easily; disable for now */
@@ -1384,7 +1397,6 @@ ieee80211_stop_locked(struct ieee80211vap *vap)
 {
 	struct ieee80211com *ic = vap->iv_ic;
 	struct ifnet *ifp = vap->iv_ifp;
-	struct ifnet *parent = ic->ic_ifp;
 
 	IEEE80211_LOCK_ASSERT(ic);
 
@@ -1394,12 +1406,10 @@ ieee80211_stop_locked(struct ieee80211vap *vap)
 	ieee80211_new_state_locked(vap, IEEE80211_S_INIT, -1);
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 		ifp->if_drv_flags &= ~IFF_DRV_RUNNING;	/* mark us stopped */
-		if (--ic->ic_nrunning == 0 &&
-		    (parent->if_drv_flags & IFF_DRV_RUNNING)) {
+		if (--ic->ic_nrunning == 0) {
 			IEEE80211_DPRINTF(vap,
 			    IEEE80211_MSG_STATE | IEEE80211_MSG_DEBUG,
-			    "down parent %s\n", parent->if_xname);
-			parent->if_flags &= ~IFF_UP;
+			    "down parent %s\n", ic->ic_name);
 			ieee80211_runtask(ic, &ic->ic_parent_task);
 		}
 	}

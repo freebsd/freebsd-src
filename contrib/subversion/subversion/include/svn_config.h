@@ -95,6 +95,14 @@ typedef struct svn_config_t svn_config_t;
 #define SVN_CONFIG_OPTION_HTTP_BULK_UPDATES         "http-bulk-updates"
 /** @since New in 1.8. */
 #define SVN_CONFIG_OPTION_HTTP_MAX_CONNECTIONS      "http-max-connections"
+/** @since New in 1.9. */
+#define SVN_CONFIG_OPTION_HTTP_CHUNKED_REQUESTS     "http-chunked-requests"
+
+/** @since New in 1.9. */
+#define SVN_CONFIG_OPTION_SERF_LOG_COMPONENTS       "serf-log-components"
+/** @since New in 1.9. */
+#define SVN_CONFIG_OPTION_SERF_LOG_LEVEL            "serf-log-level"
+
 
 #define SVN_CONFIG_CATEGORY_CONFIG          "config"
 #define SVN_CONFIG_SECTION_AUTH                 "auth"
@@ -123,6 +131,8 @@ typedef struct svn_config_t svn_config_t;
 /** @deprecated Not used by Subversion since 2003/r847039 (well before 1.0) */
 #define SVN_CONFIG_OPTION_TEMPLATE_ROOT             "template-root"
 #define SVN_CONFIG_OPTION_ENABLE_AUTO_PROPS         "enable-auto-props"
+/** @since New in 1.9. */
+#define SVN_CONFIG_OPTION_ENABLE_MAGIC_FILE         "enable-magic-file"
 #define SVN_CONFIG_OPTION_NO_UNLOCK                 "no-unlock"
 #define SVN_CONFIG_OPTION_MIMETYPES_FILE            "mime-types-file"
 #define SVN_CONFIG_OPTION_PRESERVED_CF_EXTS         "preserved-conflict-file-exts"
@@ -130,6 +140,8 @@ typedef struct svn_config_t svn_config_t;
 #define SVN_CONFIG_OPTION_INTERACTIVE_CONFLICTS     "interactive-conflicts"
 /** @since New in 1.7. */
 #define SVN_CONFIG_OPTION_MEMORY_CACHE_SIZE         "memory-cache-size"
+/** @since New in 1.9. */
+#define SVN_CONFIG_OPTION_DIFF_IGNORE_CONTENT_TYPE  "diff-ignore-content-type"
 #define SVN_CONFIG_SECTION_TUNNELS              "tunnels"
 #define SVN_CONFIG_SECTION_AUTO_PROPS           "auto-props"
 /** @since New in 1.8. */
@@ -138,6 +150,8 @@ typedef struct svn_config_t svn_config_t;
 #define SVN_CONFIG_OPTION_SQLITE_EXCLUSIVE          "exclusive-locking"
 /** @since New in 1.8. */
 #define SVN_CONFIG_OPTION_SQLITE_EXCLUSIVE_CLIENTS  "exclusive-locking-clients"
+/** @since New in 1.9. */
+#define SVN_CONFIG_OPTION_SQLITE_BUSY_TIMEOUT       "busy-timeout"
 /** @} */
 
 /** @name Repository conf directory configuration files strings
@@ -177,7 +191,7 @@ typedef struct svn_config_t svn_config_t;
 #define SVN_CONFIG__DEFAULT_GLOBAL_IGNORES_LINE_1 \
   "*.o *.lo *.la *.al .libs *.so *.so.[0-9]* *.a *.pyc *.pyo __pycache__"
 #define SVN_CONFIG__DEFAULT_GLOBAL_IGNORES_LINE_2 \
-  "*.rej *~ #*# .#* .*.swp .DS_Store"
+  "*.rej *~ #*# .#* .*.swp .DS_Store [Tt]humbs.db"
 #endif
 
 #define SVN_CONFIG_DEFAULT_GLOBAL_IGNORES \
@@ -659,10 +673,66 @@ svn_config_ensure(const char *config_dir,
  */
 
 
-/** A hash-key pointing to a realmstring.  Every file containing
- * authentication data should have this key.
+/**
+ * Attributes of authentication credentials.
+ *
+ * The values of these keys are C strings.
+ *
+ * @note Some of these hash keys were also used in versions < 1.9 but were
+ *       not part of the public API (except #SVN_CONFIG_REALMSTRING_KEY which
+ *       has been present since 1.0).
+ *
+ * @defgroup cached_authentication_data_attributes Cached authentication data attributes
+ * @{
+ */
+
+/** A hash-key pointing to a realmstring.  This attribute is mandatory.
+ *
+ * @since New in 1.0.
  */
 #define SVN_CONFIG_REALMSTRING_KEY  "svn:realmstring"
+
+/** A hash-key for usernames.
+ * @since New in 1.9.
+ */
+#define SVN_CONFIG_AUTHN_USERNAME_KEY           "username"
+
+/** A hash-key for passwords.
+ * The password may be in plaintext or encrypted form, depending on
+ * the authentication provider.
+ * @since New in 1.9.
+ */
+#define SVN_CONFIG_AUTHN_PASSWORD_KEY           "password"
+
+/** A hash-key for passphrases,
+ * such as SSL client ceritifcate passphrases. The passphrase may be in
+ * plaintext or encrypted form, depending on the authentication provider.
+ * @since New in 1.9.
+ */
+#define SVN_CONFIG_AUTHN_PASSPHRASE_KEY         "passphrase"
+
+/** A hash-key for the type of a password or passphrase.  The type
+ * indicates which provider owns the credential.
+ * @since New in 1.9.
+ */
+#define SVN_CONFIG_AUTHN_PASSTYPE_KEY           "passtype"
+
+/** A hash-key for SSL certificates.   The value is the base64-encoded DER form
+ * certificate.
+ * @since New in 1.9.
+ * @note The value is not human readable.
+ */
+#define SVN_CONFIG_AUTHN_ASCII_CERT_KEY         "ascii_cert"
+
+/** A hash-key for recorded SSL certificate verification
+ * failures.  Failures encoded as an ASCII integer containing any of the
+ * SVN_AUTH_SSL_* SSL server certificate failure bits defined in svn_auth.h.
+ * @since New in 1.9.
+ */
+#define SVN_CONFIG_AUTHN_FAILURES_KEY           "failures"
+
+
+/** @} */
 
 /** Use @a cred_kind and @a realmstring to locate a file within the
  * ~/.subversion/auth/ area.  If the file exists, initialize @a *hash
@@ -712,7 +782,8 @@ svn_config_write_auth_data(apr_hash_t *hash,
  * fully purged) to allow perusal and selective removal of credentials.
  *
  * @a cred_kind and @a realmstring specify the key of the credential.
- * @a hash contains the hash data associated with the record.
+ * @a hash contains the hash data associated with the record. @a walk_baton
+ * is the baton passed to svn_config_walk_auth_data().
  *
  * Before returning set @a *delete_cred to TRUE to remove the credential from
  * the cache; leave @a *delete_cred unchanged or set it to FALSE to keep the
@@ -728,7 +799,7 @@ svn_config_write_auth_data(apr_hash_t *hash,
  */
 typedef svn_error_t *
 (*svn_config_auth_walk_func_t)(svn_boolean_t *delete_cred,
-                               void *cleanup_baton,
+                               void *walk_baton,
                                const char *cred_kind,
                                const char *realmstring,
                                apr_hash_t *hash,
@@ -747,7 +818,7 @@ typedef svn_error_t *
  *
  * @note Removing credentials from the config-based disk store will
  * not purge them from any open svn_auth_baton_t instance.  Consider
- * using svn_auth_forget_credentials() -- from the @a cleanup_func,
+ * using svn_auth_forget_credentials() -- from the @a walk_func,
  * even -- for this purpose.
  *
  * @note Removing credentials from the config-based disk store will
@@ -799,7 +870,7 @@ svn_config_get_user_config_path(const char **path,
  */
 svn_error_t *
 svn_config_dup(svn_config_t **cfgp,
-               svn_config_t *src,
+               const svn_config_t *src,
                apr_pool_t *pool);
 
 /** Create a deep copy of the config hash @a src_hash and return

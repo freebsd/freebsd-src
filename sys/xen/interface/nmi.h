@@ -36,9 +36,14 @@
  /* I/O-check error reported via ISA port 0x61, bit 6. */
 #define _XEN_NMIREASON_io_error     0
 #define XEN_NMIREASON_io_error      (1UL << _XEN_NMIREASON_io_error)
+ /* PCI SERR reported via ISA port 0x61, bit 7. */
+#define _XEN_NMIREASON_pci_serr     1
+#define XEN_NMIREASON_pci_serr      (1UL << _XEN_NMIREASON_pci_serr)
+#if __XEN_INTERFACE_VERSION__ < 0x00040300 /* legacy alias of the above */
  /* Parity error reported via ISA port 0x61, bit 7. */
 #define _XEN_NMIREASON_parity_error 1
 #define XEN_NMIREASON_parity_error  (1UL << _XEN_NMIREASON_parity_error)
+#endif
  /* Unknown hardware-generated NMI. */
 #define _XEN_NMIREASON_unknown      2
 #define XEN_NMIREASON_unknown       (1UL << _XEN_NMIREASON_unknown)
@@ -72,7 +77,7 @@ DEFINE_XEN_GUEST_HANDLE(xennmi_callback_t);
 /*
  * Local variables:
  * mode: C
- * c-set-style: "BSD"
+ * c-file-style: "BSD"
  * c-basic-offset: 4
  * tab-width: 4
  * indent-tabs-mode: nil

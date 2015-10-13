@@ -166,18 +166,18 @@ compat:
 	    -f ${.CURDIR}/../etc/mtree/BSD.include.dist \
 	    -p ${DESTDIR}${INCLUDEDIR} > /dev/null
 .if ${MK_META_MODE} == "yes"
-	touch ${.TARGET}
+	@touch ${.TARGET}
 .endif
 
 copies:
 .for i in ${LDIRS} ${LSUBDIRS} ${LSUBSUBDIRS} crypto machine machine/pc \
 	${_MARCHS}
-.if exists(${DESTDIR}${INCLUDEDIR}/$i)
-	cd ${DESTDIR}${INCLUDEDIR}/$i; \
-	for h in *.h; do \
-		if [ -L $$h ]; then rm -f $$h; fi; \
-	done
-.endif
+	if [ -d ${DESTDIR}${INCLUDEDIR}/$i ]; then \
+		cd ${DESTDIR}${INCLUDEDIR}/$i; \
+		for h in *.h; do \
+			if [ -L $$h ]; then rm -f $$h; fi; \
+		done; \
+	fi
 .endfor
 .for i in ${LDIRS} ${LSUBDIRS:Ndev/agp:Ndev/acpica:Ndev/bktr:Ndev/nand:Ndev/pci} ${LSUBSUBDIRS}
 	cd ${.CURDIR}/../sys; \
@@ -255,7 +255,7 @@ copies:
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 teken.h \
 	    ${DESTDIR}${INCLUDEDIR}/teken
 .if ${MK_META_MODE} == "yes"
-	touch ${.TARGET}
+	@touch ${.OBJDIR}/${.TARGET}
 .endif
 
 symlinks:
@@ -372,7 +372,7 @@ symlinks:
 		    ${DESTDIR}${INCLUDEDIR}/rpc; \
 	done
 .if ${MK_META_MODE} == "yes"
-	touch ${.TARGET}
+	@touch ${.OBJDIR}/${.TARGET}
 .endif
 
 .if ${MACHINE} == "host"

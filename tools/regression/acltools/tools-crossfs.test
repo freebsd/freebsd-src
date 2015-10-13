@@ -43,9 +43,9 @@ $ umask 022
 
 $ touch nfs4/xxx
 $ getfacl -nq nfs4/xxx
->             owner@:rw-p--aARWcCos:------:allow
->             group@:r-----a-R-c--s:------:allow
->          everyone@:r-----a-R-c--s:------:allow
+>             owner@:rw-p--aARWcCos:-------:allow
+>             group@:r-----a-R-c--s:-------:allow
+>          everyone@:r-----a-R-c--s:-------:allow
 
 $ touch posix/xxx
 $ getfacl -nq posix/xxx
@@ -96,10 +96,10 @@ $ ls -l posix/xxx | cut -d' ' -f1
 $ mv posix/yyy nfs4/xxx
 > mv: failed to set acl entries for nfs4/xxx: Invalid argument
 $ getfacl -nq nfs4/xxx
->             owner@:-wxp----------:------:deny
->             owner@:r-----aARWcCos:------:allow
->             group@:rwxp--a-R-c--s:------:allow
->          everyone@:rw-p--a-R-c--s:------:allow
+>             owner@:-wxp----------:-------:deny
+>             owner@:r-----aARWcCos:-------:allow
+>             group@:rwxp--a-R-c--s:-------:allow
+>          everyone@:rw-p--a-R-c--s:-------:allow
 $ ls -l nfs4/xxx | cut -d' ' -f1
 > -r--rwxrw-
 
@@ -110,11 +110,11 @@ $ touch nfs4/xxx
 $ setfacl -a0 u:42:x:allow,g:43:w:allow nfs4/xxx
 $ mv nfs4/xxx nfs4/yyy
 $ getfacl -nq nfs4/yyy
->            user:42:--x-----------:------:allow
->           group:43:-w------------:------:allow
->             owner@:rw-p--aARWcCos:------:allow
->             group@:r-----a-R-c--s:------:allow
->          everyone@:r-----a-R-c--s:------:allow
+>            user:42:--x-----------:-------:allow
+>           group:43:-w------------:-------:allow
+>             owner@:rw-p--aARWcCos:-------:allow
+>             group@:r-----a-R-c--s:-------:allow
+>          everyone@:r-----a-R-c--s:-------:allow
 $ ls -l nfs4/yyy | cut -d' ' -f1
 > -rw-r--r--+
 
@@ -261,14 +261,14 @@ $ chmod 543 nfs4/xxx
 $ setfacl -a0 u:42:x:allow,g:43:w:allow nfs4/xxx
 $ cp -p nfs4/xxx nfs4/yyy
 $ getfacl -nq nfs4/yyy
->            user:42:--x-----------:------:allow
->           group:43:-w------------:------:allow
->             owner@:--x-----------:------:allow
->             owner@:-w-p----------:------:deny
->             group@:-wxp----------:------:deny
->             owner@:r-x---aARWcCos:------:allow
->             group@:r-----a-R-c--s:------:allow
->          everyone@:-wxp--a-R-c--s:------:allow
+>            user:42:--x-----------:-------:allow
+>           group:43:-w------------:-------:allow
+>             owner@:--x-----------:-------:allow
+>             owner@:-w-p----------:-------:deny
+>             group@:-wxp----------:-------:deny
+>             owner@:r-x---aARWcCos:-------:allow
+>             group@:r-----a-R-c--s:-------:allow
+>          everyone@:-wxp--a-R-c--s:-------:allow
 $ ls -l nfs4/yyy | cut -d' ' -f1
 > -r-xr---wx+
 

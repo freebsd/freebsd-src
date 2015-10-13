@@ -40,6 +40,8 @@ void DecodeMOVSLDUPMask(MVT VT, SmallVectorImpl<int> &ShuffleMask);
 
 void DecodeMOVSHDUPMask(MVT VT, SmallVectorImpl<int> &ShuffleMask);
 
+void DecodeMOVDDUPMask(MVT VT, SmallVectorImpl<int> &ShuffleMask);
+
 void DecodePSLLDQMask(MVT VT, unsigned Imm, SmallVectorImpl<int> &ShuffleMask);
 
 void DecodePSRLDQMask(MVT VT, unsigned Imm, SmallVectorImpl<int> &ShuffleMask);
@@ -88,6 +90,24 @@ void DecodeVPERMMask(unsigned Imm, SmallVectorImpl<int> &ShuffleMask);
 /// \brief Decode a VPERMILP variable mask from an IR-level vector constant.
 void DecodeVPERMILPMask(const Constant *C, SmallVectorImpl<int> &ShuffleMask);
 
+/// \brief Decode a zero extension instruction as a shuffle mask.
+void DecodeZeroExtendMask(MVT SrcVT, MVT DstVT,
+                          SmallVectorImpl<int> &ShuffleMask);
+
+/// \brief Decode a move lower and zero upper instruction as a shuffle mask.
+void DecodeZeroMoveLowMask(MVT VT, SmallVectorImpl<int> &ShuffleMask);
+
+/// \brief Decode a scalar float move instruction as a shuffle mask.
+void DecodeScalarMoveMask(MVT VT, bool IsLoad,
+                          SmallVectorImpl<int> &ShuffleMask);
+
+/// \brief Decode a SSE4A EXTRQ instruction as a v16i8 shuffle mask.
+void DecodeEXTRQIMask(int Len, int Idx,
+                      SmallVectorImpl<int> &ShuffleMask);
+
+/// \brief Decode a SSE4A INSERTQ instruction as a v16i8 shuffle mask.
+void DecodeINSERTQIMask(int Len, int Idx,
+                        SmallVectorImpl<int> &ShuffleMask);
 } // llvm namespace
 
 #endif

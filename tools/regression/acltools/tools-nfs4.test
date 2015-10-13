@@ -42,20 +42,20 @@ $ getfacl xxx
 > # file: xxx
 > # owner: root
 > # group: wheel
->             owner@:--x-----------:------:deny
->             owner@:rw-p---A-W-Co-:------:allow
->             group@:-wxp----------:------:deny
->             group@:r-------------:------:allow
->          everyone@:-wxp---A-W-Co-:------:deny
->          everyone@:r-----a-R-c--s:------:allow
+>             owner@:--x-----------:-------:deny
+>             owner@:rw-p---A-W-Co-:-------:allow
+>             group@:-wxp----------:-------:deny
+>             group@:r-------------:-------:allow
+>          everyone@:-wxp---A-W-Co-:-------:deny
+>          everyone@:r-----a-R-c--s:-------:allow
 
 $ getfacl -q xxx
->             owner@:--x-----------:------:deny
->             owner@:rw-p---A-W-Co-:------:allow
->             group@:-wxp----------:------:deny
->             group@:r-------------:------:allow
->          everyone@:-wxp---A-W-Co-:------:deny
->          everyone@:r-----a-R-c--s:------:allow
+>             owner@:--x-----------:-------:deny
+>             owner@:rw-p---A-W-Co-:-------:allow
+>             group@:-wxp----------:-------:deny
+>             group@:r-------------:-------:allow
+>          everyone@:-wxp---A-W-Co-:-------:deny
+>          everyone@:r-----a-R-c--s:-------:allow
 
 # Check verbose mode formatting.
 $ getfacl -v xxx
@@ -75,14 +75,14 @@ $ getfacl -n xxx
 > # file: xxx
 > # owner: root
 > # group: wheel
->             owner@:--x-----------:------:deny
->             owner@:rw-p---A-W-Co-:------:allow
->             user:0:-----------C--:------:allow
->            group:1:----------c---:------:deny
->             group@:-wxp----------:------:deny
->             group@:r-------------:------:allow
->          everyone@:-wxp---A-W-Co-:------:deny
->          everyone@:r-----a-R-c--s:------:allow
+>             owner@:--x-----------:-------:deny
+>             owner@:rw-p---A-W-Co-:-------:allow
+>             user:0:-----------C--:-------:allow
+>            group:1:----------c---:-------:deny
+>             group@:-wxp----------:-------:deny
+>             group@:r-------------:-------:allow
+>          everyone@:-wxp---A-W-Co-:-------:deny
+>          everyone@:r-----a-R-c--s:-------:allow
 
 # Test user and group name resolving.
 $ rm xxx
@@ -92,14 +92,14 @@ $ getfacl xxx
 > # file: xxx
 > # owner: root
 > # group: wheel
->             owner@:--x-----------:------:deny
->             owner@:rw-p---A-W-Co-:------:allow
->          user:root:-----------C--:------:allow
->       group:daemon:----------c---:------:deny
->             group@:-wxp----------:------:deny
->             group@:r-------------:------:allow
->          everyone@:-wxp---A-W-Co-:------:deny
->          everyone@:r-----a-R-c--s:------:allow
+>             owner@:--x-----------:-------:deny
+>             owner@:rw-p---A-W-Co-:-------:allow
+>          user:root:-----------C--:-------:allow
+>       group:daemon:----------c---:-------:deny
+>             group@:-wxp----------:-------:deny
+>             group@:r-------------:-------:allow
+>          everyone@:-wxp---A-W-Co-:-------:deny
+>          everyone@:r-----a-R-c--s:-------:allow
 
 # Check whether ls correctly marks files with "+".
 $ ls -l xxx | cut -d' ' -f1
@@ -112,12 +112,12 @@ $ getfacl -n xxx
 > # file: xxx
 > # owner: root
 > # group: wheel
->             owner@:--x-----------:------:deny
->             owner@:rw-p---A-W-Co-:------:allow
->             user:0:-----------C--:------:allow
->            group:1:----------c---:------:deny
->          everyone@:-wxp---A-W-Co-:------:deny
->          everyone@:r-----a-R-c--s:------:allow
+>             owner@:--x-----------:-------:deny
+>             owner@:rw-p---A-W-Co-:-------:allow
+>             user:0:-----------C--:-------:allow
+>            group:1:----------c---:-------:deny
+>          everyone@:-wxp---A-W-Co-:-------:deny
+>          everyone@:r-----a-R-c--s:-------:allow
 
 # Test setfacl -m.
 $ setfacl -a0 everyone@:rwx:deny xxx
@@ -128,30 +128,30 @@ $ getfacl -n xxx
 > # file: xxx
 > # owner: root
 > # group: wheel
->          everyone@:--------------:------:deny
->          everyone@:--------------:------:deny
->          everyone@:--------------:------:deny
->             owner@:--x-----------:------:deny
->             owner@:rw-p---A-W-Co-:------:allow
->             user:0:-----------C--:------:allow
->            group:1:----------c---:------:deny
->          everyone@:--------------:------:deny
->          everyone@:r-----a-R-c--s:------:allow
+>          everyone@:--------------:-------:deny
+>          everyone@:--------------:-------:deny
+>          everyone@:--------------:-------:deny
+>             owner@:--x-----------:-------:deny
+>             owner@:rw-p---A-W-Co-:-------:allow
+>             user:0:-----------C--:-------:allow
+>            group:1:----------c---:-------:deny
+>          everyone@:--------------:-------:deny
+>          everyone@:r-----a-R-c--s:-------:allow
 
 # Test getfacl -i.
 $ getfacl -i xxx
 > # file: xxx
 > # owner: root
 > # group: wheel
->          everyone@:--------------:------:deny
->          everyone@:--------------:------:deny
->          everyone@:--------------:------:deny
->             owner@:--x-----------:------:deny
->             owner@:rw-p---A-W-Co-:------:allow
->          user:root:-----------C--:------:allow:0
->       group:daemon:----------c---:------:deny:1
->          everyone@:--------------:------:deny
->          everyone@:r-----a-R-c--s:------:allow
+>          everyone@:--------------:-------:deny
+>          everyone@:--------------:-------:deny
+>          everyone@:--------------:-------:deny
+>             owner@:--x-----------:-------:deny
+>             owner@:rw-p---A-W-Co-:-------:allow
+>          user:root:-----------C--:-------:allow:0
+>       group:daemon:----------c---:-------:deny:1
+>          everyone@:--------------:-------:deny
+>          everyone@:r-----a-R-c--s:-------:allow
 
 # Make sure cp without any flags does not copy copy the ACL.
 $ cp xxx yyy
@@ -165,15 +165,15 @@ $ getfacl -n yyy
 > # file: yyy
 > # owner: root
 > # group: wheel
->          everyone@:--------------:------:deny
->          everyone@:--------------:------:deny
->          everyone@:--------------:------:deny
->             owner@:--x-----------:------:deny
->             owner@:rw-p---A-W-Co-:------:allow
->             user:0:-----------C--:------:allow
->            group:1:----------c---:------:deny
->          everyone@:--------------:------:deny
->          everyone@:r-----a-R-c--s:------:allow
+>          everyone@:--------------:-------:deny
+>          everyone@:--------------:-------:deny
+>          everyone@:--------------:-------:deny
+>             owner@:--x-----------:-------:deny
+>             owner@:rw-p---A-W-Co-:-------:allow
+>             user:0:-----------C--:-------:allow
+>            group:1:----------c---:-------:deny
+>          everyone@:--------------:-------:deny
+>          everyone@:r-----a-R-c--s:-------:allow
 
 $ rm yyy
 
@@ -183,11 +183,11 @@ $ getfacl -n xxx
 > # file: xxx
 > # owner: root
 > # group: wheel
->             owner@:--x-----------:------:deny
->             owner@:rw-p---A-W-Co-:------:allow
->             user:0:-----------C--:------:allow
->            group:1:----------c---:------:deny
->          everyone@:r-----a-R-c--s:------:allow
+>             owner@:--x-----------:-------:deny
+>             owner@:rw-p---A-W-Co-:-------:allow
+>             user:0:-----------C--:-------:allow
+>            group:1:----------c---:-------:deny
+>          everyone@:r-----a-R-c--s:-------:allow
 
 # Test setfacl -b.
 $ setfacl -b xxx
@@ -195,12 +195,12 @@ $ getfacl -n xxx
 > # file: xxx
 > # owner: root
 > # group: wheel
->             owner@:--x-----------:------:deny
->             owner@:rw-p---A-W-Co-:------:allow
->             group@:-wxp----------:------:deny
->             group@:r-------------:------:allow
->          everyone@:-wxp---A-W-Co-:------:deny
->          everyone@:r-----a-R-c--s:------:allow
+>             owner@:--x-----------:-------:deny
+>             owner@:rw-p---A-W-Co-:-------:allow
+>             group@:-wxp----------:-------:deny
+>             group@:r-------------:-------:allow
+>          everyone@:-wxp---A-W-Co-:-------:deny
+>          everyone@:r-----a-R-c--s:-------:allow
 
 $ ls -l xxx | cut -d' ' -f1
 > -rw-r--r--
@@ -224,32 +224,32 @@ $ ls -l nnn xxx yyy zzz | cut -d' ' -f1
 
 $ getfacl -nq nnn xxx yyy zzz
 > getfacl: nnn: stat() failed: No such file or directory
->            user:42:--x-----------:------:allow
->           group:43:-w------------:------:allow
->             owner@:--x-----------:------:deny
->             owner@:rw-p---A-W-Co-:------:allow
->             group@:-wxp----------:------:deny
->             group@:r-------------:------:allow
->          everyone@:-wxp---A-W-Co-:------:deny
->          everyone@:r-----a-R-c--s:------:allow
+>            user:42:--x-----------:-------:allow
+>           group:43:-w------------:-------:allow
+>             owner@:--x-----------:-------:deny
+>             owner@:rw-p---A-W-Co-:-------:allow
+>             group@:-wxp----------:-------:deny
+>             group@:r-------------:-------:allow
+>          everyone@:-wxp---A-W-Co-:-------:deny
+>          everyone@:r-----a-R-c--s:-------:allow
 >
->            user:42:--x-----------:------:allow
->           group:43:-w------------:------:allow
->             owner@:--x-----------:------:deny
->             owner@:rw-p---A-W-Co-:------:allow
->             group@:-wxp----------:------:deny
->             group@:r-------------:------:allow
->          everyone@:-wxp---A-W-Co-:------:deny
->          everyone@:r-----a-R-c--s:------:allow
+>            user:42:--x-----------:-------:allow
+>           group:43:-w------------:-------:allow
+>             owner@:--x-----------:-------:deny
+>             owner@:rw-p---A-W-Co-:-------:allow
+>             group@:-wxp----------:-------:deny
+>             group@:r-------------:-------:allow
+>          everyone@:-wxp---A-W-Co-:-------:deny
+>          everyone@:r-----a-R-c--s:-------:allow
 >
->            user:42:--x-----------:------:allow
->           group:43:-w------------:------:allow
->             owner@:--x-----------:------:deny
->             owner@:rw-p---A-W-Co-:------:allow
->             group@:-wxp----------:------:deny
->             group@:r-------------:------:allow
->          everyone@:-wxp---A-W-Co-:------:deny
->          everyone@:r-----a-R-c--s:------:allow
+>            user:42:--x-----------:-------:allow
+>           group:43:-w------------:-------:allow
+>             owner@:--x-----------:-------:deny
+>             owner@:rw-p---A-W-Co-:-------:allow
+>             group@:-wxp----------:-------:deny
+>             group@:r-------------:-------:allow
+>          everyone@:-wxp---A-W-Co-:-------:deny
+>          everyone@:r-----a-R-c--s:-------:allow
 
 $ setfacl -b nnn xxx yyy zzz
 > setfacl: nnn: stat() failed: No such file or directory
@@ -270,23 +270,23 @@ $ getfacl -n xxx
 > # file: xxx
 > # owner: root
 > # group: wheel
->            user:42:r-------------:------:deny
->            user:42:r-------------:------:allow
->            user:43:-w------------:------:deny
->            user:43:-w------------:------:allow
->            user:44:--x-----------:------:deny
->            user:44:--x-----------:------:allow
->             owner@:--------------:------:deny
->             owner@:-------A-W-Co-:------:allow
->             group@:--------------:------:deny
->             group@:--------------:------:allow
->          everyone@:-------A-W-Co-:------:deny
->             owner@:--x-----------:------:deny
->             owner@:rw-p---A-W-Co-:------:allow
->             group@:rwxp----------:------:deny
->             group@:--------------:------:allow
->          everyone@:rwxp---A-W-Co-:------:deny
->          everyone@:------a-R-c--s:------:allow
+>            user:42:r-------------:-------:deny
+>            user:42:r-------------:-------:allow
+>            user:43:-w------------:-------:deny
+>            user:43:-w------------:-------:allow
+>            user:44:--x-----------:-------:deny
+>            user:44:--x-----------:-------:allow
+>             owner@:--------------:-------:deny
+>             owner@:-------A-W-Co-:-------:allow
+>             group@:--------------:-------:deny
+>             group@:--------------:-------:allow
+>          everyone@:-------A-W-Co-:-------:deny
+>             owner@:--x-----------:-------:deny
+>             owner@:rw-p---A-W-Co-:-------:allow
+>             group@:rwxp----------:-------:deny
+>             group@:--------------:-------:allow
+>          everyone@:rwxp---A-W-Co-:-------:deny
+>          everyone@:------a-R-c--s:-------:allow
 $ ls -l xxx | cut -d' ' -f1
 > -rw-------+
 
@@ -299,18 +299,18 @@ $ getfacl -n xxx
 > # file: xxx
 > # owner: 42
 > # group: wheel
->            user:42:--------------:------:deny
->            user:42:r-------------:------:allow
->            user:43:-w------------:------:deny
->            user:43:-w------------:------:allow
->            user:44:--x-----------:------:deny
->            user:44:--x-----------:------:allow
->             owner@:--x-----------:------:deny
->             owner@:rw-p---A-W-Co-:------:allow
->             group@:rwxp----------:------:deny
->             group@:--------------:------:allow
->          everyone@:rwxp---A-W-Co-:------:deny
->          everyone@:------a-R-c--s:------:allow
+>            user:42:--------------:-------:deny
+>            user:42:r-------------:-------:allow
+>            user:43:-w------------:-------:deny
+>            user:43:-w------------:-------:allow
+>            user:44:--x-----------:-------:deny
+>            user:44:--x-----------:-------:allow
+>             owner@:--x-----------:-------:deny
+>             owner@:rw-p---A-W-Co-:-------:allow
+>             group@:rwxp----------:-------:deny
+>             group@:--------------:-------:allow
+>          everyone@:rwxp---A-W-Co-:-------:deny
+>          everyone@:------a-R-c--s:-------:allow
 $ ls -l xxx | cut -d' ' -f1
 > -rw-------+
 
@@ -323,18 +323,18 @@ $ getfacl -n xxx
 > # file: xxx
 > # owner: 43
 > # group: wheel
->            user:42:r-------------:------:deny
->            user:42:r-------------:------:allow
->            user:43:-w------------:------:deny
->            user:43:-w------------:------:allow
->            user:44:--x-----------:------:deny
->            user:44:--x-----------:------:allow
->             owner@:rw-p----------:------:deny
->             owner@:--x----A-W-Co-:------:allow
->             group@:r-x-----------:------:deny
->             group@:-w-p----------:------:allow
->          everyone@:-wxp---A-W-Co-:------:deny
->          everyone@:r-----a-R-c--s:------:allow
+>            user:42:r-------------:-------:deny
+>            user:42:r-------------:-------:allow
+>            user:43:-w------------:-------:deny
+>            user:43:-w------------:-------:allow
+>            user:44:--x-----------:-------:deny
+>            user:44:--x-----------:-------:allow
+>             owner@:rw-p----------:-------:deny
+>             owner@:--x----A-W-Co-:-------:allow
+>             group@:r-x-----------:-------:deny
+>             group@:-w-p----------:-------:allow
+>          everyone@:-wxp---A-W-Co-:-------:deny
+>          everyone@:r-----a-R-c--s:-------:allow
 $ ls -l xxx | cut -d' ' -f1
 > ---x-w-r--+
 
@@ -347,18 +347,18 @@ $ getfacl -n xxx
 > # file: xxx
 > # owner: 43
 > # group: wheel
->            user:42:r-------------:------:deny
->            user:42:r-------------:------:allow
->            user:43:-w------------:------:deny
->            user:43:-w------------:------:allow
->            user:44:--------------:------:deny
->            user:44:--x-----------:------:allow
->             owner@:-wxp----------:------:deny
->             owner@:r------A-W-Co-:------:allow
->             group@:rw-p----------:------:deny
->             group@:--x-----------:------:allow
->          everyone@:r-x----A-W-Co-:------:deny
->          everyone@:-w-p--a-R-c--s:------:allow
+>            user:42:r-------------:-------:deny
+>            user:42:r-------------:-------:allow
+>            user:43:-w------------:-------:deny
+>            user:43:-w------------:-------:allow
+>            user:44:--------------:-------:deny
+>            user:44:--x-----------:-------:allow
+>             owner@:-wxp----------:-------:deny
+>             owner@:r------A-W-Co-:-------:allow
+>             group@:rw-p----------:-------:deny
+>             group@:--x-----------:-------:allow
+>          everyone@:r-x----A-W-Co-:-------:deny
+>          everyone@:-w-p--a-R-c--s:-------:allow
 $ ls -l xxx | cut -d' ' -f1
 > -r----x-w-+
 
@@ -371,43 +371,43 @@ $ getfacl -n ddd
 > # file: ddd
 > # owner: root
 > # group: wheel
->            user:42:r-x-----------:f-i---:allow
->           group:42:-w--D---------:-d----:allow
->           group:43:-w--D---------:-d----:deny
->             group@:-----da-------:------:allow
->           group:44:rw-p-da-------:------:allow
->             owner@:--------------:------:deny
->             owner@:rwxp---A-W-Co-:------:allow
->             group@:-w-p----------:------:deny
->             group@:r-x-----------:------:allow
->          everyone@:-w-p---A-W-Co-:------:deny
->          everyone@:-w-p--a-R-c--s:f-i---:allow
+>            user:42:r-x-----------:f-i----:allow
+>           group:42:-w--D---------:-d-----:allow
+>           group:43:-w--D---------:-d-----:deny
+>             group@:-----da-------:-------:allow
+>           group:44:rw-p-da-------:-------:allow
+>             owner@:--------------:-------:deny
+>             owner@:rwxp---A-W-Co-:-------:allow
+>             group@:-w-p----------:-------:deny
+>             group@:r-x-----------:-------:allow
+>          everyone@:-w-p---A-W-Co-:-------:deny
+>          everyone@:-w-p--a-R-c--s:f-i----:allow
 $ chmod 777 ddd
 $ getfacl -n ddd
 > # file: ddd
 > # owner: root
 > # group: wheel
->            user:42:r-x-----------:f-i---:allow
->           group:42:-w--D---------:-di---:allow
->           group:42:--------------:------:deny
->           group:42:-w--D---------:------:allow
->           group:43:-w--D---------:-di---:deny
->           group:43:-w--D---------:------:deny
->             group@:-----da-------:------:allow
->           group:44:--------------:------:deny
->           group:44:rw-p-da-------:------:allow
->             owner@:--------------:------:deny
->             owner@:-------A-W-Co-:------:allow
->             group@:--------------:------:deny
->             group@:--------------:------:allow
->          everyone@:-------A-W-Co-:------:deny
->          everyone@:-w-p--a-R-c--s:f-i---:allow
->             owner@:--------------:------:deny
->             owner@:rwxp---A-W-Co-:------:allow
->             group@:--------------:------:deny
->             group@:rwxp----------:------:allow
->          everyone@:-------A-W-Co-:------:deny
->          everyone@:rwxp--a-R-c--s:------:allow
+>            user:42:r-x-----------:f-i----:allow
+>           group:42:-w--D---------:-di----:allow
+>           group:42:--------------:-------:deny
+>           group:42:-w--D---------:-------:allow
+>           group:43:-w--D---------:-di----:deny
+>           group:43:-w--D---------:-------:deny
+>             group@:-----da-------:-------:allow
+>           group:44:--------------:-------:deny
+>           group:44:rw-p-da-------:-------:allow
+>             owner@:--------------:-------:deny
+>             owner@:-------A-W-Co-:-------:allow
+>             group@:--------------:-------:deny
+>             group@:--------------:-------:allow
+>          everyone@:-------A-W-Co-:-------:deny
+>          everyone@:-w-p--a-R-c--s:f-i----:allow
+>             owner@:--------------:-------:deny
+>             owner@:rwxp---A-W-Co-:-------:allow
+>             group@:--------------:-------:deny
+>             group@:rwxp----------:-------:allow
+>          everyone@:-------A-W-Co-:-------:deny
+>          everyone@:rwxp--a-R-c--s:-------:allow
 
 $ rmdir ddd
 $ mkdir ddd
@@ -420,27 +420,27 @@ $ getfacl -n ddd
 > # file: ddd
 > # owner: root
 > # group: wheel
->            user:42:r-x-----------:f-i---:allow
->           group:42:-w--D---------:-di---:allow
->           group:42:--------------:------:deny
->           group:42:----D---------:------:allow
->           group:43:-w--D---------:-di---:deny
->           group:43:-w--D---------:------:deny
->             group@:-----da-------:------:allow
->           group:44:r-------------:------:deny
->           group:44:r----da-------:------:allow
->             owner@:--------------:------:deny
->             owner@:-------A-W-Co-:------:allow
->             group@:--------------:------:deny
->             group@:--------------:------:allow
->          everyone@:-------A-W-Co-:------:deny
->          everyone@:-w-p--a-R-c--s:f-i---:allow
->             owner@:rw-p----------:------:deny
->             owner@:--x----A-W-Co-:------:allow
->             group@:r-x-----------:------:deny
->             group@:-w-p----------:------:allow
->          everyone@:-wxp---A-W-Co-:------:deny
->          everyone@:r-----a-R-c--s:------:allow
+>            user:42:r-x-----------:f-i----:allow
+>           group:42:-w--D---------:-di----:allow
+>           group:42:--------------:-------:deny
+>           group:42:----D---------:-------:allow
+>           group:43:-w--D---------:-di----:deny
+>           group:43:-w--D---------:-------:deny
+>             group@:-----da-------:-------:allow
+>           group:44:r-------------:-------:deny
+>           group:44:r----da-------:-------:allow
+>             owner@:--------------:-------:deny
+>             owner@:-------A-W-Co-:-------:allow
+>             group@:--------------:-------:deny
+>             group@:--------------:-------:allow
+>          everyone@:-------A-W-Co-:-------:deny
+>          everyone@:-w-p--a-R-c--s:f-i----:allow
+>             owner@:rw-p----------:-------:deny
+>             owner@:--x----A-W-Co-:-------:allow
+>             group@:r-x-----------:-------:deny
+>             group@:-w-p----------:-------:allow
+>          everyone@:-wxp---A-W-Co-:-------:deny
+>          everyone@:r-----a-R-c--s:-------:allow
 
 $ rmdir ddd
 $ mkdir ddd
@@ -453,29 +453,29 @@ $ getfacl -n ddd
 > # file: ddd
 > # owner: root
 > # group: wheel
->            user:42:r-------------:------:deny
->            user:42:r-x-----------:------:allow
->            user:42:r-x-----------:f-i---:allow
->           group:42:-w--D---------:-di---:allow
->           group:42:-w------------:------:deny
->           group:42:-w--D---------:------:allow
->           group:43:-w--D---------:-di---:deny
->           group:43:-w--D---------:------:deny
->             group@:-----da-------:------:allow
->           group:44:rw-p----------:------:deny
->           group:44:rw-p-da-------:------:allow
->             owner@:--------------:------:deny
->             owner@:-------A-W-Co-:------:allow
->             group@:--------------:------:deny
->             group@:--------------:------:allow
->          everyone@:-------A-W-Co-:------:deny
->          everyone@:-w-p--a-R-c--s:f-i---:allow
->             owner@:-wxp----------:------:deny
->             owner@:r------A-W-Co-:------:allow
->             group@:rw-p----------:------:deny
->             group@:--x-----------:------:allow
->          everyone@:r-x----A-W-Co-:------:deny
->          everyone@:-w-p--a-R-c--s:------:allow
+>            user:42:r-------------:-------:deny
+>            user:42:r-x-----------:-------:allow
+>            user:42:r-x-----------:f-i----:allow
+>           group:42:-w--D---------:-di----:allow
+>           group:42:-w------------:-------:deny
+>           group:42:-w--D---------:-------:allow
+>           group:43:-w--D---------:-di----:deny
+>           group:43:-w--D---------:-------:deny
+>             group@:-----da-------:-------:allow
+>           group:44:rw-p----------:-------:deny
+>           group:44:rw-p-da-------:-------:allow
+>             owner@:--------------:-------:deny
+>             owner@:-------A-W-Co-:-------:allow
+>             group@:--------------:-------:deny
+>             group@:--------------:-------:allow
+>          everyone@:-------A-W-Co-:-------:deny
+>          everyone@:-w-p--a-R-c--s:f-i----:allow
+>             owner@:-wxp----------:-------:deny
+>             owner@:r------A-W-Co-:-------:allow
+>             group@:rw-p----------:-------:deny
+>             group@:--x-----------:-------:allow
+>          everyone@:r-x----A-W-Co-:-------:deny
+>          everyone@:-w-p--a-R-c--s:-------:allow
 
 $ rmdir ddd
 $ mkdir ddd
@@ -489,29 +489,29 @@ $ getfacl -n ddd
 > # file: ddd
 > # owner: 42
 > # group: wheel
->            user:42:--x-----------:------:deny
->            user:42:r-x-----------:------:allow
->            user:42:r-x-----------:f-i---:allow
->           group:42:-w--D---------:-di---:allow
->           group:42:-w------------:------:deny
->           group:42:-w--D---------:------:allow
->           group:43:-w--D---------:-di---:deny
->           group:43:-w--D---------:------:deny
->             group@:-----da-------:------:allow
->           group:44:rw-p----------:------:deny
->           group:44:rw-p-da-------:------:allow
->             owner@:--------------:------:deny
->             owner@:-------A-W-Co-:------:allow
->             group@:--------------:------:deny
->             group@:--------------:------:allow
->          everyone@:-------A-W-Co-:------:deny
->          everyone@:-w-p--a-R-c--s:f-i---:allow
->             owner@:-wxp----------:------:deny
->             owner@:r------A-W-Co-:------:allow
->             group@:rw-p----------:------:deny
->             group@:--x-----------:------:allow
->          everyone@:r-x----A-W-Co-:------:deny
->          everyone@:-w-p--a-R-c--s:------:allow
+>            user:42:--x-----------:-------:deny
+>            user:42:r-x-----------:-------:allow
+>            user:42:r-x-----------:f-i----:allow
+>           group:42:-w--D---------:-di----:allow
+>           group:42:-w------------:-------:deny
+>           group:42:-w--D---------:-------:allow
+>           group:43:-w--D---------:-di----:deny
+>           group:43:-w--D---------:-------:deny
+>             group@:-----da-------:-------:allow
+>           group:44:rw-p----------:-------:deny
+>           group:44:rw-p-da-------:-------:allow
+>             owner@:--------------:-------:deny
+>             owner@:-------A-W-Co-:-------:allow
+>             group@:--------------:-------:deny
+>             group@:--------------:-------:allow
+>          everyone@:-------A-W-Co-:-------:deny
+>          everyone@:-w-p--a-R-c--s:f-i----:allow
+>             owner@:-wxp----------:-------:deny
+>             owner@:r------A-W-Co-:-------:allow
+>             group@:rw-p----------:-------:deny
+>             group@:--x-----------:-------:allow
+>          everyone@:r-x----A-W-Co-:-------:deny
+>          everyone@:-w-p--a-R-c--s:-------:allow
 
 # Test applying ACL to mode.
 $ rmdir ddd
@@ -557,137 +557,137 @@ $ setfacl -a0 user:42:write_acl/write_owner:fi:allow ddd
 $ setfacl -a0 group:41:read_data/read_attributes:dni:allow ddd
 $ setfacl -a0 user:41:write_data/write_attributes:fn:allow ddd
 $ getfacl -qn ddd
->            user:41:-w-----A------:f--n--:allow
->           group:41:r-----a-------:-din--:allow
->            user:42:-----------Co-:f-i---:allow
->            user:42:r-x-----------:f-i---:allow
->           group:42:-w--D---------:-d-n--:deny
->           group:43:-w---------C--:f-in--:deny
->            user:43:rwxp----------:------:allow
->             owner@:--------------:------:deny
->             owner@:rwxp---A-W-Co-:------:allow
->             group@:-w-p----------:------:deny
->             group@:r-x-----------:------:allow
->          everyone@:-w-p---A-W-Co-:------:deny
->          everyone@:r-x---a-R-c--s:------:allow
+>            user:41:-w-----A------:f--n---:allow
+>           group:41:r-----a-------:-din---:allow
+>            user:42:-----------Co-:f-i----:allow
+>            user:42:r-x-----------:f-i----:allow
+>           group:42:-w--D---------:-d-n---:deny
+>           group:43:-w---------C--:f-in---:deny
+>            user:43:rwxp----------:-------:allow
+>             owner@:--------------:-------:deny
+>             owner@:rwxp---A-W-Co-:-------:allow
+>             group@:-w-p----------:-------:deny
+>             group@:r-x-----------:-------:allow
+>          everyone@:-w-p---A-W-Co-:-------:deny
+>          everyone@:r-x---a-R-c--s:-------:allow
 
 $ cd ddd
 $ touch xxx
 $ getfacl -qn xxx
->            user:41:-w------------:------:deny
->            user:41:-w-----A------:------:allow
->            user:42:--------------:------:deny
->            user:42:--------------:------:allow
->            user:42:--x-----------:------:deny
->            user:42:r-x-----------:------:allow
->           group:43:-w---------C--:------:deny
->             owner@:--x-----------:------:deny
->             owner@:rw-p---A-W-Co-:------:allow
->             group@:-wxp----------:------:deny
->             group@:r-------------:------:allow
->          everyone@:-wxp---A-W-Co-:------:deny
->          everyone@:r-----a-R-c--s:------:allow
+>            user:41:-w------------:-------:deny
+>            user:41:-w-----A------:-------:allow
+>            user:42:--------------:-------:deny
+>            user:42:--------------:-------:allow
+>            user:42:--x-----------:-------:deny
+>            user:42:r-x-----------:-------:allow
+>           group:43:-w---------C--:-------:deny
+>             owner@:--x-----------:-------:deny
+>             owner@:rw-p---A-W-Co-:-------:allow
+>             group@:-wxp----------:-------:deny
+>             group@:r-------------:-------:allow
+>          everyone@:-wxp---A-W-Co-:-------:deny
+>          everyone@:r-----a-R-c--s:-------:allow
 
 $ rm xxx
 $ umask 077
 $ touch xxx
 $ getfacl -qn xxx
->            user:41:-w------------:------:deny
->            user:41:-w-----A------:------:allow
->            user:42:--------------:------:deny
->            user:42:--------------:------:allow
->            user:42:r-x-----------:------:deny
->            user:42:r-x-----------:------:allow
->           group:43:-w---------C--:------:deny
->             owner@:--x-----------:------:deny
->             owner@:rw-p---A-W-Co-:------:allow
->             group@:rwxp----------:------:deny
->             group@:--------------:------:allow
->          everyone@:rwxp---A-W-Co-:------:deny
->          everyone@:------a-R-c--s:------:allow
+>            user:41:-w------------:-------:deny
+>            user:41:-w-----A------:-------:allow
+>            user:42:--------------:-------:deny
+>            user:42:--------------:-------:allow
+>            user:42:r-x-----------:-------:deny
+>            user:42:r-x-----------:-------:allow
+>           group:43:-w---------C--:-------:deny
+>             owner@:--x-----------:-------:deny
+>             owner@:rw-p---A-W-Co-:-------:allow
+>             group@:rwxp----------:-------:deny
+>             group@:--------------:-------:allow
+>          everyone@:rwxp---A-W-Co-:-------:deny
+>          everyone@:------a-R-c--s:-------:allow
 
 $ rm xxx
 $ umask 770
 $ touch xxx
 $ getfacl -qn xxx
->            user:41:-w------------:------:deny
->            user:41:-w-----A------:------:allow
->            user:42:--------------:------:deny
->            user:42:--------------:------:allow
->            user:42:r-x-----------:------:deny
->            user:42:r-x-----------:------:allow
->           group:43:-w---------C--:------:deny
->             owner@:rwxp----------:------:deny
->             owner@:-------A-W-Co-:------:allow
->             group@:rwxp----------:------:deny
->             group@:--------------:------:allow
->          everyone@:--x----A-W-Co-:------:deny
->          everyone@:rw-p--a-R-c--s:------:allow
+>            user:41:-w------------:-------:deny
+>            user:41:-w-----A------:-------:allow
+>            user:42:--------------:-------:deny
+>            user:42:--------------:-------:allow
+>            user:42:r-x-----------:-------:deny
+>            user:42:r-x-----------:-------:allow
+>           group:43:-w---------C--:-------:deny
+>             owner@:rwxp----------:-------:deny
+>             owner@:-------A-W-Co-:-------:allow
+>             group@:rwxp----------:-------:deny
+>             group@:--------------:-------:allow
+>          everyone@:--x----A-W-Co-:-------:deny
+>          everyone@:rw-p--a-R-c--s:-------:allow
 
 $ rm xxx
 $ umask 707
 $ touch xxx
 $ getfacl -qn xxx
->            user:41:--------------:------:deny
->            user:41:-w-----A------:------:allow
->            user:42:--------------:------:deny
->            user:42:--------------:------:allow
->            user:42:--x-----------:------:deny
->            user:42:r-x-----------:------:allow
->           group:43:-w---------C--:------:deny
->             owner@:rwxp----------:------:deny
->             owner@:-------A-W-Co-:------:allow
->             group@:--x-----------:------:deny
->             group@:rw-p----------:------:allow
->          everyone@:rwxp---A-W-Co-:------:deny
->          everyone@:------a-R-c--s:------:allow
+>            user:41:--------------:-------:deny
+>            user:41:-w-----A------:-------:allow
+>            user:42:--------------:-------:deny
+>            user:42:--------------:-------:allow
+>            user:42:--x-----------:-------:deny
+>            user:42:r-x-----------:-------:allow
+>           group:43:-w---------C--:-------:deny
+>             owner@:rwxp----------:-------:deny
+>             owner@:-------A-W-Co-:-------:allow
+>             group@:--x-----------:-------:deny
+>             group@:rw-p----------:-------:allow
+>          everyone@:rwxp---A-W-Co-:-------:deny
+>          everyone@:------a-R-c--s:-------:allow
 
 $ umask 077
 $ mkdir yyy
 $ getfacl -qn yyy
->           group:41:r-------------:------:deny
->           group:41:r-----a-------:------:allow
->            user:42:-----------Co-:f-i---:allow
->            user:42:r-x-----------:f-i---:allow
->           group:42:-w--D---------:------:deny
->             owner@:--------------:------:deny
->             owner@:rwxp---A-W-Co-:------:allow
->             group@:rwxp----------:------:deny
->             group@:--------------:------:allow
->          everyone@:rwxp---A-W-Co-:------:deny
->          everyone@:------a-R-c--s:------:allow
+>           group:41:r-------------:-------:deny
+>           group:41:r-----a-------:-------:allow
+>            user:42:-----------Co-:f-i----:allow
+>            user:42:r-x-----------:f-i----:allow
+>           group:42:-w--D---------:-------:deny
+>             owner@:--------------:-------:deny
+>             owner@:rwxp---A-W-Co-:-------:allow
+>             group@:rwxp----------:-------:deny
+>             group@:--------------:-------:allow
+>          everyone@:rwxp---A-W-Co-:-------:deny
+>          everyone@:------a-R-c--s:-------:allow
 
 $ rmdir yyy
 $ umask 770
 $ mkdir yyy
 $ getfacl -qn yyy
->           group:41:r-------------:------:deny
->           group:41:r-----a-------:------:allow
->            user:42:-----------Co-:f-i---:allow
->            user:42:r-x-----------:f-i---:allow
->           group:42:-w--D---------:------:deny
->             owner@:rwxp----------:------:deny
->             owner@:-------A-W-Co-:------:allow
->             group@:rwxp----------:------:deny
->             group@:--------------:------:allow
->          everyone@:-------A-W-Co-:------:deny
->          everyone@:rwxp--a-R-c--s:------:allow
+>           group:41:r-------------:-------:deny
+>           group:41:r-----a-------:-------:allow
+>            user:42:-----------Co-:f-i----:allow
+>            user:42:r-x-----------:f-i----:allow
+>           group:42:-w--D---------:-------:deny
+>             owner@:rwxp----------:-------:deny
+>             owner@:-------A-W-Co-:-------:allow
+>             group@:rwxp----------:-------:deny
+>             group@:--------------:-------:allow
+>          everyone@:-------A-W-Co-:-------:deny
+>          everyone@:rwxp--a-R-c--s:-------:allow
 
 $ rmdir yyy
 $ umask 707
 $ mkdir yyy
 $ getfacl -qn yyy
->           group:41:--------------:------:deny
->           group:41:------a-------:------:allow
->            user:42:-----------Co-:f-i---:allow
->            user:42:r-x-----------:f-i---:allow
->           group:42:-w--D---------:------:deny
->             owner@:rwxp----------:------:deny
->             owner@:-------A-W-Co-:------:allow
->             group@:--------------:------:deny
->             group@:rwxp----------:------:allow
->          everyone@:rwxp---A-W-Co-:------:deny
->          everyone@:------a-R-c--s:------:allow
+>           group:41:--------------:-------:deny
+>           group:41:------a-------:-------:allow
+>            user:42:-----------Co-:f-i----:allow
+>            user:42:r-x-----------:f-i----:allow
+>           group:42:-w--D---------:-------:deny
+>             owner@:rwxp----------:-------:deny
+>             owner@:-------A-W-Co-:-------:allow
+>             group@:--------------:-------:deny
+>             group@:rwxp----------:-------:allow
+>          everyone@:rwxp---A-W-Co-:-------:deny
+>          everyone@:------a-R-c--s:-------:allow
 
 # There is some complication regarding how write_acl and write_owner flags
 # get inherited.  Make sure we got it right.
@@ -708,60 +708,60 @@ $ umask 022
 $ rm xxx
 $ touch xxx
 $ getfacl -nq xxx
->            user:53:--------------:------:deny
->            user:53:--------------:------:allow
->            user:51:--------------:------:deny
->            user:51:--------------:------:allow
->            user:50:--------------:------:deny
->            user:50:--------------:------:allow
->            user:48:--------------:------:deny
->            user:48:--------------:------:allow
->            user:47:--------------:------:deny
->            user:47:--------------:------:allow
->            user:45:--------------:------:deny
->            user:45:--------------:------:allow
->            user:44:--------------:------:deny
->            user:44:--------------:------:allow
->            user:42:--------------:------:deny
->            user:42:--------------:------:allow
->             owner@:--x-----------:------:deny
->             owner@:rw-p---A-W-Co-:------:allow
->             group@:-wxp----------:------:deny
->             group@:r-------------:------:allow
->          everyone@:-wxp---A-W-Co-:------:deny
->          everyone@:r-----a-R-c--s:------:allow
+>            user:53:--------------:-------:deny
+>            user:53:--------------:-------:allow
+>            user:51:--------------:-------:deny
+>            user:51:--------------:-------:allow
+>            user:50:--------------:-------:deny
+>            user:50:--------------:-------:allow
+>            user:48:--------------:-------:deny
+>            user:48:--------------:-------:allow
+>            user:47:--------------:-------:deny
+>            user:47:--------------:-------:allow
+>            user:45:--------------:-------:deny
+>            user:45:--------------:-------:allow
+>            user:44:--------------:-------:deny
+>            user:44:--------------:-------:allow
+>            user:42:--------------:-------:deny
+>            user:42:--------------:-------:allow
+>             owner@:--x-----------:-------:deny
+>             owner@:rw-p---A-W-Co-:-------:allow
+>             group@:-wxp----------:-------:deny
+>             group@:r-------------:-------:allow
+>          everyone@:-wxp---A-W-Co-:-------:deny
+>          everyone@:r-----a-R-c--s:-------:allow
 
 $ rmdir yyy
 $ mkdir yyy
 $ getfacl -nq yyy
->            user:53:--------------:------:deny
->            user:53:--------------:------:allow
->            user:52:--------------:------:deny
->            user:52:--------------:------:allow
->            user:50:--------------:------:deny
->            user:50:--------------:------:allow
->            user:49:--------------:------:deny
->            user:49:--------------:------:allow
->            user:47:-----------Co-:fdi---:allow
->            user:47:--------------:------:deny
->            user:47:--------------:------:allow
->            user:46:-----------Co-:-di---:allow
->            user:46:--------------:------:deny
->            user:46:--------------:------:allow
->            user:45:-----------Co-:f-i---:allow
->            user:44:-----------Co-:fdi---:allow
->            user:44:--------------:------:deny
->            user:44:--------------:------:allow
->            user:43:-----------Co-:-di---:allow
->            user:43:--------------:------:deny
->            user:43:--------------:------:allow
->            user:42:-----------Co-:f-i---:allow
->             owner@:--------------:------:deny
->             owner@:rwxp---A-W-Co-:------:allow
->             group@:-w-p----------:------:deny
->             group@:r-x-----------:------:allow
->          everyone@:-w-p---A-W-Co-:------:deny
->          everyone@:r-x---a-R-c--s:------:allow
+>            user:53:--------------:-------:deny
+>            user:53:--------------:-------:allow
+>            user:52:--------------:-------:deny
+>            user:52:--------------:-------:allow
+>            user:50:--------------:-------:deny
+>            user:50:--------------:-------:allow
+>            user:49:--------------:-------:deny
+>            user:49:--------------:-------:allow
+>            user:47:-----------Co-:fdi----:allow
+>            user:47:--------------:-------:deny
+>            user:47:--------------:-------:allow
+>            user:46:-----------Co-:-di----:allow
+>            user:46:--------------:-------:deny
+>            user:46:--------------:-------:allow
+>            user:45:-----------Co-:f-i----:allow
+>            user:44:-----------Co-:fdi----:allow
+>            user:44:--------------:-------:deny
+>            user:44:--------------:-------:allow
+>            user:43:-----------Co-:-di----:allow
+>            user:43:--------------:-------:deny
+>            user:43:--------------:-------:allow
+>            user:42:-----------Co-:f-i----:allow
+>             owner@:--------------:-------:deny
+>             owner@:rwxp---A-W-Co-:-------:allow
+>             group@:-w-p----------:-------:deny
+>             group@:r-x-----------:-------:allow
+>          everyone@:-w-p---A-W-Co-:-------:deny
+>          everyone@:r-x---a-R-c--s:-------:allow
 
 $ setfacl -b .
 $ setfacl -a0 u:42:Co:f:deny .
@@ -780,44 +780,44 @@ $ umask 022
 $ rm xxx
 $ touch xxx
 $ getfacl -nq xxx
->            user:53:-----------Co-:------:deny
->            user:51:-----------Co-:------:deny
->            user:50:-----------Co-:------:deny
->            user:48:-----------Co-:------:deny
->            user:47:-----------Co-:------:deny
->            user:45:-----------Co-:------:deny
->            user:44:-----------Co-:------:deny
->            user:42:-----------Co-:------:deny
->             owner@:--x-----------:------:deny
->             owner@:rw-p---A-W-Co-:------:allow
->             group@:-wxp----------:------:deny
->             group@:r-------------:------:allow
->          everyone@:-wxp---A-W-Co-:------:deny
->          everyone@:r-----a-R-c--s:------:allow
+>            user:53:-----------Co-:-------:deny
+>            user:51:-----------Co-:-------:deny
+>            user:50:-----------Co-:-------:deny
+>            user:48:-----------Co-:-------:deny
+>            user:47:-----------Co-:-------:deny
+>            user:45:-----------Co-:-------:deny
+>            user:44:-----------Co-:-------:deny
+>            user:42:-----------Co-:-------:deny
+>             owner@:--x-----------:-------:deny
+>             owner@:rw-p---A-W-Co-:-------:allow
+>             group@:-wxp----------:-------:deny
+>             group@:r-------------:-------:allow
+>          everyone@:-wxp---A-W-Co-:-------:deny
+>          everyone@:r-----a-R-c--s:-------:allow
 
 $ rmdir yyy
 $ mkdir yyy
 $ getfacl -nq yyy
->            user:53:-----------Co-:------:deny
->            user:52:-----------Co-:------:deny
->            user:50:-----------Co-:------:deny
->            user:49:-----------Co-:------:deny
->            user:47:-----------Co-:fdi---:deny
->            user:47:-----------Co-:------:deny
->            user:46:-----------Co-:-di---:deny
->            user:46:-----------Co-:------:deny
->            user:45:-----------Co-:f-i---:deny
->            user:44:-----------Co-:fdi---:deny
->            user:44:-----------Co-:------:deny
->            user:43:-----------Co-:-di---:deny
->            user:43:-----------Co-:------:deny
->            user:42:-----------Co-:f-i---:deny
->             owner@:--------------:------:deny
->             owner@:rwxp---A-W-Co-:------:allow
->             group@:-w-p----------:------:deny
->             group@:r-x-----------:------:allow
->          everyone@:-w-p---A-W-Co-:------:deny
->          everyone@:r-x---a-R-c--s:------:allow
+>            user:53:-----------Co-:-------:deny
+>            user:52:-----------Co-:-------:deny
+>            user:50:-----------Co-:-------:deny
+>            user:49:-----------Co-:-------:deny
+>            user:47:-----------Co-:fdi----:deny
+>            user:47:-----------Co-:-------:deny
+>            user:46:-----------Co-:-di----:deny
+>            user:46:-----------Co-:-------:deny
+>            user:45:-----------Co-:f-i----:deny
+>            user:44:-----------Co-:fdi----:deny
+>            user:44:-----------Co-:-------:deny
+>            user:43:-----------Co-:-di----:deny
+>            user:43:-----------Co-:-------:deny
+>            user:42:-----------Co-:f-i----:deny
+>             owner@:--------------:-------:deny
+>             owner@:rwxp---A-W-Co-:-------:allow
+>             group@:-w-p----------:-------:deny
+>             group@:r-x-----------:-------:allow
+>          everyone@:-w-p---A-W-Co-:-------:deny
+>          everyone@:r-x---a-R-c--s:-------:allow
 
 $ rmdir yyy
 $ rm xxx

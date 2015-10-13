@@ -12,6 +12,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Support/YAMLParser.h"
+#include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/Twine.h"
@@ -100,6 +101,7 @@ namespace yaml {
 void Node::anchor() {}
 void NullNode::anchor() {}
 void ScalarNode::anchor() {}
+void BlockScalarNode::anchor() {}
 void KeyValueNode::anchor() {}
 void MappingNode::anchor() {}
 void SequenceNode::anchor() {}
@@ -127,6 +129,7 @@ struct Token : ilist_node<Token> {
     TK_Key,
     TK_Value,
     TK_Scalar,
+    TK_BlockScalar,
     TK_Alias,
     TK_Anchor,
     TK_Tag
@@ -135,6 +138,9 @@ struct Token : ilist_node<Token> {
   /// A string of length 0 or more whose begin() points to the logical location
   /// of the token in the input.
   StringRef Range;
+
+  /// The value of a block scalar node.
+  std::string Value;
 
   Token() : Kind(TK_Error) {}
 };
@@ -162,7 +168,7 @@ struct ilist_node_traits<Token> {
   Token *createNode(const Token &V) {
     return new (Alloc.Allocate<Token>()) Token(V);
   }
-  static void deleteNode(Token *V) {}
+  static void deleteNode(Token *V) { V->~Token(); }
 
   void addNodeToList(Token *) {}
   void removeNodeFromList(Token *) {}
@@ -259,8 +265,8 @@ namespace yaml {
 /// @brief Scans YAML tokens from a MemoryBuffer.
 class Scanner {
 public:
-  Scanner(StringRef Input, SourceMgr &SM);
-  Scanner(MemoryBufferRef Buffer, SourceMgr &SM_);
+  Scanner(StringRef Input, SourceMgr &SM, bool ShowColors = true);
+  Scanner(MemoryBufferRef Buffer, SourceMgr &SM_, bool ShowColors = true);
 
   /// @brief Parse the next token and return it without popping it.
   Token &peekNext();
@@ -270,7 +276,7 @@ public:
 
   void printError(SMLoc Loc, SourceMgr::DiagKind Kind, const Twine &Message,
                   ArrayRef<SMRange> Ranges = None) {
-    SM.PrintMessage(Loc, Kind, Message, Ranges);
+    SM.PrintMessage(Loc, Kind, Message, Ranges, /* FixIts= */ None, ShowColors);
   }
 
   void setError(const Twine &Message, StringRef::iterator Position) {
@@ -347,6 +353,14 @@ private:
   ///          b-break.
   StringRef::iterator skip_b_break(StringRef::iterator Position);
 
+  /// Skip a single s-space[31] starting at Position.
+  ///
+  /// An s-space is 0x20
+  ///
+  /// @returns The code unit after the s-space, or Position if it's not a
+  ///          s-space.
+  StringRef::iterator skip_s_space(StringRef::iterator Position);
+
   /// @brief Skip a single s-white[33] starting at Position.
   ///
   /// A s-white is 0x20 | 0x9
@@ -372,6 +386,10 @@ private:
   StringRef::iterator skip_while( SkipWhileFunc Func
                                 , StringRef::iterator Position);
 
+  /// Skip minimal well-formed code unit subsequences until Func returns its
+  /// input.
+  void advanceWhile(SkipWhileFunc Func);
+
   /// @brief Scan ns-uri-char[39]s starting at Cur.
   ///
   /// This updates Cur and Column while scanning.
@@ -391,6 +409,11 @@ private:
   /// @brief Return true if the minimal well-formed code unit subsequence at
   ///        Pos is whitespace or a new line
   bool isBlankOrBreak(StringRef::iterator Position);
+
+  /// Consume a single b-break[28] if it's present at the current position.
+  ///
+  /// Return false if the code unit at the current position isn't a line break.
+  bool consumeLineBreakIfPresent();
 
   /// @brief If IsSimpleKeyAllowed, create and push_back a new SimpleKey.
   void saveSimpleKeyCandidate( TokenQueueT::iterator Tok
@@ -415,6 +438,10 @@ private:
   bool rollIndent( int ToColumn
                  , Token::TokenKind Kind
                  , TokenQueueT::iterator InsertPoint);
+
+  /// @brief Skip a single-line comment when the comment starts at the current
+  /// position of the scanner.
+  void skipComment();
 
   /// @brief Skip whitespace and comments until the start of the next token.
   void scanToNextToken();
@@ -461,6 +488,30 @@ private:
   /// @brief Scan a block scalar starting with | or >.
   bool scanBlockScalar(bool IsLiteral);
 
+  /// Scan a chomping indicator in a block scalar header.
+  char scanBlockChompingIndicator();
+
+  /// Scan an indentation indicator in a block scalar header.
+  unsigned scanBlockIndentationIndicator();
+
+  /// Scan a block scalar header.
+  ///
+  /// Return false if an error occurred.
+  bool scanBlockScalarHeader(char &ChompingIndicator, unsigned &IndentIndicator,
+                             bool &IsDone);
+
+  /// Look for the indentation level of a block scalar.
+  ///
+  /// Return false if an error occurred.
+  bool findBlockScalarIndent(unsigned &BlockIndent, unsigned BlockExitIndent,
+                             unsigned &LineBreaks, bool &IsDone);
+
+  /// Scan the indentation of a text line in a block scalar.
+  ///
+  /// Return false if an error occurred.
+  bool scanBlockScalarIndent(unsigned BlockIndent, unsigned BlockExitIndent,
+                             bool &IsDone);
+
   /// @brief Scan a tag of the form !stuff.
   bool scanTag();
 
@@ -499,6 +550,9 @@ private:
 
   /// @brief True if an error has occurred.
   bool Failed;
+
+  /// @brief Should colors be used when printing out the diagnostic messages?
+  bool ShowColors;
 
   /// @brief Queue of tokens. This is required to queue up tokens while looking
   ///        for the end of a simple key. And for cases where a single character
@@ -604,6 +658,9 @@ bool yaml::dumpTokens(StringRef Input, raw_ostream &OS) {
     case Token::TK_Scalar:
       OS << "Scalar: ";
       break;
+    case Token::TK_BlockScalar:
+      OS << "Block Scalar: ";
+      break;
     case Token::TK_Alias:
       OS << "Alias: ";
       break;
@@ -701,11 +758,13 @@ std::string yaml::escape(StringRef Input) {
   return EscapedInput;
 }
 
-Scanner::Scanner(StringRef Input, SourceMgr &sm) : SM(sm) {
+Scanner::Scanner(StringRef Input, SourceMgr &sm, bool ShowColors)
+    : SM(sm), ShowColors(ShowColors) {
   init(MemoryBufferRef(Input, "YAML"));
 }
 
-Scanner::Scanner(MemoryBufferRef Buffer, SourceMgr &SM_) : SM(SM_) {
+Scanner::Scanner(MemoryBufferRef Buffer, SourceMgr &SM_, bool ShowColors)
+    : SM(SM_), ShowColors(ShowColors) {
   init(Buffer);
 }
 
@@ -806,6 +865,13 @@ StringRef::iterator Scanner::skip_b_break(StringRef::iterator Position) {
   return Position;
 }
 
+StringRef::iterator Scanner::skip_s_space(StringRef::iterator Position) {
+  if (Position == End)
+    return Position;
+  if (*Position == ' ')
+    return Position + 1;
+  return Position;
+}
 
 StringRef::iterator Scanner::skip_s_white(StringRef::iterator Position) {
   if (Position == End)
@@ -832,6 +898,12 @@ StringRef::iterator Scanner::skip_while( SkipWhileFunc Func
     Position = i;
   }
   return Position;
+}
+
+void Scanner::advanceWhile(SkipWhileFunc Func) {
+  auto Final = skip_while(Func, Current);
+  Column += Final - Current;
+  Current = Final;
 }
 
 static bool is_ns_hex_digit(const char C) {
@@ -894,6 +966,16 @@ bool Scanner::isBlankOrBreak(StringRef::iterator Position) {
       || *Position == '\r' || *Position == '\n')
     return true;
   return false;
+}
+
+bool Scanner::consumeLineBreakIfPresent() {
+  auto Next = skip_b_break(Current);
+  if (Next == Current)
+    return false;
+  Column = 0;
+  ++Line;
+  Current = Next;
+  return true;
 }
 
 void Scanner::saveSimpleKeyCandidate( TokenQueueT::iterator Tok
@@ -961,24 +1043,27 @@ bool Scanner::rollIndent( int ToColumn
   return true;
 }
 
+void Scanner::skipComment() {
+  if (*Current != '#')
+    return;
+  while (true) {
+    // This may skip more than one byte, thus Column is only incremented
+    // for code points.
+    StringRef::iterator I = skip_nb_char(Current);
+    if (I == Current)
+      break;
+    Current = I;
+    ++Column;
+  }
+}
+
 void Scanner::scanToNextToken() {
   while (true) {
     while (*Current == ' ' || *Current == '\t') {
       skip(1);
     }
 
-    // Skip comment.
-    if (*Current == '#') {
-      while (true) {
-        // This may skip more than one byte, thus Column is only incremented
-        // for code points.
-        StringRef::iterator i = skip_nb_char(Current);
-        if (i == Current)
-          break;
-        Current = i;
-        ++Column;
-      }
-    }
+    skipComment();
 
     // Skip EOL.
     StringRef::iterator i = skip_b_break(Current);
@@ -1361,38 +1446,204 @@ bool Scanner::scanAliasOrAnchor(bool IsAlias) {
   return true;
 }
 
-bool Scanner::scanBlockScalar(bool IsLiteral) {
-  StringRef::iterator Start = Current;
-  skip(1); // Eat | or >
-  while(true) {
-    StringRef::iterator i = skip_nb_char(Current);
-    if (i == Current) {
-      if (Column == 0)
-        break;
-      i = skip_b_break(Current);
-      if (i != Current) {
-        // We got a line break.
-        Column = 0;
-        ++Line;
-        Current = i;
-        continue;
-      } else {
-        // There was an error, which should already have been printed out.
+char Scanner::scanBlockChompingIndicator() {
+  char Indicator = ' ';
+  if (Current != End && (*Current == '+' || *Current == '-')) {
+    Indicator = *Current;
+    skip(1);
+  }
+  return Indicator;
+}
+
+/// Get the number of line breaks after chomping.
+///
+/// Return the number of trailing line breaks to emit, depending on
+/// \p ChompingIndicator.
+static unsigned getChompedLineBreaks(char ChompingIndicator,
+                                     unsigned LineBreaks, StringRef Str) {
+  if (ChompingIndicator == '-') // Strip all line breaks.
+    return 0;
+  if (ChompingIndicator == '+') // Keep all line breaks.
+    return LineBreaks;
+  // Clip trailing lines.
+  return Str.empty() ? 0 : 1;
+}
+
+unsigned Scanner::scanBlockIndentationIndicator() {
+  unsigned Indent = 0;
+  if (Current != End && (*Current >= '1' && *Current <= '9')) {
+    Indent = unsigned(*Current - '0');
+    skip(1);
+  }
+  return Indent;
+}
+
+bool Scanner::scanBlockScalarHeader(char &ChompingIndicator,
+                                    unsigned &IndentIndicator, bool &IsDone) {
+  auto Start = Current;
+
+  ChompingIndicator = scanBlockChompingIndicator();
+  IndentIndicator = scanBlockIndentationIndicator();
+  // Check for the chomping indicator once again.
+  if (ChompingIndicator == ' ')
+    ChompingIndicator = scanBlockChompingIndicator();
+  Current = skip_while(&Scanner::skip_s_white, Current);
+  skipComment();
+
+  if (Current == End) { // EOF, we have an empty scalar.
+    Token T;
+    T.Kind = Token::TK_BlockScalar;
+    T.Range = StringRef(Start, Current - Start);
+    TokenQueue.push_back(T);
+    IsDone = true;
+    return true;
+  }
+
+  if (!consumeLineBreakIfPresent()) {
+    setError("Expected a line break after block scalar header", Current);
+    return false;
+  }
+  return true;
+}
+
+bool Scanner::findBlockScalarIndent(unsigned &BlockIndent,
+                                    unsigned BlockExitIndent,
+                                    unsigned &LineBreaks, bool &IsDone) {
+  unsigned MaxAllSpaceLineCharacters = 0;
+  StringRef::iterator LongestAllSpaceLine;
+
+  while (true) {
+    advanceWhile(&Scanner::skip_s_space);
+    if (skip_nb_char(Current) != Current) {
+      // This line isn't empty, so try and find the indentation.
+      if (Column <= BlockExitIndent) { // End of the block literal.
+        IsDone = true;
+        return true;
+      }
+      // We found the block's indentation.
+      BlockIndent = Column;
+      if (MaxAllSpaceLineCharacters > BlockIndent) {
+        setError(
+            "Leading all-spaces line must be smaller than the block indent",
+            LongestAllSpaceLine);
         return false;
       }
+      return true;
     }
-    Current = i;
+    if (skip_b_break(Current) != Current &&
+        Column > MaxAllSpaceLineCharacters) {
+      // Record the longest all-space line in case it's longer than the
+      // discovered block indent.
+      MaxAllSpaceLineCharacters = Column;
+      LongestAllSpaceLine = Current;
+    }
+
+    // Check for EOF.
+    if (Current == End) {
+      IsDone = true;
+      return true;
+    }
+
+    if (!consumeLineBreakIfPresent()) {
+      IsDone = true;
+      return true;
+    }
+    ++LineBreaks;
+  }
+  return true;
+}
+
+bool Scanner::scanBlockScalarIndent(unsigned BlockIndent,
+                                    unsigned BlockExitIndent, bool &IsDone) {
+  // Skip the indentation.
+  while (Column < BlockIndent) {
+    auto I = skip_s_space(Current);
+    if (I == Current)
+      break;
+    Current = I;
     ++Column;
   }
 
-  if (Start == Current) {
-    setError("Got empty block scalar", Start);
-    return false;
+  if (skip_nb_char(Current) == Current)
+    return true;
+
+  if (Column <= BlockExitIndent) { // End of the block literal.
+    IsDone = true;
+    return true;
   }
 
+  if (Column < BlockIndent) {
+    if (Current != End && *Current == '#') { // Trailing comment.
+      IsDone = true;
+      return true;
+    }
+    setError("A text line is less indented than the block scalar", Current);
+    return false;
+  }
+  return true; // A normal text line.
+}
+
+bool Scanner::scanBlockScalar(bool IsLiteral) {
+  // Eat '|' or '>'
+  assert(*Current == '|' || *Current == '>');
+  skip(1);
+
+  char ChompingIndicator;
+  unsigned BlockIndent;
+  bool IsDone = false;
+  if (!scanBlockScalarHeader(ChompingIndicator, BlockIndent, IsDone))
+    return false;
+  if (IsDone)
+    return true;
+
+  auto Start = Current;
+  unsigned BlockExitIndent = Indent < 0 ? 0 : (unsigned)Indent;
+  unsigned LineBreaks = 0;
+  if (BlockIndent == 0) {
+    if (!findBlockScalarIndent(BlockIndent, BlockExitIndent, LineBreaks,
+                               IsDone))
+      return false;
+  }
+
+  // Scan the block's scalars body.
+  SmallString<256> Str;
+  while (!IsDone) {
+    if (!scanBlockScalarIndent(BlockIndent, BlockExitIndent, IsDone))
+      return false;
+    if (IsDone)
+      break;
+
+    // Parse the current line.
+    auto LineStart = Current;
+    advanceWhile(&Scanner::skip_nb_char);
+    if (LineStart != Current) {
+      Str.append(LineBreaks, '\n');
+      Str.append(StringRef(LineStart, Current - LineStart));
+      LineBreaks = 0;
+    }
+
+    // Check for EOF.
+    if (Current == End)
+      break;
+
+    if (!consumeLineBreakIfPresent())
+      break;
+    ++LineBreaks;
+  }
+
+  if (Current == End && !LineBreaks)
+    // Ensure that there is at least one line break before the end of file.
+    LineBreaks = 1;
+  Str.append(getChompedLineBreaks(ChompingIndicator, LineBreaks, Str), '\n');
+
+  // New lines may start a simple key.
+  if (!FlowLevel)
+    IsSimpleKeyAllowed = true;
+
   Token T;
-  T.Kind = Token::TK_Scalar;
+  T.Kind = Token::TK_BlockScalar;
   T.Range = StringRef(Start, Current - Start);
+  T.Value = Str.str().str();
   TokenQueue.push_back(T);
   return true;
 }
@@ -1517,23 +1768,21 @@ bool Scanner::fetchMoreTokens() {
   return false;
 }
 
-Stream::Stream(StringRef Input, SourceMgr &SM)
-    : scanner(new Scanner(Input, SM)), CurrentDoc() {}
+Stream::Stream(StringRef Input, SourceMgr &SM, bool ShowColors)
+    : scanner(new Scanner(Input, SM, ShowColors)), CurrentDoc() {}
 
-Stream::Stream(MemoryBufferRef InputBuffer, SourceMgr &SM)
-    : scanner(new Scanner(InputBuffer, SM)), CurrentDoc() {}
+Stream::Stream(MemoryBufferRef InputBuffer, SourceMgr &SM, bool ShowColors)
+    : scanner(new Scanner(InputBuffer, SM, ShowColors)), CurrentDoc() {}
 
 Stream::~Stream() {}
 
 bool Stream::failed() { return scanner->failed(); }
 
 void Stream::printError(Node *N, const Twine &Msg) {
-  SmallVector<SMRange, 1> Ranges;
-  Ranges.push_back(N->getSourceRange());
   scanner->printError( N->getSourceRange().Start
                      , SourceMgr::DK_Error
                      , Msg
-                     , Ranges);
+                     , N->getSourceRange());
 }
 
 document_iterator Stream::begin() {
@@ -1570,11 +1819,11 @@ std::string Node::getVerbatimTag() const {
     if (Raw.find_last_of('!') == 0) {
       Ret = Doc->getTagMap().find("!")->second;
       Ret += Raw.substr(1);
-      return std::move(Ret);
+      return Ret;
     } else if (Raw.startswith("!!")) {
       Ret = Doc->getTagMap().find("!!")->second;
       Ret += Raw.substr(2);
-      return std::move(Ret);
+      return Ret;
     } else {
       StringRef TagHandle = Raw.substr(0, Raw.find_last_of('!') + 1);
       std::map<StringRef, StringRef>::const_iterator It =
@@ -1588,7 +1837,7 @@ std::string Node::getVerbatimTag() const {
         setError(Twine("Unknown tag handle ") + TagHandle, T);
       }
       Ret += Raw.substr(Raw.find_last_of('!') + 1);
-      return std::move(Ret);
+      return Ret;
     }
   }
 
@@ -1596,6 +1845,7 @@ std::string Node::getVerbatimTag() const {
   case NK_Null:
     return "tag:yaml.org,2002:null";
   case NK_Scalar:
+  case NK_BlockScalar:
     // TODO: Tag resolution.
     return "tag:yaml.org,2002:str";
   case NK_Mapping:
@@ -2127,6 +2377,14 @@ parse_property:
                 , AnchorInfo.Range.substr(1)
                 , TagInfo.Range
                 , T.Range);
+  case Token::TK_BlockScalar: {
+    getNext();
+    StringRef NullTerminatedStr(T.Value.c_str(), T.Value.length() + 1);
+    StringRef StrCopy = NullTerminatedStr.copy(NodeAllocator).drop_back();
+    return new (NodeAllocator)
+        BlockScalarNode(stream.CurrentDoc, AnchorInfo.Range.substr(1),
+                        TagInfo.Range, StrCopy, T.Range);
+  }
   case Token::TK_Key:
     // Don't eat the TK_Key, KeyValueNode expects it.
     return new (NodeAllocator)

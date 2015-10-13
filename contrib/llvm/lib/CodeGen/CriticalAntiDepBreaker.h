@@ -31,7 +31,7 @@ class RegisterClassInfo;
 class TargetInstrInfo;
 class TargetRegisterInfo;
 
-  class CriticalAntiDepBreaker : public AntiDepBreaker {
+class LLVM_LIBRARY_VISIBILITY CriticalAntiDepBreaker : public AntiDepBreaker {
     MachineFunction& MF;
     MachineRegisterInfo &MRI;
     const TargetInstrInfo *TII;
@@ -69,7 +69,7 @@ class TargetRegisterInfo;
 
   public:
     CriticalAntiDepBreaker(MachineFunction& MFi, const RegisterClassInfo&);
-    ~CriticalAntiDepBreaker();
+    ~CriticalAntiDepBreaker() override;
 
     /// Initialize anti-dep breaking for a new basic block.
     void StartBlock(MachineBasicBlock *BB) override;

@@ -804,7 +804,7 @@ pw_user_show(int argc, char **argv, char *arg1)
 		case 'a':
 			all = true;
 			break;
-		case 7:
+		case '7':
 			v7 = true;
 			break;
 		}
@@ -1694,6 +1694,7 @@ pw_user_mod(int argc, char **argv, char *arg1)
 
 	if (homedir && strcmp(pwd->pw_dir, homedir) != 0) {
 		pwd->pw_dir = homedir;
+		edited = true;
 		if (fstatat(conf.rootfd, pwd->pw_dir, &st, 0) == -1) {
 			if (!createhome)
 				warnx("WARNING: home `%s' does not exist",

@@ -17,6 +17,8 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
+amd64-cloudabi64.o: cloudabi64_syscalls.h
+amd64-cloudabi64.po: cloudabi64_syscalls.h
 amd64-fbsd.o: syscalls.h
 amd64-fbsd.po: syscalls.h
 amd64-fbsd32.o: freebsd32_syscalls.h

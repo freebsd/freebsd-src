@@ -20,7 +20,7 @@
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/Verifier.h"
 #include "llvm/InitializePasses.h"
-#include "llvm/PassManager.h"
+#include "llvm/IR/LegacyPassManager.h"
 
 using namespace llvm;
 
@@ -28,6 +28,7 @@ using namespace llvm;
 /// ScalarOpts library.
 void llvm::initializeScalarOpts(PassRegistry &Registry) {
   initializeADCEPass(Registry);
+  initializeBDCEPass(Registry);
   initializeAlignmentFromAssumptionsPass(Registry);
   initializeSampleProfileLoaderPass(Registry);
   initializeConstantHoistingPass(Registry);
@@ -38,13 +39,16 @@ void llvm::initializeScalarOpts(PassRegistry &Registry) {
   initializeScalarizerPass(Registry);
   initializeDSEPass(Registry);
   initializeGVNPass(Registry);
-  initializeEarlyCSEPass(Registry);
+  initializeEarlyCSELegacyPassPass(Registry);
   initializeFlattenCFGPassPass(Registry);
+  initializeInductiveRangeCheckEliminationPass(Registry);
   initializeIndVarSimplifyPass(Registry);
   initializeJumpThreadingPass(Registry);
   initializeLICMPass(Registry);
   initializeLoopDeletionPass(Registry);
+  initializeLoopAccessAnalysisPass(Registry);
   initializeLoopInstSimplifyPass(Registry);
+  initializeLoopInterchangePass(Registry);
   initializeLoopRotatePass(Registry);
   initializeLoopStrengthReducePass(Registry);
   initializeLoopRerollPass(Registry);
@@ -55,9 +59,11 @@ void llvm::initializeScalarOpts(PassRegistry &Registry) {
   initializeLowerExpectIntrinsicPass(Registry);
   initializeMemCpyOptPass(Registry);
   initializeMergedLoadStoreMotionPass(Registry);
+  initializeNaryReassociatePass(Registry);
   initializePartiallyInlineLibCallsPass(Registry);
   initializeReassociatePass(Registry);
   initializeRegToMemPass(Registry);
+  initializeRewriteStatepointsForGCPass(Registry);
   initializeSCCPPass(Registry);
   initializeIPSCCPPass(Registry);
   initializeSROAPass(Registry);
@@ -68,7 +74,13 @@ void llvm::initializeScalarOpts(PassRegistry &Registry) {
   initializeSinkingPass(Registry);
   initializeTailCallElimPass(Registry);
   initializeSeparateConstOffsetFromGEPPass(Registry);
+  initializeSpeculativeExecutionPass(Registry);
+  initializeStraightLineStrengthReducePass(Registry);
   initializeLoadCombinePass(Registry);
+  initializePlaceBackedgeSafepointsImplPass(Registry);
+  initializePlaceSafepointsPass(Registry);
+  initializeFloat2IntPass(Registry);
+  initializeLoopDistributePass(Registry);
 }
 
 void LLVMInitializeScalarOpts(LLVMPassRegistryRef R) {
@@ -77,6 +89,10 @@ void LLVMInitializeScalarOpts(LLVMPassRegistryRef R) {
 
 void LLVMAddAggressiveDCEPass(LLVMPassManagerRef PM) {
   unwrap(PM)->add(createAggressiveDCEPass());
+}
+
+void LLVMAddBitTrackingDCEPass(LLVMPassManagerRef PM) {
+  unwrap(PM)->add(createBitTrackingDCEPass());
 }
 
 void LLVMAddAlignmentFromAssumptionsPass(LLVMPassManagerRef PM) {
@@ -198,7 +214,6 @@ void LLVMAddDemoteMemoryToRegisterPass(LLVMPassManagerRef PM) {
 
 void LLVMAddVerifierPass(LLVMPassManagerRef PM) {
   unwrap(PM)->add(createVerifierPass());
-  // FIXME: should this also add createDebugInfoVerifierPass()?
 }
 
 void LLVMAddCorrelatedValuePropagationPass(LLVMPassManagerRef PM) {

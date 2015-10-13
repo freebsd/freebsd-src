@@ -40,6 +40,7 @@ struct vm_area_struct {
 	vm_offset_t	vm_end;
 	vm_offset_t	vm_pgoff;
 	vm_paddr_t	vm_pfn;		/* PFN For mmap. */
+	vm_size_t	vm_len;		/* length for mmap. */
 	vm_memattr_t	vm_page_prot;
 };
 
@@ -78,6 +79,7 @@ io_remap_pfn_range(struct vm_area_struct *vma,
 {
 	vma->vm_page_prot = prot;
 	vma->vm_pfn = pfn;
+	vma->vm_len = size;
 
 	return (0);
 }

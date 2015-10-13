@@ -93,14 +93,14 @@ struct urtw_vap {
 #define	URTW_VAP(vap)	((struct urtw_vap *)(vap))
 
 struct urtw_softc {
-	struct ifnet			*sc_ifp;
+	struct ieee80211com		sc_ic;
+	struct mbufq			sc_snd;
 	device_t			sc_dev;
 	struct usb_device		*sc_udev;
 	struct mtx			sc_mtx;
 	void				*sc_tx_dma_buf;
 
 	int				sc_debug;
-	int				sc_if_flags;
 	int				sc_flags;
 #define	URTW_INIT_ONCE			(1 << 1)
 #define	URTW_RTL8187B			(1 << 2)
@@ -108,13 +108,13 @@ struct urtw_softc {
 #define	URTW_RTL8187B_REV_D		(1 << 4)
 #define	URTW_RTL8187B_REV_E		(1 << 5)
 #define	URTW_DETACHED			(1 << 6)
+#define	URTW_RUNNING			(1 << 7)
 	enum ieee80211_state		sc_state;
 
 	int				sc_epromtype;
 #define URTW_EEPROM_93C46		0
 #define URTW_EEPROM_93C56		1
 	uint8_t				sc_crcmon;
-	uint8_t				sc_bssid[IEEE80211_ADDR_LEN];
 
 	struct ieee80211_channel	*sc_curchan;
 
@@ -178,9 +178,7 @@ struct urtw_softc {
 	struct urtw_stats		sc_stats;
 
 	struct	urtw_rx_radiotap_header	sc_rxtap;
-	int				sc_rxtap_len;
 	struct	urtw_tx_radiotap_header	sc_txtap;
-	int				sc_txtap_len;
 };
 
 #define URTW_LOCK(sc)			mtx_lock(&(sc)->sc_mtx)

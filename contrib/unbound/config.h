@@ -71,6 +71,10 @@
    if you don't. */
 #define HAVE_DECL_NID_X9_62_PRIME256V1 1
 
+/* Define to 1 if you have the declaration of `reallocarray', and to 0 if you
+   don't. */
+/* #undef HAVE_DECL_REALLOCARRAY */
+
 /* Define to 1 if you have the declaration of `sk_SSL_COMP_pop_free', and to 0
    if you don't. */
 #define HAVE_DECL_SK_SSL_COMP_POP_FREE 1
@@ -78,6 +82,10 @@
 /* Define to 1 if you have the declaration of
    `SSL_COMP_get_compression_methods', and to 0 if you don't. */
 #define HAVE_DECL_SSL_COMP_GET_COMPRESSION_METHODS 1
+
+/* Define to 1 if you have the declaration of `SSL_CTX_set_ecdh_auto', and to
+   0 if you don't. */
+#define HAVE_DECL_SSL_CTX_SET_ECDH_AUTO 0
 
 /* Define to 1 if you have the declaration of `strlcat', and to 0 if you
    don't. */
@@ -266,6 +274,9 @@
 
 /* Define to 1 if you have the `random' function. */
 #define HAVE_RANDOM 1
+
+/* Define to 1 if you have the `reallocarray' function. */
+#define HAVE_REALLOCARRAY 1
 
 /* Define to 1 if you have the `recvmsg' function. */
 #define HAVE_RECVMSG 1
@@ -486,7 +497,7 @@
 #define PACKAGE_NAME "unbound"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "unbound 1.5.3"
+#define PACKAGE_STRING "unbound 1.5.5"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "unbound"
@@ -495,7 +506,7 @@
 #define PACKAGE_URL ""
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "1.5.3"
+#define PACKAGE_VERSION "1.5.5"
 
 /* default pidfile location */
 #define PIDFILE "/var/unbound/unbound.pid"
@@ -514,7 +525,7 @@
 #define ROOT_CERT_FILE "/var/unbound/icannbundle.pem"
 
 /* version number for resource files */
-#define RSRC_PACKAGE_VERSION 1,5,3,0
+#define RSRC_PACKAGE_VERSION 1,5,5,0
 
 /* Directory to chdir to */
 #define RUN_DIR "/var/unbound"
@@ -890,6 +901,12 @@ struct tm *gmtime_r(const time_t *timep, struct tm *result);
 #endif
 
 
+#ifndef HAVE_REALLOCARRAY
+#define reallocarray reallocarrayunbound
+void* reallocarray(void *ptr, size_t nmemb, size_t size);
+#endif
+
+
 #if !defined(HAVE_SLEEP) || defined(HAVE_WINDOWS_H)
 #define sleep(x) Sleep((x)*1000) /* on win32 */
 #endif /* HAVE_SLEEP */
@@ -954,6 +971,9 @@ uint32_t arc4random(void);
 #  endif
 #  if !HAVE_DECL_ARC4RANDOM_UNIFORM && defined(HAVE_ARC4RANDOM_UNIFORM)
 uint32_t arc4random_uniform(uint32_t upper_bound);
+#  endif
+#  if !HAVE_DECL_REALLOCARRAY
+void *reallocarray(void *ptr, size_t nmemb, size_t size);
 #  endif
 #endif /* HAVE_LIBRESSL */
 #ifndef HAVE_ARC4RANDOM

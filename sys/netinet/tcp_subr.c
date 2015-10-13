@@ -228,6 +228,7 @@ VNET_DEFINE(struct hhook_head *, tcp_hhh[HHOOK_TCP_LAST+1]);
 
 static struct inpcb *tcp_notify(struct inpcb *, int);
 static struct inpcb *tcp_mtudisc_notify(struct inpcb *, int);
+static void tcp_mtudisc(struct inpcb *, int);
 static char *	tcp_log_addr(struct in_conninfo *inc, struct tcphdr *th,
 		    void *ip4hdr, const void *ip6hdr);
 static void	tcp_timer_discard(struct tcpcb *, uint32_t);
@@ -719,6 +720,7 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 	if (tp == NULL || (inp->inp_socket->so_options & SO_DEBUG))
 		tcp_trace(TA_OUTPUT, 0, tp, mtod(m, void *), th, 0);
 #endif
+	TCP_PROBE3(debug__input, tp, th, mtod(m, const char *));
 	if (flags & TH_RST)
 		TCP_PROBE5(accept__refused, NULL, NULL, mtod(m, const char *),
 		    tp, nth);
@@ -1513,74 +1515,74 @@ tcp_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 		ip = NULL;
 	else if ((unsigned)cmd >= PRC_NCMDS || inetctlerrmap[cmd] == 0)
 		return;
-	if (ip != NULL) {
-		icp = (struct icmp *)((caddr_t)ip
-				      - offsetof(struct icmp, icmp_ip));
-		th = (struct tcphdr *)((caddr_t)ip
-				       + (ip->ip_hl << 2));
-		INP_INFO_RLOCK(&V_tcbinfo);
-		inp = in_pcblookup(&V_tcbinfo, faddr, th->th_dport,
-		    ip->ip_src, th->th_sport, INPLOOKUP_WLOCKPCB, NULL);
-		if (inp != NULL)  {
-			if (!(inp->inp_flags & INP_TIMEWAIT) &&
-			    !(inp->inp_flags & INP_DROPPED) &&
-			    !(inp->inp_socket == NULL)) {
-				icmp_tcp_seq = htonl(th->th_seq);
-				tp = intotcpcb(inp);
-				if (SEQ_GEQ(icmp_tcp_seq, tp->snd_una) &&
-				    SEQ_LT(icmp_tcp_seq, tp->snd_max)) {
-					if (cmd == PRC_MSGSIZE) {
-					    /*
-					     * MTU discovery:
-					     * If we got a needfrag set the MTU
-					     * in the route to the suggested new
-					     * value (if given) and then notify.
-					     */
-					    bzero(&inc, sizeof(inc));
-					    inc.inc_faddr = faddr;
-					    inc.inc_fibnum =
-						inp->inp_inc.inc_fibnum;
 
-					    mtu = ntohs(icp->icmp_nextmtu);
-					    /*
-					     * If no alternative MTU was
-					     * proposed, try the next smaller
-					     * one.
-					     */
-					    if (!mtu)
-						mtu = ip_next_mtu(
-						 ntohs(ip->ip_len), 1);
-					    if (mtu < V_tcp_minmss
-						 + sizeof(struct tcpiphdr))
-						mtu = V_tcp_minmss
-						 + sizeof(struct tcpiphdr);
-					    /*
-					     * Only cache the MTU if it
-					     * is smaller than the interface
-					     * or route MTU.  tcp_mtudisc()
-					     * will do right thing by itself.
-					     */
-					    if (mtu <= tcp_maxmtu(&inc, NULL))
-						tcp_hc_updatemtu(&inc, mtu);
-					    tcp_mtudisc(inp, mtu);
-					} else
-						inp = (*notify)(inp,
-						    inetctlerrmap[cmd]);
-				}
-			}
-			if (inp != NULL)
-				INP_WUNLOCK(inp);
-		} else {
-			bzero(&inc, sizeof(inc));
-			inc.inc_fport = th->th_dport;
-			inc.inc_lport = th->th_sport;
-			inc.inc_faddr = faddr;
-			inc.inc_laddr = ip->ip_src;
-			syncache_unreach(&inc, th);
-		}
-		INP_INFO_RUNLOCK(&V_tcbinfo);
-	} else
+	if (ip == NULL) {
 		in_pcbnotifyall(&V_tcbinfo, faddr, inetctlerrmap[cmd], notify);
+		return;
+	}
+
+	icp = (struct icmp *)((caddr_t)ip - offsetof(struct icmp, icmp_ip));
+	th = (struct tcphdr *)((caddr_t)ip + (ip->ip_hl << 2));
+	INP_INFO_RLOCK(&V_tcbinfo);
+	inp = in_pcblookup(&V_tcbinfo, faddr, th->th_dport, ip->ip_src,
+	    th->th_sport, INPLOOKUP_WLOCKPCB, NULL);
+	if (inp != NULL)  {
+		if (!(inp->inp_flags & INP_TIMEWAIT) &&
+		    !(inp->inp_flags & INP_DROPPED) &&
+		    !(inp->inp_socket == NULL)) {
+			icmp_tcp_seq = ntohl(th->th_seq);
+			tp = intotcpcb(inp);
+			if (SEQ_GEQ(icmp_tcp_seq, tp->snd_una) &&
+			    SEQ_LT(icmp_tcp_seq, tp->snd_max)) {
+				if (cmd == PRC_MSGSIZE) {
+					/*
+					 * MTU discovery:
+					 * If we got a needfrag set the MTU
+					 * in the route to the suggested new
+					 * value (if given) and then notify.
+					 */
+				    	mtu = ntohs(icp->icmp_nextmtu);
+					/*
+					 * If no alternative MTU was
+					 * proposed, try the next smaller
+					 * one.
+					 */
+					if (!mtu)
+						mtu = ip_next_mtu(
+						    ntohs(ip->ip_len), 1);
+					if (mtu < V_tcp_minmss +
+					    sizeof(struct tcpiphdr))
+						mtu = V_tcp_minmss +
+						    sizeof(struct tcpiphdr);
+					/*
+					 * Only process the offered MTU if it
+					 * is smaller than the current one.
+					 */
+					if (mtu < tp->t_maxopd +
+					    sizeof(struct tcpiphdr)) {
+						bzero(&inc, sizeof(inc));
+						inc.inc_faddr = faddr;
+						inc.inc_fibnum =
+						    inp->inp_inc.inc_fibnum;
+						tcp_hc_updatemtu(&inc, mtu);
+						tcp_mtudisc(inp, mtu);
+					}
+				} else
+					inp = (*notify)(inp,
+					    inetctlerrmap[cmd]);
+			}
+		}
+		if (inp != NULL)
+			INP_WUNLOCK(inp);
+	} else {
+		bzero(&inc, sizeof(inc));
+		inc.inc_fport = th->th_dport;
+		inc.inc_lport = th->th_sport;
+		inc.inc_faddr = faddr;
+		inc.inc_laddr = ip->ip_src;
+		syncache_unreach(&inc, th);
+	}
+	INP_INFO_RUNLOCK(&V_tcbinfo);
 }
 #endif /* INET */
 
@@ -1811,10 +1813,11 @@ static struct inpcb *
 tcp_mtudisc_notify(struct inpcb *inp, int error)
 {
 
-	return (tcp_mtudisc(inp, -1));
+	tcp_mtudisc(inp, -1);
+	return (inp);
 }
 
-struct inpcb *
+static void
 tcp_mtudisc(struct inpcb *inp, int mtuoffer)
 {
 	struct tcpcb *tp;
@@ -1823,7 +1826,7 @@ tcp_mtudisc(struct inpcb *inp, int mtuoffer)
 	INP_WLOCK_ASSERT(inp);
 	if ((inp->inp_flags & INP_TIMEWAIT) ||
 	    (inp->inp_flags & INP_DROPPED))
-		return (inp);
+		return;
 
 	tp = intotcpcb(inp);
 	KASSERT(tp != NULL, ("tcp_mtudisc: tp == NULL"));
@@ -1845,7 +1848,6 @@ tcp_mtudisc(struct inpcb *inp, int mtuoffer)
 	if (tp->t_flags & TF_SACK_PERMIT)
 		EXIT_FASTRECOVERY(tp->t_flags);
 	tcp_output(tp);
-	return (inp);
 }
 
 #ifdef INET

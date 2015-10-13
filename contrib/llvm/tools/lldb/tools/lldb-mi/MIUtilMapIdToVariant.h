@@ -7,18 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-//++
-// File:        MIUtilMapIdToVariant.h
-//
-// Overview:    CMIUtilMapIdToVariant interface.
-//
-// Environment: Compilers:  Visual C++ 12.
-//                          gcc (Ubuntu/Linaro 4.8.1-10ubuntu9) 4.8.1
-//              Libraries:  See MIReadmetxt.
-//
-// Copyright:   None.
-//--
-
 #pragma once
 
 // Third party headers:
@@ -32,7 +20,7 @@
 
 //++ ============================================================================
 // Details: MI common code utility class. Map type container that hold general
-//          object types (by being wrappin an variant wrapper)
+//          object types (by being a variant wrapper)
 //          objects by ID.
 // Gotchas: None.
 // Authors: Illya Rudkin 19/06/2014.
@@ -54,9 +42,9 @@ class CMIUtilMapIdToVariant : public CMICmnBase
     // Overridden:
   public:
     // From CMICmnBase
-    /* dtor */ virtual ~CMIUtilMapIdToVariant(void);
+    /* dtor */ ~CMIUtilMapIdToVariant(void) override;
 
-    // Typdefs:
+    // Typedefs:
   private:
     typedef std::map<CMIUtilString, CMIUtilVariant> MapKeyToVariantValue_t;
     typedef std::pair<CMIUtilString, CMIUtilVariant> MapPairKeyToVariantValue_t;
@@ -77,8 +65,8 @@ class CMIUtilMapIdToVariant : public CMICmnBase
 // Args:    T       - The data object's variable type.
 //          vId     - (R) Unique ID i.e. GUID.
 //          vData   - (R) The general data object to be stored of some type.
-// Return:  MIstatus::success - Functional succeeded.
-//          MIstatus::failure - Functional failed.
+// Return:  MIstatus::success - Function succeeded.
+//          MIstatus::failure - Function failed.
 // Throws:  None.
 //--
 template <typename T>
@@ -110,8 +98,8 @@ CMIUtilMapIdToVariant::Add(const CMIUtilString &vId, const T &vData)
 //          vId         - (R) Unique ID i.e. GUID.
 //          vrwData     - (W) Copy of the data object held.
 //          vrwbFound   - (W) True = data found, false = data not found.
-// Return:  MIstatus::success - Functional succeeded.
-//          MIstatus::failure - Functional failed.
+// Return:  MIstatus::success - Function succeeded.
+//          MIstatus::failure - Function failed.
 // Throws:  None.
 //--
 template <typename T>

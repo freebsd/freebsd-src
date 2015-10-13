@@ -31,14 +31,17 @@
 /* Installation directory for documentation */
 /* #undef LLVM_DOCSDIR */
 
+/* Define to enable checks that alter the LLVM C++ ABI */
+#define LLVM_ENABLE_ABI_BREAKING_CHECKS 1
+
 /* Define if threads enabled */
-#define LLVM_ENABLE_THREADS 0
+#define LLVM_ENABLE_THREADS 1
 
 /* Installation directory for config files */
 /* #undef LLVM_ETCDIR */
 
 /* Has gcc/MSVC atomic intrinsics */
-#define LLVM_HAS_ATOMICS 0
+#define LLVM_HAS_ATOMICS 1
 
 /* Host triple LLVM will be executed on */
 /* #undef LLVM_HOST_TRIPLE */
@@ -92,12 +95,12 @@
 #define LLVM_VERSION_MAJOR 3
 
 /* Minor version of the LLVM API */
-#define LLVM_VERSION_MINOR 6
+#define LLVM_VERSION_MINOR 7
 
 /* Patch version of the LLVM API */
-#define LLVM_VERSION_PATCH 1
+#define LLVM_VERSION_PATCH 0
 
 /* LLVM version string */
-#define LLVM_VERSION_STRING "3.6.1"
+#define LLVM_VERSION_STRING "3.7.0"
 
 #endif

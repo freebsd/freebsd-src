@@ -7,9 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-//++
-// File:        MICmdCmdBreak.h
-//
 // Overview:    CMICmdCmdBreakInsert            interface.
 //              CMICmdCmdBreakDelete            interface.
 //              CMICmdCmdBreakDisable           interface.
@@ -25,18 +22,11 @@
 //                  MICmdCmd.h / .cpp
 //              For an introduction to adding a new command see CMICmdCmdSupportInfoMiCmdQuery
 //              command class as an example.
-//
-// Environment: Compilers:  Visual C++ 12.
-//                          gcc (Ubuntu/Linaro 4.8.1-10ubuntu9) 4.8.1
-//              Libraries:  See MIReadmetxt.
-//
-// Copyright:   None.
-//--
 
 #pragma once
 
 // Third party headers:
-#include <lldb/API/SBBreakpoint.h>
+#include "lldb/API/SBBreakpoint.h"
 
 // In-house headers:
 #include "MICmdBase.h"
@@ -63,11 +53,11 @@ class CMICmdCmdBreakInsert : public CMICmdBase
     // Overridden:
   public:
     // From CMICmdInvoker::ICmd
-    virtual bool Execute(void);
-    virtual bool Acknowledge(void);
-    virtual bool ParseArgs(void);
+    bool Execute(void) override;
+    bool Acknowledge(void) override;
+    bool ParseArgs(void) override;
     // From CMICmnBase
-    /* dtor */ virtual ~CMICmdCmdBreakInsert(void);
+    /* dtor */ ~CMICmdCmdBreakInsert(void) override;
 
     // Enumerations:
   private:
@@ -132,11 +122,11 @@ class CMICmdCmdBreakDelete : public CMICmdBase
     // Overridden:
   public:
     // From CMICmdInvoker::ICmd
-    virtual bool Execute(void);
-    virtual bool Acknowledge(void);
-    virtual bool ParseArgs(void);
+    bool Execute(void) override;
+    bool Acknowledge(void) override;
+    bool ParseArgs(void) override;
     // From CMICmnBase
-    /* dtor */ virtual ~CMICmdCmdBreakDelete(void);
+    /* dtor */ ~CMICmdCmdBreakDelete(void) override;
 
     // Attributes:
   private:
@@ -165,11 +155,11 @@ class CMICmdCmdBreakDisable : public CMICmdBase
     // Overridden:
   public:
     // From CMICmdInvoker::ICmd
-    virtual bool Execute(void);
-    virtual bool Acknowledge(void);
-    virtual bool ParseArgs(void);
+    bool Execute(void) override;
+    bool Acknowledge(void) override;
+    bool ParseArgs(void) override;
     // From CMICmnBase
-    /* dtor */ virtual ~CMICmdCmdBreakDisable(void);
+    /* dtor */ ~CMICmdCmdBreakDisable(void) override;
 
     // Attributes:
   private:
@@ -200,11 +190,11 @@ class CMICmdCmdBreakEnable : public CMICmdBase
     // Overridden:
   public:
     // From CMICmdInvoker::ICmd
-    virtual bool Execute(void);
-    virtual bool Acknowledge(void);
-    virtual bool ParseArgs(void);
+    bool Execute(void) override;
+    bool Acknowledge(void) override;
+    bool ParseArgs(void) override;
     // From CMICmnBase
-    /* dtor */ virtual ~CMICmdCmdBreakEnable(void);
+    /* dtor */ ~CMICmdCmdBreakEnable(void) override;
 
     // Attributes:
   private:
@@ -235,11 +225,11 @@ class CMICmdCmdBreakAfter : public CMICmdBase
     // Overridden:
   public:
     // From CMICmdInvoker::ICmd
-    virtual bool Execute(void);
-    virtual bool Acknowledge(void);
-    virtual bool ParseArgs(void);
+    bool Execute(void) override;
+    bool Acknowledge(void) override;
+    bool ParseArgs(void) override;
     // From CMICmnBase
-    /* dtor */ virtual ~CMICmdCmdBreakAfter(void);
+    /* dtor */ ~CMICmdCmdBreakAfter(void) override;
 
     // Attributes:
   private:
@@ -271,11 +261,11 @@ class CMICmdCmdBreakCondition : public CMICmdBase
     // Overridden:
   public:
     // From CMICmdInvoker::ICmd
-    virtual bool Execute(void);
-    virtual bool Acknowledge(void);
-    virtual bool ParseArgs(void);
+    bool Execute(void) override;
+    bool Acknowledge(void) override;
+    bool ParseArgs(void) override;
     // From CMICmnBase
-    /* dtor */ virtual ~CMICmdCmdBreakCondition(void);
+    /* dtor */ ~CMICmdCmdBreakCondition(void) override;
 
     // Methods:
   private:

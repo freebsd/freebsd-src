@@ -53,10 +53,12 @@
 #define	STOP_UNWINDING	.cantunwind
 #define	_FNSTART	.fnstart
 #define	_FNEND		.fnend
+#define	_SAVE(...)	.save __VA_ARGS__
 #else
 #define	STOP_UNWINDING
 #define	_FNSTART
 #define	_FNEND
+#define	_SAVE(...)
 #endif
 
 /*

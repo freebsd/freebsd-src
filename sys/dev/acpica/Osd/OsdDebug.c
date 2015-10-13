@@ -104,7 +104,7 @@ acpi_EnterDebugger(void)
 
     if (!initted) {
 	printf("Initialising ACPICA debugger...\n");
-	AcpiDbInitialize();
+	AcpiInitializeDebugger();
 	initted = 1;
     }
 

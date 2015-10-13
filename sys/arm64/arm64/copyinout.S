@@ -95,6 +95,7 @@ END(copyin)
  */
 ENTRY(copyinstr)
 	mov	x5, xzr		/* count = 0 */
+	mov	w4, #1		/* If zero return faulure */
 	cbz	x2, 3f		/* If len == 0 then skip loop */
 
 	adr	x6, copyio_fault /* Get the handler address */
@@ -102,17 +103,18 @@ ENTRY(copyinstr)
 
 1:	ldrb	w4, [x0], #1	/* Load from uaddr */
 	strb	w4, [x1], #1	/* Store in kaddr */
-	cbz	w4, 2f		/* If == 0 then break */
-	sub	x2, x2, #1	/* len-- */
 	add	x5, x5, #1	/* count++ */
+	cbz	w4, 2f		/* Break when NUL-terminated */
+	sub	x2, x2, #1	/* len-- */
 	cbnz	x2, 1b
 
 2:	SET_FAULT_HANDLER(xzr, x7) /* Clear the handler */
 
 3:	cbz	x3, 4f		/* Check if done != NULL */
-	add	x5, x5, #1	/* count++ */
 	str	x5, [x3]	/* done = count */
 
-4:	mov	x0, xzr		/* return 0 */
+4:	mov	w1, #ENAMETOOLONG /* Load ENAMETOOLONG to return if failed */
+	cmp	w4, #0		/* Check if we saved the NUL-terminator */
+	csel	w0, wzr, w1, eq	/* If so return success, else failure */
 	ret
 END(copyinstr)

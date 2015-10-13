@@ -46,7 +46,8 @@
 struct lock_baton
 {
   const char *base_dir_abspath;
-  apr_hash_t *urls_to_paths;
+  apr_hash_t *urls_to_paths; /* url -> abspath */
+  const char *base_url;
   svn_client_ctx_t *ctx;
   apr_pool_t *pool;
 };
@@ -56,7 +57,7 @@ struct lock_baton
  * BATON is a 'struct lock_baton *', PATH is the path being locked,
  * and LOCK is the lock itself.
  *
- * If BATON->base_dir_abspath is not null, then this function either
+ * If BATON->urls_to_paths is not null, then this function either
  * stores the LOCK on REL_URL or removes any lock tokens from REL_URL
  * (depending on whether DO_LOCK is true or false respectively), but
  * only if RA_ERR is null, or (in the unlock case) is something other
@@ -73,9 +74,12 @@ store_locks_callback(void *baton,
 {
   struct lock_baton *lb = baton;
   svn_wc_notify_t *notify;
+  const char *local_abspath = lb->urls_to_paths
+                                  ? svn_hash_gets(lb->urls_to_paths, rel_url)
+                                  : NULL;
 
   /* Create the notify struct first, so we can tweak it below. */
-  notify = svn_wc_create_notify(rel_url,
+  notify = svn_wc_create_notify(local_abspath ? local_abspath : rel_url,
                                 do_lock
                                 ? (ra_err
                                    ? svn_wc_notify_failed_lock
@@ -87,20 +91,14 @@ store_locks_callback(void *baton,
   notify->lock = lock;
   notify->err = ra_err;
 
-  if (lb->base_dir_abspath)
+  if (local_abspath)
     {
-      char *path = svn_hash_gets(lb->urls_to_paths, rel_url);
-      const char *local_abspath;
-
-      local_abspath = svn_dirent_join(lb->base_dir_abspath, path, pool);
-
       /* Notify a valid working copy path */
-      notify->path = local_abspath;
       notify->path_prefix = lb->base_dir_abspath;
 
       if (do_lock)
         {
-          if (!ra_err)
+          if (!ra_err && lock)
             {
               SVN_ERR(svn_wc_add_lock2(lb->ctx->wc_ctx, local_abspath, lock,
                                        lb->pool));
@@ -112,12 +110,14 @@ store_locks_callback(void *baton,
       else /* unlocking */
         {
           /* Remove our wc lock token either a) if we got no error, or b) if
-             we got any error except for owner mismatch.  Note that the only
-             errors that are handed to this callback will be locking-related
-             errors. */
+             we got any error except for owner mismatch or hook failure (the
+             hook would be pre-unlock rather than post-unlock). Note that the
+             only errors that are handed to this callback will be
+             locking-related errors. */
 
           if (!ra_err ||
-              (ra_err && (ra_err->apr_err != SVN_ERR_FS_LOCK_OWNER_MISMATCH)))
+              (ra_err && (ra_err->apr_err != SVN_ERR_FS_LOCK_OWNER_MISMATCH
+                          && ra_err->apr_err != SVN_ERR_REPOS_HOOK_FAILURE)))
             {
               SVN_ERR(svn_wc_remove_lock2(lb->ctx->wc_ctx, local_abspath,
                                           lb->pool));
@@ -128,7 +128,7 @@ store_locks_callback(void *baton,
         }
     }
   else
-    notify->url = rel_url; /* Notify that path is actually a url  */
+    notify->url = svn_path_url_add_component2(lb->base_url, rel_url, pool);
 
   if (lb->ctx->notify_func2)
     lb->ctx->notify_func2(lb->ctx->notify_baton2, notify, pool);
@@ -195,9 +195,15 @@ struct wc_lock_item_t
 {
   svn_revnum_t revision;
   const char *lock_token;
+  const char *url;
 };
 
-/* Set *COMMON_PARENT_URL to the nearest common parent URL of all TARGETS.
+/*
+ * Sets LOCK_PATHS to an array of working copy paths that this function
+ * has obtained lock on. The caller is responsible to release the locks
+ * EVEN WHEN THIS FUNCTION RETURNS AN ERROR.
+ *
+ * Set *COMMON_PARENT_URL to the nearest common parent URL of all TARGETS.
  * If TARGETS are local paths, then the entry for each path is examined
  * and *COMMON_PARENT is set to the common parent URL for all the
  * targets (as opposed to the common local path).
@@ -217,8 +223,7 @@ struct wc_lock_item_t
  *
  * If TARGETS is an array of urls, REL_FS_PATHS_P is set to NULL.
  * Otherwise each key in REL_FS_PATHS_P is an repository path (relative to
- * COMMON_PARENT) mapped to the target path for TARGET (relative to
- * the common parent WC path). working copy targets that they "belong" to.
+ * COMMON_PARENT) mapped to the absolute path for TARGET.
  *
  * If *COMMON_PARENT is a URL, then the values are a pointer to
  * SVN_INVALID_REVNUM (allocated in pool) if DO_LOCK, else "".
@@ -226,8 +231,9 @@ struct wc_lock_item_t
  * TARGETS may not be empty.
  */
 static svn_error_t *
-organize_lock_targets(const char **common_parent_url,
-                      const char **base_dir,
+organize_lock_targets(apr_array_header_t **lock_paths,
+                      const char **common_parent_url,
+                      const char **base_dir_abspath,
                       apr_hash_t **rel_targets_p,
                       apr_hash_t **rel_fs_paths_p,
                       const apr_array_header_t *targets,
@@ -238,13 +244,12 @@ organize_lock_targets(const char **common_parent_url,
                       apr_pool_t *scratch_pool)
 {
   const char *common_url = NULL;
-  const char *common_dirent = NULL;
   apr_hash_t *rel_targets_ret = apr_hash_make(result_pool);
   apr_hash_t *rel_fs_paths = NULL;
-  apr_array_header_t *rel_targets;
   apr_hash_t *wc_info = apr_hash_make(scratch_pool);
   svn_boolean_t url_mode;
-  int i;
+
+  *lock_paths = NULL;
 
   SVN_ERR_ASSERT(targets->nelts);
   SVN_ERR(svn_client__assert_homogeneous_target_type(targets));
@@ -253,6 +258,8 @@ organize_lock_targets(const char **common_parent_url,
 
   if (url_mode)
     {
+      apr_array_header_t *rel_targets;
+      int i;
       svn_revnum_t *invalid_revnum =
         apr_palloc(result_pool, sizeof(*invalid_revnum));
 
@@ -281,58 +288,108 @@ organize_lock_targets(const char **common_parent_url,
   else
     {
       apr_array_header_t *rel_urls, *target_urls;
+      apr_hash_t *wcroot_target = apr_hash_make(scratch_pool);
       apr_pool_t *iterpool = svn_pool_create(scratch_pool);
+      apr_hash_index_t *hi;
+      int i;
 
-      /* Get the common parent dirent and a bunch of relpaths, one per
-         target. */
-      SVN_ERR(condense_targets(&common_dirent, &rel_targets, targets,
-                               FALSE, TRUE, result_pool, scratch_pool));
-      if (! (common_dirent && *common_dirent))
-        return svn_error_create(SVN_ERR_UNSUPPORTED_FEATURE, NULL,
-                                _("No common parent found, unable to operate "
-                                  "on disjoint arguments"));
+      *lock_paths = apr_array_make(result_pool, 1, sizeof(const char *));
 
-      /* Get the URL for each target (which also serves to verify that
-         the dirent targets are sane).  */
-      target_urls = apr_array_make(scratch_pool, rel_targets->nelts,
-                                   sizeof(const char *));
-      for (i = 0; i < rel_targets->nelts; i++)
+      for (i = 0; i < targets->nelts; i++)
         {
-          const char *rel_target;
-          const char *repos_relpath;
-          const char *repos_root_url;
-          const char *target_url;
-          struct wc_lock_item_t *wli;
-          const char *local_abspath;
-          svn_node_kind_t kind;
+          const char *target_abspath;
+          const char *wcroot_abspath;
+          apr_array_header_t *wc_targets;
 
           svn_pool_clear(iterpool);
 
-          rel_target = APR_ARRAY_IDX(rel_targets, i, const char *);
-          local_abspath = svn_dirent_join(common_dirent, rel_target, scratch_pool);
-          wli = apr_pcalloc(scratch_pool, sizeof(*wli));
+          SVN_ERR(svn_dirent_get_absolute(&target_abspath,
+                                          APR_ARRAY_IDX(targets, i, const char*),
+                                          result_pool));
 
-          SVN_ERR(svn_wc__node_get_base(&kind, &wli->revision, &repos_relpath,
-                                        &repos_root_url, NULL,
-                                        &wli->lock_token,
-                                        wc_ctx, local_abspath,
-                                        FALSE /* ignore_enoent */,
-                                        FALSE /* show_hidden */,
-                                        result_pool, iterpool));
+          SVN_ERR(svn_wc__get_wcroot(&wcroot_abspath, wc_ctx, target_abspath,
+                                     iterpool, iterpool));
 
-          if (kind != svn_node_file)
-            return svn_error_createf(SVN_ERR_WC_NOT_FILE, NULL,
-                                     _("The node '%s' is not a file"),
-                                     svn_dirent_local_style(local_abspath,
-                                                            iterpool));
+          wc_targets = svn_hash_gets(wcroot_target, wcroot_abspath);
 
-          svn_hash_sets(wc_info, local_abspath, wli);
+          if (!wc_targets)
+            {
+              wc_targets = apr_array_make(scratch_pool, 1, sizeof(const char*));
+              svn_hash_sets(wcroot_target, apr_pstrdup(scratch_pool, wcroot_abspath),
+                            wc_targets);
+            }
 
-          target_url = svn_path_url_add_component2(repos_root_url,
-                                                   repos_relpath,
-                                                   scratch_pool);
+          APR_ARRAY_PUSH(wc_targets, const char *) = target_abspath;
+        }
 
-          APR_ARRAY_PUSH(target_urls, const char *) = target_url;
+      for (hi = apr_hash_first(scratch_pool, wcroot_target);
+           hi;
+           hi = apr_hash_next(hi))
+        {
+          const char *lock_abspath;
+          apr_array_header_t *paths = apr_hash_this_val(hi);
+
+          /* Use parent dir of a single file target */
+          if (paths->nelts == 1)
+            lock_abspath = svn_dirent_dirname(
+                                APR_ARRAY_IDX(paths, 0, const char *),
+                                result_pool);
+          else
+            SVN_ERR(svn_dirent_condense_targets(&lock_abspath, NULL, paths,
+                                                FALSE, result_pool,
+                                                scratch_pool));
+
+          SVN_ERR(svn_wc__acquire_write_lock(&lock_abspath,
+                                             wc_ctx, lock_abspath, FALSE,
+                                             result_pool, scratch_pool));
+
+          APR_ARRAY_PUSH(*lock_paths, const char *) = lock_abspath;
+        }
+
+      /* Get the URL for each target (which also serves to verify that
+         the dirent targets are sane).  */
+      target_urls = apr_array_make(scratch_pool, targets->nelts,
+                                   sizeof(const char *));
+      for (hi = apr_hash_first(scratch_pool, wcroot_target);
+           hi;
+           hi = apr_hash_next(hi))
+        {
+          apr_array_header_t *wc_targets = apr_hash_this_val(hi);
+
+          for (i = 0; i < wc_targets->nelts; i++)
+            {
+              const char *repos_relpath;
+              const char *repos_root_url;
+              struct wc_lock_item_t *wli;
+              const char *local_abspath;
+              svn_node_kind_t kind;
+
+              svn_pool_clear(iterpool);
+
+              local_abspath = APR_ARRAY_IDX(wc_targets, i, const char *);
+              wli = apr_pcalloc(scratch_pool, sizeof(*wli));
+
+              SVN_ERR(svn_wc__node_get_base(&kind, &wli->revision,
+                                            &repos_relpath,
+                                            &repos_root_url, NULL,
+                                            &wli->lock_token,
+                                            wc_ctx, local_abspath,
+                                            FALSE /* ignore_enoent */,
+                                            result_pool, iterpool));
+
+              if (kind != svn_node_file)
+                return svn_error_createf(SVN_ERR_WC_NOT_FILE, NULL,
+                                         _("The node '%s' is not a file"),
+                                         svn_dirent_local_style(local_abspath,
+                                                                iterpool));
+
+              wli->url = svn_path_url_add_component2(repos_root_url,
+                                                     repos_relpath,
+                                                     scratch_pool);
+              svn_hash_sets(wc_info, local_abspath, wli);
+
+              APR_ARRAY_PUSH(target_urls, const char *) = wli->url;
+            }
         }
 
       /* Now that we have a bunch of URLs for our dirent targets,
@@ -345,38 +402,28 @@ organize_lock_targets(const char **common_parent_url,
                                 _("Unable to lock/unlock across multiple "
                                   "repositories"));
 
-      /* Now we need to create a couple of different hash mappings. */
+      /* Now we need to create our mapping. */
       rel_fs_paths = apr_hash_make(result_pool);
-      for (i = 0; i < rel_targets->nelts; i++)
+
+      for (hi = apr_hash_first(scratch_pool, wc_info);
+           hi;
+           hi = apr_hash_next(hi))
         {
-          const char *rel_target, *rel_url;
-          const char *local_abspath;
+          const char *local_abspath = apr_hash_this_key(hi);
+          struct wc_lock_item_t *wli = apr_hash_this_val(hi);
+          const char *rel_url;
 
           svn_pool_clear(iterpool);
 
-          /* First, we need to map our REL_URL (which is relative to
-             COMMON_URL) to our REL_TARGET (which is relative to
-             COMMON_DIRENT). */
-          rel_target = APR_ARRAY_IDX(rel_targets, i, const char *);
-          rel_url = APR_ARRAY_IDX(rel_urls, i, const char *);
-          svn_hash_sets(rel_fs_paths, rel_url,
-                        apr_pstrdup(result_pool, rel_target));
+          rel_url = svn_uri_skip_ancestor(common_url, wli->url, result_pool);
 
-          /* Then, we map our REL_URL (again) to either the base
-             revision of the dirent target with which it is associated
-             (if our caller is locking) or to a (possible empty) lock
-             token string (if the caller is unlocking). */
-          local_abspath = svn_dirent_join(common_dirent, rel_target, iterpool);
+          svn_hash_sets(rel_fs_paths, rel_url,
+                        apr_pstrdup(result_pool, local_abspath));
 
           if (do_lock) /* Lock. */
             {
               svn_revnum_t *revnum;
-              struct wc_lock_item_t *wli;
               revnum = apr_palloc(result_pool, sizeof(* revnum));
-
-              wli = svn_hash_gets(wc_info, local_abspath);
-
-              SVN_ERR_ASSERT(wli != NULL);
 
               *revnum = wli->revision;
 
@@ -385,15 +432,10 @@ organize_lock_targets(const char **common_parent_url,
           else /* Unlock. */
             {
               const char *lock_token;
-              struct wc_lock_item_t *wli;
 
               /* If not forcing the unlock, get the lock token. */
               if (! force)
                 {
-                  wli = svn_hash_gets(wc_info, local_abspath);
-
-                  SVN_ERR_ASSERT(wli != NULL);
-
                   if (! wli->lock_token)
                     return svn_error_createf(
                                SVN_ERR_CLIENT_MISSING_LOCK_TOKEN, NULL,
@@ -419,7 +461,10 @@ organize_lock_targets(const char **common_parent_url,
 
   /* Set our return variables. */
   *common_parent_url = common_url;
-  *base_dir = common_dirent;
+  if (*lock_paths && (*lock_paths)->nelts == 1)
+    *base_dir_abspath = APR_ARRAY_IDX(*lock_paths, 0, const char*);
+  else
+    *base_dir_abspath = NULL;
   *rel_targets_p = rel_targets_ret;
   *rel_fs_paths_p = rel_fs_paths;
 
@@ -437,7 +482,7 @@ fetch_tokens(svn_ra_session_t *ra_session, apr_hash_t *path_tokens,
 
   for (hi = apr_hash_first(pool, path_tokens); hi; hi = apr_hash_next(hi))
     {
-      const char *path = svn__apr_hash_index_key(hi);
+      const char *path = apr_hash_this_key(hi);
       svn_lock_t *lock;
 
       svn_pool_clear(iterpool);
@@ -464,12 +509,13 @@ svn_client_lock(const apr_array_header_t *targets,
                 svn_client_ctx_t *ctx,
                 apr_pool_t *pool)
 {
-  const char *base_dir;
   const char *base_dir_abspath = NULL;
   const char *common_parent_url;
   svn_ra_session_t *ra_session;
   apr_hash_t *path_revs, *urls_to_paths;
   struct lock_baton cb;
+  apr_array_header_t *lock_abspaths;
+  svn_error_t *err;
 
   if (apr_is_empty_array(targets))
     return SVN_NO_ERROR;
@@ -483,26 +529,49 @@ svn_client_lock(const apr_array_header_t *targets,
            _("Lock comment contains illegal characters"));
     }
 
-  SVN_ERR(organize_lock_targets(&common_parent_url, &base_dir, &path_revs,
-                                &urls_to_paths, targets, TRUE, steal_lock,
-                                ctx->wc_ctx, pool, pool));
+  err = organize_lock_targets(&lock_abspaths, &common_parent_url,
+                              &base_dir_abspath, &path_revs,
+                              &urls_to_paths,
+                              targets, TRUE, steal_lock,
+                              ctx->wc_ctx, pool, pool);
 
-  /* Open an RA session to the common parent of TARGETS. */
-  if (base_dir)
-    SVN_ERR(svn_dirent_get_absolute(&base_dir_abspath, base_dir, pool));
-  SVN_ERR(svn_client_open_ra_session2(&ra_session, common_parent_url,
-                                      base_dir_abspath, ctx, pool, pool));
+  if (err)
+    goto release_locks;
+
+  /* Open an RA session to the common parent URL of TARGETS. */
+  err = svn_client_open_ra_session2(&ra_session, common_parent_url,
+                                    base_dir_abspath, ctx, pool, pool);
+
+  if (err)
+    goto release_locks;
 
   cb.base_dir_abspath = base_dir_abspath;
+  cb.base_url = common_parent_url;
   cb.urls_to_paths = urls_to_paths;
   cb.ctx = ctx;
   cb.pool = pool;
 
   /* Lock the paths. */
-  SVN_ERR(svn_ra_lock(ra_session, path_revs, comment,
-                      steal_lock, store_locks_callback, &cb, pool));
+  err = svn_ra_lock(ra_session, path_revs, comment,
+                    steal_lock, store_locks_callback, &cb, pool);
 
-  return SVN_NO_ERROR;
+release_locks:
+  if (lock_abspaths)
+    {
+      int i;
+
+      for (i = 0; i < lock_abspaths->nelts; i++)
+        {
+          err = svn_error_compose_create(
+                  err,
+                  svn_wc__release_write_lock(ctx->wc_ctx,
+                                             APR_ARRAY_IDX(lock_abspaths, i,
+                                                           const char *),
+                                             pool));
+        }
+    }
+
+  return svn_error_trace(err);
 }
 
 svn_error_t *
@@ -511,42 +580,70 @@ svn_client_unlock(const apr_array_header_t *targets,
                   svn_client_ctx_t *ctx,
                   apr_pool_t *pool)
 {
-  const char *base_dir;
   const char *base_dir_abspath = NULL;
   const char *common_parent_url;
   svn_ra_session_t *ra_session;
   apr_hash_t *path_tokens, *urls_to_paths;
+  apr_array_header_t *lock_abspaths;
   struct lock_baton cb;
+  svn_error_t *err;
 
   if (apr_is_empty_array(targets))
     return SVN_NO_ERROR;
 
-  SVN_ERR(organize_lock_targets(&common_parent_url, &base_dir, &path_tokens,
-                                &urls_to_paths, targets, FALSE, break_lock,
-                                ctx->wc_ctx, pool, pool));
+  err = organize_lock_targets(&lock_abspaths, &common_parent_url,
+                              &base_dir_abspath, &path_tokens, &urls_to_paths,
+                              targets, FALSE, break_lock,
+                              ctx->wc_ctx, pool, pool);
 
-  /* Open an RA session. */
-  if (base_dir)
-    SVN_ERR(svn_dirent_get_absolute(&base_dir_abspath, base_dir, pool));
-  SVN_ERR(svn_client_open_ra_session2(&ra_session, common_parent_url,
-                                      base_dir_abspath, ctx, pool, pool));
+  if (err)
+    goto release_locks;
+
+  /* Open an RA session to the common parent URL of TARGETS. */
+  err = svn_client_open_ra_session2(&ra_session, common_parent_url,
+                                    base_dir_abspath, ctx, pool, pool);
+
+  if (err)
+    goto release_locks;
 
   /* If break_lock is not set, lock tokens are required by the server.
      If the targets were all URLs, ensure that we provide lock tokens,
      so the repository will only check that the user owns the
      locks. */
-  if (! base_dir && !break_lock)
-    SVN_ERR(fetch_tokens(ra_session, path_tokens, pool));
+  if (! lock_abspaths && !break_lock)
+    {
+      err = fetch_tokens(ra_session, path_tokens, pool);
+
+      if (err)
+        goto release_locks;
+    }
 
   cb.base_dir_abspath = base_dir_abspath;
+  cb.base_url = common_parent_url;
   cb.urls_to_paths = urls_to_paths;
   cb.ctx = ctx;
   cb.pool = pool;
 
   /* Unlock the paths. */
-  SVN_ERR(svn_ra_unlock(ra_session, path_tokens, break_lock,
-                        store_locks_callback, &cb, pool));
+  err = svn_ra_unlock(ra_session, path_tokens, break_lock,
+                      store_locks_callback, &cb, pool);
 
-  return SVN_NO_ERROR;
+release_locks:
+  if (lock_abspaths)
+    {
+      int i;
+
+      for (i = 0; i < lock_abspaths->nelts; i++)
+        {
+          err = svn_error_compose_create(
+                  err,
+                  svn_wc__release_write_lock(ctx->wc_ctx,
+                                             APR_ARRAY_IDX(lock_abspaths, i,
+                                                           const char *),
+                                             pool));
+        }
+    }
+
+  return svn_error_trace(err);
 }
 

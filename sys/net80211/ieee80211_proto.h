@@ -56,36 +56,11 @@ void	ieee80211_proto_detach(struct ieee80211com *);
 void	ieee80211_proto_vattach(struct ieee80211vap *);
 void	ieee80211_proto_vdetach(struct ieee80211vap *);
 
-void	ieee80211_syncifflag_locked(struct ieee80211com *, int flag);
+void	ieee80211_promisc(struct ieee80211vap *, bool);
+void	ieee80211_allmulti(struct ieee80211vap *, bool);
 void	ieee80211_syncflag(struct ieee80211vap *, int flag);
 void	ieee80211_syncflag_ht(struct ieee80211vap *, int flag);
 void	ieee80211_syncflag_ext(struct ieee80211vap *, int flag);
-
-#define	IEEE80211_R_NF		0x0000001	/* global NF value valid */
-#define	IEEE80211_R_RSSI	0x0000002	/* global RSSI value valid */
-#define	IEEE80211_R_C_CHAIN	0x0000004	/* RX chain count valid */
-#define	IEEE80211_R_C_NF	0x0000008	/* per-chain NF value valid */
-#define	IEEE80211_R_C_RSSI	0x0000010	/* per-chain RSSI value valid */
-#define	IEEE80211_R_C_EVM	0x0000020	/* per-chain EVM valid */
-#define	IEEE80211_R_C_HT40	0x0000040	/* RX'ed packet is 40mhz, pilots 4,5 valid */
-#define	IEEE80211_R_FREQ	0x0000080	/* Freq value populated, MHz */
-#define	IEEE80211_R_IEEE	0x0000100	/* IEEE value populated */
-#define	IEEE80211_R_BAND	0x0000200	/* Frequency band populated */
-
-struct ieee80211_rx_stats {
-	uint32_t r_flags;		/* IEEE80211_R_* flags */
-	uint8_t c_chain;		/* number of RX chains involved */
-	int16_t	c_nf_ctl[IEEE80211_MAX_CHAINS];	/* per-chain NF */
-	int16_t	c_nf_ext[IEEE80211_MAX_CHAINS];	/* per-chain NF */
-	int16_t	c_rssi_ctl[IEEE80211_MAX_CHAINS];	/* per-chain RSSI */
-	int16_t	c_rssi_ext[IEEE80211_MAX_CHAINS];	/* per-chain RSSI */
-	uint8_t nf;			/* global NF */
-	uint8_t rssi;			/* global RSSI */
-	uint8_t evm[IEEE80211_MAX_CHAINS][IEEE80211_MAX_EVM_PILOTS];
-					/* per-chain, per-pilot EVM values */
-	uint16_t c_freq;
-	uint8_t c_ieee;
-};
 
 #define	ieee80211_input(ni, m, rssi, nf) \
 	((ni)->ni_vap->iv_input(ni, m, NULL, rssi, nf))
@@ -118,6 +93,7 @@ struct mbuf *ieee80211_mbuf_adjust(struct ieee80211vap *, int,
 		struct ieee80211_key *, struct mbuf *);
 struct mbuf *ieee80211_encap(struct ieee80211vap *, struct ieee80211_node *,
 		struct mbuf *);
+void	ieee80211_free_mbuf(struct mbuf *);
 int	ieee80211_send_mgmt(struct ieee80211_node *, int, int);
 struct ieee80211_appie;
 int	ieee80211_send_probereq(struct ieee80211_node *ni,
@@ -155,6 +131,8 @@ uint8_t *ieee80211_add_rsn(uint8_t *, const struct ieee80211vap *);
 uint8_t *ieee80211_add_qos(uint8_t *, const struct ieee80211_node *);
 uint16_t ieee80211_getcapinfo(struct ieee80211vap *,
 		struct ieee80211_channel *);
+struct ieee80211_wme_state;
+uint8_t * ieee80211_add_wme_info(uint8_t *frm, struct ieee80211_wme_state *wme);
 
 void	ieee80211_reset_erp(struct ieee80211com *);
 void	ieee80211_set_shortslottime(struct ieee80211com *, int onoff);
@@ -369,8 +347,7 @@ struct ieee80211_beacon_offsets {
 	uint8_t		*bo_meshconf;	/* start of MESHCONF element */
 	uint8_t		*bo_spare[3];
 };
-struct mbuf *ieee80211_beacon_alloc(struct ieee80211_node *,
-		struct ieee80211_beacon_offsets *);
+struct mbuf *ieee80211_beacon_alloc(struct ieee80211_node *);
 
 /*
  * Beacon frame updates are signaled through calls to iv_update_beacon
@@ -398,7 +375,7 @@ enum {
 	IEEE80211_BEACON_MESHCONF = 11,	/* Mesh Configuration */
 };
 int	ieee80211_beacon_update(struct ieee80211_node *,
-		struct ieee80211_beacon_offsets *, struct mbuf *, int mcast);
+		struct mbuf *, int mcast);
 
 void	ieee80211_csa_startswitch(struct ieee80211com *,
 		struct ieee80211_channel *, int mode, int count);

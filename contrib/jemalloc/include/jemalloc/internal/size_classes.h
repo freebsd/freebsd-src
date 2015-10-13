@@ -25,6 +25,7 @@
  *   LOOKUP_MAXCLASS: Maximum size class included in lookup table.
  *   SMALL_MAXCLASS: Maximum small size class.
  *   LG_LARGE_MINCLASS: Lg of minimum large size class.
+ *   HUGE_MAXCLASS: Maximum (huge) size class.
  */
 
 #define	LG_SIZE_CLASS_GROUP	2
@@ -180,6 +181,7 @@
 #define	LOOKUP_MAXCLASS		((((size_t)1) << 11) + (((size_t)4) << 9))
 #define	SMALL_MAXCLASS		((((size_t)1) << 13) + (((size_t)3) << 11))
 #define	LG_LARGE_MINCLASS	14
+#define	HUGE_MAXCLASS		((((size_t)1) << 31) + (((size_t)3) << 29))
 #endif
 
 #if (LG_SIZEOF_PTR == 2 && LG_TINY_MIN == 3 && LG_QUANTUM == 3 && LG_PAGE == 13)
@@ -333,6 +335,7 @@
 #define	LOOKUP_MAXCLASS		((((size_t)1) << 11) + (((size_t)4) << 9))
 #define	SMALL_MAXCLASS		((((size_t)1) << 14) + (((size_t)3) << 12))
 #define	LG_LARGE_MINCLASS	15
+#define	HUGE_MAXCLASS		((((size_t)1) << 31) + (((size_t)3) << 29))
 #endif
 
 #if (LG_SIZEOF_PTR == 2 && LG_TINY_MIN == 3 && LG_QUANTUM == 3 && LG_PAGE == 14)
@@ -486,6 +489,7 @@
 #define	LOOKUP_MAXCLASS		((((size_t)1) << 11) + (((size_t)4) << 9))
 #define	SMALL_MAXCLASS		((((size_t)1) << 15) + (((size_t)3) << 13))
 #define	LG_LARGE_MINCLASS	16
+#define	HUGE_MAXCLASS		((((size_t)1) << 31) + (((size_t)3) << 29))
 #endif
 
 #if (LG_SIZEOF_PTR == 2 && LG_TINY_MIN == 3 && LG_QUANTUM == 3 && LG_PAGE == 16)
@@ -639,6 +643,7 @@
 #define	LOOKUP_MAXCLASS		((((size_t)1) << 11) + (((size_t)4) << 9))
 #define	SMALL_MAXCLASS		((((size_t)1) << 17) + (((size_t)3) << 15))
 #define	LG_LARGE_MINCLASS	18
+#define	HUGE_MAXCLASS		((((size_t)1) << 31) + (((size_t)3) << 29))
 #endif
 
 #if (LG_SIZEOF_PTR == 2 && LG_TINY_MIN == 3 && LG_QUANTUM == 4 && LG_PAGE == 12)
@@ -789,6 +794,7 @@
 #define	LOOKUP_MAXCLASS		((((size_t)1) << 11) + (((size_t)4) << 9))
 #define	SMALL_MAXCLASS		((((size_t)1) << 13) + (((size_t)3) << 11))
 #define	LG_LARGE_MINCLASS	14
+#define	HUGE_MAXCLASS		((((size_t)1) << 31) + (((size_t)3) << 29))
 #endif
 
 #if (LG_SIZEOF_PTR == 2 && LG_TINY_MIN == 3 && LG_QUANTUM == 4 && LG_PAGE == 13)
@@ -939,6 +945,7 @@
 #define	LOOKUP_MAXCLASS		((((size_t)1) << 11) + (((size_t)4) << 9))
 #define	SMALL_MAXCLASS		((((size_t)1) << 14) + (((size_t)3) << 12))
 #define	LG_LARGE_MINCLASS	15
+#define	HUGE_MAXCLASS		((((size_t)1) << 31) + (((size_t)3) << 29))
 #endif
 
 #if (LG_SIZEOF_PTR == 2 && LG_TINY_MIN == 3 && LG_QUANTUM == 4 && LG_PAGE == 14)
@@ -1089,6 +1096,7 @@
 #define	LOOKUP_MAXCLASS		((((size_t)1) << 11) + (((size_t)4) << 9))
 #define	SMALL_MAXCLASS		((((size_t)1) << 15) + (((size_t)3) << 13))
 #define	LG_LARGE_MINCLASS	16
+#define	HUGE_MAXCLASS		((((size_t)1) << 31) + (((size_t)3) << 29))
 #endif
 
 #if (LG_SIZEOF_PTR == 2 && LG_TINY_MIN == 3 && LG_QUANTUM == 4 && LG_PAGE == 16)
@@ -1239,6 +1247,7 @@
 #define	LOOKUP_MAXCLASS		((((size_t)1) << 11) + (((size_t)4) << 9))
 #define	SMALL_MAXCLASS		((((size_t)1) << 17) + (((size_t)3) << 15))
 #define	LG_LARGE_MINCLASS	18
+#define	HUGE_MAXCLASS		((((size_t)1) << 31) + (((size_t)3) << 29))
 #endif
 
 #if (LG_SIZEOF_PTR == 2 && LG_TINY_MIN == 4 && LG_QUANTUM == 4 && LG_PAGE == 12)
@@ -1387,6 +1396,7 @@
 #define	LOOKUP_MAXCLASS		((((size_t)1) << 11) + (((size_t)4) << 9))
 #define	SMALL_MAXCLASS		((((size_t)1) << 13) + (((size_t)3) << 11))
 #define	LG_LARGE_MINCLASS	14
+#define	HUGE_MAXCLASS		((((size_t)1) << 31) + (((size_t)3) << 29))
 #endif
 
 #if (LG_SIZEOF_PTR == 2 && LG_TINY_MIN == 4 && LG_QUANTUM == 4 && LG_PAGE == 13)
@@ -1535,6 +1545,7 @@
 #define	LOOKUP_MAXCLASS		((((size_t)1) << 11) + (((size_t)4) << 9))
 #define	SMALL_MAXCLASS		((((size_t)1) << 14) + (((size_t)3) << 12))
 #define	LG_LARGE_MINCLASS	15
+#define	HUGE_MAXCLASS		((((size_t)1) << 31) + (((size_t)3) << 29))
 #endif
 
 #if (LG_SIZEOF_PTR == 2 && LG_TINY_MIN == 4 && LG_QUANTUM == 4 && LG_PAGE == 14)
@@ -1683,6 +1694,7 @@
 #define	LOOKUP_MAXCLASS		((((size_t)1) << 11) + (((size_t)4) << 9))
 #define	SMALL_MAXCLASS		((((size_t)1) << 15) + (((size_t)3) << 13))
 #define	LG_LARGE_MINCLASS	16
+#define	HUGE_MAXCLASS		((((size_t)1) << 31) + (((size_t)3) << 29))
 #endif
 
 #if (LG_SIZEOF_PTR == 2 && LG_TINY_MIN == 4 && LG_QUANTUM == 4 && LG_PAGE == 16)
@@ -1831,6 +1843,7 @@
 #define	LOOKUP_MAXCLASS		((((size_t)1) << 11) + (((size_t)4) << 9))
 #define	SMALL_MAXCLASS		((((size_t)1) << 17) + (((size_t)3) << 15))
 #define	LG_LARGE_MINCLASS	18
+#define	HUGE_MAXCLASS		((((size_t)1) << 31) + (((size_t)3) << 29))
 #endif
 
 #if (LG_SIZEOF_PTR == 3 && LG_TINY_MIN == 3 && LG_QUANTUM == 3 && LG_PAGE == 12)
@@ -2144,6 +2157,7 @@
 #define	LOOKUP_MAXCLASS		((((size_t)1) << 11) + (((size_t)4) << 9))
 #define	SMALL_MAXCLASS		((((size_t)1) << 13) + (((size_t)3) << 11))
 #define	LG_LARGE_MINCLASS	14
+#define	HUGE_MAXCLASS		((((size_t)1) << 63) + (((size_t)3) << 61))
 #endif
 
 #if (LG_SIZEOF_PTR == 3 && LG_TINY_MIN == 3 && LG_QUANTUM == 3 && LG_PAGE == 13)
@@ -2457,6 +2471,7 @@
 #define	LOOKUP_MAXCLASS		((((size_t)1) << 11) + (((size_t)4) << 9))
 #define	SMALL_MAXCLASS		((((size_t)1) << 14) + (((size_t)3) << 12))
 #define	LG_LARGE_MINCLASS	15
+#define	HUGE_MAXCLASS		((((size_t)1) << 63) + (((size_t)3) << 61))
 #endif
 
 #if (LG_SIZEOF_PTR == 3 && LG_TINY_MIN == 3 && LG_QUANTUM == 3 && LG_PAGE == 14)
@@ -2770,6 +2785,7 @@
 #define	LOOKUP_MAXCLASS		((((size_t)1) << 11) + (((size_t)4) << 9))
 #define	SMALL_MAXCLASS		((((size_t)1) << 15) + (((size_t)3) << 13))
 #define	LG_LARGE_MINCLASS	16
+#define	HUGE_MAXCLASS		((((size_t)1) << 63) + (((size_t)3) << 61))
 #endif
 
 #if (LG_SIZEOF_PTR == 3 && LG_TINY_MIN == 3 && LG_QUANTUM == 3 && LG_PAGE == 16)
@@ -3083,6 +3099,7 @@
 #define	LOOKUP_MAXCLASS		((((size_t)1) << 11) + (((size_t)4) << 9))
 #define	SMALL_MAXCLASS		((((size_t)1) << 17) + (((size_t)3) << 15))
 #define	LG_LARGE_MINCLASS	18
+#define	HUGE_MAXCLASS		((((size_t)1) << 63) + (((size_t)3) << 61))
 #endif
 
 #if (LG_SIZEOF_PTR == 3 && LG_TINY_MIN == 3 && LG_QUANTUM == 4 && LG_PAGE == 12)
@@ -3393,6 +3410,7 @@
 #define	LOOKUP_MAXCLASS		((((size_t)1) << 11) + (((size_t)4) << 9))
 #define	SMALL_MAXCLASS		((((size_t)1) << 13) + (((size_t)3) << 11))
 #define	LG_LARGE_MINCLASS	14
+#define	HUGE_MAXCLASS		((((size_t)1) << 63) + (((size_t)3) << 61))
 #endif
 
 #if (LG_SIZEOF_PTR == 3 && LG_TINY_MIN == 3 && LG_QUANTUM == 4 && LG_PAGE == 13)
@@ -3703,6 +3721,7 @@
 #define	LOOKUP_MAXCLASS		((((size_t)1) << 11) + (((size_t)4) << 9))
 #define	SMALL_MAXCLASS		((((size_t)1) << 14) + (((size_t)3) << 12))
 #define	LG_LARGE_MINCLASS	15
+#define	HUGE_MAXCLASS		((((size_t)1) << 63) + (((size_t)3) << 61))
 #endif
 
 #if (LG_SIZEOF_PTR == 3 && LG_TINY_MIN == 3 && LG_QUANTUM == 4 && LG_PAGE == 14)
@@ -4013,6 +4032,7 @@
 #define	LOOKUP_MAXCLASS		((((size_t)1) << 11) + (((size_t)4) << 9))
 #define	SMALL_MAXCLASS		((((size_t)1) << 15) + (((size_t)3) << 13))
 #define	LG_LARGE_MINCLASS	16
+#define	HUGE_MAXCLASS		((((size_t)1) << 63) + (((size_t)3) << 61))
 #endif
 
 #if (LG_SIZEOF_PTR == 3 && LG_TINY_MIN == 3 && LG_QUANTUM == 4 && LG_PAGE == 16)
@@ -4323,6 +4343,7 @@
 #define	LOOKUP_MAXCLASS		((((size_t)1) << 11) + (((size_t)4) << 9))
 #define	SMALL_MAXCLASS		((((size_t)1) << 17) + (((size_t)3) << 15))
 #define	LG_LARGE_MINCLASS	18
+#define	HUGE_MAXCLASS		((((size_t)1) << 63) + (((size_t)3) << 61))
 #endif
 
 #if (LG_SIZEOF_PTR == 3 && LG_TINY_MIN == 4 && LG_QUANTUM == 4 && LG_PAGE == 12)
@@ -4631,6 +4652,7 @@
 #define	LOOKUP_MAXCLASS		((((size_t)1) << 11) + (((size_t)4) << 9))
 #define	SMALL_MAXCLASS		((((size_t)1) << 13) + (((size_t)3) << 11))
 #define	LG_LARGE_MINCLASS	14
+#define	HUGE_MAXCLASS		((((size_t)1) << 63) + (((size_t)3) << 61))
 #endif
 
 #if (LG_SIZEOF_PTR == 3 && LG_TINY_MIN == 4 && LG_QUANTUM == 4 && LG_PAGE == 13)
@@ -4939,6 +4961,7 @@
 #define	LOOKUP_MAXCLASS		((((size_t)1) << 11) + (((size_t)4) << 9))
 #define	SMALL_MAXCLASS		((((size_t)1) << 14) + (((size_t)3) << 12))
 #define	LG_LARGE_MINCLASS	15
+#define	HUGE_MAXCLASS		((((size_t)1) << 63) + (((size_t)3) << 61))
 #endif
 
 #if (LG_SIZEOF_PTR == 3 && LG_TINY_MIN == 4 && LG_QUANTUM == 4 && LG_PAGE == 14)
@@ -5247,6 +5270,7 @@
 #define	LOOKUP_MAXCLASS		((((size_t)1) << 11) + (((size_t)4) << 9))
 #define	SMALL_MAXCLASS		((((size_t)1) << 15) + (((size_t)3) << 13))
 #define	LG_LARGE_MINCLASS	16
+#define	HUGE_MAXCLASS		((((size_t)1) << 63) + (((size_t)3) << 61))
 #endif
 
 #if (LG_SIZEOF_PTR == 3 && LG_TINY_MIN == 4 && LG_QUANTUM == 4 && LG_PAGE == 16)
@@ -5555,6 +5579,7 @@
 #define	LOOKUP_MAXCLASS		((((size_t)1) << 11) + (((size_t)4) << 9))
 #define	SMALL_MAXCLASS		((((size_t)1) << 17) + (((size_t)3) << 15))
 #define	LG_LARGE_MINCLASS	18
+#define	HUGE_MAXCLASS		((((size_t)1) << 63) + (((size_t)3) << 61))
 #endif
 
 #ifndef SIZE_CLASSES_DEFINED

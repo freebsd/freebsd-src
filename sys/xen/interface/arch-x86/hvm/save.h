@@ -269,15 +269,18 @@ struct hvm_hw_cpu_compat {
 };
 
 static inline int _hvm_hw_fix_cpu(void *h) {
-    struct hvm_hw_cpu *new=h;
-    struct hvm_hw_cpu_compat *old=h;
+
+    union hvm_hw_cpu_union {
+        struct hvm_hw_cpu nat;
+        struct hvm_hw_cpu_compat cmp;
+    } *ucpu = (union hvm_hw_cpu_union *)h;
 
     /* If we copy from the end backwards, we should
      * be able to do the modification in-place */
-    new->error_code=old->error_code;
-    new->pending_event=old->pending_event;
-    new->tsc=old->tsc;
-    new->msr_tsc_aux=0;
+    ucpu->nat.error_code = ucpu->cmp.error_code;
+    ucpu->nat.pending_event = ucpu->cmp.pending_event;
+    ucpu->nat.tsc = ucpu->cmp.tsc;
+    ucpu->nat.msr_tsc_aux = 0;
 
     return 0;
 }
@@ -541,7 +544,7 @@ DECLARE_HVM_SAVE_TYPE(MTRR, 14, struct hvm_hw_mtrr);
  */
 
 struct hvm_hw_cpu_xsave {
-    uint64_t xfeature_mask;
+    uint64_t xfeature_mask;        /* Ignored */
     uint64_t xcr0;                 /* Updated by XSETBV */
     uint64_t xcr0_accum;           /* Updated by XSETBV */
     struct {
@@ -565,6 +568,8 @@ struct hvm_hw_cpu_xsave {
 struct hvm_viridian_domain_context {
     uint64_t hypercall_gpa;
     uint64_t guest_os_id;
+    uint64_t time_ref_count;
+    uint64_t reference_tsc;
 };
 
 DECLARE_HVM_SAVE_TYPE(VIRIDIAN_DOMAIN, 15, struct hvm_viridian_domain_context);
@@ -577,13 +582,49 @@ DECLARE_HVM_SAVE_TYPE(VIRIDIAN_VCPU, 17, struct hvm_viridian_vcpu_context);
 
 struct hvm_vmce_vcpu {
     uint64_t caps;
+    uint64_t mci_ctl2_bank0;
+    uint64_t mci_ctl2_bank1;
 };
 
 DECLARE_HVM_SAVE_TYPE(VMCE_VCPU, 18, struct hvm_vmce_vcpu);
 
+struct hvm_tsc_adjust {
+    uint64_t tsc_adjust;
+};
+
+DECLARE_HVM_SAVE_TYPE(TSC_ADJUST, 19, struct hvm_tsc_adjust);
+
+
+struct hvm_msr {
+    uint32_t count;
+    struct hvm_one_msr {
+        uint32_t index;
+        uint32_t _rsvd;
+        uint64_t val;
+#if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 199901L
+    } msr[];
+#elif defined(__GNUC__)
+    } msr[0];
+#else
+    } msr[1 /* variable size */];
+#endif
+};
+
+#define CPU_MSR_CODE  20
+
 /* 
  * Largest type-code in use
  */
-#define HVM_SAVE_CODE_MAX 18
+#define HVM_SAVE_CODE_MAX 20
 
 #endif /* __XEN_PUBLIC_HVM_SAVE_X86_H__ */
+
+/*
+ * Local variables:
+ * mode: C
+ * c-file-style: "BSD"
+ * c-basic-offset: 4
+ * tab-width: 4
+ * indent-tabs-mode: nil
+ * End:
+ */

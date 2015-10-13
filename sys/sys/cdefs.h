@@ -39,7 +39,6 @@
 /*
  * Testing against Clang-specific extensions.
  */
-
 #ifndef	__has_attribute
 #define	__has_attribute(x)	0
 #endif
@@ -212,6 +211,8 @@
 #define	__unused
 #define	__packed
 #define	__aligned(x)
+#define	__alloc_align(x)
+#define	__alloc_size(x)
 #define	__section(x)
 #define	__weak_symbol
 #else
@@ -235,6 +236,16 @@
 #define	__packed	__attribute__((__packed__))
 #define	__aligned(x)	__attribute__((__aligned__(x)))
 #define	__section(x)	__attribute__((__section__(x)))
+#endif
+#if __GNUC_PREREQ__(4, 3) || __has_attribute(__alloc_size__)
+#define	__alloc_size(x)	__attribute__((__alloc_size__(x)))
+#else
+#define	__alloc_size(x)
+#endif
+#if __GNUC_PREREQ__(4, 9) || __has_attribute(__alloc_align__)
+#define	__alloc_align(x)	__attribute__((__alloc_align__(x)))
+#else
+#define	__alloc_align(x)
 #endif
 #endif /* lint */
 
@@ -371,22 +382,10 @@
 #define	__returns_twice
 #endif
 
-#if __has_attribute(alloc_size) || __GNUC_PREREQ__(4, 3)
-#define	__alloc_size(x)	__attribute__((__alloc_size__(x)))
-#else
-#define	__alloc_size(x)
-#endif
-
-#if __has_builtin(__builtin_unreachable) || __GNUC_PREREQ__(4, 6)
+#if __GNUC_PREREQ__(4, 6) || __has_builtin(__builtin_unreachable)
 #define	__unreachable()	__builtin_unreachable()
 #else
 #define	__unreachable()	((void)0)
-#endif
-
-#if __has_attribute(alloc_align) || __GNUC_PREREQ__(4, 9)
-#define	__alloc_align(x)	__attribute__((__alloc_align__(x)))
-#else
-#define	__alloc_align(x)
 #endif
 
 /* XXX: should use `#if __STDC_VERSION__ < 199901'. */
@@ -536,7 +535,7 @@
  * well enough to use them in limited cases.
  */ 
 #if defined(__GNUC_GNU_INLINE__) || defined(__GNUC_STDC_INLINE__)
-#if __has_attribute(artificial) || __GNUC_PREREQ__(4, 3)
+#if __GNUC_PREREQ__(4, 3) || __has_attribute(__artificial__)
 #define	__gnu_inline	__attribute__((__gnu_inline__, __artificial__))
 #else
 #define	__gnu_inline	__attribute__((__gnu_inline__))
@@ -788,8 +787,8 @@
  * properties that cannot be enforced by the C type system. 
  */
 
-#if __has_attribute(argument_with_type_tag) && \
-    __has_attribute(type_tag_for_datatype) && !defined(lint)
+#if __has_attribute(__argument_with_type_tag__) && \
+    __has_attribute(__type_tag_for_datatype__) && !defined(lint)
 #define	__arg_type_tag(arg_kind, arg_idx, type_tag_idx) \
 	    __attribute__((__argument_with_type_tag__(arg_kind, arg_idx, type_tag_idx)))
 #define	__datatype_type_tag(kind, type) \

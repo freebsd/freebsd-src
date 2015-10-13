@@ -176,7 +176,7 @@ JSONCompilationDatabase::getCompileCommands(StringRef FilePath) const {
 
   std::string Error;
   llvm::raw_string_ostream ES(Error);
-  StringRef Match = MatchTrie.findEquivalent(NativeFilePath.str(), ES);
+  StringRef Match = MatchTrie.findEquivalent(NativeFilePath, ES);
   if (Match.empty())
     return std::vector<CompileCommand>();
   llvm::StringMap< std::vector<CompileCommandRef> >::const_iterator
@@ -220,10 +220,10 @@ void JSONCompilationDatabase::getCommands(
   for (int I = 0, E = CommandsRef.size(); I != E; ++I) {
     SmallString<8> DirectoryStorage;
     SmallString<1024> CommandStorage;
-    Commands.push_back(CompileCommand(
-      // FIXME: Escape correctly:
-      CommandsRef[I].first->getValue(DirectoryStorage),
-      unescapeCommandLine(CommandsRef[I].second->getValue(CommandStorage))));
+    Commands.emplace_back(
+        // FIXME: Escape correctly:
+        CommandsRef[I].first->getValue(DirectoryStorage),
+        unescapeCommandLine(CommandsRef[I].second->getValue(CommandStorage)));
   }
 }
 
@@ -307,13 +307,13 @@ bool JSONCompilationDatabase::parse(std::string &ErrorMessage) {
       SmallString<128> AbsolutePath(
           Directory->getValue(DirectoryStorage));
       llvm::sys::path::append(AbsolutePath, FileName);
-      llvm::sys::path::native(AbsolutePath.str(), NativeFilePath);
+      llvm::sys::path::native(AbsolutePath, NativeFilePath);
     } else {
       llvm::sys::path::native(FileName, NativeFilePath);
     }
     IndexByFile[NativeFilePath].push_back(
         CompileCommandRef(Directory, Command));
-    MatchTrie.insert(NativeFilePath.str());
+    MatchTrie.insert(NativeFilePath);
   }
   return true;
 }

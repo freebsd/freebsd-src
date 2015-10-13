@@ -43,14 +43,13 @@ __FBSDID("$FreeBSD$");
  * after an instance of the indicated signal.
  */
 int
-siginterrupt(sig, flag)
-	int sig, flag;
+siginterrupt(int sig, int flag)
 {
 	extern sigset_t _sigintr __hidden;
 	struct sigaction sa;
 	int ret;
 
-	if ((ret = _sigaction(sig, (struct sigaction *)0, &sa)) < 0)
+	if ((ret = __libc_sigaction(sig, (struct sigaction *)0, &sa)) < 0)
 		return (ret);
 	if (flag) {
 		sigaddset(&_sigintr, sig);
@@ -59,5 +58,5 @@ siginterrupt(sig, flag)
 		sigdelset(&_sigintr, sig);
 		sa.sa_flags |= SA_RESTART;
 	}
-	return (_sigaction(sig, &sa, (struct sigaction *)0));
+	return (__libc_sigaction(sig, &sa, (struct sigaction *)0));
 }

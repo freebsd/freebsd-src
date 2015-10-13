@@ -7,6 +7,7 @@ LIB=	llvmx86codegen
 SRCDIR=	lib/Target/X86
 SRCS=	X86AsmPrinter.cpp \
 	X86CallFrameOptimization.cpp \
+	X86ExpandPseudo.cpp \
 	X86FastISel.cpp \
 	X86FixupLEAs.cpp \
 	X86FloatingPoint.cpp \
@@ -23,7 +24,8 @@ SRCS=	X86AsmPrinter.cpp \
 	X86TargetMachine.cpp \
 	X86TargetObjectFile.cpp \
 	X86TargetTransformInfo.cpp \
-	X86VZeroUpper.cpp
+	X86VZeroUpper.cpp \
+	X86WinEHState.cpp
 
 TGHDRS=	Intrinsics \
 	X86GenCallingConv \

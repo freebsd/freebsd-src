@@ -27,6 +27,7 @@ class MachineBasicBlock;
 class MachineInstr;
 class MachineRegisterInfo;
 class MDNode;
+class ModuleSlotTracker;
 class TargetMachine;
 class TargetRegisterInfo;
 class hash_code;
@@ -65,7 +66,7 @@ public:
 private:
   /// OpKind - Specify what kind of operand this is.  This discriminates the
   /// union.
-  MachineOperandType OpKind;
+  MachineOperandType OpKind : 8;
 
   /// Subregister number for MO_Register.  A value of 0 indicates the
   /// MO_Register has no subReg.
@@ -217,7 +218,9 @@ public:
   ///
   void clearParent() { ParentMI = nullptr; }
 
-  void print(raw_ostream &os, const TargetMachine *TM = nullptr) const;
+  void print(raw_ostream &os, const TargetRegisterInfo *TRI = nullptr) const;
+  void print(raw_ostream &os, ModuleSlotTracker &MST,
+             const TargetRegisterInfo *TRI = nullptr) const;
 
   //===--------------------------------------------------------------------===//
   // Accessors that tell you what kind of MachineOperand you're looking at.
@@ -450,11 +453,12 @@ public:
     return Contents.CFIIndex;
   }
 
-  /// getOffset - Return the offset from the symbol in this operand. This always
-  /// returns 0 for ExternalSymbol operands.
+  /// Return the offset from the symbol in this operand. This always returns 0
+  /// for ExternalSymbol operands.
   int64_t getOffset() const {
-    assert((isGlobal() || isSymbol() || isCPI() || isTargetIndex() ||
-            isBlockAddress()) && "Wrong MachineOperand accessor");
+    assert((isGlobal() || isSymbol() || isMCSymbol() || isCPI() ||
+            isTargetIndex() || isBlockAddress()) &&
+           "Wrong MachineOperand accessor");
     return int64_t(uint64_t(Contents.OffsetedInfo.OffsetHi) << 32) |
            SmallContents.OffsetLo;
   }
@@ -512,8 +516,9 @@ public:
   }
 
   void setOffset(int64_t Offset) {
-    assert((isGlobal() || isSymbol() || isCPI() || isTargetIndex() ||
-            isBlockAddress()) && "Wrong MachineOperand accessor");
+    assert((isGlobal() || isSymbol() || isMCSymbol() || isCPI() ||
+            isTargetIndex() || isBlockAddress()) &&
+           "Wrong MachineOperand accessor");
     SmallContents.OffsetLo = unsigned(Offset);
     Contents.OffsetedInfo.OffsetHi = int(Offset >> 32);
   }
@@ -553,6 +558,12 @@ public:
   /// of the specified value.  If an operand is known to be an FP immediate
   /// already, the setFPImm method should be used.
   void ChangeToFPImmediate(const ConstantFP *FPImm);
+
+  /// ChangeToES - Replace this operand with a new external symbol operand.
+  void ChangeToES(const char *SymName, unsigned char TargetFlags = 0);
+
+  /// ChangeToMCSymbol - Replace this operand with a new MC symbol operand.
+  void ChangeToMCSymbol(MCSymbol *Sym);
 
   /// ChangeToRegister - Replace this operand with a new register operand of
   /// the specified value.  If an operand is known to be an register already,
@@ -697,9 +708,12 @@ public:
     return Op;
   }
 
-  static MachineOperand CreateMCSymbol(MCSymbol *Sym) {
+  static MachineOperand CreateMCSymbol(MCSymbol *Sym,
+                                       unsigned char TargetFlags = 0) {
     MachineOperand Op(MachineOperand::MO_MCSymbol);
     Op.Contents.Sym = Sym;
+    Op.setOffset(0);
+    Op.setTargetFlags(TargetFlags);
     return Op;
   }
 

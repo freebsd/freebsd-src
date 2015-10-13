@@ -63,14 +63,14 @@ syscallenter(struct thread *td, struct syscall_args *sa)
 	td->td_pticks = 0;
 	if (td->td_cowgen != p->p_cowgen)
 		thread_cow_update(td);
-	if (p->p_flag & P_TRACED) {
-		traced = 1;
+	traced = (p->p_flag & P_TRACED) != 0;
+	if (traced || td->td_dbgflags & TDB_USERWR) {
 		PROC_LOCK(p);
 		td->td_dbgflags &= ~TDB_USERWR;
-		td->td_dbgflags |= TDB_SCE;
+		if (traced)
+			td->td_dbgflags |= TDB_SCE;
 		PROC_UNLOCK(p);
-	} else
-		traced = 0;
+	}
 	error = (p->p_sysent->sv_fetch_syscall_args)(td, sa);
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_SYSCALL))
@@ -83,9 +83,12 @@ syscallenter(struct thread *td, struct syscall_args *sa)
 	if (error == 0) {
 
 		STOPEVENT(p, S_SCE, sa->narg);
-		if (p->p_flag & P_TRACED && p->p_stops & S_PT_SCE) {
+		if (p->p_flag & P_TRACED) {
 			PROC_LOCK(p);
-			ptracestop((td), SIGTRAP);
+			td->td_dbg_sc_code = sa->code;
+			td->td_dbg_sc_narg = sa->narg;
+			if (p->p_stops & S_PT_SCE)
+				ptracestop((td), SIGTRAP);
 			PROC_UNLOCK(p);
 		}
 		if (td->td_dbgflags & TDB_USERWR) {
@@ -94,6 +97,10 @@ syscallenter(struct thread *td, struct syscall_args *sa)
 			 * debugger modified registers or memory.
 			 */
 			error = (p->p_sysent->sv_fetch_syscall_args)(td, sa);
+			PROC_LOCK(p);
+			td->td_dbg_sc_code = sa->code;
+			td->td_dbg_sc_narg = sa->narg;
+			PROC_UNLOCK(p);
 #ifdef KTRACE
 			if (KTRPOINT(td, KTR_SYSCALL))
 				ktrsyscall(sa->code, sa->narg, sa->args);
@@ -164,7 +171,7 @@ syscallenter(struct thread *td, struct syscall_args *sa)
 }
 
 static inline void
-syscallret(struct thread *td, int error, struct syscall_args *sa __unused)
+syscallret(struct thread *td, int error, struct syscall_args *sa)
 {
 	struct proc *p, *p2;
 	int traced;

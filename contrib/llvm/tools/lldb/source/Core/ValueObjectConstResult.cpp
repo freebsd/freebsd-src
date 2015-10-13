@@ -256,8 +256,10 @@ ValueObjectConstResult::GetValueType() const
 uint64_t
 ValueObjectConstResult::GetByteSize()
 {
+    ExecutionContext exe_ctx(GetExecutionContextRef());
+
     if (m_byte_size == 0)
-        m_byte_size = GetClangType().GetByteSize();
+        SetByteSize(GetClangType().GetByteSize(exe_ctx.GetBestExecutionContextScope()));
     return m_byte_size;
 }
 

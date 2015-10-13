@@ -786,7 +786,7 @@ dmu_send_impl(void *tag, dsl_pool_t *dp, dsl_dataset_t *to_ds,
 	to_arg.ds = to_ds;
 	to_arg.fromtxg = fromtxg;
 	to_arg.flags = TRAVERSE_PRE | TRAVERSE_PREFETCH;
-	(void) thread_create(NULL, 0, send_traverse_thread, &to_arg, 0, curproc,
+	(void) thread_create(NULL, 0, send_traverse_thread, &to_arg, 0, &p0,
 	    TS_RUN, minclsyspri);
 
 	struct send_block_record *to_data;
@@ -2446,7 +2446,7 @@ dmu_recv_stream(dmu_recv_cookie_t *drc, struct file *fp, offset_t *voffp,
 	rwa.os = ra.os;
 	rwa.byteswap = drc->drc_byteswap;
 
-	(void) thread_create(NULL, 0, receive_writer_thread, &rwa, 0, curproc,
+	(void) thread_create(NULL, 0, receive_writer_thread, &rwa, 0, &p0,
 	    TS_RUN, minclsyspri);
 	/*
 	 * We're reading rwa.err without locks, which is safe since we are the

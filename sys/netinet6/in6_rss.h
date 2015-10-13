@@ -46,8 +46,13 @@ uint32_t	rss_hash_ip6_2tuple(const struct in6_addr *src,
  * Functions to calculate a software RSS hash for a given mbuf or
  * packet detail.
  */
+int		rss_mbuf_software_hash_v6(const struct mbuf *m, int dir,
+		    uint32_t *hashval, uint32_t *hashtype);
 int		rss_proto_software_hash_v6(const struct in6_addr *src,
 		    const struct in6_addr *dst, u_short src_port,
 		    u_short dst_port, int proto, uint32_t *hashval,
 		    uint32_t *hashtype);
+struct mbuf *	rss_soft_m2cpuid_v6(struct mbuf *m, uintptr_t source,
+		    u_int *cpuid);
+
 #endif /* !_NETINET6_IN6_RSS_H_ */

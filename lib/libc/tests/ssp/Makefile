@@ -2,8 +2,6 @@
 
 .include <bsd.own.mk>
 
-TESTSDIR=	${TESTSBASE}/lib/libc/ssp
-
 NO_WERROR=
 WARNS?=	2
 

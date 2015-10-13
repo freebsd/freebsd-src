@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 10, 2014
+.Dd September 22, 2015
 .Dt ACPICONF 8
 .Os
 .Sh NAME
@@ -62,11 +62,9 @@ Recognized types are
 (not implemented on most systems but similar to S1),
 .Cm 3
 (the CPU context is lost and memory context is preserved),
-.Cm 4
-(the CPU context is lost and memory context is stored to disk)
 and
-.Cm 5
-(soft off).
+.Cm 4
+(the CPU context is lost and memory context is stored to disk).
 Sleep states may also be given as S1, S2, etc.
 The supported states depend on BIOS implementation, including ACPI
 byte code (AML).

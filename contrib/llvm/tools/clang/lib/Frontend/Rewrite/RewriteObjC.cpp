@@ -193,7 +193,7 @@ namespace {
                 DiagnosticsEngine &D, const LangOptions &LOpts,
                 bool silenceMacroWarn);
 
-    ~RewriteObjC() {}
+    ~RewriteObjC() override {}
 
     void HandleTranslationUnit(ASTContext &C) override;
 
@@ -511,8 +511,8 @@ namespace {
                 bool silenceMacroWarn) : RewriteObjC(inFile, OS,
                                                      D, LOpts,
                                                      silenceMacroWarn) {}
-    
-    ~RewriteObjCFragileABI() {}
+
+    ~RewriteObjCFragileABI() override {}
     void Initialize(ASTContext &context) override;
 
     // Rewriting metadata
@@ -1712,9 +1712,9 @@ Stmt *RewriteObjC::RewriteObjCSynchronizedStmt(ObjCAtSynchronizedStmt *S) {
 void RewriteObjC::WarnAboutReturnGotoStmts(Stmt *S)
 {
   // Perform a bottom up traversal of all children.
-  for (Stmt::child_range CI = S->children(); CI; ++CI)
-    if (*CI)
-      WarnAboutReturnGotoStmts(*CI);
+  for (Stmt *SubStmt : S->children())
+    if (SubStmt)
+      WarnAboutReturnGotoStmts(SubStmt);
 
   if (isa<ReturnStmt>(S) || isa<GotoStmt>(S)) {
     Diags.Report(Context->getFullLoc(S->getLocStart()),
@@ -1726,9 +1726,9 @@ void RewriteObjC::WarnAboutReturnGotoStmts(Stmt *S)
 void RewriteObjC::HasReturnStmts(Stmt *S, bool &hasReturns) 
 {  
   // Perform a bottom up traversal of all children.
-  for (Stmt::child_range CI = S->children(); CI; ++CI)
-   if (*CI)
-     HasReturnStmts(*CI, hasReturns);
+  for (Stmt *SubStmt : S->children())
+    if (SubStmt)
+      HasReturnStmts(SubStmt, hasReturns);
 
  if (isa<ReturnStmt>(S))
    hasReturns = true;
@@ -1737,9 +1737,9 @@ void RewriteObjC::HasReturnStmts(Stmt *S, bool &hasReturns)
 
 void RewriteObjC::RewriteTryReturnStmts(Stmt *S) {
  // Perform a bottom up traversal of all children.
- for (Stmt::child_range CI = S->children(); CI; ++CI)
-   if (*CI) {
-     RewriteTryReturnStmts(*CI);
+ for (Stmt *SubStmt : S->children())
+   if (SubStmt) {
+     RewriteTryReturnStmts(SubStmt);
    }
  if (isa<ReturnStmt>(S)) {
    SourceLocation startLoc = S->getLocStart();
@@ -1760,9 +1760,9 @@ void RewriteObjC::RewriteTryReturnStmts(Stmt *S) {
 
 void RewriteObjC::RewriteSyncReturnStmts(Stmt *S, std::string syncExitBuf) {
   // Perform a bottom up traversal of all children.
-  for (Stmt::child_range CI = S->children(); CI; ++CI)
-    if (*CI) {
-      RewriteSyncReturnStmts(*CI, syncExitBuf);
+  for (Stmt *SubStmt : S->children())
+    if (SubStmt) {
+      RewriteSyncReturnStmts(SubStmt, syncExitBuf);
     }
   if (isa<ReturnStmt>(S)) {
     SourceLocation startLoc = S->getLocStart();
@@ -3663,12 +3663,12 @@ void RewriteObjC::InsertBlockLiteralsWithinMethod(ObjCMethodDecl *MD) {
 }
 
 void RewriteObjC::GetBlockDeclRefExprs(Stmt *S) {
-  for (Stmt::child_range CI = S->children(); CI; ++CI)
-    if (*CI) {
-      if (BlockExpr *CBE = dyn_cast<BlockExpr>(*CI))
+  for (Stmt *SubStmt : S->children())
+    if (SubStmt) {
+      if (BlockExpr *CBE = dyn_cast<BlockExpr>(SubStmt))
         GetBlockDeclRefExprs(CBE->getBody());
       else
-        GetBlockDeclRefExprs(*CI);
+        GetBlockDeclRefExprs(SubStmt);
     }
   // Handle specific things.
   if (DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(S))
@@ -3683,19 +3683,16 @@ void RewriteObjC::GetBlockDeclRefExprs(Stmt *S) {
 void RewriteObjC::GetInnerBlockDeclRefExprs(Stmt *S,
                 SmallVectorImpl<DeclRefExpr *> &InnerBlockDeclRefs,
                 llvm::SmallPtrSetImpl<const DeclContext *> &InnerContexts) {
-  for (Stmt::child_range CI = S->children(); CI; ++CI)
-    if (*CI) {
-      if (BlockExpr *CBE = dyn_cast<BlockExpr>(*CI)) {
+  for (Stmt *SubStmt : S->children())
+    if (SubStmt) {
+      if (BlockExpr *CBE = dyn_cast<BlockExpr>(SubStmt)) {
         InnerContexts.insert(cast<DeclContext>(CBE->getBlockDecl()));
         GetInnerBlockDeclRefExprs(CBE->getBody(),
                                   InnerBlockDeclRefs,
                                   InnerContexts);
       }
       else
-        GetInnerBlockDeclRefExprs(*CI,
-                                  InnerBlockDeclRefs,
-                                  InnerContexts);
-
+        GetInnerBlockDeclRefExprs(SubStmt, InnerBlockDeclRefs, InnerContexts);
     }
   // Handle specific things.
   if (DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(S)) {
@@ -3821,11 +3818,10 @@ Stmt *RewriteObjC::SynthesizeBlockCall(CallExpr *Exp, const Expr *BlockExp) {
                                     Context->VoidPtrTy, nullptr,
                                     /*BitWidth=*/nullptr, /*Mutable=*/true,
                                     ICIS_NoInit);
-  MemberExpr *ME = new (Context) MemberExpr(PE, true, FD, SourceLocation(),
-                                            FD->getType(), VK_LValue,
-                                            OK_Ordinary);
+  MemberExpr *ME =
+      new (Context) MemberExpr(PE, true, SourceLocation(), FD, SourceLocation(),
+                               FD->getType(), VK_LValue, OK_Ordinary);
 
-  
   CastExpr *FunkCast = NoTypeInfoCStyleCastExpr(Context, PtrToFuncCastType,
                                                 CK_BitCast, ME);
   PE = new (Context) ParenExpr(SourceLocation(), SourceLocation(), FunkCast);
@@ -3870,10 +3866,9 @@ Stmt *RewriteObjC::RewriteBlockDeclRefExpr(DeclRefExpr *DeclRefExp) {
                                     Context->VoidPtrTy, nullptr,
                                     /*BitWidth=*/nullptr, /*Mutable=*/true,
                                     ICIS_NoInit);
-  MemberExpr *ME = new (Context) MemberExpr(DeclRefExp, isArrow,
-                                            FD, SourceLocation(),
-                                            FD->getType(), VK_LValue,
-                                            OK_Ordinary);
+  MemberExpr *ME = new (Context)
+      MemberExpr(DeclRefExp, isArrow, SourceLocation(), FD, SourceLocation(),
+                 FD->getType(), VK_LValue, OK_Ordinary);
 
   StringRef Name = VD->getName();
   FD = FieldDecl::Create(*Context, nullptr, SourceLocation(), SourceLocation(),
@@ -3881,11 +3876,10 @@ Stmt *RewriteObjC::RewriteBlockDeclRefExpr(DeclRefExpr *DeclRefExp) {
                          Context->VoidPtrTy, nullptr,
                          /*BitWidth=*/nullptr, /*Mutable=*/true,
                          ICIS_NoInit);
-  ME = new (Context) MemberExpr(ME, true, FD, SourceLocation(),
-                                DeclRefExp->getType(), VK_LValue, OK_Ordinary);
-  
-  
-  
+  ME =
+      new (Context) MemberExpr(ME, true, SourceLocation(), FD, SourceLocation(),
+                               DeclRefExp->getType(), VK_LValue, OK_Ordinary);
+
   // Need parens to enforce precedence.
   ParenExpr *PE = new (Context) ParenExpr(DeclRefExp->getExprLoc(), 
                                           DeclRefExp->getExprLoc(), 
@@ -4614,12 +4608,11 @@ Stmt *RewriteObjC::RewriteFunctionBodyOrGlobalInitializer(Stmt *S) {
   SourceRange OrigStmtRange = S->getSourceRange();
 
   // Perform a bottom up rewrite of all children.
-  for (Stmt::child_range CI = S->children(); CI; ++CI)
-    if (*CI) {
-      Stmt *childStmt = (*CI);
+  for (Stmt *&childStmt : S->children())
+    if (childStmt) {
       Stmt *newStmt = RewriteFunctionBodyOrGlobalInitializer(childStmt);
       if (newStmt) {
-        *CI = newStmt;
+        childStmt = newStmt;
       }
     }
 
@@ -5880,10 +5873,9 @@ Stmt *RewriteObjCFragileABI::RewriteObjCIvarRefExpr(ObjCIvarRefExpr *IV) {
                                               castExpr);
       if (IV->isFreeIvar() &&
           declaresSameEntity(CurMethodDef->getClassInterface(), iFaceDecl->getDecl())) {
-        MemberExpr *ME = new (Context) MemberExpr(PE, true, D,
-                                                  IV->getLocation(),
-                                                  D->getType(),
-                                                  VK_LValue, OK_Ordinary);
+        MemberExpr *ME = new (Context)
+            MemberExpr(PE, true, SourceLocation(), D, IV->getLocation(),
+                       D->getType(), VK_LValue, OK_Ordinary);
         Replacement = ME;
       } else {
         IV->setBase(PE);

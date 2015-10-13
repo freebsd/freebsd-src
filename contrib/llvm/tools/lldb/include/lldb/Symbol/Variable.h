@@ -29,7 +29,7 @@ public:
     //------------------------------------------------------------------
     Variable (lldb::user_id_t uid,
               const char *name, 
-              const char *mangled,   // The mangled variable name for variables in namespaces
+              const char *mangled,  // The mangled or fully qualified name of the variable.
               const lldb::SymbolFileTypeSP &symfile_type_sp,
               lldb::ValueType scope,
               SymbolContextScope *owner_scope,
@@ -55,7 +55,7 @@ public:
         return m_declaration;
     }
 
-    const ConstString&
+    ConstString
     GetName() const;
 
     SymbolContextScope *
@@ -70,18 +70,16 @@ public:
     // function that can be called by commands and expression parsers to make
     // sure we match anything we come across.
     bool
-    NameMatches (const ConstString &name) const
-    {
-        if (m_name == name)
-            return true;
-        return m_mangled.NameMatches (name);
-    }
+    NameMatches (const ConstString &name) const;
 
     bool
     NameMatches (const RegularExpression& regex) const;
 
     Type *
     GetType();
+
+    lldb::LanguageType
+    GetLanguage () const;
 
     lldb::ValueType
     GetScope() const

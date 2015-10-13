@@ -27,7 +27,7 @@ class NVPTXInstrInfo : public NVPTXGenInstrInfo {
   const NVPTXRegisterInfo RegInfo;
   virtual void anchor();
 public:
-  explicit NVPTXInstrInfo(NVPTXSubtarget &STI);
+  explicit NVPTXInstrInfo();
 
   const NVPTXRegisterInfo &getRegisterInfo() const { return RegInfo; }
 
@@ -66,7 +66,7 @@ public:
   unsigned RemoveBranch(MachineBasicBlock &MBB) const override;
   unsigned InsertBranch(
       MachineBasicBlock &MBB, MachineBasicBlock *TBB, MachineBasicBlock *FBB,
-      const SmallVectorImpl<MachineOperand> &Cond, DebugLoc DL) const override;
+      ArrayRef<MachineOperand> Cond, DebugLoc DL) const override;
   unsigned getLdStCodeAddrSpace(const MachineInstr &MI) const {
     return MI.getOperand(2).getImm();
   }

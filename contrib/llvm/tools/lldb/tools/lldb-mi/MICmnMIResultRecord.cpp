@@ -7,18 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-//++
-// File:        MICmnMIResultRecord.h
-//
-// Overview:    CMICmnMIResultRecord implementation.
-//
-// Environment: Compilers:  Visual C++ 12.
-//                          gcc (Ubuntu/Linaro 4.8.1-10ubuntu9) 4.8.1
-//              Libraries:  See MIReadmetxt.
-//
-// Copyright:   None.
-//--
-
 // In-house headers:
 #include "MICmnMIResultRecord.h"
 #include "MICmnResources.h"
@@ -118,7 +106,7 @@ CMICmnMIResultRecord::GetString(void) const
 bool
 CMICmnMIResultRecord::BuildResultRecord(void)
 {
-    const MIchar *pFormat = "%s%s%s";
+    const char *pFormat = "%s%s%s";
     const CMIUtilString &rStrResultRecord(ms_MapResultClassToResultClassText[m_eResultRecordResultClass]);
     m_strResultRecord =
         CMIUtilString::Format(pFormat, m_strResultRecordToken.c_str(), ms_constStrResultRecordHat.c_str(), rStrResultRecord.c_str());

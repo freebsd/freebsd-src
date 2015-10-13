@@ -20,6 +20,8 @@
 #ifndef OHASH_H
 #define OHASH_H
 
+#include <stddef.h>
+
 /* Open hashing support. 
  * Open hashing was chosen because it is much lighter than other hash
  * techniques, and more efficient in most cases.

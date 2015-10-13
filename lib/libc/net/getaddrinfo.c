@@ -137,13 +137,20 @@ static const struct afd {
 	 offsetof(struct sockaddr_in6, sin6_addr),
 	 in6_addrany, in6_loopback, 1},
 #define	N_INET 1
+#define	N_LOCAL 2
 #else
 #define	N_INET 0
+#define	N_LOCAL 1
 #endif
 	{PF_INET, sizeof(struct in_addr),
 	 sizeof(struct sockaddr_in),
 	 offsetof(struct sockaddr_in, sin_addr),
 	 in_addrany, in_loopback, 0},
+#define	sizeofmember(type, member)	(sizeof(((type *)0)->member))
+	{PF_LOCAL, sizeofmember(struct sockaddr_un, sun_path),
+	 sizeof(struct sockaddr_un),
+	 offsetof(struct sockaddr_un, sun_path),
+	 NULL, NULL, 0},
 	{0, 0, 0, 0, NULL, NULL, 0},
 };
 
@@ -152,29 +159,47 @@ struct explore {
 	int e_socktype;
 	int e_protocol;
 	int e_wild;
-#define WILD_AF(ex)		((ex)->e_wild & 0x01)
-#define WILD_SOCKTYPE(ex)	((ex)->e_wild & 0x02)
-#define WILD_PROTOCOL(ex)	((ex)->e_wild & 0x04)
+#define	AF_ANY		0x01
+#define	SOCKTYPE_ANY	0x02
+#define	PROTOCOL_ANY	0x04
+#define WILD_AF(ex)		((ex)->e_wild & AF_ANY)
+#define WILD_SOCKTYPE(ex)	((ex)->e_wild & SOCKTYPE_ANY)
+#define WILD_PROTOCOL(ex)	((ex)->e_wild & PROTOCOL_ANY)
 };
 
 static const struct explore explore[] = {
-#if 0
-	{ PF_LOCAL, ANY, ANY, 0x01 },
-#endif
 #ifdef INET6
-	{ PF_INET6, SOCK_DGRAM, IPPROTO_UDP, 0x07 },
-	{ PF_INET6, SOCK_STREAM, IPPROTO_TCP, 0x07 },
-	{ PF_INET6, SOCK_STREAM, IPPROTO_SCTP, 0x03 },
-	{ PF_INET6, SOCK_SEQPACKET, IPPROTO_SCTP, 0x07 },
-	{ PF_INET6, SOCK_DGRAM, IPPROTO_UDPLITE, 0x03 },
-	{ PF_INET6, SOCK_RAW, ANY, 0x05 },
+	{ PF_INET6, SOCK_DGRAM,	 IPPROTO_UDP,
+	    AF_ANY | SOCKTYPE_ANY | PROTOCOL_ANY },
+	{ PF_INET6, SOCK_STREAM, IPPROTO_TCP,
+	    AF_ANY | SOCKTYPE_ANY | PROTOCOL_ANY },
+	{ PF_INET6, SOCK_STREAM, IPPROTO_SCTP,
+	    AF_ANY | SOCKTYPE_ANY },
+	{ PF_INET6, SOCK_SEQPACKET, IPPROTO_SCTP,
+	    AF_ANY | SOCKTYPE_ANY | PROTOCOL_ANY },
+	{ PF_INET6, SOCK_DGRAM,	IPPROTO_UDPLITE,
+	    AF_ANY | SOCKTYPE_ANY },
+	{ PF_INET6, SOCK_RAW, ANY,
+	    AF_ANY | PROTOCOL_ANY },
 #endif
-	{ PF_INET, SOCK_DGRAM, IPPROTO_UDP, 0x07 },
-	{ PF_INET, SOCK_STREAM, IPPROTO_TCP, 0x07 },
-	{ PF_INET, SOCK_STREAM, IPPROTO_SCTP, 0x03 },
-	{ PF_INET, SOCK_SEQPACKET, IPPROTO_SCTP, 0x07 },
-	{ PF_INET, SOCK_DGRAM, IPPROTO_UDPLITE, 0x03 },
-	{ PF_INET, SOCK_RAW, ANY, 0x05 },
+	{ PF_INET, SOCK_DGRAM, IPPROTO_UDP,
+	    AF_ANY | SOCKTYPE_ANY | PROTOCOL_ANY },
+	{ PF_INET, SOCK_STREAM,	IPPROTO_TCP,
+	    AF_ANY | SOCKTYPE_ANY | PROTOCOL_ANY },
+	{ PF_INET, SOCK_STREAM, IPPROTO_SCTP,
+	    AF_ANY | SOCKTYPE_ANY },
+	{ PF_INET, SOCK_SEQPACKET, IPPROTO_SCTP,
+	    AF_ANY | SOCKTYPE_ANY | PROTOCOL_ANY },
+	{ PF_INET, SOCK_DGRAM, IPPROTO_UDPLITE,
+	    AF_ANY | SOCKTYPE_ANY },
+	{ PF_INET, SOCK_RAW, ANY,
+	    AF_ANY | PROTOCOL_ANY },
+	{ PF_LOCAL, SOCK_DGRAM,	ANY,
+	    AF_ANY | SOCKTYPE_ANY | PROTOCOL_ANY },
+	{ PF_LOCAL, SOCK_STREAM, ANY,
+	    AF_ANY | SOCKTYPE_ANY | PROTOCOL_ANY },
+	{ PF_LOCAL, SOCK_SEQPACKET, ANY,
+	    AF_ANY | SOCKTYPE_ANY | PROTOCOL_ANY },
 	{ -1, 0, 0, 0 },
 };
 
@@ -408,6 +433,7 @@ getaddrinfo(const char *hostname, const char *servname,
 			ERR(EAI_BADFLAGS);
 		switch (hints->ai_family) {
 		case PF_UNSPEC:
+		case PF_LOCAL:
 		case PF_INET:
 #ifdef INET6
 		case PF_INET6:
@@ -1130,6 +1156,9 @@ explore_null(const struct addrinfo *pai, const char *servname,
 	*res = NULL;
 	ai = NULL;
 
+	if (pai->ai_family == PF_LOCAL)
+		return (0);
+
 	/*
 	 * filter out AFs that are not supported by the kernel
 	 * XXX errno?
@@ -1172,8 +1201,11 @@ explore_numeric(const struct addrinfo *pai, const char *hostname,
 	const struct afd *afd;
 	struct addrinfo *ai;
 	int error;
-	char pton[PTON_MAX];
+	char pton[PTON_MAX], path[PATH_MAX], *p;
 
+#ifdef CTASSERT
+	CTASSERT(sizeofmember(struct sockaddr_un, sun_path) <= PATH_MAX);
+#endif
 	*res = NULL;
 	ai = NULL;
 
@@ -1182,6 +1214,15 @@ explore_numeric(const struct addrinfo *pai, const char *hostname,
 		return 0;
 
 	switch (afd->a_af) {
+	case AF_LOCAL:
+		if (hostname[0] != '/')
+			ERR(EAI_NONAME);
+		if (strlen(hostname) > afd->a_addrlen)
+			ERR(EAI_MEMORY);
+		/* NUL-termination does not need to be guaranteed. */
+		strncpy(path, hostname, afd->a_addrlen);
+		p = &path[0];
+		break;
 	case AF_INET:
 		/*
 		 * RFC3493 requires getaddrinfo() to accept AF_INET formats
@@ -1192,17 +1233,21 @@ explore_numeric(const struct addrinfo *pai, const char *hostname,
 		 */
 		if (inet_aton(hostname, (struct in_addr *)pton) != 1)
 			return 0;
+		p = pton;
 		break;
 	default:
 		if (inet_pton(afd->a_af, hostname, pton) != 1)
 			return 0;
+		p = pton;
 		break;
 	}
 
 	if (pai->ai_family == afd->a_af) {
-		GET_AI(ai, afd, pton);
+		GET_AI(ai, afd, p);
 		GET_PORT(ai, servname);
-		if ((pai->ai_flags & AI_CANONNAME)) {
+		if ((pai->ai_family == AF_INET ||
+		     pai->ai_family == AF_INET6) &&
+		    (pai->ai_flags & AI_CANONNAME)) {
 			/*
 			 * Set the numeric address itself as the canonical
 			 * name, based on a clarification in RFC3493.
@@ -1320,6 +1365,12 @@ get_ai(const struct addrinfo *pai, const struct afd *afd, const char *addr)
 	memset(ai->ai_addr, 0, (size_t)afd->a_socklen);
 	ai->ai_addr->sa_len = afd->a_socklen;
 	ai->ai_addrlen = afd->a_socklen;
+	if (ai->ai_family == PF_LOCAL) {
+		size_t n = strnlen(addr, afd->a_addrlen);
+
+		ai->ai_addrlen -= afd->a_addrlen - n;
+		ai->ai_addr->sa_len -= afd->a_addrlen - n;
+	}
 	ai->ai_addr->sa_family = ai->ai_family = afd->a_af;
 	p = (char *)(void *)(ai->ai_addr);
 	memcpy(p + afd->a_off, addr, (size_t)afd->a_addrlen);
@@ -1378,6 +1429,9 @@ get_port(struct addrinfo *ai, const char *servname, int matchonly)
 	if (servname == NULL)
 		return 0;
 	switch (ai->ai_family) {
+	case AF_LOCAL:
+		/* AF_LOCAL ignores servname silently. */
+		return (0);
 	case AF_INET:
 #ifdef AF_INET6
 	case AF_INET6:
