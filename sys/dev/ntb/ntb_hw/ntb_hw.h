@@ -74,7 +74,10 @@ bool ntb_query_link_status(struct ntb_softc *ntb);
 device_t ntb_get_device(struct ntb_softc *ntb);
 
 #define NTB_BAR_SIZE_4K		(1 << 0)
+/* REGS_THRU_MW is the equivalent of Linux's NTB_HWERR_SDOORBELL_LOCKUP */
 #define NTB_REGS_THRU_MW	(1 << 1)
+#define NTB_SB01BASE_LOCKUP	(1 << 2)
+#define NTB_B2BDOORBELL_BIT14	(1 << 3)
 bool ntb_has_feature(struct ntb_softc *, uint64_t);
 
 #endif /* _NTB_HW_H_ */

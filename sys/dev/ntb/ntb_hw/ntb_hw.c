@@ -199,11 +199,23 @@ static int ntb_check_link_status(struct ntb_softc *ntb);
 static void save_bar_parameters(struct ntb_pci_bar_info *bar);
 
 static struct ntb_hw_info pci_ids[] = {
-	{ 0x3C0D8086, "Xeon E5/Core i7 Non-Transparent Bridge B2B", NTB_XEON,
-	    NTB_REGS_THRU_MW },
 	{ 0x0C4E8086, "Atom Processor S1200 NTB Primary B2B", NTB_SOC, 0 },
-	{ 0x0E0D8086, "Xeon E5 V2 Non-Transparent Bridge B2B", NTB_XEON,
-	    NTB_REGS_THRU_MW | NTB_BAR_SIZE_4K },
+
+	/* XXX: PS/SS IDs left out until they are supported. */
+	{ 0x37258086, "JSF Xeon C35xx/C55xx Non-Transparent Bridge B2B",
+		NTB_XEON, NTB_REGS_THRU_MW | NTB_B2BDOORBELL_BIT14 },
+	{ 0x3C0D8086, "SNB Xeon E5/Core i7 Non-Transparent Bridge B2B",
+		NTB_XEON, NTB_REGS_THRU_MW | NTB_B2BDOORBELL_BIT14 },
+	{ 0x0E0D8086, "IVT Xeon E5 V2 Non-Transparent Bridge B2B", NTB_XEON,
+		NTB_REGS_THRU_MW | NTB_B2BDOORBELL_BIT14 | NTB_SB01BASE_LOCKUP
+		    | NTB_BAR_SIZE_4K },
+	{ 0x2F0D8086, "HSX Xeon E5 V3 Non-Transparent Bridge B2B", NTB_XEON,
+		NTB_REGS_THRU_MW | NTB_B2BDOORBELL_BIT14 | NTB_SB01BASE_LOCKUP
+	},
+	{ 0x6F0D8086, "BDX Xeon E5 V4 Non-Transparent Bridge B2B", NTB_XEON,
+		NTB_REGS_THRU_MW | NTB_B2BDOORBELL_BIT14 | NTB_SB01BASE_LOCKUP
+	},
+
 	{ 0x00000000, NULL, NTB_SOC, 0 }
 };
 
