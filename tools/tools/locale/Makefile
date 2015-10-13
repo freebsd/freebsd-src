@@ -27,6 +27,7 @@ LC:=	--lc=${LC}
 .endif
 
 all:
+	cp ${ETCDIR}/common.UTF-8.src ${CLDRDIR}/posix/xx_Comm_US.UTF-8.src
 .for t in ${TYPES}
 .  if ${KNOWN:M${t}}
 	test -d ${t} || mkdir ${t}
@@ -64,13 +65,24 @@ build-${t}:
 	env ${PASSON} tools/finalize ${t}
 .endfor
 
+build-ctypedef:	transfer-rollup
+
+transfer-rollup:
+	cp ${ETCDIR}/common.UTF-8.src ${CLDRDIR}/posix/xx_Comm_US.UTF-8.src
+
+rollup:
+	perl -I tools tools/utf8-rollup.pl \
+		--cldr=$$(realpath ${CLDRDIR}) \
+		--etc=$$(realpath ${ETCDIR})
+
 clean:
 .for t in ${TYPES}
 	rm -rf ${t} ${t}.draft
 .endfor
 
 BASE_LOCALES_OF_INTEREST?= \
-	af_ZA am_ET be_BY bg_BG ca_AD ca_ES ca_FR ca_IT \
+	af_ZA am_ET ar_AE ar_EG ar_JO ar_MA ar_QA ar_SA \
+	be_BY bg_BG ca_AD ca_ES ca_FR ca_IT \
 	cs_CZ da_DK de_AT de_CH de_DE el_GR en_AU en_CA \
 	en_GB en_HK en_IE en_NZ en_PH en_SG en_US en_ZA \
 	es_AR es_CR es_ES es_MX et_EE eu_ES fi_FI fr_BE \
@@ -80,7 +92,12 @@ BASE_LOCALES_OF_INTEREST?= \
 	ru_RU se_FI se_NO sk_SK sl_SI sv_FI sv_SE tr_TR \
 	uk_UA \
 	kk_Cyrl_KZ mn_Cyrl_MN sr_Cyrl_RS sr_Latn_RS \
-	zh_Hans_CN zh_Hant_HK zh_Hant_TW
+	zh_Hans_CN zh_Hant_HK zh_Hant_TW \
+	\
+	\
+	bn_IN gu_IN or_IN ta_IN te_IN kn_IN ml_IN si_LK \
+	th_TH lo_LA bo_IN my_MM pa_Guru_IN ka_GE chr_US \
+	km_KH shi_Tfng_MA ii_CN vai_Vaii_LR vi_VN
 
 POSIX:
 .if exists (${CLDRDIR}/tools/java/cldr.jar)

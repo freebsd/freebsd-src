@@ -23,37 +23,28 @@ old=${base}/../${1}.draft
 new=${base}/../${1}
 TEMP=/tmp/${1}.locales
 TEMP2=/tmp/${1}.hashes
+TEMP3=/tmp/${1}.symlinks
 FULLMAP=/tmp/utf8-map
 FULLEXTRACT=/tmp/extracted-names
 AWKCMD="/## PLACEHOLDER/ { \
 	  while ( getline line < \"${TEMP}\" ) {print line} } \
-	!/## PLACEHOLDER/ { print \$0 }"
+	/## SYMPAIRS/ { \
+	  while ( getline line < \"${TEMP3}\" ) {print line} } \
+	!/## / { print \$0 }"
 
 grep '^LOCALES+' ${old}/Makefile > ${TEMP}
 
 if [ $1 = "ctypedef" ]
 then
-keep=$(cat ${TEMP} | awk '/UTF-8/ { print $2 }')
-else
-keep=$(cat ${TEMP} | awk '{ print $2 }')
-fi
-
-for original in ${keep}
-do
-	cp ${old}/${original}.src ${new}/
-done
-
-if [ $1 = "ctypedef" ]
-then
 keep=$(cat ${TEMP} | awk '{ print $2 ".src" }')
 (cd ${old} && md5 -r ${keep} | sort) > ${TEMP2}
-linx=$(cat ${TEMP2} | awk '!/UTF-8/ { print $2 }')
-for original in ${linx}
+keep=$(awk '{ if ($1 != last1) print $2; last1 = $1; }' ${TEMP2})
+for original in ${keep}
 do
-linkhash=$(fgrep "${original}" ${TEMP2} | awk '{ print $1 }')
-utf8file=$(fgrep "${linkhash}" ${TEMP2} | fgrep 'UTF-8' | awk '{ print $2 }')
-ln -s ${utf8file} ${new}/${original}
+	cp ${old}/${original} ${new}/
 done
+awk '{ if ($1 == last1) { print "SYMPAIRS+=\t" last2 ":" $2 } \
+else {last1 = $1; last2 = $2}}' ${TEMP2} > ${TEMP3}
 rm -f ${TEMP2}
 	/usr/bin/sed -E -e 's/[ ]+/ /g' \
 		${CLDRDIR}/posix/UTF-8.cm \
@@ -80,8 +71,16 @@ fi
 	echo map ${map} converted.
 done
 
+else  # below is everything but ctypedef
+
+keep=$(cat ${TEMP} | awk '{ print $2 }')
+for original in ${keep}
+do
+	cp ${old}/${original}.src ${new}/
+done
+
 fi
 
 grep -v '^LOCALES+' ${old}/Makefile | awk "${AWKCMD}" > ${new}/Makefile
 
-rm -f ${TEMP}
+rm -f ${TEMP} ${TEMP3}
