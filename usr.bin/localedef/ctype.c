@@ -51,6 +51,11 @@ __FBSDID("$FreeBSD$");
 #include "runefile.h"
 
 
+/* Needed for bootstrapping, _CTYPE_N */
+#ifndef _CTYPE_N
+#define _CTYPE_N       0x00400000L
+#endif
+
 #define _ISUPPER	_CTYPE_U
 #define _ISLOWER	_CTYPE_L
 #define	_ISDIGIT	_CTYPE_D
@@ -65,7 +70,7 @@ __FBSDID("$FreeBSD$");
 #define	_E1		_CTYPE_Q
 #define	_E2		_CTYPE_I
 #define	_E3		0
-#define	_E4		0
+#define	_E4		_CTYPE_N
 #define	_E5		_CTYPE_T
 
 static wchar_t		last_ctype;
