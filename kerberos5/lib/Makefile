@@ -9,7 +9,6 @@ SUBDIR=	libasn1 libgssapi_krb5 libgssapi_ntlm libgssapi_spnego libhdb \
 
 SUBDIR+= libkafs5  # requires krb_err.h from libkrb5
 SUBDIR_DEPEND_libkafs5=	libkrb5
-SUBDIR_PARALLEL=
 
 .if defined(LIBCHERI)
 .if ${MK_LIBCHERI_ALL} == "no"
