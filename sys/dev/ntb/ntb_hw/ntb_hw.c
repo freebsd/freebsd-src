@@ -896,6 +896,7 @@ ntb_handle_heartbeat(void *arg)
 	if (rc != 0)
 		device_printf(ntb->device,
 		    "Error determining link status\n");
+
 	/* Check to see if a link error is the cause of the link down */
 	if (ntb->link_status == NTB_LINK_DOWN) {
 		status32 = ntb_reg_read(4, SOC_LTSSMSTATEJMP_OFFSET);
@@ -995,7 +996,15 @@ recover_soc_link(void *arg)
 	uint16_t status16;
 
 	soc_perform_link_restart(ntb);
-	pause("Link", SOC_LINK_RECOVERY_TIME * hz / 1000);
+
+	/*
+	 * There is a potential race between the 2 NTB devices recovering at
+	 * the same time.  If the times are the same, the link will not recover
+	 * and the driver will be stuck in this loop forever.  Add a random
+	 * interval to the recovery time to prevent this race.
+	 */
+	status32 = arc4random() % SOC_LINK_RECOVERY_TIME;
+	pause("Link", (SOC_LINK_RECOVERY_TIME + status32) * hz / 1000);
 
 	status32 = ntb_reg_read(4, SOC_LTSSMSTATEJMP_OFFSET);
 	if ((status32 & SOC_LTSSMSTATEJMP_FORCEDETECT) != 0)
@@ -1005,12 +1014,17 @@ recover_soc_link(void *arg)
 	if ((status32 & SOC_IBIST_ERR_OFLOW) != 0)
 		goto retry;
 
+	status32 = ntb_reg_read(4, ntb->reg_ofs.lnk_cntl);
+	if ((status32 & SOC_CNTL_LINK_DOWN) != 0)
+		goto out;
+
 	status16 = ntb_reg_read(2, ntb->reg_ofs.lnk_stat);
 	width = (status16 & NTB_LINK_WIDTH_MASK) >> 4;
 	speed = (status16 & NTB_LINK_SPEED_MASK);
 	if (ntb->link_width != width || ntb->link_speed != speed)
 		goto retry;
 
+out:
 	callout_reset(&ntb->heartbeat_timer, NTB_HB_TIMEOUT * hz,
 	    ntb_handle_heartbeat, ntb);
 	return;
