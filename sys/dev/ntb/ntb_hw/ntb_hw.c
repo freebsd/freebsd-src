@@ -238,28 +238,25 @@ SYSCTL_NODE(_hw, OID_AUTO, ntb, CTLFLAG_RW, 0, "NTB sysctls");
 static int
 ntb_probe(device_t device)
 {
-	struct ntb_hw_info *p = ntb_get_device_info(pci_get_devid(device));
+	struct ntb_hw_info *p;
 
-	if (p != NULL) {
-		device_set_desc(device, p->desc);
-		return (0);
-	} else
+	p = ntb_get_device_info(pci_get_devid(device));
+	if (p == NULL)
 		return (ENXIO);
-}
 
-#define DETACH_ON_ERROR(func)           \
-	error = func;		        \
-	if (error < 0) {		\
-		ntb_detach(device);	\
-		return (error);		\
-	}
+	device_set_desc(device, p->desc);
+	return (0);
+}
 
 static int
 ntb_attach(device_t device)
 {
-	struct ntb_softc *ntb = DEVICE2SOFTC(device);
-	struct ntb_hw_info *p = ntb_get_device_info(pci_get_devid(device));
+	struct ntb_softc *ntb;
+	struct ntb_hw_info *p;
 	int error;
+
+	ntb = DEVICE2SOFTC(device);
+	p = ntb_get_device_info(pci_get_devid(device));
 
 	ntb->device = device;
 	ntb->type = p->type;
@@ -269,20 +266,30 @@ ntb_attach(device_t device)
 	callout_init(&ntb->heartbeat_timer, 1);
 	callout_init(&ntb->lr_timer, 1);
 
-	DETACH_ON_ERROR(ntb_map_pci_bars(ntb));
-	DETACH_ON_ERROR(ntb_initialize_hw(ntb));
-	DETACH_ON_ERROR(ntb_setup_interrupts(ntb));
+	error = ntb_map_pci_bars(ntb);
+	if (error)
+		goto out;
+	error = ntb_initialize_hw(ntb);
+	if (error)
+		goto out;
+	error = ntb_setup_interrupts(ntb);
+	if (error)
+		goto out;
 
 	pci_enable_busmaster(ntb->device);
 
+out:
+	if (error != 0)
+		ntb_detach(device);
 	return (error);
 }
 
 static int
 ntb_detach(device_t device)
 {
-	struct ntb_softc *ntb = DEVICE2SOFTC(device);
+	struct ntb_softc *ntb;
 
+	ntb = DEVICE2SOFTC(device);
 	callout_drain(&ntb->heartbeat_timer);
 	callout_drain(&ntb->lr_timer);
 	ntb_teardown_interrupts(ntb);
@@ -299,25 +306,22 @@ ntb_map_pci_bars(struct ntb_softc *ntb)
 	ntb->bar_info[NTB_CONFIG_BAR].pci_resource_id = PCIR_BAR(0);
 	rc = map_pci_bar(ntb, map_mmr_bar, &ntb->bar_info[NTB_CONFIG_BAR]);
 	if (rc != 0)
-		return rc;
+		return (rc);
 
-	ntb->bar_info[NTB_B2B_BAR_1].pci_resource_id  = PCIR_BAR(2);
+	ntb->bar_info[NTB_B2B_BAR_1].pci_resource_id = PCIR_BAR(2);
 	rc = map_pci_bar(ntb, map_memory_window_bar,
 	    &ntb->bar_info[NTB_B2B_BAR_1]);
 	if (rc != 0)
-		return rc;
+		return (rc);
 
-	ntb->bar_info[NTB_B2B_BAR_2].pci_resource_id  = PCIR_BAR(4);
+	ntb->bar_info[NTB_B2B_BAR_2].pci_resource_id = PCIR_BAR(4);
 	if (HAS_FEATURE(NTB_REGS_THRU_MW))
 		rc = map_pci_bar(ntb, map_mmr_bar,
 		    &ntb->bar_info[NTB_B2B_BAR_2]);
 	else
 		rc = map_pci_bar(ntb, map_memory_window_bar,
 		    &ntb->bar_info[NTB_B2B_BAR_2]);
-	if (rc != 0)
-		return rc;
-
-	return (0);
+	return (rc);
 }
 
 static int
@@ -327,15 +331,13 @@ map_pci_bar(struct ntb_softc *ntb, bar_map_strategy strategy,
 	int rc;
 
 	rc = strategy(ntb, bar);
-	if (rc != 0) {
+	if (rc != 0)
 		device_printf(ntb->device,
 		    "unable to allocate pci resource\n");
-	} else {
+	else
 		device_printf(ntb->device,
 		    "Bar size = %lx, v %p, p %p\n",
-		    bar->size, bar->vbase,
-		    (void *)(bar->pbase));
-	}
+		    bar->size, bar->vbase, (void *)(bar->pbase));
 	return (rc);
 }
 
@@ -344,14 +346,12 @@ map_mmr_bar(struct ntb_softc *ntb, struct ntb_pci_bar_info *bar)
 {
 
 	bar->pci_resource = bus_alloc_resource_any(ntb->device, SYS_RES_MEMORY,
-		&bar->pci_resource_id, RF_ACTIVE);
-
+	    &bar->pci_resource_id, RF_ACTIVE);
 	if (bar->pci_resource == NULL)
 		return (ENXIO);
-	else {
-		save_bar_parameters(bar);
-		return (0);
-	}
+
+	save_bar_parameters(bar);
+	return (0);
 }
 
 static int
@@ -360,55 +360,56 @@ map_memory_window_bar(struct ntb_softc *ntb, struct ntb_pci_bar_info *bar)
 	int rc;
 	uint8_t bar_size_bits = 0;
 
-	bar->pci_resource = bus_alloc_resource_any(ntb->device,
-	    SYS_RES_MEMORY, &bar->pci_resource_id, RF_ACTIVE);
+	bar->pci_resource = bus_alloc_resource_any(ntb->device, SYS_RES_MEMORY,
+	    &bar->pci_resource_id, RF_ACTIVE);
 
 	if (bar->pci_resource == NULL)
 		return (ENXIO);
-	else {
-		save_bar_parameters(bar);
-		/*
-		 * Ivytown NTB BAR sizes are misreported by the hardware due to
-		 * a hardware issue. To work around this, query the size it
-		 * should be configured to by the device and modify the resource
-		 * to correspond to this new size. The BIOS on systems with this
-		 * problem is required to provide enough address space to allow
-		 * the driver to make this change safely.
-		 *
-		 * Ideally I could have just specified the size when I allocated
-		 * the resource like:
-		 *  bus_alloc_resource(ntb->device,
-		 *	SYS_RES_MEMORY, &bar->pci_resource_id, 0ul, ~0ul,
-		 *	1ul << bar_size_bits, RF_ACTIVE);
-		 * but the PCI driver does not honor the size in this call, so
-		 * we have to modify it after the fact.
-		 */
-		if (HAS_FEATURE(NTB_BAR_SIZE_4K)) {
-			if (bar->pci_resource_id == PCIR_BAR(2))
-				bar_size_bits = pci_read_config(ntb->device,
-				    XEON_PBAR23SZ_OFFSET, 1);
-			else
-				bar_size_bits = pci_read_config(ntb->device,
-				    XEON_PBAR45SZ_OFFSET, 1);
-			rc = bus_adjust_resource(ntb->device, SYS_RES_MEMORY,
-			    bar->pci_resource, bar->pbase,
-			    bar->pbase + (1ul << bar_size_bits) - 1);
-			if (rc != 0 ) {
-				device_printf(ntb->device,
-				    "unable to resize bar\n");
-				return (rc);
-			} else
-				save_bar_parameters(bar);
-		}
 
-		/* Mark bar region as write combining to improve performance. */
-		rc = pmap_change_attr((vm_offset_t)bar->vbase, bar->size,
-		    VM_MEMATTR_WRITE_COMBINING);
+	save_bar_parameters(bar);
+	/*
+	 * Ivytown NTB BAR sizes are misreported by the hardware due to a
+	 * hardware issue. To work around this, query the size it should be
+	 * configured to by the device and modify the resource to correspond to
+	 * this new size. The BIOS on systems with this problem is required to
+	 * provide enough address space to allow the driver to make this change
+	 * safely.
+	 *
+	 * Ideally I could have just specified the size when I allocated the
+	 * resource like:
+	 *  bus_alloc_resource(ntb->device,
+	 *	SYS_RES_MEMORY, &bar->pci_resource_id, 0ul, ~0ul,
+	 *	1ul << bar_size_bits, RF_ACTIVE);
+	 * but the PCI driver does not honor the size in this call, so we have
+	 * to modify it after the fact.
+	 */
+	if (HAS_FEATURE(NTB_BAR_SIZE_4K)) {
+		if (bar->pci_resource_id == PCIR_BAR(2))
+			bar_size_bits = pci_read_config(ntb->device,
+			    XEON_PBAR23SZ_OFFSET, 1);
+		else
+			bar_size_bits = pci_read_config(ntb->device,
+			    XEON_PBAR45SZ_OFFSET, 1);
+
+		rc = bus_adjust_resource(ntb->device, SYS_RES_MEMORY,
+		    bar->pci_resource, bar->pbase,
+		    bar->pbase + (1ul << bar_size_bits) - 1);
 		if (rc != 0) {
-			device_printf(ntb->device, "unable to mark bar as"
-			    " WRITE_COMBINING\n");
+			device_printf(ntb->device,
+			    "unable to resize bar\n");
 			return (rc);
 		}
+
+		save_bar_parameters(bar);
+	}
+
+	/* Mark bar region as write combining to improve performance. */
+	rc = pmap_change_attr((vm_offset_t)bar->vbase, bar->size,
+	    VM_MEMATTR_WRITE_COMBINING);
+	if (rc != 0) {
+		device_printf(ntb->device,
+		    "unable to mark bar as WRITE_COMBINING\n");
+		return (rc);
 	}
 	return (0);
 }
@@ -433,7 +434,7 @@ ntb_setup_interrupts(struct ntb_softc *ntb)
 {
 	void (*interrupt_handler)(void *);
 	void *int_arg;
-	bool use_msix = 0;
+	bool use_msix = false;
 	uint32_t num_vectors;
 	int i;
 
@@ -453,11 +454,11 @@ ntb_setup_interrupts(struct ntb_softc *ntb)
 	if (num_vectors >= 1) {
 		pci_alloc_msix(ntb->device, &num_vectors);
 		if (num_vectors >= 4)
-			use_msix = TRUE;
+			use_msix = true;
 	}
 
 	ntb_create_callbacks(ntb, num_vectors);
-	if (use_msix == TRUE) {
+	if (use_msix == true) {
 		for (i = 0; i < num_vectors; i++) {
 			ntb->int_info[i].rid = i + 1;
 			ntb->int_info[i].res = bus_alloc_resource_any(
@@ -466,7 +467,7 @@ ntb_setup_interrupts(struct ntb_softc *ntb)
 			if (ntb->int_info[i].res == NULL) {
 				device_printf(ntb->device,
 				    "bus_alloc_resource failed\n");
-				return (-1);
+				return (ENOMEM);
 			}
 			ntb->int_info[i].tag = NULL;
 			ntb->allocated_interrupts++;
@@ -493,8 +494,7 @@ ntb_setup_interrupts(struct ntb_softc *ntb)
 				return (ENXIO);
 			}
 		}
-	}
-	else {
+	} else {
 		ntb->int_info[0].rid = 0;
 		ntb->int_info[0].res = bus_alloc_resource_any(ntb->device,
 		    SYS_RES_IRQ, &ntb->int_info[0].rid, RF_SHAREABLE|RF_ACTIVE);
@@ -502,7 +502,7 @@ ntb_setup_interrupts(struct ntb_softc *ntb)
 		if (ntb->int_info[0].res == NULL) {
 			device_printf(ntb->device,
 			    "bus_alloc_resource failed\n");
-			return (-1);
+			return (ENOMEM);
 		}
 		ntb->int_info[0].tag = NULL;
 		ntb->allocated_interrupts = 1;
@@ -525,7 +525,7 @@ ntb_teardown_interrupts(struct ntb_softc *ntb)
 	struct ntb_int_info *current_int;
 	int i;
 
-	for (i=0; i<ntb->allocated_interrupts; i++) {
+	for (i = 0; i < ntb->allocated_interrupts; i++) {
 		current_int = &ntb->int_info[i];
 		if (current_int->tag != NULL)
 			bus_teardown_intr(ntb->device, current_int->res,
@@ -625,7 +625,7 @@ ntb_create_callbacks(struct ntb_softc *ntb, int num_vectors)
 {
 	int i;
 
-	ntb->db_cb = malloc(num_vectors * sizeof(struct ntb_db_cb), M_NTB,
+	ntb->db_cb = malloc(num_vectors * sizeof(*ntb->db_cb), M_NTB,
 	    M_ZERO | M_WAITOK);
 	for (i = 0; i < num_vectors; i++) {
 		ntb->db_cb[i].db_num = i;
@@ -740,6 +740,7 @@ ntb_setup_xeon(struct ntb_softc *ntb)
 	ntb->bits_per_vector	 = XEON_DB_BITS_PER_VEC;
 
 	configure_xeon_secondary_side_bars(ntb);
+
 	/* Enable Bus Master and Memory Space on the secondary side */
 	ntb_reg_write(2, ntb->reg_ofs.spci_cmd,
 	    PCIM_CMD_MEMEN | PCIM_CMD_BUSMASTEREN);
@@ -813,6 +814,7 @@ ntb_setup_soc(struct ntb_softc *ntb)
 	/* Enable Bus Master and Memory Space on the secondary side */
 	ntb_reg_write(2, ntb->reg_ofs.spci_cmd,
 	    PCIM_CMD_MEMEN | PCIM_CMD_BUSMASTEREN);
+
 	callout_reset(&ntb->heartbeat_timer, 0, ntb_handle_heartbeat, ntb);
 
 	return (0);
@@ -888,8 +890,9 @@ ntb_handle_heartbeat(void *arg)
 {
 	struct ntb_softc *ntb = arg;
 	uint32_t status32;
-	int rc = ntb_check_link_status(ntb);
+	int rc;
 
+	rc = ntb_check_link_status(ntb);
 	if (rc != 0)
 		device_printf(ntb->device,
 		    "Error determining link status\n");
@@ -1053,7 +1056,7 @@ ntb_check_link_status(struct ntb_softc *ntb)
  * This function registers a callback for any HW driver events such as link
  * up/down, power management notices and etc.
  *
- * RETURNS: An appropriate -ERRNO error value on error, or zero for success.
+ * RETURNS: An appropriate ERRNO error value on error, or zero for success.
  */
 int
 ntb_register_event_callback(struct ntb_softc *ntb, ntb_event_callback func)
@@ -1090,7 +1093,7 @@ ntb_unregister_event_callback(struct ntb_softc *ntb)
  * on the primary side. The function will unmask the doorbell as well to
  * allow interrupt.
  *
- * RETURNS: An appropriate -ERRNO error value on error, or zero for success.
+ * RETURNS: An appropriate ERRNO error value on error, or zero for success.
  */
 int
 ntb_register_db_callback(struct ntb_softc *ntb, unsigned int idx, void *data,
@@ -1224,7 +1227,7 @@ ntb_get_max_spads(struct ntb_softc *ntb)
  * This function allows writing of a 32bit value to the indexed scratchpad
  * register. The register resides on the secondary (external) side.
  *
- * RETURNS: An appropriate -ERRNO error value on error, or zero for success.
+ * RETURNS: An appropriate ERRNO error value on error, or zero for success.
  */
 int
 ntb_write_local_spad(struct ntb_softc *ntb, unsigned int idx, uint32_t val)
@@ -1247,7 +1250,7 @@ ntb_write_local_spad(struct ntb_softc *ntb, unsigned int idx, uint32_t val)
  * This function allows reading of the 32bit scratchpad register on
  * the primary (internal) side.
  *
- * RETURNS: An appropriate -ERRNO error value on error, or zero for success.
+ * RETURNS: An appropriate ERRNO error value on error, or zero for success.
  */
 int
 ntb_read_local_spad(struct ntb_softc *ntb, unsigned int idx, uint32_t *val)
@@ -1270,7 +1273,7 @@ ntb_read_local_spad(struct ntb_softc *ntb, unsigned int idx, uint32_t *val)
  * This function allows writing of a 32bit value to the indexed scratchpad
  * register. The register resides on the secondary (external) side.
  *
- * RETURNS: An appropriate -ERRNO error value on error, or zero for success.
+ * RETURNS: An appropriate ERRNO error value on error, or zero for success.
  */
 int
 ntb_write_remote_spad(struct ntb_softc *ntb, unsigned int idx, uint32_t val)
@@ -1296,7 +1299,7 @@ ntb_write_remote_spad(struct ntb_softc *ntb, unsigned int idx, uint32_t val)
  * This function allows reading of the 32bit scratchpad register on
  * the primary (internal) side.
  *
- * RETURNS: An appropriate -ERRNO error value on error, or zero for success.
+ * RETURNS: An appropriate ERRNO error value on error, or zero for success.
  */
 int
 ntb_read_remote_spad(struct ntb_softc *ntb, unsigned int idx, uint32_t *val)
@@ -1397,7 +1400,7 @@ ntb_set_mw_addr(struct ntb_softc *ntb, unsigned int mw, uint64_t addr)
  * This function allows triggering of a doorbell on the secondary/external
  * side that will initiate an interrupt on the remote host
  *
- * RETURNS: An appropriate -ERRNO error value on error, or zero for success.
+ * RETURNS: An appropriate ERRNO error value on error, or zero for success.
  */
 void
 ntb_ring_sdb(struct ntb_softc *ntb, unsigned int db)
@@ -1405,7 +1408,7 @@ ntb_ring_sdb(struct ntb_softc *ntb, unsigned int db)
 
 	if (ntb->type == NTB_SOC)
 		ntb_reg_write(8, ntb->reg_ofs.sdb, (uint64_t) 1 << db);
-	else
+	else {
 		if (HAS_FEATURE(NTB_REGS_THRU_MW))
 			ntb_mw_write(2, XEON_SHADOW_PDOORBELL_OFFSET,
 			    ((1 << ntb->bits_per_vector) - 1) <<
@@ -1414,6 +1417,7 @@ ntb_ring_sdb(struct ntb_softc *ntb, unsigned int db)
 			ntb_reg_write(2, ntb->reg_ofs.sdb,
 			    ((1 << ntb->bits_per_vector) - 1) <<
 			    (db * ntb->bits_per_vector));
+	}
 }
 
 /**
@@ -1434,20 +1438,16 @@ ntb_query_link_status(struct ntb_softc *ntb)
 static void
 save_bar_parameters(struct ntb_pci_bar_info *bar)
 {
-	bar->pci_bus_tag =
-	    rman_get_bustag(bar->pci_resource);
-	bar->pci_bus_handle =
-	    rman_get_bushandle(bar->pci_resource);
-	bar->pbase =
-	    rman_get_start(bar->pci_resource);
-	bar->size =
-	    rman_get_size(bar->pci_resource);
-	bar->vbase =
-	    rman_get_virtual(bar->pci_resource);
 
+	bar->pci_bus_tag = rman_get_bustag(bar->pci_resource);
+	bar->pci_bus_handle = rman_get_bushandle(bar->pci_resource);
+	bar->pbase = rman_get_start(bar->pci_resource);
+	bar->size = rman_get_size(bar->pci_resource);
+	bar->vbase = rman_get_virtual(bar->pci_resource);
 }
 
-device_t ntb_get_device(struct ntb_softc *ntb)
+device_t
+ntb_get_device(struct ntb_softc *ntb)
 {
 
 	return (ntb->device);

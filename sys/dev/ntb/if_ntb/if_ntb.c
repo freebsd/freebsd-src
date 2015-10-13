@@ -307,7 +307,7 @@ DECLARE_MODULE(if_ntb, if_ntb_mod, SI_SUB_KLD, SI_ORDER_ANY);
 MODULE_DEPEND(if_ntb, ntb_hw, 1, 1, 1);
 
 static int
-ntb_setup_interface()
+ntb_setup_interface(void)
 {
 	struct ifnet *ifp;
 	struct ntb_queue_handlers handlers = { ntb_net_rx_handler,
@@ -350,7 +350,7 @@ ntb_setup_interface()
 }
 
 static int
-ntb_teardown_interface()
+ntb_teardown_interface(void)
 {
 
 	if (net_softc.qp != NULL)
@@ -527,7 +527,6 @@ ntb_transport_free(void *transport)
 	for (i = 0; i < nt->max_qps; i++)
 		if (!test_bit(i, &nt->qp_bitmap))
 			ntb_transport_free_queue(&nt->qps[i]);
-
 
 	ntb_unregister_event_callback(ntb);
 
