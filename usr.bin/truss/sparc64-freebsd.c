@@ -1,8 +1,5 @@
 /*
- * Copyright (c) 2015 The FreeBSD Foundation
- *
- * Portions of this software were developed by Konstantin Belousov
- * under sponsorship from the FreeBSD Foundation.
+ * Copyright 1998 Sean Eric Fagan
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -12,6 +9,12 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *	This product includes software developed by Sean Eric Fagan
+ * 4. Neither the name of the author may be used to endorse or promote
+ *    products derived from this software without specific prior written
+ *    permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -29,29 +32,30 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-/* FreeBSD/arm64-specific system call handling. */
+/* FreeBSD/sparc64-specific system call handling. */
 
 #include <sys/ptrace.h>
 #include <sys/syscall.h>
 
+#include <machine/frame.h>
 #include <machine/reg.h>
-#include <machine/armreg.h>
-#include <machine/ucontext.h>
+#include <machine/tstate.h>
 
+#include <stddef.h>
 #include <stdio.h>
 
 #include "truss.h"
 
-extern const char *syscallnames[]; /* silence compiler */
-#include "syscalls.h"
+#include "freebsd_syscalls.h"
 
 static int
-aarch64_fetch_args(struct trussinfo *trussinfo, u_int narg)
+sparc64_fetch_args(struct trussinfo *trussinfo, u_int narg)
 {
+	struct ptrace_io_desc iorequest;
 	struct reg regs;
 	struct current_syscall *cs;
 	lwpid_t tid;
-	u_int i, reg, syscall_num;
+	u_int i, reg;
 
 	tid = trussinfo->curthread->tid;
 	cs = &trussinfo->curthread->cs;
@@ -68,21 +72,32 @@ aarch64_fetch_args(struct trussinfo *trussinfo, u_int narg)
 	 * The system call argument count and code from ptrace() already
 	 * account for these, but we need to skip over the first argument.
 	 */
-	syscall_num = regs.x[8];
-	if (syscall_num == SYS_syscall || syscall_num == SYS___syscall) {
+	reg = 0;
+	switch (regs.r_global[1]) {
+	case SYS_syscall:
+	case SYS___syscall:
 		reg = 1;
-		syscall_num = regs.x[0];
-	} else {
-		reg = 0;
+		break;
 	}
 
-	for (i = 0; i < narg && reg < 8; i++, reg++)
-		cs->args[i] = regs.x[reg];
+	for (i = 0; i < narg && reg < 6; i++, reg++)
+		cs->args[i] = regs.r_out[reg];
+	if (narg > i) {
+		iorequest.piod_op = PIOD_READ_D;
+		iorequest.piod_offs = (void *)(regs.r_out[6] + SPOFF +
+		    offsetof(struct frame, fr_pad[6]));
+		iorequest.piod_addr = &cs->args[i];
+		iorequest.piod_len = (narg - i) * sizeof(cs->args[0]);
+		ptrace(PT_IO, tid, (caddr_t)&iorequest, 0);
+		if (iorequest.piod_len == 0)
+			return (-1);
+	}
+
 	return (0);
 }
 
 static int
-aarch64_fetch_retval(struct trussinfo *trussinfo, long *retval, int *errorp)
+sparc64_fetch_retval(struct trussinfo *trussinfo, long *retval, int *errorp)
 {
 	struct reg regs;
 	lwpid_t tid;
@@ -93,18 +108,18 @@ aarch64_fetch_retval(struct trussinfo *trussinfo, long *retval, int *errorp)
 		return (-1);
 	}
 
-	retval[0] = regs.x[0];
-	retval[1] = regs.x[1];
-	*errorp = !!(regs.spsr & PSR_C);
+	retval[0] = regs.r_out[0];
+	retval[1] = regs.r_out[1];
+	*errorp = !!(regs.r_tstate & TSTATE_XCC_C);
 	return (0);
 }
 
-static struct procabi aarch64_fbsd = {
+static struct procabi sparc64_freebsd = {
 	"FreeBSD ELF64",
 	syscallnames,
 	nitems(syscallnames),
-	aarch64_fetch_args,
-	aarch64_fetch_retval
+	sparc64_fetch_args,
+	sparc64_fetch_retval
 };
 
-PROCABI(aarch64_fbsd);
+PROCABI(sparc64_freebsd);
