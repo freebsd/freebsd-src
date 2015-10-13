@@ -810,10 +810,9 @@ ntb_setup_soc(struct ntb_softc *ntb)
 	case NTB_CONN_B2B:
 		ntb->conn_type = NTB_CONN_B2B;
 		break;
-	case NTB_CONN_RP:
 	default:
-		device_printf(ntb->device, "Connection type %d not supported\n",
-		    connection_type);
+		device_printf(ntb->device,
+		    "Unsupported NTB configuration (%d)\n", connection_type);
 		return (ENXIO);
 	}
 
@@ -828,23 +827,16 @@ ntb_setup_soc(struct ntb_softc *ntb)
 
 	ntb->reg_ofs.ldb	 = SOC_PDOORBELL_OFFSET;
 	ntb->reg_ofs.ldb_mask	 = SOC_PDBMSK_OFFSET;
+	ntb->reg_ofs.rdb	 = SOC_B2B_DOORBELL_OFFSET;
 	ntb->reg_ofs.bar2_xlat	 = SOC_SBAR2XLAT_OFFSET;
 	ntb->reg_ofs.bar4_xlat	 = SOC_SBAR4XLAT_OFFSET;
 	ntb->reg_ofs.lnk_cntl	 = SOC_NTBCNTL_OFFSET;
 	ntb->reg_ofs.lnk_stat	 = SOC_LINK_STATUS_OFFSET;
 	ntb->reg_ofs.spad_local	 = SOC_SPAD_OFFSET;
+	ntb->reg_ofs.spad_remote = SOC_B2B_SPAD_OFFSET;
 	ntb->reg_ofs.spci_cmd	 = SOC_PCICMD_OFFSET;
 
-	if (ntb->conn_type == NTB_CONN_B2B) {
-		ntb->reg_ofs.rdb	 = SOC_B2B_DOORBELL_OFFSET;
-		ntb->reg_ofs.spad_remote = SOC_B2B_SPAD_OFFSET;
-		ntb->limits.max_spads	 = SOC_MAX_SPADS;
-	} else {
-		ntb->reg_ofs.rdb	 = SOC_PDOORBELL_OFFSET;
-		ntb->reg_ofs.spad_remote = SOC_SPAD_OFFSET;
-		ntb->limits.max_spads	 = SOC_MAX_COMPAT_SPADS;
-	}
-
+	ntb->limits.max_spads	 = SOC_MAX_SPADS;
 	ntb->limits.max_db_bits	 = SOC_MAX_DB_BITS;
 	ntb->limits.msix_cnt	 = SOC_MSIX_CNT;
 	ntb->bits_per_vector	 = SOC_DB_BITS_PER_VEC;
