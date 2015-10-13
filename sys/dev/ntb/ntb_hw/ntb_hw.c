@@ -152,6 +152,26 @@ struct ntb_softc {
 	uint8_t link_speed;
 };
 
+#ifdef __i386__
+static __inline uint64_t
+bus_space_read_8(bus_space_tag_t tag, bus_space_handle_t handle,
+    bus_size_t offset)
+{
+
+	return (bus_space_read_4(tag, handle, offset) |
+	    ((uint64_t)bus_space_read_4(tag, handle, offset + 4)) << 32);
+}
+
+static __inline void
+bus_space_write_8(bus_space_tag_t tag, bus_space_handle_t handle,
+    bus_size_t offset, uint64_t val)
+{
+
+	bus_space_write_4(tag, handle, offset, val);
+	bus_space_write_4(tag, handle, offset + 4, val >> 32);
+}
+#endif
+
 #define ntb_bar_read(SIZE, bar, offset) \
 	    bus_space_read_ ## SIZE (ntb->bar_info[(bar)].pci_bus_tag, \
 	    ntb->bar_info[(bar)].pci_bus_handle, (offset))
