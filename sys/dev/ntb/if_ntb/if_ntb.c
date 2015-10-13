@@ -1047,7 +1047,7 @@ ntb_transport_link_work(void *arg)
 	/* send the local info, in the opposite order of the way we read it */
 	for (i = 0; i < num_mw; i++) {
 		rc = ntb_write_remote_spad(ntb, IF_NTB_MW0_SZ_HIGH + (i * 2),
-		    ntb_get_mw_size(ntb, i) >> 32);
+		    (uint64_t)ntb_get_mw_size(ntb, i) >> 32);
 		if (rc != 0)
 			goto out;
 
