@@ -1140,6 +1140,7 @@ ntb_unregister_event_callback(struct ntb_softc *ntb)
  * ntb_register_db_callback() - register a callback for doorbell interrupt
  * @ntb: pointer to ntb_softc instance
  * @idx: doorbell index to register callback, zero based
+ * @data: pointer to be returned to caller with every callback
  * @func: callback function to register
  *
  * This function registers a callback function for the doorbell interrupt
