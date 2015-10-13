@@ -205,30 +205,55 @@ isp_attach_chan(ispsoftc_t *isp, struct cam_devq *devq, int chan)
 			cam_sim_free(fc->sim, FALSE);
 			return (ENOMEM);
 		}
-		ISP_FC_PC(isp, chan)->num_threads += 1;
+		fc->num_threads += 1;
 #ifdef	ISP_INTERNAL_TARGET
 		ISP_SET_PC(isp, chan, proc_active, 1);
 		if (THREAD_CREATE(isp_target_thread_fc, fc, &fc->target_proc, 0, 0, "%s: isp_test_tgt%d", device_get_nameunit(isp->isp_osinfo.dev), chan)) {
 			ISP_SET_PC(isp, chan, proc_active, 0);
 			isp_prt(isp, ISP_LOGERR, "cannot create test target thread");
 		}
-		ISP_FC_PC(isp, chan)->num_threads += 1;
+		fc->num_threads += 1;
 #endif
 		if (chan > 0) {
 			snprintf(name, sizeof(name), "chan%d", chan);
 			tree = SYSCTL_ADD_NODE(ctx, SYSCTL_CHILDREN(tree),
 			    OID_AUTO, name, CTLFLAG_RW, 0, "Virtual channel");
 		}
-		SYSCTL_ADD_QUAD(ctx, SYSCTL_CHILDREN(tree), OID_AUTO, "wwnn", CTLFLAG_RD, &FCPARAM(isp, chan)->isp_wwnn, "World Wide Node Name");
-		SYSCTL_ADD_QUAD(ctx, SYSCTL_CHILDREN(tree), OID_AUTO, "wwpn", CTLFLAG_RD, &FCPARAM(isp, chan)->isp_wwpn, "World Wide Port Name");
-		SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO, "loop_down_limit", CTLFLAG_RW, &ISP_FC_PC(isp, chan)->loop_down_limit, 0, "Loop Down Limit");
-		SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO, "gone_device_time", CTLFLAG_RW, &ISP_FC_PC(isp, chan)->gone_device_time, 0, "Gone Device Time");
+		SYSCTL_ADD_QUAD(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		    "wwnn", CTLFLAG_RD, &fcp->isp_wwnn,
+		    "World Wide Node Name");
+		SYSCTL_ADD_QUAD(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		    "wwpn", CTLFLAG_RD, &fcp->isp_wwpn,
+		    "World Wide Port Name");
+		SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		    "loop_down_limit", CTLFLAG_RW, &fc->loop_down_limit, 0,
+		    "Loop Down Limit");
+		SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		    "gone_device_time", CTLFLAG_RW, &fc->gone_device_time, 0,
+		    "Gone Device Time");
 #if defined(ISP_TARGET_MODE) && defined(DEBUG)
-		SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO, "inject_lost_data_frame", CTLFLAG_RW, &ISP_FC_PC(isp, chan)->inject_lost_data_frame, 0, "Cause a Lost Frame on a Read");
+		SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		    "inject_lost_data_frame", CTLFLAG_RW, &fc->inject_lost_data_frame, 0,
+		    "Cause a Lost Frame on a Read");
 #endif
 		SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		    "role", CTLTYPE_INT | CTLFLAG_RW, isp, chan,
 		    isp_role_sysctl, "I", "Current role");
+		SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		    "speed", CTLFLAG_RD, &fcp->isp_gbspeed, 0,
+		    "Connection speed in gigabits");
+		SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		    "linkstate", CTLFLAG_RD, &fcp->isp_linkstate, 0,
+		    "Link state");
+		SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		    "fwstate", CTLFLAG_RD, &fcp->isp_fwstate, 0,
+		    "Firmware state");
+		SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		    "loopstate", CTLFLAG_RD, &fcp->isp_loopstate, 0,
+		    "Loop state");
+		SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		    "topo", CTLFLAG_RD, &fcp->isp_topo, 0,
+		    "Connection topology");
 	}
 	return (0);
 }
@@ -5694,7 +5719,7 @@ isp_async(ispsoftc_t *isp, ispasync_t cmd, ...)
 		bus = va_arg(ap, int);
 		va_end(ap);
 
-		FCPARAM(isp, bus)->link_active = 0;
+		FCPARAM(isp, bus)->isp_linkstate = 0;
 
 		fc = ISP_FC_PC(isp, bus);
 		if (cmd == ISPASYNC_LOOP_DOWN && fc->ready) {
@@ -5727,7 +5752,7 @@ isp_async(ispsoftc_t *isp, ispasync_t cmd, ...)
 		 * Change Notify before activating the FC cleanup
 		 * thread to look at the state of the loop again.
 		 */
-		FCPARAM(isp, bus)->link_active = 1;
+		FCPARAM(isp, bus)->isp_linkstate = 1;
 		fc->loop_dead = 0;
 		fc->loop_down_time = 0;
 		isp_prt(isp, ISP_LOGINFO, "Chan %d Loop UP", bus);
