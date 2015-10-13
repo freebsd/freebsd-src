@@ -764,6 +764,11 @@ ntb_setup_xeon(struct ntb_softc *ntb)
 	 * which may hang the system.  To workaround this use the second memory
 	 * window to access the interrupt and scratch pad registers on the
 	 * remote system.
+	 *
+	 * There is another HW errata on the limit registers -- they can only
+	 * be written when the base register is (?)4GB aligned and < 32-bit.
+	 * This should already be the case based on the driver defaults, but
+	 * write the limit registers first just in case.
 	 */
 	if (HAS_FEATURE(NTB_REGS_THRU_MW))
 		/*
