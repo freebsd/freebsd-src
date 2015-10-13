@@ -75,7 +75,6 @@
 
 #define SOC_MSIX_CNT		34
 #define SOC_MAX_SPADS		16
-#define SOC_MAX_COMPAT_SPADS	16
 #define SOC_MAX_DB_BITS		34
 #define SOC_DB_BITS_PER_VEC	1
 
