@@ -16,6 +16,7 @@ _i386_path=	\"${TOOLS_PREFIX}/usr/lib32\"
 EMS+=		${X86_EMULATION}
 .for ext in ${ELF_SCR_EXT}
 LDSCRIPTS+=	${X86_EMULATION}.${ext}
+ldscripts/${X86_EMULATION}.${ext}: e${X86_EMULATION}.c
 .endfor
 
 SRCS+=		e${X86_EMULATION}.c
