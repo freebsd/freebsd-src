@@ -32,28 +32,29 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-/* FreeBSD/amd64-specific system call handling. */
+/* FreeBSD/arm-specific system call handling. */
 
 #include <sys/ptrace.h>
 #include <sys/syscall.h>
 
 #include <machine/reg.h>
-#include <machine/psl.h>
+#include <machine/armreg.h>
+#include <machine/ucontext.h>
 
 #include <stdio.h>
 
 #include "truss.h"
 
-#include "syscalls.h"
+#include "freebsd_syscalls.h"
 
 static int
-amd64_fetch_args(struct trussinfo *trussinfo, u_int narg)
+arm_fetch_args(struct trussinfo *trussinfo, u_int narg)
 {
 	struct ptrace_io_desc iorequest;
 	struct reg regs;
 	struct current_syscall *cs;
 	lwpid_t tid;
-	u_int i, reg;
+	u_int i, reg, syscall_num;
 
 	tid = trussinfo->curthread->tid;
 	cs = &trussinfo->curthread->cs;
@@ -68,32 +69,37 @@ amd64_fetch_args(struct trussinfo *trussinfo, u_int narg)
 	 * routine, basically; the latter is for quad-aligned arguments.
 	 *
 	 * The system call argument count and code from ptrace() already
-	 * account for these, but we need to skip over %rax if it contains
-	 * either of these values.
+	 * account for these, but we need to skip over the first argument.
 	 */
+#ifdef __ARM_EABI__
+	syscall_num = regs.r[7];
+#else
+	if ((syscall_num = ptrace(PT_READ_I, tid,
+	    (caddr_t)(regs.r[_REG_PC] - INSN_SIZE), 0)) == -1) {
+		fprintf(trussinfo->outfile, "-- CANNOT READ PC --\n");
+		return (-1);
+	}
+	syscall_num = syscall_num & 0x000fffff;
+#endif
+
 	reg = 0;
-	switch (regs.r_rax) {
+	switch (syscall_num) {
 	case SYS_syscall:
+		reg = 1;
+		break;
 	case SYS___syscall:
-		reg++;
+		reg = 2;
 		break;
 	}
 
-	for (i = 0; i < narg && reg < 6; i++, reg++) {
-		switch (reg) {
-		case 0: cs->args[i] = regs.r_rdi; break;
-		case 1: cs->args[i] = regs.r_rsi; break;
-		case 2: cs->args[i] = regs.r_rdx; break;
-		case 3: cs->args[i] = regs.r_rcx; break;
-		case 4: cs->args[i] = regs.r_r8; break;
-		case 5: cs->args[i] = regs.r_r9; break;
-		}
-	}
+	for (i = 0; i < narg && reg < 4; i++, reg++)
+		cs->args[i] = regs.r[reg];
 	if (narg > i) {
 		iorequest.piod_op = PIOD_READ_D;
-		iorequest.piod_offs = (void *)(regs.r_rsp + sizeof(register_t));
+		iorequest.piod_offs = (void *)(regs.r_sp +
+		    4 * sizeof(uint32_t));
 		iorequest.piod_addr = &cs->args[i];
-		iorequest.piod_len = (narg - i) * sizeof(register_t);
+		iorequest.piod_len = (narg - i) * sizeof(cs->args[0]);
 		ptrace(PT_IO, tid, (caddr_t)&iorequest, 0);
 		if (iorequest.piod_len == 0)
 			return (-1);
@@ -103,7 +109,7 @@ amd64_fetch_args(struct trussinfo *trussinfo, u_int narg)
 }
 
 static int
-amd64_fetch_retval(struct trussinfo *trussinfo, long *retval, int *errorp)
+arm_fetch_retval(struct trussinfo *trussinfo, long *retval, int *errorp)
 {
 	struct reg regs;
 	lwpid_t tid;
@@ -114,18 +120,19 @@ amd64_fetch_retval(struct trussinfo *trussinfo, long *retval, int *errorp)
 		return (-1);
 	}
 
-	retval[0] = regs.r_rax;
-	retval[1] = regs.r_rdx;
-	*errorp = !!(regs.r_rflags & PSL_C);
+	/* XXX: Does not have the __ARMEB__ handling for __syscall(). */
+	retval[0] = regs.r[0];
+	retval[1] = regs.r[1];
+	*errorp = !!(regs.r_cpsr & PSR_C);
 	return (0);
 }
 
-static struct procabi amd64_fbsd = {
-	"FreeBSD ELF64",
+static struct procabi arm_freebsd = {
+	"FreeBSD ELF32",
 	syscallnames,
 	nitems(syscallnames),
-	amd64_fetch_args,
-	amd64_fetch_retval
+	arm_fetch_args,
+	arm_fetch_retval
 };
 
-PROCABI(amd64_fbsd);
+PROCABI(arm_freebsd);

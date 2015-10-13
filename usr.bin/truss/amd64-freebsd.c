@@ -32,7 +32,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-/* FreeBSD/i386-specific system call handling. */
+/* FreeBSD/amd64-specific system call handling. */
 
 #include <sys/ptrace.h>
 #include <sys/syscall.h>
@@ -44,16 +44,16 @@ __FBSDID("$FreeBSD$");
 
 #include "truss.h"
 
-#include "syscalls.h"
+#include "freebsd_syscalls.h"
 
 static int
-i386_fetch_args(struct trussinfo *trussinfo, u_int narg)
+amd64_fetch_args(struct trussinfo *trussinfo, u_int narg)
 {
 	struct ptrace_io_desc iorequest;
 	struct reg regs;
 	struct current_syscall *cs;
 	lwpid_t tid;
-	unsigned int parm_offset;
+	u_int i, reg;
 
 	tid = trussinfo->curthread->tid;
 	cs = &trussinfo->curthread->cs;
@@ -61,7 +61,6 @@ i386_fetch_args(struct trussinfo *trussinfo, u_int narg)
 		fprintf(trussinfo->outfile, "-- CANNOT READ REGISTERS --\n");
 		return (-1);
 	}
-	parm_offset = regs.r_esp + sizeof(int);
 
 	/*
 	 * FreeBSD has two special kinds of system call redirections --
@@ -69,30 +68,42 @@ i386_fetch_args(struct trussinfo *trussinfo, u_int narg)
 	 * routine, basically; the latter is for quad-aligned arguments.
 	 *
 	 * The system call argument count and code from ptrace() already
-	 * account for these, but we need to skip over the first argument.
+	 * account for these, but we need to skip over %rax if it contains
+	 * either of these values.
 	 */
-	switch (regs.r_eax) {
+	reg = 0;
+	switch (regs.r_rax) {
 	case SYS_syscall:
-		parm_offset += sizeof(int);
-		break;
 	case SYS___syscall:
-		parm_offset += sizeof(quad_t);
+		reg++;
 		break;
 	}
 
-	iorequest.piod_op = PIOD_READ_D;
-	iorequest.piod_offs = (void *)parm_offset;
-	iorequest.piod_addr = cs->args;
-	iorequest.piod_len = narg * sizeof(unsigned long);
-	ptrace(PT_IO, tid, (caddr_t)&iorequest, 0);
-	if (iorequest.piod_len == 0)
-		return (-1);
+	for (i = 0; i < narg && reg < 6; i++, reg++) {
+		switch (reg) {
+		case 0: cs->args[i] = regs.r_rdi; break;
+		case 1: cs->args[i] = regs.r_rsi; break;
+		case 2: cs->args[i] = regs.r_rdx; break;
+		case 3: cs->args[i] = regs.r_rcx; break;
+		case 4: cs->args[i] = regs.r_r8; break;
+		case 5: cs->args[i] = regs.r_r9; break;
+		}
+	}
+	if (narg > i) {
+		iorequest.piod_op = PIOD_READ_D;
+		iorequest.piod_offs = (void *)(regs.r_rsp + sizeof(register_t));
+		iorequest.piod_addr = &cs->args[i];
+		iorequest.piod_len = (narg - i) * sizeof(register_t);
+		ptrace(PT_IO, tid, (caddr_t)&iorequest, 0);
+		if (iorequest.piod_len == 0)
+			return (-1);
+	}
 
 	return (0);
 }
 
 static int
-i386_fetch_retval(struct trussinfo *trussinfo, long *retval, int *errorp)
+amd64_fetch_retval(struct trussinfo *trussinfo, long *retval, int *errorp)
 {
 	struct reg regs;
 	lwpid_t tid;
@@ -103,29 +114,18 @@ i386_fetch_retval(struct trussinfo *trussinfo, long *retval, int *errorp)
 		return (-1);
 	}
 
-	retval[0] = regs.r_eax;
-	retval[1] = regs.r_edx;
-	*errorp = !!(regs.r_eflags & PSL_C);
+	retval[0] = regs.r_rax;
+	retval[1] = regs.r_rdx;
+	*errorp = !!(regs.r_rflags & PSL_C);
 	return (0);
 }
 
-static struct procabi i386_fbsd = {
-	"FreeBSD ELF32",
+static struct procabi amd64_freebsd = {
+	"FreeBSD ELF64",
 	syscallnames,
 	nitems(syscallnames),
-	i386_fetch_args,
-	i386_fetch_retval
+	amd64_fetch_args,
+	amd64_fetch_retval
 };
 
-PROCABI(i386_fbsd);
-
-static struct procabi i386_fbsd_aout = {
-	"FreeBSD a.out",
-	syscallnames,
-	nitems(syscallnames),
-	i386_fetch_args,
-	i386_fetch_retval
-};
-
-PROCABI(i386_fbsd_aout);
-
+PROCABI(amd64_freebsd);

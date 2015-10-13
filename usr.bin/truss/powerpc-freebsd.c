@@ -1,5 +1,7 @@
 /*
- * Copyright 1997 Sean Eric Fagan
+ * Copyright 2006 Peter Grehan <grehan@freebsd.org>
+ * Copyright 2005 Orlando Bassotto <orlando@break.net>
+ * Copyright 1998 Sean Eric Fagan
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -9,12 +11,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by Sean Eric Fagan
- * 4. Neither the name of the author may be used to endorse or promote
- *    products derived from this software without specific prior written
- *    permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -32,31 +28,28 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-/* FreeBSD/i386-specific system call handling. */
+/* FreeBSD/powerpc-specific system call handling. */
 
 #include <sys/ptrace.h>
 #include <sys/syscall.h>
 
 #include <machine/reg.h>
-#include <machine/psl.h>
+#include <machine/frame.h>
 
 #include <stdio.h>
-#include <stdlib.h>
 
 #include "truss.h"
 
-#include "freebsd32_syscalls.h"
+#include "freebsd_syscalls.h"
 
 static int
-amd64_fbsd32_fetch_args(struct trussinfo *trussinfo, u_int narg)
+powerpc_fetch_args(struct trussinfo *trussinfo, u_int narg)
 {
 	struct ptrace_io_desc iorequest;
 	struct reg regs;
 	struct current_syscall *cs;
-	unsigned int args32[narg];
-	unsigned long parm_offset;
 	lwpid_t tid;
-	u_int i;
+	u_int i, reg;
 
 	tid = trussinfo->curthread->tid;
 	cs = &trussinfo->curthread->cs;
@@ -64,7 +57,6 @@ amd64_fbsd32_fetch_args(struct trussinfo *trussinfo, u_int narg)
 		fprintf(trussinfo->outfile, "-- CANNOT READ REGISTERS --\n");
 		return (-1);
 	}
-	parm_offset = regs.r_rsp + sizeof(int);
 
 	/*
 	 * FreeBSD has two special kinds of system call redirections --
@@ -74,32 +66,34 @@ amd64_fbsd32_fetch_args(struct trussinfo *trussinfo, u_int narg)
 	 * The system call argument count and code from ptrace() already
 	 * account for these, but we need to skip over the first argument.
 	 */
-	switch (regs.r_rax) {
+	reg = 0;
+	switch (regs.fixreg[0]) {
 	case SYS_syscall:
-		parm_offset += sizeof(int);
+		reg += 1;
 		break;
 	case SYS___syscall:
-		parm_offset += sizeof(quad_t);
+		reg += 2;
 		break;
 	}
 
-	iorequest.piod_op = PIOD_READ_D;
-	iorequest.piod_offs = (void *)parm_offset;
-	iorequest.piod_addr = args32;
-	iorequest.piod_len = sizeof(args32);
-	ptrace(PT_IO, tid, (caddr_t)&iorequest, 0);
-	if (iorequest.piod_len == 0) {
-		return (-1);
+	for (i = 0; i < narg && reg < NARGREG; i++, reg++) {
+		cs->args[i] = regs.fixreg[FIRSTARG + reg];
+	}
+	if (narg > i) {
+		iorequest.piod_op = PIOD_READ_D;
+		iorequest.piod_offs = (void *)(regs.fixreg[1] + 8);
+		iorequest.piod_addr = &cs->args[i];
+		iorequest.piod_len = (narg - i) * sizeof(cs->args[0]);
+		ptrace(PT_IO, tid, (caddr_t)&iorequest, 0);
+		if (iorequest.piod_len == 0)
+			return (-1);
 	}
 
-	for (i = 0; i < narg; i++)
-		 cs->args[i] = args32[i];
 	return (0);
 }
 
 static int
-amd64_fbsd32_fetch_retval(struct trussinfo *trussinfo, long *retval,
-    int *errorp)
+powerpc_fetch_retval(struct trussinfo *trussinfo, long *retval, int *errorp)
 {
 	struct reg regs;
 	lwpid_t tid;
@@ -110,28 +104,19 @@ amd64_fbsd32_fetch_retval(struct trussinfo *trussinfo, long *retval,
 		return (-1);
 	}
 
-	retval[0] = regs.r_rax & 0xffffffff;
-	retval[1] = regs.r_rdx & 0xffffffff;
-	*errorp = !!(regs.r_rflags & PSL_C);
+	/* XXX: Does not have fixup for __syscall(). */
+	retval[0] = regs.fixreg[3];
+	retval[1] = regs.fixreg[4];
+	*errorp = !!(regs.cr & 0x10000000);
 	return (0);
 }
 
-static struct procabi amd64_fbsd32 = {
+static struct procabi powerpc_freebsd = {
 	"FreeBSD ELF32",
-	freebsd32_syscallnames,
-	nitems(freebsd32_syscallnames),
-	amd64_fbsd32_fetch_args,
-	amd64_fbsd32_fetch_retval
+	syscallnames,
+	nitems(syscallnames),
+	powerpc_fetch_args,
+	powerpc_fetch_retval
 };
 
-PROCABI(amd64_fbsd32);
-
-static struct procabi amd64_fbsd32_aout = {
-	"FreeBSD a.out",
-	freebsd32_syscallnames,
-	nitems(freebsd32_syscallnames),
-	amd64_fbsd32_fetch_args,
-	amd64_fbsd32_fetch_retval
-};
-
-PROCABI(amd64_fbsd32_aout);
+PROCABI(powerpc_freebsd);
