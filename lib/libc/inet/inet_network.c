@@ -48,8 +48,7 @@ __FBSDID("$FreeBSD$");
  * network numbers.
  */
 in_addr_t
-inet_network(cp)
-	const char *cp;
+inet_network(const char *cp)
 {
 	in_addr_t val, base, n;
 	char c;

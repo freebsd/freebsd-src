@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 14, 2014
+.Dd September 10, 2015
 .Dt GIF 4
 .Os
 .Sh NAME
@@ -246,32 +246,3 @@ had a multi-destination behavior, configurable via
 .Dv IFF_LINK0
 flag.
 The behavior is obsolete and is no longer supported.
-.Pp
-On
-.Fx
-6.1, 6.2, 6.3, 7.0, 7.1, and 7.2
-the
-.Nm
-sends and receives incorrect EtherIP packets with reversed version
-field when
-.Xr if_bridge 4
-is used together.  As a workaround on this interoperability issue, the
-following two
-.Xr ifconfig 8
-flags can be used:
-.Bl -tag -width "accept_rev_ethip_ver" -offset indent
-.It accept_rev_ethip_ver
-accepts both correct EtherIP packets and ones with reversed version
-field, if enabled.  If disabled, the
-.Nm
-accepts the correct packets only.  This flag is enabled by default.
-.It send_rev_ethip_ver
-sends EtherIP packets with reversed version field intentionally, if
-enabled.  If disabled, the
-.Nm
-sends the correct packets only.  This flag is disabled by default.
-.El
-.Pp
-If interoperability with the older
-.Fx
-machines is needed, both of these two flags must be enabled.

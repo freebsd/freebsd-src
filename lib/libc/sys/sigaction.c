@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include "libc_private.h"
 
 __weak_reference(__sys_sigaction, __sigaction);
+__weak_reference(sigaction, __libc_sigaction);
 
 #pragma weak sigaction
 int

@@ -115,12 +115,12 @@ struct rt2860_vap {
 #define	RT2860_VAP(vap)		((struct rt2860_vap *)(vap))
 
 struct rt2860_softc {
-	struct ifnet			*sc_ifp;
+	struct ieee80211com		sc_ic;
+	struct mbufq			sc_snd;
+	struct mtx			sc_mtx;
 	device_t			sc_dev;
 	bus_space_tag_t			sc_st;
 	bus_space_handle_t		sc_sh;
-
-	struct mtx			sc_mtx;
 
 	struct callout			watchdog_ch;
 
@@ -139,6 +139,7 @@ struct rt2860_softc {
 #define RT2860_ENABLED		(1 << 0)
 #define RT2860_ADVANCED_PS	(1 << 1)
 #define RT2860_PCIE		(1 << 2)
+#define	RT2860_RUNNNING		(1 << 3)
 
 	struct ieee80211_node		*wcid2ni[RT2860_WCID_MAX];
 
@@ -193,9 +194,7 @@ struct rt2860_softc {
 	uint32_t			txpow40mhz_5ghz[5];
 
 	struct rt2860_rx_radiotap_header sc_rxtap;
-	int				sc_rxtap_len;
 	struct rt2860_tx_radiotap_header sc_txtap;
-	int				sc_txtap_len;
 };
 
 int	rt2860_attach(device_t, int);

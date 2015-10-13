@@ -204,17 +204,42 @@ struct drm_device;
 			__func__ , ##__VA_ARGS__);			\
 } while (0)
 
+#define DRM_DEBUG_DRIVER(fmt, ...) do {					\
+	if ((drm_debug & DRM_DEBUGBITS_KMS) != 0)			\
+		printf("[" DRM_NAME ":KMS:pid%d:%s] " fmt, DRM_CURRENTPID,\
+			__func__ , ##__VA_ARGS__);			\
+} while (0)
+
 #define DRM_DEBUG_KMS(fmt, ...) do {					\
 	if ((drm_debug & DRM_DEBUGBITS_KMS) != 0)			\
 		printf("[" DRM_NAME ":KMS:pid%d:%s] " fmt, DRM_CURRENTPID,\
 			__func__ , ##__VA_ARGS__);			\
 } while (0)
 
-#define DRM_DEBUG_DRIVER(fmt, ...) do {					\
+#define DRM_LOG(fmt, ...) do {						\
 	if ((drm_debug & DRM_DEBUGBITS_KMS) != 0)			\
-		printf("[" DRM_NAME ":KMS:pid%d:%s] " fmt, DRM_CURRENTPID,\
+		printf("[" DRM_NAME "]:pid%d:%s]" fmt, DRM_CURRENTPID,	\
 			__func__ , ##__VA_ARGS__);			\
 } while (0)
+
+#define DRM_LOG_KMS(fmt, ...) do {					\
+	if ((drm_debug & DRM_DEBUGBITS_KMS) != 0)			\
+		printf("[" DRM_NAME "]:KMS:pid%d:%s]" fmt, DRM_CURRENTPID,\
+			__func__ , ##__VA_ARGS__);			\
+} while (0)
+
+#define DRM_LOG_MODE(fmt, ...) do {					\
+	if ((drm_debug & DRM_DEBUGBITS_KMS) != 0)			\
+		printf("[" DRM_NAME "]:pid%d:%s]" fmt, DRM_CURRENTPID,	\
+			__func__ , ##__VA_ARGS__);			\
+} while (0)
+
+#define DRM_LOG_DRIVER(fmt, ...) do {					\
+	if ((drm_debug & DRM_DEBUGBITS_KMS) != 0)			\
+		printf("[" DRM_NAME "]:KMS:pid%d:%s]" fmt, DRM_CURRENTPID,\
+			__func__ , ##__VA_ARGS__);			\
+} while (0)
+
 
 /*@}*/
 
@@ -1756,12 +1781,6 @@ irqreturn_t drm_irq_handler(DRM_IRQ_ARGS);
 void	drm_driver_irq_preinstall(struct drm_device *dev);
 void	drm_driver_irq_postinstall(struct drm_device *dev);
 void	drm_driver_irq_uninstall(struct drm_device *dev);
-
-/* AGP/PCI Express/GART support (drm_agpsupport.c) */
-void	*drm_agp_allocate_memory(size_t pages, u32 type);
-int	drm_agp_free_memory(void *handle);
-int	drm_agp_bind_memory(void *handle, off_t start);
-int	drm_agp_unbind_memory(void *handle);
 
 /* sysctl support (drm_sysctl.h) */
 extern int		drm_sysctl_init(struct drm_device *dev);

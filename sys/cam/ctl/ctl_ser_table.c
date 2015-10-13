@@ -61,7 +61,7 @@
 #define	xO	CTL_SER_EXTENTOPT	/* Optional extent check */
 #define	xS	CTL_SER_EXTENTSEQ	/* Sequential extent check */
 
-static ctl_serialize_action
+const static ctl_serialize_action
 ctl_serialize_table[CTL_SERIDX_COUNT][CTL_SERIDX_COUNT] = {
 /**>IDX_ :: 2nd:TUR RD  WRT UNM SYN MDSN MDSL RQSN INQ RDCP RES LSNS FMT STR*/
 /*TUR     */{   pS, pS, pS, pS, pS, bK,  bK,  bK,  pS, pS,  bK, pS,  bK, bK},

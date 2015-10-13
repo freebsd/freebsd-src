@@ -947,11 +947,11 @@ RCTL		opt_global.h
 # Random number generator(s)
 # Which CSPRNG hash we get.
 # If Yarrow is not chosen, Fortuna is selected.
-RANDOM_YARROW	opt_random.h
+RANDOM_YARROW	opt_global.h
 # With this, no entropy processor is loaded, but the entropy
 # harvesting infrastructure is present. This means an entropy
 # processor may be loaded as a module.
-RANDOM_LOADABLE	opt_random.h
+RANDOM_LOADABLE	opt_global.h
 # This turns on high-rate and potentially expensive harvesting in
 # the uma slab allocator.
 RANDOM_ENABLE_UMA	opt_global.h

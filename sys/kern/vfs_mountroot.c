@@ -166,24 +166,6 @@ root_mounted(void)
 	return (root_mount_complete);
 }
 
-void
-root_mount_wait(void)
-{
-
-	/*
-	 * Panic on an obvious deadlock - the function can't be called from
-	 * a thread which is doing the whole SYSINIT stuff.
-	 */
-	KASSERT(curthread->td_proc->p_pid != 0,
-	    ("root_mount_wait: cannot be called from the swapper thread"));
-	mtx_lock(&root_holds_mtx);
-	while (!root_mount_complete) {
-		msleep(&root_mount_complete, &root_holds_mtx, PZERO, "rootwait",
-		    hz);
-	}
-	mtx_unlock(&root_holds_mtx);
-}
-
 static void
 set_rootvnode(void)
 {
@@ -220,28 +202,39 @@ vfs_mountroot_devfs(struct thread *td, struct mount **mpp)
 
 	*mpp = NULL;
 
-	vfsp = vfs_byname("devfs");
-	KASSERT(vfsp != NULL, ("Could not find devfs by name"));
-	if (vfsp == NULL)
-		return (ENOENT);
+	if (rootdevmp != NULL) {
+		/*
+		 * Already have /dev; this happens during rerooting.
+		 */
+		error = vfs_busy(rootdevmp, 0);
+		if (error != 0)
+			return (error);
+		*mpp = rootdevmp;
+	} else {
+		vfsp = vfs_byname("devfs");
+		KASSERT(vfsp != NULL, ("Could not find devfs by name"));
+		if (vfsp == NULL)
+			return (ENOENT);
 
-	mp = vfs_mount_alloc(NULLVP, vfsp, "/dev", td->td_ucred);
+		mp = vfs_mount_alloc(NULLVP, vfsp, "/dev", td->td_ucred);
 
-	error = VFS_MOUNT(mp);
-	KASSERT(error == 0, ("VFS_MOUNT(devfs) failed %d", error));
-	if (error)
-		return (error);
+		error = VFS_MOUNT(mp);
+		KASSERT(error == 0, ("VFS_MOUNT(devfs) failed %d", error));
+		if (error)
+			return (error);
 
-	opts = malloc(sizeof(struct vfsoptlist), M_MOUNT, M_WAITOK);
-	TAILQ_INIT(opts);
-	mp->mnt_opt = opts;
+		opts = malloc(sizeof(struct vfsoptlist), M_MOUNT, M_WAITOK);
+		TAILQ_INIT(opts);
+		mp->mnt_opt = opts;
 
-	mtx_lock(&mountlist_mtx);
-	TAILQ_INSERT_HEAD(&mountlist, mp, mnt_list);
-	mtx_unlock(&mountlist_mtx);
+		mtx_lock(&mountlist_mtx);
+		TAILQ_INSERT_HEAD(&mountlist, mp, mnt_list);
+		mtx_unlock(&mountlist_mtx);
 
-	*mpp = mp;
-	rootdevmp = mp;
+		*mpp = mp;
+		rootdevmp = mp;
+	}
+
 	set_rootvnode();
 
 	error = kern_symlinkat(td, "/", AT_FDCWD, "dev", UIO_SYSSPACE);
@@ -251,7 +244,7 @@ vfs_mountroot_devfs(struct thread *td, struct mount **mpp)
 	return (error);
 }
 
-static int
+static void
 vfs_mountroot_shuffle(struct thread *td, struct mount *mpdevfs)
 {
 	struct nameidata nd;
@@ -362,8 +355,6 @@ vfs_mountroot_shuffle(struct thread *td, struct mount *mpdevfs)
 			printf("mountroot: unable to unlink /dev/dev "
 			    "(error %d)\n", error);
 	}
-
-	return (0);
 }
 
 /*
@@ -791,6 +782,11 @@ retry:
 			break;
 		default:
 			error = parse_mount(&conf);
+			if (error == -1) {
+				printf("mountroot: invalid file system "
+				    "specification.\n");
+				error = 0;
+			}
 			break;
 		}
 		if (error < 0)
@@ -956,12 +952,10 @@ vfs_mountroot(void)
 	while (!error) {
 		error = vfs_mountroot_parse(sb, mp);
 		if (!error) {
-			error = vfs_mountroot_shuffle(td, mp);
-			if (!error) {
-				sbuf_clear(sb);
-				error = vfs_mountroot_readconf(td, sb);
-				sbuf_finish(sb);
-			}
+			vfs_mountroot_shuffle(td, mp);
+			sbuf_clear(sb);
+			error = vfs_mountroot_readconf(td, sb);
+			sbuf_finish(sb);
 		}
 	}
 

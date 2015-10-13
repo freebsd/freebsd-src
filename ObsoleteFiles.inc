@@ -38,7 +38,7 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
-# 20150809: String collation improvements
+# XXXXX: String collation improvements
 OLD_FILES+=usr/share/locale/kk_KZ.PT154/LC_COLLATE
 OLD_FILES+=usr/share/locale/kk_KZ.PT154/LC_CTYPE
 OLD_FILES+=usr/share/locale/kk_KZ.PT154/LC_MESSAGES
@@ -97,6 +97,77 @@ OLD_FILES+=usr/bin/colldef
 OLD_FILES+=usr/share/man/man1/colldef.1.gz
 OLD_FILES+=usr/bin/mklocale
 OLD_FILES+=usr/share/man/man1/mklocale.1.gz
+# 20151006: new libc++ import
+OLD_FILES+=usr/include/c++/__tuple_03
+# 20151006: new clang import which bumps version from 3.6.1 to 3.7.0.
+OLD_FILES+=usr/lib/clang/3.6.1/include/__stddef_max_align_t.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/__wmmintrin_aes.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/__wmmintrin_pclmul.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/adxintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/altivec.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/ammintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/arm_acle.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/arm_neon.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/avx2intrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/avx512bwintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/avx512erintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/avx512fintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/avx512vlbwintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/avx512vlintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/avxintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/bmi2intrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/bmiintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/cpuid.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/emmintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/f16cintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/fma4intrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/fmaintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/ia32intrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/immintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/lzcntintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/mm3dnow.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/mm_malloc.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/mmintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/module.modulemap
+OLD_FILES+=usr/lib/clang/3.6.1/include/nmmintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/pmmintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/popcntintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/prfchwintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/rdseedintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/rtmintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/shaintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/smmintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/tbmintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/tmmintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/wmmintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/x86intrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/xmmintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/xopintrin.h
+OLD_DIRS+=usr/lib/clang/3.6.1/include
+OLD_FILES+=usr/lib/clang/3.6.1/lib/freebsd/libclang_rt.asan-i386.a
+OLD_FILES+=usr/lib/clang/3.6.1/lib/freebsd/libclang_rt.asan-x86_64.a
+OLD_FILES+=usr/lib/clang/3.6.1/lib/freebsd/libclang_rt.asan_cxx-i386.a
+OLD_FILES+=usr/lib/clang/3.6.1/lib/freebsd/libclang_rt.asan_cxx-x86_64.a
+OLD_FILES+=usr/lib/clang/3.6.1/lib/freebsd/libclang_rt.profile-arm.a
+OLD_FILES+=usr/lib/clang/3.6.1/lib/freebsd/libclang_rt.profile-i386.a
+OLD_FILES+=usr/lib/clang/3.6.1/lib/freebsd/libclang_rt.profile-x86_64.a
+OLD_FILES+=usr/lib/clang/3.6.1/lib/freebsd/libclang_rt.san-i386.a
+OLD_FILES+=usr/lib/clang/3.6.1/lib/freebsd/libclang_rt.san-x86_64.a
+OLD_FILES+=usr/lib/clang/3.6.1/lib/freebsd/libclang_rt.ubsan-i386.a
+OLD_FILES+=usr/lib/clang/3.6.1/lib/freebsd/libclang_rt.ubsan-x86_64.a
+OLD_FILES+=usr/lib/clang/3.6.1/lib/freebsd/libclang_rt.ubsan_cxx-i386.a
+OLD_FILES+=usr/lib/clang/3.6.1/lib/freebsd/libclang_rt.ubsan_cxx-x86_64.a
+OLD_DIRS+=usr/lib/clang/3.6.1/lib/freebsd
+OLD_DIRS+=usr/lib/clang/3.6.1/lib
+OLD_DIRS+=usr/lib/clang/3.6.1
+# 20150928: unused sgsmsg utility is removed
+OLD_FILES+=usr/bin/sgsmsg
+# 20150926: remove links to removed/unimplemented mbuf(9) macros
+OLD_FILES+=usr/share/man/man9/MEXT_ADD_REF.9.gz
+OLD_FILES+=usr/share/man/man9/MEXTFREE.9.gz
+OLD_FILES+=usr/share/man/man9/MEXT_IS_REF.9.gz
+OLD_FILES+=usr/share/man/man9/MEXT_REM_REF.9.gz
+OLD_FILES+=usr/share/man/man9/MFREE.9.gz
 # 20150818: *allocm() are gone in jemalloc 4.0.0
 OLD_FILES+=usr/share/man/man3/allocm.3.gz
 OLD_FILES+=usr/share/man/man3/dallocm.3.gz
@@ -114,6 +185,9 @@ OLD_FILES+=usr/share/man/man4/dtrace-proc.4.gz
 OLD_FILES+=usr/share/man/man4/dtrace-sched.4.gz
 OLD_FILES+=usr/share/man/man4/dtrace-tcp.4.gz
 OLD_FILES+=usr/share/man/man4/dtrace-udp.4.gz
+# 20150624
+OLD_LIBS+=usr/lib/libugidfw.so.4
+OLD_LIBS+=usr/lib32/libugidfw.so.4
 # 20150604: Move nvlist man pages to section 9.
 OLD_FILES+=usr/share/man/man3/libnv.3.gz
 OLD_FILES+=usr/share/man/man3/nvlist.3.gz
@@ -539,8 +613,6 @@ OLD_FILES+=usr/share/man/man9/splstatclock.9.gz
 OLD_FILES+=usr/share/man/man9/spltty.9.gz
 OLD_FILES+=usr/share/man/man9/splvm.9.gz
 OLD_FILES+=usr/share/man/man9/splx.9.gz
-# 20150122: callout changes reverted
-OLD_FILES+=usr/share/man/man9/callout_drain_async.9.gz
 # 20150118: toeplitz.c moved from netinet to net
 OLD_FILES+=usr/include/netinet/toeplitz.h
 # 20150118: new clang import which bumps version from 3.5.0 to 3.5.1.
@@ -7292,6 +7364,12 @@ OLD_LIBS+=usr/lib/libposix1e.so.2
 OLD_LIBS+=usr/lib/libskey.so.2
 OLD_LIBS+=usr/lib/libusbhid.so.0
 OLD_LIBS+=usr/lib/libvgl.so.2
+# 20030218: OpenSSL 0.9.7 import
+OLD_FILES+=usr/include/des.h
+OLD_FILES+=usr/lib/libdes.a
+OLD_FILES+=usr/lib/libdes.so
+OLD_LIBS+=usr/lib/libdes.so.3
+OLD_FILES+=usr/lib/libdes_p.a
 # 200302XX
 OLD_LIBS+=usr/lib/libacl.so.3
 OLD_LIBS+=usr/lib/libasn1.so.5
@@ -7350,6 +7428,8 @@ OLD_LIBS+=usr/lib/libtermcap.so.2
 OLD_LIBS+=usr/lib/libutil.so.2
 OLD_LIBS+=usr/lib/libvgl.so.1
 OLD_LIBS+=usr/lib/libwrap.so.2
+# 19991216
+OLD_FILES+=usr/sbin/xntpdc
 # 199909XX
 OLD_LIBS+=usr/lib/libc_r.so.3
 # ???

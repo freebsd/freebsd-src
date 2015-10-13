@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_isa.h"
 #include "opt_kdb.h"
 #include "opt_npx.h"
+#include "opt_stack.h"
 #include "opt_trap.h"
 
 #include <sys/param.h>
@@ -94,6 +95,7 @@ PMC_SOFT_DEFINE( , , page_fault, write);
 #ifdef SMP
 #include <machine/smp.h>
 #endif
+#include <machine/stack.h>
 #include <machine/tss.h>
 #include <machine/vm86.h>
 
@@ -219,18 +221,25 @@ trap(struct trapframe *frame)
 		goto out;
 	}
 
-#ifdef	HWPMC_HOOKS
-	/*
-	 * CPU PMCs interrupt using an NMI so we check for that first.
-	 * If the HWPMC module is active, 'pmc_hook' will point to
-	 * the function to be called.  A return value of '1' from the
-	 * hook means that the NMI was handled by it and that we can
-	 * return immediately.
-	 */
-	if (type == T_NMI && pmc_intr &&
-	    (*pmc_intr)(PCPU_GET(cpuid), frame))
-	    goto out;
+	if (type == T_NMI) {
+#ifdef HWPMC_HOOKS
+		/*
+		 * CPU PMCs interrupt using an NMI so we check for that first.
+		 * If the HWPMC module is active, 'pmc_hook' will point to
+		 * the function to be called.  A non-zero return value from the
+		 * hook means that the NMI was consumed by it and that we can
+		 * return immediately.
+		 */
+		if (pmc_intr != NULL &&
+		    (*pmc_intr)(PCPU_GET(cpuid), frame) != 0)
+			goto out;
 #endif
+
+#ifdef STACK
+		if (stack_nmi_handler(frame) != 0)
+			goto out;
+#endif
+	}
 
 	if (type == T_MCHK) {
 		mca_intr();
@@ -782,7 +791,6 @@ trap_pfault(frame, usermode, eva)
 	vm_offset_t eva;
 {
 	vm_offset_t va;
-	struct vmspace *vm;
 	vm_map_t map;
 	int rv = 0;
 	vm_prot_t ftype;
@@ -852,14 +860,7 @@ trap_pfault(frame, usermode, eva)
 
 		map = kernel_map;
 	} else {
-		/*
-		 * This is a fault on non-kernel virtual memory.  If either
-		 * p or p->p_vmspace is NULL, then the fault is fatal.
-		 */
-		if (p == NULL || (vm = p->p_vmspace) == NULL)
-			goto nogo;
-
-		map = &vm->vm_map;
+		map = &p->p_vmspace->vm_map;
 
 		/*
 		 * When accessing a user-space address, kernel must be
@@ -888,28 +889,8 @@ trap_pfault(frame, usermode, eva)
 	else
 		ftype = VM_PROT_READ;
 
-	if (map != kernel_map) {
-		/*
-		 * Keep swapout from messing with us during this
-		 *	critical time.
-		 */
-		PROC_LOCK(p);
-		++p->p_lock;
-		PROC_UNLOCK(p);
-
-		/* Fault in the user page: */
-		rv = vm_fault(map, va, ftype, VM_FAULT_NORMAL);
-
-		PROC_LOCK(p);
-		--p->p_lock;
-		PROC_UNLOCK(p);
-	} else {
-		/*
-		 * Don't have to worry about process locking or stacks in the
-		 * kernel.
-		 */
-		rv = vm_fault(map, va, ftype, VM_FAULT_NORMAL);
-	}
+	/* Fault in the page. */
+	rv = vm_fault(map, va, ftype, VM_FAULT_NORMAL);
 	if (rv == KERN_SUCCESS) {
 #ifdef HWPMC_HOOKS
 		if (ftype == VM_PROT_READ || ftype == VM_PROT_WRITE) {

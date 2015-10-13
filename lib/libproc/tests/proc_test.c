@@ -40,9 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <libproc.h>
 
 static const char *aout_object = "a.out";
-#if !defined(__aarch64__)
 static const char *ldelf_object = "ld-elf.so.1";
-#endif
 static const char *target_prog_file = "target_prog";
 
 /*
@@ -77,7 +75,6 @@ start_prog(const struct atf_tc *tc, bool sig)
 	return (phdl);
 }
 
-#if !defined(__aarch64__)
 static void
 set_bkpt(struct proc_handle *phdl, uintptr_t addr, u_long *saved)
 {
@@ -154,7 +151,6 @@ verify_bkpt(struct proc_handle *phdl, GElf_Sym *sym, const char *symname,
 	ATF_REQUIRE_EQ_MSG(strcmp(mapname, mapbname), 0,
 	    "expected map name '%s' doesn't match '%s'", mapname, mapbname);
 }
-#endif
 
 ATF_TC(map_alias_obj2map);
 ATF_TC_HEAD(map_alias_obj2map, tc)
@@ -259,7 +255,6 @@ ATF_TC_BODY(map_alias_name2sym, tc)
 	proc_free(phdl);
 }
 
-#if !defined(__aarch64__)
 ATF_TC(symbol_lookup);
 ATF_TC_HEAD(symbol_lookup, tc)
 {
@@ -336,7 +331,6 @@ ATF_TC_BODY(symbol_lookup_fail, tc)
 
 	proc_free(phdl);
 }
-#endif
 
 ATF_TC(signal_forward);
 ATF_TC_HEAD(signal_forward, tc)
@@ -385,11 +379,8 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, map_alias_obj2map);
 	ATF_TP_ADD_TC(tp, map_alias_name2map);
 	ATF_TP_ADD_TC(tp, map_alias_name2sym);
-/* On arm64 triggers panic ARM64TODO: pmap_sync_icache (PR202305). */
-#if !defined(__aarch64__)
 	ATF_TP_ADD_TC(tp, symbol_lookup);
 	ATF_TP_ADD_TC(tp, symbol_lookup_fail);
-#endif
 	ATF_TP_ADD_TC(tp, signal_forward);
 
 	return (atf_no_error());

@@ -9,6 +9,8 @@
         bin
         ..
         boot
+            kernel
+            ..
         ..
         lib
             geom
@@ -23,7 +25,7 @@
             ..
             lib
                 clang
-                    3.6.1
+                    3.7.0
                         lib
                             freebsd
                             ..

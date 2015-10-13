@@ -31,7 +31,6 @@ __FBSDID("$FreeBSD$");
  */
 
 #include <sys/param.h>
-#include <sys/types.h>
 
 #include <net/if_llc.h>
 
@@ -228,13 +227,12 @@ static struct ieee80211_rate_table ieee80211_turboa_table = {
 static void
 ieee80211_setup_ratetable(struct ieee80211_rate_table *rt)
 {
-#define	N(a)	(sizeof(a)/sizeof(a[0]))
 #define	WLAN_CTRL_FRAME_SIZE \
 	(sizeof(struct ieee80211_frame_ack) + IEEE80211_CRC_LEN)
 
 	int i;
 
-	for (i = 0; i < N(rt->rateCodeToIndex); i++)
+	for (i = 0; i < nitems(rt->rateCodeToIndex); i++)
 		rt->rateCodeToIndex[i] = (uint8_t) -1;
 	for (i = 0; i < rt->rateCount; i++) {
 		uint8_t code = rt->info[i].dot11Rate;
@@ -267,14 +265,12 @@ ieee80211_setup_ratetable(struct ieee80211_rate_table *rt)
 	}
 
 #undef WLAN_CTRL_FRAME_SIZE
-#undef N
 }
 
 /* Setup all rate tables */
 static void
 ieee80211_phy_init(void)
 {
-#define N(arr)	(int)(sizeof(arr) / sizeof(arr[0]))
 	static struct ieee80211_rate_table * const ratetables[] = {
 		&ieee80211_half_table,
 		&ieee80211_quarter_table,
@@ -287,12 +283,11 @@ ieee80211_phy_init(void)
 		&ieee80211_11g_table,
 		&ieee80211_11b_table
 	};
-	int i;
+	unsigned int i;
 
-	for (i = 0; i < N(ratetables); ++i)
+	for (i = 0; i < nitems(ratetables); ++i)
 		ieee80211_setup_ratetable(ratetables[i]);
 
-#undef N
 }
 #define CCK_SIFS_TIME		10
 #define CCK_PREAMBLE_BITS	144

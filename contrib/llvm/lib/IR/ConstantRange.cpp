@@ -49,14 +49,15 @@ ConstantRange::ConstantRange(APIntMoveTy L, APIntMoveTy U)
          "Lower == Upper, but they aren't min or max value!");
 }
 
-ConstantRange ConstantRange::makeICmpRegion(unsigned Pred,
-                                            const ConstantRange &CR) {
+ConstantRange ConstantRange::makeAllowedICmpRegion(CmpInst::Predicate Pred,
+                                                   const ConstantRange &CR) {
   if (CR.isEmptySet())
     return CR;
 
   uint32_t W = CR.getBitWidth();
   switch (Pred) {
-    default: llvm_unreachable("Invalid ICmp predicate to makeICmpRegion()");
+  default:
+    llvm_unreachable("Invalid ICmp predicate to makeAllowedICmpRegion()");
     case CmpInst::ICMP_EQ:
       return CR;
     case CmpInst::ICMP_NE:
@@ -112,6 +113,16 @@ ConstantRange ConstantRange::makeICmpRegion(unsigned Pred,
       return ConstantRange(SMin, APInt::getSignedMinValue(W));
     }
   }
+}
+
+ConstantRange ConstantRange::makeSatisfyingICmpRegion(CmpInst::Predicate Pred,
+                                                      const ConstantRange &CR) {
+  // Follows from De-Morgan's laws:
+  //
+  // ~(~A union ~B) == A intersect B.
+  //
+  return makeAllowedICmpRegion(CmpInst::getInversePredicate(Pred), CR)
+      .inverse();
 }
 
 /// isFullSet - Return true if this set contains all of the elements possible
@@ -587,6 +598,13 @@ ConstantRange::multiply(const ConstantRange &Other) const {
   if (isEmptySet() || Other.isEmptySet())
     return ConstantRange(getBitWidth(), /*isFullSet=*/false);
 
+  // Multiplication is signedness-independent. However different ranges can be
+  // obtained depending on how the input ranges are treated. These different
+  // ranges are all conservatively correct, but one might be better than the
+  // other. We calculate two ranges; one treating the inputs as unsigned
+  // and the other signed, then return the smallest of these ranges.
+
+  // Unsigned range first.
   APInt this_min = getUnsignedMin().zext(getBitWidth() * 2);
   APInt this_max = getUnsignedMax().zext(getBitWidth() * 2);
   APInt Other_min = Other.getUnsignedMin().zext(getBitWidth() * 2);
@@ -594,7 +612,26 @@ ConstantRange::multiply(const ConstantRange &Other) const {
 
   ConstantRange Result_zext = ConstantRange(this_min * Other_min,
                                             this_max * Other_max + 1);
-  return Result_zext.truncate(getBitWidth());
+  ConstantRange UR = Result_zext.truncate(getBitWidth());
+
+  // Now the signed range. Because we could be dealing with negative numbers
+  // here, the lower bound is the smallest of the cartesian product of the
+  // lower and upper ranges; for example:
+  //   [-1,4) * [-2,3) = min(-1*-2, -1*2, 3*-2, 3*2) = -6.
+  // Similarly for the upper bound, swapping min for max.
+
+  this_min = getSignedMin().sext(getBitWidth() * 2);
+  this_max = getSignedMax().sext(getBitWidth() * 2);
+  Other_min = Other.getSignedMin().sext(getBitWidth() * 2);
+  Other_max = Other.getSignedMax().sext(getBitWidth() * 2);
+  
+  auto L = {this_min * Other_min, this_min * Other_max,
+            this_max * Other_min, this_max * Other_max};
+  auto Compare = [](const APInt &A, const APInt &B) { return A.slt(B); };
+  ConstantRange Result_sext(std::min(L, Compare), std::max(L, Compare) + 1);
+  ConstantRange SR = Result_sext.truncate(getBitWidth());
+
+  return UR.getSetSize().ult(SR.getSetSize()) ? UR : SR;
 }
 
 ConstantRange

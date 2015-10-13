@@ -8,7 +8,7 @@ MAN=
 
 PROG=	svn${SVNLITE}serve
 
-SRCS=	cyrus_auth.c log-escape.c serve.c svnserve.c winservice.c
+SRCS=	cyrus_auth.c log-escape.c logger.c serve.c svnserve.c winservice.c
 
 CFLAGS+=-I${SVNDIR}/include -I${SVNDIR} -I${.CURDIR}/.. \
 	-I${.CURDIR}/../lib/libapr \
@@ -25,6 +25,7 @@ LDADD=	-L${LIBSVN_RADIR} -lsvn_ra \
 	-L${LIBSVN_REPOSDIR} -lsvn_repos \
 	-L${LIBSVN_FSDIR} -lsvn_fs \
 	-L${LIBSVN_FS_FSDIR} -lsvn_fs_fs \
+	-L${LIBSVN_FS_XDIR} -lsvn_fs_x \
 	-L${LIBSVN_FS_UTILDIR} -lsvn_fs_util \
 	-L${LIBSVN_DELTADIR} -lsvn_delta \
 	-L${LIBSVN_SUBRDIR} -lsvn_subr \

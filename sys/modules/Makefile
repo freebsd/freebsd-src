@@ -270,6 +270,9 @@ SUBDIR=	\
 	${_nxge} \
 	${_opensolaris} \
 	oce \
+	otus \
+	otusfw \
+	ow \
 	${_padlock} \
 	${_padlock_rng} \
 	patm \
@@ -476,8 +479,8 @@ _txp=		txp
 _cxgbe=		cxgbe
 .endif
 
-.if ${MACHINE_CPUARCH} != "arm" && ${MACHINE_CPUARCH} != "mips" && \
-	${MACHINE_CPUARCH} != "powerpc"
+.if ${MACHINE_CPUARCH} != "aarch64" && ${MACHINE_CPUARCH} != "arm" && \
+	${MACHINE_CPUARCH} != "mips" && ${MACHINE_CPUARCH} != "powerpc"
 _syscons=	syscons
 _vpo=		vpo
 .endif

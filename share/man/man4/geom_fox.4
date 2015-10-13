@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 2, 2005
+.Dd September 12, 2015
 .Dt GEOM_FOX 4
 .Os
 .Sh NAME
@@ -46,6 +46,13 @@ module at boot time, place the following line in
 geom_fox_load="YES"
 .Ed
 .Sh DESCRIPTION
+.Bf -symbolic
+This driver is obsolete.
+Users are advised to use
+.Xr gmultipath 8
+instead.
+.Ef
+.Pp
 The intent of the
 .Nm
 framework is to provide basic multipathing support to access direct

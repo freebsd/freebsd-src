@@ -238,7 +238,7 @@ parse_options()
 
 		eval : \${jail_${_j}_mount_enable:=${jail_mount_enable:-NO}}
 		if checkyesno jail_${_j}_mount_enable; then
-			echo "	allow.mount;" >> $_conf
+			echo "	allow.mount;"
 		fi
 
 		extract_var $_j set_hostname_allow allow.set_hostname YN NO
@@ -419,7 +419,7 @@ jail_status()
 
 jail_start()
 {
-	local _j _jid _jl
+	local _j _jid _jl _id _name
 
 	if [ $# = 0 ]; then
 		return
@@ -432,10 +432,9 @@ jail_start()
 		command_args="-f $jail_conf -c"
 		_tmp=`mktemp -t jail` || exit 3
 		if $command $rc_flags $command_args >> $_tmp 2>&1; then
-			$jail_jls jid name | while read IN; do
-				set -- $IN
-				echo -n " $2"
-				echo $1 > /var/run/jail_$2.id
+			$jail_jls jid name | while read _id _name; do
+				echo -n " $_name"
+				echo $_id > /var/run/jail_${_name}.id
 			done
 		else
 			tail -1 $_tmp

@@ -1,4 +1,5 @@
 .\" Copyright (c) 2012 The FreeBSD Foundation
+.\" Copyright (c) 2015 Alexander Motin <mav@FreeBSD.org>
 .\" All rights reserved.
 .\"
 .\" This software was developed by Edward Tomasz Napierala under sponsorship
@@ -27,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 24, 2015
+.Dd September 27, 2015
 .Dt CTL.CONF 5
 .Os
 .Sh NAME
@@ -60,15 +61,9 @@ file is:
 .Dl ...
 }
 
-.No lun Ar name No {
-.Dl path Ar path
-}
-
 .No target Ar name {
 .Dl auth-group Ar name
-.Dl portal-group Ar name Op Ar agname
-.Dl port Ar name
-.Dl lun Ar number Ar name
+.Dl portal-group Ar name
 .Dl lun Ar number No {
 .Dl 	path Ar path
 .Dl }
@@ -242,6 +237,15 @@ Redirection happens before authentication and any
 or
 .Sy initiator-portal
 checks are skipped.
+.It Ic tag Ar value
+Unique 16-bit tag value of this
+.Sy portal-group .
+If not specified, the value is generated automatically.
+.It Ic foreign
+Specifies that this
+.Sy portal-group
+is listened by some other host.
+This host will announce it on discovery stage, but won't listen.
 .El
 .Ss target Context
 .Bl -tag -width indent
@@ -383,9 +387,17 @@ testing.
 The default backend is block.
 .It Ic blocksize Ar size
 The blocksize visible to the initiator.
-The default blocksize is 512.
+The default blocksize is 512 for disks, and 2048 for CD/DVDs.
+.It Ic ctl-lun Ar lun_id
+Global numeric identifier to use for a given LUN inside CTL.
+By default CTL allocates those IDs dynamically, but explicit specification
+may be needed for consistency in HA configurations.
 .It Ic device-id Ar string
 The SCSI Device Identification string presented to the initiator.
+.It Ic device-type Ar type
+Specify the SCSI device type to use when creating the LUN.
+Currently CTL supports Direct Access (type 0), Processor (type 3)
+and CD/DVD (type 5) LUNs.
 .It Ic option Ar name Ar value
 The CTL-specific options passed to the kernel.
 All CTL-specific options are documented in the

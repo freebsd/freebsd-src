@@ -28,6 +28,9 @@
  *
  * $FreeBSD$
  */
+
+#include <sys/param.h>
+
 #include "diag.h"
 
 #include "ah.h"
@@ -36,8 +39,6 @@
 #include "ar5211/ar5211phy.h"
 
 #include "dumpregs.h"
-
-#define	N(a)	(sizeof(a) / sizeof(a[0]))
 
 static struct dumpreg ar5211regs[] = {
     DEFBASICfmt(AR_CR,		"CR",		AR_CR_BITS),
@@ -284,7 +285,7 @@ static __constructor void
 ar5211_ctor(void)
 {
 #define	MAC5211	SREV(2,0), SREV(4,5)
-	register_regs(ar5211regs, N(ar5211regs), MAC5211, PHYANY);
+	register_regs(ar5211regs, nitems(ar5211regs), MAC5211, PHYANY);
 	register_keycache(128, MAC5211, PHYANY);
 
 	register_range(0x9800, 0x987c, DUMP_BASEBAND, MAC5211, PHYANY);

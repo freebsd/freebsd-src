@@ -97,6 +97,9 @@ svn_diff__unidiff_write_header(svn_stream_t *output_stream,
  * merged or reverse merged; otherwise (or if the mergeinfo property values
  * don't parse correctly) display them just like any other property.
  *
+ * Pass @a context_size, @a cancel_func and @a cancel_baton to the diff
+ * output functions.
+ *
  * Use @a scratch_pool for temporary allocations.
  */
 svn_error_t *
@@ -105,6 +108,9 @@ svn_diff__display_prop_diffs(svn_stream_t *outstream,
                              const apr_array_header_t *propchanges,
                              apr_hash_t *original_props,
                              svn_boolean_t pretty_print_mergeinfo,
+                             int context_size,
+                             svn_cancel_func_t cancel_func,
+                             void *cancel_baton,
                              apr_pool_t *scratch_pool);
 
 

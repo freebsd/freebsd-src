@@ -327,7 +327,6 @@ present:
 		tp->t_segqlen--;
 		q = nq;
 	} while (q && q->tqe_th->th_seq == tp->rcv_nxt);
-	ND6_HINT(tp);
 	sorwakeup_locked(so);
 	return (flags);
 }

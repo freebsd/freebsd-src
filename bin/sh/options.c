@@ -302,7 +302,7 @@ setoption(int flag, int val)
 {
 	int i;
 
-	for (i = 0; i < NOPTS; i++)
+	for (i = 0; i < NSHORTOPTS; i++)
 		if (optlist[i].letter == flag) {
 			setoptionbyindex(i, val);
 			return;

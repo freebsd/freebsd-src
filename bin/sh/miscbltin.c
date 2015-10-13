@@ -100,6 +100,7 @@ readcmd(int argc __unused, char **argv __unused)
 	int i;
 	int is_ifs;
 	int saveall = 0;
+	ptrdiff_t lastnonifs, lastnonifsws;
 	struct timeval tv;
 	char *tvptr;
 	fd_set ifds;
@@ -169,6 +170,7 @@ readcmd(int argc __unused, char **argv __unused)
 	startword = 2;
 	backslash = 0;
 	STARTSTACKSTR(p);
+	lastnonifs = lastnonifsws = -1;
 	for (;;) {
 		nread = read(STDIN_FILENO, &c, 1);
 		if (nread == -1) {
@@ -193,6 +195,7 @@ readcmd(int argc __unused, char **argv __unused)
 			backslash = 0;
 			if (c != '\n') {
 				startword = 0;
+				lastnonifs = lastnonifsws = p - stackblock();
 				USTPUTC(c, p);
 			}
 			continue;
@@ -218,8 +221,10 @@ readcmd(int argc __unused, char **argv __unused)
 			if (is_ifs == 2 && startword == 1) {
 				/* Only one non-whitespace IFS per word */
 				startword = 2;
-				if (saveall)
+				if (saveall) {
+					lastnonifsws = p - stackblock();
 					USTPUTC(c, p);
+				}
 				continue;
 			}
 		}
@@ -230,6 +235,7 @@ readcmd(int argc __unused, char **argv __unused)
 			if (saveall)
 				/* Not just a spare terminator */
 				saveall++;
+			lastnonifs = lastnonifsws = p - stackblock();
 			USTPUTC(c, p);
 			continue;
 		}
@@ -240,6 +246,8 @@ readcmd(int argc __unused, char **argv __unused)
 		if (ap[1] == NULL) {
 			/* Last variable needs all IFS chars */
 			saveall++;
+			if (is_ifs == 2)
+				lastnonifsws = p - stackblock();
 			USTPUTC(c, p);
 			continue;
 		}
@@ -248,20 +256,17 @@ readcmd(int argc __unused, char **argv __unused)
 		setvar(*ap, stackblock(), 0);
 		ap++;
 		STARTSTACKSTR(p);
+		lastnonifs = lastnonifsws = -1;
 	}
 	STACKSTRNUL(p);
 
-	/* Remove trailing IFS chars */
-	for (; stackblock() <= --p; *p = 0) {
-		if (!strchr(ifs, *p))
-			break;
-		if (strchr(" \t\n", *p))
-			/* Always remove whitespace */
-			continue;
-		if (saveall > 1)
-			/* Don't remove non-whitespace unless it was naked */
-			break;
-	}
+	/*
+	 * Remove trailing IFS chars: always remove whitespace, don't remove
+	 * non-whitespace unless it was naked
+	 */
+	if (saveall <= 1)
+		lastnonifsws = lastnonifs;
+	stackblock()[lastnonifsws + 1] = '\0';
 	setvar(*ap, stackblock(), 0);
 
 	/* Set any remaining args to "" */

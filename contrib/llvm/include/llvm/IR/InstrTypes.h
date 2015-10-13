@@ -44,7 +44,7 @@ protected:
     : Instruction(Ty, iType, Ops, NumOps, InsertAtEnd) {}
 
   // Out of line virtual method, so the vtable, etc has a home.
-  ~TerminatorInst();
+  ~TerminatorInst() override;
 
   /// Virtual methods - Terminators should overload these and provide inline
   /// overrides of non-V methods.
@@ -83,7 +83,7 @@ public:
 //===----------------------------------------------------------------------===//
 
 class UnaryInstruction : public Instruction {
-  void *operator new(size_t, unsigned) LLVM_DELETED_FUNCTION;
+  void *operator new(size_t, unsigned) = delete;
 
 protected:
   UnaryInstruction(Type *Ty, unsigned iType, Value *V,
@@ -102,7 +102,7 @@ public:
   }
 
   // Out of line virtual method, so the vtable, etc has a home.
-  ~UnaryInstruction();
+  ~UnaryInstruction() override;
 
   /// Transparently provide more efficient getOperand methods.
   DECLARE_TRANSPARENT_OPERAND_ACCESSORS(Value);
@@ -132,14 +132,18 @@ DEFINE_TRANSPARENT_OPERAND_ACCESSORS(UnaryInstruction, Value)
 //===----------------------------------------------------------------------===//
 
 class BinaryOperator : public Instruction {
-  void *operator new(size_t, unsigned) LLVM_DELETED_FUNCTION;
+  void *operator new(size_t, unsigned) = delete;
 protected:
   void init(BinaryOps iType);
   BinaryOperator(BinaryOps iType, Value *S1, Value *S2, Type *Ty,
                  const Twine &Name, Instruction *InsertBefore);
   BinaryOperator(BinaryOps iType, Value *S1, Value *S2, Type *Ty,
                  const Twine &Name, BasicBlock *InsertAtEnd);
-  BinaryOperator *clone_impl() const override;
+
+  // Note: Instruction needs to be a friend here to call cloneImpl.
+  friend class Instruction;
+  BinaryOperator *cloneImpl() const;
+
 public:
   // allocate space for exactly two operands
   void *operator new(size_t s) {
@@ -570,10 +574,9 @@ public:
   /// This ensures that any pointer<->integer cast has enough bits in the
   /// integer and any other cast is a bitcast.
   static bool isBitOrNoopPointerCastable(
-    Type *SrcTy, ///< The Type from which the value should be cast.
-    Type *DestTy, ///< The Type to which the value should be cast.
-    const DataLayout *Layout = 0 ///< Optional DataLayout.
-  );
+      Type *SrcTy,  ///< The Type from which the value should be cast.
+      Type *DestTy, ///< The Type to which the value should be cast.
+      const DataLayout &DL);
 
   /// Returns the opcode necessary to cast Val into Ty using usual casting
   /// rules.
@@ -621,9 +624,9 @@ public:
   ) const;
 
   /// @brief Determine if this cast is a no-op cast.
-  bool isNoopCast(
-    const DataLayout *DL ///< DataLayout to get the Int Ptr type from.
-  ) const;
+  ///
+  /// \param DL is the DataLayout to get the Int Ptr type from.
+  bool isNoopCast(const DataLayout &DL) const;
 
   /// Determine how a pair of casts can be eliminated, if they can be at all.
   /// This is a helper function for both CastInst and ConstantExpr.
@@ -674,8 +677,8 @@ public:
 /// This class is the base class for the comparison instructions.
 /// @brief Abstract base class of comparison instructions.
 class CmpInst : public Instruction {
-  void *operator new(size_t, unsigned) LLVM_DELETED_FUNCTION;
-  CmpInst() LLVM_DELETED_FUNCTION;
+  void *operator new(size_t, unsigned) = delete;
+  CmpInst() = delete;
 protected:
   CmpInst(Type *ty, Instruction::OtherOps op, unsigned short pred,
           Value *LHS, Value *RHS, const Twine &Name = "",

@@ -19,6 +19,7 @@
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/DiagnosticPrinter.h"
 #include "llvm/IR/LLVMContext.h"
+#include "llvm/IR/Mangler.h"
 #include "llvm/IR/Metadata.h"
 #include "llvm/IR/Module.h"
 #include "llvm/MC/MCExpr.h"
@@ -147,9 +148,10 @@ LTOModule *LTOModule::createInContext(const void *mem, size_t length,
   return makeLTOModule(Buffer, options, errMsg, Context);
 }
 
-static Module *parseBitcodeFileImpl(MemoryBufferRef Buffer,
-                                    LLVMContext &Context, bool ShouldBeLazy,
-                                    std::string &ErrMsg) {
+static std::unique_ptr<Module> parseBitcodeFileImpl(MemoryBufferRef Buffer,
+                                                    LLVMContext &Context,
+                                                    bool ShouldBeLazy,
+                                                    std::string &ErrMsg) {
 
   // Find the buffer.
   ErrorOr<MemoryBufferRef> MBOrErr =
@@ -168,21 +170,22 @@ static Module *parseBitcodeFileImpl(MemoryBufferRef Buffer,
 
   if (!ShouldBeLazy) {
     // Parse the full file.
-    ErrorOr<Module *> M =
+    ErrorOr<std::unique_ptr<Module>> M =
         parseBitcodeFile(*MBOrErr, Context, DiagnosticHandler);
     if (!M)
       return nullptr;
-    return *M;
+    return std::move(*M);
   }
 
   // Parse lazily.
   std::unique_ptr<MemoryBuffer> LightweightBuf =
       MemoryBuffer::getMemBuffer(*MBOrErr, false);
-  ErrorOr<Module *> M = getLazyBitcodeModule(std::move(LightweightBuf), Context,
-                                             DiagnosticHandler);
+  ErrorOr<std::unique_ptr<Module>> M =
+      getLazyBitcodeModule(std::move(LightweightBuf), Context,
+                           DiagnosticHandler, true /*ShouldLazyLoadMetadata*/);
   if (!M)
     return nullptr;
-  return *M;
+  return std::move(*M);
 }
 
 LTOModule *LTOModule::makeLTOModule(MemoryBufferRef Buffer,
@@ -196,9 +199,9 @@ LTOModule *LTOModule::makeLTOModule(MemoryBufferRef Buffer,
 
   // If we own a context, we know this is being used only for symbol
   // extraction, not linking.  Be lazy in that case.
-  std::unique_ptr<Module> M(parseBitcodeFileImpl(
+  std::unique_ptr<Module> M = parseBitcodeFileImpl(
       Buffer, *Context,
-      /* ShouldBeLazy */ static_cast<bool>(OwnedContext), errMsg));
+      /* ShouldBeLazy */ static_cast<bool>(OwnedContext), errMsg);
   if (!M)
     return nullptr;
 
@@ -229,7 +232,7 @@ LTOModule *LTOModule::makeLTOModule(MemoryBufferRef Buffer,
 
   TargetMachine *target = march->createTargetMachine(TripleStr, CPU, FeatureStr,
                                                      options);
-  M->setDataLayout(target->getSubtargetImpl()->getDataLayout());
+  M->setDataLayout(*target->getDataLayout());
 
   std::unique_ptr<object::IRObjectFile> IRObj(
       new object::IRObjectFile(Buffer, std::move(M)));
@@ -266,7 +269,7 @@ LTOModule::objcClassNameFromExpression(const Constant *c, std::string &name) {
       Constant *cn = gvn->getInitializer();
       if (ConstantDataArray *ca = dyn_cast<ConstantDataArray>(cn)) {
         if (ca->isCString()) {
-          name = ".objc_class_name_" + ca->getAsCString().str();
+          name = (".objc_class_name_" + ca->getAsCString()).str();
           return true;
         }
       }
@@ -467,6 +470,12 @@ void LTOModule::addDefinedSymbol(const char *Name, const GlobalValue *def,
   else
     attr |= LTO_SYMBOL_SCOPE_DEFAULT;
 
+  if (def->hasComdat())
+    attr |= LTO_SYMBOL_COMDAT;
+
+  if (isa<GlobalAlias>(def))
+    attr |= LTO_SYMBOL_ALIAS;
+
   auto Iter = _defines.insert(Name).first;
 
   // fill information structure
@@ -637,6 +646,8 @@ bool LTOModule::parseSymbols(std::string &errMsg) {
 
 /// parseMetadata - Parse metadata from the module
 void LTOModule::parseMetadata() {
+  raw_string_ostream OS(LinkerOpts);
+
   // Linker Options
   if (Metadata *Val = getModule().getModuleFlag("Linker Options")) {
     MDNode *LinkerOptions = cast<MDNode>(Val);
@@ -644,21 +655,18 @@ void LTOModule::parseMetadata() {
       MDNode *MDOptions = cast<MDNode>(LinkerOptions->getOperand(i));
       for (unsigned ii = 0, ie = MDOptions->getNumOperands(); ii != ie; ++ii) {
         MDString *MDOption = cast<MDString>(MDOptions->getOperand(ii));
-        // FIXME: Make StringSet::insert match Self-Associative Container
-        // requirements, returning <iter,bool> rather than bool, and use that
-        // here.
-        StringRef Op =
-            _linkeropt_strings.insert(MDOption->getString()).first->first();
-        StringRef DepLibName = _target->getSubtargetImpl()
-                                   ->getTargetLowering()
-                                   ->getObjFileLowering()
-                                   .getDepLibFromLinkerOpt(Op);
-        if (!DepLibName.empty())
-          _deplibs.push_back(DepLibName.data());
-        else if (!Op.empty())
-          _linkeropts.push_back(Op.data());
+        OS << " " << MDOption->getString();
       }
     }
+  }
+
+  // Globals
+  Mangler Mang;
+  for (const NameAndAttributes &Sym : _symbols) {
+    if (!Sym.symbol)
+      continue;
+    _target->getObjFileLowering()->emitLinkerFlagsForGlobal(OS, Sym.symbol,
+                                                            Mang);
   }
 
   // Add other interesting metadata here.

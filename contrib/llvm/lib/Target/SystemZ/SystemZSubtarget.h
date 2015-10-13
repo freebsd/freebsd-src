@@ -38,12 +38,16 @@ protected:
   bool HasLoadStoreOnCond;
   bool HasHighWord;
   bool HasFPExtension;
+  bool HasPopulationCount;
   bool HasFastSerialization;
   bool HasInterlockedAccess1;
+  bool HasMiscellaneousExtensions;
+  bool HasTransactionalExecution;
+  bool HasProcessorAssist;
+  bool HasVector;
 
 private:
   Triple TargetTriple;
-  const DataLayout DL;
   SystemZInstrInfo InstrInfo;
   SystemZTargetLowering TLInfo;
   SystemZSelectionDAGInfo TSInfo;
@@ -52,14 +56,13 @@ private:
   SystemZSubtarget &initializeSubtargetDependencies(StringRef CPU,
                                                     StringRef FS);
 public:
-  SystemZSubtarget(const std::string &TT, const std::string &CPU,
+  SystemZSubtarget(const Triple &TT, const std::string &CPU,
                    const std::string &FS, const TargetMachine &TM);
 
   const TargetFrameLowering *getFrameLowering() const override {
     return &FrameLowering;
   }
   const SystemZInstrInfo *getInstrInfo() const override { return &InstrInfo; }
-  const DataLayout *getDataLayout() const override { return &DL; }
   const SystemZRegisterInfo *getRegisterInfo() const override {
     return &InstrInfo.getRegisterInfo();
   }
@@ -88,11 +91,28 @@ public:
   // Return true if the target has the floating-point extension facility.
   bool hasFPExtension() const { return HasFPExtension; }
 
+  // Return true if the target has the population-count facility.
+  bool hasPopulationCount() const { return HasPopulationCount; }
+
   // Return true if the target has the fast-serialization facility.
   bool hasFastSerialization() const { return HasFastSerialization; }
 
   // Return true if the target has interlocked-access facility 1.
   bool hasInterlockedAccess1() const { return HasInterlockedAccess1; }
+
+  // Return true if the target has the miscellaneous-extensions facility.
+  bool hasMiscellaneousExtensions() const {
+    return HasMiscellaneousExtensions;
+  }
+
+  // Return true if the target has the transactional-execution facility.
+  bool hasTransactionalExecution() const { return HasTransactionalExecution; }
+
+  // Return true if the target has the processor-assist facility.
+  bool hasProcessorAssist() const { return HasProcessorAssist; }
+
+  // Return true if the target has the vector facility.
+  bool hasVector() const { return HasVector; }
 
   // Return true if GV can be accessed using LARL for reloc model RM
   // and code model CM.

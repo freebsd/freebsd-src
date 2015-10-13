@@ -520,7 +520,7 @@ udp_input(struct mbuf **mp, int *offp, int proto)
 		}
 	}
 
-	pcbinfo = get_inpcbinfo(proto);
+	pcbinfo = udp_get_inpcbinfo(proto);
 	if (IN_MULTICAST(ntohl(ip->ip_dst.s_addr)) ||
 	    in_broadcast(ip->ip_dst, ifp)) {
 		struct inpcb *last;
@@ -528,7 +528,7 @@ udp_input(struct mbuf **mp, int *offp, int proto)
 		struct ip_moptions *imo;
 
 		INP_INFO_RLOCK(pcbinfo);
-		pcblist = get_pcblist(proto);
+		pcblist = udp_get_pcblist(proto);
 		last = NULL;
 		LIST_FOREACH(inp, pcblist, inp_list) {
 			if (inp->inp_lport != uh->uh_dport)
@@ -1243,7 +1243,7 @@ udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
 	 * XXXRW: Check that hash locking update here is correct.
 	 */
 	pr = inp->inp_socket->so_proto->pr_protocol;
-	pcbinfo = get_inpcbinfo(pr);
+	pcbinfo = udp_get_inpcbinfo(pr);
 	sin = (struct sockaddr_in *)addr;
 	if (sin != NULL &&
 	    (inp->inp_laddr.s_addr == INADDR_ANY && inp->inp_lport == 0)) {
@@ -1678,7 +1678,7 @@ udp_abort(struct socket *so)
 	struct inpcb *inp;
 	struct inpcbinfo *pcbinfo;
 
-	pcbinfo = get_inpcbinfo(so->so_proto->pr_protocol);
+	pcbinfo = udp_get_inpcbinfo(so->so_proto->pr_protocol);
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("udp_abort: inp == NULL"));
 	INP_WLOCK(inp);
@@ -1699,7 +1699,7 @@ udp_attach(struct socket *so, int proto, struct thread *td)
 	struct inpcbinfo *pcbinfo;
 	int error;
 
-	pcbinfo = get_inpcbinfo(so->so_proto->pr_protocol);
+	pcbinfo = udp_get_inpcbinfo(so->so_proto->pr_protocol);
 	inp = sotoinpcb(so);
 	KASSERT(inp == NULL, ("udp_attach: inp != NULL"));
 	error = soreserve(so, udp_sendspace, udp_recvspace);
@@ -1760,7 +1760,7 @@ udp_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 	struct inpcbinfo *pcbinfo;
 	int error;
 
-	pcbinfo = get_inpcbinfo(so->so_proto->pr_protocol);
+	pcbinfo = udp_get_inpcbinfo(so->so_proto->pr_protocol);
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("udp_bind: inp == NULL"));
 	INP_WLOCK(inp);
@@ -1777,7 +1777,7 @@ udp_close(struct socket *so)
 	struct inpcb *inp;
 	struct inpcbinfo *pcbinfo;
 
-	pcbinfo = get_inpcbinfo(so->so_proto->pr_protocol);
+	pcbinfo = udp_get_inpcbinfo(so->so_proto->pr_protocol);
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("udp_close: inp == NULL"));
 	INP_WLOCK(inp);
@@ -1799,7 +1799,7 @@ udp_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	struct sockaddr_in *sin;
 	int error;
 
-	pcbinfo = get_inpcbinfo(so->so_proto->pr_protocol);
+	pcbinfo = udp_get_inpcbinfo(so->so_proto->pr_protocol);
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("udp_connect: inp == NULL"));
 	INP_WLOCK(inp);
@@ -1829,7 +1829,7 @@ udp_detach(struct socket *so)
 	struct inpcbinfo *pcbinfo;
 	struct udpcb *up;
 
-	pcbinfo = get_inpcbinfo(so->so_proto->pr_protocol);
+	pcbinfo = udp_get_inpcbinfo(so->so_proto->pr_protocol);
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("udp_detach: inp == NULL"));
 	KASSERT(inp->inp_faddr.s_addr == INADDR_ANY,
@@ -1851,7 +1851,7 @@ udp_disconnect(struct socket *so)
 	struct inpcb *inp;
 	struct inpcbinfo *pcbinfo;
 
-	pcbinfo = get_inpcbinfo(so->so_proto->pr_protocol);
+	pcbinfo = udp_get_inpcbinfo(so->so_proto->pr_protocol);
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("udp_disconnect: inp == NULL"));
 	INP_WLOCK(inp);

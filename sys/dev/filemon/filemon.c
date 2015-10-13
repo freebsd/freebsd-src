@@ -1,6 +1,7 @@
 /*-
  * Copyright (c) 2011, David E. O'Brien.
  * Copyright (c) 2009-2011, Juniper Networks, Inc.
+ * Copyright (c) 2015, EMC Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -39,12 +40,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/fcntl.h>
 #include <sys/ioccom.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/poll.h>
 #include <sys/proc.h>
 #include <sys/queue.h>
+#include <sys/sx.h>
 #include <sys/syscall.h>
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
@@ -85,12 +88,8 @@ MALLOC_DEFINE(M_FILEMON, "filemon", "File access monitor");
 
 struct filemon {
 	TAILQ_ENTRY(filemon) link;	/* Link into the in-use list. */
-	struct mtx	mtx;		/* Lock mutex for this filemon. */
-	struct cv	cv;		/* Lock condition variable for this
-					   filemon. */
+	struct sx	lock;		/* Lock mutex for this filemon. */
 	struct file	*fp;		/* Output file pointer. */
-	struct thread	*locker;	/* Ptr to the thread locking this
-					   filemon. */
 	pid_t		pid;		/* The process ID being monitored. */
 	char		fname1[MAXPATHLEN]; /* Temporary filename buffer. */
 	char		fname2[MAXPATHLEN]; /* Temporary filename buffer. */
@@ -99,11 +98,7 @@ struct filemon {
 
 static TAILQ_HEAD(, filemon) filemons_inuse = TAILQ_HEAD_INITIALIZER(filemons_inuse);
 static TAILQ_HEAD(, filemon) filemons_free = TAILQ_HEAD_INITIALIZER(filemons_free);
-static int n_readers = 0;
-static struct mtx access_mtx;
-static struct cv access_cv;
-static struct thread *access_owner = NULL;
-static struct thread *access_requester = NULL;
+static struct sx access_lock;
 
 static struct cdev *filemon_dev;
 
@@ -203,8 +198,7 @@ filemon_open(struct cdev *dev, int oflags __unused, int devtype __unused,
 
 		filemon->fp = NULL;
 
-		mtx_init(&filemon->mtx, "filemon", "filemon", MTX_DEF);
-		cv_init(&filemon->cv, "filemon");
+		sx_init(&filemon->lock, "filemon");
 	}
 
 	filemon->pid = curproc->p_pid;
@@ -234,8 +228,7 @@ filemon_close(struct cdev *dev __unused, int flag __unused, int fmt __unused,
 static void
 filemon_load(void *dummy __unused)
 {
-	mtx_init(&access_mtx, "filemon", "filemon", MTX_DEF);
-	cv_init(&access_cv, "filemon");
+	sx_init(&access_lock, "filemons_inuse");
 
 	/* Install the syscall wrappers. */
 	filemon_wrapper_install();
@@ -270,14 +263,12 @@ filemon_unload(void)
 		filemon_lock_write();
 		while ((filemon = TAILQ_FIRST(&filemons_free)) != NULL) {
 			TAILQ_REMOVE(&filemons_free, filemon, link);
-			mtx_destroy(&filemon->mtx);
-			cv_destroy(&filemon->cv);
+			sx_destroy(&filemon->lock);
 			free(filemon, M_FILEMON);
 		}
 		filemon_unlock_write();
 
-		mtx_destroy(&access_mtx);
-		cv_destroy(&access_cv);
+		sx_destroy(&access_lock);
 	}
 
 	return (error);

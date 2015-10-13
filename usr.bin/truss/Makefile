@@ -10,7 +10,10 @@ SRCS+= ${MACHINE_ARCH}-fbsd.c
 SRCS+= ${MACHINE_CPUARCH}-fbsd.c
 .endif
 
-CFLAGS+= -I${.CURDIR} -I.
+.PATH:	${.CURDIR:H}/kdump
+SRCS+=	utrace.c
+
+CFLAGS+= -I${.CURDIR} -I. -I${.CURDIR}/../../sys
 CLEANFILES= syscalls.master syscalls.h ioctl.c
 
 .SUFFIXES: .master
@@ -58,6 +61,16 @@ fbsd32-syscalls.master: ${.CURDIR}/../../sys/compat/freebsd32/syscalls.master
 freebsd32_syscalls.h:	fbsd32-syscalls.master
 	/bin/sh ${.CURDIR}/../../sys/kern/makesyscalls.sh ${.ALLSRC} \
 		${.CURDIR}/fbsd32.conf
+
+SRCS+=	amd64-cloudabi64.c cloudabi64_syscalls.h
+CLEANFILES+=amd64cloudabi64-syscalls.master cloudabi64_syscalls.h
+
+amd64cloudabi64-syscalls.master: ${.CURDIR}/../../sys/compat/cloudabi64/syscalls.master
+	cat ${.ALLSRC} > ${.TARGET}
+
+cloudabi64_syscalls.h:	amd64cloudabi64-syscalls.master
+	/bin/sh ${.CURDIR}/../../sys/kern/makesyscalls.sh ${.ALLSRC} \
+		${.CURDIR}/amd64cloudabi64.conf
 .endif
 
 .if ${MACHINE_ARCH} == "powerpc64"

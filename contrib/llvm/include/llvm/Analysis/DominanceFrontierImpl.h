@@ -19,11 +19,12 @@
 #define LLVM_ANALYSIS_DOMINANCEFRONTIERIMPL_H
 
 #include "llvm/ADT/SmallPtrSet.h"
+#include "llvm/Analysis/DominanceFrontier.h"
 #include "llvm/Support/Debug.h"
+#include "llvm/Support/GenericDomTree.h"
 
 namespace llvm {
 
-namespace {
 template <class BlockT>
 class DFCalculateWorkObject {
 public:
@@ -37,7 +38,6 @@ public:
   const DomTreeNodeT *Node;
   const DomTreeNodeT *parentNode;
 };
-}
 
 template <class BlockT>
 void DominanceFrontierBase<BlockT>::removeBlock(BlockT *BB) {

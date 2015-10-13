@@ -29,6 +29,7 @@
 
 #include "svn_hash.h"
 #include "svn_delta.h"
+#include "private/svn_string_private.h"
 #include "delta.h"
 
 /* This is pseudo-adler32. It is adler32 without the prime modulus.
@@ -42,6 +43,15 @@
    However, later optimizations assume it to be 256 or less.
  */
 #define MATCH_BLOCKSIZE 64
+
+/* Size of the checksum presence FLAGS array in BLOCKS_T.  With standard
+   MATCH_BLOCKSIZE and SVN_DELTA_WINDOW_SIZE, 32k entries is about 20x
+   the number of checksums that actually occur, i.e. we expect a >95%
+   probability that non-matching checksums get already detected by checking
+   against the FLAGS array.
+   Must be a power of 2.
+ */
+#define FLAGS_COUNT (32 * 1024)
 
 /* "no" / "invalid" / "unused" value for positions within the delta windows
  */
@@ -104,7 +114,7 @@ struct block
    (our delta window size much much smaller then 4GB).
    That reduces the hash table size by 50% from 32to 16KB
    and makes it easier to fit into the CPU's L1 cache. */
-  apr_uint32_t pos;			/* NO_POSITION -> block is not used */
+  apr_uint32_t pos;    /* NO_POSITION -> block is not used */
 };
 
 /* A hash table, using open addressing, of the blocks of the source. */
@@ -117,8 +127,19 @@ struct blocks
      hte same width as the block position index, (struct
      block).pos. */
   apr_uint32_t max;
+
   /* Source buffer that the positions in SLOTS refer to. */
   const char* data;
+
+  /* Bit array indicating whether there may be a matching slot for a given
+     adler32 checksum.  Since FLAGS has much more entries than SLOTS, this
+     will indicate most cases of non-matching checksums with a "0" bit, i.e.
+     as "known not to have a match".
+     The mapping of adler32 checksum bits is [0..2][16..27] (LSB -> MSB),
+     i.e. address the byte by the multiplicative part of adler32 and address
+     the bits in that byte by the additive part of adler32. */
+  char flags[FLAGS_COUNT / 8];
+
   /* The vector of blocks.  A pos value of NO_POSITION represents an unused
      slot. */
   struct block *slots;
@@ -133,6 +154,15 @@ static apr_uint32_t hash_func(apr_uint32_t sum)
      bits when used for our small block size, we add some bits from the
      other half of the checksum. */
   return sum ^ (sum >> 12);
+}
+
+/* Return the offset in BLOCKS.FLAGS for the adler32 SUM. */
+static apr_uint32_t hash_flags(apr_uint32_t sum)
+{
+  /* The upper half of SUM has a wider value range than the lower 16 bit.
+     Also, we want to a different folding than HASH_FUNC to minimize
+     correlation between different hash levels. */
+  return (sum >> 16) & ((FLAGS_COUNT / 8) - 1);
 }
 
 /* Insert a block with the checksum ADLERSUM at position POS in the source
@@ -152,6 +182,7 @@ add_block(struct blocks *blocks, apr_uint32_t adlersum, apr_uint32_t pos)
 
   blocks->slots[h].adlersum = adlersum;
   blocks->slots[h].pos = pos;
+  blocks->flags[hash_flags(adlersum)] |= 1 << (adlersum & 7);
 }
 
 /* Find a block in BLOCKS with the checksum ADLERSUM and matching the content
@@ -216,79 +247,15 @@ init_blocks_table(const char *data,
       blocks->slots[i].pos = NO_POSITION;
     }
 
+  /* No checksum entries in SLOTS, yet => reset all checksum flags. */
+  memset(blocks->flags, 0, sizeof(blocks->flags));
+
   /* If there is an odd block at the end of the buffer, we will
      not use that shorter block for deltification (only indirectly
      as an extension of some previous block). */
   for (i = 0; i + MATCH_BLOCKSIZE <= datalen; i += MATCH_BLOCKSIZE)
     add_block(blocks, init_adler32(data + i), i);
 }
-
-/* Return the lowest position at which A and B differ. If no difference
- * can be found in the first MAX_LEN characters, MAX_LEN will be returned.
- */
-static apr_size_t
-match_length(const char *a, const char *b, apr_size_t max_len)
-{
-  apr_size_t pos = 0;
-
-#if SVN_UNALIGNED_ACCESS_IS_OK
-
-  /* Chunky processing is so much faster ...
-   *
-   * We can't make this work on architectures that require aligned access
-   * because A and B will probably have different alignment. So, skipping
-   * the first few chars until alignment is reached is not an option.
-   */
-  for (; pos + sizeof(apr_size_t) <= max_len; pos += sizeof(apr_size_t))
-    if (*(const apr_size_t*)(a + pos) != *(const apr_size_t*)(b + pos))
-      break;
-
-#endif
-
-  for (; pos < max_len; ++pos)
-    if (a[pos] != b[pos])
-      break;
-
-  return pos;
-}
-
-/* Return the number of bytes before A and B that don't differ.  If no
- * difference can be found in the first MAX_LEN characters,  MAX_LEN will
- * be returned.  Please note that A-MAX_LEN and B-MAX_LEN must both be
- * valid addresses.
- */
-static apr_size_t
-reverse_match_length(const char *a, const char *b, apr_size_t max_len)
-{
-  apr_size_t pos = 0;
-
-#if SVN_UNALIGNED_ACCESS_IS_OK
-
-  /* Chunky processing is so much faster ...
-   *
-   * We can't make this work on architectures that require aligned access
-   * because A and B will probably have different alignment. So, skipping
-   * the first few chars until alignment is reached is not an option.
-   */
-  for (pos = sizeof(apr_size_t); pos <= max_len; pos += sizeof(apr_size_t))
-    if (*(const apr_size_t*)(a - pos) != *(const apr_size_t*)(b - pos))
-      break;
-
-  pos -= sizeof(apr_size_t);
-
-#endif
-
-  /* If we find a mismatch at -pos, pos-1 characters matched.
-   */
-  while (++pos <= max_len)
-    if (a[0-pos] != b[0-pos])
-      return pos - 1;
-
-  /* No mismatch found -> at least MAX_LEN matching chars.
-   */
-  return max_len;
-}
-
 
 /* Try to find a match for the target data B in BLOCKS, and then
    extend the match as long as data in A and B at the match position
@@ -323,9 +290,9 @@ find_match(const struct blocks *blocks,
   max_delta = asize - apos - MATCH_BLOCKSIZE < bsize - bpos - MATCH_BLOCKSIZE
             ? asize - apos - MATCH_BLOCKSIZE
             : bsize - bpos - MATCH_BLOCKSIZE;
-  delta = match_length(a + apos + MATCH_BLOCKSIZE,
-                       b + bpos + MATCH_BLOCKSIZE,
-                       max_delta);
+  delta = svn_cstring__match_length(a + apos + MATCH_BLOCKSIZE,
+                                    b + bpos + MATCH_BLOCKSIZE,
+                                    max_delta);
 
   /* See if we can extend backwards (max MATCH_BLOCKSIZE-1 steps because A's
      content has been sampled only every MATCH_BLOCKSIZE positions).  */
@@ -362,7 +329,8 @@ store_delta_trailer(svn_txdelta__ops_baton_t *build_baton,
   if (max_len == 0)
     return;
 
-  end_match = reverse_match_length(a + asize, b + bsize, max_len);
+  end_match = svn_cstring__reverse_match_length(a + asize, b + bsize,
+                                                max_len);
   if (end_match <= 4)
     end_match = 0;
 
@@ -409,12 +377,12 @@ compute_delta(svn_txdelta__ops_baton_t *build_baton,
 {
   struct blocks blocks;
   apr_uint32_t rolling;
-  apr_size_t lo = 0, pending_insert_start = 0;
+  apr_size_t lo = 0, pending_insert_start = 0, upper;
 
   /* Optimization: directly compare window starts. If more than 4
    * bytes match, we can immediately create a matching windows.
    * Shorter sequences result in a net data increase. */
-  lo = match_length(a, b, asize > bsize ? bsize : asize);
+  lo = svn_cstring__match_length(a, b, asize > bsize ? bsize : asize);
   if ((lo > 4) || (lo == bsize))
     {
       svn_txdelta__insert_op(build_baton, svn_txdelta_source,
@@ -432,19 +400,32 @@ compute_delta(svn_txdelta__ops_baton_t *build_baton,
       return;
     }
 
+  upper = bsize - MATCH_BLOCKSIZE; /* this is now known to be >= LO */
+
   /* Initialize the matches table.  */
   init_blocks_table(a, asize, &blocks, pool);
 
   /* Initialize our rolling checksum.  */
   rolling = init_adler32(b + lo);
-  while (lo < bsize)
+  while (lo < upper)
     {
-      apr_size_t matchlen = 0;
+      apr_size_t matchlen;
       apr_size_t apos;
 
-      if (lo + MATCH_BLOCKSIZE <= bsize)
-        matchlen = find_match(&blocks, rolling, a, asize, b, bsize,
-                              &lo, &apos, pending_insert_start);
+      /* Quickly skip positions whose respective ROLLING checksums
+         definitely do not match any SLOT in BLOCKS. */
+      while (!(blocks.flags[hash_flags(rolling)] & (1 << (rolling & 7)))
+             && lo < upper)
+        {
+          rolling = adler32_replace(rolling, b[lo], b[lo+MATCH_BLOCKSIZE]);
+          lo++;
+        }
+
+      /* LO is still <= UPPER, i.e. the following lookup is legal:
+         Closely check whether we've got a match for the current location.
+         Due to the above pre-filter, chances are that we find one. */
+      matchlen = find_match(&blocks, rolling, a, asize, b, bsize,
+                            &lo, &apos, pending_insert_start);
 
       /* If we didn't find a real match, insert the byte at the target
          position into the pending insert.  */
@@ -468,7 +449,8 @@ compute_delta(svn_txdelta__ops_baton_t *build_baton,
             {
               /* the match borders on the previous op. Maybe, we found a
                * match that is better than / overlapping the previous one. */
-              apr_size_t len = reverse_match_length(a + apos, b + lo, apos < lo ? apos : lo);
+              apr_size_t len = svn_cstring__reverse_match_length
+                                 (a + apos, b + lo, apos < lo ? apos : lo);
               if (len > 0)
                 {
                   len = svn_txdelta__remove_copy(build_baton, len);

@@ -85,6 +85,7 @@ cam/ctl/ctl_frontend.c		optional ctl
 cam/ctl/ctl_frontend_cam_sim.c	optional ctl
 cam/ctl/ctl_frontend_ioctl.c	optional ctl
 cam/ctl/ctl_frontend_iscsi.c	optional ctl
+cam/ctl/ctl_ha.c		optional ctl
 cam/ctl/ctl_scsi_all.c		optional ctl
 cam/ctl/ctl_tpc.c		optional ctl
 cam/ctl/ctl_tpc_local.c		optional ctl
@@ -401,7 +402,7 @@ contrib/dev/acpica/components/parser/psxface.c		optional acpi
 contrib/dev/acpica/components/resources/rsaddr.c	optional acpi
 contrib/dev/acpica/components/resources/rscalc.c	optional acpi
 contrib/dev/acpica/components/resources/rscreate.c	optional acpi
-contrib/dev/acpica/components/resources/rsdump.c	optional acpi
+contrib/dev/acpica/components/resources/rsdump.c	optional acpi acpi_debug
 contrib/dev/acpica/components/resources/rsdumpinfo.c	optional acpi
 contrib/dev/acpica/components/resources/rsinfo.c	optional acpi
 contrib/dev/acpica/components/resources/rsio.c		optional acpi
@@ -1880,6 +1881,7 @@ dev/ixgbe/ixgbe_dcb_82599.c	optional ix inet | ixv inet \
 dev/jme/if_jme.c		optional jme pci
 dev/joy/joy.c			optional joy
 dev/joy/joy_isa.c		optional joy isa
+dev/kbd/kbd.c			optional atkbd | pckbd | sc | ukbd | vt
 dev/kbdmux/kbdmux.c		optional kbdmux
 dev/ksyms/ksyms.c		optional ksyms
 dev/le/am7990.c			optional le
@@ -2088,6 +2090,13 @@ dev/ofw/ofw_iicbus.c		optional fdt iicbus
 dev/ofw/ofwbus.c		optional fdt
 dev/ofw/openfirm.c		optional fdt
 dev/ofw/openfirmio.c		optional fdt
+dev/ow/ow.c			optional ow				\
+	dependency	"owll_if.h"					\
+	dependency	"own_if.h"
+dev/ow/owll_if.m		optional ow
+dev/ow/own_if.m			optional ow
+dev/ow/ow_temp.c		optional ow_temp
+dev/ow/owc_gpiobus.c		optional owc gpio
 dev/patm/if_patm.c		optional patm pci
 dev/patm/if_patm_attach.c	optional patm pci
 dev/patm/if_patm_intr.c		optional patm pci
@@ -2844,8 +2853,7 @@ dev/xe/if_xe_pccard.c		optional xe pccard
 dev/xen/balloon/balloon.c	optional xenhvm
 dev/xen/blkfront/blkfront.c	optional xenhvm
 dev/xen/blkback/blkback.c	optional xenhvm
-dev/xen/console/console.c	optional xenhvm
-dev/xen/console/xencons_ring.c	optional xenhvm
+dev/xen/console/xen_console.c	optional xenhvm
 dev/xen/control/control.c	optional xenhvm
 dev/xen/grant_table/grant_table.c	optional xenhvm
 dev/xen/netback/netback.c	optional xenhvm

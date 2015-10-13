@@ -2,8 +2,6 @@
 
 .include <bsd.own.mk>
 
-TESTSDIR=	${TESTSBASE}/lib/libc/ttyio
-
 # TODO: ptm_test
 NETBSD_ATF_TESTS_C=	ttyio_test
 

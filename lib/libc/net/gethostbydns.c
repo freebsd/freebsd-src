@@ -107,10 +107,7 @@ int _dns_ttl_;
 
 #ifdef DEBUG
 static void
-dprintf(msg, num, res)
-	char *msg;
-	int num;
-	res_state res;
+dprintf(char *msg, int num, res_state res)
 {
 	if (res->options & RES_DEBUG) {
 		int save = errno;
@@ -769,7 +766,7 @@ _sethostdnsent(int stayopen)
 }
 
 void
-_endhostdnsent()
+_endhostdnsent(void)
 {
 	res_state statp;
 

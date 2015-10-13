@@ -381,7 +381,7 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, int flags,
 			}
 
 			*where = def->st_value + rela->r_addend +
-			    defobj->tlsoffset - TLS_TCB_SIZE;
+			    defobj->tlsoffset;
 			break;
 		case R_AARCH64_RELATIVE:
 			*where = (Elf_Addr)(obj->relocbase + rela->r_addend);

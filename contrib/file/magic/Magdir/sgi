@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: sgi,v 1.21 2014/04/30 21:41:02 christos Exp $
+# $File: sgi,v 1.22 2015/08/29 07:10:35 christos Exp $
 # sgi:  file(1) magic for Silicon Graphics operating systems and applications
 #
 # Executable images are handled either in aout (for old-style a.out
@@ -55,8 +55,8 @@
 0	string	WNGZWZSS	Wingz spreadsheet
 0	string	WNGZWZHP	Wingz help file
 #
-0	string	#Inventor V	IRIS Inventor 1.0 file
-0	string	#Inventor V2	Open Inventor 2.0 file
+0	string	#Inventor\040V	IRIS Inventor 1.0 file
+0	string	#Inventor\040V2	Open Inventor 2.0 file
 # GLF is OpenGL stream encoding
 0	string	glfHeadMagic();		GLF_TEXT
 4	belong	0x7d000000		GLF_BINARY_LSB_FIRST

@@ -13,8 +13,8 @@ Items affecting the ports and packages system can be found in
 
 NOTE: FreeBSD has switched from gcc to clang. If you have trouble bootstrapping
 from older versions of FreeBSD, try WITHOUT_CLANG and WITH_GCC to bootstrap to
-the tip of head, and then rebuild without this option. The bootstrap process from
-older version of current across the gcc/clang cutover is a bit fragile.
+the tip of head, and then rebuild without this option. The bootstrap process
+from older version of current across the gcc/clang cutover is a bit fragile.
 
 NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	FreeBSD 11.x has many debugging features turned on, in both the kernel
@@ -30,6 +30,53 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	debugging, define MALLOC_PRODUCTION in /etc/make.conf, or to merely
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
+
+20151012:
+	If you specify SENDMAIL_MC or SENDMAIL_CF in make.conf, mergemaster
+	and etcupdate will now use this file. A custom sendmail.cf is now
+	updated via this mechanism rather than via installworld.  If you had
+	excluded sendmail.cf in mergemaster.rc or etcupdate.conf, you may
+	want to remove the exclusion or change it to "always install".
+	/etc/mail/sendmail.cf is now managed the same way regardless of
+	whether SENDMAIL_MC/SENDMAIL_CF is used.  If you are not using
+	SENDMAIL_MC/SENDMAIL_CF there should be no change in behavior.
+
+20151011:
+	Compatibility shims for legacy ATA device names have been removed.
+	It includes ATA_STATIC_ID kernel option, kern.cam.ada.legacy_aliases
+	and kern.geom.raid.legacy_aliases loader tunables, kern.devalias.*
+	environment variables, /dev/ad* and /dev/ar* symbolic links.
+
+20151006:
+	Clang, llvm, lldb, compiler-rt and libc++ have been upgraded to 3.7.0.
+	Please see the 20141231 entry below for information about prerequisites
+	and upgrading, if you are not already using clang 3.5.0 or higher.
+
+20150924:
+	Kernel debug files have been moved to /usr/lib/debug/boot/kernel/,
+	and renamed from .symbols to .debug. This reduces the size requirements
+	on the boot partition or file system and provides consistency with
+	userland debug files.
+
+	When using the supported kernel installation method the
+	/usr/lib/debug/boot/kernel directory will be renamed (to kernel.old)
+	as is done with /boot/kernel.
+
+	Developers wishing to maintain the historical behavior of installing
+	debug files in /boot/kernel/ can set KERN_DEBUGDIR="" in src.conf(5).
+
+20150827:
+	The wireless drivers had undergone changes that remove the 'parent
+	interface' from the ifconfig -l output. The rc.d network scripts
+	used to check presence of a parent interface in the list, so old
+	scripts would fail to start wireless networking. Thus, etcupdate(3)
+	or mergemaster(8) run is required after kernel update, to update your
+	rc.d scripts in /etc.
+
+20150827:
+	pf no longer supports 'scrub fragment crop' or 'scrub fragment drop-ovl'
+	These configurations are now automatically interpreted as
+	'scrub fragment reassemble'.
 
 20150817:
 	Kernel-loadable modules for the random(4) device are back. To use

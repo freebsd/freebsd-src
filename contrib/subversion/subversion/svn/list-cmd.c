@@ -222,7 +222,7 @@ print_dirent_xml(void *baton,
           svn_xml_make_open_tag(&sb, scratch_pool, svn_xml_normal, "external",
                                 "parent_url", external_parent_url,
                                 "target", external_target,
-                                NULL);
+                                SVN_VA_NULL);
 
           pb->last_external_parent_url = external_parent_url;
           pb->last_external_target = external_target;
@@ -232,7 +232,7 @@ print_dirent_xml(void *baton,
 
   svn_xml_make_open_tag(&sb, scratch_pool, svn_xml_normal, "entry",
                         "kind", svn_cl__node_kind_str_xml(dirent->kind),
-                        NULL);
+                        SVN_VA_NULL);
 
   svn_cl__xml_tagged_cdata(&sb, scratch_pool, "name", entryname);
 
@@ -246,7 +246,7 @@ print_dirent_xml(void *baton,
   svn_xml_make_open_tag(&sb, scratch_pool, svn_xml_normal, "commit",
                         "revision",
                         apr_psprintf(scratch_pool, "%ld", dirent->created_rev),
-                        NULL);
+                        SVN_VA_NULL);
   svn_cl__xml_tagged_cdata(&sb, scratch_pool, "author", dirent->last_author);
   if (dirent->time)
     svn_cl__xml_tagged_cdata(&sb, scratch_pool, "date",
@@ -255,7 +255,8 @@ print_dirent_xml(void *baton,
 
   if (lock)
     {
-      svn_xml_make_open_tag(&sb, scratch_pool, svn_xml_normal, "lock", NULL);
+      svn_xml_make_open_tag(&sb, scratch_pool, svn_xml_normal, "lock",
+                            SVN_VA_NULL);
       svn_cl__xml_tagged_cdata(&sb, scratch_pool, "token", lock->token);
       svn_cl__xml_tagged_cdata(&sb, scratch_pool, "owner", lock->owner);
       svn_cl__xml_tagged_cdata(&sb, scratch_pool, "comment", lock->comment);
@@ -370,7 +371,7 @@ svn_cl__list(apr_getopt_t *os,
           svn_stringbuf_t *sb = svn_stringbuf_create_empty(pool);
           svn_xml_make_open_tag(&sb, pool, svn_xml_normal, "list",
                                 "path", truepath[0] == '\0' ? "." : truepath,
-                                NULL);
+                                SVN_VA_NULL);
           SVN_ERR(svn_cl__error_checked_fputs(sb->data, stdout));
         }
 
@@ -430,6 +431,8 @@ svn_cl__list(apr_getopt_t *os,
   if (seen_nonexistent_target)
     err = svn_error_create(SVN_ERR_ILLEGAL_TARGET, NULL,
           _("Could not list all targets because some targets don't exist"));
+  else
+    err = NULL;
 
   return svn_error_compose_create(externals_err, err);
 }

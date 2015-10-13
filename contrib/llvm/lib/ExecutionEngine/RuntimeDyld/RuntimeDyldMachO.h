@@ -49,7 +49,9 @@ protected:
   // EH frame sections with the memory manager.
   SmallVector<EHFrameRelatedSections, 2> UnregisteredEHFrameSections;
 
-  RuntimeDyldMachO(RTDyldMemoryManager *mm) : RuntimeDyldImpl(mm) {}
+  RuntimeDyldMachO(RuntimeDyld::MemoryManager &MemMgr,
+                   RuntimeDyld::SymbolResolver &Resolver)
+      : RuntimeDyldImpl(MemMgr, Resolver) {}
 
   /// This convenience method uses memcpy to extract a contiguous addend (the
   /// addend size and offset are taken from the corresponding fields of the RE).
@@ -70,8 +72,7 @@ protected:
 
     bool IsPCRel = Obj.getAnyRelocationPCRel(RelInfo);
     unsigned Size = Obj.getAnyRelocationLength(RelInfo);
-    uint64_t Offset;
-    RI->getOffset(Offset);
+    uint64_t Offset = RI->getOffset();
     MachO::RelocationInfoType RelType =
       static_cast<MachO::RelocationInfoType>(Obj.getAnyRelocationType(RelInfo));
 
@@ -94,7 +95,6 @@ protected:
 
   /// Make the RelocationValueRef addend PC-relative.
   void makeValueAddendPCRel(RelocationValueRef &Value,
-                            const ObjectFile &BaseTObj,
                             const relocation_iterator &RI,
                             unsigned OffsetToNextPC);
 
@@ -114,8 +114,10 @@ protected:
 public:
 
   /// Create a RuntimeDyldMachO instance for the given target architecture.
-  static std::unique_ptr<RuntimeDyldMachO> create(Triple::ArchType Arch,
-                                                  RTDyldMemoryManager *mm);
+  static std::unique_ptr<RuntimeDyldMachO>
+  create(Triple::ArchType Arch,
+         RuntimeDyld::MemoryManager &MemMgr,
+         RuntimeDyld::SymbolResolver &Resolver);
 
   std::unique_ptr<RuntimeDyld::LoadedObjectInfo>
   loadObject(const object::ObjectFile &O) override;
@@ -142,7 +144,9 @@ private:
                             int64_t DeltaForEH);
 
 public:
-  RuntimeDyldMachOCRTPBase(RTDyldMemoryManager *mm) : RuntimeDyldMachO(mm) {}
+  RuntimeDyldMachOCRTPBase(RuntimeDyld::MemoryManager &MemMgr,
+                           RuntimeDyld::SymbolResolver &Resolver)
+    : RuntimeDyldMachO(MemMgr, Resolver) {}
 
   void finalizeLoad(const ObjectFile &Obj,
                     ObjSectionToIDMap &SectionMap) override;

@@ -52,14 +52,17 @@ namespace llvm {
     /* Number of bits in the significand.  This includes the integer
        bit.  */
     unsigned int precision;
+
+    /* Number of bits actually used in the semantics. */
+    unsigned int sizeInBits;
   };
 
-  const fltSemantics APFloat::IEEEhalf = { 15, -14, 11 };
-  const fltSemantics APFloat::IEEEsingle = { 127, -126, 24 };
-  const fltSemantics APFloat::IEEEdouble = { 1023, -1022, 53 };
-  const fltSemantics APFloat::IEEEquad = { 16383, -16382, 113 };
-  const fltSemantics APFloat::x87DoubleExtended = { 16383, -16382, 64 };
-  const fltSemantics APFloat::Bogus = { 0, 0, 0 };
+  const fltSemantics APFloat::IEEEhalf = { 15, -14, 11, 16 };
+  const fltSemantics APFloat::IEEEsingle = { 127, -126, 24, 32 };
+  const fltSemantics APFloat::IEEEdouble = { 1023, -1022, 53, 64 };
+  const fltSemantics APFloat::IEEEquad = { 16383, -16382, 113, 128 };
+  const fltSemantics APFloat::x87DoubleExtended = { 16383, -16382, 64, 80 };
+  const fltSemantics APFloat::Bogus = { 0, 0, 0, 0 };
 
   /* The PowerPC format consists of two doubles.  It does not map cleanly
      onto the usual format above.  It is approximated using twice the
@@ -72,7 +75,7 @@ namespace llvm {
      to represent all possible values held by a PPC double-double number,
      for example: (long double) 1.0 + (long double) 0x1p-106
      Should this be replaced by a full emulation of PPC double-double?  */
-  const fltSemantics APFloat::PPCDoubleDouble = { 1023, -1022 + 53, 53 + 53 };
+  const fltSemantics APFloat::PPCDoubleDouble = { 1023, -1022 + 53, 53 + 53, 128 };
 
   /* A tight upper bound on number of parts required to hold the value
      pow(5, power) is
@@ -1248,10 +1251,10 @@ APFloat::roundAwayFromZero(roundingMode rounding_mode,
     return false;
 
   case rmTowardPositive:
-    return sign == false;
+    return !sign;
 
   case rmTowardNegative:
-    return sign == true;
+    return sign;
   }
   llvm_unreachable("Invalid rounding mode found");
 }
@@ -1430,7 +1433,7 @@ APFloat::addOrSubtractSignificand(const APFloat &rhs, bool subtract)
 
   /* Determine if the operation on the absolute values is effectively
      an addition or subtraction.  */
-  subtract ^= (sign ^ rhs.sign) ? true : false;
+  subtract ^= static_cast<bool>(sign ^ rhs.sign);
 
   /* Are we bigger exponent-wise than the RHS?  */
   bits = exponent - rhs.exponent;
@@ -2416,7 +2419,7 @@ APFloat::roundSignificandWithExponent(const integerPart *decSigParts,
                                       roundingMode rounding_mode)
 {
   unsigned int parts, pow5PartCount;
-  fltSemantics calcSemantics = { 32767, -32767, 0 };
+  fltSemantics calcSemantics = { 32767, -32767, 0, 0 };
   integerPart pow5Parts[maxPowerOfFiveParts];
   bool isNearest;
 
@@ -3368,6 +3371,10 @@ APFloat::getAllOnesValue(unsigned BitWidth, bool isIEEE)
   }
 }
 
+unsigned APFloat::getSizeInBits(const fltSemantics &Sem) {
+  return Sem.sizeInBits;
+}
+
 /// Make this number the largest magnitude normal number in the given
 /// semantics.
 void APFloat::makeLargest(bool Negative) {
@@ -3920,7 +3927,7 @@ APFloat::makeZero(bool Negative) {
 
 APFloat llvm::scalbn(APFloat X, int Exp) {
   if (X.isInfinity() || X.isZero() || X.isNaN())
-    return std::move(X);
+    return X;
 
   auto MaxExp = X.getSemantics().maxExponent;
   auto MinExp = X.getSemantics().minExponent;
@@ -3932,5 +3939,5 @@ APFloat llvm::scalbn(APFloat X, int Exp) {
     return APFloat::getZero(X.getSemantics(), X.isNegative());
 
   X.exponent += Exp;
-  return std::move(X);
+  return X;
 }

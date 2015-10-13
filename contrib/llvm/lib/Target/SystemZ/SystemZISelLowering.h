@@ -22,7 +22,7 @@
 
 namespace llvm {
 namespace SystemZISD {
-enum {
+enum NodeType : unsigned {
   FIRST_NUMBER = ISD::BUILTIN_OP_END,
 
   // Return with a flag operand.  Operand 0 is the chain operand.
@@ -33,6 +33,11 @@ enum {
   // There is an optional glue operand at the end.
   CALL,
   SIBCALL,
+
+  // TLS calls.  Like regular calls, except operand 1 is the TLS symbol.
+  // (The call target is implicitly __tls_get_offset.)
+  TLS_GDCALL,
+  TLS_LDCALL,
 
   // Wraps a TargetGlobalAddress that should be loaded using PC-relative
   // accesses (LARL).  Operand 0 is the address.
@@ -81,6 +86,9 @@ enum {
   // Extracts the value of a 32-bit access register.  Operand 0 is
   // the number of the register.
   EXTRACT_ACCESS,
+
+  // Count number of bits set in operand 0 per byte.
+  POPCNT,
 
   // Wrappers around the ISD opcodes of the same name.  The output and
   // first input operands are GR128s.  The trailing numbers are the
@@ -137,6 +145,135 @@ enum {
 
   // Perform a serialization operation.  (BCR 15,0 or BCR 14,0.)
   SERIALIZE,
+
+  // Transaction begin.  The first operand is the chain, the second
+  // the TDB pointer, and the third the immediate control field.
+  // Returns chain and glue.
+  TBEGIN,
+  TBEGIN_NOFLOAT,
+
+  // Transaction end.  Just the chain operand.  Returns chain and glue.
+  TEND,
+
+  // Create a vector constant by filling byte N of the result with bit
+  // 15-N of the single operand.
+  BYTE_MASK,
+
+  // Create a vector constant by replicating an element-sized RISBG-style mask.
+  // The first operand specifies the starting set bit and the second operand
+  // specifies the ending set bit.  Both operands count from the MSB of the
+  // element.
+  ROTATE_MASK,
+
+  // Replicate a GPR scalar value into all elements of a vector.
+  REPLICATE,
+
+  // Create a vector from two i64 GPRs.
+  JOIN_DWORDS,
+
+  // Replicate one element of a vector into all elements.  The first operand
+  // is the vector and the second is the index of the element to replicate.
+  SPLAT,
+
+  // Interleave elements from the high half of operand 0 and the high half
+  // of operand 1.
+  MERGE_HIGH,
+
+  // Likewise for the low halves.
+  MERGE_LOW,
+
+  // Concatenate the vectors in the first two operands, shift them left
+  // by the third operand, and take the first half of the result.
+  SHL_DOUBLE,
+
+  // Take one element of the first v2i64 operand and the one element of
+  // the second v2i64 operand and concatenate them to form a v2i64 result.
+  // The third operand is a 4-bit value of the form 0A0B, where A and B
+  // are the element selectors for the first operand and second operands
+  // respectively.
+  PERMUTE_DWORDS,
+
+  // Perform a general vector permute on vector operands 0 and 1.
+  // Each byte of operand 2 controls the corresponding byte of the result,
+  // in the same way as a byte-level VECTOR_SHUFFLE mask.
+  PERMUTE,
+
+  // Pack vector operands 0 and 1 into a single vector with half-sized elements.
+  PACK,
+
+  // Likewise, but saturate the result and set CC.  PACKS_CC does signed
+  // saturation and PACKLS_CC does unsigned saturation.
+  PACKS_CC,
+  PACKLS_CC,
+
+  // Unpack the first half of vector operand 0 into double-sized elements.
+  // UNPACK_HIGH sign-extends and UNPACKL_HIGH zero-extends.
+  UNPACK_HIGH,
+  UNPACKL_HIGH,
+
+  // Likewise for the second half.
+  UNPACK_LOW,
+  UNPACKL_LOW,
+
+  // Shift each element of vector operand 0 by the number of bits specified
+  // by scalar operand 1.
+  VSHL_BY_SCALAR,
+  VSRL_BY_SCALAR,
+  VSRA_BY_SCALAR,
+
+  // For each element of the output type, sum across all sub-elements of
+  // operand 0 belonging to the corresponding element, and add in the
+  // rightmost sub-element of the corresponding element of operand 1.
+  VSUM,
+
+  // Compare integer vector operands 0 and 1 to produce the usual 0/-1
+  // vector result.  VICMPE is for equality, VICMPH for "signed greater than"
+  // and VICMPHL for "unsigned greater than".
+  VICMPE,
+  VICMPH,
+  VICMPHL,
+
+  // Likewise, but also set the condition codes on the result.
+  VICMPES,
+  VICMPHS,
+  VICMPHLS,
+
+  // Compare floating-point vector operands 0 and 1 to preoduce the usual 0/-1
+  // vector result.  VFCMPE is for "ordered and equal", VFCMPH for "ordered and
+  // greater than" and VFCMPHE for "ordered and greater than or equal to".
+  VFCMPE,
+  VFCMPH,
+  VFCMPHE,
+
+  // Likewise, but also set the condition codes on the result.
+  VFCMPES,
+  VFCMPHS,
+  VFCMPHES,
+
+  // Test floating-point data class for vectors.
+  VFTCI,
+
+  // Extend the even f32 elements of vector operand 0 to produce a vector
+  // of f64 elements.
+  VEXTEND,
+
+  // Round the f64 elements of vector operand 0 to f32s and store them in the
+  // even elements of the result.
+  VROUND,
+
+  // AND the two vector operands together and set CC based on the result.
+  VTM,
+
+  // String operations that set CC as a side-effect.
+  VFAE_CC,
+  VFAEZ_CC,
+  VFEE_CC,
+  VFEEZ_CC,
+  VFENE_CC,
+  VFENEZ_CC,
+  VISTR_CC,
+  VSTRC_CC,
+  VSTRCZ_CC,
 
   // Wrappers around the inner loop of an 8- or 16-bit ATOMIC_SWAP or
   // ATOMIC_LOAD_<op>.
@@ -198,16 +335,43 @@ class SystemZTargetMachine;
 
 class SystemZTargetLowering : public TargetLowering {
 public:
-  explicit SystemZTargetLowering(const TargetMachine &TM);
+  explicit SystemZTargetLowering(const TargetMachine &TM,
+                                 const SystemZSubtarget &STI);
 
   // Override TargetLowering.
-  MVT getScalarShiftAmountTy(EVT LHSTy) const override {
+  MVT getScalarShiftAmountTy(const DataLayout &, EVT) const override {
     return MVT::i32;
   }
-  EVT getSetCCResultType(LLVMContext &, EVT) const override;
+  MVT getVectorIdxTy(const DataLayout &DL) const override {
+    // Only the lower 12 bits of an element index are used, so we don't
+    // want to clobber the upper 32 bits of a GPR unnecessarily.
+    return MVT::i32;
+  }
+  TargetLoweringBase::LegalizeTypeAction getPreferredVectorAction(EVT VT)
+    const override {
+    // Widen subvectors to the full width rather than promoting integer
+    // elements.  This is better because:
+    //
+    // (a) it means that we can handle the ABI for passing and returning
+    //     sub-128 vectors without having to handle them as legal types.
+    //
+    // (b) we don't have instructions to extend on load and truncate on store,
+    //     so promoting the integers is less efficient.
+    //
+    // (c) there are no multiplication instructions for the widest integer
+    //     type (v2i64).
+    if (VT.getVectorElementType().getSizeInBits() % 8 == 0)
+      return TypeWidenVector;
+    return TargetLoweringBase::getPreferredVectorAction(VT);
+  }
+  EVT getSetCCResultType(const DataLayout &DL, LLVMContext &,
+                         EVT) const override;
   bool isFMAFasterThanFMulAndFAdd(EVT VT) const override;
   bool isFPImmLegal(const APFloat &Imm, EVT VT) const override;
-  bool isLegalAddressingMode(const AddrMode &AM, Type *Ty) const override;
+  bool isLegalICmpImmediate(int64_t Imm) const override;
+  bool isLegalAddImmediate(int64_t Imm) const override;
+  bool isLegalAddressingMode(const DataLayout &DL, const AddrMode &AM, Type *Ty,
+                             unsigned AS) const override;
   bool allowsMisalignedMemoryAccesses(EVT VT, unsigned AS,
                                       unsigned Align,
                                       bool *Fast) const override;
@@ -215,10 +379,10 @@ public:
   bool isTruncateFree(EVT, EVT) const override;
   const char *getTargetNodeName(unsigned Opcode) const override;
   std::pair<unsigned, const TargetRegisterClass *>
-    getRegForInlineAsmConstraint(const std::string &Constraint,
-                                 MVT VT) const override;
+  getRegForInlineAsmConstraint(const TargetRegisterInfo *TRI,
+                               StringRef Constraint, MVT VT) const override;
   TargetLowering::ConstraintType
-    getConstraintType(const std::string &Constraint) const override;
+  getConstraintType(StringRef Constraint) const override;
   TargetLowering::ConstraintWeight
     getSingleConstraintMatchWeight(AsmOperandInfo &info,
                                    const char *constraint) const override;
@@ -226,6 +390,25 @@ public:
                                     std::string &Constraint,
                                     std::vector<SDValue> &Ops,
                                     SelectionDAG &DAG) const override;
+
+  unsigned getInlineAsmMemConstraint(StringRef ConstraintCode) const override {
+    if (ConstraintCode.size() == 1) {
+      switch(ConstraintCode[0]) {
+      default:
+        break;
+      case 'Q':
+        return InlineAsm::Constraint_Q;
+      case 'R':
+        return InlineAsm::Constraint_R;
+      case 'S':
+        return InlineAsm::Constraint_S;
+      case 'T':
+        return InlineAsm::Constraint_T;
+      }
+    }
+    return TargetLowering::getInlineAsmMemConstraint(ConstraintCode);
+  }
+
   MachineBasicBlock *EmitInstrWithCustomInserter(MachineInstr *MI,
                                                  MachineBasicBlock *BB) const
     override;
@@ -240,6 +423,10 @@ public:
   SDValue LowerCall(CallLoweringInfo &CLI,
                     SmallVectorImpl<SDValue> &InVals) const override;
 
+  bool CanLowerReturn(CallingConv::ID CallConv, MachineFunction &MF,
+                      bool isVarArg,
+                      const SmallVectorImpl<ISD::OutputArg> &Outs,
+                      LLVMContext &Context) const override;
   SDValue LowerReturn(SDValue Chain, CallingConv::ID CallConv, bool IsVarArg,
                       const SmallVectorImpl<ISD::OutputArg> &Outs,
                       const SmallVectorImpl<SDValue> &OutVals,
@@ -257,6 +444,9 @@ private:
   SDValue lowerSELECT_CC(SDValue Op, SelectionDAG &DAG) const;
   SDValue lowerGlobalAddress(GlobalAddressSDNode *Node,
                              SelectionDAG &DAG) const;
+  SDValue lowerTLSGetOffset(GlobalAddressSDNode *Node,
+                            SelectionDAG &DAG, unsigned Opcode,
+                            SDValue GOTOffset) const;
   SDValue lowerGlobalTLSAddress(GlobalAddressSDNode *Node,
                                 SelectionDAG &DAG) const;
   SDValue lowerBlockAddress(BlockAddressSDNode *Node,
@@ -272,6 +462,7 @@ private:
   SDValue lowerUDIVREM(SDValue Op, SelectionDAG &DAG) const;
   SDValue lowerBITCAST(SDValue Op, SelectionDAG &DAG) const;
   SDValue lowerOR(SDValue Op, SelectionDAG &DAG) const;
+  SDValue lowerCTPOP(SDValue Op, SelectionDAG &DAG) const;
   SDValue lowerATOMIC_LOAD(SDValue Op, SelectionDAG &DAG) const;
   SDValue lowerATOMIC_STORE(SDValue Op, SelectionDAG &DAG) const;
   SDValue lowerATOMIC_LOAD_OP(SDValue Op, SelectionDAG &DAG,
@@ -282,6 +473,22 @@ private:
   SDValue lowerSTACKSAVE(SDValue Op, SelectionDAG &DAG) const;
   SDValue lowerSTACKRESTORE(SDValue Op, SelectionDAG &DAG) const;
   SDValue lowerPREFETCH(SDValue Op, SelectionDAG &DAG) const;
+  SDValue lowerINTRINSIC_W_CHAIN(SDValue Op, SelectionDAG &DAG) const;
+  SDValue lowerINTRINSIC_WO_CHAIN(SDValue Op, SelectionDAG &DAG) const;
+  SDValue lowerBUILD_VECTOR(SDValue Op, SelectionDAG &DAG) const;
+  SDValue lowerVECTOR_SHUFFLE(SDValue Op, SelectionDAG &DAG) const;
+  SDValue lowerSCALAR_TO_VECTOR(SDValue Op, SelectionDAG &DAG) const;
+  SDValue lowerINSERT_VECTOR_ELT(SDValue Op, SelectionDAG &DAG) const;
+  SDValue lowerEXTRACT_VECTOR_ELT(SDValue Op, SelectionDAG &DAG) const;
+  SDValue lowerExtendVectorInreg(SDValue Op, SelectionDAG &DAG,
+				 unsigned UnpackHigh) const;
+  SDValue lowerShift(SDValue Op, SelectionDAG &DAG, unsigned ByScalar) const;
+
+  SDValue combineExtract(SDLoc DL, EVT ElemVT, EVT VecVT, SDValue OrigOp,
+                         unsigned Index, DAGCombinerInfo &DCI,
+                         bool Force) const;
+  SDValue combineTruncateExtract(SDLoc DL, EVT TruncVT, SDValue Op,
+                                 DAGCombinerInfo &DCI) const;
 
   // If the last instruction before MBBI in MBB was some form of COMPARE,
   // try to replace it with a COMPARE AND BRANCH just before MBBI.
@@ -319,6 +526,10 @@ private:
   MachineBasicBlock *emitStringWrapper(MachineInstr *MI,
                                        MachineBasicBlock *BB,
                                        unsigned Opcode) const;
+  MachineBasicBlock *emitTransactionBegin(MachineInstr *MI,
+                                          MachineBasicBlock *MBB,
+                                          unsigned Opcode,
+                                          bool NoFloat) const;
 };
 } // end namespace llvm
 

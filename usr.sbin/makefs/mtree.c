@@ -181,7 +181,7 @@ static char *
 mtree_resolve(const char *spec, int *istemp)
 {
 	struct sbuf *sb;
-	char *res, *var;
+	char *res, *var = NULL;
 	const char *base, *p, *v;
 	size_t len;
 	int c, error, quoted, subst;
@@ -284,8 +284,10 @@ mtree_resolve(const char *spec, int *istemp)
 			free(res);
 		}
 		free(var);
+		var = NULL;
 	}
 
+	free(var);
 	sbuf_finish(sb);
 	res = (error == 0) ? strdup(sbuf_data(sb)) : NULL;
 	sbuf_delete(sb);

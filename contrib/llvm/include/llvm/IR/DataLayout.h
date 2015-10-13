@@ -53,6 +53,11 @@ enum AlignTypeEnum {
   AGGREGATE_ALIGN = 'a'
 };
 
+// FIXME: Currently the DataLayout string carries a "preferred alignment"
+// for types. As the DataLayout is module/global, this should likely be
+// sunk down to an FTTI element that is queried rather than a global
+// preference.
+
 /// \brief Layout alignment element.
 ///
 /// Stores the alignment data associated with a given alignment type (integer,
@@ -103,13 +108,23 @@ private:
 
   unsigned StackNaturalAlign;
 
-  enum ManglingModeT { MM_None, MM_ELF, MM_MachO, MM_WINCOFF, MM_Mips };
+  enum ManglingModeT {
+    MM_None,
+    MM_ELF,
+    MM_MachO,
+    MM_WinCOFF,
+    MM_WinCOFFX86,
+    MM_Mips
+  };
   ManglingModeT ManglingMode;
 
   SmallVector<unsigned char, 8> LegalIntWidths;
 
   /// \brief Primitive type alignment data.
   SmallVector<LayoutAlignElem, 16> Alignments;
+
+  /// \brief The string representation used to create this DataLayout
+  std::string StringRepresentation;
 
   typedef SmallVector<PointerAlignElem, 8> PointersTy;
   PointersTy Pointers;
@@ -180,6 +195,7 @@ public:
 
   DataLayout &operator=(const DataLayout &DL) {
     clear();
+    StringRepresentation = DL.StringRepresentation;
     BigEndian = DL.isBigEndian();
     StackNaturalAlign = DL.StackNaturalAlign;
     ManglingMode = DL.ManglingMode;
@@ -204,8 +220,14 @@ public:
   /// \brief Returns the string representation of the DataLayout.
   ///
   /// This representation is in the same format accepted by the string
-  /// constructor above.
-  std::string getStringRepresentation() const;
+  /// constructor above. This should not be used to compare two DataLayout as
+  /// different string can represent the same layout.
+  const std::string &getStringRepresentation() const {
+    return StringRepresentation;
+  }
+
+  /// \brief Test if the DataLayout was constructed from an empty string.
+  bool isDefault() const { return StringRepresentation.empty(); }
 
   /// \brief Returns true if the specified type is known to be a native integer
   /// type supported by the CPU.
@@ -231,7 +253,7 @@ public:
   unsigned getStackAlignment() const { return StackNaturalAlign; }
 
   bool hasMicrosoftFastStdCallMangling() const {
-    return ManglingMode == MM_WINCOFF;
+    return ManglingMode == MM_WinCOFFX86;
   }
 
   bool hasLinkerPrivateGlobalPrefix() const { return ManglingMode == MM_MachO; }
@@ -239,7 +261,7 @@ public:
   const char *getLinkerPrivateGlobalPrefix() const {
     if (ManglingMode == MM_MachO)
       return "l";
-    return getPrivateGlobalPrefix();
+    return "";
   }
 
   char getGlobalPrefix() const {
@@ -247,9 +269,10 @@ public:
     case MM_None:
     case MM_ELF:
     case MM_Mips:
+    case MM_WinCOFF:
       return '\0';
     case MM_MachO:
-    case MM_WINCOFF:
+    case MM_WinCOFFX86:
       return '_';
     }
     llvm_unreachable("invalid mangling mode");
@@ -264,7 +287,8 @@ public:
     case MM_Mips:
       return "$";
     case MM_MachO:
-    case MM_WINCOFF:
+    case MM_WinCOFF:
+    case MM_WinCOFFX86:
       return "L";
     }
     llvm_unreachable("invalid mangling mode");
@@ -445,22 +469,6 @@ inline DataLayout *unwrap(LLVMTargetDataRef P) {
 inline LLVMTargetDataRef wrap(const DataLayout *P) {
   return reinterpret_cast<LLVMTargetDataRef>(const_cast<DataLayout *>(P));
 }
-
-class DataLayoutPass : public ImmutablePass {
-  DataLayout DL;
-
-public:
-  /// This has to exist, because this is a pass, but it should never be used.
-  DataLayoutPass();
-  ~DataLayoutPass();
-
-  const DataLayout &getDataLayout() const { return DL; }
-
-  static char ID; // Pass identification, replacement for typeid
-
-  bool doFinalization(Module &M) override;
-  bool doInitialization(Module &M) override;
-};
 
 /// Used to lazily calculate structure layout information for a target machine,
 /// based on the DataLayout structure.

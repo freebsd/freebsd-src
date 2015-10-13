@@ -42,7 +42,7 @@ namespace driver {
   class Command;
   class Compilation;
   class InputInfo;
-  class Job;
+  class JobList;
   class JobAction;
   class SanitizerArgs;
   class ToolChain;
@@ -60,6 +60,12 @@ class Driver {
     CPPMode,
     CLMode
   } Mode;
+
+  enum SaveTempsMode {
+    SaveTempsNone,
+    SaveTempsCwd,
+    SaveTempsObj
+  } SaveTemps;
 
 public:
   // Diag - Forwarding function for diagnostics.
@@ -85,7 +91,7 @@ public:
   /// The path to the compiler resource directory.
   std::string ResourceDir;
 
-  /// A prefix directory used to emulated a limited subset of GCC's '-Bprefix'
+  /// A prefix directory used to emulate a limited subset of GCC's '-Bprefix'
   /// functionality.
   /// FIXME: This type of customization should be removed in favor of the
   /// universal driver when it is ready.
@@ -189,7 +195,7 @@ private:
                            llvm::opt::Arg **FinalPhaseArg = nullptr) const;
 
   // Before executing jobs, sets up response files for commands that need them.
-  void setUpResponseFiles(Compilation &C, Job &J);
+  void setUpResponseFiles(Compilation &C, Command &Cmd);
 
   void generatePrefixedToolNames(const char *Tool, const ToolChain &TC,
                                  SmallVectorImpl<std::string> &Names) const;
@@ -232,6 +238,9 @@ public:
     InstalledDir = Value;
   }
 
+  bool isSaveTempsEnabled() const { return SaveTemps != SaveTempsNone; }
+  bool isSaveTempsObj() const { return SaveTemps == SaveTempsObj; }
+
   /// @}
   /// @name Primary Functionality
   /// @{
@@ -253,7 +262,7 @@ public:
 
   /// ParseArgStrings - Parse the given list of strings into an
   /// ArgList.
-  llvm::opt::InputArgList *ParseArgStrings(ArrayRef<const char *> Args);
+  llvm::opt::InputArgList ParseArgStrings(ArrayRef<const char *> Args);
 
   /// BuildInputs - Construct the list of inputs and their types from 
   /// the given arguments.
@@ -348,8 +357,8 @@ public:
   /// \p Phase on the \p Input, taking in to account arguments
   /// like -fsyntax-only or --analyze.
   std::unique_ptr<Action>
-  ConstructPhaseAction(const llvm::opt::ArgList &Args, phases::ID Phase,
-                       std::unique_ptr<Action> Input) const;
+  ConstructPhaseAction(const ToolChain &TC, const llvm::opt::ArgList &Args,
+                       phases::ID Phase, std::unique_ptr<Action> Input) const;
 
   /// BuildJobsForAction - Construct the jobs to perform for the
   /// action \p A.
@@ -396,12 +405,12 @@ public:
   bool IsUsingLTO(const llvm::opt::ArgList &Args) const;
 
 private:
-  /// \brief Retrieves a ToolChain for a particular target triple.
+  /// \brief Retrieves a ToolChain for a particular \p Target triple.
   ///
   /// Will cache ToolChains for the life of the driver object, and create them
   /// on-demand.
   const ToolChain &getToolChain(const llvm::opt::ArgList &Args,
-                                StringRef DarwinArchName = "") const;
+                                const llvm::Triple &Target) const;
 
   /// @}
 

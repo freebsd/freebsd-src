@@ -11,6 +11,7 @@ DIRDEPS = \
 	lib/libcompiler_rt \
 	lib/libjail \
 	lib/libkvm \
+	lib/libutil \
 	lib/libxo \
 	lib/msun \
 

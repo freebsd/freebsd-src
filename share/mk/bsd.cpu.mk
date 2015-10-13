@@ -282,7 +282,11 @@ MACHINE_CPU += arm
 . if ${MACHINE_ARCH:Marmv6*} != ""
 MACHINE_CPU += armv6
 . endif
-. if ${MACHINE_ARCH:M*hf} == ""
+# armv6 is a hybrid. It uses the softfp ABI, but doesn't emulate
+# floating point in the general case, so don't define softfp for
+# it at this time. arm and armeb are pure softfp, so define it
+# for them.
+. if ${MACHINE_ARCH:Marmv6*} == ""
 MACHINE_CPU += softfp
 . endif
 .if ${MACHINE_ARCH} == "armv6"

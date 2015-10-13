@@ -79,6 +79,8 @@ struct in_addr_4in6 {
 /*
  * NOTE: ipv6 addrs should be 64-bit aligned, per RFC 2553.  in_conninfo has
  * some extra padding to accomplish this.
+ * NOTE 2: tcp_syncache.c uses first 5 32-bit words, which identify fport,
+ * lport, faddr to generate hash, so these fields shouldn't be moved.
  */
 struct in_endpoints {
 	u_int16_t	ie_fport;		/* foreign port */

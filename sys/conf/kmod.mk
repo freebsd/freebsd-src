@@ -113,6 +113,10 @@ CFLAGS+=	${DEBUG_FLAGS}
 CFLAGS+=	-fno-omit-frame-pointer -mno-omit-leaf-frame-pointer
 .endif
 
+.if ${MACHINE_CPUARCH} == "aarch64"
+CFLAGS+=	-fPIC
+.endif
+
 # Temporary workaround for PR 196407, which contains the fascinating details.
 # Don't allow clang to use fpu instructions or registers in kernel modules.
 .if ${MACHINE_CPUARCH} == arm
@@ -172,17 +176,27 @@ PROG=	${KMOD}.ko
 .if !defined(DEBUG_FLAGS)
 FULLPROG=	${PROG}
 .else
-FULLPROG=	${PROG}.debug
-${PROG}: ${FULLPROG} ${PROG}.symbols
-	${OBJCOPY} --strip-debug --add-gnu-debuglink=${PROG}.symbols\
+FULLPROG=	${PROG}.full
+${PROG}: ${FULLPROG} ${PROG}.debug
+	${OBJCOPY} --strip-debug --add-gnu-debuglink=${PROG}.debug \
 	    ${FULLPROG} ${.TARGET}
-${PROG}.symbols: ${FULLPROG}
+${PROG}.debug: ${FULLPROG}
 	${OBJCOPY} --only-keep-debug ${FULLPROG} ${.TARGET}
 .endif
 
 .if ${__KLD_SHARED} == yes
 ${FULLPROG}: ${KMOD}.kld
+.if ${MACHINE_CPUARCH} != "aarch64"
 	${LD} -Bshareable ${_LDFLAGS} -o ${.TARGET} ${KMOD}.kld
+.else
+#XXXKIB Relocatable linking in aarch64 ld from binutils 2.25.1 does
+#       not work.  The linker corrupts the references to the external
+#       symbols which are defined by other object in the linking set
+#       and should therefore loose the GOT entry.  The problem seems
+#       to be fixed in the binutils-gdb git HEAD as of 2015-10-04.  Hack
+#       below allows to get partially functioning modules for now.
+	${LD} -Bshareable ${_LDFLAGS} -o ${.TARGET} ${OBJS}
+.endif
 .if !defined(DEBUG_FLAGS)
 	${OBJCOPY} --strip-debug ${.TARGET}
 .endif
@@ -220,7 +234,7 @@ ${FULLPROG}: ${OBJS}
 .endif
 
 _ILINKS=machine
-.if ${MACHINE} != ${MACHINE_CPUARCH}
+.if ${MACHINE} != ${MACHINE_CPUARCH} && ${MACHINE} != "arm64"
 _ILINKS+=${MACHINE_CPUARCH}
 .endif
 .if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
@@ -266,7 +280,7 @@ ${_ILINKS}:
 CLEANFILES+= ${PROG} ${KMOD}.kld ${OBJS}
 
 .if defined(DEBUG_FLAGS)
-CLEANFILES+= ${FULLPROG} ${PROG}.symbols
+CLEANFILES+= ${FULLPROG} ${PROG}.debug
 .endif
 
 .if !target(install)
@@ -277,6 +291,7 @@ _INSTALLFLAGS:=	${_INSTALLFLAGS${ie}}
 .endfor
 
 .if !target(realinstall)
+KERN_DEBUGDIR?=	${DEBUGDIR}
 realinstall: _kmodinstall
 .ORDER: beforeinstall _kmodinstall
 _kmodinstall:
@@ -284,7 +299,7 @@ _kmodinstall:
 	    ${_INSTALLFLAGS} ${PROG} ${DESTDIR}${KMODDIR}
 .if defined(DEBUG_FLAGS) && !defined(INSTALL_NODEBUG) && ${MK_KERNEL_SYMBOLS} != "no"
 	${INSTALL} -o ${KMODOWN} -g ${KMODGRP} -m ${KMODMODE} \
-	    ${_INSTALLFLAGS} ${PROG}.symbols ${DESTDIR}${KMODDIR}
+	    ${_INSTALLFLAGS} ${PROG}.debug ${DESTDIR}${KERN_DEBUGDIR}${KMODDIR}
 .endif
 
 .include <bsd.links.mk>
@@ -360,11 +375,10 @@ __MPATH!=find ${SYSDIR:tA}/ -name \*_if.m
 _MPATH=${__MPATH:H:O:u}
 .endif
 .PATH.m: ${_MPATH}
-.for _s in ${SRCS:M*_if.[ch]}
-.if eixsts(${_s:R}.m})
-CLEANFILES+=	${_s}
-.endif
-.endfor # _s
+.for _i in ${SRCS:M*_if.[ch]}
+#removes too much, comment out until it's more constrained.
+#CLEANFILES+=	${_i}
+.endfor # _i
 .m.c:	${SYSDIR}/tools/makeobjops.awk
 	${AWK} -f ${SYSDIR}/tools/makeobjops.awk ${.IMPSRC} -c
 

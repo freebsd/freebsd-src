@@ -7,12 +7,11 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "lldb/lldb-python.h"
-
 #include "lldb/API/SBDebugger.h"
 
 #include "lldb/lldb-private.h"
 
+#include "lldb/API/SystemInitializerFull.h"
 #include "lldb/API/SBListener.h"
 #include "lldb/API/SBBroadcaster.h"
 #include "lldb/API/SBCommandInterpreter.h"
@@ -33,45 +32,23 @@
 #include "lldb/API/SBTypeSummary.h"
 #include "lldb/API/SBTypeSynthetic.h"
 
-
 #include "lldb/Core/Debugger.h"
 #include "lldb/Core/State.h"
 #include "lldb/Core/StreamFile.h"
 #include "lldb/DataFormatters/DataVisualization.h"
+#include "lldb/Initialization/SystemLifetimeManager.h"
 #include "lldb/Interpreter/Args.h"
 #include "lldb/Interpreter/CommandInterpreter.h"
 #include "lldb/Interpreter/OptionGroupPlatform.h"
 #include "lldb/Target/Process.h"
 #include "lldb/Target/TargetList.h"
 
+#include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/DynamicLibrary.h"
 
 using namespace lldb;
 using namespace lldb_private;
 
-
-SBInputReader::SBInputReader()
-{
-}
-SBInputReader::~SBInputReader()
-{
-}
-
-SBError
-SBInputReader::Initialize(lldb::SBDebugger& sb_debugger, unsigned long (*)(void*, lldb::SBInputReader*, lldb::InputReaderAction, char const*, unsigned long), void*, lldb::InputReaderGranularity, char const*, char const*, bool)
-{
-    return SBError();
-}
-
-void
-SBInputReader::SetIsDone(bool)
-{
-}
-bool
-SBInputReader::IsActive() const
-{
-    return false;
-}
 
 static llvm::sys::DynamicLibrary
 LoadPlugin (const lldb::DebuggerSP &debugger_sp, const FileSpec& spec, Error& error)
@@ -107,6 +84,34 @@ LoadPlugin (const lldb::DebuggerSP &debugger_sp, const FileSpec& spec, Error& er
     return llvm::sys::DynamicLibrary();
 }
 
+static llvm::ManagedStatic<SystemLifetimeManager> g_debugger_lifetime;
+
+SBInputReader::SBInputReader()
+{
+}
+SBInputReader::~SBInputReader()
+{
+}
+
+SBError
+SBInputReader::Initialize(lldb::SBDebugger &sb_debugger,
+                          unsigned long (*)(void *, lldb::SBInputReader *, lldb::InputReaderAction, char const *,
+                                            unsigned long),
+                          void *, lldb::InputReaderGranularity, char const *, char const *, bool)
+{
+    return SBError();
+}
+
+void
+SBInputReader::SetIsDone(bool)
+{
+}
+bool
+SBInputReader::IsActive() const
+{
+    return false;
+}
+
 void
 SBDebugger::Initialize ()
 {
@@ -115,15 +120,13 @@ SBDebugger::Initialize ()
     if (log)
         log->Printf ("SBDebugger::Initialize ()");
 
-    SBCommandInterpreter::InitializeSWIG ();
-
-    Debugger::Initialize(LoadPlugin);
+    g_debugger_lifetime->Initialize(llvm::make_unique<SystemInitializerFull>(), LoadPlugin);
 }
 
 void
 SBDebugger::Terminate ()
 {
-    Debugger::Terminate();
+    g_debugger_lifetime->Terminate();
 }
 
 void

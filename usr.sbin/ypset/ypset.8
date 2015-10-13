@@ -31,14 +31,14 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 04, 2015
+.Dd September 3, 2015
 .Dt YPSET 8
 .Os
 .Sh NAME
 .Nm ypset
 .Nd tell
 .Xr ypbind 8
-which YP server process to use
+which NIS server process to use
 .Sh SYNOPSIS
 .Nm
 .Op Fl h Ar host
@@ -49,32 +49,32 @@ The
 .Nm
 utility tells the
 .Xr ypbind 8
-process on the current machine which YP server process to communicate with.
+process on the current machine which NIS server process to communicate with.
 If
 .Ar server
-is down or is not running a YP server process, it is not discovered until
-a YP client process attempts to access a YP map, at which time
+is down or is not running a NIS server process, it is not discovered until
+a NIS client process attempts to access a NIS map, at which time
 .Xr ypbind 8
 tests the binding and takes appropriate action.
 .Pp
 The
 .Nm
 utility
-is most useful for binding a YP client that is not on the same broadcast
-network as the closest YP server, but can also be used for debugging
-a local network's YP configuration, testing specific YP client
+is most useful for binding a NIS client that is not on the same broadcast
+network as the closest NIS server, but can also be used for debugging
+a local network's NIS configuration, testing specific NIS client
 programs, or binding to a specific server when there are many servers on
-the local network supplying YP maps.
+the local network supplying NIS maps.
 .Pp
 The options are as follows:
 .Bl -tag -width indent
 .It Fl d Ar domain
-Use the YP domain
+Use the NIS domain
 .Ar domain
 instead of the default domain as returned by
 .Xr domainname 1 .
 .It Fl h Ar host
-Set the YP binding on
+Set the NIS binding on
 .Ar host
 instead of the local machine.
 .El

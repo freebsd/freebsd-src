@@ -1,4 +1,4 @@
-.TH "unbound\-host" "1" "Mar 10, 2015" "NLnet Labs" "unbound 1.5.3"
+.TH "unbound\-host" "1" "Oct  6, 2015" "NLnet Labs" "unbound 1.5.5"
 .\"
 .\" unbound-host.1 -- unbound DNS lookup utility
 .\"

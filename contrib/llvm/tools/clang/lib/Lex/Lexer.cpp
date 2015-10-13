@@ -143,14 +143,8 @@ Lexer::Lexer(SourceLocation fileloc, const LangOptions &langOpts,
 /// range will outlive it, so it doesn't take ownership of it.
 Lexer::Lexer(FileID FID, const llvm::MemoryBuffer *FromFile,
              const SourceManager &SM, const LangOptions &langOpts)
-  : FileLoc(SM.getLocForStartOfFile(FID)), LangOpts(langOpts) {
-
-  InitLexer(FromFile->getBufferStart(), FromFile->getBufferStart(),
-            FromFile->getBufferEnd());
-
-  // We *are* in raw mode.
-  LexingRawMode = true;
-}
+    : Lexer(SM.getLocForStartOfFile(FID), langOpts, FromFile->getBufferStart(),
+            FromFile->getBufferStart(), FromFile->getBufferEnd()) {}
 
 /// Create_PragmaLexer: Lexer constructor - Create a new lexer object for
 /// _Pragma expansion.  This has a variety of magic semantics that this method
@@ -205,7 +199,7 @@ Lexer *Lexer::Create_PragmaLexer(SourceLocation SpellingLoc,
 
 /// Stringify - Convert the specified string into a C string, with surrounding
 /// ""'s, and with escaped \ and " characters.
-std::string Lexer::Stringify(const std::string &Str, bool Charify) {
+std::string Lexer::Stringify(StringRef Str, bool Charify) {
   std::string Result = Str;
   char Quote = Charify ? '\'' : '"';
   for (unsigned i = 0, e = Result.size(); i != e; ++i) {
@@ -1860,7 +1854,7 @@ bool Lexer::LexAngledStringLiteral(Token &Result, const char *CurPtr) {
   char C = getAndAdvanceChar(CurPtr, Result);
   while (C != '>') {
     // Skip escaped characters.
-    if (C == '\\') {
+    if (C == '\\' && CurPtr < BufferEnd) {
       // Skip the escaped character.
       getAndAdvanceChar(CurPtr, Result);
     } else if (C == '\n' || C == '\r' ||             // Newline.

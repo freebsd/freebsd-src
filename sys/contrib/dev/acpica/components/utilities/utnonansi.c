@@ -380,7 +380,7 @@ ErrorExit:
 #if defined (ACPI_DEBUGGER) || defined (ACPI_APPLICATION)
 /*******************************************************************************
  *
- * FUNCTION:    AcpiUtSafeStrcpy, AcpiUtSafeStrcat, AcpiUtSafeStrncat
+ * FUNCTION:    AcpiUtSafeStrcpy, AcpiUtSafeStrcat
  *
  * PARAMETERS:  Adds a "DestSize" parameter to each of the standard string
  *              functions. This is the size of the Destination buffer.
@@ -429,27 +429,4 @@ AcpiUtSafeStrcat (
     strcat (Dest, Source);
     return (FALSE);
 }
-
-#ifndef _KERNEL
-BOOLEAN
-AcpiUtSafeStrncat (
-    char                    *Dest,
-    ACPI_SIZE               DestSize,
-    char                    *Source,
-    ACPI_SIZE               MaxTransferLength)
-{
-    ACPI_SIZE               ActualTransferLength;
-
-
-    ActualTransferLength = ACPI_MIN (MaxTransferLength, strlen (Source));
-
-    if ((strlen (Dest) + ActualTransferLength) >= DestSize)
-    {
-        return (TRUE);
-    }
-
-    strncat (Dest, Source, MaxTransferLength);
-    return (FALSE);
-}
-#endif
 #endif

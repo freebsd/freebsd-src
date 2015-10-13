@@ -530,25 +530,21 @@ sctp_process_init_ack(struct mbuf *m, int iphlen, int offset,
 		 * abandon the peer, its broke.
 		 */
 		if (retval == -3) {
-			/* We abort with an error of missing mandatory param */
-			op_err = sctp_generate_cause(SCTP_CAUSE_MISSING_PARAM, "");
-			if (op_err) {
-				/*
-				 * Expand beyond to include the mandatory
-				 * param cookie
-				 */
-				struct sctp_inv_mandatory_param *mp;
+			uint16_t len;
 
-				SCTP_BUF_LEN(op_err) =
-				    sizeof(struct sctp_inv_mandatory_param);
-				mp = mtod(op_err,
-				    struct sctp_inv_mandatory_param *);
+			len = (uint16_t) (sizeof(struct sctp_error_missing_param) + sizeof(uint16_t));
+			/* We abort with an error of missing mandatory param */
+			op_err = sctp_get_mbuf_for_msg(len, 0, M_NOWAIT, 1, MT_DATA);
+			if (op_err != NULL) {
+				struct sctp_error_missing_param *cause;
+
+				SCTP_BUF_LEN(op_err) = len;
+				cause = mtod(op_err, struct sctp_error_missing_param *);
 				/* Subtract the reserved param */
-				mp->length =
-				    htons(sizeof(struct sctp_inv_mandatory_param) - 2);
-				mp->num_param = htonl(1);
-				mp->param = htons(SCTP_STATE_COOKIE);
-				mp->resv = 0;
+				cause->cause.code = htons(SCTP_CAUSE_MISSING_PARAM);
+				cause->cause.length = htons(len);
+				cause->num_missing_params = htonl(1);
+				cause->type[0] = htons(SCTP_STATE_COOKIE);
 			}
 			sctp_abort_association(stcb->sctp_ep, stcb, m, iphlen,
 			    src, dst, sh, op_err,
@@ -781,10 +777,10 @@ sctp_handle_abort(struct sctp_abort_chunk *abort,
 		 * Need to check the cause codes for our two magic nat
 		 * aborts which don't kill the assoc necessarily.
 		 */
-		struct sctp_missing_nat_state *natc;
+		struct sctp_gen_error_cause *cause;
 
-		natc = (struct sctp_missing_nat_state *)(abort + 1);
-		error = ntohs(natc->cause);
+		cause = (struct sctp_gen_error_cause *)(abort + 1);
+		error = ntohs(cause->code);
 		if (error == SCTP_CAUSE_NAT_COLLIDING_STATE) {
 			SCTPDBG(SCTP_DEBUG_INPUT2, "Received Colliding state abort flags:%x\n",
 			    abort->ch.chunk_flags);
@@ -867,6 +863,7 @@ sctp_handle_shutdown(struct sctp_shutdown_chunk *cp,
 {
 	struct sctp_association *asoc;
 	int some_on_streamwheel;
+	int old_state;
 
 #if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
 	struct socket *so;
@@ -885,11 +882,11 @@ sctp_handle_shutdown(struct sctp_shutdown_chunk *cp,
 	if (ntohs(cp->ch.chunk_length) != sizeof(struct sctp_shutdown_chunk)) {
 		/* Shutdown NOT the expected size */
 		return;
-	} else {
-		sctp_update_acked(stcb, cp, abort_flag);
-		if (*abort_flag) {
-			return;
-		}
+	}
+	old_state = SCTP_GET_STATE(asoc);
+	sctp_update_acked(stcb, cp, abort_flag);
+	if (*abort_flag) {
+		return;
 	}
 	if (asoc->control_pdapi) {
 		/*
@@ -959,12 +956,16 @@ sctp_handle_shutdown(struct sctp_shutdown_chunk *cp,
 		    (SCTP_GET_STATE(asoc) == SCTP_STATE_SHUTDOWN_RECEIVED)) {
 			SCTP_STAT_DECR_GAUGE32(sctps_currestab);
 		}
-		SCTP_SET_STATE(asoc, SCTP_STATE_SHUTDOWN_ACK_SENT);
 		SCTP_CLEAR_SUBSTATE(asoc, SCTP_STATE_SHUTDOWN_PENDING);
-		sctp_stop_timers_for_shutdown(stcb);
-		sctp_send_shutdown_ack(stcb, net);
-		sctp_timer_start(SCTP_TIMER_TYPE_SHUTDOWNACK, stcb->sctp_ep,
-		    stcb, net);
+		if (SCTP_GET_STATE(asoc) != SCTP_STATE_SHUTDOWN_ACK_SENT) {
+			SCTP_SET_STATE(asoc, SCTP_STATE_SHUTDOWN_ACK_SENT);
+			sctp_stop_timers_for_shutdown(stcb);
+			sctp_send_shutdown_ack(stcb, net);
+			sctp_timer_start(SCTP_TIMER_TYPE_SHUTDOWNACK,
+			    stcb->sctp_ep, stcb, net);
+		} else if (old_state == SCTP_STATE_SHUTDOWN_ACK_SENT) {
+			sctp_send_shutdown_ack(stcb, net);
+		}
 	}
 }
 
@@ -2553,27 +2554,27 @@ sctp_handle_cookie_echo(struct mbuf *m, int iphlen, int offset,
 	if (timevalcmp(&now, &time_expires, >)) {
 		/* cookie is stale! */
 		struct mbuf *op_err;
-		struct sctp_stale_cookie_msg *scm;
+		struct sctp_error_stale_cookie *cause;
 		uint32_t tim;
 
-		op_err = sctp_get_mbuf_for_msg(sizeof(struct sctp_stale_cookie_msg),
+		op_err = sctp_get_mbuf_for_msg(sizeof(struct sctp_error_stale_cookie),
 		    0, M_NOWAIT, 1, MT_DATA);
 		if (op_err == NULL) {
 			/* FOOBAR */
 			return (NULL);
 		}
 		/* Set the len */
-		SCTP_BUF_LEN(op_err) = sizeof(struct sctp_stale_cookie_msg);
-		scm = mtod(op_err, struct sctp_stale_cookie_msg *);
-		scm->ph.param_type = htons(SCTP_CAUSE_STALE_COOKIE);
-		scm->ph.param_length = htons((sizeof(struct sctp_paramhdr) +
+		SCTP_BUF_LEN(op_err) = sizeof(struct sctp_error_stale_cookie);
+		cause = mtod(op_err, struct sctp_error_stale_cookie *);
+		cause->cause.code = htons(SCTP_CAUSE_STALE_COOKIE);
+		cause->cause.length = htons((sizeof(struct sctp_paramhdr) +
 		    (sizeof(uint32_t))));
 		/* seconds to usec */
 		tim = (now.tv_sec - time_expires.tv_sec) * 1000000;
 		/* add in usec */
 		if (tim == 0)
 			tim = now.tv_usec - cookie->time_entered.tv_usec;
-		scm->time_usec = htonl(tim);
+		cause->stale_time = htonl(tim);
 		sctp_send_operr_to(src, dst, sh, cookie->peers_vtag, op_err,
 		    mflowtype, mflowid, l_inp->fibnum,
 		    vrf_id, port);
@@ -4814,13 +4815,11 @@ process_control_chunks:
 			/* The INIT chunk must be the only chunk. */
 			if ((num_chunks > 1) ||
 			    (length - *offset > (int)SCTP_SIZE32(chk_length))) {
-				op_err = sctp_generate_cause(SCTP_BASE_SYSCTL(sctp_diag_info_code),
-				    "INIT not the only chunk");
-				sctp_abort_association(inp, stcb, m, iphlen,
-				    src, dst, sh, op_err,
-				    mflowtype, mflowid,
-				    vrf_id, port);
+				/* RFC 4960 requires that no ABORT is sent */
 				*offset = length;
+				if (locked_tcb) {
+					SCTP_TCB_UNLOCK(locked_tcb);
+				}
 				return (NULL);
 			}
 			/* Honor our resource limit. */
@@ -5578,39 +5577,27 @@ process_control_chunks:
 	unknown_chunk:
 			/* it's an unknown chunk! */
 			if ((ch->chunk_type & 0x40) && (stcb != NULL)) {
-				struct mbuf *mm;
-				struct sctp_paramhdr *phd;
+				struct sctp_gen_error_cause *cause;
 				int len;
 
-				mm = sctp_get_mbuf_for_msg(sizeof(struct sctp_paramhdr),
+				op_err = sctp_get_mbuf_for_msg(sizeof(struct sctp_gen_error_cause),
 				    0, M_NOWAIT, 1, MT_DATA);
-				if (mm) {
+				if (op_err != NULL) {
 					len = min(SCTP_SIZE32(chk_length), (uint32_t) (length - *offset));
-					phd = mtod(mm, struct sctp_paramhdr *);
-					/*
-					 * We cheat and use param type since
-					 * we did not bother to define a
-					 * error cause struct. They are the
-					 * same basic format with different
-					 * names.
-					 */
-					phd->param_type = htons(SCTP_CAUSE_UNRECOG_CHUNK);
-					phd->param_length = htons(len + sizeof(*phd));
-					SCTP_BUF_LEN(mm) = sizeof(*phd);
-					SCTP_BUF_NEXT(mm) = SCTP_M_COPYM(m, *offset, len, M_NOWAIT);
-					if (SCTP_BUF_NEXT(mm)) {
-						if (sctp_pad_lastmbuf(SCTP_BUF_NEXT(mm), SCTP_SIZE32(len) - len, NULL) == NULL) {
-							sctp_m_freem(mm);
-						} else {
+					cause = mtod(op_err, struct sctp_gen_error_cause *);
+					cause->code = htons(SCTP_CAUSE_UNRECOG_CHUNK);
+					cause->length = htons(len + sizeof(struct sctp_gen_error_cause));
+					SCTP_BUF_LEN(op_err) = sizeof(struct sctp_gen_error_cause);
+					SCTP_BUF_NEXT(op_err) = SCTP_M_COPYM(m, *offset, len, M_NOWAIT);
+					if (SCTP_BUF_NEXT(op_err) != NULL) {
 #ifdef SCTP_MBUF_LOGGING
-							if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_MBUF_LOGGING_ENABLE) {
-								sctp_log_mbc(SCTP_BUF_NEXT(mm), SCTP_MBUF_ICOPY);
-							}
-#endif
-							sctp_queue_op_err(stcb, mm);
+						if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_MBUF_LOGGING_ENABLE) {
+							sctp_log_mbc(SCTP_BUF_NEXT(op_err), SCTP_MBUF_ICOPY);
 						}
+#endif
+						sctp_queue_op_err(stcb, op_err);
 					} else {
-						sctp_m_freem(mm);
+						sctp_m_freem(op_err);
 					}
 				}
 			}

@@ -16,6 +16,7 @@
 #include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/LLVMContext.h"
+#include "llvm/IR/Module.h"
 #include "llvm/Pass.h"
 using namespace llvm;
 
@@ -33,14 +34,15 @@ namespace {
 
     void getAnalysisUsage(AnalysisUsage &AU) const override {}
 
-    void initializePass() override {
+    bool doInitialization(Module &M) override {
       // Note: NoAA does not call InitializeAliasAnalysis because it's
       // special and does not support chaining.
-      DataLayoutPass *DLP = getAnalysisIfAvailable<DataLayoutPass>();
-      DL = DLP ? &DLP->getDataLayout() : nullptr;
+      DL = &M.getDataLayout();
+      return true;
     }
 
-    AliasResult alias(const Location &LocA, const Location &LocB) override {
+    AliasResult alias(const MemoryLocation &LocA,
+                      const MemoryLocation &LocB) override {
       return MayAlias;
     }
 
@@ -51,19 +53,17 @@ namespace {
       return UnknownModRefBehavior;
     }
 
-    bool pointsToConstantMemory(const Location &Loc, bool OrLocal) override {
+    bool pointsToConstantMemory(const MemoryLocation &Loc,
+                                bool OrLocal) override {
       return false;
     }
-    Location getArgLocation(ImmutableCallSite CS, unsigned ArgIdx,
-                            ModRefResult &Mask) override {
-      Mask = ModRef;
-      AAMDNodes AATags;
-      CS->getAAMetadata(AATags);
-      return Location(CS.getArgument(ArgIdx), UnknownSize, AATags);
+    ModRefResult getArgModRefInfo(ImmutableCallSite CS,
+                                  unsigned ArgIdx) override {
+      return ModRef;
     }
 
     ModRefResult getModRefInfo(ImmutableCallSite CS,
-                               const Location &Loc) override {
+                               const MemoryLocation &Loc) override {
       return ModRef;
     }
     ModRefResult getModRefInfo(ImmutableCallSite CS1,
@@ -72,7 +72,6 @@ namespace {
     }
 
     void deleteValue(Value *V) override {}
-    void copyValue(Value *From, Value *To) override {}
     void addEscapingUse(Use &U) override {}
 
     /// getAdjustedAnalysisPointer - This method is used when a pass implements

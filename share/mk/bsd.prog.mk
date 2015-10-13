@@ -249,6 +249,7 @@ _SCRIPTSINS_${script:T}: ${script}
 NLSNAME?=	${PROG}
 .include <bsd.nls.mk>
 
+.include <bsd.confs.mk>
 .include <bsd.files.mk>
 .include <bsd.incs.mk>
 .include <bsd.links.mk>
@@ -258,7 +259,7 @@ realinstall: _maninstall
 .ORDER: beforeinstall _maninstall
 .endif
 
-.endif
+.endif	# !target(install)
 
 .if !target(lint)
 lint: ${SRCS:M*.c}

@@ -58,7 +58,6 @@ __FBSDID("$FreeBSD$");
 #include <net/if_dl.h>
 #include <net/if_types.h>
 #include <net/netisr.h>
-#include <net/if_llc.h>
 #include <net/ethernet.h>
 #include <net/route.h>
 #include <net/vnet.h>
@@ -71,13 +70,13 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip_carp.h>
 #endif
 
-#include <net/if_arc.h>
-#include <net/iso88025.h>
-
 #include <security/mac/mac_framework.h>
 
 #define SIN(s) ((const struct sockaddr_in *)(s))
-#define SDL(s) ((struct sockaddr_dl *)s)
+
+static struct timeval arp_lastlog;
+static int arp_curpps;
+static int arp_maxpps = 1;
 
 SYSCTL_DECL(_net_link_ether);
 static SYSCTL_NODE(_net_link_ether, PF_INET, inet, CTLFLAG_RW, 0, "");
@@ -122,6 +121,16 @@ SYSCTL_VNET_PCPUSTAT(_net_link_ether_arp, OID_AUTO, stats, struct arpstat,
 SYSCTL_INT(_net_link_ether_inet, OID_AUTO, maxhold, CTLFLAG_VNET | CTLFLAG_RW,
 	&VNET_NAME(arp_maxhold), 0,
 	"Number of packets to hold per ARP entry");
+SYSCTL_INT(_net_link_ether_inet, OID_AUTO, max_log_per_second,
+	CTLFLAG_RW, &arp_maxpps, 0,
+	"Maximum number of remotely triggered ARP messages that can be "
+	"logged per second");
+
+#define	ARP_LOG(pri, ...)	do {					\
+	if (ppsratecheck(&arp_lastlog, &arp_curpps, arp_maxpps))	\
+		log((pri), "arp: " __VA_ARGS__);			\
+} while (0)
+
 
 static void	arp_init(void);
 static void	arpintr(struct mbuf *);
@@ -143,26 +152,6 @@ static const struct netisr_handler arp_nh = {
 	.nh_proto = NETISR_ARP,
 	.nh_policy = NETISR_POLICY_SOURCE,
 };
-
-#ifdef AF_INET
-/*
- * called by in_scrubprefix() to remove entry from the table when
- * the interface goes away
- */
-void
-arp_ifscrub(struct ifnet *ifp, uint32_t addr)
-{
-	struct sockaddr_in addr4;
-
-	bzero((void *)&addr4, sizeof(addr4));
-	addr4.sin_len    = sizeof(addr4);
-	addr4.sin_family = AF_INET;
-	addr4.sin_addr.s_addr = addr;
-	IF_AFDATA_WLOCK(ifp);
-	lla_delete(LLTABLE(ifp), LLE_IFADDR, (struct sockaddr *)&addr4);
-	IF_AFDATA_WUNLOCK(ifp);
-}
-#endif
 
 /*
  * Timeout routine.  Age arp_tab entries periodically.
@@ -218,16 +207,14 @@ arptimer(void *arg)
 
 	/* Guard against race with other llentry_free(). */
 	if (lle->la_flags & LLE_LINKED) {
-
-		size_t pkts_dropped;
 		LLE_REMREF(lle);
-		pkts_dropped = llentry_free(lle);
-		ARPSTAT_ADD(dropped, pkts_dropped);
-	} else
-		LLE_FREE_LOCKED(lle);
-
+		lltable_unlink_entry(lle->lle_tbl, lle);
+	}
 	IF_AFDATA_UNLOCK(ifp);
 
+	size_t pkts_dropped = llentry_free(lle);
+
+	ARPSTAT_ADD(dropped, pkts_dropped);
 	ARPSTAT_INC(timeouts);
 
 	CURVNET_RESTORE();
@@ -529,34 +516,76 @@ static void
 arpintr(struct mbuf *m)
 {
 	struct arphdr *ar;
+	struct ifnet *ifp;
+	char *layer;
+	int hlen;
+
+	ifp = m->m_pkthdr.rcvif;
 
 	if (m->m_len < sizeof(struct arphdr) &&
 	    ((m = m_pullup(m, sizeof(struct arphdr))) == NULL)) {
-		log(LOG_NOTICE, "arp: runt packet -- m_pullup failed\n");
+		ARP_LOG(LOG_NOTICE, "packet with short header received on %s\n",
+		    if_name(ifp));
 		return;
 	}
 	ar = mtod(m, struct arphdr *);
 
-	if (ntohs(ar->ar_hrd) != ARPHRD_ETHER &&
-	    ntohs(ar->ar_hrd) != ARPHRD_IEEE802 &&
-	    ntohs(ar->ar_hrd) != ARPHRD_ARCNET &&
-	    ntohs(ar->ar_hrd) != ARPHRD_IEEE1394 &&
-	    ntohs(ar->ar_hrd) != ARPHRD_INFINIBAND) {
-		log(LOG_NOTICE, "arp: unknown hardware address format (0x%2D)"
-		    " (from %*D to %*D)\n", (unsigned char *)&ar->ar_hrd, "",
-		    ETHER_ADDR_LEN, (u_char *)ar_sha(ar), ":",
-		    ETHER_ADDR_LEN, (u_char *)ar_tha(ar), ":");
+	/* Check if length is sufficient */
+	if (m->m_len <  arphdr_len(ar)) {
+		m = m_pullup(m, arphdr_len(ar));
+		if (m == NULL) {
+			ARP_LOG(LOG_NOTICE, "short packet received on %s\n",
+			    if_name(ifp));
+			return;
+		}
+		ar = mtod(m, struct arphdr *);
+	}
+
+	hlen = 0;
+	layer = "";
+	switch (ntohs(ar->ar_hrd)) {
+	case ARPHRD_ETHER:
+		hlen = ETHER_ADDR_LEN; /* RFC 826 */
+		layer = "ethernet";
+		break;
+	case ARPHRD_IEEE802:
+		hlen = 6; /* RFC 1390, FDDI_ADDR_LEN */
+		layer = "fddi";
+		break;
+	case ARPHRD_ARCNET:
+		hlen = 1; /* RFC 1201, ARC_ADDR_LEN */
+		layer = "arcnet";
+		break;
+	case ARPHRD_INFINIBAND:
+		hlen = 20;	/* RFC 4391, INFINIBAND_ALEN */ 
+		layer = "infiniband";
+		break;
+	case ARPHRD_IEEE1394:
+		hlen = 0; /* SHALL be 16 */ /* RFC 2734 */
+		layer = "firewire";
+
+		/*
+		 * Restrict too long harware addresses.
+		 * Currently we are capable of handling 20-byte
+		 * addresses ( sizeof(lle->ll_addr) )
+		 */
+		if (ar->ar_hln >= 20)
+			hlen = 16;
+		break;
+	default:
+		ARP_LOG(LOG_NOTICE,
+		    "packet with unknown harware format 0x%02d received on %s\n",
+		    ntohs(ar->ar_hrd), if_name(ifp));
 		m_freem(m);
 		return;
 	}
 
-	if (m->m_len < arphdr_len(ar)) {
-		if ((m = m_pullup(m, arphdr_len(ar))) == NULL) {
-			log(LOG_NOTICE, "arp: runt packet\n");
-			m_freem(m);
-			return;
-		}
-		ar = mtod(m, struct arphdr *);
+	if (hlen != 0 && hlen != ar->ar_hln) {
+		ARP_LOG(LOG_NOTICE,
+		    "packet with invalid %s address length %d received on %s\n",
+		    layer, ar->ar_hln, if_name(ifp));
+		m_freem(m);
+		return;
 	}
 
 	ARPSTAT_INC(received);
@@ -589,9 +618,6 @@ static int log_arp_wrong_iface = 1;
 static int log_arp_movements = 1;
 static int log_arp_permanent_modify = 1;
 static int allow_multicast = 0;
-static struct timeval arp_lastlog;
-static int arp_curpps;
-static int arp_maxpps = 1;
 
 SYSCTL_INT(_net_link_ether_inet, OID_AUTO, log_arp_wrong_iface, CTLFLAG_RW,
 	&log_arp_wrong_iface, 0,
@@ -604,15 +630,6 @@ SYSCTL_INT(_net_link_ether_inet, OID_AUTO, log_arp_permanent_modify, CTLFLAG_RW,
 	"log arp replies from MACs different than the one in the permanent arp entry");
 SYSCTL_INT(_net_link_ether_inet, OID_AUTO, allow_multicast, CTLFLAG_RW,
 	&allow_multicast, 0, "accept multicast addresses");
-SYSCTL_INT(_net_link_ether_inet, OID_AUTO, max_log_per_second,
-	CTLFLAG_RW, &arp_maxpps, 0,
-	"Maximum number of remotely triggered ARP messages that can be "
-	"logged per second");
-
-#define	ARP_LOG(pri, ...)	do {					\
-	if (ppsratecheck(&arp_lastlog, &arp_curpps, arp_maxpps))	\
-		log((pri), "arp: " __VA_ARGS__);			\
-} while (0)
 
 static void
 in_arpinput(struct mbuf *m)
@@ -628,7 +645,6 @@ in_arpinput(struct mbuf *m)
 	struct in_addr isaddr, itaddr, myaddr;
 	u_int8_t *enaddr = NULL;
 	int op;
-	int req_len;
 	int bridged = 0, is_bridge = 0;
 	int carped;
 	struct sockaddr_in sin;
@@ -642,13 +658,12 @@ in_arpinput(struct mbuf *m)
 	if (ifp->if_type == IFT_BRIDGE)
 		is_bridge = 1;
 
-	req_len = arphdr_len2(ifp->if_addrlen, sizeof(struct in_addr));
-	if (m->m_len < req_len && (m = m_pullup(m, req_len)) == NULL) {
-		ARP_LOG(LOG_NOTICE, "runt packet -- m_pullup failed\n");
-		return;
-	}
-
+	/*
+	 * We already have checked that mbuf contains enough contiguous data
+	 * to hold entire arp message according to the arp header.
+	 */
 	ah = mtod(m, struct arphdr *);
+
 	/*
 	 * ARP is only for IPv4 so we can reject packets with
 	 * a protocol length not equal to an IPv4 address.

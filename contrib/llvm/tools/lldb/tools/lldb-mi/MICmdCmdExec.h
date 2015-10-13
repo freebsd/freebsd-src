@@ -7,9 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-//++
-// File:        MICmdCmdExec.h
-//
 // Overview:    CMICmdCmdExecRun                interface.
 //              CMICmdCmdExecContinue           interface.
 //              CMICmdCmdExecNext               interface.
@@ -18,6 +15,8 @@
 //              CMICmdCmdExecStepInstruction    interface.
 //              CMICmdCmdExecFinish             interface.
 //              CMICmdCmdExecInterrupt          interface.
+//              CMICmdCmdExecArguments          interface.
+//              CMICmdCmdExecAbort              interface.
 //
 //              To implement new MI commands derive a new command class from the command base
 //              class. To enable the new command for interpretation add the new command class
@@ -27,18 +26,11 @@
 //                  MICmdCmd.h / .cpp
 //              For an introduction to adding a new command see CMICmdCmdSupportInfoMiCmdQuery
 //              command class as an example.
-//
-// Environment: Compilers:  Visual C++ 12.
-//                          gcc (Ubuntu/Linaro 4.8.1-10ubuntu9) 4.8.1
-//              Libraries:  See MIReadmetxt.
-//
-// Copyright:   None.
-//--
 
 #pragma once
 
 // Third party headers:
-#include <lldb/API/SBCommandReturnObject.h>
+#include "lldb/API/SBCommandReturnObject.h"
 
 // In-house headers:
 #include "MICmdBase.h"
@@ -64,10 +56,10 @@ class CMICmdCmdExecRun : public CMICmdBase
     // Overridden:
   public:
     // From CMICmdInvoker::ICmd
-    virtual bool Execute(void);
-    virtual bool Acknowledge(void);
+    bool Execute(void) override;
+    bool Acknowledge(void) override;
     // From CMICmnBase
-    /* dtor */ virtual ~CMICmdCmdExecRun(void);
+    /* dtor */ ~CMICmdCmdExecRun(void) override;
 
     // Attributes:
   private:
@@ -95,10 +87,10 @@ class CMICmdCmdExecContinue : public CMICmdBase
     // Overridden:
   public:
     // From CMICmdInvoker::ICmd
-    virtual bool Execute(void);
-    virtual bool Acknowledge(void);
+    bool Execute(void) override;
+    bool Acknowledge(void) override;
     // From CMICmnBase
-    /* dtor */ virtual ~CMICmdCmdExecContinue(void);
+    /* dtor */ ~CMICmdCmdExecContinue(void) override;
 
     // Attributes:
   private:
@@ -126,11 +118,11 @@ class CMICmdCmdExecNext : public CMICmdBase
     // Overridden:
   public:
     // From CMICmdInvoker::ICmd
-    virtual bool Execute(void);
-    virtual bool Acknowledge(void);
-    virtual bool ParseArgs(void);
+    bool Execute(void) override;
+    bool Acknowledge(void) override;
+    bool ParseArgs(void) override;
     // From CMICmnBase
-    /* dtor */ virtual ~CMICmdCmdExecNext(void);
+    /* dtor */ ~CMICmdCmdExecNext(void) override;
 
     // Attributes:
   private:
@@ -160,11 +152,11 @@ class CMICmdCmdExecStep : public CMICmdBase
     // Overridden:
   public:
     // From CMICmdInvoker::ICmd
-    virtual bool Execute(void);
-    virtual bool Acknowledge(void);
-    virtual bool ParseArgs(void);
+    bool Execute(void) override;
+    bool Acknowledge(void) override;
+    bool ParseArgs(void) override;
     // From CMICmnBase
-    /* dtor */ virtual ~CMICmdCmdExecStep(void);
+    /* dtor */ ~CMICmdCmdExecStep(void) override;
 
     // Attributes:
   private:
@@ -194,11 +186,11 @@ class CMICmdCmdExecNextInstruction : public CMICmdBase
     // Overridden:
   public:
     // From CMICmdInvoker::ICmd
-    virtual bool Execute(void);
-    virtual bool Acknowledge(void);
-    virtual bool ParseArgs(void);
+    bool Execute(void) override;
+    bool Acknowledge(void) override;
+    bool ParseArgs(void) override;
     // From CMICmnBase
-    /* dtor */ virtual ~CMICmdCmdExecNextInstruction(void);
+    /* dtor */ ~CMICmdCmdExecNextInstruction(void) override;
 
     // Attributes:
   private:
@@ -228,11 +220,11 @@ class CMICmdCmdExecStepInstruction : public CMICmdBase
     // Overridden:
   public:
     // From CMICmdInvoker::ICmd
-    virtual bool Execute(void);
-    virtual bool Acknowledge(void);
-    virtual bool ParseArgs(void);
+    bool Execute(void) override;
+    bool Acknowledge(void) override;
+    bool ParseArgs(void) override;
     // From CMICmnBase
-    /* dtor */ virtual ~CMICmdCmdExecStepInstruction(void);
+    /* dtor */ ~CMICmdCmdExecStepInstruction(void) override;
 
     // Attributes:
   private:
@@ -262,11 +254,11 @@ class CMICmdCmdExecFinish : public CMICmdBase
     // Overridden:
   public:
     // From CMICmdInvoker::ICmd
-    virtual bool Execute(void);
-    virtual bool Acknowledge(void);
-    virtual bool ParseArgs(void);
+    bool Execute(void) override;
+    bool Acknowledge(void) override;
+    bool ParseArgs(void) override;
     // From CMICmnBase
-    /* dtor */ virtual ~CMICmdCmdExecFinish(void);
+    /* dtor */ ~CMICmdCmdExecFinish(void) override;
 
     // Attributes:
   private:
@@ -298,12 +290,68 @@ class CMICmdCmdExecInterrupt : public CMICmdBase
     // Overridden:
   public:
     // From CMICmdInvoker::ICmd
-    virtual bool Execute(void);
-    virtual bool Acknowledge(void);
+    bool Execute(void) override;
+    bool Acknowledge(void) override;
     // From CMICmnBase
-    /* dtor */ virtual ~CMICmdCmdExecInterrupt(void);
+    /* dtor */ ~CMICmdCmdExecInterrupt(void) override;
 
     // Attributes:
   private:
     lldb::SBCommandReturnObject m_lldbResult;
+};
+
+//++ ============================================================================
+// Details: MI command class. MI commands derived from the command base class.
+//          *this class implements MI command "exec-arguments".
+// Gotchas: None.
+// Authors: Ilia Kirianovskii 25/11/2014.
+// Changes: None.
+//--
+class CMICmdCmdExecArguments : public CMICmdBase
+{
+    // Statics:
+  public:
+    // Required by the CMICmdFactory when registering *this command
+    static CMICmdBase *CreateSelf(void);
+
+    // Methods:
+  public:
+    /* ctor */ CMICmdCmdExecArguments(void);
+
+    // Overridden:
+  public:
+    // From CMICmdInvoker::ICmd
+    bool Execute(void) override;
+    bool Acknowledge(void) override;
+    bool ParseArgs(void) override;
+    // From CMICmnBase
+    /* dtor */ ~CMICmdCmdExecArguments(void) override;
+
+    // Attributes:
+  private:
+    const CMIUtilString m_constStrArgArguments;
+};
+
+//++ ============================================================================
+// Details: MI command class. MI commands derived from the command base class.
+//          *this class implements MI command "exec-abort".
+//--
+class CMICmdCmdExecAbort : public CMICmdBase
+{
+    // Statics:
+  public:
+    // Required by the CMICmdFactory when registering *this command
+    static CMICmdBase *CreateSelf(void);
+
+    // Methods:
+  public:
+    /* ctor */ CMICmdCmdExecAbort(void);
+
+    // Overridden:
+  public:
+    // From CMICmdInvoker::ICmd
+    bool Execute(void) override;
+    bool Acknowledge(void) override;
+    // From CMICmnBase
+    /* dtor */ ~CMICmdCmdExecAbort(void) override;
 };

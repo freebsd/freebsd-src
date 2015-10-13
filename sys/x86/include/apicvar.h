@@ -129,12 +129,14 @@
 #else
 #define	IPI_DYN_FIRST	(APIC_IPI_INTS + 8)
 #endif
-#define	IPI_DYN_LAST	(254)			/* IPIs allocated at runtime */
+#define	IPI_DYN_LAST	(253)			/* IPIs allocated at runtime */
 
 /*
  * IPI_STOP_HARD does not need to occupy a slot in the IPI vector space since
  * it is delivered using an NMI anyways.
  */
+#define	IPI_NMI_FIRST	254
+#define	IPI_TRACE	254			/* Interrupt for tracing. */
 #define	IPI_STOP_HARD	255			/* Stop CPU with a NMI. */
 
 /*

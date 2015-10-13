@@ -44,7 +44,6 @@ dev/iicbus/adt746x.c		optional        adt746x powermac
 dev/iicbus/ds1631.c		optional	ds1631 powermac
 dev/iicbus/ds1775.c		optional	ds1775 powermac
 dev/iicbus/max6690.c		optional	max6690 powermac
-dev/kbd/kbd.c			optional	sc | vt
 dev/nand/nfc_fsl.c		optional	nand mpc85xx
 dev/nand/nfc_rb.c		optional	nand mpc85xx
 # ofw can be either aim or fdt: fdt case handled in files. aim only powerpc specific.
@@ -133,6 +132,7 @@ powerpc/mikrotik/platform_rb.c	optional	mikrotik
 powerpc/mpc85xx/atpic.c		optional	mpc85xx isa
 powerpc/mpc85xx/ds1553_bus_fdt.c	optional	ds1553 fdt
 powerpc/mpc85xx/ds1553_core.c	optional	ds1553
+powerpc/mpc85xx/fsl_sdhc.c	optional	mpc85xx sdhc
 powerpc/mpc85xx/i2c.c		optional	iicbus fdt
 powerpc/mpc85xx/isa.c		optional	mpc85xx isa
 powerpc/mpc85xx/lbc.c		optional	mpc85xx

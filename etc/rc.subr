@@ -768,6 +768,8 @@ check_startmsgs()
 #
 #	${name}_prepend	n	Command added before ${command}.
 #
+#	${name}_login_class n	Login class to use, else "daemon".
+#
 #	${rc_arg}_cmd	n	If set, use this as the method when invoked;
 #				Otherwise, use default command (see below)
 #
@@ -942,7 +944,7 @@ run_rc_command()
 	    _nice=\$${name}_nice	_user=\$${name}_user \
 	    _group=\$${name}_group	_groups=\$${name}_groups \
 	    _fib=\$${name}_fib		_env=\$${name}_env \
-	    _prepend=\$${name}_prepend
+	    _prepend=\$${name}_prepend	_login_class=\${${name}_login_class:-daemon}
 
 	if [ -n "$_user" ]; then	# unset $_user if running as that user
 		if [ "$_user" = "$(eval $IDCMD)" ]; then
@@ -1049,6 +1051,9 @@ $command $rc_flags $command_args"
 					_doit="$_prepend $_doit"
 				fi
 			fi
+
+					# Prepend default limits
+			_doit="limits -C $_login_class $_doit"
 
 					# run the full command
 					#

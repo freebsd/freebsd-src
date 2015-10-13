@@ -355,6 +355,7 @@ vop_inactive {
 
 
 %% reclaim	vp	E E E
+%! reclaim	post	vop_reclaim_post
 
 vop_reclaim {
 	IN struct vnode *vp;
