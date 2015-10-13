@@ -2365,6 +2365,7 @@ product HUAWEI K3765_INIT	0x1520	K3765 Initial
 product HUAWEI K4505_INIT	0x1521	K4505 Initial
 product HUAWEI K3772_INIT	0x1526	K3772 Initial
 product HUAWEI E3272_INIT	0x155b	LTE modem initial
+product HUAWEI ME909U		0x1573  LTE modem
 product HUAWEI R215_INIT	0x1582	LTE modem initial
 product HUAWEI R215		0x1588	LTE modem
 product HUAWEI ETS2055		0x1803	CDMA modem
