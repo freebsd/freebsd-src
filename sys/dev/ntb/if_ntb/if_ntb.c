@@ -519,7 +519,7 @@ ntb_transport_free(void *transport)
 	struct ntb_softc *ntb = nt->ntb;
 	int i;
 
-	nt->transport_link = NTB_LINK_DOWN;
+	ntb_transport_link_cleanup(nt);
 
 	callout_drain(&nt->link_work);
 
@@ -1257,15 +1257,15 @@ ntb_transport_link_cleanup(struct ntb_netdev *nt)
 {
 	int i;
 
-	if (nt->transport_link == NTB_LINK_DOWN)
-		callout_drain(&nt->link_work);
-	else
-		nt->transport_link = NTB_LINK_DOWN;
-
 	/* Pass along the info to any clients */
 	for (i = 0; i < nt->max_qps; i++)
 		if (!test_bit(i, &nt->qp_bitmap))
 			ntb_qp_link_down(&nt->qps[i]);
+
+	if (nt->transport_link == NTB_LINK_DOWN)
+		callout_drain(&nt->link_work);
+	else
+		nt->transport_link = NTB_LINK_DOWN;
 
 	/* 
 	 * The scratchpad registers keep the values if the remote side
