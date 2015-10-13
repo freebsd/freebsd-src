@@ -53,6 +53,7 @@
 .Op Fl m Ar maximum-size
 .Op Fl N Ar userdb-dir
 .Op Fl o Ar fs-options
+.Op Fl r Ar roundup
 .Op Fl S Ar sector-size
 .Op Fl s Ar image-size
 .Op Fl t Ar fs-type
@@ -195,6 +196,9 @@ Deprecated.
 See the
 .Fl Z
 flag.
+.It Fl r Ar roundup
+Round the image up to specified block size that should be multiple
+of block size.
 .It Fl S Ar sector-size
 Set the file system sector size to
 .Ar sector-size .
