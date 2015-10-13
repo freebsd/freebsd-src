@@ -2,87 +2,64 @@
 
 NO_WERROR=
 PROG=	truss
-SRCS=	main.c setup.c syscalls.c syscalls.h ioctl.c
-
-.if exists(${.CURDIR}/${MACHINE_ARCH}-fbsd.c)
-SRCS+= ${MACHINE_ARCH}-fbsd.c
-.else
-SRCS+= ${MACHINE_CPUARCH}-fbsd.c
-.endif
+SRCS=	main.c setup.c syscalls.c ioctl.c
 
 .PATH:	${.CURDIR:H}/kdump
 SRCS+=	utrace.c
 
 CFLAGS+= -I${.CURDIR} -I. -I${.CURDIR}/../../sys
-CLEANFILES= syscalls.master syscalls.h ioctl.c
-
-.SUFFIXES: .master
-
-syscalls.master:	${.CURDIR}/../../sys/kern/syscalls.master
-	cat ${.ALLSRC} > syscalls.master
-
-syscalls.h:	syscalls.master
-	/bin/sh ${.CURDIR}/../../sys/kern/makesyscalls.sh syscalls.master \
-		${.CURDIR}/i386.conf
+CLEANFILES= ioctl.c
 
 ioctl.c: ${.CURDIR}/../kdump/mkioctls
 	env MACHINE=${MACHINE} CPP="${CPP}" \
 		/bin/sh ${.CURDIR}/../kdump/mkioctls return ${DESTDIR}${INCLUDEDIR} > ${.TARGET}
 
+# Define where to generate syscalls for each ABI.
+ABI_SYSPATH.freebsd=		sys/kern
+ABI_SYSPATH.freebsd32=		sys/compat/freebsd32
+ABI_SYSPATH.cloudabi64=		sys/compat/cloudabi64
+ABI_SYSPATH.i386-linux=		sys/i386/linux
+ABI_SYSPATH.amd64-linux32=	sys/amd64/linux32
+
+ABIS+=		freebsd
+# Each ABI is expected to have an ABI.c, MACHINE_ARCH-ABI.c or
+# MACHINE_CPUARCH-ABI.c file that will be used to map the syscall arguments.
 .if ${MACHINE_CPUARCH} == "i386"
-SRCS+=	i386-linux.c linux_syscalls.h
-CLEANFILES+=i386l-syscalls.master linux_syscalls.h
-
-i386l-syscalls.master:	${.CURDIR}/../../sys/i386/linux/syscalls.master
-	cat ${.ALLSRC} > ${.TARGET}
-
-linux_syscalls.h:	i386l-syscalls.master
-	/bin/sh ${.CURDIR}/../../sys/kern/makesyscalls.sh ${.ALLSRC} \
-		${.CURDIR}/i386linux.conf
+ABIS+=		i386-linux
 .endif
-
 .if ${MACHINE_CPUARCH} == "amd64"
-SRCS+=	amd64-linux32.c linux32_syscalls.h
-CLEANFILES+=amd64l32-syscalls.master linux32_syscalls.h
-
-amd64l32-syscalls.master: ${.CURDIR}/../../sys/amd64/linux32/syscalls.master
-	cat ${.ALLSRC} > ${.TARGET}
-
-linux32_syscalls.h:	amd64l32-syscalls.master
-	/bin/sh ${.CURDIR}/../../sys/kern/makesyscalls.sh ${.ALLSRC} \
-		${.CURDIR}/amd64linux32.conf
-
-SRCS+=	amd64-fbsd32.c freebsd32_syscalls.h
-CLEANFILES+=fbsd32-syscalls.master freebsd32_syscalls.h
-
-fbsd32-syscalls.master: ${.CURDIR}/../../sys/compat/freebsd32/syscalls.master
-	cat ${.ALLSRC} > ${.TARGET}
-
-freebsd32_syscalls.h:	fbsd32-syscalls.master
-	/bin/sh ${.CURDIR}/../../sys/kern/makesyscalls.sh ${.ALLSRC} \
-		${.CURDIR}/fbsd32.conf
-
-SRCS+=	amd64-cloudabi64.c cloudabi64_syscalls.h
-CLEANFILES+=amd64cloudabi64-syscalls.master cloudabi64_syscalls.h
-
-amd64cloudabi64-syscalls.master: ${.CURDIR}/../../sys/compat/cloudabi64/syscalls.master
-	cat ${.ALLSRC} > ${.TARGET}
-
-cloudabi64_syscalls.h:	amd64cloudabi64-syscalls.master
-	/bin/sh ${.CURDIR}/../../sys/kern/makesyscalls.sh ${.ALLSRC} \
-		${.CURDIR}/amd64cloudabi64.conf
+ABIS+=		amd64-linux32
+ABIS+=		freebsd32
+ABIS+=		cloudabi64
 .endif
-
 .if ${MACHINE_ARCH} == "powerpc64"
-SRCS+=	powerpc-fbsd.c freebsd32_syscalls.h
-CLEANFILES+=fbsd32-syscalls.master freebsd32_syscalls.h
-
-fbsd32-syscalls.master: ${.CURDIR}/../../sys/compat/freebsd32/syscalls.master
-	cat ${.ALLSRC} > ${.TARGET}
-
-freebsd32_syscalls.h:	fbsd32-syscalls.master
-	/bin/sh ${.CURDIR}/../../sys/kern/makesyscalls.sh ${.ALLSRC} \
-		${.CURDIR}/fbsd32.conf
+ABIS+=		freebsd32
 .endif
+
+.for abi in ${ABIS}
+# Find the right file to handle this ABI.
+abi_src=
+ABI_SRCS=	${abi}.c ${MACHINE_ARCH}-${abi}.c ${MACHINE_CPUARCH}-${abi}.c
+.for f in ${ABI_SRCS}
+.if exists(${.CURDIR}/${f}) && empty(abi_src)
+abi_src=	${f}
+.endif
+.endfor
+SRCS:=		${SRCS} ${abi_src} ${abi}_syscalls.h
+CLEANFILES+=	${abi}_syscalls.conf ${abi}_syscalls.master ${abi}_syscalls.h
+${abi}_syscalls.conf: ${.CURDIR}/makesyscallsconf.sh
+	/bin/sh ${.CURDIR}/makesyscallsconf.sh ${abi} ${.TARGET}
+
+${abi}_syscalls.master:	${.CURDIR:H:H}/${ABI_SYSPATH.${abi}}/syscalls.master
+	cp -f ${.ALLSRC} ${.TARGET}
+
+${abi}_syscalls.h:	${abi}_syscalls.master ${abi}_syscalls.conf \
+			${.CURDIR:H:H}/sys/kern/makesyscalls.sh
+	/bin/sh ${.CURDIR:H:H}/sys/kern/makesyscalls.sh \
+	    ${abi}_syscalls.master ${abi}_syscalls.conf
+# Eliminate compiler warning about non-static global.
+	sed -i '' '/^const char \*/s/^/static /' ${.TARGET}.tmp
+	mv ${.TARGET}.tmp ${.TARGET}
+.endfor
 
 .include <bsd.prog.mk>

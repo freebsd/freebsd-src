@@ -19,12 +19,12 @@ DIRDEPS = \
 # local dependencies - needed for -jN in clean tree
 amd64-cloudabi64.o: cloudabi64_syscalls.h
 amd64-cloudabi64.po: cloudabi64_syscalls.h
-amd64-fbsd.o: syscalls.h
-amd64-fbsd.po: syscalls.h
-amd64-fbsd32.o: freebsd32_syscalls.h
-amd64-fbsd32.po: freebsd32_syscalls.h
-amd64-linux32.o: linux32_syscalls.h
-amd64-linux32.po: linux32_syscalls.h
+amd64-freebsd.o: freebsd_syscalls.h
+amd64-freebsd.po: freebsd_syscalls.h
+amd64-freebsd32.o: freebsd32_syscalls.h
+amd64-freebsd32.po: freebsd32_syscalls.h
+amd64-linux32.o: amd64-linux32_syscalls.h
+amd64-linux32.po: amd64-linux32_syscalls.h
 ioctl.o: ioctl.c
 ioctl.po: ioctl.c
 .endif
