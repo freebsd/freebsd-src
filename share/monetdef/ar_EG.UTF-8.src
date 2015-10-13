@@ -4,16 +4,16 @@
 # -----------------------------------------------------------------------------
 #
 # int_curr_symbol (last character always SPACE)
-EUR 
+EGP 
 #
 # currency_symbol
-Eu
+ج.م.‏
 #
 # mon_decimal_point
-,
+٫
 #
 # mon_thousands_sep
-.
+٬
 #
 # mon_grouping
 3
@@ -22,7 +22,7 @@ Eu
 
 #
 # negative_sign
--
+‏-
 #
 # int_frac_digits
 2

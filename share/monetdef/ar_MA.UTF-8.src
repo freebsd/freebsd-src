@@ -4,16 +4,16 @@
 # -----------------------------------------------------------------------------
 #
 # int_curr_symbol (last character always SPACE)
-PHP 
+MAD 
 #
 # currency_symbol
-�
+د.م.‏
 #
 # mon_decimal_point
-.
+,
 #
 # mon_thousands_sep
-,
+.
 #
 # mon_grouping
 3
@@ -22,7 +22,7 @@ PHP
 
 #
 # negative_sign
--
+‎-
 #
 # int_frac_digits
 2
@@ -34,13 +34,13 @@ PHP
 1
 #
 # p_sep_by_space
-0
+1
 #
 # n_cs_precedes
 1
 #
 # n_sep_by_space
-0
+1
 #
 # p_sign_posn
 1

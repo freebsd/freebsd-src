@@ -4,16 +4,16 @@
 # -----------------------------------------------------------------------------
 #
 # int_curr_symbol (last character always SPACE)
-CRC 
+SAR 
 #
 # currency_symbol
-�
+ر.س.‏
 #
 # mon_decimal_point
-,
+٫
 #
 # mon_thousands_sep
-.
+٬
 #
 # mon_grouping
 3
@@ -22,25 +22,25 @@ CRC
 
 #
 # negative_sign
--
+‏-
 #
 # int_frac_digits
-0
+2
 #
 # frac_digits
-0
+2
 #
 # p_cs_precedes
 1
 #
 # p_sep_by_space
-0
+1
 #
 # n_cs_precedes
 1
 #
 # n_sep_by_space
-0
+1
 #
 # p_sign_posn
 1
