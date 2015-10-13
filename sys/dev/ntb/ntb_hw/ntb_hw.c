@@ -690,9 +690,9 @@ ntb_setup_xeon(struct ntb_softc *ntb)
 	}
 
 	if ((val & XEON_PPD_DEV_TYPE) != 0)
-		ntb->dev_type = NTB_DEV_DSD;
-	else
 		ntb->dev_type = NTB_DEV_USD;
+	else
+		ntb->dev_type = NTB_DEV_DSD;
 
 	ntb->reg_ofs.pdb	= XEON_PDOORBELL_OFFSET;
 	ntb->reg_ofs.pdb_mask	= XEON_PDBMSK_OFFSET;
