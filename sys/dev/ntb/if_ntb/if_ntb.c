@@ -809,7 +809,7 @@ ntb_tx_copy_task(struct ntb_transport_qp *qp, struct ntb_queue_entry *entry,
 	/* TODO: replace with bus_space_write */
 	hdr->flags = entry->flags | IF_NTB_DESC_DONE_FLAG;
 
-	ntb_ring_sdb(qp->ntb, qp->qp_num);
+	ntb_ring_doorbell(qp->ntb, qp->qp_num);
 
 	/* 
 	 * The entry length can only be zero if the packet is intended to be a
