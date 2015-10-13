@@ -338,6 +338,8 @@ dump_ctype(void)
 				ctn->ctype |= _ISXDIGIT;
 			if (strchr(" \t", (char)wc))
 				ctn->ctype |= _ISBLANK;
+			if (wc == ' ')
+				ctn->ctype |= _ISPRINT;
 
 			/*
 			 * Technically these settings are only
