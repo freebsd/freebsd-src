@@ -50,6 +50,9 @@ LDADD=	${DPADD}
 CLEANDIRS+=	ldscripts
 CLEANFILES+=	ldemul-list.h stringify.sed
 
+FILES=		${LDSCRIPTS:S|^|ldscripts/|}
+FILESDIR=	${SCRIPTDIR}
+
 HOST=		${TARGET_TUPLE}
 LIBSEARCHPATH=	\"${TOOLS_PREFIX}/lib\":\"${TOOLS_PREFIX}/usr/lib\"
 .for ext in ${ELF_SCR_EXT}
@@ -70,9 +73,5 @@ ldemul-list.h:
 
 stringify.sed:
 	ln -sf ${SRCDIR}/ld/emultempl/astring.sed ${.TARGET}
-
-afterinstall:
-	${INSTALL} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
-	    ${LDSCRIPTS:S|^|ldscripts/|} ${DESTDIR}${SCRIPTDIR}
 
 .include <bsd.prog.mk>
