@@ -1,6 +1,4 @@
 /*
- * Copyright 2006 Peter Grehan <grehan@freebsd.org>
- * Copyright 2005 Orlando Bassotto <orlando@break.net>
  * Copyright 1998 Sean Eric Fagan
  *
  * Redistribution and use in source and binary forms, with or without
@@ -11,6 +9,12 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *	This product includes software developed by Sean Eric Fagan
+ * 4. Neither the name of the author may be used to endorse or promote
+ *    products derived from this software without specific prior written
+ *    permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -28,27 +32,22 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-/* FreeBSD/powerpc-specific system call handling. */
+/* FreeBSD/mips-specific system call handling. */
 
 #include <sys/ptrace.h>
 #include <sys/syscall.h>
 
-#include <machine/reg.h>
 #include <machine/frame.h>
+#include <machine/reg.h>
 
 #include <stdio.h>
 
 #include "truss.h"
 
-#ifdef __powerpc64__	/* 32-bit compatibility */
-#include "freebsd32_syscalls.h"
-#define	syscallnames	freebsd32_syscallnames
-#else			/* native 32-bit */
-#include "syscalls.h"
-#endif
+#include "freebsd_syscalls.h"
 
 static int
-powerpc_fetch_args(struct trussinfo *trussinfo, u_int narg)
+mips_fetch_args(struct trussinfo *trussinfo, u_int narg)
 {
 	struct ptrace_io_desc iorequest;
 	struct reg regs;
@@ -71,52 +70,44 @@ powerpc_fetch_args(struct trussinfo *trussinfo, u_int narg)
 	 * The system call argument count and code from ptrace() already
 	 * account for these, but we need to skip over the first argument.
 	 */
-	reg = 0;
-	switch (regs.fixreg[0]) {
+	reg = A0;
+	switch (regs.r_regs[V0]) {
 	case SYS_syscall:
-		reg += 1;
+		reg = A1;
 		break;
 	case SYS___syscall:
-		reg += 2;
+#if defined(__mips_n32) || defined(__mips_n64)
+		reg = A1;
+#else
+		reg = A2;
+#endif
 		break;
 	}
 
-	for (i = 0; i < narg && reg < NARGREG; i++, reg++) {
-#ifdef __powerpc64__
-		cs->args[i] = regs.fixreg[FIRSTARG + reg] & 0xffffffff;
+#if defined(__mips_n32) || defined(__mips_n64)
+#define	MAXREG		A7
 #else
-		cs->args[i] = regs.fixreg[FIRSTARG + reg];
+#define	MAXREG		A3
 #endif
-	}
-	if (narg > i) {
-#ifdef __powerpc64__
-		uint32_t args32[narg - i];
-		u_int j;
 
-#endif
+	for (i = 0; i < narg && reg <= MAXREG; i++, reg++)
+		cs->args[i] = regs.r_regs[reg];
+	if (narg > i) {
 		iorequest.piod_op = PIOD_READ_D;
-		iorequest.piod_offs = (void *)(regs.fixreg[1] + 8);
-#ifdef __powerpc64__
-		iorequest.piod_addr = args32;
-		iorequest.piod_len = sizeof(args32);
-#else
+		iorequest.piod_offs = (void *)((uintptr_t)regs.r_regs[SP] +
+		    4 * sizeof(cs->args[0]));
 		iorequest.piod_addr = &cs->args[i];
 		iorequest.piod_len = (narg - i) * sizeof(cs->args[0]);
-#endif
 		ptrace(PT_IO, tid, (caddr_t)&iorequest, 0);
 		if (iorequest.piod_len == 0)
 			return (-1);
-#ifdef __powerpc64__
-		for (j = 0; j < narg - i; j++)
-			cs->args[i + j] = args32[j];
-#endif
 	}
 
 	return (0);
 }
 
 static int
-powerpc_fetch_retval(struct trussinfo *trussinfo, long *retval, int *errorp)
+mips_fetch_retval(struct trussinfo *trussinfo, long *retval, int *errorp)
 {
 	struct reg regs;
 	lwpid_t tid;
@@ -127,24 +118,24 @@ powerpc_fetch_retval(struct trussinfo *trussinfo, long *retval, int *errorp)
 		return (-1);
 	}
 
-	/* XXX: Does not have fixup for __syscall(). */
-#ifdef __powerpc64__
-	retval[0] = regs.fixreg[3] & 0xffffffff;
-	retval[1] = regs.fixreg[4] & 0xffffffff;
-#else
-	retval[0] = regs.fixreg[3];
-	retval[1] = regs.fixreg[4];
-#endif
-	*errorp = !!(regs.cr & 0x10000000);
+	/* XXX: Does not have special handling for __syscall(). */
+	retval[0] = regs.r_regs[V0];
+	retval[1] = regs.r_regs[V1];
+	*errorp = !!regs.r_regs[A3];
 	return (0);
 }
 
-static struct procabi powerpc_fbsd = {
+
+static struct procabi mips_freebsd = {
+#ifdef __mips_n64
+	"FreeBSD ELF64",
+#else
 	"FreeBSD ELF32",
+#endif
 	syscallnames,
 	nitems(syscallnames),
-	powerpc_fetch_args,
-	powerpc_fetch_retval
+	mips_fetch_args,
+	mips_fetch_retval
 };
 
-PROCABI(powerpc_fbsd);
+PROCABI(mips_freebsd);

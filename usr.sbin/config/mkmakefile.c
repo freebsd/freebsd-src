@@ -623,6 +623,7 @@ do_xxfiles(char *tag, FILE *fp)
 	slen = strlen(suff);
 
 	fprintf(fp, "%sFILES=", SUFF);
+	free(SUFF);
 	lpos = 8;
 	STAILQ_FOREACH(tp, &ftab, f_next)
 		if (tp->f_type != NODEPEND) {
@@ -641,6 +642,7 @@ do_xxfiles(char *tag, FILE *fp)
 				fprintf(fp, "%s ", tp->f_fn);
 			lpos += len + 1;
 		}
+	free(suff);
 	if (lpos != 8)
 		putc('\n', fp);
 }

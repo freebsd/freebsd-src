@@ -715,7 +715,7 @@ ntb_transport_link_up(struct ntb_transport_qp *qp)
  * @len: length of the data buffer
  *
  * Enqueue a new transmit buffer onto the transport queue from which a NTB
- * payload will be transmitted.  This assumes that a lock is behing held to
+ * payload will be transmitted.  This assumes that a lock is being held to
  * serialize access to the qp.
  *
  * RETURNS: An appropriate ERRNO error value on error, or zero for success.
@@ -809,7 +809,7 @@ ntb_tx_copy_task(struct ntb_transport_qp *qp, struct ntb_queue_entry *entry,
 	/* TODO: replace with bus_space_write */
 	hdr->flags = entry->flags | IF_NTB_DESC_DONE_FLAG;
 
-	ntb_ring_sdb(qp->ntb, qp->qp_num);
+	ntb_ring_doorbell(qp->ntb, qp->qp_num);
 
 	/* 
 	 * The entry length can only be zero if the packet is intended to be a
@@ -1047,7 +1047,7 @@ ntb_transport_link_work(void *arg)
 	/* send the local info, in the opposite order of the way we read it */
 	for (i = 0; i < num_mw; i++) {
 		rc = ntb_write_remote_spad(ntb, IF_NTB_MW0_SZ_HIGH + (i * 2),
-		    ntb_get_mw_size(ntb, i) >> 32);
+		    (uint64_t)ntb_get_mw_size(ntb, i) >> 32);
 		if (rc != 0)
 			goto out;
 
@@ -1311,7 +1311,7 @@ ntb_qp_link_cleanup(struct ntb_transport_qp *qp)
  *
  * Notify NTB transport layer of client's desire to no longer receive data on
  * transport queue specified.  It is the client's responsibility to ensure all
- * entries on queue are purged or otherwise handled appropraitely.
+ * entries on queue are purged or otherwise handled appropriately.
  */
 static void
 ntb_transport_link_down(struct ntb_transport_qp *qp)
